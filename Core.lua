@@ -1,0 +1,254 @@
+local ADDON, ns = ...
+_G.Terminal = ns -- public API for other addons
+
+ns.name = ADDON
+ns.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "dev"
+
+BINDING_HEADER_TERMINAL = "Terminal"
+BINDING_NAME_TERMINAL_TOGGLE = "Toggle terminal"
+
+local DEFAULTS = {
+	freq = {}, -- usage counts, used to boost frequently picked results
+	recent = {}, -- freqKeys of the last things picked, newest first (the terminal's history)
+	debug = false, -- .debug on: print blocked actions and Terminal's own steps
+}
+
+ns.providers = {}
+ns.providerOrder = {}
+ns.commands = {}
+ns.commandOrder = {}
+
+----------------------------------------------------------------------
+-- Utilities
+----------------------------------------------------------------------
+
+--- Lines in the main chat window as system text (what terminal commands answer with).
+function ns:Output(lines)
+	if type(lines) ~= "table" then return end
+	local info = ChatTypeInfo and ChatTypeInfo.SYSTEM
+	local r, g, b = 1, 1, 0
+	if info then r, g, b = info.r or r, info.g or g, info.b or b end
+	local chat = DEFAULT_CHAT_FRAME
+	for _, line in ipairs(lines) do
+		line = tostring(line)
+		if chat and chat.AddMessage then chat:AddMessage(line, r, g, b) else print(line) end
+	end
+end
+
+function ns:Print(...)
+	local parts = {}
+	for i = 1, select("#", ...) do
+		parts[i] = tostring((select(i, ...)))
+	end
+	print("|cff33ff99Terminal|r: " .. table.concat(parts, " "))
+end
+
+function ns.LoadBlizz(addon)
+	if C_AddOns.IsAddOnLoaded(addon) then return true end
+	pcall(C_AddOns.LoadAddOn, addon)
+	return C_AddOns.IsAddOnLoaded(addon)
+end
+
+function ns:Bump(freqKey)
+	if not freqKey or not self.db then return end
+	self.db.freq[freqKey] = (self.db.freq[freqKey] or 0) + 1
+	-- history: most recent first, each thing once
+	local recent = self.db.recent
+	if type(recent) ~= "table" then recent = {}; self.db.recent = recent end
+	for i = #recent, 1, -1 do
+		if recent[i] == freqKey then table.remove(recent, i) end
+	end
+	table.insert(recent, 1, freqKey)
+	for i = #recent, 41, -1 do recent[i] = nil end
+end
+
+----------------------------------------------------------------------
+-- Providers
+--
+-- ns:RegisterProvider("id", {
+--     label    = "Items",              -- shown on the right of each row
+--     color    = "ff7fb2ff",           -- label colour (AARRGGBB)
+--     aliases  = { "item", "bag" },    -- accepted after @ in the terminal
+--     events   = { "BAG_UPDATE_DELAYED" }, -- events that invalidate the cache
+--     explicit = true,                 -- only searched with @kind (or a mode)
+--     lazy     = true,                 -- skipped on empty queries (heavy index)
+--     guard    = 1.0,                  -- ignore events for N seconds after a collect
+--     refreshOnOpen = true,            -- re-collect each time the terminal opens
+--     noCombat = true,                 -- Enter does nothing in combat (protected actions)
+--     collect  = function() return { entry, ... } end,
+-- })
+--
+-- Entry fields:
+--   name (required), key, icon, detail, text (extra searchable text),
+--   color (|cffrrggbb prefix for the name), link (hyperlink for tooltip),
+--   tip (plain tooltip string), activate = function(entry, args) end,
+--   secondary = function(entry, args) end  (Shift+Enter)
+----------------------------------------------------------------------
+
+local eventFrame = CreateFrame("Frame")
+local watchers = {}
+
+function ns:WatchEvent(event, provider)
+	if not watchers[event] then
+		watchers[event] = {}
+		if not pcall(eventFrame.RegisterEvent, eventFrame, event) then
+			watchers[event] = nil
+			return
+		end
+	end
+	table.insert(watchers[event], provider)
+end
+
+function ns:RegisterProvider(id, def)
+	def.id = id
+	def.label = def.label or id
+	def.aliases = def.aliases or {}
+	def._dirty = true
+	if not self.providers[id] then
+		table.insert(self.providerOrder, id)
+	end
+	self.providers[id] = def
+	for _, ev in ipairs(def.events or {}) do
+		self:WatchEvent(ev, def)
+	end
+end
+
+function ns:ResolveProvider(token)
+	token = (token or ""):lower()
+	if token == "" then return nil end
+	for _, id in ipairs(self.providerOrder) do
+		local p = self.providers[id]
+		if token == id or token == p.label:lower() then return p end
+		for _, a in ipairs(p.aliases) do
+			if token == a:lower() then return p end
+		end
+	end
+	for _, id in ipairs(self.providerOrder) do
+		local p = self.providers[id]
+		if id:sub(1, #token) == token then return p end
+	end
+end
+
+function ns:MarkAllDirty()
+	for _, p in pairs(self.providers) do p._dirty = true end
+end
+
+function ns:GetEntries(p)
+	if p._dirty or not p._entries then
+		local ok, res = pcall(p.collect, p)
+		p._collectedAt = GetTime()
+		p._dirty = false
+		if ok and type(res) == "table" then
+			local clean = {}
+			local label = "|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r"
+			for _, e in ipairs(res) do
+				if type(e.name) == "string" and e.name ~= "" then
+					e.kind = p.id
+					if e.noCombat == nil then e.noCombat = p.noCombat end
+					
+					e.kindLabel = label
+					e._lname = e.name:lower()
+					e.freqKey = p.id .. ":" .. tostring(e.key or e.name)
+					clean[#clean + 1] = e
+				end
+			end
+			p._entries = clean
+		else
+			p._entries = p._entries or {}
+			if not p._warned then
+				p._warned = true
+				self:Print(p.label .. " provider failed: " .. tostring(res))
+			end
+		end
+	end
+	return p._entries
+end
+
+----------------------------------------------------------------------
+-- Terminal commands (the "." mode)
+--
+-- ns:RegisterCommand("name", {
+--     desc = "what it does", aliases = { "n" },
+--     run  = function(args, ns) return { "output line", ... } end, -- return lines to
+-- })                                                                -- keep the terminal open
+----------------------------------------------------------------------
+
+function ns:RegisterCommand(name, def)
+	name = name:lower()
+	def.name = name
+	def.aliases = def.aliases or {}
+	if not self.commands[name] then
+		table.insert(self.commandOrder, name)
+	end
+	self.commands[name] = def
+end
+
+----------------------------------------------------------------------
+-- Events / saved variables
+----------------------------------------------------------------------
+
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
+
+eventFrame:SetScript("OnEvent", function(_, event, arg1)
+	if event == "ADDON_LOADED" then
+		if arg1 ~= ADDON then return end
+		TerminalDB = TerminalDB or {}
+		for k, v in pairs(DEFAULTS) do
+			if TerminalDB[k] == nil then
+				TerminalDB[k] = type(v) == "table" and CopyTable(v) or v
+			end
+		end
+		ns.db = TerminalDB
+		return
+	elseif event == "PLAYER_LOGIN" then
+		-- First run: bind ` (tilde key) to toggle the terminal, or CTRL-` if ` is taken.
+		-- Change it any time with:  /term .bind <KEY>
+		-- (also once after the rename from WoWTerm: its old key binding is taken over)
+		if not ns.db.bindingTerminal then
+			ns.db.bindingTerminal = true
+			if not GetBindingKey("TERMINAL_TOGGLE") then
+				local chosen
+				local old = "WOW" .. "TERM_TOGGLE"
+				for _, key in ipairs({ "`", "CTRL-`" }) do
+					local action = GetBindingAction(key)
+					if (not action or action == "" or action == old) and SetBinding(key, "TERMINAL_TOGGLE") then
+						chosen = key
+						break
+					end
+				end
+				if chosen then
+					SaveBindings(GetCurrentBindingSet())
+					ns:Print("loaded. Press " .. chosen .. " (or type /term) to open. Rebind with: /term .bind <KEY>")
+				else
+					ns:Print("loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE")
+				end
+			end
+		end
+		return
+	end
+
+	local list = watchers[event]
+	if list then
+		local now = GetTime()
+		for _, p in ipairs(list) do
+			if not (p.guard and p._collectedAt and now - p._collectedAt < p.guard) then
+				p._dirty = true
+			end
+		end
+	end
+end)
+
+----------------------------------------------------------------------
+-- Slash commands
+----------------------------------------------------------------------
+
+SLASH_TERMINAL1 = "/term"
+SlashCmdList.TERMINAL = function(msg)
+	msg = strtrim(msg or "")
+	if msg == "" then
+		ns.UI:Toggle()
+	else
+		ns.UI:Open(msg)
+	end
+end

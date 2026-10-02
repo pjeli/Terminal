@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="TERMINAL_TOGGLE" header="TERMINAL" category="ADDONS">
+		if Terminal and Terminal.UI then Terminal.UI:Toggle() end
+	</Binding>
+</Bindings>

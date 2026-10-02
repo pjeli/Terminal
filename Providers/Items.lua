@@ -1,0 +1,360 @@
+local ns = select(2, ...)
+local H = ns.Highlight
+
+local EQUIP_SLOTS = {
+	"HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot", "ShirtSlot", "TabardSlot",
+	"WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot", "Finger0Slot", "Finger1Slot",
+	"Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot",
+}
+
+local function QualityHex(q)
+	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+	return c and c.hex
+end
+
+local function BagLabel(bag)
+	if bag == 0 then return "Backpack" end
+	if Enum.BagIndex and bag == Enum.BagIndex.ReagentBag then return "Reagent bag" end
+	return "Bag " .. bag
+end
+
+local function FindBagButton(bag, slot)
+	local function scan(f)
+		if not f or not f:IsShown() or not f.EnumerateValidItems then return nil end
+		for _, btn in f:EnumerateValidItems() do
+			if btn:GetBagID() == bag and btn:GetID() == slot then return btn end
+		end
+	end
+	local b = scan(_G.ContainerFrameCombinedBags)
+	if b then return b end
+	for i = 1, 13 do
+		b = scan(_G["ContainerFrame" .. i])
+		if b then return b end
+	end
+end
+
+local function ShowInBags(e)
+	if not IsBagOpen(0) then OpenAllBags() end
+	H:Find(function()
+		local found = {}
+		for _, loc in ipairs(e.locs) do
+			local b = FindBagButton(loc[1], loc[2])
+			if b then found[#found + 1] = b end
+		end
+		return #found > 0 and found or nil
+	end, 8)
+end
+
+local function ShowEquipped(e)
+	if not (CharacterFrame and CharacterFrame:IsShown()) then ToggleCharacter("PaperDollFrame") end
+	H:Find(function()
+		local f = _G["Character" .. e.slotName]
+		return f and f:IsVisible() and f or nil
+	end, 8)
+end
+
+-- runs once the character window is open: make sure it's on the equipment tab, then point at the slot
+local function ShowEquippedAfter(e)
+	if PaperDollFrame and not PaperDollFrame:IsShown() then pcall(ToggleCharacter, "PaperDollFrame") end
+	H:Find(function()
+		local f = _G["Character" .. e.slotName]
+		return f and f:IsVisible() and f or nil
+	end, 8)
+end
+
+-- Quest items. A bag item is tied to its quest even without any other addon:
+--   1. the game says so (GetContainerItemQuestInfo gives the quest an item starts),
+--   2. the item's name is one of the quest log's item objectives ("Intact Limbs: 2/8"),
+--   3. the item's name appears anywhere in a quest's objectives ("Bring me 8 Intact Limbs"),
+--   4. for quest-class items, anywhere in a quest's description.
+-- Then searching for the item brings its quest along (see UI:Search).
+
+local function Str(v)
+	if type(v) ~= "string" then return nil end
+	if issecretvalue and issecretvalue(v) then return nil end
+	return v
+end
+
+local function Plain(t)
+	t = t:gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+	return (t:gsub("\226\128\152", "'"):gsub("\226\128\153", "'")) -- curly apostrophes -> '
+end
+
+--- lowercase, apostrophes dropped, punctuation to spaces: "Darthalia\226\128\153s Orders!" == "darthalias orders"
+local function N(t)
+	t = Plain(t):lower():gsub("'", ""):gsub("[^%w%s]", " "):gsub("%s+", " ")
+	return (t:gsub("^ ", ""):gsub(" $", ""))
+end
+
+--- The quest log as text: { { id, title, objectives = {lowercase...}, full = lowercase } ... }
+--- and name -> quest for item objectives.
+local function QuestIndex()
+	local list, exact = {}, {}
+	if not (C_QuestLog and C_QuestLog.GetNumQuestLogEntries) then return list, exact end
+	for i = 1, C_QuestLog.GetNumQuestLogEntries() do
+		local info = C_QuestLog.GetInfo(i)
+		if info and not info.isHeader and info.questID then
+			local q = { id = info.questID, title = Str(info.title), objectives = {} }
+				q.ntitle = q.title and N(q.title) or ""
+			local texts = {}
+			local ok, objs = pcall(C_QuestLog.GetQuestObjectives, info.questID)
+			for _, o in ipairs(ok and type(objs) == "table" and objs or {}) do
+				local t = Str(o.text)
+				if t then
+					t = Plain(t)
+					q.objectives[#q.objectives + 1] = N(t)
+					if o.type == "item" or o.type == nil then
+						local n = N((t:gsub("%d+%s*/%s*%d+", "")))
+						if n ~= "" then exact[n] = q end
+					end
+				end
+			end
+			if #q.objectives == 0 and GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then -- classic-style log
+				for j = 1, (GetNumQuestLeaderBoards(i) or 0) do
+					local okb, t, typ = pcall(GetQuestLogLeaderBoard, j, i)
+					t = okb and Str(t)
+					if t then
+						t = Plain(t)
+						q.objectives[#q.objectives + 1] = N(t)
+						if typ == "item" then
+							local n = N((t:gsub("%d+%s*/%s*%d+", "")))
+							if n ~= "" then exact[n] = q end
+						end
+					end
+				end
+			end
+			texts[#texts + 1] = table.concat(q.objectives, " ")
+			if GetQuestLogQuestText then
+				local okq, desc, obj = pcall(GetQuestLogQuestText, i)
+				if okq then texts[#texts + 1] = (Str(desc) or "") .. " " .. (Str(obj) or "") end
+			end
+			q.full = N(table.concat(texts, " "))
+			list[#list + 1] = q
+		end
+	end
+	return list, exact
+end
+
+-- Questie knows which items each quest needs, even when the quest log doesn't say.
+local function QuestieModule(name)
+	local L = _G.QuestieLoader
+	if not (L and L.ImportModule) then return nil end
+	local ok, m = pcall(L.ImportModule, L, name)
+	return ok and m or nil
+end
+
+local function QuestieNeeds(questID, itemID, DB)
+	local function get(field)
+		local ok, v = pcall(DB.QueryQuestSingle, questID, field)
+		return ok and v or nil
+	end
+	local req = get("requiredSourceItems")
+	for _, id in ipairs(type(req) == "table" and req or {}) do
+		if id == itemID then return true end
+	end
+	if get("sourceItemId") == itemID then return true end
+	local objs = get("objectives")
+	if type(objs) == "table" then
+		for _, e in ipairs(type(objs[3]) == "table" and objs[3] or {}) do
+			if type(e) == "table" and e[1] == itemID then return true end
+		end
+	end
+	return false
+end
+
+local function QuestieFor(itemID, quests)
+	local Q = _G.Questie
+	if not (Q and Q.API and Q.API.isReady) then return nil end
+	local DB = QuestieModule("QuestieDB")
+	if not (DB and DB.QueryQuestSingle) then return nil end
+	if DB.QueryItemSingle then -- an item that starts a quest
+		local ok, start = pcall(DB.QueryItemSingle, itemID, "startQuest")
+		if ok and start then
+			for _, qq in ipairs(quests) do if qq.id == start then return { id = qq.id, title = qq.title, how = "Questie" } end end
+		end
+	end
+	for _, qq in ipairs(quests) do
+		if QuestieNeeds(qq.id, itemID, DB) then return { id = qq.id, title = qq.title, how = "Questie" } end
+	end
+end
+
+--- The quest a bag item belongs to, or nil. Returns { id =, title =, how = }.
+local function QuestFor(bag, slot, name, itemID, quests, exact)
+	local isQuestItem = false
+	if C_Container.GetContainerItemQuestInfo then
+		local ok, qi = pcall(C_Container.GetContainerItemQuestInfo, bag, slot)
+		if ok and type(qi) == "table" then
+			isQuestItem = qi.isQuestItem and true or false
+			if qi.questID then
+				local title = C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(qi.questID)
+				return { id = qi.questID, title = Str(title), how = "game" }
+			end
+		end
+	end
+	local lname = N(name)
+	local q = exact[lname]
+	if q then return { id = q.id, title = q.title, how = "objective" } end
+	if #lname >= 3 then
+		for _, qq in ipairs(quests) do
+			for _, o in ipairs(qq.objectives) do
+				if o:find(lname, 1, true) then return { id = qq.id, title = qq.title, how = "objective text" } end
+			end
+		end
+		local viaQuestie = QuestieFor(itemID, quests)
+		if viaQuestie then return viaQuestie end
+		-- the item and its quest share a name ("Darthalia's Orders")
+		for _, qq in ipairs(quests) do
+			if #lname >= 6 and #qq.ntitle >= 6 and (qq.ntitle:find(lname, 1, true) or lname:find(qq.ntitle, 1, true)) then
+				return { id = qq.id, title = qq.title, how = "quest title" }
+			end
+		end
+		-- every word of a multi-word item name turns up in one quest's title and objectives
+		local words = {}
+		for w in lname:gmatch("%S+") do if #w >= 3 then words[#words + 1] = w end end
+		if #words >= 2 then
+			for _, qq in ipairs(quests) do
+				local hay = " " .. qq.ntitle .. " " .. table.concat(qq.objectives, " ") .. " "
+				local all = true
+				for _, w in ipairs(words) do
+					if not hay:find(" " .. w, 1, true) then all = false; break end
+				end
+				if all then return { id = qq.id, title = qq.title, how = "quest words" } end
+			end
+		end
+		if not isQuestItem and C_Item.GetItemInfoInstant then
+			local classID = select(6, C_Item.GetItemInfoInstant(itemID))
+			isQuestItem = classID == (Enum.ItemClass and Enum.ItemClass.Questitem or 12)
+		end
+		if isQuestItem then
+			for _, qq in ipairs(quests) do
+				if qq.full:find(lname, 1, true) then return { id = qq.id, title = qq.title, how = "quest text" } end
+			end
+		end
+	end
+end
+
+--- Is this bag item a quest item (the game flags it, it is quest-class, or it binds as a quest item)?
+local function IsQuestItem(bag, slot, itemID)
+	if C_Container.GetContainerItemQuestInfo then
+		local ok, qi = pcall(C_Container.GetContainerItemQuestInfo, bag, slot)
+		if ok and type(qi) == "table" and (qi.isQuestItem or qi.questID) then return true end
+	end
+	local classID = C_Item.GetItemInfoInstant and select(6, C_Item.GetItemInfoInstant(itemID))
+	if classID == (Enum.ItemClass and Enum.ItemClass.Questitem or 12) then return true end
+	local bindType = C_Item.GetItemInfo and select(14, C_Item.GetItemInfo(itemID))
+	return bindType == 4
+end
+
+local STOP = { the = true, of = true, ["and"] = true, ["for"] = true, with = true, from = true, that = true, this = true, into = true }
+
+--- No sure quest: the quests whose text shares the most with the item's name (best two).
+--- A word counts when a quest's title, objectives or description holds it (ignoring a plural s
+--- or possessive 's), longer words counting for more, and the title counting double.
+local function GuessQuests(lname, quests)
+	local words = {}
+	for w in lname:gmatch("%S+") do
+		if #w >= 4 and not STOP[w] then words[#words + 1] = (w:gsub("s$", "")) end
+	end
+	if #words == 0 then return nil end
+	local scored = {}
+	for _, qq in ipairs(quests) do
+		local title = " " .. qq.ntitle .. " "
+		local hay = " " .. qq.full .. " "
+		local score = 0
+		for _, w in ipairs(words) do
+			if hay:find(" " .. w, 1, true) then score = score + #w end
+			if title:find(" " .. w, 1, true) then score = score + #w end
+		end
+		if score > 0 then scored[#scored + 1] = { id = qq.id, score = score } end
+	end
+	table.sort(scored, function(a, b) return a.score > b.score end)
+	local ids = {}
+	for i = 1, math.min(2, #scored) do
+		if i == 1 or scored[i].score * 2 >= scored[1].score then ids[#ids + 1] = scored[i].id end
+	end
+	return #ids > 0 and ids or nil
+end
+
+ns:RegisterProvider("items", {
+	label = "Item",
+	color = "ffc8c8c8",
+	aliases = { "items", "bag", "bags", "inventory", "gear", "equipped" },
+	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" },
+	guard = 1,
+	collect = function()
+		local out, byID = {}, {}
+		local quests, questExact = QuestIndex()
+
+		local lastBag = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
+		for bag = 0, lastBag do
+			for slot = 1, C_Container.GetContainerNumSlots(bag) do
+				local info = C_Container.GetContainerItemInfo(bag, slot)
+				if info and info.itemID then
+					local e = byID[info.itemID]
+					if not e then
+						local name = info.itemName or (info.hyperlink and info.hyperlink:match("%[(.-)%]"))
+						if name then
+							local _, itemType, subType = C_Item.GetItemInfoInstant(info.itemID)
+							e = {
+								key = info.itemID,
+								name = name,
+								icon = info.iconFileID,
+								color = QualityHex(info.quality),
+								link = info.hyperlink,
+								text = table.concat({ itemType or "", subType or "" }, " "),
+								count = 0,
+								locs = {},
+								firstBag = bag,
+								activate = ShowInBags,
+							}
+							local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
+							if q then
+								e.questID = q.id
+								e.text = e.text .. " quest " .. (q.title or "")
+							elseif IsQuestItem(bag, slot, info.itemID) then
+								e.guessIDs = GuessQuests(N(name), quests)
+							end
+							byID[info.itemID] = e
+							out[#out + 1] = e
+						end
+					end
+					if e then
+						e.count = e.count + (info.stackCount or 1)
+						e.locs[#e.locs + 1] = { bag, slot }
+					end
+				end
+			end
+		end
+		for _, e in pairs(byID) do
+			local where = BagLabel(e.firstBag)
+			e.detail = (e.questID and "Quest  " or "") .. (e.count > 1 and ("x" .. e.count .. "  ") or "") .. where
+		end
+
+		for _, slotName in ipairs(EQUIP_SLOTS) do
+			local slotId = GetInventorySlotInfo(slotName)
+			local link = slotId and GetInventoryItemLink("player", slotId)
+			if link then
+				local name = link:match("%[(.-)%]")
+				if name then
+					local itemID = C_Item.GetItemInfoInstant(link)
+					local _, _, quality = C_Item.GetItemInfo(link)
+					out[#out + 1] = {
+						key = "eq" .. slotId,
+						name = name,
+						icon = GetInventoryItemTexture("player", slotId),
+						color = QualityHex(quality),
+						link = link,
+						text = "equipped " .. slotName:gsub("Slot", ""),
+						detail = "Equipped: " .. slotName:gsub("Slot", ""),
+						slotName = slotName,
+						activate = ShowEquipped, -- fallback when the secure path isn't available
+					secure = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } },
+					isOpen = function() return CharacterFrame and CharacterFrame:IsShown() end,
+					after = ShowEquippedAfter,
+					}
+				end
+			end
+		end
+		return out
+	end,
+})
