@@ -59,7 +59,7 @@ end
 
 --- spec: { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } },
 --- or just a button name / list of button names. Returns { binding = } or { button = } or nil.
-function S.Resolve(spec)
+function S.Resolve(spec, e)
 	-- a spell that opens a window (Smelting): Enter casts it, on the same key press
 	if type(spec) == "table" and spec.spell then return { spell = spec.spell } end
 	-- a run of /click lines, pressed by the game itself (so nothing in the window runs
@@ -67,7 +67,7 @@ function S.Resolve(spec)
 	if type(spec) == "table" and spec.macro then
 		local text = spec.macro
 		if type(text) == "function" then
-			local ok, t = pcall(text)
+			local ok, t = pcall(text, e) -- given the entry: its macro can name the quest, the map...
 			text = ok and t or nil
 		end
 		if type(text) == "string" and text ~= "" then return { macro = text } end
@@ -87,18 +87,18 @@ end
 --- lines instead (pressed by the game, so nothing runs tainted). In order: the spec's own
 --- `click` text, its `macro`, a cast of its `spell`, a click on its first existing button.
 --- Nil when there is no such way (that result then arms Enter, as before).
-local function Text(v)
+local function Text(v, e)
 	if type(v) == "function" then
-		local ok, t = pcall(v)
+		local ok, t = pcall(v, e)
 		v = ok and t or nil
 	end
 	return type(v) == "string" and v ~= "" and v or nil
 end
 
-function S.ClickMacro(spec)
+function S.ClickMacro(spec, e)
 	if type(spec) == "string" then spec = { buttons = { spec } } end
 	if type(spec) ~= "table" then return nil end
-	local t = Text(spec.click) or Text(spec.macro)
+	local t = Text(spec.click, e) or Text(spec.macro, e)
 	if t then return t end
 	if type(spec.spell) == "string" and spec.spell ~= "" then return "/cast " .. spec.spell end
 	local b = S.First(spec.buttons or (spec[1] and spec) or {})

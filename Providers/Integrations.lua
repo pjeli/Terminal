@@ -409,7 +409,12 @@ local QUESTIE_LAZY = {
 		return Done(t.qid) and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon"
 	end,
 	secure = function(t) return FromLog("secure", ns.Maps.SECURE)(t) end,
-	isOpen = function(t) return FromLog("isOpen", ns.Maps.MapOpen)(t) end,
+	isOpen = function(t) return FromLog("isOpen", ns.Maps.IsOpenFor)(t) end,
+	-- the zone the map switches to for a quest you don't have: its giver's
+	mapTarget = function(t)
+		local npcID = QuestGiver(t.qid)
+		return npcID and (NpcLocation(npcID)) or nil
+	end,
 	after = function(t) return FromLog("after", GIVER_AFTER)(t) end,
 	activate = function(t) return FromLog("activate", GIVER_OPEN)(t) end,
 	secondary = function(t) return FromLog("secondary", GIVER_PIN)(t) end,
@@ -435,11 +440,14 @@ local function SetupQuestie()
 	npc.meta = ns:CompactMeta(ns.providers.npc, {
 		icon = "Interface\\Icons\\INV_Misc_Head_Human_01",
 		secure = ns.Maps.SECURE,
-		isOpen = ns.Maps.MapOpen,
+		isOpen = ns.Maps.IsOpenFor,
 		after = ShowNpc,
 		activate = OpenNpcDirect,
 		secondary = NpcPin,
-	}, { detail = function(t) return "NPC  #" .. t.npcID end })
+	}, {
+		detail = function(t) return "NPC  #" .. t.npcID end,
+		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
+	})
 	ns:RegisterProvider("questie", {
 		label = "Questie",
 		color = "ffb48cff",

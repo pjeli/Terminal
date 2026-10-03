@@ -780,28 +780,39 @@ do
 	mrow.Click = function() note("MAPROW click") end
 	QuestMapFrame.shown = true
 	QuestMapFrame.GetChildren = function() return mrow end
-	-- the map's quest panel (this client's own quest log): the quest's details are opened
+	-- the map's quest panel showing the details: Terminal only points at them, it never
+	-- opens them itself (that left the map's focused quest tainted: pins failed in combat)
 	QuestMapFrame.DetailsFrame = Obj("Frame"); QuestMapFrame.DetailsFrame.shown = true
 	mark = #log
 	UI:Open("wolves across"); key("ENTER"); FlushAll()
-	check(logHas("OpenQuestDetails 33", mark + 1) and shown == QuestMapFrame.DetailsFrame, "map quest panel: the quest's details are opened and pointed at")
+	check(shown == QuestMapFrame.DetailsFrame and not logHas("OpenQuestDetails 33", mark + 1), "map quest panel: the details are pointed at, never opened from Terminal's code")
 	check(not logHas("MAPROW click", mark + 1), "nothing in the map is clicked")
-	-- if the game blocks that once, it's remembered: from then on the list is scrolled and the row pointed at
-	local D = ns.Debug
-	local realOpen = _G.QuestMapFrame_OpenToQuestDetails
-	_G.QuestMapFrame_OpenToQuestDetails = function(id) note("OpenQuestDetails", id); D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "Terminal", "UNKNOWN()") end
+	-- no details showing: the map's list is scrolled to the quest and its row pointed at
+	QuestMapFrame.DetailsFrame.shown = false
 	local scrolledTo
 	_G.QuestScrollFrame = { ScrollBox = { ScrollToElementDataByPredicate = function(_, pred) scrolledTo = pred({ GetData = function() return { questID = 33 } end }) end } }
 	shown = nil
-	UI:Open("wolves across"); key("ENTER"); FlushAll()
-	check(ns.db.blockedCalls.QuestMapFrame_OpenToQuestDetails, "a blocked details call is remembered")
 	mark = #log
-	shown = nil
 	UI:Open("wolves across"); key("ENTER"); FlushAll()
-	check(not logHas("OpenQuestDetails 33", mark + 1) and scrolledTo == true, "after a block: the map's list is scrolled to the quest instead")
+	check(not logHas("OpenQuestDetails 33", mark + 1) and scrolledTo == true, "no details: the map's list is scrolled to the quest")
 	check(shown == mrow and not logHas("MAPROW click", mark + 1), "in the map's quest list the quest is pointed at, never clicked")
-	ns.db.blockedCalls.QuestMapFrame_OpenToQuestDetails = nil
-	_G.QuestMapFrame_OpenToQuestDetails = realOpen
+	-- this client without a classic log: the quest key opens the map's quest panel, so Enter
+	-- runs the game's own macro that opens the quest's details (even with the map open)
+	local savedClassic = _G.ForeverClassicUIQuestLog
+	_G.ForeverClassicUIQuestLog = nil
+	QuestMapFrame.DetailsFrame.shown = true
+	WorldMapFrame.shown = true
+	mark = #log
+	UI:Open("wolves across"); key("ENTER")
+	local mp = _G.TerminalMacroProxy
+	check(S.armed == "MACRO" and mp and mp.attrs.macrotext == "/run QuestMapFrame_OpenToQuestDetails(33)" and bindings["ENTER"] == "TerminalMacroProxy",
+		"map quest log: Enter runs the game's macro for the quest's details: " .. tostring(mp and mp.attrs.macrotext))
+	mp.scripts.PostClick(mp, "LeftButton", true); FlushAll()
+	check(not UI:IsShown() and not logHas("OpenQuestDetails 33", mark + 1), "and Terminal's own code never calls it")
+	check(UI.ClickFor(UI:Search("wolves across")[1], false) == "/run QuestMapFrame_OpenToQuestDetails(33)", "a click runs the same macro")
+	_G.ForeverClassicUIQuestLog = savedClassic
+	WorldMapFrame.shown = false
+	local D = ns.Debug
 	_G.QuestScrollFrame = nil
 	QuestMapFrame.DetailsFrame = nil
 	for i = #D.events, 1, -1 do D.events[i] = nil end
@@ -1769,17 +1780,22 @@ do -- world map locations
 	check(UI:Search("@map elwynn")[1].name == "Elwynn Forest", "@map filter")
 	local g = byName["Goldshire"]
 	check(g.secure.binding == "TOGGLEWORLDMAP", "map opens through the game's own map key")
-	-- after: switch the map, then waypoint the spot
+	-- the game's macro opens and switches the map; Terminal's code never writes the map
+	-- (SetMapID from Terminal left the map tainted: its pins failed in combat)
 	WorldMapFrame.shown = true
 	local switched = {}
 	WorldMapFrame.SetMapID = function(_, id) switched[#switched + 1] = id end
+	local MAPMACRO = "/run if not WorldMapFrame:IsShown() then ToggleWorldMap() end WorldMapFrame:SetMapID(37)"
+	local rg = ns.Secure.Resolve(g.secure, g)
+	check(rg and rg.macro == MAPMACRO, "Enter runs the game's macro that switches the map: " .. tostring(rg and rg.macro))
+	check(g.isOpen(g) == false, "with the map open the macro still runs (it switches the map)")
 	local mark = #log
 	g.after(g)
-	check(switched[1] == 37, "map switched to the point's zone")
+	check(#switched == 0, "after: Terminal never switches the map itself")
 	check(logHas("Waypoint 37 0.42", mark + 1) and logHas("TrackWaypoint true", mark + 1), "waypoint placed and tracked")
 	local z = byName["Elwynn Forest"]; mark = #log
 	z.after(z)
-	check(switched[2] == 37 and not logHas("Waypoint 37 0.42", mark + 1), "a zone only switches the map")
+	check(#switched == 0 and not logHas("Waypoint 37 0.42", mark + 1), "a zone sets no waypoint (the macro switched the map)")
 	-- a pin that is already set is replaced by the chosen place, zone or point
 	pinned = true; mark = #log
 	z.after(z)
@@ -1798,14 +1814,8 @@ do -- world map locations
 	mark = #log
 	g.secondary(g)
 	check(logHas("Waypoint 37 0.42", mark + 1) and not logHas("ToggleWorldMap", mark + 1), "secondary sets a waypoint only")
-	-- the game blocks switching the map: tried once, then never again, waypoint still placed
 	local D, n = ns.Debug, 0
-	WorldMapFrame.SetMapID = function() n = n + 1; D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "Terminal", "UNKNOWN()") end
-	ns.db.blockedCalls = nil
-	mark = #log
-	g.after(g); g.after(g)
-	check(n == 1 and ns.db.blockedCalls["WorldMapSetMapID"], "a blocked SetMapID isn't called again")
-	check(logHas("Waypoint 37 0.42", mark + 1), "the waypoint is still placed")
+	WorldMapFrame.SetMapID = function() n = n + 1 end
 	ns.db.blockedCalls = nil
 	-- in combat the map is left alone (its pins are protected), the waypoint still works, and a
 	-- block seen in combat is not remembered as permanent
@@ -1946,7 +1956,9 @@ do -- AtlasLoot and Questie integrations
 	local mark = #log
 	n.after(n)
 	check(logHas("QuestieShowNPC 12", mark + 1), "Questie marks the NPC on the map")
-	check(switched[1] == 37 and logHas("Waypoint 37 0.5 0.4", mark + 1), "map switched to the NPC's zone and pinned")
+	check(#switched == 0 and logHas("Waypoint 37 0.5 0.4", mark + 1), "the NPC is pinned; Terminal doesn't switch the map itself")
+	local rn = ns.Secure.Resolve(n.secure, n)
+	check(rn and rn.macro and rn.macro:find("SetMapID(37)", 1, true), "the game's macro switches the map to the NPC's zone")
 	mark = #log
 	n.secondary(n)
 	check(logHas("Waypoint 37 0.5 0.4", mark + 1) and not logHas("QuestieShowNPC", mark + 1), "Shift+Enter only pins")

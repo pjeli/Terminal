@@ -650,7 +650,7 @@ end
 --- Returns true if it took over: the window was already open, or Enter is now armed.
 function UI:TryArmSecure(e)
 	local S = ns.Secure
-	local target = S.Resolve(e.secure)
+	local target = S.Resolve(e.secure, e)
 	if not target then ns:Trace("secure: no binding/button for " .. e.name) return false end
 	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
 		ns:Trace("secure: window already open, highlighting " .. e.name)
@@ -677,7 +677,7 @@ end
 --- so this same keypress, passed on to the game, opens the window.
 function UI:ArmForPress(e)
 	local S = ns.Secure
-	local target = S.Resolve(e.secure)
+	local target = S.Resolve(e.secure, e)
 	if not target or (e.isOpen and e.isOpen(e)) then return false end
 	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. e.name) return false end
 	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. e.name)
@@ -998,7 +998,7 @@ local function ClickFor(e, shift)
 	local se = SecureView(e, shift)
 	if not se then return nil end
 	if se.isOpen and se.isOpen(se) then return nil end -- already open: Activate only points at it
-	return ns.Secure.ClickMacro(se.secure), se
+	return ns.Secure.ClickMacro(se.secure, se), se
 end
 UI.ClickFor = ClickFor
 

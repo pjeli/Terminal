@@ -5,10 +5,13 @@ local H = ns.Highlight
 -- so "kill 10 boars" or a snippet of flavour text finds the quest.
 --
 -- Opening one: the quest log is opened the way your own quest log key opens it (see
--- Secure.lua). Then the quest is shown: in a classic-style log it's selected and scrolled
--- to; in the map's quest panel (this client's own quest log) its details are opened, out
--- of combat, the way Questie does it. Should the game ever block that, Terminal remembers
--- and from then on only scrolls the map's list to the quest and points at it.
+-- Secure.lua). When that log is the map's quest panel (this client's own quest log), Enter
+-- (or a click) runs a macro instead, pressed by the game: QuestMapFrame_OpenToQuestDetails,
+-- which opens the map on the quest's details. Terminal must never call that itself: it
+-- writes the map's focused quest, and the map's quest pins, rebuilt from it later (often in
+-- combat), then fail as Terminal's (hundreds of blocked SetPassThroughButtons). Afterwards
+-- Terminal only points at the details. In a classic-style log the quest is selected and
+-- scrolled to.
 
 -- quest windows, first visible wins; any other visible "...Quest..." window is tried after
 local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame", "QuestLogExFrame", "ClassicQuestLog" }
@@ -16,7 +19,7 @@ local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame
 local MAP_LOGS = { "QuestMapFrame" }
 
 local function Visible(f)
-	return f and not (f.IsForbidden and f:IsForbidden()) and f.IsVisible and f:IsVisible()
+	return type(f) == "table" and not (f.IsForbidden and f:IsForbidden()) and f.IsVisible and f:IsVisible()
 end
 
 -- Frames with "Quest" in their name that are not quest log windows: our own, Questie's
@@ -51,7 +54,25 @@ end
 --- Is a quest log open? Only the real quest log windows count (a classic log, or the map
 --- showing its quest panel), not any other frame that happens to have "Quest" in its name:
 --- one of those being on screen made Terminal skip opening the log.
+--- Does the quest key open the map's quest panel (no classic log in its place)? Then Enter
+--- runs the quest-details macro, whether the log is open or not.
+local function MapRoute()
+	if type(_G.QuestMapFrame_OpenToQuestDetails) ~= "function" then return false end
+	for _, name in ipairs(LOGS) do
+		if _G[name] then return false end
+	end
+	return ns.Secure.EffectiveAction("TOGGLEQUESTLOG") == "TOGGLEQUESTLOG"
+end
+
+--- The macro the game runs for a quest (log entries have questID, Questie's have qid).
+local function QuestMacro(e)
+	local id = type(e) == "table" and (e.questID or e.qid) or nil
+	if type(id) ~= "number" or not MapRoute() then return nil end
+	return ("/run QuestMapFrame_OpenToQuestDetails(%d)"):format(id)
+end
+
 local function IsOpen()
+	if MapRoute() then return false end -- the macro switches the details even when it's open
 	for _, name in ipairs(LOGS) do
 		if Visible(_G[name]) then return true end
 	end
@@ -134,14 +155,13 @@ local function ShowQuestAfter(e)
 		if _G.QuestLog_UpdateQuestDetails then pcall(_G.QuestLog_UpdateQuestDetails) end
 		if _G.QuestLog_Update then pcall(_G.QuestLog_Update) end
 	end
-	-- the map's quest panel: open the quest's details there (out of combat; if the game ever
-	-- blocks it, Terminal remembers and only scrolls the list to it from then on)
+	-- the map's quest panel: the game's macro opened the quest's details; only point at them
+	-- (never open them from here: see the top of this file)
 	if Visible(_G.QuestMapFrame) and not InCombatLockdown() then
-		local open = _G.QuestMapFrame_OpenToQuestDetails
-		if open and ns.Professions.Guarded("QuestMapFrame_OpenToQuestDetails", open, e.questID) then
-			ns:Trace("quests: opened the quest's details in the map's quest panel")
-			local details = _G.QuestMapFrame.DetailsFrame
-			H:When(function() return Visible(details) and details or nil end, function(f) H:Show(f) end, 10)
+		local details = _G.QuestMapFrame.DetailsFrame
+		if Visible(details) then
+			ns:Trace("quests: the quest's details are showing in the map's quest panel; pointing at them")
+			H:Show(details)
 			return
 		end
 		ScrollMapList(e.questID)
@@ -178,7 +198,7 @@ local function TrackQuest(e)
 	ns:Print("Tracking: " .. e.name)
 end
 
-local QUEST_SECURE = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
+local QUEST_SECURE = { macro = QuestMacro, binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
 
 ns:RegisterProvider("quests", {
 	label = "Quest Log",

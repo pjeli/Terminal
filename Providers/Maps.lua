@@ -5,9 +5,11 @@ local ns = select(2, ...)
 -- map on that place; for a point it also drops the map waypoint on it. Shift+Enter sets
 -- the waypoint and starts tracking it without opening anything.
 --
--- The map is opened the way your own map key opens it (see Secure.lua). Switching the map
--- to the chosen place is attempted once; if the game blocks that, Terminal remembers and
--- only places the waypoint (see .debug).
+-- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): it opens the
+-- map if it's closed, as the map key does, and switches it to the place. Terminal never
+-- calls WorldMapFrame:SetMapID itself: that leaves the map's state written by Terminal, and
+-- the map's pins, rebuilt from it later (often in combat), then fail as Terminal's.
+-- Afterwards Terminal only places the waypoint (a C call, nothing in the map's Lua).
 
 local M = {}
 ns.Maps = M
@@ -15,7 +17,22 @@ ns.Maps = M
 local TYPES = { [0] = "World", "World", "Continent", "Zone", "Dungeon", "Micro", "Orphan" }
 local MAX = 4000
 
-M.SECURE = { binding = "TOGGLEWORLDMAP", buttons = { "MiniMapWorldMapButton", "WorldMapMicroButton" } }
+--- The map a place shows: its own, or one worked out for it (an NPC's or quest giver's zone).
+function M.Target(e)
+	if type(e) ~= "table" then return nil end
+	local id = e.mapTarget or e.mapID
+	return type(id) == "number" and id or nil
+end
+
+--- The macro the game runs: open the map if it's closed (what the map key runs), then show
+--- the place. Nil (no place, or no map yet): the map key's binding is used instead.
+local function MapMacro(e)
+	local id = M.Target(e)
+	if not id or not _G.WorldMapFrame or type(_G.ToggleWorldMap) ~= "function" then return nil end
+	return ("/run if not WorldMapFrame:IsShown() then ToggleWorldMap() end WorldMapFrame:SetMapID(%d)"):format(id)
+end
+
+M.SECURE = { macro = MapMacro, binding = "TOGGLEWORLDMAP", buttons = { "MiniMapWorldMapButton", "WorldMapMicroButton" } }
 
 local function Safe(fn, ...)
 	if type(fn) ~= "function" then return nil end
@@ -33,6 +50,14 @@ local function MapOpen()
 	local f = _G.WorldMapFrame
 	return f and f.IsVisible and f:IsVisible() or false
 end
+
+--- isOpen for map entries: with a macro there's always something to run (it switches the
+--- open map too), so only "open" when there's no macro for this place.
+local function IsOpenFor(e)
+	if MapMacro(e) then return false end
+	return MapOpen()
+end
+M.IsOpenFor = IsOpenFor
 
 local function Waypoint(mapID, pos)
 	if not (C_Map and C_Map.SetUserWaypoint and pos and pos.x and pos.y) then return false end
@@ -61,12 +86,14 @@ end
 
 --- Runs once the map is open: show the place, and point at it.
 local function ShowAfter(e)
+	-- the game's macro switched the map; here it's only read (never written: see the top)
 	local f = _G.WorldMapFrame
 	local switched = false
-	if f and f.SetMapID and not InCombatLockdown() then
-		-- attempted until the game blocks it once, then never again (see .debug)
-		switched = ns.Professions.Guarded("WorldMapSetMapID", f.SetMapID, f, e.mapID)
+	if f and f.GetMapID then
+		local ok, id = pcall(f.GetMapID, f)
+		switched = ok and id == (M.Target(e) or e.mapID)
 	end
+	ns:Trace("maps: the map " .. (switched and "shows " or "doesn't show ") .. tostring(e.name))
 	local pin = Place(e)
 	if pin and not switched then
 		ns:Print("Waypoint " .. (pin == "moved" and "moved to " or "set on ") .. e.name .. " (couldn't switch the map to it).")
@@ -126,7 +153,7 @@ end
 
 local PROTO = {
 	secure = M.SECURE,
-	isOpen = MapOpen,
+	isOpen = IsOpenFor,
 	after = ShowAfter,
 	activate = Direct,
 	-- Shift+Enter: waypoint (and tracking) without opening the map
