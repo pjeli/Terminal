@@ -70,146 +70,90 @@ local function ListItems(e)
 	ns:Output(lines)
 end
 
-local function PaperDollOpen()
-	local cf, pd = _G.CharacterFrame, _G.PaperDollFrame
-	return cf and cf:IsShown() and pd and pd:IsShown() and true or false
-end
-
--- Where the equipment sets live in the character window, depending on the client's layout:
--- the retail/Cataclysm side tabs (third tab: equipment manager pane), or the Wrath-style
--- "Equipment Manager" button that opens the GearManagerDialog.
-local PANES = {
-	function() return _G.PaperDollFrame and _G.PaperDollFrame.EquipmentManagerPane end,
-	function() return _G.PaperDollEquipmentManagerPane end,
-	function() return _G.GearManagerDialog end,
-}
--- this client (Forever): the Equipment Manager is the second side tab
-local TABS = { "PaperDollSideBarTab2", "PaperDollSidebarTab2" }
--- other clients, tried only when no tab is found by its tooltip
-local OPENERS = { "PaperDollSidebarTab3", "GearManagerToggleButton" }
--- the arrow that opens the character window's right-hand pane (with the side tabs)
-local EXPANDERS = { "CharacterFrameRightPaneToggleButton", "CharacterFrameExpandButton" }
-
-local function Pane()
-	for _, get in ipairs(PANES) do
-		local ok, p = pcall(get)
-		if ok and type(p) == "table" and p.IsVisible and p:IsVisible() then return p end
-	end
-end
+-- The character window's equipment sets page, opened by the game itself: Shift+Enter is bound
+-- to a macro of /click lines (character micro button, the right-pane arrow when the pane is
+-- closed, the Equipment Manager side tab), so every click runs as the player's own. Clicking
+-- those from Terminal's code tainted the character window (its health text then errors on a
+-- secret value). Afterwards Terminal only looks for the set's row and points at it.
 
 local function Named(f)
 	local ok, n = pcall(function() return f:GetName() end)
 	return ok and type(n) == "string" and n or nil
 end
 
---- For .debug: the character window's named buttons that look like tabs or the gear manager.
-local function DescribeButtons()
-	local names = {}
-	local function walk(f, depth)
-		if not f or depth > 4 or not f.GetChildren then return end
-		for _, c in ipairs({ f:GetChildren() }) do
-			local n = Named(c)
-			if n and (n:find("Tab") or n:find("Gear") or n:find("Equip") or n:find("Sidebar")) then
-				names[#names + 1] = n .. ((c.IsVisible and c:IsVisible()) and "" or " (hidden)")
-			end
-			walk(c, depth + 1)
-		end
-	end
-	walk(_G.CharacterFrame, 0)
-	return #names > 0 and table.concat(names, ", ") or "none found"
+local function ManagerPane()
+	local pd = _G.PaperDollFrame
+	local p = pd and pd.EquipmentManagerPane
+	return type(p) == "table" and p or nil
 end
 
---- A button in the character window that opens the equipment sets. First the side tab or
---- button whose tooltip is "Equipment Manager" (the tabs' order differs between clients),
---- then known names.
-local function Shown(f) return f and f.Click and f.IsVisible and f:IsVisible() end
-
-local function FindOpener(byName)
-	for _, n in ipairs(TABS) do
-		if Shown(_G[n]) then return _G[n], n end
-	end
-	local want = { (_G.EQUIPMENT_MANAGER or "Equipment Manager"):lower(), "equipment manager", "equipment set", "gear set" }
-	local hit = ns.FindFrame(_G.CharacterFrame, function(f)
-		if not f.Click then return false end
-		local texts = { f.tooltip, f.tooltipText, f.GetText and select(2, pcall(f.GetText, f)) or nil }
-		for _, t in ipairs(texts) do
-			if type(t) == "string" then
-				t = t:lower()
-				for _, w in ipairs(want) do if t:find(w, 1, true) then return true end end
-			end
-		end
-		return false
-	end, 8)
-	if hit then return hit, Named(hit) or "the Equipment Manager button" end
-	if not byName then return nil end
-	for _, n in ipairs(OPENERS) do
-		local b = _G[n]
-		if b and b.Click and b.IsVisible and b:IsVisible() then return b, n end
-	end
+local function PaneShown()
+	local p = ManagerPane()
+	return p and p.IsVisible and p:IsVisible() and true or false
 end
 
---- The character window's expand arrow: on this client the side tabs (with the Equipment
---- Manager) only show once the window is expanded.
-local function FindExpander()
+--- The Equipment Manager side tab: the one whose pane is the equipment manager (the tabs'
+--- order differs between clients), else the one with its tooltip, else this client's name.
+local function EquipTab()
+	local pane = ManagerPane()
+	local get = _G.GetPaperDollSideBarFrame
+	for i = 1, 6 do
+		for _, fmt in ipairs({ "PaperDollSidebarTab%d", "PaperDollSideBarTab%d" }) do
+			local t = _G[fmt:format(i)]
+			if type(t) == "table" then
+				if pane and get then
+					local ok, f = pcall(get, i)
+					if ok and f == pane then return t end
+				end
+				local tip = type(t.tooltip) == "string" and t.tooltip:lower() or ""
+				if tip ~= "" and tip == (_G.EQUIPMENT_MANAGER or "Equipment Manager"):lower() then return t end
+			end
+		end
+	end
+	local t = _G.PaperDollSideBarTab2 or _G.PaperDollSidebarTab2
+	return type(t) == "table" and t or nil
+end
+
+--- Is the right-hand pane (with the side tabs) open? Read from the tab's own shown flags,
+--- which hold even while the character window is closed.
+local function RightPaneOpen(tab)
 	local cf = _G.CharacterFrame
-	for _, n in ipairs(EXPANDERS) do
-		if Shown(_G[n]) then return _G[n] end
+	local f, n = tab, 0
+	while f and f ~= cf and n < 8 do
+		if f.IsShown and not f:IsShown() then return false end
+		f = f.GetParent and f:GetParent() or nil
+		n = n + 1
 	end
-	return ns.FindFrame(cf, function(f)
-		local n = Named(f)
-		return f.Click and n and (n:find("ExpandButton") or n:find("PaneToggle")) and true or false
-	end, 6)
+	return true
 end
 
---- Runs once the character window is open: switch to its equipment sets page, scroll the
---- list to the set and point at it (nothing is equipped).
---- Presses the right-pane arrow, once. Only a plain :Click(): running the button's own
---- handlers or the window's expand function from Terminal's code tainted the character
---- window (Blizzard's health text then errors on a secret value the next time it opens).
-local function PressExpander(x)
-	ns:Trace("equipment sets: expanding the character window (" .. tostring(Named(x) or "arrow") .. ")")
-	pcall(x.Click, x, "LeftButton")
+--- The /click lines that get from wherever the character window is to its equipment sets.
+local function ManagerMacro()
+	local tab = EquipTab()
+	local tabName = tab and Named(tab)
+	if not tabName then return nil end
+	local lines = {}
+	local pd = _G.PaperDollFrame
+	if not (pd and pd:IsVisible()) then
+		if not _G.CharacterMicroButton then return nil end
+		lines[#lines + 1] = "/click CharacterMicroButton"
+	end
+	local cf = _G.CharacterFrame
+	local toggle = (cf and cf.RightPaneToggleButton) or _G.CharacterFrameRightPaneToggleButton
+	if toggle and Named(toggle) and not RightPaneOpen(tab) then
+		lines[#lines + 1] = "/click " .. Named(toggle)
+	end
+	lines[#lines + 1] = "/click " .. tabName
+	return table.concat(lines, "\n")
 end
 
-local run = 0 -- each Shift+Enter starts a new run; older ones stop
-
+--- Runs once the equipment sets page is showing: scroll the list to the set and point at it.
 local function ShowInManager(e)
 	local H = ns.Highlight
-	run = run + 1
-	local mine = run
-	local clicked, expanded = false, false
-	-- stop as soon as the window is closed again (a second Shift+Enter toggles it shut) or
-	-- another Shift+Enter has started: never click in a window that's going away
-	local function gone() return mine ~= run or not PaperDollOpen() or InCombatLockdown() end
-	local function open()
-		if clicked or gone() or Pane() then return end
-		local b, name = FindOpener(false)
-		local x = not b and FindExpander()
-		if x then
-			-- collapsed window: expand it first; the tabs appear and are found on a later try
-			if not expanded then
-				expanded = true
-				PressExpander(x)
-			end
-			return
-		end
-		if not b then b, name = FindOpener(true) end
-		if b then
-			clicked = true
-			ns:Trace("equipment sets: clicking " .. tostring(name))
-			pcall(b.Click, b)
-		elseif not e._noOpener then
-			e._noOpener = true
-			ns:Trace("equipment sets: no Equipment Manager button found yet")
-		end
-	end
-	open()
 	local scrolled = false
 	H:When(function()
-		if gone() then return { stopped = true } end
-		open() -- the window may still be building its buttons
-		local p = Pane()
-		if not p then return nil end
+		local p = ManagerPane()
+		if not (p and p:IsVisible()) then return nil end
 		local function find()
 			return ns.FindFrame(p, function(f)
 				if f.setID ~= nil then return f.setID == e.setID end
@@ -235,11 +179,9 @@ local function ShowInManager(e)
 		end
 		return row
 	end, function(row)
-		if row.stopped then ns:Trace("equipment sets: window closed or replaced, stopped") return end
 		H:Show(row)
 	end, 20, function()
-		ns:Trace("equipment sets: " .. (Pane() and ("no row for " .. tostring(e.name)) or "the equipment sets page didn't open")
-			.. "; character window buttons: " .. DescribeButtons())
+		ns:Trace("equipment sets: " .. (PaneShown() and ("no row for " .. tostring(e.name)) or "the equipment sets page isn't showing"))
 	end)
 end
 
@@ -278,8 +220,8 @@ ns:RegisterProvider("equipmentset", {
 					-- Shift+Enter: the character window's equipment sets page, through the
 					-- game's character key; ListItems is the fallback without one
 					secondary = ListItems,
-					secondarySecure = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } },
-					secondaryIsOpen = PaperDollOpen,
+					secondarySecure = { macro = ManagerMacro },
+					secondaryIsOpen = PaneShown,
 					secondaryAfter = ShowInManager,
 					noCombatSecondary = true,
 				}

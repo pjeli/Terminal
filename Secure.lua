@@ -62,6 +62,17 @@ end
 function S.Resolve(spec)
 	-- a spell that opens a window (Smelting): Enter casts it, on the same key press
 	if type(spec) == "table" and spec.spell then return { spell = spec.spell } end
+	-- a run of /click lines, pressed by the game itself (so nothing in the window runs
+	-- tainted); spec.macro is the text, or a function returning it (nil: not possible now)
+	if type(spec) == "table" and spec.macro then
+		local text = spec.macro
+		if type(text) == "function" then
+			local ok, t = pcall(text)
+			text = ok and t or nil
+		end
+		if type(text) == "string" and text ~= "" then return { macro = text } end
+		if not (spec.binding or spec.buttons) then return nil end
+	end
 	if type(spec) == "table" and (spec.binding or spec.buttons) then
 		if S.HasBinding(spec.binding) then return { binding = S.EffectiveAction(spec.binding) } end
 		local b = S.First(spec.buttons or {})
@@ -97,11 +108,36 @@ function S.Proxy(targetName)
 	return p
 end
 
+local macroProxy
+--- The one offscreen secure button that runs a macro (its text set when armed).
+local function MacroProxy()
+	if macroProxy or InCombatLockdown() then return macroProxy end
+	local p = CreateFrame("Button", "TerminalMacroProxy", UIParent, "SecureActionButtonTemplate")
+	p:SetSize(1, 1)
+	p:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
+	p:EnableMouse(false)
+	p:RegisterForClicks("AnyUp", "AnyDown")
+	p:SetAttribute("useOnKeyDown", false)
+	p:SetAttribute("type", "macro")
+	p.targetName = "MACRO"
+	p:HookScript("PostClick", PostClick)
+	macroProxy = p
+	return p
+end
+
 --- Bind Enter to a resolved spec. False if that isn't possible right now.
 function S.Arm(r)
 	if InCombatLockdown() or type(r) ~= "table" then return false end
-	if ns.Trace then ns:Trace("Secure.Arm " .. tostring(r.binding or r.button or r.spell)) end
-	if r.binding then
+	if ns.Trace then ns:Trace("Secure.Arm " .. tostring(r.binding or r.button or r.spell or (r.macro and ("macro: " .. r.macro:gsub("\n", " | "))))) end
+	if r.macro then
+		local p = MacroProxy()
+		if not p then return false end
+		p:SetAttribute("macrotext", r.macro)
+		ClearOverrideBindings(owner)
+		SetOverrideBindingClick(owner, true, "ENTER", p:GetName(), "LeftButton")
+		SetOverrideBindingClick(owner, true, "NUMPADENTER", p:GetName(), "LeftButton")
+		S.armed, S.mode = "MACRO", "button"
+	elseif r.binding then
 		ClearOverrideBindings(owner)
 		SetOverrideBinding(owner, true, "ENTER", r.binding)
 		SetOverrideBinding(owner, true, "NUMPADENTER", r.binding)

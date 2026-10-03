@@ -27,6 +27,8 @@ local function Obj(kind)
 		if k == "SetSize" then return function(self, w, hh) self.w, self.h = w, hh end end
 		if k == "SetWidth" then return function(self, w) self.w = w end end
 		if k == "SetBackdrop" then return function(self, bd) self.backdrop = bd end end
+		if k == "SetAttribute" then return function(self, a, v) self.attrs = self.attrs or {}; self.attrs[a] = v end end
+		if k == "GetAttribute" then return function(self, a) return self.attrs and self.attrs[a] end end
 		if k == "SetColorTexture" then return function(self, r, g, b, a) self.color = { r, g, b, a } end end
 		if k == "SetBackdropColor" then return function(self, r, g, b, a) self.bgColor = { r, g, b, a } end end
 		if k == "SetShown" then return function(self, v) self.shown = v and true or false end end
@@ -1966,7 +1968,9 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	ns.Output = baseOut
 	local joined = table.concat(out, "\n")
 	check(out[1] == "Tank Gear:" and joined:find("Head:", 1, true) and joined:find("Main hand:.-%(missing%)"), "without a character key, Shift+Enter lists the items, marking missing ones: " .. joined)
-	-- Shift+Enter: the character window, on its equipment sets page, pointing at the set
+	-- Shift+Enter: the game itself presses the character micro button, the right-pane arrow
+	-- (only when that pane is closed) and the Equipment Manager tab, as one macro; Terminal then
+	-- only points at the set. (Clicking those from Terminal's code tainted the window.)
 	_G.CharacterFrame = _G.CharacterFrame or Obj("Frame"); CharacterFrame.shown = false
 	_G.PaperDollFrame = _G.PaperDollFrame or Obj("Frame"); PaperDollFrame.shown = false
 	local pane = Obj("Frame"); pane.shown = false
@@ -1974,112 +1978,78 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	local setRow = Obj("Button"); setRow.shown = true; setRow.setID = 1
 	local otherRow = Obj("Button"); otherRow.shown = true; otherRow.setID = 2
 	pane.GetChildren = function() return otherRow, setRow end
-	_G.PaperDollSidebarTab3 = Obj("Button"); PaperDollSidebarTab3.shown = true
-	PaperDollSidebarTab3.Click = function() note("SETSTAB click"); pane.shown = true end
+	local rightPane = Obj("Frame"); rightPane.shown = false
+	rightPane.GetParent = function() return CharacterFrame end
+	local function tab(n)
+		local t = Obj("Button"); t.__name = "PaperDollSidebarTab" .. n; t.shown = true
+		t.GetName = function(self) return self.__name end
+		t.GetParent = function() return rightPane end
+		t.Click = function() note("ADDON CLICKED TAB" .. n) end
+		_G["PaperDollSidebarTab" .. n] = t
+		return t
+	end
+	tab(1); tab(2); tab(3)
+	_G.GetPaperDollSideBarFrame = function(i) if i == 2 then return pane end end
+	local toggle = Obj("Button"); toggle.__name = "CharacterFrameRightPaneToggleButton"; toggle.shown = true
+	toggle.GetName = function(self) return self.__name end
+	toggle.Click = function() note("ADDON CLICKED TOGGLE") end
+	CharacterFrame.RightPaneToggleButton = toggle
 	local pointed
 	local origShow = ns.Highlight.Show
 	ns.Highlight.Show = function(self, t, d) pointed = t; return origShow(self, t, d) end
 	local realShift = _G.IsShiftKeyDown
 	_G.IsShiftKeyDown = function() return true end
+	local function press() -- what the game does with the armed macro
+		CharacterFrame.shown, PaperDollFrame.shown, rightPane.shown, pane.shown = true, true, true, true
+		local p = _G.TerminalMacroProxy
+		p.scripts.PostClick(p)
+		FlushAll()
+	end
+	-- closed window, right pane closed
 	local mark = #log
 	UI:Open("tank gear"); key("ENTER")
-	check(ns.Secure.armed == "TOGGLECHARACTER0" and F.propagate == true, "Shift+Enter opens the character window through the game's key")
+	local mp = _G.TerminalMacroProxy
+	check(ns.Secure.armed == "MACRO" and mp and mp.attrs.macrotext == "/click CharacterMicroButton\n/click CharacterFrameRightPaneToggleButton\n/click PaperDollSidebarTab2",
+		"Shift+Enter arms a macro: micro button, right-pane arrow, Equipment Manager tab: " .. tostring(mp and mp.attrs and mp.attrs.macrotext))
 	check(#used == 1, "Shift+Enter doesn't equip the set")
-	CharacterFrame.shown, PaperDollFrame.shown = true, true -- what the game's binding just did
-	FlushAll()
-	check(logHas("SETSTAB click", mark + 1) and pointed == setRow, "switched to the equipment sets page and pointed at the set")
-	-- already open: straight to the set
-	pointed = nil
-	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(pointed == setRow and not ns.Secure.armed, "window already open: just points at the set")
-	-- side tabs in another order (this client: the Equipment Manager is the second tab): the
-	-- tab is found by its tooltip, not its position
-	pane.shown = false
-	local titles = Obj("Button"); titles.shown = true; titles.tooltip = "Titles"
-	titles.Click = function() note("TITLES click") end
-	local gearTab = Obj("Button"); gearTab.shown = true; gearTab.tooltip = "Equipment Manager"
-	gearTab.Click = function() note("GEARTAB click"); pane.shown = true end
-	_G.PaperDollSidebarTab3 = titles
-	local cfKids = CharacterFrame.GetChildren
-	CharacterFrame.GetChildren = function() return gearTab, titles end
-	mark = #log
-	pointed = nil
-	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(logHas("GEARTAB click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "the Equipment Manager tab is found by its tooltip")
-	CharacterFrame.GetChildren = cfKids
-	-- collapsed character window: the expand arrow is clicked first, then the tab appears
-	pane.shown = false
-	gearTab.shown = false
-	CharacterFrame.Expanded = false
-	_G.CharacterFrameExpandButton = Obj("Button"); CharacterFrameExpandButton.shown = true
-	CharacterFrameExpandButton.Click = function() note("EXPAND click"); CharacterFrame.Expanded = true; gearTab.shown = true end
-	CharacterFrame.GetChildren = function() return gearTab, titles end
-	mark = #log
-	pointed = nil
-	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(logHas("EXPAND click", mark + 1) and logHas("GEARTAB click", mark + 1) and pointed == setRow, "collapsed window: expanded, then the Equipment Manager tab, then the set")
-	-- already expanded: the arrow isn't touched (it would collapse it)
-	pane.shown = false
-	mark = #log
-	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(not logHas("EXPAND click", mark + 1) and logHas("GEARTAB click", mark + 1), "an expanded window isn't collapsed")
-	_G.CharacterFrameExpandButton = nil
-	CharacterFrame.Expanded = nil
-	CharacterFrame.GetChildren = cfKids
-	-- this client's own names: CharacterFrameRightPaneToggleButton, then PaperDollSideBarTab2
-	pane.shown = false
-	local tab2 = Obj("Button"); tab2.shown = false
-	tab2.Click = function() note("TAB2 click"); pane.shown = true end
-	_G.PaperDollSideBarTab2 = tab2
-	_G.CharacterFrameRightPaneToggleButton = Obj("Button"); CharacterFrameRightPaneToggleButton.shown = true
-	CharacterFrameRightPaneToggleButton.Click = function() note("RIGHTPANE click"); tab2.shown = true end
-	mark = #log
-	pointed = nil
-	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(logHas("RIGHTPANE click", mark + 1) and logHas("TAB2 click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "Forever: right pane toggle, then PaperDollSideBarTab2, then the set")
-	-- never run the toggle's own handlers from Terminal's code (that tainted the window), and
-	-- stop as soon as the window closes again (Shift+Enter pressed twice quickly)
-	pane.shown, tab2.shown = false, false
-	local handlerRan = false
-	CharacterFrameRightPaneToggleButton.Click = function() note("RIGHTPANE click (slow)") end -- tabs not shown yet
-	CharacterFrameRightPaneToggleButton.GetScript = function() return function() handlerRan = true end end
-	mark = #log
-	pointed = nil
+	press()
+	check(pointed == setRow, "after the game's clicks, the set is pointed at")
+	local addonClicks = false
+	for i = mark + 1, #log do if log[i]:find("ADDON CLICKED", 1, true) then addonClicks = true end end
+	check(not addonClicks, "Terminal itself clicks nothing in the character window")
+	-- right pane already open: the arrow is left alone (it would close the pane)
+	CharacterFrame.shown, PaperDollFrame.shown, pane.shown = false, false, false
+	rightPane.shown = true
 	UI:Open("tank gear"); key("ENTER")
-	CharacterFrame.shown = false -- the second press closed it again
-	FlushAll()
-	check(not handlerRan, "the toggle's handlers are never run from Terminal's code")
-	check(not logHas("TAB2 click", mark + 1) and pointed == nil, "window closed again: nothing more is clicked")
-	local presses = 0
-	for i = mark + 1, #log do if log[i] == "RIGHTPANE click (slow)" then presses = presses + 1 end end
-	check(presses <= 1, "the toggle is pressed at most once: " .. presses)
-	CharacterFrame.shown = true
-	_G.PaperDollSideBarTab2, _G.CharacterFrameRightPaneToggleButton = nil, nil
-	-- Wrath-style layout: an "Equipment Manager" button opening the GearManagerDialog
-	PaperDollFrame.EquipmentManagerPane = nil
-	_G.PaperDollSidebarTab3 = nil
-	local dlg = Obj("Frame"); dlg.shown = false; _G.GearManagerDialog = dlg
-	local named = Obj("Button"); named.shown = true; named.text = "Tank Gear"; named.Click = function() end
-	dlg.GetChildren = function() return named end
-	_G.GearManagerToggleButton = Obj("Button"); GearManagerToggleButton.shown = true
-	GearManagerToggleButton.Click = function() note("GEARMANAGER click"); dlg.shown = true end
-	mark = #log
+	check(mp.attrs.macrotext == "/click CharacterMicroButton\n/click PaperDollSidebarTab2", "right pane open: no arrow click: " .. tostring(mp.attrs.macrotext))
+	press()
+	-- the window is open on another page: no micro button click (it would close it)
+	pane.shown = false
+	UI:Open("tank gear"); key("ENTER")
+	check(mp.attrs.macrotext == "/click PaperDollSidebarTab2", "window open: only the tab: " .. tostring(mp.attrs.macrotext))
+	press()
+	-- already on the sets page: straight to the set
 	pointed = nil
 	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(logHas("GEARMANAGER click", mark + 1) and pointed == named, "Wrath-style: opens the Equipment Manager and points at the set by name")
-	_G.GearManagerDialog, _G.GearManagerToggleButton = nil, nil
-	PaperDollFrame.EquipmentManagerPane = pane
+	check(pointed == setRow and not ns.Secure.armed, "sets page already showing: just points at the set")
+	-- the tab is found by its pane, whatever its position
+	_G.GetPaperDollSideBarFrame = function(i) if i == 3 then return pane end end
+	pane.shown = false
+	UI:Open("tank gear"); key("ENTER")
+	check(mp.attrs.macrotext:find("PaperDollSidebarTab3", 1, true), "the Equipment Manager tab is the one showing its pane")
+	ns.Secure.Disarm(); UI:Hide()
 	-- in combat, nothing
 	CharacterFrame.shown, PaperDollFrame.shown, pane.shown = false, false, false
 	_G.InCombatLockdown = function() return true end
 	pointed = nil
 	UI:Open("tank gear"); UI:Activate(1, { secondary = true }); FlushAll()
-	check(pointed == nil and not logHas("SETSTAB click", #log), "in combat Shift+Enter does nothing")
+	check(pointed == nil and not ns.Secure.armed, "in combat Shift+Enter does nothing")
 	_G.InCombatLockdown = realCombat
 	_G.IsShiftKeyDown = realShift
 	ns.Highlight.Show = origShow
 	PaperDollFrame.EquipmentManagerPane = nil
-	_G.PaperDollSidebarTab3 = nil
+	CharacterFrame.RightPaneToggleButton = nil
+	_G.PaperDollSidebarTab1, _G.PaperDollSidebarTab2, _G.PaperDollSidebarTab3, _G.GetPaperDollSideBarFrame = nil, nil, nil, nil
 	UI:Hide(); ns.Secure.Disarm()
 	C_Item.GetItemCount = saveCount
 	_G.C_EquipmentSet = nil
