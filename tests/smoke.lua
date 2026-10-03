@@ -279,7 +279,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -2132,6 +2132,55 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 	ns.Highlight.Show = origShow
 	_G.ReputationFrame, _G.C_Reputation = nil, nil
 	ns.providers.reputation._dirty = true
+end
+do -- skills: searchable with rank; collapsed groups read too
+	local LINES = {
+		{ name = "Weapon Skills", isHeader = true, isExpanded = true },
+		{ name = "Swords", rank = 120, maxRank = 130, modifier = 5, skillID = 43, description = "Allows the use of swords." },
+		{ name = "Languages", isHeader = true, isExpanded = false },
+		{ name = "Orcish", rank = 300, maxRank = 300, skillID = 109 },
+	}
+	local function visible()
+		local out, hide = {}, false
+		for _, l in ipairs(LINES) do
+			if l.isHeader then out[#out + 1] = l; hide = not l.isExpanded
+			elseif not hide then out[#out + 1] = l end
+		end
+		return out
+	end
+	_G.C_SkillInfo = {
+		GetNumSkillLines = function() return #visible() end,
+		GetSkillLineInfo = function(i) return visible()[i] end,
+		ExpandSkillHeader = function(i) visible()[i].isExpanded = true end,
+		CollapseSkillHeader = function(i) visible()[i].isExpanded = false end,
+	}
+	ns.providers.skills._dirty = true
+	local sk = names(ns:GetEntries(ns.providers.skills))
+	check(sk["Swords"] and sk["Swords"].detail == "120/130 (+5)  Weapon Skills", "rank, bonus and group shown: " .. tostring(sk["Swords"] and sk["Swords"].detail))
+	check(sk["Orcish"] and sk["Orcish"].detail == "300/300  Languages", "skills in a collapsed group are read too")
+	check(LINES[3].isExpanded == false, "the collapsed group is collapsed again")
+	check(not sk["Languages"], "group headers aren't listed")
+	check(ns:ResolveProvider("skill").id == "skills" and ns:ResolveProvider("skills").id == "skills", "@skill and @skills")
+	local r = UI:Search("swords")
+	check(r[1] and r[1].name == "Swords" and r[1].kind == "skills", "found by name")
+	check(r[1].secure and r[1].secure.binding == "TOGGLECHARACTER1", "Enter opens the Skills tab through the game's key")
+	local out = {}
+	local baseOut = ns.Output
+	ns.Output = function(_, lines) for _, l in ipairs(lines) do out[#out + 1] = l end end
+	r[1].secondary(r[1])
+	ns.Output = baseOut
+	check(out[1] == "Swords: 120/130 (+5)  (Weapon Skills)" and out[2] and out[2]:find("swords", 1, true), "Shift+Enter prints rank and description: " .. table.concat(out, " | "))
+	_G.SkillsFrame = Obj("Frame"); SkillsFrame.shown = true
+	local row = Obj("Button"); row.shown = true; row.text = "Swords"
+	SkillsFrame.GetChildren = function() return row end
+	local pointed
+	local origShow = ns.Highlight.Show
+	ns.Highlight.Show = function(self, t) pointed = t; return origShow(self, t) end
+	sk["Swords"].after(sk["Swords"]); FlushAll()
+	check(pointed == row, "the skill's row is pointed at on the Skills tab")
+	ns.Highlight.Show = origShow
+	_G.SkillsFrame, _G.C_SkillInfo = nil, nil
+	ns.providers.skills._dirty = true
 end
 do -- classic quest log: the quest is selected (and scrolled to) the way a click does
 	local picked
