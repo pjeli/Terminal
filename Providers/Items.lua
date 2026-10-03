@@ -294,7 +294,7 @@ ns:RegisterProvider("items", {
 					if not e then
 						local name = info.itemName or (info.hyperlink and info.hyperlink:match("%[(.-)%]"))
 						if name then
-							local _, itemType, subType = C_Item.GetItemInfoInstant(info.itemID)
+							local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
 							e = {
 								key = info.itemID,
 								name = name,
@@ -305,6 +305,7 @@ ns:RegisterProvider("items", {
 								count = 0,
 								locs = {},
 								firstBag = bag,
+								itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
 								activate = ShowInBags,
 							}
 							local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
@@ -356,5 +357,59 @@ ns:RegisterProvider("items", {
 			end
 		end
 		return out
+	end,
+})
+
+-- Kinds within your bags: @consumable (potions, food, flasks, scrolls...) and @mats
+-- (crafting materials: trade goods and reagents). Same entries as Item, filtered by the
+-- item's class, labelled with its sub-type ("Potion  x5  Backpack"). Only with @: in a plain
+-- search these are already found as Items.
+
+local CONSUMABLE = (Enum.ItemClass and Enum.ItemClass.Consumable) or 0
+local TRADEGOODS = (Enum.ItemClass and Enum.ItemClass.Tradegoods) or 7
+local REAGENT = (Enum.ItemClass and Enum.ItemClass.Reagent) or 5
+
+local function IsCraftingReagent(itemID)
+	if not (C_Item.GetItemInfo and itemID) then return false end
+	local ok, r = pcall(function() return select(17, C_Item.GetItemInfo(itemID)) end)
+	return ok and r == true
+end
+
+local function SubKind(id, def)
+	ns:RegisterProvider(id, {
+		label = def.label,
+		color = def.color,
+		aliases = def.aliases,
+		explicit = true,
+		events = { "BAG_UPDATE_DELAYED", "QUEST_LOG_UPDATE" },
+		guard = 1,
+		collect = function()
+			local out = {}
+			for _, e in ipairs(ns:GetEntries(ns.providers.items)) do
+				if e.locs and def.want(e) then
+					local c = {}
+					for k, v in pairs(e) do c[k] = v end -- a copy: the Item entry keeps its own kind
+					c.detail = (e.subType and e.subType ~= "" and (e.subType .. "  ") or "") .. (e.detail or "")
+					out[#out + 1] = c
+				end
+			end
+			return out
+		end,
+	})
+end
+
+SubKind("consumables", {
+	label = "Consumable",
+	color = "ff7fe08c",
+	aliases = { "consumable", "consumables", "consume", "food", "drink", "potion", "potions", "flask", "elixir", "scroll" },
+	want = function(e) return e.classID == CONSUMABLE end,
+})
+
+SubKind("mats", {
+	label = "Crafting Mat",
+	color = "ffd9b26a",
+	aliases = { "craftingmats", "craftingmat", "mats", "mat", "materials", "material", "tradegoods", "tradegood" },
+	want = function(e)
+		return e.classID == TRADEGOODS or e.classID == REAGENT or IsCraftingReagent(e.itemID)
 	end,
 })

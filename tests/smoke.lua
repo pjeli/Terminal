@@ -283,7 +283,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -2140,6 +2140,38 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 	ns.Highlight.Show = origShow
 	_G.ReputationFrame, _G.C_Reputation = nil, nil
 	ns.providers.reputation._dirty = true
+end
+do -- bag sub-kinds: @consumable and @mats
+	local saveInst = C_Item.GetItemInfoInstant
+	local saveBag = bags[0]
+	C_Item.GetItemInfoInstant = function(id)
+		if id == 8001 then return id, "Consumable", "Potion", nil, nil, 0, 1 end
+		if id == 8002 then return id, "Trade Goods", "Cloth", nil, nil, 7, 5 end
+		if id == 8003 then return id, "Consumable", "Food & Drink", nil, nil, 0, 5 end
+		return id, "Miscellaneous", "Junk", nil, nil, 15, 0
+	end
+	local function item(id, nm, n) return { itemID = id, itemName = nm, iconFileID = 1, stackCount = n or 1, quality = 1, hyperlink = "|Hitem:" .. id .. "|h[" .. nm .. "]|h" } end
+	bags[0] = { item(8001, "Minor Healing Potion", 5), item(8002, "Linen Cloth", 20), item(8003, "Tough Jerky", 3), item(8004, "Broken Fang") }
+	ns.providers.items._dirty = true
+	ns.providers.consumables._dirty = true
+	ns.providers.mats._dirty = true
+	local cons = names(ns:GetEntries(ns.providers.consumables))
+	check(cons["Minor Healing Potion"] and cons["Tough Jerky"] and not cons["Linen Cloth"] and not cons["Broken Fang"], "@consumable: potions and food only")
+	check(cons["Minor Healing Potion"].detail == "Potion  x5  Backpack", "sub-type, count and bag shown: " .. tostring(cons["Minor Healing Potion"].detail))
+	local mats = names(ns:GetEntries(ns.providers.mats))
+	check(mats["Linen Cloth"] and not mats["Minor Healing Potion"], "@mats: crafting materials only")
+	check(ns:ResolveProvider("consumable").id == "consumables" and ns:ResolveProvider("craftingmats").id == "mats" and ns:ResolveProvider("potion").id == "consumables", "@consumable, @craftingmats, @potion")
+	local r = UI:Search("@consumable heal")
+	check(r[1] and r[1].name == "Minor Healing Potion" and r[1].kind == "consumables", "@consumable search")
+	local plain = UI:Search("linen cloth")
+	local kinds = {}
+	for _, x in ipairs(plain) do if x.name == "Linen Cloth" then kinds[#kinds + 1] = x.kind end end
+	check(#kinds == 1 and kinds[1] == "items", "plain search shows it once, as an Item: " .. table.concat(kinds, ","))
+	local itemEntry = names(ns:GetEntries(ns.providers.items))["Linen Cloth"]
+	check(itemEntry.kind == "items", "the Item entry keeps its own kind")
+	C_Item.GetItemInfoInstant = saveInst
+	bags[0] = saveBag
+	ns.providers.items._dirty, ns.providers.consumables._dirty, ns.providers.mats._dirty = true, true, true
 end
 do -- skills: searchable with rank; collapsed groups read too
 	local LINES = {
