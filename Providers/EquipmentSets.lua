@@ -163,42 +163,33 @@ end
 
 --- Runs once the character window is open: switch to its equipment sets page, scroll the
 --- list to the set and point at it (nothing is equipped).
---- Presses the right-pane arrow. Some buttons act on mouse down/up rather than on a click,
---- so later attempts run those handlers, and finally the frame's own expand function.
-local function PressExpander(x, attempt)
-	local name = tostring(Named(x) or "arrow")
-	if attempt == 1 then
-		ns:Trace("equipment sets: expanding the character window (" .. name .. ":Click)")
-		pcall(x.Click, x, "LeftButton")
-	elseif attempt == 2 then
-		ns:Trace("equipment sets: still collapsed, running " .. name .. "'s mouse handlers")
-		for _, h in ipairs({ "OnMouseDown", "OnMouseUp" }) do
-			local fn = x.GetScript and x:GetScript(h)
-			if fn then pcall(fn, x, "LeftButton") end
-		end
-	else
-		local cf = _G.CharacterFrame
-		local fn = (cf and (cf.ExpandRightPane or cf.ToggleRightPane or cf.Expand))
-		ns:Trace("equipment sets: still collapsed, calling the character window's expand function" .. (fn and "" or " (none found)"))
-		if fn then pcall(fn, cf) elseif _G.CharacterFrame_Expand then pcall(_G.CharacterFrame_Expand) end
-	end
+--- Presses the right-pane arrow, once. Only a plain :Click(): running the button's own
+--- handlers or the window's expand function from Terminal's code tainted the character
+--- window (Blizzard's health text then errors on a secret value the next time it opens).
+local function PressExpander(x)
+	ns:Trace("equipment sets: expanding the character window (" .. tostring(Named(x) or "arrow") .. ")")
+	pcall(x.Click, x, "LeftButton")
 end
+
+local run = 0 -- each Shift+Enter starts a new run; older ones stop
 
 local function ShowInManager(e)
 	local H = ns.Highlight
-	local clicked, attempts, wait = false, 0, 0
+	run = run + 1
+	local mine = run
+	local clicked, expanded = false, false
+	-- stop as soon as the window is closed again (a second Shift+Enter toggles it shut) or
+	-- another Shift+Enter has started: never click in a window that's going away
+	local function gone() return mine ~= run or not PaperDollOpen() or InCombatLockdown() end
 	local function open()
-		if clicked or Pane() then return end
+		if clicked or gone() or Pane() then return end
 		local b, name = FindOpener(false)
 		local x = not b and FindExpander()
 		if x then
-			-- collapsed window: expand it first; the tabs appear and are found on a later try.
-			-- Give each attempt a few tries' time to take effect before the next.
-			if wait > 0 then wait = wait - 1 return end
-			if attempts < 3 then
-				attempts = attempts + 1
-				wait = 5
-				PressExpander(x, attempts)
+			-- collapsed window: expand it first; the tabs appear and are found on a later try
+			if not expanded then
+				expanded = true
+				PressExpander(x)
 			end
 			return
 		end
@@ -215,6 +206,7 @@ local function ShowInManager(e)
 	open()
 	local scrolled = false
 	H:When(function()
+		if gone() then return { stopped = true } end
 		open() -- the window may still be building its buttons
 		local p = Pane()
 		if not p then return nil end
@@ -243,6 +235,7 @@ local function ShowInManager(e)
 		end
 		return row
 	end, function(row)
+		if row.stopped then ns:Trace("equipment sets: window closed or replaced, stopped") return end
 		H:Show(row)
 	end, 20, function()
 		ns:Trace("equipment sets: " .. (Pane() and ("no row for " .. tostring(e.name)) or "the equipment sets page didn't open")

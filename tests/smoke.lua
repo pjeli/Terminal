@@ -2037,16 +2037,23 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	pointed = nil
 	UI:Open("tank gear"); key("ENTER"); FlushAll()
 	check(logHas("RIGHTPANE click", mark + 1) and logHas("TAB2 click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "Forever: right pane toggle, then PaperDollSideBarTab2, then the set")
-	-- a toggle that ignores :Click() and acts on mouse up: its handler is run instead
+	-- never run the toggle's own handlers from Terminal's code (that tainted the window), and
+	-- stop as soon as the window closes again (Shift+Enter pressed twice quickly)
 	pane.shown, tab2.shown = false, false
-	CharacterFrameRightPaneToggleButton.Click = function() note("RIGHTPANE click (ignored)") end
-	CharacterFrameRightPaneToggleButton.GetScript = function(_, h)
-		if h == "OnMouseUp" then return function() note("RIGHTPANE mouseup"); tab2.shown = true end end
-	end
+	local handlerRan = false
+	CharacterFrameRightPaneToggleButton.Click = function() note("RIGHTPANE click (slow)") end -- tabs not shown yet
+	CharacterFrameRightPaneToggleButton.GetScript = function() return function() handlerRan = true end end
 	mark = #log
 	pointed = nil
-	UI:Open("tank gear"); key("ENTER"); FlushAll()
-	check(logHas("RIGHTPANE mouseup", mark + 1) and logHas("TAB2 click", mark + 1) and pointed == setRow, "a toggle that ignores Click is pressed through its mouse handler")
+	UI:Open("tank gear"); key("ENTER")
+	CharacterFrame.shown = false -- the second press closed it again
+	FlushAll()
+	check(not handlerRan, "the toggle's handlers are never run from Terminal's code")
+	check(not logHas("TAB2 click", mark + 1) and pointed == nil, "window closed again: nothing more is clicked")
+	local presses = 0
+	for i = mark + 1, #log do if log[i] == "RIGHTPANE click (slow)" then presses = presses + 1 end end
+	check(presses <= 1, "the toggle is pressed at most once: " .. presses)
+	CharacterFrame.shown = true
 	_G.PaperDollSideBarTab2, _G.CharacterFrameRightPaneToggleButton = nil, nil
 	-- Wrath-style layout: an "Equipment Manager" button opening the GearManagerDialog
 	PaperDollFrame.EquipmentManagerPane = nil
