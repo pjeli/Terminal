@@ -5,7 +5,8 @@ local Theme = ns.Theme
 local UI = {}
 ns.UI = UI
 
-local FOOTER_H = 24
+local FOOTER_H = 24 -- one line of footer; a second line is added when the hints don't fit
+local HINTS = "Enter open  |  Shift+Enter more  |  / slash  . cmd  @kind  = calc"
 local MAX_ROWS = 20
 local MAX_RESULTS = 100
 local TEXT_SCORE = 1.0 -- score given to a match found in an entry's secondary text
@@ -370,15 +371,22 @@ function UI:UpdateTooltip()
 	end
 end
 
+local MODE_LABEL = { cmd = "commands", slash = "slash commands" }
+
 function UI:SetStatus()
 	if not status then return end
 	if self.armedEntry then
 		status:SetText(Theme.FixColors(HINT .. "Press Enter to open|r  " .. self.armedEntry.name))
+		if hints then hints:Hide() end -- the armed line gets the whole footer
 		return
 	end
+	if hints then hints:SetShown(Theme.Get().hints and true or false) end
 	local count = #results
 	local quiet = count > 0 and results[1].noActivate
-	status:SetText((quiet and "" or (count .. " result" .. (count == 1 and "" or "s") .. "  |  ")) .. (self.mode or ""))
+	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
+	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
+	if mode then text = text .. (text ~= "" and "  |  " or "") .. mode end
+	status:SetText(text)
 end
 
 local ARROW = "|TInterface\\ChatFrame\\ChatFrameExpandArrow:12:12|t "
@@ -981,7 +989,9 @@ local function Build()
 	hints = frame:CreateFontString(nil, "OVERLAY")
 	hints:SetFontObject(Theme.fonts.small)
 	hints:SetPoint("BOTTOMRIGHT", -12, 7)
-	hints:SetText("Enter open  |  Shift+Enter alt  |  Ctrl+Enter keep open  |  / slash  . cmd  @kind")
+	hints:SetText(HINTS)
+	hints:SetJustifyH("RIGHT")
+	hints:SetWordWrap(true)
 
 	UI:ApplyTheme()
 end
@@ -998,7 +1008,26 @@ function UI:ApplyTheme()
 	ROWS = math.max(1, math.min(MAX_ROWS, t.rows))
 	ROW_H = math.max(22, t.fontSize + 12)
 	HEADER_H = math.max(50, t.fontSize + 36)
-	frame:SetSize(t.width, HEADER_H + ROWS * ROW_H + FOOTER_H)
+	-- footer: the key hints sit right of the result count; on a narrow terminal they wrap
+	-- onto a second line instead of running into it
+	local footerH = FOOTER_H
+	if t.hints then
+		local saved = status:GetText()
+		status:SetText("000 results  |  commands")
+		local reserve = (status:GetStringWidth() or 0) + 20
+		status:SetText(saved or "")
+		hints:SetText(HINTS)
+		local avail = t.width - 24 - reserve
+		local full = hints:GetStringWidth() or 0
+		if full > avail then
+			hints:SetWidth(math.max(120, avail))
+			footerH = FOOTER_H + math.max(10, t.fontSize - 2) + 2
+		else
+			hints:SetWidth(full + 4)
+		end
+	end
+	UI.footerH = footerH
+	frame:SetSize(t.width, HEADER_H + ROWS * ROW_H + footerH)
 	frame:SetScale(t.scale)
 
 	-- the frame: the game's own tooltip border (tinted, e.g. bronze) or a thin flat line

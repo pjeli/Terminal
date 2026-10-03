@@ -13,9 +13,10 @@ ns:RegisterCommand("help", {
 		local lines = { "Terminal commands:" }
 		for _, name in ipairs(ns.commandOrder) do
 			local c = ns.commands[name]
-			lines[#lines + 1] = ("  > %s  -  %s"):format(name, c.desc or "")
+			lines[#lines + 1] = ("  .%s  -  %s"):format(name, c.desc or "")
 		end
-		lines[#lines + 1] = "Modes: plain text = search everything, / = slash commands, > = commands, @kind = filter"
+		lines[#lines + 1] = "Modes: plain text = search everything, / = slash commands, . = commands, @kind = filter, 3*45g = calculator"
+		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (pin only, link, list items...), Ctrl+Enter act but keep the terminal open"
 		return lines
 	end,
 })

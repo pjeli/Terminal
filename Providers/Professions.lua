@@ -740,6 +740,8 @@ local function MakeEntry(profID, pdata, r)
 	}
 end
 
+P.MakeRecipeEntry = MakeEntry
+
 ns:RegisterProvider("recipes", {
 	label = "Recipe",
 	color = "ff5fd0c0",

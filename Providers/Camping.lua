@@ -100,7 +100,7 @@ ns:RegisterProvider("camp", {
 			local label = def.prof
 			if def.tier then label = label .. " T" .. def.tier end
 			if def.skill then label = label .. " (" .. def.skill .. ")" end
-			out[#out + 1] = {
+			local e = {
 				key = def.name,
 				name = def.name,
 				icon = (hit and hit.r.icon) or "Interface\\Icons\\INV_Misc_Spyglass_03",
@@ -124,6 +124,16 @@ ns:RegisterProvider("camp", {
 					end
 				end,
 			}
+			-- opened like its recipe: the profession it's in (e.g. Bait and Tackle) is cast on
+			-- Enter by the game, then the recipe is selected and pointed at
+			if hit and hit.pdata and P.MakeRecipeEntry then
+				local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
+				e.recipeID, e.profID = re.recipeID, re.profID
+				e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after
+				e.secondary = re.secondary
+				e.getLink = re.getLink
+			end
+			out[#out + 1] = e
 			end
 		end
 		return out
