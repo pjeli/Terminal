@@ -83,7 +83,12 @@ local PANES = {
 	function() return _G.PaperDollEquipmentManagerPane end,
 	function() return _G.GearManagerDialog end,
 }
+-- this client (Forever): the Equipment Manager is the second side tab
+local TABS = { "PaperDollSideBarTab2", "PaperDollSidebarTab2" }
+-- other clients, tried only when no tab is found by its tooltip
 local OPENERS = { "PaperDollSidebarTab3", "GearManagerToggleButton" }
+-- the arrow that opens the character window's right-hand pane (with the side tabs)
+local EXPANDERS = { "CharacterFrameRightPaneToggleButton", "CharacterFrameExpandButton" }
 
 local function Pane()
 	for _, get in ipairs(PANES) do
@@ -117,7 +122,12 @@ end
 --- A button in the character window that opens the equipment sets. First the side tab or
 --- button whose tooltip is "Equipment Manager" (the tabs' order differs between clients),
 --- then known names.
+local function Shown(f) return f and f.Click and f.IsVisible and f:IsVisible() end
+
 local function FindOpener(byName)
+	for _, n in ipairs(TABS) do
+		if Shown(_G[n]) then return _G[n], n end
+	end
 	local want = { (_G.EQUIPMENT_MANAGER or "Equipment Manager"):lower(), "equipment manager", "equipment set", "gear set" }
 	local hit = ns.FindFrame(_G.CharacterFrame, function(f)
 		if not f.Click then return false end
@@ -143,11 +153,12 @@ end
 local function FindExpander()
 	local cf = _G.CharacterFrame
 	if cf and cf.Expanded == true then return nil end
-	local b = _G.CharacterFrameExpandButton
-	if b and b.Click and b.IsVisible and b:IsVisible() then return b end
+	for _, n in ipairs(EXPANDERS) do
+		if Shown(_G[n]) then return _G[n] end
+	end
 	return ns.FindFrame(cf, function(f)
 		local n = Named(f)
-		return f.Click and n and n:find("ExpandButton") and true or false
+		return f.Click and n and (n:find("ExpandButton") or n:find("PaneToggle")) and true or false
 	end, 6)
 end
 

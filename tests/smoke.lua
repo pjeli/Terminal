@@ -2026,6 +2026,18 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	_G.CharacterFrameExpandButton = nil
 	CharacterFrame.Expanded = nil
 	CharacterFrame.GetChildren = cfKids
+	-- this client's own names: CharacterFrameRightPaneToggleButton, then PaperDollSideBarTab2
+	pane.shown = false
+	local tab2 = Obj("Button"); tab2.shown = false
+	tab2.Click = function() note("TAB2 click"); pane.shown = true end
+	_G.PaperDollSideBarTab2 = tab2
+	_G.CharacterFrameRightPaneToggleButton = Obj("Button"); CharacterFrameRightPaneToggleButton.shown = true
+	CharacterFrameRightPaneToggleButton.Click = function() note("RIGHTPANE click"); tab2.shown = true end
+	mark = #log
+	pointed = nil
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(logHas("RIGHTPANE click", mark + 1) and logHas("TAB2 click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "Forever: right pane toggle, then PaperDollSideBarTab2, then the set")
+	_G.PaperDollSideBarTab2, _G.CharacterFrameRightPaneToggleButton = nil, nil
 	-- Wrath-style layout: an "Equipment Manager" button opening the GearManagerDialog
 	PaperDollFrame.EquipmentManagerPane = nil
 	_G.PaperDollSidebarTab3 = nil
