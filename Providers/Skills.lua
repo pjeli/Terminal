@@ -166,7 +166,7 @@ local function Describe(e)
 	ns:Output(lines)
 end
 
-local SKILL_SECURE = { binding = "TOGGLECHARACTER1" }
+local SKILL_SECURE = { binding = "TOGGLECHARACTER1", click = ns.Secure.SKILLS_CLICK } -- click: a mouse click opens the tab
 
 ns:RegisterProvider("skills", {
 	label = "Skill",

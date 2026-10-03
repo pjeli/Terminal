@@ -191,7 +191,7 @@ end
 local function NoKey(e)
 	ns:Print("Bind a key to the Reputation tab to open it from here (" .. e.name .. ": " .. (e.standing or "?") .. ").")
 end
-local REP_SECURE = { binding = "TOGGLECHARACTER2" }
+local REP_SECURE = { binding = "TOGGLECHARACTER2", click = ns.Secure.REP_CLICK } -- click: a mouse click opens the tab
 
 ns:RegisterProvider("reputation", {
 	label = "Reputation",

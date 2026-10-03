@@ -82,6 +82,129 @@ function S.Resolve(spec)
 	return b and { button = b } or nil
 end
 
+--- What a mouse click on a result runs, as macro text: the mouse can't press a keybinding
+--- command the way Enter does, so a click on a result goes to a secure button running /click
+--- lines instead (pressed by the game, so nothing runs tainted). In order: the spec's own
+--- `click` text, its `macro`, a cast of its `spell`, a click on its first existing button.
+--- Nil when there is no such way (that result then arms Enter, as before).
+local function Text(v)
+	if type(v) == "function" then
+		local ok, t = pcall(v)
+		v = ok and t or nil
+	end
+	return type(v) == "string" and v ~= "" and v or nil
+end
+
+function S.ClickMacro(spec)
+	if type(spec) == "string" then spec = { buttons = { spec } } end
+	if type(spec) ~= "table" then return nil end
+	local t = Text(spec.click) or Text(spec.macro)
+	if t then return t end
+	if type(spec.spell) == "string" and spec.spell ~= "" then return "/cast " .. spec.spell end
+	local b = S.First(spec.buttons or (spec[1] and spec) or {})
+	return b and ("/click " .. b) or nil
+end
+
+--- A secure button that clicks `target` (a frame, named or not), so a macro can /click it:
+--- this client's character tabs have no names. One per key, created out of combat; the
+--- target is set again each time (attributes can't change in combat, nor are they needed then).
+local clickers = {}
+function S.Clicker(key, target)
+	if InCombatLockdown() or type(target) ~= "table" then return clickers[key] end
+	local c = clickers[key]
+	if not c then
+		c = CreateFrame("Button", "TerminalClick" .. key, UIParent, "SecureActionButtonTemplate")
+		c:SetSize(1, 1)
+		c:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
+		c:EnableMouse(false)
+		c:RegisterForClicks("AnyUp", "AnyDown")
+		c:SetAttribute("useOnKeyDown", false) -- /click sends a release
+		c:SetAttribute("type", "click")
+		-- for a .debug log: did the game press it, and with which half of the click
+		c:HookScript("PostClick", function(_, button, down)
+			if ns.Trace then ns:Trace("click: " .. key .. " clicker pressed (" .. tostring(button) .. ", down=" .. tostring(down) .. ")") end
+		end)
+		clickers[key] = c
+	end
+	c:SetAttribute("clickbutton", target)
+	return c
+end
+
+--- The character window's tab for one of its pages (ReputationFrame, SkillsFrame...).
+--- This client: CharacterFrame.ModeTabs.Tabs, each with the frameName of its page (unnamed;
+--- ClassicUIForever draws its own tabs over them). Classic clients: CharacterFrameTabN,
+--- found by its label. Returns the name to /click, or nil.
+local function CharTab(frameName, labels)
+	local cf = _G.CharacterFrame
+	local mt = cf and cf.ModeTabs
+	local tabs = type(mt) == "table" and mt.Tabs
+	if type(tabs) == "table" then
+		for _, t in ipairs(tabs) do
+			if type(t) == "table" and t.frameName == frameName then
+				if ns.Trace then
+					-- what kind of thing the tab is, and which mouse events it listens to (safe on any frame)
+					local function has(h)
+						local okH, hs = pcall(t.HasScript, t, h)
+						if not okH or not hs then return "n/a" end
+						local okG, f = pcall(t.GetScript, t, h)
+						return okG and f and "set" or "empty"
+					end
+					local okT, ty = pcall(t.GetObjectType, t)
+					ns:Trace(("click: %s tab is a %s, %s, OnClick %s, OnMouseDown %s, OnMouseUp %s"):format(frameName,
+						tostring(okT and ty), type(t.Click) == "function" and "has Click" or "no Click",
+						has("OnClick"), has("OnMouseDown"), has("OnMouseUp")))
+				end
+				-- this client's tabs are plain frames acting on the mouse itself: nothing to /click
+				if type(t.Click) ~= "function" then return nil, "frame" end
+				local ok, n = pcall(t.GetName, t)
+				if ok and type(n) == "string" and n ~= "" and _G[n] == t then return n, "mode tab" end
+				local c = S.Clicker(frameName, t)
+				return c and (c:GetName() .. " LeftButton false"), "mode tab (unnamed)"
+			end
+		end
+	end
+	for i = 1, 8 do
+		local name = "CharacterFrameTab" .. i
+		local t = _G[name]
+		if type(t) == "table" and t.GetText then
+			local ok, txt = pcall(t.GetText, t)
+			if ok and type(txt) == "string" and not (issecretvalue and issecretvalue(txt)) then
+				for _, l in ipairs(labels) do
+					if txt == l then return name, "labelled tab" end
+				end
+			end
+		end
+	end
+end
+
+--- /click lines that open the character window on one of its pages: the micro button if
+--- the window is closed, then that page's tab.
+function S.CharTabMacro(frameName, labels)
+	local tab, how = CharTab(frameName, labels)
+	if how == "frame" and type(_G.ToggleCharacter) == "function" then
+		-- a tab that can't be clicked: the macro runs what the character key itself runs
+		-- (TOGGLECHARACTERn is ToggleCharacter(page)), pressed by the game, not Terminal's code
+		if ns.Trace then ns:Trace("click: " .. frameName .. " tab is a plain frame; the macro runs ToggleCharacter") end
+		return '/run ToggleCharacter("' .. frameName .. '", true)'
+	end
+	if not _G.CharacterMicroButton then return nil end
+	if not tab then
+		if ns.Trace then ns:Trace("click: no character tab for " .. frameName) end
+		return nil
+	end
+	if ns.Trace then ns:Trace("click: " .. frameName .. " through " .. how .. " " .. tab) end
+	local cf = _G.CharacterFrame
+	local lines = {}
+	if not (cf and cf.IsVisible and cf:IsVisible()) then lines[1] = "/click CharacterMicroButton" end
+	lines[#lines + 1] = "/click " .. tab
+	return table.concat(lines, "\n")
+end
+
+S.REP_CLICK = function() return S.CharTabMacro("ReputationFrame", { _G.REPUTATION or "Reputation", "Reputation" }) end
+S.SKILLS_CLICK = function()
+	return S.CharTabMacro(_G.SkillsFrame and "SkillsFrame" or "SkillFrame", { _G.SKILLS or "Skills", "Skills" })
+end
+
 -- A key bound to a button "clicks" it twice: on key down and on key up. The button acts on
 -- only one of them (useOnKeyDown); finishing on the other would unbind Enter too early, and
 -- the press that does the work would then find nothing bound.

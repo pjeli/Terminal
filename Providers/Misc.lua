@@ -114,7 +114,8 @@ ns:RegisterProvider("panels", {
 			end
 			if p[5] then
 				-- a tab of the Character window: open it by a secure click, then switch tab
-				e.secure = { binding = CHAR_BINDINGS[p[5]], buttons = { p[4] } }
+				e.secure = { binding = CHAR_BINDINGS[p[5]], buttons = { p[4] },
+					click = p[5] == "ReputationFrame" and ns.Secure.REP_CLICK or nil }
 				e.isOpen = function() return CharacterFrame and CharacterFrame:IsShown() end
 				e.after = function()
 					local sub = _G[p[5]]

@@ -811,6 +811,99 @@ do
 end
 
 do
+	-- a mouse click on a result that opens a game window: the game runs its /click lines
+	_G.QuestLogMicroButton = _G.QuestLogMicroButton or Obj("Button")
+	QuestMapFrame.shown = false
+	_G.ForeverClassicUIQuestLog = Obj("Frame"); ForeverClassicUIQuestLog.shown = false
+	local qrow = Obj("Button"); qrow.shown = true; qrow.text = "[2] Wolves Across the Border"
+	qrow.Click = function() note("QUESTROW click") end
+	ForeverClassicUIQuestLog.GetChildren = function() return qrow end
+	local r1 = UI.rows[1]
+	r1.GetLeft = function() return 120 end
+	r1.GetBottom = function() return 400 end
+	r1.GetHeight = function() return 22 end
+	r1.GetEffectiveScale = function() return 1 end
+	UIParent.GetEffectiveScale = function() return 1 end
+	UI:Open("wolves across")
+	r1.scripts.OnEnter(r1)
+	local c = UI.catcher
+	check(c and c.shown and c.attrs.type1 == "macro" and c.attrs.macrotext1 == "/click QuestLogMicroButton",
+		"pointer over a quest: the click catcher lies over its row, set to open the quest log")
+	local q = UI.Results()[1]
+	local wantShift = (q.secondary and not q.secondarySecure) and "" or "macro"
+	check(c and c.attrs["shift-type1"] == wantShift, "shift-click: no secure action when the secondary is Terminal's own (it runs after the click)")
+	check(c and c.lastPoint and c.lastPoint[4] == 120 and c.lastPoint[5] == 400, "the catcher sits over the row")
+	mark = #log
+	ForeverClassicUIQuestLog.shown = true -- what the game's click just did
+	c.scripts.PostClick(c, "LeftButton")
+	FlushAll()
+	check(not UI:IsShown() and S.armed == nil and next(bindings) == nil, "clicked: the terminal closes, nothing is left armed for Enter")
+	check(logHas("QUESTROW click", mark + 1), "and the quest is pointed at in the log, as after Enter")
+	check(not c.shown, "the catcher goes away with the terminal")
+	-- shift-click on a quest: its own secondary runs after the click (no window macro)
+	ForeverClassicUIQuestLog.shown = false
+	UI:Open("wolves across"); r1.scripts.OnEnter(r1)
+	local qe = UI.Results()[1]
+	local realSecondary = rawget(qe, "secondary")
+	qe.secondary = function() note("QSECONDARY") end
+	_G.IsShiftKeyDown = function() return true end
+	mark = #log
+	c.scripts.PostClick(c, "LeftButton")
+	_G.IsShiftKeyDown = function() return false end
+	qe.secondary = realSecondary
+	FlushAll()
+	check(logHas("QSECONDARY", mark + 1), "shift-click with Terminal's own secondary: it runs")
+	UI:Hide(); FlushAll()
+	ForeverClassicUIQuestLog.shown = true
+	-- already open: no catcher, the row's own click just points at it
+	UI:Open("wolves across"); r1.scripts.OnEnter(r1)
+	check(not c.shown, "window already open: the row's own click handles it")
+	UI:Hide(); FlushAll()
+	ForeverClassicUIQuestLog.shown = false
+	-- a result that doesn't open a window: no catcher
+	UI:Open(".help"); r1.scripts.OnEnter(r1)
+	check(not c.shown, "plain results keep the row's own click")
+	UI:Hide(); FlushAll()
+	-- in combat nothing is placed
+	inCombat = true
+	UI:Open("wolves across"); r1.scripts.OnEnter(r1)
+	check(not c.shown, "in combat: no catcher")
+	inCombat = false
+	UI:Hide(); FlushAll()
+	-- Reputation and Skills tabs: the micro button, then the tab with that label
+	_G.CharacterFrameTab3 = Obj("Button"); CharacterFrameTab3.text = "Reputation"
+	_G.CharacterFrameTab4 = Obj("Button"); CharacterFrameTab4.text = "Skills"
+	local cf = _G.CharacterFrame; local wasShown = cf and cf.shown
+	if cf then cf.shown = false end
+	check(S.REP_CLICK() == "/click CharacterMicroButton\n/click CharacterFrameTab3", "reputation click: micro button, then the Reputation tab: " .. tostring(S.REP_CLICK()))
+	check(S.ClickMacro({ binding = "TOGGLECHARACTER1", click = S.SKILLS_CLICK }) == "/click CharacterMicroButton\n/click CharacterFrameTab4", "skills click: the Skills tab")
+	if cf then cf.shown = true; check(S.REP_CLICK() == "/click CharacterFrameTab3", "window open: just the tab"); cf.shown = wasShown end
+	-- this client: the window's mode tabs, unnamed, found by the page they open
+	local savedCF = _G.CharacterFrame
+	local repTab = Obj("Button"); repTab.frameName = "ReputationFrame"
+	local dollTab = Obj("Button"); dollTab.frameName = "PaperDollFrame"
+	_G.CharacterFrame = Obj("Frame"); CharacterFrame.shown = false
+	CharacterFrame.ModeTabs = { Tabs = { dollTab, repTab } }
+	local m = S.REP_CLICK()
+	local clicker = _G.TerminalClickReputationFrame
+	check(m == "/click CharacterMicroButton\n/click TerminalClickReputationFrame LeftButton false" and clicker and clicker.attrs.type == "click"
+		and clicker.attrs.clickbutton == repTab, "mode tabs: a secure button clicks the unnamed Reputation tab: " .. tostring(m))
+	repTab.__name = "CharacterFrameModeTab2"; _G.CharacterFrameModeTab2 = repTab
+	check(S.REP_CLICK() == "/click CharacterMicroButton\n/click CharacterFrameModeTab2", "a named mode tab is clicked by its name")
+	_G.CharacterFrameModeTab2 = nil
+	-- this client: the tab is a plain frame (no Click), so the macro runs what the key runs
+	local frameTab = { frameName = "ReputationFrame" }
+	CharacterFrame.ModeTabs = { Tabs = { dollTab, frameTab } }
+	check(S.REP_CLICK() == '/run ToggleCharacter("ReputationFrame", true)', "an unclickable tab: the macro runs ToggleCharacter: " .. tostring(S.REP_CLICK()))
+	_G.CharacterFrame = savedCF
+	check(S.ClickMacro({ spell = "Smelting" }) == "/cast Smelting", "a profession spell is cast")
+	check(S.ClickMacro({ binding = "TOGGLEQUESTLOG" }) == nil, "a command with no button: no click route (Enter is armed instead)")
+	_G.CharacterFrameTab3, _G.CharacterFrameTab4 = nil, nil
+	UIParent.GetEffectiveScale = nil
+	ForeverClassicUIQuestLog.GetChildren = nil
+end
+
+do
 	-- combat: propagation is off-limits, so the text box takes over
 	UI:Open("character info")
 	inCombat = true
@@ -1006,6 +1099,18 @@ do
 		local function lum(h) local r, g, b2 = Th.RGB(h) return r + g + b2 end
 		check(P.promptBg and P.promptBg ~= P.bg and lum(P.promptBg) < lum(P.bg), id .. ": prompt background darker than results: " .. tostring(P.promptBg))
 	end
+	-- the database-site themes: listed, readable (results and prompt), and applied by name
+	local themeList = table.concat(cmd("theme"), "\n")
+	for _, id in ipairs({ "wowhead", "allakhazam", "thottbot", "mmochampion" }) do
+		local P = Th.PRESETS[id]
+		check(P and themeList:find(P.label, 1, true), id .. " is listed by .theme")
+		check(ratio(P.text, P.bg) >= 7 and ratio(P.dim, P.bg) >= 4.5 and ratio(P.prompt, P.bg) >= 4.5 and ratio(P.match, P.bg) >= 4.5,
+			id .. " text, details, prompt and matches readable")
+		check(ratio(P.text, P.promptBg) >= 4.5 and ratio(P.prompt, P.promptBg) >= 4.5, id .. " typing readable on the prompt background")
+	end
+	cmd("theme mmochampion"); check(Th.Get().preset == "mmochampion" and Th.Get().bg == "050805" and not Th.IsLight(), ".theme mmochampion: the black and green one")
+	cmd("theme thottbot"); check(Th.Get().preset == "thottbot" and Th.IsLight(), ".theme thottbot: the white one")
+	cmd("theme allakhazam"); check(Th.IsLight() and Th.Get().promptBg == "e0d2ab", "Allakhazam is a light theme with its own prompt background")
 	cmd("theme forever")
 	UI:Open(""); UI:Hide()
 	local pt = UI.promptBg

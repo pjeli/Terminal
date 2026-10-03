@@ -42,7 +42,8 @@ T.DEFAULTS = {
 	v = 3, -- theme defaults version (see T.Get)
 }
 
-T.PRESET_ORDER = { "forever", "foreverblue", "midnight", "matrix", "dracula", "solarized", "horde", "alliance" }
+T.PRESET_ORDER = { "forever", "foreverblue", "midnight", "matrix", "dracula", "solarized", "horde", "alliance",
+	"wowhead", "allakhazam", "thottbot", "mmochampion" }
 T.PRESETS = {
 	forever = { label = "Forever", bg = "47331f", border = "b08040", accent = "c79c4e", prompt = "6db8ff", text = "ffd100", dim = "c9c2b0", match = "ffffff", bgAlpha = 0.95, frame = "classic" },
 	foreverblue = { label = "Forever Blue", bg = "47331f", border = "b08040", accent = "c79c4e", prompt = "ffd100", text = "a8d8ff", dim = "d6c49a", match = "ffd100", bgAlpha = 0.95, frame = "classic" },
@@ -52,6 +53,15 @@ T.PRESETS = {
 	solarized = { label = "Solarized", bg = "002b36", border = "2a5a66", accent = "b58900", prompt = "859900", text = "c5d1d1", dim = "8aa1a6", match = "e8743b", bgAlpha = 0.97, frame = "flat" },
 	horde = { label = "Horde", bg = "1f0505", border = "8c1a0d", accent = "ff3b1f", prompt = "ff8a00", text = "f2e6d9", dim = "b09088", match = "ffb000", bgAlpha = 0.96, frame = "classic" },
 	alliance = { label = "Alliance", bg = "050d24", border = "1a4099", accent = "3fa9ff", prompt = "ffd100", text = "e6eeff", dim = "8e9dc4", match = "7fd4ff", bgAlpha = 0.96, frame = "classic" },
+	-- the old database sites, for fun
+	-- Wowhead: charcoal pages, orange logo, gold highlights
+	wowhead = { label = "Wowhead", bg = "1b1b1b", border = "505050", accent = "ff8c1a", prompt = "ffd100", text = "e8e8e8", dim = "a0a0a0", match = "ffcc33", bgAlpha = 0.97, frame = "flat" },
+	-- Allakhazam: tan parchment, dark brown text, oxblood links (light)
+	allakhazam = { label = "Allakhazam", bg = "efe4c6", promptBg = "e0d2ab", border = "7a3b1e", accent = "8a1c12", prompt = "8a1c12", text = "2b1a0c", dim = "5e4429", match = "a8230f", bgAlpha = 0.98, frame = "flat" },
+	-- Thottbot: a plain white page ("blinding whiteness"), black text, blue links
+	thottbot = { label = "Thottbot", bg = "fbfcfe", promptBg = "e4eaf4", border = "3a5f9f", accent = "2a5db0", prompt = "0a3d91", text = "111111", dim = "545b66", match = "c41a00", bgAlpha = 0.98, frame = "flat" },
+	-- MMO-Champion: black page, green text
+	mmochampion = { label = "MMO-Champion", bg = "050805", border = "3f6a2c", accent = "5fbf2a", prompt = "9cff3c", text = "d6ead0", dim = "86a37f", match = "d4ff6a", bgAlpha = 0.97, frame = "flat" },
 }
 
 for _, p in pairs(T.PRESETS) do

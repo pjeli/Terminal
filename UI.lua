@@ -599,6 +599,8 @@ function UI:Render()
 	self:SetStatus()
 	self:UpdateTooltip()
 	self:UpdateGhost()
+	-- the list moved under the pointer (typing, scrolling): the catcher follows its row
+	if catcher and catcher.entry and catcher:IsShown() then self:PlaceCatcher(catcher.row) end
 end
 
 function UI:Move(delta)
@@ -974,6 +976,124 @@ function UI:OnChar(text)
 	if not self.keys or not self:IsShown() then return end
 	local q, c = edit:GetText(), self.cursor
 	self:SetQuery(q:sub(1, c) .. text .. q:sub(c + 1), c + #text)
+end
+
+----------------------------------------------------------------------
+-- Mouse clicks on results that open game windows
+--
+-- Enter opens such a window through the game's own key (see Secure.lua), but a mouse click
+-- can't press a keybinding. So while the pointer is over such a result, a secure button
+-- (TerminalClickCatcher) lies over its row, set to run that result's /click lines or spell
+-- cast on a left click: the game presses them itself (nothing runs tainted), and Terminal
+-- then closes and points at the result, as after Enter. Shift+click runs the secondary the
+-- same way. Results with no such route (or whose window is already open) and plain actions
+-- go on to the row's usual Activate. In combat the catcher hides itself (a secure state
+-- driver), as windows can't be opened then anyway.
+----------------------------------------------------------------------
+
+local catcher
+
+--- The macro a click on this result runs (nil: none), and the entry view it opens.
+local function ClickFor(e, shift)
+	local se = SecureView(e, shift)
+	if not se then return nil end
+	if se.isOpen and se.isOpen(se) then return nil end -- already open: Activate only points at it
+	return ns.Secure.ClickMacro(se.secure), se
+end
+UI.ClickFor = ClickFor
+
+local function Catcher()
+	if catcher or InCombatLockdown() then return catcher end
+	local ok, c = pcall(CreateFrame, "Button", "TerminalClickCatcher", UIParent,
+		"SecureActionButtonTemplate, SecureHandlerStateTemplate")
+	if not ok or not c then return nil end
+	c:Hide()
+	c:RegisterForClicks("LeftButtonUp")
+	c:SetAttribute("useOnKeyDown", false)
+	c:EnableMouseWheel(true)
+	c:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
+	c:SetScript("OnLeave", function() UI:HideCatcher() end)
+	c:HookScript("PostClick", function(_, button) UI:CatcherClicked(button) end)
+	if RegisterStateDriver then
+		c:SetAttribute("_onstate-combat", [[ if newstate == "1" then self:Hide() end ]])
+		pcall(RegisterStateDriver, c, "combat", "[combat] 1; 0")
+	end
+	catcher = c
+	UI.catcher = c
+	return c
+end
+
+function UI:HideCatcher()
+	if not catcher then return end
+	if catcher:IsShown() and not InCombatLockdown() then catcher:Hide() end
+	catcher.entry = nil
+end
+
+--- The pointer is over row i: if its result opens a window, lay the catcher over the row.
+function UI:PlaceCatcher(i)
+	if InCombatLockdown() or self.closing or not frame or not frame:IsShown() then return end
+	local row, e = rows[i], results[offset + i]
+	local plain = e and ClickFor(e, false)
+	local shifted = e and ClickFor(e, true)
+	if not (plain or shifted) then self:HideCatcher() return end
+	local left, bottom, w, h = row:GetLeft(), row:GetBottom(), row:GetWidth(), row:GetHeight()
+	if not (type(left) == "number" and type(bottom) == "number" and type(w) == "number" and type(h) == "number") then
+		self:HideCatcher()
+		return
+	end
+	local c = Catcher()
+	if not c then return end
+	local rs, us = row:GetEffectiveScale(), UIParent:GetEffectiveScale()
+	local s = (type(rs) == "number" and type(us) == "number" and us > 0) and rs / us or 1
+	c:ClearAllPoints()
+	c:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left * s, bottom * s)
+	c:SetSize(w * s, h * s)
+	c:SetFrameStrata(frame:GetFrameStrata())
+	local level = frame:GetFrameLevel()
+	c:SetFrameLevel((type(level) == "number" and level or 1) + 20)
+	c:SetAttribute("type1", plain and "macro" or "")
+	c:SetAttribute("macrotext1", plain)
+	-- shift: its own action, or none at all (so a shift-click never runs the plain one)
+	c:SetAttribute("shift-type1", shifted and "macro" or "")
+	c:SetAttribute("shift-macrotext1", shifted)
+	c.row, c.entry, c.plain, c.shifted = i, e, plain, shifted
+	c:Show()
+end
+
+--- After a click on the catcher: if the game ran a macro, finish as after Enter; otherwise
+--- the result's usual action.
+function UI:CatcherClicked(button)
+	local c = catcher
+	local e = c and c.entry
+	if not e or self.closing then return end
+	local idx = offset + c.row
+	self:HideCatcher()
+	if results[idx] ~= e then return end
+	sel = idx
+	local kind, text
+	if SecureButton_GetModifiedAttribute then
+		kind = SecureButton_GetModifiedAttribute(c, "type", button or "LeftButton")
+		text = SecureButton_GetModifiedAttribute(c, "macrotext", button or "LeftButton")
+	else
+		if IsShiftKeyDown() then text = c.shifted else text = c.plain end
+		kind = text and "macro" or nil
+	end
+	if kind == "macro" and type(text) == "string" and text ~= "" then
+		local se = SecureView(e, text ~= c.plain) or e
+		ns:Trace("click: the game ran " .. text:gsub("\n", " | ") .. " for " .. tostring(e.name))
+		C_Timer.After(0.3, function()
+			local cf = _G.CharacterFrame
+			if cf and cf.IsShown and cf:IsShown() then
+				ns:Trace("click: character window now on " .. tostring(cf.activeSubframe))
+			end
+		end)
+		ns:Bump(e.freqKey)
+		self:Hide()
+		if se.after then C_Timer.After(0.1, function() RunAfter(se) end) end
+	else
+		ns:Trace("click: no window macro for " .. tostring(e.name) .. ", running its usual action")
+		self:Activate(idx, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
+	end
 end
 
 ----------------------------------------------------------------------
@@ -1536,6 +1656,7 @@ local function Build()
 				sel = offset + i
 				UI:Render()
 			end
+			UI:PlaceCatcher(i)
 		end)
 		b:Hide()
 		rows[i] = b
@@ -1676,6 +1797,7 @@ function UI:IsShown() return frame and frame:IsShown() and not self.closing or f
 function UI:Hide()
 	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
+	self:HideCatcher()
 	if tip then tip:Hide() end
 	edit:ClearFocus()
 	-- let go of the keyboard at once, so the next key already reaches the game
