@@ -2026,6 +2026,29 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	UI:Open("tank gear"); key("ENTER")
 	check(mp.attrs.macrotext == "/click CharacterMicroButton\n/click PaperDollSidebarTab2", "right pane open: no arrow click: " .. tostring(mp.attrs.macrotext))
 	press()
+	-- the window remembers its pane state while closed (rightPaneCollapsed): that decides,
+	-- even when the pane's own frames report hidden (the second-time half-open bug)
+	CharacterFrame.shown, PaperDollFrame.shown, pane.shown = false, false, false
+	rightPane.shown = false
+	CharacterFrame.rightPaneCollapsed = false
+	UI:Open("tank gear"); key("ENTER")
+	check(mp.attrs.macrotext == "/click CharacterMicroButton\n/click PaperDollSidebarTab2", "pane remembered open: the arrow is left alone: " .. tostring(mp.attrs.macrotext))
+	ns.Secure.Disarm(); UI:Hide()
+	CharacterFrame.rightPaneCollapsed = true
+	rightPane.shown = true
+	UI:Open("tank gear"); key("ENTER")
+	check(mp.attrs.macrotext == "/click CharacterMicroButton\n/click CharacterFrameRightPaneToggleButton\n/click PaperDollSidebarTab2", "pane remembered closed: the arrow is clicked: " .. tostring(mp.attrs.macrotext))
+	ns.Secure.Disarm(); UI:Hide()
+	CharacterFrame.rightPaneCollapsed = nil
+	local realCVar = _G.GetCVar
+	_G.GetCVar = function(n) if n == "characterFrameCollapsed" then return "0" end return realCVar and realCVar(n) end
+	rightPane.shown = false
+	UI:Open("tank gear"); key("ENTER")
+	check(not mp.attrs.macrotext:find("Toggle", 1, true), "the characterFrameCollapsed setting is used when the field isn't there")
+	ns.Secure.Disarm(); UI:Hide()
+	_G.GetCVar = realCVar
+	rightPane.shown = true
+	press()
 	-- the window is open on another page: no micro button click (it would close it)
 	pane.shown = false
 	UI:Open("tank gear"); key("ENTER")

@@ -114,10 +114,16 @@ local function EquipTab()
 	return type(t) == "table" and t or nil
 end
 
---- Is the right-hand pane (with the side tabs) open? Read from the tab's own shown flags,
---- which hold even while the character window is closed.
+--- Is the right-hand pane (with the side tabs) open? The character window keeps that in
+--- CharacterFrame.rightPaneCollapsed (and the characterFrameCollapsed setting), which hold
+--- while the window is closed. (Guessing from shown flags got it wrong the second time,
+--- and the arrow then closed the pane while the tab opened the sets: a half-open window.)
 local function RightPaneOpen(tab)
 	local cf = _G.CharacterFrame
+	if cf and type(cf.rightPaneCollapsed) == "boolean" then return not cf.rightPaneCollapsed end
+	local cv = GetCVar and GetCVar("characterFrameCollapsed")
+	if cv == "1" or cv == "0" then return cv == "0" end
+	-- neither known: read the tab's own shown flags
 	local f, n = tab, 0
 	while f and f ~= cf and n < 8 do
 		if f.IsShown and not f:IsShown() then return false end
