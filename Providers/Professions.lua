@@ -141,7 +141,12 @@ function P.NameIndex()
 			-- older saved data may still hold unlearned recipes: never offer those
 			if r.learned ~= false then
 				local key = r.name:lower()
-				if not idx[key] then idx[key] = { r = r, pdata = pdata, profID = profID } end
+				-- the same recipe can be indexed under two windows (Fish Bowl: under Fishing
+				-- and under Bait and Tackle); prefer the one a spell can open
+				local cur = idx[key]
+				if not cur or (not cur.pdata.spell and pdata.spell) then
+					idx[key] = { r = r, pdata = pdata, profID = profID }
+				end
 			end
 		end
 	end
