@@ -16,7 +16,7 @@ ns:RegisterCommand("help", {
 			lines[#lines + 1] = ("  .%s  -  %s"):format(name, c.desc or "")
 		end
 		lines[#lines + 1] = "Modes: plain text = search everything, / = slash commands, . = commands, @kind = filter, 3*45g = calculator"
-		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (pin only, link, list items...), Ctrl+Enter act but keep the terminal open"
+		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (pin only, link, list items...), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Tab completes commands and their arguments"
 		return lines
 	end,
 })

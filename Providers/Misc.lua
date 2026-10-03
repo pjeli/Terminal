@@ -13,6 +13,11 @@ local function MicroGlow(buttonName)
 	end)
 end
 
+local MACRO_WINDOW = { macro = "/macro" } -- the Macros window, opened by the game
+local function MacroWindowOpen()
+	return _G.MacroFrame and _G.MacroFrame:IsShown() and true or false
+end
+
 ----------------------------------------------------------------------
 -- Interface panels
 ----------------------------------------------------------------------
@@ -52,6 +57,21 @@ local PANELS = {
 	{ "Edit Mode", "edit mode layout hud", function() ns.RunSlash("/editmode") end },
 	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton" },
 }
+
+-- The game's own words for these panels (a Korean client shows 평판, not "Reputation"). The
+-- English name stays as the key and in the searchable text, so both find the panel.
+local PANEL_GLOBALS = {
+	["Character Info"] = "CHARACTER_BUTTON", ["Reputation"] = "REPUTATION", ["Currency"] = "CURRENCY",
+	["Spellbook"] = "SPELLBOOK", ["Talents"] = "TALENTS", ["Achievements"] = "ACHIEVEMENT_BUTTON",
+	["Quest Log"] = "QUESTLOG_BUTTON", ["World Map"] = "WORLD_MAP", ["Collections"] = "COLLECTIONS",
+	["Group Finder"] = "GROUP_FINDER", ["Guild & Communities"] = "GUILD_AND_COMMUNITIES",
+	["Adventure Guide"] = "ADVENTURE_JOURNAL", ["Professions"] = "PROFESSIONS_BUTTON",
+	["Calendar"] = "CALENDAR", ["Social / Friends"] = "SOCIAL_BUTTON", ["Game Menu"] = "MAINMENU_BUTTON",
+	["Options"] = "OPTIONS", ["AddOn List"] = "ADDONS", ["Macros"] = "MACROS",
+	["Edit Mode"] = "HUD_EDIT_MODE_MENU", ["Shop"] = "BLIZZARD_STORE",
+}
+
+local function PanelName(english) return ns.GameText(PANEL_GLOBALS[english], english) end
 
 -- the game's keybinding commands for Character window tabs
 local CHAR_BINDINGS = { PaperDollFrame = "TOGGLECHARACTER0", ReputationFrame = "TOGGLECHARACTER2" }
@@ -98,9 +118,9 @@ ns:RegisterProvider("panels", {
 		for _, p in ipairs(PANELS) do
 			local e = {
 				key = p[1],
-				name = p[1],
+				name = PanelName(p[1]),
 				icon = "Interface\\Icons\\INV_Misc_Map_01",
-				text = p[2],
+				text = p[2] .. " " .. p[1],
 				activate = function()
 					p[3]()
 					MicroGlow(p[4])
@@ -111,6 +131,11 @@ ns:RegisterProvider("panels", {
 				e.secure = ns.Talents.SECURE
 				e.isOpen = ns.Talents.IsOpen
 				e.after = function() MicroGlow(ns.Secure.First(ns.Talents.BUTTONS)) end
+			end
+			if p[1] == "Macros" then
+				-- the macro window, opened by the game itself (a macro line, so nothing runs as Terminal)
+				e.secure = MACRO_WINDOW
+				e.isOpen = MacroWindowOpen
 			end
 			if p[5] then
 				-- a tab of the Character window: open it by a secure click, then switch tab
@@ -133,38 +158,69 @@ ns:RegisterProvider("panels", {
 -- Macros
 ----------------------------------------------------------------------
 
+-- Your macros: search by name or by what they say. Enter (or a click) runs the macro through
+-- the game's own secure button, like pressing it on an action bar, so nothing runs as
+-- Terminal. Shift+Enter opens the Macros window (`/macro`, also run by the game) and points
+-- at it. Macros can't be run in combat from here (Enter can't be re-bound then).
+
+--- The macro's current text: macros can be edited or reordered after the list was built.
+local function MacroBody(e)
+	local name, _, body = GetMacroInfo(e.key)
+	if name ~= e.name and GetMacroIndexByName then
+		local idx = GetMacroIndexByName(e.name)
+		if idx and idx > 0 then name, _, body = GetMacroInfo(idx) end
+	end
+	if name == e.name and type(body) == "string" and body ~= "" then return body end
+end
+
+local MACRO_RUN = { macro = MacroBody }
+
+--- Points at the macro's button once the window is up (reading only; the game selects nothing).
+local function ShowInMacroWindow(e)
+	H:When(function()
+		local root = _G.MacroFrame
+		if not (root and root:IsVisible()) then return nil end
+		return ns.FindByText(root, e.name)
+	end, function(row) H:Show(row) end, 20)
+end
+
+local function ShowMacroText(e)
+	local body = MacroBody(e)
+	if body and ns.ShowText then ns:ShowText(e.name, body) end
+end
+
+local function OneLine(body)
+	local line = body:gsub("^#showtooltip[^\n]*\n?", ""):gsub("\n.*", "")
+	if line == "" then line = body:gsub("\n.*", "") end
+	return (line:gsub("|", "||"))
+end
+
 ns:RegisterProvider("macros", {
 	label = "Macro",
 	color = "ffffa040",
-	aliases = { "macro" },
+	aliases = { "macro", "macros" },
 	events = { "UPDATE_MACROS" },
+	noCombat = true,
 	collect = function()
 		local out = {}
 		local numAccount, numChar = GetNumMacros()
 		local function add(index)
 			local name, icon, body = GetMacroInfo(index)
 			if name and name ~= "" then
+				body = type(body) == "string" and body or ""
 				out[#out + 1] = {
 					key = index,
 					name = name,
 					icon = icon,
-					text = body,
-					detail = index > 120 and "Character" or "General",
-					tip = body,
-					activate = function(e)
-						ns.LoadBlizz("Blizzard_MacroUI")
-						if MacroFrame then
-							ShowUIPanel(MacroFrame)
-							-- the frame needs a moment to build its buttons
-							C_Timer.After(0.1, function()
-								if MacroFrame.SelectMacro then pcall(MacroFrame.SelectMacro, MacroFrame, e.key) end
-								H:Find(function()
-									local root = MacroFrame
-									return root:IsVisible() and ns.FindByText(root, e.name) or nil
-								end, 8)
-							end)
-						end
-					end,
+					text = body, -- what the macro says is searchable too
+					detail = (index > 120 and "Character" or "General") .. (body ~= "" and ("  " .. OneLine(body)) or ""),
+					tip = body:gsub("|", "||"),
+					secure = MACRO_RUN,
+					secondary = ShowMacroText, -- without the secure route: its text in a copyable window
+					secondarySecure = MACRO_WINDOW,
+					secondaryIsOpen = MacroWindowOpen,
+					secondaryAfter = ShowInMacroWindow,
+					noCombatSecondary = true,
 				}
 			end
 		end

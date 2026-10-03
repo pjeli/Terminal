@@ -82,7 +82,7 @@ end
 
 --- lowercase, apostrophes dropped, punctuation to spaces: "Darthalia\226\128\153s Orders!" == "darthalias orders"
 local function N(t)
-	t = Plain(t):lower():gsub("'", ""):gsub("[^%w%s]", " "):gsub("%s+", " ")
+	t = ns.Lower(Plain(t)):gsub("'", ""):gsub("%p", " "):gsub("%s+", " ") -- keeps letters of every language
 	return (t:gsub("^ ", ""):gsub(" $", ""))
 end
 

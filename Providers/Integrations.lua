@@ -75,7 +75,7 @@ local function IndexModule(addon, storage)
 									-- its name is filled in once the server has sent it
 									local r = setmetatable({ _compact = true, key = key, itemID = id, addon = addon,
 										content = content, boss = boss, diff = d, detail = bossName .. "  " .. inst,
-										_ltext = (inst .. " " .. bossName .. " loot drop atlasloot"):lower() }, loot.meta)
+										_ltext = ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot") }, loot.meta)
 									loot.byKey[key] = r
 									loot.rows[#loot.rows + 1] = r
 									loot.pending[#loot.pending + 1] = id
@@ -323,7 +323,7 @@ local function IndexQuests()
 					_compact = true, key = id, qid = id, name = name,
 					level = Safe(DB.QueryQuestSingle, id, "questLevel"),
 					zone = zoneName,
-					_ltext = ("quest questie " .. (zoneName or "")):lower(),
+					_ltext = ns.Lower("quest questie " .. (zoneName or "")),
 				}, qdb.meta)
 			end
 			i = i + 1

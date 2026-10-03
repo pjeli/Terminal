@@ -605,14 +605,8 @@ camp = names(ns:GetEntries(ns.providers.camp))
 check(camp["Basic Campfire"].detail:find("Known"), "Basic Campfire known after cooking snapshot")
 check(camp["Journeyman Campfire"] == nil, "fires not learned stay hidden")
 
--- > camp summary
-local cc = UI:WordSearch(UI:CommandEntries(), "camp")
-check(cc[1] and cc[1].name == "camp", "camp command found")
-local lines = cc[1].activate(cc[1], "")
-local joined = table.concat(lines, "\n")
-check(joined:find("Alchemy: Mana Well", 1, true), "camp summary lists known alchemy object")
-check(joined:find("Cooking: Basic Campfire", 1, true), "camp summary lists known fire")
-check(joined:find("Blacksmithing: profession not learned", 1, true), "camp summary notes missing profession")
+check(UI:WordSearch(UI:CommandEntries(), "camp")[1] == nil or UI:WordSearch(UI:CommandEntries(), "camp")[1].name ~= "camp", "no .camp command any more")
+check(ns.commands.scan == nil, "no .scan command any more (professions index at login and from @recipe)")
 
 -- linked / foreign trade skill windows must never be indexed
 tsState.prof = { id = 356, name = "Fishing" }; tsState.linked = true
@@ -647,7 +641,7 @@ check(finished, "scan reports completion")
 check(log[#log - 1] == "CloseTradeSkill" or log[#log]:find("scan finished", 1, true), "scan closes the window")
 
 -- every search mode still renders with the new providers
-for _, q in ipairs({ "@camp", "@recipe", "@prof", "camp", "mana", ".camp", ".scan" }) do
+for _, q in ipairs({ "@camp", "@recipe", "@prof", "camp", "mana" }) do
 	check(pcall(UI.Open, UI, q), "UI:Open('" .. q .. "') with professions loaded")
 end
 FlushAll()
@@ -2909,6 +2903,191 @@ do
 	UI:Hide()
 	check(C.shown == false and CC.shown == false, "closing hides the cursor")
 	Th.Set("cursor", "blinking-line")
+end
+
+----------------------------------------------------------------------
+-- macros, history, aliases, non-English clients
+----------------------------------------------------------------------
+io.write("[macros + history + locale tests]\n")
+do
+	local S = ns.Secure
+	local function key(k, char) F.scripts.OnKeyDown(F, k); if char then F.scripts.OnChar(F, char) end end
+	local function typeText(s) for ch in s:gmatch(".") do key(ch == " " and "SPACE" or ch:upper(), ch) end end
+	local function query() return UI.edit:GetText() end
+	local function withShift(fn) _G.IsShiftKeyDown = function() return true end; fn(); _G.IsShiftKeyDown = function() return false end end
+	local function first() local r = UI.Results(); return r[1] end
+
+	-- macros: found by name or by what they say; Enter and a click run them through the game
+	ns.providers.macros._dirty = true
+	local mes = ns:GetEntries(ns.providers.macros)
+	local me = mes[1]
+	check(me and me.name == "Heal Macro" and me._ltext:find("flash heal", 1, true), "the macro is searchable by its text")
+	UI:Open("flash heal")
+	check(first() and first().name == "Heal Macro", "searching a macro's text finds it: " .. tostring(first() and first().name))
+	local r = S.Resolve(me.secure, me)
+	check(r and r.macro == "#showtooltip\n/cast Flash Heal", "Enter runs the macro's own text through the game")
+	check(UI.ClickFor(me, false) == "#showtooltip\n/cast Flash Heal", "a click runs it too")
+	check(me.noCombat == true, "no macros from here in combat")
+	check(me.detail:find("Flash Heal", 1, true) and not me.detail:find("showtooltip", 1, true), "the details show its first command: " .. me.detail)
+	UI:Open("heal macro")
+	check(first().name == "Heal Macro", "found by name")
+	key("ENTER")
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "#showtooltip\n/cast Flash Heal", "Enter arms the macro button with its text")
+	check(F.propagate == true, "and the same press goes on to the game")
+	S.Disarm(); UI:Hide()
+	-- edited after the list was built: the current text runs
+	local realInfo = _G.GetMacroInfo
+	_G.GetMacroInfo = function() return "Heal Macro", 1, "/cast Renew" end
+	check(S.Resolve(me.secure, me).macro == "/cast Renew", "an edited macro runs its new text")
+	_G.GetMacroInfo = function() return "Other", 1, "/cast Smite" end
+	check(S.Resolve(me.secure, me) == nil, "a macro that's gone or renamed runs nothing")
+	_G.GetMacroInfo = realInfo
+	-- Shift+Enter: the macro window, opened by the game
+	local sv = UI.SecureView(me, true)
+	check(sv and S.Resolve(sv.secure, sv).macro == "/macro", "Shift+Enter opens the Macros window through the game")
+	ns.providers.panels._dirty = true
+	local macroPanel
+	for _, e in ipairs(ns:GetEntries(ns.providers.panels)) do if e.key == "Macros" then macroPanel = e end end
+	check(macroPanel and S.Resolve(macroPanel.secure, macroPanel).macro == "/macro", "the Macros panel opens by a secure macro, not from our code")
+
+	-- history
+	for i = #ns.db.history, 1, -1 do ns.db.history[i] = nil end
+	ns:RecordHistory("  hello  "); ns:RecordHistory("world"); ns:RecordHistory("hello"); ns:RecordHistory("")
+	check(#ns.db.history == 2 and ns.db.history[1] == "hello" and ns.db.history[2] == "world", "history keeps each line once, newest first")
+	for i = 1, 60 do ns:RecordHistory("line " .. i) end
+	check(#ns.db.history == 50 and ns.db.history[1] == "line 60", "history keeps the last 50")
+	for i = #ns.db.history, 1, -1 do ns.db.history[i] = nil end
+	UI:Open(".about"); key("ENTER")
+	check(ns.db.history[1] == ".about", "running a line records it: " .. tostring(ns.db.history[1]))
+	UI:Open(".mem"); key("ENTER")
+	UI:Open("")
+	key("UP"); check(query() == ".mem", "Up on an empty prompt brings back the last line: '" .. query() .. "'")
+	key("UP"); check(query() == ".about", "Up again goes further back")
+	key("UP"); check(query() == ".about", "and stops at the oldest")
+	key("DOWN"); check(query() == ".mem", "Down comes forward")
+	key("DOWN"); check(query() == "" and UI.histIdx == nil, "Down past the newest empties the prompt again")
+	key("UP"); typeText("x")
+	check(UI.histIdx == nil and query() == ".memx", "typing leaves the history: " .. query())
+	UI:SetQuery("heal", 4)
+	key("UP"); check(query() == "heal", "Up with something typed still moves the list, not the history")
+	UI:SetQuery("", 0); key("DOWN"); check(query() == "", "Down on an empty prompt moves the list")
+	UI:Hide()
+	UI:Open("")
+	check(UI.histIdx == nil, "a new session starts at the newest")
+	UI:Hide()
+	check(table.concat(ns.commands.history.run(""), "\n"):find(".mem", 1, true), ".history lists the lines")
+	ns.commands.history.run("clear"); check(#ns.db.history == 0, ".history clear forgets them")
+
+	-- aliases are gone
+	check(ns.commands.alias == nil and ns.commands.unalias == nil and ns.providers.alias == nil, "no .alias any more")
+	local realOut = ns.Output
+
+	-- non-English clients
+	check(ns.Lower("\195\137QUIPEMENT") == "\195\169quipement", "accented capitals fold: " .. ns.Lower("\195\137QUIPEMENT"))
+	check(ns.Lower("\208\160\208\171\208\145\208\144") == "\209\128\209\139\208\177\208\176", "Cyrillic folds")
+	check(ns.Lower("\206\145\206\146") == "\206\177\206\178", "Greek folds")
+	check(ns.Lower("\197\129") == "\197\130" and ns.Lower("Abc \237\149\156") == "abc \237\149\156", "Latin Extended folds; Korean is left alone")
+	ns:RegisterProvider("acctest", { label = "AT", aliases = { "acctest" }, collect = function() return { { name = "\195\137quipe" } } end })
+	UI:Open("\195\137QUI")
+	check(first() and first().kind == "acctest", "search ignores the case of accented letters")
+	UI:Hide()
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "acctest" then table.remove(ns.providerOrder, i) end end
+	ns.providers.acctest = nil
+	-- the game's own words for the kinds
+	_G.REPUTATION = "\237\143\137\237\140\144"
+	_G.MACROS = "\235\167\164\237\129\172\235\161\156"
+	_G.EQUIPMENT_MANAGER = "Gestionnaire d'\195\169quipement"
+	for _, id in ipairs({ "reputation", "macros", "equipmentset" }) do ns.LocalizeKind(ns.providers[id]); ns.LocalizeKind(ns.providers[id]) end
+	check(ns:ResolveProvider("\237\143\137\237\140\144") == ns.providers.reputation, "@(Korean reputation) filters reputation")
+	check(ns:ResolveProvider("\235\167\164\237\129\172\235\161\156") == ns.providers.macros, "@(Korean macros) filters macros")
+	check(ns:ResolveProvider("GESTIONNAIRED\226\128\153\195\137QUIPEMENT") == nil and ns:ResolveProvider("gestionnaired\195\169quipement") == ns.providers.equipmentset, "a localised name with punctuation and accents is one token")
+	local n = 0
+	for _, a in ipairs(ns.providers.reputation.aliases) do if a == "\237\143\137\237\140\144" then n = n + 1 end end
+	check(n == 1 and ns:ResolveProvider("rep") == ns.providers.reputation, "added once; the English words still work")
+	-- panels carry the game's name; English still finds them
+	ns.providers.panels._dirty = true
+	local rep
+	for _, e in ipairs(ns:GetEntries(ns.providers.panels)) do if e.key == "Reputation" then rep = e end end
+	check(rep and rep.name == "\237\143\137\237\140\144" and rep._ltext:find("reputation", 1, true), "panel shown in the game's language, found by the English word too")
+	_G.REPUTATION, _G.MACROS, _G.EQUIPMENT_MANAGER = nil, nil, nil
+	ns.providers.panels._dirty = true
+	-- name keys keep every language's letters (the old [^%w] key turned every Korean name into "")
+	check(ns.Norm("\237\143\137\237\140\144") == "\237\143\137\237\140\144" and ns.Norm("|cffff0000Deadly Boss-Mods!|r") == "deadlybossmods", "Norm keeps letters and drops spaces, punctuation and colours")
+	check(ns.Norm("\237\143\137") ~= ns.Norm("\235\167\164"), "two Korean names don't share a key")
+	check(ns.GameText("NO_SUCH_GLOBAL_X", "fb") == "fb", "GameText falls back")
+	_G.TEST_FMT = "%s things"; check(ns.GameText("TEST_FMT", "fb") == "fb", "format strings aren't used as names"); _G.TEST_FMT = nil
+	-- a provider registered late (AtlasLoot's, after login) gets the game's words too
+	_G.LOOT = "\236\160\132\235\166\172\237\146\136"
+	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = function() return {} end })
+	check(ns:ResolveProvider("\236\160\132\235\166\172\237\146\136") == ns.providers.loot, "late providers are localised too")
+	_G.LOOT = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "loot" then table.remove(ns.providerOrder, i) end end
+	ns.providers.loot = nil
+	-- highlighting never splits a multi-byte letter
+	local F2 = ns.Fuzzy
+	local c = F2.Colorize("\237\143\137\237\140\144", { [1] = true })
+	check(c == (F2.matchColor or "|cffffd200") .. "\237\143\137|r\237\140\144", "a hit on one byte colours the whole letter")
+	c = F2.Colorize("a\237\143\137b", { [3] = true })
+	check(c:find("\237\143\137", 1, true) and not c:find("\237|c", 1, true) and not c:find("\237\143|c", 1, true), "no colour code lands inside a letter")
+	_G.GetMacroInfo = realInfo
+end
+
+-- command arguments listed as you type them
+io.write("[argument rows tests]\n")
+do
+	local function key(k, char) F.scripts.OnKeyDown(F, k); if char then F.scripts.OnChar(F, char) end end
+	local function names() local o = {} for i, e in ipairs(UI.Results()) do o[i] = e.name end return o end
+	local Th = ns.Theme
+	Th.Reset()
+	UI:Open(".theme ")
+	local r = UI.Results()
+	check(r[1] and r[1].name == "theme" and not r[1].argLine, "with nothing typed, the command itself comes first (Enter runs it as typed)")
+	check(r[2] and r[2].name == "forever" and r[2].detail:find("Forever", 1, true) and r[2].detail:find("current", 1, true), "then every theme, with its label and the current one marked: " .. tostring(r[2] and r[2].detail))
+	check(#r == #Th.PRESET_ORDER + 2 and r[#r].name == "reset", "all themes and reset listed: " .. #r)
+	UI:SetQuery(".theme dr", 9)
+	r = UI.Results()
+	check(#r == 1 and r[1].name == "dracula" and r[1].kindLabel:find(".theme", 1, true), "typing narrows the list: " .. table.concat(names(), ","))
+	key("ENTER")
+	check(Th.Get().preset == "dracula" and not UI:IsShown(), "Enter runs the command with the listed argument")
+	-- Tab and the arrows pick a row
+	UI:Open(".theme ")
+	key("DOWN"); key("DOWN"); key("ENTER")
+	check(Th.Get().preset == "foreverblue", "arrows pick an argument row: " .. Th.Get().preset)
+	-- matches at the start come before matches inside the word
+	UI:Open(".set a")
+	local n = names()
+	check(n[1] == "accent" and n[2] == "animations" and n[3] == "autoScan" and n[4] ~= nil, "starts-with first, then the rest: " .. table.concat(n, ","))
+	-- .set: settings with their values, then a setting's values
+	UI:Open(".set ")
+	r = UI.Results()
+	local cursorRow
+	for _, e in ipairs(r) do if e.name == "cursor" then cursorRow = e end end
+	check(r[1].name == "set" and cursorRow and cursorRow.detail:find("blinking-line", 1, true), "settings listed with their current values: " .. tostring(cursorRow and cursorRow.detail))
+	UI:SetQuery(".set cursor ", 12)
+	check(table.concat(names(), ",") == "set,blinking-line,solid-line,blinking-box,solid-box", "a setting's choices listed: " .. table.concat(names(), ","))
+	check(UI.Results()[2].detail:find("Blinking line", 1, true) and UI.Results()[2].detail:find("current", 1, true), "with labels, current marked")
+	UI:SetQuery(".set cursor sb", 14)
+	check(#UI.Results() == 0 or UI.Results()[1].name == "set", "no listed value matches: back to the command row")
+	UI:SetQuery(".set cursor solid-b", 19)
+	key("ENTER")
+	check(Th.Get().cursor == "solid-box", "Enter applies the value")
+	-- free values (colours) still run as typed
+	UI:Open(".set accent 123456")
+	check(UI.Results()[1].name == "set", "free values: the command row")
+	key("ENTER"); check(Th.Get().accent == "123456", "and Enter runs it as typed")
+	-- Tab still completes from the same list
+	UI:Open(".set cur"); key("TAB"); check(UI.edit:GetText() == ".set cursor ", "Tab completes a setting: " .. UI.edit:GetText())
+	key("TAB"); key("TAB")
+	check(UI.edit:GetText() == ".set cursor ", "nothing shared: Tab moves down the rows")
+	-- commands without listed arguments behave as before
+	UI:Open(".history ")
+	check(UI.Results()[1].name == "history" and UI.Results()[2].name == "clear", ".history lists clear")
+	UI:Open(".mem ")
+	check(UI.Results()[1].name == "mem" and #UI.Results() >= 1, "no list: the command row")
+	UI:Open(".debug ")
+	check(UI.Results()[2].name == "log" and UI.Results()[2].detail:find("copyable", 1, true), ".debug explains its arguments")
+	UI:Hide()
+	Th.Reset()
 end
 
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

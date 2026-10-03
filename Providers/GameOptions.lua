@@ -5,13 +5,7 @@ local H = ns.Highlight
 -- Accessibility, Controls, ...) and every setting on them, searchable by name. Enter opens
 -- the page and highlights the setting. Addons' own pages are left to the AddOn index.
 
-local function Plain(s)
-	return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-end
-
-local function Norm(s)
-	return (Plain(s):lower():gsub("[^%w]", ""))
-end
+local Plain, Norm = ns.Plain, ns.Norm -- Norm keeps letters of every language (Locale.lua)
 
 local function Call(obj, method, ...)
 	if type(obj) ~= "table" or type(obj[method]) ~= "function" then return nil end
@@ -28,6 +22,7 @@ local function AddonNames()
 			if title then set[Norm(title)] = true end
 		end
 	end
+	set[""] = nil -- a name of only symbols matches nothing
 	return set
 end
 

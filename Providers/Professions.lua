@@ -4,7 +4,7 @@ local H = ns.Highlight
 -- Profession recipe index.
 --
 -- The profession UI only exposes recipes while a profession window is open, so we
--- snapshot them whenever one opens (and on demand with  .scan ) and keep the result
+-- snapshot them whenever one opens (and at login, or on demand from the "Index my recipes" result) and keep the result
 -- in saved variables, per character. Searching then works any time, window open or not.
 --
 -- Forever quirks this copes with:
@@ -837,11 +837,6 @@ ns:RegisterProvider("professions", {
 -- Terminal commands
 ----------------------------------------------------------------------
 
-ns:RegisterCommand("scan", {
-	desc = "Open each profession once to index recipes for search",
-	run = function() P.Scan() end,
-})
-
 ns:RegisterCommand("profs", {
 	desc = "Show which professions are indexed",
 	aliases = { "professions" },
@@ -850,7 +845,7 @@ ns:RegisterCommand("profs", {
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local pd = P.FindIndexed(pr)
 			lines[#lines + 1] = ("  %s %d/%d - %s"):format(pr.name, pr.rank, pr.maxRank,
-				pd and (#pd.list .. " recipes indexed") or "not indexed (open it or run .scan)")
+				pd and (#pd.list .. " recipes indexed") or "not indexed (open it once, or search @recipe and pick Index my recipes)")
 		end
 		if #lines == 1 then lines[2] = "  none found" end
 		return lines

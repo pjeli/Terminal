@@ -8,13 +8,7 @@ local ns = select(2, ...)
 -- LibDBIcon / LibDataBroker (what most addons use for them), or a minimap button whose
 -- name contains the addon's name.
 
-local function Plain(s)
-	return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-end
-
-local function Norm(s)
-	return (Plain(s):lower():gsub("[^%w]", ""))
-end
+local Plain, Norm = ns.Plain, ns.Norm -- Norm keeps letters of every language (Locale.lua)
 
 ----------------------------------------------------------------------
 -- Options panels
@@ -131,6 +125,7 @@ ns:RegisterProvider("addons", {
 				local label = Plain(title or name)
 				if label == "" then label = name end
 				local keys = { [Norm(name)] = true, [Norm(label)] = true }
+				keys[""] = nil -- a name of only symbols matches nothing
 				local opt
 				for _, c in ipairs(cats) do
 					if keys[Norm(c.name)] then opt = c break end

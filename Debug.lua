@@ -164,7 +164,14 @@ end
 ns:RegisterCommand("debug", {
 	desc = "Why 'Interface action failed because of an AddOn' happens (on | off | log | clear)",
 	aliases = { "taintdebug", "taint" },
-	complete = function() return { "on", "off", "log", "clear" } end,
+	complete = function()
+		return {
+			{ "log", "what led to blocked actions, in a copyable window" },
+			{ "on", "print every blocked action and step live" },
+			{ "off", "stop printing them" },
+			{ "clear", "forget what was recorded" },
+		}
+	end,
 	run = function(args)
 		local arg = (args or ""):lower():match("^%s*(%S*)") or ""
 		local out

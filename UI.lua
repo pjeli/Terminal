@@ -58,7 +58,7 @@ end
 local function ScoreEntry(e, tokens)
 	local total, nameHit = 0, false
 	local ltext = e._ltext
-	if not ltext and e.text then ltext = e.text:lower(); e._ltext = ltext end
+	if not ltext and e.text then ltext = ns.Lower(e.text); e._ltext = ltext end
 	for i = 1, #tokens do
 		local tk = tokens[i]
 		local best = Fuzzy.score(tk, e.name, e._lname)
@@ -168,12 +168,57 @@ function UI:CommandEntries()
 	return list
 end
 
+local function RunArg(e) return e.cmd.run(e.argLine, ns) end
+
+--- The arguments a command takes, as rows, while you type them: ".theme " lists the themes,
+--- ".set cursor " the cursor styles. A command's `complete(args)` gives them, as strings or
+--- { value, detail }. Each row runs the command with that argument (Enter, a click, or Tab and
+--- the arrows to pick one). With nothing typed yet, the command itself comes first, so Enter
+--- still runs it as typed. Nil when the command takes no listed arguments, or none match.
+function UI:ArgEntries(text)
+	local word, rest = text:match("^%s*(%S+)%s(.*)$")
+	local c = word and ns:FindCommand(word)
+	if not (c and c.complete) then return nil end
+	local ok, list = pcall(c.complete, rest)
+	if not ok or type(list) ~= "table" then return nil end
+	local before, argWord = rest:match("^(.-)(%S*)$")
+	local lw = ns.Lower(argWord)
+	local out = {}
+	for i, cand in ipairs(list) do
+		local val, detail = cand, nil
+		if type(cand) == "table" then val, detail = cand[1], cand[2] end
+		local lv = type(val) == "string" and ns.Lower(val)
+		local at = lv and (lw == "" and 1 or lv:find(lw, 1, true))
+		if at then
+			out[#out + 1] = {
+				kind = "cmd", kindLabel = "|cff33ff99." .. c.name .. "|r", icon = "Interface\\Icons\\INV_Misc_Note_01",
+				name = val, _lname = lv, key = c.name .. " " .. val, freqKey = "cmd:" .. c.name,
+				detail = detail or "", cmd = c, argLine = before .. val, activate = RunArg, _nameHit = true,
+				_score = (at == 1 and 1000 or 500) - i, -- starts with what's typed first, then in the list's order
+			}
+		end
+	end
+	if #out == 0 then return nil end
+	if lw == "" then
+		for _, e in ipairs(self:CommandEntries()) do
+			if e.name == c.name then
+				e._score, e._pos = 2000, {}
+				table.insert(out, 1, e)
+			end
+		end
+	end
+	self.args = rest
+	self.posTokens = lw ~= "" and { lw } or nil
+	table.sort(out, function(a, b) return a._score > b._score end)
+	return out
+end
+
 --- Used by "/" and "." modes: first word picks the entry, the rest is its arguments.
 function UI:WordSearch(entries, text)
 	local word, rest = text:match("^%s*(%S*)%s*(.*)$")
 	self.args = rest
 	local tokens
-	if word ~= "" and word ~= "/" then tokens = { word:lower() } end
+	if word ~= "" and word ~= "/" then tokens = { ns.Lower(word) } end
 	self.posTokens = tokens
 	local out = {}
 	for _, e in ipairs(entries) do
@@ -250,7 +295,7 @@ function UI:SearchText(text)
 				kinds[p.id] = true
 			end
 		else
-			tokens[#tokens + 1] = w:lower()
+			tokens[#tokens + 1] = ns.Lower(w)
 		end
 	end
 	local empty = #tokens == 0
@@ -380,7 +425,7 @@ function UI:Refresh()
 	local first = text:sub(1, 1)
 	if first == "." then
 		self.mode = "cmd"
-		results = self:WordSearch(self:CommandEntries(), text:sub(2))
+		results = self:ArgEntries(text:sub(2)) or self:WordSearch(self:CommandEntries(), text:sub(2))
 	elseif first == "/" then
 		self.mode = "slash"
 		local p = ns.providers.slash
@@ -611,6 +656,37 @@ function UI:Move(delta)
 	if sel <= offset then offset = sel - 1 end
 	if sel > offset + ROWS then offset = sel - ROWS end
 	self:Render()
+end
+
+--- Walk back (dir -1) or forward (dir 1) through the lines run before. Only from an empty
+--- prompt, or while already walking: typing anything ends it.
+function UI:History(dir)
+	local h = ns.db and ns.db.history
+	if type(h) ~= "table" or #h == 0 then return false end
+	local idx = self.histIdx
+	if dir < 0 then
+		idx = math.min(#h, (idx or 0) + 1)
+	else
+		idx = (idx or 0) - 1
+	end
+	local text = idx >= 1 and h[idx] or ""
+	self._histSet = true
+	self:SetQuery(text, #text)
+	self._histSet = false
+	self.histIdx = idx >= 1 and idx or nil
+	return true
+end
+
+--- Up: the list's selection goes up; past the first row of an empty prompt it goes back through
+--- the history instead.
+function UI:Up()
+	if (self.histIdx or (edit:GetText() == "" and sel <= 1)) and self:History(-1) then return end
+	self:Move(-1)
+end
+
+function UI:Down()
+	if self.histIdx ~= nil and self:History(1) then return end
+	self:Move(1)
 end
 
 function UI:Scroll(delta)
@@ -1046,6 +1122,7 @@ local function KeysDown(self, key)
 	if key == "ENTER" or key == "NUMPADENTER" then
 		local se = SecureView(results[sel], shift)
 		if se and UI:ArmForPress(se) then
+			ns:RecordHistory(edit:GetText())
 			self:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
 			UI:FinishSoon(se)
 			return
@@ -1110,9 +1187,9 @@ EditKey = function(key, ctrl, shift)
 	elseif key == "END" then
 		MoveCaret(#text, shift)
 	elseif key == "UP" then
-		UI:Move(-1)
+		UI:Up()
 	elseif key == "DOWN" then
-		UI:Move(1)
+		UI:Down()
 	elseif key == "TAB" then
 		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
 		if shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
@@ -1272,6 +1349,7 @@ function UI:CatcherClicked(button)
 			end
 		end)
 		ns:Bump(e.freqKey)
+		ns:RecordHistory(edit:GetText())
 		self:Hide()
 		if se.after then C_Timer.After(0.1, function() RunAfter(se) end) end
 	else
@@ -1295,6 +1373,7 @@ function UI:Activate(idx, opts)
 		ns:Print("In combat: can't open " .. tostring(e.name) .. " now.")
 		return
 	end
+	ns:RecordHistory(edit:GetText())
 	-- windows Blizzard owns are opened by a secure click, never from our own code
 	local se = SecureView(e, opts.secondary)
 	if se and self:TryArmSecure(se) then return end
@@ -1534,7 +1613,7 @@ end)
 ----------------------------------------------------------------------
 
 local function StartsWith(s, prefix)
-	return s:sub(1, #prefix):lower() == prefix:lower()
+	return ns.Lower(s:sub(1, #prefix)) == ns.Lower(prefix)
 end
 
 local function CommonPrefix(list)
@@ -1551,6 +1630,7 @@ end
 local function CompleteWord(word, cands)
 	local hits, seen = {}, {}
 	for _, c in ipairs(cands) do
+		if type(c) == "table" then c = c[1] end -- { value, detail }
 		if type(c) == "string" and StartsWith(c, word) and not seen[c:lower()] then
 			seen[c:lower()] = true
 			hits[#hits + 1] = c
@@ -1565,16 +1645,7 @@ local function CompleteWord(word, cands)
 end
 UI.CompleteWord = CompleteWord
 
-local function CommandByWord(word)
-	word = word:lower()
-	local c = ns.commands[word]
-	if c then return c end
-	for _, name in ipairs(ns.commandOrder) do
-		for _, a in ipairs(ns.commands[name].aliases or {}) do
-			if a:lower() == word then return ns.commands[name] end
-		end
-	end
-end
+local function CommandByWord(word) return ns:FindCommand(word) end
 
 --- The query with the completion applied, or nil when there's nothing to complete.
 function UI:Completion()
@@ -1750,6 +1821,7 @@ local function Build()
 			self:SetText(stripped)
 			return
 		end
+		if not UI._histSet then UI.histIdx = nil end
 		if not UI.keys then
 			local cp = self:GetCursorPosition()
 			if type(cp) == "number" then UI.cursor = cp end
@@ -1772,7 +1844,7 @@ local function Build()
 	end)
 	edit:SetScript("OnEscapePressed", function() UI:Hide() end)
 	edit:SetScript("OnArrowPressed", function(_, key)
-		if key == "UP" then UI:Move(-1) elseif key == "DOWN" then UI:Move(1) end
+		if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
 	end)
 	edit:SetScript("OnTabPressed", function()
 		if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
@@ -2030,6 +2102,7 @@ function UI:Hide()
 	self:HideCatcher()
 	if tip then tip:Hide() end
 	edit:ClearFocus()
+	self.histIdx = nil
 	-- let go of the keyboard at once, so the next key already reaches the game
 	self.keys = false
 	StopRepeat()
@@ -2049,6 +2122,7 @@ end
 function UI:Open(text)
 	Build()
 	self:Disarm()
+	self.histIdx = nil
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		if p.refreshOnOpen then p._dirty = true end

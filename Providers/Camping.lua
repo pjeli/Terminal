@@ -117,7 +117,7 @@ ns:RegisterProvider("camp", {
 						local pr = have[e.def.prof:lower()]
 						if pr then
 							P.OpenProfession(pr.skillLine, e.name)
-							ns:Print(e.name .. " isn't in your recipe index yet. Open the " .. e.def.prof .. " window, or run .scan.")
+							ns:Print(e.name .. " isn't in your recipe index yet. Open the " .. e.def.prof .. " window once to index it.")
 						else
 							ns:Print(e.name .. " is a " .. e.def.prof .. " camp object, and you don't have that profession.")
 						end
@@ -137,48 +137,5 @@ ns:RegisterProvider("camp", {
 			end
 		end
 		return out
-	end,
-})
-
-----------------------------------------------------------------------
--- .camp : one line per profession
-----------------------------------------------------------------------
-
-ns:RegisterCommand("camp", {
-	desc = "Which camp objects you can make",
-	aliases = { "camping", "campfire" },
-	run = function()
-		local idx = P.NameIndex()
-		local have = P.ProfessionNameSet()
-		local haveAny = next(have) ~= nil
-		local byProf, order = {}, {}
-		for _, def in ipairs(ALL) do
-			if not byProf[def.prof] then
-				byProf[def.prof] = {}
-				order[#order + 1] = def.prof
-			end
-			table.insert(byProf[def.prof], def)
-		end
-		local lines = { "Camp objects you know:" }
-		for _, prof in ipairs(order) do
-			local known, scanned, owned = {}, false, (not haveAny) or have[prof:lower()] ~= nil
-			for _, def in ipairs(byProf[prof]) do
-				local status = Status(def, idx, have, haveAny)
-				if status == "Known" then known[#known + 1] = def.name end
-				if status ~= "Not scanned" and not status:find("^No ") then scanned = true end
-			end
-			local text
-			if not owned then
-				text = "profession not learned"
-			elseif #known > 0 then
-				text = table.concat(known, ", ")
-			elseif scanned then
-				text = "none yet"
-			else
-				text = "not scanned (open it or .scan)"
-			end
-			lines[#lines + 1] = ("  %s: %s"):format(prof, text)
-		end
-		return lines
 	end,
 })

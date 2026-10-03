@@ -344,10 +344,14 @@ end
 ns:RegisterCommand("theme", {
 	desc = "List themes, or apply one: .theme dracula  (.theme reset)",
 	aliases = { "themes" },
-	-- Tab completion: theme names
+	-- Tab completion (and the rows shown while typing): theme names
 	complete = function()
-		local out = { "reset" }
-		for _, id in ipairs(T.PRESET_ORDER) do out[#out + 1] = id end
+		local cur = T.Get().preset
+		local out = {}
+		for _, id in ipairs(T.PRESET_ORDER) do
+			out[#out + 1] = { id, T.PRESETS[id].label .. (id == cur and "  (current)" or "") }
+		end
+		out[#out + 1] = { "reset", "back to the defaults" }
 		return out
 	end,
 	run = function(args)
@@ -377,13 +381,26 @@ ns:RegisterCommand("set", {
 	aliases = { "config" },
 	-- Tab completion: setting names, then the values a setting takes
 	complete = function(args)
-		local key, rest = args:match("^(%S+)%s+(.*)$")
-		if not key then return T.ORDER end
+		local t = T.Get()
+		local key = args:match("^(%S+)%s")
+		if not key then
+			local out = {}
+			for _, k in ipairs(T.ORDER) do
+				out[#out + 1] = { k, T.FIELDS[k].label .. ":  " .. T.Format(k, t[k]) }
+			end
+			return out
+		end
 		for _, k in ipairs(T.ORDER) do
 			if k:lower() == key:lower() then
 				local f = T.FIELDS[k]
-				if f.kind == "bool" then return { "on", "off" } end
-				if f.kind == "choice" then return f.choices end
+				local values = (f.kind == "bool" and { "on", "off" }) or (f.kind == "choice" and f.choices) or {}
+				local cur = T.Format(k, t[k])
+				local out = {}
+				for _, v in ipairs(values) do
+					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or ""
+					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. "(current)") or "") }
+				end
+				return out
 			end
 		end
 		return {}

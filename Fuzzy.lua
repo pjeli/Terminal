@@ -29,7 +29,7 @@ function Fuzzy.match(needle, hay, lhay)
 	local n, m = #needle, #hay
 	if n == 0 then return 0, {} end
 	if n > m or m > MAXLEN then return nil end
-	lhay = lhay or hay:lower()
+	lhay = lhay or ns.Lower(hay)
 
 	-- cheap subsequence check first
 	local pos = 0
@@ -120,7 +120,7 @@ function Fuzzy.score(needle, hay, lhay)
 	local n, m = #needle, #hay
 	if n == 0 then return 0 end
 	if n > m or m > MAXLEN then return nil end
-	lhay = lhay or hay:lower()
+	lhay = lhay or ns.Lower(hay)
 	if n == m then return lhay == needle and EXACT or nil end
 	local sub = substringScore(needle, hay, lhay, n, m)
 	if sub then return sub end
@@ -173,7 +173,7 @@ end
 --- Split a query into lowercase whitespace-separated tokens.
 function Fuzzy.tokens(q)
 	local t = {}
-	for w in (q or ""):lower():gmatch("%S+") do t[#t + 1] = w end
+	for w in ns.Lower(q):gmatch("%S+") do t[#t + 1] = w end
 	return t
 end
 
@@ -182,10 +182,20 @@ end
 function Fuzzy.Colorize(name, set, base)
 	local out, inRun = {}, false
 	local restore = base or ""
-	for i = 1, #name do
-		local c = name:sub(i, i)
+	local i, n = 1, #name
+	while i <= n do
+		-- one whole character: a colour code must never land inside a multi-byte letter
+		local b = name:byte(i)
+		local len = (b >= 240 and 4) or (b >= 224 and 3) or (b >= 192 and 2) or 1
+		if i + len - 1 > n then len = n - i + 1 end
+		local c = name:sub(i, i + len - 1)
+		local hit = false
+		if set then
+			for k = i, i + len - 1 do
+				if set[k] then hit = true break end
+			end
+		end
 		if c == "|" then c = "||" end
-		local hit = set and set[i]
 		if hit and not inRun then
 			out[#out + 1] = Fuzzy.matchColor or "|cffffd200"
 			inRun = true
@@ -194,6 +204,7 @@ function Fuzzy.Colorize(name, set, base)
 			inRun = false
 		end
 		out[#out + 1] = c
+		i = i + len
 	end
 	if inRun then out[#out + 1] = "|r" end
 	if base then return base .. table.concat(out) .. "|r" end

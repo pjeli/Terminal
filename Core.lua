@@ -11,6 +11,7 @@ local DEFAULTS = {
 	freq = {}, -- usage counts, used to boost frequently picked results
 	recent = {}, -- freqKeys of the last things picked, newest first (the terminal's history)
 	debug = false, -- .debug on: print blocked actions and Terminal's own steps
+	history = {}, -- lines run from the prompt, newest first (Up arrow on an empty prompt)
 }
 
 ns.providers = {}
@@ -111,19 +112,20 @@ function ns:RegisterProvider(id, def)
 		table.insert(self.providerOrder, id)
 	end
 	self.providers[id] = def
+	if ns.LocalizeKind then ns.LocalizeKind(def) end -- the game's words for @kind (Locale.lua)
 	for _, ev in ipairs(def.events or {}) do
 		self:WatchEvent(ev, def)
 	end
 end
 
 function ns:ResolveProvider(token)
-	token = (token or ""):lower()
+	token = ns.Lower(token)
 	if token == "" then return nil end
 	for _, id in ipairs(self.providerOrder) do
 		local p = self.providers[id]
-		if token == id or token == p.label:lower() then return p end
+		if token == id or token == ns.Lower(p.label) then return p end
 		for _, a in ipairs(p.aliases) do
-			if token == a:lower() then return p end
+			if token == ns.Lower(a) then return p end
 		end
 	end
 	for _, id in ipairs(self.providerOrder) do
@@ -175,10 +177,10 @@ function ns:GetEntries(p)
 						e.kindLabel = label
 						e.freqKey = p.id .. ":" .. tostring(e.key or e.name)
 					end
-					if not rawget(e, "_lname") then e._lname = e.name:lower() end
+					if not rawget(e, "_lname") then e._lname = ns.Lower(e.name) end
 					-- searchable text is only ever matched in lowercase: keep just that copy
 					if e.text then
-						e._ltext = e.text:lower()
+						e._ltext = ns.Lower(e.text)
 						e.text = nil
 					end
 					clean[#clean + 1] = e

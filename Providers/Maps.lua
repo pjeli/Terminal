@@ -164,8 +164,8 @@ local meta -- made once the provider exists (see collect)
 local function Entry(o)
 	return setmetatable({
 		_compact = true,
-		key = o.key, name = o.name, _lname = o.name:lower(), icon = o.icon, detail = o.detail,
-		_ltext = ((o.path or "") .. " map location " .. (o.kind or "")):lower(),
+		key = o.key, name = o.name, _lname = ns.Lower(o.name), icon = o.icon, detail = o.detail,
+		_ltext = ns.Lower((o.path or "") .. " map location " .. (o.kind or "")),
 		mapID = o.mapID, pos = o.pos,
 	}, meta)
 end
