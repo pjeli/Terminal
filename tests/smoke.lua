@@ -2037,6 +2037,16 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	pointed = nil
 	UI:Open("tank gear"); key("ENTER"); FlushAll()
 	check(logHas("RIGHTPANE click", mark + 1) and logHas("TAB2 click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "Forever: right pane toggle, then PaperDollSideBarTab2, then the set")
+	-- a toggle that ignores :Click() and acts on mouse up: its handler is run instead
+	pane.shown, tab2.shown = false, false
+	CharacterFrameRightPaneToggleButton.Click = function() note("RIGHTPANE click (ignored)") end
+	CharacterFrameRightPaneToggleButton.GetScript = function(_, h)
+		if h == "OnMouseUp" then return function() note("RIGHTPANE mouseup"); tab2.shown = true end end
+	end
+	mark = #log
+	pointed = nil
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(logHas("RIGHTPANE mouseup", mark + 1) and logHas("TAB2 click", mark + 1) and pointed == setRow, "a toggle that ignores Click is pressed through its mouse handler")
 	_G.PaperDollSideBarTab2, _G.CharacterFrameRightPaneToggleButton = nil, nil
 	-- Wrath-style layout: an "Equipment Manager" button opening the GearManagerDialog
 	PaperDollFrame.EquipmentManagerPane = nil

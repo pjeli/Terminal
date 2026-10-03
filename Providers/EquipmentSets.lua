@@ -152,7 +152,6 @@ end
 --- Manager) only show once the window is expanded.
 local function FindExpander()
 	local cf = _G.CharacterFrame
-	if cf and cf.Expanded == true then return nil end
 	for _, n in ipairs(EXPANDERS) do
 		if Shown(_G[n]) then return _G[n] end
 	end
@@ -164,18 +163,43 @@ end
 
 --- Runs once the character window is open: switch to its equipment sets page, scroll the
 --- list to the set and point at it (nothing is equipped).
+--- Presses the right-pane arrow. Some buttons act on mouse down/up rather than on a click,
+--- so later attempts run those handlers, and finally the frame's own expand function.
+local function PressExpander(x, attempt)
+	local name = tostring(Named(x) or "arrow")
+	if attempt == 1 then
+		ns:Trace("equipment sets: expanding the character window (" .. name .. ":Click)")
+		pcall(x.Click, x, "LeftButton")
+	elseif attempt == 2 then
+		ns:Trace("equipment sets: still collapsed, running " .. name .. "'s mouse handlers")
+		for _, h in ipairs({ "OnMouseDown", "OnMouseUp" }) do
+			local fn = x.GetScript and x:GetScript(h)
+			if fn then pcall(fn, x, "LeftButton") end
+		end
+	else
+		local cf = _G.CharacterFrame
+		local fn = (cf and (cf.ExpandRightPane or cf.ToggleRightPane or cf.Expand))
+		ns:Trace("equipment sets: still collapsed, calling the character window's expand function" .. (fn and "" or " (none found)"))
+		if fn then pcall(fn, cf) elseif _G.CharacterFrame_Expand then pcall(_G.CharacterFrame_Expand) end
+	end
+end
+
 local function ShowInManager(e)
 	local H = ns.Highlight
-	local clicked, expanded = false, false
+	local clicked, attempts, wait = false, 0, 0
 	local function open()
 		if clicked or Pane() then return end
 		local b, name = FindOpener(false)
-		if not b and not expanded and FindExpander() then
-			-- collapsed window: expand it first; the tabs appear and are found on the next try
-			expanded = true
-			local x = FindExpander()
-			ns:Trace("equipment sets: expanding the character window (" .. tostring(Named(x) or "arrow") .. ")")
-			pcall(x.Click, x)
+		local x = not b and FindExpander()
+		if x then
+			-- collapsed window: expand it first; the tabs appear and are found on a later try.
+			-- Give each attempt a few tries' time to take effect before the next.
+			if wait > 0 then wait = wait - 1 return end
+			if attempts < 3 then
+				attempts = attempts + 1
+				wait = 5
+				PressExpander(x, attempts)
+			end
 			return
 		end
 		if not b then b, name = FindOpener(true) end
