@@ -674,6 +674,21 @@ rep:SetScript("OnUpdate", function(self, elapsed)
 	EditKey(self.key, self.ctrl, self.shift)
 end)
 
+--- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the
+--- entry's secondary action; one that opens a window itself (secondarySecure) is armed like
+--- Enter is, with its own isOpen/after (e.g. an equipment set: the character window's sets).
+local function SecureView(e, shift)
+	if not e then return nil end
+	if shift and e.secondary then
+		if not e.secondarySecure then return nil end
+		return setmetatable({
+			secure = e.secondarySecure, isOpen = e.secondaryIsOpen, after = e.secondaryAfter,
+		}, { __index = e })
+	end
+	return e.secure and e or nil
+end
+UI.SecureView = SecureView
+
 local function KeysDown(self, key)
 	if InCombatLockdown() then
 		UI:EnterEdit()
@@ -685,10 +700,10 @@ local function KeysDown(self, key)
 	end
 	local ctrl, shift = IsControlKeyDown(), IsShiftKeyDown()
 	if key == "ENTER" or key == "NUMPADENTER" then
-		local e = results[sel]
-		if e and e.secure and not (shift and e.secondary) and UI:ArmForPress(e) then
+		local se = SecureView(results[sel], shift)
+		if se and UI:ArmForPress(se) then
 			self:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
-			UI:FinishSoon(e)
+			UI:FinishSoon(se)
 			return
 		end
 		self:SetPropagateKeyboardInput(false)
@@ -796,7 +811,8 @@ function UI:Activate(idx, opts)
 		return
 	end
 	-- windows Blizzard owns are opened by a secure click, never from our own code
-	if e.secure and not (opts.secondary and e.secondary) and self:TryArmSecure(e) then return end
+	local se = SecureView(e, opts.secondary)
+	if se and self:TryArmSecure(se) then return end
 	local args = self.args
 	local isCmd = e.kind == "cmd"
 	if not opts.keepOpen then self:Hide() end

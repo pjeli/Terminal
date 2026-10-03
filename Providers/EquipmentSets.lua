@@ -2,8 +2,9 @@ local ns = select(2, ...)
 
 -- Equipment sets (the character window's Equipment Manager). Search by the set's name, or
 -- only sets with @equipmentset (also @set, @sets, @outfit). Enter equips the set; Shift+Enter
--- lists its items in chat, marking any you don't have with you. Equipping is blocked in
--- combat, so in combat the entry does nothing.
+-- opens the character window on its equipment sets page and points at the set (through the
+-- game's own character key; without one, it lists the set's items in chat instead).
+-- Equipping and opening windows are blocked in combat, so in combat the entry does nothing.
 
 local function API() return _G.C_EquipmentSet end
 
@@ -69,6 +70,56 @@ local function ListItems(e)
 	ns:Output(lines)
 end
 
+local function PaperDollOpen()
+	local cf, pd = _G.CharacterFrame, _G.PaperDollFrame
+	return cf and cf:IsShown() and pd and pd:IsShown() and true or false
+end
+
+--- Runs once the character window is open: switch to its equipment sets page, scroll the
+--- list to the set and point at it (nothing is equipped).
+local function ShowInManager(e)
+	local H = ns.Highlight
+	local pd = _G.PaperDollFrame
+	local function pane() return pd and pd.EquipmentManagerPane end
+	local p = pane()
+	if not (p and p:IsVisible()) then
+		local tab = _G.PaperDollSidebarTab3 -- the character window's equipment sets tab
+		if tab and tab.Click then
+			ns:Trace("equipment sets: clicking the equipment sets tab")
+			pcall(tab.Click, tab)
+		end
+	end
+	local scrolled = false
+	H:When(function()
+		p = pane()
+		if not (p and p:IsVisible()) then return nil end
+		local function find()
+			return ns.FindFrame(p, function(f)
+				if f.setID ~= nil then return f.setID == e.setID end
+				if not f.Click then return false end
+				for _, r in ipairs({ f:GetRegions() }) do
+					if r.GetObjectType and r:GetObjectType() == "FontString" and r:GetText() == e.name then return true end
+				end
+				return false
+			end, 8)
+		end
+		local row = find()
+		if not row and not scrolled and p.ScrollBox and p.ScrollBox.ScrollToElementDataByPredicate then
+			scrolled = true
+			pcall(p.ScrollBox.ScrollToElementDataByPredicate, p.ScrollBox, function(node)
+				local d = type(node) == "table" and (node.GetData and node:GetData() or node)
+				return type(d) == "table" and d.setID == e.setID
+			end)
+			row = find()
+		end
+		return row
+	end, function(row)
+		H:Show(row)
+	end, 20, function()
+		ns:Trace("equipment sets: no row for " .. tostring(e.name) .. " in the character window")
+	end)
+end
+
 ns:RegisterProvider("equipmentset", {
 	label = "Equipment Set",
 	color = "ff9fe0c0",
@@ -101,7 +152,13 @@ ns:RegisterProvider("equipmentset", {
 					text = "equipment set gear outfit",
 					setID = s.id,
 					activate = Equip,
+					-- Shift+Enter: the character window's equipment sets page, through the
+					-- game's character key; ListItems is the fallback without one
 					secondary = ListItems,
+					secondarySecure = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } },
+					secondaryIsOpen = PaperDollOpen,
+					secondaryAfter = ShowInManager,
+					noCombatSecondary = true,
 				}
 			end
 		end

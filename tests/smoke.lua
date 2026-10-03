@@ -1965,8 +1965,45 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	es["Tank Gear"].secondary(es["Tank Gear"])
 	ns.Output = baseOut
 	local joined = table.concat(out, "\n")
-	check(out[1] == "Tank Gear:" and joined:find("Head:", 1, true) and joined:find("Main hand:.-%(missing%)"), "Shift+Enter lists the items, marking missing ones: " .. joined)
-	UI:Hide()
+	check(out[1] == "Tank Gear:" and joined:find("Head:", 1, true) and joined:find("Main hand:.-%(missing%)"), "without a character key, Shift+Enter lists the items, marking missing ones: " .. joined)
+	-- Shift+Enter: the character window, on its equipment sets page, pointing at the set
+	_G.CharacterFrame = _G.CharacterFrame or Obj("Frame"); CharacterFrame.shown = false
+	_G.PaperDollFrame = _G.PaperDollFrame or Obj("Frame"); PaperDollFrame.shown = false
+	local pane = Obj("Frame"); pane.shown = false
+	PaperDollFrame.EquipmentManagerPane = pane
+	local setRow = Obj("Button"); setRow.shown = true; setRow.setID = 1
+	local otherRow = Obj("Button"); otherRow.shown = true; otherRow.setID = 2
+	pane.GetChildren = function() return otherRow, setRow end
+	_G.PaperDollSidebarTab3 = Obj("Button"); PaperDollSidebarTab3.shown = true
+	PaperDollSidebarTab3.Click = function() note("SETSTAB click"); pane.shown = true end
+	local pointed
+	local origShow = ns.Highlight.Show
+	ns.Highlight.Show = function(self, t, d) pointed = t; return origShow(self, t, d) end
+	local realShift = _G.IsShiftKeyDown
+	_G.IsShiftKeyDown = function() return true end
+	local mark = #log
+	UI:Open("tank gear"); key("ENTER")
+	check(ns.Secure.armed == "TOGGLECHARACTER0" and F.propagate == true, "Shift+Enter opens the character window through the game's key")
+	check(#used == 1, "Shift+Enter doesn't equip the set")
+	CharacterFrame.shown, PaperDollFrame.shown = true, true -- what the game's binding just did
+	FlushAll()
+	check(logHas("SETSTAB click", mark + 1) and pointed == setRow, "switched to the equipment sets page and pointed at the set")
+	-- already open: straight to the set
+	pointed = nil
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(pointed == setRow and not ns.Secure.armed, "window already open: just points at the set")
+	-- in combat, nothing
+	CharacterFrame.shown, PaperDollFrame.shown, pane.shown = false, false, false
+	_G.InCombatLockdown = function() return true end
+	pointed = nil
+	UI:Open("tank gear"); UI:Activate(1, { secondary = true }); FlushAll()
+	check(pointed == nil and not logHas("SETSTAB click", #log), "in combat Shift+Enter does nothing")
+	_G.InCombatLockdown = realCombat
+	_G.IsShiftKeyDown = realShift
+	ns.Highlight.Show = origShow
+	PaperDollFrame.EquipmentManagerPane = nil
+	_G.PaperDollSidebarTab3 = nil
+	UI:Hide(); ns.Secure.Disarm()
 	C_Item.GetItemCount = saveCount
 	_G.C_EquipmentSet = nil
 	ns.providers.equipmentset._dirty = true
