@@ -90,3 +90,48 @@ ns:RegisterCommand("about", {
 		return { "Terminal " .. ns.version, "Providers: " .. #ns.providerOrder .. "  Commands: " .. #ns.commandOrder }
 	end,
 })
+
+-- .mem : Terminal's own memory use, how many entries each kind holds, and how long the last
+-- search took. For measuring before and after performance changes.
+ns:RegisterCommand("mem", {
+	desc = "Show Terminal's memory use, entries per kind, and the last search time",
+	aliases = { "memory", "perf" },
+	run = function()
+		local lines = {}
+		local upd = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or _G.UpdateAddOnMemoryUsage
+		local get = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or _G.GetAddOnMemoryUsage
+		if upd then pcall(upd) end
+		local kb = get and select(2, pcall(get, "Terminal"))
+		if type(kb) == "number" then
+			lines[#lines + 1] = ("Terminal memory: %.0f KB"):format(kb)
+		else
+			lines[#lines + 1] = "Terminal memory: not reported by this client"
+		end
+		local now = GetTime()
+		local total = 0
+		for _, id in ipairs(ns.providerOrder) do
+			local p = ns.providers[id]
+			local n = p._entries and #p._entries
+			local state
+			if n then
+				total = total + n
+				state = ("%d entries"):format(n)
+			else
+				state = "not built" .. (p.idleDrop and " (freed when idle)" or "")
+			end
+			local flags = {}
+			if p.explicit then flags[#flags + 1] = "only with @" end
+			if p.lazy then flags[#flags + 1] = "skipped on empty searches" end
+			if n and p._usedAt then flags[#flags + 1] = ("used %ds ago"):format(math.floor(now - p._usedAt)) end
+			lines[#lines + 1] = ("  @%s (%s): %s%s"):format(p.aliases[1] or id, p.label, state,
+				#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
+		end
+		lines[#lines + 1] = ("  %d entries in all"):format(total)
+		local UI = ns.UI
+		if UI and UI.lastSearchMs then
+			lines[#lines + 1] = ("Last search: %.1f ms for %d results%s"):format(UI.lastSearchMs, UI.lastSearchCount or 0,
+				UI.lastSearchNarrowed and " (narrowed from the previous search)" or "")
+		end
+		return lines
+	end,
+})

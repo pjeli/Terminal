@@ -97,6 +97,79 @@ function Fuzzy.match(needle, hay, lhay)
 	return M[n][m], positions
 end
 
+-- Scoring without positions, for ranking every candidate on each keystroke. Same scale as
+-- Fuzzy.match, but: a match that appears as-is in the name (most queries) is scored
+-- directly, and scattered matches use two reused rows instead of an n x m grid, so a search
+-- allocates nothing per entry. Positions (for highlighting) come from Fuzzy.match, only for
+-- the rows on screen.
+local rowM, rowD, rowM2, rowD2 = {}, {}, {}, {}
+
+local function substringScore(needle, hay, lhay, n, m)
+	local best
+	local p = find(lhay, needle, 1, true)
+	while p do
+		local last = p > 1 and byte(hay, p - 1) or 47
+		local s = (p - 1) * LEAD + bonusFor(last, byte(hay, p)) + (n - 1) * CONSEC + (m - (p + n - 1)) * TRAIL
+		if not best or s > best then best = s end
+		p = find(lhay, needle, p + 1, true)
+	end
+	return best
+end
+
+function Fuzzy.score(needle, hay, lhay)
+	local n, m = #needle, #hay
+	if n == 0 then return 0 end
+	if n > m or m > MAXLEN then return nil end
+	lhay = lhay or hay:lower()
+	if n == m then return lhay == needle and EXACT or nil end
+	local sub = substringScore(needle, hay, lhay, n, m)
+	if sub then return sub end
+	-- cheap subsequence check first; nothing before the first letter's first match counts
+	local first = find(lhay, needle:sub(1, 1), 1, true)
+	if not first then return nil end
+	local pos = first
+	for i = 2, n do
+		pos = find(lhay, needle:sub(i, i), pos + 1, true)
+		if not pos then return nil end
+	end
+	local Mp, Dp, Mc, Dc = rowM, rowD, rowM2, rowD2
+	Mp[first - 1], Dp[first - 1] = MIN, MIN
+	Mc[first - 1], Dc[first - 1] = MIN, MIN
+	for i = 1, n do
+		local nc = byte(needle, i)
+		local prev = MIN
+		local gap = (i == n) and TRAIL or INNER
+		local last = first > 1 and byte(hay, first - 1) or 47
+		for j = first, m do
+			local c = byte(hay, j)
+			local bonus = bonusFor(last, c)
+			last = c
+			if byte(lhay, j) == nc then
+				local s
+				if i == 1 then
+					s = (j - 1) * LEAD + bonus
+				elseif j > first then
+					local a, b = Mp[j - 1] + bonus, Dp[j - 1] + CONSEC
+					s = a > b and a or b
+				else
+					s = MIN
+				end
+				Dc[j] = s
+				prev = (s > prev + gap) and s or (prev + gap)
+			else
+				Dc[j] = MIN
+				prev = prev + gap
+			end
+			Mc[j] = prev
+		end
+		Mp, Mc = Mc, Mp
+		Dp, Dc = Dc, Dp
+	end
+	local r = Mp[m]
+	if r == MIN then return nil end
+	return r
+end
+
 --- Split a query into lowercase whitespace-separated tokens.
 function Fuzzy.tokens(q)
 	local t = {}

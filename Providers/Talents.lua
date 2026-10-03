@@ -166,6 +166,12 @@ local function ReadTree()
 	return configID, treeID, tabs, order
 end
 
+local function HighlightNode(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
+
+local function LinkTalent(e)
+	if e.link and not ChatEdit_InsertLink(e.link) then ChatFrame_OpenChat(e.link) end
+end
+
 ns:RegisterProvider("talents", {
 	label = "Talent",
 	color = "ffa3e05f",
@@ -213,12 +219,10 @@ ns:RegisterProvider("talents", {
 						-- opened through the game's Talents keybinding, then the node is highlighted
 						secure = TL.SECURE,
 						isOpen = TL.IsOpen,
-						after = function(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end,
+						after = HighlightNode,
 						activate = OpenFallback,
 						-- Shift+Enter: link the talent in chat
-						secondary = function(e)
-							if e.link and not ChatEdit_InsertLink(e.link) then ChatFrame_OpenChat(e.link) end
-						end,
+						secondary = LinkTalent,
 					}
 				end
 			end

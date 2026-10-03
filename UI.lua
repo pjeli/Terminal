@@ -53,33 +53,85 @@ local function FreqBonus(e)
 	return f and math.min(f, 20) * 0.05 or 0
 end
 
+--- The entry's score for these tokens, or nil. Allocation-free: matched letters (for the
+--- highlight) are worked out later, only for the rows on screen (see Positions).
 local function ScoreEntry(e, tokens)
-	local total, set = 0, {}
-	for _, tk in ipairs(tokens) do
-		local best, pos = Fuzzy.match(tk, e.name, e._lname)
-		if e.text then
-			if not e._ltext then e._ltext = e.text:lower() end
-			if e._ltext:find(tk, 1, true) and (not best or best < TEXT_SCORE) then
-				best, pos = TEXT_SCORE, nil
-			end
+	local total, nameHit = 0, false
+	local ltext = e._ltext
+	if not ltext and e.text then ltext = e.text:lower(); e._ltext = ltext end
+	for i = 1, #tokens do
+		local tk = tokens[i]
+		local best = Fuzzy.score(tk, e.name, e._lname)
+		if best then
+			nameHit = true
+		end
+		if ltext and (not best or best < TEXT_SCORE) and ltext:find(tk, 1, true) then
+			best = TEXT_SCORE
 		end
 		if not best then return nil end
 		total = total + best
+	end
+	e._pos, e._nameHit = nil, nameHit
+	return total
+end
+
+--- The matched letters of the entry's name for these tokens (a set of byte positions).
+local function Positions(e, tokens)
+	local set = {}
+	if not (e._nameHit and tokens) then return set end
+	for _, tk in ipairs(tokens) do
+		local _, pos = Fuzzy.match(tk, e.name, e._lname)
 		if pos then
 			for _, i in ipairs(pos) do set[i] = true end
 		end
 	end
-	e._pos = set
-	return total
+	return set
 end
 
+local function Better(a, b)
+	if a._score ~= b._score then return a._score > b._score end
+	local an, bn = a._lname or "", b._lname or ""
+	if an ~= bn then return an < bn end
+	return tostring(a.key) < tostring(b.key)
+end
+
+--- The best MAX_RESULTS of the list, in order. With thousands of matches, a small heap keeps
+--- only the best so far instead of sorting them all.
 local function SortAndTrim(list)
-	table.sort(list, function(a, b)
-		if a._score ~= b._score then return a._score > b._score end
-		local an, bn = a._lname or "", b._lname or ""
-		if an ~= bn then return an < bn end
-		return tostring(a.key) < tostring(b.key)
-	end)
+	local n = #list
+	if n > MAX_RESULTS * 2 then
+		local heap, size = {}, 0 -- worst of the kept ones on top
+		local function up(i)
+			while i > 1 do
+				local p = math.floor(i / 2)
+				if Better(heap[p], heap[i]) then heap[p], heap[i] = heap[i], heap[p]; i = p else break end
+			end
+		end
+		local function down(i)
+			while true do
+				local l, r, w = i * 2, i * 2 + 1, i
+				if l <= size and Better(heap[w], heap[l]) then w = l end
+				if r <= size and Better(heap[w], heap[r]) then w = r end
+				if w == i then return end
+				heap[w], heap[i] = heap[i], heap[w]
+				i = w
+			end
+		end
+		for k = 1, n do
+			local e = list[k]
+			if size < MAX_RESULTS then
+				size = size + 1
+				heap[size] = e
+				up(size)
+			elseif Better(e, heap[1]) then
+				heap[1] = e
+				down(1)
+			end
+		end
+		for k = n, 1, -1 do list[k] = nil end
+		for k = 1, size do list[k] = heap[k] end
+	end
+	table.sort(list, Better)
 	for i = #list, MAX_RESULTS + 1, -1 do list[i] = nil end
 	return list
 end
@@ -122,6 +174,7 @@ function UI:WordSearch(entries, text)
 	self.args = rest
 	local tokens
 	if word ~= "" and word ~= "/" then tokens = { word:lower() } end
+	self.posTokens = tokens
 	local out = {}
 	for _, e in ipairs(entries) do
 		if not tokens then
@@ -201,29 +254,62 @@ function UI:SearchText(text)
 		end
 	end
 	local empty = #tokens == 0
-	if empty and not kinds then return self:FrequentEntries() end
+	self.posTokens = tokens
+	if empty and not kinds then self.lastScan = nil return self:FrequentEntries() end
 
 	local out = {}
 	local present = {}
+	local included = {}
+	local fresh = true -- every list read is already built (nothing to re-collect)
+	local sig = {}
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
-		local included
-		if kinds then included = kinds[id] else included = not p.explicit end
-		if included then
-			for _, e in ipairs(ns:GetEntries(p)) do
-				if empty then
-					e._score, e._pos = FreqBonus(e), {}
-					out[#out + 1] = e
-				else
-					local s = ScoreEntry(e, tokens)
-					if s then
-						e._score = s + FreqBonus(e)
-						out[#out + 1] = e
-						present[e] = true
-					end
-				end
+		local inc
+		if kinds then inc = kinds[id] else inc = not p.explicit end
+		if inc then
+			included[#included + 1] = p
+			sig[#sig + 1] = id
+			if p._dirty or not p._entries then fresh = false end
+		end
+	end
+	sig = table.concat(sig, ",")
+	-- typing one more letter can only narrow the matches: score just the last ones again
+	local last = self.lastScan
+	local candidates
+	if not empty and fresh and last and last.sig == sig and last.gen == ns.entriesGen and #last.tokens == #tokens then
+		candidates = last.matches
+		for i = 1, #tokens do
+			local a, b = last.tokens[i], tokens[i]
+			if i < #tokens and a ~= b then candidates = nil break end
+			if i == #tokens and b:sub(1, #a) ~= a then candidates = nil break end
+		end
+	end
+	local function consider(e)
+		if empty then
+			e._score, e._pos = FreqBonus(e), {}
+			out[#out + 1] = e
+		else
+			local s = ScoreEntry(e, tokens)
+			if s then
+				e._score = s + FreqBonus(e)
+				out[#out + 1] = e
+				present[e] = true
 			end
 		end
+	end
+	self.lastSearchNarrowed = candidates and true or false
+	if candidates then
+		for i = 1, #candidates do consider(candidates[i]) end
+	else
+		for _, p in ipairs(included) do
+			local list = ns:GetEntries(p)
+			for i = 1, #list do consider(list[i]) end
+		end
+	end
+	if not empty then
+		local matches = {}
+		for i = 1, #out do matches[i] = out[i] end
+		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
 	end
 	-- a quest item brings its quest along, right below it ("Intact Limbs" -> its quest)
 	if not empty and (not kinds or kinds.quests) and ns.providers.quests then
@@ -256,7 +342,7 @@ function UI:SearchText(text)
 					-- directly under its item when the item itself was searched for by name; an item
 					-- that only matched through its quest's text stays below the quest
 					local it = from[q.questID]
-					if not present[q] or (it._pos and next(it._pos)) then
+					if not present[q] or it._nameHit then
 						q._score = s - 0.001
 						self.linked[q] = it
 						self.linkedGuess = self.linkedGuess or {}
@@ -271,6 +357,21 @@ end
 
 function UI:Refresh()
 	if not frame then return end
+	-- typed faster than a frame: one search for the whole burst, on the next frame
+	local now = GetTime()
+	if self.refreshedAt == now then
+		if not self.refreshQueued then
+			self.refreshQueued = true
+			C_Timer.After(0, function()
+				self.refreshQueued = false
+				self.refreshedAt = nil
+				if self:IsShown() then self:Refresh() end
+			end)
+		end
+		return
+	end
+	self.refreshedAt = now
+	local t0 = debugprofilestop and debugprofilestop()
 	if self.armedEntry then self:Disarm() end -- the query changed: whatever was armed is stale
 	self.pendingAfter = nil
 	self.args = nil
@@ -287,6 +388,8 @@ function UI:Refresh()
 	else
 		results = self:Search(text)
 	end
+	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
+	self.lastSearchCount = #results
 	sel, offset = 1, 0
 	self:Render()
 end
@@ -461,6 +564,7 @@ function UI:Render()
 			else
 				local base = e.color
 				if light and base == "|cffffffff" then base = nil end -- white item names vanish on light themes
+				if e._pos == nil then e._pos = Positions(e, self.posTokens) end -- only for rows on screen
 				r.label:SetText(Theme.FixColors(Fuzzy.Colorize(e.name, e._pos, base)))
 			end
 			if e.icon == false then
@@ -546,7 +650,7 @@ function UI:TryArmSecure(e)
 	local S = ns.Secure
 	local target = S.Resolve(e.secure)
 	if not target then ns:Trace("secure: no binding/button for " .. e.name) return false end
-	if e.isOpen and e.isOpen() then -- nothing to click, just point at the thing
+	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
 		ns:Trace("secure: window already open, highlighting " .. e.name)
 		self:Hide()
 		ns:Bump(e.freqKey)
@@ -572,7 +676,7 @@ end
 function UI:ArmForPress(e)
 	local S = ns.Secure
 	local target = S.Resolve(e.secure)
-	if not target or (e.isOpen and e.isOpen()) then return false end
+	if not target or (e.isOpen and e.isOpen(e)) then return false end
 	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. e.name) return false end
 	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. e.name)
 	if self.armedEntry ~= e then ns:Bump(e.freqKey) end

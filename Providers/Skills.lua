@@ -166,6 +166,8 @@ local function Describe(e)
 	ns:Output(lines)
 end
 
+local SKILL_SECURE = { binding = "TOGGLECHARACTER1" }
+
 ns:RegisterProvider("skills", {
 	label = "Skill",
 	color = "ffd0c090",
@@ -173,6 +175,7 @@ ns:RegisterProvider("skills", {
 	noCombat = true, -- opening the character window is blocked in combat
 	events = { "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL" },
 	guard = 2,
+	selfEvents = true, -- reading expands and collapses groups, which fires SKILL_LINES_CHANGED
 	collect = function()
 		local out = {}
 		for _, l in ipairs(ReadAll()) do
@@ -189,7 +192,7 @@ ns:RegisterProvider("skills", {
 					text = "skill " .. (l.group or "") .. " " .. (l.desc or ""),
 					tip = l.desc,
 					rankText = rank, group = l.group, desc = l.desc,
-					secure = { binding = "TOGGLECHARACTER1" },
+					secure = SKILL_SECURE,
 					isOpen = SkillsOpen,
 					after = ShowSkill,
 					activate = Describe, -- no Skills key to ride on: the details go to chat

@@ -112,27 +112,35 @@ local function Roots()
 	return roots
 end
 
+-- Every place shares these (compact entries: each place only holds what's its own)
+local function PinOnly(e)
+	local pin = Place(e)
+	if pin then
+		ns:Print("Waypoint " .. (pin == "moved" and "moved to " or "set: ") .. e.name)
+	elseif not e.pos then
+		ns:Print("Pick a place with a spot on the map to set a waypoint.")
+	else
+		ns:Print("Can't set a waypoint there.")
+	end
+end
+
+local PROTO = {
+	secure = M.SECURE,
+	isOpen = MapOpen,
+	after = ShowAfter,
+	activate = Direct,
+	-- Shift+Enter: waypoint (and tracking) without opening the map
+	secondary = PinOnly,
+}
+local meta -- made once the provider exists (see collect)
+
 local function Entry(o)
-	return {
-		key = o.key, name = o.name, icon = o.icon, detail = o.detail,
-		text = (o.path or "") .. " map location " .. (o.kind or ""),
+	return setmetatable({
+		_compact = true,
+		key = o.key, name = o.name, _lname = o.name:lower(), icon = o.icon, detail = o.detail,
+		_ltext = ((o.path or "") .. " map location " .. (o.kind or "")):lower(),
 		mapID = o.mapID, pos = o.pos,
-		secure = M.SECURE,
-		isOpen = MapOpen,
-		after = ShowAfter,
-		activate = Direct,
-		-- Shift+Enter: waypoint (and tracking) without opening the map
-		secondary = function(e)
-			local pin = Place(e)
-			if pin then
-				ns:Print("Waypoint " .. (pin == "moved" and "moved to " or "set: ") .. e.name)
-			elseif not e.pos then
-				ns:Print("Pick a place with a spot on the map to set a waypoint.")
-			else
-				ns:Print("Can't set a waypoint there.")
-			end
-		end,
-	}
+	}, meta)
 end
 
 ns:RegisterProvider("maps", {
@@ -143,8 +151,10 @@ ns:RegisterProvider("maps", {
 	lazy = true, -- thousands of places: only offered once you type something
 	events = { "ZONE_CHANGED_NEW_AREA" },
 	guard = 10,
-	collect = function()
+	idleDrop = 600, -- thousands of places: freed after 10 minutes without a map search
+	collect = function(p)
 		local out = {}
+		meta = meta or ns:CompactMeta(p, PROTO)
 		if not (C_Map and C_Map.GetMapInfo and C_Map.GetMapChildrenInfo) then return out end
 		local maps, seen = {}, {}
 		local function add(info)

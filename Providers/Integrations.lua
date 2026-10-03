@@ -71,8 +71,11 @@ local function IndexModule(addon, storage)
 							if type(id) == "number" and id > 0 then
 								local key = addon .. ":" .. tostring(content) .. ":" .. id
 								if not loot.byKey[key] then
-									local r = { key = key, itemID = id, addon = addon, content = content, boss = boss, diff = d,
-										inst = inst, bossName = bossName }
+									-- the row is the entry (compact: shared fields come from loot.meta);
+									-- its name is filled in once the server has sent it
+									local r = setmetatable({ _compact = true, key = key, itemID = id, addon = addon,
+										content = content, boss = boss, diff = d, detail = bossName .. "  " .. inst,
+										_ltext = (inst .. " " .. bossName .. " loot drop atlasloot"):lower() }, loot.meta)
 									loot.byKey[key] = r
 									loot.rows[#loot.rows + 1] = r
 									loot.pending[#loot.pending + 1] = id
@@ -178,21 +181,18 @@ local function SetupAtlasLoot()
 			local out = {}
 			if not AtlasLootPresent() then return out end -- AtlasLoot went away: no stale loot rows
 			for _, r in ipairs(loot.rows) do
-				local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(r.itemID)
-				if type(name) == "string" and name ~= "" then
-					out[#out + 1] = {
-						key = r.key, name = name,
-						icon = C_Item.GetItemIconByID and C_Item.GetItemIconByID(r.itemID) or nil,
-						detail = r.bossName .. "  " .. r.inst,
-						text = r.inst .. " " .. r.bossName .. " loot drop atlasloot",
-						link = "item:" .. r.itemID,
-						itemID = r.itemID, addon = r.addon, content = r.content, boss = r.boss, diff = r.diff,
-						activate = OpenLoot,
-					}
+				if not rawget(r, "name") then
+					local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(r.itemID)
+					if type(name) == "string" and name ~= "" then r.name = name end
 				end
+				if rawget(r, "name") then out[#out + 1] = r end
 			end
 			return out
 		end,
+	})
+	loot.meta = ns:CompactMeta(ns.providers.loot, { activate = OpenLoot }, {
+		icon = function(t) return C_Item.GetItemIconByID and C_Item.GetItemIconByID(t.itemID) or nil end,
+		link = function(t) return "item:" .. t.itemID end,
 	})
 	C_Timer.After(8, LoadLootModules)
 end
@@ -223,12 +223,16 @@ local function IndexNPCs()
 	for id in pairs(DB.NPCPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
 	table.sort(ids)
 	local out, i = {}, 1
+	local meta = npc.meta
 	local function step()
 		local stop = math.min(i + 1500, #ids)
 		while i <= stop do
 			local id = ids[i]
 			local name = Safe(DB.QueryNPCSingle, id, "name")
-			if type(name) == "string" and name ~= "" then out[#out + 1] = { id = id, name = name } end
+			if type(name) == "string" and name ~= "" then
+				-- compact: just the name and id; everything else is shared (npc.meta)
+				out[#out + 1] = setmetatable({ _compact = true, key = id, npcID = id, name = name }, meta)
+			end
 			i = i + 1
 		end
 		if i <= #ids then
@@ -236,6 +240,7 @@ local function IndexNPCs()
 		else
 			npc.list, npc.busy = out, false
 			if ns.providers.npc then ns.providers.npc._dirty = true end
+			if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
 		end
 	end
 	step()
@@ -313,12 +318,13 @@ local function IndexQuests()
 			if type(name) == "string" and name ~= "" then
 				local zone = Safe(DB.QueryQuestSingle, id, "zoneOrSort")
 				local zname = type(zone) == "number" and zone > 0 and C_Map and C_Map.GetAreaInfo and Safe(C_Map.GetAreaInfo, zone) or nil
-				out[#out + 1] = {
-					id = id, name = name,
+				local zoneName = type(zname) == "string" and zname or nil
+				out[#out + 1] = setmetatable({
+					_compact = true, key = id, qid = id, name = name,
 					level = Safe(DB.QueryQuestSingle, id, "questLevel"),
-					req = Safe(DB.QueryQuestSingle, id, "requiredLevel"),
-					zone = type(zname) == "string" and zname or nil,
-				}
+					zone = zoneName,
+					_ltext = ("quest questie " .. (zoneName or "")):lower(),
+				}, qdb.meta)
 			end
 			i = i + 1
 		end
@@ -327,6 +333,7 @@ local function IndexQuests()
 		else
 			qdb.list, qdb.busy = out, false
 			if ns.providers.questie then ns.providers.questie._dirty = true end
+			if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
 		end
 	end
 	step()
@@ -354,43 +361,59 @@ local function Done(id)
 end
 
 --- A quest from Questie's database. One you're on opens the quest log like @questlog does;
---- otherwise Enter shows its quest giver on the map (Shift+Enter: only the map pin).
-local function QuestieQuestEntry(q, logEntries)
-	local status = InLog(q.id) and "in log" or (Done(q.id) and "done" or nil)
-	local parts = {}
-	if q.level and q.level > 0 then parts[#parts + 1] = "Lv " .. q.level end
-	if q.zone then parts[#parts + 1] = q.zone end
-	if status then parts[#parts + 1] = status end
-	local e = {
-		key = q.id, name = q.name,
-		icon = status == "done" and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon",
-		detail = table.concat(parts, "  "),
-		text = "quest questie " .. (q.zone or "") .. " " .. (status or ""),
-		qid = q.id,
-	}
-	if status == "in log" then
-		for _, l in ipairs(logEntries) do
-			if l.questID == q.id then
-				e.secure, e.isOpen, e.after, e.activate, e.secondary = l.secure, l.isOpen, l.after, l.activate, l.secondary
-				e.questID = nil
-				return e
-			end
-		end
+--- otherwise Enter shows its quest giver on the map (Shift+Enter: only the map pin). Entries
+--- are compact: these are shared, and worked out when read (the quest's state can change).
+local function LogEntry(id)
+	local p = ns.providers.quests
+	if not p then return nil end
+	for _, l in ipairs(ns:GetEntries(p)) do
+		if l.questID == id then return l end
 	end
-	e.secure, e.isOpen = ns.Maps.SECURE, ns.Maps.MapOpen
-	local function giver(fn)
-		return function(entry)
-			local npcID, npcName, other = QuestGiver(entry.qid)
-			if not npcID then
-				ns:Print(entry.name .. (other and (" is started by " .. other .. ".") or ": Questie doesn't know who starts it."))
-				return
-			end
-			fn({ name = entry.name, npcID = npcID, npcName = (npcName or "quest giver") .. " (" .. entry.name .. ")" })
-		end
-	end
-	e.after, e.activate, e.secondary = giver(ShowNpc), giver(OpenNpcDirect), giver(NpcPin)
-	return e
 end
+
+local function Status(id)
+	return InLog(id) and "in log" or (Done(id) and "done" or nil)
+end
+
+local function Giver(fn)
+	return function(entry)
+		local npcID, npcName, other = QuestGiver(entry.qid)
+		if not npcID then
+			ns:Print(entry.name .. (other and (" is started by " .. other .. ".") or ": Questie doesn't know who starts it."))
+			return
+		end
+		fn({ name = entry.name, npcID = npcID, npcName = (npcName or "quest giver") .. " (" .. entry.name .. ")" })
+	end
+end
+local GIVER_AFTER, GIVER_OPEN, GIVER_PIN = Giver(ShowNpc), Giver(OpenNpcDirect), Giver(NpcPin)
+
+-- a field that comes from the quest log entry while the quest is in the log
+local function FromLog(field, otherwise)
+	return function(t)
+		local l = InLog(t.qid) and LogEntry(t.qid)
+		if l then return l[field] end
+		return otherwise
+	end
+end
+
+local QUESTIE_LAZY = {
+	detail = function(t)
+		local parts = {}
+		if t.level and t.level > 0 then parts[#parts + 1] = "Lv " .. t.level end
+		if t.zone then parts[#parts + 1] = t.zone end
+		local st = Status(t.qid)
+		if st then parts[#parts + 1] = st end
+		return table.concat(parts, "  ")
+	end,
+	icon = function(t)
+		return Done(t.qid) and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon"
+	end,
+	secure = function(t) return FromLog("secure", ns.Maps.SECURE)(t) end,
+	isOpen = function(t) return FromLog("isOpen", ns.Maps.MapOpen)(t) end,
+	after = function(t) return FromLog("after", GIVER_AFTER)(t) end,
+	activate = function(t) return FromLog("activate", GIVER_OPEN)(t) end,
+	secondary = function(t) return FromLog("secondary", GIVER_PIN)(t) end,
+}
 
 local function SetupQuestie()
 	if npc.on or not (_G.Questie and _G.QuestieLoader) then return end
@@ -402,23 +425,21 @@ local function SetupQuestie()
 		explicit = true, -- tens of thousands of names: only searched with @npc
 		noCombat = true,
 		guard = 10,
+		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
+		onDrop = function() npc.list = nil end,
 		collect = function()
-			local out = {}
-			for _, n in ipairs(npc.list or {}) do
-				out[#out + 1] = {
-					key = n.id, name = n.name, icon = "Interface\\Icons\\INV_Misc_Head_Human_01",
-					detail = "NPC  #" .. n.id, text = "npc questie " .. n.id,
-					npcID = n.id,
-					secure = ns.Maps.SECURE,
-					isOpen = ns.Maps.MapOpen,
-					after = ShowNpc,
-					activate = OpenNpcDirect,
-					secondary = NpcPin,
-				}
-			end
-			return out
+			if not npc.list then IndexNPCs() end
+			return npc.list or {}
 		end,
 	})
+	npc.meta = ns:CompactMeta(ns.providers.npc, {
+		icon = "Interface\\Icons\\INV_Misc_Head_Human_01",
+		secure = ns.Maps.SECURE,
+		isOpen = ns.Maps.MapOpen,
+		after = ShowNpc,
+		activate = OpenNpcDirect,
+		secondary = NpcPin,
+	}, { detail = function(t) return "NPC  #" .. t.npcID end })
 	ns:RegisterProvider("questie", {
 		label = "Questie",
 		color = "ffb48cff",
@@ -427,15 +448,14 @@ local function SetupQuestie()
 		noCombat = true,
 		events = { "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" },
 		guard = 5,
+		idleDrop = 600, -- freed after 10 minutes without a @questie search; re-read when next wanted
+		onDrop = function() qdb.list = nil end,
 		collect = function()
-			local out = {}
-			local logEntries = ns.providers.quests and ns:GetEntries(ns.providers.quests) or {}
-			for _, q in ipairs(qdb.list or {}) do
-				out[#out + 1] = QuestieQuestEntry(q, logEntries)
-			end
-			return out
+			if not qdb.list then IndexQuests() end
+			return qdb.list or {}
 		end,
 	})
+	qdb.meta = ns:CompactMeta(ns.providers.questie, nil, QUESTIE_LAZY)
 	local function index()
 		C_Timer.After(2, IndexNPCs)
 		C_Timer.After(4, IndexQuests)

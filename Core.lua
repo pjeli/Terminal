@@ -72,7 +72,10 @@ end
 --     events   = { "BAG_UPDATE_DELAYED" }, -- events that invalidate the cache
 --     explicit = true,                 -- only searched with @kind (or a mode)
 --     lazy     = true,                 -- skipped on empty queries (heavy index)
---     guard    = 1.0,                  -- ignore events for N seconds after a collect
+--     guard    = 1.0,                  -- events within N s of a collect wait until then
+--     selfEvents = true,               -- ...or are ignored: collecting fires them itself
+--     idleDrop = 600,                  -- free the entries after N s without a search
+--     onDrop   = function() end,       -- ...and free whatever else the provider keeps
 --     refreshOnOpen = true,            -- re-collect each time the terminal opens
 --     noCombat = true,                 -- Enter does nothing in combat (protected actions)
 --     collect  = function() return { entry, ... } end,
@@ -133,22 +136,51 @@ function ns:MarkAllDirty()
 	for _, p in pairs(self.providers) do p._dirty = true end
 end
 
+ns.entriesGen = 0 -- bumped whenever any provider's entries are rebuilt
+
+--- Shared fields for compact entries (big lists): an entry holds only what differs (name,
+--- id...), and kind, label, freqKey and anything in `proto` come from its metatable.
+--- `lazy` fields are computed on first read (detail strings and the like).
+function ns:CompactMeta(p, proto, lazy)
+	local label
+	return { __index = function(t, k)
+		if k == "kind" then return p.id end
+		if k == "kindLabel" then
+			label = label or ("|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r")
+			return label
+		end
+		if k == "noCombat" then return p.noCombat end
+		if k == "freqKey" then return p.id .. ":" .. tostring(rawget(t, "key") or t.name) end
+		local f = lazy and lazy[k]
+		if f then return f(t) end
+		return proto and proto[k]
+	end }
+end
+
 function ns:GetEntries(p)
+	p._usedAt = GetTime()
 	if p._dirty or not p._entries then
 		local ok, res = pcall(p.collect, p)
 		p._collectedAt = GetTime()
 		p._dirty = false
+		ns.entriesGen = ns.entriesGen + 1
 		if ok and type(res) == "table" then
 			local clean = {}
 			local label = "|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r"
 			for _, e in ipairs(res) do
 				if type(e.name) == "string" and e.name ~= "" then
-					e.kind = p.id
-					if e.noCombat == nil then e.noCombat = p.noCombat end
-					
-					e.kindLabel = label
-					e._lname = e.name:lower()
-					e.freqKey = p.id .. ":" .. tostring(e.key or e.name)
+					if not rawget(e, "_compact") then
+						e.kind = p.id
+						if e.noCombat == nil then e.noCombat = p.noCombat end
+						e.kindLabel = label
+						e.freqKey = p.id .. ":" .. tostring(e.key or e.name)
+					end
+					if not rawget(e, "_lname") then e._lname = e.name:lower() end
+					-- searchable text is only ever matched in lowercase: keep just that copy
+					if e.text then
+						e._ltext = e.text:lower()
+						e.text = nil
+					end
 					clean[#clean + 1] = e
 				end
 			end
@@ -232,12 +264,33 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 	if list then
 		local now = GetTime()
 		for _, p in ipairs(list) do
-			if not (p.guard and p._collectedAt and now - p._collectedAt < p.guard) then
+			local wait = p.guard and p._collectedAt and (p.guard - (now - p._collectedAt)) or 0
+			if wait <= 0 then
 				p._dirty = true
+			elseif not p.selfEvents then
+				-- just after a collect: the change still counts, a moment later (a bag update
+				-- right after a search used to be dropped, leaving stale counts)
+				local at = now
+				C_Timer.After(wait, function()
+					if not p._collectedAt or p._collectedAt <= at then p._dirty = true end
+				end)
 			end
 		end
 	end
 end)
+
+-- Big lists nobody searched for a while are freed, and rebuilt when next wanted.
+function ns:DropIdle(now)
+	now = now or GetTime()
+	for _, p in pairs(self.providers) do
+		if p.idleDrop and p._entries and p._usedAt and now - p._usedAt > p.idleDrop then
+			p._entries, p._dirty = nil, true
+			if p.onDrop then pcall(p.onDrop) end
+			ns.entriesGen = ns.entriesGen + 1
+		end
+	end
+end
+if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(60, function() ns:DropIdle() end) end
 
 ----------------------------------------------------------------------
 -- Slash commands

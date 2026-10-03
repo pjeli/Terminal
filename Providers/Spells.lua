@@ -1,6 +1,27 @@
 local ns = select(2, ...)
 local H = ns.Highlight
 
+-- shared by every spell entry (one function each, not one per spell)
+local function OpenSpellBook(e)
+	ns.LoadBlizz("Blizzard_PlayerSpells")
+	if PlayerSpellsUtil and PlayerSpellsUtil.OpenToSpellBookTab then
+		PlayerSpellsUtil.OpenToSpellBookTab()
+	elseif type(_G.ToggleSpellBook) == "function" then
+		_G.ToggleSpellBook("spell")
+	elseif PlayerSpellsFrame then
+		ShowUIPanel(PlayerSpellsFrame)
+	end
+	H:Find(function()
+		local root = PlayerSpellsFrame or SpellBookFrame
+		if not root or not root:IsVisible() then return nil end
+		return ns.FindByText(root, e.name)
+	end, 8)
+end
+
+local function PickupSpell(e)
+	C_Spell.PickupSpell(e.spellID)
+end
+
 ns:RegisterProvider("spells", {
 	label = "Spell",
 	color = "ff9d7bff",
@@ -27,25 +48,9 @@ ns:RegisterProvider("spells", {
 								detail = (it.isPassive and "Passive  " or "") .. (li.name or ""),
 								link = C_Spell.GetSpellLink(it.spellID),
 								spellID = it.spellID,
-								activate = function(e)
-									ns.LoadBlizz("Blizzard_PlayerSpells")
-									if PlayerSpellsUtil and PlayerSpellsUtil.OpenToSpellBookTab then
-										PlayerSpellsUtil.OpenToSpellBookTab()
-									elseif type(_G.ToggleSpellBook) == "function" then
-										_G.ToggleSpellBook("spell")
-									elseif PlayerSpellsFrame then
-										ShowUIPanel(PlayerSpellsFrame)
-									end
-									H:Find(function()
-										local root = PlayerSpellsFrame or SpellBookFrame
-										if not root or not root:IsVisible() then return nil end
-										return ns.FindByText(root, e.name)
-									end, 8)
-								end,
+								activate = OpenSpellBook,
 								-- Shift+Enter: pick the spell up so it can be dropped on an action bar
-								secondary = function(e)
-									C_Spell.PickupSpell(e.spellID)
-								end,
+								secondary = PickupSpell,
 							}
 						end
 					end

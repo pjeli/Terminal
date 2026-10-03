@@ -56,6 +56,39 @@ local PANELS = {
 -- the game's keybinding commands for Character window tabs
 local CHAR_BINDINGS = { PaperDollFrame = "TOGGLECHARACTER0", ReputationFrame = "TOGGLECHARACTER2" }
 
+-- shared by every currency, mount and achievement entry (not one copy per entry)
+local function OpenCurrency(e)
+	if C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() else ToggleCharacter("TokenFrame") end
+	H:Find(function()
+		local root = _G.TokenFrame or CharacterFrame
+		return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
+	end, 8)
+end
+
+local function SummonMount(e) C_MountJournal.SummonByID(e.key) end
+
+local function ShowMount(e)
+	ns.LoadBlizz("Blizzard_Collections")
+	if CollectionsJournal_SetTab and CollectionsJournal then
+		ShowUIPanel(CollectionsJournal)
+		CollectionsJournal_SetTab(CollectionsJournal, 1)
+	end
+	H:Find(function()
+		local root = _G.MountJournal
+		return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
+	end, 8)
+end
+
+local function OpenAchievement(e)
+	ns.LoadBlizz("Blizzard_AchievementUI")
+	if AchievementFrame_SelectAchievement then
+		ShowUIPanel(AchievementFrame)
+		pcall(AchievementFrame_SelectAchievement, e.key)
+	else
+		ToggleAchievementFrame()
+	end
+end
+
 ns:RegisterProvider("panels", {
 	label = "Panel",
 	color = "ff7fe0ff",
@@ -160,13 +193,7 @@ ns:RegisterProvider("currency", {
 					name = info.name,
 					icon = info.iconFileID,
 					detail = tostring(info.quantity or 0) .. ((info.maxQuantity and info.maxQuantity > 0) and (" / " .. info.maxQuantity) or ""),
-					activate = function(e)
-						if C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() else ToggleCharacter("TokenFrame") end
-						H:Find(function()
-							local root = _G.TokenFrame or CharacterFrame
-							return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
-						end, 8)
-					end,
+					activate = OpenCurrency,
 				}
 			end
 		end
@@ -195,18 +222,8 @@ ns:RegisterProvider("mounts", {
 					icon = icon,
 					detail = isFavorite and "Favorite" or "",
 					link = spellID and C_Spell.GetSpellLink(spellID) or nil,
-					activate = function() C_MountJournal.SummonByID(mountID) end,
-					secondary = function(e)
-						ns.LoadBlizz("Blizzard_Collections")
-						if CollectionsJournal_SetTab and CollectionsJournal then
-							ShowUIPanel(CollectionsJournal)
-							CollectionsJournal_SetTab(CollectionsJournal, 1)
-						end
-						H:Find(function()
-							local root = _G.MountJournal
-							return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
-						end, 8)
-					end,
+					activate = SummonMount,
+					secondary = ShowMount,
 				}
 			end
 		end
@@ -238,15 +255,7 @@ ns:RegisterProvider("achievements", {
 						detail = (completed and "Done  " or "") .. (points and points > 0 and (points .. " pts") or ""),
 						tip = description,
 						link = GetAchievementLink(id),
-						activate = function(e)
-							ns.LoadBlizz("Blizzard_AchievementUI")
-							if AchievementFrame_SelectAchievement then
-								ShowUIPanel(AchievementFrame)
-								pcall(AchievementFrame_SelectAchievement, e.key)
-							else
-								ToggleAchievementFrame()
-							end
-						end,
+						activate = OpenAchievement,
 					}
 				end
 			end

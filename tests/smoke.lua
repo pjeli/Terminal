@@ -589,7 +589,7 @@ ProfessionsFrame.shown = false
 C_TradeSkillUI.OpenTradeSkill = baseOTS
 rec["Elixir of Strength"].secondary(rec["Elixir of Strength"])
 check(log[#log - 1] == "INSERTLINK |Henchant:11|h[x]|h" or log[#log]:match("^INSERTLINK"), "secondary links the recipe")
-check(rec["Elixir of Strength"].getLink() == "|Henchant:11|h[x]|h", "getLink works")
+check(rec["Elixir of Strength"]:getLink() == "|Henchant:11|h[x]|h", "getLink works")
 -- an unscanned object tells you what to do instead of erroring
 local okc = camp["Fermenter"] == nil
 check(okc, "unscanned camp objects aren't offered")
@@ -1812,6 +1812,7 @@ do -- AtlasLoot and Questie integrations
 	check(UI:Search("@loot cruel")[1].name == "Cruel Barb", "@loot filter")
 	-- items whose names the game hasn't sent yet are asked for, and appear when they arrive
 	iname[1002] = nil; ns.providers.loot._dirty = true
+	for _, r in ipairs(I.loot.rows) do if r.itemID == 1002 then r.name = nil; r._lname = nil end end -- as if never named
 	check(not names(ns:GetEntries(ns.providers.loot))["Red Defias Mask"], "unnamed items wait")
 	iname[1002] = "Red Defias Mask"; ns.providers.loot._dirty = true
 	check(names(ns:GetEntries(ns.providers.loot))["Red Defias Mask"], "and appear once named")
@@ -1883,6 +1884,18 @@ do -- AtlasLoot and Questie integrations
 	check(r[1] and r[1].kind == "quests", "@questlog searches the quest log")
 	check(ns:ResolveProvider("questie").id ~= "npc", "@questie no longer means NPCs")
 	C_QuestLog.GetLogIndexForQuestID, C_QuestLog.IsQuestFlaggedCompleted = saveLogIdx, saveDone
+	-- big lists are compact: shared functions, not copies per entry
+	local npcEntry = names(ns:GetEntries(ns.providers.npc))["Marshal McBride"]
+	check(rawget(npcEntry, "activate") == nil and npcEntry.activate and rawget(npcEntry, "detail") == nil and npcEntry.detail == "NPC  #12", "NPC entries are compact (shared functions, detail worked out when read)")
+	check(npcEntry.kind == "npc" and npcEntry.freqKey == "npc:12", "compact entries still know their kind")
+	-- idle big lists are freed, and rebuilt when next searched
+	ns.providers.npc._usedAt = -10000
+	ns:DropIdle(1000)
+	check(ns.providers.npc._entries == nil and I.npc.list == nil, "an NPC list nobody searched for 10 minutes is freed")
+	local again = ns:GetEntries(ns.providers.npc)
+	FlushAll()
+	again = names(ns:GetEntries(ns.providers.npc))
+	check(again["Marshal McBride"], "and rebuilt on the next @npc search")
 	local cmd = ns.commands.integrations.run()
 	check(table.concat(cmd, "\n"):find("AtlasLoot: found") and table.concat(cmd, "\n"):find("Questie: found. 3 NPCs"), "integrations command: " .. table.concat(cmd, " | "))
 	-- clean up
@@ -2140,6 +2153,85 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 	ns.Highlight.Show = origShow
 	_G.ReputationFrame, _G.C_Reputation = nil, nil
 	ns.providers.reputation._dirty = true
+end
+do -- performance: fast scoring, lazy highlights, top results, narrowing, one search per frame
+	local Fz = ns.Fuzzy
+	local pairsToCheck = {
+		{ "hli", "Heavy Linen Bandage" }, { "fire", "Fireball" }, { "fire", "Greater Fire Protection Potion" },
+		{ "lb", "Linen Bandage" }, { "xyz", "Hearthstone" }, { "stone", "Hearthstone" }, { "hs", "Hearthstone" },
+		{ "ab", "a b a b" }, { "wolf", "Charred Wolf Meat" }, { "zz", "z" },
+	}
+	for _, c in ipairs(pairsToCheck) do
+		local fast = Fz.score(c[1], c[2])
+		local full = Fz.match(c[1], c[2])
+		check((fast == nil) == (full == nil), "same matches as before: " .. c[1] .. " / " .. c[2])
+		if fast and full and not c[2]:lower():find(c[1], 1, true) then
+			check(math.abs(fast - full) < 1e-9, "same score for scattered matches: " .. c[1] .. " / " .. c[2] .. " " .. tostring(fast) .. " vs " .. tostring(full))
+		end
+	end
+	check(Fz.score("fire", "Fireball") > Fz.score("fire", "Greater Fire Protection Potion"), "a match at the start still ranks first")
+	-- highlights worked out only for rows on screen
+	local saveRows = ns.Theme.Get().rows
+	ns.Theme.Set("rows", "4")
+	UI:Open("e")
+	local res = UI.Results()
+	check(#res > 4, "enough results for the test")
+	check(res[1]._pos ~= nil and res[#res]._pos == nil, "matched letters are worked out for the rows shown, not for all " .. #res)
+	-- narrowing: one more letter rescans only the last matches, same results as a fresh search
+	UI:Open("ch")
+	UI:SetQuery("cha", 3)
+	check(UI.lastSearchNarrowed, "typing one more letter narrows the previous matches")
+	local narrowed = {}
+	for i, x in ipairs(UI.Results()) do narrowed[i] = x end
+	UI.lastScan = nil
+	UI:SetQuery("cha", 3); UI:Refresh()
+	local freshList = UI.Results()
+	local same = #narrowed == #freshList
+	for i = 1, math.min(#narrowed, #freshList) do if narrowed[i] ~= freshList[i] then same = false end end
+	check(same and not UI.lastSearchNarrowed, "narrowed results are exactly the fresh ones")
+	ns.providers.items._dirty = true
+	UI:SetQuery("char", 4)
+	check(not UI.lastSearchNarrowed, "a list that changed meanwhile is searched in full again")
+	-- the best 100 of many matches, in order (heap instead of a full sort)
+	local many = {}
+	for i = 1, 600 do many[i] = { name = "Test thing " .. i, key = i, text = "perftest" } end
+	ns:RegisterProvider("perftest", { label = "Perf", aliases = { "perftest" }, collect = function() return many end })
+	local r = UI:Search("@perftest thing")
+	check(#r == 100, "top 100 kept: " .. #r)
+	local ordered = true
+	for i = 2, #r do if r[i - 1]._score < r[i]._score or (r[i - 1]._score == r[i]._score and r[i - 1]._lname > r[i]._lname) then ordered = false end end
+	check(ordered, "in order")
+	local all = {}
+	for _, e in ipairs(ns:GetEntries(ns.providers.perftest)) do all[#all + 1] = e end
+	table.sort(all, function(a, b) if a._score ~= b._score then return a._score > b._score end return a._lname < b._lname end)
+	check(all[1] == r[1] and all[100] == r[100], "the same 100 a full sort gives")
+	check(ns.providers.perftest._entries[1].text == nil and ns.providers.perftest._entries[1]._ltext == "perftest", "searchable text kept once, in lowercase")
+	ns.providers.perftest = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "perftest" then table.remove(ns.providerOrder, i) end end
+	-- typing faster than a frame: one search for the burst
+	local realGT = _G.GetTime
+	_G.GetTime = function() return 4242 end
+	UI.refreshedAt = nil
+	UI:SetQuery("hea", 3)
+	local first = UI.Results()[1]
+	UI:SetQuery("hearth", 6)
+	check(UI.refreshQueued, "a second search in the same frame waits for the next frame")
+	_G.GetTime = realGT
+	FlushAll()
+	check(not UI.refreshQueued and UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "and then runs once with the latest text")
+	-- events right after a collect still count, a moment later
+	local P = ns.providers.items
+	ns:GetEntries(P)
+	P._dirty = false
+	ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED")
+	check(P._dirty == false, "within the guard: not yet")
+	FlushAll()
+	check(P._dirty == true, "a bag change right after a search isn't lost")
+	-- .mem
+	local m = ns.commands.mem.run()
+	check(m[1]:find("Terminal memory", 1, true) and table.concat(m, "\n"):find("entries in all", 1, true), ".mem reports memory and entries: " .. m[1])
+	ns.Theme.Set("rows", tostring(saveRows))
+	UI:Hide()
 end
 do -- bag sub-kinds: @consumable and @mats
 	local saveInst = C_Item.GetItemInfoInstant

@@ -704,6 +704,24 @@ local function ItemName(id)
 	return n
 end
 
+-- shared by every recipe entry (not one set of functions per recipe)
+local function RecipeLink(e)
+	local api = TS()
+	local ok, l = pcall(api.GetRecipeLink, e.recipeID)
+	return ok and l or nil
+end
+local function RecipeActivate(e) P.OpenRecipe(e.recipeID, e.profID, e.name) end
+local function RecipeIsOpen(e) return WindowHas(e.recipeID) end
+local function RecipeAfter(e)
+	if e.profSpell then P.lastSpell = { name = e.profSpell, at = GetTime() } end
+	P.SelectRecipe(e.recipeID, e.name)
+end
+local function RecipeLinkInChat(e)
+	local l = RecipeLink(e)
+	if l and not ChatEdit_InsertLink(l) then ChatFrame_OpenChat(l) end
+end
+local spellSpecs = {} -- one { spell = } table per profession spell, shared
+
 local function MakeEntry(profID, pdata, r)
 	local castSpell = pdata.spell or P.OpenSpell(pdata.name)
 	local parts = { pdata.name, r.cat or "" }
@@ -715,6 +733,7 @@ local function MakeEntry(profID, pdata, r)
 			lines[#lines + 1] = rg[2] .. "x " .. nm
 		end
 	end
+	if castSpell and not spellSpecs[castSpell] then spellSpecs[castSpell] = { spell = castSpell } end
 	return {
 		key = r.id,
 		name = r.name,
@@ -723,25 +742,16 @@ local function MakeEntry(profID, pdata, r)
 		detail = (r.learned and "" or "Unlearned  ") .. pdata.name,
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and ("Reagents: " .. table.concat(lines, ", ")) or nil,
-		getLink = function()
-			local api = TS()
-			local ok, l = pcall(api.GetRecipeLink, r.id)
-			return ok and l or nil
-		end,
+		getLink = RecipeLink,
 		recipeID = r.id,
 		profID = pdata.skillLine or profID,
-		activate = function(e) P.OpenRecipe(e.recipeID, e.profID, e.name) end,
-		secure = castSpell and { spell = castSpell } or nil,
-		isOpen = castSpell and function() return WindowHas(r.id) end or nil,
-		after = castSpell and function(e)
-			if pdata.spell then P.lastSpell = { name = pdata.spell, at = GetTime() } end
-			P.SelectRecipe(e.recipeID, e.name)
-		end or nil,
+		profSpell = pdata.spell,
+		activate = RecipeActivate,
+		secure = castSpell and spellSpecs[castSpell] or nil,
+		isOpen = castSpell and RecipeIsOpen or nil,
+		after = castSpell and RecipeAfter or nil,
 		-- Shift+Enter: link the recipe in chat
-		secondary = function(e)
-			local l = e.getLink()
-			if l and not ChatEdit_InsertLink(l) then ChatFrame_OpenChat(l) end
-		end,
+		secondary = RecipeLinkInChat,
 	}
 end
 

@@ -13,6 +13,18 @@ local function RunSlash(text)
 end
 ns.RunSlash = RunSlash
 
+local function RunEntry(e, args)
+	local line = e.name
+	if args and args ~= "" then line = line .. " " .. args end
+	RunSlash(line)
+end
+
+local function ChatEntry(e, args)
+	local line = e.name .. " "
+	if args and args ~= "" then line = line .. args end
+	ChatFrame_OpenChat(line)
+end
+
 ns:RegisterProvider("slash", {
 	label = "Slash",
 	color = "ff33ff99",
@@ -48,17 +60,9 @@ ns:RegisterProvider("slash", {
 				detail = table.concat(alt, "  "),
 				text = base:lower() .. " " .. table.concat(alt, " "),
 				tip = "Handler: " .. base .. "\nAliases: " .. (#alt > 0 and table.concat(alt, ", ") or "none"),
-				activate = function(e, args)
-					local line = e.name
-					if args and args ~= "" then line = line .. " " .. args end
-					RunSlash(line)
-				end,
+				activate = RunEntry,
 				-- Shift+Enter: drop it in the chat box instead of running it
-				secondary = function(e, args)
-					local line = e.name .. " "
-					if args and args ~= "" then line = line .. args end
-					ChatFrame_OpenChat(line)
-				end,
+				secondary = ChatEntry,
 			}
 		end
 		return out

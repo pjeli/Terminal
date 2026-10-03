@@ -173,6 +173,13 @@ local function ShowQuest(e)
 	C_Timer.After(0.05, function() ShowQuestAfter(e) end)
 end
 
+local function TrackQuest(e)
+	C_SuperTrack.SetSuperTrackedQuestID(e.questID)
+	ns:Print("Tracking: " .. e.name)
+end
+
+local QUEST_SECURE = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
+
 ns:RegisterProvider("quests", {
 	label = "Quest Log",
 	color = "ffffd200",
@@ -207,14 +214,11 @@ ns:RegisterProvider("quests", {
 						questID = info.questID,
 						link = GetQuestLink and GetQuestLink(info.questID) or nil,
 						activate = ShowQuest,
-						secure = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } },
+						secure = QUEST_SECURE,
 						isOpen = IsOpen,
 						after = ShowQuestAfter,
 						-- Shift+Enter: super-track the quest (waypoint arrow)
-						secondary = function(e)
-							C_SuperTrack.SetSuperTrackedQuestID(e.questID)
-							ns:Print("Tracking: " .. e.name)
-						end,
+						secondary = TrackQuest,
 					}
 				end
 			end

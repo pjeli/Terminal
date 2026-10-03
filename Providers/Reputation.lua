@@ -187,6 +187,12 @@ local function Watch(e)
 	ns:Print(ok and ("Watching " .. e.name .. ".") or ("Couldn't watch " .. e.name .. "."))
 end
 
+-- no character key to ride on: say so rather than open it from our code
+local function NoKey(e)
+	ns:Print("Bind a key to the Reputation tab to open it from here (" .. e.name .. ": " .. (e.standing or "?") .. ").")
+end
+local REP_SECURE = { binding = "TOGGLECHARACTER2" }
+
 ns:RegisterProvider("reputation", {
 	label = "Reputation",
 	color = "ff9fc6ff",
@@ -194,6 +200,7 @@ ns:RegisterProvider("reputation", {
 	noCombat = true, -- opening the character window is blocked in combat
 	events = { "UPDATE_FACTION" },
 	guard = 2,
+	selfEvents = true, -- reading expands and collapses headers, which fires UPDATE_FACTION
 	collect = function()
 		local out = {}
 		for _, r in ipairs(ReadAll()) do
@@ -220,13 +227,10 @@ ns:RegisterProvider("reputation", {
 					tip = r.group and (r.group .. (r.desc and ("\n" .. r.desc) or "")) or r.desc,
 					factionID = r.id,
 					standing = standing,
-					secure = { binding = "TOGGLECHARACTER2" },
+					secure = REP_SECURE,
 					isOpen = RepOpen,
 					after = ShowFaction,
-					activate = function(entry)
-						-- no character key to ride on: say so rather than open it from our code
-						ns:Print("Bind a key to the Reputation tab to open it from here (" .. entry.name .. ": " .. (entry.standing or "?") .. ").")
-					end,
+					activate = NoKey,
 					-- Shift+Enter: make it the watched reputation (the bar)
 					secondary = Watch,
 				}
