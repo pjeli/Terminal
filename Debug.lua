@@ -138,6 +138,7 @@ end
 ns:RegisterCommand("debug", {
 	desc = "Why 'Interface action failed because of an AddOn' happens (on | off | log | clear)",
 	aliases = { "taintdebug", "taint" },
+	complete = function() return { "on", "off", "log", "clear" } end,
 	run = function(args)
 		local arg = (args or ""):lower():match("^%s*(%S*)") or ""
 		local out

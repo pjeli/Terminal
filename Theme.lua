@@ -37,6 +37,7 @@ T.DEFAULTS = {
 	rows = 10,
 	scale = 1.0,
 	hints = true,
+	animations = true, -- fades, gliding selection and caret (off: everything snaps)
 	autoScan = true, -- index professions quietly after login
 	v = 3, -- theme defaults version (see T.Get)
 }
@@ -68,7 +69,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
-	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "autoScan" }
+	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "autoScan" }
 T.FIELDS = {
 	promptText = { kind = "text", label = "Prompt", max = 4 },
 	prompt = { kind = "color", label = "Prompt colour" },
@@ -84,9 +85,10 @@ T.FIELDS = {
 	font = { kind = "choice", label = "Font", choices = T.FONT_ORDER },
 	fontSize = { kind = "number", label = "Font size", min = 10, max = 22, step = 1 },
 	width = { kind = "number", label = "Width", min = 420, max = 1100, step = 10 },
-	rows = { kind = "number", label = "Rows", min = 4, max = 20, step = 1 },
+	rows = { kind = "number", label = "Max rows", min = 4, max = 20, step = 1 },
 	scale = { kind = "number", label = "Scale", min = 0.6, max = 1.6, step = 0.05 },
 	hints = { kind = "bool", label = "Key hints in footer" },
+	animations = { kind = "bool", label = "Animations" },
 	autoScan = { kind = "bool", label = "Index professions at login" },
 }
 local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
@@ -310,6 +312,12 @@ end
 ns:RegisterCommand("theme", {
 	desc = "List themes, or apply one: .theme dracula  (.theme reset)",
 	aliases = { "themes" },
+	-- Tab completion: theme names
+	complete = function()
+		local out = { "reset" }
+		for _, id in ipairs(T.PRESET_ORDER) do out[#out + 1] = id end
+		return out
+	end,
 	run = function(args)
 		args = strtrim(args or "")
 		if args == "reset" then
@@ -335,6 +343,19 @@ ns:RegisterCommand("theme", {
 ns:RegisterCommand("set", {
 	desc = "Show or change a setting: .set accent ff79c6",
 	aliases = { "config" },
+	-- Tab completion: setting names, then the values a setting takes
+	complete = function(args)
+		local key, rest = args:match("^(%S+)%s+(.*)$")
+		if not key then return T.ORDER end
+		for _, k in ipairs(T.ORDER) do
+			if k:lower() == key:lower() then
+				local f = T.FIELDS[k]
+				if f.kind == "bool" then return { "on", "off" } end
+				if f.kind == "choice" then return f.choices end
+			end
+		end
+		return {}
+	end,
 	run = function(args)
 		local key, value = strtrim(args or ""):match("^(%S*)%s*(.-)$")
 		local t = T.Get()

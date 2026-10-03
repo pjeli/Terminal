@@ -26,7 +26,11 @@ local function Obj(kind)
 		if k == "GetWidth" then return function(self) return self.w or 400 end end
 		if k == "SetSize" then return function(self, w, hh) self.w, self.h = w, hh end end
 		if k == "SetWidth" then return function(self, w) self.w = w end end
+		if k == "SetHeight" then return function(self, hh) self.h = hh end end
+		if k == "GetHeight" then return function(self) return self.h or 0 end end
 		if k == "SetBackdrop" then return function(self, bd) self.backdrop = bd end end
+		if k == "SetAlpha" then return function(self, a) self.alpha = a end end
+		if k == "GetAlpha" then return function(self) return self.alpha or 1 end end
 		if k == "SetAttribute" then return function(self, a, v) self.attrs = self.attrs or {}; self.attrs[a] = v end end
 		if k == "GetAttribute" then return function(self, a) return self.attrs and self.attrs[a] end end
 		if k == "SetColorTexture" then return function(self, r, g, b, a) self.color = { r, g, b, a } end end
@@ -924,18 +928,22 @@ do
 	cmd("set rows 99"); check(Th.Get().rows == 20, "rows clamped to 20")
 	cmd("set rows 14")
 	local fs = Th.Get().fontSize
-	check(F.h == math.max(50, fs + 36) + 14 * math.max(22, fs + 12) + UI.footerH, "frame height follows rows: " .. tostring(F.h))
+	local shown = math.min(14, #UI.Results())
+	check(F.h == math.max(50, fs + 36) + shown * math.max(22, fs + 12) + UI.footerH, "frame height: header, one row per result (up to the rows setting), footer: " .. tostring(F.h))
 	-- footer: wide enough, one line; narrow, the hints wrap onto a second line instead of
 	-- running into the result count
 	local Th2 = ns.Theme
 	local function widthCheck(w)
 		Th2.Set("width", w)
-		local hs = _G.TerminalFrame and UI.footerH
-		return hs
+		return UI.footerH, UI.hintCount, UI.hints and UI.hints:GetText() or ""
 	end
 	local saveW = Th2.Get().width
-	local wide, narrow = widthCheck(1100), widthCheck(500)
-	check(wide == 24 and narrow > 24, "footer wraps to two lines only when narrow: " .. tostring(wide) .. " / " .. tostring(narrow))
+	local hW, nW, tW = widthCheck(1100)
+	local hN, nN, tN = widthCheck(420)
+	check(hW == hN, "the footer stays one line at any width: " .. tostring(hW) .. " / " .. tostring(hN))
+	check(nW >= 4 and nN < nW and nN >= 1, "narrow: the less useful hints are left out (" .. tostring(nW) .. " -> " .. tostring(nN) .. ")")
+	check(tN:find("Enter", 1, true) and not tN:find("calc", 1, true), "Enter stays, calc goes first: " .. tN)
+	check(not tW:find("|", 1, true) or tW:find("|cff", 1, true), "no pipe separators, keys coloured")
 	Th2.Set("width", saveW)
 	cmd("set width 800"); check(F.w == 800, "width applied")
 	cmd("set scale 1.234"); check(Th.Get().scale == 1.25 and F.scale == 1.25, "scale rounded to step and applied")
@@ -2181,6 +2189,117 @@ do -- skills: searchable with rank; collapsed groups read too
 	ns.Highlight.Show = origShow
 	_G.SkillsFrame, _G.C_SkillInfo = nil, nil
 	ns.providers.skills._dirty = true
+end
+do -- motion: fade/drift in and out, gliding selection, rows fading in
+	local Th = ns.Theme
+	Th.Get().animations = true
+	local M = UI.motion
+	local t0 = 500
+	local realGT = _G.GetTime
+	local clock = t0
+	_G.GetTime = function() return clock end
+	local function step(dt) clock = clock + dt; if M.shown ~= false then M.scripts.OnUpdate(M, dt) end end
+	local F = _G.TerminalFrame
+	UI:Hide(); for _ = 1, 20 do step(0.05) end -- start from closed
+	UI:Open("heart")
+	check(F.alpha == 0 and UI:IsShown(), "opening starts transparent")
+	step(0.09)
+	check(F.alpha > 0.5 and F.alpha < 1, "fading in: " .. tostring(F.alpha))
+	step(0.2)
+	check(F.alpha == 1 and UI.phase == nil, "fully in after the fade")
+	-- typing: rows that stay just change text; new rows fade in; the terminal grows and
+	-- shrinks to fit instead of repainting
+	UI:SetQuery("hearthstone", 11); step(0.5)
+	local few = #UI.Results()
+	local hFew = F.h
+	local rr = UI.rows
+	UI:SetQuery("e", 1)
+	local many = math.min(#UI.Results(), ns.Theme.Get().rows)
+	check(many > few, "a broader search shows more rows (" .. few .. " -> " .. many .. ")")
+	check(rr[1].fadeAt == nil and (rr[1].alpha or 1) == 1, "a row that stays isn't faded out and back in")
+	check(rr[few + 1].fadeAt and (rr[few + 1].alpha or 1) == 0, "a new row starts invisible")
+	check(F.h == hFew, "the terminal doesn't jump to the new size")
+	step(0.03)
+	check(F.h > hFew and F.h < UI.heightTo, "it grows toward it: " .. F.h .. " -> " .. UI.heightTo)
+	check(rr[few + 1].alpha > 0 and (rr[many].alpha or 0) <= rr[few + 1].alpha, "new rows fade in one after another")
+	step(0.6)
+	check(math.abs(F.h - UI.heightTo) < 0.01 and rr[many].alpha == 1, "then everything sits at its new size")
+	local hMany = F.h
+	UI:SetQuery("hearthstone", 11)
+	check(rr[many].leaving and rr[many]:IsShown(), "rows no longer needed fade out rather than vanish")
+	step(0.03)
+	check(F.h < hMany and F.h > UI.heightTo, "and the terminal shrinks over them")
+	step(0.6)
+	check(not rr[many]:IsShown() and math.abs(F.h - hFew) < 0.01, "back to the smaller size, extra rows gone")
+	-- selection glides
+	UI:Open("e")
+	step(0.5)
+	local y0 = UI.selY
+	UI:Move(1)
+	check(UI.selTo ~= y0 and UI.selY == y0, "selection band starts where it was")
+	step(0.02)
+	check(UI.selY ~= y0 and UI.selY ~= UI.selTo, "and glides toward the new row")
+	step(0.5)
+	check(math.abs(UI.selY - UI.selTo) < 0.01, "arrives at the selected row")
+	-- closing: closed at once for everything else, fading only for the eye
+	UI:Hide()
+	check(not UI:IsShown() and F.shown == true and F.kb == false and not UI.keys, "closing: counts as closed and lets go of the keyboard at once")
+	step(0.06)
+	check(F.alpha < 1 and F.alpha > 0, "fading out")
+	step(0.2)
+	check(F.shown == false and F.alpha == 1, "hidden after the fade, back at rest")
+	-- reopening mid-fade picks up where it was
+	UI:Open("heart"); step(0.3)
+	UI:Hide(); step(0.04)
+	UI:Open("heart")
+	check(UI:IsShown() and F.shown == true and UI.phase == "open" and not UI.closing, "reopening mid-fade goes straight back in")
+	step(0.3)
+	-- animations off: everything snaps
+	Th.Set("animations", "off")
+	UI:Hide()
+	check(F.shown == false, "animations off: closes at once")
+	UI:Open("heart")
+	check(F.alpha == 1 and UI.phase == nil, "animations off: opens at once")
+	Th.Set("animations", "on")
+	UI:Hide(); for _ = 1, 10 do step(0.05) end
+	_G.GetTime = realGT
+end
+do -- Tab completion, shell style
+	local function q() return UI.edit:GetText() end
+	local function tab(text)
+		UI:Open(text)
+		key("TAB")
+		return q()
+	end
+	check(tab(".th") == ".theme ", "command name: " .. q())
+	check(tab(".theme dr") == ".theme dracula ", "command argument: " .. q())
+	check(tab(".set anim") == ".set animations ", "setting name: " .. q())
+	check(tab(".set frame cl") == ".set frame classic ", "setting value: " .. q())
+	check(tab(".deb") == ".debug " and tab(".debug cl") == ".debug clear ", "debug subcommands: " .. q())
+	check(tab("@equ") == "@equip", "several kinds (@equipped, @equipment...): Tab fills in what they share: " .. q())
+	check(tab("@equipm") == "@equipment", "then further: " .. q())
+	check(tab("@rep") == "@rep", "nothing more shared: unchanged: " .. q())
+	check(tab("@reput") == "@reputation", "@reputation(s): " .. q())
+	check(tab("@outf") == "@outfit", "@outfit(s): " .. q())
+	check(tab("@questd") == "@questdb " or tab("@flig") == "@flight ", "a single kind completes, with a space: " .. q())
+	check(tab("/rel") == "/reload ", "slash command: " .. q())
+	UI:Open("hearth")
+	check(UI.ghost.shown ~= false and UI.ghost:GetText() == "stone", "the rest of the selected result shows faintly: " .. tostring(UI.ghost:GetText()))
+	key("TAB")
+	check(q() == "Hearthstone", "Tab completes to the selected result's name: " .. q())
+	check(not UI.ghost:IsShown(), "nothing left to suggest")
+	UI:Open("@item hearth")
+	key("TAB")
+	check(q() == "@item Hearthstone", "a leading @kind is kept: " .. q())
+	UI:Open("hearth")
+	key("RIGHT")
+	check(q() == "Hearthstone", "Right arrow at the end takes the suggestion too")
+	-- nothing to complete: Tab moves down the list, as before
+	UI:Open("e")
+	local before = UI.selIndex and UI.selIndex() or nil
+	key("TAB")
+	check(q() == "e", "nothing to complete: text unchanged")
+	UI:Hide()
 end
 do -- classic quest log: the quest is selected (and scrolled to) the way a click does
 	local picked

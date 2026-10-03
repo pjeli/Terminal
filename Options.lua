@@ -231,7 +231,7 @@ Slider("scale", 16, -418)
 
 local fontButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 fontButton:SetSize(150, 22)
-fontButton:SetPoint("TOPLEFT", 16, -446)
+fontButton:SetPoint("TOPLEFT", 16, -448)
 fontButton:SetScript("OnClick", function()
 	local cur, list = T.Get().font, T.FONT_ORDER
 	local nextIdx = 1
@@ -244,7 +244,7 @@ O.widgets.font = fontButton
 
 local frameButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 frameButton:SetSize(150, 22)
-frameButton:SetPoint("TOPLEFT", 16, -472)
+frameButton:SetPoint("TOPLEFT", 16, -476)
 frameButton:SetScript("OnClick", function()
 	T.Set("frame", T.Get().frame == "classic" and "flat" or "classic")
 end)
@@ -252,27 +252,35 @@ O.widgets.frame = frameButton
 
 local hintsCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 hintsCheck:SetSize(24, 24)
-hintsCheck:SetPoint("TOPLEFT", 180, -445)
+hintsCheck:SetPoint("TOPLEFT", 190, -446)
 hintsCheck:SetScript("OnClick", function(self) T.Set("hints", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.hints.label, "GameFontHighlight", 206, -450)
+Label(T.FIELDS.hints.label, "GameFontHighlight", 216, -451)
 O.widgets.hints = hintsCheck
 
 local scanCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 scanCheck:SetSize(24, 24)
-scanCheck:SetPoint("TOPLEFT", 180, -470)
+scanCheck:SetPoint("TOPLEFT", 190, -472)
 scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.autoScan.label, "GameFontHighlight", 206, -475)
+Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -477)
 O.widgets.autoScan = scanCheck
 
+local animCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+animCheck:SetSize(24, 24)
+animCheck:SetPoint("TOPLEFT", 190, -498)
+animCheck:SetScript("OnClick", function(self) T.Set("animations", self:GetChecked() and "on" or "off") end)
+Label(T.FIELDS.animations.label, "GameFontHighlight", 216, -503)
+O.widgets.animations = animCheck
+
+-- the panel's own actions, on a row of their own below everything else
 local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 open:SetSize(130, 22)
-open:SetPoint("TOPLEFT", 16, -508)
+open:SetPoint("TOPLEFT", 16, -540)
 open:SetText("Open terminal")
 open:SetScript("OnClick", function() ns.UI:Open() end)
 
 local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 reset:SetSize(130, 22)
-reset:SetPoint("TOPLEFT", 156, -508)
+reset:SetPoint("TOPLEFT", 156, -540)
 reset:SetText("Reset to defaults")
 reset:SetScript("OnClick", function() T.Reset() end)
 
@@ -297,6 +305,7 @@ function O.Refresh()
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
+	O.widgets.animations:SetChecked(t.animations ~= false)
 	local cur = T.PRESETS[t.preset]
 	O.widgets.themeMenu:SetText(cur and cur.label or "Custom")
 	for id, item in pairs(O.themeItems) do

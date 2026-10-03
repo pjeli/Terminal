@@ -5,8 +5,12 @@ local Theme = ns.Theme
 local UI = {}
 ns.UI = UI
 
-local FOOTER_H = 24 -- one line of footer; a second line is added when the hints don't fit
-local HINTS = "Enter open  |  Shift+Enter more  |  / slash  . cmd  @kind  = calc"
+local FOOTER_H = 26 -- one line: the result count on the left, key hints on the right
+-- key hints, most useful first: on a narrow terminal the last ones are left out, never wrapped
+local HINTS = {
+	{ "Enter", "open" }, { "Tab", "complete" }, { "Shift+Enter", "more" },
+	{ "@", "kind" }, { "/", "slash" }, { ".", "command" }, { "=", "calc" },
+}
 local MAX_ROWS = 20
 local MAX_RESULTS = 100
 local TEXT_SCORE = 1.0 -- score given to a match found in an entry's secondary text
@@ -22,9 +26,18 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, PRINTSCREEN = true,
 }
 
-local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg
+local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine
 local rows = {}
+UI.rows = rows
+local motion = CreateFrame("Frame") -- drives every animation (see "Motion")
+-- motion timings
+local OPEN_T, CLOSE_T = 0.18, 0.12   -- seconds
+local OPEN_DRIFT, CLOSE_DRIFT = 10, 6 -- pixels
+local ROW_FADE, ROW_STAGGER = 0.14, 0.018
+motion:Hide()
+UI.motion = motion
 local results = {}
+function UI.Results() return results end
 local sel, offset = 1, 0
 UI.args = nil
 UI.keys = false   -- true while the terminal reads keystrokes itself (see "Keyboard")
@@ -343,7 +356,7 @@ end
 function UI:UpdateTooltip()
 	local t = Tip()
 	t:Hide()
-	if not (frame and frame:IsShown()) then return end
+	if not UI:IsShown() then return end
 	local e = results[sel]
 	if not e or e.noActivate then return end
 	-- entries may supply a link directly, or a function that builds it only when selected
@@ -385,8 +398,33 @@ function UI:SetStatus()
 	local quiet = count > 0 and results[1].noActivate
 	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
-	if mode then text = text .. (text ~= "" and "  |  " or "") .. mode end
+	if mode then text = text .. (text ~= "" and "  ·  " or "") .. mode end
 	status:SetText(text)
+	self:FitHints()
+end
+
+--- The key hints: each key in the text colour, its meaning dimmed, as many as fit on one
+--- line beside the result count (the less useful ones go first when it's narrow).
+function UI:FitHints()
+	if not (hints and frame) then return end
+	local t = Theme.Get()
+	if not t.hints then hints:Hide() return end
+	local key = "|cff" .. t.text
+	local room = (t.width or 640) - 28 - (status:GetStringWidth() or 0) - 24
+	local parts, text = {}, ""
+	for _, h in ipairs(HINTS) do
+		parts[#parts + 1] = key .. h[1] .. "|r " .. h[2]
+		local try = table.concat(parts, "     ")
+		hints:SetText(try)
+		if (hints:GetStringWidth() or 0) > room then
+			parts[#parts] = nil
+			break
+		end
+		text = try
+	end
+	hints:SetText(text)
+	self.hintCount = #parts
+	hints:SetShown(text ~= "")
 end
 
 local ARROW = "|TInterface\\ChatFrame\\ChatFrameExpandArrow:12:12|t "
@@ -396,11 +434,27 @@ function UI:Render()
 	local t = Theme.Get()
 	local ar, ag, ab = Theme.RGB(t.accent)
 	local light = Theme.IsLight()
+	local animated = self:Animated() and not self.snapNext
+	local now, entering = GetTime(), 0
 	for i = 1, MAX_ROWS do
 		local r = rows[i]
 		local idx = offset + i
 		local e = (i <= ROWS) and results[idx] or nil
 		if e then
+			-- a row that wasn't there fades in (one after another); a row that stays just
+			-- takes its new text, so typing doesn't repaint the whole list
+			if not r:IsShown() or r.leaving then
+				r.leaving = nil
+				if animated then
+					r.fadeAt = now + entering * ROW_STAGGER
+					entering = entering + 1
+					if not r:IsShown() then r:SetAlpha(0) end
+					motion:Show()
+				else
+					r.fadeAt = nil
+					r:SetAlpha(1)
+				end
+			end
 			r:Show()
 			if e.raw then
 				r.label:SetText(Theme.FixColors(e.name))
@@ -423,13 +477,24 @@ function UI:Render()
 				r.detail:SetText(e.detail or "")
 			end
 			r.kind:SetText(Theme.FixColors(e.kindLabel or ""))
-			r.bg:SetColorTexture(ar, ag, ab, idx == sel and 0.18 or 0)
-		else
+			r.bg:SetColorTexture(ar, ag, ab, 0)
+		elseif r:IsShown() and not r.leaving then
+			-- no result for this row any more: it fades as the list shrinks over it
+			if animated and i <= ROWS then
+				r.leaving, r.leaveAt, r.fadeAt = true, now, nil
+				motion:Show()
+			else
+				r:Hide()
+			end
+		elseif not r.leaving then
 			r:Hide()
 		end
 	end
+	self:FitHeight()
+	self:PlaceSelection()
 	self:SetStatus()
 	self:UpdateTooltip()
+	self:UpdateGhost()
 end
 
 function UI:Move(delta)
@@ -527,7 +592,7 @@ function UI:FinishSoon(e)
 		self.pendingAfter = nil
 		if self.armedEntry == e then
 			self:FinishSecure()
-		elseif not (frame and frame:IsShown()) then
+		elseif not UI:IsShown() then
 			-- the window that just opened closed the terminal first: still point at the result
 			ns.Secure.Disarm()
 			if e.after then C_Timer.After(0.1, function() RunAfter(e) end) end
@@ -552,7 +617,7 @@ function UI:OnCombat()
 end
 
 function UI:OnRegen()
-	if frame and frame:IsShown() and not self.keys and not self.noChar then self:EnterKeys() end
+	if self:IsShown() and not self.keys and not self.noChar then self:EnterKeys() end
 end
 
 ----------------------------------------------------------------------
@@ -582,6 +647,7 @@ local function NextPos(s, c) -- one character to the right
 end
 
 function UI:SetQuery(text, cursor)
+	self.typedAt = GetTime()
 	self.cursor = math.max(0, math.min(cursor or #text, #text))
 	if edit:GetText() ~= text then edit:SetText(text) end -- OnTextChanged -> Refresh
 	self:UpdateCaret()
@@ -589,17 +655,25 @@ end
 
 function UI:UpdateCaret()
 	if not caret then return end
-	if not (self.keys and frame:IsShown()) then
+	if not (self.keys and self:IsShown()) then
 		caret:Hide()
+		self:UpdateGhost()
 		return
 	end
 	local text = edit:GetText()
 	measure:SetText((text:sub(1, self.cursor):gsub("|", "||")))
 	local w = measure:GetStringWidth() or 0
 	local maxW = (edit:GetWidth() or 400) - 2
-	caret:ClearAllPoints()
-	caret:SetPoint("LEFT", edit, "LEFT", math.min(w, maxW), 0)
+	self.caretTo = math.min(w, maxW)
+	self.typedAt = GetTime() -- a moving caret stays solid; it breathes again once idle
+	if not (self:Animated() and caret:IsShown() and self.caretX) then
+		self.caretX = self.caretTo
+		caret:ClearAllPoints()
+		caret:SetPoint("LEFT", edit, "LEFT", self.caretX, 0)
+	end
 	caret:Show()
+	if self:Animated() then motion:Show() end
+	self:UpdateGhost()
 end
 
 function UI:EnterKeys()
@@ -667,7 +741,7 @@ rep:SetScript("OnUpdate", function(self, elapsed)
 	self.wait = self.wait - elapsed
 	if self.wait > 0 then return end
 	-- stop if the key was let go without us hearing it, or the terminal moved on
-	if not (UI.keys and frame and frame:IsShown()) or (IsKeyDown and not IsKeyDown(self.key)) then
+	if not (UI.keys and UI:IsShown()) or (IsKeyDown and not IsKeyDown(self.key)) then
 		StopRepeat()
 		return
 	end
@@ -743,6 +817,7 @@ EditKey = function(key, ctrl, shift)
 	elseif key == "LEFT" then
 		UI.cursor = PrevPos(text, c); UI:UpdateCaret()
 	elseif key == "RIGHT" then
+		if c >= #text and UI:AcceptCompletion() then return end -- at the end: take the suggestion
 		UI.cursor = NextPos(text, c); UI:UpdateCaret()
 	elseif key == "HOME" then
 		UI.cursor = 0; UI:UpdateCaret()
@@ -753,7 +828,8 @@ EditKey = function(key, ctrl, shift)
 	elseif key == "DOWN" then
 		UI:Move(1)
 	elseif key == "TAB" then
-		UI:Move(shift and -1 or 1)
+		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
+		if shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
 	elseif key == "PAGEUP" then
 		UI:Move(-ROWS)
 	elseif key == "PAGEDOWN" then
@@ -791,7 +867,7 @@ end
 function UI:OnChar(text)
 	self.pendingChar = nil
 	self.charChecked = true
-	if not self.keys or not frame:IsShown() then return end
+	if not self.keys or not self:IsShown() then return end
 	local q, c = edit:GetText(), self.cursor
 	self:SetQuery(q:sub(1, c) .. text .. q:sub(c + 1), c + #text)
 end
@@ -831,6 +907,347 @@ function UI:Activate(idx, opts)
 end
 
 ----------------------------------------------------------------------
+-- Motion
+--
+-- One OnUpdate drives everything that moves: the terminal fades and drifts in when it
+-- opens and out when it closes, new results fade in row by row, the selection band glides
+-- to the selected row, and the caret glides as you type and breathes when idle. With
+-- ".set animations off" everything snaps instead.
+----------------------------------------------------------------------
+
+
+local function Ease(x) -- ease-out cubic
+	if x <= 0 then return 0 elseif x >= 1 then return 1 end
+	local u = 1 - x
+	return 1 - u * u * u
+end
+UI.Ease = Ease
+
+function UI:Animated() return Theme.Get().animations ~= false end
+
+--- Where the terminal rests (its saved spot), and drifted `dy` pixels from it.
+local function Anchor(dy)
+	local pt = ns.db and ns.db.point
+	frame:ClearAllPoints()
+	if pt then
+		frame:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4] + (dy or 0))
+	else
+		frame:SetPoint("TOP", UIParent, "TOP", 0, -140 + (dy or 0))
+	end
+end
+
+function UI:StartOpen(reopening)
+	if not self:Animated() then
+		frame:SetAlpha(1)
+		Anchor(0)
+		return
+	end
+	-- reopened while still fading out: carry on from where it is
+	self.phase = "open"
+	local a = frame:GetAlpha()
+	a = type(a) == "number" and a or 0
+	self.phaseAt = GetTime() - (reopening and OPEN_T * a or 0)
+	if not reopening then
+		frame:SetAlpha(0)
+		Anchor(-OPEN_DRIFT)
+	end
+	self.selY = nil
+	motion:Show()
+end
+
+function UI:StartClose()
+	self.closing = true
+	local a = frame:GetAlpha()
+	self.phase, self.phaseAt, self.closeFrom = "close", GetTime(), type(a) == "number" and a or 1
+	motion:Show()
+end
+
+--- Back to rest: full alpha, in place, nothing moving.
+function UI:MotionReset()
+	self.phase, self.closing = nil, false
+	if frame then
+		frame:SetAlpha(1)
+		Anchor(0)
+		for _, r in ipairs(rows) do
+			r.fadeAt = nil
+			if r.leaving then r.leaving = nil; r:Hide() end
+			r:SetAlpha(1)
+		end
+	end
+	motion:Hide()
+end
+
+--- The terminal is as tall as its results: header, one row per result shown, footer. It
+--- grows and shrinks smoothly as you type (snaps on open and when animations are off).
+function UI:FitHeight()
+	if not frame then return end
+	local n = math.max(0, math.min(ROWS, #results - offset))
+	local h = HEADER_H + n * ROW_H + (self.footerH or FOOTER_H)
+	self.heightTo = h
+	local cur = frame:GetHeight()
+	if self.snapNext or not self:Animated() or type(cur) ~= "number" or cur <= 0 then
+		frame:SetHeight(h)
+	elseif math.abs(cur - h) > 0.5 then
+		motion:Show()
+	end
+end
+
+--- The selection band: on the selected row, gliding there unless animations are off.
+function UI:PlaceSelection()
+	if not selBar then return end
+	local i = sel - offset
+	local e = results[sel]
+	if not e or e.noActivate or i < 1 or i > ROWS then
+		selBar:Hide(); selEdge:Hide()
+		return
+	end
+	self.selTo = -HEADER_H - (i - 1) * ROW_H
+	if not (self:Animated() and self.selY and selBar:IsShown()) then
+		self.selY = self.selTo
+		self:SetSelectionY(self.selY)
+	else
+		motion:Show()
+	end
+	selBar:Show(); selEdge:Show()
+end
+
+function UI:SetSelectionY(y)
+	selBar:ClearAllPoints()
+	selBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, y)
+	selBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, y)
+	selBar:SetHeight(ROW_H)
+	selEdge:ClearAllPoints()
+	selEdge:SetPoint("TOPLEFT", selBar, "TOPLEFT", 0, 0)
+	selEdge:SetPoint("BOTTOMLEFT", selBar, "BOTTOMLEFT", 0, 0)
+end
+
+motion:SetScript("OnUpdate", function(self, elapsed)
+	if not frame then self:Hide() return end
+	local now = GetTime()
+	local busy = false
+	-- open / close
+	if UI.phase == "open" then
+		local k = Ease((now - UI.phaseAt) / OPEN_T)
+		frame:SetAlpha(k)
+		Anchor(-OPEN_DRIFT * (1 - k))
+		if k >= 1 then UI.phase = nil else busy = true end
+	elseif UI.phase == "close" then
+		local k = Ease((now - UI.phaseAt) / CLOSE_T)
+		frame:SetAlpha((UI.closeFrom or 1) * (1 - k))
+		Anchor(-CLOSE_DRIFT * k)
+		if k >= 1 then
+			UI.phase, UI.closing = nil, false
+			frame:Hide()
+			UI:MotionReset() -- back at rest for the next open (OnHide does it too)
+			return
+		end
+		busy = true
+	end
+	if not frame:IsShown() then self:Hide() return end
+	local blend = math.min(1, (elapsed or 0) * 18)
+	-- height: grow / shrink toward the results
+	if UI.heightTo then
+		local cur = frame:GetHeight()
+		if type(cur) == "number" then
+			local d = UI.heightTo - cur
+			if math.abs(d) > 0.5 then
+				frame:SetHeight(cur + d * math.min(1, (elapsed or 0) * 16))
+				busy = true
+			elseif d ~= 0 then
+				frame:SetHeight(UI.heightTo)
+			end
+		end
+	end
+	-- selection band
+	if UI.selTo and UI.selY and selBar:IsShown() then
+		local d = UI.selTo - UI.selY
+		if math.abs(d) > 0.5 then
+			UI.selY = UI.selY + d * blend
+			busy = true
+		else
+			UI.selY = UI.selTo
+		end
+		UI:SetSelectionY(UI.selY)
+	end
+	-- caret: glide, then breathe while idle
+	if caret:IsShown() and UI.caretTo then
+		local d = UI.caretTo - (UI.caretX or UI.caretTo)
+		if math.abs(d) > 0.3 then
+			UI.caretX = (UI.caretX or UI.caretTo) + d * math.min(1, (elapsed or 0) * 28)
+		else
+			UI.caretX = UI.caretTo
+		end
+		caret:ClearAllPoints()
+		caret:SetPoint("LEFT", edit, "LEFT", UI.caretX, 0)
+		local idle = now - (UI.typedAt or 0) - 0.45
+		caret:SetAlpha(idle <= 0 and 1 or (0.55 + 0.45 * math.cos(idle * math.pi * 1.6)))
+		busy = true -- breathing never settles while the caret is up
+	end
+	-- rows that appear fade in (staggered when set); rows that go fade out, then hide
+	for _, r in ipairs(rows) do
+		if r.leaving then
+			local k = Ease((now - (r.leaveAt or now)) / ROW_FADE)
+			r:SetAlpha(1 - k)
+			if k >= 1 then
+				r.leaving = nil
+				r:Hide()
+				r:SetAlpha(1)
+			else
+				busy = true
+			end
+		elseif r.fadeAt and r:IsShown() then
+			local k = Ease((now - r.fadeAt) / ROW_FADE)
+			r:SetAlpha(k)
+			if k >= 1 then r.fadeAt = nil else busy = true end
+		end
+	end
+	if not busy then self:Hide() end
+end)
+
+----------------------------------------------------------------------
+-- Completion (Tab), shell style
+--
+-- ".th<Tab>" completes a command, ".theme dr<Tab>" its argument, "/rel<Tab>" a slash
+-- command, "@equ<Tab>" a kind, and a plain search completes to the selected result's name.
+-- Several candidates: Tab fills in what they share; nothing left to add, Tab moves down the
+-- list. The suggestion shows faintly after the text; Right arrow at the end takes it too.
+----------------------------------------------------------------------
+
+local function StartsWith(s, prefix)
+	return s:sub(1, #prefix):lower() == prefix:lower()
+end
+
+local function CommonPrefix(list)
+	local p = list[1]
+	for i = 2, #list do
+		local s, j = list[i], 0
+		while j < #p and j < #s and p:sub(j + 1, j + 1):lower() == s:sub(j + 1, j + 1):lower() do j = j + 1 end
+		p = p:sub(1, j)
+	end
+	return p
+end
+
+--- Complete `word` from `cands`: the text that should replace it, and whether that's final.
+local function CompleteWord(word, cands)
+	local hits, seen = {}, {}
+	for _, c in ipairs(cands) do
+		if type(c) == "string" and StartsWith(c, word) and not seen[c:lower()] then
+			seen[c:lower()] = true
+			hits[#hits + 1] = c
+		end
+	end
+	if #hits == 0 then return nil end
+	if #hits == 1 then return hits[1], true end
+	table.sort(hits, function(a, b) return #a < #b end)
+	local cp = CommonPrefix(hits)
+	if #cp <= #word then cp = word end -- nothing shared beyond what's typed
+	return cp, false
+end
+UI.CompleteWord = CompleteWord
+
+local function CommandByWord(word)
+	word = word:lower()
+	local c = ns.commands[word]
+	if c then return c end
+	for _, name in ipairs(ns.commandOrder) do
+		for _, a in ipairs(ns.commands[name].aliases or {}) do
+			if a:lower() == word then return ns.commands[name] end
+		end
+	end
+end
+
+--- The query with the completion applied, or nil when there's nothing to complete.
+function UI:Completion()
+	if not edit then return nil end
+	local text = edit:GetText()
+	if text == "" or (self.cursor or #text) < #text then return nil end
+	local first = text:sub(1, 1)
+	if first == "." then
+		local word, rest = text:sub(2):match("^(%S*)(.*)$")
+		if rest == "" then
+			local new, final = CompleteWord(word, ns.commandOrder)
+			if new then return "." .. new .. (final and " " or "") end
+			return nil
+		end
+		local c = CommandByWord(word)
+		if not (c and c.complete) then return nil end
+		local args = rest:gsub("^%s+", "")
+		local argWord = args:match("(%S*)$") or ""
+		local ok, cands = pcall(c.complete, args)
+		if not ok or type(cands) ~= "table" then return nil end
+		local new, final = CompleteWord(argWord, cands)
+		if not new then return nil end
+		return text:sub(1, #text - #argWord) .. new .. (final and " " or "")
+	elseif first == "/" then
+		if text:find("%s") then return nil end
+		local cands = {}
+		local p = ns.providers.slash
+		if p then for _, e in ipairs(ns:GetEntries(p)) do cands[#cands + 1] = e.name end end
+		local new, final = CompleteWord(text, cands)
+		if new then return new .. (final and " " or "") end
+		return nil
+	end
+	local last = text:match("(%S*)$") or ""
+	if last:sub(1, 1) == "@" then
+		local cands = {}
+		for _, id in ipairs(ns.providerOrder) do
+			local p = ns.providers[id]
+			cands[#cands + 1] = "@" .. id
+			for _, a in ipairs(p.aliases or {}) do cands[#cands + 1] = "@" .. a end
+		end
+		local new, final = CompleteWord(last, cands)
+		if not new then return nil end
+		return text:sub(1, #text - #last) .. new .. (final and " " or "")
+	end
+	-- plain search: the selected result's name, when the typed words start it
+	local e = results[sel]
+	if not e or e.raw or e.noActivate or type(e.name) ~= "string" or e.kind == "calc" then return nil end
+	local kinds = text:match("^(@%S+%s+)") or ""
+	while true do -- every leading @kind
+		local more = text:sub(#kinds + 1):match("^(@%S+%s+)")
+		if not more then break end
+		kinds = kinds .. more
+	end
+	local query = text:sub(#kinds + 1)
+	if query == "" or #e.name <= #query or not StartsWith(e.name, query) then return nil end
+	return kinds .. e.name
+end
+
+--- What the suggestion adds to the typed text (for the faint preview), or nil.
+function UI:Suggestion()
+	local text = edit and edit:GetText() or ""
+	local new = self:Completion()
+	if not new or #new <= #text or not StartsWith(new, text) then return nil end
+	local add = new:sub(#text + 1):gsub("%s+$", "")
+	return add ~= "" and add or nil
+end
+
+--- Apply the completion. False when there was nothing to complete.
+function UI:AcceptCompletion()
+	local text = edit and edit:GetText() or ""
+	local new = self:Completion()
+	if not new or new == text then return false end
+	self:SetQuery(new, #new)
+	return true
+end
+
+function UI:UpdateGhost()
+	if not ghost then return end
+	local add = self:IsShown() and self:Suggestion() or nil
+	if not add then ghost:Hide() return end
+	local text = edit:GetText()
+	measure:SetText((text:gsub("|", "||")))
+	local w = measure:GetStringWidth() or 0
+	local room = (edit:GetWidth() or 400) - w - 4
+	if room < 20 then ghost:Hide() return end
+	ghost:SetText((add:gsub("|", "||")))
+	ghost:ClearAllPoints()
+	ghost:SetPoint("LEFT", edit, "LEFT", w, 0)
+	ghost:SetWidth(room)
+	ghost:Show()
+end
+
+----------------------------------------------------------------------
 -- Frame construction
 ----------------------------------------------------------------------
 
@@ -846,6 +1263,7 @@ local function Build()
 		edgeSize = 1,
 	})
 	frame:SetMovable(true)
+	if frame.SetClipsChildren then frame:SetClipsChildren(true) end -- rows are cut off as it shrinks
 	frame:EnableMouse(true)
 	frame:EnableMouseWheel(true)
 	frame:EnableKeyboard(false)
@@ -853,11 +1271,18 @@ local function Build()
 	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
-		local p, _, rp, x, y = self:GetPoint()
-		ns.db.point = { p, rp, x, y }
+		-- saved by its top-left corner, so the terminal grows and shrinks downward
+		local left, top = self:GetLeft(), self:GetTop()
+		if left and top then
+			ns.db.point = { "TOPLEFT", "BOTTOMLEFT", left, top }
+		else
+			local p, _, rp, x, y = self:GetPoint()
+			ns.db.point = { p, rp, x, y }
+		end
 	end)
 	frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 	frame:SetScript("OnHide", function(self)
+		UI:MotionReset()
 		if tip then tip:Hide() end
 		UI:Disarm()
 		UI.keys = false
@@ -926,7 +1351,9 @@ local function Build()
 	edit:SetScript("OnArrowPressed", function(_, key)
 		if key == "UP" then UI:Move(-1) elseif key == "DOWN" then UI:Move(1) end
 	end)
-	edit:SetScript("OnTabPressed", function() UI:Move(IsShiftKeyDown() and -1 or 1) end)
+	edit:SetScript("OnTabPressed", function()
+		if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
+	end)
 	edit:SetScript("OnKeyDown", function(_, key)
 		if key == "`" then
 			-- bindings don't fire while the box has focus, so the toggle key closes it here
@@ -949,13 +1376,21 @@ local function Build()
 	caret = frame:CreateTexture(nil, "OVERLAY")
 	caret:SetWidth(2)
 	caret:Hide()
-	local blink = caret:CreateAnimationGroup()
-	blink:SetLooping("BOUNCE")
-	local fade = blink:CreateAnimation("Alpha")
-	fade:SetFromAlpha(1)
-	fade:SetToAlpha(0.1)
-	fade:SetDuration(0.5)
-	blink:Play()
+
+	-- the rest of the suggested completion, faint, right after what's typed (Tab takes it)
+	ghost = frame:CreateFontString(nil, "OVERLAY")
+	ghost:SetFontObject(Theme.fonts.input)
+	ghost:SetJustifyH("LEFT")
+	ghost:SetWordWrap(false)
+	ghost:Hide()
+	UI.ghost = ghost
+
+	-- the selected row: a soft band with a bright edge that glides between rows
+	selBar = frame:CreateTexture(nil, "BORDER", nil, 2)
+	selEdge = frame:CreateTexture(nil, "ARTWORK")
+	selEdge:SetWidth(2)
+	selBar:Hide(); selEdge:Hide()
+	UI.selBar = selBar
 
 	divider = frame:CreateTexture(nil, "ARTWORK")
 	divider:SetHeight(1)
@@ -986,10 +1421,12 @@ local function Build()
 		b.label:SetJustifyH("LEFT")
 		b.label:SetWordWrap(false)
 		b:SetScript("OnClick", function()
+			if UI.closing then return end -- fading out: already done
 			sel = offset + i
 			UI:Activate(sel, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 		end)
 		b:SetScript("OnEnter", function()
+			if UI.closing then return end
 			if results[offset + i] and sel ~= offset + i then
 				if UI.armedEntry then UI:Disarm() end
 				sel = offset + i
@@ -1000,15 +1437,19 @@ local function Build()
 		rows[i] = b
 	end
 
+	-- footer: a faint rule, the result count on the left, key hints on the right, both
+	-- centred on one line
+	footLine = frame:CreateTexture(nil, "ARTWORK")
+	footLine:SetHeight(1)
 	status = frame:CreateFontString(nil, "OVERLAY")
 	status:SetFontObject(Theme.fonts.small)
-	status:SetPoint("BOTTOMLEFT", 12, 7)
+	status:SetJustifyH("LEFT")
+	status:SetWordWrap(false)
 	hints = frame:CreateFontString(nil, "OVERLAY")
 	hints:SetFontObject(Theme.fonts.small)
-	hints:SetPoint("BOTTOMRIGHT", -12, 7)
-	hints:SetText(HINTS)
 	hints:SetJustifyH("RIGHT")
-	hints:SetWordWrap(true)
+	hints:SetWordWrap(false)
+	UI.hints = hints
 
 	UI:ApplyTheme()
 end
@@ -1025,26 +1466,20 @@ function UI:ApplyTheme()
 	ROWS = math.max(1, math.min(MAX_ROWS, t.rows))
 	ROW_H = math.max(22, t.fontSize + 12)
 	HEADER_H = math.max(50, t.fontSize + 36)
-	-- footer: the key hints sit right of the result count; on a narrow terminal they wrap
-	-- onto a second line instead of running into it
-	local footerH = FOOTER_H
-	if t.hints then
-		local saved = status:GetText()
-		status:SetText("000 results  |  commands")
-		local reserve = (status:GetStringWidth() or 0) + 20
-		status:SetText(saved or "")
-		hints:SetText(HINTS)
-		local avail = t.width - 24 - reserve
-		local full = hints:GetStringWidth() or 0
-		if full > avail then
-			hints:SetWidth(math.max(120, avail))
-			footerH = FOOTER_H + math.max(10, t.fontSize - 2) + 2
-		else
-			hints:SetWidth(full + 4)
-		end
-	end
+	-- footer: always one line (hints that don't fit are left out, see FitHints)
+	local footerH = math.max(FOOTER_H, t.fontSize + 12)
 	UI.footerH = footerH
-	frame:SetSize(t.width, HEADER_H + ROWS * ROW_H + footerH)
+	local classicInset = t.frame == "classic" and 5 or 1
+	footLine:ClearAllPoints()
+	footLine:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", classicInset + 6, footerH)
+	footLine:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -classicInset - 6, footerH)
+	status:ClearAllPoints()
+	status:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, footerH / 2)
+	hints:ClearAllPoints()
+	hints:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, footerH / 2)
+	frame:SetWidth(t.width)
+	self.snapNext = true -- a new layout: no growing into it
+	self:FitHeight()
 	frame:SetScale(t.scale)
 
 	-- the frame: the game's own tooltip border (tinted, e.g. bronze) or a thin flat line
@@ -1094,6 +1529,11 @@ function UI:ApplyTheme()
 	local ar, ag, ab = Theme.RGB(t.accent)
 	caret:SetColorTexture(ar, ag, ab, 1)
 	caret:SetHeight(t.fontSize + 5)
+	selBar:SetColorTexture(ar, ag, ab, 0.16)
+	selEdge:SetColorTexture(ar, ag, ab, 0.9)
+	local gr, gg, gb = Theme.RGB(t.dim)
+	ghost:SetTextColor(gr, gg, gb, 0.75)
+	self.selY = nil -- re-place the selection band for the new layout
 
 	local dr, dg, db = Theme.RGB(t.dim)
 	for i = 1, MAX_ROWS do
@@ -1111,11 +1551,14 @@ function UI:ApplyTheme()
 	end
 	status:SetTextColor(dr, dg, db)
 	hints:SetTextColor(dr, dg, db)
-	hints:SetShown(t.hints and true or false)
+	local lr, lg, lb = Theme.RGB(t.border)
+	footLine:SetColorTexture(lr, lg, lb, 0.35)
+	self:FitHints()
 
 	Fuzzy.matchColor = "|cff" .. t.match
 	offset = math.max(0, math.min(offset, #results - ROWS))
 	self:Render()
+	self.snapNext = false
 	self:UpdateCaret()
 end
 
@@ -1123,14 +1566,25 @@ end
 -- Public
 ----------------------------------------------------------------------
 
-function UI:IsShown() return frame and frame:IsShown() end
+--- Open (closing counts as closed: the fade-out is only for the eye).
+function UI:IsShown() return frame and frame:IsShown() and not self.closing or false end
 
 function UI:Hide()
-	if not frame then return end
+	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
 	if tip then tip:Hide() end
 	edit:ClearFocus()
-	frame:Hide()
+	-- let go of the keyboard at once, so the next key already reaches the game
+	self.keys = false
+	StopRepeat()
+	frame:EnableKeyboard(false)
+	caret:Hide()
+	ghost:Hide()
+	if self:Animated() then
+		self:StartClose()
+	else
+		frame:Hide()
+	end
 end
 
 function UI:Open(text)
@@ -1141,15 +1595,20 @@ function UI:Open(text)
 		if p.refreshOnOpen then p._dirty = true end
 	end
 	ns.Highlight:Clear()
+	local reopening = self.closing
+	self.closing = false
 	frame:Show()
+	self:StartOpen(reopening)
 	self.cursor = #(text or "")
+	self.snapNext = true -- opens at the right size; it grows and shrinks from there
 	edit:SetText(text or "")
 	self.cursor = #edit:GetText()
 	self:Refresh()
+	self.snapNext = false
 	if not self:EnterKeys() then
 		-- plain text box: focus next frame so the opening keypress isn't typed into it
 		C_Timer.After(0, function()
-			if frame:IsShown() and not UI.keys then edit:SetFocus() end
+			if UI:IsShown() and not UI.keys then edit:SetFocus() end
 		end)
 	end
 	self:UpdateCaret()
