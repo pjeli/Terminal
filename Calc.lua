@@ -177,8 +177,10 @@ local function Parse(toks)
 	return v, binops
 end
 
+-- digits with thousands separators. "%.0f", not "%d" or tostring: the game's Lua can't
+-- store big numbers in an integer and tostring switches to 1e+15 notation.
 local function Group(int)
-	local s = tostring(int)
+	local s = type(int) == "string" and int or string.format("%.0f", int)
 	if #s <= 4 then return s end
 	local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
 	return (out:gsub("^,", ""))
@@ -189,8 +191,10 @@ local function FormatNumber(x)
 	local neg = x < 0
 	x = math.abs(x)
 	local s
-	if x == math.floor(x) and x < 1e15 then
-		s = Group(string.format("%d", x))
+	if x >= 1e15 then
+		s = string.format("%.6g", x)
+	elseif x == math.floor(x) then
+		s = Group(x)
 	else
 		s = string.format("%.6f", x):gsub("0+$", ""):gsub("%.$", "")
 		local int, frac = s:match("^(%d+)(.*)$")
