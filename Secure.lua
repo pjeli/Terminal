@@ -82,7 +82,11 @@ function S.Resolve(spec)
 	return b and { button = b } or nil
 end
 
-local function PostClick(self)
+-- A key bound to a button "clicks" it twice: on key down and on key up. The button acts on
+-- only one of them (useOnKeyDown); finishing on the other would unbind Enter too early, and
+-- the press that does the work would then find nothing bound.
+local function PostClick(self, _, down)
+	if self.actsOnDown ~= nil and down ~= nil and (down and true or false) ~= self.actsOnDown then return end
 	if S.armed == self.targetName and S.onClicked then
 		S.onClicked(self.targetName)
 	end
@@ -100,6 +104,7 @@ function S.Proxy(targetName)
 	p:EnableMouse(false)
 	p:RegisterForClicks("AnyUp", "AnyDown")
 	p:SetAttribute("useOnKeyDown", false)
+	p.actsOnDown = false
 	p:SetAttribute("type", "click")
 	p:SetAttribute("clickbutton", target)
 	p.targetName = targetName
@@ -117,7 +122,9 @@ local function MacroProxy()
 	p:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
 	p:EnableMouse(false)
 	p:RegisterForClicks("AnyUp", "AnyDown")
-	p:SetAttribute("useOnKeyDown", false)
+	-- acts on key down, the same press the game's own bindings act on
+	p:SetAttribute("useOnKeyDown", true)
+	p.actsOnDown = true
 	p:SetAttribute("type", "macro")
 	p.targetName = "MACRO"
 	p:HookScript("PostClick", PostClick)

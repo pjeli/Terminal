@@ -2002,7 +2002,7 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	local function press() -- what the game does with the armed macro
 		CharacterFrame.shown, PaperDollFrame.shown, rightPane.shown, pane.shown = true, true, true, true
 		local p = _G.TerminalMacroProxy
-		p.scripts.PostClick(p)
+		p.scripts.PostClick(p, "LeftButton", true)
 		FlushAll()
 	end
 	-- closed window, right pane closed
@@ -2012,6 +2012,9 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	check(ns.Secure.armed == "MACRO" and mp and mp.attrs.macrotext == "/click CharacterMicroButton\n/click CharacterFrameRightPaneToggleButton\n/click PaperDollSidebarTab2",
 		"Shift+Enter arms a macro: micro button, right-pane arrow, Equipment Manager tab: " .. tostring(mp and mp.attrs and mp.attrs.macrotext))
 	check(#used == 1, "Shift+Enter doesn't equip the set")
+	check(mp.attrs.useOnKeyDown == true and mp.attrs.type == "macro", "the macro runs on key down, like the game's own bindings")
+	mp.scripts.PostClick(mp, "LeftButton", false) -- a stray key-up click must not unbind Enter early
+	check(ns.Secure.armed == "MACRO", "a key-up click doesn't finish (or unbind) the macro")
 	press()
 	check(pointed == setRow, "after the game's clicks, the set is pointed at")
 	local addonClicks = false
