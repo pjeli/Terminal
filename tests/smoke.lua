@@ -279,7 +279,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -2080,6 +2080,58 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	C_Item.GetItemCount = saveCount
 	_G.C_EquipmentSet = nil
 	ns.providers.equipmentset._dirty = true
+end
+do -- reputations: searchable, with standing and progress; collapsed headers read too
+	local FACTIONS = {
+		{ name = "Alliance", isHeader = true, isCollapsed = false },
+		{ name = "Stormwind", factionID = 72, reaction = 6, currentReactionThreshold = 9000, nextReactionThreshold = 21000, currentStanding = 12000 },
+		{ name = "Classic", isHeader = true, isCollapsed = true },
+		{ name = "Argent Dawn", factionID = 529, reaction = 7, currentReactionThreshold = 21000, nextReactionThreshold = 42000, currentStanding = 30000, isWatched = true },
+		{ name = "Timbermaw Hold", factionID = 576, reaction = 2, currentReactionThreshold = -6000, nextReactionThreshold = -3000, currentStanding = -4500 },
+	}
+	local function visible()
+		local out, hide = {}, false
+		for _, f in ipairs(FACTIONS) do
+			if f.isHeader then out[#out + 1] = f; hide = f.isCollapsed
+			elseif not hide then out[#out + 1] = f end
+		end
+		return out
+	end
+	local watched
+	_G.C_Reputation = {
+		GetNumFactions = function() return #visible() end,
+		GetFactionDataByIndex = function(i) return visible()[i] end,
+		ExpandFactionHeader = function(i) visible()[i].isCollapsed = false end,
+		CollapseFactionHeader = function(i) visible()[i].isCollapsed = true end,
+		SetWatchedFactionByID = function(id) watched = id end,
+	}
+	_G.FACTION_STANDING_LABEL2, _G.FACTION_STANDING_LABEL6, _G.FACTION_STANDING_LABEL7 = "Hostile", "Honored", "Revered"
+	ns.providers.reputation._dirty = true
+	local reps = names(ns:GetEntries(ns.providers.reputation))
+	check(reps["Stormwind"] and reps["Stormwind"].detail == "Honored  3000/12000", "standing and progress shown: " .. tostring(reps["Stormwind"] and reps["Stormwind"].detail))
+	check(reps["Argent Dawn"] and reps["Argent Dawn"].detail == "Revered  9000/21000  watched", "factions under a collapsed header are read too")
+	check(reps["Timbermaw Hold"] and reps["Timbermaw Hold"].detail:find("Hostile", 1, true), "low standings too")
+	check(not reps["Alliance"], "plain headers aren't listed")
+	check(FACTIONS[3].isCollapsed == true, "the collapsed header is collapsed again after reading")
+	check(ns:ResolveProvider("reputation").id == "reputation" and ns:ResolveProvider("rep").id == "reputation", "@reputation and @rep")
+	local r = UI:Search("revered")
+	check(r[1] and r[1].name == "Argent Dawn", "searchable by standing")
+	r = UI:Search("@rep stormwind")
+	check(r[1] and r[1].name == "Stormwind" and r[1].secure and r[1].secure.binding == "TOGGLECHARACTER2", "Enter opens the Reputation tab through the game's key")
+	r[1].secondary(r[1])
+	check(watched == 72, "Shift+Enter watches the faction")
+	-- after the tab opens: the faction's row is pointed at
+	_G.ReputationFrame = Obj("Frame"); ReputationFrame.shown = true
+	local row = Obj("Button"); row.shown = true; row.factionID = 72
+	ReputationFrame.GetChildren = function() return row end
+	local pointed
+	local origShow = ns.Highlight.Show
+	ns.Highlight.Show = function(self, t) pointed = t; return origShow(self, t) end
+	reps["Stormwind"].after(reps["Stormwind"]); FlushAll()
+	check(pointed == row, "the faction's row is pointed at")
+	ns.Highlight.Show = origShow
+	_G.ReputationFrame, _G.C_Reputation = nil, nil
+	ns.providers.reputation._dirty = true
 end
 do -- classic quest log: the quest is selected (and scrolled to) the way a click does
 	local picked
