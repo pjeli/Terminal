@@ -484,19 +484,38 @@ function P.OpenRecipe(recipeID, profID, name)
 	P.SelectRecipe(recipeID, name)
 end
 
+--- Scrolls the profession window's recipe list to the recipe, so its row exists to click.
+--- (C_TradeSkillUI.OpenRecipe would do this, but it's protected in this client: calling it
+--- from an addon is always blocked, so it's never called.)
+local function ScrollToRecipe(pf, recipeID)
+	local page = pf.CraftingPage
+	local list = page and page.RecipeList
+	local box = list and list.ScrollBox
+	if not (box and box.ScrollToElementDataByPredicate) then return false end
+	local ok = pcall(box.ScrollToElementDataByPredicate, box, function(node)
+		local d = node and node.GetData and node:GetData()
+		local info = type(d) == "table" and (d.recipeInfo or d)
+		return type(info) == "table" and info.recipeID == recipeID
+	end)
+	return ok
+end
+P.ScrollToRecipe = ScrollToRecipe
+
 --- In the open profession window: select the recipe in the list and point at it.
 function P.SelectRecipe(recipeID, name)
 	local api = TS()
 	if not api then return end
-	local asked = false
+	local scrolled = false
 	H:When(function()
 		local pf = _G.ProfessionsFrame
 		if not (pf and pf:IsVisible()) then return nil end
-		if not asked then
-			asked = true
-			if api.OpenRecipe then P.Guarded("OpenRecipe", api.OpenRecipe, recipeID) end -- the game's list scrolls to it
+		local row = name and RecipeRow(pf, name) or nil
+		if not row and not scrolled then
+			scrolled = true
+			ScrollToRecipe(pf, recipeID) -- the row may be further down the list
+			row = name and RecipeRow(pf, name) or nil
 		end
-		return name and RecipeRow(pf, name) or nil
+		return row
 	end, function(row)
 		pcall(row.Click, row) -- select it, in whichever list is showing
 		H:Show(row, 6)
