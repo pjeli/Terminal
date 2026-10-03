@@ -1,11 +1,15 @@
 local ns = select(2, ...)
 
--- Pulsing gold outline drawn around any frame, plus helpers to locate frames
+-- Gold outline drawn around any frame (two pulses, then it fades), plus helpers to locate frames
 -- inside Blizzard UI after we open it.
 local H = {}
 ns.Highlight = H
 
 local pool, active = {}, {}
+
+-- The highlight pulses twice, then fades out: about 2.4 seconds in all.
+local PULSE, PULSES, FADE = 0.9, 2, 0.6
+H.TOTAL = PULSE * PULSES + FADE
 
 local function NewGlow()
 	local f = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
@@ -16,21 +20,23 @@ local function NewGlow()
 	f.fill = f:CreateTexture(nil, "BACKGROUND")
 	f.fill:SetAllPoints()
 	f.fill:SetColorTexture(1, 0.82, 0, 0.12)
-	local ag = f:CreateAnimationGroup()
-	ag:SetLooping("BOUNCE")
-	local a = ag:CreateAnimation("Alpha")
-	a:SetFromAlpha(1)
-	a:SetToAlpha(0.25)
-	a:SetDuration(0.45)
-	f.pulse = ag
 	return f
+end
+
+--- Brightness at `t` seconds: two pulses (bright, dim, bright), then a fade to nothing.
+--- Returns nil once it's over.
+function H.AlphaAt(t)
+	if t < PULSE * PULSES then
+		return 0.625 + 0.375 * math.cos(2 * math.pi * t / PULSE)
+	elseif t < H.TOTAL then
+		return 1 - (t - PULSE * PULSES) / FADE
+	end
 end
 
 function H:Release(g)
 	if not active[g] then return end
 	active[g] = nil
 	g:Hide()
-	g.pulse:Stop()
 	g:SetScript("OnUpdate", nil)
 	g.target = nil
 	pool[#pool + 1] = g
@@ -42,19 +48,24 @@ function H:Clear()
 	for _, g in ipairs(list) do self:Release(g) end
 end
 
-function H:Show(target, duration)
+--- Outlines `target`. (The old duration argument is ignored: every highlight pulses twice
+--- and fades.)
+function H:Show(target)
 	if not target or not target.IsVisible then return end
 	local g = table.remove(pool) or NewGlow()
 	g.target = target
-	g.expires = GetTime() + (duration or 6)
+	g.started = GetTime()
 	g:ClearAllPoints()
 	g:SetPoint("TOPLEFT", target, "TOPLEFT", -3, 3)
 	g:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 3, -3)
+	g:SetAlpha(1)
 	g:Show()
-	g.pulse:Play()
 	g:SetScript("OnUpdate", function(self)
-		if not self.target or not self.target:IsVisible() or GetTime() > self.expires then
+		local a = self.target and self.target:IsVisible() and H.AlphaAt(GetTime() - self.started)
+		if not a then
 			H:Release(self)
+		else
+			self:SetAlpha(a)
 		end
 	end)
 	active[g] = true
