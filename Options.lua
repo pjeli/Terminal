@@ -123,6 +123,9 @@ local function PaintPreview()
 	pv.query:SetText("hvy ban")
 	pv.query:SetTextColor(T.RGB(t.text))
 	pv.caret:SetColorTexture(T.RGB(t.accent))
+		local box = t.cursor == "blinking-box" or t.cursor == "solid-box"
+		pv.caret:SetSize(box and 8 or 2, 13)
+		pv.caret:SetAlpha(box and 0.85 or 1)
 	local ar, ag, ab = T.RGB(t.accent)
 	pv.band:SetColorTexture(ar, ag, ab, 0.18)
 	ns.Fuzzy.matchColor = "|cff" .. t.match
@@ -140,54 +143,73 @@ O.PaintPreview = PaintPreview
 Label("Terminal", "GameFontNormalLarge", 16, -16)
 Label("Theme and layout of the terminal. Everything here can also be set from the terminal, e.g.  .set accent ff79c6", "GameFontHighlightSmall", 16, -40)
 
--- Themes: a dropdown
-Label("Theme", "GameFontNormal", 16, -70)
-local menu = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-menu:SetSize(200, 22)
-menu:SetPoint("TOPLEFT", 16, -90)
-local arrow = menu:CreateTexture(nil, "OVERLAY")
-arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
-arrow:SetSize(12, 12)
-arrow:SetPoint("RIGHT", -8, 0)
-arrow:SetRotation(-math.pi / 2) -- pointing down
-O.widgets.themeMenu = menu
+-- Dropdowns: a button that opens a list of choices (themes, cursor styles)
+local openLists = {}
+local function Dropdown(x, y, w, ids, labelOf, onPick)
+	local menu = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	menu:SetSize(w, 22)
+	menu:SetPoint("TOPLEFT", x, y)
+	local arrow = menu:CreateTexture(nil, "OVERLAY")
+	arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+	arrow:SetSize(12, 12)
+	arrow:SetPoint("RIGHT", -8, 0)
+	arrow:SetRotation(-math.pi / 2) -- pointing down
 
-local list = CreateFrame("Frame", nil, panel, "BackdropTemplate")
-list:SetPoint("TOPLEFT", menu, "BOTTOMLEFT", 0, -2)
-list:SetSize(200, #T.PRESET_ORDER * 20 + 8)
-list:SetFrameStrata("DIALOG")
-list:SetBackdrop({ bgFile = WHITE, edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-list:SetBackdropColor(0.05, 0.04, 0.03, 0.97)
-list:SetBackdropBorderColor(0.69, 0.5, 0.25, 1)
-list:Hide()
-O.widgets.themeList = list
-O.themeItems = {}
-for i, id in ipairs(T.PRESET_ORDER) do
-	local item = CreateFrame("Button", nil, list)
-	item:SetSize(192, 20)
-	item:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 20)
-	local hl = item:CreateTexture(nil, "HIGHLIGHT")
-	hl:SetAllPoints()
-	hl:SetColorTexture(1, 0.82, 0, 0.18)
-	item.text = item:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	item.text:SetPoint("LEFT", 8, 0)
-	item.text:SetText(T.PRESETS[id].label)
-	item:SetScript("OnClick", function()
-		list:Hide()
-		T.ApplyPreset(id)
+	local list = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+	list:SetPoint("TOPLEFT", menu, "BOTTOMLEFT", 0, -2)
+	list:SetSize(w, #ids * 20 + 8)
+	list:SetFrameStrata("DIALOG")
+	list:SetBackdrop({ bgFile = WHITE, edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+	list:SetBackdropColor(0.05, 0.04, 0.03, 0.97)
+	list:SetBackdropBorderColor(0.69, 0.5, 0.25, 1)
+	list:Hide()
+	openLists[#openLists + 1] = list
+	local items = {}
+	for i, id in ipairs(ids) do
+		local item = CreateFrame("Button", nil, list)
+		item:SetSize(w - 8, 20)
+		item:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 20)
+		local hl = item:CreateTexture(nil, "HIGHLIGHT")
+		hl:SetAllPoints()
+		hl:SetColorTexture(1, 0.82, 0, 0.18)
+		item.text = item:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		item.text:SetPoint("LEFT", 8, 0)
+		item.text:SetText(labelOf(id))
+		item:SetScript("OnClick", function()
+			list:Hide()
+			onPick(id)
+		end)
+		items[id] = item
+	end
+	menu:SetScript("OnClick", function()
+		local show = not list:IsShown()
+		for _, l in ipairs(openLists) do l:Hide() end
+		list:SetShown(show)
 	end)
-	O.themeItems[id] = item
+	panel:HookScript("OnHide", function() list:Hide() end)
+	return menu, list, items
 end
-menu:SetScript("OnClick", function() list:SetShown(not list:IsShown()) end)
-panel:HookScript("OnHide", function() list:Hide() end)
 
--- Prompt character: type anything (up to 4 characters) or pick one
+-- marks the current choice in a dropdown's list in gold
+local function MarkChoice(items, current, labelOf)
+	for id, item in pairs(items) do
+		local label = labelOf(id)
+		item.text:SetText(id == current and ("|cffffd100" .. label .. "|r") or label)
+	end
+end
+
+-- Themes
+Label("Theme", "GameFontNormal", 16, -70)
+local function ThemeLabel(id) return T.PRESETS[id].label end
+O.widgets.themeMenu, O.widgets.themeList, O.themeItems = Dropdown(16, -90, 200, T.PRESET_ORDER, ThemeLabel, function(id) T.ApplyPreset(id) end)
+
+-- Prompt character: type anything, up to 3 characters
 Label("Prompt character", "GameFontNormal", 16, -150)
 local promptBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
 promptBox:SetSize(46, 20)
 promptBox:SetPoint("TOPLEFT", 22, -168)
 promptBox:SetAutoFocus(false)
-promptBox:SetMaxLetters(4)
+promptBox:SetMaxLetters(3)
 local function SavePrompt(self)
 	local ok = T.Set("promptText", self:GetText())
 	if not ok then self:SetText(T.Get().promptText) end
@@ -203,16 +225,10 @@ promptBox:SetScript("OnEscapePressed", function(self)
 end)
 O.widgets.promptText = promptBox
 
--- characters the game's fonts can draw
-O.PROMPT_PICKS = { ">", "$", "#", "%", "\194\187", "::", ">>", "~" }
-for i, ch in ipairs(O.PROMPT_PICKS) do
-	local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-	b:SetSize(34, 22)
-	b:SetPoint("TOPLEFT", 76 + (i - 1) * 38, -167)
-	b:SetText((ch:gsub("|", "||")))
-	b:SetScript("OnClick", function() T.Set("promptText", ch) end)
-	O.widgets["prompt_" .. i] = b
-end
+-- Cursor style: a dropdown beside the prompt box
+Label("Cursor", "GameFontNormal", 130, -150)
+local function CursorLabel(id) return T.CURSOR_LABELS[id] end
+O.widgets.cursor, O.widgets.cursorList, O.cursorItems = Dropdown(130, -168, 150, T.CURSOR_ORDER, CursorLabel, function(id) T.Set("cursor", id) end)
 
 -- Colours
 Label("Colours", "GameFontNormal", 16, -202)
@@ -228,10 +244,11 @@ Slider("fontSize", 16, -346)
 Slider("rows", 16, -370)
 Slider("width", 16, -394)
 Slider("scale", 16, -418)
+Slider("blinkRate", 16, -442)
 
 local fontButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 fontButton:SetSize(150, 22)
-fontButton:SetPoint("TOPLEFT", 16, -448)
+fontButton:SetPoint("TOPLEFT", 16, -474)
 fontButton:SetScript("OnClick", function()
 	local cur, list = T.Get().font, T.FONT_ORDER
 	local nextIdx = 1
@@ -244,7 +261,7 @@ O.widgets.font = fontButton
 
 local frameButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 frameButton:SetSize(150, 22)
-frameButton:SetPoint("TOPLEFT", 16, -476)
+frameButton:SetPoint("TOPLEFT", 16, -502)
 frameButton:SetScript("OnClick", function()
 	T.Set("frame", T.Get().frame == "classic" and "flat" or "classic")
 end)
@@ -252,35 +269,35 @@ O.widgets.frame = frameButton
 
 local hintsCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 hintsCheck:SetSize(24, 24)
-hintsCheck:SetPoint("TOPLEFT", 190, -446)
+hintsCheck:SetPoint("TOPLEFT", 190, -472)
 hintsCheck:SetScript("OnClick", function(self) T.Set("hints", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.hints.label, "GameFontHighlight", 216, -451)
+Label(T.FIELDS.hints.label, "GameFontHighlight", 216, -477)
 O.widgets.hints = hintsCheck
 
 local scanCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 scanCheck:SetSize(24, 24)
-scanCheck:SetPoint("TOPLEFT", 190, -472)
+scanCheck:SetPoint("TOPLEFT", 190, -498)
 scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -477)
+Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -503)
 O.widgets.autoScan = scanCheck
 
 local animCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 animCheck:SetSize(24, 24)
-animCheck:SetPoint("TOPLEFT", 190, -498)
+animCheck:SetPoint("TOPLEFT", 190, -524)
 animCheck:SetScript("OnClick", function(self) T.Set("animations", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.animations.label, "GameFontHighlight", 216, -503)
+Label(T.FIELDS.animations.label, "GameFontHighlight", 216, -529)
 O.widgets.animations = animCheck
 
 -- the panel's own actions, on a row of their own below everything else
 local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 open:SetSize(130, 22)
-open:SetPoint("TOPLEFT", 16, -540)
+open:SetPoint("TOPLEFT", 16, -562)
 open:SetText("Open terminal")
 open:SetScript("OnClick", function() ns.UI:Open() end)
 
 local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 reset:SetSize(130, 22)
-reset:SetPoint("TOPLEFT", 156, -540)
+reset:SetPoint("TOPLEFT", 156, -562)
 reset:SetText("Reset to defaults")
 reset:SetScript("OnClick", function() T.Reset() end)
 
@@ -301,21 +318,17 @@ function O.Refresh()
 		end
 	end
 	O.widgets.font:SetText("Font: " .. t.font:sub(1, 1):upper() .. t.font:sub(2))
+	local cur = T.CURSOR_LABELS[t.cursor] and t.cursor or "blinking-line"
+	O.widgets.cursor:SetText(CursorLabel(cur))
+	MarkChoice(O.cursorItems, cur, CursorLabel)
 	O.widgets.frame:SetText("Frame: " .. (t.frame == "classic" and "Classic" or "Flat"))
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
 	O.widgets.animations:SetChecked(t.animations ~= false)
-	local cur = T.PRESETS[t.preset]
-	O.widgets.themeMenu:SetText(cur and cur.label or "Custom")
-	for id, item in pairs(O.themeItems) do
-		local label = T.PRESETS[id].label
-		item.text:SetText(id == t.preset and ("|cffffd100" .. label .. "|r") or label)
-	end
-	for i, ch in ipairs(O.PROMPT_PICKS) do
-		local b = O.widgets["prompt_" .. i]
-		if ch == t.promptText then b:LockHighlight() else b:UnlockHighlight() end
-	end
+	local preset = T.PRESETS[t.preset]
+	O.widgets.themeMenu:SetText(preset and preset.label or "Custom")
+	MarkChoice(O.themeItems, t.preset, ThemeLabel)
 	PaintPreview()
 	O.syncing = false
 end

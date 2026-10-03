@@ -12,7 +12,8 @@ local ns = select(2, ...)
 --   .debug           status and the last events
 --   .debug on / off  print every event and trace line live; also turns on the game's own
 --                     taint log (Logs\taint.log) and Lua error popups
---   .debug log       the recorded events with what Terminal was doing at the time
+--   .debug log       the recorded events with what Terminal was doing at the time, in a
+--                     window with the text selected: Ctrl+C, then paste it anywhere
 --   .debug clear     forget them
 --
 -- Terminal:Trace("text") adds a trace line (used by the terminal itself).
@@ -20,7 +21,7 @@ local ns = select(2, ...)
 local D = {}
 ns.Debug = D
 
-local TRACE_MAX, EVENT_MAX, WINDOW = 40, 30, 3 -- lines, events, seconds of context
+local TRACE_MAX, EVENT_MAX, WINDOW = 200, 30, 3 -- lines, events, seconds of context
 
 local trace, events = {}, {}
 D.trace, D.events = trace, events
@@ -135,6 +136,31 @@ function D.Log(n)
 	return lines
 end
 
+--- The whole log as one text for the copy window: where it ran, every recorded event,
+--- then the latest trace lines.
+function D.Report()
+	local lines = {}
+	local ver = ns.version or "?"
+	local gv, gb = "?", "?"
+	if GetBuildInfo then
+		local ok, v, b = pcall(GetBuildInfo)
+		if ok then gv, gb = tostring(v), tostring(b) end
+	end
+	lines[1] = ("Terminal %s, game %s (build %s), debug %s, taintLog %s"):format(
+		tostring(ver), gv, gb, Live() and "ON" or "off", tostring(Cvar("taintLog")))
+	lines[2] = ""
+	for _, l in ipairs(D.Log(EVENT_MAX)) do lines[#lines + 1] = l end
+	if #trace > 0 then
+		lines[#lines + 1] = "Terminal trace (latest last):"
+		for i = math.max(1, #trace - 120), #trace do
+			lines[#lines + 1] = ("  %.2f  %s%s"):format(trace[i].t, trace[i].msg, trace[i].combat and "  [combat]" or "")
+		end
+	else
+		lines[#lines + 1] = "No Terminal trace recorded."
+	end
+	return lines
+end
+
 ns:RegisterCommand("debug", {
 	desc = "Why 'Interface action failed because of an AddOn' happens (on | off | log | clear)",
 	aliases = { "taintdebug", "taint" },
@@ -157,15 +183,17 @@ ns:RegisterCommand("debug", {
 			for i = #events, 1, -1 do events[i] = nil end
 			for i = #trace, 1, -1 do trace[i] = nil end
 			out = { "Cleared." }
-		elseif arg == "log" or arg == "" then
-			out = { "Debug is " .. (Live() and "ON" or "off") .. "  (taintLog " .. tostring(Cvar("taintLog")) .. ")  -  .debug on | off | log | clear" }
-			for _, l in ipairs(D.Log(arg == "log" and 10 or 3)) do out[#out + 1] = l end
-			if arg == "log" and #trace > 0 then
-				out[#out + 1] = "Latest Terminal trace:"
-				for i = math.max(1, #trace - 12), #trace do
-					out[#out + 1] = ("  %.2f  %s"):format(trace[i].t, trace[i].msg)
-				end
+		elseif arg == "log" then
+			-- a real text box: select all is done, Ctrl+C copies it out of the game
+			if ns.ShowText then
+				ns:ShowText("Terminal debug log", D.Report())
+				out = { "Debug log opened in a window: Ctrl+C copies all of it, Esc closes." }
+			else
+				out = D.Report()
 			end
+		elseif arg == "" then
+			out = { "Debug is " .. (Live() and "ON" or "off") .. "  (taintLog " .. tostring(Cvar("taintLog")) .. ")  -  .debug on | off | log | clear" }
+			for _, l in ipairs(D.Log(3)) do out[#out + 1] = l end
 		else
 			out = { "Usage: .debug on | off | log | clear" }
 		end

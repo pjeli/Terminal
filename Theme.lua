@@ -38,6 +38,8 @@ T.DEFAULTS = {
 	scale = 1.0,
 	hints = true,
 	animations = true, -- fades, gliding selection and caret (off: everything snaps)
+	cursor = "blinking-line", -- the text cursor: blinking or solid, a line or a box
+	blinkRate = 0.8, -- blinks per second
 	autoScan = true, -- index professions quietly after login
 	v = 3, -- theme defaults version (see T.Get)
 }
@@ -79,9 +81,11 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
-	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "autoScan" }
+	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan" }
+T.CURSOR_ORDER = { "blinking-line", "solid-line", "blinking-box", "solid-box" }
+T.CURSOR_LABELS = { ["blinking-line"] = "Blinking line", ["solid-line"] = "Solid line", ["blinking-box"] = "Blinking box", ["solid-box"] = "Solid box" }
 T.FIELDS = {
-	promptText = { kind = "text", label = "Prompt", max = 4 },
+	promptText = { kind = "text", label = "Prompt", max = 3 },
 	prompt = { kind = "color", label = "Prompt colour" },
 	accent = { kind = "color", label = "Selection" },
 	match = { kind = "color", label = "Match highlight" },
@@ -99,6 +103,8 @@ T.FIELDS = {
 	scale = { kind = "number", label = "Scale", min = 0.6, max = 1.6, step = 0.05 },
 	hints = { kind = "bool", label = "Key hints in footer" },
 	animations = { kind = "bool", label = "Animations" },
+	cursor = { kind = "choice", label = "Cursor", choices = T.CURSOR_ORDER },
+	blinkRate = { kind = "number", label = "Blink speed", min = 0.2, max = 3, step = 0.1 },
 	autoScan = { kind = "bool", label = "Index professions at login" },
 }
 local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
@@ -189,11 +195,27 @@ function T.FixColors(s)
 	return (s:gsub("|c(%x%x)(%x%x%x%x%x%x)", function(a, h) return "|c" .. a .. T.Readable(h:lower()) end))
 end
 
+--- The colour for text drawn on top of `under` (the character under a box cursor): the
+--- theme's background if that reads clearly there, else black or white, whichever is clearer.
+local function Ratio(a, b)
+	local ar, ag, ab = T.RGB(a)
+	local br, bg, bb = T.RGB(b)
+	local x, y = Lum(ar, ag, ab), Lum(br, bg, bb)
+	if x < y then x, y = y, x end
+	return (x + 0.05) / (y + 0.05)
+end
+
+function T.OnColor(under, prefer)
+	if prefer and Ratio(prefer, under) >= 4.5 then return prefer end
+	return Ratio("000000", under) >= Ratio("ffffff", under) and "000000" or "ffffff"
+end
+
 function T.Format(key, v)
 	local f = T.FIELDS[key]
 	if not f then return tostring(v) end
 	if f.kind == "bool" then return v and "on" or "off" end
 	if f.kind == "number" then
+		if key == "blinkRate" then return ("%.1f/s"):format(v) end
 		if f.step < 1 then return ("%.2f"):format(v) end
 		return tostring(math.floor(v + 0.5))
 	end

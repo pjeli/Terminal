@@ -26,7 +26,7 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, PRINTSCREEN = true,
 }
 
-local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine
+local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit
 local rows = {}
 UI.rows = rows
 local motion = CreateFrame("Frame") -- drives every animation (see "Motion")
@@ -753,38 +753,173 @@ local function NextPos(s, c) -- one character to the right
 end
 
 function UI:SetQuery(text, cursor)
+	self.anchor = nil -- typing, completing or clearing drops any selection
 	self.typedAt = GetTime()
 	self.cursor = math.max(0, math.min(cursor or #text, #text))
 	if edit:GetText() ~= text then edit:SetText(text) end -- OnTextChanged -> Refresh
 	self:UpdateCaret()
 end
 
+-- the text cursor: a line or a box (the character under it is redrawn in a colour that reads
+-- on the box), steady or blinking
+local CURSORS = {
+	["blinking-line"] = { box = false, blink = true },
+	["solid-line"] = { box = false, blink = false },
+	["blinking-box"] = { box = true, blink = true },
+	["solid-box"] = { box = true, blink = false },
+}
+local function CursorStyle() return CURSORS[Theme.Get().cursor] or CURSORS["blinking-line"] end
+UI.CursorStyle = CursorStyle
+
+--- The selected part of the query as byte positions (lo, hi), or nil. The drawn prompt keeps
+--- its own selection: `anchor` is where it started, the caret is where it ends.
+function UI:SelRange()
+	local a, c = self.anchor, self.cursor
+	if not (a and c) or a == c or not edit then return nil end
+	local n = #edit:GetText()
+	a, c = math.min(a, n), math.min(c, n)
+	if a == c then return nil end
+	if a < c then return a, c end
+	return c, a
+end
+
+--- Where text of `pos` bytes ends on the prompt line.
+local function TextX(text, pos)
+	measure:SetText((text:sub(1, pos):gsub("|", "||")))
+	return math.min(measure:GetStringWidth() or 0, (edit:GetWidth() or 400) - 2)
+end
+
+--- The selection band, from where the selection started to the (gliding) caret.
+function UI:PlaceTextSel()
+	if not selText then return end
+	if not (self.keys and self:IsShown() and self.anchorX and self:SelRange()) then
+		selText:Hide()
+		return
+	end
+	local x1, x2 = self.anchorX, self.caretX or self.caretTo or 0
+	if x1 > x2 then x1, x2 = x2, x1 end
+	selText:ClearAllPoints()
+	selText:SetPoint("LEFT", edit, "LEFT", x1, 0)
+	selText:SetSize(math.max(1, x2 - x1), Theme.Get().fontSize + 5)
+	selText:Show()
+end
+
 function UI:UpdateCaret()
 	if not caret then return end
+	if hit then hit:SetShown(self.keys and self:IsShown() and true or false) end
 	if not (self.keys and self:IsShown()) then
+		self.dragging = false
 		caret:Hide()
+		caretChar:Hide()
+		if selText then selText:Hide() end
 		self:UpdateGhost()
 		return
 	end
 	local text = edit:GetText()
-	measure:SetText((text:sub(1, self.cursor):gsub("|", "||")))
-	local w = measure:GetStringWidth() or 0
-	local maxW = (edit:GetWidth() or 400) - 2
-	self.caretTo = math.min(w, maxW)
-	self.typedAt = GetTime() -- a moving caret stays solid; it breathes again once idle
+	self.caretTo = TextX(text, self.cursor)
+	self.anchorX = self:SelRange() and TextX(text, self.anchor) or nil
+	local st = CursorStyle()
+	-- a box covers the character at the caret (or the first letter of the suggestion at the
+	-- end); that character is drawn again on top, in a colour that reads on the box
+	local ch, dimmed
+	if st.box then
+		if self.cursor < #text then
+			ch = text:sub(self.cursor + 1, NextPos(text, self.cursor))
+		else
+			local add = self:Suggestion()
+			if add then ch, dimmed = add:sub(1, NextPos(add, 0)), true end
+		end
+		measure:SetText(((ch and ch ~= "" and ch or "0"):gsub("|", "||")))
+		self.caretW = math.max(6, math.min(measure:GetStringWidth() or 8, 40))
+		local r, g, b = Theme.RGB(self.onAccent or "000000")
+		caretChar:SetText(ch and ((ch:gsub("|", "||"))) or "")
+		caretChar:SetTextColor(r, g, b, dimmed and 0.8 or 1)
+	end
+	self.caretCh = st.box and ch or nil
+	caret:SetWidth(st.box and self.caretW or 2)
+	self.typedAt = GetTime() -- a moving caret stays solid; it blinks again once idle
 	if not (self:Animated() and caret:IsShown() and self.caretX) then
 		self.caretX = self.caretTo
-		caret:ClearAllPoints()
-		caret:SetPoint("LEFT", edit, "LEFT", self.caretX, 0)
 	end
+	self:PlaceCaret()
 	caret:Show()
-	if self:Animated() then motion:Show() end
+	caret:SetAlpha(1)
+	caretChar:SetAlpha(1)
+	self:PlaceTextSel()
+	if self:Animated() or st.blink then motion:Show() end
 	self:UpdateGhost()
+end
+
+--- Put the cursor (and, for a box, its character) at the caret's current x.
+function UI:PlaceCaret()
+	local x = self.caretX or self.caretTo or 0
+	caret:ClearAllPoints()
+	caret:SetPoint("LEFT", edit, "LEFT", x, 0)
+	if self.caretCh and self.caretCh ~= "" and CursorStyle().box then
+		caretChar:ClearAllPoints()
+		caretChar:SetPoint("LEFT", edit, "LEFT", x, 0)
+		caretChar:Show()
+	else
+		caretChar:Hide()
+	end
+end
+
+--- Where the mouse is along the prompt text, in the text's own units.
+local function PromptX()
+	local cx = GetCursorPosition and GetCursorPosition()
+	local scale, left = edit:GetEffectiveScale(), edit:GetLeft()
+	if type(cx) ~= "number" or type(left) ~= "number" or type(scale) ~= "number" or scale == 0 then return 0 end
+	return cx / scale - left
+end
+
+--- The caret position (in bytes) nearest to x.
+local function IndexAt(x)
+	local text = edit:GetText()
+	local best, bestD, pos = 0, math.abs(x), 0
+	while pos < #text do
+		pos = NextPos(text, pos)
+		local w = TextX(text, pos)
+		local d = math.abs(x - w)
+		if d < bestD then best, bestD = pos, d end
+		if w >= x then break end
+	end
+	return best
+end
+
+--- Mouse down on the prompt: the cursor goes there (shift extends the selection); dragging
+--- selects. The prompt stays Terminal's own, so the chosen cursor style stays too.
+function UI:PressPrompt()
+	if not (self.keys and edit) then return end
+	local idx = IndexAt(PromptX())
+	if IsShiftKeyDown() then
+		self.anchor = self.anchor or self.cursor
+	else
+		self.anchor = idx
+	end
+	self.cursor = idx
+	self.dragging = true
+	self:UpdateCaret()
+end
+
+function UI:DragPrompt()
+	if not (self.dragging and self.keys) then return end
+	local idx = IndexAt(PromptX())
+	if idx ~= self.cursor then
+		self.cursor = idx
+		self:UpdateCaret()
+	end
+end
+
+function UI:ReleasePrompt()
+	self.dragging = false
+	if self.anchor == self.cursor then self.anchor = nil end
+	self:UpdateCaret()
 end
 
 function UI:EnterKeys()
 	if not frame or self.noChar or InCombatLockdown() then return false end
 	self.keys = true
+	self.anchor = nil
 	self.cursor = math.min(self.cursor or 0, #edit:GetText())
 	edit:ClearFocus()
 	frame:EnableKeyboard(true)
@@ -798,9 +933,37 @@ function UI:EnterEdit()
 	if self._repeat then self._repeat.key = nil; self._repeat:Hide() end
 	self.keys = false
 	frame:EnableKeyboard(false)
+	local lo, hi = self:SelRange()
+	self.anchor = nil
 	edit:SetFocus()
 	edit:SetCursorPosition(self.cursor or #edit:GetText())
+	if lo and edit.HighlightText then edit:HighlightText(lo, hi) end -- the selection carries over
 	self:UpdateCaret()
+end
+
+local function WordLeft(s, c) -- start of the word left of c
+	local i = c
+	while i > 0 and s:sub(i, i):match("%s") do i = i - 1 end
+	while i > 0 and not s:sub(i, i):match("%s") do i = i - 1 end
+	return i
+end
+
+local function WordRight(s, c) -- end of the word right of c
+	local n, i = #s, c
+	while i < n and s:sub(i + 1, i + 1):match("%s") do i = i + 1 end
+	while i < n and not s:sub(i + 1, i + 1):match("%s") do i = i + 1 end
+	return i
+end
+
+--- Move the caret. With shift the selection grows from where it began; without, it's dropped.
+local function MoveCaret(to, shift)
+	if shift then
+		if not UI.anchor then UI.anchor = UI.cursor end
+	else
+		UI.anchor = nil
+	end
+	UI.cursor = to
+	UI:UpdateCaret()
 end
 
 local function CheckChar(key)
@@ -910,6 +1073,9 @@ EditKey = function(key, ctrl, shift)
 	local text, c = edit:GetText(), UI.cursor
 	if key == "ESCAPE" or key == "`" then
 		UI:Hide()
+	elseif key == "BACKSPACE" and UI:SelRange() then
+		local lo, hi = UI:SelRange()
+		UI:SetQuery(text:sub(1, lo) .. text:sub(hi + 1), lo)
 	elseif key == "BACKSPACE" then
 		if ctrl then
 			local before = text:sub(1, c):gsub("[^%s]*%s*$", "") -- the word left of the caret (and spaces after it)
@@ -918,17 +1084,31 @@ EditKey = function(key, ctrl, shift)
 			local p = PrevPos(text, c)
 			UI:SetQuery(text:sub(1, p) .. text:sub(c + 1), p)
 		end
+	elseif key == "DELETE" and UI:SelRange() then
+		local lo, hi = UI:SelRange()
+		UI:SetQuery(text:sub(1, lo) .. text:sub(hi + 1), lo)
 	elseif key == "DELETE" then
 		if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub(NextPos(text, c) + 1), c) end
 	elseif key == "LEFT" then
-		UI.cursor = PrevPos(text, c); UI:UpdateCaret()
+		local lo = UI:SelRange()
+		if lo and not shift then
+			MoveCaret(lo, false) -- a selection collapses to its left end
+		else
+			MoveCaret(ctrl and WordLeft(text, c) or PrevPos(text, c), shift)
+		end
 	elseif key == "RIGHT" then
-		if c >= #text and UI:AcceptCompletion() then return end -- at the end: take the suggestion
-		UI.cursor = NextPos(text, c); UI:UpdateCaret()
+		local lo, hi = UI:SelRange()
+		if lo and not shift then
+			MoveCaret(hi, false)
+		elseif not shift and not ctrl and c >= #text and UI:AcceptCompletion() then
+			return -- at the end: take the suggestion
+		else
+			MoveCaret(ctrl and WordRight(text, c) or NextPos(text, c), shift)
+		end
 	elseif key == "HOME" then
-		UI.cursor = 0; UI:UpdateCaret()
+		MoveCaret(0, shift)
 	elseif key == "END" then
-		UI.cursor = #text; UI:UpdateCaret()
+		MoveCaret(#text, shift)
 	elseif key == "UP" then
 		UI:Move(-1)
 	elseif key == "DOWN" then
@@ -944,8 +1124,10 @@ EditKey = function(key, ctrl, shift)
 		if key == "N" or key == "J" then UI:Move(1)
 		elseif key == "P" or key == "K" then UI:Move(-1)
 		elseif key == "U" then UI:SetQuery("", 0)
-		elseif key == "V" or key == "A" or key == "C" then
-			UI:EnterEdit() -- clipboard and selection need the real text box
+		elseif key == "A" then
+			UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
+		elseif key == "V" or key == "C" then
+			UI:EnterEdit() -- the clipboard needs the real text box (press it again there)
 		end
 	elseif not IsAltKeyDown() then
 		CheckChar(key)
@@ -975,6 +1157,8 @@ function UI:OnChar(text)
 	self.charChecked = true
 	if not self.keys or not self:IsShown() then return end
 	local q, c = edit:GetText(), self.cursor
+	local lo, hi = self:SelRange()
+	if lo then q, c = q:sub(1, lo) .. q:sub(hi + 1), lo end -- typing replaces the selection
 	self:SetQuery(q:sub(1, c) .. text .. q:sub(c + 1), c + #text)
 end
 
@@ -1298,14 +1482,26 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 		local d = UI.caretTo - (UI.caretX or UI.caretTo)
 		if math.abs(d) > 0.3 then
 			UI.caretX = (UI.caretX or UI.caretTo) + d * math.min(1, (elapsed or 0) * 28)
+			busy = true
 		else
 			UI.caretX = UI.caretTo
 		end
-		caret:ClearAllPoints()
-		caret:SetPoint("LEFT", edit, "LEFT", UI.caretX, 0)
-		local idle = now - (UI.typedAt or 0) - 0.45
-		caret:SetAlpha(idle <= 0 and 1 or (0.55 + 0.45 * math.cos(idle * math.pi * 1.6)))
-		busy = true -- breathing never settles while the caret is up
+		UI:PlaceCaret()
+		local st = CursorStyle()
+		local a = 1
+		if st.blink then
+			local idle = now - (UI.typedAt or 0) - 0.45
+			if idle > 0 then
+				local wave = math.cos(idle * math.pi * 2 * (Theme.Get().blinkRate or 0.8))
+				-- a line breathes; a box is mostly fully on or fully off, so the letter under it is
+				-- never seen half-covered
+				a = st.box and math.max(0, math.min(1, 0.5 + 1.4 * wave)) or (0.55 + 0.45 * wave)
+			end
+			busy = true -- blinking never settles while the caret is up
+		end
+		caret:SetAlpha(a)
+		caretChar:SetAlpha(a)
+		UI:PlaceTextSel()
 	end
 	-- rows that appear fade in (staggered when set); rows that go fade out, then hide
 	for _, r in ipairs(rows) do
@@ -1382,7 +1578,7 @@ end
 
 --- The query with the completion applied, or nil when there's nothing to complete.
 function UI:Completion()
-	if not edit then return nil end
+	if not edit or self:SelRange() then return nil end
 	local text = edit:GetText()
 	if text == "" or (self.cursor or #text) < #text then return nil end
 	local first = text:sub(1, 1)
@@ -1512,7 +1708,9 @@ local function Build()
 		UI.keys = false
 		StopRepeat()
 		self:EnableKeyboard(false)
-		if caret then caret:Hide() end
+		if caret then caret:Hide(); caretChar:Hide() end
+		if hit then hit:Hide() end
+		UI.dragging = false
 	end)
 	frame:SetScript("OnKeyDown", function(self, key)
 		if UI.keys then return KeysDown(self, key) end
@@ -1564,6 +1762,7 @@ local function Build()
 		-- clicked into the box: plain text editing (clipboard, selection) until reopened
 		if UI.keys then
 			UI.keys = false
+			UI.anchor = nil
 			frame:EnableKeyboard(false)
 			UI:UpdateCaret()
 		end
@@ -1597,9 +1796,37 @@ local function Build()
 	measure:SetFontObject(Theme.fonts.input)
 	measure:SetAlpha(0)
 
-	caret = frame:CreateTexture(nil, "OVERLAY")
+	-- the cursor lives in a frame above the text box, so a box cursor can cover the letter under it
+	-- (which is then drawn again on top, in a colour that reads on the box)
+	caretFrame = CreateFrame("Frame", nil, frame)
+	caretFrame:SetAllPoints(edit)
+	local lvl = edit:GetFrameLevel()
+	caretFrame:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 2)
+	UI.caretFrame = caretFrame
+	-- clicks and drags on the prompt move Terminal's own cursor (the real text box stays for Ctrl+C/V)
+	hit = CreateFrame("Frame", nil, frame)
+	hit:SetAllPoints(edit)
+	hit:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 1)
+	hit:EnableMouse(true)
+	hit:Hide()
+	hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
+	hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
+	hit:SetScript("OnUpdate", function() if UI.dragging then UI:DragPrompt() end end)
+	UI.hit = hit
+	caret = caretFrame:CreateTexture(nil, "ARTWORK")
 	caret:SetWidth(2)
 	caret:Hide()
+	caretChar = caretFrame:CreateFontString(nil, "OVERLAY")
+	caretChar:SetFontObject(Theme.fonts.input)
+	caretChar:SetJustifyH("LEFT")
+	caretChar:SetWordWrap(false)
+	caretChar:Hide()
+	UI.caret = caret
+	UI.caretChar = caretChar
+	-- the selected part of the query, behind the (child frame's) text
+	selText = frame:CreateTexture(nil, "BORDER", nil, 1)
+	selText:Hide()
+	UI.selText = selText
 
 	-- the rest of the suggested completion, faint, right after what's typed (Tab takes it)
 	ghost = frame:CreateFontString(nil, "OVERLAY")
@@ -1754,6 +1981,9 @@ function UI:ApplyTheme()
 	local ar, ag, ab = Theme.RGB(t.accent)
 	caret:SetColorTexture(ar, ag, ab, 1)
 	caret:SetHeight(t.fontSize + 5)
+	UI.onAccent = Theme.OnColor(t.accent, t.bg)
+	if UI.keys then UI:UpdateCaret() end
+	selText:SetColorTexture(ar, ag, ab, 0.38)
 	selBar:SetColorTexture(ar, ag, ab, 0.16)
 	selEdge:SetColorTexture(ar, ag, ab, 0.9)
 	local gr, gg, gb = Theme.RGB(t.dim)
@@ -1805,6 +2035,9 @@ function UI:Hide()
 	StopRepeat()
 	frame:EnableKeyboard(false)
 	caret:Hide()
+	caretChar:Hide()
+	if hit then hit:Hide() end
+	UI.dragging = false
 	ghost:Hide()
 	if self:Animated() then
 		self:StartClose()

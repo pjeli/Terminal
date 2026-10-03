@@ -34,6 +34,9 @@ local function Obj(kind)
 		if k == "SetAttribute" then return function(self, a, v) self.attrs = self.attrs or {}; self.attrs[a] = v end end
 		if k == "GetAttribute" then return function(self, a) return self.attrs and self.attrs[a] end end
 		if k == "SetColorTexture" then return function(self, r, g, b, a) self.color = { r, g, b, a } end end
+		if k == "SetMaxLetters" then return function(self, n) self.maxLetters = n end end
+		if k == "EnableMouse" then return function(self, v) self.mouse = v end end
+		if k == "SetTextColor" then return function(self, r, g, b, a) self.textColor = { r, g, b, a }; return self end end
 		if k == "SetBackdropColor" then return function(self, r, g, b, a) self.bgColor = { r, g, b, a } end end
 		if k == "SetShown" then return function(self, v) self.shown = v and true or false end end
 		if k == "SetScale" then return function(self, v) self.scale = v end end
@@ -689,6 +692,93 @@ do
 end
 
 do
+	-- selecting text in the drawn prompt: shift+arrows, Ctrl+A, word jumps, replace on type
+	local function withShift(fn) _G.IsShiftKeyDown = function() return true end; fn(); _G.IsShiftKeyDown = function() return false end end
+	local function sel() local lo, hi = UI:SelRange(); return lo and (query():sub(lo + 1, hi)) or nil end
+	UI:Open("")
+	typeText("hello big world")
+	check(sel() == nil and not UI.selText.shown, "no selection to begin with")
+	withShift(function() key("LEFT"); key("LEFT"); key("LEFT") end)
+	check(sel() == "rld" and UI.selText.shown == true, "shift+left selects, and the band shows: " .. tostring(sel()))
+	withShift(function() key("RIGHT") end)
+	check(sel() == "ld", "shift+right shrinks it back: " .. tostring(sel()))
+	key("LEFT"); check(sel() == nil and UI.cursor == 13, "left collapses the selection to its left end: " .. UI.cursor)
+	key("END"); withShift(function() key("HOME") end)
+	check(sel() == "hello big world", "shift+home selects to the start")
+	key("RIGHT"); check(sel() == nil and UI.cursor == 15, "right collapses to the right end")
+	withCtrl(function() key("A") end)
+	check(sel() == "hello big world" and UI.keys == true and UI.edit.focused ~= true, "ctrl+A selects all and stays in the drawn prompt")
+	typeText("x"); check(query() == "x" and sel() == nil, "typing replaces the selection: " .. query())
+	UI:SetQuery("hello big world", 15)
+	withCtrl(function() key("LEFT") end); check(UI.cursor == 10, "ctrl+left jumps a word: " .. UI.cursor)
+	withCtrl(function() withShift(function() key("LEFT") end) end); check(sel() == "big ", "ctrl+shift+left selects a word: " .. tostring(sel()))
+	key("BACKSPACE"); check(query() == "hello world" and sel() == nil and UI.cursor == 6, "backspace deletes the selection: " .. query())
+	withCtrl(function() key("RIGHT") end); check(UI.cursor == 11, "ctrl+right jumps to the end of the word")
+	UI:SetQuery("hello world", 5)
+	withShift(function() key("RIGHT"); key("RIGHT") end)
+	key("DELETE"); check(query() == "helloorld", "delete removes the selection: " .. query())
+	-- no suggestion while text is selected; the band follows the caret
+	UI:SetQuery(".hel", 4)
+	withCtrl(function() key("A") end)
+	check(UI:Completion() == nil, "no completion while selecting")
+	check(UI.selText.shown and UI.anchorX == 0, "the band shows with its start at the left")
+	for _ = 1, 30 do UI.motion.scripts.OnUpdate(UI.motion, 0.05) end -- the caret glides to the end, the band with it
+	check(UI.selText.w == UI.caretTo and UI.caretTo == 28, "the band follows the caret and spans the selected text: w=" .. tostring(UI.selText.w) .. " caretTo=" .. tostring(UI.caretTo))
+	-- clicking in hands over to the real box, with the selection carried across
+	local highlighted
+	UI.edit.HighlightText = function(_, a, b) highlighted = { a, b } end
+	withCtrl(function() key("C") end)
+	check(UI.keys == false and highlighted and highlighted[1] == 0 and highlighted[2] == 4, "ctrl+C hands over to the real box with the selection highlighted")
+	check(UI.anchor == nil and not UI.selText.shown, "and the drawn selection goes away")
+	UI.edit.HighlightText = nil
+	UI:Hide()
+	-- shift+arrows while held repeat and keep extending
+	UI:Open(""); typeText("abcdef")
+	_G.IsShiftKeyDown = function() return true end
+	key("LEFT"); key("LEFT"); key("LEFT")
+	_G.IsShiftKeyDown = function() return false end
+	check(sel() == "def", "selection from a series of shift+left presses: " .. tostring(sel()))
+	UI:Hide()
+end
+
+do
+	-- clicking and dragging in the prompt moves Terminal's own cursor (it keeps its style)
+	local function sel() local lo, hi = UI:SelRange(); return lo and (query():sub(lo + 1, hi)) or nil end
+	local mouseX = 0
+	_G.GetCursorPosition = function() return mouseX end
+	UI:Open(""); typeText("hello world")
+	UI.edit.GetLeft = function() return 100 end
+	UI.edit.GetEffectiveScale = function() return 1 end
+	local H = UI.hit
+	check(H and H.shown == true and H.mouse == true, "a mouse-catching frame covers the prompt while Terminal reads keys")
+	local function down(x, shift) mouseX = x; if shift then _G.IsShiftKeyDown = function() return true end end; H.scripts.OnMouseDown(H, "LeftButton"); _G.IsShiftKeyDown = function() return false end end
+	local function drag(x) mouseX = x; H.scripts.OnUpdate(H, 0.01) end
+	local function up() H.scripts.OnMouseUp(H, "LeftButton") end
+	down(100 + 7 * 5 + 2); up()
+	check(UI.cursor == 5 and sel() == nil and UI.keys == true and UI.edit.focused ~= true, "a click puts the cursor between characters and stays in the drawn prompt: " .. tostring(UI.cursor))
+	check(UI.caret.shown == true, "the cursor is still Terminal's own")
+	down(100 + 14); drag(100 + 7 * 4); drag(100 + 7 * 7 + 1); up()
+	check(sel() == "llo w" and UI.keys == true, "dragging selects: " .. tostring(sel()))
+	down(100 + 7 * 3); up()
+	check(sel() == nil and UI.cursor == 3, "a plain click drops the selection")
+	down(100 + 7 * 9, true); up()
+	check(sel() == "lo wor" and UI.cursor == 9, "shift+click extends it from the cursor: " .. tostring(sel()))
+	down(100 + 700); up()
+	check(UI.cursor == 11, "a click past the end goes to the end")
+	down(100 - 30); up()
+	check(UI.cursor == 0, "a click left of the text goes to the start")
+	typeText("x"); check(query() == "xhello world", "typing goes in at the clicked spot: " .. query())
+	-- while dragging, the cursor stays solid; moving the mouse outside the drag does nothing
+	drag(100 + 7 * 2); check(UI.cursor == 1, "no drag without a press")
+	-- hands over to the real box only for the clipboard
+	withCtrl(function() key("C") end)
+	check(UI.keys == false and H.shown == false, "Ctrl+C hands over to the real box and the click frame steps aside so it can be clicked")
+	UI:Hide()
+	check(H.shown == false, "closing hides the click frame")
+	_G.GetCursorPosition = nil
+end
+
+do
 	-- one Enter: bound to the game's keybinding command, and the press is passed on
 	UI:Open("character info")
 	mark = #log
@@ -1283,14 +1373,38 @@ do
 	cmd("theme dracula")
 	check(math.abs(pv.bgColor[1] - 0x28 / 255) < 0.01, "preview follows the theme live")
 	check(pv.prompt:GetText() == "|cff50fa7b>|r" and pv.label:GetText():find("|cffff79c6H", 1, true), "example prompt and match colours update")
-	local pick = O.widgets.prompt_5
-	pick.scripts.OnClick(pick)
-	check(Th.Get().promptText == "\194\187", "prompt quick-pick sets the prompt character")
-	check(pv.prompt:GetText():find("\194\187", 1, true) and UI.promptFS:GetText():find("\194\187", 1, true), "preview and terminal show the new prompt")
+	check(O.widgets.prompt_1 == nil and O.PROMPT_PICKS == nil, "no quick-pick buttons for the prompt, only the text box")
+	check(O.widgets.promptText.maxLetters == 3, "the prompt box takes at most 3 characters")
+	check(Th.DEFAULTS.promptText == ">", "the prompt is > by default")
 	local box = O.widgets.promptText
 	box:SetText("@")
 	box.scripts.OnEnterPressed(box)
 	check(Th.Get().promptText == "@", "any character typed into the prompt box works")
+	check(Th.Set("promptText", "abc") and not Th.Set("promptText", "abcd"), "three characters fit, four don't")
+	Th.Set("promptText", ">")
+	-- cursor style is a dropdown
+	local CM, CL = O.widgets.cursor, O.widgets.cursorList
+	check(CL.shown ~= true and CM:GetText() == "Blinking line", "the cursor dropdown shows the current style: " .. tostring(CM:GetText()))
+	CM.scripts.OnClick(CM)
+	check(CL.shown == true, "clicking it opens the list")
+	local TM = O.widgets.themeMenu
+	TM.scripts.OnClick(TM)
+	check(O.widgets.themeList.shown == true and CL.shown == false, "opening another dropdown closes this one")
+	TM.scripts.OnClick(TM)
+	local n = 0
+	for _ in pairs(O.cursorItems) do n = n + 1 end
+	check(n == 4 and O.cursorItems["solid-box"].text.text == "Solid box", "four styles listed")
+	CM.scripts.OnClick(CM)
+	local it = O.cursorItems["solid-box"]
+	it.scripts.OnClick(it)
+	check(Th.Get().cursor == "solid-box" and CL.shown == false and CM:GetText() == "Solid box", "picking a style applies it, closes the list and updates the button")
+	check(O.cursorItems["solid-box"].text.text:find("|cffffd100", 1, true) and not O.cursorItems["solid-line"].text.text:find("|cff", 1, true), "the current style is marked")
+	-- blink speed slider
+	local bs = O.widgets.blinkRate
+	check(bs and bs.value == 0.8 and bs.valueText.text == "0.8/s", "blink speed slider shows 0.8/s by default")
+	bs.scripts.OnValueChanged(bs, 2)
+	check(Th.Get().blinkRate == 2, "the slider sets the blink speed")
+	Th.Set("cursor", "blinking-line"); Th.Set("blinkRate", 0.8)
 	cmd("theme reset")
 end
 
@@ -2678,7 +2792,24 @@ do -- debug / blocked-action recording
 	check(out():find("SomeOtherAddon", 1, true) and out():find("SomeProtectedFunc", 1, true), "other addons' events print in debug mode")
 	check(out():find("Stack:", 1, true), "stack included")
 	local lines = ns.commands.debug.run("log")
-	check(table.concat(lines, "\n"):find("2 blocked-action event", 1, true), "log lists events: " .. table.concat(lines, "|"):sub(1, 120))
+	local CB = ns.CopyBox
+	check(table.concat(lines, "\n"):find("opened in a window", 1, true), "log says it opened a window: " .. table.concat(lines, "|"))
+	check(CB.Text():find("2 blocked-action event", 1, true) and CB.Text():find("Terminal trace", 1, true) and CB.Text():find("Terminal 0.", 1, true),
+		"the log window holds the events, the trace and the version: " .. CB.Text():sub(1, 160))
+	check(CB.frame.shown == true and CB.edit.text == CB.Text(), "the window shows the text in its text box")
+	-- all selected once it has focus, so Ctrl+C copies everything
+	local hl = 0
+	CB.edit.HighlightText = function() hl = hl + 1 end
+	FlushAll()
+	check(CB.edit.focused == true and hl >= 1, "the text box takes focus with everything selected")
+	-- read-only: typing is put back
+	CB.edit.text = "oops"; CB.edit.scripts.OnTextChanged(CB.edit, true)
+	check(CB.edit.text == CB.Text(), "typing into the log window is undone")
+	CB.edit.scripts.OnEscapePressed(CB.edit)
+	check(CB.frame.shown == false, "Esc closes the log window")
+	CB.edit.HighlightText = nil
+	local brief = ns.commands.debug.run("")
+	check(table.concat(brief, "\n"):find("blocked-action", 1, true) and not CB.frame.shown, ".debug alone stays in chat")
 	-- real flows leave a trace
 	local ok = pcall(function() ns.UI:Search("heart") end)
 	ns.commands.debug.run("off")
@@ -2687,6 +2818,97 @@ do -- debug / blocked-action recording
 	check(#D.events == 0 and #D.trace == 0, "clear empties both")
 	check(ns.commands.taint == nil and ns.commands.debug.aliases[1] == "taintdebug", "aliases declared")
 	_G.print = real
+end
+
+-- text cursor styles
+do
+	local Th = ns.Theme
+	local function ratio(a, b)
+		local function lin(c) return c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4 end
+		local function lum(h) local r, g, b2 = Th.RGB(h) return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b2) end
+		local x, y = lum(a), lum(b)
+		if x < y then x, y = y, x end
+		return (x + 0.05) / (y + 0.05)
+	end
+	local function cmd(line) local c = UI:WordSearch(UI:CommandEntries(), line); return c[1].activate(c[1], UI.args) end
+	local function idle(n) for _ = 1, n do now = now + 0.05; UI.motion.scripts.OnUpdate(UI.motion, 0.05) end end
+	local function setCursor(c) Th.Set("cursor", c); if UI:IsShown() then UI:UpdateCaret() end end
+
+	check(Th.Get().cursor == "blinking-line", "default cursor is the blinking line")
+	cmd("set cursor solid-box"); check(Th.Get().cursor == "solid-box", ".set cursor solid-box")
+	cmd("set cursor blinking-box"); check(Th.Get().cursor == "blinking-box", ".set cursor blinking-box")
+	cmd("set cursor nonsense"); check(Th.Get().cursor == "blinking-box", "an unknown cursor is refused")
+	check(#Th.CURSOR_ORDER == 4 and Th.CURSOR_LABELS["solid-line"] == "Solid line", "four cursor styles with labels")
+	cmd("set cursor blinking-line")
+
+	-- the letter under a box is drawn in a colour that reads on the accent, in every theme
+	for _, id in ipairs(Th.PRESET_ORDER) do
+		local P = Th.PRESETS[id]
+		local c = Th.OnColor(P.accent, P.bg)
+		check(ratio(c, P.accent) >= 4.5 or ratio(c, P.accent) >= math.max(ratio("000000", P.accent), ratio("ffffff", P.accent)) - 0.01,
+			id .. " box text colour is the best available on the accent: " .. c)
+	end
+	check(Th.OnColor("ffffff", "000000") == "000000", "dark text on a white box")
+	check(Th.OnColor("101010", "ffffff") == "ffffff", "light text on a dark box")
+	check(Th.OnColor("808080", "ffffff") ~= "ffffff", "the preferred colour is dropped when it can't be read")
+
+	UI:Open(""); typeText("hello")
+	for _ = 1, 3 do key("LEFT") end -- caret between "he" and "llo"
+	local C, CC = UI.caret, UI.caretChar
+	setCursor("blinking-line"); idle(40)
+	check(C.w == 2 and CC.shown == false, "a line is 2 wide and draws no letter")
+	local lo, hi = 1, 0
+	for i = 1, 60 do idle(1); local a = C:GetAlpha(); lo = math.min(lo, a); hi = math.max(hi, a) end
+	check(lo < 0.4 and lo > 0 and hi > 0.95, "a line fades softly and never vanishes: " .. lo .. ".." .. hi)
+
+	setCursor("solid-line"); idle(40)
+	for i = 1, 40 do idle(1); check(C:GetAlpha() == 1, "a solid line never changes") end
+	check(UI.motion.shown == false, "a solid cursor lets the motion loop rest")
+
+	setCursor("solid-box"); idle(40)
+	check(C.w == 7 and CC.shown == true and CC.text == "l", "a box is one letter wide and redraws the letter under it: " .. tostring(CC.text))
+	local oc = Th.OnColor(Th.Get().accent, Th.Get().bg)
+	local r, g, b = Th.RGB(oc)
+	check(CC.textColor and math.abs(CC.textColor[1] - r) < 0.01 and math.abs(CC.textColor[3] - b) < 0.01, "in the contrast colour")
+	check(ratio(oc, Th.Get().accent) >= 3, "which reads on the box")
+	for i = 1, 40 do idle(1); check(C:GetAlpha() == 1 and CC:GetAlpha() == 1, "a solid box stays on") end
+	check(UI.motion.shown == false, "and rests")
+	key("LEFT"); check(CC.text == "e", "the box moves and shows the next letter")
+	key("HOME"); check(CC.text == "h", "the letter at the start")
+	key("END"); check(CC.text == "" or CC.shown == false, "no letter at the end of the text: '" .. tostring(CC.text) .. "'")
+	check(C.w >= 6, "an empty box still has width")
+
+	setCursor("blinking-box"); idle(40)
+	local off, on = false, false
+	for i = 1, 80 do idle(1); local a = C:GetAlpha(); if a == 0 then off = true end; if a == 1 then on = true end; check(CC:GetAlpha() == a, "the letter blinks with the box") end
+	check(off and on, "a blinking box goes fully off and fully on")
+	typeText("x"); check(C:GetAlpha() == 1, "typing makes the box solid again")
+
+	-- blink speed: twice the rate, about twice the blinks in the same time
+	local function blinks(rate)
+		Th.Set("blinkRate", rate); UI:UpdateCaret(); idle(30)
+		local n, prev = 0, nil
+		for _ = 1, 100 do
+			idle(1)
+			local on = C:GetAlpha() > 0.5
+			if prev ~= nil and on ~= prev then n = n + 1 end
+			prev = on
+		end
+		return n
+	end
+	setCursor("blinking-box")
+	local slow, fast = blinks(0.8), blinks(2.4)
+	check(slow >= 3 and fast >= slow * 2, "a higher blink speed blinks faster: " .. slow .. " vs " .. fast)
+	check(Th.Set("blinkRate", 9) and Th.Get().blinkRate == 3 and Th.Set("blinkRate", 0) and Th.Get().blinkRate == 0.2, "blink speed is kept between 0.2 and 3")
+	cmd("set blinkRate 1.5"); check(Th.Get().blinkRate == 1.5, ".set blinkRate")
+	Th.Set("blinkRate", 0.8)
+
+	-- at the end of a ".command" the box sits on the first letter of the suggestion
+	UI:SetQuery(".hel", 4); setCursor("solid-box")
+	check(CC.shown == true and CC.text ~= "" and CC.textColor[4] < 1, "the suggestion's first letter shows in the box, dimmed: '" .. tostring(CC.text) .. "'")
+	UI:Hide()
+	check(C.shown == false and CC.shown == false, "closing hides the cursor")
+	Th.Set("cursor", "blinking-line")
 end
 
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))
