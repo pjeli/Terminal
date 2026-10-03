@@ -11,7 +11,7 @@ local H = ns.Highlight
 -- and from then on only scrolls the map's list to the quest and points at it.
 
 -- quest windows, first visible wins; any other visible "...Quest..." window is tried after
-local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame" }
+local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame", "QuestLogExFrame", "ClassicQuestLog" }
 -- the map's quest list: protected surroundings, so only point at it, never click in it
 local MAP_LOGS = { "QuestMapFrame" }
 
@@ -48,8 +48,14 @@ local function QuestWindows()
 	return out
 end
 
+--- Is a quest log open? Only the real quest log windows count (a classic log, or the map
+--- showing its quest panel), not any other frame that happens to have "Quest" in its name:
+--- one of those being on screen made Terminal skip opening the log.
 local function IsOpen()
-	return #QuestWindows() > 0
+	for _, name in ipairs(LOGS) do
+		if Visible(_G[name]) then return true end
+	end
+	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
 end
 
 local function Plain(t)
