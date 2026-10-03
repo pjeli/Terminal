@@ -168,7 +168,6 @@ ns:RegisterCommand("debug", {
 		else
 			out = { "Usage: .debug on | off | log | clear" }
 		end
-		for _, l in ipairs(out) do print("Terminal " .. l) end
 		return out
 	end,
 })

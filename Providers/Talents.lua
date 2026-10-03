@@ -263,7 +263,6 @@ ns:RegisterCommand("talentdebug", {
 			lines[#lines + 1] = "  Numbered tabs: " .. (#numbered > 0 and table.concat(numbered, ", ") or "none")
 			lines[#lines + 1] = "  Button labels: " .. (#labels > 0 and table.concat(labels, " | ") or "none")
 		end
-		for _, l in ipairs(lines) do print("Terminal " .. l) end
 		return lines
 	end,
 })

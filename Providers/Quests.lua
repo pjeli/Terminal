@@ -100,9 +100,9 @@ local function ShowQuest(e)
 end
 
 ns:RegisterProvider("quests", {
-	label = "Quest",
+	label = "Quest Log",
 	color = "ffffd200",
-	aliases = { "quest", "q", "questlog" },
+	aliases = { "questlog", "log", "quest", "quests", "q" },
 	events = { "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" },
 	guard = 1,
 	refreshOnOpen = true,

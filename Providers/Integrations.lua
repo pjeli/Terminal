@@ -6,8 +6,10 @@ local H = ns.Highlight
 --   AtlasLoot (Classic / Forever)  every item in its loot tables becomes searchable
 --       ("Loot": item, "Boss  Instance"). Enter opens AtlasLoot on that boss and difficulty
 --       and points at the item.
---   Questie  NPCs, searched with @npc. Enter opens the world map on the NPC, puts Questie's
---       marker for it there and drops the map pin; Shift+Enter only moves the pin.
+--   Questie  every quest in its database, searched with @questie (Enter: the quest log for
+--       quests you're on, otherwise the quest giver on the map), and NPCs, searched with @npc.
+--       Enter opens the world map on the NPC, puts Questie's marker for it there and drops
+--       the map pin; Shift+Enter only moves the pin.
 --
 -- Neither addon is required; with neither installed this file does nothing. .integrations
 -- shows what was found.
@@ -201,6 +203,8 @@ end
 
 local npc = { list = nil, busy = false, on = false }
 I.npc = npc
+local qdb = { list = nil, busy = false }
+I.qdb = qdb
 
 local function QuestieReady()
 	local Q = _G.Questie
@@ -262,7 +266,7 @@ local function ShowNpc(e)
 	local M = ns.Maps
 	local mapID, pos, dungeon = NpcLocation(e.npcID)
 	if not mapID then
-		ns:Print("Questie has no known location for " .. e.name .. ".")
+		ns:Print("Questie has no known location for " .. (e.npcName or e.name) .. ".")
 		return
 	end
 	if not InCombatLockdown() then
@@ -270,7 +274,7 @@ local function ShowNpc(e)
 		local QM = QModule("QuestieMap")
 		if QM and QM.ShowNPC then Safe(QM.ShowNPC, QM, e.npcID) end
 	end
-	M.ShowAfter({ name = e.name .. (dungeon and " (dungeon entrance)" or ""), mapID = mapID, pos = pos })
+	M.ShowAfter({ name = (e.npcName or e.name) .. (dungeon and " (dungeon entrance)" or ""), mapID = mapID, pos = pos })
 end
 
 local function NpcPin(e)
@@ -291,13 +295,110 @@ local function OpenNpcDirect(e)
 	C_Timer.After(0.1, function() ShowNpc(e) end)
 end
 
+--- Quest names, levels and zones from Questie's database, a slice at a time.
+local function IndexQuests()
+	if qdb.list or qdb.busy or not QuestieReady() then return end
+	local DB = QModule("QuestieDB")
+	if not (DB and DB.QuestPointers and DB.QueryQuestSingle) then return end
+	qdb.busy = true
+	local ids = {}
+	for id in pairs(DB.QuestPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
+	table.sort(ids)
+	local out, i = {}, 1
+	local function step()
+		local stop = math.min(i + 800, #ids)
+		while i <= stop do
+			local id = ids[i]
+			local name = Safe(DB.QueryQuestSingle, id, "name")
+			if type(name) == "string" and name ~= "" then
+				local zone = Safe(DB.QueryQuestSingle, id, "zoneOrSort")
+				local zname = type(zone) == "number" and zone > 0 and C_Map and C_Map.GetAreaInfo and Safe(C_Map.GetAreaInfo, zone) or nil
+				out[#out + 1] = {
+					id = id, name = name,
+					level = Safe(DB.QueryQuestSingle, id, "questLevel"),
+					req = Safe(DB.QueryQuestSingle, id, "requiredLevel"),
+					zone = type(zname) == "string" and zname or nil,
+				}
+			end
+			i = i + 1
+		end
+		if i <= #ids then
+			C_Timer.After(0, step)
+		else
+			qdb.list, qdb.busy = out, false
+			if ns.providers.questie then ns.providers.questie._dirty = true end
+		end
+	end
+	step()
+end
+
+--- Who starts a quest: an NPC id, or a word for what else does ("an object", "an item").
+local function QuestGiver(id)
+	local DB = QModule("QuestieDB")
+	local by = DB and Safe(DB.QueryQuestSingle, id, "startedBy")
+	if type(by) ~= "table" then return nil end
+	if type(by[1]) == "table" and by[1][1] then
+		local name = Safe(DB.QueryNPCSingle, by[1][1], "name")
+		return by[1][1], type(name) == "string" and name or nil
+	end
+	if type(by[2]) == "table" and by[2][1] then return nil, nil, "an object" end
+	if type(by[3]) == "table" and by[3][1] then return nil, nil, "an item" end
+end
+
+local function InLog(id)
+	return C_QuestLog and C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(id) and true or false
+end
+
+local function Done(id)
+	return C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted and Safe(C_QuestLog.IsQuestFlaggedCompleted, id) and true or false
+end
+
+--- A quest from Questie's database. One you're on opens the quest log like @questlog does;
+--- otherwise Enter shows its quest giver on the map (Shift+Enter: only the map pin).
+local function QuestieQuestEntry(q, logEntries)
+	local status = InLog(q.id) and "in log" or (Done(q.id) and "done" or nil)
+	local parts = {}
+	if q.level and q.level > 0 then parts[#parts + 1] = "Lv " .. q.level end
+	if q.zone then parts[#parts + 1] = q.zone end
+	if status then parts[#parts + 1] = status end
+	local e = {
+		key = q.id, name = q.name,
+		icon = status == "done" and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon",
+		detail = table.concat(parts, "  "),
+		text = "quest questie " .. (q.zone or "") .. " " .. (status or ""),
+		qid = q.id,
+	}
+	if status == "in log" then
+		for _, l in ipairs(logEntries) do
+			if l.questID == q.id then
+				e.secure, e.isOpen, e.after, e.activate, e.secondary = l.secure, l.isOpen, l.after, l.activate, l.secondary
+				e.questID = nil
+				return e
+			end
+		end
+	end
+	e.secure, e.isOpen = ns.Maps.SECURE, ns.Maps.MapOpen
+	local function giver(fn)
+		return function(entry)
+			local npcID, npcName, other = QuestGiver(entry.qid)
+			if not npcID then
+				ns:Print(entry.name .. (other and (" is started by " .. other .. ".") or ": Questie doesn't know who starts it."))
+				return
+			end
+			fn({ name = entry.name, npcID = npcID, npcName = (npcName or "quest giver") .. " (" .. entry.name .. ")" })
+		end
+	end
+	e.after, e.activate, e.secondary = giver(ShowNpc), giver(OpenNpcDirect), giver(NpcPin)
+	return e
+end
+
 local function SetupQuestie()
 	if npc.on or not (_G.Questie and _G.QuestieLoader) then return end
 	npc.on = true
 	ns:RegisterProvider("npc", {
 		label = "NPC",
 		color = "ffe0a060",
-		aliases = { "npc", "npcs", "n", "mob", "vendor", "questie" },
+		aliases = { "npc", "npcs", "n", "mob", "vendor" },
 		explicit = true, -- tens of thousands of names: only searched with @npc
 		noCombat = true,
 		guard = 10,
@@ -318,10 +419,31 @@ local function SetupQuestie()
 			return out
 		end,
 	})
-	if QuestieReady() then
+	ns:RegisterProvider("questie", {
+		label = "Questie",
+		color = "ffb48cff",
+		aliases = { "questie", "questdb", "allquests" },
+		explicit = true, -- every quest in the game: only searched with @questie
+		noCombat = true,
+		events = { "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" },
+		guard = 5,
+		collect = function()
+			local out = {}
+			local logEntries = ns.providers.quests and ns:GetEntries(ns.providers.quests) or {}
+			for _, q in ipairs(qdb.list or {}) do
+				out[#out + 1] = QuestieQuestEntry(q, logEntries)
+			end
+			return out
+		end,
+	})
+	local function index()
 		C_Timer.After(2, IndexNPCs)
+		C_Timer.After(4, IndexQuests)
+	end
+	if QuestieReady() then
+		index()
 	elseif _G.Questie.API and _G.Questie.API.RegisterOnReady then
-		Safe(_G.Questie.API.RegisterOnReady, function() C_Timer.After(2, IndexNPCs) end)
+		Safe(_G.Questie.API.RegisterOnReady, index)
 	end
 end
 
@@ -344,10 +466,9 @@ ns:RegisterCommand("integrations", {
 			and ("found. %d loot modules, %d indexed, %d items%s"):format(loot.modules, loot.loaded, #loot.rows, loot.done and "" or " (still loading)")
 			or "not found")
 		lines[#lines + 1] = "  Questie: " .. (npc.on
-			and (npc.list and ("found. %d NPCs indexed (search with @npc)"):format(#npc.list)
+			and (npc.list and ("found. %d NPCs (@npc), %s quests (@questie)"):format(#npc.list, qdb.list and #qdb.list or "indexing")
 				or (QuestieReady() and "found, indexing NPCs..." or "found, waiting for Questie to finish loading"))
 			or "not found")
-		for _, l in ipairs(lines) do print("Terminal " .. l) end
 		return lines
 	end,
 })

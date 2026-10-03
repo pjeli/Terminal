@@ -868,7 +868,6 @@ ns:RegisterCommand("profdebug", {
 		local idx = {}
 		for _, pd in pairs(Store() or {}) do idx[#idx + 1] = (pd.name or "?") .. "=" .. #(pd.list or {}) end
 		lines[#lines + 1] = "  Indexed: " .. (#idx > 0 and table.concat(idx, ", ") or "nothing yet")
-		for _, l in ipairs(lines) do print("Terminal " .. l) end
 		return lines
 	end,
 })

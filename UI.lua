@@ -152,7 +152,8 @@ function UI:FrequentEntries()
 		return PseudoEntries({
 			"Type to fuzzy-search items, quests (by text), spells, recipes, camp objects...",
 			"Start with  /  for slash commands,  .  for terminal commands (try .help)",
-			"Add  @quest  /  @item  /  @recipe  to search a single kind",
+			"Add  @questlog  /  @item  /  @recipe  to search a single kind (@questie: every quest, with Questie)",
+			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
 			"Change the look with  .theme  and  .set , or  .options",
 		})
 	end
@@ -160,6 +161,17 @@ function UI:FrequentEntries()
 end
 
 function UI:Search(text)
+	-- arithmetic: the answer is the top result (see Calc.lua)
+	local calc = ns.Calc and ns.Calc.Entry(text)
+	if calc then
+		local res = self:SearchText(text)
+		table.insert(res, 1, calc)
+		return res
+	end
+	return self:SearchText(text)
+end
+
+function UI:SearchText(text)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	local kinds, tokens = nil, {}
