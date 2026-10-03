@@ -1992,6 +1992,35 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	pointed = nil
 	UI:Open("tank gear"); key("ENTER"); FlushAll()
 	check(pointed == setRow and not ns.Secure.armed, "window already open: just points at the set")
+	-- side tabs in another order (this client: the Equipment Manager is the second tab): the
+	-- tab is found by its tooltip, not its position
+	pane.shown = false
+	local titles = Obj("Button"); titles.shown = true; titles.tooltip = "Titles"
+	titles.Click = function() note("TITLES click") end
+	local gearTab = Obj("Button"); gearTab.shown = true; gearTab.tooltip = "Equipment Manager"
+	gearTab.Click = function() note("GEARTAB click"); pane.shown = true end
+	_G.PaperDollSidebarTab3 = titles
+	local cfKids = CharacterFrame.GetChildren
+	CharacterFrame.GetChildren = function() return gearTab, titles end
+	mark = #log
+	pointed = nil
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(logHas("GEARTAB click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "the Equipment Manager tab is found by its tooltip")
+	CharacterFrame.GetChildren = cfKids
+	-- Wrath-style layout: an "Equipment Manager" button opening the GearManagerDialog
+	PaperDollFrame.EquipmentManagerPane = nil
+	_G.PaperDollSidebarTab3 = nil
+	local dlg = Obj("Frame"); dlg.shown = false; _G.GearManagerDialog = dlg
+	local named = Obj("Button"); named.shown = true; named.text = "Tank Gear"; named.Click = function() end
+	dlg.GetChildren = function() return named end
+	_G.GearManagerToggleButton = Obj("Button"); GearManagerToggleButton.shown = true
+	GearManagerToggleButton.Click = function() note("GEARMANAGER click"); dlg.shown = true end
+	mark = #log
+	pointed = nil
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(logHas("GEARMANAGER click", mark + 1) and pointed == named, "Wrath-style: opens the Equipment Manager and points at the set by name")
+	_G.GearManagerDialog, _G.GearManagerToggleButton = nil, nil
+	PaperDollFrame.EquipmentManagerPane = pane
 	-- in combat, nothing
 	CharacterFrame.shown, PaperDollFrame.shown, pane.shown = false, false, false
 	_G.InCombatLockdown = function() return true end

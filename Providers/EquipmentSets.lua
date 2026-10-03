@@ -75,28 +75,99 @@ local function PaperDollOpen()
 	return cf and cf:IsShown() and pd and pd:IsShown() and true or false
 end
 
+-- Where the equipment sets live in the character window, depending on the client's layout:
+-- the retail/Cataclysm side tabs (third tab: equipment manager pane), or the Wrath-style
+-- "Equipment Manager" button that opens the GearManagerDialog.
+local PANES = {
+	function() return _G.PaperDollFrame and _G.PaperDollFrame.EquipmentManagerPane end,
+	function() return _G.PaperDollEquipmentManagerPane end,
+	function() return _G.GearManagerDialog end,
+}
+local OPENERS = { "PaperDollSidebarTab3", "GearManagerToggleButton" }
+
+local function Pane()
+	for _, get in ipairs(PANES) do
+		local ok, p = pcall(get)
+		if ok and type(p) == "table" and p.IsVisible and p:IsVisible() then return p end
+	end
+end
+
+local function Named(f)
+	local ok, n = pcall(function() return f:GetName() end)
+	return ok and type(n) == "string" and n or nil
+end
+
+--- For .debug: the character window's named buttons that look like tabs or the gear manager.
+local function DescribeButtons()
+	local names = {}
+	local function walk(f, depth)
+		if not f or depth > 4 or not f.GetChildren then return end
+		for _, c in ipairs({ f:GetChildren() }) do
+			local n = Named(c)
+			if n and (n:find("Tab") or n:find("Gear") or n:find("Equip") or n:find("Sidebar")) then
+				names[#names + 1] = n .. ((c.IsVisible and c:IsVisible()) and "" or " (hidden)")
+			end
+			walk(c, depth + 1)
+		end
+	end
+	walk(_G.CharacterFrame, 0)
+	return #names > 0 and table.concat(names, ", ") or "none found"
+end
+
+--- A button in the character window that opens the equipment sets. First the side tab or
+--- button whose tooltip is "Equipment Manager" (the tabs' order differs between clients),
+--- then known names.
+local function FindOpener()
+	local want = { (_G.EQUIPMENT_MANAGER or "Equipment Manager"):lower(), "equipment manager", "equipment set", "gear set" }
+	local hit = ns.FindFrame(_G.CharacterFrame, function(f)
+		if not f.Click then return false end
+		local texts = { f.tooltip, f.tooltipText, f.GetText and select(2, pcall(f.GetText, f)) or nil }
+		for _, t in ipairs(texts) do
+			if type(t) == "string" then
+				t = t:lower()
+				for _, w in ipairs(want) do if t:find(w, 1, true) then return true end end
+			end
+		end
+		return false
+	end, 8)
+	if hit then return hit, Named(hit) or "the Equipment Manager button" end
+	for _, n in ipairs(OPENERS) do
+		local b = _G[n]
+		if b and b.Click and b.IsVisible and b:IsVisible() then return b, n end
+	end
+end
+
 --- Runs once the character window is open: switch to its equipment sets page, scroll the
 --- list to the set and point at it (nothing is equipped).
 local function ShowInManager(e)
 	local H = ns.Highlight
-	local pd = _G.PaperDollFrame
-	local function pane() return pd and pd.EquipmentManagerPane end
-	local p = pane()
-	if not (p and p:IsVisible()) then
-		local tab = _G.PaperDollSidebarTab3 -- the character window's equipment sets tab
-		if tab and tab.Click then
-			ns:Trace("equipment sets: clicking the equipment sets tab")
-			pcall(tab.Click, tab)
+	local clicked = false
+	local function open()
+		if clicked or Pane() then return end
+		local b, name = FindOpener()
+		if b then
+			clicked = true
+			ns:Trace("equipment sets: clicking " .. tostring(name))
+			pcall(b.Click, b)
+		elseif not e._noOpener then
+			e._noOpener = true
+			ns:Trace("equipment sets: no Equipment Manager button found yet")
 		end
 	end
+	open()
 	local scrolled = false
 	H:When(function()
-		p = pane()
-		if not (p and p:IsVisible()) then return nil end
+		open() -- the window may still be building its buttons
+		local p = Pane()
+		if not p then return nil end
 		local function find()
 			return ns.FindFrame(p, function(f)
 				if f.setID ~= nil then return f.setID == e.setID end
 				if not f.Click then return false end
+				if f.GetText then
+					local ok, t = pcall(f.GetText, f)
+					if ok and t == e.name then return true end
+				end
 				for _, r in ipairs({ f:GetRegions() }) do
 					if r.GetObjectType and r:GetObjectType() == "FontString" and r:GetText() == e.name then return true end
 				end
@@ -116,7 +187,8 @@ local function ShowInManager(e)
 	end, function(row)
 		H:Show(row)
 	end, 20, function()
-		ns:Trace("equipment sets: no row for " .. tostring(e.name) .. " in the character window")
+		ns:Trace("equipment sets: " .. (Pane() and ("no row for " .. tostring(e.name)) or "the equipment sets page didn't open")
+			.. "; character window buttons: " .. DescribeButtons())
 	end)
 end
 

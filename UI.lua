@@ -459,7 +459,8 @@ local function RunAfter(e)
 		ns:Trace("combat: skipped after-step for " .. tostring(e.name))
 		return
 	end
-	pcall(e.after, e)
+	local ok, err = pcall(e.after, e)
+	if not ok then ns:Trace("after-step error for " .. tostring(e.name) .. ": " .. tostring(err)) end
 end
 
 function UI:Disarm()
