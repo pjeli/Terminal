@@ -6,6 +6,16 @@ local ns = select(2, ...)
 local T = {}
 ns.Theme = T
 
+--- A colour made darker (f < 1) or lighter (f > 1): the prompt's background is the
+--- theme's background, slightly darker.
+local PROMPT_DARKEN = 0.7
+function T.Darken(hex, f)
+	local r, g, b = tostring(hex or ""):match("^(%x%x)(%x%x)(%x%x)$")
+	if not r then return hex end
+	local function c(x) return math.max(0, math.min(255, math.floor(tonumber(x, 16) * f + 0.5))) end
+	return ("%02x%02x%02x"):format(c(r), c(g), c(b))
+end
+
 -- Default: Classic Forever look. Soft earthy brown (the game's scroll backgrounds) inside a
 -- bronze frame, gold text, blue prompt.
 T.DEFAULTS = {
@@ -17,6 +27,7 @@ T.DEFAULTS = {
 	text = "ffd100",
 	dim = "c9c2b0",      -- details, footer
 	bg = "47331f",
+	promptBg = "322416", -- the prompt's background (slightly darker than bg)
 	border = "b08040",
 	bgAlpha = 0.95,
 	frame = "classic",   -- classic: the game's tooltip-style frame; flat: a thin line
@@ -42,6 +53,11 @@ T.PRESETS = {
 	alliance = { label = "Alliance", bg = "050d24", border = "1a4099", accent = "3fa9ff", prompt = "ffd100", text = "e6eeff", dim = "8e9dc4", match = "7fd4ff", bgAlpha = 0.96, frame = "classic" },
 }
 
+for _, p in pairs(T.PRESETS) do
+	p.promptBg = p.promptBg or T.Darken(p.bg, PROMPT_DARKEN)
+end
+T.DEFAULTS.promptBg = T.PRESETS.forever.promptBg
+
 T.FONTS = {
 	friz = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",
 	arial = "Fonts\\ARIALN.TTF",
@@ -51,7 +67,7 @@ T.FONTS = {
 T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
-T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "border", "bgAlpha",
+T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "autoScan" }
 T.FIELDS = {
 	promptText = { kind = "text", label = "Prompt", max = 4 },
@@ -61,6 +77,7 @@ T.FIELDS = {
 	text = { kind = "color", label = "Text" },
 	dim = { kind = "color", label = "Details" },
 	bg = { kind = "color", label = "Background" },
+	promptBg = { kind = "color", label = "Prompt background" },
 	border = { kind = "color", label = "Border" },
 	bgAlpha = { kind = "number", label = "Opacity", min = 0.3, max = 1, step = 0.05 },
 	frame = { kind = "choice", label = "Frame", choices = { "classic", "flat" } },
@@ -72,7 +89,7 @@ T.FIELDS = {
 	hints = { kind = "bool", label = "Key hints in footer" },
 	autoScan = { kind = "bool", label = "Index professions at login" },
 }
-local PRESET_KEYS = { frame = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
+local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
 
 ----------------------------------------------------------------------
 -- Reading
@@ -104,6 +121,8 @@ function T.Get()
 		end
 		t.v = 3
 	end
+	-- themes saved before the prompt had its own background: a slightly darker bg
+	if t.promptBg == nil and t.bg then t.promptBg = T.Darken(t.bg, PROMPT_DARKEN) end
 	-- a theme that no longer exists (Paper, Parchment) falls back to the default look
 	if t.preset and t.preset ~= "custom" and not T.PRESETS[t.preset] then
 		for k, v in pairs(T.PRESETS.forever) do
@@ -248,6 +267,10 @@ function T.Set(key, raw)
 		end
 	end
 	local t = T.Get()
+	-- a new background takes the prompt background along, unless that was set by hand
+	if key == "bg" and t.promptBg == T.Darken(t.bg, PROMPT_DARKEN) then
+		t.promptBg = T.Darken(v, PROMPT_DARKEN)
+	end
 	t[key] = v
 	if PRESET_KEYS[key] then t.preset = "custom" end
 	T.Changed()

@@ -216,7 +216,7 @@ end
 
 -- Colours
 Label("Colours", "GameFontNormal", 16, -202)
-local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "border" }
+local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border" }
 for i, key in ipairs(colourKeys) do
 	Swatch(key, 16 + ((i - 1) % 3) * 140, -222 - math.floor((i - 1) / 3) * 24)
 end

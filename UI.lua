@@ -21,7 +21,7 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, PRINTSCREEN = true,
 }
 
-local frame, edit, status, hints, promptFS, caret, measure, divider
+local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg
 local rows = {}
 local results = {}
 local sel, offset = 1, 0
@@ -934,6 +934,9 @@ local function Build()
 
 	divider = frame:CreateTexture(nil, "ARTWORK")
 	divider:SetHeight(1)
+	-- the prompt's own background, behind the query box (Theme promptBg)
+	promptBg = frame:CreateTexture(nil, "BORDER")
+	UI.promptBg = promptBg
 
 	for i = 1, MAX_ROWS do
 		local b = CreateFrame("Button", nil, frame)
@@ -1022,6 +1025,12 @@ function UI:ApplyTheme()
 	local inset = classic and 5 or 1
 	divider:SetPoint("TOPLEFT", inset, -(HEADER_H - 4))
 	divider:SetPoint("TOPRIGHT", -inset, -(HEADER_H - 4))
+	local pin = classic and 4 or 1
+	promptBg:ClearAllPoints()
+	promptBg:SetPoint("TOPLEFT", pin, -pin)
+	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(HEADER_H - 4))
+	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
+	promptBg:SetColorTexture(pr, pg, pb, t.bgAlpha)
 
 	-- prompt, then the query box right after it
 	local mid = -(HEADER_H - 4) / 2
