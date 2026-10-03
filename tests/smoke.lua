@@ -2007,6 +2007,25 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	UI:Open("tank gear"); key("ENTER"); FlushAll()
 	check(logHas("GEARTAB click", mark + 1) and not logHas("TITLES click", mark + 1) and pointed == setRow, "the Equipment Manager tab is found by its tooltip")
 	CharacterFrame.GetChildren = cfKids
+	-- collapsed character window: the expand arrow is clicked first, then the tab appears
+	pane.shown = false
+	gearTab.shown = false
+	CharacterFrame.Expanded = false
+	_G.CharacterFrameExpandButton = Obj("Button"); CharacterFrameExpandButton.shown = true
+	CharacterFrameExpandButton.Click = function() note("EXPAND click"); CharacterFrame.Expanded = true; gearTab.shown = true end
+	CharacterFrame.GetChildren = function() return gearTab, titles end
+	mark = #log
+	pointed = nil
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(logHas("EXPAND click", mark + 1) and logHas("GEARTAB click", mark + 1) and pointed == setRow, "collapsed window: expanded, then the Equipment Manager tab, then the set")
+	-- already expanded: the arrow isn't touched (it would collapse it)
+	pane.shown = false
+	mark = #log
+	UI:Open("tank gear"); key("ENTER"); FlushAll()
+	check(not logHas("EXPAND click", mark + 1) and logHas("GEARTAB click", mark + 1), "an expanded window isn't collapsed")
+	_G.CharacterFrameExpandButton = nil
+	CharacterFrame.Expanded = nil
+	CharacterFrame.GetChildren = cfKids
 	-- Wrath-style layout: an "Equipment Manager" button opening the GearManagerDialog
 	PaperDollFrame.EquipmentManagerPane = nil
 	_G.PaperDollSidebarTab3 = nil

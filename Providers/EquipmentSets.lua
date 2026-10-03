@@ -117,7 +117,7 @@ end
 --- A button in the character window that opens the equipment sets. First the side tab or
 --- button whose tooltip is "Equipment Manager" (the tabs' order differs between clients),
 --- then known names.
-local function FindOpener()
+local function FindOpener(byName)
 	local want = { (_G.EQUIPMENT_MANAGER or "Equipment Manager"):lower(), "equipment manager", "equipment set", "gear set" }
 	local hit = ns.FindFrame(_G.CharacterFrame, function(f)
 		if not f.Click then return false end
@@ -131,20 +131,43 @@ local function FindOpener()
 		return false
 	end, 8)
 	if hit then return hit, Named(hit) or "the Equipment Manager button" end
+	if not byName then return nil end
 	for _, n in ipairs(OPENERS) do
 		local b = _G[n]
 		if b and b.Click and b.IsVisible and b:IsVisible() then return b, n end
 	end
 end
 
+--- The character window's expand arrow: on this client the side tabs (with the Equipment
+--- Manager) only show once the window is expanded.
+local function FindExpander()
+	local cf = _G.CharacterFrame
+	if cf and cf.Expanded == true then return nil end
+	local b = _G.CharacterFrameExpandButton
+	if b and b.Click and b.IsVisible and b:IsVisible() then return b end
+	return ns.FindFrame(cf, function(f)
+		local n = Named(f)
+		return f.Click and n and n:find("ExpandButton") and true or false
+	end, 6)
+end
+
 --- Runs once the character window is open: switch to its equipment sets page, scroll the
 --- list to the set and point at it (nothing is equipped).
 local function ShowInManager(e)
 	local H = ns.Highlight
-	local clicked = false
+	local clicked, expanded = false, false
 	local function open()
 		if clicked or Pane() then return end
-		local b, name = FindOpener()
+		local b, name = FindOpener(false)
+		if not b and not expanded and FindExpander() then
+			-- collapsed window: expand it first; the tabs appear and are found on the next try
+			expanded = true
+			local x = FindExpander()
+			ns:Trace("equipment sets: expanding the character window (" .. tostring(Named(x) or "arrow") .. ")")
+			pcall(x.Click, x)
+			return
+		end
+		if not b then b, name = FindOpener(true) end
 		if b then
 			clicked = true
 			ns:Trace("equipment sets: clicking " .. tostring(name))
