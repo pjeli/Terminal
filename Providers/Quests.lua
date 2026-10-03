@@ -75,17 +75,44 @@ local function TitleMatch(f, title)
 end
 
 -- Runs once the quest log is open: select the quest and point at it.
+local function WindowNames()
+	local names = {}
+	for _, w in ipairs(QuestWindows()) do
+		local ok, n = pcall(function() return w[1]:GetName() end)
+		names[#names + 1] = tostring(ok and n or "?") .. (w[2] and "" or " (point only)")
+	end
+	return #names > 0 and table.concat(names, ", ") or "none"
+end
+
 local function ShowQuestAfter(e)
 	if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, e.questID) end
+	-- classic-style quest log: select the quest the way clicking it does (this also scrolls
+	-- the list to it and shows its details); the row is then found and highlighted below
+	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(e.questID)
+	if idx then
+		if _G.QuestLog_SetSelection then
+			ns:Trace("quests: QuestLog_SetSelection(" .. idx .. ")")
+			pcall(_G.QuestLog_SetSelection, idx)
+		elseif _G.SelectQuestLogEntry then
+			ns:Trace("quests: SelectQuestLogEntry(" .. idx .. ")")
+			pcall(_G.SelectQuestLogEntry, idx)
+			if _G.QuestLog_Update then pcall(_G.QuestLog_Update) end
+		end
+	end
+	ns:Trace("quests: looking for '" .. tostring(e.name) .. "' in " .. WindowNames())
 	H:When(function()
 		for _, w in ipairs(QuestWindows()) do
 			local row = ns.FindFrame(w[1], function(f) return f.Click and TitleMatch(f, e.name) end, 14)
-			if row then return { row = row, click = w[2] } end
+			if row then return { row = row, click = w[2], window = w[1] } end
 		end
 	end, function(hit)
+		local ok, n = pcall(function() return hit.window:GetName() end)
+		ns:Trace("quests: found the row in " .. tostring(ok and n or "?") .. (hit.click and ", clicking it" or ", pointing only"))
 		if hit.click then pcall(hit.row.Click, hit.row) end -- selects it in that log
 		H:Show(hit.row, 6)
-	end, 30)
+	end, 30, function()
+		ns:Trace("quests: no row titled '" .. tostring(e.name) .. "' found; quest windows: " .. WindowNames())
+	end)
 end
 
 -- Fallback when the secure path isn't available (combat): open the quest log directly.

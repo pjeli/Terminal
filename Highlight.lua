@@ -74,7 +74,7 @@ end
 
 --- Poll `finder` (returns a frame, or a list of frames, or nil) until it
 --- succeeds, then call onFound. Gives Blizzard frames time to build/layout.
-function H:When(finder, onFound, tries)
+function H:When(finder, onFound, tries, onFail)
 	local function try(n)
 		local ok, res = pcall(finder)
 		if ok and res then
@@ -83,6 +83,8 @@ function H:When(finder, onFound, tries)
 		end
 		if n > 0 then
 			C_Timer.After(0.1, function() try(n - 1) end)
+		elseif onFail then
+			pcall(onFail)
 		end
 	end
 	C_Timer.After(0.05, function() try(tries or 25) end)
