@@ -5,9 +5,10 @@ local H = ns.Highlight
 -- so "kill 10 boars" or a snippet of flavour text finds the quest.
 --
 -- Opening one: the quest log is opened the way your own quest log key opens it (see
--- Secure.lua), then the quest is selected by clicking its row and highlighted. Terminal
--- never calls the map's own "open quest details" function: on Forever that runs through
--- the protected world map and ends in "Interface action failed because of an AddOn".
+-- Secure.lua). Then the quest is shown: in a classic-style log it's selected and scrolled
+-- to; in the map's quest panel (this client's own quest log) its details are opened, out
+-- of combat, the way Questie does it. Should the game ever block that, Terminal remembers
+-- and from then on only scrolls the map's list to the quest and points at it.
 
 -- quest windows, first visible wins; any other visible "...Quest..." window is tried after
 local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame" }
@@ -84,20 +85,60 @@ local function WindowNames()
 	return #names > 0 and table.concat(names, ", ") or "none"
 end
 
+--- The map's quest list (the game's own quest log on this client): scroll it to the quest so
+--- its row exists. Only scrolls; nothing in the map is clicked.
+local function ScrollMapList(questID)
+	local sf = _G.QuestScrollFrame
+	local box = sf and sf.ScrollBox
+	if not (box and box.ScrollToElementDataByPredicate) then return false end
+	local ok = pcall(box.ScrollToElementDataByPredicate, box, function(node)
+		local d = type(node) == "table" and (node.GetData and node:GetData() or node)
+		if type(d) ~= "table" then return false end
+		return d.questID == questID or (type(d.info) == "table" and d.info.questID == questID)
+	end)
+	ns:Trace("quests: scrolled the map's quest list" .. (ok and "" or " (failed)"))
+	return ok
+end
+
+--- A classic-style quest log window: scroll its list to the quest (as Questie does).
+local function ScrollClassicList(idx)
+	local sf = _G.QuestLogListScrollFrame
+	local bar = (sf and sf.ScrollBar) or _G.QuestLogListScrollFrameScrollBar
+	if not (bar and bar.SetValue and bar.GetValueStep) then return false end
+	local step = bar:GetValueStep() or 0
+	if step <= 0 then step = 16 end
+	pcall(bar.SetValue, bar, math.max(0, idx * step - step * 3))
+	ns:Trace("quests: scrolled the quest log list to entry " .. idx)
+	return true
+end
+
 local function ShowQuestAfter(e)
 	if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, e.questID) end
-	-- classic-style quest log: select the quest the way clicking it does (this also scrolls
-	-- the list to it and shows its details); the row is then found and highlighted below
 	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(e.questID)
-	if idx then
+	-- a classic-style quest log: select the quest the way clicking it does, and scroll to it
+	if idx and Visible(_G.QuestLogFrame) or (idx and _G.QuestLog_SetSelection and not Visible(_G.QuestMapFrame)) then
+		ScrollClassicList(idx)
 		if _G.QuestLog_SetSelection then
 			ns:Trace("quests: QuestLog_SetSelection(" .. idx .. ")")
 			pcall(_G.QuestLog_SetSelection, idx)
 		elseif _G.SelectQuestLogEntry then
 			ns:Trace("quests: SelectQuestLogEntry(" .. idx .. ")")
 			pcall(_G.SelectQuestLogEntry, idx)
-			if _G.QuestLog_Update then pcall(_G.QuestLog_Update) end
 		end
+		if _G.QuestLog_UpdateQuestDetails then pcall(_G.QuestLog_UpdateQuestDetails) end
+		if _G.QuestLog_Update then pcall(_G.QuestLog_Update) end
+	end
+	-- the map's quest panel: open the quest's details there (out of combat; if the game ever
+	-- blocks it, Terminal remembers and only scrolls the list to it from then on)
+	if Visible(_G.QuestMapFrame) and not InCombatLockdown() then
+		local open = _G.QuestMapFrame_OpenToQuestDetails
+		if open and ns.Professions.Guarded("QuestMapFrame_OpenToQuestDetails", open, e.questID) then
+			ns:Trace("quests: opened the quest's details in the map's quest panel")
+			local details = _G.QuestMapFrame.DetailsFrame
+			H:When(function() return Visible(details) and details or nil end, function(f) H:Show(f) end, 10)
+			return
+		end
+		ScrollMapList(e.questID)
 	end
 	ns:Trace("quests: looking for '" .. tostring(e.name) .. "' in " .. WindowNames())
 	H:When(function()
@@ -109,7 +150,7 @@ local function ShowQuestAfter(e)
 		local ok, n = pcall(function() return hit.window:GetName() end)
 		ns:Trace("quests: found the row in " .. tostring(ok and n or "?") .. (hit.click and ", clicking it" or ", pointing only"))
 		if hit.click then pcall(hit.row.Click, hit.row) end -- selects it in that log
-		H:Show(hit.row, 6)
+		H:Show(hit.row)
 	end, 30, function()
 		ns:Trace("quests: no row titled '" .. tostring(e.name) .. "' found; quest windows: " .. WindowNames())
 	end)
