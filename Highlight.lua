@@ -7,8 +7,8 @@ ns.Highlight = H
 
 local pool, active = {}, {}
 
--- The highlight pulses twice, then fades out: about 2.4 seconds in all.
-local PULSE, PULSES, FADE = 0.9, 2, 0.6
+-- The highlight pulses twice, then fades out: 1.6 seconds in all.
+local PULSE, PULSES, FADE = 0.6, 2, 0.4
 H.TOTAL = PULSE * PULSES + FADE
 
 local function NewGlow()
