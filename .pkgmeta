@@ -1,0 +1,5 @@
+package-as: Terminal
+
+ignore:
+  - tests
+  - CLAUDE.md
