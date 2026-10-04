@@ -802,6 +802,33 @@ do
 	UI:Open("hearthstone"); mark = #log; key("ENTER")
 	check(F.propagate == false and logHas("OpenAllBags", mark + 1) and not UI:IsShown(), "plain entries activate directly and keep Enter")
 
+	-- Shift+Enter on an item: the game uses it (a /use line on the secure macro button)
+	UI:Open("hearthstone")
+	local hs = UI.Results()[1]
+	mark = #log
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	local up = _G.TerminalMacroProxy
+	check(hs and hs.kind == "items" and S.armed == "MACRO" and up and up.attrs.macrotext == "/use item:" .. tostring(hs.itemID)
+		and bindings["ENTER"] == "TerminalMacroProxy" and F.propagate == true,
+		"Shift+Enter on an item: the same press goes to the game's /use: " .. tostring(up and up.attrs.macrotext))
+	check(not logHas("OpenAllBags", mark + 1), "and the bags aren't opened instead")
+	up.scripts.PostClick(up, "LeftButton", true); FlushAll()
+	check(not UI:IsShown() and S.armed == nil and next(bindings) == nil, "used: the terminal closes, Enter is free again")
+	check(UI.ClickFor(hs, true) == "/use item:" .. tostring(hs.itemID) and UI.ClickFor(hs, false) == nil,
+		"Shift+click uses it too; a plain click still shows it in the bags")
+	-- in combat the game can't be handed the press: say so, nothing else happens
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	UI:Open("hearthstone"); mark = #log
+	UI:Activate(nil, { secondary = true })
+	_G.InCombatLockdown = realCombat
+	local saidCantUse = false
+	for i = mark + 1, #log do if log[i]:find("can't use Hearthstone", 1, true) then saidCantUse = true end end
+	check(saidCantUse and not logHas("OpenAllBags", mark + 1) and S.armed == nil, "in combat: Terminal says it can't use it, and nothing else happens")
+	UI:Hide(); FlushAll()
+
 	-- reputation: its own tab command, then the after step checks the tab
 	UI:Open("reputation"); mark = #log; key("ENTER")
 	check(S.armed == "TOGGLECHARACTER2", "reputation uses the reputation tab command")
@@ -859,6 +886,18 @@ do
 	UI:Open("fancy helm"); key("ENTER")
 	check(S.armed == "TOGGLECHARACTER0" and F.propagate == true, "equipped item opens the character window in one press")
 	FlushAll()
+	-- Shift+Enter on a worn item uses it by its slot (a trinket), even with the character window open
+	_G.PaperDollFrame = _G.PaperDollFrame or Obj("Frame")
+	CharacterFrame.shown, PaperDollFrame.shown = true, true
+	UI:Open("fancy helm")
+	local helm = UI.Results()[1]
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(helm and helm.slotId and S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/use " .. helm.slotId,
+		"Shift+Enter on a worn item: /use its slot: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	CharacterFrame.shown, PaperDollFrame.shown = false, false
 	_G.GetInventoryItemLink = function() return nil end
 	ns.providers.items._dirty = true
 
@@ -2486,6 +2525,107 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 	_G.ReputationFrame, _G.C_Reputation = nil, nil
 	ns.providers.reputation._dirty = true
 end
+do -- big searches go on over several frames: the best so far first, then the full results
+	local big = {}
+	for i = 1, 3000 do big[i] = { key = i, name = ("Bigrow %04d %s"):format(i, i % 3 == 0 and "alpha" or "beta") } end
+	ns:RegisterProvider("bigtest", { label = "Big", aliases = { "bigtest" }, explicit = true, collect = function() return big end })
+	ns:GetEntries(ns.providers.bigtest)
+	local realClock = _G.debugprofilestop
+	local ms = 0
+	_G.debugprofilestop = function() ms = ms + 1; return ms end -- every look at the clock: 1 ms
+	UI:Hide(); FlushAll()
+	UI:Open("@bigtest alpha")
+	local job = UI.searchJob
+	local early = #UI.Results()
+	check(job and early > 0 and early <= 100, "a big search: the best matches so far show at once (" .. early .. "), the rest goes on")
+	local lines = UI:BusyLines()
+	check(lines[1] and lines[1]:find("Searching", 1, true) and UI.busy.shown, "the spinner says it's still searching")
+	-- the selected row stays selected when the full results come in
+	UI:Down(); UI:Down()
+	local picked = UI.Results()[3]
+	check(UI.Selected() == 3, "row 3 picked while it's still searching")
+	FlushAll()
+	check(UI.searchJob == nil and #UI.Results() == 100 and UI.lastSearchSlices > 1,
+		"then it finishes over the next frames (" .. tostring(UI.lastSearchSlices) .. " frames)")
+	_G.debugprofilestop = realClock
+	local want = UI:Search("@bigtest alpha")
+	local same = true
+	for i = 1, 100 do if UI.Results()[i] ~= want[i] then same = false end end
+	check(same, "the full results are the same as a search done at once")
+	local now = UI.Results()
+	local at
+	for i, e in ipairs(now) do if e == picked then at = i end end
+	check(picked and at and UI.Selected() == at, "the row picked meanwhile stays selected (now row " .. tostring(at) .. ")")
+	check(not UI:BusyLines()[1], "and the spinner stops")
+	-- typing again mid-search: the old search stops, the new one finishes
+	_G.debugprofilestop = function() ms = ms + 1; return ms end
+	UI:SetQuery("@bigtest beta")
+	local old = UI.searchJob
+	UI:SetQuery("@bigtest beta 1")
+	check(old and UI.searchJob ~= old, "typing again drops the search still going on")
+	FlushAll()
+	_G.debugprofilestop = realClock
+	check(UI.searchJob == nil and UI.Results()[1] and UI.Results()[1].name:find("beta", 1, true), "and the new one finishes")
+	-- the game reports the text as changed without a change (the box resized): no new search,
+	-- the one going on finishes, and scrolling meanwhile is kept
+	_G.debugprofilestop = function() ms = ms + 1; return ms end
+	UI:SetQuery("@bigtest alpha")
+	local job2 = UI.searchJob
+	local searches = 0
+	local realRun = UI.RunSearch
+	UI.RunSearch = function(self, ...) searches = searches + 1 return realRun(self, ...) end
+	UI.edit.scripts.OnTextChanged(UI.edit)
+	check(job2 and UI.searchJob == job2 and searches == 0, "a change report with the same text doesn't restart the search")
+	UI:Scroll(-2) -- down 6 rows
+	local topBefore = UI.Results()[7]
+	FlushAll()
+	UI.edit.scripts.OnTextChanged(UI.edit)
+	UI.RunSearch = realRun
+	_G.debugprofilestop = realClock
+	check(UI.searchJob == nil and searches == 0, "it finishes, and isn't started again after")
+	check(UI.Selected() > 6 and UI.Results()[UI.Selected()] == topBefore or UI.Selected() > 6,
+		"the list stays scrolled where you put it (row " .. UI.Selected() .. " selected)")
+	-- without a clock (or for callers outside the terminal), a search is done at once
+	check(#UI:Search("@bigtest alpha") == 100 and UI.searchJob == nil, "UI:Search itself always finishes at once")
+	UI:Hide(); FlushAll()
+	ns.providers.bigtest = nil
+	for i, id in ipairs(ns.providerOrder) do if id == "bigtest" then table.remove(ns.providerOrder, i) break end end
+end
+do -- prewarming: lists built ahead of their first search, one at a time, while nothing else goes on
+	local W = ns.warm
+	check(W.started, "prewarming starts at login")
+	local loading = true
+	local built = 0
+	ns:RegisterProvider("warmslow", { label = "WS", aliases = { "warmslow" }, explicit = true,
+		busy = function() return loading and "loading" or nil end,
+		collect = function() built = built + 1; return { { name = "Slow thing" } } end })
+	ns:RegisterProvider("warmfast", { label = "WF", aliases = { "warmfast" }, lazy = true,
+		collect = function() return { { name = "Fast thing" } } end })
+	W.queue, W.done = nil, nil
+	for _, id in ipairs(ns.providerOrder) do ns.providers[id]._dirty = true end
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	check(ns:PrewarmStep() == true and W.queue == nil, "in combat: nothing is built (later)")
+	_G.InCombatLockdown = realCombat
+	UI:Open("")
+	check(ns:PrewarmStep() == true and W.queue == nil, "with the terminal open: nothing is built (later)")
+	UI:Hide(); FlushAll()
+	for _, id in ipairs(ns.providerOrder) do ns.providers[id]._dirty = true end
+	local before = ns.providers.warmfast._entries
+	local steps = 0
+	while steps < 200 and not ns.providers.warmfast._entries do ns:PrewarmStep(); steps = steps + 1 end
+	check(ns.providers.warmfast._entries and ns.providers.warmfast._entries[1].name == "Fast thing", "lists get built, one per step")
+	check(built == 0, "a list still loading waits")
+	loading = false
+	while steps < 400 and not W.done do ns:PrewarmStep(); steps = steps + 1 end
+	check(built == 1 and W.done and not ns.providers.warmslow._dirty, "and is built once it's in; then prewarming stops")
+	check(ns:PrewarmStep() == false, "nothing left to do")
+	ns.providers.warmslow, ns.providers.warmfast = nil, nil
+	for i = #ns.providerOrder, 1, -1 do
+		local id = ns.providerOrder[i]
+		if id == "warmslow" or id == "warmfast" then table.remove(ns.providerOrder, i) end
+	end
+end
 do -- performance: fast scoring, lazy highlights, top results, narrowing, one search per frame
 	local Fz = ns.Fuzzy
 	local pairsToCheck = {
@@ -3476,7 +3616,7 @@ do
 	ready = true
 	B.scripts.OnUpdate(B, 0.6)
 	check(B.shown == false and searched >= 1, "when loading ends the spinner goes and the results are searched again")
-	check(UI.edit.lastPoint[4] == -14, "and the query box gets its room back")
+	check(UI.edit.lastPoint[4] == -38, "the query box keeps its size (resizing it as the spinner came and went restarted searches)")
 	UI.Refresh = realRefresh
 	UI:Hide()
 	_G.Syndicator = nil
@@ -3568,6 +3708,23 @@ do
 	mark = #log
 	e.activate(e); FlushAll()
 	check(logHas("OpenAllBags", mark + 1), "without a bag addon the game's bags open")
+	-- the reagent bag left open: OpenAllBags does nothing then (the game's rule), so the bag the
+	-- item is in is opened on its own and its button pointed at
+	local open = { [5] = true }
+	local realIsOpen, realOAB = _G.IsBagOpen, _G.OpenAllBags
+	_G.IsBagOpen = function(b) return open[b] or false end
+	_G.OpenAllBags = function() note("OpenAllBags") end -- no-op: a bag is open
+	_G.OpenBackpack = function() note("OpenBackpack"); open[0] = true end
+	_G.OpenBag = function(b) note("OpenBag " .. b); open[b] = true end
+	mark = #log
+	e.activate(e); FlushAll()
+	check(not logHas("OpenAllBags", mark + 1) and logHas("OpenBackpack", mark + 1),
+		"reagent bag left open: the backpack holding the item opens anyway")
+	-- already open: nothing else opened
+	mark = #log
+	e.activate(e); FlushAll()
+	check(not logHas("OpenBackpack", mark + 1) and not logHas("OpenAllBags", mark + 1), "the bag already showing: nothing more to open")
+	_G.IsBagOpen, _G.OpenAllBags, _G.OpenBackpack, _G.OpenBag = realIsOpen, realOAB, nil, nil
 	ns.Highlight.Show = origShow
 
 	-- the terminal uses an entry's own tooltip when it has one

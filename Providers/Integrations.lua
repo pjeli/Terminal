@@ -538,6 +538,7 @@ local function SetupQuestie()
 		color = "ffb48cff",
 		aliases = { "questie", "questdb", "allquests" },
 		explicit = true, -- every quest in the game: only searched with @questie
+		busy = function() return qdb.busy and "Indexing Questie's quests" or nil end,
 		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat).
 		-- No quest events: a quest's state (in log, done) is read when its row is drawn.
 		idleDrop = 600, -- freed after 10 minutes without a @questie search; re-read when next wanted

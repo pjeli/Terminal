@@ -16,7 +16,7 @@ ns:RegisterCommand("help", {
 			lines[#lines + 1] = ("  .%s  -  %s"):format(name, c.desc or "")
 		end
 		lines[#lines + 1] = "Modes: plain text = search everything, / = slash commands, . = commands, @kind = filter, 3*45g = calculator"
-		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (pin only, link, list items...), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Tab completes commands and their arguments"
+		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (use an item, pin only, link, list items...), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Tab completes commands and their arguments"
 		return lines
 	end,
 })
@@ -128,10 +128,17 @@ ns:RegisterCommand("mem", {
 				#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
 		end
 		lines[#lines + 1] = ("  %d entries in all"):format(total)
+		local W = ns.warm or {}
+		if W.started then
+			lines[#lines + 1] = W.done and "Lists built ahead of use: done"
+				or ("Lists built ahead of use: %d to go"):format(W.queue and #W.queue or #ns.providerOrder)
+		end
 		local UI = ns.UI
 		if UI and UI.lastSearchMs then
-			lines[#lines + 1] = ("Last search: %.1f ms for %d results%s"):format(UI.lastSearchMs, UI.lastSearchCount or 0,
-				UI.lastSearchNarrowed and " (narrowed from the previous search)" or "")
+			local slices = UI.lastSearchSlices or 1
+			lines[#lines + 1] = ("Last search: %.1f ms for %d results%s%s"):format(UI.lastSearchMs, UI.lastSearchCount or 0,
+				UI.lastSearchNarrowed and " (narrowed from the previous search)" or "",
+				slices > 1 and (" (spread over %d frames, about %d ms each)"):format(slices, UI.SLICE_MS or 6) or "")
 		end
 		return lines
 	end,

@@ -255,6 +255,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 		ns.db = TerminalDB
 		return
 	elseif event == "PLAYER_LOGIN" then
+		ns:StartPrewarm(10) -- the lists, built ahead of their first search (see Prewarming)
 		-- First run: bind ` (tilde key) to toggle the terminal, or CTRL-` if ` is taken.
 		-- Change it any time with:  /term .bind <KEY>
 		-- (also once after the rename from WoWTerm: its old key binding is taken over)
@@ -304,6 +305,66 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 		end
 	end
 end)
+
+-- Prewarming: after login, every list is built ahead of its first search, one per second while
+-- nothing else is going on (out of combat, the terminal closed). A list still loading (Questie's
+-- NPCs, AtlasLoot) waits its turn and is built once it's in. Lists freed when unused (idleDrop)
+-- are built again only when next wanted.
+local warm = {}
+ns.warm = warm
+
+local function Busy(p)
+	if not p.busy then return nil end
+	local ok, msg = pcall(p.busy, p)
+	return ok and type(msg) == "string" and msg ~= "" and msg or nil
+end
+
+--- Builds the next list. True while there's more to do.
+function ns:PrewarmStep()
+	if not self.db then return true end
+	if InCombatLockdown() or (self.UI and self.UI.IsShown and self.UI:IsShown()) then return true end -- later
+	local q = warm.queue
+	if not q then
+		q, warm.tries = {}, {}
+		-- lists that rebuild on every open anyway are left out
+		for _, id in ipairs(self.providerOrder) do
+			if not self.providers[id].refreshOnOpen then q[#q + 1] = id end
+		end
+		warm.queue = q
+	end
+	while #q > 0 do
+		local id = table.remove(q, 1)
+		local p = self.providers[id]
+		if p and (p._dirty or not p._entries) then
+			if Busy(p) then
+				-- still loading: back of the queue (for a few minutes at most)
+				warm.tries[id] = (warm.tries[id] or 0) + 1
+				if warm.tries[id] < 300 then q[#q + 1] = id end
+				return true
+			end
+			local t0 = debugprofilestop and debugprofilestop()
+			self:GetEntries(p)
+			if Busy(p) then q[#q + 1] = id end -- reading it started its loading (Questie's index): again once in
+			if self.Trace then
+				self:Trace(("prewarm: @%s ready, %d entries%s"):format(id, p._entries and #p._entries or 0,
+					t0 and (", %.1f ms"):format(debugprofilestop() - t0) or ""))
+			end
+			if #q == 0 then warm.done = true end
+			return #q > 0
+		end
+	end
+	warm.done = true
+	return false
+end
+
+function ns:StartPrewarm(delay)
+	if warm.started then return end
+	warm.started = true
+	local function tick()
+		if ns:PrewarmStep() then C_Timer.After(1, tick) end
+	end
+	C_Timer.After(delay or 10, tick)
+end
 
 -- Big lists nobody searched for a while are freed, and rebuilt when next wanted.
 function ns:DropIdle(now)

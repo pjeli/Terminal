@@ -52,15 +52,31 @@ function Bags.Active()
 	if G then return "Baganator", G end
 end
 
---- Show your bags, in whichever window shows them.
-function Bags.Open()
+local LAST_BAG = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
+
+--- Show your bags, in whichever window shows them. bags: the bag ids that must show (with the
+--- game's own windows, each bag can be open or closed on its own).
+function Bags.Open(bags)
 	local which, A = Bags.Active()
 	if which == "Baganator" then
 		pcall(A.CallbackRegistry.TriggerEvent, A.CallbackRegistry, "BagShow")
 	elseif which then
 		pcall(A.Frames.Show, A.Frames, "inventory")
-	elseif not IsBagOpen(0) then
-		OpenAllBags()
+	else
+		-- nothing open: all of them, as the bag key does
+		local anyOpen = false
+		for b = 0, LAST_BAG do
+			if IsBagOpen(b) then anyOpen = true break end
+		end
+		if not anyOpen then OpenAllBags() end
+		-- OpenAllBags does nothing while any bag but the backpack is open (the reagent bag left open,
+		-- say): the bags the item is in are opened one by one
+		for _, b in ipairs(bags or { 0 }) do
+			if not IsBagOpen(b) then
+				ns:Trace("items: bag " .. b .. " was closed, opening it")
+				if b == 0 and OpenBackpack then pcall(OpenBackpack) elseif OpenBag then pcall(OpenBag, b) end
+			end
+		end
 	end
 	return which
 end
@@ -127,8 +143,7 @@ local ShowInBags
 --- Where an item is in your bags right now: { {bag, slot}, ... }.
 function Bags.Locations(itemID)
 	local locs = {}
-	local lastBag = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
-	for bag = 0, lastBag do
+	for bag = 0, LAST_BAG do
 		for slot = 1, C_Container.GetContainerNumSlots(bag) do
 			local info = C_Container.GetContainerItemInfo(bag, slot)
 			if info and info.itemID == itemID then locs[#locs + 1] = { bag, slot } end
@@ -138,7 +153,11 @@ function Bags.Locations(itemID)
 end
 
 ShowInBags = function(e)
-	local which = Bags.Open()
+	local bags, seen = {}, {}
+	for _, loc in ipairs(e.locs or {}) do
+		if not seen[loc[1]] then seen[loc[1]] = true; bags[#bags + 1] = loc[1] end
+	end
+	local which = Bags.Open(#bags > 0 and bags or nil)
 	if which == "Baganator" and e.link then
 		-- Baganator's own flash too
 		local R = Bags.Baganator().CallbackRegistry
@@ -183,6 +202,21 @@ end
 -- through the game's own key too (it switches page), never ToggleCharacter from here (taint).
 local function PaperDollOpen() return PaperDollFrame and PaperDollFrame:IsVisible() and true or false end
 local CHAR_SECURE = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" }, click = ns.Secure.PAPERDOLL_CLICK }
+
+-- Shift+Enter / Shift+click: use the item, as a right-click on it in your bags does (drink, eat,
+-- read, open, equip...). The game presses it: a /use line on the secure macro button, so it's
+-- allowed (Terminal's own code can't use items). Worn items are used by their slot (trinkets).
+local function UseMacro(e)
+	if e.slotId then return "/use " .. e.slotId end
+	return e.itemID and ("/use item:" .. e.itemID) or nil
+end
+local USE_SPEC = { macro = UseMacro }
+local function UseNeverOpen() return false end -- nothing has to be open first: always pressed
+local function UsedAfter(e) ns:Trace("items: the game used " .. tostring(e.name)) end
+-- only when the game can't press it: in combat (Enter can't be rebound then)
+local function UseInCombat(e)
+	ns:Print("In combat: Terminal can't use " .. tostring(e.name) .. " (the game doesn't allow it then).")
+end
 
 -- Quest items. A bag item is tied to its quest even without any other addon:
 --   1. the game says so (GetContainerItemQuestInfo gives the quest an item starts),
@@ -447,6 +481,8 @@ ns:RegisterProvider("items", {
 								firstBag = bag,
 								itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
 								activate = ShowInBags,
+								secondary = UseInCombat, secondarySecure = USE_SPEC,
+								secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
 							}
 							local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
 							if q then
@@ -487,11 +523,13 @@ ns:RegisterProvider("items", {
 						link = link,
 						text = "equipped " .. slotName:gsub("Slot", ""),
 						detail = "Equipped: " .. slotName:gsub("Slot", ""),
-						slotName = slotName,
+						slotName = slotName, slotId = slotId, itemID = itemID,
 						activate = ShowEquipped,
 						secure = CHAR_SECURE,
 						isOpen = PaperDollOpen,
 						after = PointAtSlot,
+						secondary = UseInCombat, secondarySecure = USE_SPEC,
+						secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
 					}
 				end
 			end

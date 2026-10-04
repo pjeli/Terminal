@@ -13,6 +13,9 @@ local HINTS = {
 }
 local MAX_ROWS = 20
 local MAX_RESULTS = 100
+local SLICE_MS = 6 -- a search's share of one frame; a longer one goes on in the next frames
+local SLICE_CHECK = 64 -- rows scored between looks at the clock
+UI.SLICE_MS = SLICE_MS
 local TEXT_SCORE = 1.0 -- score given to a match found in an entry's secondary text
 local QUESTION_MARK = 134400
 local HINT = "|cffffd200"
@@ -39,6 +42,7 @@ UI.motion = motion
 local results = {}
 function UI.Results() return results end
 local sel, offset = 1, 0
+function UI.Selected() return sel end
 UI.args = nil
 UI.keys = false   -- true while the terminal reads keystrokes itself (see "Keyboard")
 UI.noChar = false -- set if this client never sends typed characters to frames
@@ -360,12 +364,23 @@ function UI:SearchText(text)
 		end
 	end
 	self.lastSearchNarrowed = candidates and true or false
+	-- run by UI:RunSearch: past this frame's share, hand back what matched so far and go on
+	-- in the next frame (tens of thousands of NPCs or quests no longer hitch one frame)
+	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
+	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
 	if candidates then
-		for i = 1, #candidates do consider(candidates[i]) end
+		for i = 1, #candidates do
+			consider(candidates[i])
+			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+		end
 	else
 		for _, p in ipairs(included) do
 			local list = ns:GetEntries(p)
-			for i = 1, #list do consider(list[i]) end
+			if overBudget() then coroutine.yield(out) end -- (reading the list may have taken the share)
+			for i = 1, #list do
+				consider(list[i])
+				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+			end
 		end
 	end
 	if not empty then
@@ -417,6 +432,73 @@ function UI:SearchText(text)
 	return SortAndTrim(out)
 end
 
+--- A search spread over frames: up to SLICE_MS of it now. Gives the results to show, and
+--- whether they're final; if not, the best matches found so far (sorted once, on a copy) show
+--- now and the search goes on quietly in the next frames (see ContinueSearch).
+function UI:RunSearch(text)
+	self.searchJob = nil
+	if not (debugprofilestop and coroutine) then return self:Search(text), true end
+	local job = { co = coroutine.create(function() return self:Search(text) end), ms = 0 }
+	local res, done = self:StepSearch(job)
+	if done then return res, true end
+	-- not finished: the best of what matched so far (on a copy: the search goes on filling it)
+	local t0 = debugprofilestop()
+	local copy = {}
+	for i = 1, #res do copy[i] = res[i] end
+	copy = SortAndTrim(copy)
+	job.ms = job.ms + (debugprofilestop() - t0)
+	return copy, false
+end
+
+function UI:StepSearch(job)
+	local t0 = debugprofilestop()
+	self.sliceUntil = t0 + SLICE_MS
+	local ok, res = coroutine.resume(job.co)
+	self.sliceUntil = nil
+	job.ms = job.ms + (debugprofilestop() - t0)
+	job.slices = (job.slices or 0) + 1
+	if not ok then
+		self.searchJob = nil
+		ns:Print("search error: " .. tostring(res))
+		return {}, true
+	end
+	if coroutine.status(job.co) == "dead" then
+		self.searchJob = nil
+		return res or {}, true
+	end
+	self.searchJob = job
+	return res, false -- the matches so far (still being filled)
+end
+
+--- The next frame's share of the search. Once done, the full results replace the early ones;
+--- the selected result stays selected if it's still there.
+function UI:ContinueSearch(job)
+	if self.searchJob ~= job then return end -- typed again, or closed: this search is stale
+	if not self:IsShown() or self.closing or self.armedEntry then self.searchJob = nil return end
+	local final, done = self:StepSearch(job)
+	if not done then
+		C_Timer.After(0, function() self:ContinueSearch(job) end)
+		return
+	end
+	-- the selected row (if you moved it) stays selected, and the list stays where you scrolled it
+	local keep = (sel > 1 or offset > 0) and results[sel] or nil
+	local keptRow = sel - offset
+	results = final
+	sel, offset = 1, 0
+	if keep then
+		for i, e in ipairs(results) do
+			if e == keep then
+				sel = i
+				offset = math.max(0, math.min(i - keptRow, #results - ROWS))
+				break
+			end
+		end
+	end
+	self.lastSearchMs, self.lastSearchCount, self.lastSearchSlices = job.ms, #results, job.slices
+	self:UpdateBusy()
+	self:Render()
+end
+
 function UI:Refresh()
 	if not frame then return end
 	-- typed faster than a frame: one search for the whole burst, on the next frame
@@ -433,6 +515,9 @@ function UI:Refresh()
 		return
 	end
 	self.refreshedAt = now
+	if self.searchJob then ns:Trace("search: started again before the last one finished (" .. (self.searchJob.slices or 0) .. " frames in)") end
+	self.searchJob = nil -- a search still going on is for the old text
+	self.searchedText = edit:GetText()
 	local t0 = debugprofilestop and debugprofilestop()
 	if self.armedEntry then self:Disarm() end -- the query changed: whatever was armed is stale
 	self.pendingAfter = nil
@@ -448,10 +533,16 @@ function UI:Refresh()
 		local p = ns.providers.slash
 		results = p and self:WordSearch(ns:GetEntries(p), text) or {}
 	else
-		results = self:Search(text)
+		local done
+		results, done = self:RunSearch(text)
+		if not done then
+			local job = self.searchJob
+			C_Timer.After(0, function() self:ContinueSearch(job) end)
+		end
 	end
 	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
 	self.lastSearchCount = #results
+	self.lastSearchSlices = 1
 	self:UpdateBusy()
 	sel, offset = 1, 0
 	self:Render()
@@ -1028,6 +1119,7 @@ local BUSY_DOTS = 8
 --- What is still loading, one line per provider that says so.
 function UI:BusyLines()
 	local out, who = {}, {}
+	if self.searchJob then out[1] = "Searching... (the best matches so far are shown)" end
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		if p.busy then
@@ -1046,7 +1138,9 @@ function UI:PlaceEdit()
 	if not (edit and self.editLeft) then return end
 	edit:ClearAllPoints()
 	edit:SetPoint("LEFT", frame, "TOPLEFT", self.editLeft, self.editMid)
-	edit:SetPoint("RIGHT", frame, "TOPRIGHT", (busy and busy:IsShown()) and -38 or -14, self.editMid)
+	-- room for the spinner is always kept: resizing the box as it came and went made the game
+	-- report the text as changed
+	edit:SetPoint("RIGHT", frame, "TOPRIGHT", -38, self.editMid)
 end
 
 --- Show or hide the spinner. When loading ends, the results are searched again so what just
@@ -1067,7 +1161,6 @@ function UI:UpdateBusy()
 	local was = busy:IsShown()
 	busy.lines = lines
 	busy:SetShown(#lines > 0)
-	if was ~= busy:IsShown() then self:PlaceEdit() end
 	if was ~= busy:IsShown() or finished then self:SetStatus() end
 	if finished and self:IsShown() and not self.inBusyRefresh then
 		ns:Trace("busy: loading finished, searching again")
@@ -1939,7 +2032,9 @@ local function Build()
 			if type(cp) == "number" then UI.cursor = cp end
 		end
 		UI.cursor = math.min(UI.cursor or #t, #t)
-		UI:Refresh()
+		-- the game can report a change without one (the box resized, say): searching again
+		-- then restarted a search spread over frames forever, and reset the scroll each time
+		if t ~= UI.searchedText then UI:Refresh() end
 		UI:UpdateCaret()
 	end)
 	edit:SetScript("OnEditFocusGained", function()
@@ -2249,7 +2344,7 @@ function UI:Hide()
 	caret:Hide()
 	caretChar:Hide()
 	if hit then hit:Hide() end
-	if busy and busy:IsShown() then busy:Hide(); UI:PlaceEdit() end
+	if busy and busy:IsShown() then busy:Hide() end
 	UI.dragging = false
 	ghost:Hide()
 	if self:Animated() then
