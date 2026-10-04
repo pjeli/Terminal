@@ -2298,6 +2298,15 @@ do -- AtlasLoot and Questie integrations
 	UI:Hide()
 	local n0 = UI:Search("pillager")[1]
 	check(n0 and n0.completion == "@npc pillager", "an NPC's name: the row offers @npc")
+	-- a name that's a quest and an NPC both: a row for each
+	local lootP = ns.providers.loot
+	local wasExplicit = lootP and lootP.explicit
+	if lootP then lootP.explicit = true end -- (the test's AtlasLoot has a "Red Defias Mask")
+	local both = UI:Search("defias")
+	if lootP then lootP.explicit = wasExplicit end
+	check(both[1] and both[1].completion == "@questie defias" and both[2] and both[2].completion == "@npc defias"
+		and both[1].name:find("Questie's quests", 1, true) and both[2].name:find("Questie's NPCs", 1, true),
+		"in Questie's quests and NPCs both: a row for each (" .. tostring(both[1] and both[1].name) .. " / " .. tostring(both[2] and both[2].name) .. ")")
 	local w0 = UI:Search("wolves across")[1]
 	check(w0 and not w0.completion, "your own results have it (the quest log): nothing offered")
 	check(not (UI:Search("de")[1] or {}).completion, "not for one or two letters")
@@ -3944,6 +3953,70 @@ do
 	ns.providers.slowtest = nil
 end
 
+do -- keybindings: found by name, Enter opens the Keybindings page on the row, Quick Keybind Mode
+	local S = ns.Secure
+	local BINDS = {
+		{ "HEADER_MOVEMENT", "BINDING_HEADER_MOVEMENT" },
+		{ "MOVEFORWARD", "BINDING_HEADER_MOVEMENT", "W", "UP" },
+		{ "TOGGLEWORLDMAP", "BINDING_HEADER_INTERFACE", "M" },
+		{ "TOGGLEMOUNTJOURNAL", "BINDING_HEADER_INTERFACE" },
+	}
+	_G.BINDING_NAME_MOVEFORWARD, _G.BINDING_NAME_TOGGLEWORLDMAP, _G.BINDING_NAME_TOGGLEMOUNTJOURNAL = "Move Forward", "Toggle World Map", "Mount Journal"
+	_G.BINDING_HEADER_MOVEMENT, _G.BINDING_HEADER_INTERFACE = "Movement Keys", "Interface Panel Functions"
+	_G.GetNumBindings = function() return #BINDS end
+	_G.GetBinding = function(i) local b = BINDS[i]; return b[1], b[2], b[3], b[4] end
+	_G.GetBindingText = function(k) return k == "UP" and "Up Arrow" or k end
+	ns.providers.keybinds._dirty = true
+	local kb = {}
+	for _, e in ipairs(ns:GetEntries(ns.providers.keybinds)) do kb[e.name] = e end
+	check(kb["Toggle World Map"] and kb["Toggle World Map"].detail == "M  ·  Interface Panel Functions", "a binding shows its key and category: " .. tostring(kb["Toggle World Map"] and kb["Toggle World Map"].detail))
+	check(kb["Move Forward"].detail:find("W, Up Arrow", 1, true) and kb["Mount Journal"].detail:find("not bound", 1, true), "both keys, or not bound")
+	check(not kb["HEADER_MOVEMENT"] and kb["Quick Keybind Mode"], "headers aren't listed; Quick Keybind Mode is")
+	check(UI:Search("@keybind world map")[1].name == "Toggle World Map", "@keybind finds it by name")
+	check(UI:Search("keybind M")[1] and true, "found by its key")
+	-- Enter: the game opens Options > Keybindings (a macro line), then the row is pointed at
+	local pointed
+	local G = ns.GameOptions
+	local realHL = G.HighlightSetting
+	G.HighlightSetting = function(name) pointed = name end
+	UI:Open("@keybind toggle world map")
+	key("ENTER")
+	local mt = _G.TerminalMacroProxy.attrs.macrotext or ""
+	check(S.armed == "MACRO" and mt:find(ns.Keybinds.OPEN_MACRO, 1, true) == 1, "Enter: the game opens the Keybindings page: " .. mt)
+	check(mt:find('SetText("Toggle World Map")', 1, true), "and types the action into the options search, so its row shows even in a collapsed section")
+	check(#mt <= 255, "the macro fits a macro line (" .. #mt .. ")")
+	-- run it the way the game would: the page opens and the search gets the name
+	local searched, openedTo
+	_G.Settings = { KEYBINDINGS_CATEGORY_ID = 42, OpenToCategory = function(id) openedTo = id end }
+	_G.SettingsPanel = Obj("Frame"); SettingsPanel.SearchBox = { SetText = function(_, t) searched = t end }
+	assert(loadstring(mt:gsub("^/run ", "")))()
+	check(openedTo == 42 and searched == "Toggle World Map", "the macro opens Keybindings and searches for the action")
+	_G.Settings, _G.SettingsPanel = nil, nil
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	check(pointed == "Toggle World Map", "and the action's row is pointed at")
+	-- Quick Keybind Mode: Shift+Enter starts it, through the game
+	UI:Open("@keybind quick keybind")
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == ns.Keybinds.QUICK_MACRO, "Shift+Enter on Quick Keybind Mode: the game starts it")
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	local q = kb["Quick Keybind Mode"]
+	check(UI.ClickFor(q, true) == ns.Keybinds.QUICK_MACRO and UI.ClickFor(q, false) == ns.Keybinds.MacroFor(""), "clicks do the same (Shift+click starts it)")
+	check(UI.ClickFor(kb["Toggle World Map"], false) == ns.Keybinds.MacroFor("Toggle World Map"), "a click on an action does what Enter does")
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	UI:Open("@keybind quick keybind"); mark = #log
+	UI:Activate(nil, { secondary = true })
+	_G.InCombatLockdown = realCombat
+	local said = false
+	for i = mark + 1, #log do if log[i]:find("Quick Keybind Mode can't", 1, true) then said = true end end
+	check(said, "in combat: it says it can't")
+	UI:Hide(); FlushAll()
+	G.HighlightSetting = realHL
+	_G.GetNumBindings, _G.GetBinding = nil, nil
+	ns.providers.keybinds._dirty = true
+end
 do -- the recipe index is per character by GUID: WoW Forever's first-and-last names ("Plamen Warr",
 	-- "Plamen Pally") give UnitName just "Plamen", and the realm name is the same, so they shared one
 	local P = ns.Professions

@@ -437,8 +437,8 @@ function UI:SearchText(text)
 	-- nothing here has what was typed in its name, but a list only searched with @kind does
 	-- (Questie's quests, NPCs): a row on top offers it (Tab or Enter adds the @kind)
 	if not kinds and not empty then
-		local hint, at = self:BigListHint(text, tokens, res, overBudget)
-		if hint then table.insert(res, math.min(at or 1, #res + 1), hint) end
+		local hints, at = self:BigListHint(text, tokens, res, overBudget)
+		for i, hint in ipairs(hints or {}) do table.insert(res, math.min((at or 1) + i - 1, #res + 1), hint) end
 	end
 	return res
 end
@@ -469,6 +469,7 @@ function UI:BigListHint(text, tokens, res, overBudget)
 	for _, e in ipairs(res) do
 		if NameHasAll(e, tokens) then mine = true break end
 	end
+	local hints = {} -- one row per list that has it (a name can be a quest and an NPC both)
 	for _, id in ipairs(HINT_KINDS) do
 		local p = ns.providers[id]
 		if p and p.explicit and (not mine or p.hintSecond) then
@@ -486,16 +487,17 @@ function UI:BigListHint(text, tokens, res, overBudget)
 			if first then
 				local kind = "@" .. (p.aliases and p.aliases[1] or id)
 				local query = text:gsub("^%s+", "")
-				return {
+				hints[#hints + 1] = {
 					name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
 					detail = first.name .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
 					icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
 					completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
 					_score = math.huge, _pos = {},
-				}, mine and 2 or 1
+				}
 			end
 		end
 	end
+	if #hints > 0 then return hints, mine and 2 or 1 end
 end
 
 --- A search spread over frames: up to SLICE_MS of it now. Gives the results to show, and

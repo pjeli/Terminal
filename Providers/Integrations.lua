@@ -512,6 +512,7 @@ local function SetupQuestie()
 		label = "NPC",
 		color = "ffe0a060",
 		aliases = { "npc", "npcs", "n", "mob", "vendor" },
+		hintLabel = "Questie's NPCs",
 		explicit = true, -- tens of thousands of names: only searched with @npc
 		noCombat = true,
 		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
@@ -537,6 +538,7 @@ local function SetupQuestie()
 		label = "Questie",
 		color = "ffb48cff",
 		aliases = { "questie", "questdb", "allquests" },
+		hintLabel = "Questie's quests",
 		explicit = true, -- every quest in the game: only searched with @questie
 		busy = function() return qdb.busy and "Indexing Questie's quests" or nil end,
 		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat).

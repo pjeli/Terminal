@@ -92,6 +92,8 @@ local function HighlightSetting(name)
 	end, 6, 40)
 end
 
+ns.GameOptions = { HighlightSetting = HighlightSetting } -- (keybindings point at their row the same way)
+
 local function OpenOption(e)
 	if OpenPage(e.opt) then HighlightSetting(e.name) end
 end
