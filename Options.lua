@@ -136,6 +136,92 @@ local function PaintPreview()
 end
 O.PaintPreview = PaintPreview
 
+-- The example plays on a loop, the way the terminal moves with the chosen animation and cursor:
+-- it opens, the query is typed, the result comes in, the cursor blinks while idle, then it closes.
+local QUERY = "hvy ban"
+local TYPE_AT, TYPE_STEP, IDLE, GAP = 0.15, 0.11, 2.4, 0.5
+local demo = { t = 0 }
+O.demo = demo
+
+local Ease, Move = T.Ease, T.Move
+local STEP = 1 / 30 -- the example redraws 30 times a second, and only what changed
+
+-- each setter touches the frame only when the value changed
+local function Alpha(f, a)
+	a = math.floor(a * 50 + 0.5) / 50
+	if f._a ~= a then f._a = a; f:SetAlpha(a) end
+end
+local function PreviewAt(y) -- the example moved y pixels from its place (opening, closing)
+	y = math.floor((y or 0) + 0.5)
+	if pv._y == y then return end
+	pv._y = y
+	pv:ClearAllPoints()
+	pv:SetPoint("TOPLEFT", 440, -88 + y)
+end
+local function LabelAt(dx)
+	dx = math.floor(dx + 0.5)
+	if pv.label._dx == dx then return end
+	pv.label._dx = dx
+	pv.label:ClearAllPoints()
+	pv.label:SetPoint("LEFT", pv.band, "LEFT", 6 + dx, 0)
+end
+
+function O.AnimatePreview(elapsed)
+	demo.t = demo.t + (elapsed or 0)
+	demo.acc = (demo.acc or 0) + (elapsed or 0)
+	if demo.acc < STEP and elapsed and elapsed > 0 and elapsed < STEP then return end
+	demo.acc = 0
+	local t = T.Get()
+	local A = T.Animation(t) -- nil: animations off
+	local open = A and A.open or 0
+	local close = A and A.close or 0
+	local typed = open + TYPE_AT + #QUERY * TYPE_STEP
+	local rowFade = A and A.rowFade or 0
+	local closeAt = typed + rowFade + IDLE
+	local cycle = closeAt + close + GAP
+	local c = demo.t % cycle
+	demo.phase = c
+	-- opening and closing: fade, and the style's drift (scaled to the example's size)
+	local alpha, y = 1, 0
+	if A and c < open then
+		alpha, y = Ease(c / (A.fade or open)), -A.drift * 0.4 * (1 - Move(A, c / open))
+	elseif c >= closeAt then
+		local k = A and close > 0 and Ease((c - closeAt) / close) or 1
+		alpha, y = 1 - k, A and -A.closeDrift * 0.4 * k or 0
+	end
+	Alpha(pv, alpha)
+	PreviewAt(-y)
+	-- typing, a letter at a time
+	local n = math.max(0, math.min(#QUERY, math.floor((c - open - TYPE_AT) / TYPE_STEP) + 1))
+	if c < open + TYPE_AT then n = 0 end
+	if demo.typed ~= n then demo.typed = n; pv.query:SetText(QUERY:sub(1, n)) end
+	-- the result comes in once typed, as rows do (fade; cascade swings it in from the left and,
+	-- closing, back out)
+	local k, dx = 0, 0
+	local slide = A and A.slide or 0
+	if c >= typed then
+		local x = rowFade > 0 and (c - typed) / rowFade or 1
+		k = Ease(x)
+		dx = -slide * (1 - Move(A, x))
+	end
+	if A and A.foldOut and c >= closeAt then dx = -slide * Ease((c - closeAt) / close) end
+	Alpha(pv.band, k)
+	Alpha(pv.label, k)
+	Alpha(pv.detail, k)
+	LabelAt(dx)
+	-- the cursor: solid while typing, then blinking (or not) as set, at the set speed
+	local box = t.cursor == "blinking-box" or t.cursor == "solid-box"
+	local blink = t.cursor == "blinking-line" or t.cursor == "blinking-box" or not T.CURSOR_LABELS[t.cursor]
+	local a = 1
+	local idle = c - typed - 0.45
+	if blink and idle > 0 then
+		local wave = math.cos(idle * math.pi * 2 * (t.blinkRate or 0.8))
+		a = box and math.max(0, math.min(1, 0.5 + 1.4 * wave)) or (0.55 + 0.45 * wave)
+	end
+	Alpha(pv.caret, a * (box and 0.85 or 1))
+end
+pv:SetScript("OnUpdate", function(_, elapsed) O.AnimatePreview(elapsed) end)
+
 ----------------------------------------------------------------------
 -- Layout
 ----------------------------------------------------------------------
@@ -230,6 +316,14 @@ Label("Cursor", "GameFontNormal", 130, -150)
 local function CursorLabel(id) return T.CURSOR_LABELS[id] end
 O.widgets.cursor, O.widgets.cursorList, O.cursorItems = Dropdown(130, -168, 150, T.CURSOR_ORDER, CursorLabel, function(id) T.Set("cursor", id) end)
 
+-- Animation style: a dropdown beside the cursor's (the example above plays it)
+Label("Animation", "GameFontNormal", 296, -150)
+local function AnimLabel(id) return T.ANIMATION_LABELS[id] end
+O.widgets.animations, O.widgets.animationList, O.animationItems = Dropdown(296, -168, 150, T.ANIMATION_ORDER, AnimLabel, function(id)
+	T.Set("animations", id)
+	demo.t, demo.acc = 0, 1 -- the example plays the new style from the start
+end)
+
 -- Colours
 Label("Colours", "GameFontNormal", 16, -202)
 local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border" }
@@ -281,13 +375,6 @@ scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked(
 Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -503)
 O.widgets.autoScan = scanCheck
 
-local animCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-animCheck:SetSize(24, 24)
-animCheck:SetPoint("TOPLEFT", 190, -524)
-animCheck:SetScript("OnClick", function(self) T.Set("animations", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.animations.label, "GameFontHighlight", 216, -529)
-O.widgets.animations = animCheck
-
 -- the panel's own actions, on a row of their own below everything else
 local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 open:SetSize(130, 22)
@@ -325,7 +412,9 @@ function O.Refresh()
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
-	O.widgets.animations:SetChecked(t.animations ~= false)
+	local anim = T.ANIMATION_LABELS[t.animations] and t.animations or (t.animations == false and "off" or "smooth")
+	O.widgets.animations:SetText(AnimLabel(anim))
+	MarkChoice(O.animationItems, anim, AnimLabel)
 	local preset = T.PRESETS[t.preset]
 	O.widgets.themeMenu:SetText(preset and preset.label or "Custom")
 	MarkChoice(O.themeItems, t.preset, ThemeLabel)

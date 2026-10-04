@@ -128,6 +128,27 @@ ns:RegisterCommand("mem", {
 				#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
 		end
 		lines[#lines + 1] = ("  %d entries in all"):format(total)
+		-- the game's own measure of Terminal's CPU time, where this client has it
+		local P, M = _G.C_AddOnProfiler, Enum and Enum.AddOnProfilerMetric
+		if P and P.GetAddOnMetric and M and M.RecentAverageTime then
+			local ok, mine = pcall(P.GetAddOnMetric, "Terminal", M.RecentAverageTime)
+			local okAll, all = false, nil
+			if P.GetOverallMetric then okAll, all = pcall(P.GetOverallMetric, M.RecentAverageTime) end
+			if ok and type(mine) == "number" then
+				lines[#lines + 1] = ("Terminal CPU: %.3f ms per frame lately%s"):format(mine,
+					(okAll and type(all) == "number" and all > 0) and (" (%.1f%% of all addons)"):format(mine / all * 100) or "")
+			end
+		end
+		-- what runs on its own right now (nothing, with the terminal and its options closed)
+		local UI0 = ns.UI
+		local running = {}
+		if UI0 and UI0.motion and UI0.motion:IsShown() then
+			running[#running + 1] = UI0.blinkOnly and "cursor blink (30/s)" or "animation (every frame)"
+		end
+		if UI0 and UI0.busy and UI0.busy:IsVisible() then running[#running + 1] = "loading spinner" end
+		if UI0 and UI0.searchJob then running[#running + 1] = "a search" end
+		if ns.Options and ns.Options.preview and ns.Options.preview:IsVisible() then running[#running + 1] = "options example (30/s)" end
+		lines[#lines + 1] = "Running now: " .. (#running > 0 and table.concat(running, ", ") or "nothing")
 		local W = ns.warm or {}
 		if W.started then
 			lines[#lines + 1] = W.done and "Lists built ahead of use: done"

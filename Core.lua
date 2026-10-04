@@ -326,9 +326,11 @@ function ns:PrewarmStep()
 	local q = warm.queue
 	if not q then
 		q, warm.tries = {}, {}
-		-- lists that rebuild on every open anyway are left out
+		-- left out: lists that rebuild on every open anyway, and the huge ones freed when unused
+		-- (Questie, NPCs, maps...: built at every login and thrown away 10 minutes later otherwise)
 		for _, id in ipairs(self.providerOrder) do
-			if not self.providers[id].refreshOnOpen then q[#q + 1] = id end
+			local p = self.providers[id]
+			if not p.refreshOnOpen and not p.idleDrop then q[#q + 1] = id end
 		end
 		warm.queue = q
 	end

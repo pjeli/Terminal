@@ -30,15 +30,19 @@ local PASS_KEYS = {
 }
 
 local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy, catcher
+local PlaceRow -- (Motion)
 local rows = {}
 UI.rows = rows
 local motion = CreateFrame("Frame") -- drives every animation (see "Motion")
--- motion timings
-local OPEN_T, CLOSE_T = 0.18, 0.12   -- seconds
-local OPEN_DRIFT, CLOSE_DRIFT = 10, 6 -- pixels
-local ROW_FADE, ROW_STAGGER = 0.14, 0.018
+-- motion timings come from the animation style (Theme.ANIMATIONS)
+local function Style() return Theme.Animation() or Theme.ANIMATIONS.smooth end
 motion:Hide()
 UI.motion = motion
+-- something starts moving: the loop runs every frame again (resting, it only blinks the cursor)
+local function Wake()
+	UI.blinkOnly = false
+	motion:Show()
+end
 local results = {}
 function UI.Results() return results end
 local sel, offset = 1, 0
@@ -439,13 +443,17 @@ function UI:RunSearch(text)
 	self.searchJob = nil
 	if not (debugprofilestop and coroutine) then return self:Search(text), true end
 	local job = { co = coroutine.create(function() return self:Search(text) end), ms = 0 }
+	job.step = function() self:ContinueSearch(job) end
 	local res, done = self:StepSearch(job)
 	if done then return res, true end
-	-- not finished: the best of what matched so far (on a copy: the search goes on filling it)
+	-- not finished: the best of what matched so far (on a copy: the search goes on filling it),
+	-- under the calculator's answer when there is one (Search adds it only at the end)
 	local t0 = debugprofilestop()
 	local copy = {}
 	for i = 1, #res do copy[i] = res[i] end
 	copy = SortAndTrim(copy)
+	local calc = ns.Calc and ns.Calc.Entry(text)
+	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)
 	return copy, false
 end
@@ -477,7 +485,7 @@ function UI:ContinueSearch(job)
 	if not self:IsShown() or self.closing or self.armedEntry then self.searchJob = nil return end
 	local final, done = self:StepSearch(job)
 	if not done then
-		C_Timer.After(0, function() self:ContinueSearch(job) end)
+		C_Timer.After(0, job.step) -- (one closure per search, not one per frame)
 		return
 	end
 	-- the selected row (if you moved it) stays selected, and the list stays where you scrolled it
@@ -536,8 +544,7 @@ function UI:Refresh()
 		local done
 		results, done = self:RunSearch(text)
 		if not done then
-			local job = self.searchJob
-			C_Timer.After(0, function() self:ContinueSearch(job) end)
+			C_Timer.After(0, self.searchJob.step)
 		end
 	end
 	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
@@ -709,10 +716,13 @@ function UI:Render()
 			if not r:IsShown() or r.leaving then
 				r.leaving = nil
 				if animated then
-					r.fadeAt = now + entering * ROW_STAGGER
+					local A = Style()
+					r.fadeAt = now + entering * A.stagger
+					r.slide = A.slide > 0 and A.slide or nil
+					if r.slide then PlaceRow(r, -r.slide) end
 					entering = entering + 1
 					if not r:IsShown() then r:SetAlpha(0) end
-					motion:Show()
+					Wake()
 				else
 					r.fadeAt = nil
 					r:SetAlpha(1)
@@ -745,7 +755,7 @@ function UI:Render()
 			-- no result for this row any more: it fades as the list shrinks over it
 			if animated and i <= ROWS then
 				r.leaving, r.leaveAt, r.fadeAt = true, now, nil
-				motion:Show()
+				Wake()
 			else
 				r:Hide()
 			end
@@ -1038,7 +1048,7 @@ function UI:UpdateCaret()
 	caret:SetAlpha(1)
 	caretChar:SetAlpha(1)
 	self:PlaceTextSel()
-	if self:Animated() or st.blink then motion:Show() end
+	if self:Animated() or st.blink then Wake() end
 	self:UpdateGhost()
 end
 
@@ -1091,11 +1101,15 @@ function UI:PressPrompt()
 	end
 	self.cursor = idx
 	self.dragging = true
+	if hit then hit:SetScript("OnUpdate", function() UI:DragPrompt() end) end -- only while dragging
 	self:UpdateCaret()
 end
 
 function UI:DragPrompt()
-	if not (self.dragging and self.keys) then return end
+	if not (self.dragging and self.keys) then -- the drag ended some other way (closed, focus): stop watching
+		if hit then hit:SetScript("OnUpdate", nil) end
+		return
+	end
 	local idx = IndexAt(PromptX())
 	if idx ~= self.cursor then
 		self.cursor = idx
@@ -1105,6 +1119,7 @@ end
 
 function UI:ReleasePrompt()
 	self.dragging = false
+	if hit then hit:SetScript("OnUpdate", nil) end
 	if self.anchor == self.cursor then self.anchor = nil end
 	self:UpdateCaret()
 end
@@ -1133,7 +1148,8 @@ function UI:BusyLines()
 	return out, who
 end
 
---- The query box ends before the spinner while it shows.
+--- The query box: room for the spinner is always kept at its end (resizing it as the spinner
+--- came and went made the game report the text as changed).
 function UI:PlaceEdit()
 	if not (edit and self.editLeft) then return end
 	edit:ClearAllPoints()
@@ -1174,9 +1190,12 @@ function UI:SpinBusy(elapsed)
 	busy.t = (busy.t or 0) + (elapsed or 0)
 	busy.check = (busy.check or 0) + (elapsed or 0)
 	local head = math.floor(busy.t * 10) % BUSY_DOTS -- one step every 0.1 s
-	for i, d in ipairs(busy.dots) do
-		local behind = (head - (i - 1)) % BUSY_DOTS -- 0 = the leading dot
-		d:SetAlpha(1 - behind / BUSY_DOTS * 0.85)
+	if head ~= busy.head then -- (redrawn only when the leading dot moves)
+		busy.head = head
+		for i, d in ipairs(busy.dots) do
+			local behind = (head - (i - 1)) % BUSY_DOTS -- 0 = the leading dot
+			d:SetAlpha(1 - behind / BUSY_DOTS * 0.85)
+		end
 	end
 	if busy.check >= 0.5 then
 		busy.check = 0
@@ -1595,13 +1614,18 @@ end
 ----------------------------------------------------------------------
 
 
-local function Ease(x) -- ease-out cubic
-	if x <= 0 then return 0 elseif x >= 1 then return 1 end
-	local u = 1 - x
-	return 1 - u * u * u
-end
+local Ease, Move = Theme.Ease, Theme.Move -- ease-out cubic; and the style's movement ease
+local BLINK_STEP = 1 / 30 -- resting (only the cursor blinking): 30 updates a second are plenty
 
-function UI:Animated() return Theme.Get().animations ~= false end
+function UI:Animated() return Theme.Animation() ~= nil end
+
+--- A row in its place, or `dx` pixels to the right of it (sliding in).
+PlaceRow = function(r, dx)
+	local y = r.baseY or 0
+	r:ClearAllPoints()
+	r:SetPoint("TOPLEFT", 6 + (dx or 0), y)
+	r:SetPoint("TOPRIGHT", -6 + (dx or 0), y)
+end
 
 --- Where the terminal rests (its saved spot), and drifted `dy` pixels from it.
 local function Anchor(dy)
@@ -1621,23 +1645,35 @@ function UI:StartOpen(reopening)
 		return
 	end
 	-- reopened while still fading out: carry on from where it is
+	local A = Style()
 	self.phase = "open"
 	local a = frame:GetAlpha()
 	a = type(a) == "number" and a or 0
-	self.phaseAt = GetTime() - (reopening and OPEN_T * a or 0)
+	self.phaseAt = GetTime() - (reopening and A.open * a or 0)
 	if not reopening then
 		frame:SetAlpha(0)
-		Anchor(-OPEN_DRIFT)
+		Anchor(-A.drift)
 	end
 	self.selY = nil
-	motion:Show()
+	Wake()
 end
 
 function UI:StartClose()
 	self.closing = true
 	local a = frame:GetAlpha()
-	self.phase, self.phaseAt, self.closeFrom = "close", GetTime(), type(a) == "number" and a or 1
-	motion:Show()
+	local now = GetTime()
+	self.phase, self.phaseAt, self.closeFrom = "close", now, type(a) == "number" and a or 1
+	-- cascade: the rows fold away bottom-up, sliding back out to the left
+	local A = Style()
+	if A.foldOut then
+		local shown = {}
+		for _, r in ipairs(rows) do if r:IsShown() and not r.leaving then shown[#shown + 1] = r end end
+		local step = #shown > 1 and math.min(A.stagger, (A.close - A.rowFade * 0.5) / (#shown - 1)) or 0
+		for i, r in ipairs(shown) do
+			r.leaving, r.leaveAt, r.fadeAt, r.slideOut = true, now + (#shown - i) * math.max(0, step), nil, true
+		end
+	end
+	Wake()
 end
 
 --- Back to rest: full alpha, in place, nothing moving.
@@ -1650,6 +1686,7 @@ function UI:MotionReset()
 			r.fadeAt = nil
 			if r.leaving then r.leaving = nil; r:Hide() end
 			r:SetAlpha(1)
+			if r.slide or r.slideOut then r.slide, r.slideOut = nil, nil; PlaceRow(r, 0) end
 		end
 	end
 	motion:Hide()
@@ -1666,7 +1703,7 @@ function UI:FitHeight()
 	if self.snapNext or not self:Animated() or type(cur) ~= "number" or cur <= 0 then
 		frame:SetHeight(h)
 	elseif math.abs(cur - h) > 0.5 then
-		motion:Show()
+		Wake()
 	end
 end
 
@@ -1684,7 +1721,7 @@ function UI:PlaceSelection()
 		self.selY = self.selTo
 		self:SetSelectionY(self.selY)
 	else
-		motion:Show()
+		Wake()
 	end
 	selBar:Show(); selEdge:Show()
 end
@@ -1702,18 +1739,24 @@ end
 
 motion:SetScript("OnUpdate", function(self, elapsed)
 	if not frame then self:Hide() return end
+	-- resting: only the cursor blinks, at BLINK_STEP; anything that moves wakes it (Wake)
+	self.acc = (self.acc or 0) + (elapsed or 0)
+	if UI.blinkOnly and self.acc < BLINK_STEP then return end
+	elapsed, self.acc = self.acc, 0
 	local now = GetTime()
-	local busy = false
+	local busy, blinking = false, false
+	local A = Style()
+	local speed = A.speed or 1
 	-- open / close
 	if UI.phase == "open" then
-		local k = Ease((now - UI.phaseAt) / OPEN_T)
-		frame:SetAlpha(k)
-		Anchor(-OPEN_DRIFT * (1 - k))
-		if k >= 1 then UI.phase = nil else busy = true end
+		local x = (now - UI.phaseAt) / A.open
+		frame:SetAlpha(Ease((now - UI.phaseAt) / (A.fade or A.open)))
+		Anchor(-A.drift * (1 - Move(A, x)))
+		if x >= 1 then UI.phase = nil else busy = true end
 	elseif UI.phase == "close" then
-		local k = Ease((now - UI.phaseAt) / CLOSE_T)
+		local k = Ease((now - UI.phaseAt) / A.close)
 		frame:SetAlpha((UI.closeFrom or 1) * (1 - k))
-		Anchor(-CLOSE_DRIFT * k)
+		Anchor(-A.closeDrift * k)
 		if k >= 1 then
 			UI.phase, UI.closing = nil, false
 			frame:Hide()
@@ -1723,14 +1766,14 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 		busy = true
 	end
 	if not frame:IsShown() then self:Hide() return end
-	local blend = math.min(1, (elapsed or 0) * 18)
+	local blend = math.min(1, (elapsed or 0) * 18 * speed)
 	-- height: grow / shrink toward the results
 	if UI.heightTo then
 		local cur = frame:GetHeight()
 		if type(cur) == "number" then
 			local d = UI.heightTo - cur
 			if math.abs(d) > 0.5 then
-				frame:SetHeight(cur + d * math.min(1, (elapsed or 0) * 16))
+				frame:SetHeight(cur + d * math.min(1, (elapsed or 0) * 16 * speed))
 				busy = true
 			elseif d ~= 0 then
 				frame:SetHeight(UI.heightTo)
@@ -1752,7 +1795,7 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 	if caret:IsShown() and UI.caretTo then
 		local d = UI.caretTo - (UI.caretX or UI.caretTo)
 		if math.abs(d) > 0.3 then
-			UI.caretX = (UI.caretX or UI.caretTo) + d * math.min(1, (elapsed or 0) * 28)
+			UI.caretX = (UI.caretX or UI.caretTo) + d * math.min(1, (elapsed or 0) * 28 * speed)
 			busy = true
 		else
 			UI.caretX = UI.caretTo
@@ -1770,31 +1813,46 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 				-- never seen half-covered
 				a = st.box and math.max(0, math.min(1, 0.5 + 1.4 * wave)) or (0.55 + 0.45 * wave)
 			end
-			busy = true -- blinking never settles while the caret is up
+			blinking = true -- blinking never settles while the caret is up
 		end
-		caret:SetAlpha(a)
-		caretChar:SetAlpha(a)
+		a = math.floor(a * 50 + 0.5) / 50 -- (steps the eye can't tell apart aren't redrawn)
+		if a ~= UI.caretAlpha then
+			UI.caretAlpha = a
+			caret:SetAlpha(a)
+			caretChar:SetAlpha(a)
+		end
 		if moved then UI:PlaceTextSel() end
 	end
 	-- rows that appear fade in (staggered when set); rows that go fade out, then hide
 	for _, r in ipairs(rows) do
 		if r.leaving then
-			local k = Ease((now - (r.leaveAt or now)) / ROW_FADE)
+			local x = (now - (r.leaveAt or now)) / A.rowFade
+			local k = Ease(x)
 			r:SetAlpha(1 - k)
+			if r.slideOut then PlaceRow(r, -A.slide * Ease(x)) end -- cascade: folding away
 			if k >= 1 then
 				r.leaving = nil
 				r:Hide()
 				r:SetAlpha(1)
+				if r.slideOut then r.slideOut = nil; PlaceRow(r, 0) end
 			else
 				busy = true
 			end
 		elseif r.fadeAt and r:IsShown() then
-			local k = Ease((now - r.fadeAt) / ROW_FADE)
+			local x = (now - r.fadeAt) / A.rowFade
+			local k = Ease(x)
 			r:SetAlpha(k)
-			if k >= 1 then r.fadeAt = nil else busy = true end
+			if r.slide then PlaceRow(r, -r.slide * (1 - Move(A, x))) end -- cascade: in from the left
+			if k >= 1 then
+				r.fadeAt = nil
+				if r.slide then r.slide = nil; PlaceRow(r, 0) end
+			else
+				busy = true
+			end
 		end
 	end
-	if not busy then self:Hide() end
+	UI.blinkOnly = not busy
+	if not busy and not blinking then self:Hide() end
 end)
 
 ----------------------------------------------------------------------
@@ -2090,7 +2148,6 @@ local function Build()
 	hit:Hide()
 	hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
 	hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
-	hit:SetScript("OnUpdate", function() if UI.dragging then UI:DragPrompt() end end)
 	UI.hit = hit
 
 	-- a ring of dots at the end of the prompt while something is still loading; mouse-over says what
@@ -2299,10 +2356,9 @@ function UI:ApplyTheme()
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
 		local y = -HEADER_H - (i - 1) * ROW_H
-		row:ClearAllPoints()
 		row:SetHeight(ROW_H)
-		row:SetPoint("TOPLEFT", 6, y)
-		row:SetPoint("TOPRIGHT", -6, y)
+		row.baseY, row.slide = y, nil
+		PlaceRow(row, 0)
 		row.icon:SetSize(ROW_H - 6, ROW_H - 6)
 		row.detail:SetWidth(math.floor(t.width * 0.3))
 		row.label:SetTextColor(tr, tg, tb)

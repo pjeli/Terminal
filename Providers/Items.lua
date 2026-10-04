@@ -213,9 +213,15 @@ end
 local USE_SPEC = { macro = UseMacro }
 local function UseNeverOpen() return false end -- nothing has to be open first: always pressed
 local function UsedAfter(e) ns:Trace("items: the game used " .. tostring(e.name)) end
--- only when the game can't press it: in combat (Enter can't be rebound then)
+-- only when the game couldn't be handed the press: in combat (Enter can't be rebound then), or
+-- no secure button could be made
 local function UseInCombat(e)
-	ns:Print("In combat: Terminal can't use " .. tostring(e.name) .. " (the game doesn't allow it then).")
+	if InCombatLockdown() then
+		ns:Print("In combat: Terminal can't use " .. tostring(e.name) .. " (the game doesn't allow it then).")
+	else
+		ns:Trace("items: no secure button to use " .. tostring(e.name))
+		ns:Print("Couldn't use " .. tostring(e.name) .. " from the terminal. Try it from your bags.")
+	end
 end
 
 -- Quest items. A bag item is tied to its quest even without any other addon:

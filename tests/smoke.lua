@@ -758,11 +758,21 @@ do
 	local H = UI.hit
 	check(H and H.shown == true and H.mouse == true, "a mouse-catching frame covers the prompt while Terminal reads keys")
 	local function down(x, shift) mouseX = x; if shift then _G.IsShiftKeyDown = function() return true end end; H.scripts.OnMouseDown(H, "LeftButton"); _G.IsShiftKeyDown = function() return false end end
-	local function drag(x) mouseX = x; H.scripts.OnUpdate(H, 0.01) end
+	local function drag(x) mouseX = x; if H.scripts.OnUpdate then H.scripts.OnUpdate(H, 0.01) end end
 	local function up() H.scripts.OnMouseUp(H, "LeftButton") end
-	down(100 + 7 * 5 + 2); up()
+	check(not H.scripts.OnUpdate, "nothing runs every frame over the prompt until you press the mouse")
+	down(100 + 7 * 5 + 2)
+	check(H.scripts.OnUpdate, "pressed: the drag is followed")
+	up()
+	check(not H.scripts.OnUpdate, "let go: it stops")
 	check(UI.cursor == 5 and sel() == nil and UI.keys == true and UI.edit.focused ~= true, "a click puts the cursor between characters and stays in the drawn prompt: " .. tostring(UI.cursor))
 	check(UI.caret.shown == true, "the cursor is still Terminal's own")
+	-- closed mid-drag: the watcher stops at its next look instead of running on
+	down(100 + 7 * 2)
+	UI.dragging = false -- (what closing or a focus change does)
+	H.scripts.OnUpdate(H, 0.01)
+	check(not H.scripts.OnUpdate, "a drag ended some other way: the watcher removes itself")
+	up()
 	down(100 + 14); drag(100 + 7 * 4); drag(100 + 7 * 7 + 1); up()
 	check(sel() == "llo w" and UI.keys == true, "dragging selects: " .. tostring(sel()))
 	down(100 + 7 * 3); up()
@@ -827,6 +837,11 @@ do
 	local saidCantUse = false
 	for i = mark + 1, #log do if log[i]:find("can't use Hearthstone", 1, true) then saidCantUse = true end end
 	check(saidCantUse and not logHas("OpenAllBags", mark + 1) and S.armed == nil, "in combat: Terminal says it can't use it, and nothing else happens")
+	mark = #log
+	hs.secondary(hs) -- out of combat, when no secure button could be made
+	local saidCombat = false
+	for i = mark + 1, #log do if log[i]:find("In combat", 1, true) then saidCombat = true end end
+	check(not saidCombat, "out of combat, failing to use an item doesn't claim you're in combat")
 	UI:Hide(); FlushAll()
 
 	-- reputation: its own tab command, then the after step checks the tab
@@ -1457,6 +1472,43 @@ do
 	check(Th.Get().promptText == "@", "any character typed into the prompt box works")
 	check(Th.Set("promptText", "abc") and not Th.Set("promptText", "abcd"), "three characters fit, four don't")
 	Th.Set("promptText", ">")
+	-- animation style is a dropdown too; the example plays it
+	local anim = O.widgets.animations
+	check(anim and O.animationItems.cascade and O.widgets.animationList, "an Animation dropdown with the styles")
+	anim.scripts.OnClick(anim)
+	O.animationItems.cascade.scripts.OnClick(O.animationItems.cascade)
+	check(Th.Get().animations == "cascade" and anim:GetText() == "Cascade", "picking a style sets it: " .. tostring(anim:GetText()))
+	check(O.widgets.animations.SetChecked == nil or not O.widgets.animCheck, "no animations checkbox any more")
+	O.demo.t = 0
+	O.AnimatePreview(0.6)
+	local partly = pv.query:GetText()
+	check(#partly > 0 and #partly < #"hvy ban" and (pv.label.alpha or 1) == 0, "the example types the query (" .. partly .. "), the result not there yet")
+	O.AnimatePreview(0.9)
+	check(pv.query:GetText() == "hvy ban" and pv.label.alpha == 1, "then the result comes in")
+	local seen = {}
+	for _ = 1, 20 do O.AnimatePreview(0.1); seen[#seen + 1] = pv.caret.alpha end
+	local lo, hi = math.min(unpack(seen)), math.max(unpack(seen))
+	check(hi - lo > 0.3, "the cursor blinks while idle (" .. lo .. " to " .. hi .. ")")
+	Th.Set("cursor", "solid-line")
+	O.demo.t = 2
+	seen = {}
+	for _ = 1, 10 do O.AnimatePreview(0.1); seen[#seen + 1] = pv.caret.alpha end
+	check(math.min(unpack(seen)) == math.max(unpack(seen)), "a solid cursor doesn't blink in the example")
+	Th.Set("cursor", "blinking-line")
+	-- the example redraws at most 30 times a second, and only what changed
+	local sets = 0
+	local realSet = pv.query.SetText
+	pv.query.SetText = function(self, ...) sets = sets + 1 return realSet(self, ...) end
+	local moves, realPoint = 0, pv.SetPoint
+	pv.SetPoint = function(self, ...) moves = moves + 1 return realPoint(self, ...) end
+	O.demo.t, O.demo.acc = 2, 0
+	local calls = 0
+	local realA = pv.caret.SetAlpha
+	pv.caret.SetAlpha = function(self, ...) calls = calls + 1 return realA(self, ...) end
+	for _ = 1, 60 do O.AnimatePreview(1 / 60) end
+	pv.query.SetText, pv.SetPoint, pv.caret.SetAlpha = realSet, realPoint, realA
+	check(sets == 0 and moves == 0 and calls <= 30, "the example while idle: no text or position changes, cursor redrawn at most 30/s (" .. sets .. ", " .. moves .. ", " .. calls .. ")")
+	Th.Set("animations", "smooth")
 	-- cursor style is a dropdown
 	local CM, CL = O.widgets.cursor, O.widgets.cursorList
 	check(CL.shown ~= true and CM:GetText() == "Blinking line", "the cursor dropdown shows the current style: " .. tostring(CM:GetText()))
@@ -2025,6 +2077,29 @@ do -- world map locations
 	ns.db.blockedCalls = nil
 	for i = #D.events, 1, -1 do D.events[i] = nil end
 	for i = #D.trace, 1, -1 do D.trace[i] = nil end
+	-- another addon's blocked actions (by the hundred, as taint spreads): counted cheaply, folded
+	-- into one line, and no stack taken (that was counted as Terminal's CPU)
+	local stacks, realStack = 0, _G.debugstack
+	_G.debugstack = function(...) stacks = stacks + 1 return realStack and realStack(...) or "" end
+	local mineBefore, othersBefore = D.count, D.others
+	ns.db.debug = false
+	for _ = 1, 500 do D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "SomeOtherAddon", "Button:SetPassThroughButtons()") end
+	check(stacks == 0 and #D.events == 1 and D.events[1].times == 500, "500 blocks of another addon: one line (x500), no stacks taken")
+	check(D.count == mineBefore and D.others == othersBefore + 500, "and they don't count as Terminal's own blocks")
+	check(table.concat(ns.commands.debug.run(""), " "):find("by other addons", 1, true), ".debug says how many were other addons'")
+	check(table.concat(D.Describe(D.events[1]), " "):find("isn't recorded", 1, true), "and doesn't claim Terminal was idle when it didn't record")
+	check(table.concat(D.Describe and D.Describe(D.events[1]) or { "x500" }, " "):find("x500", 1, true) ~= nil, "the log says how many")
+	D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "Terminal", "UNKNOWN()")
+	check(stacks == 1 and D.count == mineBefore + 1 and #D.events == 2, "Terminal's own block still gets the full record")
+	-- with .debug on: printed once, not 500 times
+	for i = #D.events, 1, -1 do D.events[i] = nil end
+	ns.db.debug = true
+	local printed0 = #log
+	for _ = 1, 500 do D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "SomeOtherAddon", "Button:SetPassThroughButtons()") end
+	ns.db.debug = false
+	check(#log - printed0 <= 3 and D.events[1].times == 500, "with .debug on, another addon's repeats print once (" .. (#log - printed0) .. " lines)")
+	_G.debugstack = realStack
+	for i = #D.events, 1, -1 do D.events[i] = nil end
 	C_Map, C_TaxiMap, C_AreaPoiInfo, _G.C_EncounterJournal = nil, nil, nil, nil
 	ns.providers.maps._dirty = true
 end
@@ -2585,6 +2660,13 @@ do -- big searches go on over several frames: the best so far first, then the fu
 	check(UI.searchJob == nil and searches == 0, "it finishes, and isn't started again after")
 	check(UI.Selected() > 6 and UI.Results()[UI.Selected()] == topBefore or UI.Selected() > 6,
 		"the list stays scrolled where you put it (row " .. UI.Selected() .. " selected)")
+	-- a sum while a search is spread over frames: its answer is on top from the first frame
+	_G.debugprofilestop = function() ms = ms + 1; return ms end
+	UI:SetQuery("3*4")
+	local first = UI.Results()[1]
+	FlushAll()
+	_G.debugprofilestop = realClock
+	check(first and first.kind == "calc" and UI.Results()[1].kind == "calc", "a sum's answer is the top row from the first frame")
 	-- without a clock (or for callers outside the terminal), a search is done at once
 	check(#UI:Search("@bigtest alpha") == 100 and UI.searchJob == nil, "UI:Search itself always finishes at once")
 	UI:Hide(); FlushAll()
@@ -2601,6 +2683,9 @@ do -- prewarming: lists built ahead of their first search, one at a time, while 
 		collect = function() built = built + 1; return { { name = "Slow thing" } } end })
 	ns:RegisterProvider("warmfast", { label = "WF", aliases = { "warmfast" }, lazy = true,
 		collect = function() return { { name = "Fast thing" } } end })
+	local hugeBuilt = false
+	ns:RegisterProvider("warmhuge", { label = "WH", aliases = { "warmhuge" }, explicit = true, idleDrop = 600,
+		collect = function() hugeBuilt = true; return { { name = "Huge thing" } } end })
 	W.queue, W.done = nil, nil
 	for _, id in ipairs(ns.providerOrder) do ns.providers[id]._dirty = true end
 	local realCombat = _G.InCombatLockdown
@@ -2620,6 +2705,9 @@ do -- prewarming: lists built ahead of their first search, one at a time, while 
 	while steps < 400 and not W.done do ns:PrewarmStep(); steps = steps + 1 end
 	check(built == 1 and W.done and not ns.providers.warmslow._dirty, "and is built once it's in; then prewarming stops")
 	check(ns:PrewarmStep() == false, "nothing left to do")
+	check(not hugeBuilt, "huge lists freed when unused (Questie, NPCs) aren't built at login")
+	ns.providers.warmhuge = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "warmhuge" then table.remove(ns.providerOrder, i) end end
 	ns.providers.warmslow, ns.providers.warmfast = nil, nil
 	for i = #ns.providerOrder, 1, -1 do
 		local id = ns.providerOrder[i]
@@ -2857,6 +2945,68 @@ do -- motion: fade/drift in and out, gliding selection, rows fading in
 	UI:Open("heart")
 	check(F.alpha == 1 and UI.phase == nil, "animations off: opens at once")
 	Th.Set("animations", "on")
+	check(Th.Get().animations == "smooth", "'.set animations on' still works: the default style")
+	UI:Hide(); for _ = 1, 10 do step(0.05) end
+	-- animation styles
+	local saved = ns.db.theme
+	ns.db.theme = { animations = false }
+	check(Th.Get().animations == "off" and Th.Animation() == nil, "a theme saved with animations off stays off")
+	ns.db.theme = { animations = true }
+	check(Th.Get().animations == "smooth", "a theme saved with animations on gets the default style")
+	ns.db.theme = saved
+	-- drop down: drops in from above, and goes back up
+	check(Th.Set("animations", "console") and Th.Get().animations == "dropdown", "the style called console in 0.29.0 is Drop Down now")
+	ns.db.theme = { animations = "console" }
+	check(Th.Get().animations == "dropdown", "a theme saved with it gets Drop Down")
+	ns.db.theme = saved
+	Th.Set("animations", "dropdown")
+	check(Th.ANIMATION_LABELS.dropdown == "Drop Down", "labelled Drop Down")
+	UI:Open("heart")
+	local p = F.lastPoint
+	check(UI.phase == "open" and p and p[5] > -140, "drop down: starts above its place and drops in (" .. tostring(p and p[5]) .. ")")
+	for _ = 1, 10 do step(0.05) end
+	check(F.alpha == 1 and F.lastPoint[5] == -140, "and lands in place")
+	-- cascade: new rows come in one after another, sliding in from the left
+	Th.Set("animations", "cascade")
+	UI:SetQuery("hearthstone", 11); step(0.6)
+	local few = #UI.Results()
+	UI:SetQuery("e", 1)
+	local r = UI.rows[few + 1]
+	-- (a row's last anchor is its right edge: TOPRIGHT, -6 + how far it is from its place)
+	check(r.slide and r.lastPoint and r.lastPoint[2] < -6 - 30, "cascade: a new row starts well to the left of its place (" .. tostring(r.lastPoint and r.lastPoint[2]) .. ")")
+	for _ = 1, 20 do step(0.05) end
+	check(r.slide == nil and r.lastPoint[2] == -6 and r.alpha == 1, "and slides into place")
+	-- cascade: closing, the rows fold away bottom-up, sliding back out to the left
+	UI:Hide()
+	local folding, order = 0, {}
+	for i, row in ipairs(UI.rows) do if row.leaving and row.slideOut then folding = folding + 1; order[#order + 1] = row.leaveAt end end
+	check(folding >= 2 and order[1] > order[#order], "cascade: closing folds the rows away, the bottom one first")
+	for _ = 1, 20 do step(0.05) end
+	check(F.shown == false and UI.rows[1].lastPoint[2] == -6, "and they're back in place for the next open")
+	-- snappy: pops in with a little bounce (passes its place, then settles), and the selection jumps
+	Th.Set("animations", "snappy")
+	UI:Open("e")
+	local passed = false
+	for _ = 1, 20 do step(0.016); if F.lastPoint[5] > -140 then passed = true end end
+	check(passed and F.lastPoint[5] == -140 and F.alpha == 1, "snappy: pops in, overshooting its place a little, then settles")
+	UI:Down()
+	step(0.016)
+	check(UI.selY == UI.selTo, "snappy: the selection jumps at once")
+	UI:Hide(); step(0.07)
+	check(F.shown == false, "snappy: closed in a blink")
+	-- resting (only the cursor blinking): at most 30 redraws a second, not every frame
+	Th.Set("animations", "smooth")
+	UI:Open("heart"); for _ = 1, 40 do step(0.016) end
+	local M0 = UI.motion
+	local redraws, realCA = 0, UI.caret.SetAlpha
+	UI.caret.SetAlpha = function(self, ...) redraws = redraws + 1 return realCA(self, ...) end
+	for _ = 1, 120 do step(1 / 120) end -- one second at 120 frames a second
+	UI.caret.SetAlpha = realCA
+	check(M0.shown ~= false and UI.blinkOnly and redraws <= 31, "resting: the cursor blinks with at most 30 redraws a second (" .. redraws .. " at 120 fps)")
+	UI:SetQuery("hearthstone", 11)
+	check(UI.blinkOnly == false, "typing wakes the animation loop at once")
+	UI:Hide(); for _ = 1, 10 do step(0.05) end
+	Th.Set("animations", "smooth")
 	UI:Hide(); for _ = 1, 10 do step(0.05) end
 	_G.GetTime = realGT
 end

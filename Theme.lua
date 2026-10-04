@@ -37,7 +37,7 @@ T.DEFAULTS = {
 	rows = 10,
 	scale = 1.0,
 	hints = true,
-	animations = true, -- fades, gliding selection and caret (off: everything snaps)
+	animations = "smooth", -- how the terminal moves: a style from T.ANIMATIONS, or "off" (everything snaps)
 	cursor = "blinking-line", -- the text cursor: blinking or solid, a line or a box
 	blinkRate = 0.8, -- blinks per second
 	autoScan = true, -- index professions quietly after login
@@ -83,6 +83,52 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan" }
 T.CURSOR_ORDER = { "blinking-line", "solid-line", "blinking-box", "solid-box" }
+
+-- Animation styles: open/close (seconds; `fade`: how long the opening fade takes, if not the whole
+-- opening), drift (pixels the terminal travels: up from below when positive, down from above when
+-- negative), ease ("back": overshoots and settles), rows fading in (seconds, the delay between rows,
+-- how far they slide in from the left; foldOut: they leave the same way, bottom-up), and speed (how
+-- fast the selection, caret and height glide; 100: they jump).
+
+--- Eases for the styles: cubic ease-out, and "back" (overshoots a little, then settles).
+function T.Ease(x)
+	if x ~= x or x <= 0 then return 0 elseif x >= 1 then return 1 end
+	local u = 1 - x
+	return 1 - u * u * u
+end
+function T.Move(A, x) -- how far along a movement is (may pass 1 for "back")
+	if x ~= x or x <= 0 then return 0 elseif x >= 1 then return 1 end
+	if A and A.ease == "back" then
+		local c1 = 1.70158
+		local u = x - 1
+		return 1 + (c1 + 1) * u * u * u + c1 * u * u
+	end
+	return T.Ease(x)
+end
+T.ANIMATION_ORDER = { "smooth", "snappy", "floaty", "cascade", "dropdown", "off" }
+T.ANIMATION_LABELS = { smooth = "Smooth", snappy = "Snappy", floaty = "Floaty", cascade = "Cascade",
+	dropdown = "Drop Down", off = "Off" }
+T.ANIMATIONS = {
+	smooth = { open = 0.18, close = 0.12, drift = 10, closeDrift = 6, rowFade = 0.14, stagger = 0.018, slide = 0, speed = 1 },
+	-- pops in with a little bounce (it overshoots and settles), shows up almost at once, and the
+	-- selection and caret jump instead of gliding
+	snappy = { open = 0.26, fade = 0.05, close = 0.06, drift = 18, closeDrift = 0, ease = "back", rowFade = 0.04,
+		stagger = 0, slide = 0, speed = 100 },
+	floaty = { open = 0.34, close = 0.22, drift = 22, closeDrift = 12, rowFade = 0.26, stagger = 0.03, slide = 0, speed = 0.55 },
+	-- the rows swing in one after another from well to the left, overshooting a little, and fold
+	-- away bottom-up when it closes
+	cascade = { open = 0.12, close = 0.3, drift = 0, closeDrift = 0, ease = "back", rowFade = 0.3, stagger = 0.06,
+		slide = 44, foldOut = true, speed = 0.8 },
+	-- drops down from above, like a game console, and goes back up
+	dropdown = { open = 0.22, close = 0.16, drift = -60, closeDrift = -60, rowFade = 0.1, stagger = 0, slide = 0, speed = 1.3 },
+}
+
+--- The animation style in use (a table from T.ANIMATIONS), or nil when animations are off.
+function T.Animation(t)
+	local a = (t or T.Get()).animations
+	if a == false or a == "off" then return nil end
+	return T.ANIMATIONS[a] or T.ANIMATIONS.smooth
+end
 T.CURSOR_LABELS = { ["blinking-line"] = "Blinking line", ["solid-line"] = "Solid line", ["blinking-box"] = "Blinking box", ["solid-box"] = "Solid box" }
 T.FIELDS = {
 	promptText = { kind = "text", label = "Prompt", max = 3 },
@@ -102,7 +148,7 @@ T.FIELDS = {
 	rows = { kind = "number", label = "Max rows", min = 4, max = 20, step = 1 },
 	scale = { kind = "number", label = "Scale", min = 0.6, max = 1.6, step = 0.05 },
 	hints = { kind = "bool", label = "Key hints in footer" },
-	animations = { kind = "bool", label = "Animations" },
+	animations = { kind = "choice", label = "Animation", choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = "Cursor", choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = "Blink speed", min = 0.2, max = 3, step = 0.1 },
 	autoScan = { kind = "bool", label = "Index professions at login" },
@@ -146,6 +192,9 @@ function T.Get()
 		end
 		t.v = 3
 	end
+	-- animations were on/off before there were styles
+	if t.animations == true then t.animations = "smooth" elseif t.animations == false then t.animations = "off" end
+	if t.animations == "console" then t.animations = "dropdown" end -- its name in 0.29.0
 	-- themes saved before the prompt had its own background: a slightly darker bg
 	if t.promptBg == nil and t.bg then t.promptBg = T.Darken(t.bg, PROMPT_DARKEN) end
 	-- a theme that no longer exists (Paper, Parchment) falls back to the default look
@@ -299,6 +348,10 @@ function T.Set(key, raw)
 		else return false, "expected on or off" end
 	elseif f.kind == "choice" then
 		local s = tostring(raw):lower()
+		-- animations used to be on/off
+		if key == "animations" and (s == "on" or s == "true" or s == "yes" or s == "1") then s = "smooth" end
+		if key == "animations" and (s == "false" or s == "no" or s == "0") then s = "off" end
+		if key == "animations" and (s == "console" or s == "drop" or s == "drop down" or s == "drop-down") then s = "dropdown" end
 		for _, c in ipairs(f.choices) do
 			if c == s or c:sub(1, #s) == s and #s > 0 then v = c break end
 		end
@@ -406,7 +459,7 @@ ns:RegisterCommand("set", {
 				local cur = T.Format(k, t[k])
 				local out = {}
 				for _, v in ipairs(values) do
-					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or ""
+					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or (k == "animations" and T.ANIMATION_LABELS[v]) or ""
 					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. "(current)") or "") }
 				end
 				return out

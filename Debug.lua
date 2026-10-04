@@ -25,7 +25,8 @@ local TRACE_MAX, EVENT_MAX, WINDOW = 200, 30, 3 -- lines, events, seconds of con
 
 local trace, events = {}, {}
 D.trace, D.events = trace, events
-D.count = 0 -- blocked/forbidden events seen; code can compare before/after a call
+D.count = 0 -- blocked/forbidden events blamed on Terminal; code can compare before/after a call
+D.others = 0 -- the same, blamed on other addons
 
 local function Now() return GetTime and GetTime() or 0 end
 
@@ -50,11 +51,14 @@ end
 
 local function Describe(ev)
 	local mine = ev.addon == ns.name
-	local lines = { ("%s  addon=%s%s  function=%s"):format(
+	local lines = { ("%s  addon=%s%s  function=%s%s"):format(
 		ev.event == "ADDON_ACTION_FORBIDDEN" and "FORBIDDEN" or "BLOCKED",
-		tostring(ev.addon), mine and " (Terminal)" or "", tostring(ev.func)) }
+		tostring(ev.addon), mine and " (Terminal)" or "", tostring(ev.func),
+		(ev.times or 1) > 1 and ("  (x%d)"):format(ev.times) or "") }
 	if ev.combat then lines[#lines + 1] = "  in combat" end
-	if #ev.recent == 0 then
+	if ev.cheap and not ev.traced then
+		lines[#lines + 1] = "  (another addon's; what Terminal was doing isn't recorded for these while .debug is off)"
+	elseif #ev.recent == 0 then
 		lines[#lines + 1] = "  Terminal did nothing in the 3 s before: likely another addon" .. (mine and " (or a delayed action of ours)" or "")
 	else
 		lines[#lines + 1] = "  Terminal was doing:"
@@ -67,9 +71,34 @@ local function Describe(ev)
 	return lines
 end
 
+D.Describe = Describe
+
 local function OnAction(event, addon, func)
-	D.count = D.count + 1
 	local at = Now()
+	if addon ~= ns.name then
+		-- another addon's: these can come by the hundred a second (taint spreading), and each one
+		-- used to take a stack and the trace with it, counted as Terminal's CPU. Now only a count,
+		-- and repeats fold into one line (printed once with .debug on, not hundreds of times).
+		D.others = D.others + 1
+		local last = events[#events]
+		if last and last.cheap and last.addon == addon and last.func == func and last.event == event then
+			last.times, last.t = last.times + 1, at
+			return
+		end
+		local ev = { event = event, addon = addon, func = func, t = at, recent = Live() and Recent(at) or {}, cheap = true,
+			times = 1, combat = InCombatLockdown and InCombatLockdown() or false }
+		if Live() then -- (once per new line, not per repeat)
+			local ok, stack = pcall(debugstack, 3, 12, 0)
+			ev.stack, ev.traced = ok and stack or nil, true
+		end
+		events[#events + 1] = ev
+		if #events > EVENT_MAX then table.remove(events, 1) end
+		if Live() then
+			for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
+		end
+		return
+	end
+	D.count = D.count + 1 -- (Terminal's own from here on)
 	local ok, stack = pcall(debugstack, 3, 12, 0)
 	local ev = {
 		event = event, addon = addon, func = func, t = at,
@@ -80,7 +109,7 @@ local function OnAction(event, addon, func)
 	if #events > EVENT_MAX then table.remove(events, 1) end
 	if Live() then
 		for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
-	elseif addon == ns.name then
+	else
 		ns:Print(("blocked %s (%s). Type /term .debug log for what led to it."):format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked"))
 	end
 end
@@ -199,7 +228,8 @@ ns:RegisterCommand("debug", {
 				out = D.Report()
 			end
 		elseif arg == "" then
-			out = { "Debug is " .. (Live() and "ON" or "off") .. "  (taintLog " .. tostring(Cvar("taintLog")) .. ")  -  .debug on | off | log | clear" }
+			out = { "Debug is " .. (Live() and "ON" or "off") .. "  (taintLog " .. tostring(Cvar("taintLog")) .. ")  -  .debug on | off | log | clear",
+				("Blocked actions this session: %d by Terminal, %d by other addons"):format(D.count, D.others) }
 			for _, l in ipairs(D.Log(3)) do out[#out + 1] = l end
 		else
 			out = { "Usage: .debug on | off | log | clear" }
