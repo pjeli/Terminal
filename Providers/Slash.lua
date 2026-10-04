@@ -25,6 +25,8 @@ local function ChatEntry(e, args)
 	ChatFrame_OpenChat(line)
 end
 
+local cached, cachedCount -- the list, and how many handlers SlashCmdList had when it was made
+
 ns:RegisterProvider("slash", {
 	label = "Slash",
 	color = "ff33ff99",
@@ -32,6 +34,10 @@ ns:RegisterProvider("slash", {
 	explicit = true,
 	refreshOnOpen = true, -- other addons register commands whenever they load
 	collect = function()
+		-- walking all of _G is slow: only when a handler was added since (an addon loaded)
+		local count = 0
+		for _ in pairs(SlashCmdList or {}) do count = count + 1 end
+		if cached and count == cachedCount then return cached end
 		local groups = {}
 		for key, val in pairs(_G) do
 			if type(key) == "string" and type(val) == "string" and val:sub(1, 1) == "/" then
@@ -65,6 +71,7 @@ ns:RegisterProvider("slash", {
 				secondary = ChatEntry,
 			}
 		end
+		cached, cachedCount = out, count
 		return out
 	end,
 })

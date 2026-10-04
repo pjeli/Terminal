@@ -26,7 +26,7 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, PRINTSCREEN = true,
 }
 
-local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy
+local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy, catcher
 local rows = {}
 UI.rows = rows
 local motion = CreateFrame("Frame") -- drives every animation (see "Motion")
@@ -49,7 +49,15 @@ UI.cursor = 0     -- byte position of the caret in the query
 ----------------------------------------------------------------------
 
 local function FreqBonus(e)
-	local f = ns.db and ns.db.freq[e.freqKey or ""]
+	local freq = ns.db and ns.db.freq
+	if not freq then return 0 end
+	-- compact rows build their key on every read: only for kinds that were ever picked
+	local k = rawget(e, "freqKey")
+	if not k then
+		if not ns:FreqKind(e.kind) then return 0 end
+		k = e.freqKey
+	end
+	local f = k and freq[k]
 	return f and math.min(f, 20) * 0.05 or 0
 end
 
@@ -57,8 +65,12 @@ end
 --- highlight) are worked out later, only for the rows on screen (see Positions).
 local function ScoreEntry(e, tokens)
 	local total, nameHit = 0, false
-	local ltext = e._ltext
-	if not ltext and e.text then ltext = ns.Lower(e.text); e._ltext = ltext end
+	-- rawget: compact rows (tens of thousands of NPCs) would go through __index twice per row
+	local ltext = rawget(e, "_ltext")
+	if not ltext then
+		local text = rawget(e, "text")
+		if text then ltext = ns.Lower(text); e._ltext = ltext end
+	end
 	for i = 1, #tokens do
 		local tk = tokens[i]
 		local best = Fuzzy.score(tk, e.name, e._lname)
@@ -148,7 +160,11 @@ end
 -- Searching
 ----------------------------------------------------------------------
 
+local function RunCmd(e, args) return e.cmd.run(args or "", ns) end
+local cmdList, cmdCount -- the command rows, made again only when commands are added
+
 function UI:CommandEntries()
+	if cmdList and cmdCount == #ns.commandOrder then return cmdList end
 	local list = {}
 	for _, name in ipairs(ns.commandOrder) do
 		local c = ns.commands[name]
@@ -162,9 +178,11 @@ function UI:CommandEntries()
 			detail = c.desc,
 			text = table.concat(c.aliases, " "),
 			freqKey = "cmd:" .. name,
-			activate = function(_, args) return c.run(args or "", ns) end,
+			cmd = c,
+			activate = RunCmd,
 		}
 	end
+	cmdList, cmdCount = list, #ns.commandOrder
 	return list
 end
 
@@ -204,6 +222,7 @@ function UI:ArgEntries(text)
 			if e.name == c.name then
 				e._score, e._pos = 2000, {}
 				table.insert(out, 1, e)
+				break
 			end
 		end
 	end
@@ -303,7 +322,6 @@ function UI:SearchText(text)
 	if empty and not kinds then self.lastScan = nil return self:FrequentEntries() end
 
 	local out = {}
-	local present = {}
 	local included = {}
 	local fresh = true -- every list read is already built (nothing to re-collect)
 	local sig = {}
@@ -338,7 +356,6 @@ function UI:SearchText(text)
 			if s then
 				e._score = s + FreqBonus(e)
 				out[#out + 1] = e
-				present[e] = true
 			end
 		end
 	end
@@ -358,8 +375,7 @@ function UI:SearchText(text)
 	end
 	-- a quest item brings its quest along, right below it ("Intact Limbs" -> its quest)
 	if not empty and (not kinds or kinds.quests) and ns.providers.quests then
-		local linked, from = {}, {}
-		self.guessed = {}
+		local linked, from, guessed = {}, {}, {}
 		for _, e in ipairs(out) do
 			if e.questID and e.kind ~= "quests" then
 				local best = linked[e.questID]
@@ -371,12 +387,14 @@ function UI:SearchText(text)
 			if e.guessIDs and e.kind ~= "quests" and not e.questID then
 				for _, id in ipairs(e.guessIDs) do
 					if not linked[id] then
-						linked[id] = e._score; from[id] = e; self.guessed[id] = true
+						linked[id] = e._score; from[id] = e; guessed[id] = true
 					end
 				end
 			end
 		end
 		if next(linked) then
+			local present = {} -- quests already among the results
+			for _, e in ipairs(out) do if e.kind == "quests" then present[e] = true end end
 			for _, q in ipairs(ns:GetEntries(ns.providers.quests)) do
 				local s = linked[q.questID]
 				if s then
@@ -390,8 +408,7 @@ function UI:SearchText(text)
 					if not present[q] or it._nameHit then
 						q._score = s - 0.001
 						self.linked[q] = it
-						self.linkedGuess = self.linkedGuess or {}
-						self.linkedGuess[q] = self.guessed[q.questID] or nil
+						self.linkedGuess[q] = guessed[q.questID] or nil
 					end
 				end
 			end
@@ -564,6 +581,9 @@ function UI:FitHints()
 	if not t.hints then hints:Hide() return end
 	local key = "|cff" .. t.text
 	local room = (t.width or 640) - 28 - (status:GetStringWidth() or 0) - 24
+	-- every render asks: measure again only when the room or the colours changed
+	if self.hintsRoom == room and self.hintsKey == key then return end
+	self.hintsRoom, self.hintsKey = room, key
 	local parts, text = {}, ""
 	for _, h in ipairs(HINTS) do
 		parts[#parts + 1] = key .. h[1] .. "|r " .. h[2]
@@ -585,7 +605,6 @@ local ARROW = "|TInterface\\ChatFrame\\ChatFrameExpandArrow:12:12|t "
 function UI:Render()
 	if not frame then return end
 	local t = Theme.Get()
-	local ar, ag, ab = Theme.RGB(t.accent)
 	local light = Theme.IsLight()
 	local animated = self:Animated() and not self.snapNext
 	local now, entering = GetTime(), 0
@@ -631,7 +650,6 @@ function UI:Render()
 				r.detail:SetText(e.detail or "")
 			end
 			r.kind:SetText(Theme.FixColors(e.kindLabel or ""))
-			r.bg:SetColorTexture(ar, ag, ab, 0)
 		elseif r:IsShown() and not r.leaving then
 			-- no result for this row any more: it fades as the list shrinks over it
 			if animated and i <= ROWS then
@@ -837,8 +855,11 @@ function UI:SetQuery(text, cursor)
 	self.anchor = nil -- typing, completing or clearing drops any selection
 	self.typedAt = GetTime()
 	self.cursor = math.max(0, math.min(cursor or #text, #text))
-	if edit:GetText() ~= text then edit:SetText(text) end -- OnTextChanged -> Refresh
-	self:UpdateCaret()
+	if edit:GetText() ~= text then
+		edit:SetText(text) -- OnTextChanged -> Refresh, UpdateCaret
+	else
+		self:UpdateCaret()
+	end
 end
 
 -- the text cursor: a line or a box (the character under it is redrawn in a colour that reads
@@ -850,7 +871,6 @@ local CURSORS = {
 	["solid-box"] = { box = true, blink = false },
 }
 local function CursorStyle() return CURSORS[Theme.Get().cursor] or CURSORS["blinking-line"] end
-UI.CursorStyle = CursorStyle
 
 --- The selected part of the query as byte positions (lo, hi), or nil. The drawn prompt keeps
 --- its own selection: `anchor` is where it started, the caret is where it ends.
@@ -934,6 +954,7 @@ end
 --- Put the cursor (and, for a box, its character) at the caret's current x.
 function UI:PlaceCaret()
 	local x = self.caretX or self.caretTo or 0
+	self.caretPlaced = x
 	caret:ClearAllPoints()
 	caret:SetPoint("LEFT", edit, "LEFT", x, 0)
 	if self.caretCh and self.caretCh ~= "" and CursorStyle().box then
@@ -1331,7 +1352,6 @@ end
 -- driver), as windows can't be opened then anyway.
 ----------------------------------------------------------------------
 
-local catcher
 
 --- The macro a click on this result runs (nil: none), and the entry view it opens.
 local function ClickFor(e, shift)
@@ -1487,7 +1507,6 @@ local function Ease(x) -- ease-out cubic
 	local u = 1 - x
 	return 1 - u * u * u
 end
-UI.Ease = Ease
 
 function UI:Animated() return Theme.Get().animations ~= false end
 
@@ -1578,6 +1597,7 @@ function UI:PlaceSelection()
 end
 
 function UI:SetSelectionY(y)
+	self.selPlaced = y
 	selBar:ClearAllPoints()
 	selBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, y)
 	selBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, y)
@@ -1633,7 +1653,7 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 		else
 			UI.selY = UI.selTo
 		end
-		UI:SetSelectionY(UI.selY)
+		if UI.selY ~= UI.selPlaced then UI:SetSelectionY(UI.selY) end
 	end
 	-- caret: glide, then breathe while idle
 	if caret:IsShown() and UI.caretTo then
@@ -1644,7 +1664,9 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 		else
 			UI.caretX = UI.caretTo
 		end
-		UI:PlaceCaret()
+		-- a resting caret only blinks: nothing to re-anchor
+		local moved = UI.caretX ~= UI.caretPlaced
+		if moved then UI:PlaceCaret() end
 		local st = CursorStyle()
 		local a = 1
 		if st.blink then
@@ -1659,7 +1681,7 @@ motion:SetScript("OnUpdate", function(self, elapsed)
 		end
 		caret:SetAlpha(a)
 		caretChar:SetAlpha(a)
-		UI:PlaceTextSel()
+		if moved then UI:PlaceTextSel() end
 	end
 	-- rows that appear fade in (staggered when set); rows that go fade out, then hide
 	for _, r in ipairs(rows) do
@@ -1722,14 +1744,10 @@ local function CompleteWord(word, cands)
 	if #cp <= #word then cp = word end -- nothing shared beyond what's typed
 	return cp, false
 end
-UI.CompleteWord = CompleteWord
 
 local function CommandByWord(word) return ns:FindCommand(word) end
 
---- The query with the completion applied, or nil when there's nothing to complete.
-function UI:Completion()
-	if not edit or self:SelRange() then return nil end
-	local text = edit:GetText()
+local function ComputeCompletion(self, text)
 	if text == "" or (self.cursor or #text) < #text then return nil end
 	local first = text:sub(1, 1)
 	if first == "." then
@@ -1781,6 +1799,21 @@ function UI:Completion()
 	local query = text:sub(#kinds + 1)
 	if query == "" or #e.name <= #query or not StartsWith(e.name, query) then return nil end
 	return kinds .. e.name
+end
+
+--- The query with the completion applied, or nil when there's nothing to complete.
+--- Asked several times per keystroke (caret, ghost text, render): worked out once per state.
+local memo = {}
+function UI:Completion()
+	if not edit or self:SelRange() then return nil end
+	local text = edit:GetText()
+	if memo.text == text and memo.cursor == self.cursor and memo.results == results and memo.sel == sel
+		and memo.gen == ns.entriesGen then
+		return memo.value
+	end
+	local value = ComputeCompletion(self, text)
+	memo.text, memo.cursor, memo.results, memo.sel, memo.gen, memo.value = text, self.cursor, results, sel, ns.entriesGen, value
+	return value
 end
 
 --- What the suggestion adds to the typed text (for the faint preview), or nil.
@@ -2027,8 +2060,6 @@ local function Build()
 
 	for i = 1, MAX_ROWS do
 		local b = CreateFrame("Button", nil, frame)
-		b.bg = b:CreateTexture(nil, "BACKGROUND")
-		b.bg:SetAllPoints()
 		b.icon = b:CreateTexture(nil, "ARTWORK")
 		b.icon:SetPoint("LEFT", 6, 0)
 		b.kind = b:CreateFontString(nil, "OVERLAY")
@@ -2187,6 +2218,7 @@ function UI:ApplyTheme()
 	hints:SetTextColor(dr, dg, db)
 	local lr, lg, lb = Theme.RGB(t.border)
 	footLine:SetColorTexture(lr, lg, lb, 0.35)
+	self.hintsRoom = nil -- fonts and colours may have changed: measure the hints again
 	self:FitHints()
 
 	Fuzzy.matchColor = "|cff" .. t.match
@@ -2242,9 +2274,10 @@ function UI:Open(text)
 	self:StartOpen(reopening)
 	self.cursor = #(text or "")
 	self.snapNext = true -- opens at the right size; it grows and shrinks from there
-	edit:SetText(text or "")
+	-- SetText searches (OnTextChanged) only if the text changed; a second search in the same
+	-- frame would be queued for the next one
+	if edit:GetText() ~= (text or "") then edit:SetText(text or "") else self:Refresh() end
 	self.cursor = #edit:GetText()
-	self:Refresh()
 	self.snapNext = false
 	if not self:EnterKeys() then
 		-- plain text box: focus next frame so the opening keypress isn't typed into it

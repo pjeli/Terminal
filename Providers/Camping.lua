@@ -72,18 +72,11 @@ ns.Camp = {
 }
 
 ----------------------------------------------------------------------
--- Status of each object, from the player's own indexed recipes
+-- Provider
 ----------------------------------------------------------------------
 
-local function Status(def, idx, have, haveAny)
-	local hit = idx[def.lname]
-	if hit then
-		if hit.r.learned then return "Known", hit end
-		return "Not learned", hit
-	end
-	if haveAny and not have[def.prof:lower()] then return "No " .. def.prof, nil end
-	return "Not scanned", nil
-end
+-- only camp objects you can actually make are listed; Enter opens their recipe
+local function OpenCamp(e) P.OpenRecipe(e.hit.r.id, e.hit.profID, e.name) end
 
 ns:RegisterProvider("camp", {
 	label = "Camp",
@@ -91,42 +84,28 @@ ns:RegisterProvider("camp", {
 	aliases = { "camp", "camping", "campfire", "campsite" },
 	collect = function()
 		local idx = P.NameIndex()
-		local have = P.ProfessionNameSet()
-		local haveAny = next(have) ~= nil
 		local out = {}
 		for _, def in ipairs(ALL) do
-			local status, hit = Status(def, idx, have, haveAny)
-			if status == "Known" then -- only camp objects you can actually make
+			local hit = idx[def.lname]
+			if hit and hit.r.learned then
 			local label = def.prof
 			if def.tier then label = label .. " T" .. def.tier end
 			if def.skill then label = label .. " (" .. def.skill .. ")" end
 			local e = {
 				key = def.name,
 				name = def.name,
-				icon = (hit and hit.r.icon) or "Interface\\Icons\\INV_Misc_Spyglass_03",
-				color = status == "Known" and GREEN or nil,
-				detail = label .. " - " .. status,
+				icon = hit.r.icon or "Interface\\Icons\\INV_Misc_Spyglass_03",
+				color = GREEN,
+				detail = label .. " - Known",
 				text = def.text,
 				tip = def.tip,
 				def = def,
 				hit = hit,
-				activate = function(e)
-					if e.hit then
-						P.OpenRecipe(e.hit.r.id, e.hit.profID, e.name)
-					else
-						local pr = have[e.def.prof:lower()]
-						if pr then
-							P.OpenProfession(pr.skillLine, e.name)
-							ns:Print(e.name .. " isn't in your recipe index yet. Open the " .. e.def.prof .. " window once to index it.")
-						else
-							ns:Print(e.name .. " is a " .. e.def.prof .. " camp object, and you don't have that profession.")
-						end
-					end
-				end,
+				activate = OpenCamp,
 			}
 			-- opened like its recipe: the profession it's in (e.g. Bait and Tackle) is cast on
 			-- Enter by the game, then the recipe is selected and pointed at
-			if hit and hit.pdata and P.MakeRecipeEntry then
+			if hit.pdata and P.MakeRecipeEntry then
 				local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
 				e.recipeID, e.profID = re.recipeID, re.profID
 				e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after

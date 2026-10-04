@@ -14,8 +14,7 @@ local ns = select(2, ...)
 local M = {}
 ns.Maps = M
 
-local TYPES = { [0] = "World", "World", "Continent", "Zone", "Dungeon", "Micro", "Orphan" }
-local MAX = 4000
+local TYPES = { [2] = "Continent", [3] = "Zone" } -- the only kinds listed
 
 --- The map a place shows: its own, or one worked out for it (an NPC's or quest giver's zone).
 function M.Target(e)
@@ -145,7 +144,8 @@ local function PinOnly(e)
 	if pin then
 		ns:Print("Waypoint " .. (pin == "moved" and "moved to " or "set: ") .. e.name)
 	elseif not e.pos then
-		ns:Print("Pick a place with a spot on the map to set a waypoint.")
+		-- a zone has no spot of its own: it only moves a waypoint that is already set
+		ns:Print("A zone only moves a waypoint you already have; set one on the map first.")
 	else
 		ns:Print("Can't set a waypoint there.")
 	end
@@ -166,7 +166,7 @@ local function Entry(o)
 		_compact = true,
 		key = o.key, name = o.name, _lname = ns.Lower(o.name), icon = o.icon, detail = o.detail,
 		_ltext = ns.Lower((o.path or "") .. " map location " .. (o.kind or "")),
-		mapID = o.mapID, pos = o.pos,
+		mapID = o.mapID,
 	}, meta)
 end
 
@@ -208,11 +208,9 @@ ns:RegisterProvider("maps", {
 			return table.concat(parts, " > ")
 		end
 		for _, info in ipairs(maps) do
-			if #out >= MAX then break end
-			local mtype = info.mapType or 3
-			local kind = TYPES[mtype] or "Zone"
-			local path = pathOf(info)
-			if mtype == 2 or mtype == 3 then -- continents and zones; not "Cosmic"/"World", nothing below a zone
+			local kind = TYPES[info.mapType or 3]
+			if kind then -- continents and zones; not "Cosmic"/"World", nothing below a zone
+				local path = pathOf(info)
 				out[#out + 1] = Entry({
 					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
 					icon = "Interface\\Icons\\INV_Misc_Map_01",

@@ -44,16 +44,16 @@ local function Row(i)
 		if type(d) ~= "table" then return nil end
 		return {
 			name = Str(d.name), id = d.factionID, header = d.isHeader, collapsed = d.isCollapsed,
-			hasRep = d.isHeaderWithRep, reaction = Num(d.reaction), watched = d.isWatched,
+			hasRep = d.isHeaderWithRep, reaction = Num(d.reaction), watched = d.isWatched, child = d.isChild,
 			min = Num(d.currentReactionThreshold), max = Num(d.nextReactionThreshold), value = Num(d.currentStanding),
 			desc = Str(d.description),
 		}
 	end
 	if not _G.GetFactionInfo then return nil end
-	local name, desc, reaction, min, max, value, _, _, header, collapsed, hasRep, watched, _, id =
+	local name, desc, reaction, min, max, value, _, _, header, collapsed, hasRep, watched, child, id =
 		Safe(_G.GetFactionInfo, i)
 	return {
-		name = Str(name), id = id, header = header, collapsed = collapsed, hasRep = hasRep,
+		name = Str(name), id = id, header = header, collapsed = collapsed, hasRep = hasRep, child = child,
 		reaction = Num(reaction), watched = watched, min = Num(min), max = Num(max), value = Num(value),
 		desc = Str(desc),
 	}
@@ -83,12 +83,19 @@ local function ReadAll()
 		end
 		i, guard = i + 1, guard + 1
 	end
-	local rows, path = {}, {}
+	-- a faction's group is the header above it; a header's group is its parent header, if it
+	-- is a sub-header (isChild), never just the header before it (often a sibling)
+	local rows, top, cur = {}, nil, nil
 	for j = 1, Count() do
 		local r = Row(j)
 		if r and r.name then
-			if r.header then path[#path + 1] = r.name end
-			r.group = path[#path - (r.header and 1 or 0)]
+			if r.header then
+				r.group = r.child and top or nil
+				if not r.child then top = r.name end
+				cur = r.name
+			else
+				r.group = cur
+			end
 			rows[#rows + 1] = r
 		end
 	end

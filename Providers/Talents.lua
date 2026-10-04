@@ -67,20 +67,7 @@ local function AnyNode(f)
 	return false
 end
 
-local function Plain(t)
-	return (tostring(t or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-end
-
-local function HasText(f, text)
-	if f.GetText then
-		local ok, t = pcall(f.GetText, f)
-		if ok and type(t) == "string" and Plain(t) == text then return true end
-	end
-	for _, r in ipairs({ f:GetRegions() }) do
-		if r.GetObjectType and r:GetObjectType() == "FontString" and Plain(r:GetText()) == text then return true end
-	end
-	return false
-end
+local Plain = ns.Plain -- (Locale.lua)
 
 -- a tab label for the tree: "Fury", or "Fury (5)" with points spent
 local function TabText(f, tabName)

@@ -92,6 +92,10 @@ local function HighlightSetting(name)
 	end, 6, 40)
 end
 
+local function OpenOption(e)
+	if OpenPage(e.opt) then HighlightSetting(e.name) end
+end
+
 ns:RegisterProvider("gameoptions", {
 	label = "Options",
 	color = "ff9fb7ff",
@@ -118,9 +122,8 @@ ns:RegisterProvider("gameoptions", {
 					detail = o.page and (o.path and (o.path .. "  page") or "Options page") or o.path,
 					text = (o.path or "") .. " options settings " .. (o.tip or ""),
 					tip = o.tip,
-					activate = function()
-						if OpenPage(o) then HighlightSetting(label) end
-					end,
+					opt = o,
+					activate = OpenOption,
 				}
 			end
 		end

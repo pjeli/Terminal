@@ -75,6 +75,9 @@ local function PanelName(english) return ns.GameText(PANEL_GLOBALS[english], eng
 
 -- the game's keybinding commands for Character window tabs
 local CHAR_BINDINGS = { PaperDollFrame = "TOGGLECHARACTER0", ReputationFrame = "TOGGLECHARACTER2" }
+local CHAR_CLICKS = { PaperDollFrame = ns.Secure.PAPERDOLL_CLICK, ReputationFrame = ns.Secure.REP_CLICK }
+local function PageOpen(e) local f = _G[e.page]; return f and f:IsVisible() and true or false end
+local function PageAfter(e) MicroGlow(e.micro) end
 
 -- shared by every currency, mount and achievement entry (not one copy per entry)
 local function OpenCurrency(e)
@@ -109,6 +112,11 @@ local function OpenAchievement(e)
 	end
 end
 
+local function PanelActivate(e)
+	e.open()
+	MicroGlow(e.micro)
+end
+
 ns:RegisterProvider("panels", {
 	label = "Panel",
 	color = "ff7fe0ff",
@@ -121,10 +129,8 @@ ns:RegisterProvider("panels", {
 				name = PanelName(p[1]),
 				icon = "Interface\\Icons\\INV_Misc_Map_01",
 				text = p[2] .. " " .. p[1],
-				activate = function()
-					p[3]()
-					MicroGlow(p[4])
-				end,
+				open = p[3], micro = p[4],
+				activate = PanelActivate,
 			}
 			if p[1] == "Talents" and ns.Talents then
 				-- the talent window: secure click on the talent button, like a talent search
@@ -138,15 +144,12 @@ ns:RegisterProvider("panels", {
 				e.isOpen = MacroWindowOpen
 			end
 			if p[5] then
-				-- a tab of the Character window: open it by a secure click, then switch tab
-				e.secure = { binding = CHAR_BINDINGS[p[5]], buttons = { p[4] },
-					click = p[5] == "ReputationFrame" and ns.Secure.REP_CLICK or nil }
-				e.isOpen = function() return CharacterFrame and CharacterFrame:IsShown() end
-				e.after = function()
-					local sub = _G[p[5]]
-					if sub and not sub:IsShown() then pcall(ToggleCharacter, p[5]) end
-					MicroGlow(p[4])
-				end
+				-- a tab of the Character window: the game's own key opens it on that page (or switches
+				-- page when it's open on another); Terminal's code never switches it (taint)
+				e.secure = { binding = CHAR_BINDINGS[p[5]], buttons = { p[4] }, click = CHAR_CLICKS[p[5]] }
+				e.page, e.micro = p[5], p[4]
+				e.isOpen = PageOpen
+				e.after = PageAfter
 			end
 			out[#out + 1] = e
 		end
@@ -297,6 +300,8 @@ ns:RegisterProvider("achievements", {
 	color = "ffff8040",
 	aliases = { "achievement", "ach", "achieve" },
 	lazy = true,
+	events = { "ACHIEVEMENT_EARNED" }, -- earned this session: listed without a /reload
+	idleDrop = 600,
 	collect = function()
 		local out = {}
 		for _, cat in ipairs(GetCategoryList()) do
@@ -309,7 +314,7 @@ ns:RegisterProvider("achievements", {
 						name = name,
 						icon = icon,
 						text = description,
-						detail = (completed and "Done  " or "") .. (points and points > 0 and (points .. " pts") or ""),
+						detail = "Done  " .. (points and points > 0 and (points .. " pts") or ""),
 						tip = description,
 						link = GetAchievementLink(id),
 						activate = OpenAchievement,

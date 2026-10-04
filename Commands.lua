@@ -72,6 +72,7 @@ ns:RegisterCommand("forget", {
 	aliases = { "reset" },
 	run = function()
 		wipe(ns.db.freq)
+		ns.freqKinds = nil
 		return { "Usage history cleared." }
 	end,
 })

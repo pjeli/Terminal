@@ -28,7 +28,7 @@ end
 -- AtlasLoot
 ----------------------------------------------------------------------
 
-local loot = { rows = {}, byKey = {}, pending = {}, modules = 0, loaded = 0, on = false }
+local loot = { rows = {}, byKey = {}, pending = {}, unnamed = {}, modules = 0, loaded = 0, on = false }
 I.loot = loot
 
 local function AL() return _G.AtlasLoot end
@@ -79,8 +79,13 @@ local function IndexModule(addon, storage)
 			for boss = 1, #c.items do
 				local bossName = Safe(c.GetNameForItemTable, c, boss, true)
 				if type(bossName) ~= "string" then bossName = "?" end
+				-- the same for every item of this boss
+				local detail = bossName .. "  " .. inst
+				local ltext = ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot")
 				for d = 1, ndiff do
 					local list = Safe(A.ItemDB.GetItemTable, A.ItemDB, addon, content, boss, d)
+					-- the difficulty actually shown (a missing one falls back to another)
+					local diff = type(list) == "table" and (Safe(A.ItemDB.GetDifficulty, A.ItemDB, addon, content, boss, d) or d)
 					if type(list) == "table" then
 						for _, row in ipairs(list) do
 							local id = type(row) == "table" and row[2]
@@ -88,18 +93,16 @@ local function IndexModule(addon, storage)
 							if type(id) == "number" and id > 0 then
 								local key = addon .. ":" .. tostring(content) .. ":" .. id
 								if not loot.byKey[key] then
-									-- the row is the entry (compact: shared fields come from loot.meta);
-									-- its name is filled in once the server has sent it
-									-- the difficulty actually shown (a missing one falls back to another), and the
-									-- page the item is on (AtlasLoot shows 100 positions per page)
-									local diff = Safe(A.ItemDB.GetDifficulty, A.ItemDB, addon, content, boss, d) or d
+									-- the row is the entry (compact: shared fields come from loot.meta); its
+									-- name is filled in once the server has sent it. page: the page the item
+									-- is on (AtlasLoot shows 100 positions per page)
 									local r = setmetatable({ _compact = true, key = key, itemID = id, addon = addon,
 										content = content, boss = boss, diff = diff, page = math.floor((pos - 1) / 100),
-										detail = bossName .. "  " .. inst,
-										_ltext = ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot") }, loot.meta)
+										detail = detail, _ltext = ltext }, loot.meta)
 									loot.byKey[key] = r
 									loot.rows[#loot.rows + 1] = r
 									loot.pending[#loot.pending + 1] = id
+									loot.unnamed[id] = true
 									added = added + 1
 								end
 							end
@@ -159,6 +162,7 @@ LoadLootModules = function()
 		local addon = mods[i]
 		if not addon then
 			loot.done = true
+			loot.byKey = {} -- only for skipping duplicates while indexing
 			Dirty()
 			return PumpNames()
 		end
@@ -220,15 +224,14 @@ local function SetupAtlasLoot()
 		color = "ffd9a441",
 		aliases = { "loot", "drop", "drops", "atlasloot", "al" },
 		lazy = true,
-		events = { "GET_ITEM_INFO_RECEIVED" },
-		guard = 5,
+		-- names arriving: see the frame below (only names of loot rows count)
 		collect = function()
 			local out = {}
 			if not AtlasLootPresent() then return out end -- AtlasLoot went away: no stale loot rows
 			for _, r in ipairs(loot.rows) do
 				if not rawget(r, "name") then
 					local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(r.itemID)
-					if type(name) == "string" and name ~= "" then r.name = name end
+					if type(name) == "string" and name ~= "" then r.name = name; loot.unnamed[r.itemID] = nil end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
 			end
@@ -240,6 +243,17 @@ local function SetupAtlasLoot()
 		link = function(t) return "item:" .. t.itemID end,
 	})
 	C_Timer.After(8, LoadLootModules)
+	-- Item names come in for everything in the game (bags, tooltips...): the loot list is read
+	-- again only for names it was waiting on, at most once every 2 s
+	local names = CreateFrame("Frame")
+	loot.nameFrame = names
+	pcall(names.RegisterEvent, names, "GET_ITEM_INFO_RECEIVED")
+	names:SetScript("OnEvent", function(_, _, id)
+		if id and not loot.unnamed[id] then return end
+		if loot.queued then return end
+		loot.queued = true
+		C_Timer.After(2, function() loot.queued = nil; Dirty() end)
+	end)
 end
 
 ----------------------------------------------------------------------
@@ -276,7 +290,8 @@ local function IndexNPCs()
 			local name = Safe(DB.QueryNPCSingle, id, "name")
 			if type(name) == "string" and name ~= "" then
 				-- compact: just the name and id; everything else is shared (npc.meta)
-				out[#out + 1] = setmetatable({ _compact = true, key = id, npcID = id, name = name }, meta)
+				-- (_lname now, a slice at a time, not all at once on the first search)
+				out[#out + 1] = setmetatable({ _compact = true, key = id, name = name, _lname = ns.Lower(name) }, meta)
 			end
 			i = i + 1
 		end
@@ -329,10 +344,11 @@ end
 
 local function NpcPin(e)
 	local mapID, pos = NpcLocation(e.npcID)
+	local name = e.npcName or e.name
 	if not mapID then
-		ns:Print("Questie has no known location for " .. e.name .. ".")
-	elseif ns.Maps.Place({ name = e.name, mapID = mapID, pos = pos }) then
-		ns:Print("Waypoint set: " .. e.name)
+		ns:Print("Questie has no known location for " .. name .. ".")
+	elseif ns.Maps.Place({ name = name, mapID = mapID, pos = pos }) then
+		ns:Print("Waypoint set: " .. name)
 	else
 		ns:Print("Can't set a waypoint there.")
 	end
@@ -341,6 +357,10 @@ end
 local function OpenNpcDirect(e)
 	-- no map keybinding to ride on: open the map ourselves (never in combat)
 	if InCombatLockdown() then ns:Print("In combat: can't open " .. e.name .. " now.") return end
+	if not NpcLocation(e.npcID) then -- nowhere to show it: leave the map alone
+		ns:Print("Questie has no known location for " .. (e.npcName or e.name) .. ".")
+		return
+	end
 	if ToggleWorldMap and not ns.Maps.MapOpen() then pcall(ToggleWorldMap) end
 	C_Timer.After(0.1, function() ShowNpc(e) end)
 end
@@ -355,20 +375,29 @@ local function IndexQuests()
 	for id in pairs(DB.QuestPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
 	table.sort(ids)
 	local out, i = {}, 1
+	local zones = {} -- zoneOrSort -> { name, searchable text }: thousands of quests share a few hundred zones
+	local function Zone(zone)
+		local z = zones[zone]
+		if not z then
+			local zname = type(zone) == "number" and zone > 0 and C_Map and C_Map.GetAreaInfo and Safe(C_Map.GetAreaInfo, zone) or nil
+			zname = type(zname) == "string" and zname or nil
+			z = { zname, ns.Lower("quest questie " .. (zname or "")) }
+			zones[zone] = z
+		end
+		return z
+	end
 	local function step()
 		local stop = math.min(i + 800, #ids)
 		while i <= stop do
 			local id = ids[i]
 			local name = Safe(DB.QueryQuestSingle, id, "name")
 			if type(name) == "string" and name ~= "" then
-				local zone = Safe(DB.QueryQuestSingle, id, "zoneOrSort")
-				local zname = type(zone) == "number" and zone > 0 and C_Map and C_Map.GetAreaInfo and Safe(C_Map.GetAreaInfo, zone) or nil
-				local zoneName = type(zname) == "string" and zname or nil
+				local z = Zone(Safe(DB.QueryQuestSingle, id, "zoneOrSort") or 0)
 				out[#out + 1] = setmetatable({
-					_compact = true, key = id, qid = id, name = name,
+					_compact = true, key = id, qid = id, name = name, _lname = ns.Lower(name),
 					level = Safe(DB.QueryQuestSingle, id, "questLevel"),
-					zone = zoneName,
-					_ltext = ns.Lower("quest questie " .. (zoneName or "")),
+					zone = z[1],
+					_ltext = z[2],
 				}, qdb.meta)
 			end
 			i = i + 1
@@ -485,7 +514,6 @@ local function SetupQuestie()
 		aliases = { "npc", "npcs", "n", "mob", "vendor" },
 		explicit = true, -- tens of thousands of names: only searched with @npc
 		noCombat = true,
-		guard = 10,
 		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
 		onDrop = function() npc.list = nil end,
 		collect = function()
@@ -501,6 +529,7 @@ local function SetupQuestie()
 		activate = OpenNpcDirect,
 		secondary = NpcPin,
 	}, {
+		npcID = function(t) return rawget(t, "key") end,
 		detail = function(t) return "NPC  #" .. t.npcID end,
 		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
 	})
@@ -509,9 +538,8 @@ local function SetupQuestie()
 		color = "ffb48cff",
 		aliases = { "questie", "questdb", "allquests" },
 		explicit = true, -- every quest in the game: only searched with @questie
-		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat)
-		events = { "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" },
-		guard = 5,
+		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat).
+		-- No quest events: a quest's state (in log, done) is read when its row is drawn.
 		idleDrop = 600, -- freed after 10 minutes without a @questie search; re-read when next wanted
 		onDrop = function() qdb.list = nil end,
 		collect = function()

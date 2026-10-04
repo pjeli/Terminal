@@ -106,6 +106,35 @@ end
 -- Provider
 ----------------------------------------------------------------------
 
+--- normalised name -> index of the first item with it ("" never matches)
+local function ByName(list)
+	local m = {}
+	for i, x in ipairs(list) do
+		local k = Norm(x.name)
+		if k ~= "" and not m[k] then m[k] = i end
+	end
+	return m
+end
+
+--- The first item (lowest index) named either way, and its index.
+local function First(list, by, k1, k2)
+	local a, b = by[k1], by[k2]
+	local i = (a and b) and math.min(a, b) or a or b
+	return i and list[i], i
+end
+
+-- shared by every row (they carry what they open)
+local function AddonActivate(e)
+	if e.launch then return Launch(e.launch) end
+	if e.opt and OpenCategory(e.opt) then return end
+	AddonList()
+end
+local function AddonSecondary(e)
+	if e.opt and e.launch and OpenCategory(e.opt) then return end
+	AddonList()
+end
+local function BrokerActivate(e) ClickBroker(e.launch) end
+
 ns:RegisterProvider("addons", {
 	label = "AddOn",
 	color = "ffb0b0b0",
@@ -118,26 +147,23 @@ ns:RegisterProvider("addons", {
 		local brokers = Brokers()
 		local buttons = MinimapButtons()
 		local usedBroker = {}
+		-- names normalised once, not once per addon (this runs on every open)
+		local catBy, brokerBy = ByName(cats), ByName(brokers)
+		local buttonKeys = {}
+		for i, mb in ipairs(buttons) do buttonKeys[i] = Norm(mb.name) end
 
 		for i = 1, C_AddOns.GetNumAddOns() do
 			local name, title, notes = C_AddOns.GetAddOnInfo(i)
 			if name then
 				local label = Plain(title or name)
 				if label == "" then label = name end
-				local keys = { [Norm(name)] = true, [Norm(label)] = true }
-				keys[""] = nil -- a name of only symbols matches nothing
-				local opt
-				for _, c in ipairs(cats) do
-					if keys[Norm(c.name)] then opt = c break end
-				end
-				local launch
-				for bi, b in ipairs(brokers) do
-					if keys[Norm(b.name)] then launch = b; usedBroker[bi] = true break end
-				end
-				if not launch then
-					local n1 = Norm(name)
-					for _, mb in ipairs(buttons) do
-						if #n1 >= 4 and Norm(mb.name):find(n1, 1, true) then launch = mb break end
+				local n1, n2 = Norm(name), Norm(label)
+				local opt = First(cats, catBy, n1, n2)
+				local launch, bi = First(brokers, brokerBy, n1, n2)
+				if launch then usedBroker[bi] = true end
+				if not launch and #n1 >= 4 then
+					for j, k in ipairs(buttonKeys) do
+						if k:find(n1, 1, true) then launch = buttons[j] break end
 					end
 				end
 				local loaded = C_AddOns.IsAddOnLoaded(name)
@@ -153,15 +179,9 @@ ns:RegisterProvider("addons", {
 					detail = does,
 					text = name .. " " .. Plain(notes or ""),
 					tip = notes and Plain(notes) or nil,
-					activate = function()
-						if launch then return Launch(launch) end
-						if opt and OpenCategory(opt) then return end
-						AddonList()
-					end,
-					secondary = function()
-						if opt and launch and OpenCategory(opt) then return end
-						AddonList()
-					end,
+					launch = launch, opt = opt,
+					activate = AddonActivate,
+					secondary = AddonSecondary,
 				}
 			end
 		end
@@ -175,7 +195,8 @@ ns:RegisterProvider("addons", {
 					icon = b.icon or "Interface\\Icons\\INV_Misc_Gear_01",
 					detail = "Minimap button",
 					text = b.name .. " minimap button",
-					activate = function() ClickBroker(b) end,
+					launch = b,
+					activate = BrokerActivate,
 				}
 			end
 		end

@@ -16,7 +16,6 @@ ns.CopyBox = C
 
 local frame, edit, scroll, titleFS, hintFS, current = nil, nil, nil, nil, nil, ""
 local link, linkEdit, linkTitle, linkHint, linkBox -- the slim one-line bar (below)
-local opts = {}
 
 local W, H = 700, 440
 
@@ -204,7 +203,7 @@ local function ShowLink(title, text)
 end
 
 function C.Show(title, text, options)
-	opts = options or {}
+	local opts = options or {}
 	C.copied = false
 	if opts.compact then
 		current = tostring(text or "")

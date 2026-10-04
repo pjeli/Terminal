@@ -113,18 +113,27 @@ local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, a
 -- Reading
 ----------------------------------------------------------------------
 
+local checked -- the theme table already migrated and filled in (Get runs many times a frame)
+
+--- Copies a preset's colours (everything but its label) into t.
+local function CopyPreset(t, id)
+	for k, v in pairs(T.PRESETS[id]) do
+		if k ~= "label" then t[k] = v end
+	end
+end
+
 function T.Get()
 	local db = ns.db
 	if not db then return T.DEFAULTS end
-	db.theme = db.theme or {}
 	local t = db.theme
+	if t and t == checked then return t end
+	t = t or {}
+	db.theme = t
 	-- themes saved before the Forever look became the default: an untouched old default
 	-- ("midnight") moves to the new one; anything the player picked or tuned stays
 	if t.v == nil and next(t) ~= nil then
 		if t.preset == "midnight" then
-			for k, v in pairs(T.PRESETS.forever) do
-				if k ~= "label" then t[k] = v end
-			end
+			CopyPreset(t, "forever")
 			t.preset = "forever"
 		end
 		t.frame = t.frame or ((T.PRESETS[t.preset] or {}).frame) or "flat"
@@ -133,9 +142,7 @@ function T.Get()
 	-- v3: the Forever themes went from black to the scroll brown
 	if t.v == 2 then
 		if (t.preset == "forever" or t.preset == "foreverblue") and t.bg == "000000" then
-			for k, v in pairs(T.PRESETS[t.preset]) do
-				if k ~= "label" then t[k] = v end
-			end
+			CopyPreset(t, t.preset)
 		end
 		t.v = 3
 	end
@@ -143,14 +150,13 @@ function T.Get()
 	if t.promptBg == nil and t.bg then t.promptBg = T.Darken(t.bg, PROMPT_DARKEN) end
 	-- a theme that no longer exists (Paper, Parchment) falls back to the default look
 	if t.preset and t.preset ~= "custom" and not T.PRESETS[t.preset] then
-		for k, v in pairs(T.PRESETS.forever) do
-			if k ~= "label" then t[k] = v end
-		end
+		CopyPreset(t, "forever")
 		t.preset = "forever"
 	end
 	for k, v in pairs(T.DEFAULTS) do
 		if t[k] == nil then t[k] = v end
 	end
+	checked = t
 	return t
 end
 
@@ -160,9 +166,14 @@ function T.RGB(hex)
 	return tonumber(r, 16) / 255, tonumber(g, 16) / 255, tonumber(b, 16) / 255
 end
 
+local lightBg, light -- the last background asked about, and the answer
 function T.IsLight()
-	local r, g, b = T.RGB(T.Get().bg)
-	return (0.299 * r + 0.587 * g + 0.114 * b) > 0.6
+	local bg = T.Get().bg
+	if bg ~= lightBg then
+		local r, g, b = T.RGB(bg)
+		lightBg, light = bg, (0.299 * r + 0.587 * g + 0.114 * b) > 0.6
+	end
+	return light
 end
 
 -- Readability on light backgrounds: colours made for the game's dark UI (item qualities,
@@ -323,9 +334,7 @@ function T.ApplyPreset(name)
 	local id = T.FindPreset(name)
 	if not id then return false end
 	local t = T.Get()
-	for k, v in pairs(T.PRESETS[id]) do
-		if k ~= "label" then t[k] = v end
-	end
+	CopyPreset(t, id)
 	t.preset = id
 	T.Changed()
 	return true, id

@@ -200,6 +200,7 @@ function S.CharTabMacro(frameName, labels)
 	return table.concat(lines, "\n")
 end
 
+S.PAPERDOLL_CLICK = function() return S.CharTabMacro("PaperDollFrame", { _G.CHARACTER or "Character", "Character" }) end
 S.REP_CLICK = function() return S.CharTabMacro("ReputationFrame", { _G.REPUTATION or "Reputation", "Reputation" }) end
 S.SKILLS_CLICK = function()
 	return S.CharTabMacro(_G.SkillsFrame and "SkillsFrame" or "SkillFrame", { _G.SKILLS or "Skills", "Skills" })

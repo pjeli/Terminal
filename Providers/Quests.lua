@@ -79,9 +79,7 @@ local function IsOpen()
 	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
 end
 
-local function Plain(t)
-	return (tostring(t or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-end
+local Plain = ns.Plain -- (Locale.lua)
 
 -- a row label that is the title, or ends with it ("[5] Title", "[2] Title" for party)
 local function TitleMatch(f, title)

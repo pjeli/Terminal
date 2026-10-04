@@ -100,16 +100,7 @@ local function ReadSyndicator(A, add)
 	local w = A.GetWarband and A.GetWarband(1)
 	if type(w) == "table" then notes(w.bank) end
 
-	local holders = {} -- reused per owner and place
-	local function holder(key, make)
-		local h = holders[key]
-		if not h then
-			h = make()
-			h.key = key
-			holders[key] = h
-		end
-		return h
-	end
+	local holders = {} -- one per owner and place, shared by every item they hold
 	local PLACES = { "bags", "bank", "mail", "equipped", "void", "auctions" }
 	for id, it in pairs(seen) do
 		local ok, info = pcall(A.GetInventoryInfoByItemID, id, connectedOnly, factionOnly)
@@ -121,15 +112,16 @@ local function ReadSyndicator(A, add)
 				for _, where in ipairs(PLACES) do
 					local n = tonumber(c[where]) or 0
 					if n > 0 and (where ~= "equipped" or showWorn) then
-						local h = holder(full .. "|" .. where, function()
+						local key = full .. "|" .. where
+						local h = holders[key]
+						if not h then
 							local d = (A.GetByCharacterFullName(full) or {}).details or {}
 							local who = c.character
 							if myRealm and realm ~= "" and realm ~= myRealm then who = who .. "-" .. realm end
-							local x = { who = who, where = where, mine = mine, owner = full, class = d.class,
-								mode = "character", entity = full, container = where == "bags" and "bag" or where }
-							if mine then S.mine[where] = x end
-							return x
-						end)
+							h = { key = key, who = who, where = where, mine = mine, owner = full, class = d.class }
+							holders[key] = h
+							if mine then S.mine[where] = h end
+						end
 						add(id, n, it.itemLink, it.iconTexture, it.quality, h)
 					end
 				end
@@ -139,17 +131,16 @@ local function ReadSyndicator(A, add)
 					local n = tonumber(g.bank) or 0
 					if n > 0 then
 						local full = g.guild .. "-" .. (g.realmNormalized or "")
-						add(id, n, it.itemLink, it.iconTexture, it.quality, holder(full .. "|guild", function()
-							return { who = g.guild, where = "guild", owner = full, mode = "guild", entity = full, container = 1 }
-						end))
+						local key = full .. "|guild"
+						holders[key] = holders[key] or { key = key, who = g.guild, where = "guild", owner = full }
+						add(id, n, it.itemLink, it.iconTexture, it.quality, holders[key])
 					end
 				end
 			end
 			local wb = type(info.warband) == "table" and tonumber(info.warband[1]) or 0
 			if wb > 0 then
-				add(id, wb, it.itemLink, it.iconTexture, it.quality, holder("warband", function()
-					return { who = "Warband", where = "warband", owner = "warband", mode = "warband", entity = 1, container = 1 }
-				end))
+				holders.warband = holders.warband or { key = "warband", who = "Warband", where = "warband", owner = "warband" }
+				add(id, wb, it.itemLink, it.iconTexture, it.quality, holders.warband)
 			end
 		end
 	end
@@ -184,7 +175,7 @@ local function ReadBrother(bb, add)
 					if me.realm and realm ~= me.realm then who = who .. "-" .. realm end
 					local mine = (realm == me.realm and id == me.id) or false
 					local function holder(where)
-						local h = { key = realm .. "|" .. id .. "|" .. where, who = who, where = where, mine = mine, realm = realm, id = id,
+						local h = { key = realm .. "|" .. id .. "|" .. where, who = who, where = where, mine = mine,
 							owner = realm .. "|" .. id, class = cache.class }
 						if mine then S.mine[where] = h end
 						return h
@@ -212,7 +203,7 @@ local function ReadBrother(bb, add)
 		end
 	end
 	if type(bb.account) == "table" then
-		local h = { key = "account", who = "Warband", where = "warband", owner = "warband", account = true }
+		local h = { key = "account", who = "Warband", where = "warband", owner = "warband" }
 		for bag, t in pairs(bb.account) do
 			if tonumber(bag) then items(t, h) end
 		end
@@ -222,6 +213,13 @@ end
 ----------------------------------------------------------------------
 -- Entries
 ----------------------------------------------------------------------
+
+--- A holder's per-item counts read the rest from it (one metatable per holder, not per item).
+local function HolderMeta(holder)
+	local mt = holder._mt
+	if not mt then mt = { __index = holder }; holder._mt = mt end
+	return mt
+end
 
 local function ItemCount(id, bank)
 	local f = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
@@ -239,8 +237,7 @@ local function LiveCounts(e)
 	local worn = e.holders[S.mine.equipped and S.mine.equipped.key or ""]
 	local live = { bags = math.max(0, carrying - (worn and worn.count or 0)), bank = math.max(0, withBank - carrying) }
 	for where, n in pairs(live) do
-		local base = S.mine[where] or { key = "me|" .. where, who = S.mineName or "You", where = where, mine = true, owner = "me",
-			mode = "character", entity = S.mineEntity, container = where == "bank" and "bank" or "bag", realm = S.mineRealm, id = S.mineID }
+		local base = S.mine[where] or { key = "me|" .. where, who = S.mineName or "You", where = where, mine = true, owner = "me" }
 		local h = e.holders[base.key]
 		local had = h and h.count or 0
 		if had ~= n then
@@ -251,7 +248,7 @@ local function LiveCounts(e)
 			elseif h then
 				h.count = n
 			else
-				e.holders[base.key] = setmetatable({ count = n }, { __index = base })
+				e.holders[base.key] = setmetatable({ count = n }, HolderMeta(base))
 			end
 		end
 	end
@@ -285,7 +282,6 @@ local function Sorted(e)
 	end)
 	return list
 end
-S.Sorted = Sorted
 
 -- Item names asked of the server and not here yet (BagBrother keeps only item numbers). Each
 -- arrives with its own GET_ITEM_INFO_RECEIVED; the list is rebuilt once they're all in.
@@ -402,6 +398,7 @@ ns:RegisterProvider("stored", {
 	color = "ffb4a0ff",
 	aliases = { "stored", "alts", "alt", "bank", "banks", "storage", "everywhere", "syndicator", "bagnon" },
 	busy = function() return S.Busy() end, -- the terminal's spinner
+	lazy = true, -- every item on every character: only searched once you type
 	events = { "BAG_UPDATE_DELAYED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", "MAIL_INBOX_UPDATE",
 		"GUILDBANKBAGSLOTS_CHANGED", "PLAYER_EQUIPMENT_CHANGED" },
 	guard = 1,
@@ -420,7 +417,7 @@ ns:RegisterProvider("stored", {
 			e.quality = e.quality or quality
 			local h = e.holders[holder.key]
 			if not h then
-				h = setmetatable({ count = 0 }, { __index = holder })
+				h = setmetatable({ count = 0 }, HolderMeta(holder))
 				e.holders[holder.key] = h
 			end
 			h.count = h.count + (count or 1)
@@ -432,10 +429,6 @@ ns:RegisterProvider("stored", {
 		local A = src == "Syndicator" and SyndicatorAPI() or nil
 		local bb = src == "BagBrother" and BrotherBags() or nil
 		if A and not SyndicatorReady(A) then A = nil end -- busy() says so; filled in once it's ready
-		local B = Bagnon()
-		S.mineEntity = A and A.GetCurrentCharacter and A.GetCurrentCharacter() or nil
-		S.mineRealm = B and type(B.player) == "table" and B.player.realm or nil
-		S.mineID = B and type(B.player) == "table" and B.player.id or nil
 		S.mineName = (UnitName and UnitName("player")) or "You"
 		if A then ReadSyndicator(A, add) elseif bb then ReadBrother(bb, add) end
 		for _, x in pairs(byID) do LiveCounts(x) end
@@ -447,9 +440,14 @@ ns:RegisterProvider("stored", {
 			end
 			local name = elsewhere and Name(id, x.link)
 			if name then
-				local owners = {}
-				for _, h in pairs(x.holders) do owners[#owners + 1] = h.who .. " " .. (WHERE_LABEL[h.where] or h.where) end
-				local groups = Groups(x)
+				local words = {}
+				for _, h in pairs(x.holders) do words[#words + 1] = h.who .. " " .. (WHERE_LABEL[h.where] or h.where) end
+				-- who has it: one owner is named, more are counted (the tooltip groups them)
+				local owners, first, nOwners = {}, nil, 0
+				for _, h in pairs(x.holders) do
+					local k = h.mine and "me" or h.owner or h.key
+					if not owners[k] then owners[k] = true; nOwners = nOwners + 1; first = h end
+				end
 				local quality = x.quality or (C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id))
 				out[#out + 1] = {
 					key = id,
@@ -458,10 +456,12 @@ ns:RegisterProvider("stored", {
 					color = QualityHex(quality),
 					link = x.link or ("item:" .. id),
 					-- short, so it fits beside the name; the tooltip has the rest
-					detail = x.total .. "  ·  " .. (#groups == 1 and (groups[1].name .. (groups[1].mine and " (you)" or "")) or (#groups .. " places")),
+					detail = x.total .. "  ·  " .. (nOwners == 1
+						and ((first.where == "guild" and first.who .. " (guild)" or first.who) .. (first.mine and " (you)" or ""))
+						or (nOwners .. " places")),
 					quality = quality,
 					tooltip = Tooltip,
-					text = "stored " .. table.concat(owners, " "),
+					text = "stored " .. table.concat(words, " "),
 					holders = x.holders, total = x.total, itemID = id,
 					activate = Open,
 					secondary = PrintBreakdown,
@@ -478,7 +478,7 @@ S.nameFrame = f
 pcall(f.RegisterEvent, f, "GET_ITEM_INFO_RECEIVED")
 f:SetScript("OnEvent", function(_, _, itemID, success)
 	if waitingCount == 0 then return end
-	if itemID then Arrived(itemID) end
+	if itemID then Arrived(itemID) return end
 	-- some clients don't say which: whatever has a name now has arrived
 	for id in pairs(waiting) do
 		if C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id) then Arrived(id) end

@@ -41,8 +41,10 @@ local function Store()
 end
 P.Store = Store
 
+-- recipes and camp objects come from the index; the professions list doesn't (its own events
+-- and skill changes refresh it)
 function P.MarkDirty()
-	for _, id in ipairs({ "recipes", "camp", "professions" }) do
+	for _, id in ipairs({ "recipes", "camp" }) do
 		local p = ns.providers[id]
 		if p then p._dirty = true end
 	end
@@ -122,15 +124,6 @@ function P.TradeSpells()
 		end
 	end
 	return out
-end
-
---- lowercase profession name -> profession
-function P.ProfessionNameSet()
-	local set = {}
-	for _, pr in ipairs((P.PlayerProfessions())) do
-		set[pr.name:lower()] = pr
-	end
-	return set
 end
 
 --- lowercase recipe name -> { r = recipe, pdata = profession data, profID = key }
@@ -424,9 +417,7 @@ end
 -- Opening things
 ----------------------------------------------------------------------
 
-local function Plain(t)
-	return (tostring(t or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-end
+local Plain = ns.Plain -- (Locale.lua)
 
 --- A clickable row in the profession window whose label is `name` (ClassicUIForever's
 --- list may add a count after it, e.g. "Charred Wolf Meat [4]").
@@ -450,17 +441,13 @@ local function RecipeRow(root, name)
 end
 P.RecipeRow = RecipeRow
 
-local WindowHas
-
 -- A login scan keeps the window invisible; make sure nothing else ever inherits that.
 local function Unhide()
 	local pf = _G.ProfessionsFrame
 	if pf and pf.SetAlpha and not P.scanBusy then pf:SetAlpha(1) end
 end
 
-function P.WindowHas(recipeID) return WindowHas(recipeID) end
-
-WindowHas = function(recipeID)
+local function WindowHas(recipeID)
 	local pf = _G.ProfessionsFrame
 	if not (pf and pf:IsVisible()) then return false end
 	for _, id in ipairs(RecipeIDs(TS())) do
@@ -673,6 +660,7 @@ ev:SetScript("OnEvent", function(_, event)
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
 		P.MarkDirty()
+		if ns.providers.professions then ns.providers.professions._dirty = true end -- ranks
 		if not pendingPrune then
 			pendingPrune = true
 			C_Timer.After(3, function()
@@ -694,10 +682,15 @@ end)
 -- Provider: recipes
 ----------------------------------------------------------------------
 
+local itemNames = {} -- reagent names already known (asked for every recipe on every rebuild)
 local function ItemName(id)
-	local n = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+	local n = itemNames[id]
+	if n then return n end
+	n = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
 	if not n then n = C_Item.GetItemInfo(id) end
-	if not n then
+	if n then
+		itemNames[id] = n
+	else
 		P.unresolved = (P.unresolved or 0) + 1
 		if C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
 	end
@@ -721,9 +714,17 @@ local function RecipeLinkInChat(e)
 	if l and not ChatEdit_InsertLink(l) then ChatFrame_OpenChat(l) end
 end
 local spellSpecs = {} -- one { spell = } table per profession spell, shared
+local function SpellSpec(name)
+	local s = spellSpecs[name]
+	if not s then s = { spell = name }; spellSpecs[name] = s end
+	return s
+end
 
-local function MakeEntry(profID, pdata, r)
-	local castSpell = pdata.spell or P.OpenSpell(pdata.name)
+--- castSpell: the spell that opens this profession's window (false: none), once per profession;
+--- worked out here when not given.
+local function MakeEntry(profID, pdata, r, castSpell)
+	if castSpell == nil then castSpell = pdata.spell or P.OpenSpell(pdata.name) or false end
+	castSpell = castSpell or nil
 	local parts = { pdata.name, r.cat or "" }
 	local lines = {}
 	for _, rg in ipairs(r.reagents or {}) do
@@ -733,13 +734,12 @@ local function MakeEntry(profID, pdata, r)
 			lines[#lines + 1] = rg[2] .. "x " .. nm
 		end
 	end
-	if castSpell and not spellSpecs[castSpell] then spellSpecs[castSpell] = { spell = castSpell } end
 	return {
 		key = r.id,
 		name = r.name,
 		icon = r.icon,
-		color = (not r.learned) and "|cff8a8a8a" or nil,
-		detail = (r.learned and "" or "Unlearned  ") .. pdata.name,
+		color = r.learned == false and "|cff8a8a8a" or nil,
+		detail = (r.learned == false and "Unlearned  " or "") .. pdata.name,
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and ("Reagents: " .. table.concat(lines, ", ")) or nil,
 		getLink = RecipeLink,
@@ -747,7 +747,7 @@ local function MakeEntry(profID, pdata, r)
 		profID = pdata.skillLine or profID,
 		profSpell = pdata.spell,
 		activate = RecipeActivate,
-		secure = castSpell and spellSpecs[castSpell] or nil,
+		secure = castSpell and SpellSpec(castSpell) or nil,
 		isOpen = castSpell and RecipeIsOpen or nil,
 		after = castSpell and RecipeAfter or nil,
 		-- Shift+Enter: link the recipe in chat
@@ -773,10 +773,11 @@ ns:RegisterProvider("recipes", {
 				if r.learned ~= false then kept[#kept + 1] = r end
 			end
 			if #kept ~= #(pdata.list or {}) then pdata.list = kept end
+			local castSpell = pdata.spell or P.OpenSpell(pdata.name) or false
 			for _, r in ipairs(kept) do
 				count = count + 1
 				local isCamp = ns.Camp and ns.Camp.IsCampName(r.name:lower())
-				if not isCamp then out[#out + 1] = MakeEntry(profID, pdata, r) end
+				if not isCamp then out[#out + 1] = MakeEntry(profID, pdata, r, castSpell) end
 			end
 		end
 		if count == 0 then
@@ -797,6 +798,10 @@ ns:RegisterProvider("recipes", {
 -- Provider: professions themselves
 ----------------------------------------------------------------------
 
+local function TradeSpellAfter(e) P.lastSpell = { name = e.name, at = GetTime() } end
+local function TradeSpellInCombat(e) ns:Print(e.name .. " can't be opened from the terminal in combat.") end
+local function ProfessionActivate(e) P.OpenProfession(e.skillLine, e.name) end
+
 ns:RegisterProvider("professions", {
 	label = "Profession",
 	color = "ff5fd0c0",
@@ -814,9 +819,9 @@ ns:RegisterProvider("professions", {
 				text = (ts.parent or "") .. " profession crafting",
 				link = C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(ts.spellID) or nil,
 				-- cast through Enter itself (casting is protected), then index what opens
-				secure = { spell = ts.name },
-				after = function() P.lastSpell = { name = ts.name, at = GetTime() } end,
-				activate = function(e) ns:Print(e.name .. " can't be opened from the terminal in combat.") end,
+				secure = SpellSpec(ts.name),
+				after = TradeSpellAfter,
+				activate = TradeSpellInCombat,
 			}
 		end
 		for _, pr in ipairs((P.PlayerProfessions())) do
@@ -826,8 +831,8 @@ ns:RegisterProvider("professions", {
 				icon = pr.icon,
 				detail = pr.rank .. " / " .. pr.maxRank,
 				skillLine = pr.skillLine,
-				secure = P.OpenSpell(pr.name) and { spell = pr.name } or nil,
-				activate = function(e) P.OpenProfession(e.skillLine, e.name) end,
+				secure = P.OpenSpell(pr.name) and SpellSpec(pr.name) or nil,
+				activate = ProfessionActivate,
 			}
 		end
 		return out

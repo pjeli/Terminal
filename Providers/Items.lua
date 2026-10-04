@@ -165,22 +165,24 @@ function Bags.ShowItem(itemID, link, name)
 	return true
 end
 
-local function ShowEquipped(e)
-	if not (CharacterFrame and CharacterFrame:IsShown()) then ToggleCharacter("PaperDollFrame") end
+-- runs once the game has opened the character window on its equipment page: point at the slot
+local function PointAtSlot(e)
 	H:Find(function()
 		local f = _G["Character" .. e.slotName]
 		return f and f:IsVisible() and f or nil
 	end, 8)
 end
 
--- runs once the character window is open: make sure it's on the equipment tab, then point at the slot
-local function ShowEquippedAfter(e)
-	if PaperDollFrame and not PaperDollFrame:IsShown() then pcall(ToggleCharacter, "PaperDollFrame") end
-	H:Find(function()
-		local f = _G["Character" .. e.slotName]
-		return f and f:IsVisible() and f or nil
-	end, 8)
+-- fallback when the secure path isn't available
+local function ShowEquipped(e)
+	if not (CharacterFrame and CharacterFrame:IsShown()) then ToggleCharacter("PaperDollFrame") end
+	PointAtSlot(e)
 end
+
+-- Open means the equipment page itself is showing: the window open on another page goes
+-- through the game's own key too (it switches page), never ToggleCharacter from here (taint).
+local function PaperDollOpen() return PaperDollFrame and PaperDollFrame:IsVisible() and true or false end
+local CHAR_SECURE = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" }, click = ns.Secure.PAPERDOLL_CLICK }
 
 -- Quest items. A bag item is tied to its quest even without any other addon:
 --   1. the game says so (GetContainerItemQuestInfo gives the quest an item starts),
@@ -263,40 +265,58 @@ local function QuestieModule(name)
 	return ok and m or nil
 end
 
-local function QuestieNeeds(questID, itemID, DB)
-	local function get(field)
-		local ok, v = pcall(DB.QueryQuestSingle, questID, field)
-		return ok and v or nil
-	end
-	local req = get("requiredSourceItems")
-	for _, id in ipairs(type(req) == "table" and req or {}) do
-		if id == itemID then return true end
-	end
-	if get("sourceItemId") == itemID then return true end
-	local objs = get("objectives")
-	if type(objs) == "table" then
-		for _, e in ipairs(type(objs[3]) == "table" and objs[3] or {}) do
-			if type(e) == "table" and e[1] == itemID then return true end
-		end
-	end
-	return false
-end
-
-local function QuestieFor(itemID, quests)
+--- Which of your quests needs which item, by Questie: item ID -> quest (the first in the log
+--- wins). Worked out once per index of your bags (it used to be asked per item and quest).
+local function QuestieItems(quests)
+	if quests.questieItems ~= nil then return quests.questieItems or nil, quests.questieDB end
+	quests.questieItems = false
 	local Q = _G.Questie
 	if not (Q and Q.API and Q.API.isReady) then return nil end
 	local DB = QuestieModule("QuestieDB")
 	if not (DB and DB.QueryQuestSingle) then return nil end
+	local map = {}
+	local function put(id, qq) if id ~= nil and not map[id] then map[id] = qq end end
+	for _, qq in ipairs(quests) do
+		local function get(field)
+			local ok, v = pcall(DB.QueryQuestSingle, qq.id, field)
+			return ok and v or nil
+		end
+		local req = get("requiredSourceItems")
+		for _, id in ipairs(type(req) == "table" and req or {}) do put(id, qq) end
+		put(get("sourceItemId"), qq)
+		local objs = get("objectives")
+		if type(objs) == "table" then
+			for _, o in ipairs(type(objs[3]) == "table" and objs[3] or {}) do
+				if type(o) == "table" then put(o[1], qq) end
+			end
+		end
+	end
+	quests.questieItems, quests.questieDB = map, DB
+	return map, DB
+end
+
+local function QuestieFor(itemID, quests)
+	local map, DB = QuestieItems(quests)
+	if not map then return nil end
 	if DB.QueryItemSingle then -- an item that starts a quest
 		local ok, start = pcall(DB.QueryItemSingle, itemID, "startQuest")
 		if ok and start then
 			for _, qq in ipairs(quests) do if qq.id == start then return { id = qq.id, title = qq.title, how = "Questie" } end end
 		end
 	end
-	for _, qq in ipairs(quests) do
-		if QuestieNeeds(qq.id, itemID, DB) then return { id = qq.id, title = qq.title, how = "Questie" } end
-	end
+	local qq = map[itemID]
+	if qq then return { id = qq.id, title = qq.title, how = "Questie" } end
 end
+
+-- a quest's words padded with spaces, made once per index (asked for every item)
+local function Padded(qq, field, make)
+	local v = qq[field]
+	if not v then v = " " .. make(qq) .. " "; qq[field] = v end
+	return v
+end
+local function TitleAndGoals(qq) return qq.ntitle .. " " .. table.concat(qq.objectives, " ") end
+local function Title(qq) return qq.ntitle end
+local function Full(qq) return qq.full end
 
 --- The quest a bag item belongs to, or nil. Returns { id =, title =, how = }.
 local function QuestFor(bag, slot, name, itemID, quests, exact)
@@ -333,7 +353,7 @@ local function QuestFor(bag, slot, name, itemID, quests, exact)
 		for w in lname:gmatch("%S+") do if #w >= 3 then words[#words + 1] = w end end
 		if #words >= 2 then
 			for _, qq in ipairs(quests) do
-				local hay = " " .. qq.ntitle .. " " .. table.concat(qq.objectives, " ") .. " "
+				local hay = Padded(qq, "pgoals", TitleAndGoals)
 				local all = true
 				for _, w in ipairs(words) do
 					if not hay:find(" " .. w, 1, true) then all = false; break end
@@ -378,8 +398,8 @@ local function GuessQuests(lname, quests)
 	if #words == 0 then return nil end
 	local scored = {}
 	for _, qq in ipairs(quests) do
-		local title = " " .. qq.ntitle .. " "
-		local hay = " " .. qq.full .. " "
+		local title = Padded(qq, "ptitle", Title)
+		local hay = Padded(qq, "pfull", Full)
 		local score = 0
 		for _, w in ipairs(words) do
 			if hay:find(" " .. w, 1, true) then score = score + #w end
@@ -468,10 +488,10 @@ ns:RegisterProvider("items", {
 						text = "equipped " .. slotName:gsub("Slot", ""),
 						detail = "Equipped: " .. slotName:gsub("Slot", ""),
 						slotName = slotName,
-						activate = ShowEquipped, -- fallback when the secure path isn't available
-					secure = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } },
-					isOpen = function() return CharacterFrame and CharacterFrame:IsShown() end,
-					after = ShowEquippedAfter,
+						activate = ShowEquipped,
+						secure = CHAR_SECURE,
+						isOpen = PaperDollOpen,
+						after = PointAtSlot,
 					}
 				end
 			end

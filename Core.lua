@@ -50,9 +50,25 @@ function ns.LoadBlizz(addon)
 	return C_AddOns.IsAddOnLoaded(addon)
 end
 
+--- Whether anything of this kind was ever picked (its freqKeys start with "kind:"). Lets
+--- scoring skip building the keys of compact rows nobody picked.
+function ns:FreqKind(kind)
+	local kinds = self.freqKinds
+	if not kinds then
+		kinds = {}
+		for k in pairs(self.db and self.db.freq or {}) do
+			local id = type(k) == "string" and k:match("^([^:]+):")
+			if id then kinds[id] = true end
+		end
+		self.freqKinds = kinds
+	end
+	return kinds[kind] or false
+end
+
 function ns:Bump(freqKey)
 	if not freqKey or not self.db then return end
 	self.db.freq[freqKey] = (self.db.freq[freqKey] or 0) + 1
+	self.freqKinds = nil
 	-- history: most recent first, each thing once
 	local recent = self.db.recent
 	if type(recent) ~= "table" then recent = {}; self.db.recent = recent end
@@ -181,8 +197,9 @@ function ns:GetEntries(p)
 					end
 					if not rawget(e, "_lname") then e._lname = ns.Lower(e.name) end
 					-- searchable text is only ever matched in lowercase: keep just that copy
-					if e.text then
-						e._ltext = ns.Lower(e.text)
+					local text = rawget(e, "text") -- (compact rows have none: no __index call)
+					if text then
+						e._ltext = ns.Lower(text)
 						e.text = nil
 					end
 					clean[#clean + 1] = e
@@ -274,10 +291,15 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 			elseif not p.selfEvents then
 				-- just after a collect: the change still counts, a moment later (a bag update
 				-- right after a search used to be dropped, leaving stale counts)
-				local at = now
-				C_Timer.After(wait, function()
-					if not p._collectedAt or p._collectedAt <= at then p._dirty = true end
-				end)
+				-- one timer per provider, however many events come in meanwhile
+				p._pendingAt = now
+				if not p._pendingTimer then
+					p._pendingTimer = true
+					C_Timer.After(wait, function()
+						p._pendingTimer = nil
+						if not p._collectedAt or p._collectedAt <= p._pendingAt then p._dirty = true end
+					end)
+				end
 			end
 		end
 	end

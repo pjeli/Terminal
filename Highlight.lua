@@ -132,12 +132,3 @@ function ns.FindByText(root, text, depth)
 		return false
 	end, depth)
 end
-
---- Convenience: highlight inside a Blizzard frame by predicate, falling back to text.
-function H:FindIn(getRoot, pred, text, duration)
-	self:Find(function()
-		local root = getRoot()
-		if not root or not root:IsVisible() then return nil end
-		return (pred and ns.FindFrame(root, pred)) or ns.FindByText(root, text)
-	end, duration)
-end

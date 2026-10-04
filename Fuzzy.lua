@@ -10,7 +10,7 @@ local CONSEC, SLASH, WORD, CAPITAL, DOT = 1.0, 0.9, 0.8, 0.7, 0.6
 local MAXLEN = 256
 local EXACT = 100
 
-local byte, find = string.byte, string.find
+local byte, find, ssub = string.byte, string.find, string.sub
 local max = math.max
 
 local function bonusFor(last, cur)
@@ -34,7 +34,7 @@ function Fuzzy.match(needle, hay, lhay)
 	-- cheap subsequence check first
 	local pos = 0
 	for i = 1, n do
-		pos = find(lhay, needle:sub(i, i), pos + 1, true)
+		pos = find(lhay, ssub(needle, i, i), pos + 1, true)
 		if not pos then return nil end
 	end
 
@@ -125,11 +125,11 @@ function Fuzzy.score(needle, hay, lhay)
 	local sub = substringScore(needle, hay, lhay, n, m)
 	if sub then return sub end
 	-- cheap subsequence check first; nothing before the first letter's first match counts
-	local first = find(lhay, needle:sub(1, 1), 1, true)
+	local first = find(lhay, ssub(needle, 1, 1), 1, true)
 	if not first then return nil end
 	local pos = first
 	for i = 2, n do
-		pos = find(lhay, needle:sub(i, i), pos + 1, true)
+		pos = find(lhay, ssub(needle, i, i), pos + 1, true)
 		if not pos then return nil end
 	end
 	local Mp, Dp, Mc, Dc = rowM, rowD, rowM2, rowD2
@@ -168,13 +168,6 @@ function Fuzzy.score(needle, hay, lhay)
 	local r = Mp[m]
 	if r == MIN then return nil end
 	return r
-end
-
---- Split a query into lowercase whitespace-separated tokens.
-function Fuzzy.tokens(q)
-	local t = {}
-	for w in ns.Lower(q):gmatch("%S+") do t[#t + 1] = w end
-	return t
 end
 
 --- Wrap matched positions (set: [index]=true) in a highlight colour.

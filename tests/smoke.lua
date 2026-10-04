@@ -318,6 +318,18 @@ check(r[1] and r[1].name == "/rl" or r[1].name == "/reload", "slash fuzzy match"
 check(UI.args == "now", "slash args captured: " .. tostring(UI.args))
 r[1].activate(r[1], UI.args)
 check(log[#log]:match("^CHAT /re?l"), "slash command executed: " .. tostring(log[#log]))
+do -- the slash list is re-read when an addon adds a command, not on every open
+	local function hasSlash(n)
+		ns.providers.slash._dirty = true
+		for _, e in ipairs(ns:GetEntries(ns.providers.slash)) do if e.name == n then return true end end
+	end
+	local before = ns:GetEntries(ns.providers.slash)
+	ns.providers.slash._dirty = true
+	check(ns:GetEntries(ns.providers.slash)[1] == before[1], "nothing new: the same list is kept")
+	_G.SLASH_NEWTHING1 = "/newthing"; SlashCmdList.NEWTHING = function() end
+	check(hasSlash("/newthing"), "a command added by an addon shows up")
+	_G.SLASH_NEWTHING1, SlashCmdList.NEWTHING = nil, nil
+end
 
 io.write("[slash ok]\n")
 -- command mode
@@ -794,13 +806,20 @@ do
 	UI:Open("reputation"); mark = #log; key("ENTER")
 	check(S.armed == "TOGGLECHARACTER2", "reputation uses the reputation tab command")
 	FlushAll()
-	check(logHas("ToggleCharacter ReputationFrame", mark + 1), "after: makes sure the reputation tab shows")
+	check(not logHas("ToggleCharacter ReputationFrame", mark + 1), "after: Terminal's code never switches the character tab (taint)")
 
-	-- already open: nothing to press
-	CharacterFrame.shown = true
+	-- the window open on another page: the game's key still runs (it switches page)
+	_G.PaperDollFrame = _G.PaperDollFrame or Obj("Frame")
+	CharacterFrame.shown = true; PaperDollFrame.shown = false; ReputationFrame.shown = true
+	UI:Open("character info"); mark = #log; key("ENTER")
+	check(S.armed == "TOGGLECHARACTER0" and not logHas("ToggleCharacter PaperDollFrame", mark + 1),
+		"character window open on reputation: Enter still goes to the game's key, which switches page")
+	FlushAll()
+	-- the page itself showing: nothing to press
+	PaperDollFrame.shown = true; ReputationFrame.shown = false
 	UI:Open("character info"); key("ENTER")
 	check(S.armed == nil and next(bindings) == nil and not UI:IsShown(), "already open: closes and points, no binding")
-	CharacterFrame.shown = false
+	CharacterFrame.shown = false; PaperDollFrame.shown = false
 
 	-- client without the command: the proxy button is the fallback
 	_G.BINDING_NAME_TOGGLECHARACTER0 = nil
@@ -955,6 +974,26 @@ do
 	check(not c.shown, "window already open: the row's own click handles it")
 	UI:Hide(); FlushAll()
 	ForeverClassicUIQuestLog.shown = false
+	-- typing (or scrolling) under the pointer: the catcher follows its row, not the old result
+	UI:Open("wolves across"); r1.scripts.OnEnter(r1)
+	check(c.shown and c.entry == UI.Results()[1], "catcher over the quest row")
+	UI:SetQuery(".help")
+	check(not c.shown and c.entry == nil, "typed something else under the pointer: the catcher follows its row (none for a command)")
+	UI:Hide(); FlushAll()
+	-- opening runs one search, not two
+	local realSearch, searches = UI.Search, 0
+	UI.Search = function(self, ...) searches = searches + 1 return realSearch(self, ...) end
+	UI:Open("wolves across")
+	UI.Search = realSearch
+	check(searches == 1, "opening with text searches once (searched " .. searches .. " times)")
+	UI:Hide(); FlushAll()
+	-- scoring skips building keys of compact rows of kinds never picked
+	local savedFreq = ns.db.freq
+	ns.db.freq = {}; ns.freqKinds = nil
+	check(ns:FreqKind("maps") == false, "no map ever picked")
+	ns:Bump("maps:42")
+	check(ns:FreqKind("maps") == true, "a map picked: its kind counts")
+	ns.db.freq = savedFreq; ns.freqKinds = nil
 	-- a result that doesn't open a window: no catcher
 	UI:Open(".help"); r1.scripts.OnEnter(r1)
 	check(not c.shown, "plain results keep the row's own click")
@@ -1261,6 +1300,9 @@ do
 	local function cmd(line) local c = UI:WordSearch(UI:CommandEntries(), line); return c[1].activate(c[1], UI.args) end
 	local function logFind(text) for i = 1, #log do if log[i]:find(text, 1, true) then return true end end return false end
 	check(top("level 10") == "Level 10" and not has("level 20", "Level 20"), "only earned achievements are listed")
+	local achEvents = {}
+	for _, ev in ipairs(ns.providers.achievements.events or {}) do achEvents[ev] = true end
+	check(achEvents.ACHIEVEMENT_EARNED, "an achievement earned this session is listed without a reload")
 	check(has("valor", "Valor") and not has("honor", "Honor"), "only currencies you hold are listed")
 	check(logFind("indexed First Aid: 2 known recipes."), "a newly indexed profession is announced in chat")
 	check(not logFind("indexed Fishing"), "a scan doesn't announce each profession")
@@ -1518,7 +1560,8 @@ do
 	shownTarget = nil
 	UI:Open("deflection"); key("ENTER"); FlushAll()
 	check(shownTarget == oBtn, "any visible talent window is searched")
-	local dbg = table.concat(UI:WordSearch(UI:CommandEntries(), "talentdebug")[1].activate(nil, ""), "\n")
+	local tdc = UI:WordSearch(UI:CommandEntries(), "talentdebug")[1]
+	local dbg = table.concat(tdc.activate(tdc, ""), "\n")
 	check(dbg:find("Window: CamelotTalentFrame", 1, true) and dbg:find("Talent buttons visible: 1", 1, true), "talentdebug reports the window: " .. dbg)
 	UIParent.GetChildren = nil
 	ns.Highlight.Show = origShow
@@ -1830,8 +1873,21 @@ do -- the game blocks addon-opened profession windows
 	C_Spell.GetSpellInfo = function(n) if n == "Cooking" then return { name = n, spellID = 9185 } elseif n == "Alchemy" then return { name = n, spellID = 9171 } end end
 	check(P.OpenSpell("Cooking") == "Cooking" and P.OpenSpell("Alchemy") == nil, "only crafting-window spells are cast")
 	P.MarkDirty()
+	ns.providers.professions._dirty = true -- the spells changed (SPELLS_CHANGED in the game)
 	local pe = names(ns:GetEntries(ns.providers.professions))
 	check(pe["Cooking"].secure and pe["Cooking"].secure.spell == "Cooking", "Cooking opens through its spell on Enter")
+	ns.providers.professions._dirty = false
+	P.MarkDirty()
+	check(ns.providers.professions._dirty == false and ns.providers.recipes._dirty == true, "an index change rebuilds recipes, not the professions list")
+	local opens, realOpenSpell = 0, P.OpenSpell
+	P.OpenSpell = function(...) opens = opens + 1 return realOpenSpell(...) end
+	local recs = ns:GetEntries(ns.providers.recipes)
+	P.OpenSpell = realOpenSpell
+	local profs = {}
+	for _, r in ipairs(recs) do if r.profID then profs[r.profID] = true end end
+	local nprofs = 0
+	for _ in pairs(profs) do nprofs = nprofs + 1 end
+	check(#recs > nprofs and opens <= nprofs, "the opening spell is looked up once per profession, not per recipe (" .. opens .. " for " .. #recs .. " recipes)")
 	check(pe["Alchemy"].secure == nil, "a profession whose spell doesn't open a window isn't cast")
 	local re = names(ns:GetEntries(ns.providers.recipes))
 	check(re["Basic Campfire"] == nil or re["Basic Campfire"].secure == nil or re["Basic Campfire"].secure.spell == "Cooking", "cooking recipes cast Cooking")
@@ -2044,9 +2100,17 @@ do -- AtlasLoot and Questie integrations
 	-- items whose names the game hasn't sent yet are asked for, and appear when they arrive
 	iname[1002] = nil; ns.providers.loot._dirty = true
 	for _, r in ipairs(I.loot.rows) do if r.itemID == 1002 then r.name = nil; r._lname = nil end end -- as if never named
+	I.loot.unnamed[1002] = true
 	check(not names(ns:GetEntries(ns.providers.loot))["Red Defias Mask"], "unnamed items wait")
-	iname[1002] = "Red Defias Mask"; ns.providers.loot._dirty = true
+	-- names of other items (bags, tooltips) don't re-read the loot list; its own do
+	local NF = I.loot.nameFrame
+	NF.scripts.OnEvent(NF, "GET_ITEM_INFO_RECEIVED", 6948); FlushAll()
+	check(ns.providers.loot._dirty == false, "an unrelated item's name leaves the loot list alone")
+	iname[1002] = "Red Defias Mask"
+	NF.scripts.OnEvent(NF, "GET_ITEM_INFO_RECEIVED", 1002); NF.scripts.OnEvent(NF, "GET_ITEM_INFO_RECEIVED", 1002); FlushAll()
+	check(ns.providers.loot._dirty == true, "a loot item's name arriving re-reads the list")
 	check(names(ns:GetEntries(ns.providers.loot))["Red Defias Mask"], "and appear once named")
+	check(not I.loot.unnamed[1002], "named: no longer waited on")
 	-- Enter opens AtlasLoot on that boss and points at the item
 	local e = names(ns:GetEntries(ns.providers.loot))["Red Defias Mask"]
 	local hl0 = #log
@@ -2372,6 +2436,8 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 		{ name = "Classic", isHeader = true, isCollapsed = true },
 		{ name = "Argent Dawn", factionID = 529, reaction = 7, currentReactionThreshold = 21000, nextReactionThreshold = 42000, currentStanding = 30000, isWatched = true },
 		{ name = "Timbermaw Hold", factionID = 576, reaction = 2, currentReactionThreshold = -6000, nextReactionThreshold = -3000, currentStanding = -4500 },
+		{ name = "Steamwheedle Cartel", isHeader = true, isHeaderWithRep = true, factionID = 169, reaction = 5, currentReactionThreshold = 3000, nextReactionThreshold = 9000, currentStanding = 4000 },
+		{ name = "Gadgetzan", isHeader = true, isChild = true, isHeaderWithRep = true, factionID = 369, reaction = 5, currentReactionThreshold = 3000, nextReactionThreshold = 9000, currentStanding = 5000 },
 	}
 	local function visible()
 		local out, hide = {}, false
@@ -2396,6 +2462,9 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 	check(reps["Argent Dawn"] and reps["Argent Dawn"].detail == "Revered  9000/21000  watched", "factions under a collapsed header are read too")
 	check(reps["Timbermaw Hold"] and reps["Timbermaw Hold"].detail:find("Hostile", 1, true), "low standings too")
 	check(not reps["Alliance"], "plain headers aren't listed")
+	check(reps["Steamwheedle Cartel"] and not (reps["Steamwheedle Cartel"].tip or ""):find("Classic", 1, true),
+		"a top-level header with its own standing isn't put under the header before it: " .. tostring(reps["Steamwheedle Cartel"] and reps["Steamwheedle Cartel"].tip))
+	check(reps["Gadgetzan"] and (reps["Gadgetzan"].tip or ""):find("Steamwheedle Cartel", 1, true), "a sub-header's group is its parent header")
 	check(FACTIONS[3].isCollapsed == true, "the collapsed header is collapsed again after reading")
 	check(ns:ResolveProvider("reputation").id == "reputation" and ns:ResolveProvider("rep").id == "reputation", "@reputation and @rep")
 	local r = UI:Search("revered")
@@ -2762,13 +2831,16 @@ do -- quest items are tied to their quests without any other addon
 	check(it["Linen Cloth"].guessIDs == nil, "ordinary items get no suggestions")
 	-- Questie knows better than the log text
 	check(it["Sealed Parchment"].questID == nil, "no link without Questie")
+	local qqs = 0
 	_G.Questie = { API = { isReady = true } }
 	_G.QuestieLoader = { ImportModule = function(_, n) return n == "QuestieDB" and {
-		QueryQuestSingle = function(id, f) if id == 99 and f == "requiredSourceItems" then return { 7007 } end end,
+		QueryQuestSingle = function(id, f) qqs = qqs + 1 if id == 99 and f == "requiredSourceItems" then return { 7007 } end end,
 	} or nil end }
 	ns.providers.items._dirty = true
+	qqs = 0
 	it = names(ns:GetEntries(ns.providers.items))
 	check(it["Sealed Parchment"].questID == 99, "Questie: the quest needs this item")
+	check(qqs <= 3 * #quests, "Questie is asked once per quest, not per item and quest (" .. qqs .. " asks for " .. #quests .. " quests)")
 	_G.Questie, _G.QuestieLoader = nil, nil
 	check(not ns.commands.questitems, "no > questitems command")
 	-- restore
@@ -3178,6 +3250,7 @@ do
 	local linen = by[2589]
 	check(linen and linen.total == 48 and linen.name == "Linen Cloth", "counts every bag, bank, mailbox, guild bank and the warband bank: " .. tostring(linen and linen.total))
 	check(linen.detail == "48  ·  4 places", "the details are short: the total and how many places: " .. tostring(linen.detail))
+	check(ns.providers.stored.lazy == true, "@stored is searched once you type, not rebuilt on every open of the terminal")
 	local gs = St.Groups(linen)
 	check(gs[1].name == "Me Sur" and gs[1].mine and gs[1].total == 28 and gs[2].name == "My Guild (guild)" and gs[3].name == "Alt Guy" and gs[4].name == "Warband", "grouped by who has them, most first")
 	check(by[1234] and by[1234].total == 1, "something only in your bank is listed")
