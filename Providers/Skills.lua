@@ -177,9 +177,14 @@ ns:RegisterProvider("skills", {
 	guard = 2,
 	selfEvents = true, -- reading expands and collapses groups, which fires SKILL_LINES_CHANGED
 	collect = function()
-		local out = {}
+		local out, seen = {}, {}
 		for _, l in ipairs(ReadAll()) do
-			if not l.header then
+			-- the game's list can name a skill twice (Blacksmithing, twice under Professions): once here
+			local key = (l.group or "") .. "/" .. l.name -- (not the id: the two copies may carry different ones)
+			if not l.header and seen[key] then
+				ns:Trace("skills: " .. l.name .. " is listed twice by the game; shown once")
+			elseif not l.header then
+				seen[key] = true
 				local rank = Rank(l)
 				local parts = {}
 				if rank then parts[#parts + 1] = rank end

@@ -16,6 +16,7 @@ ns:RegisterCommand("help", {
 			lines[#lines + 1] = ("  .%s  -  %s"):format(name, c.desc or "")
 		end
 		lines[#lines + 1] = "Modes: plain text = search everything, / = slash commands, . = commands, @kind = filter, 3*45g = calculator"
+		lines[#lines + 1] = "Filters (add to a search): lvl:20-30 lvl:<30 lvl:40-  slot:wrist  zone:ashenvale  is:done is:todo is:usable"
 		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (use an item, pin only, link, list items...), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Tab completes commands and their arguments"
 		return lines
 	end,

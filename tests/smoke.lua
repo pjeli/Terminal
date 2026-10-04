@@ -1319,6 +1319,13 @@ do
 
 	local O = ns.Options
 	check(O and O.panel, "options panel built")
+	-- "Index professions at login" only where the game lets addons open profession windows
+	local baseNDO = ns.db.noDirectOpen
+	ns.db.noDirectOpen = true; O.Refresh()
+	check(not O.widgets.autoScan:IsShown() and not O.widgets.autoScanLabel:IsShown(), "the game refuses (WoW Forever): no login-indexing checkbox")
+	ns.db.noDirectOpen = false; O.Refresh()
+	check(O.widgets.autoScan:IsShown() and O.widgets.autoScanLabel:IsShown(), "the game allows it: the checkbox shows")
+	ns.db.noDirectOpen = baseNDO
 	O.Refresh()
 	local sl = O.widgets.rows
 	sl.scripts.OnValueChanged(sl, 12)
@@ -2131,7 +2138,8 @@ end
 do -- AtlasLoot and Questie integrations
 	local I = ns.Integrations
 	check(I and not I.loot.on and not I.npc.on and ns.providers.loot == nil and ns.providers.npc == nil, "nothing registered without the addons")
-	local iname = { [1001] = "Cruel Barb", [1002] = "Red Defias Mask" }
+	local iname = { [1001] = "Cruel Barb", [1002] = "Red Defias Mask", [2840] = "Copper Bar",
+		[2657] = "Test Glaive I", [77] = "Bogus Set Item" } -- (2657, 77: what the spell/set numbers are as item ids)
 	local baseName, baseIcon = C_Item.GetItemNameByID, C_Item.GetItemIconByID
 	C_Item.GetItemNameByID = function(id) return iname[id] end
 	C_Item.GetItemIconByID = function(id) return 134 end
@@ -2151,15 +2159,26 @@ do -- AtlasLoot and Questie integrations
 	-- the version it picks for this client, and so must Terminal, or every item shows twice
 	local classic = { items = { {} }, gameVersion = 1, GetName = function() return "The Deadmines (Classic)" end,
 		GetNameForItemTable = function() return "Edwin VanCleef" end }
+	-- profession pages list crafting spells (Smelt Copper, 2657), set pages list set numbers: not item ids
+	local mining = { items = { {} }, gameVersion = 4, GetName = function() return "Mining" end,
+		GetNameForItemTable = function() return "Smelting" end }
+	local sets = { items = { {} }, gameVersion = 4, GetName = function() return "Sets" end,
+		GetNameForItemTable = function() return "Tier 0" end }
 	refreshes = {}
 	local storage = { GetDifficultys = function() return { { name = "Normal" } } end, DEADMINES = content, CLASSIC_DM = classic,
+		MINING = mining, SETS = sets,
 		GetAviableGameVersion = function(_, v) return v == 4 and 4 or 1 end }
 	_G.AtlasLoot = {
 		-- the first time AtlasLoot hasn't built its module list yet (its start-up may come after ours)
 		Loader = { GetLootModuleList = function() moduleAsks = (moduleAsks or 0) + 1; if moduleAsks == 1 then return { module = {}, custom = {} } end return { module = { { addonName = "ALDungeons" } }, custom = {} } end,
 			LoadModule = function(_, a) note("ALLoad", a) end },
 		ItemDB = { Storage = { ALDungeons = storage },
-			GetItemTable = function(_, addon, c, boss, d) return boss == 1 and { { 1, 1001 }, { 2, 1002 }, { 3, "INV_Misc_Note_01" } } or { { 1, 1001 } } end },
+			GetItemTable = function(_, addon, c, boss, d)
+				if c == "MINING" then return { { 1, 2657 }, { 2, 99999 } }, { "Profession", "Item", "Name" } end
+				if c == "SETS" then return { { 1, 77 } }, { "Set", "Item", "Name" } end
+				return boss == 1 and { { 1, 1001 }, { 2, 1002 }, { 3, "INV_Misc_Note_01" } } or { { 1, 1001 } }, { "Item", "Item", "Name" }
+			end },
+		Data = { Profession = { GetCreatedItemID = function(spell) return spell == 2657 and 2840 or nil end } },
 		GUI = { frame = Obj("Frame"), ItemFrame = { frame = { ItemButtons = { btn } },
 			Refresh = function(_, skip) refreshes[#refreshes + 1] = { skip = skip, page = AtlasLoot.db.GUI.selected[5] } end } },
 		db = { GUI = { selected = { "X", "Y", 1, 1, 0 } } },
@@ -2185,7 +2204,8 @@ do -- AtlasLoot and Questie integrations
 	local QINFO = {
 		[33] = { name = "Wolves Across the Border", questLevel = 5 },
 		[501] = { name = "The Defias Brotherhood", questLevel = 14, startedBy = { { 12 } } },
-		[502] = { name = "Red Linen Goods", questLevel = 12, startedBy = { nil, { 555 } } },
+		[502] = { name = "Red Linen Goods", questLevel = 12, startedBy = { nil, { 555 } },
+			objectivesText = { "Bring 6 Red Linen Bandanas to Scout Riell at the Sentinel Hill tower." } },
 	}
 	local saveLogIdx, saveDone = C_QuestLog.GetLogIndexForQuestID, C_QuestLog.IsQuestFlaggedCompleted
 	C_QuestLog.GetLogIndexForQuestID = function(id) return id == 33 and 2 or nil end
@@ -2201,7 +2221,11 @@ do -- AtlasLoot and Questie integrations
 
 	I.Setup(); FlushAll()
 	check(I.loot.on and I.npc.on, "both detected")
-	check(logHas("ALLoad ALDungeons") and I.loot.done and #I.loot.rows == 2, "AtlasLoot module loaded and indexed, one row per item and instance: " .. #I.loot.rows)
+	check(logHas("ALLoad ALDungeons") and I.loot.done and #I.loot.rows == 3, "AtlasLoot module loaded and indexed, one row per item and instance: " .. #I.loot.rows)
+	local lootNames = {}
+	for _, r in ipairs(I.loot.rows) do lootNames[r.itemID] = r end
+	check(lootNames[2840] and lootNames[2840].detail == "Smelting  Mining", "a profession page gives the item its spell makes (Smelt Copper: Copper Bar)")
+	check(not lootNames[2657] and not lootNames[77], "spell and set numbers aren't read as item ids (no Test Glaive I)")
 	local classicRows = 0
 	for _, r in ipairs(I.loot.rows) do if r.content == "CLASSIC_DM" then classicRows = classicRows + 1 end end
 	check(classicRows == 0, "only the game version AtlasLoot shows on this client is indexed (no Classic copies)")
@@ -2238,8 +2262,58 @@ do -- AtlasLoot and Questie integrations
 	e.page = 1
 	e.activate(e); FlushAll()
 	check(refreshes[#refreshes].page == 1, "an item past position 100 opens on the second page")
+	-- the index is saved: the next session takes its rows from it without loading any module
+	local saved = ns.db.lootCache
+	check(type(saved) == "table" and type(saved.key) == "string" and saved.key:find("ALDungeons", 1, true) and #saved.groups >= 2,
+		"the loot index is saved with what it was built from: " .. tostring(saved and saved.key))
+	local nRows = #I.loot.rows
+	local function newSession()
+		I.loot.rows, I.loot.byKey, I.loot.pending, I.loot.unnamed = {}, {}, {}, {}
+		I.loot.done, I.loot.loaded, I.loot.cached = false, 0, nil
+		ns.providers.loot._dirty = true
+	end
+	newSession()
+	local mark = #log
+	local storageBefore = AtlasLoot.ItemDB.Storage
+	AtlasLoot.ItemDB.Storage = {} -- nothing loaded this session
+	check(ns.providers.loot.busy() == nil, "no loading ring while the saved index is waited on")
+	I.LoadLootModules()
+	check(ns.providers.loot.busy() == nil, "nor once it's read")
+	FlushAll()
+	check(not logHas("ALLoad ALDungeons", mark + 1) and I.loot.done and I.loot.cached and #I.loot.rows == nRows,
+		"a new session: rows from the saved index, no module loaded (" .. #I.loot.rows .. " of " .. nRows .. ")")
+	local cb = names(ns:GetEntries(ns.providers.loot))["Cruel Barb"]
+	check(cb and cb.detail == "Edwin VanCleef  The Deadmines" and cb.diff == 1 and cb.page == 0, "cached rows keep boss, instance, difficulty and page")
+	-- Enter on one: its module is loaded first, then the window opens on it
+	AtlasLoot.Loader.LoadModule = function(_, a) note("ALLoad", a); AtlasLoot.ItemDB.Storage = storageBefore end
+	mark = #log
+	cb.activate(cb); FlushAll()
+	check(logHas("ALLoad ALDungeons", mark + 1) and table.concat(sel, ","):find("module=ALDungeons", 1, true), "Enter loads the module, then opens AtlasLoot on the item")
+	-- AtlasLoot updated: the index is built again
+	local baseMeta = C_AddOns.GetAddOnMetadata
+	C_AddOns.GetAddOnMetadata = function(n, f) if f == "Version" then return "9.9.9" end end
+	newSession(); mark = #log
+	I.LoadLootModules()
+	check(ns.providers.loot.busy() and ns.providers.loot.busy():find("Indexing AtlasLoot", 1, true), "building again shows the loading ring")
+	FlushAll()
+	check(ns.providers.loot.busy() == nil, "and stops when done")
+	check(logHas("ALLoad ALDungeons", mark + 1) and not I.loot.cached and #I.loot.rows == nRows and ns.db.lootCache.key:find("9.9.9", 1, true),
+		"a new AtlasLoot version: the index is built again and saved")
+	C_AddOns.GetAddOnMetadata = baseMeta
+	AtlasLoot.Loader.LoadModule = function(_, a) note("ALLoad", a) end
 	-- Questie
-	check(I.npc.list and #I.npc.list == 3, "Questie NPC names indexed: " .. tostring(I.npc.list and #I.npc.list))
+	-- after login: the list, and its names as one text (for the hint rows)
+	check(I.npc.list and #I.npc.list == 3, "Questie NPCs indexed in the background after login: " .. tostring(I.npc.list and #I.npc.list))
+	check(I.npc.names == "\nedwin vancleef\t10\ndefias pillager\t11\nmarshal mcbride\t12\n",
+		"and their names as one text: " .. tostring(I.npc.names))
+	-- the NPC list freed when unused: its names stay, so plain searches still offer @npc without it
+	ns.providers.npc.onDrop(); ns.providers.npc._entries = nil
+	check(not I.npc.list and I.npc.names, "NPC list freed, names kept")
+	local offer = UI:Search("marshal mcbride")
+	local offered = false
+	for _, e in ipairs(offer) do if e.completion == "@npc marshal mcbride" then offered = true end end
+	check(offered and not I.npc.list, "the @npc row still comes up, and the list isn't rebuilt for it")
+	check(ns.providers.questie.idleDrop == nil, "the quest list is kept (a few thousand quests)")
 	check(ns.providers.npc.explicit, "NPCs only with @npc")
 	check(#UI:Search("marshal mcbride") == 0 or UI:Search("marshal mcbride")[1].kind ~= "npc", "NPCs not in plain search")
 	local r = UI:Search("@npc marshal")
@@ -2274,7 +2348,32 @@ do -- AtlasLoot and Questie integrations
 	-- Questie's quests (@questie) are kept apart from the quest log (@questlog)
 	check(ns:ResolveProvider("questie").id == "questie" and ns:ResolveProvider("questlog").id == "quests", "@questie and @questlog are separate")
 	check(ns.providers.questie.explicit, "Questie's quests only with @questie")
-	check(I.qdb.list and #I.qdb.list == 3, "Questie quests indexed: " .. tostring(I.qdb.list and #I.qdb.list))
+	check(I.qdb.names and I.qdb.names:find("\nthe defias brotherhood\t501\n", 1, true), "Questie quest names indexed as one text")
+	do -- indexing a few milliseconds per frame, whatever each item costs; a failing item is skipped
+		local realClock, t = _G.debugprofilestop, 0
+		_G.debugprofilestop = function() t = t + 4; return t end -- each look at the clock: 4 ms
+		local seen, finished = {}, false
+		I.RunSliced("test", 10, function(i) if i == 4 then error("bad row") end seen[#seen + 1] = i end, function() finished = true end)
+		check(#seen > 0 and #seen < 9 and not finished, "the first frame does only part of it: " .. #seen)
+		FlushAll()
+		check(finished and #seen == 9, "the rest in later frames, the failing item skipped: " .. #seen)
+		_G.debugprofilestop = realClock
+	end
+	do -- the name text lookup
+		local F = I.FindNames
+		local blob = "\nedwin vancleef\t10\ndefias pillager\t11\ndefias trapper\t412\nsharptalon\t3928\n"
+		local id, c = F(blob, { "defias" }); check(id == 11 and c == 2, "one word: the first match and how many")
+		id, c = F(blob, { "trap", "defias" }); check(id == 412 and c == 1, "every word on the same line")
+		id, c = F(blob, { "edwin", "pillager" }); check(id == nil and c == 0, "words on different lines don't count")
+		id, c = F(blob, { "41" }); check(id == nil and c == 0, "digits of an id aren't a name")
+		id, c = F(blob, { "sharp" }); check(id == 3928 and c == 1, "the last line")
+		local many = {}
+		for k = 1, 150 do many[k] = "\nwolf " .. k .. "\t" .. k end
+		local ticks = 0
+		id, c = F(table.concat(many) .. "\n", { "wolf" }, function() ticks = ticks + 1 end)
+		check(id == 1 and c == 100 and ticks >= 1, "counts stop at 100 and the search is paused every so often")
+	end
+	check(I.qdb.list and #I.qdb.list == 3, "Questie quests indexed in the background after login: " .. tostring(I.qdb.list and #I.qdb.list))
 	ns.providers.questie._dirty = true
 	local qs = names(ns:GetEntries(ns.providers.questie))
 	check(qs["The Defias Brotherhood"] and qs["The Defias Brotherhood"].detail == "Lv 14", "level shown: " .. tostring(qs["The Defias Brotherhood"] and qs["The Defias Brotherhood"].detail))
@@ -2312,6 +2411,37 @@ do -- AtlasLoot and Questie integrations
 	check(not (UI:Search("de")[1] or {}).completion, "not for one or two letters")
 	r = UI:Search("@questie defias")
 	check(r[1] and r[1].name == "The Defias Brotherhood", "@questie finds a quest by name")
+	local byText = UI:Search("@questie scout riell")
+	check(byText[1] and byText[1].name == "Red Linen Goods", "@questie finds a quest by its objectives text: " .. tostring(byText[1] and byText[1].name))
+	-- filters: key:value words narrow the results (Filters.lua)
+	local function namesOf(list) local t = {} for _, e in ipairs(list) do t[#t + 1] = e.name end table.sort(t) return table.concat(t, ",") end
+	check(namesOf(UI:Search("@questie lvl:10-15")) == "Red Linen Goods,The Defias Brotherhood", "lvl:10-15: " .. namesOf(UI:Search("@questie lvl:10-15")))
+	check(namesOf(UI:Search("@questie lvl:<10")) == "Wolves Across the Border", "lvl:<10")
+	check(namesOf(UI:Search("@questie lvl:14")) == "The Defias Brotherhood" and namesOf(UI:Search("@questie lvl:13-")) == "The Defias Brotherhood", "lvl:14 and lvl:13-")
+	check(namesOf(UI:Search("@questie is:done")) == "Red Linen Goods" and not namesOf(UI:Search("@questie is:todo")):find("Red Linen", 1, true), "is:done / is:todo")
+	check(namesOf(UI:Search("@questie defias lvl:12-20")) == "The Defias Brotherhood" and namesOf(UI:Search("@questie defias lvl:1-5")) == "", "filters with words")
+	-- a filter changed or dropped isn't a narrowing of the last search
+	check(namesOf(UI:Search("@questie red lvl:13-")) == "The Defias Brotherhood", "a narrower search with a filter")
+	check(namesOf(UI:Search("@questie red")):find("Red Linen Goods", 1, true), "dropping the filter brings the rows back: " .. namesOf(UI:Search("@questie red")))
+	local F = ns.Filters
+	check(F.Parse("foo:bar") == nil and F.Parse("lvl:abc") == nil and F.Parse("is:nothing") == nil and F.Parse("plain") == nil, "unknown filters stay search words")
+	check(F.Parse("zone:ash")({ zone = "Ashenvale" }) and not F.Parse("zone:ash")({ zone = "Elwynn Forest" }) and not F.Parse("zone:ash")({}), "zone: by part of the zone's name")
+	local baseInfo, baseCan = C_Item.GetItemInfo, C_PlayerInfo and C_PlayerInfo.CanUseItem
+	C_Item.GetItemInfo = function(id) if id == 70 then return "Bracers", nil, 2, 20, 18, "Armor", "Mail", 1, "INVTYPE_WRIST" end end
+	_G.INVTYPE_WRIST = "Wrist"
+	_G.C_PlayerInfo = _G.C_PlayerInfo or {}
+	C_PlayerInfo.CanUseItem = function(id) return true end
+	local wrist = { itemID = 70 }
+	check(F.Parse("slot:wrist")(wrist) and not F.Parse("slot:feet")(wrist) and not F.Parse("slot:wrist")({ name = "Not an item" }), "slot: the item's slot")
+	check(F.Parse("lvl:15-20")(wrist) and not F.Parse("lvl:<18")(wrist), "lvl: the level an item needs")
+	local baseLevel = UnitLevel
+	UnitLevel = function() return 10 end
+	check(not F.Parse("is:usable")(wrist), "is:usable: too low a level")
+	UnitLevel = function() return 30 end
+	check(F.Parse("is:usable")(wrist), "is:usable: high enough and the game says it can be used")
+	C_PlayerInfo.CanUseItem = function() return false end
+	check(not F.Parse("is:usable")(wrist), "is:usable: the game says it can't (another class's armour)")
+	UnitLevel, C_Item.GetItemInfo, C_PlayerInfo.CanUseItem, _G.INVTYPE_WRIST = baseLevel, baseInfo, baseCan, nil
 	local q = r[1]
 	check(q.secondarySecure and q.secondarySecure.binding == "TOGGLEWORLDMAP", "Shift+Enter on a quest you don't have opens the map on its giver")
 	-- Enter: its Wowhead link, selected in a small window, gone once Ctrl+C has copied it
@@ -2856,6 +2986,10 @@ do -- skills: searchable with rank; collapsed groups read too
 		{ name = "Swords", rank = 120, maxRank = 130, modifier = 5, skillID = 43, description = "Allows the use of swords." },
 		{ name = "Languages", isHeader = true, isExpanded = false },
 		{ name = "Orcish", rank = 300, maxRank = 300, skillID = 109 },
+		-- the game's list can name a skill twice (Blacksmithing on WoW Forever)
+		{ name = "Professions", isHeader = true, isExpanded = true },
+		{ name = "Blacksmithing", rank = 60, maxRank = 150, skillID = 164 },
+		{ name = "Blacksmithing", rank = 60, maxRank = 150, skillID = 9164 },
 	}
 	local function visible()
 		local out, hide = {}, false
@@ -2877,6 +3011,9 @@ do -- skills: searchable with rank; collapsed groups read too
 	check(sk["Orcish"] and sk["Orcish"].detail == "300/300  Languages", "skills in a collapsed group are read too")
 	check(LINES[3].isExpanded == false, "the collapsed group is collapsed again")
 	check(not sk["Languages"], "group headers aren't listed")
+	local bs = 0
+	for _, e in ipairs(ns:GetEntries(ns.providers.skills)) do if e.name == "Blacksmithing" then bs = bs + 1 end end
+	check(bs == 1, "a skill the game lists twice is shown once (" .. bs .. ")")
 	check(ns:ResolveProvider("skill").id == "skills" and ns:ResolveProvider("skills").id == "skills", "@skill and @skills")
 	local r = UI:Search("swords")
 	check(r[1] and r[1].name == "Swords" and r[1].kind == "skills", "found by name")

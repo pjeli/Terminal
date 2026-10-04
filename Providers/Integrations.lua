@@ -56,9 +56,48 @@ local function AtlasLootPresent()
 	return type(a) == "table" and a.ItemDB and a.ItemDB.Storage and a.Loader and true or false
 end
 
+--- The item a loot table's row stands for, or nil. The table's type says what its numbers are:
+--- items on "Item" pages; crafting spells on profession pages (Smelt Copper, 2657: read as an item
+--- id that's "Test Glaive I"), given as the item the spell makes, the way AtlasLoot shows them; set
+--- numbers and icons otherwise, which aren't items at all.
+local function RowItem(kind, id, A)
+	if kind == "Item" then return id end
+	if kind == "Profession" then
+		local P = A.Data and A.Data.Profession
+		local made = P and Safe(P.GetCreatedItemID, id)
+		return type(made) == "number" and made > 0 and made or nil
+	end
+end
+
+-- The index is kept between sessions (db.lootCache), so a /reload doesn't load every loot module
+-- again: rows come from the cache at once and a module is loaded only to open its window. It is
+-- rebuilt when AtlasLoot, a module, the game version or this format changes (CacheKey).
+local CACHE_FORMAT = 1
+
+--- One loot row (compact: shared fields come from loot.meta); its name is filled in once the
+--- server has sent it. page: the page the item is on (AtlasLoot shows 100 positions per page).
+local function AddRow(addon, content, boss, diff, page, id, detail, ltext)
+	local key = addon .. ":" .. tostring(content) .. ":" .. id
+	if loot.byKey[key] then return false end
+	local r = setmetatable({ _compact = true, key = key, itemID = id, addon = addon,
+		content = content, boss = boss, diff = diff, page = page,
+		detail = detail, _ltext = ltext }, loot.meta)
+	loot.byKey[key] = r
+	loot.rows[#loot.rows + 1] = r
+	loot.pending[#loot.pending + 1] = id
+	loot.unnamed[id] = true
+	return true
+end
+
+local function GroupText(inst, bossName)
+	return bossName .. "  " .. inst, ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot")
+end
+
 --- Rows for one loaded loot module: one per item and instance (the first boss and
 --- difficulty it drops on), kept apart from names, which arrive from the server over time.
-local function IndexModule(addon, storage)
+--- groups: the cache being built, one entry per boss table ({ addon, content, boss, inst,
+--- boss name, "id.diff.page ..." }).
+local function IndexModule(addon, storage, groups)
 	local A = AL()
 	local added = 0
 	local diffs = Safe(storage.GetDifficultys, storage) or {}
@@ -80,40 +119,65 @@ local function IndexModule(addon, storage)
 				local bossName = Safe(c.GetNameForItemTable, c, boss, true)
 				if type(bossName) ~= "string" then bossName = "?" end
 				-- the same for every item of this boss
-				local detail = bossName .. "  " .. inst
-				local ltext = ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot")
+				local detail, ltext = GroupText(inst, bossName)
+				local packed = {}
 				for d = 1, ndiff do
-					local list = Safe(A.ItemDB.GetItemTable, A.ItemDB, addon, content, boss, d)
+					local list, typ = Safe(A.ItemDB.GetItemTable, A.ItemDB, addon, content, boss, d)
+					local kind = type(typ) == "table" and typ[1] or "Item"
 					-- the difficulty actually shown (a missing one falls back to another)
 					local diff = type(list) == "table" and (Safe(A.ItemDB.GetDifficulty, A.ItemDB, addon, content, boss, d) or d)
 					if type(list) == "table" then
 						for _, row in ipairs(list) do
 							local id = type(row) == "table" and row[2]
 							local pos = type(row) == "table" and tonumber(row[1]) or 1
-							if type(id) == "number" and id > 0 then
-								local key = addon .. ":" .. tostring(content) .. ":" .. id
-								if not loot.byKey[key] then
-									-- the row is the entry (compact: shared fields come from loot.meta); its
-									-- name is filled in once the server has sent it. page: the page the item
-									-- is on (AtlasLoot shows 100 positions per page)
-									local r = setmetatable({ _compact = true, key = key, itemID = id, addon = addon,
-										content = content, boss = boss, diff = diff, page = math.floor((pos - 1) / 100),
-										detail = detail, _ltext = ltext }, loot.meta)
-									loot.byKey[key] = r
-									loot.rows[#loot.rows + 1] = r
-									loot.pending[#loot.pending + 1] = id
-									loot.unnamed[id] = true
+							id = type(id) == "number" and id > 0 and RowItem(kind, id, A) or nil
+							if id then
+								local page = math.floor((pos - 1) / 100)
+								if AddRow(addon, content, boss, diff, page, id, detail, ltext) then
 									added = added + 1
+									packed[#packed + 1] = id .. "." .. diff .. "." .. page
 								end
 							end
 						end
 					end
+				end
+				if groups and #packed > 0 then
+					groups[#groups + 1] = { addon, content, boss, inst, bossName, table.concat(packed, " ") }
 				end
 			end
 		end
 	end
 	return added
 end
+
+--- What the saved index was built from: AtlasLoot's version and each module's, the game
+--- version AtlasLoot picks, and this format. Any change and it's built again.
+local function CacheKey(mods)
+	local A = AL()
+	local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or _G.GetAddOnMetadata
+	local function ver(name) return tostring(meta and Safe(meta, name, "Version") or "?") end
+	local core = LoadedCore() or "AtlasLoot"
+	local parts = { "v" .. CACHE_FORMAT, core .. "=" .. ver(core), "game=" .. tostring(A.GetGameVersion and Safe(A.GetGameVersion, A)) }
+	for _, m in ipairs(mods) do parts[#parts + 1] = m .. "=" .. ver(m) end
+	return table.concat(parts, " ")
+end
+
+--- Rows from the saved index, without loading any module. False when there's none to use.
+local function FromCache(key)
+	local c = ns.db and ns.db.lootCache
+	if type(c) ~= "table" or c.key ~= key or type(c.groups) ~= "table" then return false end
+	for _, g in ipairs(c.groups) do
+		local addon, content, boss, inst, bossName, packed = g[1], g[2], g[3], g[4], g[5], g[6]
+		if type(addon) == "string" and type(packed) == "string" then
+			local detail, ltext = GroupText(tostring(inst), tostring(bossName))
+			for id, diff, page in packed:gmatch("(%d+)%.(%d+)%.(%d+)") do
+				AddRow(addon, content, boss, tonumber(diff), tonumber(page), tonumber(id), detail, ltext)
+			end
+		end
+	end
+	return true
+end
+I.CacheKey = CacheKey
 
 local function Dirty()
 	if ns.providers.loot then ns.providers.loot._dirty = true end
@@ -155,14 +219,26 @@ LoadLootModules = function()
 		return C_Timer.After(3, LoadLootModules)
 	end
 	loot.modules = #mods
+	local key = CacheKey(mods)
+	if FromCache(key) then
+		loot.loaded, loot.done, loot.cached = #mods, true, true
+		loot.byKey = {}
+		ns:Trace(("loot: %d rows from the saved index (%s)"):format(#loot.rows, key))
+		Dirty()
+		return PumpNames()
+	end
+	ns:Trace("loot: building the index (" .. key .. ")")
+	loot.building = true
+	local groups = {}
 	local i = 0
 	local function nextModule()
 		if InCombatLockdown() then return C_Timer.After(5, nextModule) end
 		i = i + 1
 		local addon = mods[i]
 		if not addon then
-			loot.done = true
+			loot.done, loot.building = true, false
 			loot.byKey = {} -- only for skipping duplicates while indexing
+			if ns.db then ns.db.lootCache = { key = key, groups = groups } end -- kept for the next session
 			Dirty()
 			return PumpNames()
 		end
@@ -170,13 +246,16 @@ LoadLootModules = function()
 		local storage = A.ItemDB.Storage[addon]
 		if storage then
 			loot.loaded = loot.loaded + 1
-			IndexModule(addon, storage)
+			IndexModule(addon, storage, groups)
 			Dirty()
 		end
 		C_Timer.After(1.5, nextModule)
 	end
-	nextModule()
+	-- (loading every module is heavy: not in the first seconds after login)
+	local wait = (loot.startedAt or 0) + 8 - GetTime()
+	if wait > 0 then C_Timer.After(wait, nextModule) else nextModule() end
 end
+I.LoadLootModules = function() return LoadLootModules() end -- (tests: a new session)
 
 local function OpenLoot(e)
 	local A = AL()
@@ -184,6 +263,15 @@ local function OpenLoot(e)
 	if not (GUI and GUI.frame) then
 		ns:Print("AtlasLoot's window isn't ready yet.")
 		return
+	end
+	-- rows from the saved index: the module may not be loaded this session yet
+	if not (A.ItemDB.Storage and A.ItemDB.Storage[e.addon]) then
+		if InCombatLockdown() then
+			ns:Print("AtlasLoot's " .. tostring(e.addon) .. " loads after combat; try again then.")
+			return
+		end
+		Safe(A.Loader.LoadModule, A.Loader, e.addon)
+		ns:Trace("loot: loaded " .. tostring(e.addon) .. " to open it")
 	end
 	local f = GUI.frame
 	if not f:IsShown() then f:Show() end
@@ -219,7 +307,8 @@ local function SetupAtlasLoot()
 	if loot.on or not AtlasLootPresent() then return end
 	loot.on = true
 	ns:RegisterProvider("loot", {
-		busy = function() return loot.on and not loot.done and ("Indexing AtlasLoot's loot tables (%d of %d)"):format(loot.loaded, loot.modules) or nil end,
+		-- only while modules are really being read (not while the saved index is looked at)
+		busy = function() return loot.building and ("Indexing AtlasLoot's loot tables (%d of %d)"):format(loot.loaded, loot.modules) or nil end,
 		label = "Loot",
 		color = "ffd9a441",
 		aliases = { "loot", "drop", "drops", "atlasloot", "al" },
@@ -242,7 +331,9 @@ local function SetupAtlasLoot()
 		icon = function(t) return C_Item.GetItemIconByID and C_Item.GetItemIconByID(t.itemID) or nil end,
 		link = function(t) return "item:" .. t.itemID end,
 	})
-	C_Timer.After(8, LoadLootModules)
+	-- the saved index is read at once; building it again (AtlasLoot changed) waits 8 s (LoadLootModules)
+	loot.startedAt = GetTime()
+	C_Timer.After(1, LoadLootModules)
 	-- Item names come in for everything in the game (bags, tooltips...): the loot list is read
 	-- again only for names it was waiting on, at most once every 2 s
 	local names = CreateFrame("Frame")
@@ -273,6 +364,40 @@ end
 local function QModule(name) return Safe(_G.QuestieLoader.ImportModule, _G.QuestieLoader, name) end
 
 --- NPC names, a slice at a time so the game doesn't stall while Questie's database is read.
+--- Work through n items a few milliseconds per frame (SLICE_MS), however long each takes, so
+--- indexing never stalls a frame; then done(). A failing item is skipped and traced. The time
+--- taken goes to the trace (.debug log).
+local SLICE_MS = 10
+local function Now() return _G.debugprofilestop and _G.debugprofilestop() or (GetTime() * 1000) end
+local function RunSliced(what, n, each, done)
+	local i, started = 1, Now()
+	local function batch()
+		local stop = Now() + SLICE_MS
+		while i <= n do
+			each(i)
+			i = i + 1
+			if Now() > stop then break end
+		end
+	end
+	local function step()
+		local ok, err = pcall(batch)
+		if not ok then
+			ns:Trace(("%s: item %d failed: %s"):format(what, i, tostring(err)))
+			i = i + 1
+		end
+		if i <= n then return C_Timer.After(0, step) end
+		ns:Trace(("%s: %d in %.0f ms"):format(what, n, Now() - started))
+		done()
+	end
+	step()
+end
+
+I.RunSliced = RunSliced
+
+-- Each list's names are also kept as one text ("\n<name, lowercase>\t<id>" per line), for the
+-- "Search Questie for this" rows: built along with the list the first time, and kept when the list
+-- is freed, so plain searches never need the list itself (npc.names, qdb.names; FindNames).
+
 local function IndexNPCs()
 	if npc.list or npc.busy or not QuestieReady() then return end
 	local DB = QModule("QuestieDB")
@@ -281,29 +406,66 @@ local function IndexNPCs()
 	local ids = {}
 	for id in pairs(DB.NPCPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
 	table.sort(ids)
-	local out, i = {}, 1
-	local meta = npc.meta
-	local function step()
-		local stop = math.min(i + 1500, #ids)
-		while i <= stop do
-			local id = ids[i]
-			local name = Safe(DB.QueryNPCSingle, id, "name")
-			if type(name) == "string" and name ~= "" then
-				-- compact: just the name and id; everything else is shared (npc.meta)
-				-- (_lname now, a slice at a time, not all at once on the first search)
-				out[#out + 1] = setmetatable({ _compact = true, key = id, name = name, _lname = ns.Lower(name) }, meta)
+	local out, meta = {}, npc.meta
+	local names = not npc.names and {} or nil
+	RunSliced("questie: NPCs", #ids, function(i)
+		local id = ids[i]
+		local name = Safe(DB.QueryNPCSingle, id, "name")
+		if type(name) == "string" and name ~= "" and not (issecretvalue and issecretvalue(name)) then
+			-- compact: just the name and id; everything else is shared (npc.meta)
+			local lname = ns.Lower(name)
+			out[#out + 1] = setmetatable({ _compact = true, key = id, name = name, _lname = lname }, meta)
+			if names then names[#names + 1] = "\n" .. lname .. "\t" .. id end
+		end
+	end, function()
+		npc.list, npc.busy = out, false
+		if names then npc.names, npc.nameQuery = table.concat(names) .. "\n", "QueryNPCSingle" end
+		if ns.providers.npc then ns.providers.npc._dirty = true end
+		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
+	end)
+end
+
+--- How many names in the text have every typed word (up to 100) and the first one's id.
+--- Scans for the longest word with a plain find (C speed) and checks the others on its line.
+--- tick: called every so often (the search's own budget check, which may pause it a frame).
+local function FindNames(blob, tokens, tick)
+	if type(blob) ~= "string" or #tokens == 0 then return nil, 0 end
+	local lead = tokens[1]
+	for k = 2, #tokens do if #tokens[k] > #lead then lead = tokens[k] end end
+	local pos, count, firstId, looked = 1, 0, nil, 0
+	while count < 100 do
+		local at = blob:find(lead, pos, true)
+		if not at then break end
+		local lineEnd = blob:find("\n", at, true) or (#blob + 1)
+		local tab = blob:find("\t", at, true)
+		if tab and tab < lineEnd then -- (a match in the name, not in the id after it)
+			local from = math.max(1, at - 120)
+			local back = blob:sub(from, at):match(".*\n()")
+			local name = blob:sub(back and (from + back - 1) or at, tab - 1)
+			local all = true
+			for k = 1, #tokens do
+				if tokens[k] ~= lead and not name:find(tokens[k], 1, true) then all = false break end
 			end
-			i = i + 1
+			if all then
+				count = count + 1
+				firstId = firstId or tonumber(blob:sub(tab + 1, lineEnd - 1))
+			end
 		end
-		if i <= #ids then
-			C_Timer.After(0, step)
-		else
-			npc.list, npc.busy = out, false
-			if ns.providers.npc then ns.providers.npc._dirty = true end
-			if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
-		end
+		pos = lineEnd
+		looked = looked + 1
+		if tick and looked % 64 == 0 then tick() end
 	end
-	step()
+	return firstId, count
+end
+I.FindNames = FindNames
+
+--- The provider's hintFind: the first matching name (as the game writes it) and the count.
+local function HintFind(t, tokens, tick)
+	local id, count = FindNames(t.names, tokens, tick)
+	if not id then return nil, 0 end
+	local DB = QModule("QuestieDB")
+	local name = DB and t.nameQuery and Safe(DB[t.nameQuery], id, "name")
+	return type(name) == "string" and name or tostring(id), count
 end
 
 --- Where the NPC stands: uiMapID, position {x,y} (0-1), and whether that's a dungeon's
@@ -365,7 +527,21 @@ local function OpenNpcDirect(e)
 	C_Timer.After(0.1, function() ShowNpc(e) end)
 end
 
---- Quest names, levels and zones from Questie's database, a slice at a time.
+--- A quest's objectives ("Bring Sharptalon's Claw to Senani Thunderheart...") from Questie's
+--- database, lowercased for the search, or nil. Questie keeps them as a list of lines.
+local function ObjectivesText(DB, id)
+	local t = Safe(DB.QueryQuestSingle, id, "objectivesText")
+	if type(t) == "table" then
+		local parts = {}
+		for _, line in ipairs(t) do
+			if type(line) == "string" and not (issecretvalue and issecretvalue(line)) then parts[#parts + 1] = line end
+		end
+		t = table.concat(parts, " ")
+	end
+	if type(t) == "string" and t ~= "" and not (issecretvalue and issecretvalue(t)) then return ns.Lower(t) end
+end
+
+--- Quest names, levels, zones and objectives from Questie's database, a slice at a time.
 local function IndexQuests()
 	if qdb.list or qdb.busy or not QuestieReady() then return end
 	local DB = QModule("QuestieDB")
@@ -374,7 +550,7 @@ local function IndexQuests()
 	local ids = {}
 	for id in pairs(DB.QuestPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
 	table.sort(ids)
-	local out, i = {}, 1
+	local out = {}
 	local zones = {} -- zoneOrSort -> { name, searchable text }: thousands of quests share a few hundred zones
 	local function Zone(zone)
 		local z = zones[zone]
@@ -386,31 +562,29 @@ local function IndexQuests()
 		end
 		return z
 	end
-	local function step()
-		local stop = math.min(i + 800, #ids)
-		while i <= stop do
-			local id = ids[i]
-			local name = Safe(DB.QueryQuestSingle, id, "name")
-			if type(name) == "string" and name ~= "" then
-				local z = Zone(Safe(DB.QueryQuestSingle, id, "zoneOrSort") or 0)
-				out[#out + 1] = setmetatable({
-					_compact = true, key = id, qid = id, name = name, _lname = ns.Lower(name),
-					level = Safe(DB.QueryQuestSingle, id, "questLevel"),
-					zone = z[1],
-					_ltext = z[2],
-				}, qdb.meta)
-			end
-			i = i + 1
+	local names = not qdb.names and {} or nil
+	RunSliced("questie: quests", #ids, function(i)
+		local id = ids[i]
+		local name = Safe(DB.QueryQuestSingle, id, "name")
+		if type(name) == "string" and name ~= "" and not (issecretvalue and issecretvalue(name)) then
+			local z = Zone(Safe(DB.QueryQuestSingle, id, "zoneOrSort") or 0)
+			-- searched too: who to talk to, what to kill or bring, where
+			local obj = ObjectivesText(DB, id)
+			local lname = ns.Lower(name)
+			out[#out + 1] = setmetatable({
+				_compact = true, key = id, qid = id, name = name, _lname = lname,
+				level = Safe(DB.QueryQuestSingle, id, "questLevel"),
+				zone = z[1],
+				_ltext = obj and (z[2] .. " " .. obj) or z[2],
+			}, qdb.meta)
+			if names then names[#names + 1] = "\n" .. lname .. "\t" .. id end
 		end
-		if i <= #ids then
-			C_Timer.After(0, step)
-		else
-			qdb.list, qdb.busy = out, false
-			if ns.providers.questie then ns.providers.questie._dirty = true end
-			if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
-		end
-	end
-	step()
+	end, function()
+		qdb.list, qdb.busy = out, false
+		if names then qdb.names, qdb.nameQuery = table.concat(names) .. "\n", "QueryQuestSingle" end
+		if ns.providers.questie then ns.providers.questie._dirty = true end
+		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
+	end)
 end
 
 --- Who starts a quest: an NPC id, or a word for what else does ("an object", "an item").
@@ -509,6 +683,7 @@ local function SetupQuestie()
 	npc.on = true
 	ns:RegisterProvider("npc", {
 		busy = function() return npc.busy and "Indexing Questie's NPCs" or nil end,
+		hintFind = function(_, tokens, tick) return HintFind(npc, tokens, tick) end,
 		label = "NPC",
 		color = "ffe0a060",
 		aliases = { "npc", "npcs", "n", "mob", "vendor" },
@@ -541,19 +716,21 @@ local function SetupQuestie()
 		hintLabel = "Questie's quests",
 		explicit = true, -- every quest in the game: only searched with @questie
 		busy = function() return qdb.busy and "Indexing Questie's quests" or nil end,
+		hintFind = function(_, tokens, tick) return HintFind(qdb, tokens, tick) end,
 		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat).
 		-- No quest events: a quest's state (in log, done) is read when its row is drawn.
-		idleDrop = 600, -- freed after 10 minutes without a @questie search; re-read when next wanted
-		onDrop = function() qdb.list = nil end,
+		-- (kept: a few thousand quests, and their objectives are the slow part to read again)
 		collect = function()
 			if not qdb.list then IndexQuests() end
 			return qdb.list or {}
 		end,
 	})
 	qdb.meta = ns:CompactMeta(ns.providers.questie, { activate = CopyQuestLink, noCombatSecondary = true }, QUESTIE_LAZY)
+	-- built in the background after login (with their names text); the NPC list is freed when
+	-- unused and built again for the next @npc search, the quest list (a few thousand) is kept
 	local function index()
 		C_Timer.After(2, IndexNPCs)
-		C_Timer.After(4, IndexQuests)
+		C_Timer.After(3, IndexQuests)
 	end
 	if QuestieReady() then
 		index()

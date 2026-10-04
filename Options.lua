@@ -372,7 +372,7 @@ local scanCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate"
 scanCheck:SetSize(24, 24)
 scanCheck:SetPoint("TOPLEFT", 190, -498)
 scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -503)
+O.widgets.autoScanLabel = Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -503)
 O.widgets.autoScan = scanCheck
 
 -- the panel's own actions, on a row of their own below everything else
@@ -412,6 +412,11 @@ function O.Refresh()
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
+	-- only where the game lets addons open profession windows: WoW Forever doesn't (db.noDirectOpen),
+	-- so there each profession is indexed when you open it, and the option would do nothing
+	local canScan = ns.db and ns.db.noDirectOpen == false
+	O.widgets.autoScan:SetShown(canScan)
+	O.widgets.autoScanLabel:SetShown(canScan)
 	local anim = T.ANIMATION_LABELS[t.animations] and t.animations or (t.animations == false and "off" or "smooth")
 	O.widgets.animations:SetText(AnimLabel(anim))
 	MarkChoice(O.animationItems, anim, AnimLabel)

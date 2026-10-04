@@ -313,7 +313,7 @@ end
 function UI:SearchText(text)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
-	local kinds, tokens = nil, {}
+	local kinds, tokens, filters, fsig = nil, {}, nil, {}
 	for w in text:gmatch("%S+") do
 		if w:sub(1, 1) == "@" then
 			local p = ns:ResolveProvider(w:sub(2))
@@ -322,12 +322,21 @@ function UI:SearchText(text)
 				kinds[p.id] = true
 			end
 		else
-			tokens[#tokens + 1] = ns.Lower(w)
+			-- lvl:20-30, slot:wrist, zone:ashenvale, is:todo... (Filters.lua); anything else is text
+			local f = ns.Filters and ns.Filters.Parse(w)
+			if f then
+				filters = filters or {}
+				filters[#filters + 1] = f
+				fsig[#fsig + 1] = ns.Lower(w)
+			else
+				tokens[#tokens + 1] = ns.Lower(w)
+			end
 		end
 	end
 	local empty = #tokens == 0
 	self.posTokens = tokens
-	if empty and not kinds then self.lastScan = nil return self:FrequentEntries() end
+	if empty and not kinds and not filters then self.lastScan = nil return self:FrequentEntries() end
+	local Pass = ns.Filters and ns.Filters.Pass
 
 	local out = {}
 	local included = {}
@@ -343,7 +352,7 @@ function UI:SearchText(text)
 			if p._dirty or not p._entries then fresh = false end
 		end
 	end
-	sig = table.concat(sig, ",")
+	sig = table.concat(sig, ",") .. "|" .. table.concat(fsig, " ") -- (other filters: not a narrowing of the last scan)
 	-- typing one more letter can only narrow the matches: score just the last ones again
 	local last = self.lastScan
 	local candidates
@@ -357,11 +366,12 @@ function UI:SearchText(text)
 	end
 	local function consider(e)
 		if empty then
+			if filters and not Pass(e, filters) then return end
 			e._score, e._pos = FreqBonus(e), {}
 			out[#out + 1] = e
 		else
 			local s = ScoreEntry(e, tokens)
-			if s then
+			if s and (not filters or Pass(e, filters)) then -- (filters only on what matched: cheaper)
 				e._score = s + FreqBonus(e)
 				out[#out + 1] = e
 			end
@@ -436,7 +446,7 @@ function UI:SearchText(text)
 	local res = SortAndTrim(out)
 	-- nothing here has what was typed in its name, but a list only searched with @kind does
 	-- (Questie's quests, NPCs): a row on top offers it (Tab or Enter adds the @kind)
-	if not kinds and not empty then
+	if not kinds and not empty and not filters then
 		local hints, at = self:BigListHint(text, tokens, res, overBudget)
 		for i, hint in ipairs(hints or {}) do table.insert(res, math.min((at or 1) + i - 1, #res + 1), hint) end
 	end
@@ -473,23 +483,28 @@ function UI:BigListHint(text, tokens, res, overBudget)
 	for _, id in ipairs(HINT_KINDS) do
 		local p = ns.providers[id]
 		if p and p.explicit and (not mine or p.hintSecond) then
-			local list = ns:GetEntries(p)
-			local first, count = nil, 0
-			for i = 1, #list do
-				local e = list[i]
-				if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
-					count = count + 1
-					first = first or e
-					if count >= 100 then break end
+			local firstName, count = nil, 0
+			if p.hintFind then
+				-- the list's own name index (Questie's: one text, not its thousands of rows)
+				firstName, count = p.hintFind(p, tokens, function() if overBudget() then coroutine.yield(res) end end)
+			else
+				local list = ns:GetEntries(p)
+				for i = 1, #list do
+					local e = list[i]
+					if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
+						count = count + 1
+						firstName = firstName or e.name
+						if count >= 100 then break end
+					end
+					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
 				end
-				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
 			end
-			if first then
+			if firstName then
 				local kind = "@" .. (p.aliases and p.aliases[1] or id)
 				local query = text:gsub("^%s+", "")
 				hints[#hints + 1] = {
 					name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
-					detail = first.name .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
+					detail = firstName .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
 					icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
 					completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
 					_score = math.huge, _pos = {},

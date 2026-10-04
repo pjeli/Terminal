@@ -230,6 +230,7 @@ ns:RegisterProvider("quests", {
 						detail = ((info.level and info.level > 0) and ("[" .. info.level .. "] ") or "") .. (zone or ""),
 						text = table.concat(parts, " "),
 						questID = info.questID,
+						level = (info.level and info.level > 0) and info.level or nil, zone = zone, -- (lvl: and zone: filters)
 						link = GetQuestLink and GetQuestLink(info.questID) or nil,
 						activate = ShowQuest,
 						secure = QUEST_SECURE,
