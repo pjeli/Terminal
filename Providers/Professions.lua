@@ -758,6 +758,7 @@ end
 P.MakeRecipeEntry = MakeEntry
 
 ns:RegisterProvider("recipes", {
+	busy = function() return P.scanBusy and "Indexing your professions' recipes" or nil end,
 	label = "Recipe",
 	color = "ff5fd0c0",
 	aliases = { "recipe", "craft", "crafts", "crafting", "reagent" },

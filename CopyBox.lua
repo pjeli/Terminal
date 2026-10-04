@@ -5,14 +5,18 @@ local ns = select(2, ...)
 -- real text box can), so anything meant to be copied out opens here: .debug log, for one.
 --
 --   ns:ShowText(title, text or list of lines)
+--   ns:ShowText(title, text, { compact = true })   one line (a link): a slim bar in the terminal's
+--       look that closes by itself once Ctrl+C has copied it
 --
 -- The box can be scrolled and clicked into, but not edited (typing puts the text back).
--- Esc, the Close button or clicking away from nothing closes it.
+-- Esc or the Close button closes it.
 
 local C = {}
 ns.CopyBox = C
 
 local frame, edit, scroll, titleFS, hintFS, current = nil, nil, nil, nil, nil, ""
+local link, linkEdit, linkTitle, linkHint, linkBox -- the slim one-line bar (below)
+local opts = {}
 
 local W, H = 700, 440
 
@@ -100,9 +104,114 @@ function C.Hide()
 		edit:ClearFocus()
 		frame:Hide()
 	end
+	if link and link:IsShown() then
+		link:Hide()
+		linkEdit:ClearFocus()
+	end
 end
 
-function C.Show(title, text)
+----------------------------------------------------------------------
+-- One line (a link): a slim bar in the terminal's look, where the terminal sits, the text
+-- selected. Ctrl+C copies it and the bar goes; Esc (or clicking elsewhere) closes it.
+----------------------------------------------------------------------
+
+local function BuildLink()
+	if link then return end
+	local Theme = ns.Theme
+	link = CreateFrame("Frame", "TerminalLinkFrame", UIParent, "BackdropTemplate")
+	link:SetFrameStrata("DIALOG")
+	link:SetClampedToScreen(true)
+	link:EnableMouse(true)
+	link:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	link:Hide()
+	tinsert(UISpecialFrames, "TerminalLinkFrame")
+
+	linkTitle = link:CreateFontString(nil, "OVERLAY")
+	linkTitle:SetFontObject(Theme.fonts.small)
+	linkTitle:SetPoint("TOPLEFT", link, "TOPLEFT", 10, -7)
+	linkTitle:SetJustifyH("LEFT")
+	linkTitle:SetWordWrap(false)
+	linkHint = link:CreateFontString(nil, "OVERLAY")
+	linkHint:SetFontObject(Theme.fonts.small)
+	linkHint:SetPoint("TOPRIGHT", link, "TOPRIGHT", -10, -7)
+	linkTitle:SetPoint("RIGHT", linkHint, "LEFT", -12, 0)
+
+	-- the text sits on the prompt's own darker strip
+	linkBox = link:CreateTexture(nil, "BACKGROUND", nil, 1)
+	linkBox:SetPoint("TOPLEFT", link, "TOPLEFT", 1, -24)
+	linkBox:SetPoint("BOTTOMRIGHT", link, "BOTTOMRIGHT", -1, 1)
+
+	linkEdit = CreateFrame("EditBox", nil, link)
+	linkEdit:SetMultiLine(false)
+	linkEdit:SetAutoFocus(false)
+	linkEdit:SetFontObject(Theme.fonts.row)
+	linkEdit:SetPoint("TOPLEFT", linkBox, "TOPLEFT", 9, 0)
+	linkEdit:SetPoint("BOTTOMRIGHT", linkBox, "BOTTOMRIGHT", -9, 0)
+	linkEdit:SetScript("OnEscapePressed", function() C.Hide() end)
+	linkEdit:SetScript("OnEditFocusLost", function() C.Hide() end)
+	linkEdit:SetScript("OnTextChanged", function(self, user) -- read-only
+		if user and self:GetText() ~= current then
+			self:SetText(current)
+			self:HighlightText()
+		end
+	end)
+	-- gone once copied (the copy itself is the game's own, on this key)
+	linkEdit:SetScript("OnKeyDown", function(_, key)
+		if key == "C" and IsControlKeyDown() then
+			C.copied = true
+			C_Timer.After(0.1, C.Hide)
+		end
+	end)
+	C.linkFrame, C.linkEdit = link, linkEdit
+end
+
+local function ShowLink(title, text)
+	BuildLink()
+	local Theme = ns.Theme
+	local t = Theme.Get()
+	link:SetBackdropColor(Theme.RGB(t.bg))
+	link:SetBackdropBorderColor(Theme.RGB(t.border))
+	linkBox:SetColorTexture(Theme.RGB(t.promptBg or t.bg))
+	linkTitle:SetTextColor(Theme.RGB(t.accent))
+	linkHint:SetTextColor(Theme.RGB(t.dim))
+	linkEdit:SetTextColor(Theme.RGB(t.text))
+	linkTitle:SetText(title)
+	linkHint:SetText("Ctrl+C copies  ·  Esc closes")
+	linkEdit:SetText(text)
+	linkEdit:SetCursorPosition(0)
+	-- as wide as the text needs (and the title line), within reason
+	local measure = link.measure or link:CreateFontString(nil, "OVERLAY")
+	link.measure = measure
+	measure:SetFontObject(Theme.fonts.row)
+	measure:SetText(text)
+	local w = (measure:GetStringWidth() or 300) + 40
+	local tw = (linkTitle:GetStringWidth() or 0) + (linkHint:GetStringWidth() or 0) + 44
+	link:SetSize(math.max(320, math.min(700, math.max(w, tw))), t.fontSize + 44)
+	link:ClearAllPoints()
+	local pt = ns.db and ns.db.point
+	if pt then
+		link:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
+	else
+		link:SetPoint("TOP", UIParent, "TOP", 0, -140)
+	end
+	link:Show()
+	C_Timer.After(0.05, function()
+		if link:IsShown() then
+			linkEdit:SetFocus()
+			linkEdit:HighlightText()
+		end
+	end)
+end
+
+function C.Show(title, text, options)
+	opts = options or {}
+	C.copied = false
+	if opts.compact then
+		current = tostring(text or "")
+		if frame then frame:Hide() end
+		return ShowLink(tostring(title or "Terminal"), current)
+	end
+	if link then link:Hide() end
 	if type(text) == "table" then
 		local lines = {}
 		for i, l in ipairs(text) do lines[i] = tostring(l) end
@@ -125,4 +234,4 @@ function C.Show(title, text)
 	end)
 end
 
-function ns:ShowText(title, text) C.Show(title, text) end
+function ns:ShowText(title, text, options) C.Show(title, text, options) end

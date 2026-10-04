@@ -1,9 +1,9 @@
 local ns = select(2, ...)
 
--- World map locations: continents, zones, dungeons and cities, plus the points of interest
--- the map itself shows (towns, flight points, dungeon entrances). Enter opens the world
--- map on that place; for a point it also drops the map waypoint on it. Shift+Enter sets
--- the waypoint and starts tracking it without opening anything.
+-- World map places: continents and zones (cities are zones). Enter opens the world map on
+-- that place; Shift+Enter moves an existing map pin there without opening anything.
+-- Nothing below zone level: points of interest, flight points and dungeon maps didn't load
+-- reliably on this client (flight point addons do that job better), so they're left out.
 --
 -- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): it opens the
 -- map if it's closed, as the map key does, and switches it to the place. Terminal never
@@ -173,7 +173,7 @@ end
 ns:RegisterProvider("maps", {
 	label = "Map",
 	color = "ff7fd6a8",
-	aliases = { "map", "maps", "zone", "zones", "place", "location", "poi", "flight", "dungeon" },
+	aliases = { "map", "maps", "zone", "zones", "place", "location", "continent" },
 	noCombat = true, -- opening windows is protected in combat
 	lazy = true, -- thousands of places: only offered once you type something
 	events = { "ZONE_CHANGED_NEW_AREA" },
@@ -212,45 +212,12 @@ ns:RegisterProvider("maps", {
 			local mtype = info.mapType or 3
 			local kind = TYPES[mtype] or "Zone"
 			local path = pathOf(info)
-			if mtype >= 2 then -- continents and below; not "Cosmic"/"World"
+			if mtype == 2 or mtype == 3 then -- continents and zones; not "Cosmic"/"World", nothing below a zone
 				out[#out + 1] = Entry({
 					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
 					icon = "Interface\\Icons\\INV_Misc_Map_01",
 					detail = kind .. (path ~= "" and ("  " .. path) or ""),
 				})
-			end
-			-- what the map itself marks on this one: points of interest, flight points, entrances
-			if mtype >= 2 and mtype <= 4 then
-				local poiSeen = {}
-				local function poi(id, name, pos, what, icon)
-					name = Name(name)
-					if not name or #out >= MAX then return end
-					local k = what .. ":" .. info.mapID .. ":" .. tostring(id or name)
-					if poiSeen[k] then return end
-					poiSeen[k] = true
-					out[#out + 1] = Entry({
-						key = k, name = name, mapID = info.mapID, kind = what, pos = pos, path = info.name .. " " .. path,
-						icon = icon,
-						detail = what .. "  " .. info.name,
-					})
-				end
-				if C_AreaPoiInfo and C_AreaPoiInfo.GetAreaPOIForMap then
-					for _, id in ipairs(Safe(C_AreaPoiInfo.GetAreaPOIForMap, info.mapID) or {}) do
-						local p = Safe(C_AreaPoiInfo.GetAreaPOIInfo, info.mapID, id)
-						if type(p) == "table" then poi(id, p.name, p.position, "Point of interest", "Interface\\Icons\\INV_Misc_Flag_01") end
-					end
-				end
-				if C_TaxiMap and C_TaxiMap.GetTaxiNodesForMap then
-					for _, n in ipairs(Safe(C_TaxiMap.GetTaxiNodesForMap, info.mapID) or {}) do
-						if type(n) == "table" then poi(n.nodeID, n.name, n.position, "Flight point", "Interface\\Icons\\Ability_Mount_Gryphon_01") end
-					end
-				end
-				local EJ = _G.C_EncounterJournal
-				if EJ and EJ.GetDungeonEntrancesForMap then
-					for _, d in ipairs(Safe(EJ.GetDungeonEntrancesForMap, info.mapID) or {}) do
-						if type(d) == "table" then poi(d.areaPoiID, d.name, d.position, "Dungeon entrance", "Interface\\Icons\\INV_Misc_Key_03") end
-					end
-				end
 			end
 		end
 		return out

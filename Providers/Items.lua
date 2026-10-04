@@ -18,7 +18,82 @@ local function BagLabel(bag)
 	return "Bag " .. bag
 end
 
-local function FindBagButton(bag, slot)
+----------------------------------------------------------------------
+-- Bag addons. With Bagnon or Baganator the game's own bag windows never show: their windows
+-- do. Opening "your bags" and finding an item's button has to go through whichever is in use.
+-- (Their windows belong to them, not Blizzard: showing them from here is what their own slash
+-- commands and key bindings do.)
+----------------------------------------------------------------------
+
+local Bags = {}
+ns.Bags = Bags
+
+--- Bagnon, or Bagnonium (BagBrother's other front end), and its name.
+function Bags.Bagnon()
+	for _, name in ipairs({ "Bagnon", "Bagnonium" }) do
+		local B = _G[name]
+		if type(B) == "table" and type(B.Frames) == "table" and type(B.Owners) == "table" then return B, name end
+	end
+end
+
+function Bags.Baganator()
+	local B = _G.Baganator
+	return type(B) == "table" and type(B.CallbackRegistry) == "table" and B or nil
+end
+
+--- The addon that shows your bags: "Bagnon" (or "Bagnonium"), "Baganator", or nil for the game's own.
+function Bags.Active()
+	local B, name = Bags.Bagnon()
+	if B then
+		local ok, on = pcall(B.Frames.IsEnabled, B.Frames, "inventory")
+		if not ok or on ~= false then return name, B end
+	end
+	local G = Bags.Baganator()
+	if G then return "Baganator", G end
+end
+
+--- Show your bags, in whichever window shows them.
+function Bags.Open()
+	local which, A = Bags.Active()
+	if which == "Baganator" then
+		pcall(A.CallbackRegistry.TriggerEvent, A.CallbackRegistry, "BagShow")
+	elseif which then
+		pcall(A.Frames.Show, A.Frames, "inventory")
+	elseif not IsBagOpen(0) then
+		OpenAllBags()
+	end
+	return which
+end
+
+-- Baganator's bag windows are named Baganator_<View>BackpackViewFrame<group>: found once, kept.
+local baganatorRoots
+local function BaganatorRoots()
+	if not baganatorRoots or #baganatorRoots == 0 then
+		baganatorRoots = {}
+		for k, v in pairs(_G) do
+			if type(k) == "string" and k:find("^Baganator_.*BackpackViewFrame") and type(v) == "table" and v.GetChildren then
+				baganatorRoots[#baganatorRoots + 1] = v
+			end
+		end
+	end
+	return baganatorRoots
+end
+
+local function Num(f, method)
+	local fn = f[method]
+	if type(fn) ~= "function" then return nil end
+	local ok, v = pcall(fn, f)
+	return ok and type(v) == "number" and v or nil
+end
+
+--- A bag button for bag/slot: Blizzard's and Baganator's answer GetBagID, Bagnon's GetBag.
+local function IsSlot(f, bag, slot)
+	local b = Num(f, "GetBagID") or Num(f, "GetBag")
+	return b == bag and Num(f, "GetID") == slot
+end
+
+--- The visible button of bag/slot in whichever bag window is showing.
+function Bags.FindButton(bag, slot)
 	local function scan(f)
 		if not f or not f:IsShown() or not f.EnumerateValidItems then return nil end
 		for _, btn in f:EnumerateValidItems() do
@@ -31,10 +106,46 @@ local function FindBagButton(bag, slot)
 		b = scan(_G["ContainerFrame" .. i])
 		if b then return b end
 	end
+	local which, A = Bags.Active()
+	local roots = {}
+	if which == "Baganator" then
+		roots = BaganatorRoots()
+	elseif which then
+		local ok, f = pcall(A.Frames.Get, A.Frames, "inventory")
+		if ok and type(f) == "table" then roots = { f } end
+	end
+	for _, root in ipairs(roots) do
+		if root.IsVisible and root:IsVisible() then
+			local found = ns.FindFrame(root, function(f) return IsSlot(f, bag, slot) end, 8)
+			if found then return found end
+		end
+	end
+end
+local FindBagButton = Bags.FindButton
+local ShowInBags
+
+--- Where an item is in your bags right now: { {bag, slot}, ... }.
+function Bags.Locations(itemID)
+	local locs = {}
+	local lastBag = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
+	for bag = 0, lastBag do
+		for slot = 1, C_Container.GetContainerNumSlots(bag) do
+			local info = C_Container.GetContainerItemInfo(bag, slot)
+			if info and info.itemID == itemID then locs[#locs + 1] = { bag, slot } end
+		end
+	end
+	return locs
 end
 
-local function ShowInBags(e)
-	if not IsBagOpen(0) then OpenAllBags() end
+ShowInBags = function(e)
+	local which = Bags.Open()
+	if which == "Baganator" and e.link then
+		-- Baganator's own flash too
+		local R = Bags.Baganator().CallbackRegistry
+		C_Timer.After(0.2, function() pcall(R.TriggerEvent, R, "HighlightIdenticalItems", e.link) end)
+	end
+	ns:Trace("items: showing " .. tostring(e.name) .. " in " .. (which or "the game's bags"))
+	if not e.locs then return end
 	H:Find(function()
 		local found = {}
 		for _, loc in ipairs(e.locs) do
@@ -43,6 +154,15 @@ local function ShowInBags(e)
 		end
 		return #found > 0 and found or nil
 	end, 8)
+end
+
+--- Open your bags on an item you carry and point at it, as an Item result does. False when you
+--- don't carry it (then nothing opens).
+function Bags.ShowItem(itemID, link, name)
+	local locs = Bags.Locations(itemID)
+	if #locs == 0 then return false end
+	ShowInBags({ name = name, link = link, locs = locs })
+	return true
 end
 
 local function ShowEquipped(e)

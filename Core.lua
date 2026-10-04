@@ -79,6 +79,8 @@ end
 --     onDrop   = function() end,       -- ...and free whatever else the provider keeps
 --     refreshOnOpen = true,            -- re-collect each time the terminal opens
 --     noCombat = true,                 -- Enter does nothing in combat (protected actions)
+--     busy     = function() return "Indexing..." end, -- still loading: the terminal shows a
+--                                      -- spinner with this text on mouse-over (nil: ready)
 --     collect  = function() return { entry, ... } end,
 -- })
 --

@@ -72,6 +72,7 @@ local KINDS = {
 	gameoptions = { "OPTIONS", "SETTINGS" },
 	maps = { "WORLD_MAP" },
 	loot = { "LOOT" },
+	stored = { "BANK" },
 }
 
 --- Adds the game's words to a provider's aliases (called by RegisterProvider, so providers

@@ -26,7 +26,7 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, PRINTSCREEN = true,
 }
 
-local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit
+local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy
 local rows = {}
 UI.rows = rows
 local motion = CreateFrame("Frame") -- drives every animation (see "Motion")
@@ -435,6 +435,7 @@ function UI:Refresh()
 	end
 	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
 	self.lastSearchCount = #results
+	self:UpdateBusy()
 	sel, offset = 1, 0
 	self:Render()
 end
@@ -513,11 +514,14 @@ function UI:UpdateTooltip()
 		local ok, l = pcall(e.getLink, e)
 		link = ok and l or nil
 	end
-	if not (link or e.tip) then return end
+	if not (link or e.tip or e.tooltip) then return end
 	t:SetOwner(frame, "ANCHOR_NONE")
 	PlaceTip(t)
 	local shown = false
-	if link then
+	if e.tooltip then -- the entry draws its own (stored items: who has how many)
+		shown = pcall(e.tooltip, e, t)
+	end
+	if link and not shown then
 		shown = pcall(t.SetHyperlink, t, link)
 	end
 	if not shown and e.tip then
@@ -547,6 +551,7 @@ function UI:SetStatus()
 	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
 	if mode then text = text .. (text ~= "" and "  ·  " or "") .. mode end
+	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
 	status:SetText(text)
 	self:FitHints()
 end
@@ -990,6 +995,80 @@ function UI:ReleasePrompt()
 	self.dragging = false
 	if self.anchor == self.cursor then self.anchor = nil end
 	self:UpdateCaret()
+end
+
+----------------------------------------------------------------------
+-- Still loading: providers say so with `busy` (Syndicator scanning, AtlasLoot or Questie being
+-- indexed, item names on their way); a spinner at the end of the prompt shows it.
+----------------------------------------------------------------------
+
+local BUSY_DOTS = 8
+
+--- What is still loading, one line per provider that says so.
+function UI:BusyLines()
+	local out, who = {}, {}
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		if p.busy then
+			local ok, msg = pcall(p.busy, p)
+			if ok and type(msg) == "string" and msg ~= "" then
+				out[#out + 1] = msg
+				who[id] = true
+			end
+		end
+	end
+	return out, who
+end
+
+--- The query box ends before the spinner while it shows.
+function UI:PlaceEdit()
+	if not (edit and self.editLeft) then return end
+	edit:ClearAllPoints()
+	edit:SetPoint("LEFT", frame, "TOPLEFT", self.editLeft, self.editMid)
+	edit:SetPoint("RIGHT", frame, "TOPRIGHT", (busy and busy:IsShown()) and -38 or -14, self.editMid)
+end
+
+--- Show or hide the spinner. When loading ends, the results are searched again so what just
+--- arrived shows up.
+function UI:UpdateBusy()
+	if not busy then return end
+	local lines, who = {}, {}
+	if self:IsShown() then lines, who = self:BusyLines() end
+	-- a provider that just finished loading is collected again: what it had before was partial
+	local finished = false
+	for id in pairs(busy.who or {}) do
+		if not who[id] and ns.providers[id] then
+			ns.providers[id]._dirty = true
+			finished = true
+		end
+	end
+	busy.who = who
+	local was = busy:IsShown()
+	busy.lines = lines
+	busy:SetShown(#lines > 0)
+	if was ~= busy:IsShown() then self:PlaceEdit() end
+	if was ~= busy:IsShown() or finished then self:SetStatus() end
+	if finished and self:IsShown() and not self.inBusyRefresh then
+		ns:Trace("busy: loading finished, searching again")
+		self.inBusyRefresh = true
+		self:Refresh()
+		self.inBusyRefresh = false
+	end
+end
+
+function UI:SpinBusy(elapsed)
+	busy.t = (busy.t or 0) + (elapsed or 0)
+	busy.check = (busy.check or 0) + (elapsed or 0)
+	local head = math.floor(busy.t * 10) % BUSY_DOTS -- one step every 0.1 s
+	for i, d in ipairs(busy.dots) do
+		local behind = (head - (i - 1)) % BUSY_DOTS -- 0 = the leading dot
+		d:SetAlpha(1 - behind / BUSY_DOTS * 0.85)
+	end
+	if busy.check >= 0.5 then
+		busy.check = 0
+		self:UpdateBusy()
+		if busy:IsShown() and GameTooltip and GameTooltip.IsOwned and GameTooltip:IsOwned(busy) then busy:GetScript("OnEnter")(busy) end
+	end
 end
 
 function UI:EnterKeys()
@@ -1885,6 +1964,31 @@ local function Build()
 	hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
 	hit:SetScript("OnUpdate", function() if UI.dragging then UI:DragPrompt() end end)
 	UI.hit = hit
+
+	-- a ring of dots at the end of the prompt while something is still loading; mouse-over says what
+	busy = CreateFrame("Frame", nil, frame)
+	busy:SetSize(22, 22)
+	busy:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 3)
+	busy:EnableMouse(true)
+	busy:Hide()
+	busy.dots = {}
+	for i = 1, BUSY_DOTS do
+		local d = busy:CreateTexture(nil, "OVERLAY")
+		local a = (i - 1) / BUSY_DOTS * 2 * math.pi
+		d:SetSize(4, 4)
+		d:SetPoint("CENTER", busy, "CENTER", math.cos(a) * 7, math.sin(a) * 7)
+		busy.dots[i] = d
+	end
+	busy:SetScript("OnUpdate", function(self, elapsed) UI:SpinBusy(elapsed) end)
+	busy:SetScript("OnEnter", function(self)
+		if not GameTooltip then return end
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+		GameTooltip:SetText("Still loading", 1, 1, 1)
+		for _, l in ipairs(self.lines or {}) do GameTooltip:AddLine(l, 0.8, 0.8, 0.8, true) end
+		GameTooltip:Show()
+	end)
+	busy:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+	UI.busy = busy
 	caret = caretFrame:CreateTexture(nil, "ARTWORK")
 	caret:SetWidth(2)
 	caret:Hide()
@@ -1969,6 +2073,7 @@ local function Build()
 	status:SetFontObject(Theme.fonts.small)
 	status:SetJustifyH("LEFT")
 	status:SetWordWrap(false)
+	UI.status = status
 	hints = frame:CreateFontString(nil, "OVERLAY")
 	hints:SetFontObject(Theme.fonts.small)
 	hints:SetJustifyH("RIGHT")
@@ -2043,10 +2148,12 @@ function UI:ApplyTheme()
 	promptFS:ClearAllPoints()
 	promptFS:SetPoint("LEFT", frame, "TOPLEFT", 14, mid)
 	local pw = promptFS:GetStringWidth() or 10
-	edit:ClearAllPoints()
-	edit:SetPoint("LEFT", frame, "TOPLEFT", 14 + pw + 8, mid)
-	edit:SetPoint("RIGHT", frame, "TOPRIGHT", -14, mid)
+	UI.editLeft, UI.editMid = 14 + pw + 8, mid
+	UI:PlaceEdit()
 	edit:SetHeight(t.fontSize + 14)
+	busy:ClearAllPoints()
+	busy:SetPoint("RIGHT", frame, "TOPRIGHT", -12, mid)
+	for _, d in ipairs(busy.dots) do d:SetColorTexture(Theme.RGB(t.accent)) end
 	local tr, tg, tb = Theme.RGB(t.text)
 	edit:SetTextColor(tr, tg, tb)
 
@@ -2110,6 +2217,7 @@ function UI:Hide()
 	caret:Hide()
 	caretChar:Hide()
 	if hit then hit:Hide() end
+	if busy and busy:IsShown() then busy:Hide(); UI:PlaceEdit() end
 	UI.dragging = false
 	ghost:Hide()
 	if self:Animated() then

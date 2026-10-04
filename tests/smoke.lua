@@ -286,7 +286,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -1881,60 +1881,48 @@ do -- world map locations
 	check(not ns.providers.maps._warned, "maps provider ran clean")
 	check(byName["Elwynn Forest"] and byName["Elwynn Forest"].detail == "Zone  Eastern Kingdoms", "zone listed with its continent: " .. tostring(byName["Elwynn Forest"] and byName["Elwynn Forest"].detail))
 	check(not byName["Cosmic"] and not byName["Azeroth"], "cosmic/world roots aren't listed")
-	check(byName["Goldshire"] and byName["Goldshire"].pos.x == 0.42, "point of interest indexed with its position")
-	check(byName["Stormwind, Elwynn"] and byName["Stormwind, Elwynn"].detail:find("Flight point"), "flight point indexed")
-	check(byName["The Deadmines"], "dungeon indexed")
-	check(UI:Search("goldshire")[1].name == "Goldshire", "fuzzy finds a point of interest")
+	-- nothing below a zone: points of interest, flight points and dungeon maps are left out
+	check(not byName["Goldshire"] and not byName["Stormwind, Elwynn"] and not byName["The Deadmines"], "no points of interest, flight points or dungeons")
+	check(byName["Eastern Kingdoms"] and byName["Eastern Kingdoms"].detail:find("^Continent"), "continents are listed")
 	check(UI:Search("@map elwynn")[1].name == "Elwynn Forest", "@map filter")
-	local g = byName["Goldshire"]
-	check(g.secure.binding == "TOGGLEWORLDMAP", "map opens through the game's own map key")
+	check(ns:ResolveProvider("flight") ~= ns.providers.maps, "@flight no longer means maps")
+	local z = byName["Elwynn Forest"]
+	check(z.secure.binding == "TOGGLEWORLDMAP", "map opens through the game's own map key")
 	-- the game's macro opens and switches the map; Terminal's code never writes the map
 	-- (SetMapID from Terminal left the map tainted: its pins failed in combat)
 	WorldMapFrame.shown = true
 	local switched = {}
 	WorldMapFrame.SetMapID = function(_, id) switched[#switched + 1] = id end
 	local MAPMACRO = "/run if not WorldMapFrame:IsShown() then ToggleWorldMap() end WorldMapFrame:SetMapID(37)"
-	local rg = ns.Secure.Resolve(g.secure, g)
-	check(rg and rg.macro == MAPMACRO, "Enter runs the game's macro that switches the map: " .. tostring(rg and rg.macro))
-	check(g.isOpen(g) == false, "with the map open the macro still runs (it switches the map)")
+	local rz = ns.Secure.Resolve(z.secure, z)
+	check(rz and rz.macro == MAPMACRO, "Enter runs the game's macro that switches the map: " .. tostring(rz and rz.macro))
+	check(z.isOpen(z) == false, "with the map open the macro still runs (it switches the map)")
 	local mark = #log
-	g.after(g)
-	check(#switched == 0, "after: Terminal never switches the map itself")
-	check(logHas("Waypoint 37 0.42", mark + 1) and logHas("TrackWaypoint true", mark + 1), "waypoint placed and tracked")
-	local z = byName["Elwynn Forest"]; mark = #log
 	z.after(z)
-	check(#switched == 0 and not logHas("Waypoint 37 0.42", mark + 1), "a zone sets no waypoint (the macro switched the map)")
-	-- a pin that is already set is replaced by the chosen place, zone or point
+	check(#switched == 0 and not logHas("Waypoint 37 0.5", mark + 1), "after: Terminal never switches the map itself, and a zone sets no waypoint")
+	-- a pin that is already set follows the chosen zone
 	pinned = true; mark = #log
 	z.after(z)
 	check(logHas("ClearWaypoint", mark + 1) and logHas("Waypoint 37 0.5", mark + 1), "existing pin: cleared, and the zone is pinned at its middle")
 	pinned = true; mark = #log
-	g.after(g)
-	check(logHas("ClearWaypoint", mark + 1) and logHas("Waypoint 37 0.42", mark + 1), "existing pin: cleared, and the point is pinned")
-	pinned = false; mark = #log
-	z.after(z)
-	check(not logHas("ClearWaypoint", mark + 1) and not logHas("Waypoint 37 0.5", mark + 1), "no pin set: a zone doesn't get one")
-	pinned = true; mark = #log
 	z.secondary(z)
 	check(logHas("ClearWaypoint", mark + 1) and logHas("Waypoint 37 0.5", mark + 1), "Shift+Enter on a zone also replaces an existing pin")
 	pinned = false
-	-- Shift+Enter: waypoint without opening anything
-	mark = #log
-	g.secondary(g)
-	check(logHas("Waypoint 37 0.42", mark + 1) and not logHas("ToggleWorldMap", mark + 1), "secondary sets a waypoint only")
 	local D, n = ns.Debug, 0
 	WorldMapFrame.SetMapID = function() n = n + 1 end
 	ns.db.blockedCalls = nil
-	-- in combat the map is left alone (its pins are protected), the waypoint still works, and a
-	-- block seen in combat is not remembered as permanent
+	-- in combat the map is left alone (its pins are protected), and a block seen in combat is
+	-- not remembered as permanent
 	local realCombat = _G.InCombatLockdown
 	_G.InCombatLockdown = function() return true end
 	n = 0; mark = #log
-	g.activate(g)
+	pinned = true
+	z.activate(z)
 	FlushAll()
 	check(n == 0 and not logHas("ToggleWorldMap", mark + 1), "in combat: map neither opened nor switched")
-	check(logHas("Waypoint 37 0.42", mark + 1), "in combat: waypoint still set")
-	g.after(g)
+	check(logHas("Waypoint 37 0.5", mark + 1), "in combat: an existing pin still moves")
+	pinned = false
+	z.after(z)
 	check(n == 0, "in combat: after() doesn't switch the map either")
 	local viaGuard = ns.Professions.Guarded("X", function() D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "Terminal", "UNKNOWN()") end)
 	check(viaGuard == false and not (ns.db.blockedCalls and ns.db.blockedCalls.X), "a block seen in combat isn't remembered")
@@ -1988,22 +1976,38 @@ do -- AtlasLoot and Questie integrations
 		GetName = function() return "The Deadmines" end,
 		GetNameForItemTable = function(_, i) return i == 1 and "Edwin VanCleef" or "Mr. Smite" end,
 	}
-	local storage = { GetDifficultys = function() return { { name = "Normal" } } end, DEADMINES = content }
+	content.gameVersion = 4 -- WoW Forever's own table (AtlasLoot Continued: data-forever.lua)
+	-- Continued also loads Classic's table of the same dungeon (data.lua): its own window shows only
+	-- the version it picks for this client, and so must Terminal, or every item shows twice
+	local classic = { items = { {} }, gameVersion = 1, GetName = function() return "The Deadmines (Classic)" end,
+		GetNameForItemTable = function() return "Edwin VanCleef" end }
+	refreshes = {}
+	local storage = { GetDifficultys = function() return { { name = "Normal" } } end, DEADMINES = content, CLASSIC_DM = classic,
+		GetAviableGameVersion = function(_, v) return v == 4 and 4 or 1 end }
 	_G.AtlasLoot = {
-		Loader = { GetLootModuleList = function() return { module = { { addonName = "ALDungeons" } }, custom = {} } end,
+		-- the first time AtlasLoot hasn't built its module list yet (its start-up may come after ours)
+		Loader = { GetLootModuleList = function() moduleAsks = (moduleAsks or 0) + 1; if moduleAsks == 1 then return { module = {}, custom = {} } end return { module = { { addonName = "ALDungeons" } }, custom = {} } end,
 			LoadModule = function(_, a) note("ALLoad", a) end },
 		ItemDB = { Storage = { ALDungeons = storage },
 			GetItemTable = function(_, addon, c, boss, d) return boss == 1 and { { 1, 1001 }, { 2, 1002 }, { 3, "INV_Misc_Note_01" } } or { { 1, 1001 } } end },
-		GUI = { frame = Obj("Frame"), ItemFrame = { frame = { ItemButtons = { btn } } } },
+		GUI = { frame = Obj("Frame"), ItemFrame = { frame = { ItemButtons = { btn } },
+			Refresh = function(_, skip) refreshes[#refreshes + 1] = { skip = skip, page = AtlasLoot.db.GUI.selected[5] } end } },
+		db = { GUI = { selected = { "X", "Y", 1, 1, 0 } } },
+		GetGameVersion = function() return 4 end,
 	}
 	AtlasLoot.GUI.frame.moduleSelect, AtlasLoot.GUI.frame.subCatSelect = selector("module"), selector("content")
 	AtlasLoot.GUI.frame.boss, AtlasLoot.GUI.frame.difficulty = selector("boss"), selector("diff")
 	AtlasLoot.GUI.frame.shown = false
 	-- an AtlasLoot table without AtlasLoot's own addon loaded (disabled; a plugin left behind) is ignored
 	local baseLoaded = C_AddOns.IsAddOnLoaded
-	C_AddOns.IsAddOnLoaded = function(n) return n ~= "AtlasLootClassic" and n ~= "AtlasLoot" and n ~= "AtlasLootForever" end
+	C_AddOns.IsAddOnLoaded = function(n) return not n:find("^AtlasLoot") end
 	I.Setup()
 	check(not I.loot.on and ns.providers.loot == nil, "no @loot when AtlasLoot itself isn't loaded")
+	-- AtlasLoot Continued: same API, its own addon name
+	C_AddOns.IsAddOnLoaded = function(n) return n == "AtlasLootContinued" end
+	check(I.LoadedCore() == "AtlasLootContinued", "AtlasLoot Continued is recognised as AtlasLoot")
+	C_AddOns.IsAddOnLoaded = function(n) return n == "AtlasLootClassic" end
+	check(I.LoadedCore() == "AtlasLootClassic", "and AtlasLootClassic still is")
 	C_AddOns.IsAddOnLoaded = baseLoaded
 	_G.Questie = {
 		API = { isReady = true },
@@ -2028,6 +2032,10 @@ do -- AtlasLoot and Questie integrations
 	I.Setup(); FlushAll()
 	check(I.loot.on and I.npc.on, "both detected")
 	check(logHas("ALLoad ALDungeons") and I.loot.done and #I.loot.rows == 2, "AtlasLoot module loaded and indexed, one row per item and instance: " .. #I.loot.rows)
+	local classicRows = 0
+	for _, r in ipairs(I.loot.rows) do if r.content == "CLASSIC_DM" then classicRows = classicRows + 1 end end
+	check(classicRows == 0, "only the game version AtlasLoot shows on this client is indexed (no Classic copies)")
+	check(moduleAsks == 2, "an empty module list at first is asked for again: " .. tostring(moduleAsks))
 	local es = names(ns:GetEntries(ns.providers.loot))
 	check(es["Cruel Barb"] and es["Red Defias Mask"] and not es["INV_Misc_Note_01"], "named item rows only")
 	check(es["Cruel Barb"].detail == "Edwin VanCleef  The Deadmines", "detail: boss and instance")
@@ -2045,6 +2053,13 @@ do -- AtlasLoot and Questie integrations
 	e.activate(e); FlushAll()
 	check(AtlasLoot.GUI.frame.shown or AtlasLoot.GUI.frame:IsShown(), "AtlasLoot window shown")
 	check(table.concat(sel, ","):find("module=ALDungeons,content=DEADMINES,boss=1,diff=1", 1, true), "selected module, instance, boss, difficulty: " .. table.concat(sel, ","))
+	-- AtlasLoot skips a refresh within 0.1 s of the last: after the picks the list is refreshed once
+	-- more past that guard, on the item's page
+	local last = refreshes[#refreshes]
+	check(last and last.skip == true and last.page == 0, "the item list is refreshed after the picks, on the item's page")
+	e.page = 1
+	e.activate(e); FlushAll()
+	check(refreshes[#refreshes].page == 1, "an item past position 100 opens on the second page")
 	-- Questie
 	check(I.npc.list and #I.npc.list == 3, "Questie NPC names indexed: " .. tostring(I.npc.list and #I.npc.list))
 	check(ns.providers.npc.explicit, "NPCs only with @npc")
@@ -2087,7 +2102,7 @@ do -- AtlasLoot and Questie integrations
 	check(qs["The Defias Brotherhood"] and qs["The Defias Brotherhood"].detail == "Lv 14", "level shown: " .. tostring(qs["The Defias Brotherhood"] and qs["The Defias Brotherhood"].detail))
 	check(qs["Red Linen Goods"].detail:find("done", 1, true), "completed quests are marked done")
 	local w = qs["Wolves Across the Border"]
-	check(w.detail:find("in log", 1, true) and w.secure and w.secure.binding == "TOGGLEQUESTLOG", "a quest you're on opens the quest log")
+	check(w.detail:find("in log", 1, true) and w.secondarySecure and w.secondarySecure.binding == "TOGGLEQUESTLOG", "Shift+Enter on a quest you're on opens the quest log")
 	check(w.questID == nil, "Questie entries don't drag log quests along")
 	local plainHit = false
 	for _, x in ipairs(UI:Search("defias brotherhood")) do if x.kind == "questie" then plainHit = true end end
@@ -2095,14 +2110,37 @@ do -- AtlasLoot and Questie integrations
 	r = UI:Search("@questie defias")
 	check(r[1] and r[1].name == "The Defias Brotherhood", "@questie finds a quest by name")
 	local q = r[1]
-	check(q.secure and q.secure.binding == "TOGGLEWORLDMAP", "a quest you don't have opens the map on its giver")
+	check(q.secondarySecure and q.secondarySecure.binding == "TOGGLEWORLDMAP", "Shift+Enter on a quest you don't have opens the map on its giver")
+	-- Enter: its Wowhead link, selected in a small window, gone once Ctrl+C has copied it
+	local CB = ns.CopyBox
+	check(q.secure == nil, "Enter doesn't open a window")
+	UI:Open("@questie defias"); key("ENTER"); FlushAll()
+	local LF = CB.linkFrame
+	check(LF and LF.shown and CB.Text() == "https://www.wowhead.com/forever/quest=" .. q.qid and LF.h <= 70 and not (CB.frame and CB.frame.shown), "Enter shows the quest's Wowhead link in a slim bar: " .. tostring(CB.Text()) .. " h=" .. tostring(LF and LF.h))
+	check(CB.linkEdit.text == CB.Text(), "the link is in the bar's text box")
+	check(not UI:IsShown(), "and the terminal steps aside")
+	_G.IsControlKeyDown = function() return true end
+	CB.linkEdit.scripts.OnKeyDown(CB.linkEdit, "C")
+	_G.IsControlKeyDown = function() return false end
+	FlushAll()
+	check(CB.copied and LF.shown == false, "Ctrl+C copies it and the bar closes")
+	-- in combat the link still shows (no window of the game's is opened)
+	_G.InCombatLockdown = function() return true end
+	q.activate(q)
+	check(LF.shown and CB.Text():find("quest=", 1, true), "in combat Enter still shows the link")
+	_G.InCombatLockdown = function() return false end
+	CB.Hide()
+	-- .debug log keeps its big window
+	ns:ShowText("x", { "a", "b" })
+	check(CB.frame.h == 440 and CB.frame.shown and not LF.shown, "other text keeps the big window")
+	CB.Hide()
 	mark = #log
-	q.after(q)
+	q.secondaryAfter(q)
 	check(logHas("QuestieShowNPC 12", mark + 1) and logHas("Waypoint 37 0.5 0.4", mark + 1), "quest giver shown and pinned")
 	local said = {}
 	local basePrint = ns.Print
 	ns.Print = function(_, m) said[#said + 1] = m end
-	qs["Red Linen Goods"].activate(qs["Red Linen Goods"])
+	qs["Red Linen Goods"].secondary(qs["Red Linen Goods"])
 	ns.Print = basePrint
 	check(said[1] and said[1]:find("started by an object", 1, true), "quests started by an object say so: " .. tostring(said[1]))
 	r = UI:Search("@questlog wolves")
@@ -2630,7 +2668,7 @@ do -- Tab completion, shell style
 	check(tab("@rep") == "@rep", "nothing more shared: unchanged: " .. q())
 	check(tab("@reput") == "@reputation", "@reputation(s): " .. q())
 	check(tab("@outf") == "@outfit", "@outfit(s): " .. q())
-	check(tab("@questd") == "@questdb " or tab("@flig") == "@flight ", "a single kind completes, with a space: " .. q())
+	check(tab("@questd") == "@questdb " or tab("@contin") == "@continent ", "a single kind completes, with a space: " .. q())
 	check(tab("/rel") == "/reload ", "slash command: " .. q())
 	UI:Open("hearth")
 	check(UI.ghost.shown ~= false and UI.ghost:GetText() == "stone", "the rest of the selected result shows faintly: " .. tostring(UI.ghost:GetText()))
@@ -3088,6 +3126,401 @@ do
 	check(UI.Results()[2].name == "log" and UI.Results()[2].detail:find("copyable", 1, true), ".debug explains its arguments")
 	UI:Hide()
 	Th.Reset()
+end
+
+-- items on alts and in banks, from Syndicator or BagBrother
+io.write("[stored items tests]\n")
+do
+	local St = ns.Stored
+	local P = ns.providers.stored
+	local function key(k, char) F.scripts.OnKeyDown(F, k); if char then F.scripts.OnChar(F, char) end end
+	local function entries() P._dirty = true; local by = {} for _, e in ipairs(ns:GetEntries(P)) do by[e.itemID] = e end return by end
+	local said = {}
+	local realOut = ns.Output
+	ns.Output = function(_, lines) for _, l in ipairs(lines) do said[#said + 1] = l end end
+	local baseName, baseReq, baseQual = C_Item.GetItemNameByID, C_Item.RequestLoadItemDataByID, C_Item.GetItemQualityByID
+	local NAMES = { [2589] = "Linen Cloth", [1234] = "Bank Thing", [999] = "Worn Sword", [777] = "Carried Rock", [555] = "Guild Gem" }
+	local requested = {}
+	C_Item.GetItemNameByID = function(id) return NAMES[id] end
+	C_Item.RequestLoadItemDataByID = function(id) requested[#requested + 1] = id end
+	C_Item.GetItemQualityByID = function() return 1 end
+
+	check(St.Source() == nil and St.Status():find("not found", 1, true), "no bag addon: nothing to read")
+	check(next(entries()) == nil, "and no results")
+
+	-- BagBrother (Bagnon's records)
+	local shown, signals = {}, {}
+	local me = { realm = "forever", id = "Me Sur", name = "Me Sur" }
+	local alt = { realm = "forever", id = "Alt Guy", name = "Alt Guy" }
+	_G.Bagnon = {
+		NumBags = 4, player = me,
+		Owners = { Iterate = function() return ipairs({ me, alt }) end },
+		Frames = { Show = function(_, id, owner) shown[#shown + 1] = { id = id, owner = owner } return {} end },
+		SendSignal = function(self, name, arg) signals[#signals + 1] = name .. "=" .. tostring(arg) end,
+	}
+	_G.BrotherBags = {
+		forever = {
+			["Me Sur"] = {
+				[0] = { items = { [1] = "2589;5", [2] = "777;2" } },
+				[-1] = { items = { [1] = "2589;20", [2] = "1234" } },
+				[6] = { items = { [1] = "4242" } }, -- a bank bag; no name from the server yet
+				mail = { [1] = "2589;3" },
+				equip = { [16] = "999" },
+				money = 100, class = "WARRIOR",
+			},
+			["Alt Guy"] = { [0] = { items = { [3] = "2589;7", [4] = "battlepet:39:1:3:100" } } },
+			["My Guild*"] = { [1] = { items = { [1] = "2589:0:0:0:0;12", [2] = "555" } } },
+		},
+		account = { [13] = { items = { [1] = "2589" } } },
+	}
+	check(St.Source() == "BagBrother" and St.Status():find("BagBrother, 2 character", 1, true), "BagBrother's records found: " .. St.Status())
+	local by = entries()
+	local linen = by[2589]
+	check(linen and linen.total == 48 and linen.name == "Linen Cloth", "counts every bag, bank, mailbox, guild bank and the warband bank: " .. tostring(linen and linen.total))
+	check(linen.detail == "48  ·  4 places", "the details are short: the total and how many places: " .. tostring(linen.detail))
+	local gs = St.Groups(linen)
+	check(gs[1].name == "Me Sur" and gs[1].mine and gs[1].total == 28 and gs[2].name == "My Guild (guild)" and gs[3].name == "Alt Guy" and gs[4].name == "Warband", "grouped by who has them, most first")
+	check(by[1234] and by[1234].total == 1, "something only in your bank is listed")
+	check(by[999] == nil and by[777] == nil, "things you carry or wear only are left to the Item results")
+	check(by[555] and by[555].detail:find("My Guild", 1, true), "guild bank items listed")
+	check(by[4242] == nil and requested[1] == 4242, "an item the server hasn't named yet is asked for and listed later")
+	NAMES[4242] = "Late Name"
+	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 4242); FlushAll()
+	check(P._dirty == true, "the list is rebuilt once the name arrives")
+	check(entries()[4242] ~= nil, "and then it's there")
+	local lines = St.Breakdown(linen)
+	check(lines[1]:find("48 in all", 1, true) and lines[2] == "  Me Sur (you): 28  (bank 20, mail 3, bags 5)" and lines[3] == "  My Guild (guild): 12" and lines[#lines] == "  Warband: 1", "breakdown by who, with where: " .. table.concat(lines, " | "))
+	-- the tooltip: who has how many and where, like Baganator's
+	local tipLines = {}
+	local tt = Obj("GameTooltip")
+	tt.SetText = function(_, s) tipLines[#tipLines + 1] = "T:" .. s end
+	tt.AddDoubleLine = function(_, l, r) tipLines[#tipLines + 1] = l .. "=" .. r end
+	tt.AddLine = function(_, l) tipLines[#tipLines + 1] = l end
+	_G.RAID_CLASS_COLORS = { WARRIOR = { colorStr = "ffc79c6e" } }
+	St.Tooltip(linen, tt)
+	local tj = table.concat(tipLines, "\n")
+	check(tipLines[1] == "T:Linen Cloth" and tj:find("|cffc79c6eMe Sur|r", 1, true) and tj:find("28|r  |cff9d9d9dbank 20, mail 3, bags 5", 1, true), "tooltip rows: class-coloured name, total, where: " .. tj)
+	check(tj:find("My Guild (guild)|r=|cffffffff12|r", 1, true) and tj:find("Total=48", 1, true), "guild row and the total")
+	_G.RAID_CLASS_COLORS = nil
+	-- searching
+	UI:Open("linen alt guy")
+	local r = UI.Results()[1]
+	check(r and r.kind == "stored" and r.itemID == 2589, "found by the item and a holder's name")
+	UI:Open("@stored bank thing")
+	check(UI.Results()[1] and UI.Results()[1].itemID == 1234, "@stored filters")
+	UI:Open("@alts linen"); check(UI.Results()[1] and UI.Results()[1].kind == "stored", "@alts too")
+	-- Enter: like an Item, your bags (Bagnon's here) open on the ones you carry
+	UI:Open("@stored linen")
+	key("ENTER")
+	check(shown[1] and shown[1].id == "inventory" and shown[1].owner == nil, "Enter opens your bags in Bagnon: " .. tostring(shown[1] and shown[1].id))
+	check(_G.Bagnon.search == nil, "nothing typed into Bagnon's search")
+	-- not carried: nothing at all
+	local nShown, nSaid = #shown, #said
+	UI:Open("@stored bank thing"); key("ENTER")
+	check(#shown == nShown and #said == nSaid and not UI:IsShown(), "something you don't carry: nothing opens, nothing printed")
+	-- Shift+Enter: the breakdown in chat
+	UI:Open("@stored linen")
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(said[#said - 1] and table.concat(said, "\n"):find("Alt Guy: 7", 1, true), "Shift+Enter prints where it all is")
+	UI:Hide()
+
+	-- Syndicator (Baganator's records) wins when both are there
+	local LINK = "|cffffffff|Hitem:2589::::::::|h[Linen Cloth]|h|r"
+	local function it(id, n, link) return { itemID = id, itemCount = n, itemLink = link or ("|cffffffff|Hitem:" .. id .. "|h[" .. (NAMES[id] or "?") .. "]|h|r"), quality = 1 } end
+	local callbacks = {}
+	local SD = {
+		Characters = {
+			["Me-Forever"] = { details = { character = "Me", show = { inventory = true } },
+				bags = { { it(2589, 2, LINK) } }, bank = { { it(2589, 30, LINK) } }, bankTabs = { { slots = { it(1234, 4) } } },
+				mail = { it(2589, 1, LINK) }, equipped = { [16] = it(999, 1) }, void = {}, auctions = {} },
+			["Alt-Forever"] = { details = { character = "Alt", show = { inventory = true } },
+				bags = { { it(2589, 9, LINK), {} } }, bank = {}, mail = {}, equipped = {} },
+			["Hidden-Forever"] = { details = { character = "Hidden", show = { inventory = false } }, bags = { { it(2589, 500, LINK) } } },
+		},
+		Guilds = { ["Guildy-Forever"] = { details = { guild = "Guildy", show = { inventory = true } }, bank = { { slots = { it(555, 3) } } } } },
+		Warband = { { bank = { { slots = { it(2589, 4, LINK) } } }, details = { inventory = true } } },
+	}
+	_G.Syndicator = {
+		API = {
+			IsReady = function() return true end,
+			GetCurrentCharacter = function() return "Me-Forever" end,
+			GetAllCharacters = function() local o = {} for k in pairs(SD.Characters) do o[#o + 1] = k end return o end,
+			GetByCharacterFullName = function(n) return SD.Characters[n] end,
+			GetAllGuilds = function() local o = {} for k in pairs(SD.Guilds) do o[#o + 1] = k end return o end,
+			GetByGuildFullName = function(n) return SD.Guilds[n], n end,
+			GetWarband = function(i) return SD.Warband[i or 1] end,
+			-- what Syndicator's own tooltip counts: shown characters, connected realms only if asked
+			GetInventoryInfoByItemID = function(id, connectedOnly, factionOnly)
+				local CONNECTED = { Forever = true }
+				local function flat(list) local n = 0 for _, x in pairs(list or {}) do if type(x) == "table" and x.itemID == id then n = n + (x.itemCount or 1) end end return n end
+				local function nested(bags) local n = 0 for _, b in pairs(bags or {}) do n = n + flat(b.slots or b) end return n end
+				local res = { characters = {}, guilds = {}, warband = { 0 } }
+				for full, c in pairs(SD.Characters) do
+					local realm = full:match("%-(.+)$")
+					if c.details.show.inventory ~= false and (not connectedOnly or CONNECTED[realm]) then
+						local r = { character = c.details.character, realmNormalized = realm, bags = nested(c.bags), bank = nested(c.bank) + nested(c.bankTabs),
+							mail = flat(c.mail), equipped = flat(c.equipped), void = 0, auctions = 0 }
+						if r.bags + r.bank + r.mail + r.equipped > 0 then res.characters[#res.characters + 1] = r end
+					end
+				end
+				for full, g in pairs(SD.Guilds) do
+					local realm = full:match("%-(.+)$")
+					local n = nested(g.bank)
+					if n > 0 and (not connectedOnly or CONNECTED[realm]) then res.guilds[#res.guilds + 1] = { guild = g.details.guild, realmNormalized = realm, bank = n } end
+				end
+				res.warband[1] = nested(SD.Warband[1].bank)
+				return res
+			end,
+		},
+		CallbackRegistry = { RegisterCallback = function(_, ev, fn) callbacks[ev] = fn end },
+	}
+	check(St.Source() == "BagBrother", "Bagnon shows your bags: BagBrother's records, even with Syndicator loaded")
+	-- Baganator shows your bags: Syndicator's records, and BagBrother's are left alone
+	_G.Bagnon = nil
+	local fired = {}
+	_G.Baganator = { CallbackRegistry = { TriggerEvent = function(_, ev, ...) local a = {} for i = 1, select("#", ...) do a[i] = tostring((select(i, ...))) end fired[#fired + 1] = ev .. ":" .. table.concat(a, ",") end } }
+	check(St.Source() == "Syndicator" and St.Status():find("Syndicator, 3 character", 1, true), "Baganator: Syndicator's records: " .. St.Status())
+	by = entries()
+	linen = by[2589]
+	check(linen and linen.total == 46 and linen.link == LINK, "Syndicator's counts, hidden characters left out, with its item link: " .. tostring(linen and linen.total))
+	check(linen.detail == "46  ·  3 places", "details: " .. linen.detail)
+	check(by[1234] and by[1234].total == 4 and by[555] and by[555].detail:find("Guildy", 1, true), "bank tabs and guild banks read")
+	check(by[999] == nil, "worn items alone aren't listed")
+	-- its updates mark the list stale
+	P._dirty = false
+	check(type(callbacks.BagCacheUpdate) == "function", "listens to Syndicator's updates")
+	callbacks.BagCacheUpdate("Alt-Forever"); check(P._dirty == true, "and rebuilds after them")
+	-- Baganator: your bags open on the ones you carry, flashed
+	fired = {}
+	UI:Open("@stored linen"); key("ENTER"); FlushAll()
+	local joined = table.concat(fired, " ")
+	check(joined:find("BagShow:", 1, true) and joined:find("HighlightIdenticalItems", 1, true) and not joined:find("BankShow", 1, true), "Baganator shows your bags with the item flashed: " .. joined)
+	fired = {}
+	UI:Open("@stored guild gem"); key("ENTER")
+	check(#fired == 0, "a guild bank item you don't carry: nothing opens")
+	-- no bag addon: the game's bags, as for an Item
+	_G.Baganator = nil
+	local mark = #log
+	UI:Open("@stored linen"); key("ENTER")
+	check(logHas("OpenAllBags", mark + 1), "without a bag addon the game's bags open")
+	-- the same characters as Syndicator's tooltip: by default only connected realms
+	SD.Characters["Alt-Elsewhere"] = { details = { character = "Alt", show = { inventory = true } }, bags = { { it(2589, 2, LINK) } } }
+	by = entries()
+	check(by[2589].total == 46, "a character on a realm Syndicator's tooltip leaves out isn't counted: " .. by[2589].total)
+	-- its tooltip set to every realm: then counted, with the realm in its name
+	_G.SYNDICATOR_CONFIG = { tooltips_connected_realms_only_2 = false }
+	by = entries()
+	local names = {}
+	for _, g in ipairs(St.Groups(by[2589])) do names[#names + 1] = g.name end
+	check(by[2589].total == 48 and table.concat(names, ","):find("Alt-Elsewhere", 1, true) and table.concat(names, ","):find("Alt,", 1, true), "every realm: Name-Realm: " .. table.concat(names, ","))
+	-- guild banks and worn items follow its settings too
+	_G.SYNDICATOR_CONFIG = { show_guild_banks_in_tooltips = false }
+	by = entries()
+	check(by[555] == nil, "guild banks hidden in its tooltip are left out here")
+	_G.SYNDICATOR_CONFIG = nil
+	SD.Characters["Alt-Elsewhere"] = nil
+	-- Syndicator still loading: nothing, rather than BagBrother's (old) records standing in
+	_G.Baganator = { CallbackRegistry = { TriggerEvent = function() end } }
+	_G.Syndicator.API.IsReady = function() return false end
+	check(next(entries()) == nil and St.Busy():find("Syndicator", 1, true), "while Syndicator loads nothing else stands in for it")
+	_G.Syndicator.API.IsReady = function() return true end
+	-- BagBrother's records with Bagnon not loaded are stale: not read
+	local realSyn = _G.Syndicator
+	_G.Syndicator, _G.Baganator = nil, nil
+	check(St.Source() == nil and St.Status():find("Bagnon isn't loaded", 1, true) and next(entries()) == nil, "BagBrother's records without Bagnon aren't used: " .. St.Status())
+	_G.Syndicator = realSyn
+	-- .integrations reports it
+	check(table.concat(ns.commands.integrations.run(""), "\n"):find("Alts and banks: Syndicator", 1, true), ".integrations says where the counts come from")
+	UI:Hide()
+
+	_G.Syndicator, _G.BrotherBags, _G.Bagnon, _G.Baganator = nil, nil, nil, nil
+	C_Item.GetItemNameByID, C_Item.RequestLoadItemDataByID, C_Item.GetItemQualityByID = baseName, baseReq, baseQual
+	ns.Output = realOut
+	P._dirty = true
+end
+
+-- your own bags and bank: the live count wins over a stale record; a spinner while loading
+io.write("[stored live counts + busy tests]\n")
+do
+	local St = ns.Stored
+	local P = ns.providers.stored
+	local function entries() P._dirty = true; local by = {} for _, e in ipairs(ns:GetEntries(P)) do by[e.itemID] = e end return by end
+	local baseName, baseReq, baseCount = C_Item.GetItemNameByID, C_Item.RequestLoadItemDataByID, C_Item.GetItemCount
+	local NAMES = { [2589] = "Linen Cloth", [1234] = "Bank Thing", [3000] = "Live Only" }
+	local requested = {}
+	C_Item.GetItemNameByID = function(id) return NAMES[id] end
+	C_Item.RequestLoadItemDataByID = function(id) requested[#requested + 1] = id end
+	local LIVE = { [2589] = { bags = 5, bank = 5 }, [1234] = { bags = 0, bank = 0 }, [3000] = { bags = 0, bank = 0 } }
+	C_Item.GetItemCount = function(id, bank) local l = LIVE[id] or { bags = 0, bank = 0 } return l.bags + (bank and l.bank or 0) end
+	local me = { realm = "forever", id = "Me Sur", name = "Me Sur" }
+	_G.Bagnon = { NumBags = 4, player = me, Owners = { Iterate = function() return ipairs({ me }) end }, Frames = { Show = function() return {} end }, SendSignal = function() end }
+	_G.BrotherBags = { forever = {
+		["Me Sur"] = { [0] = { items = { [1] = "2589;5" } }, [-1] = { items = { [1] = "2589;20", [2] = "1234" } }, equip = {} },
+		["Alt Guy"] = { [-1] = { items = { [1] = "1234;3", [2] = "3000;2" } } },
+	} }
+	local by = entries()
+	local linen = by[2589]
+	check(linen and linen.total == 10, "your bank's live count replaces the record (20 recorded, 5 there): " .. tostring(linen and linen.total))
+	local bankThing = by[1234]
+	check(bankThing and bankThing.total == 3 and not bankThing.detail:find("you", 1, true), "an item the record put in your bank but the game doesn't count isn't shown as yours: " .. tostring(bankThing and bankThing.detail))
+	check(bankThing.detail == "3  ·  Alt Guy", "it shows on the alt that has it: " .. bankThing.detail)
+	LIVE[3000].bank = 4
+	by = entries()
+	check(by[3000] and by[3000].total == 6 and St.Groups(by[3000])[1].mine and St.Groups(by[3000])[1].parts[1] == "bank 4", "your bank counted live even when the record missed it: " .. tostring(by[3000] and by[3000].detail))
+	-- worn items aren't counted as in your bags
+	_G.BrotherBags.forever["Me Sur"].equip = { [16] = "2589" }
+	LIVE[2589].bags = 6 -- the game counts the worn one as carried
+	by = entries()
+	local lines = St.Breakdown(by[2589])
+	check(table.concat(lines, "|"):find("bags 5", 1, true) and table.concat(lines, "|"):find("equipped 1", 1, true), "worn ones come off the carried count: " .. table.concat(lines, " | "))
+
+	-- the spinner
+	local ready = false
+	_G.Syndicator = { API = { IsReady = function() return ready end, GetAllCharacters = function() return {} end, GetByCharacterFullName = function() end } }
+	local bagnonForNow = _G.Bagnon
+	_G.Bagnon = nil -- Syndicator's records (Baganator or Syndicator alone)
+	check(St.Busy() and St.Busy():find("Syndicator", 1, true), "busy while Syndicator is still reading")
+	UI:Open("")
+	local B = UI.busy
+	check(B.shown == true and B.lines[1]:find("Syndicator", 1, true), "the spinner shows, saying what's loading")
+	check(UI.edit.lastPoint and UI.edit.lastPoint[4] == -38, "the query box ends before it")
+	local shownTip = {}
+	local realTip = _G.GameTooltip
+	_G.GameTooltip = Obj("GameTooltip")
+	_G.GameTooltip.AddLine = function(_, l) shownTip[#shownTip + 1] = l end
+	B.scripts.OnEnter(B)
+	check(shownTip[1] and shownTip[1]:find("Syndicator", 1, true), "mouse-over lists it")
+	B.scripts.OnUpdate(B, 0.25)
+	local alphas = {}
+	for i, d in ipairs(B.dots) do alphas[i] = d.alpha end
+	B.scripts.OnUpdate(B, 0.1)
+	check(alphas[1] ~= B.dots[1].alpha or alphas[2] ~= B.dots[2].alpha, "the dots turn")
+	local searched = 0
+	local realRefresh = UI.Refresh
+	UI.Refresh = function(self, ...) searched = searched + 1 return realRefresh(self, ...) end
+	ready = true
+	B.scripts.OnUpdate(B, 0.6)
+	check(B.shown == false and searched >= 1, "when loading ends the spinner goes and the results are searched again")
+	check(UI.edit.lastPoint[4] == -14, "and the query box gets its room back")
+	UI.Refresh = realRefresh
+	UI:Hide()
+	_G.Syndicator = nil
+	_G.Bagnon = bagnonForNow
+	-- names that never arrive don't keep it spinning
+	_G.BrotherBags.forever["Alt Guy"][-1].items[3] = "8888"
+	requested = {}
+	entries()
+	check(St.Busy() and St.Busy():find("item name", 1, true), "busy while item names are on their way")
+	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED"); FlushAll()
+	entries()
+	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED"); FlushAll()
+	entries()
+	-- names arrive one by one: busy until the last
+	_G.BrotherBags.forever["Alt Guy"][-1].items[4] = "7001"
+	_G.BrotherBags.forever["Alt Guy"][-1].items[5] = "7002"
+	entries()
+	check(St.Busy() and St.Busy():find("item names", 1, true), "busy with several names out")
+	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 6948, true) -- someone else's item
+	check(St.Busy() ~= nil, "another addon's item arriving doesn't end the wait")
+	NAMES[7001] = "First In"
+	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 7001, true)
+	check(St.Busy() ~= nil, "still waiting for the rest")
+	NAMES[7002] = "Second In"
+	P._dirty = false
+	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 7002, true)
+	check(P._dirty == true, "the last one in rebuilds the list")
+	_G.BrotherBags.forever["Alt Guy"][-1].items[4], _G.BrotherBags.forever["Alt Guy"][-1].items[5] = nil, nil
+	local asks = 0 for _, id in ipairs(requested) do if id == 8888 then asks = asks + 1 end end
+	check(asks == 2 and St.Busy() == nil, "a name that never comes is asked for twice, then the spinner stops: " .. asks)
+
+	_G.BrotherBags, _G.Bagnon, _G.GameTooltip = nil, nil, realTip
+	C_Item.GetItemNameByID, C_Item.RequestLoadItemDataByID, C_Item.GetItemCount = baseName, baseReq, baseCount
+	P._dirty = true
+end
+
+-- your bags shown and highlighted in Bagnon or Baganator when one of them replaces the game's bags
+io.write("[bag addon tests]\n")
+do
+	local Bg = ns.Bags
+	local function itemEntry() ns.providers.items._dirty = true for _, e in ipairs(ns:GetEntries(ns.providers.items)) do if e.itemID == 2589 then return e end end end
+	local lit = {}
+	local origShow = ns.Highlight.Show
+	ns.Highlight.Show = function(self, f) lit[#lit + 1] = f end
+	local function button(bag, slot, method)
+		local b = Obj("Button"); b.shown = true
+		if method == "GetBag" then b.GetBag = function() return bag end else b.GetBagID = function() return bag end end
+		b.GetID = function() return slot end
+		return b
+	end
+	-- Bagnon: its inventory frame, buttons answer GetBag/GetID
+	local shown = {}
+	local bn = button(0, 2, "GetBag")
+	local other = button(0, 1, "GetBag")
+	local group = Obj("Frame"); group.shown = true
+	group.GetChildren = function() return other, bn end
+	local inv = Obj("Frame"); inv.shown = false
+	inv.GetChildren = function() return group end
+	_G.Bagnon = { Owners = {}, Frames = {
+		IsEnabled = function() return true end,
+		Show = function(_, id) shown[#shown + 1] = id; inv.shown = true; return inv end,
+		Get = function(_, id) return id == "inventory" and inv or nil end,
+	} }
+	check(Bg.Active() == "Bagnon", "Bagnon shows your bags")
+	local e = itemEntry()
+	local mark = #log
+	e.activate(e); FlushAll()
+	check(shown[1] == "inventory" and not logHas("OpenAllBags", mark + 1), "an item opens Bagnon's bags, not the game's")
+	check(lit[1] == bn, "and its button there is highlighted")
+	-- Bagnon installed but its bags turned off: the game's bags
+	_G.Bagnon.Frames.IsEnabled = function() return false end
+	check(Bg.Active() == nil, "Bagnon with its bags off: the game's bags")
+	_G.Bagnon = nil
+	-- Baganator: BagShow, its own flash, and its buttons answer GetBagID/GetID
+	local fired = {}
+	_G.Baganator = { CallbackRegistry = { TriggerEvent = function(_, ev, a) fired[#fired + 1] = ev .. ":" .. tostring(a) end } }
+	local bgb = button(0, 2)
+	local view = Obj("Frame"); view.shown = true
+	view.GetChildren = function() return bgb end
+	_G.Baganator_SingleViewBackpackViewFrame1 = view
+	lit = {}
+	check(Bg.Active() == "Baganator", "Baganator shows your bags")
+	e.activate(e); FlushAll()
+	local fj = table.concat(fired, " ")
+	check(fj:find("BagShow", 1, true) and fj:find("HighlightIdenticalItems:|Hitem:2589|h[Linen Cloth]|h", 1, true), "Baganator opens and flashes it: " .. fj)
+	check(lit[1] == bgb, "and Terminal points at its button too")
+	_G.Baganator, _G.Baganator_SingleViewBackpackViewFrame1 = nil, nil
+	-- none: the game's bags, as before
+	mark = #log
+	e.activate(e); FlushAll()
+	check(logHas("OpenAllBags", mark + 1), "without a bag addon the game's bags open")
+	ns.Highlight.Show = origShow
+
+	-- the terminal uses an entry's own tooltip when it has one
+	local drew
+	ns:RegisterProvider("tiptest", { label = "TT", aliases = { "tiptest" }, explicit = true, collect = function()
+		return { { name = "Tippy", link = "item:1", tooltip = function(_, tip) drew = tip end } }
+	end })
+	UI:Open("@tiptest tippy")
+	check(drew == _G.TerminalTooltip, "an entry's own tooltip is drawn instead of the link's")
+	UI:Hide()
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "tiptest" then table.remove(ns.providerOrder, i) end end
+	ns.providers.tiptest = nil
+
+	-- a provider that finishes loading is collected again and the results searched again
+	local loading, collects = true, 0
+	ns:RegisterProvider("slowtest", { label = "Slow", aliases = { "slowtest" }, explicit = true,
+		busy = function() return loading and "Loading slow things" or nil end,
+		collect = function() collects = collects + 1 return loading and {} or { { name = "Arrived" } } end })
+	UI:Open("@slowtest arr")
+	check(#UI.Results() == 0 and UI.busy.shown and UI.status:GetText():find("loading", 1, true), "while loading: nothing yet, the spinner, and loading in the footer: " .. tostring(UI.status:GetText()))
+	loading = false
+	UI.busy.scripts.OnUpdate(UI.busy, 0.6)
+	check(UI.busy.shown == false and collects == 2 and UI.Results()[1] and UI.Results()[1].name == "Arrived", "when it's done it's collected again and shows up without typing")
+	UI:Hide()
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "slowtest" then table.remove(ns.providerOrder, i) end end
+	ns.providers.slowtest = nil
 end
 
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))
