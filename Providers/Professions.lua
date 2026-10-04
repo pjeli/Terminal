@@ -27,18 +27,33 @@ end
 -- Storage
 ----------------------------------------------------------------------
 
+--- The character's own key: its GUID. Name-Realm wasn't unique: characters with the same name
+--- on this client's connected realms all report the same realm name, so they shared one index
+--- (a Paladin without Fishing was offered his namesake's Fish Bowl).
 local function CharKey()
+	local g = UnitGUID and UnitGUID("player")
+	if type(g) == "string" and g ~= "" and not Secret(g) then return g end
 	return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
 end
 
+local cleaned
 local function Store()
 	local db = ns.db
 	if not db then return nil end
 	db.recipes = db.recipes or {}
 	local k = CharKey()
+	if not cleaned and k:find("^Player%-") then
+		-- indexes saved under Name-Realm mix characters of the same name: dropped (each character
+		-- indexes its own professions again as their windows open, or from "Index my recipes")
+		cleaned = true
+		for key in pairs(db.recipes) do
+			if type(key) == "string" and not key:find("^Player%-") then db.recipes[key] = nil end
+		end
+	end
 	db.recipes[k] = db.recipes[k] or {}
 	return db.recipes[k]
 end
+P.CharKey = CharKey
 P.Store = Store
 
 -- recipes and camp objects come from the index; the professions list doesn't (its own events

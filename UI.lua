@@ -433,7 +433,69 @@ function UI:SearchText(text)
 			end
 		end
 	end
-	return SortAndTrim(out)
+	local res = SortAndTrim(out)
+	-- nothing here has what was typed in its name, but a list only searched with @kind does
+	-- (Questie's quests, NPCs): a row on top offers it (Tab or Enter adds the @kind)
+	if not kinds and not empty then
+		local hint, at = self:BigListHint(text, tokens, res, overBudget)
+		if hint then table.insert(res, math.min(at or 1, #res + 1), hint) end
+	end
+	return res
+end
+
+-- the lists offered by that row, in order: big databases only searched with @kind
+local HINT_KINDS = { "stored", "questie", "npc" }
+
+local function NameHasAll(e, tokens)
+	local ln = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
+	for i = 1, #tokens do
+		if not ln:find(tokens[i], 1, true) then return false end
+	end
+	return true
+end
+
+local function HintActivate(e) UI:SetQuery(e.completion, #e.completion) end
+
+--- The "Search <list> for this" row, or nil. Only when no result has every typed word in its
+--- name and an @kind list has a match: by name (a plain substring look) in the huge lists, or a
+--- full match (hintFull: @stored, by item and holder). Spread over frames like the search.
+function UI:BigListHint(text, tokens, res, overBudget)
+	local typed = 0
+	for i = 1, #tokens do typed = typed + #tokens[i] end
+	if typed < 3 then return nil end
+	-- your own results already have it: only a list marked hintSecond (@stored: the same item on
+	-- an alt or in a bank) is still offered, as the second row, under what you carry
+	local mine = false
+	for _, e in ipairs(res) do
+		if NameHasAll(e, tokens) then mine = true break end
+	end
+	for _, id in ipairs(HINT_KINDS) do
+		local p = ns.providers[id]
+		if p and p.explicit and (not mine or p.hintSecond) then
+			local list = ns:GetEntries(p)
+			local first, count = nil, 0
+			for i = 1, #list do
+				local e = list[i]
+				if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
+					count = count + 1
+					first = first or e
+					if count >= 100 then break end
+				end
+				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
+			end
+			if first then
+				local kind = "@" .. (p.aliases and p.aliases[1] or id)
+				local query = text:gsub("^%s+", "")
+				return {
+					name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
+					detail = first.name .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
+					icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
+					completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
+					_score = math.huge, _pos = {},
+				}, mine and 2 or 1
+			end
+		end
+	end
 end
 
 --- A search spread over frames: up to SLICE_MS of it now. Gives the results to show, and
@@ -701,10 +763,14 @@ end
 local ARROW = "|TInterface\\ChatFrame\\ChatFrameExpandArrow:12:12|t "
 
 function UI:Render()
-	if not frame then return end
+	-- nothing to draw while it's closed (a setting changed in the options panel, say): drawing
+	-- then put the rows up, and the next open showed them without their animation
+	if not frame or not frame:IsShown() then return end
 	local t = Theme.Get()
 	local light = Theme.IsLight()
-	local animated = self:Animated() and not self.snapNext
+	-- rows come in with the style on every open (snapNext, on open, is for the height only);
+	-- only a new layout (theme changes) puts them up at once
+	local animated = self:Animated() and not (self.snapNext and not self.opening)
 	local now, entering = GetTime(), 0
 	for i = 1, MAX_ROWS do
 		local r = rows[i]
@@ -714,7 +780,7 @@ function UI:Render()
 			-- a row that wasn't there fades in (one after another); a row that stays just
 			-- takes its new text, so typing doesn't repaint the whole list
 			if not r:IsShown() or r.leaving then
-				r.leaving = nil
+				r.leaving, r.slideOut = nil, nil -- (reopened while folding away: it comes back)
 				if animated then
 					local A = Style()
 					r.fadeAt = now + entering * A.stagger
@@ -1590,7 +1656,7 @@ function UI:Activate(idx, opts)
 	if se and self:TryArmSecure(se) then return end
 	local args = self.args
 	local isCmd = e.kind == "cmd"
-	if not opts.keepOpen then self:Hide() end
+	if not opts.keepOpen and not e.staysOpen then self:Hide() end
 	ns:Bump(e.freqKey)
 	local fn = (opts.secondary and e.secondary) or e.activate
 	ns:Trace(("DIRECT (addon code) %s: %s [%s]"):format(opts.secondary and "secondary" or "activate", tostring(e.name), tostring(e.kind)))
@@ -1682,9 +1748,12 @@ function UI:MotionReset()
 	if frame then
 		frame:SetAlpha(1)
 		Anchor(0)
+		-- (only called once the terminal has gone) rows go too, so the next open brings them in
+		-- with the style again; left up, a reopen only changed their text and every style
+		-- looked like a plain fade after the first open
 		for _, r in ipairs(rows) do
-			r.fadeAt = nil
-			if r.leaving then r.leaving = nil; r:Hide() end
+			r.fadeAt, r.leaving = nil, nil
+			r:Hide()
 			r:SetAlpha(1)
 			if r.slide or r.slideOut then r.slide, r.slideOut = nil, nil; PlaceRow(r, 0) end
 		end
@@ -1938,8 +2007,10 @@ local function ComputeCompletion(self, text)
 		if not new then return nil end
 		return text:sub(1, #text - #last) .. new .. (final and " " or "")
 	end
-	-- plain search: the selected result's name, when the typed words start it
+	-- the "Search <list> for this" row: Tab adds its @kind
 	local e = results[sel]
+	if e and e.completion then return e.completion end
+	-- plain search: the selected result's name, when the typed words start it
 	if not e or e.raw or e.noActivate or type(e.name) ~= "string" or e.kind == "calc" then return nil end
 	local kinds = text:match("^(@%S+%s+)") or ""
 	while true do -- every leading @kind
@@ -2425,11 +2496,12 @@ function UI:Open(text)
 	self:StartOpen(reopening)
 	self.cursor = #(text or "")
 	self.snapNext = true -- opens at the right size; it grows and shrinks from there
+	self.opening = true -- (the rows still come in with the style)
 	-- SetText searches (OnTextChanged) only if the text changed; a second search in the same
 	-- frame would be queued for the next one
 	if edit:GetText() ~= (text or "") then edit:SetText(text or "") else self:Refresh() end
 	self.cursor = #edit:GetText()
-	self.snapNext = false
+	self.snapNext, self.opening = false, false
 	if not self:EnterKeys() then
 		-- plain text box: focus next frame so the opening keypress isn't typed into it
 		C_Timer.After(0, function()

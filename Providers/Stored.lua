@@ -398,7 +398,10 @@ ns:RegisterProvider("stored", {
 	color = "ffb4a0ff",
 	aliases = { "stored", "alts", "alt", "bank", "banks", "storage", "everywhere", "syndicator", "bagnon" },
 	busy = function() return S.Busy() end, -- the terminal's spinner
-	lazy = true, -- every item on every character: only searched once you type
+	explicit = true, -- every item on every character: only with @stored (a plain search offers it when only it has a match)
+	hintLabel = "your alts and banks",
+	hintFull = true, -- (small enough to match fully: by item name and by who has it)
+	hintSecond = true, -- offered under a carried item of the same name, too
 	events = { "BAG_UPDATE_DELAYED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", "MAIL_INBOX_UPDATE",
 		"GUILDBANKBAGSLOTS_CHANGED", "PLAYER_EQUIPMENT_CHANGED" },
 	guard = 1,

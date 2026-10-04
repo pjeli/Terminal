@@ -2285,6 +2285,22 @@ do -- AtlasLoot and Questie integrations
 	local plainHit = false
 	for _, x in ipairs(UI:Search("defias brotherhood")) do if x.kind == "questie" then plainHit = true end end
 	check(not plainHit, "Questie quests aren't in plain search")
+	-- ...but a row on top offers them when only they have it: Tab (or Enter) adds @questie
+	local r0 = UI:Search("defias brotherhood")[1]
+	check(r0 and r0.completion == "@questie defias brotherhood" and r0.detail:find("The Defias Brotherhood", 1, true),
+		"only Questie has it: the top row offers @questie (" .. tostring(r0 and r0.name) .. ")")
+	UI:Open("defias brotherhood")
+	check(UI:AcceptCompletion() and UI.edit:GetText() == "@questie defias brotherhood", "Tab adds @questie")
+	check(UI.Results()[1] and UI.Results()[1].kind == "questie", "and the quest is found")
+	UI:SetQuery("defias brotherhood")
+	UI:Activate(1)
+	check(UI:IsShown() and UI.edit:GetText() == "@questie defias brotherhood", "Enter on that row does the same, the terminal stays open")
+	UI:Hide()
+	local n0 = UI:Search("pillager")[1]
+	check(n0 and n0.completion == "@npc pillager", "an NPC's name: the row offers @npc")
+	local w0 = UI:Search("wolves across")[1]
+	check(w0 and not w0.completion, "your own results have it (the quest log): nothing offered")
+	check(not (UI:Search("de")[1] or {}).completion, "not for one or two letters")
 	r = UI:Search("@questie defias")
 	check(r[1] and r[1].name == "The Defias Brotherhood", "@questie finds a quest by name")
 	local q = r[1]
@@ -2983,6 +2999,23 @@ do -- motion: fade/drift in and out, gliding selection, rows fading in
 	check(folding >= 2 and order[1] > order[#order], "cascade: closing folds the rows away, the bottom one first")
 	for _ = 1, 20 do step(0.05) end
 	check(F.shown == false and UI.rows[1].lastPoint[2] == -6, "and they're back in place for the next open")
+	-- every open brings the rows in with the style, not only the first (they used to stay up
+	-- between closes, and opening put them up at once: every style looked like a plain fade)
+	for round = 1, 2 do
+		UI:Open("e")
+		local r1 = UI.rows[1]
+		check(r1.shown and r1.slide and r1.lastPoint[2] < -6 - 30 and (r1.alpha or 1) == 0,
+			"cascade, open #" .. round .. ": the first row swings in from the left (" .. tostring(r1.lastPoint[2]) .. ")")
+		for _ = 1, 30 do step(0.05) end
+		check(r1.lastPoint[2] == -6 and r1.alpha == 1, "cascade, open #" .. round .. ": and lands in place")
+		UI:Hide(); for _ = 1, 20 do step(0.05) end
+		check(F.shown == false and not r1.shown, "closed: the rows went with it")
+	end
+	Th.Set("animations", "smooth")
+	UI:Open("e")
+	check((UI.rows[1].alpha or 1) == 0 and UI.rows[1].fadeAt, "smooth: rows fade in on a reopen too")
+	UI:Hide(); for _ = 1, 20 do step(0.05) end
+	Th.Set("animations", "cascade")
 	-- snappy: pops in with a little bounce (passes its place, then settles), and the selection jumps
 	Th.Set("animations", "snappy")
 	UI:Open("e")
@@ -3540,7 +3573,7 @@ do
 	local linen = by[2589]
 	check(linen and linen.total == 48 and linen.name == "Linen Cloth", "counts every bag, bank, mailbox, guild bank and the warband bank: " .. tostring(linen and linen.total))
 	check(linen.detail == "48  ·  4 places", "the details are short: the total and how many places: " .. tostring(linen.detail))
-	check(ns.providers.stored.lazy == true, "@stored is searched once you type, not rebuilt on every open of the terminal")
+	check(ns.providers.stored.explicit == true, "@stored is its own search (a plain search offers it when only it has a match)")
 	local gs = St.Groups(linen)
 	check(gs[1].name == "Me Sur" and gs[1].mine and gs[1].total == 28 and gs[2].name == "My Guild (guild)" and gs[3].name == "Alt Guy" and gs[4].name == "Warband", "grouped by who has them, most first")
 	check(by[1234] and by[1234].total == 1, "something only in your bank is listed")
@@ -3567,6 +3600,14 @@ do
 	_G.RAID_CLASS_COLORS = nil
 	-- searching
 	UI:Open("linen alt guy")
+	local hint = UI.Results()[1]
+	check(hint and hint.completion == "@stored linen alt guy" and hint.name:find("alts and banks", 1, true),
+		"a plain search offers @stored when only it has a match: " .. tostring(hint and hint.name))
+	check(UI:AcceptCompletion() and UI.edit:GetText() == "@stored linen alt guy", "Tab adds @stored")
+	-- carried too: your bags' row stays on top, the alts-and-banks row comes second
+	local rc = UI:Search("linen cloth")
+	check(rc[1] and rc[1].kind == "items" and rc[1].name == "Linen Cloth" and rc[2] and rc[2].completion == "@stored linen cloth",
+		"you carry it and alts have more: your row first, the alts-and-banks row second (" .. tostring(rc[1] and rc[1].kind) .. ", " .. tostring(rc[2] and rc[2].name) .. ")")
 	local r = UI.Results()[1]
 	check(r and r.kind == "stored" and r.itemID == 2589, "found by the item and a holder's name")
 	UI:Open("@stored bank thing")
@@ -3903,4 +3944,23 @@ do
 	ns.providers.slowtest = nil
 end
 
+do -- the recipe index is per character by GUID: WoW Forever's first-and-last names ("Plamen Warr",
+	-- "Plamen Pally") give UnitName just "Plamen", and the realm name is the same, so they shared one
+	local P = ns.Professions
+	local realGUID, realName = _G.UnitGUID, _G.UnitName
+	ns.db.recipes = { ["Plamen-Classic Beta PvP"] = { [356] = { name = "Fishing", fromList = true, list = { { id = 1, name = "Fish Bowl", learned = true } } } } }
+	_G.UnitName = function() return "Plamen" end
+	_G.UnitGUID = function() return "Player-1-0000AAAA" end -- Plamen Warr
+	local warr = P.Store()
+	check(next(warr) == nil and ns.db.recipes["Plamen-Classic Beta PvP"] == nil, "the index shared under Name-Realm is dropped; this character starts its own")
+	warr[356] = { name = "Fishing", list = { { id = 1, name = "Fish Bowl", learned = true } } }
+	_G.UnitGUID = function() return "Player-1-0000BBBB" end -- Plamen Pally, no Fishing
+	ns.providers.camp._dirty = true
+	local fishBowl = false
+	for _, e in ipairs(ns:GetEntries(ns.providers.camp)) do if e.name == "Fish Bowl" then fishBowl = true end end
+	check(next(P.Store()) == nil and not fishBowl, "a namesake doesn't get the other's recipes (no Fish Bowl for the Paladin)")
+	_G.UnitGUID, _G.UnitName = realGUID, realName
+	ns.db.recipes = {}
+	ns.providers.camp._dirty = true
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))
