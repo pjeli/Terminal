@@ -14,5 +14,16 @@ for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
     if not r["f"]:
         print("FAIL", f, r["e"])
         ok = False
-print("all files OK" if ok else "syntax errors found")
+try:
+    import globals as G # accidental globals (needs: pip install luaparser)
+except ImportError:
+    G = None
+if ok and G:
+    for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
+        if "/tests/" in f:
+            continue
+        for p in G.problems(f):
+            print("FAIL", p)
+            ok = False
+print("all files OK" if ok else "problems found")
 sys.exit(0 if ok else 1)

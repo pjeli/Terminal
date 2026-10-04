@@ -1652,7 +1652,8 @@ function UI:Activate(idx, opts)
 		ns:Print("In combat: can't open " .. tostring(e.name) .. " now.")
 		return
 	end
-	ns:RecordHistory(edit:GetText())
+	-- (a row that only fills the prompt in, "Search Questie for this", is a step, not something run)
+	if not e.staysOpen then ns:RecordHistory(edit:GetText()) end
 	-- windows Blizzard owns are opened by a secure click, never from our own code
 	local se = SecureView(e, opts.secondary)
 	if se and self:TryArmSecure(se) then return end

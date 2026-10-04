@@ -3613,6 +3613,11 @@ do
 	check(hint and hint.completion == "@stored linen alt guy" and hint.name:find("alts and banks", 1, true),
 		"a plain search offers @stored when only it has a match: " .. tostring(hint and hint.name))
 	check(UI:AcceptCompletion() and UI.edit:GetText() == "@stored linen alt guy", "Tab adds @stored")
+	-- Enter on the row does the same, stays open, and isn't history (only a step towards the search)
+	ns.db.history = {}
+	UI:Open("linen alt guy"); key("ENTER")
+	check(UI:IsShown() and UI.edit:GetText() == "@stored linen alt guy", "Enter on the hint row adds @stored and stays open")
+	check(#ns.db.history == 0, "the hint row isn't saved in history: " .. tostring(ns.db.history[1]))
 	-- carried too: your bags' row stays on top, the alts-and-banks row comes second
 	local rc = UI:Search("linen cloth")
 	check(rc[1] and rc[1].kind == "items" and rc[1].name == "Linen Cloth" and rc[2] and rc[2].completion == "@stored linen cloth",
