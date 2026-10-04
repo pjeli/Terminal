@@ -368,11 +368,18 @@ hintsCheck:SetScript("OnClick", function(self) T.Set("hints", self:GetChecked() 
 Label(T.FIELDS.hints.label, "GameFontHighlight", 216, -477)
 O.widgets.hints = hintsCheck
 
+local syntaxCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+syntaxCheck:SetSize(24, 24)
+syntaxCheck:SetPoint("TOPLEFT", 190, -498)
+syntaxCheck:SetScript("OnClick", function(self) T.Set("syntax", self:GetChecked() and "on" or "off") end)
+Label(T.FIELDS.syntax.label .. "  |cff8a8a8a(@kinds, filters, .commands)|r", "GameFontHighlight", 216, -503)
+O.widgets.syntax = syntaxCheck
+
 local scanCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 scanCheck:SetSize(24, 24)
-scanCheck:SetPoint("TOPLEFT", 190, -498)
+scanCheck:SetPoint("TOPLEFT", 190, -524)
 scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked() and "on" or "off") end)
-O.widgets.autoScanLabel = Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -503)
+O.widgets.autoScanLabel = Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -529)
 O.widgets.autoScan = scanCheck
 
 -- the panel's own actions, on a row of their own below everything else
@@ -412,6 +419,7 @@ function O.Refresh()
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
+	O.widgets.syntax:SetChecked(t.syntax and true or false)
 	-- only where the game lets addons open profession windows: WoW Forever doesn't (db.noDirectOpen),
 	-- so there each profession is indexed when you open it, and the option would do nothing
 	local canScan = ns.db and ns.db.noDirectOpen == false

@@ -41,6 +41,7 @@ T.DEFAULTS = {
 	cursor = "blinking-line", -- the text cursor: blinking or solid, a line or a box
 	blinkRate = 0.8, -- blinks per second
 	autoScan = true, -- index professions quietly after login
+	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	v = 3, -- theme defaults version (see T.Get)
 }
 
@@ -81,7 +82,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
-	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan" }
+	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan", "syntax" }
 T.CURSOR_ORDER = { "blinking-line", "solid-line", "blinking-box", "solid-box" }
 
 -- Animation styles: open/close (seconds; `fade`: how long the opening fade takes, if not the whole
@@ -148,6 +149,7 @@ T.FIELDS = {
 	rows = { kind = "number", label = "Max rows", min = 4, max = 20, step = 1 },
 	scale = { kind = "number", label = "Scale", min = 0.6, max = 1.6, step = 0.05 },
 	hints = { kind = "bool", label = "Key hints in footer" },
+	syntax = { kind = "bool", label = "Colour what you type" },
 	animations = { kind = "choice", label = "Animation", choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = "Cursor", choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = "Blink speed", min = 0.2, max = 3, step = 0.1 },
@@ -250,6 +252,10 @@ function T.Readable(hex)
 end
 
 --- Every |cAARRGGBB colour in a string, made readable on the current background.
+-- the prompt's colours for what it recognises (UI:Highlighted); @kinds use their own colour,
+-- .commands the accent, /slash commands the prompt colour, plain words the text colour
+T.SYNTAX = { filter = "6ee7a8", bad = "ff6b6b" }
+
 function T.FixColors(s)
 	if type(s) ~= "string" or not T.IsLight() then return s end
 	return (s:gsub("|c(%x%x)(%x%x%x%x%x%x)", function(a, h) return "|c" .. a .. T.Readable(h:lower()) end))

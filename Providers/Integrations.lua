@@ -363,6 +363,20 @@ end
 
 local function QModule(name) return Safe(_G.QuestieLoader.ImportModule, _G.QuestieLoader, name) end
 
+--- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
+function I.NpcField(id, field)
+	if not QuestieReady() then return nil end
+	local DB = QModule("QuestieDB")
+	return DB and Safe(DB.QueryNPCSingle, id, field) or nil
+end
+
+--- Questie's names for the NPC flag bits (they differ between game versions).
+function I.NpcFlagDefs()
+	if not QuestieReady() then return nil end
+	local DB = QModule("QuestieDB")
+	return DB and DB.npcFlags or nil
+end
+
 --- NPC names, a slice at a time so the game doesn't stall while Questie's database is read.
 --- Work through n items a few milliseconds per frame (SLICE_MS), however long each takes, so
 --- indexing never stalls a frame; then done(). A failing item is skipped and traced. The time

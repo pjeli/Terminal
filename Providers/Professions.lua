@@ -759,6 +759,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		tip = #lines > 0 and ("Reagents: " .. table.concat(lines, ", ")) or nil,
 		getLink = RecipeLink,
 		recipeID = r.id,
+		reagents = r.reagents, -- (is:craftable; the index's own table, not a copy)
 		profID = pdata.skillLine or profID,
 		profSpell = pdata.spell,
 		activate = RecipeActivate,

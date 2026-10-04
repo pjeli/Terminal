@@ -4178,4 +4178,209 @@ do -- the recipe index is per character by GUID: WoW Forever's first-and-last na
 	ns.db.recipes = {}
 	ns.providers.camp._dirty = true
 end
+do -- filters across kinds: items, loot and stored (stats, quality, item level, type, slot, upgrade),
+	-- stored places and holders, counts, quests ready to turn in, Questie NPCs, craftable recipes
+	local F = ns.Filters
+	local function P(w) local f = F.Parse(w); assert(f, "not a filter: " .. w); return f end
+	local base = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, count = C_Item.GetItemCount,
+		inv = _G.GetInventoryItemLink, level = UnitLevel, can = C_PlayerInfo and C_PlayerInfo.CanUseItem,
+		ready = C_QuestLog.ReadyForTurnIn, map = _G.C_Map, area = _G.C_Map and _G.C_Map.GetAreaInfo, nf = ns.Integrations.NpcField, nd = ns.Integrations.NpcFlagDefs }
+	local ITEMS = {
+		[100] = { "Wolf Bracers", "|Hitem:100|h", 3, 25, 20, "Armor", "Mail", 1, "INVTYPE_WRIST" },
+		[101] = { "Old Bracers", "|Hitem:101|h", 1, 10, 5, "Armor", "Mail", 1, "INVTYPE_WRIST" },
+		[102] = { "Runed Blade", "|Hitem:102|h", 4, 40, 35, "Weapon", "One-Handed Swords", 1, "INVTYPE_WEAPON" },
+		[103] = { "Healing Potion", "|Hitem:103|h", 1, 15, 10, "Consumable", "Potion", 20, "" },
+	}
+	local STATS = { [100] = { ITEM_MOD_STAMINA_SHORT = 7, ITEM_MOD_AGILITY_SHORT = 3, RESISTANCE0_NAME = 120 },
+		[102] = { ITEM_MOD_STRENGTH_SHORT = 12, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 30 } }
+	C_Item.GetItemInfo = function(id)
+		if type(id) == "string" then id = tonumber(id:match("item:(%d+)")) end
+		local t = ITEMS[id]; if t then return unpack(t) end
+	end
+	C_Item.GetItemStats = function(link) return STATS[tonumber(link:match("item:(%d+)"))] or {} end
+	_G.GetInventoryItemLink = function(_, slot) if slot == 9 then return "|Hitem:101|h" end end -- old bracers worn
+	_G.ITEM_MOD_STAMINA_SHORT, _G.INVTYPE_WRIST = "Stamina", "Wrist"
+	UnitLevel = function() return 30 end
+	_G.C_PlayerInfo = _G.C_PlayerInfo or {}
+	C_PlayerInfo.CanUseItem = function() return true end
+	local bracers, old, blade, potion = { itemID = 100 }, { itemID = 101 }, { itemID = 102 }, { itemID = 103, count = 12 }
+	check(P("stat:stamina")(bracers) and P("stat:sta")(bracers) and not P("stat:sta")(blade), "stat: by name or short name")
+	check(P("stat:sta>=5")(bracers) and not P("stat:sta>=10")(bracers) and P("stat:str>10")(blade) and P("stat:armor")(bracers), "stat: with a number")
+	check(F.Parse("stat:sta>>x") == nil and not P("stat:stamina")(potion), "a bad stat value stays text; items without it are left out")
+	check(P("q:rare")(bracers) and not P("q:rare")(blade) and P("q:rare+")(blade) and P("q:3")(bracers) and F.Parse("q:shiny") == nil, "q: quality, rare+ and above")
+	check(P("ilvl:20-30")(bracers) and not P("ilvl:30+")(bracers) and P("ilvl:30+")(blade), "ilvl: item level")
+	check(P("type:mail")(bracers) and P("type:sword")(blade) and P("type:potion")(potion) and not P("type:cloth")(bracers), "type: item type or subtype")
+	check(P("lvl:20+")(bracers) and not P("lvl:20+")(old), "lvl: the level an item needs")
+	check(P("is:equippable")(bracers) and not P("is:equippable")(potion), "is:equippable")
+	check(F.Parse("is:upgrade") == nil, "no is:upgrade (item level alone can't tell an upgrade)")
+	check(P("count:10+")(potion) and not P("count:<10")(potion), "count: how many")
+	-- stored: places and holders
+	local linen = { itemID = 2589, total = 48, holders = {
+		a = { who = "Plamen Warr", where = "bank", count = 20, mine = true },
+		b = { who = "Alt Guy", where = "mail", count = 3 },
+		c = { who = "Gone", where = "guild", count = 0 } } }
+	check(P("in:bank")(linen) and P("in:mail")(linen) and not P("in:guild")(linen) and not P("in:bags")(linen), "in: a stored item's places (empty ones don't count)")
+	check(P("on:alt")(linen) and P("on:me")(linen) and not P("on:gone")(linen), "on: who holds it (me = you)")
+	check(P("count:48")(linen), "count: the stored total")
+	-- loot and quests: in: looks at the dungeon/boss or the zone
+	check(P("in:deadmines")({ detail = "Edwin VanCleef  The Deadmines", itemID = 1 }) and P("from:vancleef")({ detail = "Edwin VanCleef  The Deadmines" }), "in:/from: a loot item's dungeon or boss")
+	check(P("in:elwynn")({ zone = "Elwynn Forest" }) and P("zone:elwynn")({ zone = "Elwynn Forest" }), "in:/zone: a quest's zone")
+	check(P("in:equipped")({ itemID = 100, slotId = 9 }), "in:equipped")
+	-- quests ready to turn in
+	C_QuestLog.ReadyForTurnIn = function(id) return id == 7 end
+	check(P("is:complete")({ kind = "quests", questID = 7 }) and not P("is:complete")({ kind = "quests", questID = 8 }) and not P("is:complete")({ questID = 7 }), "is:complete: quest log quests ready to turn in")
+	-- Questie NPCs: level, zone, role
+	local NPC = { [5] = { minLevel = 10, maxLevel = 12, zoneID = 331, npcFlags = 128 + 2 } }
+	ns.Integrations.NpcField = function(id, f) return NPC[id] and NPC[id][f] end
+	ns.Integrations.NpcFlagDefs = function() return { VENDOR = 128, QUEST_GIVER = 2, TRAINER = 16 } end
+	_G.C_Map = _G.C_Map or {}
+	C_Map.GetAreaInfo = function(a) return a == 331 and "Ashenvale" or nil end
+	local vendor = { kind = "npc", key = 5 }
+	check(P("lvl:11")(vendor) and P("lvl:12-15")(vendor) and not P("lvl:20+")(vendor), "lvl: an NPC's level range")
+	check(P("in:ashenvale")(vendor) and not P("in:elwynn")(vendor), "in: an NPC's zone")
+	check(P("is:vendor")(vendor) and P("is:questgiver")(vendor) and not P("is:trainer")(vendor), "is:vendor / is:trainer: what the NPC does")
+	-- faction: who the NPC is friendly to (Questie: "A", "H", "AH", or nothing)
+	NPC[6] = { friendlyToFaction = "H" }; NPC[7] = { friendlyToFaction = "AH" }; NPC[8] = {}
+	NPC[5].friendlyToFaction = "A"
+	local orc, both, mob, human = { kind = "npc", key = 6 }, { kind = "npc", key = 7 }, { kind = "npc", key = 8 }, vendor
+	check(P("faction:horde")(orc) and P("faction:horde")(both) and not P("faction:horde")(human) and not P("faction:horde")(mob), "faction:horde: friendly to the Horde (both factions too)")
+	check(P("faction:alliance")(human) and P("faction:a")(both) and not P("faction:alliance")(orc), "faction:alliance (or a)")
+	check(P("faction:neutral")(both) and not P("faction:neutral")(orc) and not P("faction:neutral")(mob), "faction:neutral: friendly to both")
+	local baseFaction = _G.UnitFactionGroup
+	_G.UnitFactionGroup = function() return "Horde" end
+	check(P("faction:friendly")(orc) and P("faction:friendly")(both) and not P("faction:friendly")(human), "faction:friendly: to your own faction")
+	_G.UnitFactionGroup = baseFaction
+	check(F.Parse("faction:pirates") == nil and not P("faction:horde")({ name = "not an NPC" }), "an unknown faction stays text; other rows are left out")
+	-- trainers: by what they teach (their subtitle in Questie, "Warrior Trainer", "Journeyman Blacksmith")
+	NPC[10] = { subName = "Warrior Trainer", npcFlags = 16 }
+	NPC[11] = { subName = "Journeyman Blacksmith", npcFlags = 16 }
+	NPC[12] = { subName = "Herbalism Trainer", npcFlags = 16 }
+	NPC[13] = { subName = "Pet Trainer", npcFlags = 16 }
+	NPC[14] = { subName = "Master Mathias Shaw", npcFlags = 2 } -- a "Master" who trains nothing
+	NPC[15] = { subName = "Undead Mage Trainer", npcFlags = 16 }
+	local warr, smith, herb, pet, shaw, mage = { kind = "npc", key = 10 }, { kind = "npc", key = 11 }, { kind = "npc", key = 12 },
+		{ kind = "npc", key = 13 }, { kind = "npc", key = 14 }, { kind = "npc", key = 15 }
+	check(P("trainer:warrior")(warr) and not P("trainer:warrior")(mage) and P("trainer:mage")(mage), "trainer:<class>")
+	check(P("trainer:blacksmithing")(smith) and P("trainer:blacksmith")(smith) and P("trainer:herbalism")(herb) and not P("trainer:blacksmithing")(herb), "trainer:<profession> (Journeyman Blacksmith counts)")
+	check(P("trainer:pet")(pet) and not P("trainer:pet")(warr), "trainer:pet (any word in what they teach)")
+	check(P("is:classtrainer")(warr) and P("is:classtrainer")(mage) and not P("is:classtrainer")(smith) and not P("is:classtrainer")(pet), "is:classtrainer")
+	check(P("is:proftrainer")(smith) and P("is:proftrainer")(herb) and not P("is:proftrainer")(warr) and not P("is:proftrainer")(shaw), "is:proftrainer (a Master who isn't a trainer doesn't count)")
+	local baseClass = _G.UnitClass
+	_G.UnitClass = function() return "Warrior", "WARRIOR" end
+	check(P("trainer:mine")(warr) and not P("trainer:mine")(mage) and not P("trainer:mine")(smith), "trainer:mine: your own class's trainers")
+	_G.UnitClass = baseClass
+	check(not P("trainer:warrior")(shaw) and not P("trainer:mage")({ name = "not an NPC" }), "not trainers: left out")
+	-- recipes: every reagent in your bags or bank
+	C_Item.GetItemCount = function(id) return ({ [2589] = 10, [2320] = 1 })[id] or 0 end
+	check(P("is:craftable")({ reagents = { { 2589, 2 }, { 2320, 1 } } }) and not P("is:craftable")({ reagents = { { 2589, 20 } } }) and not P("is:craftable")({}), "is:craftable")
+	-- Tab completes a filter's value
+	UI:Open("@loot is:us"); check(UI:AcceptCompletion() and UI.edit:GetText() == "@loot is:usable ", "Tab: is:us -> is:usable")
+	UI:Open("q:ep"); check(UI:AcceptCompletion() and UI.edit:GetText() == "q:epic ", "Tab: q:ep -> q:epic")
+	UI:Open("stat:stam"); check(UI:AcceptCompletion() and UI.edit:GetText() == "stat:stamina ", "Tab: stat:stam -> stat:stamina")
+	UI:Open("@npc faction:ho"); check(UI:AcceptCompletion() and UI.edit:GetText() == "@npc faction:horde ", "Tab: faction:ho -> faction:horde")
+	UI:Open("@npc trainer:bla"); check(UI:AcceptCompletion() and UI.edit:GetText() == "@npc trainer:blacksmithing ", "Tab: trainer:bla -> trainer:blacksmithing")
+	UI:Hide()
+	-- .filters lists them
+	local out = ns.commands.filters.run("")
+	check(out[1]:find("filters", 1, true) and table.concat(out, "\n"):find("stat:stamina", 1, true) and #out >= #F.HELP + 2, ".filters lists every filter")
+	C_Item.GetItemInfo, C_Item.GetItemStats, C_Item.GetItemCount, _G.GetInventoryItemLink, UnitLevel = base.info, base.stats, base.count, base.inv, base.level
+	C_PlayerInfo.CanUseItem, C_QuestLog.ReadyForTurnIn, C_Map.GetAreaInfo = base.can, base.ready, base.area
+	_G.C_Map = base.map
+	ns.Integrations.NpcField, ns.Integrations.NpcFlagDefs = base.nf, base.nd
+	_G.ITEM_MOD_STAMINA_SHORT, _G.INVTYPE_WRIST = nil, nil
+end
+do -- the prompt's colours: @kinds, filters, .commands, /slash commands, plain words
+	local t = ns.Theme.Get()
+	local filt, bad = ns.Theme.SYNTAX.filter, ns.Theme.SYNTAX.bad
+	local loot = ns.providers.loot or ns.providers.items
+	local kindHex = loot.color:sub(3)
+	local h = UI:Highlighted("@" .. loot.aliases[1] .. " red  stat:sta lvl:abc @nope is:")
+	check(h:find("|cff" .. kindHex .. "@" .. loot.aliases[1] .. "|r", 1, true), "an @kind in its own colour: " .. h)
+	check(h:find("|cff" .. t.text .. "red|r", 1, true), "plain words in the text colour")
+	check(h:find("|cff" .. filt .. "stat:sta|r", 1, true) and h:find("|cff" .. filt .. "is:|r", 1, true), "filters (and one still being typed) in the filter colour")
+	check(h:find("|cff" .. bad .. "lvl:abc|r", 1, true) and h:find("|cff" .. bad .. "@nope|r", 1, true), "an unknown @kind and a filter value it doesn't take in red")
+	check(h:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") == "@" .. loot.aliases[1] .. " red  stat:sta lvl:abc @nope is:", "spaces kept as typed")
+	check(UI:Highlighted(".help me"):find("^|cff" .. t.accent .. "%.help|r") and UI:Highlighted(".nosuch"):find("^|cff" .. bad), ".commands: known in the accent, unknown in red")
+	check(UI:Highlighted("/dance now"):find("^|cff" .. t.prompt .. "/dance|r|cff" .. t.text .. " now|r"), "/slash commands in the prompt colour")
+	check(UI:Highlighted("a|b"):find("a||b", 1, true), "a | typed is shown, not read as a colour code")
+	-- shown over the drawn prompt, the box's own text hidden under it
+	UI:Open("@loot red")
+	check(UI.keys and UI.syntax:IsShown() and UI.edit.textColor[4] == 0, "drawn prompt: the coloured copy shows, the box's text is hidden")
+	check(UI.syntax.text and UI.syntax.text:find("red", 1, true), "it shows what's typed")
+	-- a long prompt wraps onto more lines, after spaces: the header grows down, the rows move with it
+	local LH = ns.Theme.Get().fontSize + 6
+	local h1 = UI.heightTo
+	local long = string.rep("word ", 30) -- 150 letters: three lines of the 398-pixel box (7 px a letter)
+	UI:SetQuery(long, #long)
+	local lines = UI:PromptLines()
+	check(#lines == 3 and long:sub(lines[1][2], lines[1][2]) == " " and lines[2][1] == lines[1][2] + 1 and lines[3][2] == #long,
+		"wrapped into lines, each ending after a space: " .. #lines)
+	local h2 = UI.heightTo
+	UI:SetPromptExtra(0); local h0 = UI.heightTo
+	UI:UpdateCaret()
+	check(UI.promptExtra == 2 * LH and h2 == h0 + 2 * LH and UI.heightTo == h2, "the header grows two lines and the frame with it")
+	check(UI.syntax:IsShown() and UI.edit.textColor[4] == 0, "the lines are drawn by Terminal, the box's text hidden")
+	local _, y = UI:PromptXY(#long)
+	check(UI.caretY == -2 * LH and y == -2 * LH, "the cursor is on the last line")
+	local x2, y2 = UI:PromptXY(lines[2][1] - 1)
+	check(x2 == 0 and y2 == -LH, "a wrapped line's start is the next line's first place")
+	UI.anchor = 2; UI.cursor = lines[3][1] + 3; UI:UpdateCaret()
+	check(UI.selText:IsShown() and UI.selBands[1] and UI.selBands[1]:IsShown() and UI.selBands[2] and UI.selBands[2]:IsShown(), "a selection over three lines: a band on each")
+	UI.anchor = nil
+	ns.Theme.Set("syntax", "off"); UI:UpdateCaret()
+	check(UI.syntax:IsShown() and not UI.syntax.text:find("|cff" .. filt, 1, true), "colours off: still wrapped (drawn plain)")
+	ns.Theme.Set("syntax", "on"); UI:UpdateCaret()
+	local word = string.rep("x", 80) -- one word too long for a line: split inside it
+	UI:SetQuery(word, #word)
+	check(#UI:PromptLines() == 2 and UI:PromptLines()[1][2] == 56, "a word too long for a line is split")
+	UI:SetQuery("red", 3)
+	check(UI.syntax:IsShown() and UI.promptExtra == 0, "short again: one line, the header back")
+	ns.Theme.Set("syntax", "off")
+	UI:UpdateCaret()
+	check(not UI.syntax:IsShown() and UI.edit.textColor[4] == 1, ".set syntax off: plain text")
+	ns.Theme.Set("syntax", "on")
+	UI:UpdateCaret()
+	check(UI.syntax:IsShown(), ".set syntax on")
+	local O = ns.Options
+	O.Refresh(); check(O.widgets.syntax:GetChecked() == true, "the options checkbox shows the setting")
+	O.widgets.syntax:SetChecked(false); O.widgets.syntax.scripts.OnClick(O.widgets.syntax)
+	check(ns.Theme.Get().syntax == false, "and the checkbox turns it off")
+	ns.Theme.Set("syntax", "on"); UI:UpdateCaret()
+	UI:SetQuery(long, #long)
+	UI.edit.scripts.OnEditFocusGained(UI.edit) -- clicked into the box (clipboard): the real box
+	check(not UI.syntax:IsShown() and UI.edit.textColor[4] == 1, "the real text box in use: its own text")
+	check(UI.promptExtra == 0, "and one line (the real box scrolls)")
+	UI:Hide()
+	-- pasting: Ctrl+V hands over to the real box (the clipboard is only there); once the text comes
+	-- in, the prompt goes back to Terminal's own, coloured, with the cursor where the paste ended
+	UI:Open(""); FlushAll() -- (timers left by the tests above)
+	withCtrl(function() key("V") end)
+	check(not UI.keys, "Ctrl+V: the real text box takes the paste")
+	check(UI.status.text and UI.status.text:find("Ctrl+V again to paste", 1, true), "the footer says to press Ctrl+V again: " .. tostring(UI.status.text))
+	check(UI.ghost:IsShown() and UI.ghost.text:find("Ctrl+V again", 1, true), "and so does the prompt, faintly")
+	do -- left alone, it goes after a few seconds
+		local saveV = UI.clipHint
+		FlushAll()
+		check(UI.clipHint == nil and not UI.status.text:find("again", 1, true), "the reminder is temporary: gone after a few seconds")
+		UI.clipHint = saveV; UI:SetStatus()
+	end
+	UI.edit:SetText("@loot stat:stamina")
+	UI.edit:SetCursorPosition(#"@loot stat:stamina")
+	UI.edit.scripts.OnTextChanged(UI.edit)
+	FlushAll()
+	check(UI.keys and UI.syntax:IsShown() and UI.syntax.text:find("|cff" .. filt .. "stat:stamina", 1, true) and UI.cursor == #"@loot stat:stamina",
+		"after the paste: back to the drawn prompt, coloured at once, the cursor at the end")
+	check(not (UI.status.text or ""):find("again", 1, true) and not (UI.ghost:IsShown() and UI.ghost.text:find("again", 1, true)), "pasted: the reminder is gone")
+	-- copying changes nothing: the real box stays for Ctrl+C
+	withCtrl(function() key("C") end)
+	check(UI.status.text:find("Ctrl+C again to copy", 1, true), "Ctrl+C: the footer says to press it again")
+	check(UI.clipHint == "C", "(still there before anything else happens)")
+	FlushAll()
+	check(not UI.keys, "Ctrl+C: the real box stays (nothing was typed)")
+	UI.clipHint = "C"; UI:SetStatus()
+	withCtrl(function() UI.edit.scripts.OnKeyDown(UI.edit, "C") end) -- the copy, in the real box
+	FlushAll()
+	check(not UI.status.text:find("again", 1, true), "copied: the reminder is gone")
+	UI:Hide()
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

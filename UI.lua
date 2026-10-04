@@ -22,6 +22,7 @@ local HINT = "|cffffd200"
 
 -- layout, recomputed from the theme
 local ROWS, ROW_H, HEADER_H = 10, 26, 50
+local LINE_H, MAX_LINES = 19, 8 -- a long prompt wraps onto more lines (the header grows down)
 
 -- keys that go straight to the game while the terminal reads the keyboard
 local PASS_KEYS = {
@@ -29,7 +30,7 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, PRINTSCREEN = true,
 }
 
-local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy, catcher
+local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy, catcher, syntax
 local PlaceRow -- (Motion)
 local rows = {}
 UI.rows = rows
@@ -734,6 +735,11 @@ local MODE_LABEL = { cmd = "commands", slash = "slash commands" }
 
 function UI:SetStatus()
 	if not status then return end
+	if self.clipHint and not self.keys then
+		status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and "Press Ctrl+V again to paste" or "Press Ctrl+C again to copy") .. "|r"))
+		if hints then hints:Hide() end
+		return
+	end
 	if self.armedEntry then
 		status:SetText(Theme.FixColors(HINT .. "Press Enter to open|r  " .. self.armedEntry.name))
 		if hints then hints:Hide() end -- the armed line gets the whole footer
@@ -1068,25 +1074,113 @@ function UI:SelRange()
 	return c, a
 end
 
---- Where text of `pos` bytes ends on the prompt line.
-local function TextX(text, pos)
-	measure:SetText((text:sub(1, pos):gsub("|", "||")))
-	return math.min(measure:GetStringWidth() or 0, (edit:GetWidth() or 400) - 2)
+local function Width(str)
+	measure:SetText((str:gsub("|", "||")))
+	return measure:GetStringWidth() or 0
 end
 
---- The selection band, from where the selection started to the (gliding) caret.
+local function LineRoom() return (edit:GetWidth() or 400) - 2 end
+
+--- The prompt's lines: { first byte, last byte } each. Text wider than the box wraps (only while
+--- Terminal draws the prompt; the real text box scrolls its one line): after the last space that
+--- fits, or inside a word too long for a line. Cached for the text and the box's width.
+function UI:PromptLines()
+	local text = edit:GetText() or ""
+	local room = LineRoom()
+	local key = text .. "\0" .. room .. "\0" .. tostring(self.keys)
+	if self.linesKey == key and self.lines then return self.lines end
+	self.linesKey = key
+	local lines = {}
+	if not self.keys or text == "" or Width(text) <= room then
+		lines[1] = { 1, #text }
+	else
+		local ends = {} -- where each character ends (bytes), for a binary search per line
+		local p = 0
+		while p < #text do p = NextPos(text, p); ends[#ends + 1] = p end
+		local first, ci = 1, 1 -- the line's first byte, and the index in `ends` of its first character
+		while first <= #text do
+			if #lines == MAX_LINES - 1 then lines[#lines + 1] = { first, #text } break end
+			local lo, hi, fit = ci, #ends, ci -- the most characters from ci that fit (at least one)
+			while lo <= hi do
+				local mid = math.floor((lo + hi) / 2)
+				if Width(text:sub(first, ends[mid])) <= room then fit, lo = mid, mid + 1 else hi = mid - 1 end
+			end
+			local e = ends[fit]
+			if e < #text then
+				if text:sub(e + 1, e + 1) == " " then
+					e = e + 1 -- (the space after the last word that fits stays on this line)
+				else
+					local k = e
+					while k > first and text:sub(k, k) ~= " " do k = k - 1 end
+					if k > first then e = k end -- after the last space; a word too long for a line is split
+				end
+			end
+			lines[#lines + 1] = { first, e }
+			first = e + 1
+			while ci <= #ends and ends[ci] < first do ci = ci + 1 end
+		end
+	end
+	self.lines = lines
+	return lines
+end
+
+--- Where the caret goes after `pos` bytes: x along its line, y down from the first line, the line.
+function UI:PromptXY(pos)
+	local text = edit:GetText() or ""
+	local lines = self:PromptLines()
+	local i = 1
+	for k = 2, #lines do
+		if lines[k][1] - 1 <= pos then i = k else break end
+	end
+	local first = lines[i][1]
+	local x = pos >= first and Width(text:sub(first, pos)) or 0
+	return math.min(x, LineRoom()), -(i - 1) * LINE_H, i
+end
+
+local selBands = {} -- the selection on lines after its first (selText is the first)
+local function SelBand(k)
+	local band = selBands[k]
+	if not band then
+		band = frame:CreateTexture(nil, "BORDER", nil, 1)
+		local ar, ag, ab = Theme.RGB(Theme.Get().accent)
+		band:SetColorTexture(ar, ag, ab, 0.38)
+		selBands[k] = band
+	end
+	return band
+end
+UI.selBands = selBands
+
+--- The selection band(s), from where the selection started to the (gliding) caret.
 function UI:PlaceTextSel()
 	if not selText then return end
-	if not (self.keys and self:IsShown() and self.anchorX and self:SelRange()) then
+	for _, band in ipairs(selBands) do band:Hide() end
+	local lo, hi = self:SelRange()
+	if not (self.keys and self:IsShown() and self.anchorX and lo) then
 		selText:Hide()
 		return
 	end
-	local x1, x2 = self.anchorX, self.caretX or self.caretTo or 0
-	if x1 > x2 then x1, x2 = x2, x1 end
-	selText:ClearAllPoints()
-	selText:SetPoint("LEFT", edit, "LEFT", x1, 0)
-	selText:SetSize(math.max(1, x2 - x1), Theme.Get().fontSize + 5)
-	selText:Show()
+	local h = Theme.Get().fontSize + 5
+	local x1, y1, i1 = self:PromptXY(lo)
+	local x2, _, i2 = self:PromptXY(hi)
+	if i1 == i2 then
+		x1, x2 = self.anchorX, self.caretX or self.caretTo or 0 -- (one line: its caret end glides)
+		if x1 > x2 then x1, x2 = x2, x1 end
+		selText:ClearAllPoints()
+		selText:SetPoint("LEFT", edit, "LEFT", x1, y1)
+		selText:SetSize(math.max(1, x2 - x1), h)
+		selText:Show()
+		return
+	end
+	local text, lines = edit:GetText(), self.lines
+	for i = i1, i2 do
+		local band = i == i1 and selText or SelBand(i - i1)
+		local from = i == i1 and x1 or 0
+		local to = i == i2 and x2 or math.min(Width(text:sub(lines[i][1], lines[i][2])), LineRoom())
+		band:ClearAllPoints()
+		band:SetPoint("LEFT", edit, "LEFT", from, -(i - 1) * LINE_H)
+		band:SetSize(math.max(3, to - from), h)
+		band:Show()
+	end
 end
 
 function UI:UpdateCaret()
@@ -1097,12 +1191,18 @@ function UI:UpdateCaret()
 		caret:Hide()
 		caretChar:Hide()
 		if selText then selText:Hide() end
+		for _, band in ipairs(selBands) do band:Hide() end
+		self:SetPromptExtra(0) -- (the real text box: one scrolling line)
 		self:UpdateGhost()
+		self:UpdateSyntax()
 		return
 	end
 	local text = edit:GetText()
-	self.caretTo = TextX(text, self.cursor)
-	self.anchorX = self:SelRange() and TextX(text, self.anchor) or nil
+	self:SetPromptExtra((#self:PromptLines() - 1) * LINE_H)
+	local x, y = self:PromptXY(self.cursor)
+	if y ~= self.caretY then self.caretX = nil end -- (to another line: no gliding across)
+	self.caretTo, self.caretY = x, y
+	self.anchorX = self:SelRange() and (self:PromptXY(self.anchor)) or nil
 	local st = CursorStyle()
 	-- a box covers the character at the caret (or the first letter of the suggestion at the
 	-- end); that character is drawn again on top, in a colour that reads on the box
@@ -1133,17 +1233,18 @@ function UI:UpdateCaret()
 	self:PlaceTextSel()
 	if self:Animated() or st.blink then Wake() end
 	self:UpdateGhost()
+	self:UpdateSyntax()
 end
 
 --- Put the cursor (and, for a box, its character) at the caret's current x.
 function UI:PlaceCaret()
-	local x = self.caretX or self.caretTo or 0
+	local x, y = self.caretX or self.caretTo or 0, self.caretY or 0
 	self.caretPlaced = x
 	caret:ClearAllPoints()
-	caret:SetPoint("LEFT", edit, "LEFT", x, 0)
+	caret:SetPoint("LEFT", edit, "LEFT", x, y)
 	if self.caretCh and self.caretCh ~= "" and CursorStyle().box then
 		caretChar:ClearAllPoints()
-		caretChar:SetPoint("LEFT", edit, "LEFT", x, 0)
+		caretChar:SetPoint("LEFT", edit, "LEFT", x, y)
 		caretChar:Show()
 	else
 		caretChar:Hide()
@@ -1158,17 +1259,31 @@ local function PromptX()
 	return cx / scale - left
 end
 
---- The caret position (in bytes) nearest to x.
-local function IndexAt(x)
+--- Where the mouse is down from the first line's middle, in the text's own units.
+local function PromptY()
+	local _, cy = GetCursorPosition and GetCursorPosition()
+	local scale = edit:GetEffectiveScale()
+	local _, mid = edit:GetCenter()
+	if type(cy) ~= "number" or type(mid) ~= "number" or type(scale) ~= "number" or scale == 0 then return 0 end
+	return mid - cy / scale
+end
+
+--- The caret position (in bytes) nearest to the mouse: its line, then along it.
+local function IndexAt(x, down)
 	local text = edit:GetText()
-	local best, bestD, pos = 0, math.abs(x), 0
-	while pos < #text do
+	local lines = UI:PromptLines()
+	local i = math.max(1, math.min(#lines, 1 + math.floor((down or 0) / LINE_H + 0.5)))
+	local first, last = lines[i][1], lines[i][2]
+	local best, bestD, pos = first - 1, math.abs(x), first - 1
+	while pos < last do
 		pos = NextPos(text, pos)
-		local w = TextX(text, pos)
+		local w = Width(text:sub(first, pos))
 		local d = math.abs(x - w)
 		if d < bestD then best, bestD = pos, d end
 		if w >= x then break end
 	end
+	-- the end of a wrapped line is the next line's start: stay on this one, before its space
+	if i < #lines and best == last and text:sub(last, last) == " " then best = last - 1 end
 	return best
 end
 
@@ -1176,7 +1291,7 @@ end
 --- selects. The prompt stays Terminal's own, so the chosen cursor style stays too.
 function UI:PressPrompt()
 	if not (self.keys and edit) then return end
-	local idx = IndexAt(PromptX())
+	local idx = IndexAt(PromptX(), PromptY())
 	if IsShiftKeyDown() then
 		self.anchor = self.anchor or self.cursor
 	else
@@ -1193,7 +1308,7 @@ function UI:DragPrompt()
 		if hit then hit:SetScript("OnUpdate", nil) end
 		return
 	end
-	local idx = IndexAt(PromptX())
+	local idx = IndexAt(PromptX(), PromptY())
 	if idx ~= self.cursor then
 		self.cursor = idx
 		self:UpdateCaret()
@@ -1289,6 +1404,7 @@ end
 
 function UI:EnterKeys()
 	if not frame or self.noChar or InCombatLockdown() then return false end
+	if self.clipHint then self.clipHint = nil; self:SetStatus() end
 	self.keys = true
 	self.anchor = nil
 	self.cursor = math.min(self.cursor or 0, #edit:GetText())
@@ -1499,7 +1615,20 @@ EditKey = function(key, ctrl, shift)
 		elseif key == "A" then
 			UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
 		elseif key == "V" or key == "C" then
-			UI:EnterEdit() -- the clipboard needs the real text box (press it again there)
+			-- the clipboard is only reachable from the game's own text box, and this press is spent
+			-- getting there: the next Ctrl+V / Ctrl+C does it (the prompt and footer say so)
+			UI.clipHint = key
+			UI:EnterEdit()
+			UI:SetStatus()
+			-- temporary: gone with the paste/copy, or after a few seconds whatever happens
+			local token = {}
+			UI.clipToken = token
+			C_Timer.After(5, function()
+				if UI.clipToken == token and UI.clipHint then
+					UI.clipHint = nil
+					UI:SetStatus(); UI:UpdateGhost()
+				end
+			end)
 		end
 	elseif not IsAltKeyDown() then
 		CheckChar(key)
@@ -1779,12 +1908,48 @@ function UI:MotionReset()
 	motion:Hide()
 end
 
+--- The header's height: the prompt's first line, and every line a long prompt wraps onto.
+local function HeaderH() return HEADER_H + (UI.promptExtra or 0) end
+
+--- The prompt took more (or fewer) lines: the header grows down, and what's under it moves.
+function UI:SetPromptExtra(extra)
+	if not frame or extra == (self.promptExtra or 0) then return end
+	self.promptExtra = extra
+	self:LayoutHeader()
+	self:FitHeight()
+	self.selY = nil -- (the selection band snaps to its row's new place)
+	self:PlaceSelection()
+end
+
+--- What depends on the header's height: the divider, the prompt's background, the rows, the
+--- area that catches clicks on the prompt.
+function UI:LayoutHeader()
+	if not frame then return end
+	local classic = Theme.Get().frame == "classic"
+	local hh, extra = HeaderH(), self.promptExtra or 0
+	local inset, pin = classic and 5 or 1, classic and 4 or 1
+	divider:ClearAllPoints()
+	divider:SetPoint("TOPLEFT", inset, -(hh - 4))
+	divider:SetPoint("TOPRIGHT", -inset, -(hh - 4))
+	promptBg:ClearAllPoints()
+	promptBg:SetPoint("TOPLEFT", pin, -pin)
+	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(hh - 4))
+	for i = 1, MAX_ROWS do
+		local row = rows[i]
+		row.baseY = -hh - (i - 1) * ROW_H
+		if not row.slide then PlaceRow(row, 0) end
+	end
+	hit:ClearAllPoints()
+	hit:SetPoint("TOPLEFT", edit, "TOPLEFT", 0, 0)
+	hit:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", 0, -extra)
+end
+
 --- The terminal is as tall as its results: header, one row per result shown, footer. It
 --- grows and shrinks smoothly as you type (snaps on open and when animations are off).
 function UI:FitHeight()
 	if not frame then return end
 	local n = math.max(0, math.min(ROWS, #results - offset))
-	local h = HEADER_H + n * ROW_H + (self.footerH or FOOTER_H)
+	local h = HeaderH() + n * ROW_H + (self.footerH or FOOTER_H)
 	self.heightTo = h
 	local cur = frame:GetHeight()
 	if self.snapNext or not self:Animated() or type(cur) ~= "number" or cur <= 0 then
@@ -1803,7 +1968,7 @@ function UI:PlaceSelection()
 		selBar:Hide(); selEdge:Hide()
 		return
 	end
-	self.selTo = -HEADER_H - (i - 1) * ROW_H
+	self.selTo = -HeaderH() - (i - 1) * ROW_H
 	if not (self:Animated() and self.selY and selBar:IsShown()) then
 		self.selY = self.selTo
 		self:SetSelectionY(self.selY)
@@ -2025,6 +2190,14 @@ local function ComputeCompletion(self, text)
 		if not new then return nil end
 		return text:sub(1, #text - #last) .. new .. (final and " " or "")
 	end
+	-- a filter's value: is:to -> is:todo, q:ep -> q:epic, stat:sta -> stat:stamina
+	local fkey, fval = last:match("^(%a+):(%S*)$")
+	local values = fkey and ns.Filters and ns.Filters.VALUES[ns.Lower(fkey)]
+	if values then
+		local new, final = CompleteWord(ns.Lower(fval), values)
+		if not new then return nil end
+		return text:sub(1, #text - #fval) .. new .. (final and " " or "")
+	end
 	-- the "Search <list> for this" row: Tab adds its @kind
 	local e = results[sel]
 	if e and e.completion then return e.completion end
@@ -2074,18 +2247,140 @@ function UI:AcceptCompletion()
 	return true
 end
 
+----------------------------------------------------------------------
+-- Prompt colours: what's typed, coloured by what Terminal makes of it
+----------------------------------------------------------------------
+
+local function Hex(c)
+	if type(c) ~= "string" then return nil end
+	c = c:gsub("^|c", "")
+	if #c == 8 then c = c:sub(3) end
+	return #c == 6 and c or nil
+end
+
+local function Paint(hex, s)
+	if s == "" then return "" end
+	return "|cff" .. hex .. (s:gsub("|", "||")) .. "|r"
+end
+
+--- What the typed text is made of: { first byte, last byte, colour } pieces covering it. @kinds in
+--- their own colour (unknown ones in red), filters (lvl:20, is:todo; a filter key with a value it
+--- doesn't take in red), the .command and the /slash command at the start, plain words in the text
+--- colour. plain: everything in the text colour (the colours turned off, a wrapped prompt).
+function UI:SyntaxSegments(text, plain)
+	local t = Theme.Get()
+	local base, bad, filt = t.text, Theme.SYNTAX.bad, Theme.SYNTAX.filter
+	if plain then return { { 1, #text, base } } end
+	local first = text:sub(1, 1)
+	if first == "." or first == "/" then
+		local head = text:match("^(%S*)")
+		local color = t.prompt
+		if first == "." then color = (#head == 1 or ns:FindCommand(head:sub(2))) and t.accent or bad end
+		return { { 1, #head, color }, { #head + 1, #text, base } }
+	end
+	local out, F, pos = {}, ns.Filters, 1
+	while pos <= #text do
+		local sp = text:match("^%s+", pos)
+		if sp then
+			out[#out + 1] = { pos, pos + #sp - 1, base }
+			pos = pos + #sp
+		else
+			local word = text:match("^%S+", pos)
+			local color = base
+			if word:sub(1, 1) == "@" then
+				local p = #word > 1 and ns:ResolveProvider(word:sub(2))
+				color = p and (Hex(p.color) or t.accent) or (#word == 1 and t.accent or bad)
+			else
+				local key, value = word:match("^(%a+):(.*)$")
+				if key and F and F.IsKey(key) then
+					color = (value == "" or F.Parse(word)) and filt or bad
+				end
+			end
+			out[#out + 1] = { pos, pos + #word - 1, color }
+			pos = pos + #word
+		end
+	end
+	return out
+end
+
+--- Bytes from..to of the text, painted by the pieces that cover them.
+local function PaintRange(text, segs, from, to)
+	local out = {}
+	for _, sg in ipairs(segs) do
+		local a, b = math.max(sg[1], from), math.min(sg[2], to)
+		if a <= b then out[#out + 1] = Paint(sg[3], text:sub(a, b)) end
+	end
+	return table.concat(out)
+end
+
+--- The typed text with colour codes (see SyntaxSegments). Spaces are kept as typed.
+function UI:Highlighted(text)
+	return PaintRange(text, self:SyntaxSegments(text), 1, #text)
+end
+
+local syntaxLines = {} -- one per line of the prompt (the first is `syntax`)
+local function SyntaxLine(i)
+	if i == 1 then return syntax end
+	local fs = syntaxLines[i]
+	if not fs then
+		fs = hit:CreateFontString(nil, "ARTWORK")
+		fs:SetFontObject(Theme.fonts.input)
+		fs:SetJustifyH("LEFT")
+		fs:SetWordWrap(false)
+		syntaxLines[i] = fs
+	end
+	fs:ClearAllPoints()
+	fs:SetPoint("LEFT", edit, "LEFT", 0, -(i - 1) * LINE_H)
+	return fs
+end
+
+--- The coloured copy over the prompt, a line per line of it, while Terminal draws the prompt.
+--- Shown with the colours on, and always once the prompt wraps (the box can't show more lines);
+--- the box's own text hides under it.
+function UI:UpdateSyntax()
+	if not (syntax and edit) then return end
+	local text = edit:GetText() or ""
+	local lines = self:PromptLines()
+	local colours = Theme.Get().syntax
+	local on = self.keys and self:IsShown() and text ~= "" and (colours or #lines > 1) and true or false
+	if on then
+		local key = (self.linesKey or text) .. "\0" .. tostring(colours)
+		if self.syntaxKey ~= key then
+			self.syntaxKey = key
+			local segs = self:SyntaxSegments(text, not colours)
+			for i, l in ipairs(lines) do
+				local fs = SyntaxLine(i)
+				fs:SetText(Theme.FixColors(PaintRange(text, segs, l[1], l[2])))
+				fs:Show()
+			end
+			for i = #lines + 1, MAX_LINES do if syntaxLines[i] then syntaxLines[i]:Hide() end end
+		end
+	else
+		for i = 2, MAX_LINES do if syntaxLines[i] then syntaxLines[i]:Hide() end end
+		self.syntaxKey = nil
+	end
+	if on ~= self.syntaxOn then
+		self.syntaxOn = on
+		syntax:SetShown(on)
+		local tr, tg, tb = Theme.RGB(Theme.Get().text)
+		edit:SetTextColor(tr, tg, tb, on and 0 or 1) -- (the box's own text hides under the copy)
+	end
+end
+
 function UI:UpdateGhost()
 	if not ghost then return end
 	local add = self:IsShown() and self:Suggestion() or nil
+	if self.clipHint and not self.keys and self:IsShown() then
+		add = (edit:GetText() ~= "" and "   " or "") .. (self.clipHint == "V" and "Ctrl+V again to paste" or "Ctrl+C again to copy")
+	end
 	if not add then ghost:Hide() return end
 	local text = edit:GetText()
-	measure:SetText((text:gsub("|", "||")))
-	local w = measure:GetStringWidth() or 0
+	local w, y = self:PromptXY(#text) -- (the end of the last line)
 	local room = (edit:GetWidth() or 400) - w - 4
 	if room < 20 then ghost:Hide() return end
 	ghost:SetText((add:gsub("|", "||")))
 	ghost:ClearAllPoints()
-	ghost:SetPoint("LEFT", edit, "LEFT", w, 0)
+	ghost:SetPoint("LEFT", edit, "LEFT", w, y)
 	ghost:SetWidth(room)
 	ghost:Show()
 end
@@ -2177,6 +2472,20 @@ local function Build()
 		if not UI.keys then
 			local cp = self:GetCursorPosition()
 			if type(cp) == "number" then UI.cursor = cp end
+			-- typed or pasted into the real text box (Ctrl+V hands over to it: the clipboard is only
+			-- there): back to Terminal's own prompt next frame, coloured, Enter opening in one press
+			-- (only text changes: Ctrl+C or a selection to copy keeps the real box)
+			if not UI.backToKeys and UI:IsShown() and not InCombatLockdown() and not UI.noChar then
+				UI.backToKeys = true
+				C_Timer.After(0, function()
+					UI.backToKeys = nil
+					if UI:IsShown() and not UI.keys and not InCombatLockdown() then
+						local p = edit:GetCursorPosition()
+						if type(p) == "number" then UI.cursor = p end
+						UI:EnterKeys()
+					end
+				end)
+			end
 		end
 		UI.cursor = math.min(UI.cursor or #t, #t)
 		-- the game can report a change without one (the box resized, say): searching again
@@ -2204,6 +2513,11 @@ local function Build()
 		if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
 	end)
 	edit:SetScript("OnKeyDown", function(_, key)
+		-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)
+		if UI.clipHint and key ~= "LCTRL" and key ~= "RCTRL" then
+			UI.clipHint = nil
+			C_Timer.After(0, function() UI:SetStatus(); UI:UpdateGhost() end)
+		end
 		if key == "`" then
 			-- bindings don't fire while the box has focus, so the toggle key closes it here
 			UI:Hide()
@@ -2273,6 +2587,16 @@ local function Build()
 	caretChar:Hide()
 	UI.caret = caret
 	UI.caretChar = caretChar
+	-- what's typed, coloured by what it is (UI:Highlighted), over the text box's own text (made
+	-- invisible while this shows). It lives in the click frame, which shows only while the prompt is
+	-- drawn by Terminal: above the box's text and the selection band, below the cursor.
+	syntax = hit:CreateFontString(nil, "ARTWORK")
+	syntax:SetFontObject(Theme.fonts.input)
+	syntax:SetJustifyH("LEFT")
+	syntax:SetWordWrap(false)
+	syntax:SetPoint("LEFT", edit, "LEFT", 0, 0)
+	syntax:Hide()
+	UI.syntax = syntax
 	-- the selected part of the query, behind the (child frame's) text
 	selText = frame:CreateTexture(nil, "BORDER", nil, 1)
 	selText:Hide()
@@ -2367,6 +2691,8 @@ function UI:ApplyTheme()
 	ROWS = math.max(1, math.min(MAX_ROWS, t.rows))
 	ROW_H = math.max(22, t.fontSize + 12)
 	HEADER_H = math.max(50, t.fontSize + 36)
+	LINE_H = t.fontSize + 6
+	UI.linesKey = nil -- (fonts changed: the prompt's lines are measured again)
 	-- footer: always one line (hints that don't fit are left out, see FitHints)
 	local footerH = math.max(FOOTER_H, t.fontSize + 12)
 	UI.footerH = footerH
@@ -2405,12 +2731,12 @@ function UI:ApplyTheme()
 	divider:SetColorTexture(r, g, b, 1)
 	divider:ClearAllPoints()
 	local inset = classic and 5 or 1
-	divider:SetPoint("TOPLEFT", inset, -(HEADER_H - 4))
-	divider:SetPoint("TOPRIGHT", -inset, -(HEADER_H - 4))
+	divider:SetPoint("TOPLEFT", inset, -(HeaderH() - 4))
+	divider:SetPoint("TOPRIGHT", -inset, -(HeaderH() - 4))
 	local pin = classic and 4 or 1
 	promptBg:ClearAllPoints()
 	promptBg:SetPoint("TOPLEFT", pin, -pin)
-	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(HEADER_H - 4))
+	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(HeaderH() - 4))
 	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
 	promptBg:SetColorTexture(pr, pg, pb, t.bgAlpha)
 
@@ -2428,6 +2754,8 @@ function UI:ApplyTheme()
 	for _, d in ipairs(busy.dots) do d:SetColorTexture(Theme.RGB(t.accent)) end
 	local tr, tg, tb = Theme.RGB(t.text)
 	edit:SetTextColor(tr, tg, tb)
+	UI.syntaxKey, UI.syntaxOn = nil, nil -- (colours changed: drawn again)
+	UI:UpdateSyntax()
 
 	local ar, ag, ab = Theme.RGB(t.accent)
 	caret:SetColorTexture(ar, ag, ab, 1)
@@ -2435,6 +2763,7 @@ function UI:ApplyTheme()
 	UI.onAccent = Theme.OnColor(t.accent, t.bg)
 	if UI.keys then UI:UpdateCaret() end
 	selText:SetColorTexture(ar, ag, ab, 0.38)
+	for _, band in ipairs(UI.selBands or {}) do band:SetColorTexture(ar, ag, ab, 0.38) end
 	selBar:SetColorTexture(ar, ag, ab, 0.16)
 	selEdge:SetColorTexture(ar, ag, ab, 0.9)
 	local gr, gg, gb = Theme.RGB(t.dim)
@@ -2444,7 +2773,7 @@ function UI:ApplyTheme()
 	local dr, dg, db = Theme.RGB(t.dim)
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
-		local y = -HEADER_H - (i - 1) * ROW_H
+		local y = -HeaderH() - (i - 1) * ROW_H
 		row:SetHeight(ROW_H)
 		row.baseY, row.slide = y, nil
 		PlaceRow(row, 0)
@@ -2476,6 +2805,7 @@ end
 function UI:IsShown() return frame and frame:IsShown() and not self.closing or false end
 
 function UI:Hide()
+	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)
 	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
 	self:HideCatcher()
