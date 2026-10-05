@@ -915,10 +915,11 @@ KEYS.rep = KEYS.standing
 
 KEYS.sells = function(v)
 	if v == "" then return nil end
+	local set -- (looked up on the first NPC row, then kept for the search: up to 20k rows ask)
 	return function(e)
 		local id = NpcID(e)
 		if not id then return false end
-		local set = Sellers(v)
+		set = set or Sellers(v)
 		return set ~= nil and set[id] == true
 	end
 end

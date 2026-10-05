@@ -431,8 +431,10 @@ local WIDTH, HEIGHT = 580, 392
 local BARS, VIS_H = 36, 84
 local ROW_H, LIST_ROWS = 14, 10
 local FPS = 60
+local FPS_OFF = 15 -- the visualizer off: only the progress bar moves
 local SEGS = 10 -- lit segments a bar has in the Blocks style
 local PAD = 5 -- the bars' space inside the box, below and above
+local PROG_W = WIDTH - 20 - 110 -- the progress bar (the time sits to its right)
 
 local frame, title, statusText, visBox, nowText, stationText, tagText, progBg, progFill, timeText, listHead, footer, tipText
 local bars, caps, rows, blocks = {}, {}, {}, {}
@@ -441,6 +443,7 @@ local vis = { h = {}, target = {}, peak = {}, hold = {}, lit = {}, acc = 0, reta
 W.vis = vis
 local Text = Panel.Text
 local lo, hi = { 1, 1, 1 }, { 1, 1, 1 }
+local colourKey -- the station colours lo/hi hold ("lo hi" hex)
 local barW = (WIDTH - 20 - 12 - (BARS - 1) * 3) / BARS
 
 -- How each station moves (a guess at its music; the game gives no audio to measure): energy (how tall),
@@ -482,10 +485,15 @@ local function Mix(f)
 	return lo[1] + (hi[1] - lo[1]) * f, lo[2] + (hi[2] - lo[2]) * f, lo[3] + (hi[3] - lo[3]) * f
 end
 
+--- The visualizer's colours: the playing station's (else the one under the cursor). Returns whether they changed.
 local function StationColours()
 	local st = W.Station() or W.STATIONS[cursor] or W.STATIONS[1]
-	lo = { Theme.RGB(st.lo) }
-	hi = { Theme.RGB(st.hi) }
+	local key = st.lo .. " " .. st.hi
+	if key == colourKey then return false end
+	colourKey = key
+	lo[1], lo[2], lo[3] = Theme.RGB(st.lo)
+	hi[1], hi[2], hi[3] = Theme.RGB(st.hi)
+	return true
 end
 
 --- New heights for the bars to reach, in the station's feel: its energy and tilt, a kick on its beat, slow
@@ -534,6 +542,7 @@ local function ApplyStyle()
 		end
 		bar:Hide()
 		cap:SetSize(barW, style == "wave" and 3 or 2)
+		cap:ClearAllPoints() -- (Render sets the style's one point; setting it again just moves it)
 		cap:Hide()
 		if blocks[i] then for k = 1, SEGS do blocks[i][k]:Hide() end end
 		vis.lit[i] = -1
@@ -591,7 +600,6 @@ local function Render(style)
 			bar:SetVertexColor(Mix(h))
 			bar:SetShown(h > 0.01)
 			if style == "bars" then
-				cap:ClearAllPoints()
 				cap:SetPoint("BOTTOMLEFT", visBox, "BOTTOMLEFT", BarX(i), PAD + peak * SPAN + 1)
 				cap:SetShown(peak > 0.02)
 			end
@@ -608,12 +616,10 @@ local function Render(style)
 		elseif style == "wave" then
 			-- a dot per band on a wave whose height is the band's level, rolling with the music
 			local y = VIS_H / 2 + (SPAN / 2) * h * math.sin(t * 3 + i * 0.55)
-			cap:ClearAllPoints()
 			cap:SetPoint("CENTER", visBox, "BOTTOMLEFT", BarX(i) + barW / 2, y)
 			cap:SetVertexColor(Mix(h))
 			cap:SetShown(state.playing or h > 0.01)
 		elseif style == "peaks" then
-			cap:ClearAllPoints()
 			cap:SetPoint("BOTTOMLEFT", visBox, "BOTTOMLEFT", BarX(i), PAD + peak * SPAN)
 			cap:SetVertexColor(Mix(peak))
 			cap:SetShown(peak > 0.02)
@@ -673,27 +679,35 @@ function W.NextStyle()
 	return W.SetStyle("bars")
 end
 
+local shownTime -- what the time text shows (whole seconds * 10000 + the track's length): set only when it changes
 local function DrawProgress()
 	local track = W.Track()
 	local total = track and track[2] or 0
 	local el = math.min(W.Elapsed(), total)
-	local full = WIDTH - 20 - 110
-	progFill:SetWidth(math.max(1, total > 0 and full * el / total or 0))
+	progFill:SetWidth(math.max(1, total > 0 and PROG_W * el / total or 0))
 	progFill:SetShown(state.playing and total > 0)
-	timeText:SetText(Clock(el) .. " / " .. Clock(total))
+	local key = math.floor(el) * 10000 + total
+	if key ~= shownTime then
+		shownTime = key
+		timeText:SetText(Clock(el) .. " / " .. Clock(total))
+	end
 end
 
 local function OnUpdate(_, elapsed)
 	vis.acc = vis.acc + elapsed
-	if vis.acc < 1 / FPS then return end
+	local off = CurrentStyle() == "off"
+	if vis.acc < 1 / (off and FPS_OFF or FPS) then return end
 	local dt = math.min(vis.acc, 0.2)
 	vis.acc = 0
-	vis.retarget = vis.retarget - dt
-	if vis.retarget <= 0 then
-		vis.retarget = Feel().every or 0.1
-		Retarget()
+	local moving = false
+	if not off then
+		vis.retarget = vis.retarget - dt
+		if vis.retarget <= 0 then
+			vis.retarget = Feel().every or 0.1
+			Retarget()
+		end
+		moving = DrawBars(dt)
 	end
-	local moving = DrawBars(dt)
 	DrawProgress()
 	-- stopped and the bars have fallen: nothing left to move, the loop rests
 	if not state.playing and not moving then
@@ -755,10 +769,8 @@ Redraw = function(wake)
 		stationText:SetText("Pick a station and press Enter (or its number)")
 		tagText:SetText("")
 	end
-	local before = lo[1] .. lo[2] .. lo[3] .. hi[1] .. hi[2] .. hi[3]
-	StationColours()
 	-- the blocks are coloured once, when placed: again when the station's colours change
-	if CurrentStyle() == "blocks" and before ~= lo[1] .. lo[2] .. lo[3] .. hi[1] .. hi[2] .. hi[3] then ApplyStyle() end
+	if StationColours() and CurrentStyle() == "blocks" then ApplyStyle() end
 	for i, r in ipairs(rows) do
 		local s = W.STATIONS[i]
 		if s then
@@ -821,7 +833,7 @@ local function Build()
 
 	progBg = frame:CreateTexture(nil, "ARTWORK")
 	progBg:SetPoint("TOPLEFT", tagText, "BOTTOMLEFT", 0, -10)
-	progBg:SetSize(WIDTH - 20 - 110, 6)
+	progBg:SetSize(PROG_W, 6)
 	progFill = frame:CreateTexture(nil, "OVERLAY")
 	progFill:SetPoint("TOPLEFT", progBg, "TOPLEFT", 0, 0)
 	progFill:SetHeight(6)

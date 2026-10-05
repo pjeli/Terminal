@@ -443,7 +443,8 @@ local function BuildImportDialog()
 		status:SetTextColor(ok and 0.4 or 1, ok and 1 or 0.4, 0.4)
 		if ok then
 			box:ClearFocus()
-			C_Timer.After(0.8, function() if d:IsShown() then d:Hide() end end)
+			local shown = d.shownAt
+			C_Timer.After(0.8, function() if d:IsShown() and d.shownAt == shown then d:Hide() end end) -- (not one opened since)
 		end
 	end
 	d.Apply = Apply
@@ -469,6 +470,7 @@ function O.ImportDialog()
 	local d = BuildImportDialog()
 	d.box:SetText("")
 	d.status:SetText("")
+	d.shownAt = (d.shownAt or 0) + 1
 	d:Show()
 	C_Timer.After(0.05, function() if d:IsShown() then d.box:SetFocus() end end)
 	return d

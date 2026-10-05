@@ -400,6 +400,7 @@ local ACH_COLOR = "ffff6fae" -- (rose: the oranges are Camp's and its neighbours
 local NOT_EARNED = "|cff8a8a8a"
 local achMeta -- shared fields of every achievement row (made once both lists are registered)
 local critGen = 0 -- bumped when criteria progress: a row's cached progress is read again then
+local earnedFrom -- the whole list's rows the earned list was last made from
 
 --- "3/10": the completed criteria of an unearned achievement, or a lone criterion's quantity
 --- (kill 50 of them: "12/50"). Nil when earned or without criteria. Cached per row until progress moves.
@@ -486,9 +487,13 @@ ns:RegisterProvider("achievements", {
 	idleDrop = 600,
 	collect = function()
 		local all = ns.providers.achievementlist
-		all._dirty = true -- (this list is made again only when it's stale: so is the whole one)
+		-- this list is made again only when it's stale: so is the whole one, unless that was made again
+		-- since (an @achievement search after the achievement was earned: not read twice)
+		if all._entries and all._entries == earnedFrom then all._dirty = true end
+		local list = ns:GetEntries(all)
+		earnedFrom = list
 		local out = {}
-		for _, e in ipairs(ns:GetEntries(all)) do
+		for _, e in ipairs(list) do
 			if rawget(e, "completed") then out[#out + 1] = e end
 		end
 		return out

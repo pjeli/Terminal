@@ -13,6 +13,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.39.5", when = "released October 2026",
+		items = {
+			"Fixes from a review pass: a pasted style string changes only the look (never your width, rows or settings); the copy bar never cuts off a style string's last line; a reopened Import style dialog stays open; reading the toy and pet journals never changes their filters when a read fails.",
+			"Lighter: WoWamp redraws its time once a second instead of every frame and idles with the visualizer off; earned achievements no longer re-read the whole list; sells: looks its sellers up once per search.",
+		},
+	},
+	{
 		v = "0.39.4", when = "released October 2026",
 		items = {
 			"New kinds: @toy (Enter uses it), @pet (Enter summons it) and @title (Enter wears it; a No title row too). Shift+Enter shows a toy or pet in the Collections journal.",
@@ -38,20 +45,6 @@ CL.LOG = {
 			"Share your look: Export style on the options page (or .style) gives it as one line to copy, TERM1:..., short enough for a chat message; Import style (or .style TERM1:...) applies a pasted one. Colours, opacity, frame, font, cursor, animation and prompt text travel; width, rows and scale stay yours.",
 			"The style string shows in the slim copy bar (as a Wowhead link does): a narrow bar in the middle of the screen, the text wrapped onto a few lines and all selected; it goes once Ctrl+C has copied it.",
 			"Opacity can be set to the exact hundredth (presets' 0.96 and 0.97 no longer round to 0.95).",
-		},
-	},
-	{
-		v = "0.36.13", when = "released October 2026",
-		items = {
-			"@questie >> party (or guild...) sends the quest as a Questie link, clickable with its tooltip for anyone with Questie, instead of just its name. Quests in your log the game won't link go the same way.",
-			".btop is now .atop (AddOn top).",
-			"Fix: opening the terminal no longer opens a profession window (Enchanting) when a profession is the selected result.",
-			"Herbalism's recipes and camp objects (Incense Candle) open its Gardening window. Terminal learns the spell you open a profession with, and otherwise finds it among the profession's own spells.",
-			"@camp: Shift+Enter uses the camp object from your bags, or opens its profession and makes it when you have none.",
-			"Achievements: Shift+Enter links one in chat; their colour is now rose, apart from Camp's orange.",
-			"Professions: Shift+Enter links the profession (all your recipes) in chat; Enter opens its window.",
-			"Send a result to chat: end a search with >> party, guild, raid, say, yell, officer, instance, whisper <name> or a channel number. Items, spells, achievements, recipes and quests go as links, NPCs as a map pin, professions as a link to all your recipes.",
-			"Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on: add >> guild to send it.",
 		},
 	},
 }

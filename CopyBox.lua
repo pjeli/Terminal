@@ -167,6 +167,26 @@ local function BuildLink()
 	C.linkFrame, C.linkEdit = link, linkEdit
 end
 
+--- How many lines `text` takes wrapped at spaces in `room` pixels (the text box's width), as the box wraps
+--- it: whole words, a word longer than a line split over several. Measured word by word (once per show);
+--- dividing the whole width by a line's left the words pushed to the next line out, cutting off the last line.
+local function WrappedLines(measure, text, room)
+	local lines, used = 1, 0
+	for word in text:gmatch("%S+%s*") do
+		measure:SetText(word)
+		local ww = measure:GetStringWidth() or 0
+		if used > 0 and used + ww > room then
+			lines, used = lines + 1, 0
+		end
+		if ww > room then -- (a word longer than a line)
+			lines = lines + math.ceil(ww / room) - 1
+			ww = ww % room
+		end
+		used = used + ww
+	end
+	return math.max(1, math.min(8, lines))
+end
+
 local function ShowLink(title, text)
 	BuildLink()
 	local Theme = ns.Theme
@@ -192,7 +212,8 @@ local function ShowLink(title, text)
 	local long = w > 700
 	local MAX_W = long and 560 or 700
 	local width = math.max(320, math.min(MAX_W, math.max(w, tw)))
-	local lines = math.max(1, math.min(8, math.ceil((w - 40) / (width - 40))))
+	local lines = 1
+	if w - 40 > width - 20 then lines = WrappedLines(measure, text, width - 20) end
 	C.linkLines = lines
 	-- the box is sized and made multi-line before the text goes in, so the text is laid out (wrapped)
 	-- before it's selected: selected first, only the first line showed as highlighted

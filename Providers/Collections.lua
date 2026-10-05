@@ -66,12 +66,15 @@ local function Widened(spec, read)
 	for _, l in ipairs(spec.lists or {}) do
 		local n = l.count and Num(Safe(l.count)) or 0
 		if n > 0 and l.get and l.set and l.all then
-			local was, off = {}, false
+			local was, off, known = {}, false, true
 			for i = 1, n do
-				was[i] = Safe(l.get, i) and true or false
+				-- (a read that fails leaves the list as it is: putting back a guess would turn a filter off)
+				local ok, on = pcall(l.get, i)
+				if not ok then known = false break end
+				was[i] = on and true or false
 				if not was[i] then off = true end
 			end
-			if off then
+			if off and known then
 				Safe(l.all, true)
 				undo[#undo + 1] = function() for i = 1, n do if not was[i] then Safe(l.set, i, false) end end end
 			end

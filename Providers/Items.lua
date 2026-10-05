@@ -449,12 +449,13 @@ end
 -- no search), and nothing built the list again once the names came, while the bag addon (which looks each
 -- name up) showed them. Such an item is left out for now, its name is asked for, and the list is built
 -- again once the names are in (or after 10 s). The event is listened to only while names are awaited.
-local nameWait = { ids = {}, count = 0, asked = {} }
+local nameWait = { ids = {}, count = 0, asked = {}, gen = 0 } -- (gen: which wait the give-up timer belongs to)
 local nameFrame = CreateFrame("Frame")
 
 local function NamesArrived()
 	for k in pairs(nameWait.ids) do nameWait.ids[k] = nil end
 	nameWait.count = 0
+	nameWait.gen = nameWait.gen + 1
 	pcall(nameFrame.UnregisterEvent, nameFrame, "GET_ITEM_INFO_RECEIVED")
 	pcall(nameFrame.UnregisterEvent, nameFrame, "ITEM_DATA_LOAD_RESULT")
 	if ns.providers.items then ns.providers.items._dirty = true end
@@ -473,7 +474,9 @@ local function NameOf(id, link, given)
 		if nameWait.count == 0 then
 			pcall(nameFrame.RegisterEvent, nameFrame, "GET_ITEM_INFO_RECEIVED")
 			pcall(nameFrame.RegisterEvent, nameFrame, "ITEM_DATA_LOAD_RESULT")
-			C_Timer.After(10, function() if nameWait.count > 0 then NamesArrived() end end)
+			-- (a wait that ended early and a new one begun: this timer is the old one's and does nothing)
+			local gen = nameWait.gen
+			C_Timer.After(10, function() if nameWait.gen == gen and nameWait.count > 0 then NamesArrived() end end)
 		end
 		nameWait.ids[id] = true
 		nameWait.count = nameWait.count + 1

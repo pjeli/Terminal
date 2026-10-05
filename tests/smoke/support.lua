@@ -91,8 +91,9 @@ do -- the panels share one pattern (Panel.lua): built alike, laid where the term
 	ns.Atop.Open(); ns.Snake.Open(); ns.Changelog.Open()
 	local reg = Pn.Registered()
 	local seen = {}
-	for _, app in ipairs(reg) do seen[app] = true end
-	check(#reg == 3 and seen[ns.Atop] and seen[ns.Snake] and seen[ns.Changelog], "atop, snake and the changelog are registered once each: " .. #reg)
+	for _, app in ipairs(reg) do seen[app] = (seen[app] or 0) + 1 end
+	-- (once each, whatever else is registered: another test may have opened the player first)
+	check(seen[ns.Atop] == 1 and seen[ns.Snake] == 1 and seen[ns.Changelog] == 1, "atop, snake and the changelog are registered once each")
 	check(ns.Changelog.IsShown() and not ns.Atop.IsShown() and not ns.Snake.IsShown(), "opening one closes the others")
 	for _, f in ipairs({ ns.Atop.frame, ns.Snake.frame, ns.Changelog.frame }) do
 		check(f.kb == true and f.scripts.OnEvent ~= nil and f.shown ~= nil, "each frame reads the keyboard and watches for combat")
@@ -111,7 +112,11 @@ do -- the panels share one pattern (Panel.lua): built alike, laid where the term
 	check(not app.IsShown(), "and the changelog closes it")
 	ns.Changelog.Close()
 	-- the registry doesn't grow when an app is rebuilt (Build runs once per app: `if frame then return end`)
-	check(#Pn.Registered() == 4, "registered once per app")
+	local count = {}
+	for _, a in ipairs(Pn.Registered()) do count[a] = (count[a] or 0) + 1 end
+	local once = true
+	for _, n in pairs(count) do if n ~= 1 then once = false end end
+	check(once and count[app] == 1, "registered once per app")
 	-- combat closes through the shared handler
 	fr:Show()
 	fr.scripts.OnEvent(fr, "PLAYER_REGEN_DISABLED")

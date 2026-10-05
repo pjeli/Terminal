@@ -416,6 +416,8 @@ end
 T.STYLE_MARK = "TERM1:"
 T.STYLE_KEYS = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha", "frame",
 	"font", "fontSize", "promptText", "cursor", "blinkRate", "animations" }
+local STYLE_KEY = {}
+for _, k in ipairs(T.STYLE_KEYS) do STYLE_KEY[k] = true end
 
 local function EncodeValue(v)
 	-- the prompt text can hold anything: ';', '=', '%' and spaces are written as %XX
@@ -450,8 +452,8 @@ function T.Export()
 end
 
 --- Applies a style string. Returns ok, message: how many settings were set (and skipped), or what was wrong.
---- Anything around the string (a chat line's name and time, spaces) is ignored; only known settings
---- change, each checked as `.set` would.
+--- Anything around the string (a chat line's name and time, spaces) is ignored; only the look's settings
+--- (T.STYLE_KEYS) change, each checked as `.set` would: a layout or behaviour key in it is skipped.
 function T.Import(s)
 	s = tostring(s or "")
 	local at = s:find(T.STYLE_MARK, 1, true)
@@ -463,7 +465,7 @@ function T.Import(s)
 	for k, v in pairs(t) do keep[k] = v end -- all or nothing: a bad value leaves the look as it was
 	for pair in body:gmatch("[^;]+") do
 		local k, v = pair:match("^([%w_]+)=(.*)$")
-		if k and T.FIELDS[k] then
+		if k and STYLE_KEY[k] and T.FIELDS[k] then
 			local ok, res = T.Set(k, DecodeValue(v), true)
 			if ok then set = set + 1 else bad[#bad + 1] = k .. ": " .. tostring(res) end
 		else
@@ -497,8 +499,7 @@ ns:RegisterCommand("style", {
 			ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true })
 			return {}
 		end
-		local ok, msg = T.Import((args:gsub("^import%s*", "")))
-		if not ok then return { "Style: " .. msg } end
+		local _, msg = T.Import((args:gsub("^import%s*", "")))
 		return { "Style: " .. msg }
 	end,
 })
