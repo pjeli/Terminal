@@ -22,6 +22,7 @@ local proxies = {}
 local owner = CreateFrame("Frame")
 local token = 0
 
+S.MACRO_MAX = 255 -- the game runs at most this many characters of a macro, all lines together
 S.armed = nil -- binding command or button name currently armed
 S.mode = nil  -- "binding" or "button"
 
@@ -70,6 +71,11 @@ function S.Resolve(spec, e)
 			local ok, t = pcall(text, e) -- given the entry: its macro can name the quest, the map...
 			text = ok and t or nil
 		end
+		-- the game cuts a macro off at 255 characters in all (a cut /run line is a Lua error): never hand one over
+		if type(text) == "string" and #text > S.MACRO_MAX then
+			if ns.Trace then ns:Trace(("secure: macro too long (%d of %d characters), not used: %s"):format(#text, S.MACRO_MAX, text:sub(1, 60))) end
+			text = nil
+		end
 		if type(text) == "string" and text ~= "" then return { macro = text } end
 		if not (spec.binding or spec.buttons) then return nil end
 	end
@@ -99,6 +105,10 @@ function S.ClickMacro(spec, e)
 	if type(spec) == "string" then spec = { buttons = { spec } } end
 	if type(spec) ~= "table" then return nil end
 	local t = Text(spec.click, e) or Text(spec.macro, e)
+	if t and #t > S.MACRO_MAX then
+		if ns.Trace then ns:Trace(("secure: click macro too long (%d characters), not used"):format(#t)) end
+		return nil
+	end
 	if t then return t end
 	if type(spec.spell) == "string" and spec.spell ~= "" then return "/cast " .. spec.spell end
 	local b = S.First(spec.buttons or (spec[1] and spec) or {})
@@ -209,9 +219,18 @@ end
 -- A key bound to a button "clicks" it twice: on key down and on key up. The button acts on
 -- only one of them (useOnKeyDown); finishing on the other would unbind Enter too early, and
 -- the press that does the work would then find nothing bound.
+-- The press can come back after Enter was let go: the window it opened can close the terminal (a
+-- special frame) while the press is still running, and closing disarms. A press of what was armed a
+-- moment ago still finishes (its after-step points at the result).
+S.LATE = 1 -- seconds
 local function PostClick(self, _, down)
 	if self.actsOnDown ~= nil and down ~= nil and (down and true or false) ~= self.actsOnDown then return end
-	if S.armed == self.targetName and S.onClicked then
+	if not S.onClicked then return end
+	if S.armed == self.targetName then
+		S.onClicked(self.targetName)
+	elseif S.lastArmed == self.targetName and S.lastArmedAt and GetTime() - S.lastArmedAt < S.LATE then
+		if ns.Trace then ns:Trace("secure: the press came back after Enter was let go (the window it opened closed the terminal); finishing it") end
+		S.lastArmed = nil
 		S.onClicked(self.targetName)
 	end
 end
@@ -298,6 +317,7 @@ function S.Arm(r)
 end
 
 function S.Disarm()
+	if S.armed then S.lastArmed, S.lastArmedAt = S.armed, GetTime() end
 	S.armed, S.mode = nil, nil
 	token = token + 1
 	if InCombatLockdown() then

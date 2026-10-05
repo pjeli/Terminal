@@ -35,8 +35,9 @@ end
 -- the options window's own search box gets the action's name: its row shows even when its section
 -- is collapsed (expanding the section from Terminal's code would taint the window; the game typing
 -- into its own search box doesn't). An empty search shows the whole page.
-K.OPEN_MACRO = "/run local S=Settings if S and S.OpenToCategory then S.OpenToCategory(S.KEYBINDINGS_CATEGORY_ID or KEY_BINDINGS) end"
-local SEARCH = " local B=SettingsPanel and SettingsPanel.SearchBox if B then B:SetText(%s) end"
+K.OPEN_MACRO = "/run local S=Settings S.OpenToCategory(S.KEYBINDINGS_CATEGORY_ID or KEY_BINDINGS)"
+-- (the game cuts a macro off at 255 characters in all: the name has to fit after this)
+local SEARCH = " local B=SettingsPanel.SearchBox if B then B:SetText(%s) end"
 function K.MacroFor(name) return K.OPEN_MACRO .. SEARCH:format(("%q"):format(name or "")) end
 -- Quick Keybind Mode: the options window steps aside, the protected frame is shown by the game
 K.QUICK_MACRO = "/run if SettingsPanel and SettingsPanel:IsShown() then HideUIPanel(SettingsPanel) end if QuickKeybindFrame then ShowUIPanel(QuickKeybindFrame) end"

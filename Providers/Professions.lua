@@ -250,11 +250,14 @@ end
 -- Snapshot
 ----------------------------------------------------------------------
 
+--- The recipe's reagents ({ { itemID, count }, ... }) and the item it makes (nil for enchants).
 local function ReagentsOf(recipeID)
 	local api = TS()
 	if not api.GetRecipeSchematic then return nil end
 	local ok, s = pcall(api.GetRecipeSchematic, recipeID, false)
-	if not ok or type(s) ~= "table" or type(s.reagentSlotSchematics) ~= "table" then return nil end
+	if not ok or type(s) ~= "table" then return nil end
+	local made = type(s.outputItemID) == "number" and s.outputItemID > 0 and s.outputItemID or nil
+	if type(s.reagentSlotSchematics) ~= "table" then return nil, made end
 	local out = {}
 	for _, slot in ipairs(s.reagentSlotSchematics) do
 		local qty = slot.quantityRequired or 1
@@ -263,7 +266,7 @@ local function ReagentsOf(recipeID)
 			if rg.itemID then out[#out + 1] = { rg.itemID, qty } end
 		end
 	end
-	return out
+	return out, made
 end
 
 --- Every recipe id the open window offers. On Forever, GetFilteredRecipeIDs (what
@@ -370,13 +373,15 @@ function P.Snapshot(done)
 						cats[info.categoryID] = catName
 					end
 				end
+				local reagents, made = ReagentsOf(id)
 				list[#list + 1] = {
 					id = id,
 					name = info.name,
 					icon = info.icon,
 					learned = true, -- only recipes the character knows are kept
 					cat = catName or nil,
-					reagents = ReagentsOf(id),
+					reagents = reagents,
+					item = made, -- what it makes (stat:/slot: filters on crafts)
 				}
 			end
 		end
@@ -760,6 +765,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		getLink = RecipeLink,
 		recipeID = r.id,
 		reagents = r.reagents, -- (is:craftable; the index's own table, not a copy)
+		makesItem = r.item, -- (filters: the crafted item's stats, slot, item level; nil: asked of the game)
 		profID = pdata.skillLine or profID,
 		profSpell = pdata.spell,
 		activate = RecipeActivate,

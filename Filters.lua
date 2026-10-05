@@ -7,7 +7,7 @@ local ns = select(2, ...)
 --   lvl:20-30 lvl:<30 lvl:40-    quest level, NPC level, the level an item needs
 --   ilvl:60+                     item level
 --   q:rare  q:rare+              item quality (poor common uncommon rare epic legendary, or 0-5)
---   stat:stamina  stat:sta>=10   an item stat (stamina, strength, agility, intellect, spirit,
+--   stat:stamina  stat:sta>=10   an item stat, or what a consumable's effect gives (stamina, strength, agility, intellect, spirit,
 --                                armor, attack power, spell power, crit, hit, dodge, mp5, fire...)
 --   slot:wrist                   an item's equipment slot
 --   type:mail  type:sword        item type or subtype
@@ -45,7 +45,29 @@ local function ItemInfo(id)
 		return c
 	end
 end
-F.ClearCache = function() infoCache, infoCount = {}, 0 end -- (tests)
+-- The item a row stands for: its own, or the item a recipe makes (a crafted piece: its stats, slot, item
+-- level, quality). Enchants make none. Recipe rows carry makesItem when indexed; older indexes are asked
+-- of the game (GetRecipeSchematic's outputItemID), once per recipe.
+local recipeItem = {}
+local function MadeBy(e)
+	local r = e.recipeID
+	if not r then return nil end
+	if type(e.makesItem) == "number" then return e.makesItem end
+	local c = recipeItem[r]
+	if c ~= nil then return c or nil end
+	local TS = C_TradeSkillUI
+	local id
+	if TS and TS.GetRecipeSchematic then
+		local ok, sch = pcall(TS.GetRecipeSchematic, r, false)
+		if ok and type(sch) == "table" and type(sch.outputItemID) == "number" and sch.outputItemID > 0 then id = sch.outputItemID end
+	end
+	recipeItem[r] = id or false
+	return id
+end
+local function ItemOf(e) return e.itemID or MadeBy(e) end
+F.ItemOf = ItemOf
+
+F.ClearCache = function() infoCache, infoCount = {}, 0; recipeItem = {}; if F.ClearEffects then F.ClearEffects() end end -- (tests)
 
 --- The quest a row is (not a quest item that merely belongs to one).
 local function QuestOf(e)
@@ -107,13 +129,14 @@ end
 local statCache, statCount = {}, 0
 --- An item's stats (the game's: { ITEM_MOD_STAMINA_SHORT = 7, ... }), or nil until known.
 local function Stats(e)
-	local id = e.itemID
+	local id = ItemOf(e)
 	if not id then return nil end
 	local c = statCache[id]
 	if c ~= nil then return c end
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
 	local info = ItemInfo(id)
-	local link = (type(e.link) == "string" and e.link:find("|H", 1, true) and e.link) or (info and info.link) or ("item:" .. id)
+	local own = e.itemID and type(e.link) == "string" and e.link:find("|H", 1, true) and e.link
+	local link = own or (info and info.link) or ("item:" .. id)
 	if not (get and info) then return nil end -- (not known to the client yet: asked again next time)
 	local ok, t = pcall(get, link)
 	t = ok and type(t) == "table" and t or {}
@@ -145,6 +168,154 @@ local function StatIs(key, word)
 	return (type(shown) == "string" and Lower(shown):find(word, 1, true)) or Lower(key):find(word, 1, true) and true or false
 end
 
+-- Consumables (elixirs, potions, food, scrolls) have no item stats: their effect is the text of their
+-- use spell ("Increases Strength by 8 for 1 hour", food's "well fed and gain 6 Stamina and Spirit"),
+-- and their tooltip's lines. Read once per item, lowercase; nil while the game is still loading it.
+local function Secret(v) return issecretvalue and issecretvalue(v) or false end
+local effectCache, effectCount = {}, 0
+local function EffectText(e)
+	local id = ItemOf(e)
+	if not id then return nil end
+	local c = effectCache[id]
+	if c ~= nil then return c or nil end
+	local parts, pending = {}, false
+	local getSpell = (C_Item and C_Item.GetItemSpell) or _G.GetItemSpell
+	local spellID
+	if getSpell then
+		local ok, _, sid = pcall(getSpell, id)
+		if ok and type(sid) == "number" and not Secret(sid) then spellID = sid end
+	end
+	if spellID and C_Spell and C_Spell.GetSpellDescription then
+		local ok, d = pcall(C_Spell.GetSpellDescription, spellID)
+		if ok and type(d) == "string" and not Secret(d) and d ~= "" then
+			parts[#parts + 1] = d
+		else
+			pending = true -- (the spell's text isn't loaded yet: asked for, and read again next time)
+			if C_Spell.RequestLoadSpellData then pcall(C_Spell.RequestLoadSpellData, spellID) end
+		end
+	end
+	if C_TooltipInfo and C_TooltipInfo.GetItemByID then
+		local ok, info = pcall(C_TooltipInfo.GetItemByID, id)
+		if ok and type(info) == "table" and type(info.lines) == "table" then
+			for _, l in ipairs(info.lines) do
+				local t = type(l) == "table" and l.leftText
+				if type(t) == "string" and not Secret(t) then parts[#parts + 1] = t end
+			end
+		end
+	end
+	local text = #parts > 0 and Lower(table.concat(parts, "\n")) or nil
+	if text or not pending then
+		if effectCount > 4000 then effectCache, effectCount = {}, 0 end
+		effectCache[id], effectCount = text or false, effectCount + 1
+	end
+	return text
+end
+F.EffectText = EffectText
+F.ClearEffects = function() effectCache, effectCount = {}, 0 end
+
+local CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
+local function IsConsumable(id)
+	local get = C_Item and C_Item.GetItemInfoInstant
+	if not get then return true end
+	local ok, _, _, _, _, _, classID = pcall(get, id)
+	return not ok or classID == nil or classID == CONSUMABLE
+end
+
+-- how an effect text names each stat when the game's own name isn't there (English)
+local EFFECT_ENGLISH = {
+	STRENGTH = "strength", AGILITY = "agility", STAMINA = "stamina", INTELLECT = "intellect", SPIRIT = "spirit",
+	RESISTANCE0 = "armor", ATTACK_POWER = "attack power", SPELL_POWER = "spell power", HEAL = "healing",
+	CRIT = "critical strike", HIT = "hit rating", HASTE = "haste", DODGE = "dodge", PARRY = "parry", BLOCK = "block",
+	DEFENSE = "defense", REGEN = "mana every 5", RESISTANCE1 = "holy resistance", RESISTANCE2 = "fire resistance",
+	RESISTANCE3 = "nature resistance", RESISTANCE4 = "frost resistance", RESISTANCE5 = "shadow resistance",
+	RESISTANCE6 = "arcane resistance",
+}
+--- The words an effect text uses for a typed stat: the game's own names first (its language), then English.
+local function EffectNames(word)
+	local part = STAT_WORDS[word]
+	if not part then return { word } end
+	local names = {}
+	for _, k in ipairs({ "SPELL_STAT_" .. part, "ITEM_MOD_" .. part .. "_SHORT", "ITEM_MOD_" .. part .. "_RATING_SHORT" }) do
+		local g = _G[k]
+		if type(g) == "string" and g ~= "" and not g:find("%", 1, true) then names[#names + 1] = Lower(g) end
+	end
+	local stat = ({ STRENGTH = 1, AGILITY = 2, STAMINA = 3, INTELLECT = 4, SPIRIT = 5 })[part]
+	local g = stat and _G["SPELL_STAT" .. stat .. "_NAME"]
+	if type(g) == "string" and g ~= "" then names[#names + 1] = Lower(g) end
+	if EFFECT_ENGLISH[part] then names[#names + 1] = EFFECT_ENGLISH[part] end
+	return names
+end
+
+--- Does the effect text name the stat (and, with cmp, give it an amount that passes)?
+local function EffectHas(text, word, cmp)
+	for _, name in ipairs(EffectNames(word)) do
+		local from = 1
+		while true do
+			local at, last = text:find(name, from, true)
+			if not at then break end
+			if not cmp then return true end
+			-- "+6 Stamina", "6 Strength" (right before it), or "Strength by 25" (soon after it)
+			local n = tonumber(text:sub(math.max(1, at - 10), at - 1):match("(%d+)%s*$"))
+				or tonumber(text:sub(last + 1, last + 24):match("^%D-(%d+)"))
+			if n and cmp(n) then return true end
+			from = last + 1
+		end
+	end
+	return false
+end
+
+-- A recipe's own words, lowercase: its name and its spell's text ("Enchant Bracer - Stamina",
+-- "Permanently enchant bracers to increase Stamina by 3."). Kept once the text has loaded.
+local recipeText = {}
+local function RecipeText(e)
+	local r = e.recipeID
+	if not r then return nil end
+	local c = recipeText[r]
+	if c then return c end
+	local name = type(e.name) == "string" and e.name or ""
+	local desc
+	if C_Spell and C_Spell.GetSpellDescription then
+		local ok, d = pcall(C_Spell.GetSpellDescription, r)
+		if ok and type(d) == "string" and d ~= "" and not Secret(d) then
+			desc = d
+		elseif C_Spell.RequestLoadSpellData then
+			pcall(C_Spell.RequestLoadSpellData, r)
+		end
+	end
+	local text = Lower(name .. (desc and ("\n" .. desc) or ""))
+	if desc then recipeText[r] = text end -- (without its text yet: only the name, and asked again next time)
+	return text
+end
+
+-- slot: the everyday words for slots -> the word the game's slot name has ("Wrist", "Feet"...)
+local SLOT_ALIAS = {
+	bracer = "wrist", bracers = "wrist", wrists = "wrist", boot = "feet", boots = "feet", foot = "feet",
+	glove = "hands", gloves = "hands", gauntlets = "hands", hand = "hands", cloak = "back", cape = "back",
+	helm = "head", helmet = "head", hat = "head", pants = "legs", leg = "legs", leggings = "legs",
+	belt = "waist", girdle = "waist", ring = "finger", rings = "finger", necklace = "neck", amulet = "neck",
+	shoulders = "shoulder", pauldrons = "shoulder", spaulders = "shoulder", robe = "chest",
+	["2h"] = "two-hand", twohand = "two-hand", ["two-handed"] = "two-hand", ["1h"] = "one-hand",
+	onehand = "one-hand", offhand = "off hand", mainhand = "main hand", trinkets = "trinket",
+	weapons = "weapon",
+}
+-- an item slot type's own letters for a slot word the game's name may not have (Two-Hand: 2hweapon)
+local SLOT_LOC = { ["two-hand"] = "2hweapon", ["off hand"] = "offhand", ["main hand"] = "mainhand", ["one-hand"] = "invtype_weapon" }
+-- how enchants name the slot they go on
+local ENCHANT_WORDS = {
+	wrist = { "bracer", "wrist" }, feet = { "boots", "boot", "feet" }, hands = { "gloves", "glove", "hands" },
+	back = { "cloak", "back" }, head = { "helm", "head" }, legs = { "leg", "pants" }, chest = { "chest" },
+	shoulder = { "shoulder" }, finger = { "ring" }, shield = { "shield" }, waist = { "belt", "waist" },
+	weapon = { "weapon" }, ["two-hand"] = { "2h weapon", "two-handed", "two-hand" }, ["off hand"] = { "off-hand", "shield" },
+}
+local function SlotWant(v) return SLOT_ALIAS[v] or v end
+local function SlotIs(loc, want)
+	local shown = _G[loc]
+	if type(shown) == "string" and Lower(shown):find(want, 1, true) then return true end
+	local l = loc:lower()
+	return l:find((want:gsub("[%s%-]", "")), 1, true) ~= nil or (SLOT_LOC[want] and l:find(SLOT_LOC[want], 1, true) and
+		(want ~= "one-hand" or l == "invtype_weapon")) or false
+end
+
 local QUALITY = { poor = 0, grey = 0, gray = 0, junk = 0, common = 1, white = 1, uncommon = 2, green = 2,
 	rare = 3, blue = 3, epic = 4, purple = 4, legendary = 5, orange = 5, artifact = 6, heirloom = 7 }
 F.QUALITIES = { "poor", "common", "uncommon", "rare", "epic", "legendary" }
@@ -152,7 +323,8 @@ F.QUALITIES = { "poor", "common", "uncommon", "rare", "epic", "legendary" }
 local function QualityOf(e)
 	local q = e.quality
 	if type(q) == "number" then return q end
-	local info = e.itemID and ItemInfo(e.itemID)
+	local id = ItemOf(e)
+	local info = id and ItemInfo(id)
 	return info and info.quality
 end
 
@@ -166,6 +338,8 @@ local SLOTS = {
 	INVTYPE_HOLDABLE = { 17 }, INVTYPE_WEAPONOFFHAND = { 17 }, INVTYPE_RANGED = { 18 },
 	INVTYPE_RANGEDRIGHT = { 18 }, INVTYPE_THROWN = { 18 }, INVTYPE_RELIC = { 18 },
 }
+
+F.SLOTS = SLOTS -- (@gear: what counts as equipment)
 
 local function Usable(e)
 	local id = e.itemID
@@ -274,7 +448,8 @@ KEYS.level = KEYS.lvl
 KEYS.ilvl = function(v)
 	local r = Range(v)
 	return r and function(e)
-		local info = e.itemID and ItemInfo(e.itemID)
+		local id = ItemOf(e)
+		local info = id and ItemInfo(id)
 		return info and r(info.ilvl) or false
 	end
 end
@@ -307,30 +482,53 @@ KEYS.stat = function(v)
 	if op and not cmp then return nil end
 	return function(e)
 		local stats = Stats(e)
-		if not stats then return false end
-		for key, value in pairs(stats) do
-			if type(key) == "string" and StatIs(key, word) and (not cmp or cmp(value)) then return true end
+		if stats and next(stats) then
+			for key, value in pairs(stats) do
+				if type(key) == "string" and StatIs(key, word) and (not cmp or cmp(value)) then return true end
+			end
+			return false
 		end
-		return false
+		local id = ItemOf(e)
+		-- an enchant (a recipe making no item): what its name and text say it gives
+		if not id then
+			local text = e.recipeID and RecipeText(e)
+			return text and EffectHas(text, word, cmp) or false
+		end
+		-- no item stats (an elixir, a potion, food...): what its effect says it gives. Only consumables are
+		-- read (a tooltip per item: thousands of loot rows mustn't each be read)
+		if not IsConsumable(id) then return false end
+		local text = EffectText(e)
+		return text and EffectHas(text, word, cmp) or false
 	end
 end
 KEYS.stats = KEYS.stat
 
 KEYS.slot = function(v)
 	if v == "" then return nil end
+	local want = SlotWant(v)
 	return function(e)
-		local info = e.itemID and ItemInfo(e.itemID)
+		local id = ItemOf(e)
+		if not id then
+			-- an enchant: the slot its name or text names ("Enchant Bracer", "enchant boots")
+			local text = e.recipeID and RecipeText(e)
+			if not text then return false end
+			for _, w in ipairs(ENCHANT_WORDS[want] or { want }) do
+				if text:find(w, 1, true) then return true end
+			end
+			return false
+		end
+		local info = ItemInfo(id)
 		local loc = info and info.equipLoc
 		if type(loc) ~= "string" or loc == "" then return false end
-		local shown = _G[loc]
-		return (type(shown) == "string" and Lower(shown):find(v, 1, true)) or loc:lower():find(v, 1, true) and true or false
+		return SlotIs(loc, want)
 	end
 end
 
 KEYS.type = function(v)
 	if v == "" then return nil end
 	return function(e)
-		local info = e.itemID and ItemInfo(e.itemID)
+		local id = ItemOf(e)
+		local info = id and ItemInfo(id)
 		if not info then return false end
 		for _, t in ipairs({ info.type, info.subType }) do
 			if type(t) == "string" and Lower(t):find(v, 1, true) then return true end
@@ -463,7 +661,7 @@ F.VALUES = {
 	is = { "done", "todo", "complete", "usable", "equippable", "craftable", "vendor", "trainer", "classtrainer", "proftrainer",
 		"flightmaster", "innkeeper", "banker", "repair", "auctioneer", "questgiver", "stablemaster" },
 	q = F.QUALITIES, quality = F.QUALITIES,
-	stat = F.STATS,
+	stat = F.STATS, stats = F.STATS,
 	["in"] = { "bags", "bank", "mail", "guild", "warband", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	trainer = { "mine", "class", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
@@ -476,8 +674,8 @@ F.HELP = {
 	{ "lvl:20-30", "quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)" },
 	{ "ilvl:60+", "item level" },
 	{ "q:rare+", "item quality: poor common uncommon rare epic legendary" },
-	{ "stat:stamina", "an item stat; with a number: stat:sta>=10 (str agi sta int spi armor ap sp crit hit mp5 fire...)" },
-	{ "slot:wrist", "item slot" },
+	{ "stat:stamina", "an item stat, or what a consumable gives (elixirs, potions, food); with a number: stat:sta>=10 (str agi sta int spi armor ap sp crit hit mp5 fire...)" },
+	{ "slot:wrist", "item slot, or what a recipe makes or enchants (bracers boots gloves cloak helm ring 2h...)" },
 	{ "type:mail", "item type or subtype (cloth, sword, potion...)" },
 	{ "in:bank", "where: bags/bank/mail/guild, a quest's or NPC's zone, a loot item's dungeon or boss" },
 	{ "on:name", "@stored: on that character (or guild, warband)" },

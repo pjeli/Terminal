@@ -179,6 +179,13 @@ end
 
 function ns:GetEntries(p)
 	p._usedAt = GetTime()
+	-- a list made from another one (@gear, @consumable, @mats from your items) is made again whenever
+	-- that one was: its own events alone left it stale (gear in your bags missing, built before they loaded)
+	if p.follows then
+		local src = self.providers[p.follows]
+		local list = src and self:GetEntries(src)
+		if list ~= p._followed then p._dirty, p._followed = true, list end
+	end
 	if p._dirty or not p._entries then
 		local ok, res = pcall(p.collect, p)
 		p._collectedAt = GetTime()

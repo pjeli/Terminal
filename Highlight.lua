@@ -10,6 +10,7 @@ local pool, active = {}, {}
 -- The highlight pulses twice, then fades out: 1.6 seconds in all.
 local PULSE, PULSES, FADE = 0.6, 2, 0.4
 H.TOTAL = PULSE * PULSES + FADE
+H.GRACE = 0.3 -- seconds a target may be hidden before its highlight lets go
 
 local function NewGlow()
 	local f = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
@@ -60,13 +61,21 @@ function H:Show(target)
 	g:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 3, -3)
 	g:SetAlpha(1)
 	g:Show()
+	g.hiddenAt = nil
 	g:SetScript("OnUpdate", function(self)
-		local a = self.target and self.target:IsVisible() and H.AlphaAt(GetTime() - self.started)
-		if not a then
-			H:Release(self)
-		else
-			self:SetAlpha(a)
+		local now = GetTime()
+		local a = self.target and H.AlphaAt(now - self.started)
+		if not a then H:Release(self) return end
+		-- a window filling in on its first show hides its parts for a moment: ride that out, and
+		-- only let go of a target that stays hidden (the window closed)
+		if not self.target:IsVisible() then
+			self.hiddenAt = self.hiddenAt or now
+			if now - self.hiddenAt > H.GRACE then H:Release(self) return end
+			self:SetAlpha(0)
+			return
 		end
+		self.hiddenAt = nil
+		self:SetAlpha(a)
 	end)
 	active[g] = true
 	return g

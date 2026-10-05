@@ -327,3 +327,121 @@ ns:RegisterProvider("achievements", {
 })
 
 
+
+----------------------------------------------------------------------
+-- CVars (@cvar): the game's console settings, with their value and default. Many settings the
+-- options panel never shows live only here. Enter puts "/console <name> <value>" in the prompt to
+-- edit; running that line has the game set it (see Slash.lua). Shift+Enter: the same with its default.
+----------------------------------------------------------------------
+
+local CHANGED = "|cffffd200"
+
+local function Plain(v)
+	if v == nil or (issecretvalue and issecretvalue(v)) then return nil end
+	return tostring(v)
+end
+
+-- Enum.ConsoleCategory's names, by number: "Graphics", "Sound"...
+local categories
+local function Category(n)
+	if not categories then
+		categories = {}
+		for k, v in pairs(Enum.ConsoleCategory or {}) do categories[v] = k end
+	end
+	return categories[n]
+end
+
+local function CVarLine(e, value)
+	local line = "/console " .. e.name .. " " .. (value or "")
+	ns.UI:SetQuery(line, #line)
+end
+local function EditCVar(e) CVarLine(e, Plain(C_CVar.GetCVar(e.name)) or e.value) end
+local function DefaultCVar(e) CVarLine(e, e.default) end
+
+ns.CVars = { Edit = EditCVar, Default = DefaultCVar }
+
+ns:RegisterProvider("cvars", {
+	label = "CVar",
+	color = "ff8ec5ff",
+	aliases = { "cvar", "cvars", "console", "setting", "settings" },
+	explicit = true, -- a few thousand: only with @cvar
+	lazy = true,
+	idleDrop = 600,
+	events = { "CVAR_UPDATE" }, -- a value changed (yours, the options panel's, an addon's)
+	guard = 1,
+	collect = function(p)
+		local out = {}
+		-- the game's own list, when it gives one (WoW Forever doesn't let addons have it)
+		local ok, all = false, nil
+		for _, fn in ipairs({ C_Console and C_Console.GetAllCommands or false, _G.ConsoleGetAllCommands or false }) do
+			if fn then
+				ok, all = pcall(fn)
+				if ok and type(all) == "table" and #all > 0 then break end
+			end
+		end
+		all = ok and type(all) == "table" and all or {}
+		local from = #all > 0 and "the game's list" or "Terminal's list"
+		-- otherwise the names Terminal knows (CVarList.lua), each looked up in the game below
+		local known = {}
+		for name, cat, help in (ns.CVAR_LIST or ""):gmatch("([^\t\n]+)\t([^\t\n]*)\t([^\n]*)") do
+			known[name] = { tonumber(cat), help }
+			if from ~= "the game's list" then all[#all + 1] = { command = name, category = tonumber(cat), help = help } end
+		end
+		local info = C_CVar and C_CVar.GetCVarInfo
+		local get = C_CVar and C_CVar.GetCVar
+		for _, c in ipairs(all) do
+			local name = type(c) == "table" and Plain(c.command)
+			local k = name and known[name]
+			if k and type(c) == "table" then -- the game's entry without help or category: Terminal's list has them
+				if (c.help == nil or c.help == "") and k[2] ~= "" then c.help = k[2] end
+				if c.category == nil then c.category = k[1] end
+			end
+			-- a setting is whatever has a value: the command type isn't trusted (ClassicUIForever doesn't
+			-- either), and console commands (reloadui...) have none
+			local value, default, readOnly, secure
+			if name and info then
+				local okInfo, v, d, _, _, locked, sec, ro = pcall(info, name)
+				if okInfo then value, default, readOnly, secure = Plain(v), Plain(d), (ro or locked) and true or false, sec and true or false end
+			end
+			if name and value == nil and get then
+				local okGet, v = pcall(get, name)
+				value = okGet and Plain(v) or nil
+			end
+			if value ~= nil then
+				if default == nil and C_CVar.GetCVarDefault then
+					local okDef, d = pcall(C_CVar.GetCVarDefault, name)
+					default = okDef and Plain(d) or nil
+				end
+				local help = Plain(c.help) or ""
+				local cat = Category(c.category)
+				local changed = value ~= nil and default ~= nil and value ~= default
+				local tip = {}
+				if help ~= "" then tip[#tip + 1] = help end
+				tip[#tip + 1] = "Value: " .. (value or "?") .. "    Default: " .. (default or "?")
+				if readOnly then tip[#tip + 1] = "Read-only: the game won't let it be changed" end
+				if secure then tip[#tip + 1] = "Protected: can't be changed in combat" end
+				tip[#tip + 1] = "Enter: edit it    Shift+Enter: back to its default"
+				out[#out + 1] = {
+					key = name, name = name, value = value, default = default, changed = changed,
+					icon = "Interface\\Icons\\INV_Misc_Gear_01",
+					color = changed and CHANGED or nil,
+					detail = "= " .. (value or "?") .. (changed and ("  (default " .. default .. ")") or "")
+						.. (readOnly and "  read-only" or "") .. (cat and ("  " .. cat) or ""),
+					text = help .. " " .. (cat or "") .. (changed and " changed" or ""),
+					tip = table.concat(tip, "\n"),
+					staysOpen = true, -- only fills the prompt in: you edit, then Enter runs it
+					activate = EditCVar,
+					secondary = DefaultCVar,
+				}
+			end
+		end
+		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #all, ok and "ok" or "failed", #out))
+		if #out == 0 then
+			-- the list can come back empty early on: ask again on the next search, and say what happened
+			C_Timer.After(1, function() p._dirty = true end)
+			out[1] = { key = "none", name = "No console settings could be read yet", raw = true, noActivate = true, icon = false,
+				detail = ("%d names from %s, none with a value"):format(#all, from), text = "" }
+		end
+		return out
+	end,
+})

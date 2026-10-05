@@ -141,6 +141,24 @@ _G.QuestMapFrame_OpenToQuestDetails = function(id) note("OpenQuestDetails", id) 
 _G.C_QuestLog_SelectStub = true
 _G.QuestMapFrame = Obj("QuestMapFrame"); QuestMapFrame.shown = true
 
+-- console settings (@cvar)
+local CVARS = { nameplateMaxDistance = { "41", "60", "Max distance nameplates are shown" }, ffxGlow = { "1", "1", "" },
+	cameraDistanceMaxZoomFactor = { "2.6", "1.9", "" }, lockedOne = { "1", "1", "", true } }
+_G.C_Console = { GetAllCommands = function()
+	-- the command type isn't to be trusted on this client: settings are what has a value
+	if CVARS_EMPTY then return {} end
+	if CVARS_FAIL then error("not allowed") end
+	return { { command = "nameplateMaxDistance", commandType = 3, category = 1, help = CVARS.nameplateMaxDistance[3] },
+		{ command = "ffxGlow", category = 2, help = "" },
+		{ command = "cameraDistanceMaxZoomFactor", commandType = 0, category = 5 },
+		{ command = "lockedOne", commandType = 0 },
+		{ command = "reloadui", commandType = 0, help = "a command, not a setting" } }
+end }
+_G.C_CVar = {
+	GetCVarInfo = function(n) local c = CVARS[n] if c then return c[1], c[2], false, false, false, false, c[4] or false end end,
+	GetCVar = function(n) return CVARS[n] and CVARS[n][1] end, GetCVarDefault = function(n) return CVARS[n] and CVARS[n][2] end,
+}
+
 -- misc
 _G.GetNumMacros = function() return 1, 0 end
 _G.GetMacroInfo = function(i) return "Heal Macro", 1, "#showtooltip\n/cast Flash Heal" end
@@ -212,7 +230,7 @@ _G.C_TradeSkillUI = {
 	GetRecipeInfo = function(id) for _, r in pairs(RECIPES) do if r.info[id] then return r.info[id] end end end,
 	GetCategoryInfo = function(c) return { name = ({ "Elixirs", "Campfires", "Fishing" })[c] } end,
 	GetRecipeSchematic = function(id)
-		if id == 11 then return { reagentSlotSchematics = { { quantityRequired = 2, reagents = { { itemID = 100 } } } } } end
+		if id == 11 then return { outputItemID = 777, reagentSlotSchematics = { { quantityRequired = 2, reagents = { { itemID = 100 } } } } } end
 		return { reagentSlotSchematics = {} }
 	end,
 	GetRecipeLink = function(id) return "|Henchant:" .. id .. "|h[x]|h" end,
@@ -286,7 +304,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -372,6 +390,18 @@ do -- the highlight pulses twice, then fades: gone after 1.6 s
 	check(g.shown ~= false, "still showing after 1 s, even when asked for 30 s")
 	now = 101.7; g.scripts.OnUpdate(g)
 	check(g.shown == false, "gone after the two pulses and the fade")
+	-- a window filling in on its first show hides its parts for a moment: the highlight rides that out
+	now = 200
+	target.shown = true
+	g = H:Show(target)
+	now = 200.1; target.shown = false; g.scripts.OnUpdate(g)
+	now = 200.2; g.scripts.OnUpdate(g)
+	check(g.shown ~= false and g.target == target, "its target hidden for a moment: the highlight waits")
+	now = 200.25; target.shown = true; g.scripts.OnUpdate(g)
+	check(g.shown ~= false and g.alpha ~= 0, "and shows again when the target does")
+	now = 200.3; target.shown = false; g.scripts.OnUpdate(g)
+	now = 200.7; g.scripts.OnUpdate(g)
+	check(g.shown == false, "a target that stays hidden (the window closed): it lets go")
 	_G.GetTime = realGT
 end
 do -- calculator: the answer is the top result
@@ -515,6 +545,7 @@ P.Snapshot(); FlushAll()
 local store = ns.db.recipes["Tester-Realm"]
 check(store and store[171] and #store[171].list == 2, "alchemy snapshot keeps only the 2 learned recipes")
 check(store[171].list[1].reagents and store[171].list[1].reagents[1][1] == 100, "reagents captured")
+check(store[171].list[1].item == 777, "the item a recipe makes is kept (stat:/slot: filters on crafts)")
 check(store[171].list[1].cat == "Elixirs", "category name captured")
 
 local rec = names(ns:GetEntries(ns.providers.recipes))
@@ -915,6 +946,113 @@ do
 	CharacterFrame.shown, PaperDollFrame.shown = false, false
 	_G.GetInventoryItemLink = function() return nil end
 	ns.providers.items._dirty = true
+
+	-- @gear: the equipment among your items, in your bags or worn
+	do
+		local baseInstant = C_Item.GetItemInfoInstant
+		C_Item.GetItemInfoInstant = function(x)
+			if x == 2131 then return 2131, "Weapon", "One-Handed Swords", "INVTYPE_WEAPON", 1, 2, 7 end
+			if x == 4500 then return 4500, "Container", "Bag", "INVTYPE_BAG", 1, 1, 0 end
+			if x == 1 or (type(x) == "string" and x:find("Fancy Helm", 1, true)) then return 1, "Armor", "Plate", "INVTYPE_HEAD", 1, 4, 4 end
+			return baseInstant(x)
+		end
+		_G.INVTYPE_WEAPON, _G.INVTYPE_HEAD = "One-Hand", "Head"
+		local saveBag = bags[0]
+		bags[0] = { saveBag[1], saveBag[2],
+			{ itemID = 2131, itemName = "Worn Shortsword", iconFileID = 1, stackCount = 1, quality = 1, hyperlink = "|Hitem:2131|h[Worn Shortsword]|h" },
+			{ itemID = 4500, itemName = "Traveler's Backpack", iconFileID = 1, stackCount = 1, quality = 1, hyperlink = "|Hitem:4500|h[Traveler's Backpack]|h" } }
+		_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:1|h[Fancy Helm]|h" end end
+		ns.providers.items._dirty = true; ns.providers.gear._dirty = true
+		local gear = names(ns:GetEntries(ns.providers.gear))
+		check(gear["Worn Shortsword"] and gear["Fancy Helm"], "@gear: equipment in your bags and worn")
+		check(not gear["Hearthstone"] and not gear["Linen Cloth"] and not gear["Traveler's Backpack"], "not other items, nor bags")
+		check(gear["Worn Shortsword"].detail:find("^One%-Hand") and gear["Fancy Helm"].detail:find("Equipped", 1, true),
+			"its slot shown, and whether it's worn: " .. tostring(gear["Worn Shortsword"].detail) .. " / " .. tostring(gear["Fancy Helm"].detail))
+		check(ns.providers.gear.explicit and ns:ResolveProvider("gear") == ns.providers.gear and ns:ResolveProvider("equipment") == ns.providers.gear,
+			"@gear (and @equipment), only with its @kind")
+		check(names(ns:GetEntries(ns.providers.items))["Worn Shortsword"].kind == "items", "the Item rows keep their own kind")
+		check(gear["Worn Shortsword"].detail:find("In Bag", 1, true), "gear in your bags says In Bag: " .. tostring(gear["Worn Shortsword"].detail))
+		-- made again whenever the item list is: gear put in your bags after @gear was first built still shows
+		-- (built at login before the bags had loaded, it used to show only what you wore)
+		bags[0][5] = { itemID = 2131, itemName = "Worn Shortsword", iconFileID = 1, stackCount = 1, quality = 1, hyperlink = "|Hitem:2131|h[Worn Shortsword]|h" }
+		bags[0][5].itemID, bags[0][5].itemName = 1, "Fancy Helm"
+		bags[0][5].hyperlink = "|Hitem:1|h[Fancy Helm]|h"
+		ns.providers.items._dirty = true -- (only the item list's own event)
+		local again = ns:GetEntries(ns.providers.gear)
+		local inBag = 0
+		for _, g in ipairs(again) do if g.name == "Fancy Helm" and g.detail:find("In Bag", 1, true) then inBag = inBag + 1 end end
+		check(inBag == 1, "the item list changed: @gear follows it (the helm in your bag shows too): " .. inBag)
+		bags[0][5] = nil
+		ns.providers.items._dirty = true
+		-- Enter: like an Item result (your bags)
+		UI:Open("@gear shortsword"); mark = #log; key("ENTER")
+		check(logHas("OpenAllBags", mark + 1) or logHas("OpenBag", mark + 1) or logHas("OpenBackpack", mark + 1) or not UI:IsShown(),
+			"Enter shows it in your bags, as an Item result does")
+		-- Shift+Enter: the game equips it
+		UI:Open("@gear shortsword")
+		_G.IsShiftKeyDown = function() return true end
+		key("ENTER")
+		_G.IsShiftKeyDown = function() return false end
+		check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/equip item:2131" and F.propagate == true,
+			"Shift+Enter equips it: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+		UI:Disarm(); UI:Hide()
+		-- already worn: it says so
+		local printed
+		local basePrint = ns.Print
+		ns.Print = function(_, m) printed = m end
+		UI:Open("@gear fancy helm")
+		_G.IsShiftKeyDown = function() return true end
+		key("ENTER")
+		_G.IsShiftKeyDown = function() return false end
+		ns.Print = basePrint
+		check(S.armed == nil and printed and printed:find("already equipped", 1, true), "Shift+Enter on worn gear: it's already equipped")
+		UI:Disarm(); UI:Hide()
+		-- equipping swaps places: the history keeps the piece you picked, wherever it is now (worn rows were known by
+		-- their slot, bag rows by their item: the shield equipped from the history came back as the sword it replaced)
+		C_Item.GetItemInfoInstant = function(x)
+			if x == 2131 or (type(x) == "string" and x:find("Worn Shortsword", 1, true)) then return 2131, "Weapon", "One-Handed Swords", "INVTYPE_WEAPON", 1, 2, 7 end
+			if x == 2129 or (type(x) == "string" and x:find("Large Round Shield", 1, true)) then return 2129, "Armor", "Shields", "INVTYPE_SHIELD", 1, 4, 6 end
+			return baseInstant(x)
+		end
+		local SWORD, SHIELD = "|Hitem:2131|h[Worn Shortsword]|h", "|Hitem:2129|h[Large Round Shield]|h"
+		local function wearing(link) -- the off hand (17) holds `link`, the other piece is in the bag
+			_G.GetInventorySlotInfo = function(n) return n == "SecondaryHandSlot" and 17 or 99 end
+			_G.GetInventoryItemLink = function(_, slot) if slot == 17 then return link end end
+			local other = link == SWORD and SHIELD or SWORD
+			bags[0] = { saveBag[1], { itemID = other == SWORD and 2131 or 2129, itemName = other:match("%[(.-)%]"), iconFileID = 1,
+				stackCount = 1, quality = 1, hyperlink = other } }
+			ns.providers.items._dirty = true
+		end
+		local baseSlotInfo = _G.GetInventorySlotInfo
+		wearing(SWORD)
+		ns.db.recent = {}
+		UI:Open("@gear shield")
+		check(UI.Results()[1] and UI.Results()[1].name == "Large Round Shield", "the shield, in the bag")
+		_G.IsShiftKeyDown = function() return true end
+		key("ENTER")
+		_G.IsShiftKeyDown = function() return false end
+		UI:Disarm(); UI:Hide()
+		wearing(SHIELD) -- (the game equipped it: the sword went to the bag)
+		local recent = names(UI:FrequentEntries())
+		check(recent["Large Round Shield"] and not recent["Worn Shortsword"],
+			"the history still has the shield (now worn), not the sword it replaced")
+		-- the same through @item (Shift+Enter there uses it, which equips gear)
+		ns.db.recent = {}
+		wearing(SWORD)
+		UI:Open("@item shield")
+		_G.IsShiftKeyDown = function() return true end
+		key("ENTER")
+		_G.IsShiftKeyDown = function() return false end
+		UI:Disarm(); UI:Hide()
+		wearing(SHIELD)
+		recent = names(UI:FrequentEntries())
+		check(recent["Large Round Shield"] and not recent["Worn Shortsword"], "@item: the history keeps the shield too")
+		_G.GetInventorySlotInfo = baseSlotInfo
+		bags[0] = saveBag
+		C_Item.GetItemInfoInstant = baseInstant
+		_G.GetInventoryItemLink = function() return nil end
+		ns.providers.items._dirty = true; ns.providers.gear._dirty = true
+	end
 
 	QuestMapFrame.shown = false
 	C_QuestLog.SetSelectedQuest = function(id) note("SelectQuest", id) end
@@ -1429,6 +1567,268 @@ do
 	check(S.armed == "TOGGLETALENTS", "the Talents panel opens through the Talents keybinding")
 	UI:Hide()
 	ns.Highlight.Show = origShow
+end
+
+----------------------------------------------------------------------
+io.write("[cvar tests]\n")
+do
+	local cv = names(ns:GetEntries(ns.providers.cvars))
+	check(cv.nameplateMaxDistance and not cv.reloadui, "@cvar lists console settings, not console commands")
+	check(cv.nameplateMaxDistance.detail:find("= 41  (default 60)", 1, true) and cv.nameplateMaxDistance.color,
+		"a changed setting shows its value and default, marked: " .. tostring(cv.nameplateMaxDistance.detail))
+	check(cv.ffxGlow.detail:find("^= 1") and not cv.ffxGlow.detail:find("default", 1, true), "an unchanged one only its value")
+	check(cv.lockedOne.detail:find("read-only", 1, true), "read-only settings say so")
+	check(#UI:Search("@cvar") == 4, "@cvar alone lists every setting, whatever command type the game gives: " .. #UI:Search("@cvar"))
+	-- the game's list comes back empty: Terminal's own list of names
+	CVARS_EMPTY = true
+	ns.providers.cvars._dirty = true
+	check(names(UI:Search("@cvar")).nameplateMaxDistance, "an empty list from the game: Terminal's own list instead")
+	CVARS_EMPTY = nil
+	-- nothing readable at all: a row says so, and it's asked for again
+	local getInfo, getCVar = C_CVar.GetCVarInfo, C_CVar.GetCVar
+	C_CVar.GetCVarInfo, C_CVar.GetCVar = function() end, function() end
+	ns.providers.cvars._dirty = true
+	local none = UI:Search("@cvar")
+	check(#none == 1 and none[1].raw and none[1].name:find("No console settings", 1, true), "nothing readable: says so")
+	C_CVar.GetCVarInfo, C_CVar.GetCVar = getInfo, getCVar
+	FlushAll()
+	check(#UI:Search("@cvar") == 4, "and is asked for again")
+	-- WoW Forever: the game won't list them (the call fails): Terminal's own list of names, each looked up
+	CVARS_FAIL = true
+	ns.providers.cvars._dirty = true
+	cv = names(ns:GetEntries(ns.providers.cvars))
+	check(cv.nameplateMaxDistance and cv.cameraDistanceMaxZoomFactor and not cv.lockedOne and not cv.reloadui,
+		"the game won't list them: Terminal's list of names, only those this client has")
+	check(cv.nameplateMaxDistance.tip:find("max distance to show nameplates", 1, true) and cv.nameplateMaxDistance.detail:find("= 41", 1, true),
+		"with the list's help text and the game's own value")
+	CVARS_FAIL = nil
+	ns.providers.cvars._dirty = true
+	check(ns.providers.cvars.explicit and not names(UI:Search("nameplate"))["nameplateMaxDistance"], "only searched with @cvar")
+	check((select(2, top("@cvar nameplate")) or {})[1].name == "nameplateMaxDistance", "@cvar finds it by name")
+	check((select(2, top("@cvar max distance shown")) or {})[1].name == "nameplateMaxDistance", "and by its help text")
+	-- Enter puts the line in the prompt to edit; the terminal stays open
+	UI:Open("@cvar nameplatemax"); key("ENTER")
+	check(UI:IsShown() and UI.edit:GetText() == "/console nameplateMaxDistance 41", "Enter fills in /console name value: " .. tostring(UI.edit:GetText()))
+	-- running it: the game presses /console (a line on the secure macro button)
+	UI:SetQuery("/console nameplateMaxDistance 50"); UI:Refresh()
+	check(UI.Results()[1] and UI.Results()[1].name == "/console", "/console is a slash row even when not a SLASH_ global")
+	key("ENTER")
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/console nameplateMaxDistance 50" and F.propagate == true,
+		"the game runs /console name value: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+	UI:Disarm(); UI:Hide()
+	-- Shift+Enter: the line with its default
+	UI:Open("@cvar nameplatemax")
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(UI.edit:GetText() == "/console nameplateMaxDistance 60", "Shift+Enter fills in the default: " .. tostring(UI.edit:GetText()))
+	UI:Hide()
+end
+
+io.write("[macro length tests]\n")
+do
+	-- the game runs at most 255 characters of a macro, all lines together: a longer one is never handed over
+	local Sx = ns.Secure
+	check(Sx.MACRO_MAX == 255, "the macro limit is the game's 255")
+	local r = Sx.Resolve({ macro = ("/run print(1)\n"):rep(20) })
+	check(r == nil, "a macro over 255 characters isn't used (the game would cut it mid-line)")
+	r = Sx.Resolve({ macro = ("/run print(1)\n"):rep(20), binding = "TOGGLETALENTS" })
+	check(r and r.binding and not r.macro, "a spec with a key falls back to the key")
+	check(Sx.ClickMacro({ macro = ("/run print(1)\n"):rep(20) }) == nil, "nor as a click's macro")
+	-- the keybinding search fits a long action name
+	local K = ns.Keybinds
+	if K and K.MacroFor then
+		local m = K.MacroFor(("Toggle Something With A Very Long Binding Name "):rep(2))
+		check(#m <= 255, "the keybinding macro fits a 96-letter action name: " .. #m)
+	end
+end
+
+io.write("[spellbook tests]\n")
+do
+	local SP = ns.Spells
+	local saveBook, saveSpell = _G.C_SpellBook, _G.C_Spell
+	-- slot 1: Fireball rank 1, 2: Fireball rank 2 (one row, the highest kept), 3: a passive, 4: no item info on
+	-- this client (asked by type and id), 5: a secret value, 6: a flyout
+	local SPELLS = { [201] = "Fireball", [202] = "Fireball", [203] = "Arcane Mind", [204] = "Frost Nova", [205] = "Hidden", [206] = "Portals" }
+	_G.C_SpellBook = {
+		GetNumSpellBookSkillLines = function() return 2 end,
+		GetSpellBookSkillLineInfo = function(l)
+			if l == 1 then return { name = "General", itemIndexOffset = 0, numSpellBookItems = 0 } end
+			return { name = "Fire", itemIndexOffset = 0, numSpellBookItems = 6 }
+		end,
+		GetSpellBookItemInfo = function(i)
+			if i == 1 then return { spellID = 201, itemType = 1, subName = "Rank 1" } end
+			if i == 2 then return { spellID = 202, itemType = 1, subName = "Rank 2" } end
+			if i == 3 then return { spellID = 203, itemType = 1, isPassive = true } end
+			if i == 5 then return { spellID = "SECRET", itemType = 1 } end
+			if i == 6 then return { spellID = 206, itemType = 4 } end
+			return nil
+		end,
+		GetSpellBookItemType = function(i) if i == 4 then return 1, 204 end end,
+	}
+	_G.C_Spell = setmetatable({ GetSpellInfo = function(id) return SPELLS[id] and { name = SPELLS[id], iconID = 1 } end,
+		GetSpellName = function(id) return SPELLS[id] end, IsSpellPassive = function() return false end }, { __index = saveSpell })
+	local saveSecret = _G.issecretvalue
+	_G.issecretvalue = function(v) return v == "SECRET" end
+	ns.providers.spells._dirty = true
+	local sp = names(ns:GetEntries(ns.providers.spells))
+	local count = #ns:GetEntries(ns.providers.spells)
+	check(sp.Fireball and sp.Fireball.spellID == 202 and sp.Fireball.detail == "Rank 2  Fire", "ranks of a spell are one row, the highest rank kept: " .. tostring(sp.Fireball and sp.Fireball.detail))
+	check(sp["Frost Nova"] and sp["Frost Nova"].spellID == 204, "a slot with no item info is read by its type and id")
+	check(not sp.Hidden and not sp.Portals and count == 3, "secret values and flyouts are skipped: " .. count)
+	check(sp["Arcane Mind"].passive and sp["Arcane Mind"].detail:find("^Passive"), "passives are marked")
+	check(ns:ResolveProvider("spell") == ns.providers.spells and (select(2, top("@spell nova")) or {})[1].name == "Frost Nova", "@spell")
+
+	local shownTarget
+	local origShow = ns.Highlight.Show
+	ns.Highlight.Show = function(self, target, d) shownTarget = target; return origShow(self, target, d) end
+	_G.BINDING_NAME_TOGGLESPELLBOOK = "Spellbook"
+
+	-- ClassicUIForever's book: the Spellbook key opens it; Terminal turns it to the spell's tab and page, as you would
+	-- (a model of its book: tabs by skill line, 12 buttons a page, page arrows, a search box)
+	local book = Obj("Frame"); book.shown = false
+	local LINES = { [1] = { 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313 },  -- General: 13 spells, 2 pages
+		[2] = { 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420,
+			421, 422, 423, 201, 202, 424 } } -- Fire: Fireball's ranks 1 and 2 on page 2, rank 2 the one to point at
+	local cur = { line = 1, page = 1, search = "" }
+	local clicks = { tab = 0, page = 0 }
+	book.Buttons = {}
+	for i = 1, 12 do
+		local b = Obj("Button"); b.shown = true; b.pos = i; book.Buttons[i] = b
+	end
+	local function shown(btn) -- the spell a button shows now (ClassicUIForeverAPI.SpellOnButton)
+		local list = LINES[cur.line]
+		local id = list[(cur.page - 1) * 12 + btn.pos]
+		btn.slot = id and ((cur.page - 1) * 12 + btn.pos) or nil
+		return id
+	end
+	local function pages() return math.ceil(#LINES[cur.line] / 12) end
+	local function arrow(step)
+		local a = Obj("Button"); a.shown = true
+		a.IsEnabled = function() local p = cur.page + step return p >= 1 and p <= pages() end
+		a.Click = function() if a.IsEnabled() then cur.page = cur.page + step; clicks.page = clicks.page + 1 end end
+		return a
+	end
+	book.PrevPage, book.NextPage = arrow(-1), arrow(1)
+	book.SkillTabs = {}
+	for i = 1, 2 do
+		local t = Obj("CheckButton"); t.shown = true; t.line = i
+		t.Click = function() cur.line = i; cur.page = 1; clicks.tab = clicks.tab + 1 end
+		book.SkillTabs[i] = t
+	end
+	book.Search = Obj("EditBox"); book.Search:SetText("Fireball") -- left over from 0.35.2
+	local SPELLN = setmetatable({ [201] = "Fireball", [202] = "Fireball" }, { __index = function(_, id) return "Spell " .. id end })
+	C_Spell.GetSpellName = function(id) return SPELLN[id] end
+	local asked
+	_G.ClassicUIForeverAPI = {
+		IsOn = function(n) return n == "spellBook" end,
+		GetFrame = function(n, part) if part == nil then return book end asked = part end,
+		SpellOnButton = function(btn) return shown(btn) end,
+	}
+	UI:Open("fireball"); key("ENTER")
+	check(S.armed == "TOGGLESPELLBOOK" and F.propagate == true, "Enter opens the spellbook with the Spellbook key, in one press: " .. tostring(S.armed))
+	book.shown = true
+	FlushAll()
+	check(cur.line == 2 and cur.page == 3, "the book is turned to the spell's tab and page: line " .. cur.line .. " page " .. cur.page)
+	check(shownTarget and shown(shownTarget) == 202, "the highest rank on that page is highlighted")
+	check(book.Search:GetText() == "" and asked == nil, "the search box is left empty (not used to find it)")
+	-- already open on its page: no press, no turning, just the highlight
+	shownTarget = nil
+	local before = clicks.tab + clicks.page
+	UI:Open("fireball"); key("ENTER"); FlushAll()
+	check(S.armed == nil and shownTarget and shown(shownTarget) == 202 and clicks.tab + clicks.page == before,
+		"book already open on the spell: no press, no page turned, the spell is highlighted")
+	-- a spell whose highest rank isn't listed (top ranks folded away): the highest one on show
+	LINES[2][24], LINES[2][25] = 409, 201 -- only rank 1 on show now
+	cur.line, cur.page = 1, 1
+	shownTarget = nil
+	UI:Open("fireball"); key("ENTER"); FlushAll()
+	check(cur.line == 2 and shownTarget and shown(shownTarget) == 201, "only a lower rank on show: that one is highlighted")
+	LINES[2][24], LINES[2][25] = 201, 202
+
+	-- Shift+Enter casts it (a /cast line pressed by the game)
+	book.shown = false
+	UI:Open("fireball")
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/cast Fireball" and F.propagate == true,
+		"Shift+Enter casts the spell: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+	UI:Disarm(); UI:Hide()
+	-- a passive spell can't be cast: it says so
+	local printed
+	local basePrint = ns.Print
+	ns.Print = function(_, m) printed = m end
+	UI:Open("arcane mind")
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	ns.Print = basePrint
+	check(S.armed == nil and printed and printed:find("passive", 1, true), "Shift+Enter on a passive: nothing cast, it says so")
+	UI:Disarm(); UI:Hide()
+
+	-- the game's own book (no ClassicUIForever): the press opens it and turns it to the spell itself (Blizzard's
+	-- GoToSpell, after clearing a search), whether the book is open or not; Terminal then points at the spell's item
+	_G.ClassicUIForeverAPI = nil
+	_G.PlayerSpellsUtil = { OpenToSpellBookTab = function() end }
+	local r = ns.Secure.Resolve(sp.Fireball.secure, sp.Fireball)
+	check(r and r.macro and r.macro:find("OpenToSpellBookTab", 1, true) and r.macro:find("GoToSpell(202,true)", 1, true)
+		and r.macro:find("ClearActiveSearchState(true)", 1, true) and not r.macro:find("SetText(C_Spell", 1, true),
+		"game's book: opened, search cleared and turned to the spell by the game's press: " .. tostring(r and r.macro))
+	-- the game cuts a macro off at 255 characters in all (seen in game: a cut /run line, "')' expected near <eof>")
+	local longest = ns.Spells.ClientBookMacro({ spellID = 1293712, name = "x" })
+	check(longest and #longest <= 255, "the spellbook macro fits in 255 characters with a 7-digit spell id: " .. tostring(longest and #longest))
+	local client = Obj("Frame"); client.shown = true
+	local paged = Obj("Frame"); paged.shown = true
+	local other = Obj("Frame"); other.shown = true; other.slotIndex = 3; other.spellBank = 0
+	local item = Obj("Frame"); item.shown = true; item.slotIndex = 2; item.spellBank = 0
+	item.Button = Obj("Button"); item.Button.shown = true
+	local searchBox = Obj("EditBox"); searchBox.shown = true; searchBox:SetText("Fireball")
+	paged.GetChildren = function() return other, item end
+	client.GetChildren = function() return searchBox, paged end
+	client.PagedSpellsFrame, client.SearchBox = paged, searchBox
+	_G.PlayerSpellsFrame = Obj("Frame"); PlayerSpellsFrame.shown = true; PlayerSpellsFrame.SpellBookFrame = client
+	C_SpellBook.FindSpellBookSlotForSpell = function(id) if id == 202 then return 2, 0 end end
+	shownTarget = nil
+	UI:Open("fireball"); key("ENTER")
+	check(S.armed == "MACRO" and F.propagate == true, "book already open: still pressed, so the game turns it to the spell: " .. tostring(S.armed))
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	check(shownTarget == item.Button, "the spell's own item is highlighted (not the search box)")
+	-- opened by this press, the book fills its page in over its first frames: the spell's frame is a
+	-- different one at first (then the page is laid out again); it's pointed at once it stays put
+	UI:Disarm(); UI:Hide()
+	shownTarget = nil
+	local early = Obj("Frame"); early.shown = true; early.slotIndex = 2; early.spellBank = 0
+	early.Button = Obj("Button"); early.Button.shown = true
+	local looks = 0
+	paged.GetChildren = function()
+		looks = looks + 1
+		if looks == 1 then return other, early end -- first look: the page still filling in
+		return other, item
+	end
+	UI:Open("fireball"); key("ENTER")
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	check(shownTarget == item.Button, "on a book still filling in, the frame that stays is the one highlighted")
+	-- the book the press opens closes the terminal (a special frame) before the press comes back: Enter
+	-- was already let go, but the press still finishes and the spell is pointed at
+	UI:Disarm(); UI:Hide(); FlushAll()
+	shownTarget = nil
+	UI:Open("fireball"); key("ENTER")
+	check(S.armed == "MACRO", "armed for the press")
+	UI:Hide() -- (opening the spellbook closed the terminal, which lets Enter go)
+	check(S.armed == nil, "the terminal closing lets Enter go")
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	check(shownTarget == item.Button, "the press coming back after that still points at the spell")
+	paged.GetChildren = function() return other, item end
+	UI:Disarm(); UI:Hide()
+	_G.PlayerSpellsFrame, C_SpellBook.FindSpellBookSlotForSpell = nil, nil
+	_G.PlayerSpellsUtil = nil
+	r = ns.Secure.Resolve(sp.Fireball.secure, sp.Fireball)
+	check(r and r.binding == "TOGGLESPELLBOOK", "otherwise just the Spellbook key")
+
+	ns.Highlight.Show = origShow
+	_G.C_SpellBook, _G.C_Spell, _G.issecretvalue = saveBook, saveSpell, saveSecret
+	ns.providers.spells._dirty = true
 end
 
 ----------------------------------------------------------------------
@@ -4219,6 +4619,87 @@ do -- filters across kinds: items, loot and stored (stats, quality, item level, 
 	check(P("stat:stamina")(bracers) and P("stat:sta")(bracers) and not P("stat:sta")(blade), "stat: by name or short name")
 	check(P("stat:sta>=5")(bracers) and not P("stat:sta>=10")(bracers) and P("stat:str>10")(blade) and P("stat:armor")(bracers), "stat: with a number")
 	check(F.Parse("stat:sta>>x") == nil and not P("stat:stamina")(potion), "a bad stat value stays text; items without it are left out")
+	-- consumables have no item stats: what their effect says they give (elixirs, potions, food)
+	ITEMS[104] = { "Elixir of Ogre's Strength", "|Hitem:104|h", 1, 20, 10, "Consumable", "Elixir", 20, "" }
+	ITEMS[105] = { "Spiced Wolf Ribs", "|Hitem:105|h", 1, 15, 10, "Consumable", "Food & Drink", 20, "" }
+	ITEMS[106] = { "Elixir of Agility", "|Hitem:106|h", 1, 25, 15, "Consumable", "Elixir", 20, "" }
+	local SPELL_OF = { [104] = 5001, [105] = 5002, [106] = 5003 }
+	local DESC = { [5001] = "Increases Strength by 8 for 1 hour.",
+		[5002] = "Restores 552 health over 21 sec. If you spend at least 10 seconds eating you will become well fed and gain 6 Stamina and Spirit for 15 min." }
+	local agilityLoaded = false
+	local baseItemSpell, baseDesc = C_Item.GetItemSpell, C_Spell.GetSpellDescription
+	C_Item.GetItemSpell = function(id) local sid = SPELL_OF[id] if sid then return "spell", sid end end
+	C_Spell.GetSpellDescription = function(id)
+		if id == 5003 then return agilityLoaded and "Increases Agility by 25 for 1 hour." or "" end
+		return DESC[id]
+	end
+	local elixir, ribs, agi = { itemID = 104 }, { itemID = 105 }, { itemID = 106 }
+	check(P("stat:strength")(elixir) and P("stats:str")(elixir) and not P("stat:agility")(elixir), "an elixir's stat comes from its effect")
+	check(P("stat:str>=8")(elixir) and not P("stat:str>8")(elixir), "with a number: the amount it gives")
+	check(P("stat:stamina")(ribs) and P("stat:spirit")(ribs) and P("stat:sta>=6")(ribs) and not P("stat:strength")(ribs), "food: what being well fed gives")
+	check(not P("stat:agility")(agi), "its effect text not loaded yet: left out for now")
+	agilityLoaded = true
+	check(P("stat:agi>20")(agi), "and found once it's in (not remembered as nothing)")
+	-- only consumables have their effect read (thousands of loot rows mustn't each have a tooltip read)
+	local baseInstant3, asked = C_Item.GetItemInfoInstant, 0
+	C_Item.GetItemInfoInstant = function(x) if x == 104 then return 104, "Recipe", "Book", "", 1, 9, 0 end return baseInstant3(x) end
+	F.ClearEffects()
+	local baseSpell2 = C_Item.GetItemSpell
+	C_Item.GetItemSpell = function(id) asked = asked + 1 return baseSpell2(id) end
+	check(not P("stat:strength")(elixir) and asked == 0, "an item that isn't a consumable: its effect isn't read")
+	C_Item.GetItemInfoInstant, C_Item.GetItemSpell = baseInstant3, baseSpell2
+	-- recipes: a craft by what it makes, an enchant by what its name and text say (@recipe stat:stam slot:bracers)
+	check(P("slot:bracers")(bracers) and P("slot:wrist")(bracers) and not P("slot:boots")(bracers), "slot: everyday words (bracers = wrist)")
+	local craft = { recipeID = 900, name = "Golden Scale Bracers", makesItem = 100 }
+	check(P("slot:bracers")(craft) and P("stat:stam")(craft) and P("ilvl:20-30")(craft) and P("q:rare")(craft) and not P("stat:str")(craft),
+		"a crafted item's recipe: the item's slot, stats, item level, quality")
+	local baseSchematic = C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic
+	_G.C_TradeSkillUI = _G.C_TradeSkillUI or {}
+	C_TradeSkillUI.GetRecipeSchematic = function(id) if id == 901 then return { outputItemID = 102 } end if id == 7779 then return {} end end
+	F.ClearCache()
+	local oldIndex = { recipeID = 901, name = "Runed Blade" } -- (indexed before recipes kept what they make)
+	check(P("stat:str>10")(oldIndex) and P("slot:weapon")(oldIndex), "an older index: what it makes is asked of the game")
+	local baseDesc2 = C_Spell.GetSpellDescription
+	local enchantLoaded = true
+	C_Spell.GetSpellDescription = function(id)
+		if id == 7779 then return enchantLoaded and "Permanently enchant bracers to increase Stamina by 3." or "" end
+		return baseDesc2 and baseDesc2(id)
+	end
+	local enchant = { recipeID = 7779, name = "Enchant Bracer - Minor Stamina" }
+	check(P("slot:bracers")(enchant) and P("slot:wrist")(enchant) and not P("slot:boots")(enchant), "an enchant: the slot it goes on")
+	check(P("stat:stamina")(enchant) and P("stat:sta>=3")(enchant) and not P("stat:sta>3")(enchant) and not P("stat:str")(enchant),
+		"an enchant: the stat it gives, and how much")
+	local boots = { recipeID = 7780, name = "Enchant Boots - Minor Agility" }
+	check(P("slot:boots")(boots) and P("stat:agi")(boots) and not P("slot:bracers")(boots), "its name alone while its text loads")
+	-- in a search
+	local recipes = ns.providers.recipes
+	local saveEntries, saveDirty = recipes._entries, recipes._dirty
+	local list = { craft, enchant, boots, oldIndex }
+	for _, e in ipairs(list) do e.kind = "recipes"; e.kindLabel = "Recipe"; e._lname = ns.Lower(e.name); e.freqKey = "recipes:" .. e.recipeID; e.key = e.recipeID end
+	recipes._entries, recipes._dirty = list, false
+	local found = names(UI:Search("@recipe stat:stam slot:bracers"))
+	check(found["Golden Scale Bracers"] and found["Enchant Bracer - Minor Stamina"] and not found["Enchant Boots - Minor Agility"] and not found["Runed Blade"],
+		"@recipe stat:stam slot:bracers: the bracers you craft and the bracer enchant")
+	recipes._entries, recipes._dirty = saveEntries, true
+	C_TradeSkillUI.GetRecipeSchematic, C_Spell.GetSpellDescription = baseSchematic, baseDesc2
+	-- in a search: @consumable stat:str
+	local baseInstant2 = C_Item.GetItemInfoInstant
+	C_Item.GetItemInfoInstant = function(x)
+		local id = type(x) == "number" and x or tonumber(tostring(x):match("item:(%d+)"))
+		if id == 104 or id == 105 then return id, "Consumable", "Elixir", "", 1, 0, 2 end
+		return baseInstant2(x)
+	end
+	local saveBag0 = bags[0]
+	bags[0] = { saveBag0[1], { itemID = 104, itemName = "Elixir of Ogre's Strength", iconFileID = 1, stackCount = 3, quality = 1, hyperlink = "|Hitem:104|h[Elixir of Ogre's Strength]|h" },
+		{ itemID = 105, itemName = "Spiced Wolf Ribs", iconFileID = 1, stackCount = 5, quality = 1, hyperlink = "|Hitem:105|h[Spiced Wolf Ribs]|h" } }
+	ns.providers.items._dirty = true
+	local found = names(UI:Search("@consumable stat:str"))
+	check(found["Elixir of Ogre's Strength"] and not found["Spiced Wolf Ribs"], "@consumable stat:str finds the strength elixir")
+	found = names(UI:Search("@consumable stat:stamina"))
+	check(found["Spiced Wolf Ribs"] and not found["Elixir of Ogre's Strength"], "@consumable stat:stamina finds the food")
+	bags[0] = saveBag0
+	ns.providers.items._dirty = true
+	C_Item.GetItemInfoInstant, C_Item.GetItemSpell, C_Spell.GetSpellDescription = baseInstant2, baseItemSpell, baseDesc
 	check(P("q:rare")(bracers) and not P("q:rare")(blade) and P("q:rare+")(blade) and P("q:3")(bracers) and F.Parse("q:shiny") == nil, "q: quality, rare+ and above")
 	check(P("ilvl:20-30")(bracers) and not P("ilvl:30+")(bracers) and P("ilvl:30+")(blade), "ilvl: item level")
 	check(P("type:mail")(bracers) and P("type:sword")(blade) and P("type:potion")(potion) and not P("type:cloth")(bracers), "type: item type or subtype")
@@ -4570,5 +5051,68 @@ do -- .snake: WASD/arrows steer, apples grow it, walls and the tail end it, Esc 
 	check(Sn.IsShown() and not ns.Btop.IsShown(), "and snake closes btop")
 	Sn.Close()
 	Sn.rand = function(n) return math.random(n) end
+end
+do -- .changelog: what changed, newest first, scrolled back through the last few versions
+	local CL = ns.Changelog
+	-- kept up to date: the top entry is this version (the TOC's), and the last few versions are there
+	local tocText = io.open("Terminal/Terminal.toc"):read("*a")
+	local tocVersion = tocText:match("## Version: (%S+)")
+	check(CL.LOG[1].v == tocVersion, "the changelog's top entry is this version (" .. tostring(tocVersion) .. "): " .. tostring(CL.LOG[1].v))
+	check(#CL.LOG >= 3 and #CL.LOG <= 5, "it keeps the last few versions: " .. #CL.LOG)
+	for i, entry in ipairs(CL.LOG) do
+		check(type(entry.v) == "string" and type(entry.items) == "table" and #entry.items > 0, "entry " .. i .. " has a version and changes")
+	end
+	local text = CL.Text()
+	check(text:find(CL.LOG[1].v, 1, true) < text:find(CL.LOG[2].v, 1, true), "the newest is at the top")
+	-- the command opens it where the terminal was; the terminal goes
+	UI:Open("")
+	ns.commands.changelog.run("")
+	check(CL.IsShown() and not UI:IsShown(), ".changelog opens its window in place of the terminal")
+	check(ns:FindCommand("changes") == ns.commands.changelog and ns:FindCommand("whatsnew") == ns.commands.changelog, ".changes and .whatsnew too")
+	-- scrolling: arrows, pages, Home/End, the mouse wheel; kept inside the text
+	local sc, content = CL.Parts()
+	sc.h, content.h = 100, 500
+	CL.ScrollTo(0)
+	local f = CL.frame
+	f.scripts.OnKeyDown(f, "DOWN")
+	check(CL.Offset() == 40 and f.propagate == false, "Down scrolls (and the key is kept)")
+	f.scripts.OnKeyDown(f, "END")
+	check(CL.Offset() == 400, "End: the oldest at the bottom")
+	f.scripts.OnKeyDown(f, "DOWN")
+	check(CL.Offset() == 400, "not past the end")
+	f.scripts.OnKeyDown(f, "PAGEUP")
+	check(CL.Offset() == 340, "Page Up: a page back (one line kept)")
+	f.scripts.OnKeyDown(f, "HOME")
+	check(CL.Offset() == 0, "Home: back to the newest")
+	f.scripts.OnKeyDown(f, "UP")
+	check(CL.Offset() == 0, "not past the top")
+	f.scripts.OnMouseWheel(f, -1)
+	check(CL.Offset() == 40, "the mouse wheel scrolls")
+	f.scripts.OnKeyDown(f, "W")
+	check(f.propagate == true and CL.IsShown(), "other keys go on to the game")
+	f.scripts.OnKeyDown(f, "ESCAPE")
+	check(not CL.IsShown(), "Esc closes it")
+	ns.commands.changelog.run(""); f.scripts.OnKeyDown(f, "`")
+	check(not CL.IsShown(), "` closes it")
+	-- reopened: the newest at the top again
+	ns.commands.changelog.run("")
+	check(CL.Offset() == 0, "it opens at the newest")
+	-- combat: it doesn't open, and closes when combat starts
+	CL.Close()
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	check(CL.Open() == false and not CL.IsShown(), "not in combat")
+	_G.InCombatLockdown = realCombat
+	CL.Open()
+	f.scripts.OnEvent(f, "PLAYER_REGEN_DISABLED")
+	check(not CL.IsShown(), "combat starting closes it")
+	-- btop, snake and the changelog: opening one closes the others
+	CL.Open(); ns.Btop.Open()
+	check(ns.Btop.IsShown() and not CL.IsShown(), "btop closes the changelog")
+	CL.Open()
+	check(CL.IsShown() and not ns.Btop.IsShown(), "and the changelog closes btop")
+	ns.Snake.Open()
+	check(ns.Snake.IsShown() and not CL.IsShown(), "snake closes the changelog")
+	ns.Snake.Close()
 end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

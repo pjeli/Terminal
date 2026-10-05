@@ -458,7 +458,7 @@ end
 ns:RegisterProvider("items", {
 	label = "Item",
 	color = "ffc8c8c8",
-	aliases = { "items", "bag", "bags", "inventory", "gear", "equipped" },
+	aliases = { "items", "bag", "bags", "inventory", "equipped" }, -- (@gear: equipment only, below)
 	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" },
 	guard = 1,
 	collect = function()
@@ -522,7 +522,8 @@ ns:RegisterProvider("items", {
 					local itemID = C_Item.GetItemInfoInstant(link)
 					local _, _, quality = C_Item.GetItemInfo(link)
 					out[#out + 1] = {
-						key = "eq" .. slotId,
+						-- known by the item, as in your bags: equipping swaps places, and the history keeps the piece picked
+						key = itemID or ("eq" .. slotId),
 						name = name,
 						icon = GetInventoryItemTexture("player", slotId),
 						color = QualityHex(quality),
@@ -565,8 +566,7 @@ local function SubKind(id, def)
 		color = def.color,
 		aliases = def.aliases,
 		explicit = true,
-		events = { "BAG_UPDATE_DELAYED", "QUEST_LOG_UPDATE" },
-		guard = 1,
+		follows = "items", -- made again whenever the item list is (Core's GetEntries)
 		collect = function()
 			local out = {}
 			for _, e in ipairs(ns:GetEntries(ns.providers.items)) do
@@ -595,5 +595,88 @@ SubKind("mats", {
 	aliases = { "craftingmats", "craftingmat", "mats", "mat", "materials", "material", "tradegoods", "tradegood" },
 	want = function(e)
 		return e.classID == TRADEGOODS or e.classID == REAGENT or IsCraftingReagent(e.itemID)
+	end,
+})
+
+----------------------------------------------------------------------
+-- @gear: the equipment among your items (weapons, armour, jewellery, trinkets...), in your bags or
+-- worn. Enter shows it as an Item result does (your bags, or the character window on its slot).
+-- Shift+Enter equips a bag item: an /equip line on the secure macro button, pressed by the game.
+----------------------------------------------------------------------
+
+--- The item's equipment slot type (INVTYPE_x), or nil. Asked by id, then by its link, then from its full
+--- info: one answer missing (an item the client hasn't cached) mustn't leave gear out.
+local function EquipLoc(e)
+	local slots = ns.Filters and ns.Filters.SLOTS or {}
+	for _, what in ipairs({ e.itemID or false, e.link or false }) do
+		if what and C_Item.GetItemInfoInstant then
+			local ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, what)
+			if ok and type(loc) == "string" and slots[loc] then return loc end
+		end
+	end
+	if e.itemID and C_Item.GetItemInfo then
+		local ok, _, _, _, _, _, _, _, _, loc = pcall(C_Item.GetItemInfo, e.itemID)
+		if ok and type(loc) == "string" and slots[loc] then return loc end
+	end
+end
+
+local function EquipMacro(e) return e.itemID and ("/equip item:" .. e.itemID) or nil end
+local EQUIP_SPEC = { macro = EquipMacro }
+local function EquippedAfter(e) ns:Trace("gear: the game equipped " .. tostring(e.name)) end
+-- only when the game couldn't be handed the press (in combat, no secure button)
+local function EquipFallback(e)
+	if InCombatLockdown() then
+		ns:Print("In combat: Terminal can't equip " .. tostring(e.name) .. " (the game doesn't allow it then).")
+	else
+		ns:Print("Couldn't equip " .. tostring(e.name) .. " from the terminal. Try it from your bags.")
+	end
+end
+local function AlreadyWorn(e) ns:Print(tostring(e.name) .. " is already equipped.") end
+
+local function ItemLevel(e)
+	local get = C_Item.GetDetailedItemLevelInfo
+	if not get then return nil end
+	local ok, lvl = pcall(get, e.link or e.itemID)
+	return ok and type(lvl) == "number" and lvl > 0 and lvl or nil
+end
+
+local function CanUse(id)
+	if not (C_PlayerInfo and C_PlayerInfo.CanUseItem) then return true end
+	local ok, yes = pcall(C_PlayerInfo.CanUseItem, id)
+	return not ok or yes ~= false
+end
+
+ns:RegisterProvider("gear", {
+	label = "Gear",
+	color = "ff9fd3ff",
+	aliases = { "gear", "equipment", "equip", "armor", "armour", "weapon", "weapons" },
+	explicit = true, -- (a plain search already finds these as Items)
+	follows = "items", -- made again whenever the item list is (Core's GetEntries)
+	collect = function()
+		local out = {}
+		for _, e in ipairs(ns:GetEntries(ns.providers.items)) do
+			local loc = EquipLoc(e)
+			if loc then
+				local c = {}
+				for k, v in pairs(e) do c[k] = v end -- a copy: the Item entry keeps its own kind
+				local lvl = ItemLevel(e)
+				local usable = CanUse(e.itemID)
+				c.equipLoc = loc
+				-- known by the item, wherever it is: equipping swaps places (worn Item rows are known by their slot), and
+				-- the history must keep the piece you picked, not whatever it replaced in that slot
+				c.key = e.itemID or e.key
+				c.detail = (_G[loc] or loc) .. (lvl and ("  ilvl " .. lvl) or "") .. "  "
+					.. (e.slotId and "Equipped" or "In Bag") .. (usable and "" or "  can't use")
+				c.text = (rawget(e, "_ltext") or "") .. (e.slotId and " equipped worn" or " in bag bags")
+				if not usable then c.color = "|cff8a8a8a" end
+				if e.slotId then
+					c.secondary, c.secondarySecure, c.secondaryIsOpen, c.secondaryAfter = AlreadyWorn, nil, nil, nil
+				else
+					c.secondary, c.secondarySecure, c.secondaryIsOpen, c.secondaryAfter = EquipFallback, EQUIP_SPEC, UseNeverOpen, EquippedAfter
+				end
+				out[#out + 1] = c
+			end
+		end
+		return out
 	end,
 })

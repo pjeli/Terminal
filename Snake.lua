@@ -262,6 +262,7 @@ function S.Open()
 	Style()
 	if ns.UI and ns.UI.HideNow then ns.UI:HideNow() end -- (straight in, no closing animation under it)
 	if ns.Btop and ns.Btop.IsShown and ns.Btop.IsShown() then ns.Btop.Close() end
+	if ns.Changelog and ns.Changelog.IsShown and ns.Changelog.IsShown() then ns.Changelog.Close() end
 	S.Reset()
 	frame:Show()
 	S.Draw()
@@ -275,6 +276,6 @@ function S.Close(why)
 end
 
 ns:RegisterCommand("snake", {
-	desc = "Play Snake (WASD or arrows, Space pause, Esc or ` quits)",
+	desc = "Play Snake (WASD or arrows steer, Esc or ` quits)",
 	run = function() S.Open() end,
 })

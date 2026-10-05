@@ -925,6 +925,8 @@ end
 
 function UI:Disarm()
 	if self.armedEntry or ns.Secure.armed or self.legacyArm then
+		-- kept a moment: the press may still come back (see Secure.lua's PostClick)
+		if self.armedEntry then self.lastArmedEntry, self.lastArmedAt = self.armedEntry, GetTime() end
 		self.armedEntry = nil
 		ns.Secure.Disarm()
 		if self.legacyArm then
@@ -997,6 +999,11 @@ end
 
 function UI:FinishSecure()
 	local e = self.armedEntry
+	-- the press came back after the terminal had closed (the window it opened closed it): still that entry
+	if not e and self.lastArmedEntry and self.lastArmedAt and GetTime() - self.lastArmedAt < ns.Secure.LATE then
+		e = self.lastArmedEntry
+	end
+	self.lastArmedEntry = nil
 	self:Disarm()
 	if not e then return end
 	ns:Trace("secure: finished, highlighting " .. e.name)
