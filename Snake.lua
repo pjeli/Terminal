@@ -11,6 +11,7 @@ local S = {}
 ns.Snake = S
 
 local Theme = ns.Theme
+local Panel = ns.Panel
 local COLS, ROWS, CELL = 20, 15, 16
 local START_SPEED, MAX_SPEED, SPEED_UP = 7, 16, 0.35 -- moves a second; faster with every apple
 local DIRS = {
@@ -152,28 +153,14 @@ end
 -- The window
 ----------------------------------------------------------------------
 
-local function Text(parent, size, justify)
-	local fs = parent:CreateFontString(nil, "OVERLAY")
-	fs:SetFontObject(Theme.fonts.input)
-	local font, _, flags = fs:GetFont()
-	if font and size then fs:SetFont(font, size, flags) end
-	fs:SetJustifyH(justify or "LEFT")
-	fs:SetWordWrap(false)
-	return fs
-end
+local Text = Panel.Text
 
 local function Build()
 	if frame then return end
-	frame = CreateFrame("Frame", "TerminalSnake", UIParent, "BackdropTemplate")
-	frame:SetFrameStrata("DIALOG")
-	frame:SetClampedToScreen(true)
-	frame:Hide()
+	frame = Panel.Build("TerminalSnake", S)
 	frame:SetSize(COLS * CELL + 24, ROWS * CELL + 64)
-	frame:EnableKeyboard(true)
 	frame:SetScript("OnKeyDown", function(self, key) S.KeyDown(self, key) end)
 	frame:SetScript("OnUpdate", function(_, elapsed) S.Tick(elapsed) end)
-	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-	frame:SetScript("OnEvent", function() S.Close("combat") end)
 
 	scoreText = Text(frame, 13)
 	scoreText:SetPoint("TOPLEFT", 12, -10)
@@ -199,13 +186,8 @@ local function Build()
 end
 
 local function Style()
-	local t = Theme.Get()
-	frame:SetScale(t.scale or 1)
-	frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-	local r, g, b = Theme.RGB(t.bg)
-	frame:SetBackdropColor(r, g, b, math.max(0.9, t.bgAlpha or 0.95))
+	local t = Panel.Layout(frame) -- (its size is the board's, set once)
 	local br, bg, bb = Theme.RGB(t.border)
-	frame:SetBackdropBorderColor(br, bg, bb, 1)
 	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
 	board:SetBackdropColor(pr, pg, pb, 1)
 	board:SetBackdropBorderColor(br, bg, bb, 1)
@@ -216,9 +198,6 @@ local function Style()
 	overlay:SetTextColor(tr, tg, tb)
 	overlaySub:SetTextColor(dr, dg, db)
 	footer:SetTextColor(dr, dg, db)
-	frame:ClearAllPoints()
-	local term = _G.TerminalFrame
-	if term then frame:SetPoint("TOP", term, "TOP", 0, 0) else frame:SetPoint("CENTER") end
 end
 
 --- The game's keys are kept; any other key goes on to the game.
@@ -261,9 +240,7 @@ function S.Open()
 	end
 	Build()
 	Style()
-	if ns.UI and ns.UI.HideNow then ns.UI:HideNow() end -- (straight in, no closing animation under it)
-	if ns.Atop and ns.Atop.IsShown and ns.Atop.IsShown() then ns.Atop.Close() end
-	if ns.Changelog and ns.Changelog.IsShown and ns.Changelog.IsShown() then ns.Changelog.Close() end
+	Panel.Opening(S) -- (straight in: the terminal and the other panels go)
 	S.Reset()
 	frame:Show()
 	S.Draw()

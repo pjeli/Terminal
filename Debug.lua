@@ -22,6 +22,7 @@ local D = {}
 ns.Debug = D
 
 local TRACE_MAX, EVENT_MAX, WINDOW = 200, 30, 3 -- lines, events, seconds of context
+local REPEAT_S = 1 -- Terminal's own block of the same call again within this: one record, counted
 
 local trace, events = {}, {}
 D.trace, D.events = trace, events
@@ -99,6 +100,13 @@ local function OnAction(event, addon, func)
 		return
 	end
 	D.count = D.count + 1 -- (Terminal's own from here on)
+	-- the same call blocked again within a second (a loop of them when taint spreads): counted on the
+	-- first's record, which keeps its stack and trace; the chat line is printed once, not every time
+	local last = events[#events]
+	if last and not last.cheap and last.func == func and last.event == event and at - last.t <= REPEAT_S then
+		last.times, last.t = (last.times or 1) + 1, at
+		return
+	end
 	local ok, stack = pcall(debugstack, 3, 12, 0)
 	local ev = {
 		event = event, addon = addon, func = func, t = at,
@@ -128,7 +136,7 @@ local function Cvar(name)
 	return ok and v or nil
 end
 
-local function SetCvar(name, value)
+local function SetCVarSafe(name, value)
 	if ConsoleExec then return pcall(ConsoleExec, name .. " " .. value) end
 	return pcall(SetCVar, name, value)
 end
@@ -141,12 +149,12 @@ function D.Set(on)
 			db.prevTaintLog, db.prevScriptErrors = Cvar("taintLog"), Cvar("scriptErrors")
 		end
 		db.debug = true
-		SetCvar("taintLog", "2")
-		SetCvar("scriptErrors", "1")
+		SetCVarSafe("taintLog", "2")
+		SetCVarSafe("scriptErrors", "1")
 	else
 		db.debug = false
-		if db.prevTaintLog then SetCvar("taintLog", db.prevTaintLog) end
-		if db.prevScriptErrors then SetCvar("scriptErrors", db.prevScriptErrors) end
+		if db.prevTaintLog then SetCVarSafe("taintLog", db.prevTaintLog) end
+		if db.prevScriptErrors then SetCVarSafe("scriptErrors", db.prevScriptErrors) end
 		db.prevTaintLog, db.prevScriptErrors = nil, nil
 	end
 end

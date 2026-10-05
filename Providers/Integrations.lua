@@ -18,11 +18,7 @@ local H = ns.Highlight
 local I = {}
 ns.Integrations = I
 
-local function Safe(fn, ...)
-	if type(fn) ~= "function" then return nil end
-	local ok, a, b, c = pcall(fn, ...)
-	if ok then return a, b, c end
-end
+local Safe = ns.Safe -- (Util.lua)
 
 ----------------------------------------------------------------------
 -- AtlasLoot
@@ -320,9 +316,14 @@ local function SetupAtlasLoot()
 			for _, r in ipairs(loot.rows) do
 				if not rawget(r, "name") then
 					local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(r.itemID)
-					if type(name) == "string" and name ~= "" then r.name = name; loot.unnamed[r.itemID] = nil end
+					if type(name) == "string" and name ~= "" then r.name = name end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
+			end
+			-- what's still unnamed, for the name events (ids, not rows: several rows can share an item)
+			loot.unnamed = {}
+			for _, r in ipairs(loot.rows) do
+				if not rawget(r, "name") then loot.unnamed[r.itemID] = true end
 			end
 			return out
 		end,
@@ -714,15 +715,16 @@ local QUESTIE_LAZY = {
 		return Done(t.qid) and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon"
 	end,
 	-- Shift+Enter: the quest in the game (log, or the giver on the map), through the game's own key
-	secondarySecure = function(t) return FromLog("secure", ns.Maps.SECURE)(t) end,
-	secondaryIsOpen = function(t) return FromLog("isOpen", ns.Maps.IsOpenFor)(t) end,
+	-- (Maps.lua loads before this file, so its specs are there to read; made once, not per lazy read)
+	secondarySecure = FromLog("secure", ns.Maps.SECURE),
+	secondaryIsOpen = FromLog("isOpen", ns.Maps.IsOpenFor),
 	-- the zone the map switches to for a quest you don't have: its giver's
 	mapTarget = function(t)
 		local npcID = QuestGiver(t.qid)
 		return npcID and (NpcLocation(npcID)) or nil
 	end,
-	secondaryAfter = function(t) return FromLog("after", GIVER_AFTER)(t) end,
-	secondary = function(t) return FromLog("activate", GIVER_OPEN)(t) end,
+	secondaryAfter = FromLog("after", GIVER_AFTER),
+	secondary = FromLog("activate", GIVER_OPEN),
 }
 
 local function SetupQuestie()

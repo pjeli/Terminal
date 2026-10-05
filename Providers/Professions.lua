@@ -19,9 +19,7 @@ ns.Professions = P
 
 local function TS() return _G.C_TradeSkillUI end
 
-local function Secret(v)
-	return issecretvalue and issecretvalue(v) or false
-end
+local Secret, Lower = ns.Secret, ns.Lower -- (Util.lua, Locale.lua: names are compared in every client language)
 
 ----------------------------------------------------------------------
 -- Storage
@@ -108,7 +106,7 @@ function P.TradeSpells()
 	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
 	local profs = P.PlayerProfessions()
 	local profNames = {}
-	for _, pr in ipairs(profs) do profNames[pr.name:lower()] = true end
+	for _, pr in ipairs(profs) do profNames[Lower(pr.name)] = true end
 	local function consider(slot, parent)
 		local ok, info = pcall(C_SpellBook.GetSpellBookItemInfo, slot, bank)
 		if not ok or type(info) ~= "table" then return end
@@ -120,9 +118,9 @@ function P.TradeSpells()
 		local name = info.name
 		if (type(name) ~= "string" or name == "") and C_Spell and C_Spell.GetSpellName then name = C_Spell.GetSpellName(id) end
 		-- the profession's own spell (Cooking, First Aid) is already listed as the profession
-		if type(name) == "string" and name ~= "" and not profNames[name:lower()] then
+		if type(name) == "string" and name ~= "" and not profNames[Lower(name)] then
 			out[#out + 1] = { spellID = id, name = name, icon = info.iconID, parent = parent }
-			P.tradeSpellNames[name:lower()] = true
+			P.tradeSpellNames[Lower(name)] = true
 		end
 	end
 	for _, pr in ipairs(profs) do
@@ -148,7 +146,7 @@ function P.NameIndex()
 		for _, r in ipairs(pdata.list or {}) do
 			-- older saved data may still hold unlearned recipes: never offer those
 			if r.learned ~= false then
-				local key = r.name:lower()
+				local key = Lower(r.name)
 				-- the same recipe can be indexed under two windows (Fish Bowl: under Fishing
 				-- and under Bait and Tackle); prefer the one a spell can open
 				local cur = idx[key]
@@ -163,10 +161,10 @@ end
 
 --- Index entry for a player profession, by skill line or name.
 function P.FindIndexed(pr)
-	local lname = pr.name:lower()
+	local lname = Lower(pr.name)
 	for key, pdata in pairs(Store() or {}) do
 		if (pr.skillLine and (pdata.skillLine == pr.skillLine or key == pr.skillLine))
-			or (pdata.name and pdata.name:lower() == lname) then
+			or (pdata.name and Lower(pdata.name) == lname) then
 			return pdata, key
 		end
 	end
@@ -234,16 +232,16 @@ function P.OpenerSpell(skillLine, name)
 	local api = TS()
 	if not (api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return nil end
 	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
-	local lname = type(name) == "string" and name:lower() or nil
+	local lname = type(name) == "string" and Lower(name) or nil
 	for _, pr in ipairs((P.PlayerProfessions())) do
-		if pr.spellOffset and ((skillLine and pr.skillLine == skillLine) or (lname and pr.name:lower() == lname)) then
+		if pr.spellOffset and ((skillLine and pr.skillLine == skillLine) or (lname and Lower(pr.name) == lname)) then
 			local named -- (its entry named like it: what the game's profession book casts when the test says no)
 			for _, sp in ipairs(P.ProfessionSpells(pr)) do
 				if sp.canShow then
 					ns:Trace(("professions: %s's window opens with %s"):format(pr.name, sp.name))
 					return sp.name
 				end
-				if not named and not sp.passive and sp.name:lower() == pr.name:lower() then named = sp.name end
+				if not named and not sp.passive and Lower(sp.name) == Lower(pr.name) then named = sp.name end
 			end
 			-- gathering professions given a window on this client (Herbalism): the game may still say its
 			-- spell shows no crafting window
@@ -310,7 +308,7 @@ end
 function P.WindowSpell(skillLine, name, pdata)
 	if not pdata then
 		for _, pd in pairs(Store() or {}) do
-			if (skillLine and pd.skillLine == skillLine) or (name and pd.name and pd.name:lower() == name:lower()) then pdata = pd break end
+			if (skillLine and pd.skillLine == skillLine) or (name and pd.name and Lower(pd.name) == Lower(name)) then pdata = pd break end
 		end
 	end
 	return (pdata and pdata.opener) or P.OpenSpell(name) or P.OpenerSpell(skillLine, name)
@@ -318,9 +316,9 @@ end
 
 --- Is this spell one of the profession's own spellbook entries?
 function P.IsOwnSpell(skillLine, name, spellName)
-	local lname = type(name) == "string" and name:lower() or nil
+	local lname = type(name) == "string" and Lower(name) or nil
 	for _, pr in ipairs((P.PlayerProfessions())) do
-		if (skillLine and pr.skillLine == skillLine) or (lname and pr.name:lower() == lname) then
+		if (skillLine and pr.skillLine == skillLine) or (lname and Lower(pr.name) == lname) then
 			for _, sp in ipairs(P.ProfessionSpells(pr)) do
 				if sp.name == spellName then return true end
 			end
@@ -357,10 +355,10 @@ function P.Prune()
 	local lines, names = {}, {}
 	for _, pr in ipairs(list) do
 		if pr.skillLine then lines[pr.skillLine] = true end
-		names[pr.name:lower()] = true
+		names[Lower(pr.name)] = true
 	end
 	for key, pdata in pairs(store) do
-		if pdata.fromList and not lines[pdata.skillLine or key] and not names[(pdata.name or ""):lower()] then
+		if pdata.fromList and not lines[pdata.skillLine or key] and not names[Lower(pdata.name or "")] then
 			store[key] = nil
 		end
 	end
@@ -432,10 +430,10 @@ local function ResolveProfession(api, ids)
 		if ok and not Secret(a) then lineID, parentID = a, c end
 	end
 
-	local lname = name and name:lower()
+	local lname = name and Lower(name)
 	for _, pr in ipairs((P.PlayerProfessions())) do
 		local sl = pr.skillLine
-		if (sl and (sl == lineID or sl == parentID or sl == id)) or (lname and pr.name:lower() == lname) then
+		if (sl and (sl == lineID or sl == parentID or sl == id)) or (lname and Lower(pr.name) == lname) then
 			return sl or id, pr.name, true
 		end
 	end
@@ -510,9 +508,9 @@ function P.Snapshot(done)
 		else
 			-- a window opened by a profession spell (Smelting): keep it apart from its profession
 			local spell = P.lastSpell and (GetTime() - P.lastSpell.at) < 6 and P.lastSpell.name or nil
-			if not spell and P.tradeSpellNames[profName:lower()] then spell = profName end
+			if not spell and P.tradeSpellNames[Lower(profName)] then spell = profName end
 			local parent
-			if spell and spell:lower() ~= profName:lower() then
+			if spell and Lower(spell) ~= Lower(profName) then
 				parent = profName
 				key, profName, fromList = "spell:" .. spell, spell, false
 			elseif spell then
@@ -529,16 +527,16 @@ function P.Snapshot(done)
 			end
 			P.lastCast = nil
 			-- one entry per profession: drop older copies stored under another key
-			local lname = profName:lower()
+			local lname = Lower(profName)
 			local prevCount
 			for _, pd in pairs(store) do
-				if pd.name and pd.name:lower() == lname then prevCount = #(pd.list or {}) end
+				if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
 			end
 			if not P.scanning and prevCount ~= #list then
 				ns:Print(("indexed %s: %d known recipe%s."):format(profName, #list, #list == 1 and "" or "s"))
 			end
 			for k, pd in pairs(store) do
-				if k ~= key and pd.name and pd.name:lower() == lname then store[k] = nil end
+				if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
 			end
 			store[key] = {
 				name = profName,
@@ -643,25 +641,17 @@ local function ScrollToRecipe(pf, recipeID)
 end
 P.ScrollToRecipe = ScrollToRecipe
 
---- In the open profession window: select the recipe in the list and point at it.
+--- In the open profession window: scroll the list to the recipe and point at it. Only pointed at,
+--- never clicked: a click from Terminal's code would leave the window's selected recipe tainted.
 function P.SelectRecipe(recipeID, name)
-	local api = TS()
-	if not api then return end
-	local scrolled = false
-	H:When(function()
-		local pf = _G.ProfessionsFrame
-		if not (pf and pf:IsVisible()) then return nil end
-		local row = name and RecipeRow(pf, name) or nil
-		if not row and not scrolled then
-			scrolled = true
-			ScrollToRecipe(pf, recipeID) -- the row may be further down the list
-			row = name and RecipeRow(pf, name) or nil
-		end
-		return row
-	end, function(row)
-		pcall(row.Click, row) -- select it, in whichever list is showing
-		H:Show(row, 6)
-	end, 30)
+	if not TS() then return end
+	ns.PointAtRow({
+		frame = function() local pf = _G.ProfessionsFrame; return pf and pf:IsVisible() and pf or nil end,
+		find = function(pf) return name and RecipeRow(pf, name) or nil end,
+		scroll = function(pf) return ScrollToRecipe(pf, recipeID) end, -- (the row may be further down the list)
+		show = function(row) H:Show(row, 6) end,
+		tries = 30,
+	})
 end
 
 ----------------------------------------------------------------------
@@ -793,15 +783,27 @@ end)
 local ev = CreateFrame("Frame")
 for _, e in ipairs({
 	"TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_DATA_SOURCE_CHANGED",
-	"NEW_RECIPE_LEARNED", "SKILL_LINES_CHANGED", "GET_ITEM_INFO_RECEIVED",
+	"NEW_RECIPE_LEARNED", "SKILL_LINES_CHANGED",
 }) do
 	pcall(ev.RegisterEvent, ev, e)
 end
-local pendingSnap, pendingItems, pendingPrune
-ev:SetScript("OnEvent", function(_, event)
+-- Reagent names arrive late (GET_ITEM_INFO_RECEIVED, which fires for everything in the game): listened for
+-- only while some are missing, and the list is made again once for the names that came, not on every
+-- event. An id asked for twice and still unnamed is given up on (some never come).
+P.waitingNames = {} -- item id -> true while its name is awaited
+local pendingItems
+local function WatchNames(on)
+	if on == P.watchingNames then return end
+	P.watchingNames = on
+	if on then pcall(ev.RegisterEvent, ev, "GET_ITEM_INFO_RECEIVED") else pcall(ev.UnregisterEvent, ev, "GET_ITEM_INFO_RECEIVED") end
+end
+P.WatchNames = WatchNames
+local pendingSnap, pendingPrune
+ev:SetScript("OnEvent", function(_, event, id)
 	if event == "GET_ITEM_INFO_RECEIVED" then
-		-- reagent names arrive late; refresh once they do, but only if we were waiting on some
-		if (P.unresolved or 0) > 0 and not pendingItems then
+		if id ~= nil and not P.waitingNames[id] then return end -- (someone else's item)
+		if id ~= nil then P.waitingNames[id] = nil end
+		if not pendingItems then
 			pendingItems = true
 			C_Timer.After(2, function()
 				pendingItems = false
@@ -833,6 +835,7 @@ end)
 ----------------------------------------------------------------------
 
 local itemNames = {} -- reagent names already known (asked for every recipe on every rebuild)
+local asked = {} -- item id -> times its name was asked of the server (stop after two: some never come)
 local function ItemName(id)
 	local n = itemNames[id]
 	if n then return n end
@@ -840,8 +843,11 @@ local function ItemName(id)
 	if not n then n = C_Item.GetItemInfo(id) end
 	if n then
 		itemNames[id] = n
-	else
+		P.waitingNames[id] = nil
+	elseif (asked[id] or 0) < 2 then
+		asked[id] = (asked[id] or 0) + 1
 		P.unresolved = (P.unresolved or 0) + 1
+		P.waitingNames[id] = true
 		if C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
 	end
 	return n
@@ -925,10 +931,11 @@ ns:RegisterProvider("recipes", {
 			local castSpell = pdata.spell or P.WindowSpell(pdata.skillLine, pdata.name, pdata) or false
 			for _, r in ipairs(kept) do
 				count = count + 1
-				local isCamp = ns.Camp and ns.Camp.IsCampName(r.name:lower())
+				local isCamp = ns.Camp and ns.Camp.IsCampName(Lower(r.name))
 				if not isCamp then out[#out + 1] = MakeEntry(profID, pdata, r, castSpell) end
 			end
 		end
+		WatchNames((P.unresolved or 0) > 0) -- (names still to come: listen for them; none: don't)
 		if count == 0 then
 			out[1] = {
 				key = "scan",
@@ -989,7 +996,7 @@ local function ProfessionActivate(e) P.OpenProfession(e.skillLine, e.name) end
 ns:RegisterProvider("professions", {
 	label = "Profession",
 	color = "ff5fd0c0",
-	aliases = { "profession", "prof", "profs", "skill" },
+	aliases = { "profession", "prof", "profs" }, -- ("skill" is the Skills tab's, Skills.lua)
 	events = { "SPELLS_CHANGED" },
 	guard = 2,
 	collect = function()

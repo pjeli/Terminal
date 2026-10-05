@@ -100,6 +100,10 @@ local function FindTab(root, rootName, tabName, tabIndex)
 	end
 end
 
+-- Blizzard's own talent windows: nothing in them is clicked from Terminal's code (a click runs tainted and
+-- the window's state stays so). ClassicUIForever's and classic clients' windows are turned as a player would.
+local BLIZZARD_ROOTS = { PlayerSpellsFrame = true, ClassTalentFrame = true }
+
 --- Highlight the talent's node. Windows that show one tree at a time only have buttons for
 --- the tree on screen, so if the node isn't there, the talent's tree tab is clicked first.
 function TL.Highlight(nodeID, tabName, tabIndex)
@@ -109,15 +113,18 @@ function TL.Highlight(nodeID, tabName, tabIndex)
 		if not root then return nil end
 		local node = ns.FindFrame(root, function(f) return IsNode(f, nodeID) end, 14)
 		if node then return node end
-		if not switched then
+		if not switched and not BLIZZARD_ROOTS[rootName] then
 			local tab = FindTab(root, rootName, tabName, tabIndex)
 			if tab then
 				switched = true
 				pcall(tab.Click, tab)
 			end
+		elseif not switched then
+			switched = true
+			ns:Trace("talents: " .. tostring(rootName) .. " shows another tree; its tabs aren't clicked from here (taint)")
 		end
 		return nil
-	end, 8, 60) -- a freshly opened window can take a moment to build its buttons
+	end, 60) -- a freshly opened window can take a moment to build its buttons
 end
 
 -- Direct opener: only used when neither the keybinding nor a micro button is available.
@@ -155,7 +162,8 @@ end
 
 local function HighlightNode(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
 
-local function LinkTalent(e) ns.LinkInChat(e.link) end
+local function TalentLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(e.spellID) or nil end
+local function LinkTalent(e) ns.LinkInChat(TalentLink(e)) end
 
 ns:RegisterProvider("talents", {
 	label = "Talent",
@@ -195,7 +203,7 @@ ns:RegisterProvider("talents", {
 						detail = ((tab and tab ~= "") and (tab .. "  ") or "") .. (taken and TAKEN or NOT_TAKEN)
 							.. " " .. rank .. "/" .. (node.maxRanks or 1),
 						text = (tab or "") .. " talent",
-						link = spellID and C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(spellID) or nil,
+						getLink = TalentLink, -- (made when selected, not per talent on every rebuild)
 						nodeID = nodeID,
 						tab = tab,
 						tabIndex = tabIndex,

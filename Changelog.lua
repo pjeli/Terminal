@@ -13,17 +13,27 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.36.13", when = "next release, in testing",
+		v = "0.37.0", when = "next release, in testing",
 		items = {
+			"Review pass: every result that opens a game window now goes through the game's own key or a macro the game presses (the panels, slash commands, options, the addon list); a recipe picked from Terminal is pointed at, never clicked, so the window's own Create button stays the game's.",
+			"stat:mp5 works; filters with spaces take _ (in:elwynn_forest); lvl:30-20 means 20-30; >>party without the space sends too; r is raid.",
+			"Faster: arrow keys and hovering repaint only what changed, bare @kind searches allocate nothing per row, zone filters cache area names, .atop costs nothing while its bars rest, Tab completion is safe on Korean and Cyrillic names.",
+			"Quest text that the game keeps secret no longer breaks the quest list; @equipment is the equipment sets, @settings the game options.",
+			".forget also clears the history; .bind says so in combat; a filter that errors is traced in .debug log instead of silently hiding rows.",
+		},
+	},
+	{
+		v = "0.36.13", when = "released October 2026",
+		items = {
+			"@questie >> party (or guild...) sends the quest as a Questie link, clickable with its tooltip for anyone with Questie, instead of just its name. Quests in your log the game won't link go the same way.",
+			".btop is now .atop (AddOn top).",
+			"Fix: opening the terminal no longer opens a profession window (Enchanting) when a profession is the selected result.",
 			"Herbalism's recipes and camp objects (Incense Candle) open its Gardening window. Terminal learns the spell you open a profession with, and otherwise finds it among the profession's own spells.",
 			"@camp: Shift+Enter uses the camp object from your bags, or opens its profession and makes it when you have none.",
 			"Achievements: Shift+Enter links one in chat; their colour is now rose, apart from Camp's orange.",
 			"Professions: Shift+Enter links the profession (all your recipes) in chat; Enter opens its window.",
 			"Send a result to chat: end a search with >> party, guild, raid, say, yell, officer, instance, whisper <name> or a channel number. Items, spells, achievements, recipes and quests go as links, NPCs as a map pin, professions as a link to all your recipes.",
 			"Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on: add >> guild to send it.",
-			"@questie >> party (or guild...) sends the quest as a Questie link, clickable with its tooltip for anyone with Questie, instead of just its name. Quests in your log the game won't link go the same way.",
-			".btop is now .atop (AddOn top).",
-			"Fix: opening the terminal no longer opens a profession window (Enchanting) when a profession is the selected result.",
 		},
 	},
 	{
@@ -53,35 +63,17 @@ CL.LOG = {
 			"Fixes: skills the game lists twice show once; no login-indexing checkbox where the game won't allow it.",
 		},
 	},
-	{
-		v = "0.30.3", when = "released October 2026",
-		items = {
-			"@keybind: every bindable action. Enter opens Options > Keybindings on it; a row starts Quick Keybind Mode.",
-			"Animations play on every open, not only the first.",
-			"Recipes are indexed per character (namesakes no longer share one index).",
-			"Big lists (your alts and banks, Questie's quests and NPCs) are offered by a row on top when only they have a match; Tab adds the @kind.",
-			"Those offer rows stay out of the history.",
-		},
-	},
 }
 
 local Theme = ns.Theme
+local Panel = ns.Panel
 local W_MIN, H = 520, 420
 local STEP = 40 -- pixels a line of scrolling moves
 
 local frame, title, versionText, box, scroll, content, body, thumb, footer
 local offset = 0
 
-local function Text(parent, size, justify)
-	local fs = parent:CreateFontString(nil, "OVERLAY")
-	fs:SetFontObject(Theme.fonts.input)
-	if size then
-		local font, _, flags = fs:GetFont()
-		if font then fs:SetFont(font, size, flags) end
-	end
-	fs:SetJustifyH(justify or "LEFT")
-	return fs
-end
+local Text = Panel.Text
 
 local function Hex(c) return (tostring(c or "ffffff"):gsub("^|c", ""):gsub("^ff(%x%x%x%x%x%x)$", "%1")) end
 
@@ -145,16 +137,10 @@ end
 
 local function Build()
 	if frame then return end
-	frame = CreateFrame("Frame", "TerminalChangelog", UIParent, "BackdropTemplate")
-	frame:SetFrameStrata("DIALOG")
-	frame:SetClampedToScreen(true)
-	frame:Hide()
-	frame:EnableKeyboard(true)
+	frame = Panel.Build("TerminalChangelog", CL)
 	frame:EnableMouseWheel(true)
 	frame:SetScript("OnKeyDown", function(self, key) CL.KeyDown(self, key) end)
 	frame:SetScript("OnMouseWheel", function(_, delta) CL.ScrollTo(offset - delta * STEP) end)
-	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-	frame:SetScript("OnEvent", function() CL.Close("combat") end)
 
 	title = Text(frame, 13)
 	title:SetPoint("TOPLEFT", 12, -10)
@@ -174,7 +160,7 @@ local function Build()
 	scroll:SetScrollChild(content)
 	body = Text(content, 12)
 	body:SetPoint("TOPLEFT")
-	body:SetWordWrap(true)
+	body:SetWordWrap(true) -- (the one text that wraps)
 	body:SetJustifyV("TOP")
 	if body.SetSpacing then body:SetSpacing(3) end
 
@@ -189,27 +175,18 @@ local function Build()
 end
 
 local function Layout()
-	local t = Theme.Get()
-	local W = math.max(W_MIN, t.width or 640)
-	frame:SetSize(W, H)
-	frame:SetScale(t.scale or 1)
-	frame:ClearAllPoints()
-	local term = _G.TerminalFrame
-	if term then frame:SetPoint("TOP", term, "TOP", 0, 0) else frame:SetPoint("CENTER") end
-	frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-	local r, g, b = Theme.RGB(t.bg)
-	frame:SetBackdropColor(r, g, b, math.max(0.9, t.bgAlpha or 0.95))
+	local W = math.max(W_MIN, Theme.Get().width or 640)
+	local t = Panel.Layout(frame, W, H)
 	local br, bg, bb = Theme.RGB(t.border)
-	frame:SetBackdropBorderColor(br, bg, bb, 1)
 	box:SetBackdropBorderColor(br, bg, bb, 1)
 	local ar, ag, ab = Theme.RGB(t.accent)
 	thumb:SetColorTexture(ar, ag, ab, 0.8)
 	local dr, dg, db = Theme.RGB(t.dim)
 	footer:SetTextColor(dr, dg, db)
 	versionText:SetTextColor(dr, dg, db)
-	local version = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("Terminal", "Version")
+	local version = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ns.name, "Version")
 	title:SetText(Theme.FixColors(("|cff%schangelog|r"):format(Hex(t.accent))))
-	versionText:SetText("Terminal " .. tostring(version or CL.LOG[1].v))
+	versionText:SetText(ns.name .. " " .. tostring(version or CL.LOG[1].v))
 	-- the text wraps at the box's width; the scroll child is as tall as it
 	local width = W - 20 - 24
 	body:SetWidth(width)
@@ -229,10 +206,7 @@ function CL.Open()
 	end
 	Build()
 	Layout()
-	-- straight in, where the terminal was (its closing animation would play under it)
-	if ns.UI and ns.UI.HideNow then ns.UI:HideNow() end
-	if ns.Atop and ns.Atop.IsShown and ns.Atop.IsShown() then ns.Atop.Close() end
-	if ns.Snake and ns.Snake.IsShown and ns.Snake.IsShown() then ns.Snake.Close() end
+	Panel.Opening(CL) -- (straight in, where the terminal was: it and the other panels go)
 	frame:Show()
 	CL.ScrollTo(0) -- the newest at the top
 	return true

@@ -254,10 +254,7 @@ local function LiveCounts(e)
 	end
 end
 
-local function QualityHex(q)
-	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
-	return c and c.hex
-end
+local QualityHex = ns.QualityHex -- (Util.lua)
 
 local function HolderLabel(h)
 	local where = WHERE_LABEL[h.where] or h.where

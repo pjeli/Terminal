@@ -8,9 +8,8 @@ local H = ns.Highlight
 local Plain, Norm = ns.Plain, ns.Norm -- Norm keeps letters of every language (Locale.lua)
 
 local function Call(obj, method, ...)
-	if type(obj) ~= "table" or type(obj[method]) ~= "function" then return nil end
-	local ok, res = pcall(obj[method], obj, ...)
-	if ok then return res end
+	if type(obj) ~= "table" then return nil end
+	return (ns.Safe(obj[method], obj, ...))
 end
 
 local function AddonNames()
@@ -89,11 +88,25 @@ local function HighlightSetting(name)
 			pcall(sp.SearchBox.SetText, sp.SearchBox, name)
 		end
 		return nil
-	end, 6, 40)
+	end, 40)
 end
 
 ns.GameOptions = { HighlightSetting = HighlightSetting } -- (keybindings point at their row the same way)
 
+-- The page is opened by the game (a /run line on the secure macro button, as the Keybindings page is):
+-- Settings.OpenToCategory from Terminal's code would leave the options window's state tainted. Always
+-- pressed (the window may be open on another page); afterwards Terminal only points at the setting.
+local function OptionMacro(e)
+	local o = e.opt
+	if not (o and _G.Settings and _G.Settings.OpenToCategory) then return nil end
+	if o.id and not o.page then return ("/run Settings.OpenToCategory(%d,%q)"):format(o.id, o.name) end
+	if o.id then return ("/run Settings.OpenToCategory(%d)"):format(o.id) end
+	return ("/run Settings.OpenToCategory(%q)"):format(o.name)
+end
+local OPTION_SPEC = { macro = OptionMacro }
+local function PointAtOption(e) HighlightSetting(e.name) end
+
+-- the fallback without the secure route (Terminal's own code): open, then point
 local function OpenOption(e)
 	if OpenPage(e.opt) then HighlightSetting(e.name) end
 end
@@ -104,7 +117,7 @@ ns:RegisterProvider("gameoptions", {
 	aliases = { "option", "options", "setting", "settings" },
 	noCombat = true, -- opening windows is protected in combat
 	lazy = true, -- hundreds of settings: only offered once you type something
-	events = { "PLAYER_ENTERING_WORLD", "ADDON_LOADED" },
+	events = { "PLAYER_ENTERING_WORLD" }, -- (addons' pages are left out, so their loading changes nothing)
 	guard = 5,
 	collect = function()
 		local out = {}
@@ -125,6 +138,7 @@ ns:RegisterProvider("gameoptions", {
 					text = (o.path or "") .. " options settings " .. (o.tip or ""),
 					tip = o.tip,
 					opt = o,
+					secure = OPTION_SPEC, after = PointAtOption,
 					activate = OpenOption,
 				}
 			end

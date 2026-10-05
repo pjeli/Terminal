@@ -75,6 +75,7 @@ ns:RegisterCommand("bind", {
 		if args == "" then
 			return { "Usage: .bind CTRL-SPACE", "Current: " .. (GetBindingKey("TERMINAL_TOGGLE") or "none") }
 		end
+		if InCombatLockdown() then return { "Keys can't be bound in combat; try .bind again after." } end
 		if SetBinding(args, "TERMINAL_TOGGLE") then
 			SaveBindings(GetCurrentBindingSet())
 			return { "Terminal toggle bound to " .. args }
@@ -88,6 +89,7 @@ ns:RegisterCommand("forget", {
 	aliases = { "reset" },
 	run = function()
 		wipe(ns.db.freq)
+		if ns.db.recent then wipe(ns.db.recent) end -- (the recent picks shown on an empty prompt are learned usage too)
 		ns.freqKinds = nil
 		return { "Usage history cleared." }
 	end,
@@ -118,7 +120,7 @@ ns:RegisterCommand("mem", {
 		local upd = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or _G.UpdateAddOnMemoryUsage
 		local get = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or _G.GetAddOnMemoryUsage
 		if upd then pcall(upd) end
-		local kb = get and select(2, pcall(get, "Terminal"))
+		local kb = get and select(2, pcall(get, ns.name))
 		if type(kb) == "number" then
 			lines[#lines + 1] = ("Terminal memory: %.0f KB"):format(kb)
 		else
@@ -147,7 +149,7 @@ ns:RegisterCommand("mem", {
 		-- the game's own measure of Terminal's CPU time, where this client has it
 		local P, M = _G.C_AddOnProfiler, Enum and Enum.AddOnProfilerMetric
 		if P and P.GetAddOnMetric and M and M.RecentAverageTime then
-			local ok, mine = pcall(P.GetAddOnMetric, "Terminal", M.RecentAverageTime)
+			local ok, mine = pcall(P.GetAddOnMetric, ns.name, M.RecentAverageTime)
 			local okAll, all = false, nil
 			if P.GetOverallMetric then okAll, all = pcall(P.GetOverallMetric, M.RecentAverageTime) end
 			if ok and type(mine) == "number" then

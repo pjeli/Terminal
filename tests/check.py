@@ -25,5 +25,12 @@ if ok and G:
         for p in G.problems(f):
             print("FAIL", p)
             ok = False
-print("all files OK" if ok else "problems found")
+        for w in G.warnings(f): # (a likely typo: said, not failed)
+            print("WARN", w)
+if not ok:
+    print("problems found")
+elif G:
+    print("all files OK")
+else:
+    print("all files OK (globals not checked: pip install luaparser)")
 sys.exit(0 if ok else 1)

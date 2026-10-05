@@ -7,10 +7,7 @@ local EQUIP_SLOTS = {
 	"Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot",
 }
 
-local function QualityHex(q)
-	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
-	return c and c.hex
-end
+local QualityHex, Str = ns.QualityHex, ns.Str -- (Util.lua)
 
 local function BagLabel(bag)
 	if bag == 0 then return "Backpack" end
@@ -172,7 +169,7 @@ ShowInBags = function(e)
 			if b then found[#found + 1] = b end
 		end
 		return #found > 0 and found or nil
-	end, 8)
+	end)
 end
 
 --- Open your bags on an item you carry and point at it, as an Item result does. False when you
@@ -189,7 +186,7 @@ local function PointAtSlot(e)
 	H:Find(function()
 		local f = _G["Character" .. e.slotName]
 		return f and f:IsVisible() and f or nil
-	end, 8)
+	end)
 end
 
 -- fallback when the secure path isn't available
@@ -231,12 +228,6 @@ end
 --   4. for quest-class items, anywhere in a quest's description.
 -- Then searching for the item brings its quest along (see UI:Search).
 
-local function Str(v)
-	if type(v) ~= "string" then return nil end
-	if issecretvalue and issecretvalue(v) then return nil end
-	return v
-end
-
 local function Plain(t)
 	t = t:gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
 	return (t:gsub("\226\128\152", "'"):gsub("\226\128\153", "'")) -- curly apostrophes -> '
@@ -249,51 +240,35 @@ local function N(t)
 end
 
 --- The quest log as text: { { id, title, objectives = {lowercase...}, full = lowercase } ... }
---- and name -> quest for item objectives.
+--- and name -> quest for item objectives. Made from the Quest Log rows (Quests.lua reads the log once
+--- per quest event, and keeps the pieces), not by reading the whole log again on every bag event;
+--- kept until those rows are made again.
+local questIndex, questIndexFrom
 local function QuestIndex()
+	local qp = ns.providers.quests
+	local rows = qp and ns:GetEntries(qp) or {}
+	if questIndex and rows == questIndexFrom then
+		questIndex[1].questieItems, questIndex[1].questieDB = nil, nil -- (Questie's item needs: asked again per index of your bags)
+		return questIndex[1], questIndex[2]
+	end
 	local list, exact = {}, {}
-	if not (C_QuestLog and C_QuestLog.GetNumQuestLogEntries) then return list, exact end
-	for i = 1, C_QuestLog.GetNumQuestLogEntries() do
-		local info = C_QuestLog.GetInfo(i)
-		if info and not info.isHeader and info.questID then
-			local q = { id = info.questID, title = Str(info.title), objectives = {} }
-				q.ntitle = q.title and N(q.title) or ""
-			local texts = {}
-			local ok, objs = pcall(C_QuestLog.GetQuestObjectives, info.questID)
-			for _, o in ipairs(ok and type(objs) == "table" and objs or {}) do
-				local t = Str(o.text)
-				if t then
-					t = Plain(t)
-					q.objectives[#q.objectives + 1] = N(t)
-					if o.type == "item" or o.type == nil then
-						local n = N((t:gsub("%d+%s*/%s*%d+", "")))
-						if n ~= "" then exact[n] = q end
-					end
+	for _, e in ipairs(rows) do
+		if e.questID then
+			local q = { id = e.questID, title = e.name, objectives = {} }
+			q.ntitle = q.title and N(q.title) or ""
+			for _, o in ipairs(e.objectives or {}) do
+				local t = Plain(o[1])
+				q.objectives[#q.objectives + 1] = N(t)
+				if o[2] == "item" or o[2] == nil then
+					local n = N((t:gsub("%d+%s*/%s*%d+", "")))
+					if n ~= "" then exact[n] = q end
 				end
 			end
-			if #q.objectives == 0 and GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then -- classic-style log
-				for j = 1, (GetNumQuestLeaderBoards(i) or 0) do
-					local okb, t, typ = pcall(GetQuestLogLeaderBoard, j, i)
-					t = okb and Str(t)
-					if t then
-						t = Plain(t)
-						q.objectives[#q.objectives + 1] = N(t)
-						if typ == "item" then
-							local n = N((t:gsub("%d+%s*/%s*%d+", "")))
-							if n ~= "" then exact[n] = q end
-						end
-					end
-				end
-			end
-			texts[#texts + 1] = table.concat(q.objectives, " ")
-			if GetQuestLogQuestText then
-				local okq, desc, obj = pcall(GetQuestLogQuestText, i)
-				if okq then texts[#texts + 1] = (Str(desc) or "") .. " " .. (Str(obj) or "") end
-			end
-			q.full = N(table.concat(texts, " "))
+			q.full = N(table.concat(q.objectives, " ") .. " " .. (e.desc or "") .. " " .. (e.objText or ""))
 			list[#list + 1] = q
 		end
 	end
+	questIndex, questIndexFrom = { list, exact }, rows
 	return list, exact
 end
 
@@ -472,7 +447,7 @@ ns:RegisterProvider("items", {
 				if info and info.itemID then
 					local e = byID[info.itemID]
 					if not e then
-						local name = info.itemName or (info.hyperlink and info.hyperlink:match("%[(.-)%]"))
+						local name = Str(info.itemName) or (Str(info.hyperlink) and info.hyperlink:match("%[(.-)%]"))
 						if name then
 							local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
 							e = {
@@ -649,7 +624,7 @@ end
 ns:RegisterProvider("gear", {
 	label = "Gear",
 	color = "ff9fd3ff",
-	aliases = { "gear", "equipment", "equip", "armor", "armour", "weapon", "weapons" },
+	aliases = { "gear", "equip", "armor", "armour", "weapon", "weapons" }, -- ("equipment" is the sets', EquipmentSets.lua)
 	explicit = true, -- (a plain search already finds these as Items)
 	follows = "items", -- made again whenever the item list is (Core's GetEntries)
 	collect = function()

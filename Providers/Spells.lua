@@ -17,13 +17,7 @@ ns.Spells = SP
 local BANK = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
 local ITEM_SPELL = Enum.SpellBookItemType and Enum.SpellBookItemType.Spell or 1
 
-local function Secret(v) return issecretvalue and issecretvalue(v) or false end
-
-local function Call(fn, ...)
-	if type(fn) ~= "function" then return nil end
-	local ok, a = pcall(fn, ...)
-	if ok then return a end
-end
+local Secret, Call = ns.Secret, ns.Safe -- (Util.lua)
 
 --- One spellbook slot's spell: id, passive, rank text; nil for anything else (flyouts, future
 --- spells, empty slots). This client can give no item info for a slot it lists, so then the
@@ -189,6 +183,8 @@ end
 SP.PointAtSpell = PointAtSpell
 
 -- Without the secure route (no binding, no button): try the book's own openers.
+local function SpellLink(e) return Call(C_Spell.GetSpellLink, e.spellID) end
+
 local function OpenSpellBook(e)
 	local A = CUF()
 	if A then
@@ -237,14 +233,14 @@ ns:RegisterProvider("spells", {
 						-- one row per spell: ranks of it share the name, the highest (listed last) is kept
 						local e = byName[name]
 						if not e then
-							e = { name = name, activate = OpenSpellBook, secure = SP.SECURE, isOpen = IsOpen, after = PointAtSpell }
+							e = { name = name, activate = OpenSpellBook, secure = SP.SECURE, isOpen = IsOpen, after = PointAtSpell,
+								getLink = SpellLink } -- (its link made when selected, not per spell on every rebuild)
 							byName[name] = e
 							out[#out + 1] = e
 						end
 						local rankText = type(rank) == "string" and rank ~= "" and rank or nil
 						-- known by its name: learning a new rank mustn't make it another row (its history kept)
 						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
-						e.link = Call(C_Spell.GetSpellLink, id)
 						e.tab = tab
 						e.detail = (passive and "Passive  " or "") .. (rankText and (rankText .. "  ") or "") .. tab
 						e.text = tab .. (passive and " passive" or "")

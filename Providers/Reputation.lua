@@ -11,23 +11,7 @@ local ns = select(2, ...)
 local R = {}
 ns.Reputation = R
 
-local function Safe(fn, ...)
-	if type(fn) ~= "function" then return nil end
-	local ok, a, b, c = pcall(fn, ...)
-	if ok then return a, b, c end
-end
-
-local function Str(v)
-	if type(v) ~= "string" or v == "" then return nil end
-	if issecretvalue and issecretvalue(v) then return nil end
-	return v
-end
-
-local function Num(v)
-	if type(v) ~= "number" then return nil end
-	if issecretvalue and issecretvalue(v) then return nil end
-	return v
-end
+local Safe, Str, Num = ns.Safe, ns.Str, ns.Num -- (Util.lua)
 
 --- The faction list API, retail (C_Reputation) or classic (GetFactionInfo).
 local function Count()
@@ -71,42 +55,22 @@ local function Collapse(i)
 	return Safe(_G.CollapseFactionHeader, i)
 end
 
---- Every faction row, with collapsed headers opened for the read and closed again after.
+local function Collapsed(r) return r.collapsed end
+local LIST = { count = Count, row = Row, collapsed = Collapsed, expand = Expand, collapse = Collapse }
+
+--- Every faction row, with collapsed headers opened for the read and closed again after (ns.ReadExpanded).
 local function ReadAll()
-	local opened = {}
-	local i, guard = 1, 0
-	while i <= Count() and guard < 500 do
-		local r = Row(i)
-		if r and r.header and r.collapsed and r.name then
-			Expand(i)
-			opened[#opened + 1] = r.name
-		end
-		i, guard = i + 1, guard + 1
-	end
+	local rows = ns.ReadExpanded(LIST, 500)
 	-- a faction's group is the header above it; a header's group is its parent header, if it
 	-- is a sub-header (isChild), never just the header before it (often a sibling)
-	local rows, top, cur = {}, nil, nil
-	for j = 1, Count() do
-		local r = Row(j)
-		if r and r.name then
-			if r.header then
-				r.group = r.child and top or nil
-				if not r.child then top = r.name end
-				cur = r.name
-			else
-				r.group = cur
-			end
-			rows[#rows + 1] = r
-		end
-	end
-	-- close what was opened, last first (indexes shift as headers close)
-	for k = #opened, 1, -1 do
-		for j = Count(), 1, -1 do
-			local r = Row(j)
-			if r and r.header and r.name == opened[k] and not r.collapsed then
-				Collapse(j)
-				break
-			end
+	local top, cur = nil, nil
+	for _, r in ipairs(rows) do
+		if r.header then
+			r.group = r.child and top or nil
+			if not r.child then top = r.name end
+			cur = r.name
+		else
+			r.group = cur
 		end
 	end
 	return rows
@@ -141,12 +105,9 @@ end
 
 --- Runs once the Reputation tab is showing: scroll the list to the faction and point at it.
 local function ShowFaction(e)
-	local H = ns.Highlight
-	local scrolled = false
-	H:When(function()
-		local f = _G.ReputationFrame
-		if not (f and f:IsVisible()) then return nil end
-		local function find()
+	ns.PointAtRow({
+		frame = function() local f = _G.ReputationFrame; return f and f:IsVisible() and f or nil end,
+		find = function(f)
 			return ns.FindFrame(f, function(b)
 				if b.factionID ~= nil then return b.factionID == e.factionID end
 				local d = b.GetElementData and select(2, pcall(b.GetElementData, b))
@@ -157,23 +118,10 @@ local function ShowFaction(e)
 				end
 				return false
 			end, 10)
-		end
-		local row = find()
-		local box = f.ScrollBox
-		if not row and not scrolled and box and box.ScrollToElementDataByPredicate then
-			scrolled = true
-			pcall(box.ScrollToElementDataByPredicate, box, function(node)
-				local d = type(node) == "table" and (node.GetData and node:GetData() or node)
-				return type(d) == "table" and (d.factionID == e.factionID or d.name == e.name)
-			end)
-			row = find()
-		end
-		return row
-	end, function(row)
-		H:Show(row)
-	end, 20, function()
-		ns:Trace("reputation: no row for " .. tostring(e.name) .. " (it may be under a collapsed header)")
-	end)
+		end,
+		scroll = function(f) return ns.ScrollBoxTo(f.ScrollBox, function(d) return d.factionID == e.factionID or d.name == e.name end) end,
+		fail = function() ns:Trace("reputation: no row for " .. tostring(e.name) .. " (it may be under a collapsed header)") end,
+	})
 end
 
 local function Watch(e)

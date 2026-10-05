@@ -57,13 +57,20 @@ UI.cursor = 0     -- byte position of the caret in the query
 -- Scoring
 ----------------------------------------------------------------------
 
-local function FreqBonus(e)
+-- rows listed without a search (the empty terminal, a command's rows, a quest brought along by
+-- its item) have no matched letters: they share this one table instead of each getting its own
+local NO_POS = {}
+UI.NO_POS = NO_POS
+
+--- `kind`: the row's provider id when the caller knows it, so a compact row whose kind was never
+--- picked isn't read through its metatable just to find that out.
+local function FreqBonus(e, kind)
 	local freq = ns.db and ns.db.freq
 	if not freq then return 0 end
 	-- compact rows build their key on every read: only for kinds that were ever picked
 	local k = rawget(e, "freqKey")
 	if not k then
-		if not ns:FreqKind(e.kind) then return 0 end
+		if not ns:FreqKind(kind or e.kind) then return 0 end
 		k = e.freqKey
 	end
 	local f = k and freq[k]
@@ -229,7 +236,7 @@ function UI:ArgEntries(text)
 	if lw == "" then
 		for _, e in ipairs(self:CommandEntries()) do
 			if e.name == c.name then
-				e._score, e._pos = 2000, {}
+				e._score, e._pos = 2000, NO_POS
 				table.insert(out, 1, e)
 				break
 			end
@@ -251,7 +258,7 @@ function UI:WordSearch(entries, text)
 	local out = {}
 	for _, e in ipairs(entries) do
 		if not tokens then
-			e._score, e._pos = 0, {}
+			e._score, e._pos = 0, NO_POS
 			out[#out + 1] = e
 		else
 			local s = ScoreEntry(e, tokens)
@@ -279,10 +286,10 @@ function UI:FrequentEntries()
 				local r = rank[e.freqKey]
 				local f = ns.db.freq[e.freqKey]
 				if r then
-					e._score, e._pos = 10000 - r, {}
+					e._score, e._pos = 10000 - r, NO_POS
 					out[#out + 1] = e
 				elseif f and f > 0 and not p.explicit and not p.lazy then
-					e._score, e._pos = f, {}
+					e._score, e._pos = f, NO_POS
 					out[#out + 1] = e
 				end
 			end
@@ -310,6 +317,49 @@ function UI:Search(text)
 		return res
 	end
 	return self:SearchText(text)
+end
+
+--- A quest item among the matches brings its quest along, right below it ("Intact Limbs" -> its
+--- quest); an item with no sure quest brings the likeliest ones, marked "maybe". Adds to `out`.
+local function LinkQuests(out)
+	local quests = ns.providers.quests
+	if not quests then return end
+	local linked, from, guessed = {}, {}, {}
+	for _, e in ipairs(out) do
+		if e.questID and e.kind ~= "quests" then
+			local best = linked[e.questID]
+			if not best or e._score > best then linked[e.questID] = e._score; from[e.questID] = e end
+		end
+	end
+	for _, e in ipairs(out) do
+		if e.guessIDs and e.kind ~= "quests" and not e.questID then
+			for _, id in ipairs(e.guessIDs) do
+				if not linked[id] then
+					linked[id] = e._score; from[id] = e; guessed[id] = true
+				end
+			end
+		end
+	end
+	if not next(linked) then return end
+	local present = {} -- quests already among the results
+	for _, e in ipairs(out) do if e.kind == "quests" then present[e] = true end end
+	for _, q in ipairs(ns:GetEntries(quests)) do
+		local s = linked[q.questID]
+		if s then
+			if not present[q] then
+				q._pos = NO_POS
+				out[#out + 1] = q
+			end
+			-- directly under its item when the item itself was searched for by name; an item
+			-- that only matched through its quest's text stays below the quest
+			local it = from[q.questID]
+			if not present[q] or it._nameHit then
+				q._score = s - 0.001
+				UI.linked[q] = it
+				UI.linkedGuess[q] = guessed[q.questID] or nil
+			end
+		end
+	end
 end
 
 function UI:SearchText(text)
@@ -355,26 +405,30 @@ function UI:SearchText(text)
 		end
 	end
 	sig = table.concat(sig, ",") .. "|" .. table.concat(fsig, " ") -- (other filters: not a narrowing of the last scan)
-	-- typing one more letter can only narrow the matches: score just the last ones again
+	-- typing one more letter, or one more word, can only narrow the matches: score just the last
+	-- ones again (every one of them had the earlier words, so a new word still picks from them)
 	local last = self.lastScan
+	if last and last.gen ~= ns.entriesGen then last, self.lastScan = nil, nil end -- (its rows may be freed lists')
 	local candidates
-	if not empty and fresh and last and last.sig == sig and last.gen == ns.entriesGen and #last.tokens == #tokens then
+	local n, ln = #tokens, last and #last.tokens or 0
+	if not empty and fresh and last and last.sig == sig and (n == ln or n == ln + 1) then
 		candidates = last.matches
-		for i = 1, #tokens do
+		for i = 1, ln do
 			local a, b = last.tokens[i], tokens[i]
-			if i < #tokens and a ~= b then candidates = nil break end
-			if i == #tokens and b:sub(1, #a) ~= a then candidates = nil break end
+			if i < n and a ~= b then candidates = nil break end
+			if i == n and b:sub(1, #a) ~= a then candidates = nil break end
 		end
 	end
-	local function consider(e)
+	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
+	local function consider(e, kind)
 		if empty then
 			if filters and not Pass(e, filters) then return end
-			e._score, e._pos = FreqBonus(e), {}
+			e._score, e._pos = FreqBonus(e, kind), NO_POS
 			out[#out + 1] = e
 		else
 			local s = ScoreEntry(e, tokens)
 			if s and (not filters or Pass(e, filters)) then -- (filters only on what matched: cheaper)
-				e._score = s + FreqBonus(e)
+				e._score = s + FreqBonus(e, kind)
 				out[#out + 1] = e
 			end
 		end
@@ -393,8 +447,9 @@ function UI:SearchText(text)
 		for _, p in ipairs(included) do
 			local list = ns:GetEntries(p)
 			if overBudget() then coroutine.yield(out) end -- (reading the list may have taken the share)
+			local id = p.id
 			for i = 1, #list do
-				consider(list[i])
+				consider(list[i], id)
 				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
 			end
 		end
@@ -404,47 +459,7 @@ function UI:SearchText(text)
 		for i = 1, #out do matches[i] = out[i] end
 		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
 	end
-	-- a quest item brings its quest along, right below it ("Intact Limbs" -> its quest)
-	if not empty and (not kinds or kinds.quests) and ns.providers.quests then
-		local linked, from, guessed = {}, {}, {}
-		for _, e in ipairs(out) do
-			if e.questID and e.kind ~= "quests" then
-				local best = linked[e.questID]
-				if not best or e._score > best then linked[e.questID] = e._score; from[e.questID] = e end
-			end
-		end
-		-- items with no sure quest: the likeliest quests, offered as "maybe"
-		for _, e in ipairs(out) do
-			if e.guessIDs and e.kind ~= "quests" and not e.questID then
-				for _, id in ipairs(e.guessIDs) do
-					if not linked[id] then
-						linked[id] = e._score; from[id] = e; guessed[id] = true
-					end
-				end
-			end
-		end
-		if next(linked) then
-			local present = {} -- quests already among the results
-			for _, e in ipairs(out) do if e.kind == "quests" then present[e] = true end end
-			for _, q in ipairs(ns:GetEntries(ns.providers.quests)) do
-				local s = linked[q.questID]
-				if s then
-					if not present[q] then
-						q._pos = {}
-						out[#out + 1] = q
-					end
-					-- directly under its item when the item itself was searched for by name; an item
-					-- that only matched through its quest's text stays below the quest
-					local it = from[q.questID]
-					if not present[q] or it._nameHit then
-						q._score = s - 0.001
-						self.linked[q] = it
-						self.linkedGuess[q] = guessed[q.questID] or nil
-					end
-				end
-			end
-		end
-	end
+	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	local res = SortAndTrim(out)
 	-- nothing here has what was typed in its name, but a list only searched with @kind does
 	-- (Questie's quests, NPCs): a row on top offers it (Tab or Enter adds the @kind)
@@ -509,7 +524,7 @@ function UI:BigListHint(text, tokens, res, overBudget)
 					detail = firstName .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
 					icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
 					completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
-					_score = math.huge, _pos = {},
+					_score = math.huge, _pos = NO_POS,
 				}
 			end
 		end
@@ -661,13 +676,13 @@ local function Tip()
 	return tip
 end
 
+-- the game's comparison tooltips: the tooltip's own list, else the global pair
+local SHOPPING = { "ShoppingTooltip1", "ShoppingTooltip2" }
 local function HideComparisons(t)
-	for _, s in ipairs(t.shoppingTooltips or {}) do
+	local own = t.shoppingTooltips
+	for i = 1, 2 do
+		local s = own and own[i] or _G[SHOPPING[i]]
 		if s and s.Hide then s:Hide() end
-	end
-	for _, name in ipairs({ "ShoppingTooltip1", "ShoppingTooltip2" }) do
-		local s = _G[name]
-		if s and s.GetOwner and s:GetOwner() == t then s:Hide() end
 	end
 end
 
@@ -709,9 +724,12 @@ end
 
 function UI:UpdateTooltip()
 	local t = Tip()
+	local e = UI:IsShown() and results[sel] or nil
+	-- the same row still selected and its tooltip still up: nothing to redraw (only kept beside the
+	-- terminal, which may have been dragged)
+	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end
 	t:Hide()
-	if not UI:IsShown() then return end
-	local e = results[sel]
+	t.entry = nil
 	if not e or e.noActivate then return end
 	-- entries may supply a link directly, or a function that builds it only when selected
 	local link = e.link
@@ -737,6 +755,7 @@ function UI:UpdateTooltip()
 		shown = true
 	end
 	if shown then
+		t.entry = e
 		t:Show()
 		HideComparisons(t)
 		StyleTip(t)
@@ -878,14 +897,26 @@ function UI:Render()
 	if catcher and catcher.entry and catcher:IsShown() then self:PlaceCatcher(catcher.row) end
 end
 
+--- The selection moved to another row that's already on screen: only what shows the selection is
+--- redrawn (the band, the footer, the ghost text, the tooltip, the click catcher), not every row.
+function UI:SelectionChanged()
+	if not frame or not frame:IsShown() then return end
+	self:PlaceSelection()
+	self:SetStatus()
+	self:UpdateTooltip()
+	self:UpdateGhost()
+	if catcher and catcher.entry and catcher:IsShown() then self:PlaceCatcher(catcher.row) end
+end
+
 function UI:Move(delta)
 	local n = #results
 	if n == 0 then return end
 	if self.armedEntry then self:Disarm() end
 	sel = math.max(1, math.min(n, sel + delta))
+	local was = offset
 	if sel <= offset then offset = sel - 1 end
 	if sel > offset + ROWS then offset = sel - ROWS end
-	self:Render()
+	if offset ~= was then self:Render() else self:SelectionChanged() end
 end
 
 --- Walk back (dir -1) or forward (dir 1) through the lines run before. Only from an empty
@@ -1592,14 +1623,34 @@ local function KeysDown(self, key)
 	EditKey(key, ctrl, shift)
 end
 
+--- The keys that walk the list, the same in the drawn prompt and the real text box: PageUp/Down a
+--- page, Ctrl+N/J and Ctrl+P/K a row, Ctrl+U clears the query. True when the key was one of them.
+local function ListKey(key, ctrl)
+	if key == "PAGEUP" then UI:Move(-ROWS)
+	elseif key == "PAGEDOWN" then UI:Move(ROWS)
+	elseif not ctrl then return false
+	elseif key == "N" or key == "J" then UI:Move(1)
+	elseif key == "P" or key == "K" then UI:Move(-1)
+	elseif key == "U" then UI:SetQuery("", 0)
+	else return false end
+	return true
+end
+
+--- Backspace or Delete over a selection: the selection goes. True when there was one.
+local function DeleteSelection(text)
+	local lo, hi = UI:SelRange()
+	if not lo then return false end
+	UI:SetQuery(text:sub(1, lo) .. text:sub(hi + 1), lo)
+	return true
+end
+
 --- What a key does to the query (also run again for held keys).
 EditKey = function(key, ctrl, shift)
 	local text, c = edit:GetText(), UI.cursor
 	if key == "ESCAPE" or key == "`" then
 		UI:Hide()
-	elseif key == "BACKSPACE" and UI:SelRange() then
-		local lo, hi = UI:SelRange()
-		UI:SetQuery(text:sub(1, lo) .. text:sub(hi + 1), lo)
+	elseif (key == "BACKSPACE" or key == "DELETE") and DeleteSelection(text) then
+		return
 	elseif key == "BACKSPACE" then
 		if ctrl then
 			local before = text:sub(1, c):gsub("[^%s]*%s*$", "") -- the word left of the caret (and spaces after it)
@@ -1608,9 +1659,6 @@ EditKey = function(key, ctrl, shift)
 			local p = PrevPos(text, c)
 			UI:SetQuery(text:sub(1, p) .. text:sub(c + 1), p)
 		end
-	elseif key == "DELETE" and UI:SelRange() then
-		local lo, hi = UI:SelRange()
-		UI:SetQuery(text:sub(1, lo) .. text:sub(hi + 1), lo)
 	elseif key == "DELETE" then
 		if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub(NextPos(text, c) + 1), c) end
 	elseif key == "LEFT" then
@@ -1642,15 +1690,10 @@ EditKey = function(key, ctrl, shift)
 	elseif key == "TAB" then
 		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
 		if shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
-	elseif key == "PAGEUP" then
-		UI:Move(-ROWS)
-	elseif key == "PAGEDOWN" then
-		UI:Move(ROWS)
+	elseif ListKey(key, ctrl) then
+		return
 	elseif ctrl then
-		if key == "N" or key == "J" then UI:Move(1)
-		elseif key == "P" or key == "K" then UI:Move(-1)
-		elseif key == "U" then UI:SetQuery("", 0)
-		elseif key == "A" then
+		if key == "A" then
 			UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
 		elseif key == "V" or key == "C" then
 			-- the clipboard is only reachable from the game's own text box, and this press is spent
@@ -1715,12 +1758,13 @@ end
 ----------------------------------------------------------------------
 
 
---- The macro a click on this result runs (nil: none), and the entry view it opens.
-local function ClickFor(e, shift)
+--- The macro a click on this result runs (nil: none), and the entry view it opens. `quiet`: worked
+--- out for the pointer resting on a row, not for a press: the macro's steps aren't traced.
+local function ClickFor(e, shift, quiet)
 	local se = SecureView(e, shift)
 	if not se then return nil end
 	if se.isOpen and se.isOpen(se) then return nil end -- already open: Activate only points at it
-	return ns.Secure.ClickMacro(se.secure, se), se
+	return ns.Secure.ClickMacro(se.secure, se, quiet), se
 end
 UI.ClickFor = ClickFor
 
@@ -1751,20 +1795,12 @@ function UI:HideCatcher()
 	catcher.entry = nil
 end
 
---- The pointer is over row i: if its result opens a window, lay the catcher over the row.
-function UI:PlaceCatcher(i)
-	if InCombatLockdown() or self.closing or not frame or not frame:IsShown() then return end
-	local row, e = rows[i], results[offset + i]
-	local plain = e and ClickFor(e, false)
-	local shifted = e and ClickFor(e, true)
-	if not (plain or shifted) then self:HideCatcher() return end
+--- Lay the catcher over row `row` (its frame), scaled to UIParent's coordinates.
+local function AnchorCatcher(c, row)
 	local left, bottom, w, h = row:GetLeft(), row:GetBottom(), row:GetWidth(), row:GetHeight()
 	if not (type(left) == "number" and type(bottom) == "number" and type(w) == "number" and type(h) == "number") then
-		self:HideCatcher()
-		return
+		return false
 	end
-	local c = Catcher()
-	if not c then return end
 	local rs, us = row:GetEffectiveScale(), UIParent:GetEffectiveScale()
 	local s = (type(rs) == "number" and type(us) == "number" and us > 0) and rs / us or 1
 	c:ClearAllPoints()
@@ -1773,6 +1809,25 @@ function UI:PlaceCatcher(i)
 	c:SetFrameStrata(frame:GetFrameStrata())
 	local level = frame:GetFrameLevel()
 	c:SetFrameLevel((type(level) == "number" and level or 1) + 20)
+	return true
+end
+
+--- The pointer is over row i: if its result opens a window, lay the catcher over the row.
+function UI:PlaceCatcher(i)
+	if InCombatLockdown() or self.closing or not frame or not frame:IsShown() then return end
+	local row, e = rows[i], results[offset + i]
+	-- the same result on the same row (the list redrawn under a resting pointer): its macros
+	-- stand, the catcher only follows the row
+	if catcher and e and catcher.entry == e and catcher.row == i and catcher:IsShown() then
+		if not AnchorCatcher(catcher, row) then self:HideCatcher() end
+		return
+	end
+	local plain = e and ClickFor(e, false, true)
+	local shifted = e and ClickFor(e, true, true)
+	if not (plain or shifted) then self:HideCatcher() return end
+	local c = Catcher()
+	if not c then return end
+	if not AnchorCatcher(c, row) then self:HideCatcher() return end
 	c:SetAttribute("type1", plain and "macro" or "")
 	c:SetAttribute("macrotext1", plain)
 	-- shift: its own action, or none at all (so a shift-click never runs the plain one)
@@ -2171,11 +2226,17 @@ local function StartsWith(s, prefix)
 	return ns.Lower(s:sub(1, #prefix)) == ns.Lower(prefix)
 end
 
+--- What the candidates share at their start, whole characters at a time: a byte-wise compare cut
+--- Cyrillic and Korean names inside a letter (their letters share lead bytes).
 local function CommonPrefix(list)
 	local p = list[1]
 	for i = 2, #list do
 		local s, j = list[i], 0
-		while j < #p and j < #s and p:sub(j + 1, j + 1):lower() == s:sub(j + 1, j + 1):lower() do j = j + 1 end
+		while j < #p and j < #s do
+			local np, nsp = NextPos(p, j), NextPos(s, j)
+			if ns.Lower(p:sub(j + 1, np)) ~= ns.Lower(s:sub(j + 1, nsp)) then break end
+			j = np
+		end
 		p = p:sub(1, j)
 	end
 	return p
@@ -2300,8 +2361,8 @@ local memo = {}
 function UI:Completion()
 	if not edit or self:SelRange() then return nil end
 	local text = edit:GetText()
-	if memo.text == text and memo.cursor == self.cursor and memo.results == results and memo.sel == sel
-		and memo.gen == ns.entriesGen then
+	if memo.gen ~= ns.entriesGen then memo.results, memo.value = nil, nil end -- (rows of freed lists go)
+	if memo.text == text and memo.cursor == self.cursor and memo.results == results and memo.sel == sel then
 		return memo.value
 	end
 	local value = ComputeCompletion(self, text)
@@ -2371,6 +2432,14 @@ function UI:SyntaxSegments(text, plain)
 			if word == ">>" and ns.Share then
 				color = t.accent
 				afterSend = true
+			elseif ns.Share and #word > 2 and word:sub(1, 2) == ">>" then
+				-- ">>party": the arrows in the accent, the channel judged as after a ">>"
+				out[#out + 1] = { pos, pos + 1, t.accent }
+				pos = pos + 2
+				word = word:sub(3)
+				local to = ns.Share.Channel(word)
+				local typing = pos + #word > #text
+				color = (to.cmd or to.pending) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
 			elseif afterSend then
 				afterSend = false
 				local to = ns.Share.Channel(word)
@@ -2510,7 +2579,7 @@ local function Build()
 	frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 	frame:SetScript("OnHide", function(self)
 		UI:MotionReset()
-		if tip then tip:Hide() end
+		if tip then tip:Hide(); tip.entry = nil end
 		UI:Disarm()
 		UI.keys = false
 		StopRepeat()
@@ -2610,14 +2679,8 @@ local function Build()
 		if key == "`" then
 			-- bindings don't fire while the box has focus, so the toggle key closes it here
 			UI:Hide()
-		elseif key == "PAGEUP" then
-			UI:Move(-ROWS)
-		elseif key == "PAGEDOWN" then
-			UI:Move(ROWS)
-		elseif IsControlKeyDown() then
-			if key == "N" or key == "J" then UI:Move(1)
-			elseif key == "P" or key == "K" then UI:Move(-1)
-			elseif key == "U" then edit:SetText("") end
+		else
+			ListKey(key, IsControlKeyDown())
 		end
 	end)
 
@@ -2742,7 +2805,7 @@ local function Build()
 			if results[offset + i] and sel ~= offset + i then
 				if UI.armedEntry then UI:Disarm() end
 				sel = offset + i
-				UI:Render()
+				UI:SelectionChanged()
 			end
 			UI:PlaceCatcher(i)
 		end)
@@ -2818,14 +2881,6 @@ function UI:ApplyTheme()
 	r, g, b = Theme.RGB(t.border)
 	frame:SetBackdropBorderColor(r, g, b, 1)
 	divider:SetColorTexture(r, g, b, 1)
-	divider:ClearAllPoints()
-	local inset = classic and 5 or 1
-	divider:SetPoint("TOPLEFT", inset, -(HeaderH() - 4))
-	divider:SetPoint("TOPRIGHT", -inset, -(HeaderH() - 4))
-	local pin = classic and 4 or 1
-	promptBg:ClearAllPoints()
-	promptBg:SetPoint("TOPLEFT", pin, -pin)
-	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(HeaderH() - 4))
 	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
 	promptBg:SetColorTexture(pr, pg, pb, t.bgAlpha)
 
@@ -2862,16 +2917,15 @@ function UI:ApplyTheme()
 	local dr, dg, db = Theme.RGB(t.dim)
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
-		local y = -HeaderH() - (i - 1) * ROW_H
 		row:SetHeight(ROW_H)
-		row.baseY, row.slide = y, nil
-		PlaceRow(row, 0)
+		row.slide = nil
 		row.icon:SetSize(ROW_H - 6, ROW_H - 6)
 		row.detail:SetWidth(math.floor(t.width * 0.3))
 		row.label:SetTextColor(tr, tg, tb)
 		row.detail:SetTextColor(dr, dg, db)
 		if i > ROWS then row:Hide() end
 	end
+	self:LayoutHeader() -- (the divider, the prompt's background, the rows' places, the click area)
 	status:SetTextColor(dr, dg, db)
 	hints:SetTextColor(dr, dg, db)
 	local lr, lg, lb = Theme.RGB(t.border)
@@ -2881,6 +2935,7 @@ function UI:ApplyTheme()
 
 	Fuzzy.matchColor = "|cff" .. t.match
 	offset = math.max(0, math.min(offset, #results - ROWS))
+	if tip then tip.entry = nil end -- (its colours changed too: drawn again)
 	self:Render()
 	self.snapNext = false
 	self:UpdateCaret()
@@ -2898,9 +2953,10 @@ function UI:Hide()
 	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
 	self:HideCatcher()
-	if tip then tip:Hide() end
+	if tip then tip:Hide(); tip.entry = nil end
 	edit:ClearFocus()
 	self.histIdx = nil
+	self.lastScan, memo.results, memo.value = nil, nil, nil -- (rows kept only for the next keystroke)
 	-- let go of the keyboard at once, so the next key already reaches the game
 	self.keys = false
 	StopRepeat()
@@ -2941,7 +2997,6 @@ function UI:Open(text)
 	self.closing = false
 	frame:Show()
 	self:StartOpen(reopening)
-	self.cursor = #(text or "")
 	self.snapNext = true -- opens at the right size; it grows and shrinks from there
 	self.opening = true -- (the rows still come in with the style)
 	-- SetText searches (OnTextChanged) only if the text changed; a second search in the same

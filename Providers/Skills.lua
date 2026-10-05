@@ -12,23 +12,7 @@ local ns = select(2, ...)
 local K = {}
 ns.Skills = K
 
-local function Safe(fn, ...)
-	if type(fn) ~= "function" then return nil end
-	local ok, a, b, c, d, e, f, g, h = pcall(fn, ...)
-	if ok then return a, b, c, d, e, f, g, h end
-end
-
-local function Str(v)
-	if type(v) ~= "string" or v == "" then return nil end
-	if issecretvalue and issecretvalue(v) then return nil end
-	return v
-end
-
-local function Num(v)
-	if type(v) ~= "number" then return nil end
-	if issecretvalue and issecretvalue(v) then return nil end
-	return v
-end
+local Safe, Str, Num = ns.Safe, ns.Str, ns.Num -- (Util.lua)
 
 local function API() return _G.C_SkillInfo end
 
@@ -78,34 +62,14 @@ local function Collapse(i)
 	return Safe(_G.CollapseSkillHeader, i)
 end
 
---- Every skill line, with collapsed groups opened for the read and closed again after.
+local LIST = { count = Count, row = Line, collapsed = IsCollapsed, expand = Expand, collapse = Collapse }
+
+--- Every skill line, with collapsed groups opened for the read and closed again after (ns.ReadExpanded).
 local function ReadAll()
-	local opened = {}
-	local i, guard = 1, 0
-	while i <= Count() and guard < 300 do
-		local l = Line(i)
-		if l and l.header and l.name and IsCollapsed(l) then
-			Expand(i)
-			opened[#opened + 1] = l.name
-		end
-		i, guard = i + 1, guard + 1
-	end
-	local lines, group = {}, nil
-	for j = 1, Count() do
-		local l = Line(j)
-		if l and l.name then
-			if l.header then group = l.name else l.group = group end
-			lines[#lines + 1] = l
-		end
-	end
-	for k = #opened, 1, -1 do
-		for j = Count(), 1, -1 do
-			local l = Line(j)
-			if l and l.header and l.name == opened[k] and not IsCollapsed(l) then
-				Collapse(j)
-				break
-			end
-		end
+	local lines = ns.ReadExpanded(LIST, 300)
+	local group
+	for _, l in ipairs(lines) do
+		if l.header then group = l.name else l.group = group end
 	end
 	return lines
 end
@@ -124,12 +88,9 @@ end
 
 --- Runs once the Skills tab is showing: scroll to the skill and point at its row.
 local function ShowSkill(e)
-	local H = ns.Highlight
-	local scrolled = false
-	H:When(function()
-		local f = _G.SkillsFrame or _G.SkillFrame
-		if not (f and f:IsVisible()) then return nil end
-		local function find()
+	ns.PointAtRow({
+		frame = function() local f = _G.SkillsFrame or _G.SkillFrame; return f and f:IsVisible() and f or nil end,
+		find = function(f)
 			return ns.FindFrame(f, function(b)
 				if not b.Click then return false end
 				if b.GetText then
@@ -141,23 +102,13 @@ local function ShowSkill(e)
 				end
 				return false
 			end, 10)
-		end
-		local row = find()
-		local box = f.ScrollBox or (f.ListScrollFrame and f.ListScrollFrame.ScrollBox)
-		if not row and not scrolled and box and box.ScrollToElementDataByPredicate then
-			scrolled = true
-			pcall(box.ScrollToElementDataByPredicate, box, function(node)
-				local d = type(node) == "table" and (node.GetData and node:GetData() or node)
-				return type(d) == "table" and (d.name == e.name or d.skillName == e.name)
-			end)
-			row = find()
-		end
-		return row
-	end, function(row)
-		H:Show(row)
-	end, 20, function()
-		ns:Trace("skills: no row for " .. tostring(e.name) .. " on the Skills tab")
-	end)
+		end,
+		scroll = function(f)
+			return ns.ScrollBoxTo(f.ScrollBox or (f.ListScrollFrame and f.ListScrollFrame.ScrollBox),
+				function(d) return d.name == e.name or d.skillName == e.name end)
+		end,
+		fail = function() ns:Trace("skills: no row for " .. tostring(e.name) .. " on the Skills tab") end,
+	})
 end
 
 local function Describe(e)

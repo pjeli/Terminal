@@ -12,11 +12,7 @@ local ns = select(2, ...)
 local K = {}
 ns.Keybinds = K
 
-local function Str(v)
-	if type(v) ~= "string" or v == "" then return nil end
-	if issecretvalue and issecretvalue(v) then return nil end
-	return v
-end
+local Str = ns.Str -- (Util.lua)
 
 --- The keys bound to it, as the game writes them ("Ctrl-M, F5"), or nil.
 local function KeysText(k1, k2)

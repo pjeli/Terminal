@@ -66,7 +66,14 @@ end
 local function ItemOf(e) return e.itemID or MadeBy(e) end
 F.ItemOf = ItemOf
 
-F.ClearCache = function() infoCache, infoCount = {}, 0; recipeItem = {}; if F.ClearEffects then F.ClearEffects() end end -- (tests)
+-- (tests: every cache, so a block doesn't depend on what earlier ones asked for)
+F.ClearCache = function()
+	infoCache, infoCount = {}, 0
+	recipeItem = {}
+	if F.ClearStats then F.ClearStats() end
+	if F.ClearEffects then F.ClearEffects() end
+	if F.ClearPlaces then F.ClearPlaces() end
+end
 
 --- The quest a row is (not a quest item that merely belongs to one).
 local function QuestOf(e)
@@ -82,13 +89,14 @@ local function NpcField(e, field)
 	return id and I and I.NpcField and I.NpcField(id, field) or nil
 end
 
---- A number range from "20", "20-30", "20-", "-30", "20+", "<30", "<=30", ">20", ">=20".
+--- A number range from "20", "20-30", "20-", "-30", "20+", "<30", "<=30", ">20", ">=20" ("30-20" is 20-30).
 local function Range(v)
 	local lo, hi
 	local a, b = v:match("^(%d*)%-(%d*)$")
 	if a then
 		lo, hi = tonumber(a), tonumber(b)
 		if not lo and not hi then return nil end
+		if lo and hi and lo > hi then lo, hi = hi, lo end
 	elseif v:match("^%d+%+$") then
 		lo = tonumber(v:match("%d+"))
 	elseif v:match("^<=?%d+$") then
@@ -143,6 +151,7 @@ local function Stats(e)
 	statCache[id], statCount = t, statCount + 1
 	return t
 end
+F.ClearStats = function() statCache, statCount = {}, 0 end
 
 -- short names for stats -> part of the game's stat key
 local STAT_WORDS = {
@@ -225,7 +234,7 @@ end
 F.EffectText = EffectText
 
 local CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
-local consumable = {} -- item id -> is it a consumable (asked once per item: filters ask per row, per search)
+local consumable, consumableCount = {}, 0 -- item id -> is it a consumable (asked once per item: filters ask per row, per search)
 local function IsConsumable(id)
 	local c = consumable[id]
 	if c ~= nil then return c end
@@ -234,12 +243,12 @@ local function IsConsumable(id)
 	local ok, _, _, _, _, _, classID = pcall(get, id)
 	c = not ok or classID == nil or classID == CONSUMABLE
 	if ok and classID ~= nil then
-		if effectCount > 4000 then consumable = {} end
-		consumable[id] = c
+		if consumableCount > 4000 then consumable, consumableCount = {}, 0 end
+		consumable[id], consumableCount = c, consumableCount + 1
 	end
 	return c
 end
-F.ClearEffects = function() effectCache, effectCount, effectRetry, consumable = {}, 0, {}, {} end
+F.ClearEffects = function() effectCache, effectCount, effectRetry, consumable, consumableCount = {}, 0, {}, {}, 0 end
 
 -- how an effect text names each stat when the game's own name isn't there (English)
 local EFFECT_ENGLISH = {
@@ -424,14 +433,34 @@ local function NpcRole(e, flagName)
 	return math.floor(flags / bit) % 2 == 1
 end
 
+-- An area's name, lowercase, by area id (C_Map.GetAreaInfo per NPC row, per search, was the cost of in:)
+local areaNames = {}
+local function AreaName(area)
+	local name = areaNames[area]
+	if name == nil then
+		local got = C_Map and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
+		name = type(got) == "string" and Lower(got) or false
+		areaNames[area] = name
+	end
+	return name or nil
+end
+F.ClearPlaces = function() areaNames = {} end
+--- The lowercase copy of a row's text field, kept on the row (like _ltext) while the field's text is the same.
+local function LowerField(e, field, lkey, srcKey)
+	local s = e[field]
+	if type(s) ~= "string" then return nil end
+	if rawget(e, srcKey) ~= s then e[srcKey], e[lkey] = s, Lower(s) end
+	return rawget(e, lkey)
+end
 --- Where a row is, as text to match: a zone, an NPC's zone, a stored item's places, or the
 --- row's own detail ("Edwin VanCleef  The Deadmines", "x5  Backpack", "[12] Elwynn Forest").
 local function Places(e, v)
-	if type(e.zone) == "string" and Lower(e.zone):find(v, 1, true) then return true end
+	local zone = LowerField(e, "zone", "_lzone", "_lzoneOf")
+	if zone and zone:find(v, 1, true) then return true end
 	if NpcID(e) then
 		local area = NpcField(e, "zoneID")
-		local name = type(area) == "number" and area > 0 and C_Map and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
-		return type(name) == "string" and Lower(name):find(v, 1, true) and true or false
+		local name = type(area) == "number" and area > 0 and AreaName(area)
+		return name and name:find(v, 1, true) and true or false
 	end
 	if type(e.holders) == "table" then
 		for _, h in pairs(e.holders) do
@@ -440,8 +469,8 @@ local function Places(e, v)
 		return false
 	end
 	if e.slotId and ("equipped"):find(v, 1, true) then return true end
-	local d = e.detail
-	return type(d) == "string" and Lower(d):find(v, 1, true) and true or false
+	local d = LowerField(e, "detail", "_ldetail", "_ldetailOf")
+	return d and d:find(v, 1, true) and true or false
 end
 
 local function Holder(e, v)
@@ -503,8 +532,8 @@ end
 KEYS.quality = KEYS.q
 
 KEYS.stat = function(v)
-	local word, op, n = v:match("^([%a_]+)([<>=]+)(%d+)$")
-	if not word then word = v:match("^([%a_]+)$") end
+	local word, op, n = v:match("^([%a_][%w_]*)([<>=]+)(%d+)$") -- (mp5 has a digit)
+	if not word then word = v:match("^([%a_][%w_]*)$") end
 	if not word then return nil end
 	local cmp = op and Range(op .. n)
 	if op and not cmp then return nil end
@@ -565,10 +594,9 @@ KEYS.type = function(v)
 		local id = ItemOf(e)
 		local info = id and ItemInfo(id)
 		if not info then return false end
-		for _, t in ipairs({ info.type, info.subType }) do
-			if type(t) == "string" and Lower(t):find(v, 1, true) then return true end
-		end
-		return false
+		local t, st = info.type, info.subType
+		if type(t) == "string" and Lower(t):find(v, 1, true) then return true end
+		return type(st) == "string" and Lower(st):find(v, 1, true) or false
 	end
 end
 
@@ -718,26 +746,45 @@ F.HELP = {
 	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:blacksmithing), mine (your class), class, profession, pet, riding" },
 	{ "faction:horde", "@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)" },
 	{ "is:todo", "quests: done todo complete; items: usable equippable; recipes: craftable; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
+	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 }
 
 --- Is this a filter key (lvl, stat, is...)? For the prompt's colours.
 function F.IsKey(key) return KEYS[Lower(key or "")] ~= nil end
 
+-- the keys whose value is matched as text: a _ in it stands for a space (the search splits on spaces,
+-- so "in:elwynn forest" can't reach us whole; stat words keep their _: attack_power is the game's key)
+local SPACED = { ["in"] = true, zone = true, from = true, where = true, on = true, who = true, type = true,
+	trainer = true, slot = true }
+
+local traced -- a failing filter has been traced for this search (the parse of a search's words starts the next)
+
 --- A filter for one typed word, or nil when it isn't one (then it's searched as text).
 function F.Parse(word)
+	traced = false
 	local key, value = word:match("^(%a+):(.+)$")
 	if not key then return nil end
-	local make = KEYS[Lower(key)]
-	return make and make(Lower(value)) or nil
+	key = Lower(key)
+	local make = KEYS[key]
+	if not make then return nil end
+	value = Lower(value)
+	if SPACED[key] then value = value:gsub("_", " ") end
+	return make(value) or nil
 end
 
---- Every filter passes this row.
+--- Every filter passes this row. A filter that errors leaves the row out, and says so once per search
+--- in .debug log (rows silently dropped looked like "the filter finds nothing").
 function F.Pass(e, filters)
 	for i = 1, #filters do
 		local ok, yes = pcall(filters[i], e)
-		if not (ok and yes) then return false end
+		if not ok then
+			if not traced then
+				traced = true
+				ns:Trace("filter error: " .. tostring(yes) .. " (row " .. tostring(rawget(e, "name") or e.name) .. ")")
+			end
+			return false
+		end
+		if not yes then return false end
 	end
 	return true
 end
-
-F.KEYS = KEYS

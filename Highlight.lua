@@ -49,35 +49,44 @@ function H:Clear()
 	for _, g in ipairs(list) do self:Release(g) end
 end
 
+-- one function for every glow (not a closure per Show)
+local function GlowUpdate(self)
+	local now = GetTime()
+	local a = self.target and H.AlphaAt(now - self.started)
+	if not a then H:Release(self) return end
+	-- a window filling in on its first show hides its parts for a moment: ride that out, and
+	-- only let go of a target that stays hidden (the window closed)
+	if not self.target:IsVisible() then
+		self.hiddenAt = self.hiddenAt or now
+		if now - self.hiddenAt > H.GRACE then H:Release(self) return end
+		self:SetAlpha(0)
+		return
+	end
+	self.hiddenAt = nil
+	self:SetAlpha(a)
+end
+
 --- Outlines `target`. (The old duration argument is ignored: every highlight pulses twice
---- and fades.)
+--- and fades.) A target already glowing starts its pulses again instead of getting a second glow.
 function H:Show(target)
 	if not target or not target.IsVisible then return end
-	local g = table.remove(pool) or NewGlow()
-	g.target = target
+	local g
+	for had in pairs(active) do
+		if had.target == target then g = had break end
+	end
+	if not g then
+		g = table.remove(pool) or NewGlow()
+		g.target = target
+		g:ClearAllPoints()
+		g:SetPoint("TOPLEFT", target, "TOPLEFT", -3, 3)
+		g:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 3, -3)
+		g:SetScript("OnUpdate", GlowUpdate)
+		active[g] = true
+	end
 	g.started = GetTime()
-	g:ClearAllPoints()
-	g:SetPoint("TOPLEFT", target, "TOPLEFT", -3, 3)
-	g:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 3, -3)
+	g.hiddenAt = nil
 	g:SetAlpha(1)
 	g:Show()
-	g.hiddenAt = nil
-	g:SetScript("OnUpdate", function(self)
-		local now = GetTime()
-		local a = self.target and H.AlphaAt(now - self.started)
-		if not a then H:Release(self) return end
-		-- a window filling in on its first show hides its parts for a moment: ride that out, and
-		-- only let go of a target that stays hidden (the window closed)
-		if not self.target:IsVisible() then
-			self.hiddenAt = self.hiddenAt or now
-			if now - self.hiddenAt > H.GRACE then H:Release(self) return end
-			self:SetAlpha(0)
-			return
-		end
-		self.hiddenAt = nil
-		self:SetAlpha(a)
-	end)
-	active[g] = true
 	return g
 end
 
@@ -99,12 +108,13 @@ function H:When(finder, onFound, tries, onFail)
 	C_Timer.After(0.05, function() try(tries or 25) end)
 end
 
-function H:Find(finder, duration, tries)
+--- Finds (When) and outlines what `finder` gives (a frame, or a list of them); `tries` as When's.
+function H:Find(finder, tries)
 	self:When(finder, function(res)
 		if res.IsVisible then
-			self:Show(res, duration)
+			self:Show(res)
 		else
-			for _, f in ipairs(res) do self:Show(f, duration) end
+			for _, f in ipairs(res) do self:Show(f) end
 		end
 	end, tries)
 end

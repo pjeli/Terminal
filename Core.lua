@@ -139,24 +139,37 @@ function ns:RegisterProvider(id, def)
 	end
 	self.providers[id] = def
 	if ns.LocalizeKind then ns.LocalizeKind(def) end -- the game's words for @kind (Locale.lua)
+	self:AliasesChanged()
 	for _, ev in ipairs(def.events or {}) do
 		self:WatchEvent(ev, def)
 	end
 end
 
+--- Call after adding to a provider's aliases once it's registered: the @kind lookup is rebuilt.
+function ns:AliasesChanged() self.aliasMap = nil end
+
+--- Every lowercase word that names a provider after @ (its id, label and aliases), the first
+--- registered keeping a word two of them share. Built once, not lowercased on every lookup.
+local function AliasMap(self)
+	local map = {}
+	for _, id in ipairs(self.providerOrder) do
+		local p = self.providers[id]
+		local function put(word) word = ns.Lower(word); if not map[word] then map[word] = p end end
+		put(id)
+		put(p.label)
+		for _, a in ipairs(p.aliases) do put(a) end
+	end
+	self.aliasMap = map
+	return map
+end
+
 function ns:ResolveProvider(token)
 	token = ns.Lower(token)
 	if token == "" then return nil end
+	local p = (self.aliasMap or AliasMap(self))[token]
+	if p then return p end
 	for _, id in ipairs(self.providerOrder) do
-		local p = self.providers[id]
-		if token == id or token == ns.Lower(p.label) then return p end
-		for _, a in ipairs(p.aliases) do
-			if token == ns.Lower(a) then return p end
-		end
-	end
-	for _, id in ipairs(self.providerOrder) do
-		local p = self.providers[id]
-		if id:sub(1, #token) == token then return p end
+		if id:sub(1, #token) == token then return self.providers[id] end
 	end
 end
 
@@ -341,15 +354,18 @@ function ns:PrewarmStep()
 	if (self.background or 0) > 0 then return true end -- (Questie's lists still indexing: not on top of that)
 	local q = warm.queue
 	if not q then
-		q, warm.tries = {}, {}
-		-- left out: lists that rebuild on every open anyway, and the huge ones freed when unused
-		-- (Questie, NPCs, maps...: built at every login and thrown away 10 minutes later otherwise)
-		for _, id in ipairs(self.providerOrder) do
-			local p = self.providers[id]
-			if not p.refreshOnOpen and not p.idleDrop then q[#q + 1] = id end
-		end
+		q, warm.tries, warm.seen = {}, {}, 0
 		warm.queue = q
 	end
+	-- providers registered since the queue was made (AtlasLoot's, late) are queued too. Left out:
+	-- lists that rebuild on every open anyway, and the huge ones freed when unused (Questie, NPCs,
+	-- maps...: built at every login and thrown away 10 minutes later otherwise)
+	local order = self.providerOrder
+	for i = warm.seen + 1, #order do
+		local p = self.providers[order[i]]
+		if not p.refreshOnOpen and not p.idleDrop then q[#q + 1] = order[i] end
+	end
+	warm.seen = #order
 	while #q > 0 do
 		local id = table.remove(q, 1)
 		local p = self.providers[id]

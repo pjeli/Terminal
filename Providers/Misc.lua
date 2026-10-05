@@ -1,10 +1,8 @@
 local ns = select(2, ...)
 local H = ns.Highlight
 
-local function Call(name, ...)
-	local f = _G[name]
-	if type(f) == "function" then return f(...) end
-end
+--- A global function by name, called in a pcall (nil when the client lacks it).
+local function Call(name, ...) return ns.Safe(_G[name], ...) end
 
 local function MicroGlow(buttonName)
 	C_Timer.After(0.05, function()
@@ -20,42 +18,105 @@ end
 
 ----------------------------------------------------------------------
 -- Interface panels
+--
+-- Every panel is opened the way the player's own key opens it: Enter is bound to the game's
+-- binding command for it (TOGGLEWORLDMAP, TOGGLEACHIEVEMENT...), or to a macro line the game
+-- runs (/macro, /editmode, a /run of the game's own opener). Opening them from Terminal's code
+-- taints the window (see Secure.lua), so the `open` functions below are only the fallback when
+-- no such route exists on this client. A panel already showing is only pointed at (its micro
+-- button glows), never toggled closed.
 ----------------------------------------------------------------------
 
+local function Shown(name)
+	local f = _G[name]
+	return type(f) == "table" and f.IsVisible and f:IsVisible() and true or false
+end
+
+--- Any of the panel's frames showing.
+local function PanelOpen(e)
+	for _, name in ipairs(e.frames or {}) do
+		if Shown(name) then return true end
+	end
+	return false
+end
+
+local function BagsOpen()
+	if Shown("ContainerFrameCombinedBags") then return true end
+	return IsBagOpen and IsBagOpen(0) and true or false
+end
+
+-- the Currency tab of the character window, through its tab (as the Reputation tab is)
+local function TokenClick() return ns.Secure.CharTabMacro("TokenFrame", { _G.CURRENCY or "Currency", "Currency" }) end
+local TOKEN_SECURE = { macro = TokenClick, click = TokenClick }
+local function TokenOpen() return Shown("TokenFrame") end
+
+-- game-run openers for panels without a binding command (a /run line on the secure macro button)
+local OPTIONS_MACRO = "/run local S=SettingsPanel if S and S.Open then S:Open() elseif Settings then Settings.OpenToCategory(Settings.GAME_CATEGORY_ID or 1) end"
+local ADDONLIST_MACRO = "/run if AddonList then ShowUIPanel(AddonList) end"
+local EDITMODE_MACRO = "/editmode"
+
+-- The specs other providers own (their files load after this one): looked up when the list is made.
+local function BookShown() return ns.Spells.Book() ~= nil end
+local function SpellbookRoute()
+	local SP = ns.Spells
+	return SP and SP.SECURE or { binding = "TOGGLESPELLBOOK", buttons = { "SpellbookMicroButton" } }, SP and BookShown or nil
+end
+local function TalentsRoute()
+	local TL = ns.Talents
+	return TL and TL.SECURE or { binding = "TOGGLETALENTS", buttons = { "TalentMicroButton", "PlayerSpellsMicroButton" } }, TL and TL.IsOpen or nil
+end
+local function QuestLogRoute()
+	local Q = ns.Quests
+	return Q and Q.SECURE or { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }, Q and Q.LogShown or nil
+end
+local function MapRoute()
+	return ns.Maps and ns.Maps.SECURE or { binding = "TOGGLEWORLDMAP" }, PanelOpen
+end
+
+-- name, search words, fallback opener (Terminal's code: only without a secure route), micro button,
+-- secure spec (binding / macro the game presses; or a function giving spec and isOpen), is-it-open check,
+-- frames that mean it's open
 local PANELS = {
-	{ "Character Info", "character equipment gear paperdoll", function() ToggleCharacter("PaperDollFrame") end, "CharacterMicroButton", "PaperDollFrame" },
-	{ "Reputation", "reputation factions renown", function() ToggleCharacter("ReputationFrame") end, "CharacterMicroButton", "ReputationFrame" },
+	{ "Character Info", "character equipment gear paperdoll", function() ToggleCharacter("PaperDollFrame") end, "CharacterMicroButton", nil, nil, "PaperDollFrame" },
+	{ "Reputation", "reputation factions renown", function() ToggleCharacter("ReputationFrame") end, "CharacterMicroButton", nil, nil, "ReputationFrame" },
 	{ "Currency", "currency tokens", function()
 		-- the client's own opener first: it doesn't run our code through the Character frame
 		if C_CurrencyInfo and C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() else ToggleCharacter("TokenFrame") end
-	end, "CharacterMicroButton" },
+	end, "CharacterMicroButton", TOKEN_SECURE, TokenOpen },
 	{ "Spellbook", "spellbook abilities spells", function()
 		ns.LoadBlizz("Blizzard_PlayerSpells")
 		if PlayerSpellsUtil and PlayerSpellsUtil.ToggleSpellBookFrame then PlayerSpellsUtil.ToggleSpellBookFrame() else Call("ToggleSpellBook", "spell") end
-	end, "PlayerSpellsMicroButton" },
+	end, "PlayerSpellsMicroButton", SpellbookRoute },
 	{ "Talents", "talents specialization spec hero", function()
 		ns.LoadBlizz("Blizzard_PlayerSpells")
 		if PlayerSpellsUtil and PlayerSpellsUtil.ToggleClassTalentFrame then PlayerSpellsUtil.ToggleClassTalentFrame() else Call("ToggleTalentFrame") end
-	end, "PlayerSpellsMicroButton" },
-	{ "Achievements", "achievements feats", function() ns.LoadBlizz("Blizzard_AchievementUI"); Call("ToggleAchievementFrame") end, "AchievementMicroButton" },
-	{ "Quest Log", "quest log journal", function() Call("ToggleQuestLog") end, "QuestLogMicroButton" },
-	{ "World Map", "map world zone", function() Call("ToggleWorldMap") end },
-	{ "Collections", "collections mounts pets toys heirlooms transmog appearances", function() Call("ToggleCollectionsJournal") end, "CollectionsMicroButton" },
-	{ "Group Finder", "group finder dungeon raid lfg pvp", function() Call("PVEFrame_ToggleFrame") end, "LFDMicroButton" },
-	{ "Guild & Communities", "guild communities", function() Call("ToggleGuildFrame") end, "GuildMicroButton" },
-	{ "Adventure Guide", "adventure guide encounter journal dungeon journal", function() Call("ToggleEncounterJournal") end, "EJMicroButton" },
-	{ "Professions", "professions crafting", function() Call("ToggleProfessionsBook") end, "ProfessionMicroButton" },
-	{ "Calendar", "calendar events", function() Call("ToggleCalendar") end },
-	{ "Social / Friends", "friends social who ignore", function() Call("ToggleFriendsFrame") end },
-	{ "Backpack & Bags", "bags backpack inventory", function() Call("ToggleAllBags") end },
-	{ "Game Menu", "game menu escape logout exit", function() Call("ToggleGameMenu") end, "MainMenuMicroButton" },
+	end, "PlayerSpellsMicroButton", TalentsRoute },
+	{ "Achievements", "achievements feats", function() ns.LoadBlizz("Blizzard_AchievementUI"); Call("ToggleAchievementFrame") end, "AchievementMicroButton",
+		{ binding = "TOGGLEACHIEVEMENT", buttons = { "AchievementMicroButton" } }, PanelOpen, "AchievementFrame" },
+	{ "Quest Log", "quest log journal", function() Call("ToggleQuestLog") end, "QuestLogMicroButton", QuestLogRoute },
+	{ "World Map", "map world zone", function() Call("ToggleWorldMap") end, nil, MapRoute, nil, "WorldMapFrame" },
+	{ "Collections", "collections mounts pets toys heirlooms transmog appearances", function() Call("ToggleCollectionsJournal") end, "CollectionsMicroButton",
+		{ binding = "TOGGLECOLLECTIONS", buttons = { "CollectionsMicroButton" } }, PanelOpen, "CollectionsJournal" },
+	{ "Group Finder", "group finder dungeon raid lfg pvp", function() Call("PVEFrame_ToggleFrame") end, "LFDMicroButton",
+		{ buttons = { "LFDMicroButton" } }, PanelOpen, "PVEFrame" },
+	{ "Guild & Communities", "guild communities", function() Call("ToggleGuildFrame") end, "GuildMicroButton",
+		{ binding = "TOGGLEGUILDTAB", buttons = { "GuildMicroButton" } }, PanelOpen, "CommunitiesFrame", "GuildFrame" },
+	{ "Adventure Guide", "adventure guide encounter journal dungeon journal", function() Call("ToggleEncounterJournal") end, "EJMicroButton",
+		{ binding = "TOGGLEENCOUNTERJOURNAL", buttons = { "EJMicroButton" } }, PanelOpen, "EncounterJournal" },
+	{ "Professions", "professions crafting", function() Call("ToggleProfessionsBook") end, "ProfessionMicroButton",
+		{ binding = "TOGGLEPROFESSIONBOOK", buttons = { "ProfessionMicroButton" } }, PanelOpen, "ProfessionsBookFrame" },
+	{ "Calendar", "calendar events", function() Call("ToggleCalendar") end, nil, { binding = "TOGGLECALENDAR" }, PanelOpen, "CalendarFrame" },
+	{ "Social / Friends", "friends social who ignore", function() Call("ToggleFriendsFrame") end, nil, { binding = "TOGGLESOCIAL" }, PanelOpen, "FriendsFrame" },
+	{ "Backpack & Bags", "bags backpack inventory", function() Call("ToggleAllBags") end, nil, { binding = "OPENALLBAGS" }, BagsOpen },
+	{ "Game Menu", "game menu escape logout exit", function() Call("ToggleGameMenu") end, "MainMenuMicroButton",
+		{ binding = "TOGGLEGAMEMENU", buttons = { "MainMenuMicroButton" } }, PanelOpen, "GameMenuFrame" },
 	{ "Options", "options settings interface video audio", function()
 		if Settings and Settings.OpenToCategory then Settings.OpenToCategory() else Call("ShowUIPanel", _G.SettingsPanel) end
-	end },
-	{ "AddOn List", "addons manager", function() if AddonList then ShowUIPanel(AddonList) end end },
-	{ "Macros", "macros", function() ns.LoadBlizz("Blizzard_MacroUI"); if MacroFrame then ShowUIPanel(MacroFrame) end end },
-	{ "Edit Mode", "edit mode layout hud", function() ns.RunSlash("/editmode") end },
-	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton" },
+	end, nil, { macro = OPTIONS_MACRO }, PanelOpen, "SettingsPanel" },
+	{ "AddOn List", "addons manager", function() if AddonList then ShowUIPanel(AddonList) end end, nil, { macro = ADDONLIST_MACRO }, PanelOpen, "AddonList" },
+	{ "Macros", "macros", function() ns.LoadBlizz("Blizzard_MacroUI"); if MacroFrame then ShowUIPanel(MacroFrame) end end, nil, MACRO_WINDOW, MacroWindowOpen },
+	{ "Edit Mode", "edit mode layout hud", function() ns.RunSlash("/editmode") end, nil, { macro = EDITMODE_MACRO }, PanelOpen, "EditModeManagerFrame" },
+	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
 }
 
 -- The game's own words for these panels (a Korean client shows 평판, not "Reputation"). The
@@ -78,17 +139,25 @@ local CHAR_BINDINGS = { PaperDollFrame = "TOGGLECHARACTER0", ReputationFrame = "
 local CHAR_CLICKS = { PaperDollFrame = ns.Secure.PAPERDOLL_CLICK, ReputationFrame = ns.Secure.REP_CLICK }
 local function PageOpen(e) local f = _G[e.page]; return f and f:IsVisible() and true or false end
 local function PageAfter(e) MicroGlow(e.micro) end
+local function TalentsAfter() MicroGlow(ns.Secure.First(ns.Talents.BUTTONS)) end
 
 -- shared by every currency, mount and achievement entry (not one copy per entry)
-local function OpenCurrency(e)
-	if C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() else ToggleCharacter("TokenFrame") end
+local function PointAtCurrency(e)
 	H:Find(function()
 		local root = _G.TokenFrame or CharacterFrame
 		return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
-	end, 8)
+	end)
+end
+-- without the tab's /click route: the client's own opener (a C call), else the character window from here
+local function OpenCurrency(e)
+	if C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() else ToggleCharacter("TokenFrame") end
+	PointAtCurrency(e)
 end
 
-local function SummonMount(e) C_MountJournal.SummonByID(e.key) end
+local function SummonMount(e)
+	if C_MountJournal and C_MountJournal.SummonByID then C_MountJournal.SummonByID(e.key) end
+end
+local function MountLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(e.spellID) or nil end
 
 local function ShowMount(e)
 	ns.LoadBlizz("Blizzard_Collections")
@@ -99,7 +168,7 @@ local function ShowMount(e)
 	H:Find(function()
 		local root = _G.MountJournal
 		return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
-	end, 8)
+	end)
 end
 
 local function OpenAchievement(e)
@@ -108,14 +177,14 @@ local function OpenAchievement(e)
 		ShowUIPanel(AchievementFrame)
 		pcall(AchievementFrame_SelectAchievement, e.key)
 	else
-		ToggleAchievementFrame()
+		Call("ToggleAchievementFrame")
 	end
 end
+local function AchievementLink(e) return GetAchievementLink and GetAchievementLink(e.key) or nil end
 
 -- Shift+Enter: link it in chat
 local function LinkAchievement(e)
-	local link = e.link or (GetAchievementLink and GetAchievementLink(e.key))
-	if not ns.LinkInChat(link) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
+	if not ns.LinkInChat(AchievementLink(e)) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
 end
 
 local function PanelActivate(e)
@@ -138,22 +207,21 @@ ns:RegisterProvider("panels", {
 				open = p[3], micro = p[4],
 				activate = PanelActivate,
 			}
-			if p[1] == "Talents" and ns.Talents then
-				-- the talent window: secure click on the talent button, like a talent search
-				e.secure = ns.Talents.SECURE
-				e.isOpen = ns.Talents.IsOpen
-				e.after = function() MicroGlow(ns.Secure.First(ns.Talents.BUTTONS)) end
-			end
-			if p[1] == "Macros" then
-				-- the macro window, opened by the game itself (a macro line, so nothing runs as Terminal)
-				e.secure = MACRO_WINDOW
-				e.isOpen = MacroWindowOpen
-			end
 			if p[5] then
+				-- the game's own route (binding or macro), its "is it showing" check, and the glow afterwards
+				local secure, isOpen = p[5], p[6]
+				if type(secure) == "function" then secure, isOpen = secure() end
+				e.secure, e.isOpen, e.after = secure, isOpen, PageAfter
+				if p[7] then
+					e.frames = {}
+					for i = 7, #p do e.frames[#e.frames + 1] = p[i] end
+				end
+				if p[1] == "Talents" and ns.Talents then e.after = TalentsAfter end
+			elseif p[7] then
 				-- a tab of the Character window: the game's own key opens it on that page (or switches
 				-- page when it's open on another); Terminal's code never switches it (taint)
-				e.secure = { binding = CHAR_BINDINGS[p[5]], buttons = { p[4] }, click = CHAR_CLICKS[p[5]] }
-				e.page, e.micro = p[5], p[4]
+				e.secure = { binding = CHAR_BINDINGS[p[7]], buttons = { p[4] }, click = CHAR_CLICKS[p[7]] }
+				e.page, e.micro = p[7], p[4]
 				e.isOpen = PageOpen
 				e.after = PageAfter
 			end
@@ -174,7 +242,7 @@ ns:RegisterProvider("panels", {
 
 --- The macro's current text: macros can be edited or reordered after the list was built.
 local function MacroBody(e)
-	local name, _, body = GetMacroInfo(e.key)
+	local name, _, body = GetMacroInfo(e.index)
 	if name ~= e.name and GetMacroIndexByName then
 		local idx = GetMacroIndexByName(e.name)
 		if idx and idx > 0 then name, _, body = GetMacroInfo(idx) end
@@ -218,7 +286,8 @@ ns:RegisterProvider("macros", {
 			if name and name ~= "" then
 				body = type(body) == "string" and body or ""
 				out[#out + 1] = {
-					key = index,
+					key = name, -- (by name, not slot: a macro moved in the window keeps its history)
+					index = index,
 					name = name,
 					icon = icon,
 					text = body, -- what the macro says is searchable too
@@ -259,6 +328,7 @@ ns:RegisterProvider("currency", {
 					name = info.name,
 					icon = info.iconFileID,
 					detail = tostring(info.quantity or 0) .. ((info.maxQuantity and info.maxQuantity > 0) and (" / " .. info.maxQuantity) or ""),
+					secure = TOKEN_SECURE, isOpen = TokenOpen, after = PointAtCurrency, -- (the game opens the tab)
 					activate = OpenCurrency,
 				}
 			end
@@ -278,16 +348,19 @@ ns:RegisterProvider("mounts", {
 	events = { "NEW_MOUNT_ADDED", "COMPANION_LEARNED" },
 	collect = function()
 		local out = {}
-		for _, mountID in ipairs(C_MountJournal.GetMountIDs()) do
+		local M = C_MountJournal
+		if not (M and M.GetMountIDs and M.GetMountInfoByID) then return out end -- (a client without the journal)
+		for _, mountID in ipairs(ns.Safe(M.GetMountIDs) or {}) do
 			local name, spellID, icon, _, isUsable, _, isFavorite, _, _, hideOnChar, isCollected =
-				C_MountJournal.GetMountInfoByID(mountID)
+				ns.Safe(M.GetMountInfoByID, mountID)
 			if name and isCollected and not hideOnChar then
 				out[#out + 1] = {
 					key = mountID,
 					name = name,
 					icon = icon,
 					detail = isFavorite and "Favorite" or "",
-					link = spellID and C_Spell.GetSpellLink(spellID) or nil,
+					spellID = spellID,
+					getLink = MountLink, -- (made when selected, not for every mount on every rebuild)
 					activate = SummonMount,
 					secondary = ShowMount,
 				}
@@ -310,10 +383,11 @@ ns:RegisterProvider("achievements", {
 	idleDrop = 600,
 	collect = function()
 		local out = {}
-		for _, cat in ipairs(GetCategoryList()) do
-			local num = GetCategoryNumAchievements(cat, true)
+		if not (GetCategoryList and GetCategoryNumAchievements and GetAchievementInfo) then return out end
+		for _, cat in ipairs(ns.Safe(GetCategoryList) or {}) do
+			local num = ns.Safe(GetCategoryNumAchievements, cat, true) or 0
 			for i = 1, num do
-				local id, name, points, completed, _, _, _, description, _, icon = GetAchievementInfo(cat, i)
+				local id, name, points, completed, _, _, _, description, _, icon = ns.Safe(GetAchievementInfo, cat, i)
 				if id and name and completed then -- only achievements you've earned
 					out[#out + 1] = {
 						key = id,
@@ -322,7 +396,7 @@ ns:RegisterProvider("achievements", {
 						text = description,
 						detail = "Done  " .. (points and points > 0 and (points .. " pts") or ""),
 						tip = description,
-						link = GetAchievementLink(id),
+						getLink = AchievementLink, -- (made when selected, not per achievement up front)
 						activate = OpenAchievement,
 						secondary = LinkAchievement, -- Shift+Enter: link it in chat
 					}
@@ -425,7 +499,7 @@ ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return by
 ns:RegisterProvider("cvars", {
 	label = "CVar",
 	color = "ff8ec5ff",
-	aliases = { "cvar", "cvars", "console", "setting", "settings" },
+	aliases = { "cvar", "cvars", "console" }, -- ("settings" is the options panel's, GameOptions.lua)
 	explicit = true, -- a few thousand: only with @cvar
 	lazy = true,
 	idleDrop = 600,

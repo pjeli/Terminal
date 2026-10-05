@@ -491,6 +491,14 @@ ns:RegisterCommand("options", {
 -- Searchable: type a theme's name, or "options"
 ----------------------------------------------------------------------
 
+local function ReopenOnThemes() ns.UI:Open("theme ") end
+--- A "Theme: x" row picked: its preset (the row's presetId) applied, then the terminal reopened on the
+--- theme list so the new look can be compared straight away. One function for every row.
+local function ApplyPresetRow(e)
+	T.ApplyPreset(e.presetId)
+	C_Timer.After(0, ReopenOnThemes)
+end
+
 ns:RegisterProvider("terminal", {
 	label = "Terminal",
 	color = "ff33ff99",
@@ -511,11 +519,8 @@ ns:RegisterProvider("terminal", {
 				name = "Theme: " .. T.PRESETS[id].label,
 				icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
 				text = "theme colours colors look skin",
-				activate = function()
-					T.ApplyPreset(id)
-					-- reopen on the theme list so the new look can be compared straight away
-					C_Timer.After(0, function() ns.UI:Open("theme ") end)
-				end,
+				presetId = id,
+				activate = ApplyPresetRow,
 			}
 		end
 		return out

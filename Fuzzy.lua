@@ -23,25 +23,47 @@ local function bonusFor(last, cur)
 	return 0
 end
 
+--- The needle as it is in the name (most queries): the best such place's score, and where it is.
+local function substringScore(needle, hay, lhay, n, m)
+	local best, at
+	local p = find(lhay, needle, 1, true)
+	while p do
+		local last = p > 1 and byte(hay, p - 1) or 47
+		local s = (p - 1) * LEAD + bonusFor(last, byte(hay, p)) + (n - 1) * CONSEC + (m - (p + n - 1)) * TRAIL
+		if not best or s > best then best, at = s, p end
+		p = find(lhay, needle, p + 1, true)
+	end
+	return best, at
+end
+
 --- needle must already be lowercase. lhay is optional (lowercased hay).
---- Returns score, positions (array of byte indices in hay) or nil if no match.
+--- Returns score, positions (array of byte indices in hay) or nil if no match. The same score
+--- Fuzzy.score gives, so the letters lit up are the ones that ranked the row: a needle found as it
+--- is in the name is that run of letters, even where a scattered match would score higher.
 function Fuzzy.match(needle, hay, lhay)
 	local n, m = #needle, #hay
 	if n == 0 then return 0, {} end
 	if n > m or m > MAXLEN then return nil end
 	lhay = lhay or ns.Lower(hay)
 
+	if n == m then
+		if lhay ~= needle then return nil end
+		local p = {}
+		for i = 1, n do p[i] = i end
+		return EXACT, p
+	end
+	local sub, at = substringScore(needle, hay, lhay, n, m)
+	if sub then
+		local p = {}
+		for i = 1, n do p[i] = at + i - 1 end
+		return sub, p
+	end
+
 	-- cheap subsequence check first
 	local pos = 0
 	for i = 1, n do
 		pos = find(lhay, ssub(needle, i, i), pos + 1, true)
 		if not pos then return nil end
-	end
-
-	if n == m then
-		local p = {}
-		for i = 1, n do p[i] = i end
-		return EXACT, p
 	end
 
 	local bonus = {}
@@ -103,18 +125,6 @@ end
 -- allocates nothing per entry. Positions (for highlighting) come from Fuzzy.match, only for
 -- the rows on screen.
 local rowM, rowD, rowM2, rowD2 = {}, {}, {}, {}
-
-local function substringScore(needle, hay, lhay, n, m)
-	local best
-	local p = find(lhay, needle, 1, true)
-	while p do
-		local last = p > 1 and byte(hay, p - 1) or 47
-		local s = (p - 1) * LEAD + bonusFor(last, byte(hay, p)) + (n - 1) * CONSEC + (m - (p + n - 1)) * TRAIL
-		if not best or s > best then best = s end
-		p = find(lhay, needle, p + 1, true)
-	end
-	return best
-end
 
 function Fuzzy.score(needle, hay, lhay)
 	local n, m = #needle, #hay

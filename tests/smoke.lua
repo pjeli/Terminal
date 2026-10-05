@@ -3,6 +3,7 @@ debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2
 local log = {}
 local function note(...) log[#log + 1] = table.concat({ ... }, " ") end
 
+_G.UNKNOWN_FRAME_METHODS = {} -- method names the mock answered with a no-op (printed at the end of the run)
 local function Obj(kind)
 	local o = { __kind = kind, scripts = {}, text = "" }
 	return setmetatable(o, { __index = function(t, k)
@@ -53,6 +54,8 @@ local function Obj(kind)
 		if type(k) == "string" and k:match("^Create") then
 			return function() return Obj(k) end
 		end
+		-- any other method is a silent no-op; its name is noted so the run can list what the mock doesn't know
+		if type(k) == "string" and k:match("^%u") then UNKNOWN_FRAME_METHODS[k] = true end
 		return function(self, ...) return self end
 	end })
 end
@@ -577,6 +580,9 @@ check(has("blessing of wisdom", "Mana Well"), "found by the class buff it overla
 local n0 = #log
 -- a profession window with clickable recipe rows
 _G.ProfessionsFrame = Obj("Frame"); ProfessionsFrame.shown = false
+-- a recipe is pointed at (highlighted), never clicked: Terminal's click inside the window would taint the selection
+local baseHShow = ns.Highlight.Show
+ns.Highlight.Show = function(self, target, ...) if type(target) == "table" and target.text then note("ROWSHOW " .. target.text) end return baseHShow(self, target, ...) end
 local rowMana = Obj("Button"); rowMana.shown = true; rowMana.text = "Mana Well"
 rowMana.Click = function() note("ROWCLICK Mana Well") end
 local rowElixir = Obj("Button"); rowElixir.shown = true; rowElixir.text = "Elixir of Strength [3]"
@@ -587,11 +593,11 @@ C_TradeSkillUI.OpenTradeSkill = function(line) local r = baseOTS(line); Professi
 local function seen(text, from) for i = (from or 1), #log do if log[i] == text then return true end end return false end
 local m0 = #log
 camp["Mana Well"].activate(camp["Mana Well"]); FlushAll()
-check(seen("OpenTradeSkill 171", m0 + 1) and not seen("OpenRecipe", m0 + 1) and seen("ROWCLICK Mana Well", m0 + 1), "camp activate opens the profession and selects the recipe")
+check(seen("OpenTradeSkill 171", m0 + 1) and not seen("OpenRecipe", m0 + 1) and seen("ROWSHOW Mana Well", m0 + 1) and not seen("ROWCLICK Mana Well", m0 + 1), "camp activate opens the profession and points at the recipe (never clicks it)")
 m0 = #log
 rec["Elixir of Strength"].activate(rec["Elixir of Strength"]); FlushAll()
 check(not seen("OpenTradeSkill 171", m0 + 1), "profession already showing: not reopened")
-check(not seen("OpenRecipe", m0 + 1) and seen("ROWCLICK Elixir", m0 + 1), "recipe selected by clicking its row (count after the name is fine)")
+check(not seen("OpenRecipe", m0 + 1) and seen("ROWSHOW Elixir of Strength [3]", m0 + 1) and not seen("ROWCLICK Elixir", m0 + 1), "recipe pointed at by its row (count after the name is fine), not clicked")
 -- a recipe further down the list: the list is scrolled to it (no protected OpenRecipe)
 ProfessionsFrame.GetChildren = function() return rowMana end -- Elixir's row not built yet
 ProfessionsFrame.CraftingPage = { RecipeList = { ScrollBox = { ScrollToElementDataByPredicate = function(_, pred)
@@ -601,7 +607,7 @@ ProfessionsFrame.CraftingPage = { RecipeList = { ScrollBox = { ScrollToElementDa
 end } } }
 m0 = #log
 rec["Elixir of Strength"].activate(rec["Elixir of Strength"]); FlushAll()
-check(seen("SCROLLTO true", m0 + 1) and seen("ROWCLICK Elixir", m0 + 1) and not seen("OpenRecipe", m0 + 1), "off-screen recipe: list scrolled to it, then its row clicked")
+check(seen("SCROLLTO true", m0 + 1) and seen("ROWSHOW Elixir of Strength [3]", m0 + 1) and not seen("OpenRecipe", m0 + 1), "off-screen recipe: list scrolled to it, then its row pointed at")
 ProfessionsFrame.CraftingPage = nil
 -- a camp object opens like its recipe: its profession is cast by the game on Enter, then the
 -- recipe is selected (Fish Bowl lives in Bait and Tackle, not Fishing)
@@ -613,7 +619,7 @@ do
 	check(ce.secure and ce.secure.spell == "Alchemy" and ce.after and ce.recipeID == 12, "camp object armed to cast its profession")
 	local mm = #log
 	ce.after(ce); FlushAll()
-	check(seen("ROWCLICK Mana Well", mm + 1), "after the cast, the camp object's recipe is selected")
+	check(seen("ROWSHOW Mana Well", mm + 1), "after the cast, the camp object's recipe is pointed at")
 	hit.pdata.spell = nil
 	ns.Professions.lastSpell = nil
 	-- indexed twice (Fish Bowl: under Fishing, and under the Bait and Tackle window): the
@@ -968,8 +974,8 @@ do
 		check(not gear["Hearthstone"] and not gear["Linen Cloth"] and not gear["Traveler's Backpack"], "not other items, nor bags")
 		check(gear["Worn Shortsword"].detail:find("^One%-Hand") and gear["Fancy Helm"].detail:find("Equipped", 1, true),
 			"its slot shown, and whether it's worn: " .. tostring(gear["Worn Shortsword"].detail) .. " / " .. tostring(gear["Fancy Helm"].detail))
-		check(ns.providers.gear.explicit and ns:ResolveProvider("gear") == ns.providers.gear and ns:ResolveProvider("equipment") == ns.providers.gear,
-			"@gear (and @equipment), only with its @kind")
+		check(ns.providers.gear.explicit and ns:ResolveProvider("gear") == ns.providers.gear and ns:ResolveProvider("equipment") == ns.providers.equipmentset,
+			"@gear only with its @kind (@equipment is the equipment sets)")
 		check(names(ns:GetEntries(ns.providers.items))["Worn Shortsword"].kind == "items", "the Item rows keep their own kind")
 		check(gear["Worn Shortsword"].detail:find("In Bag", 1, true), "gear in your bags says In Bag: " .. tostring(gear["Worn Shortsword"].detail))
 		-- made again whenever the item list is: gear put in your bags after @gear was first built still shows
@@ -2113,7 +2119,7 @@ do
 	UI:Open("charred wolf"); key("ENTER"); FlushAll()
 	local function seen(text) for i = m1 + 1, #log do if log[i] == text then return true end end return false end
 	check(seen("OpenTradeSkill 185"), "Cooking is opened")
-	check(not seen("OpenRecipe") and seen("ROWCLICK Charred Wolf Meat"), "Charred Wolf Meat is selected in it (OpenRecipe, protected, never called)")
+	check(not seen("OpenRecipe") and seen("ROWSHOW Charred Wolf Meat") and not seen("ROWCLICK Charred Wolf Meat"), "Charred Wolf Meat is pointed at in it (OpenRecipe, protected, never called; no click)")
 	C_TradeSkillUI.OpenTradeSkill = ots
 
 	-- a scan that hits an error part-way still finishes and leaves the window visible
@@ -2288,7 +2294,7 @@ do
 	check(S.armed == "SPELL Smelting", "a Smelting recipe is opened by casting Smelting")
 	ProfessionsFrame.shown = true -- the cast opened it
 	FlushAll()
-	check(seen("ROWCLICK Smelt Copper", m + 1), "...and the recipe is selected")
+	check(seen("ROWSHOW Smelt Copper", m + 1), "...and the recipe is pointed at")
 	ProfessionsFrame.shown = false
 	_G.GetProfessionInfo = gpi
 
@@ -4626,6 +4632,7 @@ do -- the recipe index is per character by GUID: WoW Forever's first-and-last na
 end
 do -- filters across kinds: items, loot and stored (stats, quality, item level, type, slot, upgrade),
 	-- stored places and holders, counts, quests ready to turn in, Questie NPCs, craftable recipes
+	ns.Filters.ClearCache() -- (nothing earlier blocks asked for is kept)
 	local F = ns.Filters
 	local function P(w) local f = F.Parse(w); assert(f, "not a filter: " .. w); return f end
 	local base = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, count = C_Item.GetItemCount,
@@ -5436,5 +5443,20 @@ do -- a profession sent to chat: its link, with every recipe you know (as the ga
 	UI:Disarm(); UI:Hide()
 	_G.GetProfessions, _G.GetProfessionInfo, C_SpellBook.GetSpellBookItemTradeSkillLink = save.gp, save.gpi, save.tl
 	ns.providers.professions._dirty = true
+end
+-- Extra test files (tests/smoke/*.lua, alphabetical) run here with the same game and helpers: each gets T =
+-- { ns, UI, F, S, check, log, logHas, key, typeText, query, withCtrl, names, Obj, Flush, FlushAll, timers }.
+do
+	local T = { ns = ns, UI = UI, F = F, S = S, check = check, log = log, logHas = logHas, key = key, typeText = typeText,
+		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers }
+	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
+		local chunk, err = loadfile(file)
+		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")
+		else
+			io.write("[" .. file:match("[^/\\]+$") .. "]\n")
+			local ok, e = pcall(chunk, T)
+			if not ok then fails = fails + 1; io.write("FAIL: " .. file .. ": " .. tostring(e) .. "\n") end
+		end
+	end
 end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

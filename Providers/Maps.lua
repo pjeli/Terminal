@@ -33,17 +33,7 @@ end
 
 M.SECURE = { macro = MapMacro, binding = "TOGGLEWORLDMAP", buttons = { "MiniMapWorldMapButton", "WorldMapMicroButton" } }
 
-local function Safe(fn, ...)
-	if type(fn) ~= "function" then return nil end
-	local ok, a = pcall(fn, ...)
-	if ok then return a end
-end
-
-local function Name(s)
-	if type(s) ~= "string" or s == "" then return nil end
-	if issecretvalue and issecretvalue(s) then return nil end
-	return s
-end
+local Safe, Name = ns.Safe, ns.Str -- (Util.lua)
 
 local function MapOpen()
 	local f = _G.WorldMapFrame
@@ -176,8 +166,7 @@ ns:RegisterProvider("maps", {
 	aliases = { "map", "maps", "zone", "zones", "place", "location", "continent" },
 	noCombat = true, -- opening windows is protected in combat
 	lazy = true, -- thousands of places: only offered once you type something
-	events = { "ZONE_CHANGED_NEW_AREA" },
-	guard = 10,
+	-- (no events: the list of continents and zones doesn't depend on where you are)
 	idleDrop = 600, -- thousands of places: freed after 10 minutes without a map search
 	collect = function(p)
 		local out = {}

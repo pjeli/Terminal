@@ -116,9 +116,7 @@ local function ScrollMapList(questID)
 	local sf = _G.QuestScrollFrame
 	local box = sf and sf.ScrollBox
 	if not (box and box.ScrollToElementDataByPredicate) then return false end
-	local ok = pcall(box.ScrollToElementDataByPredicate, box, function(node)
-		local d = type(node) == "table" and (node.GetData and node:GetData() or node)
-		if type(d) ~= "table" then return false end
+	local ok = ns.ScrollBoxTo(box, function(d)
 		return d.questID == questID or (type(d.info) == "table" and d.info.questID == questID)
 	end)
 	ns:Trace("quests: scrolled the map's quest list" .. (ok and "" or " (failed)"))
@@ -140,8 +138,10 @@ end
 local function ShowQuestAfter(e)
 	if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, e.questID) end
 	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(e.questID)
-	-- a classic-style quest log: select the quest the way clicking it does, and scroll to it
-	if idx and Visible(_G.QuestLogFrame) or (idx and _G.QuestLog_SetSelection and not Visible(_G.QuestMapFrame)) then
+	-- a classic-style quest log (a classic client's, or ClassicUIForever's): select the quest the way clicking
+	-- it does, and scroll to it. (This client's own log is the map's panel, only pointed at below.)
+	if idx and (Visible(_G.QuestLogFrame) or Visible(_G.ForeverClassicUIQuestLog)
+		or (_G.QuestLog_SetSelection and not Visible(_G.QuestMapFrame))) then
 		ScrollClassicList(idx)
 		if _G.QuestLog_SetSelection then
 			ns:Trace("quests: QuestLog_SetSelection(" .. idx .. ")")
@@ -198,6 +198,38 @@ end
 
 local QUEST_SECURE = { macro = QuestMacro, binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
 
+--- Is a quest log window showing (a classic log, or the map's quest panel)? For the Quest Log
+--- panel row, which must not toggle an open log closed.
+local function LogShown()
+	for _, name in ipairs(LOGS) do
+		if Visible(_G[name]) then return true end
+	end
+	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
+end
+
+ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown }
+
+local Str, Num = ns.Str, ns.Num -- (quest text can be a secret value on this client)
+local function QuestLink(e) return GetQuestLink and GetQuestLink(e.questID) or nil end
+
+--- The quest's objectives, as { { text, type }, ... }: the retail list, else a classic log's leader boards.
+local function Objectives(i, questID)
+	local out = {}
+	local ok, objs = pcall(C_QuestLog.GetQuestObjectives, questID)
+	for _, o in ipairs(ok and type(objs) == "table" and objs or {}) do
+		local t = type(o) == "table" and Str(o.text)
+		if t then out[#out + 1] = { t, o.type } end
+	end
+	if #out == 0 and GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then
+		for j = 1, (Num(GetNumQuestLeaderBoards(i)) or 0) do
+			local okb, t, typ = pcall(GetQuestLogLeaderBoard, j, i)
+			t = okb and Str(t)
+			if t then out[#out + 1] = { t, typ } end
+		end
+	end
+	return out
+end
+
 ns:RegisterProvider("quests", {
 	label = "Quest Log",
 	color = "ffffd200",
@@ -211,27 +243,29 @@ ns:RegisterProvider("quests", {
 		for i = 1, C_QuestLog.GetNumQuestLogEntries() do
 			local info = C_QuestLog.GetInfo(i)
 			if info then
+				local title = Str(info.title)
 				if info.isHeader then
-					zone = info.title
-				elseif info.questID and not info.isHidden then
+					zone = title
+				elseif info.questID and not info.isHidden and title then -- (a secret title: the quest is left out)
 					local parts = { zone or "" }
 					local ok, desc, obj = pcall(GetQuestLogQuestText, i)
-					if ok then
-						parts[#parts + 1] = desc or ""
-						parts[#parts + 1] = obj or ""
-					end
-					for _, o in ipairs(C_QuestLog.GetQuestObjectives(info.questID) or {}) do
-						parts[#parts + 1] = o.text or ""
-					end
+					desc, obj = ok and Str(desc) or nil, ok and Str(obj) or nil
+					parts[#parts + 1] = desc or ""
+					parts[#parts + 1] = obj or ""
+					local objectives = Objectives(i, info.questID)
+					for _, o in ipairs(objectives) do parts[#parts + 1] = o[1] end
+					local level = Num(info.level)
 					out[#out + 1] = {
 						key = info.questID,
-						name = info.title,
+						name = title,
 						icon = "Interface\\GossipFrame\\AvailableQuestIcon",
-						detail = ((info.level and info.level > 0) and ("[" .. info.level .. "] ") or "") .. (zone or ""),
+						detail = ((level and level > 0) and ("[" .. level .. "] ") or "") .. (zone or ""),
 						text = table.concat(parts, " "),
 						questID = info.questID,
-						level = (info.level and info.level > 0) and info.level or nil, zone = zone, -- (lvl: and zone: filters)
-						link = GetQuestLink and GetQuestLink(info.questID) or nil,
+						level = (level and level > 0) and level or nil, zone = zone, -- (lvl: and zone: filters)
+						-- the pieces, for the quest items index (Items.lua reads them, not the log again)
+						desc = desc, objText = obj, objectives = objectives,
+						getLink = QuestLink,
 						activate = ShowQuest,
 						secure = QUEST_SECURE,
 						isOpen = IsOpen,

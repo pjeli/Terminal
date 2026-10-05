@@ -153,14 +153,13 @@ local function ManagerMacro()
 	return table.concat(lines, "\n")
 end
 
+local MANAGER_SECURE = { macro = ManagerMacro } -- (one spec for every set)
+
 --- Runs once the equipment sets page is showing: scroll the list to the set and point at it.
 local function ShowInManager(e)
-	local H = ns.Highlight
-	local scrolled = false
-	H:When(function()
-		local p = ManagerPane()
-		if not (p and p:IsVisible()) then return nil end
-		local function find()
+	ns.PointAtRow({
+		frame = function() local p = ManagerPane(); return p and p:IsVisible() and p or nil end,
+		find = function(p)
 			return ns.FindFrame(p, function(f)
 				if f.setID ~= nil then return f.setID == e.setID end
 				if not f.Click then return false end
@@ -173,28 +172,18 @@ local function ShowInManager(e)
 				end
 				return false
 			end, 8)
-		end
-		local row = find()
-		if not row and not scrolled and p.ScrollBox and p.ScrollBox.ScrollToElementDataByPredicate then
-			scrolled = true
-			pcall(p.ScrollBox.ScrollToElementDataByPredicate, p.ScrollBox, function(node)
-				local d = type(node) == "table" and (node.GetData and node:GetData() or node)
-				return type(d) == "table" and d.setID == e.setID
-			end)
-			row = find()
-		end
-		return row
-	end, function(row)
-		H:Show(row)
-	end, 20, function()
-		ns:Trace("equipment sets: " .. (PaneShown() and ("no row for " .. tostring(e.name)) or "the equipment sets page isn't showing"))
-	end)
+		end,
+		scroll = function(p) return ns.ScrollBoxTo(p.ScrollBox, function(d) return d.setID == e.setID end) end,
+		fail = function()
+			ns:Trace("equipment sets: " .. (PaneShown() and ("no row for " .. tostring(e.name)) or "the equipment sets page isn't showing"))
+		end,
+	})
 end
 
 ns:RegisterProvider("equipmentset", {
 	label = "Equipment Set",
 	color = "ff9fe0c0",
-	aliases = { "equipmentset", "equipmentsets", "equipment", "set", "sets", "outfit", "outfits" },
+	aliases = { "equipmentset", "equipmentsets", "equipment", "set", "sets", "outfit", "outfits" }, -- (@equipment: the sets; @gear is the pieces)
 	noCombat = true, -- equipping is blocked in combat
 	events = { "EQUIPMENT_SETS_CHANGED", "PLAYER_EQUIPMENT_CHANGED", "BAG_UPDATE_DELAYED" },
 	guard = 1,
@@ -226,7 +215,7 @@ ns:RegisterProvider("equipmentset", {
 					-- Shift+Enter: the character window's equipment sets page, through the
 					-- game's character key; ListItems is the fallback without one
 					secondary = ListItems,
-					secondarySecure = { macro = ManagerMacro },
+					secondarySecure = MANAGER_SECURE,
 					secondaryIsOpen = PaneShown,
 					secondaryAfter = ShowInManager,
 					noCombatSecondary = true,

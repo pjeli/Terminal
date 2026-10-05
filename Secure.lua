@@ -101,10 +101,14 @@ local function Text(v, e)
 	return type(v) == "string" and v ~= "" and v or nil
 end
 
-function S.ClickMacro(spec, e)
+--- `quiet`: worked out for a pointer resting on a row (every redraw), not for a press: the
+--- character tab lookups don't trace their steps (S.quiet, read by CharTab).
+function S.ClickMacro(spec, e, quiet)
 	if type(spec) == "string" then spec = { buttons = { spec } } end
 	if type(spec) ~= "table" then return nil end
+	S.quiet = quiet and true or nil
 	local t = Text(spec.click, e) or Text(spec.macro, e)
+	S.quiet = nil
 	if t and #t > S.MACRO_MAX then
 		if ns.Trace then ns:Trace(("secure: click macro too long (%d characters), not used"):format(#t)) end
 		t = nil -- (the spec's spell or button instead, as Resolve does)
@@ -140,6 +144,11 @@ function S.Clicker(key, target)
 	return c
 end
 
+-- a trace line, unless the macro is only being worked out for a resting pointer (S.quiet)
+local function Say(msg)
+	if ns.Trace and not S.quiet then ns:Trace(msg) end
+end
+
 --- The character window's tab for one of its pages (ReputationFrame, SkillsFrame...).
 --- This client: CharacterFrame.ModeTabs.Tabs, each with the frameName of its page (unnamed;
 --- ClassicUIForever draws its own tabs over them). Classic clients: CharacterFrameTabN,
@@ -151,7 +160,7 @@ local function CharTab(frameName, labels)
 	if type(tabs) == "table" then
 		for _, t in ipairs(tabs) do
 			if type(t) == "table" and t.frameName == frameName then
-				if ns.Trace then
+				if ns.Trace and not S.quiet then
 					-- what kind of thing the tab is, and which mouse events it listens to (safe on any frame)
 					local function has(h)
 						local okH, hs = pcall(t.HasScript, t, h)
@@ -194,15 +203,15 @@ function S.CharTabMacro(frameName, labels)
 	if how == "frame" and type(_G.ToggleCharacter) == "function" then
 		-- a tab that can't be clicked: the macro runs what the character key itself runs
 		-- (TOGGLECHARACTERn is ToggleCharacter(page)), pressed by the game, not Terminal's code
-		if ns.Trace then ns:Trace("click: " .. frameName .. " tab is a plain frame; the macro runs ToggleCharacter") end
+		Say("click: " .. frameName .. " tab is a plain frame; the macro runs ToggleCharacter")
 		return '/run ToggleCharacter("' .. frameName .. '", true)'
 	end
 	if not _G.CharacterMicroButton then return nil end
 	if not tab then
-		if ns.Trace then ns:Trace("click: no character tab for " .. frameName) end
+		Say("click: no character tab for " .. frameName)
 		return nil
 	end
-	if ns.Trace then ns:Trace("click: " .. frameName .. " through " .. how .. " " .. tab) end
+	Say("click: " .. frameName .. " through " .. how .. " " .. tab)
 	local cf = _G.CharacterFrame
 	local lines = {}
 	if not (cf and cf.IsVisible and cf:IsVisible()) then lines[1] = "/click CharacterMicroButton" end
@@ -236,11 +245,18 @@ local function PostClick(self, _, down)
 	end
 end
 
---- Offscreen secure button that clicks a Blizzard button. Created once, out of combat.
+--- Offscreen secure button that clicks a Blizzard button. Created once, out of combat; the
+--- button it clicks is set again on every arm (as Clicker does), so one the game or an addon
+--- made anew since isn't a dead reference.
 function S.Proxy(targetName)
 	local p = proxies[targetName]
-	if p then return p end
 	local target = _G[targetName]
+	if p then
+		if target and not InCombatLockdown() and p:GetAttribute("clickbutton") ~= target then
+			p:SetAttribute("clickbutton", target)
+		end
+		return p
+	end
 	if not target or InCombatLockdown() then return nil end
 	p = CreateFrame("Button", "TerminalProxy" .. targetName, UIParent, "SecureActionButtonTemplate")
 	p:SetSize(1, 1)

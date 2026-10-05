@@ -36,7 +36,7 @@ local COOKING = {
 local ALL, BYNAME = {}, {}
 
 local function Add(def)
-	def.lname = def.name:lower()
+	def.lname = ns.Lower(def.name) -- (the recipe index's keys are made the same way)
 	ALL[#ALL + 1] = def
 	BYNAME[def.lname] = def
 end

@@ -6,7 +6,8 @@ local ns = select(2, ...)
 --   @npc hogger >> guild       a map pin where Hogger stands
 --   >> whisper Plamen          the selected recent pick, whispered
 --
--- A ">>" standing on its own ends the search; the word after it is the channel. Enter (or a click)
+-- A ">>" standing on its own (or starting a word: ">>party") ends the search; the word after it is the
+-- channel. With two, the last one counts. Enter (or a click)
 -- has the game press the chat line (/p, /g...) from the secure macro button, as it runs your macros:
 -- Terminal's own code never sends chat. What goes out: the row's link (items, spells, achievements,
 -- recipes, quests), a map pin for NPCs, else its name. The game runs at most 255 characters of a macro.
@@ -17,7 +18,7 @@ ns.Share = SH
 local CHANNELS = {
 	party = "party", p = "party", group = "party",
 	guild = "guild", g = "guild",
-	raid = "raid",
+	raid = "raid", r = "raid",
 	officer = "officer", o = "officer",
 	say = "say", s = "say",
 	yell = "yell", y = "yell",
@@ -27,19 +28,22 @@ local COMMAND = { party = "/p", guild = "/g", raid = "/raid", officer = "/o", sa
 local WHISPER = { w = true, whisper = true, tell = true, t = true }
 SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper" }
 
---- Does some channel name start with this word? (While it's being typed: not wrong yet.)
+--- Does some channel name start with this word? (While it's being typed: not wrong yet.) A number
+--- only when it can still become a channel number (1-20, as Channel takes them).
 function SH.IsStart(word)
 	local w = ns.Lower(word or "")
 	for _, n in ipairs(SH.NAMES) do if n:sub(1, #w) == w then return true end end
-	return w:match("^%d+$") ~= nil
+	return w:match("^[1-9]%d?$") ~= nil and tonumber(w) <= 20
 end
 
---- The search text and what follows a standalone ">>" (nil when there's none): "copper >> party" -> "copper ", "party".
+--- The search text and what follows a ">>" standing alone or starting a word (nil when there's none):
+--- "copper >> party" -> "copper ", "party"; "copper >>party" the same. The last ">>" is the one (a ">>" in
+--- the search part before it stays a word of the search). "lvl:>>20" has none: it's inside a word.
 function SH.Split(text)
 	if type(text) ~= "string" or not text:find(">>", 1, true) then return text, nil end
 	local at
 	for pos, w in text:gmatch("()(%S+)") do
-		if w == ">>" then at = pos end -- (the last one)
+		if w:sub(1, 2) == ">>" then at = pos end -- (the last one)
 	end
 	if not at then return text, nil end
 	return text:sub(1, at - 1), (text:sub(at + 2):gsub("^%s+", ""):gsub("%s+$", ""))

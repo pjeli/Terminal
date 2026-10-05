@@ -123,7 +123,30 @@ local function First(list, by, k1, k2)
 	return i and list[i], i
 end
 
--- shared by every row (they carry what they open)
+-- Blizzard's windows (an options page, the AddOn list) are opened by the game: a /run line on the secure
+-- macro button (as the Keybindings page is), never Settings.OpenToCategory / ShowUIPanel from Terminal's
+-- code, which taints them. A minimap button is another addon's own frame: clicked from here.
+local ADDONLIST_MACRO = "/run if AddonList then ShowUIPanel(AddonList) end"
+local function CategoryMacro(c)
+	if c.id and _G.Settings and _G.Settings.OpenToCategory then return ("/run Settings.OpenToCategory(%d)"):format(c.id) end
+	if c.panel then return nil end -- (an old client's panel object: no line can name it)
+	if _G.Settings and _G.Settings.OpenToCategory then return ("/run Settings.OpenToCategory(%q)"):format(c.name) end
+	return nil
+end
+local function AddonMacro(e)
+	if e.launch then return nil end -- (its minimap button: Terminal clicks that itself)
+	if e.opt then return CategoryMacro(e.opt) end
+	return ADDONLIST_MACRO
+end
+local function AddonOptionsMacro(e)
+	if e.opt and e.launch then return CategoryMacro(e.opt) end
+	return ADDONLIST_MACRO
+end
+local ADDON_SPEC, ADDON_OPTIONS_SPEC = { macro = AddonMacro }, { macro = AddonOptionsMacro }
+local function NeverOpen() return false end -- (always pressed: the window may show another page)
+local function Opened(e) ns:Trace("addons: the game opened the window for " .. tostring(e.name)) end
+
+-- shared by every row (they carry what they open); the fallbacks without the secure route
 local function AddonActivate(e)
 	if e.launch then return Launch(e.launch) end
 	if e.opt and OpenCategory(e.opt) then return end
@@ -172,16 +195,18 @@ ns:RegisterProvider("addons", {
 				elseif opt then does = "Options"
 				elseif launch then does = "Minimap button"
 				else does = loaded and "Loaded" or "Not loaded" end
+				local plainNotes = notes and Plain(notes) or nil
 				out[#out + 1] = {
 					key = name,
 					name = label,
 					icon = (launch and launch.icon) or "Interface\\Icons\\INV_Misc_Gear_01",
 					detail = does,
-					text = name .. " " .. Plain(notes or ""),
-					tip = notes and Plain(notes) or nil,
+					text = name .. " " .. (plainNotes or ""),
+					tip = plainNotes,
 					launch = launch, opt = opt,
+					secure = ADDON_SPEC, isOpen = NeverOpen, after = Opened,
 					activate = AddonActivate,
-					secondary = AddonSecondary,
+					secondary = AddonSecondary, secondarySecure = ADDON_OPTIONS_SPEC, secondaryIsOpen = NeverOpen, secondaryAfter = Opened,
 				}
 			end
 		end
