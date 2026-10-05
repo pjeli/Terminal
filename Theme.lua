@@ -141,7 +141,7 @@ T.FIELDS = {
 	bg = { kind = "color", label = "Background" },
 	promptBg = { kind = "color", label = "Prompt background" },
 	border = { kind = "color", label = "Border" },
-	bgAlpha = { kind = "number", label = "Opacity", min = 0.3, max = 1, step = 0.05 },
+	bgAlpha = { kind = "number", label = "Opacity", min = 0.3, max = 1, step = 0.01 },
 	frame = { kind = "choice", label = "Frame", choices = { "classic", "flat" } },
 	font = { kind = "choice", label = "Font", choices = T.FONT_ORDER },
 	fontSize = { kind = "number", label = "Font size", min = 10, max = 22, step = 1 },
@@ -333,8 +333,8 @@ local function Hex(v)
 	end
 end
 
---- Validates and stores one setting. Returns ok, value-or-error.
-function T.Set(key, raw)
+--- Validates and stores one setting. Returns ok, value-or-error. `quiet`: don't redraw yet (a batch, T.Import).
+function T.Set(key, raw, quiet)
 	local f = T.FIELDS[key]
 	if not f then return false, "unknown setting '" .. tostring(key) .. "'" end
 	local v
@@ -377,7 +377,7 @@ function T.Set(key, raw)
 	end
 	t[key] = v
 	if PRESET_KEYS[key] then t.preset = "custom" end
-	T.Changed()
+	if not quiet then T.Changed() end
 	return true, v
 end
 
@@ -404,6 +404,104 @@ function T.Reset()
 	T.Get()
 	T.Changed()
 end
+
+----------------------------------------------------------------------
+-- Style strings: the look as one line, to paste in chat or a forum post
+----------------------------------------------------------------------
+
+-- "TERM1:bg=47331f; accent=c79c4e; ...": the look's settings (colours, opacity, frame, font, cursor, animation,
+-- prompt text), not the layout (width, rows, scale: they fit a screen, not a style) nor behaviour (hints,
+-- autoScan, syntax). Values as `.set` takes them, so one string works across versions: a key this version
+-- doesn't know is skipped. Under 255 characters, so a chat message carries one.
+T.STYLE_MARK = "TERM1:"
+T.STYLE_KEYS = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha", "frame",
+	"font", "fontSize", "promptText", "cursor", "blinkRate", "animations" }
+
+local function EncodeValue(v)
+	-- the prompt text can hold anything: ';', '=', '%' and spaces are written as %XX
+	return (tostring(v):gsub("[;=%%%s]", function(c) return ("%%%02X"):format(c:byte()) end))
+end
+local function DecodeValue(s)
+	return (s:gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+end
+
+--- Which preset the look is, if its colours are exactly one of them (else "custom").
+function T.MatchPreset(t)
+	for _, id in ipairs(T.PRESET_ORDER) do
+		local same = true
+		for k in pairs(PRESET_KEYS) do
+			if t[k] ~= T.PRESETS[id][k] then same = false break end
+		end
+		if same then return id end
+	end
+	return "custom"
+end
+
+--- The current look as a style string.
+function T.Export()
+	local t = T.Get()
+	local parts = {}
+	for _, k in ipairs(T.STYLE_KEYS) do
+		local v = t[k]
+		if T.FIELDS[k].kind == "number" then v = T.Format(k, v):gsub("/s$", "") end -- "0.95", "13", "0.8"
+		parts[#parts + 1] = k .. "=" .. EncodeValue(v)
+	end
+	return T.STYLE_MARK .. table.concat(parts, "; ") -- (a space after each ';' lets the text wrap where it's shown)
+end
+
+--- Applies a style string. Returns ok, message: how many settings were set (and skipped), or what was wrong.
+--- Anything around the string (a chat line's name and time, spaces) is ignored; only known settings
+--- change, each checked as `.set` would.
+function T.Import(s)
+	s = tostring(s or "")
+	local at = s:find(T.STYLE_MARK, 1, true)
+	if not at then return false, "not a Terminal style: it starts with " .. T.STYLE_MARK end
+	local body = s:sub(at + #T.STYLE_MARK):gsub(";%s+", ";"):match("^[^%s|]*") or ""
+	local t = T.Get()
+	local set, skipped, bad = 0, 0, {}
+	local keep = {}
+	for k, v in pairs(t) do keep[k] = v end -- all or nothing: a bad value leaves the look as it was
+	for pair in body:gmatch("[^;]+") do
+		local k, v = pair:match("^([%w_]+)=(.*)$")
+		if k and T.FIELDS[k] then
+			local ok, res = T.Set(k, DecodeValue(v), true)
+			if ok then set = set + 1 else bad[#bad + 1] = k .. ": " .. tostring(res) end
+		else
+			skipped = skipped + 1
+		end
+	end
+	if #bad > 0 or set == 0 then
+		for k in pairs(t) do t[k] = nil end
+		for k, v in pairs(keep) do t[k] = v end
+		if set == 0 and #bad == 0 then return false, "no settings in that style string" end
+		return false, "not applied: " .. table.concat(bad, "; ")
+	end
+	t.preset = T.MatchPreset(t)
+	T.Changed()
+	local msg = set .. " settings applied"
+	if skipped > 0 then msg = msg .. " (" .. skipped .. " unknown skipped)" end
+	if t.preset ~= "custom" then msg = msg .. ": " .. T.PRESETS[t.preset].label end
+	return true, msg
+end
+
+ns:RegisterCommand("style", {
+	desc = "Share the look: .style copies it as a string, .style TERM1:... applies one",
+	aliases = { "skin", "look" },
+	complete = function(args)
+		if (args or "") ~= "" then return {} end
+		return { { "export", "the current look as a string, to copy" }, { "import", "paste a style string after it" } }
+	end,
+	run = function(args)
+		args = strtrim(args or "")
+		if args == "" or args == "export" then
+			ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true })
+			return {}
+		end
+		local ok, msg = T.Import((args:gsub("^import%s*", "")))
+		if not ok then return { "Style: " .. msg } end
+		return { "Style: " .. msg }
+	end,
+})
 
 ----------------------------------------------------------------------
 -- Terminal commands

@@ -13,7 +13,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.37.0", when = "next release, in testing",
+		v = "0.37.4", when = "released October 2026",
+		items = {
+			"Share your look: Export style on the options page (or .style) gives it as one line to copy, TERM1:..., short enough for a chat message; Import style (or .style TERM1:...) applies a pasted one. Colours, opacity, frame, font, cursor, animation and prompt text travel; width, rows and scale stay yours.",
+			"The style string shows in the slim copy bar (as a Wowhead link does): a narrow bar in the middle of the screen, the text wrapped onto a few lines and all selected; it goes once Ctrl+C has copied it.",
+			"Opacity can be set to the exact hundredth (presets' 0.96 and 0.97 no longer round to 0.95).",
+		},
+	},
+	{
+		v = "0.37.0", when = "released October 2026",
 		items = {
 			"Review pass: every result that opens a game window now goes through the game's own key or a macro the game presses (the panels, slash commands, options, the addon list); a recipe picked from Terminal is pointed at, never clicked, so the window's own Create button stays the game's.",
 			"stat:mp5 works; filters with spaces take _ (in:elwynn_forest); lvl:30-20 means 20-30; >>party without the space sends too; r is raid.",
@@ -49,18 +57,6 @@ CL.LOG = {
 			".changelog: this window.",
 			"Fixes: the history keeps the gear you equipped, not the piece it replaced; a window opened by the press still gets its highlight; macros stay within the game's 255 characters.",
 			"Smoother: @cvar updates just the setting that changed, stat: and slot: filters do less work per row, and a long frame no longer crashes the snake into a wall.",
-		},
-	},
-	{
-		v = "0.33.1", when = "released October 2026",
-		items = {
-			"Search filters across kinds: lvl: ilvl: q: stat: slot: type: in: on: count: faction: trainer: is: (Tab completes values; .filters lists them).",
-			"The prompt colours what it understands: @kinds, filters, .commands, /slash commands and plain words.",
-			"Long prompts wrap onto more lines instead of scrolling sideways.",
-			"A paste goes straight back to the coloured prompt, with a short reminder to press Ctrl+V again.",
-			"AtlasLoot's index is kept between sessions; profession pages show the items they craft (no test items).",
-			"@questie searches quest objectives; Questie's lists are built in the background with no CPU spike at login.",
-			"Fixes: skills the game lists twice show once; no login-indexing checkbox where the game won't allow it.",
 		},
 	},
 }

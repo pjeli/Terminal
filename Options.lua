@@ -395,6 +395,91 @@ reset:SetPoint("TOPLEFT", 156, -562)
 reset:SetText("Reset to defaults")
 reset:SetScript("OnClick", function() T.Reset() end)
 
+-- Sharing the look: Export opens the style string in a copy window (Ctrl+C); Import takes a pasted one
+local export = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+export:SetSize(110, 22)
+export:SetPoint("TOPLEFT", 296, -562)
+export:SetText("Export style")
+export:SetScript("OnClick", function() ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true }) end)
+
+local importDialog -- built on first use
+local function BuildImportDialog()
+	if importDialog then return importDialog end
+	local d = CreateFrame("Frame", "TerminalStyleImport", UIParent, "BackdropTemplate")
+	d:SetSize(520, 118)
+	d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+	d:SetFrameStrata("DIALOG")
+	d:SetClampedToScreen(true)
+	d:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	d:SetBackdropColor(0.06, 0.06, 0.08, 0.96)
+	d:SetBackdropBorderColor(0.4, 0.4, 0.45, 1)
+	d:Hide()
+	tinsert(UISpecialFrames, "TerminalStyleImport") -- Esc closes it
+
+	local title = d:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	title:SetPoint("TOPLEFT", 14, -12)
+	title:SetText("Import a Terminal style")
+	local hint = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	hint:SetPoint("TOPLEFT", 14, -30)
+	hint:SetText("Paste a style string (Ctrl+V): it starts with " .. T.STYLE_MARK)
+
+	local box = CreateFrame("EditBox", nil, d, "InputBoxTemplate")
+	box:SetSize(492, 22)
+	box:SetPoint("TOPLEFT", 20, -50)
+	box:SetAutoFocus(false)
+	box:SetMaxLetters(0)
+	d.box = box
+
+	local status = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	status:SetPoint("BOTTOMLEFT", 14, 12)
+	status:SetPoint("RIGHT", d, "RIGHT", -200, 0)
+	status:SetJustifyH("LEFT")
+	status:SetWordWrap(false)
+	d.status = status
+
+	local function Apply()
+		local ok, msg = T.Import(box:GetText())
+		status:SetText(msg)
+		status:SetTextColor(ok and 0.4 or 1, ok and 1 or 0.4, 0.4)
+		if ok then
+			box:ClearFocus()
+			C_Timer.After(0.8, function() if d:IsShown() then d:Hide() end end)
+		end
+	end
+	d.Apply = Apply
+	box:SetScript("OnEnterPressed", Apply)
+	box:SetScript("OnEscapePressed", function() d:Hide() end)
+
+	local apply = CreateFrame("Button", nil, d, "UIPanelButtonTemplate")
+	apply:SetSize(90, 22)
+	apply:SetPoint("BOTTOMRIGHT", -108, 8)
+	apply:SetText("Apply")
+	apply:SetScript("OnClick", Apply)
+	local cancel = CreateFrame("Button", nil, d, "UIPanelButtonTemplate")
+	cancel:SetSize(90, 22)
+	cancel:SetPoint("BOTTOMRIGHT", -12, 8)
+	cancel:SetText("Cancel")
+	cancel:SetScript("OnClick", function() d:Hide() end)
+	importDialog = d
+	return d
+end
+
+--- Opens the paste dialog (empty, focused).
+function O.ImportDialog()
+	local d = BuildImportDialog()
+	d.box:SetText("")
+	d.status:SetText("")
+	d:Show()
+	C_Timer.After(0.05, function() if d:IsShown() then d.box:SetFocus() end end)
+	return d
+end
+
+local import = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+import:SetSize(110, 22)
+import:SetPoint("TOPLEFT", 416, -562)
+import:SetText("Import style")
+import:SetScript("OnClick", function() O.ImportDialog() end)
+
 ----------------------------------------------------------------------
 -- Sync controls with the stored theme
 ----------------------------------------------------------------------

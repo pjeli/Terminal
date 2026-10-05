@@ -5,8 +5,9 @@ local ns = select(2, ...)
 -- real text box can), so anything meant to be copied out opens here: .debug log, for one.
 --
 --   ns:ShowText(title, text or list of lines)
---   ns:ShowText(title, text, { compact = true })   one line (a link): a slim bar in the terminal's
---       look that closes by itself once Ctrl+C has copied it
+--   ns:ShowText(title, text, { compact = true })   one line (a link, a style string): a slim bar in the
+--       terminal's look, sized to the text (wrapping onto a few lines when it's long), that closes by
+--       itself once Ctrl+C has copied it
 --
 -- The box can be scrolled and clicked into, but not edited (typing puts the text back).
 -- Esc or the Close button closes it.
@@ -146,7 +147,9 @@ local function BuildLink()
 	linkEdit:SetFontObject(Theme.fonts.row)
 	linkEdit:SetPoint("TOPLEFT", linkBox, "TOPLEFT", 9, 0)
 	linkEdit:SetPoint("BOTTOMRIGHT", linkBox, "BOTTOMRIGHT", -9, 0)
+	linkEdit:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 	linkEdit:SetScript("OnEscapePressed", function() C.Hide() end)
+	linkEdit:SetScript("OnEnterPressed", function() C.Hide() end) -- (a wrapped bar is multi-line: Enter would add a line)
 	linkEdit:SetScript("OnEditFocusLost", function() C.Hide() end)
 	linkEdit:SetScript("OnTextChanged", function(self, user) -- read-only
 		if user and self:GetText() ~= current then
@@ -176,8 +179,6 @@ local function ShowLink(title, text)
 	linkEdit:SetTextColor(Theme.RGB(t.text))
 	linkTitle:SetText(title)
 	linkHint:SetText("Ctrl+C copies  ·  Esc closes")
-	linkEdit:SetText(text)
-	linkEdit:SetCursorPosition(0)
 	-- as wide as the text needs (and the title line), within reason
 	local measure = link.measure or link:CreateFontString(nil, "OVERLAY")
 	link.measure = measure
@@ -185,13 +186,27 @@ local function ShowLink(title, text)
 	measure:SetText(text)
 	local w = (measure:GetStringWidth() or 300) + 40
 	local tw = (linkTitle:GetStringWidth() or 0) + (linkHint:GetStringWidth() or 0) + 44
-	link:SetSize(math.max(320, math.min(700, math.max(w, tw))), t.fontSize + 44)
+	-- text wider than the bar wraps onto a few lines (a style string: it has a space after each ';' for that)
+	-- instead of scrolling off: a long text gets a narrower, taller bar in the middle of the screen; a link
+	-- the width it needs, where the terminal sits
+	local long = w > 700
+	local MAX_W = long and 560 or 700
+	local width = math.max(320, math.min(MAX_W, math.max(w, tw)))
+	local lines = math.max(1, math.min(8, math.ceil((w - 40) / (width - 40))))
+	C.linkLines = lines
+	-- the box is sized and made multi-line before the text goes in, so the text is laid out (wrapped)
+	-- before it's selected: selected first, only the first line showed as highlighted
+	link:SetSize(width, 24 + lines * (t.fontSize + 5) + 12)
+	linkEdit:SetMultiLine(lines > 1)
+	linkEdit:SetText("")
+	linkEdit:SetText(text)
+	linkEdit:SetCursorPosition(0)
 	link:ClearAllPoints()
 	local pt = ns.db and ns.db.point
-	if pt then
-		link:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
+	if long or not pt then
+		link:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	else
-		link:SetPoint("TOP", UIParent, "TOP", 0, -140)
+		link:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
 	end
 	link:Show()
 	C_Timer.After(0.05, function()

@@ -211,3 +211,96 @@ do -- ">>party" (no space) is coloured like ">> party"
 	for _, sg in ipairs(segs) do col[("hearthstone >>nowhere x"):sub(sg[1], sg[2])] = sg[3] end
 	T.check(col.nowhere == T.ns.Theme.SYNTAX.bad, ">>nowhere: the word in red")
 end
+
+do -- style strings: export, import, the .style command and the options dialog
+	local ns, UI, check = T.ns, T.UI, T.check
+	local Th = ns.Theme
+	local saved = {}
+	for k, v in pairs(Th.Get()) do saved[k] = v end
+	-- export: one line, the marker, every style key, nothing else, short enough for a chat message
+	Th.ApplyPreset("dracula")
+	Th.Set("promptText", "a;=")
+	local s = Th.Export()
+	check(s:sub(1, #Th.STYLE_MARK) == Th.STYLE_MARK and not s:find("[\n\r]"), "export starts with the marker, one line: " .. s)
+	check(#s <= 255, "a style string fits a chat message (" .. #s .. ")")
+	for _, k in ipairs(Th.STYLE_KEYS) do check(s:find("; " .. k .. "=", 1, true) or s:find(":" .. k .. "=", 1, true), "export carries " .. k) end
+	check(not s:find("width=", 1, true) and not s:find("hints=", 1, true), "layout and behaviour settings stay out")
+	check(s:find("promptText=a%3B%3D", 1, true), "the prompt text's ; and = are escaped: " .. s)
+	check(s:find("; accent=", 1, true), "settings are separated by '; ' so the text can wrap where it's shown")
+	-- the string without the spaces imports too (an old one, or one retyped)
+	do
+		Th.Reset()
+		local okc = Th.Import((s:gsub("; ", ";")))
+		check(okc and Th.Get().accent == "bd93f9", "a style string without the spaces imports too")
+	end
+	-- import: back to the defaults first, then the string brings the look back exactly
+	Th.Reset()
+	check(Th.Get().accent ~= "bd93f9", "reset: Dracula's accent gone")
+	local ok, msg = Th.Import(s)
+	check(ok, "import applies: " .. tostring(msg))
+	local t = Th.Get()
+	check(t.accent == "bd93f9" and t.bg == "282a36" and t.frame == "flat" and t.promptText == "a;=" and t.bgAlpha == 0.97, "every setting came back: " .. tostring(t.accent) .. " " .. tostring(t.promptText))
+	-- the colours are Dracula's exactly, so the preset is recognised (the prompt text isn't part of a preset)
+	check(t.preset == "dracula" and Th.MatchPreset(t) == "dracula", "the imported colours are recognised as Dracula: " .. tostring(t.preset))
+	-- a chat line around the string is ignored
+	Th.Reset()
+	ok = Th.Import("[Party] Plamen: here " .. s .. " try it")
+	check(ok and Th.Get().accent == "bd93f9", "a style pasted with a chat line around it still imports")
+	-- unknown keys skipped, counted
+	Th.Reset()
+	ok, msg = Th.Import(Th.STYLE_MARK .. "accent=ff0000;futureKey=1")
+	check(ok and Th.Get().accent == "ff0000" and msg:find("1 unknown", 1, true), "unknown keys skipped and counted: " .. tostring(msg))
+	-- a bad value: nothing changes
+	Th.Reset()
+	local before = Th.Get().accent
+	ok, msg = Th.Import(Th.STYLE_MARK .. "accent=notacolour;bg=000000")
+	check(not ok and Th.Get().accent == before and Th.Get().bg ~= "000000", "a bad value applies nothing: " .. tostring(msg))
+	check(not Th.Import("hello there"), "not a style string: refused")
+	check(not Th.Import(Th.STYLE_MARK), "an empty style string: refused")
+	-- the preset is recognised from a preset's colours
+	Th.Reset()
+	Th.Import(Th.STYLE_MARK .. "bg=000a00;border=0f6b26;accent=00ff66;prompt=00ff66;text=c8ffc8;dim=4f8f5f;match=9dff9d;bgAlpha=0.95;frame=flat;promptBg=" .. Th.PRESETS.matrix.promptBg)
+	check(Th.Get().preset == "matrix", "Matrix's colours imported are the Matrix preset: " .. tostring(Th.Get().preset))
+	-- the command: .style opens the copy box with the string; .style <string> applies it
+	local shown, shownOpts
+	local baseShow = ns.ShowText
+	ns.ShowText = function(_, title, text, opts) shown, shownOpts = text, opts end
+	ns.commands.style.run("")
+	check(shown == Th.Export() and shownOpts and shownOpts.compact, ".style opens the look as a string in the slim copy bar (closes on Ctrl+C)")
+	ns.ShowText = baseShow
+	-- the slim bar wraps a long text onto a few lines instead of one scrolling line
+	local C = ns.CopyBox
+	ns:ShowText("Terminal style", Th.Export(), { compact = true })
+	check(C.linkFrame and C.linkFrame:IsShown() and (C.linkLines or 1) > 1 and (C.linkLines or 9) <= 8, "a style string wraps onto a few lines: " .. tostring(C.linkLines))
+	check(C.linkFrame:GetWidth() <= 560, "a long text gets the narrow bar: " .. tostring(C.linkFrame:GetWidth()))
+	check(C.linkFrame.lastPoint and C.linkFrame.lastPoint[1] == "CENTER", "the long bar is centred on the screen")
+	check(C.linkEdit.text == Th.Export(), "the text is in the box")
+	-- selected once more when it gets focus (a click into it, the timer): a wrapped box drew its highlight late
+	local hl = false
+	C.linkEdit.HighlightText = function() hl = true end
+	C.linkEdit.scripts.OnEditFocusGained(C.linkEdit)
+	C.linkEdit.HighlightText = nil
+	check(hl, "focus selects the text")
+	ns:ShowText("Wowhead", "https://www.wowhead.com/forever/quest=610", { compact = true })
+	check(C.linkLines == 1, "a short link stays one line")
+	C.Hide()
+	Th.Reset()
+	local out = ns.commands.style.run("import " .. Th.STYLE_MARK .. "accent=123456")
+	check(Th.Get().accent == "123456" and out[1] and out[1]:find("applied", 1, true), ".style import <string> applies it: " .. tostring(out[1]))
+	out = ns.commands.style.run(Th.STYLE_MARK .. "accent=654321")
+	check(Th.Get().accent == "654321", ".style <string> (no 'import') applies too")
+	-- the options dialog
+	local d = ns.Options.ImportDialog()
+	check(d and d:IsShown(), "the import dialog opens")
+	d.box:SetText(Th.STYLE_MARK .. "accent=abcdef")
+	d.Apply()
+	check(Th.Get().accent == "abcdef", "Apply in the dialog imports the pasted string")
+	d.box:SetText("nope"); d.Apply()
+	check(Th.Get().accent == "abcdef" and d.status:GetText():find("not a Terminal style", 1, true), "a bad paste says so and changes nothing")
+	d:Hide()
+	-- back as it was
+	local cur = Th.Get()
+	for k in pairs(cur) do cur[k] = nil end
+	for k, v in pairs(saved) do cur[k] = v end
+	Th.Changed()
+end
