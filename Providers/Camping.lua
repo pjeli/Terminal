@@ -74,8 +74,63 @@ ns.Camp = {
 -- Provider
 ----------------------------------------------------------------------
 
--- only camp objects you can actually make are listed; Enter opens their recipe
+-- only camp objects you can actually make are listed; Enter opens their recipe, Shift+Enter uses one from your
+-- bags or makes it
 local function OpenCamp(e) P.OpenRecipe(e.hit.r.id, e.hit.profID, e.name) end
+
+--- The camp object's item (what its recipe makes), or nil: kept at indexing, else asked of the game.
+local function CampItem(e)
+	local F = ns.Filters
+	return F and F.ItemOf and F.ItemOf({ recipeID = e.recipeID, makesItem = e.hit and e.hit.r.item }) or nil
+end
+
+local function InBags(e)
+	local id = CampItem(e)
+	local count = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
+	if not count then return false end
+	local ok, n = pcall(count, id or e.name)
+	return ok and type(n) == "number" and n > 0
+end
+
+-- Shift+Enter: use it when you have one in your bags (as a right-click there), else make it: the window's
+-- own craft (C_TradeSkillUI.CraftRecipe, which needs the window), the window opened first on the same press
+-- when it isn't (casting a recipe by name with no window doesn't work here). A window opening on that press
+-- may not be ready to craft yet: the next Shift+Enter, with it open, crafts.
+local function CampMacro(e)
+	if InBags(e) then
+		e._campUse = true
+		local id = CampItem(e)
+		return id and ("/use item:" .. id) or ("/use " .. e.name)
+	end
+	e._campUse = false
+	if not e.recipeID then return nil end
+	-- (Shift+Enter hands a view whose secure/isOpen are its own: the recipe's are kept apart)
+	local open = e.recipeIsOpen and e.recipeIsOpen(e)
+	-- the window's own way of crafting (seen to work; it needs the window). Without the window, the same press
+	-- opens it first (the profession's window spell, as Enter does). A recipe can't be cast by name here (tried)
+	local craft = ("/run C_TradeSkillUI.CraftRecipe(%d,1)"):format(e.recipeID)
+	local spell = type(e.recipeSecure) == "table" and e.recipeSecure.spell
+	if open or not spell then return craft end
+	return "/cast " .. spell .. "\n" .. craft
+end
+local CAMP_SPEC = { macro = CampMacro }
+local function CampNeverOpen() return false end
+local function CampAfter(e)
+	if e._campUse then
+		ns:Trace("camp: the game used " .. tostring(e.name))
+	else
+		ns:Trace("camp: the game was asked to make " .. tostring(e.name) .. " (its window opened first if it wasn't)")
+		if e.recipeAfter then e.recipeAfter(e) end -- (its recipe selected and pointed at in the window)
+	end
+end
+-- only when the game couldn't be handed the press (in combat, no secure button)
+local function CampFallback(e)
+	if InCombatLockdown() then
+		ns:Print("In combat: Terminal can't use or make " .. tostring(e.name) .. " now.")
+	else
+		ns:Print("Couldn't use or make " .. tostring(e.name) .. " from the terminal.")
+	end
+end
 
 ns:RegisterProvider("camp", {
 	label = "Camp",
@@ -108,8 +163,9 @@ ns:RegisterProvider("camp", {
 				local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
 				e.recipeID, e.profID = re.recipeID, re.profID
 				e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after
-				e.secondary = re.secondary
+				e.recipeSecure, e.recipeIsOpen, e.recipeAfter = re.secure, re.isOpen, re.after
 				e.getLink = re.getLink
+				e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CampFallback, CAMP_SPEC, CampNeverOpen, CampAfter
 			end
 			out[#out + 1] = e
 			end

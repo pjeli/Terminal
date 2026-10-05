@@ -13,6 +13,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.36.5", when = "next release, in testing",
+		items = {
+			"Herbalism's recipes and camp objects (Incense Candle) open its Gardening window. Terminal learns the spell you open a profession with, and otherwise finds it among the profession's own spells.",
+			"@camp: Shift+Enter uses the camp object from your bags, or opens its profession and makes it when you have none.",
+		},
+	},
+	{
 		v = "0.36.0", when = "released October 2026",
 		items = {
 			"@spell: your spellbook in search. Enter opens the book on the spell's category and page and highlights it; Shift+Enter casts it.",
@@ -47,15 +54,6 @@ CL.LOG = {
 			"Recipes are indexed per character (namesakes no longer share one index).",
 			"Big lists (your alts and banks, Questie's quests and NPCs) are offered by a row on top when only they have a match; Tab adds the @kind.",
 			"Those offer rows stay out of the history.",
-		},
-	},
-	{
-		v = "0.29.3", when = "released September 2026",
-		items = {
-			"Animation styles: Smooth, Snappy, Floaty, Cascade, Drop Down or Off, previewed in the options.",
-			"Much less CPU while idle and while other addons spread taint; .mem shows Terminal's CPU.",
-			"Shift+Enter uses items; big searches are spread over frames; lists are built ahead of use.",
-			"MIT license.",
 		},
 	},
 }

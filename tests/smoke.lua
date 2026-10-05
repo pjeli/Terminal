@@ -5168,4 +5168,94 @@ do -- .changelog: what changed, newest first, scrolled back through the last few
 	check(ns.Snake.IsShown() and not CL.IsShown(), "snake closes the changelog")
 	ns.Snake.Close()
 end
+do -- a profession whose window opens with a spell not named like it (Herbalism on this client)
+	local P = ns.Professions
+	local save = { gp = _G.GetProfessions, gpi = _G.GetProfessionInfo, can = C_TradeSkillUI.CanTradeSkillShowCraftingUI,
+		gsn = C_Spell.GetSpellName, gsi = C_Spell.GetSpellInfo }
+	_G.GetProfessions = function() return 7 end
+	_G.GetProfessionInfo = function(i) if i == 7 then return "Herbalism", 20, 40, 150, 2, 70, 182 end end
+	C_TradeSkillUI.CanTradeSkillShowCraftingUI = function(id) return id == 171 end -- (slot 71: the window's spell)
+	C_Spell.GetSpellName = function(id) if id == 171 then return "Herb Gathering" elseif id == 172 then return "Find Herbs" end return save.gsn(id) end
+	C_Spell.GetSpellInfo = function(x) if x == "Herbalism" then return nil end return save.gsi(x) end -- (no spell is named Herbalism)
+	check(P.OpenSpell("Herbalism") == nil and P.OpenerSpell(182, "Herbalism") == "Herb Gathering",
+		"no spell named Herbalism: its window's spell is found among its own spellbook entries")
+	-- its recipes, indexed when its window was opened from the game's profession book, open through it: a recipe,
+	-- and Incense Candle (a camp object: listed under @camp)
+	local st = P.Store()
+	st[182] = { name = "Herbalism", skillLine = 182, fromList = true, list = {
+		{ id = 901, name = "Incense Candle", learned = true, icon = 1, item = 5901 },
+		{ id = 902, name = "Swiftthistle Brew", learned = true, icon = 1 } } }
+	ns.providers.recipes._dirty, ns.providers.camp._dirty = true, true
+	local rec = names(ns:GetEntries(ns.providers.recipes))
+	check(rec["Swiftthistle Brew"] and rec["Swiftthistle Brew"].secure and rec["Swiftthistle Brew"].secure.spell == "Herb Gathering",
+		"a Herbalism recipe opens Herbalism with its window's spell")
+	local camp = names(ns:GetEntries(ns.providers.camp))
+	local candle = camp["Incense Candle"]
+	check(candle and candle.secure and candle.secure.spell == "Herb Gathering",
+		"Incense Candle (@camp) opens Herbalism with its window's spell: " .. tostring(candle and candle.secure and candle.secure.spell))
+	local r = ns.Secure.Resolve(candle.secure, candle)
+	check(r and r.spell == "Herb Gathering", "Enter casts it on the same press")
+	-- Shift+Enter on a camp object: use one from your bags, else make it
+	local baseCount = C_Item.GetItemCount
+	local have = 1
+	C_Item.GetItemCount = function(id) if id == 5901 then return have end return baseCount and baseCount(id) or 0 end
+	local v = ns.UI.SecureView(candle, true)
+	r = ns.Secure.Resolve(v.secure, v)
+	check(r and r.macro == "/use item:5901", "one in your bags: Shift+Enter uses it: " .. tostring(r and r.macro))
+	have = 0
+	v = ns.UI.SecureView(candle, true)
+	r = ns.Secure.Resolve(v.secure, v)
+	check(r and r.macro == "/cast Herb Gathering\n/run C_TradeSkillUI.CraftRecipe(901,1)",
+		"none in your bags, no window: the game opens the window and makes it: " .. tostring(r and r.macro))
+	local baseOpen = candle.recipeIsOpen
+	candle.recipeIsOpen = function() return true end
+	v = ns.UI.SecureView(candle, true)
+	r = ns.Secure.Resolve(v.secure, v)
+	check(r and r.macro == "/run C_TradeSkillUI.CraftRecipe(901,1)", "its window already open: it just makes it")
+	candle.recipeIsOpen = baseOpen
+	C_Item.GetItemCount = baseCount
+	-- and the Herbalism row itself opens the window the same way
+	ns.providers.professions._dirty = true
+	local pe = names(ns:GetEntries(ns.providers.professions))
+	check(pe["Herbalism"] and pe["Herbalism"].secure and pe["Herbalism"].secure.spell == "Herb Gathering", "the Herbalism row opens its window too")
+	st[182] = nil
+	ns.providers.camp._dirty = true
+	-- the game says none of its entries opens a crafting window (gathering professions given one here): its entry
+	-- named like it, which the game's profession book casts
+	C_TradeSkillUI.CanTradeSkillShowCraftingUI = function() return false end
+	C_Spell.GetSpellName = function(id) if id == 171 then return "Herbalism" elseif id == 172 then return "Find Herbs" end return save.gsn(id) end
+	check(P.OpenerSpell(182, "Herbalism") == "Herbalism", "no entry said to open a window: the one named like it")
+	-- none named like it either: its one active entry that isn't a minimap tracking spell (Gardening; Find Herbs tracks)
+	C_Spell.GetSpellName = function(id) if id == 171 then return "Find Herbs" elseif id == 172 then return "Gardening" end return save.gsn(id) end
+	local baseMinimap = _G.C_Minimap
+	_G.C_Minimap = { GetNumTrackingTypes = function() return 1 end, GetTrackingInfo = function() return { name = "Find Herbs", spellID = 171 } end }
+	check(P.OpenerSpell(182, "Herbalism") == "Gardening", "its window's spell when the game names none: Gardening (Find Herbs tracks)")
+	_G.C_Minimap = baseMinimap
+	-- you open it yourself (the game's profession book casts its entry): that spell opens it from then on
+	C_Spell.GetSpellName = function(id) if id == 171 then return "Herb Gathering" elseif id == 172 then return "Find Herbs" end return save.gsn(id) end
+	check(P.OpenerSpell(182, "Herbalism") == nil, "nothing to go by: no opener found yet")
+	P.castWatch.scripts.OnEvent(P.castWatch, "UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", 171)
+	RECIPES[182] = { ids = { 901 }, info = { [901] = { name = "Incense Candle", icon = 1, learned = true, categoryID = 5 } } }
+	local saveProf = tsState.prof
+	tsState.prof = { id = 182, name = "Herbalism" }
+	local baseLine = C_TradeSkillUI.GetTradeSkillLineForRecipe
+	C_TradeSkillUI.GetTradeSkillLineForRecipe = function(id) if id == 901 then return 182, "Herbalism", 182 end return baseLine and baseLine(id) end
+	P.Snapshot(); FlushAll()
+	local herb
+	for _, pd in pairs(P.Store()) do if pd.name == "Herbalism" then herb = pd end end
+	check(herb and herb.opener == "Herb Gathering", "the spell you opened it with is kept as its opener: " .. tostring(herb and herb.opener))
+	check(P.WindowSpell(182, "Herbalism") == "Herb Gathering", "and it opens the window from then on")
+	-- a spell that isn't one of its own (cast just before, in a fight) isn't taken for its opener
+	for k, pd in pairs(P.Store()) do if pd.name == "Herbalism" then P.Store()[k] = nil end end
+	P.castWatch.scripts.OnEvent(P.castWatch, "UNIT_SPELLCAST_SUCCEEDED", "player", "cast-2", 101) -- (Fireball)
+	P.Snapshot(); FlushAll()
+	herb = nil
+	for _, pd in pairs(P.Store()) do if pd.name == "Herbalism" then herb = pd end end
+	check(herb and herb.opener == nil, "a spell not its own isn't kept as its opener")
+	for k, pd in pairs(P.Store()) do if pd.name == "Herbalism" then P.Store()[k] = nil end end
+	RECIPES[182], tsState.prof, C_TradeSkillUI.GetTradeSkillLineForRecipe = nil, saveProf, baseLine
+	_G.GetProfessions, _G.GetProfessionInfo, C_TradeSkillUI.CanTradeSkillShowCraftingUI = save.gp, save.gpi, save.can
+	C_Spell.GetSpellName, C_Spell.GetSpellInfo = save.gsn, save.gsi
+	ns.providers.recipes._dirty, ns.providers.professions._dirty = true, true
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

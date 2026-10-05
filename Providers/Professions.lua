@@ -227,6 +227,126 @@ function P.OpenSpell(name)
 	if ok2 and can == true then return name end
 end
 
+--- The spell that opens a profession's window when it isn't named like the profession (Herbalism's own
+--- spell on this client): among the profession's spellbook entries (GetProfessionInfo's spell offset), the
+--- one the game says shows a crafting window, the rule the game's own profession book goes by. Its name, or nil.
+function P.OpenerSpell(skillLine, name)
+	local api = TS()
+	if not (api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return nil end
+	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	local lname = type(name) == "string" and name:lower() or nil
+	for _, pr in ipairs((P.PlayerProfessions())) do
+		if pr.spellOffset and ((skillLine and pr.skillLine == skillLine) or (lname and pr.name:lower() == lname)) then
+			local named -- (its entry named like it: what the game's profession book casts when the test says no)
+			for _, sp in ipairs(P.ProfessionSpells(pr)) do
+				if sp.canShow then
+					ns:Trace(("professions: %s's window opens with %s"):format(pr.name, sp.name))
+					return sp.name
+				end
+				if not named and not sp.passive and sp.name:lower() == pr.name:lower() then named = sp.name end
+			end
+			-- gathering professions given a window on this client (Herbalism): the game may still say its
+			-- spell shows no crafting window
+			if named then
+				ns:Trace(("professions: %s: no entry says it opens a window; using its own %s"):format(pr.name, named))
+				return named
+			end
+			-- else its one active entry that isn't a minimap tracking spell (Herbalism: Find Herbs tracks,
+			-- Gardening opens the window)
+			local tracking, left = P.TrackingSpells(), {}
+			for _, sp in ipairs(P.ProfessionSpells(pr)) do
+				if not sp.passive and not tracking[sp.id] then left[#left + 1] = sp end
+			end
+			if #left == 1 then
+				ns:Trace(("professions: %s: its one entry that isn't tracking, %s, opens it"):format(pr.name, left[1].name))
+				return left[1].name
+			end
+		end
+	end
+end
+
+--- The spells in the minimap's tracking menu (Find Herbs, Find Minerals...), as a set of spell ids.
+function P.TrackingSpells()
+	local set = {}
+	local M = C_Minimap
+	if not (M and M.GetNumTrackingTypes and M.GetTrackingInfo) then return set end
+	local okN, n = pcall(M.GetNumTrackingTypes)
+	for i = 1, (okN and tonumber(n) or 0) do
+		local ok, a, _, _, _, _, f = pcall(M.GetTrackingInfo, i)
+		local id = ok and (type(a) == "table" and a.spellID or f)
+		if type(id) == "number" and not Secret(id) then set[id] = true end
+	end
+	return set
+end
+
+--- A profession's spellbook entries: { name, id, canShow (opens a crafting window, says the game), passive }.
+function P.ProfessionSpells(pr)
+	local out = {}
+	local api = TS()
+	if not (pr and pr.spellOffset and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return out end
+	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	for slot = pr.spellOffset + 1, pr.spellOffset + math.max(pr.numSpells or 0, 1) do
+		local ok, info = pcall(C_SpellBook.GetSpellBookItemInfo, slot, bank)
+		local id = ok and type(info) == "table" and (info.spellID or info.actionID)
+		if id and not Secret(id) then
+			local n = info.name
+			if (type(n) ~= "string" or n == "") and C_Spell and C_Spell.GetSpellName then n = C_Spell.GetSpellName(id) end
+			if type(n) == "string" and n ~= "" and not Secret(n) then
+				local can = false
+				if api and api.CanTradeSkillShowCraftingUI then
+					local okC, c = pcall(api.CanTradeSkillShowCraftingUI, id)
+					can = okC and not Secret(c) and c == true
+				end
+				local passive = info.isPassive
+				out[#out + 1] = { name = n, id = id, slot = slot, canShow = can, passive = (not Secret(passive)) and passive == true }
+			end
+		end
+	end
+	return out
+end
+
+--- The spell that opens a profession's window: the one you opened it with last time (learned, `opener`),
+--- else named like it, else found among its own entries (OpenerSpell); nil when none.
+function P.WindowSpell(skillLine, name, pdata)
+	if not pdata then
+		for _, pd in pairs(Store() or {}) do
+			if (skillLine and pd.skillLine == skillLine) or (name and pd.name and pd.name:lower() == name:lower()) then pdata = pd break end
+		end
+	end
+	return (pdata and pdata.opener) or P.OpenSpell(name) or P.OpenerSpell(skillLine, name)
+end
+
+--- Is this spell one of the profession's own spellbook entries?
+function P.IsOwnSpell(skillLine, name, spellName)
+	local lname = type(name) == "string" and name:lower() or nil
+	for _, pr in ipairs((P.PlayerProfessions())) do
+		if (skillLine and pr.skillLine == skillLine) or (lname and pr.name:lower() == lname) then
+			for _, sp in ipairs(P.ProfessionSpells(pr)) do
+				if sp.name == spellName then return true end
+			end
+		end
+	end
+	return false
+end
+
+-- What you just cast (the game's profession book casts a profession's entry to open its window): when a
+-- profession window opens right after, that spell is its opener, kept with its index (`opener`).
+P.lastCast = nil
+pcall(hooksecurefunc, C_SpellBook, "CastSpellBookItem", function(slot, bank)
+	local ok, info = pcall(C_SpellBook.GetSpellBookItemInfo, slot, bank)
+	local n = ok and type(info) == "table" and info.name
+	if type(n) == "string" and n ~= "" and not Secret(n) then P.lastCast = { name = n, at = GetTime() } end
+end)
+-- (cast from an action bar or a key: the same, by the cast itself)
+local castWatch = CreateFrame("Frame")
+P.castWatch = castWatch
+pcall(castWatch.RegisterUnitEvent, castWatch, "UNIT_SPELLCAST_SUCCEEDED", "player")
+castWatch:SetScript("OnEvent", function(_, _, unit, _, spellID)
+	if unit ~= "player" or type(spellID) ~= "number" or Secret(spellID) then return end
+	local n = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
+	if type(n) == "string" and n ~= "" and not Secret(n) then P.lastCast = { name = n, at = GetTime() } end
+end)
+
 --- Drop indexes of professions this character no longer has. Only entries we could tie to
 --- the profession list are considered, and only when that list was read completely.
 function P.Prune()
@@ -399,6 +519,15 @@ function P.Snapshot(done)
 				key, fromList = "spell:" .. spell, false
 			end
 			P.lastSpell = nil
+			-- opened by you from the game (its profession book casting an entry): that spell opens it next time
+			local opener = store[key] and store[key].opener
+			local cast = not spell and P.lastCast and GetTime() - P.lastCast.at < 5 and P.lastCast.name or nil
+			-- only one of the profession's own entries (a spell cast just before, say in a fight, isn't its opener)
+			if cast and P.IsOwnSpell(fromList and key or nil, profName, cast) then
+				opener = cast
+				ns:Trace(("professions: %s's window was opened with %s: kept as its opener"):format(profName, opener))
+			end
+			P.lastCast = nil
 			-- one entry per profession: drop older copies stored under another key
 			local lname = profName:lower()
 			local prevCount
@@ -416,6 +545,7 @@ function P.Snapshot(done)
 				skillLine = fromList and key or nil,
 				fromList = fromList or nil,
 				spell = spell,
+				opener = opener,
 				parent = parent,
 				updated = time(),
 				list = list,
@@ -743,7 +873,7 @@ end
 --- castSpell: the spell that opens this profession's window (false: none), once per profession;
 --- worked out here when not given.
 local function MakeEntry(profID, pdata, r, castSpell)
-	if castSpell == nil then castSpell = pdata.spell or P.OpenSpell(pdata.name) or false end
+	if castSpell == nil then castSpell = pdata.spell or P.WindowSpell(pdata.skillLine, pdata.name, pdata) or false end
 	castSpell = castSpell or nil
 	local parts = { pdata.name, r.cat or "" }
 	local lines = {}
@@ -795,7 +925,7 @@ ns:RegisterProvider("recipes", {
 				if r.learned ~= false then kept[#kept + 1] = r end
 			end
 			if #kept ~= #(pdata.list or {}) then pdata.list = kept end
-			local castSpell = pdata.spell or P.OpenSpell(pdata.name) or false
+			local castSpell = pdata.spell or P.WindowSpell(pdata.skillLine, pdata.name, pdata) or false
 			for _, r in ipairs(kept) do
 				count = count + 1
 				local isCamp = ns.Camp and ns.Camp.IsCampName(r.name:lower())
@@ -847,13 +977,14 @@ ns:RegisterProvider("professions", {
 			}
 		end
 		for _, pr in ipairs((P.PlayerProfessions())) do
+			local opener = P.WindowSpell(pr.skillLine, pr.name)
 			out[#out + 1] = {
 				key = pr.name,
 				name = pr.name,
 				icon = pr.icon,
 				detail = pr.rank .. " / " .. pr.maxRank,
 				skillLine = pr.skillLine,
-				secure = P.OpenSpell(pr.name) and SpellSpec(pr.name) or nil,
+				secure = opener and SpellSpec(opener) or nil,
 				activate = ProfessionActivate,
 			}
 		end
@@ -920,6 +1051,17 @@ ns:RegisterCommand("profdebug", {
 				if ok then line, parent = S(a), S(c) end
 			end
 			lines[#lines + 1] = ("  First recipe: %s  learned=%s  line=%s parent=%s"):format(S(i1.name), S(i1.learned), line, parent)
+		end
+		-- each profession's spellbook entries, and which spell Terminal opens its window with
+		for _, pr in ipairs((P.PlayerProfessions())) do
+			local parts = {}
+			local tracking = P.TrackingSpells()
+			for _, sp in ipairs(P.ProfessionSpells(pr)) do
+				parts[#parts + 1] = ("%s #%s%s%s%s"):format(sp.name, S(sp.id), sp.canShow and " [opens window]" or "",
+					sp.passive and " (passive)" or "", tracking[sp.id] and " (tracking)" or "")
+			end
+			lines[#lines + 1] = ("  %s (%s): %s  -> opens with: %s"):format(pr.name, S(pr.skillLine),
+				#parts > 0 and table.concat(parts, ", ") or "no entries", S(P.WindowSpell(pr.skillLine, pr.name)))
 		end
 		local profs = {}
 		for _, pr in ipairs((P.PlayerProfessions())) do profs[#profs + 1] = pr.name .. "(" .. S(pr.skillLine) .. ")" end
