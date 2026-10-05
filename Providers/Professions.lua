@@ -31,7 +31,7 @@ local Secret, Lower = ns.Secret, ns.Lower -- (Util.lua, Locale.lua: names are co
 local function CharKey()
 	local g = UnitGUID and UnitGUID("player")
 	if type(g) == "string" and g ~= "" and not Secret(g) then return g end
-	return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+	return (ns.CharacterName() or "?") .. "-" .. (GetRealmName() or "?")
 end
 
 local cleaned

@@ -98,6 +98,12 @@ local function Friendship(id)
 	end
 end
 
+--- A renown faction (the Dragonflight kind): its levels aren't Hated..Exalted.
+local function IsMajor(id)
+	local C = _G.C_Reputation
+	return id and C and C.IsMajorFaction and Safe(C.IsMajorFaction, id) == true or false
+end
+
 local function RepOpen()
 	local f = _G.ReputationFrame
 	return f and f.IsVisible and f:IsVisible() and true or false
@@ -164,6 +170,9 @@ ns:RegisterProvider("reputation", {
 				local cur, lo, hi = r.value, r.min, r.max
 				local fr, fcur, flo, fhi = Friendship(r.id)
 				if fr then standing, cur, lo, hi = fr, fcur or cur, flo or lo, fhi or hi end
+				-- standing 1-8 for the standing: filter; friendship and renown factions have their own ranks: none
+				local reaction = r.reaction
+				if fr or (reaction and (reaction < 1 or reaction > 8)) or IsMajor(r.id) then reaction = nil end
 				local progress
 				if cur and lo and hi and hi > lo then
 					progress = math.floor(cur - lo + 0.5) .. "/" .. math.floor(hi - lo + 0.5)
@@ -181,7 +190,7 @@ ns:RegisterProvider("reputation", {
 					text = "reputation faction standing " .. (standing or "") .. " " .. (r.group or "") .. " " .. (r.desc or ""),
 					tip = r.group and (r.group .. (r.desc and ("\n" .. r.desc) or "")) or r.desc,
 					factionID = r.id,
-					standing = standing,
+					standing = standing, reaction = reaction,
 					secure = REP_SECURE,
 					isOpen = RepOpen,
 					after = ShowFaction,

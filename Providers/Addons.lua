@@ -1,8 +1,10 @@
 local ns = select(2, ...)
 
 -- Installed addons. Enter does what clicking the addon's minimap button does, or opens its
--- own options panel (Game Menu > Options > AddOns) when it has no button. Shift+Enter opens
--- the options panel when an addon has both. Addons with neither open the AddOn list. Minimap buttons that don't belong to a listed addon are listed too.
+-- own options panel (Game Menu > Options > AddOns) when it has no button. An addon with both
+-- gets a second row, "<addon> options", for its panel. Addons with neither open the AddOn list.
+-- Shift+Enter turns the addon on or off (for the next /reload). Minimap buttons that don't belong
+-- to a listed addon are listed too.
 --
 -- Options panels are matched to addons by name. Minimap buttons are found through
 -- LibDBIcon / LibDataBroker (what most addons use for them), or a minimap button whose
@@ -138,11 +140,8 @@ local function AddonMacro(e)
 	if e.opt then return CategoryMacro(e.opt) end
 	return ADDONLIST_MACRO
 end
-local function AddonOptionsMacro(e)
-	if e.opt and e.launch then return CategoryMacro(e.opt) end
-	return ADDONLIST_MACRO
-end
-local ADDON_SPEC, ADDON_OPTIONS_SPEC = { macro = AddonMacro }, { macro = AddonOptionsMacro }
+local function OptionsMacro(e) return CategoryMacro(e.opt) end
+local ADDON_SPEC, OPTIONS_SPEC = { macro = AddonMacro }, { macro = OptionsMacro }
 local function NeverOpen() return false end -- (always pressed: the window may show another page)
 local function Opened(e) ns:Trace("addons: the game opened the window for " .. tostring(e.name)) end
 
@@ -152,9 +151,73 @@ local function AddonActivate(e)
 	if e.opt and OpenCategory(e.opt) then return end
 	AddonList()
 end
-local function AddonSecondary(e)
-	if e.opt and e.launch and OpenCategory(e.opt) then return end
-	AddonList()
+local function OpenOptions(e)
+	if not OpenCategory(e.opt) then AddonList() end
+end
+
+----------------------------------------------------------------------
+-- On / off (Shift+Enter)
+--
+-- For this character, as the AddOn List does with this character picked (its default): the
+-- character's name goes with the call, as the list passes it. (nil would mean every character,
+-- and the player keeps addons on for some characters only.) Turning an addon on or off is a plain
+-- C call, not a window: no game press needed. It takes effect at the next /reload (.reload).
+----------------------------------------------------------------------
+
+local function Character() return ns.CharacterName() end -- (with the surname where characters have one: Util.lua)
+
+--- Whether the addon is turned on for this character (nil: the client doesn't say).
+local function Enabled(name)
+	local get = C_AddOns.GetAddOnEnableState
+	local st = get and ns.Num(ns.Safe(get, name, Character()))
+	if st == nil then return nil end
+	return st > 0 -- (0 off, 1 on for some characters, 2 on)
+end
+
+local function Detail(e)
+	local state
+	if e.enabled == nil then -- (the client doesn't say: what it does, else whether it's loaded)
+		if e.does then return e.does end
+		state = e.loaded and "Loaded" or "Not loaded"
+	else
+		state = e.enabled and "enabled" or "disabled"
+		if e.enabled ~= e.loaded then state = state .. " (.reload to apply)" end
+	end
+	return e.does and (e.does .. "  |  " .. state) or state
+end
+
+local function ToggleAddon(e)
+	if e.key == ns.name then
+		ns:Print(ns.name .. " can't turn itself off from here: use the AddOn list.")
+		return
+	end
+	local on = Enabled(e.key)
+	if on == nil then on = e.loaded end
+	local fn = on and C_AddOns.DisableAddOn or C_AddOns.EnableAddOn
+	if not (fn and pcall(fn, e.key, Character())) then
+		ns:Print("Couldn't turn " .. tostring(e.name) .. (on and " off." or " on."))
+		return
+	end
+	-- the change is only in memory until it's saved: the AddOn list's Okay button saves it (SaveAddOns);
+	-- without that, the reload that should apply it threw it away and the addon stayed as it was
+	local save = C_AddOns.SaveAddOns or _G.SaveAddOns
+	if save then pcall(save) end
+	local now = Enabled(e.key)
+	ns:Trace(("addons: %s %s for %s; the game now says %s"):format(tostring(e.key), on and "disabled" or "enabled",
+		tostring(Character()), tostring(now)))
+	if now == on then
+		-- the game didn't take it (the character name it was given isn't how it knows this character?)
+		ns:Print(("The game didn't turn %s %s (asked for %s). Try the AddOn list."):format(tostring(e.name), on and "off" or "on", tostring(Character())))
+		return
+	end
+	if now == nil then now = not on end
+	e.enabled = now
+	e.detail = Detail(e) -- (shown at once; the list is read again next time too)
+	ns.entriesGen = ns.entriesGen + 1
+	if ns.providers.addons then ns.providers.addons._dirty = true end
+	ns:Print(("%s %s: .reload to apply"):format(tostring(e.name), now and "enabled" or "disabled"))
+	local UI = ns.UI
+	if UI and UI.IsShown and UI:IsShown() and UI.Refresh then UI:Refresh() end
 end
 local function BrokerActivate(e) ClickBroker(e.launch) end
 
@@ -189,25 +252,36 @@ ns:RegisterProvider("addons", {
 						if k:find(n1, 1, true) then launch = buttons[j] break end
 					end
 				end
-				local loaded = C_AddOns.IsAddOnLoaded(name)
-				local does
-				if opt and launch then does = "Minimap button  |  Shift: options"
-				elseif opt then does = "Options"
-				elseif launch then does = "Minimap button"
-				else does = loaded and "Loaded" or "Not loaded" end
+				local loaded = C_AddOns.IsAddOnLoaded(name) and true or false
+				local does = launch and "Minimap button" or (opt and "Options") or nil
 				local plainNotes = notes and Plain(notes) or nil
-				out[#out + 1] = {
+				local e = {
 					key = name,
 					name = label,
 					icon = (launch and launch.icon) or "Interface\\Icons\\INV_Misc_Gear_01",
-					detail = does,
 					text = name .. " " .. (plainNotes or ""),
 					tip = plainNotes,
 					launch = launch, opt = opt,
+					does = does, loaded = loaded, enabled = Enabled(name),
 					secure = ADDON_SPEC, isOpen = NeverOpen, after = Opened,
 					activate = AddonActivate,
-					secondary = AddonSecondary, secondarySecure = ADDON_OPTIONS_SPEC, secondaryIsOpen = NeverOpen, secondaryAfter = Opened,
+					secondary = ToggleAddon, -- Shift+Enter: on / off
 				}
+				e.detail = Detail(e)
+				out[#out + 1] = e
+				if opt and launch then
+					-- Enter is its minimap button: its options panel is a row of its own (it was Shift+Enter)
+					out[#out + 1] = {
+						key = "options:" .. name,
+						name = label .. " options",
+						icon = "Interface\\Icons\\INV_Misc_Gear_01",
+						detail = "Options",
+						text = name .. " options settings",
+						opt = opt,
+						secure = OPTIONS_SPEC, isOpen = NeverOpen, after = Opened,
+						activate = OpenOptions,
+					}
+				end
 			end
 		end
 

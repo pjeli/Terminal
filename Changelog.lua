@@ -13,6 +13,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.39.4", when = "released October 2026",
+		items = {
+			"New kinds: @toy (Enter uses it), @pet (Enter summons it) and @title (Enter wears it; a No title row too). Shift+Enter shows a toy or pet in the Collections journal.",
+			"@achievement lists the ones you haven't earned too, greyed with their progress (3/10); plain searches still show only what you've earned.",
+			"New filters: is:quest, is:soulbound and is:boe on items; is:passive and is:ready (off cooldown) on spells; is:capped on currencies; standing:honored+ on reputations; is:done / is:todo on achievements; @npc sells:<item> (vendors from Questie, sells:copper_rod).",
+			"Fix: items whose names the game hadn't loaded yet when you logged in (Rumsey Rum, Ice Cold Milk...) were missing from search, as Items and Consumables; they're listed as soon as their names come in. One item the game answers oddly for can no longer hide all the others.",
+			"@addon: Shift+Enter turns an addon on or off for this character (.reload to apply), and shows its real state: on WoW Forever characters have surnames, and the first name alone pointed at another character's AddOn list; the change is saved, so the reload keeps it; an addon's options page has a row of its own. @npc: Shift+Enter targets the NPC.",
+		},
+	},
+	{
 		v = "0.38.2", when = "released October 2026",
 		items = {
 			".wowamp: a little music player in the spirit of cliamp. Ten radio stations themed on places (Lion's Pride FM in Goldshire, WAR Radio 66.6 in Orgrimmar, Stormwind Classical 101.7, Necropolis Nights from Naxxramas...) play the game's own music, with a visualizer in each station's colours, a progress bar and shuffle.",
@@ -28,16 +38,6 @@ CL.LOG = {
 			"Share your look: Export style on the options page (or .style) gives it as one line to copy, TERM1:..., short enough for a chat message; Import style (or .style TERM1:...) applies a pasted one. Colours, opacity, frame, font, cursor, animation and prompt text travel; width, rows and scale stay yours.",
 			"The style string shows in the slim copy bar (as a Wowhead link does): a narrow bar in the middle of the screen, the text wrapped onto a few lines and all selected; it goes once Ctrl+C has copied it.",
 			"Opacity can be set to the exact hundredth (presets' 0.96 and 0.97 no longer round to 0.95).",
-		},
-	},
-	{
-		v = "0.37.0", when = "released October 2026",
-		items = {
-			"Review pass: every result that opens a game window now goes through the game's own key or a macro the game presses (the panels, slash commands, options, the addon list); a recipe picked from Terminal is pointed at, never clicked, so the window's own Create button stays the game's.",
-			"stat:mp5 works; filters with spaces take _ (in:elwynn_forest); lvl:30-20 means 20-30; >>party without the space sends too; r is raid.",
-			"Faster: arrow keys and hovering repaint only what changed, bare @kind searches allocate nothing per row, zone filters cache area names, .atop costs nothing while its bars rest, Tab completion is safe on Korean and Cyrillic names.",
-			"Quest text that the game keeps secret no longer breaks the quest list; @equipment is the equipment sets, @settings the game options.",
-			".forget also clears the history; .bind says so in combat; a filter that errors is traced in .debug log instead of silently hiding rows.",
 		},
 	},
 	{

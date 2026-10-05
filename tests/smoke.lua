@@ -2224,11 +2224,12 @@ do
 	Minimap.GetChildren = function() return mm end
 	ns.providers.addons._dirty = true
 	local a = names(ns:GetEntries(ns.providers.addons))
-	check(a["Cool Addon 1"] and a["Cool Addon 1"].detail == "Minimap button  |  Shift: options", "addon with a minimap button and options: " .. tostring(a["Cool Addon 1"] and a["Cool Addon 1"].detail))
+	check(a["Cool Addon 1"] and a["Cool Addon 1"].detail == "Minimap button", "addon with a minimap button and options: " .. tostring(a["Cool Addon 1"] and a["Cool Addon 1"].detail))
 	a["Cool Addon 1"].activate(a["Cool Addon 1"])
 	check(clicked == "Addon1 minimap" and opened == nil, "Enter clicks its minimap button")
-	a["Cool Addon 1"].secondary(a["Cool Addon 1"])
-	check(opened == 42, "Shift+Enter opens its options panel")
+	-- (Shift+Enter now turns an addon on/off; its options panel is a row of its own)
+	local o = a["Cool Addon 1 options"]; o.activate(o)
+	check(opened == 42, "its options page row opens it")
 	check(a["Cool Addon 2"] and a["Cool Addon 2"].detail == "Minimap button", "addon with only a minimap button (LibDataBroker)")
 	a["Cool Addon 2"].activate(a["Cool Addon 2"])
 	check(clicked == "Addon2", "Enter does what its minimap button does")

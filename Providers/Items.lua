@@ -7,7 +7,7 @@ local EQUIP_SLOTS = {
 	"Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot",
 }
 
-local QualityHex, Str = ns.QualityHex, ns.Str -- (Util.lua)
+local QualityHex, Str, Secret = ns.QualityHex, ns.Str, ns.Secret -- (Util.lua)
 
 local function BagLabel(bag)
 	if bag == 0 then return "Backpack" end
@@ -400,6 +400,20 @@ local function IsQuestItem(bag, slot, itemID)
 	return bindType == 4
 end
 
+--- Is the worn piece in this slot bound? The game's answer (C_Item.IsBound on its slot), else yes: wearing
+--- binds a bind-on-equip piece (bind-to-account pieces are the rare exception).
+local function WornBound(slotId)
+	local IB, IL = C_Item.IsBound, _G.ItemLocation
+	if IB and IL and IL.CreateFromEquipmentSlot then
+		local ok, loc = pcall(IL.CreateFromEquipmentSlot, IL, slotId)
+		if ok and loc then
+			local ok2, b = pcall(IB, loc)
+			if ok2 and type(b) == "boolean" and not Secret(b) then return b end
+		end
+	end
+	return true
+end
+
 local STOP = { the = true, of = true, ["and"] = true, ["for"] = true, with = true, from = true, that = true, this = true, into = true }
 
 --- No sure quest: the quests whose text shares the most with the item's name (best two).
@@ -430,6 +444,63 @@ local function GuessQuests(lname, quests)
 	return #ids > 0 and ids or nil
 end
 
+-- Item names the game hasn't loaded yet. Right after login a bag item's info can come without its name
+-- (itemName nil, the link's text "[]"): Rumsey Rum, Ice Cold Milk... were left out (a row named "" matches
+-- no search), and nothing built the list again once the names came, while the bag addon (which looks each
+-- name up) showed them. Such an item is left out for now, its name is asked for, and the list is built
+-- again once the names are in (or after 10 s). The event is listened to only while names are awaited.
+local nameWait = { ids = {}, count = 0, asked = {} }
+local nameFrame = CreateFrame("Frame")
+
+local function NamesArrived()
+	for k in pairs(nameWait.ids) do nameWait.ids[k] = nil end
+	nameWait.count = 0
+	pcall(nameFrame.UnregisterEvent, nameFrame, "GET_ITEM_INFO_RECEIVED")
+	pcall(nameFrame.UnregisterEvent, nameFrame, "ITEM_DATA_LOAD_RESULT")
+	if ns.providers.items then ns.providers.items._dirty = true end
+end
+
+local function NameOf(id, link, given)
+	local name = Str(given)
+	if name then return name end
+	name = Str(link) and link:match("|h%[(.-)%]|h")
+	if name and name ~= "" then return name end
+	name = C_Item.GetItemNameByID and Str((select(2, pcall(C_Item.GetItemNameByID, id))))
+	if name then return name end
+	-- not loaded yet: ask (twice at most: some never come) and build the list again once it's in
+	if id and C_Item.RequestLoadItemDataByID and (nameWait.asked[id] or 0) < 2 and not nameWait.ids[id] then
+		nameWait.asked[id] = (nameWait.asked[id] or 0) + 1
+		if nameWait.count == 0 then
+			pcall(nameFrame.RegisterEvent, nameFrame, "GET_ITEM_INFO_RECEIVED")
+			pcall(nameFrame.RegisterEvent, nameFrame, "ITEM_DATA_LOAD_RESULT")
+			C_Timer.After(10, function() if nameWait.count > 0 then NamesArrived() end end)
+		end
+		nameWait.ids[id] = true
+		nameWait.count = nameWait.count + 1
+		pcall(C_Item.RequestLoadItemDataByID, id)
+		ns:Trace("items: waiting for the name of item " .. tostring(id))
+	end
+	return nil
+end
+ns.ItemNames = { NameOf = NameOf, wait = nameWait, frame = nameFrame } -- (tests)
+
+nameFrame:SetScript("OnEvent", function(_, _, id)
+	if nameWait.count == 0 then return end
+	if id and nameWait.ids[id] then
+		nameWait.ids[id] = nil
+		nameWait.count = nameWait.count - 1
+	elseif not id then
+		-- (a client that doesn't say which: whatever has a name now has arrived)
+		for k in pairs(nameWait.ids) do
+			if C_Item.GetItemNameByID and Str((select(2, pcall(C_Item.GetItemNameByID, k)))) then
+				nameWait.ids[k] = nil
+				nameWait.count = nameWait.count - 1
+			end
+		end
+	end
+	if nameWait.count <= 0 then NamesArrived() end
+end)
+
 ns:RegisterProvider("items", {
 	label = "Item",
 	color = "ffc8c8c8",
@@ -441,48 +512,67 @@ ns:RegisterProvider("items", {
 		local quests, questExact = QuestIndex()
 
 		local lastBag = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
-		for bag = 0, lastBag do
-			for slot = 1, C_Container.GetContainerNumSlots(bag) do
-				local info = C_Container.GetContainerItemInfo(bag, slot)
-				if info and info.itemID then
-					local e = byID[info.itemID]
-					if not e then
-						local name = Str(info.itemName) or (Str(info.hyperlink) and info.hyperlink:match("%[(.-)%]"))
-						if name then
-							local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
-							e = {
-								key = info.itemID,
-								name = name,
-								icon = info.iconFileID,
-								color = QualityHex(info.quality),
-								link = info.hyperlink,
-								text = table.concat({ itemType or "", subType or "" }, " "),
-								count = 0,
-								locs = {},
-								firstBag = bag,
-								itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
-								activate = ShowInBags,
-								secondary = UseInCombat, secondarySecure = USE_SPEC,
-								secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
-							}
-							local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
-							if q then
-								e.questID = q.id
-								e.text = e.text .. " quest " .. (q.title or "")
-							elseif IsQuestItem(bag, slot, info.itemID) then
-								e.guessIDs = GuessQuests(N(name), quests)
-							end
-							byID[info.itemID] = e
-							out[#out + 1] = e
-						end
+		-- each slot on its own: one item the client answers oddly for can't drop the whole list (every item
+		-- vanished from search then, as if the bags were empty); what was read is traced for .debug log
+		local read, failed, failedAt = 0, 0, nil
+		local function Slot(bag, slot)
+			local info = C_Container.GetContainerItemInfo(bag, slot)
+			if not (info and info.itemID) then return end
+			read = read + 1
+			local e = byID[info.itemID]
+			if not e then
+				local name = NameOf(info.itemID, info.hyperlink, info.itemName)
+				if name then
+					local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
+					e = {
+						key = info.itemID,
+						name = name,
+						icon = info.iconFileID,
+						color = QualityHex(info.quality),
+						link = info.hyperlink,
+						text = table.concat({ itemType or "", subType or "" }, " "),
+						count = 0,
+						locs = {},
+						firstBag = bag,
+						itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
+						activate = ShowInBags,
+						secondary = UseInCombat, secondarySecure = USE_SPEC,
+						secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
+					}
+					local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
+					if q then
+						e.questID, e.questItem = q.id, true
+						e.text = e.text .. " quest " .. (q.title or "")
+					elseif IsQuestItem(bag, slot, info.itemID) then
+						e.questItem = true
+						e.guessIDs = GuessQuests(N(name), quests)
 					end
-					if e then
-						e.count = e.count + (info.stackCount or 1)
-						e.locs[#e.locs + 1] = { bag, slot }
-					end
+					byID[info.itemID] = e
+					out[#out + 1] = e
+				end
+			end
+			if e then
+				e.count = e.count + (info.stackCount or 1)
+				e.locs[#e.locs + 1] = { bag, slot }
+				-- (is:soulbound / is:boe) one row per item: bound = some stack is bound, unbound = some stack isn't
+				local b = info.isBound
+				if b ~= nil and not Secret(b) then
+					if b then e.bound = true else e.unbound = true end
 				end
 			end
 		end
+		for bag = 0, lastBag do
+			local okn, slots = pcall(C_Container.GetContainerNumSlots, bag)
+			for slot = 1, (okn and type(slots) == "number" and slots or 0) do
+				local ok, err = pcall(Slot, bag, slot)
+				if not ok then
+					failed = failed + 1
+					failedAt = failedAt or ("bag " .. bag .. " slot " .. slot .. ": " .. tostring(err))
+				end
+			end
+		end
+		ns:Trace(("items: %d bag slots with items, %d items listed, %d awaiting names%s"):format(read, #out, nameWait.count,
+			failed > 0 and (", " .. failed .. " failed (first: " .. failedAt .. ")") or ""))
 		for _, e in pairs(byID) do
 			local where = BagLabel(e.firstBag)
 			e.detail = (e.questID and "Quest  " or "") .. (e.count > 1 and ("x" .. e.count .. "  ") or "") .. where
@@ -492,10 +582,11 @@ ns:RegisterProvider("items", {
 			local slotId = GetInventorySlotInfo(slotName)
 			local link = slotId and GetInventoryItemLink("player", slotId)
 			if link then
-				local name = link:match("%[(.-)%]")
+				local itemID = C_Item.GetItemInfoInstant(link)
+				local name = NameOf(itemID, link)
 				if name then
-					local itemID = C_Item.GetItemInfoInstant(link)
 					local _, _, quality = C_Item.GetItemInfo(link)
+					local bound = WornBound(slotId)
 					out[#out + 1] = {
 						-- known by the item, as in your bags: equipping swaps places, and the history keeps the piece picked
 						key = itemID or ("eq" .. slotId),
@@ -506,6 +597,7 @@ ns:RegisterProvider("items", {
 						text = "equipped " .. slotName:gsub("Slot", ""),
 						detail = "Equipped: " .. slotName:gsub("Slot", ""),
 						slotName = slotName, slotId = slotId, itemID = itemID,
+						bound = bound or nil, unbound = (not bound) or nil,
 						activate = ShowEquipped,
 						secure = CHAR_SECURE,
 						isOpen = PaperDollOpen,

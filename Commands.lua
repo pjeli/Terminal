@@ -57,7 +57,11 @@ ns:RegisterCommand("kinds", {
 ns:RegisterCommand("reload", {
 	desc = "Reload the UI",
 	aliases = { "rl" },
-	run = function() ReloadUI() end,
+	-- (not a protected call: run from here. Command rows can't carry a game press, see UI:CommandEntries)
+	run = function()
+		local reload = (C_UI and C_UI.Reload) or ReloadUI
+		if reload then reload() end
+	end,
 })
 
 ns:RegisterCommand("refresh", {

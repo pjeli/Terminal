@@ -19,8 +19,13 @@ local ns = select(2, ...)
 --                                riding; mine = your class); is:classtrainer, is:proftrainer
 --   faction:horde                Questie NPCs friendly to the Horde (alliance, neutral = both,
 --                                friendly = to your own faction)
---   is:done is:todo is:complete  quests: finished / not yet / ready to turn in
+--   standing:honored+            reputations by standing (names or 1-8; <friendly, 4-6, honored-exalted)
+--   sells:linen_cloth            Questie NPCs that sell an item (its name, part of it, or its id)
+--   is:done is:todo is:complete  quests: finished / not yet / ready to turn in; achievements: done / todo
 --   is:usable is:equippable      items you can use / wear (no is:upgrade: item level alone can't tell)
+--   is:quest is:soulbound is:boe items: quest items, bound ones, bind on equip not yet bound
+--   is:ready is:passive          spells off cooldown (quests: = is:complete) / passive spells
+--   is:capped                    currencies at their cap (or this week's)
 --   is:craftable                 recipes you have every reagent for
 --   is:vendor is:trainer ...     Questie NPCs by what they do
 
@@ -37,9 +42,10 @@ local function ItemInfo(id)
 	if not (get and id) then return nil end
 	local c = infoCache[id]
 	if c then return c end
-	local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc = pcall(get, id)
+	local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, _, _, bindType = pcall(get, id)
 	if ok and name then -- (not known to the client yet: asked again next time)
-		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc }
+		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc,
+			bindType = type(bindType) == "number" and bindType or nil }
 		if infoCount > 4000 then infoCache, infoCount = {}, 0 end
 		if type(id) == "number" then infoCache[id], infoCount = c, infoCount + 1 end
 		return c
@@ -73,6 +79,7 @@ F.ClearCache = function()
 	if F.ClearStats then F.ClearStats() end
 	if F.ClearEffects then F.ClearEffects() end
 	if F.ClearPlaces then F.ClearPlaces() end
+	if F.ClearSold then F.ClearSold() end
 end
 
 --- The quest a row is (not a quest item that merely belongs to one).
@@ -234,21 +241,23 @@ end
 F.EffectText = EffectText
 
 local CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
-local consumable, consumableCount = {}, 0 -- item id -> is it a consumable (asked once per item: filters ask per row, per search)
-local function IsConsumable(id)
-	local c = consumable[id]
+local QUESTITEM = Enum and Enum.ItemClass and Enum.ItemClass.Questitem or 12
+local classes, classCount = {}, 0 -- item id -> its item class (asked once per item: filters ask per row, per search)
+--- An item's class id (GetItemInfoInstant), or nil when the game can't say yet (not kept then).
+local function ClassID(id)
+	local c = classes[id]
 	if c ~= nil then return c end
 	local get = C_Item and C_Item.GetItemInfoInstant
-	if not get then return true end
+	if not get then return nil end
 	local ok, _, _, _, _, _, classID = pcall(get, id)
-	c = not ok or classID == nil or classID == CONSUMABLE
-	if ok and classID ~= nil then
-		if consumableCount > 4000 then consumable, consumableCount = {}, 0 end
-		consumable[id], consumableCount = c, consumableCount + 1
-	end
-	return c
+	if not ok or type(classID) ~= "number" then return nil end
+	if classCount > 4000 then classes, classCount = {}, 0 end
+	classes[id], classCount = classID, classCount + 1
+	return classID
 end
-F.ClearEffects = function() effectCache, effectCount, effectRetry, consumable, consumableCount = {}, 0, {}, {}, 0 end
+-- (not known: taken for one, so its effect is still read)
+local function IsConsumable(id) local c = ClassID(id); return c == nil or c == CONSUMABLE end
+F.ClearEffects = function() effectCache, effectCount, effectRetry, classes, classCount = {}, 0, {}, {}, 0 end
 
 -- how an effect text names each stat when the game's own name isn't there (English)
 local EFFECT_ENGLISH = {
@@ -484,6 +493,203 @@ local function Holder(e, v)
 	return false
 end
 
+-- Binding. Item rows know whether the stacks in your bags (or the worn piece) are bound: bound = some stack is,
+-- unbound = some stack isn't (Items.lua; rows are one per item, so a bound and a tradable copy answer both).
+-- Rows with no stacks of yours (loot, recipes, stored) only have the item's bind type.
+local BIND_EQUIP = Enum and Enum.ItemBind and Enum.ItemBind.OnEquip or 2
+local BIND_QUEST = Enum and Enum.ItemBind and Enum.ItemBind.Quest or 4
+
+local function Soulbound(e) return e.itemID ~= nil and e.bound == true end
+
+--- Bind on equip and not bound yet: one of your stacks still free, or (no stacks of yours) the item binds on equip.
+local function BoE(e)
+	local id = ItemOf(e)
+	local info = id and ItemInfo(id)
+	if not (info and info.bindType == BIND_EQUIP) then return false end
+	if e.bound ~= nil or e.unbound ~= nil then return e.unbound == true end
+	return true
+end
+
+--- A quest item: tied to a quest (Items.lua: questID, questItem), or quest-class, or it binds as a quest item.
+local function QuestItem(e)
+	local id = ItemOf(e)
+	if not id then return false end
+	if e.itemID and (e.questItem or e.questID) then return true end
+	if ClassID(id) == QUESTITEM then return true end
+	local info = ItemInfo(id)
+	return info ~= nil and info.bindType == BIND_QUEST
+end
+
+-- A spell off cooldown now (not cached: it changes). The global cooldown doesn't count; passives are never
+-- ready; a cooldown the game keeps secret (in combat) can't be judged.
+local GCD = 1.5
+local function SpellReady(e)
+	if e.kind ~= "spells" or e.passive or type(e.spellID) ~= "number" then return false end
+	local start, duration, enabled
+	if C_Spell and C_Spell.GetSpellCooldown then
+		local ok, cd = pcall(C_Spell.GetSpellCooldown, e.spellID)
+		if not ok or type(cd) ~= "table" then return false end
+		start, duration, enabled = cd.startTime, cd.duration, cd.isEnabled
+	elseif _G.GetSpellCooldown then
+		local ok, s, d, en = pcall(_G.GetSpellCooldown, e.spellID)
+		if not ok then return false end
+		start, duration, enabled = s, d, en
+	else
+		return false
+	end
+	if Secret(start) or Secret(duration) or Secret(enabled) then return false end
+	if enabled == false or enabled == 0 then return false end -- (waits for something to end first: not ready)
+	if type(duration) ~= "number" or type(start) ~= "number" then return false end
+	if duration <= GCD or start <= 0 then return true end
+	return start + duration <= GetTime()
+end
+
+--- is:ready: a spell off cooldown, or a quest ready to turn in.
+local function Ready(e)
+	if e.kind == "spells" then return SpellReady(e) end
+	return Complete(e)
+end
+
+-- Currencies (rows: quantity, maxQuantity; maxWeeklyQuantity, quantityEarnedThisWeek): at the cap, or this week's.
+local function Number(v) return type(v) == "number" and not Secret(v) and v or nil end
+local function Capped(e)
+	if e.kind ~= "currency" then return false end
+	local n, max = Number(e.quantity), Number(e.maxQuantity)
+	if n and max and max > 0 and n >= max then return true end
+	local week, wmax = Number(e.quantityEarnedThisWeek), Number(e.maxWeeklyQuantity)
+	return week ~= nil and wmax ~= nil and wmax > 0 and week >= wmax
+end
+
+--- Done / not done: quests by the game's record; achievements by their row's completed (rows without it aren't judged).
+local function DoneOf(e)
+	local q = QuestOf(e)
+	if q then return Done(q) end
+	if e.kind == "achievements" and type(e.completed) == "boolean" then return e.completed end
+	return nil
+end
+
+-- Reputation standings 1-8 (Hated .. Exalted): the game's names (both genders' where they differ), and English
+-- always. Rows carry reaction (Reputation.lua); friendship and renown factions have none and are left out.
+local STANDING_ENGLISH = { "hated", "hostile", "unfriendly", "neutral", "friendly", "honored", "revered", "exalted" }
+local standingWords -- lowercase name -> 1-8 (made on first use: the game's globals are all in by then)
+local function StandingWords()
+	if standingWords then return standingWords end
+	standingWords = {}
+	for i, w in ipairs(STANDING_ENGLISH) do standingWords[w] = i end
+	for i = 1, 8 do
+		for _, g in ipairs({ _G["FACTION_STANDING_LABEL" .. i], _G["FACTION_STANDING_LABEL" .. i .. "_FEMALE"] }) do
+			if type(g) == "string" and g ~= "" then standingWords[Lower(g)] = i end
+		end
+	end
+	return standingWords
+end
+--- The standing names for Tab: the game's own (lowercase), else English.
+local function StandingNames()
+	local out = {}
+	for i = 1, 8 do
+		local g = _G["FACTION_STANDING_LABEL" .. i]
+		out[i] = type(g) == "string" and g ~= "" and Lower(g):gsub(" ", "_") or STANDING_ENGLISH[i]
+	end
+	return out
+end
+--- A standing value as a range: names stand for their numbers (honored+ = 6+, <friendly = <5, honored-exalted = 6-8).
+local function StandingRange(v)
+	local words = StandingWords()
+	local bad = false
+	local text = v:gsub("[^%d%-%+<>=]+", function(w)
+		local n = words[(w:gsub("^%s+", ""):gsub("%s+$", ""))]
+		if not n then bad = true return w end
+		return tostring(n)
+	end)
+	if bad then return nil end
+	return Range(text)
+end
+
+-- sells: the Questie NPCs selling an item. Questie keeps vendors per item (its item field "vendors": NPC ids).
+-- The value is an item name (or id): items you carry are matched by name first (no scan); else Questie's item
+-- names, read once per session into one lowercase text (one cold read per item, ~15k on WoW Forever: tens of
+-- ms the first time sells: is used, timed in .debug log). An exact name wins; else every item whose name holds
+-- the words (sells:copper: Copper Rod, Copper Bar...), at most MAX_SOLD items. Unknown item: no NPC passes.
+local MAX_SOLD = 200
+local itemNames -- "\n<lowercase name>\t<id>" per Questie item
+local soldBy, soldCount = {}, 0 -- value -> { [npc id] = true }
+
+local function QuestieDB()
+	local Q, L = _G.Questie, _G.QuestieLoader
+	if not (Q and Q.API and Q.API.isReady and L and L.ImportModule) then return nil end
+	local ok, DB = pcall(L.ImportModule, L, "QuestieDB")
+	return ok and type(DB) == "table" and DB.QueryItemSingle and DB or nil
+end
+
+local function ItemNames(DB)
+	if itemNames then return itemNames end
+	local started = _G.debugprofilestop and _G.debugprofilestop()
+	local parts, n = {}, 0
+	local function add(id)
+		local ok, name = pcall(DB.QueryItemSingle, id, "name")
+		if ok and type(name) == "string" and name ~= "" then
+			n = n + 1
+			parts[n] = "\n" .. Lower(name) .. "\t" .. id
+		end
+	end
+	local Lib = _G.LibQuestieDB
+	local ids = Lib and Lib.Item and Lib.Item.GetAllIds and select(2, pcall(Lib.Item.GetAllIds))
+	if type(ids) == "table" and #ids > 0 then
+		for i = 1, #ids do add(ids[i]) end
+	elseif type(DB.ItemPointers) == "table" then
+		for id in pairs(DB.ItemPointers) do add(id) end
+	end
+	itemNames = table.concat(parts) .. "\n"
+	ns:Trace(("filters: %d Questie item names read for sells:%s"):format(n,
+		started and (" in %.0f ms"):format(_G.debugprofilestop() - started) or ""))
+	return itemNames
+end
+F.ClearSold = function() itemNames, soldBy, soldCount, standingWords = nil, {}, 0, nil end
+
+--- The item ids a sells: value names.
+local function SoldItems(v, DB)
+	local id = tonumber(v)
+	if id then return { id } end
+	local ids = {}
+	-- your own items by name: no scan
+	local items = ns.providers and ns.providers.items
+	for _, e in ipairs(items and items._entries or {}) do
+		if e.itemID and type(e.name) == "string" and Lower(e.name) == v then ids[#ids + 1] = e.itemID end
+	end
+	if #ids > 0 then return ids end
+	local text = ItemNames(DB)
+	for found in text:gmatch("\n" .. v:gsub("%p", "%%%0") .. "\t(%d+)") do ids[#ids + 1] = tonumber(found) end
+	if #ids > 0 then return ids end
+	local from = 1
+	while #ids < MAX_SOLD do
+		local at = text:find(v, from, true)
+		if not at then break end
+		local lineEnd = text:find("\n", at, true) or #text
+		local tab = text:find("\t", at, true)
+		if tab and tab < lineEnd then ids[#ids + 1] = tonumber(text:sub(tab + 1, lineEnd - 1)) end
+		from = lineEnd
+	end
+	return ids
+end
+
+--- The NPC ids selling what the value names, or nil while Questie isn't there (asked again then).
+local function Sellers(v)
+	local c = soldBy[v]
+	if c then return c end
+	local DB = QuestieDB()
+	if not DB then return nil end
+	c = {}
+	for _, id in ipairs(SoldItems(v, DB)) do
+		local ok, vendors = pcall(DB.QueryItemSingle, id, "vendors")
+		if ok and type(vendors) == "table" then
+			for _, npc in pairs(vendors) do c[npc] = true end
+		end
+	end
+	if soldCount > 50 then soldBy, soldCount = {}, 0 end
+	soldBy[v], soldCount = c, soldCount + 1
+	return c
+end
+
 ----------------------------------------------------------------------
 -- Keys: key -> function(value) giving a test, or nil when the value isn't one this key takes
 ----------------------------------------------------------------------
@@ -701,10 +907,33 @@ KEYS.count = function(v)
 end
 KEYS.qty = KEYS.count
 
+KEYS.standing = function(v)
+	local r = StandingRange(v)
+	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
+end
+KEYS.rep = KEYS.standing
+
+KEYS.sells = function(v)
+	if v == "" then return nil end
+	return function(e)
+		local id = NpcID(e)
+		if not id then return false end
+		local set = Sellers(v)
+		return set ~= nil and set[id] == true
+	end
+end
+KEYS.sold = KEYS.sells
+
 local IS = {
-	done = function(e) local q = QuestOf(e); return q ~= nil and Done(q) end,
-	todo = function(e) local q = QuestOf(e); return q ~= nil and not Done(q) end,
+	done = function(e) return DoneOf(e) == true end,
+	todo = function(e) return DoneOf(e) == false end,
 	complete = Complete,
+	ready = Ready,
+	quest = QuestItem,
+	soulbound = Soulbound,
+	boe = BoE,
+	passive = function(e) return e.kind == "spells" and e.passive == true end,
+	capped = Capped,
 	usable = Usable,
 	equippable = Equippable,
 	craftable = Craftable,
@@ -715,14 +944,17 @@ local ROLES = { vendor = "VENDOR", trainer = "TRAINER", flightmaster = "FLIGHT_M
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",
 	auctioneer = "AUCTIONEER", questgiver = "QUEST_GIVER", stablemaster = "STABLEMASTER" }
 for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag) end end
-IS.notdone, IS.undone, IS.use, IS.wearable, IS.ready = IS.todo, IS.todo, IS.usable, IS.equippable, IS.complete
+IS.notdone, IS.undone, IS.use, IS.wearable = IS.todo, IS.todo, IS.usable, IS.equippable
+IS.bound, IS.questitem, IS.maxed, IS.offcooldown = IS.soulbound, IS.quest, IS.capped, IS.ready
 IS.professiontrainer = IS.proftrainer
 KEYS.is = function(v) return IS[v] end
 
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
-	is = { "done", "todo", "complete", "usable", "equippable", "craftable", "vendor", "trainer", "classtrainer", "proftrainer",
-		"flightmaster", "innkeeper", "banker", "repair", "auctioneer", "questgiver", "stablemaster" },
+	is = { "done", "todo", "complete", "ready", "usable", "equippable", "quest", "soulbound", "boe", "craftable", "passive",
+		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
+		"auctioneer", "questgiver", "stablemaster" },
+	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
 	["in"] = { "bags", "bank", "mail", "guild", "warband", "equipped" },
@@ -745,7 +977,10 @@ F.HELP = {
 	{ "count:20+", "how many you have" },
 	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:blacksmithing), mine (your class), class, profession, pet, riding" },
 	{ "faction:horde", "@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)" },
-	{ "is:todo", "quests: done todo complete; items: usable equippable; recipes: craftable; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
+	{ "standing:honored+", "reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)" },
+	{ "sells:linen_cloth", "@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)" },
+	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable" },
+	{ "is:ready", "spells: ready (off cooldown) passive; currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 }
 
@@ -755,7 +990,7 @@ function F.IsKey(key) return KEYS[Lower(key or "")] ~= nil end
 -- the keys whose value is matched as text: a _ in it stands for a space (the search splits on spaces,
 -- so "in:elwynn forest" can't reach us whole; stat words keep their _: attack_power is the game's key)
 local SPACED = { ["in"] = true, zone = true, from = true, where = true, on = true, who = true, type = true,
-	trainer = true, slot = true }
+	trainer = true, slot = true, sells = true, sold = true, standing = true, rep = true }
 
 local traced -- a failing filter has been traced for this search (the parse of a search's words starts the next)
 

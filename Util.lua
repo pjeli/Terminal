@@ -98,3 +98,20 @@ function ns.PointAtRow(o)
 		return row
 	end, o.show or function(row) H:Show(row) end, o.tries or 20, o.fail)
 end
+
+--- This character's name as the game keys per-character settings (the AddOn list's on/off): on clients
+--- where characters have a surname (RegionalUniqueNamesEnabled: "Plamen Warr"), UnitName gives the two
+--- apart and only "Plamen" alone named another character (an old one called just Plamen), so the AddOn
+--- list Terminal read and changed was that character's. Joined with the game's own separator, as Syndicator does.
+function ns.CharacterName()
+	local name, surname = UnitName("player")
+	name, surname = ns.Str(name), ns.Str(surname)
+	if not name then return nil end
+	local regional = _G.RegionalUniqueNamesEnabled and ns.Safe(_G.RegionalUniqueNamesEnabled)
+	if surname and regional then
+		local C = _G.Constants and _G.Constants.CharacterNameSeparatorConsts
+		local sep = C and C.CHARACTERNAME_SURNAME_SEPARATOR or " "
+		return name .. sep .. surname
+	end
+	return name
+end

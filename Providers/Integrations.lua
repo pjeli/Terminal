@@ -543,6 +543,18 @@ function I.NpcPinLink(e)
 	return type(link) == "string" and link ~= "" and link or nil
 end
 
+-- Shift+Enter targets the NPC: "/targetexact <name>" on the secure macro button, pressed by the game
+-- (targeting is protected: never from Terminal's code). The waypoint stays on Enter (the map opens on
+-- the NPC and pins it, Maps.ShowAfter); without the press (in combat: Enter can't be bound then),
+-- Shift+Enter says so and only pins it.
+local function TargetMacro(e) return "/targetexact " .. (e.npcName or e.name) end
+local NPC_TARGET = { macro = TargetMacro }
+local function NeverTargeted() return false end
+local function TargetFallback(e)
+	if InCombatLockdown() then ns:Print("In combat: can't target " .. tostring(e.name) .. " from here; pinning it instead.") end
+	NpcPin(e)
+end
+
 local function OpenNpcDirect(e)
 	-- no map keybinding to ride on: open the map ourselves (never in combat)
 	if InCombatLockdown() then ns:Print("In combat: can't open " .. e.name .. " now.") return end
@@ -752,7 +764,9 @@ local function SetupQuestie()
 		isOpen = ns.Maps.IsOpenFor,
 		after = ShowNpc,
 		activate = OpenNpcDirect,
-		secondary = NpcPin,
+		secondarySecure = NPC_TARGET,
+		secondaryIsOpen = NeverTargeted,
+		secondary = TargetFallback,
 	}, {
 		npcID = function(t) return rawget(t, "key") end,
 		detail = function(t) return "NPC  #" .. t.npcID end,

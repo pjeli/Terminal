@@ -429,7 +429,7 @@ ns:RegisterProvider("stored", {
 		local A = src == "Syndicator" and SyndicatorAPI() or nil
 		local bb = src == "BagBrother" and BrotherBags() or nil
 		if A and not SyndicatorReady(A) then A = nil end -- busy() says so; filled in once it's ready
-		S.mineName = (UnitName and UnitName("player")) or "You"
+		S.mineName = ns.CharacterName() or "You" -- (with the surname, as Syndicator names characters)
 		if A then ReadSyndicator(A, add) elseif bb then ReadBrother(bb, add) end
 		for _, x in pairs(byID) do LiveCounts(x) end
 		for id, x in pairs(byID) do
