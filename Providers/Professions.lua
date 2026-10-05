@@ -859,10 +859,7 @@ local function RecipeAfter(e)
 	if e.profSpell then P.lastSpell = { name = e.profSpell, at = GetTime() } end
 	P.SelectRecipe(e.recipeID, e.name)
 end
-local function RecipeLinkInChat(e)
-	local l = RecipeLink(e)
-	if l and not ChatEdit_InsertLink(l) then ChatFrame_OpenChat(l) end
-end
+local function RecipeLinkInChat(e) ns.LinkInChat(RecipeLink(e)) end
 local spellSpecs = {} -- one { spell = } table per profession spell, shared
 local function SpellSpec(name)
 	local s = spellSpecs[name]

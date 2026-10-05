@@ -534,6 +534,14 @@ local function NpcPin(e)
 	end
 end
 
+--- A map pin link where the NPC stands, for chat (>> party): the waypoint is set (a C API), then its link.
+function I.NpcPinLink(e)
+	local mapID, pos = NpcLocation(e.npcID)
+	if not (mapID and pos and ns.Maps and ns.Maps.Place and ns.Maps.Place({ name = e.name, mapID = mapID, pos = pos })) then return nil end
+	local link = C_Map and C_Map.GetUserWaypointHyperlink and Safe(C_Map.GetUserWaypointHyperlink)
+	return type(link) == "string" and link ~= "" and link or nil
+end
+
 local function OpenNpcDirect(e)
 	-- no map keybinding to ride on: open the map ourselves (never in combat)
 	if InCombatLockdown() then ns:Print("In combat: can't open " .. e.name .. " now.") return end

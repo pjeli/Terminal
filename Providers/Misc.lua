@@ -112,6 +112,12 @@ local function OpenAchievement(e)
 	end
 end
 
+-- Shift+Enter: link it in chat
+local function LinkAchievement(e)
+	local link = e.link or (GetAchievementLink and GetAchievementLink(e.key))
+	if not ns.LinkInChat(link) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
+end
+
 local function PanelActivate(e)
 	e.open()
 	MicroGlow(e.micro)
@@ -297,7 +303,7 @@ ns:RegisterProvider("mounts", {
 
 ns:RegisterProvider("achievements", {
 	label = "Achieve",
-	color = "ffff8040",
+	color = "ffff6fae", -- (rose: the oranges are Camp's and its neighbours')
 	aliases = { "achievement", "ach", "achieve" },
 	lazy = true,
 	events = { "ACHIEVEMENT_EARNED" }, -- earned this session: listed without a /reload
@@ -318,6 +324,7 @@ ns:RegisterProvider("achievements", {
 						tip = description,
 						link = GetAchievementLink(id),
 						activate = OpenAchievement,
+						secondary = LinkAchievement, -- Shift+Enter: link it in chat
 					}
 				end
 			end

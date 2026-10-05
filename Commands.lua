@@ -17,6 +17,8 @@ ns:RegisterCommand("help", {
 		end
 		lines[#lines + 1] = "Modes: plain text = search everything, / = slash commands, . = commands, @kind = filter, 3*45g = calculator"
 		lines[#lines + 1] = "Filters (add to a search, .filters for all): lvl:20-30  q:rare+  stat:stamina  slot:wrist  in:bank  is:todo  is:usable"
+		lines[#lines + 1] = "Send a result to chat with  >>  :  hearthstone >> party   @npc hogger >> guild   copper bar >> w Name"
+		lines[#lines + 1] = "Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on"
 		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (use an item, pin only, link, list items...), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Tab completes commands and their arguments"
 		return lines
 	end,

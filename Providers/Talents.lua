@@ -155,9 +155,7 @@ end
 
 local function HighlightNode(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
 
-local function LinkTalent(e)
-	if e.link and not ChatEdit_InsertLink(e.link) then ChatFrame_OpenChat(e.link) end
-end
+local function LinkTalent(e) ns.LinkInChat(e.link) end
 
 ns:RegisterProvider("talents", {
 	label = "Talent",

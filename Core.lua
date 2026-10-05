@@ -65,6 +65,14 @@ function ns:FreqKind(kind)
 	return kinds[kind] or false
 end
 
+--- Put a link in the chat box: into the text being typed when the box is open, else the box opens with it.
+function ns.LinkInChat(link)
+	if type(link) ~= "string" or link == "" then return false end
+	if ChatEdit_InsertLink and ChatEdit_InsertLink(link) then return true end
+	if ChatFrame_OpenChat then ChatFrame_OpenChat(link) return true end
+	return false
+end
+
 function ns:Bump(freqKey)
 	if not freqKey or not self.db then return end
 	self.db.freq[freqKey] = (self.db.freq[freqKey] or 0) + 1

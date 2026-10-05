@@ -5258,4 +5258,121 @@ do -- a profession whose window opens with a spell not named like it (Herbalism 
 	C_Spell.GetSpellName, C_Spell.GetSpellInfo = save.gsn, save.gsi
 	ns.providers.recipes._dirty, ns.providers.professions._dirty = true, true
 end
+do -- achievements: Shift+Enter links one in chat; its kind's colour isn't Camp's
+	local F = _G.TerminalFrame
+	UI:Open("level 10")
+	local ach = UI.Results()[1]
+	check(ach and ach.kind == "achievements", "the achievement is found")
+	local mark = #log
+	_G.IsShiftKeyDown = function() return true end
+	F.scripts.OnKeyDown(F, "ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(logHas("OPENCHAT |Hachievement:7|h[Level 10]|h", mark + 1) and not UI:IsShown(),
+		"Shift+Enter on an achievement links it in chat")
+	-- typing in the chat box already: the link goes into it
+	local baseInsert = _G.ChatEdit_InsertLink
+	_G.ChatEdit_InsertLink = function(l) note("INSERTLINK", l); return true end
+	UI:Open("level 10"); mark = #log
+	_G.IsShiftKeyDown = function() return true end
+	F.scripts.OnKeyDown(F, "ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(logHas("INSERTLINK |Hachievement:7|h[Level 10]|h", mark + 1) and not logHas("OPENCHAT |Hachievement:7|h[Level 10]|h", mark + 1),
+		"the chat box already open: the link goes into what you're typing")
+	_G.ChatEdit_InsertLink = baseInsert
+	-- the kind's colour stands apart from Camp's (both were orange)
+	local function rgb(c) return tonumber(c:sub(3, 4), 16), tonumber(c:sub(5, 6), 16), tonumber(c:sub(7, 8), 16) end
+	local r1, g1, b1 = rgb(ns.providers.achievements.color)
+	local r2, g2, b2 = rgb(ns.providers.camp.color)
+	check(math.abs(r1 - r2) + math.abs(g1 - g2) + math.abs(b1 - b2) > 120, "achievements' colour isn't close to Camp's")
+end
+do -- ">> channel": the selected result goes to a chat channel (the game presses the chat line)
+	local SH, S, F = ns.Share, ns.Secure, _G.TerminalFrame
+	local function key(k) F.scripts.OnKeyDown(F, k) end
+	local q, rest = SH.Split("copper bar >> party")
+	check(q == "copper bar " and rest == "party", "split: the search, and the channel after >>")
+	check(SH.Split("lvl:>20 copper") == "lvl:>20 copper" and select(2, SH.Split("lvl:>20 copper")) == nil, "a > in a filter isn't >>")
+	check(SH.Channel("party").cmd == "/p" and SH.Channel("g").cmd == "/g" and SH.Channel("raid").cmd == "/raid" and SH.Channel("say").cmd == "/s",
+		"channels by name or short name")
+	check(SH.Channel("w Bob").cmd == "/w Bob" and SH.Channel("whisper").pending and SH.Channel("2").cmd == "/2", "whispers and numbered channels")
+	check(SH.Channel("").pending and SH.Channel("nowhere").bad == "nowhere", "no channel yet / not a channel")
+	-- an item: its link, sent by the game's press
+	UI:Open("hearthstone >> party")
+	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "the search is what's before the >>")
+	key("ENTER")
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/p |cffffffff|Hitem:6948|h[Hearthstone]|h|r" and F.propagate == true,
+		"Enter sends the item's link to the party: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+	UI:Disarm(); UI:Hide()
+	-- an achievement, to the guild; Shift+Enter sends too
+	UI:Open("level 10 >> guild")
+	_G.IsShiftKeyDown = function() return true end
+	key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/g |Hachievement:7|h[Level 10]|h", "an achievement's link to the guild (Shift+Enter too)")
+	UI:Disarm(); UI:Hide()
+	-- a whisper
+	UI:Open("hearthstone >> w Bob"); key("ENTER")
+	check(_G.TerminalMacroProxy.attrs.macrotext == "/w Bob |cffffffff|Hitem:6948|h[Hearthstone]|h|r", "whispered")
+	UI:Disarm(); UI:Hide()
+	-- no channel yet, or not one: nothing is sent, and the result isn't opened either
+	local printed
+	local basePrint = ns.Print
+	ns.Print = function(_, m) printed = m end
+	UI:Open("hearthstone >> "); local mark = #log; key("ENTER")
+	check(S.armed == nil and not logHas("OpenAllBags", mark + 1) and printed and printed:find("where to send", 1, true), "no channel yet: says so, opens nothing")
+	UI:Hide()
+	UI:Open("hearthstone >> nowhere"); mark = #log; key("ENTER")
+	check(S.armed == nil and not logHas("OpenAllBags", mark + 1) and printed and printed:find("No channel called nowhere", 1, true), "not a channel: says so")
+	ns.Print = basePrint
+	UI:Hide()
+	-- an NPC: a map pin where it stands
+	local baseLink = ns.Integrations.NpcPinLink
+	ns.Integrations.NpcPinLink = function(e) return "|cffffff00|Hworldmap:37:5000:4000|h[Map Pin Location]|h|r" end
+	check(SH.Text({ npcID = 12, name = "Marshal McBride" }) == "Marshal McBride |cffffff00|Hworldmap:37:5000:4000|h[Map Pin Location]|h|r", "an NPC: its name and a map pin")
+	ns.Integrations.NpcPinLink = baseLink
+	-- something with no link: its name; a loot row ("item:ID"): the item's full link
+	check(SH.Text({ name = "Ironforge" }) == "Ironforge", "no link: its name")
+	-- within what a macro runs
+	check(#SH.Macro({ name = "x", link = "|Hitem:1|h[" .. ("A"):rep(300) .. "]|h" }, { cmd = "/p" }) <= 255, "kept within 255 characters")
+	-- the prompt: >> and the channel coloured, Tab completes the channel
+	local segs = UI:SyntaxSegments("hearthstone >> party")
+	local col = {}
+	for _, sg in ipairs(segs) do col[("hearthstone >> party"):sub(sg[1], sg[2])] = sg[3] end
+	check(col[">>"] == ns.Theme.Get().accent and col.party == ns.Theme.SYNTAX.filter, ">> and its channel coloured")
+	segs = UI:SyntaxSegments("hearthstone >> nowhere x")
+	for _, sg in ipairs(segs) do col[("hearthstone >> nowhere x"):sub(sg[1], sg[2])] = sg[3] end
+	check(col.nowhere == ns.Theme.SYNTAX.bad, "a word that isn't a channel in red")
+	UI:Open("hearthstone >> gu")
+	check(UI:AcceptCompletion() and UI.edit:GetText() == "hearthstone >> guild ", "Tab completes the channel: " .. tostring(UI.edit:GetText()))
+	UI:Hide()
+end
+do -- Shift+Right at the end of the prompt: the selected result written into it ("@npc Thrall"), to build on
+	local F = _G.TerminalFrame
+	local function shiftRight()
+		_G.IsShiftKeyDown = function() return true end
+		F.scripts.OnKeyDown(F, "RIGHT")
+		_G.IsShiftKeyDown = function() return false end
+	end
+	UI:Open("hearth")
+	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "the item is selected")
+	shiftRight()
+	check(UI.edit:GetText() == "@items Hearthstone" and UI.cursor == #"@items Hearthstone", "Shift+Right writes it into the prompt as @kind name: " .. tostring(UI.edit:GetText()))
+	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "and it still finds it")
+	UI:Hide()
+	-- from the empty prompt (your recent picks), and keeping a ">> channel" already typed
+	UI:Open("hearth >> party")
+	shiftRight()
+	check(UI.edit:GetText() == "@items Hearthstone >> party", "a >> channel already typed is kept: " .. tostring(UI.edit:GetText()))
+	UI:Hide()
+	-- with the cursor inside the text, Shift+Right still selects
+	UI:Open("hearth")
+	F.scripts.OnKeyDown(F, "HOME")
+	shiftRight()
+	check(UI.edit:GetText() == "hearth" and UI:SelRange() ~= nil, "the cursor inside the text: Shift+Right selects, as before")
+	UI:Hide()
+	-- a command row: its .command
+	UI:Open(".them")
+	shiftRight()
+	check(UI.edit:GetText() == ".theme", "a command: its .command: " .. tostring(UI.edit:GetText()))
+	UI:Hide()
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

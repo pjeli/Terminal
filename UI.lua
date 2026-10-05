@@ -294,6 +294,7 @@ function UI:FrequentEntries()
 			"Start with  /  for slash commands,  .  for terminal commands (try .help)",
 			"Add  @questlog  /  @item  /  @recipe  to search a single kind (@questie: every quest, with Questie)",
 			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
+			"End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat",
 			"Change the look with  .theme  and  .set , or  .options",
 		})
 	end
@@ -613,6 +614,15 @@ function UI:Refresh()
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
 	local first = text:sub(1, 1)
+	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
+	self.sendTo = nil
+	if first ~= "." and first ~= "/" and ns.Share then
+		local query, rest = ns.Share.Split(text)
+		if rest then
+			self.sendTo = ns.Share.Channel(rest)
+			text = query:gsub("%s+$", "")
+		end
+	end
 	if first == "." then
 		self.mode = "cmd"
 		results = self:ArgEntries(text:sub(2)) or self:WordSearch(self:CommandEntries(), text:sub(2))
@@ -750,9 +760,14 @@ function UI:SetStatus()
 	local quiet = count > 0 and results[1].noActivate
 	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
+	local to = self.sendTo
+	if to and self.mode == "search" then
+		local say = to.cmd and ("Enter sends it to " .. to.label) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
+		text = HINT .. say .. "|r" .. (text ~= "" and "  ·  " or "") .. text
+	end
 	if mode then text = text .. (text ~= "" and "  ·  " or "") .. mode end
 	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
-	status:SetText(text)
+	status:SetText(self.sendTo and Theme.FixColors(text) or text)
 	self:FitHints()
 end
 
@@ -1516,8 +1531,19 @@ end)
 --- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the
 --- entry's secondary action; one that opens a window itself (secondarySecure) is armed like
 --- Enter is, with its own isOpen/after (e.g. an equipment set: the character window's sets).
+local function SendMacro(v) return ns.Share.Macro(v, UI.sendTo) end
+local SEND_SPEC = { macro = SendMacro }
+local function SendNeverOpen() return false end
+local function SentAfter(v) ns:Trace("share: the game sent " .. tostring(v.name) .. " to " .. tostring(UI.sendTo and UI.sendTo.label)) end
+
 local function SecureView(e, shift)
 	if not e then return nil end
+	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
+	if UI.sendTo then
+		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
+		if not UI.sendTo.cmd or e.noActivate or e.raw or e.completion then return nil end
+		return setmetatable({ secure = SEND_SPEC, isOpen = SendNeverOpen, after = SentAfter }, { __index = e })
+	end
 	if shift and e.secondary then
 		if not e.secondarySecure then return nil end
 		return setmetatable({
@@ -1598,6 +1624,8 @@ EditKey = function(key, ctrl, shift)
 			MoveCaret(hi, false)
 		elseif not shift and not ctrl and c >= #text and UI:AcceptCompletion() then
 			return -- at the end: take the suggestion
+		elseif shift and not ctrl and c >= #text and UI:FillFromResult() then
+			return -- at the end (nothing to select): the selected result into the prompt, "@npc Thrall"
 		else
 			MoveCaret(ctrl and WordRight(text, c) or NextPos(text, c), shift)
 		end
@@ -1802,6 +1830,19 @@ function UI:Activate(idx, opts)
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
 		ns:Trace("combat: ignored Enter on " .. tostring(e.name))
 		ns:Print("In combat: can't open " .. tostring(e.name) .. " now.")
+		return
+	end
+	-- ">> channel": never opened or run, only sent (by the game's press, armed below)
+	local to = self.sendTo
+	if to and not e.completion then
+		if not to.cmd then
+			ns:Print(to.bad and ("No channel called " .. to.bad .. ": >> party, guild, raid, say, yell, officer, instance, whisper <name>, or a number")
+				or "Say where to send it: >> party, guild, raid, say, yell, officer, instance, whisper <name>")
+			return
+		end
+		local se = SecureView(e, opts.secondary)
+		if se and self:TryArmSecure(se) then ns:RecordHistory(edit:GetText()) return end
+		ns:Print(InCombatLockdown() and "In combat: can't send it now." or ("Couldn't send " .. tostring(e.name) .. "."))
 		return
 	end
 	-- (a row that only fills the prompt in, "Search Questie for this", is a step, not something run)
@@ -2187,6 +2228,13 @@ local function ComputeCompletion(self, text)
 		return nil
 	end
 	local last = text:match("(%S*)$") or ""
+	-- ">> par" -> ">> party"
+	local before = text:sub(1, #text - #last)
+	if ns.Share and before:match("%s?>>%s+$") and last ~= "" then
+		local new, final = CompleteWord(ns.Lower(last), ns.Share.NAMES)
+		if not new then return nil end
+		return before .. new .. (final and " " or "")
+	end
 	if last:sub(1, 1) == "@" then
 		local cands = {}
 		for _, id in ipairs(ns.providerOrder) do
@@ -2220,6 +2268,28 @@ local function ComputeCompletion(self, text)
 	local query = text:sub(#kinds + 1)
 	if query == "" or #e.name <= #query or not StartsWith(e.name, query) then return nil end
 	return kinds .. e.name
+end
+
+--- A result as prompt text that finds it again: "@npc Thrall", ".theme", "/dance"; nil for rows that are
+--- only help or hints.
+function UI:ResultText(e)
+	if not e or e.raw or e.noActivate or e.completion or type(e.name) ~= "string" or e.kind == "calc" then return nil end
+	if e.kind == "cmd" then return "." .. (e.cmd and e.cmd.name or e.name) end
+	if e.kind == "slash" then return e.name end
+	local p = e.kind and ns.providers[e.kind]
+	if not p then return e.name end
+	return "@" .. ((p.aliases and p.aliases[1]) or p.id) .. " " .. e.name
+end
+
+--- Shift+Right at the end of the prompt: the selected result written into it ("@npc Thrall"), to build on
+--- (a ">> channel" already typed is kept). False when there's nothing to write.
+function UI:FillFromResult()
+	local new = self:ResultText(results[sel])
+	if not new then return false end
+	local rest = ns.Share and select(2, ns.Share.Split(edit:GetText()))
+	if rest then new = new .. " >> " .. rest end
+	self:SetQuery(new, #new)
+	return true
 end
 
 --- The query with the completion applied, or nil when there's nothing to complete.
@@ -2287,6 +2357,7 @@ function UI:SyntaxSegments(text, plain)
 		return { { 1, #head, color }, { #head + 1, #text, base } }
 	end
 	local out, F, pos = {}, ns.Filters, 1
+	local afterSend = false -- (the channel word right after a ">>")
 	while pos <= #text do
 		local sp = text:match("^%s+", pos)
 		if sp then
@@ -2295,7 +2366,15 @@ function UI:SyntaxSegments(text, plain)
 		else
 			local word = text:match("^%S+", pos)
 			local color = base
-			if word:sub(1, 1) == "@" then
+			if word == ">>" and ns.Share then
+				color = t.accent
+				afterSend = true
+			elseif afterSend then
+				afterSend = false
+				local to = ns.Share.Channel(word)
+				local typing = pos + #word > #text
+				color = (to.cmd or to.pending) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
+			elseif word:sub(1, 1) == "@" then
 				local p = #word > 1 and ns:ResolveProvider(word:sub(2))
 				color = p and (Hex(p.color) or t.accent) or (#word == 1 and t.accent or bad)
 			else
