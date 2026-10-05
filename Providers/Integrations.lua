@@ -381,10 +381,11 @@ end
 --- Work through n items a few milliseconds per frame (SLICE_MS), however long each takes, so
 --- indexing never stalls a frame; then done(). A failing item is skipped and traced. The time
 --- taken goes to the trace (.debug log).
-local SLICE_MS = 10
+local SLICE_MS = 5
 local function Now() return _G.debugprofilestop and _G.debugprofilestop() or (GetTime() * 1000) end
 local function RunSliced(what, n, each, done)
 	local i, started = 1, Now()
+	ns.background = (ns.background or 0) + 1 -- (the prewarm waits while indexing runs)
 	local function batch()
 		local stop = Now() + SLICE_MS
 		while i <= n do
@@ -401,6 +402,7 @@ local function RunSliced(what, n, each, done)
 		end
 		if i <= n then return C_Timer.After(0, step) end
 		ns:Trace(("%s: %d in %.0f ms"):format(what, n, Now() - started))
+		ns.background = math.max(0, (ns.background or 1) - 1)
 		done()
 	end
 	step()
@@ -412,10 +414,11 @@ I.RunSliced = RunSliced
 -- "Search Questie for this" rows: built along with the list the first time, and kept when the list
 -- is freed, so plain searches never need the list itself (npc.names, qdb.names; FindNames).
 
-local function IndexNPCs()
-	if npc.list or npc.busy or not QuestieReady() then return end
+local function IndexNPCs(after)
+	local function finish() if after then after() end end
+	if npc.list or npc.busy or not QuestieReady() then return finish() end
 	local DB = QModule("QuestieDB")
-	if not (DB and DB.NPCPointers and DB.QueryNPCSingle) then return end
+	if not (DB and DB.NPCPointers and DB.QueryNPCSingle) then return finish() end
 	npc.busy = true
 	local ids = {}
 	for id in pairs(DB.NPCPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
@@ -436,6 +439,7 @@ local function IndexNPCs()
 		if names then npc.names, npc.nameQuery = table.concat(names) .. "\n", "QueryNPCSingle" end
 		if ns.providers.npc then ns.providers.npc._dirty = true end
 		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
+		finish()
 	end)
 end
 
@@ -742,9 +746,9 @@ local function SetupQuestie()
 	qdb.meta = ns:CompactMeta(ns.providers.questie, { activate = CopyQuestLink, noCombatSecondary = true }, QUESTIE_LAZY)
 	-- built in the background after login (with their names text); the NPC list is freed when
 	-- unused and built again for the next @npc search, the quest list (a few thousand) is kept
+	-- one after the other (both at once doubled the work per frame right after login)
 	local function index()
-		C_Timer.After(2, IndexNPCs)
-		C_Timer.After(3, IndexQuests)
+		C_Timer.After(2, function() IndexNPCs(IndexQuests) end)
 	end
 	if QuestieReady() then
 		index()

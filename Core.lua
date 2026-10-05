@@ -323,6 +323,7 @@ end
 function ns:PrewarmStep()
 	if not self.db then return true end
 	if InCombatLockdown() or (self.UI and self.UI.IsShown and self.UI:IsShown()) then return true end -- later
+	if (self.background or 0) > 0 then return true end -- (Questie's lists still indexing: not on top of that)
 	local q = warm.queue
 	if not q then
 		q, warm.tries = {}, {}

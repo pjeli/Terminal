@@ -29,14 +29,23 @@ ns.Filters = F
 
 local function Lower(s) return ns.Lower(s) end
 
+-- an item's info, kept per item id (it doesn't change; filters ask for it on every matching row
+-- of every search): a table each time was garbage for thousands of loot rows
+local infoCache, infoCount = {}, 0
 local function ItemInfo(id)
 	local get = (C_Item and C_Item.GetItemInfo) or _G.GetItemInfo
 	if not (get and id) then return nil end
+	local c = infoCache[id]
+	if c then return c end
 	local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc = pcall(get, id)
-	if ok and name then
-		return { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc }
+	if ok and name then -- (not known to the client yet: asked again next time)
+		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc }
+		if infoCount > 4000 then infoCache, infoCount = {}, 0 end
+		if type(id) == "number" then infoCache[id], infoCount = c, infoCount + 1 end
+		return c
 	end
 end
+F.ClearCache = function() infoCache, infoCount = {}, 0 end -- (tests)
 
 --- The quest a row is (not a quest item that merely belongs to one).
 local function QuestOf(e)

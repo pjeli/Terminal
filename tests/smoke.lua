@@ -2302,6 +2302,15 @@ do -- AtlasLoot and Questie integrations
 	C_AddOns.GetAddOnMetadata = baseMeta
 	AtlasLoot.Loader.LoadModule = function(_, a) note("ALLoad", a) end
 	-- Questie
+	-- after login: one list, then the other (both at once doubled the work per frame); a few ms a frame
+	do
+		local order = {}
+		for _, l in ipairs(ns.Debug.trace) do
+			if l.msg:find("^questie: NPCs:") then order[#order + 1] = "npcs" elseif l.msg:find("^questie: quests:") then order[#order + 1] = "quests" end
+		end
+		check(order[1] == "npcs" and order[2] == "quests", "Questie's NPCs are indexed first, then its quests: " .. table.concat(order, ","))
+		check((ns.background or 0) == 0, "and nothing is left running")
+	end
 	-- after login: the list, and its names as one text (for the hint rows)
 	check(I.npc.list and #I.npc.list == 3, "Questie NPCs indexed in the background after login: " .. tostring(I.npc.list and #I.npc.list))
 	check(I.npc.names == "\nedwin vancleef\t10\ndefias pillager\t11\nmarshal mcbride\t12\n",
@@ -2850,6 +2859,9 @@ do -- prewarming: lists built ahead of their first search, one at a time, while 
 	UI:Open("")
 	check(ns:PrewarmStep() == true and W.queue == nil, "with the terminal open: nothing is built (later)")
 	UI:Hide(); FlushAll()
+	ns.background = 1 -- (Questie's lists still indexing)
+	check(ns:PrewarmStep() == true and W.queue == nil, "while Questie's lists index: nothing is built (later)")
+	ns.background = 0
 	for _, id in ipairs(ns.providerOrder) do ns.providers[id]._dirty = true end
 	local before = ns.providers.warmfast._entries
 	local steps = 0

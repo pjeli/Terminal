@@ -1,5 +1,4 @@
 local ns = select(2, ...)
-local H = ns.Highlight
 local P = ns.Professions
 
 -- WoW Forever camping: Cooking makes campfires, every other profession makes camp
