@@ -474,6 +474,7 @@ function B.Open()
 	Layout()
 	-- straight in: the terminal goes at once (its closing animation would play under the panel)
 	if ns.UI and ns.UI.HideNow then ns.UI:HideNow() end
+	if ns.Snake and ns.Snake.IsShown and ns.Snake.IsShown() then ns.Snake.Close() end
 	state.filter, state.sel, state.offset = "", 1, 0
 	B.since = B.since or GetTime()
 	ReadAddons(); SampleMem(); SampleCpu()

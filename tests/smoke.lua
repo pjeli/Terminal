@@ -4491,4 +4491,84 @@ do -- .btop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` c
 	_G.C_AddOns, _G.C_AddOnProfiler, Enum.AddOnProfilerMetric = base.addons, base.prof, base.enum
 	_G.UpdateAddOnMemoryUsage, _G.GetAddOnMemoryUsage, _G.GetFramerate, _G.GetNetStats = base.upd, base.mem, base.fps, base.net
 end
+do -- .snake: WASD/arrows steer, apples grow it, walls and the tail end it, Esc or ` quits;
+	-- only the game's keys are kept, any other key goes on to the game
+	local Sn = ns.Snake
+	local g = Sn.game
+	Sn.rand = function() return 1 end -- apples land on the first free cell
+	ns.db.snakeBest = 2
+	UI:Open(".snake"); UI:Hide()
+	ns.commands.snake.run("")
+	check(Sn.IsShown() and not UI:IsShown() and not UI.closing, ".snake: the board shows at once, the terminal gone")
+	check(#g.body == 3 and g.body[1][1] == 6 and g.dir[1] == 1 and g.score == 0, "a snake of three, heading right")
+	Sn.Step()
+	check(g.body[1][1] == 7 and #g.body == 3, "a move: the head goes ahead, the tail follows")
+	local passed
+	local f = Sn.frame
+	f.SetPropagateKeyboardInput = function(_, v) passed = v end
+	f.scripts.OnKeyDown(f, "S")
+	check(passed == false, "S is the game's (kept)")
+	Sn.Step()
+	check(g.body[1][2] == g.body[2][2] + 1, "S turns down")
+	f.scripts.OnKeyDown(f, "W")
+	Sn.Step()
+	check(g.dir[2] == 1, "W straight back up is refused (it would run into itself)")
+	f.scripts.OnKeyDown(f, "1")
+	check(passed == true, "any other key goes on to the game (action bars, chat)")
+	f.scripts.OnKeyDown(f, "LEFT"); Sn.Step()
+	check(g.dir[1] == -1, "arrow keys steer too")
+	-- an apple right ahead: eaten, longer, faster, a point
+	local head = g.body[1]
+	g.food = { head[1] - 1, head[2] }
+	local speed = g.speed
+	Sn.Step()
+	check(#g.body == 4 and g.score == 1 and g.speed > speed and g.food ~= nil, "an apple: longer, a point, a little faster, a new apple")
+	-- a wall ends it; the best score is kept
+	g.score = 5
+	for _ = 1, 30 do Sn.Step() end
+	check(g.over and g.why == "wall" and ns.db.snakeBest == 5 and g.newBest, "the wall ends it, and the best score is kept")
+	Sn.Draw()
+	check(Sn.frame and g.over, "game over is shown")
+	f.scripts.OnKeyDown(f, "ENTER")
+	check(not g.over and #g.body == 3 and g.score == 0 and passed == false, "Enter plays again (and isn't passed on)")
+	-- its own tail ends it
+	g.body = { { 5, 5 }, { 6, 5 }, { 6, 6 }, { 5, 6 }, { 4, 6 } }
+	g.dir, g.queue = { -1, 0 }, {}
+	Sn.Turn(0, 1); Sn.Step()
+	check(g.over and g.why == "tail", "running into its own tail ends it")
+	Sn.Reset()
+	-- moving the tail out of the way doesn't count as hitting it
+	g.body = { { 5, 5 }, { 5, 6 }, { 6, 6 }, { 6, 5 } }
+	g.dir, g.queue, g.food = { 1, 0 }, {}, { 0, 0 }
+	Sn.Step()
+	check(not g.over and g.body[1][1] == 6 and g.body[1][2] == 5, "following its own tail's last cell is fine")
+	-- it moves by itself as time passes, and Space pauses
+	Sn.Reset()
+	local x0 = g.body[1][1]
+	Sn.Tick(1 / g.speed + 0.001)
+	check(g.body[1][1] == x0 + 1, "time passing moves it")
+	f.scripts.OnKeyDown(f, "SPACE")
+	check(passed == true and not g.paused, "no pausing: Space isn't the game's, it goes on to the game")
+	Sn.Tick(1 / g.speed + 0.001)
+	check(g.body[1][1] == x0 + 2, "and the snake keeps going")
+	f.scripts.OnKeyDown(f, "ESCAPE")
+	check(not Sn.IsShown(), "Esc quits")
+	ns.commands.snake.run(""); f.scripts.OnKeyDown(f, "`")
+	check(not Sn.IsShown(), "` quits")
+	-- combat: it doesn't start, and closes when combat starts
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	check(Sn.Open() == false and not Sn.IsShown(), "not in combat")
+	_G.InCombatLockdown = realCombat
+	Sn.Open()
+	f.scripts.OnEvent(f, "PLAYER_REGEN_DISABLED")
+	check(not Sn.IsShown(), "combat starting closes it")
+	-- btop and snake: opening one closes the other
+	Sn.Open(); ns.Btop.Open()
+	check(ns.Btop.IsShown() and not Sn.IsShown(), "btop opening closes snake")
+	Sn.Open()
+	check(Sn.IsShown() and not ns.Btop.IsShown(), "and snake closes btop")
+	Sn.Close()
+	Sn.rand = function(n) return math.random(n) end
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))
