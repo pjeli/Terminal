@@ -5454,6 +5454,8 @@ do
 		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")
 		else
 			io.write("[" .. file:match("[^/\\]+$") .. "]\n")
+			-- each file gets its own budget under the runaway guard (line 1), not what's left of the run's
+			debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
 			local ok, e = pcall(chunk, T)
 			if not ok then fails = fails + 1; io.write("FAIL: " .. file .. ": " .. tostring(e) .. "\n") end
 		end

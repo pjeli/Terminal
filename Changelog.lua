@@ -13,6 +13,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.38.2", when = "released October 2026",
+		items = {
+			".wowamp: a little music player in the spirit of cliamp. Ten radio stations themed on places (Lion's Pride FM in Goldshire, WAR Radio 66.6 in Orgrimmar, Stormwind Classical 101.7, Necropolis Nights from Naxxramas...) play the game's own music, with a visualizer in each station's colours, a progress bar and shuffle.",
+			"Each station moves its own way: Moonwell's lo-fi low and smooth, WAR Radio tall and punchy, Necropolis Nights a heavy bass rumble, Gnomeregan glitchy. V switches the visualizer: Bars, Blocks, Mirror, Wave, Peaks, or Off (the visualizer folds away and the window gets shorter). The bars glide at 60 frames a second.",
+			"With the game's Sound in Background off, the player suggests turning it on, so the radio keeps playing while you're tabbed out.",
+			"Music the game cuts off when you click away from it (or at a loading screen) starts again when you're back.",
+			"In the player: Up/Down and Enter (or 1-0) pick a station, N/B skip, P play/stop, S shuffle, V style. The zone music pauses while the radio plays, and the radio plays on with the window closed (.wowamp stop ends it).",
+		},
+	},
+	{
 		v = "0.37.4", when = "released October 2026",
 		items = {
 			"Share your look: Export style on the options page (or .style) gives it as one line to copy, TERM1:..., short enough for a chat message; Import style (or .style TERM1:...) applies a pasted one. Colours, opacity, frame, font, cursor, animation and prompt text travel; width, rows and scale stay yours.",
@@ -42,21 +52,6 @@ CL.LOG = {
 			"Professions: Shift+Enter links the profession (all your recipes) in chat; Enter opens its window.",
 			"Send a result to chat: end a search with >> party, guild, raid, say, yell, officer, instance, whisper <name> or a channel number. Items, spells, achievements, recipes and quests go as links, NPCs as a map pin, professions as a link to all your recipes.",
 			"Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on: add >> guild to send it.",
-		},
-	},
-	{
-		v = "0.36.0", when = "released October 2026",
-		items = {
-			"@spell: your spellbook in search. Enter opens the book on the spell's category and page and highlights it; Shift+Enter casts it.",
-			"@gear: the equipment in your bags and on you, with its slot, item level and In Bag / Equipped. Shift+Enter equips it.",
-			"@cvar: the game's console settings with their value and default. Enter fills in /console to change one, Shift+Enter its default.",
-			"stat: on consumables (what an elixir, potion or food gives) and on recipes (what a craft makes, what an enchant gives): @consumable stat:str, @recipe stat:stam slot:bracers.",
-			"slot: takes everyday words: bracers, boots, gloves, cloak, helm, ring, 2h...",
-			".btop: your addons' CPU and memory, live and searchable.",
-			".snake: Snake, for fun.",
-			".changelog: this window.",
-			"Fixes: the history keeps the gear you equipped, not the piece it replaced; a window opened by the press still gets its highlight; macros stay within the game's 255 characters.",
-			"Smoother: @cvar updates just the setting that changed, stat: and slot: filters do less work per row, and a long frame no longer crashes the snake into a wall.",
 		},
 	},
 }

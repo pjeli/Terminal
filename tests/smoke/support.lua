@@ -304,3 +304,249 @@ do -- style strings: export, import, the .style command and the options dialog
 	for k, v in pairs(saved) do cur[k] = v end
 	Th.Changed()
 end
+
+do -- .wowamp: radio stations playing the game's music
+	local ns, check = T.ns, T.check
+	local W = ns.Wowamp
+	local played, stopped, cvars = {}, {}, { Sound_EnableMusic = "1" }
+	local base = { psf = _G.PlaySoundFile, ss = _G.StopSound, get = C_CVar.GetCVar, set = C_CVar.SetCVar, rand = W.rand }
+	local nextHandle = 100
+	_G.PlaySoundFile = function(id, channel, _, _) nextHandle = nextHandle + 1; played[#played + 1] = { id = id, channel = channel, h = nextHandle }; return true, nextHandle end
+	_G.StopSound = function(h) stopped[#stopped + 1] = h end
+	C_CVar.GetCVar = function(n) return cvars[n] end
+	C_CVar.SetCVar = function(n, v) cvars[n] = v end
+	W.rand = function(n) return n end -- (no shuffling: the order stays as listed)
+	-- the stations: every track has a file ID, a length and a title; ten of them, themed on places
+	check(#W.STATIONS == 10, "ten stations: " .. #W.STATIONS)
+	local okData = true
+	for _, st in ipairs(W.STATIONS) do
+		if not (st.name and st.place and st.genre and st.tag and st.lo and st.hi and st.bpm and #st.tracks >= 5) then okData = false end
+		for _, tr in ipairs(st.tracks) do
+			if not (type(tr[1]) == "number" and tr[2] >= 10 and type(tr[3]) == "string") then okData = false end
+		end
+	end
+	check(okData, "every station has its theme and its tracks (file ID, seconds, title)")
+	-- tuning in plays the station's first track on the Master channel, and switches the zone music off
+	W.Tune("classical")
+	local st = W.Station()
+	check(st and st.id == "classical" and #played == 1 and played[1].id == st.tracks[1][1] and played[1].channel == "Master",
+		"tuning in plays the station's first track on Master: " .. tostring(played[1] and played[1].id))
+	check(cvars.Sound_EnableMusic == "0", "the zone music is off while the radio plays")
+	check(ns.db.wowamp.station == "classical", "the station is remembered")
+	-- the track's length later, the next one starts (the old one stopped)
+	for _ = 1, 50 do if #played >= 2 then break end T.Flush() end
+	check(#played == 2 and played[2].id == st.tracks[2][1] and stopped[#stopped] == played[1].h, "when a track ends the next starts: " .. #played)
+	-- next / back
+	W.Next()
+	check(played[#played].id == st.tracks[3][1], "next: the third track")
+	W.Prev()
+	check(played[#played].id == st.tracks[2][1], "back (just started): the track before")
+	-- a stop makes any waiting next-track timer do nothing, and the zone music comes back
+	local before = #played
+	W.Stop()
+	check(not W.state.playing and cvars.Sound_EnableMusic == "1", "stopped: the zone music is back on")
+	T.FlushAll()
+	check(#played == before, "a stopped radio starts nothing when the old track's timer fires")
+	-- zone music the player had off stays off
+	cvars.Sound_EnableMusic = "0"
+	W.Tune(1); W.Stop()
+	check(cvars.Sound_EnableMusic == "0", "zone music that was off stays off after the radio stops")
+	-- the game won't play a station at all: it gives up instead of trying forever
+	_G.PlaySoundFile = function() return false end
+	local printed
+	local basePrint = ns.Print
+	ns.Print = function(_, m) printed = m end
+	W.Tune(2)
+	for _ = 1, 40 do T.Flush() end
+	check(not W.state.playing and printed and printed:find("no music", 1, true), "nothing plays: it stops and says so")
+	ns.Print = basePrint
+	_G.PlaySoundFile = function(id, channel) nextHandle = nextHandle + 1; played[#played + 1] = { id = id, channel = channel, h = nextHandle }; return true, nextHandle end
+	-- shuffle: the order follows the setting, the current track kept
+	W.rand = base.rand
+	W.Tune("necropolis")
+	local current = W.Track()
+	W.SetShuffle(true)
+	check(W.Track() == current and ns.db.wowamp.shuffle == true, "shuffle on: the current track keeps playing")
+	-- the window: opens where the terminal is, takes only its keys, plays on when closed
+	cvars.Sound_EnableMusic = "1"
+	check(W.Open() and W.IsShown() and not T.UI:IsShown(), ".wowamp opens the player in the terminal's place")
+	local F = W.frame
+	local count = #played
+	W.KeyDown(F, "DOWN"); W.KeyDown(F, "ENTER")
+	check(#played == count + 1 and W.state.station ~= 7, "Down then Enter tunes in to the next station")
+	W.KeyDown(F, "3")
+	check(W.state.station == 3, "a number key tunes straight in")
+	W.KeyDown(F, "N")
+	check(W.state.pos == 2, "N: the next track")
+	W.KeyDown(F, "P")
+	check(not W.state.playing, "P stops")
+	W.KeyDown(F, "P")
+	check(W.state.playing, "P plays again")
+	local passed
+	F.SetPropagateKeyboardInput = function(_, on) passed = on end
+	W.KeyDown(F, "W")
+	check(passed == true, "other keys reach the game (W still walks)")
+	W.KeyDown(F, "S")
+	check(passed == false, "the player's own keys are kept")
+	-- the visualizer moves while playing, and rests once stopped and fallen
+	local upd = F.scripts and F.scripts.OnUpdate
+	check(upd ~= nil, "the bars move while a track plays")
+	if upd then for _ = 1, 10 do upd(F, 0.05) end end
+	local any = false
+	for i = 1, 36 do if (W.vis.h[i] or 0) > 0 then any = true end end
+	check(any, "the bars rise with the music")
+	W.Stop()
+	upd = F.scripts and F.scripts.OnUpdate
+	if upd then for _ = 1, 60 do upd(F, 0.05) end end
+	check(F.scripts.OnUpdate == nil and W.vis.resting, "stopped and fallen: the loop rests (no OnUpdate)")
+	W.Toggle()
+	W.KeyDown(F, "ESCAPE")
+	check(not W.IsShown() and W.state.playing, "Esc closes the window; the music plays on")
+	-- combat: doesn't open, and closes with the music still on
+	_G.InCombatLockdown = function() return true end
+	check(not W.Open(), "not opened in combat")
+	_G.InCombatLockdown = function() return false end
+	W.Open(); W.Close("combat")
+	check(not W.IsShown() and W.state.playing, "closed by combat, the music plays on")
+	-- the other panels close it
+	W.Open(); ns.Snake.Open()
+	check(not W.IsShown() and ns.Snake.IsShown(), "opening Snake closes the player")
+	ns.Snake.Close()
+	-- the command
+	local out = ns.commands.wowamp.run("naxx")
+	check(W.Station().id == "necropolis" and out[1]:find("Necropolis", 1, true), ".wowamp <name> tunes in: " .. tostring(out[1]))
+	out = ns.commands.wowamp.run("stop")
+	check(not W.state.playing and cvars.Sound_EnableMusic == "1", ".wowamp stop stops it and the zone music comes back")
+	out = ns.commands.wowamp.run("nowhere")
+	check(out[1]:find("no station", 1, true), "an unknown station says so")
+	check(#ns.commands.wowamp.complete("") >= 12, "Tab completes stop, next and the stations")
+	_G.PlaySoundFile, _G.StopSound, C_CVar.GetCVar, C_CVar.SetCVar, W.rand = base.psf, base.ss, base.get, base.set, base.rand
+end
+
+do -- .wowamp: tracks the game cuts short come back; each station's own feel; visualizer styles
+	local ns, check = T.ns, T.check
+	local W = ns.Wowamp
+	local played, playing = {}, {}
+	local nextHandle = 500
+	local base = { psf = _G.PlaySoundFile, ss = _G.StopSound, cs = _G.C_Sound, get = C_CVar.GetCVar, set = C_CVar.SetCVar }
+	_G.PlaySoundFile = function(id) nextHandle = nextHandle + 1; played[#played + 1] = id; playing[nextHandle] = true; return true, nextHandle end
+	_G.StopSound = function(h) playing[h] = nil end
+	C_CVar.GetCVar = function() return "1" end
+	C_CVar.SetCVar = function() end
+	-- (1) the game cuts the playing file (focus lost, a loading screen): it's started again within a second
+	_G.C_Sound = { IsPlaying = function(h) return playing[h] == true end }
+	W.Tune("moonwell")
+	local first, n = played[#played], #played
+	for _ = 1, 3 do T.Flush() end
+	check(#played == n, "while the track plays, nothing restarts it")
+	playing[W.state.handle] = nil -- the game cut it
+	for _ = 1, 5 do if #played > n then break end T.Flush() end
+	check(#played == n + 1 and played[#played] == first and W.state.playing, "a track the game cut short starts again: " .. #played)
+	-- without C_Sound.IsPlaying nothing watches (and nothing breaks)
+	_G.C_Sound = nil
+	W.Tune("moonwell")
+	check(W.state.playing, "no IsPlaying on the client: it plays as before")
+	-- (2) each station its own feel: Moonwell's lo-fi stays low and smooth, WAR Radio tall and punchy
+	local function Average(id)
+		W.Tune(id)
+		local total, steps = 0, 0
+		for _ = 1, 40 do
+			-- (the retarget step: what the bars aim for)
+			local upd = W.frame and W.frame.scripts and W.frame.scripts.OnUpdate
+			if upd then upd(W.frame, 0.11) end
+			for i = 1, 36 do total = total + (W.vis.target[i] or 0) end
+			steps = steps + 36
+		end
+		return total / steps
+	end
+	W.Open()
+	local low, high = Average("moonwell"), Average("warradio")
+	check(low < 0.4 and high > low * 1.6, ("Moonwell lo-fi sits low, WAR Radio high: %.2f vs %.2f"):format(low, high))
+	check(W.FEEL.moonwell.rise < W.FEEL.warradio.rise and W.FEEL.moonwell.fall < W.FEEL.warradio.fall, "Moonwell's bars move smoothly, WAR Radio's sharply")
+	local feels = 0
+	for _, st in ipairs(W.STATIONS) do if W.FEEL[st.id] then feels = feels + 1 end end
+	check(feels == #W.STATIONS, "every station has its own feel")
+	-- (3) styles: V cycles bars -> blocks -> mirror -> wave -> peaks -> off -> bars, remembered
+	W.SetStyle("bars")
+	local seen = {}
+	for _ = 1, #W.STYLES do
+		W.KeyDown(W.frame, "V")
+		seen[#seen + 1] = W.Style()
+	end
+	check(table.concat(seen, ",") == "blocks,mirror,wave,peaks,off,bars", "V cycles the styles: " .. table.concat(seen, ","))
+	W.SetStyle("blocks")
+	check(ns.db.wowamp.style == "blocks", "the style is remembered")
+	local upd = W.frame.scripts.OnUpdate
+	if upd then for _ = 1, 10 do upd(W.frame, 0.05) end end
+	check(W.vis.lit[1] and W.vis.lit[1] >= 0, "blocks light up with the music")
+	W.SetStyle("off")
+	if upd then for _ = 1, 3 do upd(W.frame, 0.05) end end
+	check(W.state.playing, "with the visualizer off the music plays on")
+	check(not W.SetStyle("disco") and W.Style() == "off", "an unknown style is refused")
+	W.SetStyle("bars")
+	-- (4) shorter than it was (452)
+	check(W.frame.h and W.frame.h <= 400, "the player is shorter: " .. tostring(W.frame.h))
+	W.Stop(); W.Close()
+	_G.PlaySoundFile, _G.StopSound, _G.C_Sound, C_CVar.GetCVar, C_CVar.SetCVar = base.psf, base.ss, base.cs, base.get, base.set
+end
+
+do -- .wowamp: smooth motion; Off folds the visualizer away and shortens the window
+	local ns, check = T.ns, T.check
+	local W = ns.Wowamp
+	local base = { psf = _G.PlaySoundFile, ss = _G.StopSound, get = C_CVar.GetCVar, set = C_CVar.SetCVar }
+	_G.PlaySoundFile = function() return true, 900 end
+	_G.StopSound = function() end
+	C_CVar.GetCVar = function() return "0" end
+	C_CVar.SetCVar = function() end
+	W.Open()
+	W.SetStyle("bars")
+	W.Tune("moonwell")
+	local F = W.frame
+	local upd = F.scripts.OnUpdate
+	-- run a while, then watch: every bar visibly moves within half a second, none jumps in one frame
+	for _ = 1, 60 do upd(F, 1 / 60) end
+	local maxJump, lowest, hiH, loH = 0, 1, {}, {}
+	for i = 1, 36 do hiH[i], loH[i] = W.vis.h[i], W.vis.h[i] end
+	for _ = 1, 60 do
+		local before = {}
+		for i = 1, 36 do before[i] = W.vis.h[i] end
+		upd(F, 1 / 60)
+		for i = 1, 36 do
+			local h = W.vis.h[i]
+			maxJump = math.max(maxJump, math.abs(h - before[i]))
+			hiH[i], loH[i] = math.max(hiH[i], h), math.min(loH[i], h)
+		end
+	end
+	for i = 1, 36 do lowest = math.min(lowest, hiH[i] - loH[i]) end
+	check(lowest > 0.015, ("every bar moves visibly within a second (lo-fi too): smallest range %.3f"):format(lowest))
+	check(maxJump < 0.08, ("no bar jumps in one frame: largest step %.3f"):format(maxJump))
+	-- Off: the box folds away and the window is shorter; back on, it returns
+	local tall = F.h
+	W.SetStyle("off")
+	check(F.h < tall - 60, "Off: the window is shorter: " .. tostring(tall) .. " -> " .. tostring(F.h))
+	W.SetStyle("bars")
+	check(F.h == tall, "back to a style: the window's full height again")
+	W.Stop(); W.Close()
+	_G.PlaySoundFile, _G.StopSound, C_CVar.GetCVar, C_CVar.SetCVar = base.psf, base.ss, base.get, base.set
+end
+
+do -- .wowamp: with Sound in Background off, a tip says so (and the window makes room for it)
+	local ns, check = T.ns, T.check
+	local W = ns.Wowamp
+	local cv = { Sound_EnableSoundWhenGameIsInBG = "0", Sound_EnableMusic = "0" }
+	local base = { get = C_CVar.GetCVar }
+	C_CVar.GetCVar = function(n) return cv[n] end
+	W.SetStyle("bars")
+	W.Open()
+	local F = W.frame
+	local withTip = F.h
+	check(W.BackgroundSoundOff() and withTip > 392, "background sound off: the tip shows and the window grows for it: " .. tostring(withTip))
+	cv.Sound_EnableSoundWhenGameIsInBG = "1"
+	W.Redraw()
+	check(not W.BackgroundSoundOff() and F.h == 392, "background sound on: no tip, the usual height: " .. tostring(F.h))
+	cv.Sound_EnableSoundWhenGameIsInBG = "0"
+	W.SetStyle("off")
+	check(F.h == withTip - 84 - 8, "visualizer off with the tip: both add up: " .. tostring(F.h))
+	W.SetStyle("bars"); W.Close()
+	C_CVar.GetCVar = base.get
+end
