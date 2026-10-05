@@ -13,13 +13,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.36.8", when = "next release, in testing",
+		v = "0.36.11", when = "next release, in testing",
 		items = {
 			"Herbalism's recipes and camp objects (Incense Candle) open its Gardening window. Terminal learns the spell you open a profession with, and otherwise finds it among the profession's own spells.",
 			"@camp: Shift+Enter uses the camp object from your bags, or opens its profession and makes it when you have none.",
 			"Achievements: Shift+Enter links one in chat; their colour is now rose, apart from Camp's orange.",
-			"Send a result to chat: end a search with >> party, guild, raid, say, yell, officer, instance, whisper <name> or a channel number. Items, spells, achievements, recipes and quests go as links, NPCs as a map pin.",
+			"Professions: Shift+Enter links the profession (all your recipes) in chat; Enter opens its window.",
+			"Send a result to chat: end a search with >> party, guild, raid, say, yell, officer, instance, whisper <name> or a channel number. Items, spells, achievements, recipes and quests go as links, NPCs as a map pin, professions as a link to all your recipes.",
 			"Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on: add >> guild to send it.",
+			"Fix: opening the terminal no longer opens a profession window (Enchanting) when a profession is the selected result.",
 		},
 	},
 	{

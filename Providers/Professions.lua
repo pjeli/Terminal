@@ -947,6 +947,41 @@ ns:RegisterProvider("recipes", {
 -- Provider: professions themselves
 ----------------------------------------------------------------------
 
+--- A profession's link, listing every recipe you know (what the game's profession book gives on a
+--- shift-click: C_SpellBook.GetSpellBookItemTradeSkillLink on its entry, no window needed); for a
+--- trade spell's row (Smelting), its own entry's. Else the open window's, when it's that profession's.
+local function ProfessionLink(e)
+	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	local get = C_SpellBook and C_SpellBook.GetSpellBookItemTradeSkillLink
+	local pname = e.parentName or e.name
+	for _, pr in ipairs((P.PlayerProfessions())) do
+		if get and pr.spellOffset and ((e.skillLine and pr.skillLine == e.skillLine) or (pname and pr.name == pname)) then
+			for slot = pr.spellOffset + 1, pr.spellOffset + math.max(pr.numSpells or 0, 1) do
+				local mine = true
+				if e.spellID then -- (a trade spell's row: only its own entry)
+					local okI, info = pcall(C_SpellBook.GetSpellBookItemInfo, slot, bank)
+					mine = okI and type(info) == "table" and (info.spellID or info.actionID) == e.spellID
+				end
+				if mine then
+					local ok, link = pcall(get, slot, bank)
+					if ok and type(link) == "string" and link ~= "" and not Secret(link) then return link end
+				end
+			end
+		end
+	end
+	local api = TS()
+	if api and api.GetTradeSkillListLink then
+		local ok, link = pcall(api.GetTradeSkillListLink)
+		if ok and type(link) == "string" and link ~= "" and not Secret(link) and link:find(e.name, 1, true) then return link end
+	end
+end
+P.ProfessionLink = ProfessionLink
+
+-- Shift+Enter: the profession's link (all your recipes) in chat
+local function LinkProfession(e)
+	if not ns.LinkInChat(ProfessionLink(e)) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
+end
+
 local function TradeSpellAfter(e) P.lastSpell = { name = e.name, at = GetTime() } end
 local function TradeSpellInCombat(e) ns:Print(e.name .. " can't be opened from the terminal in combat.") end
 local function ProfessionActivate(e) P.OpenProfession(e.skillLine, e.name) end
@@ -971,6 +1006,9 @@ ns:RegisterProvider("professions", {
 				secure = SpellSpec(ts.name),
 				after = TradeSpellAfter,
 				activate = TradeSpellInCombat,
+				spellID = ts.spellID, parentName = ts.parent,
+				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
+				secondary = LinkProfession, -- Shift+Enter: that link in chat
 			}
 		end
 		for _, pr in ipairs((P.PlayerProfessions())) do
@@ -981,6 +1019,8 @@ ns:RegisterProvider("professions", {
 				icon = pr.icon,
 				detail = pr.rank .. " / " .. pr.maxRank,
 				skillLine = pr.skillLine,
+				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
+				secondary = LinkProfession, -- Shift+Enter: that link in chat (Enter opens its window)
 				secure = opener and SpellSpec(opener) or nil,
 				activate = ProfessionActivate,
 			}

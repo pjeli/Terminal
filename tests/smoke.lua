@@ -5375,4 +5375,41 @@ do -- Shift+Right at the end of the prompt: the selected result written into it 
 	check(UI.edit:GetText() == ".theme", "a command: its .command: " .. tostring(UI.edit:GetText()))
 	UI:Hide()
 end
+do -- a profession sent to chat: its link, with every recipe you know (as the game's profession book gives it)
+	local F, S = _G.TerminalFrame, ns.Secure
+	local save = { gp = _G.GetProfessions, gpi = _G.GetProfessionInfo, tl = C_SpellBook.GetSpellBookItemTradeSkillLink }
+	local LINK = "|cffffd000|Htrade:Player-1-0001:182:182|h[Herbalism]|h|r"
+	_G.GetProfessions = function() return 7 end
+	_G.GetProfessionInfo = function(i) if i == 7 then return "Herbalism", 20, 40, 150, 2, 70, 182 end end
+	C_SpellBook.GetSpellBookItemTradeSkillLink = function(slot) if slot == 71 then return LINK end end
+	ns.providers.professions._dirty = true
+	local herb = names(ns:GetEntries(ns.providers.professions)).Herbalism
+	check(herb and ns.Share.Text(herb) == LINK, "a profession's text is its link: " .. tostring(herb and ns.Share.Text(herb)))
+	UI:Open("@profession herbalism >> guild")
+	F.scripts.OnKeyDown(F, "ENTER")
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/g " .. LINK, ">> guild sends the profession's link: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+	UI:Disarm(); UI:Hide()
+	-- selected, its tooltip never shows that link: a profession link shown opens the profession (Enchanting opened
+	-- with the terminal, as the top recent pick)
+	UI:Open("hearth"); UI:Hide()
+	local tt, shownLinks = _G.TerminalTooltip, {}
+	local baseSet = tt and tt.SetHyperlink
+	if tt then tt.SetHyperlink = function(_, l) shownLinks[#shownLinks + 1] = l end end
+	UI:Open("@profession herbalism"); UI:UpdateTooltip()
+	local trade = false
+	for _, l in ipairs(shownLinks) do if tostring(l):find("|Htrade:", 1, true) then trade = true end end
+	check(tt and not trade, "a profession's link is never shown in the tooltip (that would open the profession)")
+	if tt then tt.SetHyperlink = baseSet end
+	UI:Hide()
+	-- Shift+Enter: its link in chat; Enter opens its window (its window's spell)
+	local mark = #log
+	UI:Open("@profession herbalism")
+	_G.IsShiftKeyDown = function() return true end
+	F.scripts.OnKeyDown(F, "ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(logHas("OPENCHAT " .. LINK, mark + 1) and S.armed == nil, "Shift+Enter puts the profession's link in chat")
+	UI:Disarm(); UI:Hide()
+	_G.GetProfessions, _G.GetProfessionInfo, C_SpellBook.GetSpellBookItemTradeSkillLink = save.gp, save.gpi, save.tl
+	ns.providers.professions._dirty = true
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

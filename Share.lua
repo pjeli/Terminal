@@ -85,7 +85,8 @@ function SH.Text(e)
 		local pin = ns.Integrations.NpcPinLink(e)
 		if pin then return e.name .. " " .. pin end
 	end
-	local link = Call(e.getLink, e) or e.link
+	-- (shareLink: a link only for sending, never shown in a tooltip: a profession's opens its window)
+	local link = Call(e.shareLink, e) or Call(e.getLink, e) or e.link
 	if not IsLink(link) then
 		local id = e.itemID or (type(link) == "string" and tonumber(link:match("item:(%d+)")))
 		link = id and ItemLink(id) or nil

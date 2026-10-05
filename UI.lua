@@ -719,6 +719,8 @@ function UI:UpdateTooltip()
 		local ok, l = pcall(e.getLink, e)
 		link = ok and l or nil
 	end
+	-- never a profession ("trade") link: showing one opens that profession's window, as clicking it does
+	if type(link) == "string" and link:find("|Htrade:", 1, true) then link = nil end
 	if not (link or e.tip or e.tooltip) then return end
 	t:SetOwner(frame, "ANCHOR_NONE")
 	PlaceTip(t)
