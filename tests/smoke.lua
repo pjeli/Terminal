@@ -4395,4 +4395,100 @@ do -- the prompt's colours: @kinds, filters, .commands, /slash commands, plain w
 	check(not UI.status.text:find("again", 1, true), "copied: the reminder is gone")
 	UI:Hide()
 end
+do -- .btop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` closes
+	local B = ns.Btop
+	local base = { addons = _G.C_AddOns, prof = _G.C_AddOnProfiler, enum = Enum.AddOnProfilerMetric,
+		upd = _G.UpdateAddOnMemoryUsage, mem = _G.GetAddOnMemoryUsage, fps = _G.GetFramerate, net = _G.GetNetStats }
+	local LIST = { { "Terminal", "Terminal", 0.20, 3000 }, { "Questie", "|cff00ff00Questie|r", 1.10, 90000 }, { "Bagnon", "Bagnon", 0.05, 120000 } }
+	_G.C_AddOns = setmetatable({ GetNumAddOns = function() return #LIST end,
+		GetAddOnInfo = function(i) return LIST[i][1], LIST[i][2] end,
+		IsAddOnLoaded = function() return true end }, { __index = base.addons })
+	Enum.AddOnProfilerMetric = { RecentAverageTime = 3 }
+	_G.C_AddOnProfiler = { GetAddOnMetric = function(name) for _, a in ipairs(LIST) do if a[1] == name then return a[3] end end end,
+		GetOverallMetric = function() return 1.35 end }
+	local memAsks = 0
+	_G.UpdateAddOnMemoryUsage = function() memAsks = memAsks + 1 end
+	_G.GetAddOnMemoryUsage = function(name) for _, a in ipairs(LIST) do if a[1] == name then return a[4] end end end
+	_G.GetFramerate = function() return 60 end
+	_G.GetNetStats = function() return 0, 0, 40, 45 end
+	ns.Theme.Set("animations", "smooth")
+	UI:Open(".btop")
+	UI:Hide() -- (running a command closes the terminal, with its animation)
+	ns.commands.btop.run("")
+	check(B.IsShown() and not UI:IsShown() and not UI.closing, ".btop: the panel shows at once, the terminal gone (no closing animation under it)")
+	local g = B.graph[#B.graph]
+	check(g.shown == g.target, "the bars start at their values, not rising from nothing")
+	check(B.Shown()[1].name == "Questie" and B.rows[1].name.text == "Questie", "sorted by CPU, names without colour codes: " .. tostring(B.rows[1].name.text))
+	check(B.rows[1].ms.text == "1.100" and B.rows[1].pct.text == "81.5" and B.rows[1].mem.text == "87.9 MB", "CPU ms, share of all addons, memory: " .. tostring(B.rows[1].pct.text))
+	check(B.cpuText.text:find("1.35 ms", 1, true) and B.cpuText.text:find("8%", 1, true), "all addons' time per frame and share of a frame: " .. tostring(B.cpuText.text))
+	do -- the memory lines fit their box (the peak and Terminal's share on one line ran past its edge)
+		local m1, m2, m3 = B.MemTexts()
+		local boxW = B.frame.memBox:GetWidth()
+		local ok = true
+		for _, fs in ipairs({ m1, m2, m3 }) do
+			if not (fs.w and fs.w <= boxW - 16) then ok = false end
+		end
+		check(ok and m2.text:find("^peak") and m3.text:find("^Terminal"), "memory: total, peak and Terminal's share each on a line, kept inside the box")
+	end
+	B.Key("TAB")
+	check(B.state.sort == "mem" and B.Shown()[1].name == "Bagnon", "Tab: by memory")
+	B.Key("TAB"); check(B.state.sort == "name" and B.Shown()[1].name == "Bagnon" and B.Shown()[3].name == "Terminal", "Tab: by name")
+	B.Key("TAB"); check(B.state.sort == "cpu", "Tab: back to CPU")
+	B.Char("q"); B.Char("u")
+	check(#B.Shown() == 1 and B.Shown()[1].name == "Questie" and B.footer.text:find("1 of 3", 1, true), "typing filters: " .. tostring(B.footer.text))
+	B.Key("BACKSPACE"); B.Key("BACKSPACE")
+	check(#B.Shown() == 3, "Backspace widens it again")
+	B.Key("DOWN"); B.Key("DOWN"); B.Key("DOWN")
+	check(B.state.sel == 3, "Down moves, stopping at the last")
+	-- every row shown sits inside the list's box (the last one hung over its bottom edge)
+	do
+		local boxH = B.frame.procBox:GetHeight()
+		local fit = B.Fit()
+		check(fit >= 1 and 42 + fit * 19 + 6 <= boxH and fit < 12, ("the rows that show fit the box: %d rows in %s px"):format(fit, tostring(boxH)))
+		local many = {}
+		for i = 1, 20 do many[i] = { "Addon" .. i, "Addon " .. i, i / 100, i * 100 } end
+		local saveList = LIST
+		LIST = many
+		B.Close(); B.Open()
+		local visible = 0
+		for i, r in ipairs(B.rows) do if r:IsShown() then visible = i end end
+		check(visible == fit and not B.rows[fit + 1]:IsShown(), "with more addons than fit: only the rows that fit show (" .. visible .. ")")
+		for _ = 1, 15 do B.Key("DOWN") end
+		check(B.state.sel == 16 and B.state.offset == 16 - fit, "moving down scrolls by the rows that fit")
+		LIST = saveList
+		B.Close(); B.Open()
+		B.Key("DOWN"); B.Key("DOWN")
+	end
+	-- it animates: samples come in over time, the graph's bars glide toward them
+	local before = #B.History()
+	B.Tick(0.6)
+	check(#B.History() == before + 1, "a new CPU sample every half second")
+	for _ = 1, 30 do B.Tick(0.04) end
+	local newest = B.graph[#B.graph]
+	check(math.abs(newest.shown - newest.target) < 0.01 and newest.target > 0, "the newest bar has risen to its value")
+	local asks = memAsks
+	B.Tick(3.1)
+	check(memAsks == asks + 1, "memory asked for every few seconds (it's costly)")
+	B.Char("`")
+	check(B.state.filter == "", "` isn't typed into the filter")
+	B.Key("ESCAPE")
+	check(not B.IsShown(), "Esc closes")
+	ns.commands.btop.run(""); B.Key("`")
+	check(not B.IsShown(), "` closes")
+	-- combat: it reads the keyboard, so it doesn't open, and closes when combat starts
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	check(B.Open() == false and not B.IsShown(), "not in combat")
+	_G.InCombatLockdown = realCombat
+	B.Open()
+	B.frame.scripts.OnEvent(B.frame, "PLAYER_REGEN_DISABLED")
+	check(not B.IsShown(), "combat starting closes it")
+	-- no profiler on this client: it says so, memory still works
+	_G.C_AddOnProfiler = nil
+	B.Open()
+	check(B.cpuText.text:find("no addon CPU profiler", 1, true) and B.rows[1].ms.text == "-", "no profiler: said so, no CPU numbers")
+	B.Close()
+	_G.C_AddOns, _G.C_AddOnProfiler, Enum.AddOnProfilerMetric = base.addons, base.prof, base.enum
+	_G.UpdateAddOnMemoryUsage, _G.GetAddOnMemoryUsage, _G.GetFramerate, _G.GetNetStats = base.upd, base.mem, base.fps, base.net
+end
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

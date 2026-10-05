@@ -2829,6 +2829,16 @@ function UI:Hide()
 	end
 end
 
+--- Gone at once, without the closing animation (something else takes its place: .btop).
+function UI:HideNow()
+	self:Hide()
+	if frame and frame:IsShown() then
+		self.phase, self.closing = nil, false
+		frame:Hide()
+		self:MotionReset()
+	end
+end
+
 function UI:Open(text)
 	Build()
 	self:Disarm()
