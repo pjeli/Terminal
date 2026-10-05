@@ -107,7 +107,7 @@ function S.ClickMacro(spec, e)
 	local t = Text(spec.click, e) or Text(spec.macro, e)
 	if t and #t > S.MACRO_MAX then
 		if ns.Trace then ns:Trace(("secure: click macro too long (%d characters), not used"):format(#t)) end
-		return nil
+		t = nil -- (the spec's spell or button instead, as Resolve does)
 	end
 	if t then return t end
 	if type(spec.spell) == "string" and spec.spell ~= "" then return "/cast " .. spec.spell end
@@ -228,6 +228,7 @@ local function PostClick(self, _, down)
 	if not S.onClicked then return end
 	if S.armed == self.targetName then
 		S.onClicked(self.targetName)
+		S.lastArmed = nil -- (finished: not a press still to come back)
 	elseif S.lastArmed == self.targetName and S.lastArmedAt and GetTime() - S.lastArmedAt < S.LATE then
 		if ns.Trace then ns:Trace("secure: the press came back after Enter was let go (the window it opened closed the terminal); finishing it") end
 		S.lastArmed = nil

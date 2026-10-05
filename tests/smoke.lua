@@ -1599,8 +1599,26 @@ do
 	cv = names(ns:GetEntries(ns.providers.cvars))
 	check(cv.nameplateMaxDistance and cv.cameraDistanceMaxZoomFactor and not cv.lockedOne and not cv.reloadui,
 		"the game won't list them: Terminal's list of names, only those this client has")
-	check(cv.nameplateMaxDistance.tip:find("max distance to show nameplates", 1, true) and cv.nameplateMaxDistance.detail:find("= 41", 1, true),
+	check(cv.nameplateMaxDistance.help:find("max distance to show nameplates", 1, true) and cv.nameplateMaxDistance.detail:find("= 41", 1, true),
 		"with the list's help text and the game's own value")
+	-- a setting changed: just its row is updated (the list isn't made again, ~1650 rows)
+	local p = ns.providers.cvars
+	local list = p._entries
+	CVARS.nameplateMaxDistance[1] = "60"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "60")
+	check(p._entries == list and not p._dirty, "a changed setting doesn't make the list again")
+	check(cv.nameplateMaxDistance.detail:find("^= 60") and not cv.nameplateMaxDistance.changed and not cv.nameplateMaxDistance.color,
+		"its row shows the new value (back to its default: no longer marked): " .. tostring(cv.nameplateMaxDistance.detail))
+	CVARS.nameplateMaxDistance[1] = "41"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "41")
+	check(cv.nameplateMaxDistance.changed and names(UI:Search("@cvar changed")).nameplateMaxDistance, "changed again: found by 'changed'")
+	-- the tooltip is made when hovered
+	local lines = {}
+	local tt = { SetText = function(_, t) lines[#lines + 1] = t end, AddLine = function(_, t) lines[#lines + 1] = t end,
+		AddDoubleLine = function(_, a, b) lines[#lines + 1] = a .. " " .. b end }
+	cv.nameplateMaxDistance.tooltip(cv.nameplateMaxDistance, tt)
+	local all = table.concat(lines, "\n")
+	check(all:find("Value 41", 1, true) and all:find("Default 60", 1, true) and all:find("nameplates", 1, true), "the tooltip: help, value, default")
 	CVARS_FAIL = nil
 	ns.providers.cvars._dirty = true
 	check(ns.providers.cvars.explicit and not names(UI:Search("nameplate"))["nameplateMaxDistance"], "only searched with @cvar")
@@ -1635,6 +1653,10 @@ do
 	r = Sx.Resolve({ macro = ("/run print(1)\n"):rep(20), binding = "TOGGLETALENTS" })
 	check(r and r.binding and not r.macro, "a spec with a key falls back to the key")
 	check(Sx.ClickMacro({ macro = ("/run print(1)\n"):rep(20) }) == nil, "nor as a click's macro")
+	_G.TerminalTestButton = Obj("Button")
+	check(Sx.ClickMacro({ macro = ("/run print(1)\n"):rep(20), buttons = { "TerminalTestButton" } }) == "/click TerminalTestButton",
+		"a click with a macro too long falls back to the spec's button")
+	_G.TerminalTestButton = nil
 	-- the keybinding search fits a long action name
 	local K = ns.Keybinds
 	if K and K.MacroFor then
@@ -1819,6 +1841,18 @@ do
 	check(S.armed == nil, "the terminal closing lets Enter go")
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
 	check(shownTarget == item.Button, "the press coming back after that still points at the spell")
+	-- a press that finished normally isn't finished again by a second click of the proxy a moment later
+	UI:Disarm(); UI:Hide(); FlushAll()
+	local afters = 0
+	local baseAfter = sp.Fireball.after
+	sp.Fireball.after = function(e) afters = afters + 1 end
+	UI:Open("fireball"); key("ENTER")
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	check(afters == 1, "a finished press runs its after-step once: " .. afters)
+	sp.Fireball.after = baseAfter
+	-- learning a new rank keeps the row (its history): spells are known by their name
+	check(sp.Fireball.key == "Fireball", "a spell is known by its name, not its rank's id")
 	paged.GetChildren = function() return other, item end
 	UI:Disarm(); UI:Hide()
 	_G.PlayerSpellsFrame, C_SpellBook.FindSpellBookSlotForSpell = nil, nil
@@ -4639,7 +4673,21 @@ do -- filters across kinds: items, loot and stored (stats, quality, item level, 
 	check(P("stat:stamina")(ribs) and P("stat:spirit")(ribs) and P("stat:sta>=6")(ribs) and not P("stat:strength")(ribs), "food: what being well fed gives")
 	check(not P("stat:agility")(agi), "its effect text not loaded yet: left out for now")
 	agilityLoaded = true
+	check(not P("stat:agi>20")(agi), "asked again only a moment later, not on every keystroke")
+	local realGT, later = _G.GetTime, GetTime() + 2
+	_G.GetTime = function() return later end
 	check(P("stat:agi>20")(agi), "and found once it's in (not remembered as nothing)")
+	_G.GetTime = realGT
+	-- an item the client hasn't got yet (no spell, a "Retrieving item information" tooltip): never kept as nothing
+	F.ClearEffects()
+	local cached = false
+	C_Item.IsItemDataCachedByID = function() return cached end
+	check(not P("stat:strength")(elixir), "an item still loading: left out for now")
+	cached = true
+	_G.GetTime = function() return later + 5 end
+	check(P("stat:strength")(elixir), "and found once the client has it")
+	_G.GetTime = realGT
+	C_Item.IsItemDataCachedByID = nil
 	-- only consumables have their effect read (thousands of loot rows mustn't each have a tooltip read)
 	local baseInstant3, asked = C_Item.GetItemInfoInstant, 0
 	C_Item.GetItemInfoInstant = function(x) if x == 104 then return 104, "Recipe", "Book", "", 1, 9, 0 end return baseInstant3(x) end
@@ -5032,6 +5080,11 @@ do -- .snake: WASD/arrows steer, apples grow it, walls and the tail end it, Esc 
 	check(passed == true and not g.paused, "no pausing: Space isn't the game's, it goes on to the game")
 	Sn.Tick(1 / g.speed + 0.001)
 	check(g.body[1][1] == x0 + 2, "and the snake keeps going")
+	-- a long frame (alt-tab, a loading hitch) makes at most one move or two, not a run into the wall
+	Sn.Reset()
+	local before = g.body[1][1]
+	Sn.Tick(5)
+	check(not g.over and g.body[1][1] - before <= 2, "a 5 s hitch doesn't make many moves at once: " .. (g.body[1][1] - before))
 	f.scripts.OnKeyDown(f, "ESCAPE")
 	check(not Sn.IsShown(), "Esc quits")
 	ns.commands.snake.run(""); f.scripts.OnKeyDown(f, "`")

@@ -358,7 +358,62 @@ end
 local function EditCVar(e) CVarLine(e, Plain(C_CVar.GetCVar(e.name)) or e.value) end
 local function DefaultCVar(e) CVarLine(e, e.default) end
 
-ns.CVars = { Edit = EditCVar, Default = DefaultCVar }
+-- Terminal's list of names (CVarList.lua), read once: name -> { category, help }, and the names in order
+local known, knownOrder
+local function Known()
+	if not known then
+		known, knownOrder = {}, {}
+		for name, cat, help in (ns.CVAR_LIST or ""):gmatch("([^\t\n]+)\t([^\t\n]*)\t([^\n]*)") do
+			known[name] = { tonumber(cat), help }
+			knownOrder[#knownOrder + 1] = name
+		end
+	end
+	return known, knownOrder
+end
+
+--- A setting's value and default, and whether it's read-only / protected; nil value: not a setting here.
+local function Read(name)
+	local value, default, readOnly, secure
+	local info, get = C_CVar and C_CVar.GetCVarInfo, C_CVar and C_CVar.GetCVar
+	if info then
+		local ok, v, d, _, _, locked, sec, ro = pcall(info, name)
+		if ok then value, default, readOnly, secure = Plain(v), Plain(d), (ro or locked) and true or false, sec and true or false end
+	end
+	if value == nil and get then
+		local ok, v = pcall(get, name)
+		value = ok and Plain(v) or nil
+	end
+	if value ~= nil and default == nil and C_CVar.GetCVarDefault then
+		local ok, d = pcall(C_CVar.GetCVarDefault, name)
+		default = ok and Plain(d) or nil
+	end
+	return value, default, readOnly, secure
+end
+
+--- The row's value, detail, colour and searchable text, from its current value.
+local function Fill(e, value, default)
+	e.value, e.default = value, default
+	e.changed = value ~= nil and default ~= nil and value ~= default
+	e.color = e.changed and CHANGED or nil
+	e.detail = "= " .. (value or "?") .. (e.changed and ("  (default " .. default .. ")") or "")
+		.. (e.readOnly and "  read-only" or "") .. (e.cat and ("  " .. e.cat) or "")
+	e._ltext = ns.Lower(e.help .. " " .. (e.cat or "") .. (e.changed and " changed" or ""))
+end
+
+-- the tooltip, made when hovered (not for every one of ~1650 rows up front)
+local function Tooltip(e, t)
+	t:SetText(e.name, 1, 1, 1)
+	if e.help ~= "" then t:AddLine(e.help, 0.8, 0.8, 0.8, true) end
+	t:AddDoubleLine("Value", tostring(e.value or "?"), 1, 0.82, 0, 1, 1, 1)
+	t:AddDoubleLine("Default", tostring(e.default or "?"), 1, 0.82, 0, 1, 1, 1)
+	if e.readOnly then t:AddLine("Read-only: the game won't let it be changed", 1, 0.4, 0.4, true) end
+	if e.secure then t:AddLine("Protected: can't be changed in combat", 1, 0.6, 0.3, true) end
+	t:AddLine(" ")
+	t:AddLine("Enter: edit it    Shift+Enter: back to its default", 0.6, 0.6, 0.6, true)
+end
+
+local byName = {} -- setting name -> its row (CVAR_UPDATE updates just that row)
+ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return byName end }
 
 ns:RegisterProvider("cvars", {
 	label = "CVar",
@@ -367,10 +422,10 @@ ns:RegisterProvider("cvars", {
 	explicit = true, -- a few thousand: only with @cvar
 	lazy = true,
 	idleDrop = 600,
-	events = { "CVAR_UPDATE" }, -- a value changed (yours, the options panel's, an addon's)
-	guard = 1,
+	onDrop = function() byName = {} end,
 	collect = function(p)
 		local out = {}
+		byName = {}
 		-- the game's own list, when it gives one (WoW Forever doesn't let addons have it)
 		local ok, all = false, nil
 		for _, fn in ipairs({ C_Console and C_Console.GetAllCommands or false, _G.ConsoleGetAllCommands or false }) do
@@ -380,68 +435,67 @@ ns:RegisterProvider("cvars", {
 			end
 		end
 		all = ok and type(all) == "table" and all or {}
+		local kn, order = Known()
 		local from = #all > 0 and "the game's list" or "Terminal's list"
-		-- otherwise the names Terminal knows (CVarList.lua), each looked up in the game below
-		local known = {}
-		for name, cat, help in (ns.CVAR_LIST or ""):gmatch("([^\t\n]+)\t([^\t\n]*)\t([^\n]*)") do
-			known[name] = { tonumber(cat), help }
-			if from ~= "the game's list" then all[#all + 1] = { command = name, category = tonumber(cat), help = help } end
-		end
-		local info = C_CVar and C_CVar.GetCVarInfo
-		local get = C_CVar and C_CVar.GetCVar
-		for _, c in ipairs(all) do
-			local name = type(c) == "table" and Plain(c.command)
-			local k = name and known[name]
-			if k and type(c) == "table" then -- the game's entry without help or category: Terminal's list has them
-				if (c.help == nil or c.help == "") and k[2] ~= "" then c.help = k[2] end
-				if c.category == nil then c.category = k[1] end
+		local names = {}
+		if #all > 0 then
+			for _, c in ipairs(all) do
+				local name = type(c) == "table" and Plain(c.command)
+				if name then names[#names + 1] = { name, c.category, Plain(c.help) } end
 			end
+		else
+			-- otherwise the names Terminal knows, each looked up in the game below
+			for _, name in ipairs(order) do names[#names + 1] = { name } end
+		end
+		for _, n in ipairs(names) do
+			local name = n[1]
 			-- a setting is whatever has a value: the command type isn't trusted (ClassicUIForever doesn't
 			-- either), and console commands (reloadui...) have none
-			local value, default, readOnly, secure
-			if name and info then
-				local okInfo, v, d, _, _, locked, sec, ro = pcall(info, name)
-				if okInfo then value, default, readOnly, secure = Plain(v), Plain(d), (ro or locked) and true or false, sec and true or false end
-			end
-			if name and value == nil and get then
-				local okGet, v = pcall(get, name)
-				value = okGet and Plain(v) or nil
-			end
+			local value, default, readOnly, secure = Read(name)
 			if value ~= nil then
-				if default == nil and C_CVar.GetCVarDefault then
-					local okDef, d = pcall(C_CVar.GetCVarDefault, name)
-					default = okDef and Plain(d) or nil
-				end
-				local help = Plain(c.help) or ""
-				local cat = Category(c.category)
-				local changed = value ~= nil and default ~= nil and value ~= default
-				local tip = {}
-				if help ~= "" then tip[#tip + 1] = help end
-				tip[#tip + 1] = "Value: " .. (value or "?") .. "    Default: " .. (default or "?")
-				if readOnly then tip[#tip + 1] = "Read-only: the game won't let it be changed" end
-				if secure then tip[#tip + 1] = "Protected: can't be changed in combat" end
-				tip[#tip + 1] = "Enter: edit it    Shift+Enter: back to its default"
-				out[#out + 1] = {
-					key = name, name = name, value = value, default = default, changed = changed,
+				local k = kn[name]
+				local help = (n[3] and n[3] ~= "" and n[3]) or (k and k[2]) or ""
+				local e = {
+					key = name, name = name, help = help, cat = Category(n[2] or (k and k[1])),
+					readOnly = readOnly, secure = secure,
 					icon = "Interface\\Icons\\INV_Misc_Gear_01",
-					color = changed and CHANGED or nil,
-					detail = "= " .. (value or "?") .. (changed and ("  (default " .. default .. ")") or "")
-						.. (readOnly and "  read-only" or "") .. (cat and ("  " .. cat) or ""),
-					text = help .. " " .. (cat or "") .. (changed and " changed" or ""),
-					tip = table.concat(tip, "\n"),
+					tooltip = Tooltip,
 					staysOpen = true, -- only fills the prompt in: you edit, then Enter runs it
 					activate = EditCVar,
 					secondary = DefaultCVar,
 				}
+				Fill(e, value, default)
+				out[#out + 1] = e
+				byName[name] = e
 			end
 		end
-		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #all, ok and "ok" or "failed", #out))
+		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #names, ok and "ok" or "failed", #out))
 		if #out == 0 then
 			-- the list can come back empty early on: ask again on the next search, and say what happened
 			C_Timer.After(1, function() p._dirty = true end)
 			out[1] = { key = "none", name = "No console settings could be read yet", raw = true, noActivate = true, icon = false,
-				detail = ("%d names from %s, none with a value"):format(#all, from), text = "" }
+				detail = ("%d names from %s, none with a value"):format(#names, from), text = "" }
 		end
 		return out
 	end,
 })
+
+-- A setting changed (yours, the options panel's, an addon's: the camera's change often): just its row is
+-- updated, not the whole list made again. A change without a name marks the list to be made again.
+local cvarWatch = CreateFrame("Frame")
+ns.CVars.watch = cvarWatch
+pcall(cvarWatch.RegisterEvent, cvarWatch, "CVAR_UPDATE")
+cvarWatch:SetScript("OnEvent", function(_, _, name)
+	local p = ns.providers.cvars
+	if not (p and p._entries) then return end
+	local e = type(name) == "string" and byName[name]
+	if not e then
+		if type(name) ~= "string" then p._dirty = true end
+		return
+	end
+	local value, default = Read(name)
+	if value ~= e.value or default ~= e.default then
+		Fill(e, value, default)
+		ns.entriesGen = ns.entriesGen + 1 -- (searches narrowed from the last one see the new value)
+	end
+end)

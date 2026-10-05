@@ -1003,7 +1003,8 @@ function UI:FinishSecure()
 	if not e and self.lastArmedEntry and self.lastArmedAt and GetTime() - self.lastArmedAt < ns.Secure.LATE then
 		e = self.lastArmedEntry
 	end
-	self.lastArmedEntry = nil
+	-- finishing now: Disarm mustn't keep it as a press still to come back (its after-step would run twice)
+	self.armedEntry, self.lastArmedEntry = nil, nil
 	self:Disarm()
 	if not e then return end
 	ns:Trace("secure: finished, highlighting " .. e.name)

@@ -56,11 +56,10 @@ local function MadeBy(e)
 	local c = recipeItem[r]
 	if c ~= nil then return c or nil end
 	local TS = C_TradeSkillUI
-	local id
-	if TS and TS.GetRecipeSchematic then
-		local ok, sch = pcall(TS.GetRecipeSchematic, r, false)
-		if ok and type(sch) == "table" and type(sch.outputItemID) == "number" and sch.outputItemID > 0 then id = sch.outputItemID end
-	end
+	if not (TS and TS.GetRecipeSchematic) then return nil end
+	local ok, sch = pcall(TS.GetRecipeSchematic, r, false)
+	if not ok or type(sch) ~= "table" then return nil end -- (no answer yet: asked again, not taken for an enchant)
+	local id = type(sch.outputItemID) == "number" and sch.outputItemID > 0 and sch.outputItemID or nil
 	recipeItem[r] = id or false
 	return id
 end
@@ -173,11 +172,21 @@ end
 -- and their tooltip's lines. Read once per item, lowercase; nil while the game is still loading it.
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local effectCache, effectCount = {}, 0
+local effectRetry = {} -- item id -> when to read it again (its item or spell data was still loading)
+local RETRY = 1 -- seconds
 local function EffectText(e)
 	local id = ItemOf(e)
 	if not id then return nil end
 	local c = effectCache[id]
 	if c ~= nil then return c or nil end
+	local now = GetTime()
+	if effectRetry[id] and now < effectRetry[id] then return nil end
+	-- an item the client hasn't got yet has no spell and a "Retrieving item information" tooltip: never kept
+	if C_Item and C_Item.IsItemDataCachedByID and not C_Item.IsItemDataCachedByID(id) then
+		if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+		effectRetry[id] = now + RETRY
+		return nil
+	end
 	local parts, pending = {}, false
 	local getSpell = (C_Item and C_Item.GetItemSpell) or _G.GetItemSpell
 	local spellID
@@ -189,8 +198,8 @@ local function EffectText(e)
 		local ok, d = pcall(C_Spell.GetSpellDescription, spellID)
 		if ok and type(d) == "string" and not Secret(d) and d ~= "" then
 			parts[#parts + 1] = d
-		else
-			pending = true -- (the spell's text isn't loaded yet: asked for, and read again next time)
+		elseif not (C_Spell.IsSpellDataCached and C_Spell.IsSpellDataCached(spellID)) then
+			pending = true -- (the spell's text is still loading: asked for, read again in a moment)
 			if C_Spell.RequestLoadSpellData then pcall(C_Spell.RequestLoadSpellData, spellID) end
 		end
 	end
@@ -204,22 +213,33 @@ local function EffectText(e)
 		end
 	end
 	local text = #parts > 0 and Lower(table.concat(parts, "\n")) or nil
-	if text or not pending then
+	if pending then
+		effectRetry[id] = now + RETRY -- (not every keystroke: once a second until it's in)
+	else
 		if effectCount > 4000 then effectCache, effectCount = {}, 0 end
 		effectCache[id], effectCount = text or false, effectCount + 1
+		effectRetry[id] = nil
 	end
 	return text
 end
 F.EffectText = EffectText
-F.ClearEffects = function() effectCache, effectCount = {}, 0 end
 
 local CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
+local consumable = {} -- item id -> is it a consumable (asked once per item: filters ask per row, per search)
 local function IsConsumable(id)
+	local c = consumable[id]
+	if c ~= nil then return c end
 	local get = C_Item and C_Item.GetItemInfoInstant
 	if not get then return true end
 	local ok, _, _, _, _, _, classID = pcall(get, id)
-	return not ok or classID == nil or classID == CONSUMABLE
+	c = not ok or classID == nil or classID == CONSUMABLE
+	if ok and classID ~= nil then
+		if effectCount > 4000 then consumable = {} end
+		consumable[id] = c
+	end
+	return c
 end
+F.ClearEffects = function() effectCache, effectCount, effectRetry, consumable = {}, 0, {}, {} end
 
 -- how an effect text names each stat when the game's own name isn't there (English)
 local EFFECT_ENGLISH = {
@@ -246,9 +266,9 @@ local function EffectNames(word)
 	return names
 end
 
---- Does the effect text name the stat (and, with cmp, give it an amount that passes)?
-local function EffectHas(text, word, cmp)
-	for _, name in ipairs(EffectNames(word)) do
+--- Does the effect text name the stat (names: EffectNames of it; and, with cmp, give it an amount that passes)?
+local function EffectHas(text, names, cmp)
+	for _, name in ipairs(names) do
 		local from = 1
 		while true do
 			local at, last = text:find(name, from, true)
@@ -266,12 +286,14 @@ end
 
 -- A recipe's own words, lowercase: its name and its spell's text ("Enchant Bracer - Stamina",
 -- "Permanently enchant bracers to increase Stamina by 3."). Kept once the text has loaded.
-local recipeText = {}
+local recipeText, recipeEarly = {}, {}
 local function RecipeText(e)
 	local r = e.recipeID
 	if not r then return nil end
 	local c = recipeText[r]
 	if c then return c end
+	local early = recipeEarly[r] -- (its text was still loading a moment ago: the name alone, asked again later)
+	if early and GetTime() < early[2] then return early[1] end
 	local name = type(e.name) == "string" and e.name or ""
 	local desc
 	if C_Spell and C_Spell.GetSpellDescription then
@@ -283,7 +305,7 @@ local function RecipeText(e)
 		end
 	end
 	local text = Lower(name .. (desc and ("\n" .. desc) or ""))
-	if desc then recipeText[r] = text end -- (without its text yet: only the name, and asked again next time)
+	if desc then recipeText[r], recipeEarly[r] = text, nil else recipeEarly[r] = { text, GetTime() + 1 } end
 	return text
 end
 
@@ -308,12 +330,18 @@ local ENCHANT_WORDS = {
 	weapon = { "weapon" }, ["two-hand"] = { "2h weapon", "two-handed", "two-hand" }, ["off hand"] = { "off-hand", "shield" },
 }
 local function SlotWant(v) return SLOT_ALIAS[v] or v end
-local function SlotIs(loc, want)
-	local shown = _G[loc]
-	if type(shown) == "string" and Lower(shown):find(want, 1, true) then return true end
-	local l = loc:lower()
-	return l:find((want:gsub("[%s%-]", "")), 1, true) ~= nil or (SLOT_LOC[want] and l:find(SLOT_LOC[want], 1, true) and
-		(want ~= "one-hand" or l == "invtype_weapon")) or false
+local locWords = {} -- INVTYPE_x -> { its shown name, lowercase; itself, lowercase } (a few dozen, kept)
+--- Does this item slot type answer to the slot word? flat: want without spaces or dashes (worked out once).
+local function SlotIs(loc, want, flat)
+	local w = locWords[loc]
+	if not w then
+		local shown = _G[loc]
+		w = { type(shown) == "string" and Lower(shown) or "", loc:lower() }
+		locWords[loc] = w
+	end
+	if w[1]:find(want, 1, true) or w[2]:find(flat, 1, true) then return true end
+	local extra = SLOT_LOC[want]
+	return extra and w[2]:find(extra, 1, true) and (want ~= "one-hand" or w[2] == "invtype_weapon") and true or false
 end
 
 local QUALITY = { poor = 0, grey = 0, gray = 0, junk = 0, common = 1, white = 1, uncommon = 2, green = 2,
@@ -480,6 +508,7 @@ KEYS.stat = function(v)
 	if not word then return nil end
 	local cmp = op and Range(op .. n)
 	if op and not cmp then return nil end
+	local names -- (how effect texts name it: worked out once, when first needed)
 	return function(e)
 		local stats = Stats(e)
 		if stats and next(stats) then
@@ -492,13 +521,17 @@ KEYS.stat = function(v)
 		-- an enchant (a recipe making no item): what its name and text say it gives
 		if not id then
 			local text = e.recipeID and RecipeText(e)
-			return text and EffectHas(text, word, cmp) or false
+			if not text then return false end
+			names = names or EffectNames(word)
+			return EffectHas(text, names, cmp)
 		end
 		-- no item stats (an elixir, a potion, food...): what its effect says it gives. Only consumables are
 		-- read (a tooltip per item: thousands of loot rows mustn't each be read)
 		if not IsConsumable(id) then return false end
 		local text = EffectText(e)
-		return text and EffectHas(text, word, cmp) or false
+		if not text then return false end
+		names = names or EffectNames(word)
+		return EffectHas(text, names, cmp)
 	end
 end
 KEYS.stats = KEYS.stat
@@ -506,13 +539,15 @@ KEYS.stats = KEYS.stat
 KEYS.slot = function(v)
 	if v == "" then return nil end
 	local want = SlotWant(v)
+	local flat = want:gsub("[%s%-]", "")
+	local words = ENCHANT_WORDS[want] or { want }
 	return function(e)
 		local id = ItemOf(e)
 		if not id then
 			-- an enchant: the slot its name or text names ("Enchant Bracer", "enchant boots")
 			local text = e.recipeID and RecipeText(e)
 			if not text then return false end
-			for _, w in ipairs(ENCHANT_WORDS[want] or { want }) do
+			for _, w in ipairs(words) do
 				if text:find(w, 1, true) then return true end
 			end
 			return false
@@ -520,7 +555,7 @@ KEYS.slot = function(v)
 		local info = ItemInfo(id)
 		local loc = info and info.equipLoc
 		if type(loc) ~= "string" or loc == "" then return false end
-		return SlotIs(loc, want)
+		return SlotIs(loc, want, flat)
 	end
 end
 

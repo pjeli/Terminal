@@ -80,7 +80,7 @@ local function ClientBookMacro(e)
 	if CUF() or not (_G.PlayerSpellsUtil and e.spellID) then return nil end
 	-- (the game cuts a macro off at 255 characters in all, not per line: keep it short)
 	return "/run PlayerSpellsUtil.OpenToSpellBookTab()\n"
-		.. ("/run local b=PlayerSpellsFrame.SpellBookFrame b:ClearActiveSearchState(true) b:GoToSpell(%d,true)"):format(e.spellID)
+		.. ("/run local b=PlayerSpellsFrame.SpellBookFrame if b.ClearActiveSearchState then b:ClearActiveSearchState(true) end if b.GoToSpell then b:GoToSpell(%d,true) end"):format(e.spellID)
 end
 SP.ClientBookMacro = ClientBookMacro
 
@@ -153,7 +153,7 @@ function SP.TurnTo(A, book, e)
 		ns:Trace("spells: " .. tostring(e.name) .. " isn't on any page of its tab")
 		return nil
 	end
-	for _ = 1, page - fallbackPage do prev:Click() end
+	for _ = 1, page - fallbackPage do if prev then prev:Click() end end
 	ns:Trace(("spells: %s (a lower rank shown) on page %d"):format(e.name, fallbackPage))
 	return (OnPage(A, book, e))
 end
@@ -242,7 +242,8 @@ ns:RegisterProvider("spells", {
 							out[#out + 1] = e
 						end
 						local rankText = type(rank) == "string" and rank ~= "" and rank or nil
-						e.key, e.spellID, e.icon, e.passive, e.line = id, id, info.iconID, passive, line
+						-- known by its name: learning a new rank mustn't make it another row (its history kept)
+						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
 						e.link = Call(C_Spell.GetSpellLink, id)
 						e.tab = tab
 						e.detail = (passive and "Passive  " or "") .. (rankText and (rankText .. "  ") or "") .. tab

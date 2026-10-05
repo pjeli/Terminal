@@ -240,7 +240,8 @@ end
 
 function S.Tick(elapsed)
 	if game.over then return end
-	game.acc = (game.acc or 0) + (elapsed or 0)
+	-- a long frame (alt-tab, a loading hitch) mustn't make many moves at once, into a wall unseen
+	game.acc = (game.acc or 0) + math.min(elapsed or 0, 0.2)
 	local every = 1 / game.speed
 	local moved = false
 	while game.acc >= every and not game.over do

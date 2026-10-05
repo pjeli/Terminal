@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.35.16", when = "next release, in testing",
+		v = "0.36.0", when = "released October 2026",
 		items = {
 			"@spell: your spellbook in search. Enter opens the book on the spell's category and page and highlights it; Shift+Enter casts it.",
 			"@gear: the equipment in your bags and on you, with its slot, item level and In Bag / Equipped. Shift+Enter equips it.",
@@ -24,6 +24,7 @@ CL.LOG = {
 			".snake: Snake, for fun.",
 			".changelog: this window.",
 			"Fixes: the history keeps the gear you equipped, not the piece it replaced; a window opened by the press still gets its highlight; macros stay within the game's 255 characters.",
+			"Smoother: @cvar updates just the setting that changed, stat: and slot: filters do less work per row, and a long frame no longer crashes the snake into a wall.",
 		},
 	},
 	{
