@@ -1,6 +1,6 @@
 local ns = select(2, ...)
 
--- .btop: the terminal turns into a small btop (the Linux system monitor) for your addons. A CPU graph
+-- .atop: the terminal turns into atop, "AddOn top": a small btop (the Linux system monitor) for your addons. A CPU graph
 -- of all addons over time, memory, frame rate and latency, and a list of addons by CPU and memory
 -- with little bars, searchable by typing. Tab changes the sort, Up/Down move, Esc or ` closes.
 --
@@ -9,7 +9,7 @@ local ns = select(2, ...)
 -- reads the keyboard while open, so it doesn't open in combat and closes itself when combat starts.
 
 local B = {}
-ns.Btop = B
+ns.Atop = B
 
 local Theme = ns.Theme
 local W, H = 640, 420
@@ -166,7 +166,7 @@ end
 
 local function Build()
 	if frame then return end
-	frame = CreateFrame("Frame", "TerminalBtop", UIParent, "BackdropTemplate")
+	frame = CreateFrame("Frame", "TerminalAtop", UIParent, "BackdropTemplate")
 	frame:SetFrameStrata("DIALOG")
 	frame:SetClampedToScreen(true)
 	frame:Hide()
@@ -384,7 +384,7 @@ end
 function B.DrawText()
 	if not frame then return end
 	local t = Theme.Get()
-	header:SetText(("|cff%sbtop|r  |cff%sfor addons|r"):format(t.accent, t.dim))
+	header:SetText(("|cff%satop|r  |cff%saddon top|r"):format(t.accent, t.dim))
 	local fps = GetFramerate and GetFramerate() or 0
 	local _, _, home, world = (GetNetStats or function() end)()
 	local up = GetTime() - (B.since or GetTime())
@@ -467,7 +467,7 @@ function B.History() return hist end
 
 function B.Open()
 	if InCombatLockdown() then
-		ns:Print("btop reads the keyboard while open, so not in combat.")
+		ns:Print("atop reads the keyboard while open, so not in combat.")
 		return false
 	end
 	Build()
@@ -490,11 +490,11 @@ end
 function B.Close(why)
 	if not frame or not frame:IsShown() then return end
 	frame:Hide()
-	if why == "combat" then ns:Print("btop closed: combat started.") end
+	if why == "combat" then ns:Print("atop closed: combat started.") end
 end
 
-ns:RegisterCommand("btop", {
-	desc = "A small btop for your addons: CPU and memory, live (type to filter, Tab sort, Esc closes)",
+ns:RegisterCommand("atop", {
+	desc = "AddOn top: your addons' CPU and memory, live (type to filter, Tab sort, Esc closes)",
 	aliases = { "top", "htop" },
 	run = function() B.Open() end,
 })

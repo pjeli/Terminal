@@ -2918,7 +2918,7 @@ function UI:Hide()
 	end
 end
 
---- Gone at once, without the closing animation (something else takes its place: .btop).
+--- Gone at once, without the closing animation (something else takes its place: .atop).
 function UI:HideNow()
 	self:Hide()
 	if frame and frame:IsShown() then

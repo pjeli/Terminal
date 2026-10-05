@@ -262,7 +262,7 @@ function S.Open()
 	Build()
 	Style()
 	if ns.UI and ns.UI.HideNow then ns.UI:HideNow() end -- (straight in, no closing animation under it)
-	if ns.Btop and ns.Btop.IsShown and ns.Btop.IsShown() then ns.Btop.Close() end
+	if ns.Atop and ns.Atop.IsShown and ns.Atop.IsShown() then ns.Atop.Close() end
 	if ns.Changelog and ns.Changelog.IsShown and ns.Changelog.IsShown() then ns.Changelog.Close() end
 	S.Reset()
 	frame:Show()

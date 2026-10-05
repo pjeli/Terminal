@@ -86,7 +86,10 @@ function SH.Text(e)
 		if pin then return e.name .. " " .. pin end
 	end
 	-- (shareLink: a link only for sending, never shown in a tooltip: a profession's opens its window)
-	local link = Call(e.shareLink, e) or Call(e.getLink, e) or e.link
+	local shared = Call(e.shareLink, e)
+	-- (a shareLink may be text another addon reads as a link: Questie's "[Name (id)]")
+	if type(shared) == "string" and shared ~= "" then return shared end
+	local link = Call(e.getLink, e) or e.link
 	if not IsLink(link) then
 		local id = e.itemID or (type(link) == "string" and tonumber(link:match("item:(%d+)")))
 		link = id and ItemLink(id) or nil
@@ -97,6 +100,11 @@ function SH.Text(e)
 		if q and get then
 			local l = Call(get, q)
 			if IsLink(l) then link = l end
+		end
+		-- the game links only quests in your log here: Questie's link otherwise
+		if not IsLink(link) and q and ns.Integrations and ns.Integrations.QuestieQuestLink then
+			local l = ns.Integrations.QuestieQuestLink(q)
+			if type(l) == "string" and l ~= "" then return l end
 		end
 	end
 	if IsLink(link) then return link end -- (a link carries its own name)

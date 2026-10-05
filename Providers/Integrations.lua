@@ -655,6 +655,27 @@ local function CopyQuestLink(t)
 	ns:ShowText("Wowhead: " .. tostring(t.name), url, { compact = true })
 end
 
+--- What a quest is sent to chat as, the way Questie links one: the game's own quest link when there is one
+--- (anyone can click it; Questie turns it into its own link for players who have Questie), else Questie's
+--- "[[level] Name (id)]", which Questie's chat filter makes a clickable link with its tooltip. (Questie's own
+--- "|Hquestie:" links are only made on the receiving end: chat doesn't carry links it doesn't know.) Nil without Questie.
+function I.QuestieQuestLink(id)
+	id = tonumber(id)
+	if not (id and _G.QuestieLoader) then return nil end
+	local L = QModule("QuestieLink")
+	if L then
+		local s = Safe(L.GetNativeQuestLinkStringById, id) or Safe(L.GetQuestLinkStringById, id)
+		if type(s) == "string" and s ~= "" then return s end
+	end
+	-- (an older Questie without those: the same bracket text, which its chat filter reads)
+	local DB = QModule("QuestieDB")
+	local name = DB and Safe(DB.QueryQuestSingle, id, "name")
+	if type(name) ~= "string" or name == "" then return nil end
+	if issecretvalue and issecretvalue(name) then return nil end
+	return "[" .. name .. " (" .. id .. ")]"
+end
+local function QuestieShareLink(t) return I.QuestieQuestLink(t.qid) end
+
 local function Status(id)
 	return InLog(id) and "in log" or (Done(id) and "done" or nil)
 end
@@ -751,7 +772,7 @@ local function SetupQuestie()
 			return qdb.list or {}
 		end,
 	})
-	qdb.meta = ns:CompactMeta(ns.providers.questie, { activate = CopyQuestLink, noCombatSecondary = true }, QUESTIE_LAZY)
+	qdb.meta = ns:CompactMeta(ns.providers.questie, { activate = CopyQuestLink, shareLink = QuestieShareLink, noCombatSecondary = true }, QUESTIE_LAZY)
 	-- built in the background after login (with their names text); the NPC list is freed when
 	-- unused and built again for the next @npc search, the quest list (a few thousand) is kept
 	-- one after the other (both at once doubled the work per frame right after login)

@@ -4924,8 +4924,8 @@ do -- the prompt's colours: @kinds, filters, .commands, /slash commands, plain w
 	check(not UI.status.text:find("again", 1, true), "copied: the reminder is gone")
 	UI:Hide()
 end
-do -- .btop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` closes
-	local B = ns.Btop
+do -- .atop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` closes
+	local B = ns.Atop
 	local base = { addons = _G.C_AddOns, prof = _G.C_AddOnProfiler, enum = Enum.AddOnProfilerMetric,
 		upd = _G.UpdateAddOnMemoryUsage, mem = _G.GetAddOnMemoryUsage, fps = _G.GetFramerate, net = _G.GetNetStats }
 	local LIST = { { "Terminal", "Terminal", 0.20, 3000 }, { "Questie", "|cff00ff00Questie|r", 1.10, 90000 }, { "Bagnon", "Bagnon", 0.05, 120000 } }
@@ -4941,10 +4941,10 @@ do -- .btop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` c
 	_G.GetFramerate = function() return 60 end
 	_G.GetNetStats = function() return 0, 0, 40, 45 end
 	ns.Theme.Set("animations", "smooth")
-	UI:Open(".btop")
+	UI:Open(".atop")
 	UI:Hide() -- (running a command closes the terminal, with its animation)
-	ns.commands.btop.run("")
-	check(B.IsShown() and not UI:IsShown() and not UI.closing, ".btop: the panel shows at once, the terminal gone (no closing animation under it)")
+	ns.commands.atop.run("")
+	check(B.IsShown() and not UI:IsShown() and not UI.closing, ".atop: the panel shows at once, the terminal gone (no closing animation under it)")
 	local g = B.graph[#B.graph]
 	check(g.shown == g.target, "the bars start at their values, not rising from nothing")
 	check(B.Shown()[1].name == "Questie" and B.rows[1].name.text == "Questie", "sorted by CPU, names without colour codes: " .. tostring(B.rows[1].name.text))
@@ -5002,7 +5002,7 @@ do -- .btop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` c
 	check(B.state.filter == "", "` isn't typed into the filter")
 	B.Key("ESCAPE")
 	check(not B.IsShown(), "Esc closes")
-	ns.commands.btop.run(""); B.Key("`")
+	ns.commands.atop.run(""); B.Key("`")
 	check(not B.IsShown(), "` closes")
 	-- combat: it reads the keyboard, so it doesn't open, and closes when combat starts
 	local realCombat = _G.InCombatLockdown
@@ -5097,11 +5097,11 @@ do -- .snake: WASD/arrows steer, apples grow it, walls and the tail end it, Esc 
 	Sn.Open()
 	f.scripts.OnEvent(f, "PLAYER_REGEN_DISABLED")
 	check(not Sn.IsShown(), "combat starting closes it")
-	-- btop and snake: opening one closes the other
-	Sn.Open(); ns.Btop.Open()
-	check(ns.Btop.IsShown() and not Sn.IsShown(), "btop opening closes snake")
+	-- atop and snake: opening one closes the other
+	Sn.Open(); ns.Atop.Open()
+	check(ns.Atop.IsShown() and not Sn.IsShown(), "atop opening closes snake")
 	Sn.Open()
-	check(Sn.IsShown() and not ns.Btop.IsShown(), "and snake closes btop")
+	check(Sn.IsShown() and not ns.Atop.IsShown(), "and snake closes atop")
 	Sn.Close()
 	Sn.rand = function(n) return math.random(n) end
 end
@@ -5159,11 +5159,11 @@ do -- .changelog: what changed, newest first, scrolled back through the last few
 	CL.Open()
 	f.scripts.OnEvent(f, "PLAYER_REGEN_DISABLED")
 	check(not CL.IsShown(), "combat starting closes it")
-	-- btop, snake and the changelog: opening one closes the others
-	CL.Open(); ns.Btop.Open()
-	check(ns.Btop.IsShown() and not CL.IsShown(), "btop closes the changelog")
+	-- atop, snake and the changelog: opening one closes the others
+	CL.Open(); ns.Atop.Open()
+	check(ns.Atop.IsShown() and not CL.IsShown(), "atop closes the changelog")
 	CL.Open()
-	check(CL.IsShown() and not ns.Btop.IsShown(), "and the changelog closes btop")
+	check(CL.IsShown() and not ns.Atop.IsShown(), "and the changelog closes atop")
 	ns.Snake.Open()
 	check(ns.Snake.IsShown() and not CL.IsShown(), "snake closes the changelog")
 	ns.Snake.Close()
@@ -5331,6 +5331,31 @@ do -- ">> channel": the selected result goes to a chat channel (the game presses
 	ns.Integrations.NpcPinLink = baseLink
 	-- something with no link: its name; a loot row ("item:ID"): the item's full link
 	check(SH.Text({ name = "Ironforge" }) == "Ironforge", "no link: its name")
+	-- a quest the game won't link (not in your log): Questie's link, which its chat filter makes clickable
+	do
+		local baseQL, baseGQL, baseCQL = _G.QuestieLoader, _G.GetQuestLink, C_QuestLog.GetQuestLink
+		_G.GetQuestLink, C_QuestLog.GetQuestLink = nil, function() return nil end
+		_G.QuestieLoader = { ImportModule = function(_, n)
+			if n == "QuestieLink" then
+				return { GetNativeQuestLinkStringById = function(id) return "[[10] The Fargodeep Mine (" .. id .. ")]" end }
+			end
+		end }
+		check(SH.Text({ qid = 62, name = "The Fargodeep Mine" }) == "[[10] The Fargodeep Mine (62)]", "a Questie quest: Questie's link, not its name: " .. tostring(SH.Text({ qid = 62, name = "The Fargodeep Mine" })))
+		check(SH.Text({ questID = 62, name = "The Fargodeep Mine" }) == "[[10] The Fargodeep Mine (62)]", "a log quest the game won't link: Questie's link")
+		check(SH.Macro({ qid = 62, name = "The Fargodeep Mine" }, { cmd = "/g" }) == "/g [[10] The Fargodeep Mine (62)]", "sent as Questie's link")
+		-- an older Questie without QuestieLink: the same bracket text from its database
+		_G.QuestieLoader = { ImportModule = function(_, n)
+			if n == "QuestieDB" then return { QueryQuestSingle = function(id, f) return f == "name" and "Kobold Camp Cleanup" or nil end } end
+		end }
+		check(SH.Text({ qid = 7, name = "Kobold Camp Cleanup" }) == "[Kobold Camp Cleanup (7)]", "older Questie: [Name (id)]")
+		-- no Questie: the name
+		_G.QuestieLoader = nil
+		check(SH.Text({ qid = 7, name = "Kobold Camp Cleanup" }) == "Kobold Camp Cleanup", "no Questie: its name")
+		-- the game's own link wins when there is one
+		C_QuestLog.GetQuestLink = function(id) return "|cffffff00|Hquest:" .. id .. ":10|h[Kobold Camp Cleanup]|h|r" end
+		check(SH.Text({ questID = 7, name = "Kobold Camp Cleanup" }) == "|cffffff00|Hquest:7:10|h[Kobold Camp Cleanup]|h|r", "the game's quest link first")
+		_G.QuestieLoader, _G.GetQuestLink, C_QuestLog.GetQuestLink = baseQL, baseGQL, baseCQL
+	end
 	-- within what a macro runs
 	check(#SH.Macro({ name = "x", link = "|Hitem:1|h[" .. ("A"):rep(300) .. "]|h" }, { cmd = "/p" }) <= 255, "kept within 255 characters")
 	-- the prompt: >> and the channel coloured, Tab completes the channel
