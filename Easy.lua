@@ -271,7 +271,7 @@ local exampleAt = 0
 E.ADV_EXAMPLES = {
 	"try: @npc is:vendor in:barrens", "try: @gear slot:feet ilvl:20+", "try: hogger >> party",
 	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
-	"try: @npc trainer:mine faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
+	"try: @npc trainer:class faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
 	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @achievement is:todo",
 	"try: @spell is:ready", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
 	"tip: Up = last command, Down = recent picks",

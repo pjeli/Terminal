@@ -15,8 +15,8 @@ local ns = select(2, ...)
 --                                a loot item's dungeon or boss (zone: and from: are the same)
 --   on:plamen                    stored on that character (or guild, warband)
 --   count:20+                    how many (bags, alts and banks)
---   trainer:mage trainer:mine    Questie trainers by what they teach (a class, a profession, pet,
---                                riding; mine = your class); is:classtrainer, is:proftrainer
+--   trainer:mage trainer:class   Questie trainers by what they teach (a class, a profession, pet,
+--                                riding; class = your class, mine = mining); is:classtrainer, is:proftrainer
 --   faction:horde                Questie NPCs friendly to the Horde (alliance, neutral = both,
 --                                friendly = to your own faction)
 --   standing:honored+            reputations by standing (names or 1-8; <friendly, 4-6, honored-exalted)
@@ -823,7 +823,7 @@ local PROFS = {
 	blacksmithing = { "blacksmith", "armor crafter", "weapon crafter" }, leatherworking = { "leatherwork", "leathercraft" },
 	tailoring = { "tailor" }, alchemy = { "alchemist", "alchemy" }, engineering = { "engineer" }, enchanting = { "enchant" },
 	jewelcrafting = { "jewelcraft" }, inscription = { "scribe", "inscription" }, herbalism = { "herbalis" },
-	mining = { "mining", "miner" }, skinning = { "skinning", "skinner" }, cooking = { "cook", "butcher" },
+	mining = { "mining", "miner" }, mine = { "mining", "miner" }, skinning = { "skinning", "skinner" }, cooking = { "cook", "butcher" },
 	fishing = { "fishing", "fisherman" }, firstaid = { "first aid", "physician", "trauma surgeon" },
 	cartography = { "cartograph" },
 }
@@ -875,8 +875,8 @@ for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
 
 KEYS.trainer = function(v)
 	if v == "" then return nil end
-	-- your class's trainers: trainer:mine, and trainer:class (you mean the one you can learn from)
-	if v == "mine" or v == "me" or v == "my" or v == "class" then
+	-- your class's trainers: trainer:class (you mean the one you can learn from); trainer:mine is mining
+	if v == "class" or v == "my" or v == "me" or v == "myclass" then
 		return function(e)
 			local sub = TrainerTitle(e)
 			local mine = sub and MyClass()
@@ -1019,7 +1019,7 @@ F.VALUES = {
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	sort = { "nearest" },
 	near = { "100", "300", "500", "1000" },
-	trainer = { "class", "mine", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
+	trainer = { "class", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
 		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "riding" },
 }

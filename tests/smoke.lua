@@ -4862,7 +4862,7 @@ do -- filters across kinds: items, loot and stored (stats, quality, item level, 
 	check(P("is:proftrainer")(smith) and P("is:proftrainer")(herb) and not P("is:proftrainer")(warr) and not P("is:proftrainer")(shaw), "is:proftrainer (a Master who isn't a trainer doesn't count)")
 	local baseClass = _G.UnitClass
 	_G.UnitClass = function() return "Warrior", "WARRIOR" end
-	check(P("trainer:mine")(warr) and not P("trainer:mine")(mage) and not P("trainer:mine")(smith), "trainer:mine: your own class's trainers")
+	check(P("trainer:my")(warr) and not P("trainer:my")(mage) and not P("trainer:my")(smith), "trainer:my: your own class's trainers")
 	check(P("trainer:class")(warr) and not P("trainer:class")(mage), "trainer:class: your own class (the one you can learn from)")
 	check(P("trainer:classes")(warr) and P("trainer:classes")(mage) and not P("trainer:classes")(smith), "trainer:classes: every class trainer")
 	-- titles without "trainer" (Questie's trainer flag says so): Miner, Herbalist, Fisherman, Physician; Master Mage
@@ -4874,6 +4874,7 @@ do -- filters across kinds: items, loot and stored (stats, quality, item level, 
 	NPC[21] = { subName = "Image Collector", npcFlags = 16 } -- ("mage" inside a word isn't the class)
 	local miner, herbalist, fisher, doc, mmage, image = { kind = "npc", key = 16 }, { kind = "npc", key = 17 }, { kind = "npc", key = 18 },
 		{ kind = "npc", key = 19 }, { kind = "npc", key = 20 }, { kind = "npc", key = 21 }
+	check(P("trainer:mine")(miner) and not P("trainer:mine")(warr), "trainer:mine is the mining trainers (the Miner), not your class")
 	check(P("trainer:mining")(miner) and P("trainer:herbalism")(herbalist) and P("trainer:fishing")(fisher) and P("trainer:firstaid")(doc),
 		"trainer:<profession> finds Miner, Herbalist, Fisherman, Physician")
 	check(P("trainer:mage")(mmage) and not P("trainer:mage")(image) and P("is:classtrainer")(mmage), "Master Mage is a mage trainer; Image Collector isn't")
