@@ -6,6 +6,7 @@ ns.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetada
 
 BINDING_HEADER_TERMINAL = "Terminal"
 BINDING_NAME_TERMINAL_TOGGLE = "Toggle terminal"
+BINDING_NAME_TERMINAL_ADVANCED_ONCE = "Advanced mode, this time (Simple mode's search as a command line)"
 
 local DEFAULTS = {
 	freq = {}, -- usage counts, used to boost frequently picked results
@@ -305,6 +306,16 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 				else
 					ns:Print("loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE")
 				end
+			end
+		end
+		-- Alt+` (once): Advanced mode for one run. While the terminal is open it reads that key itself; the
+		-- binding opens it straight in Advanced. Only on a free key, never taking another action's.
+		if not ns.db.bindingAdvancedOnce then
+			ns.db.bindingAdvancedOnce = true
+			local action = GetBindingAction("ALT-`")
+			if not GetBindingKey("TERMINAL_ADVANCED_ONCE") and (not action or action == "")
+				and SetBinding("ALT-`", "TERMINAL_ADVANCED_ONCE") then
+				SaveBindings(GetCurrentBindingSet())
 			end
 		end
 		return

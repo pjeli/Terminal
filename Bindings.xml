@@ -2,4 +2,7 @@
 	<Binding name="TERMINAL_TOGGLE" header="TERMINAL" category="ADDONS">
 		if Terminal and Terminal.UI then Terminal.UI:Toggle() end
 	</Binding>
+	<Binding name="TERMINAL_ADVANCED_ONCE" category="ADDONS">
+		if Terminal and Terminal.UI then Terminal.UI:AdvancedOnce() end
+	</Binding>
 </Bindings>

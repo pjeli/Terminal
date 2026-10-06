@@ -281,6 +281,15 @@ do
 		"sort:nearest: Jazzik (Ratchet) first, then Zargh (the Crossroads), then the rest (another continent): " .. table.concat(got, ", "))
 	got = List("@npc is:vendor near:300")
 	check(#got >= 1 and table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Zargh", 1, true), "near:300: only the NPCs within 300 yards: " .. table.concat(got, ", "))
+	-- in:<town> knows the towns too (an NPC's zone says the Barrens, not Ratchet): what Alt+` writes for "vendor ratchet"
+	got = List("@npc in:ratchet is:vendor")
+	check(table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Zargh", 1, true),
+		"in:ratchet: Ratchet's vendors, as Simple's vendor ratchet: " .. table.concat(got, ", "))
+	got = List("@npc in:barrens is:vendor")
+	check(table.concat(got, ","):find("Zargh", 1, true) and table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Pestle", 1, true),
+		"in:barrens: the zone's vendors, not Elwynn's: " .. table.concat(got, ", "))
+	local conv = ns.Easy.ToAdvanced("vendor ratchet")
+	check(conv == "in:ratchet is:vendor ", "Alt+` writes vendor ratchet as in:ratchet is:vendor: " .. conv)
 	C_Map.GetPlayerMapPosition = function() return nil end
 	UI:Search("@npc sort:nearest is:vendor")
 	check(UI.noPosition, "no position: sort:nearest says so (the footer)")

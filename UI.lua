@@ -13,6 +13,7 @@ local HINTS = {
 }
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
 local DOWN_RECENT = "Down: your recent picks"
+local ONCE_LABEL = "Advanced, this time" -- (Alt+`: this run is Advanced, Simple again once it closes)
 local EASY_TAB_BACK = { "Tab", "all categories" }
 local EASY_TAB_PICK = { "Tab", "pick" }
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
@@ -1461,7 +1462,9 @@ function UI:SetStatus()
 		near = true
 	end
 	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
-	status:SetText((self.sendTo or near or cat) and Theme.FixColors(text) or text)
+	local once = ns.Easy and ns.Easy.temp
+	if once then text = HINT .. ONCE_LABEL .. "|r" .. (text ~= "" and "  ·  " or "") .. text end
+	status:SetText((self.sendTo or near or cat or once) and Theme.FixColors(text) or text)
 	self:FitHints()
 end
 
@@ -2464,7 +2467,9 @@ end
 --- What a key does to the query (also run again for held keys).
 EditKey = function(key, ctrl, shift)
 	local text, c = edit:GetText(), UI.cursor
-	if key == "ESCAPE" or key == "`" then
+	if key == "`" and IsAltKeyDown and IsAltKeyDown() then
+		UI:AdvancedOnce()
+	elseif key == "ESCAPE" or key == "`" then
 		UI:Hide()
 	elseif (key == "BACKSPACE" or key == "DELETE") and DeleteSelection(text) then
 		return
@@ -2563,6 +2568,11 @@ function UI:OnChar(text)
 	self.pendingChar = nil
 	self.charChecked = true
 	if not self.keys or not self:IsShown() then return end
+	-- the ` of Alt+` (its OnChar follows the key that switched to Advanced): not typed
+	if text == "`" and self.swallowTick and GetTime() - self.swallowTick < 0.5 then
+		self.swallowTick = nil
+		return
+	end
 	local q, c = edit:GetText(), self.cursor
 	local lo, hi = self:SelRange()
 	if lo then q, c = q:sub(1, lo) .. q:sub(hi + 1), lo end -- typing replaces the selection
@@ -3548,6 +3558,8 @@ function UI:UpdateGhost()
 		-- a rotating example of what to type (Advanced: its own syntax, and what Up/Down bring)
 		-- (the option off: the prompt stays empty)
 		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end
+		-- Alt+`: this run is Advanced (Simple again once it closes)
+		if ns.Easy and ns.Easy.temp then add = ONCE_LABEL .. (add and ("  ·  " .. add) or "") end
 	end
 	if not add then ghost:Hide() return end
 	local text = edit:GetText()
@@ -3694,7 +3706,9 @@ local function Build()
 			UI.clipHint = nil
 			C_Timer.After(0, function() UI:SetStatus(); UI:UpdateGhost() end)
 		end
-		if key == "`" then
+		if key == "`" and IsAltKeyDown and IsAltKeyDown() then
+			UI:AdvancedOnce()
+		elseif key == "`" then
 			-- bindings don't fire while the box has focus, so the toggle key closes it here
 			UI:Hide()
 		else
@@ -4017,6 +4031,13 @@ function UI:Hide()
 		self.lastQuery = typed
 		self.lastCategory = not self.categoryAuto and self.category or nil
 	end
+	-- Alt+` made this run Advanced: Simple again, and Down brings back what the Simple prompt said
+	local once = ns.Easy and ns.Easy.temp
+	if once then
+		ns.Easy.temp = nil
+		if once.from and once.from:find("%S") then self.lastQuery, self.lastCategory = once.from, once.category end
+		self.category, self.categoryAuto = nil, nil
+	end
 	self.histIdx = nil
 	self.lastScan, memo.results, memo.value = nil, nil, nil -- (rows kept only for the next keystroke)
 	-- let go of the keyboard at once, so the next key already reaches the game
@@ -4094,4 +4115,42 @@ end
 
 function UI:Toggle()
 	if self:IsShown() then self:Hide() else self:Open() end
+end
+
+--- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
+--- syntax (Easy.ToAdvanced, the picked category as its @kinds) and the search goes on from there; closed, it
+--- opens straight in Advanced. Simple comes back when the terminal closes (Hide). Already Advanced (for good or
+--- for this run): the same as `.
+function UI:AdvancedOnce()
+	local E = ns.Easy
+	if not (E and E.On()) then return self:Toggle() end
+	if not self:IsShown() then
+		E.temp = { from = "" }
+		return self:Open()
+	end
+	local text = edit:GetText()
+	local cat = not self.categoryAuto and self.category or nil
+	local conv = E.ToAdvanced(text, self.category)
+	self.swallowTick = GetTime() -- (the key's ` still comes as a typed character: OnChar drops it)
+	if not self.keys then
+		-- the game's own text box (clipboard, combat) types it itself: taken back out next frame
+		C_Timer.After(0, function()
+			local t = edit:GetText()
+			if t == conv .. "`" then edit:SetText(conv); edit:SetCursorPosition(#conv) end
+		end)
+	end -- (a category opened on its own counts too: it's what shows)
+	E.temp = { from = text, category = cat }
+	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
+	self.category, self.categoryAuto, self.action = nil, nil, nil
+	self.lastScan, memo.results, memo.value = nil, nil, nil
+	self.hintsRoom, self.syntaxKey = nil, nil
+	self.blockedSyntax = nil
+	if conv ~= text then
+		self:SetQuery(conv, #conv)
+	else
+		self.refreshedAt = nil
+		self:Refresh()
+	end
+	self:SetStatus()
+	self:UpdateGhost()
 end

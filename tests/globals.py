@@ -107,7 +107,7 @@ def scan(path, warnings=None):
     return [(n, l) for n, l in out if n not in ALLOWED]
 
 # the globals Terminal means to set: key binding names, the saved variable, the slash command
-ALLOWED = {"BINDING_HEADER_TERMINAL", "BINDING_NAME_TERMINAL_TOGGLE", "TerminalDB", "SLASH_TERMINAL1"}
+ALLOWED = {"BINDING_HEADER_TERMINAL", "BINDING_NAME_TERMINAL_TOGGLE", "BINDING_NAME_TERMINAL_ADVANCED_ONCE", "TerminalDB", "SLASH_TERMINAL1"}
 
 def problems(path):
     found = scan(path) or []

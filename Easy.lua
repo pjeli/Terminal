@@ -19,8 +19,13 @@ ns.Easy = E
 
 local Lower = ns.Lower
 
---- Is easy mode on? It is unless the player chose hard mode (db.easyMode == false).
+-- Alt+` (E.temp): Advanced mode for this one run of the terminal, Simple again once it closes. Holds what the
+-- Simple prompt said ({ from = text, category = id }), given back to Down's recall afterwards.
+E.temp = nil
+
+--- Is easy mode on? It is unless the player chose hard mode (db.easyMode == false) or Alt+` made this run Advanced.
 function E.On()
+	if E.temp then return false end
 	local db = ns.db
 	return not (db and db.easyMode == false)
 end
@@ -28,6 +33,7 @@ end
 --- Switch; the terminal searches again.
 function E.Set(on)
 	if not ns.db then return end
+	E.temp = nil
 	ns.db.easyMode = on and true or false
 	local UI = ns.UI
 	if UI and UI.EasyChanged then UI:EasyChanged() end
@@ -258,6 +264,83 @@ function E.ActionView(e, act)
 end
 
 ----------------------------------------------------------------------
+-- Alt+`: what a Simple search says, written in Advanced mode's syntax
+----------------------------------------------------------------------
+
+local function KindWord(kind)
+	local p = ns.providers[kind]
+	return p and ("@" .. ((p.aliases and p.aliases[1]) or p.id)) or nil
+end
+
+--- A Simple search as Advanced mode would type it: the picked category or the action word's kinds as @kinds,
+--- "nearest" as @npc sort:nearest (with faction:friendly for a role), a place as in:<place>, everyday words as their
+--- key:value filters ("attack power" = stat:ap), sentence words dropped; other words (and any Advanced syntax
+--- already typed) stay. Ends with a space to type on. "" for an empty search.
+function E.ToAdvanced(text, category)
+	local words = {}
+	for w in tostring(text or ""):gmatch("%S+") do words[#words + 1] = w end
+	local kinds, filters, plain, seen = {}, {}, {}, {}
+	local function Add(list, w) if w and not seen[w] then seen[w] = true; list[#list + 1] = w end end
+	-- two everyday words that mean one thing ("attack power food")
+	local i = 1
+	while i < #words do
+		local pair = Lower(words[i] .. " " .. words[i + 1])
+		if E.WORDS[pair] then words[i] = pair; table.remove(words, i + 1) end
+		i = i + 1
+	end
+	-- the first word can say what to do ("use hearthstone", "nearest innkeeper")
+	local act = #words > 1 and E.ACTIONS[Lower(words[1])] or nil
+	local nearest
+	if act then
+		table.remove(words, 1)
+		nearest = act.nearest
+		if act.map then
+			local ks = {}
+			for k in pairs(act.map) do ks[#ks + 1] = k end
+			table.sort(ks)
+			for _, k in ipairs(ks) do Add(kinds, KindWord(k)) end
+		end
+	end
+	if not (act and act.map) and E.BY_ID[category or ""] then
+		for _, k in ipairs(E.BY_ID[category].kinds) do Add(kinds, KindWord(k)) end
+	end
+	-- a place, when there's something else to look for in it ("vendor ratchet")
+	local lower = {}
+	for k, w in ipairs(words) do lower[k] = E.IsAdvancedWord(w) and w or Lower(w) end
+	local I = ns.Integrations
+	if #lower > 1 and I and I.FindPlace then
+		local place, rest = I.FindPlace(lower)
+		if place and rest and #rest > 0 then
+			Add(filters, "in:" .. tostring(place.key):gsub(" ", "_"))
+			lower = rest
+		end
+	end
+	local role
+	local others = 0
+	for _, w in ipairs(lower) do if not E.STOP[w] then others = others + 1 end end
+	for _, w in ipairs(lower) do
+		if E.IsAdvancedWord(w) then
+			if w:sub(1, 1) == "@" then Add(kinds, w) else Add(filters, w) end
+		elseif E.WORDS[w] then
+			Add(filters, E.WORDS[w])
+			if E.ROLE_WORDS[w] then role = true end
+		elseif not (E.STOP[w] and others > 0) then
+			plain[#plain + 1] = w
+		end
+	end
+	if nearest then
+		Add(kinds, "@npc")
+		if role then Add(filters, "faction:friendly") end
+		Add(filters, "sort:nearest")
+	end
+	local out = {}
+	for _, list in ipairs({ kinds, plain, filters }) do
+		for _, w in ipairs(list) do out[#out + 1] = w end
+	end
+	return #out > 0 and (table.concat(out, " ") .. " ") or ""
+end
+
+----------------------------------------------------------------------
 -- The empty prompt's faint examples (a different one each time it opens)
 ----------------------------------------------------------------------
 
@@ -375,7 +458,7 @@ ns:RegisterCommand("advanced", {
 	desc = "Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat), after a confirmation",
 	aliases = { "hardmode", "hard" },
 	run = function()
-		if not E.On() then return { "Already in Advanced mode (.simple goes back)." } end
+		if not E.On() and not E.temp then return { "Already in Advanced mode (.simple goes back)." } end
 		-- after this press is done (the terminal closes on a command): the dialog takes its place
 		C_Timer.After(0, E.ShowConfirm)
 		return {}
@@ -401,6 +484,7 @@ function E.HelpLines()
 		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row for all it can do.",
 		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
+		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
 	}
 end

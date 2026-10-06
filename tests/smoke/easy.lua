@@ -681,3 +681,50 @@ Run("release review fixes", function()
 	UI:Search("hearthstone")
 	check(not UI.noPosition, "the no-position note is reset by the next search")
 end)
+
+Run("Alt+`: Advanced mode for this run only", function()
+	E.Set(true)
+	ActionLists()
+	local F = T.F
+	local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
+	-- what a Simple search says, in Advanced syntax
+	check(E.ToAdvanced("rare sword") == "sword q:rare " or E.ToAdvanced("rare sword") == "q:rare type:sword ",
+		"rare sword -> filters: " .. E.ToAdvanced("rare sword"))
+	check(E.ToAdvanced("attack power food") == "stat:ap type:food ", "attack power food -> stat:ap type:food: " .. E.ToAdvanced("attack power food"))
+	check(E.ToAdvanced("cast frost nova") == "@spell frost nova ", "cast frost nova -> @spell: " .. E.ToAdvanced("cast frost nova"))
+	check(E.ToAdvanced("nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
+		"nearest innkeeper -> @npc ... sort:nearest: " .. E.ToAdvanced("nearest innkeeper"))
+	check(E.ToAdvanced("hearthstone", "bags") == "@item hearthstone ", "a picked category -> its @kind: " .. E.ToAdvanced("hearthstone", "bags"))
+	check(E.ToAdvanced("shield that drops from kresh") == "kresh type:shield ", "sentence words dropped: " .. E.ToAdvanced("shield that drops from kresh"))
+	check(E.ToAdvanced("") == "", "nothing typed: nothing")
+	-- Alt+` in an open Simple prompt: written in Advanced syntax, searched as Advanced
+	UI:Open("cast frost nova")
+	alt(function() key("`", "`") end) -- (the key's character comes after it, as in the game)
+	check(UI:IsShown() and T.query() == "@spell frost nova " and not E.On() and E.temp, "Alt+`: the prompt is Advanced now: " .. T.query())
+	local r = UI.Results()
+	check(r[1] and r[1].name == "Frost Nova" and not r[1].actionVerb, "searched as Advanced: the spell row itself: " .. Show(r))
+	key("A", "a")
+	check(T.query() == "@spell frost nova a", "typing goes on after it (only the switch's ` was dropped): " .. T.query())
+	key("BACKSPACE")
+	check(ns.db.easyMode == true, "the saved mode stays Simple")
+	-- closing gives Simple back, and Down brings back what the Simple prompt said
+	UI:Hide(); FlushAll()
+	check(E.On() and not E.temp, "closed: Simple again")
+	UI:Open(""); key("DOWN")
+	check(T.query() == "cast frost nova", "Down: the Simple search, not the Advanced one: " .. T.query())
+	UI:Hide(); FlushAll()
+	-- closed: the binding opens straight in Advanced
+	UI:AdvancedOnce()
+	check(UI:IsShown() and not E.On() and T.query() == "", "the binding (closed): opens in Advanced, empty")
+	UI:SetQuery("@spell nova")
+	check(UI.Results()[1] and UI.Results()[1].name == "Frost Nova", "Advanced syntax taken this run")
+	-- Alt+` again (already Advanced this run): closes, like `
+	alt(function() key("`") end)
+	check(not UI:IsShown() and E.On(), "Alt+` again: closes, Simple again")
+	FlushAll()
+	-- in Advanced for good, Alt+` is just the toggle
+	ns.db.easyMode = false
+	UI:AdvancedOnce()
+	check(UI:IsShown() and not E.temp, "Advanced for good: Alt+` only opens")
+	UI:Hide(); FlushAll()
+end)

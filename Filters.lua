@@ -800,8 +800,24 @@ KEYS.type = function(v)
 	end
 end
 
+local placing -- (building a place's filter: in:<place> inside it is the plain one)
 KEYS["in"] = function(v)
 	if v == "" then return nil end
+	-- a place Terminal knows by name (a zone, or a town in one: in:goldshire, in:ratchet, in:org): its NPCs by where
+	-- they stand, as Simple mode's "vendor goldshire" (an NPC's zone alone says Elwynn Forest, never Goldshire)
+	local I = ns.Integrations
+	if I and I.FindPlace and I.PlaceFilter and not placing then -- (PlaceFilter parses in:<place> itself: no loop)
+		local words = {}
+		for w in v:gmatch("%S+") do words[#words + 1] = w end
+		local place, rest = I.FindPlace(words)
+		if place and rest and #rest == 0 then
+			placing = true
+			local ok, inPlace = pcall(I.PlaceFilter, place)
+			placing = false
+			if not ok then return function(e) return Places(e, v) end end
+			return function(e) return inPlace(e) or Places(e, v) end
+		end
+	end
 	return function(e) return Places(e, v) end
 end
 KEYS.zone, KEYS.from, KEYS.where = KEYS["in"], KEYS["in"], KEYS["in"]
