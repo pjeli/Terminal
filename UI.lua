@@ -1289,6 +1289,7 @@ function UI:Refresh()
 		local query, rest = ns.Share.Split(text)
 		if rest then
 			self.sendTo = ns.Share.Channel(rest)
+			self.sendTo.query = query -- (what was searched: the chat line says what the result is, Share.Context)
 			text = query:gsub("%s+$", "")
 		end
 	end
@@ -1704,7 +1705,7 @@ end
 --- Walk back (dir -1) or forward (dir 1) through the lines run before. Only from an empty
 --- prompt, or while already walking: typing anything ends it.
 function UI:History(dir)
-	local h = ns.db and ns.db.history
+	local h = ns.HistoryLines and ns:HistoryLines() or (ns.db and ns.db.history)
 	if type(h) ~= "table" or #h == 0 then return false end
 	local idx = self.histIdx
 	if dir < 0 then

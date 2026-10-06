@@ -328,11 +328,11 @@ function E.ToAdvanced(text, category)
 			plain[#plain + 1] = w
 		end
 	end
-	if nearest then
-		Add(kinds, "@npc")
-		if role then Add(filters, "faction:friendly") end
-		Add(filters, "sort:nearest")
-	end
+	-- an NPC's role (trainer, vendor, innkeeper...) means one you can use: friendly to you, as Simple mode's place
+	-- and nearest searches keep to ("mining trainer in org" never meant Ironforge's)
+	if nearest then Add(kinds, "@npc") end
+	if role then Add(filters, "faction:friendly") end
+	if nearest then Add(filters, "sort:nearest") end
 	local out = {}
 	for _, list in ipairs({ kinds, plain, filters }) do
 		for _, w in ipairs(list) do out[#out + 1] = w end

@@ -115,12 +115,73 @@ function SH.Text(e)
 	return e.name
 end
 
---- The chat line for a row, or nil. Kept within what a macro runs (255 characters).
+-- What an NPC search's filters say the NPC is ("@npc reagent is:vendor sort:nearest" -> "Nearby reagent vendor").
+SH.ROLES = {
+	vendor = "vendor", repair = "repair vendor", inn = "innkeeper", innkeeper = "innkeeper", bank = "banker",
+	banker = "banker", flight = "flight master", flightmaster = "flight master", auctioneer = "auctioneer",
+	stable = "stable master", stablemaster = "stable master", trainer = "trainer",
+	questgiver = "quest giver", classtrainer = "class trainer", proftrainer = "profession trainer",
+}
+local MY_CLASS = { class = true, my = true, me = true, myclass = true }
+
+local function Titled(s) return (s:gsub("(%a)([%w']*)", function(a, b) return a:upper() .. b end)) end
+
+--- Words saying what an NPC sent to chat is, from what was searched: "Nearby reagent vendor", "Mining trainer in
+--- Orgrimmar". The search's own words (those not in the NPC's name), its role and trainer filters, "Nearby" for
+--- sort:nearest / near:, "in <place>" for in:. nil when the search says nothing more than the name.
+function SH.Context(query, e)
+	if type(query) ~= "string" or not (e and e.npcID) then return nil end
+	local lname = ns.Lower(tostring(e.name or ""))
+	local F = ns.Filters
+	local nearby, words, roles, place = false, {}, {}, nil
+	for w in query:gmatch("%S+") do
+		local lw = ns.Lower(w)
+		local key, val = lw:match("^(%a+):(.*)$")
+		if lw:sub(1, 1) == "@" then
+			-- (the kind: an NPC already)
+		elseif F and F.SortOf and F.SortOf(lw) then
+			nearby = true
+		elseif key and F and F.IsKey and F.IsKey(key) then
+			val = val:gsub("_", " ")
+			if key == "near" or key == "within" or key == "dist" then
+				nearby = true
+			elseif key == "is" and SH.ROLES[val] then
+				roles[#roles + 1] = SH.ROLES[val]
+			elseif key == "trainer" then
+				if MY_CLASS[val] then
+					local cls = UnitClass and UnitClass("player")
+					val = type(cls) == "string" and ns.Lower(cls) or "class"
+				elseif val == "mine" then
+					val = "mining"
+				end
+				roles[#roles + 1] = val .. " trainer"
+			elseif key == "in" or key == "zone" or key == "from" or key == "where" then
+				place = Titled(val)
+			end
+		elseif not lname:find(lw, 1, true) then
+			words[#words + 1] = lw
+		end
+	end
+	local parts = {}
+	if nearby then parts[#parts + 1] = "nearby" end
+	for _, w in ipairs(words) do parts[#parts + 1] = w end
+	for _, r in ipairs(roles) do parts[#parts + 1] = r end
+	if #parts == 0 and not place then return nil end
+	local text = table.concat(parts, " ")
+	if place then text = (text ~= "" and (text .. " in ") or "in ") .. place end
+	return (text:gsub("^%l", string.upper))
+end
+
+--- The chat line for a row, or nil. Kept within what a macro runs (255 characters): what the search said it is
+--- comes first ("Nearby reagent vendor: Name [pin]"), dropped when the line would be too long.
 function SH.Macro(e, to)
 	if not (to and to.cmd and e) then return nil end
 	local text = SH.Text(e)
 	if type(text) ~= "string" or text == "" then return nil end
-	local line = to.cmd .. " " .. text
-	if #line > (ns.Secure and ns.Secure.MACRO_MAX or 255) then line = to.cmd .. " " .. tostring(e.name) end
+	local max = ns.Secure and ns.Secure.MACRO_MAX or 255
+	local ctx = SH.Context(to.query, e)
+	local line = to.cmd .. " " .. (ctx and (ctx .. ": ") or "") .. text
+	if #line > max then line = to.cmd .. " " .. text end
+	if #line > max then line = to.cmd .. " " .. tostring(e.name) end
 	return line
 end

@@ -148,8 +148,8 @@ do
 			[3489] = { name = "Zargh", npcFlags = 4, zoneID = 17, spawns = { [17] = { { 52.6, 29.8 } } } },      -- vendor, Crossroads
 			[3442] = { name = "Sputtervalve", npcFlags = 2, zoneID = 17, spawns = { [17] = { { 62.9, 36.3 } } } },
 			[295] = { name = "Innkeeper Farley", npcFlags = 4, zoneID = 12, spawns = { [12] = { { 43.8, 65.8 } } } },
-			[3357] = { name = "Makaru", subName = "Mining Trainer", npcFlags = 16, zoneID = 1637, spawns = { [1637] = { { 73.1, 26.1 } } } },
-			[3555] = { name = "Johan Focht", subName = "Mining Trainer", npcFlags = 16, zoneID = 1537, spawns = { [1537] = { { 50, 50 } } } },
+			[3357] = { name = "Makaru", subName = "Mining Trainer", npcFlags = 16, friendlyToFaction = "H", zoneID = 1637, spawns = { [1637] = { { 73.1, 26.1 } } } },
+			[3555] = { name = "Johan Focht", subName = "Mining Trainer", npcFlags = 16, friendlyToFaction = "A", zoneID = 1537, spawns = { [1537] = { { 50, 50 } } } },
 			[253] = { name = "William Pestle", npcFlags = 4, zoneID = 12, spawns = { [12] = { { 43.3, 65.7 } } } },
 			[1650] = { name = "Far Elwynn Vendor", npcFlags = 4, zoneID = 12, spawns = { [12] = { { 80.0, 20.0 } } } },
 		}),
@@ -289,7 +289,17 @@ do
 	check(table.concat(got, ","):find("Zargh", 1, true) and table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Pestle", 1, true),
 		"in:barrens: the zone's vendors, not Elwynn's: " .. table.concat(got, ", "))
 	local conv = ns.Easy.ToAdvanced("vendor ratchet")
-	check(conv == "in:ratchet is:vendor ", "Alt+` writes vendor ratchet as in:ratchet is:vendor: " .. conv)
+	check(conv == "in:ratchet is:vendor faction:friendly ", "Alt+` writes vendor ratchet as in:ratchet is:vendor faction:friendly: " .. conv)
+	-- a role carries faction:friendly into the conversion: "mining trainer in org" is Makaru, never Ironforge's
+	conv = ns.Easy.ToAdvanced("mining trainer in org", "npcs")
+	check(conv:find("faction:friendly", 1, true) and conv:find("in:orgrimmar", 1, true), "mining trainer in org -> " .. conv)
+	local baseFaction = _G.UnitFactionGroup
+	_G.UnitFactionGroup = function() return "Horde" end
+	got = List(conv)
+	check(table.concat(got, ","):find("Makaru", 1, true) and not table.concat(got, ","):find("Johan", 1, true), "and finds Makaru only: " .. table.concat(got, ", "))
+	got = List("@npc mining is:trainer faction:friendly")
+	check(not table.concat(got, ","):find("Johan", 1, true), "faction:friendly alone leaves out Ironforge's trainer: " .. table.concat(got, ", "))
+	_G.UnitFactionGroup = baseFaction
 	C_Map.GetPlayerMapPosition = function() return nil end
 	UI:Search("@npc sort:nearest is:vendor")
 	check(UI.noPosition, "no position: sort:nearest says so (the footer)")

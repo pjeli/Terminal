@@ -17,6 +17,25 @@ function ns:RecordHistory(line)
 	end
 	table.insert(h, 1, line)
 	for i = #h, MAX_HISTORY + 1, -1 do h[i] = nil end
+	-- lines run in Advanced mode (for good, or one run with Alt+`) are its own: Simple mode's Up skips them
+	local adv = self.db.historyAdv
+	if type(adv) ~= "table" then adv = {}; self.db.historyAdv = adv end
+	local E = self.Easy
+	adv[line] = (E and not E.On()) or nil
+	local kept = {}
+	for _, l in ipairs(h) do kept[l] = true end
+	for l in pairs(adv) do if not kept[l] then adv[l] = nil end end
+end
+
+--- The history Up walks in the mode you're in, newest first: Simple mode leaves out what was run in Advanced.
+function ns:HistoryLines()
+	local h = self.db and self.db.history
+	if type(h) ~= "table" then return {} end
+	local E, adv = self.Easy, self.db.historyAdv
+	if not (E and E.On()) or type(adv) ~= "table" then return h end
+	local out = {}
+	for _, l in ipairs(h) do if not adv[l] then out[#out + 1] = l end end
+	return out
 end
 
 --- Find a terminal command by name or alias (in registration order, so a shared alias always
@@ -38,6 +57,7 @@ ns:RegisterCommand("history", {
 		local h = ns.db and ns.db.history or {}
 		if strtrim(args or ""):lower() == "clear" then
 			for i = #h, 1, -1 do h[i] = nil end
+			ns.db.historyAdv = {}
 			return { "History cleared." }
 		end
 		if #h == 0 then return { "Nothing in the history yet." } end

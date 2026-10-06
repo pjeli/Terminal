@@ -13,21 +13,28 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.41.13", when = "in testing",
+		v = "0.41.16", when = "in testing",
+		items = {
+			"Alt+` in Simple mode turns what you typed into Advanced mode's command line (\"nearest innkeeper\" becomes @npc is:innkeeper sort:nearest) for that one time; Simple again once it closes. Pressed with Terminal closed, it opens in Advanced. What it runs stays out of Simple mode's history (Up).",
+			"Advanced: >> says what you sent: \"@npc reagent is:vendor sort:nearest >> guild\" sends \"Nearby reagent vendor: <name> [map pin]\".",
+			"Advanced: typing @ lists every kind, and a filter like stat: or q: its values, to pick from: Tab and Shift+Tab go down and up, Enter writes it. Anything picked into the prompt leaves a space for the next word.",
+			"Advanced: in:goldshire and in:ratchet know the towns, as Simple mode does.",
+			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, Fisherman, riding instructors); trainer:class means your own class, trainer:mine the mining trainers.",
+			"AtlasLoot Forever: WoW Forever's own items (Snake Eye Kaleidoscope...) show up under Loot: their names come from the server, and Terminal keeps asking until they do.",
+			"@panel Legacy opens WoW Forever's Legacy window (also found as \"challenges\"), even with its button moved off the bar.",
+			".atop: Enter (or a click) on an addon profiles it: its own CPU and memory graphs, how fast its memory grows, and the game's profiler numbers (average, peak, slow frames) beside all addons'. Memory is read every 10 s (reading it was atop's own CPU spike).",
+		},
+	},
+	{
+		v = "0.41.0", when = "released October 2026",
 		items = {
 			"Simple mode (the default): type in plain words and pick where it was found (Bags, Quests, NPCs, Emotes...). Everything is searched, no @ needed. .advanced switches to the full command line, .simple comes back.",
-			"Alt+` in Simple mode turns what you typed into Advanced mode's command line (\"nearest innkeeper\" becomes @npc is:innkeeper sort:nearest) for that one time; Simple again once it closes. Pressed with Terminal closed, it opens in Advanced.",
 			"Plain words do the work: \"stamina food\", \"attack power food\", \"rare sword\", \"use hearthstone\", \"nearest innkeeper\", \"vendor goldshire\", \"mining trainer in org\".",
 			"Opens as just the prompt, with a suggestion to try (Shift+Right takes it; an option turns them off). Down brings back your last search (Simple) or your recent picks (Advanced); Up, your last command.",
 			"NPCs show their title (Mining Trainer, Banker) and, when selected, an arrow pointing the way to them.",
-			"Advanced: sort:nearest puts NPCs closest first; near:500 keeps those within 500 yards; in:goldshire and in:ratchet know the towns, as Simple mode does.",
-			"Advanced: typing @ lists every kind, and a filter like stat: or q: its values, to pick from: Tab and Shift+Tab go down and up, Enter writes it. Anything picked into the prompt leaves a space for the next word.",
-			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, Fisherman, riding instructors); trainer:class means your own class, trainer:mine the mining trainers.",
-			"@panel Legacy opens WoW Forever's Legacy window (also found as \"challenges\"), even with its button moved off the bar.",
-			".atop: Enter (or a click) on an addon profiles it: its own CPU and memory graphs, how fast its memory grows, and the game's profiler numbers (average, peak, slow frames) beside all addons'.",
+			"Advanced: sort:nearest puts NPCs closest first; near:500 keeps those within 500 yards.",
 			"Right-click any row for everything it can do.",
 			"Search: initials (scb, zg), shorthand (brd, sw, org), close spellings (hearhtstone), and emotes as slash commands (/dance).",
-			"AtlasLoot Forever: WoW Forever's own items (Snake Eye Kaleidoscope...) show up under Loot: their names come from the server, and Terminal keeps asking until they do.",
 			"QuestieDB alone is enough for Questie's quests and NPCs; Questie itself isn't needed.",
 			"Lighter and steadier: NPC distances and roles are worked out once, the right-click menu closes when combat starts, and the prompt no longer covers its bottom border.",
 		},

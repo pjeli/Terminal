@@ -5435,6 +5435,20 @@ do -- ">> channel": the selected result goes to a chat channel (the game presses
 	local baseLink = ns.Integrations.NpcPinLink
 	ns.Integrations.NpcPinLink = function(e) return "|cffffff00|Hworldmap:37:5000:4000|h[Map Pin Location]|h|r" end
 	check(SH.Text({ npcID = 12, name = "Marshal McBride" }) == "Marshal McBride |cffffff00|Hworldmap:37:5000:4000|h[Map Pin Location]|h|r", "an NPC: its name and a map pin")
+	-- what was searched says what the NPC is: "Nearby reagent vendor: Name [pin]"
+	local PIN = "|cffffff00|Hworldmap:37:5000:4000|h[Map Pin Location]|h|r"
+	local jo = { npcID = 1, name = "Jo Reagents" }
+	local function line(q, e) return SH.Macro(e or jo, { cmd = "/g", label = "guild", query = q }) end
+	check(line("@npc reagent is:vendor faction:friendly sort:nearest ", { npcID = 2, name = "Hula'mahi" })
+		== "/g Nearby reagent vendor: Hula'mahi " .. PIN, "nearest reagent vendor: says so: " .. tostring(line("@npc reagent is:vendor faction:friendly sort:nearest ", { npcID = 2, name = "Hula'mahi" })))
+	check(line("@npc reagent is:vendor ") == "/g Vendor: Jo Reagents " .. PIN, "a word already in the name isn't repeated: " .. tostring(line("@npc reagent is:vendor ")))
+	check(line("@npc trainer:mine in:orgrimmar ", { npcID = 3, name = "Makaru" }) == "/g Mining trainer in Orgrimmar: Makaru " .. PIN, "trainer and place: " .. tostring(line("@npc trainer:mine in:orgrimmar ", { npcID = 3, name = "Makaru" })))
+	check(line("@npc hogger ", { npcID = 448, name = "Hogger" }) == "/g Hogger " .. PIN, "only the name searched: just the NPC")
+	check(SH.Macro(jo, { cmd = "/g", query = "@npc " .. ("x"):rep(240) .. " is:vendor" }) == "/g Jo Reagents " .. PIN, "too long for a macro: the words go first")
+	-- through the prompt: the line the game presses
+	UI:Open("@npc reagent is:vendor sort:nearest >> guild")
+	check(UI.sendTo and UI.sendTo.query == "@npc reagent is:vendor sort:nearest ", "the search part is kept with where it goes")
+	UI:Hide()
 	ns.Integrations.NpcPinLink = baseLink
 	-- something with no link: its name; a loot row ("item:ID"): the item's full link
 	check(SH.Text({ name = "Ironforge" }) == "Ironforge", "no link: its name")

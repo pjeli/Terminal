@@ -728,3 +728,29 @@ Run("Alt+`: Advanced mode for this run only", function()
 	check(UI:IsShown() and not E.temp, "Advanced for good: Alt+` only opens")
 	UI:Hide(); FlushAll()
 end)
+
+Run("Alt+`: what it runs stays out of Simple mode's history", function()
+	E.Set(true)
+	ActionLists()
+	ns.db.history, ns.db.historyAdv = {}, {}
+	local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
+	-- a Simple search run: in the history
+	UI:Open("shiny sword"); key("ENTER"); UI:Hide(); FlushAll()
+	-- an Alt+` run
+	UI:Open("cast frost nova"); alt(function() key("`", "`") end)
+	check(T.query() == "@spell frost nova ", "(Advanced this run)")
+	UI:Activate(1); UI:Hide(); FlushAll()
+	check(ns.db.history[1] == "@spell frost nova", "the Advanced line is in the history: " .. tostring(ns.db.history[1]))
+	-- Simple: Up skips it
+	UI:Open(""); key("UP")
+	check(T.query() == "shiny sword", "Simple mode's Up: its own lines only, not what Alt+` ran: " .. T.query())
+	UI:Hide(); FlushAll()
+	-- Advanced (Alt+` again, or for good): Up has it
+	UI:AdvancedOnce(); key("UP")
+	check(T.query() == "@spell frost nova", "Advanced mode's Up: the Advanced line: " .. T.query())
+	UI:Hide(); FlushAll()
+	-- the same line run in Simple mode later is Simple's again
+	ns:RecordHistory("@spell frost nova")
+	check(not ns.db.historyAdv["@spell frost nova"], "run again in Simple: no longer Advanced-only")
+	ns.db.history, ns.db.historyAdv = {}, {}
+end)
