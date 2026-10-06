@@ -614,11 +614,10 @@ local MAX_SOLD = 200
 local itemNames -- "\n<lowercase name>\t<id>" per Questie item
 local soldBy, soldCount = {}, 0 -- value -> { [npc id] = true }
 
+-- Questie's data: the QuestieDB addon alone, or through Questie (QuestieData.lua)
 local function QuestieDB()
-	local Q, L = _G.Questie, _G.QuestieLoader
-	if not (Q and Q.API and Q.API.isReady and L and L.ImportModule) then return nil end
-	local ok, DB = pcall(L.ImportModule, L, "QuestieDB")
-	return ok and type(DB) == "table" and DB.QueryItemSingle and DB or nil
+	local DB = ns.QuestieData and ns.QuestieData.DB()
+	return DB and DB.QueryItemSingle and DB or nil
 end
 
 local function ItemNames(DB)
@@ -632,13 +631,8 @@ local function ItemNames(DB)
 			parts[n] = "\n" .. Lower(name) .. "\t" .. id
 		end
 	end
-	local Lib = _G.LibQuestieDB
-	local ids = Lib and Lib.Item and Lib.Item.GetAllIds and select(2, pcall(Lib.Item.GetAllIds))
-	if type(ids) == "table" and #ids > 0 then
-		for i = 1, #ids do add(ids[i]) end
-	elseif type(DB.ItemPointers) == "table" then
-		for id in pairs(DB.ItemPointers) do add(id) end
-	end
+	local ids = DB.ItemIds and DB.ItemIds() or {}
+	for i = 1, #ids do add(ids[i]) end
 	itemNames = table.concat(parts) .. "\n"
 	ns:Trace(("filters: %d Questie item names read for sells:%s"):format(n,
 		started and (" in %.0f ms"):format(_G.debugprofilestop() - started) or ""))

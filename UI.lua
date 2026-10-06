@@ -77,8 +77,102 @@ local function FreqBonus(e, kind)
 	return f and math.min(f, 20) * 0.05 or 0
 end
 
+local find = string.find
+local SHORT_NAME = 2.5 -- a shorthand ("brd", Shorthand.lua) whose full name is in the row's name
+
+-- words that could be initials ("scb", "ubrs": 2-6 letters), per word typed (a few hundred kept)
+local iniShape, iniShapeN = {}, 0
+local function IniShape(tk)
+	local s = iniShape[tk]
+	if s == nil then
+		s = #tk >= 2 and #tk <= 6 and not find(tk, "[^a-z]")
+		if iniShapeN >= 400 then iniShape, iniShapeN = {}, 0 end
+		iniShape[tk], iniShapeN = s, iniShapeN + 1
+	end
+	return s
+end
+
+local byte = string.byte
+
+--- Whether the name could have initials starting with byte c1: its first letter is c1, or it
+--- starts with "the ", "a ", "an ", "and " or "of " (left out of the second set of initials).
+local function StartsRight(name, lname, c1)
+	local s = lname or name
+	local c = byte(s, 1)
+	if c and c >= 65 and c <= 90 then c = c + 32 end
+	if c == c1 then return true end
+	if c ~= 116 and c ~= 97 and c ~= 111 then return false end
+	local c2, c3, c4 = byte(s, 2, 4)
+	if c2 and c2 >= 65 and c2 <= 90 then c2 = c2 + 32 end
+	if c3 and c3 >= 65 and c3 <= 90 then c3 = c3 + 32 end
+	if c == 116 then return c2 == 104 and c3 == 101 and c4 == 32 end -- the
+	if c == 111 then return c2 == 102 and c3 == 32 end -- of
+	return c2 == 32 or (c2 == 110 and (c3 == 32 or (c3 == 100 and c4 == 32))) -- a, an, and
+end
+
+--- What the name gives a word that isn't in it as it is (best: its fuzzy score, or nil): its
+--- initials ("ini"), or a shorthand's full name ("short", and which of them). Allocation-free.
+local function NameExtra(tk, xs, best, name, lname)
+	local how, at = best and "name", nil
+	-- initials are letters of the name in order: only a scattered match can be one, and the
+	-- first word (or a leading of/the/a/an/and) must start with the first letter
+	if best and IniShape(tk) then
+		if StartsRight(name, lname, byte(tk, 1)) then
+			local ini = Fuzzy.initials(tk, name)
+			if ini and ini > best then best, how = ini, "ini" end
+		end
+	end
+	if xs and (not best or best < SHORT_NAME) then
+		local ln = lname or ns.Lower(name)
+		for k = 1, #xs do
+			if find(ln, xs[k], 1, true) then return SHORT_NAME, "short", k end
+		end
+	end
+	return best, how, at
+end
+
+--- One typed word on a row: its score (nil: no match), how the name matched ("name": the fuzzy
+--- match, "ini": the name's initials, "short": a shorthand's full name; nil: only the text), and
+--- which of the shorthand's names. The initials and shorthand are looked at only when the word
+--- isn't in the name as it is, so ordinary word searches rank as they always did.
+--- xs: the shorthand's full names when the word is one. Allocation-free.
+local function TokenScore(tk, xs, name, lname, ltext)
+	local best, sub = Fuzzy.score(tk, name, lname)
+	local how, at = best and "name", nil
+	if not sub then best, how, at = NameExtra(tk, xs, best, name, lname) end
+	if ltext and (not best or best < TEXT_SCORE) then
+		if find(ltext, tk, 1, true) then return TEXT_SCORE, how, at end
+		if xs then
+			for k = 1, #xs do
+				if find(ltext, xs[k], 1, true) then return TEXT_SCORE, how, at end
+			end
+		end
+	end
+	return best, how, at
+end
+
+local function RowText(e)
+	local ltext = rawget(e, "_ltext")
+	if not ltext then
+		local text = rawget(e, "text")
+		if text then ltext = ns.Lower(text); e._ltext = ltext end
+	end
+	return ltext
+end
+
+--- Per word typed: its first letter (a byte) when it could be initials, else false. Kept on the
+--- tokens table (once per search).
+local function IniFirst(tokens)
+	local t = {}
+	for i = 1, #tokens do t[i] = IniShape(tokens[i]) and byte(tokens[i], 1) or false end
+	tokens.ini = t
+	return t
+end
+
 --- The entry's score for these tokens, or nil. Allocation-free: matched letters (for the
 --- highlight) are worked out later, only for the rows on screen (see Positions).
+--- tokens.short[i]: the full names of a shorthand typed as word i (SearchText). This is
+--- TokenScore written out (no calls but the matcher's): it runs for every row on every keystroke.
 local function ScoreEntry(e, tokens)
 	local total, nameHit = 0, false
 	-- rawget: compact rows (tens of thousands of NPCs) would go through __index twice per row
@@ -87,14 +181,36 @@ local function ScoreEntry(e, tokens)
 		local text = rawget(e, "text")
 		if text then ltext = ns.Lower(text); e._ltext = ltext end
 	end
+	local name, lname, short = e.name, e._lname, tokens.short
+	local ini = tokens.ini or IniFirst(tokens)
 	for i = 1, #tokens do
 		local tk = tokens[i]
-		local best = Fuzzy.score(tk, e.name, e._lname)
-		if best then
-			nameHit = true
+		local best, sub = Fuzzy.score(tk, name, lname)
+		if best then nameHit = true end
+		local xs = short and short[i]
+		if not sub then
+			local c1 = ini[i]
+			if best and c1 then -- (see NameExtra: initials only for a scattered match, first letter first)
+				if StartsRight(name, lname, c1) then
+					local s = Fuzzy.initials(tk, name)
+					if s and s > best then best = s end
+				end
+			end
+			if xs and (not best or best < SHORT_NAME) then
+				local ln = lname or ns.Lower(name)
+				for k = 1, #xs do
+					if find(ln, xs[k], 1, true) then best, nameHit = SHORT_NAME, true break end
+				end
+			end
 		end
-		if ltext and (not best or best < TEXT_SCORE) and ltext:find(tk, 1, true) then
-			best = TEXT_SCORE
+		if ltext and (not best or best < TEXT_SCORE) then
+			if find(ltext, tk, 1, true) then
+				best = TEXT_SCORE
+			elseif xs then
+				for k = 1, #xs do
+					if find(ltext, xs[k], 1, true) then best = TEXT_SCORE break end
+				end
+			end
 		end
 		if not best then return nil end
 		total = total + best
@@ -103,14 +219,62 @@ local function ScoreEntry(e, tokens)
 	return total
 end
 
+-- close spellings: how far a word may be from a name's word (4-7 letters: one edit, 8+: two)
+local function NearLimit(n)
+	if n < 4 then return nil end
+	return n >= 8 and 2 or 1
+end
+
+--- The name's word closest to tk within `limit` edits: the distance and the word's first and
+--- last byte, or nil. Words are runs of letters, digits and apostrophes.
+local function NearWord(tk, lname, limit)
+	local n, j, bestD, bf, bt = #tk, 1, nil, nil, nil
+	while true do
+		local s, f = find(lname, "[%w\128-\255']+", j)
+		if not s then break end
+		local wl = f - s + 1
+		-- one edit leaves one of these as it was: the first letters, the second ones, or a first
+		-- letter moved by one (an extra or a missing letter at the front, two swapped)
+		local maybe = wl - n <= limit and n - wl <= limit
+		if maybe and limit == 1 then
+			local t1, t2, w1, w2 = byte(tk, 1), byte(tk, 2), byte(lname, s), byte(lname, s + 1)
+			maybe = t1 == w1 or t2 == w2 or t2 == w1 or t1 == w2
+		end
+		if maybe then
+			local d = Fuzzy.distance(tk, lname, s, f, bestD and bestD - 1 or limit)
+			if d then
+				bestD, bf, bt = d, s, f
+				if d == 0 then break end
+			end
+		end
+		j = f + 1
+	end
+	return bestD, bf, bt
+end
+
 --- The matched letters of the entry's name for these tokens (a set of byte positions).
 local function Positions(e, tokens)
 	local set = {}
 	if not (e._nameHit and tokens) then return set end
-	for _, tk in ipairs(tokens) do
-		local _, pos = Fuzzy.match(tk, e.name, e._lname)
-		if pos then
-			for _, i in ipairs(pos) do set[i] = true end
+	local name, lname, short = e.name, e._lname, tokens.short
+	for i, tk in ipairs(tokens) do
+		local xs = short and short[i]
+		local _, how, at = TokenScore(tk, xs, name, lname, nil)
+		if how == "name" then
+			local _, pos = Fuzzy.match(tk, name, lname)
+			if pos then
+				for _, k in ipairs(pos) do set[k] = true end
+			end
+		elseif how == "ini" then
+			local pos = {}
+			Fuzzy.initials(tk, name, pos)
+			for _, k in ipairs(pos) do set[k] = true end
+		elseif how == "short" then
+			local s, f = find(lname or ns.Lower(name), xs[at], 1, true)
+			for k = s or 1, f or 0 do set[k] = true end
+		elseif not how and UI.closeSpellings and NearLimit(#tk) then -- a close spelling: the word it's close to
+			local _, s, f = NearWord(tk, lname or ns.Lower(name), NearLimit(#tk))
+			for k = s or 1, f or 0 do set[k] = true end
 		end
 	end
 	return set
@@ -363,6 +527,7 @@ local function LinkQuests(out)
 end
 
 function UI:SearchText(text)
+	self.closeSpellings = nil -- (set when only close spellings matched: the footer says so)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	local kinds, tokens, filters, fsig = nil, {}, nil, {}
@@ -386,6 +551,17 @@ function UI:SearchText(text)
 		end
 	end
 	local empty = #tokens == 0
+	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search
+	local SH = ns.Shorthand
+	if SH then
+		for i = 1, #tokens do
+			local xs = SH[tokens[i]]
+			if xs then
+				tokens.short = tokens.short or {}
+				tokens.short[i] = xs
+			end
+		end
+	end
 	self.posTokens = tokens
 	if empty and not kinds and not filters then self.lastScan = nil return self:FrequentEntries() end
 	local Pass = ns.Filters and ns.Filters.Pass
@@ -417,6 +593,8 @@ function UI:SearchText(text)
 			local a, b = last.tokens[i], tokens[i]
 			if i < n and a ~= b then candidates = nil break end
 			if i == n and b:sub(1, #a) ~= a then candidates = nil break end
+			-- "br" -> "brd": a shorthand matches rows the shorter word didn't
+			if i == n and a ~= b and tokens.short and tokens.short[i] then candidates = nil break end
 		end
 	end
 	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
@@ -458,6 +636,8 @@ function UI:SearchText(text)
 		local matches = {}
 		for i = 1, #out do matches[i] = out[i] end
 		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
+		-- nothing has every word: names within an edit or two of them ("hearhtstone")
+		if #out == 0 then self:CloseSpellings(included, tokens, filters, out, overBudget) end
 	end
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	local res = SortAndTrim(out)
@@ -470,8 +650,69 @@ function UI:SearchText(text)
 	return res
 end
 
+local NEAR_WORD = 1.0 -- a word matched by a close spelling (then each edit costs NEAR_EDIT)
+local NEAR_EDIT = 10   -- (closer spellings always first; the usual score orders the rest)
+
+--- The fallback when nothing has every typed word: rows whose name has, for each word it lacks, a
+--- word within NearLimit edits ("fireblal": Fireball). Only runs on an empty result, so it may
+--- cost more than the scan, but rows too short are skipped and it pauses with the search
+--- (overBudget; never inside a pcall). Adds to `out`; the footer then says these are close spellings.
+function UI:CloseSpellings(included, tokens, filters, out, overBudget)
+	-- need: the shortest name that could hold a close spelling of one of the words
+	local limits, need = {}, nil
+	for i = 1, #tokens do
+		limits[i] = NearLimit(#tokens[i])
+		if limits[i] then
+			local least = #tokens[i] - limits[i]
+			if not need or least < need then need = least end
+		end
+	end
+	if not need then return end
+	local Pass = ns.Filters and ns.Filters.Pass
+	local short, single = tokens.short, #tokens == 1
+	for _, p in ipairs(included) do
+		local list = ns:GetEntries(p)
+		if overBudget() then coroutine.yield(out) end
+		local id = p.id
+		for r = 1, #list do
+			local e = list[r]
+			local name, lname = e.name, rawget(e, "_lname")
+			if type(name) == "string" and #name >= need then
+				lname = lname or ns.Lower(name)
+				local total, edits = 0, 0
+				for i = 1, #tokens do
+					local tk = tokens[i]
+					-- (one word: nothing had it, so no row needs looking at as it is)
+					local sc
+					if not single then sc = TokenScore(tk, short and short[i], name, lname, RowText(e)) end
+					if sc then
+						total = total + sc
+					else
+						local d = limits[i] and NearWord(tk, lname, limits[i])
+						if not d then total = nil break end
+						total, edits = total + NEAR_WORD, edits + d
+					end
+				end
+				if total and edits > 0 and (not filters or Pass(e, filters)) then
+					e._score = total - edits * NEAR_EDIT + FreqBonus(e, id)
+					e._pos, e._nameHit = nil, true
+					out[#out + 1] = e
+				end
+			end
+			if r % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+		end
+	end
+	if #out > 0 then self.closeSpellings = true end
+end
+
 -- the lists offered by that row, in order: big databases only searched with @kind
 local HINT_KINDS = { "stored", "questie", "npc" }
+-- a list's row is left out when one of your own results with every typed word in its name is of
+-- these kinds: Questie's quests when the quest is in your log ("Steelsnap": your quest, and still
+-- the row for Questie's NPC of that name). Lists not here are offered whatever you have (you have
+-- no NPC rows); hintSecond lists (@stored: the same item on an alt) always are.
+local HINT_SAME = { questie = { quests = true } }
+UI.HINT_SAME = HINT_SAME
 
 local function NameHasAll(e, tokens)
 	local ln = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
@@ -483,40 +724,82 @@ end
 
 local function HintActivate(e) UI:SetQuery(e.completion, #e.completion) end
 
---- The "Search <list> for this" row, or nil. Only when no result has every typed word in its
---- name and an @kind list has a match: by name (a plain substring look) in the huge lists, or a
---- full match (hintFull: @stored, by item and holder). Spread over frames like the search.
+-- A list with this many matches or fewer shows them as results instead of a "Search ... for this"
+-- row (a row to step through for one NPC was a wasted step). Questie's name index hands back as
+-- many ids (Integrations' HINT_FEW, the same number).
+local HINT_FEW = 2
+UI.HINT_FEW = HINT_FEW
+
+--- The "Search <list> for this" rows (and where they go), or nil. When an @kind list has a match:
+--- by name (a plain substring look) in the huge lists, or a full match (hintFull: @stored, by item
+--- and holder); on top, or second when your own results have the words in a name (see HINT_SAME).
+--- A list with only HINT_FEW matches or fewer gives those rows instead of its hint row.
+--- Spread over frames like the search.
 function UI:BigListHint(text, tokens, res, overBudget)
 	local typed = 0
 	for i = 1, #tokens do typed = typed + #tokens[i] end
 	if typed < 3 then return nil end
-	-- your own results already have it: only a list marked hintSecond (@stored: the same item on
-	-- an alt or in a bank) is still offered, as the second row, under what you carry
-	local mine = false
+	-- your own results have it by name: a list is still offered, as the second row under your best
+	-- one, unless one of yours is the same sort of thing (HINT_SAME: the quest in your log)
+	local mine, kinds = false, nil
 	for _, e in ipairs(res) do
-		if NameHasAll(e, tokens) then mine = true break end
+		if NameHasAll(e, tokens) then
+			mine = true
+			kinds = kinds or {}
+			kinds[e.kind or ""] = true
+		end
 	end
 	local hints = {} -- one row per list that has it (a name can be a quest and an NPC both)
 	for _, id in ipairs(HINT_KINDS) do
 		local p = ns.providers[id]
-		if p and p.explicit and (not mine or p.hintSecond) then
-			local firstName, count = nil, 0
+		local same = HINT_SAME[id]
+		local covered = false
+		if p and same and kinds and not p.hintSecond then
+			for k in pairs(kinds) do
+				if same[k] then covered = true break end
+			end
+		end
+		if p and p.explicit and not covered then
+			local firstName, count, few = nil, 0, nil
 			if p.hintFind then
 				-- the list's own name index (Questie's: one text, not its thousands of rows)
-				firstName, count = p.hintFind(p, tokens, function() if overBudget() then coroutine.yield(res) end end)
+				local ids
+				firstName, count, ids = p.hintFind(p, tokens, function() if overBudget() then coroutine.yield(res) end end)
+				if firstName and count <= UI.HINT_FEW and p.hintRow and type(ids) == "table" and #ids == count then
+					few = {}
+					for _, id in ipairs(ids) do
+						local row = p.hintRow(p, id)
+						if not row then few = nil break end
+						few[#few + 1] = row
+					end
+				end
 			else
 				local list = ns:GetEntries(p)
+				few = {}
 				for i = 1, #list do
 					local e = list[i]
 					if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
 						count = count + 1
 						firstName = firstName or e.name
+						if count <= UI.HINT_FEW then few[count] = e end
 						if count >= 100 then break end
 					end
 					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
 				end
+				if count > UI.HINT_FEW or count == 0 then few = nil end
 			end
-			if firstName then
+			if firstName and few and #few > 0 then
+				-- only one or two: the rows themselves, where the hint would have gone
+				for _, e in ipairs(few) do
+					local dup = false
+					for k = 1, #hints do if hints[k] == e then dup = true break end end
+					for k = 1, #res do if res[k] == e then dup = true break end end
+					if not dup then
+						e._pos, e._nameHit = nil, true
+						hints[#hints + 1] = e
+					end
+				end
+			elseif firstName then
 				local kind = "@" .. (p.aliases and p.aliases[1] or id)
 				local query = text:gsub("^%s+", "")
 				hints[#hints + 1] = {
@@ -787,8 +1070,10 @@ function UI:SetStatus()
 		text = HINT .. say .. "|r" .. (text ~= "" and "  ·  " or "") .. text
 	end
 	if mode then text = text .. (text ~= "" and "  ·  " or "") .. mode end
+	local near = self.closeSpellings and self.mode == "search" and count > 0
+	if near then text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "no exact match: close spellings|r" end
 	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
-	status:SetText(self.sendTo and Theme.FixColors(text) or text)
+	status:SetText((self.sendTo or near) and Theme.FixColors(text) or text)
 	self:FitHints()
 end
 

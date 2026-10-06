@@ -13,6 +13,17 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.39.8", when = "in testing",
+		items = {
+			"Searching an NPC's name (Steelsnap) shows the NPC from Questie even when a quest in your log is named after it.",
+			"When only one or two of Questie's quests or NPCs (or your alts' items) match, they show up as results right away instead of a \"Search Questie for this\" row to step through.",
+			"Initials: scb finds Strong Cutting Blade, zg Zul'Gurub, be Bindings of Elements. Common shorthand works too: brd, ubrs, sfk, rfc, sm, mara, strat, sw, org, stv, aq40, naxx...",
+			"Typo tolerance: when nothing matches, close spellings are shown (hearhtstone, fireblal, steelsanp), and the footer says so.",
+			"Questie isn't needed any more for @questie, @npc and the Questie filters (sells:, trainer:, NPC roles): the QuestieDB addon on its own is enough, for a Blizzard-like UI with Questie's data. With Questie installed nothing changes.",
+			"Emotes are slash commands: /dance, /silly, /wave and the rest, with their other names (/joke finds /silly).",
+		},
+	},
+	{
 		v = "0.39.5", when = "released October 2026",
 		items = {
 			"Fixes from a review pass: a pasted style string changes only the look (never your width, rows or settings); the copy bar never cuts off a style string's last line; a reopened Import style dialog stays open; reading the toy and pet journals never changes their filters when a read fails.",
@@ -37,14 +48,6 @@ CL.LOG = {
 			"With the game's Sound in Background off, the player suggests turning it on, so the radio keeps playing while you're tabbed out.",
 			"Music the game cuts off when you click away from it (or at a loading screen) starts again when you're back.",
 			"In the player: Up/Down and Enter (or 1-0) pick a station, N/B skip, P play/stop, S shuffle, V style. The zone music pauses while the radio plays, and the radio plays on with the window closed (.wowamp stop ends it).",
-		},
-	},
-	{
-		v = "0.37.4", when = "released October 2026",
-		items = {
-			"Share your look: Export style on the options page (or .style) gives it as one line to copy, TERM1:..., short enough for a chat message; Import style (or .style TERM1:...) applies a pasted one. Colours, opacity, frame, font, cursor, animation and prompt text travel; width, rows and scale stay yours.",
-			"The style string shows in the slim copy bar (as a Wowhead link does): a narrow bar in the middle of the screen, the text wrapped onto a few lines and all selected; it goes once Ctrl+C has copied it.",
-			"Opacity can be set to the exact hundredth (presets' 0.96 and 0.97 no longer round to 0.95).",
 		},
 	},
 }

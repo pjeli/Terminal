@@ -2759,6 +2759,14 @@ do -- AtlasLoot and Questie integrations
 	-- the NPC list freed when unused: its names stay, so plain searches still offer @npc without it
 	ns.providers.npc.onDrop(); ns.providers.npc._entries = nil
 	check(not I.npc.list and I.npc.names, "NPC list freed, names kept")
+	-- only one NPC has the name: the NPC itself comes up (made from Questie's data, the list stays freed)
+	do
+		local few = UI:Search("marshal mcbride")
+		check(few[1] and few[1].kind == "npc" and few[1].name == "Marshal McBride" and not few[1].completion and not I.npc.list,
+			"one Questie NPC has it: the NPC is a result, not a row to step through: " .. tostring(few[1] and (few[1].completion or few[1].name)))
+		check(few[1] and few[1].secure and few[1].npcID == 12, "...and it opens like an @npc row")
+	end
+	UI.HINT_FEW = 0 -- (the hint rows below: as for a list with many matches)
 	local offer = UI:Search("marshal mcbride")
 	local offered = false
 	for _, e in ipairs(offer) do if e.completion == "@npc marshal mcbride" then offered = true end end
@@ -2859,6 +2867,18 @@ do -- AtlasLoot and Questie integrations
 	local w0 = UI:Search("wolves across")[1]
 	check(w0 and not w0.completion, "your own results have it (the quest log): nothing offered")
 	check(not (UI:Search("de")[1] or {}).completion, "not for one or two letters")
+	UI.HINT_FEW = 2
+	-- one or two matches: the rows themselves (a quest and an NPC both: each one's row)
+	do
+		local both = UI:Search("defias")
+		local kinds, hint = {}, nil
+		for _, e in ipairs(both) do
+			kinds[e.kind or "?"] = (kinds[e.kind or "?"] or 0) + 1
+			hint = hint or e.completion
+		end
+		check(kinds.questie == 1 and kinds.npc == 1 and not hint,
+			"defias: Questie's one quest and one NPC are results themselves, no hint rows: " .. tostring(hint))
+	end
 	r = UI:Search("@questie defias")
 	check(r[1] and r[1].name == "The Defias Brotherhood", "@questie finds a quest by name")
 	local byText = UI:Search("@questie scout riell")
@@ -4197,7 +4217,13 @@ do
 	check(tipLines[1] == "T:Linen Cloth" and tj:find("|cffc79c6eMe Sur|r", 1, true) and tj:find("28|r  |cff9d9d9dbank 20, mail 3, bags 5", 1, true), "tooltip rows: class-coloured name, total, where: " .. tj)
 	check(tj:find("My Guild (guild)|r=|cffffffff12|r", 1, true) and tj:find("Total=48", 1, true), "guild row and the total")
 	_G.RAID_CLASS_COLORS = nil
-	-- searching
+	-- searching: only alts have it, one item: the item itself
+	do
+		local few = UI:Search("linen alt guy")
+		check(few[1] and few[1].kind == "stored" and few[1].itemID == 2589 and not few[1].completion,
+			"one stored item has it: it's a result itself: " .. tostring(few[1] and (few[1].completion or few[1].name)))
+	end
+	UI.HINT_FEW = 0 -- (the hint row: as for many matches)
 	UI:Open("linen alt guy")
 	local hint = UI.Results()[1]
 	check(hint and hint.completion == "@stored linen alt guy" and hint.name:find("alts and banks", 1, true),
@@ -4212,6 +4238,7 @@ do
 	local rc = UI:Search("linen cloth")
 	check(rc[1] and rc[1].kind == "items" and rc[1].name == "Linen Cloth" and rc[2] and rc[2].completion == "@stored linen cloth",
 		"you carry it and alts have more: your row first, the alts-and-banks row second (" .. tostring(rc[1] and rc[1].kind) .. ", " .. tostring(rc[2] and rc[2].name) .. ")")
+	UI.HINT_FEW = 2
 	local r = UI.Results()[1]
 	check(r and r.kind == "stored" and r.itemID == 2589, "found by the item and a holder's name")
 	UI:Open("@stored bank thing")

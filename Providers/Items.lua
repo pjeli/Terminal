@@ -272,22 +272,15 @@ local function QuestIndex()
 	return list, exact
 end
 
--- Questie knows which items each quest needs, even when the quest log doesn't say.
-local function QuestieModule(name)
-	local L = _G.QuestieLoader
-	if not (L and L.ImportModule) then return nil end
-	local ok, m = pcall(L.ImportModule, L, name)
-	return ok and m or nil
-end
+-- Questie knows which items each quest needs, even when the quest log doesn't say (its data: the
+-- QuestieDB addon alone, or through Questie: QuestieData.lua).
 
 --- Which of your quests needs which item, by Questie: item ID -> quest (the first in the log
 --- wins). Worked out once per index of your bags (it used to be asked per item and quest).
 local function QuestieItems(quests)
 	if quests.questieItems ~= nil then return quests.questieItems or nil, quests.questieDB end
 	quests.questieItems = false
-	local Q = _G.Questie
-	if not (Q and Q.API and Q.API.isReady) then return nil end
-	local DB = QuestieModule("QuestieDB")
+	local DB = ns.QuestieData and ns.QuestieData.DB()
 	if not (DB and DB.QueryQuestSingle) then return nil end
 	local map = {}
 	local function put(id, qq) if id ~= nil and not map[id] then map[id] = qq end end

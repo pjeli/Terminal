@@ -49,6 +49,52 @@ local function ChatEntry(e, args)
 	ChatFrame_OpenChat(line)
 end
 
+-- Emotes (/dance, /silly, /wave): the game's EMOTE<i>_CMD<j> global strings, grouped by EMOTE<i>_TOKEN. They aren't
+-- SLASH_ globals (the chat box looks them up itself), so they'd never show. Numbered with gaps: walk to MAXEMOTEINDEX
+-- when the client has it, else on past a run of 50 missing. A macro runs them like typing them in chat, so they use
+-- the same game-pressed line (with a target selected, /wave waves at it).
+local EMOTE_GAP, EMOTE_MAX = 50, 2000
+local function Emotes(out, taken)
+	local maxIdx = tonumber(rawget(_G, "MAXEMOTEINDEX")) or EMOTE_MAX
+	local miss, word = 0, ns.GameText and ns.GameText("EMOTE", "Emote") or "Emote"
+	for i = 1, maxIdx do
+		local token = rawget(_G, "EMOTE" .. i .. "_TOKEN")
+		if type(token) ~= "string" then
+			miss = miss + 1
+			if not rawget(_G, "MAXEMOTEINDEX") and miss > EMOTE_GAP then break end
+		else
+			miss = 0
+			local names, seen = {}, {}
+			for j = 1, 9 do
+				local cmd = rawget(_G, "EMOTE" .. i .. "_CMD" .. j)
+				if type(cmd) ~= "string" then break end
+				local l = ns.Lower(cmd)
+				if cmd:sub(1, 1) == "/" and not seen[l] and not taken[l] then
+					seen[l] = true
+					names[#names + 1] = cmd
+				end
+			end
+			if names[1] then
+				for _, n in ipairs(names) do taken[ns.Lower(n)] = true end
+				local alt = {}
+				for k = 2, #names do alt[#alt + 1] = names[k] end
+				out[#out + 1] = {
+					key = "EMOTE_" .. token,
+					name = names[1],
+					icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss",
+					detail = (#alt > 0 and (table.concat(alt, "  ") .. "  ") or "") .. word,
+					text = "emote " .. ns.Lower(token) .. " " .. table.concat(alt, " "),
+					tip = word .. (#alt > 0 and ("\nAliases: " .. table.concat(alt, ", ")) or ""),
+					emote = token,
+					secure = SLASH_SPEC, isOpen = NeverOpen, after = SlashAfter,
+					activate = RunEntry, secondary = ChatEntry,
+				}
+			end
+		end
+	end
+end
+ns.SlashEmotes = Emotes
+
 local cached, cachedCount -- the list, and how many handlers SlashCmdList had when it was made
 
 ns:RegisterProvider("slash", {
@@ -107,6 +153,13 @@ ns:RegisterProvider("slash", {
 			out[#out + 1] = console
 		end
 		console.needsArgs, console.activate = true, ConsoleDirect
+		-- emotes last: a real slash command of the same name wins
+		local taken = {}
+		for _, e in ipairs(out) do
+			taken[ns.Lower(e.name)] = true
+			for n in (e.detail or ""):gmatch("/%S+") do taken[ns.Lower(n)] = true end
+		end
+		Emotes(out, taken)
 		console.detail = (console.detail ~= "" and (console.detail .. "  ") or "") .. "set a CVar (@cvar lists them)"
 		cached, cachedCount = out, count
 		return out

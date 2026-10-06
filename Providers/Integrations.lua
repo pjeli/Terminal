@@ -17,6 +17,7 @@ local H = ns.Highlight
 
 local I = {}
 ns.Integrations = I
+I.HINT_FEW = 2 -- (UI.HINT_FEW: a list with this many matches or fewer shows them as results)
 
 local Safe = ns.Safe -- (Util.lua)
 
@@ -357,24 +358,20 @@ I.npc = npc
 local qdb = { list = nil, busy = false }
 I.qdb = qdb
 
-local function QuestieReady()
-	local Q = _G.Questie
-	return Q and Q.API and Q.API.isReady and _G.QuestieLoader and true or false
-end
-
-local function QModule(name) return Safe(_G.QuestieLoader.ImportModule, _G.QuestieLoader, name) end
+-- The data comes from QuestieData.lua: the QuestieDB addon alone, or through Questie (same data).
+local QD = ns.QuestieData
+local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Questie ready if installed)
+local function QDB() return QD.DB() end
 
 --- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
 function I.NpcField(id, field)
-	if not QuestieReady() then return nil end
-	local DB = QModule("QuestieDB")
+	local DB = QDB()
 	return DB and Safe(DB.QueryNPCSingle, id, field) or nil
 end
 
 --- Questie's names for the NPC flag bits (they differ between game versions).
 function I.NpcFlagDefs()
-	if not QuestieReady() then return nil end
-	local DB = QModule("QuestieDB")
+	local DB = QDB()
 	return DB and DB.npcFlags or nil
 end
 
@@ -418,12 +415,10 @@ I.RunSliced = RunSliced
 local function IndexNPCs(after)
 	local function finish() if after then after() end end
 	if npc.list or npc.busy or not QuestieReady() then return finish() end
-	local DB = QModule("QuestieDB")
-	if not (DB and DB.NPCPointers and DB.QueryNPCSingle) then return finish() end
+	local DB = QDB()
+	if not (DB and DB.QueryNPCSingle) then return finish() end
 	npc.busy = true
-	local ids = {}
-	for id in pairs(DB.NPCPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
-	table.sort(ids)
+	local ids = DB.NpcIds()
 	local out, meta = {}, npc.meta
 	local names = not npc.names and {} or nil
 	RunSliced("questie: NPCs", #ids, function(i)
@@ -444,14 +439,15 @@ local function IndexNPCs(after)
 	end)
 end
 
---- How many names in the text have every typed word (up to 100) and the first one's id.
+--- How many names in the text have every typed word (up to 100), the first one's id, and the
+--- first FEW ids (a list with only one or two matches shows them as results, not as a hint).
 --- Scans for the longest word with a plain find (C speed) and checks the others on its line.
 --- tick: called every so often (the search's own budget check, which may pause it a frame).
 local function FindNames(blob, tokens, tick)
 	if type(blob) ~= "string" or #tokens == 0 then return nil, 0 end
 	local lead = tokens[1]
 	for k = 2, #tokens do if #tokens[k] > #lead then lead = tokens[k] end end
-	local pos, count, firstId, looked = 1, 0, nil, 0
+	local pos, count, firstId, looked, ids = 1, 0, nil, 0, {}
 	while count < 100 do
 		local at = blob:find(lead, pos, true)
 		if not at then break end
@@ -467,41 +463,79 @@ local function FindNames(blob, tokens, tick)
 			end
 			if all then
 				count = count + 1
-				firstId = firstId or tonumber(blob:sub(tab + 1, lineEnd - 1))
+				local id = tonumber(blob:sub(tab + 1, lineEnd - 1))
+				firstId = firstId or id
+				if id and #ids < I.HINT_FEW then ids[#ids + 1] = id end
 			end
 		end
 		pos = lineEnd
 		looked = looked + 1
 		if tick and looked % 64 == 0 then tick() end
 	end
-	return firstId, count
+	return firstId, count, ids
 end
 I.FindNames = FindNames
 
---- The provider's hintFind: the first matching name (as the game writes it) and the count.
+--- The provider's hintFind: the first matching name (as the game writes it), the count, and the
+--- first ids (UI shows those rows themselves when there are only a few: hintRow).
 local function HintFind(t, tokens, tick)
-	local id, count = FindNames(t.names, tokens, tick)
+	local id, count, ids = FindNames(t.names, tokens, tick)
 	if not id then return nil, 0 end
-	local DB = QModule("QuestieDB")
+	local DB = QDB()
 	local name = DB and t.nameQuery and Safe(DB[t.nameQuery], id, "name")
-	return type(name) == "string" and name or tostring(id), count
+	return type(name) == "string" and name or tostring(id), count, ids
+end
+
+--- A list's row by id: from the list when it's built (sorted by id: a binary search), else made
+--- on the spot like the list makes it (the NPC list may have been freed; quests still indexing).
+local function ListRow(list, id)
+	if not list then return nil end
+	local lo, hi = 1, #list
+	while lo <= hi do
+		local mid = math.floor((lo + hi) / 2)
+		local k = rawget(list[mid], "key")
+		if k == id then return list[mid] elseif k < id then lo = mid + 1 else hi = mid - 1 end
+	end
+end
+
+local function NpcHintRow(_, id)
+	local row = ListRow(npc.list, id)
+	if row then return row end
+	local DB = QDB()
+	local name = DB and Safe(DB.QueryNPCSingle, id, "name")
+	if type(name) ~= "string" or name == "" or (issecretvalue and issecretvalue(name)) then return nil end
+	return setmetatable({ _compact = true, key = id, name = name, _lname = ns.Lower(name) }, npc.meta)
+end
+
+local function QuestHintRow(_, id)
+	local row = ListRow(qdb.list, id)
+	if row then return row end
+	local DB = QDB()
+	local name = DB and Safe(DB.QueryQuestSingle, id, "name")
+	if type(name) ~= "string" or name == "" or (issecretvalue and issecretvalue(name)) then return nil end
+	return setmetatable({ _compact = true, key = id, qid = id, name = name, _lname = ns.Lower(name),
+		level = Safe(DB.QueryQuestSingle, id, "questLevel"), _ltext = "quest questie" }, qdb.meta)
 end
 
 --- Where the NPC stands: uiMapID, position {x,y} (0-1), and whether that's a dungeon's
 --- entrance rather than the NPC itself.
 local function NpcLocation(id)
-	local DB, Z = QModule("QuestieDB"), QModule("ZoneDB")
-	local n = DB and Safe(DB.GetNPC, DB, id)
-	if not (n and n.spawns and Z) then return end
-	for zone, spawns in pairs(n.spawns) do
-		local c = spawns and spawns[1]
-		if c and c[1] and c[1] >= 0 then
-			local dl = Safe(Z.GetDungeonLocation, Z, zone)
+	local DB = QDB()
+	local spawnsByZone = DB and Safe(DB.QueryNPCSingle, id, "spawns")
+	if type(spawnsByZone) ~= "table" and DB and DB.GetNPC then
+		local n = Safe(DB.GetNPC, DB, id)
+		spawnsByZone = type(n) == "table" and n.spawns or nil
+	end
+	if type(spawnsByZone) ~= "table" then return end
+	for zone, spawns in pairs(spawnsByZone) do
+		local c = type(spawns) == "table" and spawns[1]
+		if type(c) == "table" and c[1] and c[1] >= 0 then
+			local dl = QD.DungeonLocation(zone)
 			if type(dl) == "table" and dl[1] then
-				local ui = Safe(Z.GetUiMapIdByAreaId, Z, dl[1][1])
+				local ui = QD.UiMapOfArea(dl[1][1])
 				if ui then return ui, { x = dl[1][2] / 100, y = dl[1][3] / 100 }, true end
 			else
-				local ui = Safe(Z.GetUiMapIdByAreaId, Z, zone)
+				local ui = QD.UiMapOfArea(zone)
 				if ui then return ui, { x = c[1] / 100, y = c[2] / 100 } end
 			end
 		end
@@ -517,7 +551,7 @@ local function ShowNpc(e)
 	end
 	if not InCombatLockdown() then
 		-- Questie's own marker for it on the map
-		local QM = QModule("QuestieMap")
+		local QM = QD.Module("QuestieMap")
 		if QM and QM.ShowNPC then Safe(QM.ShowNPC, QM, e.npcID) end
 	end
 	M.ShowAfter({ name = (e.npcName or e.name) .. (dungeon and " (dungeon entrance)" or ""), mapID = mapID, pos = pos })
@@ -583,12 +617,10 @@ end
 --- Quest names, levels, zones and objectives from Questie's database, a slice at a time.
 local function IndexQuests()
 	if qdb.list or qdb.busy or not QuestieReady() then return end
-	local DB = QModule("QuestieDB")
-	if not (DB and DB.QuestPointers and DB.QueryQuestSingle) then return end
+	local DB = QDB()
+	if not (DB and DB.QueryQuestSingle) then return end
 	qdb.busy = true
-	local ids = {}
-	for id in pairs(DB.QuestPointers) do if type(id) == "number" then ids[#ids + 1] = id end end
-	table.sort(ids)
+	local ids = DB.QuestIds()
 	local out = {}
 	local zones = {} -- zoneOrSort -> { name, searchable text }: thousands of quests share a few hundred zones
 	local function Zone(zone)
@@ -628,7 +660,7 @@ end
 
 --- Who starts a quest: an NPC id, or a word for what else does ("an object", "an item").
 local function QuestGiver(id)
-	local DB = QModule("QuestieDB")
+	local DB = QDB()
 	local by = DB and Safe(DB.QueryQuestSingle, id, "startedBy")
 	if type(by) ~= "table" then return nil end
 	if type(by[1]) == "table" and by[1][1] then
@@ -674,14 +706,14 @@ end
 --- "|Hquestie:" links are only made on the receiving end: chat doesn't carry links it doesn't know.) Nil without Questie.
 function I.QuestieQuestLink(id)
 	id = tonumber(id)
-	if not (id and _G.QuestieLoader) then return nil end
-	local L = QModule("QuestieLink")
+	if not id then return nil end
+	local L = QD.AnyModule("QuestieLink")
 	if L then
 		local s = Safe(L.GetNativeQuestLinkStringById, id) or Safe(L.GetQuestLinkStringById, id)
 		if type(s) == "string" and s ~= "" then return s end
 	end
 	-- (an older Questie without those: the same bracket text, which its chat filter reads)
-	local DB = QModule("QuestieDB")
+	local DB = QDB() or QD.AnyModule("QuestieDB")
 	local name = DB and Safe(DB.QueryQuestSingle, id, "name")
 	if type(name) ~= "string" or name == "" then return nil end
 	if issecretvalue and issecretvalue(name) then return nil end
@@ -740,11 +772,13 @@ local QUESTIE_LAZY = {
 }
 
 local function SetupQuestie()
-	if npc.on or not (_G.Questie and _G.QuestieLoader) then return end
+	-- Questie, or the QuestieDB addon alone (a Blizzard-like UI with Questie's data)
+	if npc.on or not (QD.HasQuestie() or QD.Lib()) then return end
 	npc.on = true
 	ns:RegisterProvider("npc", {
 		busy = function() return npc.busy and "Indexing Questie's NPCs" or nil end,
 		hintFind = function(_, tokens, tick) return HintFind(npc, tokens, tick) end,
+		hintRow = NpcHintRow,
 		label = "NPC",
 		color = "ffe0a060",
 		aliases = { "npc", "npcs", "n", "mob", "vendor" },
@@ -780,6 +814,7 @@ local function SetupQuestie()
 		explicit = true, -- every quest in the game: only searched with @questie
 		busy = function() return qdb.busy and "Indexing Questie's quests" or nil end,
 		hintFind = function(_, tokens, tick) return HintFind(qdb, tokens, tick) end,
+		hintRow = QuestHintRow,
 		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat).
 		-- No quest events: a quest's state (in log, done) is read when its row is drawn.
 		-- (kept: a few thousand quests, and their objectives are the slow part to read again)
@@ -795,11 +830,7 @@ local function SetupQuestie()
 	local function index()
 		C_Timer.After(2, function() IndexNPCs(IndexQuests) end)
 	end
-	if QuestieReady() then
-		index()
-	elseif _G.Questie.API and _G.Questie.API.RegisterOnReady then
-		Safe(_G.Questie.API.RegisterOnReady, index)
-	end
+	QD.OnReady(index)
 end
 
 ----------------------------------------------------------------------
@@ -820,9 +851,11 @@ ns:RegisterCommand("integrations", {
 		lines[#lines + 1] = "  AtlasLoot: " .. (loot.on
 			and ("found (" .. tostring(LoadedCore() or "AtlasLoot") .. "). %d loot modules, %d indexed, %d items%s"):format(loot.modules, loot.loaded, #loot.rows, loot.done and "" or " (still loading)")
 			or "not found")
+		local src = QD.Source()
+		local found = src == "QuestieDB" and "QuestieDB found (without Questie)" or "found"
 		lines[#lines + 1] = "  Questie: " .. (npc.on
-			and (npc.list and ("found. %d NPCs (@npc), %s quests (@questie)"):format(#npc.list, qdb.list and #qdb.list or "indexing")
-				or (QuestieReady() and "found, indexing NPCs..." or "found, waiting for Questie to finish loading"))
+			and (npc.list and ("%s. %d NPCs (@npc), %s quests (@questie)"):format(found, #npc.list, qdb.list and #qdb.list or "indexing")
+				or (QuestieReady() and (found .. ", indexing NPCs...") or "found, waiting for Questie to finish loading"))
 			or "not found")
 		if ns.Stored then lines[#lines + 1] = "  Alts and banks: " .. ns.Stored.Status() end
 		return lines
