@@ -105,6 +105,9 @@ E.WORDS = {
 	elixirs = "type:elixir", flask = "type:flask", bandage = "type:bandage", bandages = "type:bandage", scroll = "type:scroll",
 	stamina = "stat:stamina", strength = "stat:strength", agility = "stat:agility", intellect = "stat:intellect",
 	spirit = "stat:spirit", armor = "stat:armor",
+	-- (two words that mean one thing: SearchText joins them first)
+	["attack power"] = "stat:ap", ["spell power"] = "stat:sp", ["spell damage"] = "stat:sp", ["mana regen"] = "stat:mp5",
+	["healing power"] = "stat:healing", crit = "stat:crit", mp5 = "stat:mp5",
 	-- what an item is and where it's worn: "shield", "plate", "boots", "ring"
 	shield = "type:shield", shields = "type:shield", sword = "type:sword", swords = "type:sword", axe = "type:axe",
 	axes = "type:axe", mace = "type:mace", maces = "type:mace", dagger = "type:dagger", daggers = "type:dagger",
@@ -142,9 +145,17 @@ local WEAK = { poor = true, junk = true, grey = true, gray = true, common = true
 --- How much an everyday word's test counts in the relaxed ranking (UI:RelaxSoft): 1 for quality words, else 3.
 function E.Weight(test) return weights[test] or 3 end
 
+-- the word at the start of a word of the name ("nearest ah" isn't Sarah, "inn" isn't Finn, "ring" isn't Herring)
+local wordPatterns = {}
 local function NameHas(e, w)
 	local ln = rawget(e, "_lname") or (type(e.name) == "string" and Lower(e.name)) or ""
-	return ln:find(w, 1, true) ~= nil
+	local pat = wordPatterns[w]
+	if not pat then
+		-- (a word's start for longer words: "sword" finds Swordsmith Ivan; short ones whole: "ah", "inn")
+		pat = "%f[%w]" .. w:gsub("%p", "%%%0") .. (#w < 4 and "%f[%W]" or "")
+		wordPatterns[w] = pat
+	end
+	return ln:find(pat) ~= nil
 end
 
 --- The soft filter an everyday word stands for, or nil: a row passes when the filter says so, or when its
@@ -242,7 +253,7 @@ function E.ActionView(e, act)
 	if how ~= "s" or not (e.secondary or e.secondarySecure) then return e end
 	return setmetatable({
 		secure = e.secondarySecure or false, isOpen = e.secondaryIsOpen or False, after = e.secondaryAfter or false,
-		activate = e.secondary, actionVerb = act.label, actionOf = e,
+		activate = e.secondary or false, actionVerb = act.label, actionOf = e, -- (false: never the row's own Enter)
 	}, { __index = e })
 end
 
@@ -252,8 +263,8 @@ end
 
 E.EXAMPLES = {
 	"try: stamina food", "try: nearest innkeeper", "try: use hearthstone", "try: dance", "try: rare sword",
-	"try: where is hogger", "try: summon a mount by its name", "try: shield that drops from kresh",
-	"try: cast a spell by its name", "try: vendor goldshire", "try: stormwind",
+	"try: where is hogger", "try: nearest repair", "try: shield that drops from kresh",
+	"try: attack power food", "try: vendor goldshire", "try: mining trainer in org", "try: stormwind",
 }
 local exampleAt = 0
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
@@ -394,4 +405,3 @@ function E.HelpLines()
 	}
 end
 
-E.ResetForTests = function() wordTests = {} end

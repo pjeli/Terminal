@@ -113,6 +113,10 @@ Run("on by default: nothing listed until something is typed", function()
 	local res = UI.Results()
 	check(#res == 0 and UI.bare, "nothing typed: nothing listed, just the prompt: " .. Show(res))
 	check(not UI.status:IsShown() and not UI.hints:IsShown(), "no footer")
+	-- the prompt's background stops 4 px above the header's end; the bare frame keeps its bottom border clear of it
+	local hh = -UI.rows[1].baseY
+	local inset = ns.Theme.Get().frame == "classic" and 4 or 1
+	check(_G.TerminalFrame.h == hh - 4 + inset, "bare: the bottom border shows under the prompt: " .. tostring(_G.TerminalFrame.h) .. " (header " .. hh .. ")")
 	check(UI:Suggestion() == nil, "(no completion)")
 	UI:SetQuery("sword")
 	check(not UI.bare and UI.status:IsShown(), "typed: the rows and the footer come")
@@ -243,9 +247,11 @@ Run("stamina food: consumables in your bags", function()
 		[201] = { "Spiced Wolf Ribs", "|Hitem:201|h", 1, 15, 10, "Consumable", "Food & Drink" },
 		[202] = { "Tough Jerky", "|Hitem:202|h", 1, 5, 1, "Consumable", "Food & Drink" },
 		[203] = { "Elixir of Fortitude", "|Hitem:203|h", 1, 25, 15, "Consumable", "Elixir" },
+		[204] = { "Grilled Squid", "|Hitem:204|h", 1, 45, 35, "Consumable", "Food & Drink" },
 	}
 	local DESC = { [6201] = "Restores 552 health over 21 sec. If you spend at least 10 seconds eating you will become well fed and gain 6 Stamina and Spirit for 15 min.",
-		[6202] = "Restores 61 health over 18 sec.", [6203] = "Increases the player's maximum health by 120 and Stamina by 10 for 1 hour." }
+		[6202] = "Restores 61 health over 18 sec.", [6203] = "Increases the player's maximum health by 120 and Stamina by 10 for 1 hour.",
+		[6204] = "Restores 874 health over 27 sec. If you spend at least 10 seconds eating you will become well fed and gain 40 Attack Power for 10 min." }
 	C_Item.GetItemInfo = function(id) local t = ITEMS[tonumber(id) or 0] if t then return unpack(t) end end
 	C_Item.GetItemInfoInstant = function(id) return id, "Consumable", "Food & Drink", "", 1, 0, 0 end
 	C_Item.GetItemSpell = function(id) return "spell", 6000 + id end
@@ -253,11 +259,19 @@ Run("stamina food: consumables in your bags", function()
 	C_Item.GetItemStats = function() return {} end
 	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({
 		{ name = "Spiced Wolf Ribs", itemID = 201 }, { name = "Tough Jerky", itemID = 202 }, { name = "Elixir of Fortitude", itemID = 203 },
-	}) } } })
+		{ name = "Grilled Squid", itemID = 204 },
+	}) } }, { "loot", { label = "Loot", aliases = { "loot" }, collect = Rows({ { name = "Gauntlets of Power", itemID = 99, _ltext = "attack power" } }) } } })
 	local res = In("bags", "stamina food")
 	check(#res == 1 and res[1].name == "Spiced Wolf Ribs", "stamina food: the food that gives stamina: " .. Show(res))
+	-- two words that are one stat: the food that gives attack power, in your bags (not loot with "power" in it)
+	UI:Hide(); FlushAll()
+	UI:Open("attack power food")
+	local ap = UI.Results()
+	check(ap[1] and ap[1].name == "Grilled Squid" and not ap[2], "attack power food: Grilled Squid from your bags: " .. Show(ap) .. " cat=" .. tostring(UI.category))
+	UI:Hide(); FlushAll()
+	In("bags", "stamina food")
 	UI:SetQuery("food")
-	check(#UI.Results() == 2, "food: both foods: " .. Show(UI.Results()))
+	check(#UI.Results() == 3, "food: every food: " .. Show(UI.Results()))
 	UI:SetQuery("food that gives stamina")
 	check(#UI.Results() == 1 and UI.Results()[1].name == "Spiced Wolf Ribs", "food that gives stamina: " .. Show(UI.Results()))
 	UI:SetQuery("stamina elixir")
@@ -634,4 +648,36 @@ Run("reopening: no flash of the last results; Down brings them back", function()
 	check(UI.edit:GetText() == "", "no lines run: Up does nothing")
 	ns.db.history = saveH
 	ns.db.recent = {}
+end)
+
+Run("release review fixes", function()
+	E.Set(true)
+	ActionLists()
+	-- everyday words match a name's word start, not inside a word: "ah" isn't Sarah, "inn" isn't Finn
+	local function NameRow(n) return { name = n, _lname = n:lower(), kind = "x" } end
+	check(not E.Word("ah")(NameRow("Sarah Shahram")) and not E.Word("inn")(NameRow("Finn")), "ah / inn don't match inside names")
+	check(not E.Word("ring")(NameRow("Red Herring")) and E.Word("ring")(NameRow("Ring of Valor")), "ring: a word start (not Herring)")
+	check(E.Word("sword")(NameRow("Swordsmith Ivan")), "sword still finds Swordsmith (a word start)")
+	-- an action word with nothing to do it to says so (it collapsed to the bare prompt)
+	UI:Open("use xyzzyq")
+	local r = UI.Results()
+	check(r[1] and r[1].noActivate and not UI.bare, "use xyzzy: a line says nothing has that: " .. Show(r))
+	UI:Hide(); FlushAll()
+	-- an action view never falls back to the row's own Enter (no secondary function: false, not nil)
+	local view = E.ActionView({ kind = "items", name = "X", activate = function() return "primary" end, secondarySecure = { macro = "/use x" } },
+		{ map = { items = "s" }, label = "use" })
+	check(view.activate == false, "action view: activate false when the row has only a secure secondary")
+	-- the right-click menu goes when combat starts (its secure lines can't be hidden once it's on)
+	UI:Open("hearthstone")
+	UI:ShowRowMenu(1)
+	local m = _G.TerminalRowMenu
+	check(m:IsShown(), "(menu shown)")
+	m.scripts.OnEvent(m, "PLAYER_REGEN_DISABLED")
+	check(not m:IsShown(), "combat starts: the menu goes")
+	UI:Hide(); FlushAll()
+	-- the sort:nearest note doesn't outlive its search
+	UI.noPosition = true
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Search("hearthstone")
+	check(not UI.noPosition, "the no-position note is reset by the next search")
 end)

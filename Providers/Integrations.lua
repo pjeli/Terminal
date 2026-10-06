@@ -365,10 +365,26 @@ local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Qu
 local function QDB() return QD.DB() end
 
 --- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
+-- the small fields filters ask of every NPC row on every keystroke ("vendor", "nearest repair"): read once per NPC
+local SMALL = { npcFlags = true, friendlyToFaction = true, minLevel = true, maxLevel = true, zoneID = true, subName = true }
+local fieldCache, NONE, fieldFrom = {}, {}, nil
 function I.NpcField(id, field)
 	local DB = QDB()
-	return DB and Safe(DB.QueryNPCSingle, id, field) or nil
+	if not DB then return nil end
+	if not SMALL[field] then return Safe(DB.QueryNPCSingle, id, field) or nil end
+	if fieldFrom ~= DB then fieldCache, fieldFrom = {}, DB end -- (another database: QuestieDB reloaded, tests)
+	local byId = fieldCache[field]
+	if not byId then byId = {}; fieldCache[field] = byId end
+	local v = byId[id]
+	if v == nil then
+		v = Safe(DB.QueryNPCSingle, id, field)
+		if v == nil then v = NONE end
+		byId[id] = v
+	end
+	if v == NONE then return nil end
+	return v
 end
+I.ClearNpcFields = function() fieldCache = {} end
 
 --- Questie's names for the NPC flag bits (they differ between game versions).
 function I.NpcFlagDefs()
@@ -569,54 +585,93 @@ function I.Here()
 	local x, y = world.x, world.y
 	if world.GetXY then x, y = world:GetXY() end
 	if type(x) ~= "number" or type(y) ~= "number" then return nil end
+	if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then return nil end -- (a secret position: unknown)
 	return { cont = cont, x = x, y = y }
 end
 
-local spotCache = {} -- uiMap..":"..x..":"..y -> { cont, x, y } or false (a spawn's world position, once)
+-- Map % -> world yards. A map's world position is a straight (affine) function of its map position, so each
+-- map is asked three times once (its corner and one step along each side) and every spot after that is arithmetic.
+local xforms = {} -- uiMap -> { cont, ox, oy, xx, xy, yx, yy } or false (the game had no answer)
+local function World(ui, x, y)
+	local vec = _G.CreateVector2D
+	local p = vec and vec(x, y) or { x = x, y = y }
+	local cont, world = Safe(C_Map.GetWorldPosFromMapPos, ui, p)
+	if not (cont and world) then return nil end
+	local wx, wy = world.x, world.y
+	if world.GetXY then wx, wy = world:GetXY() end
+	if type(wx) ~= "number" or type(wy) ~= "number" then return nil end
+	return cont, wx, wy
+end
+local function Xform(ui)
+	local t = xforms[ui]
+	if t ~= nil then return t or nil end
+	local c0, ox, oy = World(ui, 0, 0)
+	local c1, ax, ay = World(ui, 1, 0)
+	local c2, bx, by = World(ui, 0, 1)
+	t = (c0 and c1 and c2) and { c0, ox, oy, ax - ox, ay - oy, bx - ox, by - oy } or false
+	xforms[ui] = t
+	return t or nil
+end
 
--- a spawn's place in world yards (c = { x%, y% } on map ui), or nil
+-- a spawn's place in world yards (c = { x%, y% } on map ui): cont, x, y (nil: unknown)
+local function SpotXY(ui, c)
+	local t = Xform(ui)
+	if not t then return nil end
+	local u, v = c[1] / 100, c[2] / 100
+	return t[1], t[2] + u * t[4] + v * t[6], t[3] + u * t[5] + v * t[7]
+end
 local function Spot(ui, c)
-	local key = ui .. ":" .. c[1] .. ":" .. c[2]
-	local w = spotCache[key]
-	if w == nil then
-		w = false
-		local vec = _G.CreateVector2D
-		local p = vec and vec(c[1] / 100, c[2] / 100) or { x = c[1] / 100, y = c[2] / 100 }
-		local cont, world = Safe(C_Map.GetWorldPosFromMapPos, ui, p)
-		if cont and world then
-			local x, y = world.x, world.y
-			if world.GetXY then x, y = world:GetXY() end
-			if type(x) == "number" then w = { cont = cont, x = x, y = y } end
+	local cont, x, y = SpotXY(ui, c)
+	return cont and { cont = cont, x = x, y = y } or nil
+end
+
+-- each NPC's spawns in world yards, worked out once: id -> flat { cont, x, y, cont, x, y... } (false: none)
+local npcSpots, npcSpotCount = {}, 0
+local NPC_SPOTS_MAX = 6000 -- (forgotten all at once past this: a session of "nearest" asks a few thousand)
+local function NpcSpots(id)
+	local t = npcSpots[id]
+	if t ~= nil then return t or nil end
+	t = false
+	local DB = QDB()
+	local spawns = DB and Safe(DB.QueryNPCSingle, id, "spawns")
+	if type(spawns) == "table" then
+		for area, list in pairs(spawns) do
+			local ui = QD.UiMapOfArea(area)
+			if ui and type(list) == "table" then
+				for _, c in ipairs(list) do
+					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
+						local cont, x, y = SpotXY(ui, c)
+						if cont then
+							t = t or {}
+							t[#t + 1], t[#t + 2], t[#t + 3] = cont, x, y
+						end
+					end
+				end
+			end
 		end
-		spotCache[key] = w
 	end
-	return w or nil
+	if npcSpotCount >= NPC_SPOTS_MAX then npcSpots, npcSpotCount = {}, 0 end
+	npcSpots[id], npcSpotCount = t, npcSpotCount + 1
+	return t or nil
 end
 
 --- How far an NPC is from `here` (yards, its nearest spawn on your continent), or nil: no known spawn there.
 --- Also gives that spawn's world position ({ cont, x, y }: x grows to the north, y to the west).
 function I.NpcDistance(id, here)
 	if not here then return nil end
-	local DB = QDB()
-	local spawns = DB and Safe(DB.QueryNPCSingle, id, "spawns")
-	if type(spawns) ~= "table" then return nil end
-	local best, spot
-	for area, list in pairs(spawns) do
-		local ui = QD.UiMapOfArea(area)
-		if ui and type(list) == "table" then
-			for _, c in ipairs(list) do
-				if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
-					local w = Spot(ui, c)
-					if w and w.cont == here.cont then
-						local dx, dy = w.x - here.x, w.y - here.y
-						local d = math.sqrt(dx * dx + dy * dy)
-						if not best or d < best then best, spot = d, w end
-					end
-				end
-			end
+	local t = NpcSpots(id)
+	if not t then return nil end
+	local best, bi
+	local hc, hx, hy = here.cont, here.x, here.y
+	for i = 1, #t, 3 do
+		if t[i] == hc then
+			local dx, dy = t[i + 1] - hx, t[i + 2] - hy
+			local d = dx * dx + dy * dy
+			if not best or d < best then best, bi = d, i end
 		end
 	end
-	return best, spot
+	if not best then return nil end
+	return math.sqrt(best), { cont = hc, x = t[bi + 1], y = t[bi + 2] }
 end
 
 --- Which way an NPC is from where you face: radians, counter-clockwise from straight ahead (0 = ahead,
@@ -797,6 +852,8 @@ local function TextTowns(sliced)
 	local idx, DB = PlaceIndex(), QDB()
 	if not (idx and DB and DB.QueryQuestSingle and DB.QueryNPCSingle) then return nil end
 	if sliced and townsBuilding then return nil end
+	-- (asked before Questie's quests are indexed: reading every quest's text now would stall the game; later)
+	if not sliced and not qdb.list then return nil end
 	local t0 = debugprofilestop and debugprofilestop()
 	local hits = TownHits(idx, DB)
 	local areas = {}
@@ -824,6 +881,8 @@ local function TextTowns(sliced)
 	return textTowns
 end
 I.BuildTowns = function() return TextTowns(true) end
+--- Towns can't be placed from the quests yet (Questie's quests aren't indexed).
+function I.TownsPending() return not textTowns and not qdb.list end
 
 -- a town's middle: its flight point (on its zone's map, else a map above it), else where its quests send you,
 -- in world yards (false: none)
@@ -862,6 +921,7 @@ local function TownCentre(place)
 			from = c and ("where its quests send you, " .. t.n .. " spots") or nil
 		end
 	end
+	if not c and I.TownsPending() then return nil end -- (not known yet: asked again once the quests are in)
 	ns:Trace(("places: %s %s (flight points read on maps %s: %d)"):format(place.name,
 		c and ("centre from " .. from .. " " .. math.floor(c.x) .. "," .. math.floor(c.y)) or "has no centre found",
 		table.concat(tried, "/"), seen))
@@ -936,7 +996,10 @@ function I.PlaceFilter(place)
 		local id = e.kind == "npc" and (rawget(e, "key") or e.npcID)
 		if id then
 			local v = cache[id]
-			if v == nil then v = I.NpcInPlace(id, place); cache[id] = v end
+			if v == nil then
+				v = I.NpcInPlace(id, place)
+				if not I.TownsPending() then cache[id] = v end -- (kept once the towns can be known)
+			end
 			return v
 		end
 		local t = rawget(e, "_ltext")
@@ -945,7 +1008,11 @@ function I.PlaceFilter(place)
 	end
 end
 
-I.ResetPlacesForTests = function() placeIndex, centres, spotCache, textTowns, townsBuilding = nil, {}, {}, nil, nil end
+I.ResetPlacesForTests = function()
+	placeIndex, centres, textTowns, townsBuilding = nil, {}, nil, nil
+	xforms, npcSpots, npcSpotCount = {}, {}, 0
+	fieldCache = {}
+end
 
 local function ShowNpc(e)
 	local M = ns.Maps

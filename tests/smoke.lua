@@ -4863,6 +4863,21 @@ do -- filters across kinds: items, loot and stored (stats, quality, item level, 
 	local baseClass = _G.UnitClass
 	_G.UnitClass = function() return "Warrior", "WARRIOR" end
 	check(P("trainer:mine")(warr) and not P("trainer:mine")(mage) and not P("trainer:mine")(smith), "trainer:mine: your own class's trainers")
+	check(P("trainer:class")(warr) and not P("trainer:class")(mage), "trainer:class: your own class (the one you can learn from)")
+	check(P("trainer:classes")(warr) and P("trainer:classes")(mage) and not P("trainer:classes")(smith), "trainer:classes: every class trainer")
+	-- titles without "trainer" (Questie's trainer flag says so): Miner, Herbalist, Fisherman, Physician; Master Mage
+	NPC[16] = { subName = "Miner", npcFlags = 16 }
+	NPC[17] = { subName = "Superior Herbalist", npcFlags = 16 }
+	NPC[18] = { subName = "Fisherman", npcFlags = 16 }
+	NPC[19] = { subName = "Physician", npcFlags = 16 }
+	NPC[20] = { subName = "Master Mage", npcFlags = 16 }
+	NPC[21] = { subName = "Image Collector", npcFlags = 16 } -- ("mage" inside a word isn't the class)
+	local miner, herbalist, fisher, doc, mmage, image = { kind = "npc", key = 16 }, { kind = "npc", key = 17 }, { kind = "npc", key = 18 },
+		{ kind = "npc", key = 19 }, { kind = "npc", key = 20 }, { kind = "npc", key = 21 }
+	check(P("trainer:mining")(miner) and P("trainer:herbalism")(herbalist) and P("trainer:fishing")(fisher) and P("trainer:firstaid")(doc),
+		"trainer:<profession> finds Miner, Herbalist, Fisherman, Physician")
+	check(P("trainer:mage")(mmage) and not P("trainer:mage")(image) and P("is:classtrainer")(mmage), "Master Mage is a mage trainer; Image Collector isn't")
+	check(P("is:proftrainer")(miner) and not P("is:proftrainer")(mmage), "is:proftrainer: the Miner, not the Master Mage")
 	_G.UnitClass = baseClass
 	check(not P("trainer:warrior")(shaw) and not P("trainer:mage")({ name = "not an NPC" }), "not trainers: left out")
 	-- recipes: every reagent in your bags or bank

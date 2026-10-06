@@ -227,6 +227,33 @@ do
 	_G.C_TaxiMap = taxi
 	_G.C_MapExplorationInfo = nil
 	I.ResetPlacesForTests()
+	-- the small fields filters read per row are asked of QuestieDB once per NPC
+	do
+		local Npc = _G.LibQuestieDB.Npc
+		local real, calls = Npc.Get, 0
+		Npc.Get = function(id, f) if f == "npcFlags" then calls = calls + 1 end return real(id, f) end
+		QD.ResetForTests(); I.ClearNpcFields()
+		I.NpcField(3498, "npcFlags"); I.NpcField(3498, "npcFlags"); I.NpcField(3498, "npcFlags")
+		check(calls == 1, "npcFlags read once per NPC: " .. calls)
+		Npc.Get = real
+		QD.ResetForTests()
+	end
+	-- before Questie's quests are indexed, a town isn't placed from them (that would read every quest's text
+	-- at once): not known yet, and not remembered as unknown
+	do
+		local list = I.qdb.list
+		I.qdb.list = nil
+		_G.C_TaxiMap = { GetTaxiNodesForMap = function() return {} end }
+		_G.C_MapExplorationInfo = nil
+		I.ResetPlacesForTests()
+		check(I.TownsPending(), "(towns pending while the quests aren't indexed)")
+		local gold2 = I.FindPlace({ "goldshire" })
+		I.NpcInPlace(1650, gold2)
+		I.qdb.list = list
+		check(I.NpcInPlace(295, gold2) and not I.NpcInPlace(1650, gold2), "once the quests are in, Goldshire is placed (the miss wasn't kept)")
+		_G.C_TaxiMap = taxi
+		I.ResetPlacesForTests()
+	end
 	-- Simple mode: "vendor ratchet" lists the vendors there
 	ns.db.easyMode = true
 	-- "mining trainer in org": the shorthand names the city, the NPCs' titles say what they are

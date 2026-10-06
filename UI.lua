@@ -553,7 +553,22 @@ function UI:SearchText(text)
 		return out
 	end
 	local sortNear -- Advanced "sort:nearest": NPCs closest first, the rest after
-	for w in text:gmatch("%S+") do
+	self.noPosition = nil
+	local words = {}
+	for w in text:gmatch("%S+") do words[#words + 1] = w end
+	-- Simple mode: two everyday words that mean one thing ("attack power food", "spell power")
+	if simple then
+		local i = 1
+		while i < #words do
+			local pair = ns.Lower(words[i] .. " " .. words[i + 1])
+			if ns.Easy.WORDS[pair] then
+				words[i] = pair
+				table.remove(words, i + 1)
+			end
+			i = i + 1
+		end
+	end
+	for _, w in ipairs(words) do
 		if simple and ns.Easy.IsAdvancedWord(w) then
 			blocked = true
 		elseif ns.Filters and ns.Filters.SortOf and ns.Filters.SortOf(w) then
@@ -622,6 +637,18 @@ function UI:SearchText(text)
 	-- easy mode (no @kind typed): nothing typed lists nothing (a line says what to do, and the category picked
 	-- is let go); typed: the categories that have it, to pick from (EasyOverview); a category picked stands for
 	-- its @kinds, and its own test (Emotes: the slash rows that are emotes)
+	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
+	-- the Simple overview, which scores with them too)
+	local SH = ns.Shorthand
+	if SH then
+		for i = 1, #tokens do
+			local xs = SH[tokens[i]]
+			if xs then
+				tokens.short = tokens.short or {}
+				tokens.short[i] = xs
+			end
+		end
+	end
 	local easyCat, here
 	if simple and not kinds then
 		self.lastScan = nil
@@ -680,17 +707,6 @@ function UI:SearchText(text)
 			hard = hard or {}
 			hard[#hard + 1] = easyCat.keep
 			fsig[#fsig + 1] = "#" .. easyCat.id
-		end
-	end
-	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search
-	local SH = ns.Shorthand
-	if SH then
-		for i = 1, #tokens do
-			local xs = SH[tokens[i]]
-			if xs then
-				tokens.short = tokens.short or {}
-				tokens.short[i] = xs
-			end
 		end
 	end
 	self.posTokens = tokens
@@ -789,7 +805,6 @@ function UI:SearchText(text)
 		return Finish(self:EasyOverview(tokens, Without(filters), Without(hard), softs, softWords))
 	end
 	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
-	self.noPosition = nil
 	if sortNear and not here then
 		here = ns.Integrations and ns.Integrations.Here and ns.Integrations.Here()
 		if not here then self.noPosition = true end
@@ -814,6 +829,7 @@ function UI:SearchText(text)
 	end
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	local res = SortAndTrim(out)
+	if act and act.map and #res == 0 then return Finish(PseudoEntries({ EASY_NONE })) end -- ("use xyzzy": say so)
 	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
 	if act and act.map then
 		for i = 1, #res do res[i] = ns.Easy.ActionView(res[i], act) end
@@ -836,7 +852,8 @@ local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row pass
 function UI:EasyOverview(tokens, filters, hard, softs, softWords)
 	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
 	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
-	local function tick() if overBudget() then coroutine.yield({}) end end
+	-- (pausing shows what's already on screen: an empty list collapsed the frame to the bare prompt for a frame)
+	local function tick() if overBudget() then coroutine.yield(results) end end
 	local Pass = ns.Filters and ns.Filters.Pass
 	local empty = #tokens == 0
 	-- Questie's lists are looked up by name only: the typed words, and the everyday words as name words
@@ -1456,9 +1473,16 @@ local function NavTick()
 		nav.here = I.Here()
 		nav.d, nav.spot = I.NpcDistance(nav.id, nav.here)
 	end
-	local face = nav.spot and I.Facing()
+	if not nav.spot then
+		-- nowhere to point (not on your continent, an instance): rest until the selection changes
+		navArrow:Hide()
+		navTicker:Hide()
+		return
+	end
+	local face = I.Facing()
 	if not face then navArrow:Hide() return end
-	navArrow:SetRotation(I.Bearing(nav.here, nav.spot, face))
+	local ang = I.Bearing(nav.here, nav.spot, face)
+	if not nav.ang or math.abs(ang - nav.ang) > 0.01 then nav.ang = ang; navArrow:SetRotation(ang) end
 	-- "nearest": the distance shown keeps up as you walk
 	local e = nav.e
 	if rawget(e, "_dist") and nav.d then
@@ -1470,9 +1494,13 @@ local function NavTick()
 		end
 	end
 	local w = r.detail:GetStringWidth()
-	navArrow:ClearAllPoints()
-	navArrow:SetPoint("RIGHT", r.detail, "RIGHT", -((type(w) == "number" and w or 0) + 4), 0)
-	navArrow:Show()
+	w = type(w) == "number" and w or 0
+	if w ~= nav.w or nav.placedRow ~= r then
+		nav.w, nav.placedRow = w, r
+		navArrow:ClearAllPoints()
+		navArrow:SetPoint("RIGHT", r.detail, "RIGHT", -(w + 4), 0)
+	end
+	if not navArrow:IsShown() then navArrow:Show() end
 end
 
 --- The arrow follows the selection: shown on an NPC row with a known place on your continent.
@@ -1497,10 +1525,10 @@ function UI:UpdateNav()
 	end
 	navArrow:SetVertexColor(1, 1, 1) -- (the texture's own gold, as the minimap's player arrow)
 	if nav.id ~= id or nav.row ~= i or nav.e ~= e then
-		nav.id, nav.row, nav.e, nav.at, nav.shownD = id, i, e, nil, nil
+		nav.id, nav.row, nav.e, nav.at, nav.shownD, nav.ang, nav.w = id, i, e, nil, nil, nil, nil
 	end
 	NavTick()
-	navTicker:Show()
+	if nav.spot then navTicker:Show() end
 end
 
 function UI:Render()
@@ -2411,7 +2439,7 @@ EditKey = function(key, ctrl, shift)
 		UI:Down()
 	elseif key == "TAB" then
 		if EasyOn() and UI.mode == "search" then
-			-- easy mode: the next (Shift: previous) category, unless there's typed syntax to complete (@np -> @npc)
+			-- easy mode: back to the categories (or pick one), unless there is typed syntax to complete
 			if not UI:AcceptCompletion() then UI:EasyTab() end
 		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
 		elseif shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
@@ -2653,10 +2681,15 @@ function UI:ShowRowMenu(idx)
 		menu.lines = {}
 		-- a click anywhere else closes it
 		pcall(menu.RegisterEvent, menu, "GLOBAL_MOUSE_DOWN")
-		menu:SetScript("OnEvent", function()
-			if menu:IsShown() and not (menu.IsMouseOver and menu:IsMouseOver()) then UI:HideRowMenu() end
+		-- combat: its lines are secure buttons, so it can't be hidden once the lockdown is on: it goes as combat
+		-- starts (the event comes just before), and once it's over should that ever have been too late
+		pcall(menu.RegisterEvent, menu, "PLAYER_REGEN_DISABLED")
+		pcall(menu.RegisterEvent, menu, "PLAYER_REGEN_ENABLED")
+		menu:SetScript("OnEvent", function(_, event)
+			if not menu:IsShown() then return end
+			if event == "PLAYER_REGEN_DISABLED" then menu:Hide() return end
+			if event == "PLAYER_REGEN_ENABLED" or not (menu.IsMouseOver and menu:IsMouseOver()) then UI:HideRowMenu() end
 		end)
-		UI.rowMenu = menu
 	end
 	local t = Theme.Get()
 	local items = {}
@@ -2932,7 +2965,9 @@ function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open
 		self:FitHints()
 	end
 	local h
-	if bare then h = HeaderH() - 4
+	-- (the prompt's own background stops PromptH - 4 down, inset by the border: the bare frame ends below it,
+	-- or the background covered the bottom border)
+	if bare then h = HeaderH() - 4 + (Theme.Get().frame == "classic" and 4 or 1)
 	elseif noFoot then h = HeaderH() + n * ROW_H + 2
 	else h = HeaderH() + n * ROW_H + (self.footerH or FOOTER_H) end
 	self.heightTo = h
@@ -3197,8 +3232,6 @@ local function ComputeCompletion(self, text)
 		if not new then return nil end
 		return text:sub(1, #text - #fval) .. new .. (final and " " or "")
 	end
-	-- easy mode: nothing more is suggested (Tab picks a category there)
-	if EasyOn() then return nil end
 	-- the "Search <list> for this" row: Tab adds its @kind
 	local e = results[sel]
 	if e and e.completion then return e.completion end

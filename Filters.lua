@@ -818,59 +818,92 @@ KEYS.who = KEYS.on
 -- titles, as Questie's database has them.
 local CLASSES = { "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid",
 	"death knight", "monk", "demon hunter", "evoker" }
-local PROFS = { blacksmithing = "blacksmith", leatherworking = "leatherwork", tailoring = "tailor",
-	alchemy = "alchemist", engineering = "engineer", enchanting = "enchant", jewelcrafting = "jewelcraft",
-	inscription = "scribe", herbalism = "herbalism", mining = "mining", skinning = "skinning",
-	cooking = "cook", fishing = "fishing", firstaid = "first aid", cartography = "cartograph" }
+-- each profession: the words its trainers' titles use (Journeyman Blacksmith, Herbalist, Miner, Fisherman, Physician...)
+local PROFS = {
+	blacksmithing = { "blacksmith", "armor crafter", "weapon crafter" }, leatherworking = { "leatherwork", "leathercraft" },
+	tailoring = { "tailor" }, alchemy = { "alchemist", "alchemy" }, engineering = { "engineer" }, enchanting = { "enchant" },
+	jewelcrafting = { "jewelcraft" }, inscription = { "scribe", "inscription" }, herbalism = { "herbalis" },
+	mining = { "mining", "miner" }, skinning = { "skinning", "skinner" }, cooking = { "cook", "butcher" },
+	fishing = { "fishing", "fisherman" }, firstaid = { "first aid", "physician", "trauma surgeon" },
+	cartography = { "cartograph" },
+}
+PROFS["first aid"] = PROFS.firstaid
 
+-- a trainer's title, lowercase ("warrior trainer", "journeyman blacksmith", "fisherman"), or nil for any other row:
+-- the title says trainer, or Questie's flags do (Herbalist, Miner, Physician have no "trainer" in theirs)
 local function TrainerTitle(e)
 	if not NpcID(e) then return nil end
-	local sub = NpcField(e, "subName")
+	local sub = rawget(e, "sub") or NpcField(e, "subName")
 	if type(sub) ~= "string" or sub == "" then return nil end
 	sub = Lower(sub)
-	if sub:find("trainer", 1, true) or NpcRole(e, "TRAINER") then return sub end
+	if sub:find("trainer", 1, true) or sub:find("instructor", 1, true) or NpcRole(e, "TRAINER") then return sub end
 end
 
 local function ClassOf(sub)
 	for _, c in ipairs(CLASSES) do
-		if sub:find(c .. " trainer", 1, true) then return c end
+		-- "Warrior Trainer", "Undead Mage Trainer", "Master Mage", "Grand Master Rogue", "High Priest" (whole words)
+		if sub:find("%f[%a]" .. c .. "%f[%A]") then return c end
 	end
 end
 
 local function ProfOf(sub)
-	for _, stem in pairs(PROFS) do
-		if sub:find(stem, 1, true) then return stem end
+	for name, words in pairs(PROFS) do
+		for _, w in ipairs(words) do
+			if sub:find(w, 1, true) then return name end
+		end
 	end
 end
 
---- The word a trainer: filter looks for in the title (a profession name gives its shared part).
-local function TrainerWord(v)
-	if PROFS[v] then return PROFS[v] end
-	for name, stem in pairs(PROFS) do
-		if #v >= 4 and name:sub(1, #v) == v then return stem end -- (blacksm -> blacksmith)
-	end
-	return v
+--- Your class as the trainers' titles write it ("warrior", "death knight"), from the game's class token.
+local function MyClass()
+	local token = UnitClass and select(2, UnitClass("player")) -- (WARRIOR: the same in every language)
+	if type(token) ~= "string" then return nil end
+	return (token:lower():gsub("deathknight", "death knight"):gsub("demonhunter", "demon hunter"))
 end
+
+--- A profession by its name or the start of it (blacksm -> blacksmithing), or nil.
+local function ProfNamed(v)
+	if PROFS[v] then return v end
+	if #v < 4 then return nil end
+	for name in pairs(PROFS) do
+		if name:sub(1, #v) == v then return name end
+	end
+end
+
+local CLASS_SET = {}
+for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
 
 KEYS.trainer = function(v)
 	if v == "" then return nil end
-	if v == "mine" or v == "me" or v == "my" then
+	-- your class's trainers: trainer:mine, and trainer:class (you mean the one you can learn from)
+	if v == "mine" or v == "me" or v == "my" or v == "class" then
 		return function(e)
 			local sub = TrainerTitle(e)
-			local token
-			if UnitClass then token = select(2, UnitClass("player")) end -- (WARRIOR: the same in every language)
-			local mine = type(token) == "string" and (token:lower():gsub("deathknight", "death knight"):gsub("demonhunter", "demon hunter"))
-			return sub and mine and ClassOf(sub) == mine or false
+			local mine = sub and MyClass()
+			return mine and ClassOf(sub) == mine or false
 		end
-	elseif v == "class" then
+	elseif v == "classes" or v == "anyclass" then
 		return function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
-	elseif v == "profession" or v == "prof" then
+	elseif v == "profession" or v == "professions" or v == "prof" then
 		return function(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
 	end
-	local word = TrainerWord(v)
+	if CLASS_SET[v] then
+		return function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) == v or false end
+	end
+	local prof = ProfNamed(v)
+	if prof then
+		local words = PROFS[prof]
+		return function(e)
+			local sub = TrainerTitle(e)
+			if not sub then return false end
+			for _, w in ipairs(words) do if sub:find(w, 1, true) then return true end end
+			return false
+		end
+	end
+	-- anything else: a word of the title (pet, riding, weapon, portal, demon...)
 	return function(e)
 		local sub = TrainerTitle(e)
-		return sub and sub:find(word, 1, true) and true or false
+		return sub and sub:find(v, 1, true) and true or false
 	end
 end
 
@@ -986,7 +1019,7 @@ F.VALUES = {
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	sort = { "nearest" },
 	near = { "100", "300", "500", "1000" },
-	trainer = { "mine", "class", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
+	trainer = { "class", "mine", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
 		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "riding" },
 }
@@ -1002,7 +1035,7 @@ F.HELP = {
 	{ "in:bank", "where: bags/bank/mail/guild, a quest's or NPC's zone, a loot item's dungeon or boss" },
 	{ "on:name", "@stored: on that character (or guild, warband)" },
 	{ "count:20+", "how many you have" },
-	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:blacksmithing), mine (your class), class, profession, pet, riding" },
+	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), class (your class), classes (any), profession, pet, riding, weapon" },
 	{ "faction:horde", "@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)" },
 	{ "standing:honored+", "reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)" },
 	{ "near:500", "@npc: within that many yards of you (near:<300, near:200-800)" },
