@@ -5102,7 +5102,9 @@ do -- .atop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` c
 	check(math.abs(newest.shown - newest.target) < 0.01 and newest.target > 0, "the newest bar has risen to its value")
 	local asks = memAsks
 	B.Tick(3.1)
-	check(memAsks == asks + 1, "memory asked for every few seconds (it's costly)")
+	check(memAsks == asks, "memory isn't asked for every 3 s any more (its cost was the spike in Terminal's graph)")
+	B.Tick(7)
+	check(memAsks == asks + 1, "memory asked for every 10 s (it's costly)")
 	B.Char("`")
 	check(B.state.filter == "", "` isn't typed into the filter")
 	B.Key("ESCAPE")

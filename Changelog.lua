@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.41.10", when = "in testing",
+		v = "0.41.13", when = "in testing",
 		items = {
 			"Simple mode (the default): type in plain words and pick where it was found (Bags, Quests, NPCs, Emotes...). Everything is searched, no @ needed. .advanced switches to the full command line, .simple comes back.",
 			"Alt+` in Simple mode turns what you typed into Advanced mode's command line (\"nearest innkeeper\" becomes @npc is:innkeeper sort:nearest) for that one time; Simple again once it closes. Pressed with Terminal closed, it opens in Advanced.",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"Advanced: typing @ lists every kind, and a filter like stat: or q: its values, to pick from: Tab and Shift+Tab go down and up, Enter writes it. Anything picked into the prompt leaves a space for the next word.",
 			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, Fisherman, riding instructors); trainer:class means your own class, trainer:mine the mining trainers.",
 			"@panel Legacy opens WoW Forever's Legacy window (also found as \"challenges\"), even with its button moved off the bar.",
+			".atop: Enter (or a click) on an addon profiles it: its own CPU and memory graphs, how fast its memory grows, and the game's profiler numbers (average, peak, slow frames) beside all addons'.",
 			"Right-click any row for everything it can do.",
 			"Search: initials (scb, zg), shorthand (brd, sw, org), close spellings (hearhtstone), and emotes as slash commands (/dance).",
 			"AtlasLoot Forever: WoW Forever's own items (Snake Eye Kaleidoscope...) show up under Loot: their names come from the server, and Terminal keeps asking until they do.",

@@ -169,6 +169,87 @@ do -- atop: a settled display redraws nothing; colours are triples, not hex pars
 	check(F.KEYS == nil, "the unused Filters.KEYS export is gone")
 end
 
+do -- atop: profiling one addon (Enter or a click): its own graphs and the profiler's numbers beside all addons'
+	local B = ns.Atop
+	local base = { addons = _G.C_AddOns, prof = _G.C_AddOnProfiler, enum = Enum.AddOnProfilerMetric,
+		upd = _G.UpdateAddOnMemoryUsage, mem = _G.GetAddOnMemoryUsage, fps = _G.GetFramerate }
+	local LIST = { { "Terminal", "Terminal", 0.20, 3000 }, { "Questie", "Questie", 1.10, 90000 }, { "Bagnon", "Bagnon", 0.05, 4000 } }
+	_G.C_AddOns = setmetatable({ GetNumAddOns = function() return #LIST end,
+		GetAddOnInfo = function(i) return LIST[i][1], LIST[i][2] end,
+		IsAddOnLoaded = function() return true end }, { __index = base.addons })
+	-- (no EncounterAverageTime on this mock client: its line is left out)
+	Enum.AddOnProfilerMetric = { SessionAverageTime = 0, RecentAverageTime = 1, LastTime = 3, PeakTime = 4,
+		CountTimeOver1Ms = 5, CountTimeOver5Ms = 6, CountTimeOver10Ms = 7, CountTimeOver50Ms = 8, CountTimeOver100Ms = 9,
+		CountTimeOver500Ms = 10, CountTimeOver1000Ms = 11 }
+	local asked = {}
+	_G.C_AddOnProfiler = {
+		GetAddOnMetric = function(name, m)
+			asked[name] = (asked[name] or 0) + 1
+			for _, a in ipairs(LIST) do if a[1] == name then return m == 4 and a[3] * 10 or m >= 5 and 12 or a[3] end end
+		end,
+		GetOverallMetric = function(m) return m == 4 and 40 or m >= 5 and 300 or 1.35 end }
+	_G.UpdateAddOnMemoryUsage = function() end
+	_G.GetAddOnMemoryUsage = function(name) for _, a in ipairs(LIST) do if a[1] == name then return a[4] end end end
+	_G.GetFramerate = function() return 60 end
+	B.Open()
+	check(B.Shown()[1].name == "Questie", "(sorted by CPU: Questie first)")
+	B.Key("ENTER")
+	check(B.state.focus == "Questie" and B.Focused().name == "Questie", "Enter profiles the selected addon")
+	check(not B.rows[1]:IsShown(), "the list gives way to the profile")
+	local function line(label)
+		for _, l in ipairs(B.profLines) do if l.label.text == label and l.label:IsShown() then return l end end
+	end
+	local peak = line("peak")
+	check(peak and peak.mine.text == "11.0 ms" and peak.all.text == "40.0 ms", "peak: this addon beside all addons: " .. tostring(peak and peak.mine.text))
+	check(B.Ms(167.532) == "168 ms" and B.Ms(12.44) == "12.4 ms" and B.Ms(0.3171) == "0.317 ms", "times keep to their column (168 ms ran into the next)")
+	local slow = line("frames over 1 ms")
+	check(slow and slow.mine.text == "12" and slow.all.text == "300", "slow frames: counted for it and for all")
+	check(not line("in boss fights"), "a metric this client lacks isn't shown")
+	check(B.cpuText.text:find("1.100 ms/frame", 1, true) and B.cpuText.text:find("81.5%", 1, true), "its CPU and share of all addons: " .. tostring(B.cpuText.text))
+	-- nothing runs over its box or into the next column (the profile's text bled over in the game)
+	local fr = B.frame
+	check(B.cpuText.w and B.cpuText.w <= fr.cpuBox:GetWidth() - 16, "the CPU caption is kept inside its box")
+	check(fr.memBox.title.w and fr.memBox.title.w <= fr.memBox:GetWidth() - 16 and fr.cpuBox.title.w <= fr.cpuBox:GetWidth() - 16,
+		"box titles (with the addon's name) are kept inside their boxes")
+	local l = B.profLines[3]
+	check(l.label.w and l.mine.w and l.label.w + 10 + 4 <= (fr.procBox:GetWidth() / 2) * 0.68 - l.mine.w,
+		"a metric's label stops before its number")
+	check(B.frame.cpuBox.title.text:find("Questie", 1, true), "the graphs say whose they are")
+	-- memory: how fast it grows, from its own history
+	LIST[2][4] = 90000 + 10 * 300 -- 300 KB/s for 10 s
+	B.Tick(10.0)
+	local _, m2 = B.MemTexts()
+	check(m2.text:find("growing 300.0 KB/s", 1, true), "its memory growth: " .. tostring(m2.text))
+	-- its CPU graph follows it alone, scaled to its own peak (an addon's tiny share of a frame still fills it)
+	B.DrawBars(1)
+	check(math.abs(B.graph[#B.graph].target - 1) < 0.001, "its graph is scaled to its own peak")
+	-- the profiler is asked about the profiled addon only (besides the list's one number each)
+	asked = {}
+	B.Tick(0.6)
+	check((asked.Questie or 0) > 3 and (asked.Bagnon or 0) == 1, "the profile's numbers are asked for it only: " .. tostring(asked.Questie) .. "/" .. tostring(asked.Bagnon))
+	-- Up/Down: the next addon; Esc: back to the list (not closed)
+	B.Key("DOWN")
+	check(B.state.focus == "Terminal", "Down: the next addon in the list: " .. tostring(B.state.focus))
+	B.Char("x")
+	check(B.state.filter == "", "typing doesn't filter while profiling")
+	B.Key("ESCAPE")
+	check(B.IsShown() and B.state.focus == nil and B.rows[1]:IsShown(), "Esc: back to the list, still open")
+	check(B.frame.cpuBox.title.text == "cpu", "the graphs are all addons' again")
+	-- a click on a row profiles it
+	B.rows[3].scripts.OnMouseUp(B.rows[3])
+	check(B.state.focus == B.Shown()[3].name, "a click on a row profiles it")
+	check(fr.cpuBox.patch and fr.cpuBox.title.w and fr.cpuBox.title.w <= fr.cpuBox:GetWidth() - 16, "box titles cut the edge they sit on (a patch behind them)")
+	B.Profile(nil); for i, a in ipairs(B.Shown()) do if a.name == ns.name then B.Profile(i) end end
+	check(B.footer.text:find("includes atop itself", 1, true), "profiling Terminal: the footer says atop's own work is in it")
+	B.Key("`")
+	check(not B.IsShown(), "` closes from the profile too")
+	B.Open()
+	check(B.state.focus == nil, "opens on the list")
+	B.Close()
+	_G.C_AddOns, _G.C_AddOnProfiler, Enum.AddOnProfilerMetric = base.addons, base.prof, base.enum
+	_G.UpdateAddOnMemoryUsage, _G.GetAddOnMemoryUsage, _G.GetFramerate = base.upd, base.mem, base.fps
+end
+
 do -- .bind in combat says so and binds nothing; .forget clears the recent picks too
 	local realCombat, realSet = _G.InCombatLockdown, _G.SetBinding
 	local set = false
