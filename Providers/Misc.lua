@@ -116,6 +116,11 @@ local PANELS = {
 	{ "AddOn List", "addons manager", function() if AddonList then ShowUIPanel(AddonList) end end, nil, { macro = ADDONLIST_MACRO }, PanelOpen, "AddonList" },
 	{ "Macros", "macros", function() ns.LoadBlizz("Blizzard_MacroUI"); if MacroFrame then ShowUIPanel(MacroFrame) end end, nil, MACRO_WINDOW, MacroWindowOpen },
 	{ "Edit Mode", "edit mode layout hud", function() ns.RunSlash("/editmode") end, nil, { macro = EDITMODE_MACRO }, PanelOpen, "EditModeManagerFrame" },
+	-- WoW Forever's Legacy window (Blizzard_LegacySystem: LegacySystemFrame, its challenges and more), opened by
+	-- the game clicking its micro button (ClassicUIForever moves that button off the bar, but it still clicks);
+	-- listed only where the client has it
+	{ "Legacy", "legacy system challenges", function() local b = _G.LegacyMicroButton; if b then b:Click() end end, "LegacyMicroButton",
+		{ buttons = { "LegacyMicroButton" } }, PanelOpen, "LegacySystemFrame", needs = "LegacyMicroButton", nameFrom = "LegacyMicroButton" },
 	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
 }
 
@@ -132,7 +137,21 @@ local PANEL_GLOBALS = {
 	["Edit Mode"] = "HUD_EDIT_MODE_MENU", ["Shop"] = "BLIZZARD_STORE",
 }
 
-local function PanelName(english) return ns.GameText(PANEL_GLOBALS[english], english) end
+--- The panel's name in the game's own words: its global string, else its micro button's tooltip
+--- ("Legacy |cffffd200(L)|r": the key part dropped), else the English name.
+local function PanelName(english, button)
+	local name = ns.GameText(PANEL_GLOBALS[english], nil)
+	if not name and button then
+		local b = _G[button]
+		local tip = type(b) == "table" and ns.Str(rawget(b, "tooltipText"))
+		if tip then
+			tip = tip:gsub("|c%x%x%x%x%x%x%x%x.-|r", "")
+			tip = ns.Plain(tip):gsub("%s*%(.-%)%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+			if tip ~= "" then name = tip end
+		end
+	end
+	return name or english
+end
 
 -- the game's keybinding commands for Character window tabs
 local CHAR_BINDINGS = { PaperDollFrame = "TOGGLECHARACTER0", ReputationFrame = "TOGGLECHARACTER2" }
@@ -201,7 +220,7 @@ ns:RegisterProvider("panels", {
 		for _, p in ipairs(PANELS) do
 			local e = {
 				key = p[1],
-				name = PanelName(p[1]),
+				name = PanelName(p[1], p.nameFrom),
 				icon = "Interface\\Icons\\INV_Misc_Map_01",
 				text = p[2] .. " " .. p[1],
 				open = p[3], micro = p[4],
@@ -225,7 +244,7 @@ ns:RegisterProvider("panels", {
 				e.isOpen = PageOpen
 				e.after = PageAfter
 			end
-			out[#out + 1] = e
+			if not p.needs or _G[p.needs] then out[#out + 1] = e end
 		end
 		return out
 	end,

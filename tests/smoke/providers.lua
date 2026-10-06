@@ -136,6 +136,31 @@ do
 	ns.providers.panels._dirty = true
 end
 
+io.write("[Legacy panel]\n")
+do
+	-- WoW Forever's Legacy window: listed only where the client has its micro button
+	_G.LegacyMicroButton = nil
+	ns.providers.panels._dirty = true
+	local function legacy()
+		for _, e in ipairs(ns:GetEntries(ns.providers.panels)) do if e.key == "Legacy" then return e end end
+	end
+	check(legacy() == nil, "no Legacy panel on a client without it")
+	local b = Obj("Button"); b.tooltipText = "Legacy |cffffd200(L)|r"
+	_G.LegacyMicroButton = b
+	ns.providers.panels._dirty = true
+	local e = legacy()
+	check(e and e.name == "Legacy", "the Legacy panel, named from its micro button's tooltip (key dropped): " .. tostring(e and e.name))
+	local r = e and S.Resolve(e.secure, e)
+	check(r and r.button == "LegacyMicroButton", "opened by the game clicking its micro button: " .. tostring(r and (r.binding or r.macro or tostring(r.button))))
+	_G.LegacySystemFrame = Obj("Frame"); LegacySystemFrame.shown = false
+	check(e.isOpen(e) == false, "not open while its window is hidden")
+	LegacySystemFrame.shown = true
+	check(e.isOpen(e) == true, "open (only pointed at) while LegacySystemFrame shows")
+	check(UI:Search("@panel legacy")[1].key == "Legacy" and UI:Search("@panel challenges")[1].key == "Legacy", "found by its name and by \"challenges\"")
+	_G.LegacyMicroButton, _G.LegacySystemFrame = nil, nil
+	ns.providers.panels._dirty = true
+end
+
 io.write("[slash lines pressed by the game]\n")
 do
 	UI:Open("/foo bar baz")
