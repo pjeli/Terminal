@@ -2858,7 +2858,7 @@ do -- AtlasLoot and Questie integrations
 	check(UI.Results()[1] and UI.Results()[1].kind == "questie", "and the quest is found")
 	UI:SetQuery("defias brotherhood")
 	UI:Activate(1)
-	check(UI:IsShown() and UI.edit:GetText() == "@questie defias brotherhood", "Enter on that row does the same, the terminal stays open")
+	check(UI:IsShown() and UI.edit:GetText() == "@questie defias brotherhood ", "Enter on that row does the same (a space for the next word), the terminal stays open")
 	UI:Hide()
 	local n0 = UI:Search("pillager")[1]
 	check(n0 and n0.completion == "@npc pillager", "an NPC's name: the row offers @npc")
@@ -4251,7 +4251,7 @@ do
 	-- Enter on the row does the same, stays open, and isn't history (only a step towards the search)
 	ns.db.history = {}
 	UI:Open("linen alt guy"); key("ENTER")
-	check(UI:IsShown() and UI.edit:GetText() == "@stored linen alt guy", "Enter on the hint row adds @stored and stays open")
+	check(UI:IsShown() and UI.edit:GetText() == "@stored linen alt guy ", "Enter on the hint row adds @stored and stays open")
 	check(#ns.db.history == 0, "the hint row isn't saved in history: " .. tostring(ns.db.history[1]))
 	-- carried too: your bags' row stays on top, the alts-and-banks row comes second
 	local rc = UI:Search("linen cloth")
@@ -5450,7 +5450,7 @@ do -- Shift+Right at the end of the prompt: the selected result written into it 
 	UI:Open("hearth")
 	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "the item is selected")
 	shiftRight()
-	check(UI.edit:GetText() == "@items Hearthstone" and UI.cursor == #"@items Hearthstone", "Shift+Right writes it into the prompt as @kind name: " .. tostring(UI.edit:GetText()))
+	check(UI.edit:GetText() == "@items Hearthstone " and UI.cursor == #"@items Hearthstone ", "Shift+Right writes it into the prompt as @kind name: " .. tostring(UI.edit:GetText()))
 	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "and it still finds it")
 	UI:Hide()
 	-- from the empty prompt (your recent picks), and keeping a ">> channel" already typed
@@ -5467,7 +5467,7 @@ do -- Shift+Right at the end of the prompt: the selected result written into it 
 	-- a command row: its .command
 	UI:Open(".them")
 	shiftRight()
-	check(UI.edit:GetText() == ".theme", "a command: its .command: " .. tostring(UI.edit:GetText()))
+	check(UI.edit:GetText() == ".theme ", "a command: its .command: " .. tostring(UI.edit:GetText()))
 	UI:Hide()
 end
 do -- a profession sent to chat: its link, with every recipe you know (as the game's profession book gives it)

@@ -263,3 +263,53 @@ Run("close spellings", function()
 	_G.debugprofilestop = realClock
 	check(ok and yields > 1 and res and res[1] and res[1].name == "Fireball", "spread over frames, it pauses and finishes (" .. yields .. " pauses)")
 end)
+
+io.write("[advanced: typing @ or key: lists what fits; Shift+Tab cycles it]\n")
+do
+	local typeText, key = T.typeText, T.key
+	ns.db.easyMode = false
+	local function withShift(fn) local s = _G.IsShiftKeyDown; _G.IsShiftKeyDown = function() return true end; fn(); _G.IsShiftKeyDown = s end
+	UI:Open("")
+	typeText("@")
+	local r = UI.Results()
+	local kinds = 0
+	for _ in ipairs(ns.providerOrder) do kinds = kinds + 1 end
+	check(#r == kinds and r[1].syntaxRow and r[1].name == "@" .. ns.providerOrder[1], "@: every kind to pick from: " .. #r .. "/" .. kinds)
+	typeText("ite")
+	r = UI.Results()
+	check(r[1] and r[1].name == "@items" and r[1].syntaxRow, "@ite: narrowed to @items: " .. tostring(r[1] and r[1].name))
+	key("ENTER")
+	check(UI:IsShown() and UI.edit:GetText() == "@items ", "Enter: @items written with a space for the next word: '" .. UI.edit:GetText() .. "'")
+	-- a filter's values
+	UI:SetQuery("")
+	typeText("rare q:")
+	r = UI.Results()
+	check(#r == #ns.Filters.QUALITIES and r[1].name == "q:poor", "q: every quality to pick from: " .. tostring(r[1] and r[1].name))
+	-- Tab / Shift+Tab move through the list (the prompt stays as typed); Enter writes the one picked
+	key("TAB"); key("TAB")
+	check(UI.Results()[UI.Selected()].name == "q:uncommon" and UI.edit:GetText() == "rare q:", "Tab twice: the third picked, nothing written yet: " .. tostring(UI.Results()[UI.Selected()].name))
+	withShift(function() key("TAB") end)
+	check(UI.Results()[UI.Selected()].name == "q:common", "Shift+Tab: back up one")
+	withShift(function() key("TAB") end); withShift(function() key("TAB") end)
+	check(UI.Results()[UI.Selected()].name == "q:legendary", "Shift+Tab past the top: round to the bottom")
+	check(UI:Suggestion() and UI:Completion() == "rare q:legendary ", "the faint completion is the one picked")
+	key("TAB")
+	check(UI.Results()[UI.Selected()].name == "q:poor", "Tab past the bottom: round to the top")
+	key("TAB"); key("ENTER")
+	check(UI.edit:GetText() == "rare q:common ", "Enter writes the one picked: '" .. UI.edit:GetText() .. "'")
+	-- once picked, it stays: Tab doesn't change it
+	key("TAB")
+	check(UI.edit:GetText() == "rare q:common ", "picked: Tab leaves it: '" .. UI.edit:GetText() .. "'")
+	-- a text set by code (Open) searches as before
+	UI:Hide(); FlushAll()
+	UI:Open("@items")
+	check(not (UI.Results()[1] and UI.Results()[1].syntaxRow), "Open(\"@items\"): not the pick list")
+	UI:Hide(); FlushAll()
+	-- Simple mode: none of it
+	ns.db.easyMode = true
+	UI:Open("")
+	typeText("@")
+	check(not (UI.Results()[1] and UI.Results()[1].syntaxRow), "Simple mode: no kinds list")
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false
+end

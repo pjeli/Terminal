@@ -1019,7 +1019,12 @@ local function NameHasAll(e, tokens)
 	return true
 end
 
-local function HintActivate(e) UI:SetQuery(e.completion, #e.completion) end
+-- (a row that writes into the prompt leaves a space after it, for the next word)
+local function HintActivate(e)
+	local t = e.completion
+	if not t:find("%s$") then t = t .. " " end
+	UI:SetQuery(t, #t)
+end
 
 -- A list with this many matches or fewer shows them as results instead of a "Search ... for this"
 -- row (a row to step through for one NPC was a wasted step). Questie's name index hands back as
@@ -1185,6 +1190,62 @@ function UI:ContinueSearch(job)
 	self:Render()
 end
 
+--- Advanced mode, the last word being typed is "@..." or "key:...": the kinds or the filter's values that fit it, as
+--- rows to pick from (Enter/click writes it with a space after it; Shift+Tab cycles them in the prompt), or nil.
+function UI:SyntaxRows(text)
+	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
+	if EasyOn() or self.opening or (self.cursor or #text) < #text then return nil end
+	local last = text:match("(%S+)$")
+	if not last then return nil end
+	local before = text:sub(1, #text - #last)
+	local rows = {}
+	local function Row(word, detail, kindLabel)
+		rows[#rows + 1] = { name = word, detail = detail or "", kindLabel = kindLabel or "", icon = false, raw = true,
+			completion = before .. word .. " ", staysOpen = true, activate = HintActivate, syntaxRow = true, _pos = NO_POS,
+			_score = 0 }
+	end
+	if last:sub(1, 1) == "@" then
+		local want = ns.Lower(last:sub(2))
+		for _, id in ipairs(ns.providerOrder) do
+			local p = ns.providers[id]
+			local word
+			if id:sub(1, #want) == want then word = id
+			else
+				for _, a in ipairs(p.aliases or {}) do
+					if type(a) == "string" and ns.Lower(a):sub(1, #want) == want then word = a break end
+				end
+			end
+			if word then
+				local label = p.label or id
+				Row("@" .. word, (p.aliases and #p.aliases > 0) and ("@" .. table.concat(p.aliases, " @")) or "",
+					"|c" .. (p.color or "ff7fb2ff") .. label .. "|r")
+			end
+		end
+	else
+		local key, val = last:match("^(%a+):(%S*)$")
+		local values = key and ns.Filters and ns.Filters.VALUES[ns.Lower(key)]
+		if not values then return nil end
+		val = ns.Lower(val)
+		for _, v in ipairs(values) do
+			if v:sub(1, #val) == val then Row(key .. ":" .. v, "", "filter") end
+		end
+	end
+	if #rows == 0 then return nil end
+	return rows
+end
+
+--- The pick list ("@", "q:"...): Tab / Shift+Tab move its selection down / up, round from the end to the start.
+function UI:StepSyntax(dir)
+	if not (results[1] and results[1].syntaxRow) then return false end
+	local n = #results
+	sel = ((sel - 1 + dir) % n) + 1
+	local was = offset
+	if sel <= offset then offset = sel - 1 end
+	if sel > offset + ROWS then offset = sel - ROWS end
+	if offset ~= was then self:Render() else self:SelectionChanged() end
+	return true
+end
+
 function UI:Refresh()
 	if not frame then return end
 	-- typed faster than a frame: one search for the whole burst, on the next frame
@@ -1238,10 +1299,15 @@ function UI:Refresh()
 		local p = ns.providers.slash
 		results = p and self:WordSearch(ns:GetEntries(p), text) or {}
 	else
-		local done
-		results, done = self:RunSearch(text)
-		if not done then
-			C_Timer.After(0, self.searchJob.step)
+		local rows = self:SyntaxRows(edit:GetText())
+		if rows then
+			results = rows -- (typing "@" or "stat:": what fits, to pick from)
+		else
+			local done
+			results, done = self:RunSearch(text)
+			if not done then
+				C_Timer.After(0, self.searchJob.step)
+			end
 		end
 	end
 	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
@@ -1374,6 +1440,7 @@ function UI:SetStatus()
 	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
 	if count > 0 and results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
+	if count > 0 and results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
 	local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
 	if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
 	if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
@@ -2442,7 +2509,12 @@ EditKey = function(key, ctrl, shift)
 			-- easy mode: back to the categories (or pick one), unless there is typed syntax to complete
 			if not UI:AcceptCompletion() then UI:EasyTab() end
 		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
-		elseif shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
+		-- the pick list ("@", "q:"): Tab / Shift+Tab only move through it (Enter writes the one picked)
+		elseif UI:StepSyntax(shift and -1 or 1) then
+			return
+		elseif shift then
+			UI:Move(-1)
+		elseif not UI:AcceptCompletion() then UI:Move(1) end
 	elseif ListKey(key, ctrl) then
 		return
 	elseif ctrl then
@@ -3178,6 +3250,9 @@ local function CommandByWord(word) return ns:FindCommand(word) end
 
 local function ComputeCompletion(self, text)
 	if text == "" or (self.cursor or #text) < #text then return nil end
+	-- the pick list: the faint completion is the row picked in it (Right takes it)
+	local picked = results[1] and results[1].syntaxRow and results[sel]
+	if picked then return picked.completion end
 	local first = text:sub(1, 1)
 	if first == "." then
 		local word, rest = text:sub(2):match("^(%S*)(.*)$")
@@ -3276,13 +3351,14 @@ function UI:FillFromResult()
 	-- the empty prompt: Shift+Right takes the suggestion shown in it
 	local suggested = self:SuggestionText()
 	if suggested then
+		suggested = suggested .. " " -- (a space for the next word)
 		self:SetQuery(suggested, #suggested)
 		return true
 	end
 	local new = self:ResultText(results[sel])
 	if not new then return false end
 	local rest = ns.Share and select(2, ns.Share.Split(edit:GetText()))
-	if rest then new = new .. " >> " .. rest end
+	if rest then new = new .. " >> " .. rest else new = new .. " " end
 	self:SetQuery(new, #new)
 	return true
 end

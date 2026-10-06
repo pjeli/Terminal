@@ -13,13 +13,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.41.2", when = "in testing",
+		v = "0.41.4", when = "in testing",
 		items = {
 			"Simple mode (the default): type in plain words and pick where it was found (Bags, Quests, NPCs, Emotes...). Everything is searched, no @ needed. .advanced switches to the full command line, .simple comes back.",
 			"Plain words do the work: \"stamina food\", \"attack power food\", \"rare sword\", \"use hearthstone\", \"nearest innkeeper\", \"vendor goldshire\", \"mining trainer in org\".",
 			"Opens as just the prompt, with a suggestion to try (Shift+Right takes it; an option turns them off). Down brings back your last search (Simple) or your recent picks (Advanced); Up, your last command.",
 			"NPCs show their title (Mining Trainer, Banker) and, when selected, an arrow pointing the way to them.",
 			"Advanced: sort:nearest puts NPCs closest first; near:500 keeps those within 500 yards.",
+			"Advanced: typing @ lists every kind, and a filter like stat: or q: its values, to pick from: Tab and Shift+Tab go down and up, Enter writes it. Anything picked into the prompt leaves a space for the next word.",
 			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, Fisherman, riding instructors); trainer:class means your own class, trainer:mine the mining trainers.",
 			"Right-click any row for everything it can do.",
 			"Search: initials (scb, zg), shorthand (brd, sw, org), close spellings (hearhtstone), and emotes as slash commands (/dance).",

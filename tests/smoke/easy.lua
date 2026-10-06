@@ -473,13 +473,13 @@ Run("rotating examples in the empty prompt", function()
 	local want = E.Example():gsub("^try: ", "")
 	T.withShift = T.withShift or function(fn) local s = _G.IsShiftKeyDown; _G.IsShiftKeyDown = function() return true end; fn(); _G.IsShiftKeyDown = s end
 	T.withShift(function() key("RIGHT") end)
-	check(UI.edit:GetText() == want, "Shift+Right takes the suggestion: '" .. UI.edit:GetText() .. "' (" .. want .. ")")
+	check(UI.edit:GetText() == want .. " ", "Shift+Right takes the suggestion: '" .. UI.edit:GetText() .. "' (" .. want .. ")")
 	UI:Hide(); FlushAll()
 	-- a note in brackets isn't typed; a tip isn't taken
 	UI:Open("")
 	while E.Example() ~= "try: .filters (every key:value)" do UI:Hide(); FlushAll(); UI:Open("") end
 	T.withShift(function() key("RIGHT") end)
-	check(UI.edit:GetText() == ".filters", "the bracketed note isn't typed: '" .. UI.edit:GetText() .. "'")
+	check(UI.edit:GetText() == ".filters ", "the bracketed note isn't typed: '" .. UI.edit:GetText() .. "'")
 	UI:Hide(); FlushAll()
 	UI:Open("")
 	while not E.Example():find("^tip:") do UI:Hide(); FlushAll(); UI:Open("") end
