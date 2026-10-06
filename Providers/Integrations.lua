@@ -87,6 +87,8 @@ local function AddRow(addon, content, boss, diff, page, id, detail, ltext)
 end
 
 local function GroupText(inst, bossName)
+	-- AtlasLoot Forever puts an icon and colour codes in some instance names ("Wailing Caverns|cffffffff|T...|t|r")
+	inst = inst:gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("%s+$", "")
 	return bossName .. "  " .. inst, ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot")
 end
 
@@ -94,6 +96,8 @@ end
 --- difficulty it drops on), kept apart from names, which arrive from the server over time.
 --- groups: the cache being built, one entry per boss table ({ addon, content, boss, inst,
 --- boss name, "id.diff.page ..." }).
+I.GroupText = function(...) return GroupText(...) end -- (tests)
+
 local function IndexModule(addon, storage, groups)
 	local A = AL()
 	local added = 0
@@ -180,28 +184,89 @@ local function Dirty()
 	if ns.providers.loot then ns.providers.loot._dirty = true end
 end
 
+--- An item's name if the client has it: GetItemNameByID, else GetItemInfo's (asking that one also
+--- makes the client fetch the item). nil while unknown.
+local function LootName(id)
+	local n = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+	if type(n) ~= "string" or n == "" then
+		local gii = C_Item.GetItemInfo or _G.GetItemInfo
+		n = gii and Safe(gii, id)
+	end
+	if type(n) == "string" and n ~= "" and not ns.Secret(n) then return n end
+end
+I.LootName = LootName
+
 -- Ask the server for item names a little at a time; the provider refreshes as they arrive.
-local function PumpNames()
+-- WoW Forever's own items (Snake Eye Kaleidoscope, 273088) aren't in the client's item data: their
+-- names come only from the server, which drops asks when thousands come at once. So whatever is
+-- still unnamed after a round is asked for again (NAME_ROUNDS rounds, NAME_RETRY s apart).
+I.NAME_BATCH, I.NAME_ROUNDS, I.NAME_RETRY = 50, 4, 20
+local function PumpNames(round)
+	round = round or 1
 	if loot.pumping then return end
 	loot.pumping = true
-	local i = 1
+	-- the ids to ask for: each once, only those without a name yet
+	local ids, seen = {}, {}
+	local source = round == 1 and loot.pending or nil
+	if source then
+		for _, id in ipairs(source) do
+			if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+		end
+	else
+		for _, r in ipairs(loot.rows) do
+			local id = r.itemID
+			if not rawget(r, "name") and not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+		end
+	end
+	loot.pending = {}
+	local i, asked = 1, 0
 	local function step()
 		if InCombatLockdown() then return C_Timer.After(5, step) end
-		local stop = math.min(i + 100, #loot.pending)
+		local stop = math.min(i + I.NAME_BATCH - 1, #ids)
 		while i <= stop do
-			local id = loot.pending[i]
-			if not (C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)) and C_Item.RequestLoadItemDataByID then
-				C_Item.RequestLoadItemDataByID(id)
+			local id = ids[i]
+			if LootName(id) then
+				loot.unnamed[id] = nil
+			else
+				loot.unnamed[id] = true
+				asked = asked + 1
+				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 			end
 			i = i + 1
 		end
-		if i <= #loot.pending then C_Timer.After(0.5, step) else loot.pumping = false; loot.pending = {} end
+		if i <= #ids then return C_Timer.After(0.5, step) end
+		loot.pumping = false
+		ns:Trace(("loot: names round %d: asked the server for %d of %d items"):format(round, asked, #ids))
+		if asked > 0 and round < I.NAME_ROUNDS then
+			C_Timer.After(I.NAME_RETRY, function()
+				-- what came in meanwhile is named by collect; the rest is asked for again
+				Dirty()
+				PumpNames(round + 1)
+			end)
+		elseif asked > 0 then
+			local first = {}
+			for id in pairs(loot.unnamed) do first[#first + 1] = id; if #first >= 5 then break end end
+			ns:Trace(("loot: %d items still have no name after %d rounds (e.g. %s)"):format(asked, round, table.concat(first, ", ")))
+		end
 	end
 	step()
 end
 
 --- Loads AtlasLoot's loot modules one at a time (they are load-on-demand) so there is no
 --- single long pause, indexing each as it arrives.
+--- How many loot items still have no name, asked now (loot.unnamed is tidied only when the list is read).
+function I.LootWaiting()
+	local n, seen = 0, {}
+	for _, r in ipairs(loot.rows) do
+		local id = r.itemID
+		if not seen[id] then
+			seen[id] = true
+			if not rawget(r, "name") and not LootName(id) then n = n + 1 else loot.unnamed[id] = nil end
+		end
+	end
+	return n
+end
+
 local LoadLootModules
 LoadLootModules = function()
 	local A = AL()
@@ -316,8 +381,8 @@ local function SetupAtlasLoot()
 			if not AtlasLootPresent() then return out end -- AtlasLoot went away: no stale loot rows
 			for _, r in ipairs(loot.rows) do
 				if not rawget(r, "name") then
-					local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(r.itemID)
-					if type(name) == "string" and name ~= "" then r.name = name end
+					local name = LootName(r.itemID)
+					if name then r.name = name end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
 			end
@@ -341,8 +406,10 @@ local function SetupAtlasLoot()
 	local names = CreateFrame("Frame")
 	loot.nameFrame = names
 	pcall(names.RegisterEvent, names, "GET_ITEM_INFO_RECEIVED")
-	names:SetScript("OnEvent", function(_, _, id)
+	pcall(names.RegisterEvent, names, "ITEM_DATA_LOAD_RESULT") -- (what RequestLoadItemDataByID answers with)
+	names:SetScript("OnEvent", function(_, _, id, ok)
 		if id and not loot.unnamed[id] then return end
+		if ok == false then return end
 		if loot.queued then return end
 		loot.queued = true
 		C_Timer.After(2, function() loot.queued = nil; Dirty() end)
@@ -1323,7 +1390,11 @@ ns:RegisterCommand("integrations", {
 	run = function()
 		local lines = { "Integrations:" }
 		lines[#lines + 1] = "  AtlasLoot: " .. (loot.on
-			and ("found (" .. tostring(LoadedCore() or "AtlasLoot") .. "). %d loot modules, %d indexed, %d items%s"):format(loot.modules, loot.loaded, #loot.rows, loot.done and "" or " (still loading)")
+			and ("found (" .. tostring(LoadedCore() or "AtlasLoot") .. "). %d loot modules, %d indexed, %d items%s%s"):format(loot.modules, loot.loaded, #loot.rows, loot.done and "" or " (still loading)",
+				(function()
+					local n = I.LootWaiting()
+					return n > 0 and (", %d waiting for their names from the server"):format(n) or ""
+				end)())
 			or "not found")
 		local src = QD.Source()
 		local found = src == "QuestieDB" and "QuestieDB found (without Questie)" or "found"

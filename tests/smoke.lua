@@ -2591,6 +2591,8 @@ do -- AtlasLoot and Questie integrations
 	local baseName, baseIcon = C_Item.GetItemNameByID, C_Item.GetItemIconByID
 	C_Item.GetItemNameByID = function(id) return iname[id] end
 	C_Item.GetItemIconByID = function(id) return 134 end
+	local baseInfo = C_Item.GetItemInfo
+	C_Item.GetItemInfo = function(id) return iname[id] end
 	local requested = {}
 	local baseReq = C_Item.RequestLoadItemDataByID
 	C_Item.RequestLoadItemDataByID = function(id) requested[#requested + 1] = id end
@@ -2749,6 +2751,38 @@ do -- AtlasLoot and Questie integrations
 		"a new AtlasLoot version: the index is built again and saved")
 	C_AddOns.GetAddOnMetadata = baseMeta
 	AtlasLoot.Loader.LoadModule = function(_, a) note("ALLoad", a) end
+	-- WoW Forever's own items (Snake Eye Kaleidoscope) are named only by the server, which drops asks
+	-- when thousands come at once: what's still unnamed is asked for again, and listed once named
+	do
+		iname[1002] = nil
+		local asks = 0
+		C_Item.RequestLoadItemDataByID = function(id)
+			requested[#requested + 1] = id
+			if id == 1002 then asks = asks + 1; if asks == 2 then iname[1002] = "Red Defias Mask" end end
+		end
+		newSession()
+		I.LoadLootModules(); FlushAll()
+		check(asks >= 2, "an item the server didn't name is asked for again: " .. asks)
+		check(names(ns:GetEntries(ns.providers.loot))["Red Defias Mask"] and not I.loot.unnamed[1002],
+			"and is listed once its name comes in")
+		-- the waiting count is asked live: names that came in since the list was last read don't count
+		iname[1001] = nil; I.loot.unnamed[1001] = true
+		for _, r in ipairs(I.loot.rows) do if r.itemID == 1001 then r.name = nil end end
+		check(I.LootWaiting and I.LootWaiting() == 1, "an unnamed item is counted as waiting: " .. I.LootWaiting())
+		iname[1001] = "Cruel Barb"
+		check(I.LootWaiting and I.LootWaiting() == 0 and not I.loot.unnamed[1001], "and no longer once its name has come in")
+		for _, r in ipairs(I.loot.rows) do if r.itemID == 1001 then r.name = "Cruel Barb" end end
+		-- GetItemInfo's name counts too (the client may have it before GetItemNameByID does)
+		local baseGII = C_Item.GetItemInfo
+		iname[1002] = nil
+		C_Item.GetItemInfo = function(id) if id == 1002 then return "Red Defias Mask" end end
+		check(I.LootName and I.LootName(1002) == "Red Defias Mask", "GetItemInfo's name is used when GetItemNameByID has none")
+		C_Item.GetItemInfo = baseGII
+		iname[1002] = "Red Defias Mask"
+		local d, lt = I.GroupText("Wailing Caverns|cffffffff|TInterface\\Icons\\ltn4.tga:12|t|r", "Lord Cobrahn")
+		check(d == "Lord Cobrahn  Wailing Caverns" and not lt:find("|", 1, true), "icon and colour codes in an instance name are dropped: " .. d)
+		C_Item.RequestLoadItemDataByID = function(id) requested[#requested + 1] = id end
+	end
 	-- Questie
 	-- after login: one list, then the other (both at once doubled the work per frame); a few ms a frame
 	do
@@ -2977,6 +3011,7 @@ do -- AtlasLoot and Questie integrations
 	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "loot" or ns.providerOrder[i] == "npc" or ns.providerOrder[i] == "questie" then table.remove(ns.providerOrder, i) end end
 	_G.AtlasLoot, _G.Questie, _G.QuestieLoader, C_Map = nil, nil, nil, nil
 	C_Item.GetItemNameByID, C_Item.GetItemIconByID, C_Item.RequestLoadItemDataByID = baseName, baseIcon, baseReq
+	C_Item.GetItemInfo = baseInfo
 	I.loot.on, I.npc.on = false, false
 end
 

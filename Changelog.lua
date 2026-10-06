@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.41.4", when = "in testing",
+		v = "0.41.6", when = "in testing",
 		items = {
 			"Simple mode (the default): type in plain words and pick where it was found (Bags, Quests, NPCs, Emotes...). Everything is searched, no @ needed. .advanced switches to the full command line, .simple comes back.",
 			"Plain words do the work: \"stamina food\", \"attack power food\", \"rare sword\", \"use hearthstone\", \"nearest innkeeper\", \"vendor goldshire\", \"mining trainer in org\".",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, Fisherman, riding instructors); trainer:class means your own class, trainer:mine the mining trainers.",
 			"Right-click any row for everything it can do.",
 			"Search: initials (scb, zg), shorthand (brd, sw, org), close spellings (hearhtstone), and emotes as slash commands (/dance).",
+			"AtlasLoot Forever: WoW Forever's own items (Snake Eye Kaleidoscope...) show up under Loot: their names come from the server, and Terminal keeps asking until they do.",
 			"QuestieDB alone is enough for Questie's quests and NPCs; Questie itself isn't needed.",
 			"Lighter and steadier: NPC distances and roles are worked out once, the right-click menu closes when combat starts, and the prompt no longer covers its bottom border.",
 		},
