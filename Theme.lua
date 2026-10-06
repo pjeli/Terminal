@@ -42,6 +42,7 @@ T.DEFAULTS = {
 	blinkRate = 0.8, -- blinks per second
 	autoScan = true, -- index professions quietly after login
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
+	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
 	v = 3, -- theme defaults version (see T.Get)
 }
 
@@ -82,7 +83,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
-	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan", "syntax" }
+	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan", "syntax", "suggest" }
 T.CURSOR_ORDER = { "blinking-line", "solid-line", "blinking-box", "solid-box" }
 
 -- Animation styles: open/close (seconds; `fade`: how long the opening fade takes, if not the whole
@@ -150,6 +151,7 @@ T.FIELDS = {
 	scale = { kind = "number", label = "Scale", min = 0.6, max = 1.6, step = 0.05 },
 	hints = { kind = "bool", label = "Key hints in footer" },
 	syntax = { kind = "bool", label = "Colour what you type" },
+	suggest = { kind = "bool", label = "Suggestions in the empty prompt" },
 	animations = { kind = "choice", label = "Animation", choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = "Cursor", choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = "Blink speed", min = 0.2, max = 3, step = 0.1 },

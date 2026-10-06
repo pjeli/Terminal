@@ -13,14 +13,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.39.8", when = "in testing",
+		v = "0.40.15", when = "in testing",
 		items = {
-			"Searching an NPC's name (Steelsnap) shows the NPC from Questie even when a quest in your log is named after it.",
-			"When only one or two of Questie's quests or NPCs (or your alts' items) match, they show up as results right away instead of a \"Search Questie for this\" row to step through.",
-			"Initials: scb finds Strong Cutting Blade, zg Zul'Gurub, be Bindings of Elements. Common shorthand works too: brd, ubrs, sfk, rfc, sm, mara, strat, sw, org, stv, aq40, naxx...",
-			"Typo tolerance: when nothing matches, close spellings are shown (hearhtstone, fireblal, steelsanp), and the footer says so.",
-			"Questie isn't needed any more for @questie, @npc and the Questie filters (sells:, trainer:, NPC roles): the QuestieDB addon on its own is enough, for a Blizzard-like UI with Questie's data. With Questie installed nothing changes.",
-			"Emotes are slash commands: /dance, /silly, /wave and the rest, with their other names (/joke finds /silly).",
+			"Simple mode (the default): type in plain words and pick where it was found (Bags, Quests, NPCs, Emotes...). Everything is searched, no @ needed. .advanced switches to the full command line, .simple comes back.",
+			"Plain words do the work: \"stamina food\", \"rare sword\", \"use hearthstone\", \"summon raptor\", \"nearest innkeeper\", \"vendor goldshire\", \"mining trainer in org\".",
+			"Opens as just the prompt, with a suggestion to try (Shift+Right takes it; an option turns them off). Down brings back your last search (Simple) or your recent picks (Advanced); Up, your last command.",
+			"NPCs show their title (Mining Trainer, Banker) and, when selected, an arrow pointing the way to them.",
+			"Advanced: sort:nearest puts NPCs closest first; near:500 keeps those within 500 yards.",
+			"Right-click any row for everything it can do.",
+			"Search: initials (scb, zg), shorthand (brd, sw, org), close spellings (hearhtstone), and emotes as slash commands (/dance).",
+			"QuestieDB alone is enough for Questie's quests and NPCs; Questie itself isn't needed.",
 		},
 	},
 	{
@@ -38,16 +40,6 @@ CL.LOG = {
 			"New filters: is:quest, is:soulbound and is:boe on items; is:passive and is:ready (off cooldown) on spells; is:capped on currencies; standing:honored+ on reputations; is:done / is:todo on achievements; @npc sells:<item> (vendors from Questie, sells:copper_rod).",
 			"Fix: items whose names the game hadn't loaded yet when you logged in (Rumsey Rum, Ice Cold Milk...) were missing from search, as Items and Consumables; they're listed as soon as their names come in. One item the game answers oddly for can no longer hide all the others.",
 			"@addon: Shift+Enter turns an addon on or off for this character (.reload to apply), and shows its real state: on WoW Forever characters have surnames, and the first name alone pointed at another character's AddOn list; the change is saved, so the reload keeps it; an addon's options page has a row of its own. @npc: Shift+Enter targets the NPC.",
-		},
-	},
-	{
-		v = "0.38.2", when = "released October 2026",
-		items = {
-			".wowamp: a little music player in the spirit of cliamp. Ten radio stations themed on places (Lion's Pride FM in Goldshire, WAR Radio 66.6 in Orgrimmar, Stormwind Classical 101.7, Necropolis Nights from Naxxramas...) play the game's own music, with a visualizer in each station's colours, a progress bar and shuffle.",
-			"Each station moves its own way: Moonwell's lo-fi low and smooth, WAR Radio tall and punchy, Necropolis Nights a heavy bass rumble, Gnomeregan glitchy. V switches the visualizer: Bars, Blocks, Mirror, Wave, Peaks, or Off (the visualizer folds away and the window gets shorter). The bars glide at 60 frames a second.",
-			"With the game's Sound in Background off, the player suggests turning it on, so the radio keeps playing while you're tabbed out.",
-			"Music the game cuts off when you click away from it (or at a loading screen) starts again when you're back.",
-			"In the player: Up/Down and Enter (or 1-0) pick a station, N/B skip, P play/stop, S shuffle, V style. The zone music pauses while the radio plays, and the radio plays on with the window closed (.wowamp stop ends it).",
 		},
 	},
 }

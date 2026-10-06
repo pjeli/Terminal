@@ -375,23 +375,34 @@ syntaxCheck:SetScript("OnClick", function(self) T.Set("syntax", self:GetChecked(
 Label(T.FIELDS.syntax.label .. "  |cff8a8a8a(@kinds, filters, .commands)|r", "GameFontHighlight", 216, -503)
 O.widgets.syntax = syntaxCheck
 
+local suggestCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+suggestCheck:SetSize(24, 24)
+suggestCheck:SetPoint("TOPLEFT", 190, -524)
+suggestCheck:SetScript("OnClick", function(self) T.Set("suggest", self:GetChecked() and "on" or "off") end)
+Label(T.FIELDS.suggest.label .. "  |cff8a8a8a(\"try: ...\")|r", "GameFontHighlight", 216, -529)
+O.widgets.suggest = suggestCheck
+
 local scanCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 scanCheck:SetSize(24, 24)
-scanCheck:SetPoint("TOPLEFT", 190, -524)
+scanCheck:SetPoint("TOPLEFT", 190, -550)
 scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked() and "on" or "off") end)
-O.widgets.autoScanLabel = Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -529)
+O.widgets.autoScanLabel = Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -555)
 O.widgets.autoScan = scanCheck
 
 -- the panel's own actions, on a row of their own below everything else
 local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 open:SetSize(130, 22)
 open:SetPoint("TOPLEFT", 16, -562)
+O.actionRow = O.actionRow or {}
+O.actionRow[#O.actionRow + 1] = { open, 16 }
 open:SetText("Open terminal")
 open:SetScript("OnClick", function() ns.UI:Open() end)
 
 local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 reset:SetSize(130, 22)
 reset:SetPoint("TOPLEFT", 156, -562)
+O.actionRow = O.actionRow or {}
+O.actionRow[#O.actionRow + 1] = { reset, 156 }
 reset:SetText("Reset to defaults")
 reset:SetScript("OnClick", function() T.Reset() end)
 
@@ -399,6 +410,8 @@ reset:SetScript("OnClick", function() T.Reset() end)
 local export = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 export:SetSize(110, 22)
 export:SetPoint("TOPLEFT", 296, -562)
+O.actionRow = O.actionRow or {}
+O.actionRow[#O.actionRow + 1] = { export, 296 }
 export:SetText("Export style")
 export:SetScript("OnClick", function() ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true }) end)
 
@@ -479,6 +492,8 @@ end
 local import = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 import:SetSize(110, 22)
 import:SetPoint("TOPLEFT", 416, -562)
+O.actionRow = O.actionRow or {}
+O.actionRow[#O.actionRow + 1] = { import, 416 }
 import:SetText("Import style")
 import:SetScript("OnClick", function() O.ImportDialog() end)
 
@@ -507,11 +522,17 @@ function O.Refresh()
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
 	O.widgets.syntax:SetChecked(t.syntax and true or false)
+	O.widgets.suggest:SetChecked(t.suggest ~= false)
 	-- only where the game lets addons open profession windows: WoW Forever doesn't (db.noDirectOpen),
 	-- so there each profession is indexed when you open it, and the option would do nothing
 	local canScan = ns.db and ns.db.noDirectOpen == false
 	O.widgets.autoScan:SetShown(canScan)
 	O.widgets.autoScanLabel:SetShown(canScan)
+	-- the panel's buttons sit under the last row shown
+	for _, b in ipairs(O.actionRow or {}) do
+		b[1]:ClearAllPoints()
+		b[1]:SetPoint("TOPLEFT", b[2], canScan and -588 or -562)
+	end
 	local anim = T.ANIMATION_LABELS[t.animations] and t.animations or (t.animations == false and "off" or "smooth")
 	O.widgets.animations:SetText(AnimLabel(anim))
 	MarkChoice(O.animationItems, anim, AnimLabel)

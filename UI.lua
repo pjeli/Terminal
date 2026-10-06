@@ -11,6 +11,15 @@ local HINTS = {
 	{ "Enter", "open" }, { "Tab", "complete" }, { "Shift+Enter", "more" },
 	{ "@", "kind" }, { "/", "slash" }, { ".", "command" }, { "=", "calc" },
 }
+-- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
+local DOWN_RECENT = "Down: your recent picks"
+local EASY_TAB_BACK = { "Tab", "all categories" }
+local EASY_TAB_PICK = { "Tab", "pick" }
+local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
+local EASY_NONE = "Nothing has that. Check the spelling, or try other words."
+local EASY_NO_NPCS = "\"nearest\" needs Questie (or QuestieDB): it knows where NPCs stand."
+local EASY_NOWHERE = "Can't tell where you are here (in a dungeon?)."
+local EASY_NONE_NEAR = "None of those on this continent that Questie knows of."
 local MAX_ROWS = 20
 local MAX_RESULTS = 100
 local SLICE_MS = 6 -- a search's share of one frame; a longer one goes on in the next frames
@@ -528,11 +537,29 @@ end
 
 function UI:SearchText(text)
 	self.closeSpellings = nil -- (set when only close spellings matched: the footer says so)
+	self.softRelaxed = nil -- (easy mode: nothing passed every everyday word, the closest shown: the footer says so)
+	local softs, hard, softWords -- (the everyday words' filters, the typed key:value ones, the everyday words)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	local kinds, tokens, filters, fsig = nil, {}, nil, {}
+	local simple = EasyOn()
+	-- Simple mode doesn't take Advanced syntax (@kind, key:value, >>): a row on top says where it lives (Refresh
+	-- already took a ">>" off); the plain words are still searched
+	local blocked = simple and self.blockedSyntax or nil
+	local function Finish(res)
+		if not blocked then return res end
+		local out = { ns.Easy.ADVANCED_ROW }
+		for i = 1, #res do out[i + 1] = res[i] end
+		return out
+	end
+	local sortNear -- Advanced "sort:nearest": NPCs closest first, the rest after
 	for w in text:gmatch("%S+") do
-		if w:sub(1, 1) == "@" then
+		if simple and ns.Easy.IsAdvancedWord(w) then
+			blocked = true
+		elseif ns.Filters and ns.Filters.SortOf and ns.Filters.SortOf(w) then
+			sortNear = true
+			fsig[#fsig + 1] = "^near"
+		elseif w:sub(1, 1) == "@" then
 			local p = ns:ResolveProvider(w:sub(2))
 			if p then
 				kinds = kinds or {}
@@ -541,16 +568,120 @@ function UI:SearchText(text)
 		else
 			-- lvl:20-30, slot:wrist, zone:ashenvale, is:todo... (Filters.lua); anything else is text
 			local f = ns.Filters and ns.Filters.Parse(w)
-			if f then
+			-- easy mode: everyday words ("rare", "ready", "vendor") are soft filters (Easy.lua)
+			local soft = not f and ns.Easy and ns.Easy.Word(w)
+			if f or soft then
 				filters = filters or {}
-				filters[#filters + 1] = f
-				fsig[#fsig + 1] = ns.Lower(w)
+				filters[#filters + 1] = f or soft
+				fsig[#fsig + 1] = (soft and "~" or "") .. ns.Lower(w)
+				if soft then
+					softs, softWords = softs or {}, softWords or {}
+					softs[#softs + 1] = soft
+					softWords[#softWords + 1] = ns.Lower(w)
+				else
+					hard = hard or {}
+					hard[#hard + 1] = f
+				end
 			else
 				tokens[#tokens + 1] = ns.Lower(w)
 			end
 		end
 	end
+	-- Simple mode: the first word can say what to do ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS)
+	local act
+	if simple and tokens[1] then
+		local a = ns.Easy.Action(tokens[1])
+		if a and (#tokens > 1 or filters) then
+			act = a
+			table.remove(tokens, 1)
+		end
+	end
+	self.action = act
+	-- Simple mode: a place named among the words ("vendor ratchet", "trainer in booty bay", "food barrens"): NPCs
+	-- there, other rows that name it (Integrations.FindPlace / PlaceFilter); checked after the cheaper filters
+	self.place = nil
+	if simple and #tokens > 0 and ns.Integrations and ns.Integrations.FindPlace then
+		local place, rest = ns.Integrations.FindPlace(tokens)
+		if place and (#rest > 0 or filters or act) then
+			tokens = rest
+			local f = ns.Integrations.PlaceFilter(place)
+			filters, hard = filters or {}, hard or {}
+			filters[#filters + 1] = f
+			hard[#hard + 1] = f
+			fsig[#fsig + 1] = "@" .. place.key
+			self.place = place
+		end
+	end
+	-- easy mode: the little words of a sentence aren't asked for ("food that gives stamina", "shield from kresh")
+	if ns.Easy and ns.Easy.On() and #tokens > 0 then
+		local kept = {}
+		for k = 1, #tokens do if not ns.Easy.STOP[tokens[k]] then kept[#kept + 1] = tokens[k] end end
+		if #kept > 0 or softs then tokens = kept end
+	end
 	local empty = #tokens == 0
+	-- easy mode (no @kind typed): nothing typed lists nothing (a line says what to do, and the category picked
+	-- is let go); typed: the categories that have it, to pick from (EasyOverview); a category picked stands for
+	-- its @kinds, and its own test (Emotes: the slash rows that are emotes)
+	local easyCat, here
+	if simple and not kinds then
+		self.lastScan = nil
+		-- a category picked for you (only one had it) is worked out again with every keystroke
+		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
+		if empty and not filters then
+			self.category = nil
+			-- just the prompt: its faint placeholder says what to type (UpdateGhost); Down asked for your recent picks
+			return Finish(self.showRecent and not blocked and self:FrequentEntries() or {})
+		end
+		if act and act.map then
+			-- an action word: the kinds it works on, no categories to pick from
+			kinds = {}
+			for k in pairs(act.map) do if ns.providers[k] then kinds[k] = true end end
+			if act.keep then
+				filters, hard = filters or {}, hard or {}
+				filters[#filters + 1], hard[#hard + 1] = act.keep, act.keep
+				fsig[#fsig + 1] = "!" .. act.label
+			end
+			if act.nearest then
+				if not ns.providers.npc then return Finish(PseudoEntries({ EASY_NO_NPCS })) end
+				here = ns.Integrations and ns.Integrations.Here()
+				if not here then return Finish(PseudoEntries({ EASY_NOWHERE })) end
+				-- "nearest repair": someone who'll serve you, so only NPCs friendly to your faction ("nearest hogger":
+				-- a name, anyone)
+				local role = false
+				for _, w in ipairs(softWords or {}) do if ns.Easy.ROLE_WORDS[w] then role = true break end end
+				local friendly = role and ns.Filters and ns.Filters.Parse("faction:friendly")
+				if friendly then
+					filters, hard = filters or {}, hard or {}
+					filters[#filters + 1], hard[#hard + 1] = friendly, friendly
+					fsig[#fsig + 1] = "faction:friendly"
+				end
+			end
+			fsig[#fsig + 1] = "!" .. act.label
+		else
+			easyCat = self.category and ns.Easy.BY_ID[self.category]
+			if not easyCat then
+				local ov = self:EasyOverview(tokens, filters, hard, softs, softWords)
+				-- only one category has it: straight to its results (no step to take)
+				if #ov == 1 and ov[1].catId then
+					self.category, self.categoryAuto = ov[1].catId, true
+					easyCat = ns.Easy.BY_ID[ov[1].catId]
+					self.softRelaxed = nil
+				else
+					return Finish(ov)
+				end
+			end
+		end
+	end
+	if easyCat then
+		kinds = ns.Easy.Kinds(easyCat.id)
+		if easyCat.keep then
+			filters = filters or {}
+			filters[#filters + 1] = easyCat.keep
+			hard = hard or {}
+			hard[#hard + 1] = easyCat.keep
+			fsig[#fsig + 1] = "#" .. easyCat.id
+		end
+	end
 	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search
 	local SH = ns.Shorthand
 	if SH then
@@ -563,7 +694,11 @@ function UI:SearchText(text)
 		end
 	end
 	self.posTokens = tokens
-	if empty and not kinds and not filters then self.lastScan = nil return self:FrequentEntries() end
+	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
+	if empty and not kinds and not filters then
+		self.lastScan = nil
+		return self.showRecent and self:FrequentEntries() or {}
+	end
 	local Pass = ns.Filters and ns.Filters.Pass
 
 	local out = {}
@@ -636,18 +771,163 @@ function UI:SearchText(text)
 		local matches = {}
 		for i = 1, #out do matches[i] = out[i] end
 		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
+		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
+		-- the rows with the typed words, those passing more of the everyday words first
+		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
 		-- nothing has every word: names within an edit or two of them ("hearhtstone")
 		if #out == 0 then self:CloseSpellings(included, tokens, filters, out, overBudget) end
 	end
+	-- easy mode: nothing in the picked category: the categories that have it instead
+	if easyCat and #out == 0 then
+		local function Without(list)
+			if not list then return nil end
+			local rest = {}
+			for _, f in ipairs(list) do if f ~= easyCat.keep then rest[#rest + 1] = f end end
+			return #rest > 0 and rest or nil
+		end
+		self.category, self.categoryAuto, self.closeSpellings, self.softRelaxed = nil, nil, nil, nil
+		return Finish(self:EasyOverview(tokens, Without(filters), Without(hard), softs, softWords))
+	end
+	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
+	self.noPosition = nil
+	if sortNear and not here then
+		here = ns.Integrations and ns.Integrations.Here and ns.Integrations.Here()
+		if not here then self.noPosition = true end
+	end
+	-- "nearest": the NPCs that matched, closest first, how far in the detail column (none known: left out;
+	-- sort:nearest keeps every other row, after the NPCs)
+	if here then
+		local I, kept = ns.Integrations, {}
+		for i = 1, #out do
+			local e = out[i]
+			local id = e.kind == "npc" and (e.npcID or rawget(e, "key"))
+			local d = id and I.NpcDistance(id, here)
+			if d then
+				kept[#kept + 1] = setmetatable({ detail = ("%.0f yd"):format(d), _score = 1e6 - d, _dist = d }, { __index = e })
+			elseif sortNear then
+				kept[#kept + 1] = e
+			end
+			if i % 32 == 0 and overBudget() then coroutine.yield(kept) end
+		end
+		out = kept
+		if #out == 0 and not sortNear then return Finish(PseudoEntries({ EASY_NONE_NEAR })) end
+	end
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	local res = SortAndTrim(out)
+	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
+	if act and act.map then
+		for i = 1, #res do res[i] = ns.Easy.ActionView(res[i], act) end
+	end
 	-- nothing here has what was typed in its name, but a list only searched with @kind does
 	-- (Questie's quests, NPCs): a row on top offers it (Tab or Enter adds the @kind)
 	if not kinds and not empty and not filters then
 		local hints, at = self:BigListHint(text, tokens, res, overBudget)
 		for i, hint in ipairs(hints or {}) do table.insert(res, math.min((at or 1) + i - 1, #res + 1), hint) end
 	end
-	return res
+	return Finish(res)
+end
+
+local function PickCategory(e) UI:SetCategory(e.catId) end
+local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row passes (beats any score gap)
+
+--- Easy mode, typed before a category is picked: one row per category that has matches ("Bags  Rumsey Rum
+--- +2 more"), the best match first; Enter or a click picks it. Questie's lists are counted by their name index.
+--- Spread over frames like the search.
+function UI:EasyOverview(tokens, filters, hard, softs, softWords)
+	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
+	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
+	local function tick() if overBudget() then coroutine.yield({}) end end
+	local Pass = ns.Filters and ns.Filters.Pass
+	local empty = #tokens == 0
+	-- Questie's lists are looked up by name only: the typed words, and the everyday words as name words
+	-- ("sword": NPCs called Sword...), never with a key:value filter
+	local nameWords = tokens
+	if softWords and not hard then
+		nameWords = {}
+		for k = 1, #tokens do nameWords[k] = tokens[k] end
+		for k = 1, #softWords do nameWords[#nameWords + 1] = softWords[k] end
+	end
+	-- relaxed: nothing anywhere passed every everyday word, so they only rank (as in RelaxSoft)
+	local function scan(relaxed)
+		local out = {}
+		for _, c in ipairs(ns.Easy.Visible()) do
+			local count, best, bestScore = 0, nil, nil
+			for _, id in ipairs(c.kinds) do
+				local p = ns.providers[id]
+				if p and p.hintFind and not self.place then
+					if #nameWords > 0 and not hard and not relaxed then
+						local first, n = p.hintFind(p, nameWords, tick)
+						if first and (n or 0) > 0 then
+							count = count + n
+							if not bestScore then best, bestScore = first, TEXT_SCORE end
+						end
+					end
+				elseif p then
+					local list = ns:GetEntries(p)
+					local need = filters
+					if relaxed then need = hard end -- (nil: no typed key:value filter)
+					for i = 1, #list do
+						local e = list[i]
+						local sc = (not c.keep or c.keep(e)) and (empty and 0 or ScoreEntry(e, tokens)) or nil
+						if sc and (not need or Pass(e, need)) then
+							if relaxed then
+								for k = 1, #softs do
+									local ok, yes = pcall(softs[k], e)
+									if ok and yes then sc = sc + SOFT_PASS * ns.Easy.Weight(softs[k]) end
+								end
+							end
+							count = count + 1
+							if not bestScore or sc > bestScore then best, bestScore = e.name, sc end
+						end
+						if i % SLICE_CHECK == 0 then tick() end
+					end
+				end
+			end
+			if count > 0 then
+				out[#out + 1] = {
+					name = c.label, catId = c.id, kind = "category", icon = c.icon or QUESTION_MARK, kindLabel = "",
+					detail = tostring(best) .. (count > 1 and ("  +%d more"):format(count - 1) or ""),
+					staysOpen = true, activate = PickCategory, _score = bestScore or 0, _pos = NO_POS,
+				}
+			end
+		end
+		return out
+	end
+	local out = scan(false)
+	if #out == 0 and softs and not empty then
+		out = scan(true)
+		if #out > 0 then self.softRelaxed = true end
+	end
+	table.sort(out, function(a, b) return a._score > b._score end)
+	if #out == 0 then return PseudoEntries({ EASY_NONE }) end
+	return out
+end
+
+
+--- Easy mode: the typed words matched nothing that passes every everyday word. The rows with the words
+--- (and every typed key:value filter) are listed instead, ranked by the everyday words they pass (what an item
+--- is, "shield", counts for more than how rare it is: Easy.Weight).
+function UI:RelaxSoft(included, tokens, hard, softs, out, overBudget)
+	local Pass = ns.Filters and ns.Filters.Pass
+	for _, p in ipairs(included) do
+		local list = ns:GetEntries(p)
+		local id = p.id
+		for i = 1, #list do
+			local e = list[i]
+			local sc = ScoreEntry(e, tokens)
+			if sc and (not hard or Pass(e, hard)) then
+				local passed = 0
+				for k = 1, #softs do
+					local ok, yes = pcall(softs[k], e)
+					if ok and yes then passed = passed + ns.Easy.Weight(softs[k]) end
+				end
+				e._score = sc + passed * SOFT_PASS + FreqBonus(e, id)
+				out[#out + 1] = e
+			end
+			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+		end
+	end
+	if #out > 0 then self.softRelaxed = true end
 end
 
 local NEAR_WORD = 1.0 -- a word matched by a close spelling (then each edit costs NEAR_EDIT)
@@ -726,7 +1006,7 @@ local function HintActivate(e) UI:SetQuery(e.completion, #e.completion) end
 
 -- A list with this many matches or fewer shows them as results instead of a "Search ... for this"
 -- row (a row to step through for one NPC was a wasted step). Questie's name index hands back as
--- many ids (Integrations' HINT_FEW, the same number).
+-- many ids (Integrations' HINT_FEW, at least as many).
 local HINT_FEW = 2
 UI.HINT_FEW = HINT_FEW
 
@@ -750,6 +1030,7 @@ function UI:BigListHint(text, tokens, res, overBudget)
 		end
 	end
 	local hints = {} -- one row per list that has it (a name can be a quest and an NPC both)
+	local fewMax = UI.HINT_FEW -- (this many matches or fewer: the rows themselves)
 	for _, id in ipairs(HINT_KINDS) do
 		local p = ns.providers[id]
 		local same = HINT_SAME[id]
@@ -765,10 +1046,11 @@ function UI:BigListHint(text, tokens, res, overBudget)
 				-- the list's own name index (Questie's: one text, not its thousands of rows)
 				local ids
 				firstName, count, ids = p.hintFind(p, tokens, function() if overBudget() then coroutine.yield(res) end end)
-				if firstName and count <= UI.HINT_FEW and p.hintRow and type(ids) == "table" and #ids == count then
+				local want = math.min(count, fewMax)
+				if firstName and count <= fewMax and p.hintRow and type(ids) == "table" and #ids >= want then
 					few = {}
-					for _, id in ipairs(ids) do
-						local row = p.hintRow(p, id)
+					for k = 1, want do
+						local row = p.hintRow(p, ids[k])
 						if not row then few = nil break end
 						few[#few + 1] = row
 					end
@@ -781,12 +1063,12 @@ function UI:BigListHint(text, tokens, res, overBudget)
 					if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
 						count = count + 1
 						firstName = firstName or e.name
-						if count <= UI.HINT_FEW then few[count] = e end
+						if count <= fewMax then few[count] = e end
 						if count >= 100 then break end
 					end
 					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
 				end
-				if count > UI.HINT_FEW or count == 0 then few = nil end
+				if count > fewMax or count == 0 then few = nil end
 			end
 			if firstName and few and #few > 0 then
 				-- only one or two: the rows themselves, where the hint would have gone
@@ -902,6 +1184,8 @@ function UI:Refresh()
 		return
 	end
 	self.refreshedAt = now
+	self.refreshCount = (self.refreshCount or 0) + 1
+	if edit:GetText() ~= "" then self.showRecent = nil end -- (Down's recent picks last until you type)
 	if self.searchJob then ns:Trace("search: started again before the last one finished (" .. (self.searchJob.slices or 0) .. " frames in)") end
 	self.searchJob = nil -- a search still going on is for the old text
 	self.searchedText = edit:GetText()
@@ -914,7 +1198,15 @@ function UI:Refresh()
 	local first = text:sub(1, 1)
 	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
 	self.sendTo = nil
-	if first ~= "." and first ~= "/" and ns.Share then
+	self.blockedSyntax = nil
+	if first ~= "." and first ~= "/" and ns.Share and EasyOn() then
+		-- Simple mode: no sending to chat; the words before ">>" are searched and a row says it's Advanced mode's
+		local query, rest = ns.Share.Split(text)
+		if rest then
+			self.blockedSyntax = true
+			text = query:gsub("%s+$", "")
+		end
+	elseif first ~= "." and first ~= "/" and ns.Share then
 		local query, rest = ns.Share.Split(text)
 		if rest then
 			self.sendTo = ns.Share.Channel(rest)
@@ -1064,6 +1356,10 @@ function UI:SetStatus()
 	local quiet = count > 0 and results[1].noActivate
 	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
+	if count > 0 and results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
+	local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
+	if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
+	if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 	local to = self.sendTo
 	if to and self.mode == "search" then
 		local say = to.cmd and ("Enter sends it to " .. to.label) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
@@ -1071,9 +1367,17 @@ function UI:SetStatus()
 	end
 	if mode then text = text .. (text ~= "" and "  ·  " or "") .. mode end
 	local near = self.closeSpellings and self.mode == "search" and count > 0
+	if self.softRelaxed and self.mode == "search" and count > 0 then
+		text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "nothing matches every word: the closest|r"
+		near = true
+	end
 	if near then text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "no exact match: close spellings|r" end
+	if self.noPosition and self.mode == "search" then
+		text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "sort:nearest: your position isn't known here|r"
+		near = true
+	end
 	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
-	status:SetText((self.sendTo or near) and Theme.FixColors(text) or text)
+	status:SetText((self.sendTo or near or cat) and Theme.FixColors(text) or text)
 	self:FitHints()
 end
 
@@ -1082,14 +1386,27 @@ end
 function UI:FitHints()
 	if not (hints and frame) then return end
 	local t = Theme.Get()
-	if not t.hints then hints:Hide() return end
+	if not t.hints or self.bare or self.noFoot then hints:Hide() return end
+	local list = HINTS
 	local key = "|cff" .. t.text
+	if EasyOn() then
+		-- what Enter and Shift+Enter do for the selected row, in words (Easy.VERBS)
+		local enter, shift = ns.Easy.Verbs(results[sel])
+		list = {}
+		if enter then list[#list + 1] = { "Enter", enter } end
+		-- (Tab before Shift+Enter: on a narrow footer, how to get back counts more)
+		if self.category and not self.categoryAuto then list[#list + 1] = EASY_TAB_BACK
+		elseif results[sel] and results[sel].catId then list[#list + 1] = EASY_TAB_PICK end
+		if shift then list[#list + 1] = { "Shift+Enter", shift } end
+		key = key .. "|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(self.category) .. "|" .. tostring(results[sel] and results[sel].catId)
+	end
 	local room = (t.width or 640) - 28 - (status:GetStringWidth() or 0) - 24
-	-- every render asks: measure again only when the room or the colours changed
+	-- every render asks: measure again only when the room or the colours (or easy mode's verbs) changed
 	if self.hintsRoom == room and self.hintsKey == key then return end
 	self.hintsRoom, self.hintsKey = room, key
+	key = "|cff" .. t.text
 	local parts, text = {}, ""
-	for _, h in ipairs(HINTS) do
+	for _, h in ipairs(list) do
 		parts[#parts + 1] = key .. h[1] .. "|r " .. h[2]
 		local try = table.concat(parts, "     ")
 		hints:SetText(try)
@@ -1105,6 +1422,86 @@ function UI:FitHints()
 end
 
 local ARROW = "|TInterface\\ChatFrame\\ChatFrameExpandArrow:12:12|t "
+
+----------------------------------------------------------------------
+-- Which way: a small arrow on the selected NPC row (Questie's NPCs: nearest, vendors, trainers...)
+-- turning with you. Only the selected row has one, and it runs only while one is shown.
+----------------------------------------------------------------------
+
+UI.NAV_TEXTURE = "Interface\\Minimap\\MinimapArrow"
+UI.NAV_SIZE = 20
+UI.NAV_REFRESH = 0.25 -- seconds between looking up where you are (the turning is every frame)
+local nav = {} -- id, row, e, here, spot, d, at, shownD
+local navArrow, navTicker
+
+local function NavID(e)
+	if not e or e.raw or e.kind ~= "npc" then return nil end
+	local id = rawget(e, "key") or e.npcID or e.key -- (a "nearest" view reads its row's)
+	return type(id) == "number" and id or nil
+end
+
+local function NavHide()
+	if navArrow then navArrow:Hide() end
+	if navTicker then navTicker:Hide() end
+	nav.id, nav.e, nav.row = nil, nil, nil
+end
+
+local function NavTick()
+	local I = ns.Integrations
+	local r = nav.row and rows[nav.row]
+	if not (I and r and nav.id) then return NavHide() end
+	local now = GetTime()
+	if not nav.at or now - nav.at >= UI.NAV_REFRESH then
+		nav.at = now
+		nav.here = I.Here()
+		nav.d, nav.spot = I.NpcDistance(nav.id, nav.here)
+	end
+	local face = nav.spot and I.Facing()
+	if not face then navArrow:Hide() return end
+	navArrow:SetRotation(I.Bearing(nav.here, nav.spot, face))
+	-- "nearest": the distance shown keeps up as you walk
+	local e = nav.e
+	if rawget(e, "_dist") and nav.d then
+		local shown = math.floor(nav.d + 0.5)
+		if shown ~= nav.shownD then
+			nav.shownD = shown
+			e.detail = ("%d yd"):format(shown)
+			r.detail:SetText(e.detail)
+		end
+	end
+	local w = r.detail:GetStringWidth()
+	navArrow:ClearAllPoints()
+	navArrow:SetPoint("RIGHT", r.detail, "RIGHT", -((type(w) == "number" and w or 0) + 4), 0)
+	navArrow:Show()
+end
+
+--- The arrow follows the selection: shown on an NPC row with a known place on your continent.
+function UI:UpdateNav()
+	local e = results[sel]
+	local i = sel - offset
+	local id = NavID(e)
+	if not (id and frame and frame:IsShown() and not self.closing and i >= 1 and i <= ROWS and ns.Integrations
+		and ns.Integrations.Bearing) then
+		return NavHide()
+	end
+	if not navArrow then
+		navArrow = frame:CreateTexture(nil, "OVERLAY")
+		navArrow:SetTexture(UI.NAV_TEXTURE)
+		navArrow:SetSize(UI.NAV_SIZE, UI.NAV_SIZE)
+		navTicker = CreateFrame("Frame", nil, frame)
+		navTicker:SetScript("OnUpdate", function()
+			if not UI:IsShown() then return NavHide() end
+			NavTick()
+		end)
+		UI.navArrow = navArrow
+	end
+	navArrow:SetVertexColor(1, 1, 1) -- (the texture's own gold, as the minimap's player arrow)
+	if nav.id ~= id or nav.row ~= i or nav.e ~= e then
+		nav.id, nav.row, nav.e, nav.at, nav.shownD = id, i, e, nil, nil
+	end
+	NavTick()
+	navTicker:Show()
+end
 
 function UI:Render()
 	-- nothing to draw while it's closed (a setting changed in the options panel, say): drawing
@@ -1174,6 +1571,7 @@ function UI:Render()
 		end
 	end
 	self:FitHeight()
+	self:UpdateNav()
 	self:PlaceSelection()
 	self:SetStatus()
 	self:UpdateTooltip()
@@ -1186,6 +1584,7 @@ end
 --- redrawn (the band, the footer, the ghost text, the tooltip, the click catcher), not every row.
 function UI:SelectionChanged()
 	if not frame or not frame:IsShown() then return end
+	self:UpdateNav()
 	self:PlaceSelection()
 	self:SetStatus()
 	self:UpdateTooltip()
@@ -1216,6 +1615,8 @@ function UI:History(dir)
 		idx = (idx or 0) - 1
 	end
 	local text = idx >= 1 and h[idx] or ""
+	-- the game may report this change a frame later: the walk goes on while the text is the one it set
+	self.histText = text
 	self._histSet = true
 	self:SetQuery(text, #text)
 	self._histSet = false
@@ -1226,13 +1627,48 @@ end
 --- Up: the list's selection goes up; past the first row of an empty prompt it goes back through
 --- the history instead.
 function UI:Up()
+	-- what Down brought up (your recent picks; Simple mode: the last search), Up on its first row puts away
+	if sel <= 1 and not self.histIdx then
+		local text = edit:GetText()
+		if self.showRecent and text == "" then
+			self.showRecent = nil
+			self.refreshedAt = nil
+			self:Refresh()
+			return
+		end
+		if self.recalled and text == self.recalled then
+			self.recalled = nil
+			self:SetQuery("", 0)
+			return
+		end
+	end
 	if (self.histIdx or (edit:GetText() == "" and sel <= 1)) and self:History(-1) then return end
 	self:Move(-1)
 end
 
 function UI:Down()
 	if self.histIdx ~= nil and self:History(1) then return end
+	if edit:GetText() == "" and #results == 0 and self:Recall() then return end
 	self:Move(1)
+end
+
+--- Down on the bare prompt. Simple mode: the last search back (its words, and the category picked),
+--- to look through again; with none, your recent picks. Advanced: your recent picks (as the empty
+--- prompt listed them before), Up being the lines you ran.
+function UI:Recall()
+	local q = EasyOn() and self.lastQuery
+	if q then
+		self:SetQuery(q, #q)
+		self.recalled = q
+		local cat = self.lastCategory
+		if cat and EasyOn() and ns.Easy.BY_ID[cat] then self:SetCategory(cat) end
+		return true
+	end
+	if self.showRecent then return false end
+	self.showRecent = true
+	self.refreshedAt = nil
+	self:Refresh()
+	return #results > 0
 end
 
 function UI:Scroll(delta)
@@ -1882,6 +2318,7 @@ local function KeysDown(self, key)
 		return
 	end
 	local ctrl, shift = IsControlKeyDown(), IsShiftKeyDown()
+	UI:HideRowMenu()
 	if key == "ENTER" or key == "NUMPADENTER" then
 		local se = SecureView(results[sel], shift)
 		if se and UI:ArmForPress(se) then
@@ -1973,8 +2410,11 @@ EditKey = function(key, ctrl, shift)
 	elseif key == "DOWN" then
 		UI:Down()
 	elseif key == "TAB" then
+		if EasyOn() and UI.mode == "search" then
+			-- easy mode: the next (Shift: previous) category, unless there's typed syntax to complete (@np -> @npc)
+			if not UI:AcceptCompletion() then UI:EasyTab() end
 		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
-		if shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
+		elseif shift or not UI:AcceptCompletion() then UI:Move(shift and -1 or 1) end
 	elseif ListKey(key, ctrl) then
 		return
 	elseif ctrl then
@@ -2059,7 +2499,7 @@ local function Catcher()
 		"SecureActionButtonTemplate, SecureHandlerStateTemplate")
 	if not ok or not c then return nil end
 	c:Hide()
-	c:RegisterForClicks("LeftButtonUp")
+	c:RegisterForClicks("LeftButtonUp", "RightButtonUp") -- (right: the row's menu; no secure action on it)
 	c:SetAttribute("useOnKeyDown", false)
 	c:EnableMouseWheel(true)
 	c:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
@@ -2129,6 +2569,10 @@ function UI:CatcherClicked(button)
 	local e = c and c.entry
 	if not e or self.closing then return end
 	local idx = offset + c.row
+	if button == "RightButton" then -- the row's menu (the catcher has no right-button action)
+		if results[idx] == e then sel = idx; self:ShowRowMenu(idx) end
+		return
+	end
 	self:HideCatcher()
 	if results[idx] ~= e then return end
 	sel = idx
@@ -2157,6 +2601,134 @@ function UI:CatcherClicked(button)
 		ns:Trace("click: no window macro for " .. tostring(e.name) .. ", running its usual action")
 		self:Activate(idx, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 	end
+end
+
+----------------------------------------------------------------------
+-- The row menu (right-click): everything a row can do, in words
+----------------------------------------------------------------------
+
+local menu -- TerminalRowMenu: a small list by the pointer, its lines secure buttons (the game presses windows open)
+local MENU_W, MENU_LINE = 190, 22
+
+local function Cap(s) return (tostring(s):gsub("^%l", string.upper)) end
+
+local function MenuLine(i)
+	local b = menu.lines[i]
+	if b then return b end
+	b = CreateFrame("Button", "TerminalRowMenuLine" .. i, menu, "SecureActionButtonTemplate")
+	b:SetSize(MENU_W - 8, MENU_LINE)
+	b:SetPoint("TOPLEFT", 4, -4 - (i - 1) * MENU_LINE)
+	b:RegisterForClicks("LeftButtonUp")
+	b:SetAttribute("useOnKeyDown", false)
+	b.fs = b:CreateFontString(nil, "OVERLAY")
+	b.fs:SetFontObject(Theme.fonts.small)
+	b.fs:SetPoint("LEFT", 8, 0)
+	b.fs:SetPoint("RIGHT", -8, 0)
+	b.fs:SetJustifyH("LEFT")
+	b.hl = b:CreateTexture(nil, "BACKGROUND")
+	b.hl:SetAllPoints()
+	b.hl:Hide()
+	b:SetScript("OnEnter", function() b.hl:Show() end)
+	b:SetScript("OnLeave", function() b.hl:Hide() end)
+	b:HookScript("PostClick", function() UI:MenuPicked(b) end)
+	menu.lines[i] = b
+	return b
+end
+
+function UI:HideRowMenu()
+	if menu and menu:IsShown() and not InCombatLockdown() then menu:Hide() end
+end
+
+--- Right-click on row `idx`: its actions (Enter's, Shift+Enter's, Link in chat; Advanced: write it into the prompt).
+--- Window-opening ones are macros the game runs when the line is clicked, as the click catcher's are.
+function UI:ShowRowMenu(idx)
+	local e = results[idx]
+	if not e or e.noActivate or not frame then return end
+	if InCombatLockdown() then ns:Print("Not in combat: right-click again afterwards.") return end
+	if not menu then
+		menu = CreateFrame("Frame", "TerminalRowMenu", UIParent, "BackdropTemplate")
+		menu:SetFrameStrata("TOOLTIP")
+		menu:SetClampedToScreen(true)
+		menu:EnableMouse(true)
+		menu.lines = {}
+		-- a click anywhere else closes it
+		pcall(menu.RegisterEvent, menu, "GLOBAL_MOUSE_DOWN")
+		menu:SetScript("OnEvent", function()
+			if menu:IsShown() and not (menu.IsMouseOver and menu:IsMouseOver()) then UI:HideRowMenu() end
+		end)
+		UI.rowMenu = menu
+	end
+	local t = Theme.Get()
+	local items = {}
+	local enter, shift
+	if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
+	items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
+	if e.secondary or e.secondarySecure then items[#items + 1] = { label = Cap(shift or "more"), secondary = true } end
+	local link = (e.getLink or e.link or e.shareLink) and ns.Share and ns.Share.Text and ns.Share.Text(e)
+	if type(link) == "string" and link:find("|H", 1, true) then
+		items[#items + 1] = { label = "Link in chat", run = function() ns.LinkInChat(link) end }
+	end
+	if not EasyOn() and self:ResultText(e) then
+		items[#items + 1] = { label = "Write into the prompt", run = function() UI:FillFromResult() end, stay = true }
+	end
+	items[#items + 1] = { label = "Cancel", run = function() end, stay = true }
+	menu.entry, menu.idx = e, idx
+	for i, it in ipairs(items) do
+		local b = MenuLine(i)
+		b.item = it
+		b.fs:SetText(it.label)
+		b.fs:SetTextColor(Theme.RGB(it.label == "Cancel" and t.dim or t.text))
+		b.hl:SetColorTexture(Theme.RGB(t.accent))
+		b.hl:SetAlpha(0.25)
+		-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
+		local macro, view
+		if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true) end
+		it.view = view
+		b:SetAttribute("type1", macro and "macro" or "")
+		b:SetAttribute("macrotext1", macro)
+		it.macro = macro
+		b:Show()
+	end
+	for i = #items + 1, #menu.lines do menu.lines[i]:Hide() end
+	menu:SetSize(MENU_W, #items * MENU_LINE + 8)
+	menu:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	local r, g, b = Theme.RGB(t.bg)
+	menu:SetBackdropColor(r, g, b, 0.97)
+	menu:SetBackdropBorderColor(Theme.RGB(t.border))
+	menu:SetScale(t.scale or 1)
+	menu:ClearAllPoints()
+	local x, y
+	if GetCursorPosition then x, y = GetCursorPosition() end
+	local s = menu:GetEffectiveScale()
+	if type(x) == "number" and type(s) == "number" and s > 0 then
+		menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
+	else
+		menu:SetPoint("CENTER")
+	end
+	menu:Show()
+end
+
+--- A menu line was clicked (after the game ran its macro, if it had one).
+function UI:MenuPicked(b)
+	local it, e, idx = b.item, menu and menu.entry, menu and menu.idx
+	if not (it and e) then return end
+	self:HideRowMenu()
+	if it.run then
+		it.run()
+		if not it.stay then self:Hide() end
+		return
+	end
+	if results[idx] ~= e then return end
+	sel = idx
+	if it.macro then -- the game opened it: finish as after Enter
+		local se = it.view or e
+		ns:Bump(e.freqKey)
+		ns:RecordHistory(edit:GetText())
+		self:Hide()
+		if se.after then C_Timer.After(0.1, function() RunAfter(se) end) end
+		return
+	end
+	self:Activate(idx, { secondary = it.secondary })
 end
 
 ----------------------------------------------------------------------
@@ -2300,7 +2872,8 @@ function UI:MotionReset()
 end
 
 --- The header's height: the prompt's first line, and every line a long prompt wraps onto.
-local function HeaderH() return HEADER_H + (UI.promptExtra or 0) end
+local function PromptH() return HEADER_H + (UI.promptExtra or 0) end
+local function HeaderH() return PromptH() end
 
 --- The prompt took more (or fewer) lines: the header grows down, and what's under it moves.
 function UI:SetPromptExtra(extra)
@@ -2324,7 +2897,7 @@ function UI:LayoutHeader()
 	divider:SetPoint("TOPRIGHT", -inset, -(hh - 4))
 	promptBg:ClearAllPoints()
 	promptBg:SetPoint("TOPLEFT", pin, -pin)
-	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(hh - 4))
+	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(PromptH() - 4))
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
 		row.baseY = -hh - (i - 1) * ROW_H
@@ -2337,10 +2910,31 @@ end
 
 --- The terminal is as tall as its results: header, one row per result shown, footer. It
 --- grows and shrinks smoothly as you type (snaps on open and when animations are off).
-function UI:FitHeight()
+function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open)
 	if not frame then return end
 	local n = math.max(0, math.min(ROWS, #results - offset))
-	local h = HeaderH() + n * ROW_H + (self.footerH or FOOTER_H)
+	-- nothing listed (nothing typed yet; in Simple mode also nothing found): just the prompt, no divider,
+	-- no footer (Advanced keeps its footer for a search that found nothing)
+	local bare = #results == 0 and self.mode == "search" and not self.sendTo
+		and (EasyOn() or not (text or (edit and edit:GetText()) or ""):find("%S"))
+	-- Simple mode, only a line saying nothing was found: no footer under it (it showed as an empty bar)
+	local noFoot = false
+	if not bare and EasyOn() and #results > 0 then
+		noFoot = true
+		for i = 1, #results do if not results[i].noActivate then noFoot = false break end end
+	end
+	if bare ~= (self.bare or false) or noFoot ~= (self.noFoot or false) then
+		self.bare, self.noFoot = bare, noFoot
+		divider:SetShown(not bare)
+		footLine:SetShown(not (bare or noFoot))
+		status:SetShown(not (bare or noFoot))
+		self.hintsRoom = nil
+		self:FitHints()
+	end
+	local h
+	if bare then h = HeaderH() - 4
+	elseif noFoot then h = HeaderH() + n * ROW_H + 2
+	else h = HeaderH() + n * ROW_H + (self.footerH or FOOTER_H) end
 	self.heightTo = h
 	local cur = frame:GetHeight()
 	if self.snapNext or not self:Animated() or type(cur) ~= "number" or cur <= 0 then
@@ -2575,6 +3169,7 @@ local function ComputeCompletion(self, text)
 		if new then return new .. (final and " " or "") end
 		return nil
 	end
+	if EasyOn() then return nil end -- (Simple mode: no @kinds, filters or channels to complete)
 	local last = text:match("(%S*)$") or ""
 	-- ">> par" -> ">> party"
 	local before = text:sub(1, #text - #last)
@@ -2602,6 +3197,8 @@ local function ComputeCompletion(self, text)
 		if not new then return nil end
 		return text:sub(1, #text - #fval) .. new .. (final and " " or "")
 	end
+	-- easy mode: nothing more is suggested (Tab picks a category there)
+	if EasyOn() then return nil end
 	-- the "Search <list> for this" row: Tab adds its @kind
 	local e = results[sel]
 	if e and e.completion then return e.completion end
@@ -2631,7 +3228,24 @@ end
 
 --- Shift+Right at the end of the prompt: the selected result written into it ("@npc Thrall"), to build on
 --- (a ">> channel" already typed is kept). False when there's nothing to write.
+--- The suggestion shown in the empty prompt, as text to type ("try: hogger >> party" -> "hogger >> party"),
+--- or nil (suggestions off, something typed or listed, a tip rather than an example).
+function UI:SuggestionText()
+	if edit:GetText() ~= "" or #results > 0 or self.histIdx or Theme.Get().suggest == false then return nil end
+	local ex = ns.Easy and ns.Easy.Example()
+	local body = type(ex) == "string" and ex:match("^try:%s*(.-)%s*$")
+	if not body then return nil end
+	body = body:gsub("%s*%b()$", "") -- (".filters (every key:value)": the note isn't typed)
+	return body ~= "" and body or nil
+end
+
 function UI:FillFromResult()
+	-- the empty prompt: Shift+Right takes the suggestion shown in it
+	local suggested = self:SuggestionText()
+	if suggested then
+		self:SetQuery(suggested, #suggested)
+		return true
+	end
 	local new = self:ResultText(results[sel])
 	if not new then return false end
 	local rest = ns.Share and select(2, ns.Share.Split(edit:GetText()))
@@ -2714,7 +3328,9 @@ function UI:SyntaxSegments(text, plain)
 		else
 			local word = text:match("^%S+", pos)
 			local color = base
-			if word == ">>" and ns.Share then
+			if EasyOn() and ns.Easy.IsAdvancedWord(word) then
+				color = bad -- (Simple mode: Advanced syntax isn't taken)
+			elseif word == ">>" and ns.Share then
 				color = t.accent
 				afterSend = true
 			elseif ns.Share and #word > 2 and word:sub(1, 2) == ">>" then
@@ -2737,6 +3353,8 @@ function UI:SyntaxSegments(text, plain)
 				local key, value = word:match("^(%a+):(.*)$")
 				if key and F and F.IsKey(key) then
 					color = (value == "" or F.Parse(word)) and filt or bad
+				elseif not key and ns.Easy and ns.Easy.Word(word) then
+					color = filt -- (easy mode: "rare", "ready", "vendor")
 				end
 			end
 			out[#out + 1] = { pos, pos + #word - 1, color }
@@ -2815,6 +3433,12 @@ function UI:UpdateGhost()
 	local add = self:IsShown() and self:Suggestion() or nil
 	if self.clipHint and not self.keys and self:IsShown() then
 		add = (edit:GetText() ~= "" and "   " or "") .. (self.clipHint == "V" and "Ctrl+V again to paste" or "Ctrl+C again to copy")
+	end
+	-- easy mode, nothing typed: a faint line in the prompt says what to do (there's nothing under it)
+	if not add and self:IsShown() and edit:GetText() == "" and not self.histIdx and #results == 0 then
+		-- a rotating example of what to type (Advanced: its own syntax, and what Up/Down bring)
+		-- (the option off: the prompt stays empty)
+		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end
 	end
 	if not add then ghost:Hide() return end
 	local text = edit:GetText()
@@ -2911,7 +3535,7 @@ local function Build()
 			self:SetText(stripped)
 			return
 		end
-		if not UI._histSet then UI.histIdx = nil end
+		if not UI._histSet and t ~= UI.histText then UI.histIdx = nil end
 		if not UI.keys then
 			local cp = self:GetCursorPosition()
 			if type(cp) == "number" then UI.cursor = cp end
@@ -3080,9 +3704,11 @@ local function Build()
 		b.label:SetPoint("RIGHT", b.detail, "LEFT", -8, 0)
 		b.label:SetJustifyH("LEFT")
 		b.label:SetWordWrap(false)
-		b:SetScript("OnClick", function()
+		if b.RegisterForClicks then b:RegisterForClicks("LeftButtonUp", "RightButtonUp") end
+		b:SetScript("OnClick", function(_, button)
 			if UI.closing then return end -- fading out: already done
 			sel = offset + i
+			if button == "RightButton" then return UI:ShowRowMenu(sel) end
 			UI:Activate(sel, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 		end)
 		b:SetScript("OnEnter", function()
@@ -3227,6 +3853,40 @@ function UI:ApplyTheme()
 end
 
 ----------------------------------------------------------------------
+-- Easy mode: categories (Easy.lua has them): picked from the rows a search lists
+----------------------------------------------------------------------
+
+--- Pick a category ("bags", "emotes"...; nil: none, back to the categories): the results are searched again.
+function UI:SetCategory(id)
+	if id ~= nil and not (ns.Easy and ns.Easy.BY_ID[id]) then return end
+	self.category, self.categoryAuto = id, nil
+	self.lastScan = nil -- (other kinds: not a narrowing of the last search)
+	if self:IsShown() then
+		self.refreshedAt = nil
+		self:Refresh()
+	end
+end
+
+--- Tab in easy mode: in a category, back to all of them; on a category row, pick it.
+function UI:EasyTab()
+	if self.category and not self.categoryAuto then return self:SetCategory(nil) end
+	local e = results[sel]
+	if e and e.catId then self:SetCategory(e.catId) end
+end
+
+--- Easy mode switched on or off (Easy.Set): what's shown is searched again.
+function UI:EasyChanged()
+	self.category = nil
+	self.lastScan, memo.results, memo.value = nil, nil, nil
+	self.hintsRoom, self.syntaxKey = nil, nil
+	if not frame then return end
+	if self:IsShown() then
+		self.refreshedAt = nil
+		self:Refresh()
+	end
+end
+
+----------------------------------------------------------------------
 -- Public
 ----------------------------------------------------------------------
 
@@ -3234,12 +3894,20 @@ end
 function UI:IsShown() return frame and frame:IsShown() and not self.closing or false end
 
 function UI:Hide()
+	self:HideRowMenu()
+	NavHide()
 	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)
 	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
 	self:HideCatcher()
 	if tip then tip:Hide(); tip.entry = nil end
 	edit:ClearFocus()
+	-- the search to bring back with Down on the next open (only a search: not a .command or /slash)
+	local typed = edit:GetText()
+	if typed:find("%S") and self.mode == "search" then
+		self.lastQuery = typed
+		self.lastCategory = not self.categoryAuto and self.category or nil
+	end
 	self.histIdx = nil
 	self.lastScan, memo.results, memo.value = nil, nil, nil -- (rows kept only for the next keystroke)
 	-- let go of the keyboard at once, so the next key already reaches the game
@@ -3280,13 +3948,30 @@ function UI:Open(text)
 	ns.Highlight:Clear()
 	local reopening = self.closing
 	self.closing = false
+	self.category, self.categoryAuto = nil, nil -- (each time it opens: no category yet, nothing listed)
+	if ns.Easy then ns.Easy.NextExample() end -- (another example in the empty prompt each time)
+	self.showRecent, self.recalled = nil, nil
+	-- the last search's rows are gone before the frame shows: it opened at their height and only
+	-- then collapsed to the bare prompt, seen for a moment on every reopen (and reopened while
+	-- still fading out, the fading rows go at once too)
+	results, sel, offset = {}, 1, 0
+	self.searchJob, self.mode, self.sendTo = nil, "search", nil
+	self.snapNext = true
+	self:FitHeight(text or "")
 	frame:Show()
 	self:StartOpen(reopening)
 	self.snapNext = true -- opens at the right size; it grows and shrinks from there
 	self.opening = true -- (the rows still come in with the style)
-	-- SetText searches (OnTextChanged) only if the text changed; a second search in the same
-	-- frame would be queued for the next one
-	if edit:GetText() ~= (text or "") then edit:SetText(text or "") else self:Refresh() end
+	-- SetText searches (OnTextChanged) only if the text changed, and the game may report that
+	-- change a frame later (by then not snapping: the glide was the flash): search now unless it
+	-- already happened (a second search in the same frame would be queued for the next one)
+	local want = text or ""
+	local before = self.refreshCount
+	if edit:GetText() ~= want then edit:SetText(want) end
+	if self.refreshCount == before then
+		self.refreshedAt = nil
+		self:Refresh()
+	end
 	self.cursor = #edit:GetText()
 	self.snapNext, self.opening = false, false
 	if not self:EnterKeys() then

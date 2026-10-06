@@ -1,0 +1,397 @@
+local ns = select(2, ...)
+
+-- Simple mode (the default; "easy" in the code): Terminal for players who'll never type @npc or q:rare+.
+--   - Opens with nothing listed. Typing lists the categories that have it ("Bags  Rumsey Rum +2 more",
+--     "Emotes  /dance"), best match first; Enter, a click or Tab picks one, and only it is searched (Questie's
+--     lists included). Tab goes back to all of them; clearing the prompt lets the category go. Every list is
+--     in some category, the ones hard mode only searches with their @kind too (emotes, slash commands,
+--     console settings, Questie's quests and NPCs, your alts' bags).
+--   - Everyday words act as filters: "rare sword", "epic", "boe", "ready", "todo", "innkeeper"
+--     (a soft filter: a row passes the filter, or has the word in its name, so "Bound Fire" is still found).
+--   - The footer says what Enter and Shift+Enter do for the selected row; no ghost completions of syntax.
+--   - The first word can say what to do: use, cast, summon, equip, target, where, nearest (E.ACTIONS).
+--   - .help in plain sentences. Advanced syntax (@kind, key:value, >> channel) isn't taken: a row on top says
+--     it's Advanced mode's and offers the switch. .commands and /slash still run.
+-- `.advanced` (after a confirmation) switches to the full command line; `.simple` comes back.
+
+local E = {}
+ns.Easy = E
+
+local Lower = ns.Lower
+
+--- Is easy mode on? It is unless the player chose hard mode (db.easyMode == false).
+function E.On()
+	local db = ns.db
+	return not (db and db.easyMode == false)
+end
+
+--- Switch; the terminal searches again.
+function E.Set(on)
+	if not ns.db then return end
+	ns.db.easyMode = on and true or false
+	local UI = ns.UI
+	if UI and UI.EasyChanged then UI:EasyChanged() end
+end
+
+----------------------------------------------------------------------
+-- Categories: what a search's rows are sorted into
+----------------------------------------------------------------------
+
+local function IsEmote(e) return e.emote ~= nil end
+local function NotEmote(e) return e.emote == nil end
+
+-- Each searches these kinds (provider ids; those not loaded are skipped, a category with none never shows),
+-- and only the rows `keep` says yes to when it has one (one list, two categories: emotes and slash commands).
+E.CATEGORIES = {
+	{ id = "bags", label = "Bags", kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08" },
+	{ id = "quests", label = "Quests", kinds = { "quests", "questie" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
+	{ id = "spells", label = "Spells", kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+	{ id = "crafting", label = "Crafting", kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
+	{ id = "npcs", label = "NPCs", kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
+	{ id = "places", label = "Places", kinds = { "maps" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
+	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
+	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
+	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
+		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
+	{ id = "character", label = "Character", kinds = { "reputation", "currency", "skills", "equipmentset" },
+		icon = "Interface\\Icons\\INV_Misc_Book_09" },
+	{ id = "emotes", label = "Emotes", kinds = { "slash" }, keep = IsEmote, icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss" },
+	{ id = "slash", label = "Slash commands", kinds = { "slash" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01" },
+	{ id = "game", label = "Game", kinds = { "panels", "gameoptions", "macros", "keybinds", "addons", "terminal" },
+		icon = "Interface\\Icons\\INV_Misc_Gear_01" },
+	{ id = "console", label = "Console settings", kinds = { "cvars" }, icon = "Interface\\Icons\\Trade_Engineering" },
+}
+E.BY_ID = {}
+for _, c in ipairs(E.CATEGORIES) do E.BY_ID[c.id] = c end
+
+--- The categories to sort into: every one with at least one of its kinds loaded.
+function E.Visible()
+	local out = {}
+	for _, c in ipairs(E.CATEGORIES) do
+		local any = false
+		for _, id in ipairs(c.kinds) do
+			if ns.providers[id] then any = true break end
+		end
+		if any then out[#out + 1] = c end
+	end
+	return out
+end
+
+--- The kinds a category searches, as a set (nil for an unknown one).
+function E.Kinds(id)
+	local c = E.BY_ID[id or ""]
+	if not c then return nil end
+	local set = {}
+	for _, k in ipairs(c.kinds) do
+		if ns.providers[k] then set[k] = true end
+	end
+	return set
+end
+
+----------------------------------------------------------------------
+-- Everyday words: filters without the key:value
+----------------------------------------------------------------------
+
+E.WORDS = {
+	poor = "q:poor", junk = "q:poor", grey = "q:poor", gray = "q:poor", common = "q:common", uncommon = "q:uncommon",
+	rare = "q:rare", epic = "q:epic", legendary = "q:legendary",
+	boe = "is:boe", soulbound = "is:soulbound", bound = "is:soulbound",
+	usable = "is:usable", equippable = "is:equippable", craftable = "is:craftable",
+	ready = "is:ready", passive = "is:passive", capped = "is:capped",
+	done = "is:done", completed = "is:done", finished = "is:done", earned = "is:done",
+	todo = "is:todo", unfinished = "is:todo", unearned = "is:todo",
+	-- consumables and stats: "stamina food", "agility elixir", "mana potion"
+	food = "type:food", drink = "type:drink", potion = "type:potion", potions = "type:potion", elixir = "type:elixir",
+	elixirs = "type:elixir", flask = "type:flask", bandage = "type:bandage", bandages = "type:bandage", scroll = "type:scroll",
+	stamina = "stat:stamina", strength = "stat:strength", agility = "stat:agility", intellect = "stat:intellect",
+	spirit = "stat:spirit", armor = "stat:armor",
+	-- what an item is and where it's worn: "shield", "plate", "boots", "ring"
+	shield = "type:shield", shields = "type:shield", sword = "type:sword", swords = "type:sword", axe = "type:axe",
+	axes = "type:axe", mace = "type:mace", maces = "type:mace", dagger = "type:dagger", daggers = "type:dagger",
+	staff = "type:stave", staves = "type:stave", bow = "type:bow", bows = "type:bow", gun = "type:gun", guns = "type:gun",
+	crossbow = "type:crossbow", wand = "type:wand", wands = "type:wand", polearm = "type:polearm",
+	cloth = "type:cloth", leather = "type:leather", mail = "type:mail", plate = "type:plate",
+	head = "slot:head", helm = "slot:helm", helmet = "slot:helmet", neck = "slot:neck", necklace = "slot:necklace",
+	amulet = "slot:amulet", shoulder = "slot:shoulder", shoulders = "slot:shoulders", back = "slot:back",
+	cloak = "slot:cloak", cape = "slot:cape", chest = "slot:chest", robe = "slot:robe", wrist = "slot:wrist",
+	bracers = "slot:bracers", hands = "slot:hands", gloves = "slot:gloves", waist = "slot:waist", belt = "slot:belt",
+	legs = "slot:legs", pants = "slot:pants", leggings = "slot:leggings", feet = "slot:feet", boots = "slot:boots",
+	ring = "slot:ring", rings = "slot:rings", trinket = "slot:trinket", trinkets = "slot:trinkets", offhand = "slot:offhand",
+	-- NPC roles, and the everyday names for them ("nearest repair", "nearest fp", "nearest ah")
+	repair = "is:repair", repairs = "is:repair", inn = "is:inn", bank = "is:bank", flight = "is:flight",
+	fp = "is:flight", ah = "is:auctioneer", auction = "is:auctioneer", stable = "is:stablemaster",
+	vendor = "is:vendor", vendors = "is:vendor", trainer = "is:trainer", trainers = "is:trainer",
+	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
+	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
+}
+
+-- left out of a search typed like a sentence (only when another word is left)
+E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
+	that = true, which = true, gives = true, give = true, giving = true, ["for"] = true, by = true, to = true, ["and"] = true,
+	drops = true, dropped = true, drop = true, my = true, some = true, any = true, show = true, find = true, me = true,
+	is = true, are = true }
+
+local wordTests = {} -- word -> soft test (made once)
+local weights = setmetatable({}, { __mode = "k" }) -- soft test -> how much passing it counts when relaxed
+
+-- quality words count for little when nothing passes every word: "rare shield" for a green shield is still
+-- the shield people meant (what something is beats how rare it is)
+local WEAK = { poor = true, junk = true, grey = true, gray = true, common = true, uncommon = true, rare = true,
+	epic = true, legendary = true }
+
+--- How much an everyday word's test counts in the relaxed ranking (UI:RelaxSoft): 1 for quality words, else 3.
+function E.Weight(test) return weights[test] or 3 end
+
+local function NameHas(e, w)
+	local ln = rawget(e, "_lname") or (type(e.name) == "string" and Lower(e.name)) or ""
+	return ln:find(w, 1, true) ~= nil
+end
+
+--- The soft filter an everyday word stands for, or nil: a row passes when the filter says so, or when its
+--- name has the word ("bound" still finds "Bound Fire Elemental"). Easy mode only.
+function E.Word(w)
+	if not E.On() then return nil end
+	w = Lower(w)
+	local t = wordTests[w]
+	if t ~= nil then return t or nil end
+	local spec = E.WORDS[w]
+	local f = spec and ns.Filters and ns.Filters.Parse(spec)
+	if not f then wordTests[w] = false return nil end
+	t = function(e) return f(e) or NameHas(e, w) end
+	wordTests[w] = t
+	weights[t] = WEAK[w] and 1 or 3
+	return t
+end
+
+----------------------------------------------------------------------
+-- What Enter and Shift+Enter do, in words, for the selected row
+----------------------------------------------------------------------
+
+E.VERBS = {
+	items = { "show in bags", "use" }, consumable = { "show in bags", "use" }, mats = { "show in bags", "use" },
+	gear = { "show", "equip" },
+	stored = { "show in bags", "who has it" },
+	spells = { "show in spellbook", "cast" },
+	npc = { "show on map", "target" },
+	questie = { "Wowhead link", "show in game" },
+	quests = { "show in quest log" },
+	maps = { "show on map" },
+	toys = { "use", "show in journal" },
+	pets = { "summon", "show in journal" },
+	titles = { "wear" },
+	achievements = { "show", "link in chat" }, achievementlist = { "show", "link in chat" },
+	professions = { "open", "link in chat" },
+	addons = { "options", "turn on/off" },
+	camp = { "show recipe", "make / use" },
+	loot = { "show loot" },
+	slash = { "run", "put in chat" }, emote = { "do it", "put in chat" },
+	cmd = { "run" }, advanced = { "switch to Advanced mode" },
+}
+
+--- The two verbs for a row: Enter's, and Shift+Enter's (nil when it has none).
+function E.Verbs(e)
+	if not e or e.noActivate then return nil end
+	if e.catId then return "look in " .. tostring(e.name) end
+	if e.completion then return "search there" end
+	if e.actionVerb then return Lower(e.actionVerb), nil end
+	local v = E.VERBS[(e.emote and "emote") or e.kind or ""]
+	local enter = v and v[1] or "open"
+	local shift = v and v[2]
+	if not shift and (e.secondary or e.secondarySecure) then shift = "more" end
+	return enter, shift
+end
+
+----------------------------------------------------------------------
+-- Action words: "use hearthstone", "cast frost nova", "summon raptor", "target hogger", "nearest innkeeper"
+----------------------------------------------------------------------
+
+-- The first word of a search can say what to do. `map`: the kinds it looks in, and for each the row's action it
+-- runs on Enter ("p" its usual one, "s" its Shift+Enter one); no map: any kind, the usual action (only the word
+-- is dropped: "show", "open"). `keep`: only rows it says yes to. `nearest`: NPCs sorted by how far away they are.
+E.ACTIONS = {
+	use = { label = "Use", map = { items = "s", toys = "p", camp = "s" } },
+	cast = { label = "Cast", map = { spells = "s" } },
+	summon = { label = "Summon", map = { mounts = "p", pets = "p" } },
+	mount = { label = "Summon", map = { mounts = "p" } },
+	ride = { label = "Summon", map = { mounts = "p" } },
+	equip = { label = "Equip", map = { items = "s" } },
+	wear = { label = "Wear", map = { titles = "p", items = "s" } },
+	target = { label = "Target", map = { npc = "s" } },
+	link = { label = "Link in chat", map = { achievementlist = "s", professions = "s" } },
+	["do"] = { label = "Do", map = { slash = "p" }, keep = IsEmote },
+	where = { label = "Where is", map = { npc = "p", maps = "p", quests = "p", questie = "s" } },
+	nearest = { label = "Nearest", map = { npc = "p" }, nearest = true },
+	closest = { label = "Nearest", map = { npc = "p" }, nearest = true },
+	show = { label = "Show" }, open = { label = "Open" }, find = { label = "Find" },
+}
+
+-- the words that name what an NPC does (not who it is): "nearest" then keeps to NPCs friendly to you
+E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, bank = true, banker = true, flight = true,
+	fp = true, flightmaster = true, ah = true, auction = true, auctioneer = true, stable = true, stablemaster = true,
+	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true }
+
+--- The action a search's first word names, or nil (only with another word after it, or an everyday word).
+function E.Action(word) return E.On() and E.ACTIONS[word] or nil end
+
+local function False() return false end
+
+--- A row as the action wants it: its Shift+Enter action made its Enter (a view on the row, which stays as it is);
+--- rows whose usual action is the one wanted come back as they are.
+function E.ActionView(e, act)
+	local how = act.map and act.map[e.kind]
+	if how ~= "s" or not (e.secondary or e.secondarySecure) then return e end
+	return setmetatable({
+		secure = e.secondarySecure or false, isOpen = e.secondaryIsOpen or False, after = e.secondaryAfter or false,
+		activate = e.secondary, actionVerb = act.label, actionOf = e,
+	}, { __index = e })
+end
+
+----------------------------------------------------------------------
+-- The empty prompt's faint examples (a different one each time it opens)
+----------------------------------------------------------------------
+
+E.EXAMPLES = {
+	"try: stamina food", "try: nearest innkeeper", "try: use hearthstone", "try: dance", "try: rare sword",
+	"try: where is hogger", "try: summon a mount by its name", "try: shield that drops from kresh",
+	"try: cast a spell by its name", "try: vendor goldshire", "try: stormwind",
+}
+local exampleAt = 0
+-- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
+E.ADV_EXAMPLES = {
+	"try: @npc is:vendor in:barrens", "try: @gear slot:feet ilvl:20+", "try: hogger >> party",
+	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
+	"try: @npc trainer:mine faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
+	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @achievement is:todo",
+	"try: @spell is:ready", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
+	"tip: Up = last command, Down = recent picks",
+}
+local function Examples() return E.On() and E.EXAMPLES or E.ADV_EXAMPLES end
+function E.NextExample()
+	local list = Examples()
+	exampleAt = exampleAt % #list + 1
+	return list[exampleAt]
+end
+function E.Example()
+	local list = Examples()
+	return list[(math.max(1, exampleAt) - 1) % #list + 1]
+end
+
+----------------------------------------------------------------------
+-- Advanced mode's syntax in Simple mode: not taken, the player is told where it lives
+----------------------------------------------------------------------
+
+--- Is this word Advanced mode's syntax (an @kind, a key:value filter, >>)?
+function E.IsAdvancedWord(w)
+	if w:sub(1, 1) == "@" or w:sub(1, 2) == ">>" then return true end
+	local key = w:match("^(%a+):")
+	return key ~= nil and ns.Filters ~= nil and ns.Filters.IsKey(key)
+end
+
+local function OfferAdvanced() C_Timer.After(0, E.ShowConfirm) end
+--- The row shown on top when Advanced syntax was typed in Simple mode (Enter: the switch's confirmation).
+E.ADVANCED_ROW = {
+	name = "@, >> and key:value are for Advanced mode", kind = "advanced", kindLabel = "",
+	detail = "Enter to switch (or type .advanced)", icon = "Interface\\Icons\\INV_Misc_Gear_01",
+	activate = OfferAdvanced,
+}
+
+----------------------------------------------------------------------
+-- .advanced / .simple (the modes; db.easyMode == false is Advanced)
+----------------------------------------------------------------------
+
+local dialog -- the confirmation, on the Panel pattern (it takes the terminal's place)
+
+local function Confirm(yes)
+	if dialog then dialog:Hide() end
+	if yes then
+		E.Set(false)
+		ns:Print("Advanced mode: the full command line (@kinds, key:value filters, .commands, >> chat). .help lists it all; .simple goes back.")
+	end
+end
+
+local app = {}
+function app.IsShown() return dialog and dialog:IsShown() or false end
+function app.Close() if dialog then dialog:Hide() end end
+
+E.CONFIRM_W, E.CONFIRM_PAD, E.CONFIRM_BODY_Y = 460, 14, 40 -- (the dialog is as tall as its text needs)
+
+local function Button(parent, label, x, onClick)
+	local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	b:SetSize(170, 24)
+	b:SetPoint("BOTTOM", parent, "BOTTOM", x, E.CONFIRM_PAD)
+	b:SetText(label)
+	b:SetScript("OnClick", onClick)
+	return b
+end
+
+function E.ShowConfirm()
+	local P = ns.Panel
+	if InCombatLockdown() then
+		ns:Print("Not in combat: type .advanced again afterwards.")
+		return
+	end
+	if not dialog then
+		dialog = P.Build("TerminalHardMode", app)
+		dialog.title = P.Text(dialog, 15, "CENTER")
+		dialog.title:SetPoint("TOP", 0, -E.CONFIRM_PAD)
+		dialog.body = dialog:CreateFontString(nil, "OVERLAY")
+		dialog.body:SetFontObject(ns.Theme.fonts.small)
+		dialog.body:SetJustifyH("LEFT")
+		dialog.body:SetWordWrap(true)
+		dialog.body:SetPoint("TOP", 0, -E.CONFIRM_BODY_Y)
+		dialog.body:SetWidth(E.CONFIRM_W - 40)
+		dialog.yes = Button(dialog, "Switch to Advanced", -92, function() Confirm(true) end)
+		dialog.no = Button(dialog, "Stay in Simple", 92, function() Confirm(false) end)
+		dialog:SetScript("OnKeyDown", function(_, key)
+			if key == "ENTER" then Confirm(true)
+			elseif key == "ESCAPE" or key == "`" then Confirm(false) end
+		end)
+	end
+	P.Opening(app)
+	local t = P.Layout(dialog)
+	dialog.title:SetText("|cff" .. t.text .. "Switch to Advanced mode?|r")
+	dialog.body:SetText("|cff" .. t.dim .. "The full command line: @kinds (@npc Hogger), key:value filters (q:rare+ lvl:20-30), "
+		.. ".commands and >> to send to chat. Words like \"rare\" and \"use\" become plain search words. "
+		.. ".simple comes back.|r")
+	-- as tall as the text: title, text, buttons, with the same margin around each
+	local h = dialog.body:GetStringHeight()
+	h = type(h) == "number" and h > 0 and h or 42
+	dialog:SetSize(E.CONFIRM_W, math.floor(E.CONFIRM_BODY_Y + h + E.CONFIRM_PAD + 24 + E.CONFIRM_PAD + 4))
+	dialog:Show()
+end
+
+ns:RegisterCommand("advanced", {
+	desc = "Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat), after a confirmation",
+	aliases = { "hardmode", "hard" },
+	run = function()
+		if not E.On() then return { "Already in Advanced mode (.simple goes back)." } end
+		-- after this press is done (the terminal closes on a command): the dialog takes its place
+		C_Timer.After(0, E.ShowConfirm)
+		return {}
+	end,
+})
+
+ns:RegisterCommand("simple", {
+	desc = "Switch to Simple mode: plain words (use hearthstone, nearest innkeeper, stamina food), results sorted by where they are",
+	aliases = { "easymode", "easy" },
+	run = function()
+		if E.On() then return { "Already in Simple mode (.advanced for the full command line)." } end
+		E.Set(true)
+		return { "Simple mode: type what you're looking for in plain words (\"use hearthstone\", \"nearest innkeeper\", \"stamina food\"). .advanced for the full command line." }
+	end,
+})
+
+--- .help in Simple mode: plain sentences.
+function E.HelpLines()
+	return {
+		"Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it.",
+		"Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter or a click, then the thing itself. Tab goes back to all of them.",
+		"Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\").",
+		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row for all it can do.",
+		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
+		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
+		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
+	}
+end
+
+E.ResetForTests = function() wordTests = {} end

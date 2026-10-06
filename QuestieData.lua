@@ -174,9 +174,16 @@ local function LibZones()
 	for areaId, d in pairs(dungeons) do
 		for _, a in ipairs(type(d) == "table" and type(d[2]) == "table" and d[2] or {}) do alt[a] = areaId end
 	end
-	zones = { map = copy, dungeons = dungeons, alt = alt }
+	-- the parts of a zone (towns, camps: Ratchet -> The Barrens), for places by name ("vendor ratchet")
+	local subs = {}
+	for k, v in pairs(Decode(P.subZoneToParentZone) or {}) do subs[k] = v end
+	for k, v in pairs(Decode(P.subZoneToParentZoneOverride) or {}) do subs[k] = v end
+	zones = { map = copy, dungeons = dungeons, alt = alt, sub = subs }
 	return zones
 end
+
+--- The zone tables: { map = areaId -> uiMapId, sub = sub area -> its zone's area, dungeons }, or nil.
+function QD.Zones() return LibZones() end
 
 function QD.UiMapOfArea(areaId)
 	local Z = QD.Module("ZoneDB")

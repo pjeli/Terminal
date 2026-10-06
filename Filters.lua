@@ -895,6 +895,36 @@ KEYS.faction = function(v)
 	end
 end
 
+-- near: Questie NPCs within that many yards of you (near:500, near:<300, near:200-800); where you are is asked once
+-- per search (the parse), each NPC's nearest spawn on your continent (Integrations.NpcDistance)
+KEYS.near = function(v)
+	local r = v:match("^%d+$") and Range("<=" .. v) or Range(v)
+	if not r then return nil end
+	local I = ns.Integrations
+	local here
+	return function(e)
+		local id = NpcID(e)
+		if not (id and I and I.NpcDistance) then return false end
+		if here == nil then here = I.Here and I.Here() or false end
+		local d = here and I.NpcDistance(id, here)
+		return d and r(d) or false
+	end
+end
+KEYS.within, KEYS.dist = KEYS.near, KEYS.near
+
+-- sort:nearest: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far
+F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance = "nearest", dist = "nearest" }
+KEYS.sort = function(v)
+	if not F.SORTS[v] then return nil end
+	return function() return true end
+end
+--- "sort:nearest" -> "nearest", else nil.
+function F.SortOf(word)
+	if type(word) ~= "string" then return nil end
+	local k, v = word:match("^(%a+):(%a+)$")
+	if k and Lower(k) == "sort" then return F.SORTS[Lower(v)] end
+end
+
 KEYS.count = function(v)
 	local r = Range(v)
 	return r and function(e) return r(Count(e)) end
@@ -954,6 +984,8 @@ F.VALUES = {
 	stat = F.STATS, stats = F.STATS,
 	["in"] = { "bags", "bank", "mail", "guild", "warband", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
+	sort = { "nearest" },
+	near = { "100", "300", "500", "1000" },
 	trainer = { "mine", "class", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
 		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "riding" },
@@ -973,6 +1005,8 @@ F.HELP = {
 	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:blacksmithing), mine (your class), class, profession, pet, riding" },
 	{ "faction:horde", "@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)" },
 	{ "standing:honored+", "reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)" },
+	{ "near:500", "@npc: within that many yards of you (near:<300, near:200-800)" },
+	{ "sort:nearest", "Questie NPCs closest to you first, with how far (the other rows stay, after them)" },
 	{ "sells:linen_cloth", "@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)" },
 	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable" },
 	{ "is:ready", "spells: ready (off cooldown) passive; currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },

@@ -16,8 +16,8 @@ do -- rows listed without a search share one empty position table (no table per 
 	for _, e in ipairs(UI.Results()) do if not e.raw and e._pos ~= NO then shared = false end end
 	check(shared, "@kind alone: every row's _pos is the shared table")
 	UI:Hide()
-	ns:Bump("items:6948") -- (a recent pick: the empty terminal lists it)
-	UI:Open("")
+	ns:Bump("items:6948") -- (a recent pick: Down on the bare prompt lists it)
+	UI:Open(""); UI.lastQuery = nil; UI:Down()
 	shared = false
 	for _, e in ipairs(UI.Results()) do if e.freqKey == "items:6948" then shared = e._pos == NO end end
 	check(shared, "the empty terminal's recent picks: _pos is the shared table")

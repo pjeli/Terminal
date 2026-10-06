@@ -296,6 +296,9 @@ local ef = findHandler()
 assert(ef and ef.scripts.OnEvent, "event frame handler found")
 ef.scripts.OnEvent(ef, "ADDON_LOADED", "Terminal")
 assert(ns.db and ns.db.freq, "saved variables initialised")
+-- (the tests before easy mode run in hard mode, the full command line; tests/smoke/easy.lua tries easy mode)
+assert(ns.Easy and ns.Easy.On(), "a fresh install starts in easy mode")
+ns.db.easyMode = false
 ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
 
 io.write("[events fired]\n")
@@ -482,7 +485,11 @@ for i = 1, 5 do ns:Bump("items:2589") end
 io.write("[bumped]\n")
 local fr = UI:Search("")
 io.write("[searched, n=" .. #fr .. "]\n")
-check(UI:Search("")[1].name == "Linen Cloth", "frequent items surface on empty query")
+check(#fr == 0, "the empty prompt lists nothing (just the bar)")
+UI.showRecent = true -- (Down on the bare prompt)
+fr = UI:Search("")
+UI.showRecent = nil
+check(fr[1] and fr[1].name == "Linen Cloth", "frequent items surface on empty query (Down)")
 
 for _, l in ipairs(log) do if l:match("^PRINT") then io.write(l, "\n") end end
 
@@ -1340,7 +1347,7 @@ io.write("[theme tests]\n")
 do
 	local Th = ns.Theme
 	local function cmd(line) local c = UI:WordSearch(UI:CommandEntries(), line); return c[1].activate(c[1], UI.args) end
-	UI:Open("")
+	UI:Open(""); UI.lastQuery = nil; UI:Down() -- (Down on the bare prompt: your recent picks, the footer under them)
 	check(UI.promptFS:GetText() == "|cff6db8ff>|r", "prompt is > by default: " .. tostring(UI.promptFS:GetText()))
 	cmd("theme dracula")
 	check(Th.Get().preset == "dracula" and Th.Get().bg == "282a36", "> theme dracula applies the preset")
@@ -2654,7 +2661,7 @@ do -- AtlasLoot and Questie integrations
 	local QDB = { NPCPointers = { [10] = true, [11] = true, [12] = true },
 		QuestPointers = { [33] = true, [501] = true, [502] = true },
 		QueryQuestSingle = function(id, f) return QINFO[id] and QINFO[id][f] end,
-		QueryNPCSingle = function(id, f) return ({ [10] = "Edwin VanCleef", [11] = "Defias Pillager", [12] = "Marshal McBride" })[id] end,
+		QueryNPCSingle = function(id, f) if f ~= "name" then return nil end return ({ [10] = "Edwin VanCleef", [11] = "Defias Pillager", [12] = "Marshal McBride" })[id] end,
 		GetNPC = function(_, id) if id == 12 then return { spawns = { [9] = { { 50, 40 } } } } end end }
 	local QZ = { GetUiMapIdByAreaId = function(_, z) return z == 9 and 37 or nil end, GetDungeonLocation = function() return nil end }
 	local QM = { ShowNPC = function(_, id) note("QuestieShowNPC", id) end }
@@ -2999,6 +3006,7 @@ do -- history: the empty terminal shows what was picked last, newest first
 	local a, b, c = items[1], items[2], items[3]
 	for i = 1, 30 do ns:Bump(a.freqKey) end -- an old favourite
 	ns:Bump(b.freqKey); ns:Bump(c.freqKey)
+	UI.showRecent = true -- (Down on the bare prompt shows them)
 	local r = UI:Search("")
 	check(r[1] == c and r[2] == b and r[3] == a, "newest pick first, then the older one, then favourites: " .. tostring(r[1] and r[1].name) .. "," .. tostring(r[2] and r[2].name) .. "," .. tostring(r[3] and r[3].name))
 	ns:Bump(b.freqKey)
@@ -3010,6 +3018,7 @@ do -- history: the empty terminal shows what was picked last, newest first
 	for i = 1, 60 do ns:Bump("items:fake" .. i) end
 	check(#ns.db.recent == 40, "history is capped: " .. #ns.db.recent)
 	ns.db.recent = {}
+	UI.showRecent = nil
 end
 
 do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+Enter lists
@@ -4018,11 +4027,21 @@ do
 	key("UP"); check(query() == ".about", "and stops at the oldest")
 	key("DOWN"); check(query() == ".mem", "Down comes forward")
 	key("DOWN"); check(query() == "" and UI.histIdx == nil, "Down past the newest empties the prompt again")
+	-- the game may report SetText's change a frame later: Up, then Down still comes back to the empty prompt
+	do
+		local edit = UI.edit
+		edit.SetText = function(self, t) self.text = t or ""; C_Timer.After(0, function() local f = self.scripts.OnTextChanged; if f then f(self) end end) end
+		key("UP"); Flush()
+		check(query() == ".mem" and UI.histIdx == 1, "Up (late text event): the last line, still walking")
+		key("DOWN"); Flush()
+		check(query() == "" and UI.histIdx == nil, "then Down: back to the empty prompt: '" .. query() .. "'")
+		edit.SetText = nil
+	end
 	key("UP"); typeText("x")
 	check(UI.histIdx == nil and query() == ".memx", "typing leaves the history: " .. query())
 	UI:SetQuery("heal", 4)
 	key("UP"); check(query() == "heal", "Up with something typed still moves the list, not the history")
-	UI:SetQuery("", 0); key("DOWN"); check(query() == "", "Down on an empty prompt moves the list")
+	UI:SetQuery("", 0); UI.lastQuery = nil; key("DOWN"); check(query() == "", "Down on an empty prompt with no last search: still empty (your recent picks)")
 	UI:Hide()
 	UI:Open("")
 	check(UI.histIdx == nil, "a new session starts at the newest")
