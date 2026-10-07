@@ -77,18 +77,39 @@ UI.NO_POS = NO_POS
 local function FreqBonus(e, kind)
 	local freq = ns.db and ns.db.freq
 	if not freq then return 0 end
-	-- compact rows build their key on every read: only for kinds that were ever picked
 	local k = rawget(e, "freqKey")
-	if not k then
-		if not ns:FreqKind(kind or e.kind) then return 0 end
-		k = e.freqKey
+	local f
+	if k then
+		f = freq[k]
+	else
+		-- a compact row (its freqKey would be built on every read): looked up by its own key in what was picked
+		-- of its kind (Core.lua FreqKind; the same "kind:key" its metatable builds)
+		local picked = ns:FreqKind(kind or e.kind)
+		if not picked then return 0 end
+		local key = rawget(e, "key")
+		if key == nil then key = e.name end
+		f = key ~= nil and picked[key] or nil
 	end
-	local f = k and freq[k]
 	return f and math.min(f, 20) * 0.05 or 0
 end
 
+UI._FreqBonus = FreqBonus -- (tests)
+
 local find = string.find
-local SHORT_NAME = 2.5 -- a shorthand ("brd", Shorthand.lua) whose full name is in the row's name
+-- A shorthand's full name in a row's name or text beats any match of its letters ("rfk": Razorfen Kraul's loot
+-- before "Rough Flask of Kings", whose initials are r f k): above any fuzzy score a short word can get.
+local SHORT_PRIO = 3.5
+--- Is one of the shorthand's full names in the name (lowercase) or the text? "name", "text" or nil, and which.
+local function ShortHit(xs, ln, ltext)
+	for k = 1, #xs do
+		if find(ln, xs[k], 1, true) then return "name", k end
+	end
+	if ltext then
+		for k = 1, #xs do
+			if find(ltext, xs[k], 1, true) then return "text", k end
+		end
+	end
+end
 
 -- words that could be initials ("scb", "ubrs": 2-6 letters), per word typed (a few hundred kept)
 local iniShape, iniShapeN = {}, 0
@@ -121,8 +142,8 @@ local function StartsRight(name, lname, c1)
 end
 
 --- What the name gives a word that isn't in it as it is (best: its fuzzy score, or nil): its
---- initials ("ini"), or a shorthand's full name ("short", and which of them). Allocation-free.
-local function NameExtra(tk, xs, best, name, lname)
+--- initials ("ini"). (A shorthand's full name is looked at before: ShortHit.) Allocation-free.
+local function NameExtra(tk, best, name, lname)
 	local how, at = best and "name", nil
 	-- initials are letters of the name in order: only a scattered match can be one, and the
 	-- first word (or a leading of/the/a/an/and) must start with the first letter
@@ -130,12 +151,6 @@ local function NameExtra(tk, xs, best, name, lname)
 		if StartsRight(name, lname, byte(tk, 1)) then
 			local ini = Fuzzy.initials(tk, name)
 			if ini and ini > best then best, how = ini, "ini" end
-		end
-	end
-	if xs and (not best or best < SHORT_NAME) then
-		local ln = lname or ns.Lower(name)
-		for k = 1, #xs do
-			if find(ln, xs[k], 1, true) then return SHORT_NAME, "short", k end
 		end
 	end
 	return best, how, at
@@ -147,17 +162,16 @@ end
 --- isn't in the name as it is, so ordinary word searches rank as they always did.
 --- xs: the shorthand's full names when the word is one. Allocation-free.
 local function TokenScore(tk, xs, name, lname, ltext)
-	local best, sub = Fuzzy.score(tk, name, lname)
-	local how, at = best and "name", nil
-	if not sub then best, how, at = NameExtra(tk, xs, best, name, lname) end
-	if ltext and (not best or best < TEXT_SCORE) then
-		if find(ltext, tk, 1, true) then return TEXT_SCORE, how, at end
-		if xs then
-			for k = 1, #xs do
-				if find(ltext, xs[k], 1, true) then return TEXT_SCORE, how, at end
-			end
-		end
+	if xs then
+		local where, k = ShortHit(xs, lname or ns.Lower(name), ltext)
+		if where == "name" then return SHORT_PRIO, "short", k end
+		if where then return SHORT_PRIO, nil, nil end
 	end
+	local best, sub = Fuzzy.score(tk, name, lname)
+	if xs and not sub then return nil end
+	local how, at = best and "name", nil
+	if not sub then best, how, at = NameExtra(tk, best, name, lname) end
+	if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then return TEXT_SCORE, how, at end
 	return best, how, at
 end
 
@@ -195,9 +209,19 @@ local function ScoreEntry(e, tokens)
 	local ini = tokens.ini or IniFirst(tokens)
 	for i = 1, #tokens do
 		local tk = tokens[i]
-		local best, sub = Fuzzy.score(tk, name, lname)
-		if best then nameHit = true end
 		local xs = short and short[i]
+		local best, sub
+		local where = xs and ShortHit(xs, lname or ns.Lower(name), ltext)
+		if where then
+			best, sub = SHORT_PRIO, true
+			if where == "name" then nameHit = true end
+		else
+			best, sub = Fuzzy.score(tk, name, lname)
+			-- a shorthand is a place, not letters: elsewhere only the word itself counts ("sw" in Swamp), never letters
+			-- scattered through a name ("rfk helm": no Rough Flask of Kings among Razorfen Kraul's helms)
+			if xs and not sub then return nil end
+			if best then nameHit = true end
+		end
 		if not sub then
 			local c1 = ini[i]
 			if best and c1 then -- (see NameExtra: initials only for a scattered match, first letter first)
@@ -206,26 +230,15 @@ local function ScoreEntry(e, tokens)
 					if s and s > best then best = s end
 				end
 			end
-			if xs and (not best or best < SHORT_NAME) then
-				local ln = lname or ns.Lower(name)
-				for k = 1, #xs do
-					if find(ln, xs[k], 1, true) then best, nameHit = SHORT_NAME, true break end
-				end
-			end
 		end
-		if ltext and (not best or best < TEXT_SCORE) then
-			if find(ltext, tk, 1, true) then
-				best = TEXT_SCORE
-			elseif xs then
-				for k = 1, #xs do
-					if find(ltext, xs[k], 1, true) then best = TEXT_SCORE break end
-				end
-			end
-		end
+		if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then best = TEXT_SCORE end
 		if not best then return nil end
 		total = total + best
 	end
-	e._pos, e._nameHit = nil, nameHit
+	-- (not written on compact rows: a field more grew each to the next table size, ~320 B a row over thousands; their
+	-- matched letters are worked out on screen anyway, Positions)
+	e._pos = nil
+	if not rawget(e, "_compact") then e._nameHit = nameHit end
 	return total
 end
 
@@ -265,7 +278,7 @@ end
 --- The matched letters of the entry's name for these tokens (a set of byte positions).
 local function Positions(e, tokens)
 	local set = {}
-	if not (e._nameHit and tokens) then return set end
+	if not tokens or e._nameHit == false then return set end
 	local name, lname, short = e.name, e._lname, tokens.short
 	for i, tk in ipairs(tokens) do
 		local xs = short and short[i]
@@ -482,15 +495,41 @@ function UI:FrequentEntries()
 	return SortAndTrim(out)
 end
 
+UI.DATA_RETRY, UI.DATA_RETRIES = 1.1, 8 -- (seconds between, and how many: about 9 s of the game loading item data)
+
+--- A filter met item or spell data the game was still loading ("stamina food" right after login: the food's text
+--- isn't in yet, so it failed stamina): the same search runs again in a moment, from scratch (the narrowing state
+--- left those rows out), until the data is in or a few tries have gone by. Typing anything ends it.
+function UI:RetryWhenLoaded(text)
+	local F = ns.Filters
+	if not (F and F.loading) then
+		if self.dataRetry and self.dataRetry.text ~= text then self.dataRetry = nil end
+		return
+	end
+	local r = self.dataRetry
+	-- (the prompt as typed: the searched text may be trimmed or have lost a ">> party")
+	if not r or r.text ~= text then r = { text = text, tries = 0, typed = edit:GetText() }; self.dataRetry = r end
+	if r.waiting or r.tries >= UI.DATA_RETRIES then return end
+	r.waiting = true
+	C_Timer.After(UI.DATA_RETRY, function()
+		r.waiting = false
+		if self.dataRetry ~= r or not self:IsShown() or edit:GetText() ~= r.typed then return end
+		r.tries = r.tries + 1
+		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(text, r.tries))
+		self.lastScan, self.lastOverview = nil, nil
+		self.refreshedAt, self.searchedText = nil, nil
+		self:Refresh()
+	end)
+end
+
 function UI:Search(text)
+	if ns.Filters then ns.Filters.loading = nil end
 	-- arithmetic: the answer is the top result (see Calc.lua)
 	local calc = ns.Calc and ns.Calc.Entry(text)
-	if calc then
-		local res = self:SearchText(text)
-		table.insert(res, 1, calc)
-		return res
-	end
-	return self:SearchText(text)
+	local res = self:SearchText(text)
+	if calc then table.insert(res, 1, calc) end
+	self:RetryWhenLoaded(text)
+	return res
 end
 
 --- A quest item among the matches brings its quest along, right below it ("Intact Limbs" -> its
@@ -549,7 +588,8 @@ function UI:SearchText(text)
 	local blocked = simple and self.blockedSyntax or nil
 	local function Finish(res)
 		if not blocked then return res end
-		local out = { ns.Easy.ADVANCED_ROW }
+		-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
+		local out = { blocked == "send" and ns.Easy.SEND_ROW or ns.Easy.ADVANCED_ROW }
 		for i = 1, #res do out[i + 1] = res[i] end
 		return out
 	end
@@ -584,6 +624,8 @@ function UI:SearchText(text)
 		else
 			-- lvl:20-30, slot:wrist, zone:ashenvale, is:todo... (Filters.lua); anything else is text
 			local f = ns.Filters and ns.Filters.Parse(w)
+			-- Simple mode: a few everyday words are strict ("upgrades": only what suits you, never relaxed away)
+			if not f and simple and ns.Easy.HARD_WORDS[ns.Lower(w)] then f = ns.Filters.Parse(ns.Easy.WORDS[ns.Lower(w)]) end
 			-- easy mode: everyday words ("rare", "ready", "vendor") are soft filters (Easy.lua)
 			local soft = not f and ns.Easy and ns.Easy.Word(w)
 			if f or soft then
@@ -610,6 +652,10 @@ function UI:SearchText(text)
 		if a and (#tokens > 1 or filters) then
 			act = a
 			table.remove(tokens, 1)
+		elseif #tokens > 1 then
+			-- "nearest"/"nearby"/"closest" said last: "mining trainer nearby"
+			local b = ns.Easy.Action(tokens[#tokens])
+			if b and b.nearest then act = b; table.remove(tokens) end
 		end
 	end
 	self.action = act
@@ -652,7 +698,8 @@ function UI:SearchText(text)
 	end
 	local easyCat, here
 	if simple and not kinds then
-		self.lastScan = nil
+		-- (no reset of lastScan here: its signature holds the lists and filters searched, so a category picked
+		-- for you, or by you, narrows keystroke by keystroke like Advanced does)
 		-- a category picked for you (only one had it) is worked out again with every keystroke
 		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
 		if empty and not filters then
@@ -670,6 +717,16 @@ function UI:SearchText(text)
 				fsig[#fsig + 1] = "!" .. act.label
 			end
 			if act.nearest then
+				-- "nearest mailbox": a game object, not an NPC (QuestieDB's objects)
+				local I = ns.Integrations
+				local okind = I and I.ObjectKind and I.ObjectKind(tokens)
+				if okind then
+					local spot = I.Here()
+					if not spot then return Finish(PseudoEntries({ EASY_NOWHERE })) end
+					local rows = I.NearestObjectRows(okind, spot, filters and function(e) return ns.Filters.Pass(e, filters) end)
+					if rows and #rows > 0 then return Finish(rows) end
+					if rows then return Finish(PseudoEntries({ EASY_NONE })) end
+				end
 				if not ns.providers.npc then return Finish(PseudoEntries({ EASY_NO_NPCS })) end
 				here = ns.Integrations and ns.Integrations.Here()
 				if not here then return Finish(PseudoEntries({ EASY_NOWHERE })) end
@@ -688,7 +745,7 @@ function UI:SearchText(text)
 		else
 			easyCat = self.category and ns.Easy.BY_ID[self.category]
 			if not easyCat then
-				local ov = self:EasyOverview(tokens, filters, hard, softs, softWords)
+				local ov = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "))
 				-- only one category has it: straight to its results (no step to take)
 				if #ov == 1 and ov[1].catId then
 					self.category, self.categoryAuto = ov[1].catId, true
@@ -713,7 +770,7 @@ function UI:SearchText(text)
 	self.posTokens = tokens
 	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
 	if empty and not kinds and not filters then
-		self.lastScan = nil
+		self.lastScan, self.lastOverview = nil, nil
 		return self.showRecent and self:FrequentEntries() or {}
 	end
 	local Pass = ns.Filters and ns.Filters.Pass
@@ -747,6 +804,8 @@ function UI:SearchText(text)
 			if i == n and b:sub(1, #a) ~= a then candidates = nil break end
 			-- "br" -> "brd": a shorthand matches rows the shorter word didn't
 			if i == n and a ~= b and tokens.short and tokens.short[i] then candidates = nil break end
+			-- "sw" -> "swo": the other way, the shorthand matched only its full name and the word itself
+			if a ~= b and last.tokens.short and last.tokens.short[i] then candidates = nil break end
 		end
 	end
 	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
@@ -803,7 +862,7 @@ function UI:SearchText(text)
 			return #rest > 0 and rest or nil
 		end
 		self.category, self.categoryAuto, self.closeSpellings, self.softRelaxed = nil, nil, nil, nil
-		return Finish(self:EasyOverview(tokens, Without(filters), Without(hard), softs, softWords))
+		return Finish(self:EasyOverview(tokens, Without(filters), Without(hard), Without(softs), softWords))
 	end
 	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
 	if sortNear and not here then
@@ -816,10 +875,11 @@ function UI:SearchText(text)
 		local I, kept = ns.Integrations, {}
 		for i = 1, #out do
 			local e = out[i]
-			local id = e.kind == "npc" and (e.npcID or rawget(e, "key"))
-			local d = id and I.NpcDistance(id, here)
+			local d = I.RowDistance(e, here) -- (Questie's NPCs, and rows with a place of their own: @mailbox)
 			if d then
-				kept[#kept + 1] = setmetatable({ detail = ("%.0f yd"):format(d), _score = 1e6 - d, _dist = d }, { __index = e })
+				-- (a spot row keeps its zone, as the arrow's live text writes it: "120 yd  The Barrens")
+				local zone = rawget(e, "wcont") and e.zone
+				kept[#kept + 1] = setmetatable({ detail = ("%.0f yd"):format(d) .. (zone and ("  " .. zone) or ""), _score = 1e6 - d, _dist = d }, { __index = e })
 			elseif sortNear then
 				kept[#kept + 1] = e
 			end
@@ -850,7 +910,24 @@ local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row pass
 --- Easy mode, typed before a category is picked: one row per category that has matches ("Bags  Rumsey Rum
 --- +2 more"), the best match first; Enter or a click picks it. Questie's lists are counted by their name index.
 --- Spread over frames like the search.
-function UI:EasyOverview(tokens, filters, hard, softs, softWords)
+--- (fsig: the search's filter signature. When the words only grew since the last overview, under the same filters
+--- and the same lists, each list is scanned from the rows that matched last time, not in full: lastOverview.)
+function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
+	local reuse, last = nil, self.lastOverview
+	if last and fsig and last.sig == fsig and last.gen == ns.entriesGen and #tokens > 0 then
+		local n, ln = #tokens, #last.tokens
+		if n == ln or n == ln + 1 then
+			reuse = last
+			for i = 1, ln do
+				local a, b = last.tokens[i], tokens[i]
+				-- (earlier words the same, the last one only longer; never when it turned into shorthand: br -> brd)
+				if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a)
+					or (i == n and a ~= b and tokens.short and tokens.short[i])
+					or (a ~= b and last.tokens.short and last.tokens.short[i]) then reuse = nil break end
+			end
+		end
+	end
+	local keep = { sig = fsig, tokens = tokens, rows = {} }
 	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
 	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
 	-- (pausing shows what's already on screen: an empty list collapsed the frame to the bare prompt for a frame)
@@ -881,13 +958,20 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords)
 						end
 					end
 				elseif p then
+					local gen = ns.entriesGen
 					local list = ns:GetEntries(p)
+					local lkey = c.id .. "/" .. id
+					-- (a list rebuilt meanwhile is scanned in full: its old rows may be gone)
+					if reuse and not relaxed and gen == ns.entriesGen and reuse.rows[lkey] then list = reuse.rows[lkey] end
+					local kept = (not relaxed and not empty) and {} or nil
+					if kept then keep.rows[lkey] = kept end
 					local need = filters
 					if relaxed then need = hard end -- (nil: no typed key:value filter)
 					for i = 1, #list do
 						local e = list[i]
 						local sc = (not c.keep or c.keep(e)) and (empty and 0 or ScoreEntry(e, tokens)) or nil
 						if sc and (not need or Pass(e, need)) then
+							if kept then kept[#kept + 1] = e end
 							if relaxed then
 								for k = 1, #softs do
 									local ok, yes = pcall(softs[k], e)
@@ -912,6 +996,9 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords)
 		return out
 	end
 	local out = scan(false)
+	keep.gen = ns.entriesGen
+	self.lastOverview = (fsig and #tokens > 0) and keep or nil
+	self.lastOverviewReused = reuse ~= nil -- (tests)
 	if #out == 0 and softs and not empty then
 		out = scan(true)
 		if #out > 0 then self.softRelaxed = true end
@@ -1196,6 +1283,8 @@ end
 function UI:SyntaxRows(text)
 	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
 	if EasyOn() or self.opening or (self.cursor or #text) < #text then return nil end
+	-- (a line Up brought back from the history runs as it is: "@npc is:repair sort:nearest" isn't a pick list)
+	if self._histSet or (self.histIdx and text == self.histText) then return nil end
 	local last = text:match("(%S+)$")
 	if not last then return nil end
 	local before = text:sub(1, #text - #last)
@@ -1282,7 +1371,7 @@ function UI:Refresh()
 		-- Simple mode: no sending to chat; the words before ">>" are searched and a row says it's Advanced mode's
 		local query, rest = ns.Share.Split(text)
 		if rest then
-			self.blockedSyntax = true
+			self.blockedSyntax = "send"
 			text = query:gsub("%s+$", "")
 		end
 	elseif first ~= "." and first ~= "/" and ns.Share then
@@ -1522,8 +1611,11 @@ UI.NAV_REFRESH = 0.25 -- seconds between looking up where you are (the turning i
 local nav = {} -- id, row, e, here, spot, d, at, shownD
 local navArrow, navTicker
 
+--- What the arrow points at for a row: an NPC's id, or the row itself when it has a place of its own (@mailbox).
 local function NavID(e)
-	if not e or e.raw or e.kind ~= "npc" then return nil end
+	if not e or e.raw then return nil end
+	if e.wcont then return e end
+	if e.kind ~= "npc" then return nil end
 	local id = rawget(e, "key") or e.npcID or e.key -- (a "nearest" view reads its row's)
 	return type(id) == "number" and id or nil
 end
@@ -1542,7 +1634,8 @@ local function NavTick()
 	if not nav.at or now - nav.at >= UI.NAV_REFRESH then
 		nav.at = now
 		nav.here = I.Here()
-		nav.d, nav.spot = I.NpcDistance(nav.id, nav.here)
+		if type(nav.id) == "table" then nav.d, nav.spot = I.RowDistance(nav.id, nav.here)
+		else nav.d, nav.spot = I.NpcDistance(nav.id, nav.here) end
 	end
 	if not nav.spot then
 		-- nowhere to point (not on your continent, an instance): rest until the selection changes
@@ -1560,7 +1653,7 @@ local function NavTick()
 		local shown = math.floor(nav.d + 0.5)
 		if shown ~= nav.shownD then
 			nav.shownD = shown
-			e.detail = ("%d yd"):format(shown)
+			e.detail = ("%d yd"):format(shown) .. (e.zone and ("  " .. e.zone) or "")
 			r.detail:SetText(e.detail)
 		end
 	end
@@ -2741,6 +2834,14 @@ local function MenuLine(i)
 	b.hl:Hide()
 	b:SetScript("OnEnter", function() b.hl:Show() end)
 	b:SetScript("OnLeave", function() b.hl:Hide() end)
+	-- a chat line: what's sent is worked out on the click (out of combat: the menu never shows in combat)
+	b:SetScript("PreClick", function()
+		local it, SH = b.item, ns.Share
+		if it and it.chatTo and SH and menu and menu.entry and not InCombatLockdown() then
+			it.chat = SH.Macro(menu.entry, it.chatTo) or ""
+			b:SetAttribute("macrotext1", it.chat)
+		end
+	end)
 	b:HookScript("PostClick", function() UI:MenuPicked(b) end)
 	menu.lines[i] = b
 	return b
@@ -2780,9 +2881,22 @@ function UI:ShowRowMenu(idx)
 	if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
 	items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
 	if e.secondary or e.secondarySecure then items[#items + 1] = { label = Cap(shift or "more"), secondary = true } end
-	local link = (e.getLink or e.link or e.shareLink) and ns.Share and ns.Share.Text and ns.Share.Text(e)
-	if type(link) == "string" and link:find("|H", 1, true) then
-		items[#items + 1] = { label = "Link in chat", run = function() ns.LinkInChat(link) end }
+	-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
+	-- a chat line the game presses (Terminal's code never sends chat)
+	local SH = ns.Share
+	if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion) then
+		local query = SH.Split(edit:GetText() or "")
+		if EasyOn() and ns.Easy and ns.Easy.ToAdvanced then query = ns.Easy.ToAdvanced(query, self.category) end
+		-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
+		-- and opening the menu, then Cancel, mustn't move your waypoint)
+		local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
+		items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", run = function()
+			local line = SH.Line(e, query)
+			if line then ns.LinkInChat(line) end
+		end }
+		for _, ch in ipairs(SH.MenuChannels()) do
+			items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
+		end
 	end
 	if not EasyOn() and self:ResultText(e) then
 		items[#items + 1] = { label = "Write into the prompt", run = function() UI:FillFromResult() end, stay = true }
@@ -2799,6 +2913,7 @@ function UI:ShowRowMenu(idx)
 		-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
 		local macro, view
 		if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true) end
+		if it.chatTo then macro = "" end -- (the chat line: set in PreClick, see MenuLine)
 		it.view = view
 		b:SetAttribute("type1", macro and "macro" or "")
 		b:SetAttribute("macrotext1", macro)
@@ -2832,6 +2947,11 @@ function UI:MenuPicked(b)
 	if it.run then
 		it.run()
 		if not it.stay then self:Hide() end
+		return
+	end
+	if it.chatTo then -- the game sent it to chat
+		ns:Trace("menu: sent to chat: " .. tostring(it.chat):sub(1, 3))
+		self:Hide()
 		return
 	end
 	if results[idx] ~= e then return end
@@ -3609,6 +3729,7 @@ local function Build()
 	end)
 	frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 	frame:SetScript("OnHide", function(self)
+		UI:EndAdvancedOnce()
 		UI:MotionReset()
 		if tip then tip:Hide(); tip.entry = nil end
 		UI:Disarm()
@@ -3984,7 +4105,7 @@ end
 function UI:SetCategory(id)
 	if id ~= nil and not (ns.Easy and ns.Easy.BY_ID[id]) then return end
 	self.category, self.categoryAuto = id, nil
-	self.lastScan = nil -- (other kinds: not a narrowing of the last search)
+	self.lastScan, self.lastOverview = nil, nil -- (other kinds: not a narrowing of the last search)
 	if self:IsShown() then
 		self.refreshedAt = nil
 		self:Refresh()
@@ -4001,7 +4122,7 @@ end
 --- Easy mode switched on or off (Easy.Set): what's shown is searched again.
 function UI:EasyChanged()
 	self.category = nil
-	self.lastScan, memo.results, memo.value = nil, nil, nil
+	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
 	self.hintsRoom, self.syntaxKey = nil, nil
 	if not frame then return end
 	if self:IsShown() then
@@ -4016,6 +4137,18 @@ end
 
 --- Open (closing counts as closed: the fade-out is only for the eye).
 function UI:IsShown() return frame and frame:IsShown() and not self.closing or false end
+
+--- Alt+` made this run Advanced: Simple again, and Down brings back what the Simple prompt said (nothing, when
+--- Alt+` opened it closed: the Advanced text typed then isn't a Simple search). From Hide and from the frame's
+--- OnHide (a window the press opens can close the terminal itself: Hide then returns early).
+function UI:EndAdvancedOnce()
+	local once = ns.Easy and ns.Easy.temp
+	if not once then return end
+	ns.Easy.temp = nil
+	local from = once.from and once.from:find("%S") and once.from or nil
+	self.lastQuery, self.lastCategory = from, from and once.category or nil
+	self.category, self.categoryAuto = nil, nil
+end
 
 function UI:Hide()
 	self:HideRowMenu()
@@ -4032,15 +4165,9 @@ function UI:Hide()
 		self.lastQuery = typed
 		self.lastCategory = not self.categoryAuto and self.category or nil
 	end
-	-- Alt+` made this run Advanced: Simple again, and Down brings back what the Simple prompt said
-	local once = ns.Easy and ns.Easy.temp
-	if once then
-		ns.Easy.temp = nil
-		if once.from and once.from:find("%S") then self.lastQuery, self.lastCategory = once.from, once.category end
-		self.category, self.categoryAuto = nil, nil
-	end
+	self:EndAdvancedOnce()
 	self.histIdx = nil
-	self.lastScan, memo.results, memo.value = nil, nil, nil -- (rows kept only for the next keystroke)
+	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil -- (rows kept only for the next keystroke)
 	-- let go of the keyboard at once, so the next key already reaches the game
 	self.keys = false
 	StopRepeat()
@@ -4137,13 +4264,13 @@ function UI:AdvancedOnce()
 		-- the game's own text box (clipboard, combat) types it itself: taken back out next frame
 		C_Timer.After(0, function()
 			local t = edit:GetText()
-			if t == conv .. "`" then edit:SetText(conv); edit:SetCursorPosition(#conv) end
+			if t == conv .. "`" then UI:SetQuery(conv, #conv) end -- (through SetQuery: the drawn cursor follows)
 		end)
 	end -- (a category opened on its own counts too: it's what shows)
 	E.temp = { from = text, category = cat }
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
-	self.lastScan, memo.results, memo.value = nil, nil, nil
+	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
 	self.hintsRoom, self.syntaxKey = nil, nil
 	self.blockedSyntax = nil
 	if conv ~= text then

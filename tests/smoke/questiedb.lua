@@ -60,6 +60,18 @@ do
 	check(ns.providers.npc and ns.providers.questie, "@npc and @questie are there without Questie")
 	check(I.npc.list and #I.npc.list == 3 and I.qdb.list and #I.qdb.list == 1, "NPCs and quests indexed from QuestieDB: "
 		.. tostring(I.npc.list and #I.npc.list) .. ", " .. tostring(I.qdb.list and #I.qdb.list))
+	do
+		local q = I.qdb.list and I.qdb.list[1]
+		local raw = 0
+		if q then for _ in pairs(q) do raw = raw + 1 end end
+		check(q and rawget(q, "qid") == nil and q.qid == q.key and raw <= 7, "a quest row: 7 raw fields at most, qid read from its key: " .. raw)
+		if q then
+			UI:Search("@questie " .. q.name)
+			raw = 0
+			for _ in pairs(q) do raw = raw + 1 end
+			check(rawget(q, "_nameHit") == nil and raw <= 8, "searched: no _nameHit written on it, 8 fields at most: " .. raw)
+		end
+	end
 	local r = UI:Search("@npc hogger")
 	check(r[1] and r[1].name == "Hogger", "@npc hogger finds him: " .. tostring(r[1] and r[1].name))
 	r = UI:Search("@questie bring his claw")
@@ -98,6 +110,31 @@ do
 	_G.GetPlayerFacing = function() return nil end
 	check(I.NpcBearing(448) == nil, "no facing (an instance): no arrow")
 	_G.GetPlayerFacing = nil
+	-- the NPC list built at login and never searched since is freed like any unused list; the names text stays
+	do
+		local p = ns.providers.npc
+		local usedWas, entriesWas = p._usedAt, p._entries
+		p._entries, p._usedAt = nil, GetTime()
+		local namesWas = I.npc.names
+		local calls = 0
+		local real = _G.LibQuestieDB.Npc.Get
+		_G.LibQuestieDB.Npc.Get = function(id, f) if f == "npcFlags" then calls = calls + 1 end return real(id, f) end
+		QD.ResetForTests()
+		I.NpcField(3498, "npcFlags")
+		ns:DropIdle(GetTime() + 601)
+		check(I.npc.list == nil and I.npc.names == namesWas, "unused for 10 minutes: the NPC list is freed, its names text kept")
+		local before = calls
+		I.NpcField(3498, "npcFlags")
+		check(calls == before + 1, "and the NPCs' cached fields go with it")
+		_G.LibQuestieDB.Npc.Get = real
+		QD.ResetForTests()
+		local easyWas = ns.db.easyMode
+		ns.db.easyMode = false
+		UI:Search("@npc jazzik"); FlushAll()
+		check(I.npc.list ~= nil and #I.npc.list > 0, "the next @npc search builds it again")
+		ns.db.easyMode = easyWas
+		p._usedAt = usedWas
+	end
 	-- the filters
 	check(I.NpcField(448, "minLevel") == 11, "NPC fields for lvl: and the like")
 	local flags = I.NpcFlagDefs()
@@ -154,15 +191,25 @@ do
 			[1650] = { name = "Far Elwynn Vendor", npcFlags = 4, zoneID = 12, spawns = { [12] = { { 80.0, 20.0 } } } },
 		}),
 		Item = Entity({}),
+		Object = Entity({
+			[32349] = { name = "Mailbox", spawns = { [17] = { { 62.5, 37.0 }, { 52.0, 30.0 } } } }, -- Ratchet's, the Crossroads'
+			[142075] = { name = "Mailbox", spawns = { [12] = { { 42.0, 65.0 } } } },               -- Goldshire's (another continent)
+			[31] = { name = "Old Lion Statue", spawns = { [17] = { { 62.4, 37.1 } } } },
+		}),
 		flavor = { name = "Forever", rules = "Classic" },
 		Enum = { byExpansion = { Classic = { npcFlags = { QUEST_GIVER = 2, VENDOR = 4, TRAINER = 16 } } } },
 		Support = { Get = function(name)
 			if name ~= "ZoneDB" then return nil end
 			return { private = {
 				-- (QuestieDB lists the parts here too: Goldshire -> Elwynn's map, Ratchet -> the Barrens')
-				areaIdToUiMapId = "return { [17] = 1413, [12] = 1429, [87] = 1429, [392] = 1413, [1637] = 1454, [1537] = 1455 }",
+				areaIdToUiMapId = "return { [17] = 1413, [12] = 1429, [87] = 1429, [392] = 1413, [1637] = 1454, [1537] = 1455, [15] = 1445 }",
 				subZoneToParentZone = "return { [392] = 17, [380] = 17, [87] = 12 }",
-				dungeons = {},
+				dungeons = {
+					[491] = { "Razorfen Kraul", { 1717 }, 17, { { 17, 42.9, 90.2 } } },
+					[2159] = { "Onyxia's Lair", nil, 15, { { 15, 52.6, 76.8 } } },
+					[3277] = { "Warsong Gulch", nil, 17, { { 17, 46.5, 8.6 } } },
+					[3562] = { "Hellfire Ramparts", nil, 3483, { { 3483, 47.7, 53.6 } } }, -- (no such zone here)
+				},
 			} }
 		end },
 	}
@@ -173,6 +220,7 @@ do
 		GetWorldPosFromMapPos = function(map, p) return map == 1413 and 1 or 2, { x = p.x * 10000, y = p.y * 10000 } end, -- (Elwynn 2)
 		GetBestMapForUnit = function() return 1413 end,
 		GetPlayerMapPosition = function() return { x = 0.60, y = 0.38 } end,
+		GetMapInfo = function(ui) return { name = ui == 1413 and "The Barrens" or "Elwynn Forest" } end,
 	}
 	_G.C_TaxiMap = { GetTaxiNodesForMap = function(ui)
 		if ui == 1413 then return { { name = "Ratchet, The Barrens", position = { x = 0.631, y = 0.372 } } } end
@@ -249,6 +297,10 @@ do
 		check(I.TownsPending(), "(towns pending while the quests aren't indexed)")
 		local gold2 = I.FindPlace({ "goldshire" })
 		I.NpcInPlace(1650, gold2)
+		-- a zone doesn't wait on the towns: its answers are kept even while they're pending
+		local bar = I.FindPlace({ "barrens" })
+		I.PlaceFilter(bar)({ kind = "npc", key = 3498 })
+		check(bar.npcs and bar.npcs[3498] ~= nil, "a zone's answers are kept while the towns are still pending")
 		I.qdb.list = list
 		check(I.NpcInPlace(295, gold2) and not I.NpcInPlace(1650, gold2), "once the quests are in, Goldshire is placed (the miss wasn't kept)")
 		_G.C_TaxiMap = taxi
@@ -317,6 +369,98 @@ do
 	UI:Hide(); FlushAll()
 	check(not UI.navArrow:IsShown(), "closed: the arrow goes")
 	_G.GetPlayerFacing = nil
+	-- "nearest mailbox": QuestieDB's objects, each spawn its own row, closest first, Enter pins it
+	do
+		local easyWas = ns.db.easyMode
+		ns.db.easyMode = true
+		I.ResetObjectsForTests(); ns.db.objectIndex = nil
+		C_Map.GetPlayerMapPosition = function() return { x = 0.62, y = 0.37 } end -- in Ratchet
+		-- QuestieDB's objects not readable yet: nothing kept, asked again later
+		local allWas = _G.LibQuestieDB.Object.GetAllIds
+		_G.LibQuestieDB.Object.GetAllIds = function() return {} end
+		QD.ResetForTests()
+		check(#I.ObjectRows("mailbox") == 0 and ns.db.objectIndex == nil, "no objects yet: no index saved")
+		_G.LibQuestieDB.Object.GetAllIds = allWas
+		QD.ResetForTests(); I.ResetObjectsForTests()
+		for _, q in ipairs({ "nearest mailbox", "mailbox nearby" }) do
+			UI:Open(q)
+			local r = UI.Results()
+			check(r[1] and r[1].name == "Mailbox" and r[1].kind == "mailbox" and r[1].detail:find("^%d+ yd") and r[2] and r[2]._dist > r[1]._dist,
+				q .. ": the mailboxes on your continent, closest first: " .. tostring(r[1] and r[1].detail) .. " / " .. tostring(r[2] and r[2].detail))
+			check(#r == 2, "not another continent's, not other objects: " .. #r)
+			UI:Hide(); FlushAll()
+		end
+		-- a place said stays: only Ratchet's mailbox
+		UI:Open("nearest mailbox in ratchet")
+		local rr = UI.Results()
+		check(#rr == 1 and rr[1].name == "Mailbox" and rr[1].py == 37.0, "nearest mailbox in ratchet: only Ratchet's: " .. #rr)
+		UI:Hide(); FlushAll()
+		check(ns.Easy.ToAdvanced("nearest mailbox in ratchet"):find("in:", 1, true), "Alt+`: the place stays: " .. ns.Easy.ToAdvanced("nearest mailbox in ratchet"))
+		-- Advanced: @mailbox is a list like the others: sort:nearest, near:, in: work on it; Alt+` writes it
+		ns.db.easyMode = false
+		local function L(q) local t = {} for _, e in ipairs(UI:Search(q)) do t[#t + 1] = tostring(e.name) .. "=" .. tostring(e.detail) end return t end
+		local got = L("@mailbox sort:nearest")
+		check(got[1] and got[1]:find("yd  The Barrens$"), "sort:nearest keeps a spot row's zone: " .. tostring(got[1]))
+		check(#got == 3 and got[1]:find("^Mailbox=%d+ yd") and got[2]:find(" yd") and not got[3]:find(" yd"),
+			"@mailbox sort:nearest: this continent's closest first, the other after: " .. table.concat(got, ", "))
+		got = L("@mailbox near:300")
+		check(#got == 1, "@mailbox near:300: only the one in Ratchet: " .. table.concat(got, ", "))
+		got = L("@mailbox in:ratchet")
+		check(#got == 1, "@mailbox in:ratchet: the one in Ratchet (by its spot): " .. table.concat(got, ", "))
+		got = L("@mailbox in:barrens")
+		check(#got == 2, "@mailbox in:barrens: both of the Barrens': " .. table.concat(got, ", "))
+		ns.db.easyMode = true
+		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:nearest ", "Alt+`: nearest mailbox -> @mailbox sort:nearest: " .. ns.Easy.ToAdvanced("nearest mailbox"))
+		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/mailbox$"), "the saved index's key names the kinds looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
+		check(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox == "32349,142075", "the mailboxes' ids are kept for next time: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox))
+		-- next session: from the saved index, no pass over every object's name
+		I.ResetObjectsForTests()
+		local names = 0
+		local real = _G.LibQuestieDB.Object.Get
+		_G.LibQuestieDB.Object.Get = function(id, f) if f == "name" then names = names + 1 end return real(id, f) end
+		QD.ResetForTests()
+		UI:Open("nearest mailbox")
+		check(names == 0 and UI.Results()[1] and UI.Results()[1].name == "Mailbox", "a new session reads the saved index, no names: " .. names)
+		-- the selected mailbox gets the direction arrow, as NPCs do
+		_G.GetPlayerFacing = function() return 0 end
+		UI:SelectionChanged()
+		check(UI.navArrow and UI.navArrow:IsShown(), "the selected mailbox has an arrow pointing to it")
+		_G.GetPlayerFacing = nil
+		-- Enter: the map pin on it
+		local placed
+		local placeWas = ns.Maps.Place
+		ns.Maps.Place = function(e) placed = e return "set" end
+		UI:Activate(1)
+		check(placed and placed.mapID == 1413 and math.abs(placed.pos.x - 0.625) < 0.001, "Enter: a waypoint on the nearest mailbox")
+		-- sent to chat (right-click, Simple mode): "Nearby mailbox: [pin]"
+		C_Map.GetUserWaypointHyperlink = function() return "|Hworldmap:1413|h[pin]|h" end
+		local line = ns.Share.Line(UI.Results()[1], ns.Easy.ToAdvanced("nearest mailbox"))
+		check(line == "Nearby mailbox: |Hworldmap:1413|h[pin]|h", "a mailbox sent to chat: " .. tostring(line))
+		-- instance entrances: @dungeon / @raid, nearest, sent with a pin
+		ns.db.easyMode = false
+		local function N(q) local t = {} for _, e in ipairs(UI:Search(q)) do t[#t + 1] = tostring(e.name) end return table.concat(t, ",") end
+		check(N("@dungeon") == "Razorfen Kraul", "@dungeon: the dungeons with an entrance on this client's maps (no battlegrounds, raids or unknown zones): " .. N("@dungeon"))
+		check(N("@raid") == "Onyxia's Lair", "@raid: the raids: " .. N("@raid"))
+		check(N("rfk"):find("Razorfen Kraul", 1, true), "a plain search finds an entrance by its shorthand: " .. N("rfk"))
+		local rfk = UI:Search("@dungeon rfk")[1]
+		check(rfk and rfk.ui == 1413 and rfk.px == 42.9, "its entrance's map spot")
+		local m = rfk and ns.Secure.Resolve(rfk.secure, rfk)
+		check(m and (m.macro or ""):find("SetMapID(1413)", 1, true), "Enter: the game opens the map on its zone: " .. tostring(m and m.macro))
+		check(ns.Share.Line(rfk, "@dungeon rfk") == "Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "sent: its name and a pin (rfk says nothing more): " .. tostring(ns.Share.Line(rfk, "@dungeon rfk")))
+		check(ns.Share.Line(rfk, "@dungeon sort:nearest") == "Nearby dungeon: Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "nearby: " .. tostring(ns.Share.Line(rfk, "@dungeon sort:nearest")))
+		ns.db.easyMode = true
+		UI:Open("nearest dungeon")
+		local r = UI.Results()
+		check(r[1] and r[1].name == "Razorfen Kraul" and r[1].detail:find("^%d+ yd"), "Simple: nearest dungeon: " .. tostring(r[1] and r[1].name) .. " " .. tostring(r[1] and r[1].detail))
+		check(ns.Easy.ToAdvanced("nearest raid") == "@raid sort:nearest ", "Alt+`: nearest raid -> @raid sort:nearest")
+		UI:Hide(); FlushAll()
+		C_Map.GetUserWaypointHyperlink = nil
+		ns.Maps.Place = placeWas
+		_G.LibQuestieDB.Object.Get = real
+		QD.ResetForTests()
+		UI:Hide(); FlushAll()
+		ns.db.easyMode = easyWas
+	end
 	ns.db.easyMode = save.easy
 	Fresh()
 	I.ResetPlacesForTests()

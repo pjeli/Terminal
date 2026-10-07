@@ -13,16 +13,23 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.41.16", when = "in testing",
+		v = "0.42.0", when = "in testing",
 		items = {
-			"Alt+` in Simple mode turns what you typed into Advanced mode's command line (\"nearest innkeeper\" becomes @npc is:innkeeper sort:nearest) for that one time; Simple again once it closes. Pressed with Terminal closed, it opens in Advanced. What it runs stays out of Simple mode's history (Up).",
-			"Advanced: >> says what you sent: \"@npc reagent is:vendor sort:nearest >> guild\" sends \"Nearby reagent vendor: <name> [map pin]\".",
-			"Advanced: typing @ lists every kind, and a filter like stat: or q: its values, to pick from: Tab and Shift+Tab go down and up, Enter writes it. Anything picked into the prompt leaves a space for the next word.",
-			"Advanced: in:goldshire and in:ratchet know the towns, as Simple mode does.",
-			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, Fisherman, riding instructors); trainer:class means your own class, trainer:mine the mining trainers.",
-			"AtlasLoot Forever: WoW Forever's own items (Snake Eye Kaleidoscope...) show up under Loot: their names come from the server, and Terminal keeps asking until they do.",
-			"@panel Legacy opens WoW Forever's Legacy window (also found as \"challenges\"), even with its button moved off the bar.",
-			".atop: Enter (or a click) on an addon profiles it: its own CPU and memory graphs, how fast its memory grows, and the game's profiler numbers (average, peak, slow frames) beside all addons'. Memory is read every 10 s (reading it was atop's own CPU spike).",
+			"Right-click any result to send it to chat, in Simple mode too: say, party or raid, guild, instance, a whisper to your target, or the chat box. NPCs, mailboxes and dungeon entrances go with a map pin and what you searched: \"Nearby innkeeper: ...\", \"Nearby mailbox: [pin]\".",
+			"Upgrades: \"helm upgrades\" (or just \"upgrades\"; Advanced: is:upgrade) lists only gear you can equip now (your level, your class) near your current item level or better. \"helmet\" alone is every helmet.",
+			"Instance shorthand comes first: \"rfk\" lists Razorfen Kraul's loot, \"rfk helm\" its helmets, \"sfk\" Shadowfang Keep's, never items whose letters just happen to fit.",
+			"Dungeon and raid entrances: @dungeon and @raid (Simple mode: Places, \"nearest dungeon\"). Enter opens the map on the entrance and pins it.",
+			"Mailboxes: \"nearest mailbox\" (also \"nearest mailbox in ratchet\"), @mailbox in Advanced: the closest, how far and where, with the direction arrow; Enter pins one.",
+			"\"nearby\" works like \"nearest\", and either can come last: \"innkeeper nearby\".",
+			"\"weapon damage\" finds sharpening stones and weightstones (Advanced: stat:weapondamage, with amounts: stat:weapondamage>=5).",
+			"Alt+` turns a Simple search into Advanced mode's command line for that one time (\"nearest innkeeper\" becomes @npc is:innkeeper sort:nearest); pressed with Terminal closed, it opens in Advanced.",
+			"Advanced: typing @ lists every kind, and a filter like stat: or q: its values, to pick from (Tab / Shift+Tab, Enter writes it). in:goldshire and in:ratchet know the towns. >> says what you sent: \"Nearby reagent vendor: <name> [map pin]\".",
+			"trainer: finds every trainer of a kind, whatever their title (Miner, Herbalist, riding instructors); trainer:class is your own class, trainer:mine the mining trainers.",
+			"@panel opens straight to a window's tab: Guild Roster, Guild Info, Character Stats, Equipment Manager, Titles, and WoW Forever's Legacy window (Challenges, Tree), even with its button moved off the bar.",
+			"AtlasLoot Forever: WoW Forever's own items (Snake Eye Kaleidoscope...) show up under Loot once the server has named them.",
+			"\"stamina food\" right after login finds your food straight away (its text is asked for ahead of time, and searched again by itself if it was still loading).",
+			".atop: Enter on an addon profiles it: its own CPU and memory graphs, memory growth, and the game's profiler numbers beside all addons'.",
+			"Lighter and quicker: typing in Simple mode looks only through what the last letter found, Questie's NPC list is freed after 10 unused minutes (about 5 MB), quest rows take less memory, and picks you've made no longer slow down broad searches.",
 		},
 	},
 	{

@@ -54,7 +54,7 @@ E.CATEGORIES = {
 	{ id = "spells", label = "Spells", kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = "Crafting", kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = "NPCs", kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
-	{ id = "places", label = "Places", kinds = { "maps" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
+	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
@@ -114,6 +114,9 @@ E.WORDS = {
 	-- (two words that mean one thing: SearchText joins them first)
 	["attack power"] = "stat:ap", ["spell power"] = "stat:sp", ["spell damage"] = "stat:sp", ["mana regen"] = "stat:mp5",
 	["healing power"] = "stat:healing", crit = "stat:crit", mp5 = "stat:mp5",
+	["weapon damage"] = "stat:weapondamage",
+	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
+	upgrade = "is:upgrade", upgrades = "is:upgrade",
 	-- what an item is and where it's worn: "shield", "plate", "boots", "ring"
 	shield = "type:shield", shields = "type:shield", sword = "type:sword", swords = "type:sword", axe = "type:axe",
 	axes = "type:axe", mace = "type:mace", maces = "type:mace", dagger = "type:dagger", daggers = "type:dagger",
@@ -133,6 +136,10 @@ E.WORDS = {
 	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
 	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
 }
+
+-- everyday words that are strict filters, never relaxed away when nothing passes ("helm upgrades" lists no helmet you
+-- can't wear)
+E.HARD_WORDS = { upgrade = true, upgrades = true }
 
 -- left out of a search typed like a sentence (only when another word is left)
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
@@ -239,6 +246,7 @@ E.ACTIONS = {
 	where = { label = "Where is", map = { npc = "p", maps = "p", quests = "p", questie = "s" } },
 	nearest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	closest = { label = "Nearest", map = { npc = "p" }, nearest = true },
+	nearby = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	show = { label = "Show" }, open = { label = "Open" }, find = { label = "Find" },
 }
 
@@ -293,6 +301,12 @@ function E.ToAdvanced(text, category)
 	local nearest
 	if act then
 		table.remove(words, 1)
+	elseif #words > 1 then
+		-- "nearest" said last ("mining trainer nearby")
+		local tail = E.ACTIONS[Lower(words[#words])]
+		if tail and tail.nearest then act = tail; table.remove(words) end
+	end
+	if act then
 		nearest = act.nearest
 		if act.map then
 			local ks = {}
@@ -328,9 +342,14 @@ function E.ToAdvanced(text, category)
 			plain[#plain + 1] = w
 		end
 	end
+	-- "nearest mailbox": its own list, not NPCs (a place said stays: "nearest mailbox in org")
+	local okind = nearest and ns.Integrations and ns.Integrations.ObjectKind and ns.Integrations.ObjectKind(plain)
+	if okind and ns.providers[okind] then
+		return "@" .. okind .. " " .. (#filters > 0 and (table.concat(filters, " ") .. " ") or "") .. "sort:nearest "
+	end
+	if nearest then Add(kinds, "@npc") end
 	-- an NPC's role (trainer, vendor, innkeeper...) means one you can use: friendly to you, as Simple mode's place
 	-- and nearest searches keep to ("mining trainer in org" never meant Ironforge's)
-	if nearest then Add(kinds, "@npc") end
 	if role then Add(filters, "faction:friendly") end
 	if nearest then Add(filters, "sort:nearest") end
 	local out = {}
@@ -387,6 +406,12 @@ E.ADVANCED_ROW = {
 	name = "@, >> and key:value are for Advanced mode", kind = "advanced", kindLabel = "",
 	detail = "Enter to switch (or type .advanced)", icon = "Interface\\Icons\\INV_Misc_Gear_01",
 	activate = OfferAdvanced,
+}
+
+-- ">>" typed in Simple mode: sending is in the right-click menu here
+E.SEND_ROW = {
+	name = "Right-click a result to send it to chat", kind = "advanced", kindLabel = "", noActivate = true,
+	detail = "say, party, guild, whisper (>> is Advanced mode's)", icon = "Interface\\Icons\\INV_Letter_15",
 }
 
 ----------------------------------------------------------------------

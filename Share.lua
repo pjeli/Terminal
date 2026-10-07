@@ -89,6 +89,12 @@ function SH.Text(e)
 		local pin = ns.Integrations.NpcPinLink(e)
 		if pin then return e.name .. " " .. pin end
 	end
+	-- a spot of its own (an instance entrance, a mailbox): its name and a map pin there
+	if e.ui and e.px and ns.Integrations and ns.Integrations.SpotPinLink then
+		local pin = ns.Integrations.SpotPinLink(e)
+		-- (a row named only for what it is, "Mailbox": the context says it, "Nearby mailbox: [pin]")
+		if pin then return e.generic and pin or ((e.pinName or e.name) .. " " .. pin) end
+	end
 	-- (shareLink: a link only for sending, never shown in a tooltip: a profession's opens its window)
 	local shared = Call(e.shareLink, e)
 	-- (a shareLink may be text another addon reads as a link: Questie's "[Name (id)]")
@@ -126,11 +132,19 @@ local MY_CLASS = { class = true, my = true, me = true, myclass = true }
 
 local function Titled(s) return (s:gsub("(%a)([%w']*)", function(a, b) return a:upper() .. b end)) end
 
+--- Is the word a shorthand whose full name is in the name ("rfk" for Razorfen Kraul)? Then it says nothing more.
+function SH.ShortIn(word, lname)
+	local xs = ns.Shorthand and ns.Shorthand[word]
+	if not xs then return false end
+	for _, x in ipairs(xs) do if lname:find(x, 1, true) then return true end end
+	return false
+end
+
 --- Words saying what an NPC sent to chat is, from what was searched: "Nearby reagent vendor", "Mining trainer in
 --- Orgrimmar". The search's own words (those not in the NPC's name), its role and trainer filters, "Nearby" for
 --- sort:nearest / near:, "in <place>" for in:. nil when the search says nothing more than the name.
 function SH.Context(query, e)
-	if type(query) ~= "string" or not (e and e.npcID) then return nil end
+	if type(query) ~= "string" or not (e and (e.npcID or (e.ui and e.px))) then return nil end
 	local lname = ns.Lower(tostring(e.name or ""))
 	local F = ns.Filters
 	local nearby, words, roles, place = false, {}, {}, nil
@@ -158,18 +172,49 @@ function SH.Context(query, e)
 			elseif key == "in" or key == "zone" or key == "from" or key == "where" then
 				place = Titled(val)
 			end
-		elseif not lname:find(lw, 1, true) then
+		elseif not lname:find(lw, 1, true) and not SH.ShortIn(lw, lname) then
 			words[#words + 1] = lw
 		end
 	end
 	local parts = {}
 	if nearby then parts[#parts + 1] = "nearby" end
+	if e.generic then parts[#parts + 1] = lname end -- (what it is: the line then carries only its pin)
+	if nearby and e.what then parts[#parts + 1] = e.what end -- ("Nearby dungeon: Razorfen Kraul entrance [pin]")
 	for _, w in ipairs(words) do parts[#parts + 1] = w end
 	for _, r in ipairs(roles) do parts[#parts + 1] = r end
 	if #parts == 0 and not place then return nil end
 	local text = table.concat(parts, " ")
 	if place then text = (text ~= "" and (text .. " in ") or "in ") .. place end
 	return (text:gsub("^%l", string.upper))
+end
+
+--- The channels a row can go to from its right-click menu, those you're in: { cmd, label } (say always; party or
+--- raid, instance, guild when you're in one; your target when it's another player: "/w %t", the game fills the name).
+function SH.MenuChannels()
+	local out = { { cmd = "/s", label = "Say in chat" } }
+	local function Is(fn, ...) return type(fn) == "function" and Call(fn, ...) and true or false end
+	local instance = _G.LE_PARTY_CATEGORY_INSTANCE
+	local inInstance = instance and Is(_G.IsInGroup, instance)
+	if Is(_G.IsInRaid) then
+		out[#out + 1] = { cmd = "/raid", label = "Send to raid" }
+	elseif Is(_G.IsInGroup) and not (inInstance and not Is(_G.IsInGroup, _G.LE_PARTY_CATEGORY_HOME)) then
+		out[#out + 1] = { cmd = "/p", label = "Send to party" }
+	end
+	if inInstance then out[#out + 1] = { cmd = "/i", label = "Send to instance" } end
+	if Is(_G.IsInGuild) then out[#out + 1] = { cmd = "/g", label = "Send to guild" } end
+	if Is(_G.UnitIsPlayer, "target") and not Is(_G.UnitIsUnit, "target", "player") then
+		local name = ns.Str(Call(_G.UnitName, "target"))
+		out[#out + 1] = { cmd = "/w %t", label = "Whisper " .. (name or "your target") }
+	end
+	return out
+end
+
+--- What goes into the chat box for a row: "<context>: <text>" (Context), else the text.
+function SH.Line(e, query)
+	local text = SH.Text(e)
+	if type(text) ~= "string" or text == "" then return nil end
+	local ctx = SH.Context(query, e)
+	return ctx and (ctx .. ": " .. text) or text
 end
 
 --- The chat line for a row, or nil. Kept within what a macro runs (255 characters): what the search said it is
@@ -181,7 +226,7 @@ function SH.Macro(e, to)
 	local max = ns.Secure and ns.Secure.MACRO_MAX or 255
 	local ctx = SH.Context(to.query, e)
 	local line = to.cmd .. " " .. (ctx and (ctx .. ": ") or "") .. text
-	if #line > max then line = to.cmd .. " " .. text end
+	if #line > max then line = to.cmd .. " " .. (e.generic and (tostring(e.name) .. " ") or "") .. text end
 	if #line > max then line = to.cmd .. " " .. tostring(e.name) end
 	return line
 end

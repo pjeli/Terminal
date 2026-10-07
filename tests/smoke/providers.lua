@@ -156,8 +156,129 @@ do
 	check(e.isOpen(e) == false, "not open while its window is hidden")
 	LegacySystemFrame.shown = true
 	check(e.isOpen(e) == true, "open (only pointed at) while LegacySystemFrame shows")
-	check(UI:Search("@panel legacy")[1].key == "Legacy" and UI:Search("@panel challenges")[1].key == "Legacy", "found by its name and by \"challenges\"")
+	check(UI:Search("@panel legacy")[1].key == "Legacy", "found by its name")
+	-- without the game's route, Terminal's own code never clicks it (that would taint the window)
+	local clicked = false
+	b.Click = function() clicked = true end
+	local printWas = ns.Print; ns.Print = function() end
+	e.open()
+	ns.Print = printWas
+	check(not clicked, "the fallback never clicks the micro button from Terminal's code")
+	-- its tabs: the game opens the window when it's closed, then clicks the tab
+	local function row(k)
+		for _, x in ipairs(ns:GetEntries(ns.providers.panels)) do if x.key == k then return x end end
+	end
+	local ch, tr = row("Legacy Challenges"), row("Legacy Tree")
+	check(ch and tr and ch.tab == "LegacyChallengeTab" and tr.tab == "LegacyTreeTab", "Legacy Challenges and Legacy Tree rows")
+	check(UI:Search("@panel legacy tree")[1].key == "Legacy Tree" and UI:Search("@panel challenges")[1].key == "Legacy Challenges", "found by their names")
+	LegacySystemFrame.shown = false
+	-- worked out for a resting pointer (every redraw): no trace lines
+	local traceWas, traced = ns.Trace, 0
+	ns.Trace = function() traced = traced + 1 end
+	S.ClickMacro(ch.secure, ch, true)
+	ns.Trace = traceWas
+	check(traced == 0, "a hover's quiet macro traces nothing: " .. traced)
+	local m = ch and S.Resolve(ch.secure, ch)
+	local text = m and m.macro or ""
+	check(text:match("^/click LegacyMicroButton\n/run local t=LegacyChallengeTab "), "window closed: the micro button, then the tab: " .. text)
+	check(#text <= S.MACRO_MAX, "within a macro's length: " .. #text)
+	local body = text:match("\n/run (.*)$")
+	check(body and loadstring(body), "the /run line is valid Lua")
+	-- run what the game would: a button tab is clicked, a plain frame's mouse scripts run
+	local tabClicked, downs = false, 0
+	_G.LegacyChallengeTab = { Click = function() tabClicked = true end }
+	if body then loadstring(body)() end
+	check(tabClicked, "a button tab is clicked")
+	_G.LegacyChallengeTab = { GetScript = function(_, s) return function() downs = downs + 1 end end }
+	if body then loadstring(body)() end
+	check(downs == 2, "a plain-frame tab gets its mouse down and up scripts: " .. downs)
+	_G.LegacyChallengeTab = nil
+	if body then loadstring(body)() end -- not loaded: nothing errors
+	LegacySystemFrame.shown = true
+	m = tr and S.Resolve(tr.secure, tr)
+	text = m and m.macro or ""
+	check(text:match("^/run local t=LegacyTreeTab "), "window open: only the tab: " .. text)
+	check(tr.isOpen(tr) == false, "a tab row always presses (clicking the shown tab is harmless)")
+	b.Click = function() clicked = true end
+	printWas = ns.Print; ns.Print = function() end
+	tr.open()
+	ns.Print = printWas
+	check(not clicked, "a tab row's fallback never clicks from Terminal's code")
 	_G.LegacyMicroButton, _G.LegacySystemFrame = nil, nil
+	ns.providers.panels._dirty = true
+	check(row("Legacy Tree") == nil, "no tab rows without the Legacy window")
+	ns.providers.panels._dirty = true
+end
+
+io.write("[panel tabs: guild roster/info, character side tabs]\n")
+do
+	local function row(k)
+		for _, x in ipairs(ns:GetEntries(ns.providers.panels)) do if x.key == k then return x end end
+	end
+	ns.providers.panels._dirty = true
+	-- guild & communities: tabs are keys under CommunitiesFrame, clicked from a game-run /run line
+	local savedCF, savedGM, savedModes = _G.CommunitiesFrame, _G.GuildMicroButton, _G.COMMUNITIES_FRAME_DISPLAY_MODES
+	_G.GuildMicroButton = Obj("Button")
+	local roster, info = row("Guild Roster"), row("Guild Info")
+	check(roster and info, "Guild Roster and Guild Info rows")
+	check(UI:Search("@panel guild roster")[1].key == "Guild Roster" and UI:Search("@panel guild info")[1].key == "Guild Info", "found by name")
+	_G.CommunitiesFrame = nil
+	local m = roster and S.Resolve(roster.secure, roster)
+	local text = m and m.macro or ""
+	check(text == "/click GuildMicroButton\n/run local t=CommunitiesFrame and CommunitiesFrame.RosterTab if t then t:Click() end",
+		"window closed: the guild button, then the roster tab: " .. text)
+	local body = text:match("\n/run (.*)$")
+	check(body and loadstring(body), "valid Lua")
+	if body then loadstring(body)() end -- no window: nothing errors
+	local clickedTab = false
+	_G.CommunitiesFrame = Obj("Frame"); CommunitiesFrame.shown = true
+	CommunitiesFrame.RosterTab = { Click = function() clickedTab = true end }
+	if body then loadstring(body)() end
+	check(clickedTab, "the game clicks CommunitiesFrame.RosterTab")
+	m = info and S.Resolve(info.secure, info)
+	text = m and m.macro or ""
+	check(text == "/run local t=CommunitiesFrame and CommunitiesFrame.GuildInfoTab if t then t:Click() end", "window open: only the tab: " .. text)
+	_G.COMMUNITIES_FRAME_DISPLAY_MODES = { ROSTER = 2, GUILD_INFO = 5 }
+	local mode = 2
+	CommunitiesFrame.GetDisplayMode = function() return mode end
+	check(roster.isOpen(roster) == true and info.isOpen(info) == false, "open only on its own page (roster)")
+	mode = 5
+	check(roster.isOpen(roster) == false and info.isOpen(info) == true, "open only on its own page (guild info)")
+	CommunitiesFrame.shown = false
+	check(info.isOpen(info) == false, "closed window: not open")
+	_G.CommunitiesFrame, _G.GuildMicroButton, _G.COMMUNITIES_FRAME_DISPLAY_MODES = savedCF, savedGM, savedModes
+
+	-- character side tabs: the same route as the equipment sets page
+	local cf, micro, pd = _G.CharacterFrame, _G.CharacterMicroButton, _G.PaperDollFrame
+	local savedCollapsed, savedPdShown, savedGet = cf.rightPaneCollapsed, pd.shown, _G.GetPaperDollSideBarFrame
+	_G.CharacterMicroButton = micro or Obj("Button")
+	local panes = {}
+	for i = 1, 3 do
+		local t = Obj("Button"); t.__name = "PaperDollSideBarTab" .. i; t.shown = true
+		_G["PaperDollSideBarTab" .. i] = t
+		panes[i] = Obj("Frame"); panes[i].shown = false
+	end
+	_G.GetPaperDollSideBarFrame = function(i) return panes[i] end
+	local stats, sets, titles = row("Character Stats"), row("Equipment Manager"), row("Titles")
+	check(stats and sets and titles and titles.side == 3, "Character Stats, Equipment Manager and Titles rows")
+	check(UI:Search("@panel titles")[1].key == "Titles", "Titles found by name")
+	pd.shown = false; cf.rightPaneCollapsed = true
+	m = titles and S.Resolve(titles.secure, titles)
+	text = m and m.macro or ""
+	check(text:match("^/click CharacterMicroButton\n") and text:match("/click PaperDollSideBarTab3$"), "closed: the character button, then the third tab: " .. text)
+	pd.shown = true; cf.rightPaneCollapsed = false
+	m = stats and S.Resolve(stats.secure, stats)
+	text = m and m.macro or ""
+	check(text == "/click PaperDollSideBarTab1", "open with the pane out: only the tab: " .. text)
+	panes[2].shown = true
+	check(sets.isOpen(sets) == true and stats.isOpen(stats) == false and titles.isOpen(titles) == false, "open only while its own pane shows")
+	pd.shown = false
+	check(sets.isOpen(sets) == false, "not open while the paper doll is hidden")
+	local printWas = ns.Print; ns.Print = function() end
+	titles.open(titles)
+	ns.Print = printWas
+	for i = 1, 3 do _G["PaperDollSideBarTab" .. i] = nil end
+	cf.rightPaneCollapsed, pd.shown, _G.GetPaperDollSideBarFrame, _G.CharacterMicroButton = savedCollapsed, savedPdShown, savedGet, micro
 	ns.providers.panels._dirty = true
 end
 

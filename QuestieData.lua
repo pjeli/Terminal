@@ -105,9 +105,11 @@ function QD.DB()
 				QueryQuestSingle = L.Quest.Get,
 				QueryNPCSingle = L.Npc.Get,
 				QueryItemSingle = item and item.Get or nil,
+				QueryObjectSingle = type(L.Object) == "table" and L.Object.Get or nil,
 				QuestIds = function() return LibIds(L.Quest) end,
 				NpcIds = function() return LibIds(L.Npc) end,
 				ItemIds = function() return LibIds(item) end,
+				ObjectIds = function() return LibIds(L.Object) end,
 				npcFlags = LibNpcFlags(L),
 				source = "QuestieDB",
 			}
@@ -123,6 +125,8 @@ function QD.DB()
 	if w.module ~= M then
 		w.module = M
 		w.QueryQuestSingle, w.QueryNPCSingle, w.QueryItemSingle = M.QueryQuestSingle, M.QueryNPCSingle, M.QueryItemSingle
+		w.QueryObjectSingle = M.QueryObjectSingle
+		w.ObjectIds = function() return SortedKeys(M.ObjectPointers) end
 		-- (an older Questie gives an NPC's spawns through GetNPC)
 		w.GetNPC = M.GetNPC and function(_, id) return M:GetNPC(id) end or nil
 		w.QuestIds = function() return SortedKeys(M.QuestPointers) end
@@ -201,6 +205,16 @@ function QD.DungeonLocation(areaId)
 	if not z then return nil end
 	local d = z.dungeons[areaId] or z.dungeons[z.alt[areaId] or false]
 	return type(d) == "table" and d[4] or nil
+end
+
+--- Every dungeon, raid and battleground with its entrances: areaId -> { name, alt areas, parent zone, { {areaId, x, y}... } }
+--- (QuestieDB's ZoneDB, else Questie's own), or nil.
+function QD.Dungeons()
+	local z = LibZones()
+	if z and next(z.dungeons) then return z.dungeons end
+	local Z = QD.Module("ZoneDB")
+	local P = type(Z) == "table" and type(Z.private) == "table" and Z.private
+	return P and type(P.dungeons) == "table" and P.dungeons or nil
 end
 
 --- Run fn once the data can be read: now, at Questie's ready, or (QuestieDB alone) now as well.

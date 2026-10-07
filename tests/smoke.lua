@@ -1197,7 +1197,15 @@ do
 	ns.db.freq = {}; ns.freqKinds = nil
 	check(ns:FreqKind("maps") == false, "no map ever picked")
 	ns:Bump("maps:42")
-	check(ns:FreqKind("maps") == true, "a map picked: its kind counts")
+	local picked = ns:FreqKind("maps")
+	check(type(picked) == "table" and picked[42] == 1 and picked["42"] == 1, "a map picked: its kind counts, its key looked up as it is")
+	-- a compact row's bonus comes without its "kind:key" being built (its metatable's freqKey never read)
+	local builds = 0
+	local row = setmetatable({ key = 42, name = "Duskwood", _compact = true }, { __index = function(_, k)
+		if k == "freqKey" then builds = builds + 1 return "maps:42" end
+		if k == "kind" then return "maps" end
+	end })
+	check(UI._FreqBonus and UI._FreqBonus(row) > 0 and builds == 0, "a compact row's bonus: looked up by its key, no string built: " .. builds)
 	ns.db.freq = savedFreq; ns.freqKinds = nil
 	-- a result that doesn't open a window: no catcher
 	UI:Open(".help"); r1.scripts.OnEnter(r1)
@@ -2768,19 +2776,38 @@ do -- AtlasLoot and Questie integrations
 		-- the waiting count is asked live: names that came in since the list was last read don't count
 		iname[1001] = nil; I.loot.unnamed[1001] = true
 		for _, r in ipairs(I.loot.rows) do if r.itemID == 1001 then r.name = nil end end
-		check(I.LootWaiting and I.LootWaiting() == 1, "an unnamed item is counted as waiting: " .. I.LootWaiting())
+		check(I.LootWaiting() == 1, "an unnamed item is counted as waiting: " .. I.LootWaiting())
 		iname[1001] = "Cruel Barb"
-		check(I.LootWaiting and I.LootWaiting() == 0 and not I.loot.unnamed[1001], "and no longer once its name has come in")
+		check(I.LootWaiting() == 0 and not I.loot.unnamed[1001], "and no longer once its name has come in")
 		for _, r in ipairs(I.loot.rows) do if r.itemID == 1001 then r.name = "Cruel Barb" end end
 		-- GetItemInfo's name counts too (the client may have it before GetItemNameByID does)
 		local baseGII = C_Item.GetItemInfo
 		iname[1002] = nil
-		C_Item.GetItemInfo = function(id) if id == 1002 then return "Red Defias Mask" end end
-		check(I.LootName and I.LootName(1002) == "Red Defias Mask", "GetItemInfo's name is used when GetItemNameByID has none")
+		local giiCalls = 0
+		C_Item.GetItemInfo = function(id) giiCalls = giiCalls + 1; if id == 1002 then return "Red Defias Mask" end end
+		I.loot.got[1002] = nil
+		check(I.LootName(1002) == nil and giiCalls == 0, "reading the list never asks GetItemInfo (that would send every outstanding ask at once)")
+		I.LootWaiting()
+		check(giiCalls == 0, "nor does .integrations' waiting count")
+		check(I.LootName(1002, true) == "Red Defias Mask", "the name pump asks GetItemInfo when GetItemNameByID has none")
+		check(I.LootName(1002) == "Red Defias Mask", "and the name it gave is kept for the list")
+		I.loot.got[1002] = nil
 		C_Item.GetItemInfo = baseGII
 		iname[1002] = "Red Defias Mask"
 		local d, lt = I.GroupText("Wailing Caverns|cffffffff|TInterface\\Icons\\ltn4.tga:12|t|r", "Lord Cobrahn")
 		check(d == "Lord Cobrahn  Wailing Caverns" and not lt:find("|", 1, true), "icon and colour codes in an instance name are dropped: " .. d)
+		-- the list read again while a pump's retries are still waiting: one chain of asks, not two
+		local asks2 = 0
+		local reqWas = C_Item.RequestLoadItemDataByID
+		iname[1002] = nil
+		C_Item.RequestLoadItemDataByID = function(id) if id == 1002 then asks2 = asks2 + 1 end end
+		newSession(); I.LoadLootModules()
+		newSession(); I.LoadLootModules()
+		FlushAll()
+		check(asks2 <= I.NAME_ROUNDS + 1, ("a newer pump stops the older one's retries: %d asks (rounds %d)"):format(asks2, I.NAME_ROUNDS))
+		iname[1002] = "Red Defias Mask"
+		C_Item.RequestLoadItemDataByID = reqWas
+		newSession(); I.LoadLootModules(); FlushAll()
 		C_Item.RequestLoadItemDataByID = function(id) requested[#requested + 1] = id end
 	end
 	-- Questie
@@ -4842,7 +4869,7 @@ do -- filters across kinds: items, loot and stored (stats, quality, item level, 
 	check(P("type:mail")(bracers) and P("type:sword")(blade) and P("type:potion")(potion) and not P("type:cloth")(bracers), "type: item type or subtype")
 	check(P("lvl:20+")(bracers) and not P("lvl:20+")(old), "lvl: the level an item needs")
 	check(P("is:equippable")(bracers) and not P("is:equippable")(potion), "is:equippable")
-	check(F.Parse("is:upgrade") == nil, "no is:upgrade (item level alone can't tell an upgrade)")
+	check(F.Parse("is:upgrade") ~= nil, "is:upgrade: gear you can equip now, near your item level or better")
 	check(P("count:10+")(potion) and not P("count:<10")(potion), "count: how many")
 	-- stored: places and holders
 	local linen = { itemID = 2589, total = 48, holders = {

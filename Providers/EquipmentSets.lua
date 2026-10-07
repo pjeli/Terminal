@@ -133,9 +133,8 @@ local function RightPaneOpen(tab)
 	return true
 end
 
---- The /click lines that get from wherever the character window is to its equipment sets.
-local function ManagerMacro()
-	local tab = EquipTab()
+--- The /click lines that get from wherever the character window is to the side tab `tab`.
+local function SideTabMacro(tab)
 	local tabName = tab and Named(tab)
 	if not tabName then return nil end
 	local lines = {}
@@ -153,7 +152,31 @@ local function ManagerMacro()
 	return table.concat(lines, "\n")
 end
 
+local function ManagerMacro() return SideTabMacro(EquipTab()) end
 local MANAGER_SECURE = { macro = ManagerMacro } -- (one spec for every set)
+
+-- The character window's side tabs by number (PaperDollSideBarTab1 stats, 2 equipment sets, 3 titles here), for
+-- the @panel rows: the same route as the sets page, and "open" only when that tab's own pane shows.
+local CS = {}
+ns.CharSide = CS
+function CS.Tab(i)
+	local t = _G["PaperDollSideBarTab" .. i] or _G["PaperDollSidebarTab" .. i]
+	return type(t) == "table" and t or nil
+end
+function CS.Macro(i)
+	local tab = CS.Tab(i)
+	if not ns.Secure.quiet then ns:Trace("character side tab " .. i .. ": " .. (tab and (Named(tab) or "no name") or "not found")) end
+	return SideTabMacro(tab)
+end
+function CS.Shown(i)
+	local pd = _G.PaperDollFrame
+	if not (pd and pd.IsVisible and pd:IsVisible()) then return false end
+	local get = _G.GetPaperDollSideBarFrame
+	local ok, f = false, nil
+	if get then ok, f = pcall(get, i) end
+	if not (ok and type(f) == "table" and f.IsVisible) then return false end
+	return f:IsVisible() and RightPaneOpen(CS.Tab(i)) and true or false
+end
 
 --- Runs once the equipment sets page is showing: scroll the list to the set and point at it.
 local function ShowInManager(e)

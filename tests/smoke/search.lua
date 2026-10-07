@@ -201,11 +201,43 @@ Run("place shorthand", function()
 	check(r[1] and r[1].name == "Tooth of Gnarr" and #r == 1, "lbrs: Lower Blackrock Spire: " .. Show(r))
 	r = UI:Search("@srch sw")
 	check(r[1] and r[1].name == "Stormwind City" and Index(r, Named("Swamp of Sorrows")), "sw: Stormwind City first, Swamp of Sorrows still there: " .. Show(r))
+	-- an instance's shorthand beats its letters: rfk = Razorfen Kraul's loot before names whose initials are r f k
+	Use({ { "srch", { label = "Test", aliases = { "srch" }, explicit = true, collect = Rows({
+		{ name = "Rough Flask of Kings", text = "Rare drop  Wailing Caverns" }, { name = "Robe of the Faithful Knight" },
+		{ name = "Corpsemaker", text = "Overlord Ramtusk  Razorfen Kraul" }, { name = "Sword of Fang Keeper" },
+		{ name = "Shadowfang", text = "Rare drop  Shadowfang Keep" }, { name = "Rockfang Kilt" },
+	}) } } })
+	r = UI:Search("@srch rfk")
+	check(r[1] and r[1].name == "Corpsemaker", "rfk: Razorfen Kraul's loot first: " .. Show(r))
+	r = UI:Search("@srch sfk")
+	check(r[1] and r[1].name == "Shadowfang", "sfk: Shadowfang Keep's loot first: " .. Show(r))
+	Use({ { "srch", { label = "Test", aliases = { "srch" }, explicit = true, collect = Rows({
+		{ name = "Ironfoe", text = "Emperor Dagran Thaurissan  Blackrock Depths" },
+		{ name = "Swamp of Sorrows" }, { name = "Stormwind City" },
+		{ name = "Tooth of Gnarr", text = "Overlord Wyrmthalak  Lower Blackrock Spire" },
+		{ name = "Dal'Rend's Sacred Charge", text = "Warchief Rend Blackhand  Upper Blackrock Spire" },
+		{ name = "Steel Bar" },
+	}) } } })
 	-- one letter more turns a word into a shorthand: the rows it matches aren't in the last scan's
 	UI.lastScan = nil
 	UI:SearchText("@srch br")
 	r = UI:SearchText("@srch brd")
 	check(r[1] and r[1].name == "Ironfoe", "br -> brd: the shorthand's rows are found (not narrowed from br's): " .. Show(r))
+	-- and back: "st" (shorthand: the Sunken Temple, or "st" itself) -> "ste" finds rows st's matches didn't hold
+	Use({ { "srch", { label = "Test", aliases = { "srch" }, explicit = true, collect = Rows({
+		{ name = "Shattered Edge" }, { name = "Steel Bar" } }) } } })
+	UI.lastScan = nil
+	r = UI:SearchText("@srch st")
+	check(not Index(r, Named("Shattered Edge")), "(st: not by scattered letters)")
+	r = UI:SearchText("@srch ste")
+	check(Index(r, Named("Shattered Edge")), "st -> ste: a row st's shorthand left out comes back: " .. Show(r))
+	Use({ { "srch", { label = "Test", aliases = { "srch" }, explicit = true, collect = Rows({
+		{ name = "Ironfoe", text = "Emperor Dagran Thaurissan  Blackrock Depths" },
+		{ name = "Swamp of Sorrows" }, { name = "Stormwind City" },
+		{ name = "Tooth of Gnarr", text = "Overlord Wyrmthalak  Lower Blackrock Spire" },
+		{ name = "Dal'Rend's Sacred Charge", text = "Warchief Rend Blackhand  Upper Blackrock Spire" },
+		{ name = "Steel Bar" },
+	}) } } })
 	-- the highlight lights the full name in the row's name
 	UI:Open("@srch sw")
 	local e = UI.Results()[1]

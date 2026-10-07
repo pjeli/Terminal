@@ -174,7 +174,9 @@ Run("typing lists the categories that have it", function()
 	UI:SetQuery("sword of omen")
 	check(UI.category == "loot" and UI.Results()[1].name == "Sword of Omen", "typing on keeps the category")
 	UI:SetQuery("sword practice")
-	check(UI.category == nil and UI.Results()[1].catId == "quests", "words not in it: the categories that have them: " .. Show(UI.Results()))
+	-- (Loot let go: the categories that have them, or the one that does, opened by itself)
+	check(UI.category ~= "loot" and (UI.Results()[1].catId == "quests" or (UI.category == "quests" and UI.categoryAuto)),
+		"words not in it: the categories that have them: " .. Show(UI.Results()) .. " cat=" .. tostring(UI.category))
 	-- clearing the prompt lets the category go
 	UI:SetCategory("quests")
 	UI:SetQuery("")
@@ -235,6 +237,44 @@ Run("everyday words", function()
 	local bad = {}
 	for w, spec in pairs(E.WORDS) do if not ns.Filters.Parse(spec) then bad[#bad + 1] = w .. "=" .. spec end end
 	check(#bad == 0, "every everyday word is a filter: " .. table.concat(bad, ", "))
+end)
+
+Run("weapon damage: sharpening stones and weightstones", function()
+	E.Set(true)
+	local F = ns.Filters
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+	local save = { info = C_Item.GetItemInfo, inst = C_Item.GetItemInfoInstant, spell = C_Item.GetItemSpell,
+		desc = C_Spell.GetSpellDescription, stats = C_Item.GetItemStats }
+	local ITEMS = {
+		[211] = { "Coarse Sharpening Stone", "|Hitem:211|h", 1, 15, 5, "Trade Goods", "Trade Goods" },
+		[212] = { "Heavy Weightstone", "|Hitem:212|h", 1, 25, 15, "Trade Goods", "Trade Goods" },
+		[213] = { "Copper Bar", "|Hitem:213|h", 1, 10, 0, "Trade Goods", "Metal & Stone" },
+		[214] = { "Elixir of Giants", "|Hitem:214|h", 1, 40, 30, "Consumable", "Elixir" },
+		[215] = { "Gnarled Axe", "|Hitem:215|h", 2, 20, 15, "Weapon", "Two-Handed Axes" },
+	}
+	local CLASS = { [211] = 7, [212] = 7, [213] = 7, [214] = 0, [215] = 2 }
+	local DESC = { [6211] = "Increase sharp weapon damage by 3 for 30 minutes.",
+		[6212] = "Increase the damage of a blunt weapon by 6 for 30 minutes.",
+		[6214] = "Increases your Strength by 25 for 1 hour." }
+	C_Item.GetItemInfo = function(id) local t = ITEMS[tonumber(id) or 0] if t then return unpack(t) end end
+	C_Item.GetItemInfoInstant = function(id) return id, "x", "x", "", 1, CLASS[id] or 0, 0 end
+	C_Item.GetItemSpell = function(id) if DESC[6000 + id] then return "spell", 6000 + id end end
+	C_Spell.GetSpellDescription = function(id) return DESC[id] end
+	C_Item.GetItemStats = function(link) if tostring(link):find("215") then return { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12 } end return {} end
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({
+		{ name = "Coarse Sharpening Stone", itemID = 211 }, { name = "Heavy Weightstone", itemID = 212 },
+		{ name = "Copper Bar", itemID = 213 }, { name = "Elixir of Giants", itemID = 214 }, { name = "Gnarled Axe", itemID = 215 },
+	}) } } })
+	local res = In("bags", "weapon damage")
+	check(#res == 2 and Has(res, "Coarse Sharpening Stone") and Has(res, "Heavy Weightstone"), "weapon damage: the stones (Trade Goods here), not bars, elixirs or the axe: " .. Show(res))
+	ns.db.easyMode = false; UI:EasyChanged()
+	res = UI:Search("stat:weapondamage>=5")
+	check(#res == 1 and res[1].name == "Heavy Weightstone", "Advanced stat:weapondamage>=5: the weightstone (+6): " .. Show(res))
+	check(F.Parse("stat:wdmg") ~= nil, "stat:wdmg parses")
+	E.Set(true)
+	C_Item.GetItemInfo, C_Item.GetItemInfoInstant, C_Item.GetItemSpell = save.info, save.inst, save.spell
+	C_Spell.GetSpellDescription, C_Item.GetItemStats = save.desc, save.stats
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
 end)
 
 Run("stamina food: consumables in your bags", function()
@@ -398,6 +438,16 @@ Run("nearest", function()
 	check(res[1] and res[1].name == "Innkeeper Allison" and res[1].detail == "40 yd" and res[2] and res[2].name == "Innkeeper Farley",
 		"nearest innkeeper: closest first, how far: " .. Show(res) .. " / " .. tostring(res[1] and res[1].detail))
 	check(not Has(res, "Innkeeper Far Away") and not Has(res, "Hogger"), "unknown places and other NPCs left out")
+	-- "nearby" means nearest too, first or last: "nearby innkeeper", "innkeeper nearby"
+	for _, q in ipairs({ "nearby innkeeper", "innkeeper nearby", "innkeeper closest" }) do
+		UI:Hide(); FlushAll()
+		UI:Open(q)
+		local r2 = UI.Results()
+		check(r2[1] and r2[1].name == "Innkeeper Allison" and r2[1].detail == "40 yd", q .. ": as nearest innkeeper: " .. Show(r2))
+	end
+	check(E.ToAdvanced("innkeeper nearby") == "@npc is:innkeeper faction:friendly sort:nearest ", "Alt+` writes innkeeper nearby as sort:nearest: " .. E.ToAdvanced("innkeeper nearby"))
+	UI:Hide(); FlushAll()
+	UI:Open("nearest innkeeper")
 	local mark = #log
 	UI:Activate(1)
 	check(logHas("RAN map", mark + 1), "Enter: on the map (and pinned)")
@@ -427,7 +477,7 @@ Run("Advanced syntax is refused in Simple mode", function()
 	check(UI:SyntaxSegments("@npc hogger")[1][3] == ns.Theme.SYNTAX.bad, "@npc in the 'not taken' colour")
 	UI:SetQuery("hearthstone >> party")
 	res = UI.Results()
-	check(res[1] and res[1].kind == "advanced" and Has(res, "Hearthstone") and not UI.sendTo, ">> party: not sent, the row, the item still found: " .. Show(res))
+	check(res[1] == E.SEND_ROW and Has(res, "Hearthstone") and not UI.sendTo, ">> party: not sent, a row says to right-click, the item still found: " .. Show(res))
 	UI:SetQuery("q:rare sword")
 	check(UI.Results()[1].kind == "advanced" and Has(UI.Results(), "Shiny Sword"), "q:rare: the row; sword still searched: " .. Show(UI.Results()))
 	UI:SetQuery("@npc")
@@ -521,14 +571,14 @@ Run("right-click menu", function()
 	local labels = {}
 	for _, b in ipairs(m.lines) do if b:IsShown() then labels[#labels + 1] = b.fs:GetText() end end
 	local all = table.concat(labels, ",")
-	check(all == "Show in bags,Use,Link in chat,Cancel", "its actions in words: " .. all)
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Cancel", "its actions in words: " .. all)
 	local use = m.lines[2]
 	check(use.attrs.type1 == "macro" and use.attrs.macrotext1 == "/use item:6948", "Use: the game runs /use on the click: " .. tostring(use.attrs.macrotext1))
 	use.scripts.PostClick(use, "LeftButton"); FlushAll()
 	check(not m:IsShown() and not UI:IsShown(), "after it: menu and terminal gone")
 	UI:Open("hearthstone")
 	UI:ShowRowMenu(1)
-	m.lines[4].scripts.PostClick(m.lines[4], "LeftButton")
+	m.lines[5].scripts.PostClick(m.lines[5], "LeftButton")
 	check(not m:IsShown() and UI:IsShown(), "Cancel: only the menu goes")
 	UI:ShowRowMenu(1)
 	key("DOWN")
@@ -541,6 +591,54 @@ Run("right-click menu", function()
 	for _, b in ipairs(m.lines) do if b:IsShown() then labels[#labels + 1] = b.fs:GetText() end end
 	check(table.concat(labels, ","):find("Write into the prompt", 1, true), "Advanced: Write into the prompt: " .. table.concat(labels, ","))
 	UI:HideRowMenu()
+end)
+
+Run("right-click: send to chat (Simple mode too)", function()
+	E.Set(true)
+	ActionLists()
+	local saved = { _G.IsInGroup, _G.IsInRaid, _G.IsInGuild, _G.UnitIsPlayer, _G.UnitIsUnit, _G.UnitName, _G.LE_PARTY_CATEGORY_INSTANCE, _G.LE_PARTY_CATEGORY_HOME }
+	_G.LE_PARTY_CATEGORY_HOME, _G.LE_PARTY_CATEGORY_INSTANCE = 1, 2
+	_G.IsInGroup = function(c) return c ~= 2 end
+	_G.IsInRaid = function() return false end
+	_G.IsInGuild = function() return true end
+	_G.UnitIsPlayer = function(u) return u == "target" end
+	_G.UnitIsUnit = function() return false end
+	_G.UnitName = function(u) return u == "target" and "Thrall" or "Me" end
+	UI:Open("hearthstone")
+	local textWas, texts = ns.Share.Text, 0
+	ns.Share.Text = function(...) texts = texts + 1 return textWas(...) end
+	UI:ShowRowMenu(1)
+	ns.Share.Text = textWas
+	check(texts == 0, "opening the menu works out no chat text (an NPC's would move your map pin): " .. texts)
+	local m = _G.TerminalRowMenu
+	local byLabel, labels = {}, {}
+	for _, b in ipairs(m.lines) do if b:IsShown() then byLabel[b.fs:GetText()] = b; labels[#labels + 1] = b.fs:GetText() end end
+	local all = table.concat(labels, ",")
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild,Whisper Thrall,Cancel", "the channels you're in: " .. all)
+	local g, w = byLabel["Send to guild"], byLabel["Whisper Thrall"]
+	check(g and (g.attrs.macrotext1 or "") == "", "nothing worked out (no waypoint moved) until a line is clicked")
+	if g then g.scripts.PreClick(g, "LeftButton") end
+	if w then w.scripts.PreClick(w, "LeftButton") end
+	check(g and g.attrs.type1 == "macro" and g.attrs.macrotext1:match("^/g ") and g.attrs.macrotext1:find("|Hitem:6948", 1, true), "guild: the game presses /g with the link: " .. tostring(g and g.attrs.macrotext1))
+	check(w and w.attrs.macrotext1:match("^/w %%t "), "whisper: /w %t, the game fills the target's name: " .. tostring(w and w.attrs.macrotext1))
+	local mark = #log
+	g.scripts.PostClick(g, "LeftButton"); FlushAll()
+	check(not m:IsShown() and not UI:IsShown(), "sent: menu and terminal gone")
+	check(not logHas("CHAT", mark + 1), "Terminal's code sent nothing itself")
+	-- solo, no guild, no target: say only
+	_G.IsInGroup = function() return false end
+	_G.IsInGuild = function() return false end
+	_G.UnitIsPlayer = function() return false end
+	check(#ns.Share.MenuChannels() == 1 and ns.Share.MenuChannels()[1].cmd == "/s", "solo: say only")
+	_G.IsInRaid = function() return true end
+	_G.IsInGroup = function() return true end
+	local chs = ns.Share.MenuChannels()
+	check(chs[2] and chs[2].cmd == "/raid" and chs[3] and chs[3].cmd == "/i", "raid replaces party; instance group too: " .. tostring(chs[2] and chs[2].cmd))
+	-- context from a Simple search: "nearest innkeeper" reads as the Advanced line would
+	local line = ns.Share.Line({ npcID = 1, name = "Innkeeper Allison" }, E.ToAdvanced("nearest innkeeper"))
+	check(line and line:match("^Nearby innkeeper: Innkeeper Allison"), "Simple context: " .. tostring(line))
+	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild, _G.UnitIsPlayer, _G.UnitIsUnit, _G.UnitName, _G.LE_PARTY_CATEGORY_INSTANCE, _G.LE_PARTY_CATEGORY_HOME = unpack(saved, 1, 8)
+	UI:Hide(); FlushAll()
 end)
 
 Run(".advanced and .simple", function()
@@ -753,4 +851,210 @@ Run("Alt+`: what it runs stays out of Simple mode's history", function()
 	ns:RecordHistory("@spell frost nova")
 	check(not ns.db.historyAdv["@spell frost nova"], "run again in Simple: no longer Advanced-only")
 	ns.db.history, ns.db.historyAdv = {}, {}
+end)
+
+Run("typing on narrows from the last keystroke's matches, with the same results", function()
+	E.Set(true)
+	Lists()
+	local function Sig(res)
+		local t = {}
+		for i, e in ipairs(res) do t[i] = tostring(e.name) .. "|" .. tostring(e.detail) .. "|" .. tostring(e.catId) end
+		return table.concat(t, " ; ")
+	end
+	local reused = 0
+	for _, phrase in ipairs({ "sword", "sword sp", "rare sword", "thunder", "s" }) do
+		UI:Open("")
+		for k = 1, #phrase do
+			local part = phrase:sub(1, k)
+			UI:SetQuery(part, #part)
+			local got = Sig(UI.Results())
+			if UI.lastOverviewReused then reused = reused + 1 end
+			-- the same search from scratch (then the narrowing state put back for the next letter)
+			local scanWas, ovWas, catWas, autoWas = UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto
+			UI.lastScan, UI.lastOverview = nil, nil
+			if autoWas then UI.category, UI.categoryAuto = nil, nil end
+			local fresh = Sig(UI:Search(part))
+			check(got == fresh, ("'%s': narrowed = fresh (%s / %s)"):format(part, got, fresh))
+			UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = scanWas, ovWas, catWas, autoWas
+		end
+		UI:Hide(); FlushAll()
+	end
+	check(reused > 0, "the overview did reuse the last keystroke's matches: " .. reused)
+	-- a list rebuilt between keystrokes: its new rows are found (not the old matches)
+	UI:Open(""); UI:SetQuery("sw", 2)
+	local p = ns.providers.keybinds
+	p.collect = Rows({ { name = "Sheathe Sword" }, { name = "Swap Weapons" } })
+	p._dirty = true
+	UI:SetQuery("swa", 3)
+	check(Sig(UI.Results()):find("Swap Weapons", 1, true) or Sig(UI.Results()):find("Keybind", 1, true), "a list rebuilt meanwhile is scanned in full: " .. Sig(UI.Results()))
+	UI:Hide(); FlushAll()
+end)
+
+Run("Alt+` ends with the terminal however it closes; Up's history line runs as it is", function()
+	E.Set(true)
+	ActionLists()
+	-- the frame hidden by something else (a window the press opened closes it): Simple again all the same
+	UI:Open("cast frost nova")
+	UI:AdvancedOnce()
+	check(E.temp and not E.On(), "(Advanced this run)")
+	local tf = _G.TerminalFrame
+	tf:Hide(); tf.scripts.OnHide(tf) -- (as UISpecialFrames / a window opening does, not through UI:Hide)
+	check(E.temp == nil and E.On(), "the frame hidden directly: Simple again")
+	check(UI.lastQuery == "cast frost nova", "and Down brings back the Simple search: " .. tostring(UI.lastQuery))
+	FlushAll()
+	-- opened closed with Alt+`: what was typed then isn't a Simple search to bring back
+	UI.lastQuery = "old simple search"
+	UI:AdvancedOnce()
+	UI:SetQuery("@spell nova", 11)
+	UI:Hide(); FlushAll()
+	check(UI.lastQuery == nil, "Alt+` from closed: Down doesn't bring Advanced text into Simple mode: " .. tostring(UI.lastQuery))
+	-- Advanced: a history line ending in a filter runs, it isn't a pick list
+	ns.db.easyMode = false; UI:EasyChanged()
+	ns.db.history = { "@spell is:passive" }
+	UI:Open(""); T.key("UP")
+	check(T.query() == "@spell is:passive" and not (UI.Results()[1] and UI.Results()[1].syntaxRow), "Up's line is searched, not a pick list")
+	UI:Hide(); FlushAll()
+	ns.db.history = {}
+end)
+
+Run("stamina food right after login: found once the game has loaded the food's text", function()
+	E.Set(true)
+	local F = ns.Filters
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+	local save = { info = C_Item.GetItemInfo, inst = C_Item.GetItemInfoInstant, spell = C_Item.GetItemSpell,
+		desc = C_Spell.GetSpellDescription, stats = C_Item.GetItemStats, cached = C_Spell.IsSpellDataCached, now = _G.GetTime }
+	local loaded = false
+	local clock = 1000
+	_G.GetTime = function() return clock end
+	C_Item.GetItemInfo = function(id) if id == 201 then return "Spiced Wolf Ribs", "|Hitem:201|h", 1, 15, 10, "Consumable", "Food & Drink" end end
+	C_Item.GetItemInfoInstant = function(id) return id, "Consumable", "Food & Drink", "", 1, 0, 0 end
+	C_Item.GetItemSpell = function(id) return "spell", 6201 end
+	-- the spell's text isn't in yet at first (the game is still loading it)
+	C_Spell.GetSpellDescription = function() return loaded and "Restores 552 health. Well fed: gain 6 Stamina and Spirit for 15 min." or "" end
+	C_Spell.IsSpellDataCached = function() return loaded end
+	C_Item.GetItemStats = function() return {} end
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Spiced Wolf Ribs", itemID = 201 } }) } } })
+	-- the prewarm asks for your bags' consumables' text ahead of any search
+	local asked, reqWas = 0, C_Spell.RequestLoadSpellData
+	C_Spell.RequestLoadSpellData = function() asked = asked + 1 end
+	check(F.WarmEffects(ns:GetEntries(ns.providers.items)) == 1 and asked == 1 and not F.loading, "the bags' food has its text asked for ahead of the search")
+	C_Spell.RequestLoadSpellData = reqWas
+	clock = clock + 2 -- (past the wait the warm-up set)
+	UI:Open("stamina food")
+	local first = UI.Results()
+	check(not Has(first, "Spiced Wolf Ribs"), "(the food's text still loading: not yet)")
+	-- the text comes in: the same search runs again by itself, from scratch
+	loaded = true
+	clock = clock + 2
+	FlushAll()
+	local res = UI.Results()
+	check(Has(res, "Spiced Wolf Ribs") or (res[1] and res[1].catId == "bags"), "once loaded, the food shows without typing again: " .. Show(res))
+	UI:Hide(); FlushAll()
+	-- Advanced, with a ">> party" after the search: the retry still fires (the prompt isn't the searched text)
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+	loaded = false
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open("stat:stamina type:food >> party")
+	clock = clock + 0.01; T.Flush() -- (the refresh the opening queued for the next frame runs now, while still loading)
+	check(not Has(UI.Results(), "Spiced Wolf Ribs"), "(Advanced: still loading)")
+	loaded = true
+	clock = clock + 2
+	FlushAll()
+	check(Has(UI.Results(), "Spiced Wolf Ribs"), "Advanced with >>: found once loaded: " .. Show(UI.Results()))
+	UI:Hide(); FlushAll()
+	E.Set(true)
+	C_Item.GetItemInfo, C_Item.GetItemInfoInstant, C_Item.GetItemSpell = save.info, save.inst, save.spell
+	C_Spell.GetSpellDescription, C_Item.GetItemStats, C_Spell.IsSpellDataCached, _G.GetTime = save.desc, save.stats, save.cached, save.now
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+end)
+
+Run("helmet among the loot: every helmet; helm upgrades: the ones that suit you (level, class, item level)", function()
+	E.Set(true)
+	local F = ns.Filters
+	F.ClearCache()
+	local save = { info = C_Item.GetItemInfo, level = _G.UnitLevel, inv = _G.GetInventoryItemLink, can = C_PlayerInfo.CanUseItem,
+		det = C_Item.GetDetailedItemLevelInfo }
+	local ITEMS = {
+		[1] = { "Good Helm", "|Hitem:1|h", 2, 24, 18, "Armor", "Leather", 1, "INVTYPE_HEAD" },
+		[2] = { "Future Helm", "|Hitem:2|h", 3, 40, 35, "Armor", "Leather", 1, "INVTYPE_HEAD" },
+		[3] = { "Old Cap", "|Hitem:3|h", 1, 8, 3, "Armor", "Cloth", 1, "INVTYPE_HEAD" },
+		[4] = { "Plate Helm", "|Hitem:4|h", 2, 25, 20, "Armor", "Plate", 1, "INVTYPE_HEAD" },
+		[5] = { "Great Helm", "|Hitem:5|h", 4, 30, 22, "Armor", "Leather", 1, "INVTYPE_HEAD" },
+		[9] = { "Worn Hood", "|Hitem:9|h", 2, 20, 15, "Armor", "Leather", 1, "INVTYPE_HEAD" },
+	}
+	C_Item.GetItemInfo = function(id) local t = ITEMS[tonumber(id) or 0] if t then return unpack(t) end end
+	C_Item.GetDetailedItemLevelInfo = function(link) local id = tonumber(tostring(link):match("item:(%d+)")); return ITEMS[id] and ITEMS[id][4] end
+	_G.UnitLevel = function() return 21 end
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9|h[Worn Hood]|h" end end
+	C_PlayerInfo.CanUseItem = function(id) return id ~= 4 end -- (plate: not for you)
+	local function L(name, id) return { name = name, itemID = id, detail = "Boss  Dungeon", _ltext = "dungeon boss loot drop atlasloot" } end
+	Use({ { "loot", { label = "Loot", aliases = { "loot" }, collect = Rows({
+		L("Good Helm", 1), L("Future Helm", 2), L("Old Cap", 3), L("Plate Helm", 4), L("Great Helm", 5) }) } } })
+	ITEMS[6] = { "Kraul Helm", "|Hitem:6|h", 2, 26, 20, "Armor", "Leather", 1, "INVTYPE_HEAD" }
+	ITEMS[7] = { "Rough Flask of Kings", "|Hitem:7|h", 2, 26, 20, "Armor", "Leather", 1, "INVTYPE_HEAD" }
+	Use({ { "loot", { label = "Loot", aliases = { "loot" }, collect = Rows({
+		L("Good Helm", 1), L("Future Helm", 2), L("Old Cap", 3), L("Plate Helm", 4), L("Great Helm", 5),
+		{ name = "Kraul Helm", itemID = 6, detail = "Agathelos  Razorfen Kraul", _ltext = "agathelos razorfen kraul" },
+		{ name = "Rough Flask of Kings", itemID = 7, detail = "Boss  Dungeon", _ltext = "dungeon boss loot" } }) } } })
+	-- a plain slot word: every helmet
+	local res = In("loot", "helmet")
+	check(#res == 7, "helmet: every helmet: " .. Show(res))
+	-- "upgrades": only what you can equip now, near what you wear or better
+	UI:Hide(); FlushAll()
+	res = In("loot", "helm upgrades")
+	check(Has(res, "Good Helm") and Has(res, "Kraul Helm"), "helm upgrades: near what you wear and better: " .. Show(res))
+	check(not Has(res, "Future Helm") and not Has(res, "Great Helm"), "never one above your level (Great Helm needs 22, you're 21)")
+	check(not Has(res, "Old Cap"), "not ones well below what you wear")
+	check(not Has(res, "Plate Helm"), "not a kind you can't wear")
+	-- a level 3 with nothing worn: only what a level 3 can wear
+	_G.UnitLevel = function() return 3 end
+	_G.GetInventoryItemLink = function() return nil end
+	UI:Hide(); FlushAll()
+	res = In("loot", "helm upgrades")
+	check(#res == 1 and res[1].name == "Old Cap", "a level 3: the cap only: " .. Show(res))
+	-- nothing suits (a level 60 in far better gear): no helmet you'd never want
+	_G.UnitLevel = function() return 60 end
+	ITEMS[9][4] = 100
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9|h[Worn Hood]|h" end end
+	UI:Hide(); FlushAll()
+	UI:Open("helm upgrades")
+	res = UI.Results()
+	check(not Has(res, "Good Helm") and not Has(res, "Great Helm") and not Has(res, "Future Helm"), "none suits: none listed: " .. Show(res))
+	UI:Hide(); FlushAll()
+	-- an instance's shorthand: its helmets only (no name whose letters fit r f k)
+	_G.UnitLevel = function() return 21 end
+	res = In("loot", "rfk helm")
+	check(#res == 1 and res[1].name == "Kraul Helm", "rfk helm: Razorfen Kraul's helmet only: " .. Show(res))
+	check(ns.Easy.ToAdvanced("helm upgrades"):find("is:upgrade", 1, true), "Alt+`: upgrades -> is:upgrade: " .. ns.Easy.ToAdvanced("helm upgrades"))
+	-- the filter never asks the server for AtlasLoot's items, and others only a few per search
+	local savedCached, savedReq, savedInst = C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID, C_Item.GetItemInfoInstant
+	local asks = 0
+	C_Item.IsItemDataCachedByID = function() return false end
+	C_Item.RequestLoadItemDataByID = function() asks = asks + 1 end
+	local fit = F.GearFit()
+	for i = 1, 100 do fit({ kind = "loot", itemID = 1000 + i }) end
+	check(asks == 0, "loot rows the client hasn't got: never asked from the filter: " .. asks)
+	for i = 1, 100 do fit({ kind = "items", itemID = 2000 + i }) end
+	check(asks == F.GEAR_ASK, "other rows: at most F.GEAR_ASK asks per search: " .. asks)
+	-- not equipment by the client's own data: turned away before anything is asked
+	C_Item.IsItemDataCachedByID = savedCached
+	C_Item.GetItemInfoInstant = function() return 1, "Consumable", "Food", "" end
+	local infoWas, infos = C_Item.GetItemInfo, 0
+	C_Item.GetItemInfo = function(...) infos = infos + 1 return infoWas(...) end
+	check(F.GearFit()({ kind = "loot", itemID = 3001 }) == false and infos == 0, "non-equipment: no item info read")
+	C_Item.GetItemInfo, C_Item.GetItemInfoInstant, C_Item.RequestLoadItemDataByID = infoWas, savedInst, savedReq
+	-- a two-hander worn: one-handers and shields are weighed against it (the off hand isn't empty)
+	F.ClearCache()
+	ITEMS[20] = { "Big Sword", "|Hitem:20|h", 2, 40, 20, "Weapon", "Two-Handed Swords", 1, "INVTYPE_2HWEAPON" }
+	ITEMS[21] = { "Small Shield", "|Hitem:21|h", 2, 22, 20, "Armor", "Shields", 1, "INVTYPE_SHIELD" }
+	local savedId = _G.GetInventoryItemID
+	_G.GetInventoryItemID = function(_, slot) if slot == 16 then return 20 end end
+	C_Item.GetItemInfoInstant = function(id) local t = ITEMS[id] return id, t and t[6], t and t[7], t and t[9] end
+	_G.GetInventoryItemLink = function(_, slot) if slot == 16 then return "|Hitem:20|h[Big Sword]|h" end end
+	check(F.GearFit()({ kind = "loot", itemID = 21 }) == false, "a shield 18 item levels below your two-hander isn't an upgrade")
+	_G.GetInventoryItemID, C_Item.GetItemInfoInstant = savedId, savedInst
+	-- outside the loot (your bags), a slot word is only the slot
+	C_Item.GetItemInfo, _G.UnitLevel, _G.GetInventoryItemLink, C_PlayerInfo.CanUseItem = save.info, save.level, save.inv, save.can
+	C_Item.GetDetailedItemLevelInfo = save.det
+	F.ClearCache()
 end)

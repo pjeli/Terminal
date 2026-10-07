@@ -88,7 +88,7 @@ end
 
 local function GroupText(inst, bossName)
 	-- AtlasLoot Forever puts an icon and colour codes in some instance names ("Wailing Caverns|cffffffff|T...|t|r")
-	inst = inst:gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("%s+$", "")
+	inst = ns.Plain(inst):gsub("%s+$", "")
 	return bossName .. "  " .. inst, ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot")
 end
 
@@ -184,26 +184,35 @@ local function Dirty()
 	if ns.providers.loot then ns.providers.loot._dirty = true end
 end
 
---- An item's name if the client has it: GetItemNameByID, else GetItemInfo's (asking that one also
---- makes the client fetch the item). nil while unknown.
-local function LootName(id)
+--- An item's name if the client has it: GetItemNameByID, or one GetItemInfo gave the name pump. With `ask`
+--- (the pump only, a batch at a time) GetItemInfo is tried too: it makes the client fetch the item, so reading the
+--- whole list with it (collect, .integrations) would send every outstanding ask at once. nil while unknown.
+loot.got = {}
+local function LootName(id, ask)
 	local n = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
-	if type(n) ~= "string" or n == "" then
+	if type(n) ~= "string" or n == "" then n = loot.got[id] end
+	if (type(n) ~= "string" or n == "") and ask then
 		local gii = C_Item.GetItemInfo or _G.GetItemInfo
 		n = gii and Safe(gii, id)
+		if type(n) == "string" and n ~= "" and not ns.Secret(n) then loot.got[id] = n end
 	end
 	if type(n) == "string" and n ~= "" and not ns.Secret(n) then return n end
 end
-I.LootName = LootName
+I.LootName = LootName -- (tests)
 
 -- Ask the server for item names a little at a time; the provider refreshes as they arrive.
 -- WoW Forever's own items (Snake Eye Kaleidoscope, 273088) aren't in the client's item data: their
 -- names come only from the server, which drops asks when thousands come at once. So whatever is
 -- still unnamed after a round is asked for again (NAME_ROUNDS rounds, NAME_RETRY s apart).
 I.NAME_BATCH, I.NAME_ROUNDS, I.NAME_RETRY = 50, 4, 20
-local function PumpNames(round)
-	round = round or 1
-	if loot.pumping then return end
+local function PumpNames(round, gen)
+	if not round then
+		-- a new pump (the list was built or read again): any retry still waiting from an older one stops
+		loot.pumpGen = (loot.pumpGen or 0) + 1
+		loot.pumping = false
+		round, gen = 1, loot.pumpGen
+	end
+	if gen ~= loot.pumpGen or loot.pumping then return end
 	loot.pumping = true
 	-- the ids to ask for: each once, only those without a name yet
 	local ids, seen = {}, {}
@@ -221,11 +230,12 @@ local function PumpNames(round)
 	loot.pending = {}
 	local i, asked = 1, 0
 	local function step()
+		if gen ~= loot.pumpGen then return end -- (a newer pump took over)
 		if InCombatLockdown() then return C_Timer.After(5, step) end
 		local stop = math.min(i + I.NAME_BATCH - 1, #ids)
 		while i <= stop do
 			local id = ids[i]
-			if LootName(id) then
+			if LootName(id, true) then
 				loot.unnamed[id] = nil
 			else
 				loot.unnamed[id] = true
@@ -240,8 +250,9 @@ local function PumpNames(round)
 		if asked > 0 and round < I.NAME_ROUNDS then
 			C_Timer.After(I.NAME_RETRY, function()
 				-- what came in meanwhile is named by collect; the rest is asked for again
+				if gen ~= loot.pumpGen then return end
 				Dirty()
-				PumpNames(round + 1)
+				PumpNames(round + 1, gen)
 			end)
 		elseif asked > 0 then
 			local first = {}
@@ -252,8 +263,6 @@ local function PumpNames(round)
 	step()
 end
 
---- Loads AtlasLoot's loot modules one at a time (they are load-on-demand) so there is no
---- single long pause, indexing each as it arrives.
 --- How many loot items still have no name, asked now (loot.unnamed is tidied only when the list is read).
 function I.LootWaiting()
 	local n, seen = 0, {}
@@ -267,6 +276,8 @@ function I.LootWaiting()
 	return n
 end
 
+--- Loads AtlasLoot's loot modules one at a time (they are load-on-demand) so there is no
+--- single long pause, indexing each as it arrives.
 local LoadLootModules
 LoadLootModules = function()
 	local A = AL()
@@ -531,7 +542,13 @@ local function IndexNPCs(after)
 	end, function()
 		npc.list, npc.busy = out, false
 		if names then npc.names, npc.nameQuery = table.concat(names) .. "\n", "QueryNPCSingle" end
-		if ns.providers.npc then ns.providers.npc._dirty = true end
+		local p = ns.providers.npc
+		if p then
+			p._dirty = true
+			-- built at login, never searched: freed like an unused list (~5 MB for WoW Forever's 11.7k NPCs); the names
+			-- text stays for the hint rows, and the next @npc search builds it again
+			if not p._usedAt then p._usedAt = GetTime() end
+		end
 		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
 		finish()
 	end)
@@ -611,7 +628,7 @@ local function QuestHintRow(_, id)
 	local DB = QDB()
 	local name = DB and Safe(DB.QueryQuestSingle, id, "name")
 	if type(name) ~= "string" or name == "" or (issecretvalue and issecretvalue(name)) then return nil end
-	return setmetatable({ _compact = true, key = id, qid = id, name = name, _lname = ns.Lower(name),
+	return setmetatable({ _compact = true, key = id, name = name, _lname = ns.Lower(name),
 		level = Safe(DB.QueryQuestSingle, id, "questLevel"), _ltext = "quest questie" }, qdb.meta)
 end
 
@@ -739,6 +756,217 @@ function I.NpcDistance(id, here)
 	end
 	if not best then return nil end
 	return math.sqrt(best), { cont = hc, x = t[bi + 1], y = t[bi + 2] }
+end
+
+----------------------------------------------------------------------
+-- Game objects found by what they are: "nearest mailbox" (QuestieDB's objects: name, spawns)
+----------------------------------------------------------------------
+
+-- words -> the object's name, lowercase (every object of that exact name counts)
+I.OBJECT_KINDS = { mailbox = "mailbox", mailboxes = "mailbox", mail = "mailbox", post = "mailbox" }
+I.OBJECTS_NEAR = 8 -- (the nearest this many are listed)
+
+-- instance entrances: their own lists (@dungeon, @raid), not QuestieDB objects
+I.ENTRANCE_KINDS = { dungeon = "dungeon", dungeons = "dungeon", instance = "dungeon", instances = "dungeon", raid = "raid", raids = "raid" }
+--- The kind of thing the search words name ("mailbox", "dungeon"), or nil. Only when that's all they name.
+function I.ObjectKind(tokens)
+	if not tokens or #tokens ~= 1 then return nil end
+	return I.OBJECT_KINDS[tokens[1]] or I.ENTRANCE_KINDS[tokens[1]]
+end
+
+-- the object ids of each kind: one pass over QuestieDB's objects (13k names) the first time, kept in the saved
+-- variables until QuestieDB changes (`db.objectIndex = { key, ids = { mailbox = "1,2,3" } }`)
+local objectIds
+local function ObjectIds(kind)
+	local DB = QDB()
+	if not (DB and DB.QueryObjectSingle and DB.ObjectIds) then return nil end
+	if not objectIds then
+		local all = DB.ObjectIds() or {}
+		if #all == 0 then return nil end -- (not readable yet: asked again next time, nothing kept)
+		local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or _G.GetAddOnMetadata
+		-- (the kinds looked for are in the key: a kind added later reads every name again)
+		local kinds = {}
+		for _, name in pairs(I.OBJECT_KINDS) do kinds[name] = true end
+		local names = {}
+		for name in pairs(kinds) do names[#names + 1] = name end
+		table.sort(names)
+		local key = tostring(meta and Safe(meta, "QuestieDB", "Version") or "?") .. "/" .. #all .. "/" .. table.concat(names, ",")
+		local saved = ns.db and ns.db.objectIndex
+		objectIds = {}
+		if type(saved) == "table" and saved.key == key and type(saved.ids) == "table" then
+			for k, list in pairs(saved.ids) do
+				local t = {}
+				for id in tostring(list):gmatch("%d+") do t[#t + 1] = tonumber(id) end
+				objectIds[k] = t
+			end
+		else
+			local want = {}
+			for name in pairs(kinds) do want[name] = true; objectIds[name] = {} end
+			local t0 = debugprofilestop and debugprofilestop()
+			for _, id in ipairs(all) do
+				local name = Safe(DB.QueryObjectSingle, id, "name")
+				if type(name) == "string" and not (issecretvalue and issecretvalue(name)) then
+					local l = ns.Lower(name)
+					if want[l] then local t = objectIds[l]; t[#t + 1] = id end
+				end
+			end
+			local ids = {}
+			for k, t in pairs(objectIds) do ids[k] = table.concat(t, ",") end
+			if ns.db then ns.db.objectIndex = { key = key, ids = ids } end
+			ns:Trace(("objects: %d read for their names%s"):format(#all, t0 and (", %.0f ms"):format(debugprofilestop() - t0) or ""))
+		end
+	end
+	return objectIds[kind]
+end
+I.ResetObjectsForTests = function() objectIds = nil end
+
+--- How far a row is from `here` (yards) and that spot ({ cont, x, y }), or nil: an NPC's nearest spawn on your
+--- continent (NpcDistance), or a row that carries its own place in world yards (`wcont`, `wx`, `wy`: @mailbox).
+function I.RowDistance(e, here)
+	if not (e and here) then return nil end
+	local wc = e.wcont
+	if wc then
+		if wc ~= here.cont then return nil end
+		local dx, dy = e.wx - here.x, e.wy - here.y
+		return math.sqrt(dx * dx + dy * dy), { cont = wc, x = e.wx, y = e.wy }
+	end
+	local id = e.kind == "npc" and (e.npcID or rawget(e, "key"))
+	if type(id) == "number" then return I.NpcDistance(id, here) end
+end
+
+local zoneNames = {}
+local function ZoneName(ui)
+	local n = zoneNames[ui]
+	if n == nil then
+		local info = C_Map and C_Map.GetMapInfo and Safe(C_Map.GetMapInfo, ui)
+		n = type(info) == "table" and type(info.name) == "string" and info.name or false
+		zoneNames[ui] = n
+	end
+	return n or nil
+end
+
+-- Enter on a mailbox: the map pin on it (a C API)
+local function PinObject(e)
+	if ns.Maps and ns.Maps.Place and ns.Maps.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } }) then
+		ns:Print(("Waypoint set: %s, %s"):format(e.name, e.detail or ""))
+	else
+		ns:Print("Can't set a waypoint there.")
+	end
+end
+I.PinObject = PinObject
+
+--- The rows of a kind of object (@mailbox): one per spawn, "Mailbox  Stormwind City", each with its map spot and its
+--- place in world yards (for sort:nearest, near:, in: and the direction arrow). {} when QuestieDB has none to read.
+function I.ObjectRows(kind)
+	local ids = ObjectIds(kind)
+	local DB = QDB()
+	local rows = {}
+	if not (ids and DB) then return rows end
+	local label = kind:gsub("^%l", string.upper)
+	for _, id in ipairs(ids) do
+		local spawns = Safe(DB.QueryObjectSingle, id, "spawns")
+		local n = 0
+		for area, list in pairs(type(spawns) == "table" and spawns or {}) do
+			local ui = QD.UiMapOfArea(area)
+			if ui and type(list) == "table" then
+				for _, c in ipairs(list) do
+					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
+						n = n + 1
+						local cont, x, y = SpotXY(ui, c)
+						local zone = ZoneName(ui)
+						rows[#rows + 1] = {
+							name = label, key = id .. "-" .. n, kind = kind, icon = "Interface\\Icons\\INV_Letter_15",
+							detail = zone, zone = zone, text = zone, ui = ui, px = c[1], py = c[2], area = area,
+							wcont = cont, wx = x, wy = y, activate = PinObject, generic = true,
+						}
+					end
+				end
+			end
+		end
+	end
+	return rows
+end
+
+-- Dungeon and raid entrances (@dungeon, @raid): QuestieDB's dungeon list, one row per entrance (Blackrock Depths has
+-- two: Searing Gorge and Burning Steppes). Enter: the game opens the map on the entrance's zone, then Terminal pins
+-- it (a C API); Shift+Enter only pins; ">>" and the right-click menu send it with a map pin. Raids by name (English, as
+-- QuestieDB names them); battlegrounds and the non-instances in that list are left out.
+I.RAIDS = {
+	["molten core"] = true, ["onyxia's lair"] = true, ["blackwing lair"] = true, ["zul'gurub"] = true,
+	["ruins of ahn'qiraj"] = true, ["temple of ahn'qiraj"] = true, ["naxxramas"] = true, ["karazhan"] = true,
+	["gruul's lair"] = true, ["magtheridon's lair"] = true, ["serpentshrine cavern"] = true, ["serpentshire cavern"] = true,
+	["tempest keep"] = true, ["hyjal summit"] = true, ["black temple"] = true, ["sunwell plateau"] = true,
+	["zul'aman"] = true, ["the eye of eternity"] = true, ["the obsidian sanctum"] = true, ["vault of archavon"] = true,
+	["ulduar"] = true, ["trial of the crusader"] = true, ["icecrown citadel"] = true, ["the ruby sanctum"] = true,
+}
+I.NOT_INSTANCES = {
+	["deeprun tram"] = true, ["hall of legends"] = true, ["champions' hall"] = true,
+	["alterac valley"] = true, ["warsong gulch"] = true, ["arathi basin"] = true, ["eye of the storm"] = true,
+	["strand of the ancients"] = true, ["isle of conquest"] = true,
+}
+local function EntranceAfter(e)
+	ns.Maps.ShowAfter({ name = e.name .. " entrance", mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } })
+end
+function I.EntranceRows(raids)
+	local rows = {}
+	local list = QD.Dungeons()
+	if not list then return rows end
+	local Lower = ns.Lower
+	for areaId, d in pairs(list) do
+		local name = type(d) == "table" and ns.Str(d[1])
+		local lname = name and Lower(name)
+		if lname and not I.NOT_INSTANCES[lname] and (I.RAIDS[lname] and true or false) == raids and type(d[4]) == "table" then
+			local n = 0
+			for _, c in ipairs(d[4]) do
+				local ui = type(c) == "table" and type(c[2]) == "number" and QD.UiMapOfArea(c[1])
+				if ui then
+					n = n + 1
+					local cont, x, y = SpotXY(ui, { c[2], c[3] })
+					local zone = ZoneName(ui)
+					rows[#rows + 1] = {
+						name = name, key = areaId .. "-" .. n, icon = raids and "Interface\\Icons\\INV_Misc_Head_Dragon_01" or "Interface\\Icons\\INV_Misc_Key_03",
+						detail = (raids and "Raid" or "Dungeon") .. (zone and ("  " .. zone) or ""), zone = zone,
+						text = (raids and "raid entrance " or "dungeon instance entrance ") .. (zone or ""),
+						ui = ui, mapID = ui, px = c[2], py = c[3], area = c[1], wcont = cont, wx = x, wy = y,
+						pinName = name .. " entrance", what = raids and "raid" or "dungeon",
+						secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor, after = EntranceAfter, activate = PinObject,
+						secondary = PinObject,
+					}
+				end
+			end
+		end
+	end
+	table.sort(rows, function(a, b) return a.name < b.name or (a.name == b.name and a.key < b.key) end)
+	return rows
+end
+
+--- A map pin link for a row with a spot of its own (an entrance, a mailbox): the waypoint is set there (a C API).
+function I.SpotPinLink(e)
+	if not (e and e.ui and e.px and ns.Maps and ns.Maps.Place) then return nil end
+	if not ns.Maps.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } }) then return nil end
+	local link = C_Map and C_Map.GetUserWaypointHyperlink and Safe(C_Map.GetUserWaypointHyperlink)
+	return type(link) == "string" and link ~= "" and link or nil
+end
+
+--- "nearest mailbox" (Simple mode): the nearest rows of that kind's list (those `keep` keeps: a place said), closest
+--- first, "N yd  Zone".
+--- nil when there's no such list; an empty list when none is on your continent.
+function I.NearestObjectRows(kind, here, keep)
+	local p = ns.providers[kind]
+	if not p then return nil end
+	local found = {}
+	for _, e in ipairs(ns:GetEntries(p)) do
+		local d = (not keep or keep(e)) and I.RowDistance(e, here) or nil
+		if d then found[#found + 1] = { e = e, d = d } end
+	end
+	table.sort(found, function(a, b) return a.d < b.d end)
+	local rows = {}
+	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
+		local f = found[i]
+		rows[i] = setmetatable({ detail = ("%.0f yd"):format(f.d) .. (f.e.zone and ("  " .. f.e.zone) or ""),
+			_score = 1e6 - f.d, _dist = f.d }, { __index = f.e })
+	end
+	return rows
 end
 
 --- Which way an NPC is from where you face: radians, counter-clockwise from straight ahead (0 = ahead,
@@ -1020,6 +1248,15 @@ local function SpawnInTown(place, ui, c, centre)
 	return nil
 end
 
+--- Is a row with a spot of its own (@mailbox: `area`, `ui`, `px`/`py`) in a place? As NpcInPlace, for its one spawn.
+function I.RowInPlace(e, place)
+	local area = e.area
+	if area == place.area then return true end
+	if not place.parent then return ((QD.Zones() or {}).sub or {})[area] == place.area end
+	if area ~= place.parent then return false end
+	return SpawnInTown(place, e.ui, { e.px, e.py }, TownCentre(place)) ~= false -- (unknown: the whole zone counts)
+end
+
 --- Is an NPC in a place (I.FindPlace)? A zone: a spawn in it or one of its parts. A town: a spawn in it;
 --- when nothing can tell where the town is (no flight point, not explored), its whole zone counts.
 function I.NpcInPlace(id, place)
@@ -1065,10 +1302,12 @@ function I.PlaceFilter(place)
 			local v = cache[id]
 			if v == nil then
 				v = I.NpcInPlace(id, place)
-				if not I.TownsPending() then cache[id] = v end -- (kept once the towns can be known)
+				-- (kept once the towns can be known; a zone doesn't wait on them)
+				if not place.parent or not I.TownsPending() then cache[id] = v end
 			end
 			return v
 		end
+		if e.wcont and e.area then return I.RowInPlace(e, place) end -- (@mailbox: by its spot)
 		local t = rawget(e, "_ltext")
 		if t and t:find(place.key, 1, true) then return true end
 		return where and where(e) or false
@@ -1182,7 +1421,7 @@ local function IndexQuests()
 			local obj = ObjectivesText(DB, id)
 			local lname = ns.Lower(name)
 			out[#out + 1] = setmetatable({
-				_compact = true, key = id, qid = id, name = name, _lname = lname,
+				_compact = true, key = id, name = name, _lname = lname,
 				level = Safe(DB.QueryQuestSingle, id, "questLevel"),
 				zone = z[1],
 				_ltext = obj and (z[2] .. " " .. obj) or z[2],
@@ -1287,7 +1526,10 @@ local function FromLog(field, otherwise)
 	end
 end
 
+-- (qid is the row's key, read through here: a row of 8 raw fields grew to a 16-slot table the first time a search
+-- wrote its score on it, ~1.6 MB over 5000 quests; 7 leave room)
 local QUESTIE_LAZY = {
+	qid = function(t) return rawget(t, "key") end,
 	detail = function(t)
 		local parts = {}
 		if t.level and t.level > 0 then parts[#parts + 1] = "Lv " .. t.level end
@@ -1327,12 +1569,35 @@ local function SetupQuestie()
 		explicit = true, -- tens of thousands of names: only searched with @npc
 		noCombat = true,
 		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
-		onDrop = function() npc.list = nil end,
+		held = function() return npc.list ~= nil end,
+		onDrop = function() npc.list = nil; fieldCache = {} end, -- (and the NPCs' small fields the filters read)
 		collect = function()
 			if not npc.list then IndexNPCs() end
 			return npc.list or {}
 		end,
 	})
+	-- @mailbox: every mailbox QuestieDB knows (its objects), one row per spot; sort:nearest, near:, in: work on it
+	if QD.Lib() and type(QD.Lib().Object) == "table" or (QDB() and QDB().QueryObjectSingle) then
+		ns:RegisterProvider("mailbox", {
+			label = "Mailbox",
+			color = "ffc9a0dc",
+			aliases = { "mailbox", "mailboxes", "mail" },
+			explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
+			lazy = true,
+			collect = function() return I.ObjectRows("mailbox") end,
+		})
+	end
+	-- @dungeon / @raid: instance entrances (QuestieDB's dungeon list)
+	if QD.Dungeons() then
+		ns:RegisterProvider("dungeon", {
+			label = "Dungeon", color = "ff8fc0ff", aliases = { "dungeon", "dungeons", "instance", "instances" }, lazy = true,
+			collect = function() return I.EntranceRows(false) end,
+		})
+		ns:RegisterProvider("raid", {
+			label = "Raid", color = "ffff9f6f", aliases = { "raid", "raids" }, lazy = true,
+			collect = function() return I.EntranceRows(true) end,
+		})
+	end
 	npc.meta = ns:CompactMeta(ns.providers.npc, {
 		icon = "Interface\\Icons\\INV_Misc_Head_Human_01",
 		secure = ns.Maps.SECURE,

@@ -51,15 +51,23 @@ function ns.LoadBlizz(addon)
 	return C_AddOns.IsAddOnLoaded(addon)
 end
 
---- Whether anything of this kind was ever picked (its freqKeys start with "kind:"). Lets
---- scoring skip building the keys of compact rows nobody picked.
+--- What of this kind was ever picked: { [key] = times } (its freqKeys "kind:key", the key also as a number when it is
+--- one, so a compact row's own key looks it up without building a string), or false. Lets scoring skip compact rows
+--- of kinds nobody picked, and read the rest without making "kind:key" per row.
 function ns:FreqKind(kind)
 	local kinds = self.freqKinds
 	if not kinds then
 		kinds = {}
-		for k in pairs(self.db and self.db.freq or {}) do
-			local id = type(k) == "string" and k:match("^([^:]+):")
-			if id then kinds[id] = true end
+		for k, n in pairs(self.db and self.db.freq or {}) do
+			local id, key = nil, nil
+			if type(k) == "string" then id, key = k:match("^([^:]+):(.*)$") end
+			if id then
+				local t = kinds[id]
+				if not t then t = {}; kinds[id] = t end
+				t[key] = n
+				local num = tonumber(key)
+				if num and tostring(num) == key then t[num] = n end
+			end
 		end
 		self.freqKinds = kinds
 	end
@@ -389,6 +397,8 @@ function ns:PrewarmStep()
 			end
 			local t0 = debugprofilestop and debugprofilestop()
 			self:GetEntries(p)
+			-- your bags' consumables: their effect text asked for now, so "stamina food" has it at the first search
+			if id == "items" and self.Filters and self.Filters.WarmEffects then pcall(self.Filters.WarmEffects, p._entries) end
 			if Busy(p) then q[#q + 1] = id end -- reading it started its loading (Questie's index): again once in
 			if self.Trace then
 				self:Trace(("prewarm: @%s ready, %d entries%s"):format(id, p._entries and #p._entries or 0,
@@ -415,7 +425,9 @@ end
 function ns:DropIdle(now)
 	now = now or GetTime()
 	for _, p in pairs(self.providers) do
-		if p.idleDrop and p._entries and p._usedAt and now - p._usedAt > p.idleDrop then
+		-- (held: a list a provider keeps itself, built in the background without a search: Questie's NPCs)
+		local held = p._entries or (p.held and p.held(p))
+		if p.idleDrop and held and p._usedAt and now - p._usedAt > p.idleDrop then
 			p._entries, p._dirty = nil, true
 			if p.onDrop then pcall(p.onDrop) end
 			ns.entriesGen = ns.entriesGen + 1

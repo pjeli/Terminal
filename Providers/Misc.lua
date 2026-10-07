@@ -69,6 +69,67 @@ local function QuestLogRoute()
 	local Q = ns.Quests
 	return Q and Q.SECURE or { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }, Q and Q.LogShown or nil
 end
+-- The Legacy window's tabs. Its addon (Blizzard_LegacySystem) loads on demand: the tabs exist only once the
+-- micro button's click has opened it, so the press clicks the button first (only while the window is closed),
+-- then the tab, from one /run line: a tab that is a plain Frame (no Click, as the character tabs are here) gets
+-- its mouse scripts run instead. All of it pressed by the game; Terminal's code never clicks them (taint).
+local function LegacyTabMacro(e)
+	local lines = {}
+	if not Shown("LegacySystemFrame") then lines[1] = "/click LegacyMicroButton" end
+	local t = _G[e.tab]
+	local how = type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
+	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. how .. (lines[1] and ", window closed: the micro button first" or ", window open")) end
+	lines[#lines + 1] = "/run local t=" .. e.tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
+	return table.concat(lines, "\n")
+end
+local function LegacyTabFallback() ns:Print("Open the Legacy window from its button (a click from Terminal's own code would taint it).") end
+local function Never() return false end
+
+-- A tab by its path: a global ("LegacyChallengeTab") or a key under one ("CommunitiesFrame.RosterTab").
+local function TabFrame(path)
+	local f = _G
+	for part in path:gmatch("[^%.]+") do
+		if type(f) ~= "table" then return nil end
+		f = f[part]
+	end
+	return type(f) == "table" and f or nil
+end
+-- afterwards: point at the tab
+local function TabAfter(e)
+	H:Find(function()
+		local t = TabFrame(e.tab)
+		if not t and e.side then t = ns.CharSide and ns.CharSide.Tab(e.side) end
+		return t and t.IsVisible and t:IsVisible() and t or nil
+	end)
+end
+local function TabFallback(e) ns:Print("Switch to " .. tostring(e and e.name) .. " in its window (a click from Terminal's own code would taint it).") end
+
+-- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals, so /click
+-- can't name them; a game-run /run clicks them (Blizzard_Communities loads with the window, so the window first).
+local function CommunitiesTabMacro(e)
+	local lines = {}
+	if not Shown("CommunitiesFrame") then
+		lines[1] = _G.GuildMicroButton and "/click GuildMicroButton" or "/run ToggleGuildFrame()"
+	end
+	local key = e.tab:match("%.(.+)$")
+	if not ns.Secure.quiet then ns:Trace("communities: " .. key .. (lines[1] and ", window closed: opened first" or ", window open")) end
+	lines[#lines + 1] = "/run local t=CommunitiesFrame and CommunitiesFrame." .. key .. " if t then t:Click() end"
+	return table.concat(lines, "\n")
+end
+local function CommunitiesTabOpen(e)
+	local cf = _G.CommunitiesFrame
+	if not (Shown("CommunitiesFrame") and cf.GetDisplayMode) then return false end
+	local modes = _G.COMMUNITIES_FRAME_DISPLAY_MODES
+	local want = type(modes) == "table" and modes[e.mode]
+	if want == nil then return false end
+	local ok, mode = pcall(cf.GetDisplayMode, cf)
+	return ok and mode == want or false
+end
+
+-- the character window's side tabs (Providers/EquipmentSets.lua has the route)
+local function SideTabMacro(e) return ns.CharSide and ns.CharSide.Macro(e.side) or nil end
+local function SideTabOpen(e) return ns.CharSide and ns.CharSide.Shown(e.side) or false end
+
 local function MapRoute()
 	return ns.Maps and ns.Maps.SECURE or { binding = "TOGGLEWORLDMAP" }, PanelOpen
 end
@@ -119,8 +180,23 @@ local PANELS = {
 	-- WoW Forever's Legacy window (Blizzard_LegacySystem: LegacySystemFrame, its challenges and more), opened by
 	-- the game clicking its micro button (ClassicUIForever moves that button off the bar, but it still clicks);
 	-- listed only where the client has it
-	{ "Legacy", "legacy system challenges", function() local b = _G.LegacyMicroButton; if b then b:Click() end end, "LegacyMicroButton",
+	{ "Legacy", "legacy system challenges", LegacyTabFallback, "LegacyMicroButton",
 		{ buttons = { "LegacyMicroButton" } }, PanelOpen, "LegacySystemFrame", needs = "LegacyMicroButton", nameFrom = "LegacyMicroButton" },
+	-- its tabs (LegacyChallengeTab, LegacyTreeTab): the game opens the window if it's closed, then the tab
+	{ "Legacy Challenges", "legacy challenges challenge", LegacyTabFallback, "LegacyMicroButton",
+		{ macro = LegacyTabMacro }, Never, needs = "LegacyMicroButton", tab = "LegacyChallengeTab" },
+	{ "Legacy Tree", "legacy tree talents", LegacyTabFallback, "LegacyMicroButton",
+		{ macro = LegacyTabMacro }, Never, needs = "LegacyMicroButton", tab = "LegacyTreeTab" },
+	{ "Guild Roster", "guild roster members communities", TabFallback, "GuildMicroButton",
+		{ macro = CommunitiesTabMacro }, CommunitiesTabOpen, tab = "CommunitiesFrame.RosterTab", mode = "ROSTER" },
+	{ "Guild Info", "guild info information news message", TabFallback, "GuildMicroButton",
+		{ macro = CommunitiesTabMacro }, CommunitiesTabOpen, tab = "CommunitiesFrame.GuildInfoTab", mode = "GUILD_INFO" },
+	{ "Character Stats", "character stats attributes", TabFallback, "CharacterMicroButton",
+		{ macro = SideTabMacro }, SideTabOpen, tab = "PaperDollSideBarTab1", side = 1 },
+	{ "Equipment Manager", "equipment manager sets outfits", TabFallback, "CharacterMicroButton",
+		{ macro = SideTabMacro }, SideTabOpen, tab = "PaperDollSideBarTab2", side = 2 },
+	{ "Titles", "titles title", TabFallback, "CharacterMicroButton",
+		{ macro = SideTabMacro }, SideTabOpen, tab = "PaperDollSideBarTab3", side = 3 },
 	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
 }
 
@@ -135,6 +211,7 @@ local PANEL_GLOBALS = {
 	["Calendar"] = "CALENDAR", ["Social / Friends"] = "SOCIAL_BUTTON", ["Game Menu"] = "MAINMENU_BUTTON",
 	["Options"] = "OPTIONS", ["AddOn List"] = "ADDONS", ["Macros"] = "MACROS",
 	["Edit Mode"] = "HUD_EDIT_MODE_MENU", ["Shop"] = "BLIZZARD_STORE",
+	["Character Stats"] = "PAPERDOLL_SIDEBAR_STATS", ["Equipment Manager"] = "EQUIPMENT_MANAGER", ["Titles"] = "PAPERDOLL_SIDEBAR_TITLES",
 }
 
 --- The panel's name in the game's own words: its global string, else its micro button's tooltip
@@ -207,7 +284,7 @@ local function LinkAchievement(e)
 end
 
 local function PanelActivate(e)
-	e.open()
+	e.open(e)
 	MicroGlow(e.micro)
 end
 
@@ -236,6 +313,7 @@ ns:RegisterProvider("panels", {
 					for i = 7, #p do e.frames[#e.frames + 1] = p[i] end
 				end
 				if p[1] == "Talents" and ns.Talents then e.after = TalentsAfter end
+				if p.tab then e.tab, e.mode, e.side, e.after = p.tab, p.mode, p.side, TabAfter end
 			elseif p[7] then
 				-- a tab of the Character window: the game's own key opens it on that page (or switches
 				-- page when it's open on another); Terminal's code never switches it (taint)

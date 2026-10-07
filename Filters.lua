@@ -170,10 +170,12 @@ local STAT_WORDS = {
 	parry = "PARRY", block = "BLOCK", def = "DEFENSE", defense = "DEFENSE", mp5 = "REGEN",
 	dps = "DAMAGE_PER_SECOND", holy = "RESISTANCE1", fire = "RESISTANCE2", nature = "RESISTANCE3",
 	frost = "RESISTANCE4", shadow = "RESISTANCE5", arcane = "RESISTANCE6",
+	-- weapon damage: no item stat has it (StatIs never matches it); sharpening stones, weightstones: their effect text
+	weapondamage = "WEAPON_DAMAGE", wdmg = "WEAPON_DAMAGE", weapon_damage = "WEAPON_DAMAGE",
 }
 F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "ap", "sp", "healing",
 	"crit", "hit", "haste", "dodge", "parry", "block", "defense", "mp5", "dps", "fire", "frost",
-	"nature", "shadow", "arcane", "holy" }
+	"nature", "shadow", "arcane", "holy", "weapondamage" }
 
 --- Does this stat key (ITEM_MOD_STAMINA_SHORT) answer to the typed word?
 local function StatIs(key, word)
@@ -196,11 +198,12 @@ local function EffectText(e)
 	local c = effectCache[id]
 	if c ~= nil then return c or nil end
 	local now = GetTime()
-	if effectRetry[id] and now < effectRetry[id] then return nil end
+	if effectRetry[id] and now < effectRetry[id] then F.loading = true return nil end
 	-- an item the client hasn't got yet has no spell and a "Retrieving item information" tooltip: never kept
 	if C_Item and C_Item.IsItemDataCachedByID and not C_Item.IsItemDataCachedByID(id) then
 		if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 		effectRetry[id] = now + RETRY
+		F.loading = true -- (the search asks again in a moment: UI:RetryWhenLoaded)
 		return nil
 	end
 	local parts, pending = {}, false
@@ -231,6 +234,7 @@ local function EffectText(e)
 	local text = #parts > 0 and Lower(table.concat(parts, "\n")) or nil
 	if pending then
 		effectRetry[id] = now + RETRY -- (not every keystroke: once a second until it's in)
+		F.loading = true
 	else
 		if effectCount > 4000 then effectCache, effectCount = {}, 0 end
 		effectCache[id], effectCount = text or false, effectCount + 1
@@ -257,6 +261,21 @@ local function ClassID(id)
 end
 -- (not known: taken for one, so its effect is still read)
 local function IsConsumable(id) local c = ClassID(id); return c == nil or c == CONSUMABLE end
+-- sharpening stones and weightstones are Trade Goods on classic-era item data (Consumable later): both are read
+local TRADEGOODS = Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods or 7
+local function IsConsumableOrGoods(id) local c = ClassID(id); return c == nil or c == CONSUMABLE or c == TRADEGOODS end
+
+--- Asks the game, ahead of any search, for the text of every consumable in a list (the prewarm calls it for your
+--- bags): "stamina food" right after login then finds the food at once instead of after a retry.
+function F.WarmEffects(list)
+	local n = 0
+	for _, e in ipairs(list or {}) do
+		local id = ItemOf(e)
+		if id and ClassID(id) == CONSUMABLE then EffectText(e); n = n + 1 end
+	end
+	F.loading = nil -- (no search is waiting on these)
+	return n
+end
 F.ClearEffects = function() effectCache, effectCount, effectRetry, classes, classCount = {}, 0, {}, {}, 0 end
 
 -- how an effect text names each stat when the game's own name isn't there (English)
@@ -267,6 +286,8 @@ local EFFECT_ENGLISH = {
 	DEFENSE = "defense", REGEN = "mana every 5", RESISTANCE1 = "holy resistance", RESISTANCE2 = "fire resistance",
 	RESISTANCE3 = "nature resistance", RESISTANCE4 = "frost resistance", RESISTANCE5 = "shadow resistance",
 	RESISTANCE6 = "arcane resistance",
+	-- "Increase sharp weapon damage by 2", "Increase the damage of a blunt weapon by 2"
+	WEAPON_DAMAGE = { "weapon damage", "blunt weapon", "sharp weapon", "damage of a weapon", "damage of your weapon" },
 }
 --- The words an effect text uses for a typed stat: the game's own names first (its language), then English.
 local function EffectNames(word)
@@ -280,7 +301,12 @@ local function EffectNames(word)
 	local stat = ({ STRENGTH = 1, AGILITY = 2, STAMINA = 3, INTELLECT = 4, SPIRIT = 5 })[part]
 	local g = stat and _G["SPELL_STAT" .. stat .. "_NAME"]
 	if type(g) == "string" and g ~= "" then names[#names + 1] = Lower(g) end
-	if EFFECT_ENGLISH[part] then names[#names + 1] = EFFECT_ENGLISH[part] end
+	local en = EFFECT_ENGLISH[part]
+	if type(en) == "table" then
+		for _, w in ipairs(en) do names[#names + 1] = w end
+	elseif en then
+		names[#names + 1] = en
+	end
 	return names
 end
 
@@ -386,6 +412,91 @@ local SLOTS = {
 }
 
 F.SLOTS = SLOTS -- (@gear: what counts as equipment)
+
+-- is:upgrade (Simple mode: "upgrades", "helm upgrades"): gear you can equip now (its required level is yours or lower,
+-- and the game says you can use it: class, armour and weapon kind), not worn already, at an item level near what you
+-- wear there or better (within GEAR_BELOW of your weakest piece in that slot; nothing worn there: within GEAR_EMPTY of
+-- your level). Rough on purpose: no stat weighing.
+F.GEAR_BELOW, F.GEAR_EMPTY, F.GEAR_ASK = 5, 10, 40
+
+--- The item level worn in each equipment slot (1-18), read once per filter.
+local function WornLevels()
+	local out = {}
+	local link = _G.GetInventoryItemLink
+	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
+	for slot = 1, 18 do
+		local ok, l = pcall(link or function() end, "player", slot)
+		if ok and type(l) == "string" and not Secret(l) then
+			local lvl = detailed and select(2, pcall(detailed, l))
+			if type(lvl) ~= "number" then
+				local id = tonumber(l:match("item:(%d+)"))
+				local info = id and ItemInfo(id)
+				lvl = info and info.ilvl
+			end
+			if type(lvl) == "number" then out[slot] = lvl end
+		end
+	end
+	-- a two-hander fills the off hand too: a one-hander or shield there is weighed against it, not an empty slot
+	if out[16] and not out[17] and C_Item and C_Item.GetItemInfoInstant and _G.GetInventoryItemID then
+		local okId, mh = pcall(_G.GetInventoryItemID, "player", 16)
+		local ok, _, _, _, loc = false
+		if okId and mh then ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, mh) end
+		if ok and loc == "INVTYPE_2HWEAPON" then out[17] = out[16] end
+	end
+	return out
+end
+
+--- A filter: the item suits you now (see above). Items the game hasn't loaded yet wait (F.loading: searched again).
+function F.GearFit()
+	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
+	if type(me) ~= "number" or me <= 0 then me = nil end
+	local worn = WornLevels()
+	local asked = 0 -- (items asked of the server by this filter: a few at a time, F.GEAR_ASK per search)
+	local instant = C_Item and C_Item.GetItemInfoInstant
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	return function(e)
+		if e.slotId then return false end -- (worn already)
+		local id = ItemOf(e)
+		if not id then return false end
+		-- not equipment, by the client's own data (no server ask): most rows go here
+		if instant then
+			local ok, _, _, _, loc = pcall(instant, id)
+			if ok and type(loc) == "string" and not SLOTS[loc] then return false end
+		end
+		-- an item the client hasn't got: GetItemInfo would ask the server for it. AtlasLoot's thousands of items are
+		-- never asked from here (its own name pump does that, a batch at a time); others a few per search
+		if cached and not cached(id) then
+			if e.kind == "loot" or asked >= F.GEAR_ASK then return false end
+			asked = asked + 1
+			if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+			F.loading = true
+			return false
+		end
+		local info = ItemInfo(id)
+		if not info then
+			F.loading = true
+			return false
+		end
+		local slots = SLOTS[info.equipLoc or ""]
+		if not slots then return false end
+		local need = type(info.minLevel) == "number" and info.minLevel or 0
+		if me and need > me then return false end
+		-- (a kind you can't use: plate on a mage, another class's item)
+		if C_PlayerInfo and C_PlayerInfo.CanUseItem then
+			local ok, yes = pcall(C_PlayerInfo.CanUseItem, id)
+			if ok and yes == false then return false end
+		end
+		local ilvl = type(info.ilvl) == "number" and info.ilvl or 0
+		local weakest
+		for _, slot in ipairs(slots) do
+			local w = worn[slot]
+			if not w then weakest = nil break end -- (an empty slot: anything fitting is an upgrade)
+			weakest = weakest and math.min(weakest, w) or w
+		end
+		if weakest then return ilvl >= weakest - F.GEAR_BELOW end
+		return not me or ilvl >= me - F.GEAR_EMPTY
+	end
+end
 
 local function Usable(e)
 	local id = e.itemID
@@ -756,7 +867,7 @@ KEYS.stat = function(v)
 		end
 		-- no item stats (an elixir, a potion, food...): what its effect says it gives. Only consumables are
 		-- read (a tooltip per item: thousands of loot rows mustn't each be read)
-		if not IsConsumable(id) then return false end
+		if not (IsConsumable(id) or (STAT_WORDS[word] == "WEAPON_DAMAGE" and IsConsumableOrGoods(id))) then return false end
 		local text = EffectText(e)
 		if not text then return false end
 		names = names or EffectNames(word)
@@ -815,7 +926,9 @@ KEYS["in"] = function(v)
 			local ok, inPlace = pcall(I.PlaceFilter, place)
 			placing = false
 			if not ok then return function(e) return Places(e, v) end end
-			return function(e) return inPlace(e) or Places(e, v) end
+			-- (other rows: the place filter already ends in this same Places test, by the place's own name;
+			-- NPCs: their zone by name too, as before)
+			return function(e) return inPlace(e) or (NpcID(e) ~= nil and Places(e, v)) end
 		end
 	end
 	return function(e) return Places(e, v) end
@@ -952,10 +1065,9 @@ KEYS.near = function(v)
 	local I = ns.Integrations
 	local here
 	return function(e)
-		local id = NpcID(e)
-		if not (id and I and I.NpcDistance) then return false end
+		if not (I and I.RowDistance) or not (NpcID(e) or e.wcont) then return false end
 		if here == nil then here = I.Here and I.Here() or false end
-		local d = here and I.NpcDistance(id, here)
+		local d = here and I.RowDistance(e, here) -- (Questie's NPCs, and @mailbox rows)
 		return d and r(d) or false
 	end
 end
@@ -1021,11 +1133,15 @@ for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag)
 IS.notdone, IS.undone, IS.use, IS.wearable = IS.todo, IS.todo, IS.usable, IS.equippable
 IS.bound, IS.questitem, IS.maxed, IS.offcooldown = IS.soulbound, IS.quest, IS.capped, IS.ready
 IS.professiontrainer = IS.proftrainer
-KEYS.is = function(v) return IS[v] end
+KEYS.is = function(v)
+	-- (worn item levels are read once per filter: a new one per search)
+	if v == "upgrade" or v == "upgrades" then return F.GearFit() end
+	return IS[v]
+end
 
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
-	is = { "done", "todo", "complete", "ready", "usable", "equippable", "quest", "soulbound", "boe", "craftable", "passive",
+	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "quest", "soulbound", "boe", "craftable", "passive",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster" },
 	standing = StandingNames(),
