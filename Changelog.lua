@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.42.0", when = "in testing",
+		v = "0.42.0", when = "released October 2026",
 		items = {
 			"Right-click any result to send it to chat, in Simple mode too: say, party or raid, guild, instance, a whisper to your target, or the chat box. NPCs, mailboxes and dungeon entrances go with a map pin and what you searched: \"Nearby innkeeper: ...\", \"Nearby mailbox: [pin]\".",
 			"Upgrades: \"helm upgrades\" (or just \"upgrades\"; Advanced: is:upgrade) lists only gear you can equip now (your level, your class) near your current item level or better. \"helmet\" alone is every helmet.",
