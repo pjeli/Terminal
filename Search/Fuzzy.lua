@@ -126,6 +126,7 @@ end
 -- the rows on screen. The second result is true when the needle is in the name as it is (the
 -- initials and shorthand looks in UI.lua only run when it isn't).
 local rowM, rowD, rowM2, rowD2 = {}, {}, {}, {}
+local rowB, rowL, rowLo = {}, {}, {} -- (per row: each letter's bonus, its lowercase byte; per needle letter: its first possible place)
 
 function Fuzzy.score(needle, hay, lhay)
 	local n, m = #needle, #hay
@@ -138,35 +139,43 @@ function Fuzzy.score(needle, hay, lhay)
 	end
 	local sub = substringScore(needle, hay, lhay, n, m)
 	if sub then return sub, true end
-	-- cheap subsequence check first; nothing before the first letter's first match counts
-	local first = find(lhay, ssub(needle, 1, 1), 1, true)
-	if not first then return nil end
-	local pos = first
+	-- cheap subsequence check first; each letter's earliest place bounds where its row starts
+	local Lo = rowLo
+	local pos = find(lhay, ssub(needle, 1, 1), 1, true)
+	if not pos then return nil end
+	local first = pos
+	Lo[1] = pos
 	for i = 2, n do
 		pos = find(lhay, ssub(needle, i, i), pos + 1, true)
 		if not pos then return nil end
+		Lo[i] = pos
+	end
+	-- the bonus of each letter and its lowercase byte, once (not once per needle letter)
+	local B, Lb = rowB, rowL
+	local last = first > 1 and byte(hay, first - 1) or 47
+	for j = first, m do
+		local c = byte(hay, j)
+		B[j] = bonusFor(last, c)
+		Lb[j] = byte(lhay, j)
+		last = c
 	end
 	local Mp, Dp, Mc, Dc = rowM, rowD, rowM2, rowD2
-	Mp[first - 1], Dp[first - 1] = MIN, MIN
-	Mc[first - 1], Dc[first - 1] = MIN, MIN
 	for i = 1, n do
 		local nc = byte(needle, i)
 		local prev = MIN
 		local gap = (i == n) and TRAIL or INNER
-		local last = first > 1 and byte(hay, first - 1) or 47
-		for j = first, m do
-			local c = byte(hay, j)
-			local bonus = bonusFor(last, c)
-			last = c
-			if byte(lhay, j) == nc then
+		local lo = Lo[i]
+		-- (row i+1 starts past Lo[i]: it reads this row from Lo[i]; nothing left of it can hold letter i)
+		local hi = (i == n) and m or (m - n + i)
+		Mc[lo - 1], Dc[lo - 1] = MIN, MIN
+		for j = lo, hi do
+			if Lb[j] == nc then
 				local s
 				if i == 1 then
-					s = (j - 1) * LEAD + bonus
-				elseif j > first then
-					local a, b = Mp[j - 1] + bonus, Dp[j - 1] + CONSEC
-					s = a > b and a or b
+					s = (j - 1) * LEAD + B[j]
 				else
-					s = MIN
+					local a, b = Mp[j - 1] + B[j], Dp[j - 1] + CONSEC
+					s = a > b and a or b
 				end
 				Dc[j] = s
 				prev = (s > prev + gap) and s or (prev + gap)

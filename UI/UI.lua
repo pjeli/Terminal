@@ -82,7 +82,7 @@ function UI:RunSearch(text)
 	-- not finished: the best of what matched so far (on a copy: the search goes on filling it),
 	-- under the calculator's answer when there is one (Search adds it only at the end)
 	local t0 = debugprofilestop()
-	local copy = UI.SortAndTrim(UI.Scan.Copy(res))
+	local copy = UI.SortAndTrim(res) -- (a new list: the search goes on filling res)
 	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
 	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)

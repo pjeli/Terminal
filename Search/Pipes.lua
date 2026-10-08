@@ -526,20 +526,29 @@ function P.Seed(text)
 	if #kinds == 0 then kinds = P.SEED_KINDS end
 	local tokens = Tokens(table.concat(words, " "))
 	local whole = table.concat(tokens, " ")
-	local scored, exact = {}, {}
+	local all, exact = {}, {} -- (with words: only the best row is wanted, so no table per match)
+	local best, bestS
+	local wantAll = #tokens == 0
+	-- (run in the spread-out search's coroutine: AtlasLoot's thousands of rows go over several frames, UI:RunSearch)
+	local UI, n = ns.UI, 0
+	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
 	for _, kind in ipairs(kinds) do
 		for _, e in ipairs(Entries(kind)) do
-			if not (e.noActivate or e.raw) then
-				local s, ln = 0, nil
-				if #tokens > 0 then s, ln = NameScore(e, tokens) end
-				if s then
+			n = n + 1
+			if slicing and n % 64 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
+			local s, ln = 0, nil
+			if not wantAll then s, ln = NameScore(e, tokens) end
+			-- (help lines left out: asked only of a match, compact rows answer these through their metatable)
+			if s and not (e.noActivate or e.raw) then
+				do
 					local ok = true
 					for _, f in ipairs(filters) do
 						local okF, yes = pcall(f, e)
 						if not (okF and yes) then ok = false break end
 					end
 					if ok then
-						scored[#scored + 1] = { e = e, s = s }
+						if wantAll then all[#all + 1] = e
+						elseif not bestS or s > bestS then best, bestS = e, s end
 						if ln and ln == whole then exact[#exact + 1] = e end
 					end
 				end
@@ -561,7 +570,7 @@ function P.Seed(text)
 	if #exact > 0 then return Once(exact) end
 	-- nothing of yours by that name: an item the game or Questie knows by exactly that name (a reagent you don't
 	-- carry: "where to get copper ore")
-	if #scored == 0 and whole ~= "" then
+	if not best and #all == 0 and whole ~= "" then
 		local ids, out = {}, {}
 		for _, r in ipairs(Entries("recipes")) do
 			for _, rg in ipairs(r.reagents or {}) do
@@ -576,13 +585,8 @@ function P.Seed(text)
 		end
 		if #out > 0 then return Once(out) end
 	end
-	table.sort(scored, function(a, b) return a.s > b.s end)
-	if #tokens == 0 then
-		local all = {}
-		for _, x in ipairs(scored) do all[#all + 1] = x.e end
-		return Once(all)
-	end
-	return scored[1] and { scored[1].e } or {}
+	if wantAll then return Once(all) end
+	return best and { best } or {}
 end
 
 -- what walking on from a row means: a reagent -> where to get it; a recipe or crafted item -> its mats

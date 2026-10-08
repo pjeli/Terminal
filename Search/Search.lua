@@ -277,9 +277,10 @@ end
 
 UI._Better = Better -- (tests)
 
---- The best MAX_RESULTS of the list, in order. With thousands of matches, a small heap keeps
---- only the best so far instead of sorting them all.
-local function SortAndTrim(list, limit)
+--- The best MAX_RESULTS of the list, in order (a new list: the one given is left as it is). With thousands of matches,
+--- a small heap keeps only the best so far instead of sorting them all. overBudget (a search spread over frames): the
+--- pass over thousands of matches is spread too, the heap so far standing for it meanwhile.
+local function SortAndTrim(list, limit, overBudget)
 	local n, max = #list, limit or MAX_RESULTS
 	if n > max * 2 then
 		local heap, size = {}, 0 -- worst of the kept ones on top
@@ -299,19 +300,29 @@ local function SortAndTrim(list, limit)
 				i = w
 			end
 		end
+		local worst -- (the kept worst's score: most rows lose to it on the score alone, with no call)
 		for k = 1, n do
 			local e = list[k]
+			if overBudget and k % SLICE_CHECK == 0 and overBudget() then coroutine.yield(heap) end
 			if size < max then
 				size = size + 1
 				heap[size] = e
 				up(size)
-			elseif Better(e, heap[1]) then
-				heap[1] = e
-				down(1)
+				if size == max then worst = heap[1]._score or PINNED end
+			else
+				local s = e._score or PINNED
+				if s > worst or (s == worst and Better(e, heap[1])) then
+					heap[1] = e
+					down(1)
+					worst = heap[1]._score or PINNED
+				end
 			end
 		end
-		for k = n, 1, -1 do list[k] = nil end
-		for k = 1, size do list[k] = heap[k] end
+		list = heap
+	else
+		local c = {}
+		for k = 1, n do c[k] = list[k] end
+		list = c
 	end
 	table.sort(list, Better)
 	for i = #list, max + 1, -1 do list[i] = nil end
@@ -936,7 +947,8 @@ function UI:SearchText(text)
 		end
 	end
 	if not empty then
-		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = Scan.Copy(out) }
+		-- (out itself: SortAndTrim leaves it as it is; rows added to it below only make the net wider)
+		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out }
 		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
@@ -966,7 +978,7 @@ function UI:SearchText(text)
 		if #out == 0 and not sortNear then return Finish(PseudoEntries({ EASY_NONE_NEAR })) end
 	end
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
-	local res = SortAndTrim(out)
+	local res = SortAndTrim(out, nil, overBudget)
 	if act and act.map and #res == 0 then return Finish(PseudoEntries({ EASY_NONE })) end -- ("use xyzzy": say so)
 	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
 	if act and act.map then
@@ -1043,8 +1055,8 @@ function UI:FuzzySearch(text)
 			end
 		end
 	end
-	self.lastFzf = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = Scan.Copy(out) }
-	return SortAndTrim(out, FZF_MAX)
+	self.lastFzf = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out }
+	return SortAndTrim(out, FZF_MAX, overBudget)
 end
 
 --- The text a prompt keeps when it turns to pure fuzzy finding: its plain words (no @kinds, key:value filters,
