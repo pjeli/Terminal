@@ -15,7 +15,11 @@ Core\QuestieData.lua
 Core\Debug.lua
 Search\Fuzzy.lua
 Search\Shorthand.lua
-Search\Filters.lua
+Search\Filters\Core.lua
+Search\Filters\Items.lua
+Search\Filters\Upgrades.lua
+Search\Filters\Others.lua
+Search\Filters\Npcs.lua
 Search\Calc.lua
 Core\Highlight.lua
 UI\Theme.lua
