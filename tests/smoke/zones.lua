@@ -71,6 +71,9 @@ do
 	-- through the search: the answer, and its footer note
 	local res = UI:SearchText("where should i level")
 	check(#res > 0 and res[1].kind == "maps" and UI.answerNote == "Zones for level 23", "zones: the search answers it")
+	-- a level said in the question, through the search (before 0.43.15 the search dropped it: `a and f()` keeps one value)
+	UI:SearchText("zones for level 35")
+	check(UI.answerNote == "Zones for level 35", "the search answers for the level said: " .. tostring(UI.answerNote))
 	UI:SearchText("hearthstone")
 	check(UI.answerNote == nil, "zones: a plain search drops the note")
 	UnitLevel, _G.GetProfessions, _G.GetProfessionInfo = save.lvl, save.gp, save.gpi

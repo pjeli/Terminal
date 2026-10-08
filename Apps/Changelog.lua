@@ -28,6 +28,7 @@ CL.LOG = {
 			"@combatlog (Simple mode: Combat log) keeps what crit you, your biggest crits and what killed you; ask \"what killed me\", \"who crit me\" or \"my biggest crit\". (If the game hides the combat log from addons here, only your deaths are kept: .combatlog says so.)",
 			"Chains: \"mats for thorium belt\" lists its reagents with how many you have (bank and alts too), \"where to get thorium bar\" who sells it, drops it, where to gather it or how it's crafted, and \"what uses copper bar\" what it goes into. Enter on a row goes one step further (a reagent's sources, a craft's mats), Shift+Enter opens it, and the footer shows the path: \"copper bar > used in > chain belt > mats\". Advanced: link with > (thorium belt > mats > alts); .chains lists them.",
 			"Under the hood: tidier code in folders, and quicker searches (fuzzy matching does less work per row, and the sorting at the end of a big search no longer stalls a frame).",
+			"Fixes: \"zones for level 35\" and \"dungeon for 25\" answered for your own level instead of the one you said.",
 		},
 	},
 	{
