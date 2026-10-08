@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 
 -- The game's console settings by name ("name<tab>category<tab>help" per line), for @cvar: WoW Forever
--- doesn't let addons list them, so each is checked against the game (Misc.lua). Made by tests/gen_cvars.py
+-- doesn't let addons list them, so each is checked against the game (CVars.lua). Made by tests/gen_cvars.py
 -- from Ketho's BlizzardInterfaceResources (retail client). 1652 settings.
 ns.CVAR_LIST = [==[
 accessibilityScreenNarrationEnabled	4	Enables screen narration for accessibility

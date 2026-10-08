@@ -29,7 +29,7 @@ out = os.path.join(os.path.dirname(__file__), "..", "Providers", "CVarList.lua")
 with open(out, "w", encoding="utf-8", newline="\n") as f:
     f.write("local ns = select(2, ...)\n\n")
     f.write("-- The game's console settings by name (\"name<tab>category<tab>help\" per line), for @cvar: WoW Forever\n")
-    f.write("-- doesn't let addons list them, so each is checked against the game (Misc.lua). Made by tests/gen_cvars.py\n")
+    f.write("-- doesn't let addons list them, so each is checked against the game (CVars.lua). Made by tests/gen_cvars.py\n")
     f.write(f"-- from Ketho's BlizzardInterfaceResources (retail client). {len(rows)} settings.\n")
     f.write("ns.CVAR_LIST = [==[\n" + blob + "\n]==]\n")
 print(len(rows), "settings,", os.path.getsize(out), "bytes")

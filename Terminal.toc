@@ -36,7 +36,12 @@ Providers\Skills.lua
 Providers\Spells.lua
 Providers\Quests.lua
 Providers\Slash.lua
-Providers\Misc.lua
+Providers\Panels.lua
+Providers\Macros.lua
+Providers\Currency.lua
+Providers\Mounts.lua
+Providers\Achievements.lua
+Providers\CVars.lua
 Providers\Collections.lua
 Providers\Social.lua
 Providers\CVarList.lua

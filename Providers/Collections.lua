@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local H = ns.Highlight
 
--- Toys, companion pets and titles: what you own, like the mounts (Misc.lua).
+-- Toys, companion pets and titles: what you own, like the mounts (Mounts.lua).
 --
 -- Everything that uses one or opens a window is pressed by the game: Enter is a line on the secure
 -- macro button (/use a toy, summon a pet, set a title), Shift+Enter opens the Collections journal on
