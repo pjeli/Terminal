@@ -681,6 +681,29 @@ function Scan.NearestViews(out, here, sortNear, overBudget)
 	return kept
 end
 
+-- Answered before any search, in this order: each gives rows and the footer's note (true third: the note is a
+-- chain's path), or nothing when the line isn't its kind
+Scan.ANSWERS = {
+	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua
+	function(text)
+		local chain = ns.Pipes and ns.Pipes.Canonical(text)
+		if not chain then return nil end
+		local rows, trail = ns.Pipes.Search(chain)
+		return rows, trail, true
+	end,
+	-- "what killed me", "who crit me": CombatLog.lua
+	function(text)
+		local q = ns.CombatLog and ns.CombatLog.Question(text)
+		if q then return ns.CombatLog.Answer(q) end
+	end,
+	-- "where should i level", "what dungeon should i do", "where should i fish": Zones.lua
+	function(text)
+		local q, said
+		if ns.Zones then q, said = ns.Zones.Question(text) end
+		if q then return ns.Zones.Answer(q, said) end
+	end,
+}
+
 function UI:SearchText(text)
 	self.closeSpellings = nil -- (set when only close spellings matched: the footer says so)
 	self.softRelaxed = nil -- (easy mode: nothing passed every everyday word, the closest shown: the footer says so)
@@ -692,34 +715,16 @@ function UI:SearchText(text)
 		self.noPosition, self.action, self.place = nil, nil, nil
 		return self:FuzzySearch(text)
 	end
-	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua; the footer shows its trail
-	local chain = ns.Pipes and ns.Pipes.Canonical(text)
-	if chain then
-		self.noPosition, self.action, self.place = nil, nil, nil
-		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
-		self.posTokens = {}
-		local rows, trail = ns.Pipes.Search(chain)
-		self.pipeTrail = trail
-		return rows
-	end
-	-- a question in plain words ("where should i level", "what dungeon should i do"): its answer (Zones.lua)
-	local cbAsk = ns.CombatLog and ns.CombatLog.Question(text)
-	if cbAsk then
-		self.noPosition, self.action, self.place = nil, nil, nil
-		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
-		self.posTokens = {}
-		local rows, note = ns.CombatLog.Answer(cbAsk)
-		self.answerNote = note
-		return rows
-	end
-	local ask, said = ns.Zones and ns.Zones.Question(text)
-	if ask then
-		self.noPosition, self.action, self.place = nil, nil, nil
-		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
-		self.posTokens = {}
-		local rows, note = ns.Zones.Answer(ask, said)
-		self.answerNote = note
-		return rows
+	-- a chain or a question in plain words: its own answer, not a search (Scan.ANSWERS)
+	for _, ask in ipairs(Scan.ANSWERS) do
+		local rows, note, isTrail = ask(text)
+		if rows then
+			self.noPosition, self.action, self.place = nil, nil, nil
+			if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
+			self.posTokens = {}
+			if isTrail then self.pipeTrail = note else self.answerNote = note end
+			return rows
+		end
 	end
 	local kinds, tokens, filters, fsig = nil, {}, nil, {}
 	local simple = EasyOn()
