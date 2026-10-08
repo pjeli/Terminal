@@ -881,3 +881,25 @@ do
 	check(C.linkEdit.text == "a link", "link bar: typing puts the text back")
 	C.Hide()
 end
+
+-- Ctrl+click a link in chat: its name goes into Terminal (0.43.7)
+do
+	local CL = ns.ChatLinks
+	local link, text = "item:2589:0:0", "|cffffffff|Hitem:2589::::|h[Linen Cloth]|h|r"
+	check(CL.NameOf(link, text) == "Linen Cloth", "a chat link's shown name")
+	check(CL.NameOf("player:Bob", "[Bob]") == nil and CL.NameOf("spell:133", "|Hspell:133|h[Fireball]|h") == "Fireball",
+		"names from searched link kinds only")
+	UI:Hide(); T.FlushAll()
+	CL.OnRef(link, text, "LeftButton")
+	check(not UI:IsShown(), "a plain click on a link leaves Terminal alone")
+	_G.IsControlKeyDown = function() return true end
+	CL.OnRef(link, text, "LeftButton")
+	_G.IsControlKeyDown = function() return false end
+	check(UI:IsShown() and UI.edit:GetText() == "Linen Cloth", "Ctrl+click opens Terminal on the item: " .. tostring(UI.edit:GetText()))
+	UI:SetQuery("wool >> party", 4)
+	_G.IsControlKeyDown = function() return true end
+	CL.OnRef(link, text, "LeftButton")
+	_G.IsControlKeyDown = function() return false end
+	check(UI.edit:GetText() == "wool Linen Cloth >> party", "open: the name goes in at the cursor: " .. UI.edit:GetText())
+	UI:Hide(); T.FlushAll()
+end

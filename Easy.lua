@@ -744,6 +744,7 @@ function E.HelpLines()
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
 		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
+		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
 	}
 end
