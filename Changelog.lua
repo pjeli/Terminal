@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.43.8", when = "in testing",
+		v = "0.43.9", when = "in testing",
 		items = {
 			"Ask where to go, in plain words: \"where should i level\" lists the zones for your level (quests there at your level, nearest first), \"what dungeon should i do\" the dungeons, \"where should i fish\" the zones your fishing skill is enough for and the next ones to unlock. Say a level to ask for another: \"zones for level 35\". Zone levels and fishing skill from Leatrix Maps.",
 			"Zones show their level range on @map rows, and lvl: works on zones and dungeons (\"@map lvl:30\", \"@dungeon lvl:25\").",
@@ -23,6 +23,7 @@ CL.LOG = {
 			"Fuzzy mode's glow is yours to set: breathing, steady, bright, a thin line or off, in any colour (options panel, or .set fzfGlow / .set fzfColor).",
 			"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up in Terminal; with Terminal open, its name goes in at the cursor.",
 			"\"upgrades\" (is:upgrade) weighs the stats your class wants against what you wear (the weaker ring or trinket; a two-hander against both hands), so a higher item level with the wrong stats no longer counts.",
+			".zen hides the game's bars and buttons (action bars, menu, bags, XP bar, quest tracker, minimap) so you can try playing from Terminal alone; key bindings and windows still work, and .zen again brings them back.",
 		},
 	},
 	{

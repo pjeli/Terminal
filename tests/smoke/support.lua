@@ -903,3 +903,26 @@ do
 	check(UI.edit:GetText() == "wool Linen Cloth >> party", "open: the name goes in at the cursor: " .. UI.edit:GetText())
 	UI:Hide(); T.FlushAll()
 end
+
+-- .zen: the game's bars made invisible (alpha 0), never hidden; back as they were (0.43.9)
+do
+	local Zen = ns.Zen
+	local bar, menu = CreateFrame("Frame"), CreateFrame("Frame")
+	menu:SetAlpha(0.8); bar:Show()
+	local saveHook = _G.hooksecurefunc
+	_G.hooksecurefunc = function(t, name, fn)
+		local orig = t[name]
+		t[name] = function(...) local r = orig(...) fn(...) return r end
+	end
+	_G.MainMenuBar, _G.MicroMenuContainer = bar, menu
+	local out = ns:FindCommand("zen").run("")
+	check(ns.db.zen == true and bar:GetAlpha() == 0 and menu:GetAlpha() == 0 and bar:IsShown(), ".zen: bars invisible, still shown")
+	check(out[1]:find("hidden", 1, true), ".zen says what it did: " .. tostring(out[1]))
+	bar:SetAlpha(1) -- (the game fading a bar back in)
+	check(bar:GetAlpha() == 0, ".zen: a bar the game fades in goes out again")
+	ns:FindCommand("hideui").run("off")
+	check(ns.db.zen == false and bar:GetAlpha() == 1 and math.abs(menu:GetAlpha() - 0.8) < 0.001, ".zen off: back as they were")
+	bar:SetAlpha(0.5)
+	check(bar:GetAlpha() == 0.5, "off: the game's own fading works again")
+	_G.MainMenuBar, _G.MicroMenuContainer, _G.hooksecurefunc = nil, nil, saveHook
+end
