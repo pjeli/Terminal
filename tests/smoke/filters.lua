@@ -419,3 +419,26 @@ do -- type: and stat: lowercase the game's words once (kept per item / per stat 
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.ITEM_MOD_FROBNITZ_SHORT = base.info, base.stats, base.mod
 	F.ClearCache()
 end
+
+-- PvP NPCs (0.43.5): battlemasters and honor/battleground vendors, explicitly
+do
+	local F, E = ns.Filters, ns.Easy
+	local bm = { kind = "npc", key = 900001, sub = "Warsong Gulch Battlemaster", name = "Aethalas" }
+	local qm = { kind = "npc", key = 900002, sub = "Officer Accessories Quartermaster", name = "Master Sergeant Biggins" }
+	local so = { kind = "npc", key = 900003, sub = "Stormpike Supply Officer", name = "Gaelden Hammersmith" }
+	local cloth = { kind = "npc", key = 900004, sub = "Alliance Cloth Quartermaster", name = "Clavicus" }
+	local plain = { kind = "npc", key = 900005, sub = "Weaponsmith", name = "Battle Axe Bob" }
+	local isbm, ispv, ispvp = F.Parse("is:battlemaster"), F.Parse("is:pvpvendor"), F.Parse("is:pvp")
+	check(isbm(bm) and not isbm(qm) and not isbm(plain), "is:battlemaster: battlemasters only")
+	check(ispv(qm) and ispv(so) and not ispv(cloth) and not ispv(bm) and not ispv(plain), "is:pvpvendor: honor and battleground vendors")
+	check(ispvp(bm) and ispvp(qm) and not ispvp(plain), "is:pvp: either")
+	local was = ns.db.easyMode
+	ns.db.easyMode = true
+	check(E.ToAdvanced("nearby battlemaster") == "@npc is:battlemaster faction:friendly sort:nearest ",
+		"nearby battlemaster -> friendly battlemasters: " .. E.ToAdvanced("nearby battlemaster"))
+	check(E.ToAdvanced("nearest pvp vendor") == "@npc is:pvpvendor faction:friendly sort:nearest "
+		and E.ToAdvanced("nearest honor vendor") == "@npc is:pvpvendor faction:friendly sort:nearest ",
+		"pvp / honor vendor -> is:pvpvendor: " .. E.ToAdvanced("nearest pvp vendor"))
+	check(E.HARD_WORDS.battlemaster and E.HARD_WORDS["pvp vendor"], "pvp words are strict (never relaxed to any NPC)")
+	ns.db.easyMode = was
+end

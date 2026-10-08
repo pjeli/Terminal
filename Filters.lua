@@ -1023,6 +1023,28 @@ local function TrainerTitle(e)
 	if sub:find("trainer", 1, true) or sub:find("instructor", 1, true) or NpcRole(e, "TRAINER") then return sub end
 end
 
+-- PvP NPCs (0.43.5): "nearby battlemaster" listed anything with "battle" in it, of either faction
+local function NpcTitle(e)
+	if not NpcID(e) then return nil end
+	local sub = rawget(e, "sub") or NpcField(e, "subName")
+	return type(sub) == "string" and sub ~= "" and Lower(sub) or nil
+end
+local function Battlemaster(e)
+	if NpcRole(e, "BATTLEMASTER") then return true end
+	local t = NpcTitle(e)
+	return t ~= nil and t:find("battlemaster", 1, true) ~= nil
+end
+-- honor (rank) vendors and the battlegrounds' reputation vendors, by their titles (English: Questie's subName)
+F.PVP_VENDOR_TITLES = { "armor quartermaster", "weapons quartermaster", "accessories quartermaster",
+	"mount quartermaster", "supply officer", "stormpike quartermaster", "frostwolf quartermaster" }
+local function PvpVendor(e)
+	local t = NpcTitle(e)
+	if not t then return false end
+	for _, w in ipairs(F.PVP_VENDOR_TITLES) do if t:find(w, 1, true) then return true end end
+	return false
+end
+F.Battlemaster, F.PvpVendor = Battlemaster, PvpVendor
+
 local function ClassOf(sub)
 	for _, c in ipairs(CLASSES) do
 		-- "Warrior Trainer", "Undead Mage Trainer", "Master Mage", "Grand Master Rogue", "High Priest" (whole words)
@@ -1189,6 +1211,9 @@ local IS = {
 	offline = function(e) return e.online == false end,
 	classtrainer = AnyClassTrainer,
 	proftrainer = AnyProfTrainer,
+	battlemaster = Battlemaster,
+	pvpvendor = PvpVendor,
+	pvp = function(e) return Battlemaster(e) or PvpVendor(e) end,
 }
 local ROLES = { vendor = "VENDOR", trainer = "TRAINER", flightmaster = "FLIGHT_MASTER", flight = "FLIGHT_MASTER",
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",
@@ -1197,6 +1222,7 @@ for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag)
 IS.notdone, IS.undone, IS.use, IS.wearable = IS.todo, IS.todo, IS.usable, IS.equippable
 IS.bound, IS.questitem, IS.maxed, IS.offcooldown = IS.soulbound, IS.quest, IS.capped, IS.ready
 IS.professiontrainer = IS.proftrainer
+IS.battlemasters, IS.honorvendor, IS.pvpvendors = IS.battlemaster, IS.pvpvendor, IS.pvpvendor
 IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 KEYS.is = function(v)
 	-- (worn item levels are read once per filter: a new one per search)
@@ -1209,7 +1235,7 @@ F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
 		"orange", "yellow", "green", "grey", "passive",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
-		"auctioneer", "questgiver", "stablemaster" },
+		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,

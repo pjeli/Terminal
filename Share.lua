@@ -150,6 +150,7 @@ SH.ROLES = {
 	banker = "banker", flight = "flight master", flightmaster = "flight master", auctioneer = "auctioneer",
 	stable = "stable master", stablemaster = "stable master", trainer = "trainer",
 	questgiver = "quest giver", classtrainer = "class trainer", proftrainer = "profession trainer",
+	battlemaster = "battlemaster", pvpvendor = "PvP vendor", pvp = "PvP NPC",
 }
 local MY_CLASS = { class = true, my = true, me = true, myclass = true }
 

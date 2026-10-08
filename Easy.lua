@@ -158,11 +158,17 @@ E.WORDS = {
 	vendor = "is:vendor", vendors = "is:vendor", trainer = "is:trainer", trainers = "is:trainer",
 	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
 	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
+	-- PvP NPCs: only the real ones ("nearby battlemaster", "nearest pvp vendor", "honor vendor")
+	battlemaster = "is:battlemaster", battlemasters = "is:battlemaster",
+	["pvp vendor"] = "is:pvpvendor", ["pvp vendors"] = "is:pvpvendor", ["honor vendor"] = "is:pvpvendor",
+	["honor vendors"] = "is:pvpvendor", ["pvp quartermaster"] = "is:pvpvendor", pvp = "is:pvp",
 }
 
 -- everyday words that are strict filters, never relaxed away when nothing passes ("helm upgrades" lists no helmet you
 -- can't wear)
-E.HARD_WORDS = { upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true }
+E.HARD_WORDS = { upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true,
+	battlemaster = true, battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true,
+	["honor vendor"] = true, ["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true }
 
 -- left out of a search typed like a sentence (only when another word is left)
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
@@ -281,7 +287,9 @@ E.ACTIONS = {
 -- the words that name what an NPC does (not who it is): "nearest" then keeps to NPCs friendly to you
 E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, bank = true, banker = true, flight = true,
 	fp = true, flightmaster = true, ah = true, auction = true, auctioneer = true, stable = true, stablemaster = true,
-	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true }
+	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true, battlemaster = true,
+	battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true, ["honor vendor"] = true,
+	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true }
 
 --- The action a search's first word names, or nil (only with another word after it, or an everyday word).
 function E.Action(word) return E.On() and E.ACTIONS[word] or nil end
@@ -416,7 +424,7 @@ E.EXAMPLES = {
 	"try: attack power food", "try: vendor goldshire", "try: mining trainer in org", "try: stormwind", "try: gold",
 	"try: nearest mailbox", "try: nearest dungeon", "try: sword or axe", "try: rare ring not boe", "try: group browser",
 	"try: who priest undercity", "try: weapon damage", "try: online", "try: where should i level",
-	"try: what dungeon should i do", "try: where should i fish",
+	"try: what dungeon should i do", "try: where should i fish", "try: nearby battlemaster", "try: nearest pvp vendor",
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
 E.ADV_EXAMPLES = {
