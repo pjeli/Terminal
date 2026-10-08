@@ -15,8 +15,8 @@ local HINTS = {
 local DOWN_RECENT = "Down: your recent picks"
 local ONCE_LABEL = "Advanced, this time" -- (Alt+`: this run is Advanced, Simple again once it closes)
 local FZF_LABEL = "Fuzzy find" -- (Alt+` twice: pure fuzzy finding over every list, this run)
-local FZF_GHOST = "Fuzzy find: type part of a name   Enter: to Simple   Shift+Enter: to Advanced   Tab+` leaves"
-local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "leave" } }
+local FZF_GHOST = "Fuzzy find: type a name  ·  Tab+` closes" -- (short: the box cut the long one off; the footer has the keys)
+local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" } }
 local EASY_TAB_BACK = { "Tab", "all categories" }
 local EASY_TAB_PICK = { "Tab", "pick" }
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
@@ -4536,7 +4536,7 @@ local function DropTick(want)
 end
 
 --- Pure fuzzy finding for this run (UI.fzf, FuzzySearch): Tab+`, its binding, or .fuzzy (UI:FuzzyOnce). The prompt
---- keeps its plain words; a soft glow round the prompt bar says the mode is on. Tab+` again or closing ends it.
+--- keeps its plain words; a soft glow round the prompt bar says the mode is on. Tab+` again closes the terminal (which ends it).
 function UI:StartFuzzy()
 	if self.fzf or not frame then return end
 	local text = edit:GetText()
@@ -4610,9 +4610,9 @@ function UI:TraceTick()
 end
 
 --- Tab+` / the fuzzy binding / .fuzzy [words]: pure fuzzy finding, opening the terminal for it when closed; in it
---- already, back out (to the mode it came from).
+--- already, the terminal closes (as Alt+` pressed again does).
 function UI:FuzzyOnce(text)
-	if self.fzf and self:IsShown() then return self:EndFuzzy(true) end
+	if self.fzf and self:IsShown() then return self:Hide() end -- (Tab+` again closes, as Alt+` again does)
 	if not self:IsShown() then self:Open() end
 	self:StartFuzzy()
 	if type(text) == "string" and text:find("%S") then

@@ -1004,7 +1004,7 @@ Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Sim
 	-- the arrows go through the list, never the history
 	ns.db.history = { "@spell frost nova" }
 	UI:SetQuery("", 0)
-	check(UI.ghost:IsShown() and (UI.ghost:GetText() or ""):find("Tab+` leaves", 1, true), "the empty prompt says what to do and how to leave: " .. tostring(UI.ghost:GetText()))
+	check(UI.ghost:IsShown() and (UI.ghost:GetText() or ""):find("Tab+` closes", 1, true), "the empty prompt says what to do and how to leave: " .. tostring(UI.ghost:GetText()))
 	key("UP")
 	check(T.query() == "", "Up on the empty prompt: no history line: " .. T.query())
 	key("DOWN")
@@ -1062,12 +1062,13 @@ Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Sim
 	UI:Activate(1, {})
 	check(not UI.fzf and E.On() and T.query() == "Swift Raptor ", "a click: to Simple: " .. T.query())
 	UI:Hide(); FlushAll()
-	-- Tab+` in it: out of it, back to the mode it came from, the text kept
+	-- Tab+` in it: the terminal closes (as Alt+` again does), and the next open is the usual mode
 	UI:Open("hogger")
 	win(function() key("`", "`") end)
 	check(UI.fzf, "(fuzzy finding)")
 	win(function() key("`", "`") end)
-	check(not UI.fzf and E.On() and T.query() == "hogger ", "Tab+` again: back to Simple: " .. T.query())
+	check(not UI:IsShown() and not UI.fzf and E.On(), "Tab+` again: closes")
+	FlushAll()
 	UI:FuzzyOnce()
 	-- Alt+` in it: out of it, and Advanced this run
 	_G.IsAltKeyDown = function() return true end; key("`", "`"); _G.IsAltKeyDown = function() return false end

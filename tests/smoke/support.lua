@@ -665,3 +665,120 @@ do
 	check(m == "/g " .. LINK, "too long: the link alone: " .. tostring(m))
 	C_Item.GetItemInfo = saveInfo
 end
+
+-- .tetris: pieces fall, move, turn (with kicks off the walls), drop, hold, lines clear and score; only the game's keys
+-- are kept; Esc or ` quits; not in combat.
+io.write("[tetris]\n")
+do
+	local TT = ns.Tetris
+	local g = TT.game
+	TT.rand = function() return 1 end -- (bags in a known order)
+	ns.db.tetrisBest = 0
+	UI:Open(".tetris"); UI:Hide()
+	ns.commands.tetris.run("")
+	check(TT.IsShown() and not UI:IsShown(), ".tetris: the board shows at once, the terminal gone")
+	check(g.piece and g.score == 0 and g.lines == 0 and g.level == 1 and g.queue[1], "a piece falling, the next one waiting")
+	-- every piece's four turns are four cells inside its box, and four turns come back to the start
+	for kind, p in pairs(TT.PIECES) do
+		local start = TT.Cells(kind, 0)
+		local back = TT.Cells(kind, 4)
+		local same = true
+		for i = 1, 4 do if start[i][1] ~= back[i][1] or start[i][2] ~= back[i][2] then same = false end end
+		check(#start == 4 and same, kind .. ": four cells, four turns round")
+	end
+	local f = TT.frame
+	local passed
+	f.SetPropagateKeyboardInput = function(_, v) passed = v end
+	-- moves: left to the wall and no further
+	TT.Reset(); TT.Spawn("T")
+	local x0 = g.piece.x
+	f.scripts.OnKeyDown(f, "LEFT"); f.scripts.OnKeyUp(f, "LEFT")
+	check(g.piece.x == x0 - 1 and passed == false, "Left moves it (the key is the game's)")
+	for _ = 1, 12 do TT.Move(-1) end
+	check(g.piece.x == 0 and not TT.Move(-1), "the wall stops it")
+	-- a turn against the wall is kicked out of it
+	TT.Reset(); TT.Spawn("I")
+	TT.Rotate(1)
+	for _ = 1, 12 do TT.Move(-1) end
+	check(TT.Rotate(1), "an I standing at the wall still turns (kicked off it)")
+	-- a held key repeats by itself after a moment; the game's own repeats change nothing
+	TT.Reset(); TT.Spawn("O")
+	x0 = g.piece.x
+	f.scripts.OnKeyDown(f, "RIGHT"); f.scripts.OnKeyDown(f, "RIGHT"); f.scripts.OnKeyDown(f, "RIGHT")
+	check(g.piece.x == x0 + 1, "a key-down repeated by the game moves it once")
+	TT.Tick(0.17 + 0.05 * 2 + 0.001)
+	check(g.piece.x > x0 + 1, "held: it goes on by itself")
+	f.scripts.OnKeyUp(f, "RIGHT")
+	-- gravity, and landing then locking after the wait
+	TT.Reset(); TT.Spawn("O")
+	local y0 = g.piece.y
+	for _ = 1, 5 do TT.Tick(0.17) end -- (0.85 s in frames; a long frame counts at most 0.2 s)
+	check(g.piece.y == y0 + 1, "time passing: a row down")
+	check(TT.FallEvery(5) < TT.FallEvery(1), "faster at higher levels")
+	-- hard drop: straight down, locked, two points a row, the next piece comes
+	TT.Reset(); TT.Spawn("O")
+	f.scripts.OnKeyDown(f, "ENTER"); f.scripts.OnKeyUp(f, "ENTER")
+	check(g.grid[19][4] == "O" and g.grid[18][5] == "O" and g.score == 18 * 2 and g.piece.kind ~= nil, "Enter drops it at once (2 a row): " .. g.score)
+	-- a full row clears, the rows above come down, 100 x level
+	TT.Reset()
+	for x = 0, 9 do if x ~= 4 and x ~= 5 then g.grid[19][x] = "Z" end end
+	g.grid[18][0] = "S"
+	TT.Spawn("O")
+	TT.HardDrop()
+	check(g.lines == 1 and g.grid[19][0] == "S" and g.grid[19][4] == "O" and not g.grid[18][4], "a full row clears and the rest comes down")
+	check(g.score == 100 + 18 * 2, "100 points for a line: " .. g.score)
+	-- four at once: 800
+	TT.Reset()
+	for y = 16, 19 do for x = 1, 9 do g.grid[y][x] = "J" end end
+	TT.Spawn("I"); TT.Rotate(1)
+	for _ = 1, 12 do TT.Move(-1) end
+	g.score = 0
+	TT.HardDrop()
+	check(g.lines == 4 and g.score - (g.score % 100) == 800, "four lines at once: 800: " .. g.score)
+	-- hold: put aside once per piece, swapped back next time
+	TT.Reset(); TT.Spawn("T")
+	f.scripts.OnKeyDown(f, "C"); f.scripts.OnKeyUp(f, "C")
+	check(g.hold == "T" and g.held, "C holds the piece for later")
+	check(not TT.Hold(), "only once per piece")
+	TT.HardDrop()
+	local now = g.piece.kind
+	TT.Hold()
+	check(g.piece.kind == "T" and g.hold == now, "the next piece swaps it back")
+	-- soft drop: Down held falls fast, a point a row
+	TT.Reset(); TT.Spawn("O")
+	y0 = g.piece.y
+	f.scripts.OnKeyDown(f, "DOWN")
+	TT.Tick(0.1)
+	check(g.piece.y >= y0 + 2 and g.score > 0, "Down held: faster, a point a row")
+	f.scripts.OnKeyUp(f, "DOWN")
+	-- other keys go on to the game
+	f.scripts.OnKeyDown(f, "1")
+	check(passed == true, "any other key goes on to the game")
+	f.scripts.OnKeyDown(f, "SPACE")
+	check(passed == true, "Space too (no pausing, as Snake)")
+	-- no room for the next piece: game over, best kept; Enter plays again
+	TT.Reset()
+	for y = 0, 19 do for x = 0, 9 do if x ~= 9 then g.grid[y][x] = "L" end end end
+	g.score = 1234
+	TT.Spawn("O")
+	check(g.over and ns.db.tetrisBest == 1234 and g.newBest, "the stack at the top: game over, the best kept")
+	TT.Draw()
+	f.scripts.OnKeyDown(f, "ENTER")
+	check(not g.over and g.score == 0, "Enter plays again")
+	f.scripts.OnKeyDown(f, "ESCAPE")
+	check(not TT.IsShown(), "Esc quits")
+	ns.commands.tetris.run(""); f.scripts.OnKeyDown(f, "`")
+	check(not TT.IsShown(), "` quits")
+	-- opening Snake closes it, and the other way round
+	ns.commands.tetris.run(""); ns.Snake.Open()
+	check(not TT.IsShown() and ns.Snake.IsShown(), "Snake closes Tetris")
+	TT.Open()
+	check(TT.IsShown() and not ns.Snake.IsShown(), "and Tetris closes Snake")
+	-- combat
+	f.scripts.OnEvent(f, "PLAYER_REGEN_DISABLED")
+	check(not TT.IsShown(), "combat closes it")
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	check(TT.Open() == false and not TT.IsShown(), "not in combat")
+	_G.InCombatLockdown = realCombat
+end
