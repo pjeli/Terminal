@@ -439,8 +439,17 @@ do
 		-- instance entrances: @dungeon / @raid, nearest, sent with a pin
 		ns.db.easyMode = false
 		local function N(q) local t = {} for _, e in ipairs(UI:Search(q)) do t[#t + 1] = tostring(e.name) end return table.concat(t, ",") end
-		check(N("@dungeon") == "Razorfen Kraul", "@dungeon: the dungeons with an entrance on this client's maps (no battlegrounds, raids or unknown zones): " .. N("@dungeon"))
-		check(N("@raid") == "Onyxia's Lair", "@raid: the raids: " .. N("@raid"))
+		ns.providers.dungeon._dirty, ns.providers.raid._dirty = true, true
+		local dn, rd = N("@dungeon"), N("@raid")
+		-- WoW Forever's own entrances (Leatrix Maps' data): its new dungeons, no other expansion's
+		check(dn:find("Razorfen Kraul", 1, true) and dn:find("The Drowned City", 1, true) and dn:find("The Hall of Thanes", 1, true)
+			and not dn:find("Utgarde", 1, true) and not dn:find("Hellfire", 1, true) and not dn:find("Alterac Valley", 1, true)
+			and not dn:find("Onyxia", 1, true), "@dungeon: WoW Forever's dungeons only, its own included: " .. dn)
+		check(rd:find("Onyxia's Lair", 1, true) and rd:find("Molten Core", 1, true) and rd:find("Temple of Ahn'Qiraj", 1, true)
+			and not rd:find("Karazhan", 1, true) and not rd:find("Razorfen", 1, true), "@raid: the raids, one per instance behind a shared door: " .. rd)
+		local brd = UI:Search("@dungeon blackrock depths")
+		check(#brd >= 2 and brd[1].detail:find("Blackrock Mountain", 1, true), "Blackrock Depths at both of Blackrock Mountain's doors: " .. tostring(brd[1] and brd[1].detail))
+		check(UI:Search("@dungeon deadmines")[1].detail:find("Lv 17%-26"), "the level range shown: " .. UI:Search("@dungeon deadmines")[1].detail)
 		check(N("rfk"):find("Razorfen Kraul", 1, true), "a plain search finds an entrance by its shorthand: " .. N("rfk"))
 		local rfk = UI:Search("@dungeon rfk")[1]
 		check(rfk and rfk.ui == 1413 and rfk.px == 42.9, "its entrance's map spot")
@@ -451,7 +460,7 @@ do
 		ns.db.easyMode = true
 		UI:Open("nearest dungeon")
 		local r = UI.Results()
-		check(r[1] and r[1].name == "Razorfen Kraul" and r[1].detail:find("^%d+ yd"), "Simple: nearest dungeon: " .. tostring(r[1] and r[1].name) .. " " .. tostring(r[1] and r[1].detail))
+		check(r[1] and r[1].name == "Wailing Caverns" and r[1].detail:find("^%d+ yd"), "Simple: nearest dungeon (you stand in the Barrens): " .. tostring(r[1] and r[1].name) .. " " .. tostring(r[1] and r[1].detail))
 		check(ns.Easy.ToAdvanced("nearest raid") == "@raid sort:nearest ", "Alt+`: nearest raid -> @raid sort:nearest")
 		UI:Hide(); FlushAll()
 		C_Map.GetUserWaypointHyperlink = nil
