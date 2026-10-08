@@ -40,12 +40,12 @@ do
 	end }
 	_G.BNGetNumFriends = function() return 2 end
 	_G.C_BattleNet = { GetFriendAccountInfo = function(i)
-		if i == 1 then return { battleTag = "Pal#1234", note = "",
+		if i == 1 then return { battleTag = "Pal#1234", note = "", accountName = "|Kq1|k",
 			gameAccountInfo = { isOnline = true, clientProgram = "App", richPresence = "In the app" } } end
 		-- playing, their BattleTag not readable (a secret value comes through Str as nil): listed by their character
 		return { bnetAccountID = 55, gameAccountInfo = { isOnline = true, clientProgram = "WoW", characterName = "Girl Bird",
 			className = "Druid", areaName = "The Barrens", characterLevel = 18, gameAccountID = 99 } }
-	end }
+	end, GetAccountInfoByID = function(id) if id == 55 then return { accountName = "|Kq2|k" } end end }
 	ns.providers.guild._dirty, ns.providers.friends._dirty = true, true
 	ns.db.easyMode = false; UI:EasyChanged()
 
@@ -65,34 +65,42 @@ do
 	check(asked >= 1, "the roster is asked for")
 	-- not in plain searches (a guild's names would crowd every search)
 	check(not names(UI:Search("mendy")):find("Mendy", 1, true), "only with @guild")
-	-- Enter whispers, Shift+Enter invites: lines the game runs
+	-- Enter whispers, Shift+Enter invites: from Terminal's code (a whisper the game opened on Enter's own press
+	-- closed again at once in the game; the chat box and invites aren't protected)
 	local e = UI:Search("@guild mendy")[1]
-	local w = e and S.Resolve(e.secure, e)
-	check(w and w.macro and w.macro:find('f("Mendy-Realm")', 1, true) and #w.macro <= S.MACRO_MAX, "Enter: a whisper the game opens: " .. tostring(w and w.macro))
-	local body = w and w.macro:match("^/run (.*)$")
-	check(body and loadstring(body), "valid Lua")
-	local told
+	local told, bntold, invited, bninv
+	local saved2 = { st = _G.ChatFrame_SendTell, sbn = _G.ChatFrame_SendBNetTell, pi = _G.C_PartyInfo, bni = _G.BNInviteFriend }
 	_G.ChatFrame_SendTell = function(n) told = n end
-	if body then loadstring(body)() end
-	check(told == "Mendy-Realm", "the whisper goes to the full name")
-	_G.ChatFrame_SendTell = nil
-	local inv = e and S.Resolve(e.secondarySecure, e)
-	check(inv and inv.macro and inv.macro:find("InviteUnit", 1, true) and inv.macro:find('"Mendy-Realm"', 1, true), "Shift+Enter: an invite the game sends: " .. tostring(inv and inv.macro))
+	_G.ChatFrame_SendBNetTell = function(n) bntold = n end
+	_G.C_PartyInfo = { InviteUnit = function(n) invited = n end }
+	_G.BNInviteFriend = function(id) bninv = id end
+	check(e and e.secure == nil and e.activate == ns.Social.Whisper, "Enter: Terminal's own whisper, no press")
+	e.activate(e)
+	check(told == "Mendy-Realm", "the whisper goes to the full name: " .. tostring(told))
+	e.secondary(e)
+	check(invited == "Mendy-Realm", "Shift+Enter invites the full name: " .. tostring(invited))
 	-- friends: the friend list and Battle.net
 	local fr = names(UI:Search("@friend online"))
 	check(fr:find("Buddy", 1, true) and fr:find("Pal", 1, true) and not fr:find("Gone", 1, true), "@friend online: " .. fr)
 	check(names(UI:Search("@friend hunter")) == "Buddy", "@friend hunter: " .. names(UI:Search("@friend hunter")))
 	local pal = UI:Search("@friend pal")[1]
-	local pw = pal and S.Resolve(pal.secure, pal)
-	check(pw and pw.macro:find('battleTag=="Pal#1234"', 1, true) and #pw.macro <= S.MACRO_MAX, "a Battle.net friend outside the game: whispered by BattleTag: " .. tostring(pw and pw.macro))
-	check(pw and loadstring(pw.macro:match("^/run (.*)$")), "valid Lua (Battle.net)")
-	check(pal and pal.secondarySecure == nil, "no invite for someone not in the game")
+	pal.activate(pal)
+	check(bntold == "|Kq1|k", "a Battle.net friend outside the game: whispered by BattleTag (account name): " .. tostring(bntold))
+	local msgs = {}
+	local po = ns.Print
+	ns.Print = function(_, m) msgs[#msgs + 1] = m end
+	invited = nil
+	pal.secondary(pal)
+	ns.Print = po
+	check(invited == nil and msgs[1] and msgs[1]:find("isn't playing", 1, true), "no invite for someone not in the game")
 	local girl = UI:Search("@friend girl")[1]
 	check(girl and girl.name == "Girl Bird" and names(UI:Search("@friend druid")) == "Girl Bird", "a Battle.net friend playing, BattleTag unreadable: listed by their character: " .. tostring(girl and girl.name))
-	local gw = girl and S.Resolve(girl.secure, girl)
-	check(gw and gw.macro:find("GetAccountInfoByID(55)", 1, true) and loadstring(gw.macro:match("^/run (.*)$")), "whispered by their account id: " .. tostring(gw and gw.macro))
-	local gi = girl and girl.secondarySecure and S.Resolve(girl.secondarySecure, girl)
-	check(gi and gi.macro:find("BNInviteFriend(99)", 1, true) and loadstring(gi.macro:match("^/run (.*)$")), "invited through their game account: " .. tostring(gi and gi.macro))
+	bntold = nil
+	girl.activate(girl)
+	check(bntold == "|Kq2|k", "whispered by their account id: " .. tostring(bntold))
+	girl.secondary(girl)
+	check(bninv == 99, "invited through their game account: " .. tostring(bninv))
+	_G.ChatFrame_SendTell, _G.ChatFrame_SendBNetTell, _G.C_PartyInfo, _G.BNInviteFriend = saved2.st, saved2.sbn, saved2.pi, saved2.bni
 	check(girl and girl.zone == "The Barrens" and names(UI:Search("@friend in:barrens")) == "Girl Bird", "in: works on them")
 	-- Simple mode: a category of their own, and online as an everyday word
 	ns.db.easyMode = true; UI:EasyChanged()
@@ -100,6 +108,24 @@ do
 	local found = false
 	for _, r in ipairs(UI.Results()) do if r.catId == "people" or r.name == "Mendy" then found = true end end
 	check(found, "Simple mode: priest online finds them under Guild & friends")
+	UI:Hide(); FlushAll()
+	-- Shift+Right > Whisper (the menu from the keyboard): the game opens the whisper
+	UI:Open("mendy")
+	UI:Move(1) -- (past the /who ask row)
+	local sel = UI.Results()[2]
+	local F = _G.TerminalFrame
+	_G.IsShiftKeyDown = function() return true end
+	F.scripts.OnKeyDown(F, "RIGHT")
+	_G.IsShiftKeyDown = function() return false end
+	local m = _G.TerminalRowMenu
+	local first = m and m.lines[1] and m.lines[1].fs:GetText()
+	check(sel and sel.name == "Mendy" and m:IsShown() and first == "Whisper", "the menu on Mendy, Whisper first: " .. tostring(sel and sel.name) .. " / " .. tostring(first))
+	local told2
+	local st = _G.ChatFrame_SendTell
+	_G.ChatFrame_SendTell = function(n) told2 = n end
+	key("ENTER")
+	_G.ChatFrame_SendTell = st
+	check(told2 == "Mendy-Realm" and F.propagate == false and not m:IsShown(), "Enter on Whisper: the whisper box opens, Enter kept from it: " .. tostring(told2))
 	UI:Hide(); FlushAll()
 
 	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo, _G.C_GuildInfo = save.ig, save.n, save.info, save.gi
@@ -149,7 +175,7 @@ do
 	check(#rows == 2 and toUi == false and not ns.providers.who.busy(ns.providers.who), "answer in: two rows, chat gets /who again, done waiting")
 	local res = UI:Search("@who priest")
 	check(res[1] and res[1].whoFilter and res[2] and res[2].name:find("^Sana") and not res[3], "the answer searched: " .. tostring(res[2] and res[2].name))
-	check(res[2] and res[2].detail:find("Night Watch", 1, true) and res[2].secure, "guild shown, whisper ready")
+	check(res[2] and res[2].detail:find("Night Watch", 1, true) and res[2].activate == ns.Social.Whisper, "guild shown, whisper ready")
 	res = UI:Search("@who lvl:30-45")
 	check(res[2] and res[2].name:find("^Grim") and not res[3], "lvl: on the answer")
 	-- what the server understood (a level range) lists them too: they answered that /who

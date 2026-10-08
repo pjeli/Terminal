@@ -3,7 +3,8 @@ local ns = select(2, ...)
 -- Your guild and your friends (@guild, @friend): "@guild priest online", "@guild blacksmith", "@guild in:undercity",
 -- "@guild officer", "@friend online". Each person's row is searchable by name, class, rank, zone, notes and (where the
 -- game says) professions; lvl: and in: work on them, is:online / is:offline too. Enter opens a whisper to them, Shift+Enter
--- invites them, both from a line the game runs (the chat box and the party are the game's, never written from here).
+-- invites them (both from Terminal's code: the chat box and the invite aren't protected, and a whisper the game opened
+-- on Enter's own press closed again at once).
 
 local SO = {}
 ns.Social = SO
@@ -26,40 +27,56 @@ end
 -- a name as a Lua string inside a /run line (quotes and backslashes escaped; "|" doubled, or chat reads a code)
 local function Quoted(s) return '"' .. tostring(s):gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("|", "||") .. '"' end
 
---- Enter: a whisper to them, opened by the game (a /run line on the secure macro button).
-function SO.WhisperMacro(e)
-	-- a Battle.net friend: a Battle.net whisper (it reaches them on any realm, under any name), by account id, else by
-	-- BattleTag; their account name is an escape, read when pressed, never put in the text
-	if e.bnetID then
-		return "/run local a=C_BattleNet.GetAccountInfoByID(" .. e.bnetID .. ") local f=ChatFrame_SendBNetTell or ChatFrameUtil.SendBNetTell"
-			.. " if a and f then f(a.accountName) end"
+--- A Battle.net friend's account name (an escape the chat box reads; never put in macro text), by id, else BattleTag.
+local function AccountName(e)
+	local B = C_BattleNet
+	if not B then return nil end
+	if e.bnetID and B.GetAccountInfoByID then
+		local a = Safe(B.GetAccountInfoByID, e.bnetID)
+		if type(a) == "table" and a.accountName then return a.accountName end
 	end
-	if e.bnetTag then
-		return "/run for i=1,BNGetNumFriends() do local a=C_BattleNet.GetFriendAccountInfo(i) if a and a.battleTag=="
-			.. Quoted(e.bnetTag) .. " then (ChatFrame_SendBNetTell or ChatFrameUtil.SendBNetTell)(a.accountName) end end"
+	if e.bnetTag and B.GetFriendAccountInfo and BNGetNumFriends then
+		for i = 1, (Num(Safe(BNGetNumFriends)) or 0) do
+			local a = Safe(B.GetFriendAccountInfo, i)
+			if type(a) == "table" and a.battleTag == e.bnetTag and a.accountName then return a.accountName end
+		end
 	end
-	return "/run local f=ChatFrame_SendTell or ChatFrameUtil and ChatFrameUtil.SendTell if f then f(" .. Quoted(e.whisperTo or e.name) .. ") end"
 end
---- Shift+Enter: invite them to your group (the party is the game's: a /run line it runs).
-function SO.InviteMacro(e)
-	if e.bnetGame then
-		-- (their game account, as the friend list's own invite does; by name when the client has no such call)
-		return "/run if BNInviteFriend then BNInviteFriend(" .. e.bnetGame .. ") else C_PartyInfo.InviteUnit(" .. Quoted(e.whisperTo or e.name) .. ") end"
+
+--- Enter: the whisper box to them, opened by Terminal's code (as "Put in the chat box" opens it), on a press the
+--- terminal keeps: a whisper the game opened on Enter's own press (a macro on the secure button) never showed in
+--- the game: the box opened on key down and, most likely, the same Enter closed it again.
+function SO.Whisper(e)
+	local bn = (e.bnetID or e.bnetTag) and AccountName(e)
+	local sendBN = ChatFrame_SendBNetTell or (ChatFrameUtil and ChatFrameUtil.SendBNetTell)
+	if bn and sendBN then
+		ns:Trace("social: Battle.net whisper to " .. tostring(e.name))
+		sendBN(bn)
+		return
 	end
-	return "/run local f=C_PartyInfo and C_PartyInfo.InviteUnit or InviteUnit if f then f(" .. Quoted(e.whisperTo or e.name) .. ") end"
+	local who = e.whisperTo or (not e.bnetID and not e.bnetTag and e.name)
+	if not who then ns:Print("Can't whisper " .. tostring(e.name) .. " from here right now.") return end
+	local tell = ChatFrame_SendTell or (ChatFrameUtil and ChatFrameUtil.SendTell)
+	ns:Trace("social: whisper to " .. tostring(who))
+	if tell then tell(who) else ns.LinkInChat("/w " .. who .. " ") end
 end
-local WHISPER = { macro = SO.WhisperMacro }
-local INVITE = { macro = SO.InviteMacro }
-local function Never() return false end
-local function NoPress(e) ns:Print("Can't whisper " .. tostring(e.name) .. " from here right now.") end
-local function NoInvite(e)
+
+--- Shift+Enter: invite them to your group (C calls, no window touched).
+function SO.Invite(e)
+	if e.bnetGame and BNInviteFriend then
+		ns:Trace("social: Battle.net invite to " .. tostring(e.name))
+		BNInviteFriend(e.bnetGame)
+		return
+	end
 	if not e.whisperTo then ns:Print(tostring(e.name) .. " isn't playing World of Warcraft right now.") return end
-	ns:Print("Can't invite " .. tostring(e.name) .. " from here right now.")
+	local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
+	if not invite then ns:Print("Can't invite " .. tostring(e.name) .. " from here right now.") return end
+	ns:Trace("social: invite " .. tostring(e.whisperTo))
+	invite(e.whisperTo)
 end
 
 local function Row(t)
-	t.secure, t.isOpen, t.activate = WHISPER, Never, NoPress
-	t.secondary, t.secondarySecure, t.secondaryIsOpen = NoInvite, (t.whisperTo or t.bnetGame) and INVITE or nil, Never
+	t.activate, t.secondary = SO.Whisper, SO.Invite
 	return t
 end
 

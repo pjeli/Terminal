@@ -589,6 +589,74 @@ Run("right-click menu", function()
 	UI:ShowRowMenu(1)
 	key("DOWN")
 	check(not m:IsShown(), "a key closes it")
+	-- Shift+Right in Simple mode: the menu, by the row, driven by the keyboard (never Advanced syntax in the prompt)
+	local F = _G.TerminalFrame
+	local function shiftRight()
+		_G.IsShiftKeyDown = function() return true end
+		F.scripts.OnKeyDown(F, "RIGHT")
+		_G.IsShiftKeyDown = function() return false end
+	end
+	UI:UpdateTooltip()
+	local tipWas = _G.TerminalTooltip and _G.TerminalTooltip:IsShown()
+	shiftRight()
+	check(m:IsShown() and UI.edit:GetText() == "hearthstone", "Simple: Shift+Right opens the menu, the prompt untouched: " .. UI.edit:GetText())
+	check(tipWas and not _G.TerminalTooltip:IsShown(), "the row's tooltip goes while the menu is up (both sit beside the terminal)")
+	UI:UpdateTooltip()
+	check(not _G.TerminalTooltip:IsShown(), "and stays away (hovering a row asks for it again)")
+	check(m.lines[1].hl:IsShown() and not m.lines[2].hl:IsShown(), "its first line picked")
+	key("DOWN")
+	check(m:IsShown() and m.lines[2].hl:IsShown() and not m.lines[1].hl:IsShown(), "Down: the next line, the menu stays")
+	key("UP"); key("UP")
+	check(m.lines[5].hl:IsShown(), "Up from the first: round to the last (Cancel)")
+	key("ESCAPE")
+	check(not m:IsShown() and UI:IsShown(), "Esc: only the menu goes")
+	check(_G.TerminalTooltip:IsShown(), "and the tooltip comes back")
+	-- Enter: armed for this very press, as Terminal's own Enter is, with the press let through ONCE (in the game,
+	-- binding ahead of the press never fired, and a false-then-true propagate seemed to lose it)
+	local function enter()
+		local calls = {}
+		local was = F.SetPropagateKeyboardInput
+		F.SetPropagateKeyboardInput = function(_, v) calls[#calls + 1] = v end
+		ns.Secure.Disarm()
+		key("ENTER")
+		F.SetPropagateKeyboardInput = was
+		local px = _G.TerminalMacroProxy
+		ns.ranMacro = ns.Secure.armed == "MACRO" and px and px.attrs.macrotext or nil
+		return calls
+	end
+	shiftRight(); key("DOWN")
+	local calls = enter()
+	check(#calls == 1 and calls[1] == true and ns.ranMacro == "/use item:6948" and not m:IsShown(),
+		"Enter on Use: armed for the press, let through once, menu gone: " .. tostring(ns.ranMacro) .. " " .. #calls)
+	UI:Hide(); FlushAll()
+	-- the list rebuilt while the menu is open (friends' Battle.net updates come every few seconds): still runs
+	UI:Open("hearthstone")
+	shiftRight(); key("DOWN")
+	local before = UI.Results()[1]
+	ns.providers.items._dirty = true
+	UI.searchedText = nil
+	UI:Refresh(); FlushAll()
+	check(UI.Results()[1] ~= before and UI.Results()[1].name == "Hearthstone" and m:IsShown(), "(the row is a new table now, the menu still up)")
+	enter()
+	check(ns.ranMacro == "/use item:6948", "Enter still runs the line on the rebuilt list")
+	UI:Hide(); FlushAll()
+	UI:Open("hearthstone")
+	shiftRight(); key("DOWN"); key("DOWN"); key("DOWN")
+	local boxed
+	local lic = ns.LinkInChat
+	ns.LinkInChat = function(t) boxed = t return true end
+	calls = enter()
+	ns.LinkInChat = lic
+	check(m.lines[4].fs:GetText() == "Say in chat" and tostring(boxed):match("^/s ") and tostring(boxed):find("|Hitem:6948", 1, true)
+		and #calls == 1 and calls[1] == false and not UI:IsShown(),
+		"Enter on Say in chat: the chat box with the line (Enter sends it), the key kept from it: " .. tostring(boxed))
+	UI:Hide(); FlushAll()
+	UI:Open("hearthstone")
+	shiftRight(); key("UP"); calls = enter()
+	check(not m:IsShown() and UI:IsShown() and #calls == 1 and calls[1] == false, "Enter on Cancel: only the menu goes")
+	shiftRight(); key("a")
+	check(not m:IsShown() and UI:IsShown(), "any other key closes it")
+	UI:Hide()
 	-- Advanced mode: write into the prompt too
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI:Open("hearthstone")

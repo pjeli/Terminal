@@ -1498,6 +1498,8 @@ end
 function UI:UpdateTooltip()
 	local t = Tip()
 	local e = UI:IsShown() and results[sel] or nil
+	-- the row menu is up: no tooltip (both sit beside the terminal, on top of each other)
+	if UI:MenuShown() then e = nil end
 	-- the same row still selected and its tooltip still up: nothing to redraw (only kept beside the
 	-- terminal, which may have been dragged)
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end
@@ -1599,6 +1601,8 @@ function UI:FitHints()
 		if self.category and not self.categoryAuto then list[#list + 1] = EASY_TAB_BACK
 		elseif results[sel] and results[sel].catId then list[#list + 1] = EASY_TAB_PICK end
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
+		local r = results[sel]
+		if r and not (r.catId or r.noActivate) then list[#list + 1] = { "Shift+Right", "more" } end -- (the row menu)
 		key = key .. "|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(self.category) .. "|" .. tostring(results[sel] and results[sel].catId)
 	end
 	local room = (t.width or 640) - 28 - (status:GetStringWidth() or 0) - 24
@@ -2534,6 +2538,7 @@ local function KeysDown(self, key)
 		return
 	end
 	local ctrl, shift = IsControlKeyDown(), IsShiftKeyDown()
+	if UI:MenuKey(self, key) then return end
 	UI:HideRowMenu()
 	if key == "ENTER" or key == "NUMPADENTER" then
 		local se = SecureView(results[sel], shift)
@@ -2614,6 +2619,9 @@ EditKey = function(key, ctrl, shift)
 			MoveCaret(hi, false)
 		elseif not shift and not ctrl and c >= #text and UI:AcceptCompletion() then
 			return -- at the end: take the suggestion
+		elseif shift and not ctrl and c >= #text and EasyOn() and not UI:SuggestionText() and results[sel] then
+			UI:ShowRowMenu(sel, true) -- Simple mode: what can be done with it (the result's text would be Advanced syntax)
+			return
 		elseif shift and not ctrl and c >= #text and UI:FillFromResult() then
 			return -- at the end (nothing to select): the selected result into the prompt, "@npc Thrall"
 		else
@@ -2872,12 +2880,16 @@ local function MenuLine(i)
 end
 
 function UI:HideRowMenu()
-	if menu and menu:IsShown() and not InCombatLockdown() then menu:Hide() end
+	if menu and menu:IsShown() and not InCombatLockdown() then
+		menu.keys = nil
+		menu:Hide()
+		self:UpdateTooltip() -- (the selected row's tooltip back)
+	end
 end
 
 --- Right-click on row `idx`: its actions (Enter's, Shift+Enter's, Link in chat; Advanced: write it into the prompt).
 --- Window-opening ones are macros the game runs when the line is clicked, as the click catcher's are.
-function UI:ShowRowMenu(idx)
+function UI:ShowRowMenu(idx, fromKeys)
 	local e = results[idx]
 	if not e or e.noActivate or not frame then return end
 	if InCombatLockdown() then ns:Print("Not in combat: right-click again afterwards.") return end
@@ -2893,9 +2905,14 @@ function UI:ShowRowMenu(idx)
 		-- starts (the event comes just before), and once it's over should that ever have been too late
 		pcall(menu.RegisterEvent, menu, "PLAYER_REGEN_DISABLED")
 		pcall(menu.RegisterEvent, menu, "PLAYER_REGEN_ENABLED")
+		menu:SetScript("OnHide", function() menu.keys = nil end)
 		menu:SetScript("OnEvent", function(_, event)
 			if not menu:IsShown() then return end
-			if event == "PLAYER_REGEN_DISABLED" then menu:Hide() return end
+			if event == "PLAYER_REGEN_DISABLED" then
+				menu.keys = nil
+				menu:Hide()
+				return
+			end
 			if event == "PLAYER_REGEN_ENABLED" or not (menu.IsMouseOver and menu:IsMouseOver()) then UI:HideRowMenu() end
 		end)
 	end
@@ -2952,15 +2969,106 @@ function UI:ShowRowMenu(idx)
 	menu:SetBackdropBorderColor(Theme.RGB(t.border))
 	menu:SetScale(t.scale or 1)
 	menu:ClearAllPoints()
+	if fromKeys then self:Disarm() end -- (Enter belongs to the menu's line now)
+	menu.keys, menu.n = fromKeys and true or nil, #items
+	for i = 1, #items do menu.lines[i].hl:Hide() end
 	local x, y
 	if GetCursorPosition then x, y = GetCursorPosition() end
 	local s = menu:GetEffectiveScale()
-	if type(x) == "number" and type(s) == "number" and s > 0 then
+	local row = fromKeys and rows[idx - offset]
+	if row and row:IsShown() then
+		-- from the keyboard (Shift+Right): beside the row, its first line picked (Up/Down, Enter, Esc/Left)
+		menu:SetPoint("TOPLEFT", row, "TOPRIGHT", 4, 0)
+		self:MenuSelect(1)
+	elseif fromKeys then
+		menu:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+		self:MenuSelect(1)
+	elseif type(x) == "number" and type(s) == "number" and s > 0 then
 		menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
 	else
 		menu:SetPoint("CENTER")
 	end
 	menu:Show()
+	self:UpdateTooltip() -- (hidden while the menu is up: it would sit under it)
+end
+
+--- The keyboard's line in a menu opened from the keyboard.
+function UI:MenuSelect(i)
+	if not (menu and menu.n and menu.n > 0) then return end
+	i = (i - 1) % menu.n + 1
+	if menu.keySel and menu.lines[menu.keySel] then menu.lines[menu.keySel].hl:Hide() end
+	menu.keySel = i
+	menu.lines[i].hl:Show()
+end
+function UI:MenuShown() return menu ~= nil and menu:IsShown() end
+
+--- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
+--- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
+local function MenuRowIndex(e, idx)
+	if results[idx] == e then return idx end
+	for i, r in ipairs(results) do
+		if r == e or (r.kind == e.kind and r.key ~= nil and r.key == e.key) then return i end
+	end
+end
+
+--- A key while the row menu opened from the keyboard is up: Up/Down/Tab pick a line, Enter runs it (as the line's
+--- click would: windows and chat lines are pressed by the game, through Enter's own binding), Esc/Left close it.
+--- True when the key was the menu's.
+function UI:MenuKey(f, key)
+	if not (menu and menu.keys and menu:IsShown()) then return false end
+	if key == "UP" or (key == "TAB" and IsShiftKeyDown()) then
+		f:SetPropagateKeyboardInput(false); self:MenuSelect((menu.keySel or 1) - 1) return true
+	elseif key == "DOWN" or key == "TAB" then
+		f:SetPropagateKeyboardInput(false); self:MenuSelect((menu.keySel or 0) + 1) return true
+	elseif key == "ESCAPE" or key == "LEFT" or key == "`" then
+		f:SetPropagateKeyboardInput(false); self:HideRowMenu() return true
+	elseif key ~= "ENTER" and key ~= "NUMPADENTER" then
+		return false -- (anything else closes it and does what it does)
+	end
+	-- Enter runs the line the way Terminal's own Enter runs a row (which works in the game): the line's action is
+	-- armed on Enter during this press and the press goes on to the game, SetPropagateKeyboardInput called ONCE
+	-- (true). Binding Enter to a menu line or a proxy ahead of the press never fired in the game (0.42.14-16).
+	local b = menu.lines[menu.keySel or 1]
+	local it, e, idx = b and b.item, menu.entry, menu.idx
+	ns:Trace("menu: Enter on line " .. tostring(menu.keySel) .. " (" .. tostring(b and b.fs:GetText()) .. ")")
+	if not (it and e) then self:HideRowMenu() f:SetPropagateKeyboardInput(false) return true end
+	if it.run then
+		f:SetPropagateKeyboardInput(false)
+		self:HideRowMenu()
+		it.run()
+		if not it.stay then self:Hide() end
+		return true
+	end
+	-- (the row the menu was opened on: its own entry, wherever the list has put it since)
+	local found = MenuRowIndex(e, idx)
+	sel = found or sel
+	if it.chatTo then
+		-- a chat line from the keyboard: the chat box with it, Enter sends it (a chat line the game ran on Enter's own
+		-- press never went out in the game; the box, opened by Terminal's code on a press it keeps, works)
+		f:SetPropagateKeyboardInput(false)
+		self:HideRowMenu()
+		local SH = ns.Share
+		local m = SH and SH.Macro(e, it.chatTo)
+		if m and m ~= "" then
+			ns:Trace("menu: the chat box with " .. m:sub(1, 3) .. "...")
+			ns.LinkInChat(m)
+			self:Hide()
+		end
+		return true
+	end
+	local se = SecureView(e, it.secondary)
+	if se and self:ArmForPress(se) then
+		f:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
+		ns:Trace("menu: armed Enter for the press (" .. tostring(ns.Secure.armed) .. ")")
+		if not it.chatTo then ns:RecordHistory(edit:GetText()) end
+		self:FinishSoon(se)
+		self:HideRowMenu()
+		return true
+	end
+	f:SetPropagateKeyboardInput(false)
+	self:HideRowMenu()
+	if not it.chatTo and found then self:Activate(found, { secondary = it.secondary }) end
+	return true
 end
 
 --- A menu line was clicked (after the game ran its macro, if it had one).
@@ -2978,8 +3086,9 @@ function UI:MenuPicked(b)
 		self:Hide()
 		return
 	end
-	if results[idx] ~= e then return end
-	sel = idx
+	local now = MenuRowIndex(e, idx)
+	if not now and not it.macro then return end
+	sel = now or sel
 	if it.macro then -- the game opened it: finish as after Enter
 		local se = it.view or e
 		ns:Bump(e.freqKey)
@@ -2988,7 +3097,7 @@ function UI:MenuPicked(b)
 		if se.after then C_Timer.After(0.1, function() RunAfter(se) end) end
 		return
 	end
-	self:Activate(idx, { secondary = it.secondary })
+	self:Activate(now, { secondary = it.secondary })
 end
 
 ----------------------------------------------------------------------

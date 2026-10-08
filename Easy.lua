@@ -563,7 +563,7 @@ function E.HelpLines()
 		"Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it.",
 		"Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter or a click, then the thing itself. Tab goes back to all of them.",
 		"Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\").",
-		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row for all it can do.",
+		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do.",
 		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
 		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
