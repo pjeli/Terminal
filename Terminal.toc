@@ -28,6 +28,7 @@ UI\CopyBox.lua
 Core\Secure.lua
 UI\Share.lua
 UI\UI.lua
+Search\Search.lua
 Providers\Items.lua
 Providers\EquipmentSets.lua
 Providers\Reputation.lua

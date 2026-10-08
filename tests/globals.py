@@ -31,7 +31,7 @@ def line_in(src, name):
     return src.count("\n", 0, m.start()) + 1 if m else "?"
 
 # Scope-aware: report writes to names never declared local in an enclosing scope.
-def scan(path, warnings=None):
+def scan(path, warnings=None, free=None):
     src = open(path, encoding="utf-8").read()
     try: tree = ast.parse(src)
     except Exception as ex: return [("PARSE " + str(ex)[:80], "?")]
@@ -96,6 +96,7 @@ def scan(path, warnings=None):
                 if k.startswith('_') or k in ('comments','line','start_char','stop_char','first_token','last_token'): continue
                 if isinstance(v, (A.Node, list)): walk(v, scope)
     walk(tree.body, set())
+    if free is not None: free.update(reads)
     if warnings is not None:
         for name in reads:
             near = None
@@ -119,6 +120,40 @@ def warnings(path):
     warns = []
     scan(path, warns)
     return [f"{path}: reads global {n} (line {l}), one letter from {near}: a typo?" for n, near, l in warns]
+
+def file_locals(path):
+    """The names a file declares at its top level, without the ones copied from a global (local X = X / _G.X)."""
+    src = open(path, encoding="utf-8").read()
+    try: tree = ast.parse(src)
+    except Exception: return set()
+    out = set()
+    for st in tree.body.body:
+        if isinstance(st, A.LocalFunction): out.add(st.name.id)
+        elif isinstance(st, A.LocalAssign):
+            for i, t in enumerate(st.targets):
+                v = st.values[i] if i < len(st.values) else None
+                copied = (isinstance(v, A.Name) and v.id == t.id) or (isinstance(v, A.Index) and isinstance(v.idx, A.Name)
+                    and v.idx.id == t.id and isinstance(v.value, A.Name) and v.value.id == "_G")
+                if not copied: out.add(t.id)
+    return out
+
+def split_reads(paths):
+    """Reads of a never-declared name that another file declares as its own local: after moving code between files,
+    a name left behind reads a nil global (Lua doesn't say). Returns problem lines."""
+    owners = {}
+    for p in paths:
+        for n in file_locals(p): owners.setdefault(n, []).append(p)
+    out = []
+    for p in paths:
+        free = set()
+        scan(p, None, free)
+        for n in sorted(free):
+            if n in owners and p not in owners[n] and n not in SPLIT_OK:
+                out.append(f"{p}: reads {n}, a local of {', '.join(owners[n])} (missing here: a nil global)")
+    return out
+
+# names a file declares locally that are also real globals the others may read
+SPLIT_OK = {"ns", "_", "AddonList"} # (AddonList: the game's window, Addons.lua keeps its own copy)
 
 if __name__ == "__main__":
     bad = [p for f in sys.argv[1:] for p in problems(f)]

@@ -27,6 +27,11 @@ if ok and G:
             ok = False
         for w in G.warnings(f): # (a likely typo: said, not failed)
             print("WARN", w)
+if ok and G:
+    files = [f for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)) if "/tests/" not in f]
+    for p in G.split_reads(files):
+        print("FAIL", p)
+        ok = False
 if not ok:
     print("problems found")
 elif G:
