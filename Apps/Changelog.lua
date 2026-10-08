@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.43.20", when = "in testing",
+		v = "0.43.21", when = "in testing",
 		items = {
 			"Ask where to go, in plain words: \"where should i level\" lists the zones for your level (quests there at your level, nearest first), \"what dungeon should i do\" the dungeons, \"where should i fish\" the zones your fishing skill is enough for and the next ones to unlock. Say a level to ask for another: \"zones for level 35\". Zone levels and fishing skill from Leatrix Maps.",
 			"Zones show their level range on @map rows, and lvl: works on zones and dungeons (\"@map lvl:30\", \"@dungeon lvl:25\"); \"fishing spots\" asks like \"where should i fish\", and Advanced has fish: (\"@map fish:mine\"). Alt+` turns any of these questions into its Advanced form.",
@@ -23,6 +23,7 @@ CL.LOG = {
 			"Fuzzy mode's glow is yours to set: breathing, steady, bright, a thin line or off, in any colour (options panel, or .set fzfGlow / .set fzfColor).",
 			"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up in Terminal; with Terminal open, its name goes in at the cursor.",
 			"\"upgrades\" (is:upgrade) weighs the stats your class wants against what you wear (the weaker ring or trinket; a two-hander against both hands), so a higher item level with the wrong stats no longer counts.",
+			"Experience: @xp (also @exp, @experience; Simple mode: \"xp\") shows your level, experience and rested experience, and your alts' as of when you last played them, their rested topped up for the time away (marked ~). Alts show up once you've logged in on them with Terminal. Enter lists them all in chat, Shift+Enter puts one in the chat box.",
 			".zen hides the game's menu and bag buttons, XP bar and quest tracker (your action bars and minimap stay) so you can try playing from Terminal; key bindings and windows still work, and .zen again brings them back.",
 			"A loot log that remembers: @drop (Simple mode: Loot log) lists what dropped and who got it, newest first, with the boss and zone, kept across sessions (the last 500). .lootlog shows the latest.",
 			"@combatlog (Simple mode: Combat log) keeps your deaths and what killed you (from the game's Death Recap): ask \"what killed me\". Where the game lets addons read the combat log it also keeps what crit you and your biggest crits (\"who crit me\", \"my biggest crit\"); WoW Forever doesn't.",
