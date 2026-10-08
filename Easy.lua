@@ -118,6 +118,8 @@ E.WORDS = {
 	["weapon damage"] = "stat:weapondamage",
 	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
 	upgrade = "is:upgrade", upgrades = "is:upgrade",
+	-- recipes that still give skill (orange and yellow; strict: HARD_WORDS)
+	skillup = "is:skillup", skillups = "is:skillup", ["skill up"] = "is:skillup", ["skill ups"] = "is:skillup",
 	online = "is:online", offline = "is:offline",
 	-- what an item is and where it's worn: "shield", "plate", "boots", "ring"
 	shield = "type:shield", shields = "type:shield", sword = "type:sword", swords = "type:sword", axe = "type:axe",
@@ -141,7 +143,7 @@ E.WORDS = {
 
 -- everyday words that are strict filters, never relaxed away when nothing passes ("helm upgrades" lists no helmet you
 -- can't wear)
-E.HARD_WORDS = { upgrade = true, upgrades = true }
+E.HARD_WORDS = { upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true }
 
 -- left out of a search typed like a sentence (only when another word is left)
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,

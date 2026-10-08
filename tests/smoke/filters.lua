@@ -356,3 +356,46 @@ do -- one bag slot the client answers oddly for can't drop the whole item list
 	bag.GetContainerNumSlots, bag.GetContainerItemInfo = real.n, real.i
 	ns.providers.items._dirty = true
 end
+
+do -- recipes: is:skillup (orange and yellow), is:orange/yellow/green/grey; "@profession is:skillup" searches recipes
+	local api = C_TradeSkillUI
+	local gri, base, ids, linked, guild, npc = api.GetRecipeInfo, api.GetBaseProfessionInfo, api.GetAllRecipeIDs, api.IsTradeSkillLinked, api.IsTradeSkillGuild, api.IsNPCCrafting
+	api.GetBaseProfessionInfo = function() return { professionID = 171, professionName = "Alchemy" } end
+	api.GetAllRecipeIDs = function() return { 11, 12, 13 } end
+	api.IsTradeSkillLinked, api.IsTradeSkillGuild, api.IsNPCCrafting = nil, nil, nil
+	local DIFF = { [11] = 0, [12] = 1, [13] = 3 } -- (Mana Well is a camp object: @camp)
+	api.GetRecipeInfo = function(id)
+		local i = gri(id)
+		if type(i) ~= "table" then return i end
+		local c = {}
+		for k, v in pairs(i) do c[k] = v end
+		c.relativeDifficulty = DIFF[id]
+		if id == 13 then c.learned = true end
+		return c
+	end
+	ns.Professions.Snapshot(); T.FlushAll()
+	ns.providers.recipes._dirty = true
+	local all = names(UI:Search("@recipe"))
+	local found = names(UI:Search("@recipe is:skillup"))
+	check(all["Elixir of Strength"] and all["Greater Mana Potion"], "the open profession's recipes are indexed")
+	check(found["Elixir of Strength"] and not found["Greater Mana Potion"], "is:skillup: orange yes, grey no")
+	found = names(UI:Search("@recipe is:grey"))
+	check(found["Greater Mana Potion"] and not found["Elixir of Strength"], "is:grey")
+	found = names(UI:Search("@recipe is:orange|yellow"))
+	check(found["Elixir of Strength"] and not found["Greater Mana Potion"], "is:orange|yellow")
+	found = names(UI:Search("@profession is:skillup"))
+	check(found["Elixir of Strength"] and not found["Greater Mana Potion"], "@profession is:skillup lists the recipes")
+	local e
+	for _, r in ipairs(UI:Search("@recipe elixir of strength")) do if r.name == "Elixir of Strength" then e = r end end
+	check(e and e.color == "|cffff8040", "recipes are coloured as the window colours them: " .. tostring(e and e.color))
+	ns.db.easyMode = nil
+	found = names(UI:Search("elixir skillup"))
+	check(found["Elixir of Strength"], "Simple: skillup")
+	found = names(UI:Search("mana skillup"))
+	check(not found["Greater Mana Potion"], "Simple: skillup is strict (a grey recipe never comes back as the closest)")
+	ns.db.easyMode = false
+	api.GetRecipeInfo = gri
+	ns.Professions.Snapshot(); T.FlushAll()
+	api.GetBaseProfessionInfo, api.GetAllRecipeIDs, api.IsTradeSkillLinked, api.IsTradeSkillGuild, api.IsNPCCrafting = base, ids, linked, guild, npc
+	ns.providers.recipes._dirty = true
+end

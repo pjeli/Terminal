@@ -27,6 +27,7 @@ local ns = select(2, ...)
 --   is:ready is:passive          spells off cooldown (quests: = is:complete) / passive spells
 --   is:capped                    currencies at their cap (or this week's)
 --   is:craftable                 recipes you have every reagent for
+--   is:skillup                   recipes that still give skill (orange or yellow; also is:orange/yellow/green/grey)
 --   is:vendor is:trainer ...     Questie NPCs by what they do
 
 local F = {}
@@ -530,6 +531,32 @@ local function Craftable(e)
 		if have < (r[2] or 1) then return false end
 	end
 	return true
+end
+
+-- Recipe difficulty, as the profession window colours it: Enum.TradeskillRelativeDifficulty (Optimal 0 = orange,
+-- Medium 1 = yellow, Easy 2 = green, Trivial 3 = grey). Kept with each recipe when its window was last read
+-- (Professions.lua: `diff`, refreshed whenever the window's list updates, as it does after a skill-up).
+local DIFF = (Enum and Enum.TradeskillRelativeDifficulty) or {}
+F.DIFF = {
+	orange = DIFF.Optimal or 0, yellow = DIFF.Medium or 1, green = DIFF.Easy or 2, grey = DIFF.Trivial or 3,
+}
+local function Difficulty(e)
+	local d = e.recipeID and e.difficulty
+	return type(d) == "number" and d or nil
+end
+F.Difficulty = Difficulty
+local function DiffIs(which) return function(e) return Difficulty(e) == F.DIFF[which] end end
+local function SkillUp(e)
+	local d = Difficulty(e)
+	return d ~= nil and (d == F.DIFF.orange or d == F.DIFF.yellow)
+end
+-- is: values only recipes answer: "@profession is:skillup" searches the recipes too
+F.RECIPE_IS = { skillup = true, skillups = true, orange = true, yellow = true, green = true, grey = true, gray = true,
+	trivial = true, craftable = true }
+--- Does this typed word filter by something only recipes have (is:skillup, is:orange|yellow, -is:grey)?
+function F.RecipeWord(w)
+	for v in Lower(w):gmatch("is:(%a+)") do if F.RECIPE_IS[v] then return true end end
+	return false
 end
 
 local function Done(q)
@@ -1123,6 +1150,7 @@ local IS = {
 	usable = Usable,
 	equippable = Equippable,
 	craftable = Craftable,
+	skillup = SkillUp, orange = DiffIs("orange"), yellow = DiffIs("yellow"), green = DiffIs("green"), grey = DiffIs("grey"),
 	-- guild members and friends (Social.lua)
 	online = function(e) return e.online == true end,
 	offline = function(e) return e.online == false end,
@@ -1136,6 +1164,7 @@ for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag)
 IS.notdone, IS.undone, IS.use, IS.wearable = IS.todo, IS.todo, IS.usable, IS.equippable
 IS.bound, IS.questitem, IS.maxed, IS.offcooldown = IS.soulbound, IS.quest, IS.capped, IS.ready
 IS.professiontrainer = IS.proftrainer
+IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 KEYS.is = function(v)
 	-- (worn item levels are read once per filter: a new one per search)
 	if v == "upgrade" or v == "upgrades" then return F.GearFit() end
@@ -1144,7 +1173,8 @@ end
 
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
-	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "passive",
+	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
+		"orange", "yellow", "green", "grey", "passive",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster" },
 	standing = StandingNames(),
@@ -1176,7 +1206,7 @@ F.HELP = {
 	{ "near:500", "@npc: within that many yards of you (near:<300, near:200-800)" },
 	{ "sort:nearest", "Questie NPCs closest to you first, with how far (the other rows stay, after them)" },
 	{ "sells:linen_cloth", "@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)" },
-	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable" },
+	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey" },
 	{ "is:ready", "spells: ready (off cooldown) passive; currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },

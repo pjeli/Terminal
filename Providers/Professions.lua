@@ -500,6 +500,7 @@ function P.Snapshot(done)
 					cat = catName or nil,
 					reagents = reagents,
 					item = made, -- what it makes (stat:/slot: filters on crafts)
+					diff = ns.Num(info.relativeDifficulty), -- orange/yellow/green/grey now (is:skillup; Filters.DIFF)
 				}
 			end
 		end
@@ -873,6 +874,17 @@ local function SpellSpec(name)
 	return s
 end
 
+-- the profession window's own colours for a recipe's difficulty (TradeSkillTypeColor in the classic window)
+local DIFF_HEX
+local function DiffColor(d)
+	if type(d) ~= "number" then return nil end
+	if not DIFF_HEX then
+		local D = ns.Filters.DIFF
+		DIFF_HEX = { [D.orange] = "|cffff8040", [D.yellow] = "|cffffff00", [D.green] = "|cff40c040", [D.grey] = "|cff808080" }
+	end
+	return DIFF_HEX[d]
+end
+
 --- castSpell: the spell that opens this profession's window (false: none), once per profession;
 --- worked out here when not given.
 local function MakeEntry(profID, pdata, r, castSpell)
@@ -891,7 +903,8 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		key = r.id,
 		name = r.name,
 		icon = r.icon,
-		color = r.learned == false and "|cff8a8a8a" or nil,
+		color = r.learned == false and "|cff8a8a8a" or DiffColor(r.diff),
+		difficulty = r.diff, -- (is:skillup, is:orange...: as of the window's last read)
 		detail = (r.learned == false and "Unlearned  " or "") .. pdata.name,
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and ("Reagents: " .. table.concat(lines, ", ")) or nil,

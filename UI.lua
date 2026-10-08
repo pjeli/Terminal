@@ -663,6 +663,12 @@ function UI:SearchText(text)
 			end
 		end
 	end
+	-- "@profession is:skillup": what's asked is recipes (only they have a difficulty): searched too
+	if kinds and kinds.professions and not kinds.recipes and ns.Filters and ns.Filters.RecipeWord then
+		for _, w in ipairs(words) do
+			if ns.Filters.RecipeWord(w) then kinds.recipes = true break end
+		end
+	end
 	-- Simple mode: the first word can say what to do ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS)
 	local act
 	if simple and tokens[1] then
