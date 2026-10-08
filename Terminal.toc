@@ -46,6 +46,7 @@ Providers\Collections.lua
 Providers\Social.lua
 Providers\CVarList.lua
 Providers\Professions.lua
+Providers\Recipes.lua
 Providers\Camping.lua
 Providers\Talents.lua
 Providers\Addons.lua
@@ -75,6 +76,7 @@ UI\Zen.lua
 Apps\Atop.lua
 Apps\Snake.lua
 Apps\Tetris.lua
+Apps\WowampStations.lua
 Apps\Wowamp.lua
 Apps\Changelog.lua
 UI\Options.lua
