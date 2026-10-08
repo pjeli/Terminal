@@ -95,10 +95,13 @@ end
 ----------------------------------------------------------------------
 
 local CUES = { should = true, best = true, good = true, recommend = true, recommended = true, suggest = true, next = true,
-	which = true, what = true, zone = true, zones = true,
-	-- ("fishing spots", "leveling spots": a place word is a cue too)
-	spot = true, spots = true, hole = true, holes = true, pool = true, pools = true, location = true, locations = true,
-	places = true, areas = true }
+	which = true, what = true, zone = true, zones = true }
+-- ("fishing spots", "leveling spots": a place word is a cue too, but only for fishing and levelling: "dungeon
+-- locations", "quest areas" stay searches)
+local PLACE_CUES = { spot = true, spots = true, hole = true, holes = true, pool = true, pools = true, location = true,
+	locations = true, places = true, areas = true }
+local PLACE_ASKS = { fish = true, fishing = true, level = true, leveling = true, levelling = true, lvl = true, xp = true,
+	exp = true, grind = true, grinding = true }
 local LEVEL_WORDS = { level = true, leveling = true, levelling = true, lvl = true, quest = true, questing = true,
 	quests = true, xp = true, exp = true, grind = true, grinding = true }
 local DUNGEON_WORDS = { dungeon = true, dungeons = true, instance = true, instances = true }
@@ -133,7 +136,7 @@ function Z.Question(text)
 	local function any(set) for _, w in ipairs(t) do if set[w] then return true end end return false end
 	-- "where should i ...", "where to ...", "where can i ...", "where do i ..."
 	local where = has.where and (has.should or has.to or has.can or has["do"])
-	local cue = where or any(CUES) or has["for"] and (has.my or has.me or level)
+	local cue = where or any(CUES) or has["for"] and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
 	if not cue then return nil end
 	if any(FISH_WORDS) then return "fish", level end
 	if any(DUNGEON_WORDS) then return "dungeon", level end

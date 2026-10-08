@@ -89,8 +89,15 @@ do
 		and LLQ("recent drops") == "all" and LLQ("loot log") == "all", "loot questions: everyone's drops")
 	check(LLQ("what did i loot") == "me" and LLQ("my drops") == "me" and LLQ("what did i get") == "me", "loot questions: yours")
 	check(LLQ("what did bob get") == "Bob" and LLQ("what did bob loot") == "Bob", "loot questions: someone in the log")
+	check(LLQ("boss loot") == nil and LLQ("boss drops") == nil and LLQ("the loot") == nil and LLQ("item drops") == nil
+		and LLQ("show loot") == nil and LLQ("all drops") == nil, "a loot word alone with search words stays a search (0.43.27)")
 	check(LLQ("loot") == nil and LLQ("molten core loot") == nil and LLQ("what did zed get") == nil and LLQ("@drop bob") == nil
 		and LLQ("what drops thorium bar") == nil and LLQ("what killed me") == nil and LLQ("where should i level") == nil, "other searches stay searches")
+	-- a looter from another realm: asked by name, with or without the realm
+	table.insert(ns.db.lootLog, { t = now, id = 6505, link = belt, who = "Zed-Stormrage" })
+	check(LLQ("what did zed get") == "Zed-Stormrage" and LLQ("what did zed stormrage get") == "Zed-Stormrage"
+		and LLQ("what did zed-stormrage get") == "Zed-Stormrage", "a looter from another realm, with or without the realm")
+	table.remove(ns.db.lootLog, #ns.db.lootLog)
 	ns.db.easyMode = true
 	res = UI:SearchText("what drops did we get")
 	check(#res == 3 and res[1].kind == "lootlog" and UI.answerNote == "Drops, newest first", "Simple mode: the loot log answers: " .. tostring(UI.answerNote))

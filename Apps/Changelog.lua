@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.43.27", when = "in testing",
+		v = "0.43.28", when = "in testing",
 		items = {
 			"Ask where to go, in plain words: \"where should i level\" lists the zones for your level (quests there at your level, nearest first), \"what dungeon should i do\" the dungeons, \"where should i fish\" the zones your fishing skill is enough for and the next ones to unlock. Say a level to ask for another: \"zones for level 35\". Zone levels and fishing skill from Leatrix Maps.",
 			"Zones show their level range on @map rows, and lvl: works on zones and dungeons (\"@map lvl:30\", \"@dungeon lvl:25\"); \"fishing spots\" asks like \"where should i fish\", and Advanced has fish: (\"@map fish:mine\"). Alt+` turns any of these questions into its Advanced form.",
@@ -30,7 +30,7 @@ CL.LOG = {
 			"@combatlog (Simple mode: Combat log) keeps your deaths and what killed you (from the game's Death Recap): ask \"what killed me\". Where the game lets addons read the combat log it also keeps what crit you and your biggest crits (\"who crit me\", \"my biggest crit\"); WoW Forever doesn't.",
 			"Chains: \"mats for thorium belt\" lists its reagents with how many you have (bank and alts too), \"where to get thorium bar\" who sells it, drops it, where to gather it or how it's crafted, and \"what uses copper bar\" what it goes into. Enter on a row goes one step further (a reagent's sources, a craft's mats), Shift+Enter opens it, and the footer shows the path: \"copper bar > used in > chain belt > mats\". Sent to chat, a chain row says what it is: \"Mats for Thorium Belt: 12x [Thorium Bar]\", \"Where to get Thorium Bar: sold by ...\". Advanced: link with > (thorium belt > mats > alts); .chains lists them.",
 			"Under the hood: tidier code in folders, and quicker searches (fuzzy matching does less work per row, and the sorting at the end of a big search no longer stalls a frame).",
-			"Fixes: \"zones for level 35\" and \"dungeon for 25\" answered for your own level instead of the one you said; @loot had only AtlasLoot's Burning Crusade dungeons, missing the classic ones and WoW Forever's own (the Ruins of Lordaeron), and stopped asking the server for item names it hadn't sent after a minute.",
+			"Fixes: \"zones for level 35\" and \"dungeon for 25\" answered for your own level instead of the one you said; @loot had only AtlasLoot's Burning Crusade dungeons, missing the classic ones and WoW Forever's own (the Ruins of Lordaeron), and stopped asking the server for item names it hadn't sent after a minute; a death could go unrecorded when the game's Death Recap couldn't be read; \"boss loot\" and \"dungeon locations\" were taken as questions instead of searches.",
 		},
 	},
 	{

@@ -3591,7 +3591,9 @@ function UI:Open(text)
 	self.histIdx = nil
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
-		if p.refreshOnOpen then p._dirty = true end
+		-- (a number: only when the list is older than that many seconds; the loot and combat logs' "5 min ago")
+		local r = p.refreshOnOpen
+		if r == true or (type(r) == "number" and GetTime() - (p._collectedAt or -1e9) >= r) then p._dirty = true end
 	end
 	ns.Highlight:Clear()
 	local reopening = self.closing

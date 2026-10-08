@@ -194,6 +194,8 @@ local function Show(e)
 end
 local function LinkOf(e) return e.link end
 local function NeverOpen() return false end
+local CHATBOX = ns.ChatBoxSpec(LinkOf) -- (shared by every row: entry functions are never made per row)
+local function ToChat(e) ns.LinkInChat(e.link) end
 local function Who(who)
 	local me = Me()
 	return (who == me or who == (UnitName and UnitName("player"))) and "you" or who
@@ -204,7 +206,7 @@ ns:RegisterProvider("lootlog", {
 	color = "ffe6b85c",
 	aliases = { "drop", "dropped", "drops", "lootlog", "looted", "loothistory" },
 	explicit = true, -- (only with @drop, or Simple mode's Loot log)
-	refreshOnOpen = true, -- (the "5 min ago" moves on)
+	refreshOnOpen = 60, -- (the "5 min ago" moves on: rebuilt on open when a minute old; new entries mark it dirty)
 	collect = function()
 		local out, log = {}, Log() or {}
 		-- (drops kept before 0.43.26 that aren't worth rolling for go now)
@@ -230,8 +232,7 @@ ns:RegisterProvider("lootlog", {
 					text = table.concat({ who, d.who or "", d.from or "", d.zone or "", "loot drop looted" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99, -- (newest first among equal matches)
 					activate = Show,
-					secondarySecure = ns.ChatBoxSpec(LinkOf), secondaryIsOpen = NeverOpen,
-					secondary = function(e) ns.LinkInChat(e.link) end,
+					secondarySecure = CHATBOX, secondaryIsOpen = NeverOpen, secondary = ToChat,
 				}
 			end
 		end
@@ -248,6 +249,32 @@ for w in ([[what which did do we i me my our us get got gotten have has had drop
 	lootlog log won win recent recently last latest lately today tonight so far any anything anyone items item show list
 	the from that this run boss bosses all see were was been is are new]]):gmatch("%S+") do ASKS[w] = true end
 local CUES = { drop = true, dropped = true, drops = true, loot = true, looted = true, loots = true, lootlog = true }
+-- (besides a loot word, one of these must be there: "boss loot", "the loot", "item drops" stay searches)
+local ASKING = { what = true, which = true, did = true, my = true, our = true, we = true, i = true, me = true, us = true,
+	recent = true, recently = true, last = true, latest = true, lately = true, today = true, tonight = true, lootlog = true,
+	got = true, won = true, new = true, log = true }
+
+-- every looter's name in the log, lowercased, without punctuation, whole and without its realm ("bob-stormrage" ->
+-- "bob stormrage" and "bob"); rebuilt only when the log changed
+local names, namesFor
+local function Plainish(s) return (ns.Lower(s):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end
+local function LooterNames(log)
+	local mark = #log .. ":" .. tostring(log[1] and log[1].t)
+	if namesFor == mark then return names end
+	names, namesFor = {}, mark
+	for _, d in ipairs(log) do
+		local who = type(d.who) == "string" and d.who
+		if who and not names[who] then
+			local whole = Plainish(who)
+			local short = Plainish((who:match("^([^%-]+)%-") or who))
+			if not names[whole] then names[whole] = who end
+			if not names[short] then names[short] = who end
+			local first = short:match("^(%S+)")
+			if first and not names[first] then names[first] = who end
+		end
+	end
+	return names
+end
 local GOT = { get = true, got = true, gotten = true, won = true, win = true }
 
 --- A loot question in plain words: { who = "me" / a looter's name / nil (everyone) }, else nil. The whole line must be
@@ -266,14 +293,13 @@ function LL.Question(text)
 	local got = false
 	for w in pairs(GOT) do if has[w] then got = true end end
 	if not cue and not (got and (has.what or has.did)) then return nil end
+	local asking = false
+	for w in pairs(ASKING) do if has[w] then asking = true break end end
+	if not asking and #other == 0 then return nil end
 	local who
 	if #other > 0 then
-		-- (the other words must be someone in the log: "what did plamen warr get")
-		local name = table.concat(other, " ")
-		for _, d in ipairs(Log() or {}) do
-			local l = type(d.who) == "string" and ns.Lower(d.who)
-			if l and (l == name or l:match("^(%S+)") == name) then who = d.who break end
-		end
+		-- (the other words must be someone in the log: "what did plamen warr get", "what did bob stormrage get")
+		who = LooterNames(Log() or {})[table.concat(other, " ")]
 		if not who then return nil end
 	elseif (has.i or has.me or has.my) and not (has.we or has.our or has.us) then
 		who = "me"
@@ -291,7 +317,10 @@ function LL.Answer(q)
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
 	local note = (q.who == "me" and "Your drops, newest first") or (q.who and (q.who .. "'s drops, newest first"))
 		or "Drops, newest first"
-	if #rows == 0 then note = (#(Log() or {}) == 0) and "Nothing looted yet" or "Nothing looted by them yet" end
+	if #rows == 0 then
+		note = (#(Log() or {}) == 0) and "Nothing looted yet" or (q.who == "me" and "Nothing looted by you yet")
+			or "Nothing looted by them yet"
+	end
 	return rows, note
 end
 

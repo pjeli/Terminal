@@ -41,7 +41,9 @@ function X.ReadMe()
 	if not level or level < 1 then return nil end
 	local max = MaxLevel()
 	local disabled = _G.IsXPUserDisabled and Safe(_G.IsXPUserDisabled) == true
-	local maxed = (max and level >= max) or false
+	-- (the game's own word first: GetMaxLevelForPlayerExpansion may give the retail cap on WoW Forever)
+	local atMax = _G.IsLevelAtEffectiveMaxLevel and Safe(_G.IsLevelAtEffectiveMaxLevel, level)
+	local maxed = atMax == true or (max and level >= max) or false
 	local xp, xpMax = Num(Safe(UnitXP, "player")), Num(Safe(UnitXPMax, "player"))
 	if not xpMax or xpMax <= 0 then xp, xpMax = nil, nil end -- (0 at logout and early in a login: not an answer)
 	local rested = Num(Safe(GetXPExhaustion)) or 0
@@ -112,7 +114,7 @@ local function Summary(e, plain)
 	if e.maxed then return ("level %d (max)"):format(e.level) end
 	local s = ("level %d"):format(e.level)
 	if e.xpMax then s = s .. (", %d%%"):format(Pct(e.xp or 0, e.xpMax)) end
-	if (e.rested or 0) > 0 then
+	if (e.rested or 0) > 0 and e.xpMax then -- (no experience read yet: no "rested 0%")
 		s = s .. (" (%srested %d%%)"):format(e.estimated and "~" or "", Pct(e.rested, e.xpMax))
 	end
 	if e.disabled and not plain then s = s .. " (experience turned off)" end

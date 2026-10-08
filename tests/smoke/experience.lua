@@ -80,6 +80,15 @@ do
 	res = UI:Search("@xp zero")
 	check(res[1] and res[1].who == "Zero Warr" and not res[1].detail:find("0%", 1, true), "a 0 / 0 note shows only its level: " .. tostring(res[1] and res[1].detail))
 	ns.db.xpChars["Player-1-EEE"] = nil
+	-- your row with rested known but no experience yet (early in a login): no "rested 0%" (0.43.27)
+	local keptNote = ns.db.xpChars["Player-1-AAA"]
+	ns.db.xpChars["Player-1-AAA"] = nil -- (a first login: no note to keep numbers from)
+	_G.UnitXPMax = function() return 0 end
+	P._dirty = true
+	res = UI:Search("@xp")
+	check(res[1].mine and not res[1].detail:find("rested", 1, true), "no experience read yet: no rested %: " .. tostring(res[1].detail))
+	_G.UnitXPMax = function() return 11000 end
+	ns.db.xpChars["Player-1-AAA"] = keptNote
 	-- .xp forget
 	local out = ns:FindCommand("xp").run("forget old mage")
 	check(ns.db.xpChars["Player-1-CCC"] == nil and out[1]:find("Forgot", 1, true), ".xp forget <name>")

@@ -142,7 +142,8 @@ end
 local recapSeen, recapLink = 0, nil
 CB.RECAP_LOOK = 40 -- (ids asked past the last one seen)
 local function Num(v) return type(v) == "number" and not (Secret and Secret(v)) and v or nil end
-local function Text(v) return type(v) == "string" and v ~= "" and not (Secret and Secret(v)) and v or nil end
+-- (secret first: a secret string can't even be compared with "")
+local function Text(v) return type(v) == "string" and not (Secret and Secret(v)) and v ~= "" and v or nil end
 
 --- The newest death recap id, or nil.
 function CB.NewestRecap()
@@ -188,26 +189,34 @@ function CB.OnDeath()
 	local log = Log()
 	local last = log and log[1]
 	if last and (last.what == "died" or last.what == "killed") and Now() - (last.t or 0) <= 5 then return end
-	local id = CB.NewestRecap()
-	local rec = CB.FromRecap(id)
-	ns:Trace(("combat log: a death; death recap %s%s"):format(tostring(id or "none found"),
-		rec and (": " .. tostring(rec.who) .. " / " .. tostring(rec.spell)) or ""))
-	if rec and rec.who then
-		CB.Add({ what = "killed", who = rec.who, spell = rec.spell, amount = rec.amount, overkill = rec.overkill })
-		lastHit = nil
-		return
-	end
+	-- the death is written down first: reading the recap can fail (secret values) and must never lose it
 	local hit = lastHit and Now() - lastHit.t <= 5 and lastHit or nil
 	local e = CB.Add({ what = "died", who = hit and hit.who, spell = hit and hit.spell, amount = hit and hit.amount })
 	lastHit = nil
-	if e and not e.who then
-		C_Timer.After(1.5, function()
-			local r = CB.FromRecap(CB.NewestRecap())
-			if r and r.who and not e.who then
-				e.what, e.who, e.spell, e.amount, e.overkill = "killed", r.who, r.spell, r.amount, r.overkill
-				Dirty()
-			end
-		end)
+	if not e then return end
+	local function Fill()
+		local ok, id, rec = pcall(function() local i = CB.NewestRecap() return i, CB.FromRecap(i) end)
+		if not ok then ns:Trace("combat log: reading the death recap failed: " .. tostring(id)) return false end
+		ns:Trace(("combat log: a death; death recap %s%s"):format(tostring(id or "none found"),
+			rec and (": " .. tostring(rec.who) .. " / " .. tostring(rec.spell)) or ""))
+		if rec and rec.who then
+			e.what, e.who, e.spell, e.amount, e.overkill = "killed", rec.who, rec.spell, rec.amount, rec.overkill
+			Dirty()
+			return true
+		end
+		return false
+	end
+	if not Fill() then C_Timer.After(1.5, function() if e.what == "died" then Fill() end end) end
+end
+
+--- At login: the recaps the client already holds (from before a /reload) are taken as seen, so the next death's
+--- isn't mistaken for an old one.
+CB.RECAP_SEED = 200
+function CB.SeedRecaps()
+	local R = _G.C_DeathRecap
+	if not (R and R.HasRecapEvents) then return end
+	for id = 1, CB.RECAP_SEED do
+		if Safe(R.HasRecapEvents, id) then recapSeen = math.max(recapSeen, id) end
 	end
 end
 
@@ -229,6 +238,7 @@ ev:SetScript("OnEvent", function(self, event, msg)
 		local ok, why = CB.Listen(self)
 		CB.state.blocked = not ok
 		ns:Trace("combat log: " .. (ok and "listening" or why))
+		pcall(CB.SeedRecaps)
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
 		pcall(CombatEvent)
 	elseif event == "PLAYER_DEAD" then
@@ -262,13 +272,15 @@ local WORDS = { crit = "crit critical hit you taken", critby = "crit critical yo
 	died = "died death killed you" }
 local function Say(e) ns:Print(e.line .. "  (" .. e.detail .. ")") end
 local function LineOf(e) return e.line end
+local CHATBOX = ns.ChatBoxSpec(LineOf) -- (shared by every row)
+local function ToChat(e) ns.LinkInChat(e.line) end
 
 ns:RegisterProvider("combatlog", {
 	label = "Combat log",
 	color = "ffff6b5c",
 	aliases = { "combatlog", "combat", "deaths", "crits" },
 	explicit = true,
-	refreshOnOpen = true, -- (the "5 min ago" moves on)
+	refreshOnOpen = 60, -- (the "5 min ago" moves on: rebuilt on open when a minute old; new entries mark it dirty)
 	collect = function()
 		local out, log = {}, Log() or {}
 		local n = #log
@@ -286,8 +298,7 @@ ns:RegisterProvider("combatlog", {
 					text = table.concat({ WORDS[d.what] or "", d.who or "", d.spell or "", d.zone or "" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99,
 					activate = Say,
-					secondarySecure = ns.ChatBoxSpec(LineOf), secondaryIsOpen = ns.ChatBoxNeverOpen,
-					secondary = function(e) ns.LinkInChat(e.line) end,
+					secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, secondary = ToChat,
 				}
 			end
 		end

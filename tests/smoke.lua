@@ -2827,6 +2827,21 @@ do -- AtlasLoot and Questie integrations
 		local rounds = I.NAME_ROUNDS + I.NAME_SLOW_ROUNDS
 		check(asks2 > I.NAME_ROUNDS + 1, "it keeps asking past the quick rounds, slowly (0.43.25): " .. asks2)
 		check(asks2 <= rounds + 1, ("a newer pump stops the older one's retries: %d asks (rounds %d)"):format(asks2, rounds))
+		-- an item the server says it doesn't have isn't asked for again, and a round with no new names doesn't
+		-- rebuild the whole list (0.43.27: 30k rows every 120 s for an hour)
+		local asks3, collects = 0, 0
+		C_Item.RequestLoadItemDataByID = function(id) if id == 1002 then asks3 = asks3 + 1 end end
+		local collectWas = ns.providers.loot.collect
+		ns.providers.loot.collect = function(...) collects = collects + 1 return collectWas(...) end
+		newSession(); I.LoadLootModules()
+		ns:GetEntries(ns.providers.loot)
+		I.loot.nameFrame.scripts.OnEvent(I.loot.nameFrame, "ITEM_DATA_LOAD_RESULT", 1002, false)
+		collects = 0
+		FlushAll()
+		check(asks3 <= 1, "the server said it has no such item: not asked again: " .. asks3)
+		check(not ns.providers.loot._dirty and collects == 0, "rounds that brought no names don't rebuild the list: " .. collects)
+		ns.providers.loot.collect = collectWas
+		I.loot.failed[1002] = nil
 		iname[1002] = "Red Defias Mask"
 		C_Item.RequestLoadItemDataByID = reqWas
 		newSession(); I.LoadLootModules(); FlushAll()

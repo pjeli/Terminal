@@ -97,6 +97,8 @@ do
 	check(Z.Question("fishing spots") == "fish" and Z.Question("fishing pools") == "fish" and Z.Question("leveling spots") == "level",
 		"fishing spots / pools, leveling spots: questions")
 	check(Z.Question("spots") == nil and Z.Question("fishing") == nil, "a lone word stays a search")
+	check(Z.Question("dungeon locations") == nil and Z.Question("raid places") == nil and Z.Question("quest areas") == nil
+		and Z.Question("instance locations") == nil, "place words ask only about fishing and levelling (0.43.27)")
 	local saveLvl, saveGP, saveGPI = UnitLevel, _G.GetProfessions, _G.GetProfessionInfo
 	UnitLevel = function() return 23 end
 	check(E.ToAdvanced("where should i fish") == "@map fish:mine " and E.ToAdvanced("fishing spots") == "@map fish:mine ",

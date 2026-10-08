@@ -133,7 +133,7 @@ end
 --     selfEvents = true,               -- ...or are ignored: collecting fires them itself
 --     idleDrop = 600,                  -- free the entries after N s without a search
 --     onDrop   = function() end,       -- ...and free whatever else the provider keeps
---     refreshOnOpen = true,            -- re-collect each time the terminal opens
+--     refreshOnOpen = true,            -- re-collect each time the terminal opens (a number: when older than that, s)
 --     noCombat = true,                 -- Enter does nothing in combat (protected actions)
 --     busy     = function() return "Indexing..." end, -- still loading: the terminal shows a
 --                                      -- spinner with this text on mouse-over (nil: ready)

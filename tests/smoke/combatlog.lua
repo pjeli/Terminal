@@ -121,6 +121,21 @@ do
 	_G.issecretvalue = saveSecret
 	check(log[1].what == "died" and log[1].who == nil, "a recap of secret values: no killer named")
 	T.FlushAll()
+	-- reading the recap failing never loses the death (0.43.27: it was read before the death was written down)
+	t = t + 600
+	local n0 = #log
+	-- (reading a field errors, as comparing a secret value does in the game)
+	RECAPS[5] = { setmetatable({}, { __index = function() error("attempt to compare a secret value") end }) }
+	CB.OnDeath()
+	check(#log == n0 + 1 and log[1].what == "died", "a recap that errors: the death is still recorded")
+	T.FlushAll()
+	-- after a /reload the recaps already held count as seen: the next death isn't given an old killer
+	CB.ResetRecaps()
+	CB.SeedRecaps()
+	t = t + 600
+	CB.OnDeath()
+	check(log[1].what == "died" and log[1].who == nil, "an old recap isn't read as the new death's: " .. tostring(log[1].who))
+	T.FlushAll()
 	_G.C_DeathRecap, _G.time = saveR, saveTime
 	ns.db.combatLog = {}
 	CB.ResetRecaps()

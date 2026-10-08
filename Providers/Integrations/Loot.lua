@@ -8,7 +8,7 @@ local AddOnVersion = I._.AddOnVersion
 -- AtlasLoot
 ----------------------------------------------------------------------
 
-local loot = { rows = {}, byKey = {}, pending = {}, unnamed = {}, modules = 0, loaded = 0, on = false }
+local loot = { rows = {}, byKey = {}, pending = {}, unnamed = {}, failed = {}, modules = 0, loaded = 0, on = false }
 I.loot = loot
 
 local function AL() return _G.AtlasLoot end
@@ -224,9 +224,9 @@ local function PumpNames(round, gen)
 			if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
 		end
 	else
-		for _, r in ipairs(loot.rows) do
-			local id = r.itemID
-			if not rawget(r, "name") and not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+		-- (the ids still waiting, not a walk over every row; ones the server said it doesn't have aren't asked again)
+		for id in pairs(loot.unnamed) do
+			if not loot.failed[id] and not seen[id] then seen[id] = true; ids[#ids + 1] = id end
 		end
 	end
 	loot.pending = {}
@@ -251,9 +251,13 @@ local function PumpNames(round, gen)
 		ns:Trace(("loot: names round %d: asked the server for %d of %d items"):format(round, asked, #ids))
 		if asked > 0 and round < I.NAME_ROUNDS + I.NAME_SLOW_ROUNDS then
 			C_Timer.After(round < I.NAME_ROUNDS and I.NAME_RETRY or I.NAME_SLOW, function()
-				-- what came in meanwhile is named by collect; the rest is asked for again
+				-- what came in meanwhile was already marked by the name frame (no rebuild of the whole list for
+				-- nothing: a 30k-row rebuild every round was a stall); the rest is asked for again
 				if gen ~= loot.pumpGen then return end
-				Dirty()
+				for id in pairs(loot.unnamed) do
+					if LootName(id) then loot.unnamed[id] = nil; loot.renamed = true end
+				end
+				if loot.renamed then loot.renamed = nil; Dirty() end
 				PumpNames(round + 1, gen)
 			end)
 		elseif asked > 0 then
@@ -422,7 +426,7 @@ local function SetupAtlasLoot()
 	pcall(names.RegisterEvent, names, "ITEM_DATA_LOAD_RESULT") -- (what RequestLoadItemDataByID answers with)
 	names:SetScript("OnEvent", function(_, _, id, ok)
 		if id and not loot.unnamed[id] then return end
-		if ok == false then return end
+		if ok == false then loot.failed[id] = true return end -- (the server doesn't have it: not asked again)
 		if loot.queued then return end
 		loot.queued = true
 		C_Timer.After(2, function() loot.queued = nil; Dirty() end)
