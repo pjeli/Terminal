@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.42.18", when = "in testing",
+		v = "0.42.24", when = "in testing",
 		items = {
 			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
 			"@who (Simple mode: \"who priest undercity\"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite; lvl: and in: go into the /who.",
@@ -21,6 +21,7 @@ CL.LOG = {
 			"Your gold: @gold (Simple mode: \"gold\"). With Baganator or Bagnon, every alt's gold too, guild banks and the warband bank, with the total on top. Enter lists it in chat, Shift+Enter puts it in the chat box.",
 			"Skill-ups: \"skillup\" (Advanced: is:skillup, also with @profession) lists recipes that still give skill, orange and yellow; is:orange, is:yellow, is:green, is:grey too. Recipes show in their difficulty colour, as of the last time you opened that profession.",
 			"Simple mode: Shift+Right opens the selected result's menu (open, use, link or send to chat...), to pick from with Up/Down and Enter.",
+			"The Group Finder's pages: \"group browser\" and \"who listing\" open the Dungeons window straight to that tab.",
 			"Fix: typing Advanced syntax (@, >>, key:value) in Simple mode could raise an error while a long search was still running.",
 		},
 	},

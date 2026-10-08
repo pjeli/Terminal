@@ -292,6 +292,13 @@ local function MacroProxy()
 	return p
 end
 
+-- (.debug log: did the game press the macro button at all, and on which half of the key press?)
+local function TracePress(p, _, down)
+	if ns.Trace and S.armed == p.targetName then
+		ns:Trace(("secure: the game pressed %s on key %s"):format(p:GetName(), down and "down" or "up"))
+	end
+end
+
 --- Bind Enter to a resolved spec. False if that isn't possible right now.
 function S.Arm(r)
 	if InCombatLockdown() or type(r) ~= "table" then return false end
@@ -299,11 +306,12 @@ function S.Arm(r)
 	if r.macro then
 		local p = MacroProxy()
 		if not p then return false end
+		if not p.traced then p.traced = true; p:HookScript("PreClick", TracePress) end
 		p:SetAttribute("macrotext", r.macro)
 		ClearOverrideBindings(owner)
 		SetOverrideBindingClick(owner, true, "ENTER", p:GetName(), "LeftButton")
 		SetOverrideBindingClick(owner, true, "NUMPADENTER", p:GetName(), "LeftButton")
-		S.armed, S.mode = "MACRO", "button"
+		S.armed, S.mode = p.targetName, "button"
 	elseif r.binding then
 		ClearOverrideBindings(owner)
 		SetOverrideBinding(owner, true, "ENTER", r.binding)

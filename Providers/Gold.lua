@@ -153,6 +153,7 @@ G.Lines = Lines
 
 local function PrintAll() ns:Output(Lines()) end
 local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
+local CHATBOX = ns.ChatBoxSpec(ShareText)
 
 local function Tooltip(e, t)
 	t:SetText(Label(e), 1, 0.82, 0)
@@ -182,7 +183,8 @@ local function Row(h)
 		text = "gold money " .. WORDS[h.kind],
 		tooltip = Tooltip,
 		activate = PrintAll,
-		secondary = ToChatBox,
+		secondary = ToChatBox, -- (combat: Terminal's own)
+		secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, -- the game opens the chat box with it
 		shareLink = ShareText,
 	}
 	return e

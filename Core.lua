@@ -82,6 +82,28 @@ function ns.LinkInChat(link)
 	return false
 end
 
+--- A line the game runs that opens the chat box with `text` a moment after the press ("|" written as \124), or nil
+--- when too long (or nothing). Use it rather than ns.LinkInChat wherever a press can carry it: the chat box's code is
+--- Blizzard Lua, and Terminal's code running it would taint what it writes (see CLAUDE.md, delayed taint).
+function ns.ChatBoxMacro(text)
+	if type(text) ~= "string" or text == "" then return nil end
+	local lit = text:gsub("\\", "\\\\"):gsub("\"", "\\\""):gsub("|", "\\124")
+	-- (into what's being typed when the box is open, as ns.LinkInChat does; else the box opened with it)
+	local run = "/run C_Timer.After(.1,function() local t=\"" .. lit .. "\" if not ChatEdit_InsertLink(t) then ChatFrame_OpenChat(t) end end)"
+	local max = ns.Secure and ns.Secure.MACRO_MAX or 255
+	return #run <= max and run or nil
+end
+
+--- A secure spec (Shift+Enter's) that has the game open the chat box with textOf(e): `secondarySecure = ns.ChatBoxSpec(f)`.
+local function NeverOpen() return false end
+ns.ChatBoxNeverOpen = NeverOpen
+function ns.ChatBoxSpec(textOf)
+	return { macro = function(e)
+		local ok, t = pcall(textOf, e)
+		return ok and ns.ChatBoxMacro(t) or nil
+	end }
+end
+
 function ns:Bump(freqKey)
 	if not freqKey or not self.db then return end
 	self.db.freq[freqKey] = (self.db.freq[freqKey] or 0) + 1

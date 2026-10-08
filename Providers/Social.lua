@@ -27,6 +27,8 @@ end
 -- a name as a Lua string inside a /run line (quotes and backslashes escaped; "|" doubled, or chat reads a code)
 local function Quoted(s) return '"' .. tostring(s):gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("|", "||") .. '"' end
 
+local function Never() return false end
+
 --- A Battle.net friend's account name (an escape the chat box reads; never put in macro text), by id, else BattleTag.
 local function AccountName(e)
 	local B = C_BattleNet
@@ -43,9 +45,7 @@ local function AccountName(e)
 	end
 end
 
---- Enter: the whisper box to them, opened by Terminal's code (as "Put in the chat box" opens it), on a press the
---- terminal keeps: a whisper the game opened on Enter's own press (a macro on the secure button) never showed in
---- the game: the box opened on key down and, most likely, the same Enter closed it again.
+--- The whisper box from Terminal's code: only where nothing can be pressed (combat).
 function SO.Whisper(e)
 	local bn = (e.bnetID or e.bnetTag) and AccountName(e)
 	local sendBN = ChatFrame_SendBNetTell or (ChatFrameUtil and ChatFrameUtil.SendBNetTell)
@@ -75,8 +75,28 @@ function SO.Invite(e)
 	invite(e.whisperTo)
 end
 
+--- Enter: the whisper box, opened by the game (a /run line on the secure button), a moment after the press so the
+--- Enter that pressed it is over. (Terminal's own call would run the chat box's Blizzard Lua tainted.)
+function SO.WhisperMacro(e)
+	local open
+	if e.bnetID then
+		open = "local a=C_BattleNet.GetAccountInfoByID(" .. e.bnetID .. ") local f=ChatFrame_SendBNetTell or ChatFrameUtil.SendBNetTell"
+			.. " if a and f then f(a.accountName) end"
+	elseif e.bnetTag then
+		open = "for i=1,BNGetNumFriends() do local a=C_BattleNet.GetFriendAccountInfo(i) if a and a.battleTag=="
+			.. Quoted(e.bnetTag) .. " then (ChatFrame_SendBNetTell or ChatFrameUtil.SendBNetTell)(a.accountName) end end"
+	elseif e.whisperTo or e.name then
+		open = "(ChatFrame_SendTell or ChatFrameUtil.SendTell)(" .. Quoted(e.whisperTo or e.name) .. ")"
+	else
+		return nil
+	end
+	return "/run C_Timer.After(.1,function() " .. open .. " end)"
+end
+local WHISPER = { macro = SO.WhisperMacro }
+
 local function Row(t)
-	t.activate, t.secondary = SO.Whisper, SO.Invite
+	t.secure, t.isOpen = WHISPER, Never
+	t.activate, t.secondary = SO.Whisper, SO.Invite -- (Enter in combat, when nothing can be pressed: Terminal's own)
 	return t
 end
 

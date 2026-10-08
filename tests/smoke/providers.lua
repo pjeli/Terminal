@@ -210,6 +210,38 @@ do
 	ns.providers.panels._dirty = true
 end
 
+io.write("[panel tabs: group finder's browser and who listing]\n")
+do
+	local function row(k)
+		for _, x in ipairs(ns:GetEntries(ns.providers.panels)) do if x.key == k then return x end end
+	end
+	local S = ns.Secure
+	local hadLFD = _G.LFDMicroButton
+	_G.LFDMicroButton = _G.LFDMicroButton or Obj("Button")
+	ns.providers.panels._dirty = true
+	local gb, wl = row("Group Browser"), row("Who Listing")
+	check(gb and wl and gb.tab == "BrowsingTab" and wl.tab == "WhoListingTab", "Group Browser and Who Listing rows")
+	check(UI:Search("@panel group browser")[1].key == "Group Browser" and UI:Search("@panel who listing")[1].key == "Who Listing", "found by their names")
+	-- window closed (the tab not even loaded): the micro button, then the tab
+	_G.BrowsingTab, _G.WhoListingTab, _G.PVEFrame = nil, nil, nil
+	local m = S.Resolve(gb.secure, gb)
+	local text = m and m.macro or ""
+	check(text:match("^/click LFDMicroButton\n/run local t=BrowsingTab "), "window closed: the micro button, then the tab: " .. text)
+	check(#text <= S.MACRO_MAX and loadstring(text:match("\n/run (.*)$")), "within a macro, valid Lua")
+	-- the window open on another page: never clicked shut, only the tab
+	local win = Obj("Frame"); win.shown = true
+	local tab = Obj("Button"); tab.shown = false
+	tab.GetParent = function() return win end
+	win.GetParent = function() return UIParent end
+	_G.WhoListingTab = tab
+	m = S.Resolve(wl.secure, wl)
+	text = m and m.macro or ""
+	check(text:match("^/run local t=WhoListingTab "), "the window open: only the tab: " .. text)
+	check(wl.isOpen(wl) == false, "a tab row always presses")
+	_G.WhoListingTab, _G.LFDMicroButton = nil, hadLFD
+	ns.providers.panels._dirty = true
+end
+
 io.write("[panel tabs: guild roster/info, character side tabs]\n")
 do
 	local function row(k)

@@ -82,6 +82,29 @@ local function LegacyTabMacro(e)
 	lines[#lines + 1] = "/run local t=" .. e.tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
 	return table.concat(lines, "\n")
 end
+-- Group Finder pages (this client's BrowsingTab / WhoListingTab, the player's /fstack names): the window opened by
+-- the Dungeons micro button. Open is told by the window the tab sits in (its parents up to UIParent), so a window
+-- open on another page isn't clicked shut by the micro button.
+local function TabWindowShown(tab)
+	local f = _G[tab]
+	local guard = 0
+	while type(f) == "table" and f.GetParent and guard < 20 do
+		local p = f:GetParent()
+		if p == nil or p == UIParent then break end
+		f, guard = p, guard + 1
+	end
+	return type(f) == "table" and f ~= _G[tab] and f.IsVisible and f:IsVisible() and true or false
+end
+local function GroupFinderTabMacro(e)
+	local lines = {}
+	local open = Shown("PVEFrame") or TabWindowShown(e.tab)
+	if not open then lines[1] = "/click LFDMicroButton" end
+	local t = _G[e.tab]
+	local how = type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
+	if not ns.Secure.quiet then ns:Trace("group finder: " .. e.tab .. " is " .. how .. (open and ", window open" or ", window closed: the micro button first")) end
+	lines[#lines + 1] = "/run local t=" .. e.tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
+	return table.concat(lines, "\n")
+end
 local function LegacyTabFallback() ns:Print("Open the Legacy window from its button (a click from Terminal's own code would taint it).") end
 local function Never() return false end
 
@@ -197,6 +220,11 @@ local PANELS = {
 		{ macro = SideTabMacro }, SideTabOpen, tab = "PaperDollSideBarTab2", side = 2 },
 	{ "Titles", "titles title", TabFallback, "CharacterMicroButton",
 		{ macro = SideTabMacro }, SideTabOpen, tab = "PaperDollSideBarTab3", side = 3 },
+	-- the Group Finder's pages (BrowsingTab, WhoListingTab): the game opens the window if it's closed, then the tab
+	{ "Group Browser", "group browser browse groups lfg premade dungeon finder", TabFallback, "LFDMicroButton",
+		{ macro = GroupFinderTabMacro }, Never, needs = "LFDMicroButton", tab = "BrowsingTab" },
+	{ "Who Listing", "who listing list lfg looking for group dungeon finder", TabFallback, "LFDMicroButton",
+		{ macro = GroupFinderTabMacro }, Never, needs = "LFDMicroButton", tab = "WhoListingTab" },
 	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
 }
 
@@ -606,7 +634,8 @@ do
 	achMeta = ns:CompactMeta(earned, {
 		getLink = AchievementLink, -- (made when selected, not per achievement up front)
 		activate = OpenAchievement,
-		secondary = LinkAchievement, -- Shift+Enter: link it in chat
+		secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
+		secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,
 	}, { detail = AchDetail, progress = Progress })
 end
 

@@ -600,6 +600,8 @@ Run("right-click menu", function()
 	local tipWas = _G.TerminalTooltip and _G.TerminalTooltip:IsShown()
 	shiftRight()
 	check(m:IsShown() and UI.edit:GetText() == "hearthstone", "Simple: Shift+Right opens the menu, the prompt untouched: " .. UI.edit:GetText())
+	check(m.lastPoint and (m.lastPoint[2] == UIParent or m.lastPoint[2] == nil),
+		"the menu is placed against UIParent, never anchored to Terminal's row (a secure frame anchored to it made it protected: Enter stopped reaching the game)")
 	check(tipWas and not _G.TerminalTooltip:IsShown(), "the row's tooltip goes while the menu is up (both sit beside the terminal)")
 	UI:UpdateTooltip()
 	check(not _G.TerminalTooltip:IsShown(), "and stays away (hovering a row asks for it again)")
@@ -620,8 +622,9 @@ Run("right-click menu", function()
 		ns.Secure.Disarm()
 		key("ENTER")
 		F.SetPropagateKeyboardInput = was
-		local px = _G.TerminalMacroProxy
-		ns.ranMacro = ns.Secure.armed == "MACRO" and px and px.attrs.macrotext or nil
+		local px = ns.Secure.armed == "MACROUP" and _G.TerminalMacroProxyUp or _G.TerminalMacroProxy
+		ns.ranMacro = (ns.Secure.armed == "MACRO" or ns.Secure.armed == "MACROUP") and px and px.attrs.macrotext or nil
+		ns.ranOn = ns.Secure.armed
 		return calls
 	end
 	shiftRight(); key("DOWN")
@@ -642,15 +645,28 @@ Run("right-click menu", function()
 	UI:Hide(); FlushAll()
 	UI:Open("hearthstone")
 	shiftRight(); key("DOWN"); key("DOWN"); key("DOWN")
-	local boxed
-	local lic = ns.LinkInChat
-	ns.LinkInChat = function(t) boxed = t return true end
 	calls = enter()
-	ns.LinkInChat = lic
-	check(m.lines[4].fs:GetText() == "Say in chat" and tostring(boxed):match("^/s ") and tostring(boxed):find("|Hitem:6948", 1, true)
-		and #calls == 1 and calls[1] == false and not UI:IsShown(),
-		"Enter on Say in chat: the chat box with the line (Enter sends it), the key kept from it: " .. tostring(boxed))
+	check(m.lines[4].fs:GetText() == "Say in chat" and tostring(ns.ranMacro):match("^/s ") and tostring(ns.ranMacro):find("|Hitem:6948", 1, true)
+		and #calls == 1 and calls[1] == true and ns.ranOn == "MACRO", "Enter on Say in chat: the game sends it on this press, as the click does: " .. tostring(ns.ranMacro))
 	UI:Hide(); FlushAll()
+	-- "Link in chat": the game opens the chat box with it a moment later (Terminal's own call tainted the chat box,
+	-- and macros the game ran afterwards stopped working), from the keyboard and from a click
+	UI:Open("hearthstone")
+	shiftRight(); key("DOWN"); key("DOWN")
+	calls = enter()
+	check(m.lines[3].fs:GetText() == "Link in chat" and tostring(ns.ranMacro):find("ChatFrame_OpenChat", 1, true)
+		and tostring(ns.ranMacro):find("\\124Hitem:6948", 1, true) and #calls == 1, "Link in chat from the keyboard: a line the game runs: " .. tostring(ns.ranMacro))
+	UI:Hide(); FlushAll()
+	UI:Open("hearthstone")
+	UI:ShowRowMenu(1)
+	local link = m.lines[3]
+	link.scripts.PreClick(link, "LeftButton")
+	check(link.attrs.type1 == "macro" and tostring(link.attrs.macrotext1):find("ChatFrame_OpenChat", 1, true), "Link in chat by click: the game runs it too: " .. tostring(link.attrs.macrotext1))
+	local lic, used = ns.LinkInChat, false
+	ns.LinkInChat = function() used = true end
+	link.scripts.PostClick(link, "LeftButton"); FlushAll()
+	ns.LinkInChat = lic
+	check(not used and not UI:IsShown(), "and Terminal's code never opens the chat box itself")
 	UI:Open("hearthstone")
 	shiftRight(); key("UP"); calls = enter()
 	check(not m:IsShown() and UI:IsShown() and #calls == 1 and calls[1] == false, "Enter on Cancel: only the menu goes")

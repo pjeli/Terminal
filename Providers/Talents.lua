@@ -164,6 +164,7 @@ local function HighlightNode(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
 
 local function TalentLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(e.spellID) or nil end
 local function LinkTalent(e) ns.LinkInChat(TalentLink(e)) end
+local TALENT_CHATBOX = ns.ChatBoxSpec(TalentLink)
 
 ns:RegisterProvider("talents", {
 	label = "Talent",
@@ -216,6 +217,7 @@ ns:RegisterProvider("talents", {
 						activate = OpenFallback,
 						-- Shift+Enter: link the talent in chat
 						secondary = LinkTalent,
+						secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
 					}
 				end
 			end

@@ -1961,6 +1961,12 @@ function UI:ArmForPress(e)
 	if not target or (e.isOpen and e.isOpen(e)) then return false end
 	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. e.name) return false end
 	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. e.name)
+	-- (a text box holding the keyboard gets the press instead of the binding: say whose, for .debug log)
+	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+	if focus and focus ~= edit then
+		local ok, name = pcall(function() return focus:GetName() or (focus.GetDebugName and focus:GetDebugName()) end)
+		ns:Trace("secure: the keyboard is held by " .. tostring(ok and name or "a text box") .. ": the press may go there")
+	end
 	if self.armedEntry ~= e then ns:Bump(e.freqKey) end
 	self.armedEntry = e
 	self:SetStatus()
@@ -2843,6 +2849,8 @@ end
 -- The row menu (right-click): everything a row can do, in words
 ----------------------------------------------------------------------
 
+local ChatBoxMacro = ns.ChatBoxMacro -- (Core.lua)
+
 local menu -- TerminalRowMenu: a small list by the pointer, its lines secure buttons (the game presses windows open)
 local MENU_W, MENU_LINE = 190, 22
 
@@ -2871,6 +2879,9 @@ local function MenuLine(i)
 		local it, SH = b.item, ns.Share
 		if it and it.chatTo and SH and menu and menu.entry and not InCombatLockdown() then
 			it.chat = SH.Macro(menu.entry, it.chatTo) or ""
+			b:SetAttribute("macrotext1", it.chat)
+		elseif it and it.boxLine and not InCombatLockdown() then
+			it.chat = ChatBoxMacro(it.boxLine()) or ""
 			b:SetAttribute("macrotext1", it.chat)
 		end
 	end)
@@ -2931,10 +2942,8 @@ function UI:ShowRowMenu(idx, fromKeys)
 		-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
 		-- and opening the menu, then Cancel, mustn't move your waypoint)
 		local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
-		items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", run = function()
-			local line = SH.Line(e, query)
-			if line then ns.LinkInChat(line) end
-		end }
+		-- (the game opens the box with it: see ChatBoxMacro)
+		items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
 		for _, ch in ipairs(SH.MenuChannels()) do
 			items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
 		end
@@ -2954,7 +2963,7 @@ function UI:ShowRowMenu(idx, fromKeys)
 		-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
 		local macro, view
 		if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true) end
-		if it.chatTo then macro = "" end -- (the chat line: set in PreClick, see MenuLine)
+		if it.chatTo or it.boxLine then macro = "" end -- (the chat line: set in PreClick, see MenuLine)
 		it.view = view
 		b:SetAttribute("type1", macro and "macro" or "")
 		b:SetAttribute("macrotext1", macro)
@@ -2976,17 +2985,23 @@ function UI:ShowRowMenu(idx, fromKeys)
 	if GetCursorPosition then x, y = GetCursorPosition() end
 	local s = menu:GetEffectiveScale()
 	local row = fromKeys and rows[idx - offset]
-	if row and row:IsShown() then
-		-- from the keyboard (Shift+Right): beside the row, its first line picked (Up/Down, Enter, Esc/Left)
-		menu:SetPoint("TOPLEFT", row, "TOPRIGHT", 4, 0)
-		self:MenuSelect(1)
-	elseif fromKeys then
-		menu:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+	if fromKeys then
+		-- from the keyboard (Shift+Right): beside the row, its first line picked (Up/Down, Enter, Esc/Left). Placed
+		-- by screen position against UIParent, never anchored to the row: the menu holds secure buttons, and a secure
+		-- frame anchored to Terminal's frame made it protected, so SetPropagateKeyboardInput stopped working and no
+		-- Enter press reached the game again until a /reload (0.42.11-0.42.23: "everything breaks after the menu")
+		local at = (row and row:IsShown()) and row or frame
+		local right, top, as = at:GetRight(), at:GetTop(), at:GetEffectiveScale()
+		if type(right) == "number" and type(top) == "number" and type(as) == "number" and type(s) == "number" and s > 0 then
+			menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", right * as / s + 4, top * as / s)
+		else
+			menu:SetPoint("CENTER", UIParent, "CENTER")
+		end
 		self:MenuSelect(1)
 	elseif type(x) == "number" and type(s) == "number" and s > 0 then
 		menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
 	else
-		menu:SetPoint("CENTER")
+		menu:SetPoint("CENTER", UIParent, "CENTER")
 	end
 	menu:Show()
 	self:UpdateTooltip() -- (hidden while the menu is up: it would sit under it)
@@ -3001,6 +3016,8 @@ function UI:MenuSelect(i)
 	menu.lines[i].hl:Show()
 end
 function UI:MenuShown() return menu ~= nil and menu:IsShown() end
+
+local function MenuNeverOpen() return false end
 
 --- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
 --- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
@@ -3042,32 +3059,41 @@ function UI:MenuKey(f, key)
 	-- (the row the menu was opened on: its own entry, wherever the list has put it since)
 	local found = MenuRowIndex(e, idx)
 	sel = found or sel
-	if it.chatTo then
-		-- a chat line from the keyboard: the chat box with it, Enter sends it (a chat line the game ran on Enter's own
-		-- press never went out in the game; the box, opened by Terminal's code on a press it keeps, works)
-		f:SetPropagateKeyboardInput(false)
-		self:HideRowMenu()
+	local se
+	if it.chatTo or it.boxLine then
+		-- a chat line: sent by the game on this press, as the click sends it (Share.Macro); "Put in the chat box": the
+		-- game opens the box with it a moment after the press (ChatBoxMacro)
 		local SH = ns.Share
-		local m = SH and SH.Macro(e, it.chatTo)
-		if m and m ~= "" then
-			ns:Trace("menu: the chat box with " .. m:sub(1, 3) .. "...")
-			ns.LinkInChat(m)
-			self:Hide()
+		local run, m
+		if it.boxLine then
+			m = it.boxLine()
+			run = m and ChatBoxMacro(m)
+		else
+			m = SH and SH.Macro(e, it.chatTo)
+			run = m ~= "" and m or nil
 		end
-		return true
+		if run then
+			se = setmetatable({ secure = { macro = run }, isOpen = MenuNeverOpen, after = false }, { __index = e })
+		else
+			f:SetPropagateKeyboardInput(false)
+			self:HideRowMenu()
+			if m and m ~= "" then ns:Print("Too long to put in the chat box from the keyboard: right-click it and pick the line.") end
+			return true
+		end
+	else
+		se = SecureView(e, it.secondary)
 	end
-	local se = SecureView(e, it.secondary)
 	if se and self:ArmForPress(se) then
 		f:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
 		ns:Trace("menu: armed Enter for the press (" .. tostring(ns.Secure.armed) .. ")")
-		if not it.chatTo then ns:RecordHistory(edit:GetText()) end
+		if not (it.chatTo or it.boxLine) then ns:RecordHistory(edit:GetText()) end
 		self:FinishSoon(se)
 		self:HideRowMenu()
 		return true
 	end
 	f:SetPropagateKeyboardInput(false)
 	self:HideRowMenu()
-	if not it.chatTo and found then self:Activate(found, { secondary = it.secondary }) end
+	if not (it.chatTo or it.boxLine) and found then self:Activate(found, { secondary = it.secondary }) end
 	return true
 end
 
@@ -3081,7 +3107,13 @@ function UI:MenuPicked(b)
 		if not it.stay then self:Hide() end
 		return
 	end
-	if it.chatTo then -- the game sent it to chat
+	if it.boxLine and (it.chat or "") == "" then -- (too long for a line the game runs: Terminal's own, as before)
+		local line = it.boxLine()
+		if line then ns.LinkInChat(line) end
+		self:Hide()
+		return
+	end
+	if it.chatTo or it.boxLine then -- the game sent it to chat / opens the chat box with it
 		ns:Trace("menu: sent to chat: " .. tostring(it.chat):sub(1, 3))
 		self:Hide()
 		return

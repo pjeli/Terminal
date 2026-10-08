@@ -74,9 +74,22 @@ do
 	_G.ChatFrame_SendBNetTell = function(n) bntold = n end
 	_G.C_PartyInfo = { InviteUnit = function(n) invited = n end }
 	_G.BNInviteFriend = function(id) bninv = id end
-	check(e and e.secure == nil and e.activate == ns.Social.Whisper, "Enter: Terminal's own whisper, no press")
-	e.activate(e)
-	check(told == "Mendy-Realm", "the whisper goes to the full name: " .. tostring(told))
+	-- Enter: the game opens the whisper box a moment after the press (a timer in the /run line it runs): Terminal's own
+	-- call tainted the chat box and later macros (panels, /who) stopped working
+	local w = e and S.Resolve(e.secure, e)
+	local body = w and w.macro and w.macro:match("^/run (.*)$")
+	check(body and w.macro:find("C_Timer.After(.1,function()", 1, true) and #w.macro <= S.MACRO_MAX and loadstring(body), "Enter: a whisper the game opens a moment later: " .. tostring(w and w.macro))
+	local timerWas = C_Timer.After
+	local later
+	C_Timer.After = function(_, fn) later = fn end
+	if body then loadstring(body)() end
+	C_Timer.After = timerWas
+	check(told == nil and later, "not on the press itself")
+	if later then later() end
+	check(told == "Mendy-Realm", "then the whisper box to the full name: " .. tostring(told))
+	told = nil
+	e.activate(e) -- (in combat: Terminal's own)
+	check(told == "Mendy-Realm", "the combat fallback whispers too")
 	e.secondary(e)
 	check(invited == "Mendy-Realm", "Shift+Enter invites the full name: " .. tostring(invited))
 	-- friends: the friend list and Battle.net
@@ -120,12 +133,11 @@ do
 	local m = _G.TerminalRowMenu
 	local first = m and m.lines[1] and m.lines[1].fs:GetText()
 	check(sel and sel.name == "Mendy" and m:IsShown() and first == "Whisper", "the menu on Mendy, Whisper first: " .. tostring(sel and sel.name) .. " / " .. tostring(first))
-	local told2
-	local st = _G.ChatFrame_SendTell
-	_G.ChatFrame_SendTell = function(n) told2 = n end
+	S.Disarm()
 	key("ENTER")
-	_G.ChatFrame_SendTell = st
-	check(told2 == "Mendy-Realm" and F.propagate == false and not m:IsShown(), "Enter on Whisper: the whisper box opens, Enter kept from it: " .. tostring(told2))
+	local px = _G.TerminalMacroProxy
+	check(F.propagate == true and S.armed == "MACRO" and px and tostring(px.attrs.macrotext):find("SendTell", 1, true)
+		and tostring(px.attrs.macrotext):find("C_Timer", 1, true) and not m:IsShown(), "Enter on Whisper: the game opens the whisper a moment after the press: " .. tostring(px and px.attrs.macrotext))
 	UI:Hide(); FlushAll()
 
 	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo, _G.C_GuildInfo = save.ig, save.n, save.info, save.gi
@@ -157,6 +169,7 @@ do
 	local r = UI.Results()
 	local ask = r[1]
 	check(ask and ask.whoFilter == "priest undercity" and ask.staysOpen, "on top: ask the server: " .. tostring(ask and ask.name))
+	check(ask and type(ask.isOpen) == "function" and ask.isOpen(ask) == false, "the ask row is never 'already open' (always pressed)")
 	local m = ask and S.Resolve(ask.secure, ask)
 	check(m and m.macro:find('SendWho("priest undercity",1)', 1, true) and loadstring(m.macro:match("^/run (.*)$")), "the game runs SendWho: " .. tostring(m and m.macro))
 	-- pressed: the terminal stays, the ring says it's asking
@@ -193,4 +206,26 @@ do
 	_G.C_FriendList = save.fl
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	ns.providers.who._dirty = true
+end
+
+io.write("[chat box macro]\n")
+do
+	local text = 'say "hi" \\o/ |Hitem:1|h[x]|h'
+	local m = ns.ChatBoxMacro(text)
+	check(m and not m:find("|", 1, true), "no raw | in the macro (\\124 instead): " .. tostring(m))
+	local got
+	local oc, il, ta = _G.ChatFrame_OpenChat, _G.ChatEdit_InsertLink, C_Timer.After
+	_G.ChatFrame_OpenChat = function(t) got = t end
+	_G.ChatEdit_InsertLink = function() return false end
+	C_Timer.After = function(_, f) f() end
+	local fn = m and loadstring(m:match("^/run (.*)$"))
+	if fn then fn() end
+	check(got == text, "the chat box gets the text exactly: " .. tostring(got))
+	local inserted
+	_G.ChatEdit_InsertLink = function(t) inserted = t return true end
+	got = nil
+	if fn then fn() end
+	check(inserted == text and got == nil, "a box already open: into what's being typed")
+	_G.ChatFrame_OpenChat, _G.ChatEdit_InsertLink, C_Timer.After = oc, il, ta
+	check(ns.ChatBoxMacro(string.rep("x", 300)) == nil and ns.ChatBoxMacro("") == nil, "too long or nothing: no macro")
 end

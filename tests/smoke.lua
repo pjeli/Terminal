@@ -5392,6 +5392,20 @@ do -- a profession whose window opens with a spell not named like it (Herbalism 
 	C_Spell.GetSpellName, C_Spell.GetSpellInfo = save.gsn, save.gsi
 	ns.providers.recipes._dirty, ns.providers.professions._dirty = true, true
 end
+-- what the game does with Enter armed to the macro proxy: runs its macro (timers at once), then its PostClick
+local function PressArmed()
+	local px = ns.Secure.armed == "MACROUP" and _G.TerminalMacroProxyUp or _G.TerminalMacroProxy
+	if (ns.Secure.armed ~= "MACRO" and ns.Secure.armed ~= "MACROUP") or not px then return false end
+	local body = tostring(px.attrs.macrotext):match("^/run (.*)$")
+	local fn = body and loadstring(body)
+	if not fn then return false end
+	local ta = C_Timer.After
+	C_Timer.After = function(_, f) f() end
+	fn()
+	C_Timer.After = ta
+	if px.scripts.PostClick then px.scripts.PostClick(px, "LeftButton", ns.Secure.armed == "MACRO") end
+	return true
+end
 do -- achievements: Shift+Enter links one in chat; its kind's colour isn't Camp's
 	local F = _G.TerminalFrame
 	UI:Open("level 10")
@@ -5401,6 +5415,7 @@ do -- achievements: Shift+Enter links one in chat; its kind's colour isn't Camp'
 	_G.IsShiftKeyDown = function() return true end
 	F.scripts.OnKeyDown(F, "ENTER")
 	_G.IsShiftKeyDown = function() return false end
+	check(not logHas("OPENCHAT", mark + 1) and PressArmed(), "Shift+Enter: the game opens the chat box (Terminal's own call tainted it)")
 	check(logHas("OPENCHAT |Hachievement:7|h[Level 10]|h", mark + 1) and not UI:IsShown(),
 		"Shift+Enter on an achievement links it in chat")
 	-- typing in the chat box already: the link goes into it
@@ -5410,6 +5425,7 @@ do -- achievements: Shift+Enter links one in chat; its kind's colour isn't Camp'
 	_G.IsShiftKeyDown = function() return true end
 	F.scripts.OnKeyDown(F, "ENTER")
 	_G.IsShiftKeyDown = function() return false end
+	PressArmed()
 	check(logHas("INSERTLINK |Hachievement:7|h[Level 10]|h", mark + 1) and not logHas("OPENCHAT |Hachievement:7|h[Level 10]|h", mark + 1),
 		"the chat box already open: the link goes into what you're typing")
 	_G.ChatEdit_InsertLink = baseInsert
@@ -5580,6 +5596,7 @@ do -- a profession sent to chat: its link, with every recipe you know (as the ga
 	_G.IsShiftKeyDown = function() return true end
 	F.scripts.OnKeyDown(F, "ENTER")
 	_G.IsShiftKeyDown = function() return false end
+	PressArmed()
 	check(logHas("OPENCHAT " .. LINK, mark + 1) and S.armed == nil, "Shift+Enter puts the profession's link in chat")
 	UI:Disarm(); UI:Hide()
 	_G.GetProfessions, _G.GetProfessionInfo, C_SpellBook.GetSpellBookItemTradeSkillLink = save.gp, save.gpi, save.tl

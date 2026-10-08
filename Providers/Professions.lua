@@ -867,6 +867,7 @@ local function RecipeAfter(e)
 	P.SelectRecipe(e.recipeID, e.name)
 end
 local function RecipeLinkInChat(e) ns.LinkInChat(RecipeLink(e)) end
+local RECIPE_CHATBOX = ns.ChatBoxSpec(RecipeLink)
 local spellSpecs = {} -- one { spell = } table per profession spell, shared
 local function SpellSpec(name)
 	local s = spellSpecs[name]
@@ -920,6 +921,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		after = castSpell and RecipeAfter or nil,
 		-- Shift+Enter: link the recipe in chat
 		secondary = RecipeLinkInChat,
+		secondarySecure = RECIPE_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, -- (the game opens the chat box with it)
 	}
 end
 
@@ -998,6 +1000,7 @@ end
 P.ProfessionLink = ProfessionLink
 
 -- Shift+Enter: the profession's link (all your recipes) in chat
+local PROF_CHATBOX = ns.ChatBoxSpec(function(e) return ProfessionLink(e) end)
 local function LinkProfession(e)
 	if not ns.LinkInChat(ProfessionLink(e)) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
 end
@@ -1029,6 +1032,7 @@ ns:RegisterProvider("professions", {
 				spellID = ts.spellID, parentName = ts.parent,
 				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
 				secondary = LinkProfession, -- Shift+Enter: that link in chat
+				secondarySecure = PROF_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
 			}
 		end
 		for _, pr in ipairs((P.PlayerProfessions())) do
@@ -1040,7 +1044,8 @@ ns:RegisterProvider("professions", {
 				detail = pr.rank .. " / " .. pr.maxRank,
 				skillLine = pr.skillLine,
 				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
-				secondary = LinkProfession, -- Shift+Enter: that link in chat (Enter opens its window)
+				secondary = LinkProfession, -- Shift+Enter: that link in chat
+				secondarySecure = PROF_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, -- (Enter opens its window)
 				secure = opener and SpellSpec(opener) or nil,
 				activate = ProfessionActivate,
 			}
