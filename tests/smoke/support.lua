@@ -914,8 +914,13 @@ do
 		local orig = t[name]
 		t[name] = function(...) local r = orig(...) fn(...) return r end
 	end
-	_G.MainMenuBar, _G.MicroMenuContainer = bar, menu
+	local actions, minimap = CreateFrame("Frame"), CreateFrame("Frame")
+	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster = bar, menu, actions, minimap
 	local out = ns:FindCommand("zen").run("")
+	check(actions:GetAlpha() == 1 and minimap:GetAlpha() == 1, ".zen keeps the action bars and the minimap up (0.43.20)")
+	for _, name in ipairs(Zen.KEEP) do
+		for _, f in ipairs(Zen.FRAMES) do check(f ~= name, ".zen never hides " .. name) end
+	end
 	check(ns.db.zen == true and bar:GetAlpha() == 0 and menu:GetAlpha() == 0 and bar:IsShown(), ".zen: bars invisible, still shown")
 	check(out[1]:find("hidden", 1, true), ".zen says what it did: " .. tostring(out[1]))
 	bar:SetAlpha(1) -- (the game fading a bar back in)
@@ -924,5 +929,5 @@ do
 	check(ns.db.zen == false and bar:GetAlpha() == 1 and math.abs(menu:GetAlpha() - 0.8) < 0.001, ".zen off: back as they were")
 	bar:SetAlpha(0.5)
 	check(bar:GetAlpha() == 0.5, "off: the game's own fading works again")
-	_G.MainMenuBar, _G.MicroMenuContainer, _G.hooksecurefunc = nil, nil, saveHook
+	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster, _G.hooksecurefunc = nil, nil, nil, nil, saveHook
 end

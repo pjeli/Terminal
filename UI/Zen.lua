@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 
--- .zen: hides the game's bars and buttons (action bars, the micro menu and bag buttons, the XP bar, the quest tracker,
--- the minimap) to see how far Terminal alone can drive the game. Windows still open from Terminal: the bars are only
+-- .zen: hides the game's menu and bag buttons, the XP bar and the quest tracker (the action bars and the minimap stay)
+-- to see how far Terminal alone can drive the game. Windows still open from Terminal: the bars are only
 -- made invisible (alpha 0), never hidden or moved, so key bindings, the micro buttons Terminal clicks and everything
 -- secure keep working exactly as before. Unit frames, chat, the cast bar and buffs stay. .zen again brings it back;
 -- it's remembered across sessions.
@@ -14,12 +14,14 @@ ns.Zen = Z
 
 -- what goes (only the names this client has are touched)
 Z.FRAMES = {
-	"MainActionBar", "MainMenuBar", "MainMenuBarArtFrame", "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight",
-	"MultiBarLeft", "MultiBar5", "MultiBar6", "MultiBar7", "StanceBar", "StanceBarFrame", "PetActionBar",
-	"PetActionBarFrame", "PossessActionBar", "PossessBarFrame", "MultiCastActionBarFrame", "MicroMenuContainer",
-	"MicroMenu", "MicroButtonAndBagsBar", "BagsBar", "StatusTrackingBarManager", "MainStatusTrackingBarContainer",
-	"SecondaryStatusTrackingBarContainer", "ObjectiveTrackerFrame", "QuestWatchFrame", "WatchFrame", "MinimapCluster",
+	"MicroMenuContainer", "MicroMenu", "MicroButtonAndBagsBar", "BagsBar", "StatusTrackingBarManager",
+	"MainStatusTrackingBarContainer", "SecondaryStatusTrackingBarContainer", "ObjectiveTrackerFrame", "QuestWatchFrame",
+	"WatchFrame",
 }
+-- (kept up, the player's call in 0.43.20: the action bars and the minimap. Never put them here: MainActionBar,
+-- MainMenuBar (the action bar itself on classic layouts), MultiBar*, Stance/Pet/Possess bars, MinimapCluster)
+Z.KEEP = { "MainActionBar", "MainMenuBar", "MainMenuBarArtFrame", "MultiBarBottomLeft", "MultiBarBottomRight",
+	"MultiBarRight", "MultiBarLeft", "StanceBar", "PetActionBar", "MinimapCluster", "Minimap" }
 
 local saved = {} -- frame -> its alpha before
 local hooked = {}
@@ -83,7 +85,7 @@ function Z.Set(on)
 end
 
 ns:RegisterCommand("zen", {
-	desc = "Hide the game's bars and buttons (action bars, menu, bags, XP bar, quest tracker, minimap) to play from Terminal alone; .zen again brings them back",
+	desc = "Hide the game's menu and bag buttons, XP bar and quest tracker (action bars and minimap stay) to play from Terminal; .zen again brings them back",
 	aliases = { "hideui", "minimal" },
 	complete = function() return { { "on", "hide the bars" }, { "off", "bring them back" } } end,
 	run = function(args)
@@ -92,7 +94,7 @@ ns:RegisterCommand("zen", {
 		if a == "on" then want = true elseif a == "off" then want = false else want = not On() end
 		local n = Z.Set(want)
 		if want then
-			return { ("Zen: %d bars hidden. Windows still open from Terminal, and your key bindings work as always. The bars are only invisible: hovering or clicking where they were still reaches them. .zen again brings them back."):format(n) }
+			return { ("Zen: %d bars hidden (your action bars and minimap stay). Windows still open from Terminal, and your key bindings work as always. The bars are only invisible: hovering or clicking where they were still reaches them. .zen again brings them back."):format(n) }
 		end
 		return { "Zen off: the bars are back." }
 	end,
