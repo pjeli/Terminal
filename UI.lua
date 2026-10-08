@@ -721,6 +721,17 @@ function UI:SearchText(text)
 		self.noPosition, self.action, self.place = nil, nil, nil
 		return self:FuzzySearch(text)
 	end
+	-- a question in plain words ("where should i level", "what dungeon should i do"): its answer (Zones.lua)
+	self.answerNote = nil
+	local ask, said = ns.Zones and ns.Zones.Question(text)
+	if ask then
+		self.noPosition, self.action, self.place = nil, nil, nil
+		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
+		self.posTokens = {}
+		local rows, note = ns.Zones.Answer(ask, said)
+		self.answerNote = note
+		return rows
+	end
 	local kinds, tokens, filters, fsig = nil, {}, nil, {}
 	local simple = EasyOn()
 	-- Simple mode doesn't take Advanced syntax (@kind, key:value, >>): a row on top says where it lives (Refresh
@@ -1716,6 +1727,7 @@ do
 		if count > 0 and results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
 		if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
+		if self.answerNote and self.mode == "search" then cat = { label = self.answerNote } end
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
 		if to and self.mode == "search" then

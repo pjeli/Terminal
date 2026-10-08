@@ -141,6 +141,8 @@ local function PinOnly(e)
 	end
 end
 
+M.Direct, M.PinOnly = Direct, PinOnly -- (Zones.lua's answers open zones as @map rows do)
+
 local PROTO = {
 	icon = "Interface\\Icons\\INV_Misc_Map_01", -- (every row's: kept here, not on each row)
 	secure = M.SECURE,
@@ -201,9 +203,10 @@ ns:RegisterProvider("maps", {
 			local kind = TYPES[info.mapType or 3]
 			if kind then -- continents and zones; not "Cosmic"/"World", nothing below a zone
 				local path = pathOf(info)
+				local lv = ns.Zones and ns.Zones.LevelText(ns.Zones.Of(info.mapID))
 				out[#out + 1] = Entry({
 					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
-					detail = kind .. (path ~= "" and ("  " .. path) or ""),
+					detail = kind .. (lv and ("  " .. lv) or "") .. (path ~= "" and ("  " .. path) or ""),
 				})
 			end
 		end

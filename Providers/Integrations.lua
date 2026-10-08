@@ -716,6 +716,7 @@ local function SpotXY(ui, c)
 	local u, v = c[1] / 100, c[2] / 100
 	return t[1], t[2] + u * t[4] + v * t[6], t[3] + u * t[5] + v * t[7]
 end
+I.SpotXY = SpotXY -- (Zones.lua: how far a zone's middle is)
 local function Spot(ui, c)
 	local cont, x, y = SpotXY(ui, c)
 	return cont and { cont = cont, x = x, y = y } or nil
@@ -868,6 +869,7 @@ local function ZoneName(ui)
 	end
 	return n or nil
 end
+I.ZoneName = ZoneName
 
 -- Enter on a mailbox: the map pin on it (a C API)
 local function PinObject(e)

@@ -125,7 +125,7 @@ F.Range = Range
 -- What rows know
 ----------------------------------------------------------------------
 
---- Level range of a row: items (the level they need), quests, Questie NPCs.
+--- Level range of a row: items (the level they need), quests, Questie NPCs, dungeons, zones.
 local function Levels(e)
 	if e.itemID then
 		local info = ItemInfo(e.itemID)
@@ -139,7 +139,15 @@ local function Levels(e)
 		return nil
 	end
 	local l = e.level
-	if type(l) == "number" then return l, l end
+	if type(l) == "number" then
+		local lo = e.minLevel -- (dungeons and raids: their range)
+		if type(lo) == "number" and lo <= l then return lo, l end
+		return l, l
+	end
+	if e.kind == "maps" and ns.Zones then -- (zones: their level band)
+		local z = ns.Zones.Of(e.mapID)
+		if z and z.min then return z.min, z.max end
+	end
 end
 
 local statCache, statCount = {}, 0

@@ -13,6 +13,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.43.1", when = "in testing",
+		items = {
+			"Ask where to go, in plain words: \"where should i level\" lists the zones for your level (quests there at your level, nearest first), \"what dungeon should i do\" the dungeons, \"where should i fish\" the zones your fishing skill is enough for and the next ones to unlock. Say a level to ask for another: \"zones for level 35\". Zone levels and fishing skill from Leatrix Maps.",
+			"Zones show their level range on @map rows, and lvl: works on zones and dungeons (\"@map lvl:30\", \"@dungeon lvl:25\").",
+		},
+	},
+	{
 		v = "0.43.0", when = "released October 2026",
 		items = {
 			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
@@ -64,13 +71,7 @@ CL.LOG = {
 			"Lighter and steadier: NPC distances and roles are worked out once, the right-click menu closes when combat starts, and the prompt no longer covers its bottom border.",
 		},
 	},
-	{
-		v = "0.39.5", when = "released October 2026",
-		items = {
-			"Fixes from a review pass: a pasted style string changes only the look (never your width, rows or settings); the copy bar never cuts off a style string's last line; a reopened Import style dialog stays open; reading the toy and pet journals never changes their filters when a read fails.",
-			"Lighter: WoWamp redraws its time once a second instead of every frame and idles with the visualizer off; earned achievements no longer re-read the whole list; sells: looks its sellers up once per search.",
-		},
-	},
+
 }
 
 local Theme = ns.Theme
