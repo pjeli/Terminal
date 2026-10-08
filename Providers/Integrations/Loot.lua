@@ -52,7 +52,7 @@ end
 -- The index is kept between sessions (db.lootCache), so a /reload doesn't load every loot module
 -- again: rows come from the cache at once and a module is loaded only to open its window. It is
 -- rebuilt when AtlasLoot, a module, the game version or this format changes (CacheKey).
-local CACHE_FORMAT = 1
+local CACHE_FORMAT = 2 -- (2: indexed for the window's game version, I.WindowVersion)
 
 --- One loot row (compact: shared fields come from loot.meta); its name is filled in once the
 --- server has sent it. page: the page the item is on (AtlasLoot shows 100 positions per page).
@@ -76,6 +76,27 @@ local function GroupText(inst, bossName)
 end
 I.GroupText = GroupText -- (tests)
 
+--- The game version a module's tables are indexed for: the one AtlasLoot's window shows. That's the window's own pick
+--- (db.GUI.selectedGameVersion) when the module has it, else the game's, else Classic. Not GetAviableGameVersion(the
+--- game's) alone: WoW Forever reports itself as retail (99), which no module has, and that falls back to the module's
+--- LAST loaded version, data-tbc.lua: only Burning Crusade dungeons were indexed, while AtlasLoot Forever's window
+--- always shows Classic (and WoW Forever's own dungeons, which live in Classic's tables: the Ruins of Lordaeron).
+function I.WindowVersion(A, storage)
+	if not storage.GetAviableGameVersion then return nil end
+	local function Has(v)
+		if type(v) ~= "number" then return false end
+		if storage.IsGameVersionAviable then return Safe(storage.IsGameVersionAviable, storage, v) == true end
+		return Safe(storage.GetAviableGameVersion, storage, v) == v
+	end
+	local gui = type(A.db) == "table" and type(A.db.GUI) == "table" and A.db.GUI.selectedGameVersion
+	local game = A.GetGameVersion and Safe(A.GetGameVersion, A)
+	local classic = A.CLASSIC_VERSION_NUM or 1
+	if Has(gui) then return gui end
+	if Has(game) then return game end
+	if Has(classic) then return classic end
+	return Safe(storage.GetAviableGameVersion, storage, game)
+end
+
 --- Rows for one loaded loot module: one per item and instance (the first boss and
 --- difficulty it drops on), kept apart from names, which arrive from the server over time.
 --- groups: the cache being built, one entry per boss table ({ addon, content, boss, inst,
@@ -89,10 +110,7 @@ local function IndexModule(addon, storage, groups)
 	-- (data.lua) and WoW Forever's (data-forever.lua), the same dungeons twice. Only what its own
 	-- window shows on this client is indexed: the version it picks for the module, and tables
 	-- made for every version (0).
-	local version
-	if A.GetGameVersion and storage.GetAviableGameVersion then
-		version = Safe(storage.GetAviableGameVersion, storage, Safe(A.GetGameVersion, A))
-	end
+	local version = I.WindowVersion(A, storage)
 	for content, c in pairs(storage) do
 		if type(c) == "table" and type(c.items) == "table"
 			and (not version or c.gameVersion == nil or c.gameVersion == 0 or c.gameVersion == version) then
@@ -185,7 +203,10 @@ I.LootName = LootName -- (tests)
 -- WoW Forever's own items (Snake Eye Kaleidoscope, 273088) aren't in the client's item data: their
 -- names come only from the server, which drops asks when thousands come at once. So whatever is
 -- still unnamed after a round is asked for again (NAME_ROUNDS rounds, NAME_RETRY s apart).
+-- After the quick rounds it keeps asking, slowly (NAME_SLOW s apart, NAME_SLOW_ROUNDS more: about an hour): before
+-- 0.43.25 it gave up after the fourth, and items the server hadn't answered stayed out of @loot for the session.
 I.NAME_BATCH, I.NAME_ROUNDS, I.NAME_RETRY = 50, 4, 20
+I.NAME_SLOW, I.NAME_SLOW_ROUNDS = 120, 30
 local function PumpNames(round, gen)
 	if not round then
 		-- a new pump (the list was built or read again): any retry still waiting from an older one stops
@@ -228,8 +249,8 @@ local function PumpNames(round, gen)
 		if i <= #ids then return C_Timer.After(0.5, step) end
 		loot.pumping = false
 		ns:Trace(("loot: names round %d: asked the server for %d of %d items"):format(round, asked, #ids))
-		if asked > 0 and round < I.NAME_ROUNDS then
-			C_Timer.After(I.NAME_RETRY, function()
+		if asked > 0 and round < I.NAME_ROUNDS + I.NAME_SLOW_ROUNDS then
+			C_Timer.After(round < I.NAME_ROUNDS and I.NAME_RETRY or I.NAME_SLOW, function()
 				-- what came in meanwhile is named by collect; the rest is asked for again
 				if gen ~= loot.pumpGen then return end
 				Dirty()

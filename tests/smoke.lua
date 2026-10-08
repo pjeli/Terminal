@@ -2695,6 +2695,18 @@ do -- AtlasLoot and Questie integrations
 	local classicRows = 0
 	for _, r in ipairs(I.loot.rows) do if r.content == "CLASSIC_DM" then classicRows = classicRows + 1 end end
 	check(classicRows == 0, "only the game version AtlasLoot shows on this client is indexed (no Classic copies)")
+	-- WoW Forever reports itself as retail (99), which no module has: AtlasLoot falls back to the module's last loaded
+	-- version (Burning Crusade), while its window always shows Classic, where Forever's own dungeons are (0.43.25)
+	do
+		local st = { GetAviableGameVersion = function(_, v) return (v == 1 or v == 2) and v or 2 end,
+			IsGameVersionAviable = function(_, v) return v == 1 or v == 2 end }
+		local A = { GetGameVersion = function() return 99 end, CLASSIC_VERSION_NUM = 1, db = { GUI = { selectedGameVersion = 99 } } }
+		check(I.WindowVersion(A, st) == 1, "Forever (retail 99, window not opened yet): Classic, not Burning Crusade: " .. tostring(I.WindowVersion(A, st)))
+		A.db.GUI.selectedGameVersion = 2
+		check(I.WindowVersion(A, st) == 2, "the window's own pick when the module has it")
+		A.db = nil
+		check(I.WindowVersion(A, st) == 1, "no AtlasLoot settings yet: Classic")
+	end
 	check(moduleAsks == 2, "an empty module list at first is asked for again: " .. tostring(moduleAsks))
 	local es = names(ns:GetEntries(ns.providers.loot))
 	check(es["Cruel Barb"] and es["Red Defias Mask"] and not es["INV_Misc_Note_01"], "named item rows only")
@@ -2812,7 +2824,9 @@ do -- AtlasLoot and Questie integrations
 		newSession(); I.LoadLootModules()
 		newSession(); I.LoadLootModules()
 		FlushAll()
-		check(asks2 <= I.NAME_ROUNDS + 1, ("a newer pump stops the older one's retries: %d asks (rounds %d)"):format(asks2, I.NAME_ROUNDS))
+		local rounds = I.NAME_ROUNDS + I.NAME_SLOW_ROUNDS
+		check(asks2 > I.NAME_ROUNDS + 1, "it keeps asking past the quick rounds, slowly (0.43.25): " .. asks2)
+		check(asks2 <= rounds + 1, ("a newer pump stops the older one's retries: %d asks (rounds %d)"):format(asks2, rounds))
 		iname[1002] = "Red Defias Mask"
 		C_Item.RequestLoadItemDataByID = reqWas
 		newSession(); I.LoadLootModules(); FlushAll()
