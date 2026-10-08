@@ -90,3 +90,30 @@ do
 	check(Z.LevelText(Z.Of(1440)) == "Lv 18-30" and Z.LevelText(Z.Of(2482)) == "Lv 60" and Z.LevelText(Z.Of(1453)) == nil,
 		"zones: level text")
 end
+
+-- "fishing spots" asks the same; the questions have Advanced forms (Alt+`), with fish: on zones (0.43.18)
+do
+	local E, F = ns.Easy, ns.Filters
+	check(Z.Question("fishing spots") == "fish" and Z.Question("fishing pools") == "fish" and Z.Question("leveling spots") == "level",
+		"fishing spots / pools, leveling spots: questions")
+	check(Z.Question("spots") == nil and Z.Question("fishing") == nil, "a lone word stays a search")
+	local saveLvl, saveGP, saveGPI = UnitLevel, _G.GetProfessions, _G.GetProfessionInfo
+	UnitLevel = function() return 23 end
+	check(E.ToAdvanced("where should i fish") == "@map fish:mine " and E.ToAdvanced("fishing spots") == "@map fish:mine ",
+		"fishing questions -> @map fish:mine: " .. E.ToAdvanced("where should i fish"))
+	check(E.ToAdvanced("where should i level") == "@map lvl:23 " and E.ToAdvanced("what dungeon should i do") == "@dungeon lvl:23 "
+		and E.ToAdvanced("dungeon for 30") == "@dungeon lvl:30 " and E.ToAdvanced("what raid should i do") == "@raid lvl:23 ",
+		"level and dungeon questions -> lvl: on @map/@dungeon/@raid: " .. E.ToAdvanced("where should i level"))
+	check(E.ToAdvanced("mats for thorium belt") == "thorium belt > mats " and E.ToAdvanced("what killed me") == "@combatlog killed ",
+		"chains and combat questions: their Advanced forms")
+	-- fish: on zone rows
+	_G.GetProfessions = function() return nil, nil, nil, 4 end
+	_G.GetProfessionInfo = function(i) if i == 4 then return "Fishing", nil, 130, 300, 0, 0, 356 end end
+	local stv, azs, elw, sw = { kind = "maps", mapID = 1434 }, { kind = "maps", mapID = 1447 }, { kind = "maps", mapID = 1429 }, { kind = "maps", mapID = 1453 }
+	local mine = F.Parse("fish:mine")
+	check(mine(stv) and mine(elw) and mine(sw) and not mine(azs), "fish:mine: the zones your skill (130) is enough for")
+	check(F.Parse("fish:205")(azs) and not F.Parse("fish:100")(stv), "fish:<skill>: what that skill is enough for")
+	check(F.Parse("fish:200-400")(azs) and not F.Parse("fish:200-400")(stv), "fish:<range>: zones needing that much")
+	check(not mine({ kind = "npc", key = 1 }), "fish: only judges zones")
+	UnitLevel, _G.GetProfessions, _G.GetProfessionInfo = saveLvl, saveGP, saveGPI
+end

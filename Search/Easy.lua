@@ -352,7 +352,28 @@ local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) e
 --- "nearest" as @npc sort:nearest (with faction:friendly for a role), a place as in:<place>, everyday words as their
 --- key:value filters ("attack power" = stat:ap), sentence words dropped; other words (and any Advanced syntax
 --- already typed) stay. Ends with a space to type on. "" for an empty search.
+-- a plain-word question or chain, in Advanced syntax: chains as links ("mats for x" -> "x > mats"), the zone questions
+-- as @map/@dungeon/@raid with lvl: or fish:, the combat ones as @combatlog words. Nil for anything else.
+local function QuestionToAdvanced(text)
+	local chain = ns.Pipes and ns.Pipes.Canonical(text)
+	if chain then return chain .. " " end
+	local Z = ns.Zones
+	local q, said
+	if Z and Z.Question then q, said = Z.Question(text) end
+	if q then
+		if q == "fish" then return "@map fish:mine " end
+		local lv = said or (UnitLevel and UnitLevel("player"))
+		local kind = (q == "dungeon" and "@dungeon") or (q == "raid" and "@raid") or "@map"
+		return kind .. ((type(lv) == "number" and lv > 0) and (" lvl:" .. lv) or "") .. " "
+	end
+	local cq = ns.CombatLog and ns.CombatLog.Question and ns.CombatLog.Question(text)
+	if cq then return "@combatlog " .. ((cq == "killed" and "killed") or (cq == "crit" and "taken") or "dealt") .. " " end
+end
+E.QuestionToAdvanced = QuestionToAdvanced
+
 function E.ToAdvanced(text, category)
+	local asked = QuestionToAdvanced(text)
+	if asked then return asked end
 	local words = {}
 	for w in tostring(text or ""):gmatch("%S+") do words[#words + 1] = w end
 	local kinds, filters, plain, seen = {}, {}, {}, {}
@@ -436,7 +457,7 @@ E.ADV_EXAMPLES = {
 	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
 	"try: @npc trainer:class faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
 	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @gold", "try: @achievement is:todo",
-	"try: @dungeon sort:nearest", "try: thorium belt > mats > alts", "try: copper bar > uses", "try: @map lvl:30", "try: @dungeon lvl:25", "try: @recipe is:skillup", "try: @friend is:online", "try: @who orc lvl:20-30",
+	"try: @dungeon sort:nearest", "try: @map fish:mine", "try: thorium belt > mats > alts", "try: copper bar > uses", "try: @map lvl:30", "try: @dungeon lvl:25", "try: @recipe is:skillup", "try: @friend is:online", "try: @who orc lvl:20-30",
 	"try: @item is:boe|q:epic", "try: @spell is:ready", "try: @gear slot:head|chest -is:soulbound", "try: @item q:rare|epic", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
 	"tip: Up = last command, Down = recent picks",
 }

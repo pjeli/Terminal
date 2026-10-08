@@ -95,7 +95,10 @@ end
 ----------------------------------------------------------------------
 
 local CUES = { should = true, best = true, good = true, recommend = true, recommended = true, suggest = true, next = true,
-	which = true, what = true, zone = true, zones = true }
+	which = true, what = true, zone = true, zones = true,
+	-- ("fishing spots", "leveling spots": a place word is a cue too)
+	spot = true, spots = true, hole = true, holes = true, pool = true, pools = true, location = true, locations = true,
+	places = true, areas = true }
 local LEVEL_WORDS = { level = true, leveling = true, levelling = true, lvl = true, quest = true, questing = true,
 	quests = true, xp = true, exp = true, grind = true, grinding = true }
 local DUNGEON_WORDS = { dungeon = true, dungeons = true, instance = true, instances = true }
@@ -107,7 +110,7 @@ local ASKS = {}
 for w in ([[where should i can do to go what which whats wheres best good next for my me a an the am im now in at
 	is are would you recommend recommended suggest zone zones place places area areas level leveling levelling lvl quest
 	questing quests xp exp grind grinding dungeon dungeons instance instances raid raids fish fishing run try
-	please some lv right]]):gmatch("%S+") do ASKS[w] = true end
+	please some lv right spot spots hole holes pool pools location locations]]):gmatch("%S+") do ASKS[w] = true end
 
 --- What a line of plain words asks, if it's one of the questions: "level", "dungeon", "raid" or "fish", and the
 --- level said in it (nil: yours). nil when it isn't one.

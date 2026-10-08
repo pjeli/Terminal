@@ -203,6 +203,30 @@ KEYS.lvl = function(v)
 end
 KEYS.level = KEYS.lvl
 
+-- fish: zones by the fishing skill they need (Zones.lua): fish:mine (your skill: the zones you can fish), fish:150 (what
+-- 150 is enough for), fish:130-205 (needing that much). The Advanced form of "where should i fish".
+KEYS.fish = function(v)
+	local Z = ns.Zones
+	local need
+	if v == "mine" or v == "me" or v == "my" then
+		need = function() return (Z and Z.FishingSkill and Z.FishingSkill()) or 0 end
+	elseif tonumber(v) then
+		local n = tonumber(v)
+		need = function() return n end
+	end
+	local r = not need and Range(v)
+	if not (need or r) then return nil end
+	local skill -- (read once per filter: the first row asks)
+	return function(e)
+		local z = e.kind == "maps" and Z and Z.Of(e.mapID)
+		if not (z and z.fish) then return false end
+		if r then return r(z.fish) end
+		skill = skill or need()
+		return z.fish <= skill
+	end
+end
+KEYS.fishing = KEYS.fish
+
 KEYS.count = function(v)
 	local r = Range(v)
 	return r and function(e) return r(Count(e)) end
@@ -243,6 +267,7 @@ F.VALUES = {
 	["in"] = { "bags", "bank", "mail", "guild", "warband", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	sort = { "nearest" },
+	fish = { "mine", "75", "150", "225", "300" },
 	near = { "100", "300", "500", "1000" },
 	trainer = { "class", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
@@ -260,6 +285,7 @@ F.HELP = {
 	{ "in:bank", "where: bags/bank/mail/guild, a quest's or NPC's zone, a loot item's dungeon or boss" },
 	{ "on:name", "@stored: on that character (or guild, warband)" },
 	{ "count:20+", "how many you have" },
+	{ "fish:mine", "@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)" },
 	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), class (your class), classes (any), profession, pet, riding, weapon" },
 	{ "faction:horde", "@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)" },
 	{ "standing:honored+", "reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)" },
