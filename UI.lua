@@ -830,12 +830,12 @@ function UI:SearchText(text)
 	local function consider(e, kind)
 		if empty then
 			if filters and not Pass(e, filters) then return end
-			e._score, e._pos = FreqBonus(e, kind), NO_POS
+			e._score, e._pos = FreqBonus(e, kind) + (rawget(e, "_rank") or 0), NO_POS
 			out[#out + 1] = e
 		else
 			local s = ScoreEntry(e, tokens)
 			if s and (not filters or Pass(e, filters)) then -- (filters only on what matched: cheaper)
-				e._score = s + FreqBonus(e, kind)
+				e._score = s + FreqBonus(e, kind) + (rawget(e, "_rank") or 0) -- (rank: a list's own order, < 1)
 				out[#out + 1] = e
 			end
 		end
@@ -1044,7 +1044,7 @@ function UI:RelaxSoft(included, tokens, hard, softs, out, overBudget)
 					local ok, yes = pcall(softs[k], e)
 					if ok and yes then passed = passed + ns.Easy.Weight(softs[k]) end
 				end
-				e._score = sc + passed * SOFT_PASS + FreqBonus(e, id)
+				e._score = sc + passed * SOFT_PASS + FreqBonus(e, id) + (rawget(e, "_rank") or 0)
 				out[#out + 1] = e
 			end
 			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end

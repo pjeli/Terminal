@@ -148,7 +148,7 @@ end
 io.write("[collections: kind colours]\n")
 do
 	local function rgb(c) return tonumber(c:sub(3, 4), 16), tonumber(c:sub(5, 6), 16), tonumber(c:sub(7, 8), 16) end
-	for _, id in ipairs({ "toys", "pets", "titles", "guild", "friends", "who" }) do
+	for _, id in ipairs({ "toys", "pets", "titles", "guild", "friends", "who", "gold" }) do
 		local r1, g1, b1 = rgb(ns.providers[id].color)
 		for _, other in ipairs(ns.providerOrder) do
 			local o = ns.providers[other]

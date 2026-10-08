@@ -38,6 +38,14 @@ function ns.QualityHex(q)
 	return c and c.hex
 end
 
+--- The colour code of a class ("|cffc79c6e" for "WARRIOR"), or nil. Takes the class file name.
+function ns.ClassHex(class)
+	local c = type(class) == "string" and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+	if not c then return nil end
+	if c.colorStr then return "|c" .. c.colorStr end
+	return ("|cff%02x%02x%02x"):format(math.floor((c.r or 1) * 255), math.floor((c.g or 1) * 255), math.floor((c.b or 1) * 255))
+end
+
 --- Every row of a list whose headers can be collapsed (reputations, skills): collapsed headers are
 --- expanded for the read and collapsed again afterwards, last first (indexes shift as headers close).
 --- Game state only; no window is touched. api: count(), row(i) -> { name, header, ... } or nil,

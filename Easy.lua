@@ -60,7 +60,7 @@ E.CATEGORIES = {
 	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
-	{ id = "character", label = "Character", kinds = { "reputation", "currency", "skills", "equipmentset" },
+	{ id = "character", label = "Character", kinds = { "gold", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
 	{ id = "emotes", label = "Emotes", kinds = { "slash" }, keep = IsEmote, icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss" },
 	{ id = "slash", label = "Slash commands", kinds = { "slash" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01" },
@@ -199,7 +199,7 @@ E.VERBS = {
 	stored = { "show in bags", "who has it" },
 	spells = { "show in spellbook", "cast" },
 	npc = { "show on map", "target" },
-	guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = { "whisper", "invite" },
+	gold = { "list in chat", "put in the chat box" }, guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = { "whisper", "invite" },
 	questie = { "Wowhead link", "show in game" },
 	quests = { "show in quest log" },
 	maps = { "show on map" },
@@ -375,7 +375,7 @@ end
 E.EXAMPLES = {
 	"try: stamina food", "try: nearest innkeeper", "try: use hearthstone", "try: dance", "try: rare sword",
 	"try: where is hogger", "try: nearest repair", "try: shield that drops from kresh",
-	"try: attack power food", "try: vendor goldshire", "try: mining trainer in org", "try: stormwind",
+	"try: attack power food", "try: vendor goldshire", "try: mining trainer in org", "try: stormwind", "try: gold",
 }
 local exampleAt = 0
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
@@ -383,7 +383,7 @@ E.ADV_EXAMPLES = {
 	"try: @npc is:vendor in:barrens", "try: @gear slot:feet ilvl:20+", "try: hogger >> party",
 	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
 	"try: @npc trainer:class faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
-	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @achievement is:todo",
+	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @gold", "try: @achievement is:todo",
 	"try: @spell is:ready", "try: @gear slot:head|chest -is:soulbound", "try: @item q:rare|epic", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
 	"tip: Up = last command, Down = recent picks",
 }

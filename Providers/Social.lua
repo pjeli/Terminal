@@ -12,12 +12,7 @@ local Safe, Str, Num = ns.Safe, ns.Str, ns.Num
 
 local OFFLINE_HEX = "|cff808080"
 
-local function ClassHex(class)
-	local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-	if not c then return nil end
-	if c.colorStr then return "|c" .. c.colorStr end
-	return ("|cff%02x%02x%02x"):format(math.floor((c.r or 1) * 255), math.floor((c.g or 1) * 255), math.floor((c.b or 1) * 255))
-end
+local ClassHex = ns.ClassHex
 
 --- A name as chat shows it: the realm dropped when it's yours (the game's Ambiguate, a pure helper).
 local function Short(full)

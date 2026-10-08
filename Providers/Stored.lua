@@ -39,6 +39,7 @@ local function BrotherBags()
 end
 
 local function Bagnon() return ns.Bags.Bagnon() end -- shared with the Item results (Items.lua)
+S.SyndicatorAPI, S.SyndicatorReady, S.BrotherBags = SyndicatorAPI, SyndicatorReady, BrotherBags
 
 --- Whose records to read: those of the bag addon in use this session, and only those. Bagnon's
 --- bags -> BagBrother's records; Baganator's (or Syndicator on its own) -> Syndicator's. Records an
@@ -118,7 +119,7 @@ local function ReadSyndicator(A, add)
 							local d = (A.GetByCharacterFullName(full) or {}).details or {}
 							local who = c.character
 							if myRealm and realm ~= "" and realm ~= myRealm then who = who .. "-" .. realm end
-							h = { key = key, who = who, where = where, mine = mine, owner = full, class = d.class }
+							h = { key = key, who = who, where = where, mine = mine, owner = full, class = d.className or d.class }
 							holders[key] = h
 							if mine then S.mine[where] = h end
 						end
@@ -347,12 +348,7 @@ local function GroupParts(g)
 	return table.concat(g.parts, ", ")
 end
 
-local function ClassHex(class)
-	local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-	if not c then return nil end
-	if c.colorStr then return "|c" .. c.colorStr end
-	return ("|cff%02x%02x%02x"):format(math.floor((c.r or 1) * 255), math.floor((c.g or 1) * 255), math.floor((c.b or 1) * 255))
-end
+local ClassHex = ns.ClassHex
 
 local function Breakdown(e)
 	local link = type(e.link) == "string" and e.link:find("^|c") and e.link or e.name
@@ -490,9 +486,13 @@ function S.HookSyndicator()
 	local R = _G.Syndicator and _G.Syndicator.CallbackRegistry
 	if type(R) ~= "table" or not R.RegisterCallback or S.hooked then return end
 	S.hooked = true
-	local function dirty() if ns.providers.stored then ns.providers.stored._dirty = true end end
+	local function dirty()
+		if ns.providers.stored then ns.providers.stored._dirty = true end
+		if ns.providers.gold then ns.providers.gold._dirty = true end -- (Gold.lua: money is in the same records)
+	end
 	for _, ev in ipairs({ "Ready", "BagCacheUpdate", "MailCacheUpdate", "GuildCacheUpdate", "WarbandBankCacheUpdate",
-		"EquippedCacheUpdate", "VoidCacheUpdate", "AuctionsCacheUpdate", "CharacterDeleted", "GuildDeleted" }) do
+		"EquippedCacheUpdate", "VoidCacheUpdate", "AuctionsCacheUpdate", "CharacterDeleted", "GuildDeleted",
+		"CurrencyCacheUpdate", "WarbandCurrencyCacheUpdate" }) do
 		pcall(R.RegisterCallback, R, ev, dirty, S)
 	end
 end
