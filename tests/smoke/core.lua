@@ -377,3 +377,17 @@ do
 	check(not g:IsShown() or (g.lastPoint and g.lastPoint[4] == x0), "a completion of typed text carries straight on: " .. tostring(g.lastPoint and g.lastPoint[4]))
 	UI:Hide(); T.FlushAll()
 end
+
+-- Shift+Enter's view never runs the row's own Enter steps: an NPC's target press pinned it on the map too (its
+-- `after` came through __index from Enter's)
+do
+	local pinned = false
+	local e = { name = "Hogger", kind = "npc", secure = { macro = function() return "/run x()" end },
+		isOpen = function() return true end, after = function() pinned = true end,
+		secondarySecure = { macro = function() return "/targetexact Hogger" end }, secondary = function() end }
+	local v = UI.SecureView(e, true)
+	check(v and v.secure == e.secondarySecure and not v.after and not (v.isOpen and v.isOpen(v)),
+		"Shift+Enter's view: no Enter after-step or isOpen through the row")
+	local w = UI.SecureView(e, false)
+	check(w == e, "Enter's view is the row itself")
+end

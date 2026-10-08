@@ -2710,8 +2710,10 @@ local function SecureView(e, shift)
 	end
 	if shift and e.secondary then
 		if not e.secondarySecure then return nil end
+		-- (false, not nil: a missing one would fall back to the row's own Enter steps through __index; an NPC's
+		-- Shift+Enter targeted it and then ran Enter's after-step too, which pinned it on the map)
 		return setmetatable({
-			secure = e.secondarySecure, isOpen = e.secondaryIsOpen, after = e.secondaryAfter,
+			secure = e.secondarySecure, isOpen = e.secondaryIsOpen or false, after = e.secondaryAfter or false,
 		}, { __index = e })
 	end
 	return e.secure and e or nil
