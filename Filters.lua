@@ -1123,6 +1123,9 @@ local IS = {
 	usable = Usable,
 	equippable = Equippable,
 	craftable = Craftable,
+	-- guild members and friends (Social.lua)
+	online = function(e) return e.online == true end,
+	offline = function(e) return e.online == false end,
 	classtrainer = function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end,
 	proftrainer = function(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end,
 }
@@ -1141,7 +1144,7 @@ end
 
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
-	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "quest", "soulbound", "boe", "craftable", "passive",
+	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "passive",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster" },
 	standing = StandingNames(),

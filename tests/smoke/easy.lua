@@ -560,6 +560,12 @@ Run("rotating examples in the empty prompt", function()
 	end
 end)
 
+Run("a pinned row (no score) sorts without an error, first", function()
+	local rows = { { name = "Console settings", _score = 1, key = 1 }, ns.Easy.ADVANCED_ROW, { name = "B", _score = 3, key = 2 } }
+	local ok, err = pcall(table.sort, rows, UI._Better)
+	check(ok and rows[1] == ns.Easy.ADVANCED_ROW, "the Advanced syntax row sorts first: " .. tostring(err))
+end)
+
 Run("right-click menu", function()
 	E.Set(true)
 	ActionLists()

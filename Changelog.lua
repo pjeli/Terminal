@@ -13,6 +13,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.42.4", when = "in testing",
+		items = {
+			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
+			"Fix: typing Advanced syntax (@, >>, key:value) in Simple mode could raise an error while a long search was still running.",
+		},
+	},
+	{
 		v = "0.42.0", when = "released October 2026",
 		items = {
 			"Right-click any result to send it to chat, in Simple mode too: say, party or raid, guild, instance, a whisper to your target, or the chat box. NPCs, mailboxes and dungeon entrances go with a map pin and what you searched: \"Nearby innkeeper: ...\", \"Nearby mailbox: [pin]\".",
@@ -51,16 +58,6 @@ CL.LOG = {
 		items = {
 			"Fixes from a review pass: a pasted style string changes only the look (never your width, rows or settings); the copy bar never cuts off a style string's last line; a reopened Import style dialog stays open; reading the toy and pet journals never changes their filters when a read fails.",
 			"Lighter: WoWamp redraws its time once a second instead of every frame and idles with the visualizer off; earned achievements no longer re-read the whole list; sells: looks its sellers up once per search.",
-		},
-	},
-	{
-		v = "0.39.4", when = "released October 2026",
-		items = {
-			"New kinds: @toy (Enter uses it), @pet (Enter summons it) and @title (Enter wears it; a No title row too). Shift+Enter shows a toy or pet in the Collections journal.",
-			"@achievement lists the ones you haven't earned too, greyed with their progress (3/10); plain searches still show only what you've earned.",
-			"New filters: is:quest, is:soulbound and is:boe on items; is:passive and is:ready (off cooldown) on spells; is:capped on currencies; standing:honored+ on reputations; is:done / is:todo on achievements; @npc sells:<item> (vendors from Questie, sells:copper_rod).",
-			"Fix: items whose names the game hadn't loaded yet when you logged in (Rumsey Rum, Ice Cold Milk...) were missing from search, as Items and Consumables; they're listed as soon as their names come in. One item the game answers oddly for can no longer hide all the others.",
-			"@addon: Shift+Enter turns an addon on or off for this character (.reload to apply), and shows its real state: on WoW Forever characters have surnames, and the first name alone pointed at another character's AddOn list; the change is saved, so the reload keeps it; an addon's options page has a row of its own. @npc: Shift+Enter targets the NPC.",
 		},
 	},
 }

@@ -303,8 +303,12 @@ local function Positions(e, tokens)
 	return set
 end
 
+-- (a row pinned on top has no score: Simple mode's "Advanced syntax" line, which a sliced search's first frame
+-- sorts along with the rows it shows; it stays first)
+local PINNED = 1e12
 local function Better(a, b)
-	if a._score ~= b._score then return a._score > b._score end
+	local sa, sb = a._score or PINNED, b._score or PINNED
+	if sa ~= sb then return sa > sb end
 	local an, bn = a._lname or "", b._lname or ""
 	if an ~= bn then return an < bn end
 	return tostring(a.key) < tostring(b.key)
@@ -312,6 +316,7 @@ end
 
 --- The best MAX_RESULTS of the list, in order. With thousands of matches, a small heap keeps
 --- only the best so far instead of sorting them all.
+UI._Better = Better -- (tests)
 local function SortAndTrim(list)
 	local n = #list
 	if n > MAX_RESULTS * 2 then

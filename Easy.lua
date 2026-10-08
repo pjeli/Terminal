@@ -57,6 +57,7 @@ E.CATEGORIES = {
 	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
+	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = "Character", kinds = { "reputation", "currency", "skills", "equipmentset" },
@@ -117,6 +118,7 @@ E.WORDS = {
 	["weapon damage"] = "stat:weapondamage",
 	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
 	upgrade = "is:upgrade", upgrades = "is:upgrade",
+	online = "is:online", offline = "is:offline",
 	-- what an item is and where it's worn: "shield", "plate", "boots", "ring"
 	shield = "type:shield", shields = "type:shield", sword = "type:sword", swords = "type:sword", axe = "type:axe",
 	axes = "type:axe", mace = "type:mace", maces = "type:mace", dagger = "type:dagger", daggers = "type:dagger",
@@ -197,6 +199,7 @@ E.VERBS = {
 	stored = { "show in bags", "who has it" },
 	spells = { "show in spellbook", "cast" },
 	npc = { "show on map", "target" },
+	guild = { "whisper", "invite" }, friends = { "whisper", "invite" },
 	questie = { "Wowhead link", "show in game" },
 	quests = { "show in quest log" },
 	maps = { "show on map" },
