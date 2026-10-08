@@ -592,6 +592,14 @@ function UI:SearchText(text)
 	-- already took a ">>" off); the plain words are still searched
 	local blocked = simple and self.blockedSyntax or nil
 	local function Finish(res)
+		-- a list that asks the server first (@who): its own row on top
+		if kinds then
+			for k in pairs(kinds) do
+				local p = ns.providers[k]
+				local row = p and p.leadRow and p.leadRow(p, text)
+				if row then table.insert(res, 1, row) end
+			end
+		end
 		if not blocked then return res end
 		-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
 		local out = { blocked == "send" and ns.Easy.SEND_ROW or ns.Easy.ADVANCED_ROW }
@@ -1974,7 +1982,7 @@ function UI:FinishSecure()
 	self:Disarm()
 	if not e then return end
 	ns:Trace("secure: finished, highlighting " .. e.name)
-	self:Hide()
+	if not e.staysOpen then self:Hide() end -- (a press that asks for more, @who's: the answer comes into the list)
 	if e.after then C_Timer.After(0.1, function() RunAfter(e) end) end
 end
 

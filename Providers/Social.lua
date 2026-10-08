@@ -265,3 +265,113 @@ ns:RegisterProvider("friends", {
 	guard = 2,
 	collect = function() return SO.FriendRows() end,
 })
+
+----------------------------------------------------------------------
+-- /who (@who; Simple mode: "who priest undercity")
+--
+-- Asking the server is protected (it wants a key press): the top row "Ask the server: /who <words>" is pressed by the
+-- game (`/run C_FriendList.SendWho(...)`), the terminal stays open, and the answer (WHO_LIST_UPDATE) fills the list
+-- below it, searched like the guild's (class, race, guild, zone, level; in:, lvl:). Results go to this list, not to
+-- chat (SetWhoToUi while asking, put back once the answer is in).
+----------------------------------------------------------------------
+
+local who = { waiting = nil, asked = nil }
+SO.who = who
+SO.WHO_WAIT = 5 -- seconds the loading ring waits for an answer
+
+--- The /who text for a search: its plain words, lvl:20-30 -> "20-30", in:undercity -> z-"Undercity"; other filters and
+--- the @kind / action word dropped.
+function SO.WhoFilter(text)
+	local parts = {}
+	local first = true
+	for w in tostring(text or ""):gmatch("%S+") do
+		local lw = ns.Lower(w)
+		local key, val = lw:match("^(%a+):(.+)$")
+		if lw:sub(1, 1) == "@" or (first and lw == "who") then
+			-- (the kind, or Simple mode's action word)
+		elseif key == "lvl" or key == "level" then
+			local lo, hi = val:match("^(%d+)%-(%d+)$")
+			parts[#parts + 1] = lo and (lo .. "-" .. hi) or val:match("^%d+$") or nil
+		elseif key == "in" or key == "zone" then
+			parts[#parts + 1] = 'z-"' .. val:gsub("_", " ") .. '"'
+		elseif not key and not w:find('"', 1, true) then
+			parts[#parts + 1] = w
+		end
+		first = false
+	end
+	return table.concat(parts, " ")
+end
+
+function SO.WhoMacro(e)
+	return "/run local F=C_FriendList if F.SetWhoToUi then F.SetWhoToUi(true) end F.SendWho(" .. Quoted(e.whoFilter or "") .. ",1)"
+end
+local WHO_ASK = { macro = SO.WhoMacro }
+local function WhoAsked(e)
+	who.waiting, who.asked = GetTime(), e.whoFilter
+	ns:Trace("who: asked the server: /who " .. tostring(e.whoFilter))
+	if ns.UI and ns.UI.UpdateBusy then ns.UI:UpdateBusy() end
+end
+local function WhoInCombat() ns:Print("Ask /who again once combat is over (it needs a key press the game allows).") end
+
+--- The row on top of an @who search: ask the server with the typed words.
+function SO.WhoAskRow(text)
+	local filter = SO.WhoFilter(text)
+	return {
+		name = "Ask the server: /who " .. (filter ~= "" and filter or "(everyone in your zone)"),
+		detail = "Enter", kind = "who", kindLabel = "", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
+		whoFilter = filter, secure = WHO_ASK, isOpen = Never, after = WhoAsked, activate = WhoInCombat,
+		staysOpen = true, _pos = ns.UI and ns.UI.NO_POS or nil,
+	}
+end
+
+function SO.WhoRows()
+	local out = {}
+	local FL = C_FriendList
+	local n = FL and FL.GetNumWhoResults and Num(Safe(FL.GetNumWhoResults)) or 0
+	for i = 1, n do
+		local w = Safe(FL.GetWhoInfo, i)
+		local name = type(w) == "table" and Str(w.fullName)
+		if name then
+			local guild, level, race, class, zone = Str(w.fullGuildName), Num(w.level), Str(w.raceStr), Str(w.classStr), Str(w.area)
+			-- (each one answered the /who asked: its words count as theirs, so the search that asked lists them all, also
+			-- by words only the server understood, "1-10" or z-"undercity"; words typed after that narrow them down)
+			local text = { "who", who.asked or "" }
+			for k = 1, 5 do
+				local v = ({ guild, race, class, zone, level and tostring(level) })[k]
+				if v and v ~= "" then text[#text + 1] = v end
+			end
+			out[#out + 1] = Row({
+				key = name, name = Short(name), whisperTo = name, level = level, zone = zone, online = true, guild = guild,
+				class = Str(w.filename),
+				detail = Detail(level, (race and class) and (race .. " " .. class) or class, guild and ("<" .. guild .. ">") or nil, zone, true),
+				color = ClassHex(Str(w.filename)), icon = "Interface\\FriendsFrame\\UI-Toast-FriendOnlineIcon",
+				text = table.concat(text, " "),
+			})
+		end
+	end
+	return out
+end
+
+ns:RegisterProvider("who", {
+	label = "Who",
+	color = "fff0e890",
+	aliases = { "who" },
+	explicit = true,
+	events = { "WHO_LIST_UPDATE" },
+	collect = function()
+		if who.waiting then
+			who.waiting = nil
+			-- (who-to-UI back off: the game's own /who prints to chat again)
+			if C_FriendList and C_FriendList.SetWhoToUi then Safe(C_FriendList.SetWhoToUi, false) end
+		end
+		local rows = SO.WhoRows()
+		ns:Trace(("who: %d results (/who %s)"):format(#rows, tostring(who.asked or "")))
+		return rows
+	end,
+	busy = function()
+		if who.waiting and GetTime() - who.waiting < SO.WHO_WAIT then return "Asking the server who's online" end
+		who.waiting = nil
+	end,
+	-- the top row of an @who search
+	leadRow = function(_, text) return SO.WhoAskRow(text) end,
+})

@@ -108,3 +108,63 @@ do
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	ns.providers.guild._dirty, ns.providers.friends._dirty = true, true
 end
+
+io.write("[who]\n")
+do
+	local save = { fl = _G.C_FriendList, easy = ns.db.easyMode }
+	local RESULTS = {}
+	local toUi
+	_G.C_FriendList = {
+		GetNumWhoResults = function() return #RESULTS end,
+		GetWhoInfo = function(i) return RESULTS[i] end,
+		SetWhoToUi = function(v) toUi = v end,
+		SendWho = function() end,
+		GetNumFriends = function() return 0 end,
+	}
+	ns.providers.who._dirty = true
+	ns.db.easyMode = false; UI:EasyChanged()
+	-- the words become the /who text
+	check(ns.Social.WhoFilter("@who priest lvl:50-60 in:undercity is:online") == 'priest 50-60 z-"undercity"', "the /who text: " .. ns.Social.WhoFilter("@who priest lvl:50-60 in:undercity is:online"))
+	check(ns.Social.WhoFilter("who orc warrior") == "orc warrior", "Simple mode's action word left out")
+	-- before any answer: the row that asks, pressed by the game, the terminal staying open
+	UI:Open("@who priest undercity")
+	local r = UI.Results()
+	local ask = r[1]
+	check(ask and ask.whoFilter == "priest undercity" and ask.staysOpen, "on top: ask the server: " .. tostring(ask and ask.name))
+	local m = ask and S.Resolve(ask.secure, ask)
+	check(m and m.macro:find('SendWho("priest undercity",1)', 1, true) and loadstring(m.macro:match("^/run (.*)$")), "the game runs SendWho: " .. tostring(m and m.macro))
+	-- pressed: the terminal stays, the ring says it's asking
+	S.armed = "MACRO"; UI.armedEntry = ask
+	UI:FinishSecure()
+	FlushAll()
+	check(UI:IsShown(), "the terminal stays open after the press")
+	check(ns.providers.who.busy(ns.providers.who) ~= nil, "waiting for the answer")
+	-- the answer: rows to search, whisper and invite; who-to-UI put back
+	RESULTS[1] = { fullName = "Sana-Realm", fullGuildName = "Night Watch", level = 58, raceStr = "Undead", classStr = "Priest", area = "Undercity", filename = "PRIEST" }
+	RESULTS[2] = { fullName = "Grim-Realm", level = 40, raceStr = "Orc", classStr = "Warrior", area = "Orgrimmar", filename = "WARRIOR" }
+	toUi = true
+	ns.Social.who.asked = nil -- (the mock's answer isn't what was asked: searched by its own words here)
+	ns.providers.who._dirty = true
+	local rows = ns:GetEntries(ns.providers.who)
+	check(#rows == 2 and toUi == false and not ns.providers.who.busy(ns.providers.who), "answer in: two rows, chat gets /who again, done waiting")
+	local res = UI:Search("@who priest")
+	check(res[1] and res[1].whoFilter and res[2] and res[2].name:find("^Sana") and not res[3], "the answer searched: " .. tostring(res[2] and res[2].name))
+	check(res[2] and res[2].detail:find("Night Watch", 1, true) and res[2].secure, "guild shown, whisper ready")
+	res = UI:Search("@who lvl:30-45")
+	check(res[2] and res[2].name:find("^Grim") and not res[3], "lvl: on the answer")
+	-- what the server understood (a level range) lists them too: they answered that /who
+	ns.Social.who.asked = "priest 50-60"
+	ns.providers.who._dirty = true
+	res = UI:Search("@who priest 50-60")
+	check(#res == 3, "the search that asked lists its whole answer, \"50-60\" too: " .. #res)
+	UI:Hide(); FlushAll()
+	-- Simple mode: "who priest"
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open("who priest")
+	res = UI.Results()
+	check(res[1] and res[1].whoFilter == "priest", "Simple mode: who priest asks the server: " .. tostring(res[1] and res[1].name))
+	UI:Hide(); FlushAll()
+	_G.C_FriendList = save.fl
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	ns.providers.who._dirty = true
+end

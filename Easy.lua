@@ -57,7 +57,7 @@ E.CATEGORIES = {
 	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
-	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
+	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = "Character", kinds = { "reputation", "currency", "skills", "equipmentset" },
@@ -199,7 +199,7 @@ E.VERBS = {
 	stored = { "show in bags", "who has it" },
 	spells = { "show in spellbook", "cast" },
 	npc = { "show on map", "target" },
-	guild = { "whisper", "invite" }, friends = { "whisper", "invite" },
+	guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = { "whisper", "invite" },
 	questie = { "Wowhead link", "show in game" },
 	quests = { "show in quest log" },
 	maps = { "show on map" },
@@ -250,6 +250,7 @@ E.ACTIONS = {
 	nearest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	closest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	nearby = { label = "Nearest", map = { npc = "p" }, nearest = true },
+	who = { label = "Who", map = { who = "p" } },
 	show = { label = "Show" }, open = { label = "Open" }, find = { label = "Find" },
 }
 
