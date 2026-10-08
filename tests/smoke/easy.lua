@@ -560,6 +560,45 @@ Run("rotating examples in the empty prompt", function()
 	end
 end)
 
+Run("examples made for the character", function()
+	local save = { lvl = _G.UnitLevel, cls = _G.UnitClass, zone = _G.GetRealZoneText, guild = _G.IsInGuild, rand = E.rand }
+	_G.UnitLevel = function() return 20 end
+	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
+	_G.GetRealZoneText = function() return "Westfall" end
+	_G.IsInGuild = function() return true end
+	E.rand = function(a) return a end -- (the first of each list)
+	local mine = table.concat(E.PersonalExamples(false), " | ")
+	check(mine:find("try: nearest warrior trainer", 1, true), "your class's trainer: " .. mine)
+	check(mine:find("skillup", 1, true) and mine:find("trainer", 1, true), "one of your professions: " .. mine)
+	check(mine:find("try: shadowfang keep", 1, true) and mine:find("try: shadowfang keep upgrades", 1, true), "a dungeon for your level (20: Shadowfang Keep, 22-30, close enough): " .. mine)
+	check(mine:find("try: vendor westfall", 1, true) and mine:find("try: online", 1, true), "where you are, and your guild: " .. mine)
+	local adv = E.PersonalExamples(true)
+	local advText = table.concat(adv, " | ")
+	check(advText:find("@gear stat:str is:upgrade", 1, true) and advText:find("@guild is:online", 1, true)
+		and advText:find("@recipe is:skillup", 1, true), "Advanced: for you too: " .. advText)
+	check(not advText:find("@questie", 1, true) and not advText:find("@npc", 1, true), "lists this setup doesn't have (no Questie here) aren't suggested: " .. advText)
+	for _, ex in ipairs(adv) do
+		for w in ex:gsub("^try: ", ""):gmatch("%S+") do
+			if w:sub(1, 1) == "@" then check(ns:ResolveProvider(w:sub(2)) ~= nil, "a known kind: " .. w) end
+			if w:find("^%a+:%S") then check(ns.Filters.Parse(w) ~= nil, "a working filter: " .. w) end
+		end
+	end
+	-- in the rotation: one of yours, then a fixed one, in turn
+	E.Set(true)
+	ns.db.easyMode = nil
+	local list = E.ExamplePool()
+	local yours = {}
+	for _, x in ipairs(E.PersonalExamples(false)) do yours[x] = true end
+	check(yours[list[1]] and not yours[list[2]] and list[2] == E.EXAMPLES[1], "yours and the fixed ones take turns: " .. tostring(list[1]) .. " / " .. tostring(list[2]))
+	-- every Simple one finds something or at least searches without an error
+	for x in pairs(yours) do
+		local ok, err = pcall(UI.Search, UI, x:gsub("^try: ", ""))
+		check(ok, "searchable: " .. x .. " " .. tostring(err))
+	end
+	ns.db.easyMode = false
+	_G.UnitLevel, _G.UnitClass, _G.GetRealZoneText, _G.IsInGuild, E.rand = save.lvl, save.cls, save.zone, save.guild, save.rand
+end)
+
 Run("a pinned row (no score) sorts without an error, first", function()
 	local rows = { { name = "Console settings", _score = 1, key = 1 }, ns.Easy.ADVANCED_ROW, { name = "B", _score = 3, key = 2 } }
 	local ok, err = pcall(table.sort, rows, UI._Better)
