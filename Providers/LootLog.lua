@@ -1,6 +1,6 @@
 local ns = select(2, ...)
 
--- @lootlog (@drop, @drops): a running list of what dropped and who got it, kept across sessions (the game's own loot
+-- @drop (@dropped, @drops, @lootlog): a running list of what dropped and who got it, kept across sessions (the game's own loot
 -- history forgets). Fed by:
 --   - the loot lines in chat (CHAT_MSG_LOOT): "You receive loot: [x]", "Bob receives loot: [x]x2", "Bob won: [x]",
 --     matched with the game's own format strings (LOOT_ITEM..., LOOT_ROLL_WON...), so any language works;
@@ -177,8 +177,8 @@ end
 ns:RegisterProvider("lootlog", {
 	label = "Loot log",
 	color = "ffe6b85c",
-	aliases = { "lootlog", "drop", "drops", "looted", "loothistory" },
-	explicit = true, -- (only with @lootlog, or Simple mode's Loot log)
+	aliases = { "drop", "dropped", "drops", "lootlog", "looted", "loothistory" },
+	explicit = true, -- (only with @drop, or Simple mode's Loot log)
 	refreshOnOpen = true, -- (the "5 min ago" moves on)
 	collect = function()
 		local out, log = {}, Log() or {}
@@ -209,7 +209,7 @@ ns:RegisterProvider("lootlog", {
 })
 
 ns:RegisterCommand("lootlog", {
-	desc = "The loot log: what dropped and who got it (search it with @lootlog); .lootlog clear forgets it",
+	desc = "The loot log: what dropped and who got it (search it with @drop); .lootlog clear forgets it",
 	complete = function() return { { "clear", "forget every drop" } } end,
 	run = function(args)
 		if strtrim(args or ""):lower() == "clear" then
@@ -219,7 +219,7 @@ ns:RegisterCommand("lootlog", {
 			return { "Loot log cleared." }
 		end
 		local log = Log() or {}
-		local lines = { ("Loot log: %d drops kept (the newest %d). Search it: @lootlog <words>"):format(#log, LL.MAX) }
+		local lines = { ("Loot log: %d drops kept (the newest %d). Search it: @drop <words>"):format(#log, LL.MAX) }
 		for i = 1, math.min(10, #log) do
 			local d = log[i]
 			lines[#lines + 1] = ("  %s%s  %s  %s"):format(d.link, d.n and (" x" .. d.n) or "", Who(d.who or "?"), LL.Ago(d.t))

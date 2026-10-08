@@ -233,11 +233,30 @@ function SH.MenuChannels()
 	return out
 end
 
---- What goes into the chat box for a row: "<context>: <text>" (Context), else the text.
+--- What a chain's row is, said before it in chat ("mats for thorium belt": "Mats for Thorium Belt"), and its text
+--- as the chain sees it: a reagent's count ("8x [Thorium Bar]"), a source's way ("sold by Name [pin]"). nil, text
+--- for rows not from a chain.
+SH.CHAIN = {
+	mats = "Mats for %s", uses = "%s is used in", sources = "Where to get %s", alts = "%s on your alts",
+}
+function SH.ChainText(e, text)
+	local rel = e.pipeRel
+	if not rel or type(text) ~= "string" or text == "" then return nil, text end
+	if rel == "mats" and tonumber(e.need) then
+		text = ("%dx %s"):format(e.need, text)
+	elseif rel == "sources" and type(e.pipeHow) == "string" then
+		text = e.pipeHow .. " " .. text
+	end
+	local from, fmt = e.pipeFrom, SH.CHAIN[rel]
+	return (fmt and from) and fmt:format(from) or nil, text
+end
+
+--- What goes into the chat box for a row: "<context>: <text>" (a chain's, else Context), else the text.
 function SH.Line(e, query)
-	local text = SH.Text(e)
+	-- ("used in" rows from AtlasLoot are its crafting pages: no "dropped by Blacksmithing in Crafting")
+	local ctx, text = SH.ChainText(e, SH.Text(e, e.pipeRel == "uses"))
 	if type(text) ~= "string" or text == "" then return nil end
-	local ctx = SH.Context(query, e)
+	ctx = ctx or SH.Context(query, e)
 	return ctx and (ctx .. ": " .. text) or text
 end
 
@@ -246,10 +265,10 @@ end
 function SH.Macro(e, to)
 	if not (to and to.cmd and e) then return nil end
 	local base = SH.BaseText(e) -- (worked out once: an NPC's sets your map pin to link it)
-	local text = WithSource(e, base)
+	local ctx, text = SH.ChainText(e, e.pipeRel == "uses" and base or WithSource(e, base))
 	if type(text) ~= "string" or text == "" then return nil end
 	local max = ns.Secure and ns.Secure.MACRO_MAX or 255
-	local ctx = SH.Context(to.query, e)
+	ctx = ctx or SH.Context(to.query, e)
 	local line = to.cmd .. " " .. (ctx and (ctx .. ": ") or "") .. text
 	if #line > max then line = to.cmd .. " " .. (e.generic and (tostring(e.name) .. " ") or "") .. text end
 	if #line > max then line = to.cmd .. " " .. tostring(base) end -- (a loot row: without where it drops)

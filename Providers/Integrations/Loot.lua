@@ -365,7 +365,7 @@ local function SetupAtlasLoot()
 		busy = function() return loot.building and ("Indexing AtlasLoot's loot tables (%d of %d)"):format(loot.loaded, loot.modules) or nil end,
 		label = "Loot",
 		color = "ffd9a441",
-		aliases = { "loot", "drop", "drops", "atlasloot", "al" },
+		aliases = { "loot", "atlasloot", "al" }, -- (@drop is the loot log: what dropped for you)
 		lazy = true,
 		-- names arriving: see the frame below (only names of loot rows count)
 		collect = function()

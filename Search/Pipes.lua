@@ -337,8 +337,9 @@ ns:RegisterRelation("uses", {
 	end,
 })
 
-local function View(e, detail, label)
-	return setmetatable({ detail = detail, kindLabel = label or nil }, { __index = e })
+-- (`how`: what the row is to the item, said when it's sent to chat: "sold by", "dropped by"...)
+local function View(e, detail, label, how)
+	return setmetatable({ detail = detail, kindLabel = label or nil, pipeHow = how }, { __index = e })
 end
 
 -- sources: where to get an item (crafted, sold, dropped, gathered, a quest's reward, AtlasLoot's bosses, your alts)
@@ -356,7 +357,7 @@ ns:RegisterRelation("sources", {
 			-- crafted: your recipe for it, else AtlasLoot's (its mats are one step on)
 			local own = OwnRecipes()[id]
 			if own then
-				out[#out + 1] = View(own, "Crafted  ·  your recipe" .. (own.detail and ("  ·  " .. own.detail) or ""), SOURCE_LABEL)
+				out[#out + 1] = View(own, "Crafted  ·  your recipe" .. (own.detail and ("  ·  " .. own.detail) or ""), SOURCE_LABEL, "crafted:")
 			else
 				local rg, spell = AtlasCraft(id)
 				if rg then
@@ -364,27 +365,27 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = {
 						key = "craft:" .. id, kind = "source", kindLabel = SOURCE_LABEL, name = name, itemID = id,
 						link = "item:" .. id, icon = Icon(id), reagents = rg,
-						detail = "Crafted" .. (sname and ("  ·  " .. sname) or "") .. "  ·  (a recipe you don't have)",
+						detail = "Crafted" .. (sname and ("  ·  " .. sname) or "") .. "  ·  (a recipe you don't have)", pipeHow = "crafted:",
 						activate = ShowItem,
 					}
 				end
 			end
 			if I and I.ItemField then
-				local function Npcs(field, what, max)
+				local function Npcs(field, what, max, how)
 					local list = I.ItemField(id, field)
 					if type(list) ~= "table" then return end
 					local n = 0
 					for _, nid in ipairs(list) do
 						local row = type(nid) == "number" and I.NpcRow and I.NpcRow(nid)
 						if row then
-							out[#out + 1] = View(row, what .. "  ·  " .. tostring(row.detail or ""))
+							out[#out + 1] = View(row, what .. "  ·  " .. tostring(row.detail or ""), nil, how)
 							n = n + 1
 							if n >= max then break end
 						end
 					end
 				end
-				Npcs("vendors", "Sells it", 15)
-				Npcs("npcDrops", "Drops it", 15)
+				Npcs("vendors", "Sells it", 15, "sold by")
+				Npcs("npcDrops", "Drops it", 15, "dropped by")
 				-- gathered or found: veins, herbs, chests (by name, once each)
 				local objs = I.ItemField(id, "objectDrops")
 				if type(objs) == "table" and I.ObjectName then
@@ -394,7 +395,7 @@ ns:RegisterRelation("sources", {
 						if oname and not seen[oname] then
 							seen[oname] = true
 							out[#out + 1] = { key = "obj:" .. oname, kind = "source", kindLabel = SOURCE_LABEL, name = oname,
-								detail = "Gathered or found here", icon = "Interface\\Icons\\INV_Ore_Copper_01", noActivate = true }
+								detail = "Gathered or found here", pipeHow = "gathered from", icon = "Interface\\Icons\\INV_Ore_Copper_01", noActivate = true }
 						end
 					end
 				end
@@ -402,7 +403,7 @@ ns:RegisterRelation("sources", {
 				if type(quests) == "table" and I.QuestRow then
 					for _, qid in ipairs(quests) do
 						local q = type(qid) == "number" and I.QuestRow(qid)
-						if q then out[#out + 1] = View(q, "A quest's reward  ·  " .. tostring(q.detail or "")) end
+						if q then out[#out + 1] = View(q, "A quest's reward  ·  " .. tostring(q.detail or ""), nil, "a reward from") end
 					end
 				end
 			end
@@ -414,7 +415,7 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = l
 				end
 			end
-			if stored[id] then out[#out + 1] = View(stored[id], "On your alts  ·  " .. tostring(stored[id].detail or "")) end
+			if stored[id] then out[#out + 1] = View(stored[id], "On your alts  ·  " .. tostring(stored[id].detail or ""), nil, "on your alts:") end
 		end
 		return out
 	end,
@@ -633,6 +634,19 @@ local function Keep(key, rows)
 end
 P.ClearSteps = function() stepCache, stepGen = {}, -1 end
 
+--- What a link's rows came from, for chat: the one row passed on ("Thorium Belt"), else the first part as typed
+--- (several rows: "copper" -> "Copper"; its @kind and filters left out); nil when neither says.
+function P.FromName(left, typed)
+	if #left == 1 and type(left[1].name) == "string" then
+		local n = ns.Plain(left[1].name):gsub("%s+x%d+$", "")
+		if n ~= "" then return n end
+	end
+	if type(typed) ~= "string" then return nil end
+	local t = typed:gsub("@%S+", ""):gsub("%S+:%S*", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+	if t == "" then return nil end
+	return (t:gsub("(%a)([%w']*)", function(x, y) return x:upper() .. y end))
+end
+
 function P.Search(chain)
 	local stages = P.Split(chain)
 	if not stages then return {}, nil end
@@ -652,7 +666,7 @@ function P.Search(chain)
 	if #rows == 0 then
 		return { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }, trail[1]
 	end
-	local from
+	local from, lastRel, lastFrom
 	-- (walking on from the last part's rows: the chain up to its link word, then the row's name)
 	local base = chain:sub(1, (chain:find(">[^>]*$"))) .. " " .. (stages[#stages].word or "")
 	for i = 2, #stages do
@@ -675,6 +689,7 @@ function P.Search(chain)
 			return out, table.concat(trail, " > ")
 		end
 		key = key .. " > " .. name
+		lastRel, lastFrom = name, P.FromName(P.Left(rows), i == 2 and trail[1] or nil)
 		local got = Cached(key)
 		if not got then
 			got = P.Run(name, P.Left(rows))
@@ -706,6 +721,8 @@ function P.Search(chain)
 		local v = (#stages > 1) and P.WalkView(e, base, from) or e
 		if v == e then v = setmetatable({}, { __index = e }) end
 		v._score = 1e6 - i
+		-- (what the chain says this row is, for chat: "Mats for Thorium Belt: 8x [Thorium Bar]", Share.ChainContext)
+		v.pipeRel, v.pipeFrom = lastRel, lastFrom
 		out[#out + 1] = v
 	end
 	return out, table.concat(trail, " > ")

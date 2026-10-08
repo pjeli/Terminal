@@ -1,4 +1,4 @@
--- @lootlog: what dropped and who got it, from the chat's loot lines and the game's loot history (0.43.10)
+-- @drop (@lootlog): what dropped and who got it, from the chat's loot lines and the game's loot history (0.43.10)
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
 local LL = ns.LootLog
@@ -66,6 +66,11 @@ do
 	local names = {}
 	for _, e in ipairs(res) do names[#names + 1] = e.name end
 	check(#res == 2 and res[1].name == "Crescent Belt" and res[1].detail:find("Lord Cobrahn", 1, true), "@lootlog bob: Bob's drops, newest first: " .. table.concat(names, ", "))
+	-- @drop is its name (0.43.19; AtlasLoot's @loot had taken "drop"), @dropped too
+	check(ns:ResolveProvider("drop") == p and ns:ResolveProvider("dropped") == p and ns:ResolveProvider("lootlog") == p,
+		"@drop / @dropped / @lootlog: the loot log")
+	check(#UI:Search("@drop bob") == 2, "@drop bob: Bob's drops")
+	check(UI:ResultText(res[1]):find("^@drop "), "a row written into the prompt says @drop: " .. tostring(UI:ResultText(res[1])))
 	check(ns.Filters.Parse("q:uncommon") ~= nil, "(filters work on its rows: they carry the item)")
 	for i = 1, LL.MAX + 5 do LL.Add("|Hitem:" .. (5000 + i) .. "|h[X]|h", "Bob", 1) now = now + 20 end
 	check(#ns.db.lootLog == LL.MAX, "only the newest " .. LL.MAX .. " are kept")

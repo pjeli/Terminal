@@ -92,6 +92,25 @@ do
 	rows = P.Search("thorium belt > mats")
 	check(#rows == 2, "loaded: both reagents (nothing kept from the incomplete answer)")
 	ns.Filters.loading = nil
+	-- sent to chat with what the chain says (0.43.19): "Mats for Thorium Belt: 12x [Thorium Bar]"
+	local SH = ns.Share
+	rows = P.Search("thorium belt > mats")
+	bar = nil
+	for _, r in ipairs(rows) do if r.itemID == 12359 then bar = r end end
+	local line = bar and SH.Line(bar, "mats for thorium belt") or ""
+	check(line:find("^Mats for Thorium Belt: 12x ") and line:find("Thorium Bar", 1, true), "a reagent sent: its chain and count: " .. line)
+	local mac = bar and SH.Macro(bar, { cmd = "/p", query = "thorium belt > mats" }) or ""
+	check(mac:find("^/p Mats for Thorium Belt: 12x ") ~= nil, "the chat line too: " .. mac)
+	rows = P.Search("thorium bar > sources")
+	line = rows[1] and SH.Line(rows[1], "where to get thorium bar") or ""
+	check(line == "Where to get Thorium Bar: sold by Thorium Trader", "a source sent: how it gives it: " .. line)
+	rows = P.Search("copper bar > used in")
+	line = rows[1] and SH.Line(rows[1], "what uses copper bar") or ""
+	check(line == "Copper Bar is used in: Chain Belt", "used in, sent (an AtlasLoot crafting page isn't \"dropped by\"): " .. line)
+	check(SH.Line({ name = "Hearthstone" }, "hearth") == "Hearthstone", "a row not from a chain: as before")
+	-- several rows passed on: the words typed name them
+	check(P.FromName({ { name = "A" }, { name = "B" } }, "@recipe copper q:rare") == "Copper" and P.FromName({ { name = "Copper Bar x3" } }) == "Copper Bar",
+		"what a link came from: the one row, else the words typed")
 	-- Shift+Enter on a walking row does the row's own thing, and closes
 	local opened
 	local r0 = { name = "X", kind = "recipes", reagents = { { 1, 1 } }, activate = function() opened = true end }
