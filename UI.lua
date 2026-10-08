@@ -621,7 +621,12 @@ function UI:SearchText(text)
 			end
 			i = i + 1
 		end
+		ns.Easy.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe
 	end
+	-- Simple mode: a plain word in a "|" list or after "-" is an everyday word when it is one ("-junk" = not grey)
+	local plainWord = simple and function(lw)
+		return ns.Easy.Word(lw) or function(e) return ns.Filters.RowHas(e, lw) end
+	end or nil
 	for _, w in ipairs(words) do
 		if simple and ns.Easy.IsAdvancedWord(w) then
 			blocked = true
@@ -636,7 +641,7 @@ function UI:SearchText(text)
 			end
 		else
 			-- lvl:20-30, slot:wrist, zone:ashenvale, is:todo... (Filters.lua); anything else is text
-			local f = ns.Filters and ns.Filters.Parse(w)
+			local f = ns.Filters and ns.Filters.Parse(w, plainWord)
 			-- Simple mode: a few everyday words are strict ("upgrades": only what suits you, never relaxed away)
 			if not f and simple and ns.Easy.HARD_WORDS[ns.Lower(w)] then f = ns.Filters.Parse(ns.Easy.WORDS[ns.Lower(w)]) end
 			-- easy mode: everyday words ("rare", "ready", "vendor") are soft filters (Easy.lua)
@@ -3604,7 +3609,11 @@ function UI:SyntaxSegments(text, plain)
 				color = p and (Hex(p.color) or t.accent) or (#word == 1 and t.accent or bad)
 			else
 				local key, value = word:match("^(%a+):(.*)$")
-				if key and F and F.IsKey(key) then
+				if F and (word:find("[|&]") or word:find("^[-!]%a")) then
+					-- "-is:boe", "q:rare|epic", "sword|axe": a filter once it parses (still being typed: plain)
+					local typing = pos + #word > #text
+					color = F.Parse(word) and filt or ((typing or not key) and base or bad)
+				elseif key and F and F.IsKey(key) then
 					color = (value == "" or F.Parse(word)) and filt or bad
 				elseif not key and ns.Easy and ns.Easy.Word(word) then
 					color = filt -- (easy mode: "rare", "ready", "vendor")

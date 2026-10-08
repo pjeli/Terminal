@@ -300,6 +300,7 @@ function E.ToAdvanced(text, category)
 		if E.WORDS[pair] then words[i] = pair; table.remove(words, i + 1) end
 		i = i + 1
 	end
+	E.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe (made filters below)
 	-- the first word can say what to do ("use hearthstone", "nearest innkeeper")
 	local act = #words > 1 and E.ACTIONS[Lower(words[1])] or nil
 	local nearest
@@ -339,6 +340,10 @@ function E.ToAdvanced(text, category)
 	for _, w in ipairs(lower) do
 		if E.IsAdvancedWord(w) then
 			if w:sub(1, 1) == "@" then Add(kinds, w) else Add(filters, w) end
+		elseif w:find("[|&]") or w:find("^[-!]%a") then
+			-- "-boe" -> -is:boe, "sword|axe" -> type:sword|type:axe, rare&sword -> q:rare&type:sword (plain
+			-- pieces stay words: "-cloth")
+			Add(filters, (w:gsub("([-!]?)([^|&]+)", function(neg, a) return neg .. (E.WORDS[a] or a) end)))
 		elseif E.WORDS[w] then
 			Add(filters, E.WORDS[w])
 			if E.ROLE_WORDS[w] then role = true end
@@ -379,7 +384,7 @@ E.ADV_EXAMPLES = {
 	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
 	"try: @npc trainer:class faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
 	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @achievement is:todo",
-	"try: @spell is:ready", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
+	"try: @spell is:ready", "try: @gear slot:head|chest -is:soulbound", "try: @item q:rare|epic", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
 	"tip: Up = last command, Down = recent picks",
 }
 local function Examples() return E.On() and E.EXAMPLES or E.ADV_EXAMPLES end
@@ -400,8 +405,54 @@ end
 --- Is this word Advanced mode's syntax (an @kind, a key:value filter, >>)?
 function E.IsAdvancedWord(w)
 	if w:sub(1, 1) == "@" or w:sub(1, 2) == ">>" then return true end
-	local key = w:match("^(%a+):")
-	return key ~= nil and ns.Filters ~= nil and ns.Filters.IsKey(key)
+	-- "-q:poor", "!is:boe", "q:rare|epic", "boe|slot:head": a key:value in any part (plain -word / a|b are Simple's too)
+	for part in w:gmatch("[^|&]+") do
+		local key = part:gsub("^[-!]", ""):match("^(%a+):")
+		if key ~= nil and ns.Filters ~= nil and ns.Filters.IsKey(key) then return true end
+	end
+	return false
+end
+
+E.NOT_WORDS = { ["not"] = true, no = true, without = true, except = true }
+E.OR_WORDS = { ["or"] = true }
+
+--- Simple mode's "or" and "not" in words, made into F.Parse's - | &: "not boe" / "without cloth" -> "-boe", "-cloth";
+--- "sword or axe" -> "sword|axe"; "rare sword or rare axe" -> "rare&sword|rare&axe": the words after "or" (up to the
+--- next "or" or a "not") are one side, and as many words before it the other (a side already joined stands alone), so "rare
+--- sword or axe" keeps rare for both. A "not"/"or" with nothing to join stays a word. Works on the list in place.
+function E.JoinLogic(words)
+	local i = 1
+	while i < #words do -- not first: "sword or not boe" = sword|-boe
+		local lw = Lower(words[i])
+		if E.NOT_WORDS[lw] and not E.OR_WORDS[Lower(words[i + 1])] and not E.NOT_WORDS[Lower(words[i + 1])] then
+			words[i] = "-" .. words[i + 1]
+			table.remove(words, i + 1)
+		end
+		i = i + 1
+	end
+	i = 2
+	while i < #words do
+		if E.OR_WORDS[Lower(words[i])] then
+			local stop = i + 1
+			-- (a "not" after it is for the whole search: "rare sword or axe not boe")
+			while stop + 1 <= #words and not E.OR_WORDS[Lower(words[stop + 1])] and not words[stop + 1]:find("^[-!]%a") do
+				stop = stop + 1
+			end
+			local n = stop - i
+			local from = i - 1
+			if not words[from]:find("|", 1, true) then
+				while from > 1 and i - from < n and not words[from - 1]:find("|", 1, true) do from = from - 1 end
+			end
+			local left = table.concat(words, "&", from, i - 1)
+			local right = table.concat(words, "&", i + 1, stop)
+			for _ = from, stop do table.remove(words, from) end
+			table.insert(words, from, left .. "|" .. right)
+			i = from + 1
+		else
+			i = i + 1
+		end
+	end
+	return words
 end
 
 local function OfferAdvanced() C_Timer.After(0, E.ShowConfirm) end
@@ -512,6 +563,7 @@ function E.HelpLines()
 		"Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\").",
 		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row for all it can do.",
 		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
+		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",

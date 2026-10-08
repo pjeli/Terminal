@@ -507,7 +507,7 @@ Run("rotating examples in the empty prompt", function()
 	for _ = 1, #E.ADV_EXAMPLES do
 		UI:Open("")
 		seen[E.Example()] = true
-		check(UI:Suggestion() == nil and UI.ghost:IsShown() and UI.ghost:GetText() == E.Example(), "Advanced: the example is in the empty prompt: " .. tostring(UI.ghost:GetText()))
+		check(UI:Suggestion() == nil and UI.ghost:IsShown() and UI.ghost:GetText() == E.Example():gsub("|", "||"), "Advanced: the example is in the empty prompt: " .. tostring(UI.ghost:GetText()))
 		UI:Hide(); FlushAll()
 	end
 	local any = { at = false, filter = false, chat = false }

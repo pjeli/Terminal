@@ -1179,6 +1179,9 @@ F.HELP = {
 	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable" },
 	{ "is:ready", "spells: ready (off cooldown) passive; currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
+	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },
+	{ "q:rare|epic", "any of them: | between values, filters or words (slot:head|chest, is:boe|q:epic, sword|axe)" },
+	{ "q:rare&type:sword|q:epic&type:axe", "& joins what must all hold inside a | list (each piece can have its own -)" },
 }
 
 --- Is this a filter key (lvl, stat, is...)? For the prompt's colours.
@@ -1192,8 +1195,7 @@ local SPACED = { ["in"] = true, zone = true, from = true, where = true, on = tru
 local traced -- a failing filter has been traced for this search (the parse of a search's words starts the next)
 
 --- A filter for one typed word, or nil when it isn't one (then it's searched as text).
-function F.Parse(word)
-	traced = false
+local function ParseOne(word)
 	local key, value = word:match("^(%a+):(.+)$")
 	if not key then return nil end
 	key = Lower(key)
@@ -1202,6 +1204,103 @@ function F.Parse(word)
 	value = Lower(value)
 	if SPACED[key] then value = value:gsub("_", " ") end
 	return make(value) or nil
+end
+
+--- Does the row have this (lowercase) text in its name or its searchable text? (-word, a|b words)
+local function RowHas(e, lw)
+	local ln = rawget(e, "_lname")
+	if not ln then
+		local n = e.name
+		ln = type(n) == "string" and Lower(n) or ""
+	end
+	if ln:find(lw, 1, true) then return true end
+	local lt = rawget(e, "_ltext")
+	if not lt then
+		local t = rawget(e, "text")
+		lt = type(t) == "string" and Lower(t) or nil
+	end
+	return lt and lt:find(lw, 1, true) and true or false
+end
+F.RowHas = RowHas
+
+--- A word's filter, or nil when it's a plain search word. key:value ("q:rare"), and ways to combine:
+---   -key:value / !key:value / -word   not that ("-is:soulbound", "-cloth", "!q:poor")
+---   key:a|b, key:a|key2:b, word|word  any of them ("q:rare|epic", "slot:head|chest", "sword|axe", "is:boe|q:epic")
+---   a&b inside a | list               all of them ("q:rare&type:sword|q:epic&type:axe"; Simple's "rare sword or
+---                                     epic axe" is made into rare&sword|epic&axe)
+--- Each piece can carry its own - ("sword|-boe"). A bare piece takes the word's first key when that makes a filter
+--- ("q:rare|epic" = q:rare or q:epic); else it's a plain word, which matches rows with it in their name or text, or,
+--- with `plain`, what plain(word) gives (Simple mode's everyday words: "-junk" = not grey). A plain word alone
+--- (no -, | or &) stays a search word: nil. A bad keyed piece makes the whole word a search word.
+local function Piece(atom, key, plain)
+	local neg = false
+	if atom:find("^[-!]%a") then neg, atom = true, atom:sub(2) end
+	local f
+	if atom:find("^%a+:") then
+		f = ParseOne(atom)
+		if not f then return nil end
+	else
+		f = key and ParseOne(key .. ":" .. atom)
+		if not f then -- (a plain word: "is:boe|cloak")
+			local lw = Lower(atom)
+			f = plain and plain(lw) or function(e) return RowHas(e, lw) end
+		end
+	end
+	if neg then
+		local g = f
+		return function(e) return not g(e) end
+	end
+	return f
+end
+
+local function All(list)
+	if #list == 1 then return list[1] end
+	return function(e)
+		for i = 1, #list do if not list[i](e) then return false end end
+		return true
+	end
+end
+
+local function Any(list)
+	if #list == 1 then return list[1] end
+	return function(e)
+		for i = 1, #list do if list[i](e) then return true end end
+		return false
+	end
+end
+
+function F.Parse(word, plain)
+	traced = false
+	if type(word) ~= "string" or word == "" then return nil end
+	local neg = false
+	if word:find("^[-!]%a") then neg, word = true, word:sub(2) end
+	local f
+	if word:find("[|&]") then
+		local key = word:match("^(%a+):")
+		local ors = {}
+		for part in (word .. "|"):gmatch("([^|]*)|") do
+			local ands = {}
+			for atom in (part .. "&"):gmatch("([^&]*)&") do
+				if atom ~= "" then
+					local pf = Piece(atom, key, plain)
+					if not pf then return nil end -- (still being typed, or not a filter: a search word)
+					ands[#ands + 1] = pf
+				end
+			end
+			if #ands > 0 then ors[#ors + 1] = All(ands) end
+		end
+		if #ors == 0 then return nil end
+		f = Any(ors)
+	else
+		f = ParseOne(word)
+		if not f and neg and not word:find(":", 1, true) then f = Piece(word, nil, plain) end
+	end
+	if not f then return nil end
+	if neg then
+		local g = f
+		return function(e) return not g(e) end
+	end
+	return f
 end
 
 --- Every filter passes this row. A filter that errors leaves the row out, and says so once per search

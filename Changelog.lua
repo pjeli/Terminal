@@ -13,10 +13,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.42.6", when = "in testing",
+		v = "0.42.8", when = "in testing",
 		items = {
 			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
 			"@who (Simple mode: \"who priest undercity\"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite; lvl: and in: go into the /who.",
+			"\"or\" and \"not\": \"sword or axe\", \"rare sword or epic axe\", \"rare ring not boe\" (also without, except). Advanced: | between values, filters or words (q:rare|epic, slot:head|chest, sword|axe), & for both inside one (q:rare&type:sword|q:epic&type:axe), and - or ! for not (-is:soulbound, !q:poor, -cloth).",
 			"Fix: typing Advanced syntax (@, >>, key:value) in Simple mode could raise an error while a long search was still running.",
 		},
 	},

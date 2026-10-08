@@ -75,6 +75,64 @@ do -- items: is:quest, is:soulbound, is:boe
 	check(names(UI:Search("@item is:soulbound"))["Bronze Band"], "no answer from the game: worn counts as bound")
 	found = names(UI:Search("@gear is:boe"))
 	check(found["Silver Ring"] and not found["Wolf Cloak"], "@gear keeps the binding (copies of the item rows)")
+	-- negation and OR (0.42.7)
+	found = names(UI:Search("@item -is:soulbound"))
+	check(found["Linen Cloth"] and not found["Wolf Cloak"] and not found["Gnoll Paw"], "-is:soulbound: not bound")
+	found = names(UI:Search("@item !is:quest"))
+	check(found["Linen Cloth"] and found["Wolf Cloak"] and not found["Gnoll Paw"], "!is:quest: the same as -")
+	found = names(UI:Search("@item is:quest|is:boe"))
+	check(found["Gnoll Paw"] and found["Silver Ring"] and not found["Wolf Cloak"] and not found["Linen Cloth"], "is:quest|is:boe: either")
+	found = names(UI:Search("@item is:quest|boe"))
+	check(found["Gnoll Paw"] and found["Silver Ring"] and not found["Wolf Cloak"], "is:quest|boe: a part with no key takes the first key")
+	found = names(UI:Search("@item cloak|linen"))
+	check(found["Wolf Cloak"] and found["Linen Cloth"] and not found["Gnoll Paw"] and not found["Silver Ring"], "cloak|linen: either word")
+	found = names(UI:Search("@item -cloth"))
+	check(not found["Linen Cloth"] and found["Gnoll Paw"] and found["Silver Ring"], "-cloth: not with the word (name or text)")
+	found = names(UI:Search("@item -is:quest|is:boe"))
+	check(found["Wolf Cloak"] and found["Linen Cloth"] and not found["Gnoll Paw"] and not found["Silver Ring"], "-a|b: neither")
+	check(F.Parse("cloak") == nil and F.Parse("-30") == nil and F.Parse("-") == nil and F.Parse("is:nope|is:boe") == nil,
+		"a plain word, a range, a lone dash and a bad part stay search words")
+	check(F.Parse("q:rare|") ~= nil, "q:rare| (the next part still being typed) is q:rare")
+	local seg = UI:SyntaxSegments("@item -is:boe q:rare|epic")
+	local filt = seg[3][3]
+	check(seg[5][3] == filt and seg[3][3] ~= seg[1][3], "-key:value and a|b are coloured as filters")
+	-- Simple mode: "or" / "not" in words
+	local E = ns.Easy
+	local w = E.JoinLogic({ "rare", "sword", "or", "axe", "not", "boe" })
+	check(#w == 3 and w[2] == "sword|axe" and w[3] == "-boe", "JoinLogic: sword or axe, not boe")
+	w = E.JoinLogic({ "not" })
+	check(#w == 1 and w[1] == "not", "JoinLogic: a lone not stays a word")
+	check(E.IsAdvancedWord("-q:poor") and E.IsAdvancedWord("boe|q:epic") and not E.IsAdvancedWord("-boe")
+		and not E.IsAdvancedWord("sword|axe"), "Simple refuses key:value in - and | words, takes plain ones")
+	check(E.ToAdvanced("rare sword or axe not boe") == "type:sword|type:axe -is:boe q:rare "
+		or E.ToAdvanced("rare sword or axe not boe"):find("type:sword|type:axe", 1, true) and E.ToAdvanced("rare sword or axe not boe"):find("-is:boe", 1, true),
+		"Alt+`: or / not become | and - filters (" .. E.ToAdvanced("rare sword or axe not boe") .. ")")
+	found = names(UI:Search("@item is:boe|cloak"))
+	check(found["Silver Ring"] and found["Wolf Cloak"] and not found["Gnoll Paw"], "is:boe|cloak: a plain part among filters")
+	w = E.JoinLogic({ "rare", "sword", "or", "rare", "axe" })
+	check(#w == 1 and w[1] == "rare&sword|rare&axe", "JoinLogic: rare sword or rare axe = two whole sides (" .. table.concat(w, " ") .. ")")
+	w = E.JoinLogic({ "cheap", "rare", "sword", "or", "epic", "axe", "or", "blue", "mace" })
+	check(#w == 2 and w[1] == "cheap" and w[2] == "rare&sword|epic&axe|blue&mace", "JoinLogic: a chain of two-word sides (" .. table.concat(w, " ") .. ")")
+	w = E.JoinLogic({ "sword", "or", "not", "boe" })
+	check(#w == 1 and w[1] == "sword|-boe", "JoinLogic: sword or not boe")
+	check(E.ToAdvanced("rare sword or rare axe"):find("q:rare&type:sword|q:rare&type:axe", 1, true),
+		"Alt+`: rare sword or rare axe (" .. E.ToAdvanced("rare sword or rare axe") .. ")")
+	found = names(UI:Search("@item is:quest&gnoll|is:boe&silver"))
+	check(found["Gnoll Paw"] and found["Silver Ring"] and not found["Bronze Band"] and not found["Wolf Cloak"], "a&b|c&d: both halves of either side")
+	found = names(UI:Search("@item cloak|-is:soulbound"))
+	check(found["Wolf Cloak"] and found["Linen Cloth"] and not found["Gnoll Paw"], "a piece's own -")
+	ns.db.easyMode = nil
+	found = names(UI:Search("cloak or gnoll"))
+	check(found["Wolf Cloak"] and found["Gnoll Paw"] and not found["Linen Cloth"], "Simple: cloak or gnoll")
+	found = names(UI:Search("ring without boe"))
+	check(not found["Silver Ring"] and found["Bronze Band"], "Simple: ring without boe (the worn band counts as bound here)")
+	found = names(UI:Search("cloth not linen"))
+	check(found["Wolf Cloak"] and not found["Linen Cloth"], "Simple: cloth not linen (the cloak is cloth)")
+	found = names(UI:Search("bound cloak or quest paw"))
+	check(found["Wolf Cloak"] and found["Gnoll Paw"] and not found["Silver Ring"], "Simple: two whole sides of an or")
+	found = names(UI:Search("boe ring or boe cloak"))
+	check(found["Silver Ring"] and not found["Wolf Cloak"], "Simple: boe ring or boe cloak keeps boe on both sides (the cloak is bound)")
+	ns.db.easyMode = false
 	C_Item.GetItemInfo, C_Item.GetItemInfoInstant, C_Item.IsBound, _G.ItemLocation = base.info, base.instant, base.isBound, base.loc
 	C_Container.GetContainerNumSlots, C_Container.GetContainerItemInfo = base.slots, base.get
 	_G.GetInventoryItemLink, _G.GetInventorySlotInfo = base.link, base.slotInfo
