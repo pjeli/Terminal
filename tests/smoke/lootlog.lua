@@ -99,3 +99,26 @@ end
 _G.LOOT_ITEM_SELF, _G.LOOT_ITEM_SELF_MULTIPLE, _G.LOOT_ITEM, _G.LOOT_ITEM_MULTIPLE = save.self, save.selfm, save.item, save.itemm
 _G.LOOT_ROLL_WON, _G.LOOT_ROLL_YOU_WON, _G.time, _G.GetRealZoneText, _G.C_LootHistory = save.won, save.youwon, save.time, save.zone, save.hist
 LL.ResetPatterns()
+
+-- @loot before @lootlog in the kinds list and for "@loo", though AtlasLoot's list registers after the loot log (0.43.24)
+do
+	local hadLoot = ns.providers.loot
+	if not hadLoot then ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot", "atlasloot" }, collect = function() return {} end }) end
+	local li, ll
+	for i, id in ipairs(ns.providerOrder) do if id == "loot" then li = i elseif id == "lootlog" then ll = i end end
+	check(hadLoot or (li and ll and li > ll), "(the loot list registered after the loot log, as in the game)")
+	ns.db.easyMode = false
+	UI:Open("")
+	T.typeText("@loo")
+	local r = UI.Results()
+	check(r[1] and r[1].name == "@loot" and r[2] and r[2].name == "@lootlog", "@loo: @loot first, then @lootlog: "
+		.. tostring(r[1] and r[1].name) .. ", " .. tostring(r[2] and r[2].name))
+	check(ns:ResolveProvider("loo") == ns.providers.loot and ns:ResolveProvider("lootl") == ns.providers.lootlog,
+		"\"@loo\" searches the loot, \"@lootl\" the loot log")
+	UI:Hide()
+	if not hadLoot then
+		ns.providers.loot = nil
+		for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "loot" then table.remove(ns.providerOrder, i) end end
+		ns:AliasesChanged()
+	end
+end

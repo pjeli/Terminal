@@ -200,9 +200,13 @@ function ns:ResolveProvider(token)
 	if token == "" then return nil end
 	local p = (self.aliasMap or AliasMap(self))[token]
 	if p then return p end
+	-- (a kind named by the start of its id: the first in order, unless another's id is the start of that one's:
+	-- "@loo" is @loot, not @lootlog, though the loot log registered first)
+	local best
 	for _, id in ipairs(self.providerOrder) do
-		if id:sub(1, #token) == token then return self.providers[id] end
+		if id:sub(1, #token) == token and (not best or (#id < #best and best:sub(1, #id) == id)) then best = id end
 	end
+	return best and self.providers[best] or nil
 end
 
 function ns:MarkAllDirty()

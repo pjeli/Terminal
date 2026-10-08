@@ -170,6 +170,15 @@ function UI:SyntaxRows(text)
 				local label = p.label or id
 				Row("@" .. word, (p.aliases and #p.aliases > 0) and ("@" .. table.concat(p.aliases, " @")) or "",
 					"|c" .. (p.color or "ff7fb2ff") .. label .. "|r")
+				-- (a kind whose word the other's starts with goes before it: @loot before @lootlog, whichever
+				-- registered first; AtlasLoot's list comes late)
+				local r = table.remove(rows)
+				local at = #rows + 1
+				for j = 1, #rows do
+					local w = rows[j].name
+					if #w > #r.name and w:sub(1, #r.name) == r.name then at = j break end
+				end
+				table.insert(rows, at, r)
 			end
 		end
 	else
