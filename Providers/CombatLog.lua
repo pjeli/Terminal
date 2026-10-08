@@ -4,8 +4,9 @@ local ns = select(2, ...)
 -- log, only what touches you: critical hits on you and by you, the killing blow on you, and your deaths. Plain
 -- questions answer from it: "what killed me", "who crit me", "my biggest crit", "my deaths".
 --
--- The combat log may not reach addons on this client (Midnight hides it in places: secret values). Then nothing is
--- recorded from it, deaths are still kept (PLAYER_DEAD), and `.combatlog` says why the list is short.
+-- The combat log doesn't reach addons on Midnight clients (WoW Forever included): it isn't asked for there (CB.Listen);
+-- deaths are still kept (PLAYER_DEAD), with what killed you from the game's Death Recap (C_DeathRecap), and
+-- `.combatlog` says why there are no crits.
 
 local CB = {}
 ns.CombatLog = CB
@@ -113,29 +114,126 @@ local function CombatEvent()
 	CB.OnCombatEvent(get())
 end
 
+-- Midnight (Interface 12.0 on, and WoW Forever, which reports 16001 but has Midnight's secret values) keeps the combat
+-- log from addons: registering for it is a forbidden action (WoW Forever
+-- 1.60.1 showed "Terminal has been blocked from an action only available to the Blizzard UI" at login, 0.43.15; the
+-- pcall said fine, the block comes as ADDON_ACTION_FORBIDDEN). Never asked there; elsewhere asked once through
+-- Professions.Guarded, which remembers a block (db.blockedCalls) so it is never asked again.
+CB.MIDNIGHT = 120000
+function CB.Listen(frame)
+	-- (WoW Forever reports Interface 16001, not 12.x: the Midnight API is told by its secret values, issecretvalue)
+	local build = _G.GetBuildInfo and select(4, ns.Safe(_G.GetBuildInfo))
+	if _G.issecretvalue or (type(build) == "number" and build >= CB.MIDNIGHT) then
+		return false, "not asked: this client keeps the combat log from addons"
+	end
+	local P = ns.Professions
+	local ok
+	if P and P.Guarded then
+		ok = P.Guarded("combatlog", frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
+	else
+		ok = pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
+	end
+	return ok and true or false, "the game refused it to addons"
+end
+
+-- The game's Death Recap (C_DeathRecap: WoW Forever has it, 0.43.17): what hit you last before you died, even where the
+-- combat log is kept from addons. Each death has a recap id (the chat's "[Death Recap]" link: |Hdeath:<id>|h); the
+-- newest is found by asking HasRecapEvents up from the last one seen, or read from that chat link when it comes.
+local recapSeen, recapLink = 0, nil
+CB.RECAP_LOOK = 40 -- (ids asked past the last one seen)
+local function Num(v) return type(v) == "number" and not (Secret and Secret(v)) and v or nil end
+local function Text(v) return type(v) == "string" and v ~= "" and not (Secret and Secret(v)) and v or nil end
+
+--- The newest death recap id, or nil.
+function CB.NewestRecap()
+	local R = _G.C_DeathRecap
+	if not (R and R.HasRecapEvents) then return nil end
+	local newest = nil
+	if recapLink and recapLink > recapSeen and Safe(R.HasRecapEvents, recapLink) then newest = recapLink end
+	for id = recapSeen + 1, recapSeen + CB.RECAP_LOOK do
+		if Safe(R.HasRecapEvents, id) then newest = id end
+	end
+	if newest then recapSeen = newest end
+	return newest
+end
+
+--- What a death recap says killed you: { who, spell, amount, overkill }, or nil (no recap, or nothing readable).
+function CB.FromRecap(id)
+	local R = _G.C_DeathRecap
+	local events = id and R and R.GetRecapEvents and Safe(R.GetRecapEvents, id)
+	if type(events) ~= "table" or #events == 0 then return nil end
+	local best, bestT
+	for _, e in ipairs(events) do
+		if type(e) == "table" then
+			local over = Num(e.overkill)
+			if over and over > 0 then best = e break end
+			local t = Num(e.timestamp)
+			if t and (not bestT or t > bestT) then best, bestT = e, t end
+		end
+	end
+	best = best or events[1]
+	if type(best) ~= "table" then return nil end
+	local spell = Text(best.spellName)
+	local env = Text(best.environmentalType)
+	if not spell and env then spell = env:sub(1, 1):upper() .. env:sub(2):lower() end
+	local over = Num(best.overkill)
+	return { who = Text(best.sourceName) or (env and "the world") or nil, spell = spell, amount = Num(best.amount),
+		overkill = over and over > 0 and over or nil }
+end
+CB.ResetRecaps = function() recapSeen, recapLink = 0, nil end -- (tests)
+
+--- After a death: the killing blow from the combat log (when there is one), else the death recap, else the last hit
+--- seen; a death recap that isn't ready yet fills the entry in a moment later.
+function CB.OnDeath()
+	local log = Log()
+	local last = log and log[1]
+	if last and (last.what == "died" or last.what == "killed") and Now() - (last.t or 0) <= 5 then return end
+	local id = CB.NewestRecap()
+	local rec = CB.FromRecap(id)
+	ns:Trace(("combat log: a death; death recap %s%s"):format(tostring(id or "none found"),
+		rec and (": " .. tostring(rec.who) .. " / " .. tostring(rec.spell)) or ""))
+	if rec and rec.who then
+		CB.Add({ what = "killed", who = rec.who, spell = rec.spell, amount = rec.amount, overkill = rec.overkill })
+		lastHit = nil
+		return
+	end
+	local hit = lastHit and Now() - lastHit.t <= 5 and lastHit or nil
+	local e = CB.Add({ what = "died", who = hit and hit.who, spell = hit and hit.spell, amount = hit and hit.amount })
+	lastHit = nil
+	if e and not e.who then
+		C_Timer.After(1.5, function()
+			local r = CB.FromRecap(CB.NewestRecap())
+			if r and r.who and not e.who then
+				e.what, e.who, e.spell, e.amount, e.overkill = "killed", r.who, r.spell, r.amount, r.overkill
+				Dirty()
+			end
+		end)
+	end
+end
+
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:RegisterEvent("PLAYER_DEAD")
-ev:SetScript("OnEvent", function(self, event)
+-- (the "[Death Recap]" link in chat carries the death's recap id)
+pcall(ev.RegisterEvent, ev, "CHAT_MSG_SYSTEM")
+pcall(ev.RegisterEvent, ev, "CHAT_MSG_COMBAT_MISC_INFO")
+ev:SetScript("OnEvent", function(self, event, msg)
+	if event == "CHAT_MSG_SYSTEM" or event == "CHAT_MSG_COMBAT_MISC_INFO" then
+		local id = type(msg) == "string" and not (Secret and Secret(msg)) and tonumber(msg:match("|Hdeath:(%d+)"))
+		if id then recapLink = id end
+		return
+	end
 	if event == "PLAYER_LOGIN" then
 		me = _G.UnitGUID and Safe(_G.UnitGUID, "player")
 		if Secret and Secret(me) then me = nil end
-		-- (a client that won't let addons have the combat log refuses the registration)
-		local ok = pcall(self.RegisterEvent, self, "COMBAT_LOG_EVENT_UNFILTERED")
+		local ok, why = CB.Listen(self)
 		CB.state.blocked = not ok
-		ns:Trace("combat log: " .. (ok and "listening" or "the game refused it to addons"))
+		ns:Trace("combat log: " .. (ok and "listening" or why))
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
 		pcall(CombatEvent)
 	elseif event == "PLAYER_DEAD" then
-		-- (the combat log's own death line wasn't seen, or came without a killing blow)
-		C_Timer.After(0.3, function()
-			local log = Log()
-			local last = log and log[1]
-			if last and (last.what == "died" or last.what == "killed") and Now() - (last.t or 0) <= 5 then return end
-			local hit = lastHit and Now() - lastHit.t <= 5 and lastHit or nil
-			CB.Add({ what = "died", who = hit and hit.who, spell = hit and hit.spell, amount = hit and hit.amount })
-			lastHit = nil
-		end)
+		-- (the combat log's own death line wasn't seen, or came without a killing blow: the recap, a moment later)
+		C_Timer.After(0.3, function() pcall(CB.OnDeath) end)
 	end
 end)
 CB.SetMe = function(guid) me = guid end -- (tests)
@@ -234,7 +332,8 @@ function CB.Answer(kind)
 	local note = (kind == "killed" and "Your deaths, newest first") or (kind == "crit" and "The hardest crits on you")
 		or "Your biggest crits"
 	if #rows == 0 then
-		note = CB.state.blocked and "The game doesn't give addons the combat log here" or "Nothing recorded yet"
+		note = (CB.state.blocked and kind ~= "killed") and "The game doesn't give addons the combat log here (crits need it)"
+			or "Nothing recorded yet"
 	end
 	return rows, note
 end
@@ -251,9 +350,9 @@ ns:RegisterCommand("combatlog", {
 		local st, log = CB.state, Log() or {}
 		local lines = { ("Combat log: %d entries kept. Search it: @combatlog <words>, or ask \"what killed me\"."):format(#log) }
 		if st.blocked then
-			lines[#lines + 1] = "  The game doesn't let addons read the combat log here: only your deaths are kept."
+			lines[#lines + 1] = "  The game doesn't let addons read the combat log here: only your deaths are kept (what killed you from the Death Recap)."
 		elseif st.events > 0 and st.secret == st.events then
-			lines[#lines + 1] = "  The combat log reaches addons as secret values here: only your deaths are kept."
+			lines[#lines + 1] = "  The combat log reaches addons as secret values here: only your deaths are kept (what killed you from the Death Recap)."
 		end
 		for i = 1, math.min(5, #log) do lines[#lines + 1] = "  " .. CB.Line(log[i]) .. "  " .. Ago(log[i].t) end
 		return lines
