@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 
 -- @drop (@dropped, @drops, @lootlog): a running list of what dropped and who got it, kept across sessions (the game's own loot
--- history forgets). Fed by:
+-- history forgets). Only what's worth rolling for: green and better (LL.MIN_QUALITY). Fed by:
 --   - the loot lines in chat (CHAT_MSG_LOOT): "You receive loot: [x]", "Bob receives loot: [x]x2", "Bob won: [x]",
 --     matched with the game's own format strings (LOOT_ITEM..., LOOT_ROLL_WON...), so any language works;
 --   - the game's loot history when it has one (C_LootHistory: retail's per-encounter drops with their winner), for the
@@ -92,12 +92,37 @@ function LL.Parse(msg)
 	end
 end
 
+-- Only what's worth rolling for is kept (the player's call, 0.43.26): uncommon (green) and better. Grey junk and
+-- white trade goods, cloth and quest items aren't logged.
+LL.MIN_QUALITY = 2
+local LINK_COLOURS = { ["9d9d9d"] = 0, ffffff = 1, ["1eff00"] = 2, ["0070dd"] = 3, a335ee = 4, ff8000 = 5,
+	e6cc80 = 6, ["00ccff"] = 7 }
+
+--- An item's quality from its link (the colour it's drawn in: "|cff1eff00" or the newer "|cnIQ2:"), else the game's.
+function LL.Quality(link, id)
+	if type(link) == "string" then
+		local q = link:match("|cnIQ(%d+):")
+		if q then return tonumber(q) end
+		local hex = link:match("|c%x%x(%x%x%x%x%x%x)")
+		if hex and LINK_COLOURS[hex:lower()] then return LINK_COLOURS[hex:lower()] end
+	end
+	local get = C_Item and C_Item.GetItemQualityByID
+	local q = id and get and Safe(get, id)
+	return type(q) == "number" and q or nil
+end
+
+--- Worth keeping: green or better (an item whose quality can't be told is kept).
+function LL.Worth(link, id)
+	local q = LL.Quality(link, id)
+	return q == nil or q >= LL.MIN_QUALITY
+end
+
 --- Adds a drop (or fills in one just added: the same item to the same player a moment ago).
 function LL.Add(link, who, count, from, src)
 	local log = Log()
 	if not log or type(link) ~= "string" then return nil end
 	local id = tonumber(link:match("item:(%d+)"))
-	if not id then return nil end
+	if not id or not LL.Worth(link, id) then return nil end
 	local t = Now()
 	who = type(who) == "string" and who ~= "" and who or "?"
 	for i = 1, math.min(#log, 20) do
@@ -182,6 +207,11 @@ ns:RegisterProvider("lootlog", {
 	refreshOnOpen = true, -- (the "5 min ago" moves on)
 	collect = function()
 		local out, log = {}, Log() or {}
+		-- (drops kept before 0.43.26 that aren't worth rolling for go now)
+		for i = #log, 1, -1 do
+			local d = log[i]
+			if type(d) ~= "table" or not LL.Worth(d.link, d.id) then table.remove(log, i) end
+		end
 		local n = #log
 		local getIcon = C_Item and C_Item.GetItemIconByID or _G.GetItemIcon
 		for i, d in ipairs(log) do

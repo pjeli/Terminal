@@ -17,7 +17,7 @@ _G.time = function() return now end
 _G.GetRealZoneText = function() return "Wailing Caverns" end
 ns.db.lootLog = {}
 
-local cloth = "|cffffffff|Hitem:2589::::::::|h[Linen Cloth]|h|r"
+local cloth = "|cff1eff00|Hitem:2589::::::::|h[Linen Cloth]|h|r" -- (green here: whites aren't logged)
 local belt = "|cff1eff00|Hitem:6505::::::::|h[Crescent Belt]|h|r"
 do
 	local link, who, n = LL.Parse("You receive loot: " .. cloth .. "x3.")
@@ -31,6 +31,18 @@ do
 	local p, args = LL.Pattern("Beute %2$s für %1$s.")
 	local a, b = ("Beute X für Bob."):match(p)
 	check(a == "X" and b == "Bob" and args[1] == 2 and args[2] == 1, "numbered arguments keep their places")
+	-- only what's worth rolling for (0.43.26): grey and white drops aren't kept, whoever got them
+	local grey = "|cff9d9d9d|Hitem:3300::::::::|h[Rabbit's Foot]|h|r"
+	local white = "|cffffffff|Hitem:2592::::::::|h[Wool Cloth]|h|r"
+	local newer = "|cnIQ1:|Hitem:2593::::::::|h[Flask of Port]|h|r"
+	LL.OnEvent("CHAT_MSG_LOOT", "You receive loot: " .. grey .. ".")
+	LL.OnEvent("CHAT_MSG_LOOT", "Bob receives loot: " .. white .. "x2.")
+	LL.OnEvent("CHAT_MSG_LOOT", "Bob won: " .. newer)
+	check(#ns.db.lootLog == 0, "greys and whites aren't logged (old and new link colours)")
+	check(LL.Quality(belt) == 2 and LL.Quality("|cnIQ4:|Hitem:1|h[X]|h|r") == 4 and LL.Quality(grey) == 0, "quality read from the link")
+	ns.db.lootLog = { { t = now, id = 2592, link = white, who = "Bob" } } -- (kept before 0.43.26)
+	ns.providers.lootlog._dirty = true
+	check(#ns:GetEntries(ns.providers.lootlog) == 0 and #ns.db.lootLog == 0, "whites logged before are dropped")
 	-- recorded: newest first; the win and its loot line a moment later are one drop
 	LL.OnEvent("CHAT_MSG_LOOT", "Bob won: " .. belt)
 	now = now + 2
