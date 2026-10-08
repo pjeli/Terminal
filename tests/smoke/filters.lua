@@ -442,3 +442,66 @@ do
 	check(E.HARD_WORDS.battlemaster and E.HARD_WORDS["pvp vendor"], "pvp words are strict (never relaxed to any NPC)")
 	ns.db.easyMode = was
 end
+
+-- is:upgrade weighs stats for your class (0.43.8): an item level near yours isn't enough
+do
+	local F = ns.Filters
+	F.ClearCache()
+	local save = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, level = _G.UnitLevel, inv = _G.GetInventoryItemLink,
+		can = C_PlayerInfo.CanUseItem, det = C_Item.GetDetailedItemLevelInfo, class = _G.UnitClass, inst = C_Item.GetItemInfoInstant,
+		invId = _G.GetInventoryItemID }
+	local ITEMS = {
+		[1] = { "Worn Gauntlets", "|Hitem:1|h", 2, 20, 15, "Armor", "Mail", 1, "INVTYPE_HAND" },
+		[2] = { "Gauntlets of the Bear", "|Hitem:2|h", 2, 21, 15, "Armor", "Mail", 1, "INVTYPE_HAND" }, -- higher ilvl, worse stats
+		[3] = { "Gauntlets of Strength", "|Hitem:3|h", 2, 19, 15, "Armor", "Mail", 1, "INVTYPE_HAND" }, -- lower ilvl, better
+		[4] = { "Gauntlets of the Owl", "|Hitem:4|h", 2, 24, 15, "Armor", "Mail", 1, "INVTYPE_HAND" }, -- caster stats
+		[5] = { "Plain Ring", "|Hitem:5|h", 2, 18, 15, "Armor", "Miscellaneous", 1, "INVTYPE_FINGER" },
+		[6] = { "Better Ring", "|Hitem:6|h", 2, 19, 15, "Armor", "Miscellaneous", 1, "INVTYPE_FINGER" },
+		[7] = { "Good Ring", "|Hitem:7|h", 2, 25, 15, "Armor", "Miscellaneous", 1, "INVTYPE_FINGER" },
+		[8] = { "Old Trinket", "|Hitem:8|h", 2, 20, 15, "Armor", "Miscellaneous", 1, "INVTYPE_TRINKET" },
+		[9] = { "New Trinket", "|Hitem:9|h", 2, 22, 15, "Armor", "Miscellaneous", 1, "INVTYPE_TRINKET" },
+		[10] = { "Big Axe", "|Hitem:10|h", 2, 22, 15, "Weapon", "Two-Handed Axes", 1, "INVTYPE_2HWEAPON" },
+		[11] = { "Sword", "|Hitem:11|h", 2, 20, 15, "Weapon", "One-Handed Swords", 1, "INVTYPE_WEAPONMAINHAND" },
+		[12] = { "Shield", "|Hitem:12|h", 2, 20, 15, "Armor", "Shields", 1, "INVTYPE_SHIELD" },
+	}
+	local STATS = {
+		[1] = { ITEM_MOD_STRENGTH_SHORT = 4, RESISTANCE0_NAME = 100 },
+		[2] = { ITEM_MOD_STAMINA_SHORT = 3, RESISTANCE0_NAME = 105 },
+		[3] = { ITEM_MOD_STRENGTH_SHORT = 7, RESISTANCE0_NAME = 95 },
+		[4] = { ITEM_MOD_INTELLECT_SHORT = 6, ITEM_MOD_SPIRIT_SHORT = 6, RESISTANCE0_NAME = 110 },
+		[5] = { ITEM_MOD_STRENGTH_SHORT = 2 }, [6] = { ITEM_MOD_STRENGTH_SHORT = 5 }, [7] = { ITEM_MOD_STRENGTH_SHORT = 1 },
+		[10] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12, ITEM_MOD_STRENGTH_SHORT = 2 }, -- (38: over the sword, 36, not sword + shield, ~46)
+		[11] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12 }, [12] = { RESISTANCE0_NAME = 400, ITEM_MOD_STAMINA_SHORT = 3 },
+	}
+	local idOf = function(x) return tonumber(tostring(x):match("item:(%d+)")) or tonumber(x) end
+	C_Item.GetItemInfo = function(id) local t = ITEMS[idOf(id) or 0] if t then return unpack(t) end end
+	C_Item.GetItemStats = function(link) return STATS[idOf(link)] or {} end
+	C_Item.GetDetailedItemLevelInfo = function(link) local t = ITEMS[idOf(link)] return t and t[4] end
+	C_Item.GetItemInfoInstant = function(id) local t = ITEMS[idOf(id)] return idOf(id), t and t[6], t and t[7], t and t[9] end
+	_G.UnitLevel = function() return 20 end
+	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
+	C_PlayerInfo.CanUseItem = function() return true end
+	local wear = { [10] = 1, [11] = 5, [12] = 7, [13] = 8, [16] = 11, [17] = 12 }
+	_G.GetInventoryItemLink = function(_, slot) local id = wear[slot] if id then return "|Hitem:" .. id .. "|h[x]|h" end end
+	_G.GetInventoryItemID = function(_, slot) return wear[slot] end
+	local fit = F.GearFit()
+	local function up(id) return fit({ itemID = id }) end
+	check(not up(2), "upgrades: a higher item level with worse stats for you isn't one")
+	check(up(3), "upgrades: better stats for you at a lower item level is one")
+	check(not up(4), "upgrades: a caster's gloves aren't a warrior's upgrade")
+	check(up(6) and not up(7), "rings: against the weaker of the two you wear")
+	check(up(9), "trinkets with no stats to weigh: a higher item level")
+	check(not up(10), "a two-hander against main hand and shield together (not just the sword)")
+	STATS[10][ITEM_MOD_STRENGTH_SHORT or "ITEM_MOD_STRENGTH_SHORT"] = 30
+	F.ClearStats()
+	fit = F.GearFit()
+	check(fit({ itemID = 10 }), "a two-hander better than both hands together is one")
+	_G.UnitClass = function() return "Mage", "MAGE", 8 end
+	F.ClearStats()
+	fit = F.GearFit()
+	check(fit({ itemID = 4 }) and not fit({ itemID = 3 }), "a mage: the caster's gloves, not the strength ones")
+	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
+	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
+	_G.GetInventoryItemID = save.invId
+	F.ClearCache()
+end
