@@ -61,6 +61,7 @@ E.CATEGORIES = {
 	{ id = "npcs", label = "NPCs", kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
+	{ id = "lootlog", label = "Loot log", kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
 	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
 	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
@@ -226,7 +227,7 @@ end
 E.VERBS = {
 	items = { "show in bags", "use" }, consumable = { "show in bags", "use" }, mats = { "show in bags", "use" },
 	gear = { "show", "equip" },
-	stored = { "show in bags", "who has it" },
+	stored = { "show in bags", "who has it" }, lootlog = { "show in bags", "link in chat" },
 	spells = { "show in spellbook", "cast" },
 	npc = { "show on map", "target" },
 	gold = { "list in chat", "put in the chat box" }, guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = { "whisper", "invite" },
