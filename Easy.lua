@@ -199,6 +199,9 @@ end
 function E.Word(w)
 	if not E.On() then return nil end
 	w = Lower(w)
+	-- a strict word ("upgrades") is its filter made now: F.GearFit reads your level and gear when made, so a kept one
+	-- would judge by the character as it was ("helm upgrades or boots upgrades" reaches here through the | pieces)
+	if E.HARD_WORDS[w] then return ns.Filters and ns.Filters.Parse(E.WORDS[w]) or nil end
 	local t = wordTests[w]
 	if t ~= nil then return t or nil end
 	local spec = E.WORDS[w]
@@ -305,6 +308,35 @@ local function KindWord(kind)
 	return p and ("@" .. ((p.aliases and p.aliases[1]) or p.id)) or nil
 end
 
+--- Two everyday words that mean one thing joined into one ("attack power food" -> "attack power", "food"). Works on
+--- the list in place.
+function E.JoinPairs(words)
+	local i = 1
+	while i < #words do
+		local pair = Lower(words[i] .. " " .. words[i + 1])
+		if E.WORDS[pair] then words[i] = pair; table.remove(words, i + 1) end
+		i = i + 1
+	end
+end
+
+--- The action the words say (the first word, or "nearest" said last: "mining trainer nearby"), taken off the list;
+--- nil when there's none.
+local function ActionOf(words)
+	local act = #words > 1 and E.ACTIONS[Lower(words[1])] or nil
+	if act then
+		table.remove(words, 1)
+	elseif #words > 1 then
+		local tail = E.ACTIONS[Lower(words[#words])]
+		if tail and tail.nearest then act = tail; table.remove(words) end
+	end
+	return act
+end
+
+-- a word's pieces that are everyday words as their filters ("-boe" -> -is:boe, "sword|axe" -> type:sword|type:axe,
+-- rare&sword -> q:rare&type:sword; plain pieces stay words: "-cloth")
+local function PieceFilter(neg, a) return neg .. (E.WORDS[a] or a) end
+local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) end
+
 --- A Simple search as Advanced mode would type it: the picked category or the action word's kinds as @kinds,
 --- "nearest" as @npc sort:nearest (with faction:friendly for a role), a place as in:<place>, everyday words as their
 --- key:value filters ("attack power" = stat:ap), sentence words dropped; other words (and any Advanced syntax
@@ -314,24 +346,11 @@ function E.ToAdvanced(text, category)
 	for w in tostring(text or ""):gmatch("%S+") do words[#words + 1] = w end
 	local kinds, filters, plain, seen = {}, {}, {}, {}
 	local function Add(list, w) if w and not seen[w] then seen[w] = true; list[#list + 1] = w end end
-	-- two everyday words that mean one thing ("attack power food")
-	local i = 1
-	while i < #words do
-		local pair = Lower(words[i] .. " " .. words[i + 1])
-		if E.WORDS[pair] then words[i] = pair; table.remove(words, i + 1) end
-		i = i + 1
-	end
+	E.JoinPairs(words) -- two everyday words that mean one thing ("attack power food")
 	E.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe (made filters below)
 	-- the first word can say what to do ("use hearthstone", "nearest innkeeper")
-	local act = #words > 1 and E.ACTIONS[Lower(words[1])] or nil
+	local act = ActionOf(words)
 	local nearest
-	if act then
-		table.remove(words, 1)
-	elseif #words > 1 then
-		-- "nearest" said last ("mining trainer nearby")
-		local tail = E.ACTIONS[Lower(words[#words])]
-		if tail and tail.nearest then act = tail; table.remove(words) end
-	end
 	if act then
 		nearest = act.nearest
 		if act.map then
@@ -362,9 +381,7 @@ function E.ToAdvanced(text, category)
 		if E.IsAdvancedWord(w) then
 			if w:sub(1, 1) == "@" then Add(kinds, w) else Add(filters, w) end
 		elseif w:find("[|&]") or w:find("^[-!]%a") then
-			-- "-boe" -> -is:boe, "sword|axe" -> type:sword|type:axe, rare&sword -> q:rare&type:sword (plain
-			-- pieces stay words: "-cloth")
-			Add(filters, (w:gsub("([-!]?)([^|&]+)", function(neg, a) return neg .. (E.WORDS[a] or a) end)))
+			Add(filters, AdvancedPart(w))
 		elseif E.WORDS[w] then
 			Add(filters, E.WORDS[w])
 			if E.ROLE_WORDS[w] then role = true end
@@ -439,54 +456,72 @@ local function Valid(ex)
 	return true
 end
 
-function E.PersonalExamples(advanced)
-	local out = {}
-	local function add(s) if s then out[#out + 1] = "try: " .. s end end
-	local level = UnitLevel and Num(Safe(UnitLevel, "player"))
+--- What the examples are made from: the character (level, class), its professions and consumables, a dungeon about
+--- its level, where it is, its guild.
+local function Gather()
+	local f = {}
+	f.level = UnitLevel and Num(Safe(UnitLevel, "player"))
 	local className, classFile = Safe(UnitClass, "player")
-	className, classFile = Str(className), Str(classFile)
-	local cls = className and Lower(className)
+	className, f.classFile = Str(className), Str(classFile)
+	f.cls = className and Lower(className)
 	-- professions you have (their rows' names), and a consumable you carry
 	local profs = {}
 	for _, e in ipairs(Entries("professions")) do
 		local n = Short(e.name and Lower(e.name), 20)
 		if n then profs[#profs + 1] = n end
 	end
-	local prof = Pick(profs)
-	local carry = {}
+	f.prof = Pick(profs)
+	f.carry = {}
 	for _, e in ipairs(Entries("consumables")) do
 		local n = Short(e.name and Lower(e.name), 24)
-		if n then carry[#carry + 1] = n end
+		if n then f.carry[#f.carry + 1] = n end
 	end
 	-- a dungeon about your level (WoW Forever's entrances)
 	local fit = {}
 	local I = ns.Integrations
+	local level = f.level
 	for _, d in ipairs(I and I.ENTRANCES or {}) do
 		if level and not d[5] and d[6] and level >= d[6] - 3 and level <= d[7] then fit[#fit + 1] = Lower(d[1]):gsub(" %(.*%)$", "") end
 	end
-	local dungeon = Pick(fit)
+	f.dungeon = Pick(fit)
 	local zoneName = GetRealZoneText and Str(Safe(GetRealZoneText))
-	local zone = Short(zoneName and Lower(zoneName), 22)
-	local inGuild = IsInGuild and Safe(IsInGuild)
-	if advanced then
-		if classFile and PRIMARY[classFile] then add("@gear stat:" .. PRIMARY[classFile] .. " is:upgrade") end
-		if prof then add("@recipe is:skillup " .. prof); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:nearest") end
-		if inGuild then add("@guild is:online") end
-		if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or "")) end
-		if dungeon then add("@loot " .. dungeon .. " is:upgrade") end
-		local kept = {}
-		for _, ex in ipairs(out) do if Valid(ex:gsub("^try: ", "")) then kept[#kept + 1] = ex end end
-		return kept
-	end
-	if cls then add("nearest " .. cls .. " trainer") end
+	f.zone = Short(zoneName and Lower(zoneName), 22)
+	f.inGuild = IsInGuild and Safe(IsInGuild)
+	return f
+end
+
+-- Advanced mode's, each kept only if it works here (its @kinds known, its filters parse)
+local function AdvancedExamples(f, add, out)
+	local level, zone, prof = f.level, f.zone, f.prof
+	if f.classFile and PRIMARY[f.classFile] then add("@gear stat:" .. PRIMARY[f.classFile] .. " is:upgrade") end
+	if prof then add("@recipe is:skillup " .. prof); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:nearest") end
+	if f.inGuild then add("@guild is:online") end
+	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or "")) end
+	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade") end
+	local kept = {}
+	for _, ex in ipairs(out) do if Valid(ex:gsub("^try: ", "")) then kept[#kept + 1] = ex end end
+	return kept
+end
+
+local function SimpleExamples(f, add, out)
+	local prof, dungeon = f.prof, f.dungeon
+	if f.cls then add("nearest " .. f.cls .. " trainer") end
 	if prof then add(prof .. " skillup"); add("nearest " .. prof .. " trainer") end
-	if #carry > 0 then add("use " .. Pick(carry)) end
-	if level and level < 60 then add(Pick(SLOT_WORDS) .. " upgrades") end
+	if #f.carry > 0 then add("use " .. Pick(f.carry)) end
+	if f.level and f.level < 60 then add(Pick(SLOT_WORDS) .. " upgrades") end
 	if dungeon then add(dungeon); add(dungeon .. " upgrades") end
-	if zone then add("vendor " .. zone) end
-	if inGuild then add("online") end
+	if f.zone then add("vendor " .. f.zone) end
+	if f.inGuild then add("online") end
 	add("nearest flight master")
 	return out
+end
+
+function E.PersonalExamples(advanced)
+	local out = {}
+	local function add(s) if s then out[#out + 1] = "try: " .. s end end
+	local f = Gather()
+	if advanced then return AdvancedExamples(f, add, out) end
+	return SimpleExamples(f, add, out)
 end
 
 local function Examples() return E.On() and E.EXAMPLES or E.ADV_EXAMPLES end

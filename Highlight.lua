@@ -66,8 +66,8 @@ local function GlowUpdate(self)
 	self:SetAlpha(a)
 end
 
---- Outlines `target`. (The old duration argument is ignored: every highlight pulses twice
---- and fades.) A target already glowing starts its pulses again instead of getting a second glow.
+--- Outlines `target`: every highlight pulses twice and fades (H.TOTAL; anything passed after `target` is
+--- ignored). A target already glowing starts its pulses again instead of getting a second glow.
 function H:Show(target)
 	if not target or not target.IsVisible then return end
 	local g

@@ -76,10 +76,7 @@ end
 -- those from Terminal's code tainted the character window (its health text then errors on a
 -- secret value). Afterwards Terminal only looks for the set's row and points at it.
 
-local function Named(f)
-	local ok, n = pcall(function() return f:GetName() end)
-	return ok and type(n) == "string" and n or nil
-end
+local Named = ns.FrameName
 
 local function ManagerPane()
 	local pd = _G.PaperDollFrame
@@ -105,8 +102,8 @@ local function EquipTab()
 					local ok, f = pcall(get, i)
 					if ok and f == pane then return t end
 				end
-				local tip = type(t.tooltip) == "string" and t.tooltip:lower() or ""
-				if tip ~= "" and tip == (_G.EQUIPMENT_MANAGER or "Equipment Manager"):lower() then return t end
+				local tip = type(t.tooltip) == "string" and ns.Lower(t.tooltip) or ""
+				if tip ~= "" and tip == ns.Lower(_G.EQUIPMENT_MANAGER or "Equipment Manager") then return t end
 			end
 		end
 	end

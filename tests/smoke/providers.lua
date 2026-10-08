@@ -13,6 +13,18 @@ do
 	check(ns.Safe(nil) == nil and ns.Safe(function() error("x") end) == nil and select("#", ns.Safe(error, "x")) == 0, "ns.Safe: nothing from a missing or failing function")
 	check(ns.Str("") == nil and ns.Str(3) == nil and ns.Str("a") == "a" and ns.Num("3") == nil and ns.Num(3) == 3, "ns.Str / ns.Num")
 	check(ns.QualityHex(4) == "|cffa335ee" and ns.QualityHex(nil) == nil, "ns.QualityHex")
+	check(ns.Never() == false, "ns.Never")
+	local named, unnamed = Obj("Frame"), Obj("Frame")
+	named.GetName = function() return "NamedFrame" end
+	unnamed.GetName = function() return nil end
+	check(ns.FrameName(named) == "NamedFrame" and ns.FrameName(unnamed) == nil and ns.FrameName(nil) == nil and ns.FrameName({}) == nil,
+		"ns.FrameName: a string name, else nil, never an error")
+	local fs = function(t) return { GetObjectType = function() return "FontString" end, GetText = function() return t end } end
+	local tex = { GetObjectType = function() return "Texture" end, GetText = function() return "no" end }
+	local row = { GetText = function() return "Own" end, GetRegions = function() return fs("A"), tex, fs(nil), fs("B") end }
+	check(table.concat(ns.FrameTexts(row), ",") == "Own,A,B", "ns.FrameTexts: own text, then the FontStrings' (" .. table.concat(ns.FrameTexts(row), ",") .. ")")
+	check(table.concat(ns.FrameTexts({ GetText = function() error("x") end, GetRegions = function() return fs("C") end }), ",") == "C",
+		"ns.FrameTexts: a failing GetText is skipped")
 	-- a list with collapsed headers: expanded for the read, collapsed again last first
 	local rows = { { name = "A", header = true, collapsed = true }, { name = "a1" }, { name = "B", header = true, collapsed = false }, { name = "b1" } }
 	local ops = {}
@@ -422,6 +434,35 @@ do
 	check(asked == 2 and P.watchingNames == false, "asked twice at most; nothing pending: the event is let go (" .. asked .. " asks)")
 	list[#list] = nil
 	C_Item.RequestLoadItemDataByID, C_Item.GetItemInfo = saveReq, saveGII
+	ns.providers.recipes._dirty = true
+	ns:GetEntries(ns.providers.recipes)
+end
+
+io.write("[reagent names: failing or empty answers]\n")
+do
+	local store = P.Store()
+	store[171] = store[171] or { name = "Alchemy", skillLine = 171, fromList = true, updated = 1, list = {} }
+	local list = store[171].list
+	local saveReq, saveGII, saveBy = C_Item.RequestLoadItemDataByID, C_Item.GetItemInfo, C_Item.GetItemNameByID
+	local round = 1
+	C_Item.RequestLoadItemDataByID = function() error("request failed") end
+	C_Item.GetItemNameByID = function(id, ...) if id == 5556 then return nil end return saveBy and saveBy(id, ...) end
+	C_Item.GetItemInfo = function(id, ...)
+		if id == 5556 then if round == 1 then return "" end return "Late Herb" end
+		if id == 5557 then error("no info") end
+		return saveGII(id, ...)
+	end
+	list[#list + 1] = { id = 20, name = "Herbal Brew", learned = true, categoryID = 1, reagents = { { 5556, 1 } } }
+	list[#list + 1] = { id = 21, name = "Odd Brew", learned = true, categoryID = 1, reagents = { { 5557, 1 } } }
+	ns.providers.recipes._dirty = true
+	local got = names(ns:GetEntries(ns.providers.recipes))
+	check(got["Herbal Brew"] and got["Odd Brew"], "recipes listed though the name lookups fail or say nothing")
+	round = 2
+	ns.providers.recipes._dirty = true
+	local e = names(ns:GetEntries(ns.providers.recipes))["Herbal Brew"]
+	check(e and (rawget(e, "_ltext") or ""):find("late herb", 1, true), "an empty name isn't kept: the real one is used once it comes")
+	list[#list] = nil; list[#list] = nil
+	C_Item.RequestLoadItemDataByID, C_Item.GetItemInfo, C_Item.GetItemNameByID = saveReq, saveGII, saveBy
 	ns.providers.recipes._dirty = true
 	ns:GetEntries(ns.providers.recipes)
 end

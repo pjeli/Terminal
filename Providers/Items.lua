@@ -208,7 +208,7 @@ local function UseMacro(e)
 	return e.itemID and ("/use item:" .. e.itemID) or nil
 end
 local USE_SPEC = { macro = UseMacro }
-local function UseNeverOpen() return false end -- nothing has to be open first: always pressed
+local UseNeverOpen = ns.Never -- nothing has to be open first: always pressed
 local function UsedAfter(e) ns:Trace("items: the game used " .. tostring(e.name)) end
 -- only when the game couldn't be handed the press: in combat (Enter can't be rebound then), or
 -- no secure button could be made
@@ -497,6 +497,69 @@ nameFrame:SetScript("OnEvent", function(_, _, id)
 	if nameWait.count <= 0 then NamesArrived() end
 end)
 
+--- A bag item's row, the first time the item is met (bag, slot: where); count and locs are filled by the caller.
+local function NewItemRow(info, name, bag, slot, quests, questExact)
+	local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
+	local e = {
+		key = info.itemID,
+		name = name,
+		icon = info.iconFileID,
+		color = QualityHex(info.quality),
+		link = info.hyperlink,
+		text = table.concat({ itemType or "", subType or "" }, " "),
+		count = 0,
+		locs = {},
+		firstBag = bag,
+		itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
+		activate = ShowInBags,
+		secondary = UseInCombat, secondarySecure = USE_SPEC,
+		secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
+	}
+	local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
+	if q then
+		e.questID, e.questItem = q.id, true
+		e.text = e.text .. " quest " .. (q.title or "")
+	elseif IsQuestItem(bag, slot, info.itemID) then
+		e.questItem = true
+		e.guessIDs = GuessQuests(N(name), quests)
+	end
+	return e
+end
+
+--- The worn items' rows, added to out.
+local function WornRows(out)
+	for _, slotName in ipairs(EQUIP_SLOTS) do
+		local slotId = GetInventorySlotInfo(slotName)
+		local link = slotId and GetInventoryItemLink("player", slotId)
+		if link then
+			local itemID = C_Item.GetItemInfoInstant(link)
+			local name = NameOf(itemID, link)
+			if name then
+				local _, _, quality = C_Item.GetItemInfo(link)
+				local bound = WornBound(slotId)
+				out[#out + 1] = {
+					-- known by the item, as in your bags: equipping swaps places, and the history keeps the piece picked
+					key = itemID or ("eq" .. slotId),
+					name = name,
+					icon = GetInventoryItemTexture("player", slotId),
+					color = QualityHex(quality),
+					link = link,
+					text = "equipped " .. slotName:gsub("Slot", ""),
+					detail = "Equipped: " .. slotName:gsub("Slot", ""),
+					slotName = slotName, slotId = slotId, itemID = itemID,
+					bound = bound or nil, unbound = (not bound) or nil,
+					activate = ShowEquipped,
+					secure = CHAR_SECURE,
+					isOpen = PaperDollOpen,
+					after = PointAtSlot,
+					secondary = UseInCombat, secondarySecure = USE_SPEC,
+					secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
+				}
+			end
+		end
+	end
+end
+
 ns:RegisterProvider("items", {
 	label = "Item",
 	color = "ffc8c8c8",
@@ -519,30 +582,7 @@ ns:RegisterProvider("items", {
 			if not e then
 				local name = NameOf(info.itemID, info.hyperlink, info.itemName)
 				if name then
-					local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
-					e = {
-						key = info.itemID,
-						name = name,
-						icon = info.iconFileID,
-						color = QualityHex(info.quality),
-						link = info.hyperlink,
-						text = table.concat({ itemType or "", subType or "" }, " "),
-						count = 0,
-						locs = {},
-						firstBag = bag,
-						itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
-						activate = ShowInBags,
-						secondary = UseInCombat, secondarySecure = USE_SPEC,
-						secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
-					}
-					local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
-					if q then
-						e.questID, e.questItem = q.id, true
-						e.text = e.text .. " quest " .. (q.title or "")
-					elseif IsQuestItem(bag, slot, info.itemID) then
-						e.questItem = true
-						e.guessIDs = GuessQuests(N(name), quests)
-					end
+					e = NewItemRow(info, name, bag, slot, quests, questExact)
 					byID[info.itemID] = e
 					out[#out + 1] = e
 				end
@@ -574,36 +614,7 @@ ns:RegisterProvider("items", {
 			e.detail = (e.questID and "Quest  " or "") .. (e.count > 1 and ("x" .. e.count .. "  ") or "") .. where
 		end
 
-		for _, slotName in ipairs(EQUIP_SLOTS) do
-			local slotId = GetInventorySlotInfo(slotName)
-			local link = slotId and GetInventoryItemLink("player", slotId)
-			if link then
-				local itemID = C_Item.GetItemInfoInstant(link)
-				local name = NameOf(itemID, link)
-				if name then
-					local _, _, quality = C_Item.GetItemInfo(link)
-					local bound = WornBound(slotId)
-					out[#out + 1] = {
-						-- known by the item, as in your bags: equipping swaps places, and the history keeps the piece picked
-						key = itemID or ("eq" .. slotId),
-						name = name,
-						icon = GetInventoryItemTexture("player", slotId),
-						color = QualityHex(quality),
-						link = link,
-						text = "equipped " .. slotName:gsub("Slot", ""),
-						detail = "Equipped: " .. slotName:gsub("Slot", ""),
-						slotName = slotName, slotId = slotId, itemID = itemID,
-						bound = bound or nil, unbound = (not bound) or nil,
-						activate = ShowEquipped,
-						secure = CHAR_SECURE,
-						isOpen = PaperDollOpen,
-						after = PointAtSlot,
-						secondary = UseInCombat, secondarySecure = USE_SPEC,
-						secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
-					}
-				end
-			end
-		end
+		WornRows(out)
 		return out
 	end,
 })

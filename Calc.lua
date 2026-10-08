@@ -236,6 +236,20 @@ function C.Evaluate(text)
 	return answer, s, v
 end
 
+-- (shared by every calc row, read from the row: not two closures made per keystroke)
+local function CalcActivate(e)
+	ns:Output({ e.sum .. " = " .. e.answer })
+end
+-- Shift+Enter: the answer into the chat box, ready to send
+local function CalcSecondary(e)
+	if ChatFrame_OpenChat then
+		ChatFrame_OpenChat(e.answer)
+	elseif ChatEdit_ActivateChat and DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.editBox then
+		ChatEdit_ActivateChat(DEFAULT_CHAT_FRAME.editBox)
+		DEFAULT_CHAT_FRAME.editBox:Insert(e.answer)
+	end
+end
+
 --- The result row for the terminal, or nil.
 function C.Entry(text)
 	local answer, sum = C.Evaluate(text)
@@ -251,17 +265,7 @@ function C.Entry(text)
 		answer = answer,
 		sum = sum,
 		_pos = {},
-		activate = function(e)
-			ns:Output({ e.sum .. " = " .. e.answer })
-		end,
-		-- Shift+Enter: the answer into the chat box, ready to send
-		secondary = function(e)
-			if ChatFrame_OpenChat then
-				ChatFrame_OpenChat(e.answer)
-			elseif ChatEdit_ActivateChat and DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.editBox then
-				ChatEdit_ActivateChat(DEFAULT_CHAT_FRAME.editBox)
-				DEFAULT_CHAT_FRAME.editBox:Insert(e.answer)
-			end
-		end,
+		activate = CalcActivate,
+		secondary = CalcSecondary,
 	}
 end

@@ -663,6 +663,12 @@ do
 	row.detail = "Garr  " .. string.rep("x", 200)
 	local m = SH.Macro(row, { cmd = "/g" })
 	check(m == "/g " .. LINK, "too long: the link alone: " .. tostring(m))
+	-- the base text is worked out once per line (an NPC's sets your map pin to link it)
+	local baseWas, bases = SH.BaseText, 0
+	SH.BaseText = function(...) bases = bases + 1 return baseWas(...) end
+	m = SH.Macro(row, { cmd = "/g" })
+	SH.BaseText = baseWas
+	check(m == "/g " .. LINK and bases == 1, "too long: the same line, the base text worked out once: " .. bases)
 	C_Item.GetItemInfo = saveInfo
 end
 
@@ -685,6 +691,7 @@ do
 		local same = true
 		for i = 1, 4 do if start[i][1] ~= back[i][1] or start[i][2] ~= back[i][2] then same = false end end
 		check(#start == 4 and same, kind .. ": four cells, four turns round")
+		check(TT.Cells(kind, 1) == TT.Cells(kind, 5), kind .. ": a rotation's cells are worked out once")
 	end
 	local f = TT.frame
 	local passed
@@ -709,6 +716,22 @@ do
 	TT.Tick(0.17 + 0.05 * 2 + 0.001)
 	check(g.piece.x > x0 + 1, "held: it goes on by itself")
 	f.scripts.OnKeyUp(f, "RIGHT")
+	-- two keys for one move (Left and A): letting go of one while the other is held keeps it going
+	TT.Reset(); TT.Spawn("O")
+	x0 = g.piece.x
+	f.scripts.OnKeyDown(f, "LEFT"); f.scripts.OnKeyDown(f, "A")
+	check(g.piece.x == x0 - 1, "A while Left is held moves nothing more")
+	f.scripts.OnKeyUp(f, "A")
+	TT.Tick(0.17 + 0.001)
+	check(g.piece.x < x0 - 1, "A let go, Left still held: it goes on by itself")
+	f.scripts.OnKeyUp(f, "LEFT")
+	local x1 = g.piece.x
+	TT.Tick(0.2); TT.Tick(0.2)
+	check(g.piece.x == x1, "both let go: it stops")
+	f.scripts.OnKeyDown(f, "DOWN"); f.scripts.OnKeyDown(f, "S"); f.scripts.OnKeyUp(f, "S")
+	check(g.down, "Down still held after S is let go: still falling fast")
+	f.scripts.OnKeyUp(f, "DOWN")
+	check(not g.down, "Down let go too: normal speed")
 	-- gravity, and landing then locking after the wait
 	TT.Reset(); TT.Spawn("O")
 	local y0 = g.piece.y
@@ -762,9 +785,11 @@ do
 	g.score = 1234
 	TT.Spawn("O")
 	check(g.over and ns.db.tetrisBest == 1234 and g.newBest, "the stack at the top: game over, the best kept")
+	check(f.scripts.OnUpdate == nil, "game over: nothing runs every frame")
 	TT.Draw()
 	f.scripts.OnKeyDown(f, "ENTER")
 	check(not g.over and g.score == 0, "Enter plays again")
+	check(f.scripts.OnUpdate ~= nil, "and the game runs again")
 	f.scripts.OnKeyDown(f, "ESCAPE")
 	check(not TT.IsShown(), "Esc quits")
 	ns.commands.tetris.run(""); f.scripts.OnKeyDown(f, "`")
@@ -781,4 +806,78 @@ do
 	_G.InCombatLockdown = function() return true end
 	check(TT.Open() == false and not TT.IsShown(), "not in combat")
 	_G.InCombatLockdown = realCombat
+end
+
+-- .snake: the game-over screen runs nothing every frame; Enter (Reset) starts it again
+io.write("[snake: rests on game over]\n")
+do
+	local Sn = ns.Snake
+	local g = Sn.game
+	Sn.Open()
+	local f = Sn.frame
+	check(f.scripts.OnUpdate ~= nil, "snake: running while a game is on")
+	for _ = 1, 40 do Sn.Step() end
+	check(g.over and f.scripts.OnUpdate == nil, "snake: game over, nothing runs every frame")
+	f.scripts.OnKeyDown(f, "ENTER")
+	check(not g.over and f.scripts.OnUpdate ~= nil, "snake: Enter plays again, and it runs again")
+	Sn.Close(); Sn.Open()
+	check(f.scripts.OnUpdate ~= nil, "snake: reopened, it runs")
+	Sn.Close()
+end
+
+-- the panels' shared helpers keep each app's own words: combat closing and refusing to open
+io.write("[panels: their messages]\n")
+do
+	local basePrint, printed = ns.Print, {}
+	ns.Print = function(_, m) printed[#printed + 1] = m end
+	local apps = {
+		{ ns.Atop, "atop closed: combat started.", "atop reads the keyboard while open, so not in combat." },
+		{ ns.Snake, "Snake closed: combat started.", "Snake takes over keys, which the game doesn't allow in combat." },
+		{ ns.Tetris, "Tetris closed: combat started.", "Tetris takes over keys, which the game doesn't allow in combat." },
+		{ ns.Changelog, "Changelog closed: combat started.", "The changelog takes the arrow keys while open, which the game doesn't allow in combat." },
+		{ ns.Wowamp, "WoWamp closed: combat started. The music plays on.", "WoWamp takes over a few keys, which the game doesn't allow in combat. (The music plays on.)" },
+	}
+	local realCombat = _G.InCombatLockdown
+	for _, a in ipairs(apps) do
+		local app = a[1]
+		printed = {}
+		app.Open()
+		app.Close("combat")
+		check(not app.IsShown() and printed[1] == a[2], "combat closes it, saying: " .. tostring(printed[1]))
+		printed = {}
+		app.Close("combat")
+		check(#printed == 0, "already closed: nothing said")
+		_G.InCombatLockdown = function() return true end
+		check(app.Open() == false and not app.IsShown() and printed[1] == a[3], "in combat it doesn't open, saying: " .. tostring(printed[1]))
+		_G.InCombatLockdown = realCombat
+		printed = {}
+		app.Open(); app.Close()
+		check(not app.IsShown() and #printed == 0, "closed by hand: nothing said")
+	end
+	ns.Print = basePrint
+	local P = ns.Panel
+	check(P.Hex("|cff33ff99") == "33ff99" and P.Hex("ff33ff99") == "33ff99" and P.Hex("33ff99") == "33ff99" and P.Hex(nil) == "ffffff", "Panel.Hex")
+end
+
+-- the options panel's checkboxes and action buttons (made by Check / Action), and the copy boxes' read-only text
+io.write("[options: checkboxes, action row; copy boxes read-only]\n")
+do
+	local O = ns.Options
+	for _, key in ipairs({ "hints", "syntax", "suggest", "autoScan" }) do
+		check(O.widgets[key] and O.widgets[key].scripts.OnClick, "options: a checkbox for " .. key)
+	end
+	check(O.widgets.autoScanLabel ~= nil, "options: the autoScan label is kept (shown only where it works)")
+	local xs = {}
+	for i, b in ipairs(O.actionRow) do xs[i] = b[2] end
+	check(table.concat(xs, ",") == "16,156,296,416", "options: four action buttons in a row: " .. table.concat(xs, ","))
+	local C = ns.CopyBox
+	ns:ShowText("t", "keep me")
+	C.edit.text = "typed"
+	C.edit.scripts.OnTextChanged(C.edit, true)
+	check(C.edit.text == "keep me", "copy window: typing puts the text back")
+	ns:ShowText("t", "a link", { compact = true })
+	C.linkEdit.text = "typed"
+	C.linkEdit.scripts.OnTextChanged(C.linkEdit, true)
+	check(C.linkEdit.text == "a link", "link bar: typing puts the text back")
+	C.Hide()
 end

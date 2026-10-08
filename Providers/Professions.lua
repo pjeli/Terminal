@@ -95,6 +95,11 @@ function P.PlayerProfessions()
 	return out, complete
 end
 
+--- The player's spellbook bank (read when asked, as each caller did).
+local function PlayerBank()
+	return Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+end
+
 --- Profession spells that open a crafting window of their own: Smelting for miners, and
 --- Forever's like (skinners' tanning and so on). Same test the game's spellbook uses:
 --- C_TradeSkillUI.CanTradeSkillShowCraftingUI(spellID). Opened by casting the spell.
@@ -103,7 +108,7 @@ function P.TradeSpells()
 	local out, seen = {}, {}
 	local api = TS()
 	if not (api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return out end
-	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	local bank = PlayerBank()
 	local profs = P.PlayerProfessions()
 	local profNames = {}
 	for _, pr in ipairs(profs) do profNames[Lower(pr.name)] = true end
@@ -231,12 +236,13 @@ end
 function P.OpenerSpell(skillLine, name)
 	local api = TS()
 	if not (api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return nil end
-	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	local bank = PlayerBank()
 	local lname = type(name) == "string" and Lower(name) or nil
 	for _, pr in ipairs((P.PlayerProfessions())) do
 		if pr.spellOffset and ((skillLine and pr.skillLine == skillLine) or (lname and Lower(pr.name) == lname)) then
 			local named -- (its entry named like it: what the game's profession book casts when the test says no)
-			for _, sp in ipairs(P.ProfessionSpells(pr)) do
+			local spells = P.ProfessionSpells(pr)
+			for _, sp in ipairs(spells) do
 				if sp.canShow then
 					ns:Trace(("professions: %s's window opens with %s"):format(pr.name, sp.name))
 					return sp.name
@@ -252,7 +258,7 @@ function P.OpenerSpell(skillLine, name)
 			-- else its one active entry that isn't a minimap tracking spell (Herbalism: Find Herbs tracks,
 			-- Gardening opens the window)
 			local tracking, left = P.TrackingSpells(), {}
-			for _, sp in ipairs(P.ProfessionSpells(pr)) do
+			for _, sp in ipairs(spells) do
 				if not sp.passive and not tracking[sp.id] then left[#left + 1] = sp end
 			end
 			if #left == 1 then
@@ -282,7 +288,7 @@ function P.ProfessionSpells(pr)
 	local out = {}
 	local api = TS()
 	if not (pr and pr.spellOffset and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return out end
-	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	local bank = PlayerBank()
 	for slot = pr.spellOffset + 1, pr.spellOffset + math.max(pr.numSpells or 0, 1) do
 		local ok, info = pcall(C_SpellBook.GetSpellBookItemInfo, slot, bank)
 		local id = ok and type(info) == "table" and (info.spellID or info.actionID)
@@ -444,6 +450,81 @@ end
 
 local busy = false
 
+--- One known recipe of the open window as it's stored (nil for one not known or unreadable).
+--- cats: category id -> name (false: none), filled as categories are looked up.
+local function RecipeRecord(api, id, cats)
+	local info = api.GetRecipeInfo(id)
+	if type(info) == "table" and type(info.name) == "string" and not Secret(info.name) and info.learned ~= false then
+		local catName
+		if info.categoryID then
+			catName = cats[info.categoryID]
+			if catName == nil then
+				local ci = api.GetCategoryInfo and api.GetCategoryInfo(info.categoryID)
+				catName = (type(ci) == "table" and ci.name) or false
+				cats[info.categoryID] = catName
+			end
+		end
+		local reagents, made = ReagentsOf(id)
+		return {
+			id = id,
+			name = info.name,
+			icon = info.icon,
+			learned = true, -- only recipes the character knows are kept
+			cat = catName or nil,
+			reagents = reagents,
+			item = made, -- what it makes (stat:/slot: filters on crafts)
+			diff = ns.Num(info.relativeDifficulty), -- orange/yellow/green/grey now (is:skillup; Filters.DIFF)
+		}
+	end
+end
+
+--- Stores the recipes read from the open window under its profession (or the profession spell that
+--- opened it), with the spell it was opened by, and drops older copies kept under another key.
+local function SaveSnapshot(store, key, profName, fromList, list)
+	-- a window opened by a profession spell (Smelting): keep it apart from its profession
+	local spell = P.lastSpell and (GetTime() - P.lastSpell.at) < 6 and P.lastSpell.name or nil
+	if not spell and P.tradeSpellNames[Lower(profName)] then spell = profName end
+	local parent
+	if spell and Lower(spell) ~= Lower(profName) then
+		parent = profName
+		key, profName, fromList = "spell:" .. spell, spell, false
+	elseif spell then
+		key, fromList = "spell:" .. spell, false
+	end
+	P.lastSpell = nil
+	-- opened by you from the game (its profession book casting an entry): that spell opens it next time
+	local opener = store[key] and store[key].opener
+	local cast = not spell and P.lastCast and GetTime() - P.lastCast.at < 5 and P.lastCast.name or nil
+	-- only one of the profession's own entries (a spell cast just before, say in a fight, isn't its opener)
+	if cast and P.IsOwnSpell(fromList and key or nil, profName, cast) then
+		opener = cast
+		ns:Trace(("professions: %s's window was opened with %s: kept as its opener"):format(profName, opener))
+	end
+	P.lastCast = nil
+	-- one entry per profession: drop older copies stored under another key
+	local lname = Lower(profName)
+	local prevCount
+	for _, pd in pairs(store) do
+		if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
+	end
+	if not P.scanning and prevCount ~= #list then
+		ns:Print(("indexed %s: %d known recipe%s."):format(profName, #list, #list == 1 and "" or "s"))
+	end
+	for k, pd in pairs(store) do
+		if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
+	end
+	store[key] = {
+		name = profName,
+		skillLine = fromList and key or nil,
+		fromList = fromList or nil,
+		spell = spell,
+		opener = opener,
+		parent = parent,
+		updated = time(),
+		list = list,
+	}
+end
+
 --- Reads every recipe of the profession window that is currently open.
 function P.Snapshot(done)
 	local function finish()
@@ -479,76 +560,12 @@ function P.Snapshot(done)
 		local stop = math.min(i + 40, #ids)
 		while i < stop do
 			i = i + 1
-			local id = ids[i]
-			local info = api.GetRecipeInfo(id)
-			if type(info) == "table" and type(info.name) == "string" and not Secret(info.name) and info.learned ~= false then
-				local catName
-				if info.categoryID then
-					catName = cats[info.categoryID]
-					if catName == nil then
-						local ci = api.GetCategoryInfo and api.GetCategoryInfo(info.categoryID)
-						catName = (type(ci) == "table" and ci.name) or false
-						cats[info.categoryID] = catName
-					end
-				end
-				local reagents, made = ReagentsOf(id)
-				list[#list + 1] = {
-					id = id,
-					name = info.name,
-					icon = info.icon,
-					learned = true, -- only recipes the character knows are kept
-					cat = catName or nil,
-					reagents = reagents,
-					item = made, -- what it makes (stat:/slot: filters on crafts)
-					diff = ns.Num(info.relativeDifficulty), -- orange/yellow/green/grey now (is:skillup; Filters.DIFF)
-				}
-			end
+			list[#list + 1] = RecipeRecord(api, ids[i], cats)
 		end
 		if i < #ids then
 			C_Timer.After(0, step) -- spread the work over a few frames
 		else
-			-- a window opened by a profession spell (Smelting): keep it apart from its profession
-			local spell = P.lastSpell and (GetTime() - P.lastSpell.at) < 6 and P.lastSpell.name or nil
-			if not spell and P.tradeSpellNames[Lower(profName)] then spell = profName end
-			local parent
-			if spell and Lower(spell) ~= Lower(profName) then
-				parent = profName
-				key, profName, fromList = "spell:" .. spell, spell, false
-			elseif spell then
-				key, fromList = "spell:" .. spell, false
-			end
-			P.lastSpell = nil
-			-- opened by you from the game (its profession book casting an entry): that spell opens it next time
-			local opener = store[key] and store[key].opener
-			local cast = not spell and P.lastCast and GetTime() - P.lastCast.at < 5 and P.lastCast.name or nil
-			-- only one of the profession's own entries (a spell cast just before, say in a fight, isn't its opener)
-			if cast and P.IsOwnSpell(fromList and key or nil, profName, cast) then
-				opener = cast
-				ns:Trace(("professions: %s's window was opened with %s: kept as its opener"):format(profName, opener))
-			end
-			P.lastCast = nil
-			-- one entry per profession: drop older copies stored under another key
-			local lname = Lower(profName)
-			local prevCount
-			for _, pd in pairs(store) do
-				if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
-			end
-			if not P.scanning and prevCount ~= #list then
-				ns:Print(("indexed %s: %d known recipe%s."):format(profName, #list, #list == 1 and "" or "s"))
-			end
-			for k, pd in pairs(store) do
-				if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
-			end
-			store[key] = {
-				name = profName,
-				skillLine = fromList and key or nil,
-				fromList = fromList or nil,
-				spell = spell,
-				opener = opener,
-				parent = parent,
-				updated = time(),
-				list = list,
-			}
+			SaveSnapshot(store, key, profName, fromList, list)
 			finish()
 		end
 	end
@@ -573,14 +590,7 @@ local Plain = ns.Plain -- (Locale.lua)
 local function RecipeRow(root, name)
 	return ns.FindFrame(root, function(f)
 		if not f.Click then return false end
-		local texts = {}
-		if f.GetText then
-			local ok, t = pcall(f.GetText, f)
-			if ok and type(t) == "string" then texts[#texts + 1] = t end
-		end
-		for _, r in ipairs({ f:GetRegions() }) do
-			if r.GetObjectType and r:GetObjectType() == "FontString" then texts[#texts + 1] = r:GetText() end
-		end
+		local texts = ns.FrameTexts(f)
 		for _, t in ipairs(texts) do
 			t = Plain(t)
 			if t == name or t:sub(1, #name + 1) == name .. " " then return true end
@@ -650,7 +660,7 @@ function P.SelectRecipe(recipeID, name)
 		frame = function() local pf = _G.ProfessionsFrame; return pf and pf:IsVisible() and pf or nil end,
 		find = function(pf) return name and RecipeRow(pf, name) or nil end,
 		scroll = function(pf) return ScrollToRecipe(pf, recipeID) end, -- (the row may be further down the list)
-		show = function(row) H:Show(row, 6) end,
+		show = function(row) H:Show(row) end,
 		tries = 30,
 	})
 end
@@ -840,8 +850,8 @@ local asked = {} -- item id -> times its name was asked of the server (stop afte
 local function ItemName(id)
 	local n = itemNames[id]
 	if n then return n end
-	n = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
-	if not n then n = C_Item.GetItemInfo(id) end
+	-- (guarded: a failing or secret answer is no name, and "" is never kept as one)
+	n = ns.Str(ns.Safe(C_Item.GetItemNameByID, id)) or ns.Str(ns.Safe(C_Item.GetItemInfo, id))
 	if n then
 		itemNames[id] = n
 		P.waitingNames[id] = nil
@@ -849,7 +859,7 @@ local function ItemName(id)
 		asked[id] = (asked[id] or 0) + 1
 		P.unresolved = (P.unresolved or 0) + 1
 		P.waitingNames[id] = true
-		if C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
+		if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 	end
 	return n
 end
@@ -973,7 +983,7 @@ ns:RegisterProvider("recipes", {
 --- shift-click: C_SpellBook.GetSpellBookItemTradeSkillLink on its entry, no window needed); for a
 --- trade spell's row (Smelting), its own entry's. Else the open window's, when it's that profession's.
 local function ProfessionLink(e)
-	local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+	local bank = PlayerBank()
 	local get = C_SpellBook and C_SpellBook.GetSpellBookItemTradeSkillLink
 	local pname = e.parentName or e.name
 	for _, pr in ipairs((P.PlayerProfessions())) do
@@ -1115,9 +1125,9 @@ ns:RegisterCommand("profdebug", {
 			lines[#lines + 1] = ("  First recipe: %s  learned=%s  line=%s parent=%s"):format(S(i1.name), S(i1.learned), line, parent)
 		end
 		-- each profession's spellbook entries, and which spell Terminal opens its window with
+		local tracking = P.TrackingSpells()
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local parts = {}
-			local tracking = P.TrackingSpells()
 			for _, sp in ipairs(P.ProfessionSpells(pr)) do
 				parts[#parts + 1] = ("%s #%s%s%s%s"):format(sp.name, S(sp.id), sp.canShow and " [opens window]" or "",
 					sp.passive and " (passive)" or "", tracking[sp.id] and " (tracking)" or "")

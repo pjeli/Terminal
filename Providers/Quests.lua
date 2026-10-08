@@ -37,8 +37,8 @@ local function QuestWindows()
 		if Visible(f) then out[#out + 1] = { f, true }; seen[f] = true end
 	end
 	for _, f in ipairs({ UIParent:GetChildren() }) do
-		local ok, name = pcall(function() return f:GetName() end)
-		if ok and type(name) == "string" and name:find("Quest") and not NotAWindow(name)
+		local name = ns.FrameName(f)
+		if name and name:find("Quest") and not NotAWindow(name)
 			and not seen[f] and Visible(f) and name ~= "QuestMapFrame" and name ~= "WorldMapFrame" then
 			out[#out + 1] = { f, true }
 			seen[f] = true
@@ -51,9 +51,17 @@ local function QuestWindows()
 	return out
 end
 
---- Is a quest log open? Only the real quest log windows count (a classic log, or the map
---- showing its quest panel), not any other frame that happens to have "Quest" in its name:
---- one of those being on screen made Terminal skip opening the log.
+--- Is a quest log window showing (a classic log, or the map's quest panel)? Only the real quest
+--- log windows count, not any other frame that happens to have "Quest" in its name: one of those
+--- being on screen made Terminal skip opening the log. Also the Quest Log panel row's check, which
+--- must not toggle an open log closed.
+local function LogShown()
+	for _, name in ipairs(LOGS) do
+		if Visible(_G[name]) then return true end
+	end
+	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
+end
+
 --- Does the quest key open the map's quest panel (no classic log in its place)? Then Enter
 --- runs the quest-details macro, whether the log is open or not.
 local function MapRoute()
@@ -73,24 +81,14 @@ end
 
 local function IsOpen()
 	if MapRoute() then return false end -- the macro switches the details even when it's open
-	for _, name in ipairs(LOGS) do
-		if Visible(_G[name]) then return true end
-	end
-	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
+	return LogShown()
 end
 
 local Plain = ns.Plain -- (Locale.lua)
 
 -- a row label that is the title, or ends with it ("[5] Title", "[2] Title" for party)
 local function TitleMatch(f, title)
-	local texts = {}
-	if f.GetText then
-		local ok, t = pcall(f.GetText, f)
-		if ok and type(t) == "string" then texts[#texts + 1] = t end
-	end
-	for _, r in ipairs({ f:GetRegions() }) do
-		if r.GetObjectType and r:GetObjectType() == "FontString" then texts[#texts + 1] = r:GetText() end
-	end
+	local texts = ns.FrameTexts(f)
 	for _, t in ipairs(texts) do
 		t = Plain(t)
 		if t == title or (#t > #title and t:sub(-#title) == title and t:sub(-#title - 1, -#title - 1) == " ") then
@@ -104,8 +102,7 @@ end
 local function WindowNames()
 	local names = {}
 	for _, w in ipairs(QuestWindows()) do
-		local ok, n = pcall(function() return w[1]:GetName() end)
-		names[#names + 1] = tostring(ok and n or "?") .. (w[2] and "" or " (point only)")
+		names[#names + 1] = (ns.FrameName(w[1]) or "?") .. (w[2] and "" or " (point only)")
 	end
 	return #names > 0 and table.concat(names, ", ") or "none"
 end
@@ -171,8 +168,7 @@ local function ShowQuestAfter(e)
 			if row then return { row = row, click = w[2], window = w[1] } end
 		end
 	end, function(hit)
-		local ok, n = pcall(function() return hit.window:GetName() end)
-		ns:Trace("quests: found the row in " .. tostring(ok and n or "?") .. (hit.click and ", clicking it" or ", pointing only"))
+		ns:Trace("quests: found the row in " .. (ns.FrameName(hit.window) or "?") .. (hit.click and ", clicking it" or ", pointing only"))
 		if hit.click then pcall(hit.row.Click, hit.row) end -- selects it in that log
 		H:Show(hit.row)
 	end, 30, function()
@@ -197,15 +193,6 @@ local function TrackQuest(e)
 end
 
 local QUEST_SECURE = { macro = QuestMacro, binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
-
---- Is a quest log window showing (a classic log, or the map's quest panel)? For the Quest Log
---- panel row, which must not toggle an open log closed.
-local function LogShown()
-	for _, name in ipairs(LOGS) do
-		if Visible(_G[name]) then return true end
-	end
-	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
-end
 
 ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown }
 

@@ -2,9 +2,9 @@ local ns = select(2, ...)
 
 -- Your guild and your friends (@guild, @friend): "@guild priest online", "@guild blacksmith", "@guild in:undercity",
 -- "@guild officer", "@friend online". Each person's row is searchable by name, class, rank, zone, notes and (where the
--- game says) professions; lvl: and in: work on them, is:online / is:offline too. Enter opens a whisper to them, Shift+Enter
--- invites them (both from Terminal's code: the chat box and the invite aren't protected, and a whisper the game opened
--- on Enter's own press closed again at once).
+-- game says) professions; lvl: and in: work on them, is:online / is:offline too. Enter opens a whisper to them, pressed
+-- by the game (WHISPER: a /run line that opens the chat box a moment after the press, SO.WhisperMacro; from Terminal's
+-- code only in combat, SO.Whisper). Shift+Enter invites them (Terminal's code: the invite isn't protected).
 
 local SO = {}
 ns.Social = SO
@@ -27,7 +27,7 @@ end
 -- a name as a Lua string inside a /run line (quotes and backslashes escaped; "|" doubled, or chat reads a code)
 local function Quoted(s) return '"' .. tostring(s):gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("|", "||") .. '"' end
 
-local function Never() return false end
+local Never = ns.Never
 
 --- A Battle.net friend's account name (an escape the chat box reads; never put in macro text), by id, else BattleTag.
 local function AccountName(e)
@@ -228,8 +228,8 @@ ns:RegisterProvider("guild", {
 -- Friends (the game's friend list and Battle.net friends)
 ----------------------------------------------------------------------
 
-function SO.FriendRows()
-	local out, seen = {}, {}
+--- The game's friend list as rows (into out; seen[name] marks each). The number of friends on it.
+local function FriendListRows(out, seen)
 	local FL = C_FriendList
 	local n = FL and FL.GetNumFriends and Num(Safe(FL.GetNumFriends)) or 0
 	for i = 1, n do
@@ -247,9 +247,15 @@ function SO.FriendRows()
 			})
 		end
 	end
-	-- Battle.net friends. Their BattleTag, account name or character may come as secret values here (Str gives nil):
-	-- a friend is listed with whatever is readable (playing: their character, "Girl Bird"), and whispered by their
-	-- account id, which the /run line turns into the account name when pressed (that name is an escape, never in text)
+	return n
+end
+
+--- Battle.net friends as rows (into out), leaving out a character already listed from the friend list (seen).
+--- How many were listed, how many are playing, and how many Battle.net friends there are.
+-- Their BattleTag, account name or character may come as secret values here (Str gives nil): a friend is listed with
+-- whatever is readable (playing: their character, "Girl Bird"), and whispered by their account id, which the /run line
+-- turns into the account name when pressed (that name is an escape, never in text)
+local function BNetRows(out, seen)
 	local BN = C_BattleNet
 	local bn = Num(Safe(_G.BNGetNumFriends)) or 0
 	local listed, playing = 0, 0
@@ -279,6 +285,13 @@ function SO.FriendRows()
 			end
 		end
 	end
+	return listed, playing, bn
+end
+
+function SO.FriendRows()
+	local out, seen = {}, {}
+	local n = FriendListRows(out, seen)
+	local listed, playing, bn = BNetRows(out, seen)
 	ns:Trace(("friends: %d on the friend list, %d of %d Battle.net friends listed (%d playing)"):format(n, listed, bn, playing))
 	table.sort(out, function(x, y)
 		if x.online ~= y.online then return x.online end
@@ -368,8 +381,9 @@ function SO.WhoRows()
 			-- (each one answered the /who asked: its words count as theirs, so the search that asked lists them all, also
 			-- by words only the server understood, "1-10" or z-"undercity"; words typed after that narrow them down)
 			local text = { "who", who.asked or "" }
+			local vals = { guild, race, class, zone, level and tostring(level) } -- (nil holes: walked by count)
 			for k = 1, 5 do
-				local v = ({ guild, race, class, zone, level and tostring(level) })[k]
+				local v = vals[k]
 				if v and v ~= "" then text[#text + 1] = v end
 			end
 			out[#out + 1] = Row({

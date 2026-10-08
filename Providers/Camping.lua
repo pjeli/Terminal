@@ -114,7 +114,7 @@ local function CampMacro(e)
 	return "/cast " .. spell .. "\n" .. craft
 end
 local CAMP_SPEC = { macro = CampMacro }
-local function CampNeverOpen() return false end
+local CampNeverOpen = ns.Never
 local function CampAfter(e)
 	if e._campUse then
 		ns:Trace("camp: the game used " .. tostring(e.name))
@@ -142,32 +142,31 @@ ns:RegisterProvider("camp", {
 		for _, def in ipairs(ALL) do
 			local hit = idx[def.lname]
 			if hit and hit.r.learned then
-			local label = def.prof
-			if def.tier then label = label .. " T" .. def.tier end
-			if def.skill then label = label .. " (" .. def.skill .. ")" end
-			local e = {
-				key = def.name,
-				name = def.name,
-				icon = hit.r.icon or "Interface\\Icons\\INV_Misc_Spyglass_03",
-				color = GREEN,
-				detail = label .. " - Known",
-				text = def.text,
-				tip = def.tip,
-				def = def,
-				hit = hit,
-				activate = OpenCamp,
-			}
-			-- opened like its recipe: the profession it's in (e.g. Bait and Tackle) is cast on
-			-- Enter by the game, then the recipe is selected and pointed at
-			if hit.pdata and P.MakeRecipeEntry then
-				local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
-				e.recipeID, e.profID = re.recipeID, re.profID
-				e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after
-				e.recipeSecure, e.recipeIsOpen, e.recipeAfter = re.secure, re.isOpen, re.after
-				e.getLink = re.getLink
-				e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CampFallback, CAMP_SPEC, CampNeverOpen, CampAfter
-			end
-			out[#out + 1] = e
+				local label = def.prof
+				if def.tier then label = label .. " T" .. def.tier end
+				if def.skill then label = label .. " (" .. def.skill .. ")" end
+				local e = {
+					key = def.name,
+					name = def.name,
+					icon = hit.r.icon or "Interface\\Icons\\INV_Misc_Spyglass_03",
+					color = GREEN,
+					detail = label .. " - Known",
+					text = def.text,
+					tip = def.tip,
+					hit = hit,
+					activate = OpenCamp,
+				}
+				-- opened like its recipe: the profession it's in (e.g. Bait and Tackle) is cast on
+				-- Enter by the game, then the recipe is selected and pointed at
+				if hit.pdata and P.MakeRecipeEntry then
+					local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
+					e.recipeID, e.profID = re.recipeID, re.profID
+					e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after
+					e.recipeSecure, e.recipeIsOpen, e.recipeAfter = re.secure, re.isOpen, re.after
+					e.getLink = re.getLink
+					e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CampFallback, CAMP_SPEC, CampNeverOpen, CampAfter
+				end
+				out[#out + 1] = e
 			end
 		end
 		return out

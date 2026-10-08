@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.43.0
+
+**Your guild, friends and gold**
+- `@guild` and `@friend` (Simple mode: Guild & friends): search members by class, rank, zone, notes or profession, like "@guild priest online" or "@guild in:undercity". Battle.net friends show the character they're playing. Enter whispers them; Shift+Enter invites them.
+- `@who` (Simple mode: "who priest undercity"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite.
+- `@gold` (Simple mode: "gold"): your gold, and with Baganator or Bagnon every alt's, the guild banks and the warband bank, with the total on top.
+
+**Pure fuzzy finding**
+- Hold Tab and press **`** (or type `.fuzzy`): every list at once, matched by name only, like fzf. No `@`, no filters, no extras. Go through the results with Up/Down.
+- Enter takes the result to Simple mode, Shift+Enter to Advanced mode, to open, use or send from there. A soft glow round the prompt says it's on; Tab+` again closes Terminal.
+
+**Searching**
+- "or" and "not": "sword or axe", "rare sword or epic axe", "rare ring not boe" (also "without" and "except").
+  - In Advanced mode: `|` between values, filters or words (`q:rare|epic`, `sword|axe`), `&` for both inside one (`q:rare&type:sword|q:epic&type:axe`), and `-` or `!` for not (`-is:soulbound`, `!q:poor`).
+- "skillup" lists recipes that still give skill (orange and yellow). Advanced mode: `is:skillup`, also with `@profession`; `is:orange`, `is:yellow`, `is:green`, `is:grey` too. Recipes show in their difficulty colour.
+- The "try:" suggestions in the empty prompt are made for your character: your class trainer, your professions' skill-ups, a dungeon at your level, where you are, what's in your bags.
+
+**Places and windows**
+- Dungeon and raid entrances are WoW Forever's own, with level ranges: The Drowned City, the Hall of Thanes and the rest are there, and other expansions' are gone.
+- "group browser" and "who listing" open the Dungeons window straight to that tab.
+
+**Sending to chat**
+- Simple mode: Shift+Right opens the selected result's menu (open, use, link or send to chat), to pick from with Up/Down and Enter.
+- Loot sent to chat says where it drops: "[Thunderfury] dropped by Garr in Molten Core".
+
+**Also**
+- Fixes:
+  - Typing Advanced syntax in Simple mode could raise an error during a long search.
+  - "upgrades" inside an or-search kept using your gear and level from the first search.
+  - An invisible click area could stay on screen after a window closed Terminal.
+  - One failing reagent name could empty a profession's whole recipe list.
+- Lighter and quicker: NPC role searches (vendor, repair, trainer), item type and stat filters do less work per row; tidier code throughout.
+
 ## 0.42.0
 
 **Send anything to chat, in Simple mode too**

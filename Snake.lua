@@ -27,6 +27,9 @@ S.rand = function(n) return math.random(n) end -- (tests replace it)
 
 local function Key(x, y) return y * 100 + x end
 
+-- runs only while a game is on: game over takes it off (nothing moves then), Reset puts it back
+local function OnUpdate(_, elapsed) S.Tick(elapsed) end
+
 ----------------------------------------------------------------------
 -- The game
 ----------------------------------------------------------------------
@@ -50,6 +53,7 @@ function S.Reset()
 	game.score, game.speed, game.acc = 0, START_SPEED, 0
 	game.over, game.won = false, false
 	PlaceFood()
+	if frame then frame:SetScript("OnUpdate", OnUpdate) end
 end
 
 --- Turn (taken on the next move; two quick presses are both kept, so a fast U-turn works,
@@ -85,6 +89,7 @@ end
 
 function S.GameOver(why)
 	game.over, game.why = true, why
+	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
 	if ns.db and game.score > (ns.db.snakeBest or 0) then
 		ns.db.snakeBest = game.score
 		game.newBest = true
@@ -160,17 +165,13 @@ local function Build()
 	frame = Panel.Build("TerminalSnake", S)
 	frame:SetSize(COLS * CELL + 24, ROWS * CELL + 64)
 	frame:SetScript("OnKeyDown", function(self, key) S.KeyDown(self, key) end)
-	frame:SetScript("OnUpdate", function(_, elapsed) S.Tick(elapsed) end)
+	frame:SetScript("OnUpdate", OnUpdate)
 
-	scoreText = Text(frame, 13)
-	scoreText:SetPoint("TOPLEFT", 12, -10)
-	bestText = Text(frame, 12, "RIGHT")
-	bestText:SetPoint("TOPRIGHT", -12, -10)
+	scoreText, bestText = Panel.Header(frame)
 
-	board = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+	board = Panel.Board(frame)
 	board:SetSize(COLS * CELL, ROWS * CELL)
 	board:SetPoint("TOP", 0, -32)
-	board:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
 	food = board:CreateTexture(nil, "ARTWORK")
 	food:SetColorTexture(1, 0.37, 0.37, 1)
 	food:SetSize(CELL - 4, CELL - 4)
@@ -179,18 +180,13 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 10)
 	overlaySub = Text(board, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -12)
-	footer = Text(frame, 11)
-	footer:SetPoint("BOTTOMLEFT", 12, 9)
-	footer:SetText("WASD or arrows steer  ·  Esc or ` quit")
+	footer = Panel.Footer(frame, 9, "WASD or arrows steer  ·  Esc or ` quit")
 	S.frame = frame
 end
 
 local function Style()
 	local t = Panel.Layout(frame) -- (its size is the board's, set once)
-	local br, bg, bb = Theme.RGB(t.border)
-	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
-	board:SetBackdropColor(pr, pg, pb, 1)
-	board:SetBackdropBorderColor(br, bg, bb, 1)
+	Panel.StyleBoard(board, t)
 	local tr, tg, tb = Theme.RGB(t.text)
 	local dr, dg, db = Theme.RGB(t.dim)
 	scoreText:SetTextColor(tr, tg, tb)
@@ -212,9 +208,7 @@ function S.KeyDown(self, key)
 	else
 		mine = false
 	end
-	if self and self.SetPropagateKeyboardInput and not InCombatLockdown() then
-		pcall(self.SetPropagateKeyboardInput, self, not mine)
-	end
+	Panel.Propagate(self, mine)
 end
 
 function S.Tick(elapsed)
@@ -231,13 +225,10 @@ function S.Tick(elapsed)
 	if moved then S.Draw() end
 end
 
-function S.IsShown() return frame and frame:IsShown() or false end
+function S.IsShown() return Panel.Shown(frame) end
 
 function S.Open()
-	if InCombatLockdown() then
-		ns:Print("Snake takes over keys, which the game doesn't allow in combat.")
-		return false
-	end
+	if not Panel.CanOpen("Snake takes over keys, which the game doesn't allow in combat.") then return false end
 	Build()
 	Style()
 	Panel.Opening(S) -- (straight in: the terminal and the other panels go)
@@ -248,9 +239,7 @@ function S.Open()
 end
 
 function S.Close(why)
-	if not frame or not frame:IsShown() then return end
-	frame:Hide()
-	if why == "combat" then ns:Print("Snake closed: combat started.") end
+	Panel.Close(frame, why, "Snake")
 end
 
 ns:RegisterCommand("snake", {

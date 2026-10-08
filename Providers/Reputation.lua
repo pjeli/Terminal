@@ -203,5 +203,3 @@ ns:RegisterProvider("reputation", {
 		return out
 	end,
 })
-
-R.ReadAll = ReadAll

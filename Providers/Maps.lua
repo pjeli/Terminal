@@ -142,6 +142,7 @@ local function PinOnly(e)
 end
 
 local PROTO = {
+	icon = "Interface\\Icons\\INV_Misc_Map_01", -- (every row's: kept here, not on each row)
 	secure = M.SECURE,
 	isOpen = IsOpenFor,
 	after = ShowAfter,
@@ -154,7 +155,7 @@ local meta -- made once the provider exists (see collect)
 local function Entry(o)
 	return setmetatable({
 		_compact = true,
-		key = o.key, name = o.name, _lname = ns.Lower(o.name), icon = o.icon, detail = o.detail,
+		key = o.key, name = o.name, _lname = ns.Lower(o.name), detail = o.detail,
 		_ltext = ns.Lower((o.path or "") .. " map location " .. (o.kind or "")),
 		mapID = o.mapID,
 	}, meta)
@@ -202,7 +203,6 @@ ns:RegisterProvider("maps", {
 				local path = pathOf(info)
 				out[#out + 1] = Entry({
 					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
-					icon = "Interface\\Icons\\INV_Misc_Map_01",
 					detail = kind .. (path ~= "" and ("  " .. path) or ""),
 				})
 			end

@@ -38,14 +38,12 @@ local function SlotSpell(slot)
 	local sub = C_Spell.GetSpellSubtext and Call(C_Spell.GetSpellSubtext, id)
 	return id, (not Secret(passive)) and passive == true, (type(sub) == "string" and not Secret(sub)) and sub or nil
 end
-SP.SlotSpell = SlotSpell
 
 --- ClassicUIForever's API when its spellbook stands in for the client's, else nil.
 local function CUF()
 	local A = _G.ClassicUIForeverAPI
 	if type(A) == "table" and type(A.GetFrame) == "function" and Call(A.IsOn, "spellBook") then return A end
 end
-SP.CUF = CUF
 
 --- The spellbook showing now (ClassicUIForever's, the client's, a classic one), or nil.
 function SP.Book()
@@ -180,7 +178,6 @@ local function PointAtSpell(e)
 			tostring(e.name), book and "yes" or "no", tostring(slot), tostring(book and SP.ClientButton(book, e) ~= nil)))
 	end)
 end
-SP.PointAtSpell = PointAtSpell
 
 -- Without the secure route (no binding, no button): try the book's own openers.
 local function SpellLink(e) return Call(C_Spell.GetSpellLink, e.spellID) end
@@ -199,7 +196,7 @@ end
 -- Shift+Enter: cast it. The game presses the /cast line (Terminal's own code can't cast).
 local function CastMacro(e) return not e.passive and ("/cast " .. e.name) or nil end
 local CAST_SPEC = { macro = CastMacro }
-local function NeverOpen() return false end -- nothing to open first: always pressed
+local NeverOpen = ns.Never -- nothing to open first: always pressed
 local function CastAfter(e) ns:Trace("spells: the game cast " .. tostring(e.name)) end
 -- only when the game couldn't be handed the press: in combat, or a passive spell
 local function CastFallback(e)

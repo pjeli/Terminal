@@ -59,22 +59,21 @@ end
 
 -- add(itemID, count, link, icon, quality, holder): holder = { key, who, where, mine, ...where it is }
 
---- Syndicator: the same counts its own tooltip shows. Every item in its records is looked up with
---- its API (GetInventoryInfoByItemID), with the tooltip's own settings (SYNDICATOR_CONFIG):
---- connected realms only (the default on this client), one faction only, guild banks and worn items
---- shown or not. Characters it hides, or on realms its tooltip leaves out, don't count here either.
-local function ReadSyndicator(A, add)
-	local cfg = type(_G.SYNDICATOR_CONFIG) == "table" and _G.SYNDICATOR_CONFIG or {}
-	local retail = _G.Syndicator.Constants and _G.Syndicator.Constants.IsRetail
-	local connectedOnly = cfg.tooltips_connected_realms_only_2
-	if connectedOnly == nil then connectedOnly = not retail end
-	local factionOnly = cfg.tooltips_faction_only == true
-	local showGuilds = cfg.show_guild_banks_in_tooltips ~= false
-	local showWorn = cfg.show_equipped_items_in_tooltips ~= false
-	local current = A.GetCurrentCharacter and A.GetCurrentCharacter()
-	local myRealm = current and current:match("%-(.+)$")
+--- Syndicator's tooltip settings (SYNDICATOR_CONFIG), or an empty table.
+local function SyndicatorConfig()
+	return type(_G.SYNDICATOR_CONFIG) == "table" and _G.SYNDICATOR_CONFIG or {}
+end
 
-	-- every item id in the records, with a link, icon and quality to show it by
+--- Whether Syndicator's tooltip counts connected realms only: its setting, else its default (not on retail).
+local function ConnectedOnly(cfg)
+	local connected = cfg.tooltips_connected_realms_only_2
+	if connected == nil then connected = not (_G.Syndicator.Constants and _G.Syndicator.Constants.IsRetail) end
+	return connected
+end
+
+--- Every item id in Syndicator's records (characters, guild banks, the warband bank), each with an
+--- item table carrying a link, icon and quality to show it by.
+local function SyndicatorItems(A)
 	local seen = {}
 	local function note(items)
 		for _, it in pairs(type(items) == "table" and items or {}) do
@@ -100,6 +99,23 @@ local function ReadSyndicator(A, add)
 	end
 	local w = A.GetWarband and A.GetWarband(1)
 	if type(w) == "table" then notes(w.bank) end
+	return seen
+end
+
+--- Syndicator: the same counts its own tooltip shows. Every item in its records is looked up with
+--- its API (GetInventoryInfoByItemID), with the tooltip's own settings (SYNDICATOR_CONFIG):
+--- connected realms only (the default on this client), one faction only, guild banks and worn items
+--- shown or not. Characters it hides, or on realms its tooltip leaves out, don't count here either.
+local function ReadSyndicator(A, add)
+	local cfg = SyndicatorConfig()
+	local connectedOnly = ConnectedOnly(cfg)
+	local factionOnly = cfg.tooltips_faction_only == true
+	local showGuilds = cfg.show_guild_banks_in_tooltips ~= false
+	local showWorn = cfg.show_equipped_items_in_tooltips ~= false
+	local current = A.GetCurrentCharacter and A.GetCurrentCharacter()
+	local myRealm = current and current:match("%-(.+)$")
+
+	local seen = SyndicatorItems(A) -- (every item id in the records)
 
 	local holders = {} -- one per owner and place, shared by every item they hold
 	local PLACES = { "bags", "bank", "mail", "equipped", "void", "auctions" }
@@ -284,13 +300,17 @@ end
 -- Item names asked of the server and not here yet (BagBrother keeps only item numbers). Each
 -- arrives with its own GET_ITEM_INFO_RECEIVED; the list is rebuilt once they're all in.
 local waiting, waitingCount = {}, 0
+local waitGen = 0 -- which wait the give-up timer belongs to (bumped whenever a wait ends)
 local asked = {} -- item id -> times its name was asked for (some never come: stop after two)
 
 local function Arrived(id)
 	if waiting[id] then
 		waiting[id] = nil
 		waitingCount = waitingCount - 1
-		if waitingCount == 0 and ns.providers.stored then ns.providers.stored._dirty = true end
+		if waitingCount == 0 then
+			waitGen = waitGen + 1
+			if ns.providers.stored then ns.providers.stored._dirty = true end
+		end
 	end
 end
 
@@ -302,11 +322,14 @@ local function Name(id, link)
 	if C_Item and C_Item.RequestLoadItemDataByID and (asked[id] or 0) < 2 and not waiting[id] then
 		asked[id] = (asked[id] or 0) + 1
 		if waitingCount == 0 then
-			-- names that never come don't keep the list waiting
+			-- names that never come don't keep the list waiting (only this wait: an older one's timer
+			-- would end a newer wait early)
+			local gen = waitGen
 			C_Timer.After(10, function()
-				if waitingCount > 0 then
+				if waitGen == gen and waitingCount > 0 then
 					for k in pairs(waiting) do waiting[k] = nil end
 					waitingCount = 0
+					waitGen = waitGen + 1
 					if ns.providers.stored then ns.providers.stored._dirty = true end
 				end
 			end)
@@ -341,6 +364,7 @@ local function Groups(e)
 	return list
 end
 S.Groups = Groups
+S.Name = Name -- (tests)
 
 local function GroupParts(g)
 	-- a guild or the warband holds things in one place: its name says where
@@ -384,6 +408,36 @@ local function Open(e)
 	if not ns.Bags.ShowItem(e.itemID, e.link, e.name) then
 		ns:Trace("stored: you don't carry " .. tostring(e.name) .. ", nothing to show")
 	end
+end
+
+--- The row for an item kept somewhere you aren't carrying it: x = { total, holders, link, icon, quality }.
+local function StoredRow(id, x, name)
+	local words = {}
+	for _, h in pairs(x.holders) do words[#words + 1] = h.who .. " " .. (WHERE_LABEL[h.where] or h.where) end
+	-- who has it: one owner is named, more are counted (the tooltip groups them)
+	local owners, first, nOwners = {}, nil, 0
+	for _, h in pairs(x.holders) do
+		local k = h.mine and "me" or h.owner or h.key
+		if not owners[k] then owners[k] = true; nOwners = nOwners + 1; first = h end
+	end
+	local quality = x.quality or (C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id))
+	return {
+		key = id,
+		name = name,
+		icon = x.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)),
+		color = QualityHex(quality),
+		link = x.link or ("item:" .. id),
+		-- short, so it fits beside the name; the tooltip has the rest
+		detail = x.total .. "  ·  " .. (nOwners == 1
+			and ((first.where == "guild" and first.who .. " (guild)" or first.who) .. (first.mine and " (you)" or ""))
+			or (nOwners .. " places")),
+		quality = quality,
+		tooltip = Tooltip,
+		text = "stored " .. table.concat(words, " "),
+		holders = x.holders, total = x.total, itemID = id,
+		activate = Open,
+		secondary = PrintBreakdown,
+	}
 end
 
 ns:RegisterProvider("stored", {
@@ -435,34 +489,7 @@ ns:RegisterProvider("stored", {
 				if not Carried(h) then elsewhere = true break end
 			end
 			local name = elsewhere and Name(id, x.link)
-			if name then
-				local words = {}
-				for _, h in pairs(x.holders) do words[#words + 1] = h.who .. " " .. (WHERE_LABEL[h.where] or h.where) end
-				-- who has it: one owner is named, more are counted (the tooltip groups them)
-				local owners, first, nOwners = {}, nil, 0
-				for _, h in pairs(x.holders) do
-					local k = h.mine and "me" or h.owner or h.key
-					if not owners[k] then owners[k] = true; nOwners = nOwners + 1; first = h end
-				end
-				local quality = x.quality or (C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id))
-				out[#out + 1] = {
-					key = id,
-					name = name,
-					icon = x.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)),
-					color = QualityHex(quality),
-					link = x.link or ("item:" .. id),
-					-- short, so it fits beside the name; the tooltip has the rest
-					detail = x.total .. "  ·  " .. (nOwners == 1
-						and ((first.where == "guild" and first.who .. " (guild)" or first.who) .. (first.mine and " (you)" or ""))
-						or (nOwners .. " places")),
-					quality = quality,
-					tooltip = Tooltip,
-					text = "stored " .. table.concat(words, " "),
-					holders = x.holders, total = x.total, itemID = id,
-					activate = Open,
-					secondary = PrintBreakdown,
-				}
-			end
+			if name then out[#out + 1] = StoredRow(id, x, name) end
 		end
 		return out
 	end,
@@ -521,9 +548,7 @@ function S.Status()
 	if src == "Syndicator" then
 		if not SyndicatorReady(SyndicatorAPI()) then return "Syndicator, still loading (@stored)" end
 		n = #(SyndicatorAPI().GetAllCharacters() or {})
-		local cfg = type(_G.SYNDICATOR_CONFIG) == "table" and _G.SYNDICATOR_CONFIG or {}
-		local connected = cfg.tooltips_connected_realms_only_2
-		if connected == nil then connected = not (_G.Syndicator.Constants and _G.Syndicator.Constants.IsRetail) end
+		local connected = ConnectedOnly(SyndicatorConfig())
 		return ("Syndicator, %d character(s) tracked, counted as its tooltip counts them%s (@stored)"):format(
 			n, connected and " (connected realms only)" or "")
 	else

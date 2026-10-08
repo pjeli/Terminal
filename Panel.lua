@@ -1,9 +1,10 @@
 local ns = select(2, ...)
 
--- What the small apps that take the terminal's place share (.atop, .snake, .changelog): a frame
--- built the same way, laid where the terminal is in its theme's colours, the same kind of text, and
--- a registry so opening one drops the terminal at once and closes the others. Each app keeps its own
--- keys: atop takes the keyboard whole, Snake and the changelog pass on the keys they don't use.
+-- What the small apps that take the terminal's place share (.atop, .snake, .tetris, .changelog, .wowamp and
+-- the .advanced confirmation in Easy.lua): a frame built the same way, laid where the terminal is in its
+-- theme's colours, the same kind of text, and a registry so opening one drops the terminal at once and
+-- closes the others. Each app keeps its own keys: atop and the .advanced dialog take the keyboard whole,
+-- the others pass on the keys they don't use (P.Propagate).
 
 local P = {}
 ns.Panel = P
@@ -67,3 +68,69 @@ function P.Opening(app)
 end
 
 function P.Registered() return panels end -- (tests)
+
+--- Passes this key press on to the game unless it was the app's own (`mine`). Choosing isn't allowed in combat:
+--- then nothing changes.
+function P.Propagate(frame, mine)
+	if frame and frame.SetPropagateKeyboardInput and not InCombatLockdown() then
+		pcall(frame.SetPropagateKeyboardInput, frame, not mine)
+	end
+end
+
+--- Whether an app's frame (nil until built) is showing.
+function P.Shown(frame) return frame and frame:IsShown() or false end
+
+--- An app may open: not in combat (it couldn't choose which keys to keep). In combat `msg` is printed: false.
+function P.CanOpen(msg)
+	if InCombatLockdown() then
+		ns:Print(msg)
+		return false
+	end
+	return true
+end
+
+--- Hides an app's frame if it shows; closed by combat starting ("combat"), says so: "<label> closed: combat
+--- started." and `extra`. Gives whether it closed (an app's own closing steps follow only then).
+function P.Close(frame, why, label, extra)
+	if not frame or not frame:IsShown() then return false end
+	frame:Hide()
+	if why == "combat" then ns:Print(label .. " closed: combat started." .. (extra or "")) end
+	return true
+end
+
+--- A box inside an app (a game board, the visualizer): white backdrop with a 1 px edge, coloured by P.StyleBoard.
+function P.Board(parent)
+	local b = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+	b:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+	return b
+end
+
+--- A board in the theme `t`: the prompt's background (else the terminal's) and the border colour.
+--- Gives the background's r, g, b.
+function P.StyleBoard(board, t)
+	local br, bg, bb = Theme.RGB(t.border)
+	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
+	board:SetBackdropColor(pr, pg, pb, 1)
+	board:SetBackdropBorderColor(br, bg, bb, 1)
+	return pr, pg, pb
+end
+
+--- The header line: a title on the left (13) and a smaller text on the right (12). Gives both.
+function P.Header(frame)
+	local left = P.Text(frame, 13)
+	left:SetPoint("TOPLEFT", 12, -10)
+	local right = P.Text(frame, 12, "RIGHT")
+	right:SetPoint("TOPRIGHT", -12, -10)
+	return left, right
+end
+
+--- The footer line at the bottom left, `y` up from the edge, at `size` (11 when nil), saying `text` (when given).
+function P.Footer(frame, y, text, size)
+	local fs = P.Text(frame, size or 11)
+	fs:SetPoint("BOTTOMLEFT", 12, y)
+	if text then fs:SetText(text) end
+	return fs
+end
+
+--- A colour as plain rrggbb for a |cff code ("|cffrrggbb", "ffrrggbb" and "rrggbb" all give rrggbb).
+function P.Hex(c) return (tostring(c or "ffffff"):gsub("^|c", ""):gsub("^ff(%x%x%x%x%x%x)$", "%1")) end

@@ -7,7 +7,7 @@ local function Call(name, ...) return ns.Safe(_G[name], ...) end
 local function MicroGlow(buttonName)
 	C_Timer.After(0.05, function()
 		local b = buttonName and _G[buttonName]
-		if b and b:IsVisible() then H:Show(b, 5) end
+		if b and b:IsVisible() then H:Show(b) end
 	end)
 end
 
@@ -69,6 +69,15 @@ local function QuestLogRoute()
 	local Q = ns.Quests
 	return Q and Q.SECURE or { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }, Q and Q.LogShown or nil
 end
+-- A tab's kind, for the trace: "not loaded yet", "a button" or "a plain frame".
+local function TabKind(t)
+	return type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
+end
+-- The /run line that clicks a tab (a global): Click, or a plain Frame's mouse scripts (no Click, as the character
+-- tabs are here). Pressed by the game; Terminal's code never clicks them (taint).
+local function TabRunLine(tab)
+	return "/run local t=" .. tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
+end
 -- The Legacy window's tabs. Its addon (Blizzard_LegacySystem) loads on demand: the tabs exist only once the
 -- micro button's click has opened it, so the press clicks the button first (only while the window is closed),
 -- then the tab, from one /run line: a tab that is a plain Frame (no Click, as the character tabs are here) gets
@@ -76,10 +85,9 @@ end
 local function LegacyTabMacro(e)
 	local lines = {}
 	if not Shown("LegacySystemFrame") then lines[1] = "/click LegacyMicroButton" end
-	local t = _G[e.tab]
-	local how = type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
+	local how = TabKind(_G[e.tab])
 	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. how .. (lines[1] and ", window closed: the micro button first" or ", window open")) end
-	lines[#lines + 1] = "/run local t=" .. e.tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
+	lines[#lines + 1] = TabRunLine(e.tab)
 	return table.concat(lines, "\n")
 end
 -- Group Finder pages (this client's BrowsingTab / WhoListingTab, the player's /fstack names): the window opened by
@@ -99,14 +107,13 @@ local function GroupFinderTabMacro(e)
 	local lines = {}
 	local open = Shown("PVEFrame") or TabWindowShown(e.tab)
 	if not open then lines[1] = "/click LFDMicroButton" end
-	local t = _G[e.tab]
-	local how = type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
+	local how = TabKind(_G[e.tab])
 	if not ns.Secure.quiet then ns:Trace("group finder: " .. e.tab .. " is " .. how .. (open and ", window open" or ", window closed: the micro button first")) end
-	lines[#lines + 1] = "/run local t=" .. e.tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
+	lines[#lines + 1] = TabRunLine(e.tab)
 	return table.concat(lines, "\n")
 end
 local function LegacyTabFallback() ns:Print("Open the Legacy window from its button (a click from Terminal's own code would taint it).") end
-local function Never() return false end
+local Never = ns.Never
 
 -- A tab by its path: a global ("LegacyChallengeTab") or a key under one ("CommunitiesFrame.RosterTab").
 local function TabFrame(path)
@@ -723,6 +730,33 @@ local function Tooltip(e, t)
 	t:AddLine("Enter: edit it    Shift+Enter: back to its default", 0.6, 0.6, 0.6, true)
 end
 
+--- The names to look up: { name, category, help } each (the last two only from the game's list), where they came
+--- from (for the trace), whether the game's own call worked, and Terminal's list (name -> { category, help }).
+local function CVarNames()
+	-- the game's own list, when it gives one (WoW Forever doesn't let addons have it)
+	local ok, all = false, nil
+	for _, fn in ipairs({ C_Console and C_Console.GetAllCommands or false, _G.ConsoleGetAllCommands or false }) do
+		if fn then
+			ok, all = pcall(fn)
+			if ok and type(all) == "table" and #all > 0 then break end
+		end
+	end
+	all = ok and type(all) == "table" and all or {}
+	local kn, order = Known()
+	local from = #all > 0 and "the game's list" or "Terminal's list"
+	local names = {}
+	if #all > 0 then
+		for _, c in ipairs(all) do
+			local name = type(c) == "table" and Plain(c.command)
+			if name then names[#names + 1] = { name, c.category, Plain(c.help) } end
+		end
+	else
+		-- otherwise the names Terminal knows, each looked up in the game below
+		for _, name in ipairs(order) do names[#names + 1] = { name } end
+	end
+	return names, from, ok, kn
+end
+
 local byName = {} -- setting name -> its row (CVAR_UPDATE updates just that row)
 ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return byName end }
 
@@ -737,27 +771,7 @@ ns:RegisterProvider("cvars", {
 	collect = function(p)
 		local out = {}
 		byName = {}
-		-- the game's own list, when it gives one (WoW Forever doesn't let addons have it)
-		local ok, all = false, nil
-		for _, fn in ipairs({ C_Console and C_Console.GetAllCommands or false, _G.ConsoleGetAllCommands or false }) do
-			if fn then
-				ok, all = pcall(fn)
-				if ok and type(all) == "table" and #all > 0 then break end
-			end
-		end
-		all = ok and type(all) == "table" and all or {}
-		local kn, order = Known()
-		local from = #all > 0 and "the game's list" or "Terminal's list"
-		local names = {}
-		if #all > 0 then
-			for _, c in ipairs(all) do
-				local name = type(c) == "table" and Plain(c.command)
-				if name then names[#names + 1] = { name, c.category, Plain(c.help) } end
-			end
-		else
-			-- otherwise the names Terminal knows, each looked up in the game below
-			for _, name in ipairs(order) do names[#names + 1] = { name } end
-		end
+		local names, from, ok, kn = CVarNames()
 		for _, n in ipairs(names) do
 			local name = n[1]
 			-- a setting is whatever has a value: the command type isn't trusted (ClassicUIForever doesn't

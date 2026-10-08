@@ -67,11 +67,7 @@ function SH.Channel(rest)
 	return { bad = w }
 end
 
-local function Call(fn, ...)
-	if type(fn) ~= "function" then return nil end
-	local ok, a = pcall(fn, ...)
-	if ok then return a end
-end
+local Call = ns.Safe -- (every use keeps only the first result)
 
 local function IsLink(l) return type(l) == "string" and l:find("|H", 1, true) ~= nil end
 
@@ -97,11 +93,17 @@ function SH.LootSource(e)
 	return "dropped by " .. boss .. where
 end
 
+-- the base text with where a loot row's item drops after it
+local function WithSource(e, text)
+	local from = type(text) == "string" and text ~= "" and SH.LootSource(e)
+	return from and (text .. " " .. from) or text
+end
+
 --- What a row sends: its link (a loot row's says where it drops, unless `bare`), a map pin for an NPC, else its name.
 function SH.Text(e, bare)
 	local text = SH.BaseText(e)
-	local from = not bare and type(text) == "string" and text ~= "" and SH.LootSource(e)
-	return from and (text .. " " .. from) or text
+	if bare then return text end
+	return WithSource(e, text)
 end
 
 function SH.BaseText(e)
@@ -242,13 +244,14 @@ end
 --- comes first ("Nearby reagent vendor: Name [pin]"), dropped when the line would be too long.
 function SH.Macro(e, to)
 	if not (to and to.cmd and e) then return nil end
-	local text = SH.Text(e)
+	local base = SH.BaseText(e) -- (worked out once: an NPC's sets your map pin to link it)
+	local text = WithSource(e, base)
 	if type(text) ~= "string" or text == "" then return nil end
 	local max = ns.Secure and ns.Secure.MACRO_MAX or 255
 	local ctx = SH.Context(to.query, e)
 	local line = to.cmd .. " " .. (ctx and (ctx .. ": ") or "") .. text
 	if #line > max then line = to.cmd .. " " .. (e.generic and (tostring(e.name) .. " ") or "") .. text end
-	if #line > max then line = to.cmd .. " " .. tostring(SH.Text(e, true)) end -- (a loot row: without where it drops)
+	if #line > max then line = to.cmd .. " " .. tostring(base) end -- (a loot row: without where it drops)
 	if #line > max then line = to.cmd .. " " .. tostring(e.name) end
 	return line
 end

@@ -55,7 +55,6 @@ local function PageOpen()
 	end
 	return false
 end
-K.PageOpen = PageOpen
 
 local function PointAtRow(e)
 	ns:Trace("keybinds: pointing at " .. tostring(e.rowText or e.name))
@@ -74,7 +73,7 @@ local function OpenDirect(e)
 	end
 end
 
-local function NeverOpen() return false end -- (Quick Keybind Mode: always pressed)
+local NeverOpen = ns.Never -- (Quick Keybind Mode: always pressed)
 local function QuickInCombat(e) ns:Print("In combat: Quick Keybind Mode can't be started now.") end
 local function QuickStarted() ns:Trace("keybinds: the game started Quick Keybind Mode") end
 

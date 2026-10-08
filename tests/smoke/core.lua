@@ -267,3 +267,113 @@ do -- keys shared by the drawn prompt and the real box: Ctrl+U clears through Se
 	check(T.query() == "" and UI.cursor == 0, "box: Ctrl+U clears the query through SetQuery")
 	UI:Hide(); T.FlushAll()
 end
+
+do -- the click catcher and the row menu don't outlive the terminal when the game closes it (a window, Esc)
+	local check, logHas = T.check, T.logHas
+	local row = UI.rows[1]
+	row.GetLeft, row.GetBottom, row.GetEffectiveScale = function() return 100 end, function() return 300 end, function() return 1 end
+	UIParent.GetEffectiveScale = function() return 1 end
+	local f = _G.TerminalFrame
+	local function OpenOver()
+		if _G.ForeverClassicUIQuestLog then ForeverClassicUIQuestLog.shown = false end
+		if _G.QuestMapFrame then QuestMapFrame.shown = false end
+		UI:Open("wolves across")
+		UI:PlaceCatcher(1)
+		return UI.catcher
+	end
+	-- the game hides the terminal (no UI:Hide): a frame later the catcher is gone
+	local c = OpenOver()
+	check(c and c.shown == true, "catcher laid over the quest row")
+	f.shown = false; f.scripts.OnHide(f)
+	T.FlushAll()
+	check(not c.shown and c.entry == nil, "closed by the game: the catcher goes with it")
+	-- UI:Hide() after the game already hid it (the early return): the catcher still goes
+	c = OpenOver()
+	f.shown = false
+	UI:Hide()
+	check(not c.shown, "Hide on a terminal already gone: the catcher goes")
+	f.scripts.OnHide(f); T.FlushAll()
+	-- a click on the catcher that opens a window which closes the terminal mid-press: the press still finishes
+	c = OpenOver()
+	local mark = #T.log
+	f.shown = false; f.scripts.OnHide(f) -- (the window the game's click opened closed it)
+	if _G.ForeverClassicUIQuestLog then ForeverClassicUIQuestLog.shown = true end
+	c.scripts.PostClick(c, "LeftButton")
+	T.FlushAll()
+	check(logHas("SelectQuest 33", mark + 1), "the click's after-step still runs (the quest selected in the log)")
+	check(not c.shown, "and the catcher is gone")
+	-- the row menu too
+	UI:Open("hearthstone")
+	UI:ShowRowMenu(1)
+	local menu = _G.TerminalRowMenu
+	check(menu and menu.shown == true, "the row menu is up")
+	f.shown = false; f.scripts.OnHide(f); T.FlushAll()
+	check(not menu.shown, "closed by the game: the row menu goes too")
+	row.GetLeft, row.GetBottom, row.GetEffectiveScale = nil, nil, nil
+	UIParent.GetEffectiveScale = nil
+	UI:Hide(); T.FlushAll()
+end
+
+do -- compact rows get no new fields from a search with no words, a close spelling, or a big list's few rows
+	local p = { label = "CK2", aliases = { "ck2" }, explicit = true }
+	local mt = ns:CompactMeta(p)
+	local list = {}
+	for i = 1, 3 do list[i] = setmetatable({ name = "Zqcompact Thing " .. i, key = i, _compact = true }, mt) end
+	p.collect = function() return list end
+	ns:RegisterProvider("ck2", p)
+	local res = UI:Search("@ck2")
+	local clean = #res == 3
+	for _, e in ipairs(res) do if rawget(e, "_pos") ~= nil then clean = false end end
+	check(clean, "@kind alone: no _pos written on compact rows")
+	res = UI:Search("@ck2 zqcopmact")
+	clean = #res == 3 and UI.closeSpellings
+	for _, e in ipairs(res) do if rawget(e, "_nameHit") ~= nil or rawget(e, "_pos") ~= nil then clean = false end end
+	check(clean, "close spellings: no _nameHit written on compact rows (" .. #res .. ")")
+	ns.providers.ck2 = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "ck2" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	-- a big list (only searched with @kind) with one or two matches lists them: no _nameHit on them either
+	local savedStored = ns.providers.stored
+	local few = { setmetatable({ name = "Zqbiglist One", key = 1, _compact = true }, mt),
+		setmetatable({ name = "Zqbiglist Two", key = 2, _compact = true }, mt) }
+	ns.providers.stored = { id = "stored", label = "Stored", explicit = true, collect = function() return few end }
+	local fewWas = UI.HINT_FEW
+	UI.HINT_FEW = 2
+	UI.lastScan = nil
+	res = UI:Search("zqbiglist")
+	local got = 0
+	clean = true
+	for _, e in ipairs(res) do
+		if e == few[1] or e == few[2] then got = got + 1 end
+		if rawget(e, "_compact") and rawget(e, "_nameHit") ~= nil then clean = false end
+	end
+	check(got == 2 and clean, "a big list's few rows: listed, no _nameHit written (" .. got .. ")")
+	UI.HINT_FEW = fewWas
+	ns.providers.stored = savedStored
+end
+
+do -- Tab completion: candidates that differ only by case are one (non-English letters too)
+	ns:RegisterCommand("zzacc", { desc = "x", run = function() return {} end, complete = function() return { "\195\137quipe", "\195\169quipe" } end })
+	UI:Open(".zzacc \195\169")
+	check(UI:Completion() == ".zzacc \195\137quipe ", "one candidate in any case: completed with a space: " .. tostring(UI:Completion()))
+	UI:Hide(); T.FlushAll()
+	ns.commands.zzacc = nil
+	for i = #ns.commandOrder, 1, -1 do if ns.commandOrder[i] == "zzacc" then table.remove(ns.commandOrder, i) end end
+end
+
+-- An empty prompt's hint (an example, "fzf") starts a little after the cursor; a completion of typed text doesn't.
+io.write("[hint gap]\n")
+do
+	local ns, UI, check = T.ns, T.UI, T.check
+	UI:Open("")
+	UI:FuzzyOnce()
+	local g = UI.ghost
+	check(g:IsShown() and g.lastPoint and g.lastPoint[4] == select(1, UI:PromptXY(0)) + UI.HINT_GAP,
+		"the empty prompt's hint sits HINT_GAP px after the cursor: " .. tostring(g.lastPoint and g.lastPoint[4]))
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open(".hel")
+	local x0 = select(1, UI:PromptXY(4))
+	check(not g:IsShown() or (g.lastPoint and g.lastPoint[4] == x0), "a completion of typed text carries straight on: " .. tostring(g.lastPoint and g.lastPoint[4]))
+	UI:Hide(); T.FlushAll()
+end

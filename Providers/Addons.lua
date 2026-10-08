@@ -22,9 +22,9 @@ local function SettingsCategories()
 		local ok, list = pcall(SettingsPanel.GetAllCategories, SettingsPanel)
 		if ok and type(list) == "table" then
 			for _, cat in ipairs(list) do
-				local okN, name = pcall(function() return cat:GetName() end)
+				local name = ns.FrameName(cat)
 				local okI, id = pcall(function() return cat:GetID() end)
-				if okN and type(name) == "string" and name ~= "" then
+				if name and name ~= "" then
 					out[#out + 1] = { name = name, id = okI and id or nil, cat = cat }
 				end
 			end
@@ -79,8 +79,8 @@ local function MinimapButtons()
 	for _, parent in ipairs({ _G.Minimap, _G.MinimapBackdrop, _G.MinimapCluster }) do
 		if parent and parent.GetChildren then
 			for _, child in ipairs({ parent:GetChildren() }) do
-				local ok, name = pcall(function() return child:GetName() end)
-				if ok and type(name) == "string" and child.Click and not seen[child] then
+				local name = ns.FrameName(child)
+				if name and child.Click and not seen[child] then
 					seen[child] = true
 					out[#out + 1] = { name = name, button = child }
 				end
@@ -142,7 +142,7 @@ local function AddonMacro(e)
 end
 local function OptionsMacro(e) return CategoryMacro(e.opt) end
 local ADDON_SPEC, OPTIONS_SPEC = { macro = AddonMacro }, { macro = OptionsMacro }
-local function NeverOpen() return false end -- (always pressed: the window may show another page)
+local NeverOpen = ns.Never -- (always pressed: the window may show another page)
 local function Opened(e) ns:Trace("addons: the game opened the window for " .. tostring(e.name)) end
 
 -- shared by every row (they carry what they open); the fallbacks without the secure route

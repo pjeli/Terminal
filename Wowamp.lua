@@ -727,10 +727,7 @@ W.Wake = Wake
 
 local function Style()
 	local t = Panel.Layout(frame, WIDTH, HEIGHT)
-	local br, bg, bb = Theme.RGB(t.border)
-	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
-	visBox:SetBackdropColor(pr, pg, pb, 1)
-	visBox:SetBackdropBorderColor(br, bg, bb, 1)
+	local pr, pg, pb = Panel.StyleBoard(visBox, t)
 	progBg:SetColorTexture(pr, pg, pb, 1)
 	local ar, ag, ab = Theme.RGB(t.accent)
 	progFill:SetColorTexture(ar, ag, ab, 1)
@@ -745,10 +742,9 @@ local function Style()
 	footer:SetTextColor(dr, dg, db)
 	tipText:SetTextColor(ar, ag, ab)
 	for _, r in ipairs(rows) do r.band:SetColorTexture(ar, ag, ab, 0.22) end
-	W.colors = { text = t.text, dim = t.dim, accent = t.accent }
 end
 
-local function Hex(c) return (tostring(c or "ffffff"):gsub("^|c", ""):gsub("^ff(%x%x%x%x%x%x)$", "%1")) end
+local Hex = Panel.Hex
 
 --- Everything but the moving parts: title, now playing, the station list. `wake`: something changed, so
 --- the bars and progress move again.
@@ -790,25 +786,11 @@ Redraw = function(wake)
 end
 W.Redraw = function() Redraw(true) end
 
-local function Build()
-	if frame then return end
-	frame = Panel.Build("TerminalWowamp", W)
-	frame:EnableMouse(true)
-	frame:SetScript("OnKeyDown", function(self, key) W.KeyDown(self, key) end)
-	frame:SetScript("OnHide", function()
-		frame:SetScript("OnUpdate", nil) -- (a hidden frame runs none anyway; it starts again on open)
-		vis.resting = true
-	end)
-
-	title = Text(frame, 14)
-	title:SetPoint("TOPLEFT", 12, -10)
-	statusText = Text(frame, 11, "RIGHT")
-	statusText:SetPoint("TOPRIGHT", -12, -12)
-
-	visBox = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+-- the visualizer's box: a bar and a cap per band (placed for the style by ApplyStyle)
+local function BuildVisualizer()
+	visBox = Panel.Board(frame)
 	visBox:SetPoint("TOPLEFT", 10, -32)
 	visBox:SetSize(WIDTH - 20, VIS_H)
-	visBox:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
 	for i = 1, BARS do
 		local b = visBox:CreateTexture(nil, "ARTWORK")
 		b:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -821,6 +803,10 @@ local function Build()
 		c:Hide()
 		caps[i] = c
 	end
+end
+
+-- what's playing: the track, its station, the DJ's line, the progress bar and the time
+local function BuildNowPlaying()
 	nowText = Text(frame, 15)
 	nowText:SetPoint("TOPLEFT", 12, -32 - VIS_H - 10)
 	nowText:SetWidth(WIDTH - 24)
@@ -840,7 +826,10 @@ local function Build()
 	timeText = Text(frame, 12, "RIGHT")
 	timeText:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
 	timeText:SetPoint("TOP", progBg, "TOP", 0, 5)
+end
 
+-- the station list: a row per station (a click tunes in, hovering moves the cursor)
+local function BuildStations()
 	listHead = Text(frame, 11)
 	listHead:SetPoint("TOPLEFT", progBg, "BOTTOMLEFT", 0, -11)
 	listHead:SetText("STATIONS")
@@ -859,9 +848,28 @@ local function Build()
 		r:SetScript("OnEnter", function() cursor = i; Redraw() end)
 		rows[i] = r
 	end
+end
 
-	footer = Text(frame, 10)
-	footer:SetPoint("BOTTOMLEFT", 12, 9)
+local function Build()
+	if frame then return end
+	frame = Panel.Build("TerminalWowamp", W)
+	frame:EnableMouse(true)
+	frame:SetScript("OnKeyDown", function(self, key) W.KeyDown(self, key) end)
+	frame:SetScript("OnHide", function()
+		frame:SetScript("OnUpdate", nil) -- (a hidden frame runs none anyway; it starts again on open)
+		vis.resting = true
+	end)
+
+	title = Text(frame, 14)
+	title:SetPoint("TOPLEFT", 12, -10)
+	statusText = Text(frame, 11, "RIGHT")
+	statusText:SetPoint("TOPRIGHT", -12, -12)
+
+	BuildVisualizer()
+	BuildNowPlaying()
+	BuildStations()
+
+	footer = Panel.Footer(frame, 9, nil, 10)
 	tipText = Text(frame, 10)
 	tipText:SetPoint("BOTTOMLEFT", footer, "TOPLEFT", 0, 4)
 	tipText:SetWidth(WIDTH - 24)
@@ -900,18 +908,13 @@ function W.KeyDown(self, key)
 	else
 		mine = false
 	end
-	if self and self.SetPropagateKeyboardInput and not InCombatLockdown() then
-		pcall(self.SetPropagateKeyboardInput, self, not mine)
-	end
+	Panel.Propagate(self, mine)
 end
 
-function W.IsShown() return frame and frame:IsShown() or false end
+function W.IsShown() return Panel.Shown(frame) end
 
 function W.Open()
-	if InCombatLockdown() then
-		ns:Print("WoWamp takes over a few keys, which the game doesn't allow in combat. (The music plays on.)")
-		return false
-	end
+	if not Panel.CanOpen("WoWamp takes over a few keys, which the game doesn't allow in combat. (The music plays on.)") then return false end
 	Build()
 	Style()
 	Panel.Opening(W)
@@ -929,9 +932,7 @@ function W.Open()
 end
 
 function W.Close(why)
-	if not frame or not frame:IsShown() then return end
-	frame:Hide()
-	if why == "combat" then ns:Print("WoWamp closed: combat started. The music plays on.") end
+	Panel.Close(frame, why, "WoWamp", " The music plays on.")
 end
 
 ns:RegisterCommand("wowamp", {

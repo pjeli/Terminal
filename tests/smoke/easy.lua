@@ -734,10 +734,11 @@ Run("right-click: send to chat (Simple mode too)", function()
 	_G.UnitIsUnit = function() return false end
 	_G.UnitName = function(u) return u == "target" and "Thrall" or "Me" end
 	UI:Open("hearthstone")
-	local textWas, texts = ns.Share.Text, 0
+	local textWas, baseWas, texts = ns.Share.Text, ns.Share.BaseText, 0
 	ns.Share.Text = function(...) texts = texts + 1 return textWas(...) end
+	ns.Share.BaseText = function(...) texts = texts + 1 return baseWas(...) end
 	UI:ShowRowMenu(1)
-	ns.Share.Text = textWas
+	ns.Share.Text, ns.Share.BaseText = textWas, baseWas
 	check(texts == 0, "opening the menu works out no chat text (an NPC's would move your map pin): " .. texts)
 	local m = _G.TerminalRowMenu
 	local byLabel, labels = {}, {}
@@ -1004,7 +1005,7 @@ Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Sim
 	-- the arrows go through the list, never the history
 	ns.db.history = { "@spell frost nova" }
 	UI:SetQuery("", 0)
-	check(UI.ghost:IsShown() and (UI.ghost:GetText() or ""):find("Tab+` closes", 1, true), "the empty prompt says what to do and how to leave: " .. tostring(UI.ghost:GetText()))
+	check(UI.ghost:IsShown() and UI.ghost:GetText() == "fzf", "the empty prompt says fzf: " .. tostring(UI.ghost:GetText()))
 	key("UP")
 	check(T.query() == "", "Up on the empty prompt: no history line: " .. T.query())
 	key("DOWN")
@@ -1357,4 +1358,56 @@ Run("helmet among the loot: every helmet; helm upgrades: the ones that suit you 
 	C_Item.GetItemInfo, _G.UnitLevel, _G.GetInventoryItemLink, C_PlayerInfo.CanUseItem = save.info, save.level, save.inv, save.can
 	C_Item.GetDetailedItemLevelInfo = save.det
 	F.ClearCache()
+end)
+
+Run("upgrades inside an or (helm upgrades or boots upgrades): made new each search, never kept from an earlier one", function()
+	E.Set(true)
+	local F = ns.Filters
+	F.ClearCache()
+	local save = { info = C_Item.GetItemInfo, level = _G.UnitLevel, inv = _G.GetInventoryItemLink, can = C_PlayerInfo.CanUseItem,
+		det = C_Item.GetDetailedItemLevelInfo }
+	local ITEMS = {
+		[1] = { "Good Helm", "|Hitem:1|h", 2, 24, 18, "Armor", "Leather", 1, "INVTYPE_HEAD" },
+		[2] = { "Good Boots", "|Hitem:2|h", 2, 24, 18, "Armor", "Leather", 1, "INVTYPE_FEET" },
+		[9] = { "Worn Hood", "|Hitem:9|h", 2, 100, 15, "Armor", "Leather", 1, "INVTYPE_HEAD" },
+		[10] = { "Worn Shoes", "|Hitem:10|h", 2, 100, 15, "Armor", "Leather", 1, "INVTYPE_FEET" },
+	}
+	C_Item.GetItemInfo = function(id) local t = ITEMS[tonumber(id) or 0] if t then return unpack(t) end end
+	C_Item.GetDetailedItemLevelInfo = function(link) local id = tonumber(tostring(link):match("item:(%d+)")); return ITEMS[id] and ITEMS[id][4] end
+	C_PlayerInfo.CanUseItem = function() return true end
+	-- a level 60 in far better gear: nothing is an upgrade
+	_G.UnitLevel = function() return 60 end
+	_G.GetInventoryItemLink = function(_, slot)
+		if slot == 1 then return "|Hitem:9|h[Worn Hood]|h" elseif slot == 8 then return "|Hitem:10|h[Worn Shoes]|h" end
+	end
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({
+		{ name = "Good Helm", itemID = 1 }, { name = "Good Boots", itemID = 2 } }) } } })
+	local res = In("items", "helm upgrades or boots upgrades")
+	check(not Has(res, "Good Helm") and not Has(res, "Good Boots"), "level 60 in better gear: no upgrades: " .. Show(res))
+	UI:Hide(); FlushAll()
+	-- the same search after the character changed (level 21, nothing worn): the new level and gear count
+	_G.UnitLevel = function() return 21 end
+	_G.GetInventoryItemLink = function() return nil end
+	UI.lastScan, UI.lastOverview = nil, nil
+	res = In("items", "helm upgrades or boots upgrades")
+	check(Has(res, "Good Helm") and Has(res, "Good Boots"), "level 21, nothing worn: both are upgrades now: " .. Show(res))
+	-- a hard word reached as a plain piece is the strict filter itself (no name fallback)
+	check(E.Word("upgrades") ~= E.Word("upgrades"), "upgrades: a new filter each time it's asked for")
+	check(E.Word("upgrades")({ name = "Upgrades Manual", itemID = 999 }) == false, "upgrades: a name with the word isn't an upgrade")
+	C_Item.GetItemInfo, _G.UnitLevel, _G.GetInventoryItemLink, C_PlayerInfo.CanUseItem = save.info, save.level, save.inv, save.can
+	C_Item.GetDetailedItemLevelInfo = save.det
+	F.ClearCache()
+end)
+
+Run("E.JoinPairs: two everyday words that mean one thing become one word", function()
+	local w = { "Attack", "Power", "food", "spell", "power", "x" }
+	E.JoinPairs(w)
+	check(table.concat(w, ",") == "attack power,food,spell power,x", "pairs joined, the rest kept: " .. table.concat(w, ","))
+	w = { "rare", "sword" }
+	E.JoinPairs(w)
+	check(table.concat(w, ",") == "rare,sword", "no pair: unchanged")
+	check(E.ToAdvanced("attack power food"):find("stat:ap", 1, true), "ToAdvanced: attack power -> stat:ap: " .. E.ToAdvanced("attack power food"))
+	check(E.ToAdvanced("mining trainer nearby"):find("sort:nearest", 1, true), "ToAdvanced: nearest said last: " .. E.ToAdvanced("mining trainer nearby"))
+	check(E.ToAdvanced("sword or axe not boe"):find("type:sword|type:axe", 1, true) and E.ToAdvanced("sword or axe not boe"):find("-is:boe", 1, true),
+		"ToAdvanced: or/not pieces as filters: " .. E.ToAdvanced("sword or axe not boe"))
 end)

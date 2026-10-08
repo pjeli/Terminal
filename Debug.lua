@@ -74,6 +74,12 @@ end
 
 D.Describe = Describe
 
+-- a new record, the oldest dropped past EVENT_MAX
+local function Push(ev)
+	events[#events + 1] = ev
+	if #events > EVENT_MAX then table.remove(events, 1) end
+end
+
 local function OnAction(event, addon, func)
 	local at = Now()
 	if addon ~= ns.name then
@@ -92,8 +98,7 @@ local function OnAction(event, addon, func)
 			local ok, stack = pcall(debugstack, 3, 12, 0)
 			ev.stack, ev.traced = ok and stack or nil, true
 		end
-		events[#events + 1] = ev
-		if #events > EVENT_MAX then table.remove(events, 1) end
+		Push(ev)
 		if Live() then
 			for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
 		end
@@ -113,8 +118,7 @@ local function OnAction(event, addon, func)
 		recent = Recent(at), stack = ok and stack or nil,
 		combat = InCombatLockdown and InCombatLockdown() or false,
 	}
-	events[#events + 1] = ev
-	if #events > EVENT_MAX then table.remove(events, 1) end
+	Push(ev)
 	if Live() then
 		for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
 	else

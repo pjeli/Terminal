@@ -14,3 +14,7 @@ unknown = rt.globals().UNKNOWN_FRAME_METHODS
 names = sorted(str(k) for k in unknown.keys()) if unknown is not None else []
 if names:
     print("[unknown frame methods: " + ", ".join(names) + "]")
+# a failed check (or a test file that errored or hit the runaway guard) fails the run, so CI and scripts see it
+fails = rt.globals().SMOKE_FAILS
+if fails is None or fails > 0:
+    sys.exit(1)

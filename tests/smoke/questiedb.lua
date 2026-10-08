@@ -154,6 +154,29 @@ do
 	onReady(); FlushAll()
 	check(I.npc.list and #I.npc.list == 3, "indexed once Questie is ready, from the same data")
 
+	-- Questie's own flag table: its module is looked up until found (Questie may come later), then kept
+	do
+		QD.ResetForTests()
+		local imports, module = 0, nil
+		_G.QuestieLoader = { ImportModule = function(_, name) imports = imports + 1 return name == "QuestieDB" and module or nil end }
+		local libFlags = QD.DB().npcFlags
+		check(libFlags and libFlags.QUEST_GIVER == 2, "no Questie module yet: QuestieDB's own flags")
+		QD.DB()
+		check(imports == 2, "a missing module is looked up again on the next read: " .. imports)
+		module = { npcFlags = { QUEST_GIVER = 99 } }
+		check(QD.DB().npcFlags.QUEST_GIVER == 99, "Questie's flags once its module is there")
+		imports = 0
+		for _ = 1, 50 do QD.DB() end
+		check(imports == 0, "found once: never imported again: " .. imports)
+		module.npcFlags = { QUEST_GIVER = 98 }
+		check(QD.DB().npcFlags.QUEST_GIVER == 98, "its flag table read from the kept module on every read")
+		QD.ResetForTests()
+		module = nil
+		check(QD.DB().npcFlags.QUEST_GIVER == 2, "reset for tests: the module is looked up afresh")
+		_G.QuestieLoader = { ImportModule = function() return nil end }
+		QD.ResetForTests()
+	end
+
 	-- neither: nothing
 	Fresh()
 	_G.Questie, _G.QuestieLoader, _G.LibQuestieDB = nil, nil, nil
@@ -394,6 +417,13 @@ do
 		UI:Open("nearest mailbox in ratchet")
 		local rr = UI.Results()
 		check(#rr == 1 and rr[1].name == "Mailbox" and rr[1].py == 37.0, "nearest mailbox in ratchet: only Ratchet's: " .. #rr)
+		UI:Hide(); FlushAll()
+		-- rows listed before the scan light up this search's words, not the last search's
+		UI.posTokens = { "zzz" }
+		UI:Open("nearest mailbox")
+		local m1 = UI.Results()[1]
+		check(UI.posTokens and UI.posTokens[1] == "mailbox" and m1 and type(m1._pos) == "table" and next(m1._pos) ~= nil,
+			"nearest mailbox: the row's letters are lit for this search's words: " .. tostring(UI.posTokens and UI.posTokens[1]))
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest mailbox in ratchet"):find("in:", 1, true), "Alt+`: the place stays: " .. ns.Easy.ToAdvanced("nearest mailbox in ratchet"))
 		-- Advanced: @mailbox is a list like the others: sort:nearest, near:, in: work on it; Alt+` writes it

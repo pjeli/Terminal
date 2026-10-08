@@ -22,6 +22,17 @@ local proxies = {}
 local owner = CreateFrame("Frame")
 local token = 0
 
+--- A hidden secure button off the screen's corner, for the game to press (by a binding or a macro's /click):
+--- 1x1, never under the mouse, taking both halves of a click. Placed against UIParent, never Terminal's frames.
+local function Offscreen(name)
+	local b = CreateFrame("Button", name, UIParent, "SecureActionButtonTemplate")
+	b:SetSize(1, 1)
+	b:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
+	b:EnableMouse(false)
+	b:RegisterForClicks("AnyUp", "AnyDown")
+	return b
+end
+
 S.MACRO_MAX = 255 -- the game runs at most this many characters of a macro, all lines together
 S.armed = nil -- binding command or button name currently armed
 S.mode = nil  -- "binding" or "button"
@@ -58,8 +69,9 @@ function S.EffectiveAction(cmd)
 	return cmd
 end
 
---- spec: { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } },
---- or just a button name / list of button names. Returns { binding = } or { button = } or nil.
+--- spec: { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" } }, { spell = "Smelting" },
+--- { macro = text or function(e) }, or just a button name / list of button names. Returns { spell = },
+--- { macro = }, { binding = } or { button = }, or nil.
 function S.Resolve(spec, e)
 	-- a spell that opens a window (Smelting): Enter casts it, on the same key press
 	if type(spec) == "table" and spec.spell then return { spell = spec.spell } end
@@ -127,11 +139,7 @@ function S.Clicker(key, target)
 	if InCombatLockdown() or type(target) ~= "table" then return clickers[key] end
 	local c = clickers[key]
 	if not c then
-		c = CreateFrame("Button", "TerminalClick" .. key, UIParent, "SecureActionButtonTemplate")
-		c:SetSize(1, 1)
-		c:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
-		c:EnableMouse(false)
-		c:RegisterForClicks("AnyUp", "AnyDown")
+		c = Offscreen("TerminalClick" .. key)
 		c:SetAttribute("useOnKeyDown", false) -- /click sends a release
 		c:SetAttribute("type", "click")
 		-- for a .debug log: did the game press it, and with which half of the click
@@ -149,6 +157,20 @@ local function Say(msg)
 	if ns.Trace and not S.quiet then ns:Trace(msg) end
 end
 
+-- (.debug log) what kind of thing a character tab is, and which mouse events it listens to (safe on any frame)
+local function TraceTab(frameName, t)
+	local function has(h)
+		local okH, hs = pcall(t.HasScript, t, h)
+		if not okH or not hs then return "n/a" end
+		local okG, f = pcall(t.GetScript, t, h)
+		return okG and f and "set" or "empty"
+	end
+	local okT, ty = pcall(t.GetObjectType, t)
+	ns:Trace(("click: %s tab is a %s, %s, OnClick %s, OnMouseDown %s, OnMouseUp %s"):format(frameName,
+		tostring(okT and ty), type(t.Click) == "function" and "has Click" or "no Click",
+		has("OnClick"), has("OnMouseDown"), has("OnMouseUp")))
+end
+
 --- The character window's tab for one of its pages (ReputationFrame, SkillsFrame...).
 --- This client: CharacterFrame.ModeTabs.Tabs, each with the frameName of its page (unnamed;
 --- ClassicUIForever draws its own tabs over them). Classic clients: CharacterFrameTabN,
@@ -160,19 +182,7 @@ local function CharTab(frameName, labels)
 	if type(tabs) == "table" then
 		for _, t in ipairs(tabs) do
 			if type(t) == "table" and t.frameName == frameName then
-				if ns.Trace and not S.quiet then
-					-- what kind of thing the tab is, and which mouse events it listens to (safe on any frame)
-					local function has(h)
-						local okH, hs = pcall(t.HasScript, t, h)
-						if not okH or not hs then return "n/a" end
-						local okG, f = pcall(t.GetScript, t, h)
-						return okG and f and "set" or "empty"
-					end
-					local okT, ty = pcall(t.GetObjectType, t)
-					ns:Trace(("click: %s tab is a %s, %s, OnClick %s, OnMouseDown %s, OnMouseUp %s"):format(frameName,
-						tostring(okT and ty), type(t.Click) == "function" and "has Click" or "no Click",
-						has("OnClick"), has("OnMouseDown"), has("OnMouseUp")))
-				end
+				if ns.Trace and not S.quiet then TraceTab(frameName, t) end
 				-- this client's tabs are plain frames acting on the mouse itself: nothing to /click
 				if type(t.Click) ~= "function" then return nil, "frame" end
 				local ok, n = pcall(t.GetName, t)
@@ -187,7 +197,7 @@ local function CharTab(frameName, labels)
 		local t = _G[name]
 		if type(t) == "table" and t.GetText then
 			local ok, txt = pcall(t.GetText, t)
-			if ok and type(txt) == "string" and not (issecretvalue and issecretvalue(txt)) then
+			if ok and type(txt) == "string" and not ns.Secret(txt) then
 				for _, l in ipairs(labels) do
 					if txt == l then return name, "labelled tab" end
 				end
@@ -258,11 +268,7 @@ function S.Proxy(targetName)
 		return p
 	end
 	if not target or InCombatLockdown() then return nil end
-	p = CreateFrame("Button", "TerminalProxy" .. targetName, UIParent, "SecureActionButtonTemplate")
-	p:SetSize(1, 1)
-	p:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
-	p:EnableMouse(false)
-	p:RegisterForClicks("AnyUp", "AnyDown")
+	p = Offscreen("TerminalProxy" .. targetName)
 	p:SetAttribute("useOnKeyDown", false)
 	p.actsOnDown = false
 	p:SetAttribute("type", "click")
@@ -277,11 +283,7 @@ local macroProxy
 --- The one offscreen secure button that runs a macro (its text set when armed).
 local function MacroProxy()
 	if macroProxy or InCombatLockdown() then return macroProxy end
-	local p = CreateFrame("Button", "TerminalMacroProxy", UIParent, "SecureActionButtonTemplate")
-	p:SetSize(1, 1)
-	p:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
-	p:EnableMouse(false)
-	p:RegisterForClicks("AnyUp", "AnyDown")
+	local p = Offscreen("TerminalMacroProxy")
 	-- acts on key down, the same press the game's own bindings act on
 	p:SetAttribute("useOnKeyDown", true)
 	p.actsOnDown = true
@@ -299,6 +301,13 @@ local function TracePress(p, _, down)
 	end
 end
 
+-- Enter (and the keypad's) bound to one thing only: set(owner, true, key, ...) is SetOverrideBinding/Click/Spell
+local function BindEnter(set, ...)
+	ClearOverrideBindings(owner)
+	set(owner, true, "ENTER", ...)
+	set(owner, true, "NUMPADENTER", ...)
+end
+
 --- Bind Enter to a resolved spec. False if that isn't possible right now.
 function S.Arm(r)
 	if InCombatLockdown() or type(r) ~= "table" then return false end
@@ -308,26 +317,18 @@ function S.Arm(r)
 		if not p then return false end
 		if not p.traced then p.traced = true; p:HookScript("PreClick", TracePress) end
 		p:SetAttribute("macrotext", r.macro)
-		ClearOverrideBindings(owner)
-		SetOverrideBindingClick(owner, true, "ENTER", p:GetName(), "LeftButton")
-		SetOverrideBindingClick(owner, true, "NUMPADENTER", p:GetName(), "LeftButton")
+		BindEnter(SetOverrideBindingClick, p:GetName(), "LeftButton")
 		S.armed, S.mode = p.targetName, "button"
 	elseif r.binding then
-		ClearOverrideBindings(owner)
-		SetOverrideBinding(owner, true, "ENTER", r.binding)
-		SetOverrideBinding(owner, true, "NUMPADENTER", r.binding)
+		BindEnter(SetOverrideBinding, r.binding)
 		S.armed, S.mode = r.binding, "binding"
 	elseif r.spell then
-		ClearOverrideBindings(owner)
-		SetOverrideBindingSpell(owner, true, "ENTER", r.spell)
-		SetOverrideBindingSpell(owner, true, "NUMPADENTER", r.spell)
+		BindEnter(SetOverrideBindingSpell, r.spell)
 		S.armed, S.mode = "SPELL " .. r.spell, "binding"
 	elseif r.button then
 		local p = S.Proxy(r.button)
 		if not p then return false end
-		ClearOverrideBindings(owner)
-		SetOverrideBindingClick(owner, true, "ENTER", p:GetName(), "LeftButton")
-		SetOverrideBindingClick(owner, true, "NUMPADENTER", p:GetName(), "LeftButton")
+		BindEnter(SetOverrideBindingClick, p:GetName(), "LeftButton")
 		S.armed, S.mode = r.button, "button"
 	else
 		return false

@@ -116,74 +116,95 @@ ns:RegisterCommand("about", {
 })
 
 -- .mem : Terminal's own memory use, how many entries each kind holds, and how long the last
--- search took. For measuring before and after performance changes.
+-- search took. For measuring before and after performance changes. Each part adds its lines.
+local function MemoryLine(lines)
+	local upd = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or _G.UpdateAddOnMemoryUsage
+	local get = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or _G.GetAddOnMemoryUsage
+	if upd then pcall(upd) end
+	local kb = get and select(2, pcall(get, ns.name))
+	if type(kb) == "number" then
+		lines[#lines + 1] = ("Terminal memory: %.0f KB"):format(kb)
+	else
+		lines[#lines + 1] = "Terminal memory: not reported by this client"
+	end
+end
+
+-- every list: its entries (or not built), its flags; then the total
+local function ProviderLines(lines)
+	local now = GetTime()
+	local total = 0
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		local n = p._entries and #p._entries
+		local state
+		if n then
+			total = total + n
+			state = ("%d entries"):format(n)
+		else
+			state = "not built" .. (p.idleDrop and " (freed when idle)" or "")
+		end
+		local flags = {}
+		if p.explicit then flags[#flags + 1] = "only with @" end
+		if p.lazy then flags[#flags + 1] = "skipped on empty searches" end
+		if n and p._usedAt then flags[#flags + 1] = ("used %ds ago"):format(math.floor(now - p._usedAt)) end
+		lines[#lines + 1] = ("  @%s (%s): %s%s"):format(p.aliases[1] or id, p.label, state,
+			#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
+	end
+	lines[#lines + 1] = ("  %d entries in all"):format(total)
+end
+
+-- the game's own measure of Terminal's CPU time, where this client has it
+local function CpuLine(lines)
+	local P, M = _G.C_AddOnProfiler, Enum and Enum.AddOnProfilerMetric
+	if P and P.GetAddOnMetric and M and M.RecentAverageTime then
+		local ok, mine = pcall(P.GetAddOnMetric, ns.name, M.RecentAverageTime)
+		local okAll, all = false, nil
+		if P.GetOverallMetric then okAll, all = pcall(P.GetOverallMetric, M.RecentAverageTime) end
+		if ok and type(mine) == "number" then
+			lines[#lines + 1] = ("Terminal CPU: %.3f ms per frame lately%s"):format(mine,
+				(okAll and type(all) == "number" and all > 0) and (" (%.1f%% of all addons)"):format(mine / all * 100) or "")
+		end
+	end
+end
+
+-- what runs on its own right now (nothing, with the terminal and its options closed), and the lists built ahead
+local function RunningLine(lines)
+	local UI0 = ns.UI
+	local running = {}
+	if UI0 and UI0.motion and UI0.motion:IsShown() then
+		running[#running + 1] = UI0.blinkOnly and "cursor blink (30/s)" or "animation (every frame)"
+	end
+	if UI0 and UI0.busy and UI0.busy:IsVisible() then running[#running + 1] = "loading spinner" end
+	if UI0 and UI0.searchJob then running[#running + 1] = "a search" end
+	if ns.Options and ns.Options.preview and ns.Options.preview:IsVisible() then running[#running + 1] = "options example (30/s)" end
+	lines[#lines + 1] = "Running now: " .. (#running > 0 and table.concat(running, ", ") or "nothing")
+	local W = ns.warm or {}
+	if W.started then
+		lines[#lines + 1] = W.done and "Lists built ahead of use: done"
+			or ("Lists built ahead of use: %d to go"):format(W.queue and #W.queue or #ns.providerOrder)
+	end
+end
+
+local function SearchLine(lines)
+	local UI = ns.UI
+	if UI and UI.lastSearchMs then
+		local slices = UI.lastSearchSlices or 1
+		lines[#lines + 1] = ("Last search: %.1f ms for %d results%s%s"):format(UI.lastSearchMs, UI.lastSearchCount or 0,
+			UI.lastSearchNarrowed and " (narrowed from the previous search)" or "",
+			slices > 1 and (" (spread over %d frames, about %d ms each)"):format(slices, UI.SLICE_MS or 6) or "")
+	end
+end
+
 ns:RegisterCommand("mem", {
 	desc = "Show Terminal's memory use, entries per kind, and the last search time",
 	aliases = { "memory", "perf" },
 	run = function()
 		local lines = {}
-		local upd = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or _G.UpdateAddOnMemoryUsage
-		local get = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or _G.GetAddOnMemoryUsage
-		if upd then pcall(upd) end
-		local kb = get and select(2, pcall(get, ns.name))
-		if type(kb) == "number" then
-			lines[#lines + 1] = ("Terminal memory: %.0f KB"):format(kb)
-		else
-			lines[#lines + 1] = "Terminal memory: not reported by this client"
-		end
-		local now = GetTime()
-		local total = 0
-		for _, id in ipairs(ns.providerOrder) do
-			local p = ns.providers[id]
-			local n = p._entries and #p._entries
-			local state
-			if n then
-				total = total + n
-				state = ("%d entries"):format(n)
-			else
-				state = "not built" .. (p.idleDrop and " (freed when idle)" or "")
-			end
-			local flags = {}
-			if p.explicit then flags[#flags + 1] = "only with @" end
-			if p.lazy then flags[#flags + 1] = "skipped on empty searches" end
-			if n and p._usedAt then flags[#flags + 1] = ("used %ds ago"):format(math.floor(now - p._usedAt)) end
-			lines[#lines + 1] = ("  @%s (%s): %s%s"):format(p.aliases[1] or id, p.label, state,
-				#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
-		end
-		lines[#lines + 1] = ("  %d entries in all"):format(total)
-		-- the game's own measure of Terminal's CPU time, where this client has it
-		local P, M = _G.C_AddOnProfiler, Enum and Enum.AddOnProfilerMetric
-		if P and P.GetAddOnMetric and M and M.RecentAverageTime then
-			local ok, mine = pcall(P.GetAddOnMetric, ns.name, M.RecentAverageTime)
-			local okAll, all = false, nil
-			if P.GetOverallMetric then okAll, all = pcall(P.GetOverallMetric, M.RecentAverageTime) end
-			if ok and type(mine) == "number" then
-				lines[#lines + 1] = ("Terminal CPU: %.3f ms per frame lately%s"):format(mine,
-					(okAll and type(all) == "number" and all > 0) and (" (%.1f%% of all addons)"):format(mine / all * 100) or "")
-			end
-		end
-		-- what runs on its own right now (nothing, with the terminal and its options closed)
-		local UI0 = ns.UI
-		local running = {}
-		if UI0 and UI0.motion and UI0.motion:IsShown() then
-			running[#running + 1] = UI0.blinkOnly and "cursor blink (30/s)" or "animation (every frame)"
-		end
-		if UI0 and UI0.busy and UI0.busy:IsVisible() then running[#running + 1] = "loading spinner" end
-		if UI0 and UI0.searchJob then running[#running + 1] = "a search" end
-		if ns.Options and ns.Options.preview and ns.Options.preview:IsVisible() then running[#running + 1] = "options example (30/s)" end
-		lines[#lines + 1] = "Running now: " .. (#running > 0 and table.concat(running, ", ") or "nothing")
-		local W = ns.warm or {}
-		if W.started then
-			lines[#lines + 1] = W.done and "Lists built ahead of use: done"
-				or ("Lists built ahead of use: %d to go"):format(W.queue and #W.queue or #ns.providerOrder)
-		end
-		local UI = ns.UI
-		if UI and UI.lastSearchMs then
-			local slices = UI.lastSearchSlices or 1
-			lines[#lines + 1] = ("Last search: %.1f ms for %d results%s%s"):format(UI.lastSearchMs, UI.lastSearchCount or 0,
-				UI.lastSearchNarrowed and " (narrowed from the previous search)" or "",
-				slices > 1 and (" (spread over %d frames, about %d ms each)"):format(slices, UI.SLICE_MS or 6) or "")
-		end
+		MemoryLine(lines)
+		ProviderLines(lines)
+		CpuLine(lines)
+		RunningLine(lines)
+		SearchLine(lines)
 		return lines
 	end,
 })

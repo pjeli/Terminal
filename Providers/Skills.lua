@@ -159,5 +159,3 @@ ns:RegisterProvider("skills", {
 		return out
 	end,
 })
-
-K.ReadAll = ReadAll

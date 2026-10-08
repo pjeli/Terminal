@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.42.33", when = "in testing",
+		v = "0.43.0", when = "released October 2026",
 		items = {
 			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
 			"@who (Simple mode: \"who priest undercity\"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite; lvl: and in: go into the /who.",
@@ -26,7 +26,8 @@ CL.LOG = {
 			"The \"try:\" suggestions in the empty prompt are made for your character: your class trainer, your professions' skill-ups, a dungeon at your level, where you are, what's in your bags.",
 			"Pure fuzzy finding: Tab+` (hold Tab, press `; or .fuzzy). Every list at once, matched by name only, like fzf: no @, no filters, no extras; go through the results with Up/Down. Enter takes the result to Simple mode, Shift+Enter to Advanced. A soft glow round the prompt says it's on; Tab+` again closes it.",
 			"Loot sent to chat says where it drops: \"[Thunderfury] dropped by Garr in Molten Core\" (>> guild, the right-click menu's chat lines, Link in chat).",
-			"Fix: typing Advanced syntax (@, >>, key:value) in Simple mode could raise an error while a long search was still running.",
+			"Fixes: typing Advanced syntax in Simple mode could raise an error during a long search; \"upgrades\" inside an or-search kept using your gear and level from the first search; an invisible click area could stay on screen after a window closed Terminal; one failing reagent name could empty a profession's recipe list.",
+			"Lighter and quicker: NPC role searches (vendor, repair, trainer), item type and stat filters do less work per row; tidier code throughout.",
 		},
 	},
 	{
@@ -81,8 +82,7 @@ local frame, title, versionText, box, scroll, content, body, thumb, footer
 local offset = 0
 
 local Text = Panel.Text
-
-local function Hex(c) return (tostring(c or "ffffff"):gsub("^|c", ""):gsub("^ff(%x%x%x%x%x%x)$", "%1")) end
+local Hex = Panel.Hex
 
 --- The whole log as one text with colour codes: each version's number in the accent colour, when it
 --- came dimmed, then its changes.
@@ -104,7 +104,6 @@ local function MaxOffset()
 	if not (content and scroll) then return 0 end
 	return math.max(0, (content:GetHeight() or 0) - (scroll:GetHeight() or 0))
 end
-CL.MaxOffset = MaxOffset
 
 --- Scroll to `to` pixels from the top (kept inside the text), and move the thumb.
 function CL.ScrollTo(to)
@@ -137,9 +136,7 @@ local KEYS = {
 function CL.KeyDown(self, key)
 	local fn = KEYS[key]
 	if fn then fn() end
-	if self and self.SetPropagateKeyboardInput and not InCombatLockdown() then
-		pcall(self.SetPropagateKeyboardInput, self, not fn)
-	end
+	Panel.Propagate(self, fn)
 end
 
 local function Build()
@@ -149,10 +146,7 @@ local function Build()
 	frame:SetScript("OnKeyDown", function(self, key) CL.KeyDown(self, key) end)
 	frame:SetScript("OnMouseWheel", function(_, delta) CL.ScrollTo(offset - delta * STEP) end)
 
-	title = Text(frame, 13)
-	title:SetPoint("TOPLEFT", 12, -10)
-	versionText = Text(frame, 12, "RIGHT")
-	versionText:SetPoint("TOPRIGHT", -12, -10)
+	title, versionText = Panel.Header(frame)
 
 	box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
 	box:SetPoint("TOPLEFT", 10, -32)
@@ -175,9 +169,7 @@ local function Build()
 	thumb:SetColorTexture(1, 1, 1, 1)
 	thumb:SetWidth(3)
 
-	footer = Text(frame, 11)
-	footer:SetPoint("BOTTOMLEFT", 12, 10)
-	footer:SetText("Up/Down, PgUp/PgDn, mouse wheel scroll  ·  Esc or ` close")
+	footer = Panel.Footer(frame, 10, "Up/Down, PgUp/PgDn, mouse wheel scroll  ·  Esc or ` close")
 	CL.frame = frame
 end
 
@@ -203,14 +195,11 @@ local function Layout()
 	content:SetHeight(math.max(1, (type(h) == "number" and h or 0) + 6))
 end
 
-function CL.IsShown() return frame and frame:IsShown() or false end
+function CL.IsShown() return Panel.Shown(frame) end
 function CL.Parts() return scroll, content, body end -- (tests)
 
 function CL.Open()
-	if InCombatLockdown() then
-		ns:Print("The changelog takes the arrow keys while open, which the game doesn't allow in combat.")
-		return false
-	end
+	if not Panel.CanOpen("The changelog takes the arrow keys while open, which the game doesn't allow in combat.") then return false end
 	Build()
 	Layout()
 	Panel.Opening(CL) -- (straight in, where the terminal was: it and the other panels go)
@@ -220,9 +209,7 @@ function CL.Open()
 end
 
 function CL.Close(why)
-	if not frame or not frame:IsShown() then return end
-	frame:Hide()
-	if why == "combat" then ns:Print("Changelog closed: combat started.") end
+	Panel.Close(frame, why, "Changelog")
 end
 
 ns:RegisterCommand("changelog", {

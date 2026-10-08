@@ -38,8 +38,8 @@ function TL.Window()
 	end
 	-- some other talent window (this client's own, or another addon's)
 	for _, f in ipairs({ UIParent:GetChildren() }) do
-		local ok, name = pcall(function() return f:GetName() end)
-		if ok and type(name) == "string" and name:find("Talent") and not name:find("^Terminal") and Usable(f) then
+		local name = ns.FrameName(f)
+		if name and name:find("Talent") and not name:find("^Terminal") and Usable(f) then
 			return f, name
 		end
 	end
@@ -71,14 +71,7 @@ local Plain = ns.Plain -- (Locale.lua)
 
 -- a tab label for the tree: "Fury", or "Fury (5)" with points spent
 local function TabText(f, tabName)
-	local texts = {}
-	if f.GetText then
-		local ok, t = pcall(f.GetText, f)
-		if ok and type(t) == "string" then texts[#texts + 1] = t end
-	end
-	for _, r in ipairs({ f:GetRegions() }) do
-		if r.GetObjectType and r:GetObjectType() == "FontString" then texts[#texts + 1] = r:GetText() end
-	end
+	local texts = ns.FrameTexts(f)
 	for _, t in ipairs(texts) do
 		t = Plain(t)
 		if t == tabName then return true end

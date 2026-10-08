@@ -91,6 +91,7 @@ local function LibNpcFlags(L)
 end
 
 local libDB, libFrom -- made once per library table
+local libModule -- Questie's QuestieDB module once found (looked up per call until then: Questie may come later)
 local QUESTIE_DB = {} -- (an older Questie: its module, wrapped the same way)
 
 --- The data, Questie-shaped, or nil while it can't be read (see Ready).
@@ -99,7 +100,7 @@ function QD.DB()
 	local L = QD.Lib()
 	if L then
 		if libFrom ~= L then
-			libFrom = L
+			libFrom, libModule = L, nil
 			local item = L.Item
 			libDB = {
 				QueryQuestSingle = L.Quest.Get,
@@ -114,8 +115,13 @@ function QD.DB()
 				source = "QuestieDB",
 			}
 		end
-		-- Questie's own flag table (it knows its client) when Questie is there
-		local M = QD.Module("QuestieDB")
+		-- Questie's own flag table (it knows its client) when Questie is there. The module is looked up (a pcall'd
+		-- ImportModule) only until it's found: NPC filters ask for the data per row
+		local M = libModule
+		if not M then
+			M = QD.Module("QuestieDB")
+			libModule = M
+		end
 		if M and type(M.npcFlags) == "table" then libDB.npcFlags = M.npcFlags end
 		return libDB
 	end
@@ -224,4 +230,4 @@ function QD.OnReady(fn)
 	if type(Q) == "table" and Q.API and Q.API.RegisterOnReady then Safe(Q.API.RegisterOnReady, fn) end
 end
 
-QD.ResetForTests = function() libDB, libFrom, zones = nil, nil, nil; QUESTIE_DB.module = nil end
+QD.ResetForTests = function() libDB, libFrom, libModule, zones = nil, nil, nil, nil; QUESTIE_DB.module = nil end

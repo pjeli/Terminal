@@ -25,6 +25,7 @@ local ROW_H, LIST_TOP, LIST_BOTTOM = 19, 42, 6 -- the list's rows, and the room 
 -- time is charged to Terminal (at every 3 s it was the spike in Terminal's own graph, every sixth bar)
 local CPU_EVERY, MEM_EVERY = 0.5, 10
 local SORTS = { "cpu", "mem", "name" }
+local SORT_LABEL = { cpu = "cpu", mem = "memory", name = "name" } -- (how the list's sort is named in it)
 -- btop's bar colours: low green, high red (as RGB triples: parsing hex per bar per tick added up)
 local HOT, WARM, COOL = { Theme.RGB("ff5f5f") }, { Theme.RGB("ffd200") }, { Theme.RGB("33ff99") }
 
@@ -43,7 +44,7 @@ B.METRICS = { -- the profiler's numbers shown for one addon: { metric name, labe
 	{ "CountTimeOver1000Ms", "over 1 s", "n" },
 }
 
-local function RGB(hex) return Theme.RGB(hex) end
+local RGB = Theme.RGB
 
 --- Green, yellow or red (r, g, b), by how full a bar is (0..1).
 local function Heat(f)
@@ -230,10 +231,7 @@ local function Build()
 	frame:SetScript("OnChar", function(_, ch) B.Char(ch) end)
 	frame:SetScript("OnUpdate", function(_, elapsed) B.Tick(elapsed) end)
 
-	header = Text(frame, 13)
-	header:SetPoint("TOPLEFT", 12, -10)
-	sysText = Text(frame, 12, "RIGHT")
-	sysText:SetPoint("TOPRIGHT", -12, -10)
+	header, sysText = Panel.Header(frame)
 
 	-- cpu: a graph of all addons' share of each frame
 	local cpu = Box(frame, "cpu", 10, -30, 0, 150)
@@ -304,18 +302,15 @@ local function Build()
 	for i = 1, #B.METRICS + 2 do
 		profLines[i] = { label = Text(proc, 11), mine = Text(proc, 11, "RIGHT"), all = Text(proc, 11, "RIGHT") }
 	end
-	footer = Text(frame, 11)
-	footer:SetPoint("BOTTOMLEFT", 12, 10)
+	footer = Panel.Footer(frame, 10)
 	B.frame, B.rows, B.footer, B.cpuText, B.graph, B.profLines = frame, rows, footer, cpuText, graph, profLines
 end
 
---- Size, colours and places from the terminal's theme.
-local function Layout()
-	W = math.max(520, Theme.Get().width or 640)
-	local t = Panel.Layout(frame, W, H)
+-- the three boxes: cpu and mem side by side, the addons under them (as many rows as fit), their edges and titles
+local function LayoutBoxes(t, half)
 	local br, bg, bb = RGB(t.border)
 	local ar, ag, ab = RGB(t.accent)
-	local half = math.floor((W - 30) * 0.62)
+	local pr, pg, pb = RGB(t.bg)
 	frame.cpuBox:SetWidth(half)
 	frame.memBox:ClearAllPoints()
 	frame.memBox:SetPoint("TOPLEFT", 20 + half, -30)
@@ -327,9 +322,12 @@ local function Layout()
 		box:SetBackdropBorderColor(br, bg, bb, 1)
 		box.title:SetTextColor(ar, ag, ab)
 		box.title:SetWidth(math.max(20, box:GetWidth() - 16)) -- (a long addon name in it is cut, never over the edge)
-		local pr, pg, pb = RGB(t.bg)
 		box.patch:SetColorTexture(pr, pg, pb, 1)
 	end
+end
+
+-- the cpu graph's columns, the memory meter and the memory graph
+local function LayoutGraphs(t, half, mw)
 	cpuText:SetWidth(half - 16)
 	-- graph columns fill the cpu box under its title, above its text line
 	local gw = (half - 16) / GRAPH_COLS
@@ -338,7 +336,6 @@ local function Layout()
 		bar:SetPoint("BOTTOMLEFT", frame.cpuBox, "BOTTOMLEFT", 8 + (i - 1) * gw, 24)
 		bar:SetWidth(math.max(1, gw - 1))
 	end
-	local mw = W - 30 - half
 	memBarBg:ClearAllPoints()
 	memBarBg:SetPoint("TOPLEFT", 8, -42)
 	memBarBg:SetSize(mw - 16, 8)
@@ -347,6 +344,7 @@ local function Layout()
 	memBar:ClearAllPoints()
 	memBar:SetPoint("TOPLEFT", memBarBg, "TOPLEFT")
 	memBar:SetHeight(8)
+	local ar, ag, ab = RGB(t.accent)
 	local mgw = (mw - 16) / GRAPH_COLS
 	for i, bar in ipairs(memGraph) do
 		bar:ClearAllPoints()
@@ -354,8 +352,13 @@ local function Layout()
 		bar:SetWidth(math.max(1, mgw - 1))
 		bar:SetColorTexture(ar, ag, ab, 0.7)
 	end
-	-- columns: name, a bar, cpu ms, cpu %, memory
-	local pw = W - 20
+end
+
+-- the list: its column heads and rows (name, a bar, cpu ms, cpu %, memory)
+local function LayoutRows(t, pw)
+	local ar, ag, ab = RGB(t.accent)
+	local dr, dg, db = RGB(t.dim)
+	local tr, tg, tb = RGB(t.text)
 	local cols = { name = 10, bar = pw * 0.42, ms = pw * 0.66, pct = pw * 0.78, mem = pw - 10 }
 	colHead[1]:ClearAllPoints(); colHead[1]:SetPoint("TOPLEFT", cols.name, -24)
 	colHead[2]:ClearAllPoints(); colHead[2]:SetPoint("TOPRIGHT", frame.procBox, "TOPLEFT", cols.ms, -24)
@@ -375,10 +378,14 @@ local function Layout()
 		r.ms:ClearAllPoints(); r.ms:SetPoint("RIGHT", r, "LEFT", cols.ms - 4, 0)
 		r.pct:ClearAllPoints(); r.pct:SetPoint("RIGHT", r, "LEFT", cols.pct - 4, 0)
 		r.mem:ClearAllPoints(); r.mem:SetPoint("RIGHT", r, "LEFT", cols.mem - 4, 0)
-		local tr, tg, tb = RGB(t.text)
 		for _, fs in ipairs({ r.name, r.ms, r.pct, r.mem }) do fs:SetTextColor(tr, tg, tb) end
 	end
-	-- the profile's two blocks: a header line, then a line per metric (times left, slow-frame counts right)
+end
+
+-- the profile's two blocks: a header line, then a line per metric (times left, slow-frame counts right)
+local function LayoutProfile(t, pw)
+	local dr, dg, db = RGB(t.dim)
+	local tr, tg, tb = RGB(t.text)
 	local half2 = math.floor(pw / 2)
 	local left, right = 0, 0
 	for i, l in ipairs(profLines) do
@@ -394,11 +401,15 @@ local function Layout()
 		l.mine:SetWidth(76); l.all:SetWidth(76)
 		l.mine:ClearAllPoints(); l.mine:SetPoint("TOPRIGHT", frame.procBox, "TOPLEFT", x0 + half2 * 0.68, y)
 		l.all:ClearAllPoints(); l.all:SetPoint("TOPRIGHT", frame.procBox, "TOPLEFT", x0 + half2 - 12, y)
-		local tr2, tg2, tb2 = RGB(i <= 2 and t.dim or t.text)
 		l.label:SetTextColor(dr, dg, db)
-		l.mine:SetTextColor(tr2, tg2, tb2)
+		if i <= 2 then l.mine:SetTextColor(dr, dg, db) else l.mine:SetTextColor(tr, tg, tb) end
 		l.all:SetTextColor(dr, dg, db)
 	end
+end
+
+-- the header, the captions and the footer
+local function ColourTexts(t, mw)
+	local dr, dg, db = RGB(t.dim)
 	local tr, tg, tb = RGB(t.text)
 	header:SetTextColor(tr, tg, tb)
 	sysText:SetTextColor(dr, dg, db)
@@ -409,6 +420,19 @@ local function Layout()
 	for _, fs in ipairs({ memText, memText2, memText3 }) do fs:SetWidth(mw - 16) end -- (never past the box's edge)
 	footer:SetTextColor(dr, dg, db)
 	filterText:SetTextColor(tr, tg, tb)
+end
+
+--- Size, colours and places from the terminal's theme.
+local function Layout()
+	W = math.max(520, Theme.Get().width or 640)
+	local t = Panel.Layout(frame, W, H)
+	local half = math.floor((W - 30) * 0.62)
+	local mw, pw = W - 30 - half, W - 20
+	LayoutBoxes(t, half)
+	LayoutGraphs(t, half, mw)
+	LayoutRows(t, pw)
+	LayoutProfile(t, pw)
+	ColourTexts(t, mw)
 	B.graphH = 150 - 24 - 28
 end
 
@@ -479,9 +503,8 @@ function B.DrawBars(k)
 	end
 end
 
-function B.DrawText()
-	if not frame then return end
-	local t = Theme.Get()
+-- the header, the graphs' captions and the boxes' titles (the focused addon's name in them while profiling)
+local function DrawTitles(t, fa)
 	header:SetText(("|cff%satop|r  |cff%saddon top|r"):format(t.accent, t.dim))
 	local fps = GetFramerate and GetFramerate() or 0
 	local _, _, home, world = (GetNetStats or function() end)()
@@ -497,7 +520,6 @@ function B.DrawText()
 	memText:SetText(("%s in %d addons"):format(MB(B.memTotal or 0), #addons))
 	memText2:SetText("peak " .. MB(B.memPeak or 0))
 	memText3:SetText(ns.name .. " " .. MB(mine))
-	local fa = Focused()
 	frame.cpuBox.title:SetText(fa and ("cpu  ·  " .. fa.title) or "cpu")
 	frame.memBox.title:SetText(fa and ("mem  ·  " .. fa.title) or "mem")
 	frame.procBox.title:SetText(fa and ("profile  ·  " .. fa.title) or "addons")
@@ -509,10 +531,12 @@ function B.DrawText()
 		if type(w) == "number" and w > 0 then box.title:SetWidth(math.min(room, w + 1)) end
 	end
 	for _, fs in ipairs(colHead) do fs:SetShown(not fa) end
-	if fa then return B.DrawProfile(fa, t) end
+end
+
+-- the list of addons: the filter and sort line, the rows on show, the footer
+local function DrawList(t)
 	for _, l in ipairs(profLines) do l.label:Hide(); l.mine:Hide(); l.all:Hide() end
-	local sortLabel = { cpu = "cpu", mem = "memory", name = "name" }
-	filterText:SetText(("|cff%sfilter|r %s|cff%s_|r   |cff%ssort|r %s"):format(t.dim, state.filter, t.accent, t.dim, sortLabel[state.sort]))
+	filterText:SetText(("|cff%sfilter|r %s|cff%s_|r   |cff%ssort|r %s"):format(t.dim, state.filter, t.accent, t.dim, SORT_LABEL[state.sort]))
 	local whole = math.max(0.0001, B.total or 0)
 	for i, r in ipairs(rows) do
 		local a = i <= fit and shown[state.offset + i]
@@ -528,6 +552,15 @@ function B.DrawText()
 		end
 	end
 	footer:SetText(("%d of %d addons  ·  type to filter  ·  Tab sort  ·  Enter profile  ·  Esc or ` close"):format(#shown, #addons))
+end
+
+function B.DrawText()
+	if not frame then return end
+	local t = Theme.Get()
+	local fa = Focused()
+	DrawTitles(t, fa)
+	if fa then return B.DrawProfile(fa, t) end
+	DrawList(t)
 end
 
 --- Milliseconds, as many decimals as fit the column ("0.317 ms", "12.4 ms", "168 ms").
@@ -644,7 +677,7 @@ function B.Char(ch)
 	B.Refilter(); B.DrawText(); B.DrawBars(1)
 end
 
-function B.IsShown() return frame and frame:IsShown() or false end
+function B.IsShown() return Panel.Shown(frame) end
 B.state = state
 function B.Shown() return shown end
 function B.Fit() return fit end
@@ -652,10 +685,7 @@ function B.MemTexts() return memText, memText2, memText3 end
 function B.History() return hist end
 
 function B.Open()
-	if InCombatLockdown() then
-		ns:Print("atop reads the keyboard while open, so not in combat.")
-		return false
-	end
+	if not Panel.CanOpen("atop reads the keyboard while open, so not in combat.") then return false end
 	Build()
 	Layout()
 	Panel.Opening(B) -- (straight in: the terminal and the other panels go)
@@ -674,9 +704,7 @@ function B.Open()
 end
 
 function B.Close(why)
-	if not frame or not frame:IsShown() then return end
-	frame:Hide()
-	if why == "combat" then ns:Print("atop closed: combat started.") end
+	Panel.Close(frame, why, "atop")
 end
 
 ns:RegisterCommand("atop", {

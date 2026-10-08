@@ -149,7 +149,6 @@ local function Lines()
 	end
 	return out
 end
-G.Lines = Lines
 
 local function PrintAll() ns:Output(Lines()) end
 local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end

@@ -32,6 +32,29 @@ function ns.Num(v)
 	return v
 end
 
+--- Always false: the `isOpen` of a result that is always pressed (nothing has to be open first), shared.
+function ns.Never() return false end
+
+--- A frame's (or any object's) name when it has a string one; else nil. Never errors.
+function ns.FrameName(f)
+	local ok, n = pcall(function() return f:GetName() end)
+	return ok and type(n) == "string" and n or nil
+end
+
+--- The texts a row shows: its own GetText (when it has one and it's a string), then every FontString
+--- region's text, in that order. Each caller compares them in its own way.
+function ns.FrameTexts(f)
+	local texts = {}
+	if f.GetText then
+		local ok, t = pcall(f.GetText, f)
+		if ok and type(t) == "string" then texts[#texts + 1] = t end
+	end
+	for _, r in ipairs({ f:GetRegions() }) do
+		if r.GetObjectType and r:GetObjectType() == "FontString" then texts[#texts + 1] = r:GetText() end
+	end
+	return texts
+end
+
 --- The colour code of an item quality ("|cffa335ee"), or nil.
 function ns.QualityHex(q)
 	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]

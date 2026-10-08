@@ -23,7 +23,7 @@ local function JournalMacro(tab, box, name)
 	return JOURNAL:format(tab, tab, box, name or "")
 end
 
-local function NeverOpen() return false end -- (always pressed: the search is set even when it's open)
+local NeverOpen = ns.Never -- (always pressed: the search is set even when it's open)
 
 --- Points at the row's name inside a part of the journal once it shows (reading only).
 local function PointIn(rootFn, name)

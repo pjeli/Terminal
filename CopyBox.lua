@@ -19,6 +19,16 @@ local frame, edit, scroll, titleFS, hintFS, current = nil, nil, nil, nil, nil, "
 local link, linkEdit, linkTitle, linkHint, linkBox -- the slim one-line bar (below)
 
 local W, H = 700, 440
+local WHITE = "Interface\\Buttons\\WHITE8X8"
+local FLAT = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 } -- (both windows' backdrop, coloured in the theme)
+
+-- read-only text boxes (the window's and the slim bar's): whatever is typed is put back
+local function ReadOnly(self, user)
+	if user and self:GetText() ~= current then
+		self:SetText(current)
+		self:HighlightText()
+	end
+end
 
 local function Build()
 	if frame then return end
@@ -33,7 +43,7 @@ local function Build()
 	frame:RegisterForDrag("LeftButton")
 	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-	frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	frame:SetBackdrop(FLAT)
 	frame:Hide()
 	tinsert(UISpecialFrames, "TerminalCopyFrame") -- Esc closes it
 
@@ -62,13 +72,7 @@ local function Build()
 	edit:SetWidth(W - 56)
 	edit:SetMaxLetters(0)
 	edit:SetScript("OnEscapePressed", function() C.Hide() end)
-	-- read-only: whatever is typed is put back
-	edit:SetScript("OnTextChanged", function(self, user)
-		if user and self:GetText() ~= current then
-			self:SetText(current)
-			self:HighlightText()
-		end
-	end)
+	edit:SetScript("OnTextChanged", ReadOnly)
 	sf:SetScrollChild(edit)
 
 	local close = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -122,7 +126,7 @@ local function BuildLink()
 	link:SetFrameStrata("DIALOG")
 	link:SetClampedToScreen(true)
 	link:EnableMouse(true)
-	link:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	link:SetBackdrop(FLAT)
 	link:Hide()
 	tinsert(UISpecialFrames, "TerminalLinkFrame")
 
@@ -151,12 +155,7 @@ local function BuildLink()
 	linkEdit:SetScript("OnEscapePressed", function() C.Hide() end)
 	linkEdit:SetScript("OnEnterPressed", function() C.Hide() end) -- (a wrapped bar is multi-line: Enter would add a line)
 	linkEdit:SetScript("OnEditFocusLost", function() C.Hide() end)
-	linkEdit:SetScript("OnTextChanged", function(self, user) -- read-only
-		if user and self:GetText() ~= current then
-			self:SetText(current)
-			self:HighlightText()
-		end
-	end)
+	linkEdit:SetScript("OnTextChanged", ReadOnly)
 	-- gone once copied (the copy itself is the game's own, on this key)
 	linkEdit:SetScript("OnKeyDown", function(_, key)
 		if key == "C" and IsControlKeyDown() then

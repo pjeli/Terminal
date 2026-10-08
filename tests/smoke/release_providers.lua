@@ -58,6 +58,29 @@ do
 	ns.providers.items._dirty = true
 end
 
+io.write("[stored names: an old give-up timer leaves a new wait alone]\n")
+do
+	local St = ns.Stored
+	local saveReq, saveBy = C_Item.RequestLoadItemDataByID, C_Item.GetItemNameByID
+	C_Item.RequestLoadItemDataByID = function() end
+	C_Item.GetItemNameByID = function() return nil end
+	FlushAll()
+	local f = St.nameFrame
+	local function waitingFor() local s = St.Busy() return s and tonumber(s:match("Loading (%d+)")) or 0 end
+	check(St.Name(991001) == nil and waitingFor() == 1, "stored: first name awaited")
+	f.scripts.OnEvent(f, "GET_ITEM_INFO_RECEIVED", 991001, true)
+	check(waitingFor() == 0, "stored: it arrived")
+	C_Timer.After(5, function() end)
+	Flush()
+	check(St.Name(991002) == nil and waitingFor() == 1, "stored: second name awaited")
+	Flush() -- (the first wait's timer, due 5 s before the second's)
+	check(waitingFor() == 1, "stored: the first wait's timer leaves the second wait running")
+	FlushAll()
+	check(waitingFor() == 0, "stored: its own timer still gives up")
+	C_Item.RequestLoadItemDataByID, C_Item.GetItemNameByID = saveReq, saveBy
+	if ns.providers.stored then ns.providers.stored._dirty = true end
+end
+
 io.write("[achievements: the whole list read once per change]\n")
 do
 	local save = { info = _G.GetAchievementInfo, num = _G.GetCategoryNumAchievements, list = _G.GetCategoryList }

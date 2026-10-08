@@ -10,16 +10,29 @@ local H = ns.Highlight
 --       to copy; Shift+Enter: the quest log for quests you're on, otherwise the quest giver on
 --       the map), and NPCs, searched with @npc.
 --       Enter opens the world map on the NPC, puts Questie's marker for it there and drops
---       the map pin; Shift+Enter only moves the pin.
+--       the map pin; Shift+Enter targets it (/targetexact, pressed by the game; in combat it only
+--       moves the pin).
 --
--- Neither addon is required; with neither installed this file does nothing. .integrations
--- shows what was found.
+-- Neither addon is required; with neither installed only the dungeon and raid entrance lists
+-- (@dungeon, @raid: Terminal's own data) are left. .integrations shows what was found.
 
 local I = {}
 ns.Integrations = I
 I.HINT_FEW = 2 -- (UI.HINT_FEW: a list with this many matches or fewer shows them as results)
 
 local Safe = ns.Safe -- (Util.lua)
+
+--- An addon's TOC Version, as text ("?" when unknown).
+local function AddOnVersion(name)
+	local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or _G.GetAddOnMetadata
+	return tostring(meta and Safe(meta, name, "Version") or "?")
+end
+
+--- The link of the map pin just set (C_Map.SetUserWaypoint), or nil.
+local function WaypointLink()
+	local link = C_Map and C_Map.GetUserWaypointHyperlink and Safe(C_Map.GetUserWaypointHyperlink)
+	return type(link) == "string" and link ~= "" and link or nil
+end
 
 ----------------------------------------------------------------------
 -- AtlasLoot
@@ -91,13 +104,12 @@ local function GroupText(inst, bossName)
 	inst = ns.Plain(inst):gsub("%s+$", "")
 	return bossName .. "  " .. inst, ns.Lower(inst .. " " .. bossName .. " loot drop atlasloot")
 end
+I.GroupText = GroupText -- (tests)
 
 --- Rows for one loaded loot module: one per item and instance (the first boss and
 --- difficulty it drops on), kept apart from names, which arrive from the server over time.
 --- groups: the cache being built, one entry per boss table ({ addon, content, boss, inst,
 --- boss name, "id.diff.page ..." }).
-I.GroupText = function(...) return GroupText(...) end -- (tests)
-
 local function IndexModule(addon, storage, groups)
 	local A = AL()
 	local added = 0
@@ -155,8 +167,7 @@ end
 --- version AtlasLoot picks, and this format. Any change and it's built again.
 local function CacheKey(mods)
 	local A = AL()
-	local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or _G.GetAddOnMetadata
-	local function ver(name) return tostring(meta and Safe(meta, name, "Version") or "?") end
+	local ver = AddOnVersion
 	local core = LoadedCore() or "AtlasLoot"
 	local parts = { "v" .. CACHE_FORMAT, core .. "=" .. ver(core), "game=" .. tostring(A.GetGameVersion and Safe(A.GetGameVersion, A)) }
 	for _, m in ipairs(mods) do parts[#parts + 1] = m .. "=" .. ver(m) end
@@ -371,7 +382,7 @@ local function OpenLoot(e)
 		for _, b in ipairs(frame and frame.ItemButtons or {}) do
 			if b.ItemID == e.itemID and b:IsVisible() then return b end
 		end
-	end, function(b) H:Show(b, 6) end, 30, function()
+	end, function(b) H:Show(b) end, 30, function()
 		ns:Trace("loot: no button for item " .. tostring(e.itemID) .. " on the page shown")
 	end)
 end
@@ -509,8 +520,8 @@ I.RunSliced = RunSliced
 
 -- an NPC's title ("Mining Trainer", "Banker"), lowercase too: searched as the row's text ("mining trainer in org")
 local function NpcSub(DB, id)
-	local sub = Safe(DB.QueryNPCSingle, id, "subName")
-	if type(sub) ~= "string" or sub == "" or (issecretvalue and issecretvalue(sub)) then return nil end
+	local sub = ns.Str(Safe(DB.QueryNPCSingle, id, "subName"))
+	if not sub then return nil end
 	return sub, ns.Lower(sub)
 end
 
@@ -532,7 +543,7 @@ local function IndexNPCs(after)
 	RunSliced("questie: NPCs", #ids, function(i)
 		local id = ids[i]
 		local name = Safe(DB.QueryNPCSingle, id, "name")
-		if type(name) == "string" and name ~= "" and not (issecretvalue and issecretvalue(name)) then
+		if ns.Str(name) then
 			-- compact: the name, title and id; everything else is shared (npc.meta)
 			local row, lname, lsub = NpcListRow(DB, id, name, meta)
 			out[#out + 1] = row
@@ -618,7 +629,7 @@ local function NpcHintRow(_, id)
 	if row then return row end
 	local DB = QDB()
 	local name = DB and Safe(DB.QueryNPCSingle, id, "name")
-	if type(name) ~= "string" or name == "" or (issecretvalue and issecretvalue(name)) then return nil end
+	if not ns.Str(name) then return nil end
 	return (NpcListRow(DB, id, name, npc.meta))
 end
 
@@ -627,7 +638,7 @@ local function QuestHintRow(_, id)
 	if row then return row end
 	local DB = QDB()
 	local name = DB and Safe(DB.QueryQuestSingle, id, "name")
-	if type(name) ~= "string" or name == "" or (issecretvalue and issecretvalue(name)) then return nil end
+	if not ns.Str(name) then return nil end
 	return setmetatable({ _compact = true, key = id, name = name, _lname = ns.Lower(name),
 		level = Safe(DB.QueryQuestSingle, id, "questLevel"), _ltext = "quest questie" }, qdb.meta)
 end
@@ -778,43 +789,54 @@ end
 -- the object ids of each kind: one pass over QuestieDB's objects (13k names) the first time, kept in the saved
 -- variables until QuestieDB changes (`db.objectIndex = { key, ids = { mailbox = "1,2,3" } }`)
 local objectIds
+
+--- The saved index's ids into out (kind -> list of ids).
+local function SavedObjectIds(out, saved)
+	for k, list in pairs(saved.ids) do
+		local t = {}
+		for id in tostring(list):gmatch("%d+") do t[#t + 1] = tonumber(id) end
+		out[k] = t
+	end
+end
+
+--- Every object's name read once (all = QuestieDB's object ids): the ids of each kind looked for go into out,
+--- and the index is saved under key.
+local function ReadObjectIds(out, DB, all, kinds, key)
+	local want = {}
+	for name in pairs(kinds) do want[name] = true; out[name] = {} end
+	local t0 = debugprofilestop and debugprofilestop()
+	for _, id in ipairs(all) do
+		local name = Safe(DB.QueryObjectSingle, id, "name")
+		if type(name) == "string" and not (issecretvalue and issecretvalue(name)) then
+			local l = ns.Lower(name)
+			if want[l] then local t = out[l]; t[#t + 1] = id end
+		end
+	end
+	local ids = {}
+	for k, t in pairs(out) do ids[k] = table.concat(t, ",") end
+	if ns.db then ns.db.objectIndex = { key = key, ids = ids } end
+	ns:Trace(("objects: %d read for their names%s"):format(#all, t0 and (", %.0f ms"):format(debugprofilestop() - t0) or ""))
+end
+
 local function ObjectIds(kind)
 	local DB = QDB()
 	if not (DB and DB.QueryObjectSingle and DB.ObjectIds) then return nil end
 	if not objectIds then
 		local all = DB.ObjectIds() or {}
 		if #all == 0 then return nil end -- (not readable yet: asked again next time, nothing kept)
-		local meta = (C_AddOns and C_AddOns.GetAddOnMetadata) or _G.GetAddOnMetadata
 		-- (the kinds looked for are in the key: a kind added later reads every name again)
 		local kinds = {}
 		for _, name in pairs(I.OBJECT_KINDS) do kinds[name] = true end
 		local names = {}
 		for name in pairs(kinds) do names[#names + 1] = name end
 		table.sort(names)
-		local key = tostring(meta and Safe(meta, "QuestieDB", "Version") or "?") .. "/" .. #all .. "/" .. table.concat(names, ",")
+		local key = AddOnVersion("QuestieDB") .. "/" .. #all .. "/" .. table.concat(names, ",")
 		local saved = ns.db and ns.db.objectIndex
 		objectIds = {}
 		if type(saved) == "table" and saved.key == key and type(saved.ids) == "table" then
-			for k, list in pairs(saved.ids) do
-				local t = {}
-				for id in tostring(list):gmatch("%d+") do t[#t + 1] = tonumber(id) end
-				objectIds[k] = t
-			end
+			SavedObjectIds(objectIds, saved)
 		else
-			local want = {}
-			for name in pairs(kinds) do want[name] = true; objectIds[name] = {} end
-			local t0 = debugprofilestop and debugprofilestop()
-			for _, id in ipairs(all) do
-				local name = Safe(DB.QueryObjectSingle, id, "name")
-				if type(name) == "string" and not (issecretvalue and issecretvalue(name)) then
-					local l = ns.Lower(name)
-					if want[l] then local t = objectIds[l]; t[#t + 1] = id end
-				end
-			end
-			local ids = {}
-			for k, t in pairs(objectIds) do ids[k] = table.concat(t, ",") end
-			if ns.db then ns.db.objectIndex = { key = key, ids = ids } end
-			ns:Trace(("objects: %d read for their names%s"):format(#all, t0 and (", %.0f ms"):format(debugprofilestop() - t0) or ""))
+			ReadObjectIds(objectIds, DB, all, kinds, key)
 		end
 	end
 	return objectIds[kind]
@@ -984,8 +1006,7 @@ ns:RegisterProvider("raid", {
 function I.SpotPinLink(e)
 	if not (e and e.ui and e.px and ns.Maps and ns.Maps.Place) then return nil end
 	if not ns.Maps.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } }) then return nil end
-	local link = C_Map and C_Map.GetUserWaypointHyperlink and Safe(C_Map.GetUserWaypointHyperlink)
-	return type(link) == "string" and link ~= "" and link or nil
+	return WaypointLink()
 end
 
 --- "nearest mailbox" (Simple mode): the nearest rows of that kind's list (those `keep` keeps: a place said), closest
@@ -1023,8 +1044,7 @@ end
 --- Where you face (radians counter-clockwise from north), or nil (unknown, or a secret value).
 function I.Facing()
 	local face = _G.GetPlayerFacing and Safe(_G.GetPlayerFacing)
-	if type(face) ~= "number" or (_G.issecretvalue and _G.issecretvalue(face)) then return nil end
-	return face
+	return ns.Num(face)
 end
 
 --- The turn from where you face to a spot (world x is north, y is west; facing counter-clockwise from north).
@@ -1222,10 +1242,11 @@ function I.TownsPending() return not textTowns and not qdb.list end
 -- a town's middle: its flight point (on its zone's map, else a map above it), else where its quests send you,
 -- in world yards (false: none)
 local centres = {}
-local function TownCentre(place)
-	local c = centres[place.area]
-	if c ~= nil then return c or nil end
-	c = false
+
+--- A town's flight point in world yards (false: none found), looked for on its zone's map, then up to two maps
+--- above it; also the maps tried and how many flight points were read (for the trace).
+local function FlightPointCentre(place)
+	local c = false
 	local T = _G.C_TaxiMap
 	local ui = place.parent and QD.UiMapOfArea(place.parent)
 	local seen, tried = 0, {}
@@ -1246,6 +1267,14 @@ local function TownCentre(place)
 		local info = not c and C_Map.GetMapInfo and Safe(C_Map.GetMapInfo, ui)
 		ui = type(info) == "table" and info.parentMapID or nil
 	end
+	return c, tried, seen
+end
+
+local function TownCentre(place)
+	local c = centres[place.area]
+	if c ~= nil then return c or nil end
+	local tried, seen
+	c, tried, seen = FlightPointCentre(place)
 	local from = c and "its flight point" or nil
 	if not c then
 		local tt = TextTowns()
@@ -1391,8 +1420,7 @@ end
 function I.NpcPinLink(e)
 	local mapID, pos = NpcLocation(e.npcID)
 	if not (mapID and pos and ns.Maps and ns.Maps.Place and ns.Maps.Place({ name = e.name, mapID = mapID, pos = pos })) then return nil end
-	local link = C_Map and C_Map.GetUserWaypointHyperlink and Safe(C_Map.GetUserWaypointHyperlink)
-	return type(link) == "string" and link ~= "" and link or nil
+	return WaypointLink()
 end
 
 -- Shift+Enter targets the NPC: "/targetexact <name>" on the secure macro button, pressed by the game
@@ -1401,7 +1429,7 @@ end
 -- Shift+Enter says so and only pins it.
 local function TargetMacro(e) return "/targetexact " .. (e.npcName or e.name) end
 local NPC_TARGET = { macro = TargetMacro }
-local function NeverTargeted() return false end
+local NeverTargeted = ns.Never
 local function TargetFallback(e)
 	if InCombatLockdown() then ns:Print("In combat: can't target " .. tostring(e.name) .. " from here; pinning it instead.") end
 	NpcPin(e)
@@ -1429,7 +1457,7 @@ function ObjectivesText(DB, id)
 		end
 		t = table.concat(parts, " ")
 	end
-	if type(t) == "string" and t ~= "" and not (issecretvalue and issecretvalue(t)) then return ns.Lower(t) end
+	if ns.Str(t) then return ns.Lower(t) end
 end
 
 --- Quest names, levels, zones and objectives from Questie's database, a slice at a time.
@@ -1455,7 +1483,7 @@ local function IndexQuests()
 	RunSliced("questie: quests", #ids, function(i)
 		local id = ids[i]
 		local name = Safe(DB.QueryQuestSingle, id, "name")
-		if type(name) == "string" and name ~= "" and not (issecretvalue and issecretvalue(name)) then
+		if ns.Str(name) then
 			local z = Zone(Safe(DB.QueryQuestSingle, id, "zoneOrSort") or 0)
 			-- searched too: who to talk to, what to kill or bring, where
 			local obj = ObjectivesText(DB, id)
@@ -1535,8 +1563,7 @@ function I.QuestieQuestLink(id)
 	-- (an older Questie without those: the same bracket text, which its chat filter reads)
 	local DB = QDB() or QD.AnyModule("QuestieDB")
 	local name = DB and Safe(DB.QueryQuestSingle, id, "name")
-	if type(name) ~= "string" or name == "" then return nil end
-	if issecretvalue and issecretvalue(name) then return nil end
+	if not ns.Str(name) then return nil end
 	return "[" .. name .. " (" .. id .. ")]"
 end
 local function QuestieShareLink(t) return I.QuestieQuestLink(t.qid) end

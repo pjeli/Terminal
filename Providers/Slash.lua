@@ -29,7 +29,7 @@ local function SlashMacro(e)
 	return line
 end
 local SLASH_SPEC = { macro = SlashMacro }
-local function NeverOpen() return false end -- nothing has to be open first: always pressed
+local NeverOpen = ns.Never -- nothing has to be open first: always pressed
 local function SlashAfter(e) ns:Trace("slash: the game ran " .. Line(e, ns.UI and ns.UI.args)) end
 
 local function RunEntry(e, args) RunSlash(Line(e, args)) end

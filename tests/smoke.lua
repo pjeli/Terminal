@@ -444,6 +444,8 @@ do -- calculator: the answer is the top result
 	local r = UI:Search("3*45g")
 	check(r[1] and r[1].kind == "calc" and r[1].name == "= 135g" and r[1].detail == "3*45g", "answer is the first result: " .. tostring(r[1] and r[1].name))
 	check(UI:Search("heart")[1].kind ~= "calc", "ordinary searches have no calculator row")
+	local e1, e2 = Cc.Entry("3*4"), Cc.Entry("5*6")
+	check(e1.activate == e2.activate and e1.secondary == e2.secondary, "calc rows share their Enter/Shift+Enter functions (none made per keystroke)")
 	local said = {}
 	local chat = _G.DEFAULT_CHAT_FRAME
 	_G.DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) said[#said + 1] = m end }
@@ -2494,6 +2496,12 @@ do -- world map locations
 	-- nothing below a zone: points of interest, flight points and dungeon maps are left out
 	check(not byName["Goldshire"] and not byName["Stormwind, Elwynn"] and not byName["The Deadmines"], "no points of interest, flight points or dungeons")
 	check(byName["Eastern Kingdoms"] and byName["Eastern Kingdoms"].detail:find("^Continent"), "continents are listed")
+	do
+		local raw = 0
+		for _ in pairs(byName["Elwynn Forest"]) do raw = raw + 1 end
+		check(byName["Elwynn Forest"].icon == "Interface\\Icons\\INV_Misc_Map_01" and raw <= 7,
+			"map rows: the shared icon comes from the prototype, rows stay at 7 raw fields or fewer (" .. raw .. ")")
+	end
 	check(UI:Search("@map elwynn")[1].name == "Elwynn Forest", "@map filter")
 	check(ns:ResolveProvider("flight") ~= ns.providers.maps, "@flight no longer means maps")
 	local z = byName["Elwynn Forest"]
@@ -5619,4 +5627,5 @@ do
 		end
 	end
 end
+_G.SMOKE_FAILS = fails -- run_smoke.py exits 1 when this is above 0
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

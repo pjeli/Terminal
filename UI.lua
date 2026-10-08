@@ -14,8 +14,9 @@ local HINTS = {
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
 local DOWN_RECENT = "Down: your recent picks"
 local ONCE_LABEL = "Advanced, this time" -- (Alt+`: this run is Advanced, Simple again once it closes)
-local FZF_LABEL = "Fuzzy find" -- (Alt+` twice: pure fuzzy finding over every list, this run)
-local FZF_GHOST = "Fuzzy find: type a name  ·  Tab+` closes" -- (short: the box cut the long one off; the footer has the keys)
+local FZF_LABEL = "Fuzzy find" -- (Tab+`: pure fuzzy finding over every list, this run)
+UI.HINT_GAP = 6 -- (px between the cursor and an empty prompt's hint)
+local FZF_GHOST = "fzf" -- (the player's call: just that; the footer has the keys)
 local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" } }
 local EASY_TAB_BACK = { "Tab", "all categories" }
 local EASY_TAB_PICK = { "Tab", "pick" }
@@ -152,7 +153,7 @@ end
 --- What the name gives a word that isn't in it as it is (best: its fuzzy score, or nil): its
 --- initials ("ini"). (A shorthand's full name is looked at before: ShortHit.) Allocation-free.
 local function NameExtra(tk, best, name, lname)
-	local how, at = best and "name", nil
+	local how = best and "name"
 	-- initials are letters of the name in order: only a scattered match can be one, and the
 	-- first word (or a leading of/the/a/an/and) must start with the first letter
 	if best and IniShape(tk) then
@@ -161,7 +162,7 @@ local function NameExtra(tk, best, name, lname)
 			if ini and ini > best then best, how = ini, "ini" end
 		end
 	end
-	return best, how, at
+	return best, how
 end
 
 --- One typed word on a row: its score (nil: no match), how the name matched ("name": the fuzzy
@@ -178,7 +179,7 @@ local function TokenScore(tk, xs, name, lname, ltext)
 	local best, sub = Fuzzy.score(tk, name, lname)
 	if xs and not sub then return nil end
 	local how, at = best and "name", nil
-	if not sub then best, how, at = NameExtra(tk, best, name, lname) end
+	if not sub then best, how = NameExtra(tk, best, name, lname) end
 	if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then return TEXT_SCORE, how, at end
 	return best, how, at
 end
@@ -329,9 +330,10 @@ local function Better(a, b)
 	return tostring(a.key) < tostring(b.key)
 end
 
+UI._Better = Better -- (tests)
+
 --- The best MAX_RESULTS of the list, in order. With thousands of matches, a small heap keeps
 --- only the best so far instead of sorting them all.
-UI._Better = Better -- (tests)
 local function SortAndTrim(list, limit)
 	local n, max = #list, limit or MAX_RESULTS
 	if n > max * 2 then
@@ -377,6 +379,39 @@ local function PseudoEntries(lines)
 		out[i] = { name = line, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "" }
 	end
 	return out
+end
+
+-- The search's helpers (a table, not locals: the file is near Lua 5.1's limit of 200 locals)
+local Scan = {}
+
+--- A copy of a list (the matches kept for the next keystroke, the early results shown while the search goes on).
+function Scan.Copy(t)
+	local c = {}
+	for i = 1, #t do c[i] = t[i] end
+	return c
+end
+
+--- For a search run by UI:RunSearch (in a coroutine): a function that says when this frame's share is used up.
+--- Called directly (tests, other code), the search never pauses.
+function Scan.Budget(self)
+	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
+	return function() return slicing and debugprofilestop() > self.sliceUntil end
+end
+
+--- Can the last keystroke's matches stand for these words? One more letter on the last word, or one more word, only
+--- narrows (every row that has the new words had the old ones); never when the last word turned into shorthand
+--- ("br" -> "brd": the shorthand matches rows the shorter word didn't), nor the other way ("sw" -> "swo": the
+--- shorthand matched only its full name and the word itself).
+function Scan.Narrows(last, tokens)
+	local n, ln = #tokens, #last
+	if n ~= ln and n ~= ln + 1 then return false end
+	for i = 1, ln do
+		local a, b = last[i], tokens[i]
+		if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a)
+			or (i == n and a ~= b and tokens.short and tokens.short[i])
+			or (a ~= b and last.short and last.short[i]) then return false end
+	end
+	return true
 end
 
 ----------------------------------------------------------------------
@@ -595,6 +630,87 @@ local function LinkQuests(out)
 	end
 end
 
+--- Simple mode: an action word ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS) first, or a nearest-type one
+--- last ("mining trainer nearby"), taken out of the tokens. The action, or nil.
+function Scan.TakeAction(tokens, filters)
+	local a = ns.Easy.Action(tokens[1])
+	if a and (#tokens > 1 or filters) then
+		table.remove(tokens, 1)
+		return a
+	end
+	if #tokens > 1 then
+		-- "nearest"/"nearby"/"closest" said last: "mining trainer nearby"
+		local b = ns.Easy.Action(tokens[#tokens])
+		if b and b.nearest then
+			table.remove(tokens)
+			return b
+		end
+	end
+end
+
+--- Simple mode: the tokens without a sentence's little words (Easy.STOP), unless nothing else would be left (and no
+--- everyday word was typed).
+function Scan.DropStop(tokens, softs)
+	local kept = {}
+	for k = 1, #tokens do if not ns.Easy.STOP[tokens[k]] then kept[#kept + 1] = tokens[k] end end
+	if #kept > 0 or softs then return kept end
+	return tokens
+end
+
+--- tokens.short[i]: the full names of word i when it's a shorthand ("brd", "strat", "sw").
+function Scan.FillShorthand(tokens)
+	local SH = ns.Shorthand
+	if not SH then return end
+	for i = 1, #tokens do
+		local xs = SH[tokens[i]]
+		if xs then
+			tokens.short = tokens.short or {}
+			tokens.short[i] = xs
+		end
+	end
+end
+
+--- Simple mode's "nearest ...": a game object asked for ("nearest mailbox": QuestieDB's objects) gives its rows at
+--- once; else where you are, for the NPCs that match. Returns the rows to list now (rows, or a line saying why
+--- not), or nil, your position and the faction filter to add ("nearest repair": someone who'll serve you, so only
+--- NPCs friendly to your faction; "nearest hogger": a name, anyone).
+function Scan.NearestStart(tokens, filters, softWords)
+	local I = ns.Integrations
+	local okind = I and I.ObjectKind and I.ObjectKind(tokens)
+	if okind then
+		local spot = I.Here()
+		if not spot then return PseudoEntries({ EASY_NOWHERE }) end
+		local rows = I.NearestObjectRows(okind, spot, filters and function(e) return ns.Filters.Pass(e, filters) end)
+		if rows and #rows > 0 then return rows end
+		if rows then return PseudoEntries({ EASY_NONE }) end
+	end
+	if not ns.providers.npc then return PseudoEntries({ EASY_NO_NPCS }) end
+	local here = ns.Integrations and ns.Integrations.Here()
+	if not here then return PseudoEntries({ EASY_NOWHERE }) end
+	local role = false
+	for _, w in ipairs(softWords or {}) do if ns.Easy.ROLE_WORDS[w] then role = true break end end
+	return nil, here, role and ns.Filters and ns.Filters.Parse("faction:friendly")
+end
+
+--- The matched rows that have a distance (Questie's NPCs, rows with a place of their own: @mailbox), each as a view
+--- saying how far ("120 yd", a spot row keeping its zone as the arrow's live text writes it: "120 yd  The Barrens")
+--- and scored closest first; sort:nearest keeps every other row too, after them. Pauses with the search.
+function Scan.NearestViews(out, here, sortNear, overBudget)
+	local I, kept = ns.Integrations, {}
+	for i = 1, #out do
+		local e = out[i]
+		local d = I.RowDistance(e, here)
+		if d then
+			local zone = rawget(e, "wcont") and e.zone
+			kept[#kept + 1] = setmetatable({ detail = ("%.0f yd"):format(d) .. (zone and ("  " .. zone) or ""), _score = 1e6 - d, _dist = d }, { __index = e })
+		elseif sortNear then
+			kept[#kept + 1] = e
+		end
+		if i % 32 == 0 and overBudget() then coroutine.yield(kept) end
+	end
+	return kept
+end
+
 function UI:SearchText(text)
 	self.closeSpellings = nil -- (set when only close spellings matched: the footer says so)
 	self.softRelaxed = nil -- (easy mode: nothing passed every everyday word, the closest shown: the footer says so)
@@ -631,15 +747,7 @@ function UI:SearchText(text)
 	for w in text:gmatch("%S+") do words[#words + 1] = w end
 	-- Simple mode: two everyday words that mean one thing ("attack power food", "spell power")
 	if simple then
-		local i = 1
-		while i < #words do
-			local pair = ns.Lower(words[i] .. " " .. words[i + 1])
-			if ns.Easy.WORDS[pair] then
-				words[i] = pair
-				table.remove(words, i + 1)
-			end
-			i = i + 1
-		end
+		ns.Easy.JoinPairs(words)
 		ns.Easy.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe
 	end
 	-- Simple mode: a plain word in a "|" list or after "-" is an everyday word when it is one ("-junk" = not grey)
@@ -690,17 +798,7 @@ function UI:SearchText(text)
 	end
 	-- Simple mode: the first word can say what to do ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS)
 	local act
-	if simple and tokens[1] then
-		local a = ns.Easy.Action(tokens[1])
-		if a and (#tokens > 1 or filters) then
-			act = a
-			table.remove(tokens, 1)
-		elseif #tokens > 1 then
-			-- "nearest"/"nearby"/"closest" said last: "mining trainer nearby"
-			local b = ns.Easy.Action(tokens[#tokens])
-			if b and b.nearest then act = b; table.remove(tokens) end
-		end
-	end
+	if simple and tokens[1] then act = Scan.TakeAction(tokens, filters) end
 	self.action = act
 	-- Simple mode: a place named among the words ("vendor ratchet", "trainer in booty bay", "food barrens"): NPCs
 	-- there, other rows that name it (Integrations.FindPlace / PlaceFilter); checked after the cheaper filters
@@ -718,27 +816,16 @@ function UI:SearchText(text)
 		end
 	end
 	-- easy mode: the little words of a sentence aren't asked for ("food that gives stamina", "shield from kresh")
-	if ns.Easy and ns.Easy.On() and #tokens > 0 then
-		local kept = {}
-		for k = 1, #tokens do if not ns.Easy.STOP[tokens[k]] then kept[#kept + 1] = tokens[k] end end
-		if #kept > 0 or softs then tokens = kept end
-	end
+	if ns.Easy and ns.Easy.On() and #tokens > 0 then tokens = Scan.DropStop(tokens, softs) end
 	local empty = #tokens == 0
+	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
+	-- the Simple overview, which scores with them too)
+	Scan.FillShorthand(tokens)
+	-- (set before any early return: rows listed straight away, "nearest mailbox", light up these words, not the last search's)
+	self.posTokens = tokens
 	-- easy mode (no @kind typed): nothing typed lists nothing (a line says what to do, and the category picked
 	-- is let go); typed: the categories that have it, to pick from (EasyOverview); a category picked stands for
 	-- its @kinds, and its own test (Emotes: the slash rows that are emotes)
-	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
-	-- the Simple overview, which scores with them too)
-	local SH = ns.Shorthand
-	if SH then
-		for i = 1, #tokens do
-			local xs = SH[tokens[i]]
-			if xs then
-				tokens.short = tokens.short or {}
-				tokens.short[i] = xs
-			end
-		end
-	end
 	local easyCat, here
 	if simple and not kinds then
 		-- (no reset of lastScan here: its signature holds the lists and filters searched, so a category picked
@@ -760,24 +847,9 @@ function UI:SearchText(text)
 				fsig[#fsig + 1] = "!" .. act.label
 			end
 			if act.nearest then
-				-- "nearest mailbox": a game object, not an NPC (QuestieDB's objects)
-				local I = ns.Integrations
-				local okind = I and I.ObjectKind and I.ObjectKind(tokens)
-				if okind then
-					local spot = I.Here()
-					if not spot then return Finish(PseudoEntries({ EASY_NOWHERE })) end
-					local rows = I.NearestObjectRows(okind, spot, filters and function(e) return ns.Filters.Pass(e, filters) end)
-					if rows and #rows > 0 then return Finish(rows) end
-					if rows then return Finish(PseudoEntries({ EASY_NONE })) end
-				end
-				if not ns.providers.npc then return Finish(PseudoEntries({ EASY_NO_NPCS })) end
-				here = ns.Integrations and ns.Integrations.Here()
-				if not here then return Finish(PseudoEntries({ EASY_NOWHERE })) end
-				-- "nearest repair": someone who'll serve you, so only NPCs friendly to your faction ("nearest hogger":
-				-- a name, anyone)
-				local role = false
-				for _, w in ipairs(softWords or {}) do if ns.Easy.ROLE_WORDS[w] then role = true break end end
-				local friendly = role and ns.Filters and ns.Filters.Parse("faction:friendly")
+				local early, friendly
+				early, here, friendly = Scan.NearestStart(tokens, filters, softWords)
+				if early then return Finish(early) end
 				if friendly then
 					filters, hard = filters or {}, hard or {}
 					filters[#filters + 1], hard[#hard + 1] = friendly, friendly
@@ -810,7 +882,6 @@ function UI:SearchText(text)
 			fsig[#fsig + 1] = "#" .. easyCat.id
 		end
 	end
-	self.posTokens = tokens
 	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
 	if empty and not kinds and not filters then
 		self.lastScan, self.lastOverview = nil, nil
@@ -838,24 +909,14 @@ function UI:SearchText(text)
 	local last = self.lastScan
 	if last and last.gen ~= ns.entriesGen then last, self.lastScan = nil, nil end -- (its rows may be freed lists')
 	local candidates
-	local n, ln = #tokens, last and #last.tokens or 0
-	if not empty and fresh and last and last.sig == sig and (n == ln or n == ln + 1) then
-		candidates = last.matches
-		for i = 1, ln do
-			local a, b = last.tokens[i], tokens[i]
-			if i < n and a ~= b then candidates = nil break end
-			if i == n and b:sub(1, #a) ~= a then candidates = nil break end
-			-- "br" -> "brd": a shorthand matches rows the shorter word didn't
-			if i == n and a ~= b and tokens.short and tokens.short[i] then candidates = nil break end
-			-- "sw" -> "swo": the other way, the shorthand matched only its full name and the word itself
-			if a ~= b and last.tokens.short and last.tokens.short[i] then candidates = nil break end
-		end
-	end
+	if not empty and fresh and last and last.sig == sig and Scan.Narrows(last.tokens, tokens) then candidates = last.matches end
 	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
 	local function consider(e, kind)
 		if empty then
 			if filters and not Pass(e, filters) then return end
-			e._score, e._pos = FreqBonus(e, kind) + (rawget(e, "_rank") or 0), NO_POS
+			e._score = FreqBonus(e, kind) + (rawget(e, "_rank") or 0)
+			-- (compact rows get no field more: Render works their letters out on screen, none with no words)
+			if rawget(e, "_compact") then e._pos = nil else e._pos = NO_POS end
 			out[#out + 1] = e
 		else
 			local s = ScoreEntry(e, tokens)
@@ -868,8 +929,7 @@ function UI:SearchText(text)
 	self.lastSearchNarrowed = candidates and true or false
 	-- run by UI:RunSearch: past this frame's share, hand back what matched so far and go on
 	-- in the next frame (tens of thousands of NPCs or quests no longer hitch one frame)
-	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
-	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
+	local overBudget = Scan.Budget(self)
 	if candidates then
 		for i = 1, #candidates do
 			consider(candidates[i])
@@ -887,9 +947,7 @@ function UI:SearchText(text)
 		end
 	end
 	if not empty then
-		local matches = {}
-		for i = 1, #out do matches[i] = out[i] end
-		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
+		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = Scan.Copy(out) }
 		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
@@ -915,20 +973,7 @@ function UI:SearchText(text)
 	-- "nearest": the NPCs that matched, closest first, how far in the detail column (none known: left out;
 	-- sort:nearest keeps every other row, after the NPCs)
 	if here then
-		local I, kept = ns.Integrations, {}
-		for i = 1, #out do
-			local e = out[i]
-			local d = I.RowDistance(e, here) -- (Questie's NPCs, and rows with a place of their own: @mailbox)
-			if d then
-				-- (a spot row keeps its zone, as the arrow's live text writes it: "120 yd  The Barrens")
-				local zone = rawget(e, "wcont") and e.zone
-				kept[#kept + 1] = setmetatable({ detail = ("%.0f yd"):format(d) .. (zone and ("  " .. zone) or ""), _score = 1e6 - d, _dist = d }, { __index = e })
-			elseif sortNear then
-				kept[#kept + 1] = e
-			end
-			if i % 32 == 0 and overBudget() then coroutine.yield(kept) end
-		end
-		out = kept
+		out = Scan.NearestViews(out, here, sortNear, overBudget)
 		if #out == 0 and not sortNear then return Finish(PseudoEntries({ EASY_NONE_NEAR })) end
 	end
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
@@ -947,7 +992,7 @@ function UI:SearchText(text)
 	return Finish(res)
 end
 
---- Pure fuzzy finding (Alt+` twice, UI.fzf), like fzf: every list there is (the ones only searched with @kind too),
+--- Pure fuzzy finding (Tab+`, UI.fzf), like fzf: every list there is (the ones only searched with @kind too),
 --- each typed word matched by its letters in order against the NAME only (no text, initials, shorthand, close
 --- spellings, filters, @kinds, picks history, hint rows or linked quests). The best FZF_MAX, to go through with the
 --- arrow keys. Lists made from another one (@gear, @consumable, @mats: copies of the item rows) are left out, and a
@@ -955,7 +1000,6 @@ end
 --- spread over frames like the usual search.
 local FZF_MAX = 500
 local FZF_LEN = 0.001 -- (equal matches: the shorter name first, as fzf does)
-UI.FZF_MAX = FZF_MAX
 function UI:FuzzySearch(text)
 	local tokens = {}
 	for w in text:gmatch("%S+") do tokens[#tokens + 1] = ns.Lower(w) end
@@ -974,14 +1018,8 @@ function UI:FuzzySearch(text)
 	-- one more letter or one more word only narrows (letters in order: "frst" holds whatever "frs" didn't lose)
 	local last, candidates = self.lastFzf, nil
 	if last and last.gen ~= ns.entriesGen then last, self.lastFzf = nil, nil end
-	local n, ln = #tokens, last and #last.tokens or 0
-	if fresh and last and last.sig == sig and (n == ln or n == ln + 1) then
-		candidates = last.matches
-		for i = 1, ln do
-			local a, b = last.tokens[i], tokens[i]
-			if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a) then candidates = nil break end
-		end
-	end
+	local n = #tokens
+	if fresh and last and last.sig == sig and Scan.Narrows(last.tokens, tokens) then candidates = last.matches end
 	local out, seen = {}, {}
 	local score = Fuzzy.score
 	local function consider(e)
@@ -1000,8 +1038,7 @@ function UI:FuzzySearch(text)
 		out[#out + 1] = e
 	end
 	self.lastSearchNarrowed = candidates and true or false
-	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
-	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
+	local overBudget = Scan.Budget(self)
 	if candidates then
 		for i = 1, #candidates do
 			consider(candidates[i])
@@ -1017,9 +1054,7 @@ function UI:FuzzySearch(text)
 			end
 		end
 	end
-	local matches = {}
-	for i = 1, #out do matches[i] = out[i] end
-	self.lastFzf = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
+	self.lastFzf = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = Scan.Copy(out) }
 	return SortAndTrim(out, FZF_MAX)
 end
 
@@ -1052,22 +1087,11 @@ local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row pass
 --- and the same lists, each list is scanned from the rows that matched last time, not in full: lastOverview.)
 function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 	local reuse, last = nil, self.lastOverview
-	if last and fsig and last.sig == fsig and last.gen == ns.entriesGen and #tokens > 0 then
-		local n, ln = #tokens, #last.tokens
-		if n == ln or n == ln + 1 then
-			reuse = last
-			for i = 1, ln do
-				local a, b = last.tokens[i], tokens[i]
-				-- (earlier words the same, the last one only longer; never when it turned into shorthand: br -> brd)
-				if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a)
-					or (i == n and a ~= b and tokens.short and tokens.short[i])
-					or (a ~= b and last.tokens.short and last.tokens.short[i]) then reuse = nil break end
-			end
-		end
+	if last and fsig and last.sig == fsig and last.gen == ns.entriesGen and #tokens > 0 and Scan.Narrows(last.tokens, tokens) then
+		reuse = last
 	end
 	local keep = { sig = fsig, tokens = tokens, rows = {} }
-	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
-	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
+	local overBudget = Scan.Budget(self)
 	-- (pausing shows what's already on screen: an empty list collapsed the frame to the bare prompt for a frame)
 	local function tick() if overBudget() then coroutine.yield(results) end end
 	local Pass = ns.Filters and ns.Filters.Pass
@@ -1218,7 +1242,8 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget)
 				end
 				if total and edits > 0 and (not filters or Pass(e, filters)) then
 					e._score = total - edits * NEAR_EDIT + FreqBonus(e, id)
-					e._pos, e._nameHit = nil, true
+					e._pos = nil
+					if not rawget(e, "_compact") then e._nameHit = true end
 					out[#out + 1] = e
 				end
 			end
@@ -1325,7 +1350,8 @@ function UI:BigListHint(text, tokens, res, overBudget)
 					for k = 1, #hints do if hints[k] == e then dup = true break end end
 					for k = 1, #res do if res[k] == e then dup = true break end end
 					if not dup then
-						e._pos, e._nameHit = nil, true
+						e._pos = nil
+						if not rawget(e, "_compact") then e._nameHit = true end
 						hints[#hints + 1] = e
 					end
 				end
@@ -1358,9 +1384,7 @@ function UI:RunSearch(text)
 	-- not finished: the best of what matched so far (on a copy: the search goes on filling it),
 	-- under the calculator's answer when there is one (Search adds it only at the end)
 	local t0 = debugprofilestop()
-	local copy = {}
-	for i = 1, #res do copy[i] = res[i] end
-	copy = SortAndTrim(copy)
+	local copy = SortAndTrim(Scan.Copy(res))
 	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
 	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)
@@ -1463,15 +1487,20 @@ function UI:SyntaxRows(text)
 	return rows
 end
 
+--- The selection moved: the list scrolls to keep it on screen (every row redrawn), else only the selection is.
+local function FollowSelection(self)
+	local was = offset
+	if sel <= offset then offset = sel - 1 end
+	if sel > offset + ROWS then offset = sel - ROWS end
+	if offset ~= was then self:Render() else self:SelectionChanged() end
+end
+
 --- The pick list ("@", "q:"...): Tab / Shift+Tab move its selection down / up, round from the end to the start.
 function UI:StepSyntax(dir)
 	if not (results[1] and results[1].syntaxRow) then return false end
 	local n = #results
 	sel = ((sel - 1 + dir) % n) + 1
-	local was = offset
-	if sel <= offset then offset = sel - 1 end
-	if sel > offset + ROWS then offset = sel - ROWS end
-	if offset ~= was then self:Render() else self:SelectionChanged() end
+	FollowSelection(self)
 	return true
 end
 
@@ -1598,15 +1627,18 @@ local function StyleTip(t)
 	end
 end
 
+--- Is there room for the tooltip right of the terminal? (Errors while the frame isn't placed yet: PlaceTip's pcall.)
+local function RoomRight()
+	local scale = frame:GetEffectiveScale()
+	local right = frame:GetRight() * scale
+	local screen = UIParent:GetRight() * UIParent:GetEffectiveScale()
+	return screen - right > 330 * UIParent:GetEffectiveScale()
+end
+
 -- Beside the terminal, on whichever side has room.
 local function PlaceTip(t)
 	t:ClearAllPoints()
-	local ok, roomRight = pcall(function()
-		local scale = frame:GetEffectiveScale()
-		local right = frame:GetRight() * scale
-		local screen = UIParent:GetRight() * UIParent:GetEffectiveScale()
-		return screen - right > 330 * UIParent:GetEffectiveScale()
-	end)
+	local ok, roomRight = pcall(RoomRight)
 	if ok and roomRight == false then
 		t:SetPoint("TOPRIGHT", frame, "TOPLEFT", -6, 0)
 	else
@@ -1656,54 +1688,60 @@ function UI:UpdateTooltip()
 	end
 end
 
-local MODE_LABEL = { cmd = "commands", slash = "slash commands" }
+-- (a block: the footer's helpers are SetStatus's own; the file is near Lua 5.1's limit of 200 locals)
+do
+	local MODE_LABEL = { cmd = "commands", slash = "slash commands" }
+	local STATUS_SEP = "  ·  "
+	local function Append(text, x) return text .. (text ~= "" and STATUS_SEP or "") .. x end
+	local function Prepend(x, text) return x .. (text ~= "" and STATUS_SEP or "") .. text end
 
-function UI:SetStatus()
-	if not status then return end
-	if self.clipHint and not self.keys then
-		status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and "Press Ctrl+V again to paste" or "Press Ctrl+C again to copy") .. "|r"))
-		if hints then hints:Hide() end
-		return
+	function UI:SetStatus()
+		if not status then return end
+		if self.clipHint and not self.keys then
+			status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and "Press Ctrl+V again to paste" or "Press Ctrl+C again to copy") .. "|r"))
+			if hints then hints:Hide() end
+			return
+		end
+		if self.armedEntry then
+			status:SetText(Theme.FixColors(HINT .. "Press Enter to open|r  " .. self.armedEntry.name))
+			if hints then hints:Hide() end -- the armed line gets the whole footer
+			return
+		end
+		if hints then hints:SetShown(Theme.Get().hints and true or false) end
+		local count = #results
+		local quiet = count > 0 and results[1].noActivate
+		local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
+		local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
+		if count > 0 and results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
+		if count > 0 and results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
+		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
+		if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
+		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
+		local to = self.sendTo
+		if to and self.mode == "search" then
+			local say = to.cmd and ("Enter sends it to " .. to.label) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
+			text = Prepend(HINT .. say .. "|r", text)
+		end
+		if mode then text = Append(text, mode) end
+		local near = self.closeSpellings and self.mode == "search" and count > 0
+		if self.softRelaxed and self.mode == "search" and count > 0 then
+			text = Append(text, HINT .. "nothing matches every word: the closest|r")
+			near = true
+		end
+		if near then text = Append(text, HINT .. "no exact match: close spellings|r") end
+		if self.noPosition and self.mode == "search" then
+			text = Append(text, HINT .. "sort:nearest: your position isn't known here|r")
+			near = true
+		end
+		if busy and busy:IsShown() then text = Append(text, "loading...") end
+		local once = ns.Easy and ns.Easy.temp
+		if self.fzf then
+			once = true
+			text = Prepend(HINT .. FZF_LABEL .. "|r", text)
+		elseif once then text = Prepend(HINT .. ONCE_LABEL .. "|r", text) end
+		status:SetText((self.sendTo or near or cat or once) and Theme.FixColors(text) or text)
+		self:FitHints()
 	end
-	if self.armedEntry then
-		status:SetText(Theme.FixColors(HINT .. "Press Enter to open|r  " .. self.armedEntry.name))
-		if hints then hints:Hide() end -- the armed line gets the whole footer
-		return
-	end
-	if hints then hints:SetShown(Theme.Get().hints and true or false) end
-	local count = #results
-	local quiet = count > 0 and results[1].noActivate
-	local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
-	local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
-	if count > 0 and results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
-	if count > 0 and results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
-	local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
-	if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
-	if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
-	local to = self.sendTo
-	if to and self.mode == "search" then
-		local say = to.cmd and ("Enter sends it to " .. to.label) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
-		text = HINT .. say .. "|r" .. (text ~= "" and "  ·  " or "") .. text
-	end
-	if mode then text = text .. (text ~= "" and "  ·  " or "") .. mode end
-	local near = self.closeSpellings and self.mode == "search" and count > 0
-	if self.softRelaxed and self.mode == "search" and count > 0 then
-		text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "nothing matches every word: the closest|r"
-		near = true
-	end
-	if near then text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "no exact match: close spellings|r" end
-	if self.noPosition and self.mode == "search" then
-		text = text .. (text ~= "" and "  ·  " or "") .. HINT .. "sort:nearest: your position isn't known here|r"
-		near = true
-	end
-	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
-	local once = ns.Easy and ns.Easy.temp
-	if self.fzf then
-		once = true
-		text = HINT .. FZF_LABEL .. "|r" .. (text ~= "" and "  ·  " or "") .. text
-	elseif once then text = HINT .. ONCE_LABEL .. "|r" .. (text ~= "" and "  ·  " or "") .. text end
-	status:SetText((self.sendTo or near or cat or once) and Theme.FixColors(text) or text)
-	self:FitHints()
 end
 
 --- The key hints: each key in the text colour, its meaning dimmed, as many as fit on one
@@ -1847,6 +1885,17 @@ function UI:UpdateNav()
 	if nav.spot then navTicker:Show() end
 end
 
+--- What shows the selection: the arrow, the band, the footer, the tooltip, the ghost text; and the catcher follows
+--- its row when the list moved under the pointer (typing, scrolling).
+local function ShowSelection(self)
+	self:UpdateNav()
+	self:PlaceSelection()
+	self:SetStatus()
+	self:UpdateTooltip()
+	self:UpdateGhost()
+	if catcher and catcher.entry and catcher:IsShown() then self:PlaceCatcher(catcher.row) end
+end
+
 function UI:Render()
 	-- nothing to draw while it's closed (a setting changed in the options panel, say): drawing
 	-- then put the rows up, and the next open showed them without their animation
@@ -1915,25 +1964,14 @@ function UI:Render()
 		end
 	end
 	self:FitHeight()
-	self:UpdateNav()
-	self:PlaceSelection()
-	self:SetStatus()
-	self:UpdateTooltip()
-	self:UpdateGhost()
-	-- the list moved under the pointer (typing, scrolling): the catcher follows its row
-	if catcher and catcher.entry and catcher:IsShown() then self:PlaceCatcher(catcher.row) end
+	ShowSelection(self)
 end
 
 --- The selection moved to another row that's already on screen: only what shows the selection is
 --- redrawn (the band, the footer, the ghost text, the tooltip, the click catcher), not every row.
 function UI:SelectionChanged()
 	if not frame or not frame:IsShown() then return end
-	self:UpdateNav()
-	self:PlaceSelection()
-	self:SetStatus()
-	self:UpdateTooltip()
-	self:UpdateGhost()
-	if catcher and catcher.entry and catcher:IsShown() then self:PlaceCatcher(catcher.row) end
+	ShowSelection(self)
 end
 
 function UI:Move(delta)
@@ -1941,10 +1979,7 @@ function UI:Move(delta)
 	if n == 0 then return end
 	if self.armedEntry then self:Disarm() end
 	sel = math.max(1, math.min(n, sel + delta))
-	local was = offset
-	if sel <= offset then offset = sel - 1 end
-	if sel > offset + ROWS then offset = sel - ROWS end
-	if offset ~= was then self:Render() else self:SelectionChanged() end
+	FollowSelection(self)
 end
 
 --- Walk back (dir -1) or forward (dir 1) through the lines run before. Only from an empty
@@ -1977,8 +2012,7 @@ function UI:Up()
 		local text = edit:GetText()
 		if self.showRecent and text == "" then
 			self.showRecent = nil
-			self.refreshedAt = nil
-			self:Refresh()
+			self:Research()
 			return
 		end
 		if self.recalled and text == self.recalled then
@@ -2012,8 +2046,7 @@ function UI:Recall()
 	end
 	if self.showRecent then return false end
 	self.showRecent = true
-	self.refreshedAt = nil
-	self:Refresh()
+	self:Research()
 	return #results > 0
 end
 
@@ -2036,6 +2069,20 @@ local function RunAfter(e)
 	end
 	local ok, err = pcall(e.after, e)
 	if not ok then ns:Trace("after-step error for " .. tostring(e.name) .. ": " .. tostring(err)) end
+end
+
+--- The entry's after-step (pointing at the result), `d` seconds from now: the window the press opened is up by then.
+local function AfterSoon(e, d)
+	if e.after then C_Timer.After(d, function() RunAfter(e) end) end
+end
+
+--- A click (the catcher, a menu line) on which the game ran the result's macro: finish as after Enter. `se`: the view
+--- whose after-step runs (a Shift+click: the secondary's).
+local function FinishClicked(e, se)
+	ns:Bump(e.freqKey)
+	ns:RecordHistory(edit:GetText())
+	UI:Hide()
+	AfterSoon(se, 0.1)
 end
 
 function UI:Disarm()
@@ -2062,7 +2109,7 @@ function UI:TryArmSecure(e)
 		ns:Trace("secure: window already open, highlighting " .. e.name)
 		self:Hide()
 		ns:Bump(e.freqKey)
-		if e.after then C_Timer.After(0.05, function() RunAfter(e) end) end
+		AfterSoon(e, 0.05)
 		return true
 	end
 	if InCombatLockdown() or not S.Arm(target) then ns:Trace("secure: could not arm for " .. e.name .. " (combat or no proxy)") return false end
@@ -2113,7 +2160,7 @@ function UI:FinishSoon(e)
 		elseif not UI:IsShown() then
 			-- the window that just opened closed the terminal first: still point at the result
 			ns.Secure.Disarm()
-			if e.after then C_Timer.After(0.1, function() RunAfter(e) end) end
+			AfterSoon(e, 0.1)
 		end
 	end)
 end
@@ -2130,7 +2177,7 @@ function UI:FinishSecure()
 	if not e then return end
 	ns:Trace("secure: finished, highlighting " .. e.name)
 	if not e.staysOpen then self:Hide() end -- (a press that asks for more, @who's: the answer comes into the list)
-	if e.after then C_Timer.After(0.1, function() RunAfter(e) end) end
+	AfterSoon(e, 0.1)
 end
 
 ns.Secure.onClicked = function() UI:FinishSecure() end
@@ -2481,8 +2528,6 @@ function UI:PlaceEdit()
 	if not (edit and self.editLeft) then return end
 	edit:ClearAllPoints()
 	edit:SetPoint("LEFT", frame, "TOPLEFT", self.editLeft, self.editMid)
-	-- room for the spinner is always kept: resizing the box as it came and went made the game
-	-- report the text as changed
 	edit:SetPoint("RIGHT", frame, "TOPRIGHT", -38, self.editMid)
 end
 
@@ -2634,21 +2679,22 @@ rep:SetScript("OnUpdate", function(self, elapsed)
 	EditKey(self.key, self.ctrl, self.shift)
 end)
 
+-- ">> channel": the chat line the game presses for the selected result
+local function SendMacro(v) return ns.Share.Macro(v, UI.sendTo) end
+local SEND_SPEC = { macro = SendMacro }
+local function NeverOpen() return false end -- (a chat line: always pressed)
+local function SentAfter(v) ns:Trace("share: the game sent " .. tostring(v.name) .. " to " .. tostring(UI.sendTo and UI.sendTo.label)) end
+
 --- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the
 --- entry's secondary action; one that opens a window itself (secondarySecure) is armed like
 --- Enter is, with its own isOpen/after (e.g. an equipment set: the character window's sets).
-local function SendMacro(v) return ns.Share.Macro(v, UI.sendTo) end
-local SEND_SPEC = { macro = SendMacro }
-local function SendNeverOpen() return false end
-local function SentAfter(v) ns:Trace("share: the game sent " .. tostring(v.name) .. " to " .. tostring(UI.sendTo and UI.sendTo.label)) end
-
 local function SecureView(e, shift)
 	if not e then return nil end
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
 	if UI.sendTo then
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
 		if not UI.sendTo.cmd or e.noActivate or e.raw or e.completion then return nil end
-		return setmetatable({ secure = SEND_SPEC, isOpen = SendNeverOpen, after = SentAfter }, { __index = e })
+		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter }, { __index = e })
 	end
 	if shift and e.secondary then
 		if not e.secondarySecure then return nil end
@@ -2734,36 +2780,25 @@ local function DeleteSelection(text)
 	return true
 end
 
---- What a key does to the query (also run again for held keys).
-EditKey = function(key, ctrl, shift)
-	local text, c = edit:GetText(), UI.cursor
-	if key == "`" then UI:TraceTick() end
-	if key == "`" and UI:TabDown() then
+--- The toggle key (`) while the terminal is open, in the drawn prompt and the game's own text box alike: Tab+` = pure
+--- fuzzy finding (in it already: closes), Alt+` = Advanced for this run, else it closes.
+local function TickKey()
+	UI:TraceTick()
+	if UI:TabDown() then
 		UI:FuzzyOnce()
-	elseif key == "`" and IsAltKeyDown and IsAltKeyDown() then
+	elseif IsAltKeyDown and IsAltKeyDown() then
 		UI:AdvancedOnce()
-	elseif key == "ESCAPE" or key == "`" then
+	else
 		UI:Hide()
-	elseif (key == "BACKSPACE" or key == "DELETE") and DeleteSelection(text) then
-		return
-	elseif key == "BACKSPACE" then
-		if ctrl then
-			local before = text:sub(1, c):gsub("[^%s]*%s*$", "") -- the word left of the caret (and spaces after it)
-			UI:SetQuery(before .. text:sub(c + 1), #before)
-		elseif c > 0 then
-			local p = PrevPos(text, c)
-			UI:SetQuery(text:sub(1, p) .. text:sub(c + 1), p)
-		end
-	elseif key == "DELETE" then
-		if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub(NextPos(text, c) + 1), c) end
-	elseif key == "LEFT" then
-		local lo = UI:SelRange()
-		if lo and not shift then
-			MoveCaret(lo, false) -- a selection collapses to its left end
-		else
-			MoveCaret(ctrl and WordLeft(text, c) or PrevPos(text, c), shift)
-		end
-	elseif key == "RIGHT" then
+	end
+end
+
+-- (a block: the key helpers are EditKey's own, and the file is near Lua 5.1's limit of 200 locals)
+do
+	--- Right: a selection collapses to its right end; at the end of the prompt it takes the suggestion, and with Shift
+	--- (nothing to select there) Simple mode opens the row menu, Advanced writes the result into the prompt; else the
+	--- caret moves (a word with Ctrl, selecting with Shift).
+	local function RightKey(text, c, ctrl, shift)
 		local lo, hi = UI:SelRange()
 		if lo and not shift then
 			MoveCaret(hi, false)
@@ -2777,15 +2812,10 @@ EditKey = function(key, ctrl, shift)
 		else
 			MoveCaret(ctrl and WordRight(text, c) or NextPos(text, c), shift)
 		end
-	elseif key == "HOME" then
-		MoveCaret(0, shift)
-	elseif key == "END" then
-		MoveCaret(#text, shift)
-	elseif key == "UP" then
-		UI:Up()
-	elseif key == "DOWN" then
-		UI:Down()
-	elseif key == "TAB" then
+	end
+
+	--- Tab (Shift+Tab: back).
+	local function TabKey(shift)
 		if UI.fzf then
 			UI:Move(shift and -1 or 1) -- (pure fuzzy finding: Tab goes through the list too)
 		elseif EasyOn() and UI.mode == "search" then
@@ -2798,29 +2828,74 @@ EditKey = function(key, ctrl, shift)
 		elseif shift then
 			UI:Move(-1)
 		elseif not UI:AcceptCompletion() then UI:Move(1) end
-	elseif ListKey(key, ctrl) then
-		return
-	elseif ctrl then
-		if key == "A" then
-			UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
-		elseif key == "V" or key == "C" then
-			-- the clipboard is only reachable from the game's own text box, and this press is spent
-			-- getting there: the next Ctrl+V / Ctrl+C does it (the prompt and footer say so)
-			UI.clipHint = key
-			UI:EnterEdit()
-			UI:SetStatus()
-			-- temporary: gone with the paste/copy, or after a few seconds whatever happens
-			local token = {}
-			UI.clipToken = token
-			C_Timer.After(5, function()
-				if UI.clipToken == token and UI.clipHint then
-					UI.clipHint = nil
-					UI:SetStatus(); UI:UpdateGhost()
-				end
-			end)
+	end
+
+	--- Ctrl+V / Ctrl+C in the drawn prompt: the clipboard is only reachable from the game's own text box, and this press
+	--- is spent getting there: the next Ctrl+V / Ctrl+C does it (the prompt and footer say so).
+	local function ClipKey(key)
+		UI.clipHint = key
+		UI:EnterEdit()
+		UI:SetStatus()
+		-- temporary: gone with the paste/copy, or after a few seconds whatever happens
+		local token = {}
+		UI.clipToken = token
+		C_Timer.After(5, function()
+			if UI.clipToken == token and UI.clipHint then
+				UI.clipHint = nil
+				UI:SetStatus(); UI:UpdateGhost()
+			end
+		end)
+	end
+
+	--- What a key does to the query (also run again for held keys).
+	EditKey = function(key, ctrl, shift)
+		local text, c = edit:GetText(), UI.cursor
+		if key == "`" then
+			TickKey()
+		elseif key == "ESCAPE" then
+			UI:Hide()
+		elseif (key == "BACKSPACE" or key == "DELETE") and DeleteSelection(text) then
+			return
+		elseif key == "BACKSPACE" then
+			if ctrl then
+				local before = text:sub(1, c):gsub("[^%s]*%s*$", "") -- the word left of the caret (and spaces after it)
+				UI:SetQuery(before .. text:sub(c + 1), #before)
+			elseif c > 0 then
+				local p = PrevPos(text, c)
+				UI:SetQuery(text:sub(1, p) .. text:sub(c + 1), p)
+			end
+		elseif key == "DELETE" then
+			if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub(NextPos(text, c) + 1), c) end
+		elseif key == "LEFT" then
+			local lo = UI:SelRange()
+			if lo and not shift then
+				MoveCaret(lo, false) -- a selection collapses to its left end
+			else
+				MoveCaret(ctrl and WordLeft(text, c) or PrevPos(text, c), shift)
+			end
+		elseif key == "RIGHT" then
+			RightKey(text, c, ctrl, shift)
+		elseif key == "HOME" then
+			MoveCaret(0, shift)
+		elseif key == "END" then
+			MoveCaret(#text, shift)
+		elseif key == "UP" then
+			UI:Up()
+		elseif key == "DOWN" then
+			UI:Down()
+		elseif key == "TAB" then
+			TabKey(shift)
+		elseif ListKey(key, ctrl) then
+			return
+		elseif ctrl then
+			if key == "A" then
+				UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
+			elseif key == "V" or key == "C" then
+				ClipKey(key)
+			end
+		elseif not IsAltKeyDown() then
+			CheckChar(key)
 		end
-	elseif not IsAltKeyDown() then
-		CheckChar(key)
 	end
 end
 
@@ -2982,10 +3057,7 @@ function UI:CatcherClicked(button)
 				ns:Trace("click: character window now on " .. tostring(cf.activeSubframe))
 			end
 		end)
-		ns:Bump(e.freqKey)
-		ns:RecordHistory(edit:GetText())
-		self:Hide()
-		if se.after then C_Timer.After(0.1, function() RunAfter(se) end) end
+		FinishClicked(e, se)
 	else
 		ns:Trace("click: no window macro for " .. tostring(e.name) .. ", running its usual action")
 		self:Activate(idx, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
@@ -3045,13 +3117,11 @@ function UI:HideRowMenu()
 	end
 end
 
---- Right-click on row `idx`: its actions (Enter's, Shift+Enter's, Link in chat; Advanced: write it into the prompt).
---- Window-opening ones are macros the game runs when the line is clicked, as the click catcher's are.
-function UI:ShowRowMenu(idx, fromKeys)
-	local e = results[idx]
-	if not e or e.noActivate or not frame then return end
-	if InCombatLockdown() then ns:Print("Not in combat: right-click again afterwards.") return end
-	if not menu then
+-- (a block: ShowRowMenu's parts are its own; the file is near Lua 5.1's limit of 200 locals)
+do
+	--- TerminalRowMenu, made the first time it's asked for.
+	local function MenuFrame()
+		if menu then return end
 		menu = CreateFrame("Frame", "TerminalRowMenu", UIParent, "BackdropTemplate")
 		menu:SetFrameStrata("TOOLTIP")
 		menu:SetClampedToScreen(true)
@@ -3074,84 +3144,106 @@ function UI:ShowRowMenu(idx, fromKeys)
 			if event == "PLAYER_REGEN_ENABLED" or not (menu.IsMouseOver and menu:IsMouseOver()) then UI:HideRowMenu() end
 		end)
 	end
-	local t = Theme.Get()
-	local items = {}
-	local enter, shift
-	if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
-	items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
-	if e.secondary or e.secondarySecure then items[#items + 1] = { label = Cap(shift or "more"), secondary = true } end
-	-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
-	-- a chat line the game presses (Terminal's code never sends chat)
-	local SH = ns.Share
-	if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion) then
-		local query = SH.Split(edit:GetText() or "")
-		if EasyOn() and ns.Easy and ns.Easy.ToAdvanced then query = ns.Easy.ToAdvanced(query, self.category) end
-		-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
-		-- and opening the menu, then Cancel, mustn't move your waypoint)
-		local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
-		-- (the game opens the box with it: see ChatBoxMacro)
-		items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
-		for _, ch in ipairs(SH.MenuChannels()) do
-			items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
+
+	--- The menu's lines for row `e`, in order: { label, and secondary (Enter's / Shift+Enter's verb), boxLine (the chat
+	--- box), chatTo (a channel) or run (Terminal's own) }.
+	local function MenuItems(self, e)
+		local items = {}
+		local enter, shift
+		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
+		items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
+		if e.secondary or e.secondarySecure then items[#items + 1] = { label = Cap(shift or "more"), secondary = true } end
+		-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
+		-- a chat line the game presses (Terminal's code never sends chat)
+		local SH = ns.Share
+		if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion) then
+			local query = SH.Split(edit:GetText() or "")
+			if EasyOn() and ns.Easy and ns.Easy.ToAdvanced then query = ns.Easy.ToAdvanced(query, self.category) end
+			-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
+			-- and opening the menu, then Cancel, mustn't move your waypoint)
+			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
+			-- (the game opens the box with it: see ChatBoxMacro)
+			items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
+			for _, ch in ipairs(SH.MenuChannels()) do
+				items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
+			end
 		end
+		if not EasyOn() and self:ResultText(e) then
+			items[#items + 1] = { label = "Write into the prompt", run = function() UI:FillFromResult() end }
+		end
+		-- (`run` lines are Terminal's own and keep it open: writing into the prompt, Cancel)
+		items[#items + 1] = { label = "Cancel", run = function() end }
+		return items
 	end
-	if not EasyOn() and self:ResultText(e) then
-		items[#items + 1] = { label = "Write into the prompt", run = function() UI:FillFromResult() end, stay = true }
-	end
-	items[#items + 1] = { label = "Cancel", run = function() end, stay = true }
-	menu.entry, menu.idx = e, idx
-	for i, it in ipairs(items) do
-		local b = MenuLine(i)
-		b.item = it
-		b.fs:SetText(it.label)
-		b.fs:SetTextColor(Theme.RGB(it.label == "Cancel" and t.dim or t.text))
-		b.hl:SetColorTexture(Theme.RGB(t.accent))
-		b.hl:SetAlpha(0.25)
-		-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
-		local macro, view
-		if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true) end
-		if it.chatTo or it.boxLine then macro = "" end -- (the chat line: set in PreClick, see MenuLine)
-		it.view = view
-		b:SetAttribute("type1", macro and "macro" or "")
-		b:SetAttribute("macrotext1", macro)
-		it.macro = macro
-		b:Show()
-	end
-	for i = #items + 1, #menu.lines do menu.lines[i]:Hide() end
-	menu:SetSize(MENU_W, #items * MENU_LINE + 8)
-	menu:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-	local r, g, b = Theme.RGB(t.bg)
-	menu:SetBackdropColor(r, g, b, 0.97)
-	menu:SetBackdropBorderColor(Theme.RGB(t.border))
-	menu:SetScale(t.scale or 1)
-	menu:ClearAllPoints()
-	if fromKeys then self:Disarm() end -- (Enter belongs to the menu's line now)
-	menu.keys, menu.n = fromKeys and true or nil, #items
-	for i = 1, #items do menu.lines[i].hl:Hide() end
-	local x, y
-	if GetCursorPosition then x, y = GetCursorPosition() end
-	local s = menu:GetEffectiveScale()
-	local row = fromKeys and rows[idx - offset]
-	if fromKeys then
-		-- from the keyboard (Shift+Right): beside the row, its first line picked (Up/Down, Enter, Esc/Left). Placed
-		-- by screen position against UIParent, never anchored to the row: the menu holds secure buttons, and a secure
-		-- frame anchored to Terminal's frame made it protected, so SetPropagateKeyboardInput stopped working and no
-		-- Enter press reached the game again until a /reload (0.42.11-0.42.23: "everything breaks after the menu")
-		local at = (row and row:IsShown()) and row or frame
-		local right, top, as = at:GetRight(), at:GetTop(), at:GetEffectiveScale()
-		if type(right) == "number" and type(top) == "number" and type(as) == "number" and type(s) == "number" and s > 0 then
-			menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", right * as / s + 4, top * as / s)
+
+	--- Where the menu goes: by the pointer, or (from the keyboard) beside row `idx` with its first line picked.
+	local function PlaceMenu(self, idx, fromKeys)
+		local x, y
+		if GetCursorPosition then x, y = GetCursorPosition() end
+		local s = menu:GetEffectiveScale()
+		local row = fromKeys and rows[idx - offset]
+		if fromKeys then
+			-- from the keyboard (Shift+Right): beside the row, its first line picked (Up/Down, Enter, Esc/Left). Placed
+			-- by screen position against UIParent, never anchored to the row: the menu holds secure buttons, and a secure
+			-- frame anchored to Terminal's frame made it protected, so SetPropagateKeyboardInput stopped working and no
+			-- Enter press reached the game again until a /reload (0.42.11-0.42.23: "everything breaks after the menu")
+			local at = (row and row:IsShown()) and row or frame
+			local right, top, as = at:GetRight(), at:GetTop(), at:GetEffectiveScale()
+			if type(right) == "number" and type(top) == "number" and type(as) == "number" and type(s) == "number" and s > 0 then
+				menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", right * as / s + 4, top * as / s)
+			else
+				menu:SetPoint("CENTER", UIParent, "CENTER")
+			end
+			self:MenuSelect(1)
+		elseif type(x) == "number" and type(s) == "number" and s > 0 then
+			menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
 		else
 			menu:SetPoint("CENTER", UIParent, "CENTER")
 		end
-		self:MenuSelect(1)
-	elseif type(x) == "number" and type(s) == "number" and s > 0 then
-		menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
-	else
-		menu:SetPoint("CENTER", UIParent, "CENTER")
 	end
-	menu:Show()
-	self:UpdateTooltip() -- (hidden while the menu is up: it would sit under it)
+
+	--- Right-click on row `idx`: its actions (Enter's, Shift+Enter's, Link in chat; Advanced: write it into the prompt).
+	--- Window-opening ones are macros the game runs when the line is clicked, as the click catcher's are.
+	function UI:ShowRowMenu(idx, fromKeys)
+		local e = results[idx]
+		if not e or e.noActivate or not frame then return end
+		if InCombatLockdown() then ns:Print("Not in combat: right-click again afterwards.") return end
+		MenuFrame()
+		local t = Theme.Get()
+		local items = MenuItems(self, e)
+		menu.entry, menu.idx = e, idx
+		for i, it in ipairs(items) do
+			local b = MenuLine(i)
+			b.item = it
+			b.fs:SetText(it.label)
+			b.fs:SetTextColor(Theme.RGB(it.label == "Cancel" and t.dim or t.text))
+			b.hl:SetColorTexture(Theme.RGB(t.accent))
+			b.hl:SetAlpha(0.25)
+			-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
+			local macro, view
+			if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true) end
+			if it.chatTo or it.boxLine then macro = "" end -- (the chat line: set in PreClick, see MenuLine)
+			it.view = view
+			b:SetAttribute("type1", macro and "macro" or "")
+			b:SetAttribute("macrotext1", macro)
+			it.macro = macro
+			b:Show()
+		end
+		for i = #items + 1, #menu.lines do menu.lines[i]:Hide() end
+		menu:SetSize(MENU_W, #items * MENU_LINE + 8)
+		menu:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+		local r, g, b = Theme.RGB(t.bg)
+		menu:SetBackdropColor(r, g, b, 0.97)
+		menu:SetBackdropBorderColor(Theme.RGB(t.border))
+		menu:SetScale(t.scale or 1)
+		menu:ClearAllPoints()
+		if fromKeys then self:Disarm() end -- (Enter belongs to the menu's line now)
+		menu.keys, menu.n = fromKeys and true or nil, #items
+		for i = 1, #items do menu.lines[i].hl:Hide() end
+		PlaceMenu(self, idx, fromKeys)
+		menu:Show()
+		self:UpdateTooltip() -- (hidden while the menu is up: it would sit under it)
+	end
 end
 
 --- The keyboard's line in a menu opened from the keyboard.
@@ -3163,8 +3255,6 @@ function UI:MenuSelect(i)
 	menu.lines[i].hl:Show()
 end
 function UI:MenuShown() return menu ~= nil and menu:IsShown() end
-
-local function MenuNeverOpen() return false end
 
 --- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
 --- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
@@ -3200,7 +3290,6 @@ function UI:MenuKey(f, key)
 		f:SetPropagateKeyboardInput(false)
 		self:HideRowMenu()
 		it.run()
-		if not it.stay then self:Hide() end
 		return true
 	end
 	-- (the row the menu was opened on: its own entry, wherever the list has put it since)
@@ -3220,7 +3309,7 @@ function UI:MenuKey(f, key)
 			run = m ~= "" and m or nil
 		end
 		if run then
-			se = setmetatable({ secure = { macro = run }, isOpen = MenuNeverOpen, after = false }, { __index = e })
+			se = setmetatable({ secure = { macro = run }, isOpen = NeverOpen, after = false }, { __index = e })
 		else
 			f:SetPropagateKeyboardInput(false)
 			self:HideRowMenu()
@@ -3251,7 +3340,6 @@ function UI:MenuPicked(b)
 	self:HideRowMenu()
 	if it.run then
 		it.run()
-		if not it.stay then self:Hide() end
 		return
 	end
 	if it.boxLine and (it.chat or "") == "" then -- (too long for a line the game runs: Terminal's own, as before)
@@ -3269,11 +3357,7 @@ function UI:MenuPicked(b)
 	if not now and not it.macro then return end
 	sel = now or sel
 	if it.macro then -- the game opened it: finish as after Enter
-		local se = it.view or e
-		ns:Bump(e.freqKey)
-		ns:RecordHistory(edit:GetText())
-		self:Hide()
-		if se.after then C_Timer.After(0.1, function() RunAfter(se) end) end
+		FinishClicked(e, it.view or e)
 		return
 	end
 	self:Activate(now, { secondary = it.secondary })
@@ -3677,8 +3761,8 @@ local function CompleteWord(word, cands)
 	local hits, seen = {}, {}
 	for _, c in ipairs(cands) do
 		if type(c) == "table" then c = c[1] end -- { value, detail }
-		if type(c) == "string" and StartsWith(c, word) and not seen[c:lower()] then
-			seen[c:lower()] = true
+		if type(c) == "string" and StartsWith(c, word) and not seen[ns.Lower(c)] then
+			seen[ns.Lower(c)] = true
 			hits[#hits + 1] = c
 		end
 	end
@@ -3690,7 +3774,10 @@ local function CompleteWord(word, cands)
 	return cp, false
 end
 
-local function CommandByWord(word) return ns:FindCommand(word) end
+--- The text with its last `word` replaced by `new` (and a space after it when that's final).
+local function Replace(text, word, new, final)
+	return text:sub(1, #text - #word) .. new .. (final and " " or "")
+end
 
 local function ComputeCompletion(self, text)
 	if text == "" or self.fzf or (self.cursor or #text) < #text then return nil end
@@ -3702,10 +3789,10 @@ local function ComputeCompletion(self, text)
 		local word, rest = text:sub(2):match("^(%S*)(.*)$")
 		if rest == "" then
 			local new, final = CompleteWord(word, ns.commandOrder)
-			if new then return "." .. new .. (final and " " or "") end
+			if new then return Replace(text, word, new, final) end
 			return nil
 		end
-		local c = CommandByWord(word)
+		local c = ns:FindCommand(word)
 		if not (c and c.complete) then return nil end
 		local args = rest:gsub("^%s+", "")
 		local argWord = args:match("(%S*)$") or ""
@@ -3713,14 +3800,14 @@ local function ComputeCompletion(self, text)
 		if not ok or type(cands) ~= "table" then return nil end
 		local new, final = CompleteWord(argWord, cands)
 		if not new then return nil end
-		return text:sub(1, #text - #argWord) .. new .. (final and " " or "")
+		return Replace(text, argWord, new, final)
 	elseif first == "/" then
 		if text:find("%s") then return nil end
 		local cands = {}
 		local p = ns.providers.slash
 		if p then for _, e in ipairs(ns:GetEntries(p)) do cands[#cands + 1] = e.name end end
 		local new, final = CompleteWord(text, cands)
-		if new then return new .. (final and " " or "") end
+		if new then return Replace(text, text, new, final) end
 		return nil
 	end
 	if EasyOn() then return nil end -- (Simple mode: no @kinds, filters or channels to complete)
@@ -3730,7 +3817,7 @@ local function ComputeCompletion(self, text)
 	if ns.Share and before:match("%s?>>%s+$") and last ~= "" then
 		local new, final = CompleteWord(ns.Lower(last), ns.Share.NAMES)
 		if not new then return nil end
-		return before .. new .. (final and " " or "")
+		return Replace(text, last, new, final)
 	end
 	if last:sub(1, 1) == "@" then
 		local cands = {}
@@ -3741,7 +3828,7 @@ local function ComputeCompletion(self, text)
 		end
 		local new, final = CompleteWord(last, cands)
 		if not new then return nil end
-		return text:sub(1, #text - #last) .. new .. (final and " " or "")
+		return Replace(text, last, new, final)
 	end
 	-- a filter's value: is:to -> is:todo, q:ep -> q:epic, stat:sta -> stat:stamina
 	local fkey, fval = last:match("^(%a+):(%S*)$")
@@ -3749,7 +3836,7 @@ local function ComputeCompletion(self, text)
 	if values then
 		local new, final = CompleteWord(ns.Lower(fval), values)
 		if not new then return nil end
-		return text:sub(1, #text - #fval) .. new .. (final and " " or "")
+		return Replace(text, fval, new, final)
 	end
 	-- the "Search <list> for this" row: Tab adds its @kind
 	local e = results[sel]
@@ -3778,8 +3865,6 @@ function UI:ResultText(e)
 	return "@" .. ((p.aliases and p.aliases[1]) or p.id) .. " " .. e.name
 end
 
---- Shift+Right at the end of the prompt: the selected result written into it ("@npc Thrall"), to build on
---- (a ">> channel" already typed is kept). False when there's nothing to write.
 --- The suggestion shown in the empty prompt, as text to type ("try: hogger >> party" -> "hogger >> party"),
 --- or nil (suggestions off, something typed or listed, a tip rather than an example).
 function UI:SuggestionText()
@@ -3791,6 +3876,8 @@ function UI:SuggestionText()
 	return body ~= "" and body or nil
 end
 
+--- Shift+Right at the end of the prompt: the selected result written into it ("@npc Thrall"), to build on
+--- (a ">> channel" already typed is kept). False when there's nothing to write.
 function UI:FillFromResult()
 	-- the empty prompt: Shift+Right takes the suggestion shown in it
 	local suggested = self:SuggestionText()
@@ -3865,6 +3952,13 @@ local function Paint(hex, s)
 	return "|cff" .. hex .. (s:gsub("|", "||")) .. "|r"
 end
 
+--- The colour of the channel word after a ">>": a channel (or the start of one's name being typed: pending) in the
+--- filter colour, the start of another word still being typed plain, anything else bad.
+local function ChannelColor(word, typing, filt, base, bad)
+	local to = ns.Share.Channel(word)
+	return (to.cmd or to.pending) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
+end
+
 --- What the typed text is made of: { first byte, last byte, colour } pieces covering it. @kinds in
 --- their own colour (unknown ones in red), filters (lvl:20, is:todo; a filter key with a value it
 --- doesn't take in red), the .command and the /slash command at the start, plain words in the text
@@ -3900,14 +3994,10 @@ function UI:SyntaxSegments(text, plain)
 				out[#out + 1] = { pos, pos + 1, t.accent }
 				pos = pos + 2
 				word = word:sub(3)
-				local to = ns.Share.Channel(word)
-				local typing = pos + #word > #text
-				color = (to.cmd or to.pending) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
+				color = ChannelColor(word, pos + #word > #text, filt, base, bad)
 			elseif afterSend then
 				afterSend = false
-				local to = ns.Share.Channel(word)
-				local typing = pos + #word > #text
-				color = (to.cmd or to.pending) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
+				color = ChannelColor(word, pos + #word > #text, filt, base, bad)
 			elseif word:sub(1, 1) == "@" then
 				local p = #word > 1 and ns:ResolveProvider(word:sub(2))
 				color = p and (Hex(p.color) or t.accent) or (#word == 1 and t.accent or bad)
@@ -4000,7 +4090,7 @@ function UI:UpdateGhost()
 	if self.clipHint and not self.keys and self:IsShown() then
 		add = (edit:GetText() ~= "" and "   " or "") .. (self.clipHint == "V" and "Ctrl+V again to paste" or "Ctrl+C again to copy")
 	end
-	-- easy mode, nothing typed: a faint line in the prompt says what to do (there's nothing under it)
+	-- nothing typed: a faint line in the prompt says what to do (there's nothing under it); fuzzy finding has its own
 	if not add and self:IsShown() and edit:GetText() == "" and self.fzf then
 		add = FZF_GHOST
 	elseif not add and self:IsShown() and edit:GetText() == "" and not self.histIdx and #results == 0 then
@@ -4013,6 +4103,9 @@ function UI:UpdateGhost()
 	if not add then ghost:Hide() return end
 	local text = edit:GetText()
 	local w, y = self:PromptXY(#text) -- (the end of the last line)
+	-- an empty prompt's hint (an example, "fzf", Advanced's Up/Down line) starts a little after the cursor, so the
+	-- cursor doesn't sit on its first letter; a completion of typed text carries straight on from it
+	if text == "" then w = w + UI.HINT_GAP end
 	local room = (edit:GetWidth() or 400) - w - 4
 	if room < 20 then ghost:Hide() return end
 	ghost:SetText((add:gsub("|", "||")))
@@ -4026,301 +4119,329 @@ end
 -- Frame construction
 ----------------------------------------------------------------------
 
-local function Build()
-	if frame then return end
-
-	frame = CreateFrame("Frame", "TerminalFrame", UIParent, "BackdropTemplate")
-	frame:SetFrameStrata("DIALOG")
-	frame:SetClampedToScreen(true)
-	frame:SetBackdrop({
-		bgFile = "Interface\\Buttons\\WHITE8X8",
-		edgeFile = "Interface\\Buttons\\WHITE8X8",
-		edgeSize = 1,
-	})
-	frame:SetMovable(true)
-	if frame.SetClipsChildren then frame:SetClipsChildren(true) end -- rows are cut off as it shrinks
-	frame:EnableMouse(true)
-	frame:EnableMouseWheel(true)
+--- Let go of the keyboard (the next key already reaches the game) and put the drawn prompt's cursor away.
+local function LetGo()
+	UI.keys = false
+	StopRepeat()
 	frame:EnableKeyboard(false)
-	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart", frame.StartMoving)
-	frame:SetScript("OnDragStop", function(self)
-		self:StopMovingOrSizing()
-		-- saved by its top-left corner, so the terminal grows and shrinks downward
-		local left, top = self:GetLeft(), self:GetTop()
-		if left and top then
-			ns.db.point = { "TOPLEFT", "BOTTOMLEFT", left, top }
-		else
-			local p, _, rp, x, y = self:GetPoint()
-			ns.db.point = { p, rp, x, y }
-		end
-	end)
-	frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
-	frame:SetScript("OnHide", function(self)
-		UI:EndAdvancedOnce()
-		UI:EndFuzzy()
-		UI.openedByToggle, UI.tabHeld = nil, nil
-		UI:MotionReset()
-		if tip then tip:Hide(); tip.entry = nil end
-		UI:Disarm()
-		UI.keys = false
-		StopRepeat()
-		self:EnableKeyboard(false)
-		if caret then caret:Hide(); caretChar:Hide() end
-		if hit then hit:Hide() end
-		UI.dragging = false
-	end)
-	frame:SetScript("OnKeyDown", function(self, key)
-		if UI.keys then return KeysDown(self, key) end
-		if UI.legacyArm then return LegacyDown(self, key) end
-		if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
-	end)
-	frame:SetScript("OnChar", function(_, text) UI:OnChar(text) end)
-	frame:SetScript("OnKeyUp", function(_, key)
-		if rep.key == key then StopRepeat() end
-		if key == "TAB" then UI:TabReleased() end
-	end)
-	frame:Hide()
+	if caret then caret:Hide(); caretChar:Hide() end
+	if hit then hit:Hide() end
+	UI.dragging = false
+end
 
-	local pt = ns.db.point
-	if pt then
-		frame:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
-	else
-		frame:SetPoint("TOP", UIParent, "TOP", 0, -140)
-	end
-	tinsert(UISpecialFrames, "TerminalFrame")
-
-	promptFS = frame:CreateFontString(nil, "OVERLAY")
-	promptFS:SetFontObject(Theme.fonts.input)
-	UI.promptFS = promptFS
-
-	edit = CreateFrame("EditBox", nil, frame)
-	edit:SetFontObject(Theme.fonts.input)
-	edit:SetAutoFocus(false)
-	edit:SetAltArrowKeyMode(false)
-	edit:SetMaxLetters(256)
-	UI.edit = edit
-	edit:SetScript("OnTextChanged", function(self)
-		-- the key that opened the terminal (` or ~) must not end up typed into the box
-		local t = self:GetText()
-		if t:find("^[`~]") then
-			local stripped = t:gsub("^[`~]+", "")
-			UI.cursor = math.max(0, (UI.cursor or 0) - (#t - #stripped))
-			self:SetText(stripped)
-			return
-		end
-		if not UI._histSet and t ~= UI.histText then UI.histIdx = nil end
-		if not UI.keys then
-			local cp = self:GetCursorPosition()
-			if type(cp) == "number" then UI.cursor = cp end
-			-- typed or pasted into the real text box (Ctrl+V hands over to it: the clipboard is only
-			-- there): back to Terminal's own prompt next frame, coloured, Enter opening in one press
-			-- (only text changes: Ctrl+C or a selection to copy keeps the real box)
-			if not UI.backToKeys and UI:IsShown() and not InCombatLockdown() and not UI.noChar then
-				UI.backToKeys = true
-				C_Timer.After(0, function()
-					UI.backToKeys = nil
-					if UI:IsShown() and not UI.keys and not InCombatLockdown() then
-						local p = edit:GetCursorPosition()
-						if type(p) == "number" then UI.cursor = p end
-						UI:EnterKeys()
-					end
-				end)
+-- (a block: Build's parts are its own; the file is near Lua 5.1's limit of 200 locals)
+local Build
+do
+	--- The terminal's frame: dragged by its body, keys read while the prompt is drawn, closed with Esc.
+	local function BuildFrame()
+		frame = CreateFrame("Frame", "TerminalFrame", UIParent, "BackdropTemplate")
+		frame:SetFrameStrata("DIALOG")
+		frame:SetClampedToScreen(true)
+		frame:SetBackdrop({
+			bgFile = "Interface\\Buttons\\WHITE8X8",
+			edgeFile = "Interface\\Buttons\\WHITE8X8",
+			edgeSize = 1,
+		})
+		frame:SetMovable(true)
+		if frame.SetClipsChildren then frame:SetClipsChildren(true) end -- rows are cut off as it shrinks
+		frame:EnableMouse(true)
+		frame:EnableMouseWheel(true)
+		frame:EnableKeyboard(false)
+		frame:RegisterForDrag("LeftButton")
+		frame:SetScript("OnDragStart", frame.StartMoving)
+		frame:SetScript("OnDragStop", function(self)
+			self:StopMovingOrSizing()
+			-- saved by its top-left corner, so the terminal grows and shrinks downward
+			local left, top = self:GetLeft(), self:GetTop()
+			if left and top then
+				ns.db.point = { "TOPLEFT", "BOTTOMLEFT", left, top }
+			else
+				local p, _, rp, x, y = self:GetPoint()
+				ns.db.point = { p, rp, x, y }
 			end
+		end)
+		frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
+		frame:SetScript("OnHide", function(self)
+			UI:EndAdvancedOnce()
+			UI:EndFuzzy()
+			UI.openedByToggle, UI.tabHeld = nil, nil
+			UI:MotionReset()
+			if tip then tip:Hide(); tip.entry = nil end
+			UI:Disarm()
+			LetGo()
+			-- closed by the game (a window it opened, Esc): the click catcher and the row menu go too, a frame later (a
+			-- click on either may be what's closing it, and its PostClick still needs its entry to finish)
+			C_Timer.After(0, function()
+				if not UI:IsShown() then
+					UI:HideCatcher()
+					UI:HideRowMenu()
+				end
+			end)
+		end)
+		frame:SetScript("OnKeyDown", function(self, key)
+			if UI.keys then return KeysDown(self, key) end
+			if UI.legacyArm then return LegacyDown(self, key) end
+			if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+		end)
+		frame:SetScript("OnChar", function(_, text) UI:OnChar(text) end)
+		frame:SetScript("OnKeyUp", function(_, key)
+			if rep.key == key then StopRepeat() end
+			if key == "TAB" then UI:TabReleased() end
+		end)
+		frame:Hide()
+
+		local pt = ns.db.point
+		if pt then
+			frame:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
+		else
+			frame:SetPoint("TOP", UIParent, "TOP", 0, -140)
 		end
-		UI.cursor = math.min(UI.cursor or #t, #t)
-		-- the game can report a change without one (the box resized, say): searching again
-		-- then restarted a search spread over frames forever, and reset the scroll each time
-		if t ~= UI.searchedText then UI:Refresh() end
-		UI:UpdateCaret()
-	end)
-	edit:SetScript("OnEditFocusGained", function()
-		-- clicked into the box: plain text editing (clipboard, selection) until reopened
-		if UI.keys then
-			UI.keys = false
-			UI.anchor = nil
-			frame:EnableKeyboard(false)
+		tinsert(UISpecialFrames, "TerminalFrame")
+	end
+
+	--- The prompt's label and the game's own text box (clipboard, combat; a click into it hands over to it).
+	local function BuildEdit()
+		promptFS = frame:CreateFontString(nil, "OVERLAY")
+		promptFS:SetFontObject(Theme.fonts.input)
+		UI.promptFS = promptFS
+
+		edit = CreateFrame("EditBox", nil, frame)
+		edit:SetFontObject(Theme.fonts.input)
+		edit:SetAutoFocus(false)
+		edit:SetAltArrowKeyMode(false)
+		edit:SetMaxLetters(256)
+		UI.edit = edit
+		edit:SetScript("OnTextChanged", function(self)
+			-- the key that opened the terminal (` or ~) must not end up typed into the box
+			local t = self:GetText()
+			if t:find("^[`~]") then
+				local stripped = t:gsub("^[`~]+", "")
+				UI.cursor = math.max(0, (UI.cursor or 0) - (#t - #stripped))
+				self:SetText(stripped)
+				return
+			end
+			if not UI._histSet and t ~= UI.histText then UI.histIdx = nil end
+			if not UI.keys then
+				local cp = self:GetCursorPosition()
+				if type(cp) == "number" then UI.cursor = cp end
+				-- typed or pasted into the real text box (Ctrl+V hands over to it: the clipboard is only
+				-- there): back to Terminal's own prompt next frame, coloured, Enter opening in one press
+				-- (only text changes: Ctrl+C or a selection to copy keeps the real box)
+				if not UI.backToKeys and UI:IsShown() and not InCombatLockdown() and not UI.noChar then
+					UI.backToKeys = true
+					C_Timer.After(0, function()
+						UI.backToKeys = nil
+						if UI:IsShown() and not UI.keys and not InCombatLockdown() then
+							local p = edit:GetCursorPosition()
+							if type(p) == "number" then UI.cursor = p end
+							UI:EnterKeys()
+						end
+					end)
+				end
+			end
+			UI.cursor = math.min(UI.cursor or #t, #t)
+			-- the game can report a change without one (the box resized, say): searching again
+			-- then restarted a search spread over frames forever, and reset the scroll each time
+			if t ~= UI.searchedText then UI:Refresh() end
 			UI:UpdateCaret()
-		end
-	end)
-	edit:SetScript("OnEnterPressed", function()
-		UI:Activate(nil, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
-	end)
-	edit:SetScript("OnEscapePressed", function() UI:Hide() end)
-	edit:SetScript("OnArrowPressed", function(_, key)
-		if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
-	end)
-	edit:SetScript("OnTabPressed", function()
-		if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
-	end)
-	edit:SetScript("OnKeyUp", function(_, key) if key == "TAB" then UI.tabHeld = nil end end)
-	edit:SetScript("OnKeyDown", function(_, key)
-		-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)
-		if UI.clipHint and key ~= "LCTRL" and key ~= "RCTRL" then
-			UI.clipHint = nil
-			C_Timer.After(0, function() UI:SetStatus(); UI:UpdateGhost() end)
-		end
-		if key == "`" then UI:TraceTick() end
-		if key == "TAB" then UI.tabHeld = GetTime() end
-		if key == "`" and UI:TabDown() then
-			UI:FuzzyOnce()
-		elseif key == "`" and IsAltKeyDown and IsAltKeyDown() then
-			UI:AdvancedOnce()
-		elseif key == "`" then
-			-- bindings don't fire while the box has focus, so the toggle key closes it here
-			UI:Hide()
-		else
-			ListKey(key, IsControlKeyDown())
-		end
-	end)
-
-	measure = frame:CreateFontString(nil, "OVERLAY")
-	measure:SetFontObject(Theme.fonts.input)
-	measure:SetAlpha(0)
-
-	-- the cursor lives in a frame above the text box, so a box cursor can cover the letter under it
-	-- (which is then drawn again on top, in a colour that reads on the box)
-	caretFrame = CreateFrame("Frame", nil, frame)
-	caretFrame:SetAllPoints(edit)
-	local lvl = edit:GetFrameLevel()
-	caretFrame:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 2)
-	UI.caretFrame = caretFrame
-	-- clicks and drags on the prompt move Terminal's own cursor (the real text box stays for Ctrl+C/V)
-	hit = CreateFrame("Frame", nil, frame)
-	hit:SetAllPoints(edit)
-	hit:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 1)
-	hit:EnableMouse(true)
-	hit:Hide()
-	hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
-	hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
-	UI.hit = hit
-
-	-- a ring of dots at the end of the prompt while something is still loading; mouse-over says what
-	busy = CreateFrame("Frame", nil, frame)
-	busy:SetSize(22, 22)
-	busy:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 3)
-	busy:EnableMouse(true)
-	busy:Hide()
-	busy.dots = {}
-	for i = 1, BUSY_DOTS do
-		local d = busy:CreateTexture(nil, "OVERLAY")
-		local a = (i - 1) / BUSY_DOTS * 2 * math.pi
-		d:SetSize(4, 4)
-		d:SetPoint("CENTER", busy, "CENTER", math.cos(a) * 7, math.sin(a) * 7)
-		busy.dots[i] = d
-	end
-	busy:SetScript("OnUpdate", function(self, elapsed) UI:SpinBusy(elapsed) end)
-	busy:SetScript("OnEnter", function(self)
-		if not GameTooltip then return end
-		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
-		GameTooltip:SetText("Still loading", 1, 1, 1)
-		for _, l in ipairs(self.lines or {}) do GameTooltip:AddLine(l, 0.8, 0.8, 0.8, true) end
-		GameTooltip:Show()
-	end)
-	busy:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-	UI.busy = busy
-	caret = caretFrame:CreateTexture(nil, "ARTWORK")
-	caret:SetWidth(2)
-	caret:Hide()
-	caretChar = caretFrame:CreateFontString(nil, "OVERLAY")
-	caretChar:SetFontObject(Theme.fonts.input)
-	caretChar:SetJustifyH("LEFT")
-	caretChar:SetWordWrap(false)
-	caretChar:Hide()
-	UI.caret = caret
-	UI.caretChar = caretChar
-	-- what's typed, coloured by what it is (UI:Highlighted), over the text box's own text (made
-	-- invisible while this shows). It lives in the click frame, which shows only while the prompt is
-	-- drawn by Terminal: above the box's text and the selection band, below the cursor.
-	syntax = hit:CreateFontString(nil, "ARTWORK")
-	syntax:SetFontObject(Theme.fonts.input)
-	syntax:SetJustifyH("LEFT")
-	syntax:SetWordWrap(false)
-	syntax:SetPoint("LEFT", edit, "LEFT", 0, 0)
-	syntax:Hide()
-	UI.syntax = syntax
-	-- the selected part of the query, behind the (child frame's) text
-	selText = frame:CreateTexture(nil, "BORDER", nil, 1)
-	selText:Hide()
-	UI.selText = selText
-
-	-- the rest of the suggested completion, faint, right after what's typed (Tab takes it)
-	ghost = frame:CreateFontString(nil, "OVERLAY")
-	ghost:SetFontObject(Theme.fonts.input)
-	ghost:SetJustifyH("LEFT")
-	ghost:SetWordWrap(false)
-	ghost:Hide()
-	UI.ghost = ghost
-
-	-- the selected row: a soft band with a bright edge that glides between rows
-	selBar = frame:CreateTexture(nil, "BORDER", nil, 2)
-	selEdge = frame:CreateTexture(nil, "ARTWORK")
-	selEdge:SetWidth(2)
-	selBar:Hide(); selEdge:Hide()
-	UI.selBar = selBar
-
-	divider = frame:CreateTexture(nil, "ARTWORK")
-	divider:SetHeight(1)
-	-- the prompt's own background, behind the query box (Theme promptBg)
-	promptBg = frame:CreateTexture(nil, "BORDER")
-	UI.promptBg = promptBg
-
-	for i = 1, MAX_ROWS do
-		local b = CreateFrame("Button", nil, frame)
-		b.icon = b:CreateTexture(nil, "ARTWORK")
-		b.icon:SetPoint("LEFT", 6, 0)
-		b.kind = b:CreateFontString(nil, "OVERLAY")
-		b.kind:SetFontObject(Theme.fonts.small)
-		b.kind:SetPoint("RIGHT", -8, 0)
-		b.kind:SetWidth(80)
-		b.kind:SetJustifyH("RIGHT")
-		b.detail = b:CreateFontString(nil, "OVERLAY")
-		b.detail:SetFontObject(Theme.fonts.small)
-		b.detail:SetPoint("RIGHT", b.kind, "LEFT", -8, 0)
-		b.detail:SetJustifyH("RIGHT")
-		b.detail:SetWordWrap(false)
-		b.label = b:CreateFontString(nil, "OVERLAY")
-		b.label:SetFontObject(Theme.fonts.row)
-		b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
-		b.label:SetPoint("RIGHT", b.detail, "LEFT", -8, 0)
-		b.label:SetJustifyH("LEFT")
-		b.label:SetWordWrap(false)
-		if b.RegisterForClicks then b:RegisterForClicks("LeftButtonUp", "RightButtonUp") end
-		b:SetScript("OnClick", function(_, button)
-			if UI.closing then return end -- fading out: already done
-			sel = offset + i
-			if button == "RightButton" then return UI:ShowRowMenu(sel) end
-			UI:Activate(sel, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 		end)
-		b:SetScript("OnEnter", function()
-			if UI.closing then return end
-			if results[offset + i] and sel ~= offset + i then
-				if UI.armedEntry then UI:Disarm() end
-				sel = offset + i
-				UI:SelectionChanged()
+		edit:SetScript("OnEditFocusGained", function()
+			-- clicked into the box: plain text editing (clipboard, selection) until reopened
+			if UI.keys then
+				UI.keys = false
+				UI.anchor = nil
+				frame:EnableKeyboard(false)
+				UI:UpdateCaret()
 			end
-			UI:PlaceCatcher(i)
 		end)
-		b:Hide()
-		rows[i] = b
+		edit:SetScript("OnEnterPressed", function()
+			UI:Activate(nil, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
+		end)
+		edit:SetScript("OnEscapePressed", function() UI:Hide() end)
+		edit:SetScript("OnArrowPressed", function(_, key)
+			if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
+		end)
+		edit:SetScript("OnTabPressed", function()
+			if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
+		end)
+		edit:SetScript("OnKeyUp", function(_, key) if key == "TAB" then UI.tabHeld = nil end end)
+		edit:SetScript("OnKeyDown", function(_, key)
+			-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)
+			if UI.clipHint and key ~= "LCTRL" and key ~= "RCTRL" then
+				UI.clipHint = nil
+				C_Timer.After(0, function() UI:SetStatus(); UI:UpdateGhost() end)
+			end
+			if key == "TAB" then UI.tabHeld = GetTime() end
+			if key == "`" then
+				TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
+			else
+				ListKey(key, IsControlKeyDown())
+			end
+		end)
 	end
 
-	-- footer: a faint rule, the result count on the left, key hints on the right, both
-	-- centred on one line
-	footLine = frame:CreateTexture(nil, "ARTWORK")
-	footLine:SetHeight(1)
-	status = frame:CreateFontString(nil, "OVERLAY")
-	status:SetFontObject(Theme.fonts.small)
-	status:SetJustifyH("LEFT")
-	status:SetWordWrap(false)
-	UI.status = status
-	hints = frame:CreateFontString(nil, "OVERLAY")
-	hints:SetFontObject(Theme.fonts.small)
-	hints:SetJustifyH("RIGHT")
-	hints:SetWordWrap(false)
-	UI.hints = hints
+	--- What Terminal draws over and around the prompt: the cursor, the click area, the spinner, the coloured
+	--- copy of the text, the selection, the faint suggestion, the selection band, the divider, the prompt's background.
+	local function BuildPromptParts()
+		measure = frame:CreateFontString(nil, "OVERLAY")
+		measure:SetFontObject(Theme.fonts.input)
+		measure:SetAlpha(0)
 
-	UI:ApplyTheme()
+		-- the cursor lives in a frame above the text box, so a box cursor can cover the letter under it
+		-- (which is then drawn again on top, in a colour that reads on the box)
+		caretFrame = CreateFrame("Frame", nil, frame)
+		caretFrame:SetAllPoints(edit)
+		local lvl = edit:GetFrameLevel()
+		caretFrame:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 2)
+		-- clicks and drags on the prompt move Terminal's own cursor (the real text box stays for Ctrl+C/V)
+		hit = CreateFrame("Frame", nil, frame)
+		hit:SetAllPoints(edit)
+		hit:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 1)
+		hit:EnableMouse(true)
+		hit:Hide()
+		hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
+		hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
+		UI.hit = hit
+
+		-- a ring of dots at the end of the prompt while something is still loading; mouse-over says what
+		busy = CreateFrame("Frame", nil, frame)
+		busy:SetSize(22, 22)
+		busy:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 3)
+		busy:EnableMouse(true)
+		busy:Hide()
+		busy.dots = {}
+		for i = 1, BUSY_DOTS do
+			local d = busy:CreateTexture(nil, "OVERLAY")
+			local a = (i - 1) / BUSY_DOTS * 2 * math.pi
+			d:SetSize(4, 4)
+			d:SetPoint("CENTER", busy, "CENTER", math.cos(a) * 7, math.sin(a) * 7)
+			busy.dots[i] = d
+		end
+		busy:SetScript("OnUpdate", function(self, elapsed) UI:SpinBusy(elapsed) end)
+		busy:SetScript("OnEnter", function(self)
+			if not GameTooltip then return end
+			GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+			GameTooltip:SetText("Still loading", 1, 1, 1)
+			for _, l in ipairs(self.lines or {}) do GameTooltip:AddLine(l, 0.8, 0.8, 0.8, true) end
+			GameTooltip:Show()
+		end)
+		busy:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+		UI.busy = busy
+		caret = caretFrame:CreateTexture(nil, "ARTWORK")
+		caret:SetWidth(2)
+		caret:Hide()
+		caretChar = caretFrame:CreateFontString(nil, "OVERLAY")
+		caretChar:SetFontObject(Theme.fonts.input)
+		caretChar:SetJustifyH("LEFT")
+		caretChar:SetWordWrap(false)
+		caretChar:Hide()
+		UI.caret = caret
+		UI.caretChar = caretChar
+		-- what's typed, coloured by what it is (UI:Highlighted), over the text box's own text (made
+		-- invisible while this shows). It lives in the click frame, which shows only while the prompt is
+		-- drawn by Terminal: above the box's text and the selection band, below the cursor.
+		syntax = hit:CreateFontString(nil, "ARTWORK")
+		syntax:SetFontObject(Theme.fonts.input)
+		syntax:SetJustifyH("LEFT")
+		syntax:SetWordWrap(false)
+		syntax:SetPoint("LEFT", edit, "LEFT", 0, 0)
+		syntax:Hide()
+		UI.syntax = syntax
+		-- the selected part of the query, behind the (child frame's) text
+		selText = frame:CreateTexture(nil, "BORDER", nil, 1)
+		selText:Hide()
+		UI.selText = selText
+
+		-- the rest of the suggested completion, faint, right after what's typed (Tab takes it)
+		ghost = frame:CreateFontString(nil, "OVERLAY")
+		ghost:SetFontObject(Theme.fonts.input)
+		ghost:SetJustifyH("LEFT")
+		ghost:SetWordWrap(false)
+		ghost:Hide()
+		UI.ghost = ghost
+
+		-- the selected row: a soft band with a bright edge that glides between rows
+		selBar = frame:CreateTexture(nil, "BORDER", nil, 2)
+		selEdge = frame:CreateTexture(nil, "ARTWORK")
+		selEdge:SetWidth(2)
+		selBar:Hide(); selEdge:Hide()
+		UI.selBar = selBar
+
+		divider = frame:CreateTexture(nil, "ARTWORK")
+		divider:SetHeight(1)
+		-- the prompt's own background, behind the query box (Theme promptBg)
+		promptBg = frame:CreateTexture(nil, "BORDER")
+		UI.promptBg = promptBg
+	end
+
+	--- The result rows.
+	local function BuildRows()
+		for i = 1, MAX_ROWS do
+			local b = CreateFrame("Button", nil, frame)
+			b.icon = b:CreateTexture(nil, "ARTWORK")
+			b.icon:SetPoint("LEFT", 6, 0)
+			b.kind = b:CreateFontString(nil, "OVERLAY")
+			b.kind:SetFontObject(Theme.fonts.small)
+			b.kind:SetPoint("RIGHT", -8, 0)
+			b.kind:SetWidth(80)
+			b.kind:SetJustifyH("RIGHT")
+			b.detail = b:CreateFontString(nil, "OVERLAY")
+			b.detail:SetFontObject(Theme.fonts.small)
+			b.detail:SetPoint("RIGHT", b.kind, "LEFT", -8, 0)
+			b.detail:SetJustifyH("RIGHT")
+			b.detail:SetWordWrap(false)
+			b.label = b:CreateFontString(nil, "OVERLAY")
+			b.label:SetFontObject(Theme.fonts.row)
+			b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+			b.label:SetPoint("RIGHT", b.detail, "LEFT", -8, 0)
+			b.label:SetJustifyH("LEFT")
+			b.label:SetWordWrap(false)
+			if b.RegisterForClicks then b:RegisterForClicks("LeftButtonUp", "RightButtonUp") end
+			b:SetScript("OnClick", function(_, button)
+				if UI.closing then return end -- fading out: already done
+				sel = offset + i
+				if button == "RightButton" then return UI:ShowRowMenu(sel) end
+				UI:Activate(sel, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
+			end)
+			b:SetScript("OnEnter", function()
+				if UI.closing then return end
+				if results[offset + i] and sel ~= offset + i then
+					if UI.armedEntry then UI:Disarm() end
+					sel = offset + i
+					UI:SelectionChanged()
+				end
+				UI:PlaceCatcher(i)
+			end)
+			b:Hide()
+			rows[i] = b
+		end
+	end
+
+	--- The footer: a faint rule, the result count on the left, key hints on the right, both centred on one line.
+	local function BuildFooter()
+		footLine = frame:CreateTexture(nil, "ARTWORK")
+		footLine:SetHeight(1)
+		status = frame:CreateFontString(nil, "OVERLAY")
+		status:SetFontObject(Theme.fonts.small)
+		status:SetJustifyH("LEFT")
+		status:SetWordWrap(false)
+		UI.status = status
+		hints = frame:CreateFontString(nil, "OVERLAY")
+		hints:SetFontObject(Theme.fonts.small)
+		hints:SetJustifyH("RIGHT")
+		hints:SetWordWrap(false)
+		UI.hints = hints
+	end
+
+	Build = function()
+		if frame then return end
+		BuildFrame()
+		BuildEdit()
+		BuildPromptParts()
+		BuildRows()
+		BuildFooter()
+		UI:ApplyTheme()
+	end
 end
 
 ----------------------------------------------------------------------
@@ -4400,7 +4521,7 @@ function UI:ApplyTheme()
 	UI.onAccent = Theme.OnColor(t.accent, t.bg)
 	if UI.keys then UI:UpdateCaret() end
 	selText:SetColorTexture(ar, ag, ab, 0.38)
-	for _, band in ipairs(UI.selBands or {}) do band:SetColorTexture(ar, ag, ab, 0.38) end
+	for _, band in ipairs(selBands) do band:SetColorTexture(ar, ag, ab, 0.38) end
 	selBar:SetColorTexture(ar, ag, ab, 0.16)
 	selEdge:SetColorTexture(ar, ag, ab, 0.9)
 	local gr, gg, gb = Theme.RGB(t.dim)
@@ -4438,15 +4559,30 @@ end
 -- Easy mode: categories (Easy.lua has them): picked from the rows a search lists
 ----------------------------------------------------------------------
 
+--- The last search forgotten: nothing to narrow from, no completion kept for its rows. `looks`: the footer's key
+--- hints are measured and the prompt's colours drawn again too (another mode).
+local function Forget(self, looks)
+	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
+	if looks then self.hintsRoom, self.syntaxKey = nil, nil end
+end
+
+--- Search again now, even within the frame of the last search.
+function UI:Research()
+	self.refreshedAt = nil
+	self:Refresh()
+end
+
+--- The prompt set to `text` (its change searches), or searched again when it already says that.
+function UI:SetOrResearch(text)
+	if edit:GetText() == text then self:Research() else self:SetQuery(text, #text) end
+end
+
 --- Pick a category ("bags", "emotes"...; nil: none, back to the categories): the results are searched again.
 function UI:SetCategory(id)
 	if id ~= nil and not (ns.Easy and ns.Easy.BY_ID[id]) then return end
 	self.category, self.categoryAuto = id, nil
 	self.lastScan, self.lastOverview = nil, nil -- (other kinds: not a narrowing of the last search)
-	if self:IsShown() then
-		self.refreshedAt = nil
-		self:Refresh()
-	end
+	if self:IsShown() then self:Research() end
 end
 
 --- Tab in easy mode: in a category, back to all of them; on a category row, pick it.
@@ -4459,13 +4595,9 @@ end
 --- Easy mode switched on or off (Easy.Set): what's shown is searched again.
 function UI:EasyChanged()
 	self.category = nil
-	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
-	self.hintsRoom, self.syntaxKey = nil, nil
+	Forget(self, true)
 	if not frame then return end
-	if self:IsShown() then
-		self.refreshedAt = nil
-		self:Refresh()
-	end
+	if self:IsShown() then self:Research() end
 end
 
 ----------------------------------------------------------------------
@@ -4490,11 +4622,11 @@ end
 
 function UI:Hide()
 	self:HideRowMenu()
+	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
 	NavHide()
 	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)
 	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
-	self:HideCatcher()
 	if tip then tip:Hide(); tip.entry = nil end
 	edit:ClearFocus()
 	-- the search to bring back with Down on the next open (only a search: not a .command or /slash)
@@ -4507,16 +4639,10 @@ function UI:Hide()
 	self:EndFuzzy()
 	self.openedByToggle, self.tabHeld = nil, nil -- (closed, Tab's key-up isn't seen: it isn't trusted as held after)
 	self.histIdx = nil
-	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil -- (rows kept only for the next keystroke)
+	Forget(self) -- (rows kept only for the next keystroke)
 	-- let go of the keyboard at once, so the next key already reaches the game
-	self.keys = false
-	StopRepeat()
-	frame:EnableKeyboard(false)
-	caret:Hide()
-	caretChar:Hide()
-	if hit then hit:Hide() end
+	LetGo()
 	if busy and busy:IsShown() then busy:Hide() end
-	UI.dragging = false
 	ghost:Hide()
 	if self:Animated() then
 		self:StartClose()
@@ -4546,15 +4672,10 @@ function UI:StartFuzzy()
 	ns:Trace(("fuzzy find: on (%q -> %q)"):format(text, plain))
 	self.category, self.categoryAuto, self.action, self.place, self.sendTo, self.blockedSyntax = nil, nil, nil, nil, nil, nil
 	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
-	self.lastScan, self.lastOverview, self.lastFzf, memo.results, memo.value = nil, nil, nil, nil, nil
-	self.hintsRoom, self.syntaxKey = nil, nil
+	Forget(self, true)
+	self.lastFzf = nil
 	self:ShowGlow(true)
-	if plain ~= text then
-		self:SetQuery(plain, #plain)
-	else
-		self.refreshedAt = nil
-		self:Refresh()
-	end
+	self:SetOrResearch(plain)
 	self:SetStatus()
 	self:UpdateGhost()
 end
@@ -4569,10 +4690,8 @@ function UI:EndFuzzy(stay)
 	if not (stay and self:IsShown()) then return end
 	ns:Trace("fuzzy find: off")
 	DropTick(edit:GetText())
-	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
-	self.hintsRoom, self.syntaxKey = nil, nil
-	self.refreshedAt = nil
-	self:Refresh()
+	Forget(self, true)
+	self:Research()
 	self:SetStatus()
 	self:UpdateGhost()
 end
@@ -4629,8 +4748,8 @@ function UI:FuzzyPop(e, advanced)
 	local name = ns.Plain(e.name)
 	local simpleUser = not (ns.db and ns.db.easyMode == false)
 	self:EndFuzzy()
-	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
-	self.hintsRoom, self.syntaxKey, self.blockedSyntax, self.sendTo = nil, nil, nil, nil
+	Forget(self, true)
+	self.blockedSyntax, self.sendTo = nil, nil
 	local text
 	if advanced then
 		if E then
@@ -4650,13 +4769,7 @@ function UI:FuzzyPop(e, advanced)
 	end
 	ns:Trace(("fuzzy find: %s -> %s %q"):format(tostring(e.name), advanced and "Advanced" or "Simple", text))
 	self.popTarget = e
-	text = text .. " "
-	if edit:GetText() == text then
-		self.refreshedAt = nil
-		self:Refresh()
-	else
-		self:SetQuery(text, #text)
-	end
+	self:SetOrResearch(text .. " ")
 	self:SetStatus()
 	self:UpdateGhost()
 end
@@ -4772,10 +4885,7 @@ function UI:Open(text)
 	local want = text or ""
 	local before = self.refreshCount
 	if edit:GetText() ~= want then edit:SetText(want) end
-	if self.refreshCount == before then
-		self.refreshedAt = nil
-		self:Refresh()
-	end
+	if self.refreshCount == before then self:Research() end
 	self.cursor = #edit:GetText()
 	self.snapNext, self.opening = false, false
 	if not self:EnterKeys() then
@@ -4812,28 +4922,15 @@ function UI:AdvancedOnce()
 		return self:Open()
 	end
 	local text = edit:GetText()
-	local cat = not self.categoryAuto and self.category or nil
+	local cat = not self.categoryAuto and self.category or nil -- (a category opened on its own counts too: it's what shows)
 	local conv = E.ToAdvanced(text, self.category)
-	self.swallowTick = GetTime() -- (the key's ` still comes as a typed character: OnChar drops it)
-	if not self.keys then
-		-- the game's own text box (clipboard, combat) types it itself: taken back out next frame
-		C_Timer.After(0, function()
-			local t = edit:GetText()
-			if t == conv .. "`" then UI:SetQuery(conv, #conv) end -- (through SetQuery: the drawn cursor follows)
-		end)
-	end -- (a category opened on its own counts too: it's what shows)
+	DropTick(conv) -- (the key's ` still comes as a typed character)
 	E.temp = { from = text, category = cat }
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
-	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
-	self.hintsRoom, self.syntaxKey = nil, nil
+	Forget(self, true)
 	self.blockedSyntax = nil
-	if conv ~= text then
-		self:SetQuery(conv, #conv)
-	else
-		self.refreshedAt = nil
-		self:Refresh()
-	end
+	self:SetOrResearch(conv)
 	self:SetStatus()
 	self:UpdateGhost()
 end

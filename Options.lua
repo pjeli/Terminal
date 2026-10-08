@@ -22,6 +22,7 @@ local function Label(text, template, x, y, parent)
 end
 
 local WHITE = "Interface\\Buttons\\WHITE8X8"
+local FLAT = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 } -- (a white backdrop with a 1 px edge, coloured by each user)
 
 ----------------------------------------------------------------------
 -- Controls
@@ -34,7 +35,7 @@ local function Slider(key, x, y)
 	s:SetOrientation("HORIZONTAL")
 	s:SetSize(190, 14)
 	s:SetPoint("TOPLEFT", x + 110, y - 1)
-	s:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+	s:SetBackdrop(FLAT)
 	s:SetBackdropColor(0, 0, 0, 0.5)
 	s:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 	s:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
@@ -77,7 +78,7 @@ local function Swatch(key, x, y)
 	local b = CreateFrame("Button", nil, panel, "BackdropTemplate")
 	b:SetSize(18, 18)
 	b:SetPoint("TOPLEFT", x, y)
-	b:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+	b:SetBackdrop(FLAT)
 	b:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 	b:SetScript("OnClick", function() PickColor(key) end)
 	local l = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
@@ -93,7 +94,7 @@ end
 local pv = CreateFrame("Frame", nil, panel, "BackdropTemplate")
 pv:SetSize(196, 52)
 pv:SetPoint("TOPLEFT", 440, -88)
-pv:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+pv:SetBackdrop(FLAT)
 if pv.SetClipsChildren then pv:SetClipsChildren(true) end
 Label("Example", "GameFontNormal", 440, -70)
 O.preview = pv
@@ -123,9 +124,9 @@ local function PaintPreview()
 	pv.query:SetText("hvy ban")
 	pv.query:SetTextColor(T.RGB(t.text))
 	pv.caret:SetColorTexture(T.RGB(t.accent))
-		local box = t.cursor == "blinking-box" or t.cursor == "solid-box"
-		pv.caret:SetSize(box and 8 or 2, 13)
-		pv.caret:SetAlpha(box and 0.85 or 1)
+	local box = t.cursor == "blinking-box" or t.cursor == "solid-box"
+	pv.caret:SetSize(box and 8 or 2, 13)
+	pv.caret:SetAlpha(box and 0.85 or 1)
 	local ar, ag, ab = T.RGB(t.accent)
 	pv.band:SetColorTexture(ar, ag, ab, 0.18)
 	ns.Fuzzy.matchColor = "|cff" .. t.match
@@ -361,59 +362,37 @@ frameButton:SetScript("OnClick", function()
 end)
 O.widgets.frame = frameButton
 
-local hintsCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-hintsCheck:SetSize(24, 24)
-hintsCheck:SetPoint("TOPLEFT", 190, -472)
-hintsCheck:SetScript("OnClick", function(self) T.Set("hints", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.hints.label, "GameFontHighlight", 216, -477)
-O.widgets.hints = hintsCheck
+-- an on/off setting: a checkbox at y in the right column, its label beside it (`note` greyed after the label)
+local function Check(key, y, note)
+	local c = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+	c:SetSize(24, 24)
+	c:SetPoint("TOPLEFT", 190, y)
+	c:SetScript("OnClick", function(self) T.Set(key, self:GetChecked() and "on" or "off") end)
+	local label = T.FIELDS[key].label .. (note and ("  |cff8a8a8a" .. note .. "|r") or "")
+	O.widgets[key] = c
+	return Label(label, "GameFontHighlight", 216, y - 5)
+end
+Check("hints", -472)
+Check("syntax", -498, "(@kinds, filters, .commands)")
+Check("suggest", -524, "(\"try: ...\")")
+O.widgets.autoScanLabel = Check("autoScan", -550)
 
-local syntaxCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-syntaxCheck:SetSize(24, 24)
-syntaxCheck:SetPoint("TOPLEFT", 190, -498)
-syntaxCheck:SetScript("OnClick", function(self) T.Set("syntax", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.syntax.label .. "  |cff8a8a8a(@kinds, filters, .commands)|r", "GameFontHighlight", 216, -503)
-O.widgets.syntax = syntaxCheck
-
-local suggestCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-suggestCheck:SetSize(24, 24)
-suggestCheck:SetPoint("TOPLEFT", 190, -524)
-suggestCheck:SetScript("OnClick", function(self) T.Set("suggest", self:GetChecked() and "on" or "off") end)
-Label(T.FIELDS.suggest.label .. "  |cff8a8a8a(\"try: ...\")|r", "GameFontHighlight", 216, -529)
-O.widgets.suggest = suggestCheck
-
-local scanCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-scanCheck:SetSize(24, 24)
-scanCheck:SetPoint("TOPLEFT", 190, -550)
-scanCheck:SetScript("OnClick", function(self) T.Set("autoScan", self:GetChecked() and "on" or "off") end)
-O.widgets.autoScanLabel = Label(T.FIELDS.autoScan.label, "GameFontHighlight", 216, -555)
-O.widgets.autoScan = scanCheck
-
--- the panel's own actions, on a row of their own below everything else
-local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-open:SetSize(130, 22)
-open:SetPoint("TOPLEFT", 16, -562)
+-- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
+-- last row of settings shown)
 O.actionRow = O.actionRow or {}
-O.actionRow[#O.actionRow + 1] = { open, 16 }
-open:SetText("Open terminal")
-open:SetScript("OnClick", function() ns.UI:Open() end)
-
-local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-reset:SetSize(130, 22)
-reset:SetPoint("TOPLEFT", 156, -562)
-O.actionRow = O.actionRow or {}
-O.actionRow[#O.actionRow + 1] = { reset, 156 }
-reset:SetText("Reset to defaults")
-reset:SetScript("OnClick", function() T.Reset() end)
-
+local function Action(x, w, text, onClick)
+	local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	b:SetSize(w, 22)
+	b:SetPoint("TOPLEFT", x, -562)
+	O.actionRow[#O.actionRow + 1] = { b, x }
+	b:SetText(text)
+	b:SetScript("OnClick", onClick)
+	return b
+end
+Action(16, 130, "Open terminal", function() ns.UI:Open() end)
+Action(156, 130, "Reset to defaults", function() T.Reset() end)
 -- Sharing the look: Export opens the style string in a copy window (Ctrl+C); Import takes a pasted one
-local export = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-export:SetSize(110, 22)
-export:SetPoint("TOPLEFT", 296, -562)
-O.actionRow = O.actionRow or {}
-O.actionRow[#O.actionRow + 1] = { export, 296 }
-export:SetText("Export style")
-export:SetScript("OnClick", function() ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true }) end)
+Action(296, 110, "Export style", function() ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true }) end)
 
 local importDialog -- built on first use
 local function BuildImportDialog()
@@ -423,7 +402,7 @@ local function BuildImportDialog()
 	d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	d:SetFrameStrata("DIALOG")
 	d:SetClampedToScreen(true)
-	d:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	d:SetBackdrop(FLAT)
 	d:SetBackdropColor(0.06, 0.06, 0.08, 0.96)
 	d:SetBackdropBorderColor(0.4, 0.4, 0.45, 1)
 	d:Hide()
@@ -489,13 +468,7 @@ function O.ImportDialog()
 	return d
 end
 
-local import = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-import:SetSize(110, 22)
-import:SetPoint("TOPLEFT", 416, -562)
-O.actionRow = O.actionRow or {}
-O.actionRow[#O.actionRow + 1] = { import, 416 }
-import:SetText("Import style")
-import:SetScript("OnClick", function() O.ImportDialog() end)
+Action(416, 110, "Import style", function() O.ImportDialog() end)
 
 ----------------------------------------------------------------------
 -- Sync controls with the stored theme

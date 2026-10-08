@@ -22,7 +22,8 @@ local ns = select(2, ...)
 --   standing:honored+            reputations by standing (names or 1-8; <friendly, 4-6, honored-exalted)
 --   sells:linen_cloth            Questie NPCs that sell an item (its name, part of it, or its id)
 --   is:done is:todo is:complete  quests: finished / not yet / ready to turn in; achievements: done / todo
---   is:usable is:equippable      items you can use / wear (no is:upgrade: item level alone can't tell)
+--   is:usable is:equippable      items you can use / wear
+--   is:upgrade                   gear that suits you now: your level, your class, near what you wear there or better
 --   is:quest is:soulbound is:boe items: quest items, bound ones, bind on equip not yet bound
 --   is:ready is:passive          spells off cooldown (quests: = is:complete) / passive spells
 --   is:capped                    currencies at their cap (or this week's)
@@ -33,7 +34,7 @@ local ns = select(2, ...)
 local F = {}
 ns.Filters = F
 
-local function Lower(s) return ns.Lower(s) end
+local Lower = ns.Lower
 
 -- an item's info, kept per item id (it doesn't change; filters ask for it on every matching row
 -- of every search): a table each time was garbage for thousands of loot rows
@@ -142,6 +143,7 @@ local function Levels(e)
 end
 
 local statCache, statCount = {}, 0
+local statNames = {} -- stat key (ITEM_MOD_STAMINA_SHORT) -> { its shown name, lowercase (false: none); the key, lowercase }
 --- An item's stats (the game's: { ITEM_MOD_STAMINA_SHORT = 7, ... }), or nil until known.
 local function Stats(e)
 	local id = ItemOf(e)
@@ -159,7 +161,7 @@ local function Stats(e)
 	statCache[id], statCount = t, statCount + 1
 	return t
 end
-F.ClearStats = function() statCache, statCount = {}, 0 end
+F.ClearStats = function() statCache, statCount, statNames = {}, 0, {} end
 
 -- short names for stats -> part of the game's stat key
 local STAT_WORDS = {
@@ -182,17 +184,52 @@ F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "a
 local function StatIs(key, word)
 	local part = STAT_WORDS[word]
 	if part then return key:find(part, 1, true) ~= nil end
-	local shown = _G[key]
-	return (type(shown) == "string" and Lower(shown):find(word, 1, true)) or Lower(key):find(word, 1, true) and true or false
+	local n = statNames[key] -- (lowercased once per key, not per stat per row per keystroke)
+	if not n then
+		local shown = _G[key]
+		n = { type(shown) == "string" and Lower(shown) or false, Lower(key) }
+		statNames[key] = n
+	end
+	return (n[1] and n[1]:find(word, 1, true)) or n[2]:find(word, 1, true) and true or false
 end
 
 -- Consumables (elixirs, potions, food, scrolls) have no item stats: their effect is the text of their
 -- use spell ("Increases Strength by 8 for 1 hour", food's "well fed and gain 6 Stamina and Spirit"),
 -- and their tooltip's lines. Read once per item, lowercase; nil while the game is still loading it.
-local function Secret(v) return issecretvalue and issecretvalue(v) or false end
+local Secret = ns.Secret
 local effectCache, effectCount = {}, 0
 local effectRetry = {} -- item id -> when to read it again (its item or spell data was still loading)
 local RETRY = 1 -- seconds
+--- Adds the text of the item's use spell to parts; true when that text is still loading (asked for).
+local function SpellText(id, parts)
+	local getSpell = (C_Item and C_Item.GetItemSpell) or _G.GetItemSpell
+	local spellID
+	if getSpell then
+		local ok, _, sid = pcall(getSpell, id)
+		if ok and type(sid) == "number" and not Secret(sid) then spellID = sid end
+	end
+	if spellID and C_Spell and C_Spell.GetSpellDescription then
+		local ok, d = pcall(C_Spell.GetSpellDescription, spellID)
+		if ok and type(d) == "string" and not Secret(d) and d ~= "" then
+			parts[#parts + 1] = d
+		elseif not (C_Spell.IsSpellDataCached and C_Spell.IsSpellDataCached(spellID)) then
+			if C_Spell.RequestLoadSpellData then pcall(C_Spell.RequestLoadSpellData, spellID) end
+			return true -- (the spell's text is still loading: asked for, read again in a moment)
+		end
+	end
+	return false
+end
+--- Adds the item's tooltip lines (their left text) to parts.
+local function TooltipLines(id, parts)
+	if not (C_TooltipInfo and C_TooltipInfo.GetItemByID) then return end
+	local ok, info = pcall(C_TooltipInfo.GetItemByID, id)
+	if ok and type(info) == "table" and type(info.lines) == "table" then
+		for _, l in ipairs(info.lines) do
+			local t = type(l) == "table" and l.leftText
+			if type(t) == "string" and not Secret(t) then parts[#parts + 1] = t end
+		end
+	end
+end
 local function EffectText(e)
 	local id = ItemOf(e)
 	if not id then return nil end
@@ -207,31 +244,9 @@ local function EffectText(e)
 		F.loading = true -- (the search asks again in a moment: UI:RetryWhenLoaded)
 		return nil
 	end
-	local parts, pending = {}, false
-	local getSpell = (C_Item and C_Item.GetItemSpell) or _G.GetItemSpell
-	local spellID
-	if getSpell then
-		local ok, _, sid = pcall(getSpell, id)
-		if ok and type(sid) == "number" and not Secret(sid) then spellID = sid end
-	end
-	if spellID and C_Spell and C_Spell.GetSpellDescription then
-		local ok, d = pcall(C_Spell.GetSpellDescription, spellID)
-		if ok and type(d) == "string" and not Secret(d) and d ~= "" then
-			parts[#parts + 1] = d
-		elseif not (C_Spell.IsSpellDataCached and C_Spell.IsSpellDataCached(spellID)) then
-			pending = true -- (the spell's text is still loading: asked for, read again in a moment)
-			if C_Spell.RequestLoadSpellData then pcall(C_Spell.RequestLoadSpellData, spellID) end
-		end
-	end
-	if C_TooltipInfo and C_TooltipInfo.GetItemByID then
-		local ok, info = pcall(C_TooltipInfo.GetItemByID, id)
-		if ok and type(info) == "table" and type(info.lines) == "table" then
-			for _, l in ipairs(info.lines) do
-				local t = type(l) == "table" and l.leftText
-				if type(t) == "string" and not Secret(t) then parts[#parts + 1] = t end
-			end
-		end
-	end
+	local parts = {}
+	local pending = SpellText(id, parts)
+	TooltipLines(id, parts)
 	local text = #parts > 0 and Lower(table.concat(parts, "\n")) or nil
 	if pending then
 		effectRetry[id] = now + RETRY -- (not every keystroke: once a second until it's in)
@@ -544,7 +559,6 @@ local function Difficulty(e)
 	local d = e.recipeID and e.difficulty
 	return type(d) == "number" and d or nil
 end
-F.Difficulty = Difficulty
 local function DiffIs(which) return function(e) return Difficulty(e) == F.DIFF[which] end end
 local function SkillUp(e)
 	local d = Difficulty(e)
@@ -689,7 +703,7 @@ local function Ready(e)
 end
 
 -- Currencies (rows: quantity, maxQuantity; maxWeeklyQuantity, quantityEarnedThisWeek): at the cap, or this week's.
-local function Number(v) return type(v) == "number" and not Secret(v) and v or nil end
+local Number = ns.Num
 local function Capped(e)
 	if e.kind ~= "currency" then return false end
 	local n, max = Number(e.quantity), Number(e.maxQuantity)
@@ -932,9 +946,15 @@ KEYS.type = function(v)
 		local id = ItemOf(e)
 		local info = id and ItemInfo(id)
 		if not info then return false end
-		local t, st = info.type, info.subType
-		if type(t) == "string" and Lower(t):find(v, 1, true) then return true end
-		return type(st) == "string" and Lower(st):find(v, 1, true) or false
+		-- (lowercased once per item, kept in its info: not per row per keystroke)
+		local lt, lst = info.ltype, info.lsubType
+		if lt == nil then
+			local t, st = info.type, info.subType
+			lt, lst = type(t) == "string" and Lower(t) or false, type(st) == "string" and Lower(st) or false
+			info.ltype, info.lsubType = lt, lst
+		end
+		if lt and lt:find(v, 1, true) then return true end
+		return lst and lst:find(v, 1, true) or false
 	end
 end
 
@@ -1026,6 +1046,9 @@ local function ProfNamed(v)
 	end
 end
 
+local function AnyClassTrainer(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
+local function AnyProfTrainer(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
+
 local CLASS_SET = {}
 for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
 
@@ -1033,15 +1056,17 @@ KEYS.trainer = function(v)
 	if v == "" then return nil end
 	-- your class's trainers: trainer:class (you mean the one you can learn from); trainer:mine is mining
 	if v == "class" or v == "my" or v == "me" or v == "myclass" then
+		local ok, cls = pcall(MyClass) -- (once per filter; not known yet: asked per row, as before)
+		local myClass = ok and cls or nil
 		return function(e)
 			local sub = TrainerTitle(e)
-			local mine = sub and MyClass()
+			local mine = sub and (myClass or MyClass())
 			return mine and ClassOf(sub) == mine or false
 		end
 	elseif v == "classes" or v == "anyclass" then
-		return function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
+		return AnyClassTrainer
 	elseif v == "profession" or v == "professions" or v == "prof" then
-		return function(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
+		return AnyProfTrainer
 	end
 	if CLASS_SET[v] then
 		return function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) == v or false end
@@ -1154,8 +1179,8 @@ local IS = {
 	-- guild members and friends (Social.lua)
 	online = function(e) return e.online == true end,
 	offline = function(e) return e.online == false end,
-	classtrainer = function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end,
-	proftrainer = function(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end,
+	classtrainer = AnyClassTrainer,
+	proftrainer = AnyProfTrainer,
 }
 local ROLES = { vendor = "VENDOR", trainer = "TRAINER", flightmaster = "FLIGHT_MASTER", flight = "FLIGHT_MASTER",
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",

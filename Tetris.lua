@@ -49,19 +49,31 @@ TT.game = game
 
 TT.rand = function(n) return math.random(n) end -- (tests replace it)
 
+-- runs only while a game is on: game over takes it off (nothing moves then), Reset puts it back
+local function OnUpdate(_, elapsed) TT.Tick(elapsed) end
+
 ----------------------------------------------------------------------
 -- The game
 ----------------------------------------------------------------------
 
---- A piece's cells at a rotation (0-3, clockwise), relative to its box.
+local cellCache = {} -- [kind][rot % 4] = its cells (worked out once: GhostY and Grounded ask many times a frame)
+
+--- A piece's cells at a rotation (0-3, clockwise), relative to its box. The same table every time: read it, never change it.
 function TT.Cells(kind, rot)
+	local r = rot % 4
+	local byRot = cellCache[kind]
+	if not byRot then byRot = {}; cellCache[kind] = byRot end
+	local out = byRot[r]
+	if out then return out end
 	local p = TT.PIECES[kind]
-	local out, n = {}, p.size - 1
+	local n = p.size - 1
+	out = {}
 	for i, c in ipairs(p.cells) do
 		local x, y = c[1], c[2]
-		for _ = 1, rot % 4 do x, y = n - y, x end
+		for _ = 1, r do x, y = n - y, x end
 		out[i] = { x, y }
 	end
+	byRot[r] = out
 	return out
 end
 
@@ -73,7 +85,6 @@ local function Fits(kind, rot, px, py)
 	end
 	return true
 end
-TT.Fits = Fits
 
 -- the next pieces come from shuffled bags of all seven: never a long wait for the one you need
 local function NextKind()
@@ -104,10 +115,11 @@ function TT.Reset()
 	game.bag, game.queue = {}, {}
 	game.score, game.lines, game.level = 0, 0, 1
 	game.over, game.newBest, game.hold, game.held = false, false, nil, false
-	game.down, game.keys = false, {}
+	game.down, game.keys, game.acts = false, {}, {}
 	game.queue[1] = NextKind()
 	TT.Spawn()
 	game.dirty = true
+	if frame and not game.over then frame:SetScript("OnUpdate", OnUpdate) end
 end
 
 --- Seconds between rows falling at this level (faster every 10 lines).
@@ -219,7 +231,6 @@ function TT.Hold()
 	local out = game.hold
 	game.hold, game.held = kind, true
 	TT.Spawn(out)
-	game.held = true
 	game.dirty = true
 	return true
 end
@@ -235,6 +246,7 @@ end
 function TT.GameOver()
 	game.over = true
 	game.dirty = true
+	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
 	if ns.db and game.score > (ns.db.tetrisBest or 0) then
 		ns.db.tetrisBest = game.score
 		game.newBest = true
@@ -245,7 +257,7 @@ end
 function TT.Tick(elapsed)
 	if game.over or not game.piece then return end
 	elapsed = math.min(elapsed or 0, 0.2) -- (a long frame isn't many rows at once)
-	for action, k in pairs(game.keys) do
+	for action, k in pairs(game.acts) do
 		if REPEATS[action] then
 			k.t = k.t + elapsed
 			while k.t >= DAS do
@@ -318,11 +330,8 @@ local function Mini(pool, kind, top, dim)
 	end
 end
 
-function TT.Draw()
-	if not frame then return end
-	game.dirty = false
-	local t = Theme.Get()
-	-- the stack: one texture per cell, shown only where a block is
+-- the stack: one texture per cell, shown only where a block is
+local function DrawStack()
 	local n = 0
 	for y = 0, ROWS - 1 do
 		local row = game.grid[y]
@@ -331,15 +340,21 @@ function TT.Draw()
 			local kind = row[x]
 			local tx = cellTex[n]
 			if kind then
-				tx = Tex(board, cellTex, n, CELL)
-				At(tx, board, x, y, CELL)
-				Paint(tx, kind, 0.9)
+				if not tx then -- (texture n is always cell n's: placed once, when made)
+					tx = Tex(board, cellTex, n, CELL)
+					At(tx, board, x, y, CELL)
+				end
+				if tx.kind ~= kind then Paint(tx, kind, 0.9); tx.kind = kind end
 				tx:Show()
 			elseif tx then
 				tx:Hide()
 			end
 		end
 	end
+end
+
+-- the falling piece, and its faint copy where it would land (none once the game is over)
+local function DrawPiece()
 	local p = game.piece
 	if p and not game.over then
 		local gy = TT.GhostY()
@@ -361,6 +376,11 @@ function TT.Draw()
 			if ghostTex[i] then ghostTex[i]:Hide() end
 		end
 	end
+end
+
+-- the side column (next, hold, score, lines, level), the header and the game-over words
+local function DrawSide()
+	local t = Theme.Get()
 	Mini(nextTex, game.queue[1], 52)
 	Mini(holdTex, game.hold, 116, game.held)
 	scoreText:SetText(("|cff%stetris|r"):format(t.accent))
@@ -376,6 +396,14 @@ function TT.Draw()
 	end
 end
 
+function TT.Draw()
+	if not frame then return end
+	game.dirty = false
+	DrawStack()
+	DrawPiece()
+	DrawSide()
+end
+
 ----------------------------------------------------------------------
 -- The window
 ----------------------------------------------------------------------
@@ -388,17 +416,13 @@ local function Build()
 	frame:SetSize(COLS * CELL + SIDE + 36, ROWS * CELL + 64)
 	frame:SetScript("OnKeyDown", function(self, key) TT.KeyDown(self, key) end)
 	frame:SetScript("OnKeyUp", function(_, key) TT.KeyUp(key) end)
-	frame:SetScript("OnUpdate", function(_, elapsed) TT.Tick(elapsed) end)
+	frame:SetScript("OnUpdate", OnUpdate)
 
-	scoreText = Text(frame, 13)
-	scoreText:SetPoint("TOPLEFT", 12, -10)
-	bestText = Text(frame, 12, "RIGHT")
-	bestText:SetPoint("TOPRIGHT", -12, -10)
+	scoreText, bestText = Panel.Header(frame)
 
-	board = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+	board = Panel.Board(frame)
 	board:SetSize(COLS * CELL, ROWS * CELL)
 	board:SetPoint("TOPLEFT", 12, -32)
-	board:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
 
 	local sideX = COLS * CELL + 24
 	nextLabel = Text(frame, 11, "CENTER")
@@ -424,18 +448,13 @@ local function Build()
 	overlaySub:SetPoint("TOP", overlay, "BOTTOM", 0, -6)
 	overlaySub:SetWordWrap(true)
 	overlaySub:SetWidth(COLS * CELL - 8)
-	footer = Text(frame, 11)
-	footer:SetPoint("BOTTOMLEFT", 12, 9)
-	footer:SetText("arrows move/turn  ·  Enter drop  ·  Esc quit")
+	footer = Panel.Footer(frame, 9, "arrows move/turn  ·  Enter drop  ·  Esc quit")
 	TT.frame = frame
 end
 
 local function Style()
 	local t = Panel.Layout(frame)
-	local br, bg, bb = Theme.RGB(t.border)
-	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
-	board:SetBackdropColor(pr, pg, pb, 1)
-	board:SetBackdropBorderColor(br, bg, bb, 1)
+	Panel.StyleBoard(board, t)
 	local tr, tg, tb = Theme.RGB(t.text)
 	local dr, dg, db = Theme.RGB(t.dim)
 	for _, fs in ipairs({ scoreText, linesText, levelText, overlay }) do fs:SetTextColor(tr, tg, tb) end
@@ -443,7 +462,9 @@ local function Style()
 end
 
 --- The game's keys are kept; any other key goes on to the game. A key already held (the game's own repeats)
---- does nothing more: Tick repeats Left/Right itself.
+--- does nothing more: Tick repeats Left/Right itself. Held keys are kept per key (`game.keys`: key -> action) and
+--- per action (`game.acts`: action -> { t, n = keys holding it }): Left and A both move left, and letting go of
+--- one while the other is still held doesn't stop the move.
 function TT.KeyDown(self, key)
 	local mine = true
 	local action = KEYS[key]
@@ -452,8 +473,14 @@ function TT.KeyDown(self, key)
 	elseif game.over then
 		if action == "drop" then TT.Reset(); TT.Draw() else mine = action ~= nil end
 	elseif action then
-		if not game.keys[action] then
-			game.keys[action] = { t = 0 }
+		if game.keys[key] then
+			-- (the game's own repeat of a key already held)
+		elseif game.acts[action] then
+			game.keys[key] = action -- (another key for an action already held: nothing more)
+			game.acts[action].n = game.acts[action].n + 1
+		else
+			game.keys[key] = action
+			game.acts[action] = { t = 0, n = 1 }
 			if action == "left" then TT.Move(-1)
 			elseif action == "right" then TT.Move(1)
 			elseif action == "cw" then TT.Rotate(1)
@@ -466,25 +493,23 @@ function TT.KeyDown(self, key)
 	else
 		mine = false
 	end
-	if self and self.SetPropagateKeyboardInput and not InCombatLockdown() then
-		pcall(self.SetPropagateKeyboardInput, self, not mine)
-	end
+	Panel.Propagate(self, mine)
 end
 
 function TT.KeyUp(key)
-	local action = KEYS[key]
+	local action = game.keys[key]
 	if not action then return end
-	game.keys[action] = nil
+	game.keys[key] = nil
+	local a = game.acts[action]
+	if a and a.n > 1 then a.n = a.n - 1 return end -- (another key still holds it)
+	game.acts[action] = nil
 	if action == "down" then game.down = false end
 end
 
-function TT.IsShown() return frame and frame:IsShown() or false end
+function TT.IsShown() return Panel.Shown(frame) end
 
 function TT.Open()
-	if InCombatLockdown() then
-		ns:Print("Tetris takes over keys, which the game doesn't allow in combat.")
-		return false
-	end
+	if not Panel.CanOpen("Tetris takes over keys, which the game doesn't allow in combat.") then return false end
 	Build()
 	Style()
 	Panel.Opening(TT) -- (straight in: the terminal and the other panels go)
@@ -495,10 +520,7 @@ function TT.Open()
 end
 
 function TT.Close(why)
-	if not frame or not frame:IsShown() then return end
-	frame:Hide()
-	game.keys, game.down = {}, false
-	if why == "combat" then ns:Print("Tetris closed: combat started.") end
+	if Panel.Close(frame, why, "Tetris") then game.keys, game.acts, game.down = {}, {}, false end
 end
 
 ns:RegisterCommand("tetris", {

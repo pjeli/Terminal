@@ -399,3 +399,23 @@ do -- recipes: is:skillup (orange and yellow), is:orange/yellow/green/grey; "@pr
 	api.GetBaseProfessionInfo, api.GetAllRecipeIDs, api.IsTradeSkillLinked, api.IsTradeSkillGuild, api.IsNPCCrafting = base, ids, linked, guild, npc
 	ns.providers.recipes._dirty = true
 end
+
+do -- type: and stat: lowercase the game's words once (kept per item / per stat key): the same answers on every look
+	F.ClearCache()
+	local base = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, mod = _G.ITEM_MOD_FROBNITZ_SHORT }
+	C_Item.GetItemInfo = function(id)
+		if id == 501 then return "Shiny Axe", "|Hitem:501|h", 2, 20, 15, "Weapon", "One-Handed Axes", 1, "INVTYPE_WEAPON" end
+	end
+	C_Item.GetItemStats = function() return { ITEM_MOD_FROBNITZ_SHORT = 3 } end
+	_G.ITEM_MOD_FROBNITZ_SHORT = "Glimmer Power"
+	local axe = { name = "Shiny Axe", itemID = 501 }
+	for _ = 1, 2 do
+		check(P("type:weapon")(axe) and P("type:one-handed_axes")(axe) and not P("type:armor")(axe), "type: by type or subtype, again")
+		check(P("stat:glimmer")(axe) and P("stat:frobnitz")(axe) and not P("stat:wobble")(axe), "stat: a stat's shown name or its key, again")
+	end
+	F.ClearCache()
+	_G.ITEM_MOD_FROBNITZ_SHORT = "Sparkle"
+	check(P("stat:sparkle")(axe) and not P("stat:glimmer")(axe), "stat names read afresh after the caches are cleared")
+	C_Item.GetItemInfo, C_Item.GetItemStats, _G.ITEM_MOD_FROBNITZ_SHORT = base.info, base.stats, base.mod
+	F.ClearCache()
+end
