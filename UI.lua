@@ -1736,7 +1736,7 @@ do
 		local count = #results
 		local quiet = count > 0 and results[1].noActivate
 		local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
-		local text = quiet and "" or (count .. " result" .. (count == 1 and "" or "s"))
+		local text = quiet and "keep typing, or Esc to close" or (count .. " result" .. (count == 1 and "" or "s"))
 		if count > 0 and results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
 		if count > 0 and results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
@@ -3574,16 +3574,11 @@ end
 function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open)
 	if not frame then return end
 	local n = math.max(0, math.min(ROWS, #results - offset))
-	-- nothing listed (nothing typed yet; in Simple mode also nothing found): just the prompt, no divider,
-	-- no footer (Advanced keeps its footer for a search that found nothing)
+	-- nothing typed yet: just the prompt, no divider, no footer. Once something is typed the footer stays, in both
+	-- modes, even when nothing was found (0.43.4: Simple mode hid it then, and the player lost what the keys do)
 	local bare = #results == 0 and self.mode == "search" and not self.sendTo
-		and (EasyOn() or not (text or (edit and edit:GetText()) or ""):find("%S"))
-	-- Simple mode, only a line saying nothing was found: no footer under it (it showed as an empty bar)
+		and not (text or (edit and edit:GetText()) or ""):find("%S")
 	local noFoot = false
-	if not bare and EasyOn() and #results > 0 then
-		noFoot = true
-		for i = 1, #results do if not results[i].noActivate then noFoot = false break end end
-	end
 	if bare ~= (self.bare or false) or noFoot ~= (self.noFoot or false) then
 		self.bare, self.noFoot = bare, noFoot
 		divider:SetShown(not bare)
