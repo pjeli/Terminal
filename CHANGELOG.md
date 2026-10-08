@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.44.0
+
+**Ask in plain words**
+- "where should i level", "what dungeon should i do", "where should i fish" (also "fishing spots" and "zones for level 35"): the zones, dungeons or fishing spots for your level or skill, from Leatrix Maps' zone levels.
+- "what killed me", "what dropped", "what did i loot", "what did bob get".
+- Alt+` shows any of them in Advanced form (`@map lvl:23`, `@map fish:mine`, `@drop you`...).
+
+**Chains**
+- "mats for thorium belt" lists its reagents with how many you have (bank and alts too); "where to get thorium bar" who sells it, drops it, where to gather it or how it's crafted; "what uses copper bar" what it goes into.
+- Enter on a row goes one step further, Shift+Enter opens it, and the footer shows the path: "copper bar > used in > chain belt > mats".
+- Sent to chat, a chain row says what it is: "Mats for Thorium Belt: 12x [Thorium Bar]".
+- Advanced mode: `thorium belt > mats > alts`; `.chains` lists them.
+
+**New lists**
+- `@xp` (Simple mode: "xp"): your level, experience and rested experience, and your alts' as of when you last played them, their rested topped up for the time away.
+- `@drop` (Simple mode: Loot log): what dropped (green and better) and who got it, with the boss and zone, kept across sessions.
+- `@combatlog`: your deaths and what killed you, from the game's Death Recap.
+
+**Searching and sending**
+- Stored items sent to chat say who holds how many: "[Linen Cloth] x53: Alt 28 (bank), Bob 20 (bags 12, bank 8)".
+- Zones show their level range; `lvl:` works on zones and dungeons, and `fish:` finds the zones your fishing skill is enough for.
+- "upgrades" weighs the stats your class wants against what you wear, not just item level.
+- PvP NPCs: "nearby battlemaster", "nearest pvp vendor" (Advanced mode: `is:battlemaster`, `is:pvpvendor`, `is:pvp`).
+- Ctrl+click an item, spell or quest link in chat to look it up in Terminal.
+
+**Also**
+- `.zen` hides the menu and bag buttons, the XP bar and the quest tracker (your action bars and minimap stay), to play from Terminal.
+- Fuzzy mode's glow: breathing, steady, bright, a thin line or off, in any colour (options panel).
+- Simple mode keeps its footer once you start typing; `@loot` comes before `@drop` when picking a kind.
+- Quicker searches and tidier code; the loot list no longer rebuilds while item names come in.
+- Fixes:
+  - `@loot` now has AtlasLoot's classic dungeons and WoW Forever's own, like the Ruins of Lordaeron (it had only Burning Crusade's).
+  - Shift+Enter on an NPC only targets it (it also dropped a map pin).
+  - A level said in a question is used, not yours.
+  - A death could go unrecorded.
+  - "boss loot" and "dungeon locations" are searches again.
+
 ## 0.43.0
 
 **Your guild, friends and gold**
