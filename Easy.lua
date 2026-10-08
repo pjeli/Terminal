@@ -704,7 +704,7 @@ ns:RegisterCommand("advanced", {
 })
 
 ns:RegisterCommand("fuzzy", {
-	desc = "Pure fuzzy finding, this once (also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced",
+	desc = "Pure fuzzy finding, this once (.fzf too; also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced",
 	aliases = { "fzf" },
 	run = function(args)
 		-- (after this press is done: running a command closes the terminal first)
@@ -735,7 +735,7 @@ function E.HelpLines()
 		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
-		"Tab+` (hold Tab, press `; or .fuzzy) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
+		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
 	}
 end

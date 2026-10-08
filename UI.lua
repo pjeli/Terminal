@@ -513,6 +513,20 @@ function UI:WordSearch(entries, text)
 	return SortAndTrim(out)
 end
 
+--- A command typed by its exact name or alias (".fzf", ".rl") comes first, whatever else its letters match.
+function UI:ExactCommandFirst(list, text)
+	local word = text:match("^%s*(%S+)")
+	local c = word and ns:FindCommand(word)
+	if not c then return list end
+	for i, e in ipairs(list) do
+		if e.cmd == c then
+			if i > 1 then table.remove(list, i); table.insert(list, 1, e) end
+			break
+		end
+	end
+	return list
+end
+
 --- The empty terminal: what you picked last, newest first, then your all-time favourites.
 function UI:FrequentEntries()
 	local out = {}
@@ -1566,7 +1580,7 @@ function UI:Refresh()
 	end
 	if first == "." then
 		self.mode = "cmd"
-		results = self:ArgEntries(text:sub(2)) or self:WordSearch(self:CommandEntries(), text:sub(2))
+		results = self:ArgEntries(text:sub(2)) or self:ExactCommandFirst(self:WordSearch(self:CommandEntries(), text:sub(2)), text:sub(2))
 	elseif first == "/" then
 		self.mode = "slash"
 		local p = ns.providers.slash

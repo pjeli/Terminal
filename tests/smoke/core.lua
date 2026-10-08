@@ -391,3 +391,15 @@ do
 	local w = UI.SecureView(e, false)
 	check(w == e, "Enter's view is the row itself")
 end
+
+-- .fzf (an alias) runs fuzzy finding like .fuzzy, and an exact alias is the top row whatever else matches
+do
+	local r = UI:ExactCommandFirst({ { cmd = ns.commands.help }, { cmd = ns:FindCommand("fuzzy") } }, "fzf")
+	check(r[1].cmd == ns:FindCommand("fuzzy"), "an exact command alias comes first")
+	UI:Open("")
+	T.typeText(".fzf")
+	T.key("ENTER")
+	T.FlushAll()
+	check(UI.fzf and UI:IsShown(), ".fzf opens fuzzy finding")
+	UI:Hide(); T.FlushAll()
+end
