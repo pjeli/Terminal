@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.42.26", when = "in testing",
+		v = "0.42.31", when = "in testing",
 		items = {
 			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
 			"@who (Simple mode: \"who priest undercity\"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite; lvl: and in: go into the /who.",
@@ -24,6 +24,8 @@ CL.LOG = {
 			"The Group Finder's pages: \"group browser\" and \"who listing\" open the Dungeons window straight to that tab.",
 			"Dungeon and raid entrances are WoW Forever's own, with level ranges: The Drowned City, the Hall of Thanes and the rest are there, and other expansions' are gone.",
 			"The \"try:\" suggestions in the empty prompt are made for your character: your class trainer, your professions' skill-ups, a dungeon at your level, where you are, what's in your bags.",
+			"Pure fuzzy finding: Tab+` (hold Tab, press `; or .fuzzy). Every list at once, matched by name only, like fzf: no @, no filters, no extras; go through the results with Up/Down. Enter takes the result to Simple mode, Shift+Enter to Advanced. A soft glow round the prompt says it's on; Tab+` again or closing ends it.",
+			"Loot sent to chat says where it drops: \"[Thunderfury] dropped by Garr in Molten Core\" (>> guild, the right-click menu's chat lines, Link in chat).",
 			"Fix: typing Advanced syntax (@, >>, key:value) in Simple mode could raise an error while a long search was still running.",
 		},
 	},

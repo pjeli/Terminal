@@ -82,8 +82,29 @@ local function ItemLink(id)
 	return ok and IsLink(link) and link or nil
 end
 
---- What a row sends: its link, a map pin for an NPC, else its name.
-function SH.Text(e)
+--- Where a loot row's item drops, from its detail ("Garr  Molten Core"): "dropped by Garr in Molten Core", "from
+--- trash in Stratholme", "from Molten Core" (no boss named); nil for other rows.
+function SH.LootSource(e)
+	if not e or e.kind ~= "loot" or type(e.detail) ~= "string" then return nil end
+	local d = ns.Plain(e.detail)
+	local boss, inst = d:match("^(.-)%s%s+(.-)%s*$")
+	if not boss then boss, inst = d:match("^%s*(.-)%s*$"), "" end
+	if boss == "?" or boss == inst then boss = "" end
+	if boss == "" and inst == "" then return nil end
+	local where = inst ~= "" and (" in " .. inst) or ""
+	if boss == "" then return "from " .. inst end
+	if ns.Lower(boss):find("trash", 1, true) then return "from trash" .. where end
+	return "dropped by " .. boss .. where
+end
+
+--- What a row sends: its link (a loot row's says where it drops, unless `bare`), a map pin for an NPC, else its name.
+function SH.Text(e, bare)
+	local text = SH.BaseText(e)
+	local from = not bare and type(text) == "string" and text ~= "" and SH.LootSource(e)
+	return from and (text .. " " .. from) or text
+end
+
+function SH.BaseText(e)
 	-- an NPC: a map pin where it stands (the waypoint Shift+Enter drops; a C API, fine from here)
 	if e.npcID and ns.Integrations and ns.Integrations.NpcPinLink then
 		local pin = ns.Integrations.NpcPinLink(e)
@@ -227,6 +248,7 @@ function SH.Macro(e, to)
 	local ctx = SH.Context(to.query, e)
 	local line = to.cmd .. " " .. (ctx and (ctx .. ": ") or "") .. text
 	if #line > max then line = to.cmd .. " " .. (e.generic and (tostring(e.name) .. " ") or "") .. text end
+	if #line > max then line = to.cmd .. " " .. tostring(SH.Text(e, true)) end -- (a loot row: without where it drops)
 	if #line > max then line = to.cmd .. " " .. tostring(e.name) end
 	return line
 end

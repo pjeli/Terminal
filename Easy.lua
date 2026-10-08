@@ -23,9 +23,13 @@ local Safe, Str, Num = ns.Safe, ns.Str, ns.Num
 -- Alt+` (E.temp): Advanced mode for this one run of the terminal, Simple again once it closes. Holds what the
 -- Simple prompt said ({ from = text, category = id }), given back to Down's recall afterwards.
 E.temp = nil
+-- Simple mode for this one run, for a player in Advanced mode: a result handed over from fuzzy finding with Enter
+-- (UI:FuzzyPop). Ends with the terminal, like E.temp.
+E.tempSimple = nil
 
 --- Is easy mode on? It is unless the player chose hard mode (db.easyMode == false) or Alt+` made this run Advanced.
 function E.On()
+	if E.tempSimple then return true end
 	if E.temp then return false end
 	local db = ns.db
 	return not (db and db.easyMode == false)
@@ -34,7 +38,7 @@ end
 --- Switch; the terminal searches again.
 function E.Set(on)
 	if not ns.db then return end
-	E.temp = nil
+	E.temp, E.tempSimple = nil, nil
 	ns.db.easyMode = on and true or false
 	local UI = ns.UI
 	if UI and UI.EasyChanged then UI:EasyChanged() end
@@ -83,6 +87,20 @@ function E.Visible()
 		if any then out[#out + 1] = c end
 	end
 	return out
+end
+
+--- The category a row belongs in (the first shown one listing its kind that keeps it), or nil.
+function E.CategoryOf(e)
+	if not e or not e.kind then return nil end
+	for _, c in ipairs(E.Visible()) do
+		for _, id in ipairs(c.kinds) do
+			if id == e.kind then
+				local ok, yes = true, true
+				if c.keep then ok, yes = pcall(c.keep, e) end
+				if ok and yes then return c.id end
+			end
+		end
+	end
 end
 
 --- The kinds a category searches, as a set (nil for an unknown one).
@@ -649,6 +667,16 @@ ns:RegisterCommand("advanced", {
 	end,
 })
 
+ns:RegisterCommand("fuzzy", {
+	desc = "Pure fuzzy finding, this once (also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced",
+	aliases = { "fzf" },
+	run = function(args)
+		-- (after this press is done: running a command closes the terminal first)
+		C_Timer.After(0, function() ns.UI:FuzzyOnce(args) end)
+		return {}
+	end,
+})
+
 ns:RegisterCommand("simple", {
 	desc = "Switch to Simple mode: plain words (use hearthstone, nearest innkeeper, stamina food), results sorted by where they are",
 	aliases = { "easymode", "easy" },
@@ -670,6 +698,7 @@ function E.HelpLines()
 		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
+		"Tab+` (hold Tab, press `; or .fuzzy) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
 	}
 end

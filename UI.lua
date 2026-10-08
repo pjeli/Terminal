@@ -14,6 +14,9 @@ local HINTS = {
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
 local DOWN_RECENT = "Down: your recent picks"
 local ONCE_LABEL = "Advanced, this time" -- (Alt+`: this run is Advanced, Simple again once it closes)
+local FZF_LABEL = "Fuzzy find" -- (Alt+` twice: pure fuzzy finding over every list, this run)
+local FZF_GHOST = "Fuzzy find: type part of a name   Enter: to Simple   Shift+Enter: to Advanced   Tab+` leaves"
+local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "leave" } }
 local EASY_TAB_BACK = { "Tab", "all categories" }
 local EASY_TAB_PICK = { "Tab", "pick" }
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
@@ -37,8 +40,13 @@ local LINE_H, MAX_LINES = 19, 8 -- a long prompt wraps onto more lines (the head
 -- keys that go straight to the game while the terminal reads the keyboard
 local PASS_KEYS = {
 	LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true,
-	LMETA = true, RMETA = true, PRINTSCREEN = true,
+	LMETA = true, RMETA = true, LWIN = true, RWIN = true, PRINTSCREEN = true,
 }
+-- Tab+` (Tab held, then `) is pure fuzzy finding (0.42.31; the Windows key never reached the game reliably). Tab held:
+-- IsKeyDown("TAB") where the client answers it, else its own key-down seen while the terminal reads keys (UI.tabHeld,
+-- the time it went down, trusted for TAB_HOLD s; cleared on its key-up)
+local TAB_HOLD = 3
+local TAB_LATE = 1.0 -- (opened by the toggle key this long ago, nothing typed since: Tab let go = it was Tab+`)
 
 local frame, edit, status, hints, promptFS, caret, measure, divider, promptBg, ghost, selBar, selEdge, footLine, selText, caretFrame, caretChar, hit, busy, catcher, syntax
 local PlaceRow -- (Motion)
@@ -280,6 +288,13 @@ local function Positions(e, tokens)
 	local set = {}
 	if not tokens or e._nameHit == false then return set end
 	local name, lname, short = e.name, e._lname, tokens.short
+	if UI.fzf then -- (pure fuzzy finding: the letters each word matched, nothing else)
+		for _, tk in ipairs(tokens) do
+			local _, pos = Fuzzy.match(tk, name, lname)
+			for _, k in ipairs(pos or NO_POS) do set[k] = true end
+		end
+		return set
+	end
 	for i, tk in ipairs(tokens) do
 		local xs = short and short[i]
 		local _, how, at = TokenScore(tk, xs, name, lname, nil)
@@ -317,9 +332,9 @@ end
 --- The best MAX_RESULTS of the list, in order. With thousands of matches, a small heap keeps
 --- only the best so far instead of sorting them all.
 UI._Better = Better -- (tests)
-local function SortAndTrim(list)
-	local n = #list
-	if n > MAX_RESULTS * 2 then
+local function SortAndTrim(list, limit)
+	local n, max = #list, limit or MAX_RESULTS
+	if n > max * 2 then
 		local heap, size = {}, 0 -- worst of the kept ones on top
 		local function up(i)
 			while i > 1 do
@@ -339,7 +354,7 @@ local function SortAndTrim(list)
 		end
 		for k = 1, n do
 			local e = list[k]
-			if size < MAX_RESULTS then
+			if size < max then
 				size = size + 1
 				heap[size] = e
 				up(size)
@@ -352,7 +367,7 @@ local function SortAndTrim(list)
 		for k = 1, size do list[k] = heap[k] end
 	end
 	table.sort(list, Better)
-	for i = #list, MAX_RESULTS + 1, -1 do list[i] = nil end
+	for i = #list, max + 1, -1 do list[i] = nil end
 	return list
 end
 
@@ -530,7 +545,7 @@ end
 function UI:Search(text)
 	if ns.Filters then ns.Filters.loading = nil end
 	-- arithmetic: the answer is the top result (see Calc.lua)
-	local calc = ns.Calc and ns.Calc.Entry(text)
+	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
 	local res = self:SearchText(text)
 	if calc then table.insert(res, 1, calc) end
 	self:RetryWhenLoaded(text)
@@ -586,6 +601,10 @@ function UI:SearchText(text)
 	local softs, hard, softWords -- (the everyday words' filters, the typed key:value ones, the everyday words)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
+	if self.fzf then
+		self.noPosition, self.action, self.place = nil, nil, nil
+		return self:FuzzySearch(text)
+	end
 	local kinds, tokens, filters, fsig = nil, {}, nil, {}
 	local simple = EasyOn()
 	-- Simple mode doesn't take Advanced syntax (@kind, key:value, >>): a row on top says where it lives (Refresh
@@ -928,6 +947,101 @@ function UI:SearchText(text)
 	return Finish(res)
 end
 
+--- Pure fuzzy finding (Alt+` twice, UI.fzf), like fzf: every list there is (the ones only searched with @kind too),
+--- each typed word matched by its letters in order against the NAME only (no text, initials, shorthand, close
+--- spellings, filters, @kinds, picks history, hint rows or linked quests). The best FZF_MAX, to go through with the
+--- arrow keys. Lists made from another one (@gear, @consumable, @mats: copies of the item rows) are left out, and a
+--- row two lists share (earned achievements) is listed once. Narrows from the last keystroke's matches and is
+--- spread over frames like the usual search.
+local FZF_MAX = 500
+local FZF_LEN = 0.001 -- (equal matches: the shorter name first, as fzf does)
+UI.FZF_MAX = FZF_MAX
+function UI:FuzzySearch(text)
+	local tokens = {}
+	for w in text:gmatch("%S+") do tokens[#tokens + 1] = ns.Lower(w) end
+	self.posTokens = tokens
+	if #tokens == 0 then self.lastFzf = nil return {} end
+	local included, sig, fresh = {}, {}, true
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		if not p.follows then
+			included[#included + 1] = p
+			sig[#sig + 1] = id
+			if p._dirty or not p._entries then fresh = false end
+		end
+	end
+	sig = table.concat(sig, ",")
+	-- one more letter or one more word only narrows (letters in order: "frst" holds whatever "frs" didn't lose)
+	local last, candidates = self.lastFzf, nil
+	if last and last.gen ~= ns.entriesGen then last, self.lastFzf = nil, nil end
+	local n, ln = #tokens, last and #last.tokens or 0
+	if fresh and last and last.sig == sig and (n == ln or n == ln + 1) then
+		candidates = last.matches
+		for i = 1, ln do
+			local a, b = last.tokens[i], tokens[i]
+			if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a) then candidates = nil break end
+		end
+	end
+	local out, seen = {}, {}
+	local score = Fuzzy.score
+	local function consider(e)
+		local name = e.name
+		if type(name) ~= "string" then return end
+		local lname, total = e._lname, 0
+		for i = 1, n do
+			local s = score(tokens[i], name, lname)
+			if not s then return end
+			total = total + s
+		end
+		if seen[e] or e.noActivate then return end -- (only matches are remembered: no table of every row)
+		seen[e] = true
+		e._score, e._pos = total - #name * FZF_LEN, nil
+		if not rawget(e, "_compact") then e._nameHit = true end
+		out[#out + 1] = e
+	end
+	self.lastSearchNarrowed = candidates and true or false
+	local slicing = self.sliceUntil ~= nil and coroutine.running() ~= nil
+	local function overBudget() return slicing and debugprofilestop() > self.sliceUntil end
+	if candidates then
+		for i = 1, #candidates do
+			consider(candidates[i])
+			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+		end
+	else
+		for _, p in ipairs(included) do
+			local list = ns:GetEntries(p)
+			if overBudget() then coroutine.yield(out) end
+			for i = 1, #list do
+				consider(list[i])
+				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+			end
+		end
+	end
+	local matches = {}
+	for i = 1, #out do matches[i] = out[i] end
+	self.lastFzf = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = matches }
+	return SortAndTrim(out, FZF_MAX)
+end
+
+--- The text a prompt keeps when it turns to pure fuzzy finding: its plain words (no @kinds, key:value filters,
+--- -not / a|b words, sort:, nor a ">> channel"; a .command or /slash line: nothing), a space after them.
+function UI.FuzzyPlain(text)
+	local first = text:match("^%s*(.)")
+	if first == "." or first == "/" then return "" end
+	if ns.Share then
+		local query, rest = ns.Share.Split(text)
+		if rest then text = query end
+	end
+	local F, out = ns.Filters, {}
+	for w in text:gmatch("%S+") do
+		local key = w:match("^(%a+):")
+		local skip = w:sub(1, 1) == "@" or w:find("^[-!]%a") or w:find("[|&]")
+			or (F and F.SortOf and F.SortOf(w)) or (key and F and F.IsKey and F.IsKey(key))
+		if not skip then out[#out + 1] = w end
+	end
+	return #out > 0 and (table.concat(out, " ") .. " ") or ""
+end
+
 local function PickCategory(e) UI:SetCategory(e.catId) end
 local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row passes (beats any score gap)
 
@@ -1247,7 +1361,7 @@ function UI:RunSearch(text)
 	local copy = {}
 	for i = 1, #res do copy[i] = res[i] end
 	copy = SortAndTrim(copy)
-	local calc = ns.Calc and ns.Calc.Entry(text)
+	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
 	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)
 	return copy, false
@@ -1298,6 +1412,7 @@ function UI:ContinueSearch(job)
 		end
 	end
 	self.lastSearchMs, self.lastSearchCount, self.lastSearchSlices = job.ms, #results, job.slices
+	self:SelectPopTarget(true)
 	self:UpdateBusy()
 	self:Render()
 end
@@ -1306,7 +1421,7 @@ end
 --- rows to pick from (Enter/click writes it with a space after it; Shift+Tab cycles them in the prompt), or nil.
 function UI:SyntaxRows(text)
 	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
-	if EasyOn() or self.opening or (self.cursor or #text) < #text then return nil end
+	if EasyOn() or self.fzf or self.opening or (self.cursor or #text) < #text then return nil end
 	-- (a line Up brought back from the history runs as it is: "@npc is:repair sort:nearest" isn't a pick list)
 	if self._histSet or (self.histIdx and text == self.histText) then return nil end
 	local last = text:match("(%S+)$")
@@ -1388,10 +1503,13 @@ function UI:Refresh()
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
 	local first = text:sub(1, 1)
+	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
 	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
 	self.sendTo = nil
 	self.blockedSyntax = nil
-	if first ~= "." and first ~= "/" and ns.Share and EasyOn() then
+	if self.fzf then
+		-- (nothing to take off)
+	elseif first ~= "." and first ~= "/" and ns.Share and EasyOn() then
 		-- Simple mode: no sending to chat; the words before ">>" are searched and a row says it's Advanced mode's
 		local query, rest = ns.Share.Split(text)
 		if rest then
@@ -1430,6 +1548,7 @@ function UI:Refresh()
 	self.lastSearchSlices = 1
 	self:UpdateBusy()
 	sel, offset = 1, 0
+	self:SelectPopTarget(not self.searchJob)
 	self:Render()
 end
 
@@ -1579,7 +1698,10 @@ function UI:SetStatus()
 	end
 	if busy and busy:IsShown() then text = text .. (text ~= "" and "  ·  " or "") .. "loading..." end
 	local once = ns.Easy and ns.Easy.temp
-	if once then text = HINT .. ONCE_LABEL .. "|r" .. (text ~= "" and "  ·  " or "") .. text end
+	if self.fzf then
+		once = true
+		text = HINT .. FZF_LABEL .. "|r" .. (text ~= "" and "  ·  " or "") .. text
+	elseif once then text = HINT .. ONCE_LABEL .. "|r" .. (text ~= "" and "  ·  " or "") .. text end
 	status:SetText((self.sendTo or near or cat or once) and Theme.FixColors(text) or text)
 	self:FitHints()
 end
@@ -1592,7 +1714,9 @@ function UI:FitHints()
 	if not t.hints or self.bare or self.noFoot then hints:Hide() return end
 	local list = HINTS
 	local key = "|cff" .. t.text
-	if EasyOn() then
+	if self.fzf then
+		list, key = FZF_HINTS, key .. "|fzf"
+	elseif EasyOn() then
 		-- what Enter and Shift+Enter do for the selected row, in words (Easy.VERBS)
 		local enter, shift = ns.Easy.Verbs(results[sel])
 		list = {}
@@ -1847,6 +1971,7 @@ end
 --- Up: the list's selection goes up; past the first row of an empty prompt it goes back through
 --- the history instead.
 function UI:Up()
+	if self.fzf then return self:Move(-1) end -- (pure fuzzy finding: the arrows only go through the list)
 	-- what Down brought up (your recent picks; Simple mode: the last search), Up on its first row puts away
 	if sel <= 1 and not self.histIdx then
 		local text = edit:GetText()
@@ -1867,6 +1992,7 @@ function UI:Up()
 end
 
 function UI:Down()
+	if self.fzf then return self:Move(1) end
 	if self.histIdx ~= nil and self:History(1) then return end
 	if edit:GetText() == "" and #results == 0 and self:Recall() then return end
 	self:Move(1)
@@ -2543,9 +2669,24 @@ local function KeysDown(self, key)
 		self:SetPropagateKeyboardInput(true)
 		return
 	end
+	if key == "TAB" then
+		UI.tabHeld = GetTime()
+		-- Tab still held from the press that opened the terminal (its repeats): not a Tab of its own
+		if UI.openedByToggle and GetTime() - UI.openedByToggle < TAB_LATE then
+			self:SetPropagateKeyboardInput(false)
+			return
+		end
+	end
+	UI.openedByToggle = nil -- (a key typed: too late to read the opening press as Tab+`)
 	local ctrl, shift = IsControlKeyDown(), IsShiftKeyDown()
 	if UI:MenuKey(self, key) then return end
 	UI:HideRowMenu()
+	if (key == "ENTER" or key == "NUMPADENTER") and UI.fzf then
+		-- pure fuzzy finding: the result goes over to Simple mode (Enter) or Advanced (Shift+Enter), nothing is run
+		self:SetPropagateKeyboardInput(false)
+		UI:FuzzyPop(results[sel], shift)
+		return
+	end
 	if key == "ENTER" or key == "NUMPADENTER" then
 		local se = SecureView(results[sel], shift)
 		if se and UI:ArmForPress(se) then
@@ -2596,7 +2737,10 @@ end
 --- What a key does to the query (also run again for held keys).
 EditKey = function(key, ctrl, shift)
 	local text, c = edit:GetText(), UI.cursor
-	if key == "`" and IsAltKeyDown and IsAltKeyDown() then
+	if key == "`" then UI:TraceTick() end
+	if key == "`" and UI:TabDown() then
+		UI:FuzzyOnce()
+	elseif key == "`" and IsAltKeyDown and IsAltKeyDown() then
 		UI:AdvancedOnce()
 	elseif key == "ESCAPE" or key == "`" then
 		UI:Hide()
@@ -2625,7 +2769,7 @@ EditKey = function(key, ctrl, shift)
 			MoveCaret(hi, false)
 		elseif not shift and not ctrl and c >= #text and UI:AcceptCompletion() then
 			return -- at the end: take the suggestion
-		elseif shift and not ctrl and c >= #text and EasyOn() and not UI:SuggestionText() and results[sel] then
+		elseif shift and not ctrl and c >= #text and EasyOn() and not UI.fzf and not UI:SuggestionText() and results[sel] then
 			UI:ShowRowMenu(sel, true) -- Simple mode: what can be done with it (the result's text would be Advanced syntax)
 			return
 		elseif shift and not ctrl and c >= #text and UI:FillFromResult() then
@@ -2642,7 +2786,9 @@ EditKey = function(key, ctrl, shift)
 	elseif key == "DOWN" then
 		UI:Down()
 	elseif key == "TAB" then
-		if EasyOn() and UI.mode == "search" then
+		if UI.fzf then
+			UI:Move(shift and -1 or 1) -- (pure fuzzy finding: Tab goes through the list too)
+		elseif EasyOn() and UI.mode == "search" then
 			-- easy mode: back to the categories (or pick one), unless there is typed syntax to complete
 			if not UI:AcceptCompletion() then UI:EasyTab() end
 		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
@@ -2782,6 +2928,7 @@ end
 --- The pointer is over row i: if its result opens a window, lay the catcher over the row.
 function UI:PlaceCatcher(i)
 	if InCombatLockdown() or self.closing or not frame or not frame:IsShown() then return end
+	if self.fzf then self:HideCatcher() return end -- (a click hands the result over; nothing is opened)
 	local row, e = rows[i], results[offset + i]
 	-- the same result on the same row (the list redrawn under a resting pointer): its macros
 	-- stand, the catcher only follows the row
@@ -3140,6 +3287,7 @@ function UI:Activate(idx, opts)
 	opts = opts or {}
 	local e = results[idx or sel]
 	if not e or e.noActivate then return end
+	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
 	-- Opening or clicking Blizzard's windows is protected in combat: do nothing rather than
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
@@ -3545,7 +3693,7 @@ end
 local function CommandByWord(word) return ns:FindCommand(word) end
 
 local function ComputeCompletion(self, text)
-	if text == "" or (self.cursor or #text) < #text then return nil end
+	if text == "" or self.fzf or (self.cursor or #text) < #text then return nil end
 	-- the pick list: the faint completion is the row picked in it (Right takes it)
 	local picked = results[1] and results[1].syntaxRow and results[sel]
 	if picked then return picked.completion end
@@ -3635,7 +3783,7 @@ end
 --- The suggestion shown in the empty prompt, as text to type ("try: hogger >> party" -> "hogger >> party"),
 --- or nil (suggestions off, something typed or listed, a tip rather than an example).
 function UI:SuggestionText()
-	if edit:GetText() ~= "" or #results > 0 or self.histIdx or Theme.Get().suggest == false then return nil end
+	if edit:GetText() ~= "" or #results > 0 or self.histIdx or self.fzf or Theme.Get().suggest == false then return nil end
 	local ex = ns.Easy and ns.Easy.Example()
 	local body = type(ex) == "string" and ex:match("^try:%s*(.-)%s*$")
 	if not body then return nil end
@@ -3652,6 +3800,15 @@ function UI:FillFromResult()
 		return true
 	end
 	local new = self:ResultText(results[sel])
+	-- pure fuzzy finding: just the name (no @kind: nothing is syntax here)
+	if self.fzf then
+		local e = results[sel]
+		new = e and not e.noActivate and type(e.name) == "string" and ns.Plain(e.name) or nil
+		if not new or new == "" then return false end
+		new = new .. " "
+		self:SetQuery(new, #new)
+		return true
+	end
 	if not new then return false end
 	local rest = ns.Share and select(2, ns.Share.Split(edit:GetText()))
 	if rest then new = new .. " >> " .. rest else new = new .. " " end
@@ -3715,7 +3872,7 @@ end
 function UI:SyntaxSegments(text, plain)
 	local t = Theme.Get()
 	local base, bad, filt = t.text, Theme.SYNTAX.bad, Theme.SYNTAX.filter
-	if plain then return { { 1, #text, base } } end
+	if plain or self.fzf then return { { 1, #text, base } } end
 	local first = text:sub(1, 1)
 	if first == "." or first == "/" then
 		local head = text:match("^(%S*)")
@@ -3844,7 +4001,9 @@ function UI:UpdateGhost()
 		add = (edit:GetText() ~= "" and "   " or "") .. (self.clipHint == "V" and "Ctrl+V again to paste" or "Ctrl+C again to copy")
 	end
 	-- easy mode, nothing typed: a faint line in the prompt says what to do (there's nothing under it)
-	if not add and self:IsShown() and edit:GetText() == "" and not self.histIdx and #results == 0 then
+	if not add and self:IsShown() and edit:GetText() == "" and self.fzf then
+		add = FZF_GHOST
+	elseif not add and self:IsShown() and edit:GetText() == "" and not self.histIdx and #results == 0 then
 		-- a rotating example of what to type (Advanced: its own syntax, and what Up/Down bring)
 		-- (the option off: the prompt stays empty)
 		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end
@@ -3899,6 +4058,8 @@ local function Build()
 	frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 	frame:SetScript("OnHide", function(self)
 		UI:EndAdvancedOnce()
+		UI:EndFuzzy()
+		UI.openedByToggle, UI.tabHeld = nil, nil
 		UI:MotionReset()
 		if tip then tip:Hide(); tip.entry = nil end
 		UI:Disarm()
@@ -3917,6 +4078,7 @@ local function Build()
 	frame:SetScript("OnChar", function(_, text) UI:OnChar(text) end)
 	frame:SetScript("OnKeyUp", function(_, key)
 		if rep.key == key then StopRepeat() end
+		if key == "TAB" then UI:TabReleased() end
 	end)
 	frame:Hide()
 
@@ -3991,13 +4153,18 @@ local function Build()
 	edit:SetScript("OnTabPressed", function()
 		if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
 	end)
+	edit:SetScript("OnKeyUp", function(_, key) if key == "TAB" then UI.tabHeld = nil end end)
 	edit:SetScript("OnKeyDown", function(_, key)
 		-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)
 		if UI.clipHint and key ~= "LCTRL" and key ~= "RCTRL" then
 			UI.clipHint = nil
 			C_Timer.After(0, function() UI:SetStatus(); UI:UpdateGhost() end)
 		end
-		if key == "`" and IsAltKeyDown and IsAltKeyDown() then
+		if key == "`" then UI:TraceTick() end
+		if key == "TAB" then UI.tabHeld = GetTime() end
+		if key == "`" and UI:TabDown() then
+			UI:FuzzyOnce()
+		elseif key == "`" and IsAltKeyDown and IsAltKeyDown() then
 			UI:AdvancedOnce()
 		elseif key == "`" then
 			-- bindings don't fire while the box has focus, so the toggle key closes it here
@@ -4208,6 +4375,7 @@ function UI:ApplyTheme()
 	divider:SetColorTexture(r, g, b, 1)
 	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
 	promptBg:SetColorTexture(pr, pg, pb, t.bgAlpha)
+	UI:ColorGlow()
 
 	-- prompt, then the query box right after it
 	local mid = -(HEADER_H - 4) / 2
@@ -4311,6 +4479,7 @@ function UI:IsShown() return frame and frame:IsShown() and not self.closing or f
 --- Alt+` opened it closed: the Advanced text typed then isn't a Simple search). From Hide and from the frame's
 --- OnHide (a window the press opens can close the terminal itself: Hide then returns early).
 function UI:EndAdvancedOnce()
+	if ns.Easy then ns.Easy.tempSimple = nil end -- (Simple for this run, from fuzzy finding: over too)
 	local once = ns.Easy and ns.Easy.temp
 	if not once then return end
 	ns.Easy.temp = nil
@@ -4330,11 +4499,13 @@ function UI:Hide()
 	edit:ClearFocus()
 	-- the search to bring back with Down on the next open (only a search: not a .command or /slash)
 	local typed = edit:GetText()
-	if typed:find("%S") and self.mode == "search" then
+	if typed:find("%S") and self.mode == "search" and not self.fzf then
 		self.lastQuery = typed
 		self.lastCategory = not self.categoryAuto and self.category or nil
 	end
 	self:EndAdvancedOnce()
+	self:EndFuzzy()
+	self.openedByToggle, self.tabHeld = nil, nil -- (closed, Tab's key-up isn't seen: it isn't trusted as held after)
 	self.histIdx = nil
 	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil -- (rows kept only for the next keystroke)
 	-- let go of the keyboard at once, so the next key already reaches the game
@@ -4352,6 +4523,212 @@ function UI:Hide()
 	else
 		frame:Hide()
 	end
+end
+
+--- The key's ` comes after Alt+` as a typed character: Terminal's drawn prompt drops it (OnChar), and the game's own
+--- text box (clipboard, combat) types it itself, so it's taken back out next frame (`want`: the text it should say).
+local function DropTick(want)
+	UI.swallowTick = GetTime()
+	if UI.keys then return end
+	C_Timer.After(0, function()
+		if edit:GetText() == want .. "`" then UI:SetQuery(want, #want) end
+	end)
+end
+
+--- Pure fuzzy finding for this run (UI.fzf, FuzzySearch): Tab+`, its binding, or .fuzzy (UI:FuzzyOnce). The prompt
+--- keeps its plain words; a soft glow round the prompt bar says the mode is on. Tab+` again or closing ends it.
+function UI:StartFuzzy()
+	if self.fzf or not frame then return end
+	local text = edit:GetText()
+	local plain = UI.FuzzyPlain(text)
+	self.fzf = true
+	DropTick(plain)
+	ns:Trace(("fuzzy find: on (%q -> %q)"):format(text, plain))
+	self.category, self.categoryAuto, self.action, self.place, self.sendTo, self.blockedSyntax = nil, nil, nil, nil, nil, nil
+	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
+	self.lastScan, self.lastOverview, self.lastFzf, memo.results, memo.value = nil, nil, nil, nil, nil
+	self.hintsRoom, self.syntaxKey = nil, nil
+	self:ShowGlow(true)
+	if plain ~= text then
+		self:SetQuery(plain, #plain)
+	else
+		self.refreshedAt = nil
+		self:Refresh()
+	end
+	self:SetStatus()
+	self:UpdateGhost()
+end
+
+--- Pure fuzzy finding ends: closed (Hide, OnHide), or Tab+`/Alt+` in it (`stay`: back to the mode it came from, the
+--- text as it is).
+function UI:EndFuzzy(stay)
+	if not self.fzf then return end
+	self.fzf = nil
+	self.lastFzf = nil
+	self:ShowGlow(false)
+	if not (stay and self:IsShown()) then return end
+	ns:Trace("fuzzy find: off")
+	DropTick(edit:GetText())
+	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
+	self.hintsRoom, self.syntaxKey = nil, nil
+	self.refreshedAt = nil
+	self:Refresh()
+	self:SetStatus()
+	self:UpdateGhost()
+end
+
+--- Is Tab held? The client's IsKeyDown("TAB") (a secret answer counts as no), else its key-down seen a moment ago.
+function UI:TabDown()
+	local f = _G.IsKeyDown
+	if f then
+		local ok, down = pcall(f, "TAB")
+		if ok and down == true and not ns.Secret(down) then return true end
+	end
+	return self.tabHeld ~= nil and GetTime() - self.tabHeld < TAB_HOLD
+end
+
+--- Tab let go while the terminal reads keys. Opened by the toggle key a moment ago with nothing typed since: the
+--- opening press was Tab+` (Tab was held when ` opened it, and IsKeyDown didn't say so), so fuzzy finding now.
+function UI:TabReleased()
+	self.tabHeld = nil
+	local at = self.openedByToggle
+	self.openedByToggle = nil
+	if at and GetTime() - at < TAB_LATE and self:IsShown() and not self.fzf then
+		ns:Trace("fuzzy find: Tab let go just after the toggle key opened the terminal: it was Tab+`")
+		self:FuzzyOnce()
+	end
+end
+
+--- (.debug log: what the game reports with a ` press: whether Tab+` reaches it on this client)
+function UI:TraceTick()
+	local f = _G.IsKeyDown
+	local ok, tab = false, nil
+	if f then ok, tab = pcall(f, "TAB") end
+	ns:Trace(("key `: alt=%s tab=%s (IsKeyDown(TAB) %s, Tab key seen %s)"):format(tostring(IsAltKeyDown and IsAltKeyDown() or false),
+		tostring(self:TabDown()), f and (ok and (ns.Secret(tab) and "secret" or tostring(tab)) or "error") or "missing",
+		self.tabHeld and "yes" or "no"))
+end
+
+--- Tab+` / the fuzzy binding / .fuzzy [words]: pure fuzzy finding, opening the terminal for it when closed; in it
+--- already, back out (to the mode it came from).
+function UI:FuzzyOnce(text)
+	if self.fzf and self:IsShown() then return self:EndFuzzy(true) end
+	if not self:IsShown() then self:Open() end
+	self:StartFuzzy()
+	if type(text) == "string" and text:find("%S") then
+		text = text:gsub("^%s+", "")
+		self:SetQuery(text, #text)
+	end
+end
+
+--- Enter / Shift+Enter (or a click) in pure fuzzy finding: the picked result goes over to Simple mode (its name, in
+--- its category) or Advanced mode ("@kind name"), for this run, and is selected there to open, use or send.
+function UI:FuzzyPop(e, advanced)
+	if not e or e.noActivate or type(e.name) ~= "string" then return end
+	local E = ns.Easy
+	local name = ns.Plain(e.name)
+	local simpleUser = not (ns.db and ns.db.easyMode == false)
+	self:EndFuzzy()
+	self.lastScan, self.lastOverview, memo.results, memo.value = nil, nil, nil, nil
+	self.hintsRoom, self.syntaxKey, self.blockedSyntax, self.sendTo = nil, nil, nil, nil
+	local text
+	if advanced then
+		if E then
+			E.tempSimple = nil
+			if simpleUser and not E.temp then E.temp = { from = name } end
+		end
+		text = self:ResultText(e) or name
+		self.category, self.categoryAuto = nil, nil
+	else
+		if E then
+			E.temp = nil
+			E.tempSimple = (not simpleUser) or nil
+		end
+		text = name
+		local cat = E and E.CategoryOf and E.CategoryOf(e)
+		self.category, self.categoryAuto = cat, nil -- (straight into its category: no list of categories first)
+	end
+	ns:Trace(("fuzzy find: %s -> %s %q"):format(tostring(e.name), advanced and "Advanced" or "Simple", text))
+	self.popTarget = e
+	text = text .. " "
+	if edit:GetText() == text then
+		self.refreshedAt = nil
+		self:Refresh()
+	else
+		self:SetQuery(text, #text)
+	end
+	self:SetStatus()
+	self:UpdateGhost()
+end
+
+--- After a hand-off (FuzzyPop): the picked result selected among the new results once they're in (`final`: the search
+--- is done, so it's given up on when it isn't there).
+function UI:SelectPopTarget(final)
+	local t = self.popTarget
+	if not t then return end
+	for i, e in ipairs(results) do
+		if e == t or (e.kind == t.kind and e.key ~= nil and e.key == t.key and e.name == t.name) then
+			sel = i
+			offset = math.max(0, math.min(i - 1, #results - ROWS))
+			self.popTarget = nil
+			return
+		end
+	end
+	if final then self.popTarget = nil end
+end
+
+--- The glow round the prompt bar while fuzzy finding: rings of the accent colour inside its edges, fading inward,
+--- breathing slowly (an AnimationGroup: the game runs it, no Lua each frame; still with animations off).
+local GLOW_RINGS = { 0.34, 0.18, 0.09, 0.04 }
+local glow
+function UI:ShowGlow(on)
+	if not frame then return end
+	if on and not glow then
+		glow = CreateFrame("Frame", nil, frame)
+		glow:SetPoint("TOPLEFT", promptBg, "TOPLEFT", 0, 0)
+		glow:SetPoint("BOTTOMRIGHT", promptBg, "BOTTOMRIGHT", 0, 0)
+		glow.tex = {}
+		for k, a in ipairs(GLOW_RINGS) do
+			local i = (k - 1) * 2
+			local function T(p1, x1, y1, p2, x2, y2, w, h)
+				local tx = glow:CreateTexture(nil, "BACKGROUND")
+				tx:SetPoint(p1, glow, p1, x1, y1)
+				tx:SetPoint(p2, glow, p2, x2, y2)
+				if w then tx:SetWidth(w) else tx:SetHeight(h) end
+				tx.alpha = a
+				glow.tex[#glow.tex + 1] = tx
+			end
+			T("TOPLEFT", i, -i, "TOPRIGHT", -i, -i, nil, 2)
+			T("BOTTOMLEFT", i, i, "BOTTOMRIGHT", -i, i, nil, 2)
+			T("TOPLEFT", i, -i - 2, "BOTTOMLEFT", i, i + 2, 2)
+			T("TOPRIGHT", -i, -i - 2, "BOTTOMRIGHT", -i, i + 2, 2)
+		end
+		if glow.CreateAnimationGroup then
+			pcall(function()
+				local ag = glow:CreateAnimationGroup()
+				ag:SetLooping("BOUNCE")
+				local an = ag:CreateAnimation("Alpha")
+				an:SetFromAlpha(1)
+				an:SetToAlpha(0.45)
+				an:SetDuration(1.4)
+				if an.SetSmoothing then an:SetSmoothing("IN_OUT") end
+				glow.pulse = ag
+			end)
+		end
+		self:ColorGlow()
+	end
+	if not glow then return end
+	glow:SetShown(on and true or false)
+	UI.glow = glow -- (tests)
+	if glow.pulse then
+		if on and self:Animated() then pcall(glow.pulse.Play, glow.pulse) else pcall(glow.pulse.Stop, glow.pulse) end
+	end
+end
+
+function UI:ColorGlow()
+	if not glow then return end
+	local r, g, b = Theme.RGB(Theme.Get().accent)
+	for _, tx in ipairs(glow.tex) do tx:SetColorTexture(r, g, b, tx.alpha) end
 end
 
 --- Gone at once, without the closing animation (something else takes its place: .atop).
@@ -4411,7 +4788,11 @@ function UI:Open(text)
 end
 
 function UI:Toggle()
-	if self:IsShown() then self:Hide() else self:Open() end
+	if self:IsShown() then return self:Hide() end
+	-- Tab+` (the game sees the toggle key; Tab held): opens in pure fuzzy finding
+	if self:TabDown() then return self:FuzzyOnce() end
+	self:Open()
+	self.openedByToggle = GetTime() -- (Tab let go just after, nothing typed: it was Tab+`, TabReleased)
 end
 
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
@@ -4420,6 +4801,11 @@ end
 --- for this run): the same as `.
 function UI:AdvancedOnce()
 	local E = ns.Easy
+	-- in pure fuzzy finding: out of it first (to Advanced, the plain words kept)
+	if self.fzf then
+		self:EndFuzzy(true)
+		if not (E and E.On()) then return end
+	end
 	if not (E and E.On()) then return self:Toggle() end
 	if not self:IsShown() then
 		E.temp = { from = "" }

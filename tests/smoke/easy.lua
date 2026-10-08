@@ -956,6 +956,176 @@ Run("Alt+`: Advanced mode for this run only", function()
 	UI:Hide(); FlushAll()
 end)
 
+Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Simple, Shift+Enter to Advanced", function()
+	E.Set(true)
+	ActionLists()
+	local function win(fn) local was = _G.IsKeyDown; _G.IsKeyDown = function(k) return k == "TAB" end; fn(); _G.IsKeyDown = was end
+	local function shifted(fn) local was = _G.IsShiftKeyDown; _G.IsShiftKeyDown = function() return true end; fn(); _G.IsShiftKeyDown = was end
+	-- one more list: a row whose words are only in its text, and a copy list (@gear-like) that must not double rows
+	ns:RegisterProvider("quests", { label = "Quest", aliases = { "quest" }, collect = Rows({
+		{ name = "The Lost Ring", text = "Bring Hogger's claw to the marshal" } }) })
+	ns:RegisterProvider("gearcopy", { label = "Gear", aliases = { "gearcopy" }, follows = "items", explicit = true,
+		collect = Rows({ { name = "Shiny Sword", quality = 3, itemID = 3 } }) })
+	-- Tab+` in an open Simple prompt
+	UI:Open("cast frost nova")
+	local traceWas, traced = ns.Trace, false
+	ns.Trace = function(self, m) if tostring(m):find("key `: alt=false tab=true", 1, true) then traced = true end return traceWas(self, m) end
+	win(function() key("`", "`") end)
+	ns.Trace = traceWas
+	check(UI.fzf and T.query() == "cast frost nova ", "Tab+`: fuzzy finding, the prompt keeps its words: " .. T.query())
+	check(UI.glow and UI.glow:IsShown(), "a glow round the prompt bar")
+	check((UI.status:GetText() or ""):find("Fuzzy find", 1, true), "the footer says so: " .. tostring(UI.status:GetText()))
+	check((UI.hints:GetText() or ""):find("Enter", 1, true), "its own key hints: " .. tostring(UI.hints:GetText()))
+	check(traced, "the ` press is traced with its modifiers")
+	UI:SetQuery("frost nova", 10)
+	local r = UI.Results()
+	check(r[1] and r[1].name == "Frost Nova" and not r[1].actionVerb, "Frost Nova found: " .. Show(r))
+	-- explicit lists too (NPCs need no @npc), letters in order
+	UI:SetQuery("hggr", 4)
+	r = UI.Results()
+	check(r[1] and r[1].name == "Hogger" and #r == 1, "hggr: Hogger, from a list only searched with @kind elsewhere: " .. Show(r))
+	-- names only: a quest's text doesn't match
+	UI:SetQuery("marshal", 7)
+	check(#UI.Results() == 0, "words in a row's text don't count: " .. Show(UI.Results()))
+	-- nothing is syntax: @kinds, filters and sums are plain letters
+	UI:SetQuery("@npc hogger", 11)
+	check(#UI.Results() == 0, "@npc is just letters: " .. Show(UI.Results()))
+	UI:SetQuery("q:rare", 6)
+	check(#UI.Results() == 0, "q:rare is just letters (nothing has them): " .. Show(UI.Results()))
+	UI:SetQuery("2+2", 3)
+	check(#UI.Results() == 0, "no calculator: " .. Show(UI.Results()))
+	check(#UI:SyntaxSegments("@npc q:rare >> party") == 1, "the prompt isn't coloured as syntax")
+	UI:SetQuery("froost", 6)
+	check(#UI.Results() == 0, "no close spellings: " .. Show(UI.Results()))
+	-- a row once, even from a copy list
+	UI:SetQuery("shiny", 5)
+	r = UI.Results()
+	check(#r == 1 and r[1].kind == "items", "a copy list (follows another) isn't listed twice: " .. Show(r))
+	-- the arrows go through the list, never the history
+	ns.db.history = { "@spell frost nova" }
+	UI:SetQuery("", 0)
+	check(UI.ghost:IsShown() and (UI.ghost:GetText() or ""):find("Tab+` leaves", 1, true), "the empty prompt says what to do and how to leave: " .. tostring(UI.ghost:GetText()))
+	key("UP")
+	check(T.query() == "", "Up on the empty prompt: no history line: " .. T.query())
+	key("DOWN")
+	check(#UI.Results() == 0, "Down on the empty prompt: no recent picks")
+	UI:SetQuery("innkeeper", 9)
+	check(UI.Selected() == 1 and #UI.Results() == 3, "three innkeepers: " .. Show(UI.Results()))
+	key("DOWN"); key("DOWN")
+	check(UI.Selected() == 3, "Down moves through them: " .. tostring(UI.Selected()))
+	key("UP")
+	check(UI.Selected() == 2, "Up moves back: " .. tostring(UI.Selected()))
+	key("TAB")
+	check(UI.Selected() == 3, "Tab moves too (no categories here): " .. tostring(UI.Selected()))
+	-- narrowing letter by letter gives what a fresh search does
+	for _, word in ipairs({ "i", "in", "inn", "innk", "innk f", "innk fa" }) do
+		UI:SetQuery(word, #word)
+		local got = Show(UI.Results())
+		local was = UI.lastFzf
+		UI.lastFzf = nil
+		local fresh = Show(UI:Search(word))
+		check(got == fresh, ("'%s': narrowed = fresh (%s / %s)"):format(word, got, fresh))
+		UI.lastFzf = was
+	end
+	ns.db.history = {}
+	-- Shift+Right writes the plain name (no @kind)
+	UI:SetQuery("hggr", 4)
+	shifted(function() key("RIGHT") end)
+	check(T.query() == "Hogger ", "Shift+Right: the name only: " .. T.query())
+	-- no click catcher over the rows (a click hands over, it never opens)
+	UI:PlaceCatcher(1)
+	check(not (_G.TerminalClickCatcher and _G.TerminalClickCatcher:IsShown()), "no click catcher in fuzzy finding")
+	-- Enter: to Simple mode, in its category, selected; nothing is run or armed
+	UI:SetQuery("innkeeper farley", 16)
+	key("ENTER")
+	check(not UI.fzf and E.On() and T.query() == "Innkeeper Farley " and UI.category == "npcs" and not UI.armedEntry,
+		"Enter: to Simple mode, in NPCs: " .. T.query() .. " [" .. tostring(UI.category) .. "]")
+	r = UI.Results()
+	check(r[UI.Selected()] and r[UI.Selected()].name == "Innkeeper Farley", "the result is selected there: " .. Show(r))
+	check(not UI.glow:IsShown(), "the glow goes")
+	UI:Hide(); FlushAll()
+	-- Shift+Enter: to Advanced mode, "@kind name", for this run only
+	UI:Open("")
+	win(function() key("`", "`") end)
+	check(UI.fzf and T.query() == "", "Tab+` on the empty prompt: fuzzy finding")
+	UI:SetQuery("frost", 5)
+	shifted(function() key("ENTER") end)
+	check(not UI.fzf and not E.On() and E.temp and T.query() == "@spell Frost Nova ", "Shift+Enter: to Advanced: " .. T.query())
+	r = UI.Results()
+	check(r[UI.Selected()] and r[UI.Selected()].name == "Frost Nova", "selected: " .. Show(r))
+	check(ns.db.easyMode == true, "the saved mode stays Simple")
+	UI:Hide(); FlushAll()
+	check(E.On() and not E.temp, "closed: Simple again")
+	-- a click is Enter (Shift+click Shift+Enter)
+	UI:Open(""); UI:FuzzyOnce()
+	UI:SetQuery("raptor", 6)
+	UI:Activate(1, {})
+	check(not UI.fzf and E.On() and T.query() == "Swift Raptor ", "a click: to Simple: " .. T.query())
+	UI:Hide(); FlushAll()
+	-- Tab+` in it: out of it, back to the mode it came from, the text kept
+	UI:Open("hogger")
+	win(function() key("`", "`") end)
+	check(UI.fzf, "(fuzzy finding)")
+	win(function() key("`", "`") end)
+	check(not UI.fzf and E.On() and T.query() == "hogger ", "Tab+` again: back to Simple: " .. T.query())
+	UI:FuzzyOnce()
+	-- Alt+` in it: out of it, and Advanced this run
+	_G.IsAltKeyDown = function() return true end; key("`", "`"); _G.IsAltKeyDown = function() return false end
+	check(not UI.fzf and not E.On() and E.temp, "Alt+` in it: Advanced this run")
+	UI:Hide(); FlushAll()
+	-- Tab seen by its own key-down (a client where IsKeyDown doesn't answer)
+	local was = _G.IsKeyDown
+	_G.IsKeyDown = nil
+	UI:Open("")
+	key("TAB"); key("`", "`")
+	check(UI.fzf, "Tab's own key-down counts")
+	T.F.scripts.OnKeyUp(T.F, "TAB")
+	key("`")
+	check(not UI:IsShown(), "let go: ` closes as ever")
+	FlushAll()
+	-- closed: the toggle key with Tab held opens in fuzzy finding
+	win(function() UI:Toggle() end)
+	check(UI:IsShown() and UI.fzf, "the toggle binding with Tab held: fuzzy finding")
+	UI:Hide(); FlushAll()
+	-- IsKeyDown not answering (or secret): ` opens the terminal, then Tab's repeats and its release come
+	_G.IsKeyDown = function() return false end
+	UI:Toggle()
+	check(UI:IsShown() and not UI.fzf and E.On(), "(the toggle key opened it in Simple mode)")
+	key("TAB")
+	check(not UI.fzf and UI.openedByToggle, "Tab still held right after opening: swallowed (no Tab of its own)")
+	T.F.scripts.OnKeyUp(T.F, "TAB")
+	check(UI.fzf, "Tab let go right after: it was Tab+`, fuzzy finding now")
+	UI:Hide(); FlushAll()
+	UI:Toggle()
+	key("A", "a")
+	T.F.scripts.OnKeyUp(T.F, "TAB")
+	check(not UI.fzf, "something typed first: Tab let go later is just that")
+	UI:Hide(); FlushAll()
+	_G.IsKeyDown = was
+	check(not UI.fzf and not UI.glow:IsShown() and E.On() and not E.temp, "closed: over, Simple again")
+	-- the frame hidden by something else ends it too
+	UI:Open(""); UI:FuzzyOnce()
+	local tf = _G.TerminalFrame
+	tf:Hide(); tf.scripts.OnHide(tf)
+	check(not UI.fzf, "the frame hidden directly: over")
+	FlushAll()
+	-- .fuzzy [words]: once, from a command
+	UI:Open(".fuzzy hggr"); key("ENTER"); FlushAll()
+	check(UI:IsShown() and UI.fzf and T.query() == "hggr" and UI.Results()[1] and UI.Results()[1].name == "Hogger",
+		".fuzzy hggr: opens fuzzy finding with the words: " .. T.query())
+	UI:Hide(); FlushAll()
+	-- Advanced for good: Enter takes it to Simple for this run only
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open("@npc hogger is:elite >> party")
+	UI:FuzzyOnce()
+	check(UI.fzf and T.query() == "hogger ", "syntax dropped going in: " .. T.query())
+	key("ENTER")
+	check(E.On() and E.tempSimple and T.query() == "Hogger ", "Advanced player, Enter: Simple this run: " .. T.query())
+	UI:Hide(); FlushAll()
+	check(not E.On() and not E.tempSimple, "closed: Advanced again")
+	check(UI.FuzzyPlain(".help") == "" and UI.FuzzyPlain("sword|axe -boe rare sort:nearest") == "rare ", "plain words kept: " .. UI.FuzzyPlain("sword|axe -boe rare sort:nearest"))
+end)
+
 Run("Alt+`: what it runs stays out of Simple mode's history", function()
 	E.Set(true)
 	ActionLists()

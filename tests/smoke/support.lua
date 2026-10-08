@@ -636,3 +636,32 @@ do -- .wowamp: with Sound in Background off, a tip says so (and the window makes
 	W.SetStyle("bars"); W.Close()
 	C_CVar.GetCVar = base.get
 end
+
+-- A loot row sent to chat (>> party, the row menu's chat lines, Link in chat) says who drops it and where.
+io.write("[share: loot rows say where they drop]\n")
+do
+	local SH = ns.Share
+	local saveInfo = C_Item and C_Item.GetItemInfo
+	local LINK = "|cffa335ee|Hitem:19019::::::::60:::::|h[Thunderfury]|h|r"
+	C_Item = C_Item or {}
+	C_Item.GetItemInfo = function(id) if id == 19019 then return "Thunderfury", LINK end end
+	local row = { kind = "loot", itemID = 19019, name = "Thunderfury", link = "item:19019", detail = "Garr  Molten Core" }
+	check(SH.Text(row) == LINK .. " dropped by Garr in Molten Core", "boss and raid: " .. tostring(SH.Text(row)))
+	check(SH.Text(row, true) == LINK, "bare: the link alone")
+	row.detail = "Trash Mobs  Stratholme"
+	check(SH.Text(row) == LINK .. " from trash in Stratholme", "trash: " .. tostring(SH.Text(row)))
+	row.detail = "?  Wailing Caverns|cffffffff|r"
+	check(SH.Text(row) == LINK .. " from Wailing Caverns", "no boss named: " .. tostring(SH.Text(row)))
+	row.detail = "Garr  Molten Core"
+	check(SH.Macro(row, { cmd = "/g", query = "@loot thunderfury" }) == "/g " .. LINK .. " dropped by Garr in Molten Core",
+		"the guild line: " .. tostring(SH.Macro(row, { cmd = "/g", query = "@loot thunderfury" })))
+	check(SH.Line(row, "thunderfury") == LINK .. " dropped by Garr in Molten Core", "the chat box line")
+	-- an item in your bags says nothing of drops
+	local item = { kind = "items", itemID = 19019, name = "Thunderfury", detail = "Garr  Molten Core" }
+	check(SH.Text(item) == LINK, "other rows: just the link: " .. tostring(SH.Text(item)))
+	-- too long for a macro: the drop text goes before the link does
+	row.detail = "Garr  " .. string.rep("x", 200)
+	local m = SH.Macro(row, { cmd = "/g" })
+	check(m == "/g " .. LINK, "too long: the link alone: " .. tostring(m))
+	C_Item.GetItemInfo = saveInfo
+end
