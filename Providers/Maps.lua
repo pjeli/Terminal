@@ -107,7 +107,7 @@ local function Direct(e) -- no keybinding: open the map from our own code
 	C_Timer.After(0.1, function() ShowAfter(e) end)
 end
 
--- for the addon integrations (Integrations.lua), which show places on the map too
+-- for the addon integrations (Providers/Integrations/), which show places on the map too
 M.Place, M.ShowAfter, M.MapOpen = Place, ShowAfter, MapOpen
 
 local function Roots()

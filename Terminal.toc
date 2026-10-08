@@ -41,7 +41,15 @@ Providers\Talents.lua
 Providers\Addons.lua
 Providers\Zones.lua
 Providers\Maps.lua
-Providers\Integrations.lua
+Providers\Integrations\Shared.lua
+Providers\Integrations\Loot.lua
+Providers\Integrations\Distances.lua
+Providers\Integrations\Objects.lua
+Providers\Integrations\Entrances.lua
+Providers\Integrations\Questie.lua
+Providers\Integrations\QuestieQuests.lua
+Providers\Integrations\Places.lua
+Providers\Integrations\Setup.lua
 Providers\Stored.lua
 Providers\Gold.lua
 Providers\LootLog.lua
