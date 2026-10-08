@@ -43,6 +43,8 @@ T.DEFAULTS = {
 	autoScan = true, -- index professions quietly after login
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
+	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
+	fzfColor = false, -- its colour (false: the theme's selection colour)
 	v = 3, -- theme defaults version (see T.Get)
 }
 
@@ -83,7 +85,11 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
-	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan", "syntax", "suggest" }
+	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan", "syntax", "suggest",
+	"fzfGlow", "fzfColor" }
+-- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
+T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
+T.FZF_GLOW_LABELS = { breathe = "Breathing", steady = "Steady", bright = "Bright", line = "Thin line", off = "Off" }
 T.CURSOR_ORDER = { "blinking-line", "solid-line", "blinking-box", "solid-box" }
 
 -- Animation styles: open/close (seconds; `fade`: how long the opening fade takes, if not the whole
@@ -156,6 +162,8 @@ T.FIELDS = {
 	cursor = { kind = "choice", label = "Cursor", choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = "Blink speed", min = 0.2, max = 3, step = 0.1 },
 	autoScan = { kind = "bool", label = "Index professions at login" },
+	fzfGlow = { kind = "choice", label = "Fuzzy mode glow", choices = T.FZF_GLOW_ORDER },
+	fzfColor = { kind = "color", label = "Fuzzy glow", optional = true }, -- (accent/default: the selection colour)
 }
 local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
 
@@ -282,6 +290,7 @@ function T.Format(key, v)
 	local f = T.FIELDS[key]
 	if not f then return tostring(v) end
 	if f.kind == "bool" then return v and "on" or "off" end
+	if f.kind == "color" and f.optional and not v then return "accent" end
 	if f.kind == "number" then
 		if key == "blinkRate" then return ("%.1f/s"):format(v) end
 		if f.step < 1 then return ("%.2f"):format(v) end
@@ -341,8 +350,14 @@ function T.Set(key, raw, quiet)
 	if not f then return false, "unknown setting '" .. tostring(key) .. "'" end
 	local v
 	if f.kind == "color" then
-		v = Hex(raw)
-		if not v then return false, "expected a hex colour such as ff79c6" end
+		local word = tostring(raw or ""):lower()
+		if f.optional and (raw == false or word == "" or word == "accent" or word == "default" or word == "none"
+			or word == "false" or word == "off") then
+			v = false -- (the theme's own colour)
+		else
+			v = Hex(raw)
+			if not v then return false, "expected a hex colour such as ff79c6" .. (f.optional and ", or accent" or "") end
+		end
 	elseif f.kind == "number" then
 		v = tonumber(raw)
 		if not v then return false, "expected a number from " .. f.min .. " to " .. f.max end
@@ -562,11 +577,13 @@ ns:RegisterCommand("set", {
 		for _, k in ipairs(T.ORDER) do
 			if k:lower() == key:lower() then
 				local f = T.FIELDS[k]
-				local values = (f.kind == "bool" and { "on", "off" }) or (f.kind == "choice" and f.choices) or {}
+				local values = (f.kind == "bool" and { "on", "off" }) or (f.kind == "choice" and f.choices)
+					or (f.optional and { "accent" }) or {}
 				local cur = T.Format(k, t[k])
 				local out = {}
 				for _, v in ipairs(values) do
-					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or (k == "animations" and T.ANIMATION_LABELS[v]) or ""
+					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or (k == "animations" and T.ANIMATION_LABELS[v])
+					or (k == "fzfGlow" and T.FZF_GLOW_LABELS[v]) or ""
 					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. "(current)") or "") }
 				end
 				return out

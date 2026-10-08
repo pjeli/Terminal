@@ -403,3 +403,22 @@ do
 	check(UI.fzf and UI:IsShown(), ".fzf opens fuzzy finding")
 	UI:Hide(); T.FlushAll()
 end
+
+-- fuzzy finding's glow: a style and a colour of its own (0.43.6)
+do
+	local Th = ns.Theme
+	check(Th.Get().fzfGlow == "breathe" and Th.Get().fzfColor == false, "glow defaults: breathing, the selection colour")
+	UI:Open("")
+	UI:FuzzyOnce("")
+	check(UI.glow and UI.glow:IsShown(), "the glow shows in fuzzy finding")
+	check(Th.Set("fzfColor", "ff00ff") and Th.Get().fzfColor == "ff00ff", ".set fzfColor ff00ff")
+	local tx = UI.glow.tex[1]
+	check(tx.color and math.abs(tx.color[1] - 1) < 0.01 and tx.color[2] < 0.01, "the glow takes its own colour")
+	check(Th.Set("fzfColor", "accent") and Th.Get().fzfColor == false and Th.Format("fzfColor", false) == "accent", ".set fzfColor accent: back to the selection colour")
+	check(Th.Set("fzfGlow", "bright") and UI.GlowStyle()[1] > 0.5, "bright: stronger rings")
+	check(Th.Set("fzfGlow", "off") and not UI.glow:IsShown(), "off: no glow, even in fuzzy finding")
+	check(not Th.Set("fzfGlow", "sparkly"), "an unknown glow style is refused")
+	Th.Set("fzfGlow", "breathe")
+	check(UI.glow:IsShown(), "back on while fuzzy finding")
+	UI:Hide(); T.FlushAll()
+end

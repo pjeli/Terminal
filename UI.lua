@@ -4519,7 +4519,7 @@ function UI:ApplyTheme()
 	divider:SetColorTexture(r, g, b, 1)
 	local pr, pg, pb = Theme.RGB(t.promptBg or t.bg)
 	promptBg:SetColorTexture(pr, pg, pb, t.bgAlpha)
-	UI:ColorGlow()
+	if UI.fzf then UI:ShowGlow(true) else UI:ColorGlow() end -- (a glow style or colour changed while it shows)
 
 	-- prompt, then the query box right after it
 	local mid = -(HEADER_H - 4) / 2
@@ -4815,10 +4815,23 @@ end
 
 --- The glow round the prompt bar while fuzzy finding: rings of the accent colour inside its edges, fading inward,
 --- breathing slowly (an AnimationGroup: the game runs it, no Lua each frame; still with animations off).
-local GLOW_RINGS = { 0.34, 0.18, 0.09, 0.04 }
+-- each ring's alpha per glow style (Theme's fzfGlow): rings go inwards from the prompt's edge, 2 px each
+local GLOW_STYLES = {
+	breathe = { 0.34, 0.18, 0.09, 0.04, pulse = true },
+	steady = { 0.34, 0.18, 0.09, 0.04 },
+	bright = { 0.6, 0.38, 0.22, 0.12, pulse = true },
+	line = { 0.7, 0, 0, 0 },
+}
+local GLOW_RINGS = GLOW_STYLES.breathe
 local glow
+local function GlowStyle()
+	local t = Theme.Get()
+	return GLOW_STYLES[t.fzfGlow] or (t.fzfGlow ~= "off" and GLOW_RINGS) or nil
+end
+UI.GlowStyle = GlowStyle -- (tests)
 function UI:ShowGlow(on)
 	if not frame then return end
+	if on and not GlowStyle() then on = false end -- (glow set to off)
 	if on and not glow then
 		glow = CreateFrame("Frame", nil, frame)
 		glow:SetPoint("TOPLEFT", promptBg, "TOPLEFT", 0, 0)
@@ -4856,15 +4869,24 @@ function UI:ShowGlow(on)
 	if not glow then return end
 	glow:SetShown(on and true or false)
 	UI.glow = glow -- (tests)
+	local style = GlowStyle()
 	if glow.pulse then
-		if on and self:Animated() then pcall(glow.pulse.Play, glow.pulse) else pcall(glow.pulse.Stop, glow.pulse) end
+		if on and style and style.pulse and self:Animated() then pcall(glow.pulse.Play, glow.pulse) else pcall(glow.pulse.Stop, glow.pulse) end
 	end
+	if on then self:ColorGlow() end
 end
 
+--- The glow's colour (Theme's fzfColor, else the selection colour) and its rings' strength (the style).
 function UI:ColorGlow()
 	if not glow then return end
-	local r, g, b = Theme.RGB(Theme.Get().accent)
-	for _, tx in ipairs(glow.tex) do tx:SetColorTexture(r, g, b, tx.alpha) end
+	local t = Theme.Get()
+	local r, g, b = Theme.RGB(t.fzfColor or t.accent)
+	local style = GlowStyle() or GLOW_RINGS
+	for i, tx in ipairs(glow.tex) do
+		local a = style[math.floor((i - 1) / 4) + 1] or 0
+		tx:SetColorTexture(r, g, b, a)
+		tx.alpha = a
+	end
 end
 
 --- Gone at once, without the closing animation (something else takes its place: .atop).

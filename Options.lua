@@ -58,7 +58,7 @@ end
 
 local function PickColor(key)
 	local prev = T.Get()[key]
-	local r, g, b = T.RGB(prev)
+	local r, g, b = T.RGB(prev or T.Get().accent) -- (fzfColor unset: the selection colour)
 	if ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow then
 		local function apply()
 			local nr, ng, nb = ColorPickerFrame:GetColorRGB()
@@ -80,10 +80,16 @@ local function Swatch(key, x, y)
 	b:SetPoint("TOPLEFT", x, y)
 	b:SetBackdrop(FLAT)
 	b:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
-	b:SetScript("OnClick", function() PickColor(key) end)
+	if T.FIELDS[key].optional and b.RegisterForClicks then
+		b:RegisterForClicks("LeftButtonUp", "RightButtonUp") -- (right-click: back to the theme's own colour)
+	end
+	b:SetScript("OnClick", function(_, button)
+		if button == "RightButton" and T.FIELDS[key].optional then T.Set(key, "accent") return end
+		PickColor(key)
+	end)
 	local l = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	l:SetPoint("LEFT", b, "RIGHT", 6, 0)
-	l:SetText(T.FIELDS[key].label)
+	l:SetText(T.FIELDS[key].label .. (T.FIELDS[key].optional and "  |cff8a8a8a(right-click: selection colour)|r" or ""))
 	O.widgets[key] = b
 end
 
@@ -327,7 +333,7 @@ end)
 
 -- Colours
 Label("Colours", "GameFontNormal", 16, -202)
-local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border" }
+local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "fzfColor" }
 for i, key in ipairs(colourKeys) do
 	Swatch(key, 16 + ((i - 1) % 3) * 140, -222 - math.floor((i - 1) / 3) * 24)
 end
@@ -361,6 +367,20 @@ frameButton:SetScript("OnClick", function()
 	T.Set("frame", T.Get().frame == "classic" and "flat" or "classic")
 end)
 O.widgets.frame = frameButton
+
+-- fuzzy finding's glow (Tab+`): its style, a click steps through them (its colour is the last swatch)
+local glowButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+glowButton:SetSize(150, 22)
+glowButton:SetPoint("TOPLEFT", 16, -530)
+glowButton:SetScript("OnClick", function()
+	local cur, list = T.Get().fzfGlow, T.FZF_GLOW_ORDER
+	local nextIdx = 1
+	for i, g in ipairs(list) do
+		if g == cur then nextIdx = i % #list + 1 end
+	end
+	T.Set("fzfGlow", list[nextIdx])
+end)
+O.widgets.fzfGlowButton = glowButton
 
 -- an on/off setting: a checkbox at y in the right column, its label beside it (`note` greyed after the label)
 local function Check(key, y, note)
@@ -483,7 +503,7 @@ function O.Refresh()
 			w:SetValue(t[key])
 			w.valueText:SetText(T.Format(key, t[key]))
 		elseif f and f.kind == "color" then
-			w:SetBackdropColor(T.RGB(t[key]))
+			w:SetBackdropColor(T.RGB(t[key] or t.accent))
 		end
 	end
 	O.widgets.font:SetText("Font: " .. t.font:sub(1, 1):upper() .. t.font:sub(2))
@@ -491,6 +511,7 @@ function O.Refresh()
 	O.widgets.cursor:SetText(CursorLabel(cur))
 	MarkChoice(O.cursorItems, cur, CursorLabel)
 	O.widgets.frame:SetText("Frame: " .. (t.frame == "classic" and "Classic" or "Flat"))
+	O.widgets.fzfGlowButton:SetText("Fuzzy glow: " .. (T.FZF_GLOW_LABELS[t.fzfGlow] or "Breathing"))
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
