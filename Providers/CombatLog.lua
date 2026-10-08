@@ -11,6 +11,7 @@ local CB = {}
 ns.CombatLog = CB
 
 CB.MAX = 300
+CB.MAX_DEATHS = 100
 
 local Safe, Secret = ns.Safe, ns.Secret
 local function Now() return (_G.time and _G.time()) or 0 end
@@ -37,7 +38,20 @@ function CB.Add(e)
 	local zone = _G.GetRealZoneText and Safe(_G.GetRealZoneText)
 	e.zone = e.zone or (type(zone) == "string" and zone ~= "" and zone or nil)
 	table.insert(log, 1, e)
-	for i = #log, CB.MAX + 1, -1 do log[i] = nil end
+	-- over the cap: the oldest crit goes first; deaths stay (up to CB.MAX_DEATHS) so "what killed me" still answers
+	-- after a long fight
+	if #log > CB.MAX then
+		local deaths = 0
+		for _, x in ipairs(log) do if x.what == "died" or x.what == "killed" then deaths = deaths + 1 end end
+		for i = #log, 1, -1 do
+			if #log <= CB.MAX then break end
+			local death = log[i].what == "died" or log[i].what == "killed"
+			if not death or deaths > CB.MAX_DEATHS then
+				if death then deaths = deaths - 1 end
+				table.remove(log, i)
+			end
+		end
+	end
 	Dirty()
 	return e
 end

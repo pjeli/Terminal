@@ -92,7 +92,7 @@ ns:RegisterCommand("zen", {
 		if a == "on" then want = true elseif a == "off" then want = false else want = not On() end
 		local n = Z.Set(want)
 		if want then
-			return { ("Zen: %d bars hidden. Windows still open from Terminal, and your key bindings work as always. .zen again brings them back."):format(n) }
+			return { ("Zen: %d bars hidden. Windows still open from Terminal, and your key bindings work as always. The bars are only invisible: hovering or clicking where they were still reaches them. .zen again brings them back."):format(n) }
 		end
 		return { "Zen off: the bars are back." }
 	end,

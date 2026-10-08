@@ -731,12 +731,12 @@ function UI:SearchText(text)
 	local softs, hard, softWords -- (the everyday words' filters, the typed key:value ones, the everyday words)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
+	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
 	if self.fzf then
 		self.noPosition, self.action, self.place = nil, nil, nil
 		return self:FuzzySearch(text)
 	end
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua; the footer shows its trail
-	self.answerNote, self.pipeTrail = nil, nil
 	local chain = ns.Pipes and ns.Pipes.Canonical(text)
 	if chain then
 		self.noPosition, self.action, self.place = nil, nil, nil

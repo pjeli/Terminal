@@ -439,7 +439,7 @@ do
 	check(E.ToAdvanced("nearest pvp vendor") == "@npc is:pvpvendor faction:friendly sort:nearest "
 		and E.ToAdvanced("nearest honor vendor") == "@npc is:pvpvendor faction:friendly sort:nearest ",
 		"pvp / honor vendor -> is:pvpvendor: " .. E.ToAdvanced("nearest pvp vendor"))
-	check(E.HARD_WORDS.battlemaster and E.HARD_WORDS["pvp vendor"], "pvp words are strict (never relaxed to any NPC)")
+	check(E.HARD_WORDS.battlemaster and E.HARD_WORDS["pvp vendor"] and not E.HARD_WORDS.pvp, "battlemaster and pvp vendor are strict; pvp alone stays soft (pvp trinket)")
 	ns.db.easyMode = was
 end
 

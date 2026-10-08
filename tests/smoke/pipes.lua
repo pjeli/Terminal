@@ -37,6 +37,7 @@ ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = R
 ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = Rows({ { name = "Chain Belt", itemID = 2857, detail = "Blacksmithing  Crafting" } }) })
 ns:RegisterProvider("stored", { label = "Stored", aliases = { "stored" }, collect = Rows({}) })
 
+P.ClearCrafts(); P.ClearSteps()
 do
 	check(P.Canonical("mats for thorium belt") == "thorium belt > mats" and P.Canonical("what uses copper bar") == "copper bar > uses"
 		and P.Canonical("where to get thorium bar") == "thorium bar > sources" and P.Canonical("Thorium Belt > mats") == "Thorium Belt > mats",
@@ -78,6 +79,19 @@ do
 	check(#rows == 1 and rows[1].noActivate, "an unknown link says so")
 	rows = P.Search("zzqq belt > mats")
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("Nothing called", 1, true), "nothing to start from: says so")
+	-- a name still being typed isn't looked up yet
+	rows = P.Search("t > sources")
+	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("Keep typing", 1, true), "under 3 letters: keep typing")
+	-- a reagent the client hasn't loaded: asked for, and the search runs again (Filters.loading)
+	ns.Filters.loading = nil
+	NAMES[7077] = nil
+	P.ClearSteps()
+	rows = P.Search("thorium belt > mats")
+	check(#rows == 1 and ns.Filters.loading == true, "a reagent not loaded yet: searched again in a moment")
+	NAMES[7077] = "Heart of Fire"
+	rows = P.Search("thorium belt > mats")
+	check(#rows == 2, "loaded: both reagents (nothing kept from the incomplete answer)")
+	ns.Filters.loading = nil
 	-- Shift+Enter on a walking row does the row's own thing, and closes
 	local opened
 	local r0 = { name = "X", kind = "recipes", reagents = { { 1, 1 } }, activate = function() opened = true end }
@@ -92,3 +106,4 @@ ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL
 ns.Integrations.ItemField, ns.Integrations.NpcRow, ns.Integrations.ObjectName, ns.Integrations.QuestRow = saved.field, saved.npc, saved.obj, saved.quest
 UI.lastScan, UI.lastOverview = nil, nil
+P.ClearCrafts(); P.ClearSteps()

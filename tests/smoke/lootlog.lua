@@ -45,12 +45,22 @@ do
 	}
 	LL.OnEvent("LOOT_HISTORY_UPDATE_DROP", 1, 1)
 	check(#ns.db.lootLog == 3 and ns.db.lootLog[1].from == "Lord Cobrahn", "the loot history's drop, with its boss")
+	-- two loot lines of the same thing are two drops (farming); the history's drop then its loot line are one
+	now = now + 3
+	LL.OnEvent("CHAT_MSG_LOOT", "Bob receives loot: " .. belt .. ".")
+	check(#ns.db.lootLog == 3 and ns.db.lootLog[1].src == "both", "the history's drop and its loot line: one")
+	now = now + 100
+	LL.OnEvent("CHAT_MSG_LOOT", "You receive loot: " .. cloth .. "x2.")
+	now = now + 5
+	LL.OnEvent("CHAT_MSG_LOOT", "You receive loot: " .. cloth .. ".")
+	check(#ns.db.lootLog == 5, "two stacks looted a moment apart: both kept")
+	table.remove(ns.db.lootLog, 1); table.remove(ns.db.lootLog, 1)
 	-- the list
 	now = now + 60
 	local p = ns.providers.lootlog
 	p._dirty = true
 	local rows = ns:GetEntries(p)
-	check(#rows == 3 and rows[2].name == "Linen Cloth x2" and rows[2].detail:find("you", 1, true) and rows[2].detail:find("1 min ago", 1, true) and rows[1].detail:find("Lord Cobrahn", 1, true),
+	check(#rows == 3 and rows[2].name == "Linen Cloth x2" and rows[2].detail:find("you", 1, true) and rows[2].detail:find(" min ago", 1, true) and rows[1].detail:find("Lord Cobrahn", 1, true),
 		"rows: name, count, who, when: " .. tostring(rows[2] and rows[2].detail))
 	local res = UI:Search("@lootlog bob")
 	local names = {}

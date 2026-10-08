@@ -67,7 +67,7 @@ local function Patterns()
 	patterns = {}
 	for _, f in ipairs(LL.FORMS) do
 		local p, args = Pattern(_G[f[1]])
-		if p then patterns[#patterns + 1] = { p = p, args = args, who = f[2], link = f[3], count = f[4] } end
+		if p then patterns[#patterns + 1] = { p = p, args = args, who = f[2], link = f[3], count = f[4], roll = f[1]:find("ROLL") ~= nil } end
 	end
 	return patterns
 end
@@ -86,14 +86,14 @@ function LL.Parse(msg)
 			local link = caps[f.link]
 			if type(link) == "string" and link:find("|Hitem:", 1, true) then
 				local who = f.who == "me" and Me() or caps[f.who]
-				return link, who, tonumber(f.count and caps[f.count]) or 1
+				return link, who, tonumber(f.count and caps[f.count]) or 1, f.roll and "roll" or "loot"
 			end
 		end
 	end
 end
 
 --- Adds a drop (or fills in one just added: the same item to the same player a moment ago).
-function LL.Add(link, who, count, from)
+function LL.Add(link, who, count, from, src)
 	local log = Log()
 	if not log or type(link) ~= "string" then return nil end
 	local id = tonumber(link:match("item:(%d+)"))
@@ -102,14 +102,16 @@ function LL.Add(link, who, count, from)
 	who = type(who) == "string" and who ~= "" and who or "?"
 	for i = 1, math.min(#log, 20) do
 		local e = log[i]
-		if e.id == id and e.who == who and t - (e.t or 0) <= LL.SAME then
+		-- (one drop told twice: a roll's win or the loot history, then its loot line; two loot lines are two drops)
+		if e.id == id and e.who == who and t - (e.t or 0) <= LL.SAME and e.src ~= (src or "loot") then
 			if from and not e.from then e.from = from end
+			e.src = "both"
 			return e
 		end
 	end
 	local zone = _G.GetRealZoneText and Safe(_G.GetRealZoneText)
 	local e = { t = t, id = id, link = link, who = who, n = count and count > 1 and count or nil,
-		zone = type(zone) == "string" and zone ~= "" and zone or nil, from = from }
+		zone = type(zone) == "string" and zone ~= "" and zone or nil, from = from, src = src or "loot" }
 	table.insert(log, 1, e)
 	for i = #log, LL.MAX + 1, -1 do log[i] = nil end
 	local p = ns.providers.lootlog
@@ -124,18 +126,19 @@ local function FromHistory(encounterID, lootListID)
 	local drop = Safe(H.GetSortedInfoForDrop, encounterID, lootListID)
 	if type(drop) ~= "table" or type(drop.itemHyperlink) ~= "string" then return end
 	local winner = type(drop.winner) == "table" and drop.winner.playerName or nil
+	if winner and drop.winner.isSelf then winner = Me() end -- (the chat's line for it names you with your surname)
 	if not winner then return end -- (still being rolled for: the win comes in a later update)
 	local enc = H.GetInfoForEncounter and Safe(H.GetInfoForEncounter, encounterID)
 	local from = type(enc) == "table" and type(enc.encounterName) == "string" and enc.encounterName or nil
 	if ns.Secret and (ns.Secret(winner) or ns.Secret(drop.itemHyperlink)) then return end
-	LL.Add(drop.itemHyperlink, winner, 1, from)
+	LL.Add(drop.itemHyperlink, winner, 1, from, "history")
 end
 LL.FromHistory = FromHistory
 
 function LL.OnEvent(event, ...)
 	if event == "CHAT_MSG_LOOT" then
-		local link, who, n = LL.Parse((...))
-		if link then LL.Add(link, who, n) end
+		local link, who, n, src = LL.Parse((...))
+		if link then LL.Add(link, who, n, nil, src) end
 	elseif event == "LOOT_HISTORY_UPDATE_DROP" then
 		FromHistory(...)
 	end

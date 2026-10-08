@@ -51,6 +51,13 @@ do
 	Ev("SPELL_DAMAGE", "SECRET", "x", "Player-1", "Me", 1, "x", 1, 1, -1, 1, 0, 0, 0, true)
 	_G.issecretvalue = was
 	check(#log == n and CB.state.secret > 0, "secret values: skipped and counted")
+	-- a long fight's crits never push your deaths out
+	for i = 1, CB.MAX + 50 do
+		Ev("SWING_DAMAGE", "Player-1", "Me", "Creature-2", "Kobold", i, -1, 1, 0, 0, 0, true)
+	end
+	local deaths = 0
+	for _, x in ipairs(log) do if x.what == "died" or x.what == "killed" then deaths = deaths + 1 end end
+	check(#log == CB.MAX and deaths == 2, "over the cap: crits go, deaths stay: " .. #log .. " " .. deaths)
 	ns:FindCommand("combatlog").run("clear")
 	check(#ns.db.combatLog == 0, ".combatlog clear")
 end

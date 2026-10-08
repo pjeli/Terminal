@@ -156,26 +156,62 @@ local function ItemName(id)
 	local info = C_Item and C_Item.GetItemInfo and Safe(C_Item.GetItemInfo, id)
 	if type(info) == "string" and info ~= "" then return info end
 	if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+	-- (not loaded yet: the search runs again in a moment, UI:RetryWhenLoaded, so the row isn't missing for good)
+	if ns.Filters then ns.Filters.loading = true end
+	P.loading = true
 end
 local function Icon(id)
 	local get = C_Item and C_Item.GetItemIconByID or _G.GetItemIcon
 	return get and Safe(get, id) or nil
 end
 
--- AtlasLoot's crafting data: the spell that makes an item, and that spell's reagents
+-- AtlasLoot's crafting data: the spell that makes an item, and that spell's reagents (its data never changes: kept
+-- per item, false for none)
+local crafts, craftCount = {}, 0
 local function AtlasCraft(itemID)
+	local c = crafts[itemID]
+	if c ~= nil then
+		if c then return c[1], c[2] end
+		return nil
+	end
 	local AL = _G.AtlasLoot
 	local Pr = AL and AL.Data and AL.Data.Profession
-	if not (Pr and Pr.GetCraftSpellForCreatedItem and Pr.GetProfessionData) then return nil end
-	local ok, spell = pcall(Pr.GetCraftSpellForCreatedItem, itemID)
-	if not ok or not spell then return nil end
-	local ok2, data = pcall(Pr.GetProfessionData, spell)
-	if not ok2 or type(data) ~= "table" or type(data[6]) ~= "table" then return nil end
-	local out = {}
-	for i, rid in ipairs(data[6]) do
-		if type(rid) == "number" then out[#out + 1] = { rid, type(data[7]) == "table" and data[7][i] or 1 } end
+	if not (Pr and Pr.GetCraftSpellForCreatedItem and Pr.GetProfessionData) then return nil end -- (not loaded: not kept)
+	local out, spell
+	local ok, sp = pcall(Pr.GetCraftSpellForCreatedItem, itemID)
+	if ok and sp then
+		local ok2, data = pcall(Pr.GetProfessionData, sp)
+		if ok2 and type(data) == "table" and type(data[6]) == "table" then
+			out = {}
+			for i, rid in ipairs(data[6]) do
+				if type(rid) == "number" then out[#out + 1] = { rid, type(data[7]) == "table" and data[7][i] or 1 } end
+			end
+			if #out == 0 then out = nil else spell = sp end
+		end
 	end
-	return #out > 0 and out or nil, spell
+	if craftCount > 20000 then crafts, craftCount = {}, 0 end
+	crafts[itemID], craftCount = out and { out, spell } or false, craftCount + 1
+	return out, spell
+end
+P.ClearCrafts = function() crafts, craftCount = {}, 0 end -- (tests)
+
+-- the loot rows by item, and the crafted ones (AtlasLoot's crafting pages), made once per loot list
+local lootBy, lootCrafted, lootFrom
+local function LootIndex()
+	local list = (ns.providers.loot and ns:GetEntries(ns.providers.loot)) or {}
+	if lootFrom ~= list then
+		lootBy, lootCrafted, lootFrom = {}, {}, list
+		for _, l in ipairs(list) do
+			local id = l.itemID
+			if id then
+				local t = lootBy[id]
+				if not t then t = {}; lootBy[id] = t end
+				t[#t + 1] = l
+				if #t == 1 and AtlasCraft(id) then lootCrafted[#lootCrafted + 1] = l end
+			end
+		end
+	end
+	return lootBy, lootCrafted
 end
 P.AtlasCraft = AtlasCraft
 
@@ -288,15 +324,13 @@ ns:RegisterRelation("uses", {
 			end
 		end
 		-- (AtlasLoot's crafted items: its crafting pages are among the loot rows, as the items they make)
-		for _, l in ipairs(Entries("loot")) do
+		local _, crafted = LootIndex()
+		for _, l in ipairs(crafted) do
 			if #out >= P.MAX_OUT then break end
 			local id = l.itemID
-			if id and not made[id] then
-				local rg = AtlasCraft(id)
-				if rg and Takes(rg) then
-					made[id] = true
-					out[#out + 1] = l
-				end
+			if not made[id] and Takes(AtlasCraft(id)) then
+				made[id] = true
+				out[#out + 1] = l
 			end
 		end
 		return out
@@ -373,12 +407,11 @@ ns:RegisterRelation("sources", {
 				end
 			end
 			-- AtlasLoot's bosses
-			local n = 0
-			for _, l in ipairs(Entries("loot")) do
-				if l.itemID == id and not AtlasCraft(id) then
+			if not AtlasCraft(id) then
+				local by = LootIndex()
+				for k, l in ipairs(by[id] or {}) do
+					if k > 15 then break end
 					out[#out + 1] = l
-					n = n + 1
-					if n >= 15 then break end
 				end
 			end
 			if stored[id] then out[#out + 1] = View(stored[id], "On your alts  ·  " .. tostring(stored[id].detail or "")) end
@@ -585,11 +618,33 @@ local function Line(text) return { name = text, kind = "pipe", noActivate = true
 local function PickRelation(e) local UI = ns.UI UI:SetQuery(e.completion, #e.completion) end
 
 --- Runs a chain: rows, and the footer's trail ("thorium belt > mats > thorium bar > sources").
+-- each part's rows, by the chain up to it: typing on in the last part doesn't redo the ones before it (kept while
+-- no list was rebuilt and nothing was still loading)
+local stepCache, stepGen = {}, -1
+local function Cached(key) if stepGen == ns.entriesGen then return stepCache[key] end end
+local function Keep(key, rows)
+	if P.loading then return end
+	if stepGen ~= ns.entriesGen then stepCache, stepGen = {}, ns.entriesGen end
+	stepCache[key] = rows
+end
+P.ClearSteps = function() stepCache, stepGen = {}, -1 end
+
 function P.Search(chain)
 	local stages = P.Split(chain)
 	if not stages then return {}, nil end
+	P.loading = false
 	local trail = { (stages[1].text:gsub("^%s+", ""):gsub("%s+$", "")) }
-	local rows = P.Seed(stages[1].text)
+	-- (a name still being typed: "where to get t" would match half of AtlasLoot)
+	local letters = #(stages[1].text:gsub("@%S+", ""):gsub("%S+:%S*", ""):gsub("[%s%p]", ""))
+	if letters < 3 and not stages[1].text:find("[@:]") then
+		return { Line("Keep typing the name: " .. trail[1]) }, trail[1]
+	end
+	local key = ns.Lower(trail[1])
+	local rows = Cached(key)
+	if not rows then
+		rows = P.Seed(stages[1].text)
+		Keep(key, rows)
+	end
 	if #rows == 0 then
 		return { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }, trail[1]
 	end
@@ -615,10 +670,17 @@ function P.Search(chain)
 			trail[#trail + 1] = "?"
 			return out, table.concat(trail, " > ")
 		end
-		rows = P.Run(name, P.Left(rows))
+		key = key .. " > " .. name
+		local got = Cached(key)
+		if not got then
+			got = P.Run(name, P.Left(rows))
+			Keep(key, got)
+		end
+		rows = got
 		trail[#trail + 1] = P.LABELS[name] or name
 		from = name
 		local tokens = Tokens(s.rest)
+		if #tokens > 0 then key = key .. " " .. table.concat(tokens, " ") end
 		if #tokens > 0 then
 			local kept = {}
 			for _, e in ipairs(rows) do

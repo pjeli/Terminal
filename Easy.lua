@@ -170,7 +170,7 @@ E.WORDS = {
 -- can't wear)
 E.HARD_WORDS = { upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true,
 	battlemaster = true, battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true,
-	["honor vendor"] = true, ["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true }
+	["honor vendor"] = true, ["honor vendors"] = true, ["pvp quartermaster"] = true }
 
 -- left out of a search typed like a sentence (only when another word is left)
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
