@@ -737,6 +737,15 @@ function UI:SearchText(text)
 	end
 	-- a question in plain words ("where should i level", "what dungeon should i do"): its answer (Zones.lua)
 	self.answerNote = nil
+	local cbAsk = ns.CombatLog and ns.CombatLog.Question(text)
+	if cbAsk then
+		self.noPosition, self.action, self.place = nil, nil, nil
+		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
+		self.posTokens = {}
+		local rows, note = ns.CombatLog.Answer(cbAsk)
+		self.answerNote = note
+		return rows
+	end
 	local ask, said = ns.Zones and ns.Zones.Question(text)
 	if ask then
 		self.noPosition, self.action, self.place = nil, nil, nil

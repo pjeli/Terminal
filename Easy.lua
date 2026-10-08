@@ -62,6 +62,7 @@ E.CATEGORIES = {
 	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "lootlog", label = "Loot log", kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
+	{ id = "combat", label = "Combat log", kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
 	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
 	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievementlist" },
@@ -228,6 +229,7 @@ E.VERBS = {
 	items = { "show in bags", "use" }, consumable = { "show in bags", "use" }, mats = { "show in bags", "use" },
 	gear = { "show", "equip" },
 	stored = { "show in bags", "who has it" }, lootlog = { "show in bags", "link in chat" },
+	combatlog = { "say it", "put in the chat box" },
 	spells = { "show in spellbook", "cast" },
 	npc = { "show on map", "target" },
 	gold = { "list in chat", "put in the chat box" }, guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = { "whisper", "invite" },
@@ -426,6 +428,7 @@ E.EXAMPLES = {
 	"try: nearest mailbox", "try: nearest dungeon", "try: sword or axe", "try: rare ring not boe", "try: group browser",
 	"try: who priest undercity", "try: weapon damage", "try: online", "try: where should i level",
 	"try: what dungeon should i do", "try: where should i fish", "try: nearby battlemaster", "try: nearest pvp vendor",
+	"try: what killed me",
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
 E.ADV_EXAMPLES = {
@@ -745,6 +748,7 @@ function E.HelpLines()
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
 		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
+		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
 	}
