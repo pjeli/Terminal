@@ -643,6 +643,21 @@ local function QuestHintRow(_, id)
 		level = Safe(DB.QueryQuestSingle, id, "questLevel"), _ltext = "quest questie" }, qdb.meta)
 end
 
+-- rows by id for the chains (Pipes.lua: an item's sellers and droppers, a quest that rewards it)
+function I.NpcRow(id) return NpcHintRow(nil, id) end
+function I.QuestRow(id) return QuestHintRow(nil, id) end
+--- One field of Questie's item (vendors, npcDrops, objectDrops, questRewards...), or nil.
+function I.ItemField(id, field)
+	local DB = QDB()
+	return DB and DB.QueryItemSingle and Safe(DB.QueryItemSingle, id, field) or nil
+end
+--- A game object's name (a vein, a herb, a chest), or nil.
+function I.ObjectName(id)
+	local DB = QDB()
+	local name = DB and DB.QueryObjectSingle and Safe(DB.QueryObjectSingle, id, "name")
+	return ns.Str(name)
+end
+
 --- Where the NPC stands: uiMapID, position {x,y} (0-1), and whether that's a dungeon's
 --- entrance rather than the NPC itself.
 local function NpcLocation(id)

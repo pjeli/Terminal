@@ -735,8 +735,18 @@ function UI:SearchText(text)
 		self.noPosition, self.action, self.place = nil, nil, nil
 		return self:FuzzySearch(text)
 	end
+	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua; the footer shows its trail
+	self.answerNote, self.pipeTrail = nil, nil
+	local chain = ns.Pipes and ns.Pipes.Canonical(text)
+	if chain then
+		self.noPosition, self.action, self.place = nil, nil, nil
+		if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
+		self.posTokens = {}
+		local rows, trail = ns.Pipes.Search(chain)
+		self.pipeTrail = trail
+		return rows
+	end
 	-- a question in plain words ("where should i level", "what dungeon should i do"): its answer (Zones.lua)
-	self.answerNote = nil
 	local cbAsk = ns.CombatLog and ns.CombatLog.Question(text)
 	if cbAsk then
 		self.noPosition, self.action, self.place = nil, nil, nil
@@ -1751,6 +1761,7 @@ do
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
 		if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
 		if self.answerNote and self.mode == "search" then cat = { label = self.answerNote } end
+		if self.pipeTrail and self.mode == "search" then cat = { label = self.pipeTrail } end
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
 		if to and self.mode == "search" then
@@ -2737,6 +2748,7 @@ local function SecureView(e, shift)
 		-- Shift+Enter targeted it and then ran Enter's after-step too, which pinned it on the map)
 		return setmetatable({
 			secure = e.secondarySecure, isOpen = e.secondaryIsOpen or false, after = e.secondaryAfter or false,
+			staysOpen = e.secondaryStaysOpen, -- (nil: the row's own; a chain's row stays open on Enter, not Shift+Enter)
 		}, { __index = e })
 	end
 	return e.secure and e or nil
@@ -3436,7 +3448,9 @@ function UI:Activate(idx, opts)
 	if se and self:TryArmSecure(se) then return end
 	local args = self.args
 	local isCmd = e.kind == "cmd"
-	if not opts.keepOpen and not e.staysOpen then self:Hide() end
+	local stays = e.staysOpen
+	if opts.secondary and e.secondary and e.secondaryStaysOpen ~= nil then stays = e.secondaryStaysOpen end
+	if not opts.keepOpen and not stays then self:Hide() end
 	ns:Bump(e.freqKey)
 	local fn = (opts.secondary and e.secondary) or e.activate
 	ns:Trace(("DIRECT (addon code) %s: %s [%s]"):format(opts.secondary and "secondary" or "activate", tostring(e.name), tostring(e.kind)))

@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.43.11", when = "in testing",
+		v = "0.43.12", when = "in testing",
 		items = {
 			"Ask where to go, in plain words: \"where should i level\" lists the zones for your level (quests there at your level, nearest first), \"what dungeon should i do\" the dungeons, \"where should i fish\" the zones your fishing skill is enough for and the next ones to unlock. Say a level to ask for another: \"zones for level 35\". Zone levels and fishing skill from Leatrix Maps.",
 			"Zones show their level range on @map rows, and lvl: works on zones and dungeons (\"@map lvl:30\", \"@dungeon lvl:25\").",
@@ -26,6 +26,7 @@ CL.LOG = {
 			".zen hides the game's bars and buttons (action bars, menu, bags, XP bar, quest tracker, minimap) so you can try playing from Terminal alone; key bindings and windows still work, and .zen again brings them back.",
 			"A loot log that remembers: @lootlog (Simple mode: Loot log) lists what dropped and who got it, newest first, with the boss and zone, kept across sessions (the last 500). .lootlog shows the latest.",
 			"@combatlog (Simple mode: Combat log) keeps what crit you, your biggest crits and what killed you; ask \"what killed me\", \"who crit me\" or \"my biggest crit\". (If the game hides the combat log from addons here, only your deaths are kept: .combatlog says so.)",
+			"Chains: \"mats for thorium belt\" lists its reagents with how many you have (bank and alts too), \"where to get thorium bar\" who sells it, drops it, where to gather it or how it's crafted, and \"what uses copper bar\" what it goes into. Enter on a row goes one step further (a reagent's sources, a craft's mats), Shift+Enter opens it, and the footer shows the path: \"copper bar > used in > chain belt > mats\". Advanced: link with > (thorium belt > mats > alts); .chains lists them.",
 		},
 	},
 	{

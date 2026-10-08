@@ -2,7 +2,7 @@
 ## Title: Terminal
 ## Notes: Fuzzy-finder terminal. Search items, quests (by text), spells, mounts, achievements, keybindings, slash commands and more, then open and highlight the result.
 ## Author: pjeli
-## Version: 0.43.11
+## Version: 0.43.12
 ## SavedVariables: TerminalDB
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 ## X-Curse-Project-ID: 1723255
@@ -51,6 +51,7 @@ Providers\Keybinds.lua
 Providers\History.lua
 Commands.lua
 Easy.lua
+Pipes.lua
 ChatLinks.lua
 Zen.lua
 Atop.lua

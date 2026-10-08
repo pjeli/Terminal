@@ -925,6 +925,16 @@ local function SoldItems(v, DB)
 	return ids
 end
 
+--- Questie's items with exactly this (lowercase) name: their ids ({} when none, or without Questie). (Pipes.lua: a
+--- chain started from an item you don't carry, "where to get copper ore".)
+function F.QuestieItemIds(lname)
+	local DB = QuestieDB()
+	if not DB or type(lname) ~= "string" or lname == "" then return {} end
+	local ids = {}
+	for found in ItemNames(DB):gmatch("\n" .. lname:gsub("%p", "%%%0") .. "\t(%d+)") do ids[#ids + 1] = tonumber(found) end
+	return ids
+end
+
 --- The NPC ids selling what the value names, or nil while Questie isn't there (asked again then).
 local function Sellers(v)
 	local c = soldBy[v]
