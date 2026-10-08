@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.43.13", when = "in testing",
+		v = "0.43.14", when = "in testing",
 		items = {
 			"Ask where to go, in plain words: \"where should i level\" lists the zones for your level (quests there at your level, nearest first), \"what dungeon should i do\" the dungeons, \"where should i fish\" the zones your fishing skill is enough for and the next ones to unlock. Say a level to ask for another: \"zones for level 35\". Zone levels and fishing skill from Leatrix Maps.",
 			"Zones show their level range on @map rows, and lvl: works on zones and dungeons (\"@map lvl:30\", \"@dungeon lvl:25\").",
