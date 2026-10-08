@@ -415,7 +415,7 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = l
 				end
 			end
-			if stored[id] then out[#out + 1] = View(stored[id], "On your alts  ·  " .. tostring(stored[id].detail or ""), nil, "on your alts:") end
+			if stored[id] then out[#out + 1] = View(stored[id], "On your alts  ·  " .. tostring(stored[id].detail or "")) end
 		end
 		return out
 	end,

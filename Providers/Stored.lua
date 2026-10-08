@@ -402,6 +402,35 @@ S.Tooltip = Tooltip
 
 local function PrintBreakdown(e) ns:Output(Breakdown(e)) end
 
+--- What follows the item's link when it's sent to chat (>> party, the menu's chat lines, a chain's "> alts"): how many
+--- in all and who holds them, " x48: Plamen Warr 20 (bags 12, bank 8), Plamen Pally 28 (bank), Warband 5". Within
+--- `room` characters when given: the smallest holders go first ("+2 more").
+function S.ChatSummary(e, room)
+	if type(e.total) ~= "number" or type(e.holders) ~= "table" then return nil end
+	local head = " x" .. e.total
+	local groups = Groups(e)
+	local parts = {}
+	for _, g in ipairs(groups) do
+		local where
+		if #g.parts == 1 then
+			where = (g.place ~= "guild" and g.place ~= "warband") and (WHERE_LABEL[g.place] or g.place) or nil
+		else
+			where = table.concat(g.parts, ", ")
+		end
+		parts[#parts + 1] = g.name .. " " .. g.total .. (where and (" (" .. where .. ")") or "")
+	end
+	if #parts == 0 then return head end
+	local n = #parts
+	while n > 0 do
+		local more = #parts - n
+		local text = head .. ": " .. table.concat(parts, ", ", 1, n) .. (more > 0 and (", +" .. more .. " more") or "")
+		if not room or #text <= room then return text end
+		n = n - 1
+	end
+	return head
+end
+local function ChatSummary(e, room) return S.ChatSummary(e, room) end
+
 --- Enter or a click: like an Item result, your bags open on the ones you carry, highlighted.
 --- Carrying none, nothing happens: the tooltip already says who has them and where.
 local function Open(e)
@@ -437,6 +466,7 @@ local function StoredRow(id, x, name)
 		holders = x.holders, total = x.total, itemID = id,
 		activate = Open,
 		secondary = PrintBreakdown,
+		shareExtra = ChatSummary, -- (sent to chat: who holds how many)
 	}
 end
 

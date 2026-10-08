@@ -931,3 +931,26 @@ do
 	check(bar:GetAlpha() == 0.5, "off: the game's own fading works again")
 	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster, _G.hooksecurefunc = nil, nil, nil, nil, saveHook
 end
+
+-- a stored item sent to chat says who holds how many (0.43.27): >> party, the menu's chat lines, a chain's "> alts"
+do
+	local St, SH = ns.Stored, ns.Share
+	local holders = {
+		a = { key = "a", who = "Bob", where = "bags", count = 12, owner = "Bob-R" },
+		b = { key = "b", who = "Bob", where = "bank", count = 8, owner = "Bob-R" },
+		c = { key = "c", who = "Alt", where = "bank", count = 28, owner = "Alt-R" },
+		w = { key = "w", who = "Warband", where = "warband", count = 5, owner = "warband" },
+	}
+	local e = { kind = "stored", name = "Linen Cloth", itemID = 2589, link = "item:2589", total = 53, holders = holders,
+		shareExtra = function(r, room) return St.ChatSummary(r, room) end }
+	local s = St.ChatSummary(e)
+	check(s == " x53: Alt 28 (bank), Bob 20 (bags 12, bank 8), Warband 5", "who holds how many: " .. tostring(s))
+	check(SH.Line(e, "@stored linen") == "Linen Cloth x53: Alt 28 (bank), Bob 20 (bags 12, bank 8), Warband 5",
+		"the chat box line: " .. tostring(SH.Line(e, "@stored linen")))
+	local mac = SH.Macro(e, { cmd = "/p" })
+	check(mac == "/p Linen Cloth x53: Alt 28 (bank), Bob 20 (bags 12, bank 8), Warband 5", ">> party: " .. tostring(mac))
+	check(St.ChatSummary(e, 30) == " x53: Alt 28 (bank), +2 more", "too long: the smallest holders folded: " .. tostring(St.ChatSummary(e, 30)))
+	-- as a chain's last link ("linen cloth > alts >> party"): no context, the holders say it
+	local v = setmetatable({ pipeRel = "alts", pipeFrom = "Linen Cloth" }, { __index = e })
+	check(SH.Macro(v, { cmd = "/p" }) == mac, "linen cloth > alts >> party: the same line: " .. tostring(SH.Macro(v, { cmd = "/p" })))
+end

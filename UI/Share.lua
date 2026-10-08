@@ -93,10 +93,18 @@ function SH.LootSource(e)
 	return "dropped by " .. boss .. where
 end
 
--- the base text with where a loot row's item drops after it
-local function WithSource(e, text)
-	local from = type(text) == "string" and text ~= "" and SH.LootSource(e)
-	return from and (text .. " " .. from) or text
+-- the base text with where a loot row's item drops after it, and what the row adds of its own (`shareExtra`: a
+-- stored item's holders) within `room` characters when given
+local function WithSource(e, text, room)
+	if type(text) ~= "string" or text == "" then return text end
+	local from = SH.LootSource(e)
+	if from then text = text .. " " .. from end
+	local f = e.shareExtra
+	if type(f) == "function" then
+		local ok, x = pcall(f, e, room and (room - #text) or nil)
+		if ok and type(x) == "string" and x ~= "" then text = text .. x end
+	end
+	return text
 end
 
 --- What a row sends: its link (a loot row's says where it drops, unless `bare`), a map pin for an NPC, else its name.
@@ -237,7 +245,7 @@ end
 --- as the chain sees it: a reagent's count ("8x [Thorium Bar]"), a source's way ("sold by Name [pin]"). nil, text
 --- for rows not from a chain.
 SH.CHAIN = {
-	mats = "Mats for %s", uses = "%s is used in", sources = "Where to get %s", alts = "%s on your alts",
+	mats = "Mats for %s", uses = "%s is used in", sources = "Where to get %s", -- (alts: the holders say it)
 }
 function SH.ChainText(e, text)
 	local rel = e.pipeRel
@@ -265,9 +273,9 @@ end
 function SH.Macro(e, to)
 	if not (to and to.cmd and e) then return nil end
 	local base = SH.BaseText(e) -- (worked out once: an NPC's sets your map pin to link it)
-	local ctx, text = SH.ChainText(e, e.pipeRel == "uses" and base or WithSource(e, base))
-	if type(text) ~= "string" or text == "" then return nil end
 	local max = ns.Secure and ns.Secure.MACRO_MAX or 255
+	local ctx, text = SH.ChainText(e, e.pipeRel == "uses" and base or WithSource(e, base, max - #to.cmd - 1))
+	if type(text) ~= "string" or text == "" then return nil end
 	ctx = ctx or SH.Context(to.query, e)
 	local line = to.cmd .. " " .. (ctx and (ctx .. ": ") or "") .. text
 	if #line > max then line = to.cmd .. " " .. (e.generic and (tostring(e.name) .. " ") or "") .. text end
