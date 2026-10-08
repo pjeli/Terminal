@@ -684,6 +684,11 @@ end
 -- Answered before any search, in this order: each gives rows and the footer's note (true third: the note is a
 -- chain's path), or nothing when the line isn't its kind
 Scan.ANSWERS = {
+	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
+	function(text)
+		local q = ns.LootLog and ns.LootLog.Question(text)
+		if q then return ns.LootLog.Answer(q) end
+	end,
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua
 	function(text)
 		local chain = ns.Pipes and ns.Pipes.Canonical(text)

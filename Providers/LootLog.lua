@@ -191,6 +191,7 @@ ns:RegisterProvider("lootlog", {
 				if d.from then parts[#parts + 1] = d.from end
 				if d.zone then parts[#parts + 1] = d.zone end
 				out[#out + 1] = {
+					looter = d.who, mine = who == "you" or nil,
 					key = (d.t or 0) .. ":" .. d.id .. ":" .. tostring(d.who),
 					name = NameOf(d.link) .. (d.n and (" x" .. d.n) or ""),
 					itemID = d.id, link = d.link,
@@ -207,6 +208,62 @@ ns:RegisterProvider("lootlog", {
 		return out
 	end,
 })
+
+----------------------------------------------------------------------
+-- In plain words: "what dropped", "what drops did we get", "what did i loot", "what did bob get"
+----------------------------------------------------------------------
+
+local ASKS = {}
+for w in ([[what which did do we i me my our us get got gotten have has had drop dropped drops loot looted loots
+	lootlog log won win recent recently last latest lately today tonight so far any anything anyone items item show list
+	the from that this run boss bosses all see were was been is are new]]):gmatch("%S+") do ASKS[w] = true end
+local CUES = { drop = true, dropped = true, drops = true, loot = true, looted = true, loots = true, lootlog = true }
+local GOT = { get = true, got = true, gotten = true, won = true, win = true }
+
+--- A loot question in plain words: { who = "me" / a looter's name / nil (everyone) }, else nil. The whole line must be
+--- question words, with a word about loot ("dropped", "loot") or "what did <someone> get"; one name from the log may
+--- stand in it ("what did bob get").
+function LL.Question(text)
+	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	local has, n, other = {}, 0, {}
+	for w in ns.Lower(text):gsub("[%p]", " "):gmatch("%S+") do
+		if ASKS[w] then has[w] = true else other[#other + 1] = w end
+		n = n + 1
+	end
+	if n < 2 then return nil end
+	local cue = false
+	for w in pairs(CUES) do if has[w] then cue = true end end
+	local got = false
+	for w in pairs(GOT) do if has[w] then got = true end end
+	if not cue and not (got and (has.what or has.did)) then return nil end
+	local who
+	if #other > 0 then
+		-- (the other words must be someone in the log: "what did plamen warr get")
+		local name = table.concat(other, " ")
+		for _, d in ipairs(Log() or {}) do
+			local l = type(d.who) == "string" and ns.Lower(d.who)
+			if l and (l == name or l:match("^(%S+)") == name) then who = d.who break end
+		end
+		if not who then return nil end
+	elseif (has.i or has.me or has.my) and not (has.we or has.our or has.us) then
+		who = "me"
+	end
+	return { who = who }
+end
+
+--- The loot log's rows a question wants, newest first, and the footer's note.
+function LL.Answer(q)
+	local p = ns.providers.lootlog
+	local rows = {}
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		if not q.who or (q.who == "me" and e.mine) or (q.who ~= "me" and e.looter == q.who) then rows[#rows + 1] = e end
+	end
+	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	local note = (q.who == "me" and "Your drops, newest first") or (q.who and (q.who .. "'s drops, newest first"))
+		or "Drops, newest first"
+	if #rows == 0 then note = (#(Log() or {}) == 0) and "Nothing looted yet" or "Nothing looted by them yet" end
+	return rows, note
+end
 
 ns:RegisterCommand("lootlog", {
 	desc = "The loot log: what dropped and who got it (search it with @drop); .lootlog clear forgets it",

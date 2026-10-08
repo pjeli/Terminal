@@ -71,6 +71,24 @@ do
 		"@drop / @dropped / @lootlog: the loot log")
 	check(#UI:Search("@drop bob") == 2, "@drop bob: Bob's drops")
 	check(UI:ResultText(res[1]):find("^@drop "), "a row written into the prompt says @drop: " .. tostring(UI:ResultText(res[1])))
+	-- asked in plain words (0.43.22): "what dropped", "what drops did we get", "what did i loot", "what did bob get"
+	local LLQ = function(t) local q = LL.Question(t) return q and (q.who or "all") or nil end
+	check(LLQ("what dropped") == "all" and LLQ("what drops did we get") == "all" and LLQ("what did we loot") == "all"
+		and LLQ("recent drops") == "all" and LLQ("loot log") == "all", "loot questions: everyone's drops")
+	check(LLQ("what did i loot") == "me" and LLQ("my drops") == "me" and LLQ("what did i get") == "me", "loot questions: yours")
+	check(LLQ("what did bob get") == "Bob" and LLQ("what did bob loot") == "Bob", "loot questions: someone in the log")
+	check(LLQ("loot") == nil and LLQ("molten core loot") == nil and LLQ("what did zed get") == nil and LLQ("@drop bob") == nil
+		and LLQ("what drops thorium bar") == nil and LLQ("what killed me") == nil and LLQ("where should i level") == nil, "other searches stay searches")
+	ns.db.easyMode = true
+	res = UI:SearchText("what drops did we get")
+	check(#res == 3 and res[1].kind == "lootlog" and UI.answerNote == "Drops, newest first", "Simple mode: the loot log answers: " .. tostring(UI.answerNote))
+	res = UI:SearchText("what did bob get")
+	check(#res == 2 and res[1].name == "Crescent Belt" and UI.answerNote == "Bob's drops, newest first", "someone's drops: " .. #res)
+	res = UI:SearchText("what did i loot")
+	check(#res == 1 and res[1].name == "Linen Cloth x2", "your drops: " .. #res)
+	check(ns.Easy.ToAdvanced("what dropped") == "@drop " and ns.Easy.ToAdvanced("what did i loot") == "@drop you "
+		and ns.Easy.ToAdvanced("what did bob get") == "@drop bob ", "Alt+`: their Advanced forms: " .. ns.Easy.ToAdvanced("what did i loot"))
+	ns.db.easyMode = false
 	check(ns.Filters.Parse("q:uncommon") ~= nil, "(filters work on its rows: they carry the item)")
 	for i = 1, LL.MAX + 5 do LL.Add("|Hitem:" .. (5000 + i) .. "|h[X]|h", "Bob", 1) now = now + 20 end
 	check(#ns.db.lootLog == LL.MAX, "only the newest " .. LL.MAX .. " are kept")

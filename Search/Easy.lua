@@ -355,6 +355,8 @@ local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) e
 -- a plain-word question or chain, in Advanced syntax: chains as links ("mats for x" -> "x > mats"), the zone questions
 -- as @map/@dungeon/@raid with lvl: or fish:, the combat ones as @combatlog words. Nil for anything else.
 local function QuestionToAdvanced(text)
+	local lq = ns.LootLog and ns.LootLog.Question and ns.LootLog.Question(text)
+	if lq then return "@drop " .. ((lq.who == "me" and "you ") or (lq.who and (Lower(lq.who) .. " ")) or "") end
 	local chain = ns.Pipes and ns.Pipes.Canonical(text)
 	if chain then return chain .. " " end
 	local Z = ns.Zones
