@@ -13,12 +13,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.44.9", when = "in testing",
+		v = "0.44.10", when = "in testing",
 		items = {
 			"Send every result at once: right-click a result (or Shift+Right) and pick \"All 8 to party\" (guild, raid, say...): \"Mats for Thorium Belt (2): 12x [Thorium Bar], 2x [Heart of Fire]\" or a whole dungeon's loot (\"Weapons from Razorfen Kraul (12): ...\"), with item links. Advanced: mats for thorium belt >>> party (the list becomes one row saying how many go where).",
 			"Every class's talents: \"ice barrier\" finds the mage talent even on your warrior (your own class's come first); Enter shows it on Wowhead. Advanced: class:mage.",
 			"Quicker typing: chains (\"mats for ...\") and Simple mode's categories answer faster key by key, and type:, slot: and is:equippable no longer wait on item data; tidier code throughout.",
-			"Fixes: chains never guess: \"mats for core leather belt\" no longer gives another recipe's mats; with no such name it offers the closest, and when several names fit it asks which. A tooltip stuck on \"Retrieving item information\" now fills in by itself once the item arrives.",
+			"Fixes: chains never guess: \"mats for core leather belt\" no longer gives another recipe's mats; with no such name it offers the closest, and when several names fit it asks which. Chains also count bars you just bought, take @kinds (@recipe thorium belt > mats) and names like \"Pattern: Linen Belt\". \"upgrades\" no longer calls any +1 stat better than gear with no stats. Sending every result names everything asked for (\"Swords and axes\"), reaches whispers to first and last names, and never sends twice. A tooltip stuck on \"Retrieving item information\" fills in once the item arrives. The loot log keeps two of the same drop apart. The first Alt+` after a /reload opens in Advanced; .zen off leaves bars other addons hide alone.",
 		},
 	},
 	{

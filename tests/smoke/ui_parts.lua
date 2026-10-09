@@ -24,7 +24,8 @@ do -- the helpers and constants one UI file gives the others (captured at load, 
 	UI:Hide(); T.FlushAll()
 end
 
-do -- the frame's OnHide when only the frame exists (in the game, BuildFrame's frame:Hide() fires it on the first open)
+do -- the frame's OnHide when only the frame exists (BuildFrame's first frame:Hide() fired it on the first open; since
+	-- 0.44.10 the frame is hidden before its scripts are set, but the handler stays safe that early)
 	UI:Open(""); UI:Hide(); T.FlushAll()
 	local F = _G.TerminalFrame
 	local names = { "edit", "caret", "caretChar", "hit", "busy", "syntax", "selText", "ghost", "selBar", "selEdge", "divider",
