@@ -240,6 +240,89 @@ do
 	check(ns.providers.quests.events and table.concat(ns.providers.quests.events, ","):find("PLAYER_LEVEL_UP", 1, true),
 		"a level gained rebuilds the log's marks")
 
+	-- the tooltip (0.45.10): name, level and zone, objectives, then the rewards: experience, money, items
+	io.write("[quest tooltips: rewards]\n")
+	do
+		local QT = ns.QuestTip
+		local QDm = ns.QuestieData
+		local was = { xp = _G.GetQuestLogRewardXP, money = _G.GetQuestLogRewardMoney, nr = _G.GetNumQuestLogRewards,
+			ri = _G.GetQuestLogRewardInfo, nc = _G.GetNumQuestLogChoices, ci = _G.GetQuestLogChoiceInfo,
+			have = _G.HaveQuestRewardData, req = Q.RequestLoadQuestByID, lib = QDm.Lib, mod = QDm.Module, max = _G.GetMaxPlayerLevel,
+			maxx = _G.GetMaxLevelForPlayerExpansion, upd = UI.UpdateTooltip }
+		local XP = { [102] = 1450, [105] = 900 }
+		local MONEY = { [102] = 2500 }
+		local loaded = { [105] = false }
+		_G.GetQuestLogRewardXP = function(id) return XP[id] or 0, XP[id] or 0 end
+		_G.GetQuestLogRewardMoney = function(id) return MONEY[id] or 0 end
+		_G.GetNumQuestLogRewards = function(id) return id == 102 and 1 or 0 end
+		_G.GetQuestLogRewardInfo = function(i, id) if id == 102 and i == 1 then return "Defias Mask", 133694, 1, 2 end end
+		_G.GetNumQuestLogChoices = function(id) return id == 102 and 2 or 0 end
+		_G.GetQuestLogChoiceInfo = function(i, id)
+			if id == 102 then return ({ "Leggings", "Gloves" })[i], 1, 1, 3 end
+		end
+		_G.HaveQuestRewardData = function(id) return loaded[id] ~= false end
+		local asked = {}
+		Q.RequestLoadQuestByID = function(id) asked[#asked + 1] = id end
+		-- QuestieDB's base experience for Raptor Mastery (the game gives no number for it here)
+		QDm.Module = function() return nil end
+		QDm.Lib = function() return { Support = { Get = function(n) if n == "QuestXP" then return { db = { [104] = { 33, 3000 }, [101] = { 4, 450 } } } end end } } end
+		QT.ForgetAsks()
+		local function Tip(e)
+			local lines = {}
+			local tip = { SetText = function(_, s) lines[#lines + 1] = s end, AddLine = function(_, s) lines[#lines + 1] = s end,
+				AddDoubleLine = function(_, a, b) lines[#lines + 1] = a .. "=" .. b end }
+			e.tooltip(e, tip)
+			return table.concat(lines, "\n")
+		end
+		ns.providers.quests._dirty = true
+		local d = Tip(row(102))
+		check(d:find("^The Defias Brotherhood\nLevel 18  ·  Westfall", 1) and d:find("Rewards\n1,450 experience\n", 1, true),
+			"a log quest's tooltip: name, level and zone, the game's experience: " .. d)
+		check(d:find("25", 1, true) and d:find("Defias Mask", 1, true) and d:find("Leggings", 1, true) and d:find("Gloves", 1, true),
+			"its money and items, and the ones to choose from")
+		check(not d:find("Questie", 1, true), "the game's number: not marked as Questie's")
+		d = Tip(row(104))
+		check(d:find("3,000 experience=Questie's figure", 1, true), "no number from the game: QuestieDB's, marked as Questie's: " .. d)
+		check(QT.Scale(450, 4, 24) == 45 and QT.Scale(1000, 20, 25) == 1000 and QT.Scale(1000, 20, 26) == 800
+			and QT.Scale(3000, 33, 24) == 3000 and QT.Scale(1100, 11, 19) == 440 and QT.Scale(1330, 20, 20) == 1350
+			and QT.Scale(1170, 20, 26) == 925 and QT.Scale(87, 20, 20) == 85,
+			"experience at your level: all of it up to 5 levels above the quest, a fifth less a level past that, a tenth at least")
+		check(Tip(row(101)):find("45 experience=Questie's figure", 1, true), "a grey quest: a tenth of it")
+		check(Tip(row(103)):find("Ready to turn in", 1, true) and Tip(row(101)):find("one to drop", 1, true), "its state under the objectives")
+		_G.GetMaxPlayerLevel, _G.GetMaxLevelForPlayerExpansion = function() return 24 end, nil
+		check(Tip(row(104)):find("No experience at your level", 1, true), "at the level cap: none")
+		_G.GetMaxPlayerLevel = was.max
+		-- rewards the client hasn't loaded: the game is asked, and the tooltip drawn again when they come
+		d = Tip(row(105))
+		check(#asked == 1 and asked[1] == 105 and d:find("Retrieving data", 1, true), "rewards not loaded: asked for, said so: " .. d)
+		Tip(row(105))
+		check(#asked == 1, "asked once")
+		local redrawn = 0
+		UI:Open("@quest supplies"); FlushAll()
+		local t = _G.TerminalTooltip
+		check(t and t.entry and t.entry.questID == 105, "the log's rows show Terminal's tooltip (the selected row)")
+		UI.UpdateTooltip = function(self) redrawn = redrawn + 1 return was.upd(self) end
+		QT.waiter:GetScript("OnEvent")(QT.waiter, "QUEST_DATA_LOAD_RESULT", 999, true)
+		check(redrawn == 0 and QT.Ask(105) == true, "another quest's answer: nothing redrawn, its own still awaited")
+		loaded[105] = true
+		QT.waiter:GetScript("OnEvent")(QT.waiter, "QUEST_DATA_LOAD_RESULT", 105, true)
+		check(redrawn == 1, "its answer: the tooltip drawn again")
+		UI.UpdateTooltip = was.upd
+		-- the game couldn't load them: not asked again for a while
+		loaded[105] = false
+		Tip(row(105))
+		check(#asked == 1, "not asked again at once: " .. #asked)
+		clock = clock + QT.ASK_AGAIN + 1
+		Tip(row(105))
+		check(#asked == 2, "asked again later: " .. #asked)
+		UI:Hide(); FlushAll()
+		_G.GetQuestLogRewardXP, _G.GetQuestLogRewardMoney, _G.GetNumQuestLogRewards = was.xp, was.money, was.nr
+		_G.GetQuestLogRewardInfo, _G.GetNumQuestLogChoices, _G.GetQuestLogChoiceInfo = was.ri, was.nc, was.ci
+		_G.HaveQuestRewardData, Q.RequestLoadQuestByID, QDm.Lib, QDm.Module = was.have, was.req, was.lib, was.mod
+		_G.GetMaxLevelForPlayerExpansion = was.maxx
+		QT.ForgetAsks()
+	end
+
 	Q.GetNumQuestLogEntries, Q.GetInfo, Q.GetQuestObjectives, Q.ReadyForTurnIn = save.num, save.info, save.obj, save.ready
 	Q.IsComplete, Q.IsQuestTrivial, Q.SetSelectedQuest, Q.GetSelectedQuest = save.isComplete, save.trivial, save.sel, save.getSel
 	Q.SetAbandonQuest, Q.AbandonQuest, Q.GetLogIndexForQuestID, Q.GetTitleForQuestID = save.setAb, save.ab, save.idx, save.title

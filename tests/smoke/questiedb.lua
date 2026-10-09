@@ -76,6 +76,50 @@ do
 	check(r[1] and r[1].name == "Hogger", "@npc hogger finds him: " .. tostring(r[1] and r[1].name))
 	r = UI:Search("@questie bring his claw")
 	check(r[1] and r[1].qid == 176, "@questie searches the objectives text: " .. tostring(r[1] and r[1].name))
+	do -- its tooltip (0.45.10): level, zone, objectives, who starts it, and its rewards (QuestieDB's experience)
+		local q = r[1]
+		local was = { get = _G.LibQuestieDB.Support.Get, ul = _G.UnitLevel, money = _G.GetQuestLogRewardMoney,
+			xp = _G.GetQuestLogRewardXP, Q = _G.Questie, L = _G.QuestieLoader, quests = ns.providers.quests }
+		_G.LibQuestieDB.Support.Get = function(name)
+			if name == "QuestXP" then return { db = { [176] = { 11, 1100 } } } end
+			return was.get(name)
+		end
+		_G.UnitLevel = function() return 19 end
+		_G.GetQuestLogRewardXP = function() return 0, 0 end
+		_G.GetQuestLogRewardMoney = function(id) return id == 176 and 1500 or 0 end
+		local function Tip(e)
+			local lines = {}
+			local tip = { SetText = function(_, s) lines[#lines + 1] = s end, AddLine = function(_, s) lines[#lines + 1] = s end,
+				AddDoubleLine = function(_, a, b) lines[#lines + 1] = a .. "=" .. b end }
+			e.tooltip(e, tip)
+			return table.concat(lines, "\n")
+		end
+		local d = q and q.tooltip and Tip(q) or ""
+		check(d:find("Level 11", 1, true) and d:find("Kill Hogger and bring his claw", 1, true) and d:find("Started by Marshal Dughan", 1, true),
+			"a Questie quest's tooltip: level, objectives, who starts it: " .. d)
+		check(d:find("440 experience=Questie's figure", 1, true) and d:find("15", 1, true),
+			"its experience at your level (QuestieDB's, marked) and money (the game's): " .. d)
+		-- with Questie: its own figure (it counts its bonuses)
+		_G.Questie = { API = { isReady = true } }
+		_G.QuestieLoader = { ImportModule = function(_, n)
+			if n == "QuestXP" then return { db = { [176] = { 11, 1100 } }, GetQuestLogRewardXP = function(_, id) return id == 176 and 484 or 0 end } end
+		end }
+		d = Tip(q)
+		check(d:find("484 experience=Questie's figure", 1, true), "with Questie: Questie's own figure: " .. d)
+		_G.Questie, _G.QuestieLoader = was.Q, was.L
+		-- on it: the quest log's own tooltip (its progress)
+		local logRow = { questID = 176, name = "Wanted", tooltip = function(_, t) t:AddLine("from the log") end }
+		local idxWas = C_QuestLog.GetLogIndexForQuestID
+		C_QuestLog.GetLogIndexForQuestID = function(id) return id == 176 and 1 or nil end
+		local entries, dirty = was.quests and was.quests._entries, was.quests and was.quests._dirty
+		if was.quests then was.quests._entries, was.quests._dirty = { logRow }, false end
+		check(was.quests and Tip(q) == "from the log", "a quest you're on: the log's tooltip")
+		if was.quests then was.quests._entries, was.quests._dirty = entries, dirty end
+		C_QuestLog.GetLogIndexForQuestID = idxWas
+		_G.LibQuestieDB.Support.Get, _G.UnitLevel = was.get, was.ul
+		_G.GetQuestLogRewardMoney, _G.GetQuestLogRewardXP = was.money, was.xp
+		ns.QuestTip.ForgetAsks()
+	end
 	-- his place on the map, from QuestieDB's zone tables (no Questie ZoneDB)
 	local placed
 	_G.C_Map = { CanSetUserWaypointOnMap = function() return true end,

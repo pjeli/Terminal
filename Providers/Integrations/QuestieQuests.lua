@@ -162,6 +162,27 @@ local function FromLog(field, otherwise)
 	end
 end
 
+--- A Questie quest's tooltip (0.45.10): the log's own when you're on it (progress and all), else Questie's: level,
+--- zone, the level it needs, its objectives, who starts it, then its rewards (ns.QuestTip, Quests.lua: the game's
+--- numbers where it has them, QuestieDB's experience otherwise).
+local function QuestieTooltip(e, t)
+	local QT = ns.QuestTip
+	local id = e.qid
+	local l = InLog(id) and LogEntry(id)
+	if l and l.tooltip then return l.tooltip(l, t) end
+	local DB = QDB()
+	local lines = {}
+	local objs = DB and Safe(DB.QueryQuestSingle, id, "objectivesText")
+	for _, s in ipairs(type(objs) == "table" and objs or {}) do
+		if ns.Str(s) then lines[#lines + 1] = s end
+	end
+	local needs = DB and ns.Num(Safe(DB.QueryQuestSingle, id, "requiredLevel"))
+	local npcID, npcName, other = QuestGiver(id)
+	local done = Done(id)
+	QT.Draw(t, { id = id, name = e.name, level = e.level, zone = e.zone, needs = needs, lines = lines,
+		giver = npcName or other, status = done and "Done" or nil, statusColour = done and QT.COLOURS[1] or nil })
+end
+
 -- (qid is the row's key, read through here: a row of 8 raw fields grew to a 16-slot table the first time a search
 -- wrote its score on it, ~1.6 MB over 5000 quests; 7 leave room)
 local QUESTIE_LAZY = {
@@ -254,7 +275,8 @@ local function SetupQuestie()
 			return qdb.list or {}
 		end,
 	})
-	qdb.meta = ns:CompactMeta(ns.providers.questie, { activate = CopyQuestLink, shareLink = QuestieShareLink, noCombatSecondary = true }, QUESTIE_LAZY)
+	qdb.meta = ns:CompactMeta(ns.providers.questie, { activate = CopyQuestLink, shareLink = QuestieShareLink, noCombatSecondary = true,
+		tooltip = QuestieTooltip }, QUESTIE_LAZY)
 	-- built in the background after login (with their names text); the NPC list is freed when
 	-- unused and built again for the next @npc search, the quest list (a few thousand) is kept
 	-- one after the other (both at once doubled the work per frame right after login)

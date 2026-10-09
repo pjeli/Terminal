@@ -286,6 +286,230 @@ local function Objectives(i, questID)
 	return out
 end
 
+----------------------------------------------------------------------
+-- A quest's tooltip (0.45.10, the log's rows and Questie's): its name in the colour the game gives it for your level,
+-- level and zone, its objectives, then what it rewards: the experience, the money and (when the game has them) the
+-- items. The game's numbers come first (GetQuestLogRewardXP / GetQuestLogRewardMoney / GetQuestLogRewardInfo: a quest
+-- in your log, or one whose data the client has loaded); a quest the game gives no experience number for gets
+-- QuestieDB's (its Support "QuestXP" table: the quest's level and base experience; through Questie's own QuestXP when
+-- Questie is there), scaled to your level by the game's rules and marked as Questie's.
+----------------------------------------------------------------------
+
+local QT = {}
+ns.QuestTip = QT
+
+-- the game's colours for how hard a quest is for you (C_PlayerInfo.GetContentDifficultyQuestForPlayer)
+QT.COLOURS = { [0] = { 0.53, 0.53, 0.53 }, { 0.25, 0.75, 0.25 }, { 1, 1, 0 }, { 1, 0.5, 0.25 }, { 1, 0.1, 0.1 } }
+local GOLD, WHITE, DIM = { 1, 0.82, 0 }, { 1, 1, 1 }, { 0.62, 0.62, 0.62 }
+
+local function Colour(id, level)
+	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
+	local d = f and id and Call(f, id)
+	if not Secret(d) and type(d) == "number" and QT.COLOURS[d] then return QT.COLOURS[d] end
+	-- (no answer: by level, as the classic log did: 5+ above red, 3-4 orange, within 2 yellow, then green, then grey)
+	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
+	if not (me and level and level > 0) then return GOLD end
+	local diff = level - me
+	if diff >= 5 then return QT.COLOURS[4] elseif diff >= 3 then return QT.COLOURS[3] elseif diff >= -2 then return QT.COLOURS[2] end
+	local grey = (_G.GetQuestGreenRange and Num(Call(_G.GetQuestGreenRange))) or 8
+	return (-diff > grey) and QT.COLOURS[0] or QT.COLOURS[1]
+end
+
+local function MaxLevel()
+	local f = _G.GetMaxLevelForPlayerExpansion or _G.GetMaxPlayerLevel
+	return f and Num(Call(f)) or nil
+end
+
+--- What a quest of level `q` worth `xp` gives at level `me`, by the game's rules (classic): all of it up to five levels
+--- above the quest, a fifth less for each level past that, never under a tenth; rounded to the game's steps.
+function QT.Scale(xp, q, me)
+	if not (me and q and q > 0) then return xp end
+	local m = math.max(1, math.min(10, 2 * (q - me) + 20))
+	xp = xp * m / 10
+	if xp <= 100 then xp = 5 * math.floor((xp + 2) / 5)
+	elseif xp <= 500 then xp = 10 * math.floor((xp + 5) / 10)
+	elseif xp <= 1000 then xp = 25 * math.floor((xp + 12) / 25)
+	else xp = 50 * math.floor((xp + 25) / 50) end
+	return xp
+end
+
+--- QuestieDB's figure for a quest at your level, or nil when it has none.
+function QT.QuestieXP(id)
+	local QD = ns.QuestieData
+	if not QD then return nil end
+	-- Questie's own answer (it knows its bonuses: Joyous Journeys, the Darkmoon Faire...)
+	local M = QD.Module("QuestXP")
+	if M and type(M.db) == "table" and M.db[id] and M.GetQuestLogRewardXP then
+		local x = Num(Call(M.GetQuestLogRewardXP, M, id))
+		if x then return x end
+	end
+	local L = QD.Lib()
+	local S = L and L.Support
+	local X = S and S.Get and Call(S.Get, "QuestXP")
+	local row = type(X) == "table" and type(X.db) == "table" and X.db[id]
+	local level, xp = type(row) == "table" and tonumber(row[1]), type(row) == "table" and tonumber(row[2])
+	if not (level and xp and level > 0 and xp > 0) then return nil end
+	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
+	local cap = MaxLevel()
+	if me and cap and me >= cap then return 0 end
+	return QT.Scale(xp, level, me)
+end
+
+--- The experience a quest gives you, and where the number comes from ("game" / "Questie"); 0 at the level cap; nil when
+--- nobody says.
+function QT.Experience(id)
+	local f = _G.GetQuestLogRewardXP
+	if f then
+		local total, base = Call(f, id)
+		total, base = Num(total), Num(base)
+		local x = (total and total > 0 and total) or (base and base > 0 and base) or nil
+		if x then return x, "game" end
+	end
+	local q = QT.QuestieXP(id)
+	if q then return q, "Questie" end
+	return nil
+end
+
+--- The money a quest gives (copper), or nil.
+function QT.Money(id)
+	local f = _G.GetQuestLogRewardMoney
+	local m = f and Num(Call(f, id))
+	return m and m > 0 and m or nil
+end
+
+-- the items: { { name, texture, count, quality } } given, and those to choose one of
+local function Items(id)
+	local given, choose = {}, {}
+	local function Read(n, info, into)
+		for i = 1, math.min(n or 0, 10) do
+			local name, tex, count, quality = Call(info, i, id)
+			name = Str(name)
+			if name then into[#into + 1] = { name, tex, Num(count), Num(quality) } end
+		end
+	end
+	if _G.GetNumQuestLogRewards and _G.GetQuestLogRewardInfo then
+		Read(Num(Call(_G.GetNumQuestLogRewards, id)), _G.GetQuestLogRewardInfo, given)
+	end
+	if _G.GetNumQuestLogChoices and _G.GetQuestLogChoiceInfo then
+		Read(Num(Call(_G.GetNumQuestLogChoices, id, true)), _G.GetQuestLogChoiceInfo, choose)
+	end
+	return given, choose
+end
+
+-- asking the game for a quest's data (one asked at a time; the tooltip is drawn again when it comes)
+QT.ASK_AGAIN = 30 -- (s before a quest is asked for again)
+local waitFor, asked = nil, {}
+local waiter = CreateFrame("Frame")
+waiter:SetScript("OnEvent", function(_, _, id)
+	if id ~= waitFor then return end
+	waitFor = nil
+	waiter:UnregisterEvent("QUEST_DATA_LOAD_RESULT")
+	local t = _G.TerminalTooltip
+	local e = t and t.IsShown and t:IsShown() and t.entry
+	if e and (rawget(e, "questID") or e.questID or e.qid) == id and ns.UI and ns.UI.UpdateTooltip then
+		t.entry = nil -- (the same-row shortcut would skip it)
+		ns.UI:UpdateTooltip()
+	end
+end)
+QT.waiter = waiter -- (tests)
+
+--- Asks the game for a quest's data when it doesn't have its rewards yet; true while that answer is awaited.
+function QT.Ask(id)
+	local have = _G.HaveQuestRewardData
+	if not have or Call(have, id) ~= false then return false end
+	if waitFor == id then return true end
+	local R = C_QuestLog and C_QuestLog.RequestLoadQuestByID
+	local now = GetTime and GetTime() or 0
+	if not R or (asked[id] and now - asked[id] < QT.ASK_AGAIN) then return false end
+	asked[id] = now
+	waitFor = id
+	pcall(waiter.RegisterEvent, waiter, "QUEST_DATA_LOAD_RESULT")
+	Call(R, id)
+	return true
+end
+function QT.ForgetAsks() waitFor, asked = nil, {} end -- (tests)
+
+local XP_FORMAT
+local function XpText(x)
+	if not XP_FORMAT then
+		-- the game's words ("%d experience"), taking the number with its thousands marked
+		local f = _G.BONUS_OBJECTIVE_EXPERIENCE_FORMAT
+		f = type(f) == "string" and f:gsub("%%d", "%%s") or nil
+		local _, n = (f or ""):gsub("%%s", "")
+		XP_FORMAT = (n == 1 and not f:find("%%[^s%%]")) and f or "%s experience"
+	end
+	local T = ns.Gold and ns.Gold.Thousands
+	return XP_FORMAT:format(T and T(x) or tostring(x))
+end
+
+local function Line(t, text, c, wrap) t:AddLine(text, c[1], c[2], c[3], wrap) end
+
+--- Draws a quest on the tooltip `t`. `q`: { id, name, level, zone, needs (required level), lines (objectives, as
+--- text), status (a line under them: "Ready to turn in"), statusColour, giver }.
+function QT.Draw(t, q)
+	local c = Colour(q.id, q.level)
+	t:SetText(tostring(q.name), c[1], c[2], c[3], 1, true)
+	local head = {}
+	if q.level and q.level > 0 then head[#head + 1] = "Level " .. q.level end
+	if q.zone and q.zone ~= "" then head[#head + 1] = q.zone end
+	if #head > 0 then Line(t, table.concat(head, "  ·  "), DIM) end
+	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
+	if q.needs and me and q.needs > me then Line(t, "Requires level " .. q.needs, QT.COLOURS[4]) end
+	if q.lines and #q.lines > 0 then
+		t:AddLine(" ")
+		for i = 1, math.min(#q.lines, 8) do Line(t, q.lines[i], WHITE, true) end
+	end
+	if q.giver then Line(t, "Started by " .. q.giver, DIM, true) end
+	if q.status then Line(t, q.status, q.statusColour or DIM) end
+	-- what it rewards
+	local id = q.id
+	local loading = id and QT.Ask(id)
+	local xp, from = nil, nil
+	if id then xp, from = QT.Experience(id) end
+	local money = id and QT.Money(id)
+	local given, choose = {}, {}
+	if id then given, choose = Items(id) end
+	if (xp and xp > 0) or money or #given > 0 or #choose > 0 or loading then
+		t:AddLine(" ")
+		Line(t, ns.GameText and ns.GameText("QUEST_REWARDS", "Rewards") or "Rewards", GOLD)
+		if xp and xp > 0 then
+			if from == "Questie" then
+				t:AddDoubleLine(XpText(xp), "Questie's figure", 1, 1, 1, DIM[1], DIM[2], DIM[3])
+			else
+				Line(t, XpText(xp), WHITE)
+			end
+		end
+		if money then Line(t, ns.Gold and ns.Gold.Text and ns.Gold.Text(money) or (money .. "c"), WHITE) end
+		local function Item(it)
+			local qc = it[4] and ns.QualityHex and ns.QualityHex(it[4])
+			local icon = it[2] and ("|T" .. tostring(it[2]) .. ":0|t ") or ""
+			local name = (type(qc) == "string" and qc:find("^|c")) and (qc .. it[1] .. "|r") or it[1] -- (hex: "|cff1eff00")
+			Line(t, icon .. name .. ((it[3] and it[3] > 1) and (" x" .. it[3]) or ""), WHITE)
+		end
+		for _, it in ipairs(given) do Item(it) end
+		if #choose > 0 then
+			Line(t, ns.GameText and ns.GameText("REWARD_CHOICES", "Choose one:") or "Choose one:", DIM, true)
+			for _, it in ipairs(choose) do Item(it) end
+		end
+		if loading then Line(t, ns.GameText and ns.GameText("RETRIEVING_DATA", "Retrieving data") or "Retrieving data", DIM) end
+	elseif xp == 0 then
+		t:AddLine(" ")
+		Line(t, "No experience at your level", DIM)
+	end
+end
+
+-- a quest log row's tooltip
+local function LogTooltip(e, t)
+	local lines = {}
+	for _, o in ipairs(e.objectives or {}) do lines[#lines + 1] = o[1] end
+	if #lines == 0 and e.objText then lines[1] = e.objText end
+	local status, sc
+	if e.complete then status, sc = "Ready to turn in", QT.COLOURS[1]
+	elseif e.drop then status = e.grey and "Grey for your level: one to drop" or "In a zone you've left behind: one to drop" end
+	QT.Draw(t, { id = e.questID, name = e.name, level = e.level, zone = e.zone, lines = lines, status = status, statusColour = sc })
+end
+QT.LogTooltip = LogTooltip
+
 ns:RegisterProvider("quests", {
 	label = "Quest log",
 	color = "ffffd200",
@@ -332,6 +556,7 @@ ns:RegisterProvider("quests", {
 						-- the pieces, for the quest items index (Items.lua reads them, not the log again)
 						desc = desc, objText = obj, objectives = objectives,
 						getLink = QuestLink,
+						tooltip = LogTooltip, -- (Terminal draws it: the rewards; the link stays for chat)
 						activate = ShowQuest,
 						secure = QUEST_SECURE,
 						isOpen = IsOpen,

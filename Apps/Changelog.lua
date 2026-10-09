@@ -13,13 +13,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.45.10", when = "in testing",
+		v = "0.45.11", when = "in testing",
 		items = {
 			"Flight paths: \"nearest unlearned flight master\" points you to the closest flight path you haven't learned yet (Enter opens the map on its flight master, Shift+Enter sets a waypoint), and \"unlearned flight paths\" lists them all. Terminal learns which ones you know from the first flight master's map you open on each continent, per character (until then they say \"not checked yet\"); a row's tooltip shows your alts' too. Advanced: @flight is:unlearned sort:nearest.",
 			"Guild professions: guild members now show their professions, so \"guild blacksmith\", \"guild skinner\" or \"guild herbalists\" (Advanced: @guild skinner) finds them, offline ones too.",
 			"Spells you haven't put anywhere: \"spells not on my bars\" lists the spells you can cast that aren't on any action bar you can see or on a key (a macro casting one counts; passives and auto attacks left out). Advanced: @spell is:unplaced.",
 			"Quests to drop: \"quests to drop\" lists the quests that have gone grey for your level and the ones in zones you've left behind. Shift+Enter drops one (the game still asks first); \"Drop all\" on top, or right-click, drops them together after showing you the list. Advanced: @quest is:drop (or is:grey, is:leftbehind), and >>> drop drops every quest listed.",
 			"Drops sent to chat say who got them, from which boss, where and when: \"[Rotmender's Garb] looted by Zd Zd in Razorfen Downs (26 min ago)\"; all of them at once say what they share once: \"Drops in Razorfen Downs (5): ...\".",
+			"Quest tooltips: quests in your log and Questie's (@questie) show a tooltip with their level, zone and objectives and what they reward: the experience at your level, the money and the items (Questie's experience figure, marked as such, where the game gives none).",
 		},
 	},
 	{
