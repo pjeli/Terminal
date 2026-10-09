@@ -50,13 +50,11 @@ ns:RegisterCommand("kinds", {
 		local lines = { "Searchable kinds:" }
 		for _, id in ipairs(ns.providerOrder) do
 			local p = ns.providers[id]
-			if not p.internal then -- (a list only plain searches read isn't a kind of its own)
-				local flags = {}
-				if p.explicit then flags[#flags + 1] = "explicit" end
-				if p.lazy then flags[#flags + 1] = "lazy" end
-				lines[#lines + 1] = ("  @%s  (%s)%s"):format(p.aliases[1] or id, p.label,
-					#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
-			end
+			local flags = {}
+			if p.explicit then flags[#flags + 1] = "explicit" end
+			if p.lazy then flags[#flags + 1] = "lazy" end
+			lines[#lines + 1] = ("  @%s  (%s)%s"):format(p.aliases[1] or id, p.label,
+				#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
 		end
 		return lines
 	end,

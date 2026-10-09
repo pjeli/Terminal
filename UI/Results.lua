@@ -131,11 +131,10 @@ function UI:SyntaxRows(text)
 		for _, id in ipairs(ns.providerOrder) do
 			local p = ns.providers[id]
 			-- (its name, as .kinds, Shift+Right and Alt+` write it: its first alias, else its id, else an alias the
-			-- typed letters start; a list only plain searches read isn't a kind to pick)
+			-- typed letters start)
 			local main = (p.aliases and p.aliases[1]) or id
 			local word
-			if p.internal then word = nil
-			elseif ns.Lower(main):sub(1, #want) == want then word = main
+			if ns.Lower(main):sub(1, #want) == want then word = main
 			elseif id:sub(1, #want) == want then word = id
 			else
 				for _, a in ipairs(p.aliases or {}) do

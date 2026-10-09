@@ -803,7 +803,9 @@ function Scan.SimpleScope(self, q)
 end
 
 --- The lists searched (the @kinds or the category's, else every list not only searched by @kind), the signature a
---- narrowing must match, and whether every one is built already (nothing to collect again).
+--- narrowing must match, and whether every one is built already (nothing to collect again). A list searched without
+--- being named (no @kind, category or action) that has a `plain` view gives only that (`included.plain`: earned
+--- achievements, not every one).
 function Scan.Lists(q)
 	local kinds, fsig = q.kinds, q.fsig
 	local included = {}
@@ -816,12 +818,25 @@ function Scan.Lists(q)
 		if inc then
 			included[#included + 1] = p
 			sig[#sig + 1] = id
+			if not kinds and p.plain then
+				included.plain = included.plain or {}
+				included.plain[p] = true
+				sig[#sig] = id .. "~" -- (its plain view: never a narrowing of the whole list, nor the other way)
+			end
 			if p._dirty or not p._entries then fresh = false end
 		end
 	end
 	sig = table.concat(sig, ",") .. "|" .. table.concat(fsig, " ") -- (other filters: not a narrowing of the last scan)
 	return included, sig, fresh
 end
+
+--- The rows a search reads of a list it includes: its plain view when Scan.Lists said so, else all of them.
+local function RowsOf(included, p)
+	local list = ns:GetEntries(p)
+	if included.plain and included.plain[p] then return p.plain(p, list) end
+	return list
+end
+Scan.RowsOf = RowsOf
 
 --- Simple mode, a category opened for you (the only one with matches): the overview has just scored its lists' rows,
 --- each match's score for the words left in its _score (q.overview, UI:EasyOverview). The rows it kept of p's list,
@@ -897,7 +912,7 @@ function Scan.Collect(self, q, included, sig, fresh)
 		end
 	else
 		for _, p in ipairs(included) do
-			local list = ns:GetEntries(p)
+			local list = RowsOf(included, p)
 			if overBudget() then coroutine.yield(out) end -- (reading the list may have taken the share)
 			local id = p.id
 			local rows = OverviewRows(q, p, list)
@@ -1025,8 +1040,8 @@ end
 --- each typed word matched by its letters in order against the NAME only (no text, initials, shorthand, close
 --- spellings, filters, @kinds, picks history, hint rows or linked quests). The best FZF_MAX, to go through with the
 --- arrow keys. Lists made from another one (@gear, @consumable, @mats: copies of the item rows) are left out, and a
---- row two lists share (earned achievements) is listed once. Narrows from the last keystroke's matches and is
---- spread over frames like the usual search.
+--- row two lists share is listed once; every list is read whole (no plain view). Narrows from the last keystroke's
+--- matches and is spread over frames like the usual search.
 local FZF_MAX = 500
 local FZF_LEN = 0.001 -- (equal matches: the shorter name first, as fzf does)
 function UI:FuzzySearch(text)
@@ -1227,7 +1242,7 @@ end
 function UI:RelaxSoft(included, tokens, hard, softs, out, overBudget)
 	local Pass = ns.Filters and ns.Filters.Pass
 	for _, p in ipairs(included) do
-		local list = ns:GetEntries(p)
+		local list = RowsOf(included, p)
 		local id = p.id
 		for i = 1, #list do
 			local e = list[i]
@@ -1268,7 +1283,7 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget)
 	local Pass = ns.Filters and ns.Filters.Pass
 	local short, single = tokens.short, #tokens == 1
 	for _, p in ipairs(included) do
-		local list = ns:GetEntries(p)
+		local list = RowsOf(included, p)
 		if overBudget() then coroutine.yield(out) end
 		local id = p.id
 		for r = 1, #list do

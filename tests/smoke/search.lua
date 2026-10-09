@@ -304,11 +304,11 @@ do
 	UI:Open("")
 	typeText("@")
 	local r = UI.Results()
-	-- (each kind by its name, its first alias, as .kinds writes it; a list only plain searches read isn't one, 0.44.11)
+	-- (each kind by its name, its first alias, as .kinds writes it)
 	local kinds, first = 0, nil
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
-		if not p.internal then kinds = kinds + 1; first = first or ("@" .. (p.aliases[1] or id)) end
+		kinds = kinds + 1; first = first or ("@" .. (p.aliases[1] or id))
 	end
 	check(#r == kinds and r[1].syntaxRow and r[1].name == first, "@: every kind to pick from: " .. #r .. "/" .. kinds .. " " .. tostring(r[1] and r[1].name))
 	typeText("ite")

@@ -69,7 +69,7 @@ do
 	end
 	UI:Open(""); FlushAll()
 	local chatbox = { macro = function() return "/run x" end }
-	local ach = { kind = "achievementlist", name = "Level 10", link = "|Hachievement:6|h[Level 10]|h", secondary = function() end,
+	local ach = { kind = "achievements", name = "Level 10", link = "|Hachievement:6|h[Level 10]|h", secondary = function() end,
 		secondarySecure = chatbox }
 	local labels, dup = Labels(ach)
 	check(not dup and labels[2] == "Link in chat", "achievements: Link in chat once: " .. table.concat(labels, ", "))
@@ -273,7 +273,7 @@ do
 	local calc = ns.Calc.Entry("2*3")
 	check(calc and calc.shareLink and calc.shareLink(calc) == calc.sum .. " = " .. calc.answer and calc.secondarySecure,
 		"the calculator: one text everywhere, the chat box opened by the game")
-	local arows = ns:GetEntries(ns.providers.achievementlist)
+	local arows = ns:GetEntries(ns.providers.achievements)
 	local a = arows[1]
 	local amac = a and a.secure and a.secure.macro(a)
 	check(amac and amac:find("OpenAchievementFrameToAchievement(" .. a.key .. ")", 1, true), "achievements: the window opened by the game: " .. tostring(amac))
@@ -352,7 +352,7 @@ do
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		local src = p.collect and debug.getinfo(p.collect, "S").source or ""
-		if src:find("^@Terminal/") and not src:find("tests", 1, true) and not p.internal and p.color then
+		if src:find("^@Terminal/") and not src:find("tests", 1, true) and p.color then
 			local c = p.color:lower()
 			if seen[c] then same[#same + 1] = seen[c] .. "=" .. id end
 			seen[c] = id
@@ -395,7 +395,7 @@ do
 	local earned = ns:GetEntries(ns.providers.achievements)[1]
 	local text = earned and UI:ResultText(earned)
 	check(not earned or (text and text:find("^@achievement ")), "an earned achievement is written as @achievement: " .. tostring(text))
-	check(ns.providers.achievementlist.label == "Achievement" and ns.providers.quests.label == "Quest log"
+	check(ns.providers.achievements.label == "Achievement" and ns.providers.quests.label == "Quest log"
 		and ns.providers.equipmentset.label == "Equipment set" and ns.providers.stored.label == "Alts & bank",
 		"labels: whole words, as the categories say them")
 	-- "where should i level" rows: the maps' label, remembered as the zone's own row

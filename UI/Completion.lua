@@ -179,7 +179,6 @@ function UI:ResultText(e)
 	if e.kind == "slash" then return e.name end
 	local p = e.kind and ns.providers[e.kind]
 	if not p then return e.name end
-	if p.nameOf then p = ns.providers[p.nameOf] or p end -- (a list named as another: earned achievements are @achievement)
 	return "@" .. ((p.aliases and p.aliases[1]) or p.id) .. " " .. e.name
 end
 

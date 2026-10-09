@@ -20,19 +20,18 @@ end
 ----------------------------------------------------------------------
 -- Achievements (heavy: indexed once, only when you actually search)
 --
--- Every achievement is indexed, earned or not, into one list of compact rows (`achievementlist`,
--- what @achievement searches). Plain searches read a second list (`achievements`) holding only the
--- earned rows of the first (the same tables): thousands of unearned ones would flood every plain
--- search. Both lists' rows are of the kind "achievements" (their meta is that list's), so history,
--- colour and label are one kind either way. Unearned rows are greyed, with their progress
--- ("3/10") in the detail, worked out only when a row is read (shown, or judged by a filter).
+-- Every achievement is indexed, earned or not, into one list of compact rows: what @achievement (and Simple
+-- mode's Collections) searches. A plain search reads only its earned rows (the list's `plain` view, made
+-- once per list): thousands of unearned ones would flood every plain search. Unearned rows are greyed,
+-- with their progress ("3/10") in the detail, worked out only when a row is read (shown, or judged by a
+-- filter). (Until 0.44.15 the earned rows were a second list of their own.)
 ----------------------------------------------------------------------
 
 local ACH_COLOR = "ffff6fae" -- (rose: the oranges are Camp's and its neighbours')
 local NOT_EARNED = "|cff8a8a8a"
-local achMeta -- shared fields of every achievement row (made once both lists are registered)
+local achMeta -- shared fields of every achievement row (made once the list is registered)
 local critGen = 0 -- bumped when criteria progress: a row's cached progress is read again then
-local earnedFrom -- the whole list's rows the earned list was last made from
+local earned, earnedOf -- the earned rows (plain searches' view), and the list they were picked from
 
 --- "3/10": the completed criteria of an unearned achievement, or a lone criterion's quantity
 --- (kill 50 of them: "12/50"). Nil when earned or without criteria. Cached per row until progress moves.
@@ -98,53 +97,33 @@ local function CollectAchievements()
 	return out
 end
 
--- @achievement: all of them (registered first, so it owns the @words)
-ns:RegisterProvider("achievementlist", {
+--- Plain searches' view: the earned rows of the list, picked out once per list (a rebuilt list, a new pick).
+local function Earned(_, list)
+	if earnedOf ~= list then
+		earned, earnedOf = {}, list
+		for _, e in ipairs(list) do
+			if rawget(e, "completed") then earned[#earned + 1] = e end
+		end
+	end
+	return earned
+end
+
+ns:RegisterProvider("achievements", {
 	label = "Achievement",
 	color = ACH_COLOR,
 	aliases = { "achievement", "achievements", "ach", "achieve" },
-	explicit = true, -- (plain searches read the earned list below)
+	plain = Earned, -- (plain searches: the earned ones only)
 	lazy = true,
 	events = { "ACHIEVEMENT_EARNED" }, -- earned this session: listed without a /reload
 	idleDrop = 600,
+	onDrop = function() earned, earnedOf = nil, nil end, -- (its rows go with the list)
 	collect = CollectAchievements,
 })
 
--- plain searches: the earned ones, the same rows
-ns:RegisterProvider("achievements", {
-	internal = true, -- (plain searches' copy of @achievement's earned rows: not listed as a kind of its own, .kinds or @)
-	nameOf = "achievementlist", -- (its rows are named as @achievement's: Shift+Right writes "@achievement ...")
-	label = "Achievement",
-	color = ACH_COLOR,
-	lazy = true,
-	events = { "ACHIEVEMENT_EARNED" },
-	idleDrop = 600,
-	collect = function()
-		local all = ns.providers.achievementlist
-		-- this list is made again only when it's stale: so is the whole one, unless that was made again
-		-- since (an @achievement search after the achievement was earned: not read twice)
-		if all._entries and all._entries == earnedFrom then all._dirty = true end
-		local list = ns:GetEntries(all)
-		earnedFrom = list
-		local out = {}
-		for _, e in ipairs(list) do
-			if rawget(e, "completed") then out[#out + 1] = e end
-		end
-		return out
-	end,
-})
-
-do
-	-- the game's own word for achievements (added to this list by RegisterProvider) goes to @achievement's
-	local earned, all = ns.providers.achievements, ns.providers.achievementlist
-	for _, a in ipairs(earned.aliases) do all.aliases[#all.aliases + 1] = a end
-	wipe(earned.aliases)
-	ns:AliasesChanged()
-	achMeta = ns:CompactMeta(earned, {
-		getLink = AchievementLink, -- (made when selected, not per achievement up front)
-		secure = ACH_SECURE, isOpen = ns.Never, -- (always pressed: it turns the open window to this one)
-		activate = OpenAchievement,
-		secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
-		secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,
-	}, { detail = AchDetail, progress = Progress })
-end
+achMeta = ns:CompactMeta(ns.providers.achievements, {
+	getLink = AchievementLink, -- (made when selected, not per achievement up front)
+	secure = ACH_SECURE, isOpen = ns.Never, -- (always pressed: it turns the open window to this one)
+	activate = OpenAchievement,
+	secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
+	secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,
+}, { detail = AchDetail, progress = Progress })

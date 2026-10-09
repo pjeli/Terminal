@@ -1,7 +1,7 @@
 -- Release review fixes: journal filters put back only when read, the item-name give-up timer, the
 -- achievement lists read once per change.
 local T = ...
-local ns, check, names, Flush, FlushAll = T.ns, T.check, T.names, T.Flush, T.FlushAll
+local ns, check, names, Flush, FlushAll, UI = T.ns, T.check, T.names, T.Flush, T.FlushAll, T.UI
 
 local function reload() assert(loadfile("Terminal/Providers/Collections.lua"))("Terminal", ns) end
 local function drop(id)
@@ -91,18 +91,22 @@ do
 		if i == 2 then return 8, "Level 20", 10, false, 1, 1, 1, "Reach level 20.", 0, 1 end
 		return 7, "Level 10", 10, true, 1, 1, 1, "Reach level 10.", 0, 1
 	end
-	local all, earned = ns.providers.achievementlist, ns.providers.achievements
-	all._dirty, earned._dirty = true, true
-	-- an achievement earned: both lists are stale (the same event); @achievement read first, then a plain search
-	ns:GetEntries(all)
+	local p = ns.providers.achievements
+	p._dirty = true
+	-- @achievement read first, then a plain search: the game read once, the earned ones picked from that read (one
+	-- list since 0.44.15: its plain view)
+	names(UI:Search("@achievement level"))
 	reads = 0
-	ns:GetEntries(earned)
-	check(reads == 0, "the earned list reuses the whole list just made: read " .. reads .. " more time(s)")
-	-- the earned list stale again (a change) with the whole one it was made from: that one is read again
-	earned._dirty = true
-	ns:GetEntries(earned)
-	check(reads == 1, "made again from a fresh read when the whole list is the one it already used: " .. reads)
-	check(names(ns:GetEntries(earned))["Level 10"] and not names(ns:GetEntries(earned))["Level 20"], "still earned ones only")
+	local plain = names(UI:Search("level"))
+	check(reads == 0 and plain["Level 10"] and not plain["Level 20"], "a plain search after @achievement: no second read, earned ones only: " .. reads)
+	-- earned since (the list stale): read again once, and plain searches list it too
+	_G.GetAchievementInfo = function(_, i)
+		if i == 2 then return 8, "Level 20", 10, true, 1, 1, 1, "Reach level 20.", 0, 1 end
+		return 7, "Level 10", 10, true, 1, 1, 1, "Reach level 10.", 0, 1
+	end
+	p._dirty = true
+	plain = names(UI:Search("level"))
+	check(reads == 1 and plain["Level 20"] and plain["Level 10"], "earned since: read again once, now in plain searches too: " .. reads)
 	_G.GetAchievementInfo, _G.GetCategoryNumAchievements, _G.GetCategoryList = save.info, save.num, save.list
-	all._dirty, earned._dirty = true, true
+	p._dirty = true
 end

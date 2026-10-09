@@ -130,6 +130,8 @@ end
 --     aliases  = { "item", "bag" },    -- accepted after @ in the terminal
 --     events   = { "BAG_UPDATE_DELAYED" }, -- events that invalidate the cache
 --     explicit = true,                 -- only searched with @kind (or a mode)
+--     plain    = function(p, list) return rows end, -- what a search not naming it reads: a part of the list
+--                                      -- (made once per list: achievements give only the earned ones)
 --     lazy     = true,                 -- skipped on empty queries (heavy index)
 --     guard    = 1.0,                  -- events within N s of a collect wait until then
 --     selfEvents = true,               -- ...or are ignored: collecting fires them itself

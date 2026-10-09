@@ -185,7 +185,7 @@ do
 	local all = names(UI:Search("@achievement level"))
 	local a20, a10 = all["Level 20"], all["Level 10"]
 	check(a20 and a10, "@achievement lists the unearned ones too")
-	check(a20 and a20.kind == "achievements" and a10.kind == "achievements" and a20.freqKey == "achievements:8", "both lists' rows are one kind")
+	check(a20 and a20.kind == "achievements" and a10.kind == "achievements" and a20.freqKey == "achievements:8", "earned or not, the rows are one kind")
 	check(a10.completed == true and a20.completed == false, "rows say whether they're earned (completed)")
 	check(crit == 0, "progress isn't worked out for every row up front")
 	check(a20.progress == "3/10" and a20.detail == "3/10  10 pts", "unearned: its criteria done so far: " .. tostring(a20.detail))
@@ -207,9 +207,39 @@ do
 		if n == "critGen" then debug.setupvalue(prog, i, v + 1) end
 	end
 	check(a20.progress == "4/10", "criteria moved: progress read again: " .. tostring(a20.progress))
+	-- one list (0.44.15: the earned ones were a second list): plain searches read its earned rows, picked out once
+	-- per list and freed with it; .mem and .kinds show it once; Simple mode's Collections and recent picks read it all
+	local p = ns.providers.achievements
+	check(ns:ResolveProvider("achievement") == p and ns:ResolveProvider("achievements") == p and ns:ResolveProvider("ach") == p
+		and not p.explicit, "@achievement(s): the one list, also read by plain searches")
+	local list = ns:GetEntries(p)
+	local view = p.plain(p, list)
+	check(#view == 1 and view[1].name == "Level 10" and p.plain(p, list) == view, "its plain view: the earned rows, picked out once")
+	local close = names(UI:Search("levle"))
+	check(close["Level 10"] and not close["Level 20"], "close spellings in a plain search: earned ones only too")
+	local function Lines(cmd)
+		local n = 0
+		for _, l in ipairs(ns:FindCommand(cmd).run("") or {}) do if l:find("@achievement", 1, true) then n = n + 1 end end
+		return n
+	end
+	check(Lines("mem") == 1 and Lines("kinds") == 1, ".mem and .kinds show achievements once: " .. Lines("mem") .. ", " .. Lines("kinds"))
+	check(ns.Easy.CategoryOf(a20) == "collections", "an achievement row belongs in Collections (where Simple mode searches them)")
+	local savedF = { recent = ns.db.recent, freq = ns.db.freq }
+	ns.db.recent, ns.db.freq = {}, {}
+	ns:Bump("achievements:8")
+	UI.showRecent = true
+	local recent = names(UI:SearchText(""))
+	UI.showRecent = nil
+	ns.db.recent, ns.db.freq = savedF.recent, savedF.freq
+	ns.freqKinds = nil
+	check(recent["Level 20"], "an unearned achievement picked before is among your recent picks")
+	p._usedAt = GetTime() - p.idleDrop - 1
+	ns:DropIdle()
+	local upv = {}
+	for i = 1, 30 do local n, v = debug.getupvalue(p.plain, i); if not n then break end upv[n] = v end
+	check(p._entries == nil and upv.earned == nil and upv.earnedOf == nil, "unused a while: freed, its earned view with it")
 	_G.GetAchievementInfo, _G.GetCategoryNumAchievements, _G.GetAchievementNumCriteria, _G.GetAchievementCriteriaInfo = save.info, save.num, save.nc, save.ci
-	ns.providers.achievements._dirty = true
-	check(ns:ResolveProvider("achievement").id == "achievementlist" and ns:ResolveProvider("achievements").id == "achievementlist", "@achievement(s) means all of them")
+	p._dirty = true
 end
 
 io.write("[currency numbers]\n")
