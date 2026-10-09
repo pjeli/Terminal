@@ -157,6 +157,79 @@ do
 	check(opened, "Shift+Enter runs the row's own Enter")
 end
 
+-- review fixes (0.44.10)
+do
+	local rows
+	-- an @kind picks the lists a chain starts from (it was looked up as a table: "Nothing called @recipe ...")
+	ns:AliasesChanged(); P.ClearSteps()
+	rows = P.Search("@recipe thorium belt > mats")
+	check(#rows == 2 and rows[1].kind == "reagent", "@recipe thorium belt > mats: its mats: " .. tostring(rows[1] and rows[1].name))
+	rows = P.Search("@rec thorium belt > mats")
+	check(#rows == 2 and rows[1].kind == "reagent", "an @kind by the start of its id too")
+	rows = P.Search("@recipe > mats")
+	check(#rows == 4 and not rows[1].noActivate, "@recipe > mats: every recipe's mats: " .. #rows)
+	-- counts kept from before go with the lists: bars just bought show at once
+	P.ClearSteps()
+	local function Have()
+		for _, r in ipairs((P.Search("thorium belt > mats"))) do if r.itemID == 12359 then return r.detail end end
+		return ""
+	end
+	check(Have():find("have 4", 1, true), "have 4 to start with")
+	COUNT[12359] = 16
+	ns.providers.items._dirty = true -- (as BAG_UPDATE does)
+	check(Have():find("have 16", 1, true), "bought 12 more: the same chain asked again counts again: " .. Have())
+	COUNT[12359] = 4
+	ns.providers.items._dirty = true
+	-- names with a ":" ("Pattern: Linen Belt") or a leading "The" come back as chains, exact (no pick list again)
+	local itemsCollect, recipesCollect = ns.providers.items.collect, ns.providers.recipes.collect
+	ns.providers.items.collect = Rows({ { name = "Copper Bar", itemID = 2840 }, { name = "Pattern: Linen Belt", itemID = 4408 },
+		{ name = "Pattern: Red Linen Robe", itemID = 4409 }, { name = "Black Book Cover", itemID = 4410 } })
+	ns.providers.recipes.collect = Rows({ recipe, { name = "The Black Book", recipeID = 5, makesItem = 4411, reagents = { { 2840, 2 } } } })
+	ns.providers.items._dirty, ns.providers.recipes._dirty = true, true
+	P.ClearSteps()
+	local easyWas = ns.db.easyMode
+	ns.db.easyMode = true; UI:EasyChanged()
+	rows = P.Search("pattern linen > sources")
+	local pick = rows[2]
+	check(pick and pick.completion == "where to get Pattern: Linen Belt", "Simple: a pick with a colon: " .. tostring(pick and pick.completion))
+	local chain = pick and P.Canonical(pick.completion)
+	check(chain == "pattern: linen belt > sources", "that's a chain: " .. tostring(chain))
+	rows = chain and P.Search(chain) or {}
+	check(rows[1] and rows[1].name == "Nowhere known to get Pattern: Linen Belt",
+		"the picked name, exact (no pick list), and Simple's words when nothing gives it: " .. tostring(rows[1] and rows[1].name))
+	check(P.Canonical("lvl:20 mats for x") == nil and P.Canonical("mats for q:rare") == nil, "key:value words still aren't phrases")
+	chain = P.Canonical("mats for The Black Book")
+	rows = P.Search(chain)
+	check(#rows == 1 and rows[1].itemID == 2840 and rows[1].need == 2,
+		"a name with a leading The: exact without it (Black Book Cover not offered): " .. tostring(rows[1] and rows[1].name))
+	-- Simple mode never shows ">" (0.44.5): a link that gives nothing says so in words
+	rows = P.Search("black book cover > mats")
+	check(rows[1] and rows[1].name == "No mats for Black Book Cover: it isn't crafted", "Simple: no mats, in words: " .. tostring(rows[1] and rows[1].name))
+	local res = UI:SearchText("mats for black book cover")
+	check(res[1] and not res[1].name:find(">", 1, true), "through the search too: " .. tostring(res[1] and res[1].name))
+	check(not table.concat(ns.Easy.HelpLines(), " "):find(">", 1, true), "Simple help: no >")
+	ns.db.easyMode = easyWas; UI:EasyChanged()
+	rows = P.Search("black book cover > mats")
+	check(rows[1] and rows[1].name == "Nothing there: black book cover > mats", "Advanced keeps the chain's words")
+	ns.providers.items.collect, ns.providers.recipes.collect = itemsCollect, recipesCollect
+	ns.providers.items._dirty, ns.providers.recipes._dirty = true, true
+	-- a filter's data still loading: the short answer isn't kept (the search runs again once it's in)
+	local realParse, loaded = ns.Filters.Parse, false
+	ns.Filters.Parse = function(w, ...)
+		if w == "zz:wait" then return function() if not loaded then ns.Filters.loading = true return false end return true end end
+		return realParse(w, ...)
+	end
+	P.ClearSteps(); ns.Filters.loading = nil
+	rows = P.Search("thorium belt zz:wait > mats")
+	check(rows[1] and rows[1].noActivate, "loading: nothing passes yet")
+	loaded = true; ns.Filters.loading = nil
+	rows = P.Search("thorium belt zz:wait > mats")
+	check(#rows == 2 and rows[1].kind == "reagent", "loaded: asked again, the mats (the loading answer wasn't kept): " .. tostring(rows[1] and rows[1].name))
+	ns.Filters.Parse = realParse
+	ns.Filters.loading = nil
+	P.ClearSteps()
+end
+
 -- every result at once (0.44.2): ">>> party", the menu's "All N to party"
 do
 	local SH = ns.Share

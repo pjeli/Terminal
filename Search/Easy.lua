@@ -622,7 +622,7 @@ function E.HelpLines()
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
 		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
 		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
-		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\" (or with >: thorium belt > mats). Enter on a row goes one step further, Shift+Enter opens it.",
+		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\". Enter on a row goes one step further, Shift+Enter opens it.",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
 		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
 	}

@@ -135,7 +135,9 @@ function P.Canonical(text)
 		-- (only a ">" standing alone, and not Advanced's other syntax using ">")
 		return text:gsub("^%s+", ""):gsub("%s+$", "")
 	end
-	if text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	-- (Advanced syntax isn't a phrase: @kind, key:value, | and > in filters; a ":" before a space is a name's own,
+	-- "where to get Pattern: Linen Belt")
+	if text:find("[@>|]") or text:find(":[^%s]") or text:find("^%s*[%./!%-]") then return nil end
 	-- (cheap first: every phrase starts or ends with one of these words; this runs on every search)
 	local first, last = text:match("^%s*(%S+)"), text:match("(%S+)%s*$")
 	if not first or not (P.FIRST[first:lower()] or P.LAST[last:lower()]) then return nil end
@@ -579,8 +581,9 @@ local function SeedParse(text)
 	local kinds, filters, words = {}, {}, {}
 	for w in (text or ""):gmatch("%S+") do
 		if w:sub(1, 1) == "@" and #w > 1 then
-			local id = ns.aliasMap and ns.aliasMap[ns.Lower(w:sub(2))]
-			if id then kinds[#kinds + 1] = id else words[#words + 1] = w end
+			-- (as the search reads an @kind: its id, an alias or the start of its id)
+			local p = ns:ResolveProvider(w:sub(2))
+			if p then kinds[#kinds + 1] = p.id else words[#words + 1] = w end
 		else
 			local f = (w:find("[:|]") or w:find("^[-!]%a")) and ns.Filters and ns.Filters.Parse(w)
 			if f then filters[#filters + 1] = f else words[#words + 1] = w end
@@ -592,12 +595,18 @@ local function SeedParse(text)
 	return kinds, filters, tokens, whole
 end
 
--- The rows of those lists whose names have the words and that pass the filters: the exact names, those with every
--- word in the name as typed ({ row, score, lowercase name }), and the closest of the rest; with no words, every row
--- that passes. `from`: the last look's rows, standing for every list (SeedFrom). Also gives the rows whose names had
--- the words (filters aside), for the next keystroke.
+-- a name's words without a leading article ("the black book" -> "black book"): the plain words drop it ("mats for the
+-- black book" asks for "black book > mats"), so a name with one is exact without it too
+local function Bare(ln)
+	return ln:match("^the (.+)$") or ln:match("^an? (.+)$")
+end
+
+-- The rows of those lists whose names have the words and that pass the filters: the exact names (else those exact
+-- but for a leading article), those with every word in the name as typed ({ row, score, lowercase name }), and the
+-- closest of the rest; with no words, every row that passes. `from`: the last look's rows, standing for every list
+-- (SeedFrom). Also gives the rows whose names had the words (filters aside), for the next keystroke.
 local function SeedScan(kinds, filters, tokens, whole, from)
-	local all, exact = {}, {}
+	local all, exact, exactBare = {}, {}, {}
 	local subs, near, nearS = {}, nil, nil -- (every word in the name as typed; the closest of the rest)
 	local wantAll = #tokens == 0
 	local cands = {}
@@ -623,13 +632,14 @@ local function SeedScan(kinds, filters, tokens, whole, from)
 						if wantAll then all[#all + 1] = e
 						elseif typed then subs[#subs + 1] = { e, s, ln }
 						elseif not nearS or s > nearS then near, nearS = e, s end
-						if ln and ln == whole then exact[#exact + 1] = e end
+						if ln and ln == whole then exact[#exact + 1] = e
+						elseif ln and typed and Bare(ln) == whole then exactBare[#exactBare + 1] = e end
 					end
 				end
 			end
 		end
 	end
-	return all, exact, subs, near, cands
+	return all, #exact > 0 and exact or exactBare, subs, near, cands
 end
 
 -- each item once (a recipe and the item it makes are one), at most MAX_LEFT
@@ -748,7 +758,8 @@ P.STEPS_MAX = 64
 local stepCache, stepGen, stepCount = {}, -1, 0
 local function Cached(key) if stepGen == ns.entriesGen then return stepCache[key] end end
 local function Keep(key, rows)
-	if P.loading then return end
+	-- (an item name, or data a filter reads, still loading: the answer is short; the search runs again once it's in)
+	if P.loading or (ns.Filters and ns.Filters.loading) then return end
 	if stepGen ~= ns.entriesGen then stepCache, stepGen, stepCount = {}, ns.entriesGen, 0 end
 	if stepCache[key] == nil then
 		if stepCount >= P.STEPS_MAX then stepCache, stepCount = {}, 0 end
@@ -866,11 +877,37 @@ local function FinalRows(rows, stages, base, from, lastRel, lastFrom)
 	return out
 end
 
+-- The lists a chain reads (the usual ones, and any @kind's), built again first when they changed since: the steps
+-- kept go with the lists they were made from (bars you just bought show in "have" at once). A list never built isn't
+-- built here (no step read it).
+local function Refreshed(text)
+	for _, k in ipairs(P.SEED_KINDS) do
+		local p = ns.providers[k]
+		if p and p._entries then ns:GetEntries(p) end
+	end
+	for w in text:gmatch("@(%S+)") do
+		local p = ns:ResolveProvider(w)
+		if p and p._entries then ns:GetEntries(p) end
+	end
+end
+
+-- Simple mode's words for a link that gave nothing ("Nothing uses Hearthstone"): it never shows ">"
+P.SIMPLE_NONE = { mats = "No mats for %s: it isn't crafted", uses = "Nothing uses %s", sources = "Nowhere known to get %s",
+	alts = "No %s on your alts" }
+
+local function NothingThere(trail, stages, rel, from)
+	local f = SimpleOn() and #stages == 2 and (stages[2].rest or "") == "" and P.SIMPLE_NONE[rel]
+	local said = table.concat(trail, " > ")
+	if f then return { Line(f:format(from or trail[1])) }, said end
+	return { Line("Nothing there: " .. (SimpleOn() and P.SimpleLabel(said) or said)) }, said
+end
+
 --- Runs a chain: rows, and the footer's trail ("thorium belt > mats > thorium bar > sources").
 function P.Search(chain)
 	local stages = P.Split(chain)
 	if not stages then return {}, nil end
 	P.loading = false
+	Refreshed(stages[1].text)
 	local trail = { (stages[1].text:gsub("^%s+", ""):gsub("%s+$", "")) }
 	local wait, said = KeepTyping(stages, trail)
 	if wait then return wait, said end
@@ -901,9 +938,7 @@ function P.Search(chain)
 			trail[#trail + 1] = (s.rest:gsub("^%s+", ""):gsub("%s+$", ""))
 			if i < #stages then from = nil end -- (narrowed to a row: the next link starts from it)
 		end
-		if #rows == 0 then
-			return { Line("Nothing there: " .. table.concat(trail, " > ")) }, table.concat(trail, " > ")
-		end
+		if #rows == 0 then return NothingThere(trail, stages, name, lastFrom) end
 	end
 	return FinalRows(rows, stages, base, from, lastRel, lastFrom), table.concat(trail, " > ")
 end
