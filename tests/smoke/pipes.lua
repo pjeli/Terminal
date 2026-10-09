@@ -199,6 +199,15 @@ do
 	check(UI.sendTo and UI.sendTo.all, "the prompt: send all")
 	local foot = UI.status and UI.status:GetText() or ""
 	check(foot:find("Enter sends all 2 to party", 1, true), "footer says how many go where: " .. foot)
+	local shown = UI.Results()
+	check(#shown == 1 and shown[1].name == "Send all 2 to party" and shown[1].detail == "Mats for Thorium Belt",
+		"the list collapses into one row: how many go where: " .. tostring(shown[1] and shown[1].name) .. " / " .. tostring(shown[1] and shown[1].detail))
+	UI:SetQuery("mats for thorium belt >>> ", 26); T.FlushAll()
+	shown = UI.Results()
+	check(#shown == 1 and shown[1].name == "2 to send" and shown[1].detail:find("say where", 1, true), "no channel yet: the count, and where it could go")
+	UI:SetQuery("mats for thorium belt >> party", 30); T.FlushAll()
+	check(#UI.Results() == 2, ">> keeps the list (one result goes)")
+	UI:SetQuery("mats for thorium belt >>> party", 31); T.FlushAll()
 	local mark = #T.log
 	T.key("ENTER"); T.FlushAll()
 	check(#sent == 1 and sent[1][2] == "PARTY" and sent[1][1]:find("^Mats for Thorium Belt %(2%)") and not UI:IsShown(),

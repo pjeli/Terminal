@@ -109,6 +109,29 @@ function UI:StepSearch(job)
 	return res, false -- the matches so far (still being filled)
 end
 
+--- ">>> party": the list collapses into one row saying how many go where ("Send all 12 to party"); the rows themselves
+--- are kept in `UI.groupList` for sending (Activate, the footer, Share.Prefetch). Any other search: the list as it is.
+function UI:CollapseGroup(list)
+	local to, SH = self.sendTo, ns.Share
+	if not (to and to.all and SH) then self.groupList = nil return list end
+	self.groupList = list
+	local rows = SH.GroupRows(list)
+	local n = #rows
+	-- (what the rows are, as the chat line will say it: no row's text worked out, so no NPC's map pin is set here)
+	local what = n > 0 and SH.GroupHeader(rows, to.query) or nil
+	local row = { kind = "send", kindLabel = "|cff33ff99chat|r", icon = "Interface\\Icons\\INV_Letter_15", raw = true,
+		sendAll = true, _pos = UI.NO_POS, _score = 0, detail = what or "" }
+	if n == 0 then
+		row.name, row.noActivate, row.detail = "Nothing to send", true, ""
+	elseif to.cmd then
+		row.name = ("Send %s %d to %s"):format(n == 1 and "the" or "all", n, to.label)
+	else
+		row.name = ("%d to send"):format(n)
+		row.detail = to.bad and ("no channel called " .. to.bad) or "say where: party, guild, raid, say, whisper <name>"
+	end
+	return { row }
+end
+
 --- The next frame's share of the search. Once done, the full results replace the early ones;
 --- the selected result stays selected if it's still there.
 function UI:ContinueSearch(job)
@@ -122,7 +145,7 @@ function UI:ContinueSearch(job)
 	-- the selected row (if you moved it) stays selected, and the list stays where you scrolled it
 	local keep = (sel > 1 or offset > 0) and results[sel] or nil
 	local keptRow = sel - offset
-	results = final
+	results = self:CollapseGroup(final)
 	sel, offset = 1, 0
 	if keep then
 		for i, e in ipairs(results) do
@@ -241,7 +264,7 @@ function UI:Refresh()
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
 	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
-	self.sendTo = nil
+	self.sendTo, self.groupList = nil, nil
 	self.blockedSyntax = nil
 	if self.fzf then
 		-- (nothing to take off)
@@ -275,6 +298,7 @@ function UI:Refresh()
 		else
 			local done
 			results, done = self:RunSearch(text)
+			results = self:CollapseGroup(results)
 			if not done then
 				C_Timer.After(0, self.searchJob.step)
 			end
@@ -488,8 +512,8 @@ do
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
 		if to and self.mode == "search" then
-			local n = to.all and to.cmd and #ns.Share.GroupRows(results)
-			if n and n > 0 then ns.Share.Prefetch(results) end -- (their links loaded by the time Enter sends them)
+			local n = to.all and to.cmd and #ns.Share.GroupRows(self.groupList or results)
+			if n and n > 0 then ns.Share.Prefetch(self.groupList or results) end -- (their links loaded by the time Enter sends them)
 			local say = (n and ("Enter sends all " .. n .. " to " .. to.label)) or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
 			text = Prepend(HINT .. say .. "|r", text)
 		end
@@ -2171,7 +2195,7 @@ function UI:Activate(idx, opts)
 				or "Say where to send them: >>> party, guild, raid, say, yell, officer, instance, whisper <name>")
 			return
 		end
-		local n, why = ns.Share.SendAll(results, to, to.query)
+		local n, why = ns.Share.SendAll(self.groupList or results, to, to.query)
 		if not n then ns:Print(why) return end
 		ns:RecordHistory(edit:GetText())
 		self:Hide()
