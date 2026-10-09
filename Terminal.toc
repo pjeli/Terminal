@@ -28,6 +28,7 @@ UI\CopyBox.lua
 Core\Secure.lua
 UI\Share.lua
 UI\UI.lua
+Search\Score.lua
 Search\Search.lua
 Providers\Bags.lua
 Providers\Items.lua

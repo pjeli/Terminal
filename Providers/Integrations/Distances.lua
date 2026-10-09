@@ -94,7 +94,7 @@ end
 
 --- How far an NPC is from `here` (yards, its nearest spawn on your continent), or nil: no known spawn there.
 --- Also gives that spawn's world position ({ cont, x, y }: x grows to the north, y to the west).
-function I.NpcDistance(id, here)
+local function NpcDistance(id, here)
 	if not here then return nil end
 	local t = NpcSpots(id)
 	if not t then return nil end
@@ -110,10 +110,11 @@ function I.NpcDistance(id, here)
 	if not best then return nil end
 	return math.sqrt(best), { cont = hc, x = t[bi + 1], y = t[bi + 2] }
 end
+I.NpcDistance = NpcDistance
 
 --- How far a row is from `here` (yards) and that spot ({ cont, x, y }), or nil: an NPC's nearest spawn on your
 --- continent (NpcDistance), or a row that carries its own place in world yards (`wcont`, `wx`, `wy`: @mailbox).
-function I.RowDistance(e, here)
+local function RowDistance(e, here)
 	if not (e and here) then return nil end
 	local wc = e.wcont
 	if wc then
@@ -123,6 +124,43 @@ function I.RowDistance(e, here)
 	end
 	local id = e.kind == "npc" and (e.npcID or rawget(e, "key"))
 	if type(id) == "number" then return I.NpcDistance(id, here) end
+end
+I.RowDistance = RowDistance
+
+--- NpcDistance's yards alone: no spot table made.
+local function NpcYards(id, here)
+	local t = NpcSpots(id)
+	if not t then return nil end
+	local best
+	local hc, hx, hy = here.cont, here.x, here.y
+	for i = 1, #t, 3 do
+		if t[i] == hc then
+			local dx, dy = t[i + 1] - hx, t[i + 2] - hy
+			local d = dx * dx + dy * dy
+			if not best or d < best then best = d end
+		end
+	end
+	if not best then return nil end
+	return math.sqrt(best)
+end
+
+--- How far a row is from `here` (yards), or nil: RowDistance's first answer, with no spot table made ("nearest" asks
+--- for every NPC that matched, thousands a keystroke: Search.lua's Scan.NearestViews). I.RowDistance or I.NpcDistance
+--- put in place of these (tests give NPCs made-up distances that way) is asked instead, as RowDistance would.
+function I.RowYards(e, here)
+	if I.RowDistance ~= RowDistance then return (I.RowDistance(e, here)) end
+	if not (e and here) then return nil end
+	local wc = e.wcont
+	if wc then
+		if wc ~= here.cont then return nil end
+		local dx, dy = e.wx - here.x, e.wy - here.y
+		return math.sqrt(dx * dx + dy * dy)
+	end
+	local id = e.kind == "npc" and (e.npcID or rawget(e, "key"))
+	if type(id) == "number" then
+		if I.NpcDistance ~= NpcDistance then return (I.NpcDistance(id, here)) end
+		return NpcYards(id, here)
+	end
 end
 
 local zoneNames = {}

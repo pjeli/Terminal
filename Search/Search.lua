@@ -1,9 +1,9 @@
 local ns = select(2, ...)
 
--- The search engine: scoring a row against the typed words, sorting and trimming, the searches themselves (SearchText:
--- Advanced and Simple mode, the Simple overview of categories, fuzzy finding, the "Search Questie for this" rows, close
--- spellings), command and argument rows, the empty terminal's recent picks. Moved out of UI.lua (0.43.15) as it was:
--- the window (UI.lua) shows what these give and runs them a slice at a time (UI:RunSearch).
+-- The search engine: the searches themselves (SearchText: Advanced and Simple mode, the Simple overview of categories,
+-- fuzzy finding, the "Search Questie for this" rows, close spellings), command and argument rows, the empty terminal's
+-- recent picks. Scoring a row and sorting the matches are in Score.lua. Moved out of UI.lua (0.43.15) as it was: the
+-- window (UI.lua) shows what these give and runs them a slice at a time (UI:RunSearch).
 
 local UI = ns.UI
 local Fuzzy = ns.Fuzzy
@@ -13,321 +13,12 @@ local EASY_NO_NPCS = "\"nearest\" needs Questie (or QuestieDB): it knows where N
 local EASY_NOWHERE = "Can't tell where you are here (in a dungeon?)."
 local EASY_NONE_NEAR = "None of those on this continent that Questie knows of."
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
-local TEXT_SCORE = 1.0 -- score given to a match found in an entry's secondary text
-local MAX_RESULTS = 100 -- rows a search keeps
 local QUESTION_MARK = 134400 -- (an icon for rows without one)
-
-----------------------------------------------------------------------
--- Scoring
-----------------------------------------------------------------------
-
--- rows listed without a search (the empty terminal, a command's rows, a quest brought along by
--- its item) have no matched letters: they share this one table instead of each getting its own
-local NO_POS = {}
-UI.NO_POS = NO_POS
-
---- `kind`: the row's provider id when the caller knows it, so a compact row whose kind was never
---- picked isn't read through its metatable just to find that out.
-local function FreqBonus(e, kind)
-	local freq = ns.db and ns.db.freq
-	if not freq then return 0 end
-	local k = rawget(e, "freqKey")
-	local f
-	if k then
-		f = freq[k]
-	else
-		-- a compact row (its freqKey would be built on every read): looked up by its own key in what was picked
-		-- of its kind (Core.lua FreqKind; the same "kind:key" its metatable builds)
-		local picked = ns:FreqKind(kind or e.kind)
-		if not picked then return 0 end
-		local key = rawget(e, "key")
-		if key == nil then key = e.name end
-		f = key ~= nil and picked[key] or nil
-	end
-	return f and math.min(f, 20) * 0.05 or 0
-end
-
-UI._FreqBonus = FreqBonus -- (tests)
-
-local find = string.find
--- A shorthand's full name in a row's name or text beats any match of its letters ("rfk": Razorfen Kraul's loot
--- before "Rough Flask of Kings", whose initials are r f k): above any fuzzy score a short word can get.
-local SHORT_PRIO = 3.5
---- Is one of the shorthand's full names in the name (lowercase) or the text? "name", "text" or nil, and which.
-local function ShortHit(xs, ln, ltext)
-	for k = 1, #xs do
-		if find(ln, xs[k], 1, true) then return "name", k end
-	end
-	if ltext then
-		for k = 1, #xs do
-			if find(ltext, xs[k], 1, true) then return "text", k end
-		end
-	end
-end
-
--- words that could be initials ("scb", "ubrs": 2-6 letters), per word typed (a few hundred kept)
-local iniShape, iniShapeN = {}, 0
-local function IniShape(tk)
-	local s = iniShape[tk]
-	if s == nil then
-		s = #tk >= 2 and #tk <= 6 and not find(tk, "[^a-z]")
-		if iniShapeN >= 400 then iniShape, iniShapeN = {}, 0 end
-		iniShape[tk], iniShapeN = s, iniShapeN + 1
-	end
-	return s
-end
-
-local byte = string.byte
-
---- Whether the name could have initials starting with byte c1: its first letter is c1, or it
---- starts with "the ", "a ", "an ", "and " or "of " (left out of the second set of initials).
-local function StartsRight(name, lname, c1)
-	local s = lname or name
-	local c = byte(s, 1)
-	if c and c >= 65 and c <= 90 then c = c + 32 end
-	if c == c1 then return true end
-	if c ~= 116 and c ~= 97 and c ~= 111 then return false end
-	local c2, c3, c4 = byte(s, 2, 4)
-	if c2 and c2 >= 65 and c2 <= 90 then c2 = c2 + 32 end
-	if c3 and c3 >= 65 and c3 <= 90 then c3 = c3 + 32 end
-	if c == 116 then return c2 == 104 and c3 == 101 and c4 == 32 end -- the
-	if c == 111 then return c2 == 102 and c3 == 32 end -- of
-	return c2 == 32 or (c2 == 110 and (c3 == 32 or (c3 == 100 and c4 == 32))) -- a, an, and
-end
-
---- What the name gives a word that isn't in it as it is (best: its fuzzy score, or nil): its
---- initials ("ini"). (A shorthand's full name is looked at before: ShortHit.) Allocation-free.
-local function NameExtra(tk, best, name, lname)
-	local how = best and "name"
-	-- initials are letters of the name in order: only a scattered match can be one, and the
-	-- first word (or a leading of/the/a/an/and) must start with the first letter
-	if best and IniShape(tk) then
-		if StartsRight(name, lname, byte(tk, 1)) then
-			local ini = Fuzzy.initials(tk, name)
-			if ini and ini > best then best, how = ini, "ini" end
-		end
-	end
-	return best, how
-end
-
---- One typed word on a row: its score (nil: no match), how the name matched ("name": the fuzzy
---- match, "ini": the name's initials, "short": a shorthand's full name; nil: only the text), and
---- which of the shorthand's names. The initials and shorthand are looked at only when the word
---- isn't in the name as it is, so ordinary word searches rank as they always did.
---- xs: the shorthand's full names when the word is one. Allocation-free.
-local function TokenScore(tk, xs, name, lname, ltext)
-	if xs then
-		local where, k = ShortHit(xs, lname or ns.Lower(name), ltext)
-		if where == "name" then return SHORT_PRIO, "short", k end
-		if where then return SHORT_PRIO, nil, nil end
-	end
-	local best, sub = Fuzzy.score(tk, name, lname)
-	if xs and not sub then return nil end
-	local how, at = best and "name", nil
-	if not sub then best, how = NameExtra(tk, best, name, lname) end
-	if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then return TEXT_SCORE, how, at end
-	return best, how, at
-end
-
-local function RowText(e)
-	local ltext = rawget(e, "_ltext")
-	if not ltext then
-		local text = rawget(e, "text")
-		if text then ltext = ns.Lower(text); e._ltext = ltext end
-	end
-	return ltext
-end
-
---- Per word typed: its first letter (a byte) when it could be initials, else false. Kept on the
---- tokens table (once per search).
-local function IniFirst(tokens)
-	local t = {}
-	for i = 1, #tokens do t[i] = IniShape(tokens[i]) and byte(tokens[i], 1) or false end
-	tokens.ini = t
-	return t
-end
-
---- The entry's score for these tokens, or nil. Allocation-free: matched letters (for the
---- highlight) are worked out later, only for the rows on screen (see Positions).
---- tokens.short[i]: the full names of a shorthand typed as word i (SearchText). This is
---- TokenScore written out (no calls but the matcher's): it runs for every row on every keystroke.
-local function ScoreEntry(e, tokens)
-	local total, nameHit = 0, false
-	-- rawget: compact rows (tens of thousands of NPCs) would go through __index twice per row
-	local ltext = rawget(e, "_ltext")
-	if not ltext then
-		local text = rawget(e, "text")
-		if text then ltext = ns.Lower(text); e._ltext = ltext end
-	end
-	local name, lname, short = e.name, e._lname, tokens.short
-	local ini = tokens.ini or IniFirst(tokens)
-	for i = 1, #tokens do
-		local tk = tokens[i]
-		local xs = short and short[i]
-		local best, sub
-		local where = xs and ShortHit(xs, lname or ns.Lower(name), ltext)
-		if where then
-			best, sub = SHORT_PRIO, true
-			if where == "name" then nameHit = true end
-		else
-			best, sub = Fuzzy.score(tk, name, lname)
-			-- a shorthand is a place, not letters: elsewhere only the word itself counts ("sw" in Swamp), never letters
-			-- scattered through a name ("rfk helm": no Rough Flask of Kings among Razorfen Kraul's helms)
-			if xs and not sub then return nil end
-			if best then nameHit = true end
-		end
-		if not sub then
-			local c1 = ini[i]
-			if best and c1 then -- (see NameExtra: initials only for a scattered match, first letter first)
-				if StartsRight(name, lname, c1) then
-					local s = Fuzzy.initials(tk, name)
-					if s and s > best then best = s end
-				end
-			end
-		end
-		if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then best = TEXT_SCORE end
-		if not best then return nil end
-		total = total + best
-	end
-	-- (not written on compact rows: a field more grew each to the next table size, ~320 B a row over thousands; their
-	-- matched letters are worked out on screen anyway, Positions)
-	e._pos = nil
-	if not rawget(e, "_compact") then e._nameHit = nameHit end
-	return total
-end
-
--- close spellings: how far a word may be from a name's word (4-7 letters: one edit, 8+: two)
-local function NearLimit(n)
-	if n < 4 then return nil end
-	return n >= 8 and 2 or 1
-end
-
---- The name's word closest to tk within `limit` edits: the distance and the word's first and
---- last byte, or nil. Words are runs of letters, digits and apostrophes.
-local function NearWord(tk, lname, limit)
-	local n, j, bestD, bf, bt = #tk, 1, nil, nil, nil
-	while true do
-		local s, f = find(lname, "[%w\128-\255']+", j)
-		if not s then break end
-		local wl = f - s + 1
-		-- one edit leaves one of these as it was: the first letters, the second ones, or a first
-		-- letter moved by one (an extra or a missing letter at the front, two swapped)
-		local maybe = wl - n <= limit and n - wl <= limit
-		if maybe and limit == 1 then
-			local t1, t2, w1, w2 = byte(tk, 1), byte(tk, 2), byte(lname, s), byte(lname, s + 1)
-			maybe = t1 == w1 or t2 == w2 or t2 == w1 or t1 == w2
-		end
-		if maybe then
-			local d = Fuzzy.distance(tk, lname, s, f, bestD and bestD - 1 or limit)
-			if d then
-				bestD, bf, bt = d, s, f
-				if d == 0 then break end
-			end
-		end
-		j = f + 1
-	end
-	return bestD, bf, bt
-end
-
---- The matched letters of the entry's name for these tokens (a set of byte positions).
-local function Positions(e, tokens)
-	local set = {}
-	if not tokens or e._nameHit == false then return set end
-	local name, lname, short = e.name, e._lname, tokens.short
-	if UI.fzf then -- (pure fuzzy finding: the letters each word matched, nothing else)
-		for _, tk in ipairs(tokens) do
-			local _, pos = Fuzzy.match(tk, name, lname)
-			for _, k in ipairs(pos or NO_POS) do set[k] = true end
-		end
-		return set
-	end
-	for i, tk in ipairs(tokens) do
-		local xs = short and short[i]
-		local _, how, at = TokenScore(tk, xs, name, lname, nil)
-		if how == "name" then
-			local _, pos = Fuzzy.match(tk, name, lname)
-			if pos then
-				for _, k in ipairs(pos) do set[k] = true end
-			end
-		elseif how == "ini" then
-			local pos = {}
-			Fuzzy.initials(tk, name, pos)
-			for _, k in ipairs(pos) do set[k] = true end
-		elseif how == "short" then
-			local s, f = find(lname or ns.Lower(name), xs[at], 1, true)
-			for k = s or 1, f or 0 do set[k] = true end
-		elseif not how and UI.closeSpellings and NearLimit(#tk) then -- a close spelling: the word it's close to
-			local _, s, f = NearWord(tk, lname or ns.Lower(name), NearLimit(#tk))
-			for k = s or 1, f or 0 do set[k] = true end
-		end
-	end
-	return set
-end
-
--- (a row pinned on top has no score: Simple mode's "Advanced syntax" line, which a sliced search's first frame
--- sorts along with the rows it shows; it stays first)
-local PINNED = 1e12
-local function Better(a, b)
-	local sa, sb = a._score or PINNED, b._score or PINNED
-	if sa ~= sb then return sa > sb end
-	local an, bn = a._lname or "", b._lname or ""
-	if an ~= bn then return an < bn end
-	return tostring(a.key) < tostring(b.key)
-end
-
-UI._Better = Better -- (tests)
-
---- The best MAX_RESULTS of the list, in order (a new list: the one given is left as it is). With thousands of matches,
---- a small heap keeps only the best so far instead of sorting them all. overBudget (a search spread over frames): the
---- pass over thousands of matches is spread too, the heap so far standing for it meanwhile.
-local function SortAndTrim(list, limit, overBudget)
-	local n, max = #list, limit or MAX_RESULTS
-	if n > max * 2 then
-		local heap, size = {}, 0 -- worst of the kept ones on top
-		local function up(i)
-			while i > 1 do
-				local p = math.floor(i / 2)
-				if Better(heap[p], heap[i]) then heap[p], heap[i] = heap[i], heap[p]; i = p else break end
-			end
-		end
-		local function down(i)
-			while true do
-				local l, r, w = i * 2, i * 2 + 1, i
-				if l <= size and Better(heap[w], heap[l]) then w = l end
-				if r <= size and Better(heap[w], heap[r]) then w = r end
-				if w == i then return end
-				heap[w], heap[i] = heap[i], heap[w]
-				i = w
-			end
-		end
-		local worst -- (the kept worst's score: most rows lose to it on the score alone, with no call)
-		for k = 1, n do
-			local e = list[k]
-			if overBudget and k % SLICE_CHECK == 0 and overBudget() then coroutine.yield(heap) end
-			if size < max then
-				size = size + 1
-				heap[size] = e
-				up(size)
-				if size == max then worst = heap[1]._score or PINNED end
-			else
-				local s = e._score or PINNED
-				if s > worst or (s == worst and Better(e, heap[1])) then
-					heap[1] = e
-					down(1)
-					worst = heap[1]._score or PINNED
-				end
-			end
-		end
-		list = heap
-	else
-		local c = {}
-		for k = 1, n do c[k] = list[k] end
-		list = c
-	end
-	table.sort(list, Better)
-	for i = #list, max + 1, -1 do list[i] = nil end
-	return list
-end
+-- scoring and sorting (Score.lua), as locals: they run for every row
+local Score = ns.Score
+local NO_POS, TEXT_SCORE, MAX_RESULTS = Score.NO_POS, Score.TEXT_SCORE, Score.MAX_RESULTS
+local FreqBonus, ScoreEntry, TokenScore, RowText = Score.FreqBonus, Score.ScoreEntry, Score.TokenScore, Score.RowText
+local NearLimit, NearWord, SortAndTrim = Score.NearLimit, Score.NearWord, Score.SortAndTrim
 
 local function PseudoEntries(lines)
 	local out = {}
@@ -337,15 +28,8 @@ local function PseudoEntries(lines)
 	return out
 end
 
--- The search's helpers (a table, not locals: the file is near Lua 5.1's limit of 200 locals)
+-- The search's helpers (a table: SearchText's steps and what they share)
 local Scan = {}
-
---- A copy of a list (the matches kept for the next keystroke, the early results shown while the search goes on).
-function Scan.Copy(t)
-	local c = {}
-	for i = 1, #t do c[i] = t[i] end
-	return c
-end
 
 --- For a search run by UI:RunSearch (in a coroutine): a function that says when this frame's share is used up.
 --- Called directly (tests, other code), the search never pauses.
@@ -483,7 +167,28 @@ function UI:ExactCommandFirst(list, text)
 	return list
 end
 
---- The empty terminal: what you picked last, newest first, then your all-time favourites.
+--- What follows each ":" of the recent picks' freqKeys ("kind:key"), and the numbers those read as: a compact row whose
+--- own key isn't one of them can't be a recent pick, so its freqKey (a string its metatable makes) isn't needed.
+local function RecentKeys(rank)
+	local keys = {}
+	for k in pairs(rank) do
+		-- (what follows the first ":" is enough while no kind's id has one; what follows each costs nothing more)
+		local at = type(k) == "string" and k:find(":", 1, true)
+		while at do
+			local key = k:sub(at + 1)
+			keys[key] = true
+			local num = tonumber(key)
+			if num and num == num then keys[num] = true end
+			at = k:find(":", at + 1, true)
+		end
+	end
+	return keys
+end
+
+--- The empty terminal: what you picked last, newest first, then your all-time favourites. Spread over frames like the
+--- search. In a heavy list read only because a recent pick names it (loot, NPCs...: thousands of compact rows), a
+--- row's freqKey is made only when its own key is one a recent pick has (RecentKeys); a key that isn't a string or a
+--- whole number below 1e14 is looked at by its freqKey as before.
 function UI:FrequentEntries()
 	local out = {}
 	local rank = {}
@@ -491,19 +196,53 @@ function UI:FrequentEntries()
 	-- providers named by recent picks are read even if they're heavy (map, options, loot)
 	local want = {}
 	for key in pairs(rank) do want[key:match("^([^:]+):") or ""] = true end
+	local freq, keys = ns.db.freq, nil
+	local overBudget = Scan.Budget(self)
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
-		if (not p.explicit and not p.lazy) or want[id] then
-			for _, e in ipairs(ns:GetEntries(p)) do
+		if not p.explicit and not p.lazy then
+			local list = ns:GetEntries(p)
+			for i = 1, #list do
+				local e = list[i]
 				local r = rank[e.freqKey]
-				local f = ns.db.freq[e.freqKey]
+				local f = freq[e.freqKey]
 				if r then
 					e._score, e._pos = 10000 - r, NO_POS
 					out[#out + 1] = e
-				elseif f and f > 0 and not p.explicit and not p.lazy then
+				elseif f and f > 0 then
 					e._score, e._pos = f, NO_POS
 					out[#out + 1] = e
 				end
+				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+			end
+		elseif want[id] then
+			-- (only the recent picks count here: a list only searched with @kind, or not on an empty prompt)
+			local list = ns:GetEntries(p)
+			for i = 1, #list do
+				local e = list[i]
+				local fk
+				if not e._compact then
+					fk = e.freqKey
+				else
+					fk = rawget(e, "freqKey")
+					if fk == nil then
+						keys = keys or RecentKeys(rank)
+						local key = rawget(e, "key")
+						if key == nil or key == false then key = e.name end -- (as CompactMeta makes it: key, else name)
+						if keys[key] then
+							fk = e.freqKey
+						else
+							local t = type(key)
+							if t ~= "string" and (t ~= "number" or key % 1 ~= 0 or key <= -1e14 or key >= 1e14) then fk = e.freqKey end
+						end
+					end
+				end
+				local r = fk ~= nil and rank[fk]
+				if r then
+					e._score, e._pos = 10000 - r, NO_POS
+					out[#out + 1] = e
+				end
+				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
 			end
 		end
 	end
@@ -563,24 +302,35 @@ local function LinkQuests(out)
 	local quests = ns.providers.quests
 	if not quests then return end
 	local linked, from, guessed = {}, {}, {}
-	for _, e in ipairs(out) do
-		if e.questID and e.kind ~= "quests" then
-			local best = linked[e.questID]
-			if not best or e._score > best then linked[e.questID] = e._score; from[e.questID] = e end
+	local present = {} -- quests already among the results
+	local guessers -- (rows with only likely quests: they link what no sure one did, after all of those)
+	-- one look at each match. Compact rows are skipped unread (_compact is a field of their own, or of the row a
+	-- "nearest" view stands for): only item and quest-log rows carry a quest, and those are never compact; the big
+	-- lists' thousands of matches went through their metatables here, three times each
+	for i = 1, #out do
+		local e = out[i]
+		if not e._compact then
+			local qid, isQuest = e.questID, e.kind == "quests"
+			if isQuest then
+				present[e] = true
+			elseif qid then
+				local best = linked[qid]
+				if not best or e._score > best then linked[qid] = e._score; from[qid] = e end
+			elseif e.guessIDs then
+				guessers = guessers or {}
+				guessers[#guessers + 1] = e
+			end
 		end
 	end
-	for _, e in ipairs(out) do
-		if e.guessIDs and e.kind ~= "quests" and not e.questID then
-			for _, id in ipairs(e.guessIDs) do
-				if not linked[id] then
-					linked[id] = e._score; from[id] = e; guessed[id] = true
-				end
+	for k = 1, guessers and #guessers or 0 do
+		local e = guessers[k]
+		for _, id in ipairs(e.guessIDs) do
+			if not linked[id] then
+				linked[id] = e._score; from[id] = e; guessed[id] = true
 			end
 		end
 	end
 	if not next(linked) then return end
-	local present = {} -- quests already among the results
-	for _, e in ipairs(out) do if e.kind == "quests" then present[e] = true end end
 	for _, q in ipairs(ns:GetEntries(quests)) do
 		local s = linked[q.questID]
 		if s then
@@ -662,22 +412,103 @@ function Scan.NearestStart(tokens, filters, softWords)
 	return nil, here, role and ns.Filters and ns.Filters.Parse("faction:friendly")
 end
 
+--- A row with a distance, as a view saying how far ("120 yd", a spot row keeping its zone as the arrow's live text
+--- writes it: "120 yd  The Barrens"), scored closest first.
+local function NearView(e, d)
+	local zone = rawget(e, "wcont") and e.zone
+	return setmetatable({ detail = ("%.0f yd"):format(d) .. (zone and ("  " .. zone) or ""), _score = 1e6 - d, _dist = d }, { __index = e })
+end
+
+--- Would row a's view (da yards away) sort before row b's (db)? Better (Score.lua) on the views NearView makes: the
+--- score, then the name, then the key, read through to the rows as the views would.
+local function Closer(da, a, db, b)
+	local sa, sb = 1e6 - da, 1e6 - db
+	if sa ~= sb then return sa > sb end
+	local an, bn = a._lname or "", b._lname or ""
+	if an ~= bn then return an < bn end
+	return tostring(a.key) < tostring(b.key)
+end
+
+-- The closest rows so far, a heap of parallel lists (yards, row, place in the matches, its view once made) with the
+-- farthest of them on top. A new one at the bottom (k) goes up past the closer ones; one put on top goes down.
+local function HeapSwap(hd, he, hi, hv, a, b)
+	hd[a], hd[b] = hd[b], hd[a]
+	he[a], he[b] = he[b], he[a]
+	hi[a], hi[b] = hi[b], hi[a]
+	hv[a], hv[b] = hv[b], hv[a]
+end
+local function HeapUp(hd, he, hi, hv, k)
+	while k > 1 do
+		local p = math.floor(k / 2)
+		if not Closer(hd[p], he[p], hd[k], he[k]) then return end
+		HeapSwap(hd, he, hi, hv, p, k)
+		k = p
+	end
+end
+local function HeapDown(hd, he, hi, hv, size)
+	local k = 1
+	while true do
+		local l, r, w = k * 2, k * 2 + 1, k
+		if l <= size and Closer(hd[w], he[w], hd[l], he[l]) then w = l end
+		if r <= size and Closer(hd[w], he[w], hd[r], he[r]) then w = r end
+		if w == k then return end
+		HeapSwap(hd, he, hi, hv, w, k)
+		k = w
+	end
+end
+
 --- The matched rows that have a distance (Questie's NPCs, rows with a place of their own: @mailbox), each as a view
---- saying how far ("120 yd", a spot row keeping its zone as the arrow's live text writes it: "120 yd  The Barrens")
---- and scored closest first; sort:nearest keeps every other row too, after them. Pauses with the search.
+--- saying how far (NearView) and scored closest first; sort:nearest keeps every other row too, after them; in the
+--- order they came. Every row's distance is measured (I.RowYards: no table made), but only the MAX_RESULTS closest get
+--- a view: a search keeps no more (SortAndTrim), and none of these rows brings a quest along (LinkQuests: NPCs and
+--- spots carry none). Pauses with the search, showing the closest so far.
 function Scan.NearestViews(out, here, sortNear, overBudget)
-	local I, kept = ns.Integrations, {}
+	local yards, max = ns.Integrations.RowYards, MAX_RESULTS
+	local hd, he, hi, hv, size = {}, {}, {}, {}, 0
+	local others, at = {}, {} -- (sort:nearest: the rows with no distance, as they are, and where they came)
 	for i = 1, #out do
 		local e = out[i]
-		local d = I.RowDistance(e, here)
+		local d = yards(e, here)
 		if d then
-			local zone = rawget(e, "wcont") and e.zone
-			kept[#kept + 1] = setmetatable({ detail = ("%.0f yd"):format(d) .. (zone and ("  " .. zone) or ""), _score = 1e6 - d, _dist = d }, { __index = e })
+			if size < max then
+				size = size + 1
+				hd[size], he[size], hi[size], hv[size] = d, e, i, nil
+				HeapUp(hd, he, hi, hv, size)
+			elseif Closer(d, e, hd[1], he[1]) then
+				hd[1], he[1], hi[1], hv[1] = d, e, i, nil
+				HeapDown(hd, he, hi, hv, size)
+			end
 		elseif sortNear then
-			kept[#kept + 1] = e
+			others[#others + 1] = e
+			at[#at + 1] = i
 		end
-		if i % 32 == 0 and overBudget() then coroutine.yield(kept) end
+		if i % 32 == 0 and overBudget() then
+			-- (this frame's look: the rows so far, the closest as views, each made once: the final list keeps it; the
+			-- list handed over is copied at once, so the views come off it again)
+			local n = #others
+			for k = 1, size do
+				local v = hv[k]
+				if not v then v = NearView(he[k], hd[k]); hv[k] = v end
+				others[n + k] = v
+			end
+			coroutine.yield(others)
+			for k = n + size, n + 1, -1 do others[k] = nil end
+		end
 	end
+	-- the closest in the order they came (at most max: an insertion sort), each among the others where it came
+	local order = {}
+	for k = 1, size do
+		local p, j = hi[k], #order
+		while j > 0 and hi[order[j]] > p do order[j + 1] = order[j]; j = j - 1 end
+		order[j + 1] = k
+	end
+	local kept, o, n = {}, 1, #others
+	for j = 1, #order do
+		local k = order[j]
+		while o <= n and at[o] < hi[k] do kept[#kept + 1] = others[o]; o = o + 1 end
+		kept[#kept + 1] = hv[k] or NearView(he[k], hd[k])
+	end
+	for q = o, n do kept[#kept + 1] = others[q] end
 	return kept
 end
 
@@ -709,18 +540,38 @@ Scan.ANSWERS = {
 	end,
 }
 
-function UI:SearchText(text)
+-- SearchText's steps share one table per search (q):
+--   text; simple: Simple mode; blocked: Advanced syntax typed in Simple mode ("send": a ">>"); kinds: the lists asked
+--   for (a set of ids: @kinds, an action word's, a category's); tokens: the words searched, lowercase; filters: every
+--   filter; hard: the typed key:value ones (and a place's, an action's, a category's test); softs / softWords: Simple
+--   mode's everyday words' filters, and the words; fsig: the filters' signature (a narrowing needs the same); sortNear:
+--   Advanced sort:nearest; act: Simple mode's action word; here: where you are ("nearest"); easyCat: Simple mode's
+--   category searched; empty: no words left to search; overBudget: this frame's share is used up (UI:RunSearch)
+
+-- Simple mode: a plain word in a "|" list or after "-" is an everyday word when it is one ("-junk" = not grey)
+local function PlainWord(lw)
+	return ns.Easy.Word(lw) or function(e) return ns.Filters.RowHas(e, lw) end
+end
+
+--- The list without one filter (a category's own test), or nil when nothing is left.
+local function Without(list, keep)
+	if not list then return nil end
+	local rest = {}
+	for _, f in ipairs(list) do if f ~= keep then rest[#rest + 1] = f end end
+	return #rest > 0 and rest or nil
+end
+
+--- What a search tells the window, cleared for this one.
+function Scan.ResetFlags(self)
 	self.closeSpellings = nil -- (set when only close spellings matched: the footer says so)
 	self.softRelaxed = nil -- (easy mode: nothing passed every everyday word, the closest shown: the footer says so)
-	local softs, hard, softWords -- (the everyday words' filters, the typed key:value ones, the everyday words)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
-	if self.fzf then
-		self.noPosition, self.action, self.place = nil, nil, nil
-		return self:FuzzySearch(text)
-	end
-	-- a chain or a question in plain words: its own answer, not a search (Scan.ANSWERS)
+end
+
+--- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
+function Scan.Answer(self, text)
 	for _, ask in ipairs(Scan.ANSWERS) do
 		local rows, note, isTrail = ask(text)
 		if rows then
@@ -731,26 +582,36 @@ function UI:SearchText(text)
 			return rows
 		end
 	end
+end
+
+--- The rows a search ends with (q.kinds and q.blocked as they are by then).
+function Scan.Finish(q, res)
+	-- a list that asks the server first (@who): its own row on top
+	local kinds = q.kinds
+	if kinds then
+		for k in pairs(kinds) do
+			local p = ns.providers[k]
+			local row = p and p.leadRow and p.leadRow(p, q.text)
+			if row then table.insert(res, 1, row) end
+		end
+	end
+	local blocked = q.blocked
+	if not blocked then return res end
+	-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
+	local out = { blocked == "send" and ns.Easy.SEND_ROW or ns.Easy.ADVANCED_ROW }
+	for i = 1, #res do out[i + 1] = res[i] end
+	return out
+end
+
+--- The typed words, read: @kinds, sort:nearest, filters (key:value; Simple mode's everyday words), the words searched.
+--- The search's table (q).
+function Scan.Parse(self, text)
 	local kinds, tokens, filters, fsig = nil, {}, nil, {}
+	local softs, hard, softWords -- (the everyday words' filters, the typed key:value ones, the everyday words)
 	local simple = EasyOn()
 	-- Simple mode doesn't take Advanced syntax (@kind, key:value, >>): a row on top says where it lives (Refresh
 	-- already took a ">>" off); the plain words are still searched
 	local blocked = simple and self.blockedSyntax or nil
-	local function Finish(res)
-		-- a list that asks the server first (@who): its own row on top
-		if kinds then
-			for k in pairs(kinds) do
-				local p = ns.providers[k]
-				local row = p and p.leadRow and p.leadRow(p, text)
-				if row then table.insert(res, 1, row) end
-			end
-		end
-		if not blocked then return res end
-		-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
-		local out = { blocked == "send" and ns.Easy.SEND_ROW or ns.Easy.ADVANCED_ROW }
-		for i = 1, #res do out[i + 1] = res[i] end
-		return out
-	end
 	local sortNear -- Advanced "sort:nearest": NPCs closest first, the rest after
 	self.noPosition = nil
 	local words = {}
@@ -760,10 +621,7 @@ function UI:SearchText(text)
 		ns.Easy.JoinPairs(words)
 		ns.Easy.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe
 	end
-	-- Simple mode: a plain word in a "|" list or after "-" is an everyday word when it is one ("-junk" = not grey)
-	local plainWord = simple and function(lw)
-		return ns.Easy.Word(lw) or function(e) return ns.Filters.RowHas(e, lw) end
-	end or nil
+	local plainWord = simple and PlainWord or nil
 	for _, w in ipairs(words) do
 		if simple and ns.Easy.IsAdvancedWord(w) then
 			blocked = true
@@ -806,6 +664,13 @@ function UI:SearchText(text)
 			if ns.Filters.RecipeWord(w) then kinds.recipes = true break end
 		end
 	end
+	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
+		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear }
+end
+
+--- Simple mode: an action word and a place named among the words, taken out of them (q.act, q.tokens, q.filters).
+function Scan.ActionAndPlace(self, q)
+	local simple, tokens, filters, hard, fsig = q.simple, q.tokens, q.filters, q.hard, q.fsig
 	-- Simple mode: the first word can say what to do ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS)
 	local act
 	if simple and tokens[1] then act = Scan.TakeAction(tokens, filters) end
@@ -825,6 +690,12 @@ function UI:SearchText(text)
 			self.place = place
 		end
 	end
+	q.act, q.tokens, q.filters, q.hard = act, tokens, filters, hard
+end
+
+--- The words searched in the end (q.tokens, q.empty), and the ones to light up.
+function Scan.Prepare(self, q)
+	local tokens, softs = q.tokens, q.softs
 	-- easy mode: the little words of a sentence aren't asked for ("food that gives stamina", "shield from kresh")
 	if ns.Easy and ns.Easy.On() and #tokens > 0 then tokens = Scan.DropStop(tokens, softs) end
 	local empty = #tokens == 0
@@ -833,6 +704,15 @@ function UI:SearchText(text)
 	Scan.FillShorthand(tokens)
 	-- (set before any early return: rows listed straight away, "nearest mailbox", light up these words, not the last search's)
 	self.posTokens = tokens
+	q.tokens, q.empty = tokens, empty
+end
+
+--- Simple mode with no @kind: an action word's lists, else a category (picked, or the only one that has it). The rows
+--- to finish with instead of searching (just the prompt, "nearest" stopping early, the categories to pick from), or
+--- nil: q.kinds, q.easyCat (and q.here for "nearest") say what to search.
+function Scan.SimpleScope(self, q)
+	local simple, kinds, tokens, filters, hard, fsig, act = q.simple, q.kinds, q.tokens, q.filters, q.hard, q.fsig, q.act
+	local empty, blocked, softs, softWords = q.empty, q.blocked, q.softs, q.softWords
 	-- easy mode (no @kind typed): nothing typed lists nothing (a line says what to do, and the category picked
 	-- is let go); typed: the categories that have it, to pick from (EasyOverview); a category picked stands for
 	-- its @kinds, and its own test (Emotes: the slash rows that are emotes)
@@ -845,7 +725,7 @@ function UI:SearchText(text)
 		if empty and not filters then
 			self.category = nil
 			-- just the prompt: its faint placeholder says what to type (UpdateGhost); Down asked for your recent picks
-			return Finish(self.showRecent and not blocked and self:FrequentEntries() or {})
+			return self.showRecent and not blocked and self:FrequentEntries() or {}
 		end
 		if act and act.map then
 			-- an action word: the kinds it works on, no categories to pick from
@@ -859,7 +739,7 @@ function UI:SearchText(text)
 			if act.nearest then
 				local early, friendly
 				early, here, friendly = Scan.NearestStart(tokens, filters, softWords)
-				if early then return Finish(early) end
+				if early then q.kinds, q.filters, q.hard = kinds, filters, hard return early end
 				if friendly then
 					filters, hard = filters or {}, hard or {}
 					filters[#filters + 1], hard[#hard + 1] = friendly, friendly
@@ -870,14 +750,15 @@ function UI:SearchText(text)
 		else
 			easyCat = self.category and ns.Easy.BY_ID[self.category]
 			if not easyCat then
-				local ov = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "))
+				local ov, kept, from = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "))
 				-- only one category has it: straight to its results (no step to take)
 				if #ov == 1 and ov[1].catId then
 					self.category, self.categoryAuto = ov[1].catId, true
 					easyCat = ns.Easy.BY_ID[ov[1].catId]
 					self.softRelaxed = nil
+					q.overview, q.overviewFrom = kept, from -- (its lists' rows were just scored: Scan.Collect lists them)
 				else
-					return Finish(ov)
+					return ov
 				end
 			end
 		end
@@ -892,14 +773,13 @@ function UI:SearchText(text)
 			fsig[#fsig + 1] = "#" .. easyCat.id
 		end
 	end
-	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
-	if empty and not kinds and not filters then
-		self.lastScan, self.lastOverview = nil, nil
-		return self.showRecent and self:FrequentEntries() or {}
-	end
-	local Pass = ns.Filters and ns.Filters.Pass
+	q.kinds, q.filters, q.hard, q.easyCat, q.here = kinds, filters, hard, easyCat, here
+end
 
-	local out = {}
+--- The lists searched (the @kinds or the category's, else every list not only searched by @kind), the signature a
+--- narrowing must match, and whether every one is built already (nothing to collect again).
+function Scan.Lists(q)
+	local kinds, fsig = q.kinds, q.fsig
 	local included = {}
 	local fresh = true -- every list read is already built (nothing to re-collect)
 	local sig = {}
@@ -914,6 +794,38 @@ function UI:SearchText(text)
 		end
 	end
 	sig = table.concat(sig, ",") .. "|" .. table.concat(fsig, " ") -- (other filters: not a narrowing of the last scan)
+	return included, sig, fresh
+end
+
+--- Simple mode, a category opened for you (the only one with matches): the overview has just scored its lists' rows,
+--- each match's score for the words left in its _score (q.overview, UI:EasyOverview). The rows it kept of p's list,
+--- when what it read is this same list; nil: the list is scored as usual (Questie's, only looked up by name there; a
+--- list built again since).
+local function OverviewRows(q, p, list)
+	local ov = q.overview
+	if not ov then return nil end
+	local lkey = q.easyCat.id .. "/" .. p.id
+	if q.overviewFrom[lkey] == list then return ov.rows[lkey] end
+end
+
+--- Those rows as matches: what Collect's consider gives a match on top of its score for the words (kind: as consider
+--- is given it). A row is in one list of a category (as every category in Easy.CATEGORIES is), so each gets it once.
+local function AddOverviewRows(out, rows, kind, overBudget)
+	for i = 1, #rows do
+		local e = rows[i]
+		e._score = e._score + FreqBonus(e, kind) + (rawget(e, "_rank") or 0) -- (rank: a list's own order, < 1)
+		out[#out + 1] = e
+		if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+	end
+end
+
+--- Every row of the lists that has the words and passes the filters, scored; or the last keystroke's matches scored
+--- again when the words only grew (Scan.Narrows); or, in a category Simple mode opened for you, the rows its overview
+--- just scored (OverviewRows: the same rows, in the same order, scored once). Spread over frames (q.overBudget, set here).
+function Scan.Collect(self, q, included, sig, fresh)
+	local empty, filters, tokens = q.empty, q.filters, q.tokens
+	local Pass = ns.Filters and ns.Filters.Pass
+	local out = {}
 	-- typing one more letter, or one more word, can only narrow the matches: score just the last
 	-- ones again (every one of them had the earlier words, so a new word still picks from them)
 	local last = self.lastScan
@@ -940,7 +852,19 @@ function UI:SearchText(text)
 	-- run by UI:RunSearch: past this frame's share, hand back what matched so far and go on
 	-- in the next frame (tens of thousands of NPCs or quests no longer hitch one frame)
 	local overBudget = Scan.Budget(self)
-	if candidates then
+	-- (narrowing in a category opened for you: the last keystroke's matches still having the words are the rows the
+	-- overview kept of each list, in that order; every list must have them, else the matches are scored as before)
+	local kept
+	if candidates and q.overview then
+		kept = {}
+		for k, p in ipairs(included) do
+			kept[k] = OverviewRows(q, p, p._entries)
+			if not kept[k] then kept = nil break end
+		end
+	end
+	if kept then
+		for k = 1, #included do AddOverviewRows(out, kept[k], nil, overBudget) end
+	elseif candidates then
 		for i = 1, #candidates do
 			consider(candidates[i])
 			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
@@ -950,12 +874,25 @@ function UI:SearchText(text)
 			local list = ns:GetEntries(p)
 			if overBudget() then coroutine.yield(out) end -- (reading the list may have taken the share)
 			local id = p.id
-			for i = 1, #list do
-				consider(list[i], id)
-				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+			local rows = OverviewRows(q, p, list)
+			if rows then
+				AddOverviewRows(out, rows, id, overBudget)
+			else
+				for i = 1, #list do
+					consider(list[i], id)
+					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+				end
 			end
 		end
 	end
+	q.overBudget = overBudget
+	return out
+end
+
+--- The matches kept for the next keystroke; nothing matched: Simple mode's closest by the everyday words, else close
+--- spellings (added to out).
+function Scan.Fallbacks(self, q, out, included, sig)
+	local empty, tokens, filters, hard, softs, overBudget = q.empty, q.tokens, q.filters, q.hard, q.softs, q.overBudget
 	if not empty then
 		-- (out itself: SortAndTrim leaves it as it is; rows added to it below only make the net wider)
 		self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out }
@@ -965,17 +902,12 @@ function UI:SearchText(text)
 		-- nothing has every word: names within an edit or two of them ("hearhtstone")
 		if #out == 0 then self:CloseSpellings(included, tokens, filters, out, overBudget) end
 	end
-	-- easy mode: nothing in the picked category: the categories that have it instead
-	if easyCat and #out == 0 then
-		local function Without(list)
-			if not list then return nil end
-			local rest = {}
-			for _, f in ipairs(list) do if f ~= easyCat.keep then rest[#rest + 1] = f end end
-			return #rest > 0 and rest or nil
-		end
-		self.category, self.categoryAuto, self.closeSpellings, self.softRelaxed = nil, nil, nil, nil
-		return Finish(self:EasyOverview(tokens, Without(filters), Without(hard), Without(softs), softWords))
-	end
+end
+
+--- "nearest" / sort:nearest: the rows with a distance, closest first (Scan.NearestViews). The rows, and the rows to
+--- stop with instead (none near), if any.
+function Scan.Nearest(self, q, out)
+	local sortNear, here, overBudget = q.sortNear, q.here, q.overBudget
 	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
 	if sortNear and not here then
 		here = ns.Integrations and ns.Integrations.Here and ns.Integrations.Here()
@@ -985,11 +917,19 @@ function UI:SearchText(text)
 	-- sort:nearest keeps every other row, after the NPCs)
 	if here then
 		out = Scan.NearestViews(out, here, sortNear, overBudget)
-		if #out == 0 and not sortNear then return Finish(PseudoEntries({ EASY_NONE_NEAR })) end
+		if #out == 0 and not sortNear then return out, PseudoEntries({ EASY_NONE_NEAR }) end
 	end
+	q.here = here
+	return out
+end
+
+--- The best rows, in order: a quest item's quest brought along, Simple mode's action on each, the "Search <list> for
+--- this" rows (an action word with nothing to do it to: a line saying so).
+function Scan.Finalize(self, q, out)
+	local text, kinds, tokens, empty, filters, act, overBudget = q.text, q.kinds, q.tokens, q.empty, q.filters, q.act, q.overBudget
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	local res = SortAndTrim(out, nil, overBudget)
-	if act and act.map and #res == 0 then return Finish(PseudoEntries({ EASY_NONE })) end -- ("use xyzzy": say so)
+	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
 	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
 	if act and act.map then
 		for i = 1, #res do res[i] = ns.Easy.ActionView(res[i], act) end
@@ -1000,7 +940,41 @@ function UI:SearchText(text)
 		local hints, at = self:BigListHint(text, tokens, res, overBudget)
 		for i, hint in ipairs(hints or {}) do table.insert(res, math.min((at or 1) + i - 1, #res + 1), hint) end
 	end
-	return Finish(res)
+	return res
+end
+
+function UI:SearchText(text)
+	Scan.ResetFlags(self)
+	if self.fzf then
+		self.noPosition, self.action, self.place = nil, nil, nil
+		return self:FuzzySearch(text)
+	end
+	-- a chain or a question in plain words: its own answer, not a search (Scan.ANSWERS)
+	local answer = Scan.Answer(self, text)
+	if answer then return answer end
+	local q = Scan.Parse(self, text)
+	Scan.ActionAndPlace(self, q)
+	Scan.Prepare(self, q)
+	local rows = Scan.SimpleScope(self, q)
+	if rows then return Scan.Finish(q, rows) end
+	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
+	if q.empty and not q.kinds and not q.filters then
+		self.lastScan, self.lastOverview = nil, nil
+		return self.showRecent and self:FrequentEntries() or {}
+	end
+	local included, sig, fresh = Scan.Lists(q)
+	local out = Scan.Collect(self, q, included, sig, fresh)
+	Scan.Fallbacks(self, q, out, included, sig)
+	-- easy mode: nothing in the picked category: the categories that have it instead
+	if q.easyCat and #out == 0 then
+		local keep = q.easyCat.keep
+		self.category, self.categoryAuto, self.closeSpellings, self.softRelaxed = nil, nil, nil, nil
+		return Scan.Finish(q, self:EasyOverview(q.tokens, Without(q.filters, keep), Without(q.hard, keep), Without(q.softs, keep), q.softWords))
+	end
+	local stop
+	out, stop = Scan.Nearest(self, q, out)
+	if stop then return Scan.Finish(q, stop) end
+	return Scan.Finish(q, Scan.Finalize(self, q, out))
 end
 
 --- Pure fuzzy finding (Tab+`, UI.fzf), like fzf: every list there is (the ones only searched with @kind too),
@@ -1091,6 +1065,27 @@ end
 local function PickCategory(e) UI:SetCategory(e.catId) end
 local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row passes (beats any score gap)
 
+--- The words Questie's lists are looked up by in the overview: by name only, the typed words and the everyday words
+--- as name words ("sword": NPCs called Sword...), never with a key:value filter.
+local function OverviewNameWords(tokens, hard, softWords)
+	local nameWords = tokens
+	if softWords and not hard then
+		nameWords = {}
+		for k = 1, #tokens do nameWords[k] = tokens[k] end
+		for k = 1, #softWords do nameWords[#nameWords + 1] = softWords[k] end
+	end
+	return nameWords
+end
+
+--- The overview's row for a category: its best match and how many more (Enter or a click picks it).
+local function CategoryRow(c, best, bestScore, count)
+	return {
+		name = c.label, catId = c.id, kind = "category", icon = c.icon or QUESTION_MARK, kindLabel = "",
+		detail = tostring(best) .. (count > 1 and ("  +%d more"):format(count - 1) or ""),
+		staysOpen = true, activate = PickCategory, _score = bestScore or 0, _pos = NO_POS,
+	}
+end
+
 --- Easy mode, typed before a category is picked: one row per category that has matches ("Bags  Rumsey Rum
 --- +2 more"), the best match first; Enter or a click picks it. Questie's lists are counted by their name index.
 --- Spread over frames like the search.
@@ -1102,19 +1097,14 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 		reuse = last
 	end
 	local keep = { sig = fsig, tokens = tokens, rows = {} }
+	local from = {} -- (the whole list each kept one was found in: SearchText takes the rows if their category opens)
 	local overBudget = Scan.Budget(self)
 	-- (pausing shows what's already on screen: an empty list collapsed the frame to the bare prompt for a frame)
 	local function tick() if overBudget() then coroutine.yield(UI.Results()) end end
 	local Pass = ns.Filters and ns.Filters.Pass
 	local empty = #tokens == 0
-	-- Questie's lists are looked up by name only: the typed words, and the everyday words as name words
-	-- ("sword": NPCs called Sword...), never with a key:value filter
-	local nameWords = tokens
-	if softWords and not hard then
-		nameWords = {}
-		for k = 1, #tokens do nameWords[k] = tokens[k] end
-		for k = 1, #softWords do nameWords[#nameWords + 1] = softWords[k] end
-	end
+	-- Questie's lists are looked up by name only (OverviewNameWords)
+	local nameWords = OverviewNameWords(tokens, hard, softWords)
 	-- relaxed: nothing anywhere passed every everyday word, so they only rank (as in RelaxSoft)
 	local function scan(relaxed)
 		local out = {}
@@ -1134,17 +1124,20 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 					local gen = ns.entriesGen
 					local list = ns:GetEntries(p)
 					local lkey = c.id .. "/" .. id
+					local whole = list
 					-- (a list rebuilt meanwhile is scanned in full: its old rows may be gone)
 					if reuse and not relaxed and gen == ns.entriesGen and reuse.rows[lkey] then list = reuse.rows[lkey] end
 					local kept = (not relaxed and not empty) and {} or nil
-					if kept then keep.rows[lkey] = kept end
+					if kept then keep.rows[lkey], from[lkey] = kept, whole end
 					local need = filters
 					if relaxed then need = hard end -- (nil: no typed key:value filter)
 					for i = 1, #list do
 						local e = list[i]
 						local sc = (not c.keep or c.keep(e)) and (empty and 0 or ScoreEntry(e, tokens)) or nil
 						if sc and (not need or Pass(e, need)) then
-							if kept then kept[#kept + 1] = e end
+							-- (its score for the words kept on it: when this is the only category, its rows are listed
+							-- without being scored again, Scan.Collect; a search writes every match's _score anyway)
+							if kept then kept[#kept + 1] = e; e._score = sc end
 							if relaxed then
 								for k = 1, #softs do
 									local ok, yes = pcall(softs[k], e)
@@ -1158,13 +1151,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 					end
 				end
 			end
-			if count > 0 then
-				out[#out + 1] = {
-					name = c.label, catId = c.id, kind = "category", icon = c.icon or QUESTION_MARK, kindLabel = "",
-					detail = tostring(best) .. (count > 1 and ("  +%d more"):format(count - 1) or ""),
-					staysOpen = true, activate = PickCategory, _score = bestScore or 0, _pos = NO_POS,
-				}
-			end
+			if count > 0 then out[#out + 1] = CategoryRow(c, best, bestScore, count) end
 		end
 		return out
 	end
@@ -1178,7 +1165,8 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 	end
 	table.sort(out, function(a, b) return a._score > b._score end)
 	if #out == 0 then return PseudoEntries({ EASY_NONE }) end
-	return out
+	-- (and what each category's lists had of the words, with the lists they were found in: Scan.SimpleScope)
+	return out, keep, from
 end
 
 
@@ -1294,6 +1282,68 @@ end
 local HINT_FEW = 2
 UI.HINT_FEW = HINT_FEW
 
+--- What a big @kind list has of the words: the first name, how many (100 at most counted), and the rows themselves
+--- when there are only fewMax or fewer (nil otherwise). Pauses with the search (overBudget, handing back res).
+local function HintMatches(p, tokens, res, overBudget, fewMax)
+	local firstName, count, few = nil, 0, nil
+	if p.hintFind then
+		-- the list's own name index (Questie's: one text, not its thousands of rows)
+		local ids
+		firstName, count, ids = p.hintFind(p, tokens, function() if overBudget() then coroutine.yield(res) end end)
+		local want = math.min(count, fewMax)
+		if firstName and count <= fewMax and p.hintRow and type(ids) == "table" and #ids >= want then
+			few = {}
+			for k = 1, want do
+				local row = p.hintRow(p, ids[k])
+				if not row then few = nil break end
+				few[#few + 1] = row
+			end
+		end
+	else
+		local list = ns:GetEntries(p)
+		few = {}
+		for i = 1, #list do
+			local e = list[i]
+			if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
+				count = count + 1
+				firstName = firstName or e.name
+				if count <= fewMax then few[count] = e end
+				if count >= 100 then break end
+			end
+			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
+		end
+		if count > fewMax or count == 0 then few = nil end
+	end
+	return firstName, count, few
+end
+
+--- Only one or two: the rows themselves go where the hint would have gone (each once, and not one already listed).
+local function AddFewRows(hints, few, res)
+	for _, e in ipairs(few) do
+		local dup = false
+		for k = 1, #hints do if hints[k] == e then dup = true break end end
+		for k = 1, #res do if res[k] == e then dup = true break end end
+		if not dup then
+			e._pos = nil
+			if not rawget(e, "_compact") then e._nameHit = true end
+			hints[#hints + 1] = e
+		end
+	end
+end
+
+--- The "Search <list> for this" row: Tab or Enter writes the @kind before the words.
+local function HintRow(p, id, text, firstName, count)
+	local kind = "@" .. (p.aliases and p.aliases[1] or id)
+	local query = text:gsub("^%s+", "")
+	return {
+		name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
+		detail = firstName .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
+		icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
+		completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
+		_score = math.huge, _pos = NO_POS,
+	}
+end
+
 --- The "Search <list> for this" rows (and where they go), or nil. When an @kind list has a match:
 --- by name (a plain substring look) in the huge lists, or a full match (hintFull: @stored, by item
 --- and holder); on top, or second when your own results have the words in a name (see HINT_SAME).
@@ -1325,62 +1375,17 @@ function UI:BigListHint(text, tokens, res, overBudget)
 			end
 		end
 		if p and p.explicit and not covered then
-			local firstName, count, few = nil, 0, nil
-			if p.hintFind then
-				-- the list's own name index (Questie's: one text, not its thousands of rows)
-				local ids
-				firstName, count, ids = p.hintFind(p, tokens, function() if overBudget() then coroutine.yield(res) end end)
-				local want = math.min(count, fewMax)
-				if firstName and count <= fewMax and p.hintRow and type(ids) == "table" and #ids >= want then
-					few = {}
-					for k = 1, want do
-						local row = p.hintRow(p, ids[k])
-						if not row then few = nil break end
-						few[#few + 1] = row
-					end
-				end
-			else
-				local list = ns:GetEntries(p)
-				few = {}
-				for i = 1, #list do
-					local e = list[i]
-					if (p.hintFull and ScoreEntry(e, tokens)) or (not p.hintFull and NameHasAll(e, tokens)) then
-						count = count + 1
-						firstName = firstName or e.name
-						if count <= fewMax then few[count] = e end
-						if count >= 100 then break end
-					end
-					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(res) end
-				end
-				if count > fewMax or count == 0 then few = nil end
-			end
+			local firstName, count, few = HintMatches(p, tokens, res, overBudget, fewMax)
 			if firstName and few and #few > 0 then
 				-- only one or two: the rows themselves, where the hint would have gone
-				for _, e in ipairs(few) do
-					local dup = false
-					for k = 1, #hints do if hints[k] == e then dup = true break end end
-					for k = 1, #res do if res[k] == e then dup = true break end end
-					if not dup then
-						e._pos = nil
-						if not rawget(e, "_compact") then e._nameHit = true end
-						hints[#hints + 1] = e
-					end
-				end
+				AddFewRows(hints, few, res)
 			elseif firstName then
-				local kind = "@" .. (p.aliases and p.aliases[1] or id)
-				local query = text:gsub("^%s+", "")
-				hints[#hints + 1] = {
-					name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
-					detail = firstName .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
-					icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
-					completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
-					_score = math.huge, _pos = NO_POS,
-				}
+				hints[#hints + 1] = HintRow(p, id, text, firstName, count)
 			end
 		end
 	end
 	if #hints > 0 then return hints, mine and 2 or 1 end
 end
 
--- for the window (UI.lua): the matched letters of a row on screen, the sorting, the scan's helpers
-UI.Positions, UI.SortAndTrim, UI.Scan, UI.HintActivate = Positions, SortAndTrim, Scan, HintActivate
+-- for the window (UI.lua): the "Search ... for this" rows' Enter
+UI.HintActivate = HintActivate
