@@ -201,6 +201,50 @@ do
 		"menu: All 2 to guild sends them: " .. tostring(sent[1] and sent[1][1]))
 	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild = g[1], g[2], g[3]
 	ns.db.easyMode = wasEasy; UI:EasyChanged()
+
+	-- what the filters say they are (0.44.2): "@loot razorfen kraul type:weapon" -> "Weapons ..."
+	check(SH.Describe("@loot razorfen kraul type:weapon") == "Weapons" and SH.Describe("hogger") == nil
+		and SH.Describe("@loot q:rare+ type:sword|type:axe") == "Rare or better swords and axes"
+		and SH.Describe("@item type:plate slot:feet is:upgrade") == "Plate boot upgrades"
+		and SH.Describe("@loot slot:feet stat:agility lvl:20-30") == "Boots with agility (level 20-30)"
+		and SH.Describe("@loot type:staff -is:boe") == "Staves",
+		"filters described: " .. tostring(SH.Describe("@loot q:rare+ type:sword|type:axe")) .. " / " .. tostring(SH.Describe("@item type:plate slot:feet is:upgrade")))
+	-- a whole instance: the instance said once, each item only its boss
+	local rfk = {
+		{ kind = "loot", key = 1, name = "Corpsemaker", detail = "Overlord Ramtusk  Razorfen Kraul" },
+		{ kind = "loot", key = 2, name = "Pronged Reaver", detail = "Charlga Razorflank  Razorfen Kraul" },
+		{ kind = "loot", key = 3, name = "Plains Ring", detail = "Trash Mobs  Razorfen Kraul" },
+	}
+	lines = SH.GroupLines(rfk, "@loot razorfen kraul")
+	check(lines[1] == "Loot from Razorfen Kraul (3): Corpsemaker (Overlord Ramtusk), Pronged Reaver (Charlga Razorflank), Plains Ring (trash)",
+		"one instance, many bosses: " .. tostring(lines[1]))
+	lines = SH.GroupLines(rfk, "@loot razorfen kraul type:weapon")
+	check(lines[1]:find("^Weapons from Razorfen Kraul %(3%): Corpsemaker"), "with a filter: says they're weapons: " .. tostring(lines[1]))
+	lines = SH.GroupLines(loot, "@loot lorgus jett type:weapon")
+	check(lines[1]:find("^Weapons dropped by Lorgus Jett in Blackfathom Deeps %(5%)"), "one boss, a filter: " .. tostring(lines[1]))
+
+	-- items the client hasn't loaded: asked for ahead (prefetch), and party waits for them; say can't wait
+	local cachedWas, reqWas = C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID
+	local cached, asks = { [101] = true }, {}
+	C_Item.IsItemDataCachedByID = function(id) return cached[id] == true end
+	C_Item.RequestLoadItemDataByID = function(id) asks[#asks + 1] = id end
+	local items = { { kind = "item", key = 101, itemID = 101, name = "Loaded" }, { kind = "item", key = 102, itemID = 102, name = "Not Yet" } }
+	check(SH.Prefetch(items) == 1 and asks[1] == 102 and SH.Prefetch(items) == 0, "prefetch asks for the unloaded ones, once")
+	sent = {}
+	local r = SH.SendAll(items, { chat = "PARTY", label = "party" }, "")
+	check(r == true and #sent == 0, "party: waits for the item to load")
+	cached[102] = true
+	T.FlushAll()
+	check(#sent == 1 and sent[1][2] == "PARTY", "loaded: sent")
+	cached[102] = nil
+	sent = {}
+	SH.SendAll(items, { chat = "PARTY", label = "party" }, "")
+	T.FlushAll()
+	check(#sent == 1, "never loaded: sent anyway after the wait (as names)")
+	sent = {}
+	r = SH.SendAll(items, { chat = "SAY", label = "say" }, "")
+	check(r == 1 and #sent == 1, "say needs the key press: sent at once")
+	C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID = cachedWas, reqWas
 	_G.C_ChatInfo = savedChat
 	UI:Hide(); T.FlushAll()
 end

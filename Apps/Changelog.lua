@@ -13,9 +13,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.44.2", when = "in testing",
+		v = "0.44.3", when = "in testing",
 		items = {
-			"Send every result at once: right-click a result (or Shift+Right) and pick \"All 8 to party\" (guild, raid, say...): \"Mats for Thorium Belt (2): 12x [Thorium Bar], 2x [Heart of Fire]\" or a boss's whole loot in a line or two. Advanced: mats for thorium belt >>> party.",
+			"Send every result at once: right-click a result (or Shift+Right) and pick \"All 8 to party\" (guild, raid, say...): \"Mats for Thorium Belt (2): 12x [Thorium Bar], 2x [Heart of Fire]\" or a whole dungeon's loot (\"Weapons from Razorfen Kraul (12): ...\"), with item links. Advanced: mats for thorium belt >>> party.",
 			"Fixes: a tooltip stuck on \"Retrieving item information\" (loot not loaded yet) now fills in by itself once the item arrives.",
 		},
 	},

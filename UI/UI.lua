@@ -486,6 +486,7 @@ do
 		local to = self.sendTo
 		if to and self.mode == "search" then
 			local n = to.all and to.cmd and #ns.Share.GroupRows(results)
+			if n and n > 0 then ns.Share.Prefetch(results) end -- (their links loaded by the time Enter sends them)
 			local say = (n and ("Enter sends all " .. n .. " to " .. to.label)) or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
 			text = Prepend(HINT .. say .. "|r", text)
 		end
@@ -1942,6 +1943,7 @@ do
 			-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll)
 			local n = #SH.GroupRows(results)
 			if n >= 2 then
+				SH.Prefetch(results)
 				for _, ch in ipairs(channels) do
 					if ch.chat then
 						local list, to = results, { chat = ch.chat, label = ch.short }
