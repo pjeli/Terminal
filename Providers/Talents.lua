@@ -346,8 +346,8 @@ ns:RegisterProvider("talents", {
 		local others, names = TL.OtherClasses()
 		for file, rows in pairs(others) do
 			local cname = names[file] or file
-			local hex = ns.ClassHex and ns.ClassHex(file)
-			local shown = hex and ("|cff" .. hex .. cname .. "|r") or cname
+			local hex = ns.ClassHex and ns.ClassHex(file) -- ("|cff3fc7eb": the colour code whole)
+			local shown = hex and (hex .. cname .. "|r") or cname
 			for _, r in ipairs(rows) do
 				local tab = r[4] ~= "" and r[4] or nil
 				out[#out + 1] = {

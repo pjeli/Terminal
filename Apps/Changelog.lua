@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.44.7", when = "in testing",
+		v = "0.44.8", when = "in testing",
 		items = {
 			"Send every result at once: right-click a result (or Shift+Right) and pick \"All 8 to party\" (guild, raid, say...): \"Mats for Thorium Belt (2): 12x [Thorium Bar], 2x [Heart of Fire]\" or a whole dungeon's loot (\"Weapons from Razorfen Kraul (12): ...\"), with item links. Advanced: mats for thorium belt >>> party (the list becomes one row saying how many go where).",
 			"Every class's talents: \"ice barrier\" finds the mage talent even on your warrior (your own class's come first); Enter shows it on Wowhead. Advanced: class:mage.",

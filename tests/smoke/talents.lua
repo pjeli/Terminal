@@ -58,6 +58,8 @@ do
 		return save.traits.GetDefinitionInfo(d)
 	end
 
+	local rcc = _G.RAID_CLASS_COLORS
+	_G.RAID_CLASS_COLORS = { MAGE = { colorStr = "ff3fc7eb" } }
 	ns.db.talentCache, TL.triedOthers = nil, nil
 	P._dirty = true
 	local by = {}
@@ -66,6 +68,9 @@ do
 	check(ib and ib.classFile == "MAGE" and ib.other and ib.detail:find("Mage", 1, true) and ib.detail:find("Frost", 1, true)
 		and by["Improved Renew"] and by["Deflection"] and not by["Deflection"].other, "other classes' talents listed with class and tree: "
 		.. tostring(ib and ib.detail))
+	check(ib and ib.detail:find("^|cff3fc7ebMage|r") and not ib.detail:find("|cff|c", 1, true),
+		"the class name in its colour, no stray colour code: " .. tostring(ib and ib.detail))
+	_G.RAID_CLASS_COLORS = rcc
 	check(inits == 3, "each class's tree read once (two mage specs share one): " .. inits)
 	check(ns.db.talentCache and ns.db.talentCache.classes.MAGE and #ns.db.talentCache.classes.MAGE == 3, "kept in the saved variables")
 	-- your own class first among equal matches
