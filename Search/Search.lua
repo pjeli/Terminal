@@ -592,7 +592,7 @@ function Scan.Finish(q, res)
 		for k in pairs(kinds) do
 			local p = ns.providers[k]
 			local row = p and p.leadRow and p.leadRow(p, q.text)
-			if row then table.insert(res, 1, row) end
+			if row then row.lead = true; table.insert(res, 1, row) end -- (asks something: not a result to send)
 		end
 	end
 	local blocked = q.blocked

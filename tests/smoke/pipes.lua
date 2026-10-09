@@ -368,6 +368,89 @@ do
 	UI:Hide(); T.FlushAll()
 end
 
+-- review fixes for sending every result (0.44.10)
+do
+	local SH = ns.Share
+	-- what the filters say: every value of a | list, the slot's own words, items only
+	local function D(q, rows) return tostring(SH.Describe(q, rows)) end
+	check(D("@loot type:sword|axe") == "Swords and axes" and D("@loot q:rare|epic") == "Rare or epic items"
+		and D("@loot slot:feet|hands") == "Boots and gloves" and D("@loot q:rare&type:sword|q:epic&type:axe") == "Rare swords and epic axes",
+		"a | list names each: " .. D("@loot type:sword|axe") .. " / " .. D("@loot q:rare|epic") .. " / " .. D("@loot slot:feet|hands")
+		.. " / " .. D("@loot q:rare&type:sword|q:epic&type:axe"))
+	check(D("@loot slot:boots") == "Boots" and D("@loot slot:helm") == "Helms" and D("@loot q:blue") == "Rare items",
+		"everyday slot and quality words: " .. D("@loot slot:boots") .. " / " .. D("@loot slot:helm") .. " / " .. D("@loot q:blue"))
+	check(D("@loot is:boe|cloak") == "nil" and D("@loot type:sword|-axe") == "nil", "a | list with a part it can't say: says nothing of it")
+	local who = { { kind = "who", key = "Bob", name = "Bob" }, { kind = "who", key = "Al", name = "Al" } }
+	check(D("@who orc lvl:20-30", who) == "nil", "lvl: on rows that aren't items: no \"Items (level ...)\"")
+	local lines = SH.GroupLines(who, "@who orc lvl:20-30")
+	check(lines[1] and not lines[1]:find("Items", 1, true), "@who >>> guild: no items header: " .. tostring(lines[1]))
+	check(D("@loot lvl:20-30", { { kind = "loot", key = 1, itemID = 5, name = "X" } }) == "Items (level 20-30)", "loot rows are items")
+	-- the @who ask row and the calculator's answer aren't results to send
+	local ask = ns.Social and ns.Social.WhoAskRow and ns.Social.WhoAskRow("@who orc lvl:20-30")
+	local calc = { kind = "calc", key = "c", name = "= 4" }
+	local rows = SH.GroupRows({ ask or { lead = true, name = "ask" }, calc, who[1] })
+	check(#rows == 1 and rows[1] == who[1], "only real results go: " .. #rows)
+	-- "+N more" is never lost: a long item can't start the last line, it's counted
+	local seed, bad = 12345, 0
+	local function R(n) seed = (seed * 1103515245 + 12345) % 2147483648 return math.floor(seed / 65536) % n end
+	for _ = 1, 300 do
+		local list = {}
+		for i = 1, 1 + R(60) do list[i] = { kind = "item", key = i, name = ("%03d"):format(i) .. string.rep("x", 2 + R(246)) } end
+		local ls, total = SH.GroupLines(list, "")
+		local shown = 0
+		for _, l in ipairs(ls) do
+			if #l > 255 then bad = bad + 1 end
+			for _ in l:gsub("%+%d+ more$", ""):gmatch("%d%d%dx+") do shown = shown + 1 end
+		end
+		local more = tonumber((ls[#ls] or ""):match("%+(%d+) more$")) or 0
+		if shown + more ~= total then bad = bad + 1 end
+	end
+	check(bad == 0, "every row is either shown or counted in \"+N more\", lines of 255 at most: " .. bad .. " bad runs")
+	-- whispers keep the surname
+	local to = SH.Channel("w Plamen Warr")
+	check(to.target == "Plamen Warr" and to.label == "whisper Plamen Warr" and to.chat == "WHISPER", "a whisper to a first and last name: " .. tostring(to.target))
+	local reg, consts = _G.RegionalUniqueNamesEnabled, _G.Constants
+	_G.RegionalUniqueNamesEnabled = function() return true end
+	_G.Constants = { CharacterNameSeparatorConsts = { CHARACTERNAME_SURNAME_SEPARATOR = "-" } }
+	check(SH.Channel("w Plamen Warr").target == "Plamen-Warr" and SH.Channel("w Bob").target == "Bob", "joined the way the game joins them")
+	_G.RegionalUniqueNamesEnabled, _G.Constants = reg, consts
+	-- the footer never says "all 0"
+	local wasEasy = ns.db.easyMode
+	ns.db.easyMode = false
+	UI:Open("zzqqxxyy >>> party"); T.FlushAll()
+	local foot = UI.status and UI.status:GetText() or ""
+	check(not foot:find("all 0", 1, true) and foot:find("nothing to send", 1, true), "nothing found: the footer says nothing to send: " .. foot)
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = wasEasy
+	-- waiting for items to load: a second Enter doesn't send twice, and a lockdown begun meanwhile stops it
+	local savedChat = _G.C_ChatInfo
+	local sent, locked = {}, false
+	_G.C_ChatInfo = { SendChatMessage = function(msg, chat) sent[#sent + 1] = { msg, chat } end,
+		InChatMessagingLockdown = function() return locked end }
+	local cachedWas = C_Item.IsItemDataCachedByID
+	local cached = {}
+	C_Item.IsItemDataCachedByID = function(id) return cached[id] == true end
+	local items = { { kind = "item", key = 201, itemID = 201, name = "Slow Item" } }
+	check(SH.SendAll(items, { chat = "PARTY", label = "party" }, "") == true, "waits for the item")
+	local n2, why = SH.SendAll(items, { chat = "PARTY", label = "party" }, "")
+	check(not n2 and tostring(why):find("Still sending", 1, true), "a second send meanwhile: refused, says why: " .. tostring(why))
+	cached[201] = true
+	T.FlushAll()
+	check(#sent == 1, "sent once: " .. #sent)
+	cached[201] = nil
+	sent = {}
+	local printed, pr = {}, ns.Print
+	ns.Print = function(_, m) printed[#printed + 1] = m end
+	check(SH.SendAll(items, { chat = "PARTY", label = "party" }, "") == true, "waits again")
+	locked = true
+	T.FlushAll()
+	check(#sent == 0 and (printed[1] or ""):find("doesn't let addons", 1, true), "a lockdown begun while waiting: nothing sent, says why: " .. tostring(printed[1]))
+	ns.Print = pr
+	SH.StopWaiting()
+	C_Item.IsItemDataCachedByID = cachedWas
+	_G.C_ChatInfo = savedChat
+end
+
 ns.providers, ns.providerOrder = saved.providers, saved.order
 ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL

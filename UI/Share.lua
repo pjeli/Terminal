@@ -60,6 +60,16 @@ function SH.Split(text)
 	return text:sub(1, at - 1), (text:sub(at + (all and 3 or 2)):gsub("^%s+", ""):gsub("%s+$", "")), all or nil
 end
 
+--- A whisper's target as typed ("Plamen Warr"): a first name and surname joined the way the game joins them
+--- (ns.CharacterName); one word as it is.
+function SH.WhisperTarget(who)
+	local first, rest = who:match("^(%S+)%s+(.-)$")
+	if not first then return who end
+	local regional = _G.RegionalUniqueNamesEnabled and ns.Safe(_G.RegionalUniqueNamesEnabled)
+	local C = regional and _G.Constants and _G.Constants.CharacterNameSeparatorConsts
+	return first .. (C and C.CHARACTERNAME_SURNAME_SEPARATOR or " ") .. rest
+end
+
 --- Where to send: { cmd = "/p", label = "party" }; { pending = true } while the channel is still to be
 --- typed; { bad = word } for a word that isn't one.
 function SH.Channel(rest)
@@ -69,9 +79,11 @@ function SH.Channel(rest)
 	local ch = CHANNELS[lw]
 	if ch then return { cmd = COMMAND[ch], label = ch, chat = CHAT_TYPE[ch] } end
 	if WHISPER[lw] then
-		local who = (more or ""):match("^(%S+)")
-		if not who then return { pending = true, label = "whisper" } end
-		return { cmd = "/w " .. who, label = "whisper " .. who, chat = "WHISPER", target = who }
+		-- (the whole name: characters here have a surname, "w Plamen Warr")
+		local who = more or ""
+		if who == "" then return { pending = true, label = "whisper" } end
+		local target = SH.WhisperTarget(who)
+		return { cmd = "/w " .. target, label = "whisper " .. who, chat = "WHISPER", target = target }
 	end
 	local n = tonumber(lw)
 	if n and n >= 1 and n <= 20 then return { cmd = "/" .. n, label = "channel " .. n, chat = "CHANNEL", target = n } end
@@ -309,11 +321,12 @@ end
 SH.GROUP_LINES = 6 -- (chat lines at most; what doesn't fit is counted: "+5 more")
 SH.LINE_MAX = 255
 
---- The rows worth sending: real results (no hint, help, category or completion rows), each once.
+--- The rows worth sending: real results (no hint, help, category or completion rows, no row that asks something,
+--- @who's "Ask the server", nor the calculator's answer), each once.
 function SH.GroupRows(list)
 	local out, seen = {}, {}
 	for _, e in ipairs(list or {}) do
-		if type(e) == "table" and not (e.noActivate or e.raw or e.completion or e.catId or e.syntaxRow) then
+		if type(e) == "table" and not (e.noActivate or e.raw or e.completion or e.catId or e.syntaxRow or e.lead or e.kind == "calc") then
 			local o = rawget(e, "pipeOf") or e
 			local id = tostring(o.kind) .. ":" .. tostring(o.key or o.itemID or o.name)
 			if not seen[id] then seen[id] = true; out[#out + 1] = e end
@@ -323,8 +336,10 @@ function SH.GroupRows(list)
 end
 
 -- What a search's filters say the rows are ("@loot rfk type:weapon q:rare" -> "Rare weapons"): the noun from type: or
--- slot:, words before it from q: and is:boe, "upgrades" for is:upgrade, "with <stat>" and the levels after. nil when
--- the filters say nothing.
+-- slot:, words before it from q: and is:boe, "upgrades" for is:upgrade, "with <stat>" and the levels after. A "|" list
+-- names each ("type:sword|axe": "Swords and axes", "q:rare|epic": "Rare or epic", each part of an & its own:
+-- "q:rare&type:sword|q:epic&type:axe" -> "Rare swords and epic axes"). nil when the filters say nothing, or the rows
+-- aren't items (`rows` given: lvl: on @who or @npc says nothing of items).
 local MASS = { armor = true, cloth = true, leather = true, mail = true, plate = true, food = true, gear = true,
 	ammo = true, jewelry = true, ["trade goods"] = true, junk = true, miscellaneous = true, ammunition = true }
 local PLURAL = { staff = "staves", stave = "staves", knife = "knives", ["fist weapon"] = "fist weapons" }
@@ -336,10 +351,10 @@ local SLOT_NOUN = {
 	["two-hand"] = { "two-hander", "two-handers" }, ["one-hand"] = { "one-hander", "one-handers" },
 	["off hand"] = { "off-hand", "off-hands" }, ["main hand"] = { "main-hand weapon", "main-hand weapons" },
 	shield = { "shield", "shields" }, ranged = { "ranged weapon", "ranged weapons" }, tabard = { "tabard", "tabards" },
-	shirt = { "shirt", "shirts" },
+	shirt = { "shirt", "shirts" }, weapon = { "weapon", "weapons" },
 }
 local ARMOUR = { cloth = true, leather = true, mail = true, plate = true }
-SH.QUALITY_WORDS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legendary" }
+SH.QUALITY_WORDS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom" }
 
 local function Plural(w)
 	if MASS[w] then return w end
@@ -351,54 +366,155 @@ end
 
 local function Value(v) return (v:gsub("_", " ")) end
 
-function SH.Describe(query)
+-- "rare", "rare or better" (q:rare+, q:3+, q:blue: the q: filter's own words), nil for a word that isn't a quality
+local function QualityWord(val)
+	local word, plus = val:match("^(%w+)(%+?)$")
+	if not word then return nil end
+	local Q = ns.Filters and ns.Filters.QUALITY
+	local n = tonumber(word) or (Q and Q[word])
+	local q = n and SH.QUALITY_WORDS[n]
+	return q and (q .. (plus == "+" and " or better" or "")) or nil
+end
+
+-- the game's slot word for an everyday one (slot:boots is the feet: Filters' own aliases)
+local function SlotName(v)
+	local alias = ns.Filters and ns.Filters.SLOT_ALIAS
+	return alias and alias[v] or v
+end
+
+-- can Describe say this key:value? (other keys, and is: values other than boe/upgrade, it can't)
+local function Says(key, val)
+	if key == "type" or key == "slot" or key == "lvl" or key == "level" or key == "ilvl" or key == "itemlevel" then return val ~= "" end
+	if key == "q" or key == "quality" then return QualityWord(val) ~= nil end
+	if key == "stat" or key == "stats" then return val:match("^[%a_]+") ~= nil end
+	if key == "is" then return val == "boe" or val == "upgrade" or val == "upgrades" end
+	return false
+end
+
+local function NewSpec() return { types = {}, slots = {}, quals = {}, stats = {} } end
+
+local function Add(spec, key, val)
+	if key == "type" then spec.types[#spec.types + 1] = Value(val)
+	elseif key == "slot" then spec.slots[#spec.slots + 1] = SlotName(Value(val))
+	elseif key == "q" or key == "quality" then spec.quals[#spec.quals + 1] = QualityWord(val)
+	elseif key == "stat" or key == "stats" then spec.stats[#spec.stats + 1] = Value(val:match("^([%a_]+)"))
+	elseif key == "is" and val == "boe" then spec.boe = true
+	elseif key == "is" then spec.upgrade = true
+	elseif key == "lvl" or key == "level" then spec.lvl = val
+	elseif key == "ilvl" or key == "itemlevel" then spec.ilvl = val
+	end
+end
+
+local function SlotNoun(s, one)
+	local sn = SLOT_NOUN[s]
+	if sn then return one and sn[1] or sn[2] end
+	return s .. (one and "" or " gear")
+end
+
+local function Joined(list, f, sep)
+	local out = {}
+	for i, v in ipairs(list) do out[i] = f(v) end
+	return table.concat(out, sep)
+end
+
+-- the noun a spec says ("swords and axes", "plate boots", "helm upgrades"), or nil
+local function Noun(spec)
+	local types, slots, up = spec.types, spec.slots, spec.upgrade
+	local sep = up and "/" or " and "
+	local noun
+	if #types == 1 and ARMOUR[types[1]] and #slots > 0 then
+		noun = types[1] .. " " .. Joined(slots, function(s) return SlotNoun(s, up) end, sep)
+	elseif #types > 0 then
+		noun = Joined(types, function(t) return up and t or Plural(t) end, sep)
+	elseif #slots > 0 then
+		noun = Joined(slots, function(s) return SlotNoun(s, up) end, sep)
+	end
+	if up then noun = noun and (noun .. " upgrades") or "upgrades" end
+	return noun
+end
+
+-- the words before the noun: "rare or epic", "BoE"
+local function Before(spec)
+	local before = {}
+	if #spec.quals > 0 then before[#before + 1] = table.concat(spec.quals, " or ") end
+	if spec.boe then before[#before + 1] = "BoE" end
+	return table.concat(before, " ")
+end
+
+-- a word's | parts, each a list of { key, value } (a part with no key takes the word's: "type:sword|axe"); nil for a
+-- "not" (-x, !x: not said)
+local function Alternatives(lw)
+	if lw:find("^[-!]") then return nil end
+	local key = lw:match("^(%a+):")
+	local alts = {}
+	for part in lw:gmatch("[^|]+") do
+		local pieces = {}
+		for atom in part:gmatch("[^&]+") do
+			if atom:find("^[-!]") then
+				pieces.skip = true -- (a "not" inside a part: that part isn't said)
+			else
+				local k, v = atom:match("^(%a+):(.*)$")
+				if not k then k, v = key, atom end
+				pieces[#pieces + 1] = { k or "", v }
+			end
+		end
+		alts[#alts + 1] = pieces
+	end
+	return alts
+end
+
+-- are these rows items (their own, or what a recipe makes)?
+local ITEM_KINDS = { items = true, loot = true, stored = true, reagent = true, gear = true, consumables = true, mats = true,
+	lootlog = true, recipes = true }
+local function AllItems(rows)
+	local F = ns.Filters
+	for _, e in ipairs(rows) do
+		local o = rawget(e, "pipeOf") or e
+		if not (ITEM_KINDS[o.kind] or o.itemID or (F and F.ItemOf and F.ItemOf(o))) then return false end
+	end
+	return true
+end
+
+function SH.Describe(query, rows)
 	if type(query) ~= "string" then return nil end
-	local types, slot, quality, stats, boe, upgrade, lvl, ilvl = {}, nil, nil, {}, false, false, nil, nil
+	if rows and not AllItems(rows) then return nil end
+	local spec, phrases = NewSpec(), nil
 	for w in query:gmatch("%S+") do
-		local lw = ns.Lower(w)
-		if lw:sub(1, 1) ~= "-" and lw:sub(1, 1) ~= "!" then
-			for part in lw:gmatch("[^|&]+") do
-				local key, val = part:match("^(%a+):(.+)$")
-				if key == "type" then types[#types + 1] = Value(val)
-				elseif key == "slot" then slot = Value(val)
-				elseif key == "q" then
-					local n, plus = val:match("^(%d)(%+?)$")
-					local word, plus2 = val:match("^(%a+)(%+?)$")
-					local q = n and SH.QUALITY_WORDS[tonumber(n)] or word
-					if q then quality = q .. (((plus or plus2) == "+") and " or better" or "") end
-				elseif key == "stat" or key == "stats" then
-					local name = val:match("^([%a_]+)")
-					if name then stats[#stats + 1] = Value(name) end
-				elseif key == "is" and val == "boe" then boe = true
-				elseif key == "is" and (val == "upgrade" or val == "upgrades") then upgrade = true
-				elseif key == "lvl" or key == "level" then lvl = val
-				elseif key == "ilvl" then ilvl = val
+		local alts = Alternatives(ns.Lower(w))
+		if alts and #alts == 1 then
+			-- (one part: what it can say of it; other filters say nothing)
+			for _, pc in ipairs(alts[1]) do if Says(pc[1], pc[2]) then Add(spec, pc[1], pc[2]) end end
+		elseif alts and #alts > 1 then
+			local same, every = alts[1][1] and alts[1][1][1], true
+			for _, alt in ipairs(alts) do
+				if alt.skip or #alt == 0 then every = false end
+				for _, pc in ipairs(alt) do
+					if not Says(pc[1], pc[2]) then every = false end
+					if #alt ~= 1 or pc[1] ~= same then same = nil end
+				end
+			end
+			if every and (same == "type" or same == "slot" or same == "q" or same == "quality") then
+				for _, alt in ipairs(alts) do Add(spec, alt[1][1], alt[1][2]) end
+			elseif every and not phrases then
+				-- (each part its own: "rare swords and epic axes")
+				phrases = {}
+				for i, alt in ipairs(alts) do
+					local sub = NewSpec()
+					for _, pc in ipairs(alt) do Add(sub, pc[1], pc[2]) end
+					local b, n = Before(sub), Noun(sub) or "items"
+					phrases[i] = (b ~= "" and (b .. " ") or "") .. n
 				end
 			end
 		end
 	end
-	local noun
-	local sn = slot and SLOT_NOUN[slot]
-	if #types == 1 and ARMOUR[types[1]] and slot then
-		-- "plate boots"
-		noun = types[1] .. " " .. (sn and (upgrade and sn[1] or sn[2]) or (slot .. (upgrade and "" or " gear")))
-	elseif #types > 0 then
-		local parts = {}
-		for i, t in ipairs(types) do parts[i] = upgrade and t or Plural(t) end
-		noun = table.concat(parts, upgrade and "/" or " and ")
-	elseif slot then
-		noun = sn and (upgrade and sn[1] or sn[2]) or (slot .. (upgrade and "" or " gear"))
-	end
-	if upgrade then noun = noun and (noun .. " upgrades") or "upgrades" end
-	local before = {}
-	if quality then before[#before + 1] = quality end
-	if boe then before[#before + 1] = "BoE" end
-	if not noun and #before == 0 and #stats == 0 and not lvl and not ilvl then return nil end
+	local noun = phrases and table.concat(phrases, " and ") or Noun(spec)
+	local before = Before(spec)
+	if not noun and before == "" and #spec.stats == 0 and not spec.lvl and not spec.ilvl then return nil end
 	noun = noun or "items"
-	local text = table.concat(before, " ") .. (#before > 0 and " " or "") .. noun
-	if #stats > 0 then text = text .. " with " .. table.concat(stats, " and ") end
-	if lvl then text = text .. " (level " .. lvl .. ")" end
-	if ilvl then text = text .. " (item level " .. ilvl .. ")" end
+	local text = before .. (before ~= "" and " " or "") .. noun
+	if #spec.stats > 0 then text = text .. " with " .. table.concat(spec.stats, " and ") end
+	if spec.lvl then text = text .. " (level " .. spec.lvl .. ")" end
+	if spec.ilvl then text = text .. " (item level " .. spec.ilvl .. ")" end
 	return (text:gsub("^%l", string.upper))
 end
 
@@ -416,7 +532,7 @@ function SH.GroupHeader(rows, query)
 		for _, e in ipairs(rows) do if e.pipeRel ~= first.pipeRel or e.pipeFrom ~= first.pipeFrom then ctx = nil break end end
 		if ctx then return ctx end
 	end
-	local what = SH.Describe(query)
+	local what = SH.Describe(query, rows)
 	local src = SH.LootSource(first)
 	if src then
 		for _, e in ipairs(rows) do if SH.LootSource(e) ~= src then src = nil break end end
@@ -457,15 +573,16 @@ function SH.GroupLines(rows, query)
 	end
 	local lines, line = {}, header and (header .. " (" .. #texts .. "):") or nil
 	local sent = 0
+	-- (the last line keeps room for "+N more")
+	local function Room() return SH.LINE_MAX - (#lines == SH.GROUP_LINES - 1 and 12 or 0) end
 	for _, t in ipairs(texts) do
 		local joined = line and (line .. (line:sub(-1) == ":" and " " or ", ") .. t) or t
-		-- (the last line keeps room for "+N more")
-		local max = SH.LINE_MAX - (#lines == SH.GROUP_LINES - 1 and 12 or 0)
-		if #joined <= max then
+		if #joined <= Room() then
 			line = joined
 		else
 			if line then lines[#lines + 1] = line end
-			if #lines >= SH.GROUP_LINES then line = nil break end
+			line = nil
+			if #lines >= SH.GROUP_LINES or #t > Room() then break end -- (a long one can't start the last line: counted)
 			line = t
 		end
 		sent = sent + 1
@@ -473,8 +590,9 @@ function SH.GroupLines(rows, query)
 	if line and #lines < SH.GROUP_LINES then lines[#lines + 1] = line end
 	local left = #texts - sent
 	if left > 0 and #lines > 0 then
-		local more = " +" .. left .. " more"
-		if #lines[#lines] + #more <= SH.LINE_MAX then lines[#lines] = lines[#lines] .. more end
+		local more = "+" .. left .. " more"
+		if #lines[#lines] + #more + 1 <= SH.LINE_MAX then lines[#lines] = lines[#lines] .. " " .. more
+		elseif #lines < SH.GROUP_LINES then lines[#lines + 1] = more end
 	end
 	return lines, #texts
 end
@@ -545,11 +663,18 @@ end
 --- press or click that asked (say and yell want one). Items the client hasn't loaded would go without their links
 --- (a whole instance's loot): they're asked for, and party, raid, guild, instance and whispers wait for them (up to
 --- LINK_WAIT s) before sending. Returns how many lines went (true when they'll go in a moment), or nil and why not.
+local LOCKED = "The game doesn't let addons send chat right now (in combat in an instance)."
+local function Locked()
+	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
+	return lock and Call(lock) == true
+end
+local waiting -- (a send waiting for its items to load: another Enter meanwhile doesn't send them twice)
+
 function SH.SendAll(rows, to, query)
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
 	if not (to and to.chat and send) then return nil, "Say where to send them: >>> party, guild, raid, say, instance, whisper <name>" end
-	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
-	if lock and Call(lock) == true then return nil, "The game doesn't let addons send chat right now (in combat in an instance)." end
+	if Locked() then return nil, LOCKED end
+	if waiting then return nil, "Still sending the last ones: a moment." end
 	rows = SH.GroupRows(rows) -- (kept: the list on screen changes while waiting)
 	if #rows == 0 then return nil, "Nothing to send." end
 	local missing = SH.Unloaded(rows)
@@ -560,11 +685,16 @@ function SH.SendAll(rows, to, query)
 	local req = C_Item and C_Item.RequestLoadItemDataByID
 	for _, id in ipairs(missing) do if req then Call(req, id) end end
 	ns:Trace("share: waiting for " .. #missing .. " items to load before sending")
-	local waited = 0
+	local waited, mine = 0, {}
+	waiting = mine
 	local function Try()
+		if waiting ~= mine then return end
 		waited = waited + SH.LINK_STEP
 		local left = #SH.Unloaded(rows)
 		if left > 0 and waited < SH.LINK_WAIT then C_Timer.After(SH.LINK_STEP, Try) return end
+		waiting = nil
+		-- (the lockdown may have begun while waiting: an encounter pulled)
+		if Locked() then ns:Print(LOCKED) return end
 		if left > 0 then ns:Trace("share: " .. left .. " items still not loaded: sent without links") end
 		local n, why = SendLines(rows, to, query, send)
 		if not n then ns:Print(why) end
@@ -572,3 +702,4 @@ function SH.SendAll(rows, to, query)
 	C_Timer.After(SH.LINK_STEP, Try)
 	return true
 end
+SH.StopWaiting = function() waiting = nil end -- (tests)

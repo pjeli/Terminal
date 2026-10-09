@@ -364,7 +364,7 @@ function SO.WhoAskRow(text)
 	return {
 		name = "Ask the server: /who " .. (filter ~= "" and filter or "(everyone in your zone)"),
 		detail = "Enter", kind = "who", kindLabel = "", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
-		whoFilter = filter, secure = WHO_ASK, isOpen = Never, after = WhoAsked, activate = WhoInCombat,
+		whoFilter = filter, lead = true, secure = WHO_ASK, isOpen = Never, after = WhoAsked, activate = WhoInCombat,
 		staysOpen = true, _pos = ns.UI and ns.UI.NO_POS or nil,
 	}
 end

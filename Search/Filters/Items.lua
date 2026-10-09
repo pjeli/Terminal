@@ -354,6 +354,7 @@ local ENCHANT_WORDS = {
 	shoulder = { "shoulder" }, finger = { "ring" }, shield = { "shield" }, waist = { "belt", "waist" },
 	weapon = { "weapon" }, ["two-hand"] = { "2h weapon", "two-handed", "two-hand" }, ["off hand"] = { "off-hand", "shield" },
 }
+F.SLOT_ALIAS = SLOT_ALIAS -- (slot:boots is the feet: Share.Describe says it so)
 local function SlotWant(v) return SLOT_ALIAS[v] or v end
 local locWords = {} -- INVTYPE_x -> { its shown name, lowercase; itself, lowercase } (a few dozen, kept)
 --- Does this item slot type answer to the slot word? flat: want without spaces or dashes (worked out once).
@@ -372,6 +373,7 @@ end
 local QUALITY = { poor = 0, grey = 0, gray = 0, junk = 0, common = 1, white = 1, uncommon = 2, green = 2,
 	rare = 3, blue = 3, epic = 4, purple = 4, legendary = 5, orange = 5, artifact = 6, heirloom = 7 }
 F.QUALITIES = { "poor", "common", "uncommon", "rare", "epic", "legendary" }
+F.QUALITY = QUALITY -- (the q: filter's words: Share.Describe says them)
 
 local function QualityOf(e)
 	local q = e.quality

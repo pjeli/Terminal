@@ -77,7 +77,8 @@ do
 			local group = to.all and to.cmd and self:GroupedRows() -- (grouped once per list, not on every status update)
 			local n = group and #group
 			if n and n > 0 then ns.Share.Prefetch(group, true) end -- (their links loaded by the time Enter sends them)
-			local say = (n and ("Enter sends all " .. n .. " to " .. to.label)) or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
+			local say = (n and (n == 0 and "nothing to send" or ("Enter sends " .. (n == 1 and "the 1" or ("all " .. n)) .. " to " .. to.label)))
+				or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
 			text = Prepend(HINT .. say .. "|r", text)
 		end
 		if mode then text = Append(text, mode) end
