@@ -8,24 +8,73 @@ local P = F._
 local KEYS, IS = P.KEYS, P.IS
 local Range = F.Range
 local Lower = ns.Lower
+local Generations, Keep, Kept, Forget = P.Generations, P.Keep, P.Kept, P.Forget
+
+-- how many items each cache below keeps in a generation (two generations: P.Generations)
+local CACHE_MAX = P.CACHE_MAX
 
 -- an item's info, kept per item id (it doesn't change; filters ask for it on every matching row
 -- of every search): a table each time was garbage for thousands of loot rows
-local infoCache, infoCount = {}, 0
+local infos = Generations(CACHE_MAX)
 local function ItemInfo(id)
 	local get = (C_Item and C_Item.GetItemInfo) or _G.GetItemInfo
 	if not (get and id) then return nil end
-	local c = infoCache[id]
+	local c = infos.new[id]
 	if c then return c end
-	local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, _, _, bindType = pcall(get, id)
-	if ok and name then -- (not known to the client yet: asked again next time)
+	c = infos.old[id] -- (in use again: back into the current table below)
+	if not c then
+		local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, _, _, bindType = pcall(get, id)
+		if not (ok and name) then return nil end -- (not known to the client yet: asked again next time)
 		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc,
 			bindType = type(bindType) == "number" and bindType or nil }
-		if infoCount > 4000 then infoCache, infoCount = {}, 0 end
-		if type(id) == "number" then infoCache[id], infoCount = c, infoCount + 1 end
-		return c
+		if type(id) ~= "number" then return c end
 	end
+	-- (Keep, written out: this runs for every row of every item filter, and past the caps on every keystroke)
+	local n = infos.n
+	if n >= CACHE_MAX then infos.old, infos.new, n = infos.new, {}, 0 end
+	infos.new[id], infos.n = c, n + 1
+	return c
 end
+
+-- What the client's own item data says (GetItemInfoInstant: no server ask, no table made, and it knows items the
+-- client hasn't loaded): an item's type, subtype and equipment slot type. Nothing when it has nothing for the item
+-- (WoW Forever's own items: only the server knows those) or answers for another one.
+local function Instant(id)
+	local get = C_Item and C_Item.GetItemInfoInstant
+	if not get then return nil end
+	local ok, iid, itemType, subType, equipLoc = pcall(get, id)
+	if not ok or iid ~= id then return nil end
+	return itemType, subType, equipLoc
+end
+--- type:, slot: and is:equippable: test(itemType, subType, equipLoc) -> true (or a number) / false, or nil when what it
+--- was given can't say. On the item's full info when it's kept already (no call to the game, as before); else on what
+--- the client's own item data says (Instant: the same type, subtype and slot type in the game), so the full info of
+--- thousands of loot items isn't asked for on every keystroke any more, and items the client hasn't loaded are judged
+--- too (their full info would only have asked the server). Nothing from Instant: the full info, as before.
+local function Judge(id, test)
+	local info = infos.new[id] or (infos.old[id] and ItemInfo(id)) -- (from the older table: ItemInfo keeps it again)
+	if not info then
+		local yes = test(Instant(id))
+		if yes ~= nil then return yes end
+		info = ItemInfo(id)
+		if not info then return false end
+	end
+	return test(info.type, info.subType, info.equipLoc) or false
+end
+
+-- type and subtype names, lowercase (a few dozen in the game: lowercased once each, not per row per keystroke)
+local lowerWords, lowerCount = {}, 0
+local function LowerWord(s)
+	if type(s) ~= "string" then return false end
+	local l = lowerWords[s]
+	if not l then
+		if lowerCount >= CACHE_MAX then lowerWords, lowerCount = {}, 0 end -- (odd data only)
+		l = Lower(s)
+		lowerWords[s], lowerCount = l, lowerCount + 1
+	end
+	return l
+end
+
 -- The item a row stands for: its own, or the item a recipe makes (a crafted piece: its stats, slot, item
 -- level, quality). Enchants make none. Recipe rows carry makesItem when indexed; older indexes are asked
 -- of the game (GetRecipeSchematic's outputItemID), once per recipe.
@@ -49,7 +98,8 @@ F.ItemOf = ItemOf
 
 -- (tests: every cache, so a block doesn't depend on what earlier ones asked for)
 F.ClearCache = function()
-	infoCache, infoCount = {}, 0
+	Forget(infos)
+	lowerWords, lowerCount = {}, 0
 	recipeItem = {}
 	if F.ClearStats then F.ClearStats() end
 	if F.ClearEffects then F.ClearEffects() end
@@ -58,14 +108,16 @@ F.ClearCache = function()
 end
 P.ItemInfo = ItemInfo
 
-local statCache, statCount = {}, 0
+local stats = Generations(CACHE_MAX)
 local statNames = {} -- stat key (ITEM_MOD_STAMINA_SHORT) -> { its shown name, lowercase (false: none); the key, lowercase }
 --- An item's stats (the game's: { ITEM_MOD_STAMINA_SHORT = 7, ... }), or nil until known.
 local function Stats(e)
 	local id = ItemOf(e)
 	if not id then return nil end
-	local c = statCache[id]
-	if c ~= nil then return c end
+	local c = stats.new[id]
+	if c then return c end
+	c = stats.old[id]
+	if c then return Keep(stats, id, c) end -- (in use again: back into the current table)
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
 	local info = ItemInfo(id)
 	local own = e.itemID and type(e.link) == "string" and e.link:find("|H", 1, true) and e.link
@@ -73,11 +125,9 @@ local function Stats(e)
 	if not (get and info) then return nil end -- (not known to the client yet: asked again next time)
 	local ok, t = pcall(get, link)
 	t = ok and type(t) == "table" and t or {}
-	if statCount > 4000 then statCache, statCount = {}, 0 end
-	statCache[id], statCount = t, statCount + 1
-	return t
+	return Keep(stats, id, t)
 end
-F.ClearStats = function() statCache, statCount, statNames = {}, 0, {} end
+F.ClearStats = function() Forget(stats); statNames = {} end
 P.Stats = Stats
 
 -- short names for stats -> part of the game's stat key
@@ -114,7 +164,7 @@ end
 -- use spell ("Increases Strength by 8 for 1 hour", food's "well fed and gain 6 Stamina and Spirit"),
 -- and their tooltip's lines. Read once per item, lowercase; nil while the game is still loading it.
 local Secret = ns.Secret
-local effectCache, effectCount = {}, 0
+local effects = Generations(CACHE_MAX) -- item id -> its effect text, lowercase (false: none)
 local effectRetry = {} -- item id -> when to read it again (its item or spell data was still loading)
 local RETRY = 1 -- seconds
 --- Adds the text of the item's use spell to parts; true when that text is still loading (asked for).
@@ -150,7 +200,7 @@ end
 local function EffectText(e)
 	local id = ItemOf(e)
 	if not id then return nil end
-	local c = effectCache[id]
+	local c = Kept(effects, id)
 	if c ~= nil then return c or nil end
 	local now = GetTime()
 	if effectRetry[id] and now < effectRetry[id] then F.loading = true return nil end
@@ -169,8 +219,7 @@ local function EffectText(e)
 		effectRetry[id] = now + RETRY -- (not every keystroke: once a second until it's in)
 		F.loading = true
 	else
-		if effectCount > 4000 then effectCache, effectCount = {}, 0 end
-		effectCache[id], effectCount = text or false, effectCount + 1
+		Keep(effects, id, text or false)
 		effectRetry[id] = nil
 	end
 	return text
@@ -179,18 +228,16 @@ F.EffectText = EffectText
 
 local CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
 local QUESTITEM = Enum and Enum.ItemClass and Enum.ItemClass.Questitem or 12
-local classes, classCount = {}, 0 -- item id -> its item class (asked once per item: filters ask per row, per search)
+local classes = Generations(CACHE_MAX) -- item id -> its item class (asked once per item: filters ask per row, per search)
 --- An item's class id (GetItemInfoInstant), or nil when the game can't say yet (not kept then).
 local function ClassID(id)
-	local c = classes[id]
+	local c = Kept(classes, id)
 	if c ~= nil then return c end
 	local get = C_Item and C_Item.GetItemInfoInstant
 	if not get then return nil end
 	local ok, _, _, _, _, _, classID = pcall(get, id)
 	if not ok or type(classID) ~= "number" then return nil end
-	if classCount > 4000 then classes, classCount = {}, 0 end
-	classes[id], classCount = classID, classCount + 1
-	return classID
+	return Keep(classes, id, classID)
 end
 -- (not known: taken for one, so its effect is still read)
 local function IsConsumable(id) local c = ClassID(id); return c == nil or c == CONSUMABLE end
@@ -210,7 +257,7 @@ function F.WarmEffects(list)
 	F.loading = nil -- (no search is waiting on these)
 	return n
 end
-F.ClearEffects = function() effectCache, effectCount, effectRetry, classes, classCount = {}, 0, {}, {}, 0 end
+F.ClearEffects = function() Forget(effects); effectRetry = {}; Forget(classes) end
 
 -- how an effect text names each stat when the game's own name isn't there (English)
 local EFFECT_ENGLISH = {
@@ -359,9 +406,15 @@ local function Usable(e)
 	return true
 end
 
+-- ("" for an item that isn't worn: an answer too)
+local function WornIn(_, _, loc)
+	if type(loc) ~= "string" then return nil end
+	return SLOTS[loc] ~= nil
+end
 local function Equippable(e)
-	local info = e.itemID and ItemInfo(e.itemID)
-	return info and SLOTS[info.equipLoc or ""] and true or false
+	local id = e.itemID
+	if not id then return false end
+	return Judge(id, WornIn)
 end
 
 -- Binding. Item rows know whether the stacks in your bags (or the worn piece) are bound: bound = some stack is,
@@ -463,6 +516,10 @@ KEYS.slot = function(v)
 	local want = SlotWant(v)
 	local flat = want:gsub("[%s%-]", "")
 	local words = ENCHANT_WORDS[want] or { want }
+	local function Fits(_, _, loc)
+		if type(loc) ~= "string" then return nil end
+		return loc ~= "" and SlotIs(loc, want, flat)
+	end
 	return function(e)
 		local id = ItemOf(e)
 		if not id then
@@ -474,28 +531,23 @@ KEYS.slot = function(v)
 			end
 			return false
 		end
-		local info = ItemInfo(id)
-		local loc = info and info.equipLoc
-		if type(loc) ~= "string" or loc == "" then return false end
-		return SlotIs(loc, want, flat)
+		return Judge(id, Fits)
 	end
 end
 
 KEYS.type = function(v)
 	if v == "" then return nil end
-	return function(e)
-		local id = ItemOf(e)
-		local info = id and ItemInfo(id)
-		if not info then return false end
-		-- (lowercased once per item, kept in its info: not per row per keystroke)
-		local lt, lst = info.ltype, info.lsubType
-		if lt == nil then
-			local t, st = info.type, info.subType
-			lt, lst = type(t) == "string" and Lower(t) or false, type(st) == "string" and Lower(st) or false
-			info.ltype, info.lsubType = lt, lst
-		end
+	-- (type and subtype lowercased once per name: LowerWord)
+	local function Is(t, st)
+		if type(t) ~= "string" and type(st) ~= "string" then return nil end
+		local lt, lst = LowerWord(t), LowerWord(st)
 		if lt and lt:find(v, 1, true) then return true end
 		return lst and lst:find(v, 1, true) or false
+	end
+	return function(e)
+		local id = ItemOf(e)
+		if not id then return false end
+		return Judge(id, Is)
 	end
 end
 

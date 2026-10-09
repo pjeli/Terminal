@@ -45,6 +45,30 @@ local Lower = ns.Lower
 -- recipes, quests, spells, currencies, reputations; the values Tab offers and .filters' list), Npcs (NPC roles,
 -- trainers, factions, distance, places, sells:). Each adds its keys and is: values to the tables below.
 
+-- A cache of what was used lately (per item id, per text): the current table and the one before it. Once the current
+-- one holds `cap` entries it becomes the one before and the older one goes; a value found in the one before is kept
+-- again in the current one (it's still in use). So a search over somewhat more than `cap` items keeps them all: a wipe
+-- at the cap emptied everything, and every keystroke asked for each of them again.
+local function Generations(cap) return { new = {}, old = {}, n = 0, cap = cap } end
+--- Keeps v for k in the current table (a full one becomes the one before first), and gives v back.
+local function Keep(c, k, v)
+	if c.n >= c.cap then c.old, c.new, c.n = c.new, {}, 0 end
+	c.new[k], c.n = v, c.n + 1
+	return v
+end
+--- What was kept for k, or nil. One found in the older table is kept again in the current one.
+local function Kept(c, k)
+	local v = c.new[k]
+	if v ~= nil then return v end
+	v = c.old[k]
+	if v ~= nil then Keep(c, k, v) end
+	return v
+end
+--- Forgets everything kept (F.ClearCache and the like).
+local function Forget(c) c.new, c.old, c.n = {}, {}, 0 end
+P.Generations, P.Keep, P.Kept, P.Forget = Generations, Keep, Kept, Forget
+P.CACHE_MAX = 4000 -- (the item caches' and place texts' `cap`: at most twice that kept)
+
 -- the NPC a row is (Questie's), and a field of it
 local function NpcID(e) return e.kind == "npc" and (rawget(e, "key") or e.npcID) or nil end
 local function NpcField(e, field)

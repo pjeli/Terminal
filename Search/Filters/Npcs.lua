@@ -9,6 +9,7 @@ local KEYS, IS = P.KEYS, P.IS
 local Range = F.Range
 local NpcID, NpcField = P.NpcID, P.NpcField
 local ClearStanding = P.ClearStanding
+local Generations, Keep, Kept, Forget = P.Generations, P.Keep, P.Kept, P.Forget
 local Lower = ns.Lower
 
 --- Does the NPC have this role (Questie's npcFlags; its numbers differ between game versions)?
@@ -33,11 +34,29 @@ local function AreaName(area)
 	end
 	return name or nil
 end
-F.ClearPlaces = function() areaNames = {} end
---- The lowercase copy of a row's text field, kept on the row (like _ltext) while the field's text is the same.
+-- Compact rows (Questie's quests, AtlasLoot's items: thousands each) get no field written onto them (a row of 8 raw
+-- fields grew to 16 slots after one in:): their texts' lowercase copies are kept here by the text itself (zones and
+-- details repeat: "Lv 23  Ashenvale", "Garr  Molten Core"). NPC titles and holders' names too ("Warrior Trainer": a
+-- few hundred titles over thousands of NPCs, each lowercased once instead of per row per keystroke).
+local lowerTexts = Generations(P.CACHE_MAX)
+local function LowerText(s)
+	local l = lowerTexts.new[s] or Kept(lowerTexts, s)
+	if not l then l = Keep(lowerTexts, s, Lower(s)) end
+	return l
+end
+-- what a (lowercase) trainer title teaches, worked out once per title: a few hundred titles over thousands of NPCs, on
+-- every keystroke of trainer:/is:classtrainer/is:proftrainer (false: nothing; ClassOf, ProfOf)
+local titleClass, titleProf = Generations(P.CACHE_MAX), Generations(P.CACHE_MAX)
+F.ClearPlaces = function()
+	areaNames = {}
+	Forget(lowerTexts); Forget(titleClass); Forget(titleProf)
+end
+--- The lowercase copy of a row's text field, kept on the row (like _ltext) while the field's text is the same; a
+--- compact row's from LowerText.
 local function LowerField(e, field, lkey, srcKey)
 	local s = e[field]
 	if type(s) ~= "string" then return nil end
+	if rawget(e, "_compact") then return LowerText(s) end
 	if rawget(e, srcKey) ~= s then e[srcKey], e[lkey] = s, Lower(s) end
 	return rawget(e, lkey)
 end
@@ -67,7 +86,7 @@ local function Holder(e, v)
 	for _, h in pairs(e.holders) do
 		if (h.count or 1) > 0 then
 			if (v == "me" or v == "you") and h.mine then return true end
-			if type(h.who) == "string" and Lower(h.who):find(v, 1, true) then return true end
+			if type(h.who) == "string" and LowerText(h.who):find(v, 1, true) then return true end
 		end
 	end
 	return false
@@ -215,7 +234,7 @@ local function TrainerTitle(e)
 	if not NpcID(e) then return nil end
 	local sub = rawget(e, "sub") or NpcField(e, "subName")
 	if type(sub) ~= "string" or sub == "" then return nil end
-	sub = Lower(sub)
+	sub = LowerText(sub)
 	if sub:find("trainer", 1, true) or sub:find("instructor", 1, true) or NpcRole(e, "TRAINER") then return sub end
 end
 
@@ -223,7 +242,7 @@ end
 local function NpcTitle(e)
 	if not NpcID(e) then return nil end
 	local sub = rawget(e, "sub") or NpcField(e, "subName")
-	return type(sub) == "string" and sub ~= "" and Lower(sub) or nil
+	return type(sub) == "string" and sub ~= "" and LowerText(sub) or nil
 end
 local function Battlemaster(e)
 	if NpcRole(e, "BATTLEMASTER") then return true end
@@ -241,19 +260,34 @@ local function PvpVendor(e)
 end
 F.Battlemaster, F.PvpVendor = Battlemaster, PvpVendor
 
+-- "Warrior Trainer", "Undead Mage Trainer", "Master Mage", "Grand Master Rogue", "High Priest" (whole words)
+local CLASS_FINDS = {}
+for i, c in ipairs(CLASSES) do CLASS_FINDS[i] = "%f[%a]" .. c .. "%f[%A]" end
 local function ClassOf(sub)
-	for _, c in ipairs(CLASSES) do
-		-- "Warrior Trainer", "Undead Mage Trainer", "Master Mage", "Grand Master Rogue", "High Priest" (whole words)
-		if sub:find("%f[%a]" .. c .. "%f[%A]") then return c end
+	local c = Kept(titleClass, sub)
+	if c == nil then
+		c = false
+		for i = 1, #CLASSES do
+			if sub:find(CLASS_FINDS[i]) then c = CLASSES[i] break end
+		end
+		Keep(titleClass, sub, c)
 	end
+	return c or nil
 end
 
 local function ProfOf(sub)
-	for name, words in pairs(PROFS) do
-		for _, w in ipairs(words) do
-			if sub:find(w, 1, true) then return name end
+	local p = Kept(titleProf, sub)
+	if p == nil then
+		p = false
+		for name, words in pairs(PROFS) do
+			for _, w in ipairs(words) do
+				if sub:find(w, 1, true) then p = name break end
+			end
+			if p then break end
 		end
+		Keep(titleProf, sub, p)
 	end
+	return p or nil
 end
 
 --- Your class as the trainers' titles write it ("warrior", "death knight"), from the game's class token.

@@ -124,9 +124,23 @@ end
 -- directly, and scattered matches use two reused rows instead of an n x m grid, so a search
 -- allocates nothing per entry. Positions (for highlighting) come from Fuzzy.match, only for
 -- the rows on screen. The second result is true when the needle is in the name as it is (the
--- initials and shorthand looks in UI.lua only run when it isn't).
+-- initials and shorthand looks in Search/Score.lua (scoring) only run when it isn't).
 local rowM, rowD, rowM2, rowD2 = {}, {}, {}, {}
 local rowB, rowL, rowLo = {}, {}, {} -- (per row: each letter's bonus, its lowercase byte; per needle letter: its first possible place)
+
+-- A needle's letters, each as a one-letter string (1..n, for the scattered-letters look) and as a byte (n+1..2n, for
+-- the rows), made once per needle: a search scores thousands of rows with the same few needles, and string.sub per
+-- letter per row was a good part of a scattered look.
+local needleParts, needleCount = {}, 0
+local function Parts(needle, n)
+	local c = needleParts[needle]
+	if c then return c end
+	if needleCount >= 256 then needleParts, needleCount = {}, 0 end -- (typed words: a few per search)
+	c = {}
+	for i = 1, n do c[i], c[n + i] = ssub(needle, i, i), byte(needle, i) end
+	needleParts[needle], needleCount = c, needleCount + 1
+	return c
+end
 
 function Fuzzy.score(needle, hay, lhay)
 	local n, m = #needle, #hay
@@ -140,13 +154,13 @@ function Fuzzy.score(needle, hay, lhay)
 	local sub = substringScore(needle, hay, lhay, n, m)
 	if sub then return sub, true end
 	-- cheap subsequence check first; each letter's earliest place bounds where its row starts
-	local Lo = rowLo
-	local pos = find(lhay, ssub(needle, 1, 1), 1, true)
+	local Lo, L = rowLo, Parts(needle, n)
+	local pos = find(lhay, L[1], 1, true)
 	if not pos then return nil end
 	local first = pos
 	Lo[1] = pos
 	for i = 2, n do
-		pos = find(lhay, ssub(needle, i, i), pos + 1, true)
+		pos = find(lhay, L[i], pos + 1, true)
 		if not pos then return nil end
 		Lo[i] = pos
 	end
@@ -161,7 +175,7 @@ function Fuzzy.score(needle, hay, lhay)
 	end
 	local Mp, Dp, Mc, Dc = rowM, rowD, rowM2, rowD2
 	for i = 1, n do
-		local nc = byte(needle, i)
+		local nc = L[n + i]
 		local prev = MIN
 		local gap = (i == n) and TRAIL or INNER
 		local lo = Lo[i]

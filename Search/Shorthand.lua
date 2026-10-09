@@ -3,7 +3,7 @@ local ns = select(2, ...)
 -- What players call places: "brd" finds Blackrock Depths' loot, "@quest strat" quests in
 -- Stratholme, "@map sw" Stormwind City. Lowercase shorthand -> the full names (lowercase, as
 -- they are in a row's name or text: "deadmines" matches "The Deadmines" and "Deadmines").
--- A search word that is one of these also matches rows with the full name (UI.lua ScoreEntry).
+-- A search word that is one of these also matches rows with the full name (ScoreEntry, Search/Score.lua (scoring)).
 -- English names: on other clients only rows that have the English name match.
 -- DM is Dire Maul, as classic players say it; the Deadmines are VC (Van Cleef) or dmines.
 local S = {
