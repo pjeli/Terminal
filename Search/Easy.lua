@@ -459,7 +459,7 @@ E.ADV_EXAMPLES = {
 	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
 	"try: @npc trainer:class faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
 	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @gold", "try: @xp rested", "try: @achievement is:todo",
-	"try: @dungeon sort:nearest", "try: @map fish:mine", "try: thorium belt > mats > alts", "try: copper bar > uses", "try: @map lvl:30", "try: @dungeon lvl:25", "try: @recipe is:skillup", "try: @friend is:online", "try: @who orc lvl:20-30",
+	"try: @dungeon sort:nearest", "try: @map fish:mine", "try: thorium belt > mats > alts", "try: mats for thorium belt >>> party", "try: copper bar > uses", "try: @map lvl:30", "try: @dungeon lvl:25", "try: @recipe is:skillup", "try: @friend is:online", "try: @who orc lvl:20-30",
 	"try: @item is:boe|q:epic", "try: @spell is:ready", "try: @gear slot:head|chest -is:soulbound", "try: @item q:rare|epic", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
 	"tip: Up = last command, Down = recent picks",
 }
@@ -659,7 +659,7 @@ E.ADVANCED_ROW = {
 -- ">>" typed in Simple mode: sending is in the right-click menu here
 E.SEND_ROW = {
 	name = "Right-click a result to send it to chat", kind = "advanced", kindLabel = "", noActivate = true,
-	detail = "say, party, guild, whisper (>> is Advanced mode's)", icon = "Interface\\Icons\\INV_Letter_15",
+	detail = "say, party, guild, whisper, or all of them at once (>> is Advanced mode's)", icon = "Interface\\Icons\\INV_Letter_15",
 }
 
 ----------------------------------------------------------------------
@@ -764,7 +764,7 @@ function E.HelpLines()
 		"Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it.",
 		"Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter or a click, then the thing itself. Tab goes back to all of them.",
 		"Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\").",
-		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do.",
+		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do: \"All 8 to party\" sends every result at once.",
 		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
 		"Ask where to go: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (or \"zones for level 35\").",
 		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",

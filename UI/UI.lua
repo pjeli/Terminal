@@ -253,10 +253,11 @@ function UI:Refresh()
 			text = query:gsub("%s+$", "")
 		end
 	elseif first ~= "." and first ~= "/" and ns.Share then
-		local query, rest = ns.Share.Split(text)
+		local query, rest, all = ns.Share.Split(text)
 		if rest then
 			self.sendTo = ns.Share.Channel(rest)
 			self.sendTo.query = query -- (what was searched: the chat line says what the result is, Share.Context)
+			self.sendTo.all = all -- (">>> party": every result at once, Share.SendAll)
 			text = query:gsub("%s+$", "")
 		end
 	end
@@ -484,7 +485,8 @@ do
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
 		if to and self.mode == "search" then
-			local say = to.cmd and ("Enter sends it to " .. to.label) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
+			local n = to.all and to.cmd and #ns.Share.GroupRows(results)
+			local say = (n and ("Enter sends all " .. n .. " to " .. to.label)) or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
 			text = Prepend(HINT .. say .. "|r", text)
 		end
 		if mode then text = Append(text, mode) end
@@ -1458,7 +1460,8 @@ local function SecureView(e, shift)
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
 	if UI.sendTo then
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
-		if not UI.sendTo.cmd or e.noActivate or e.raw or e.completion then return nil end
+		-- (">>> party": Terminal sends every result itself in Activate, a press the game doesn't take)
+		if not UI.sendTo.cmd or UI.sendTo.all or e.noActivate or e.raw or e.completion then return nil end
 		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter }, { __index = e })
 	end
 	if shift and e.secondary then
@@ -1932,8 +1935,23 @@ do
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
 			-- (the game opens the box with it: see ChatBoxMacro)
 			items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
-			for _, ch in ipairs(SH.MenuChannels()) do
+			local channels = SH.MenuChannels()
+			for _, ch in ipairs(channels) do
 				items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
+			end
+			-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll)
+			local n = #SH.GroupRows(results)
+			if n >= 2 then
+				for _, ch in ipairs(channels) do
+					if ch.chat then
+						local list, to = results, { chat = ch.chat, label = ch.short }
+						items[#items + 1] = { label = "All " .. n .. " to " .. ch.short, run = function()
+							local sent, why = SH.SendAll(list, to, query)
+							if not sent then ns:Print(why) return end
+							UI:Hide()
+						end }
+					end
+				end
 			end
 		end
 		if not EasyOn() and self:ResultText(e) then
@@ -2140,6 +2158,20 @@ function UI:Activate(idx, opts)
 	local e = results[idx or sel]
 	if not e or e.noActivate then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
+	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
+	local to = self.sendTo
+	if to and to.all and not e.completion then
+		if not to.cmd then
+			ns:Print(to.bad and ("No channel called " .. to.bad .. ": >>> party, guild, raid, say, yell, officer, instance, whisper <name>, or a number")
+				or "Say where to send them: >>> party, guild, raid, say, yell, officer, instance, whisper <name>")
+			return
+		end
+		local n, why = ns.Share.SendAll(results, to, to.query)
+		if not n then ns:Print(why) return end
+		ns:RecordHistory(edit:GetText())
+		self:Hide()
+		return
+	end
 	-- Opening or clicking Blizzard's windows is protected in combat: do nothing rather than
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
@@ -2148,7 +2180,6 @@ function UI:Activate(idx, opts)
 		return
 	end
 	-- ">> channel": never opened or run, only sent (by the game's press, armed below)
-	local to = self.sendTo
 	if to and not e.completion then
 		if not to.cmd then
 			ns:Print(to.bad and ("No channel called " .. to.bad .. ": >> party, guild, raid, say, yell, officer, instance, whisper <name>, or a number")
@@ -2579,7 +2610,7 @@ local function ComputeCompletion(self, text)
 	local last = text:match("(%S*)$") or ""
 	-- ">> par" -> ">> party"
 	local before = text:sub(1, #text - #last)
-	if ns.Share and before:match("%s?>>%s+$") and last ~= "" then
+	if ns.Share and before:match("%s?>>>?%s+$") and last ~= "" then
 		local new, final = CompleteWord(ns.Lower(last), ns.Share.NAMES)
 		if not new then return nil end
 		return Replace(text, last, new, final)
@@ -2662,8 +2693,9 @@ function UI:FillFromResult()
 		return true
 	end
 	if not new then return false end
-	local rest = ns.Share and select(2, ns.Share.Split(edit:GetText()))
-	if rest then new = new .. " >> " .. rest else new = new .. " " end
+	local _, rest, all = nil, nil, nil
+	if ns.Share then _, rest, all = ns.Share.Split(edit:GetText()) end
+	if rest then new = new .. (all and " >>> " or " >> ") .. rest else new = new .. " " end
 	self:SetQuery(new, #new)
 	return true
 end
@@ -2751,14 +2783,15 @@ function UI:SyntaxSegments(text, plain)
 			local color = base
 			if EasyOn() and ns.Easy.IsAdvancedWord(word) then
 				color = bad -- (Simple mode: Advanced syntax isn't taken)
-			elseif word == ">>" and ns.Share then
+			elseif (word == ">>" or word == ">>>") and ns.Share then
 				color = t.accent
 				afterSend = true
 			elseif ns.Share and #word > 2 and word:sub(1, 2) == ">>" then
-				-- ">>party": the arrows in the accent, the channel judged as after a ">>"
-				out[#out + 1] = { pos, pos + 1, t.accent }
-				pos = pos + 2
-				word = word:sub(3)
+				-- ">>party", ">>>party": the arrows in the accent, the channel judged as after a ">>"
+				local arrows = word:sub(3, 3) == ">" and 3 or 2
+				out[#out + 1] = { pos, pos + arrows - 1, t.accent }
+				pos = pos + arrows
+				word = word:sub(arrows + 1)
 				color = ChannelColor(word, pos + #word > #text, filt, base, bad)
 			elseif afterSend then
 				afterSend = false

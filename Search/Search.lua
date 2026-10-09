@@ -513,7 +513,7 @@ function UI:FrequentEntries()
 			"Start with  /  for slash commands,  .  for terminal commands (try .help)",
 			"Add  @questlog  /  @item  /  @recipe  to search a single kind (@questie: every quest, with Questie)",
 			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
-			"End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat",
+			"End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat;  >>> party  sends every result at once",
 			"Change the look with  .theme  and  .set , or  .options",
 		})
 	end

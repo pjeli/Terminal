@@ -11,6 +11,12 @@ local ns = select(2, ...)
 -- has the game press the chat line (/p, /g...) from the secure macro button, as it runs your macros:
 -- Terminal's own code never sends chat. What goes out: the row's link (items, spells, achievements,
 -- recipes, quests), a map pin for NPCs, else its name. The game runs at most 255 characters of a macro.
+--
+-- ">>> channel" (0.44.2) sends every result at once instead: "mats for thorium belt >>> party",
+-- "@loot lorgus jett >>> guild". One line says what they are ("Mats for Thorium Belt (3): 12x [Thorium Bar], ..."),
+-- as many lines as it takes (SH.GROUP_LINES at most). A macro the game presses runs only 255 characters in all, so
+-- these lines are sent by Terminal itself, inside the key press or click that asked (SH.SendAll). The right-click
+-- menu has the same as "All N to party" (Simple mode too).
 
 local SH = {}
 ns.Share = SH
@@ -26,6 +32,10 @@ local CHANNELS = {
 }
 local COMMAND = { party = "/p", guild = "/g", raid = "/raid", officer = "/o", say = "/s", yell = "/y", instance = "/i" }
 local WHISPER = { w = true, whisper = true, tell = true, t = true }
+-- (the game's chat types, for the lines Terminal sends itself: ">>>")
+local CHAT_TYPE = { party = "PARTY", guild = "GUILD", raid = "RAID", officer = "OFFICER", say = "SAY", yell = "YELL",
+	instance = "INSTANCE_CHAT" }
+SH.CHAT_TYPE = CHAT_TYPE
 SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper" }
 
 --- Does some channel name start with this word? (While it's being typed: not wrong yet.) A number
@@ -39,14 +49,15 @@ end
 --- The search text and what follows a ">>" standing alone or starting a word (nil when there's none):
 --- "copper >> party" -> "copper ", "party"; "copper >>party" the same. The last ">>" is the one (a ">>" in
 --- the search part before it stays a word of the search). "lvl:>>20" has none: it's inside a word.
+--- A third result is true for ">>>" (every result, not only the selected one).
 function SH.Split(text)
 	if type(text) ~= "string" or not text:find(">>", 1, true) then return text, nil end
-	local at
+	local at, all
 	for pos, w in text:gmatch("()(%S+)") do
-		if w:sub(1, 2) == ">>" then at = pos end -- (the last one)
+		if w:sub(1, 2) == ">>" then at, all = pos, w:sub(3, 3) == ">" end -- (the last one)
 	end
 	if not at then return text, nil end
-	return text:sub(1, at - 1), (text:sub(at + 2):gsub("^%s+", ""):gsub("%s+$", ""))
+	return text:sub(1, at - 1), (text:sub(at + (all and 3 or 2)):gsub("^%s+", ""):gsub("%s+$", "")), all or nil
 end
 
 --- Where to send: { cmd = "/p", label = "party" }; { pending = true } while the channel is still to be
@@ -56,14 +67,14 @@ function SH.Channel(rest)
 	local lw = ns.Lower(w or "")
 	if lw == "" then return { pending = true } end
 	local ch = CHANNELS[lw]
-	if ch then return { cmd = COMMAND[ch], label = ch } end
+	if ch then return { cmd = COMMAND[ch], label = ch, chat = CHAT_TYPE[ch] } end
 	if WHISPER[lw] then
 		local who = (more or ""):match("^(%S+)")
 		if not who then return { pending = true, label = "whisper" } end
-		return { cmd = "/w " .. who, label = "whisper " .. who }
+		return { cmd = "/w " .. who, label = "whisper " .. who, chat = "WHISPER", target = who }
 	end
 	local n = tonumber(lw)
-	if n and n >= 1 and n <= 20 then return { cmd = "/" .. n, label = "channel " .. n } end
+	if n and n >= 1 and n <= 20 then return { cmd = "/" .. n, label = "channel " .. n, chat = "CHANNEL", target = n } end
 	return { bad = w }
 end
 
@@ -223,17 +234,17 @@ end
 --- The channels a row can go to from its right-click menu, those you're in: { cmd, label } (say always; party or
 --- raid, instance, guild when you're in one; your target when it's another player: "/w %t", the game fills the name).
 function SH.MenuChannels()
-	local out = { { cmd = "/s", label = "Say in chat" } }
+	local out = { { cmd = "/s", label = "Say in chat", chat = "SAY", short = "say" } }
 	local function Is(fn, ...) return type(fn) == "function" and Call(fn, ...) and true or false end
 	local instance = _G.LE_PARTY_CATEGORY_INSTANCE
 	local inInstance = instance and Is(_G.IsInGroup, instance)
 	if Is(_G.IsInRaid) then
-		out[#out + 1] = { cmd = "/raid", label = "Send to raid" }
+		out[#out + 1] = { cmd = "/raid", label = "Send to raid", chat = "RAID", short = "raid" }
 	elseif Is(_G.IsInGroup) and not (inInstance and not Is(_G.IsInGroup, _G.LE_PARTY_CATEGORY_HOME)) then
-		out[#out + 1] = { cmd = "/p", label = "Send to party" }
+		out[#out + 1] = { cmd = "/p", label = "Send to party", chat = "PARTY", short = "party" }
 	end
-	if inInstance then out[#out + 1] = { cmd = "/i", label = "Send to instance" } end
-	if Is(_G.IsInGuild) then out[#out + 1] = { cmd = "/g", label = "Send to guild" } end
+	if inInstance then out[#out + 1] = { cmd = "/i", label = "Send to instance", chat = "INSTANCE_CHAT", short = "instance" } end
+	if Is(_G.IsInGuild) then out[#out + 1] = { cmd = "/g", label = "Send to guild", chat = "GUILD", short = "guild" } end
 	if Is(_G.UnitIsPlayer, "target") and not Is(_G.UnitIsUnit, "target", "player") then
 		local name = ns.Str(Call(_G.UnitName, "target"))
 		out[#out + 1] = { cmd = "/w %t", label = "Whisper " .. (name or "your target") }
@@ -282,4 +293,104 @@ function SH.Macro(e, to)
 	if #line > max then line = to.cmd .. " " .. tostring(base) end -- (a loot row: without where it drops)
 	if #line > max then line = to.cmd .. " " .. tostring(e.name) end
 	return line
+end
+
+----------------------------------------------------------------------
+-- Every result at once (">>> party", the menu's "All N to party")
+----------------------------------------------------------------------
+
+SH.GROUP_LINES = 6 -- (chat lines at most; what doesn't fit is counted: "+5 more")
+SH.LINE_MAX = 255
+
+--- The rows worth sending: real results (no hint, help, category or completion rows), each once.
+function SH.GroupRows(list)
+	local out, seen = {}, {}
+	for _, e in ipairs(list or {}) do
+		if type(e) == "table" and not (e.noActivate or e.raw or e.completion or e.catId or e.syntaxRow) then
+			local o = rawget(e, "pipeOf") or e
+			local id = tostring(o.kind) .. ":" .. tostring(o.key or o.itemID or o.name)
+			if not seen[id] then seen[id] = true; out[#out + 1] = e end
+		end
+	end
+	return out
+end
+
+--- What the rows are, said once before them: a chain's ("Mats for Thorium Belt"), the boss and place every loot row
+--- shares ("Dropped by Lorgus Jett in Blackfathom Deeps"), else what the search says of its NPCs ("Nearby innkeeper").
+--- Second result: true when it's the loot source (each row's own then isn't repeated).
+function SH.GroupHeader(rows, query)
+	local first = rows[1]
+	if not first then return nil end
+	local ctx = SH.ChainText(first, "x")
+	if ctx then
+		for _, e in ipairs(rows) do if e.pipeRel ~= first.pipeRel or e.pipeFrom ~= first.pipeFrom then ctx = nil break end end
+		if ctx then return ctx end
+	end
+	local src = SH.LootSource(first)
+	if src then
+		for _, e in ipairs(rows) do if SH.LootSource(e) ~= src then src = nil break end end
+		if src then return (src:gsub("^%l", string.upper)), true end
+	end
+	return SH.Context(query, first)
+end
+
+--- The chat lines for every row: "<header> (N): a, b, c" packed into lines of at most LINE_MAX characters, GROUP_LINES
+--- at most; the rest counted on the last ("+5 more"). Each row as the chain or list says it: "12x [Thorium Bar]".
+function SH.GroupLines(rows, query)
+	rows = SH.GroupRows(rows)
+	if #rows == 0 then return {} end
+	local header, lootHeader = SH.GroupHeader(rows, query)
+	local texts = {}
+	for _, e in ipairs(rows) do
+		local base = SH.BaseText(e)
+		local t = (lootHeader or e.pipeRel == "uses") and base or WithSource(e, base, SH.LINE_MAX - 8)
+		local _, chained = SH.ChainText(e, t)
+		t = chained or t
+		if type(t) == "string" and t ~= "" then
+			if #t > SH.LINE_MAX then t = tostring(base) end
+			if #t <= SH.LINE_MAX then texts[#texts + 1] = t end
+		end
+	end
+	local lines, line = {}, header and (header .. " (" .. #texts .. "):") or nil
+	local sent = 0
+	for _, t in ipairs(texts) do
+		local joined = line and (line .. (line:sub(-1) == ":" and " " or ", ") .. t) or t
+		-- (the last line keeps room for "+N more")
+		local max = SH.LINE_MAX - (#lines == SH.GROUP_LINES - 1 and 12 or 0)
+		if #joined <= max then
+			line = joined
+		else
+			if line then lines[#lines + 1] = line end
+			if #lines >= SH.GROUP_LINES then line = nil break end
+			line = t
+		end
+		sent = sent + 1
+	end
+	if line and #lines < SH.GROUP_LINES then lines[#lines + 1] = line end
+	local left = #texts - sent
+	if left > 0 and #lines > 0 then
+		local more = " +" .. left .. " more"
+		if #lines[#lines] + #more <= SH.LINE_MAX then lines[#lines] = lines[#lines] .. more end
+	end
+	return lines, #texts
+end
+
+--- Sends every row's line to the channel `to` ({ chat, target, label }): from Terminal's own code, inside the key
+--- press or click that asked (say and yell want one). Returns how many lines went, or nil and why not.
+function SH.SendAll(rows, to, query)
+	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
+	if not (to and to.chat and send) then return nil, "Say where to send them: >>> party, guild, raid, say, instance, whisper <name>" end
+	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
+	if lock and Call(lock) == true then return nil, "The game doesn't let addons send chat right now (in combat in an instance)." end
+	local lines = SH.GroupLines(rows, query)
+	if #lines == 0 then return nil, "Nothing to send." end
+	local n = 0
+	for _, l in ipairs(lines) do
+		local ok = pcall(send, l, to.chat, nil, to.target)
+		if not ok then break end
+		n = n + 1
+	end
+	ns:Trace(("share: sent %d of %d lines to %s"):format(n, #lines, tostring(to.label or to.chat)))
+	if n == 0 then return nil, "Couldn't send to " .. tostring(to.label or to.chat) .. "." end
+	return n
 end

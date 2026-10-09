@@ -120,6 +120,91 @@ do
 	check(opened, "Shift+Enter runs the row's own Enter")
 end
 
+-- every result at once (0.44.2): ">>> party", the menu's "All N to party"
+do
+	local SH = ns.Share
+	local q, rest, all = SH.Split("mats for thorium belt >>> party")
+	check(q == "mats for thorium belt " and rest == "party" and all == true, ">>> splits off the channel, marked all")
+	q, rest, all = SH.Split("copper >>>guild")
+	check(rest == "guild" and all, ">>>guild too")
+	q, rest, all = SH.Split("copper >> party")
+	check(rest == "party" and not all, ">> stays one result")
+	local to = SH.Channel("w Bob")
+	check(to.chat == "WHISPER" and to.target == "Bob" and SH.Channel("party").chat == "PARTY" and SH.Channel("3").target == 3,
+		"channels carry the game's chat type")
+	-- mats: one line, the chain said once, each reagent with its count
+	local rows = P.Search("thorium belt > mats")
+	local lines, n = SH.GroupLines(rows, "thorium belt > mats")
+	check(#lines == 1 and n == 2 and lines[1]:find("^Mats for Thorium Belt %(2%): 12x ") and lines[1]:find("2x [^,]*Heart of Fire")
+		and select(2, lines[1]:gsub("Mats for", "")) == 1, "mats in one line: " .. tostring(lines[1]))
+	-- loot from one boss: the boss said once, not on every item
+	local loot = {}
+	for i = 1, 5 do loot[i] = { kind = "loot", key = i, name = "Jett Item " .. i, detail = "Lorgus Jett  Blackfathom Deeps" } end
+	loot[6] = { name = "hint", noActivate = true }
+	lines = SH.GroupLines(loot, "@loot lorgus jett")
+	check(#lines == 1 and lines[1] == "Dropped by Lorgus Jett in Blackfathom Deeps (5): Jett Item 1, Jett Item 2, Jett Item 3, Jett Item 4, Jett Item 5",
+		"loot: the boss once, hint rows left out: " .. tostring(lines[1]))
+	-- a long list: split into lines of at most 255, the rest counted
+	local many = {}
+	for i = 1, 200 do many[i] = { kind = "item", key = i, name = ("Some Long Item Name Number %03d"):format(i) } end
+	lines = SH.GroupLines(many, "item")
+	local ok = #lines == SH.GROUP_LINES
+	for _, l in ipairs(lines) do ok = ok and #l <= 255 end
+	check(ok and lines[#lines]:find("%+%d+ more$"), "many: " .. SH.GROUP_LINES .. " lines of at most 255, the rest counted: " .. tostring(lines[#lines]):sub(-20))
+	-- sent by Terminal in the press (a macro the game runs holds 255 characters in all)
+	local savedChat = _G.C_ChatInfo
+	local sent = {}
+	_G.C_ChatInfo = { SendChatMessage = function(msg, chat, lang, target) sent[#sent + 1] = { msg, chat, target } end,
+		InChatMessagingLockdown = function() return false end }
+	local wasEasy = ns.db.easyMode
+	ns.db.easyMode = false
+	UI:Open("mats for thorium belt >>> party"); T.FlushAll()
+	check(UI.sendTo and UI.sendTo.all, "the prompt: send all")
+	local foot = UI.status and UI.status:GetText() or ""
+	check(foot:find("Enter sends all 2 to party", 1, true), "footer says how many go where: " .. foot)
+	local mark = #T.log
+	T.key("ENTER"); T.FlushAll()
+	check(#sent == 1 and sent[1][2] == "PARTY" and sent[1][1]:find("^Mats for Thorium Belt %(2%)") and not UI:IsShown(),
+		"Enter: one line to party, terminal closed: " .. tostring(sent[1] and sent[1][1]))
+	check(not T.logHas("Secure.Arm", mark + 1), "nothing armed for the game to press")
+	-- the game's chat lockdown (an encounter): says so, sends nothing
+	sent = {}
+	_G.C_ChatInfo.InChatMessagingLockdown = function() return true end
+	local n2, why = SH.SendAll(rows, { chat = "PARTY", label = "party" }, "")
+	check(not n2 and why:find("doesn't let addons", 1, true) and #sent == 0, "chat lockdown: nothing sent, says why")
+	_G.C_ChatInfo.InChatMessagingLockdown = function() return false end
+	-- no channel yet: says so
+	local printed = {}
+	local pr = ns.Print
+	ns.Print = function(_, m) printed[#printed + 1] = m end
+	UI:Open("mats for thorium belt >>> zzz"); T.FlushAll()
+	T.key("ENTER"); T.FlushAll()
+	check(#sent == 0 and (printed[1] or ""):find("No channel called zzz", 1, true), "a bad channel: says so: " .. tostring(printed[1]))
+	ns.Print = pr
+	UI:Hide(); T.FlushAll()
+	-- the right-click menu: "All 2 to <channel>" for each channel you're in (Simple mode too)
+	local g = { _G.IsInGroup, _G.IsInRaid, _G.IsInGuild }
+	_G.IsInGroup = function(c) return c ~= 2 end
+	_G.IsInRaid = function() return false end
+	_G.IsInGuild = function() return true end
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open("mats for thorium belt"); T.FlushAll()
+	UI:ShowRowMenu(1)
+	local m, byLabel, labels = _G.TerminalRowMenu, {}, {}
+	for _, b in ipairs(m.lines) do if b:IsShown() then byLabel[b.fs:GetText()] = b; labels[#labels + 1] = b.fs:GetText() end end
+	local all3 = table.concat(labels, ",")
+	check(byLabel["All 2 to party"] and byLabel["All 2 to guild"] and byLabel["All 2 to say"], "menu: All N to each channel: " .. all3)
+	local b = byLabel["All 2 to guild"]
+	if b then b.scripts.PreClick(b, "LeftButton"); b.scripts.PostClick(b, "LeftButton") end
+	T.FlushAll()
+	check(#sent == 1 and sent[1][2] == "GUILD" and sent[1][1]:find("^Mats for Thorium Belt %(2%)") and not UI:IsShown(),
+		"menu: All 2 to guild sends them: " .. tostring(sent[1] and sent[1][1]))
+	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild = g[1], g[2], g[3]
+	ns.db.easyMode = wasEasy; UI:EasyChanged()
+	_G.C_ChatInfo = savedChat
+	UI:Hide(); T.FlushAll()
+end
+
 ns.providers, ns.providerOrder = saved.providers, saved.order
 ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL
