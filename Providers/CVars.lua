@@ -117,7 +117,7 @@ ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return by
 
 ns:RegisterProvider("cvars", {
 	label = "CVar",
-	color = "ff8ec5ff",
+	color = "ff57abd9", -- (steel blue: apart from dungeons and reputation)
 	aliases = { "cvar", "cvars", "console" }, -- ("settings" is the options panel's, GameOptions.lua)
 	explicit = true, -- a few thousand: only with @cvar
 	lazy = true,

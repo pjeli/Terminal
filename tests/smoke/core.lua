@@ -247,7 +247,7 @@ do -- Terminal's own blocked call repeating: one record with a count, one chat l
 	for _ = 1, 50 do f.scripts.OnEvent(f, "ADDON_ACTION_BLOCKED", ns.name, "ZzBlocked()") end
 	check(#D.events == 1 and D.events[1].times == 50 and D.events[1].stack ~= nil, "50 blocks of one call: one record (x50) with its stack")
 	local printed = 0
-	for i = mark + 1, #log do if log[i]:find("blocked ZzBlocked()", 1, true) then printed = printed + 1 end end
+	for i = mark + 1, #log do if log[i]:find("Blocked ZzBlocked()", 1, true) then printed = printed + 1 end end
 	check(printed == 1, "the chat line is printed once (" .. printed .. ")")
 	check(table.concat(D.Describe(D.events[1]), " "):find("(x50)", 1, true) ~= nil, "the log says how many")
 	f.scripts.OnEvent(f, "ADDON_ACTION_BLOCKED", ns.name, "ZzOther()")

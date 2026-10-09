@@ -489,7 +489,7 @@ local function SaveSnapshot(store, key, profName, fromList, list)
 		if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
 	end
 	if not P.scanning and prevCount ~= #list then
-		ns:Print(("indexed %s: %d known recipe%s."):format(profName, #list, #list == 1 and "" or "s"))
+		ns:Print(("Indexed %s: %d known recipe%s."):format(profName, #list, #list == 1 and "" or "s"))
 	end
 	for k, pd in pairs(store) do
 		if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
@@ -662,13 +662,13 @@ end
 --- nothing is printed.
 function P.Scan(quiet)
 	if InCombatLockdown and InCombatLockdown() then
-		if not quiet then ns:Print("can't scan professions in combat.") end
+		if not quiet then ns:Print("Can't scan professions in combat.") end
 		return
 	end
 	if P.scanBusy then return end
 	local list = P.PlayerProfessions()
 	if #list == 0 then
-		if not quiet then ns:Print("no professions found to scan.") end
+		if not quiet then ns:Print("No professions found to scan.") end
 		return
 	end
 	ns.LoadBlizz("Blizzard_Professions")
@@ -693,8 +693,8 @@ function P.Scan(quiet)
 		if not quiet then
 			local n = 0
 			for _, pd in pairs(Store() or {}) do n = n + #(pd.list or {}) end
-			ns:Print(("scan finished, %d recipes indexed."):format(n))
-			if #empty > 0 then ns:Print("nothing to craft yet in: " .. table.concat(empty, ", ") .. ".") end
+			ns:Print(("Scan finished, %d recipes indexed."):format(n))
+			if #empty > 0 then ns:Print("Nothing to craft yet in: " .. table.concat(empty, ", ") .. ".") end
 		end
 	end
 
@@ -740,7 +740,7 @@ function P.Scan(quiet)
 			end
 		end)
 	end
-	if not quiet then ns:Print(("scanning %d professions..."):format(#list)) end
+	if not quiet then ns:Print(("Scanning %d professions..."):format(#list)) end
 	nextProf()
 end
 

@@ -30,7 +30,7 @@ end
 ns:RegisterProvider("currency", {
 	label = "Currency",
 	color = "ffffe066",
-	aliases = { "currencies", "token", "tokens" },
+	aliases = { "currency", "currencies", "token", "tokens" },
 	events = { "CURRENCY_DISPLAY_UPDATE" },
 	guard = 2,
 	collect = function()
@@ -48,7 +48,7 @@ ns:RegisterProvider("currency", {
 					maxQuantity = ns.Num(info.maxQuantity) or 0,
 					maxWeeklyQuantity = ns.Num(info.maxWeeklyQuantity),
 					quantityEarnedThisWeek = ns.Num(info.quantityEarnedThisWeek),
-					detail = tostring(info.quantity or 0) .. ((info.maxQuantity and info.maxQuantity > 0) and (" / " .. info.maxQuantity) or ""),
+					detail = tostring(info.quantity or 0) .. ((info.maxQuantity and info.maxQuantity > 0) and ("/" .. info.maxQuantity) or ""),
 					secure = TOKEN_SECURE, isOpen = TokenOpen, after = PointAtCurrency, -- (the game opens the tab)
 					activate = OpenCurrency,
 				}

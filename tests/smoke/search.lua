@@ -304,14 +304,18 @@ do
 	UI:Open("")
 	typeText("@")
 	local r = UI.Results()
-	local kinds = 0
-	for _ in ipairs(ns.providerOrder) do kinds = kinds + 1 end
-	check(#r == kinds and r[1].syntaxRow and r[1].name == "@" .. ns.providerOrder[1], "@: every kind to pick from: " .. #r .. "/" .. kinds)
+	-- (each kind by its name, its first alias, as .kinds writes it; a list only plain searches read isn't one, 0.44.11)
+	local kinds, first = 0, nil
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		if not p.internal then kinds = kinds + 1; first = first or ("@" .. (p.aliases[1] or id)) end
+	end
+	check(#r == kinds and r[1].syntaxRow and r[1].name == first, "@: every kind to pick from: " .. #r .. "/" .. kinds .. " " .. tostring(r[1] and r[1].name))
 	typeText("ite")
 	r = UI.Results()
-	check(r[1] and r[1].name == "@items" and r[1].syntaxRow, "@ite: narrowed to @items: " .. tostring(r[1] and r[1].name))
+	check(r[1] and r[1].name == "@item" and r[1].syntaxRow, "@ite: narrowed to @item: " .. tostring(r[1] and r[1].name))
 	key("ENTER")
-	check(UI:IsShown() and UI.edit:GetText() == "@items ", "Enter: @items written with a space for the next word: '" .. UI.edit:GetText() .. "'")
+	check(UI:IsShown() and UI.edit:GetText() == "@item ", "Enter: @item written with a space for the next word: '" .. UI.edit:GetText() .. "'")
 	-- a filter's values
 	UI:SetQuery("")
 	typeText("rare q:")

@@ -132,6 +132,27 @@ end
 --- where characters have a surname (RegionalUniqueNamesEnabled: "Plamen Warr"), UnitName gives the two
 --- apart and only "Plamen" alone named another character (an old one called just Plamen), so the AddOn
 --- list Terminal read and changed was that character's. Joined with the game's own separator, as Syndicator does.
+-- the game's own words for each equipment slot (INVTYPE_x: "Main Hand", "Finger"...; English when the client lacks one)
+local SLOT_INVTYPE = { "INVTYPE_HEAD", "INVTYPE_NECK", "INVTYPE_SHOULDER", "INVTYPE_BODY", "INVTYPE_CHEST", "INVTYPE_WAIST",
+	"INVTYPE_LEGS", "INVTYPE_FEET", "INVTYPE_WRIST", "INVTYPE_HAND", "INVTYPE_FINGER", "INVTYPE_FINGER", "INVTYPE_TRINKET",
+	"INVTYPE_TRINKET", "INVTYPE_CLOAK", "INVTYPE_WEAPONMAINHAND", "INVTYPE_WEAPONOFFHAND", "INVTYPE_RANGED", "INVTYPE_TABARD" }
+local SLOT_ENGLISH = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands", "Finger",
+	"Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
+--- An equipment slot's name (1-19), as the game says it.
+function ns.SlotText(slot)
+	local g = SLOT_INVTYPE[slot] and _G[SLOT_INVTYPE[slot]]
+	return (type(g) == "string" and g ~= "") and g or SLOT_ENGLISH[slot]
+end
+
+--- How long ago, said one way everywhere: "just now" (under a minute), "12 min ago", "3 h ago", "2 d ago".
+function ns.Ago(seconds)
+	local d = math.max(0, tonumber(seconds) or 0)
+	if d < 60 then return "just now" end
+	if d < 3600 then return math.floor(d / 60) .. " min ago" end
+	if d < 86400 then return math.floor(d / 3600) .. " h ago" end
+	return math.floor(d / 86400) .. " d ago"
+end
+
 --- The words for the mode the player is in: Simple mode's (no @kind, key:value or >>), else Advanced's.
 function ns.Said(simple, advanced)
 	if ns.Easy and ns.Easy.On and ns.Easy.On() then return simple end

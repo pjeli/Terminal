@@ -191,13 +191,7 @@ ev:SetScript("OnEvent", function(_, event, ...) pcall(LL.OnEvent, event, ...) en
 ----------------------------------------------------------------------
 
 --- "just now", "5 min ago", "3 h ago", "2 d ago"
-function LL.Ago(t)
-	local d = math.max(0, Now() - (t or 0))
-	if d < 60 then return "just now" end
-	if d < 3600 then return math.floor(d / 60) .. " min ago" end
-	if d < 86400 then return math.floor(d / 3600) .. " h ago" end
-	return math.floor(d / 86400) .. " d ago"
-end
+function LL.Ago(t) return ns.Ago(Now() - (t or 0)) end
 
 local function NameOf(link) return link:match("%[(.-)%]") or link end
 local function Show(e)
@@ -232,12 +226,13 @@ ns:RegisterProvider("lootlog", {
 			if type(d) == "table" and type(d.link) == "string" and d.id then
 				local who = Who(d.who or "?")
 				local parts = { who, LL.Ago(d.t) }
+				if d.n then table.insert(parts, 1, "x" .. d.n) end -- (how many: in the detail, as bag items show it)
 				if d.from then parts[#parts + 1] = d.from end
 				if d.zone then parts[#parts + 1] = d.zone end
 				out[#out + 1] = {
 					looter = d.who, mine = who == "you" or nil,
 					key = (d.t or 0) .. ":" .. d.id .. ":" .. tostring(d.who),
-					name = NameOf(d.link) .. (d.n and (" x" .. d.n) or ""),
+					name = NameOf(d.link),
 					itemID = d.id, link = d.link,
 					icon = getIcon and Safe(getIcon, d.id) or nil,
 					color = ns.QualityHex(LL.Quality(d.link, d.id)), -- (its quality's colour, as items show)

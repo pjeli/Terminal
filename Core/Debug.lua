@@ -122,7 +122,7 @@ local function OnAction(event, addon, func)
 	if Live() then
 		for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
 	else
-		ns:Print(("blocked %s (%s). Type /term .debug log for what led to it."):format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked"))
+		ns:Print(("Blocked %s (%s). Type /term .debug log for what led to it."):format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked"))
 	end
 end
 

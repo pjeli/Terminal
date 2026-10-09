@@ -218,7 +218,7 @@ local function Objectives(i, questID)
 end
 
 ns:RegisterProvider("quests", {
-	label = "Quest Log",
+	label = "Quest log",
 	color = "ffffd200",
 	aliases = { "questlog", "log", "quest", "quests", "q" },
 	events = { "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" },
@@ -246,7 +246,7 @@ ns:RegisterProvider("quests", {
 						key = info.questID,
 						name = title,
 						icon = "Interface\\GossipFrame\\AvailableQuestIcon",
-						detail = ((level and level > 0) and ("[" .. level .. "] ") or "") .. (zone or ""),
+						detail = ((level and level > 0) and ("Lv " .. level .. "  ") or "") .. (zone or ""),
 						text = table.concat(parts, " "),
 						questID = info.questID,
 						level = (level and level > 0) and level or nil, zone = zone, -- (lvl: and zone: filters)

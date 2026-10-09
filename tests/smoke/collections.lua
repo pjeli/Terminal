@@ -98,7 +98,7 @@ do
 	local t = names(ns:GetEntries(p))
 	local sq = t["Sir Squeaks"]
 	check(sq and t["Black Tabby Cat"], "your pets, by their own name or their species'")
-	check(sq and sq.detail == "Level 12  Mechanical Squirrel  Favorite", "level, species and favourite shown: " .. tostring(sq and sq.detail))
+	check(sq and sq.detail == "Lv 12  Mechanical Squirrel  Favorite", "level, species and favourite shown: " .. tostring(sq and sq.detail))
 	summoned = "BattlePet-0-000001"
 	check(sq.detail:find("out now", 1, true), "the pet that's out says so")
 	local armed, text = press("@pet squeaks")
@@ -281,7 +281,7 @@ do
 	ns.providers.addons._dirty = true
 	a = names(ns:GetEntries(ns.providers.addons))
 	local o = a["Cool Addon1 options"]
-	check(a["Cool Addon1"].detail == "Minimap button  |  disabled (.reload to apply)", "what Enter does and its state: " .. tostring(a["Cool Addon1"].detail))
+	check(a["Cool Addon1"].detail == "Minimap button  ·  disabled (.reload to apply)", "what Enter does and its state: " .. tostring(a["Cool Addon1"].detail))
 	check(o and S.Resolve(o.secure, o).macro == "/run Settings.OpenToCategory(42)", "its options page: a row, opened by the game")
 	o.activate(o)
 	check(opened == 42, "...and without the game's press, from here")

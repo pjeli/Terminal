@@ -87,7 +87,7 @@ do
 	local p = ns.providers.lootlog
 	p._dirty = true
 	local rows = ns:GetEntries(p)
-	check(#rows == 3 and rows[2].name == "Linen Cloth x2" and rows[2].detail:find("you", 1, true) and rows[2].detail:find(" min ago", 1, true) and rows[1].detail:find("Lord Cobrahn", 1, true),
+	check(#rows == 3 and rows[2].name == "Linen Cloth" and rows[2].detail:find("^x2  ·  you") and rows[2].detail:find("you", 1, true) and rows[2].detail:find(" min ago", 1, true) and rows[1].detail:find("Lord Cobrahn", 1, true),
 		"rows: name, count, who, when: " .. tostring(rows[2] and rows[2].detail))
 	local res = UI:Search("@lootlog bob")
 	local names = {}
@@ -119,7 +119,7 @@ do
 	res = UI:SearchText("what did bob get")
 	check(#res == 2 and res[1].name == "Crescent Belt" and UI.answerNote == "Bob's drops, newest first", "someone's drops: " .. #res)
 	res = UI:SearchText("what did i loot")
-	check(#res == 1 and res[1].name == "Linen Cloth x2", "your drops: " .. #res)
+	check(#res == 1 and res[1].name == "Linen Cloth" and res[1].detail:find("^x2"), "your drops: " .. #res)
 	check(ns.Easy.ToAdvanced("what dropped") == "@drop " and ns.Easy.ToAdvanced("what did i loot") == "@drop you "
 		and ns.Easy.ToAdvanced("what did bob get") == "@drop bob ", "Alt+`: their Advanced forms: " .. ns.Easy.ToAdvanced("what did i loot"))
 	ns.db.easyMode = false

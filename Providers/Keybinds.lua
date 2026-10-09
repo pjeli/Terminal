@@ -81,7 +81,7 @@ local ICON = "Interface\\Icons\\INV_Misc_Key_03"
 
 ns:RegisterProvider("keybinds", {
 	label = "Keybind",
-	color = "ffc0a0ff",
+	color = "ffffb2bf", -- (apart from @stored's lavender)
 	aliases = { "keybind", "keybinds", "binding", "bindings", "hotkey", "hotkeys", "key" },
 	noCombat = true, -- opening windows is protected in combat
 	lazy = true, -- hundreds of actions: only offered once you type something

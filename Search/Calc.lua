@@ -253,7 +253,7 @@ function C.Entry(text)
 	if not answer then return nil end
 	return {
 		kind = "calc",
-		kindLabel = "|cff9fd0ffCalc|r",
+		kindLabel = "|cffffa0e0Calc|r", -- (apart from @gear's blue)
 		name = "= " .. answer,
 		_lname = answer,
 		key = "calc",

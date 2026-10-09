@@ -287,7 +287,7 @@ ns:RegisterProvider("panels", {
 			local e = {
 				key = p[1],
 				name = PanelName(p[1], p.nameFrom),
-				icon = "Interface\\Icons\\INV_Misc_Map_01",
+				icon = "Interface\\Icons\\INV_Misc_Book_09", -- (not the map places' icon)
 				text = p[2] .. " " .. p[1],
 				open = p[3], micro = p[4],
 				activate = PanelActivate,

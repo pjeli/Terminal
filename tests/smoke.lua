@@ -707,7 +707,7 @@ check(not names(ns:GetEntries(ns.providers.recipes))["Other Chars Potion"], "oth
 -- profession entries and commands
 check(has("alchemy", "Alchemy"), "profession entry searchable")
 local pe = names(ns:GetEntries(ns.providers.professions))
-check(pe["Alchemy"].detail == "100 / 300", "profession rank shown")
+check(pe["Alchemy"].detail == "100/300", "profession rank shown (as skills and reputation write it, 0.44.11)")
 pe["Alchemy"].activate(pe["Alchemy"])
 check(log[#log] == "OpenTradeSkill 171", "profession activate opens its window")
 local pc = UI:WordSearch(UI:CommandEntries(), "profs")
@@ -721,9 +721,9 @@ local seen = {}
 for i = before + 1, #log do if log[i]:match("^OpenTradeSkill") then seen[log[i]] = true end end
 check(seen["OpenTradeSkill 171"] and seen["OpenTradeSkill 185"], "scan opened every profession")
 local finished = false
-for i = before + 1, #log do if log[i]:find("scan finished", 1, true) then finished = true end end
+for i = before + 1, #log do if log[i]:find("Scan finished", 1, true) then finished = true end end
 check(finished, "scan reports completion")
-check(log[#log - 1] == "CloseTradeSkill" or log[#log]:find("scan finished", 1, true), "scan closes the window")
+check(log[#log - 1] == "CloseTradeSkill" or log[#log]:find("Scan finished", 1, true), "scan closes the window")
 
 -- every search mode still renders with the new providers
 for _, q in ipairs({ "@camp", "@recipe", "@prof", "camp", "mana" }) do
@@ -1362,7 +1362,7 @@ do
 	check(st[185] and st[185].name == "Cooking" and st.oldkey == nil, "cooking indexed once; the older copy is dropped")
 	check(names(ns:GetEntries(ns.providers.camp))["Fish Bowl"].detail:find("Known"), "fishing camp object known")
 	local readMiss = false
-	for i = mark + 1, #log do if log[i]:find("nothing to craft yet in: Herbalism", 1, true) then readMiss = true end end
+	for i = mark + 1, #log do if log[i]:find("Nothing to craft yet in: Herbalism", 1, true) then readMiss = true end end
 	check(readMiss and st[182] and #st[182].list == 0, "a profession with nothing to craft counts as read, and is named once")
 	ns.providers.recipes._dirty = true
 	check(has("odd thing", "Odd Thing"), "indexed recipes show even if the profession list doesn't name them")
@@ -1553,7 +1553,7 @@ do
 	for _, ev in ipairs(ns.providers.achievements.events or {}) do achEvents[ev] = true end
 	check(achEvents.ACHIEVEMENT_EARNED, "an achievement earned this session is listed without a reload")
 	check(has("valor", "Valor") and not has("honor", "Honor"), "only currencies you hold are listed")
-	check(logFind("indexed First Aid: 2 known recipes."), "a newly indexed profession is announced in chat")
+	check(logFind("Indexed First Aid: 2 known recipes."), "a newly indexed profession is announced in chat")
 	check(not logFind("indexed Fishing"), "a scan doesn't announce each profession")
 
 	-- Forever: GetAllRecipeIDs can be empty while GetFilteredRecipeIDs answers; learned may be nil
@@ -1571,7 +1571,7 @@ do
 	check(has("heavy linen", "Heavy Linen Bandage"), "Heavy Linen Bandage is found")
 	check(has("silk band", "Silk Bandage"), "recipes without a learned flag count as known")
 	check(not has("runecloth", "Runecloth Bandage"), "explicitly unlearned recipes stay out")
-	check(logFind("indexed First Aid: 4 known recipes."), "re-index with more recipes is announced")
+	check(logFind("Indexed First Aid: 4 known recipes."), "re-index with more recipes is announced")
 
 	local dbg = table.concat(cmd("profdebug"), "\n")
 	check(dbg:find("GetAllRecipeIDs: 0   GetFilteredRecipeIDs: 5", 1, true) and dbg:find("First recipe: Linen Bandage", 1, true) and dbg:find("First Aid=4", 1, true),
@@ -3189,7 +3189,7 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	es["Tank Gear"].secondary(es["Tank Gear"])
 	ns.Output = baseOut
 	local joined = table.concat(out, "\n")
-	check(out[1] == "Tank Gear:" and joined:find("Head:", 1, true) and joined:find("Main hand:.-%(missing%)"), "without a character key, Shift+Enter lists the items, marking missing ones: " .. joined)
+	check(out[1] == "Tank Gear:" and joined:find("Head:", 1, true) and joined:find("Main Hand:.-%(missing%)"), "without a character key, Shift+Enter lists the items, marking missing ones: " .. joined)
 	-- Shift+Enter: the game itself presses the character micro button, the right-pane arrow
 	-- (only when that pane is closed) and the Equipment Manager tab, as one macro; Terminal then
 	-- only points at the set. (Clicking those from Terminal's code tainted the window.)
@@ -4336,7 +4336,7 @@ do
 	local by = entries()
 	local linen = by[2589]
 	check(linen and linen.total == 48 and linen.name == "Linen Cloth", "counts every bag, bank, mailbox, guild bank and the warband bank: " .. tostring(linen and linen.total))
-	check(linen.detail == "48  ·  4 places", "the details are short: the total and how many places: " .. tostring(linen.detail))
+	check(linen.detail == "x48  ·  4 places", "the details are short: the total and how many places: " .. tostring(linen.detail))
 	check(ns.providers.stored.explicit == true, "@stored is its own search (a plain search offers it when only it has a match)")
 	local gs = St.Groups(linen)
 	check(gs[1].name == "Me Sur" and gs[1].mine and gs[1].total == 28 and gs[2].name == "My Guild (guild)" and gs[3].name == "Alt Guy" and gs[4].name == "Warband", "grouped by who has them, most first")
@@ -4465,7 +4465,7 @@ do
 	by = entries()
 	linen = by[2589]
 	check(linen and linen.total == 46 and linen.link == LINK, "Syndicator's counts, hidden characters left out, with its item link: " .. tostring(linen and linen.total))
-	check(linen.detail == "46  ·  3 places", "details: " .. linen.detail)
+	check(linen.detail == "x46  ·  3 places", "details: " .. linen.detail)
 	check(by[1234] and by[1234].total == 4 and by[555] and by[555].detail:find("Guildy", 1, true), "bank tabs and guild banks read")
 	check(by[999] == nil, "worn items alone aren't listed")
 	-- its updates mark the list stale
@@ -4545,7 +4545,7 @@ do
 	check(linen and linen.total == 10, "your bank's live count replaces the record (20 recorded, 5 there): " .. tostring(linen and linen.total))
 	local bankThing = by[1234]
 	check(bankThing and bankThing.total == 3 and not bankThing.detail:find("you", 1, true), "an item the record put in your bank but the game doesn't count isn't shown as yours: " .. tostring(bankThing and bankThing.detail))
-	check(bankThing.detail == "3  ·  Alt Guy", "it shows on the alt that has it: " .. bankThing.detail)
+	check(bankThing.detail == "x3  ·  Alt Guy", "it shows on the alt that has it: " .. bankThing.detail)
 	LIVE[3000].bank = 4
 	by = entries()
 	check(by[3000] and by[3000].total == 6 and St.Groups(by[3000])[1].mine and St.Groups(by[3000])[1].parts[1] == "bank 4", "your bank counted live even when the record missed it: " .. tostring(by[3000] and by[3000].detail))
@@ -5608,13 +5608,13 @@ do -- Shift+Right at the end of the prompt: the selected result written into it 
 	UI:Open("hearth")
 	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "the item is selected")
 	shiftRight()
-	check(UI.edit:GetText() == "@items Hearthstone " and UI.cursor == #"@items Hearthstone ", "Shift+Right writes it into the prompt as @kind name: " .. tostring(UI.edit:GetText()))
+	check(UI.edit:GetText() == "@item Hearthstone " and UI.cursor == #"@item Hearthstone ", "Shift+Right writes it into the prompt as @kind name: " .. tostring(UI.edit:GetText()))
 	check(UI.Results()[1] and UI.Results()[1].name == "Hearthstone", "and it still finds it")
 	UI:Hide()
 	-- from the empty prompt (your recent picks), and keeping a ">> channel" already typed
 	UI:Open("hearth >> party")
 	shiftRight()
-	check(UI.edit:GetText() == "@items Hearthstone >> party", "a >> channel already typed is kept: " .. tostring(UI.edit:GetText()))
+	check(UI.edit:GetText() == "@item Hearthstone >> party", "a >> channel already typed is kept: " .. tostring(UI.edit:GetText()))
 	UI:Hide()
 	-- with the cursor inside the text, Shift+Right still selects
 	UI:Open("hearth")

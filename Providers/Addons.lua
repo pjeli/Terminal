@@ -189,7 +189,7 @@ local function Detail(e)
 		state = e.enabled and "enabled" or "disabled"
 		if e.enabled ~= e.loaded then state = state .. " (.reload to apply)" end
 	end
-	return e.does and (e.does .. "  |  " .. state) or state
+	return e.does and (e.does .. "  ·  " .. state) or state
 end
 
 local function ToggleAddon(e)

@@ -107,7 +107,7 @@ P.MakeRecipeEntry = MakeEntry
 ns:RegisterProvider("recipes", {
 	busy = function() return P.scanBusy and "Indexing your professions' recipes" or nil end,
 	label = "Recipe",
-	color = "ff5fd0c0",
+	color = "ff66ffc7", -- (mint: apart from professions' teal; kind colours stay apart)
 	aliases = { "recipe", "craft", "crafts", "crafting", "reagent" },
 	collect = function()
 		P.unresolved = 0
@@ -218,7 +218,7 @@ ns:RegisterProvider("professions", {
 				key = pr.name,
 				name = pr.name,
 				icon = pr.icon,
-				detail = pr.rank .. " / " .. pr.maxRank,
+				detail = pr.rank .. "/" .. pr.maxRank,
 				skillLine = pr.skillLine,
 				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
 				secondary = LinkProfession, -- Shift+Enter: that link in chat

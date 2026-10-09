@@ -175,7 +175,7 @@ do
 		local frame = UI.frame
 		local e = UI.results[idx]
 		if not e or e.noActivate or not frame then return end
-		if InCombatLockdown() then ns:Print("Not in combat: right-click again afterwards.") return end
+		if InCombatLockdown() then ns:Print("In combat: right-click again once it's over.") return end
 		MenuFrame()
 		local t = Theme.Get()
 		local items = MenuItems(self, e)

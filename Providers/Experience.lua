@@ -100,19 +100,15 @@ end
 local function Thousands(n) return ns.Gold and ns.Gold.Thousands(n) or ("%.0f"):format(n) end
 local function Pct(a, b) return (b and b > 0) and math.floor(a / b * 100 + 0.5) or 0 end
 
-local function Ago(t)
-	local d = math.max(0, Now() - (t or 0))
-	if d < 3600 then return "just now" end
-	if d < 86400 then return math.floor(d / 3600) .. " h ago" end
-	return math.floor(d / 86400) .. " d ago"
-end
+local function Ago(t) return ns.Ago(Now() - (t or 0)) end -- (Util.lua: said as the loot and combat logs say it)
 
 local list -- (the last collect's rows: Enter lists them all)
 
---- "level 23, 41% (rested 57%)", "level 60 (max)": what's sent and printed.
-local function Summary(e, plain)
-	if e.maxed then return ("level %d (max)"):format(e.level) end
-	local s = ("level %d"):format(e.level)
+--- "level 23, 41% (rested 57%)", "level 60 (max)": what's sent and printed; `short`: the row's own ("Lv 23, 41%...").
+local function Summary(e, plain, short)
+	local lv = short and "Lv %d" or "level %d"
+	if e.maxed then return (lv .. " (max)"):format(e.level) end
+	local s = lv:format(e.level)
 	if e.xpMax then s = s .. (", %d%%"):format(Pct(e.xp or 0, e.xpMax)) end
 	if (e.rested or 0) > 0 and e.xpMax then -- (no experience read yet: no "rested 0%")
 		s = s .. (" (%srested %d%%)"):format(e.estimated and "~" or "", Pct(e.rested, e.xpMax))
@@ -169,7 +165,7 @@ local function Row(key, c, mine, myRealm, now)
 		tooltip = Tooltip, activate = PrintAll,
 		secondary = ToChatBox, secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, shareLink = ShareText,
 	}
-	local d = { Summary(e) }
+	local d = { Summary(e, false, true) }
 	if mine then d[#d + 1] = "|cff9d9d9d(you)|r" else d[#d + 1] = "|cff9d9d9d" .. Ago(c.t) .. "|r" end
 	e.detail = table.concat(d, "  ")
 	return e

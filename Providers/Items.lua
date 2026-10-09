@@ -367,8 +367,10 @@ local function WornRows(out)
 		local slotId = GetInventorySlotInfo(slotName)
 		local link = slotId and GetInventoryItemLink("player", slotId)
 		if link then
-			local itemID = C_Item.GetItemInfoInstant(link)
+			local itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
 			local name = NameOf(itemID, link)
+			-- (the game's name for where it's worn, as @gear says it: "Finger", "Off Hand", not "Finger0", "SecondaryHand")
+			local slotText = (type(equipLoc) == "string" and equipLoc ~= "" and _G[equipLoc]) or ns.SlotText(slotId) or slotName:gsub("Slot", "")
 			if name then
 				local _, _, quality = C_Item.GetItemInfo(link)
 				local bound = WornBound(slotId)
@@ -379,8 +381,8 @@ local function WornRows(out)
 					icon = GetInventoryItemTexture("player", slotId),
 					color = QualityHex(quality),
 					link = link,
-					text = "equipped " .. slotName:gsub("Slot", ""),
-					detail = "Equipped: " .. slotName:gsub("Slot", ""),
+					text = "equipped " .. slotName:gsub("Slot", "") .. " " .. ns.Lower(slotText),
+					detail = "Equipped: " .. slotText,
 					slotName = slotName, slotId = slotId, itemID = itemID,
 					bound = bound or nil, unbound = (not bound) or nil,
 					activate = ShowEquipped,
@@ -398,7 +400,7 @@ end
 ns:RegisterProvider("items", {
 	label = "Item",
 	color = "ffc8c8c8",
-	aliases = { "items", "bag", "bags", "inventory", "equipped" }, -- (@gear: equipment only, below)
+	aliases = { "item", "items", "bag", "bags", "inventory", "equipped" }, -- (@gear: equipment only, below)
 	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" },
 	guard = 1,
 	collect = function()
@@ -493,13 +495,13 @@ end
 
 SubKind("consumables", {
 	label = "Consumable",
-	color = "ff7fe08c",
+	color = "fff0ff66", -- (apart from the mounts' green)
 	aliases = { "consumable", "consumables", "consume", "food", "drink", "potion", "potions", "flask", "elixir", "scroll" },
 	want = function(e) return e.classID == CONSUMABLE end,
 })
 
 SubKind("mats", {
-	label = "Crafting Mat",
+	label = "Crafting mat",
 	color = "ffd9b26a",
 	aliases = { "craftingmats", "craftingmat", "mats", "mat", "materials", "material", "tradegoods", "tradegood" },
 	want = function(e)

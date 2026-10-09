@@ -457,7 +457,7 @@ local function StoredRow(id, x, name)
 		color = QualityHex(quality),
 		link = x.link or ("item:" .. id),
 		-- short, so it fits beside the name; the tooltip has the rest
-		detail = x.total .. "  ·  " .. (nOwners == 1
+		detail = "x" .. x.total .. "  ·  " .. (nOwners == 1
 			and ((first.where == "guild" and first.who .. " (guild)" or first.who) .. (first.mine and " (you)" or ""))
 			or (nOwners .. " places")),
 		quality = quality,
@@ -471,7 +471,7 @@ local function StoredRow(id, x, name)
 end
 
 ns:RegisterProvider("stored", {
-	label = "Stored",
+	label = "Alts & bank",
 	color = "ffb4a0ff",
 	aliases = { "stored", "alts", "alt", "bank", "banks", "storage", "everywhere", "syndicator", "bagnon" },
 	busy = function() return S.Busy() end, -- the terminal's spinner

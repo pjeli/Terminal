@@ -339,9 +339,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 				end
 				if chosen then
 					SaveBindings(GetCurrentBindingSet())
-					ns:Print("loaded. Press " .. chosen .. " (or type /term) to open. Rebind with: /term .bind <KEY>")
+					ns:Print("Loaded. Press " .. chosen .. " (or type /term) to open. Rebind with: /term .bind <KEY>")
 				else
-					ns:Print("loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE")
+					ns:Print("Loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE")
 				end
 			end
 		end

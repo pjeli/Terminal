@@ -100,7 +100,7 @@ end
 
 -- @achievement: all of them (registered first, so it owns the @words)
 ns:RegisterProvider("achievementlist", {
-	label = "Achieve",
+	label = "Achievement",
 	color = ACH_COLOR,
 	aliases = { "achievement", "achievements", "ach", "achieve" },
 	explicit = true, -- (plain searches read the earned list below)
@@ -112,7 +112,9 @@ ns:RegisterProvider("achievementlist", {
 
 -- plain searches: the earned ones, the same rows
 ns:RegisterProvider("achievements", {
-	label = "Achieve",
+	internal = true, -- (plain searches' copy of @achievement's earned rows: not listed as a kind of its own, .kinds or @)
+	nameOf = "achievementlist", -- (its rows are named as @achievement's: Shift+Right writes "@achievement ...")
+	label = "Achievement",
 	color = ACH_COLOR,
 	lazy = true,
 	events = { "ACHIEVEMENT_EARNED" },

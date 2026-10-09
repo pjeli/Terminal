@@ -91,7 +91,7 @@ local function CheckChar(key)
 		local q, c = edit:GetText(), UI.cursor
 		UI:SetQuery(q:sub(1, c) .. ch .. q:sub(c + 1), c + #ch)
 		UI:EnterEdit()
-		ns:Print("this client doesn't pass typed text to addon frames, so the plain search box is used (windows that need a secure click will take Enter twice).")
+		ns:Print("This client doesn't pass typed text to addon frames, so the plain search box is used (windows that need a secure click will take Enter twice).")
 	end)
 end
 

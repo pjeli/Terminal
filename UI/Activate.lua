@@ -367,7 +367,11 @@ function UI:Activate(idx, opts)
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
 		ns:Trace("combat: ignored Enter on " .. tostring(e.name))
-		ns:Print("In combat: can't open " .. tostring(e.name) .. " now.")
+		-- (what the key would have done: "use", "show in spellbook", "run"... not always "open")
+		local enter, shift
+		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
+		local verb = (opts.secondary and shift) or enter or "open"
+		ns:Print(("%s: can't %s in combat."):format(tostring(e.name), verb))
 		return
 	end
 	-- ">> channel": never opened or run, only sent (by the game's press, armed below)
@@ -390,7 +394,7 @@ function UI:Activate(idx, opts)
 	if not fn then return end
 	local ok, ret = pcall(fn, e, args, self)
 	if not ok then
-		ns:Print("error: " .. tostring(ret))
+		ns:Print("Error: " .. tostring(ret))
 		return
 	end
 	-- a command's answer goes to the chat window, not into the results

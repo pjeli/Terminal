@@ -70,7 +70,7 @@ local function PickColor(key)
 			cancelFunc = function() T.Set(key, prev) end,
 		})
 	else
-		ns:Print("set it from the terminal instead:  .set " .. key .. " rrggbb")
+		ns:Print("Set it from the terminal instead:  .set " .. key .. " rrggbb")
 	end
 end
 
@@ -614,7 +614,7 @@ local OPTIONS_SPEC = { macro = OptionsMacro }
 
 ns:RegisterProvider("terminal", {
 	label = "Terminal",
-	color = "ff33ff99",
+	color = "ffd1ffb2", -- (not the slash commands' green)
 	aliases = { "terminal", "theme", "themes" },
 	collect = function()
 		local out = {

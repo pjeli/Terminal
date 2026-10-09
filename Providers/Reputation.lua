@@ -156,7 +156,7 @@ local REP_SECURE = { binding = "TOGGLECHARACTER2", click = ns.Secure.REP_CLICK }
 
 ns:RegisterProvider("reputation", {
 	label = "Reputation",
-	color = "ff9fc6ff",
+	color = "fff07ef0", -- (orchid: apart from dungeons' blue)
 	aliases = { "reputation", "reputations", "rep", "reps", "faction", "factions", "standing", "repuatation" },
 	noCombat = true, -- opening the character window is blocked in combat
 	events = { "UPDATE_FACTION" },

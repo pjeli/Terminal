@@ -37,7 +37,7 @@ function UI:StepSearch(job)
 	job.slices = (job.slices or 0) + 1
 	if not ok then
 		self.searchJob = nil
-		ns:Print("search error: " .. tostring(res))
+		ns:Print("Search error: " .. tostring(res))
 		return {}, true
 	end
 	if coroutine.status(job.co) == "dead" then
@@ -60,7 +60,7 @@ function UI:CollapseGroup(list)
 	local n = #group
 	-- (what the rows are, as the chat line will say it: no row's text worked out, so no NPC's map pin is set here)
 	local what = n > 0 and SH.GroupHeader(group, to.query) or nil
-	local row = { kind = "send", kindLabel = "|cff33ff99chat|r", icon = "Interface\\Icons\\INV_Letter_15", raw = true,
+	local row = { kind = "send", kindLabel = "|cff33ff99chat|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
 		sendAll = true, _pos = UI.NO_POS, _score = 0, detail = what or "" }
 	if n == 0 then
 		row.name, row.noActivate, row.detail = "Nothing to send", true, ""
@@ -130,8 +130,13 @@ function UI:SyntaxRows(text)
 		local want = ns.Lower(last:sub(2))
 		for _, id in ipairs(ns.providerOrder) do
 			local p = ns.providers[id]
+			-- (its name, as .kinds, Shift+Right and Alt+` write it: its first alias, else its id, else an alias the
+			-- typed letters start; a list only plain searches read isn't a kind to pick)
+			local main = (p.aliases and p.aliases[1]) or id
 			local word
-			if id:sub(1, #want) == want then word = id
+			if p.internal then word = nil
+			elseif ns.Lower(main):sub(1, #want) == want then word = main
+			elseif id:sub(1, #want) == want then word = id
 			else
 				for _, a in ipairs(p.aliases or {}) do
 					if type(a) == "string" and ns.Lower(a):sub(1, #want) == want then word = a break end

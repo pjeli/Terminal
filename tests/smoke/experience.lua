@@ -29,7 +29,7 @@ do
 	-- you, live
 	P._dirty = true
 	local res = UI:Search("@xp")
-	check(#res == 1 and res[1].mine and res[1].level == 23 and res[1].detail:find("level 23, 41%", 1, true)
+	check(#res == 1 and res[1].mine and res[1].level == 23 and res[1].detail:find("Lv 23, 41%", 1, true)
 		and res[1].detail:find("rested 57%", 1, true), "you: level, %, rested %: " .. tostring(res[1] and res[1].detail))
 	check(ns.Share.Line(res[1]):find(": level 23, 41% (rested 57%)", 1, true), "sent: " .. tostring(ns.Share.Line(res[1])))
 	check(ns:FindCommand("xp").run("")[3]:find("Alts show up", 1, true), ".xp with no alts says how they come")
@@ -51,7 +51,7 @@ do
 		"8 h resting = 5% of a level, marked as an estimate: " .. tostring(pally and pally.detail))
 	local mage = by["Old Mage-Other"]
 	check(mage and mage.rested == 7500, "another realm says so; rested caps at a level and a half: " .. tostring(mage and mage.rested))
-	check(by["Maxed Rogue"].detail:find("level 60 (max)", 1, true), "max level says so")
+	check(by["Maxed Rogue"].detail:find("Lv 60 (max)", 1, true), "max level says so")
 	check(#UI:Search("@xp lvl:30-50") == 1, "lvl: works on them")
 
 	-- the note follows you: an experience change rewrites it; logging out keeps where the estimate starts
@@ -67,7 +67,7 @@ do
 		.. tostring(note.xp) .. "/" .. tostring(note.max))
 	P._dirty = true
 	res = UI:Search("@xp")
-	check(res[1].mine and res[1].detail:find("level 23, 82%", 1, true), "your row still shows it: " .. tostring(res[1].detail))
+	check(res[1].mine and res[1].detail:find("Lv 23, 82%", 1, true), "your row still shows it: " .. tostring(res[1].detail))
 	level = 24 -- (a new level with no numbers yet: the old ones don't belong to it)
 	X.Record()
 	check(ns.db.xpChars["Player-1-AAA"].level == 24 and ns.db.xpChars["Player-1-AAA"].max == nil, "a new level drops the old numbers")

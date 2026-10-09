@@ -39,12 +39,7 @@ local function Equip(e)
 	ns:Print("Equipping " .. e.name .. (info and info.lost > 0 and (" (" .. info.lost .. " item" .. (info.lost == 1 and "" or "s") .. " missing)") or "") .. ".")
 end
 
-local SLOT_NAMES = {
-	[1] = "Head", [2] = "Neck", [3] = "Shoulder", [4] = "Shirt", [5] = "Chest", [6] = "Waist",
-	[7] = "Legs", [8] = "Feet", [9] = "Wrist", [10] = "Hands", [11] = "Finger", [12] = "Finger",
-	[13] = "Trinket", [14] = "Trinket", [15] = "Back", [16] = "Main hand", [17] = "Off hand",
-	[18] = "Ranged", [19] = "Tabard",
-}
+local SlotText = ns.SlotText -- (the game's own slot names: Util.lua)
 
 --- The set's items, one line each, for chat.
 local function ListItems(e)
@@ -62,7 +57,7 @@ local function ListItems(e)
 			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or ("item " .. itemID)
 			local have = C_Item.GetItemCount and C_Item.GetItemCount(itemID, false) or 1
 			local worn = GetInventoryItemID and GetInventoryItemID("player", slot) == itemID
-			lines[#lines + 1] = "  " .. (SLOT_NAMES[slot] or ("Slot " .. slot)) .. ": " .. name
+			lines[#lines + 1] = "  " .. (SlotText(slot) or ("Slot " .. slot)) .. ": " .. name
 				.. ((not worn and (have or 0) == 0) and "  (missing)" or "")
 		end
 	end
@@ -201,7 +196,7 @@ local function ShowInManager(e)
 end
 
 ns:RegisterProvider("equipmentset", {
-	label = "Equipment Set",
+	label = "Equipment set",
 	color = "ff9fe0c0",
 	aliases = { "equipmentset", "equipmentsets", "equipment", "set", "sets", "outfit", "outfits" }, -- (@equipment: the sets; @gear is the pieces)
 	noCombat = true, -- equipping is blocked in combat

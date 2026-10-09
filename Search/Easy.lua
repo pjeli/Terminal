@@ -609,7 +609,7 @@ end
 function E.ShowConfirm()
 	local P = ns.Panel
 	if InCombatLockdown() then
-		ns:Print("Not in combat: type .advanced again afterwards.")
+		ns:Print("In combat: type .advanced again once it's over.")
 		return
 	end
 	if not dialog then

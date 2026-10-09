@@ -219,7 +219,7 @@ local function PetLink(e) return Str(C_PetJournal.GetBattlePetLink and Safe(C_Pe
 local function PetDetail(t)
 	local parts = {}
 	local level = rawget(t, "level")
-	if level and level > 0 then parts[1] = "Level " .. level end
+	if level and level > 0 then parts[1] = "Lv " .. level end
 	local species = rawget(t, "species")
 	if species and species ~= rawget(t, "name") then parts[#parts + 1] = species end
 	if rawget(t, "fav") then parts[#parts + 1] = "Favorite" end

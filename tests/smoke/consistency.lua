@@ -323,3 +323,85 @@ do
 	check(vein and #ns.Share.GroupRows({ vein }) == 1, "and it's sent with the others (>>>, All N)")
 	I.ItemField, I.ObjectName, I.NearestSpawn, I.Here = save.field, save.name, save.spawn, save.here
 end
+
+-- one wording for one thing: levels, counts, progress, slot names, times, messages
+do
+	check(ns.Ago(30) == "just now" and ns.Ago(600) == "10 min ago" and ns.Ago(7200) == "2 h ago" and ns.Ago(200000) == "2 d ago",
+		"a time ago, said one way (the logs and experience alike)")
+	check(ns.SlotText(16) == (_G.INVTYPE_WEAPONMAINHAND or "Main Hand") and ns.SlotText(11) == (_G.INVTYPE_FINGER or "Finger"),
+		"slot names: the game's own")
+	local qrows = ns:GetEntries(ns.providers.quests)
+	local q
+	for _, e in ipairs(qrows) do if e.level then q = e break end end
+	check(not q or q.detail:find("^Lv %d"), "quest log rows: Lv 5, as Questie's, zones and guild rows say it: " .. tostring(q and q.detail))
+	-- in combat, what couldn't be done is named (not always "open")
+	local printed = {}
+	local pr, icl = ns.Print, _G.InCombatLockdown
+	ns.Print = function(_, m) printed[#printed + 1] = m end
+	_G.InCombatLockdown = function() return true end
+	UI.results, UI.sel = { { kind = "macros", name = "Heal Macro", secure = { macro = "/cast x" }, noCombat = true } }, 1
+	UI:Activate(1)
+	_G.InCombatLockdown, ns.Print = icl, pr
+	check(printed[1] == "Heal Macro: can't run in combat.", "in combat: the refused action by its verb: " .. tostring(printed[1]))
+	UI.results = {}
+end
+
+-- kind colours stay apart: none the same, none of the pairs that were nearly the same
+do
+	local seen, same = {}, {}
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		local src = p.collect and debug.getinfo(p.collect, "S").source or ""
+		if src:find("^@Terminal/") and not src:find("tests", 1, true) and not p.internal and p.color then
+			local c = p.color:lower()
+			if seen[c] then same[#same + 1] = seen[c] .. "=" .. id end
+			seen[c] = id
+		end
+	end
+	check(#same == 0, "no two kinds share a colour: " .. table.concat(same, ", "))
+	local function D(a, b)
+		local function rgb(h) h = h:sub(-6) return tonumber(h:sub(1, 2), 16), tonumber(h:sub(3, 4), 16), tonumber(h:sub(5, 6), 16) end
+		local r1, g1, b1 = rgb(a)
+		local r2, g2, b2 = rgb(b)
+		return math.sqrt((r1 - r2) ^ 2 + (g1 - g2) ^ 2 + (b1 - b2) ^ 2)
+	end
+	local P = ns.providers
+	local pairs_ = { { "recipes", "professions" }, { "terminal", "slash" }, { "reputation", "dungeon" }, { "cvars", "dungeon" },
+		{ "cvars", "reputation" }, { "keybinds", "stored" }, { "consumables", "mounts" } }
+	for _, pr in ipairs(pairs_) do
+		local a, b = P[pr[1]], P[pr[2]]
+		if a and b and a.color and b.color then
+			check(D(a.color, b.color) >= 40, pr[1] .. " and " .. pr[2] .. " apart: " .. a.color .. " " .. b.color)
+		end
+	end
+	local calc = ns.Calc.Entry("1+1")
+	check(calc and not calc.kindLabel:find("9fd0ff", 1, true), "the calculator's label isn't @gear's blue")
+end
+
+-- a kind is named the same everywhere: .kinds, the @ pick list, Shift+Right; whole labels
+do
+	local kinds = table.concat(ns:FindCommand("kinds").run("") or {}, " ")
+	check(not kinds:find("@achievements ", 1, true) and kinds:find("@achievement ", 1, true) and kinds:find("@item ", 1, true),
+		".kinds: each kind once, by its name: " .. kinds:sub(1, 120))
+	local was = ns.db.easyMode
+	ns.db.easyMode = false
+	UI:Open(""); FlushAll()
+	T.typeText("@ach")
+	local names = {}
+	for _, r in ipairs(UI.Results()) do names[#names + 1] = r.name end
+	check(#names == 1 and names[1] == "@achievement", "@ach: the kind once, by its name: " .. table.concat(names, ","))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = was
+	local earned = ns:GetEntries(ns.providers.achievements)[1]
+	local text = earned and UI:ResultText(earned)
+	check(not earned or (text and text:find("^@achievement ")), "an earned achievement is written as @achievement: " .. tostring(text))
+	check(ns.providers.achievementlist.label == "Achievement" and ns.providers.quests.label == "Quest log"
+		and ns.providers.equipmentset.label == "Equipment set" and ns.providers.stored.label == "Alts & bank",
+		"labels: whole words, as the categories say them")
+	-- "where should i level" rows: the maps' label, remembered as the zone's own row
+	local Z = ns.Zones
+	local rows = Z and Z.Answer and Z.Answer("level", 20) or {}
+	local z = rows[1]
+	check(not z or z.raw or (z.kindLabel and z.kindLabel:find("Map", 1, true) and z.freqKey == "maps:" .. z.key),
+		"a zone answer: the map's label, kept in recent picks: " .. tostring(z and z.kindLabel) .. " " .. tostring(z and z.freqKey))
+end
