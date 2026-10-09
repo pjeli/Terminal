@@ -115,10 +115,13 @@ end
 
 -- An item the client hasn't loaded yet shows "Retrieving item information" and the tooltip never redraws itself (it
 -- stayed so until you moved away and back). Its data arriving (GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT for that
--- id) redraws it; the server may drop an ask, so it's asked again every TIP_RETRY s, TIP_TRIES times.
-UI.TIP_RETRY, UI.TIP_TRIES = 0.6, 8
+-- id) redraws it; the server may drop an ask, so it's asked again every TIP_RETRY s, TIP_TRIES times. An item the
+-- server says it doesn't have isn't asked for again for TIP_FAILED s (it answered at once, and every answer redrew
+-- and asked again: an ask a few times a second while the row stayed selected).
+UI.TIP_RETRY, UI.TIP_TRIES, UI.TIP_FAILED = 0.6, 8, 60
 do
 	local waiter, waitGen = nil, 0
+	local failed, failedN = {}, 0 -- item id -> when the server said it has no such item
 	local function ItemOfTip(e, link)
 		local id = tonumber(e.itemID)
 		if not id and type(link) == "string" then id = tonumber(link:match("item:(%d+)")) end
@@ -136,22 +139,32 @@ do
 		UI:UpdateTooltip()
 		return true
 	end
+	local function Now() return GetTime and GetTime() or 0 end
 	function UI.WaitForTipItem(t, e, link)
 		waitGen = waitGen + 1
 		t.waitID = nil
 		local id = ItemOfTip(e, link)
 		if not id or Cached(id) then return end
+		if failed[id] and Now() - failed[id] < UI.TIP_FAILED then return end
 		t.waitID = id
 		if not waiter then
 			waiter = CreateFrame("Frame")
+			UI.tipWaiter = waiter -- (tests)
 			pcall(waiter.RegisterEvent, waiter, "GET_ITEM_INFO_RECEIVED")
 			pcall(waiter.RegisterEvent, waiter, "ITEM_DATA_LOAD_RESULT")
-			waiter:SetScript("OnEvent", function(_, _, got)
+			waiter:SetScript("OnEvent", function(_, _, got, ok)
 				local tip = Tip()
-				if got and tip.waitID == got and tip.entry then
+				if not (got and tip.waitID == got and tip.entry) then return end
+				if ok == false then -- (the server has no such item: nothing more to wait for)
+					if failedN > 500 then failed, failedN = {}, 0 end
+					if not failed[got] then failedN = failedN + 1 end
+					failed[got] = Now()
 					tip.waitID = nil
-					Redraw(tip, tip.entry)
+					return
 				end
+				if not Cached(got) then return end -- (not in yet: the timer keeps watching)
+				tip.waitID = nil
+				Redraw(tip, tip.entry)
 			end)
 		end
 		if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end

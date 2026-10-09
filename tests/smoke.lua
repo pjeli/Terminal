@@ -335,6 +335,31 @@ local plain = UI:Search("foo")
 for _, e in ipairs(plain) do check(e.kind ~= "slash", "slash entries leaked into plain search") end
 
 io.write("[plain search ok]\n")
+-- the first open after a /reload can be Alt+` (Advanced for one run): building the frame hides it, and that hide isn't a
+-- close (0.44.10: its OnHide ended the run, so it opened in Simple mode). The game fires OnHide on a hide; the mock
+-- doesn't, so the terminal's frame does here, while it's built.
+do
+	local cf, built = _G.CreateFrame, nil
+	_G.CreateFrame = function(kind, name, ...)
+		local f = cf(kind, name, ...)
+		if name == "TerminalFrame" then
+			built = f
+			f.Hide = function(self)
+				local was = self.shown ~= false -- (a new frame is shown in the game)
+				self.shown = false
+				if was and self.scripts.OnHide then self.scripts.OnHide(self) end
+			end
+		end
+		return f
+	end
+	ns.db.easyMode = true
+	UI:AdvancedOnce()
+	_G.CreateFrame = cf
+	if built then built.Hide = nil end
+	check(UI:IsShown() and ns.Easy.temp ~= nil and not ns.Easy.On(), "the first open after a reload by Alt+`: Advanced for that run")
+	UI:Hide(); UI:EndAdvancedOnce()
+	ns.db.easyMode = false
+end
 -- slash mode
 UI:Open("/rl now")
 local r = UI:WordSearch(ns:GetEntries(ns.providers.slash), "/rl now")

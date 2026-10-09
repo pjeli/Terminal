@@ -118,25 +118,37 @@ function LL.Worth(link, id)
 end
 
 --- Adds a drop (or fills in one just added: the same item to the same player a moment ago).
-function LL.Add(link, who, count, from, src)
+-- has this drop been told this way already? (src: the ways it was told, "roll+loot"; "both" from before 0.44.10)
+local function Told(e, src)
+	local s = e.src
+	return s == "both" or s == src or (type(s) == "string" and s:find(src, 1, true) ~= nil)
+end
+
+--- Logs a drop: its link, who got it, how many, the boss (if known) and how it was told ("loot" line, "roll" win,
+--- "history"). `drop`: the loot history's own key for it (encounter:list), told again on every update.
+function LL.Add(link, who, count, from, src, drop)
 	local log = Log()
 	if not log or type(link) ~= "string" then return nil end
 	local id = tonumber(link:match("item:(%d+)"))
 	if not id or not LL.Worth(link, id) then return nil end
 	local t = Now()
 	who = type(who) == "string" and who ~= "" and who or "?"
+	src = src or "loot"
 	for i = 1, math.min(#log, 20) do
 		local e = log[i]
-		-- (one drop told twice: a roll's win or the loot history, then its loot line; two loot lines are two drops)
-		if e.id == id and e.who == who and t - (e.t or 0) <= LL.SAME and e.src ~= (src or "loot") then
+		if drop and e.drop == drop then return e end -- (the loot history updated again for a drop logged already)
+		-- (one drop told two ways: a roll's win or the loot history, then its loot line; told the same way twice, it's
+		-- two drops: two loot lines, two wins)
+		if e.id == id and e.who == who and t - (e.t or 0) <= LL.SAME and not Told(e, src) then
 			if from and not e.from then e.from = from end
-			e.src = "both"
+			if drop and not e.drop then e.drop = drop end
+			e.src = (e.src or "loot") .. "+" .. src
 			return e
 		end
 	end
 	local zone = _G.GetRealZoneText and Safe(_G.GetRealZoneText)
 	local e = { t = t, id = id, link = link, who = who, n = count and count > 1 and count or nil,
-		zone = type(zone) == "string" and zone ~= "" and zone or nil, from = from, src = src or "loot" }
+		zone = type(zone) == "string" and zone ~= "" and zone or nil, from = from, src = src, drop = drop }
 	table.insert(log, 1, e)
 	for i = #log, LL.MAX + 1, -1 do log[i] = nil end
 	local p = ns.providers.lootlog
@@ -156,7 +168,7 @@ local function FromHistory(encounterID, lootListID)
 	local enc = H.GetInfoForEncounter and Safe(H.GetInfoForEncounter, encounterID)
 	local from = type(enc) == "table" and type(enc.encounterName) == "string" and enc.encounterName or nil
 	if ns.Secret and (ns.Secret(winner) or ns.Secret(drop.itemHyperlink)) then return end
-	LL.Add(drop.itemHyperlink, winner, 1, from, "history")
+	LL.Add(drop.itemHyperlink, winner, 1, from, "history", tostring(encounterID) .. ":" .. tostring(lootListID))
 end
 LL.FromHistory = FromHistory
 

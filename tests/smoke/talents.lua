@@ -16,13 +16,13 @@ do
 	_G.Constants.TraitConsts = _G.Constants.TraitConsts or {}
 	_G.Constants.TraitConsts.VIEW_TRAIT_CONFIG_ID = VIEW
 	_G.UnitClass = function() return "Warrior", "WARRIOR" end
-	local CLASSES = { { "Warrior", "WARRIOR" }, { "Mage", "MAGE" }, { "Priest", "PRIEST" } }
+	local CLASSES = { { "Warrior", "WARRIOR" }, { "Mage", "MAGE" }, { "Priest", "PRIEST" }, { "Evoker", "EVOKER" } }
 	_G.GetNumClasses = function() return #CLASSES end
 	_G.GetClassInfo = function(i) local c = CLASSES[i]; if c then return c[1], c[2], i end end
 	-- two mage specs share one tree (classic tabs in one tree): read once
 	_G.GetNumSpecializationsForClassID = function(id) return id == 2 and 2 or 1 end
 	_G.GetSpecializationInfoForClassID = function(id, i) return id * 10 + i end
-	local TREE = { [11] = 77, [21] = 88, [22] = 88, [31] = 99 }
+	local TREE = { [11] = 77, [21] = 88, [22] = 88, [31] = 99, [41] = 111 }
 	local viewed, inits = nil, 0
 	_G.C_ClassTalents = {
 		GetTraitTreeForSpec = function(spec) return TREE[spec] end,
@@ -31,6 +31,7 @@ do
 	local NODES = {
 		[88] = { { 2001, "Ice Barrier", 2, 1 }, { 2002, "Improved Frostbolt", 2, 5 }, { 2003, "Cruel Winter", 1, 3 } },
 		[99] = { { 3001, "Improved Renew", 1, 3 } },
+		[111] = { { 4001, "Pyre", 1, 1 } }, -- (a class the retail API names that WoW Forever doesn't have)
 	}
 	local function Node(tree, id) for _, n in ipairs(NODES[tree] or {}) do if n[1] == id then return n end end end
 	C_Traits.GetTreeNodes = function(tree)
@@ -40,6 +41,7 @@ do
 	C_Traits.GetGroupDisplayInfoByTreeID = function(tree)
 		if tree == 88 then return { { groupID = 1, displayName = "Arcane", orderIndex = 1 }, { groupID = 2, displayName = "Frost", orderIndex = 2 } } end
 		if tree == 99 then return { { groupID = 1, displayName = "Holy", orderIndex = 1 } } end
+		if tree == 111 then return { { groupID = 1, displayName = "Devastation", orderIndex = 1 } } end
 		return save.traits.GetGroupDisplayInfoByTreeID(tree)
 	end
 	C_Traits.GetNodeInfo = function(config, id)
@@ -71,7 +73,8 @@ do
 	check(ib and ib.detail:find("^|cff3fc7ebMage|r") and not ib.detail:find("|cff|c", 1, true),
 		"the class name in its colour, no stray colour code: " .. tostring(ib and ib.detail))
 	_G.RAID_CLASS_COLORS = rcc
-	check(inits == 3, "each class's tree read once (two mage specs share one): " .. inits)
+	check(inits == 3, "each class's tree read once (two mage specs share one), WoW Forever's classes only: " .. inits)
+	check(not by["Pyre"], "a class WoW Forever doesn't have isn't listed")
 	check(ns.db.talentCache and ns.db.talentCache.classes.MAGE and #ns.db.talentCache.classes.MAGE == 3, "kept in the saved variables")
 	-- your own class first among equal matches
 	local res = UI:Search("@talent cruel")
@@ -99,6 +102,22 @@ do
 	P._dirty = true
 	ns:GetEntries(P)
 	check(inits == 3, "rebuilt from the saved copy")
+	-- first asked in combat: nothing then, read once combat is over (the list made again)
+	ns.db.talentCache, TL.triedOthers = nil, nil
+	local icl = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	P._dirty = true
+	by = {}
+	for _, e in ipairs(ns:GetEntries(P)) do by[e.name] = e end
+	check(not by["Ice Barrier"] and by["Deflection"], "in combat: your own only for now")
+	T.FlushAll()
+	check(not P._dirty, "still in combat: not made again yet")
+	_G.InCombatLockdown = function() return false end
+	T.FlushAll()
+	by = {}
+	for _, e in ipairs(ns:GetEntries(P)) do by[e.name] = e end
+	check(by["Ice Barrier"], "combat over: the other classes read and listed")
+	_G.InCombatLockdown = icl
 	-- a client without the view loadout: none, nothing kept, not asked again this session
 	ns.db.talentCache, TL.triedOthers = nil, nil
 	_G.C_ClassTalents = nil

@@ -103,7 +103,8 @@ local function WornGear(w)
 			-- (by its own link: a worn piece's random suffix and enchant are its own)
 			if get then
 				local okS, st = pcall(get, l)
-				if okS and type(st) == "table" then values[slot] = F.StatValue(st, w) or 0 end
+				-- (nil when it has none to weigh: then item levels are compared, not any stat against nothing)
+				if okS and type(st) == "table" then values[slot] = F.StatValue(st, w) end
 			end
 		end
 	end

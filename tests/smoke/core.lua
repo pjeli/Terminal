@@ -63,6 +63,21 @@ do -- moving the selection repaints only the selection, not every row; the toolt
 	loaded = true
 	T.FlushAll()
 	check(sets == 2 and tt.waitID == nil, "its data in: the tooltip is drawn again (" .. sets .. " SetHyperlink calls)")
+	-- an item the server doesn't have: its "no" ends the wait, and it isn't asked for again at once (0.44.10)
+	UI:Hide()
+	local reqWas = C_Item.RequestLoadItemDataByID
+	local asks = 0
+	C_Item.IsItemDataCachedByID = function() return false end
+	C_Item.RequestLoadItemDataByID = function() asks = asks + 1 end
+	UI:Open("linen")
+	local w, waited = UI.tipWaiter, tt.waitID
+	check(w and waited and asks == 1, "waiting on it, asked once: " .. asks)
+	if w and waited then w.scripts.OnEvent(w, "ITEM_DATA_LOAD_RESULT", waited, false) end
+	check(tt.waitID == nil and asks == 1, "the server's no: not waited on, not asked again: " .. asks)
+	T.FlushAll()
+	UI:Hide(); UI:Open("linen")
+	check(asks == 1, "back on the row a moment later: still not asked again: " .. asks)
+	C_Item.RequestLoadItemDataByID = reqWas
 	C_Item.IsItemDataCachedByID = cachedWas
 	tt.SetHyperlink = base
 	UI:Hide()

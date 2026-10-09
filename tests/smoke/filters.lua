@@ -463,6 +463,8 @@ do
 		[10] = { "Big Axe", "|Hitem:10|h", 2, 22, 15, "Weapon", "Two-Handed Axes", 1, "INVTYPE_2HWEAPON" },
 		[11] = { "Sword", "|Hitem:11|h", 2, 20, 15, "Weapon", "One-Handed Swords", 1, "INVTYPE_WEAPONMAINHAND" },
 		[12] = { "Shield", "|Hitem:12|h", 2, 20, 15, "Armor", "Shields", 1, "INVTYPE_SHIELD" },
+		[14] = { "Helm of Strength", "|Hitem:14|h", 2, 5, 1, "Armor", "Mail", 1, "INVTYPE_HEAD" }, -- +1 str, ilvl 5
+		[15] = { "Plain Helm", "|Hitem:15|h", 1, 25, 15, "Armor", "Mail", 1, "INVTYPE_HEAD" }, -- worn: no stats to weigh
 	}
 	local STATS = {
 		[1] = { ITEM_MOD_STRENGTH_SHORT = 4, RESISTANCE0_NAME = 100 },
@@ -472,6 +474,7 @@ do
 		[5] = { ITEM_MOD_STRENGTH_SHORT = 2 }, [6] = { ITEM_MOD_STRENGTH_SHORT = 5 }, [7] = { ITEM_MOD_STRENGTH_SHORT = 1 },
 		[10] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12, ITEM_MOD_STRENGTH_SHORT = 2 }, -- (38: over the sword, 36, not sword + shield, ~46)
 		[11] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12 }, [12] = { RESISTANCE0_NAME = 400, ITEM_MOD_STAMINA_SHORT = 3 },
+		[14] = { ITEM_MOD_STRENGTH_SHORT = 1 }, [15] = {},
 	}
 	local idOf = function(x) return tonumber(tostring(x):match("item:(%d+)")) or tonumber(x) end
 	C_Item.GetItemInfo = function(id) local t = ITEMS[idOf(id) or 0] if t then return unpack(t) end end
@@ -481,7 +484,7 @@ do
 	_G.UnitLevel = function() return 20 end
 	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
 	C_PlayerInfo.CanUseItem = function() return true end
-	local wear = { [10] = 1, [11] = 5, [12] = 7, [13] = 8, [16] = 11, [17] = 12 }
+	local wear = { [1] = 15, [10] = 1, [11] = 5, [12] = 7, [13] = 8, [16] = 11, [17] = 12 }
 	_G.GetInventoryItemLink = function(_, slot) local id = wear[slot] if id then return "|Hitem:" .. id .. "|h[x]|h" end end
 	_G.GetInventoryItemID = function(_, slot) return wear[slot] end
 	local fit = F.GearFit()
@@ -491,6 +494,7 @@ do
 	check(not up(4), "upgrades: a caster's gloves aren't a warrior's upgrade")
 	check(up(6) and not up(7), "rings: against the weaker of the two you wear")
 	check(up(9), "trinkets with no stats to weigh: a higher item level")
+	check(not up(14), "worn gear with no stats to weigh: item levels compared, not any stat over nothing (0.44.10)")
 	check(not up(10), "a two-hander against main hand and shield together (not just the sword)")
 	STATS[10][ITEM_MOD_STRENGTH_SHORT or "ITEM_MOD_STRENGTH_SHORT"] = 30
 	F.ClearStats()

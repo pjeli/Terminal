@@ -99,6 +99,9 @@ do
 	local function BuildFrame()
 		frame = CreateFrame("Frame", "TerminalFrame", UIParent, "BackdropTemplate")
 		UI.frame = frame
+		-- (hidden before its scripts are set: this first hide isn't a close. Its OnHide ended Alt+`'s one run, so the
+		-- first Alt+` after a /reload opened in Simple mode)
+		frame:Hide()
 		frame:SetFrameStrata("DIALOG")
 		frame:SetClampedToScreen(true)
 		frame:SetBackdrop({
@@ -152,7 +155,6 @@ do
 			if UI._repeat.key == key then UI.StopRepeat() end
 			if key == "TAB" then UI:TabReleased() end
 		end)
-		frame:Hide()
 
 		local pt = ns.db.point
 		if pt then

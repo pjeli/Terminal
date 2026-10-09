@@ -60,12 +60,27 @@ do
 	-- two loot lines of the same thing are two drops (farming); the history's drop then its loot line are one
 	now = now + 3
 	LL.OnEvent("CHAT_MSG_LOOT", "Bob receives loot: " .. belt .. ".")
-	check(#ns.db.lootLog == 3 and ns.db.lootLog[1].src == "both", "the history's drop and its loot line: one")
+	check(#ns.db.lootLog == 3 and ns.db.lootLog[1].src == "history+loot", "the history's drop and its loot line: one")
 	now = now + 100
 	LL.OnEvent("CHAT_MSG_LOOT", "You receive loot: " .. cloth .. "x2.")
 	now = now + 5
 	LL.OnEvent("CHAT_MSG_LOOT", "You receive loot: " .. cloth .. ".")
 	check(#ns.db.lootLog == 5, "two stacks looted a moment apart: both kept")
+	do -- (0.44.10) each way a drop is told counts once per drop
+		local keep = ns.db.lootLog
+		ns.db.lootLog = {}
+		now = now + 100
+		LL.OnEvent("CHAT_MSG_LOOT", "Bob won: " .. belt)
+		LL.OnEvent("CHAT_MSG_LOOT", "Bob receives loot: " .. belt .. ".")
+		LL.OnEvent("CHAT_MSG_LOOT", "Bob won: " .. belt)
+		LL.OnEvent("CHAT_MSG_LOOT", "Bob receives loot: " .. belt .. ".")
+		check(#ns.db.lootLog == 2, "two of one green won by Bob, each a win and its loot line: two drops: " .. #ns.db.lootLog)
+		now = now + 100
+		LL.OnEvent("LOOT_HISTORY_UPDATE_DROP", 7, 3)
+		LL.OnEvent("LOOT_HISTORY_UPDATE_DROP", 7, 3)
+		check(#ns.db.lootLog == 3, "the loot history updated again for a drop logged already: still one: " .. #ns.db.lootLog)
+		ns.db.lootLog = keep
+	end
 	table.remove(ns.db.lootLog, 1); table.remove(ns.db.lootLog, 1)
 	-- the list
 	now = now + 60

@@ -907,15 +907,16 @@ end
 -- .zen: the game's bars made invisible (alpha 0), never hidden; back as they were (0.43.9)
 do
 	local Zen = ns.Zen
-	local bar, menu = CreateFrame("Frame"), CreateFrame("Frame")
+	local bar, menu, bags = CreateFrame("Frame"), CreateFrame("Frame"), CreateFrame("Frame")
 	menu:SetAlpha(0.8); bar:Show()
+	bags:SetAlpha(0) -- (kept invisible by another addon)
 	local saveHook = _G.hooksecurefunc
 	_G.hooksecurefunc = function(t, name, fn)
 		local orig = t[name]
 		t[name] = function(...) local r = orig(...) fn(...) return r end
 	end
 	local actions, minimap = CreateFrame("Frame"), CreateFrame("Frame")
-	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster = bar, menu, actions, minimap
+	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster, _G.BagsBar = bar, menu, actions, minimap, bags
 	local out = ns:FindCommand("zen").run("")
 	check(actions:GetAlpha() == 1 and minimap:GetAlpha() == 1, ".zen keeps the action bars and the minimap up (0.43.20)")
 	for _, name in ipairs(Zen.KEEP) do
@@ -927,9 +928,11 @@ do
 	check(bar:GetAlpha() == 0, ".zen: a bar the game fades in goes out again")
 	ns:FindCommand("hideui").run("off")
 	check(ns.db.zen == false and bar:GetAlpha() == 1 and math.abs(menu:GetAlpha() - 0.8) < 0.001, ".zen off: back as they were")
+	check(bags:GetAlpha() == 0, ".zen off: a bar another addon kept invisible stays so (0.44.10)")
 	bar:SetAlpha(0.5)
 	check(bar:GetAlpha() == 0.5, "off: the game's own fading works again")
 	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster, _G.hooksecurefunc = nil, nil, nil, nil, saveHook
+	_G.BagsBar = nil
 end
 
 -- a stored item sent to chat says who holds how many (0.43.27): >> party, the menu's chat lines, a chain's "> alts"

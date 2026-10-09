@@ -68,7 +68,7 @@ function Z.Apply()
 	else
 		for f, a in pairs(saved) do
 			busy = true
-			pcall(f.SetAlpha, f, a > 0 and a or 1)
+			pcall(f.SetAlpha, f, a) -- (as it was: a bar another addon kept invisible stays so)
 			busy = false
 			n = n + 1
 		end

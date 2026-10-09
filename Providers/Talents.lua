@@ -196,6 +196,11 @@ end
 ----------------------------------------------------------------------
 
 TL.OTHER_RANK = -1.5 -- (below your own class's among equal matches: class:mage keeps only those anyway)
+-- the classes WoW Forever has (the classic nine: WhatsTraining's Camelot data lists these); the retail API may name more
+-- (Death Knight, Monk, Demon Hunter, Evoker), left out unless you play one
+TL.PLAYABLE = { WARRIOR = true, PALADIN = true, HUNTER = true, ROGUE = true, PRIEST = true, SHAMAN = true, MAGE = true,
+	WARLOCK = true, DRUID = true }
+TL.RETRY = 10 -- (s: read skipped in combat or with a talent window open, asked again this long after)
 TL.CACHE_FORMAT = 1
 TL.otherRows = {} -- classFile -> the rows last made for it, and what they were made from (the talents list's collect)
 
@@ -250,22 +255,36 @@ local function CacheKey()
 	return TL.CACHE_FORMAT .. ":" .. tostring(ok and build or "?")
 end
 
+-- in combat, or with a talent window open: the talents list is made again once that's over (checked every TL.RETRY s)
+local function ReadLater()
+	if TL.retrying or not (C_Timer and C_Timer.After) then return end
+	TL.retrying = true
+	local function Try()
+		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() then C_Timer.After(TL.RETRY, Try) return end
+		TL.retrying = false
+		local p = ns.providers.talents
+		if p then p._dirty = true end
+	end
+	C_Timer.After(TL.RETRY, Try)
+end
+
 --- Every other class's talents, from the saved copy when it's this build's, else read now (not in combat, not while a
---- talent window shows: the view config is the window's too). { classFile = { {nodeID, name, spellID, tab, tabIndex,
---- maxRanks, icon}, ... } }, and { classFile = class name }.
+--- talent window shows: the view config is the window's too; read a moment after then). { classFile = { {nodeID, name,
+--- spellID, tab, tabIndex, maxRanks, icon}, ... } }, and { classFile = class name }.
 function TL.OtherClasses()
 	local db = ns.db or {}
 	local key, mine = CacheKey(), MyClassFile()
 	local cache = db.talentCache
 	if not (cache and cache.key == key and cache.classes) then
 		if TL.triedOthers == key then return {}, {} end -- (read once a session when nothing came of it)
-		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() or not GetClassInfo then return {}, {} end
+		if not GetClassInfo then return {}, {} end
+		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() then ReadLater() return {}, {} end
 		local level = (GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()) or 60
 		local classes, names, read = {}, {}, 0
 		local okN, n = pcall(GetNumClasses or function() return 13 end)
 		for id = 1, (okN and tonumber(n)) or 13 do
 			local okC, name, file = pcall(GetClassInfo, id)
-			if okC and file and name then
+			if okC and file and name and (TL.PLAYABLE[file] or file == mine) then
 				local rows = TL.ReadClass(id, level)
 				if rows == nil then
 					ns:Trace("talents: other classes can't be read here (no view loadout)")
@@ -282,7 +301,7 @@ function TL.OtherClasses()
 	end
 	local out, names = {}, {}
 	for file, rows in pairs(cache.classes) do
-		if file ~= mine then out[file], names[file] = rows, (cache.names or {})[file] or file end
+		if file ~= mine and TL.PLAYABLE[file] then out[file], names[file] = rows, (cache.names or {})[file] or file end
 	end
 	return out, names
 end
