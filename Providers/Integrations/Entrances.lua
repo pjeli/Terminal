@@ -6,9 +6,7 @@ local SpotXY, ZoneName, PinObject = I.SpotXY, I.ZoneName, I.PinObject
 -- two: Searing Gorge and Burning Steppes). Enter: the game opens the map on the entrance's zone, then Terminal pins
 -- it (a C API); Shift+Enter only pins; ">>" and the right-click menu send it with a map pin. Raids by name (English, as
 -- QuestieDB names them); battlegrounds and the non-instances in that list are left out.
-local function EntranceAfter(e)
-	ns.Maps.ShowAfter({ name = e.name .. " entrance", mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } })
-end
+local EntranceAfter = I.SpotAfter -- (its pinName: "<name> entrance")
 -- Instance entrances on WoW Forever's maps: { name, uiMap, x%, y%, raid, min level, max level, note }. From Leatrix
 -- Maps' world map icons (Leatrix_Maps_Icons.lua, its WoW Forever data), which are right for this client: QuestieDB's
 -- dungeon list holds every expansion's (Utgarde Keep, Hellfire Ramparts...) and lacks Forever's own (The Drowned

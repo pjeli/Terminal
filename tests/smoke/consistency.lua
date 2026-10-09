@@ -212,3 +212,114 @@ do
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = was; UI:EasyChanged()
 end
+
+local function Upvalue(fn, name)
+	for i = 1, 200 do
+		local n, v = debug.getupvalue(fn, i)
+		if not n then return nil end
+		if n == name then return v end
+	end
+end
+
+-- similar rows behave alike: a mailbox opens the map on it as an entrance does; a quest from your log isn't listed
+-- again as its Questie copy; a nearest list keeps what each NPC is
+do
+	local I, M = ns.Integrations, ns.Maps
+	local box = I.SpotRow({ name = "Mailbox", key = "1-1", kind = "mailbox", ui = 1453, px = 50, py = 60, zone = "Stormwind City" })
+	check(box.secure == M.SECURE and box.mapID == 1453 and box.after == I.SpotAfter and box.secondary == I.PinObject,
+		"a mailbox: Enter opens the map on it (as an entrance), Shift+Enter pins it")
+	check(table.concat({ E.Verbs(box) }, "/") == "show on map/set waypoint", "and says so")
+	check(M.PinLine("set", "Mailbox", "Stormwind City") == "Waypoint set on Mailbox (Stormwind City)" and M.PinLine("moved", "Hogger") == "Waypoint moved to Hogger",
+		"one wording for where the map pin went")
+	local Scan = Upvalue(UI.SearchText, "Scan")
+	local res = Scan.OneQuest({ { kind = "quests", questID = 5, name = "Wolves" }, { kind = "questie", key = 5, name = "Wolves" },
+		{ kind = "questie", key = 6, name = "Wolves Too" } })
+	check(#res == 2 and res[1].kind == "quests" and res[2].key == 6, "a quest in your log: its Questie copy isn't listed too")
+	local npc = { _compact = true, key = 7, name = "Brom", sub = "Mining Trainer" }
+	local v = Scan.NearView(npc, 120)
+	check(v.detail == "120 yd  Mining Trainer" and v.nearRest == "Mining Trainer", "nearest: the distance and what it is: " .. tostring(v.detail))
+end
+
+-- Ctrl+Enter keeps the terminal open for a press that opens no window (using an item); a window's press still closes it
+do
+	local was = ns.db.easyMode
+	ns.db.easyMode = false
+	UI:Open("hearthstone"); FlushAll()
+	local row = UI.Results()[1]
+	local se = row and UI.SecureView(row, true)
+	check(se and UI.HoldFor(se, true) and not UI.HoldFor(se, false), "using an item with Ctrl: held open")
+	if se then
+		UI:Activate(nil, { keepOpen = true, secondary = true })
+		UI:FinishSecure()
+		check(UI:IsShown(), "Ctrl+Enter on a use press: the terminal stays")
+	end
+	UI:Hide(); FlushAll()
+	check(not UI.HoldFor({ isOpen = function() return false end }, true), "a window's press (it has its own isOpen): closes as before")
+	ns.db.easyMode = was
+end
+
+-- the mount journal, the chat box, the achievement window and Terminal's options are opened by the game
+do
+	local mrows = ns.providers.mounts and ns:GetEntries(ns.providers.mounts) or {}
+	local m = mrows[1]
+	local mac = m and m.secondarySecure and m.secondarySecure.macro(m)
+	check(m and mac and mac:find("MountJournal", 1, true) and mac:find(m.name, 1, true), "mounts: the journal opened by the game, the name searched: " .. tostring(mac))
+	local srows = ns:GetEntries(ns.providers.slash)
+	local sl
+	for _, e in ipairs(srows) do if e.name == "/reload" or e.name == "/rl" then sl = e break end end
+	sl = sl or srows[1]
+	local smac = sl and sl.secondarySecure and sl.secondarySecure.macro(sl)
+	check(smac and smac:find("C_Timer.After", 1, true) and smac:find(sl.name, 1, true), "slash Shift+Enter: the chat box opened by the game: " .. tostring(smac))
+	local calc = ns.Calc.Entry("2*3")
+	check(calc and calc.shareLink and calc.shareLink(calc) == calc.sum .. " = " .. calc.answer and calc.secondarySecure,
+		"the calculator: one text everywhere, the chat box opened by the game")
+	local arows = ns:GetEntries(ns.providers.achievementlist)
+	local a = arows[1]
+	local amac = a and a.secure and a.secure.macro(a)
+	check(amac and amac:find("OpenAchievementFrameToAchievement(" .. a.key .. ")", 1, true), "achievements: the window opened by the game: " .. tostring(amac))
+	local trows = ns:GetEntries(ns.providers.terminal)
+	check(trows[1] and trows[1].secure and trows[1].secure.macro, "Terminal Options: opened by the game")
+end
+
+-- loot rows in their quality's colour; AtlasLoot rows link on Shift+Enter
+do
+	local LL = ns.LootLog
+	local iqc = _G.ITEM_QUALITY_COLORS
+	_G.ITEM_QUALITY_COLORS = { [3] = { hex = "|cff0070dd" }, [4] = { hex = "|cffa335ee" } }
+	local keep = ns.db.lootLog
+	ns.db.lootLog = {}
+	LL.Add("|cff0070dd|Hitem:4444::::::::20:::::|h[Blue Thing]|h|r", "Bob", 1, nil, "loot")
+	local p = ns.providers.lootlog
+	p._dirty = true
+	local r = ns:GetEntries(p)[1]
+	check(r and r.color == "|cff0070dd", "a drop in its quality's colour: " .. tostring(r and r.color))
+	ns.db.lootLog = keep
+	p._dirty = true
+	local meta = ns.Integrations.loot and ns.Integrations.loot.meta
+	if meta then
+		local q = C_Item.GetItemQualityByID
+		C_Item.GetItemQualityByID = function() return 4 end
+		local row = setmetatable({ _compact = true, key = 1, itemID = 2589, name = "Linen Cloth" }, meta)
+		check(row.color == "|cffa335ee" and row.secondarySecure and table.concat({ E.Verbs(row) }, "/") == "show in AtlasLoot/link in chat",
+			"AtlasLoot rows: coloured, Shift+Enter links them")
+		C_Item.GetItemQualityByID = q
+	end
+	_G.ITEM_QUALITY_COLORS = iqc
+end
+
+-- a chain's "gathered from" row is a real row: shown on the map at its spot, sent with the rest
+do
+	local P, I = ns.Pipes, ns.Integrations
+	local save = { field = I.ItemField, name = I.ObjectName, spawn = I.NearestSpawn, here = I.Here }
+	I.ItemField = function(id, f) if f == "objectDrops" then return { 1731, 1732 } end end
+	I.ObjectName = function(id) return "Copper Vein" end
+	I.NearestSpawn = function(oids) return #oids == 2 and { ui = 1429, px = 40, py = 50, zone = "Elwynn Forest", d = 80 } or nil end
+	I.Here = function() return { cont = 0, x = 0, y = 0 } end
+	local rows = P.Run("sources", { { kind = "items", key = 2770, itemID = 2770, name = "Copper Ore" } })
+	local vein
+	for _, e in ipairs(rows) do if e.name == "Copper Vein" then vein = e end end
+	check(vein and not vein.noActivate and vein.secure == ns.Maps.SECURE and vein.px == 40 and vein.detail:find("80 yd", 1, true),
+		"gathered from: at the spot nearest you, Enter shows it on the map: " .. tostring(vein and vein.detail))
+	check(vein and #ns.Share.GroupRows({ vein }) == 1, "and it's sent with the others (>>>, All N)")
+	I.ItemField, I.ObjectName, I.NearestSpawn, I.Here = save.field, save.name, save.spawn, save.here
+end

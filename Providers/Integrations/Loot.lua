@@ -382,6 +382,12 @@ local function OpenLoot(e)
 	end)
 end
 
+-- Shift+Enter: the item's link in the chat box, with where it drops ("[Corpsemaker] dropped by Overlord Ramtusk in
+-- Razorfen Kraul", Share.Text), opened by the game (Core.lua's ChatBoxSpec); in combat, Terminal's own
+local function LootLinkText(e) return ns.Share and ns.Share.Text(e) or e.name end
+local LOOT_CHATBOX = ns.ChatBoxSpec(LootLinkText)
+local function LinkLoot(e) ns.LinkInChat(LootLinkText(e)) end
+
 local function SetupAtlasLoot()
 	if loot.on or not AtlasLootPresent() then return end
 	loot.on = true
@@ -411,9 +417,15 @@ local function SetupAtlasLoot()
 			return out
 		end,
 	})
-	loot.meta = ns:CompactMeta(ns.providers.loot, { activate = OpenLoot }, {
+	loot.meta = ns:CompactMeta(ns.providers.loot, { activate = OpenLoot, secondary = LinkLoot, secondarySecure = LOOT_CHATBOX,
+		secondaryIsOpen = ns.Never }, {
 		icon = function(t) return C_Item.GetItemIconByID and C_Item.GetItemIconByID(t.itemID) or nil end,
 		link = function(t) return "item:" .. t.itemID end,
+		-- (read when drawn: its quality's colour, as bag items show; nothing kept on the row)
+		color = function(t)
+			local q = C_Item.GetItemQualityByID and ns.Safe(C_Item.GetItemQualityByID, t.itemID)
+			return ns.QualityHex(q)
+		end,
 	})
 	-- the saved index is read at once; building it again (AtlasLoot changed) waits 8 s (LoadLootModules)
 	loot.startedAt = GetTime()

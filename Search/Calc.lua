@@ -237,18 +237,15 @@ function C.Evaluate(text)
 end
 
 -- (shared by every calc row, read from the row: not two closures made per keystroke)
+-- the sum and its answer, the one text every way of showing or sending it uses ("12.5% * 800 = 100")
+local function CalcText(e) return e.sum .. " = " .. e.answer end
 local function CalcActivate(e)
-	ns:Output({ e.sum .. " = " .. e.answer })
+	ns:Output({ CalcText(e) })
 end
--- Shift+Enter: the answer into the chat box, ready to send
-local function CalcSecondary(e)
-	if ChatFrame_OpenChat then
-		ChatFrame_OpenChat(e.answer)
-	elseif ChatEdit_ActivateChat and DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.editBox then
-		ChatEdit_ActivateChat(DEFAULT_CHAT_FRAME.editBox)
-		DEFAULT_CHAT_FRAME.editBox:Insert(e.answer)
-	end
-end
+-- Shift+Enter: that into the chat box, ready to send; opened by the game (Core.lua's ChatBoxSpec); in combat,
+-- Terminal's own
+local CALC_CHATBOX = ns.ChatBoxSpec(CalcText)
+local function CalcSecondary(e) ns.LinkInChat(CalcText(e)) end
 
 --- The result row for the terminal, or nil.
 function C.Entry(text)
@@ -266,6 +263,7 @@ function C.Entry(text)
 		sum = sum,
 		_pos = {},
 		activate = CalcActivate,
-		secondary = CalcSecondary,
+		secondary = CalcSecondary, secondarySecure = CALC_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
+		shareLink = CalcText, -- (>> and the row menu send the same text)
 	}
 end

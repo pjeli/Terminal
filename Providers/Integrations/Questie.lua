@@ -235,9 +235,9 @@ local function NpcPin(e)
 	local name = e.npcName or e.name
 	if not mapID then
 		ns:Print("Questie has no known location for " .. name .. ".")
-	elseif ns.Maps.Place({ name = name, mapID = mapID, pos = pos }) then
-		ns:Print("Waypoint set: " .. name)
 	else
+		local pin = ns.Maps.Place({ name = name, mapID = mapID, pos = pos })
+		if pin then ns:Print(ns.Maps.PinLine(pin, name)) return end
 		ns:Print("Can't set a waypoint there.")
 	end
 end

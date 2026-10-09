@@ -39,6 +39,9 @@ local function NoJournal(e)
 		or ("Couldn't open the journal for " .. tostring(e.name) .. "."))
 end
 
+-- (Mounts.lua, loaded before this file, uses these at run time for the mount journal)
+ns.Collections = { JournalMacro = JournalMacro, PointIn = PointIn, NoJournal = NoJournal }
+
 --- "4m", "35s": time left on a cooldown.
 local function Left(sec)
 	if sec >= 3600 then return ("%dh"):format(math.floor(sec / 3600)) end

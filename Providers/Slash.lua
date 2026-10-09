@@ -43,6 +43,10 @@ local function ConsoleDirect(e, args)
 	ns:Print("Couldn't hand /console to the game (in combat?). Try again out of combat.")
 end
 
+-- Shift+Enter: the line in the chat box to finish (with what you typed after it), opened by the game a moment after the
+-- press (Core.lua's ChatBoxSpec), as every "put in the chat box" is; in combat, Terminal's own (ChatEntry)
+local function BoxLine(e) return Line(e, ns.UI and ns.UI.args) .. " " end
+local SLASH_CHATBOX = ns.ChatBoxSpec(BoxLine)
 local function ChatEntry(e, args)
 	local line = e.name .. " "
 	if args and args ~= "" then line = line .. args end
@@ -87,7 +91,7 @@ local function Emotes(out, taken)
 					tip = word .. (#alt > 0 and ("\nAliases: " .. table.concat(alt, ", ")) or ""),
 					emote = token,
 					secure = SLASH_SPEC, isOpen = NeverOpen, after = SlashAfter,
-					activate = RunEntry, secondary = ChatEntry,
+					activate = RunEntry, secondary = ChatEntry, secondarySecure = SLASH_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
 				}
 			end
 		end
@@ -139,7 +143,7 @@ ns:RegisterProvider("slash", {
 				secure = SLASH_SPEC, isOpen = NeverOpen, after = SlashAfter, -- (the game presses the line)
 				activate = RunEntry, -- (no secure button: the chat box)
 				-- Shift+Enter: drop it in the chat box instead of running it
-				secondary = ChatEntry,
+				secondary = ChatEntry, secondarySecure = SLASH_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
 			}
 		end
 		-- /console isn't always one of the SLASH_ globals (the chat box handles it itself): its row is added when
@@ -149,7 +153,7 @@ ns:RegisterProvider("slash", {
 		if not console then
 			console = { key = "CONSOLE", name = "/console", icon = "Interface\\Icons\\INV_Misc_Note_01", detail = "",
 				text = "console cvar setting", secure = SLASH_SPEC, isOpen = NeverOpen, after = SlashAfter,
-				secondary = ChatEntry }
+				secondary = ChatEntry, secondarySecure = SLASH_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen }
 			out[#out + 1] = console
 		end
 		console.needsArgs, console.activate = true, ConsoleDirect

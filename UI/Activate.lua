@@ -29,6 +29,16 @@ end
 
 --- A click (the catcher, a menu line) on which the game ran the result's macro: finish as after Enter. `se`: the view
 --- whose after-step runs (a Shift+click: the secondary's).
+--- Ctrl+Enter keeps the terminal open, for a press the game makes too when it opens no window (a use, a cast, a toy,
+--- an emote, a chat line: nothing has to be open first, its isOpen is ns.Never or none); a window's press closes it
+--- as before (a window it opens would close it anyway: it's in UISpecialFrames).
+local function HoldFor(se, ctrl)
+	if not (ctrl and se) then return nil end
+	local o = se.isOpen
+	return (not o or o == ns.Never) or nil
+end
+UI.HoldFor = HoldFor
+
 local function FinishClicked(e, se)
 	local edit = UI.edit
 	ns:Bump(e.freqKey)
@@ -40,6 +50,7 @@ UI.FinishClicked = FinishClicked
 
 function UI:Disarm()
 	local frame = UI.frame
+	self.holdOpen = nil
 	if self.armedEntry or ns.Secure.armed or self.legacyArm then
 		-- kept a moment: the press may still come back (see Secure.lua's PostClick)
 		if self.armedEntry then self.lastArmedEntry, self.lastArmedAt = self.armedEntry, GetTime() end
@@ -122,6 +133,7 @@ function UI:FinishSoon(e)
 end
 
 function UI:FinishSecure()
+	local hold = self.holdOpen -- (read before Disarm clears it)
 	local e = self.armedEntry
 	-- the press came back after the terminal had closed (the window it opened closed it): still that entry
 	if not e and self.lastArmedEntry and self.lastArmedAt and GetTime() - self.lastArmedAt < ns.Secure.LATE then
@@ -132,7 +144,8 @@ function UI:FinishSecure()
 	self:Disarm()
 	if not e then return end
 	ns:Trace("secure: finished, highlighting " .. e.name)
-	if not e.staysOpen then self:Hide() end -- (a press that asks for more, @who's: the answer comes into the list)
+	-- (a press that asks for more, @who's: the answer comes into the list; Ctrl+Enter on one that opens no window)
+	if not e.staysOpen and not hold then self:Hide() end
 	AfterSoon(e, 0.1)
 end
 
@@ -363,7 +376,9 @@ function UI:Activate(idx, opts)
 	if not e.staysOpen then ns:RecordHistory(edit:GetText()) end
 	-- windows Blizzard owns are opened by a secure click, never from our own code
 	local se = SecureView(e, opts.secondary)
+	self.holdOpen = HoldFor(se, opts.keepOpen)
 	if se and self:TryArmSecure(se) then return end
+	self.holdOpen = nil
 	local args = self.args
 	local isCmd = e.kind == "cmd"
 	local stays = e.staysOpen

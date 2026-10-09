@@ -240,6 +240,7 @@ ns:RegisterProvider("lootlog", {
 					name = NameOf(d.link) .. (d.n and (" x" .. d.n) or ""),
 					itemID = d.id, link = d.link,
 					icon = getIcon and Safe(getIcon, d.id) or nil,
+					color = ns.QualityHex(LL.Quality(d.link, d.id)), -- (its quality's colour, as items show)
 					detail = table.concat(parts, "  ·  "),
 					text = table.concat({ who, d.who or "", d.from or "", d.zone or "", "loot drop looted" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99, -- (newest first among equal matches)

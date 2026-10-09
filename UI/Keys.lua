@@ -160,6 +160,7 @@ local function KeysDown(self, key)
 	end
 	if key == "ENTER" or key == "NUMPADENTER" then
 		local se = SecureView(UI.results[UI.sel], shift)
+		UI.holdOpen = UI.HoldFor(se, ctrl) -- (Ctrl+Enter: stays open after a press that opens no window)
 		if se and UI:ArmForPress(se) then
 			ns:RecordHistory(edit:GetText())
 			self:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding

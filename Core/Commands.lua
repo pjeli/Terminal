@@ -25,7 +25,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = "do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"
 		lines[#lines + 1] = "Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on; right-click a result for everything it can do"
 		lines[#lines + 1] = "Tab+` (hold Tab, press `) is pure fuzzy finding over every list, by name; Ctrl+click a link in chat to look it up here"
-		lines[#lines + 1] = "Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes commands and their arguments"
+		lines[#lines + 1] = "Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open (a window it opens still closes it), Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes commands and their arguments"
 		return lines
 	end,
 })

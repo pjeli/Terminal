@@ -1,22 +1,22 @@
 local ns = select(2, ...)
-local H = ns.Highlight
 
 local function SummonMount(e)
 	if C_MountJournal and C_MountJournal.SummonByID then C_MountJournal.SummonByID(e.key) end
 end
 local function MountLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(e.spellID) or nil end
 
-local function ShowMount(e)
-	ns.LoadBlizz("Blizzard_Collections")
-	if CollectionsJournal_SetTab and CollectionsJournal then
-		ShowUIPanel(CollectionsJournal)
-		CollectionsJournal_SetTab(CollectionsJournal, 1)
-	end
-	H:Find(function()
-		local root = _G.MountJournal
-		return root and root:IsVisible() and ns.FindByText(root, e.name) or nil
-	end)
+-- Shift+Enter: the journal on the mounts tab with the name in its search box, opened by the game (a /run line on the
+-- secure button, as toys and pets do: Collections.lua); Terminal only points at it afterwards. Opening it from
+-- Terminal's code ran the journal's Lua tainted, and didn't search, so the mount could be on another page.
+local MOUNTS_TAB = 1
+local function MountJournalMacro(e)
+	local C = ns.Collections
+	return C and C.JournalMacro(MOUNTS_TAB, "MountJournal and MountJournal.searchBox", e.name) or nil
 end
+local function MountRoot() return _G.MountJournal end
+local function PointAtMount(e) local C = ns.Collections if C then C.PointIn(MountRoot, e.name) end end
+local function NoJournal(e) local C = ns.Collections if C then C.NoJournal(e) end end -- (combat: nothing opened)
+local MOUNT_JOURNAL = { macro = MountJournalMacro }
 
 -- Mounts (collected only). Enter = summon, Shift+Enter = show in journal.
 ----------------------------------------------------------------------
@@ -42,7 +42,8 @@ ns:RegisterProvider("mounts", {
 					spellID = spellID,
 					getLink = MountLink, -- (made when selected, not for every mount on every rebuild)
 					activate = SummonMount,
-					secondary = ShowMount,
+					secondary = NoJournal, secondarySecure = MOUNT_JOURNAL, secondaryIsOpen = ns.Never,
+					secondaryAfter = PointAtMount,
 				}
 			end
 		end

@@ -257,10 +257,15 @@ end
 local function TerminalVerbs(e)
 	return e.presetId and "apply" or "open"
 end
+local function SourceVerbs(e) -- (a chain's source: a vein or chest at its spot, else the item crafted)
+	if e.pipeHow == "gathered from" then return "show on map", "set waypoint" end
+	return "show in bags"
+end
 local PLACE = { "show on map", "set waypoint" }
 local TO_CHAT = { "show in chat", "put in the chat box" }
 E.VERBS = {
 	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = GearVerbs, reagent = { "show in bags" },
+	source = SourceVerbs,
 	stored = { "show in bags", "show in chat" }, lootlog = { "show in bags", "link in chat" },
 	loot = { "show in AtlasLoot", "link in chat" },
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,

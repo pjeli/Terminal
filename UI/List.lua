@@ -223,7 +223,8 @@ local function NavTick()
 		local shown = math.floor(nav.d + 0.5)
 		if shown ~= nav.shownD then
 			nav.shownD = shown
-			e.detail = ("%d yd"):format(shown) .. (e.zone and ("  " .. e.zone) or "")
+			local rest = rawget(e, "nearRest") -- (what the row is: a title, a zone)
+			e.detail = ("%d yd"):format(shown) .. (rest and ("  " .. rest) or "")
 			r.detail:SetText(e.detail)
 		end
 	end

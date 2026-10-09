@@ -73,6 +73,13 @@ local function Place(e)
 	if pos and Waypoint(e.mapID, pos) then return had and "moved" or "set" end
 end
 
+--- The line saying where the map pin went ("set" / "moved": Place's answer): "Waypoint set on Ratchet (The Barrens)",
+--- "Waypoint moved to Hogger". Every waypoint line says it this way.
+function M.PinLine(pin, name, where)
+	return ("Waypoint %s %s%s"):format(pin == "moved" and "moved to" or "set on", tostring(name),
+		(type(where) == "string" and where ~= "" and where ~= name) and (" (" .. where .. ")") or "")
+end
+
 --- Runs once the map is open: show the place, and point at it.
 local function ShowAfter(e)
 	-- the game's macro switched the map; here it's only read (never written: see the top)
@@ -85,7 +92,7 @@ local function ShowAfter(e)
 	ns:Trace("maps: the map " .. (switched and "shows " or "doesn't show ") .. tostring(e.name))
 	local pin = Place(e)
 	if pin and not switched then
-		ns:Print("Waypoint " .. (pin == "moved" and "moved to " or "set on ") .. e.name .. " (couldn't switch the map to it).")
+		ns:Print(M.PinLine(pin, e.name) .. ": couldn't switch the map to it.")
 	elseif not pin and not switched then
 		ns:Print("Opened the map; couldn't switch it to " .. e.name .. ".")
 	end
@@ -95,8 +102,9 @@ local function Direct(e) -- no keybinding: open the map from our own code
 	if InCombatLockdown() then
 		-- the map's pins are protected in combat: touching it would only be blocked
 		ns:Trace("maps: in combat, map left alone")
-		if Place(e) then
-			ns:Print("In combat: waypoint set on " .. e.name .. " (the map can't be opened now).")
+		local pin = Place(e)
+		if pin then
+			ns:Print(M.PinLine(pin, e.name) .. ": in combat, the map can't be opened now.")
 		else
 			ns:Print("The map can't be opened in combat.")
 		end
@@ -132,7 +140,7 @@ end
 local function PinOnly(e)
 	local pin = Place(e)
 	if pin then
-		ns:Print("Waypoint " .. (pin == "moved" and "moved to " or "set: ") .. e.name)
+		ns:Print(M.PinLine(pin, e.name))
 	elseif not e.pos then
 		-- a zone has no spot of its own: it only moves a waypoint that is already set
 		ns:Print("A zone only moves a waypoint you already have; set one on the map first.")

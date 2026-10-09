@@ -79,15 +79,64 @@ local function ObjectIds(kind)
 end
 I.ResetObjectsForTests = function() objectIds = nil end
 
--- Enter on a mailbox: the map pin on it (a C API)
+-- Shift+Enter on a spot row (a mailbox, an entrance, a vein): the map pin on it (a C API), no map opened; also Enter's
+-- fallback when the game can't be handed the press (combat)
 local function PinObject(e)
-	if ns.Maps and ns.Maps.Place and ns.Maps.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } }) then
-		ns:Print(("Waypoint set: %s, %s"):format(e.name, e.detail or ""))
+	local M = ns.Maps
+	local pin = M and M.Place and M.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } })
+	if pin then
+		ns:Print(M.PinLine(pin, e.pinName or e.name, e.zone))
 	else
 		ns:Print("Can't set a waypoint there.")
 	end
 end
 I.PinObject = PinObject
+
+--- After the game opened the map on a spot row's zone (Maps.SECURE): the pin on the spot, pointed at.
+function I.SpotAfter(e)
+	ns.Maps.ShowAfter({ name = e.pinName or e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } })
+end
+
+-- what every mailbox row does (shared, not on each of thousands of rows): Enter opens the map on it with the pin, as an
+-- entrance's does; Shift+Enter only pins it
+local SPOT = { icon = "Interface\\Icons\\INV_Letter_15", generic = true, secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor,
+	after = I.SpotAfter, activate = PinObject, secondary = PinObject }
+local SPOT_META = { __index = function(t, k)
+	if k == "mapID" then return rawget(t, "ui") end -- (the map the press opens: Maps.Target)
+	return SPOT[k]
+end }
+--- A mailbox's row: its own fields, what it does shared (SPOT).
+function I.SpotRow(t) return setmetatable(t, SPOT_META) end
+
+--- The nearest spawn of any of these objects (ids) to `here` on your continent, else the first known anywhere: { ui, px,
+--- py, wcont, wx, wy, zone, d (yards, when near you) }; nil when QuestieDB knows none.
+function I.NearestSpawn(oids, here)
+	local DB = QDB()
+	if not (DB and DB.QueryObjectSingle) then return nil end
+	local best, bestD, first
+	for _, oid in ipairs(oids) do
+		local spawns = Safe(DB.QueryObjectSingle, oid, "spawns")
+		for area, list in pairs(type(spawns) == "table" and spawns or {}) do
+			local ui = QD.UiMapOfArea(area)
+			if ui and type(list) == "table" then
+				for _, c in ipairs(list) do
+					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
+						local cont, x, y = SpotXY(ui, c)
+						local spot = { ui = ui, px = c[1], py = c[2], wcont = cont, wx = x, wy = y }
+						first = first or spot
+						if here and x and cont == here.cont then
+							local d = math.sqrt((x - here.x) ^ 2 + (y - here.y) ^ 2)
+							if not bestD or d < bestD then best, bestD = spot, d end
+						end
+					end
+				end
+			end
+		end
+	end
+	local s = best or first
+	if s then s.zone, s.d = ZoneName(s.ui), best and bestD or nil end
+	return s
+end
 
 --- The rows of a kind of object (@mailbox): one per spawn, "Mailbox  Stormwind City", each with its map spot and its
 --- place in world yards (for sort:nearest, near:, in: and the direction arrow). {} when QuestieDB has none to read.
@@ -108,11 +157,11 @@ function I.ObjectRows(kind)
 						n = n + 1
 						local cont, x, y = SpotXY(ui, c)
 						local zone = ZoneName(ui)
-						rows[#rows + 1] = {
-							name = label, key = id .. "-" .. n, kind = kind, icon = "Interface\\Icons\\INV_Letter_15",
+						rows[#rows + 1] = I.SpotRow({
+							name = label, key = id .. "-" .. n, kind = kind,
 							detail = zone, zone = zone, text = zone, ui = ui, px = c[1], py = c[2], area = area,
-							wcont = cont, wx = x, wy = y, activate = PinObject, generic = true,
-						}
+							wcont = cont, wx = x, wy = y,
+						})
 					end
 				end
 			end
@@ -144,7 +193,7 @@ function I.NearestObjectRows(kind, here, keep)
 	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
 		local f = found[i]
 		rows[i] = setmetatable({ detail = ("%.0f yd"):format(f.d) .. (f.e.zone and ("  " .. f.e.zone) or ""),
-			_score = 1e6 - f.d, _dist = f.d }, { __index = f.e })
+			_score = 1e6 - f.d, _dist = f.d, nearRest = f.e.zone }, { __index = f.e })
 	end
 	return rows
 end

@@ -482,7 +482,8 @@ do -- calculator: the answer is the top result
 	_G.ChatFrame_OpenChat = function(t) opened = t end
 	r = UI:Search("3*45")
 	r[1].secondary(r[1])
-	check(opened == "135", "Shift+Enter puts the answer in the chat box")
+	-- (0.44.11: the same text every way: the sum and its answer; the game opens the box, this is combat's fallback)
+	check(opened == "3*45 = 135" and r[1].secondarySecure, "Shift+Enter puts the sum and answer in the chat box: " .. tostring(opened))
 	_G.ChatFrame_OpenChat = saveOpen
 	_G.DEFAULT_CHAT_FRAME = chat
 end

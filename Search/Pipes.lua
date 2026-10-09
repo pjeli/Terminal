@@ -382,6 +382,37 @@ local function AddNpcs(out, I, id, field, what, max, how)
 	end
 end
 
+-- a vein or chest with no known spot: said so (the row is still one to send: "gathered from Copper Vein")
+local function NoSpot(e) ns:Print("No known spot for " .. tostring(e.name) .. ".") end
+
+-- the objects an item is gathered or found from, one row per name, at the spawn nearest you (QuestieDB's objects): a
+-- spot row like a mailbox's, Enter shows it on the map, Shift+Enter pins it, >> sends it with a map pin
+local function AddObjects(out, I, objs)
+	local byName, order = {}, {}
+	for _, oid in ipairs(objs) do
+		local oname = type(oid) == "number" and I.ObjectName(oid)
+		if oname then
+			if not byName[oname] then byName[oname] = {}; order[#order + 1] = oname end
+			local ids = byName[oname]
+			ids[#ids + 1] = oid
+		end
+	end
+	local here = #order > 0 and I.Here and I.Here() or nil
+	for _, oname in ipairs(order) do
+		local row = { key = "obj:" .. oname, kind = "source", kindLabel = SOURCE_LABEL, name = oname, pipeHow = "gathered from",
+			icon = "Interface\\Icons\\INV_Ore_Copper_01", detail = "Gathered or found here", activate = NoSpot }
+		local spot = I.NearestSpawn and I.NearestSpawn(byName[oname], here)
+		if spot and ns.Maps then
+			row.ui, row.mapID, row.px, row.py, row.zone = spot.ui, spot.ui, spot.px, spot.py, spot.zone
+			row.wcont, row.wx, row.wy = spot.wcont, spot.wx, spot.wy
+			row.detail = row.detail .. "  ·  " .. (spot.d and ("%.0f yd  "):format(spot.d) or "") .. tostring(spot.zone or "")
+			row.secure, row.isOpen, row.after = ns.Maps.SECURE, ns.Maps.IsOpenFor, I.SpotAfter
+			row.activate, row.secondary = I.PinObject, I.PinObject
+		end
+		out[#out + 1] = row
+	end
+end
+
 -- sources: where to get an item (crafted, sold, dropped, gathered, a quest's reward, AtlasLoot's bosses, your alts)
 ns:RegisterRelation("sources", {
 	aliases = { "source", "get", "where", "from" },
@@ -413,19 +444,9 @@ ns:RegisterRelation("sources", {
 			if I and I.ItemField then
 				AddNpcs(out, I, id, "vendors", "Sells it", 15, "sold by")
 				AddNpcs(out, I, id, "npcDrops", "Drops it", 15, "dropped by")
-				-- gathered or found: veins, herbs, chests (by name, once each)
+				-- gathered or found: veins, herbs, chests (by name, once each), at the spot nearest you
 				local objs = I.ItemField(id, "objectDrops")
-				if type(objs) == "table" and I.ObjectName then
-					local seen = {}
-					for _, oid in ipairs(objs) do
-						local oname = type(oid) == "number" and I.ObjectName(oid)
-						if oname and not seen[oname] then
-							seen[oname] = true
-							out[#out + 1] = { key = "obj:" .. oname, kind = "source", kindLabel = SOURCE_LABEL, name = oname,
-								detail = "Gathered or found here", pipeHow = "gathered from", icon = "Interface\\Icons\\INV_Ore_Copper_01", noActivate = true }
-						end
-					end
-				end
+				if type(objs) == "table" and I.ObjectName then AddObjects(out, I, objs) end
 				local quests = I.ItemField(id, "questRewards")
 				if type(quests) == "table" and I.QuestRow then
 					for _, qid in ipairs(quests) do

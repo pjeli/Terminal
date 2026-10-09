@@ -420,12 +420,14 @@ function Scan.NearestStart(tokens, filters, softWords)
 	return nil, here, role and ns.Filters and ns.Filters.Parse("faction:friendly")
 end
 
---- A row with a distance, as a view saying how far ("120 yd", a spot row keeping its zone as the arrow's live text
---- writes it: "120 yd  The Barrens"), scored closest first.
+--- A row with a distance, as a view saying how far and what it is ("120 yd  Mining Trainer", a spot row its zone:
+--- "120 yd  The Barrens"; `nearRest`, which the arrow's live text keeps), scored closest first.
 local function NearView(e, d)
-	local zone = rawget(e, "wcont") and e.zone
-	return setmetatable({ detail = ("%.0f yd"):format(d) .. (zone and ("  " .. zone) or ""), _score = 1e6 - d, _dist = d }, { __index = e })
+	local rest = (rawget(e, "wcont") and e.zone) or e.sub
+	return setmetatable({ detail = ("%.0f yd"):format(d) .. (rest and ("  " .. rest) or ""), _score = 1e6 - d, _dist = d,
+		nearRest = rest }, { __index = e })
 end
+Scan.NearView = NearView -- (tests)
 
 --- Would row a's view (da yards away) sort before row b's (db)? Better (Score.lua) on the views NearView makes: the
 --- score, then the name, then the key, read through to the rows as the views would.
@@ -949,10 +951,28 @@ end
 
 --- The best rows, in order: a quest item's quest brought along, Simple mode's action on each, the "Search <list> for
 --- this" rows (an action word with nothing to do it to: a line saying so).
+--- A quest from your log and its Questie copy both listed (Simple mode's Quests, @quests @questie): only the log's row
+--- (it opens your quest log), as a hint row isn't offered for a list whose copy you have (UI.HINT_SAME).
+function Scan.OneQuest(res)
+	local inLog
+	for i = 1, #res do
+		local e = res[i]
+		if e.kind == "quests" and e.questID then inLog = inLog or {}; inLog[e.questID] = true end
+	end
+	if not inLog then return res end
+	local out = {}
+	for i = 1, #res do
+		local e = res[i]
+		if not (e.kind == "questie" and inLog[rawget(e, "key")]) then out[#out + 1] = e end
+	end
+	return out
+end
+
 function Scan.Finalize(self, q, out)
 	local text, kinds, tokens, empty, filters, act, overBudget = q.text, q.kinds, q.tokens, q.empty, q.filters, q.act, q.overBudget
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	local res = SortAndTrim(out, nil, overBudget)
+	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
 	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
 	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
 	if act and act.map then
@@ -1134,12 +1154,14 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 		local out = {}
 		for _, c in ipairs(ns.Easy.Visible()) do
 			local count, best, bestScore = 0, nil, nil
+			local logged = 0 -- (quests from your log whose names Questie's lookup counts too: one quest, not two)
 			for _, id in ipairs(c.kinds) do
 				local p = ns.providers[id]
 				if p and p.hintFind and not self.place then
 					if #nameWords > 0 and not hard and not relaxed then
 						local first, n = p.hintFind(p, nameWords, tick)
 						if first and (n or 0) > 0 then
+							if id == "questie" then n = math.max(0, n - logged) end
 							count = count + n
 							if not bestScore then best, bestScore = first, TEXT_SCORE end
 						end
@@ -1170,6 +1192,11 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 							end
 							count = count + 1
 							if not bestScore or sc > bestScore then best, bestScore = e.name, sc end
+							if id == "quests" and #nameWords > 0 then
+								local ln, all = rawget(e, "_lname") or "", true
+								for w = 1, #nameWords do if not ln:find(nameWords[w], 1, true) then all = false break end end
+								if all then logged = logged + 1 end
+							end
 						end
 						if i % SLICE_CHECK == 0 then tick() end
 					end

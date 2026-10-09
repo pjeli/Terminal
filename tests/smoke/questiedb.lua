@@ -456,12 +456,15 @@ do
 		UI:SelectionChanged()
 		check(UI.navArrow and UI.navArrow:IsShown(), "the selected mailbox has an arrow pointing to it")
 		_G.GetPlayerFacing = nil
-		-- Enter: the map pin on it
+		-- Enter: the game opens the map on it, as an entrance's does (0.44.11); Shift+Enter: only the map pin on it
 		local placed
 		local placeWas = ns.Maps.Place
 		ns.Maps.Place = function(e) placed = e return "set" end
 		UI:Activate(1)
-		check(placed and placed.mapID == 1413 and math.abs(placed.pos.x - 0.625) < 0.001, "Enter: a waypoint on the nearest mailbox")
+		check(UI.armedEntry and UI.armedEntry.mapID == 1413 and ns.Secure.armed, "Enter: the game opens the map on the nearest mailbox")
+		UI:Disarm()
+		UI:Activate(1, { secondary = true })
+		check(placed and placed.mapID == 1413 and math.abs(placed.pos.x - 0.625) < 0.001, "Shift+Enter: a waypoint on the nearest mailbox")
 		-- sent to chat (right-click, Simple mode): "Nearby mailbox: [pin]"
 		C_Map.GetUserWaypointHyperlink = function() return "|Hworldmap:1413|h[pin]|h" end
 		local line = ns.Share.Line(UI.Results()[1], ns.Easy.ToAdvanced("nearest mailbox"))

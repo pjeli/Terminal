@@ -1,15 +1,14 @@
 local ns = select(2, ...)
---- A global function by name, called in a pcall (nil when the client lacks it).
-local function Call(name, ...) return ns.Safe(_G[name], ...) end
 
-local function OpenAchievement(e)
-	ns.LoadBlizz("Blizzard_AchievementUI")
-	if AchievementFrame_SelectAchievement then
-		ShowUIPanel(AchievementFrame)
-		pcall(AchievementFrame_SelectAchievement, e.key)
-	else
-		Call("ToggleAchievementFrame")
-	end
+-- Enter: the game opens the window on it (a /run line on the secure button, what an achievement link runs:
+-- OpenAchievementFrameToAchievement), never Terminal's code (the window's Lua would run tainted)
+local function AchievementMacro(e)
+	if type(e.key) ~= "number" then return nil end
+	return ("/run if OpenAchievementFrameToAchievement then OpenAchievementFrameToAchievement(%d) else ToggleAchievementFrame() end"):format(e.key)
+end
+local ACH_SECURE = { macro = AchievementMacro, binding = "TOGGLEACHIEVEMENT" }
+local function OpenAchievement(e) -- (no press possible: say so, nothing opened from here)
+	ns:Print("Couldn't open " .. tostring(e.name) .. " from here: the Achievements key opens the window.")
 end
 local function AchievementLink(e) return GetAchievementLink and GetAchievementLink(e.key) or nil end
 
@@ -141,6 +140,7 @@ do
 	ns:AliasesChanged()
 	achMeta = ns:CompactMeta(earned, {
 		getLink = AchievementLink, -- (made when selected, not per achievement up front)
+		secure = ACH_SECURE, isOpen = ns.Never, -- (always pressed: it turns the open window to this one)
 		activate = OpenAchievement,
 		secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
 		secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,

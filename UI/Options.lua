@@ -601,6 +601,17 @@ local function ApplyPresetRow(e)
 	C_Timer.After(0, ReopenOnThemes)
 end
 
+-- the Terminal Options row: the game opens the settings on Terminal's page (a /run line on the secure button, as the
+-- game options rows do), not Terminal's code; .options (a command can't carry a press) still opens it itself
+local function OptionsMacro()
+	Register()
+	local c = O.category
+	local id = c and ((c.GetID and c:GetID()) or c.ID)
+	if id == nil or not (Settings and Settings.OpenToCategory) then return nil end
+	return ("/run Settings.OpenToCategory(%s)"):format(type(id) == "number" and tostring(id) or ("%q"):format(tostring(id)))
+end
+local OPTIONS_SPEC = { macro = OptionsMacro }
+
 ns:RegisterProvider("terminal", {
 	label = "Terminal",
 	color = "ff33ff99",
@@ -612,6 +623,7 @@ ns:RegisterProvider("terminal", {
 				name = "Terminal Options",
 				icon = "Interface\\Icons\\INV_Misc_Gear_01",
 				text = "settings preferences theme colours colors font layout customize prompt",
+				secure = OPTIONS_SPEC, isOpen = ns.Never,
 				activate = function() O.Open() end,
 			},
 		}
