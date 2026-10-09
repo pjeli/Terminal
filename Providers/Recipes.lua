@@ -243,7 +243,7 @@ ns:RegisterCommand("profs", {
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local pd = P.FindIndexed(pr)
 			lines[#lines + 1] = ("  %s %d/%d - %s"):format(pr.name, pr.rank, pr.maxRank,
-				pd and (#pd.list .. " recipes indexed") or "not indexed (open it once, or search @recipe and pick Index my recipes)")
+				pd and (#pd.list .. " recipes indexed") or ns.Said("not indexed (open it once)", "not indexed (open it once, or search @recipe and pick Index my recipes)"))
 		end
 		if #lines == 1 then lines[2] = "  none found" end
 		return lines

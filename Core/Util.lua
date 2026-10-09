@@ -132,6 +132,12 @@ end
 --- where characters have a surname (RegionalUniqueNamesEnabled: "Plamen Warr"), UnitName gives the two
 --- apart and only "Plamen" alone named another character (an old one called just Plamen), so the AddOn
 --- list Terminal read and changed was that character's. Joined with the game's own separator, as Syndicator does.
+--- The words for the mode the player is in: Simple mode's (no @kind, key:value or >>), else Advanced's.
+function ns.Said(simple, advanced)
+	if ns.Easy and ns.Easy.On and ns.Easy.On() then return simple end
+	return advanced
+end
+
 function ns.CharacterName()
 	local name, surname = UnitName("player")
 	name, surname = ns.Str(name), ns.Str(surname)

@@ -69,7 +69,7 @@ do
 		if count > 0 and UI.results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
 		if count > 0 and UI.results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
-		if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
+		if self.action and self.mode == "search" then cat = { label = self.action.label } end -- (Advanced: do:use)
 		if self.answerNote and self.mode == "search" then cat = { label = self.answerNote } end
 		if self.pipeTrail and self.mode == "search" then
 			-- (Simple mode says it in words: "Mats for core leather belt", never a ">" chain)

@@ -239,7 +239,7 @@ do
 		end
 	end
 
-	--- Tab (Shift+Tab: back).
+	--- Tab (Shift+Tab: back). The game's own text box (combat, the clipboard) runs it too (UI.TabKey).
 	local function TabKey(shift)
 		if UI.fzf then
 			UI:Move(shift and -1 or 1) -- (pure fuzzy finding: Tab goes through the list too)
@@ -254,6 +254,7 @@ do
 			UI:Move(-1)
 		elseif not UI:AcceptCompletion() then UI:Move(1) end
 	end
+	UI.TabKey = TabKey
 
 	--- Ctrl+V / Ctrl+C in the drawn prompt: the clipboard is only reachable from the game's own text box, and this press
 	--- is spent getting there: the next Ctrl+V / Ctrl+C does it (the prompt and footer say so).

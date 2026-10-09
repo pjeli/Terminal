@@ -20,8 +20,12 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = "Filters (add to a search, .filters for all): lvl:20-30  q:rare+  stat:stamina  slot:wrist  in:bank  is:todo  is:usable"
 		lines[#lines + 1] = "Send a result to chat with  >>  :  hearthstone >> party   @npc hogger >> guild   copper bar >> w Name"
 		lines[#lines + 1] = "Every result at once with  >>>  :  mats for thorium belt >>> party   @loot lorgus jett >>> guild"
-		lines[#lines + 1] = "Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on"
-		lines[#lines + 1] = "Keys: Enter open, Shift+Enter the result's other action (use an item, pin only, link, list items...), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes commands and their arguments"
+		lines[#lines + 1] = "Chains: thorium belt > mats, copper bar > uses, thorium bar > sources (.chains); plain words work too: mats for thorium belt"
+		lines[#lines + 1] = "Ask in plain words: where should i level, what dungeon should i do, where should i fish, what killed me, what dropped"
+		lines[#lines + 1] = "do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"
+		lines[#lines + 1] = "Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on; right-click a result for everything it can do"
+		lines[#lines + 1] = "Tab+` (hold Tab, press `) is pure fuzzy finding over every list, by name; Ctrl+click a link in chat to look it up here"
+		lines[#lines + 1] = "Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open, Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes commands and their arguments"
 		return lines
 	end,
 })

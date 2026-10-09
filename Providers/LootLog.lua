@@ -337,7 +337,7 @@ function LL.Answer(q)
 end
 
 ns:RegisterCommand("lootlog", {
-	desc = "The loot log: what dropped and who got it (search it with @drop); .lootlog clear forgets it",
+	desc = "The loot log: what dropped and who got it; .lootlog clear forgets it",
 	complete = function() return { { "clear", "forget every drop" } } end,
 	run = function(args)
 		if strtrim(args or ""):lower() == "clear" then
@@ -347,7 +347,8 @@ ns:RegisterCommand("lootlog", {
 			return { "Loot log cleared." }
 		end
 		local log = Log() or {}
-		local lines = { ("Loot log: %d drops kept (the newest %d). Search it: @drop <words>"):format(#log, LL.MAX) }
+		local lines = { ("Loot log: %d drops kept (the newest %d). %s"):format(#log, LL.MAX,
+			ns.Said("Ask \"what dropped\", or type an item's name.", "Search it: @drop <words>")) }
 		for i = 1, math.min(10, #log) do
 			local d = log[i]
 			lines[#lines + 1] = ("  %s%s  %s  %s"):format(d.link, d.n and (" x" .. d.n) or "", Who(d.who or "?"), LL.Ago(d.t))

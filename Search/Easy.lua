@@ -321,12 +321,15 @@ E.ACTIONS = {
 	summon = { label = "Summon", map = { mounts = "p", pets = "p" } },
 	mount = { label = "Summon", map = { mounts = "p" } },
 	ride = { label = "Summon", map = { mounts = "p" } },
-	equip = { label = "Equip", map = { items = "s" } },
-	wear = { label = "Wear", map = { titles = "p", items = "s" } },
+	equip = { label = "Equip", map = { items = "s", equipmentset = "p" } },
+	wear = { label = "Wear", map = { titles = "p", items = "s", equipmentset = "p" } },
 	target = { label = "Target", map = { npc = "s" } },
-	link = { label = "Link in chat", map = { achievementlist = "s", professions = "s" } },
+	-- ("l": a link to the row in the chat box, for rows whose Shift+Enter is something else)
+	link = { label = "Link in chat", map = { achievementlist = "s", professions = "s", recipes = "s", talents = "s",
+		lootlog = "s", loot = "s", items = "l", spells = "l", quests = "l" } },
 	["do"] = { label = "Do", map = { slash = "p" }, keep = IsEmote },
-	where = { label = "Where is", map = { npc = "p", maps = "p", quests = "p", questie = "s" } },
+	where = { label = "Where is", map = { npc = "p", maps = "p", quests = "p", questie = "s", dungeon = "p", raid = "p",
+		mailbox = "p" } },
 	nearest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	closest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	nearby = { label = "Nearest", map = { npc = "p" }, nearest = true },
@@ -348,8 +351,16 @@ local Never = ns.Never
 
 --- A row as the action wants it: its Shift+Enter action made its Enter (a view on the row, which stays as it is);
 --- rows whose usual action is the one wanted come back as they are.
+local function LinkText(e) return ns.Share and ns.Share.Text(e) or e.name end
+local LINK_SPEC = ns.ChatBoxSpec(LinkText) -- (the game opens the chat box with the row's link: Core.lua)
+local function LinkNow(e) ns.LinkInChat(LinkText(e)) end -- (combat: Terminal's own)
+
 function E.ActionView(e, act)
 	local how = act.map and act.map[e.kind]
+	if how == "l" then
+		return setmetatable({ secure = LINK_SPEC, isOpen = Never, after = false, activate = LinkNow, actionVerb = act.label,
+			actionOf = e }, { __index = e })
+	end
 	if how ~= "s" or not (e.secondary or e.secondarySecure) then return e end
 	return setmetatable({
 		secure = e.secondarySecure or false, isOpen = e.secondaryIsOpen or Never, after = e.secondaryAfter or false,
@@ -380,14 +391,15 @@ end
 --- The action the words say (the first word, or "nearest" said last: "mining trainer nearby"), taken off the list;
 --- nil when there's none.
 local function ActionOf(words)
-	local act = #words > 1 and E.ACTIONS[Lower(words[1])] or nil
+	local word = #words > 1 and Lower(words[1]) or nil
+	local act = word and E.ACTIONS[word] or nil
 	if act then
 		table.remove(words, 1)
 	elseif #words > 1 then
 		local tail = E.ACTIONS[Lower(words[#words])]
 		if tail and tail.nearest then act = tail; table.remove(words) end
 	end
-	return act
+	return act, act and word
 end
 
 -- a word's pieces that are everyday words as their filters ("-boe" -> -is:boe, "sword|axe" -> type:sword|type:axe,
@@ -430,8 +442,8 @@ function E.ToAdvanced(text, category)
 	E.JoinPairs(words) -- two everyday words that mean one thing ("attack power food")
 	E.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe (made filters below)
 	-- the first word can say what to do ("use hearthstone", "nearest innkeeper")
-	local act = ActionOf(words)
-	local nearest
+	local act, actWord = ActionOf(words)
+	local nearest, doWord
 	if act then
 		nearest = act.nearest
 		if act.map then
@@ -439,6 +451,8 @@ function E.ToAdvanced(text, category)
 			for k in pairs(act.map) do ks[#ks + 1] = k end
 			table.sort(ks)
 			for _, k in ipairs(ks) do Add(kinds, KindWord(k)) end
+			-- what Enter does stays what was asked ("use hearthstone": do:use, not just the item shown in your bags)
+			if not nearest and actWord then doWord = "do:" .. actWord end
 		end
 	end
 	if not (act and act.map) and E.BY_ID[category or ""] then
@@ -481,7 +495,7 @@ function E.ToAdvanced(text, category)
 	if role then Add(filters, "faction:friendly") end
 	if nearest then Add(filters, "sort:nearest") end
 	local out = {}
-	for _, list in ipairs({ kinds, plain, filters }) do
+	for _, list in ipairs({ kinds, { doWord }, plain, filters }) do -- ("@spell do:cast frost nova": the verb first)
 		for _, w in ipairs(list) do out[#out + 1] = w end
 	end
 	return #out > 0 and (table.concat(out, " ") .. " ") or ""
@@ -670,7 +684,9 @@ function E.HelpLines()
 		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\". Enter on a row goes one step further, Shift+Enter opens it.",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
-		"Want the full command line (@kinds, filters, .commands, chat)? Type .advanced",
+		"Ctrl+Enter does it and keeps the terminal open (for things that don't open a window).",
+		"Commands start with a dot: .options, .theme, .xp, .lootlog, .zen, .changelog... (type a dot to see them all).",
+		"Want the full command line (@kinds, filters, chat)? Type .advanced",
 	}
 end
 

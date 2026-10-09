@@ -125,3 +125,90 @@ do
 	ns.db.combatLog = keep
 	CL._dirty = true
 end
+
+-- Simple mode doesn't teach Advanced syntax: Down's help rows, the commands' descriptions and what they print
+do
+	local was = ns.db.easyMode
+	ns.db.easyMode = true; UI:EasyChanged()
+	local lines = {}
+	local saved = { recent = ns.db.recent, freq = ns.db.freq }
+	ns.db.recent, ns.db.freq = {}, {}
+	UI:Open(""); FlushAll()
+	UI.showRecent = true
+	for _, e in ipairs(UI:SearchText("")) do lines[#lines + 1] = e.name end
+	local all = table.concat(lines, " | ")
+	check(#lines > 0 and not all:find("@", 1, true) and not all:find(">>", 1, true), "Simple: Down's help rows have no @ or >>: " .. all)
+	UI.showRecent = nil
+	UI:Hide(); FlushAll()
+	ns.db.recent, ns.db.freq = saved.recent, saved.freq
+	for _, name in ipairs({ "lootlog", "combatlog", "xp" }) do
+		local c = ns.commands[name]
+		check(c and not c.desc:find("@", 1, true), "." .. name .. "'s description has no @kind: " .. tostring(c and c.desc))
+	end
+	local out = table.concat(ns:FindCommand("lootlog").run("") or {}, " ")
+	check(not out:find("@", 1, true), "Simple: .lootlog says how to search it in words: " .. out)
+	ns.db.easyMode = false; UI:EasyChanged()
+	out = table.concat(ns:FindCommand("lootlog").run("") or {}, " ")
+	check(out:find("@drop", 1, true), "Advanced: .lootlog says @drop: " .. out)
+	ns.db.easyMode = was; UI:EasyChanged()
+end
+
+-- action words reach every kind they make sense for; Alt+` keeps the action (do:use)
+do
+	local A = E.ACTIONS
+	check(A.equip.map.equipmentset and A.wear.map.equipmentset, "equip / wear: equipment sets too")
+	check(A.link.map.recipes and A.link.map.talents and A.link.map.lootlog and A.link.map.items, "link: recipes, talents, drops, items too")
+	check(A.where.map.dungeon and A.where.map.raid and A.where.map.mailbox, "where: entrances and mailboxes too")
+	-- "link" on a row whose Shift+Enter is something else: a link in the chat box (the game opens it)
+	local item = { kind = "items", name = "Hearthstone", itemID = 6948, link = "item:6948", secondary = function() end }
+	local v = E.ActionView(item, A.link)
+	check(v ~= item and v.secure and v.secure.macro and E.Verbs(v) == "link in chat", "link hearthstone: Enter links it: " .. tostring(E.Verbs(v)))
+	-- Alt+` writes the action as do:<word>, which Advanced understands
+	local adv = E.ToAdvanced("use hearthstone")
+	check(adv:find("do:use", 1, true) and adv:find("hearthstone", 1, true), "Alt+`: use hearthstone -> " .. adv)
+	check(not E.ToAdvanced("nearest innkeeper"):find("do:", 1, true), "nearest stays sort:nearest")
+	check(ns.Filters.Parse("do:use") and ns.Filters.ActionOf("do:use") == A.use and not ns.Filters.ActionOf("do:zzz"), "do: is a known key")
+	check(E.IsAdvancedWord("do:use"), "Simple mode refuses do: (it's Advanced syntax)")
+	local was = ns.db.easyMode
+	ns.db.easyMode = false
+	local res = UI:SearchText("@items do:use hearthstone")
+	local r = res[1]
+	check(r and r.actionVerb == "Use" and E.Verbs(r) == "use" and UI.action == A.use, "Advanced do:use: Enter uses it: " .. tostring(r and r.name) .. " " .. tostring(r and E.Verbs(r)))
+	res = UI:SearchText("do:use hearthstone")
+	check(res[1] and res[1].actionVerb == "Use", "do:use with no @kind: the action's own lists")
+	UI:SearchText("hearthstone")
+	ns.db.easyMode = was
+end
+
+-- the two .help texts cover the same things, each in its own words
+do
+	local was = ns.db.easyMode
+	ns.db.easyMode = false
+	local adv = table.concat(ns:FindCommand("help").run("") or {}, " ")
+	ns.db.easyMode = true
+	local simple = table.concat(ns:FindCommand("help").run("") or {}, " ")
+	ns.db.easyMode = was
+	for _, w in ipairs({ "mats for thorium belt", "where should i level", "what killed me", "Tab+`", "right-click", "Ctrl+click", "Ctrl+Enter" }) do
+		local lw = w:lower()
+		check(adv:lower():find(lw, 1, true) and simple:lower():find(lw, 1, true), "both helps say \"" .. w .. "\"")
+	end
+	check(adv:find("> mats", 1, true) and not simple:find(">", 1, true), "chains: Advanced shows >, Simple doesn't")
+end
+
+-- Tab in the game's own text box (combat, after Ctrl+C) does what it does in the drawn prompt
+do
+	local was = ns.db.easyMode
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open(""); FlushAll()
+	local cats = 0
+	local real = UI.EasyTab
+	UI.EasyTab = function(self) cats = cats + 1 end
+	local moved = 0
+	local realMove = UI.Move
+	UI.Move = function(self, d) moved = moved + 1 end
+	UI.edit.scripts.OnTabPressed(UI.edit)
+	UI.EasyTab, UI.Move = real, realMove
+	check(cats == 1 and moved == 0, "Simple: Tab in the real box goes to the categories, not down the list (" .. cats .. ", " .. moved .. ")")
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = was; UI:EasyChanged()
+end

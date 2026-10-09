@@ -247,14 +247,22 @@ function UI:FrequentEntries()
 		end
 	end
 	if #out == 0 then
-		return PseudoEntries({
+		-- (nothing picked yet: what to type, in the words of the mode you're in)
+		return PseudoEntries(ns.Said({
+			"Type the name of anything: an item, a quest, a spell, a mount, a place, an NPC, an emote",
+			"Start with what to do: use, cast, summon, equip, where, nearest (\"nearest innkeeper\")",
+			"Ask in plain words: \"where should i level\", \"mats for thorium belt\", \"what killed me\"",
+			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
+			"Right-click a result (or Shift+Right) to send it to chat, or every result at once",
+			"Change the look with  .theme  and  .set , or  .options",
+		}, {
 			"Type to fuzzy-search items, quests (by text), spells, recipes, camp objects...",
 			"Start with  /  for slash commands,  .  for terminal commands (try .help)",
 			"Add  @questlog  /  @item  /  @recipe  to search a single kind (@questie: every quest, with Questie)",
 			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
 			"End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat;  >>> party  sends every result at once",
 			"Change the look with  .theme  and  .set , or  .options",
-		})
+		}))
 	end
 	return SortAndTrim(out)
 end
@@ -613,6 +621,7 @@ function Scan.Parse(self, text)
 	-- already took a ">>" off); the plain words are still searched
 	local blocked = simple and self.blockedSyntax or nil
 	local sortNear -- Advanced "sort:nearest": NPCs closest first, the rest after
+	local advAct -- Advanced "do:use": each row's Enter that action (as Simple mode's "use ...")
 	self.noPosition = nil
 	local words = {}
 	for w in text:gmatch("%S+") do words[#words + 1] = w end
@@ -628,6 +637,9 @@ function Scan.Parse(self, text)
 		elseif ns.Filters and ns.Filters.SortOf and ns.Filters.SortOf(w) then
 			sortNear = true
 			fsig[#fsig + 1] = "^near"
+		elseif ns.Filters and ns.Filters.ActionOf and ns.Filters.ActionOf(w) then
+			advAct = ns.Filters.ActionOf(w)
+			fsig[#fsig + 1] = "!" .. advAct.label
 		elseif w:sub(1, 1) == "@" then
 			local p = ns:ResolveProvider(w:sub(2))
 			if p then
@@ -665,7 +677,7 @@ function Scan.Parse(self, text)
 		end
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
-		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear }
+		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear, advAct = advAct }
 end
 
 --- Simple mode: an action word and a place named among the words, taken out of them (q.act, q.tokens, q.filters).
@@ -674,6 +686,18 @@ function Scan.ActionAndPlace(self, q)
 	-- Simple mode: the first word can say what to do ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS)
 	local act
 	if simple and tokens[1] then act = Scan.TakeAction(tokens, filters) end
+	if not simple and q.advAct then
+		-- Advanced "do:use": the action's lists when no @kind says which, and its own test (do:do = emotes)
+		act = q.advAct
+		if not q.kinds then
+			q.kinds = {}
+			for k in pairs(act.map) do if ns.providers[k] then q.kinds[k] = true end end
+		end
+		if act.keep then
+			filters, hard = filters or {}, hard or {}
+			filters[#filters + 1], hard[#hard + 1] = act.keep, act.keep
+		end
+	end
 	self.action = act
 	-- Simple mode: a place named among the words ("vendor ratchet", "trainer in booty bay", "food barrens"): NPCs
 	-- there, other rows that name it (Integrations.FindPlace / PlaceFilter); checked after the cheaper filters

@@ -345,7 +345,7 @@ function CB.Answer(kind)
 end
 
 ns:RegisterCommand("combatlog", {
-	desc = "What crit you and what killed you, as recorded (search it with @combatlog); .combatlog clear forgets it",
+	desc = "What crit you and what killed you, as recorded; .combatlog clear forgets it",
 	complete = function() return { { "clear", "forget it all" } } end,
 	run = function(args)
 		if strtrim(args or ""):lower() == "clear" then
@@ -354,7 +354,8 @@ ns:RegisterCommand("combatlog", {
 			return { "Combat log cleared." }
 		end
 		local st, log = CB.state, Log() or {}
-		local lines = { ("Combat log: %d entries kept. Search it: @combatlog <words>, or ask \"what killed me\"."):format(#log) }
+		local lines = { ("Combat log: %d entries kept. %s"):format(#log,
+			ns.Said("Ask \"what killed me\" or \"who crit me\".", "Search it: @combatlog <words>, or ask \"what killed me\".")) }
 		if st.blocked then
 			lines[#lines + 1] = "  The game doesn't let addons read the combat log here: only your deaths are kept (what killed you from the Death Recap)."
 		elseif st.events > 0 and st.secret == st.events then

@@ -653,7 +653,8 @@ function P.ScanHelp()
 		if not P.FindIndexed(pr) and P.OpenSpell(pr.name) then todo[#todo + 1] = pr.name end
 	end
 	ns:Print("The game doesn't let addons open profession windows, so Terminal can't scan them itself.")
-	ns:Print("Every profession is indexed the moment you open it. Search it here (@profession) and press Enter: that opens it the normal way.")
+	ns:Print("Every profession is indexed the moment you open it. " .. ns.Said("Type its name here", "Search it here (@profession)")
+		.. " and press Enter: that opens it the normal way.")
 	if #todo > 0 then ns:Print("Not indexed yet: " .. table.concat(todo, ", ") .. ".") end
 end
 

@@ -250,6 +250,22 @@ KEYS.class = function(v)
 	end
 end
 
+-- do:<action> (Advanced): Simple mode's action words written as Advanced syntax ("use hearthstone" -> "@camp @items @toys
+-- do:use hearthstone", Alt+`): not a filter (every row stays); the search makes each row's Enter that action, as Simple
+-- mode's action word does (Search.lua's Scan.Parse, Easy.ActionView)
+--- "do:use" -> the action (Easy.ACTIONS) and its word, else nil.
+function F.ActionOf(word)
+	if type(word) ~= "string" then return nil end
+	local k, v = word:match("^(%a+):(%a+)$")
+	if not (k and Lower(k) == "do") then return nil end
+	local a = ns.Easy and ns.Easy.ACTIONS[Lower(v)]
+	if a and a.map and not a.nearest then return a, Lower(v) end
+end
+KEYS["do"] = function(v)
+	if not F.ActionOf("do:" .. v) then return nil end
+	return function() return true end
+end
+
 KEYS.standing = function(v)
 	local r = StandingRange(v)
 	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
@@ -286,6 +302,7 @@ F.VALUES = {
 	sort = { "nearest" },
 	fish = { "mine", "75", "150", "225", "300" },
 	class = { "mine", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid" },
+	["do"] = { "use", "cast", "summon", "equip", "wear", "target", "link", "where" },
 	near = { "100", "300", "500", "1000" },
 	trainer = { "class", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
@@ -310,6 +327,7 @@ F.HELP = {
 	{ "standing:honored+", "reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)" },
 	{ "near:500", "@npc: within that many yards of you (near:<300, near:200-800)" },
 	{ "sort:nearest", "Questie NPCs closest to you first, with how far (the other rows stay, after them)" },
+	{ "do:use", "what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)" },
 	{ "sells:linen_cloth", "@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)" },
 	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey" },
 	{ "is:ready", "spells: ready (off cooldown) passive; currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },

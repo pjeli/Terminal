@@ -919,7 +919,7 @@ Run("Alt+`: Advanced mode for this run only", function()
 	check(E.ToAdvanced("rare sword") == "sword q:rare " or E.ToAdvanced("rare sword") == "q:rare type:sword ",
 		"rare sword -> filters: " .. E.ToAdvanced("rare sword"))
 	check(E.ToAdvanced("attack power food") == "stat:ap type:food ", "attack power food -> stat:ap type:food: " .. E.ToAdvanced("attack power food"))
-	check(E.ToAdvanced("cast frost nova") == "@spell frost nova ", "cast frost nova -> @spell: " .. E.ToAdvanced("cast frost nova"))
+	check(E.ToAdvanced("cast frost nova") == "@spell do:cast frost nova ", "cast frost nova -> @spell do:cast (0.44.11: the action stays): " .. E.ToAdvanced("cast frost nova"))
 	check(E.ToAdvanced("nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
 		"nearest innkeeper -> @npc ... sort:nearest: " .. E.ToAdvanced("nearest innkeeper"))
 	check(E.ToAdvanced("hearthstone", "bags") == "@item hearthstone ", "a picked category -> its @kind: " .. E.ToAdvanced("hearthstone", "bags"))
@@ -928,11 +928,11 @@ Run("Alt+`: Advanced mode for this run only", function()
 	-- Alt+` in an open Simple prompt: written in Advanced syntax, searched as Advanced
 	UI:Open("cast frost nova")
 	alt(function() key("`", "`") end) -- (the key's character comes after it, as in the game)
-	check(UI:IsShown() and T.query() == "@spell frost nova " and not E.On() and E.temp, "Alt+`: the prompt is Advanced now: " .. T.query())
+	check(UI:IsShown() and T.query() == "@spell do:cast frost nova " and not E.On() and E.temp, "Alt+`: the prompt is Advanced now: " .. T.query())
 	local r = UI.Results()
-	check(r[1] and r[1].name == "Frost Nova" and not r[1].actionVerb, "searched as Advanced: the spell row itself: " .. Show(r))
+	check(r[1] and r[1].name == "Frost Nova" and r[1].actionVerb == "Cast", "searched as Advanced: the spell, Enter still casts it: " .. Show(r))
 	key("A", "a")
-	check(T.query() == "@spell frost nova a", "typing goes on after it (only the switch's ` was dropped): " .. T.query())
+	check(T.query() == "@spell do:cast frost nova a", "typing goes on after it (only the switch's ` was dropped): " .. T.query())
 	key("BACKSPACE")
 	check(ns.db.easyMode == true, "the saved mode stays Simple")
 	-- closing gives Simple back, and Down brings back what the Simple prompt said
@@ -1137,20 +1137,21 @@ Run("Alt+`: what it runs stays out of Simple mode's history", function()
 	UI:Open("shiny sword"); key("ENTER"); UI:Hide(); FlushAll()
 	-- an Alt+` run
 	UI:Open("cast frost nova"); alt(function() key("`", "`") end)
-	check(T.query() == "@spell frost nova ", "(Advanced this run)")
+	check(T.query() == "@spell do:cast frost nova ", "(Advanced this run)")
 	UI:Activate(1); UI:Hide(); FlushAll()
-	check(ns.db.history[1] == "@spell frost nova", "the Advanced line is in the history: " .. tostring(ns.db.history[1]))
+	check(ns.db.history[1] == "@spell do:cast frost nova", "the Advanced line is in the history: " .. tostring(ns.db.history[1]))
 	-- Simple: Up skips it
 	UI:Open(""); key("UP")
 	check(T.query() == "shiny sword", "Simple mode's Up: its own lines only, not what Alt+` ran: " .. T.query())
 	UI:Hide(); FlushAll()
 	-- Advanced (Alt+` again, or for good): Up has it
 	UI:AdvancedOnce(); key("UP")
-	check(T.query() == "@spell frost nova", "Advanced mode's Up: the Advanced line: " .. T.query())
+	check(T.query() == "@spell do:cast frost nova", "Advanced mode's Up: the Advanced line: " .. T.query())
 	UI:Hide(); FlushAll()
 	-- the same line run in Simple mode later is Simple's again
-	ns:RecordHistory("@spell frost nova")
-	check(not ns.db.historyAdv["@spell frost nova"], "run again in Simple: no longer Advanced-only")
+	check(ns.db.historyAdv["@spell do:cast frost nova"], "(marked Advanced-only)")
+	ns:RecordHistory("@spell do:cast frost nova")
+	check(not ns.db.historyAdv["@spell do:cast frost nova"], "run again in Simple: no longer Advanced-only")
 	ns.db.history, ns.db.historyAdv = {}, {}
 end)
 

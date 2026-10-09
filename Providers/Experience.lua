@@ -215,7 +215,7 @@ ns:RegisterProvider("experience", {
 })
 
 ns:RegisterCommand("xp", {
-	desc = "Your characters' experience and rested experience (search it with @xp); .xp forget <name> drops an alt",
+	desc = "Your characters' experience and rested experience; .xp forget <name> drops an alt",
 	aliases = { "experience", "rested" },
 	complete = function()
 		local out = {}

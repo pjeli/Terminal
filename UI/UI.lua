@@ -230,9 +230,8 @@ do
 		edit:SetScript("OnArrowPressed", function(_, key)
 			if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
 		end)
-		edit:SetScript("OnTabPressed", function()
-			if IsShiftKeyDown() or not UI:AcceptCompletion() then UI:Move(IsShiftKeyDown() and -1 or 1) end
-		end)
+		-- (Tab here does what it does in the drawn prompt: Simple mode's categories, Advanced's pick lists, completion)
+		edit:SetScript("OnTabPressed", function() UI.TabKey(IsShiftKeyDown()) end)
 		edit:SetScript("OnKeyUp", function(_, key) if key == "TAB" then UI.tabHeld = nil end end)
 		edit:SetScript("OnKeyDown", function(_, key)
 			-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)

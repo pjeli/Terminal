@@ -37,7 +37,7 @@ local function RunEntry(e, args) RunSlash(Line(e, args)) end
 -- /console's fallback never types into the chat box: a protected setting would be refused as Terminal's
 local function ConsoleDirect(e, args)
 	if not args or args:match("^%s*$") then
-		ns:Print("Usage: /console <setting> <value> (find settings with @cvar)")
+		ns:Print("Usage: /console <setting> <value> " .. ns.Said("(find settings by name: Console settings)", "(find settings with @cvar)"))
 		return
 	end
 	ns:Print("Couldn't hand /console to the game (in combat?). Try again out of combat.")
@@ -143,7 +143,7 @@ ns:RegisterProvider("slash", {
 			}
 		end
 		-- /console isn't always one of the SLASH_ globals (the chat box handles it itself): its row is added when
-		-- missing. It needs a setting and a value (@cvar lists them)
+		-- missing. It needs a setting and a value (Console settings / @cvar list them)
 		local console
 		for _, e in ipairs(out) do if e.name == "/console" then console = e break end end
 		if not console then
@@ -160,7 +160,7 @@ ns:RegisterProvider("slash", {
 			for n in (e.detail or ""):gmatch("/%S+") do taken[ns.Lower(n)] = true end
 		end
 		Emotes(out, taken)
-		console.detail = (console.detail ~= "" and (console.detail .. "  ") or "") .. "set a CVar (@cvar lists them)"
+		console.detail = (console.detail ~= "" and (console.detail .. "  ") or "") .. "set a console setting"
 		cached, cachedCount = out, count
 		return out
 	end,
