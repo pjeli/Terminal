@@ -210,6 +210,202 @@ local function CastFallback(e)
 	end
 end
 
+----------------------------------------------------------------------
+-- On your bars or not (is:unplaced; "spells not on my bars")
+--
+-- A spell is placed when a bar you have holds it (any rank, or a macro casting it), the stance bar has it, or a key is
+-- bound to it ("SPELL <name>") or to a macro casting it. Which action slots are bars you have follows Blizzard's own
+-- bar code (Forever's ActionButtonUtil.AddPlayerActionBarsContainingSlots): 12 slots a page; pages 1-2 the main bar,
+-- 3-6 and 13-15 the side and bottom bars (only when shown: switched on in the settings), 7-10 the stance and form bars
+-- (when you have stances or forms: you see each in its own). Not counted: the main bar's first page for a warrior with
+-- stances (always in one, so its stance bar shows instead: seen in game, Overpower in slot 8 while in Berserker Stance),
+-- and any slot outside those pages (vehicle, override, and slot 181, where Blood Fury sat unseen; the spellbook's own
+-- tooltip said "You haven't added this to your action bars"). C_ActionBar.IsOnBarOrSpecialBar counts those hidden
+-- slots, so it isn't used. As the spellbook does (Forever's SpellSearchUtil), passive spells and auto attacks (Attack,
+-- Shoot, Auto Shot) are never "unplaced"; unlike it, a macro or a key counts, and so does another stance's bar.
+----------------------------------------------------------------------
+
+SP.SIDE_BARS = { [3] = "MultiBarRight", [4] = "MultiBarLeft", [5] = "MultiBarBottomRight", [6] = "MultiBarBottomLeft",
+	[13] = "MultiBar5", [14] = "MultiBar6", [15] = "MultiBar7" }
+SP.KEEP_PLACED = 2 -- (s the names are kept: a bar switched on or off in the settings shows by the next search)
+local placedNames, placedAt -- { [lowercase name] = true } (nil: worked out again when asked)
+
+--- Whether an action slot is on a bar you have (see above).
+function SP.SlotCounts(slot)
+	local page = math.floor((slot - 1) / 12) + 1
+	if page == 1 then
+		-- (a warrior is always in a stance once he has one: the first page never shows)
+		local _, class = Call(_G.UnitClass, "player")
+		return not (class == "WARRIOR" and (Call(_G.GetNumShapeshiftForms) or 0) > 0)
+	end
+	if page == 2 then return true end
+	if page >= 7 and page <= 10 then return (Call(_G.GetNumShapeshiftForms) or 0) > 0 end -- (no stances or forms: never shown)
+	local bar = SP.SIDE_BARS[page]
+	if not bar then return false end
+	local f = _G[bar]
+	if not (f and f.IsShown) then return true end -- (no such frame here: not judged, counted)
+	return Call(f.IsShown, f) and true or false
+end
+
+-- the slash words that cast or use something, the game's own (other languages) and English
+local castWords
+local function CastWords()
+	if castWords then return castWords end
+	castWords = { cast = true, use = true, castsequence = true, castrandom = true, userandom = true }
+	for _, k in ipairs({ "CAST", "USE", "CASTSEQUENCE", "CASTRANDOM", "USERANDOM" }) do
+		for i = 1, 8 do
+			local w = _G["SLASH_" .. k .. i]
+			if type(w) == "string" then castWords[ns.Lower((w:gsub("^/", "")))] = true end
+		end
+	end
+	return castWords
+end
+
+--- The spell names a macro's text casts or uses (conditions, "!", "(Rank 3)", castsequence's reset= dropped).
+function SP.MacroSpellNames(body, into)
+	into = into or {}
+	if type(body) ~= "string" or ns.Secret(body) then return into end
+	local words = CastWords()
+	for line in body:gmatch("[^\n]+") do
+		local cmd, args = line:match("^%s*/(%S+)%s+(.+)$")
+		if cmd and words[ns.Lower(cmd)] then
+			args = args:gsub("%b[]", ""):gsub("reset=%S+", "")
+			for part in args:gmatch("[^;,]+") do
+				local n = part:gsub("^%s*!?", ""):gsub("%s*%(.-%)%s*$", ""):gsub("%s+$", "")
+				if n ~= "" then into[ns.Lower(n)] = true end
+			end
+		end
+	end
+	return into
+end
+
+local function SpellNameOf(id)
+	local n = type(id) == "number" and C_Spell and C_Spell.GetSpellName and Call(C_Spell.GetSpellName, id)
+	return (type(n) == "string" and n ~= "" and not Secret(n)) and n or nil
+end
+
+-- a macro's spells by its index: what it casts now (GetMacroSpell) and every name its text casts
+local function AddMacro(index, into)
+	SP.MacroSpellNames(Call(_G.GetMacroBody, index), into)
+	local n = SpellNameOf(Call(_G.GetMacroSpell, index))
+	if n then into[ns.Lower(n)] = true end
+end
+
+--- Every spell name on your bars or keys (lowercase -> true), kept a moment and until something changes.
+function SP.PlacedNames()
+	local now = GetTime()
+	if placedNames and now - (placedAt or 0) < SP.KEEP_PLACED then return placedNames end
+	local into = {}
+	local used, counted = 0, 0
+	for slot = 1, 180 do
+		local has = Call(_G.HasAction, slot)
+		if has then used = used + 1 end
+		if has and SP.SlotCounts(slot) then
+			counted = counted + 1
+			local kind, id = Call(_G.GetActionInfo, slot)
+			if Secret(kind) or Secret(id) then kind = nil end -- (never compared: a secret value errors)
+			if kind == "spell" then
+				local n = SpellNameOf(id)
+				if n then into[ns.Lower(n)] = true end
+			elseif kind == "macro" and type(id) == "number" then
+				AddMacro(id, into)
+			end
+		end
+	end
+	-- the stance bar
+	for i = 1, Call(_G.GetNumShapeshiftForms) or 0 do
+		local n = SpellNameOf(select(4, Call(_G.GetShapeshiftFormInfo, i)))
+		if n then into[ns.Lower(n)] = true end
+	end
+	-- macros on a key of their own (character macros are numbered from 121)
+	local global, perChar = Call(_G.GetNumMacros)
+	local function Macro(i)
+		local name = Call(_G.GetMacroInfo, i)
+		if type(name) == "string" and name ~= "" and not Secret(name) and Call(_G.GetBindingKey, "MACRO " .. name) then AddMacro(i, into) end
+	end
+	for i = 1, tonumber(global) or 0 do Macro(i) end
+	for i = 121, 120 + (tonumber(perChar) or 0) do Macro(i) end
+	if used ~= SP.lastUsed or counted ~= SP.lastCounted then -- (traced when the bars change)
+		ns:Trace(("spells: %d action slots in use, %d on bars you have (the first page %s)"):format(used, counted,
+			SP.SlotCounts(1) and "counted" or "not counted: a warrior is always in a stance"))
+	end
+	SP.lastUsed, SP.lastCounted = used, counted
+	placedNames, placedAt = into, now
+	return into
+end
+
+-- the auto attack or a ranged one (Attack, Shoot, Auto Shot): the spellbook never calls those missing from your bars
+local function AutoAttack(id)
+	if type(id) ~= "number" or not C_Spell then return false end
+	for i = 1, 2 do
+		local f = C_Spell[i == 1 and "IsAutoAttackSpell" or "IsRangedAutoAttackSpell"]
+		local yes = f and Call(f, id)
+		if not Secret(yes) and yes == true then return true end -- (never compared while secret)
+	end
+	return false
+end
+
+--- A spell you can cast that isn't on any bar you have or a key; false for anything else (passives, auto attacks,
+--- other rows).
+function SP.Unplaced(e)
+	if e.kind ~= "spells" or e.passive or type(e.name) ~= "string" or AutoAttack(e.spellID) then return false end
+	if SP.PlacedNames()[ns.Lower(e.name)] then return false end
+	if Call(_G.GetBindingKey, "SPELL " .. e.name) then return false end
+	return true
+end
+
+local placeEvents = CreateFrame("Frame")
+SP.placeEvents = placeEvents -- (tests)
+for _, ev in ipairs({ "ACTIONBAR_SLOT_CHANGED", "UPDATE_BINDINGS", "UPDATE_MACROS", "UPDATE_SHAPESHIFT_FORMS", "SPELLS_CHANGED",
+	"PLAYER_ENTERING_WORLD" }) do
+	pcall(placeEvents.RegisterEvent, placeEvents, ev)
+end
+placeEvents:SetScript("OnEvent", function() placedNames = nil end)
+
+-- "spells not on my bars" (both modes; Advanced: @spell is:unplaced): a line of these words, a spell word and one
+-- that says "not on a bar" among them; any other words narrow the answer by name ("frost spells not on my bars")
+local QUESTION_WORDS = {}
+for w in ([[spell spells ability abilities not on my any the action actionbar actionbars bar bars missing from off
+	unplaced placed what which show me list all i have are arent isnt is that of keys key keybinds keybind binds hotkeys
+	or and yet learned known a]]):gmatch("%a+") do QUESTION_WORDS[w] = true end
+local SUBJECT = { spell = true, spells = true, ability = true, abilities = true }
+
+--- The question's words to narrow by ({ ... }, maybe empty), or nil when the line isn't the question.
+function SP.Question(text)
+	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
+	local t = " " .. ns.Lower(text):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " ") .. " "
+	local says = t:find(" not on [%a ]-bars? ") or t:find(" arent on [%a ]-bars? ") or t:find(" isnt on [%a ]-bars? ")
+		or t:find(" missing from [%a ]-bars? ") or t:find(" off [%a ]-bars? ") or t:find(" unplaced ") or t:find(" not placed ")
+	if not says then return nil end
+	local subject, rest = false, {}
+	for w in t:gmatch("%S+") do
+		if SUBJECT[w] then subject = true
+		elseif not QUESTION_WORDS[w] then rest[#rest + 1] = w end
+	end
+	if not subject then return nil end
+	return rest
+end
+
+--- The answer: the unplaced spells (in the spellbook's order), narrowed by the question's other words; the note.
+function SP.Answer(words)
+	local p = ns.providers.spells
+	local rows = {}
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		if SP.Unplaced(e) then
+			local hay = (rawget(e, "_lname") or ns.Lower(e.name)) .. " " .. (rawget(e, "_ltext") or "")
+			local ok = true
+			for _, w in ipairs(words or {}) do if not hay:find(w, 1, true) then ok = false break end end
+			if ok then rows[#rows + 1] = e end
+		end
+	end
+	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	local note = "Spells not on your bars or keys"
+	if #rows == 0 then
+		note = (words and #words > 0) and "None of those spells is off your bars" or "Every spell you can cast is on a bar or a key"
+	end
+	return rows, note
+end
+
 ns:RegisterProvider("spells", {
 	label = "Spell",
 	color = "ff9d7bff",

@@ -578,6 +578,11 @@ Scan.ANSWERS = {
 		if ns.Zones then q, said = ns.Zones.Question(text) end
 		if q then return ns.Zones.Answer(q, said) end
 	end,
+	-- "spells not on my bars": Spells.lua
+	function(text)
+		local q = ns.Spells and ns.Spells.Question(text)
+		if q then return ns.Spells.Answer(q) end
+	end,
 }
 
 -- SearchText's steps share one table per search (q):

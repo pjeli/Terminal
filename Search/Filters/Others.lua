@@ -277,6 +277,8 @@ IS.todo = function(e) return DoneOf(e) == false end
 IS.complete = Complete
 IS.ready = Ready
 IS.passive = function(e) return e.kind == "spells" and e.passive == true end
+-- spells you can cast that aren't on any bar or key (Spells.lua)
+IS.unplaced = function(e) return e.kind == "spells" and ns.Spells ~= nil and ns.Spells.Unplaced(e) end
 IS.capped = Capped
 IS.craftable = Craftable
 IS.skillup, IS.orange, IS.yellow = SkillUp, DiffIs("orange"), DiffIs("yellow")
@@ -291,7 +293,7 @@ IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
-		"orange", "yellow", "green", "grey", "passive",
+		"orange", "yellow", "green", "grey", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned" },
 	standing = StandingNames(),
@@ -330,7 +332,7 @@ F.HELP = {
 	{ "do:use", "what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)" },
 	{ "sells:linen_cloth", "@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)" },
 	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey" },
-	{ "is:ready", "spells: ready (off cooldown) passive; currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
+	{ "is:ready", "spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },

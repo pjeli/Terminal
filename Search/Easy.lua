@@ -125,7 +125,7 @@ E.WORDS = {
 	rare = "q:rare", epic = "q:epic", legendary = "q:legendary",
 	boe = "is:boe", soulbound = "is:soulbound", bound = "is:soulbound",
 	usable = "is:usable", equippable = "is:equippable", craftable = "is:craftable",
-	ready = "is:ready", passive = "is:passive", capped = "is:capped",
+	ready = "is:ready", passive = "is:passive", capped = "is:capped", unplaced = "is:unplaced",
 	done = "is:done", completed = "is:done", finished = "is:done", earned = "is:done",
 	todo = "is:todo", unfinished = "is:todo", unearned = "is:todo",
 	-- consumables and stats: "stamina food", "agility elixir", "mana potion"
@@ -173,7 +173,7 @@ E.WORDS = {
 
 -- everyday words that are strict filters, never relaxed away when nothing passes ("helm upgrades" lists no helmet you
 -- can't wear)
-E.HARD_WORDS = { upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true,
+E.HARD_WORDS = { unplaced = true, upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true,
 	battlemaster = true, battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true,
 	["honor vendor"] = true, ["honor vendors"] = true, ["pvp quartermaster"] = true }
 
@@ -457,6 +457,8 @@ local function QuestionToAdvanced(text)
 	end
 	local cq = ns.CombatLog and ns.CombatLog.Question and ns.CombatLog.Question(text)
 	if cq then return "@combatlog " .. ((cq == "killed" and "killed") or (cq == "crit" and "taken") or "dealt") .. " " end
+	local sq = ns.Spells and ns.Spells.Question and ns.Spells.Question(text)
+	if sq then return "@spell is:unplaced " .. (#sq > 0 and (table.concat(sq, " ") .. " ") or "") end
 end
 E.QuestionToAdvanced = QuestionToAdvanced
 
@@ -733,6 +735,7 @@ function E.HelpLines()
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
 		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
 		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
+		"Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out).",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\". Enter on a row goes one step further, Shift+Enter opens it.",
 		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",

@@ -527,3 +527,125 @@ do
 	_G.C_EquipmentSet = saveES
 	ns.providers.equipmentset._dirty = true
 end
+
+io.write("[spells not on your bars]\n")
+do
+	local SP, UI = ns.Spells, T.UI
+	local function list(rows) local t = {} for i, e in ipairs(rows) do t[i] = tostring(e.name) end return table.concat(t, ",") end
+	local save = { book = _G.C_SpellBook, spell = _G.C_Spell, ab = _G.C_ActionBar, has = _G.HasAction, info = _G.GetActionInfo,
+		key = _G.GetBindingKey, nm = _G.GetNumMacros, mi = _G.GetMacroInfo, mb = _G.GetMacroBody, ms = _G.GetMacroSpell,
+		nsf = _G.GetNumShapeshiftForms, sfi = _G.GetShapeshiftFormInfo, uc = _G.UnitClass, gt = _G.GetTime, mbr = _G.MultiBarRight,
+		easy = ns.db.easyMode }
+	local clock = 5000
+	_G.GetTime = function() return clock end
+	local function Changed() clock = clock + 10 end -- (past the moment the bars' names are kept)
+	-- a mage's book: Mage Armor is passive
+	local BOOK = { { 101, "Fireball" }, { 103, "Frost Nova" }, { 104, "Blink" }, { 105, "Arcane Intellect" }, { 106, "Mage Armor", true },
+		{ 107, "Polymorph" }, { 108, "Frostbolt" }, { 109, "Cone of Cold" }, { 111, "Ice Block" }, { 112, "Battle Stance" },
+		{ 113, "Evocation" }, { 114, "Counterspell" }, { 115, "Attack" }, { 116, "Shoot" }, { 117, "Slow Fall" } }
+	local NAMES = { [110] = "Frost Nova" } -- (a lower rank of it, on a bar)
+	for _, b in ipairs(BOOK) do NAMES[b[1]] = b[2] end
+	_G.C_SpellBook = setmetatable({
+		GetNumSpellBookSkillLines = function() return 1 end,
+		GetSpellBookSkillLineInfo = function() return { name = "Frost", itemIndexOffset = 0, numSpellBookItems = #BOOK } end,
+		GetSpellBookItemInfo = function(i) local b = BOOK[i] return b and { spellID = b[1], itemType = 1, isPassive = b[3] == true } end,
+	}, { __index = save.book })
+	-- (Attack and Shoot are auto attacks: the spellbook never calls them missing from your bars)
+	_G.C_Spell = setmetatable({ GetSpellInfo = function(id) return NAMES[id] and { name = NAMES[id], iconID = 1 } end,
+		GetSpellName = function(id) return NAMES[id] end, IsAutoAttackSpell = function(id) return id == 115 end,
+		IsRangedAutoAttackSpell = function(id) return id == 116 end }, { __index = save.spell })
+	-- the game's own test counts every slot, hidden ones too: never asked
+	_G.C_ActionBar = setmetatable({ IsOnBarOrSpecialBar = function() return true end }, { __index = save.ab })
+	-- Fireball on the main bar, a lower rank of Frost Nova on page 2, a macro on a stance bar casting Polymorph or Blink;
+	-- Evocation on the right bar (switched off), Slow Fall on MultiBar6 (slot 160), Ice Block in slot 181 (no bar: seen
+	-- in game with Blood Fury);
+	-- Arcane Intellect on a key; a character macro on a key casting Frostbolt; Battle Stance on the stance bar
+	local SLOTS = { [3] = { "spell", 101 }, [14] = { "spell", 110 }, [86] = { "macro", 1 }, [26] = { "spell", 113 }, [160] = { "spell", 117 },
+		[181] = { "spell", 111 } }
+	_G.HasAction = function(s) return SLOTS[s] ~= nil end
+	_G.GetActionInfo = function(s) local a = SLOTS[s] if a then return a[1], a[2] end end
+	local rightShown = false
+	_G.MultiBarRight = { IsShown = function() return rightShown end }
+	local MACROS = { [1] = { "Sheep", "#showtooltip\n/cast [mod:shift] Polymorph; Blink" }, [121] = { "Bolt", "/cast !Frostbolt(Rank 3)" } }
+	_G.GetNumMacros = function() return 1, 1 end
+	_G.GetMacroInfo = function(i) return MACROS[i] and MACROS[i][1] end
+	_G.GetMacroBody = function(i) return MACROS[i] and MACROS[i][2] end
+	_G.GetMacroSpell = function() return nil end
+	local KEYS = { ["SPELL Arcane Intellect"] = "F", ["MACRO Bolt"] = "G" }
+	_G.GetBindingKey = function(cmd) return KEYS[cmd] end
+	local class = "MAGE"
+	_G.UnitClass = function() return "Mage", class end
+	local forms = 1
+	_G.GetNumShapeshiftForms = function() return forms end
+	_G.GetShapeshiftFormInfo = function() return 1, true, true, 112 end
+	ns.providers.spells._dirty = true
+	Changed()
+	ns.db.easyMode = false; UI:EasyChanged()
+
+	-- a macro's text: conditions, "!", ranks, castsequence's reset= and both its spells
+	local m = SP.MacroSpellNames("#showtooltip\n/cast [mod:shift] Polymorph; Blink\n/castsequence reset=3 Frostbolt, Fireball(Rank 2)")
+	check(m.polymorph and m.blink and m.frostbolt and m.fireball and not m["#showtooltip"], "a macro's spells read from its text")
+	-- which slots are bars you have (Blizzard's own pages)
+	check(SP.SlotCounts(3) and SP.SlotCounts(14) and SP.SlotCounts(86) and SP.SlotCounts(120) and not SP.SlotCounts(26)
+		and not SP.SlotCounts(121) and not SP.SlotCounts(181) and SP.SlotCounts(160) == true,
+		"the main bar, its second page and the stance bars count; a bar switched off, vehicle slots and slot 181 don't")
+	-- the question: a spell word and a "not on a bar" one; other words narrow it
+	check(SP.Question("spells not on my bars") and #SP.Question("spells not on my bars") == 0 and SP.Question("Which abilities aren't on my action bars?")
+		and SP.Question("unplaced spells") and SP.Question("spells missing from my bars") and SP.Question("spells not on any bar or key"),
+		"spells not on my bars, and the like, are the question")
+	check(SP.Question("not on my bars") == nil and SP.Question("spells") == nil and SP.Question("@spell is:unplaced") == nil
+		and SP.Question("polymorph") == nil and SP.Question("frost nova") == nil, "other lines aren't")
+	local q = SP.Question("cold spells not on my bars")
+	check(q and #q == 1 and q[1] == "cold", "a name's words narrow it: " .. tostring(q and q[1]))
+	-- the answer: what you can cast that's on no bar you have, no key, no macro there; passives never
+	local res = UI:SearchText("spells not on my bars")
+	check(list(res) == "Cone of Cold,Ice Block,Evocation,Counterspell" and UI.answerNote == "Spells not on your bars or keys",
+		"spells not on my bars (a bar switched off and slot 181 don't count): " .. list(res) .. " / " .. tostring(UI.answerNote))
+	check(list(UI:SearchText("cold spells not on my bars")) == "Cone of Cold", "narrowed by a word of the name")
+	local adv = UI:Search("@spell is:unplaced")
+	local names = {}
+	for _, e in ipairs(adv) do names[#names + 1] = e.name end
+	table.sort(names)
+	check(table.concat(names, ",") == "Cone of Cold,Counterspell,Evocation,Ice Block", "Advanced: @spell is:unplaced: " .. table.concat(names, ","))
+	check(ns.Easy.ToAdvanced("spells not on my bars") == "@spell is:unplaced " and ns.Easy.ToAdvanced("cold spells not on my bars") == "@spell is:unplaced cold ",
+		"Alt+` writes it: " .. tostring(ns.Easy.ToAdvanced("spells not on my bars")))
+	-- the right bar switched on: Evocation is on a bar now
+	rightShown = true; Changed()
+	check(list(UI:SearchText("spells not on my bars")) == "Cone of Cold,Ice Block,Counterspell", "a bar switched on counts")
+	-- a warrior with stances never sees the main bar's first page (seen in game: Overpower in slot 8)
+	class = "WARRIOR"; Changed()
+	check(list(UI:SearchText("spells not on my bars")) == "Fireball,Cone of Cold,Ice Block,Counterspell", "a warrior: the first page doesn't count: " .. list(UI:SearchText("spells not on my bars")))
+	class = "MAGE"; Changed()
+	-- no stances or forms: the stance pages never show (the macro on one, and the stance bar, are gone)
+	forms = 0; Changed()
+	check(not SP.SlotCounts(86) and SP.SlotCounts(3), "no stances: the stance pages don't count")
+	check(list(UI:SearchText("spells not on my bars")) == "Blink,Polymorph,Cone of Cold,Ice Block,Battle Stance,Counterspell",
+		"no stances: " .. list(UI:SearchText("spells not on my bars")))
+	forms = 1; Changed()
+	-- Simple mode too, and its everyday word
+	ns.db.easyMode = true; UI:EasyChanged()
+	check(list(UI:SearchText("spells not on my bars")) == "Cone of Cold,Ice Block,Counterspell", "Simple mode: the same answer")
+	UI:Open("unplaced"); T.FlushAll()
+	local shown = {}
+	for _, e in ipairs(UI.Results()) do shown[#shown + 1] = tostring(e.name) end
+	shown = table.concat(shown, ",")
+	check(shown:find("Cone of Cold", 1, true) and not shown:find("Fireball", 1, true), "Simple mode: unplaced: " .. shown)
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = false; UI:EasyChanged()
+	-- put on a bar: kept names are worked out again when a bar changes
+	SLOTS[2] = { "spell", 109 }
+	check(list(UI:SearchText("spells not on my bars")) == "Cone of Cold,Ice Block,Counterspell", "(the bars' names kept a moment)")
+	SP.placeEvents.scripts.OnEvent(SP.placeEvents, "ACTIONBAR_SLOT_CHANGED")
+	check(list(UI:SearchText("spells not on my bars")) == "Ice Block,Counterspell", "a bar changed: Cone of Cold is placed now")
+	SLOTS[4], SLOTS[5] = { "spell", 111 }, { "spell", 114 }
+	Changed()
+	res = UI:SearchText("spells not on my bars")
+	check(#res == 0 and UI.answerNote == "Every spell you can cast is on a bar or a key", "all placed: says so: " .. tostring(UI.answerNote))
+
+	_G.C_SpellBook, _G.C_Spell, _G.C_ActionBar, _G.HasAction, _G.GetActionInfo = save.book, save.spell, save.ab, save.has, save.info
+	_G.GetBindingKey, _G.GetNumMacros, _G.GetMacroInfo, _G.GetMacroBody, _G.GetMacroSpell = save.key, save.nm, save.mi, save.mb, save.ms
+	_G.GetNumShapeshiftForms, _G.GetShapeshiftFormInfo, _G.UnitClass, _G.GetTime, _G.MultiBarRight = save.nsf, save.sfi, save.uc, save.gt, save.mbr
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	ns.providers.spells._dirty = true
+	SP.placeEvents.scripts.OnEvent(SP.placeEvents, "ACTIONBAR_SLOT_CHANGED")
+end
