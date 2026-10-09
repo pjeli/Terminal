@@ -716,7 +716,7 @@ function E.HelpLines()
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\". Enter on a row goes one step further, Shift+Enter opens it.",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
 		"Ctrl+Enter does it and keeps the terminal open (for things that don't open a window).",
-		"Commands start with a dot: .options, .theme, .xp, .lootlog, .zen, .changelog... (type a dot to see them all).",
+		"Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all).",
 		"Want the full command line (@kinds, filters, chat)? Type .advanced",
 	}
 end

@@ -331,24 +331,3 @@ function LL.Answer(q)
 	end
 	return rows, note
 end
-
-ns:RegisterCommand("lootlog", {
-	desc = "The loot log: what dropped and who got it; .lootlog clear forgets it",
-	complete = function() return { { "clear", "forget every drop" } } end,
-	run = function(args)
-		if strtrim(args or ""):lower() == "clear" then
-			if ns.db then ns.db.lootLog = {} end
-			local p = ns.providers.lootlog
-			if p then p._dirty = true end
-			return { "Loot log cleared." }
-		end
-		local log = Log() or {}
-		local lines = { ("Loot log: %d drops kept (the newest %d). %s"):format(#log, LL.MAX,
-			ns.Said("Ask \"what dropped\", or type an item's name.", "Search it: @drop <words>")) }
-		for i = 1, math.min(10, #log) do
-			local d = log[i]
-			lines[#lines + 1] = ("  %s%s  %s  %s"):format(d.link, d.n and (" x" .. d.n) or "", Who(d.who or "?"), LL.Ago(d.t))
-		end
-		return lines
-	end,
-})

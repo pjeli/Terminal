@@ -126,8 +126,10 @@ do
 	check(ns.Filters.Parse("q:uncommon") ~= nil, "(filters work on its rows: they carry the item)")
 	for i = 1, LL.MAX + 5 do LL.Add("|Hitem:" .. (5000 + i) .. "|h[X]|h", "Bob", 1) now = now + 20 end
 	check(#ns.db.lootLog == LL.MAX, "only the newest " .. LL.MAX .. " are kept")
-	ns:FindCommand("lootlog").run("clear")
-	check(#ns.db.lootLog == 0, ".lootlog clear")
+	-- no .lootlog command any more (0.44.14, the player: too much): the log is asked for, or searched with @drop
+	check(ns:FindCommand("lootlog") == nil and not ns.commands.lootlog, "no .lootlog command")
+	ns.db.lootLog = {}
+	p._dirty = true
 end
 
 _G.LOOT_ITEM_SELF, _G.LOOT_ITEM_SELF_MULTIPLE, _G.LOOT_ITEM, _G.LOOT_ITEM_MULTIPLE = save.self, save.selfm, save.item, save.itemm
