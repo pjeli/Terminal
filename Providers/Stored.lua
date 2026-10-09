@@ -396,7 +396,7 @@ local function Tooltip(e, t)
 	end
 	t:AddDoubleLine("Total", tostring(e.total), 1, 0.82, 0, 1, 0.82, 0)
 	t:AddLine(" ")
-	t:AddLine("Enter: show the ones you carry    Shift+Enter: list in chat", 0.6, 0.6, 0.6, true)
+	t:AddLine("Enter: show the ones you carry    Shift+Enter: show in chat", 0.6, 0.6, 0.6, true)
 end
 S.Tooltip = Tooltip
 

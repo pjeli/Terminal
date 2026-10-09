@@ -1,4 +1,5 @@
-debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
+-- (the runaway guard: the main run had grown to ~19.9M instructions by 0.44.10, so it gets 40M; each extra file 20M)
+debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 40000000)
 -- Minimal WoW API stub, enough to load every file and exercise collect/search/activate.
 local log = {}
 local function note(...) log[#log + 1] = table.concat({ ... }, " ") end

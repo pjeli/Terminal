@@ -226,40 +226,86 @@ end
 -- What Enter and Shift+Enter do, in words, for the selected row
 ----------------------------------------------------------------------
 
+-- What Enter and Shift+Enter do, by kind: { Enter's, Shift+Enter's }, or a function(e) giving both (rows of one kind
+-- that differ: a worn item, a passive spell, an addon with a minimap button...). Shift+Enter's is said only when the
+-- row has a Shift+Enter (E.Verbs). Printing in your own chat window is "show in chat" everywhere; the game's chat box
+-- is "put in the chat box", or "link in chat" when it carries a link.
+local function ItemVerbs(e)
+	if e.slotId then return "show on character", "use" end
+	return "show in bags", "use"
+end
+local function GearVerbs(e)
+	if e.slotId then return "show on character", nil end -- (worn already: nothing to equip)
+	return "show in bags", "equip"
+end
+local function SpellVerbs(e)
+	return "show in spellbook", (not e.passive) and "cast" or nil
+end
+local function TalentVerbs(e)
+	return e.other and "Wowhead link" or "show in talents", "link in chat"
+end
+local function AddonVerbs(e)
+	local shift = "turn on/off"
+	if e.launch then return "open", shift end -- (its minimap button)
+	if e.opt then return "options", shift end
+	return "show in AddOn list", shift
+end
+local function WhoVerbs(e)
+	if e.lead then return "ask the server", nil end
+	return "whisper", "invite"
+end
+local function TerminalVerbs(e)
+	return e.presetId and "apply" or "open"
+end
+local PLACE = { "show on map", "set waypoint" }
+local TO_CHAT = { "show in chat", "put in the chat box" }
 E.VERBS = {
-	items = { "show in bags", "use" }, consumable = { "show in bags", "use" }, mats = { "show in bags", "use" },
-	gear = { "show", "equip" },
-	stored = { "show in bags", "who has it" }, lootlog = { "show in bags", "link in chat" },
-	combatlog = { "say it", "put in the chat box" },
-	spells = { "show in spellbook", "cast" },
+	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = GearVerbs, reagent = { "show in bags" },
+	stored = { "show in bags", "show in chat" }, lootlog = { "show in bags", "link in chat" },
+	loot = { "show in AtlasLoot", "link in chat" },
+	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
+	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { "show on map", "target" },
-	gold = { "list in chat", "put in the chat box" }, experience = { "list in chat", "put in the chat box" }, guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = { "whisper", "invite" },
+	maps = PLACE, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE,
+	guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = WhoVerbs,
 	questie = { "Wowhead link", "show in game" },
-	quests = { "show in quest log" },
-	maps = { "show on map" },
-	toys = { "use", "show in journal" },
-	pets = { "summon", "show in journal" },
+	quests = { "show in quest log", "track" },
+	toys = { "use", "show in journal" }, pets = { "summon", "show in journal" }, mounts = { "summon", "show in journal" },
 	titles = { "wear" },
 	achievements = { "show", "link in chat" }, achievementlist = { "show", "link in chat" },
-	professions = { "open", "link in chat" },
-	addons = { "options", "turn on/off" },
+	professions = { "open", "link in chat" }, recipes = { "show recipe", "link in chat" },
+	addons = AddonVerbs,
 	camp = { "show recipe", "make / use" },
-	loot = { "show loot" },
-	slash = { "run", "put in chat" }, emote = { "do it", "put in chat" },
-	cmd = { "run" }, advanced = { "switch to Advanced mode" },
+	slash = { "run", "put in the chat box" }, emote = { "do it", "put in the chat box" },
+	cmd = { "run" }, advanced = { "switch to Advanced mode" }, send = { "send" },
+	equipmentset = { "equip", "show in manager" },
+	macros = { "run", "show in Macros" },
+	cvars = { "edit", "reset to default" },
+	reputation = { "show", "watch" },
+	skills = { "show", "show in chat" },
+	currency = { "show" }, panels = { "open" },
+	gameoptions = { "show in options" }, keybinds = { "show in keybindings", "quick keybind mode" },
+	terminal = TerminalVerbs,
 }
 
 --- The two verbs for a row: Enter's, and Shift+Enter's (nil when it has none).
 function E.Verbs(e)
 	if not e or e.noActivate then return nil end
 	if e.catId then return "look in " .. tostring(e.name) end
-	if e.completion then return "search there" end
+	-- a chain's row: Enter walks on, Shift+Enter does what the row's own Enter does
+	local nxt = rawget(e, "pipeNext")
+	if nxt then
+		return nxt == "sources" and "where to get it" or "its mats", (E.Verbs(rawget(e, "pipeOf"))) or "open"
+	end
+	if e.completion then return e.kind == "pipe" and "pick it" or "search there" end
 	if e.actionVerb then return Lower(e.actionVerb), nil end
 	local v = E.VERBS[(e.emote and "emote") or e.kind or ""]
-	local enter = v and v[1] or "open"
-	local shift = v and v[2]
-	if not shift and (e.secondary or e.secondarySecure) then shift = "more" end
-	return enter, shift
+	local enter, shift
+	if type(v) == "function" then enter, shift = v(e)
+	elseif v then enter, shift = v[1], v[2]
+	else shift = "more" end -- (a kind without verbs)
+	if not (e.secondary or e.secondarySecure) then shift = nil end -- (no Shift+Enter: none said)
+	return enter or "open", shift
 end
 
 ----------------------------------------------------------------------

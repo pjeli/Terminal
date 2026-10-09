@@ -264,7 +264,8 @@ end
 
 local WORDS = { crit = "crit critical hit you taken", critby = "crit critical you dealt mine", killed = "killed you death died killing blow",
 	died = "died death killed you" }
-local function Say(e) ns:Print(e.line .. "  (" .. e.detail .. ")") end
+-- Enter: shown in your chat window (only you see it), as other lists show their rows (ns:Output)
+local function Say(e) ns:Output({ e.line .. "  (" .. e.detail .. ")" }) end
 local function LineOf(e) return e.line end
 local CHATBOX = ns.ChatBoxSpec(LineOf) -- (shared by every row)
 local function ToChat(e) ns.LinkInChat(e.line) end

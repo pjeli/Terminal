@@ -172,6 +172,7 @@ local function SecureView(e, shift)
 		return setmetatable({
 			secure = e.secondarySecure, isOpen = e.secondaryIsOpen or false, after = e.secondaryAfter or false,
 			staysOpen = e.secondaryStaysOpen, -- (nil: the row's own; a chain's row stays open on Enter, not Shift+Enter)
+			isShift = true, -- (the footer's "Press Enter to <Shift+Enter's verb>")
 		}, { __index = e })
 	end
 	return e.secure and e or nil

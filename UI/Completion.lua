@@ -174,7 +174,7 @@ end
 --- A result as prompt text that finds it again: "@npc Thrall", ".theme", "/dance"; nil for rows that are
 --- only help or hints.
 function UI:ResultText(e)
-	if not e or e.raw or e.noActivate or e.completion or type(e.name) ~= "string" or e.kind == "calc" then return nil end
+	if not e or e.raw or e.noActivate or e.completion or e.lead or type(e.name) ~= "string" or e.kind == "calc" then return nil end
 	if e.kind == "cmd" then return "." .. (e.cmd and e.cmd.name or e.name) end
 	if e.kind == "slash" then return e.name end
 	local p = e.kind and ns.providers[e.kind]

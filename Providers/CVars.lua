@@ -80,7 +80,7 @@ local function Tooltip(e, t)
 	t:AddDoubleLine("Value", tostring(e.value or "?"), 1, 0.82, 0, 1, 1, 1)
 	t:AddDoubleLine("Default", tostring(e.default or "?"), 1, 0.82, 0, 1, 1, 1)
 	if e.readOnly then t:AddLine("Read-only: the game won't let it be changed", 1, 0.4, 0.4, true) end
-	if e.secure then t:AddLine("Protected: can't be changed in combat", 1, 0.6, 0.3, true) end
+	if e.protected then t:AddLine("Protected: can't be changed in combat", 1, 0.6, 0.3, true) end
 	t:AddLine(" ")
 	t:AddLine("Enter: edit it    Shift+Enter: back to its default", 0.6, 0.6, 0.6, true)
 end
@@ -137,7 +137,8 @@ ns:RegisterProvider("cvars", {
 				local help = (n[3] and n[3] ~= "" and n[3]) or (k and k[2]) or ""
 				local e = {
 					key = name, name = name, help = help, cat = Category(n[2] or (k and k[1])),
-					readOnly = readOnly, secure = secure,
+					-- (not `secure`: that's a row's game-pressed action, and a protected setting's row read as one)
+					readOnly = readOnly, protected = secure,
 					icon = "Interface\\Icons\\INV_Misc_Gear_01",
 					tooltip = Tooltip,
 					staysOpen = true, -- only fills the prompt in: you edit, then Enter runs it

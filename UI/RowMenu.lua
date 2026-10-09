@@ -102,14 +102,17 @@ do
 		-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
 		-- a chat line the game presses (Terminal's code never sends chat)
 		local SH = ns.Share
-		if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion) then
+		-- (@who's "Ask the server" asks something: it isn't a result to send)
+		if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
 			local query = SH.Split(edit:GetText() or "")
 			if EasyOn() and ns.Easy and ns.Easy.ToAdvanced then query = ns.Easy.ToAdvanced(query, self.category) end
 			-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
 			-- and opening the menu, then Cancel, mustn't move your waypoint)
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
-			-- (the game opens the box with it: see ChatBoxMacro)
-			items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
+			-- (the game opens the box with it: see ChatBoxMacro; not when Shift+Enter, just above, already does that)
+			if shift ~= "link in chat" and shift ~= "put in the chat box" then
+				items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
+			end
 			local channels = SH.MenuChannels()
 			for _, ch in ipairs(channels) do
 				items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }

@@ -9,14 +9,13 @@ local L = UI.layout
 local EasyOn, Wake, Style, rows = UI.EasyOn, UI.Wake, UI.Style, UI.rows
 local MAX_ROWS, FOOTER_H, ONCE_LABEL = UI.MAX_ROWS, UI.FOOTER_H, UI.ONCE_LABEL
 
--- key hints, most useful first: on a narrow terminal the last ones are left out, never wrapped
-local HINTS = {
-	{ "Enter", "open" }, { "Tab", "complete" }, { "Shift+Enter", "more" },
-	{ "@", "kind" }, { "/", "slash" }, { ".", "command" }, { "=", "calc" },
-}
+-- key hints, most useful first: on a narrow terminal the last ones are left out, never wrapped. Advanced: what Enter
+-- and Shift+Enter do for the selected row (Easy.VERBS), then the command line's own keys
+local SYNTAX_KEYS = { { "@", "kind" }, { "/", "slash" }, { ".", "command" }, { "=", "calc" } }
 
 local FZF_LABEL = "Fuzzy find" -- (Tab+`: pure fuzzy finding over every list, this run)
 local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" } }
+local SYNTAX_HINTS = { { "Enter", "write it" }, { "Tab", "next" }, { "Shift+Tab", "back" } } -- (Advanced's @kind / key: pick lists)
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
 local EASY_TAB_BACK = { "Tab", "all categories" }
 local EASY_TAB_PICK = { "Tab", "pick" }
@@ -53,7 +52,12 @@ do
 			return
 		end
 		if self.armedEntry then
-			status:SetText(Theme.FixColors(HINT .. "Press Enter to open|r  " .. self.armedEntry.name))
+			-- (what the press does, as the footer said it: "Press Enter to use", "... to cast")
+			local a = self.armedEntry
+			local enter, shift
+			if ns.Easy then enter, shift = ns.Easy.Verbs(a) end -- (not `x and f()`: that keeps only f's first result)
+			local verb = (rawget(a, "isShift") and shift) or enter or "open"
+			status:SetText(Theme.FixColors(HINT .. "Press Enter to " .. verb .. "|r  " .. a.name))
 			if hints then hints:Hide() end -- the armed line gets the whole footer
 			return
 		end
@@ -110,11 +114,26 @@ function UI:FitHints()
 	if not (hints and frame) then return end
 	local t = Theme.Get()
 	if not t.hints or self.bare then hints:Hide() return end
-	local list = HINTS
+	local list
 	local key = "|cff" .. t.text
+	local sel = UI.results[UI.sel]
 	if self.fzf then
 		list, key = FZF_HINTS, key .. "|fzf"
-	elseif EasyOn() then
+	elseif not EasyOn() and sel and sel.syntaxRow then
+		list, key = SYNTAX_HINTS, key .. "|syntax"
+	elseif not EasyOn() then
+		-- Advanced: what Enter and Shift+Enter do for the selected row too (Easy.VERBS), then the command line's keys
+		-- (Tab completes what the faint text after the cursor shows: that text says it)
+		local enter, shift
+		if ns.Easy then enter, shift = ns.Easy.Verbs(sel) end
+		local write = enter and self:ResultText(sel) ~= nil
+		list = {}
+		if enter then list[#list + 1] = { "Enter", enter } end
+		if shift then list[#list + 1] = { "Shift+Enter", shift } end
+		if write then list[#list + 1] = { "Shift+Right", "write it" } end
+		for _, k in ipairs(SYNTAX_KEYS) do list[#list + 1] = k end
+		key = key .. "|adv|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(write)
+	else
 		-- what Enter and Shift+Enter do for the selected row, in words (Easy.VERBS)
 		local enter, shift = ns.Easy.Verbs(UI.results[UI.sel])
 		list = {}

@@ -202,7 +202,7 @@ end
 local function NameOf(link) return link:match("%[(.-)%]") or link end
 local function Show(e)
 	if ns.Bags and ns.Bags.ShowItem and ns.Bags.ShowItem(e.itemID, e.link, e.name) then return end
-	ns:Print(e.link .. ": " .. e.detail)
+	ns:Output({ e.link .. ": " .. e.detail }) -- (not carried: where it dropped and who got it, in your chat window)
 end
 local function LinkOf(e) return e.link end
 local NeverOpen = ns.Never
