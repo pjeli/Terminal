@@ -496,23 +496,34 @@ local function Tokens(text)
 	return t
 end
 
--- a row's name score for every word (nil: some word doesn't match)
+-- a row's name score for every word (nil: some word doesn't match), its lowercase name, and whether every word is in
+-- it as typed (not only its letters scattered: "core" is in "Comfortable", c-o-r-e)
 local function NameScore(e, tokens)
 	local ln = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
-	local sum = 0
+	local sum, whole = 0, true
 	for _, tk in ipairs(tokens) do
-		local s = ns.Fuzzy.score(tk, ln, ln)
+		local s, sub = ns.Fuzzy.score(tk, ln, ln)
 		if not s then return nil end
 		sum = sum + s
+		-- (an apostrophe left out still counts: "agamaggans clutch")
+		if not sub and tk:find("'", 1, true) == nil and ln:find("'", 1, true) then
+			sub = ln:gsub("'", ""):find(tk, 1, true) ~= nil
+		end
+		whole = whole and (sub and true or false)
 	end
-	return sum, ln
+	return sum, ln, whole
 end
 
 P.SEED_KINDS = { "recipes", "items", "loot", "stored" }
 
+P.CHOICES = 8 -- (names offered when the words fit several)
+
 --- Where a chain starts: rows of your recipes, bags, AtlasLoot and alts whose names have the words (an @kind picks the
 --- lists, key:value filters narrow them). An exact name keeps only those rows (or "mats for thorium belt" would add up
---- every belt); else the best match, or with only filters typed, every row that passes.
+--- every belt); else the one name that has every word as typed; with only filters typed, every row that passes.
+--- Never a guess (0.44.4: "core leather belt" gave Comfortable Leather Hat's mats, its letters scattered in the name):
+--- no name with every word -> {} and the closest name (second result); several -> {} and those names to pick from
+--- (third result: rows, best first).
 function P.Seed(text)
 	local kinds, filters, words = {}, {}, {}
 	for w in (text or ""):gmatch("%S+") do
@@ -527,8 +538,8 @@ function P.Seed(text)
 	if #kinds == 0 then kinds = P.SEED_KINDS end
 	local tokens = Tokens(table.concat(words, " "))
 	local whole = table.concat(tokens, " ")
-	local all, exact = {}, {} -- (with words: only the best row is wanted, so no table per match)
-	local best, bestS
+	local all, exact = {}, {}
+	local subs, near, nearS = {}, nil, nil -- (every word in the name as typed; the closest of the rest)
 	local wantAll = #tokens == 0
 	-- (run in the spread-out search's coroutine: AtlasLoot's thousands of rows go over several frames, UI:RunSearch)
 	local UI, n = ns.UI, 0
@@ -537,8 +548,8 @@ function P.Seed(text)
 		for _, e in ipairs(Entries(kind)) do
 			n = n + 1
 			if slicing and n % 64 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
-			local s, ln = 0, nil
-			if not wantAll then s, ln = NameScore(e, tokens) end
+			local s, ln, typed = 0, nil, false
+			if not wantAll then s, ln, typed = NameScore(e, tokens) end
 			-- (help lines left out: asked only of a match, compact rows answer these through their metatable)
 			if s and not (e.noActivate or e.raw) then
 				do
@@ -549,7 +560,8 @@ function P.Seed(text)
 					end
 					if ok then
 						if wantAll then all[#all + 1] = e
-						elseif not bestS or s > bestS then best, bestS = e, s end
+						elseif typed then subs[#subs + 1] = { e, s, ln }
+						elseif not nearS or s > nearS then near, nearS = e, s end
 						if ln and ln == whole then exact[#exact + 1] = e end
 					end
 				end
@@ -571,7 +583,7 @@ function P.Seed(text)
 	if #exact > 0 then return Once(exact) end
 	-- nothing of yours by that name: an item the game or Questie knows by exactly that name (a reagent you don't
 	-- carry: "where to get copper ore")
-	if not best and #all == 0 and whole ~= "" then
+	if #subs == 0 and #all == 0 and whole ~= "" then
 		local ids, out = {}, {}
 		for _, r in ipairs(Entries("recipes")) do
 			for _, rg in ipairs(r.reagents or {}) do
@@ -587,7 +599,24 @@ function P.Seed(text)
 		if #out > 0 then return Once(out) end
 	end
 	if wantAll then return Once(all) end
-	return best and { best } or {}
+	if #subs == 0 then return {}, near end
+	-- one name (a recipe and the item it makes are one): its rows; several: which one?
+	local byName, names = {}, {}
+	for _, m in ipairs(subs) do
+		local g = byName[m[3]]
+		if not g then g = { rows = {}, s = m[2] }; byName[m[3]] = g; names[#names + 1] = m[3] end
+		g.rows[#g.rows + 1] = m[1]
+		if m[2] > g.s then g.s = m[2] end
+	end
+	if #names == 1 then return Once(byName[names[1]].rows) end
+	table.sort(names, function(a, b)
+		if byName[a].s ~= byName[b].s then return byName[a].s > byName[b].s end
+		return a < b
+	end)
+	local choices = {}
+	for i = 1, math.min(#names, P.CHOICES) do choices[i] = byName[names[i]].rows[1] end
+	choices.total = #names
+	return {}, nil, choices
 end
 
 -- what walking on from a row means: a reagent -> where to get it; a recipe or crafted item -> its mats
@@ -660,11 +689,33 @@ function P.Search(chain)
 	local key = ns.Lower(trail[1])
 	local rows = Cached(key)
 	if not rows then
-		rows = P.Seed(stages[1].text)
+		local near, choices
+		rows, near, choices = P.Seed(stages[1].text)
+		rows.near, rows.choices = near, choices -- (kept with them: the cache hands back the list alone)
 		Keep(key, rows)
 	end
 	if #rows == 0 then
-		return { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }, trail[1]
+		-- never a guess: the names to pick from, or the closest one offered (Enter writes the chain with it)
+		local rest = chain:sub(#stages[1].text + 1):gsub("^%s+", "")
+		local function Pick(e, i)
+			local n = ns.Plain(tostring(e.name)):gsub("%s+x%d+$", "")
+			local done = n .. " " .. rest
+			return { name = n, kind = "pipe", kindLabel = e.kindLabel or e.label, detail = e.detail, icon = e.icon,
+				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - i }
+		end
+		if rows.choices then
+			local out = { Line(("%d names have \"%s\": pick one"):format(rows.choices.total, trail[1])) }
+			for i, e in ipairs(rows.choices) do out[#out + 1] = Pick(e, i) end
+			return out, trail[1] .. " > ?"
+		end
+		local out = { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }
+		if rows.near then
+			local d = Pick(rows.near, 1)
+			d.name = "Did you mean " .. d.name .. "?"
+			d.completion = (ns.Plain(tostring(rows.near.name)):gsub("%s+x%d+$", "")) .. " " .. rest
+			out[2] = d
+		end
+		return out, trail[1]
 	end
 	local from, lastRel, lastFrom
 	-- (walking on from the last part's rows: the chain up to its link word, then the row's name)

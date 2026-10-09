@@ -32,7 +32,9 @@ ns.providers, ns.providerOrder = {}, {}
 local recipe0 = { name = "Copper Chain", recipeID = 1, makesItem = 1, reagents = { { 2770, 1 } } }
 local recipe = { name = "Thorium Belt", recipeID = 16645, makesItem = 12406, reagents = { { 12359, 12 }, { 7077, 2 } }, detail = "Blacksmithing" }
 ns:RegisterProvider("recipes", { label = "Recipe", aliases = { "recipe" }, collect = Rows({ recipe, recipe0,
-	{ name = "Thorium Belt of Doom", recipeID = 99, makesItem = 9999, reagents = { { 3575, 1 } } } }) })
+	{ name = "Thorium Belt of Doom", recipeID = 99, makesItem = 9999, reagents = { { 3575, 1 } } },
+	{ name = "Comfortable Leather Hat", recipeID = 98, makesItem = 9998, reagents = { { 2770, 12 } } },
+	{ name = "Agamaggan's Clutch", recipeID = 97, makesItem = 9997, reagents = { { 2770, 3 } } } }) })
 ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Copper Bar", itemID = 2840 } }) })
 ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = Rows({ { name = "Chain Belt", itemID = 2857, detail = "Blacksmithing  Crafting" } }) })
 ns:RegisterProvider("stored", { label = "Stored", aliases = { "stored" }, collect = Rows({}) })
@@ -79,6 +81,20 @@ do
 	check(#rows == 1 and rows[1].noActivate, "an unknown link says so")
 	rows = P.Search("zzqq belt > mats")
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("Nothing called", 1, true), "nothing to start from: says so")
+	-- never a guess (0.44.4): "core leather belt" isn't Comfortable Leather Hat (c-o-r-e scattered in "Comfortable")
+	rows = P.Search("core leather belt > mats")
+	check(#rows == 2 and rows[1].noActivate and rows[1].name:find("Nothing called", 1, true)
+		and rows[2].name == "Did you mean Comfortable Leather Hat?" and rows[2].completion == "Comfortable Leather Hat > mats",
+		"no name with every word: says so, offers the closest (Enter writes it): " .. tostring(rows[2] and rows[2].name))
+	res = UI:SearchText("mats for core leather belt")
+	check(res[1] and res[1].noActivate and not (res[2] and res[2].itemID), "Simple words too: no mats listed: " .. tostring(res[1] and res[1].name))
+	-- several names have every word: which one?
+	rows = P.Search("thorium > mats")
+	check(rows[1] and rows[1].name:find("names have", 1, true) and #rows == 3 and rows[2].completion
+		and rows[2].completion:find("> mats$"), "several names: pick one: " .. tostring(rows[1] and rows[1].name))
+	-- one name (the recipe, and maybe its item): its mats; an apostrophe left out still finds it
+	rows = P.Search("agamaggans > mats")
+	check(#rows == 1 and rows[1].need == 3, "one name, apostrophe left out: its mats: " .. tostring(rows[1] and rows[1].name))
 	-- a name still being typed isn't looked up yet
 	rows = P.Search("t > sources")
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("Keep typing", 1, true), "under 3 letters: keep typing")
