@@ -207,6 +207,74 @@ local function Who(who)
 	return (who == me or who == (UnitName and UnitName("player"))) and "you" or who
 end
 
+-- In chat a drop says who got it, where and when: "[Rotmender's Garb] looted by Zd Zd from Mordresh Fire Eye in
+-- Razorfen Downs (26 min ago)" (0.45.10: it went as the bare link). The line is yours, so your own drops say "me".
+local function ChatWho(e)
+	if e.mine then return "me" end
+	local who = e.looter
+	if type(who) ~= "string" or who == "" or who == "?" then return nil end
+	return who
+end
+local function Boss(e)
+	local d = e.entry
+	return d and type(d.from) == "string" and d.from ~= "" and d.from or nil
+end
+local function Zone(e)
+	local d = e.entry
+	return d and type(d.zone) == "string" and d.zone ~= "" and d.zone or nil
+end
+
+--- What a loot log row says after its link in chat (Share's `shareExtra`), the most that fits `room` characters (nil:
+--- no limit): how many, who looted it, the boss, the zone, how long ago. Too long: the time goes first, then the zone,
+--- then the boss.
+function LL.ChatExtra(e, room)
+	local d = e.entry or {}
+	local n = d.n and (" x" .. d.n) or ""
+	local who, boss, zone = ChatWho(e), Boss(e), Zone(e)
+	local by = who and (" looted by " .. who) or ""
+	local from = boss and (" from " .. boss) or ""
+	local where = zone and (" in " .. zone) or ""
+	local ago = d.t and (" (" .. LL.Ago(d.t) .. ")") or ""
+	local tries = { n .. by .. from .. where .. ago, n .. by .. from .. where, n .. by .. from, n .. by .. where, n .. by, n }
+	for _, t in ipairs(tries) do
+		if not room or #t <= room then return t end
+	end
+	return ""
+end
+
+-- the value every row has for it, else nil
+local function Shared(rows, get)
+	local v = get(rows[1])
+	for _, e in ipairs(rows) do if get(e) ~= v then return nil end end
+	return v
+end
+
+--- Every row at once (">>> party", the menu's "All N"): what they all share is said once, in the header (Share's
+--- `shareHeader`): "Drops in Razorfen Downs", "Drops looted by me from Mordresh Fire Eye" (`what`: what the search's
+--- filters say they are, "Weapons", instead of "Drops"). The second result is what each row then leaves out.
+function LL.GroupHeader(rows, what)
+	local s = { who = Shared(rows, ChatWho), boss = Shared(rows, Boss), zone = Shared(rows, Zone) }
+	local h = what or "Drops"
+	if s.who then h = h .. " looted by " .. s.who end
+	if s.boss then h = h .. " from " .. s.boss end
+	if s.zone then h = h .. " in " .. s.zone end
+	return h, s
+end
+
+--- A row in such a list (Share's `shareMember`): its link, how many, and what the header didn't say, in brackets:
+--- "[Rotmender's Garb] (Zd Zd)", "[Linen Cloth] x5 (me, Mordresh Fire Eye)".
+function LL.GroupMember(e, s, base)
+	local d = e.entry or {}
+	local t = base .. (d.n and (" x" .. d.n) or "")
+	local bits = {}
+	local who, boss, zone = ChatWho(e), Boss(e), Zone(e)
+	if who and not s.who then bits[#bits + 1] = who end
+	if boss and not s.boss then bits[#bits + 1] = boss end
+	if zone and not s.zone then bits[#bits + 1] = zone end
+	if #bits > 0 then t = t .. " (" .. table.concat(bits, ", ") .. ")" end
+	return t
+end
+
 ns:RegisterProvider("lootlog", {
 	label = "Loot log",
 	color = "ffe6b85c",
@@ -231,6 +299,8 @@ ns:RegisterProvider("lootlog", {
 				if d.zone then parts[#parts + 1] = d.zone end
 				out[#out + 1] = {
 					looter = d.who, mine = who == "you" or nil,
+					entry = d, -- (the log's own entry: what chat says of it, Share's hooks below)
+					shareExtra = LL.ChatExtra, shareHeader = LL.GroupHeader, shareMember = LL.GroupMember,
 					key = (d.t or 0) .. ":" .. d.id .. ":" .. tostring(d.who),
 					name = NameOf(d.link),
 					itemID = d.id, link = d.link,

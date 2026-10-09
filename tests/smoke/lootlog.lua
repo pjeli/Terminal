@@ -124,6 +124,44 @@ do
 		and ns.Easy.ToAdvanced("what did bob get") == "@drop bob ", "Alt+`: their Advanced forms: " .. ns.Easy.ToAdvanced("what did i loot"))
 	ns.db.easyMode = false
 	check(ns.Filters.Parse("q:uncommon") ~= nil, "(filters work on its rows: they carry the item)")
+	do -- to chat, a drop says who got it, where and when (0.45.10: ">> @drop rotmender's garb >> party" sent the bare link)
+		local SH = ns.Share
+		p._dirty = true
+		rows = ns:GetEntries(p)
+		local bob, mine = rows[1], rows[2]
+		local line = SH.Macro(bob, { cmd = "/p", label = "party", query = "@drop crescent " })
+		check(line == "/p " .. belt .. " looted by Bob from Lord Cobrahn in Wailing Caverns (" .. LL.Ago(ns.db.lootLog[1].t) .. ")",
+			"Bob's drop to party: who, the boss, the zone, when: " .. tostring(line))
+		line = SH.Macro(mine, { cmd = "/p", label = "party", query = "@drop linen " })
+		check(line and line:find(cloth .. " x2 looted by me in Wailing Caverns (", 1, true) == 4,
+			"your own drop says \"me\" (the line is yours) and how many: " .. tostring(line))
+		check(SH.Line(bob, "@drop crescent "):find(belt .. " looted by Bob from Lord Cobrahn", 1, true) == 1,
+			"Link in chat / the chat box: the same words")
+		-- through the prompt: what the game presses for ">> party"
+		UI:Open("@drop crescent >> party")
+		local sel = UI.Results()[UI.Selected()]
+		local v = sel and UI.SecureView(sel, false)
+		local m = v and v.secure and v.secure.macro and v.secure.macro(v)
+		check(m and m:find("^/p .-looted by Bob from Lord Cobrahn in Wailing Caverns %("), "\">> party\" on a drop: the pressed line says it: " .. tostring(m))
+		UI:Hide()
+		-- too long for a macro: the time goes first, then the zone, then the boss; never past 255 characters
+		local long = { looter = "Bob", entry = { from = ("B"):rep(90), zone = ("Z"):rep(90), t = now } }
+		local x = LL.ChatExtra(long, 200)
+		check(x == " looted by Bob from " .. ("B"):rep(90), "no room for the zone: the boss kept: " .. #x)
+		check(LL.ChatExtra(long, 20) == " looted by Bob", "little room: who looted it")
+		check(LL.ChatExtra({ looter = "?", entry = { t = now } }) == " (just now)", "nobody named: no \"looted by ?\"")
+		local far = setmetatable({ entry = { from = ("B"):rep(120), zone = ("Z"):rep(120), t = now } }, { __index = bob })
+		line = SH.Macro(far, { cmd = "/p", label = "party" })
+		check(line and #line <= 255 and line:find("looted by Bob", 1, true), "a long one still fits a macro: " .. #tostring(line))
+		-- every one at once (">>> party"): what they share in the header once, each row the rest
+		local lines = SH.GroupLines(rows, "@drop ")
+		check(lines[1] == "Drops in Wailing Caverns (3): " .. belt .. " (Bob, Lord Cobrahn), " .. cloth .. " x2 (me), " .. belt .. " (Bob)",
+			">>> party: \"Drops in <zone> (N):\", each with who and the boss: " .. tostring(lines[1]))
+		check(SH.GroupHeader({ bob, rows[3] }, "@drop bob ") == "Drops looted by Bob in Wailing Caverns", "one looter: said once")
+		check(SH.GroupHeader({ bob }, "@drop bob ") == "Drops looted by Bob from Lord Cobrahn in Wailing Caverns", "one drop: all of it in the header")
+		check(not tostring(SH.GroupHeader({ bob, { name = "Ironforge", kind = "maps" } }, "@drop ")):find("^Drops"),
+			"a drop among other rows: not the loot log's header")
+	end
 	for i = 1, LL.MAX + 5 do LL.Add("|Hitem:" .. (5000 + i) .. "|h[X]|h", "Bob", 1) now = now + 20 end
 	check(#ns.db.lootLog == LL.MAX, "only the newest " .. LL.MAX .. " are kept")
 	-- no .lootlog command any more (0.44.14, the player: too much): the log is asked for, or searched with @drop

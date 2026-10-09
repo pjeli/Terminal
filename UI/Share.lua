@@ -526,7 +526,8 @@ end
 --- each then says only its boss), what the filters say they are ("Weapons from Razorfen Kraul"), else what the search
 --- says of its NPCs ("Nearby innkeeper").
 --- Second result: "source" when it's the whole loot source (each row's own then isn't repeated), "instance" when
---- only the instance.
+--- only the instance. Rows whose list says it itself (`shareHeader(rows, what)` -> header, state, the same function on
+--- every row: the loot log) get theirs, and the state goes to each row's `shareMember(e, state, base)`.
 function SH.GroupHeader(rows, query)
 	local first = rows[1]
 	if not first then return nil end
@@ -536,6 +537,15 @@ function SH.GroupHeader(rows, query)
 		if ctx then return ctx end
 	end
 	local what = SH.Describe(query, rows)
+	-- (rows of one list that says it itself: the loot log's "Drops in Razorfen Downs", each row then the rest)
+	local own = first.shareHeader
+	if type(own) == "function" then
+		for _, e in ipairs(rows) do if e.shareHeader ~= own then own = nil break end end
+		if own then
+			local ok, h, state = pcall(own, rows, what)
+			if ok and type(h) == "string" and h ~= "" then return h, type(state) == "table" and state or {} end
+		end
+	end
 	local src = SH.LootSource(first)
 	if src then
 		for _, e in ipairs(rows) do if SH.LootSource(e) ~= src then src = nil break end end
@@ -561,7 +571,10 @@ function SH.GroupLines(rows, query)
 	local function TextOf(e)
 		local base = SH.BaseText(e)
 		local t = (lootHeader or e.pipeRel == "uses") and base or WithSource(e, base, SH.LINE_MAX - 8)
-		if lootHeader == "instance" and type(base) == "string" then
+		if type(lootHeader) == "table" and type(e.shareMember) == "function" and type(base) == "string" then
+			local ok, x = pcall(e.shareMember, e, lootHeader, base)
+			if ok and type(x) == "string" and x ~= "" then t = x end
+		elseif lootHeader == "instance" and type(base) == "string" then
 			-- (the instance is in the header: each says only who drops it)
 			local boss = SH.LootWhere(e)
 			if boss and boss ~= "" then
