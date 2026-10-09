@@ -1,5 +1,4 @@
 local ns = select(2, ...)
-local H = ns.Highlight
 
 -- The recipe and profession rows (@recipe, @profession), made from the index Professions.lua keeps.
 

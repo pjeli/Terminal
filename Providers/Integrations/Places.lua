@@ -22,8 +22,8 @@ local function PlaceIndex()
 	local E = ns.Easy
 	local idx = { byName = {}, byArea = {}, words = 1 }
 	local function add(area, parent)
-		local n = Safe(C_Map.GetAreaInfo, area)
-		if type(n) ~= "string" or (_G.issecretvalue and _G.issecretvalue(n)) then return end
+		local n = ns.Str(Safe(C_Map.GetAreaInfo, area)) -- (Util.lua: a string, not secret; "" is under 4 letters anyway)
+		if not n then return end
 		local key = ns.Lower(n):gsub("^the ", "")
 		if #key < 4 or (E and (E.WORDS[key] or E.STOP[key] or E.ACTIONS[key])) then return end
 		local place = { area = area, parent = parent, name = n, key = key }

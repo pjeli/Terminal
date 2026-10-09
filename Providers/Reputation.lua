@@ -134,13 +134,13 @@ local function Watch(e)
 	local C = _G.C_Reputation
 	local ok
 	if C and C.SetWatchedFactionByID and e.factionID then
-		ok = ns.Professions.Guarded("SetWatchedFactionByID", C.SetWatchedFactionByID, e.factionID)
+		ok = ns.Guarded("SetWatchedFactionByID", C.SetWatchedFactionByID, e.factionID)
 	elseif _G.SetWatchedFactionIndex then
 		-- classic: by list position, which may have moved since the list was read
 		for i = 1, Count() do
 			local r = Row(i)
 			if r and r.name == e.name then
-				ok = ns.Professions.Guarded("SetWatchedFactionIndex", _G.SetWatchedFactionIndex, i)
+				ok = ns.Guarded("SetWatchedFactionIndex", _G.SetWatchedFactionIndex, i)
 				break
 			end
 		end

@@ -193,7 +193,7 @@ local function Show(e)
 	ns:Print(e.link .. ": " .. e.detail)
 end
 local function LinkOf(e) return e.link end
-local function NeverOpen() return false end
+local NeverOpen = ns.Never
 local CHATBOX = ns.ChatBoxSpec(LinkOf) -- (shared by every row: entry functions are never made per row)
 local function ToChat(e) ns.LinkInChat(e.link) end
 local function Who(who)

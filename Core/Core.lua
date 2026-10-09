@@ -95,9 +95,11 @@ function ns.ChatBoxMacro(text)
 	return #run <= max and run or nil
 end
 
+--- Always false: the `isOpen` of a result that is always pressed (nothing has to be open first), shared.
+function ns.Never() return false end
+ns.ChatBoxNeverOpen = ns.Never -- (the chat box spec's: always pressed)
+
 --- A secure spec (Shift+Enter's) that has the game open the chat box with textOf(e): `secondarySecure = ns.ChatBoxSpec(f)`.
-local function NeverOpen() return false end
-ns.ChatBoxNeverOpen = NeverOpen
 function ns.ChatBoxSpec(textOf)
 	return { macro = function(e)
 		local ok, t = pcall(textOf, e)

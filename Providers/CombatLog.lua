@@ -118,7 +118,7 @@ end
 -- log from addons: registering for it is a forbidden action (WoW Forever
 -- 1.60.1 showed "Terminal has been blocked from an action only available to the Blizzard UI" at login, 0.43.15; the
 -- pcall said fine, the block comes as ADDON_ACTION_FORBIDDEN). Never asked there; elsewhere asked once through
--- Professions.Guarded, which remembers a block (db.blockedCalls) so it is never asked again.
+-- ns.Guarded (Debug.lua), which remembers a block (db.blockedCalls) so it is never asked again.
 CB.MIDNIGHT = 120000
 function CB.Listen(frame)
 	-- (WoW Forever reports Interface 16001, not 12.x: the Midnight API is told by its secret values, issecretvalue)
@@ -126,13 +126,7 @@ function CB.Listen(frame)
 	if _G.issecretvalue or (type(build) == "number" and build >= CB.MIDNIGHT) then
 		return false, "not asked: this client keeps the combat log from addons"
 	end
-	local P = ns.Professions
-	local ok
-	if P and P.Guarded then
-		ok = P.Guarded("combatlog", frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
-	else
-		ok = pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
-	end
+	local ok = ns.Guarded("combatlog", frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
 	return ok and true or false, "the game refused it to addons"
 end
 
@@ -141,7 +135,7 @@ end
 -- newest is found by asking HasRecapEvents up from the last one seen, or read from that chat link when it comes.
 local recapSeen, recapLink = 0, nil
 CB.RECAP_LOOK = 40 -- (ids asked past the last one seen)
-local function Num(v) return type(v) == "number" and not (Secret and Secret(v)) and v or nil end
+local Num = ns.Num -- (Util.lua: a number that isn't secret, else nil)
 -- (secret first: a secret string can't even be compared with "")
 local function Text(v) return type(v) == "string" and not (Secret and Secret(v)) and v ~= "" and v or nil end
 

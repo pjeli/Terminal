@@ -11,7 +11,7 @@ local ns = select(2, ...)
 local Z = {}
 ns.Zones = Z
 
-local Safe, Str, Secret = ns.Safe, ns.Str, ns.Secret
+local Safe, Secret = ns.Safe, ns.Secret
 
 -- { uiMap, min level, max level, fishing skill, fishing skill in places (a higher one: pools, deeper water), name }
 -- (cities: no level range, only fishing)

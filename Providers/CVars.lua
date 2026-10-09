@@ -8,7 +8,8 @@ local ns = select(2, ...)
 
 local CHANGED = "|cffffd200"
 
-local function Plain(v)
+--- A value as text (secret: nil): what a setting reads as, its default, a command's name or help.
+local function ValueText(v)
 	if v == nil or (issecretvalue and issecretvalue(v)) then return nil end
 	return tostring(v)
 end
@@ -27,7 +28,7 @@ local function CVarLine(e, value)
 	local line = "/console " .. e.name .. " " .. (value or "")
 	ns.UI:SetQuery(line, #line)
 end
-local function EditCVar(e) CVarLine(e, Plain(C_CVar.GetCVar(e.name)) or e.value) end
+local function EditCVar(e) CVarLine(e, ValueText(C_CVar.GetCVar(e.name)) or e.value) end
 local function DefaultCVar(e) CVarLine(e, e.default) end
 
 -- Terminal's list of names (CVarList.lua), read once: name -> { category, help }, and the names in order
@@ -49,15 +50,15 @@ local function Read(name)
 	local info, get = C_CVar and C_CVar.GetCVarInfo, C_CVar and C_CVar.GetCVar
 	if info then
 		local ok, v, d, _, _, locked, sec, ro = pcall(info, name)
-		if ok then value, default, readOnly, secure = Plain(v), Plain(d), (ro or locked) and true or false, sec and true or false end
+		if ok then value, default, readOnly, secure = ValueText(v), ValueText(d), (ro or locked) and true or false, sec and true or false end
 	end
 	if value == nil and get then
 		local ok, v = pcall(get, name)
-		value = ok and Plain(v) or nil
+		value = ok and ValueText(v) or nil
 	end
 	if value ~= nil and default == nil and C_CVar.GetCVarDefault then
 		local ok, d = pcall(C_CVar.GetCVarDefault, name)
-		default = ok and Plain(d) or nil
+		default = ok and ValueText(d) or nil
 	end
 	return value, default, readOnly, secure
 end
@@ -101,8 +102,8 @@ local function CVarNames()
 	local names = {}
 	if #all > 0 then
 		for _, c in ipairs(all) do
-			local name = type(c) == "table" and Plain(c.command)
-			if name then names[#names + 1] = { name, c.category, Plain(c.help) } end
+			local name = type(c) == "table" and ValueText(c.command)
+			if name then names[#names + 1] = { name, c.category, ValueText(c.help) } end
 		end
 	else
 		-- otherwise the names Terminal knows, each looked up in the game below

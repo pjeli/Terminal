@@ -132,6 +132,32 @@ for _, e in ipairs({ "ADDON_ACTION_FORBIDDEN", "ADDON_ACTION_BLOCKED" }) do pcal
 f:SetScript("OnEvent", function(_, event, addon, func) OnAction(event, addon, func) end)
 
 ----------------------------------------------------------------------
+-- Guarded calls (was Professions.Guarded, still reachable there)
+----------------------------------------------------------------------
+
+--- A call that may be protected (OpenRecipe, SetCurrentTitle...): made until the game blocks it once, then never
+--- again. Remembered per call name in the saved variables (db.blockedCalls). Blocks fire synchronously, so the
+--- count of Terminal's blocked actions (D.count) before and after the call tells.
+function ns.Guarded(key, fn, ...)
+	local db = ns.db
+	if type(fn) ~= "function" then return false end
+	if db then
+		db.blockedCalls = db.blockedCalls or {}
+		if db.blockedCalls[key] then return false end
+	end
+	local D = ns.Debug
+	local before = D and D.count or 0
+	ns:Trace("DIRECT " .. key)
+	local ok = pcall(fn, ...)
+	if D and D.count > before then
+		-- a block in combat says nothing about out-of-combat: don't remember it
+		if db and not (InCombatLockdown and InCombatLockdown()) then db.blockedCalls[key] = true end
+		return false
+	end
+	return ok
+end
+
+----------------------------------------------------------------------
 -- Game-side logging
 ----------------------------------------------------------------------
 

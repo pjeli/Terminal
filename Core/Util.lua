@@ -32,12 +32,10 @@ function ns.Num(v)
 	return v
 end
 
---- Always false: the `isOpen` of a result that is always pressed (nothing has to be open first), shared.
-function ns.Never() return false end
-
 --- A frame's (or any object's) name when it has a string one; else nil. Never errors.
+local function NameOf(f) return f:GetName() end -- (one function for every call: walks over UIParent's children made a closure per frame)
 function ns.FrameName(f)
-	local ok, n = pcall(function() return f:GetName() end)
+	local ok, n = pcall(NameOf, f)
 	return ok and type(n) == "string" and n or nil
 end
 

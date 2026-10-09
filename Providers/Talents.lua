@@ -197,6 +197,7 @@ end
 
 TL.OTHER_RANK = -1.5 -- (below your own class's among equal matches: class:mage keeps only those anyway)
 TL.CACHE_FORMAT = 1
+TL.otherRows = {} -- classFile -> the rows last made for it, and what they were made from (the talents list's collect)
 
 local function MyClassFile()
 	local ok, _, file = pcall(UnitClass, "player")
@@ -222,7 +223,7 @@ function TL.ReadClass(classID, level)
 	local CT = C_ClassTalents
 	local view = Constants and Constants.TraitConsts and Constants.TraitConsts.VIEW_TRAIT_CONFIG_ID
 	if not (CT and CT.InitializeViewLoadout and CT.GetTraitTreeForSpec and view and C_Traits and C_Traits.GetTreeNodes) then return nil end
-	local guarded = ns.Professions and ns.Professions.Guarded
+	local guarded = ns.Guarded
 	local out, seenTree, seenNode = {}, {}, {}
 	for _, specID in ipairs(SpecsOf(classID)) do
 		local ok, treeID = pcall(CT.GetTraitTreeForSpec, specID)
@@ -342,30 +343,48 @@ ns:RegisterProvider("talents", {
 				}
 			end
 		end
-		-- other classes' talents, below yours: Enter shows the Wowhead page, Shift+Enter links it in chat
+		-- other classes' talents, below yours: Enter shows the Wowhead page, Shift+Enter links it in chat. Your own tree's
+		-- events rebuild this list often: each class's rows (~800 in all) are made once and used again while they'd come
+		-- out the same (TL.otherRows: the same saved talents, the class shown the same way); only the icon is asked again.
 		local others, names = TL.OtherClasses()
+		local made = {}
 		for file, rows in pairs(others) do
 			local cname = names[file] or file
 			local hex = ns.ClassHex and ns.ClassHex(file) -- ("|cff3fc7eb": the colour code whole)
 			local shown = hex and (hex .. cname .. "|r") or cname
-			for _, r in ipairs(rows) do
-				local tab = r[4] ~= "" and r[4] or nil
-				out[#out + 1] = {
-					key = file .. ":" .. r[1],
-					name = r[2],
-					icon = r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3])),
-					detail = shown .. "  " .. (tab and (tab .. "  ") or "") .. r[6] .. (r[6] == 1 and " rank" or " ranks"),
-					text = (tab or "") .. " " .. cname .. " talent",
-					getLink = TalentLink,
-					nodeID = r[1], tab = tab, tabIndex = r[5], spellID = r[3],
-					classFile = file, className = cname, other = true,
-					_rank = TL.OTHER_RANK,
-					activate = ShowOnWowhead,
-					secondary = LinkTalent,
-					secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
-				}
+			local m = TL.otherRows[file]
+			if m and m.from == rows and m.shown == shown and m.cname == cname and m.rank == TL.OTHER_RANK
+				and m.never == ns.ChatBoxNeverOpen then
+				for i, e in ipairs(m.rows) do
+					local r = rows[i]
+					e.icon = r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3]))
+					out[#out + 1] = e
+				end
+			else
+				m = { from = rows, shown = shown, cname = cname, rank = TL.OTHER_RANK, never = ns.ChatBoxNeverOpen, rows = {} }
+				for _, r in ipairs(rows) do
+					local tab = r[4] ~= "" and r[4] or nil
+					local e = {
+						key = file .. ":" .. r[1],
+						name = r[2],
+						icon = r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3])),
+						detail = shown .. "  " .. (tab and (tab .. "  ") or "") .. r[6] .. (r[6] == 1 and " rank" or " ranks"),
+						text = (tab or "") .. " " .. cname .. " talent",
+						getLink = TalentLink,
+						nodeID = r[1], tab = tab, tabIndex = r[5], spellID = r[3],
+						classFile = file, className = cname, other = true,
+						_rank = TL.OTHER_RANK,
+						activate = ShowOnWowhead,
+						secondary = LinkTalent,
+						secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
+					}
+					m.rows[#m.rows + 1] = e
+					out[#out + 1] = e
+				end
 			end
+			made[file] = m
 		end
+		TL.otherRows = made
 		return out
 	end,
 })

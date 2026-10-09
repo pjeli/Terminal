@@ -16,6 +16,8 @@ local Plain, Norm = ns.Plain, ns.Norm -- Norm keeps letters of every language (L
 -- Options panels
 ----------------------------------------------------------------------
 
+local function IdOf(cat) return cat:GetID() end -- (one function for every category, not a closure each)
+
 local function SettingsCategories()
 	local out = {}
 	if SettingsPanel and SettingsPanel.GetAllCategories then
@@ -23,7 +25,7 @@ local function SettingsCategories()
 		if ok and type(list) == "table" then
 			for _, cat in ipairs(list) do
 				local name = ns.FrameName(cat)
-				local okI, id = pcall(function() return cat:GetID() end)
+				local okI, id = pcall(IdOf, cat)
 				if name and name ~= "" then
 					out[#out + 1] = { name = name, id = okI and id or nil, cat = cat }
 				end
@@ -166,13 +168,17 @@ end
 
 local function Character() return ns.CharacterName() end -- (with the surname where characters have one: Util.lua)
 
---- Whether the addon is turned on for this character (nil: the client doesn't say).
-local function Enabled(name)
+--- Whether the addon is turned on for the character named `who` (nil: the client doesn't say). The list asks for
+--- every addon with the name worked out once (Character()), not once per addon.
+local function EnabledFor(name, who)
 	local get = C_AddOns.GetAddOnEnableState
-	local st = get and ns.Num(ns.Safe(get, name, Character()))
+	local st = get and ns.Num(ns.Safe(get, name, who))
 	if st == nil then return nil end
 	return st > 0 -- (0 off, 1 on for some characters, 2 on)
 end
+
+--- Whether the addon is turned on for this character (nil: the client doesn't say).
+local function Enabled(name) return EnabledFor(name, Character()) end
 
 local function Detail(e)
 	local state
@@ -237,6 +243,7 @@ ns:RegisterProvider("addons", {
 		local catBy, brokerBy = ByName(cats), ByName(brokers)
 		local buttonKeys = {}
 		for i, mb in ipairs(buttons) do buttonKeys[i] = Norm(mb.name) end
+		local who = Character() -- (this character's name, as the AddOn list knows it: once, not per addon)
 
 		for i = 1, C_AddOns.GetNumAddOns() do
 			local name, title, notes = C_AddOns.GetAddOnInfo(i)
@@ -262,7 +269,7 @@ ns:RegisterProvider("addons", {
 					text = name .. " " .. (plainNotes or ""),
 					tip = plainNotes,
 					launch = launch, opt = opt,
-					does = does, loaded = loaded, enabled = Enabled(name),
+					does = does, loaded = loaded, enabled = EnabledFor(name, who),
 					secure = ADDON_SPEC, isOpen = NeverOpen, after = Opened,
 					activate = AddonActivate,
 					secondary = ToggleAddon, -- Shift+Enter: on / off

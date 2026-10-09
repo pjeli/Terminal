@@ -207,8 +207,7 @@ end
 local function PetRoot() local P = _G.PetJournal; return P and (P.ScrollBox or P.listScroll or P) end
 local function PointAtPet(e) PointIn(PetRoot, e.species or e.name) end
 local function NoPet(e)
-	local P = ns.Professions
-	if not (P and P.Guarded and P.Guarded("SummonPetByGUID", C_PetJournal.SummonPetByGUID, e.key)) then
+	if not ns.Guarded("SummonPetByGUID", C_PetJournal.SummonPetByGUID, e.key) then
 		ns:Print("Couldn't summon " .. tostring(e.name) .. " from here.")
 	end
 end
@@ -315,8 +314,7 @@ end
 local NO_TITLE = -1
 local function TitleMacro(e) return "/run SetCurrentTitle(" .. e.key .. ")" end
 local function NoTitle(e)
-	local P = ns.Professions
-	if not (P and P.Guarded and P.Guarded("SetCurrentTitle", SetCurrentTitle, e.key)) then
+	if not ns.Guarded("SetCurrentTitle", SetCurrentTitle, e.key) then
 		ns:Print("Couldn't set the title " .. tostring(e.name) .. " from here.")
 	end
 end

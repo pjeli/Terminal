@@ -42,8 +42,8 @@ local function ReadObjectIds(out, DB, all, kinds, key)
 	for name in pairs(kinds) do want[name] = true; out[name] = {} end
 	local t0 = debugprofilestop and debugprofilestop()
 	for _, id in ipairs(all) do
-		local name = Safe(DB.QueryObjectSingle, id, "name")
-		if type(name) == "string" and not (issecretvalue and issecretvalue(name)) then
+		local name = ns.Str(Safe(DB.QueryObjectSingle, id, "name")) -- (Util.lua: a string, not secret; "" names no kind)
+		if name then
 			local l = ns.Lower(name)
 			if want[l] then local t = out[l]; t[#t + 1] = id end
 		end

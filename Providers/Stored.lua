@@ -38,7 +38,7 @@ local function BrotherBags()
 	return type(bb) == "table" and next(bb) ~= nil and bb or nil
 end
 
-local function Bagnon() return ns.Bags.Bagnon() end -- shared with the Item results (Items.lua)
+local function Bagnon() return ns.Bags.Bagnon() end -- shared with the Item results (Bags.lua)
 S.SyndicatorAPI, S.SyndicatorReady, S.BrotherBags = SyndicatorAPI, SyndicatorReady, BrotherBags
 
 --- Whose records to read: those of the bag addon in use this session, and only those. Bagnon's

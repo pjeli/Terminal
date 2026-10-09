@@ -196,26 +196,7 @@ function P.DirectOpen(skillLine)
 	return ok
 end
 
---- Any other protected call (OpenRecipe...): made until the game blocks it once, then never
---- again. Remembered per call name in the saved variables.
-function P.Guarded(key, fn, ...)
-	local db = ns.db
-	if type(fn) ~= "function" then return false end
-	if db then
-		db.blockedCalls = db.blockedCalls or {}
-		if db.blockedCalls[key] then return false end
-	end
-	local D = ns.Debug
-	local before = D and D.count or 0
-	ns:Trace("DIRECT " .. key)
-	local ok = pcall(fn, ...)
-	if D and D.count > before then
-		-- a block in combat says nothing about out-of-combat: don't remember it
-		if db and not (InCombatLockdown and InCombatLockdown()) then db.blockedCalls[key] = true end
-		return false
-	end
-	return ok
-end
+P.Guarded = ns.Guarded -- (Debug.lua: any protected call, tried until the game blocks it once; asked through here too)
 
 --- The spell that opens this profession's crafting window, when casting it does (Cooking,
 --- First Aid, Blacksmithing...). Casting is done by the game on Enter (see Secure.lua).
@@ -641,14 +622,10 @@ end
 local function ScrollToRecipe(pf, recipeID)
 	local page = pf.CraftingPage
 	local list = page and page.RecipeList
-	local box = list and list.ScrollBox
-	if not (box and box.ScrollToElementDataByPredicate) then return false end
-	local ok = pcall(box.ScrollToElementDataByPredicate, box, function(node)
-		local d = node and node.GetData and node:GetData()
-		local info = type(d) == "table" and (d.recipeInfo or d)
+	return ns.ScrollBoxTo(list and list.ScrollBox, function(d) -- (Util.lua: the box asked in a pcall, each node's data)
+		local info = d.recipeInfo or d
 		return type(info) == "table" and info.recipeID == recipeID
 	end)
-	return ok
 end
 P.ScrollToRecipe = ScrollToRecipe
 

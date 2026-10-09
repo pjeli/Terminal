@@ -8,7 +8,7 @@ local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Qu
 local function QDB() return QD.DB() end
 local IP = I._
 local HintFind, NpcHintRow, QuestHintRow, IndexNPCs, NpcLocation = IP.HintFind, IP.NpcHintRow, IP.QuestHintRow, IP.IndexNPCs, IP.NpcLocation
-local ShowNpc, NpcPin, OpenNpcDirect = IP.ShowNpc, IP.NpcPin, IP.OpenNpcDirect
+local ShowNpc, OpenNpcDirect = IP.ShowNpc, IP.OpenNpcDirect
 local NPC_TARGET, NeverTargeted, TargetFallback, ClearNpcFields = IP.NPC_TARGET, IP.NeverTargeted, IP.TargetFallback, IP.ClearNpcFields
 
 ----------------------------------------------------------------------
@@ -151,7 +151,7 @@ local function Giver(fn)
 		fn({ name = entry.name, npcID = npcID, npcName = (npcName or "quest giver") .. " (" .. entry.name .. ")" })
 	end
 end
-local GIVER_AFTER, GIVER_OPEN, GIVER_PIN = Giver(ShowNpc), Giver(OpenNpcDirect), Giver(NpcPin)
+local GIVER_AFTER, GIVER_OPEN = Giver(ShowNpc), Giver(OpenNpcDirect)
 
 -- a field that comes from the quest log entry while the quest is in the log
 local function FromLog(field, otherwise)

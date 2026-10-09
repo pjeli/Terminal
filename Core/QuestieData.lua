@@ -213,16 +213,6 @@ function QD.DungeonLocation(areaId)
 	return type(d) == "table" and d[4] or nil
 end
 
---- Every dungeon, raid and battleground with its entrances: areaId -> { name, alt areas, parent zone, { {areaId, x, y}... } }
---- (QuestieDB's ZoneDB, else Questie's own), or nil.
-function QD.Dungeons()
-	local z = LibZones()
-	if z and next(z.dungeons) then return z.dungeons end
-	local Z = QD.Module("ZoneDB")
-	local P = type(Z) == "table" and type(Z.private) == "table" and Z.private
-	return P and type(P.dungeons) == "table" and P.dungeons or nil
-end
-
 --- Run fn once the data can be read: now, at Questie's ready, or (QuestieDB alone) now as well.
 function QD.OnReady(fn)
 	if QD.Ready() then return fn() end
