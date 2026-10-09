@@ -4,6 +4,9 @@ local H = ns.Highlight
 -- Talents: every talent in your tree, taken or not, searchable by name or tree, opened in
 -- the talent window with its node highlighted. Forever's talents are a C_Traits tree split
 -- into the classic three tabs (the same way ClassicUIForever reads it).
+-- Other classes' talents (0.44.7) are listed too, below your own (`_rank`): read once through the game's "view a
+-- loadout" config (C_ClassTalents.InitializeViewLoadout: what the talent window shows a shared build with, C calls),
+-- kept in the saved variables per game build. Enter shows the talent's Wowhead page; class:mage narrows to a class.
 
 local TL = {}
 ns.Talents = TL
@@ -134,13 +137,8 @@ local function OpenFallback(e)
 	TL.Highlight(e.nodeID, e.tab, e.tabIndex)
 end
 
---- Reads the active talent tree. Returns configID, treeID, { groupID -> tab name }.
-local function ReadTree()
-	if not (C_Traits and C_Traits.GetConfigInfo and C_Traits.GetTreeNodes) then return end
-	local configID = ConfigID()
-	local config = configID and C_Traits.GetConfigInfo(configID)
-	local treeID = config and config.treeIDs and config.treeIDs[1]
-	if not treeID then return end
+-- a tree's tabs: { groupID -> tab name }, { groupID -> its place }
+local function ReadTabs(treeID)
 	local tabs, order = {}, {}
 	local ok, groups = pcall(C_Traits.GetGroupDisplayInfoByTreeID, treeID)
 	if ok and type(groups) == "table" then
@@ -150,7 +148,149 @@ local function ReadTree()
 			order[g.groupID] = i
 		end
 	end
+	return tabs, order
+end
+
+--- Reads the active talent tree. Returns configID, treeID, { groupID -> tab name }.
+local function ReadTree()
+	if not (C_Traits and C_Traits.GetConfigInfo and C_Traits.GetTreeNodes) then return end
+	local configID = ConfigID()
+	local config = configID and C_Traits.GetConfigInfo(configID)
+	local treeID = config and config.treeIDs and config.treeIDs[1]
+	if not treeID then return end
+	local tabs, order = ReadTabs(treeID)
 	return configID, treeID, tabs, order
+end
+
+--- Every visible talent of a tree as the config sees it: { nodeID, name, spellID, icon, tab, tabIndex, rank, maxRanks }.
+local function ReadNodes(configID, treeID, tabs, order)
+	local out = {}
+	for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
+		local node = C_Traits.GetNodeInfo(configID, nodeID)
+		if node and node.isVisible ~= false then
+			local entryID = node.activeEntry and node.activeEntry.entryID or (node.entryIDs and node.entryIDs[1])
+			local entry = entryID and C_Traits.GetEntryInfo(configID, entryID)
+			local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
+			local spellID = def and (def.overriddenSpellID or def.spellID)
+			local name = def and def.overrideName
+			if (not name or name == "") and spellID and C_Spell and C_Spell.GetSpellName then
+				name = C_Spell.GetSpellName(spellID)
+			end
+			if type(name) == "string" and name ~= "" and not ns.Secret(name) then
+				local tab, tabIndex
+				for _, gid in ipairs(node.groupIDs or {}) do
+					if tabs[gid] then tab, tabIndex = tabs[gid], order[gid] break end
+				end
+				out[#out + 1] = { nodeID = nodeID, name = name, spellID = spellID, tab = tab, tabIndex = tabIndex,
+					rank = node.ranksPurchased or 0, maxRanks = node.maxRanks or 1,
+					icon = (def and def.overrideIcon)
+						or (spellID and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellID)) }
+			end
+		end
+	end
+	return out
+end
+
+----------------------------------------------------------------------
+-- Other classes' talents
+----------------------------------------------------------------------
+
+TL.OTHER_RANK = -1.5 -- (below your own class's among equal matches: class:mage keeps only those anyway)
+TL.CACHE_FORMAT = 1
+
+local function MyClassFile()
+	local ok, _, file = pcall(UnitClass, "player")
+	return ok and file or nil
+end
+
+local function SpecsOf(classID)
+	local SI = C_SpecializationInfo
+	local count = (SI and SI.GetNumSpecializationsForClassID) or _G.GetNumSpecializationsForClassID
+	local info = (SI and SI.GetSpecializationInfoForClassID) or _G.GetSpecializationInfoForClassID
+	local out = {}
+	if not (count and info) then return out end
+	local ok, n = pcall(count, classID)
+	for i = 1, (ok and tonumber(n)) or 0 do
+		local okI, id = pcall(info, classID, i)
+		if okI and type(id) == "number" then out[#out + 1] = id end
+	end
+	return out
+end
+
+--- One class's talents, read through the game's view config (every spec's tree once). nil when the game can't.
+function TL.ReadClass(classID, level)
+	local CT = C_ClassTalents
+	local view = Constants and Constants.TraitConsts and Constants.TraitConsts.VIEW_TRAIT_CONFIG_ID
+	if not (CT and CT.InitializeViewLoadout and CT.GetTraitTreeForSpec and view and C_Traits and C_Traits.GetTreeNodes) then return nil end
+	local guarded = ns.Professions and ns.Professions.Guarded
+	local out, seenTree, seenNode = {}, {}, {}
+	for _, specID in ipairs(SpecsOf(classID)) do
+		local ok, treeID = pcall(CT.GetTraitTreeForSpec, specID)
+		if ok and treeID and not seenTree[treeID] then
+			seenTree[treeID] = true
+			local inited = guarded and guarded("viewloadout", CT.InitializeViewLoadout, specID, level)
+				or (not guarded and pcall(CT.InitializeViewLoadout, specID, level))
+			if not inited then return nil end
+			local tabs, order = ReadTabs(treeID)
+			local okR, nodes = pcall(ReadNodes, view, treeID, tabs, order)
+			for _, n in ipairs(okR and nodes or {}) do
+				if not seenNode[n.nodeID] then
+					seenNode[n.nodeID] = true
+					out[#out + 1] = { n.nodeID, n.name, n.spellID, n.tab or "", n.tabIndex or 0, n.maxRanks, n.icon }
+				end
+			end
+		end
+	end
+	return out
+end
+
+local function CacheKey()
+	local ok, _, build = pcall(GetBuildInfo)
+	return TL.CACHE_FORMAT .. ":" .. tostring(ok and build or "?")
+end
+
+--- Every other class's talents, from the saved copy when it's this build's, else read now (not in combat, not while a
+--- talent window shows: the view config is the window's too). { classFile = { {nodeID, name, spellID, tab, tabIndex,
+--- maxRanks, icon}, ... } }, and { classFile = class name }.
+function TL.OtherClasses()
+	local db = ns.db or {}
+	local key, mine = CacheKey(), MyClassFile()
+	local cache = db.talentCache
+	if not (cache and cache.key == key and cache.classes) then
+		if TL.triedOthers == key then return {}, {} end -- (read once a session when nothing came of it)
+		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() or not GetClassInfo then return {}, {} end
+		local level = (GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()) or 60
+		local classes, names, read = {}, {}, 0
+		local okN, n = pcall(GetNumClasses or function() return 13 end)
+		for id = 1, (okN and tonumber(n)) or 13 do
+			local okC, name, file = pcall(GetClassInfo, id)
+			if okC and file and name then
+				local rows = TL.ReadClass(id, level)
+				if rows == nil then
+					ns:Trace("talents: other classes can't be read here (no view loadout)")
+					TL.triedOthers = key
+					return {}, {}
+				end
+				if #rows > 0 then classes[file], names[file], read = rows, name, read + 1 end
+			end
+		end
+		ns:Trace("talents: read " .. read .. " classes' talents")
+		if read == 0 then TL.triedOthers = key return {}, {} end -- (nothing read: not kept, tried again next session)
+		cache = { key = key, classes = classes, names = names }
+		db.talentCache = cache
+	end
+	local out, names = {}, {}
+	for file, rows in pairs(cache.classes) do
+		if file ~= mine then out[file], names[file] = rows, (cache.names or {})[file] or file end
+	end
+	return out, names
+end
+
+-- Wowhead has a WoW Forever section: a talent of another class is shown there (its tree isn't yours to open)
+TL.WOWHEAD_SPELL = "https://www.wowhead.com/forever/spell=%d"
+local function ShowOnWowhead(e)
+	if not e.spellID then ns:Print("No page for " .. tostring(e.name) .. ".") return end
+	ns:ShowText("Wowhead: " .. tostring(e.name), TL.WOWHEAD_SPELL:format(e.spellID), { compact = true })
 end
 
 local function HighlightNode(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
@@ -168,51 +308,62 @@ ns:RegisterProvider("talents", {
 	guard = 1,
 	collect = function()
 		local out = {}
+		local mine = MyClassFile()
+		local okName, myName = pcall(UnitClass, "player")
+		myName = okName and type(myName) == "string" and myName or nil
 		local configID, treeID, tabs, order = ReadTree()
-		if not treeID then return out end
-		for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
-			local node = C_Traits.GetNodeInfo(configID, nodeID)
-			if node and node.isVisible ~= false then
-				local rank = node.ranksPurchased or 0
-				local entryID = node.activeEntry and node.activeEntry.entryID or (node.entryIDs and node.entryIDs[1])
-				local entry = entryID and C_Traits.GetEntryInfo(configID, entryID)
-				local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
-				local spellID = def and (def.overriddenSpellID or def.spellID)
-				local name = def and def.overrideName
-				if (not name or name == "") and spellID and C_Spell and C_Spell.GetSpellName then
-					name = C_Spell.GetSpellName(spellID)
-				end
-				if type(name) == "string" and name ~= "" then
-					local tab, tabIndex
-					for _, gid in ipairs(node.groupIDs or {}) do
-						if tabs[gid] then tab, tabIndex = tabs[gid], order[gid] break end
-					end
-					local taken = rank > 0
-					out[#out + 1] = {
-						key = nodeID,
-						name = name,
-						color = (not taken) and "|cffa0a0a0" or nil,
-						icon = (def and def.overrideIcon)
-							or (spellID and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellID)),
-						detail = ((tab and tab ~= "") and (tab .. "  ") or "") .. (taken and TAKEN or NOT_TAKEN)
-							.. " " .. rank .. "/" .. (node.maxRanks or 1),
-						text = (tab or "") .. " talent",
-						getLink = TalentLink, -- (made when selected, not per talent on every rebuild)
-						nodeID = nodeID,
-						tab = tab,
-						tabIndex = tabIndex,
-						taken = taken,
-						spellID = spellID,
-						-- opened through the game's Talents keybinding, then the node is highlighted
-						secure = TL.SECURE,
-						isOpen = TL.IsOpen,
-						after = HighlightNode,
-						activate = OpenFallback,
-						-- Shift+Enter: link the talent in chat
-						secondary = LinkTalent,
-						secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
-					}
-				end
+		if treeID then
+			for _, n in ipairs(ReadNodes(configID, treeID, tabs, order)) do
+				local tab, rank = n.tab, n.rank
+				local taken = rank > 0
+				out[#out + 1] = {
+					key = n.nodeID,
+					name = n.name,
+					color = (not taken) and "|cffa0a0a0" or nil,
+					icon = n.icon,
+					detail = ((tab and tab ~= "") and (tab .. "  ") or "") .. (taken and TAKEN or NOT_TAKEN)
+						.. " " .. rank .. "/" .. n.maxRanks,
+					text = (tab or "") .. " " .. (myName or "") .. " talent",
+					getLink = TalentLink, -- (made when selected, not per talent on every rebuild)
+					nodeID = n.nodeID,
+					tab = tab,
+					tabIndex = n.tabIndex,
+					taken = taken,
+					spellID = n.spellID,
+					classFile = mine, className = myName,
+					-- opened through the game's Talents keybinding, then the node is highlighted
+					secure = TL.SECURE,
+					isOpen = TL.IsOpen,
+					after = HighlightNode,
+					activate = OpenFallback,
+					-- Shift+Enter: link the talent in chat
+					secondary = LinkTalent,
+					secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
+				}
+			end
+		end
+		-- other classes' talents, below yours: Enter shows the Wowhead page, Shift+Enter links it in chat
+		local others, names = TL.OtherClasses()
+		for file, rows in pairs(others) do
+			local cname = names[file] or file
+			local hex = ns.ClassHex and ns.ClassHex(file)
+			local shown = hex and ("|cff" .. hex .. cname .. "|r") or cname
+			for _, r in ipairs(rows) do
+				local tab = r[4] ~= "" and r[4] or nil
+				out[#out + 1] = {
+					key = file .. ":" .. r[1],
+					name = r[2],
+					icon = r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3])),
+					detail = shown .. "  " .. (tab and (tab .. "  ") or "") .. r[6] .. (r[6] == 1 and " rank" or " ranks"),
+					text = (tab or "") .. " " .. cname .. " talent",
+					getLink = TalentLink,
+					nodeID = r[1], tab = tab, tabIndex = r[5], spellID = r[3],
+					classFile = file, className = cname, other = true,
+					_rank = TL.OTHER_RANK,
+					activate = ShowOnWowhead,
+					secondary = LinkTalent,
+					secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
+				}
 			end
 		end
 		return out

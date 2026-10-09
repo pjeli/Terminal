@@ -233,6 +233,23 @@ KEYS.count = function(v)
 end
 KEYS.qty = KEYS.count
 
+-- class: a row's class (talents: yours and other classes'): an English or the game's class name, its start, or mine
+local function Squash(x) return (Lower(tostring(x or "")):gsub("[%s_%-']", "")) end
+KEYS.class = function(v)
+	if v == "" then return nil end
+	if v == "mine" or v == "me" or v == "my" or v == "myclass" then
+		local ok, _, file = pcall(UnitClass, "player")
+		local mine = ok and file or nil
+		return function(e) return e.classFile ~= nil and e.classFile == mine end
+	end
+	local want = Squash(v)
+	return function(e)
+		if not e.classFile then return false end
+		local f, n = Squash(e.classFile), Squash(e.className)
+		return f:sub(1, #want) == want or n:sub(1, #want) == want
+	end
+end
+
 KEYS.standing = function(v)
 	local r = StandingRange(v)
 	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
@@ -268,6 +285,7 @@ F.VALUES = {
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	sort = { "nearest" },
 	fish = { "mine", "75", "150", "225", "300" },
+	class = { "mine", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid" },
 	near = { "100", "300", "500", "1000" },
 	trainer = { "class", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
@@ -285,6 +303,7 @@ F.HELP = {
 	{ "in:bank", "where: bags/bank/mail/guild, a quest's or NPC's zone, a loot item's dungeon or boss" },
 	{ "on:name", "@stored: on that character (or guild, warband)" },
 	{ "count:20+", "how many you have" },
+	{ "class:mage", "talents of that class (class:mine: yours); without it your own class's come first" },
 	{ "fish:mine", "@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)" },
 	{ "trainer:mage", "@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), class (your class), classes (any), profession, pet, riding, weapon" },
 	{ "faction:horde", "@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)" },
