@@ -28,6 +28,16 @@ UI\CopyBox.lua
 Core\Secure.lua
 UI\Share.lua
 UI\UI.lua
+UI\Prompt.lua
+UI\Completion.lua
+UI\List.lua
+UI\Tooltip.lua
+UI\Motion.lua
+UI\Activate.lua
+UI\Keys.lua
+UI\RowMenu.lua
+UI\Results.lua
+UI\Modes.lua
 Search\Score.lua
 Search\Search.lua
 Providers\Bags.lua

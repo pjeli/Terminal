@@ -492,23 +492,33 @@ function SH.Unloaded(rows)
 	return out
 end
 
--- (asked once each: the server answers in its own time; a fresh ask a minute later)
-local asked = {}
+-- (asked once each: the server answers in its own time; a fresh ask a minute later. Past PREFETCH_KEEP ids kept, the
+-- ones asked over a minute ago are forgotten, as asking again is what they'd get anyway; then again once it doubles)
+local asked, askedN, pruneAt = {}, 0, nil
 SH.PREFETCH_MAX = 200
+SH.PREFETCH_KEEP = 1000
+function SH.AskedCount() return askedN end -- (tests: how many item ids are kept as asked)
 
 --- Has the client load every item among the rows (">>>" typed, the menu's "All" lines shown), so their links are
---- there by the time they're sent.
-function SH.Prefetch(rows)
+--- there by the time they're sent. `grouped`: the rows are SH.GroupRows' already (the footer's, grouped once a list).
+function SH.Prefetch(rows, grouped)
 	local req = C_Item and C_Item.RequestLoadItemDataByID
 	if not req then return 0 end
 	local now, n = GetTime and GetTime() or 0, 0
-	for _, id in ipairs(SH.Unloaded(SH.GroupRows(rows))) do
+	for _, id in ipairs(SH.Unloaded(grouped and rows or SH.GroupRows(rows))) do
 		if n >= SH.PREFETCH_MAX then break end
 		if not asked[id] or now - asked[id] > 60 then
+			if not asked[id] then askedN = askedN + 1 end
 			asked[id] = now
 			Call(req, id)
 			n = n + 1
 		end
+	end
+	if askedN > (pruneAt or SH.PREFETCH_KEEP) then
+		for id, at in pairs(asked) do
+			if now - at > 60 then asked[id] = nil; askedN = askedN - 1 end
+		end
+		pruneAt = math.max(SH.PREFETCH_KEEP, askedN * 2)
 	end
 	return n
 end
