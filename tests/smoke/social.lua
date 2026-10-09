@@ -28,10 +28,11 @@ do
 		if i == 3 then return 171, false, nil, "Alchemy" end
 	end
 	_G.Ambiguate = function(n) return (n:gsub("%-Realm$", "")) end
-	-- the newer roster's professions: the guild's club member info
-	_G.C_Club = { GetGuildClubId = function() return 7 end, GetClubMembers = function() return { 1, 2 } end,
+	-- the newer roster's professions: the guild's club member info (when it has them, the older profession list isn't read)
+	_G.C_Club = { GetGuildClubId = function() return 7 end, GetClubMembers = function() return { 1, 2, 3 } end,
 		GetMemberInfo = function(_, id)
 			if id == 1 then return { name = "Boss", profession1Name = "Tailoring", profession2Name = "Enchanting" } end
+			if id == 3 then return { name = "Hammer-Realm", profession1ID = 164, profession1Name = "Blacksmithing" } end
 			return { name = "Sleepy-Realm" }
 		end }
 	_G.C_FriendList = { GetNumFriends = function() return 2 end, GetFriendInfoByIndex = function(i)
@@ -39,6 +40,7 @@ do
 		return { name = "Gone", level = 20, className = "Rogue", connected = false }
 	end }
 	_G.BNGetNumFriends = function() return 2 end
+	ns.Social.ForgetCrafts()
 	_G.C_BattleNet = { GetFriendAccountInfo = function(i)
 		if i == 1 then return { battleTag = "Pal#1234", note = "", accountName = "|Kq1|k",
 			gameAccountInfo = { isOnline = true, clientProgram = "App", richPresence = "In the app" } } end
@@ -50,9 +52,11 @@ do
 	ns.db.easyMode = false; UI:EasyChanged()
 
 	check(names(UI:Search("@guild priest online")) == "Mendy", "@guild priest online: the online priest: " .. names(UI:Search("@guild priest online")))
-	check(names(UI:Search("@guild blacksmith")) == "Hammer", "@guild blacksmith: from the guild's profession list: " .. names(UI:Search("@guild blacksmith")))
+	check(names(UI:Search("@guild blacksmith")) == "Hammer", "@guild blacksmith: from the club roster: " .. names(UI:Search("@guild blacksmith")))
 	check(names(UI:Search("@guild tailoring")) == "Boss" and names(UI:Search("@guild enchanting")) == "Boss", "@guild tailoring: from the club roster's professions: " .. names(UI:Search("@guild tailoring")))
-	check(ns.Social.profStats.list == 1 and ns.Social.profStats.club == 1 and ns.Social.profStats.members == 2, "the trace's counts: what each source gave")
+	check(ns.Social.profStats.list == 0 and ns.Social.profStats.club == 2 and ns.Social.profStats.members == 3,
+		"the trace's counts: the club roster had them, the older list not read: " .. ns.Social.profStats.list .. " " .. ns.Social.profStats.club
+		.. " " .. ns.Social.profStats.members)
 	local alch = names(UI:Search("@guild alchemy"))
 	check(alch:find("Mendy", 1, true), "@guild alchemy: from a public note too: " .. alch)
 	local uc = names(UI:Search("@guild in:undercity"))
@@ -145,6 +149,219 @@ do
 	_G.BNGetNumFriends, _G.C_BattleNet, _G.Ambiguate, _G.C_Club = save.bnn, save.bn, save.amb, save.club
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	ns.providers.guild._dirty, ns.providers.friends._dirty = true, true
+end
+
+io.write("[guild professions: the club roster, and the older profession list when it says nothing]\n")
+do
+	local SO = ns.Social
+	local save = { ig = _G.IsInGuild, n = _G.GetNumGuildMembers, info = _G.GetGuildRosterInfo, gi = _G.C_GuildInfo,
+		nts = _G.GetNumGuildTradeSkill, ts = _G.GetGuildTradeSkillInfo, ex = _G.ExpandGuildTradeSkillHeader,
+		co = _G.CollapseGuildTradeSkillHeader, gso = _G.GetGuildRosterShowOffline, sso = _G.SetGuildRosterShowOffline,
+		qgr = _G.QueryGuildRecipes, amb = _G.Ambiguate, club = _G.C_Club, gt = _G.GetTime, gp = _G.GetProfessions,
+		gpi = _G.GetProfessionInfo, easy = ns.db.easyMode }
+	local clock = 1000
+	_G.GetTime = function() return clock end
+	_G.C_GuildInfo = { GuildRoster = function() end }
+	_G.IsInGuild = function() return true end
+	_G.Ambiguate = function(n) return (n:gsub("%-Realm$", "")) end
+	_G.C_Club = nil
+	_G.GetProfessions = function() return nil end
+	local ROSTER = {
+		{ "Hammer-Realm", "Member", 3, 60, "Warrior", "Orgrimmar", "", "", true, 0, "WARRIOR" },
+		{ "Anvil-Realm", "Member", 3, 58, "Paladin", "Ironforge", "", "", false, 0, "PALADIN" },
+	}
+	_G.GetNumGuildMembers = function() return #ROSTER, 1 end
+	_G.GetGuildRosterInfo = function(i) local r = ROSTER[i] if r then return unpack(r) end end
+	-- the older list as WoW Forever sends it (seen in game): every header folded; members under a header only while it's
+	-- open, and online ones only. The newer order: name, name with realm, class, online, zone, skill, class file, mobile, away
+	local folded = { [164] = true, [186] = true }
+	local LIST = {
+		{ id = 164, name = "Blacksmithing", members = {
+			{ "Hammer", "Hammer-Realm", "Warrior", true, "Orgrimmar", 265, "WARRIOR" },
+			{ "Anvil", "Anvil-Realm", "Paladin", false, "Ironforge", 260, "PALADIN" } } },
+		{ id = 186, name = "Mining", members = { { "Hammer", "Hammer-Realm", "Warrior", true, "Orgrimmar", 150, "WARRIOR" } } },
+		{ id = 2933, name = "Test Profession [DNT]", members = { { "Hammer", "Hammer-Realm", "Warrior", true, "Orgrimmar", 1, "WARRIOR" } } },
+	}
+	local oldOrder = false -- (4.x's order: no name with realm, the skill 12th)
+	local function ListRows()
+		local out = {}
+		for _, h in ipairs(LIST) do
+			local online = 0
+			for _, m in ipairs(h.members) do if m[4] then online = online + 1 end end
+			out[#out + 1] = { h.id, folded[h.id] or false, 1, h.name, online, online, #h.members }
+			if not folded[h.id] then
+				for _, m in ipairs(h.members) do
+					if m[4] then
+						if oldOrder then out[#out + 1] = { h.id, nil, nil, nil, nil, nil, nil, m[1], m[3], m[4], m[5], m[6], m[7], false }
+						else out[#out + 1] = { h.id, nil, nil, nil, nil, nil, nil, m[1], m[2], m[3], m[4], m[5], m[6], m[7], false, false } end
+					end
+				end
+			end
+		end
+		return out
+	end
+	local expanded, asks, offlineAsked = {}, 0, false
+	_G.GetNumGuildTradeSkill = function() return #ListRows() end
+	_G.GetGuildTradeSkillInfo = function(i) local r = ListRows()[i] if r then return unpack(r, 1, 16) end end
+	_G.ExpandGuildTradeSkillHeader = function(id) folded[id] = false; expanded[#expanded + 1] = id end
+	_G.CollapseGuildTradeSkillHeader = function(id) folded[id] = true end
+	_G.GetGuildRosterShowOffline = function() return false end
+	_G.SetGuildRosterShowOffline = function() offlineAsked = true end -- (didn't apply to this list in game: no longer touched)
+	_G.QueryGuildRecipes = function() asks = asks + 1 end
+	SO.ForgetCrafts()
+	ns.providers.guild._dirty = true
+	ns.db.easyMode = false; UI:EasyChanged()
+
+	-- no club roster professions: the older list, its folded headers opened for the read and folded back
+	local c = SO.Crafts()
+	check(c and c.profs[164] and #c.profs[164].members == 1 and c.members.hammer.skills[164] == 265 and c.members.hammer.skills[186] == 150,
+		"the older list: its folded headers opened, the online members read with their skill: " .. tostring(c and c.profs[164] and #c.profs[164].members))
+	check(folded[164] and folded[186] and #expanded == 2 and not offlineAsked, "folded again as they were; offline members not asked for")
+	check(not c.profs[2933] and c.members.hammer.skills[2933] == nil, "\"Test Profession [DNT]\" isn't a profession")
+	check(c.stats.headers == 3 and c.stats.opened == 2 and c.stats.listed == 3, "the counts for the trace: "
+		.. c.stats.headers .. " " .. c.stats.opened .. " " .. c.stats.listed)
+	check(asks == 1, "the server asked for the guild's professions once, as the guild window does: " .. asks)
+	check(SO.Crafts() == c and #expanded == 2, "kept for a while: not read again at once")
+	-- headers already open (another addon, say): read as they are, nothing opened or folded
+	folded[164], folded[186] = false, false
+	SO.ForgetCrafts()
+	local open = SO.Crafts()
+	check(#expanded == 2 and not folded[164] and open.members.hammer and open.members.hammer.skills[164] == 265, "headers already open: read as they are")
+	folded[164], folded[186] = true, true
+	SO.ForgetCrafts()
+	c = SO.Crafts()
+	-- should the game ever refuse opening the list (a blocked action): remembered, put back, read as it stands from then on
+	do
+		local D, realExpand, tries = ns.Debug, _G.ExpandGuildTradeSkillHeader, 0
+		_G.ExpandGuildTradeSkillHeader = function() tries = tries + 1; D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", "Terminal", "UNKNOWN()") end
+		ns.db.blockedCalls = nil
+		SO.ForgetCrafts()
+		local cb = SO.Crafts()
+		check(tries == 2 and ns.db.blockedCalls and ns.db.blockedCalls.guildlist and folded[164] and folded[186] and cb.profs[164] == nil,
+			"blocked: remembered, the list put back as it was: " .. tries)
+		SO.ForgetCrafts()
+		SO.Crafts()
+		check(tries == 2, "not tried again: the list read as it stands")
+		_G.ExpandGuildTradeSkillHeader = realExpand
+		ns.db.blockedCalls = nil
+		for i = #D.events, 1, -1 do D.events[i] = nil end
+		SO.ForgetCrafts()
+		c = SO.Crafts()
+	end
+	local res = UI:Search("@guild blacksmith")
+	local hammer
+	for _, r in ipairs(res) do if r.name == "Hammer" then hammer = r end end
+	check(hammer and hammer.detail:find("Blacksmithing 265, Mining 150", 1, true), "a member's professions with their skill: " .. tostring(hammer and hammer.detail))
+	-- the list's own events, fired by opening and folding it for the read, aren't changes; a later one is
+	local F = SO.craftEvents
+	ns.providers.guild._dirty = false
+	F.scripts.OnEvent(F, "GUILD_TRADESKILL_UPDATE")
+	check(SO.Crafts() == c and not ns.providers.guild._dirty, "an update right after the read (its own) changes nothing")
+	clock = clock + 2
+	F.scripts.OnEvent(F, "GUILD_TRADESKILL_UPDATE")
+	check(ns.providers.guild._dirty and SO.Crafts() ~= c, "a later update: read again, the guild list rebuilt")
+	-- 4.x's order of a member's values: the skill 12th, no realm name
+	oldOrder = true
+	SO.ForgetCrafts()
+	c = SO.Crafts()
+	check(c.members.hammer and c.members.hammer.skills[164] == 265 and c.members.hammer.online == true and c.members.hammer.zone == "Orgrimmar",
+		"the older order of a member's values read too: " .. tostring(c.members.hammer and c.members.hammer.skills[164]))
+	oldOrder = false
+
+	-- the club roster (WoW Forever's: everyone, offline ones too): the older list isn't touched
+	local CLUB = {
+		{ name = "Hammer-Realm", presence = 1, zone = "Orgrimmar", guid = "Player-1-H", profession1ID = 164, profession1Name = "Blacksmithing",
+			profession1Rank = 1, profession2ID = 186, profession2Name = "Mining", profession2Rank = 1 },
+		{ name = "Anvil-Realm", presence = 3, guid = "Player-1-A", profession1ID = 164, profession1Name = "Blacksmithing", profession1Rank = 1 },
+		{ name = "Plamen-Realm", presence = 1, guid = "Player-1-ME", isSelf = true, profession1ID = 186, profession1Name = "Mining", profession1Rank = 1 },
+		{ name = "Nobody-Realm", presence = 3, guid = "Player-1-N" },
+		{ name = "Skinny-Realm", presence = 1, profession1ID = 393, profession1Name = "Skinning", profession1Rank = 1,
+			profession2Name = "Herbalism", profession2Rank = 1 },
+	}
+	_G.C_Club = { GetGuildClubId = function() return 7 end, GetClubMembers = function() local ids = {} for i in ipairs(CLUB) do ids[i] = i end return ids end,
+		GetMemberInfo = function(_, i) return CLUB[i] end }
+	-- your own Mining is 186 by the game, the guild says 1 (seen in game: every member's rank came as 1)
+	_G.GetProfessions = function() return 1 end
+	_G.GetProfessionInfo = function() return "Mining", 1, 186, 300, 2, 0, 186 end
+	expanded = {}
+	SO.ForgetCrafts()
+	c = SO.Crafts()
+	ROSTER[3] = { "Skinny-Realm", "Member", 3, 30, "Druid", "Ashenvale", "", "", true, 0, "DRUID" }
+	check(#expanded == 0 and c.stats.club == 4 and c.stats.members == 5 and #c.profs[164].members == 2 and c.members.anvil.online == false
+, "the club roster: everyone with a profession (offline ones too), the older list not opened")
+	check(c.ranks == false and c.check and c.check.said == 1 and c.check.real == 186, "the guild's 1 for your Mining 186: its numbers aren't skill levels")
+	ns.providers.guild._dirty = true
+	res = UI:Search("@guild blacksmith")
+	local list = names(res)
+	hammer = nil
+	for _, r in ipairs(res) do if r.name == "Hammer" then hammer = r end end
+	check(names(UI:Search("@guild skinner")) == "Skinny" and names(UI:Search("@guild herbalists")) == "Skinny",
+		"@guild skinner / herbalists: what the people are called: " .. names(UI:Search("@guild skinner")) .. " / " .. names(UI:Search("@guild herbalists")))
+	check(list:find("Hammer", 1, true) and list:find("Anvil", 1, true) and hammer and hammer.detail:find("Blacksmithing, Mining", 1, true)
+		and not hammer.detail:find("Blacksmithing 1", 1, true), "@guild blacksmith: both, the offline one too, and no made-up skill: "
+		.. list .. " / " .. tostring(hammer and hammer.detail))
+	-- Simple mode, in plain words: "guild blacksmith"
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open("guild blacksmith"); FlushAll()
+	local shown = {}
+	for _, r in ipairs(UI.Results()) do shown[#shown + 1] = tostring(r.name) end
+	shown = table.concat(shown, ",")
+	check(shown:find("Hammer", 1, true) and shown:find("Anvil", 1, true), "Simple mode: guild blacksmith finds them: " .. shown)
+	UI:Hide(); FlushAll()
+	-- what the people are called, not only the profession's name: "skinner" isn't the start of "Skinning"
+	for _, q in ipairs({ "guild miner", "guild miners", "guild blacksmiths" }) do
+		UI:Open(q); FlushAll()
+		shown = {}
+		for _, r in ipairs(UI.Results()) do shown[#shown + 1] = tostring(r.name) end
+		shown = table.concat(shown, ",")
+		check(shown:find("Hammer", 1, true) and (q == "guild miner" or q == "guild miners" or shown:find("Anvil", 1, true))
+			and not (q ~= "guild blacksmiths" and shown:find("Anvil", 1, true)), "Simple mode: " .. q .. ": " .. shown)
+		UI:Hide(); FlushAll()
+	end
+	ns.db.easyMode = false; UI:EasyChanged()
+	-- numbers that match yours (a few skill-ups behind at most) are skill levels; a 1 never is
+	CLUB[3].profession1Rank = 180
+	CLUB[1].profession1Rank = 265
+	SO.ForgetCrafts()
+	c = SO.Crafts()
+	ns.providers.guild._dirty = true
+	res = UI:Search("@guild blacksmith")
+	hammer = nil
+	for _, r in ipairs(res) do if r.name == "Hammer" then hammer = r end end
+	check(c.ranks == true and hammer and hammer.detail:find("Blacksmithing 265, Mining", 1, true) and not hammer.detail:find("Mining 1", 1, true),
+		"matching numbers are used (but never a 1): " .. tostring(hammer and hammer.detail))
+	CLUB[3].profession1Rank, CLUB[1].profession1Rank = 1, 1
+	_G.C_Club = nil
+
+	-- nothing anywhere yet: the server asked, the loading ring until it answers (5 s), then asked again
+	local LIST0 = LIST
+	LIST = {}
+	SO.ForgetCrafts()
+	asks = 0
+	SO.Crafts()
+	check(asks == 1 and SO.CraftsWaiting() and ns.providers.guild.busy(ns.providers.guild), "nothing yet: asked, waiting: the loading ring")
+	clock = clock + 2
+	F.scripts.OnEvent(F, "GUILD_TRADESKILL_UPDATE") -- (an answer still holding nothing)
+	SO.Crafts()
+	check(asks == 1, "not asked again while waiting: " .. asks)
+	clock = clock + 10
+	check(not SO.CraftsWaiting() and not ns.providers.guild.busy(ns.providers.guild), "the wait is over")
+	F.scripts.OnEvent(F, "GUILD_TRADESKILL_UPDATE")
+	SO.Crafts()
+	check(asks == 2, "still nothing: asked again: " .. asks)
+	LIST = LIST0
+	F.scripts.OnEvent(F, "GUILD_TRADESKILL_UPDATE")
+	c = SO.Crafts()
+	check(not SO.CraftsWaiting() and c.profs[164] and asks == 2, "the answer in: read, nothing asked")
+
+	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo, _G.C_GuildInfo = save.ig, save.n, save.info, save.gi
+	_G.GetNumGuildTradeSkill, _G.GetGuildTradeSkillInfo, _G.ExpandGuildTradeSkillHeader = save.nts, save.ts, save.ex
+	_G.CollapseGuildTradeSkillHeader, _G.GetGuildRosterShowOffline, _G.SetGuildRosterShowOffline = save.co, save.gso, save.sso
+	_G.QueryGuildRecipes, _G.Ambiguate, _G.C_Club, _G.GetTime = save.qgr, save.amb, save.club, save.gt
+	_G.GetProfessions, _G.GetProfessionInfo = save.gp, save.gpi
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	SO.ForgetCrafts()
+	ns.providers.guild._dirty = true
 end
 
 io.write("[who]\n")

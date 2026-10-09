@@ -734,6 +734,7 @@ function E.HelpLines()
 		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
 		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\". Enter on a row goes one step further, Shift+Enter opens it.",
+		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
 		"Ctrl+Enter does it and keeps the terminal open (for things that don't open a window).",
 		"Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all).",
