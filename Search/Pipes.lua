@@ -365,6 +365,21 @@ local function View(e, detail, label, how)
 	return setmetatable({ detail = detail, kindLabel = label or nil, pipeHow = how }, { __index = e })
 end
 
+-- an item's NPCs Questie lists in `field` (vendors, npcDrops), `max` at most, as views saying what they are to it
+local function AddNpcs(out, I, id, field, what, max, how)
+	local list = I.ItemField(id, field)
+	if type(list) ~= "table" then return end
+	local n = 0
+	for _, nid in ipairs(list) do
+		local row = type(nid) == "number" and I.NpcRow and I.NpcRow(nid)
+		if row then
+			out[#out + 1] = View(row, what .. "  ·  " .. tostring(row.detail or ""), nil, how)
+			n = n + 1
+			if n >= max then break end
+		end
+	end
+end
+
 -- sources: where to get an item (crafted, sold, dropped, gathered, a quest's reward, AtlasLoot's bosses, your alts)
 ns:RegisterRelation("sources", {
 	aliases = { "source", "get", "where", "from" },
@@ -394,21 +409,8 @@ ns:RegisterRelation("sources", {
 				end
 			end
 			if I and I.ItemField then
-				local function Npcs(field, what, max, how)
-					local list = I.ItemField(id, field)
-					if type(list) ~= "table" then return end
-					local n = 0
-					for _, nid in ipairs(list) do
-						local row = type(nid) == "number" and I.NpcRow and I.NpcRow(nid)
-						if row then
-							out[#out + 1] = View(row, what .. "  ·  " .. tostring(row.detail or ""), nil, how)
-							n = n + 1
-							if n >= max then break end
-						end
-					end
-				end
-				Npcs("vendors", "Sells it", 15, "sold by")
-				Npcs("npcDrops", "Drops it", 15, "dropped by")
+				AddNpcs(out, I, id, "vendors", "Sells it", 15, "sold by")
+				AddNpcs(out, I, id, "npcDrops", "Drops it", 15, "dropped by")
 				-- gathered or found: veins, herbs, chests (by name, once each)
 				local objs = I.ItemField(id, "objectDrops")
 				if type(objs) == "table" and I.ObjectName then
@@ -541,13 +543,39 @@ P.SEED_KINDS = { "recipes", "items", "loot", "stored" }
 
 P.CHOICES = 8 -- (names offered when the words fit several)
 
---- Where a chain starts: rows of your recipes, bags, AtlasLoot and alts whose names have the words (an @kind picks the
---- lists, key:value filters narrow them). An exact name keeps only those rows (or "mats for thorium belt" would add up
---- every belt); else the one name that has every word as typed; with only filters typed, every row that passes.
---- Never a guess (0.44.4: "core leather belt" gave Comfortable Leather Hat's mats, its letters scattered in the name):
---- no name with every word -> {} and the closest name (second result); several -> {} and those names to pick from
---- (third result: rows, best first).
-function P.Seed(text)
+-- The last seed's look, for the next keystroke: { gen, kinds, tokens, cands = the rows whose names had every word,
+-- filters aside, in order }. One more letter or word only narrows those (a name with the new words had the old ones),
+-- so while the same lists stand (none rebuilt since) the next look goes over them alone.
+local lastSeed
+
+-- one more letter on the last word, or one more word
+local function Grew(last, tokens)
+	local n, ln = #tokens, #last
+	if ln == 0 or (n ~= ln and n ~= ln + 1) then return false end
+	for i = 1, ln do
+		local a, b = last[i], tokens[i]
+		if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a) then return false end
+	end
+	return true
+end
+
+-- the last look's rows when they can stand for these lists and words; nil: look at every row
+local function SeedFrom(kinds, tokens)
+	local last = lastSeed
+	if not (last and last.gen == ns.entriesGen and #last.kinds == #kinds and Grew(last.tokens, tokens)) then return nil end
+	for k, kind in ipairs(kinds) do
+		if last.kinds[k] ~= kind then return nil end
+		local p = ns.providers[kind]
+		if p and (p._dirty or not p._entries) then return nil end -- (to be collected again: its rows may change)
+	end
+	for _, kind in ipairs(kinds) do Entries(kind) end -- (read as the whole look reads them: nothing to collect)
+	if last.gen ~= ns.entriesGen then return nil end -- (reading one rebuilt it: a list made from another)
+	return last.cands
+end
+
+-- The typed words: the lists an @kind picks (else P.SEED_KINDS), the key:value filters, and the name's words
+-- (lowercase), alone and joined.
+local function SeedParse(text)
 	local kinds, filters, words = {}, {}, {}
 	for w in (text or ""):gmatch("%S+") do
 		if w:sub(1, 1) == "@" and #w > 1 then
@@ -561,20 +589,30 @@ function P.Seed(text)
 	if #kinds == 0 then kinds = P.SEED_KINDS end
 	local tokens = Tokens(table.concat(words, " "))
 	local whole = table.concat(tokens, " ")
+	return kinds, filters, tokens, whole
+end
+
+-- The rows of those lists whose names have the words and that pass the filters: the exact names, those with every
+-- word in the name as typed ({ row, score, lowercase name }), and the closest of the rest; with no words, every row
+-- that passes. `from`: the last look's rows, standing for every list (SeedFrom). Also gives the rows whose names had
+-- the words (filters aside), for the next keystroke.
+local function SeedScan(kinds, filters, tokens, whole, from)
 	local all, exact = {}, {}
 	local subs, near, nearS = {}, nil, nil -- (every word in the name as typed; the closest of the rest)
 	local wantAll = #tokens == 0
+	local cands = {}
 	-- (run in the spread-out search's coroutine: AtlasLoot's thousands of rows go over several frames, UI:RunSearch)
 	local UI, n = ns.UI, 0
 	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
-	for _, kind in ipairs(kinds) do
-		for _, e in ipairs(Entries(kind)) do
+	for k = 1, from and 1 or #kinds do
+		for _, e in ipairs(from or Entries(kinds[k])) do
 			n = n + 1
 			if slicing and n % 64 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
 			local s, ln, typed = 0, nil, false
 			if not wantAll then s, ln, typed = NameScore(e, tokens) end
 			-- (help lines left out: asked only of a match, compact rows answer these through their metatable)
 			if s and not (e.noActivate or e.raw) then
+				if not wantAll then cands[#cands + 1] = e end
 				do
 					local ok = true
 					for _, f in ipairs(filters) do
@@ -591,39 +629,42 @@ function P.Seed(text)
 			end
 		end
 	end
-	local function Once(list)
-		local out, seen = {}, {}
-		for _, e in ipairs(list) do
-			local id = ItemOf(e) or Id(e)
-			if not seen[id] then
-				seen[id] = true
-				out[#out + 1] = e
-				if #out >= P.MAX_LEFT then break end
-			end
+	return all, exact, subs, near, cands
+end
+
+-- each item once (a recipe and the item it makes are one), at most MAX_LEFT
+local function Once(list)
+	local out, seen = {}, {}
+	for _, e in ipairs(list) do
+		local id = ItemOf(e) or Id(e)
+		if not seen[id] then
+			seen[id] = true
+			out[#out + 1] = e
+			if #out >= P.MAX_LEFT then break end
 		end
-		return out
 	end
-	if #exact > 0 then return Once(exact) end
-	-- nothing of yours by that name: an item the game or Questie knows by exactly that name (a reagent you don't
-	-- carry: "where to get copper ore")
-	if #subs == 0 and #all == 0 and whole ~= "" then
-		local ids, out = {}, {}
-		for _, r in ipairs(Entries("recipes")) do
-			for _, rg in ipairs(r.reagents or {}) do
-				local n = type(rg[1]) == "number" and ItemName(rg[1])
-				if n and ns.Lower(n) == whole then ids[#ids + 1] = rg[1] end
-			end
+	return out
+end
+
+-- reagent rows for the items known by exactly this (lowercase) name: your recipes' reagents, else Questie's items
+local function SeedByReagentName(whole)
+	local ids, out = {}, {}
+	for _, r in ipairs(Entries("recipes")) do
+		for _, rg in ipairs(r.reagents or {}) do
+			local n = type(rg[1]) == "number" and ItemName(rg[1])
+			if n and ns.Lower(n) == whole then ids[#ids + 1] = rg[1] end
 		end
-		if #ids == 0 and ns.Filters and ns.Filters.QuestieItemIds then ids = ns.Filters.QuestieItemIds(whole) end
-		for _, id in ipairs(ids) do
-			out[#out + 1] = { key = id, kind = "reagent", kindLabel = REAGENT_LABEL, name = ItemName(id) or whole,
-				itemID = id, link = "item:" .. id, icon = Icon(id), activate = ShowItem }
-		end
-		if #out > 0 then return Once(out) end
 	end
-	if wantAll then return Once(all) end
-	if #subs == 0 then return {}, near end
-	-- one name (a recipe and the item it makes are one): its rows; several: which one?
+	if #ids == 0 and ns.Filters and ns.Filters.QuestieItemIds then ids = ns.Filters.QuestieItemIds(whole) end
+	for _, id in ipairs(ids) do
+		out[#out + 1] = { key = id, kind = "reagent", kindLabel = REAGENT_LABEL, name = ItemName(id) or whole,
+			itemID = id, link = "item:" .. id, icon = Icon(id), activate = ShowItem }
+	end
+	return out
+end
+
+-- one name (a recipe and the item it makes are one): its rows; several: which one?
+local function SeedChoices(subs)
 	local byName, names = {}, {}
 	for _, m in ipairs(subs) do
 		local g = byName[m[3]]
@@ -640,6 +681,31 @@ function P.Seed(text)
 	for i = 1, math.min(#names, P.CHOICES) do choices[i] = byName[names[i]].rows[1] end
 	choices.total = #names
 	return {}, nil, choices
+end
+
+--- Where a chain starts: rows of your recipes, bags, AtlasLoot and alts whose names have the words (an @kind picks the
+--- lists, key:value filters narrow them). An exact name keeps only those rows (or "mats for thorium belt" would add up
+--- every belt); else the one name that has every word as typed; with only filters typed, every row that passes.
+--- Never a guess (0.44.4: "core leather belt" gave Comfortable Leather Hat's mats, its letters scattered in the name):
+--- no name with every word -> {} and the closest name (second result); several -> {} and those names to pick from
+--- (third result: rows, best first).
+function P.Seed(text)
+	local kinds, filters, tokens, whole = SeedParse(text)
+	local from = SeedFrom(kinds, tokens)
+	local gen = ns.entriesGen
+	local all, exact, subs, near, cands = SeedScan(kinds, filters, tokens, whole, from)
+	-- (for the next keystroke: not when a list was rebuilt meanwhile, the rows looked at may be its old ones)
+	lastSeed = #tokens > 0 and gen == ns.entriesGen and { gen = gen, kinds = kinds, tokens = tokens, cands = cands } or nil
+	if #exact > 0 then return Once(exact) end
+	-- nothing of yours by that name: an item the game or Questie knows by exactly that name (a reagent you don't
+	-- carry: "where to get copper ore")
+	if #subs == 0 and #all == 0 and whole ~= "" then
+		local out = SeedByReagentName(whole)
+		if #out > 0 then return Once(out) end
+	end
+	if #tokens == 0 then return Once(all) end -- (only filters typed: every row that passes)
+	if #subs == 0 then return {}, near end
+	return SeedChoices(subs)
 end
 
 -- what walking on from a row means: a reagent -> where to get it; a recipe or crafted item -> its mats
@@ -676,17 +742,21 @@ end
 local function Line(text) return { name = text, kind = "pipe", noActivate = true, raw = true, _score = 1e12 } end
 local function PickRelation(e) local UI = ns.UI UI:SetQuery(e.completion, #e.completion) end
 
---- Runs a chain: rows, and the footer's trail ("thorium belt > mats > thorium bar > sources").
 -- each part's rows, by the chain up to it: typing on in the last part doesn't redo the ones before it (kept while
--- no list was rebuilt and nothing was still loading)
-local stepCache, stepGen = {}, -1
+-- no list was rebuilt and nothing was still loading; at most STEPS_MAX, then it starts over: a key a letter typed)
+P.STEPS_MAX = 64
+local stepCache, stepGen, stepCount = {}, -1, 0
 local function Cached(key) if stepGen == ns.entriesGen then return stepCache[key] end end
 local function Keep(key, rows)
 	if P.loading then return end
-	if stepGen ~= ns.entriesGen then stepCache, stepGen = {}, ns.entriesGen end
+	if stepGen ~= ns.entriesGen then stepCache, stepGen, stepCount = {}, ns.entriesGen, 0 end
+	if stepCache[key] == nil then
+		if stepCount >= P.STEPS_MAX then stepCache, stepCount = {}, 0 end
+		stepCount = stepCount + 1
+	end
 	stepCache[key] = rows
 end
-P.ClearSteps = function() stepCache, stepGen = {}, -1 end
+P.ClearSteps = function() stepCache, stepGen, stepCount, lastSeed = {}, -1, 0, nil end
 
 --- What a link's rows came from, for chat: the one row passed on ("Thorium Belt"), else the first part as typed
 --- (several rows: "copper" -> "Copper"; its @kind and filters left out); nil when neither says.
@@ -701,17 +771,17 @@ function P.FromName(left, typed)
 	return (t:gsub("(%a)([%w']*)", function(x, y) return x:upper() .. y end))
 end
 
-function P.Search(chain)
-	local stages = P.Split(chain)
-	if not stages then return {}, nil end
-	P.loading = false
-	local trail = { (stages[1].text:gsub("^%s+", ""):gsub("%s+$", "")) }
+-- "Keep typing" while the first part has under 3 letters (and no @kind or filter)
+local function KeepTyping(stages, trail)
 	-- (a name still being typed: "where to get t" would match half of AtlasLoot)
 	local letters = #(stages[1].text:gsub("@%S+", ""):gsub("%S+:%S*", ""):gsub("[%s%p]", ""))
 	if letters < 3 and not stages[1].text:find("[@:]") then
 		return { Line("Keep typing the name: " .. trail[1]) }, trail[1]
 	end
-	local key = ns.Lower(trail[1])
+end
+
+-- the first part's rows, kept by its text (the closest name or the names to pick from ride on the list)
+local function SeedRows(key, stages)
 	local rows = Cached(key)
 	if not rows then
 		local near, choices
@@ -719,52 +789,101 @@ function P.Search(chain)
 		rows.near, rows.choices = near, choices -- (kept with them: the cache hands back the list alone)
 		Keep(key, rows)
 	end
-	if #rows == 0 then
-		-- never a guess: the names to pick from, or the closest one offered (Enter writes the chain with it)
-		local rest = chain:sub(#stages[1].text + 1):gsub("^%s+", "")
-		local oneRel = #stages == 2 and P.Find(stages[2].word) and (stages[2].rest or "") == "" and P.Find(stages[2].word)
-		local function Pick(e, i)
-			local n = ns.Plain(tostring(e.name)):gsub("%s+x%d+$", "")
-			-- (Simple mode: "mats for <Name>", never a ">" chain)
-			local done = oneRel and P.Phrase(n, oneRel) or (n .. " " .. rest)
-			return { name = n, kind = "pipe", kindLabel = e.kindLabel or e.label, detail = e.detail, icon = e.icon,
-				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - i }
-		end
-		if rows.choices then
-			local out = { Line(("%d names have \"%s\": pick one"):format(rows.choices.total, trail[1])) }
-			for i, e in ipairs(rows.choices) do out[#out + 1] = Pick(e, i) end
-			return out, trail[1] .. " > ?"
-		end
-		local out = { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }
-		if rows.near then
-			local d = Pick(rows.near, 1)
-			d.name = "Did you mean " .. d.name .. "?"
-			out[2] = d
-		end
-		return out, trail[1]
+	return rows
+end
+
+-- a name to pick, or the closest one offered: Enter writes the chain with it
+local function Pick(e, i, oneRel, rest)
+	local n = ns.Plain(tostring(e.name)):gsub("%s+x%d+$", "")
+	-- (Simple mode: "mats for <Name>", never a ">" chain)
+	local done = oneRel and P.Phrase(n, oneRel) or (n .. " " .. rest)
+	return { name = n, kind = "pipe", kindLabel = e.kindLabel or e.label, detail = e.detail, icon = e.icon,
+		completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - i }
+end
+
+-- never a guess: the names to pick from, or the closest one offered (Enter writes the chain with it)
+local function NoSeedRows(chain, stages, rows, trail)
+	local rest = chain:sub(#stages[1].text + 1):gsub("^%s+", "")
+	local oneRel = #stages == 2 and P.Find(stages[2].word) and (stages[2].rest or "") == "" and P.Find(stages[2].word)
+	if rows.choices then
+		local out = { Line(("%d names have \"%s\": pick one"):format(rows.choices.total, trail[1])) }
+		for i, e in ipairs(rows.choices) do out[#out + 1] = Pick(e, i, oneRel, rest) end
+		return out, trail[1] .. " > ?"
 	end
+	local out = { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }
+	if rows.near then
+		local d = Pick(rows.near, 1, oneRel, rest)
+		d.name = "Did you mean " .. d.name .. "?"
+		out[2] = d
+	end
+	return out, trail[1]
+end
+
+-- a link still being typed (or not one): the relations these rows can go through, to pick from
+local function RelationChoices(chain, s, rows, trail)
+	local out = {}
+	local lw = ns.Lower(s.word or "")
+	local before = chain:sub(1, (chain:find(">[^>]*$")) or #chain)
+	for _, a in ipairs(P.Applicable(P.Left(rows))) do
+		if lw == "" or a[1]:sub(1, #lw) == lw or (P.LABELS[a[1]] or ""):sub(1, #lw) == lw then
+			local done = before .. " " .. a[1] .. " "
+			out[#out + 1] = { name = a[1], kind = "pipe", kindLabel = "|cff33ff99link|r", detail = a[2],
+				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - #out }
+		end
+	end
+	if #out == 0 then out[1] = Line(("No link called \"%s\": mats, uses, sources, alts"):format(s.word or "")) end
+	trail[#trail + 1] = "?"
+	return out, table.concat(trail, " > ")
+end
+
+local function ByScore(a, b) return a.s > b.s end
+
+-- the rows whose names have every word, best first
+local function NarrowByName(rows, tokens)
+	local kept = {}
+	for _, e in ipairs(rows) do
+		local sc = NameScore(e, tokens)
+		if sc then kept[#kept + 1] = { e = e, s = sc } end
+	end
+	table.sort(kept, ByScore)
+	rows = {}
+	for _, k in ipairs(kept) do rows[#rows + 1] = k.e end
+	return rows
+end
+
+-- the last part's rows as the chain shows them: Enter walks on where there's a step; each says what the chain makes
+-- of it (for chat)
+local function FinalRows(rows, stages, base, from, lastRel, lastFrom)
+	local out = {}
+	for i, e in ipairs(rows) do
+		local v = (#stages > 1) and P.WalkView(e, base, from) or e
+		if v == e then v = setmetatable({}, { __index = e }) end
+		v._score = 1e6 - i
+		-- (what the chain says this row is, for chat: "Mats for Thorium Belt: 8x [Thorium Bar]", Share.ChainContext)
+		v.pipeRel, v.pipeFrom = lastRel, lastFrom
+		out[#out + 1] = v
+	end
+	return out
+end
+
+--- Runs a chain: rows, and the footer's trail ("thorium belt > mats > thorium bar > sources").
+function P.Search(chain)
+	local stages = P.Split(chain)
+	if not stages then return {}, nil end
+	P.loading = false
+	local trail = { (stages[1].text:gsub("^%s+", ""):gsub("%s+$", "")) }
+	local wait, said = KeepTyping(stages, trail)
+	if wait then return wait, said end
+	local key = ns.Lower(trail[1])
+	local rows = SeedRows(key, stages)
+	if #rows == 0 then return NoSeedRows(chain, stages, rows, trail) end
 	local from, lastRel, lastFrom
 	-- (walking on from the last part's rows: the chain up to its link word, then the row's name)
 	local base = chain:sub(1, (chain:find(">[^>]*$"))) .. " " .. (stages[#stages].word or "")
 	for i = 2, #stages do
 		local s = stages[i]
 		local name = P.Find(s.word)
-		if not name then
-			-- still being typed (or not one): the relations these rows can go through, to pick from
-			local out = {}
-			local lw = ns.Lower(s.word or "")
-			local before = chain:sub(1, (chain:find(">[^>]*$")) or #chain)
-			for _, a in ipairs(P.Applicable(P.Left(rows))) do
-				if lw == "" or a[1]:sub(1, #lw) == lw or (P.LABELS[a[1]] or ""):sub(1, #lw) == lw then
-					local done = before .. " " .. a[1] .. " "
-					out[#out + 1] = { name = a[1], kind = "pipe", kindLabel = "|cff33ff99link|r", detail = a[2],
-						completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - #out }
-				end
-			end
-			if #out == 0 then out[1] = Line(("No link called \"%s\": mats, uses, sources, alts"):format(s.word or "")) end
-			trail[#trail + 1] = "?"
-			return out, table.concat(trail, " > ")
-		end
+		if not name then return RelationChoices(chain, s, rows, trail) end
 		key = key .. " > " .. name
 		lastRel, lastFrom = name, P.FromName(P.Left(rows), i == 2 and trail[1] or nil)
 		local got = Cached(key)
@@ -778,14 +897,7 @@ function P.Search(chain)
 		local tokens = Tokens(s.rest)
 		if #tokens > 0 then key = key .. " " .. table.concat(tokens, " ") end
 		if #tokens > 0 then
-			local kept = {}
-			for _, e in ipairs(rows) do
-				local sc = NameScore(e, tokens)
-				if sc then kept[#kept + 1] = { e = e, s = sc } end
-			end
-			table.sort(kept, function(a, b) return a.s > b.s end)
-			rows = {}
-			for _, k in ipairs(kept) do rows[#rows + 1] = k.e end
+			rows = NarrowByName(rows, tokens)
 			trail[#trail + 1] = (s.rest:gsub("^%s+", ""):gsub("%s+$", ""))
 			if i < #stages then from = nil end -- (narrowed to a row: the next link starts from it)
 		end
@@ -793,16 +905,7 @@ function P.Search(chain)
 			return { Line("Nothing there: " .. table.concat(trail, " > ")) }, table.concat(trail, " > ")
 		end
 	end
-	local out = {}
-	for i, e in ipairs(rows) do
-		local v = (#stages > 1) and P.WalkView(e, base, from) or e
-		if v == e then v = setmetatable({}, { __index = e }) end
-		v._score = 1e6 - i
-		-- (what the chain says this row is, for chat: "Mats for Thorium Belt: 8x [Thorium Bar]", Share.ChainContext)
-		v.pipeRel, v.pipeFrom = lastRel, lastFrom
-		out[#out + 1] = v
-	end
-	return out, table.concat(trail, " > ")
+	return FinalRows(rows, stages, base, from, lastRel, lastFrom), table.concat(trail, " > ")
 end
 
 --- The rows to pass on: real results (not hints or help lines), each once, at most MAX_LEFT.
