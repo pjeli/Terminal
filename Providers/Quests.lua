@@ -194,9 +194,78 @@ end
 
 local QUEST_SECURE = { macro = QuestMacro, binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
 
-ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown }
-
 local Str, Num = ns.Str, ns.Num -- (quest text can be a secret value on this client)
+local Secret, Call = ns.Secret, ns.Safe
+
+----------------------------------------------------------------------
+-- Quests to drop (the question and the group drop: QuestDrop.lua)
+--
+-- Only the game's own judgement, nothing copied from another addon: a quest is grey when the quest log colours it grey
+-- for your level (Forever's QuestMapFrame colours titles by C_PlayerInfo.GetContentDifficultyQuestForPlayer: Trivial;
+-- C_QuestLog.IsQuestTrivial where that's missing), and in a zone left behind when that zone's levels (C_Map.GetMapLevels
+-- of GetQuestUiMapID: the range the world map shows by the zone's name) top out below your level. A complete quest is
+-- never one to drop: it's to be turned in. Shift+Enter on one to drop has the game ask, as the quest log's own Abandon
+-- does: the press runs QuestMapQuestOptions_AbandonQuest (it picks the dialog that also names the quest's items).
+----------------------------------------------------------------------
+
+local TRIVIAL = (Enum and Enum.RelativeContentDifficulty and Enum.RelativeContentDifficulty.Trivial) or 0
+
+--- Whether the game shows this quest grey for your level.
+local function Grey(id)
+	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
+	if f then
+		local d = Call(f, id)
+		if not Secret(d) and type(d) == "number" then return d == TRIVIAL end
+	end
+	f = C_QuestLog.IsQuestTrivial
+	local t = f and Call(f, id)
+	return not Secret(t) and t == true
+end
+
+--- Ready to turn in (or complete): never one to drop.
+local function Complete(id)
+	local f = C_QuestLog.ReadyForTurnIn or C_QuestLog.IsComplete
+	local c = f and Call(f, id)
+	return not Secret(c) and c == true
+end
+
+--- The quest's zone and its levels as the world map says them: { lo, hi, name }, or nil (no zone, no levels: a city).
+--- `cache` keeps each zone's answer for one rebuild.
+local function ZoneLevels(id, cache)
+	local ui = _G.GetQuestUiMapID and Call(_G.GetQuestUiMapID, id)
+	if Secret(ui) or type(ui) ~= "number" or ui <= 0 or not (C_Map and C_Map.GetMapLevels) then return nil end
+	local z = cache[ui]
+	if z == nil then
+		z = false
+		local lo, hi = Call(C_Map.GetMapLevels, ui)
+		if not Secret(lo) and not Secret(hi) and type(hi) == "number" and hi > 0 then
+			local info = C_Map.GetMapInfo and Call(C_Map.GetMapInfo, ui)
+			z = { lo = type(lo) == "number" and lo > 0 and lo or hi, hi = hi, name = type(info) == "table" and Str(info.name) or nil }
+		end
+		cache[ui] = z
+	end
+	return z or nil
+end
+
+--- The press that has the game ask before dropping the quest (its own Abandon, with its own dialog).
+local function DropMacro(e)
+	local id = type(e) == "table" and e.questID
+	if type(id) ~= "number" then return nil end
+	if type(_G.QuestMapQuestOptions_AbandonQuest) == "function" then
+		return ("/run QuestMapQuestOptions_AbandonQuest(%d)"):format(id)
+	end
+	return ('/run local q=%d C_QuestLog.SetSelectedQuest(q) C_QuestLog.SetAbandonQuest() StaticPopup_Show("ABANDON_QUEST",C_QuestLog.GetTitleForQuestID(q))'):format(id)
+end
+local DROP_SPEC = { macro = DropMacro }
+local function DropAsked(e) ns:Trace("quests: the game asks before dropping " .. tostring(e.name)) end
+-- (only when the game couldn't be handed the press: Terminal never shows that dialog itself)
+local function DropFallback(e)
+	ns:Print(InCombatLockdown() and ("In combat: drop " .. tostring(e.name) .. " once the fight is over.")
+		or ("Couldn't ask the game to drop " .. tostring(e.name) .. ": the quest log's own Abandon does."))
+end
+
+ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DROP_SPEC = DROP_SPEC, DropMacro = DropMacro,
+	Grey = Grey, ZoneLevels = ZoneLevels }
 local function QuestLink(e) return GetQuestLink and GetQuestLink(e.questID) or nil end
 
 --- The quest's objectives, as { { text, type }, ... }: the retail list, else a classic log's leader boards.
@@ -221,12 +290,15 @@ ns:RegisterProvider("quests", {
 	label = "Quest log",
 	color = "ffffd200",
 	aliases = { "questlog", "log", "quest", "quests", "q" },
-	events = { "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" },
+	-- (a level gained can turn quests grey and leave zones behind)
+	events = { "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "PLAYER_LEVEL_UP" },
 	guard = 1,
 	refreshOnOpen = true,
 	collect = function()
 		local out = {}
 		local zone
+		local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
+		local zones = {} -- (each zone's levels, asked once)
 		for i = 1, C_QuestLog.GetNumQuestLogEntries() do
 			local info = C_QuestLog.GetInfo(i)
 			if info then
@@ -242,11 +314,18 @@ ns:RegisterProvider("quests", {
 					local objectives = Objectives(i, info.questID)
 					for _, o in ipairs(objectives) do parts[#parts + 1] = o[1] end
 					local level = Num(info.level)
+					-- one to drop: grey, or in a zone you've left behind; never one ready to turn in
+					local grey = Grey(info.questID)
+					local z = ZoneLevels(info.questID, zones)
+					local behind = (z and me and me > 0 and z.hi < me) and z or nil
+					local complete = Complete(info.questID)
+					local drop = not complete and (grey or behind ~= nil)
+					local why = drop and (grey and "grey" or ("zone left behind (Lv " .. behind.lo .. "-" .. behind.hi .. ")")) or nil
 					out[#out + 1] = {
 						key = info.questID,
 						name = title,
 						icon = "Interface\\GossipFrame\\AvailableQuestIcon",
-						detail = ((level and level > 0) and ("Lv " .. level .. "  ") or "") .. (zone or ""),
+						detail = ((level and level > 0) and ("Lv " .. level .. "  ") or "") .. (zone or "") .. (why and ("  ·  " .. why) or ""),
 						text = table.concat(parts, " "),
 						questID = info.questID,
 						level = (level and level > 0) and level or nil, zone = zone, -- (lvl: and zone: filters)
@@ -257,8 +336,13 @@ ns:RegisterProvider("quests", {
 						secure = QUEST_SECURE,
 						isOpen = IsOpen,
 						after = ShowQuestAfter,
-						-- Shift+Enter: super-track the quest (waypoint arrow)
-						secondary = TrackQuest,
+						-- (quests to drop: QuestDrop.lua, the is:grey / is:leftbehind / is:drop filters)
+						grey = grey, behind = behind, complete = complete, drop = drop,
+						-- Shift+Enter: one to drop, the game asks to drop it; any other, super-track it (the waypoint arrow)
+						secondary = drop and DropFallback or TrackQuest,
+						secondarySecure = drop and DROP_SPEC or nil,
+						secondaryIsOpen = drop and ns.Never or nil, -- (always pressed: the game's dialog asks)
+						secondaryAfter = drop and DropAsked or nil,
 					}
 				end
 			end

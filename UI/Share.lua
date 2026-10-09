@@ -36,7 +36,7 @@ local WHISPER = { w = true, whisper = true, tell = true, t = true }
 local CHAT_TYPE = { party = "PARTY", guild = "GUILD", raid = "RAID", officer = "OFFICER", say = "SAY", yell = "YELL",
 	instance = "INSTANCE_CHAT" }
 SH.CHAT_TYPE = CHAT_TYPE
-SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper" }
+SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop" }
 
 --- Does some channel name start with this word? (While it's being typed: not wrong yet.) A number
 --- only when it can still become a channel number (1-20, as Channel takes them).
@@ -71,11 +71,13 @@ function SH.WhisperTarget(who)
 end
 
 --- Where to send: { cmd = "/p", label = "party" }; { pending = true } while the channel is still to be
---- typed; { bad = word } for a word that isn't one.
+--- typed; { bad = word } for a word that isn't one. "drop" isn't chat: quests in your log dropped instead (">> drop"
+--- the selected one, the game asks; ">>> drop" every one listed, Terminal asks first: QuestDrop.lua).
 function SH.Channel(rest)
 	local w, more = (rest or ""):match("^(%S*)%s*(.-)%s*$")
 	local lw = ns.Lower(w or "")
 	if lw == "" then return { pending = true } end
+	if lw == "drop" then return { drop = true, label = "drop" } end
 	local ch = CHANNELS[lw]
 	if ch then return { cmd = COMMAND[ch], label = ch, chat = CHAT_TYPE[ch] } end
 	if WHISPER[lw] then

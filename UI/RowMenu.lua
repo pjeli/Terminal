@@ -102,6 +102,17 @@ do
 		if (e.secondary or e.secondarySecure) and (shift or not ns.Easy) then
 			items[#items + 1] = { label = Cap(shift or "more"), secondary = true }
 		end
+		-- a quest to drop among others: all of them together, after Terminal's confirmation names them (QuestDrop.lua)
+		local QD = ns.QuestDrop
+		if QD and e.kind == "quests" and e.drop then
+			local drops = QD.GroupRows(UI.results)
+			if #drops >= 2 then
+				items[#items + 1] = { label = ("Drop all %d quests"):format(#drops), run = function()
+					UI:Hide()
+					QD.Confirm(drops)
+				end }
+			end
+		end
 		-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
 		-- a chat line the game presses (Terminal's code never sends chat)
 		local SH = ns.Share

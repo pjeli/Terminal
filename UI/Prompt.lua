@@ -408,7 +408,7 @@ end
 --- filter colour, the start of another word still being typed plain, anything else bad.
 local function ChannelColor(word, typing, filt, base, bad)
 	local to = ns.Share.Channel(word)
-	return (to.cmd or to.pending) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
+	return (to.cmd or to.pending or to.drop) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
 end
 
 --- What the typed text is made of: { first byte, last byte, colour } pieces covering it. @kinds in

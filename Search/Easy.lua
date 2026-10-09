@@ -266,6 +266,9 @@ local function SourceVerbs(e) -- (a chain's source: a vein or chest at its spot,
 	if e.pipeHow == "gathered from" then return "show on map", "set waypoint" end
 	return "show in bags"
 end
+local function QuestVerbs(e) -- (one to drop: grey, or in a zone left behind, QuestDrop.lua)
+	return "show in quest log", e.drop and "drop" or "track"
+end
 local PLACE = { "show on map", "set waypoint" }
 local TO_CHAT = { "show in chat", "put in the chat box" }
 E.VERBS = {
@@ -279,7 +282,7 @@ E.VERBS = {
 	maps = PLACE, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
 	guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = WhoVerbs,
 	questie = { "Wowhead link", "show in game" },
-	quests = { "show in quest log", "track" },
+	quests = QuestVerbs,
 	toys = { "use", "show in journal" }, pets = { "summon", "show in journal" }, mounts = { "summon", "show in journal" },
 	titles = { "wear" },
 	achievements = { "show", "link in chat" },
@@ -459,6 +462,11 @@ local function QuestionToAdvanced(text)
 	if cq then return "@combatlog " .. ((cq == "killed" and "killed") or (cq == "crit" and "taken") or "dealt") .. " " end
 	local sq = ns.Spells and ns.Spells.Question and ns.Spells.Question(text)
 	if sq then return "@spell is:unplaced " .. (#sq > 0 and (table.concat(sq, " ") .. " ") or "") end
+	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
+	if dq then
+		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
+		return "@quest " .. which .. " " .. (#dq.words > 0 and (table.concat(dq.words, " ") .. " ") or "")
+	end
 end
 E.QuestionToAdvanced = QuestionToAdvanced
 
@@ -736,6 +744,7 @@ function E.HelpLines()
 		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
 		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
 		"Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out).",
+		"Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list.",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\". Enter on a row goes one step further, Shift+Enter opens it.",
 		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",

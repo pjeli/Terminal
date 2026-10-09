@@ -583,6 +583,11 @@ Scan.ANSWERS = {
 		local q = ns.Spells and ns.Spells.Question(text)
 		if q then return ns.Spells.Answer(q) end
 	end,
+	-- "quests to drop", "grey quests": QuestDrop.lua
+	function(text)
+		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
+		if q then return ns.QuestDrop.Answer(q) end
+	end,
 }
 
 -- SearchText's steps share one table per search (q):

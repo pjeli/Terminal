@@ -55,6 +55,22 @@ function UI:CollapseGroup(list)
 	local to, SH = self.sendTo, ns.Share
 	if not (to and to.all and SH) then self.groupList, self.groupRows = nil, nil return list end
 	self.groupList = list
+	if to.drop and ns.QuestDrop then
+		-- ">>> drop": the quests in your log among them (complete ones kept), dropped after Terminal's confirmation
+		local rows, kept = ns.QuestDrop.GroupRows(list, true)
+		self.groupRows = rows
+		local n = #rows
+		local row = { kind = "dropall", kindLabel = "|cffffd200quests|r", icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up",
+			raw = true, sendAll = true, _pos = UI.NO_POS, _score = 0, actionVerb = "drop them all" }
+		if n == 0 then
+			row.name, row.noActivate = "Nothing to drop", true
+			row.detail = kept > 0 and "the quests listed are complete: turn them in" or "no quest in your log among the results"
+		else
+			row.name = ("Drop %s %d quest%s"):format(n == 1 and "the" or "all", n, n == 1 and "" or "s")
+			row.detail = (kept > 0 and (kept .. " complete kept  ·  ") or "") .. "you'll see them all and be asked first"
+		end
+		return { row }
+	end
 	local group = SH.GroupRows(list)
 	self.groupRows = group
 	local n = #group

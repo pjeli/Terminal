@@ -282,7 +282,18 @@ IS.unplaced = function(e) return e.kind == "spells" and ns.Spells ~= nil and ns.
 IS.capped = Capped
 IS.craftable = Craftable
 IS.skillup, IS.orange, IS.yellow = SkillUp, DiffIs("orange"), DiffIs("yellow")
-IS.green, IS.grey = DiffIs("green"), DiffIs("grey")
+IS.green = DiffIs("green")
+local RecipeGrey = DiffIs("grey")
+-- grey: a recipe the window shows grey, or a quest the quest log shows grey for your level (Quests.lua's `grey`)
+IS.grey = function(e)
+	if e.kind == "quests" then return e.grey == true end
+	return RecipeGrey(e)
+end
+-- quests in a zone you've left behind (its levels, as the world map says them, top out below yours), and the ones to
+-- drop: grey or left behind, not complete ("quests to drop", QuestDrop.lua)
+IS.leftbehind = function(e) return e.kind == "quests" and e.behind ~= nil end
+IS.drop = function(e) return e.kind == "quests" and e.drop == true end
+IS.outleveled, IS.outlevelled, IS.droppable = IS.leftbehind, IS.leftbehind, IS.drop
 -- guild members and friends (Social.lua)
 IS.online = function(e) return e.online == true end
 IS.offline = function(e) return e.online == false end
@@ -293,7 +304,7 @@ IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
-		"orange", "yellow", "green", "grey", "passive", "unplaced",
+		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned" },
 	standing = StandingNames(),
@@ -331,7 +342,8 @@ F.HELP = {
 	{ "sort:nearest", "Questie NPCs closest to you first, with how far (the other rows stay, after them)" },
 	{ "do:use", "what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)" },
 	{ "sells:linen_cloth", "@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)" },
-	{ "is:todo", "quests: done todo complete (ready = complete); achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey" },
+	{ "is:drop", "quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first" },
+	{ "is:todo", "quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey" },
 	{ "is:ready", "spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },

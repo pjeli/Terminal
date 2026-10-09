@@ -77,7 +77,12 @@ do
 		end
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
-		if to and self.mode == "search" then
+		if to and to.drop and self.mode == "search" then
+			local n = to.all and self.groupRows and #self.groupRows
+			local say = (to.all and ((n or 0) == 0 and "nothing to drop" or ("Enter drops " .. (n == 1 and "it" or ("all " .. n)) .. ": Terminal asks first")))
+				or "Enter drops it: the game asks first"
+			text = Prepend(HINT .. say .. "|r", text)
+		elseif to and self.mode == "search" then
 			local group = to.all and to.cmd and self:GroupedRows() -- (grouped once per list, not on every status update)
 			local n = group and #group
 			if n and n > 0 then ns.Share.Prefetch(group, true) end -- (their links loaded by the time Enter sends them)
