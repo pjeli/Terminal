@@ -13,6 +13,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.44.1", when = "in testing",
+		items = {
+			"Fixes: a tooltip stuck on \"Retrieving item information\" (loot not loaded yet) now fills in by itself once the item arrives.",
+		},
+	},
+	{
 		v = "0.44.0", when = "released October 2026",
 		items = {
 			"Ask in plain words: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (also \"fishing spots\", \"zones for level 35\"), \"what killed me\", \"what dropped\", \"what did bob get\". Alt+` shows any of them in Advanced form.",
@@ -68,20 +74,6 @@ CL.LOG = {
 			"\"stamina food\" right after login finds your food straight away (its text is asked for ahead of time, and searched again by itself if it was still loading).",
 			".atop: Enter on an addon profiles it: its own CPU and memory graphs, memory growth, and the game's profiler numbers beside all addons'.",
 			"Lighter and quicker: typing in Simple mode looks only through what the last letter found, Questie's NPC list is freed after 10 unused minutes (about 5 MB), quest rows take less memory, and picks you've made no longer slow down broad searches.",
-		},
-	},
-	{
-		v = "0.41.0", when = "released October 2026",
-		items = {
-			"Simple mode (the default): type in plain words and pick where it was found (Bags, Quests, NPCs, Emotes...). Everything is searched, no @ needed. .advanced switches to the full command line, .simple comes back.",
-			"Plain words do the work: \"stamina food\", \"attack power food\", \"rare sword\", \"use hearthstone\", \"nearest innkeeper\", \"vendor goldshire\", \"mining trainer in org\".",
-			"Opens as just the prompt, with a suggestion to try (Shift+Right takes it; an option turns them off). Down brings back your last search (Simple) or your recent picks (Advanced); Up, your last command.",
-			"NPCs show their title (Mining Trainer, Banker) and, when selected, an arrow pointing the way to them.",
-			"Advanced: sort:nearest puts NPCs closest first; near:500 keeps those within 500 yards.",
-			"Right-click any row for everything it can do.",
-			"Search: initials (scb, zg), shorthand (brd, sw, org), close spellings (hearhtstone), and emotes as slash commands (/dance).",
-			"QuestieDB alone is enough for Questie's quests and NPCs; Questie itself isn't needed.",
-			"Lighter and steadier: NPC distances and roles are worked out once, the right-click menu closes when combat starts, and the prompt no longer covers its bottom border.",
 		},
 	},
 

@@ -52,6 +52,18 @@ do -- moving the selection repaints only the selection, not every row; the toolt
 	check(tt.shown == true and sets == 0, "an unchanged tooltip isn't rebuilt (" .. sets .. " SetHyperlink calls)")
 	UI:Open("linen")
 	check(sets == 1, "another row: the tooltip is built again")
+	-- an item the client hasn't loaded ("Retrieving item information"): redrawn once its data is in (0.44.1)
+	UI:Hide()
+	local cachedWas = C_Item.IsItemDataCachedByID
+	local loaded = false
+	C_Item.IsItemDataCachedByID = function() return loaded end
+	sets = 0
+	UI:Open("linen")
+	check(sets == 1 and tt.waitID ~= nil, "an item not loaded yet: shown, and waited on: " .. tostring(tt.waitID))
+	loaded = true
+	T.FlushAll()
+	check(sets == 2 and tt.waitID == nil, "its data in: the tooltip is drawn again (" .. sets .. " SetHyperlink calls)")
+	C_Item.IsItemDataCachedByID = cachedWas
 	tt.SetHyperlink = base
 	UI:Hide()
 	check(tt.shown == false, "and it hides with the terminal")

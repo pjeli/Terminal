@@ -392,6 +392,62 @@ function UI:UpdateTooltip()
 		t:Show()
 		HideComparisons(t)
 		StyleTip(t)
+		UI.WaitForTipItem(t, e, link)
+	end
+end
+
+-- An item the client hasn't loaded yet shows "Retrieving item information" and the tooltip never redraws itself (it
+-- stayed so until you moved away and back). Its data arriving (GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT for that
+-- id) redraws it; the server may drop an ask, so it's asked again every TIP_RETRY s, TIP_TRIES times.
+UI.TIP_RETRY, UI.TIP_TRIES = 0.6, 8
+do
+	local waiter, waitGen = nil, 0
+	local function ItemOfTip(e, link)
+		local id = tonumber(e.itemID)
+		if not id and type(link) == "string" then id = tonumber(link:match("item:(%d+)")) end
+		return id
+	end
+	local function Cached(id)
+		local f = C_Item and C_Item.IsItemDataCachedByID
+		if not f then return true end -- (no way to tell: nothing to wait for)
+		local ok, yes = pcall(f, id)
+		return not ok or yes ~= false
+	end
+	local function Redraw(t, e)
+		if t.entry ~= e or not t:IsShown() then return false end
+		t.entry = nil -- (the "same row, nothing to redraw" shortcut must not skip it)
+		UI:UpdateTooltip()
+		return true
+	end
+	function UI.WaitForTipItem(t, e, link)
+		waitGen = waitGen + 1
+		t.waitID = nil
+		local id = ItemOfTip(e, link)
+		if not id or Cached(id) then return end
+		t.waitID = id
+		if not waiter then
+			waiter = CreateFrame("Frame")
+			pcall(waiter.RegisterEvent, waiter, "GET_ITEM_INFO_RECEIVED")
+			pcall(waiter.RegisterEvent, waiter, "ITEM_DATA_LOAD_RESULT")
+			waiter:SetScript("OnEvent", function(_, _, got)
+				local tip = Tip()
+				if got and tip.waitID == got and tip.entry then
+					tip.waitID = nil
+					Redraw(tip, tip.entry)
+				end
+			end)
+		end
+		if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+		local gen, tries = waitGen, 0
+		local function Again()
+			if gen ~= waitGen or t.waitID ~= id then return end
+			tries = tries + 1
+			if Cached(id) then t.waitID = nil Redraw(t, e) return end
+			if tries >= UI.TIP_TRIES then return end
+			if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+			C_Timer.After(UI.TIP_RETRY, Again)
+		end
+		C_Timer.After(UI.TIP_RETRY, Again)
 	end
 end
 
