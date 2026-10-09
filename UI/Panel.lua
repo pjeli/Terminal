@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 
--- What the small apps that take the terminal's place share (.atop, .snake, .tetris, .changelog, .wowamp and
--- the .advanced confirmation in Easy.lua): a frame built the same way, laid where the terminal is in its
+-- What the small apps that take the terminal's place share (.atop, .snake, .tetris, .lootrun, .changelog,
+-- .wowamp and the .advanced confirmation in Easy.lua): a frame built the same way, laid where the terminal is in its
 -- theme's colours, the same kind of text, and a registry so opening one drops the terminal at once and
 -- closes the others. Each app keeps its own keys: atop and the .advanced dialog take the keyboard whole,
 -- the others pass on the keys they don't use (P.Propagate).

@@ -825,6 +825,228 @@ do
 	Sn.Close()
 end
 
+-- .lootrun: a maze chase (the .snake pattern): every coin picked up while four raid-marked mobs come for you, a Divine
+-- Shield turns them, a chest now and then, the next level faster; only the game's keys are kept; Esc or ` quits;
+-- not in combat.
+io.write("[loot run]\n")
+do
+	local LR = ns.LootRun
+	local g = LR.game
+	local p = g.player
+	local W = LR.W
+	LR.rand = function() return 1 end -- (every chance taken: the mobs come your way, the afraid ones run)
+	ns.db.lootrunBest = 0
+	UI:Open(".lootrun"); UI:Hide()
+	ns.commands.lootrun.run("")
+	check(LR.IsShown() and not UI:IsShown(), ".lootrun: the dungeon shows at once, the terminal gone")
+	check(ns:FindCommand("maze") == ns.commands.lootrun, ".maze is the same game")
+	check(g.state == "ready" and g.lives == 3 and g.level == 1 and g.score == 0 and g.total > 100 and g.left == g.total,
+		"a pause before it starts, three lives, every coin there (" .. tostring(g.total) .. ")")
+	-- every open cell can be reached from where you start; a corner for each mob, a spot for the chest
+	local seen, queue, open = { [LR.start[2] * W + LR.start[1]] = true }, { LR.start }, 0
+	for y = 0, LR.H - 1 do for x = 0, W - 1 do if LR.Walkable(x, y) then open = open + 1 end end end
+	local reached, i = 1, 1
+	while queue[i] do
+		local c = queue[i]
+		i = i + 1
+		for _, d in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+			local x, y = c[1] + d[1], c[2] + d[2]
+			if LR.Walkable(x, y) and not seen[y * W + x] then
+				seen[y * W + x] = true
+				reached = reached + 1
+				queue[#queue + 1] = { x, y }
+			end
+		end
+	end
+	check(reached == open and #LR.homes == 4 and LR.chestAt, "the whole dungeon can be walked (" .. reached .. " of " .. open .. "), four corners, a chest spot")
+	local f = LR.frame
+	local passed
+	f.SetPropagateKeyboardInput = function(_, v) passed = v end
+	local function Sleep() for _, m in ipairs(g.mobs) do m.sleep = 999 end end
+	local function Fresh() LR.Reset(); Sleep(); g.state, g.wait = "play", 0 end
+	local function Run(seconds) for _ = 1, math.floor(seconds / 0.05 + 0.5) do LR.Tick(0.05) end end
+	-- a way asked for during the pause is kept; nothing moves until it's over
+	f.scripts.OnKeyDown(f, "LEFT")
+	check(passed == false and g.player.want == 2, "Left is the game's (asked during the pause, kept)")
+	Run(1.0)
+	check(g.state == "ready" and g.player.x == LR.start[1] and g.player.t == 0, "the pause: nothing moves yet")
+	Sleep()
+	Run(0.7)
+	check(g.state == "play", "then play")
+	Run(0.5)
+	check(g.player.x == 9 and g.player.y == 8 and g.player.dir == nil and g.score == 10 and g.left == g.total - 1,
+		"Left: the coin picked up, the wall stops you (" .. g.player.x .. "," .. g.player.y .. ")")
+	check(LR.tex.coins[8 * W + 9].shown == false, "its coin is gone from the board")
+	-- a turn asked for early is taken at the first cell it's open from
+	Fresh()
+	f.scripts.OnKeyDown(f, "UP")
+	Run(0.3) -- (between the second and third cell up)
+	f.scripts.OnKeyDown(f, "LEFT") -- (no way left here: kept for the crossing ahead)
+	Run(1)
+	check(g.player.x == 7 and g.player.y == 5 and g.player.face == 2 and g.score == 60,
+		"Up, then Left early: turned at the crossing, on to the wall, six coins (" .. g.player.x .. "," .. g.player.y .. " " .. g.score .. ")")
+	-- kept for a crossing where straight on is open too: turned there exactly (nothing walked lost)
+	Fresh()
+	p.x, p.y, p.dir, p.t, p.want = 8, 1, 2, 0.05, 2
+	f.scripts.OnKeyDown(f, "DOWN") -- (no way down here, nor at the next two cells)
+	for _ = 1, 30 do LR.Tick(0.02) end
+	local walked = 2.95 + (p.y - 1) + p.t
+	check(p.x == 5 and p.dir == 3 and math.abs(walked - LR.SPEED * 0.6) < 1e-6,
+		"Down asked early, along a corridor: turned at the crossing, every bit walked: " .. walked)
+	-- straight back: at once, from where you are
+	Fresh()
+	f.scripts.OnKeyDown(f, "UP")
+	LR.Tick(0.05); LR.Tick(0.05); LR.Tick(0.05); LR.Tick(0.05); LR.Tick(0.05)
+	local _, y1 = LR.Pos(g.player)
+	f.scripts.OnKeyDown(f, "DOWN")
+	LR.Tick(0.001)
+	local _, y2 = LR.Pos(g.player)
+	check(g.player.dir == 3 and math.abs(y2 - y1) < 0.05, "Down while going up: back at once, from where you were")
+	-- a turn a moment after a crossing still counts
+	Fresh()
+	p.x, p.y, p.dir, p.t, p.want = 7, 5, 1, 0.1, 4
+	LR.Tick(0.01)
+	check(p.dir == 4 and p.x == 7 and p.y == 5, "Up just past a crossing: taken from it")
+	-- the mobs: the way to you at a crossing; afraid, away; never straight back but at a dead end
+	Fresh()
+	p.x, p.y = 7, 10
+	local skull, cross, square, moon = g.mobs[1], g.mobs[2], g.mobs[3], g.mobs[4]
+	skull.x, skull.y, skull.dir, skull.sleep = 7, 5, nil, 0
+	LR.Choose(skull)
+	check(skull.dir == 3, "a mob at a crossing takes the way to you (down, not the first way open): " .. tostring(skull.dir))
+	skull.dir, skull.afraid = nil, true
+	LR.Choose(skull)
+	check(skull.dir ~= 3, "afraid, it goes another way: " .. tostring(skull.dir))
+	skull.afraid, skull.x, skull.y, skull.dir = false, 3, 3, 4
+	LR.Choose(skull)
+	check(skull.dir == 3, "in a dead end it turns back")
+	LR.rand = function(n) return n end -- (no chance taken: the last way open)
+	p.x, p.y = 12, 5
+	square.x, square.y, square.dir, square.sleep = 7, 5, nil, 0
+	cross.x, cross.y, cross.dir, cross.sleep = 7, 5, nil, 0
+	LR.Choose(square); LR.Choose(cross)
+	check(LR.Sees(square) and square.dir == 1 and cross.dir == 4, "the square sees you down the corridor and comes; the cross, not seeing, wanders: " .. tostring(cross.dir))
+	p.x, p.y = 7, 1
+	check(not LR.Sees(square), "a wall between: it doesn't see you")
+	LR.rand = function() return 1 end
+	-- aggro: a mob notices you within its range (steps along the corridors), keeps after you a little farther, then
+	-- lets you go
+	skull.x, skull.y, skull.sleep, skull.aggro = 7, 5, 0, false
+	local function CellAt(steps)
+		for y = 0, LR.H - 1 do
+			for x = 0, W - 1 do
+				if LR.Walkable(x, y) then
+					p.x, p.y, p.dir, p.t = x, y, nil, 0
+					if LR.Distances()[skull.y * W + skull.x] == steps then return end
+				end
+			end
+		end
+		error("no cell " .. steps .. " steps from the skull")
+	end
+	local range = skull.def.aggro
+	CellAt(range + 1); skull.dir = nil; LR.Choose(skull)
+	check(not skull.aggro, "out of its range: it doesn't notice you")
+	CellAt(range); skull.dir = nil; LR.Choose(skull)
+	check(skull.aggro, "in range: it has you")
+	CellAt(range + LR.LEASH); skull.dir = nil; LR.Choose(skull)
+	check(skull.aggro, "a little farther: it keeps after you")
+	CellAt(range + LR.LEASH + 1); skull.dir = nil; LR.Choose(skull)
+	check(not skull.aggro, "past that: it lets you go")
+	CellAt(range + 1); skull.dir = nil; LR.Choose(skull)
+	check(not skull.aggro, "and doesn't come again until you're in range")
+	local calm = LR.MobSpeed(moon)
+	g.left = math.floor(g.total * 0.2)
+	check(LR.MobSpeed(moon) > calm and LR.MobSpeed(skull) == math.min(LR.MOB_MAX, skull.def.speed), "few coins left: the moon gets faster")
+	-- a mob still asleep lets you by
+	Fresh()
+	moon.x, moon.y = p.x, p.y
+	LR.Tick(0.02)
+	check(g.state == "play" and g.lives == 3, "a mob asleep in its corner lets you by")
+	-- two fast things never pass through each other in a long frame
+	Fresh()
+	p.x, p.y, p.dir, p.t, p.want = 9, 5, 1, 0, 1
+	skull.x, skull.y, skull.dir, skull.t, skull.sleep = 10, 5, 2, 0, 0
+	LR.Tick(0.2)
+	check(g.state == "dying" and g.lives == 2, "running into a mob in one long frame: caught")
+	Run(LR.DYING + 0.05)
+	check(g.state == "ready" and p.x == LR.start[1] and p.y == LR.start[2] and skull.x == LR.homes[1][1] and skull.sleep > 0,
+		"after a moment: back to the start, the mobs asleep in their corners")
+	-- the Divine Shield: the mobs afraid; bumping into one beats it (more for the next), it comes back later
+	Fresh()
+	p.x, p.y = 9, 14
+	f.scripts.OnKeyDown(f, "RIGHT")
+	Run(0.2)
+	check(p.x == 10 and p.y == 14 and g.shield > 0 and g.score == LR.POINTS.shield, "Right into the Divine Shield: picked up (" .. g.score .. ")")
+	check(skull.afraid and moon.afraid, "every mob afraid of you")
+	p.dir, p.want, p.t = nil, nil, 0
+	skull.x, skull.y, skull.sleep, skull.dir, skull.t = 10, 14, 0, nil, 0
+	LR.Tick(0.02)
+	check(skull.gone and g.score == 50 + 200 and LR.tex.mobs[1].shown == false, "bumped into while shielded: beaten, 200, gone")
+	cross.x, cross.y, cross.sleep, cross.dir, cross.t = 10, 14, 0, nil, 0
+	LR.Tick(0.02)
+	check(cross.gone and g.score == 250 + 400, "the next one this shield: 400")
+	Run(LR.RESPAWN + 0.1)
+	check(not skull.gone and skull.x == LR.homes[1][1] and skull.y == LR.homes[1][2] and not skull.afraid,
+		"a while later it's back in its corner, not afraid any more")
+	Run(LR.SHIELD)
+	check(g.shield == 0 and not moon.afraid, "the shield over: no mob afraid")
+	-- a chest shows up once enough coins are picked up, and is worth picking up too
+	Fresh()
+	g.picked = LR.CHEST_AT[1] - 1
+	f.scripts.OnKeyDown(f, "LEFT")
+	Run(0.3)
+	check(g.chest == nil or g.chest > 0, "(a chest)")
+	check(g.chests == 1, "enough coins: a chest shows up")
+	local before = g.score
+	p.x, p.y, p.dir, p.t = LR.chestAt[1], LR.chestAt[2], nil, 0
+	LR.Tick(0.02)
+	check(g.chest == nil and g.score == before + LR.POINTS.chest, "walked into: picked up, " .. LR.POINTS.chest)
+	-- the last coin: the level is cleared, the next starts with every coin back, faster
+	Fresh()
+	for k in pairs(g.coins) do if k ~= 8 * W + 9 then g.coins[k] = nil end end
+	g.left = 1
+	f.scripts.OnKeyDown(f, "LEFT")
+	Run(0.3)
+	check(g.state == "cleared" and g.score == 10 + LR.POINTS.level, "the last coin: cleared, a bonus (" .. g.score .. ")")
+	Run(LR.CLEARED + 0.05)
+	check(g.level == 2 and g.state == "ready" and g.left == g.total and g.speed > LR.SPEED, "level 2: every coin back, you're faster")
+	check(LR.tex.coins[8 * W + 9].shown == true, "the coins are on the board again")
+	-- other keys go on to the game
+	f.scripts.OnKeyDown(f, "1")
+	check(passed == true, "any other key goes on to the game")
+	f.scripts.OnKeyDown(f, "SPACE")
+	check(passed == true, "Space too (no pausing, as Snake)")
+	f.scripts.OnKeyDown(f, "ENTER")
+	check(passed == true, "Enter too while playing")
+	-- the last life: game over, the best kept, nothing runs every frame; Enter plays again
+	Fresh()
+	g.lives, g.score = 1, 4321
+	skull.x, skull.y, skull.sleep = p.x, p.y, 0
+	LR.Tick(0.02)
+	Run(LR.DYING + 0.05)
+	check(g.over and ns.db.lootrunBest == 4321 and g.newBest, "the last life: game over, the best kept")
+	check(f.scripts.OnUpdate == nil, "game over: nothing runs every frame")
+	f.scripts.OnKeyDown(f, "ENTER")
+	check(not g.over and g.score == 0 and g.lives == 3 and f.scripts.OnUpdate ~= nil, "Enter plays again, and it runs again")
+	f.scripts.OnKeyDown(f, "ESCAPE")
+	check(not LR.IsShown(), "Esc quits")
+	ns.commands.lootrun.run(""); f.scripts.OnKeyDown(f, "`")
+	check(not LR.IsShown(), "` quits")
+	-- opening Snake closes it, and the other way round
+	ns.commands.lootrun.run(""); ns.Snake.Open()
+	check(not LR.IsShown() and ns.Snake.IsShown(), "Snake closes Loot Run")
+	LR.Open()
+	check(LR.IsShown() and not ns.Snake.IsShown(), "and Loot Run closes Snake")
+	-- combat
+	f.scripts.OnEvent(f, "PLAYER_REGEN_DISABLED")
+	check(not LR.IsShown(), "combat closes it")
+	local realCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	check(LR.Open() == false and not LR.IsShown(), "not in combat")
+	_G.InCombatLockdown = realCombat
+	LR.rand = function(n) return math.random(n) end
+end
+
 -- the panels' shared helpers keep each app's own words: combat closing and refusing to open
 io.write("[panels: their messages]\n")
 do
@@ -834,6 +1056,7 @@ do
 		{ ns.Atop, "atop closed: combat started.", "atop reads the keyboard while open, so not in combat." },
 		{ ns.Snake, "Snake closed: combat started.", "Snake takes over keys, which the game doesn't allow in combat." },
 		{ ns.Tetris, "Tetris closed: combat started.", "Tetris takes over keys, which the game doesn't allow in combat." },
+		{ ns.LootRun, "Loot Run closed: combat started.", "Loot Run takes over keys, which the game doesn't allow in combat." },
 		{ ns.Changelog, "Changelog closed: combat started.", "The changelog takes the arrow keys while open, which the game doesn't allow in combat." },
 		{ ns.Wowamp, "WoWamp closed: combat started. The music plays on.", "WoWamp takes over a few keys, which the game doesn't allow in combat. (The music plays on.)" },
 	}
