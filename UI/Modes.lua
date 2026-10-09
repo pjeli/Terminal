@@ -245,10 +245,20 @@ function UI:ColorGlow()
 	end
 end
 
+--- The results of the search on show, finished now if it's still going over frames (what it found, not only its
+--- first frame's best).
+function UI:FinishedResults()
+	local job = self.searchJob
+	if not job then return UI.results end
+	local final, done
+	repeat final, done = self:StepSearch(job) until done
+	return final
+end
+
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
---- syntax (Easy.ToAdvanced, the picked category as its @kinds) and the search goes on from there; closed, it
---- opens straight in Advanced. Simple comes back when the terminal closes (Hide). Already Advanced (for good or
---- for this run): the same as `.
+--- syntax (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category
+--- looks in) and the search goes on from there; closed, it opens straight in Advanced. Simple comes back when the
+--- terminal closes (Hide). Already Advanced (for good or for this run): the same as `.
 function UI:AdvancedOnce()
 	local edit = UI.edit
 	local E = ns.Easy
@@ -264,7 +274,8 @@ function UI:AdvancedOnce()
 	end
 	local text = edit:GetText()
 	local cat = not self.categoryAuto and self.category or nil -- (a category opened on its own counts too: it's what shows)
-	local conv = E.ToAdvanced(text, self.category)
+	-- ("use hearthstone": @item, the list the Hearthstone shown is in, not every list "use" looks in)
+	local conv = E.ToAdvanced(text, self.category, E.ShownKinds(self:FinishedResults()))
 	DropTick(conv) -- (the key's ` still comes as a typed character)
 	E.temp = { from = text, category = cat }
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))

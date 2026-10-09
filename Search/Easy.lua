@@ -382,6 +382,20 @@ local function KindWord(kind)
 	return p and ("@" .. ((p.aliases and p.aliases[1]) or p.id)) or nil
 end
 
+--- The lists the rows a search shows come from (real results only: no category, hint, help, pick or completion row,
+--- nor a row that asks something), as a set of list ids. Alt+` names only these: "use hearthstone" shows the
+--- Hearthstone in your bags, so @item, not every list "use" looks in (@camp @item @toy).
+function E.ShownKinds(rows)
+	local set = {}
+	for _, e in ipairs(rows or {}) do
+		if type(e) == "table" and not (e.noActivate or e.raw or e.completion or e.catId or e.syntaxRow or e.lead) then
+			local k = e.kind -- (an action's view: its row's kind)
+			if type(k) == "string" and ns.providers[k] then set[k] = true end
+		end
+	end
+	return set
+end
+
 --- Two everyday words that mean one thing joined into one ("attack power food" -> "attack power", "food"). Works on
 --- the list in place.
 function E.JoinPairs(words)
@@ -412,10 +426,12 @@ end
 local function PieceFilter(neg, a) return neg .. (E.WORDS[a] or a) end
 local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) end
 
---- A Simple search as Advanced mode would type it: the picked category or the action word's kinds as @kinds,
---- "nearest" as @npc sort:nearest (with faction:friendly for a role), a place as in:<place>, everyday words as their
---- key:value filters ("attack power" = stat:ap), sentence words dropped; other words (and any Advanced syntax
---- already typed) stay. Ends with a space to type on. "" for an empty search.
+--- A Simple search as Advanced mode would type it: the lists the action word or the picked category looks in as @kinds
+--- (given `shown`, E.ShownKinds of what the search shows, only those of them that show something: "use hearthstone"
+--- -> "@item do:use hearthstone"; none showing: no @kind after an action word, whose do: stands for its lists, and all
+--- of a category's), "nearest" as @npc sort:nearest (with faction:friendly for a role), a place as in:<place>,
+--- everyday words as their key:value filters ("attack power" = stat:ap), sentence words dropped; other words (and any
+--- Advanced syntax already typed) stay. Ends with a space to type on. "" for an empty search.
 -- a plain-word question or chain, in Advanced syntax: chains as links ("mats for x" -> "x > mats"), the zone questions
 -- as @map/@dungeon/@raid with lvl: or fish:, the combat ones as @combatlog words. Nil for anything else.
 local function QuestionToAdvanced(text)
@@ -437,13 +453,22 @@ local function QuestionToAdvanced(text)
 end
 E.QuestionToAdvanced = QuestionToAdvanced
 
-function E.ToAdvanced(text, category)
+function E.ToAdvanced(text, category, shown)
 	local asked = QuestionToAdvanced(text)
 	if asked then return asked end
 	local words = {}
 	for w in tostring(text or ""):gmatch("%S+") do words[#words + 1] = w end
 	local kinds, filters, plain, seen = {}, {}, {}, {}
 	local function Add(list, w) if w and not seen[w] then seen[w] = true; list[#list + 1] = w end end
+	-- these lists as @kinds (sorted), those showing something when that's known; how many were named
+	local function AddKinds(ids, all)
+		local ks = {}
+		for _, k in ipairs(ids) do if all or not shown or shown[k] then ks[#ks + 1] = k end end
+		table.sort(ks)
+		local n = #kinds
+		for _, k in ipairs(ks) do Add(kinds, KindWord(k)) end
+		return #kinds - n
+	end
 	E.JoinPairs(words) -- two everyday words that mean one thing ("attack power food")
 	E.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe (made filters below)
 	-- the first word can say what to do ("use hearthstone", "nearest innkeeper")
@@ -452,16 +477,17 @@ function E.ToAdvanced(text, category)
 	if act then
 		nearest = act.nearest
 		if act.map then
-			local ks = {}
-			for k in pairs(act.map) do ks[#ks + 1] = k end
-			table.sort(ks)
-			for _, k in ipairs(ks) do Add(kinds, KindWord(k)) end
+			local ids = {}
+			for k in pairs(act.map) do ids[#ids + 1] = k end
+			-- (none showing anything: no @kind, do:<word> stands for every list the action looks in)
+			AddKinds(ids)
 			-- what Enter does stays what was asked ("use hearthstone": do:use, not just the item shown in your bags)
 			if not nearest and actWord then doWord = "do:" .. actWord end
 		end
 	end
 	if not (act and act.map) and E.BY_ID[category or ""] then
-		for _, k in ipairs(E.BY_ID[category].kinds) do Add(kinds, KindWord(k)) end
+		-- (none showing anything: all of them, there's no one word for a category)
+		if AddKinds(E.BY_ID[category].kinds) == 0 then AddKinds(E.BY_ID[category].kinds, true) end
 	end
 	-- a place, when there's something else to look for in it ("vendor ratchet")
 	local lower = {}

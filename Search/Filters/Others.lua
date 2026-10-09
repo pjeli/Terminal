@@ -250,9 +250,9 @@ KEYS.class = function(v)
 	end
 end
 
--- do:<action> (Advanced): Simple mode's action words written as Advanced syntax ("use hearthstone" -> "@camp @items @toys
+-- do:<action> (Advanced): Simple mode's action words written as Advanced syntax ("use hearthstone" -> "@item
 -- do:use hearthstone", Alt+`): not a filter (every row stays); the search makes each row's Enter that action, as Simple
--- mode's action word does (Search.lua's Scan.Parse, Easy.ActionView)
+-- mode's action word does (Search.lua's Scan.Parse, Easy.ActionView); with no @kind, the action's own lists
 --- "do:use" -> the action (Easy.ACTIONS) and its word, else nil.
 function F.ActionOf(word)
 	if type(word) ~= "string" then return nil end

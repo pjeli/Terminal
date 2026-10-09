@@ -957,6 +957,69 @@ Run("Alt+`: Advanced mode for this run only", function()
 	UI:Hide(); FlushAll()
 end)
 
+Run("Alt+` names the lists the results come from (use hearthstone: @item, not @camp @item @toy)", function()
+	E.Set(true)
+	local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
+	local function Lists(items)
+		Use({
+			{ "camp", { label = "Camp", aliases = { "camp" }, collect = Rows({ { name = "Campfire", secondary = Fire("craft") } }) } },
+			{ "items", { label = "Item", aliases = { "item" }, collect = Rows(items or {
+				{ name = "Hearthstone", itemID = 6948, secondary = Fire("use"), secondarySecure = { macro = "/use item:6948" } },
+				{ name = "Train Ticket", itemID = 7, secondary = Fire("use") } }) } },
+			{ "toys", { label = "Toy", aliases = { "toy" }, explicit = true, collect = Rows({ { name = "Toy Train Set", activate = Fire("toy") } }) } },
+			{ "mounts", { label = "Mount", aliases = { "mount" }, collect = Rows({ { name = "Swift Raptor", activate = Fire("summon") } }) } },
+			{ "pets", { label = "Pet", aliases = { "pet" }, collect = Rows({ { name = "Mechanical Squirrel", activate = Fire("pet") } }) } },
+		})
+	end
+	Lists()
+	local function Converted(text)
+		UI:Open(text)
+		alt(function() key("`", "`") end)
+		local q = T.query()
+		UI:Hide(); FlushAll()
+		return q
+	end
+	-- not told what shows: every list the action looks in (as before)
+	check(E.ToAdvanced("use hearthstone") == "@camp @item @toy do:use hearthstone ", "(not told what shows: every list) " .. E.ToAdvanced("use hearthstone"))
+	check(E.ToAdvanced("use hearthstone", nil, { items = true }) == "@item do:use hearthstone ", "told: only the list the result is in")
+	check(E.ToAdvanced("use zzz", nil, {}) == "do:use zzz ", "nothing shows: no @kind, do:use stands for the action's lists")
+	-- in the terminal: what the Simple search shows
+	local q = Converted("use hearthstone")
+	check(q == "@item do:use hearthstone ", "use hearthstone -> only @item (not a camp object, nor a toy): " .. q)
+	q = Converted("use train")
+	check(q == "@item @toy do:use train ", "two lists show something: both named: " .. q)
+	q = Converted("use zzzz")
+	check(q == "do:use zzzz ", "nothing found: do:use alone: " .. q)
+	q = Converted("summon raptor")
+	check(q == "@mount do:summon raptor ", "summon raptor -> @mount (no pet called that): " .. q)
+	-- a category opened for you: its lists that show something (Collections has mounts, pets, toys...)
+	q = Converted("swift")
+	check(q == "@mount swift ", "swift in Collections -> @mount only: " .. q)
+	check(E.ToAdvanced("swift", "collections", {}) == "@mount @pet @toy swift ", "a category with nothing showing: all its lists (no one word for them)")
+	-- the Advanced search finds what the Simple one did, Enter still uses it
+	UI:Open("use hearthstone")
+	alt(function() key("`", "`") end)
+	local r = UI.Results()
+	check(r[1] and r[1].name == "Hearthstone" and r[1].actionVerb == "Use", "searched as Advanced: the Hearthstone, Enter uses it: " .. Show(r))
+	UI:Hide(); FlushAll()
+	-- a search still going over frames when Alt+` comes: finished first, so the lists named are what it found (its
+	-- first frame had seen only part of the bags, nothing that matched, and no toys yet)
+	local big = {}
+	for i = 1, 3000 do big[i] = { name = ("Pebble %04d"):format(i), itemID = 10000 + i } end
+	big[#big + 1] = { name = "Train Ticket", itemID = 7, secondary = Fire("use") }
+	Lists(big)
+	local realClock = _G.debugprofilestop
+	local ms = 0
+	_G.debugprofilestop = function() ms = ms + 1; return ms end -- every look at the clock: 1 ms
+	UI:Open("use train")
+	local going = UI.searchJob ~= nil
+	alt(function() key("`", "`") end)
+	q = T.query()
+	FlushAll()
+	_G.debugprofilestop = realClock
+	check(going and q == "@item @toy do:use train ", "a search still going: finished first, then named (" .. tostring(going) .. "): " .. q)
+end)
+
 Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Simple, Shift+Enter to Advanced", function()
 	E.Set(true)
 	ActionLists()
