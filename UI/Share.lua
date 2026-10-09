@@ -359,6 +359,7 @@ SH.QUALITY_WORDS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legend
 local function Plural(w)
 	if MASS[w] then return w end
 	if PLURAL[w] then return PLURAL[w] end
+	if w:match("[^s]s$") then return w end -- (plural already, as the game's own type names are: daggers, bows, staves)
 	if w:match("[sxz]$") or w:match("[cs]h$") then return w .. "es" end
 	if w:match("[^aeiou]y$") then return w:sub(1, -2) .. "ies" end
 	return w .. "s"
@@ -553,8 +554,9 @@ function SH.GroupLines(rows, query)
 	rows = SH.GroupRows(rows)
 	if #rows == 0 then return {} end
 	local header, lootHeader = SH.GroupHeader(rows, query)
-	local texts = {}
-	for _, e in ipairs(rows) do
+	-- a row's text, worked out only when its turn comes: the rows only counted in "+N more" never are (an NPC's text
+	-- sets the map pin it links: 100 of them moved your waypoint 100 times, to one that wasn't even sent)
+	local function TextOf(e)
 		local base = SH.BaseText(e)
 		local t = (lootHeader or e.pipeRel == "uses") and base or WithSource(e, base, SH.LINE_MAX - 8)
 		if lootHeader == "instance" and type(base) == "string" then
@@ -568,33 +570,40 @@ function SH.GroupLines(rows, query)
 		t = chained or t
 		if type(t) == "string" and t ~= "" then
 			if #t > SH.LINE_MAX then t = tostring(base) end
-			if #t <= SH.LINE_MAX then texts[#texts + 1] = t end
+			if #t <= SH.LINE_MAX then return t end
 		end
+		return nil
 	end
-	local lines, line = {}, header and (header .. " (" .. #texts .. "):") or nil
-	local sent = 0
+	local lines, line = {}, header and (header .. " (" .. #rows .. "):") or nil
+	local sent, skipped = 0, 0
 	-- (the last line keeps room for "+N more")
 	local function Room() return SH.LINE_MAX - (#lines == SH.GROUP_LINES - 1 and 12 or 0) end
-	for _, t in ipairs(texts) do
-		local joined = line and (line .. (line:sub(-1) == ":" and " " or ", ") .. t) or t
-		if #joined <= Room() then
-			line = joined
+	for _, e in ipairs(rows) do
+		local t = TextOf(e)
+		if not t then
+			skipped = skipped + 1 -- (nothing to say for it: not sent, not counted)
 		else
-			if line then lines[#lines + 1] = line end
-			line = nil
-			if #lines >= SH.GROUP_LINES or #t > Room() then break end -- (a long one can't start the last line: counted)
-			line = t
+			local joined = line and (line .. (line:sub(-1) == ":" and " " or ", ") .. t) or t
+			if #joined <= Room() then
+				line = joined
+			else
+				if line then lines[#lines + 1] = line end
+				line = nil
+				if #lines >= SH.GROUP_LINES or #t > Room() then break end -- (a long one can't start the last line: counted)
+				line = t
+			end
+			sent = sent + 1
 		end
-		sent = sent + 1
 	end
 	if line and #lines < SH.GROUP_LINES then lines[#lines + 1] = line end
-	local left = #texts - sent
+	local total = #rows - skipped
+	local left = total - sent
 	if left > 0 and #lines > 0 then
 		local more = "+" .. left .. " more"
 		if #lines[#lines] + #more + 1 <= SH.LINE_MAX then lines[#lines] = lines[#lines] .. " " .. more
 		elseif #lines < SH.GROUP_LINES then lines[#lines + 1] = more end
 	end
-	return lines, #texts
+	return lines, total
 end
 
 --- The items among the rows the client hasn't loaded yet: sent now, they'd go as plain names (no link). Item ids.

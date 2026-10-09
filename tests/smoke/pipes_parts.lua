@@ -119,6 +119,13 @@ do
 	check(type(cache) == "table" and Count(cache) <= max, "150 chains typed: at most " .. max .. " steps kept: " .. Count(cache))
 	check(Names(P.Search("thorium belt > mats")) == want and want:find("Thorium Bar", 1, true),
 		"the same rows once the cache has started over: " .. want)
+	-- (0.44.16) the terminal closed: a chain's kept steps and names go (they held rows of lists freed meanwhile)
+	P.Seed("thorium")
+	check(Count(Upvalue(P.ClearSteps, "stepCache")) > 0 and Upvalue(P.Seed, "lastSeed") ~= nil, "(steps and names kept while open)")
+	local tf = _G.TerminalFrame
+	tf.scripts.OnHide(tf)
+	T.FlushAll()
+	check(Count(Upvalue(P.ClearSteps, "stepCache")) == 0 and Upvalue(P.Seed, "lastSeed") == nil, "closed: nothing of a chain kept")
 	Restore()
 end
 

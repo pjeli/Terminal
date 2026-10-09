@@ -132,6 +132,7 @@ do
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			UI.openedByToggle, UI.tabHeld = nil, nil
+			if ns.Pipes and ns.Pipes.ClearSteps then ns.Pipes.ClearSteps() end -- (a chain's rows: not kept while closed)
 			UI:MotionReset()
 			UI:HideTooltip()
 			UI:Disarm()

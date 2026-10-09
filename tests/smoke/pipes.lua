@@ -116,6 +116,15 @@ do
 	ns.db.easyMode = easyWas; UI:EasyChanged()
 	rows = P.Search("core leather belt > mats")
 	check(rows[2] and rows[2].completion == "Comfortable Leather Hat > mats", "Advanced keeps the chain")
+	-- (0.44.16) spaces typed twice in the name: the rest of the chain after it is kept whole
+	rows = P.Search("core  leather  belt > mats")
+	check(rows[2] and rows[2].completion == "Comfortable Leather Hat > mats", "two spaces in the name: the chain kept: " .. tostring(rows[2] and rows[2].completion))
+	rows = P.Search("core  leather  belt > mats iron")
+	check(rows[2] and rows[2].completion == "Comfortable Leather Hat > mats iron", "two spaces, words after the link: the rest kept whole: "
+		.. tostring(rows[2] and rows[2].completion))
+	rows = P.Search("thorium  > mats")
+	check(rows[2] and rows[2].completion and rows[2].completion:find(" > mats$") and not rows[2].completion:find("> > ", 1, true),
+		"two spaces before >: a pick writes the chain right: " .. tostring(rows[2] and rows[2].completion))
 	-- a name still being typed isn't looked up yet
 	rows = P.Search("t > sources")
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("Keep typing", 1, true), "under 3 letters: keep typing")
@@ -380,6 +389,11 @@ do
 	check(D("@loot slot:boots") == "Boots" and D("@loot slot:helm") == "Helms" and D("@loot q:blue") == "Rare items",
 		"everyday slot and quality words: " .. D("@loot slot:boots") .. " / " .. D("@loot slot:helm") .. " / " .. D("@loot q:blue"))
 	check(D("@loot is:boe|cloak") == "nil" and D("@loot type:sword|-axe") == "nil", "a | list with a part it can't say: says nothing of it")
+	-- (0.44.16) the game's own type names are plural already: not "Daggerses"
+	check(D("@loot type:daggers") == "Daggers" and D("@loot type:staves") == "Staves" and D("@loot type:bows|guns") == "Bows and guns"
+		and D("@loot type:one-handed_swords") == "One-handed swords" and D("@loot type:dagger") == "Daggers" and D("@loot type:axe") == "Axes",
+		"plural type names kept, singular ones made plural: " .. D("@loot type:daggers") .. " / " .. D("@loot type:bows|guns") .. " / "
+		.. D("@loot type:one-handed_swords"))
 	local who = { { kind = "who", key = "Bob", name = "Bob" }, { kind = "who", key = "Al", name = "Al" } }
 	check(D("@who orc lvl:20-30", who) == "nil", "lvl: on rows that aren't items: no \"Items (level ...)\"")
 	local lines = SH.GroupLines(who, "@who orc lvl:20-30")
@@ -406,6 +420,15 @@ do
 		if shown + more ~= total then bad = bad + 1 end
 	end
 	check(bad == 0, "every row is either shown or counted in \"+N more\", lines of 255 at most: " .. bad .. " bad runs")
+	-- (0.44.16) each row's text is worked out only when it goes: the ones only counted never are
+	local calls, baseText = 0, SH.BaseText
+	SH.BaseText = function(e) calls = calls + 1 return baseText(e) end
+	local hundred = {}
+	for i = 1, 100 do hundred[i] = { kind = "item", key = i, name = ("Quite A Long Item Name Number %03d"):format(i) } end
+	local ls, total = SH.GroupLines(hundred, "")
+	SH.BaseText = baseText
+	check(total == 100 and (ls[#ls] or ""):find("%+%d+ more$") and calls < 50, "100 rows, six lines: only the texts that go are made ("
+		.. calls .. " made), the rest counted: " .. tostring(ls[#ls]):sub(-12))
 	-- whispers keep the surname
 	local to = SH.Channel("w Plamen Warr")
 	check(to.target == "Plamen Warr" and to.label == "whisper Plamen Warr" and to.chat == "WHISPER", "a whisper to a first and last name: " .. tostring(to.target))

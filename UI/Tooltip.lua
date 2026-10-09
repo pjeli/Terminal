@@ -80,6 +80,7 @@ function UI:UpdateTooltip()
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end
 	t:Hide()
 	t.entry = nil
+	UI.StopTipWait(t) -- (another row, or none: the last one's item isn't waited on)
 	if not e or e.noActivate then return end
 	-- entries may supply a link directly, or a function that builds it only when selected
 	local link = e.link
@@ -120,8 +121,16 @@ end
 -- and asked again: an ask a few times a second while the row stayed selected).
 UI.TIP_RETRY, UI.TIP_TRIES, UI.TIP_FAILED = 0.6, 8, 60
 do
-	local waiter, waitGen = nil, 0
+	local waiter, waitGen, listening = nil, 0, false
 	local failed, failedN = {}, 0 -- item id -> when the server said it has no such item
+	-- (the item-data events fire for everything in the game: heard only while a tooltip waits on an item)
+	local function Listen(on)
+		if not waiter or listening == on then return end
+		listening = on
+		local f = on and waiter.RegisterEvent or waiter.UnregisterEvent
+		pcall(f, waiter, "GET_ITEM_INFO_RECEIVED")
+		pcall(f, waiter, "ITEM_DATA_LOAD_RESULT")
+	end
 	local function ItemOfTip(e, link)
 		local id = tonumber(e.itemID)
 		if not id and type(link) == "string" then id = tonumber(link:match("item:(%d+)")) end
@@ -140,9 +149,15 @@ do
 		return true
 	end
 	local function Now() return GetTime and GetTime() or 0 end
+	--- No tooltip waits on an item any more (the tooltip hidden): nothing heard.
+	function UI.StopTipWait(t)
+		if t then t.waitID = nil end
+		Listen(false)
+	end
+
 	function UI.WaitForTipItem(t, e, link)
 		waitGen = waitGen + 1
-		t.waitID = nil
+		UI.StopTipWait(t)
 		local id = ItemOfTip(e, link)
 		if not id or Cached(id) then return end
 		if failed[id] and Now() - failed[id] < UI.TIP_FAILED then return end
@@ -150,8 +165,6 @@ do
 		if not waiter then
 			waiter = CreateFrame("Frame")
 			UI.tipWaiter = waiter -- (tests)
-			pcall(waiter.RegisterEvent, waiter, "GET_ITEM_INFO_RECEIVED")
-			pcall(waiter.RegisterEvent, waiter, "ITEM_DATA_LOAD_RESULT")
 			waiter:SetScript("OnEvent", function(_, _, got, ok)
 				local tip = Tip()
 				if not (got and tip.waitID == got and tip.entry) then return end
@@ -159,20 +172,21 @@ do
 					if failedN > 500 then failed, failedN = {}, 0 end
 					if not failed[got] then failedN = failedN + 1 end
 					failed[got] = Now()
-					tip.waitID = nil
+					UI.StopTipWait(tip)
 					return
 				end
 				if not Cached(got) then return end -- (not in yet: the timer keeps watching)
-				tip.waitID = nil
+				UI.StopTipWait(tip)
 				Redraw(tip, tip.entry)
 			end)
 		end
+		Listen(true)
 		if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 		local gen, tries = waitGen, 0
 		local function Again()
 			if gen ~= waitGen or t.waitID ~= id then return end
 			tries = tries + 1
-			if Cached(id) then t.waitID = nil Redraw(t, e) return end
+			if Cached(id) then UI.StopTipWait(t) Redraw(t, e) return end
 			if tries >= UI.TIP_TRIES then return end
 			if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 			C_Timer.After(UI.TIP_RETRY, Again)
@@ -184,6 +198,7 @@ end
 --- The tooltip put away with the terminal (Hide, the frame's OnHide): hidden, nothing kept as shown.
 function UI:HideTooltip()
 	if tip then tip:Hide(); tip.entry = nil end
+	UI.StopTipWait(tip)
 end
 
 --- The tooltip drawn again the next time it's asked for (ApplyTheme: its colours changed).

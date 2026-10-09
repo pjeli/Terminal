@@ -319,6 +319,38 @@ local function TalentLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLi
 local function LinkTalent(e) ns.LinkInChat(TalentLink(e)) end
 local TALENT_CHATBOX = ns.ChatBoxSpec(TalentLink)
 
+-- Other classes' rows are compact (0.44.16: ~800 full tables of 20 fields each came to ~1.2 MB, kept all session): a row
+-- holds its name, key, rank, lowercase name and text, and its saved talent (`_r` = { nodeID, name, spellID, tab,
+-- tabIndex, maxRanks, icon }); its class's metatable has the rest, worked out when read (seven raw fields: `_score`
+-- still fits without the table growing).
+local function OtherTab(t)
+	local tab = rawget(t, "_r")[4]
+	return tab ~= "" and tab or nil
+end
+local OTHER_LAZY = {
+	nodeID = function(t) return rawget(t, "_r")[1] end,
+	spellID = function(t) return rawget(t, "_r")[3] end,
+	tab = OtherTab,
+	tabIndex = function(t) return rawget(t, "_r")[5] end,
+	icon = function(t)
+		local r = rawget(t, "_r")
+		return r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3])) or nil
+	end,
+	detail = function(t)
+		local tab, ranks = OtherTab(t), rawget(t, "_r")[6] or 1
+		return t.classShown .. "  " .. (tab and (tab .. "  ") or "") .. ranks .. (ranks == 1 and " rank" or " ranks")
+	end,
+}
+local function OtherMeta(file, cname, shown)
+	return ns:CompactMeta(ns.providers.talents, {
+		classFile = file, className = cname, classShown = shown, other = true,
+		getLink = TalentLink, -- (made when selected)
+		activate = ShowOnWowhead,
+		secondary = LinkTalent,
+		secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
+	}, OTHER_LAZY)
+end
+
 ns:RegisterProvider("talents", {
 	label = "Talent",
 	color = "ffa3e05f",
@@ -363,8 +395,8 @@ ns:RegisterProvider("talents", {
 			end
 		end
 		-- other classes' talents, below yours: Enter shows the Wowhead page, Shift+Enter links it in chat. Your own tree's
-		-- events rebuild this list often: each class's rows (~800 in all) are made once and used again while they'd come
-		-- out the same (TL.otherRows: the same saved talents, the class shown the same way); only the icon is asked again.
+		-- events rebuild this list often: each class's rows (~800 in all, compact) are made once and used again while
+		-- they'd come out the same (TL.otherRows: the same saved talents, the class shown the same way).
 		local others, names = TL.OtherClasses()
 		local made = {}
 		for file, rows in pairs(others) do
@@ -372,35 +404,26 @@ ns:RegisterProvider("talents", {
 			local hex = ns.ClassHex and ns.ClassHex(file) -- ("|cff3fc7eb": the colour code whole)
 			local shown = hex and (hex .. cname .. "|r") or cname
 			local m = TL.otherRows[file]
-			if m and m.from == rows and m.shown == shown and m.cname == cname and m.rank == TL.OTHER_RANK
-				and m.never == ns.ChatBoxNeverOpen then
-				for i, e in ipairs(m.rows) do
-					local r = rows[i]
-					e.icon = r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3]))
-					out[#out + 1] = e
-				end
-			else
+			if not (m and m.from == rows and m.shown == shown and m.cname == cname and m.rank == TL.OTHER_RANK
+				and m.never == ns.ChatBoxNeverOpen) then
 				m = { from = rows, shown = shown, cname = cname, rank = TL.OTHER_RANK, never = ns.ChatBoxNeverOpen, rows = {} }
+				local meta, texts = OtherMeta(file, cname, shown), {}
 				for _, r in ipairs(rows) do
-					local tab = r[4] ~= "" and r[4] or nil
-					local e = {
-						key = file .. ":" .. r[1],
-						name = r[2],
-						icon = r[7] or (r[3] and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(r[3])),
-						detail = shown .. "  " .. (tab and (tab .. "  ") or "") .. r[6] .. (r[6] == 1 and " rank" or " ranks"),
-						text = (tab or "") .. " " .. cname .. " talent",
-						getLink = TalentLink,
-						nodeID = r[1], tab = tab, tabIndex = r[5], spellID = r[3],
-						classFile = file, className = cname, other = true,
-						_rank = TL.OTHER_RANK,
-						activate = ShowOnWowhead,
-						secondary = LinkTalent,
-						secondarySecure = TALENT_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
-					}
-					m.rows[#m.rows + 1] = e
-					out[#out + 1] = e
+					if type(r[2]) == "string" and r[2] ~= "" then
+						-- (the lowercase copies made here, as the list's GetEntries would: no `text` field added and then
+						-- dropped, so the row stays at seven fields)
+						local tab = type(r[4]) == "string" and r[4] or ""
+						local ltext = texts[tab]
+						if not ltext then
+							ltext = ns.Lower(tab .. " " .. cname .. " talent")
+							texts[tab] = ltext
+						end
+						m.rows[#m.rows + 1] = setmetatable({ _compact = true, key = file .. ":" .. tostring(r[1]), name = r[2],
+							_r = r, _rank = TL.OTHER_RANK, _lname = ns.Lower(r[2]), _ltext = ltext }, meta)
+					end
 				end
 			end
+			for _, e in ipairs(m.rows) do out[#out + 1] = e end
 			made[file] = m
 		end
 		TL.otherRows = made

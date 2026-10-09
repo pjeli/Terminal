@@ -77,6 +77,30 @@ do -- moving the selection repaints only the selection, not every row; the toolt
 	T.FlushAll()
 	UI:Hide(); UI:Open("linen")
 	check(asks == 1, "back on the row a moment later: still not asked again: " .. asks)
+	-- (0.44.16) the item-data events (they fire for everything) are heard only while a tooltip waits on an item
+	local heard = {}
+	w.RegisterEvent = function(_, ev) heard[ev] = true end
+	w.UnregisterEvent = function(_, ev) heard[ev] = nil end
+	C_Item.IsItemDataCachedByID = function() return false end
+	UI:Hide(); T.FlushAll()
+	UI:Open("hearthstone")
+	check(tt.waitID ~= nil and heard.GET_ITEM_INFO_RECEIVED and heard.ITEM_DATA_LOAD_RESULT, "waiting on an item: its data events heard")
+	C_Item.IsItemDataCachedByID = function() return true end
+	w.scripts.OnEvent(w, "GET_ITEM_INFO_RECEIVED", tt.waitID, true)
+	check(tt.waitID == nil and not heard.GET_ITEM_INFO_RECEIVED and not heard.ITEM_DATA_LOAD_RESULT, "it came in: not heard any more")
+	C_Item.IsItemDataCachedByID = function() return false end
+	UI:Hide(); T.FlushAll(); UI:Open("hearthstone")
+	check(heard.GET_ITEM_INFO_RECEIVED, "(waiting again)")
+	local resWas, selWas = UI.results, UI.sel
+	UI.results, UI.sel = { { name = "Nothing to show", kind = "slash" } }, 1
+	UI:UpdateTooltip()
+	check(tt.waitID == nil and not heard.GET_ITEM_INFO_RECEIVED, "moved to a row with no tooltip: the item isn't waited on")
+	UI.results, UI.sel = resWas, selWas
+	UI:UpdateTooltip()
+	check(heard.GET_ITEM_INFO_RECEIVED, "(back on it: waiting again)")
+	UI:Hide()
+	check(not heard.GET_ITEM_INFO_RECEIVED and not heard.ITEM_DATA_LOAD_RESULT, "the tooltip put away: not heard")
+	w.RegisterEvent, w.UnregisterEvent = nil, nil
 	C_Item.RequestLoadItemDataByID = reqWas
 	C_Item.IsItemDataCachedByID = cachedWas
 	tt.SetHyperlink = base

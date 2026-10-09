@@ -610,7 +610,7 @@ local function OptionsMacro()
 	if id == nil or not (Settings and Settings.OpenToCategory) then return nil end
 	return ("/run Settings.OpenToCategory(%s)"):format(type(id) == "number" and tostring(id) or ("%q"):format(tostring(id)))
 end
-local OPTIONS_SPEC = { macro = OptionsMacro }
+local OPTIONS_SPEC = { macro = OptionsMacro, opensWindow = true }
 
 ns:RegisterProvider("terminal", {
 	label = "Terminal",

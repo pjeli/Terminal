@@ -98,7 +98,10 @@ do
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
 		items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
-		if e.secondary or e.secondarySecure then items[#items + 1] = { label = Cap(shift or "more"), secondary = true } end
+		-- (Shift+Enter's line only when the verbs name one: an action word's row, worn gear, a passive spell have none)
+		if (e.secondary or e.secondarySecure) and (shift or not ns.Easy) then
+			items[#items + 1] = { label = Cap(shift or "more"), secondary = true }
+		end
 		-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
 		-- a chat line the game presses (Terminal's code never sends chat)
 		local SH = ns.Share
@@ -109,24 +112,27 @@ do
 			-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
 			-- and opening the menu, then Cancel, mustn't move your waypoint)
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
-			-- (the game opens the box with it: see ChatBoxMacro; not when Shift+Enter, just above, already does that)
-			if shift ~= "link in chat" and shift ~= "put in the chat box" then
+			-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
+			local boxed = { ["link in chat"] = true, ["put in the chat box"] = true }
+			if not boxed[shift or ""] and not boxed[enter or ""] then
 				items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
 			end
 			local channels = SH.MenuChannels()
 			for _, ch in ipairs(channels) do
 				items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
 			end
-			-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll)
-			local group = SH.GroupRows(UI.results)
+			-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll); the
+			-- search finished first if it's still going (all of its results, not its first frame's), else none yet
+			local group = self:FinishSearch(UI.SEND_FINISH_MS) and SH.GroupRows(UI.results) or {}
 			local n = #group
 			if n >= 2 then
 				SH.Prefetch(group, true)
 				for _, ch in ipairs(channels) do
 					if ch.chat then
-						local list, to = UI.results, { chat = ch.chat, label = ch.short }
+						local to = { chat = ch.chat, label = ch.short }
 						items[#items + 1] = { label = "All " .. n .. " to " .. ch.short, run = function()
-							local sent, why = SH.SendAll(list, to, query)
+							if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
+							local sent, why = SH.SendAll(UI.results, to, query)
 							if not sent then ns:Print(why) return end
 							UI:Hide()
 						end }

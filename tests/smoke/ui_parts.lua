@@ -95,6 +95,83 @@ do -- ">>> party": the rows to send are grouped once per list (CollapseGroup), n
 	ns.db.easyMode = wasEasy; UI:EasyChanged()
 end
 
+do -- every result sent while the search still goes on over frames: finished first (all of them go), or, when that would
+	-- take long, nothing sent yet (0.44.16; only its first frame's rows went)
+	local SH = ns.Share
+	local wasEasy = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	local big = {}
+	for i = 1, 3000 do big[i] = { key = i, name = ("Pebble %04d%s"):format(i, i % 150 == 0 and " glint" or "") } end
+	ns:RegisterProvider("bigsend", { label = "Big", aliases = { "bigsend" }, explicit = true, collect = function() return big end })
+	ns:GetEntries(ns.providers.bigsend)
+	local realClock, ms = _G.debugprofilestop, 0
+	_G.debugprofilestop = function() ms = ms + 1; return ms end -- every look at the clock: 1 ms
+	local realSend, got = SH.SendAll, nil
+	SH.SendAll = function(list) got = #SH.GroupRows(list) return got end
+	local budget = UI.SEND_FINISH_MS
+	UI.SEND_FINISH_MS = 1e9
+	UI:Open("@bigsend glint >>> party")
+	local early = #SH.GroupRows(UI.groupList or {})
+	check(UI.searchJob and early < 20, "(the search still going: " .. early .. " so far)")
+	T.key("ENTER")
+	check(got == 20 and not UI:IsShown(), ">>> while the search still goes on: finished first, all 20 go: " .. tostring(got))
+	T.FlushAll()
+	-- the row menu's "All N": counted and sent from the whole search too
+	UI:Open("@bigsend glint")
+	check(UI.searchJob ~= nil, "(the search still going)")
+	UI:ShowRowMenu(1)
+	local menu = _G.TerminalRowMenu
+	local all
+	for _, b in ipairs(menu.lines or {}) do
+		local it = b:IsShown() and b.item
+		if it and (it.label or ""):find("^All ") then all = all or it end
+	end
+	check(all and all.label:find("^All 20 to "), "the menu's All line counts every result: " .. tostring(all and all.label))
+	got = nil
+	if all and all.run then all.run() end
+	check(got == 20, "and sends every one: " .. tostring(got))
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	-- too long to finish now: nothing sent, it says to press again
+	UI.SEND_FINISH_MS = 0
+	got = nil
+	local printed, pr = {}, ns.Print
+	ns.Print = function(_, m) printed[#printed + 1] = m end
+	UI:Open("@bigsend glint >>> party")
+	T.key("ENTER")
+	check(got == nil and printed[1] == UI.STILL_SEARCHING and UI:IsShown(), "too long to finish now: nothing sent, says so: " .. tostring(printed[1]))
+	ns.Print = pr
+	UI:Hide(); T.FlushAll()
+	UI.SEND_FINISH_MS, SH.SendAll, _G.debugprofilestop = budget, realSend, realClock
+	ns.providers.bigsend = nil
+	for i, id in ipairs(ns.providerOrder) do if id == "bigsend" then table.remove(ns.providerOrder, i) break end end
+	ns:AliasesChanged()
+	ns.db.easyMode = wasEasy; UI:EasyChanged()
+end
+
+do -- a click on a wrapped prompt's second line puts the cursor there (0.44.16: GetCursorPosition's y was dropped by an
+	-- `and`, so every click landed on the first line)
+	local mx, my = 0, 0
+	local savedPos = _G.GetCursorPosition
+	_G.GetCursorPosition = function() return mx, my end
+	UI:Open("")
+	UI:SetQuery(("word "):rep(30)) -- (150 letters: wraps)
+	local edit = UI.edit
+	local sv = { left = rawget(edit, "GetLeft"), scale = rawget(edit, "GetEffectiveScale"), center = rawget(edit, "GetCenter") }
+	edit.GetLeft = function() return 100 end
+	edit.GetEffectiveScale = function() return 1 end
+	edit.GetCenter = function() return 300, 500 end
+	local lines = UI:PromptLines()
+	check(#lines >= 2, "(the prompt wraps: " .. #lines .. " lines)")
+	mx, my = 100 + 7 * 3, 500 - UI.layout.LINE_H -- (a line down, three letters in)
+	local H = UI.hit
+	H.scripts.OnMouseDown(H, "LeftButton"); H.scripts.OnMouseUp(H, "LeftButton")
+	check(lines[2] and UI.cursor >= lines[2][1] - 1 and UI.cursor <= lines[2][2], "a click on the second line puts the cursor on it: "
+		.. tostring(UI.cursor) .. " (line 2: " .. tostring(lines[2] and lines[2][1]) .. "-" .. tostring(lines[2] and lines[2][2]) .. ")")
+	rawset(edit, "GetLeft", sv.left); rawset(edit, "GetEffectiveScale", sv.scale); rawset(edit, "GetCenter", sv.center)
+	_G.GetCursorPosition = savedPos
+	UI:Hide(); T.FlushAll()
+end
+
 do -- Share.Prefetch: an item asked for isn't asked again for a minute, and the ids asked long ago aren't all kept
 	local SH = ns.Share
 	local saved = { cached = C_Item.IsItemDataCachedByID, req = C_Item.RequestLoadItemDataByID, time = _G.GetTime }

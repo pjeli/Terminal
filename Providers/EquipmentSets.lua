@@ -53,7 +53,8 @@ local function ListItems(e)
 	for slot = 1, 19 do
 		local itemID = ids[slot]
 		if type(itemID) == "number" and itemID > 0 then
-			local _, link = C_Item.GetItemInfo and C_Item.GetItemInfo(itemID)
+			local link
+			if C_Item.GetItemInfo then link = select(2, C_Item.GetItemInfo(itemID)) end -- (not `x and f()`: one value)
 			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or ("item " .. itemID)
 			local have = C_Item.GetItemCount and C_Item.GetItemCount(itemID, false) or 1
 			local worn = GetInventoryItemID and GetInventoryItemID("player", slot) == itemID

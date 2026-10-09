@@ -113,7 +113,9 @@ function I.SpotRow(t) return setmetatable(t, SPOT_META) end
 function I.NearestSpawn(oids, here)
 	local DB = QDB()
 	if not (DB and DB.QueryObjectSingle) then return nil end
-	local best, bestD, first
+	-- (the nearest and the first kept as their numbers: a vein can have thousands of spawns, one table each was garbage)
+	local bUi, bc, bCont, bX, bY, bestD
+	local fUi, fc, fCont, fX, fY
 	for _, oid in ipairs(oids) do
 		local spawns = Safe(DB.QueryObjectSingle, oid, "spawns")
 		for area, list in pairs(type(spawns) == "table" and spawns or {}) do
@@ -122,20 +124,21 @@ function I.NearestSpawn(oids, here)
 				for _, c in ipairs(list) do
 					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
 						local cont, x, y = SpotXY(ui, c)
-						local spot = { ui = ui, px = c[1], py = c[2], wcont = cont, wx = x, wy = y }
-						first = first or spot
+						if not fUi then fUi, fc, fCont, fX, fY = ui, c, cont, x, y end
 						if here and x and cont == here.cont then
 							local d = math.sqrt((x - here.x) ^ 2 + (y - here.y) ^ 2)
-							if not bestD or d < bestD then best, bestD = spot, d end
+							if not bestD or d < bestD then bUi, bc, bCont, bX, bY, bestD = ui, c, cont, x, y, d end
 						end
 					end
 				end
 			end
 		end
 	end
-	local s = best or first
-	if s then s.zone, s.d = ZoneName(s.ui), best and bestD or nil end
-	return s
+	if bUi then
+		return { ui = bUi, px = bc[1], py = bc[2], wcont = bCont, wx = bX, wy = bY, zone = ZoneName(bUi), d = bestD }
+	end
+	if fUi then return { ui = fUi, px = fc[1], py = fc[2], wcont = fCont, wx = fX, wy = fY, zone = ZoneName(fUi) } end
+	return nil
 end
 
 --- The rows of a kind of object (@mailbox): one per spawn, "Mailbox  Stormwind City", each with its map spot and its

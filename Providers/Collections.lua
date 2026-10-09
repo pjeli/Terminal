@@ -189,7 +189,7 @@ if C_ToyBox and C_ToyBox.GetNumToys and C_ToyBox.GetToyFromIndex and C_ToyBox.Ge
 		activate = NoToy,
 		getLink = ToyLink,
 		secondary = NoJournal,
-		secondarySecure = { macro = ToyJournalMacro },
+		secondarySecure = { macro = ToyJournalMacro, opensWindow = true },
 		secondaryIsOpen = NeverOpen,
 		secondaryAfter = PointAtToy,
 	}, { detail = ToyDetail })
@@ -302,7 +302,7 @@ if C_PetJournal and C_PetJournal.SummonPetByGUID and (C_PetJournal.GetOwnedPetID
 		activate = NoPet,
 		getLink = PetLink,
 		secondary = NoJournal,
-		secondarySecure = { macro = PetJournalMacro },
+		secondarySecure = { macro = PetJournalMacro, opensWindow = true },
 		secondaryIsOpen = NeverOpen,
 		secondaryAfter = PointAtPet,
 	}, { detail = PetDetail })

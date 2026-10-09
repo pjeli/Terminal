@@ -80,17 +80,9 @@ function UI:GroupedRows()
 	return ns.Share.GroupRows(self.groupList or UI.results)
 end
 
---- The next frame's share of the search. Once done, the full results replace the early ones;
---- the selected result stays selected if it's still there.
-function UI:ContinueSearch(job)
-	if self.searchJob ~= job then return end -- typed again, or closed: this search is stale
-	if not self:IsShown() or self.closing or self.armedEntry then self.searchJob = nil return end
-	local final, done = self:StepSearch(job)
-	if not done then
-		C_Timer.After(0, job.step) -- (one closure per search, not one per frame)
-		return
-	end
-	-- the selected row (if you moved it) stays selected, and the list stays where you scrolled it
+-- a search done: its full results replace the early ones; the selected result stays selected if it's still there,
+-- and the list stays where you scrolled it
+local function Completed(self, job, final)
 	local keep = (UI.sel > 1 or UI.offset > 0) and UI.results[UI.sel] or nil
 	local keptRow = UI.sel - UI.offset
 	UI.results = self:CollapseGroup(final)
@@ -108,6 +100,34 @@ function UI:ContinueSearch(job)
 	self:SelectPopTarget(true)
 	self:UpdateBusy()
 	self:Render()
+end
+
+--- The next frame's share of the search. Once done, the full results replace the early ones.
+function UI:ContinueSearch(job)
+	if self.searchJob ~= job then return end -- typed again, or closed: this search is stale
+	if not self:IsShown() or self.closing or self.armedEntry then self.searchJob = nil return end
+	local final, done = self:StepSearch(job)
+	if not done then
+		C_Timer.After(0, job.step) -- (one closure per search, not one per frame)
+		return
+	end
+	Completed(self, job, final)
+end
+
+UI.FINISH_MS, UI.SEND_FINISH_MS = 12, 40
+--- A search still going over frames, finished now if it takes no more than `budget` ms (with none: however long it
+--- takes), its results put up as when it ends by itself: what reads the results (Alt+`, sending every result) then
+--- reads all of them, not the first frame's best. Whether no search is left going (past the budget it goes on as it
+--- was, in the next frames).
+function UI:FinishSearch(budget)
+	local job = self.searchJob
+	if not job then return true end
+	local t0 = debugprofilestop and debugprofilestop()
+	repeat
+		local final, done = self:StepSearch(job)
+		if done then Completed(self, job, final) return true end
+	until budget and t0 and debugprofilestop() - t0 >= budget
+	return false
 end
 
 --- Advanced mode, the last word being typed is "@..." or "key:...": the kinds or the filter's values that fit it, as

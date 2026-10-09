@@ -245,16 +245,6 @@ function UI:ColorGlow()
 	end
 end
 
---- The results of the search on show, finished now if it's still going over frames (what it found, not only its
---- first frame's best).
-function UI:FinishedResults()
-	local job = self.searchJob
-	if not job then return UI.results end
-	local final, done
-	repeat final, done = self:StepSearch(job) until done
-	return final
-end
-
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
 --- syntax (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category
 --- looks in) and the search goes on from there; closed, it opens straight in Advanced. Simple comes back when the
@@ -273,11 +263,14 @@ function UI:AdvancedOnce()
 		return self:Open()
 	end
 	local text = edit:GetText()
+	-- the lists what shows comes from name the @kinds ("use hearthstone": @item, the list the Hearthstone shown is in,
+	-- not every list "use" looks in): a search still going is finished first if that's quick (a category opened for
+	-- you is set only then: read after it); else every list the action or category looks in, as before 0.44.12
+	local done = self:FinishSearch(UI.FINISH_MS)
 	local cat = not self.categoryAuto and self.category or nil -- (a category opened on its own counts too: it's what shows)
-	-- ("use hearthstone": @item, the list the Hearthstone shown is in, not every list "use" looks in)
-	local conv = E.ToAdvanced(text, self.category, E.ShownKinds(self:FinishedResults()))
+	local conv = E.ToAdvanced(text, self.category, done and E.ShownKinds(UI.results) or nil)
 	DropTick(conv) -- (the key's ` still comes as a typed character)
-	E.temp = { from = text, category = cat }
+	E.temp, E.tempSimple = { from = text, category = cat }, nil -- (Simple for a run from fuzzy finding: Advanced now)
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
 	Forget(self, true)

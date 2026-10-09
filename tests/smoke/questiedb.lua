@@ -413,6 +413,33 @@ do
 			check(#r == 2, "not another continent's, not other objects: " .. #r)
 			UI:Hide(); FlushAll()
 		end
+		-- a chain's "gathered from" spot (I.NearestSpawn): the spawn nearest you on your continent, else the first one
+		local here = I.Here()
+		local s1 = I.NearestSpawn({ 142075, 32349 }, here)
+		check(s1 and s1.px == 62.5 and s1.py == 37.0 and s1.d and s1.zone and s1.ui, "the nearest spawn on your continent: "
+			.. tostring(s1 and s1.px) .. "," .. tostring(s1 and s1.py))
+		local s2 = I.NearestSpawn({ 142075 }, here)
+		check(s2 and s2.px == 42.0 and s2.py == 65.0 and s2.d == nil, "none on your continent: the first, with no distance")
+		-- (0.44.16) thousands of spawns (a vein): no table made per spawn
+		local dbWas = QD.DB
+		local real = QD.DB()
+		local many = {}
+		for i = 1, 3000 do many[i] = { 10 + (i % 80), 10 + (i % 70) } end
+		QD.DB = function()
+			return setmetatable({ QueryObjectSingle = function(id, field)
+				if id == 999999 and field == "spawns" then return { [17] = many } end
+				return real.QueryObjectSingle(id, field)
+			end }, { __index = real })
+		end
+		I.NearestSpawn({ 999999 }, here) -- (once first: every map's numbers worked out and kept)
+		collectgarbage("collect")
+		collectgarbage("stop")
+		local kb = collectgarbage("count")
+		local s3 = I.NearestSpawn({ 999999 }, here)
+		kb = collectgarbage("count") - kb
+		collectgarbage("restart")
+		QD.DB = dbWas
+		check(s3 and s3.d and kb < 40, "3000 spawns: the nearest found, " .. string.format("%.0f", kb) .. " KB made (no table per spawn)")
 		-- a place said stays: only Ratchet's mailbox
 		UI:Open("nearest mailbox in ratchet")
 		local rr = UI.Results()

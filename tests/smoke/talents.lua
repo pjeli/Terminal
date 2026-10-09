@@ -100,8 +100,58 @@ do
 	check(shown == "https://www.wowhead.com/forever/spell=52001", "Enter shows the Wowhead page: " .. tostring(shown))
 	-- a rebuild comes from the saved copy: no view loadout again
 	P._dirty = true
-	ns:GetEntries(P)
+	local again, third
+	for _, e in ipairs(ns:GetEntries(P)) do if e.name == "Ice Barrier" then again = e end end
 	check(inits == 3, "rebuilt from the saved copy")
+	P._dirty = true
+	for _, e in ipairs(ns:GetEntries(P)) do if e.name == "Ice Barrier" then third = e end end
+	check(again and third == again, "the same row while it'd come out the same (made once)")
+	check(rawget(ib, "_rank") == TL.OTHER_RANK and ib.nodeID == 2001 and ib.tab == "Frost" and ib.tabIndex == 2
+		and ib.spellID == 52001 and ib.secondary and ib.secondarySecure and ib.kind == "talents"
+		and ib.freqKey == "talents:MAGE:2001", "a row's fields are all there: " .. tostring(ib.freqKey))
+	-- (0.44.16) other classes' rows are compact: ~800 of them were full tables of 20 fields (~1.2 MB all session)
+	local cache = ns.db.talentCache
+	local keepClasses = cache.classes
+	local big = {}
+	for _, file in ipairs({ "MAGE", "PRIEST", "ROGUE" }) do
+		local list = {}
+		for i = 1, 300 do
+			list[i] = { 100000 + i, file .. " Talent " .. i, 60000 + i, i % 3 == 0 and "" or ("Tree" .. i % 3), i % 3, 1 + i % 5 }
+		end
+		big[file] = list
+	end
+	cache.classes = big
+	TL.otherRows = {}
+	P._entries, P._dirty = nil, true
+	collectgarbage("collect")
+	local kb0 = collectgarbage("count")
+	local list = ns:GetEntries(P)
+	collectgarbage("collect")
+	local kb = collectgarbage("count") - kb0
+	local count, most = 0, 0
+	for _, e in ipairs(list) do
+		if e.other then
+			count = count + 1
+			local n = 0
+			for _ in pairs(e) do n = n + 1 end
+			if n > most then most = n end
+		end
+	end
+	check(count == 900 and most <= 7, "other classes' talents are compact rows: " .. count .. ", at most " .. most .. " fields each")
+	check(kb < 700, "900 of them kept in " .. string.format("%.0f", kb) .. " KB")
+	res = UI:Search("@talent talent 1")
+	most = 0
+	for _, e in ipairs(res) do
+		local n = 0
+		for _ in pairs(e) do n = n + 1 end
+		if e.other and n > most then most = n end
+	end
+	check(#res > 0 and most <= 8, "searched: only the score added to them: " .. most)
+	check(res[1] and res[1].detail and res[1].detail:find(" ranks?$"), "their detail worked out when read: "
+		.. tostring(res[1] and res[1].detail))
+	cache.classes = keepClasses
+	TL.otherRows = {}
+	P._dirty = true
 	-- first asked in combat: nothing then, read once combat is over (the list made again)
 	ns.db.talentCache, TL.triedOthers = nil, nil
 	local icl = _G.InCombatLockdown

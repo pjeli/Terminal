@@ -103,7 +103,7 @@ local function OptionMacro(e)
 	if o.id then return ("/run Settings.OpenToCategory(%d)"):format(o.id) end
 	return ("/run Settings.OpenToCategory(%q)"):format(o.name)
 end
-local OPTION_SPEC = { macro = OptionMacro }
+local OPTION_SPEC = { macro = OptionMacro, opensWindow = true }
 local function PointAtOption(e) HighlightSetting(e.name) end
 
 -- the fallback without the secure route (Terminal's own code): open, then point

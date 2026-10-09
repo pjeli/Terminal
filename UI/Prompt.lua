@@ -243,7 +243,8 @@ end
 --- Where the mouse is down from the first line's middle, in the text's own units.
 local function PromptY()
 	local edit = UI.edit
-	local _, cy = GetCursorPosition and GetCursorPosition()
+	local cy
+	if GetCursorPosition then cy = select(2, GetCursorPosition()) end -- (not `x and f()`: that keeps one value, the x)
 	local scale = edit:GetEffectiveScale()
 	local _, mid = edit:GetCenter()
 	if type(cy) ~= "number" or type(mid) ~= "number" or type(scale) ~= "number" or scale == 0 then return 0 end

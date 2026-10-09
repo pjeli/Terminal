@@ -6,7 +6,7 @@ local function AchievementMacro(e)
 	if type(e.key) ~= "number" then return nil end
 	return ("/run if OpenAchievementFrameToAchievement then OpenAchievementFrameToAchievement(%d) else ToggleAchievementFrame() end"):format(e.key)
 end
-local ACH_SECURE = { macro = AchievementMacro, binding = "TOGGLEACHIEVEMENT" }
+local ACH_SECURE = { macro = AchievementMacro, binding = "TOGGLEACHIEVEMENT", opensWindow = true }
 local function OpenAchievement(e) -- (no press possible: say so, nothing opened from here)
 	ns:Print("Couldn't open " .. tostring(e.name) .. " from here: the Achievements key opens the window.")
 end

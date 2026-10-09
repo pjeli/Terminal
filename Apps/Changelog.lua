@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.44.15", when = "in testing",
+		v = "0.44.16", when = "in testing",
 		items = {
 			"Send every result at once: right-click a result (or Shift+Right) and pick \"All 8 to party\" (guild, raid, say...): \"Mats for Thorium Belt (2): 12x [Thorium Bar], 2x [Heart of Fire]\" or a whole dungeon's loot (\"Weapons from Razorfen Kraul (12): ...\"), with item links. Advanced: mats for thorium belt >>> party (the list becomes one row saying how many go where).",
 			"Every class's talents: \"ice barrier\" finds the mage talent even on your warrior (your own class's come first); Enter shows it on Wowhead. Advanced: class:mage.",
@@ -22,8 +22,8 @@ CL.LOG = {
 			"Action words reach more: \"equip <set>\", \"link <recipe, talent or item>\", \"where is <dungeon>\"; Alt+` keeps them (Advanced: do:use, do:cast...) and names only the lists your results come from (\"use hearthstone\" becomes @item do:use hearthstone).",
 			"Simple mode's tips and messages no longer show @ or >>, and both .help texts cover everything; levels, counts, slot names and times are written one way; kind colours and names are clearer.",
 			"The .lootlog command is gone: ask \"what dropped\" (Advanced: @drop) to see the loot log.",
-			"Quicker typing: chains (\"mats for ...\") and Simple mode's categories answer faster key by key, and type:, slot: and is:equippable no longer wait on item data; tidier code throughout.",
-			"Fixes: chains never guess: \"mats for core leather belt\" no longer gives another recipe's mats; with no such name it offers the closest, and when several names fit it asks which. Chains also count bars you just bought, take @kinds (@recipe thorium belt > mats) and names like \"Pattern: Linen Belt\". \"upgrades\" no longer calls any +1 stat better than gear with no stats. Sending every result names everything asked for (\"Swords and axes\"), reaches whispers to first and last names, and never sends twice. A tooltip stuck on \"Retrieving item information\" fills in once the item arrives. The loot log keeps two of the same drop apart. The first Alt+` after a /reload opens in Advanced; .zen off leaves bars other addons hide alone.",
+			"Quicker typing: chains (\"mats for ...\") and Simple mode's categories answer faster key by key, and type:, slot: and is:equippable no longer wait on item data; other classes' talents take a third of the memory; tidier code throughout.",
+			"Fixes: chains never guess: \"mats for core leather belt\" no longer gives another recipe's mats; with no such name it offers the closest, and when several names fit it asks which. Chains also count bars you just bought, take @kinds (@recipe thorium belt > mats) and names like \"Pattern: Linen Belt\". \"upgrades\" no longer calls any +1 stat better than gear with no stats. Sending every result names everything asked for (\"Swords and axes\"), reaches whispers to first and last names, and never sends twice. A tooltip stuck on \"Retrieving item information\" fills in once the item arrives. The loot log keeps two of the same drop apart. The first Alt+` after a /reload opens in Advanced; .zen off leaves bars other addons hide alone. A click on the second line of a long prompt puts the cursor there; Shift+Enter on an equipment set lists its items as links; the mount journal points at the mount in its list.",
 		},
 	},
 	{

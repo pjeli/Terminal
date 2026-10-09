@@ -835,7 +835,10 @@ end
 
 -- never a guess: the names to pick from, or the closest one offered (Enter writes the chain with it)
 local function NoSeedRows(chain, stages, rows, trail)
-	local rest = chain:sub(#stages[1].text + 1):gsub("^%s+", "")
+	-- (the links after the name, made again from the stages: spaces typed twice made an offset into the chain miss)
+	local after = {}
+	for i = 2, #stages do after[#after + 1] = "> " .. stages[i].text end
+	local rest = table.concat(after, " ")
 	local oneRel = #stages == 2 and P.Find(stages[2].word) and (stages[2].rest or "") == "" and P.Find(stages[2].word)
 	if rows.choices then
 		local out = { Line(("%d names have \"%s\": pick one"):format(rows.choices.total, trail[1])) }

@@ -415,3 +415,32 @@ do
 	_G.C_AddOns, _G.UnitName, _G.RegionalUniqueNamesEnabled, _G.Constants = base.addons, base.un, base.reg, base.const
 	ns.providers.addons._dirty = true
 end
+
+-- (0.44.16) the mount journal: the mount pointed at in its list, never at the big display above it naming the mount
+-- selected (it comes first in the journal, and was what got pointed at when that mount was the one looked for)
+io.write("[mount journal pointer]\n")
+do
+	local m = ns:GetEntries(ns.providers.mounts)[1]
+	local shown
+	local origShow = ns.Highlight.Show
+	ns.Highlight.Show = function(self, t, d) shown = t; return origShow(self, t, d) end
+	local function Showing(kind, text)
+		local f = Obj(kind); f.shown = true
+		local fs = Obj("FontString"); fs.shown = true; fs.text = text
+		fs.GetObjectType = function() return "FontString" end
+		f.GetRegions = function() return fs end
+		return f
+	end
+	local display, row = Showing("Frame", m and m.name or "?"), Showing("Button", m and m.name or "?")
+	local list = Obj("Frame"); list.shown = true; list.GetChildren = function() return row end
+	local was = _G.MountJournal
+	_G.MountJournal = Obj("Frame"); MountJournal.shown = true
+	MountJournal.GetChildren = function() return display, list end
+	MountJournal.ScrollBox = list
+	if m then m.secondaryAfter(m) end
+	FlushAll()
+	check(m and shown == row, "the mount pointed at in the journal's list, not the display: "
+		.. (shown == display and "the display" or tostring(shown)))
+	ns.Highlight.Show = origShow
+	_G.MountJournal = was
+end

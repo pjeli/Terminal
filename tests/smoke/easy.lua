@@ -1011,13 +1011,32 @@ Run("Alt+` names the lists the results come from (use hearthstone: @item, not @c
 	local realClock = _G.debugprofilestop
 	local ms = 0
 	_G.debugprofilestop = function() ms = ms + 1; return ms end -- every look at the clock: 1 ms
+	local budget = UI.FINISH_MS
+	UI.FINISH_MS = 1e9 -- (quick enough to finish)
 	UI:Open("use train")
 	local going = UI.searchJob ~= nil
 	alt(function() key("`", "`") end)
 	q = T.query()
 	FlushAll()
-	_G.debugprofilestop = realClock
 	check(going and q == "@item @toy do:use train ", "a search still going: finished first, then named (" .. tostring(going) .. "): " .. q)
+	UI:Hide(); FlushAll()
+	-- the same with a category Simple mode opens for you: it's set only once the overview is done (read after it)
+	UI:Open("swift")
+	going = UI.searchJob ~= nil
+	alt(function() key("`", "`") end)
+	q = T.query()
+	FlushAll()
+	check(going and q == "@mount swift ", "a category opened for you while the search still went on: named: " .. q)
+	UI:Hide(); FlushAll()
+	-- too long to finish at once (the budget spent): not a frame-long hitch, every list the action looks in instead
+	UI.FINISH_MS = 0
+	UI:Open("use train")
+	alt(function() key("`", "`") end)
+	q = T.query()
+	FlushAll()
+	_G.debugprofilestop = realClock
+	UI.FINISH_MS = budget
+	check(q == "@camp @item @toy do:use train ", "a search too long to finish now: every list the action looks in: " .. q)
 end)
 
 Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Simple, Shift+Enter to Advanced", function()
@@ -1186,8 +1205,13 @@ Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Sim
 	check(UI.fzf and T.query() == "hogger ", "syntax dropped going in: " .. T.query())
 	key("ENTER")
 	check(E.On() and E.tempSimple and T.query() == "Hogger ", "Advanced player, Enter: Simple this run: " .. T.query())
+	-- Alt+` then (0.44.16): Advanced for this run (it stayed Simple, refusing what it had just written)
+	_G.IsAltKeyDown = function() return true end; key("`", "`"); _G.IsAltKeyDown = function() return false end
+	local top = UI.Results()[1]
+	check(not E.On() and not E.tempSimple and T.query():lower():find("hogger", 1, true) and top ~= E.ADVANCED_ROW,
+		"handed over to Simple, then Alt+`: Advanced this run: " .. T.query() .. " / " .. tostring(top and top.name))
 	UI:Hide(); FlushAll()
-	check(not E.On() and not E.tempSimple, "closed: Advanced again")
+	check(not E.On() and not E.tempSimple and not E.temp, "closed: Advanced again")
 	check(UI.FuzzyPlain(".help") == "" and UI.FuzzyPlain("sword|axe -boe rare sort:nearest") == "rare ", "plain words kept: " .. UI.FuzzyPlain("sword|axe -boe rare sort:nearest"))
 end)
 

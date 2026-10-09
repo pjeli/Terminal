@@ -13,10 +13,12 @@ local function MountJournalMacro(e)
 	local C = ns.Collections
 	return C and C.JournalMacro(MOUNTS_TAB, "MountJournal and MountJournal.searchBox", e.name) or nil
 end
-local function MountRoot() return _G.MountJournal end
+-- (its list, as with pets: the journal's big display above it names the mount selected, and pointed at that one when
+-- it was the mount looked for; ListScrollFrame on older clients)
+local function MountRoot() local M = _G.MountJournal; return M and (M.ScrollBox or M.ListScrollFrame or M) end
 local function PointAtMount(e) local C = ns.Collections if C then C.PointIn(MountRoot, e.name) end end
 local function NoJournal(e) local C = ns.Collections if C then C.NoJournal(e) end end -- (combat: nothing opened)
-local MOUNT_JOURNAL = { macro = MountJournalMacro }
+local MOUNT_JOURNAL = { macro = MountJournalMacro, opensWindow = true }
 
 -- Mounts (collected only). Enter = summon, Shift+Enter = show in journal.
 ----------------------------------------------------------------------

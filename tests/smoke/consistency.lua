@@ -80,6 +80,23 @@ do
 	check(not dup and not both and labels[2] == "Put in the chat box", "gold: the chat box once: " .. table.concat(labels, ", "))
 	labels = Labels(ns.Social.WhoAskRow("@who orc"))
 	check(#labels == 2 and labels[1] == "Ask the server", "@who's ask row: no chat lines (it isn't a result): " .. table.concat(labels, ", "))
+	-- (0.44.16) a row whose Shift+Enter the verbs say is none gets no second line; Enter's verb a link in chat: not twice
+	local hearth = { kind = "items", name = "Hearthstone", itemID = 6948, link = "item:6948", secondary = function() end,
+		secondarySecure = { macro = function() return "/use item:6948" end } }
+	local use = E.ActionView(hearth, E.ACTIONS.use)
+	labels, dup = Labels(use)
+	local more = false
+	for _, l in ipairs(labels) do if l == "More" then more = true end end
+	check(not dup and labels[1] == "Use" and not more, "use hearthstone: Use once, no second line doing the same: " .. table.concat(labels, ", "))
+	labels, dup = Labels(E.ActionView(hearth, E.ACTIONS.link))
+	check(not dup and labels[1] == "Link in chat", "link hearthstone: Link in chat once: " .. table.concat(labels, ", "))
+	for _, row in ipairs({ { kind = "gear", name = "Sword", itemID = 3, slotId = 16, secondary = function() end },
+		{ kind = "spells", name = "Dual Wield", passive = true, secondary = function() end } }) do
+		labels = Labels(row)
+		more = false
+		for _, l in ipairs(labels) do if l == "More" then more = true end end
+		check(not more and #labels > 1, row.kind .. " with no Shift+Enter (worn, passive): no \"More\" line: " .. table.concat(labels, ", "))
+	end
 	UI:Hide(); FlushAll()
 end
 
@@ -255,6 +272,20 @@ do
 	end
 	UI:Hide(); FlushAll()
 	check(not UI.HoldFor({ isOpen = function() return false end }, true), "a window's press (it has its own isOpen): closes as before")
+	-- (0.44.16) always pressed, but it opens a window (the achievement window, a journal, an options page): closes too
+	local ach = ns:GetEntries(ns.providers.achievements)[1]
+	check(ach and not UI.HoldFor(UI.SecureView(ach, false), true), "an achievement with Ctrl: its window's press closes the terminal")
+	local mount = ns:GetEntries(ns.providers.mounts)[1]
+	check(mount and not UI.HoldFor(UI.SecureView(mount, true), true), "a mount's journal with Ctrl: closes too")
+	local slash
+	for _, e in ipairs(ns:GetEntries(ns.providers.slash)) do if e.secure and not e.emote then slash = e break end end
+	check(slash and UI.HoldFor(UI.SecureView(slash, false), true), "a slash command with Ctrl: held open still")
+	UI:Open("@achievement " .. (ach and ach.name or "?")); FlushAll()
+	check(UI.Results()[1] and ach and UI.Results()[1].name == ach.name, "(the achievement found)")
+	UI:Activate(nil, { keepOpen = true })
+	UI:FinishSecure()
+	check(not UI:IsShown(), "Ctrl+Enter on an achievement: closed once the game pressed it")
+	UI:Hide(); FlushAll()
 	ns.db.easyMode = was
 end
 

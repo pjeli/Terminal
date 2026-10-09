@@ -143,7 +143,7 @@ local function AddonMacro(e)
 	return ADDONLIST_MACRO
 end
 local function OptionsMacro(e) return CategoryMacro(e.opt) end
-local ADDON_SPEC, OPTIONS_SPEC = { macro = AddonMacro }, { macro = OptionsMacro }
+local ADDON_SPEC, OPTIONS_SPEC = { macro = AddonMacro, opensWindow = true }, { macro = OptionsMacro, opensWindow = true }
 local NeverOpen = ns.Never -- (always pressed: the window may show another page)
 local function Opened(e) ns:Trace("addons: the game opened the window for " .. tostring(e.name)) end
 

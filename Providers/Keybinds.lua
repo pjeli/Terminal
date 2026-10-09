@@ -40,8 +40,8 @@ K.QUICK_MACRO = "/run if SettingsPanel and SettingsPanel:IsShown() then HideUIPa
 
 local function OpenMacro(e) return K.MacroFor(e and e.search) end
 local function QuickMacro() return K.QUICK_MACRO end
-local OPEN_SPEC = { macro = OpenMacro }
-local QUICK_SPEC = { macro = QuickMacro }
+local OPEN_SPEC = { macro = OpenMacro, opensWindow = true }
+local QUICK_SPEC = { macro = QuickMacro, opensWindow = true }
 
 --- Options > Keybindings is the page showing (then only the row is pointed at).
 local function PageOpen()

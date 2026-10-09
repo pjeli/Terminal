@@ -3186,10 +3186,14 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	local out = {}
 	local baseOut = ns.Output
 	ns.Output = function(_, lines) for _, l in ipairs(lines) do out[#out + 1] = l end end
+	local saveInfo = C_Item.GetItemInfo
+	C_Item.GetItemInfo = function(id) return "Item " .. id, "|Hitem:" .. id .. "|h[Item " .. id .. "]|h" end
 	es["Tank Gear"].secondary(es["Tank Gear"])
+	C_Item.GetItemInfo = saveInfo
 	ns.Output = baseOut
 	local joined = table.concat(out, "\n")
 	check(out[1] == "Tank Gear:" and joined:find("Head:", 1, true) and joined:find("Main Hand:.-%(missing%)"), "without a character key, Shift+Enter lists the items, marking missing ones: " .. joined)
+	check(joined:find("Head: |Hitem:501|h", 1, true), "the items as links (0.44.16: the link was dropped by an `and`): " .. joined)
 	-- Shift+Enter: the game itself presses the character micro button, the right-pane arrow
 	-- (only when that pane is closed) and the Equipment Manager tab, as one macro; Terminal then
 	-- only points at the set. (Clicking those from Terminal's code tainted the window.)

@@ -214,9 +214,9 @@ local PANELS = {
 		{ buttons = { "LegacyMicroButton" } }, PanelOpen, "LegacySystemFrame", needs = "LegacyMicroButton", nameFrom = "LegacyMicroButton" },
 	-- its tabs (LegacyChallengeTab, LegacyTreeTab): the game opens the window if it's closed, then the tab
 	{ "Legacy Challenges", "legacy challenges challenge", LegacyTabFallback, "LegacyMicroButton",
-		{ macro = LegacyTabMacro }, Never, needs = "LegacyMicroButton", tab = "LegacyChallengeTab" },
+		{ macro = LegacyTabMacro, opensWindow = true }, Never, needs = "LegacyMicroButton", tab = "LegacyChallengeTab" },
 	{ "Legacy Tree", "legacy tree talents", LegacyTabFallback, "LegacyMicroButton",
-		{ macro = LegacyTabMacro }, Never, needs = "LegacyMicroButton", tab = "LegacyTreeTab" },
+		{ macro = LegacyTabMacro, opensWindow = true }, Never, needs = "LegacyMicroButton", tab = "LegacyTreeTab" },
 	{ "Guild Roster", "guild roster members communities", TabFallback, "GuildMicroButton",
 		{ macro = CommunitiesTabMacro }, CommunitiesTabOpen, tab = "CommunitiesFrame.RosterTab", mode = "ROSTER" },
 	{ "Guild Info", "guild info information news message", TabFallback, "GuildMicroButton",
@@ -229,9 +229,9 @@ local PANELS = {
 		{ macro = SideTabMacro }, SideTabOpen, tab = "PaperDollSideBarTab3", side = 3 },
 	-- the Group Finder's pages (BrowsingTab, WhoListingTab): the game opens the window if it's closed, then the tab
 	{ "Group Browser", "group browser browse groups lfg premade dungeon finder", TabFallback, "LFDMicroButton",
-		{ macro = GroupFinderTabMacro }, Never, needs = "LFDMicroButton", tab = "BrowsingTab" },
+		{ macro = GroupFinderTabMacro, opensWindow = true }, Never, needs = "LFDMicroButton", tab = "BrowsingTab" },
 	{ "Who Listing", "who listing list lfg looking for group dungeon finder", TabFallback, "LFDMicroButton",
-		{ macro = GroupFinderTabMacro }, Never, needs = "LFDMicroButton", tab = "WhoListingTab" },
+		{ macro = GroupFinderTabMacro, opensWindow = true }, Never, needs = "LFDMicroButton", tab = "WhoListingTab" },
 	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
 }
 

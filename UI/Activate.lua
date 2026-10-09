@@ -31,9 +31,12 @@ end
 --- whose after-step runs (a Shift+click: the secondary's).
 --- Ctrl+Enter keeps the terminal open, for a press the game makes too when it opens no window (a use, a cast, a toy,
 --- an emote, a chat line: nothing has to be open first, its isOpen is ns.Never or none); a window's press closes it
---- as before (a window it opens would close it anyway: it's in UISpecialFrames).
+--- as before (a window it opens would close it anyway: it's in UISpecialFrames). A press that's always made though
+--- it opens a window (the achievement window, a journal, an options page: isOpen ns.Never too) says so in its spec
+--- (`opensWindow`): it closes as every window's press does.
 local function HoldFor(se, ctrl)
 	if not (ctrl and se) then return nil end
+	if type(se.secure) == "table" and se.secure.opensWindow then return nil end
 	local o = se.isOpen
 	return (not o or o == ns.Never) or nil
 end
@@ -337,9 +340,12 @@ local function NoChannel(to, arrows)
 		or ("Say where to send " .. them .. ": " .. arrows .. " party, guild, raid, say, yell, officer, instance, whisper <name>"))
 end
 
---- ">>> channel": every result at once, sent by Terminal inside this press (Share.SendAll).
+UI.STILL_SEARCHING = "Still searching: press it again in a moment, to send every result."
+--- ">>> channel": every result at once, sent by Terminal inside this press (Share.SendAll); a search still going is
+--- finished first (else only its first frame's rows would go), or, when that would take long, nothing is sent yet.
 local function SendEveryResult(self, to)
 	if not to.cmd then return NoChannel(to, ">>>") end
+	if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
 	local n, why = ns.Share.SendAll(self.groupList or UI.results, to, to.query)
 	if not n then ns:Print(why) return end
 	ns:RecordHistory(UI.edit:GetText())
