@@ -59,7 +59,7 @@ E.CATEGORIES = {
 	{ id = "spells", label = "Spells", kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = "Crafting", kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = "NPCs", kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
-	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
+	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid", "flight" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "lootlog", label = "Loot log", kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
 	{ id = "combat", label = "Combat log", kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
@@ -164,6 +164,11 @@ E.WORDS = {
 	battlemaster = "is:battlemaster", battlemasters = "is:battlemaster",
 	["pvp vendor"] = "is:pvpvendor", ["pvp vendors"] = "is:pvpvendor", ["honor vendor"] = "is:pvpvendor",
 	["honor vendors"] = "is:pvpvendor", ["pvp quartermaster"] = "is:pvpvendor", pvp = "is:pvp",
+	-- flight paths, and whether you know them ("unlearned flight paths", "nearest unlearned flight master": Flights.lua)
+	["flight path"] = "is:flightpath", ["flight paths"] = "is:flightpath", flightpath = "is:flightpath",
+	flightpaths = "is:flightpath", ["flight point"] = "is:flightpath", ["flight points"] = "is:flightpath", taxi = "is:flightpath",
+	unlearned = "is:unlearned", missing = "is:unlearned", undiscovered = "is:unlearned", unknown = "is:unlearned",
+	learned = "is:learned", known = "is:learned", discovered = "is:learned",
 }
 
 -- everyday words that are strict filters, never relaxed away when nothing passes ("helm upgrades" lists no helmet you
@@ -271,7 +276,7 @@ E.VERBS = {
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { "show on map", "target" },
-	maps = PLACE, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE,
+	maps = PLACE, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
 	guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = WhoVerbs,
 	questie = { "Wowhead link", "show in game" },
 	quests = { "show in quest log", "track" },
@@ -334,7 +339,7 @@ E.ACTIONS = {
 		lootlog = "s", loot = "s", items = "l", spells = "l", quests = "l" } },
 	["do"] = { label = "Do", map = { slash = "p" }, keep = IsEmote },
 	where = { label = "Where is", map = { npc = "p", maps = "p", quests = "p", questie = "s", dungeon = "p", raid = "p",
-		mailbox = "p" } },
+		mailbox = "p", flight = "p" } },
 	nearest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	closest = { label = "Nearest", map = { npc = "p" }, nearest = true },
 	nearby = { label = "Nearest", map = { npc = "p" }, nearest = true },
@@ -424,6 +429,8 @@ end
 -- a word's pieces that are everyday words as their filters ("-boe" -> -is:boe, "sword|axe" -> type:sword|type:axe,
 -- rare&sword -> q:rare&type:sword; plain pieces stay words: "-cloth")
 local function PieceFilter(neg, a) return neg .. (E.WORDS[a] or a) end
+-- what @flight already says (Alt+`: "nearest unlearned flight master" -> "@flight is:unlearned sort:nearest")
+local FLIGHT_SAID = { ["is:flight"] = true, ["is:flightmaster"] = true, ["is:flightpath"] = true }
 local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) end
 
 --- A Simple search as Advanced mode would type it: the lists the action word or the picked category looks in as @kinds
@@ -502,6 +509,7 @@ function E.ToAdvanced(text, category, shown)
 	end
 	local role
 	local others = 0
+	local everyday = {} -- (the everyday words said: "nearest unlearned flight master" is the flight paths')
 	for _, w in ipairs(lower) do if not E.STOP[w] then others = others + 1 end end
 	for _, w in ipairs(lower) do
 		if E.IsAdvancedWord(w) then
@@ -510,6 +518,7 @@ function E.ToAdvanced(text, category, shown)
 			Add(filters, AdvancedPart(w))
 		elseif E.WORDS[w] then
 			Add(filters, E.WORDS[w])
+			everyday[#everyday + 1] = w
 			if E.ROLE_WORDS[w] then role = true end
 		elseif not (E.STOP[w] and others > 0) then
 			plain[#plain + 1] = w
@@ -519,6 +528,16 @@ function E.ToAdvanced(text, category, shown)
 	local okind = nearest and ns.Integrations and ns.Integrations.ObjectKind and ns.Integrations.ObjectKind(plain)
 	if okind and ns.providers[okind] then
 		return "@" .. okind .. " " .. (#filters > 0 and (table.concat(filters, " ") .. " ") or "") .. "sort:nearest "
+	end
+	-- "nearest unlearned flight master", "closest flight path": the flight paths' own list (Flights.lua), not NPCs; the
+	-- words that only say flight path or flight master go (@flight says it), a name or a place stays
+	local flight = nearest and I and I.FlightAsked and ns.providers.flight and I.FlightAsked(plain, everyday, not ns.providers.npc)
+	if flight then
+		local out = { KindWord("flight") }
+		for _, w in ipairs(flight) do out[#out + 1] = w end
+		for _, f in ipairs(filters) do if not FLIGHT_SAID[f] then out[#out + 1] = f end end
+		out[#out + 1] = "sort:nearest"
+		return table.concat(out, " ") .. " "
 	end
 	if nearest then Add(kinds, "@npc") end
 	-- an NPC's role (trainer, vendor, innkeeper...) means one you can use: friendly to you, as Simple mode's place
@@ -708,6 +727,7 @@ function E.HelpLines()
 		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do: \"All 8 to party\" sends every result at once.",
 		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
 		"Ask where to go: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (or \"zones for level 35\").",
+		"Flight paths you haven't learned: \"nearest unlearned flight master\", \"unlearned flight paths\" (a flight master's map tells Terminal which you know).",
 		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",
 		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
 		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",

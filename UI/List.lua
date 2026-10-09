@@ -96,6 +96,8 @@ do
 			text = Append(text, HINT .. "sort:nearest: your position isn't known here|r")
 			near = true
 		end
+		-- (flight paths listed on a continent no flight master's map has been read on: Search.lua's Scan.FlightNote)
+		if self.flightNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.flightNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, "loading...") end
 		local once = ns.Easy and ns.Easy.temp
 		if self.fzf then

@@ -205,7 +205,8 @@ do
 	ns.db.easyMode = true
 	local simple = table.concat(ns:FindCommand("help").run("") or {}, " ")
 	ns.db.easyMode = was
-	for _, w in ipairs({ "mats for thorium belt", "where should i level", "what killed me", "Tab+`", "right-click", "Ctrl+click", "Ctrl+Enter" }) do
+	for _, w in ipairs({ "mats for thorium belt", "where should i level", "what killed me", "Tab+`", "right-click", "Ctrl+click", "Ctrl+Enter",
+		"nearest unlearned flight master" }) do
 		local lw = w:lower()
 		check(adv:lower():find(lw, 1, true) and simple:lower():find(lw, 1, true), "both helps say \"" .. w .. "\"")
 	end

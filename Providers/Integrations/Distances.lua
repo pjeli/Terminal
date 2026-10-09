@@ -201,3 +201,4 @@ end
 I._.Spot = Spot
 -- (Places.lua's ResetPlacesForTests: the map transforms and NPC spots are forgotten with the places)
 I._.ResetDistances = function() xforms, npcSpots, npcSpotCount = {}, {}, 0 end
+I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own maps)

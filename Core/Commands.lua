@@ -22,6 +22,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = "Every result at once with  >>>  :  mats for thorium belt >>> party   @loot lorgus jett >>> guild"
 		lines[#lines + 1] = "Chains: thorium belt > mats, copper bar > uses, thorium bar > sources (.chains); plain words work too: mats for thorium belt"
 		lines[#lines + 1] = "Ask in plain words: where should i level, what dungeon should i do, where should i fish, what killed me, what dropped"
+		lines[#lines + 1] = "Flight paths you haven't learned: @flight is:unlearned sort:nearest (in plain words: nearest unlearned flight master); a flight master's map tells Terminal which you know"
 		lines[#lines + 1] = "do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"
 		lines[#lines + 1] = "Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on; right-click a result for everything it can do"
 		lines[#lines + 1] = "Tab+` (hold Tab, press `) is pure fuzzy finding over every list, by name; Ctrl+click a link in chat to look it up here"

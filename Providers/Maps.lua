@@ -3,7 +3,8 @@ local ns = select(2, ...)
 -- World map places: continents and zones (cities are zones). Enter opens the world map on
 -- that place; Shift+Enter moves an existing map pin there without opening anything.
 -- Nothing below zone level: points of interest, flight points and dungeon maps didn't load
--- reliably on this client (flight point addons do that job better), so they're left out.
+-- reliably on this client, so they're left out (flight paths and instance entrances have lists
+-- of their own, from known spots: Integrations/Flights.lua, Integrations/Entrances.lua).
 --
 -- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): it opens the
 -- map if it's closed, as the map key does, and switches it to the place. Terminal never

@@ -12,6 +12,9 @@ local EASY_NONE = "Nothing has that. Check the spelling, or try other words."
 local EASY_NO_NPCS = "\"nearest\" needs Questie (or QuestieDB): it knows where NPCs stand."
 local EASY_NOWHERE = "Can't tell where you are here (in a dungeon?)."
 local EASY_NONE_NEAR = "None of those on this continent that Questie knows of."
+local EASY_NO_FLIGHTS = "No flight path like that on this continent."
+local EASY_ALL_FLIGHTS = "You know every flight path on this continent."
+local EASY_FLIGHTS_UNCHECKED = "Terminal doesn't know your flight paths here yet: open any flight master's map on this continent."
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
 local QUESTION_MARK = 134400 -- (an icon for rows without one)
 -- scoring and sorting (Score.lua), as locals: they run for every row
@@ -398,18 +401,44 @@ function Scan.FillShorthand(tokens)
 	end
 end
 
---- Simple mode's "nearest ...": a game object asked for ("nearest mailbox": QuestieDB's objects) gives its rows at
---- once; else where you are, for the NPCs that match. Returns the rows to list now (rows, or a line saying why
---- not), or nil, your position and the faction filter to add ("nearest repair": someone who'll serve you, so only
---- NPCs friendly to your faction; "nearest hogger": a name, anyone).
+--- Simple mode's "nearest ...": a game object asked for ("nearest mailbox": QuestieDB's objects; an entrance) or flight
+--- paths ("nearest unlearned flight master": Flights.lua) give their rows at once; else where you are, for the NPCs that
+--- match. Returns the rows to list now (rows, or a line saying why not), or nil, your position and the faction filter to
+--- add ("nearest repair": someone who'll serve you, so only NPCs friendly to your faction; "nearest hogger": a name,
+--- anyone).
 function Scan.NearestStart(tokens, filters, softWords)
 	local I = ns.Integrations
 	local okind = I and I.ObjectKind and I.ObjectKind(tokens)
+	-- (the flight paths' words left to be in their names or zones, and "unlearned"/"learned" when said)
+	local rest, state
+	if not okind and I and I.FlightAsked and ns.providers.flight then
+		rest, state = I.FlightAsked(tokens, softWords, not ns.providers.npc)
+		if rest then okind = "flight" end
+	end
 	if okind then
 		local spot = I.Here()
 		if not spot then return PseudoEntries({ EASY_NOWHERE }) end
-		local rows = I.NearestObjectRows(okind, spot, filters and function(e) return ns.Filters.Pass(e, filters) end)
-		if rows and #rows > 0 then return rows end
+		local keep
+		if filters or (rest and #rest > 0) then
+			keep = function(e)
+				if filters and not ns.Filters.Pass(e, filters) then return false end
+				for k = 1, rest and #rest or 0 do if not ns.Filters.RowHas(e, rest[k]) then return false end end
+				return true
+			end
+		end
+		local rows = I.NearestObjectRows(okind, spot, keep)
+		local unchecked = okind == "flight" and I.Flights and not I.Flights.Checked(spot.cont)
+		if rows and #rows > 0 then
+			if unchecked then UI.flightNote = I.Flights.UNCHECKED_NOTE end -- (the footer: each row says "not checked yet")
+			return rows
+		end
+		if rows and okind == "flight" then
+			-- no flight master's map read on this continent yet: nothing to say of what you know here (the footer says
+			-- so when there are rows); else, nothing narrowed it but the everyday words: every one here is known
+			if unchecked then return PseudoEntries({ EASY_FLIGHTS_UNCHECKED }) end
+			local only = #rest == 0 and (filters and #filters or 0) == (softWords and #softWords or 0)
+			return PseudoEntries({ (state == "unlearned" and only) and EASY_ALL_FLIGHTS or EASY_NO_FLIGHTS })
+		end
 		if rows then return PseudoEntries({ EASY_NONE }) end
 	end
 	if not ns.providers.npc then return PseudoEntries({ EASY_NO_NPCS }) end
@@ -421,9 +450,10 @@ function Scan.NearestStart(tokens, filters, softWords)
 end
 
 --- A row with a distance, as a view saying how far and what it is ("120 yd  Mining Trainer", a spot row its zone:
---- "120 yd  The Barrens"; `nearRest`, which the arrow's live text keeps), scored closest first.
+--- "120 yd  The Barrens", or what it says after a distance: `distNote`; `nearRest`, which the arrow's live text keeps),
+--- scored closest first.
 local function NearView(e, d)
-	local rest = (rawget(e, "wcont") and e.zone) or e.sub
+	local rest = rawget(e, "distNote") or (rawget(e, "wcont") and e.zone) or e.sub
 	return setmetatable({ detail = ("%.0f yd"):format(d) .. (rest and ("  " .. rest) or ""), _score = 1e6 - d, _dist = d,
 		nearRest = rest }, { __index = e })
 end
@@ -578,6 +608,7 @@ function Scan.ResetFlags(self)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
+	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
@@ -594,8 +625,26 @@ function Scan.Answer(self, text)
 	end
 end
 
+--- Flight paths among the rows while no flight master's map has been read on your continent: the footer says so (what
+--- they say of themselves there is "not checked yet"). Only for searches of the flight paths' list (@flight, Simple
+--- mode's Places), and compact rows (never flight paths) aren't read: a row's kind goes through their __index.
+function Scan.FlightNote(res)
+	local I = ns.Integrations
+	local FL = I and I.Flights
+	if not FL then return end
+	for i = 1, #res do
+		local e = res[i]
+		if not rawget(e, "_compact") and e.kind == "flight" then
+			local here = I.Here()
+			if here and not FL.Checked(here.cont) then UI.flightNote = FL.UNCHECKED_NOTE end
+			return
+		end
+	end
+end
+
 --- The rows a search ends with (q.kinds and q.blocked as they are by then).
 function Scan.Finish(q, res)
+	if q.kinds and q.kinds.flight then Scan.FlightNote(res) end
 	-- a list that asks the server first (@who): its own row on top
 	local kinds = q.kinds
 	if kinds then

@@ -181,7 +181,7 @@ function I.SpotPinLink(e)
 end
 
 --- "nearest mailbox" (Simple mode): the nearest rows of that kind's list (those `keep` keeps: a place said), closest
---- first, "N yd  Zone".
+--- first, "N yd  Zone" (or what the row says after a distance, `distNote`: a flight path not checked yet says so).
 --- nil when there's no such list; an empty list when none is on your continent.
 function I.NearestObjectRows(kind, here, keep)
 	local p = ns.providers[kind]
@@ -195,8 +195,9 @@ function I.NearestObjectRows(kind, here, keep)
 	local rows = {}
 	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
 		local f = found[i]
-		rows[i] = setmetatable({ detail = ("%.0f yd"):format(f.d) .. (f.e.zone and ("  " .. f.e.zone) or ""),
-			_score = 1e6 - f.d, _dist = f.d, nearRest = f.e.zone }, { __index = f.e })
+		local rest = rawget(f.e, "distNote") or f.e.zone
+		rows[i] = setmetatable({ detail = ("%.0f yd"):format(f.d) .. (rest and ("  " .. rest) or ""),
+			_score = 1e6 - f.d, _dist = f.d, nearRest = rest }, { __index = f.e })
 	end
 	return rows
 end

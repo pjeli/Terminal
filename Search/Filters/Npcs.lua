@@ -348,7 +348,8 @@ KEYS.trainer = function(v)
 	end
 end
 
--- faction: who a Questie NPC is friendly to ("A", "H" or "AH"; most monsters have nothing)
+-- faction: who a Questie NPC is friendly to ("A", "H" or "AH"; most monsters have nothing); a flight path, whose
+-- flight master it is (Flights.lua: "AH" for a neutral one)
 local FACTION = { horde = { H = true, AH = true }, h = { H = true, AH = true },
 	alliance = { A = true, AH = true }, a = { A = true, AH = true },
 	neutral = { AH = true }, both = { AH = true } }
@@ -357,8 +358,10 @@ KEYS.faction = function(v)
 	local mine = v == "friendly" or v == "mine" or v == "me"
 	if not (want or mine) then return nil end
 	return function(e)
-		if not NpcID(e) then return false end
-		local f = NpcField(e, "friendlyToFaction")
+		local f
+		if NpcID(e) then f = NpcField(e, "friendlyToFaction")
+		elseif e.kind == "flight" then f = e.friendlyToFaction
+		else return false end
 		if type(f) ~= "string" then return false end
 		local w = want
 		if mine then
@@ -419,5 +422,16 @@ local ROLES = { vendor = "VENDOR", trainer = "TRAINER", flightmaster = "FLIGHT_M
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",
 	auctioneer = "AUCTIONEER", questgiver = "QUEST_GIVER", stablemaster = "STABLEMASTER" }
 for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag) end end
+-- a flight path's row stands for its flight master (Flights.lua: "nearest unlearned flight master" lists them)
+local function FlightMaster(e) return e.kind == "flight" or NpcRole(e, "FLIGHT_MASTER") end
+IS.flight, IS.flightmaster = FlightMaster, FlightMaster
+-- flight paths: learned or not, as a flight master's map (or the world map's data) said; one not checked yet counts as
+-- not learned (it may be)
+IS.flightpath = function(e) return e.kind == "flight" end
+IS.learned = function(e) return e.kind == "flight" and e.learned == true end
+IS.unlearned = function(e) return e.kind == "flight" and e.learned ~= true end
+IS.flightpaths, IS.taxi = IS.flightpath, IS.flightpath
+IS.known, IS.discovered = IS.learned, IS.learned
+IS.missing, IS.undiscovered, IS.unknown = IS.unlearned, IS.unlearned, IS.unlearned
 IS.professiontrainer = IS.proftrainer
 IS.battlemasters, IS.honorvendor, IS.pvpvendors = IS.battlemaster, IS.pvpvendor, IS.pvpvendor
