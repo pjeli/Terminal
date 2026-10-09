@@ -481,7 +481,10 @@ do
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
 		if self.action and EasyOn() and self.mode == "search" then cat = { label = self.action.label } end
 		if self.answerNote and self.mode == "search" then cat = { label = self.answerNote } end
-		if self.pipeTrail and self.mode == "search" then cat = { label = self.pipeTrail } end
+		if self.pipeTrail and self.mode == "search" then
+			-- (Simple mode says it in words: "Mats for core leather belt", never a ">" chain)
+			cat = { label = EasyOn() and ns.Pipes and ns.Pipes.SimpleLabel(self.pipeTrail) or self.pipeTrail }
+		end
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
 		if to and self.mode == "search" then

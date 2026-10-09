@@ -95,6 +95,27 @@ do
 	-- one name (the recipe, and maybe its item): its mats; an apostrophe left out still finds it
 	rows = P.Search("agamaggans > mats")
 	check(#rows == 1 and rows[1].need == 3, "one name, apostrophe left out: its mats: " .. tostring(rows[1] and rows[1].name))
+	-- Simple mode never shows ">": what Enter writes and the footer are in its own words
+	local easyWas = ns.db.easyMode
+	ns.db.easyMode = true; UI:EasyChanged()
+	rows = P.Search("core leather belt > mats")
+	check(rows[2] and rows[2].completion == "mats for Comfortable Leather Hat", "Simple: Did you mean writes words: " .. tostring(rows[2] and rows[2].completion))
+	rows = P.Search("thorium > mats")
+	check(rows[2] and rows[2].completion and rows[2].completion:find("^mats for Thorium Belt"), "Simple: the names to pick write words: " .. tostring(rows[2] and rows[2].completion))
+	rows = P.Search("thorium belt > mats")
+	local walker
+	for _, r in ipairs(rows) do if r.itemID == 12359 then walker = r end end
+	if walker then walker.activate(walker) end
+	check(T.query() == "where to get Thorium Bar", "Simple: Enter on a reagent writes words: " .. tostring(T.query()))
+	check(P.SimpleLabel("thorium belt > mats") == "Mats for thorium belt" and P.SimpleLabel("copper bar > used in") == "What uses copper bar"
+		and P.SimpleLabel("a > mats > b > sources") == "a > mats > b > sources", "Simple: the footer's trail in words")
+	UI:Open("mats for thorium belt"); T.FlushAll()
+	local foot = UI.status and UI.status:GetText() or ""
+	check(foot:find("Mats for thorium belt", 1, true) and not foot:find(">", 1, true), "Simple footer: no >: " .. foot)
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = easyWas; UI:EasyChanged()
+	rows = P.Search("core leather belt > mats")
+	check(rows[2] and rows[2].completion == "Comfortable Leather Hat > mats", "Advanced keeps the chain")
 	-- a name still being typed isn't looked up yet
 	rows = P.Search("t > sources")
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("Keep typing", 1, true), "under 3 letters: keep typing")

@@ -95,6 +95,29 @@ P.PHRASES = {
 	{ "^where does (.+) drop$", "sources" }, { "^who sells (.+)$", "sources" }, { "^what drops (.+)$", "sources" },
 }
 
+-- Simple mode's words for a one-link chain (it never shows ">"): what Enter writes and what the footer says
+P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s" }
+P.SIMPLE_LABEL = { mats = "Mats for %s", uses = "What uses %s", sources = "Where to get %s", alts = "%s on your alts", ["?"] = "Which %s?" }
+
+local function SimpleOn() return ns.Easy and ns.Easy.On and ns.Easy.On() end
+
+--- The line that asks for `rel` of `name`: Simple mode's words ("mats for Thorium Bar"), else the chain ("Thorium Bar >
+--- mats").
+function P.Phrase(name, rel)
+	local f = SimpleOn() and P.SIMPLE[rel]
+	return f and f:format(name) or (name .. " > " .. rel)
+end
+
+--- The footer's trail in Simple mode's words ("core leather belt > mats" -> "Mats for core leather belt"); a trail of
+--- more links, or one still being picked, as it is.
+function P.SimpleLabel(trail)
+	if type(trail) ~= "string" then return trail end
+	local name, rel = trail:match("^([^>]-) > ([^>]-)$")
+	local key = rel and (rel == "used in" and "uses" or rel)
+	local f = key and P.SIMPLE_LABEL[key]
+	return f and f:format(name) or trail
+end
+
 P.FIRST, P.LAST = {}, {}
 for _, ph in ipairs(P.PHRASES) do
 	local f = ph[1]:match("^%^(%a[%a']*)")
@@ -628,6 +651,8 @@ end
 local function Walk(v)
 	local UI = ns.UI
 	local t = v.pipeChain
+	-- (Simple mode: the next step in its own words, "where to get Thorium Bar", never a ">" chain)
+	if SimpleOn() and v.pipeName and P.SIMPLE[v.pipeNext] then t = P.Phrase(v.pipeName, v.pipeNext) end
 	UI:SetQuery(t, #t)
 end
 local function Opens(v, ...)
@@ -641,7 +666,7 @@ function P.WalkView(e, chain, from)
 	if not nxt then return e end
 	local name = type(e.name) == "string" and e.name:gsub("%s+x%d+$", "") or ""
 	return setmetatable({
-		pipeChain = chain .. " " .. name .. " > " .. nxt, pipeNext = nxt, pipeOf = e,
+		pipeChain = chain .. " " .. name .. " > " .. nxt, pipeNext = nxt, pipeOf = e, pipeName = name,
 		activate = Walk, staysOpen = true, secure = false, isOpen = false, after = false,
 		secondary = Opens, secondarySecure = e.secure or false, secondaryIsOpen = e.isOpen or false,
 		secondaryAfter = e.after or false, secondaryStaysOpen = false,
@@ -697,9 +722,11 @@ function P.Search(chain)
 	if #rows == 0 then
 		-- never a guess: the names to pick from, or the closest one offered (Enter writes the chain with it)
 		local rest = chain:sub(#stages[1].text + 1):gsub("^%s+", "")
+		local oneRel = #stages == 2 and P.Find(stages[2].word) and (stages[2].rest or "") == "" and P.Find(stages[2].word)
 		local function Pick(e, i)
 			local n = ns.Plain(tostring(e.name)):gsub("%s+x%d+$", "")
-			local done = n .. " " .. rest
+			-- (Simple mode: "mats for <Name>", never a ">" chain)
+			local done = oneRel and P.Phrase(n, oneRel) or (n .. " " .. rest)
 			return { name = n, kind = "pipe", kindLabel = e.kindLabel or e.label, detail = e.detail, icon = e.icon,
 				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - i }
 		end
@@ -712,7 +739,6 @@ function P.Search(chain)
 		if rows.near then
 			local d = Pick(rows.near, 1)
 			d.name = "Did you mean " .. d.name .. "?"
-			d.completion = (ns.Plain(tostring(rows.near.name)):gsub("%s+x%d+$", "")) .. " " .. rest
 			out[2] = d
 		end
 		return out, trail[1]
