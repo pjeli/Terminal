@@ -21,7 +21,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = "Send a result to chat with  >>  :  hearthstone >> party   @npc hogger >> guild   copper bar >> w Name"
 		lines[#lines + 1] = "Every result at once with  >>>  :  mats for thorium belt >>> party   @loot lorgus jett >>> guild"
 	lines[#lines + 1] = "Drop quests with  >> drop  (the selected one: the game asks)  and  >>> drop  (every quest listed: Terminal asks first):  @quest is:drop >>> drop"
-		lines[#lines + 1] = "Chains: thorium belt > mats, copper bar > uses, thorium bar > sources (.chains); plain words work too: mats for thorium belt"
+		lines[#lines + 1] = "Chains: thorium belt > mats, copper bar > uses, thorium bar > sources, thorium belt > learn (.chains); plain words work too: mats for thorium belt, where to learn thorium belt"
 		lines[#lines + 1] = "Guildies by what they do: @guild blacksmith, @guild priest is:online (Enter whispers, Shift+Enter invites)"
 		lines[#lines + 1] = "Ask in plain words: where should i level, what dungeon should i do, where should i fish, what killed me, what dropped, spells not on my bars (@spell is:unplaced), quests to drop (@quest is:drop; is:grey, is:leftbehind)"
 		lines[#lines + 1] = "Flight paths you haven't learned: @flight is:unlearned sort:nearest (in plain words: nearest unlearned flight master); a flight master's map tells Terminal which you know"

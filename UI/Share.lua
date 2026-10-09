@@ -278,13 +278,14 @@ end
 --- for rows not from a chain.
 SH.CHAIN = {
 	mats = "Mats for %s", uses = "%s is used in", sources = "Where to get %s", -- (alts: the holders say it)
+	learn = "Where to learn %s",
 }
 function SH.ChainText(e, text)
 	local rel = e.pipeRel
 	if not rel or type(text) ~= "string" or text == "" then return nil, text end
 	if rel == "mats" and tonumber(e.need) then
 		text = ("%dx %s"):format(e.need, text)
-	elseif rel == "sources" and type(e.pipeHow) == "string" then
+	elseif (rel == "sources" or rel == "learn") and type(e.pipeHow) == "string" then
 		text = e.pipeHow .. " " .. text
 	end
 	local from, fmt = e.pipeFrom, SH.CHAIN[rel]

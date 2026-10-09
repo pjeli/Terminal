@@ -562,7 +562,8 @@ Scan.ANSWERS = {
 	end,
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua
 	function(text)
-		local chain = ns.Pipes and ns.Pipes.Canonical(text)
+		-- (Simple mode takes only the plain words: a ">" typed there is refused like any Advanced syntax)
+		local chain = ns.Pipes and ns.Pipes.Canonical(text, ns.Easy and ns.Easy.On and ns.Easy.On() or nil)
 		if not chain then return nil end
 		local rows, trail = ns.Pipes.Search(chain)
 		return rows, trail, true

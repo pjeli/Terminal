@@ -217,7 +217,24 @@ do
 	local res = UI:SearchText("mats for black book cover")
 	check(res[1] and not res[1].name:find(">", 1, true), "through the search too: " .. tostring(res[1] and res[1].name))
 	check(not table.concat(ns.Easy.HelpLines(), " "):find(">", 1, true), "Simple help: no >")
+	-- (0.45.13, the player: "the > is working in simple mode") a ">" typed in Simple mode is Advanced syntax: refused
+	-- like an @kind (the Advanced row on top, the other words searched), never run as a chain; the plain words still are
+	res = UI:SearchText("thorium belt > mats")
+	check(UI.pipeTrail == nil and res[1] and res[1].kind == "advanced" and res[1].name:find(">", 1, true),
+		"Simple: a typed > isn't a chain: the Advanced row on top: " .. tostring(res[1] and res[1].name) .. " / " .. tostring(UI.pipeTrail))
+	res = UI:SearchText("thorium belt > learn")
+	check(UI.pipeTrail == nil and res[1] and res[1].kind == "advanced", "nor > learn")
+	res = UI:SearchText("mats for thorium belt")
+	check(UI.pipeTrail == "thorium belt > mats" and res[1] and res[1].kind ~= "advanced", "the plain words still are a chain")
+	local segs = UI:SyntaxSegments("thorium belt > mats")
+	local gt
+	for _, sg in ipairs(segs) do if sg[1] == 14 and sg[2] == 14 then gt = sg[3] end end
+	check(gt == ns.Theme.SYNTAX.bad, "the > in the 'not taken' colour")
+	check(P.Canonical("thorium belt > mats", true) == nil and P.Canonical("mats for thorium belt", true) == "thorium belt > mats",
+		"Canonical with words only: no > chains, phrases as before")
 	ns.db.easyMode = easyWas; UI:EasyChanged()
+	check(P.Canonical("thorium belt > mats") == "thorium belt > mats" and UI:SearchText("thorium belt > mats")[1].kind ~= "advanced"
+		and UI.pipeTrail == "thorium belt > mats", "Advanced: > chains as before")
 	rows = P.Search("black book cover > mats")
 	check(rows[1] and rows[1].name == "Nothing there: black book cover > mats", "Advanced keeps the chain's words")
 	ns.providers.items.collect, ns.providers.recipes.collect = itemsCollect, recipesCollect
@@ -472,6 +489,103 @@ do
 	SH.StopWaiting()
 	C_Item.IsItemDataCachedByID = cachedWas
 	_G.C_ChatInfo = savedChat
+end
+
+-- where to learn a recipe (0.45.12): its recipe item (AtlasLoot) and where to get that, else a trainer and the nearest
+-- trainers Questie knows (the game's own source text is empty on this client)
+io.write("[chains: where to learn]\n")
+do
+	local I, SH = ns.Integrations, ns.Share
+	local was = { npcRow = I.NpcRow, npcField = I.NpcField, here = I.Here, dist = I.NpcDistance, fac = _G.UnitFactionGroup,
+		lootCollect = ns.providers.loot.collect }
+	-- Plans: Thorium Belt teaches 16645 at Blacksmithing 250; Chain Belt (2661) and Steel Plate Helm (9002) have no plans
+	NAMES[12700], NAMES[9996] = "Plans: Thorium Belt", "Steel Plate Helm"
+	DATA[16645][3], DATA[2661][3] = 250, 35
+	SPELL[9996], DATA[9002] = 9002, { 9996, 2, 200, nil, nil, { 3575 }, { 1 } }
+	_G.AtlasLoot.Data.Recipe = {
+		IsRecipe = function(id) return id == 12700 end,
+		GetRecipeData = function(id) return id == 12700 and { 2, 250, 16645 } or nil end,
+		GetRecipeForSpell = function(s) return s == 16645 and 12700 or nil end,
+	}
+	FIELDS[12700] = { vendors = { 503 }, objectDrops = { 1731 } }
+	I.NpcRow = function(id) return id == 503 and { kind = "npc", key = 503, name = "Plans Seller", detail = "Blacksmithing Supplies" } or was.npcRow(id) end
+	ns.providers.loot.collect = function() return {
+		{ name = "Chain Belt", itemID = 2857, detail = "Blacksmithing  Crafting", key = 1 },
+		{ name = "Plans: Thorium Belt", itemID = 12700, detail = "Golem Lord  Blackrock Depths", key = 2 } } end
+	ns.providers.loot._dirty = true
+	-- Questie's trainers: friendly ones, the nearest first; an apprentice can't teach what needs 200; one of the other side
+	local FAC = { [601] = "AH", [602] = "AH", [603] = "AH", [604] = "A" }
+	local DIST = { [601] = 900, [602] = 120, [603] = 50, [604] = 10 }
+	ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return {
+		{ npcID = 601, key = 601, name = "Far Smith", sub = "Blacksmithing Trainer" },
+		{ npcID = 602, key = 602, name = "Near Smith", sub = "Expert Blacksmith Trainer" },
+		{ npcID = 603, key = 603, name = "Young Smith", sub = "Apprentice Blacksmith Trainer" },
+		{ npcID = 604, key = 604, name = "Enemy Smith", sub = "Blacksmithing Trainer" },
+		{ npcID = 605, key = 605, name = "Cook", sub = "Cooking Trainer" } } end })
+	I.NpcField = function(id, f) if f == "friendlyToFaction" then return FAC[id] or "AH" end end
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	I.NpcDistance = function(id) return DIST[id] end
+	_G.UnitFactionGroup = function() return "Horde" end
+	P.ClearCrafts(); P.ClearSteps(); P.ForgetTrainers()
+
+	check(P.Canonical("where to learn thorium belt") == "thorium belt > learn" and P.Canonical("who teaches chain belt") == "chain belt > learn"
+		and P.Canonical("where to get the recipe for thorium belt") == "thorium belt > learn"
+		and P.Canonical("where to get thorium belt") == "thorium belt > sources", "where to learn: its plain words (and \"where to get\" stays)")
+	-- a recipe item: the plans, who sells them, the boss that drops them; you know it already, said first
+	local rows, trail = P.Search("thorium belt > learn")
+	local names = {}
+	for _, r in ipairs(rows) do names[#names + 1] = tostring(r.name) .. "=" .. tostring(r.detail) end
+	local all = table.concat(names, " | ")
+	check(trail == "thorium belt > learn" and rows[1] and rows[1].detail:find("^You know it"), "you know it: said first: " .. all)
+	check(all:find("Plans: Thorium Belt=Teaches it  ·  Blacksmithing 250", 1, true), "the recipe item, the skill it needs: " .. all)
+	check(all:find("Plans Seller=Sells the recipe", 1, true) and all:find("Golem Lord  Blackrock Depths", 1, true),
+		"who sells the plans, the boss that drops them: " .. all)
+	local seller, chest
+	for _, r in ipairs(rows) do if r.name == "Plans Seller" then seller = r elseif r.name == "Copper Vein" then chest = r end end
+	check(chest and chest.detail:find("^The recipe is found here") and ns.Easy.Verbs(chest) == "show on map",
+		"where the recipe is found: a spot to show on the map: " .. tostring(chest and chest.detail))
+	check(seller and SH.Line(seller, "thorium belt > learn"):find("^Where to learn Thorium Belt: the recipe is sold by Plans Seller"),
+		"to chat: \"Where to learn Thorium Belt: the recipe is sold by ...\": " .. tostring(seller and SH.Line(seller, "")))
+	-- from the plans themselves: what they teach, and where to get them
+	local fromPlans = P.Run("learn", { { kind = "loot", key = 2, itemID = 12700, name = "Plans: Thorium Belt" } })
+	names = {}
+	for _, r in ipairs(fromPlans) do names[#names + 1] = tostring(r.name) end
+	check(table.concat(names, ","):find("Plans: Thorium Belt,Plans Seller", 1, true), "a recipe item: itself, then where to get it: " .. table.concat(names, ","))
+	-- no recipe item: a trainer, said with its evidence; the nearest friendly ones of that profession
+	rows = P.Search("chain belt > learn")
+	names = {}
+	for _, r in ipairs(rows) do names[#names + 1] = tostring(r.name) end
+	all = table.concat(names, ",")
+	check(rows[1] and rows[1].noActivate and rows[1].name == "Taught by a Blacksmithing trainer"
+		and rows[1].detail:find("No recipe item teaches it (AtlasLoot)", 1, true) and rows[1].detail:find("learn at Blacksmithing 35", 1, true),
+		"no recipe item: a trainer, and why we say so: " .. tostring(rows[1] and rows[1].detail))
+	check(all == "Taught by a Blacksmithing trainer,Young Smith,Near Smith,Far Smith", "the nearest friendly trainers of its profession: " .. all)
+	check(rows[2].detail:find("50 yd", 1, true) and rows[2].detail:find("Apprentice Blacksmith Trainer", 1, true), "each with its title and distance")
+	-- an apprentice teaches only up to 75
+	local helm = P.Run("learn", { { kind = "loot", key = 9, itemID = 9996, name = "Steel Plate Helm" } })
+	names = {}
+	for _, r in ipairs(helm) do names[#names + 1] = tostring(r.name) end
+	check(table.concat(names, ",") == "Taught by a Blacksmithing trainer,Near Smith,Far Smith", "needs 200: not the apprentice: " .. table.concat(names, ","))
+	-- Simple mode's words, and a craft AtlasLoot doesn't know
+	local easyWas = ns.db.easyMode
+	ns.db.easyMode = true; UI:EasyChanged()
+	local res = UI:SearchText("where to learn chain belt")
+	check(res[1] and res[1].name == "Taught by a Blacksmithing trainer" and UI.pipeTrail == "chain belt > learn"
+		and P.SimpleLabel(UI.pipeTrail) == "Where to learn chain belt", "Simple: where to learn chain belt: " .. tostring(UI.pipeTrail))
+	res = UI:SearchText("where to learn copper ore")
+	check(res[1] and res[1].noActivate and res[1].name == "Nowhere known to learn Copper Ore", "nothing teaches it: says so: " .. tostring(res[1] and res[1].name))
+	res = UI:SearchText("where to learn agamaggans clutch")
+	check(#res == 1 and res[1].detail:find("^You know it"), "known, AtlasLoot doesn't say: just that you know it: " .. tostring(res[1] and res[1].detail))
+	ns.db.easyMode = easyWas; UI:EasyChanged()
+	check(P.Find("taught") == "learn" and P.Find("trainer") == "learn" and P.Find("source") == "sources", "its link words; > source stays where to get it")
+
+	ns.providers.npc = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	ns.providers.loot.collect, ns.providers.loot._dirty = was.lootCollect, true
+	I.NpcRow, I.NpcField, I.Here, I.NpcDistance, _G.UnitFactionGroup = was.npcRow, was.npcField, was.here, was.dist, was.fac
+	_G.AtlasLoot.Data.Recipe = nil
+	P.ForgetTrainers()
 end
 
 ns.providers, ns.providerOrder = saved.providers, saved.order
