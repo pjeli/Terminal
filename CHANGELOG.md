@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.46.0
+
+**Every key in one place**
+- Press **F1** in Terminal (or type `.keybinds`) for a small window listing every key, with a tab each for Simple mode, Advanced mode and fuzzy finding. Keys a mode does its own way are highlighted. Esc, F1 or Shift+Left take you back to your search exactly as you left it.
+- The keys work alike in every mode:
+  - Tab completes what's faint after the cursor (or picks the selected category) and otherwise goes to the next result; Shift+Tab goes to the previous one.
+  - Ctrl+Home / Ctrl+End jump to the first / last result.
+  - Ctrl+W and Ctrl+Delete delete a word; Ctrl+U deletes everything before the cursor.
+  - Right-click in fuzzy finding offers what its Enter and Shift+Enter do.
+- **Shift+Left goes back**: after Enter takes you from a list to a recipe's sources (or a chain's next step, a name you picked, Shift+Right's "write it"), Shift+Left returns to the list with your pick still selected, wherever the cursor is. In Simple mode it also takes you from a category back to all of them (Tab now goes down the list there, as everywhere).
+- Drag Terminal and it snaps to a grid, with lines showing the screen's middles (the one it sits on lights up); hold Shift to place it freely.
+- The game's own keys that don't get in the way still work while Terminal is open: Ctrl+R (frame rate), Ctrl+S (sound), Ctrl+M (music), volume, screenshots, Alt+Enter (windowed).
+
+**Recipes you don't have yet, and where to learn them**
+- "blacksmithing recipes i'm missing" lists every recipe of your professions you don't know, each with the skill it needs and how it's learned: a trainer and its cost, a vendor (and whether it's limited supply), a drop or a quest. "recipes i can learn now" keeps those your skill allows. Advanced mode: `@recipe is:unknown`, `@recipe is:learnable`.
+- "where to learn thorium belt" (also "who teaches ...") shows the plans that teach it and who sells or drops them, nearest first and only those who'd sell to you, or, when no plans exist, the nearest trainers who can teach it. Advanced mode: `thorium belt > learn`.
+- How far each seller, dropper or trainer is shows in a column of its own, with the direction arrow beside it.
+- Open each profession's window once, and a trainer's or vendor's window, for Terminal to see what they say; with nothing to list, a line says which window to open.
+
+**More plain-word questions**
+- "nearest unlearned flight master" points you to the closest flight path you haven't learned yet; "unlearned flight paths" lists them all. Terminal learns which ones you know from the first flight master's map you open on each continent, per character (until then they say "not checked yet"). Advanced mode: `@flight is:unlearned sort:nearest`.
+- "spells not on my bars" lists the spells you can cast that aren't on any action bar you can see or on a key (a macro casting one counts). Advanced mode: `@spell is:unplaced`.
+- "quests to drop" lists the quests gone grey for your level and those in zones you've left behind. Shift+Enter drops one (the game asks first); "Drop all", or right-click, drops them together after showing you the list. Advanced mode: `@quest is:drop` (or `is:grey`, `is:leftbehind`), and `>>> drop` drops every quest listed.
+- "guild blacksmith", "guild skinner", "guild herbalists": guild members by profession, offline ones too. Advanced mode: `@guild skinner`.
+
+**Tooltips and chat**
+- Quests in your log and Questie's show a tooltip with their level, zone, objectives and rewards: the experience at your level, the money and the items (Questie's experience figure, marked as such, where the game gives none).
+- Drops sent to chat say who got them, from which boss, where and when: "[Rotmender's Garb] looted by Zd Zd in Razorfen Downs (26 min ago)"; all of them at once say what they share once: "Drops in Razorfen Downs (5): ...".
+- Sending everything at once (`>>>` or right-click "All N to ...") needs a search first, so your recent picks never go out by themselves; to say and yell it's one line with them all counted, as the game won't let addons send more there.
+
+**Also**
+- Gear works the same wherever you find it: Shift+Enter on a piece of equipment found with `@item`, a plain search or Simple mode's Bags equips it, as `@gear` does; worn gear with a use of its own (a trinket) is used, other worn gear says it's already equipped.
+- Fixes:
+  - A `>` typed in Simple mode is no longer run as a chain; it says that's Advanced mode's.
+  - A function key pressed before typing anything no longer switches Terminal to the plain text box.
+  - `.mem` names every list the way you'd search for it (recipes to learn: `@recipe is:unknown`).
+
 ## 0.45.0
 
 **Send every result at once**
