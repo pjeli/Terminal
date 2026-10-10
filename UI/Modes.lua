@@ -158,7 +158,9 @@ function UI:SelectPopTarget(final)
 	local t = self.popTarget
 	if not t then return end
 	for i, e in ipairs(UI.results) do
-		if e == t or (e.kind == t.kind and e.key ~= nil and e.key == t.key and e.name == t.name) then
+		-- (the same table, or the same row made again: kind, key and name; rows with no key, a chain's names to pick
+		-- from, by kind and name: Backspace back to them, UI:WalkBack)
+		if e == t or (e.kind == t.kind and e.name == t.name and ((e.key ~= nil and e.key == t.key) or (e.key == nil and t.key == nil))) then
 			UI.sel = i
 			UI.offset = math.max(0, math.min(i - 1, #UI.results - L.ROWS))
 			self.popTarget = nil

@@ -191,9 +191,11 @@ local function AliasMap(self)
 	for _, id in ipairs(self.providerOrder) do
 		local p = self.providers[id]
 		local function put(word) word = ns.Lower(word); if not map[word] then map[word] = p end end
-		put(id)
-		put(p.label)
-		for _, a in ipairs(p.aliases) do put(a) end
+		if not p.noKind then -- (a list no @ names: only a filter reaches it, "@recipe is:unknown")
+			put(id)
+			put(p.label)
+			for _, a in ipairs(p.aliases) do put(a) end
+		end
 	end
 	self.aliasMap = map
 	return map
@@ -208,7 +210,7 @@ function ns:ResolveProvider(token)
 	-- "@loo" is @loot, not @lootlog, though the loot log registered first)
 	local best
 	for _, id in ipairs(self.providerOrder) do
-		if id:sub(1, #token) == token and (not best or (#id < #best and best:sub(1, #id) == id)) then best = id end
+		if not self.providers[id].noKind and id:sub(1, #token) == token and (not best or (#id < #best and best:sub(1, #id) == id)) then best = id end
 	end
 	return best and self.providers[best] or nil
 end

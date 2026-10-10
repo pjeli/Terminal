@@ -1425,7 +1425,8 @@ end
 local function HintActivate(e)
 	local t = e.completion
 	if not t:find("%s$") then t = t .. " " end
-	UI:SetQuery(t, #t)
+	-- ("Search Questie for this" is a step: Shift+Left goes back; a pick list's "@item" is only typing)
+	if e.syntaxRow then UI:SetQuery(t, #t) else UI:WalkTo(t, e) end
 end
 
 -- A list with this many matches or fewer shows them as results instead of a "Search ... for this"

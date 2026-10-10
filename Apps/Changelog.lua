@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.45.15", when = "in testing",
+		v = "0.45.18", when = "in testing",
 		items = {
 			"Flight paths: \"nearest unlearned flight master\" points you to the closest flight path you haven't learned yet (Enter opens the map on its flight master, Shift+Enter sets a waypoint), and \"unlearned flight paths\" lists them all. Terminal learns which ones you know from the first flight master's map you open on each continent, per character (until then they say \"not checked yet\"); a row's tooltip shows your alts' too. Advanced: @flight is:unlearned sort:nearest.",
 			"Guild professions: guild members now show their professions, so \"guild blacksmith\", \"guild skinner\" or \"guild herbalists\" (Advanced: @guild skinner) finds them, offline ones too.",
@@ -21,8 +21,10 @@ CL.LOG = {
 			"Quests to drop: \"quests to drop\" lists the quests that have gone grey for your level and the ones in zones you've left behind. Shift+Enter drops one (the game still asks first); \"Drop all\" on top, or right-click, drops them together after showing you the list. Advanced: @quest is:drop (or is:grey, is:leftbehind), and >>> drop drops every quest listed.",
 			"Drops sent to chat say who got them, from which boss, where and when: \"[Rotmender's Garb] looted by Zd Zd in Razorfen Downs (26 min ago)\"; all of them at once say what they share once: \"Drops in Razorfen Downs (5): ...\".",
 			"Quest tooltips: quests in your log and Questie's (@questie) show a tooltip with their level, zone and objectives and what they reward: the experience at your level, the money and the items (Questie's experience figure, marked as such, where the game gives none).",
-			"Where to learn a recipe: \"where to learn thorium belt\" (also \"who teaches ...\"; Advanced: thorium belt > learn) shows the plans that teach it and who sells or drops them, or, when no plans exist, that a trainer teaches it and the nearest trainers who can.",
+			"Where to learn a recipe: \"where to learn thorium belt\" (also \"who teaches ...\"; Advanced: thorium belt > learn) shows the plans that teach it and who sells or drops them, nearest first, how far in a column of its own with the arrow beside it (only sellers who'd sell to you), or, when no plans exist, that a trainer teaches it and the nearest trainers who can.",
 			"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" (Advanced: @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill it needs and how it's learned: a trainer and its cost, a vendor (and whether it's limited supply), a drop or a quest. \"recipes i can learn now\" (is:learnable) keeps those your skill allows. Open each profession's window once, and a trainer's or vendor's window, for Terminal to see what they say; with none to list, a line says why (which window to open).",
+			"Shift+Left goes back: after Enter takes you from a list to a recipe's sources (or a chain's next step, a name you picked, Shift+Right's \"write it\"), Shift+Left returns to the list with your pick still selected, wherever the cursor is; in Simple mode it also takes you from a category back to all of them.",
+			"Sending everything at once (>>> or right-click \"All N to ...\") needs a search first, so your recent picks never go out by themselves; to say and yell it's one line with them all counted, as the game won't let addons send more there.",
 		},
 	},
 	{

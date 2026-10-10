@@ -377,18 +377,58 @@ local function View(e, detail, label, how)
 	return setmetatable({ detail = detail, kindLabel = label or nil, pipeHow = how }, { __index = e })
 end
 
--- an item's NPCs Questie lists in `field` (vendors, npcDrops), `max` at most, as views saying what they are to it
-local function AddNpcs(out, I, id, field, what, max, how)
+-- a view of an NPC or spot with how far it is said first, as "nearest" says it ("80 yd  Sells it  ·  Vendor"): the
+-- selected row's arrow sits just left of the distance, and keeps it up to date as you walk (`_dist`, `nearRest`:
+-- List.lua's NavTick); no known spot on your continent: just what it is (0.45.17, the player's screenshot: the arrow
+-- sat mid-row, the distance cut off at the end)
+local function NearSaid(v, d, rest)
+	if d then
+		v.detail, v._dist, v.nearRest = ("%.0f yd"):format(d) .. "  " .. rest, d, rest
+	else
+		v.detail = rest
+	end
+	return v
+end
+P.NearSaid = NearSaid
+
+--- Is this Questie NPC friendly to you (as faction:friendly judges it: "A", "H" or "AH" holding your side; one hostile
+--- to both, or not known, isn't)? Sellers are only the ones you can buy from (0.45.16, the player's ask).
+local friendlyTest
+function P.Friendly(row)
+	local F = ns.Filters
+	if friendlyTest == nil then friendlyTest = (F and F.Parse and F.Parse("faction:friendly")) or false end
+	if not friendlyTest then return true end -- (no filters: nothing to judge by)
+	return Safe(friendlyTest, row) == true
+end
+
+-- nearer first; one with no known spot on your continent after, in Questie's order
+local function NearFirst(a, b)
+	if (a.d ~= nil) ~= (b.d ~= nil) then return a.d ~= nil end
+	if a.d and b.d and a.d ~= b.d then return a.d < b.d end
+	return a.i < b.i
+end
+P.NPCS_LOOKED = 400 -- (the NPCs of one list looked at for their distance: a world drop names hundreds)
+
+-- an item's NPCs Questie lists in `field` (vendors, npcDrops), the nearest `max`, as views saying what they are to it
+-- and how far ("  ·  120 yd"); `friendly`: only those friendly to you (sellers)
+local function AddNpcs(out, I, id, field, what, max, how, friendly)
 	local list = I.ItemField(id, field)
 	if type(list) ~= "table" then return end
-	local n = 0
-	for _, nid in ipairs(list) do
+	local here = I.Here and I.Here() or nil
+	local got = {}
+	for k, nid in ipairs(list) do
+		if k > P.NPCS_LOOKED then break end
 		local row = type(nid) == "number" and I.NpcRow and I.NpcRow(nid)
-		if row then
-			out[#out + 1] = View(row, what .. "  ·  " .. tostring(row.detail or ""), nil, how)
-			n = n + 1
-			if n >= max then break end
+		if row and (not friendly or P.Friendly(row)) then
+			local d = here and I.NpcDistance and I.NpcDistance(nid, here) or nil
+			got[#got + 1] = { row = row, d = d, i = k }
 		end
+	end
+	table.sort(got, NearFirst)
+	for k = 1, math.min(#got, max) do
+		local g = got[k]
+		local rest = what .. ((g.row.detail and g.row.detail ~= "") and ("  ·  " .. tostring(g.row.detail)) or "")
+		out[#out + 1] = NearSaid(View(g.row, rest, nil, how), g.d, rest)
 	end
 end
 
@@ -408,19 +448,22 @@ local function AddObjects(out, I, objs, what, how)
 		end
 	end
 	local here = #order > 0 and I.Here and I.Here() or nil
-	for _, oname in ipairs(order) do
+	local made = {}
+	for k, oname in ipairs(order) do
 		local row = { key = "obj:" .. oname, kind = "source", kindLabel = SOURCE_LABEL, name = oname, pipeHow = how or "gathered from",
 			icon = "Interface\\Icons\\INV_Ore_Copper_01", detail = what or "Gathered or found here", activate = NoSpot, found = true }
 		local spot = I.NearestSpawn and I.NearestSpawn(byName[oname], here)
 		if spot and ns.Maps then
 			row.ui, row.mapID, row.px, row.py, row.zone = spot.ui, spot.ui, spot.px, spot.py, spot.zone
 			row.wcont, row.wx, row.wy = spot.wcont, spot.wx, spot.wy
-			row.detail = row.detail .. "  ·  " .. (spot.d and ("%.0f yd  "):format(spot.d) or "") .. tostring(spot.zone or "")
+			NearSaid(row, spot.d, row.detail .. (spot.zone and ("  ·  " .. tostring(spot.zone)) or ""))
 			row.secure, row.isOpen, row.after = ns.Maps.SECURE, ns.Maps.IsOpenFor, I.SpotAfter
 			row.activate, row.secondary = I.PinObject, I.PinObject
 		end
-		out[#out + 1] = row
+		made[#made + 1] = { row = row, d = spot and spot.d or nil, i = k }
 	end
+	table.sort(made, NearFirst) -- (nearest first, as the sellers and droppers)
+	for _, m in ipairs(made) do out[#out + 1] = m.row end
 end
 
 -- what each kind of source is to the thing looked for, in the list and in chat ("Sells it" / "sold by"): an item's
@@ -434,7 +477,7 @@ P.RECIPE_WORDS = { sells = "Sells the recipe", sold = "the recipe is sold by", d
 -- an item's sellers and droppers, the veins/herbs/chests it's found in (by name, once each, at the spot nearest you)
 -- and the quests rewarding it, from Questie, said in `w`'s words
 local function AddQuestie(out, I, id, w)
-	AddNpcs(out, I, id, "vendors", w.sells, 15, w.sold)
+	AddNpcs(out, I, id, "vendors", w.sells, 15, w.sold, true) -- (only those who'd sell to you)
 	AddNpcs(out, I, id, "npcDrops", w.drops, 15, w.dropped)
 	local objs = I.ItemField(id, "objectDrops")
 	if type(objs) == "table" and I.ObjectName then AddObjects(out, I, objs, w.found, w.gathered) end
@@ -606,8 +649,8 @@ local function AddTrainers(out, prof, need)
 	end)
 	for i = 1, math.min(#list, P.TRAINERS) do
 		local t = list[i]
-		local detail = "Teaches it" .. (t.title ~= "" and ("  ·  " .. t.title) or "") .. (t.d and ("  ·  %.0f yd"):format(t.d) or "")
-		out[#out + 1] = View(t.e, detail, nil, "taught by")
+		local rest = "Teaches it" .. (t.title ~= "" and ("  ·  " .. t.title) or "")
+		out[#out + 1] = NearSaid(View(t.e, rest, nil, "taught by"), t.d, rest)
 	end
 end
 
@@ -626,7 +669,11 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 		local v = out[k]
 		local nid = v.pipeHow == P.RECIPE_WORDS.sold and (v.npcID or rawget(v, "key") or v.key)
 		local lim = nid and MR and MR.Limited(rid, nid)
-		if lim ~= nil then rawset(v, "detail", v.detail .. (lim and "  ·  limited supply" or "  ·  always in stock")) end
+		if lim ~= nil then
+			local say = lim and "  ·  limited supply" or "  ·  always in stock"
+			rawset(v, "detail", v.detail .. say)
+			if rawget(v, "nearRest") then rawset(v, "nearRest", v.nearRest .. say) end -- (kept when the distance updates)
+		end
 	end
 	local by = LootIndex()
 	for k, l in ipairs(by[rid] or {}) do
@@ -965,7 +1012,7 @@ local function Walk(v)
 	local t = v.pipeChain
 	-- (Simple mode: the next step in its own words, "where to get Thorium Bar", never a ">" chain)
 	if SimpleOn() and v.pipeName and P.SIMPLE[v.pipeNext] then t = P.Phrase(v.pipeName, v.pipeNext) end
-	UI:SetQuery(t, #t)
+	UI:WalkTo(t, v) -- (the step before kept: Backspace goes back to it)
 end
 local function Opens(v, ...)
 	local o = v.pipeOf
@@ -986,7 +1033,7 @@ function P.WalkView(e, chain, from)
 end
 
 local function Line(text) return { name = text, kind = "pipe", noActivate = true, raw = true, _score = 1e12 } end
-local function PickRelation(e) local UI = ns.UI UI:SetQuery(e.completion, #e.completion) end
+local function PickRelation(e) local UI = ns.UI UI:WalkTo(e.completion, e) end -- (Backspace: back to the choices)
 
 -- each part's rows, by the chain up to it: typing on in the last part doesn't redo the ones before it (kept while
 -- no list was rebuilt and nothing was still loading; at most STEPS_MAX, then it starts over: a key a letter typed)

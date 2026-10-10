@@ -53,11 +53,13 @@ ns:RegisterCommand("kinds", {
 		local lines = { "Searchable kinds:" }
 		for _, id in ipairs(ns.providerOrder) do
 			local p = ns.providers[id]
-			local flags = {}
-			if p.explicit then flags[#flags + 1] = "explicit" end
-			if p.lazy then flags[#flags + 1] = "lazy" end
-			lines[#lines + 1] = ("  @%s  (%s)%s"):format(p.aliases[1] or id, p.label,
-				#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
+			if not p.noKind then -- (a list no @ names is reached by a filter: "@recipe is:unknown")
+				local flags = {}
+				if p.explicit then flags[#flags + 1] = "explicit" end
+				if p.lazy then flags[#flags + 1] = "lazy" end
+				lines[#lines + 1] = ("  @%s  (%s)%s"):format(p.aliases[1] or id, p.label,
+					#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
+			end
 		end
 		return lines
 	end,

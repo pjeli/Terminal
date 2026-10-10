@@ -55,6 +55,13 @@ function UI:CollapseGroup(list)
 	local to, SH = self.sendTo, ns.Share
 	if not (to and to.all and SH) then self.groupList, self.groupRows = nil, nil return list end
 	self.groupList = list
+	if not SH.Searched(to.query) then
+		-- (">>> party" alone: what's listed is your recent picks, nothing that says what they are; never sent)
+		self.groupRows = {}
+		return { { kind = "send", kindLabel = "|cff33ff99chat|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
+			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = "Nothing searched to send",
+			detail = "search first, then >>> " .. (to.drop and "drop" or "party") } }
+	end
 	if to.drop and ns.QuestDrop then
 		-- ">>> drop": the quests in your log among them (complete ones kept), dropped after Terminal's confirmation
 		local rows, kept = ns.QuestDrop.GroupRows(list, true)
@@ -80,6 +87,9 @@ function UI:CollapseGroup(list)
 		sendAll = true, _pos = UI.NO_POS, _score = 0, detail = what or "" }
 	if n == 0 then
 		row.name, row.noActivate, row.detail = "Nothing to send", true, ""
+	elseif to.cmd and SH.Restricted(to) then
+		-- (say, yell: the game presses one line, as many as fit, the rest counted: SH.PressLine)
+		row.name = ("Send %d to %s in one line"):format(n, to.label)
 	elseif to.cmd then
 		row.name = ("Send %s %d to %s"):format(n == 1 and "the" or "all", n, to.label)
 	else
@@ -167,10 +177,11 @@ function UI:SyntaxRows(text)
 		for _, id in ipairs(ns.providerOrder) do
 			local p = ns.providers[id]
 			-- (its name, as .kinds, Shift+Right and Alt+` write it: its first alias, else its id, else an alias the
-			-- typed letters start)
+			-- typed letters start; a list no @ names isn't offered)
 			local main = (p.aliases and p.aliases[1]) or id
 			local word
-			if ns.Lower(main):sub(1, #want) == want then word = main
+			if p.noKind then word = nil
+			elseif ns.Lower(main):sub(1, #want) == want then word = main
 			elseif id:sub(1, #want) == want then word = id
 			else
 				for _, a in ipairs(p.aliases or {}) do
@@ -314,6 +325,69 @@ function UI:Refresh()
 	UI.sel, UI.offset = 1, 0
 	self:SelectPopTarget(not self.searchJob)
 	self:Render()
+end
+
+----------------------------------------------------------------------
+-- Back (0.45.16, the player: from a recipe's sources there was no easy way back to the recipes you don't know): a row
+-- whose Enter writes a new search (a recipe -> "where to learn it", a chain's next step, Shift+Right's "write it") keeps
+-- the search it left; Shift+Left (0.45.17: the one key for going back, wherever the cursor is) goes back to it while
+-- its text is untouched, the row picked selected again (Keys.lua).
+----------------------------------------------------------------------
+UI.walks = {}
+UI.WALKS_MAX = 10
+
+--- Writes `text` as the new search, keeping the one it leaves (and the row it was left from: `pick`, else the
+--- selected one) to go back to.
+function UI:WalkTo(text, pick)
+	local from = UI.edit:GetText()
+	if from ~= text then
+		local w = self.walks
+		if #w >= UI.WALKS_MAX then table.remove(w, 1) end
+		w[#w + 1] = { from = from, to = text, pick = pick or UI.results[UI.sel],
+			category = (not self.categoryAuto) and self.category or nil }
+	end
+	self:SetQuery(text, #text)
+end
+
+--- The step Backspace would go back from: only while the prompt still says what that step wrote (anything else typed
+--- since: the trail is gone).
+function UI:WalkTop()
+	local w = self.walks
+	local top = w[#w]
+	if not top then return nil end
+	if UI.edit and UI.edit:GetText() == top.to then return top end
+	self.walks = {}
+	return nil
+end
+
+--- Back to the search a step left, the row it was left from selected. False: no step to go back from.
+function UI:WalkBack()
+	local top = self:WalkTop()
+	if not top then return false end
+	table.remove(self.walks)
+	self.popTarget = top.pick -- (selected again once the results are in: SelectPopTarget)
+	self.category, self.categoryAuto = top.category, nil
+	ns:Trace(("back: %q -> %q"):format(top.to, top.from))
+	self:SetQuery(top.from, #top.from)
+	return true
+end
+
+--- Shift+Left: back one step: the search a step left (WalkBack), else in Simple mode from a category you picked to all
+--- of them (as Tab). False: nothing to go back to (Shift+Left selects then).
+function UI:GoBack()
+	if self.fzf then return false end
+	if self:WalkBack() then return true end
+	if EasyOn() and self.category and not self.categoryAuto and UI.mode == "search" then
+		self:SetCategory(nil)
+		return true
+	end
+	return false
+end
+
+--- Is there somewhere Shift+Left goes back to (the footer says so)?
+function UI:CanGoBack()
+	if self.fzf then return false end
+	return self:WalkTop() ~= nil or (EasyOn() and self.category ~= nil and not self.categoryAuto and UI.mode == "search")
 end
 
 function UI:Move(delta)

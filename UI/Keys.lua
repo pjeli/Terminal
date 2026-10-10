@@ -103,6 +103,7 @@ end
 local EditKey -- defined below
 local REPEAT_KEYS = { BACKSPACE = true, DELETE = true, LEFT = true, RIGHT = true, UP = true, DOWN = true }
 local REPEAT_DELAY, REPEAT_RATE = 0.4, 0.045
+UI.BACK_HOLD = 2 -- (s: a Shift+Left that went back, if its key-up is never heard)
 local rep = CreateFrame("Frame")
 rep:Hide()
 UI._repeat = rep
@@ -173,6 +174,11 @@ local function KeysDown(self, key)
 	end
 	self:SetPropagateKeyboardInput(false)
 
+	if key == "LEFT" and UI.backHeld then
+		-- (the press that went back, still held: this client's own repeats of it go nowhere)
+		if GetTime() - UI.backHeld < UI.BACK_HOLD then return end
+		UI.backHeld = nil
+	end
 	if REPEAT_KEYS[key] then
 		if rep.key == key then
 			-- a second key-down without a key-up: this client repeats held keys itself
@@ -294,6 +300,11 @@ do
 			end
 		elseif key == "DELETE" then
 			if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub(NextPos(text, c) + 1), c) end
+		elseif key == "LEFT" and shift and not ctrl and UI:GoBack() then
+			-- Shift+Left goes back (0.45.17, the player: the one key for it): the search a step left, a category picked;
+			-- the held key does nothing more until let go. Nothing to go back to: it selects, as before
+			StopRepeat()
+			UI.backHeld = GetTime()
 		elseif key == "LEFT" then
 			local lo = UI:SelRange()
 			if lo and not shift then

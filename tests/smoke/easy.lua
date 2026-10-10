@@ -163,7 +163,16 @@ Run("typing lists the categories that have it", function()
 	res = UI.Results()
 	check(res[1] and Kinds(res).items and not Kinds(res).loot and not Kinds(res).category, "Bags: only what's in your bags, no AtlasLoot: " .. Show(res))
 	check((UI.status:GetText() or ""):find("Bags", 1, true), "the footer names the category: " .. tostring(UI.status:GetText()))
-	check((UI.hints:GetText() or ""):find("all categories", 1, true), "Tab: back to all categories: " .. tostring(UI.hints:GetText()))
+	check((UI.hints:GetText() or ""):find("Shift+Left|r all categories", 1, true), "Shift+Left (or Tab): back to all categories: " .. tostring(UI.hints:GetText()))
+	-- (0.45.17) Shift+Left, the back key: back to all categories, as Tab
+	local s4 = _G.IsShiftKeyDown
+	_G.IsShiftKeyDown = function() return true end
+	key("LEFT")
+	_G.IsShiftKeyDown = s4
+	UI.frame.scripts.OnKeyUp(UI.frame, "LEFT")
+	check(UI.category == nil and UI.Results()[1] and UI.Results()[1].catId and UI.edit:GetText() == "sword", "Shift+Left in a category: back to all of them")
+	UI:Activate(at)
+	check(UI.category == "bags", "(picked again)")
 	-- Tab: back to the categories; Tab on a category row picks it
 	key("TAB")
 	check(UI.category == nil and UI.Results()[1].catId, "Tab in a category: back to all of them")

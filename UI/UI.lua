@@ -19,7 +19,7 @@ UI.SLICE_CHECK = SLICE_CHECK
 UI.SLICE_MS = SLICE_MS
 
 -- layout, recomputed from the theme (only ApplyTheme writes it; read through L when needed, never copied at load)
-UI.layout = { ROWS = 10, ROW_H = 26, HEADER_H = 50, LINE_H = 19 }
+UI.layout = { ROWS = 10, ROW_H = 26, HEADER_H = 50, LINE_H = 19, DETAIL_W = 192, NAV_SLOT = 22, DIST_W = 52 }
 local L = UI.layout
 
 local TAB_LATE = 1.0 -- (opened by the toggle key this long ago, nothing typed since: Tab let go = it was Tab+`)
@@ -154,6 +154,7 @@ do
 		frame:SetScript("OnChar", function(_, text) UI:OnChar(text) end)
 		frame:SetScript("OnKeyUp", function(_, key)
 			if UI._repeat.key == key then UI.StopRepeat() end
+			if key == "LEFT" then UI.backHeld = nil end
 			if key == "TAB" then UI:TabReleased() end
 		end)
 
@@ -382,6 +383,13 @@ do
 			b.detail:SetPoint("RIGHT", b.kind, "LEFT", -8, 0)
 			b.detail:SetJustifyH("RIGHT")
 			b.detail:SetWordWrap(false)
+			-- a row that says how far ("133 yd  Teaches it"): the distance in a column of its own at the detail's left,
+			-- after a slot for the selected row's arrow (List.lua FillRow, NavTick: every row's lines up, 0.45.18)
+			b.dist = b:CreateFontString(nil, "OVERLAY")
+			b.dist:SetFontObject(Theme.fonts.small)
+			b.dist:SetJustifyH("LEFT")
+			b.dist:SetWordWrap(false)
+			b.dist:Hide()
 			b.label = b:CreateFontString(nil, "OVERLAY")
 			b.label:SetFontObject(Theme.fonts.row)
 			b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
@@ -532,14 +540,34 @@ end
 local function ApplyRowsTheme(self, t)
 	local tr, tg, tb = Theme.RGB(t.text)
 	local dr, dg, db = Theme.RGB(t.dim)
+	-- the detail's room, and in it for a row with a distance: the arrow's slot, the distance's column (as wide as the
+	-- widest distance a continent has, in this font), the rest
+	L.DETAIL_W = math.floor(t.width * 0.3)
+	L.NAV_SLOT = UI.NAV_SIZE + 2
+	local probe, w = rows[1] and rows[1].dist, nil
+	if probe then
+		probe:SetText("88888 yd")
+		w = probe:GetStringWidth()
+		probe:SetText("")
+	end
+	L.DIST_W = math.ceil((type(w) == "number" and w > 0) and w + 4 or 52)
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
 		row:SetHeight(L.ROW_H)
 		row.slide = nil
 		row.icon:SetSize(L.ROW_H - 6, L.ROW_H - 6)
-		row.detail:SetWidth(math.floor(t.width * 0.3))
+		row.detail:SetWidth(L.DETAIL_W)
+		-- (the name ends where the detail's room begins, whatever part of it a distance takes)
+		row.label:ClearAllPoints()
+		row.label:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+		row.label:SetPoint("RIGHT", row.kind, "LEFT", -(16 + L.DETAIL_W), 0)
+		-- (the distance: just after the arrow's slot at the left of the detail's room)
+		row.dist:ClearAllPoints()
+		row.dist:SetPoint("LEFT", row.kind, "LEFT", -(8 + L.DETAIL_W) + L.NAV_SLOT, 0)
+		row.dist:SetWidth(L.DIST_W)
 		row.label:SetTextColor(tr, tg, tb)
 		row.detail:SetTextColor(dr, dg, db)
+		row.dist:SetTextColor(dr, dg, db)
 		if i > L.ROWS then row:Hide() end
 	end
 	self:LayoutHeader() -- (the divider, the prompt's background, the rows' places, the click area)
@@ -628,6 +656,7 @@ function UI:Open(text)
 	Build()
 	self:Disarm()
 	self.histIdx = nil
+	self.backHeld = nil -- (a Shift+Left that went back, held as the terminal closed: its key-up went elsewhere)
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		-- (a number: only when the list is older than that many seconds; the loot and combat logs' "5 min ago")

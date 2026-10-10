@@ -42,7 +42,7 @@ local function MenuLine(i)
 	b:SetScript("PreClick", function()
 		local it, SH = b.item, ns.Share
 		if it and it.chatTo and SH and menu and menu.entry and not InCombatLockdown() then
-			it.chat = SH.Macro(menu.entry, it.chatTo) or ""
+			it.chat = SH.ChatLine(menu.entry, it.chatTo) or ""
 			b:SetAttribute("macrotext1", it.chat)
 		elseif it and it.boxLine and not InCombatLockdown() then
 			it.chat = ChatBoxMacro(it.boxLine()) or ""
@@ -119,6 +119,7 @@ do
 		-- (@who's "Ask the server" asks something: it isn't a result to send)
 		if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
 			local query = SH.Split(edit:GetText() or "")
+			local searched = SH.Searched(query) -- (nothing typed: the list is your recent picks: no "All N to ..." lines)
 			if EasyOn() and ns.Easy and ns.Easy.ToAdvanced then query = ns.Easy.ToAdvanced(query, self.category) end
 			-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
 			-- and opening the menu, then Cancel, mustn't move your waypoint)
@@ -134,12 +135,15 @@ do
 			end
 			-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll); the
 			-- search finished first if it's still going (all of its results, not its first frame's), else none yet
-			local group = self:FinishSearch(UI.SEND_FINISH_MS) and SH.GroupRows(UI.results) or {}
+			local group = searched and self:FinishSearch(UI.SEND_FINISH_MS) and SH.GroupRows(UI.results) or {}
 			local n = #group
 			if n >= 2 then
 				SH.Prefetch(group, true)
 				for _, ch in ipairs(channels) do
-					if ch.chat then
+					if ch.chat and SH.Restricted(ch) then
+						-- (say, yell: one line the game presses, every result counted in it; Terminal's code can't send there)
+						items[#items + 1] = { label = "All " .. n .. " to " .. ch.short, chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
+					elseif ch.chat then
 						local to = { chat = ch.chat, label = ch.short }
 						items[#items + 1] = { label = "All " .. n .. " to " .. ch.short, run = function()
 							if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
@@ -259,7 +263,7 @@ local function MenuChatView(it, e)
 		m = it.boxLine()
 		run = m and ChatBoxMacro(m)
 	else
-		m = SH and SH.Macro(e, it.chatTo)
+		m = SH and SH.ChatLine(e, it.chatTo)
 		run = m ~= "" and m or nil
 	end
 	if run then return setmetatable({ secure = { macro = run }, isOpen = NeverOpen, after = false }, { __index = e }) end

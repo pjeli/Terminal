@@ -17,7 +17,8 @@ local FZF_LABEL = "Fuzzy find" -- (Tab+`: pure fuzzy finding over every list, th
 local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" } }
 local SYNTAX_HINTS = { { "Enter", "write it" }, { "Tab", "next" }, { "Shift+Tab", "back" } } -- (Advanced's @kind / key: pick lists)
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
-local EASY_TAB_BACK = { "Tab", "all categories" }
+local BACK_HINT = { "Shift+Left", "back" } -- (back to the search a step left, UI:GoBack)
+local BACK_CATEGORIES = { "Shift+Left", "all categories" } -- (Simple mode, a category picked: Tab does it too)
 local EASY_TAB_PICK = { "Tab", "pick" }
 
 local QUESTION_MARK = 134400
@@ -86,7 +87,9 @@ do
 			local group = to.all and to.cmd and self:GroupedRows() -- (grouped once per list, not on every status update)
 			local n = group and #group
 			if n and n > 0 then ns.Share.Prefetch(group, true) end -- (their links loaded by the time Enter sends them)
-			local say = (n and (n == 0 and "nothing to send" or ("Enter sends " .. (n == 1 and "the 1" or ("all " .. n)) .. " to " .. to.label)))
+			local one = n and n > 0 and ns.Share.Restricted(to) -- (say, yell: one line the game presses)
+			local say = (one and ("Enter sends one line to " .. to.label .. ", all " .. n .. " counted"))
+				or (n and (n == 0 and "nothing to send" or ("Enter sends " .. (n == 1 and "the 1" or ("all " .. n)) .. " to " .. to.label)))
 				or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
 			text = Prepend(HINT .. say .. "|r", text)
 		end
@@ -126,6 +129,7 @@ function UI:FitHints()
 	local list
 	local key = "|cff" .. t.text
 	local sel = UI.results[UI.sel]
+	local back = self:WalkTop() ~= nil and not self.fzf -- (a step's search: Shift+Left goes back, UI:GoBack)
 	if self.fzf then
 		list, key = FZF_HINTS, key .. "|fzf"
 	elseif not EasyOn() and sel and sel.syntaxRow then
@@ -138,6 +142,7 @@ function UI:FitHints()
 		local write = enter and self:ResultText(sel) ~= nil
 		list = {}
 		if enter then list[#list + 1] = { "Enter", enter } end
+		if back then list[#list + 1] = BACK_HINT end
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
 		if write then list[#list + 1] = { "Shift+Right", "write it" } end
 		for _, k in ipairs(SYNTAX_KEYS) do list[#list + 1] = k end
@@ -147,8 +152,10 @@ function UI:FitHints()
 		local enter, shift = ns.Easy.Verbs(UI.results[UI.sel])
 		list = {}
 		if enter then list[#list + 1] = { "Enter", enter } end
-		-- (Tab before Shift+Enter: on a narrow footer, how to get back counts more)
-		if self.category and not self.categoryAuto then list[#list + 1] = EASY_TAB_BACK
+		-- (before Shift+Enter: on a narrow footer, how to get back counts more; Shift+Left is the back key, Tab too for
+		-- a category)
+		if back then list[#list + 1] = BACK_HINT
+		elseif self.category and not self.categoryAuto then list[#list + 1] = BACK_CATEGORIES
 		elseif UI.results[UI.sel] and UI.results[UI.sel].catId then list[#list + 1] = EASY_TAB_PICK end
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
 		local r = UI.results[UI.sel]
@@ -157,6 +164,7 @@ function UI:FitHints()
 	end
 	local room = (t.width or 640) - 28 - (status:GetStringWidth() or 0) - 24
 	-- every render asks: measure again only when the room or the colours (or easy mode's verbs) changed
+	if back then key = key .. "|back" end
 	if self.hintsRoom == room and self.hintsKey == key then return end
 	self.hintsRoom, self.hintsKey = room, key
 	key = "|cff" .. t.text
@@ -226,23 +234,36 @@ local function NavTick()
 	if not face then navArrow:Hide() return end
 	local ang = I.Bearing(nav.here, nav.spot, face)
 	if not nav.ang or math.abs(ang - nav.ang) > 0.01 then nav.ang = ang; navArrow:SetRotation(ang) end
-	-- "nearest": the distance shown keeps up as you walk
+	-- a row saying how far: the distance shown keeps up as you walk (only one that says it: a zone answer's
+	-- distance is for its order, its detail says levels)
 	local e = nav.e
-	if rawget(e, "_dist") and nav.d then
+	if r.distShown and nav.d then
 		local shown = math.floor(nav.d + 0.5)
 		if shown ~= nav.shownD then
 			nav.shownD = shown
-			local rest = rawget(e, "nearRest") -- (what the row is: a title, a zone)
-			e.detail = ("%d yd"):format(shown) .. (rest and ("  " .. rest) or "")
-			r.detail:SetText(e.detail)
+			local yd = ("%d yd"):format(shown)
+			e.detail = yd .. ((r.distRest or "") ~= "" and ("  " .. r.distRest) or "")
+			r.dist:SetText(yd)
 		end
 	end
-	local w = r.detail:GetStringWidth()
-	w = type(w) == "number" and w or 0
-	if w ~= nav.w or nav.placedRow ~= r then
-		nav.w, nav.placedRow = w, r
+	-- where: the slot before the distance's column (the same place on every such row); else just left of the
+	-- detail's text as shown (cut to the room it has: a long one is cut off, never wider)
+	local w = 0
+	if not r.distShown then
+		w = r.detail:GetStringWidth()
+		w = type(w) == "number" and w or 0
+		local room = r.detail:GetWidth()
+		if type(room) == "number" and room > 0 and w > room then w = room end
+	end
+	local key = r.distShown and -1 or w
+	if key ~= nav.w or nav.placedRow ~= r then
+		nav.w, nav.placedRow = key, r
 		navArrow:ClearAllPoints()
-		navArrow:SetPoint("RIGHT", r.detail, "RIGHT", -(w + 4), 0)
+		if r.distShown then
+			navArrow:SetPoint("RIGHT", r.dist, "LEFT", -1, 0)
+		else
+			navArrow:SetPoint("RIGHT", r.detail, "RIGHT", -(w + 4), 0)
+		end
 	end
 	if not navArrow:IsShown() then navArrow:Show() end
 end
@@ -329,11 +350,30 @@ local function FillRow(self, r, e, light)
 		r.icon:SetTexture(e.icon or QUESTION_MARK)
 	end
 	local from = self.linked and self.linked[e]
-	if from and not e.raw then
-		r.label:SetText(ARROW .. r.label:GetText())
-		r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and "maybe needs " or "needs ") .. from.name)
+	local yd, rest
+	if not from and rawget(e, "_dist") and type(e.detail) == "string" then yd, rest = e.detail:match("^(%d+ yd)%s*(.*)$") end
+	if yd then
+		-- how far, in its column after the arrow's slot; what it is after that: every such row lines up (0.45.18, the
+		-- player's screenshot: the arrow sat wherever the text began, a different place on every row)
+		r.distShown, r.distRest = true, rest
+		r.dist:SetText(yd)
+		r.dist:Show()
+		r.detail:SetWidth(math.max(1, L.DETAIL_W - L.NAV_SLOT - L.DIST_W - 6))
+		r.detail:SetJustifyH("LEFT")
+		r.detail:SetText(rest)
 	else
-		r.detail:SetText(e.detail or "")
+		if r.distShown then
+			r.distShown, r.distRest = nil, nil
+			r.dist:Hide()
+			r.detail:SetWidth(L.DETAIL_W)
+			r.detail:SetJustifyH("RIGHT")
+		end
+		if from and not e.raw then
+			r.label:SetText(ARROW .. r.label:GetText())
+			r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and "maybe needs " or "needs ") .. from.name)
+		else
+			r.detail:SetText(e.detail or "")
+		end
 	end
 	r.kind:SetText(Theme.FixColors(e.kindLabel or ""))
 end

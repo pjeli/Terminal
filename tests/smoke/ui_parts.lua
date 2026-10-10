@@ -129,7 +129,9 @@ do -- every result sent while the search still goes on over frames: finished fir
 	check(all and all.label:find("^All 20 to "), "the menu's All line counts every result: " .. tostring(all and all.label))
 	got = nil
 	if all and all.run then all.run() end
-	check(got == 20, "and sends every one: " .. tostring(got))
+	-- (say, yell: one line the game presses, with every result counted: Share.PressLine, 0.45.16)
+	local line = all and all.chatTo and all.chatTo.all and SH.ChatLine(nil, all.chatTo)
+	check(got == 20 or (line and line:find("^/s ") and line:find("Pebble 1800 glint %+8 more$")), "and sends every one: " .. tostring(got or line))
 	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
 	-- too long to finish now: nothing sent, it says to press again
 	UI.SEND_FINISH_MS = 0
@@ -197,4 +199,56 @@ do -- Share.Prefetch: an item asked for isn't asked again for a minute, and the 
 	check(SH.Prefetch(Items(900000 + 50 * 1000, 100)) == 0 and #asks == 0, "asked 12 s ago: not asked again")
 	check(SH.Prefetch(Items(900000 + 1 * 1000, 100)) == 100, "asked 10 minutes ago: asked again")
 	C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID, _G.GetTime = saved.cached, saved.req, saved.time
+end
+
+-- (0.45.18, the player's screenshot) a row saying how far: the distance in a column of its own after the arrow's slot,
+-- the same place on every row; the arrow sits there; rows without one as before
+io.write("[the distance column, the arrow beside it]\n")
+do
+	local I = ns.Integrations
+	local was = { here = I.Here, dist = I.NpcDistance, facing = I.Facing, bearing = I.Bearing, rowDist = I.RowDistance }
+	I.RowDistance = function() return 480, { cont = 1, x = 480, y = 0 } end
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	local D = { [9001] = 133, [9002] = 2221, [9003] = 50 }
+	I.NpcDistance = function(id) local d = D[id] return d, d and { cont = 1, x = d, y = 0 } or nil end
+	I.Facing = function() return 0 end
+	I.Bearing = function() return 0.5 end
+	local list = {
+		setmetatable({ detail = "133 yd  Teaches it  ·  Expert Blacksmith", _dist = 133 }, { __index = { kind = "npc", key = 9001, name = "Traugh" } }),
+		setmetatable({ detail = "2221 yd  Teaches it", _dist = 2221 }, { __index = { kind = "npc", key = 9002, name = "Dwukk" } }),
+		{ kind = "npc", key = 9003, name = "Plain", detail = "Banker" },
+		setmetatable({ detail = "Lv 18-30  ·  fits", _dist = 500 }, { __index = { kind = "dungeon", key = 1, name = "Zone", wcont = 1, wx = 0, wy = 0 } }),
+	}
+	UI:Open("zzqqxxyy"); T.FlushAll()
+	UI.results, UI.sel, UI.offset = list, 1, 0
+	UI:Render(); UI:SelectionChanged()
+	local r1, r2, r3, r4 = UI.rows[1], UI.rows[2], UI.rows[3], UI.rows[4]
+	check(r1.dist:IsShown() and r1.dist:GetText() == "133 yd" and r1.detail:GetText() == "Teaches it  ·  Expert Blacksmith"
+		and r2.dist:GetText() == "2221 yd" and r2.detail:GetText() == "Teaches it", "how far, in its column; what it is after it: " .. tostring(r1.dist:GetText()))
+	check(r1.dist.lastPoint and r2.dist.lastPoint and r1.dist.lastPoint[4] == r2.dist.lastPoint[4] and r1.dist.lastPoint[2] == r1.kind,
+		"every row's distance in the same column")
+	check(not r3.dist:IsShown() and r3.detail:GetText() == "Banker" and not r4.dist:IsShown() and r4.detail:GetText() == "Lv 18-30  ·  fits",
+		"rows that don't say how far (a zone answer's distance is only its order): as before")
+	check(UI.navArrow and UI.navArrow:IsShown() and UI.navArrow.lastPoint and UI.navArrow.lastPoint[2] == r1.dist, "the arrow: in the slot before the distance")
+	UI.sel = 2; UI:SelectionChanged()
+	check(UI.navArrow.lastPoint[2] == r2.dist, "the next row's arrow: the same place")
+	-- walking: the distance keeps up, in its column
+	D[9002] = 2000
+	UI.sel = 1; UI:SelectionChanged(); UI.sel = 2; UI:SelectionChanged()
+	check(r2.dist:GetText() == "2000 yd" and list[2].detail == "2000 yd  Teaches it" and r2.detail:GetText() == "Teaches it", "walking: the distance keeps up: " .. tostring(r2.dist:GetText()))
+	-- a row that doesn't say how far: the arrow just left of its text, never further than its room
+	UI.sel = 3; UI:SelectionChanged()
+	check(UI.navArrow.lastPoint and UI.navArrow.lastPoint[2] == r3.detail, "a plain NPC row: the arrow by its text")
+	-- a dungeon in "what dungeon should i do": its distance is its order, its detail its levels: kept as it is
+	UI.sel = 4; UI:SelectionChanged()
+	check(UI.navArrow:IsShown() and list[4].detail == "Lv 18-30  ·  fits" and r4.detail:GetText() == "Lv 18-30  ·  fits",
+		"a row whose distance is only its order: its detail isn't rewritten as you walk: " .. tostring(list[4].detail))
+	local L = UI.layout
+	list[3].detail = string.rep("long title ", 30)
+	UI:Render(); UI.sel = 2; UI:SelectionChanged(); UI.sel = 3; UI:SelectionChanged()
+	check(UI.navArrow.lastPoint[4] == -(r3.detail:GetWidth() + 4), "a text cut off: the arrow at the start of what shows, not past it: " .. tostring(UI.navArrow.lastPoint[4]))
+	check(r1.label.lastPoint and r1.label.lastPoint[2] == r1.kind and r1.label.lastPoint[4] == -(16 + L.DETAIL_W),
+		"the name ends where the detail's room begins (never under a distance)")
+	UI:Hide(); T.FlushAll()
+	I.Here, I.NpcDistance, I.Facing, I.Bearing, I.RowDistance = was.here, was.dist, was.facing, was.bearing, was.rowDist
 end

@@ -112,8 +112,10 @@ local function CompleteKind(text, last)
 	local cands = {}
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
-		cands[#cands + 1] = "@" .. id
-		for _, a in ipairs(p.aliases or {}) do cands[#cands + 1] = "@" .. a end
+		if not p.noKind then
+			cands[#cands + 1] = "@" .. id
+			for _, a in ipairs(p.aliases or {}) do cands[#cands + 1] = "@" .. a end
+		end
 	end
 	local new, final = CompleteWord(last, cands)
 	if not new then return true, nil end
@@ -179,6 +181,7 @@ function UI:ResultText(e)
 	if e.kind == "slash" then return e.name end
 	local p = e.kind and ns.providers[e.kind]
 	if not p then return e.name end
+	if p.resultText then return p.resultText(e) end -- (a list no @ names: how a search reaches it)
 	return "@" .. ((p.aliases and p.aliases[1]) or p.id) .. " " .. e.name
 end
 
@@ -219,7 +222,7 @@ function UI:FillFromResult()
 	local _, rest, all = nil, nil, nil
 	if ns.Share then _, rest, all = ns.Share.Split(edit:GetText()) end
 	if rest then new = new .. (all and " >>> " or " >> ") .. rest else new = new .. " " end
-	self:SetQuery(new, #new)
+	self:WalkTo(new, UI.results[UI.sel]) -- (a step: Shift+Left goes back to what was typed)
 	return true
 end
 

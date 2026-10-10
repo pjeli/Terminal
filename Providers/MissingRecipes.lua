@@ -173,6 +173,16 @@ local function Sources(id, name, data, rid)
 		if I and I.ItemField then
 			local function List(field) local l = I.ItemField(rid, field) return type(l) == "table" and l or {} end
 			s.vendors, s.drops, s.quests, s.objects = List("vendors"), List("npcDrops"), List("questRewards"), List("objectDrops")
+			-- (sellers: only those who'd sell to you, as the learn chain lists them: Pipes.Friendly)
+			local P = ns.Pipes
+			if P and P.Friendly and I.NpcRow then
+				local mine = {}
+				for _, v in ipairs(s.vendors) do
+					local row = type(v) == "number" and I.NpcRow(v)
+					if row and P.Friendly(row) then mine[#mine + 1] = v end
+				end
+				s.vendors = mine
+			end
 		end
 		local P = ns.Pipes
 		s.bosses = P and P.LootRowsOf and P.LootRowsOf(rid) or {}
@@ -199,7 +209,8 @@ end
 local function WalkLearn(e)
 	local P = ns.Pipes
 	local t = P and P.Phrase and P.Phrase(e.name, "learn") or e.name
-	if ns.UI and ns.UI.SetQuery then ns.UI:SetQuery(t, #t) end
+	-- (the list kept to go back to: Backspace, UI:WalkBack)
+	if ns.UI and ns.UI.WalkTo then ns.UI:WalkTo(t, e) elseif ns.UI and ns.UI.SetQuery then ns.UI:SetQuery(t, #t) end
 end
 local function SpellLink(e)
 	local f = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
@@ -234,18 +245,23 @@ function MR.Tooltip(e, t)
 	if s.rid then
 		local nm = C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, s.rid))
 		t:AddLine("Its recipe: " .. (nm or ("item " .. s.rid)) .. "  (AtlasLoot)", 1, 1, 1, true)
-		for k, v in ipairs(s.vendors or {}) do
-			if k > 4 then t:AddLine(("  +%d more vendors"):format(#s.vendors - 4), 0.62, 0.62, 0.62) break end
-			local lim = MR.Limited(s.rid, v)
-			t:AddLine("  Sold by " .. NpcName(v) .. (lim and "  ·  limited supply" or (lim == false and "  ·  always in stock" or "")), 1, 1, 1)
+		-- (nearest first, how far: as the learn chain lists them)
+		local vendors = MR.Nearest(s.vendors)
+		for k, n in ipairs(vendors) do
+			if k > 4 then t:AddLine(("  +%d more vendors"):format(#vendors - 4), 0.62, 0.62, 0.62) break end
+			local lim = MR.Limited(s.rid, n.id)
+			t:AddLine("  Sold by " .. NpcName(n.id) .. (n.d and ("  ·  %.0f yd"):format(n.d) or "")
+				.. (lim and "  ·  limited supply" or (lim == false and "  ·  always in stock" or "")), 1, 1, 1)
 		end
 		for k, l in ipairs(s.bosses or {}) do
 			if k > 3 then break end
 			t:AddLine("  Drops from " .. ns.Plain(tostring(l.detail or "")):gsub("%s%s+", " in ", 1), 1, 1, 1)
 		end
 		if s.drops and #s.drops > 0 then
-			t:AddLine(#s.drops <= 2 and ("  Drops from " .. NpcName(s.drops[1]) .. (s.drops[2] and (", " .. NpcName(s.drops[2])) or ""))
-				or ("  Drops from %d kinds of creature"):format(#s.drops), 1, 1, 1)
+			local near = MR.Nearest(s.drops)
+			local function Say(n) return NpcName(n.id) .. (n.d and (" (%.0f yd)"):format(n.d) or "") end
+			t:AddLine(#near <= 2 and ("  Drops from " .. Say(near[1]) .. (near[2] and (", " .. Say(near[2])) or ""))
+				or (("  Drops from %d kinds of creature, the nearest %s"):format(#near, Say(near[1]))), 1, 1, 1, true)
 		end
 		for k, q in ipairs(s.quests or {}) do
 			if k > 2 then break end
@@ -259,6 +275,23 @@ function MR.Tooltip(e, t)
 	end
 	if not s.trainer and not s.rid then t:AddLine("How it's learned isn't known: AtlasLoot doesn't list it", 0.62, 0.62, 0.62, true) end
 	t:AddLine("Enter: where to learn it", 0.62, 0.62, 0.62)
+end
+
+--- These Questie NPCs nearest first: { { id, d (yards, nil: no spawn known on your continent) } } (Pipes' order).
+function MR.Nearest(ids)
+	local I = ns.Integrations
+	local here = I and I.Here and I.Here() or nil
+	local out = {}
+	for k, id in ipairs(ids or {}) do
+		if k > 400 then break end
+		out[#out + 1] = { id = id, d = here and I.NpcDistance and I.NpcDistance(id, here) or nil, i = k }
+	end
+	table.sort(out, function(a, b)
+		if (a.d ~= nil) ~= (b.d ~= nil) then return a.d ~= nil end
+		if a.d and b.d and a.d ~= b.d then return a.d < b.d end
+		return a.i < b.i
+	end)
+	return out
 end
 
 --- Has a vendor's window shown this recipe item at any of its vendors?
@@ -435,10 +468,14 @@ function MR.LeadRow(text, res)
 	return MR.EmptyRow(q)
 end
 
+local function ResultText(e) return "@recipe is:unknown " .. tostring(e.name) end
+
 ns:RegisterProvider("missing", {
 	label = "Recipe to learn",
 	color = "ff9ec9b4", -- (a grey of the recipes' mint)
-	aliases = { "missing", "tolearn", "missingrecipe", "missingrecipes" },
+	-- (0.45.16, the player's call: not a kind of its own, no @missing: a filter on @recipe reaches it, is:unknown /
+	-- is:learnable; Alt+` and Shift+Right write @recipe)
+	noKind = true, resultText = ResultText,
 	explicit = true, -- (only asked for: "recipes i'm missing", @recipe is:unknown)
 	lazy = true,
 	-- (a skill gained, a recipe learned: what you can learn now changes)

@@ -5,7 +5,7 @@ local P = ns.Pipes
 
 local saved = { providers = ns.providers, order = ns.providerOrder, name = C_Item.GetItemNameByID, count = C_Item.GetItemCount,
 	AL = _G.AtlasLoot, field = ns.Integrations.ItemField, npc = ns.Integrations.NpcRow, obj = ns.Integrations.ObjectName,
-	quest = ns.Integrations.QuestRow }
+	quest = ns.Integrations.QuestRow, npcField = ns.Integrations.NpcField }
 local NAMES = { [12359] = "Thorium Bar", [7077] = "Heart of Fire", [12655] = "Enchanted Thorium Bar", [12406] = "Thorium Belt",
 	[2840] = "Copper Bar", [2857] = "Chain Belt", [2770] = "Copper Ore", [3575] = "Iron Bar", [9999] = "Other Belt" }
 C_Item.GetItemNameByID = function(id) return NAMES[id] end
@@ -25,6 +25,8 @@ ns.Integrations.ItemField = function(id, f) return FIELDS[id] and FIELDS[id][f] 
 ns.Integrations.NpcRow = function(id) return id == 501 and { kind = "npc", key = 501, name = "Thorium Trader", detail = "Vendor" }
 	or id == 502 and { kind = "npc", key = 502, name = "Ore Golem", detail = "Elemental" } or nil end
 ns.Integrations.ObjectName = function(id) return id == 1731 and "Copper Vein" or nil end
+-- (sellers are only those friendly to you, 0.45.16: these are to everyone)
+ns.Integrations.NpcField = function(id, f) if f == "friendlyToFaction" then return "AH" end end
 ns.Integrations.QuestRow = function() return nil end
 
 local function Rows(list) return function() local out = {} for i, r in ipairs(list) do local e = {} for k, v in pairs(r) do e[k] = v end e.key = e.key or i out[i] = e end return out end end
@@ -58,6 +60,23 @@ do
 	check(#res == 2 and UI.pipeTrail == "thorium belt > mats", "mats for thorium belt: the mats, the trail: " .. tostring(UI.pipeTrail))
 	-- walking on: Enter on a reagent = where to get it
 	check(bar.pipeChain == "thorium belt > mats Thorium Bar > sources", "Enter on a reagent walks on: " .. tostring(bar.pipeChain))
+	-- (0.45.16-17) and Shift+Left on the step's search, untouched, goes back to the mats, the reagent selected again
+	local easyWas0 = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open("thorium belt > mats"); T.FlushAll()
+	local stepFrom
+	for i, r in ipairs(UI.Results()) do if r.itemID == 12359 then stepFrom, UI.sel = r, i end end
+	stepFrom.activate(stepFrom); T.FlushAll()
+	check(UI.edit:GetText() == "thorium belt > mats Thorium Bar > sources", "walked on: " .. UI.edit:GetText())
+	local s2 = _G.IsShiftKeyDown
+	_G.IsShiftKeyDown = function() return true end
+	T.key("LEFT"); T.FlushAll()
+	_G.IsShiftKeyDown = s2
+	UI.frame.scripts.OnKeyUp(UI.frame, "LEFT")
+	check(UI.edit:GetText() == "thorium belt > mats" and UI.Results()[UI.sel] and UI.Results()[UI.sel].itemID == 12359,
+		"Shift+Left: back to the mats, the reagent selected: " .. UI.edit:GetText())
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = easyWas0; UI:EasyChanged()
 	rows, trail = P.Search(bar.pipeChain)
 	check(trail == "thorium belt > mats > Thorium Bar > sources" and rows[1] and rows[1].name == "Thorium Trader"
 		and rows[1].detail:find("Sells it", 1, true), "sources: who sells it: " .. tostring(trail))
@@ -92,6 +111,26 @@ do
 	rows = P.Search("thorium > mats")
 	check(rows[1] and rows[1].name:find("names have", 1, true) and #rows == 3 and rows[2].completion
 		and rows[2].completion:find("> mats$"), "several names: pick one: " .. tostring(rows[1] and rows[1].name))
+	-- (0.45.16-17) a name picked: Shift+Left goes back to the names to pick from
+	UI:Open("thorium > mats"); T.FlushAll()
+	local pickRow = UI.Results()[2]
+	UI.sel = 2
+	pickRow.activate(pickRow); T.FlushAll()
+	check(T.query() == pickRow.completion, "picked: " .. tostring(T.query()))
+	local s3 = _G.IsShiftKeyDown
+	_G.IsShiftKeyDown = function() return true end
+	T.key("LEFT"); T.FlushAll()
+	_G.IsShiftKeyDown = s3
+	UI.frame.scripts.OnKeyUp(UI.frame, "LEFT")
+	check(T.query() == "thorium > mats" and UI.Results()[UI.sel] and UI.Results()[UI.sel].completion == pickRow.completion,
+		"Shift+Left: back to the names, the one picked selected: " .. tostring(T.query()))
+	-- "Search Questie for this" is a step too; a pick list's "@item" is only typing
+	UI:SetQuery("hogger", 6); T.FlushAll()
+	UI.HintActivate({ completion = "@questie hogger" }); T.FlushAll()
+	check(T.query() == "@questie hogger " and UI:GoBack() and T.query() == "hogger", "Search Questie for this: Shift+Left back: " .. tostring(T.query()))
+	UI.HintActivate({ completion = "@item ", syntaxRow = true }); T.FlushAll()
+	check(T.query() == "@item " and UI:WalkTop() == nil, "a pick list's word: not a step")
+	UI:Hide(); T.FlushAll()
 	-- one name (the recipe, and maybe its item): its mats; an apostrophe left out still finds it
 	rows = P.Search("agamaggans > mats")
 	check(#rows == 1 and rows[1].need == 3, "one name, apostrophe left out: its mats: " .. tostring(rows[1] and rows[1].name))
@@ -315,7 +354,7 @@ do
 	-- the game's chat lockdown (an encounter): says so, sends nothing
 	sent = {}
 	_G.C_ChatInfo.InChatMessagingLockdown = function() return true end
-	local n2, why = SH.SendAll(rows, { chat = "PARTY", label = "party" }, "")
+	local n2, why = SH.SendAll(rows, { chat = "PARTY", label = "party" }, "stuff")
 	check(not n2 and why:find("doesn't let addons", 1, true) and #sent == 0, "chat lockdown: nothing sent, says why")
 	_G.C_ChatInfo.InChatMessagingLockdown = function() return false end
 	-- no channel yet: says so
@@ -344,7 +383,63 @@ do
 	T.FlushAll()
 	check(#sent == 1 and sent[1][2] == "GUILD" and sent[1][1]:find("^Mats for Thorium Belt %(2%)") and not UI:IsShown(),
 		"menu: All 2 to guild sends them: " .. tostring(sent[1] and sent[1][1]))
+	-- (0.45.16, the player) nothing searched: no "All N" lines (what's listed is your recent picks, nothing says what)
+	sent = {}
+	UI:Open(""); T.FlushAll()
+	UI.results = { { kind = "items", key = 1, name = "Pick One" }, { kind = "items", key = 2, name = "Pick Two" } }
+	UI:ShowRowMenu(1)
+	labels = {}
+	for _, b2 in ipairs(m.lines) do if b2:IsShown() then labels[#labels + 1] = b2.fs:GetText() end end
+	check(not table.concat(labels, ","):find("All 2", 1, true), "menu, nothing searched: no All lines: " .. table.concat(labels, ","))
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
 	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild = g[1], g[2], g[3]
+	ns.db.easyMode = wasEasy; UI:EasyChanged()
+	-- (0.45.16, the player's log: "All 37 to say" blocked 6 times) ">>> say": the game presses ONE line with them all
+	ns.db.easyMode = false; UI:EasyChanged()
+	sent = {}
+	UI:Open("mats for thorium belt >>> say"); T.FlushAll()
+	shown = UI.Results()
+	check(#shown == 1 and shown[1].name == "Send 2 to say in one line", ">>> say: one line: " .. tostring(shown[1] and shown[1].name))
+	check((UI.status:GetText() or ""):find("Enter sends one line to say, all 2 counted", 1, true), "footer: one line: " .. tostring(UI.status:GetText()))
+	-- a click: no catcher over it (the line isn't worked out on hover); the click arms Enter for the game's press
+	check(UI.ClickFor(shown[1]) == nil, ">>> say: no click route (nothing worked out on hover)")
+	UI:Activate(1)
+	check(#sent == 0 and UI.armedEntry ~= nil and ns.Secure.armed == "MACRO", ">>> say clicked: Enter armed, nothing sent by Terminal")
+	UI:Disarm()
+	T.key("ENTER")
+	local mp = _G.TerminalMacroProxy
+	check(#sent == 0 and ns.Secure.armed == "MACRO" and mp and (mp.attrs.macrotext or ""):find("^/s Mats for Thorium Belt %(2%):"),
+		">>> say: the game's press sends the line, Terminal's code nothing: " .. tostring(mp and mp.attrs.macrotext))
+	T.FlushAll()
+	UI:Hide(); T.FlushAll()
+	check(SH.PressLine({ { kind = "items", key = 1, name = "A" } }, { cmd = "/s", chat = "SAY" }, "") == nil, "one line: not with nothing searched")
+	local long = {}
+	for i = 1, 60 do long[i] = { kind = "item", key = i, name = ("Some Long Item Name Number %03d"):format(i) } end
+	local pl = SH.PressLine(long, { cmd = "/y", chat = "YELL" }, "item")
+	check(pl and #pl <= 255 and pl:find("^/y ") and pl:find("%+%d+ more$"), "one line within a macro, the rest counted: " .. tostring(pl and #pl))
+	-- the menu's "All N to say": a chat line the game presses (not Terminal's code)
+	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild = function() return false end, function() return false end, function() return false end
+	UI:Open("mats for thorium belt"); T.FlushAll()
+	UI:ShowRowMenu(1)
+	local sayAll
+	for _, b3 in ipairs(m.lines) do if b3:IsShown() and b3.fs:GetText() == "All 2 to say" then sayAll = b3 end end
+	check(sayAll and sayAll.item.chatTo and sayAll.item.chatTo.all and not sayAll.item.run, "menu: All 2 to say is a chat line the game presses")
+	if sayAll then sayAll.scripts.PreClick(sayAll, "LeftButton") end
+	check(sayAll and (sayAll:GetAttribute("macrotext1") or ""):find("^/s Mats for Thorium Belt %(2%):") and #sent == 0,
+		"its macro: one line with both: " .. tostring(sayAll and sayAll:GetAttribute("macrotext1")))
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild = g[1], g[2], g[3]
+	ns.db.easyMode = wasEasy; UI:EasyChanged()
+	-- ">>> party" alone: never sent; says why
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open(">>> party"); T.FlushAll()
+	shown = UI.Results()
+	check(#shown == 1 and shown[1].noActivate and shown[1].name == "Nothing searched to send", ">>> party alone: nothing to send: " .. tostring(shown[1] and shown[1].name))
+	T.key("ENTER"); T.FlushAll()
+	check(#sent == 0, ">>> party alone: Enter sends nothing")
+	local n4, why4 = SH.SendAll({ { kind = "items", key = 1, name = "A" }, { kind = "items", key = 2, name = "B" } }, { chat = "PARTY", label = "party" }, " ")
+	check(not n4 and why4 == SH.NO_SEARCH and #sent == 0, "SendAll with nothing searched: refused, says why: " .. tostring(why4))
+	UI:Hide(); T.FlushAll()
 	ns.db.easyMode = wasEasy; UI:EasyChanged()
 
 	-- what the filters say they are (0.44.2): "@loot razorfen kraul type:weapon" -> "Weapons ..."
@@ -376,19 +471,20 @@ do
 	local items = { { kind = "item", key = 101, itemID = 101, name = "Loaded" }, { kind = "item", key = 102, itemID = 102, name = "Not Yet" } }
 	check(SH.Prefetch(items) == 1 and asks[1] == 102 and SH.Prefetch(items) == 0, "prefetch asks for the unloaded ones, once")
 	sent = {}
-	local r = SH.SendAll(items, { chat = "PARTY", label = "party" }, "")
+	local r = SH.SendAll(items, { chat = "PARTY", label = "party" }, "stuff")
 	check(r == true and #sent == 0, "party: waits for the item to load")
 	cached[102] = true
 	T.FlushAll()
 	check(#sent == 1 and sent[1][2] == "PARTY", "loaded: sent")
 	cached[102] = nil
 	sent = {}
-	SH.SendAll(items, { chat = "PARTY", label = "party" }, "")
+	SH.SendAll(items, { chat = "PARTY", label = "party" }, "stuff")
 	T.FlushAll()
 	check(#sent == 1, "never loaded: sent anyway after the wait (as names)")
 	sent = {}
-	r = SH.SendAll(items, { chat = "SAY", label = "say" }, "")
-	check(r == 1 and #sent == 1, "say needs the key press: sent at once")
+	local why5
+	r, why5 = SH.SendAll(items, { chat = "SAY", label = "say" }, "stuff")
+	check(r == nil and why5 == SH.ONE_LINE and #sent == 0, "say: never from Terminal's code (the game blocked all 6 lines): refused, says why")
 	C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID = cachedWas, reqWas
 	_G.C_ChatInfo = savedChat
 	UI:Hide(); T.FlushAll()
@@ -471,8 +567,8 @@ do
 	local cached = {}
 	C_Item.IsItemDataCachedByID = function(id) return cached[id] == true end
 	local items = { { kind = "item", key = 201, itemID = 201, name = "Slow Item" } }
-	check(SH.SendAll(items, { chat = "PARTY", label = "party" }, "") == true, "waits for the item")
-	local n2, why = SH.SendAll(items, { chat = "PARTY", label = "party" }, "")
+	check(SH.SendAll(items, { chat = "PARTY", label = "party" }, "stuff") == true, "waits for the item")
+	local n2, why = SH.SendAll(items, { chat = "PARTY", label = "party" }, "stuff")
 	check(not n2 and tostring(why):find("Still sending", 1, true), "a second send meanwhile: refused, says why: " .. tostring(why))
 	cached[201] = true
 	T.FlushAll()
@@ -481,7 +577,7 @@ do
 	sent = {}
 	local printed, pr = {}, ns.Print
 	ns.Print = function(_, m) printed[#printed + 1] = m end
-	check(SH.SendAll(items, { chat = "PARTY", label = "party" }, "") == true, "waits again")
+	check(SH.SendAll(items, { chat = "PARTY", label = "party" }, "stuff") == true, "waits again")
 	locked = true
 	T.FlushAll()
 	check(#sent == 0 and (printed[1] or ""):find("doesn't let addons", 1, true), "a lockdown begun while waiting: nothing sent, says why: " .. tostring(printed[1]))
@@ -560,7 +656,7 @@ do
 		and rows[1].detail:find("No recipe item teaches it (AtlasLoot)", 1, true) and rows[1].detail:find("learn at Blacksmithing 35", 1, true),
 		"no recipe item: a trainer, and why we say so: " .. tostring(rows[1] and rows[1].detail))
 	check(all == "Taught by a Blacksmithing trainer,Young Smith,Near Smith,Far Smith", "the nearest friendly trainers of its profession: " .. all)
-	check(rows[2].detail:find("50 yd", 1, true) and rows[2].detail:find("Apprentice Blacksmith Trainer", 1, true), "each with its title and distance")
+	check(rows[2].detail:find("^50 yd  Teaches it  ·  Apprentice Blacksmith Trainer") and rows[2]._dist == 50, "each with its distance first, then its title: " .. rows[2].detail)
 	-- an apprentice teaches only up to 75
 	local helm = P.Run("learn", { { kind = "loot", key = 9, itemID = 9996, name = "Steel Plate Helm" } })
 	names = {}
@@ -578,6 +674,33 @@ do
 	check(#res == 1 and res[1].detail:find("^You know it"), "known, AtlasLoot doesn't say: just that you know it: " .. tostring(res[1] and res[1].detail))
 	ns.db.easyMode = easyWas; UI:EasyChanged()
 	check(P.Find("taught") == "learn" and P.Find("trainer") == "learn" and P.Find("source") == "sources", "its link words; > source stays where to get it")
+	-- (0.45.16, the player) sellers: only those friendly to you, nearest first; droppers and spots nearest first; how far
+	local rowWas, objWas, spawnWas = I.NpcRow, I.ObjectName, I.NearestSpawn
+	local NPCS = { [506] = "Alliance Seller", [507] = "Near Seller", [508] = "Far Ogre", [509] = "Near Ogre" }
+	I.NpcRow = function(id) if NPCS[id] then return { kind = "npc", key = id, name = NPCS[id], detail = "" } end return rowWas(id) end
+	I.ObjectName = function(id) return id == 1732 and "Near Chest" or objWas(id) end
+	I.NearestSpawn = function(ids) return { ui = 1429, px = 0.5, py = 0.5, zone = "Zone", wcont = 1, wx = 0, wy = 0, d = ids[1] == 1732 and 30 or 900 } end
+	FIELDS[12700] = { vendors = { 503, 506, 507 }, npcDrops = { 508, 509 }, objectDrops = { 1731, 1732 } }
+	FAC[506], DIST[503], DIST[506], DIST[507], DIST[508], DIST[509] = "A", 700, 5, 80, 2000, 300
+	local vendorsWas = ns.db.recipeVendors
+	ns.db.recipeVendors = { [12700] = { [507] = { limited = true } } }
+	P.ClearSteps()
+	local near = P.Run("learn", { { kind = "loot", key = 2, itemID = 12700, name = "Plans: Thorium Belt" } })
+	names = {}
+	local by = {}
+	for _, r in ipairs(near) do names[#names + 1] = tostring(r.name); by[r.name] = r end
+	all = table.concat(names, ",")
+	check(all:find("Near Seller,Plans Seller,Near Ogre,Far Ogre,Near Chest,Copper Vein", 1, true) and not all:find("Alliance Seller", 1, true),
+		"sellers friendly to you, then droppers, then spots, each nearest first: " .. all)
+	check(by["Near Seller"] and by["Near Seller"].detail:find("^80 yd  Sells the recipe") and by["Near Ogre"].detail:find("^300 yd  Drops the recipe")
+		and by["Near Chest"].detail:find("^30 yd  The recipe is found here  ·  Zone"),
+		"how far each is, said first (the arrow sits by it): " .. tostring(by["Near Seller"] and by["Near Seller"].detail))
+	check(by["Near Seller"]._dist == 80 and by["Near Seller"].nearRest:find("limited supply$") and by["Near Chest"]._dist == 30,
+		"the arrow keeps the distance up to date, the rest kept (limited supply too): " .. tostring(by["Near Seller"].nearRest))
+	I.NpcRow, I.ObjectName, I.NearestSpawn = rowWas, objWas, spawnWas
+	ns.db.recipeVendors = vendorsWas
+	FIELDS[12700] = { vendors = { 503 }, objectDrops = { 1731 } }
+	P.ClearSteps()
 
 	ns.providers.npc = nil
 	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
@@ -592,5 +715,6 @@ ns.providers, ns.providerOrder = saved.providers, saved.order
 ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL
 ns.Integrations.ItemField, ns.Integrations.NpcRow, ns.Integrations.ObjectName, ns.Integrations.QuestRow = saved.field, saved.npc, saved.obj, saved.quest
+ns.Integrations.NpcField = saved.npcField
 UI.lastScan, UI.lastOverview = nil, nil
 P.ClearCrafts(); P.ClearSteps()

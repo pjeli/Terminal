@@ -561,9 +561,11 @@ function SH.GroupHeader(rows, query)
 	return SH.Context(query, first) or what
 end
 
---- The chat lines for every row: "<header> (N): a, b, c" packed into lines of at most LINE_MAX characters, GROUP_LINES
---- at most; the rest counted on the last ("+5 more"). Each row as the chain or list says it: "12x [Thorium Bar]".
-function SH.GroupLines(rows, query)
+--- The chat lines for every row: "<header> (N): a, b, c" packed into lines of at most LINE_MAX characters (lineMax),
+--- GROUP_LINES at most (maxLines); the rest counted on the last ("+5 more"). Each row as the chain or list says it:
+--- "12x [Thorium Bar]".
+function SH.GroupLines(rows, query, maxLines, lineMax)
+	local ML, LM = maxLines or SH.GROUP_LINES, lineMax or SH.LINE_MAX -- (one line the game presses: SH.PressLine)
 	rows = SH.GroupRows(rows)
 	if #rows == 0 then return {} end
 	local header, lootHeader = SH.GroupHeader(rows, query)
@@ -571,7 +573,7 @@ function SH.GroupLines(rows, query)
 	-- sets the map pin it links: 100 of them moved your waypoint 100 times, to one that wasn't even sent)
 	local function TextOf(e)
 		local base = SH.BaseText(e)
-		local t = (lootHeader or e.pipeRel == "uses") and base or WithSource(e, base, SH.LINE_MAX - 8)
+		local t = (lootHeader or e.pipeRel == "uses") and base or WithSource(e, base, LM - 8)
 		if type(lootHeader) == "table" and type(e.shareMember) == "function" and type(base) == "string" then
 			local ok, x = pcall(e.shareMember, e, lootHeader, base)
 			if ok and type(x) == "string" and x ~= "" then t = x end
@@ -585,15 +587,15 @@ function SH.GroupLines(rows, query)
 		local _, chained = SH.ChainText(e, t)
 		t = chained or t
 		if type(t) == "string" and t ~= "" then
-			if #t > SH.LINE_MAX then t = tostring(base) end
-			if #t <= SH.LINE_MAX then return t end
+			if #t > LM then t = tostring(base) end
+			if #t <= LM then return t end
 		end
 		return nil
 	end
 	local lines, line = {}, header and (header .. " (" .. #rows .. "):") or nil
 	local sent, skipped = 0, 0
 	-- (the last line keeps room for "+N more")
-	local function Room() return SH.LINE_MAX - (#lines == SH.GROUP_LINES - 1 and 12 or 0) end
+	local function Room() return LM - (#lines == ML - 1 and 12 or 0) end
 	for _, e in ipairs(rows) do
 		local t = TextOf(e)
 		if not t then
@@ -605,19 +607,19 @@ function SH.GroupLines(rows, query)
 			else
 				if line then lines[#lines + 1] = line end
 				line = nil
-				if #lines >= SH.GROUP_LINES or #t > Room() then break end -- (a long one can't start the last line: counted)
+				if #lines >= ML or #t > Room() then break end -- (a long one can't start the last line: counted)
 				line = t
 			end
 			sent = sent + 1
 		end
 	end
-	if line and #lines < SH.GROUP_LINES then lines[#lines + 1] = line end
+	if line and #lines < ML then lines[#lines + 1] = line end
 	local total = #rows - skipped
 	local left = total - sent
 	if left > 0 and #lines > 0 then
 		local more = "+" .. left .. " more"
-		if #lines[#lines] + #more + 1 <= SH.LINE_MAX then lines[#lines] = lines[#lines] .. " " .. more
-		elseif #lines < SH.GROUP_LINES then lines[#lines + 1] = more end
+		if #lines[#lines] + #more + 1 <= LM then lines[#lines] = lines[#lines] .. " " .. more
+		elseif #lines < ML then lines[#lines + 1] = more end
 	end
 	return lines, total
 end
@@ -666,8 +668,29 @@ function SH.Prefetch(rows, grouped)
 	return n
 end
 
--- say, yell and numbered channels want a key press or click to send (outside instances): never sent later
+-- say, yell and numbered channels want a key press or click to send (outside instances): never sent later.
+-- 0.45.16 (the player's .debug log: "All 37 to say" from the row menu, 6 lines, the game blocked all 6): not from
+-- Terminal's code at all, even inside the press: only a line the game presses itself (SH.PressLine, one per press)
 local NEEDS_PRESS = { SAY = true, YELL = true, CHANNEL = true }
+SH.ONE_LINE = "Say, yell and channels take one line per key press: Enter sends the first line, the rest counted."
+
+--- Is this a channel Terminal's code can't send to (say, yell, a numbered channel)?
+function SH.Restricted(to) return type(to) == "table" and NEEDS_PRESS[to.chat or ""] == true end
+
+--- Every row at once as ONE chat line the game presses ("/s Mats for Thorium Belt (12): a, b, +9 more"), within what
+--- a macro runs (255 characters with the command), or nil.
+function SH.PressLine(rows, to, query)
+	if not (type(to) == "table" and to.cmd and SH.Searched(query)) then return nil end
+	local max = (ns.Secure and ns.Secure.MACRO_MAX or 255) - #to.cmd - 1
+	local lines = SH.GroupLines(rows, query, 1, max)
+	return lines[1] and (to.cmd .. " " .. lines[1]) or nil
+end
+
+--- A menu chat line's macro: the row's line (SH.Macro), or every result's in one (`to.all`: say, yell, a channel).
+function SH.ChatLine(e, to)
+	if type(to) == "table" and to.all then return SH.PressLine(ns.UI and ns.UI.results or {}, to, to.query) end
+	return SH.Macro(e, to)
+end
 SH.LINK_WAIT, SH.LINK_STEP = 3, 0.25 -- (seconds waited for items to load before sending without their links)
 
 local function SendLines(rows, to, query, send)
@@ -695,8 +718,15 @@ local function Locked()
 end
 local waiting -- (a send waiting for its items to load: another Enter meanwhile doesn't send them twice)
 
+-- (0.45.16, the player: ">>> party" with nothing searched sent every recent pick, with no word of what they were)
+SH.NO_SEARCH = "Search for something first: with nothing searched there's nothing to say what they are."
+--- Was something searched (the words before ">>", or the menu's query)? Every result at once needs it.
+function SH.Searched(query) return type(query) == "string" and query:find("%S") ~= nil end
+
 function SH.SendAll(rows, to, query)
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
+	if not SH.Searched(query) then return nil, SH.NO_SEARCH end
+	if SH.Restricted(to) then return nil, SH.ONE_LINE end -- (the game blocks them from addon code: SH.PressLine)
 	if not (to and to.chat and send) then return nil, "Say where to send them: >>> party, guild, raid, say, instance, whisper <name>" end
 	if Locked() then return nil, LOCKED end
 	if waiting then return nil, "Still sending the last ones: a moment." end

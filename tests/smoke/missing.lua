@@ -11,7 +11,8 @@ do
 		nts = _G.GetNumTrainerServices, tsi = _G.GetTrainerServiceInfo, tsc = _G.GetTrainerServiceCost,
 		tsr = _G.GetTrainerServiceSkillReq, nmi = _G.GetMerchantNumItems, mid = _G.GetMerchantItemID,
 		mf = _G.C_MerchantFrame, inst = C_Item.GetItemInfoInstant, names = C_Item.GetItemNameByID,
-		trainers = ns.db.recipeTrainers, vendors = ns.db.recipeVendors, easy = ns.db.easyMode }
+		trainers = ns.db.recipeTrainers, vendors = ns.db.recipeVendors, easy = ns.db.easyMode, npcField = I.NpcField,
+		here = I.Here, dist = I.NpcDistance, fac = _G.UnitFactionGroup }
 	ns.db.recipeTrainers, ns.db.recipeVendors = nil, nil
 	ns.db.easyMode = false; UI:EasyChanged()
 	-- your professions: Blacksmithing 60 (its window read), Tailoring 1 (read), Alchemy 5 (not read since this came in)
@@ -39,6 +40,8 @@ do
 	-- Questie: who sells the plans
 	I.ItemField = function(id, f) if id == 92700 and f == "vendors" then return { 503 } end return nil end
 	I.NpcRow = function(id) return id == 503 and { kind = "npc", key = 503, name = "Plans Seller", detail = "Blacksmithing Supplies" } or nil end
+	-- (sellers: only those friendly to you, 0.45.16; this one sells to everyone)
+	I.NpcField = function(id, f) if f == "friendlyToFaction" then return "AH" end end
 	local learnedNow = {}
 	_G.IsPlayerSpell = function(id) return learnedNow[id] == true end
 	ns.providers.missing._dirty = true
@@ -136,6 +139,45 @@ do
 	check(ns.Easy.ToAdvanced("blacksmithing recipes i'm missing") == "@recipe is:unknown blacksmithing "
 		and ns.Easy.ToAdvanced("recipes i can learn now") == "@recipe is:learnable ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing recipes i'm missing"))
 	check(table.concat({ ns.Easy.Verbs(by["Thorium Belt"]) }, "/") == "where to learn/link in chat", "verbs")
+	-- (0.45.16, the player's call) not a kind: no @missing; @recipe's filter reaches it, and it's written that way
+	check(ns:ResolveProvider("missing") == nil and ns:ResolveProvider("miss") == nil and ns:ResolveProvider("tolearn") == nil
+		and ns:ResolveProvider("recipe to learn") == nil, "no @missing (nor its old names)")
+	check(UI:ResultText(by["Thorium Belt"]) == "@recipe is:unknown Thorium Belt", "Shift+Right writes @recipe: " .. tostring(UI:ResultText(by["Thorium Belt"])))
+	local kinds = table.concat(ns.commands.kinds.run() or {}, "\n")
+	check(not kinds:find("Recipe to learn", 1, true), ".kinds doesn't list it")
+	UI:Open(""); FlushAll()
+	UI:SetQuery("@missi", 6); FlushAll()
+	local done = UI:Completion()
+	check(not (done and done:find("missing", 1, true)), "Tab doesn't complete @missi: " .. tostring(done))
+	UI:Hide(); FlushAll()
+	-- (0.45.17) Shift+Right's "write it" is a step: Shift+Left goes back to what was typed
+	UI:Open("@recipe is:unknown"); FlushAll()
+	for i, e in ipairs(UI.Results()) do if e.name == "Thorium Belt" then UI.sel = i end end
+	local s1 = _G.IsShiftKeyDown
+	_G.IsShiftKeyDown = function() return true end
+	T.key("RIGHT"); FlushAll()
+	local written = T.query()
+	T.key("LEFT"); FlushAll()
+	_G.IsShiftKeyDown = s1
+	UI.frame.scripts.OnKeyUp(UI.frame, "LEFT")
+	check(written == "@recipe is:unknown Thorium Belt " and T.query() == "@recipe is:unknown", "Shift+Right writes it, Shift+Left takes it back: " .. tostring(written) .. " / " .. tostring(T.query()))
+	UI:Hide(); FlushAll()
+	-- sellers: only those friendly to you (a Horde character: an Alliance-only seller isn't one); nearest first, how far
+	I.NpcField = function(id, f) if f == "friendlyToFaction" then return "A" end end
+	_G.UnitFactionGroup = function() return "Horde" end
+	ns.providers.missing._dirty = true
+	local hostile = MR.Answer(Q("blacksmithing recipes i'm missing"))
+	local tb
+	for _, e in ipairs(hostile) do if e.name == "Thorium Belt" then tb = e end end
+	check(tb and not tb.detail:find("Vendor", 1, true), "its only seller won't sell to you: no vendor said: " .. tostring(tb and tb.detail))
+	I.NpcField = function(id, f) if f == "friendlyToFaction" then return "AH" end end
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	I.NpcDistance = function(id) return id == 503 and 250 or nil end
+	ns.providers.missing._dirty = true
+	for _, e in ipairs(MR.Answer(Q("blacksmithing recipes i'm missing"))) do if e.name == "Thorium Belt" then tb = e end end
+	lines = {}
+	tb.tooltip(tb, tip)
+	check(table.concat(lines, "\n"):find("Sold by Plans Seller  ·  250 yd", 1, true), "tooltip: the seller, how far: " .. table.concat(lines, " / "))
 	-- (0.45.15) the footer names a profession whose window would list more; none with is:learnable: a line says why
 	res = UI:Search("@recipe is:unknown")
 	check(UI.missingNote and UI.missingNote:find("open your Alchemy window once", 1, true), "footer: open the window not read yet: " .. tostring(UI.missingNote))
@@ -163,6 +205,52 @@ do
 	UI:Open("blacksmithing recipes i'm missing"); FlushAll()
 	res[1].activate(res[1])
 	check(T.query() == "where to learn Copper Chain Belt", "Enter: where to learn it: " .. tostring(T.query()))
+	UI:Hide(); FlushAll()
+	-- (0.45.16-17, the player) back from a recipe's sources: Shift+Left (wherever the cursor is) goes back to the list
+	-- while that search is untouched, the recipe picked selected again; the footer says so
+	local F = UI.frame
+	local function ShiftLeft()
+		local s0 = _G.IsShiftKeyDown
+		_G.IsShiftKeyDown = function() return true end
+		T.key("LEFT")
+		_G.IsShiftKeyDown = s0
+	end
+	UI:Open("blacksmithing recipes i'm missing"); FlushAll()
+	local picked
+	for i, e in ipairs(UI.Results()) do if e.name == "Thorium Belt" then picked, UI.sel = e, i end end
+	check(picked and UI.sel > 1, "a recipe further down the list: " .. tostring(UI.sel))
+	picked.activate(picked); FlushAll()
+	check(T.query() == "where to learn " .. picked.name and UI:WalkTop() ~= nil, "Enter: its sources: " .. tostring(T.query()))
+	local th = ns.Theme.Get()
+	local widthWas = th.width
+	th.width = 1600 -- (room for every hint: the mock's text widths count colour codes)
+	UI:SetStatus()
+	th.width = widthWas
+	check((UI.hints:GetText() or ""):find("Shift+Left|r back", 1, true), "the footer: Shift+Left back: " .. tostring(UI.hints:GetText()))
+	UI:SetStatus()
+	T.key("HOME"); T.key("RIGHT"); FlushAll() -- (the cursor moved: still the same search)
+	ShiftLeft(); FlushAll()
+	check(T.query() == "blacksmithing recipes i'm missing" and UI.Results()[UI.sel] == picked,
+		"Shift+Left: back to the list, the recipe picked selected: " .. tostring(T.query()) .. " / " .. tostring(UI.Results()[UI.sel] and UI.Results()[UI.sel].name))
+	ShiftLeft(); FlushAll()
+	check(T.query() == "blacksmithing recipes i'm missing" and UI:SelRange() == nil, "the key still held (the game's repeats): nothing more")
+	F.scripts.OnKeyUp(F, "LEFT")
+	ShiftLeft(); FlushAll()
+	check(T.query() == "blacksmithing recipes i'm missing" and UI:SelRange() ~= nil, "let go, nothing to go back to: Shift+Left selects again")
+	T.key("BACKSPACE"); FlushAll()
+	check(T.query() == "blacksmithing recipes i'm missin", "Backspace deletes (it never goes back): " .. tostring(T.query()))
+	-- a Shift+Left that went back, held as the terminal closed: the next open's first one counts
+	UI.backHeld = GetTime()
+	UI:Hide(); FlushAll(); UI:Open(""); FlushAll()
+	check(UI.backHeld == nil, "opening forgets a Shift+Left still held")
+	-- typed on since: no going back
+	UI:SetQuery("blacksmithing recipes i'm missing"); FlushAll()
+	picked = UI.Results()[1]
+	picked.activate(picked); FlushAll()
+	T.typeText("x"); T.key("BACKSPACE"); FlushAll()
+	ShiftLeft(); FlushAll()
+	check(T.query() == "where to learn " .. picked.name and UI:SelRange() ~= nil, "typed on: the trail is gone, Shift+Left selects: " .. tostring(T.query()))
+	F.scripts.OnKeyUp(F, "LEFT")
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false; UI:EasyChanged()
 
@@ -212,6 +300,7 @@ do
 	check(#rows == 1 and rows[1].name == "None of your professions has recipes to learn", "no crafting profession: " .. tostring(rows[1] and rows[1].name))
 
 	P.Store, P.PlayerProfessions, _G.AtlasLoot, I.ItemField, I.NpcRow = was.store, was.profs, was.AL, was.field, was.npcRow
+	I.NpcField, I.Here, I.NpcDistance, _G.UnitFactionGroup = was.npcField, was.here, was.dist, was.fac
 	_G.IsPlayerSpell, _G.UnitGUID, _G.UnitName, _G.IsTradeskillTrainer = was.known, was.guid, was.uname, was.isTT
 	_G.GetNumTrainerServices, _G.GetTrainerServiceInfo, _G.GetTrainerServiceCost, _G.GetTrainerServiceSkillReq = was.nts, was.tsi, was.tsc, was.tsr
 	_G.GetMerchantNumItems, _G.GetMerchantItemID, _G.C_MerchantFrame = was.nmi, was.mid, was.mf

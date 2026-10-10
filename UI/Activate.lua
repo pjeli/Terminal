@@ -166,6 +166,9 @@ end
 -- ">> channel": the chat line the game presses for the selected result
 local function SendMacro(v) return ns.Share.Macro(v, UI.sendTo) end
 local SEND_SPEC = { macro = SendMacro }
+-- (">>> say": one line with every result, worked out when armed; never on hover: noClick, no catcher)
+local function PressAllMacro() local to = UI.sendTo return to and ns.Share.PressLine(UI.groupList or UI.results, to, to.query) end
+local PRESS_ALL_SPEC = { macro = PressAllMacro }
 local NeverOpen = ns.Never -- (a chat line: always pressed)
 local function SentAfter(v) ns:Trace("share: the game sent " .. tostring(v.name) .. " to " .. tostring(UI.sendTo and UI.sendTo.label)) end
 local function DropAsked(v) ns:Trace("quests: >> drop: the game asks before dropping " .. tostring(v.name)) end
@@ -190,7 +193,11 @@ local function SecureView(e, shift)
 			return DropView(e)
 		end
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
-		-- (">>> party": Terminal sends every result itself in Activate, a press the game doesn't take)
+		-- (">>> party": Terminal sends every result itself in Activate, a press the game doesn't take; ">>> say": the
+		-- game presses one line with them all, Terminal's code can't send there: SH.PressLine)
+		if UI.sendTo.all and e.sendAll and not e.noActivate and ns.Share.Restricted(UI.sendTo) then
+			return setmetatable({ secure = PRESS_ALL_SPEC, isOpen = NeverOpen, after = SentAfter, noClick = true }, { __index = e })
+		end
 		if not UI.sendTo.cmd or UI.sendTo.all or e.noActivate or e.raw or e.completion then return nil end
 		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter }, { __index = e })
 	end
@@ -226,7 +233,7 @@ UI.SecureView = SecureView
 --- out for the pointer resting on a row, not for a press: the macro's steps aren't traced.
 local function ClickFor(e, shift, quiet)
 	local se = SecureView(e, shift)
-	if not se then return nil end
+	if not se or se.noClick then return nil end -- (noClick: a click arms Enter instead, Activate)
 	if se.isOpen and se.isOpen(se) then return nil end -- already open: Activate only points at it
 	return ns.Secure.ClickMacro(se.secure, se, quiet), se
 end
@@ -375,6 +382,13 @@ end
 local function SendEveryResult(self, to)
 	if to.drop then return DropEveryQuest(self) end
 	if not to.cmd then return NoChannel(to, ">>>") end
+	if ns.Share.Restricted(to) then
+		-- (say, yell: a click arms Enter for the game's press of one line; Terminal's code can't send there)
+		local se = SecureView(UI.results[UI.sel], false)
+		if se and self:TryArmSecure(se) then ns:RecordHistory(UI.edit:GetText()) return end
+		ns:Print(InCombatLockdown() and "In combat: can't send it now." or ns.Share.ONE_LINE)
+		return
+	end
 	if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
 	local n, why = ns.Share.SendAll(self.groupList or UI.results, to, to.query)
 	if not n then ns:Print(why) return end
