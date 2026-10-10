@@ -14,6 +14,7 @@ local EASY_NOWHERE = "Can't tell where you are here (in a dungeon?)."
 local EASY_NONE_NEAR = "None of those on this continent that Questie knows of."
 local EASY_NO_FLIGHTS = "No flight path like that on this continent."
 local EASY_ALL_FLIGHTS = "You know every flight path on this continent."
+local MISSING_GONE = "Restart the game for the recipes you don't know: this update added a file, and a /reload doesn't load new files."
 local EASY_FLIGHTS_UNCHECKED = "Terminal doesn't know your flight paths here yet: open any flight master's map on this continent."
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
 local QUESTION_MARK = 134400 -- (an icon for rows without one)
@@ -625,6 +626,7 @@ function Scan.ResetFlags(self)
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
 	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
+	self.missingNote = nil -- (recipes you don't know listed, a profession's window not read yet: MissingRecipes.LeadRow)
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
@@ -661,15 +663,18 @@ end
 --- The rows a search ends with (q.kinds and q.blocked as they are by then).
 function Scan.Finish(q, res)
 	if q.kinds and q.kinds.flight then Scan.FlightNote(res) end
-	-- a list that asks the server first (@who): its own row on top
-	local kinds = q.kinds
-	if kinds then
-		for k in pairs(kinds) do
+	-- a list that asks the server first (@who), or says why it lists nothing (@recipe is:unknown): its own row on top
+	-- (given the rows so far)
+	local function Leads(set)
+		for k in pairs(set) do
 			local p = ns.providers[k]
-			local row = p and p.leadRow and p.leadRow(p, q.text)
+			local row = p and p.leadRow and p.leadRow(p, q.text, res)
 			if row then row.lead = true; table.insert(res, 1, row) end -- (asks something: not a result to send)
 		end
 	end
+	if q.kinds then Leads(q.kinds) end
+	if q.also then Leads(q.also) end
+	if q.missingGone then table.insert(res, 1, PseudoEntries({ MISSING_GONE })[1]) end
 	local blocked = q.blocked
 	if not blocked then return res end
 	-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
@@ -743,15 +748,24 @@ function Scan.Parse(self, text)
 			if ns.Filters.RecipeWord(w) then kinds.recipes = true break end
 		end
 	end
-	-- "@recipe is:unknown": the recipes you don't know are their own list (MissingRecipes.lua): searched too
-	if kinds and (kinds.recipes or kinds.professions) and not kinds.missing and ns.providers.missing and ns.Filters
+	-- "@recipe is:unknown": the recipes you don't know are their own list (MissingRecipes.lua): searched too; with no
+	-- @kind ("is:learnable" alone) along with every other list (also). Its file not loaded (it came with an update and a
+	-- /reload doesn't load a new file): a line says so (missingGone, Scan.Finish)
+	local also, missingGone
+	if not simple and (not kinds or kinds.recipes or kinds.professions) and not (kinds and kinds.missing) and ns.Filters
 		and ns.Filters.MissingWord then
 		for _, w in ipairs(words) do
-			if ns.Filters.MissingWord(w) then kinds.missing = true break end
+			if ns.Filters.MissingWord(w) then
+				if not ns.providers.missing then missingGone = true
+				elseif kinds then kinds.missing = true
+				else also = { missing = true } end
+				break
+			end
 		end
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
-		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear, advAct = advAct }
+		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear, advAct = advAct,
+		also = also, missingGone = missingGone }
 end
 
 --- Simple mode: an action word and a place named among the words, taken out of them (q.act, q.tokens, q.filters).
@@ -886,7 +900,7 @@ function Scan.Lists(q)
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		local inc
-		if kinds then inc = kinds[id] else inc = not p.explicit end
+		if kinds then inc = kinds[id] else inc = not p.explicit or (q.also ~= nil and q.also[id]) end
 		if inc then
 			included[#included + 1] = p
 			sig[#sig + 1] = id

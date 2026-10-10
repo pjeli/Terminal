@@ -103,6 +103,8 @@ do
 		end
 		-- (flight paths listed on a continent no flight master's map has been read on: Search.lua's Scan.FlightNote)
 		if self.flightNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.flightNote .. "|r") end
+		-- (recipes you don't know listed, a profession's window that would list more not read yet: MissingRecipes.lua)
+		if self.missingNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.missingNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, "loading...") end
 		local once = ns.Easy and ns.Easy.temp
 		if self.fzf then

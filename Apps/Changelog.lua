@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.45.14", when = "in testing",
+		v = "0.45.15", when = "in testing",
 		items = {
 			"Flight paths: \"nearest unlearned flight master\" points you to the closest flight path you haven't learned yet (Enter opens the map on its flight master, Shift+Enter sets a waypoint), and \"unlearned flight paths\" lists them all. Terminal learns which ones you know from the first flight master's map you open on each continent, per character (until then they say \"not checked yet\"); a row's tooltip shows your alts' too. Advanced: @flight is:unlearned sort:nearest.",
 			"Guild professions: guild members now show their professions, so \"guild blacksmith\", \"guild skinner\" or \"guild herbalists\" (Advanced: @guild skinner) finds them, offline ones too.",
@@ -22,7 +22,7 @@ CL.LOG = {
 			"Drops sent to chat say who got them, from which boss, where and when: \"[Rotmender's Garb] looted by Zd Zd in Razorfen Downs (26 min ago)\"; all of them at once say what they share once: \"Drops in Razorfen Downs (5): ...\".",
 			"Quest tooltips: quests in your log and Questie's (@questie) show a tooltip with their level, zone and objectives and what they reward: the experience at your level, the money and the items (Questie's experience figure, marked as such, where the game gives none).",
 			"Where to learn a recipe: \"where to learn thorium belt\" (also \"who teaches ...\"; Advanced: thorium belt > learn) shows the plans that teach it and who sells or drops them, or, when no plans exist, that a trainer teaches it and the nearest trainers who can.",
-			"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" (Advanced: @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill it needs and how it's learned: a trainer and its cost, a vendor (and whether it's limited supply), a drop or a quest. \"recipes i can learn now\" (is:learnable) keeps those your skill allows. Open each profession's window once, and a trainer's or vendor's window, for Terminal to see what they say.",
+			"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" (Advanced: @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill it needs and how it's learned: a trainer and its cost, a vendor (and whether it's limited supply), a drop or a quest. \"recipes i can learn now\" (is:learnable) keeps those your skill allows. Open each profession's window once, and a trainer's or vendor's window, for Terminal to see what they say; with none to list, a line says why (which window to open).",
 		},
 	},
 	{

@@ -120,7 +120,8 @@ do
 	check(table.concat(names, ",") == "Copper Chain Belt" and note:find("^Recipes you can learn now") and note:find("1 whose skill isn't known left out", 1, true),
 		"recipes i can learn now: " .. table.concat(names, ",") .. " / " .. note)
 	rows, note = MR.Answer(Q("tailoring recipes i can learn now"))
-	check(#rows == 0 and note:find("None you can learn yet: the next, Brown Linen Shirt, needs Tailoring 10", 1, true), "none yet: the next one: " .. note)
+	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("None you can learn yet: the next, Brown Linen Shirt, needs Tailoring 10", 1, true)
+		and note == "Recipes you can learn now: Tailoring", "none yet: a line names the next one: " .. tostring(rows[1] and rows[1].name) .. " / " .. note)
 
 	-- Advanced: @recipe is:unknown / is:learnable; @recipe alone keeps to yours
 	local res = UI:Search("@recipe is:unknown")
@@ -135,6 +136,25 @@ do
 	check(ns.Easy.ToAdvanced("blacksmithing recipes i'm missing") == "@recipe is:unknown blacksmithing "
 		and ns.Easy.ToAdvanced("recipes i can learn now") == "@recipe is:learnable ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing recipes i'm missing"))
 	check(table.concat({ ns.Easy.Verbs(by["Thorium Belt"]) }, "/") == "where to learn/link in chat", "verbs")
+	-- (0.45.15) the footer names a profession whose window would list more; none with is:learnable: a line says why
+	res = UI:Search("@recipe is:unknown")
+	check(UI.missingNote and UI.missingNote:find("open your Alchemy window once", 1, true), "footer: open the window not read yet: " .. tostring(UI.missingNote))
+	UI:Search("@recipe is:unknown blacksmithing")
+	check(UI.missingNote == nil, "footer: not when the profession asked about was read")
+	res = UI:Search("@recipe is:learnable tailoring")
+	check(#res == 1 and res[1].noActivate and res[1].name:find("the next, Brown Linen Shirt, needs Tailoring 10", 1, true),
+		"@recipe is:learnable, none yet: a line names the next: " .. tostring(res[1] and res[1].name))
+	res = UI:Search("@recipe is:learnable anvil")
+	check(#res == 1 and res[1].name:find("the next, Anvil, needs Blacksmithing 100", 1, true), "the next of those the words name: " .. tostring(res[1] and res[1].name))
+	-- is:learnable with no @kind: the list is searched along with the others
+	res = UI:Search("is:learnable")
+	check(res[1] and res[1].name == "Copper Chain Belt", "is:learnable alone: " .. tostring(res[1] and res[1].name))
+	-- the file not loaded (an update added it; a /reload doesn't load new files): a line says to restart
+	local mp = ns.providers.missing
+	ns.providers.missing = nil
+	res = UI:Search("@recipe is:unknown")
+	ns.providers.missing = mp
+	check(res[1] and res[1].noActivate and res[1].name:find("^Restart the game"), "not loaded: restart: " .. tostring(res[1] and res[1].name))
 
 	-- in Simple mode, the question answers; Enter on one is "where to learn <it>"
 	ns.db.easyMode = true; UI:EasyChanged()
@@ -166,6 +186,30 @@ do
 	rows = MR.Answer(Q("blacksmithing recipes i'm missing"))
 	for _, e in ipairs(rows) do if e.name == "Copper Chain Belt" then n = -2 end end
 	check(n ~= -2 and #rows == 3, "a recipe learned since: not listed")
+
+	-- (0.45.15, the player's "learnable and unknown showing 0 results") no window read since 0.45.14: a line says which to open
+	local read = { [164] = { name = "Blacksmithing", skillLine = 164, list = {} }, [197] = { name = "Tailoring", skillLine = 197, list = {} },
+		[171] = { name = "Alchemy", skillLine = 171, list = {} } }
+	P.Store = function() return read end
+	ns.providers.missing._dirty = true
+	res = UI:Search("@recipe is:unknown")
+	check(#res == 1 and res[1].noActivate and res[1].name == "Open your Blacksmithing, Tailoring and Alchemy windows once: Terminal lists the recipes you don't know from them",
+		"@recipe is:unknown, no window read: open them: " .. tostring(res[1] and res[1].name))
+	res = UI:Search("@recipe is:learnable")
+	check(#res == 1 and res[1].name:find("^Open your"), "@recipe is:learnable, no window read: open them")
+	rows, note = MR.Answer(Q("blacksmithing recipes i'm missing"))
+	check(#rows == 1 and rows[1].name == "Open your Blacksmithing window once: Terminal lists the recipes you don't know from it"
+		and note == "Recipes you don't know yet: Blacksmithing", "the question, no window read: " .. tostring(rows[1] and rows[1].name) .. " / " .. note)
+	-- every window read, nothing you don't know
+	for _, pd in pairs(read) do pd.unknown = {} end
+	ns.providers.missing._dirty = true
+	rows = MR.Answer(Q("recipes i'm missing"))
+	check(#rows == 1 and rows[1].name == "You know every recipe your profession windows listed", "you know them all: " .. tostring(rows[1] and rows[1].name))
+	-- no crafting profession
+	P.PlayerProfessions = function() return { { name = "Herbalism", rank = 50, skillLine = 182 } } end
+	ns.providers.missing._dirty = true
+	rows = MR.Answer(Q("recipes i'm missing"))
+	check(#rows == 1 and rows[1].name == "None of your professions has recipes to learn", "no crafting profession: " .. tostring(rows[1] and rows[1].name))
 
 	P.Store, P.PlayerProfessions, _G.AtlasLoot, I.ItemField, I.NpcRow = was.store, was.profs, was.AL, was.field, was.npcRow
 	_G.IsPlayerSpell, _G.UnitGUID, _G.UnitName, _G.IsTradeskillTrainer = was.known, was.guid, was.uname, was.isTT

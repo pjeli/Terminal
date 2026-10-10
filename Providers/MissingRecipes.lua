@@ -332,6 +332,109 @@ function MR.Rows()
 	return out
 end
 
+----------------------------------------------------------------------
+-- Nothing listed: why (0.45.15, the player: "learnable and unknown showing 0 results": no window read since)
+----------------------------------------------------------------------
+
+-- a line that says something (not a result: Enter does nothing, nothing to send)
+local function Note(text)
+	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
+		_pos = ns.UI and ns.UI.NO_POS or nil }
+end
+MR.Note = Note
+
+-- your crafting professions whose window hasn't listed what you don't know yet (of those asked about: want)
+local function Unlisted(want)
+	local out = {}
+	for _, n in ipairs(MR.notListed or {}) do if not next(want) or want[n] then out[#out + 1] = n end end
+	return out
+end
+
+-- "your Alchemy window" / "your Alchemy and Tailoring windows" / "your A, B and C windows"
+local function Windows(names)
+	if #names == 1 then return "your " .. names[1] .. " window" end
+	return "your " .. table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names] .. " windows"
+end
+MR.Windows = Windows
+
+--- When a search or the question lists none of them: a line saying why, or nil (nothing more to say than "none").
+--- q: { profs = the professions asked about, words = the words naming them, learnable = only those your skill allows }.
+function MR.EmptyRow(q)
+	q = q or {}
+	local p = ns.providers.missing
+	local all = p and ns:GetEntries(p) or {} -- (builds the list: MR.notListed is this list's)
+	local want = {}
+	for _, n in ipairs(q.profs or {}) do want[n] = true end
+	local open = Unlisted(want)
+	local mine, nextUp = 0, nil
+	for _, e in ipairs(all) do
+		if not next(want) or want[e.profName] then
+			mine = mine + 1
+			local named = true -- (the next one you could learn: of those the words name)
+			local hay = rawget(e, "_lname") or Lower(e.name)
+			for _, w in ipairs(q.words or {}) do if not hay:find(w, 1, true) then named = false break end end
+			if named and e.need and not e.canLearn and (not nextUp or e.need < nextUp.need) then nextUp = e end
+		end
+	end
+	if mine == 0 and #open > 0 then
+		return Note(("Open %s once: Terminal lists the recipes you don't know from %s"):format(Windows(open), #open == 1 and "it" or "them"))
+	end
+	if mine == 0 then
+		local P = ns.Professions
+		local any = false
+		for _, pr in ipairs(P and P.PlayerProfessions and P.PlayerProfessions() or {}) do
+			if MR.CRAFTING[pr.skillLine or 0] then any = true end
+		end
+		if not any then return Note("None of your professions has recipes to learn") end
+		local which = (#(q.profs or {}) == 1) and q.profs[1] or nil
+		return Note("You know every recipe " .. (which and ("your " .. which .. " window") or "your profession windows") .. " listed")
+	end
+	if q.learnable and nextUp then
+		return Note(("None you can learn yet: the next, %s, needs %s %d"):format(nextUp.name, nextUp.profName, nextUp.need))
+	end
+	return nil
+end
+
+local ProfWord -- (the question's, below)
+
+-- the professions an Advanced search's plain words name, its other words, and whether it wants only what you can learn
+local function AdvancedAsk(text)
+	local P = ns.Professions
+	local profs = P and P.PlayerProfessions and P.PlayerProfessions() or {}
+	local q = { profs = {}, words = {} }
+	for w in Lower(text or ""):gmatch("%S+") do
+		local first = w:sub(1, 1)
+		if first ~= "@" and first ~= "-" and first ~= "!" and not w:find("[:|>]") then
+			local pn = ProfWord(w, profs)
+			if pn then q.profs[#q.profs + 1] = pn else q.words[#q.words + 1] = w end
+		elseif (first ~= "-" and first ~= "!") and not w:find("|", 1, true) and (w:find("is:learnable", 1, true) or w:find("is:canlearn", 1, true)) then
+			q.learnable = true
+		end
+	end
+	return q
+end
+
+--- An Advanced search that read this list ("@recipe is:unknown", "@recipe is:learnable"): a line on top saying why
+--- none are listed (Search.lua's Scan.Finish; res = the search's rows); some listed but a profession's window not read
+--- yet: the footer says so (UI.missingNote).
+function MR.LeadRow(text, res)
+	local q = AdvancedAsk(text)
+	if res and #res > 0 then
+		-- (rows listed, of this list or another's (is:unknown alone: flight paths too): no line; the footer names a
+		-- profession whose window would list more)
+		local p = ns.providers.missing
+		if p then ns:GetEntries(p) end
+		local want = {}
+		for _, n in ipairs(q.profs) do want[n] = true end
+		local open = Unlisted(want)
+		if #open > 0 and ns.UI then
+			ns.UI.missingNote = "open " .. Windows(open) .. " once to list " .. (#open == 1 and "its" or "their") .. " recipes to learn"
+		end
+		return nil
+	end
+	return MR.EmptyRow(q)
+end
+
 ns:RegisterProvider("missing", {
 	label = "Recipe to learn",
 	color = "ff9ec9b4", -- (a grey of the recipes' mint)
@@ -345,6 +448,8 @@ ns:RegisterProvider("missing", {
 		CHATBOX = CHATBOX or ns.ChatBoxSpec(function(e) return SpellLink(e) or e.name end)
 		return MR.Rows()
 	end,
+	-- (none listed: why; Search.lua's Scan.Finish puts it on top)
+	leadRow = function(_, text, res) return MR.LeadRow(text, res) end,
 })
 
 ----------------------------------------------------------------------
@@ -362,7 +467,7 @@ for w in ([[i im my me the a an all any every what which show list do dont know 
 	learnable available i'd ive is are profession professions]]):gmatch("%S+") do ASK[w] = true end
 
 -- your profession a word names ("blacksmithing", "blacksmith", "smithing"...: its name holds the word, 4 letters or more)
-local function ProfWord(w, profs)
+function ProfWord(w, profs)
 	if #w < 4 then return nil end
 	for _, pr in ipairs(profs) do
 		local ln = Lower(pr.name)
@@ -446,8 +551,16 @@ function MR.Answer(q)
 		end
 	end
 	if q.learnable and noSkill > 0 then note = note .. ("  ·  %d whose skill isn't known left out"):format(noSkill) end
-	local open = {}
-	for _, n in ipairs(MR.notListed or {}) do if not next(wantProf) or wantProf[n] then open[#open + 1] = n end end
-	if #open > 0 then note = note .. "  ·  open your " .. table.concat(open, ", ") .. " window once to list " .. (#open == 1 and "its" or "their") .. " recipes" end
+	local open = Unlisted(wantProf)
+	if #rows == 0 then
+		-- (none: a line saying why, not an empty list; nothing listed because no window was read: the line says so)
+		local why = MR.EmptyRow(q)
+		if why then -- (the footer then says what was asked, the line why there are none)
+			local said = (q.learnable and "Recipes you can learn now" or "Recipes you don't know yet") .. (which and (": " .. which) or "")
+			if q.learnable and noSkill > 0 then said = said .. ("  ·  %d whose skill isn't known left out"):format(noSkill) end
+			return { why }, said
+		end
+	end
+	if #open > 0 then note = note .. "  ·  open " .. Windows(open) .. " once to list " .. (#open == 1 and "its" or "their") .. " recipes" end
 	return rows, note
 end
