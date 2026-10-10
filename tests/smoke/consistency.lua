@@ -220,7 +220,7 @@ do
 	UI:Open(""); FlushAll()
 	local cats = 0
 	local real = UI.EasyTab
-	UI.EasyTab = function(self) cats = cats + 1 end
+	UI.EasyTab = function(self) cats = cats + 1 return true end -- (a category row: picked)
 	local moved = 0
 	local realMove = UI.Move
 	UI.Move = function(self, d) moved = moved + 1 end

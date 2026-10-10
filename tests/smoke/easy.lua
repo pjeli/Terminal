@@ -173,9 +173,17 @@ Run("typing lists the categories that have it", function()
 	check(UI.category == nil and UI.Results()[1] and UI.Results()[1].catId and UI.edit:GetText() == "sword", "Shift+Left in a category: back to all of them")
 	UI:Activate(at)
 	check(UI.category == "bags", "(picked again)")
-	-- Tab: back to the categories; Tab on a category row picks it
+	-- (0.45.20) Tab, one rule in every mode: in a category it goes down the list (back is Shift+Left's), Shift+Tab up;
+	-- Tab on a category row picks it
+	local nIn = #UI.Results()
 	key("TAB")
-	check(UI.category == nil and UI.Results()[1].catId, "Tab in a category: back to all of them")
+	check(UI.category == "bags" and nIn >= 2 and UI.Selected() == 2, "Tab in a category: the next result, the category kept: " .. tostring(UI.category) .. " " .. UI.Selected())
+	_G.IsShiftKeyDown = function() return true end
+	key("TAB")
+	_G.IsShiftKeyDown = s4
+	check(UI.category == "bags" and UI.Selected() == 1, "Shift+Tab: the previous one")
+	UI:SetCategory(nil)
+	check(UI.category == nil and UI.Results()[1].catId, "(the categories again)")
 	key("TAB")
 	check(UI.category ~= nil, "Tab on a category row: picks it: " .. tostring(UI.category))
 	-- typing on in a category keeps it; words that aren't in it: the categories again

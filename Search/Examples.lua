@@ -21,6 +21,7 @@ E.EXAMPLES = {
 	"try: what dungeon should i do", "try: where should i fish", "try: nearby battlemaster", "try: nearest pvp vendor",
 	"try: what killed me", "try: mats for thorium belt", "try: what uses copper bar", "try: where to get mageweave",
 	"try: nearest unlearned flight master", "try: unlearned flight paths", "try: guild blacksmith", "try: spells not on my bars", "try: quests to drop", "try: recipes i'm missing", "try: recipes i can learn now",
+	"tip: F1 shows every key",
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
 E.ADV_EXAMPLES = {
@@ -30,7 +31,7 @@ E.ADV_EXAMPLES = {
 	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @gold", "try: @xp rested", "try: @achievement is:todo",
 	"try: @dungeon sort:nearest", "try: @flight is:unlearned sort:nearest", "try: @map fish:mine", "try: thorium belt > mats > alts", "try: mats for thorium belt >>> party", "try: copper bar > uses", "try: @map lvl:30", "try: @dungeon lvl:25", "try: @recipe is:skillup", "try: @friend is:online", "try: @guild blacksmith", "try: @spell is:unplaced", "try: @quest is:drop", "try: @recipe is:unknown", "try: @recipe is:learnable", "try: @who orc lvl:20-30",
 	"try: @item is:boe|q:epic", "try: @spell is:ready", "try: @gear slot:head|chest -is:soulbound", "try: @item q:rare|epic", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
-	"tip: Up = last command, Down = recent picks",
+	"tip: Up = last command, Down = recent picks", "tip: F1 shows every key",
 }
 -- Examples made for the character playing (their class, professions, bags, level, where they are, guild): mixed in
 -- with the fixed ones, every other suggestion. Worked out from lists already built (never a big list on its own),

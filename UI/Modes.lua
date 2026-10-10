@@ -247,6 +247,56 @@ function UI:ColorGlow()
 	end
 end
 
+----------------------------------------------------------------------
+-- Leaving for a moment (F1's keys window, 0.45.20): what the terminal shows is kept and put back as it was: the text
+-- and cursor, the mode of this run (fuzzy finding, Alt+`'s Advanced, fuzzy finding's Simple), the category picked,
+-- the selected row. A panel takes the terminal's place (Panel.Opening hides it), so this is what comes back.
+----------------------------------------------------------------------
+
+--- The terminal as it is now, for UI:RestoreState.
+function UI:SaveState()
+	local edit, E = UI.edit, ns.Easy
+	return {
+		text = edit and edit:GetText() or "", cursor = self.cursor, fzf = self.fzf and true or nil,
+		temp = E and E.temp, tempSimple = E and E.tempSimple,
+		category = (not self.categoryAuto) and self.category or nil, sel = UI.results[UI.sel],
+	}
+end
+
+--- Opens the terminal as `s` (UI:SaveState) had it; nil: an empty prompt in the lasting mode.
+function UI:RestoreState(s)
+	s = s or {}
+	local E = ns.Easy
+	local text = type(s.text) == "string" and s.text or ""
+	if s.fzf then
+		self:FuzzyOnce(text)
+	else
+		if E then E.temp, E.tempSimple = s.temp, s.tempSimple end
+		self:Open(text)
+		if s.category then self:SetCategory(s.category) end
+	end
+	if s.sel then
+		self.popTarget = s.sel -- (the row selected again once the results are in: a search going on picks it at its end)
+		self:SelectPopTarget(not self.searchJob)
+		self:Render()
+	end
+	local now = UI.edit:GetText()
+	self.cursor = math.max(0, math.min(type(s.cursor) == "number" and s.cursor or #now, #now))
+	self:UpdateCaret()
+end
+
+--- F1: the keys window (Apps/KeysWindow.lua) on the tab of the mode in use, coming back here as it was.
+function UI:KeysWindow()
+	local K = ns.KeysWindow
+	if not K then
+		-- (a file the update added: a /reload doesn't load it)
+		ns:Print("The keys window came with an update: restart the game to load it (a /reload doesn't load new files).")
+		return false
+	end
+	if K.TooSoon() then return false end -- (F1 held: its repeats after the window closed)
+	return K.Open(K.ModeNow(), self:IsShown() and self:SaveState() or nil)
+end
+
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
 --- syntax (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category
 --- looks in) and the search goes on from there; closed, it opens straight in Advanced. Simple comes back when the

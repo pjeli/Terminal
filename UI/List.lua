@@ -13,9 +13,13 @@ local MAX_ROWS, FOOTER_H, ONCE_LABEL = UI.MAX_ROWS, UI.FOOTER_H, UI.ONCE_LABEL
 -- and Shift+Enter do for the selected row (Easy.VERBS), then the command line's own keys
 local SYNTAX_KEYS = { { "@", "kind" }, { "/", "slash" }, { ".", "command" }, { "=", "calc" } }
 
+-- F1: every key, per mode (Apps/KeysWindow.lua). Last in every list but Advanced's (before its syntax keys): the first to
+-- go when the footer is narrow, it's there for finding the rest
+local KEYS_HINT = { "F1", "keys" }
 local FZF_LABEL = "Fuzzy find" -- (Tab+`: pure fuzzy finding over every list, this run)
-local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" } }
-local SYNTAX_HINTS = { { "Enter", "write it" }, { "Tab", "next" }, { "Shift+Tab", "back" } } -- (Advanced's @kind / key: pick lists)
+local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" }, KEYS_HINT }
+-- (Advanced's @kind / key: pick lists; "back" is Shift+Left's word, so Shift+Tab is "previous")
+local SYNTAX_HINTS = { { "Enter", "write it" }, { "Tab", "next" }, { "Shift+Tab", "previous" }, KEYS_HINT }
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
 local BACK_HINT = { "Shift+Left", "back" } -- (back to the search a step left, UI:GoBack)
 local BACK_CATEGORIES = { "Shift+Left", "all categories" } -- (Simple mode, a category picked: Tab does it too)
@@ -145,6 +149,7 @@ function UI:FitHints()
 		if back then list[#list + 1] = BACK_HINT end
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
 		if write then list[#list + 1] = { "Shift+Right", "write it" } end
+		list[#list + 1] = KEYS_HINT
 		for _, k in ipairs(SYNTAX_KEYS) do list[#list + 1] = k end
 		key = key .. "|adv|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(write)
 	else
@@ -160,6 +165,7 @@ function UI:FitHints()
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
 		local r = UI.results[UI.sel]
 		if r and not (r.catId or r.noActivate) then list[#list + 1] = { "Shift+Right", "more" } end -- (the row menu)
+		list[#list + 1] = KEYS_HINT
 		key = key .. "|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(self.category) .. "|" .. tostring(UI.results[UI.sel] and UI.results[UI.sel].catId)
 	end
 	local room = (t.width or 640) - 28 - (status:GetStringWidth() or 0) - 24

@@ -97,10 +97,17 @@ do
 		local items = {}
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
-		items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
-		-- (Shift+Enter's line only when the verbs name one: an action word's row, worn gear, a passive spell have none)
-		if (e.secondary or e.secondarySecure) and (shift or not ns.Easy) then
-			items[#items + 1] = { label = Cap(shift or "more"), secondary = true }
+		if self.fzf then
+			-- (0.45.20) fuzzy finding runs nothing: its first lines do what its Enter and Shift+Enter do (they said "Use",
+			-- "Cast"... and then took the row to Simple mode)
+			items[#items + 1] = { label = "To Simple mode", run = function() UI:FuzzyPop(e, false) end }
+			items[#items + 1] = { label = "To Advanced mode", run = function() UI:FuzzyPop(e, true) end }
+		else
+			items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
+			-- (Shift+Enter's line only when the verbs name one: an action word's row, worn gear, a passive spell have none)
+			if (e.secondary or e.secondarySecure) and (shift or not ns.Easy) then
+				items[#items + 1] = { label = Cap(shift or "more"), secondary = true }
+			end
 		end
 		-- a quest to drop among others: all of them together, after Terminal's confirmation names them (QuestDrop.lua)
 		local QD = ns.QuestDrop
@@ -126,7 +133,7 @@ do
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
 			-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
 			local boxed = { ["link in chat"] = true, ["put in the chat box"] = true }
-			if not boxed[shift or ""] and not boxed[enter or ""] then
+			if self.fzf or (not boxed[shift or ""] and not boxed[enter or ""]) then -- (fuzzy finding's lines above don't)
 				items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
 			end
 			local channels = SH.MenuChannels()

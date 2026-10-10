@@ -33,11 +33,12 @@ UI.PASS_ACTIONS = {
 	TOGGLEWINDOWED = true, TOGGLE_VOICE_SELF_MUTE = true, TOGGLE_VOICE_SELF_DEAFEN = true, TEXT_TO_SPEECH_STOP = true,
 	MINIMAPZOOMIN = true, MINIMAPZOOMOUT = true,
 }
--- keys Terminal uses with Ctrl or Alt: always Terminal's (select all, the clipboard, the list's Ctrl+N/J/P/K/U, words,
--- Alt+`; Ctrl+Enter and Shift+Enter are its own too)
-local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = true, K = true, U = true, ["`"] = true,
-	LEFT = true, RIGHT = true, UP = true, DOWN = true, HOME = true, END = true, BACKSPACE = true, DELETE = true,
-	TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true }
+-- keys Terminal uses with Ctrl or Alt: always Terminal's (select all, the clipboard, the list's Ctrl+N/J/P/K, Ctrl+U/W,
+-- words, Alt+`; Ctrl+Enter and Shift+Enter are its own too; F1 the keys window, whatever the game binds to it)
+local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = true, K = true, U = true, W = true,
+	["`"] = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, HOME = true, END = true, BACKSPACE = true,
+	DELETE = true, TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true, F1 = true }
+UI.HELP_KEY = "F1" -- (Apps/KeysWindow.lua: every key, per mode; .keybinds too)
 
 --- Is this key press the game's (a chord with Ctrl, Alt or Meta, or a function key, bound to one of PASS_ACTIONS and
 --- not one of Terminal's own)? Also the action it's bound to.
@@ -97,6 +98,13 @@ local function WordRight(s, c) -- end of the word right of c
 	return i
 end
 
+local function NextWord(s, c) -- where the next word starts after c (the rest of this word, then its spaces)
+	local n, i = #s, c
+	while i < n and not s:sub(i + 1, i + 1):match("%s") do i = i + 1 end
+	while i < n and s:sub(i + 1, i + 1):match("%s") do i = i + 1 end
+	return i
+end
+
 --- Move the caret. With shift the selection grows from where it began; without, it's dropped.
 local function MoveCaret(to, shift)
 	if shift then
@@ -108,10 +116,18 @@ local function MoveCaret(to, shift)
 	UI:UpdateCaret()
 end
 
+--- Does this key type a character (a letter, a digit, Space, the number pad, a letter of another alphabet)? A function
+--- key, Insert or Caps Lock types nothing: no OnChar follows them.
+local function Types(key)
+	return type(key) == "string" and (#key == 1 or key == "SPACE" or key:find("^NUMPAD") ~= nil or key:find("[\128-\255]") ~= nil)
+end
+UI.KeyTypes = Types -- (tests)
+
 local function CheckChar(key)
 	local edit = UI.edit
-	-- OnChar should follow this key; if it never does, this client can't do key capture
-	if UI.charChecked then return end
+	-- OnChar should follow this key; if it never does, this client can't do key capture. (Only a key that types: a
+	-- function key pressed before anything was typed switched to the plain text box for good.)
+	if UI.charChecked or not Types(key) then return end
 	UI.pendingChar = key
 	C_Timer.After(0, function()
 		local k = UI.pendingChar
@@ -229,15 +245,37 @@ local function KeysDown(self, key)
 	EditKey(key, ctrl, shift)
 end
 
---- The keys that walk the list, the same in the drawn prompt and the real text box: PageUp/Down a
---- page, Ctrl+N/J and Ctrl+P/K a row, Ctrl+U clears the query. True when the key was one of them.
+--- Where the cursor is: Terminal's own while it draws the prompt, else the game's text box's.
+local function Cursor(text)
+	local edit = UI.edit
+	local c = UI.keys and UI.cursor or (edit.GetCursorPosition and edit:GetCursorPosition())
+	return math.max(0, math.min(type(c) == "number" and c or #text, #text))
+end
+
+--- The keys Terminal does alike in the drawn prompt and the real text box (combat, the clipboard): F1 the keys window,
+--- PageUp/Down a page, Ctrl+Home/End the first/last result, Ctrl+N/J and Ctrl+P/K a row, Ctrl+U deletes what's before
+--- the cursor and Ctrl+W the word before it (as a shell does). True when the key was one of them.
 local function ListKey(key, ctrl)
-	if key == "PAGEUP" then UI:Move(-L.ROWS)
+	if key == UI.HELP_KEY then UI:KeysWindow()
+	elseif key == "PAGEUP" then UI:Move(-L.ROWS)
 	elseif key == "PAGEDOWN" then UI:Move(L.ROWS)
 	elseif not ctrl then return false
+	elseif key == "HOME" then UI:Move(-#UI.results)
+	elseif key == "END" then UI:Move(#UI.results)
 	elseif key == "N" or key == "J" then UI:Move(1)
 	elseif key == "P" or key == "K" then UI:Move(-1)
-	elseif key == "U" then UI:SetQuery("", 0)
+	elseif key == "U" or key == "W" then
+		local text = UI.edit:GetText()
+		local c = Cursor(text)
+		local lo = UI.keys and UI:SelRange()
+		if lo then
+			local _, hi = UI:SelRange()
+			UI:SetQuery(text:sub(1, lo) .. text:sub(hi + 1), lo) -- (over a selection: the selection, as Backspace)
+		else
+			local before = key == "U" and "" or text:sub(1, c):gsub("[^%s]*%s*$", "") -- (W: the word left, its spaces)
+			UI:SetQuery(before .. text:sub(c + 1), #before)
+			if not UI.keys and UI.edit.SetCursorPosition then UI.edit:SetCursorPosition(#before) end
+		end
 	else return false end
 	return true
 end
@@ -284,20 +322,24 @@ do
 		end
 	end
 
-	--- Tab (Shift+Tab: back). The game's own text box (combat, the clipboard) runs it too (UI.TabKey).
+	--- Tab, one rule in every mode (0.45.20): it completes, like a shell (the faint text after the cursor; Simple mode's
+	--- category row: picks it), and with nothing to complete goes to the next result; Shift+Tab the previous one. The
+	--- pick list ("@", "q:") goes round. Back is Shift+Left's (Simple mode's Tab in a category no longer goes back to
+	--- all of them). The game's own text box (combat, the clipboard) runs it too (UI.TabKey).
 	local function TabKey(shift)
 		if UI.fzf then
-			UI:Move(shift and -1 or 1) -- (pure fuzzy finding: Tab goes through the list too)
-		elseif EasyOn() and UI.mode == "search" then
-			-- easy mode: back to the categories (or pick one), unless there is typed syntax to complete
-			if not UI:AcceptCompletion() then UI:EasyTab() end
-		-- Tab completes, like a shell; with nothing (more) to complete it moves down the list
-		-- the pick list ("@", "q:"): Tab / Shift+Tab only move through it (Enter writes the one picked)
+			UI:Move(shift and -1 or 1) -- (pure fuzzy finding: nothing to complete)
 		elseif UI:StepSyntax(shift and -1 or 1) then
-			return
+			return -- (the pick list ("@", "q:"): Tab / Shift+Tab only move through it, Enter writes the one picked)
 		elseif shift then
 			UI:Move(-1)
-		elseif not UI:AcceptCompletion() then UI:Move(1) end
+		elseif UI:AcceptCompletion() then
+			return
+		elseif EasyOn() and UI.mode == "search" and UI:EasyTab() then
+			return -- (a category row: picked)
+		else
+			UI:Move(1)
+		end
 	end
 	UI.TabKey = TabKey
 
@@ -337,7 +379,9 @@ do
 				UI:SetQuery(text:sub(1, p) .. text:sub(c + 1), p)
 			end
 		elseif key == "DELETE" then
-			if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub(NextPos(text, c) + 1), c) end
+			-- (Ctrl: up to the next word, the word right of the caret and the spaces after it, as Ctrl+Backspace takes the
+			-- one left of it)
+			if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub((ctrl and NextWord(text, c) or NextPos(text, c)) + 1), c) end
 		elseif key == "LEFT" and shift and not ctrl and UI:GoBack() then
 			-- Shift+Left goes back (0.45.17, the player: the one key for it): the search a step left, a category picked;
 			-- the held key does nothing more until let go. Nothing to go back to: it selects, as before
@@ -352,6 +396,8 @@ do
 			end
 		elseif key == "RIGHT" then
 			RightKey(text, c, ctrl, shift)
+		elseif ctrl and (key == "HOME" or key == "END") then
+			ListKey(key, ctrl) -- (the first / last result; Home and End alone are the prompt's)
 		elseif key == "HOME" then
 			MoveCaret(0, shift)
 		elseif key == "END" then

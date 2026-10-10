@@ -499,11 +499,13 @@ function UI:SetCategory(id)
 	if self:IsShown() then self:Research() end
 end
 
---- Tab in easy mode: in a category, back to all of them; on a category row, pick it.
+--- Tab in easy mode on a category row: picks it (true). Anything else: false (Tab goes to the next row; back to all
+--- the categories is Shift+Left's, UI:GoBack, since 0.45.20).
 function UI:EasyTab()
-	if self.category and not self.categoryAuto then return self:SetCategory(nil) end
 	local e = UI.results[UI.sel]
-	if e and e.catId then self:SetCategory(e.catId) end
+	if not (e and e.catId) then return false end
+	self:SetCategory(e.catId)
+	return true
 end
 
 --- Easy mode switched on or off (Easy.Set): what's shown is searched again.

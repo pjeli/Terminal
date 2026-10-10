@@ -741,7 +741,7 @@ ns:RegisterCommand("simple", {
 function E.HelpLines()
 	return {
 		"Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it.",
-		"Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter or a click, then the thing itself. Tab goes back to all of them.",
+		"Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter, Tab or a click, then the thing itself. Shift+Left goes back to all of them (and back from wherever Enter took you).",
 		"Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\").",
 		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do: \"All 8 to party\" sends every result at once.",
 		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
@@ -759,6 +759,7 @@ function E.HelpLines()
 		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
 		"Ctrl+Enter does it and keeps the terminal open (for things that don't open a window).",
+		"F1 (or .keybinds) shows every key, for each mode; Esc there brings you back.",
 		"Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all).",
 		"Want the full command line (@kinds, filters, chat)? Type .advanced",
 	}
