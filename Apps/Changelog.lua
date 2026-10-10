@@ -13,6 +13,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.46.1", when = "in testing",
+		items = {
+			"Fixes: showing something on the map (an NPC, a zone, a flight path, a dungeon) no longer leads to \"action blocked\" messages from the map later, in a fight: the game's own map code now opens the map and switches it to the place.",
+		},
+	},
+	{
 		v = "0.46.0", when = "released October 2026",
 		items = {
 			"Every key in one place: F1 (or .keybinds) opens a small window with Terminal's keys for Simple mode, Advanced and fuzzy finding, the ones a mode does its own way highlighted; Esc takes you back to your search as you left it. The keys now work alike in every mode: Tab completes (or picks a category) and otherwise goes to the next result, Shift+Tab the previous; Ctrl+Home / Ctrl+End jump to the first / last result; Ctrl+W and Ctrl+Delete delete a word, Ctrl+U everything before the cursor; right-click in fuzzy finding offers what its Enter and Shift+Enter do.",
@@ -64,24 +70,6 @@ CL.LOG = {
 			"Simple mode keeps its footer once you start typing; @loot comes before @drop when picking a kind.",
 			"Quicker searches and tidier code; the loot list no longer rebuilds while item names come in.",
 			"Fixes: @loot now has AtlasLoot's classic dungeons and WoW Forever's own (it had only Burning Crusade's); Shift+Enter on an NPC only targets it (no map pin); a level said in a question is used; a death could go unrecorded; \"boss loot\" and \"dungeon locations\" are searches again.",
-		},
-	},
-	{
-		v = "0.43.0", when = "released October 2026",
-		items = {
-			"Your guild and friends: @guild and @friend (Simple mode: Guild & friends). Search by class, rank, zone, notes or profession (where the server tells it): \"@guild priest online\", \"@guild blacksmith\", \"@guild in:undercity\", \"@guild officer\". Battle.net friends show the character they're playing. Enter whispers them, Shift+Enter invites them.",
-			"@who (Simple mode: \"who priest undercity\"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite; lvl: and in: go into the /who.",
-			"\"or\" and \"not\": \"sword or axe\", \"rare sword or epic axe\", \"rare ring not boe\" (also without, except). Advanced: | between values, filters or words (q:rare|epic, slot:head|chest, sword|axe), & for both inside one (q:rare&type:sword|q:epic&type:axe), and - or ! for not (-is:soulbound, !q:poor, -cloth).",
-			"Your gold: @gold (Simple mode: \"gold\"). With Baganator or Bagnon, every alt's gold too, guild banks and the warband bank, with the total on top. Enter lists it in chat, Shift+Enter puts it in the chat box.",
-			"Skill-ups: \"skillup\" (Advanced: is:skillup, also with @profession) lists recipes that still give skill, orange and yellow; is:orange, is:yellow, is:green, is:grey too. Recipes show in their difficulty colour, as of the last time you opened that profession.",
-			"Simple mode: Shift+Right opens the selected result's menu (open, use, link or send to chat...), to pick from with Up/Down and Enter.",
-			"The Group Finder's pages: \"group browser\" and \"who listing\" open the Dungeons window straight to that tab.",
-			"Dungeon and raid entrances are WoW Forever's own, with level ranges: The Drowned City, the Hall of Thanes and the rest are there, and other expansions' are gone.",
-			"The \"try:\" suggestions in the empty prompt are made for your character: your class trainer, your professions' skill-ups, a dungeon at your level, where you are, what's in your bags.",
-			"Pure fuzzy finding: Tab+` (hold Tab, press `; or .fuzzy). Every list at once, matched by name only, like fzf: no @, no filters, no extras; go through the results with Up/Down. Enter takes the result to Simple mode, Shift+Enter to Advanced. A soft glow round the prompt says it's on; Tab+` again closes it.",
-			"Loot sent to chat says where it drops: \"[Thunderfury] dropped by Garr in Molten Core\" (>> guild, the right-click menu's chat lines, Link in chat).",
-			"Fixes: typing Advanced syntax in Simple mode could raise an error during a long search; \"upgrades\" inside an or-search kept using your gear and level from the first search; an invisible click area could stay on screen after a window closed Terminal; one failing reagent name could empty a profession's recipe list.",
-			"Lighter and quicker: NPC role searches (vendor, repair, trainer), item type and stat filters do less work per row; tidier code throughout.",
 		},
 	},
 

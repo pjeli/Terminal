@@ -2534,6 +2534,7 @@ do -- world map locations
 	}
 	local pinned = false
 	C_Map = {
+		OpenWorldMap = function(id) note("OpenWorldMap", id) end, -- (pressed by the game's macro, never by Terminal)
 		HasUserWaypoint = function() return pinned end,
 		ClearUserWaypoint = function() note("ClearWaypoint"); pinned = false end,
 		GetMapInfo = function(id) return MAPS[id] end,
@@ -2580,9 +2581,39 @@ do -- world map locations
 	WorldMapFrame.shown = true
 	local switched = {}
 	WorldMapFrame.SetMapID = function(_, id) switched[#switched + 1] = id end
-	local MAPMACRO = "/run if not WorldMapFrame:IsShown() then ToggleWorldMap() end WorldMapFrame:SetMapID(37)"
+	local MAPMACRO = "/run C_Map.OpenWorldMap(37)"
 	local rz = ns.Secure.Resolve(z.secure, z)
 	check(rz and rz.macro == MAPMACRO, "Enter runs the game's macro that switches the map: " .. tostring(rz and rz.macro))
+	-- 0.46.1: a /run line runs tainted ("*** ForceTaint_Strong ***"): WorldMapFrame:SetMapID from one left the map's zone
+	-- tainted and its pins blocked in combat (Button:SetPassThroughButtons() x14). The macro is the game's own call only.
+	check(rz and not rz.macro:find("WorldMapFrame", 1, true) and not rz.macro:find("SetMapID", 1, true)
+		and not rz.macro:find("ToggleWorldMap", 1, true), "the macro calls none of the map's Lua (a /run line runs tainted)")
+	do
+		local open = C_Map.OpenWorldMap
+		C_Map.OpenWorldMap = nil
+		local rb = ns.Secure.Resolve(z.secure, z)
+		check(rb and rb.macro == nil and rb.binding == "TOGGLEWORLDMAP", "no C_Map.OpenWorldMap: the map key's binding, never a /run of the map's Lua: "
+			.. tostring(rb and (rb.macro or rb.binding)))
+		C_Map.OpenWorldMap = open
+		-- after the press: who wrote the map's zone, read for .debug log (never written)
+		local realCheck = _G.issecurevariable
+		local function Traced(text)
+			for _, l in ipairs(ns.Debug.trace) do if l.msg:find(text, 1, true) then return true end end
+			return false
+		end
+		for i = #ns.Debug.trace, 1, -1 do ns.Debug.trace[i] = nil end
+		_G.issecurevariable = function(t, k) return t ~= WorldMapFrame or k ~= "mapID", "*** ForceTaint_Strong ***" end
+		z.after(z)
+		check(Traced("its zone was set by *** ForceTaint_Strong *** (its pins may be blocked in combat)"), "traced: a tainted zone names who wrote it")
+		_G.issecurevariable = function() return true end
+		z.after(z)
+		check(Traced("its zone was set by the game's own code") and not Traced("set by the game's own code (its pins"), "traced: the game's own code set it")
+		_G.issecurevariable = nil
+		for i = #ns.Debug.trace, 1, -1 do ns.Debug.trace[i] = nil end
+		z.after(z)
+		check(Traced("maps: the map ") and not Traced("set by"), "no issecurevariable: the trace says nothing about it")
+		_G.issecurevariable = realCheck
+	end
 	check(z.isOpen(z) == false, "with the map open the macro still runs (it switches the map)")
 	local mark = #log
 	z.after(z)
@@ -2954,7 +2985,7 @@ do -- AtlasLoot and Questie integrations
 	check(n.secure and n.secure.binding == "TOGGLEWORLDMAP", "NPC opens the map through the game's map key")
 	-- the map is open: Questie's marker, the map switch and the pin
 	C_Map = { HasUserWaypoint = function() return false end, ClearUserWaypoint = function() end,
-		CanSetUserWaypointOnMap = function() return true end,
+		CanSetUserWaypointOnMap = function() return true end, OpenWorldMap = function() end,
 		SetUserWaypoint = function(p) note("Waypoint", p.uiMapID, p.position.x, p.position.y) end }
 	_G.CreateVector2D = function(x, y) return { x = x, y = y } end
 	C_SuperTrack.SetSuperTrackedUserWaypoint = function() end
@@ -2965,7 +2996,7 @@ do -- AtlasLoot and Questie integrations
 	check(logHas("QuestieShowNPC 12", mark + 1), "Questie marks the NPC on the map")
 	check(#switched == 0 and logHas("Waypoint 37 0.5 0.4", mark + 1), "the NPC is pinned; Terminal doesn't switch the map itself")
 	local rn = ns.Secure.Resolve(n.secure, n)
-	check(rn and rn.macro and rn.macro:find("SetMapID(37)", 1, true), "the game's macro switches the map to the NPC's zone")
+	check(rn and rn.macro and rn.macro == "/run C_Map.OpenWorldMap(37)", "the game's macro switches the map to the NPC's zone: " .. tostring(rn and rn.macro))
 	mark = #log
 	n.secondary(n)
 	check(logHas("Waypoint 37 0.5 0.4", mark + 1) and not logHas("QuestieShowNPC", mark + 1), "Shift+Enter only pins")

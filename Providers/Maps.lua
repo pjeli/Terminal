@@ -6,11 +6,15 @@ local ns = select(2, ...)
 -- reliably on this client, so they're left out (flight paths and instance entrances have lists
 -- of their own, from known spots: Integrations/Flights.lua, Integrations/Entrances.lua).
 --
--- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): it opens the
--- map if it's closed, as the map key does, and switches it to the place. Terminal never
--- calls WorldMapFrame:SetMapID itself: that leaves the map's state written by Terminal, and
--- the map's pins, rebuilt from it later (often in combat), then fail as Terminal's.
--- Afterwards Terminal only places the waypoint (a C call, nothing in the map's Lua).
+-- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): one game call,
+-- C_Map.OpenWorldMap(id). The game answers it with WORLD_MAP_OPEN, and the map's own code opens
+-- the map (or switches the open one) to the place. Nothing in the macro touches the map's Lua:
+-- WorldMapFrame:SetMapID leaves the map's zone written by whoever called it, and the map's pins,
+-- rebuilt from it later (often in combat), then fail as that caller's. From Terminal's code that
+-- was Terminal; from a /run line it is "*** ForceTaint_Strong ***", the game's name for code a
+-- /run or /script line runs (0.46.0: Button:SetPassThroughButtons() x14 in combat, after a few
+-- NPCs shown on the map). Afterwards Terminal only places the waypoint (a C call) and reads who
+-- wrote the map's zone, for .debug log (M.MapWriter).
 
 local M = {}
 ns.Maps = M
@@ -24,12 +28,12 @@ function M.Target(e)
 	return type(id) == "number" and id or nil
 end
 
---- The macro the game runs: open the map if it's closed (what the map key runs), then show
---- the place. Nil (no place, or no map yet): the map key's binding is used instead.
+--- The macro the game runs: the game's own call that opens the map on the place (see the top). Nil (no place, no map
+--- yet, or a client without that call): the map key's binding is used instead, which opens the map on your own zone.
 local function MapMacro(e)
 	local id = M.Target(e)
-	if not id or not _G.WorldMapFrame or type(_G.ToggleWorldMap) ~= "function" then return nil end
-	return ("/run if not WorldMapFrame:IsShown() then ToggleWorldMap() end WorldMapFrame:SetMapID(%d)"):format(id)
+	if not id or not _G.WorldMapFrame or not (C_Map and type(C_Map.OpenWorldMap) == "function") then return nil end
+	return ("/run C_Map.OpenWorldMap(%d)"):format(id)
 end
 
 M.SECURE = { macro = MapMacro, binding = "TOGGLEWORLDMAP", buttons = { "MiniMapWorldMapButton", "WorldMapMicroButton" } }
@@ -81,6 +85,16 @@ function M.PinLine(pin, name, where)
 		(type(where) == "string" and where ~= "" and where ~= name) and (" (" .. where .. ")") or "")
 end
 
+--- Who last wrote the map's zone (WorldMapFrame.mapID), only read: "the game's own code", else the name the game
+--- blames for it ("*** ForceTaint_Strong ***" for a /run line, an addon's name). Nil when this client can't tell.
+function M.MapWriter()
+	local f, check = _G.WorldMapFrame, _G.issecurevariable
+	if not f or type(check) ~= "function" then return nil end
+	local ok, secure, by = pcall(check, f, "mapID")
+	if not ok then return nil end
+	return secure and "the game's own code" or tostring(by or "an unknown caller")
+end
+
 --- Runs once the map is open: show the place, and point at it.
 local function ShowAfter(e)
 	-- the game's macro switched the map; here it's only read (never written: see the top)
@@ -90,7 +104,10 @@ local function ShowAfter(e)
 		local ok, id = pcall(f.GetMapID, f)
 		switched = ok and id == (M.Target(e) or e.mapID)
 	end
-	ns:Trace("maps: the map " .. (switched and "shows " or "doesn't show ") .. tostring(e.name))
+	local writer = M.MapWriter()
+	ns:Trace("maps: the map " .. (switched and "shows " or "doesn't show ") .. tostring(e.name)
+		.. (writer and ("; its zone was set by " .. writer) or "")
+		.. ((writer and writer ~= "the game's own code") and " (its pins may be blocked in combat)" or ""))
 	local pin = Place(e)
 	if pin and not switched then
 		ns:Print(M.PinLine(pin, e.name) .. ": couldn't switch the map to it.")

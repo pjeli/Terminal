@@ -283,7 +283,7 @@ do
 	local areas = { [1637] = "Orgrimmar", [1537] = "Ironforge", [17] = "The Barrens", [392] = "Ratchet", [380] = "The Crossroads", [12] = "Elwynn Forest", [87] = "Goldshire" }
 	-- world yards: the Barrens is about 10000 yards across (1% = 100 yd); Elwynn elsewhere
 	_G.C_Map = {
-		GetAreaInfo = function(a) return areas[a] end,
+		GetAreaInfo = function(a) return areas[a] end, OpenWorldMap = function() end,
 		GetWorldPosFromMapPos = function(map, p) return map == 1413 and 1 or 2, { x = p.x * 10000, y = p.y * 10000 } end, -- (Elwynn 2)
 		GetBestMapForUnit = function() return 1413 end,
 		GetPlayerMapPosition = function() return { x = 0.60, y = 0.38 } end,
@@ -558,7 +558,7 @@ do
 		local rfk = UI:Search("@dungeon rfk")[1]
 		check(rfk and rfk.ui == 1413 and rfk.px == 42.9, "its entrance's map spot")
 		local m = rfk and ns.Secure.Resolve(rfk.secure, rfk)
-		check(m and (m.macro or ""):find("SetMapID(1413)", 1, true), "Enter: the game opens the map on its zone: " .. tostring(m and m.macro))
+		check(m and m.macro == "/run C_Map.OpenWorldMap(1413)", "Enter: the game opens the map on its zone: " .. tostring(m and m.macro))
 		check(ns.Share.Line(rfk, "@dungeon rfk") == "Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "sent: its name and a pin (rfk says nothing more): " .. tostring(ns.Share.Line(rfk, "@dungeon rfk")))
 		check(ns.Share.Line(rfk, "@dungeon sort:nearest") == "Nearby dungeon: Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "nearby: " .. tostring(ns.Share.Line(rfk, "@dungeon sort:nearest")))
 		ns.db.easyMode = true

@@ -58,6 +58,7 @@ local function Body()
 		GetPlayerMapPosition = function() return where.map and { x = where.x, y = where.y } or nil end,
 		CanSetUserWaypointOnMap = function() return true end,
 		SetUserWaypoint = function() end, HasUserWaypoint = function() return false end, ClearUserWaypoint = function() end,
+		OpenWorldMap = function() end,
 		GetUserWaypointHyperlink = function() return "|Hworldmap:1413|h[pin]|h" end,
 	}
 	_G.C_TaxiMap = nil
@@ -211,7 +212,7 @@ local function Body()
 	by = Rows()
 	r = by["Ratchet"][1]
 	local m = ns.Secure.Resolve(r.secure, r)
-	check(m and (m.macro or ""):find("SetMapID(1413)", 1, true), "Enter: the game opens the map on Ratchet: " .. tostring(m and m.macro))
+	check(m and m.macro == "/run C_Map.OpenWorldMap(1413)", "Enter: the game opens the map on Ratchet: " .. tostring(m and m.macro))
 	local placed, printed
 	ns.Maps.Place = function(e) placed = e return "set" end
 	ns.Print = function(_, s) printed = s end
