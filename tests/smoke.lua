@@ -311,7 +311,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -1571,7 +1571,9 @@ do
 	check(has("heavy linen", "Heavy Linen Bandage"), "Heavy Linen Bandage is found")
 	check(has("silk band", "Silk Bandage"), "recipes without a learned flag count as known")
 	check(not has("runecloth", "Runecloth Bandage"), "explicitly unlearned recipes stay out")
-	check(logFind("Indexed First Aid: 4 known recipes."), "re-index with more recipes is announced")
+	check(logFind("Indexed First Aid: 4 known recipes, 1 more to learn."), "re-index with more recipes is announced, and how many to learn")
+	check(st[129].unknown and #st[129].unknown == 1 and st[129].unknown[1].name == "Runecloth Bandage" and st[129].unknown[1].id == 44,
+		"the window's recipe you don't know is kept apart (0.45.14: recipes to learn)")
 
 	local dbg = table.concat(cmd("profdebug"), "\n")
 	check(dbg:find("GetAllRecipeIDs: 0   GetFilteredRecipeIDs: 5", 1, true) and dbg:find("First recipe: Linen Bandage", 1, true) and dbg:find("First Aid=4", 1, true),

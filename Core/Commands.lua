@@ -23,7 +23,7 @@ ns:RegisterCommand("help", {
 	lines[#lines + 1] = "Drop quests with  >> drop  (the selected one: the game asks)  and  >>> drop  (every quest listed: Terminal asks first):  @quest is:drop >>> drop"
 		lines[#lines + 1] = "Chains: thorium belt > mats, copper bar > uses, thorium bar > sources, thorium belt > learn (.chains); plain words work too: mats for thorium belt, where to learn thorium belt"
 		lines[#lines + 1] = "Guildies by what they do: @guild blacksmith, @guild priest is:online (Enter whispers, Shift+Enter invites)"
-		lines[#lines + 1] = "Ask in plain words: where should i level, what dungeon should i do, where should i fish, what killed me, what dropped, spells not on my bars (@spell is:unplaced), quests to drop (@quest is:drop; is:grey, is:leftbehind)"
+		lines[#lines + 1] = "Ask in plain words: where should i level, what dungeon should i do, where should i fish, what killed me, what dropped, spells not on my bars (@spell is:unplaced), quests to drop (@quest is:drop; is:grey, is:leftbehind), recipes i'm missing (@recipe is:unknown; recipes i can learn now: is:learnable)"
 		lines[#lines + 1] = "Flight paths you haven't learned: @flight is:unlearned sort:nearest (in plain words: nearest unlearned flight master); a flight master's map tells Terminal which you know"
 		lines[#lines + 1] = "do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"
 		lines[#lines + 1] = "Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on; right-click a result for everything it can do"

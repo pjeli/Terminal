@@ -85,6 +85,13 @@ end
 -- is: values only recipes answer: "@profession is:skillup" searches the recipes too
 F.RECIPE_IS = { skillup = true, skillups = true, orange = true, yellow = true, green = true, grey = true, gray = true,
 	trivial = true, craftable = true }
+-- is: values only the recipes you don't know answer: "@recipe is:unknown" searches those too (MissingRecipes.lua)
+F.MISSING_IS = { unknown = true, unlearned = true, missing = true, learnable = true, canlearn = true }
+--- Does this typed word ask for the recipes you don't know (is:unknown, is:learnable)?
+function F.MissingWord(w)
+	for v in Lower(w):gmatch("is:(%a+)") do if F.MISSING_IS[v] then return true end end
+	return false
+end
 --- Does this typed word filter by something only recipes have (is:skillup, is:orange|yellow, -is:grey)?
 function F.RecipeWord(w)
 	for v in Lower(w):gmatch("is:(%a+)") do if F.RECIPE_IS[v] then return true end end
@@ -306,7 +313,7 @@ F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
 		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
-		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned" },
+		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
@@ -345,6 +352,7 @@ F.HELP = {
 	{ "is:drop", "quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first" },
 	{ "is:todo", "quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey" },
 	{ "is:ready", "spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
+	{ "is:unknown", "@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)" },
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },

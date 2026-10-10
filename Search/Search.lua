@@ -589,6 +589,11 @@ Scan.ANSWERS = {
 		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
 		if q then return ns.QuestDrop.Answer(q) end
 	end,
+	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua
+	function(text)
+		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)
+		if q then return ns.MissingRecipes.Answer(q) end
+	end,
 }
 
 -- SearchText's steps share one table per search (q):
@@ -736,6 +741,13 @@ function Scan.Parse(self, text)
 	if kinds and kinds.professions and not kinds.recipes and ns.Filters and ns.Filters.RecipeWord then
 		for _, w in ipairs(words) do
 			if ns.Filters.RecipeWord(w) then kinds.recipes = true break end
+		end
+	end
+	-- "@recipe is:unknown": the recipes you don't know are their own list (MissingRecipes.lua): searched too
+	if kinds and (kinds.recipes or kinds.professions) and not kinds.missing and ns.providers.missing and ns.Filters
+		and ns.Filters.MissingWord then
+		for _, w in ipairs(words) do
+			if ns.Filters.MissingWord(w) then kinds.missing = true break end
 		end
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,

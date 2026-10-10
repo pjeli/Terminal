@@ -57,7 +57,7 @@ P.Store = Store
 -- recipes and camp objects come from the index; the professions list doesn't (its own events
 -- and skill changes refresh it)
 function P.MarkDirty()
-	for _, id in ipairs({ "recipes", "camp" }) do
+	for _, id in ipairs({ "recipes", "camp", "missing" }) do
 		local p = ns.providers[id]
 		if p then p._dirty = true end
 	end
@@ -431,10 +431,13 @@ end
 
 local busy = false
 
---- One known recipe of the open window as it's stored (nil for one not known or unreadable).
---- cats: category id -> name (false: none), filled as categories are looked up.
+--- One known recipe of the open window as it's stored (nil for one not known or unreadable; the second result: the
+--- game's info of one not known, for the recipes you don't have yet). cats: category id -> name (false: none).
 local function RecipeRecord(api, id, cats)
 	local info = api.GetRecipeInfo(id)
+	if type(info) == "table" and type(info.name) == "string" and not Secret(info.name) and info.learned == false then
+		return nil, info
+	end
 	if type(info) == "table" and type(info.name) == "string" and not Secret(info.name) and info.learned ~= false then
 		local catName
 		if info.categoryID then
@@ -461,7 +464,7 @@ end
 
 --- Stores the recipes read from the open window under its profession (or the profession spell that
 --- opened it), with the spell it was opened by, and drops older copies kept under another key.
-local function SaveSnapshot(store, key, profName, fromList, list)
+local function SaveSnapshot(store, key, profName, fromList, list, unknown)
 	-- a window opened by a profession spell (Smelting): keep it apart from its profession
 	local spell = P.lastSpell and (GetTime() - P.lastSpell.at) < 6 and P.lastSpell.name or nil
 	if not spell and P.tradeSpellNames[Lower(profName)] then spell = profName end
@@ -489,7 +492,8 @@ local function SaveSnapshot(store, key, profName, fromList, list)
 		if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
 	end
 	if not P.scanning and prevCount ~= #list then
-		ns:Print(("Indexed %s: %d known recipe%s."):format(profName, #list, #list == 1 and "" or "s"))
+		ns:Print(("Indexed %s: %d known recipe%s%s."):format(profName, #list, #list == 1 and "" or "s",
+			(unknown and #unknown > 0) and (", " .. #unknown .. " more to learn") or ""))
 	end
 	for k, pd in pairs(store) do
 		if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
@@ -503,6 +507,8 @@ local function SaveSnapshot(store, key, profName, fromList, list)
 		parent = parent,
 		updated = time(),
 		list = list,
+		-- the window's recipes you don't know yet (0.45.14: "recipes i'm missing", MissingRecipes.lua)
+		unknown = unknown,
 	}
 end
 
@@ -535,18 +541,25 @@ function P.Snapshot(done)
 	if not key or not profName then return skip() end
 
 	busy = true
-	local list, cats, i = {}, {}, 0
+	local list, unknown, cats, i = {}, {}, {}, 0
 	local step
 	local function stepInner()
 		local stop = math.min(i + 40, #ids)
 		while i < stop do
 			i = i + 1
-			list[#list + 1] = RecipeRecord(api, ids[i], cats)
+			local rec, info = RecipeRecord(api, ids[i], cats)
+			if rec then
+				list[#list + 1] = rec
+			elseif info then
+				-- (one you don't know: what it is and makes, to say how it's learned)
+				local _, made = ReagentsOf(ids[i])
+				unknown[#unknown + 1] = { id = ids[i], name = info.name, icon = info.icon, item = made }
+			end
 		end
 		if i < #ids then
 			C_Timer.After(0, step) -- spread the work over a few frames
 		else
-			SaveSnapshot(store, key, profName, fromList, list)
+			SaveSnapshot(store, key, profName, fromList, list, unknown)
 			finish()
 		end
 	end

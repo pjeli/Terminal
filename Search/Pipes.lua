@@ -247,6 +247,8 @@ local function LootIndex()
 	return lootBy, lootCrafted
 end
 P.AtlasCraft = AtlasCraft
+--- AtlasLoot's loot rows of an item (its bosses), or {}.
+function P.LootRowsOf(id) return (LootIndex())[id] or {} end
 
 -- your own recipes, by the item they make
 local ownBy, ownFrom
@@ -520,7 +522,8 @@ end
 --- your recipes nor AtlasLoot say.
 function P.LearnOf(e)
 	local id = ItemOf(e)
-	if e.kind == "recipes" and type(e.recipeID) == "number" then return e.recipeID, id end
+	-- (a recipe you know, or one you don't yet: MissingRecipes.lua)
+	if (e.kind == "recipes" or e.kind == "missing") and type(e.recipeID) == "number" then return e.recipeID, id, e.recipeItem end
 	if not id then return nil end
 	local Rc = AtlasRecipes()
 	if Rc and Rc.IsRecipe and Safe(Rc.IsRecipe, id) then
@@ -540,6 +543,19 @@ local function ProfName(prof)
 	local n = f and Safe(f, prof[2])
 	if type(n) == "string" and n ~= "" and not (ns.Secret and ns.Secret(n)) then return n end
 	return prof[3]
+end
+
+--- AtlasLoot's profession entry (P.AL_PROFS) for a skill line, or for a profession's name (the game's or English).
+function P.ProfOfLine(line)
+	if type(line) ~= "number" then return nil end
+	for _, pr in pairs(P.AL_PROFS) do if pr[2] == line then return pr end end
+end
+function P.ProfOfName(name)
+	if type(name) ~= "string" then return nil end
+	local ln = ns.Lower(name)
+	for _, pr in pairs(P.AL_PROFS) do
+		if ns.Lower(pr[3]) == ln or ns.Lower(ProfName(pr)) == ln then return pr end
+	end
 end
 
 local function RankCap(title)
@@ -602,7 +618,16 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 		itemID = rid, link = "item:" .. rid, icon = Icon(rid), detail = "Teaches it" .. skill, pipeHow = "taught by",
 		activate = ShowItem }
 	local I = ns.Integrations
+	local from = #out + 1
 	if I and I.ItemField then AddQuestie(out, I, rid, P.RECIPE_WORDS) end
+	-- (a vendor's window showed it in limited supply there, or always in stock: MissingRecipes.lua keeps what it saw)
+	local MR = ns.MissingRecipes
+	for k = from, #out do
+		local v = out[k]
+		local nid = v.pipeHow == P.RECIPE_WORDS.sold and (v.npcID or rawget(v, "key") or v.key)
+		local lim = nid and MR and MR.Limited(rid, nid)
+		if lim ~= nil then rawset(v, "detail", v.detail .. (lim and "  ·  limited supply" or "  ·  always in stock")) end
+	end
 	local by = LootIndex()
 	for k, l in ipairs(by[rid] or {}) do
 		if k > 15 then break end
@@ -633,14 +658,25 @@ ns:RegisterRelation("learn", {
 			rid = rid or (Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, spell)) or nil
 			if type(rid) == "number" then
 				AddRecipeItem(out, rid, prof, need, stored)
-			elseif data then
-				-- AtlasLoot knows the craft but no recipe item for it: a trainer teaches it
-				local pname = prof and ProfName(prof) or nil
-				out[#out + 1] = { key = "trainer:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
-					name = pname and ("Taught by a " .. pname .. " trainer") or "Taught by a trainer",
-					icon = "Interface\\Icons\\INV_Misc_Book_11",
-					detail = "No recipe item teaches it (AtlasLoot)" .. (pname and need and ("  ·  learn at " .. pname .. " " .. need) or "") }
-				if prof then AddTrainers(out, prof, need) end
+			else
+				-- AtlasLoot knows the craft but no recipe item for it, or a trainer's window listed it: a trainer
+				-- teaches it (what it costs, when a trainer's window showed it: MissingRecipes.lua)
+				local MR = ns.MissingRecipes
+				local sname = (e.kind == "recipes" or e.kind == "missing") and e.name
+					or (C_Spell and C_Spell.GetSpellName and Safe(C_Spell.GetSpellName, spell)) or e.name
+				local seen = MR and MR.TrainerFor(sname)
+				if data or seen then
+					prof = prof or P.ProfOfLine(e.profLine) or (seen and P.ProfOfName(seen.skill)) or nil
+					need = need or (seen and seen.rank) or nil
+					local pname = prof and ProfName(prof) or nil
+					local why = (seen and seen.cost) and ("costs " .. (ns.Gold and ns.Gold.Text(seen.cost) or seen.cost .. "c")
+						.. (seen.who and (" (seen at " .. seen.who .. ")") or "")) or "No recipe item teaches it (AtlasLoot)"
+					out[#out + 1] = { key = "trainer:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
+						name = pname and ("Taught by a " .. pname .. " trainer") or "Taught by a trainer",
+						icon = "Interface\\Icons\\INV_Misc_Book_11",
+						detail = why .. (pname and need and ("  ·  learn at " .. pname .. " " .. need) or "") }
+					if prof then AddTrainers(out, prof, need) end
+				end
 			end
 		end
 		return out
@@ -740,7 +776,8 @@ local function NameScore(e, tokens)
 	return sum, ln, whole
 end
 
-P.SEED_KINDS = { "recipes", "items", "loot", "stored" }
+-- (the recipes you don't know last: "where to learn anvil", a recipe AtlasLoot doesn't list)
+P.SEED_KINDS = { "recipes", "items", "loot", "stored", "missing" }
 
 P.CHOICES = 8 -- (names offered when the words fit several)
 

@@ -428,8 +428,12 @@ IS.flight, IS.flightmaster = FlightMaster, FlightMaster
 -- flight paths: learned or not, as a flight master's map (or the world map's data) said; one not checked yet counts as
 -- not learned (it may be)
 IS.flightpath = function(e) return e.kind == "flight" end
-IS.learned = function(e) return e.kind == "flight" and e.learned == true end
-IS.unlearned = function(e) return e.kind == "flight" and e.learned ~= true end
+-- (0.45.14) recipes too: yours are learned; the ones you don't know yet (MissingRecipes.lua) aren't, and is:learnable
+-- keeps those your skill already allows
+IS.learned = function(e) return (e.kind == "flight" and e.learned == true) or e.kind == "recipes" end
+IS.unlearned = function(e) return (e.kind == "flight" and e.learned ~= true) or e.kind == "missing" end
+IS.learnable = function(e) return e.kind == "missing" and e.canLearn == true end
+IS.canlearn = IS.learnable
 IS.flightpaths, IS.taxi = IS.flightpath, IS.flightpath
 IS.known, IS.discovered = IS.learned, IS.learned
 IS.missing, IS.undiscovered, IS.unknown = IS.unlearned, IS.unlearned, IS.unlearned
