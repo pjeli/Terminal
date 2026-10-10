@@ -1049,6 +1049,46 @@ do
 		ns.Print = basePrint
 		check(S.armed == nil and printed and printed:find("already equipped", 1, true), "Shift+Enter on worn gear: it's already equipped")
 		UI:Disarm(); UI:Hide()
+		-- (0.45.21, the player: Shift+Enter on gear found with @item used it, with @gear equipped it) the same through @item:
+		-- equipment is the Item rows' own, @gear only lists it
+		local freqWas = CopyTable(ns.db.freq) -- (these presses count as picks: put back after, the history test below counts them)
+		UI:Open("@item shortsword")
+		local sword = UI.Results()[1]
+		check(sword and sword.kind == "items" and ns.Easy.Verbs(sword) == "show in bags" and select(2, ns.Easy.Verbs(sword)) == "equip",
+			"@item: a sword in your bags says Shift+Enter equip: " .. tostring(sword and select(2, ns.Easy.Verbs(sword))))
+		_G.IsShiftKeyDown = function() return true end
+		key("ENTER")
+		_G.IsShiftKeyDown = function() return false end
+		check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/equip item:2131",
+			"@item: Shift+Enter equips it, as @gear: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+		UI:Disarm(); UI:Hide()
+		printed = nil
+		ns.Print = function(_, m) printed = m end
+		UI:Open("@item fancy helm")
+		_G.IsShiftKeyDown = function() return true end
+		key("ENTER")
+		_G.IsShiftKeyDown = function() return false end
+		ns.Print = basePrint
+		check(S.armed == nil and printed and printed:find("already equipped", 1, true), "@item: worn gear says it's already equipped, as @gear")
+		check(select(2, ns.Easy.Verbs(UI.Results()[1])) == nil, "(no Shift+Enter in its footer)")
+		UI:Disarm(); UI:Hide()
+		-- worn gear with a use of its own (a trinket): Shift+Enter uses it by its slot, in @item and @gear alike
+		local baseSpell = C_Item.GetItemSpell
+		C_Item.GetItemSpell = function(id) if id == 1 then return "Helm Power", 999 end end
+		ns.providers.items._dirty = true; ns.providers.gear._dirty = true
+		for _, kind in ipairs({ "@item", "@gear" }) do
+			UI:Open(kind .. " fancy helm")
+			local helm = UI.Results()[1]
+			_G.IsShiftKeyDown = function() return true end
+			key("ENTER")
+			_G.IsShiftKeyDown = function() return false end
+			check(helm and select(2, ns.Easy.Verbs(helm)) == "use" and S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/use 1",
+				kind .. ": worn gear with a use: Shift+Enter uses it: " .. tostring(_G.TerminalMacroProxy.attrs.macrotext))
+			UI:Disarm(); UI:Hide()
+		end
+		C_Item.GetItemSpell = baseSpell
+		ns.providers.items._dirty = true; ns.providers.gear._dirty = true
+		wipe(ns.db.freq); for k, v in pairs(freqWas) do ns.db.freq[k] = v end
 		-- equipping swaps places: the history keeps the piece you picked, wherever it is now (worn rows were known by
 		-- their slot, bag rows by their item: the shield equipped from the history came back as the sword it replaced)
 		C_Item.GetItemInfoInstant = function(x)
@@ -1078,7 +1118,7 @@ do
 		local recent = names(UI:FrequentEntries())
 		check(recent["Large Round Shield"] and not recent["Worn Shortsword"],
 			"the history still has the shield (now worn), not the sword it replaced")
-		-- the same through @item (Shift+Enter there uses it, which equips gear)
+		-- the same through @item (Shift+Enter there equips it too)
 		ns.db.recent = {}
 		wearing(SWORD)
 		UI:Open("@item shield")

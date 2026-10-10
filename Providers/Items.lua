@@ -332,6 +332,64 @@ nameFrame:SetScript("OnEvent", function(_, _, id)
 	if nameWait.count <= 0 then NamesArrived() end
 end)
 
+--- The item's equipment slot type (INVTYPE_x), or nil. Asked by id, then by its link, then from its full
+--- info: one answer missing (an item the client hasn't cached) mustn't leave gear out.
+local function EquipLoc(e)
+	local slots = ns.Filters and ns.Filters.SLOTS or {}
+	for _, what in ipairs({ e.itemID or false, e.link or false }) do
+		if what and C_Item.GetItemInfoInstant then
+			local ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, what)
+			if ok and type(loc) == "string" and slots[loc] then return loc end
+		end
+	end
+	if e.itemID and C_Item.GetItemInfo then
+		local ok, _, _, _, _, _, _, _, _, loc = pcall(C_Item.GetItemInfo, e.itemID)
+		if ok and type(loc) == "string" and slots[loc] then return loc end
+	end
+end
+
+local function EquipMacro(e) return e.itemID and ("/equip item:" .. e.itemID) or nil end
+local EQUIP_SPEC = { macro = EquipMacro }
+local function EquippedAfter(e) ns:Trace("gear: the game equipped " .. tostring(e.name)) end
+-- only when the game couldn't be handed the press (in combat, no secure button)
+local function EquipFallback(e)
+	if InCombatLockdown() then
+		ns:Print("In combat: Terminal can't equip " .. tostring(e.name) .. " (the game doesn't allow it then).")
+	else
+		ns:Print("Couldn't equip " .. tostring(e.name) .. " from the terminal. Try it from your bags.")
+	end
+end
+local function AlreadyWorn(e) ns:Print(tostring(e.name) .. " is already equipped.") end
+
+--- Does the item have a use of its own (a trinket's, an engineering helm's)? The game's answer: its use spell.
+local function OnUse(id)
+	if not (id and C_Item.GetItemSpell) then return false end
+	local ok, spell = pcall(C_Item.GetItemSpell, id)
+	return ok and Str(spell) ~= nil
+end
+
+--- (0.45.21, the player: Shift+Enter on a piece of gear found with @item used it, with @gear equipped it) Equipment does
+--- what @gear's rows do wherever it's found (@item, @gear, a plain search, Simple mode's Bags): Shift+Enter equips a bag
+--- piece (an /equip line the game presses); a worn piece is used by its slot only when it has a use (a trinket), else
+--- Shift+Enter says it's worn already. `loc`: its slot type when known (else asked). Gives the slot type, or nil.
+local function GearActions(e, loc)
+	loc = loc or EquipLoc(e)
+	if not loc then return nil end
+	e.equipLoc = loc
+	if e.slotId then
+		e.onUse = OnUse(e.itemID) or nil
+		if e.onUse then
+			e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = UseInCombat, USE_SPEC, UseNeverOpen, UsedAfter
+		else
+			e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = AlreadyWorn, nil, nil, nil
+		end
+	else
+		e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = EquipFallback, EQUIP_SPEC, UseNeverOpen, EquippedAfter
+	end
+	return loc
+end
+ns.ItemGear = { GearActions = GearActions, OnUse = OnUse } -- (tests)
+
 --- A bag item's row, the first time the item is met (bag, slot: where); count and locs are filled by the caller.
 local function NewItemRow(info, name, bag, slot, quests, questExact)
 	local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
@@ -452,6 +510,7 @@ ns:RegisterProvider("items", {
 		end
 
 		WornRows(out)
+		for _, e in ipairs(out) do GearActions(e) end -- (equipment: Shift+Enter as @gear's, for every list showing it)
 		return out
 	end,
 })
@@ -511,38 +570,9 @@ SubKind("mats", {
 
 ----------------------------------------------------------------------
 -- @gear: the equipment among your items (weapons, armour, jewellery, trinkets...), in your bags or
--- worn. Enter shows it as an Item result does (your bags, or the character window on its slot).
--- Shift+Enter equips a bag item: an /equip line on the secure macro button, pressed by the game.
+-- worn: the Item rows that are equipment, copied (they keep their own kind), with the slot and item level said.
+-- Enter and Shift+Enter are the Item row's (GearActions: equip a bag piece, use a worn one that has a use).
 ----------------------------------------------------------------------
-
---- The item's equipment slot type (INVTYPE_x), or nil. Asked by id, then by its link, then from its full
---- info: one answer missing (an item the client hasn't cached) mustn't leave gear out.
-local function EquipLoc(e)
-	local slots = ns.Filters and ns.Filters.SLOTS or {}
-	for _, what in ipairs({ e.itemID or false, e.link or false }) do
-		if what and C_Item.GetItemInfoInstant then
-			local ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, what)
-			if ok and type(loc) == "string" and slots[loc] then return loc end
-		end
-	end
-	if e.itemID and C_Item.GetItemInfo then
-		local ok, _, _, _, _, _, _, _, _, loc = pcall(C_Item.GetItemInfo, e.itemID)
-		if ok and type(loc) == "string" and slots[loc] then return loc end
-	end
-end
-
-local function EquipMacro(e) return e.itemID and ("/equip item:" .. e.itemID) or nil end
-local EQUIP_SPEC = { macro = EquipMacro }
-local function EquippedAfter(e) ns:Trace("gear: the game equipped " .. tostring(e.name)) end
--- only when the game couldn't be handed the press (in combat, no secure button)
-local function EquipFallback(e)
-	if InCombatLockdown() then
-		ns:Print("In combat: Terminal can't equip " .. tostring(e.name) .. " (the game doesn't allow it then).")
-	else
-		ns:Print("Couldn't equip " .. tostring(e.name) .. " from the terminal. Try it from your bags.")
-	end
-end
-local function AlreadyWorn(e) ns:Print(tostring(e.name) .. " is already equipped.") end
 
 local function ItemLevel(e)
 	local get = C_Item.GetDetailedItemLevelInfo
@@ -566,7 +596,7 @@ ns:RegisterProvider("gear", {
 	collect = function()
 		local out = {}
 		for _, e in ipairs(ns:GetEntries(ns.providers.items)) do
-			local loc = EquipLoc(e)
+			local loc = e.equipLoc or EquipLoc(e)
 			if loc then
 				local c = {}
 				for k, v in pairs(e) do c[k] = v end -- a copy: the Item entry keeps its own kind
@@ -580,11 +610,7 @@ ns:RegisterProvider("gear", {
 					.. (e.slotId and "Equipped" or "In Bag") .. (usable and "" or "  can't use")
 				c.text = (rawget(e, "_ltext") or "") .. (e.slotId and " equipped worn" or " in bag bags")
 				if not usable then c.color = "|cff8a8a8a" end
-				if e.slotId then
-					c.secondary, c.secondarySecure, c.secondaryIsOpen, c.secondaryAfter = AlreadyWorn, nil, nil, nil
-				else
-					c.secondary, c.secondarySecure, c.secondaryIsOpen, c.secondaryAfter = EquipFallback, EQUIP_SPEC, UseNeverOpen, EquippedAfter
-				end
+				GearActions(c, loc) -- (the item row's already, unless its slot type was only found here)
 				out[#out + 1] = c
 			end
 		end

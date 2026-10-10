@@ -235,13 +235,15 @@ end
 -- that differ: a worn item, a passive spell, an addon with a minimap button...). Shift+Enter's is said only when the
 -- row has a Shift+Enter (E.Verbs). Printing in your own chat window is "show in chat" everywhere; the game's chat box
 -- is "put in the chat box", or "link in chat" when it carries a link.
+--- An item's, and gear's alike (0.45.21: equipment found with @item does what @gear's does, Items.lua GearActions): a
+--- bag piece of equipment equips, a worn one is used only when it has a use (nothing to equip: no Shift+Enter).
 local function ItemVerbs(e)
-	if e.slotId then return "show on character", "use" end
-	return "show in bags", "use"
-end
-local function GearVerbs(e)
-	if e.slotId then return "show on character", nil end -- (worn already: nothing to equip)
-	return "show in bags", "equip"
+	local enter = e.slotId and "show on character" or "show in bags"
+	if e.equipLoc then
+		if e.slotId then return enter, e.onUse and "use" or nil end
+		return enter, "equip"
+	end
+	return enter, "use"
 end
 local function SpellVerbs(e)
 	return "show in spellbook", (not e.passive) and "cast" or nil
@@ -272,7 +274,7 @@ end
 local PLACE = { "show on map", "set waypoint" }
 local TO_CHAT = { "show in chat", "put in the chat box" }
 E.VERBS = {
-	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = GearVerbs, reagent = { "show in bags" },
+	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { "show in bags" },
 	source = SourceVerbs,
 	stored = { "show in bags", "show in chat" }, lootlog = { "show in bags", "link in chat" },
 	loot = { "show in AtlasLoot", "link in chat" },

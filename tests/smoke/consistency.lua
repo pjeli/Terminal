@@ -24,8 +24,14 @@ do
 	check(V({ kind = "consumables", secondary = use }) == "show in bags/use", "@consumable rows: " .. V({ kind = "consumables", secondary = use }))
 	-- rows of one kind that differ
 	check(V({ kind = "items", slotId = 13, secondary = use }) == "show on character/use", "an equipped item: shown on the character")
-	check(V({ kind = "gear", slotId = 5, secondary = use }) == "show on character/nil" and V({ kind = "gear", secondary = use }) == "show in bags/equip",
+	check(V({ kind = "gear", slotId = 5, equipLoc = "INVTYPE_HEAD", secondary = use }) == "show on character/nil"
+		and V({ kind = "gear", equipLoc = "INVTYPE_HEAD", secondary = use }) == "show in bags/equip",
 		"worn gear: nothing to equip; gear in your bags: equip")
+	-- (0.45.21) the same rows in @item say the same; worn gear with a use of its own: use
+	check(V({ kind = "items", slotId = 5, equipLoc = "INVTYPE_HEAD", secondary = use }) == "show on character/nil"
+		and V({ kind = "items", equipLoc = "INVTYPE_HEAD", secondary = use }) == "show in bags/equip"
+		and V({ kind = "items", slotId = 13, equipLoc = "INVTYPE_TRINKET", onUse = true, secondary = use }) == "show on character/use",
+		"equipment in @item: as @gear (a worn trinket with a use: use)")
 	check(V({ kind = "spells", passive = true, secondary = use }) == "show in spellbook/nil" and V({ kind = "spells", secondary = use }) == "show in spellbook/cast",
 		"a passive spell: nothing to cast")
 	check(V({ kind = "talents", other = true, secondary = use }) == "Wowhead link/link in chat", "another class's talent: Enter is Wowhead")
@@ -90,7 +96,7 @@ do
 	check(not dup and labels[1] == "Use" and not more, "use hearthstone: Use once, no second line doing the same: " .. table.concat(labels, ", "))
 	labels, dup = Labels(E.ActionView(hearth, E.ACTIONS.link))
 	check(not dup and labels[1] == "Link in chat", "link hearthstone: Link in chat once: " .. table.concat(labels, ", "))
-	for _, row in ipairs({ { kind = "gear", name = "Sword", itemID = 3, slotId = 16, secondary = function() end },
+	for _, row in ipairs({ { kind = "gear", name = "Sword", itemID = 3, slotId = 16, equipLoc = "INVTYPE_WEAPON", secondary = function() end },
 		{ kind = "spells", name = "Dual Wield", passive = true, secondary = function() end } }) do
 		labels = Labels(row)
 		more = false
