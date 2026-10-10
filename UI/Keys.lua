@@ -24,6 +24,37 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, LWIN = true, RWIN = true, PRINTSCREEN = true,
 }
 
+-- (0.45.19, the player: Ctrl+R should still show the frame rate, Ctrl+S sound, Ctrl+M music...) the game's own
+-- actions that don't touch what Terminal does: a key chord bound to one of these still goes to the game while the
+-- terminal is open. Not targeting, casting, moving, windows, or anything that hides the UI.
+UI.PASS_ACTIONS = {
+	TOGGLEFPS = true, TOGGLESOUND = true, TOGGLEMUSIC = true, TOGGLEAMBIENCE = true, MASTERVOLUMEUP = true,
+	MASTERVOLUMEDOWN = true, SCREENSHOT = true, TOGGLEGRAPHICSSETTINGS = true, TOGGLESELFHIGHLIGHT = true,
+	TOGGLEWINDOWED = true, TOGGLE_VOICE_SELF_MUTE = true, TOGGLE_VOICE_SELF_DEAFEN = true, TEXT_TO_SPEECH_STOP = true,
+	MINIMAPZOOMIN = true, MINIMAPZOOMOUT = true,
+}
+-- keys Terminal uses with Ctrl or Alt: always Terminal's (select all, the clipboard, the list's Ctrl+N/J/P/K/U, words,
+-- Alt+`; Ctrl+Enter and Shift+Enter are its own too)
+local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = true, K = true, U = true, ["`"] = true,
+	LEFT = true, RIGHT = true, UP = true, DOWN = true, HOME = true, END = true, BACKSPACE = true, DELETE = true,
+	TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true }
+
+--- Is this key press the game's (a chord with Ctrl, Alt or Meta, or a function key, bound to one of PASS_ACTIONS and
+--- not one of Terminal's own)? Also the action it's bound to.
+function UI.GameKey(key)
+	if type(key) ~= "string" or OWN_CHORD_KEYS[key] or not GetBindingAction then return false end
+	local alt = IsAltKeyDown and IsAltKeyDown() or false
+	local ctrl = IsControlKeyDown and IsControlKeyDown() or false
+	local shift = IsShiftKeyDown and IsShiftKeyDown() or false
+	local meta = IsMetaKeyDown and IsMetaKeyDown() or false
+	if (key == "ENTER" or key == "NUMPADENTER") and (ctrl or shift) then return false end
+	if not (alt or ctrl or meta) and not key:match("^F%d+$") then return false end -- (a plain key types)
+	local chord = (alt and "ALT-" or "") .. (ctrl and "CTRL-" or "") .. (shift and "SHIFT-" or "") .. (meta and "META-" or "") .. key
+	local ok, action = pcall(GetBindingAction, chord)
+	if ok and type(action) == "string" and UI.PASS_ACTIONS[action] then return true, action end
+	return false
+end
+
 function UI:EnterKeys()
 	local frame, edit = UI.frame, UI.edit
 	if not frame or self.noChar or InCombatLockdown() then return false end
@@ -138,6 +169,13 @@ local function KeysDown(self, key)
 		return
 	end
 	if PASS_KEYS[key] then
+		self:SetPropagateKeyboardInput(true)
+		return
+	end
+	local game, action = UI.GameKey(key)
+	if game then
+		-- the game's own key for something that doesn't touch Terminal (Ctrl+R, the frame rate): it goes on to it
+		ns:Trace(("key %s: the game's %s"):format(key, tostring(action)))
 		self:SetPropagateKeyboardInput(true)
 		return
 	end

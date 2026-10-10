@@ -115,20 +115,12 @@ do
 		frame:EnableMouseWheel(true)
 		frame:EnableKeyboard(false)
 		frame:RegisterForDrag("LeftButton")
-		frame:SetScript("OnDragStart", frame.StartMoving)
-		frame:SetScript("OnDragStop", function(self)
-			self:StopMovingOrSizing()
-			-- saved by its top-left corner, so the terminal grows and shrinks downward
-			local left, top = self:GetLeft(), self:GetTop()
-			if left and top then
-				ns.db.point = { "TOPLEFT", "BOTTOMLEFT", left, top }
-			else
-				local p, _, rp, x, y = self:GetPoint()
-				ns.db.point = { p, rp, x, y }
-			end
-		end)
+		-- (dragged by Terminal itself: it snaps to a grid, lines show the screen's middles; UI:DragStart below)
+		frame:SetScript("OnDragStart", function(self) UI:DragStart(self) end)
+		frame:SetScript("OnDragStop", function(self) UI:DragStop(self) end)
 		frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 		frame:SetScript("OnHide", function(self)
+			if UI.drag then UI:DragStop(self) end -- (closed while dragged: the lines go, the place it had is kept)
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			UI.openedByToggle, UI.tabHeld = nil, nil
@@ -649,6 +641,137 @@ function UI:HideNow()
 		self.phase, self.closing = nil, false
 		frame:Hide()
 		self:MotionReset()
+	end
+end
+
+----------------------------------------------------------------------
+-- Moving the terminal (0.45.19, the player's ask): dragged, it snaps to a grid and lines show the screen's middles
+-- (the one it sits on lights up); Shift held: no snapping. Saved by its top-left corner (it grows downward).
+----------------------------------------------------------------------
+UI.GRID = 16 -- the grid's step (the terminal's own units), its lines running through the screen's middles
+UI.GRID_DRAWN = 4 -- every 4th line drawn (faint): every step of the grid would be a mesh
+UI.SNAP_MIDDLE = 16 -- how near the screen's middle its own middle comes to sit exactly on it
+
+--- Where a terminal `w` wide, `h` tall dragged to (left, top) settles on a screen `sw` x `sh` (all in its units): its
+--- middle on the screen's middle when near, else its left edge on the grid; its top on the grid; kept on the screen.
+--- Also whether it sits on the vertical / the horizontal middle line. `free` (Shift): where it was dragged, on screen.
+function UI.SnapPosition(left, top, w, h, sw, sh, free)
+	local cx, cy = sw / 2, sh / 2
+	if not free then
+		local g = UI.GRID
+		if math.abs(left + w / 2 - cx) <= UI.SNAP_MIDDLE then
+			left = cx - w / 2
+		else
+			left = cx + math.floor((left - cx) / g + 0.5) * g
+		end
+		top = cy + math.floor((top - cy) / g + 0.5) * g
+	end
+	-- (on the screen, as SetClampedToScreen keeps it when the game moves it)
+	left = math.max(0, math.min(left, sw - w))
+	top = math.min(sh, math.max(top, math.min(h, sh)))
+	return left, top, math.abs(left + w / 2 - cx) < 0.5, math.abs(top - cy) < 0.5
+end
+
+do
+	local guides -- the lines over the screen while dragging (made on the first drag)
+
+	-- the screen in the terminal's units (its scale is the theme's, under UIParent's)
+	local function ScreenSize(f)
+		local fs, us = f:GetEffectiveScale(), UIParent:GetEffectiveScale()
+		local r = (type(fs) == "number" and fs > 0 and type(us) == "number") and us / fs or 1
+		return (UIParent:GetWidth() or 0) * r, (UIParent:GetHeight() or 0) * r
+	end
+
+	local function Line(g, x, y, w, h, a, r, gg, b)
+		local t = g:CreateTexture(nil, "OVERLAY")
+		t:SetColorTexture(r, gg, b, a)
+		t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x, y)
+		t:SetSize(w, h)
+		return t
+	end
+
+	-- the lines for a screen sw x sh at the terminal's scale, in the theme's accent: faint grid lines, the middles
+	local function Guides(f, sw, sh)
+		local key = ("%d:%d:%s"):format(sw, sh, tostring(f:GetScale()))
+		if guides and guides.key == key then return guides end
+		if guides then guides:Hide() end
+		guides = CreateFrame("Frame", nil, UIParent)
+		guides:SetFrameStrata("HIGH") -- (under the terminal, DIALOG)
+		guides:SetScale(f:GetScale() or 1) -- (its units: the terminal's)
+		guides:SetAllPoints(UIParent)
+		guides.key = key
+		local r, gg, b = Theme.RGB(Theme.Get().accent)
+		local step, cx, cy = UI.GRID * UI.GRID_DRAWN, sw / 2, sh / 2
+		for x = cx % step, sw, step do if math.abs(x - cx) > 1 then Line(guides, x, 0, 1, sh, 0.08, r, gg, b) end end
+		for y = cy % step, sh, step do if math.abs(y - cy) > 1 then Line(guides, 0, y, sw, 1, 0.08, r, gg, b) end end
+		guides.midX = Line(guides, cx - 1, 0, 2, sh, 0.35, r, gg, b) -- (the vertical middle)
+		guides.midY = Line(guides, 0, cy - 1, sw, 2, 0.35, r, gg, b) -- (the horizontal middle)
+		guides:Hide()
+		UI.guides = guides -- (tests)
+		return guides
+	end
+
+	--- The drag goes on: where the pointer has taken it, snapped (Shift: not), the middle it sits on lit up.
+	function UI:DragTick()
+		local d, f = self.drag, UI.frame
+		if not (d and f and GetCursorPosition) then return end
+		local s = f:GetEffectiveScale()
+		s = (type(s) == "number" and s > 0) and s or 1
+		local px, py = GetCursorPosition()
+		local sw, sh = ScreenSize(f)
+		local free = IsShiftKeyDown and IsShiftKeyDown()
+		local left, top, onX, onY = UI.SnapPosition(d.left + px / s - d.x, d.top + py / s - d.y, f:GetWidth() or 0,
+			f:GetHeight() or 0, sw, sh, free)
+		if left ~= d.l or top ~= d.t then
+			d.l, d.t = left, top
+			f:ClearAllPoints()
+			f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+		end
+		local g = d.guides
+		if g then
+			g.midX:SetAlpha(onX and not free and 1 or 0.35)
+			g.midY:SetAlpha(onY and not free and 1 or 0.35)
+		end
+	end
+
+	function UI:DragStart(f)
+		local left, top = f:GetLeft(), f:GetTop()
+		if type(left) ~= "number" or type(top) ~= "number" or not GetCursorPosition then
+			f:StartMoving() -- (no position to work from: the game moves it, unsnapped)
+			self.drag = { plain = true }
+			return
+		end
+		local s = f:GetEffectiveScale()
+		s = (type(s) == "number" and s > 0) and s or 1
+		local px, py = GetCursorPosition()
+		local sw, sh = ScreenSize(f)
+		self.drag = { x = px / s, y = py / s, left = left, top = top, guides = Guides(f, sw, sh) }
+		self.drag.guides:Show()
+		self.drag.guides:SetScript("OnUpdate", function() UI:DragTick() end)
+		self:DragTick()
+	end
+
+	function UI:DragStop(f)
+		local d = self.drag
+		if d and not d.plain then self:DragTick() end
+		self.drag = nil
+		if d and d.guides then
+			d.guides:SetScript("OnUpdate", nil)
+			d.guides:Hide()
+		end
+		if d and d.plain then f:StopMovingOrSizing() end
+		-- saved by its top-left corner, so the terminal grows and shrinks downward
+		if d and d.l then
+			ns.db.point = { "TOPLEFT", "BOTTOMLEFT", d.l, d.t }
+			return
+		end
+		local left, top = f:GetLeft(), f:GetTop()
+		if type(left) == "number" and type(top) == "number" then
+			ns.db.point = { "TOPLEFT", "BOTTOMLEFT", left, top }
+		else
+			local p, _, rp, x, y = f:GetPoint()
+			ns.db.point = { p, rp, x, y }
+		end
 	end
 end
 

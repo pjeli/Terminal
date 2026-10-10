@@ -252,3 +252,86 @@ do
 	UI:Hide(); T.FlushAll()
 	I.Here, I.NpcDistance, I.Facing, I.Bearing, I.RowDistance = was.here, was.dist, was.facing, was.bearing, was.rowDist
 end
+
+-- (0.45.19, the player) the game's own keys for things that don't touch Terminal stay the game's while it's open:
+-- Ctrl+R (the frame rate), Ctrl+S (sound), Ctrl+M (music), Alt+Enter (windowed)...; Terminal's own chords stay its own
+io.write("[the game's keys that stay the game's]\n")
+do
+	local F = UI.frame
+	local was = { action = _G.GetBindingAction, ctrl = _G.IsControlKeyDown, alt = _G.IsAltKeyDown }
+	local B = { ["CTRL-R"] = "TOGGLEFPS", ["CTRL-S"] = "TOGGLESOUND", ["CTRL-M"] = "TOGGLEMUSIC", ["ALT-ENTER"] = "TOGGLEWINDOWED",
+		["CTRL-F"] = "TARGETFOCUS", ["CTRL-A"] = "TOGGLEFPS", ["R"] = "TOGGLEFPS", ["CTRL-ENTER"] = "TOGGLEFPS" }
+	_G.GetBindingAction = function(c) return B[c] or "" end
+	UI:Open(""); T.FlushAll()
+	_G.IsControlKeyDown = function() return true end
+	T.key("R")
+	check(F.propagate == true and T.query() == "", "Ctrl+R: the game's (the frame rate), nothing typed")
+	T.key("S"); local s1 = F.propagate
+	T.key("M"); local m1 = F.propagate
+	check(s1 == true and m1 == true, "Ctrl+S, Ctrl+M: sound, music")
+	T.key("F")
+	check(F.propagate == false, "Ctrl+F bound to something that acts (targeting): Terminal keeps it")
+	T.key("A")
+	check(F.propagate == false, "Ctrl+A: Terminal's own (select all), whatever the game binds it to")
+	_G.IsControlKeyDown = was.ctrl
+	T.key("R", "r")
+	check(T.query() == "r" and F.propagate == false, "a plain R types, even bound to something that would pass")
+	_G.IsAltKeyDown = function() return true end
+	local shownWas = UI:IsShown()
+	T.key("ENTER")
+	check(F.propagate == true and shownWas and UI:IsShown(), "Alt+Enter: the game's windowed toggle, no result run")
+	_G.IsAltKeyDown = was.alt
+	_G.IsControlKeyDown = function() return true end
+	check(UI.GameKey("ENTER") == false, "Ctrl+Enter: Terminal's own (stays open)")
+	_G.IsControlKeyDown = was.ctrl
+	_G.GetBindingAction = was.action
+	UI:Hide(); T.FlushAll()
+end
+
+-- (0.45.19, the player) dragging the terminal: it snaps to a grid, its middle onto the screen's; lines show the
+-- middles while dragging (the one it sits on lit); Shift: no snapping
+io.write("[dragging the terminal: grid and middles]\n")
+do
+	local l, t, onX, onY = UI.SnapPosition(595, 457, 400, 100, 1600, 900, false)
+	check(l == 600 and t == 450 and onX and onY, "near the middles: exactly on them: " .. l .. "," .. t)
+	l, t, onX, onY = UI.SnapPosition(103, 700, 400, 100, 1600, 900, false)
+	check(l == 96 and t == 706 and not onX and not onY, "elsewhere: on the grid (its lines run through the middles): " .. l .. "," .. t)
+	l, t = UI.SnapPosition(103, 700, 400, 100, 1600, 900, true)
+	check(l == 103 and t == 700, "Shift: where it was dragged")
+	l, t = UI.SnapPosition(-50, 2000, 400, 100, 1600, 900, false)
+	check(l == 0 and t == 900, "kept on the screen: " .. l .. "," .. t)
+
+	local F = UI.frame
+	local was = { point = ns.db.point, cur = _G.GetCursorPosition, left = F.GetLeft, top = F.GetTop, fs = F.GetEffectiveScale,
+		us = UIParent.GetEffectiveScale, uw = UIParent.w, uh = UIParent.h, w = F.w, h = F.h, shift = _G.IsShiftKeyDown }
+	local px, py = 200, 550
+	_G.GetCursorPosition = function() return px, py end
+	F.GetLeft, F.GetTop = function() return 100 end, function() return 600 end
+	F.GetEffectiveScale, UIParent.GetEffectiveScale = function() return 1 end, function() return 1 end
+	UIParent.w, UIParent.h = 1600, 900
+	UI:Open(""); T.FlushAll()
+	F.w, F.h = 400, 100
+	F.scripts.OnDragStart(F)
+	local g = UI.guides
+	check(g and g:IsShown() and g.midX and g.midY, "dragging: the lines show")
+	px, py = 705, 553 -- (its middle 5 short of the screen's)
+	UI:DragTick()
+	check(F.lastPoint and F.lastPoint[4] == 600 and F.lastPoint[5] == 610 and g.midX.alpha == 1 and g.midY.alpha ~= 1,
+		"its middle onto the screen's (that line lit), its top on the grid: " .. tostring(F.lastPoint and F.lastPoint[4]) .. "," .. tostring(F.lastPoint and F.lastPoint[5]))
+	_G.IsShiftKeyDown = function() return true end
+	px, py = 711, 553
+	UI:DragTick()
+	check(F.lastPoint[4] == 611 and F.lastPoint[5] == 603 and g.midX.alpha ~= 1, "Shift held: no snapping: " .. tostring(F.lastPoint[4]))
+	_G.IsShiftKeyDown = was.shift
+	px, py = 705, 553
+	F.scripts.OnDragStop(F)
+	check(not g:IsShown() and ns.db.point and ns.db.point[1] == "TOPLEFT" and ns.db.point[3] == 600 and ns.db.point[4] == 610,
+		"let go: the lines go, the snapped place is kept")
+	-- closed while dragged: the lines go
+	F.scripts.OnDragStart(F)
+	UI:Hide(); T.FlushAll()
+	if F.scripts.OnHide then F.scripts.OnHide(F) end
+	check(not g:IsShown() and UI.drag == nil, "closed while dragged: the lines go")
+	ns.db.point, _G.GetCursorPosition, F.GetLeft, F.GetTop, F.GetEffectiveScale = was.point, was.cur, was.left, was.top, was.fs
+	UIParent.GetEffectiveScale, UIParent.w, UIParent.h, F.w, F.h = was.us, was.uw, was.uh, was.w, was.h
+end
