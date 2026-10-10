@@ -468,14 +468,15 @@ function MR.LeadRow(text, res)
 	return MR.EmptyRow(q)
 end
 
-local function ResultText(e) return "@recipe is:unknown " .. tostring(e.name) end
+local REACH = "@recipe is:unknown" -- (how a search names this list: .mem, Alt+`, Shift+Right; ns:KindName)
+local function ResultText(e) return REACH .. " " .. tostring(e.name) end
 
 ns:RegisterProvider("missing", {
 	label = "Recipe to learn",
 	color = "ff9ec9b4", -- (a grey of the recipes' mint)
 	-- (0.45.16, the player's call: not a kind of its own, no @missing: a filter on @recipe reaches it, is:unknown /
 	-- is:learnable; Alt+` and Shift+Right write @recipe)
-	noKind = true, resultText = ResultText,
+	noKind = true, reach = REACH, resultText = ResultText,
 	explicit = true, -- (only asked for: "recipes i'm missing", @recipe is:unknown)
 	lazy = true,
 	-- (a skill gained, a recipe learned: what you can learn now changes)

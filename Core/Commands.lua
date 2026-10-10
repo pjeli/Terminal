@@ -154,10 +154,10 @@ local function ProviderLines(lines)
 			state = "not built" .. (p.idleDrop and " (freed when idle)" or "")
 		end
 		local flags = {}
-		if p.explicit then flags[#flags + 1] = "only with @" end
+		if p.explicit then flags[#flags + 1] = p.noKind and "only through that filter" or "only with @" end
 		if p.lazy then flags[#flags + 1] = "skipped on empty searches" end
 		if n and p._usedAt then flags[#flags + 1] = ("used %ds ago"):format(math.floor(now - p._usedAt)) end
-		lines[#lines + 1] = ("  @%s (%s): %s%s"):format(p.aliases[1] or id, p.label, state,
+		lines[#lines + 1] = ("  %s (%s): %s%s"):format(ns:KindName(p) or id, p.label, state,
 			#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
 	end
 	lines[#lines + 1] = ("  %d entries in all"):format(total)

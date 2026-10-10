@@ -1486,7 +1486,7 @@ end
 
 --- The "Search <list> for this" row: Tab or Enter writes the @kind before the words.
 local function HintRow(p, id, text, firstName, count)
-	local kind = "@" .. (p.aliases and p.aliases[1] or id)
+	local kind = ns:KindName(p) or ("@" .. id)
 	local query = text:gsub("^%s+", "")
 	return {
 		name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",

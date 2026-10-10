@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.45.21", when = "in testing",
+		v = "0.45.22", when = "in testing",
 		items = {
 			"Flight paths: \"nearest unlearned flight master\" points you to the closest flight path you haven't learned yet (Enter opens the map on its flight master, Shift+Enter sets a waypoint), and \"unlearned flight paths\" lists them all. Terminal learns which ones you know from the first flight master's map you open on each continent, per character (until then they say \"not checked yet\"); a row's tooltip shows your alts' too. Advanced: @flight is:unlearned sort:nearest.",
 			"Guild professions: guild members now show their professions, so \"guild blacksmith\", \"guild skinner\" or \"guild herbalists\" (Advanced: @guild skinner) finds them, offline ones too.",

@@ -388,10 +388,7 @@ end
 -- Alt+`: what a Simple search says, written in Advanced mode's syntax
 ----------------------------------------------------------------------
 
-local function KindWord(kind)
-	local p = ns.providers[kind]
-	return p and ("@" .. ((p.aliases and p.aliases[1]) or p.id)) or nil
-end
+local function KindWord(kind) return ns:KindName(ns.providers[kind]) end
 
 --- The lists the rows a search shows come from (real results only: no category, hint, help, pick or completion row,
 --- nor a row that asks something), as a set of list ids. Alt+` names only these: "use hearthstone" shows the

@@ -184,6 +184,14 @@ end
 --- Call after adding to a provider's aliases once it's registered: the @kind lookup is rebuilt.
 function ns:AliasesChanged() self.aliasMap = nil end
 
+--- How a list is named to the player (.mem, traces, Alt+`): "@<its first alias>"; a list no @ names (`noKind`) by how a
+--- search reaches it (its `reach`: "@recipe is:unknown"), else by its label. (0.45.22: .mem said "@missing".)
+function ns:KindName(p)
+	if not p then return nil end
+	if p.noKind then return p.reach or p.label end
+	return "@" .. ((p.aliases and p.aliases[1]) or p.id)
+end
+
 --- Every lowercase word that names a provider after @ (its id, label and aliases), the first
 --- registered keeping a word two of them share. Built once, not lowercased on every lookup.
 local function AliasMap(self)
@@ -434,7 +442,7 @@ function ns:PrewarmStep()
 			if id == "items" and self.Filters and self.Filters.WarmEffects then pcall(self.Filters.WarmEffects, p._entries) end
 			if Busy(p) then q[#q + 1] = id end -- reading it started its loading (Questie's index): again once in
 			if self.Trace then
-				self:Trace(("prewarm: @%s ready, %d entries%s"):format(id, p._entries and #p._entries or 0,
+				self:Trace(("prewarm: %s ready, %d entries%s"):format(self:KindName(p) or id, p._entries and #p._entries or 0,
 					t0 and (", %.1f ms"):format(debugprofilestop() - t0) or ""))
 			end
 			if #q == 0 then warm.done = true end

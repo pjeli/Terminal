@@ -182,7 +182,7 @@ function UI:ResultText(e)
 	local p = e.kind and ns.providers[e.kind]
 	if not p then return e.name end
 	if p.resultText then return p.resultText(e) end -- (a list no @ names: how a search reaches it)
-	return "@" .. ((p.aliases and p.aliases[1]) or p.id) .. " " .. e.name
+	return ns:KindName(p) .. " " .. e.name
 end
 
 --- The suggestion shown in the empty prompt, as text to type ("try: hogger >> party" -> "hogger >> party"),
