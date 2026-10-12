@@ -238,7 +238,7 @@ local function SetupQuestie()
 		ns:RegisterProvider("mailbox", {
 			label = "Mailbox",
 			color = "ffc9a0dc",
-			aliases = { "mailbox", "mailboxes", "mail" },
+			aliases = { "mailbox", "mailboxes" }, -- ("mail" is your mail: Mail.lua)
 			explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
 			lazy = true,
 			collect = function() return I.ObjectRows("mailbox") end,

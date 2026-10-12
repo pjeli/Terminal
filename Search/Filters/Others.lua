@@ -304,6 +304,15 @@ IS.outleveled, IS.outlevelled, IS.droppable = IS.leftbehind, IS.leftbehind, IS.d
 -- guild members and friends (Social.lua)
 IS.online = function(e) return e.online == true end
 IS.offline = function(e) return e.online == false end
+-- your mail (Mail.lua): COD, running out within 3 days, unread, sent back to you, from the auction house, with gold
+local function MailIs(test) return function(e) return e.kind == "mail" and e.mailKind == "mail" and test(e, e.mail) or false end end
+IS.cod = MailIs(function(_, m) return m.cod ~= nil end)
+IS.expiring = MailIs(function(e) return e.soon == true end)
+IS.unread = MailIs(function(_, m) return not m.read end)
+IS.returned = MailIs(function(_, m) return m.returned == true end)
+IS.auction = MailIs(function(_, m) return m.auction ~= nil end)
+IS.money = MailIs(function(_, m) return m.money ~= nil end)
+IS.gold, IS.ah = IS.money, IS.auction
 IS.notdone, IS.undone = IS.todo, IS.todo
 IS.maxed, IS.offcooldown = IS.capped, IS.ready
 IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
@@ -313,7 +322,8 @@ F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
 		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
-		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable" },
+		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
+		"cod", "expiring", "unread", "returned", "auction", "money" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
@@ -354,6 +364,7 @@ F.HELP = {
 	{ "is:ready", "spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "is:unknown", "@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)" },
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
+	{ "is:expiring", "@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached); on:<character>" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },
 	{ "q:rare|epic", "any of them: | between values, filters or words (slot:head|chest, is:boe|q:epic, sword|axe)" },

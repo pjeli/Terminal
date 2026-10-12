@@ -590,6 +590,11 @@ Scan.ANSWERS = {
 		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
 		if q then return ns.QuestDrop.Answer(q) end
 	end,
+	-- "my mail", "mail running out", "cod mail": Mail.lua
+	function(text)
+		local q = ns.Mail and ns.Mail.Question(text)
+		if q then return ns.Mail.Answer(q) end
+	end,
 	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua
 	function(text)
 		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)

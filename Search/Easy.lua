@@ -63,7 +63,7 @@ E.CATEGORIES = {
 	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "lootlog", label = "Loot log", kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
 	{ id = "combat", label = "Combat log", kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
-	{ id = "alts", label = "Alts & bank", kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
+	{ id = "alts", label = "Alts, bank & mail", kinds = { "stored", "mail" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
 	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
@@ -142,6 +142,8 @@ E.WORDS = {
 	-- recipes that still give skill (orange and yellow; strict: HARD_WORDS)
 	skillup = "is:skillup", skillups = "is:skillup", ["skill up"] = "is:skillup", ["skill ups"] = "is:skillup",
 	online = "is:online", offline = "is:offline",
+	-- your mail (Mail.lua): "cod", "expiring", "unread"
+	cod = "is:cod", expiring = "is:expiring", unread = "is:unread",
 	-- what an item is and where it's worn: "shield", "plate", "boots", "ring"
 	shield = "type:shield", shields = "type:shield", sword = "type:sword", swords = "type:sword", axe = "type:axe",
 	axes = "type:axe", mace = "type:mace", maces = "type:mace", dagger = "type:dagger", daggers = "type:dagger",
@@ -271,6 +273,10 @@ end
 local function QuestVerbs(e) -- (one to drop: grey, or in a zone left behind, QuestDrop.lua)
 	return "show in quest log", e.drop and "drop" or "track"
 end
+local function MailVerbs(e) -- (your own mail at an open mailbox: pointed at in the inbox; Mail.lua)
+	local open = e.mailKind == "mail" and e.mine and ns.Mail and ns.Mail.open
+	return open and "show in inbox" or "show in chat", "nearest mailbox"
+end
 local PLACE = { "show on map", "set waypoint" }
 local TO_CHAT = { "show in chat", "put in the chat box" }
 E.VERBS = {
@@ -278,6 +284,7 @@ E.VERBS = {
 	source = SourceVerbs,
 	stored = { "show in bags", "show in chat" }, lootlog = { "show in bags", "link in chat" },
 	loot = { "show in AtlasLoot", "link in chat" },
+	mail = MailVerbs,
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { "show on map", "target" },
@@ -469,6 +476,8 @@ local function QuestionToAdvanced(text)
 		for _, w in ipairs(mq.words) do rest[#rest + 1] = w end
 		return "@recipe " .. (mq.learnable and "is:learnable" or "is:unknown") .. " " .. (#rest > 0 and (table.concat(rest, " ") .. " ") or "")
 	end
+	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
+	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
 	if dq then
 		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
@@ -754,6 +763,7 @@ function E.HelpLines()
 		"Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out).",
 		"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows.",
 		"Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list.",
+		"Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character.",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it.",
 		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
 		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",

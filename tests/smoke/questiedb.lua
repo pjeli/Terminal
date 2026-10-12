@@ -510,6 +510,18 @@ do
 		check(#got == 1, "@mailbox in:ratchet: the one in Ratchet (by its spot): " .. table.concat(got, ", "))
 		got = L("@mailbox in:barrens")
 		check(#got == 2, "@mailbox in:barrens: both of the Barrens': " .. table.concat(got, ", "))
+		-- (0.46.3) @mail is your mail (Mail.lua): the mailboxes keep their own words; a mail's Shift+Enter pins the nearest
+		local MB, MAIL = ns.providers.mailbox, ns.providers.mail
+		local shared = {}
+		for _, a in ipairs(MB.aliases) do for _, b in ipairs(MAIL.aliases) do if a == b then shared[#shared + 1] = a end end end
+		check(#shared == 0 and ns:ResolveProvider("mail") == MAIL and ns:ResolveProvider("mailb") == MB and ns:ResolveProvider("mai") == MAIL,
+			"@mail is your mail, @mailbox the mailboxes: no word shared: " .. table.concat(shared, ", "))
+		local pinWas, pinned = I.PinObject, nil
+		I.PinObject = function(e) pinned = e end
+		ns.Mail.NearestMailbox()
+		I.PinObject = pinWas
+		check(pinned and pinned.name == "Mailbox" and pinned.py == 37.0, "a mail's Shift+Enter: the nearest mailbox (Ratchet's) pinned: "
+			.. tostring(pinned and pinned.py))
 		ns.db.easyMode = true
 		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:nearest ", "Alt+`: nearest mailbox -> @mailbox sort:nearest: " .. ns.Easy.ToAdvanced("nearest mailbox"))
 		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/mailbox$"), "the saved index's key names the kinds looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
