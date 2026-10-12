@@ -418,6 +418,7 @@ local importDialog -- built on first use
 local function BuildImportDialog()
 	if importDialog then return importDialog end
 	local d = CreateFrame("Frame", "TerminalStyleImport", UIParent, "BackdropTemplate")
+	if ns.Zen then ns.Zen.Made(d) end
 	d:SetSize(520, 118)
 	d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	d:SetFrameStrata("DIALOG")

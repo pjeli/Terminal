@@ -14,6 +14,7 @@ local function Tip()
 		tip = CreateFrame("GameTooltip", "TerminalTooltip", UIParent, "GameTooltipTemplate")
 		tip.supportsItemComparison = false -- a finder shows the thing, not "if you replace this..."
 		tip:SetFrameStrata("TOOLTIP")
+		if ns.Zen then ns.Zen.Made(tip) end -- (made while .zen has the interface faded: kept up, Zen.lua)
 	end
 	return tip
 end

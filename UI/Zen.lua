@@ -68,6 +68,13 @@ local function Keep(f)
 end
 Z.Keep = Keep -- (the drag grid, made on the first drag: UI.lua)
 function Z.Kept(f) return kept[f] == true end
+--- One of Terminal's frames made just now (the tooltip, the row menu, the copy bar... are made the first time they're
+--- needed): while the interface is faded it keeps its own alpha at once; later opens keep it by name (Z.OWN). 0.46.17,
+--- the player's screenshot: right after a /reload no tooltip ever showed until Terminal was opened again: the tooltip
+--- was made after .zen had faded UIParent, and so faded with it, invisible.
+function Z.Made(f)
+	if Z.active and Z.Can() then Keep(f) end
+end
 
 local function HideRest()
 	if InCombatLockdown and InCombatLockdown() then return end

@@ -34,6 +34,7 @@ local function Build()
 	if frame then return end
 	local Theme = ns.Theme
 	frame = CreateFrame("Frame", "TerminalCopyFrame", UIParent, "BackdropTemplate")
+	if ns.Zen then ns.Zen.Made(frame) end -- (made while .zen has the interface faded: kept up, Zen.lua)
 	frame:SetSize(W, H)
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
 	frame:SetFrameStrata("DIALOG")
@@ -123,6 +124,7 @@ local function BuildLink()
 	if link then return end
 	local Theme = ns.Theme
 	link = CreateFrame("Frame", "TerminalLinkFrame", UIParent, "BackdropTemplate")
+	if ns.Zen then ns.Zen.Made(link) end
 	link:SetFrameStrata("DIALOG")
 	link:SetClampedToScreen(true)
 	link:EnableMouse(true)

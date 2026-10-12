@@ -68,6 +68,7 @@ do
 	local function MenuFrame()
 		if menu then return end
 		menu = CreateFrame("Frame", "TerminalRowMenu", UIParent, "BackdropTemplate")
+		if ns.Zen then ns.Zen.Made(menu) end -- (made while .zen has the interface faded: kept up, Zen.lua)
 		menu:SetFrameStrata("TOOLTIP")
 		menu:SetClampedToScreen(true)
 		menu:EnableMouse(true)

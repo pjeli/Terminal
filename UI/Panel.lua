@@ -40,6 +40,7 @@ function P.Build(name, app)
 	frame:SetScript("OnEvent", function() app.Close("combat") end)
 	panels[#panels + 1] = app
 	frames[#frames + 1] = frame
+	if ns.Zen then ns.Zen.Made(frame) end -- (built while .zen has the interface faded, the first time it opens: kept up)
 	return frame
 end
 

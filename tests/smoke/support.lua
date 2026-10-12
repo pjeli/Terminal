@@ -1225,6 +1225,38 @@ do
 	UI:HideNow(); UI.frame.scripts.OnHide(UI.frame); T.FlushAll()
 	check(not Zen.active and not Zen.dim:IsShown(), "and back")
 	P.SetIgnoreParentAlpha = nil
+	-- (0.46.17, the player's screenshot: right after a /reload no tooltip ever showed until Terminal was opened again:
+	-- the tooltip is made the first time it's needed, after .zen had faded UIParent, and faded with it) a frame of
+	-- Terminal's made while the interface is faded keeps its own alpha at once; made with .zen idle, it's left alone
+	ns.Theme.Animation = function() return nil end
+	UI:Open()
+	local late = CreateFrame("Frame"); Track(late)
+	Zen.Made(late)
+	check(Zen.active and ign[late] == true, "a frame made while the interface is faded keeps its own alpha")
+	UI:HideNow(); UI.frame.scripts.OnHide(UI.frame); T.FlushAll()
+	local idle = CreateFrame("Frame"); Track(idle)
+	Zen.Made(idle)
+	check(not Zen.active and ign[idle] == nil, "made with .zen idle: left alone (kept by name on the next open)")
+	ns.Theme.Animation = animWas
+	-- every frame Terminal makes on UIParent when first needed goes through Zen.Made (the tooltip, the row menu, the copy
+	-- bar and window, the style import, the apps' frames)
+	for _, f in ipairs({ "UI/Tooltip.lua", "UI/RowMenu.lua", "UI/CopyBox.lua", "UI/Options.lua", "UI/Panel.lua" }) do
+		local h = io.open(f, "r") or io.open("Terminal/" .. f, "r")
+		local src = h and h:read("*a") or ""
+		if h then h:close() end
+		local lines = {}
+		for l in (src .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = l end
+		local made, kept = 0, 0
+		for i, l in ipairs(lines) do
+			if l:find("CreateFrame(", 1, true) and l:find("UIParent", 1, true) then
+				made = made + 1
+				for j = i, math.min(#lines, i + 12) do
+					if lines[j]:find("Zen.Made", 1, true) then kept = kept + 1 break end
+				end
+			end
+		end
+		check(src ~= "" and made > 0 and made == kept, f .. ": every frame made on UIParent goes through Zen.Made (" .. kept .. " of " .. made .. ")")
+	end
 	ns.db.zen = nil
 	ns.Theme.Animation, _G.InCombatLockdown = animWas, combatWas
 	P.GetChildren = nil
