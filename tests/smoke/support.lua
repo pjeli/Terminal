@@ -1134,6 +1134,10 @@ do
 	local Zen, P = ns.Zen, _G.UIParent
 	local alphaWas, animWas, combatWas = P:GetAlpha(), ns.Theme.Animation, _G.InCombatLockdown
 	P:SetAlpha(0.9)
+	local minimapWas = _G.Minimap
+	local mm = CreateFrame("Frame")
+	mm:SetAlpha(0.8)
+	_G.Minimap = mm -- (0.46.8: the minimap's icons stayed up: it's faded on its own, and put back as it was)
 	local mine, theirs = CreateFrame("Frame"), CreateFrame("Frame")
 	mine.__name, theirs.__name = "TerminalSomethingNew", "ChatFrame1"
 	local ign = {}
@@ -1156,8 +1160,8 @@ do
 	Step(0.1)
 	check(P:GetAlpha() < 0.9 and P:GetAlpha() > 0 and Zen.dim:IsShown(), "fading away: " .. P:GetAlpha())
 	Step(1)
-	check(P:GetAlpha() == 0 and math.abs(Zen.dim:GetAlpha() - Zen.DIM) < 1e-6 and Zen.driver.scripts.OnUpdate == nil,
-		"faded away, the screen dimmed, and nothing runs once it's there")
+	check(P:GetAlpha() == 0 and math.abs(Zen.dim:GetAlpha() - Zen.DIM) < 1e-6 and Zen.driver.scripts.OnUpdate == nil
+		and mm:GetAlpha() == 0, "faded away (the minimap too), the screen dimmed, and nothing runs once it's there")
 	-- closing: back smoothly, to exactly what it was
 	UI:HideNow()
 	UI.frame.scripts.OnHide(UI.frame) -- (the game fires OnHide)
@@ -1166,8 +1170,8 @@ do
 	Step(0.3)
 	check(P:GetAlpha() > 0 and P:GetAlpha() < 0.9, "coming back: " .. P:GetAlpha())
 	Step(1)
-	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil,
-		"back as it was (0.9), the dimming gone: " .. P:GetAlpha())
+	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil
+		and math.abs(mm:GetAlpha() - 0.8) < 1e-9, "back as it was (0.9; the minimap 0.8), the dimming gone: " .. P:GetAlpha())
 	-- one of Terminal's apps in its place: still Terminal; back once it closes
 	local apps = ns.Panel.Registered()
 	local appShown = true
@@ -1186,7 +1190,8 @@ do
 	-- combat: back at once; Terminal opened in combat leaves the interface alone
 	UI:Open(); Step(1)
 	Zen.OnEvent("PLAYER_REGEN_DISABLED")
-	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active, "combat: the interface is back at once")
+	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and math.abs(mm:GetAlpha() - 0.8) < 1e-9,
+		"combat: the interface is back at once (the minimap too)")
 	UI:HideNow(); T.FlushAll()
 	_G.InCombatLockdown = function() return true end
 	UI:Open()
@@ -1217,6 +1222,7 @@ do
 	table.remove(appFrames)
 	P:SetAlpha(alphaWas)
 	UI.frame.SetIgnoreParentAlpha = nil
+	_G.Minimap = minimapWas
 end
 
 -- a stored item sent to chat says who holds how many (0.43.27): >> party, the menu's chat lines, a chain's "> alts"

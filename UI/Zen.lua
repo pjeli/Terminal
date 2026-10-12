@@ -15,14 +15,17 @@ local Z = {}
 ns.Zen = Z
 
 Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha)
-Z.IN, Z.OUT = 0.35, 0.6 -- (s: fading away as Terminal opens; coming back as it closes)
+Z.IN, Z.OUT = 0.25, 0.4 -- (s: fading away as Terminal opens; coming back as it closes; 0.46.8, the player: a bit faster)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
+-- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up)
+Z.ALSO = { "Minimap", "MinimapCluster" }
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
 Z.OWN = { "TerminalFrame", "TerminalTooltip", "TerminalRowMenu", "TerminalLinkFrame", "TerminalCopyFrame",
 	"TerminalStyleImport" } -- (not the click catcher: a secure button, invisible anyway)
 
 local level, target = 0, 0 -- (0: the interface as it was; 1: faded away, the screen dimmed)
 local uiAlpha -- UIParent's alpha before the fade (put back exactly)
+local also -- Z.ALSO's frames -> their alpha before the fade
 local dim, driver
 local kept = {} -- Terminal's frames already set to ignore UIParent's alpha
 local watching = false
@@ -68,7 +71,10 @@ end
 --- The look at a point of the fade (v: 0 = as it was, 1 = faded away), eased.
 local function Apply(v)
 	local e = v * v * (3 - 2 * v)
-	if Z.Can() then pcall(UIParent.SetAlpha, UIParent, (uiAlpha or 1) * (1 - e)) end
+	if Z.Can() then
+		pcall(UIParent.SetAlpha, UIParent, (uiAlpha or 1) * (1 - e))
+		for f, a in pairs(also or {}) do pcall(f.SetAlpha, f, a * (1 - e)) end
+	end
 	local d = Dim()
 	d:SetAlpha(Z.DIM * e)
 	if v > 0 then d:Show() else d:Hide() end
@@ -76,7 +82,7 @@ end
 
 local function Done()
 	Z.active = false
-	uiAlpha = nil
+	uiAlpha, also = nil, nil
 	ns:Trace("zen: the interface is back")
 end
 
@@ -111,6 +117,14 @@ function Z.Opened()
 	if uiAlpha == nil and Z.Can() then
 		local ok, a = pcall(UIParent.GetAlpha, UIParent)
 		uiAlpha = ok and type(a) == "number" and a or 1
+		also = {}
+		for _, name in ipairs(Z.ALSO) do
+			local f = _G[name]
+			if type(f) == "table" and type(f.GetAlpha) == "function" and type(f.SetAlpha) == "function" then
+				local okA, fa = pcall(f.GetAlpha, f)
+				also[f] = okA and type(fa) == "number" and fa or 1
+			end
+		end
 	end
 	if Z.Can() then Z.KeepOwn() end
 	if not Z.active then ns:Trace("zen: Terminal opened, the interface fades and the screen dims") end
