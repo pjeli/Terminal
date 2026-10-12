@@ -260,6 +260,7 @@ function UI:SaveState()
 		text = edit and edit:GetText() or "", cursor = self.cursor, fzf = self.fzf and true or nil,
 		temp = E and E.temp, tempSimple = E and E.tempSimple,
 		category = (not self.categoryAuto) and self.category or nil, sel = UI.results[UI.sel],
+		recent = self.showRecent and true or nil, recalled = self.recalled, -- (what Down brought up)
 	}
 end
 
@@ -274,6 +275,12 @@ function UI:RestoreState(s)
 		if E then E.temp, E.tempSimple = s.temp, s.tempSimple end
 		self:Open(text)
 		if s.category then self:SetCategory(s.category) end
+		-- Down's recent picks on the empty prompt, Simple mode's last search it brought back (Up puts either away)
+		if s.recent and text == "" then
+			self.showRecent = true
+			self:Research()
+		end
+		if s.recalled and s.recalled == text then self.recalled = text end
 	end
 	if s.sel then
 		self.popTarget = s.sel -- (the row selected again once the results are in: a search going on picks it at its end)
@@ -295,6 +302,83 @@ function UI:KeysWindow()
 	end
 	if K.TooSoon() then return false end -- (F1 held: its repeats after the window closed)
 	return K.Open(K.ModeNow(), self:IsShown() and self:SaveState() or nil)
+end
+
+----------------------------------------------------------------------
+-- Combat (0.46.14, the player's ask): open when a fight starts, the terminal goes at once (with .zen the interface
+-- is back at once too), and once it's over it comes back as it was (UI:SaveState). Opened by hand during the fight
+-- (`): as it was, then nothing comes back later; any other way of opening it (Alt+`, Tab+`, a link) starts afresh.
+----------------------------------------------------------------------
+UI.COMEBACK_STEP = 0.25 -- (s: another text box holding the keyboard as the fight ended, looked at again this often)
+UI.COMEBACK_WAIT = 20 -- (s: waited for that long, then the terminal stays closed)
+
+--- Combat started (PLAYER_REGEN_DISABLED, before the lockdown): the terminal, if open, goes at once and what it shows
+--- is kept for the fight's end. Gives whether it was open.
+function UI:CombatClose()
+	if not self:IsShown() then return false end
+	self.combatState = self:SaveState()
+	self.comeBackGen = (self.comeBackGen or 0) + 1 -- (a wait from the last fight's end is over)
+	if ns.Zen then ns.Zen.Leave(true) end -- (.zen: the interface back at once, before anything else)
+	self:HideNow()
+	ns:Trace("combat: Terminal closed at once; it comes back as it was when the fight is over")
+	return true
+end
+
+--- The terminal as combat found it, now (`why` for .debug log). Nothing kept or already open: false.
+function UI:ComeBack(why)
+	local s = self.combatState
+	self.combatState = nil
+	self.comeBackGen = (self.comeBackGen or 0) + 1
+	if not s or self:IsShown() then return false end
+	ns:Trace("combat: Terminal back as it was (" .. tostring(why) .. ")")
+	self:RestoreState(s)
+	return true
+end
+
+--- Whether a text box that isn't Terminal's holds the keyboard (the chat box being typed in: the keys would go there).
+local function OtherFocus()
+	local get = _G.GetCurrentKeyBoardFocus
+	local focus = get and get()
+	return focus ~= nil and focus ~= UI.edit
+end
+
+--- Whether one of Terminal's apps shows (in the terminal's place).
+local function AppShown()
+	for _, app in ipairs(ns.Panel and ns.Panel.Registered() or {}) do
+		if type(app.IsShown) == "function" and app.IsShown() then return true end
+	end
+	return false
+end
+
+--- The fight is over (PLAYER_REGEN_ENABLED): the terminal comes back as combat found it. While another text box holds
+--- the keyboard, once it lets go (for up to UI.COMEBACK_WAIT); a fight starting again keeps it for that one's end.
+function UI:ComeBackAfterCombat()
+	if not self.combatState then return false end
+	local gen = (self.comeBackGen or 0) + 1
+	self.comeBackGen = gen
+	local waited = 0
+	local function Try()
+		if self.comeBackGen ~= gen or not self.combatState then return end
+		if InCombatLockdown() then return end -- (fighting again: kept for that fight's end)
+		if self:IsShown() or AppShown() then
+			self.combatState = nil
+			return
+		end
+		if OtherFocus() then
+			if waited >= UI.COMEBACK_WAIT then
+				self.combatState = nil
+				ns:Trace("combat: another text box kept the keyboard; Terminal stays closed")
+				return
+			end
+			if waited == 0 then ns:Trace("combat: over; Terminal comes back once the text box being typed in lets go") end
+			waited = waited + UI.COMEBACK_STEP
+			C_Timer.After(UI.COMEBACK_STEP, Try)
+			return
+		end
+		self:ComeBack("the fight is over")
+	end
+	Try()
+	return true
 end
 
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced

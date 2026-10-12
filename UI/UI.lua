@@ -780,6 +780,7 @@ end
 
 function UI:Open(text)
 	Build()
+	self.combatState = nil -- (opened: nothing to bring back when the fight is over; UI:ComeBack takes it out first)
 	self:Disarm()
 	self.histIdx = nil
 	self.backHeld = nil -- (a Shift+Left that went back, held as the terminal closed: its key-up went elsewhere)
@@ -829,6 +830,7 @@ function UI:Toggle()
 	if self:IsShown() then return self:Hide() end
 	-- Tab+` (the game sees the toggle key; Tab held): opens in pure fuzzy finding
 	if self:TabDown() then return self:FuzzyOnce() end
-	self:Open()
+	-- closed by combat starting: opened by hand before it came back, as it was then
+	if not (self.combatState and self:ComeBack("opened by hand")) then self:Open() end
 	self.openedByToggle = GetTime() -- (Tab let go just after, nothing typed: it was Tab+`, TabReleased)
 end

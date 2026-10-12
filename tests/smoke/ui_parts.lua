@@ -336,3 +336,113 @@ do
 	ns.db.point, _G.GetCursorPosition, F.GetLeft, F.GetTop, F.GetEffectiveScale = was.point, was.cur, was.left, was.top, was.fs
 	UIParent.GetEffectiveScale, UIParent.w, UIParent.h, F.w, F.h = was.us, was.uw, was.uh, was.w, was.h
 end
+
+do -- combat (0.46.14, the player's ask): open as a fight starts, the terminal goes at once (.zen: the interface back at
+	-- once) and comes back as it was once the fight is over; opened by hand during the fight: as it was, nothing later
+	local S, Zen, P = ns.Secure, ns.Zen, _G.UIParent
+	local icl, focusWas, alphaWas = _G.InCombatLockdown, _G.GetCurrentKeyBoardFocus, P:GetAlpha()
+	local fighting, focus = false, nil
+	_G.InCombatLockdown = function() return fighting end
+	_G.GetCurrentKeyBoardFocus = function() return focus end
+	local F = UI.frame
+	local function Fight() fighting = true; S.OnCombat() end
+	local function Over() fighting = false; S.OnRegen() end
+	UI:Open("e"); T.FlushAll()
+	check(#UI.results >= 2, "(a search with rows to pick from: " .. #UI.results .. ")")
+	UI:Move(1)
+	local picked = UI.results[UI.sel]
+	UI.cursor = 0; UI:UpdateCaret()
+	Fight()
+	check(not UI:IsShown() and not F:IsShown() and not UI.closing and F.kb == false and UI.combatState,
+		"a fight starts: the terminal gone at once (no closing animation), the keyboard let go, what it showed kept")
+	T.FlushAll()
+	check(not UI:IsShown(), "it stays closed while the fight goes on")
+	Over(); T.FlushAll()
+	check(UI:IsShown() and T.query() == "e" and UI.cursor == 0 and UI.results[UI.sel] == picked and UI.keys == true
+		and UI.combatState == nil, "the fight is over: back as it was (text, cursor, the row picked), reading keys")
+	UI:Hide(); T.FlushAll()
+	-- closed when the fight starts: nothing comes back
+	Fight(); Over(); T.FlushAll()
+	check(not UI:IsShown(), "closed as the fight started: it stays closed")
+	-- Down's recent picks on the empty prompt come back too (UI:SaveState, also F1's)
+	UI:Open(""); UI.showRecent = true; UI:Research(); T.FlushAll()
+	Fight(); Over(); T.FlushAll()
+	check(UI:IsShown() and UI.showRecent == true, "the recent picks Down brought up come back")
+	UI:Hide(); T.FlushAll()
+	UI:Open("e"); UI.recalled = "e"; T.FlushAll() -- (Simple mode's last search, brought back by Down: Up puts it away)
+	Fight(); Over(); T.FlushAll()
+	check(UI:IsShown() and UI.recalled == "e", "the search Down brought back is still Down's (Up puts it away)")
+	UI:Hide(); T.FlushAll()
+	-- opened by hand during the fight (`): as it was; nothing comes back later
+	UI:Open("e"); T.FlushAll()
+	Fight()
+	UI:Toggle(); T.FlushAll()
+	check(UI:IsShown() and T.query() == "e" and UI.combatState == nil and UI.keys == false,
+		"` during the fight: back as it was (the game's text box: combat)")
+	UI:Hide(); T.FlushAll()
+	Over(); T.FlushAll()
+	check(not UI:IsShown(), "closed again during the fight: it stays closed after")
+	-- opened another way during the fight (Alt+`, a link): afresh, and nothing comes back later
+	UI:Open("e"); T.FlushAll()
+	Fight()
+	UI:Open("hearth"); UI:Hide(); T.FlushAll()
+	Over(); T.FlushAll()
+	check(not UI:IsShown() and UI.combatState == nil, "opened another way during the fight: the kept state is dropped")
+	-- the chat box being typed in as the fight ends: back once it lets go; a new fight meanwhile keeps it
+	UI:Open("e"); T.FlushAll()
+	Fight()
+	local chat = CreateFrame("EditBox")
+	focus = chat
+	Over(); T.Flush()
+	check(not UI:IsShown() and UI.combatState, "over, the chat box being typed in: not yet")
+	Fight() -- (fighting again; the terminal isn't open, nothing to keep anew)
+	focus = nil
+	T.Flush(); T.Flush()
+	check(not UI:IsShown() and UI.combatState, "a new fight before it came back: still waiting, for that one's end")
+	Over(); T.FlushAll()
+	check(UI:IsShown() and T.query() == "e", "that fight over, the keyboard free: back")
+	UI:Hide(); T.FlushAll()
+	UI:Open("e"); T.FlushAll()
+	Fight()
+	focus = chat
+	Over()
+	focus = nil
+	T.Flush(); T.Flush()
+	check(UI:IsShown() and T.query() == "e", "the chat box let go: back")
+	UI:Hide(); T.FlushAll()
+	UI:Open("e"); T.FlushAll()
+	Fight()
+	focus = chat
+	Over(); T.FlushAll()
+	check(not UI:IsShown() and UI.combatState == nil, "the chat box kept the keyboard: given up, the terminal stays closed")
+	-- one of Terminal's apps opened meanwhile (in the terminal's place): it stays
+	UI:Open("e"); T.FlushAll()
+	Fight()
+	focus = chat
+	Over()
+	local apps, appShown = ns.Panel.Registered(), true
+	apps[#apps + 1] = { IsShown = function() return appShown end, Close = function() appShown = false end }
+	focus = nil
+	T.Flush(); T.Flush()
+	check(not UI:IsShown() and UI.combatState == nil, "an app opened before it came back: the terminal stays closed")
+	table.remove(apps)
+	-- .zen: the interface back at once as the fight starts, faded again when the terminal comes back
+	local animWas = ns.Theme.Animation
+	ns.Theme.Animation = function() return nil end -- (fades at once: the alpha tells the steps apart)
+	P:SetAlpha(0.9)
+	ns.db.zen = true
+	UI:Open("e"); T.FlushAll()
+	check(Zen.active and P:GetAlpha() == 0, "(.zen: faded)")
+	ns.Theme.Animation = animWas
+	Fight()
+	check(not UI:IsShown() and not Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9, ".zen: the fight starts, the interface is back at once")
+	F.scripts.OnHide(F); T.FlushAll() -- (the game fires OnHide)
+	check(not Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9, ".zen: and stays back during the fight")
+	Over()
+	check(UI:IsShown() and Zen.active, ".zen: the terminal back after the fight, the interface fading again")
+	UI:HideNow(); F.scripts.OnHide(F); T.FlushAll()
+	Zen.Leave(true)
+	ns.db.zen = nil
+	P:SetAlpha(alphaWas)
+	_G.InCombatLockdown, _G.GetCurrentKeyBoardFocus = icl, focusWas
+end

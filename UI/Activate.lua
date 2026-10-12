@@ -156,11 +156,13 @@ ns.Secure.onClicked = function() UI:FinishSecure() end
 
 function UI:OnCombat()
 	self:Disarm()
+	if self:CombatClose() then return end -- (open: gone at once, back as it was when the fight is over: Modes.lua)
 	if self.keys then self:EnterEdit() end -- keyboard propagation can't be changed in combat
 end
 
 function UI:OnRegen()
 	if self:IsShown() and not self.keys and not self.noChar then self:EnterKeys() end
+	self:ComeBackAfterCombat()
 end
 
 -- ">> channel": the chat line the game presses for the selected result

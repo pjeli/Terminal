@@ -1356,7 +1356,7 @@ do
 	key("A")
 	check(F.propagate == "untouched" and UI.keys == false and UI.edit.focused == true, "a key in combat switches to the text box without touching propagation")
 	S.OnCombat()
-	check(F.kb == false, "keyboard capture off in combat")
+	check(F.kb == false and not UI:IsShown(), "keyboard capture off in combat (0.46.14: the terminal closes; ui_parts.lua)")
 	mark = #log
 	UI.edit.scripts.OnEnterPressed(UI.edit)
 	check(not logHas("ToggleCharacter PaperDollFrame", mark + 1), "in combat: Enter on a window does nothing (no direct opener)")

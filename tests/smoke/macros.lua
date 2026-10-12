@@ -98,6 +98,10 @@ end
 local function Literals(src)
 	local out, i, n, line = {}, 1, #src, 1
 	while i <= n do
+		-- (straight to the next character that can start or end something: char by char, every TOC file ran this
+		-- test past its instruction budget as the addon grew, 0.46.14)
+		i = src:find("[\n%-\"'%[]", i)
+		if not i then break end
 		local c = src:sub(i, i)
 		if c == "\n" then line = line + 1; i = i + 1
 		elseif src:sub(i, i + 1) == "--" then
@@ -112,12 +116,13 @@ local function Literals(src)
 				i = nl
 			end
 		elseif c == '"' or c == "'" then
+			local stop = c == '"' and '[\\\n"]' or "[\\\n']"
 			local j = i + 1
 			while j <= n do
+				j = src:find(stop, j) or n + 1
 				local d = src:sub(j, j)
 				if d == "\\" then j = j + 2
-				elseif d == c or d == "\n" then break
-				else j = j + 1 end
+				else break end
 			end
 			out[#out + 1] = { text = src:sub(i + 1, j - 1), line = line }
 			i = j + 1
