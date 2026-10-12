@@ -15,7 +15,7 @@ local Z = {}
 ns.Zen = Z
 
 Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha)
-Z.IN, Z.OUT = 0.25, 0.4 -- (s: fading away as Terminal opens; coming back as it closes; 0.46.8, the player: a bit faster)
+Z.IN, Z.OUT = 0.25, 0.25 -- (s: fading away as Terminal opens; coming back as it closes; 0.46.8-9, the player's)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
 -- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up)
 Z.ALSO = { "Minimap", "MinimapCluster" }

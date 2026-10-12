@@ -1167,9 +1167,9 @@ do
 	UI.frame.scripts.OnHide(UI.frame) -- (the game fires OnHide)
 	T.FlushAll()
 	check(Zen.driver.scripts.OnUpdate ~= nil and P:GetAlpha() == 0, "closed: the fade back starts")
-	Step(0.3)
+	Step(0.1)
 	check(P:GetAlpha() > 0 and P:GetAlpha() < 0.9, "coming back: " .. P:GetAlpha())
-	Step(1)
+	Step(0.16) -- (0.46.9: back in 0.25 s, as fast as it went)
 	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil
 		and math.abs(mm:GetAlpha() - 0.8) < 1e-9, "back as it was (0.9; the minimap 0.8), the dimming gone: " .. P:GetAlpha())
 	-- one of Terminal's apps in its place: still Terminal; back once it closes
