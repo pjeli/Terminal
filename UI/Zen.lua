@@ -19,6 +19,11 @@ Z.IN, Z.OUT = 0.25, 0.25 -- (s: fading away as Terminal opens; coming back as it
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
 -- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up)
 Z.ALSO = { "Minimap", "MinimapCluster" }
+-- frames whose drawing ignores alpha altogether: the minimap's blips (party members, tracked herbs and ores, quest
+-- spots: the engine draws them on the minimap at full strength). Hidden once the fade is done, shown again the moment
+-- it starts back or combat comes (0.46.11, the player's screenshot: the blips stayed up). Blizzard's own minimap key
+-- does the same (ToggleMinimap: Minimap:Hide()); one you hid yourself is left alone.
+Z.HIDE = { "Minimap" }
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
 Z.OWN = { "TerminalFrame", "TerminalTooltip", "TerminalRowMenu", "TerminalLinkFrame", "TerminalCopyFrame",
 	"TerminalStyleImport" } -- (not the click catcher: a secure button, invisible anyway)
@@ -28,6 +33,7 @@ local uiAlpha -- UIParent's alpha before the fade (put back exactly)
 local also -- Z.ALSO's frames -> their alpha before the fade
 local dim, driver
 local kept = {} -- Terminal's frames already set to ignore UIParent's alpha
+local hidden = {} -- Z.HIDE's frames this fade hid (shown again as it ends)
 local watching = false
 
 local function On() return ns.db and ns.db.zen == true end
@@ -41,6 +47,7 @@ local function Dim()
 	if dim then return dim end
 	dim = CreateFrame("Frame", "TerminalZenDim", UIParent)
 	dim:SetFrameStrata("HIGH") -- (over the interface, under the terminal)
+	dim:SetFrameLevel(1) -- (under the drag grid, also HIGH)
 	dim:SetAllPoints(UIParent)
 	dim:EnableMouse(false) -- (clicks go through to the world)
 	if dim.SetIgnoreParentAlpha then pcall(dim.SetIgnoreParentAlpha, dim, true) end
@@ -57,6 +64,20 @@ end
 local function Keep(f)
 	if type(f) ~= "table" or kept[f] or type(f.SetIgnoreParentAlpha) ~= "function" then return end
 	if pcall(f.SetIgnoreParentAlpha, f, true) then kept[f] = true end
+end
+Z.Keep = Keep -- (the drag grid, made on the first drag: UI.lua)
+function Z.Kept(f) return kept[f] == true end
+
+local function HideRest()
+	if InCombatLockdown and InCombatLockdown() then return end
+	for _, name in ipairs(Z.HIDE) do
+		local f = _G[name]
+		if type(f) == "table" and not hidden[f] and f.IsShown and f:IsShown() and pcall(f.Hide, f) then hidden[f] = true end
+	end
+end
+local function ShowRest()
+	for f in pairs(hidden) do pcall(f.Show, f) end
+	hidden = {}
 end
 
 --- Terminal's frames keep their own alpha while the interface fades: the named ones and every app's (Panel.Build keeps
@@ -82,6 +103,7 @@ end
 
 local function Done()
 	Z.active = false
+	ShowRest()
 	uiAlpha, also = nil, nil
 	ns:Trace("zen: the interface is back")
 end
@@ -93,7 +115,7 @@ local function Tick(_, elapsed)
 	Apply(level)
 	if level == target then
 		driver:SetScript("OnUpdate", nil) -- (runs only while fading)
-		if level == 0 then Done() end
+		if level == 0 then Done() elseif level == 1 then HideRest() end
 	end
 end
 
@@ -101,11 +123,12 @@ local function MoveTo(t, instant)
 	driver = driver or CreateFrame("Frame")
 	Z.driver = driver
 	target = t
+	if t == 0 then ShowRest() end -- (back at once: their drawing can't fade in)
 	if instant or not (ns.Theme and ns.Theme.Animation()) then
 		level = t
 		Apply(level)
 		driver:SetScript("OnUpdate", nil)
-		if t == 0 then Done() end
+		if t == 0 then Done() elseif t == 1 then HideRest() end
 		return
 	end
 	driver:SetScript("OnUpdate", Tick)

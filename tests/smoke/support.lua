@@ -1136,7 +1136,7 @@ do
 	P:SetAlpha(0.9)
 	local minimapWas = _G.Minimap
 	local mm = CreateFrame("Frame")
-	mm:SetAlpha(0.8)
+	mm:SetAlpha(0.8); mm:Show()
 	_G.Minimap = mm -- (0.46.8: the minimap's icons stayed up: it's faded on its own, and put back as it was)
 	local mine, theirs = CreateFrame("Frame"), CreateFrame("Frame")
 	mine.__name, theirs.__name = "TerminalSomethingNew", "ChatFrame1"
@@ -1162,11 +1162,12 @@ do
 	Step(1)
 	check(P:GetAlpha() == 0 and math.abs(Zen.dim:GetAlpha() - Zen.DIM) < 1e-6 and Zen.driver.scripts.OnUpdate == nil
 		and mm:GetAlpha() == 0, "faded away (the minimap too), the screen dimmed, and nothing runs once it's there")
+	check(not mm:IsShown(), "faded: the minimap hidden (its blips ignore alpha; 0.46.11)")
 	-- closing: back smoothly, to exactly what it was
 	UI:HideNow()
 	UI.frame.scripts.OnHide(UI.frame) -- (the game fires OnHide)
 	T.FlushAll()
-	check(Zen.driver.scripts.OnUpdate ~= nil and P:GetAlpha() == 0, "closed: the fade back starts")
+	check(Zen.driver.scripts.OnUpdate ~= nil and P:GetAlpha() == 0 and mm:IsShown(), "closed: the fade back starts, the minimap shown at once")
 	Step(0.1)
 	check(P:GetAlpha() > 0 and P:GetAlpha() < 0.9, "coming back: " .. P:GetAlpha())
 	Step(0.16) -- (0.46.9: back in 0.25 s, as fast as it went)
@@ -1189,10 +1190,17 @@ do
 	table.remove(apps)
 	-- combat: back at once; Terminal opened in combat leaves the interface alone
 	UI:Open(); Step(1)
+	check(not mm:IsShown(), "faded again: the minimap hidden")
 	Zen.OnEvent("PLAYER_REGEN_DISABLED")
+	check(mm:IsShown(), "combat: the minimap back at once")
 	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and math.abs(mm:GetAlpha() - 0.8) < 1e-9,
 		"combat: the interface is back at once (the minimap too)")
 	UI:HideNow(); T.FlushAll()
+	mm:Hide() -- (one you hid yourself stays hidden)
+	UI:Open(); Step(1)
+	UI:HideNow(); UI.frame.scripts.OnHide(UI.frame); T.FlushAll(); Step(1)
+	check(not mm:IsShown() and not Zen.active, "a minimap you hid yourself stays hidden")
+	mm:Show()
 	_G.InCombatLockdown = function() return true end
 	UI:Open()
 	check(not Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9, "opened in combat: the interface is left alone")

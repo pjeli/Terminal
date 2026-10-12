@@ -696,8 +696,10 @@ do
 		local key = ("%d:%d:%s"):format(sw, sh, tostring(f:GetScale()))
 		if guides and guides.key == key then return guides end
 		if guides then guides:Hide() end
-		guides = CreateFrame("Frame", nil, UIParent)
+		guides = CreateFrame("Frame", "TerminalDragGuides", UIParent)
 		guides:SetFrameStrata("HIGH") -- (under the terminal, DIALOG)
+		guides:SetFrameLevel(20) -- (over .zen's dimming, HIGH too)
+		if ns.Zen and ns.Zen.Keep then ns.Zen.Keep(guides) end -- (up while .zen fades the interface: 0.46.11, the player)
 		guides:SetScale(f:GetScale() or 1) -- (its units: the terminal's)
 		guides:SetAllPoints(UIParent)
 		guides.key = key

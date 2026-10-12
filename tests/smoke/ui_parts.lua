@@ -314,6 +314,7 @@ do
 	F.scripts.OnDragStart(F)
 	local g = UI.guides
 	check(g and g:IsShown() and g.midX and g.midY, "dragging: the lines show")
+	check(ns.Zen.Kept(g), "the lines keep their own alpha: .zen's fade leaves them up (0.46.11)")
 	px, py = 705, 553 -- (its middle 5 short of the screen's)
 	UI:DragTick()
 	check(F.lastPoint and F.lastPoint[4] == 600 and F.lastPoint[5] == 610 and g.midX.alpha == 1 and g.midY.alpha ~= 1,
