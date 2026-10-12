@@ -471,3 +471,7 @@ do
 	toc:close()
 	T.check(#bad == 0, "no pcall/Safe around GetChildren/GetRegions: " .. table.concat(bad, ", "))
 end
+
+-- the key bindings' names (Options > Keybindings > Terminal): Terminal is a name, capitalised (0.46.12, the player)
+io.write("[binding names]\n")
+T.check(_G.BINDING_NAME_TERMINAL_TOGGLE == "Toggle Terminal", "the toggle's binding says Terminal: " .. tostring(_G.BINDING_NAME_TERMINAL_TOGGLE))

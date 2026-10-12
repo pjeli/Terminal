@@ -5,7 +5,7 @@ ns.name = ADDON
 ns.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "dev"
 
 BINDING_HEADER_TERMINAL = "Terminal"
-BINDING_NAME_TERMINAL_TOGGLE = "Toggle terminal"
+BINDING_NAME_TERMINAL_TOGGLE = "Toggle Terminal" -- (Terminal is its name: capitalised, 0.46.12)
 BINDING_NAME_TERMINAL_ADVANCED_ONCE = "Advanced mode, this time (Simple mode's search as a command line)"
 BINDING_NAME_TERMINAL_FUZZY = "Fuzzy find, this time (every list, by name only)"
 
