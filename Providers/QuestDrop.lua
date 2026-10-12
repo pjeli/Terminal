@@ -235,11 +235,16 @@ function QD.Confirm(rows)
 	pending = list
 	P.Opening(app)
 	local t = P.Layout(dialog)
-	dialog.title:SetText(("|cff%sDrop %d quest%s?|r"):format(t.text, #list, #list == 1 and "" or "s"))
+	local one = #list == 1
+	dialog.title:SetText(one and ("|cff%sDrop %s?|r"):format(t.text, list[1].name)
+		or ("|cff%sDrop %d quests?|r"):format(t.text, #list))
+	dialog.yes:SetText(one and "Drop it" or "Drop them")
+	dialog.no:SetText(one and "Keep it" or "Keep them")
 	local names = {}
 	for i = 1, math.min(#list, QD.SHOW_MAX) do names[i] = list[i].name end
 	local more = #list - #names
-	dialog.body:SetText(("|cff%s%s%s.\n\nThey go from your quest log at once: the game won't ask again for each.|r"):format(t.dim,
+	dialog.body:SetText(one and ("|cff%sIt goes from your quest log, and so do the quest items it gave you.|r"):format(t.dim)
+		or ("|cff%s%s%s.\n\nThey go from your quest log at once: the game won't ask again for each.|r"):format(t.dim,
 		table.concat(names, ", "), more > 0 and (", +" .. more .. " more") or ""))
 	local h = dialog.body:GetStringHeight()
 	h = type(h) == "number" and h > 0 and h or 42

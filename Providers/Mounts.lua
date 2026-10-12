@@ -5,20 +5,17 @@ local function SummonMount(e)
 end
 local function MountLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(e.spellID) or nil end
 
--- Shift+Enter: the journal on the mounts tab with the name in its search box, opened by the game (a /run line on the
--- secure button, as toys and pets do: Collections.lua); Terminal only points at it afterwards. Opening it from
--- Terminal's code ran the journal's Lua tainted, and didn't search, so the mount could be on another page.
+-- Shift+Enter: the journal opened with the collections key, as toys and pets do (Collections.lua: no /run line, which
+-- runs tainted); Terminal points at the mount when it shows, at the Mounts tab while another shows.
 local MOUNTS_TAB = 1
-local function MountJournalMacro(e)
-	local C = ns.Collections
-	return C and C.JournalMacro(MOUNTS_TAB, "MountJournal and MountJournal.searchBox", e.name) or nil
-end
 -- (its list, as with pets: the journal's big display above it names the mount selected, and pointed at that one when
 -- it was the mount looked for; ListScrollFrame on older clients)
 local function MountRoot() local M = _G.MountJournal; return M and (M.ScrollBox or M.ListScrollFrame or M) end
-local function PointAtMount(e) local C = ns.Collections if C then C.PointIn(MountRoot, e.name) end end
+local function PointAtMount(e) local C = ns.Collections if C then C.PointIn(MountRoot, e.name, MOUNTS_TAB) end end
 local function NoJournal(e) local C = ns.Collections if C then C.NoJournal(e) end end -- (combat: nothing opened)
-local MOUNT_JOURNAL = { macro = MountJournalMacro, opensWindow = true }
+-- (the same press as toys' and pets': Collections.lua loads after this file, so its spec is read at run time)
+local MOUNT_JOURNAL = { binding = "TOGGLECOLLECTIONS", buttons = { "CollectionsMicroButton" }, opensWindow = true }
+local function JournalShown() local C = ns.Collections return C and C.JournalShown() or false end
 
 -- Mounts (collected only). Enter = summon, Shift+Enter = show in journal.
 ----------------------------------------------------------------------
@@ -44,7 +41,7 @@ ns:RegisterProvider("mounts", {
 					spellID = spellID,
 					getLink = MountLink, -- (made when selected, not for every mount on every rebuild)
 					activate = SummonMount,
-					secondary = NoJournal, secondarySecure = MOUNT_JOURNAL, secondaryIsOpen = ns.Never,
+					secondary = NoJournal, secondarySecure = MOUNT_JOURNAL, secondaryIsOpen = JournalShown,
 					secondaryAfter = PointAtMount,
 				}
 			end

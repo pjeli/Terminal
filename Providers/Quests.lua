@@ -4,14 +4,14 @@ local H = ns.Highlight
 -- Quests are searched by title AND by their description, objectives and zone,
 -- so "kill 10 boars" or a snippet of flavour text finds the quest.
 --
--- Opening one: the quest log is opened the way your own quest log key opens it (see
--- Secure.lua). When that log is the map's quest panel (this client's own quest log), Enter
--- (or a click) runs a macro instead, pressed by the game: QuestMapFrame_OpenToQuestDetails,
--- which opens the map on the quest's details. Terminal must never call that itself: it
--- writes the map's focused quest, and the map's quest pins, rebuilt from it later (often in
--- combat), then fail as Terminal's (hundreds of blocked SetPassThroughButtons). Afterwards
--- Terminal only points at the details. In a classic-style log the quest is selected and
--- scrolled to.
+-- Opening one: the quest log is opened the way your own quest log key opens it (see Secure.lua), and Terminal
+-- points at the quest's row in it (when it scrolls into view, too). It used to open the quest's details with a
+-- game-pressed /run QuestMapFrame_OpenToQuestDetails, but a /run line runs tainted too (0.46.1: the game blames it
+-- as "*** ForceTaint_Strong ***"), and that call writes the map's focused quest and its details' quest: the map's
+-- quest pins, rebuilt from them later (often in combat), then fail (blocked SetPassThroughButtons). No game call or
+-- button opens a quest's details cleanly, so the log is opened and the row shown; a click on it opens the details.
+-- Nothing in the map's list is scrolled from here either (Blizzard's ScrollBox, written by Terminal's code). In a
+-- classic-style log (ClassicUIForever's, its own frames) the quest is selected and scrolled to.
 
 -- quest windows, first visible wins; any other visible "...Quest..." window is tried after
 local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame", "QuestLogExFrame", "ClassicQuestLog" }
@@ -62,27 +62,8 @@ local function LogShown()
 	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
 end
 
---- Does the quest key open the map's quest panel (no classic log in its place)? Then Enter
---- runs the quest-details macro, whether the log is open or not.
-local function MapRoute()
-	if type(_G.QuestMapFrame_OpenToQuestDetails) ~= "function" then return false end
-	for _, name in ipairs(LOGS) do
-		if _G[name] then return false end
-	end
-	return ns.Secure.EffectiveAction("TOGGLEQUESTLOG") == "TOGGLEQUESTLOG"
-end
-
---- The macro the game runs for a quest (log entries have questID, Questie's have qid).
-local function QuestMacro(e)
-	local id = type(e) == "table" and (e.questID or e.qid) or nil
-	if type(id) ~= "number" or not MapRoute() then return nil end
-	return ("/run QuestMapFrame_OpenToQuestDetails(%d)"):format(id)
-end
-
-local function IsOpen()
-	if MapRoute() then return false end -- the macro switches the details even when it's open
-	return LogShown()
-end
+-- open = nothing to press (the quest key would toggle an open log shut); only pointed at
+local function IsOpen() return LogShown() end
 
 local Plain = ns.Plain -- (Locale.lua)
 
@@ -107,19 +88,6 @@ local function WindowNames()
 	return #names > 0 and table.concat(names, ", ") or "none"
 end
 
---- The map's quest list (the game's own quest log on this client): scroll it to the quest so
---- its row exists. Only scrolls; nothing in the map is clicked.
-local function ScrollMapList(questID)
-	local sf = _G.QuestScrollFrame
-	local box = sf and sf.ScrollBox
-	if not (box and box.ScrollToElementDataByPredicate) then return false end
-	local ok = ns.ScrollBoxTo(box, function(d)
-		return d.questID == questID or (type(d.info) == "table" and d.info.questID == questID)
-	end)
-	ns:Trace("quests: scrolled the map's quest list" .. (ok and "" or " (failed)"))
-	return ok
-end
-
 --- A classic-style quest log window: scroll its list to the quest (as Questie does).
 local function ScrollClassicList(idx)
 	local sf = _G.QuestLogListScrollFrame
@@ -131,6 +99,9 @@ local function ScrollClassicList(idx)
 	ns:Trace("quests: scrolled the quest log list to entry " .. idx)
 	return true
 end
+
+-- looks (a tenth of a second apart) for the quest's row: it's pointed at whenever it scrolls into view in that time
+local Q_WATCH = 150
 
 local function ShowQuestAfter(e)
 	if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, e.questID) end
@@ -150,16 +121,15 @@ local function ShowQuestAfter(e)
 		if _G.QuestLog_UpdateQuestDetails then pcall(_G.QuestLog_UpdateQuestDetails) end
 		if _G.QuestLog_Update then pcall(_G.QuestLog_Update) end
 	end
-	-- the map's quest panel: the game's macro opened the quest's details; only point at them
-	-- (never open them from here: see the top of this file)
+	-- the map's quest panel: its details already on this quest are pointed at; else the quest's row in the list, as it
+	-- shows (never scrolled or opened from here: see the top of this file)
 	if Visible(_G.QuestMapFrame) and not InCombatLockdown() then
 		local details = _G.QuestMapFrame.DetailsFrame
-		if Visible(details) then
+		if Visible(details) and rawget(details, "questID") == e.questID then
 			ns:Trace("quests: the quest's details are showing in the map's quest panel; pointing at them")
 			H:Show(details)
 			return
 		end
-		ScrollMapList(e.questID)
 	end
 	ns:Trace("quests: looking for '" .. tostring(e.name) .. "' in " .. WindowNames())
 	H:When(function()
@@ -171,7 +141,7 @@ local function ShowQuestAfter(e)
 		ns:Trace("quests: found the row in " .. (ns.FrameName(hit.window) or "?") .. (hit.click and ", clicking it" or ", pointing only"))
 		if hit.click then pcall(hit.row.Click, hit.row) end -- selects it in that log
 		H:Show(hit.row)
-	end, 30, function()
+	end, Q_WATCH, function()
 		ns:Trace("quests: no row titled '" .. tostring(e.name) .. "' found; quest windows: " .. WindowNames())
 	end)
 end
@@ -192,7 +162,7 @@ local function TrackQuest(e)
 	ns:Print("Tracking: " .. e.name)
 end
 
-local QUEST_SECURE = { macro = QuestMacro, binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
+local QUEST_SECURE = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
 
 local Str, Num = ns.Str, ns.Num -- (quest text can be a secret value on this client)
 local Secret, Call = ns.Secret, ns.Safe
@@ -247,25 +217,17 @@ local function ZoneLevels(id, cache)
 	return z or nil
 end
 
---- The press that has the game ask before dropping the quest (its own Abandon, with its own dialog).
-local function DropMacro(e)
-	local id = type(e) == "table" and e.questID
-	if type(id) ~= "number" then return nil end
-	if type(_G.QuestMapQuestOptions_AbandonQuest) == "function" then
-		return ("/run QuestMapQuestOptions_AbandonQuest(%d)"):format(id)
-	end
-	return ('/run local q=%d C_QuestLog.SetSelectedQuest(q) C_QuestLog.SetAbandonQuest() StaticPopup_Show("ABANDON_QUEST",C_QuestLog.GetTitleForQuestID(q))'):format(id)
-end
-local DROP_SPEC = { macro = DropMacro }
-local function DropAsked(e) ns:Trace("quests: the game asks before dropping " .. tostring(e.name)) end
--- (only when the game couldn't be handed the press: Terminal never shows that dialog itself)
-local function DropFallback(e)
-	ns:Print(InCombatLockdown() and ("In combat: drop " .. tostring(e.name) .. " once the fight is over.")
-		or ("Couldn't ask the game to drop " .. tostring(e.name) .. ": the quest log's own Abandon does."))
+--- Shift+Enter on a quest to drop: Terminal's own confirmation for that one quest (QuestDrop.lua), then the C calls
+--- that drop it (C_QuestLog.SetSelectedQuest / SetAbandonQuest / AbandonQuest, from Terminal's code: not protected).
+--- Before 0.46.2 the game pressed /run QuestMapQuestOptions_AbandonQuest, the quest log's own Abandon; but a /run line
+--- runs tainted, and that shows the game's StaticPopup dialog from it: a popup shown tainted can get later popups
+--- (the protected ones too) blocked. The game's dialog is never shown from here.
+local function DropAsk(e)
+	local QD = ns.QuestDrop
+	if QD and QD.Confirm then QD.Confirm({ e }) else ns:Print("Couldn't drop " .. tostring(e.name) .. " from here.") end
 end
 
-ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DROP_SPEC = DROP_SPEC, DropMacro = DropMacro,
-	Grey = Grey, ZoneLevels = ZoneLevels }
+ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DropAsk = DropAsk, Grey = Grey, ZoneLevels = ZoneLevels }
 local function QuestLink(e) return GetQuestLink and GetQuestLink(e.questID) or nil end
 
 --- The quest's objectives, as { { text, type }, ... }: the retail list, else a classic log's leader boards.
@@ -563,11 +525,8 @@ ns:RegisterProvider("quests", {
 						after = ShowQuestAfter,
 						-- (quests to drop: QuestDrop.lua, the is:grey / is:leftbehind / is:drop filters)
 						grey = grey, behind = behind, complete = complete, drop = drop,
-						-- Shift+Enter: one to drop, the game asks to drop it; any other, super-track it (the waypoint arrow)
-						secondary = drop and DropFallback or TrackQuest,
-						secondarySecure = drop and DROP_SPEC or nil,
-						secondaryIsOpen = drop and ns.Never or nil, -- (always pressed: the game's dialog asks)
-						secondaryAfter = drop and DropAsked or nil,
+						-- Shift+Enter: one to drop, Terminal asks and drops it; any other, super-track it (the waypoint arrow)
+						secondary = drop and DropAsk or TrackQuest,
 					}
 				end
 			end

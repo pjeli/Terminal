@@ -41,12 +41,13 @@ local function SettingsCategories()
 end
 
 local function OpenCategory(c)
-	if c.id and Settings and Settings.OpenToCategory and pcall(Settings.OpenToCategory, c.id) then return true end
+	local U = _G.C_SettingsUtil
+	local id = ns.Secure.SettingsID(c.id or c.name)
+	if id and U and U.OpenSettingsPanel and pcall(U.OpenSettingsPanel, id) then return true end
 	if c.panel and InterfaceOptionsFrame_OpenToCategory then
 		InterfaceOptionsFrame_OpenToCategory(c.panel)
 		return true
 	end
-	if Settings and Settings.OpenToCategory then return pcall(Settings.OpenToCategory, c.name) end
 	return false
 end
 
@@ -131,11 +132,10 @@ end
 -- macro button (as the Keybindings page is), never Settings.OpenToCategory / ShowUIPanel from Terminal's
 -- code, which taints them. A minimap button is another addon's own frame: clicked from here.
 local ADDONLIST_MACRO = "/run if AddonList then ShowUIPanel(AddonList) end"
+-- (an options page: the game's own call, answered by the settings window's code: Secure.SettingsMacro)
 local function CategoryMacro(c)
-	if c.id and _G.Settings and _G.Settings.OpenToCategory then return ("/run Settings.OpenToCategory(%d)"):format(c.id) end
-	if c.panel then return nil end -- (an old client's panel object: no line can name it)
-	if _G.Settings and _G.Settings.OpenToCategory then return ("/run Settings.OpenToCategory(%q)"):format(c.name) end
-	return nil
+	if c.panel and not c.id then return nil end -- (an old client's panel object: no line can name it)
+	return ns.Secure.SettingsMacro(c.id or c.name)
 end
 local function AddonMacro(e)
 	if e.launch then return nil end -- (its minimap button: Terminal clicks that itself)

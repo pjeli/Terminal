@@ -27,20 +27,20 @@ local function KeysText(k1, k2)
 	return #parts > 0 and table.concat(parts, ", ") or nil
 end
 
--- opening Options > Keybindings: pressed by the game (a /run line on the secure macro button). Then
--- the options window's own search box gets the action's name: its row shows even when its section
--- is collapsed (expanding the section from Terminal's code would taint the window; the game typing
--- into its own search box doesn't). An empty search shows the whole page.
-K.OPEN_MACRO = "/run local S=Settings S.OpenToCategory(S.KEYBINDINGS_CATEGORY_ID or KEY_BINDINGS)"
--- (the game cuts a macro off at 255 characters in all: the name has to fit after this)
-local SEARCH = " local B=SettingsPanel.SearchBox if B then B:SetText(%s) end"
-function K.MacroFor(name) return K.OPEN_MACRO .. SEARCH:format(("%q"):format(name or "")) end
+-- Opening Options > Keybindings: the game's own call on the secure macro button (Secure.SettingsMacro), answered by the
+-- window's own code. Nothing is typed into its search box any more: until 0.46.2 the line also did SetText on it, so
+-- an action's row showed inside a closed section, but a /run line runs tainted (0.46.1) and the list it rebuilt held
+-- it. Now the row is pointed at once it shows, and an action in a closed section says which one to open.
+function K.OpenMacro()
+	local St = _G.Settings
+	return ns.Secure.SettingsMacro(St and St.KEYBINDINGS_CATEGORY_ID)
+end
+function K.MacroFor() return K.OpenMacro() end -- (every action's: the page; the row is pointed at)
 -- Quick Keybind Mode: the options window steps aside, the protected frame is shown by the game
 K.QUICK_MACRO = "/run if SettingsPanel and SettingsPanel:IsShown() then HideUIPanel(SettingsPanel) end if QuickKeybindFrame then ShowUIPanel(QuickKeybindFrame) end"
 
-local function OpenMacro(e) return K.MacroFor(e and e.search) end
 local function QuickMacro() return K.QUICK_MACRO end
-local OPEN_SPEC = { macro = OpenMacro, opensWindow = true }
+local OPEN_SPEC = { macro = K.OpenMacro, opensWindow = true }
 local QUICK_SPEC = { macro = QuickMacro, opensWindow = true }
 
 --- Options > Keybindings is the page showing (then only the row is pointed at).
@@ -59,16 +59,17 @@ end
 local function PointAtRow(e)
 	ns:Trace("keybinds: pointing at " .. tostring(e.rowText or e.name))
 	local G = ns.GameOptions
-	if G and G.HighlightSetting then G.HighlightSetting(e.rowText or e.name) end
+	local hint = e.category and ("%s is in the %s section of Keybindings: open it, and Terminal points at the row."):format(
+		tostring(e.name), e.category) or nil
+	if G and G.HighlightSetting then G.HighlightSetting(e.rowText or e.name, hint) end
 end
 
 -- the fallback without the secure route (Terminal's own code): open, then point
 local function OpenDirect(e)
 	if InCombatLockdown() then return end
-	if Settings and Settings.OpenToCategory then
-		pcall(Settings.OpenToCategory, Settings.KEYBINDINGS_CATEGORY_ID or KEY_BINDINGS)
-		local B = _G.SettingsPanel and _G.SettingsPanel.SearchBox
-		if B and B.SetText and e.search then pcall(B.SetText, B, e.search) end
+	local U, St = _G.C_SettingsUtil, _G.Settings
+	if U and U.OpenSettingsPanel and St and type(St.KEYBINDINGS_CATEGORY_ID) == "number" then
+		pcall(U.OpenSettingsPanel, St.KEYBINDINGS_CATEGORY_ID)
 		C_Timer.After(0.1, function() PointAtRow(e) end)
 	end
 end
@@ -118,9 +119,9 @@ ns:RegisterProvider("keybinds", {
 						key = command, name = name, icon = ICON,
 						detail = (keys or "not bound") .. (category and ("  ·  " .. category) or ""),
 						text = "keybind binding hotkey " .. (keys or "unbound") .. " " .. (category or ""),
-						rowText = name, search = name,
-						-- (always pressed, even with the page open: the search brings the row up)
-						secure = OPEN_SPEC, after = PointAtRow, activate = OpenDirect,
+						rowText = name, category = category,
+						-- (the page open: only pointed at)
+						secure = OPEN_SPEC, isOpen = PageOpen, after = PointAtRow, activate = OpenDirect,
 					}
 				end
 			end

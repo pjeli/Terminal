@@ -55,11 +55,12 @@ local function Walk(cat, path, out, skip, depth)
 	end
 end
 
+-- (the fallback, Terminal's own code: the game's own call, which the settings window's code answers itself)
 local function OpenPage(o)
-	if not (Settings and Settings.OpenToCategory) then return false end
-	-- newer clients take the setting's name to scroll to; older ones ignore it
-	if o.id and pcall(Settings.OpenToCategory, o.id, (not o.page) and o.name or nil) then return true end
-	return pcall(Settings.OpenToCategory, o.name)
+	local U = _G.C_SettingsUtil
+	local id = ns.Secure.SettingsID(o.id or o.name)
+	if not (U and U.OpenSettingsPanel and id) then return false end
+	return (pcall(U.OpenSettingsPanel, id, (not o.page) and o.name or nil))
 end
 
 local function ExactText(f, text)
@@ -73,35 +74,32 @@ local function ExactText(f, text)
 	return false
 end
 
--- Point at the setting (or the page in the list). If it isn't on screen after a moment,
--- the options window's own search box is used to bring it up.
-local function HighlightSetting(name)
-	local tries, searched = 0, false
+-- Point at the setting (or the page in the list), whenever it shows in the window. Nothing is typed into the window's
+-- search box (that was Terminal's code writing the window's state: its list was then rebuilt tainted). `hint`: said
+-- once when it isn't showing after a moment (a keybinding in a closed section).
+local LOOKS, HINT_AFTER = 150, 10 -- (a tenth of a second apart)
+local function HighlightSetting(name, hint)
+	local tries = 0
 	H:Find(function()
 		local sp = SettingsPanel
 		if not (sp and sp:IsVisible()) then return nil end
 		tries = tries + 1
 		local hit = ns.FindFrame(sp, function(f) return ExactText(f, name) end, 20)
 		if hit then return hit end
-		if tries >= 10 and not searched and sp.SearchBox and sp.SearchBox.SetText then
-			searched = true
-			pcall(sp.SearchBox.SetText, sp.SearchBox, name)
-		end
+		if tries == HINT_AFTER and hint then ns:Print(hint) end
 		return nil
-	end, 40)
+	end, LOOKS)
 end
 
 ns.GameOptions = { HighlightSetting = HighlightSetting } -- (keybindings point at their row the same way)
 
--- The page is opened by the game (a /run line on the secure macro button, as the Keybindings page is):
--- Settings.OpenToCategory from Terminal's code would leave the options window's state tainted. Always
--- pressed (the window may be open on another page); afterwards Terminal only points at the setting.
+-- The page is opened by the game: C_SettingsUtil.OpenSettingsPanel on the secure macro button (Secure.SettingsMacro),
+-- which the window's own code answers, scrolling to the setting by name. Always pressed (the window may be open on
+-- another page); afterwards Terminal only points at the setting.
 local function OptionMacro(e)
 	local o = e.opt
-	if not (o and _G.Settings and _G.Settings.OpenToCategory) then return nil end
-	if o.id and not o.page then return ("/run Settings.OpenToCategory(%d,%q)"):format(o.id, o.name) end
-	if o.id then return ("/run Settings.OpenToCategory(%d)"):format(o.id) end
-	return ("/run Settings.OpenToCategory(%q)"):format(o.name)
+	if not o then return nil end
+	return ns.Secure.SettingsMacro(o.id or o.name, (not o.page) and o.name or nil)
 end
 local OPTION_SPEC = { macro = OptionMacro, opensWindow = true }
 local function PointAtOption(e) HighlightSetting(e.name) end

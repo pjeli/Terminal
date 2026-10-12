@@ -50,13 +50,24 @@ local function Recent(at)
 	return out
 end
 
+-- a press's macro for a line: one line, cut short
+local function PressText(p) return tostring(p and p.text or ""):gsub("\n", " | "):sub(1, 120) end
+
 local function Describe(ev)
-	local mine = ev.addon == ns.name
+	local mine = ev.addon == ns.name or ev.runPress ~= nil
 	local lines = { ("%s  addon=%s%s  function=%s%s"):format(
 		ev.event == "ADDON_ACTION_FORBIDDEN" and "FORBIDDEN" or "BLOCKED",
-		tostring(ev.addon), mine and " (Terminal)" or "", tostring(ev.func),
+		tostring(ev.addon), ev.runPress and " (Terminal's /run press)" or mine and " (Terminal)" or "", tostring(ev.func),
 		(ev.times or 1) > 1 and ("  (x%d)"):format(ev.times) or "") }
 	if ev.combat then lines[#lines + 1] = "  in combat" end
+	-- (a /run line runs tainted, and the game blames it as ForceTaint_Strong, not as Terminal: see Secure.NotePress)
+	if ev.runPress then
+		lines[#lines + 1] = ("  a /run line Terminal had the game press %.1f s before (%s): %s"):format(ev.runAgo or 0,
+			tostring(ev.runPress.via), PressText(ev.runPress))
+	elseif ev.lastRun then
+		lines[#lines + 1] = ("  Terminal's last /run press was %s ago (%s): %s; a block later on can still come from what it wrote"):format(
+			ns.Ago and ns.Ago(ev.lastRunAgo or 0) or (math.floor(ev.lastRunAgo or 0) .. " s"), tostring(ev.lastRun.via), PressText(ev.lastRun))
+	end
 	if ev.cheap and not ev.traced then
 		lines[#lines + 1] = "  (another addon's; what Terminal was doing isn't recorded for these while .debug is off)"
 	elseif #ev.recent == 0 then
@@ -80,9 +91,17 @@ local function Push(ev)
 	if #events > EVENT_MAX then table.remove(events, 1) end
 end
 
+D.RUN_BLAME = 3 -- seconds: a ForceTaint_Strong block this soon after one of Terminal's /run presses is Terminal's
+
 local function OnAction(event, addon, func)
 	local at = Now()
-	if addon ~= ns.name then
+	-- the game blames what a /run line does on "*** ForceTaint_Strong ***": Terminal's, when one of its presses came just before
+	local runPress, runAgo
+	if type(addon) == "string" and addon:find("ForceTaint", 1, true) and ns.Secure and ns.Secure.LastRunPress then
+		runPress, runAgo = ns.Secure.LastRunPress(at)
+	end
+	local blamed = runPress and runAgo <= D.RUN_BLAME
+	if addon ~= ns.name and not blamed then
 		-- another addon's: these can come by the hundred a second (taint spreading), and each one
 		-- used to take a stack and the trace with it, counted as Terminal's CPU. Now only a count,
 		-- and repeats fold into one line (printed once with .debug on, not hundreds of times).
@@ -93,7 +112,7 @@ local function OnAction(event, addon, func)
 			return
 		end
 		local ev = { event = event, addon = addon, func = func, t = at, recent = Live() and Recent(at) or {}, cheap = true,
-			times = 1, combat = InCombatLockdown and InCombatLockdown() or false }
+			times = 1, combat = InCombatLockdown and InCombatLockdown() or false, lastRun = runPress, lastRunAgo = runAgo }
 		if Live() then -- (once per new line, not per repeat)
 			local ok, stack = pcall(debugstack, 3, 12, 0)
 			ev.stack, ev.traced = ok and stack or nil, true
@@ -117,6 +136,7 @@ local function OnAction(event, addon, func)
 		event = event, addon = addon, func = func, t = at,
 		recent = Recent(at), stack = ok and stack or nil,
 		combat = InCombatLockdown and InCombatLockdown() or false,
+		runPress = blamed and runPress or nil, runAgo = blamed and runAgo or nil,
 	}
 	Push(ev)
 	if Live() then

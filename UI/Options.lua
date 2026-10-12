@@ -568,9 +568,12 @@ end
 
 function O.Open()
 	Register()
-	if O.category and Settings and Settings.OpenToCategory then
+	local U = _G.C_SettingsUtil
+	if O.category and U and U.OpenSettingsPanel then
+		-- (the game's own call: the settings window's code opens itself; Blizzard's Settings.OpenToCategory only calls it)
 		local id = (O.category.GetID and O.category:GetID()) or O.category.ID
-		if not (id and pcall(Settings.OpenToCategory, id)) then pcall(Settings.OpenToCategory, "Terminal") end
+		id = ns.Secure.SettingsID(id) or ns.Secure.SettingsID("Terminal")
+		if id then pcall(U.OpenSettingsPanel, id) end
 		return true
 	elseif O.legacy and InterfaceOptionsFrame_OpenToCategory then
 		InterfaceOptionsFrame_OpenToCategory(panel)
@@ -601,14 +604,15 @@ local function ApplyPresetRow(e)
 	C_Timer.After(0, ReopenOnThemes)
 end
 
--- the Terminal Options row: the game opens the settings on Terminal's page (a /run line on the secure button, as the
--- game options rows do), not Terminal's code; .options (a command can't carry a press) still opens it itself
+-- the Terminal Options row: the game opens the settings on Terminal's page (C_SettingsUtil.OpenSettingsPanel on the
+-- secure button, as the game options rows do: Secure.SettingsMacro), not Terminal's code; .options (a command can't
+-- carry a press) still opens it itself
 local function OptionsMacro()
 	Register()
 	local c = O.category
 	local id = c and ((c.GetID and c:GetID()) or c.ID)
-	if id == nil or not (Settings and Settings.OpenToCategory) then return nil end
-	return ("/run Settings.OpenToCategory(%s)"):format(type(id) == "number" and tostring(id) or ("%q"):format(tostring(id)))
+	if type(id) ~= "number" then return nil end
+	return ns.Secure.SettingsMacro(id)
 end
 local OPTIONS_SPEC = { macro = OptionsMacro, opensWindow = true }
 

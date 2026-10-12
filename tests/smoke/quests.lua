@@ -80,25 +80,29 @@ do
 	check(not raptor.grey and not raptor.behind and not raptor.drop and not msg.behind and not msg.drop,
 		"a quest at your level, and one in a city with no levels: not to drop")
 	check(not row(105).behind and not row(105).drop, "a zone that tops out at your own level isn't left behind yet")
-	-- Shift+Enter: one to drop has the game ask (its own Abandon); the others still track
-	check(kobold.secondarySecure and kobold.secondarySecure.macro(kobold) == "/run QuestMapQuestOptions_AbandonQuest(101)"
-		and kobold.secondaryIsOpen == ns.Never, "Shift+Enter on one to drop: the game's own Abandon, which asks")
+	-- Shift+Enter: one to drop has Terminal ask (its own dialog, then the C calls: 0.46.2; the game's Abandon from a /run
+	-- line showed its StaticPopup tainted); the others still track
+	check(kobold.secondarySecure == nil and kobold.secondary ~= nil, "Shift+Enter on one to drop: no game press, Terminal asks")
 	check(raptor.secondarySecure == nil and raptor.secondary ~= nil, "Shift+Enter on any other quest: tracks it, as before")
-	local saveCombat = _G.InCombatLockdown
-	_G.InCombatLockdown = function() return true end
 	local mark = #log
 	kobold.secondary(kobold)
+	local one = QD.Pending()
+	local dlg1 = _G.TerminalDropQuests
+	check(one and #one == 1 and one[1].questID == 101 and QD.app.IsShown() and dlg1.title:GetText():find("Drop Kobold Camp Cleanup?", 1, true)
+		and not logHas("AbandonDialog", mark + 1), "Shift+Enter on one to drop: Terminal's confirmation for that one: " .. tostring(dlg1.title:GetText()))
+	check(dlg1.yes:GetText() == "Drop it" and dlg1.no:GetText() == "Keep it", "its buttons say it: " .. tostring(dlg1.yes:GetText()))
+	QD.Decide(false); FlushAll()
+	check(#abandoned == 0 and not QD.app.IsShown(), "kept: nothing dropped")
+	local saveCombat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	mark = #log
+	kobold.secondary(kobold)
 	_G.InCombatLockdown = saveCombat
-	check(printed[#printed] and printed[#printed]:find("In combat: drop Kobold Camp Cleanup", 1, true) and not logHas("SuperTrack", mark + 1),
-		"in combat (no press): it says so, and doesn't track it instead: " .. tostring(printed[#printed]))
+	check(printed[#printed] and printed[#printed]:find("In combat: drop", 1, true) and not logHas("SuperTrack", mark + 1) and not QD.app.IsShown(),
+		"in combat: it says so, and doesn't track it instead: " .. tostring(printed[#printed]))
 	local enter, shift = ns.Easy.Verbs(kobold)
 	local _, rshift = ns.Easy.Verbs(raptor)
 	check(enter == "show in quest log" and shift == "drop" and rshift == "track", "the footer's verbs: drop / track")
-	_G.QuestMapQuestOptions_AbandonQuest = nil
-	local fallback = kobold.secondarySecure.macro(kobold)
-	check(fallback:find("local q=101", 1, true) and fallback:find('StaticPopup_Show("ABANDON_QUEST"', 1, true) and #fallback <= 255,
-		"no Abandon function: the press shows the game's own dialog itself: " .. fallback)
-	_G.QuestMapQuestOptions_AbandonQuest = function(id) log[#log + 1] = "AbandonDialog " .. id end
 
 	-- the question
 	local q = QD.Question("quests to drop")
@@ -141,27 +145,31 @@ do
 	check(ns.Filters.Parse("is:grey")({ recipeID = 5, difficulty = ns.Filters.DIFF.grey }) and not ns.Filters.Parse("is:grey")(raptor),
 		"is:grey: a grey recipe still, and a quest only when it's grey")
 
-	-- Shift+Enter in the answer: the same press has the game ask
+	-- Shift+Enter in the answer: Terminal asks, nothing pressed
 	UI:Open("quests to drop"); FlushAll()
 	key("DOWN")
 	local sel = UI.Results()[UI.sel]
+	S.armed = nil
 	_G.IsShiftKeyDown = function() return true end
 	key("ENTER")
 	_G.IsShiftKeyDown = function() return false end
 	local proxy = _G.TerminalMacroProxy
-	check(sel and sel.questID == 101 and S.armed == "MACRO" and proxy.attrs.macrotext == "/run QuestMapQuestOptions_AbandonQuest(101)",
-		"Shift+Enter: the game asks to drop it: " .. tostring(proxy.attrs.macrotext))
-	proxy.scripts.PostClick(proxy, "LeftButton", true); FlushAll()
+	local pa = QD.Pending()
+	check(sel and sel.questID == 101 and S.armed == nil and pa and #pa == 1 and pa[1].questID == 101,
+		"Shift+Enter: Terminal asks to drop it, nothing pressed: " .. tostring(S.armed))
+	QD.Decide(false); FlushAll()
 	UI:Disarm(); UI:Hide(); FlushAll()
 
-	-- ">> drop": the selected quest (the game asks); not a quest: nothing pressed
+	-- ">> drop": the selected quest (Terminal asks); not a quest: nothing pressed
 	UI:Open("@quest is:drop >> drop"); FlushAll()
 	check(UI.sendTo and UI.sendTo.drop and #UI.Results() == 2 and _G.TerminalFrame and true, ">> drop keeps the list")
 	local first = UI.Results()[1]
+	S.armed = nil
 	key("ENTER")
-	check(S.armed == "MACRO" and proxy.attrs.macrotext == ("/run QuestMapQuestOptions_AbandonQuest(%d)"):format(first.questID),
-		">> drop: Enter has the game ask to drop the selected one: " .. tostring(proxy.attrs.macrotext))
-	proxy.scripts.PostClick(proxy, "LeftButton", true); FlushAll()
+	local p1 = QD.Pending()
+	check(S.armed == nil and p1 and #p1 == 1 and p1[1].questID == first.questID and QD.app.IsShown(),
+		">> drop: Enter has Terminal ask to drop the selected one, nothing pressed: " .. tostring(S.armed))
+	QD.Decide(false); FlushAll()
 	UI:Disarm(); UI:Hide(); FlushAll()
 	UI:Open("hearthstone >> drop"); FlushAll()
 	S.armed = nil

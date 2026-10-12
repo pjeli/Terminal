@@ -37,6 +37,119 @@ S.MACRO_MAX = 255 -- the game runs at most this many characters of a macro, all 
 S.armed = nil -- binding command or button name currently armed
 S.mode = nil  -- "binding" or "button"
 
+----------------------------------------------------------------------
+-- What Terminal had the game press, and what it left written (0.46.2)
+--
+-- A /run line runs tainted even when the game presses it: the game blames what it does on "*** ForceTaint_Strong ***",
+-- not on Terminal (0.46.1). So every macro the game ran for Terminal is noted here (S.NotePress, from the macro proxy,
+-- the click catcher and the row menu): Debug.lua counts a ForceTaint_Strong block as Terminal's when one of its /run
+-- presses came just before, and names the last one otherwise. A moment after each press, S.TaintCheck reads (never
+-- writes) who last wrote the Blizzard window fields those presses touch (issecurevariable), and traces the tainted.
+----------------------------------------------------------------------
+
+S.PRESSES_MAX = 8
+S.presses = {} -- { t, text, via, run }, newest last
+S.TAINT_DELAY = 0.5 -- seconds after a press before its window fields are read
+
+--- The window fields presses write, read after each one: { path, key }. Missing ones are skipped.
+S.WATCH = {
+	{ "WorldMapFrame", "mapID" },
+	{ "QuestMapFrame.DetailsFrame", "questID" },
+	{ "PlayerSpellsFrame.SpellBookFrame.PagedSpellsFrame.PagingControls", "currentPage" },
+	{ "CharacterFrame", "selectedTab" },
+	{ "SettingsPanel", "currentLayout" },
+	{ "CollectionsJournal", "selectedTab" },
+	{ "AchievementFrame", "selectedTab" },
+	{ "CommunitiesFrame", "displayMode" },
+}
+
+local function Walk(path)
+	local f = _G
+	for part in path:gmatch("[^%.]+") do
+		if type(f) ~= "table" then return nil end
+		f = rawget(f, part) or f[part]
+	end
+	return type(f) == "table" and f or nil
+end
+
+--- Who last wrote t[key] (read only): "the game's own code", else the name the game blames ("*** ForceTaint_Strong ***"
+--- for a /run line, an addon's name). Nil when it can't tell (no issecurevariable, no such field).
+function S.Writer(t, key)
+	local check = _G.issecurevariable
+	if type(t) ~= "table" or type(check) ~= "function" then return nil end
+	local ok, secure, by = pcall(check, t, key)
+	if not ok then return nil end
+	return secure and "the game's own code" or tostring(by or "an unknown caller")
+end
+
+local reported = {} -- path.key -> the writer last traced (each change traced once)
+
+--- Reads every watched field; traces each one some other code than the game's wrote (once per change).
+--- Returns { ["path.key"] = writer } of the tainted ones (tests).
+function S.TaintCheck(after)
+	local out = {}
+	for _, w in ipairs(S.WATCH) do
+		local t = Walk(w[1])
+		if t and rawget(t, w[2]) ~= nil then
+			local id = w[1] .. "." .. w[2]
+			local by = S.Writer(t, w[2])
+			if by and by ~= "the game's own code" then
+				out[id] = by
+				if reported[id] ~= by and ns.Trace then
+					ns:Trace(("taint: %s was written by %s%s: what reads it later may be blocked"):format(id, by,
+						after and (" (after " .. after .. ")") or ""))
+				end
+			end
+			reported[id] = by
+		end
+	end
+	return out
+end
+
+--- The game ran `text` for Terminal (`via`: "Enter", "click", "menu"). Noted, and the window fields are read a moment later.
+function S.NotePress(text, via)
+	if type(text) ~= "string" or text == "" then return end
+	local run = text:find("/run", 1, true) ~= nil
+	local p = { t = GetTime(), text = text, via = via, run = run }
+	S.presses[#S.presses + 1] = p
+	if #S.presses > S.PRESSES_MAX then table.remove(S.presses, 1) end
+	local label = text:gsub("\n", " | "):sub(1, 80)
+	if C_Timer and C_Timer.After then C_Timer.After(S.TAINT_DELAY, function() S.TaintCheck(label) end) end
+end
+
+--- The settings window's category id for a number or a category's name (read only), else nil.
+function S.SettingsID(idOrName)
+	if type(idOrName) == "number" then return idOrName end
+	local St = _G.Settings
+	if type(idOrName) ~= "string" or not (St and type(St.GetCategory) == "function") then return nil end
+	local ok, cat = pcall(St.GetCategory, idOrName)
+	if not (ok and type(cat) == "table") then return nil end
+	local okID, id = pcall(function() return cat.GetID and cat:GetID() or cat.ID end)
+	return okID and type(id) == "number" and id or nil
+end
+
+--- The line that opens the settings window on a category (and scrolls to the setting `name`), or nil.
+--- C_SettingsUtil.OpenSettingsPanel is the game's own call (Blizzard's Settings.OpenToCategory only calls it): the game
+--- answers with SETTINGS_PANEL_OPEN and the settings window's own code opens itself, as C_Map.OpenWorldMap does for
+--- the map (0.46.1). No Blizzard Lua runs from the line. No id: the window as it was last (no category).
+function S.SettingsMacro(idOrName, name)
+	local U = _G.C_SettingsUtil
+	if not (U and type(U.OpenSettingsPanel) == "function") then return nil end
+	if idOrName == nil then return "/run C_SettingsUtil.OpenSettingsPanel()" end
+	local id = S.SettingsID(idOrName)
+	if not id then return nil end
+	if type(name) == "string" and name ~= "" then return ("/run C_SettingsUtil.OpenSettingsPanel(%d,%q)"):format(id, name) end
+	return ("/run C_SettingsUtil.OpenSettingsPanel(%d)"):format(id)
+end
+
+--- The last /run press, and how many seconds before `at` it came (nil: none this session).
+function S.LastRunPress(at)
+	for i = #S.presses, 1, -1 do
+		local p = S.presses[i]
+		if p.run then return p, (at or GetTime()) - p.t end
+	end
+end
+
 --- First of a button name (or list of names) that exists in this client, else nil.
 function S.First(names)
 	if type(names) ~= "table" then names = { names } end
@@ -210,11 +323,12 @@ end
 --- the window is closed, then that page's tab.
 function S.CharTabMacro(frameName, labels)
 	local tab, how = CharTab(frameName, labels)
-	if how == "frame" and type(_G.ToggleCharacter) == "function" then
-		-- a tab that can't be clicked: the macro runs what the character key itself runs
-		-- (TOGGLECHARACTERn is ToggleCharacter(page)), pressed by the game, not Terminal's code
-		Say("click: " .. frameName .. " tab is a plain frame; the macro runs ToggleCharacter")
-		return '/run ToggleCharacter("' .. frameName .. '", true)'
+	if how == "frame" then
+		-- a tab that can't be clicked (this client's): no line. The click arms Enter instead, and Enter presses the
+		-- character key's own binding. (Until 0.46.2 a /run line ran ToggleCharacter: a /run line runs tainted, 0.46.1,
+		-- and the character window it switched then held what it wrote: it reads secret values on its next show.)
+		Say("click: " .. frameName .. " tab is a plain frame: no click route, the click arms Enter")
+		return nil
 	end
 	if not _G.CharacterMicroButton then return nil end
 	if not tab then
@@ -296,8 +410,11 @@ end
 
 -- (.debug log: did the game press the macro button at all, and on which half of the key press?)
 local function TracePress(p, _, down)
-	if ns.Trace and S.armed == p.targetName then
-		ns:Trace(("secure: the game pressed %s on key %s"):format(p:GetName(), down and "down" or "up"))
+	if S.armed ~= p.targetName then return end
+	if ns.Trace then ns:Trace(("secure: the game pressed %s on key %s"):format(p:GetName(), down and "down" or "up")) end
+	-- (the half of the key press the macro runs on: noted for Debug.lua and the taint check)
+	if p.actsOnDown == nil or down == nil or (down and true or false) == p.actsOnDown then
+		S.NotePress(p:GetAttribute("macrotext"), "Enter")
 	end
 end
 

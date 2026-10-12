@@ -74,7 +74,7 @@ do
 		return labels, dup
 	end
 	UI:Open(""); FlushAll()
-	local chatbox = { macro = function() return "/run x" end }
+	local chatbox = { macro = function() return "/run C_Test.ChatBox()" end } -- (a stand-in: never run)
 	local ach = { kind = "achievements", name = "Level 10", link = "|Hachievement:6|h[Level 10]|h", secondary = function() end,
 		secondarySecure = chatbox }
 	local labels, dup = Labels(ach)
@@ -300,8 +300,9 @@ end
 do
 	local mrows = ns.providers.mounts and ns:GetEntries(ns.providers.mounts) or {}
 	local m = mrows[1]
-	local mac = m and m.secondarySecure and m.secondarySecure.macro(m)
-	check(m and mac and mac:find("MountJournal", 1, true) and mac:find(m.name, 1, true), "mounts: the journal opened by the game, the name searched: " .. tostring(mac))
+	-- (0.46.2: the collections key, no /run line, nothing typed into the journal's search box)
+	local spec = m and m.secondarySecure
+	check(m and spec and spec.binding == "TOGGLECOLLECTIONS" and not spec.macro, "mounts: the journal opened by the collections key: " .. tostring(spec and (spec.binding or spec.macro)))
 	local srows = ns:GetEntries(ns.providers.slash)
 	local sl
 	for _, e in ipairs(srows) do if e.name == "/reload" or e.name == "/rl" then sl = e break end end

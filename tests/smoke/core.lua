@@ -139,7 +139,7 @@ do -- the click catcher: an unchanged hover keeps its macros (no recompute per r
 	local trace = ns.Debug.trace
 	local n = #trace
 	local m = S.ClickMacro({ click = S.REP_CLICK }, nil, true)
-	check(m == '/run ToggleCharacter("ReputationFrame", true)', "quiet: the macro is still worked out: " .. tostring(m))
+	check(m == nil, "quiet: worked out (a plain-frame tab: no click route, no /run line): " .. tostring(m))
 	check(#trace == n and S.quiet == nil, "quiet: no trace lines for a resting pointer (" .. (#trace - n) .. ")")
 	S.ClickMacro({ click = S.REP_CLICK }, nil)
 	check(#trace > n, "a press traces the tab's steps as before")
@@ -433,7 +433,7 @@ end
 -- `after` came through __index from Enter's)
 do
 	local pinned = false
-	local e = { name = "Hogger", kind = "npc", secure = { macro = function() return "/run x()" end },
+	local e = { name = "Hogger", kind = "npc", secure = { macro = function() return "/run C_Test.X()" end },
 		isOpen = function() return true end, after = function() pinned = true end,
 		secondarySecure = { macro = function() return "/targetexact Hogger" end }, secondary = function() end }
 	local v = UI.SecureView(e, true)

@@ -4,9 +4,12 @@ local H = ns.Highlight
 -- Toys, companion pets and titles: what you own, like the mounts (Mounts.lua).
 --
 -- Everything that uses one or opens a window is pressed by the game: Enter is a line on the secure
--- macro button (/use a toy, summon a pet, set a title), Shift+Enter opens the Collections journal on
--- the toy's or pet's tab with its name in the journal's search box (one /run line, as the Keybindings
--- page is searched in Keybinds.lua), and Terminal only points at it afterwards. Rows are compact
+-- macro button (/use a toy, summon a pet, set a title), Shift+Enter opens the Collections journal with
+-- the collections key, and Terminal points at the toy or pet when it shows (at its tab while another
+-- one is showing). Until 0.46.2 a /run line opened the journal on the tab and typed the name into its
+-- search box; but a /run line runs tainted (0.46.1), and the list it rebuilt held what it wrote (the
+-- toy buttons are secure: using a toy from them could be blocked). Its tabs here are plain frames, so
+-- /click can't pick one, and no game call does. Rows are compact
 -- (a few hundred toys, a thousand pets): every function here is shared, reading what it needs from
 -- the row. A client without the toy box, pet journal or titles has no such @kind.
 
@@ -15,22 +18,43 @@ local Safe, Num, Str = ns.Safe, ns.Num, ns.Str
 -- the journal's tabs (COLLECTIONS_JOURNAL_TAB_INDEX_*): 1 mounts, 2 pets, 3 toys
 local PETS_TAB, TOYS_TAB = 2, 3
 
---- A /run line opening the journal on a tab, with `name` typed into that tab's search box (so the
---- row shows whatever page it's on). `box` is the Lua that finds the box; the name is quoted (%q).
---- (SetCollectionsJournalShown loads the journal first; ToggleCollectionsJournal for a client without it)
-local JOURNAL = "/run local S=SetCollectionsJournalShown if S then S(true,%d) else ToggleCollectionsJournal(%d) end local B=%s if B then B:SetText(%q) end"
-local function JournalMacro(tab, box, name)
-	return JOURNAL:format(tab, tab, box, name or "")
+--- Shift+Enter's press: the collections key (its binding, else its micro button); nothing is pressed while it's open.
+local JOURNAL_SPEC = { binding = "TOGGLECOLLECTIONS", buttons = { "CollectionsMicroButton" }, opensWindow = true }
+local function JournalShown() local J = _G.CollectionsJournal; return J and J.IsVisible and J:IsVisible() or false end
+
+local TAB_KEYS = { "MountsTab", "PetsTab", "ToysTab" }
+local TAB_LABELS = { _G.MOUNTS or "Mounts", _G.PET_JOURNAL or "Pet Journal", _G.TOY_BOX or "Toy Box" }
+--- The journal's tab `i` (read only): its key in the tab container, its Tabs list, or an old client's global.
+local function TabFrame(i)
+	local J = _G.CollectionsJournal
+	local c = J and J.TabContainer
+	local t = c and TAB_KEYS[i] and c[TAB_KEYS[i]]
+	if not t and J and type(J.Tabs) == "table" then t = J.Tabs[i] end
+	return t or _G["CollectionsJournalTab" .. i]
 end
 
-local NeverOpen = ns.Never -- (always pressed: the search is set even when it's open)
-
---- Points at the row's name inside a part of the journal once it shows (reading only).
-local function PointIn(rootFn, name)
-	H:Find(function()
+local LOOKS, HINT_AFTER = 200, 8 -- looks a tenth of a second apart (20 s to get there), and when to say how
+--- Points at the row's name inside a part of the journal (rootFn) whenever it shows (reading only). While another tab
+--- shows, its tab `tab` is pointed at and that's said once; a row on another page is said once too.
+local function PointIn(rootFn, name, tab)
+	local looks = 0
+	H:When(function()
+		if not JournalShown() then return nil end
+		looks = looks + 1
 		local root = rootFn()
-		return root and root:IsVisible() and ns.FindByText(root, name) or nil
-	end)
+		if root and root:IsVisible() then
+			local hit = ns.FindByText(root, name)
+			if hit then return hit end
+			if looks == HINT_AFTER * 2 then
+				ns:Print(("%s isn't on this page of the journal: turn to it or search for it, and Terminal points at it."):format(tostring(name)))
+			end
+		elseif looks == HINT_AFTER and tab then
+			local t = TabFrame(tab)
+			if t and t.IsVisible and t:IsVisible() then H:Show(t) end
+			ns:Print(("%s is in the journal's %s tab: open it, and Terminal points at it."):format(tostring(name), TAB_LABELS[tab] or "other"))
+		end
+		return nil
+	end, function(f) H:Show(f) end, LOOKS)
 end
 
 --- Without the game's press (no macro route), or in combat: nothing is opened from here.
@@ -40,7 +64,8 @@ local function NoJournal(e)
 end
 
 -- (Mounts.lua, loaded before this file, uses these at run time for the mount journal)
-ns.Collections = { JournalMacro = JournalMacro, PointIn = PointIn, NoJournal = NoJournal }
+ns.Collections = { JOURNAL_SPEC = JOURNAL_SPEC, JournalShown = JournalShown, PointIn = PointIn, NoJournal = NoJournal,
+	TabFrame = TabFrame }
 
 --- "4m", "35s": time left on a cooldown.
 local function Left(sec)
@@ -108,11 +133,8 @@ end
 
 -- Enter uses it: `/use item:<id>` (the game uses toys by item in macros, as by name)
 local function ToyMacro(e) return "/use item:" .. e.key end
-local function ToyJournalMacro(e)
-	return JournalMacro(TOYS_TAB, "ToyBox and ToyBox.searchBox", e.name)
-end
 local function ToyRoot() local T = _G.ToyBox; return T and (T.iconsFrame or T) end
-local function PointAtToy(e) PointIn(ToyRoot, e.name) end
+local function PointAtToy(e) PointIn(ToyRoot, e.name, TOYS_TAB) end
 local function NoToy(e) ns:Print("Couldn't use " .. tostring(e.name) .. " from here.") end
 local function ToyLink(e)
 	local link = C_ToyBox.GetToyLink and Safe(C_ToyBox.GetToyLink, e.key)
@@ -189,8 +211,8 @@ if C_ToyBox and C_ToyBox.GetNumToys and C_ToyBox.GetToyFromIndex and C_ToyBox.Ge
 		activate = NoToy,
 		getLink = ToyLink,
 		secondary = NoJournal,
-		secondarySecure = { macro = ToyJournalMacro, opensWindow = true },
-		secondaryIsOpen = NeverOpen,
+		secondarySecure = JOURNAL_SPEC,
+		secondaryIsOpen = JournalShown,
 		secondaryAfter = PointAtToy,
 	}, { detail = ToyDetail })
 end
@@ -203,12 +225,8 @@ end
 -- (only /randompet), so the line runs the journal's own C call; pressed by the game, it counts as
 -- your key press, which summoning needs. A pet's GUID is short: the line stays far under 255.
 local function PetMacro(e) return ('/run C_PetJournal.SummonPetByGUID("%s")'):format(e.key) end
-local function PetJournalMacro(e)
-	-- (the species name: what the journal's search matches)
-	return JournalMacro(PETS_TAB, "PetJournalSearchBox or PetJournal and PetJournal.searchBox", e.species or e.name)
-end
 local function PetRoot() local P = _G.PetJournal; return P and (P.ScrollBox or P.listScroll or P) end
-local function PointAtPet(e) PointIn(PetRoot, e.species or e.name) end
+local function PointAtPet(e) PointIn(PetRoot, e.species or e.name, PETS_TAB) end
 local function NoPet(e)
 	if not ns.Guarded("SummonPetByGUID", C_PetJournal.SummonPetByGUID, e.key) then
 		ns:Print("Couldn't summon " .. tostring(e.name) .. " from here.")
@@ -302,8 +320,8 @@ if C_PetJournal and C_PetJournal.SummonPetByGUID and (C_PetJournal.GetOwnedPetID
 		activate = NoPet,
 		getLink = PetLink,
 		secondary = NoJournal,
-		secondarySecure = { macro = PetJournalMacro, opensWindow = true },
-		secondaryIsOpen = NeverOpen,
+		secondarySecure = JOURNAL_SPEC,
+		secondaryIsOpen = JournalShown,
 		secondaryAfter = PointAtPet,
 	}, { detail = PetDetail })
 end

@@ -13,9 +13,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.1", when = "in testing",
+		v = "0.46.2", when = "in testing",
 		items = {
-			"Fixes: showing something on the map (an NPC, a zone, a flight path, a dungeon) no longer leads to \"action blocked\" messages from the map later, in a fight: the game's own map code now opens the map and switches it to the place.",
+			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",
+			"Quests and spells: Enter opens your quest log or spellbook with your own key and points at the quest or spell, also as soon as you scroll or turn to it (it no longer turns to it for you: that could leave spells in the book refusing to cast). Click the quest for its details.",
+			"Dropping a quest with Shift+Enter (or >> drop) asks in Terminal's own window, as dropping several does.",
+			"Collections: Shift+Enter opens the journal and points at the toy, pet or mount, or at its tab when another one shows.",
+			".debug log names the press of Terminal's behind a blocked action the game blames on a /run line.",
 		},
 	},
 	{

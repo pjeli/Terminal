@@ -354,6 +354,7 @@ function UI:MenuPicked(b)
 	end
 	if it.chatTo or it.boxLine then -- the game sent it to chat / opens the chat box with it
 		ns:Trace("menu: sent to chat: " .. tostring(it.chat):sub(1, 3))
+		ns.Secure.NotePress(it.chat, "menu")
 		self:Hide()
 		return
 	end
@@ -361,6 +362,7 @@ function UI:MenuPicked(b)
 	if not now and not it.macro then return end
 	UI.sel = now or UI.sel
 	if it.macro then -- the game opened it: finish as after Enter
+		ns.Secure.NotePress(it.macro, "menu")
 		FinishClicked(e, it.view or e)
 		return
 	end

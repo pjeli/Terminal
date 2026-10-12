@@ -60,21 +60,15 @@ function SP.Book()
 end
 
 local function BookOpen() return SP.Book() ~= nil end
--- open = nothing to press. ClassicUIForever's book is turned by Terminal afterwards; the game's own is
--- turned by the press itself, so that one is always pressed (open or not)
-local function IsOpen() return CUF() ~= nil and BookOpen() end
+-- open = nothing to press (the spellbook key would toggle an open book shut): only turned (ClassicUIForever's) or
+-- pointed at (the game's own)
+local IsOpen = BookOpen
 
---- The game's own spellbook (no ClassicUIForever): the press that opens it also turns it to the spell,
---- with Blizzard's own SpellBookFrame:GoToSpell (the spell's category, then its page), after clearing a
---- search left in its search box (search results hide the categories). All of it runs as the game, from
---- the secure macro button, so nothing in Blizzard's book is written by Terminal's code.
-local function ClientBookMacro(e)
-	if CUF() or not (_G.PlayerSpellsUtil and e.spellID) then return nil end
-	-- (the game cuts a macro off at 255 characters in all, not per line: keep it short)
-	return "/run PlayerSpellsUtil.OpenToSpellBookTab()\n"
-		.. ("/run local b=PlayerSpellsFrame.SpellBookFrame if b.ClearActiveSearchState then b:ClearActiveSearchState(true) end if b.GoToSpell then b:GoToSpell(%d,true) end"):format(e.spellID)
-end
-SP.ClientBookMacro = ClientBookMacro
+-- The game's own spellbook (no ClassicUIForever) is opened with the spellbook key and never turned from here: Terminal
+-- points at the spell when it's on the page showing, and keeps looking a while, so it's pointed at once you turn to
+-- it. Until 0.46.2 the game pressed /run PlayerSpellsUtil.OpenToSpellBookTab() + SpellBookFrame:GoToSpell(id); but a
+-- /run line runs tainted (0.46.1), and the book's items set up by it then hold tainted slots: a click on a spell there
+-- (C_SpellBook.CastSpellBookItem, protected) could be blocked. No game call or named button turns the book cleanly.
 
 --- The game's own book (turned by the press): the spell's item there, found by its spellbook slot
 --- (only read: its items keep slotIndex/spellBank). The entry's id is its highest rank's.
@@ -92,7 +86,7 @@ function SP.ClientButton(book, e)
 	if item then return item.Button or item end
 end
 
-SP.SECURE = { macro = ClientBookMacro, binding = "TOGGLESPELLBOOK", buttons = { "SpellbookMicroButton" } }
+SP.SECURE = { binding = "TOGGLESPELLBOOK", buttons = { "SpellbookMicroButton" } }
 
 --- The page's button for the spell: its own (highest known) rank, else the highest rank of it shown.
 local function OnPage(A, book, e)
@@ -150,11 +144,14 @@ function SP.TurnTo(A, book, e)
 	return (OnPage(A, book, e))
 end
 
---- After the book opened: turn it to the spell and point at it.
+SP.WATCH = 200 -- looks (a tenth of a second apart) for the spell in the game's own book: 20 seconds to turn to it
+SP.HINT_AFTER = 8 -- looks before saying it isn't on the page showing
+
+--- After the book opened: turn it to the spell (ClassicUIForever's) or point at it when it shows (the game's own).
 local function PointAtSpell(e)
 	local A = CUF()
 	ns:Trace("spells: pointing at " .. tostring(e.name) .. (A and " (ClassicUIForever's book)" or " (client book)"))
-	local turned, last = false, nil
+	local turned, last, looks = false, nil, 0
 	H:When(function()
 		local book = SP.Book()
 		if not book then return nil end
@@ -165,12 +162,17 @@ local function PointAtSpell(e)
 			return SP.TurnTo(A, book, e)
 		end
 		-- the game's book, opened by this press, fills its page in over its first frames: point only once the
-		-- same frame shows the spell on two looks in a row (a tenth of a second apart)
+		-- same frame shows the spell on two looks in a row (a tenth of a second apart). Not on this page: said once,
+		-- and looked for until SP.WATCH runs out (pointed at as soon as you turn to it)
 		local item = SP.ClientButton(book, e)
 		if item and item == last then return item end
 		last = item
+		looks = looks + 1
+		if looks == SP.HINT_AFTER and not item then
+			ns:Print(("%s isn't on this page of your spellbook: turn to it and Terminal points at it."):format(tostring(e.name)))
+		end
 		return nil
-	end, function(target) H:Show(target) end, 25, function()
+	end, function(target) H:Show(target) end, A and 25 or SP.WATCH, function()
 		-- for a .debug log: which step found nothing
 		local book = SP.Book()
 		local slot = C_SpellBook.FindSpellBookSlotForSpell and Call(C_SpellBook.FindSpellBookSlotForSpell, e.spellID, false, true, false, false)

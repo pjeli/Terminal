@@ -51,7 +51,8 @@ local TOKEN_SECURE = { macro = TokenClick, click = TokenClick }
 local function TokenOpen() return Shown("TokenFrame") end
 
 -- game-run openers for panels without a binding command (a /run line on the secure macro button)
-local OPTIONS_MACRO = "/run local S=SettingsPanel if S and S.Open then S:Open() elseif Settings then Settings.OpenToCategory(Settings.GAME_CATEGORY_ID or 1) end"
+-- (the settings window as it was last: the game's own call, answered by the window's own code: Secure.SettingsMacro)
+local function OptionsMacro() return ns.Secure.SettingsMacro() end
 local ADDONLIST_MACRO = "/run if AddonList then ShowUIPanel(AddonList) end"
 local EDITMODE_MACRO = "/editmode"
 
@@ -73,21 +74,20 @@ end
 local function TabKind(t)
 	return type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
 end
--- The /run line that clicks a tab (a global): Click, or a plain Frame's mouse scripts (no Click, as the character
--- tabs are here). Pressed by the game; Terminal's code never clicks them (taint).
-local function TabRunLine(tab)
-	return "/run local t=" .. tab .. " if t then if t.Click then t:Click() else for _,s in ipairs({\"OnMouseDown\",\"OnMouseUp\"}) do local f=t:GetScript(s) if f then f(t,\"LeftButton\") end end end end"
-end
+-- The line that clicks a tab (a global name): /click, which the game runs as your own click (clean). A tab that is a
+-- plain Frame (as the character tabs are here) isn't a button: /click does nothing to it, and Terminal points at it
+-- for you to click. Until 0.46.2 a /run line clicked it or ran its mouse scripts; but a /run line runs tainted
+-- (0.46.1), and the window it switched then held what it wrote.
+local function TabClickLine(tab) return "/click " .. tab end
 -- The Legacy window's tabs. Its addon (Blizzard_LegacySystem) loads on demand: the tabs exist only once the
 -- micro button's click has opened it, so the press clicks the button first (only while the window is closed),
--- then the tab, from one /run line: a tab that is a plain Frame (no Click, as the character tabs are here) gets
--- its mouse scripts run instead. All of it pressed by the game; Terminal's code never clicks them (taint).
+-- then the tab (looked up by name when that line runs). Pressed by the game; Terminal's code never clicks them.
 local function LegacyTabMacro(e)
 	local lines = {}
 	if not Shown("LegacySystemFrame") then lines[1] = "/click LegacyMicroButton" end
 	local how = TabKind(_G[e.tab])
 	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. how .. (lines[1] and ", window closed: the micro button first" or ", window open")) end
-	lines[#lines + 1] = TabRunLine(e.tab)
+	lines[#lines + 1] = TabClickLine(e.tab)
 	return table.concat(lines, "\n")
 end
 -- Group Finder pages (this client's BrowsingTab / WhoListingTab, the player's /fstack names): the window opened by
@@ -109,7 +109,7 @@ local function GroupFinderTabMacro(e)
 	if not open then lines[1] = "/click LFDMicroButton" end
 	local how = TabKind(_G[e.tab])
 	if not ns.Secure.quiet then ns:Trace("group finder: " .. e.tab .. " is " .. how .. (open and ", window open" or ", window closed: the micro button first")) end
-	lines[#lines + 1] = TabRunLine(e.tab)
+	lines[#lines + 1] = TabClickLine(e.tab)
 	return table.concat(lines, "\n")
 end
 local function LegacyTabFallback() ns:Print("Open the Legacy window from its button (a click from Terminal's own code would taint it).") end
@@ -134,16 +134,20 @@ local function TabAfter(e)
 end
 local function TabFallback(e) ns:Print("Switch to " .. tostring(e and e.name) .. " in its window (a click from Terminal's own code would taint it).") end
 
--- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals, so /click
--- can't name them; a game-run /run clicks them (Blizzard_Communities loads with the window, so the window first).
+-- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals. The press
+-- opens the window (only while it's closed) and asks /click for the tab by its path, which the game looks up itself
+-- (GetClickFrame: whether it takes a path on this client isn't known; when it doesn't, nothing happens and Terminal
+-- points at the tab). Until 0.46.2 a /run line clicked it: a /run line runs tainted (0.46.1). No guild button: the
+-- guild key's binding instead (the spec's), no tab.
 local function CommunitiesTabMacro(e)
 	local lines = {}
 	if not Shown("CommunitiesFrame") then
-		lines[1] = _G.GuildMicroButton and "/click GuildMicroButton" or "/run ToggleGuildFrame()"
+		if not _G.GuildMicroButton then return nil end
+		lines[1] = "/click GuildMicroButton"
 	end
 	local key = e.tab:match("%.(.+)$")
 	if not ns.Secure.quiet then ns:Trace("communities: " .. key .. (lines[1] and ", window closed: opened first" or ", window open")) end
-	lines[#lines + 1] = "/run local t=CommunitiesFrame and CommunitiesFrame." .. key .. " if t then t:Click() end"
+	lines[#lines + 1] = "/click CommunitiesFrame." .. key
 	return table.concat(lines, "\n")
 end
 local function CommunitiesTabOpen(e)
@@ -202,8 +206,8 @@ local PANELS = {
 	{ "Game Menu", "game menu escape logout exit", function() Call("ToggleGameMenu") end, "MainMenuMicroButton",
 		{ binding = "TOGGLEGAMEMENU", buttons = { "MainMenuMicroButton" } }, PanelOpen, "GameMenuFrame" },
 	{ "Options", "options settings interface video audio", function()
-		if Settings and Settings.OpenToCategory then Settings.OpenToCategory() else Call("ShowUIPanel", _G.SettingsPanel) end
-	end, nil, { macro = OPTIONS_MACRO }, PanelOpen, "SettingsPanel" },
+		if C_SettingsUtil and C_SettingsUtil.OpenSettingsPanel then pcall(C_SettingsUtil.OpenSettingsPanel) end
+	end, nil, { macro = OptionsMacro }, PanelOpen, "SettingsPanel" },
 	{ "AddOn List", "addons manager", function() if AddonList then ShowUIPanel(AddonList) end end, nil, { macro = ADDONLIST_MACRO }, PanelOpen, "AddonList" },
 	{ "Macros", "macros", function() ns.LoadBlizz("Blizzard_MacroUI"); if MacroFrame then ShowUIPanel(MacroFrame) end end, nil, MACRO_WINDOW, MacroWindowOpen },
 	{ "Edit Mode", "edit mode layout hud", function() ns.RunSlash("/editmode") end, nil, { macro = EDITMODE_MACRO }, PanelOpen, "EditModeManagerFrame" },

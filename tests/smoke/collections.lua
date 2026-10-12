@@ -72,9 +72,13 @@ do
 	check(p.selfEvents and p.guard, "opening the filters fires TOYS_UPDATED: those events are ignored")
 	local armed, text = press("@toy train")
 	check(armed == "MACRO" and text == "/use item:1001", "Enter uses the toy, pressed by the game: " .. tostring(text))
+	-- 0.46.2: Shift+Enter opens the journal with the collections key (no /run line: it runs tainted, 0.46.1, and the
+	-- toy box's secure buttons rebuilt from the search it typed could be blocked); nothing is typed into its search box
+	_G.BINDING_NAME_TOGGLECOLLECTIONS = "Collections" -- (the game's collections key)
 	armed, text = press("@toy train", true)
-	check(armed == "MACRO" and text and text:find("S(true,3)", 1, true) and text:find('B:SetText("Toy Train Set")', 1, true) and #text <= S.MACRO_MAX,
-		"Shift+Enter: the game opens the toy box with the toy searched: " .. tostring(text))
+	_G.BINDING_NAME_TOGGLECOLLECTIONS = nil
+	check((armed == "TOGGLECOLLECTIONS" or armed == "CollectionsMicroButton") and ToyBox.searchBox.text == "zzz" and not (text or ""):find("SetText", 1, true),
+		"Shift+Enter: the collections key, the toy box's search left alone: " .. tostring(armed))
 	_G.C_ToyBox, _G.C_PetJournal, _G.PlayerHasToy, _G.GetNumExpansions, _G.C_Container.GetItemCooldown = save.tb, save.pj, save.has, save.ne, save.cont
 	_G.ToyBox = nil
 end
@@ -103,9 +107,10 @@ do
 	check(sq.detail:find("out now", 1, true), "the pet that's out says so")
 	local armed, text = press("@pet squeaks")
 	check(armed == "MACRO" and text == '/run C_PetJournal.SummonPetByGUID("BattlePet-0-000001")', "Enter summons it, pressed by the game: " .. tostring(text))
+	_G.BINDING_NAME_TOGGLECOLLECTIONS = "Collections"
 	armed, text = press("@pet squeaks", true)
-	check(armed == "MACRO" and text and text:find("S(true,2)", 1, true) and text:find('"Mechanical Squirrel"', 1, true),
-		"Shift+Enter: the pet journal, searched for its species: " .. tostring(text))
+	_G.BINDING_NAME_TOGGLECOLLECTIONS = nil
+	check(armed == "TOGGLECOLLECTIONS" or armed == "CollectionsMicroButton", "Shift+Enter: the collections key (no /run line): " .. tostring(armed))
 	-- a client without GetOwnedPetIDs: the journal's list, owned ones only
 	_G.C_PetJournal = {
 		SummonPetByGUID = function() end,
@@ -301,7 +306,8 @@ do
 	check(on.Terminal == true and logFind("can't turn itself off", mark + 1), "never Terminal itself")
 	-- an addon with a minimap button and an options page: the page is a row of its own
 	local opened
-	_G.Settings = { OpenToCategory = function(id) opened = id; return true end }
+	local saveU = _G.C_SettingsUtil
+	_G.C_SettingsUtil = { OpenSettingsPanel = function(id) opened = id end }
 	_G.SettingsPanel = Obj("Frame")
 	local cat = { GetName = function() return "Cool Addon1" end, GetID = function() return 42 end }
 	SettingsPanel.GetAllCategories = function() return { cat } end
@@ -312,11 +318,12 @@ do
 	a = names(ns:GetEntries(ns.providers.addons))
 	local o = a["Cool Addon1 options"]
 	check(a["Cool Addon1"].detail == "Minimap button  ·  disabled (.reload to apply)", "what Enter does and its state: " .. tostring(a["Cool Addon1"].detail))
-	check(o and S.Resolve(o.secure, o).macro == "/run Settings.OpenToCategory(42)", "its options page: a row, opened by the game")
+	check(o and S.Resolve(o.secure, o).macro == "/run C_SettingsUtil.OpenSettingsPanel(42)", "its options page: a row, opened by the game's own call")
 	o.activate(o)
 	check(opened == 42, "...and without the game's press, from here")
 	check(not a["Cool Addon2 options"], "no extra row for addons without both")
 	_G.Settings, _G.SettingsPanel, _G.Minimap = nil, nil, nil
+	_G.C_SettingsUtil = saveU
 	_G.C_AddOns = base
 	ns.providers.addons._dirty = true
 end
@@ -433,7 +440,8 @@ do
 	end
 	local display, row = Showing("Frame", m and m.name or "?"), Showing("Button", m and m.name or "?")
 	local list = Obj("Frame"); list.shown = true; list.GetChildren = function() return row end
-	local was = _G.MountJournal
+	local was, wasCJ = _G.MountJournal, _G.CollectionsJournal
+	_G.CollectionsJournal = Obj("Frame"); CollectionsJournal.shown = true -- (pointed at only while the journal shows)
 	_G.MountJournal = Obj("Frame"); MountJournal.shown = true
 	MountJournal.GetChildren = function() return display, list end
 	MountJournal.ScrollBox = list
@@ -442,5 +450,5 @@ do
 	check(m and shown == row, "the mount pointed at in the journal's list, not the display: "
 		.. (shown == display and "the display" or tostring(shown)))
 	ns.Highlight.Show = origShow
-	_G.MountJournal = was
+	_G.MountJournal, _G.CollectionsJournal = was, wasCJ
 end

@@ -171,14 +171,11 @@ local function PressAllMacro() local to = UI.sendTo return to and ns.Share.Press
 local PRESS_ALL_SPEC = { macro = PressAllMacro }
 local NeverOpen = ns.Never -- (a chat line: always pressed)
 local function SentAfter(v) ns:Trace("share: the game sent " .. tostring(v.name) .. " to " .. tostring(UI.sendTo and UI.sendTo.label)) end
-local function DropAsked(v) ns:Trace("quests: >> drop: the game asks before dropping " .. tostring(v.name)) end
-
---- ">> drop": the press that has the game ask to drop the selected quest (a quest in your log), else nil.
-local function DropView(e)
+--- ">> drop": the quest in your log the selected row is (a chain's row: what it stands for), else nil.
+local function DropTarget(e)
 	local o = rawget(e, "pipeOf") or e
-	local Q = ns.Quests
-	if not (Q and o.kind == "quests" and type(o.questID) == "number") then return nil end
-	return setmetatable({ secure = Q.DROP_SPEC, isOpen = NeverOpen, after = DropAsked }, { __index = o })
+	if not (o.kind == "quests" and type(o.questID) == "number") then return nil end
+	return o
 end
 
 --- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the
@@ -188,10 +185,8 @@ local function SecureView(e, shift)
 	if not e then return nil end
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
 	if UI.sendTo then
-		if UI.sendTo.drop then
-			if UI.sendTo.all or e.noActivate or e.raw or e.completion then return nil end
-			return DropView(e)
-		end
+		-- (">> drop" presses nothing: Terminal asks, then drops it with C calls; see SendSelected)
+		if UI.sendTo.drop then return nil end
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
 		-- (">>> party": Terminal sends every result itself in Activate, a press the game doesn't take; ">>> say": the
 		-- game presses one line with them all, Terminal's code can't send there: SH.PressLine)
@@ -336,6 +331,7 @@ function UI:CatcherClicked(button)
 	if kind == "macro" and type(text) == "string" and text ~= "" then
 		local se = SecureView(e, text ~= c.plain) or e
 		ns:Trace("click: the game ran " .. text:gsub("\n", " | ") .. " for " .. tostring(e.name))
+		ns.Secure.NotePress(text, "click")
 		C_Timer.After(0.3, function()
 			local cf = _G.CharacterFrame
 			if cf and cf.IsShown and cf:IsShown() then
@@ -399,10 +395,10 @@ end
 --- ">> channel": the selected result is sent, never opened or run: the game presses the chat line (armed here).
 local function SendSelected(self, e, to, secondary)
 	if to.drop then
-		local se = SecureView(e, secondary)
-		if not se then ns:Print("Only quests in your log can be dropped: " .. tostring(e.name) .. " isn't one.") return end
-		if self:TryArmSecure(se) then ns:RecordHistory(UI.edit:GetText()) return end
-		ns:Print(InCombatLockdown() and "In combat: drop it once the fight is over." or ("Couldn't ask the game to drop " .. tostring(e.name) .. "."))
+		local o = (not (e.noActivate or e.raw or e.completion)) and DropTarget(e) or nil
+		if not o then ns:Print("Only quests in your log can be dropped: " .. tostring(e.name) .. " isn't one.") return end
+		ns:RecordHistory(UI.edit:GetText())
+		ns.QuestDrop.Confirm({ o })
 		return
 	end
 	if not to.cmd then return NoChannel(to, ">>") end

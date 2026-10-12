@@ -123,7 +123,10 @@ do
 	check(route("Quest Log") == "TOGGLEQUESTLOG", "Quest Log: the quest log key: " .. tostring(route("Quest Log")))
 	check(route("Backpack & Bags") == "OPENALLBAGS", "Bags: the bags key: " .. tostring(route("Backpack & Bags")))
 	check(route("Edit Mode") == "/editmode", "Edit Mode: a macro line the game runs: " .. tostring(route("Edit Mode")))
-	check(tostring(route("Options")):find("^/run ") and tostring(route("Options")):find("SettingsPanel", 1, true), "Options: a /run line the game runs: " .. tostring(route("Options")))
+	local saveU = _G.C_SettingsUtil
+	_G.C_SettingsUtil = { OpenSettingsPanel = function() end }
+	check(route("Options") == "/run C_SettingsUtil.OpenSettingsPanel()", "Options: the game's own call, on a line the game runs: " .. tostring(route("Options")))
+	_G.C_SettingsUtil = saveU
 	check(tostring(route("AddOn List")):find("ShowUIPanel(AddonList)", 1, true), "AddOn List: a /run line the game runs")
 	check(pn["Achievements"].secure.binding == "TOGGLEACHIEVEMENT" and pn["Collections"].secure.binding == "TOGGLECOLLECTIONS"
 		and pn["Professions"].secure.binding == "TOGGLEPROFESSIONBOOK" and pn["Adventure Guide"].secure.binding == "TOGGLEENCOUNTERJOURNAL"
@@ -192,24 +195,14 @@ do
 	check(traced == 0, "a hover's quiet macro traces nothing: " .. traced)
 	local m = ch and S.Resolve(ch.secure, ch)
 	local text = m and m.macro or ""
-	check(text:match("^/click LegacyMicroButton\n/run local t=LegacyChallengeTab "), "window closed: the micro button, then the tab: " .. text)
-	check(#text <= S.MACRO_MAX, "within a macro's length: " .. #text)
-	local body = text:match("\n/run (.*)$")
-	check(body and loadstring(body), "the /run line is valid Lua")
-	-- run what the game would: a button tab is clicked, a plain frame's mouse scripts run
-	local tabClicked, downs = false, 0
-	_G.LegacyChallengeTab = { Click = function() tabClicked = true end }
-	if body then loadstring(body)() end
-	check(tabClicked, "a button tab is clicked")
-	_G.LegacyChallengeTab = { GetScript = function(_, s) return function() downs = downs + 1 end end }
-	if body then loadstring(body)() end
-	check(downs == 2, "a plain-frame tab gets its mouse down and up scripts: " .. downs)
-	_G.LegacyChallengeTab = nil
-	if body then loadstring(body)() end -- not loaded: nothing errors
+	-- 0.46.2: the tab by /click (the game looks it up when the line runs; a plain-frame tab isn't a button, so /click
+	-- does nothing to it and Terminal points at it), never a /run line (it runs tainted, 0.46.1)
+	check(text == "/click LegacyMicroButton\n/click LegacyChallengeTab", "window closed: the micro button, then the tab: " .. text)
+	check(not text:find("/run", 1, true), "no /run line")
 	LegacySystemFrame.shown = true
 	m = tr and S.Resolve(tr.secure, tr)
 	text = m and m.macro or ""
-	check(text:match("^/run local t=LegacyTreeTab "), "window open: only the tab: " .. text)
+	check(text == "/click LegacyTreeTab", "window open: only the tab: " .. text)
 	check(tr.isOpen(tr) == false, "a tab row always presses (clicking the shown tab is harmless)")
 	b.Click = function() clicked = true end
 	printWas = ns.Print; ns.Print = function() end
@@ -238,8 +231,7 @@ do
 	_G.BrowsingTab, _G.WhoListingTab, _G.PVEFrame = nil, nil, nil
 	local m = S.Resolve(gb.secure, gb)
 	local text = m and m.macro or ""
-	check(text:match("^/click LFDMicroButton\n/run local t=BrowsingTab "), "window closed: the micro button, then the tab: " .. text)
-	check(#text <= S.MACRO_MAX and loadstring(text:match("\n/run (.*)$")), "within a macro, valid Lua")
+	check(text == "/click LFDMicroButton\n/click BrowsingTab", "window closed: the micro button, then the tab: " .. text)
 	-- the window open on another page: never clicked shut, only the tab
 	local win = Obj("Frame"); win.shown = true
 	local tab = Obj("Button"); tab.shown = false
@@ -248,7 +240,7 @@ do
 	_G.WhoListingTab = tab
 	m = S.Resolve(wl.secure, wl)
 	text = m and m.macro or ""
-	check(text:match("^/run local t=WhoListingTab "), "the window open: only the tab: " .. text)
+	check(text == "/click WhoListingTab", "the window open: only the tab: " .. text)
 	check(wl.isOpen(wl) == false, "a tab row always presses")
 	_G.WhoListingTab, _G.LFDMicroButton = nil, hadLFD
 	ns.providers.panels._dirty = true
@@ -269,19 +261,18 @@ do
 	_G.CommunitiesFrame = nil
 	local m = roster and S.Resolve(roster.secure, roster)
 	local text = m and m.macro or ""
-	check(text == "/click GuildMicroButton\n/run local t=CommunitiesFrame and CommunitiesFrame.RosterTab if t then t:Click() end",
-		"window closed: the guild button, then the roster tab: " .. text)
-	local body = text:match("\n/run (.*)$")
-	check(body and loadstring(body), "valid Lua")
-	if body then loadstring(body)() end -- no window: nothing errors
-	local clickedTab = false
+	-- (0.46.2: /click by its path, which the game looks up itself; never a /run line)
+	check(text == "/click GuildMicroButton\n/click CommunitiesFrame.RosterTab", "window closed: the guild button, then the roster tab: " .. text)
 	_G.CommunitiesFrame = Obj("Frame"); CommunitiesFrame.shown = true
-	CommunitiesFrame.RosterTab = { Click = function() clickedTab = true end }
-	if body then loadstring(body)() end
-	check(clickedTab, "the game clicks CommunitiesFrame.RosterTab")
 	m = info and S.Resolve(info.secure, info)
 	text = m and m.macro or ""
-	check(text == "/run local t=CommunitiesFrame and CommunitiesFrame.GuildInfoTab if t then t:Click() end", "window open: only the tab: " .. text)
+	check(text == "/click CommunitiesFrame.GuildInfoTab", "window open: only the tab: " .. text)
+	_G.GuildMicroButton = nil
+	CommunitiesFrame.shown = false
+	m = info and S.Resolve(info.secure, info)
+	check(not (m and m.macro and m.macro:find("/run", 1, true)), "no guild button: no /run ToggleGuildFrame line: " .. tostring(m and (m.macro or m.binding)))
+	_G.GuildMicroButton = Obj("Button")
+	CommunitiesFrame.shown = true
 	_G.COMMUNITIES_FRAME_DISPLAY_MODES = { ROSTER = 2, GUILD_INFO = 5 }
 	local mode = 2
 	CommunitiesFrame.GetDisplayMode = function() return mode end
@@ -388,8 +379,9 @@ do
 	_G.ClassicUIForeverTalents = saveCUF
 	ns.Highlight.Show = origShow
 	-- the game's options and addons' pages: opened by a /run line the game presses
-	local saveSettings, saveSP = _G.Settings, _G.SettingsPanel
-	_G.Settings = { OpenToCategory = function() return true end }
+	local saveSettings, saveSP, saveU = _G.Settings, _G.SettingsPanel, _G.C_SettingsUtil
+	_G.Settings = {}
+	_G.C_SettingsUtil = { OpenSettingsPanel = function() end }
 	_G.SettingsPanel = Obj("Frame"); SettingsPanel.shown = false
 	local function Cat(name, id, inits) return { GetName = function() return name end, GetID = function() return id end, GetSubcategories = function() return {} end, inits = inits } end
 	local gfx = Cat("Graphics", 7, { { GetName = function() return "Display Mode" end, data = { name = "Display Mode" } } })
@@ -397,20 +389,20 @@ do
 	SettingsPanel.GetLayout = function(_, cat) return { GetInitializers = function() return cat.inits end } end
 	ns.providers.gameoptions._dirty = true
 	local go = names(ns:GetEntries(ns.providers.gameoptions))
-	check(go["Display Mode"] and S.Resolve(go["Display Mode"].secure, go["Display Mode"]).macro == '/run Settings.OpenToCategory(7,"Display Mode")',
+	check(go["Display Mode"] and S.Resolve(go["Display Mode"].secure, go["Display Mode"]).macro == '/run C_SettingsUtil.OpenSettingsPanel(7,"Display Mode")',
 		"a setting: the game opens its page scrolled to it: " .. tostring(go["Display Mode"] and S.Resolve(go["Display Mode"].secure, go["Display Mode"]).macro))
-	check(go["Graphics"] and S.Resolve(go["Graphics"].secure, go["Graphics"]).macro == "/run Settings.OpenToCategory(7)", "a page: the game opens it")
+	check(go["Graphics"] and S.Resolve(go["Graphics"].secure, go["Graphics"]).macro == "/run C_SettingsUtil.OpenSettingsPanel(7)", "a page: the game opens it")
 	ns.providers.gameoptions._dirty = true
 	-- addons: options page by the game, a minimap button still clicked by Terminal, the AddOn list otherwise
 	local cat = { GetName = function() return "Cool Addon 1" end, GetID = function() return 42 end }
 	SettingsPanel.GetAllCategories = function() return { cat } end
 	ns.providers.addons._dirty = true
 	local a = names(ns:GetEntries(ns.providers.addons))
-	check(a["Cool Addon 1"] and S.Resolve(a["Cool Addon 1"].secure, a["Cool Addon 1"]).macro == "/run Settings.OpenToCategory(42)", "an addon's options page: the game opens it")
+	check(a["Cool Addon 1"] and S.Resolve(a["Cool Addon 1"].secure, a["Cool Addon 1"]).macro == "/run C_SettingsUtil.OpenSettingsPanel(42)", "an addon's options page: the game opens it")
 	check(a["Cool Addon 2"] and S.Resolve(a["Cool Addon 2"].secure, a["Cool Addon 2"]).macro == "/run if AddonList then ShowUIPanel(AddonList) end", "no page or button: the AddOn list, by the game")
 	a["Cool Addon 2"].launch = { button = Obj("Button") }
 	check(S.Resolve(a["Cool Addon 2"].secure, a["Cool Addon 2"]) == nil, "a minimap button: no macro, Terminal clicks it itself")
-	_G.Settings, _G.SettingsPanel = saveSettings, saveSP
+	_G.Settings, _G.SettingsPanel, _G.C_SettingsUtil = saveSettings, saveSP, saveU
 	ns.providers.addons._dirty = true
 end
 

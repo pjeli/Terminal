@@ -301,6 +301,26 @@ assert(ns.db and ns.db.freq, "saved variables initialised")
 assert(ns.Easy and ns.Easy.On(), "a fresh install starts in easy mode")
 ns.db.easyMode = false
 ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
+-- every macro the code hands the game during the whole run (a press's or a click's), for tests/smoke/macros.lua's lint
+-- (0.46.2: a /run line runs tainted, so what one may call is checked: game calls, /click and bindings only)
+_G.SMOKE_MACROS = {}
+do
+	local Sx = ns.Secure
+	local realResolve, realClick = Sx.Resolve, Sx.ClickMacro
+	Sx.Resolve = function(spec, e)
+		local r = realResolve(spec, e)
+		-- (not the player's own macros, @macro: what they wrote is theirs to run)
+		if type(r) == "table" and type(r.macro) == "string" and not (type(e) == "table" and e.kind == "macros") then
+			_G.SMOKE_MACROS[r.macro] = true
+		end
+		return r
+	end
+	Sx.ClickMacro = function(spec, e, ...)
+		local m = realClick(spec, e, ...)
+		if type(m) == "string" and not (type(e) == "table" and e.kind == "macros") then _G.SMOKE_MACROS[m] = true end
+		return m
+	end
+end
 
 io.write("[events fired]\n")
 local fails = 0
@@ -1157,36 +1177,44 @@ do
 	mrow.Click = function() note("MAPROW click") end
 	QuestMapFrame.shown = true
 	QuestMapFrame.GetChildren = function() return mrow end
-	-- the map's quest panel showing the details: Terminal only points at them, it never
+	-- the map's quest panel showing this quest's details: Terminal only points at them, it never
 	-- opens them itself (that left the map's focused quest tainted: pins failed in combat)
-	QuestMapFrame.DetailsFrame = Obj("Frame"); QuestMapFrame.DetailsFrame.shown = true
+	QuestMapFrame.DetailsFrame = Obj("Frame"); QuestMapFrame.DetailsFrame.shown = true; QuestMapFrame.DetailsFrame.questID = 33
 	mark = #log
 	UI:Open("wolves across"); key("ENTER"); FlushAll()
 	check(shown == QuestMapFrame.DetailsFrame and not logHas("OpenQuestDetails 33", mark + 1), "map quest panel: the details are pointed at, never opened from Terminal's code")
 	check(not logHas("MAPROW click", mark + 1), "nothing in the map is clicked")
-	-- no details showing: the map's list is scrolled to the quest and its row pointed at
-	QuestMapFrame.DetailsFrame.shown = false
+	-- another quest's details showing, or none: the quest's row in the map's list is pointed at; the list is never
+	-- scrolled from here (Blizzard's ScrollBox written by Terminal's code), and nothing in it is clicked
+	QuestMapFrame.DetailsFrame.questID = 34
 	local scrolledTo
 	_G.QuestScrollFrame = { ScrollBox = { ScrollToElementDataByPredicate = function(_, pred) scrolledTo = pred({ GetData = function() return { questID = 33 } end }) end } }
 	shown = nil
 	mark = #log
 	UI:Open("wolves across"); key("ENTER"); FlushAll()
-	check(not logHas("OpenQuestDetails 33", mark + 1) and scrolledTo == true, "no details: the map's list is scrolled to the quest")
+	check(shown == mrow and scrolledTo == nil, "another quest's details showing: the quest's row is pointed at, the list never scrolled from here")
+	QuestMapFrame.DetailsFrame.shown = false
+	shown = nil
+	mark = #log
+	UI:Open("wolves across"); key("ENTER"); FlushAll()
+	check(not logHas("OpenQuestDetails 33", mark + 1) and scrolledTo == nil, "no details: the map's list isn't scrolled from here")
 	check(shown == mrow and not logHas("MAPROW click", mark + 1), "in the map's quest list the quest is pointed at, never clicked")
-	-- this client without a classic log: the quest key opens the map's quest panel, so Enter
-	-- runs the game's own macro that opens the quest's details (even with the map open)
+	-- this client without a classic log (0.46.2): the quest key's own binding opens the map's quest panel, never a /run
+	-- line (it runs tainted, 0.46.1: QuestMapFrame_OpenToQuestDetails from one wrote the map's focused quest tainted)
 	local savedClassic = _G.ForeverClassicUIQuestLog
 	_G.ForeverClassicUIQuestLog = nil
-	QuestMapFrame.DetailsFrame.shown = true
-	WorldMapFrame.shown = true
+	QuestMapFrame.shown, WorldMapFrame.shown = false, false
 	mark = #log
 	UI:Open("wolves across"); key("ENTER")
-	local mp = _G.TerminalMacroProxy
-	check(S.armed == "MACRO" and mp and mp.attrs.macrotext == "/run QuestMapFrame_OpenToQuestDetails(33)" and bindings["ENTER"] == "TerminalMacroProxy",
-		"map quest log: Enter runs the game's macro for the quest's details: " .. tostring(mp and mp.attrs.macrotext))
-	mp.scripts.PostClick(mp, "LeftButton", true); FlushAll()
-	check(not UI:IsShown() and not logHas("OpenQuestDetails 33", mark + 1), "and Terminal's own code never calls it")
-	check(UI.ClickFor(UI:Search("wolves across")[1], false) == "/run QuestMapFrame_OpenToQuestDetails(33)", "a click runs the same macro")
+	check(S.armed == "TOGGLEQUESTLOG" and not (_G.TerminalMacroProxy and S.armed == "MACRO"), "map quest log closed: Enter presses the quest key: " .. tostring(S.armed))
+	local qclick = UI.ClickFor(UI:Search("wolves across")[1], false)
+	check(not (qclick and qclick:find("/run", 1, true)), "a click runs no /run line either: " .. tostring(qclick))
+	UI:Disarm(); UI:Hide()
+	-- the log open: nothing pressed (the key would close it), the row pointed at
+	QuestMapFrame.shown, WorldMapFrame.shown = true, true
+	shown = nil
+	UI:Open("wolves across"); key("ENTER"); FlushAll()
+	check(S.armed == nil and shown == mrow, "map quest log open: nothing pressed, the quest's row pointed at")
 	_G.ForeverClassicUIQuestLog = savedClassic
 	WorldMapFrame.shown = false
 	local D = ns.Debug
@@ -1307,10 +1335,11 @@ do
 	repTab.__name = "CharacterFrameModeTab2"; _G.CharacterFrameModeTab2 = repTab
 	check(S.REP_CLICK() == "/click CharacterMicroButton\n/click CharacterFrameModeTab2", "a named mode tab is clicked by its name")
 	_G.CharacterFrameModeTab2 = nil
-	-- this client: the tab is a plain frame (no Click), so the macro runs what the key runs
+	-- this client: the tab is a plain frame (no Click): no click route (the click arms Enter, which presses the key's
+	-- binding); never a /run ToggleCharacter line (it runs tainted, 0.46.1: the window then held what it wrote)
 	local frameTab = { frameName = "ReputationFrame" }
 	CharacterFrame.ModeTabs = { Tabs = { dollTab, frameTab } }
-	check(S.REP_CLICK() == '/run ToggleCharacter("ReputationFrame", true)', "an unclickable tab: the macro runs ToggleCharacter: " .. tostring(S.REP_CLICK()))
+	check(S.REP_CLICK() == nil, "an unclickable tab: no click route, no /run line: " .. tostring(S.REP_CLICK()))
 	_G.CharacterFrame = savedCF
 	check(S.ClickMacro({ spell = "Smelting" }) == "/cast Smelting", "a profession spell is cast")
 	check(S.ClickMacro({ binding = "TOGGLEQUESTLOG" }) == nil, "a command with no button: no click route (Enter is armed instead)")
@@ -1749,12 +1778,12 @@ do
 	check(Sx.ClickMacro({ macro = ("/run print(1)\n"):rep(20), buttons = { "TerminalTestButton" } }) == "/click TerminalTestButton",
 		"a click with a macro too long falls back to the spec's button")
 	_G.TerminalTestButton = nil
-	-- the keybinding search fits a long action name
-	local K = ns.Keybinds
-	if K and K.MacroFor then
-		local m = K.MacroFor(("Toggle Something With A Very Long Binding Name "):rep(2))
-		check(#m <= 255, "the keybinding macro fits a 96-letter action name: " .. #m)
-	end
+	-- an option's line fits a long setting name (the settings window scrolls to it by name)
+	local saveU = _G.C_SettingsUtil
+	_G.C_SettingsUtil = { OpenSettingsPanel = function() end }
+	local m = ns.Secure.SettingsMacro(1234567, ("A Very Long Setting Name For The Options Window "):rep(4))
+	check(m and #m <= 255, "the options line fits a 192-letter setting name: " .. tostring(m and #m))
+	_G.C_SettingsUtil = saveU
 end
 
 io.write("[spellbook tests]\n")
@@ -1885,13 +1914,10 @@ do
 	-- GoToSpell, after clearing a search), whether the book is open or not; Terminal then points at the spell's item
 	_G.ClassicUIForeverAPI = nil
 	_G.PlayerSpellsUtil = { OpenToSpellBookTab = function() end }
+	-- 0.46.2: the game's own book is opened with the spellbook key and never turned from here (a /run line runs tainted,
+	-- 0.46.1: the book's items set up by GoToSpell held tainted slots, and casting from them could be blocked)
 	local r = ns.Secure.Resolve(sp.Fireball.secure, sp.Fireball)
-	check(r and r.macro and r.macro:find("OpenToSpellBookTab", 1, true) and r.macro:find("GoToSpell(202,true)", 1, true)
-		and r.macro:find("ClearActiveSearchState(true)", 1, true) and not r.macro:find("SetText(C_Spell", 1, true),
-		"game's book: opened, search cleared and turned to the spell by the game's press: " .. tostring(r and r.macro))
-	-- the game cuts a macro off at 255 characters in all (seen in game: a cut /run line, "')' expected near <eof>")
-	local longest = ns.Spells.ClientBookMacro({ spellID = 1293712, name = "x" })
-	check(longest and #longest <= 255, "the spellbook macro fits in 255 characters with a 7-digit spell id: " .. tostring(longest and #longest))
+	check(r and r.binding == "TOGGLESPELLBOOK" and not r.macro, "game's book: the spellbook key, never a /run line: " .. tostring(r and (r.macro or r.binding)))
 	local client = Obj("Frame"); client.shown = true
 	local paged = Obj("Frame"); paged.shown = true
 	local other = Obj("Frame"); other.shown = true; other.slotIndex = 3; other.spellBank = 0
@@ -1905,12 +1931,21 @@ do
 	C_SpellBook.FindSpellBookSlotForSpell = function(id) if id == 202 then return 2, 0 end end
 	shownTarget = nil
 	UI:Open("fireball"); key("ENTER")
-	check(S.armed == "MACRO" and F.propagate == true, "book already open: still pressed, so the game turns it to the spell: " .. tostring(S.armed))
-	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
-	check(shownTarget == item.Button, "the spell's own item is highlighted (not the search box)")
-	-- opened by this press, the book fills its page in over its first frames: the spell's frame is a
-	-- different one at first (then the page is laid out again); it's pointed at once it stays put
-	UI:Disarm(); UI:Hide()
+	check(S.armed == nil, "book already open: nothing pressed (the key would close it): " .. tostring(S.armed))
+	FlushAll()
+	check(shownTarget == item.Button and searchBox:GetText() == "Fireball", "the spell's own item is highlighted (not the search box), the search left alone")
+	-- closed: the key's binding is pressed, and the spell is pointed at once the book shows it
+	UI:Disarm(); UI:Hide(); FlushAll()
+	PlayerSpellsFrame.shown, client.shown = false, false
+	shownTarget = nil
+	UI:Open("fireball"); key("ENTER")
+	check(S.armed == "TOGGLESPELLBOOK" and F.propagate == true, "book closed: Enter presses the spellbook key: " .. tostring(S.armed))
+	PlayerSpellsFrame.shown, client.shown = true, true -- (what the key just did)
+	FlushAll()
+	check(shownTarget == item.Button, "the book the key opened: the spell is pointed at")
+	-- opened, the book fills its page in over its first frames: the spell's frame is a different one at first (then the
+	-- page is laid out again); it's pointed at once it stays put
+	UI:Disarm(); UI:Hide(); FlushAll()
 	shownTarget = nil
 	local early = Obj("Frame"); early.shown = true; early.slotIndex = 2; early.spellBank = 0
 	early.Button = Obj("Button"); early.Button.shown = true
@@ -1920,32 +1955,49 @@ do
 		if looks == 1 then return other, early end -- first look: the page still filling in
 		return other, item
 	end
-	UI:Open("fireball"); key("ENTER")
-	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	UI:Open("fireball"); key("ENTER"); FlushAll()
 	check(shownTarget == item.Button, "on a book still filling in, the frame that stays is the one highlighted")
-	-- the book the press opens closes the terminal (a special frame) before the press comes back: Enter
-	-- was already let go, but the press still finishes and the spell is pointed at
+	-- not on the page showing: said once, and pointed at as soon as you turn to it
 	UI:Disarm(); UI:Hide(); FlushAll()
 	shownTarget = nil
+	local turned = false
+	paged.GetChildren = function() if turned then return other, item end return other end
+	local said = {}
+	local basePrint = ns.Print
+	ns.Print = function(_, m) said[#said + 1] = m end
 	UI:Open("fireball"); key("ENTER")
-	check(S.armed == "MACRO", "armed for the press")
-	UI:Hide() -- (opening the spellbook closed the terminal, which lets Enter go)
-	check(S.armed == nil, "the terminal closing lets Enter go")
-	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
-	check(shownTarget == item.Button, "the press coming back after that still points at the spell")
-	-- a press that finished normally isn't finished again by a second click of the proxy a moment later
+	for _ = 1, SP.HINT_AFTER + 2 do Flush() end
+	check(shownTarget == nil and #said == 1 and said[1]:find("isn't on this page", 1, true), "not on the page showing: said once: " .. tostring(said[1]))
+	turned = true
+	FlushAll()
+	check(shownTarget == item.Button and #said == 1, "turned to: pointed at, nothing said again")
+	ns.Print = basePrint
+	paged.GetChildren = function() return other, item end
+	-- a macro press (Shift+Enter casts: "/cast Fireball" on the macro button): the window it opens can close the terminal
+	-- (a special frame) before the press comes back; Enter was let go, but the press still finishes its after-step
 	UI:Disarm(); UI:Hide(); FlushAll()
 	local afters = 0
-	local baseAfter = sp.Fireball.after
-	sp.Fireball.after = function(e) afters = afters + 1 end
+	local baseAfter = sp.Fireball.secondaryAfter
+	sp.Fireball.secondaryAfter = function() afters = afters + 1 end
+	_G.IsShiftKeyDown = function() return true end
 	UI:Open("fireball"); key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
+	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == "/cast Fireball", "Shift+Enter: armed for the cast")
+	UI:Hide() -- (a window closing the terminal lets Enter go)
+	check(S.armed == nil, "the terminal closing lets Enter go")
+	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
+	check(afters == 1, "the press coming back after that still finishes: " .. afters)
+	-- a press that finished normally isn't finished again by a second click of the proxy a moment later
+	afters = 0
+	_G.IsShiftKeyDown = function() return true end
+	UI:Open("fireball"); key("ENTER")
+	_G.IsShiftKeyDown = function() return false end
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
 	check(afters == 1, "a finished press runs its after-step once: " .. afters)
-	sp.Fireball.after = baseAfter
+	sp.Fireball.secondaryAfter = baseAfter
 	-- learning a new rank keeps the row (its history): spells are known by their name
 	check(sp.Fireball.key == "Fireball", "a spell is known by its name, not its rank's id")
-	paged.GetChildren = function() return other, item end
 	UI:Disarm(); UI:Hide()
 	_G.PlayerSpellsFrame, C_SpellBook.FindSpellBookSlotForSpell = nil, nil
 	_G.PlayerSpellsUtil = nil
@@ -2294,7 +2346,8 @@ do
 
 	-- addons: options panels and minimap buttons
 	local opened, clicked
-	_G.Settings = { OpenToCategory = function(id) opened = id; return true end }
+	local saveU0 = _G.C_SettingsUtil
+	_G.C_SettingsUtil = { OpenSettingsPanel = function(id) opened = id end }
 	_G.SettingsPanel = Obj("Frame")
 	local cat = { GetName = function() return "Cool Addon 1" end, GetID = function() return 42 end }
 	SettingsPanel.GetAllCategories = function() return { cat } end
@@ -2324,6 +2377,7 @@ do
 	check(clicked == "Clock", "...and work")
 	check(has("cool addon", "Cool Addon 1"), "addons are found in a plain search")
 	_G.Settings, _G.SettingsPanel, _G.LibStub, _G.Minimap = nil, nil, nil, nil
+	_G.C_SettingsUtil = saveU0
 	ns.providers.addons._dirty = true
 end
 
@@ -2387,7 +2441,8 @@ do
 
 	-- the game's options: pages, sub-pages and settings
 	local opened = {}
-	_G.Settings = { OpenToCategory = function(id, name) opened[#opened + 1] = tostring(id) .. ":" .. tostring(name); return true end }
+	local saveU1 = _G.C_SettingsUtil
+	_G.C_SettingsUtil = { OpenSettingsPanel = function(id, name) opened[#opened + 1] = tostring(id) .. ":" .. tostring(name) end }
 	_G.SettingsPanel = Obj("Frame"); SettingsPanel.shown = false
 	local function Cat(name, id, inits, subs)
 		return { GetName = function() return name end, GetID = function() return id end,
@@ -2418,16 +2473,23 @@ do
 	go["Anti-Aliasing"].activate(go["Anti-Aliasing"]); FlushAll()
 	check(opened[#opened] == "8:Anti-Aliasing", "its page opens (asking to scroll to it): " .. tostring(opened[#opened]))
 	check(hl == srow, "the setting is highlighted")
-	-- not on screen: the options window's own search brings it up
+	-- not on screen yet: nothing is typed into the window's search box (0.46.2: Terminal's code writing the window's
+	-- state); it's pointed at as soon as it shows
 	hl = nil
-	SettingsPanel.GetChildren = function() return end
+	local shows = false
+	SettingsPanel.GetChildren = function() if shows then return srow end end
 	local typed
 	SettingsPanel.SearchBox = Obj("EditBox")
-	SettingsPanel.SearchBox.SetText = function(_, t) typed = t; SettingsPanel.GetChildren = function() return srow end end
-	go["Anti-Aliasing"].activate(go["Anti-Aliasing"]); FlushAll()
-	check(typed == "Anti-Aliasing" and hl == srow, "a setting off screen is brought up with the options search")
+	SettingsPanel.SearchBox.SetText = function(_, t) typed = t end
+	go["Anti-Aliasing"].activate(go["Anti-Aliasing"])
+	for _ = 1, 15 do Flush() end
+	check(typed == nil and hl == nil, "a setting off screen: nothing typed into the options search")
+	shows = true
+	FlushAll()
+	check(hl == srow, "...and it's pointed at once it shows")
 	ns.Highlight.Show = origShow
 	_G.Settings, _G.SettingsPanel = nil, nil
+	_G.C_SettingsUtil = saveU1
 end
 
 
@@ -4822,22 +4884,25 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	local pointed
 	local G = ns.GameOptions
 	local realHL = G.HighlightSetting
-	G.HighlightSetting = function(name) pointed = name end
+	local pointedHint
+	G.HighlightSetting = function(name, hint) pointed, pointedHint = name, hint end
+	local searched, openedTo
+	local saveU2 = _G.C_SettingsUtil
+	_G.C_SettingsUtil = { OpenSettingsPanel = function(id) openedTo = id end }
+	_G.Settings = { KEYBINDINGS_CATEGORY_ID = 42 }
 	UI:Open("@keybind toggle world map")
 	key("ENTER")
 	local mt = _G.TerminalMacroProxy.attrs.macrotext or ""
-	check(S.armed == "MACRO" and mt:find(ns.Keybinds.OPEN_MACRO, 1, true) == 1, "Enter: the game opens the Keybindings page: " .. mt)
-	check(mt:find('SetText("Toggle World Map")', 1, true), "and types the action into the options search, so its row shows even in a collapsed section")
-	check(#mt <= 255, "the macro fits a macro line (" .. #mt .. ")")
-	-- run it the way the game would: the page opens and the search gets the name
-	local searched, openedTo
-	_G.Settings = { KEYBINDINGS_CATEGORY_ID = 42, OpenToCategory = function(id) openedTo = id end }
+	check(S.armed == "MACRO" and mt == "/run C_SettingsUtil.OpenSettingsPanel(42)", "Enter: the game opens the Keybindings page with its own call: " .. mt)
+	check(not mt:find("SetText", 1, true), "nothing is typed into the options search (a /run line runs tainted: 0.46.1)")
+	-- run it the way the game would: the page opens
 	_G.SettingsPanel = Obj("Frame"); SettingsPanel.SearchBox = { SetText = function(_, t) searched = t end }
-	assert(loadstring(mt:gsub("^/run ", "")))()
-	check(openedTo == 42 and searched == "Toggle World Map", "the macro opens Keybindings and searches for the action")
-	_G.Settings, _G.SettingsPanel = nil, nil
+	assert(loadstring((mt:gsub("^/run ", ""))))()
+	check(openedTo == 42 and searched == nil, "the line opens Keybindings, and searches for nothing")
+	_G.Settings, _G.SettingsPanel = { KEYBINDINGS_CATEGORY_ID = 42 }, nil
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
-	check(pointed == "Toggle World Map", "and the action's row is pointed at")
+	check(pointed == "Toggle World Map" and pointedHint and pointedHint:find("Interface Panel Functions section", 1, true),
+		"and the action's row is pointed at (a closed section is named): " .. tostring(pointedHint))
 	-- Quick Keybind Mode: Shift+Enter starts it, through the game
 	UI:Open("@keybind quick keybind")
 	_G.IsShiftKeyDown = function() return true end
@@ -4858,6 +4923,7 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	check(said, "in combat: it says it can't")
 	UI:Hide(); FlushAll()
 	G.HighlightSetting = realHL
+	_G.Settings, _G.C_SettingsUtil = nil, saveU2
 	_G.GetNumBindings, _G.GetBinding = nil, nil
 	ns.providers.keybinds._dirty = true
 end
