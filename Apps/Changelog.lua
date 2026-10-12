@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.12", when = "in testing",
+		v = "0.46.13", when = "in testing",
 		items = {
 			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. Mail you send to one of your own characters is in its list at once. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
 			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",

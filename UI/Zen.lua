@@ -15,13 +15,14 @@ local Z = {}
 ns.Zen = Z
 
 Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha)
-Z.IN, Z.OUT = 0.25, 0.25 -- (s: fading away as Terminal opens; coming back as it closes; 0.46.8-9, the player's)
+Z.IN, Z.OUT = 0.2, 0.2 -- (s: fading away as Terminal opens; coming back as it closes; the player's, 0.46.13)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
 -- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up)
 Z.ALSO = { "Minimap", "MinimapCluster" }
 -- frames whose drawing ignores alpha altogether: the minimap's blips (party members, tracked herbs and ores, quest
--- spots: the engine draws them on the minimap at full strength). Hidden once the fade is done, shown again the moment
--- it starts back or combat comes (0.46.11, the player's screenshot: the blips stayed up). Blizzard's own minimap key
+-- spots: the engine draws them on the minimap at full strength). Hidden as the fade starts (0.46.13, the player:
+-- sooner; 0.46.11 hid them once it was done), shown again the moment it turns back or combat comes (0.46.11, the
+-- player's screenshot: the blips stayed up). Blizzard's own minimap key
 -- does the same (ToggleMinimap: Minimap:Hide()); one you hid yourself is left alone.
 Z.HIDE = { "Minimap" }
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
@@ -123,7 +124,7 @@ local function MoveTo(t, instant)
 	driver = driver or CreateFrame("Frame")
 	Z.driver = driver
 	target = t
-	if t == 0 then ShowRest() end -- (back at once: their drawing can't fade in)
+	if t == 0 then ShowRest() else HideRest() end -- (at once both ways: their drawing can't fade)
 	if instant or not (ns.Theme and ns.Theme.Animation()) then
 		level = t
 		Apply(level)

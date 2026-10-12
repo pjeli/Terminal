@@ -1155,11 +1155,12 @@ do
 		".zen on: nothing changes until Terminal opens: " .. tostring(out[1]))
 	local function Step(dt) local f = Zen.driver.scripts.OnUpdate if f then f(Zen.driver, dt) end end
 	UI:Open()
+	check(not mm:IsShown(), "opened: the minimap hidden at once (its blips can't fade; 0.46.13: as the fade starts)")
 	check(Zen.active and ign[UI.frame] == true and ign[mine] == true and ign[theirs] == nil and not kidsCalled,
 		"opened: Terminal's frames keep their own alpha (its apps' too), the rest of the interface doesn't; UIParent's children never walked")
 	Step(0.1)
 	check(P:GetAlpha() < 0.9 and P:GetAlpha() > 0 and Zen.dim:IsShown(), "fading away: " .. P:GetAlpha())
-	Step(1)
+	Step(0.11) -- (0.46.13: faded in 0.2 s)
 	check(P:GetAlpha() == 0 and math.abs(Zen.dim:GetAlpha() - Zen.DIM) < 1e-6 and Zen.driver.scripts.OnUpdate == nil
 		and mm:GetAlpha() == 0, "faded away (the minimap too), the screen dimmed, and nothing runs once it's there")
 	check(not mm:IsShown(), "faded: the minimap hidden (its blips ignore alpha; 0.46.11)")
@@ -1170,7 +1171,7 @@ do
 	check(Zen.driver.scripts.OnUpdate ~= nil and P:GetAlpha() == 0 and mm:IsShown(), "closed: the fade back starts, the minimap shown at once")
 	Step(0.1)
 	check(P:GetAlpha() > 0 and P:GetAlpha() < 0.9, "coming back: " .. P:GetAlpha())
-	Step(0.16) -- (0.46.9: back in 0.25 s, as fast as it went)
+	Step(0.11) -- (0.46.13: back in 0.2 s, as fast as it went)
 	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil
 		and math.abs(mm:GetAlpha() - 0.8) < 1e-9, "back as it was (0.9; the minimap 0.8), the dimming gone: " .. P:GetAlpha())
 	-- one of Terminal's apps in its place: still Terminal; back once it closes
