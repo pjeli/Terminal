@@ -12,6 +12,7 @@ ns.Panel = P
 local Theme = ns.Theme
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local panels = {} -- every app built: { IsShown, Close }
+local frames = {} -- their frames (.zen keeps them up while the interface fades)
 
 --- A one-line FontString in the input font, at `size` (the font's own when nil), justified left unless told.
 function P.Text(parent, size, justify)
@@ -38,6 +39,7 @@ function P.Build(name, app)
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	frame:SetScript("OnEvent", function() app.Close("combat") end)
 	panels[#panels + 1] = app
+	frames[#frames + 1] = frame
 	return frame
 end
 
@@ -68,6 +70,7 @@ function P.Opening(app)
 end
 
 function P.Registered() return panels end -- (tests)
+function P.Frames() return frames end
 
 --- Passes this key press on to the game unless it was the app's own (`mine`). Choosing isn't allowed in combat:
 --- then nothing changes.

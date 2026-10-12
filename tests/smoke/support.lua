@@ -1133,23 +1133,26 @@ end
 do
 	local Zen, P = ns.Zen, _G.UIParent
 	local alphaWas, animWas, combatWas = P:GetAlpha(), ns.Theme.Animation, _G.InCombatLockdown
-	local kidsWas, numWas = rawget(P, "GetChildren"), rawget(P, "GetNumChildren")
 	P:SetAlpha(0.9)
 	local mine, theirs = CreateFrame("Frame"), CreateFrame("Frame")
 	mine.__name, theirs.__name = "TerminalSomethingNew", "ChatFrame1"
 	local ign = {}
 	local function Track(f) f.SetIgnoreParentAlpha = function(self, v) ign[self] = v end end
 	Track(UI.frame); Track(mine); Track(theirs)
-	P.GetChildren = function() return UI.frame, mine, theirs end
-	P.GetNumChildren = function() return 3 end
+	-- (0.46.5 walked UIParent's children through pcall: hundreds of results overflowed the C stack, the game closed.
+	-- Terminal's apps' frames come from the Panel registry; nothing may call UIParent's GetChildren)
+	local appFrames = ns.Panel.Frames()
+	appFrames[#appFrames + 1] = mine
+	local kidsCalled = false
+	P.GetChildren = function() kidsCalled = true return UI.frame, mine, theirs end
 	_G.InCombatLockdown = function() return false end
 	local out = ns:FindCommand("zen").run("on")
 	check(ns.db.zen == true and out[1]:find("fades away", 1, true) and P:GetAlpha() == 0.9 and not Zen.active,
 		".zen on: nothing changes until Terminal opens: " .. tostring(out[1]))
 	local function Step(dt) local f = Zen.driver.scripts.OnUpdate if f then f(Zen.driver, dt) end end
 	UI:Open()
-	check(Zen.active and ign[UI.frame] == true and ign[mine] == true and ign[theirs] == nil,
-		"opened: Terminal's frames keep their own alpha (any named Terminal...), the rest of the interface doesn't")
+	check(Zen.active and ign[UI.frame] == true and ign[mine] == true and ign[theirs] == nil and not kidsCalled,
+		"opened: Terminal's frames keep their own alpha (its apps' too), the rest of the interface doesn't; UIParent's children never walked")
 	Step(0.1)
 	check(P:GetAlpha() < 0.9 and P:GetAlpha() > 0 and Zen.dim:IsShown(), "fading away: " .. P:GetAlpha())
 	Step(1)
@@ -1210,7 +1213,8 @@ do
 	P.SetIgnoreParentAlpha = nil
 	ns.db.zen = nil
 	ns.Theme.Animation, _G.InCombatLockdown = animWas, combatWas
-	P.GetChildren, P.GetNumChildren = kidsWas, numWas
+	P.GetChildren = nil
+	table.remove(appFrames)
 	P:SetAlpha(alphaWas)
 	UI.frame.SetIgnoreParentAlpha = nil
 end

@@ -444,3 +444,30 @@ do
 	check(not z or z.raw or (z.kindLabel and z.kindLabel:find("Map", 1, true) and z.freqKey == "maps:" .. z.key),
 		"a zone answer: the map's label, kept in recent picks: " .. tostring(z and z.kindLabel) .. " " .. tostring(z and z.freqKey))
 end
+
+-- (0.46.5 crashed the game: "Assertion failure! L->top < L->ci->top" in lapi.c) pcall (and ns.Safe, a pcall) pushes
+-- its true AFTER the callee's results; a callee that returns hundreds of values (UIParent:GetChildren) leaves no room,
+-- and the client's Lua asserts and closes. Never wrap a call that can return that many in pcall/Safe.
+io.write("[no pcall around many-value calls]\n")
+do
+	local bad = {}
+	local toc = assert(io.open("Terminal/Terminal.toc"))
+	for entry in toc:lines() do
+		local file = entry:match("^([%w\\/_%.]+%.lua)%s*$")
+		if file then
+			file = "Terminal/" .. file:gsub("\\", "/")
+			local f = io.open(file)
+			local n = 0
+			for line in (f and f:lines() or function() end) do
+				n = n + 1
+				if (line:find("pcall%(") or line:find("Safe%(")) and (line:find("GetChildren") or line:find("GetRegions")
+					or line:find("GetAllCharacters")) and not line:find("GetMapChildrenInfo", 1, true) then
+					bad[#bad + 1] = file .. ":" .. n
+				end
+			end
+			if f then f:close() end
+		end
+	end
+	toc:close()
+	T.check(#bad == 0, "no pcall/Safe around GetChildren/GetRegions: " .. table.concat(bad, ", "))
+end

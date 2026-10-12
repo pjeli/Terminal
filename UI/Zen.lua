@@ -17,7 +17,7 @@ ns.Zen = Z
 Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha)
 Z.IN, Z.OUT = 0.35, 0.6 -- (s: fading away as Terminal opens; coming back as it closes)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
--- Terminal's frames that sit on UIParent (and any other child of it named Terminal...)
+-- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
 Z.OWN = { "TerminalFrame", "TerminalTooltip", "TerminalRowMenu", "TerminalLinkFrame", "TerminalCopyFrame",
 	"TerminalStyleImport" } -- (not the click catcher: a secure button, invisible anyway)
 
@@ -25,7 +25,6 @@ local level, target = 0, 0 -- (0: the interface as it was; 1: faded away, the sc
 local uiAlpha -- UIParent's alpha before the fade (put back exactly)
 local dim, driver
 local kept = {} -- Terminal's frames already set to ignore UIParent's alpha
-local scannedChildren -- (UIParent's child count at the last look for Terminal's frames)
 local watching = false
 
 local function On() return ns.db and ns.db.zen == true end
@@ -57,19 +56,13 @@ local function Keep(f)
 	if pcall(f.SetIgnoreParentAlpha, f, true) then kept[f] = true end
 end
 
---- Terminal's frames keep their own alpha while the interface fades: the named ones, and any child of UIParent whose
---- name starts with Terminal (looked for again only when UIParent has more children than at the last look).
+--- Terminal's frames keep their own alpha while the interface fades: the named ones and every app's (Panel.Build keeps
+--- them). Never a walk over UIParent's children: GetChildren there gives hundreds of values, and through pcall that
+--- overflows the C stack (0.46.5: "Assertion failure! L->top < L->ci->top", the game closed; pcall pushes its true
+--- after the callee's results, past the room it has).
 function Z.KeepOwn()
 	for _, name in ipairs(Z.OWN) do Keep(_G[name]) end
-	local P = _G.UIParent
-	local n = P and P.GetNumChildren and select(2, pcall(P.GetNumChildren, P))
-	if type(n) == "number" and n == scannedChildren then return end
-	scannedChildren = n
-	local kids = { pcall(P.GetChildren, P) }
-	for i = 2, #kids do
-		local name = ns.FrameName(kids[i])
-		if name and name:find("^Terminal") and name ~= "TerminalClickCatcher" then Keep(kids[i]) end
-	end
+	for _, f in ipairs(ns.Panel and ns.Panel.Frames and ns.Panel.Frames() or {}) do Keep(f) end
 end
 
 --- The look at a point of the fade (v: 0 = as it was, 1 = faded away), eased.
