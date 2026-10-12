@@ -16,6 +16,12 @@ local ns = select(2, ...)
 --
 -- Read with the inbox's own calls only (GetInboxHeaderInfo, GetInboxItem, GetInboxInvoiceInfo, InboxItemCanDelete:
 -- what Forever's MailFrame.lua reads); never GetInboxText, which marks a mail read.
+--
+-- Mail on its way (0.47.2, the player's ask): mail you send to anyone who isn't one of your characters is kept for an
+-- hour (MA.SENT_KEEP: what mail with items or gold takes between accounts), and the auction house's news as the game
+-- tells it (AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION: sold, won, outbid, expired; the classic chat lines too): a sold
+-- auction's gold due about an hour later, with its price when Terminal saw the auction posted (C_AuctionHouse.PostItem
+-- / PostCommodity hooked, then AUCTION_HOUSE_AUCTION_CREATED; or the Auctions tab's list, OWNED_AUCTIONS_UPDATED).
 
 local MA = {}
 ns.Mail = MA
@@ -148,6 +154,7 @@ function MA.ReadInbox()
 		more = (total and total > n) and (total - n) or nil,
 	}
 	boxes[key] = box
+	MA.SettleAuctions(box, now)
 	Dirty()
 	local money, items = 0, 0
 	for _, m in ipairs(mails) do
@@ -218,10 +225,7 @@ function MA.SendDone()
 	pendingSend = nil
 	if not s or Now() - s.at > MA.SEND_WAIT then return nil end
 	local key, c = MA.OwnKey(s.to)
-	if not key then
-		ns:Trace("mail: sent to " .. s.to .. ", not one of your characters Terminal knows: not kept")
-		return nil
-	end
+	if not key then return MA.KeepSent(s) end -- (anyone else: kept an hour, as on its way)
 	local boxes = Boxes()
 	local box = boxes[key]
 	if type(box) ~= "table" or type(box.mails) ~= "table" then
@@ -248,12 +252,201 @@ function MA.HookSend()
 end
 
 ----------------------------------------------------------------------
+-- Mail on its way: sent to others (an hour), the auction house's news (sold, won, outbid, expired)
+----------------------------------------------------------------------
+
+MA.SENT_KEEP = 3600 -- (s: mail with items or gold to another account arrives within the hour)
+MA.AUCTION_KEEP = 3600 -- (s: a sold auction's gold comes about an hour later; won, outbid and expired mail at once)
+MA.POSTED_KEEP = 3 * 86400 -- (s: an auction posted is kept this long for its price: the longest auction is 48 h)
+MA.SAME = 10 -- (s: the same news told twice, the notification and a chat line, is one)
+MA.POST_WAIT = 30 -- (s a post is waited on for AUCTION_HOUSE_AUCTION_CREATED)
+
+-- db.mailSent / db.mailAuctions / db.auctionsPosted, by your character's GUID
+local function Store(name)
+	if not ns.db then return {} end
+	if type(ns.db[name]) ~= "table" then ns.db[name] = {} end
+	return ns.db[name]
+end
+local function Mine(name)
+	local key = MyKey()
+	if not key then return nil end
+	local all = Store(name)
+	if type(all[key]) ~= "table" then all[key] = {} end
+	return all[key], key
+end
+
+--- Drops what's past its time: sent mail and auction news after their hour, posted auctions after MA.POSTED_KEEP.
+function MA.Prune(now)
+	now = now or Now()
+	for _, list in pairs(Store("mailSent")) do
+		for i = #list, 1, -1 do if type(list[i]) ~= "table" or now - (list[i].at or 0) >= MA.SENT_KEEP then table.remove(list, i) end end
+	end
+	for _, list in pairs(Store("mailAuctions")) do
+		for i = #list, 1, -1 do if type(list[i]) ~= "table" or now - (list[i].at or 0) >= MA.AUCTION_KEEP then table.remove(list, i) end end
+	end
+	for _, posted in pairs(Store("auctionsPosted")) do
+		for id, a in pairs(posted) do if type(a) ~= "table" or now - (a.t or 0) >= MA.POSTED_KEEP then posted[id] = nil end end
+	end
+end
+
+--- Mail sent to someone not one of your characters: kept an hour on your character's list.
+function MA.KeepSent(s)
+	local list = Mine("mailSent")
+	if not list then return nil end
+	table.insert(list, 1, { to = s.to, at = s.at, mail = s.mail })
+	while #list > MA.MAX_MAILS do table.remove(list) end
+	Dirty()
+	ns:Trace("mail: sent to " .. s.to .. " (not one of your characters): kept an hour as on its way")
+	return list[1]
+end
+
+-- the news, as Enum.AuctionHouseNotification numbers it (Forever's AuctionHouseEnumsDocumentation)
+local NOTIFIED = { [2] = "won", [3] = "outbid", [4] = "sold", [5] = "expired" }
+local function NotificationKind(n)
+	local E = _G.Enum and _G.Enum.AuctionHouseNotification
+	if E then
+		return (n == E.AuctionWon and "won") or (n == E.AuctionOutbid and "outbid") or (n == E.AuctionSold and "sold")
+			or (n == E.AuctionExpired and "expired") or nil
+	end
+	return NOTIFIED[n]
+end
+MA.NotificationKind = NotificationKind
+
+local function NameOfLink(link) return type(link) == "string" and link:match("%[(.-)%]") or nil end
+
+--- The auction house's news: an entry on your character's list (one told twice within MA.SAME is one).
+function MA.OnAuction(kind, item, auctionID, now)
+	item = Str(item)
+	if not (kind and item) then return nil end
+	now = now or Now()
+	auctionID = Num(auctionID)
+	local list, key = Mine("mailAuctions")
+	if not list then return nil end
+	for _, a in ipairs(list) do
+		if a.kind == kind and a.item == item and math.abs(now - (a.at or 0)) < MA.SAME
+			and (not auctionID or not a.auctionID or a.auctionID == auctionID) then
+			a.auctionID = a.auctionID or auctionID
+			return a
+		end
+	end
+	local posted = auctionID and Store("auctionsPosted")[key]
+	posted = posted and posted[auctionID]
+	local a = { kind = kind, item = item, at = now, auctionID = auctionID }
+	if posted then a.link, a.price, a.each, a.count, a.seen = posted.link, posted.price, posted.each, posted.count, posted.seen end
+	table.insert(list, 1, a)
+	while #list > MA.MAX_MAILS do table.remove(list) end
+	Dirty()
+	ns:Trace(("mail: auction %s: %s%s"):format(kind, item, posted and (" (its price kept: " .. Money(posted.price or posted.each or 0, true) .. ")")
+		or (auctionID and " (not seen posted)" or "")))
+	return a
+end
+
+-- the classic chat lines ("A buyer has been found for your auction of %s."), as the game's own strings say them
+local CHAT_NEWS = { sold = "ERR_AUCTION_SOLD_S", won = "ERR_AUCTION_WON_S", outbid = "ERR_AUCTION_OUTBID_S",
+	expired = "ERR_AUCTION_EXPIRED_S" }
+local chatPatterns
+function MA.ChatNews(text)
+	if type(text) ~= "string" or ns.Secret(text) then return nil end
+	if not chatPatterns then
+		chatPatterns = {}
+		for kind, global in pairs(CHAT_NEWS) do
+			local g = Str(_G[global])
+			if g and g:find("%s", 1, true) then chatPatterns[kind] = Pattern(g) end
+		end
+	end
+	for kind, p in pairs(chatPatterns) do
+		local item = text:match(p)
+		if item then return kind, item end
+	end
+	return nil
+end
+MA.ResetChatForTests = function() chatPatterns = nil end
+
+local pendingPost
+
+--- An auction being posted (C_AuctionHouse.PostItem / PostCommodity, hooked after they run): its price kept until the
+--- game says it was made (AUCTION_HOUSE_AUCTION_CREATED with its id).
+function MA.OnPost(location, quantity, bid, buyout, unitPrice)
+	local link = C_Item and C_Item.GetItemLink and Str(Safe(C_Item.GetItemLink, location)) or nil
+	local name = (C_Item and C_Item.GetItemName and Str(Safe(C_Item.GetItemName, location))) or NameOfLink(link)
+	quantity, bid, buyout, unitPrice = Num(quantity) or 1, Num(bid), Num(buyout), Num(unitPrice)
+	pendingPost = { link = link, name = name, count = quantity, price = buyout or bid, each = unitPrice, at = Now(), seen = "posted" }
+	return pendingPost
+end
+
+function MA.AuctionCreated(auctionID)
+	local p = pendingPost
+	pendingPost = nil
+	auctionID = Num(auctionID)
+	if not (p and auctionID) or Now() - p.at > MA.POST_WAIT then return nil end
+	local posted = Mine("auctionsPosted")
+	if not posted then return nil end
+	p.t, p.at = p.at, nil
+	posted[auctionID] = p
+	return p
+end
+
+--- The Auctions tab's list (OWNED_AUCTIONS_UPDATED): each auction's price kept, for one posted before Terminal watched.
+function MA.ReadOwned()
+	local AH = C_AuctionHouse
+	if not (AH and AH.GetNumOwnedAuctions and AH.GetOwnedAuctionInfo) then return 0 end
+	local posted = Mine("auctionsPosted")
+	if not posted then return 0 end
+	local n, kept = Num(Safe(AH.GetNumOwnedAuctions)) or 0, 0
+	for i = 1, n do
+		local info = Safe(AH.GetOwnedAuctionInfo, i)
+		local id = type(info) == "table" and Num(info.auctionID)
+		if id and not posted[id] then
+			local link = Str(info.itemLink)
+			posted[id] = { link = link, name = NameOfLink(link), count = Num(info.quantity) or 1,
+				price = Num(info.buyoutAmount) or Num(info.bidAmount), t = Now(), seen = "listed" }
+			kept = kept + 1
+		end
+	end
+	return kept
+end
+
+--- Hooks the auction house's posting (after it runs; the post itself stays the game's). True once hooked.
+function MA.HookPost()
+	if MA.postHooked then return true end
+	local AH = C_AuctionHouse
+	if type(_G.hooksecurefunc) ~= "function" or type(AH) ~= "table" then return false end
+	if type(AH.PostItem) == "function" then
+		_G.hooksecurefunc(AH, "PostItem", function(loc, _, quantity, bid, buyout) pcall(MA.OnPost, loc, quantity, bid, buyout, nil) end)
+	end
+	if type(AH.PostCommodity) == "function" then
+		_G.hooksecurefunc(AH, "PostCommodity", function(loc, _, quantity, unitPrice) pcall(MA.OnPost, loc, quantity, nil, nil, unitPrice) end)
+	end
+	MA.postHooked = true
+	return true
+end
+
+--- A mailbox read on your character: news the inbox now holds is dropped (won, outbid and expired mail come at once;
+--- a sale once the inbox has its auction mail).
+function MA.SettleAuctions(box, now)
+	local list = Mine("mailAuctions")
+	if not (list and box) then return end
+	local soldItems = {}
+	for _, m in ipairs(box.mails or {}) do
+		if m.auction == "sold" or m.auction == "pending" then
+			local item = (m.invoice and m.invoice.item) or (m.subject and m.subject:match(":%s*(.+)$"))
+			if item then soldItems[item] = true end
+		end
+	end
+	for i = #list, 1, -1 do
+		local a = list[i]
+		if (a.kind ~= "sold" and (a.at or 0) <= now) or (a.kind == "sold" and soldItems[a.item]) then table.remove(list, i) end
+	end
+end
+
+----------------------------------------------------------------------
 -- Rows
 ----------------------------------------------------------------------
 
 local ICON_BOX, ICON_MAIL = "Interface\\Icons\\INV_Letter_15", "Interface\\Icons\\INV_Letter_01"
 local ICON_MONEY, ICON_COD = "Interface\\Icons\\INV_Misc_Coin_01", "Interface\\Icons\\INV_Letter_03"
 local RED, ORANGE, GREY = "|cffff4040", "|cffff9933", "|cff9d9d9d"
+local AUCTION_LABEL = { sold = "Sold", won = "Won", outbid = "Outbid", expired = "Expired" } -- (the auction house's news)
 
 local function Plural(n, one, many) return n .. " " .. (n == 1 and one or many) end
 
@@ -332,10 +525,17 @@ MA.BoxLines = BoxLines
 function MA.AllLines()
 	MA.Collect()
 	local out = {}
+	local way = {}
 	for _, e in ipairs(list or {}) do
 		if e.mailKind == "box" then
 			for _, l in ipairs(BoxLines(e.boxKey)) do out[#out + 1] = l end
+		elseif e.mailKind == "sent" or e.mailKind == "auction" then
+			way[#way + 1] = MA.WayLine(e) -- (defined below: read when called)
 		end
+	end
+	if #way > 0 then
+		out[#out + 1] = "On its way:"
+		for _, l in ipairs(way) do out[#out + 1] = l end
 	end
 	return out
 end
@@ -370,8 +570,13 @@ function MA.PointAt(e)
 	return true
 end
 
+-- a sent mail's or an auction's line: "  To Bob: Linen Cloth (20)  ·  1g  ·  sent 12 min ago"
+local function WayLine(e) return "  " .. e.name .. "  ·  " .. (e.plain or "") .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) end
+MA.WayLine = WayLine
+
 local function Show(e)
 	if e.mailKind == "box" then ns:Output(BoxLines(e.boxKey)) return end
+	if e.mailKind == "sent" or e.mailKind == "auction" then ns:Output({ WayLine(e) }) return end
 	if MA.PointAt(e) then return end
 	ns:Output({ MailLine(e) .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) })
 end
@@ -395,6 +600,8 @@ MA.NearestMailbox = NearestMailbox
 --- What's sent: "Mail from Bob: Auction successful: Copper Bar (45g, 2 days left)".
 local function ShareText(e)
 	if e.mailKind == "box" then return e.who .. "'s mail: " .. (e.plain or "") end
+	if e.mailKind == "auction" and e.link then return (AUCTION_LABEL[e.news] or "Auction") .. ": " .. e.link .. " (" .. (e.plain or "") .. ")" end
+	if e.mailKind == "sent" or e.mailKind == "auction" then return e.name .. " (" .. (e.plain or "") .. ")" end
 	local m = e.mail
 	local bits = {}
 	if m.money then bits[#bits + 1] = Money(m.money, true) end
@@ -403,7 +610,39 @@ local function ShareText(e)
 	return "Mail" .. (m.from and (" from " .. m.from) or "") .. ": " .. Title(m) .. " (" .. table.concat(bits, ", ") .. ")"
 end
 
+local AUCTION_SAID = {
+	sold = "The gold comes by mail about an hour after the sale, less the auction house's cut (and with your deposit back).",
+	won = "The item comes by mail.", outbid = "Your bid comes back by mail.", expired = "The item comes back by mail.",
+}
+
+local function WayTooltip(e, t)
+	if e.mailKind == "sent" then
+		local m = e.mail
+		t:SetText(e.title, 1, 0.82, 0)
+		t:AddLine(("To %s, sent %s"):format(e.to, ns.Ago(Now() - e.at)) .. (e.mine and "" or (" by " .. e.who)), 1, 1, 1)
+		if m.money then t:AddDoubleLine("Gold", Money(m.money), 1, 1, 1, 1, 1, 1) end
+		if m.cod then t:AddDoubleLine("COD (they pay it when they take it)", Money(m.cod), 1, 0.5, 0.5, 1, 1, 1) end
+		for _, it in ipairs(m.items or {}) do
+			local hex = ns.QualityHex(it.q)
+			t:AddDoubleLine((hex or "") .. ItemName(it) .. (hex and "|r" or ""), (it.count or 1) > 1 and ("x" .. it.count) or "", 1, 1, 1, 1, 1, 1)
+		end
+		t:AddLine("Mail with items or gold to another account can take up to an hour to arrive: Terminal keeps it here for that hour.", 0.6, 0.8, 1, true)
+	else
+		t:SetText(e.name, 1, 0.82, 0)
+		t:AddLine(("%s %s"):format(AUCTION_LABEL[e.news] or "Auction", ns.Ago(Now() - e.at)) .. (e.mine and "" or (" on " .. e.who)), 1, 1, 1)
+		if e.price then
+			t:AddDoubleLine(e.each and "Price each" or "Price", Money(e.each or e.price), 1, 1, 1, 1, 1, 1)
+			t:AddLine(e.seen == "listed" and "(as the auction house listed it)" or "(as you posted it)", 0.6, 0.6, 0.6)
+		elseif e.news == "sold" then
+			t:AddLine("Its price isn't known: Terminal didn't see it posted", 0.6, 0.6, 0.6, true)
+		end
+		t:AddLine(AUCTION_SAID[e.news] or "", 0.6, 0.8, 1, true)
+	end
+	t:AddLine("Enter: in chat    Shift+Enter: waypoint to the nearest mailbox", 0.6, 0.6, 0.6, true)
+end
+
 local function Tooltip(e, t)
+	if e.mailKind == "sent" or e.mailKind == "auction" then return WayTooltip(e, t) end
 	if e.mailKind == "box" then
 		t:SetText(e.who .. "'s mail", 1, 0.82, 0)
 		local n = 0
@@ -519,6 +758,58 @@ local function BoxRow(key, box, mine, who, now, mails, gone, newFrom)
 	}
 end
 
+--- Mail sent to someone not one of your characters, kept its hour: "To Bob: Linen Cloth (20)".
+local function SentRow(key, s, i, mine, who, now)
+	local m = s.mail or {}
+	local title = Title(m)
+	local d = {}
+	if m.money then d[#d + 1] = Money(m.money, true) end
+	if m.cod then d[#d + 1] = "COD " .. Money(m.cod, true) end
+	if m.items then
+		local first = m.items[1]
+		d[#d + 1] = #m.items == 1 and (ItemName(first) .. ((first.count or 1) > 1 and (" x" .. first.count) or ""))
+			or Plural(#m.items, "item", "items")
+	end
+	d[#d + 1] = "sent " .. ns.Ago(now - s.at)
+	local plain = table.concat(d, ", ")
+	if not mine then d[#d + 1] = GREY .. who .. "|r" end
+	local words = { "mail sent outgoing to", s.to, m.subject or "", who }
+	for _, it in ipairs(m.items or {}) do words[#words + 1] = ItemName(it) end
+	if m.money then words[#words + 1] = "gold money" end
+	return {
+		key = "sent:" .. key .. ":" .. s.at .. ":" .. i, name = "To " .. s.to .. ": " .. title, title = title, to = s.to, at = s.at,
+		mail = m, mailKind = "sent", boxKey = key, who = who, mine = mine or nil,
+		icon = (m.items and m.items[1] and m.items[1].icon) or (m.money and ICON_MONEY) or ICON_MAIL,
+		detail = table.concat(d, "  ·  "), plain = plain, text = table.concat(words, " "),
+		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
+	}
+end
+
+--- The auction house's news, kept its hour: "Sold: Linen Cloth", its gold due in about 40 min.
+local function AuctionRow(key, a, i, mine, who, now)
+	local d = {}
+	if a.price then d[#d + 1] = Money(a.each or a.price, true) .. (a.each and " each" or "") end
+	if a.kind == "sold" then
+		local left = MA.AUCTION_KEEP - (now - a.at)
+		d[#d + 1] = "gold due in about " .. MA.Left(left)
+	elseif a.kind == "won" then d[#d + 1] = "on its way to your mailbox"
+	elseif a.kind == "outbid" then d[#d + 1] = "your bid comes back by mail"
+	else d[#d + 1] = "coming back by mail" end
+	d[#d + 1] = ns.Ago(now - a.at)
+	local plain = table.concat(d, ", ")
+	if not mine then d[#d + 1] = GREY .. who .. "|r" end
+	return {
+		key = "ah:" .. key .. ":" .. a.at .. ":" .. i, name = (AUCTION_LABEL[a.kind] or "Auction") .. ": " .. a.item,
+		news = a.kind, at = a.at, price = a.price, each = a.each, seen = a.seen, link = a.link,
+		money = (a.kind == "sold" and a.price) or nil, auction = a,
+		mailKind = "auction", boxKey = key, who = who, mine = mine or nil,
+		icon = a.kind == "sold" and ICON_MONEY or "Interface\\Icons\\INV_Hammer_15",
+		detail = table.concat(d, "  ·  "), plain = plain,
+		text = "mail auction ah incoming pending expected " .. a.kind .. " " .. a.item .. (a.kind == "sold" and " gold money" or "") .. " " .. who,
+		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
+	}
+end
+
 --- Unread mail the game says is waiting for you (anywhere: the minimap's letter), and from whom.
 local function NewMail()
 	if Safe(_G.HasNewMail) ~= true then return nil end
@@ -565,6 +856,37 @@ function MA.Collect()
 		return a.name < b.name
 	end)
 	for _, e in ipairs(mailRows) do rows[#rows + 1] = e end
+	-- then mail on its way: the auction house's news (newest first), mail you sent to others (newest first)
+	MA.Prune(now)
+	local function WhoOf(key)
+		local box = boxes[key]
+		if box then return Who(box, myRealm) end
+		if key == myKey then return ns.CharacterName() or Str(Safe(UnitName, "player")) or "You" end
+		local xp = ns.db and type(ns.db.xpChars) == "table" and ns.db.xpChars[key]
+		return (type(xp) == "table" and Str(xp.name)) or "an alt"
+	end
+	local way = {}
+	for key, list in pairs(Store("mailAuctions")) do
+		for i, a in ipairs(list) do
+			local e = AuctionRow(key, a, i, key == myKey, WhoOf(key), now)
+			e._pos = i
+			way[#way + 1] = e
+		end
+	end
+	for key, list in pairs(Store("mailSent")) do
+		for i, sm in ipairs(list) do
+			local e = SentRow(key, sm, i, key == myKey, WhoOf(key), now)
+			e._pos = i
+			way[#way + 1] = e
+		end
+	end
+	table.sort(way, function(a, b)
+		if (a.mailKind == "auction") ~= (b.mailKind == "auction") then return a.mailKind == "auction" end
+		if a.at ~= b.at then return a.at > b.at end
+		if a.boxKey == b.boxKey and a._pos ~= b._pos then return a._pos < b._pos end -- (the newer told first)
+		return a.name < b.name
+	end)
+	for _, e in ipairs(way) do rows[#rows + 1] = e end
 	local n = #rows
 	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
 	list, boxRows = rows, byKey
@@ -594,12 +916,15 @@ local SUBJECT = { mail = true, mails = true, mailbox = true, inbox = true, lette
 local CUE = { expiring = "soon", expire = "soon", expires = "soon", expiry = "soon", expired = "soon", running = "soon",
 	run = "soon", runs = "soon", out = "soon", soon = "soon", cod = "cod", gold = "money",
 	money = "money", coins = "money", unread = "unread", new = "unread", returned = "returned", bounced = "returned",
-	auction = "auction", auctions = "auction", ah = "auction", sold = "auction", from = "from", waiting = "all" }
+	auction = "auction", auctions = "auction", ah = "auction", sold = "auction", from = "from", waiting = "all",
+	sent = "sent", outgoing = "sent", outbox = "sent", incoming = "incoming", pending = "incoming", expected = "incoming",
+	coming = "incoming" }
 -- what only mail is: these make even "mail" (the armour too) a question; the other cues (from, sold, new, gold, out...)
 -- count with "mail" only when nothing else is searched ("new mail", "my mail from bob"), else "new mail gloves", "mail
 -- boots from wailing caverns" and "mail armor sold by vendors" were taken for mail questions (0.47.0 review)
 local STRONG_CUE = { expiring = true, expire = true, expires = true, expiry = true, expired = true, cod = true,
-	unread = true, returned = true, bounced = true, waiting = true }
+	unread = true, returned = true, bounced = true, waiting = true, sent = true, outgoing = true, outbox = true,
+	incoming = true, pending = true, expected = true }
 local STRONG_SUBJECT = { mailbox = true, inbox = true, letters = true, letter = true }
 
 --- The question: { words = what narrows it (a sender, an item...), soon, cod, money, unread, returned, auction }, or nil
@@ -624,22 +949,32 @@ function MA.Question(text)
 	-- "mail" alone (the armour too): a cue only mail has, or nothing else searched, or "from" before the other words
 	if not strong and not strongCue and #rest > 0 and not (cues.from and fromFirst) then return nil end
 	return { words = rest, soon = cues.soon, cod = cues.cod, money = cues.money, unread = cues.unread,
-		returned = cues.returned, auction = cues.auction }
+		returned = cues.returned, auction = cues.auction, sent = cues.sent, incoming = cues.incoming }
 end
 
 local function Filtered(q)
-	return q.soon or q.cod or q.money or q.unread or q.returned or q.auction
+	return q.soon or q.cod or q.money or q.unread or q.returned or q.auction or q.sent or q.incoming
 end
 
---- Whether a mail row is one the question asks for.
+--- Whether a mail row (or a sent mail's, an auction's) is one the question asks for.
 local function Wanted(e, q)
-	local m = e.mail
-	if q.soon and not e.soon then return false end
-	if q.cod and not m.cod then return false end
-	if q.money and not m.money then return false end
-	if q.unread and m.read then return false end
-	if q.returned and not m.returned then return false end
-	if q.auction and not m.auction then return false end
+	local kind, m = e.mailKind, e.mail
+	if q.sent and not (kind == "sent" or (kind == "mail" and m.sent)) then return false end -- (sent: to others, and to your alts)
+	if q.incoming and kind ~= "auction" then return false end
+	if kind == "auction" then
+		if q.soon or q.cod or q.unread or q.returned then return false end
+		if q.money and not e.money then return false end
+	elseif kind == "sent" then
+		if q.soon or q.cod or q.unread or q.returned or q.auction then return false end
+		if q.money and not m.money then return false end
+	else
+		if q.soon and not e.soon then return false end
+		if q.cod and not m.cod then return false end
+		if q.money and not m.money then return false end
+		if q.unread and m.read then return false end
+		if q.returned and not m.returned then return false end
+		if q.auction and not m.auction then return false end
+	end
 	local hay = Lower(e.name) .. " " .. (e._ltext or Lower(e.text or "")) -- (Core keeps only the lowercase copy of the text)
 	for _, w in ipairs(q.words or {}) do if not hay:find(w, 1, true) then return false end end
 	return true
@@ -648,6 +983,7 @@ end
 MA.NOTE = "Your mail"
 MA.NOTE_SOON = "Mail running out within 3 days"
 MA.NONE = "No mail kept yet: open a mailbox and Terminal keeps what's in it (on each character)"
+MA.NOTE_SENT, MA.NOTE_INCOMING = "Mail you sent", "The auction house's news, on its way by mail"
 
 function MA.Answer(q)
 	q = q or {}
@@ -661,21 +997,26 @@ function MA.Answer(q)
 			if plain then rows[#rows + 1] = e end
 		elseif Wanted(e, q) then
 			rows[#rows + 1] = e
-			money = money + (e.mail.money or 0)
+			money = money + ((e.mail and e.mail.money) or e.money or 0)
 		end
 	end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local mails = 0
-	for _, e in ipairs(rows) do if e.mailKind == "mail" then mails = mails + 1 end end
+	local mails, way = 0, 0
+	for _, e in ipairs(rows) do
+		if e.mailKind == "mail" then mails = mails + 1 elseif e.mailKind ~= "box" then way = way + 1 end
+	end
+	for _, e in ipairs(all) do if e.mailKind == "sent" or e.mailKind == "auction" then boxes = boxes + 1 break end end
+	mails = mails + way
 	local note
 	if boxes == 0 then
 		note = MA.NONE
 	elseif mails == 0 then
-		note = (q.soon and "Nothing in your mail runs out within 3 days") or (q.cod and "No COD mail")
+		note = (q.sent and "Nothing sent in the last hour") or (q.incoming and "No auction house news in the last hour")
+			or (q.soon and "Nothing in your mail runs out within 3 days") or (q.cod and "No COD mail")
 			or (q.money and "No gold in your mail") or (q.unread and "No unread mail") or (q.returned and "No mail sent back to you")
 			or (q.auction and "No auction house mail") or ((q.words and #q.words > 0) and "No mail has that") or "No mail"
 	else
-		note = (q.soon and MA.NOTE_SOON) or MA.NOTE
+		note = (q.sent and MA.NOTE_SENT) or (q.incoming and MA.NOTE_INCOMING) or (q.soon and MA.NOTE_SOON) or MA.NOTE
 		note = note .. ("  ·  %s"):format(Plural(mails, "mail", "mails")) .. (money > 0 and (", " .. Money(money, true)) or "")
 	end
 	return rows, note
@@ -690,6 +1031,8 @@ function MA.ToAdvanced(q)
 	if q.unread then parts[#parts + 1] = "is:unread" end
 	if q.returned then parts[#parts + 1] = "is:returned" end
 	if q.auction then parts[#parts + 1] = "is:auction" end
+	if q.sent then parts[#parts + 1] = "is:sent" end
+	if q.incoming then parts[#parts + 1] = "is:incoming" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	return table.concat(parts, " ") .. " "
 end
@@ -818,8 +1161,23 @@ function MA.OnEvent(event, ...)
 		pendingSend = nil
 	elseif event == "UPDATE_PENDING_MAIL" then
 		Dirty()
+	elseif event == "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION" then
+		local n, text, auctionID = ...
+		local kind = NotificationKind(n)
+		if kind then pcall(MA.OnAuction, kind, text, auctionID) end
+	elseif event == "CHAT_MSG_SYSTEM" then -- (the classic clients' way of telling it)
+		local text = ...
+		if type(text) == "string" and not ns.Secret(text) then
+			local kind, item = MA.ChatNews(text)
+			if kind then pcall(MA.OnAuction, kind, item) end
+		end
+	elseif event == "AUCTION_HOUSE_AUCTION_CREATED" then
+		pcall(MA.AuctionCreated, ...)
+	elseif event == "OWNED_AUCTIONS_UPDATED" then
+		pcall(MA.ReadOwned)
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		MA.HookSend() -- (once; at load too)
+		MA.HookPost()
 		local login = ...
 		if login and not MA.warned then
 			MA.warned = true
@@ -831,9 +1189,11 @@ end
 local ev = CreateFrame("Frame")
 MA.frame = ev
 for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD",
-	"MAIL_SEND_SUCCESS", "MAIL_FAILED",
+	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",
+	"AUCTION_HOUSE_AUCTION_CREATED", "OWNED_AUCTIONS_UPDATED",
 	"PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end
 ev:SetScript("OnEvent", function(_, event, ...) MA.OnEvent(event, ...) end)
 MA.HookSend()
+MA.HookPost()

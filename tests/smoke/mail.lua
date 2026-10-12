@@ -297,8 +297,8 @@ do
 	MA.OnSend("Bob", "For Bob")
 	MA.OnEvent("MAIL_SEND_SUCCESS")
 	ns.Trace = traceWas
-	check(traced[#traced] == "mail: sent to Bob, not one of your characters Terminal knows: not kept", "mail to someone else: said in the trace")
-	check(#pally.mails == 2 and ns.db.mailboxes["Player-1-BBB"] == nil, "a failed send and mail to others: not kept")
+	check(traced[#traced] == "mail: sent to Bob (not one of your characters): kept an hour as on its way", "mail to someone else: kept an hour (traced)")
+	check(#pally.mails == 2 and ns.db.mailboxes["Player-1-BBB"] == nil, "a failed send isn't kept; mail to others isn't in a mailbox")
 	-- Pally opens a mailbox: the real inbox replaces what was sent
 	_G.UnitGUID = function() return "Player-1-CCC" end
 	ns.CharacterName = function() return "Plamen Pally" end
@@ -310,6 +310,97 @@ do
 	check(#ns.db.mailboxes["Player-1-CCC"].mails == 1 and not ns.db.mailboxes["Player-1-CCC"].mails[1].sent
 		and ns.db.mailboxes["Player-1-CCC"].t == now,
 		"Pally's mailbox read: the inbox as it is replaces the sent copies")
+	-- 0.47.2 (the player's ask): mail to anyone not one of your characters is kept an hour (what mail with items or gold
+	-- takes between accounts), and the auction house's news (sold, won, outbid, expired), a sale with its price
+	_G.UnitGUID = function() return "Player-1-AAA" end
+	ns.CharacterName = function() return "Plamen Warr" end
+	local sentList = ns.db.mailSent and ns.db.mailSent["Player-1-AAA"]
+	check(sentList and sentList[1] and sentList[1].to == "Bob" and sentList[1].mail.subject == "For Bob" and sentList[1].at == now,
+		"mail to Bob: kept on your list")
+	P._dirty = true
+	local function Kinds(q)
+		local out = {}
+		for _, e in ipairs(UI:Search(q)) do if e.mailKind then out[#out + 1] = e.mailKind .. ":" .. e.name end end
+		return table.concat(out, " | ")
+	end
+	local found = Kinds("@mail bob")
+	check(found:find("sent:To Bob: For Bob", 1, true), "@mail bob: the mail sent to Bob: " .. found)
+	-- the auction house's news: a sale not seen posted (no price), a sale seen posted (its price), a win told by chat
+	_G.ERR_AUCTION_SOLD_S, _G.ERR_AUCTION_WON_S = "A buyer has been found for your auction of %s.", "You won an auction for %s"
+	MA.ResetChatForTests()
+	MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 4, "Copper Bar", 77)
+	MA.OnEvent("CHAT_MSG_SYSTEM", "A buyer has been found for your auction of Copper Bar.") -- (the same news twice: once)
+	local AHwas, Itemwas = _G.C_AuctionHouse, _G.C_Item
+	_G.C_Item = setmetatable({ GetItemLink = function() return "|cffffffff|Hitem:2589|h[Linen Cloth]|h|r" end,
+		GetItemName = function() return "Linen Cloth" end }, { __index = Itemwas })
+	local posts = 0
+	_G.C_AuctionHouse = { PostItem = function() posts = posts + 1 end, PostCommodity = function() end,
+		GetNumOwnedAuctions = function() return 1 end,
+		GetOwnedAuctionInfo = function() return { auctionID = 90, itemLink = "|Hitem:2592|h[Wool Cloth]|h", quantity = 5, buyoutAmount = 12000 } end }
+	_G.hooksecurefunc = function(t, name, fn)
+		if type(t) == "string" then t, name, fn = _G, t, name end
+		local orig = t[name]
+		t[name] = function(...) orig(...); fn(...) end
+	end
+	MA.postHooked = nil
+	check(MA.HookPost(), "the auction house's posting is hooked")
+	_G.C_AuctionHouse.PostItem({ bag = 0, slot = 1 }, 1, 20, nil, 450000)
+	MA.OnEvent("AUCTION_HOUSE_AUCTION_CREATED", 78)
+	MA.OnEvent("OWNED_AUCTIONS_UPDATED")
+	local posted = ns.db.auctionsPosted["Player-1-AAA"]
+	check(posts == 1 and posted[78] and posted[78].price == 450000 and posted[78].name == "Linen Cloth" and posted[78].seen == "posted"
+		and posted[90] and posted[90].price == 12000 and posted[90].seen == "listed",
+		"its price kept: posted (hooked) and listed (the Auctions tab)")
+	now = now + 60
+	MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 4, "Linen Cloth", 78)
+	MA.OnEvent("CHAT_MSG_SYSTEM", "You won an auction for Wool Cloth")
+	local news = ns.db.mailAuctions["Player-1-AAA"]
+	check(#news == 3 and news[1].kind == "won" and news[2].kind == "sold" and news[2].price == 450000 and news[3].price == nil,
+		"three pieces of news (the doubled sale once), the posted one with its price")
+	now = now + 60
+	P._dirty = true
+	found = Kinds("@mail is:incoming")
+	check(found == "auction:Won: Wool Cloth | auction:Sold: Linen Cloth | auction:Sold: Copper Bar", "@mail is:incoming: " .. found)
+	local soldRow
+	for _, e in ipairs(UI:Search("@mail is:incoming linen")) do if e.mailKind == "auction" then soldRow = e end end
+	check(soldRow and soldRow.detail:find("45g", 1, true) and soldRow.detail:find("gold due in about 59 min", 1, true),
+		"the sale: its price, the gold due in about an hour: " .. tostring(soldRow and soldRow.detail))
+	MA.OnSend("Plamen Pally", "Hi Pally")
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	P._dirty = true
+	found = Kinds("@mail is:sent")
+	check(found:find("sent:To Bob: For Bob", 1, true) and found:find("mail:Hi Pally", 1, true),
+		"@mail is:sent: to others and to your alts: " .. found)
+	-- in words: "sent mail", "auctions on their way"
+	ns.db.easyMode = true
+	local q = MA.Question("sent mail")
+	check(q and q.sent and MA.ToAdvanced(q) == "@mail is:sent " and MA.Question("incoming mail").incoming, "sent mail / incoming mail")
+	local sentNames = {}
+	for _, e in ipairs((MA.Answer(q))) do sentNames[#sentNames + 1] = e.name end
+	sentNames = table.concat(sentNames, " | ")
+	check(sentNames:find("To Bob: For Bob", 1, true) and sentNames:find("Hi Pally", 1, true) and not sentNames:find("Sold", 1, true),
+		"\"sent mail\": to others and to your alts, not the auction house's news: " .. sentNames)
+	ns.db.easyMode = false
+	local lines = table.concat(MA.AllLines(), "\n")
+	check(lines:find("On its way:", 1, true) and lines:find("To Bob: For Bob", 1, true), ".mail lists what's on its way")
+	-- a mailbox read: the win's mail is in it (gone from the news); the sale's isn't yet (kept)
+	inbox = { { "Stormwind Auction House", "Auction won: Wool Cloth", 0, 0, 30, 1, false, false, true,
+		items = { { "Wool Cloth", 2592, 1, 5, 1 } } } }
+	MA.OnEvent("MAIL_SHOW")
+	MA.OnEvent("MAIL_INBOX_UPDATE")
+	FlushAll()
+	MA.OnEvent("MAIL_CLOSED")
+	check(#news == 2 and news[1].kind == "sold", "a mailbox read: the win's mail came (dropped); the sales still on their way")
+	-- an hour on: all of it gone (the gold and the mail have arrived)
+	now = now + 3600
+	P._dirty = true
+	found = Kinds("@mail")
+	check(not found:find("auction:", 1, true) and not found:find("sent:", 1, true), "an hour later: gone: " .. found)
+	_G.C_AuctionHouse, _G.C_Item, MA.postHooked = AHwas, Itemwas, nil
+	_G.ERR_AUCTION_SOLD_S, _G.ERR_AUCTION_WON_S = nil, nil
+	MA.ResetChatForTests()
+	ns.db.mailSent, ns.db.mailAuctions, ns.db.auctionsPosted = nil, nil, nil
+
 	_G.HasSendMailItem, _G.GetSendMailItem, _G.GetSendMailItemLink = sendWas.has, sendWas.get, sendWas.link
 	_G.GetSendMailMoney, _G.GetSendMailCOD, _G.SendMail, _G.hooksecurefunc, MA.hooked = sendWas.money, sendWas.cod, sendWas.send, sendWas.hook, sendWas.hooked
 	ns.db.xpChars = xpWas

@@ -310,8 +310,15 @@ IS.cod = MailIs(function(_, m) return m.cod ~= nil end)
 IS.expiring = MailIs(function(e) return e.soon == true end)
 IS.unread = MailIs(function(_, m) return not m.read end)
 IS.returned = MailIs(function(_, m) return m.returned == true end)
-IS.auction = MailIs(function(_, m) return m.auction ~= nil end)
-IS.money = MailIs(function(_, m) return m.money ~= nil end)
+-- (the auction house's news on its way counts as auction mail, a sale with its price as gold; mail you sent: is:sent,
+-- to others and to your alts)
+IS.auction = function(e) return e.kind == "mail" and (e.mailKind == "auction" or (e.mailKind == "mail" and e.mail.auction ~= nil)) or false end
+IS.money = function(e)
+	return e.kind == "mail" and ((e.mailKind == "auction" and e.money ~= nil) or (e.mailKind == "mail" and e.mail.money ~= nil)) or false
+end
+IS.sent = function(e) return e.kind == "mail" and (e.mailKind == "sent" or (e.mailKind == "mail" and e.mail.sent ~= nil)) or false end
+IS.incoming = function(e) return e.kind == "mail" and e.mailKind == "auction" or false end
+IS.pending, IS.expected = IS.incoming, IS.incoming
 IS.gold, IS.ah = IS.money, IS.auction
 -- your group (Group.lua): dead (or a ghost), the role set, out of range (the game's own test; hidden in combat: not
 -- judged), missing a buff the group can give; is:online / is:offline above read the same `online`
@@ -344,7 +351,7 @@ F.VALUES = {
 		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
-		"cod", "expiring", "unread", "returned", "auction", "money", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
+		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together" },
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing" },
 	standing = StandingNames(),
@@ -389,7 +396,7 @@ F.HELP = {
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
 	{ "is:dead", "@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)" },
 	{ "is:shareable", "@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too" },
-	{ "is:expiring", "@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached); on:<character>" },
+	{ "is:expiring", "@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too) incoming (the auction house's news: sold, won, outbid, expired); on:<character>" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },
 	{ "q:rare|epic", "any of them: | between values, filters or words (slot:head|chest, is:boe|q:epic, sword|axe)" },
