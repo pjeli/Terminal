@@ -4,14 +4,14 @@ local H = ns.Highlight
 -- Quests are searched by title AND by their description, objectives and zone,
 -- so "kill 10 boars" or a snippet of flavour text finds the quest.
 --
--- Opening one: the quest log is opened the way your own quest log key opens it (see Secure.lua), and Terminal
--- points at the quest's row in it (when it scrolls into view, too). It used to open the quest's details with a
--- game-pressed /run QuestMapFrame_OpenToQuestDetails, but a /run line runs tainted too (0.46.1: the game blames it
--- as "*** ForceTaint_Strong ***"), and that call writes the map's focused quest and its details' quest: the map's
--- quest pins, rebuilt from them later (often in combat), then fail (blocked SetPassThroughButtons). No game call or
--- button opens a quest's details cleanly, so the log is opened and the row shown; a click on it opens the details.
--- Nothing in the map's list is scrolled from here either (Blizzard's ScrollBox, written by Terminal's code). In a
--- classic-style log (ClassicUIForever's, its own frames) the quest is selected and scrolled to.
+-- Opening one: the map's quest panel is opened and turned to the quest's details by the game's own clicks (0.46.16:
+-- its micro button, then the quest's row: QUEST_NAV below), and Terminal points at them. Until 0.46.2 a game-pressed
+-- /run QuestMapFrame_OpenToQuestDetails did it, but a /run line runs tainted too (0.46.1: the game blames it as
+-- "*** ForceTaint_Strong ***"), and that call wrote the map's focused quest and its details' quest: the map's quest
+-- pins, rebuilt from them later (often in combat), then failed (blocked SetPassThroughButtons). A click the game makes
+-- on the row writes them clean. Without that route the log is opened with your quest key and the row pointed at (when
+-- it scrolls into view, too). Nothing in the map's list is scrolled from here (Blizzard's ScrollBox, written by
+-- Terminal's code). In a classic-style log (ClassicUIForever's, its own frames) the quest is selected and scrolled to.
 
 -- quest windows, first visible wins; any other visible "...Quest..." window is tried after
 local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame", "QuestLogExFrame", "ClassicQuestLog" }
@@ -61,9 +61,6 @@ local function LogShown()
 	end
 	return Visible(_G.QuestMapFrame) and Visible(_G.WorldMapFrame) and true or false
 end
-
--- open = nothing to press (the quest key would toggle an open log shut); only pointed at
-local function IsOpen() return LogShown() end
 
 local Plain = ns.Plain -- (Locale.lua)
 
@@ -164,6 +161,95 @@ end
 
 local QUEST_SECURE = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
 
+-- The map's quest panel (this client's own quest log) goes on to the quest's details by the game's own clicks (0.46.16,
+-- Secure.lua's "Turning a window"): the press opens the log with its micro button when it's closed, then each step
+-- clicks the details' back button (another quest's details showing), the quest's header (folded: it's unfolded, and
+-- its row comes on the next look), or the quest's own row, which the log answers by showing its details (its own
+-- code, untainted: the focused quest it writes is clean). Read only: the panel's pools of rows. A classic-style log
+-- (ClassicUIForever's), your quest key taken by another addon, or the route turned off (.nav): as before.
+local function QuestPanel() return _G.QuestMapFrame end
+local function DetailsOf(qm)
+	if not qm then return nil end
+	local d = rawget(qm, "DetailsFrame")
+	if d then return d end
+	local qf = rawget(qm, "QuestsFrame")
+	return qf and rawget(qf, "DetailsFrame") or nil
+end
+
+--- The pool's shown buttons whose `key` is `value` (read only), else nil.
+local function PoolButton(pool, key, value)
+	if type(pool) ~= "table" or type(pool.EnumerateActive) ~= "function" then return nil end
+	local ok, it, st, k = pcall(pool.EnumerateActive, pool)
+	if not ok or type(it) ~= "function" then return nil end
+	for f in it, st, k do
+		if type(f) == "table" and rawget(f, key) == value then return f end
+	end
+end
+
+--- The header the quest sits under in your log (its log index) and whether it's folded; nil without one.
+local function HeaderOf(questID)
+	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
+	if type(idx) ~= "number" or not C_QuestLog.GetInfo then return nil end
+	for i = idx - 1, 1, -1 do
+		local info = C_QuestLog.GetInfo(i)
+		if type(info) == "table" and info.isHeader then return i, info.isCollapsed == true end
+	end
+end
+
+--- One step toward the quest's details in the map's quest panel: the button to click, and why; nil when they show.
+local function QuestNavStep(e)
+	local qm = QuestPanel()
+	if not Visible(qm) then return nil, "the quest log isn't showing" end
+	-- (a click with Shift held tracks the quest instead; the chat box open: it would link it)
+	if IsShiftKeyDown and IsShiftKeyDown() then return nil, "Shift is held" end
+	local det = DetailsOf(qm)
+	if Visible(det) then
+		if rawget(det, "questID") == e.questID then return nil, "its details show" end
+		local back = rawget(det, "BackFrame")
+		return back and rawget(back, "BackButton") or nil, "another quest's details: back to the list"
+	end
+	local sf = _G.QuestScrollFrame
+	local row = sf and PoolButton(rawget(sf, "titleFramePool"), "questID", e.questID)
+	if row and Visible(row) then return row, "the quest's row" end
+	local hdr, folded = HeaderOf(e.questID)
+	if hdr and folded and sf then
+		for _, key in ipairs({ "headerFramePool", "campaignHeaderFramePool", "campaignHeaderMinimalFramePool", "covenantCallingsHeaderFramePool" }) do
+			local h = PoolButton(rawget(sf, key), "questLogIndex", hdr)
+			if h and Visible(h) then return h, "unfold its header" end
+		end
+	end
+	return nil, "its row isn't in the list"
+end
+
+local QUEST_NAV = {
+	route = "questlog", step = QuestNavStep,
+	-- what the clicks write, read after the press: the quest the details show
+	watch = { function() return DetailsOf(QuestPanel()), "questID" end },
+	watchName = function() return "the quest log's details" end,
+}
+
+--- Whether the press opens the quest's details by clicks (else the key, and the row pointed at).
+local function QuestTurns(e)
+	if type(e) ~= "table" or type(e.questID) ~= "number" or not ns.Secure.NavOn("questlog") then return false end
+	for _, name in ipairs(LOGS) do if Visible(_G[name]) then return false end end -- (a classic-style log)
+	if ns.Secure.EffectiveAction("TOGGLEQUESTLOG") ~= "TOGGLEQUESTLOG" then return false end -- (your key opens another addon's)
+	return QuestPanel() ~= nil
+end
+
+local function QuestNavMacro(e)
+	if not QuestTurns(e) then return nil end
+	local open
+	if not Visible(QuestPanel()) then
+		open = ns.Secure.ClickLine("QuestLogMicroButton")
+		if not open then return nil end
+	end
+	return (ns.Secure.NavMacro(QUEST_NAV, e, open))
+end
+local QUEST_NAV_SECURE = { macro = QuestNavMacro, binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
+-- open = nothing to press (the quest key would toggle an open log shut); the map's panel turned to the quest is always
+-- pressed (its macro opens it only when it's closed)
+local function QuestIsOpen(e) return LogShown() and not QuestTurns(e) end
+
 local Str, Num = ns.Str, ns.Num -- (quest text can be a secret value on this client)
 local Secret, Call = ns.Secret, ns.Safe
 
@@ -227,7 +313,8 @@ local function DropAsk(e)
 	if QD and QD.Confirm then QD.Confirm({ e }) else ns:Print("Couldn't drop " .. tostring(e.name) .. " from here.") end
 end
 
-ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DropAsk = DropAsk, Grey = Grey, ZoneLevels = ZoneLevels }
+ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DropAsk = DropAsk, Grey = Grey, ZoneLevels = ZoneLevels,
+	NavStep = QuestNavStep, NAV_SECURE = QUEST_NAV_SECURE } -- (the turning: tests)
 local function QuestLink(e) return GetQuestLink and GetQuestLink(e.questID) or nil end
 
 --- The quest's objectives, as { { text, type }, ... }: the retail list, else a classic log's leader boards.
@@ -520,8 +607,8 @@ ns:RegisterProvider("quests", {
 						getLink = QuestLink,
 						tooltip = LogTooltip, -- (Terminal draws it: the rewards; the link stays for chat)
 						activate = ShowQuest,
-						secure = QUEST_SECURE,
-						isOpen = IsOpen,
+						secure = QUEST_NAV_SECURE,
+						isOpen = QuestIsOpen,
 						after = ShowQuestAfter,
 						-- (quests to drop: QuestDrop.lua, the is:grey / is:leftbehind / is:drop filters)
 						grey = grey, behind = behind, complete = complete, drop = drop,

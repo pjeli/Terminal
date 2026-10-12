@@ -60,15 +60,110 @@ function SP.Book()
 end
 
 local function BookOpen() return SP.Book() ~= nil end
--- open = nothing to press (the spellbook key would toggle an open book shut): only turned (ClassicUIForever's) or
--- pointed at (the game's own)
-local IsOpen = BookOpen
 
--- The game's own spellbook (no ClassicUIForever) is opened with the spellbook key and never turned from here: Terminal
--- points at the spell when it's on the page showing, and keeps looking a while, so it's pointed at once you turn to
--- it. Until 0.46.2 the game pressed /run PlayerSpellsUtil.OpenToSpellBookTab() + SpellBookFrame:GoToSpell(id); but a
--- /run line runs tainted (0.46.1), and the book's items set up by it then hold tainted slots: a click on a spell there
--- (C_SpellBook.CastSpellBookItem, protected) could be blocked. No game call or named button turns the book cleanly.
+-- The game's own spellbook (no ClassicUIForever) is turned to the spell by the game's own clicks (0.46.16, Secure.lua's
+-- "Turning a window"): the press opens it with its micro button when it's closed, then each step clicks the search
+-- box's clear button, the spell's tab or a page arrow, picked by reading the book (its categories, its pages' element
+-- lists); the book's own code does the turning, untainted. Then Terminal points at the spell. Until 0.46.2 the game
+-- pressed /run ... SpellBookFrame:GoToSpell(id), but a /run line runs tainted (0.46.1), and the book's items set up by
+-- it held tainted slots (a click on a spell there, C_SpellBook.CastSpellBookItem, could be blocked); 0.46.2-0.46.15
+-- only opened it and pointed. Turned off (.nav) or not possible: opened with your spellbook key and pointed at.
+
+--- The game's own book (PlayerSpellsFrame.SpellBookFrame), shown or not; nil without it.
+local function GameBook()
+	local p = _G.PlayerSpellsFrame
+	return p and p.SpellBookFrame or nil
+end
+
+--- The spell's slot in the book (its own rank: the entry keeps the highest known).
+local function SlotOf(e)
+	if not C_SpellBook.FindSpellBookSlotForSpell then return nil end
+	local ok, s, b = pcall(C_SpellBook.FindSpellBookSlotForSpell, e.spellID, false, true, false, false)
+	if ok and type(s) == "number" then return s, b end
+end
+
+--- One step toward the spell in the game's own book: the button to click, and why; nil when it shows (or can't be
+--- reached by a click). Reads only: the book's categories, its tab buttons, its pages' element lists, its page arrows.
+function SP.NavStep(e)
+	local book = GameBook()
+	if not (book and book:IsVisible()) then return nil, "the book isn't showing" end
+	local search = book.SearchBox
+	if search and search.GetText then
+		local ok, t = pcall(search.GetText, search)
+		if ok and type(t) == "string" and t ~= "" then
+			return search.clearButton, "clear the book's search"
+		end
+	end
+	local slot, bank = SlotOf(e)
+	if not slot then return nil, "no spellbook slot for " .. tostring(e.name) end
+	local cat
+	for _, c in ipairs(rawget(book, "categoryMixins") or {}) do
+		local ok, has = pcall(c.ContainsSlot, c, slot, bank)
+		if ok and has then cat = c break end
+	end
+	if not cat then return nil, "no tab holds slot " .. slot end
+	local tabs = rawget(book, "CategoryTabSystem") or rawget(book, "TabSystem")
+	local okID, tabID = pcall(cat.GetTabID, cat)
+	local okCur, cur = pcall(book.GetTab, book)
+	if okID and okCur and tabID ~= cur then
+		local okB, btn = pcall(tabs.GetTabButton, tabs, tabID)
+		return okB and btn or nil, "the spell's tab"
+	end
+	local paged = rawget(book, "PagedSpellsFrame")
+	local list = paged and rawget(paged, "viewDataList")
+	local pc = paged and rawget(paged, "PagingControls")
+	if type(list) ~= "table" or not pc then return nil, "the book's pages aren't laid out" end
+	local perPage = tonumber(rawget(paged, "viewsPerPage")) or 1
+	local at
+	for vi, view in ipairs(list) do
+		for _, el in ipairs(view) do
+			if type(el) == "table" and not el.isSpacer and el.slotIndex == slot and (bank == nil or el.spellBank == nil or el.spellBank == bank) then
+				at = vi break
+			end
+		end
+		if at then break end
+	end
+	if not at then return nil, "the spell isn't on any page of its tab" end
+	local page, now = math.ceil(at / perPage), tonumber(rawget(pc, "currentPage")) or 1
+	if page > now then return rawget(pc, "NextPageButton"), ("page %d, from %d"):format(page, now) end
+	if page < now then return rawget(pc, "PrevPageButton"), ("page %d, from %d"):format(page, now) end
+	return nil, "on its page"
+end
+
+-- what the clicks write, read after the press (Secure.lua): the page the book shows
+local NAV = {
+	route = "spellbook", step = SP.NavStep,
+	watch = { function()
+		local book = GameBook()
+		local paged = book and rawget(book, "PagedSpellsFrame")
+		return paged and rawget(paged, "PagingControls"), "currentPage"
+	end },
+	watchName = function() return "the spellbook's page" end,
+}
+
+--- Whether the press turns the game's own book (else ClassicUIForever's route, or the key and pointing).
+local function Turns()
+	if CUF() or not ns.Secure.NavOn("spellbook") then return false end
+	-- your spellbook key taken by another addon's book (ClassicUIForever's): its route
+	if ns.Secure.EffectiveAction("TOGGLESPELLBOOK") ~= "TOGGLESPELLBOOK" then return false end
+	return true
+end
+
+local function NavMacro(e)
+	if not Turns() then return nil end
+	local book = GameBook()
+	local open
+	if not (book and book:IsVisible()) then
+		open = ns.Secure.ClickLine("SpellbookMicroButton")
+		if not open then return nil end
+	end
+	return (ns.Secure.NavMacro(NAV, e, open))
+end
+
+-- open = nothing to press (the spellbook key would toggle an open book shut): only turned (ClassicUIForever's) or
+-- pointed at; the game's own book being turned is always pressed (its macro opens it only when it's closed)
+local function IsOpen(e) return BookOpen() and not Turns() end
+SP.IsOpen = IsOpen -- (tests)
 
 --- The game's own book (turned by the press): the spell's item there, found by its spellbook slot
 --- (only read: its items keep slotIndex/spellBank). The entry's id is its highest rank's.
@@ -86,7 +181,7 @@ function SP.ClientButton(book, e)
 	if item then return item.Button or item end
 end
 
-SP.SECURE = { binding = "TOGGLESPELLBOOK", buttons = { "SpellbookMicroButton" } }
+SP.SECURE = { macro = NavMacro, binding = "TOGGLESPELLBOOK", buttons = { "SpellbookMicroButton" } }
 
 --- The page's button for the spell: its own (highest known) rank, else the highest rank of it shown.
 local function OnPage(A, book, e)

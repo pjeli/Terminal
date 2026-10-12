@@ -124,6 +124,8 @@ local function OnAction(event, addon, func)
 		return
 	end
 	D.count = D.count + 1 -- (Terminal's own from here on)
+	-- (right after a press that turned a window for you: that window is only pointed at from now on, Secure.lua)
+	if ns.Secure and ns.Secure.OnBlocked then pcall(ns.Secure.OnBlocked, func, at) end
 	-- the same call blocked again within a second (a loop of them when taint spreads): counted on the
 	-- first's record, which keeps its stack and trace; the chat line is printed once, not every time
 	local last = events[#events]

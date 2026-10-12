@@ -13,11 +13,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.17", when = "in testing",
+		v = "0.46.18", when = "in testing",
 		items = {
 			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. Mail you send to one of your own characters is in its list at once. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
 			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",
-			"Quests and spells: Enter opens your quest log or spellbook with your own key and points at the quest or spell, also as soon as you scroll or turn to it (it no longer turns to it for you: that could leave spells in the book refusing to cast). Click the quest for its details.",
+			"Opening things goes all the way again, safely: Enter on a spell turns your spellbook to its tab and page, on a quest opens its details in the quest log, on a keybinding scrolls Options > Keybindings to its section and unfolds it. The game makes those clicks itself, so nothing is left tainted (nothing refuses to work later in a fight); if Terminal ever finds a window left tainted anyway, it only opens and points there from then on (.nav shows which).",
 			"Dropping a quest with Shift+Enter (or >> drop) asks in Terminal's own window, as dropping several does.",
 			"Collections: Shift+Enter opens the journal and points at the toy, pet or mount, or at its tab when another one shows.",
 			".debug log names the press of Terminal's behind a blocked action the game blames on a /run line.",

@@ -78,20 +78,43 @@ end
 -- search box (that was Terminal's code writing the window's state: its list was then rebuilt tainted). `hint`: said
 -- once when it isn't showing after a moment (a keybinding in a closed section).
 local LOOKS, HINT_AFTER = 150, 10 -- (a tenth of a second apart)
+
+--- Whether a frame in the settings list is in the part of the list that shows (a keybinding row further down an
+--- unfolded section is laid out, but below the list's bottom edge: pointed at only once it's scrolled to). Frames
+--- outside the list (the category list) count as shown.
+local function InView(f, sp)
+	local ok, list = pcall(function() return sp:GetSettingsList() end)
+	local box = ok and type(list) == "table" and rawget(list, "ScrollBox")
+	if not (box and box.GetTop and f.GetTop) then return true end
+	local p, inside = f, false
+	for _ = 1, 15 do
+		local okP, up = pcall(p.GetParent, p)
+		p = okP and up or nil
+		if not p then break end
+		if p == box then inside = true break end
+	end
+	if not inside then return true end
+	local okB, top, bottom = pcall(function() return box:GetTop(), box:GetBottom() end)
+	local okF, ft, fb = pcall(function() return f:GetTop(), f:GetBottom() end)
+	if not (okB and okF and top and bottom and ft and fb) then return true end
+	local mid = (ft + fb) / 2
+	return mid <= top and mid >= bottom
+end
+
 local function HighlightSetting(name, hint)
 	local tries = 0
 	H:Find(function()
 		local sp = SettingsPanel
 		if not (sp and sp:IsVisible()) then return nil end
 		tries = tries + 1
-		local hit = ns.FindFrame(sp, function(f) return ExactText(f, name) end, 20)
+		local hit = ns.FindFrame(sp, function(f) return ExactText(f, name) and InView(f, sp) end, 20)
 		if hit then return hit end
 		if tries == HINT_AFTER and hint then ns:Print(hint) end
 		return nil
 	end, LOOKS)
 end
 
-ns.GameOptions = { HighlightSetting = HighlightSetting } -- (keybindings point at their row the same way)
+ns.GameOptions = { HighlightSetting = HighlightSetting, InView = InView } -- (keybindings point at their row the same way)
 
 -- The page is opened by the game: C_SettingsUtil.OpenSettingsPanel on the secure macro button (Secure.SettingsMacro),
 -- which the window's own code answers, scrolling to the setting by name. Always pressed (the window may be open on

@@ -1156,6 +1156,8 @@ do
 		ns.providers.items._dirty = true; ns.providers.gear._dirty = true
 	end
 
+	-- (0.46.16: these are the key-and-point route, used when turning the quest log is off: tests/smoke/nav.lua has the turning)
+	ns.db.navTainted = { questlog = { what = "test" }, spellbook = { what = "test" } }
 	QuestMapFrame.shown = false
 	C_QuestLog.SetSelectedQuest = function(id) note("SelectQuest", id) end
 	_G.ForeverClassicUIQuestLog = Obj("Frame"); ForeverClassicUIQuestLog.shown = false
@@ -1346,6 +1348,7 @@ do
 	_G.CharacterFrameTab3, _G.CharacterFrameTab4 = nil, nil
 	UIParent.GetEffectiveScale = nil
 	ForeverClassicUIQuestLog.GetChildren = nil
+	ns.db.navTainted = nil
 end
 
 do
@@ -1914,6 +1917,8 @@ do
 	-- GoToSpell, after clearing a search), whether the book is open or not; Terminal then points at the spell's item
 	_G.ClassicUIForeverAPI = nil
 	_G.PlayerSpellsUtil = { OpenToSpellBookTab = function() end }
+	-- (0.46.16: the key-and-point route, used when turning the book is off: tests/smoke/nav.lua has the turning)
+	ns.db.navTainted = { spellbook = { what = "test" } }
 	-- 0.46.2: the game's own book is opened with the spellbook key and never turned from here (a /run line runs tainted,
 	-- 0.46.1: the book's items set up by GoToSpell held tainted slots, and casting from them could be blocked)
 	local r = ns.Secure.Resolve(sp.Fireball.secure, sp.Fireball)
@@ -2007,6 +2012,7 @@ do
 	ns.Highlight.Show = origShow
 	_G.C_SpellBook, _G.C_Spell, _G.issecretvalue = saveBook, saveSpell, saveSecret
 	ns.providers.spells._dirty = true
+	ns.db.navTainted = nil
 end
 
 ----------------------------------------------------------------------
@@ -3256,7 +3262,8 @@ do -- Questie's always-visible frames don't count as an open quest log
 	check(q.isOpen() == true, "a real quest window does")
 	fl.shown = false
 	UI:Open("wolves across"); key("ENTER")
-	check(S.armed == "TOGGLEQUESTLOG", "Enter on a quest arms the quest log key even with Questie's frames on screen")
+	check(S.armed == "TOGGLEQUESTLOG" or (S.armed == "MACRO" and tostring(_G.TerminalMacroProxy.attrs.macrotext):find("^/click QuestLogMicroButton")),
+		"Enter on a quest opens the quest log even with Questie's frames on screen: " .. tostring(S.armed))
 	_G.QuestLogExFrame = nil; UI:Hide(); S.Disarm()
 	UIParent.GetChildren = nil
 end
@@ -4893,11 +4900,15 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	UI:Open("@keybind toggle world map")
 	key("ENTER")
 	local mt = _G.TerminalMacroProxy.attrs.macrotext or ""
-	check(S.armed == "MACRO" and mt == "/run C_SettingsUtil.OpenSettingsPanel(42)", "Enter: the game opens the Keybindings page with its own call: " .. mt)
+	local first = mt:match("^[^\n]*")
+	-- (0.46.16: scrolled to the action's section by the game's own call; the /click lines after it unfold the section:
+	-- tests/smoke/nav.lua)
+	check(S.armed == "MACRO" and first == '/run C_SettingsUtil.OpenSettingsPanel(42,"Interface Panel Functions")'
+		and mt:find("\n/click TerminalNav%d"), "Enter: the game opens the Keybindings page at its section with its own call: " .. mt)
 	check(not mt:find("SetText", 1, true), "nothing is typed into the options search (a /run line runs tainted: 0.46.1)")
 	-- run it the way the game would: the page opens
 	_G.SettingsPanel = Obj("Frame"); SettingsPanel.SearchBox = { SetText = function(_, t) searched = t end }
-	assert(loadstring((mt:gsub("^/run ", ""))))()
+	assert(loadstring((first:gsub("^/run ", ""))))()
 	check(openedTo == 42 and searched == nil, "the line opens Keybindings, and searches for nothing")
 	_G.Settings, _G.SettingsPanel = { KEYBINDINGS_CATEGORY_ID = 42 }, nil
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
@@ -4912,7 +4923,9 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
 	local q = kb["Quick Keybind Mode"]
 	check(UI.ClickFor(q, true) == ns.Keybinds.QUICK_MACRO and UI.ClickFor(q, false) == ns.Keybinds.MacroFor(""), "clicks do the same (Shift+click starts it)")
-	check(UI.ClickFor(kb["Toggle World Map"], false) == ns.Keybinds.MacroFor("Toggle World Map"), "a click on an action does what Enter does")
+	local cm = UI.ClickFor(kb["Toggle World Map"], false) or ""
+	check(cm:match("^[^\n]*") == '/run C_SettingsUtil.OpenSettingsPanel(42,"Interface Panel Functions")' and cm:find("\n/click TerminalNav%d"),
+		"a click on an action does what Enter does (the page at its section, then the unfolding clicks): " .. cm)
 	local realCombat = _G.InCombatLockdown
 	_G.InCombatLockdown = function() return true end
 	UI:Open("@keybind quick keybind"); mark = #log

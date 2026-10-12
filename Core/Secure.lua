@@ -470,6 +470,209 @@ function S.Disarm()
 	end
 end
 
+----------------------------------------------------------------------
+-- Turning a window to the right page by the game's own clicks (0.46.16, the player's ask)
+--
+-- The press that opens a window goes on to its tab, page, section or row in the same Enter press: the macro gets lines
+-- "/click TerminalNavN", and each one is one step. Just before it runs, the step's PreClick (Terminal's code, which only
+-- READS the window) picks the Blizzard button the next step needs: the spellbook's tab or page arrow, the quest's row,
+-- a keybinding section's header. It sets that button as its own "clickbutton", and the secure button clicks it for the
+-- game (SECURE_ACTIONS.click), so the window's own code runs untainted, as if you had clicked it. Terminal never writes
+-- into the window. A step that only a write could do (scrolling a list, typing into a search box) isn't taken: the
+-- window is opened and the row pointed at, as before.
+--
+-- Checked afterwards (the "taint detection"): each route names the window fields its clicks write (`watch`). A moment
+-- after the press they are read with issecurevariable. One that comes out written by anyone but the game, when it
+-- wasn't before, means the clicks didn't stay clean: the route is turned off (db.navTainted), said once in chat, and
+-- from then on that window is only opened and pointed at. A blocked action blamed on Terminal right after such a press
+-- turns the route off the same way. .nav (.navigate) lists them; .nav reset tries again.
+----------------------------------------------------------------------
+
+S.NAV_SLOTS = 8 -- plans kept at once, one secure button each (a hover's macro and Enter's each get their own)
+S.NAV_STEPS = 12 -- the most steps one press takes (the macro's 255 characters may allow fewer)
+S.NAV_BLAME = 3 -- seconds: a blocked action this soon after a turning press turns that route off
+S.NAV_LABELS = { spellbook = "your spellbook", questlog = "the quest log", keybinds = "Options > Keybindings" }
+
+S.navPlans = {} -- slot -> plan: { route, e, step, watch, before, n, at, verified }
+local navButtons, navSlot = {}, 0
+
+--- Whether a frame can be clicked for the game: a visible, enabled Button the game lets a click reach.
+local function Clickable(f)
+	if type(f) ~= "table" or type(f.Click) ~= "function" then return false end
+	local okT, isButton = pcall(f.IsObjectType, f, "Button")
+	if not (okT and isButton) then return false end
+	local okV, vis = pcall(f.IsVisible, f)
+	if not (okV and vis) then return false end
+	if f.IsEnabled then
+		local okE, en = pcall(f.IsEnabled, f)
+		if okE and en == false then return false end
+	end
+	if f.HasAccessConstraints then
+		local okA, c = pcall(f.HasAccessConstraints, f)
+		if okA and c == true then return false end
+	end
+	return true
+end
+S.Clickable = Clickable
+
+local function Named(f)
+	local n = ns.FrameName and ns.FrameName(f)
+	if type(n) == "string" then return n end
+	local ok, d = pcall(function() return f.GetDebugName and f:GetDebugName() end)
+	return ok and type(d) == "string" and d or "a button"
+end
+
+--- The route's window fields, read now: { [i] = writer }.
+local function ReadWatch(plan)
+	local out = {}
+	for i, w in ipairs(plan.watch or {}) do
+		local ok, t, k = pcall(w, plan.e)
+		if ok and type(t) == "table" and k ~= nil and rawget(t, k) ~= nil then out[i] = S.Writer(t, k) or false end
+	end
+	return out
+end
+
+--- Whether Terminal may turn this window for you (not turned off for leaving something tainted).
+function S.NavOn(route)
+	local off = ns.db and ns.db.navTainted
+	return not (off and off[route])
+end
+
+--- The route turned off: what came out tainted (`what`), and by whom. Said once in chat.
+function S.NavTaint(route, what, by)
+	if not ns.db then return end
+	ns.db.navTainted = ns.db.navTainted or {}
+	if ns.db.navTainted[route] then return end
+	ns.db.navTainted[route] = { t = time and time() or 0, what = what, by = by }
+	if ns.Trace then ns:Trace(("nav: %s turned off: %s, by %s"):format(route, tostring(what), tostring(by))) end
+	ns:Print(("Turning %s left %s written by %s (taint), so from now on Terminal only opens it and points. Type /term .nav for more; .nav reset tries again.")
+		:format(S.NAV_LABELS[route] or route, tostring(what), tostring(by)))
+end
+
+local function Verify(plan)
+	if plan.verified then return end
+	plan.verified = true
+	local now = ReadWatch(plan)
+	for i, by in pairs(now) do
+		if by and by ~= "the game's own code" and by ~= plan.before[i] then
+			local okD, label = pcall(plan.watchName or function() return nil end, i)
+			S.NavTaint(plan.route, okD and label or ("field " .. i), by)
+			return
+		end
+	end
+	if ns.Trace then ns:Trace(("nav: %s checked after the press: nothing it clicked was left tainted"):format(plan.route)) end
+end
+
+--- Just before one step's click: the plan's step function picks the button (or none) and the secure button is set to it.
+local function NavPreClick(self)
+	local plan = S.navPlans[self.slot]
+	local target, why
+	if plan and not InCombatLockdown() then
+		plan.n = (plan.n or 0) + 1
+		if plan.n <= S.NAV_STEPS then
+			local ok, t, w = pcall(plan.step, plan.e, plan)
+			if ok then target, why = t, w else why = "error: " .. tostring(t) end
+		end
+		if target and not Clickable(target) then why, target = (why or "") .. " (" .. Named(target) .. " can't be clicked now)", nil end
+		if not plan.at then
+			plan.at = GetTime()
+			if C_Timer and C_Timer.After then C_Timer.After(S.TAINT_DELAY, function() Verify(plan) end) end
+		end
+		if ns.Trace and (target or not plan.quiet) then
+			ns:Trace(("nav: %s step %d: %s"):format(plan.route, plan.n, target and ("click " .. Named(target) .. (why and (" (" .. why .. ")") or ""))
+				or ("nothing to click" .. (why and (" (" .. why .. ")") or ""))))
+		end
+		if not target then plan.quiet = true end -- (the rest of its lines: said once)
+	end
+	if not InCombatLockdown() then self:SetAttribute("clickbutton", target) end
+end
+
+local function NavButton(slot)
+	local b = navButtons[slot]
+	if b or InCombatLockdown() then return b end
+	b = Offscreen("TerminalNav" .. slot)
+	b:SetAttribute("useOnKeyDown", false) -- (/click sends a release)
+	b:SetAttribute("type", "click")
+	b.slot = slot
+	b:SetScript("PreClick", NavPreClick)
+	navButtons[slot] = b
+	return b
+end
+
+--- A macro line that clicks a named Blizzard button (a micro button opening a window), or nil when it can't be clicked.
+function S.ClickLine(name)
+	local f = _G[name]
+	if type(f) ~= "table" or type(f.Click) ~= "function" then return nil end
+	local ok, isButton = pcall(f.IsObjectType, f, "Button")
+	if not (ok and isButton) then return nil end
+	if f.IsEnabled then
+		local okE, en = pcall(f.IsEnabled, f)
+		if okE and en == false then return nil end
+	end
+	return "/click " .. name
+end
+
+--- The macro for a turning press: `open` (the lines opening the window, or nil when it shows) and as many step lines as
+--- fit. `def` = { route, step = fn(e, plan) -> button[, why], watch = { fn(e) -> table, key }, watchName = fn(i) }.
+--- Nil when the route is off, or nothing would fit.
+function S.NavMacro(def, e, open)
+	if not (def and S.NavOn(def.route)) or InCombatLockdown() then return nil end
+	navSlot = navSlot % S.NAV_SLOTS + 1
+	local b = NavButton(navSlot)
+	if not b then return nil end
+	local plan = { route = def.route, e = e, step = def.step, watch = def.watch, watchName = def.watchName }
+	plan.before = ReadWatch(plan)
+	S.navPlans[navSlot] = plan
+	local line = "/click " .. b:GetName()
+	local lines = {}
+	local used = 0
+	if open and open ~= "" then lines[1] = open; used = #open end
+	for _ = 1, S.NAV_STEPS do
+		if used + 1 + #line > S.MACRO_MAX then break end
+		lines[#lines + 1] = line
+		used = used + (used > 0 and 1 or 0) + #line
+	end
+	if #lines == 0 or (open and #lines == 1) then return nil end
+	return table.concat(lines, "\n"), plan
+end
+
+--- A blocked action blamed on Terminal (Debug.lua): right after a turning press, that route is turned off too.
+function S.OnBlocked(func, at)
+	local newest
+	for _, plan in pairs(S.navPlans) do
+		if plan.at and (not newest or plan.at > newest.at) then newest = plan end
+	end
+	if newest and (at or GetTime()) - newest.at <= S.NAV_BLAME then
+		S.NavTaint(newest.route, "a blocked action (" .. tostring(func) .. ")", "the game, right after it")
+	end
+end
+
+ns:RegisterCommand("navigate", {
+	desc = "Which windows Terminal turns to the right page for you, and any it stopped turning because something came out tainted",
+	aliases = { "nav" },
+	complete = function() return { { "reset", "try turning every window again" } } end,
+	run = function(args)
+		local a = strtrim(args or ""):lower()
+		local off = ns.db and ns.db.navTainted or {}
+		if a == "reset" then
+			if ns.db then ns.db.navTainted = nil end
+			return { "Terminal turns every window to the right page again." }
+		end
+		local out = { "Windows Terminal turns to the right page with the game's own clicks:" }
+		local names, anyOff = {}, false
+		for route in pairs(S.NAV_LABELS) do names[#names + 1] = route end
+		table.sort(names)
+		for _, route in ipairs(names) do
+			local o = off[route]
+			if o then anyOff = true end
+			out[#out + 1] = ("  %s: %s"):format(S.NAV_LABELS[route], o and ("off (%s written by %s%s)"):format(tostring(o.what), tostring(o.by),
+				(o.t and time and ns.Ago) and (", " .. ns.Ago(time() - o.t)) or "") or "on")
+		end
+		if anyOff then out[#out + 1] = ".nav reset turns them on again." end
+		return out
+	end,
+})
+
 function S.OnCombat()
 	if ns.UI and ns.UI.OnCombat then ns.UI:OnCombat() elseif S.armed then S.Disarm() end
 end
