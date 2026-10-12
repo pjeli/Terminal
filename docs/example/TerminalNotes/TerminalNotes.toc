@@ -1,0 +1,9 @@
+## Interface: 16001, 120100
+## Title: Terminal Notes (example)
+## Notes: An example of a list in Terminal: your own notes, searched with @note, added with .note.
+## Author: you
+## Version: 1.0
+## Dependencies: Terminal
+## SavedVariables: TerminalNotesDB
+
+TerminalNotes.lua

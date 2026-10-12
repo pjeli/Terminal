@@ -179,6 +179,15 @@ function ns:RegisterProvider(id, def)
 	for _, ev in ipairs(def.events or {}) do
 		self:WatchEvent(ev, def)
 	end
+	-- (a list another addon registers once Terminal has loaded: its Simple-mode category and verbs, Easy.lua; see
+	-- docs/PROVIDERS.md)
+	if ns.Easy and ns.Easy.Adopt then ns.Easy.Adopt(def) end
+end
+
+--- A list's rows changed in a way no game event of its `events` tells: it's made again the next time it's searched.
+function ns:Changed(id)
+	local p = self.providers[id]
+	if p then p._dirty = true end
 end
 
 --- Call after adding to a provider's aliases once it's registered: the @kind lookup is rebuilt.

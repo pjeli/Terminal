@@ -79,6 +79,26 @@ E.CATEGORIES = {
 E.BY_ID = {}
 for _, c in ipairs(E.CATEGORIES) do E.BY_ID[c.id] = c end
 
+--- A list another addon registers once Terminal has loaded (Terminal:RegisterProvider; docs/PROVIDERS.md): its
+--- Simple-mode category (`simpleCategory`: an existing category's id, "game" say, or { id, label, icon } for a new one),
+--- else Simple mode never shows its rows; and its verbs (`verbs`: { enter, shift }, or function(e) -> enter, shift) for
+--- the footer and the right-click menu. Terminal's own lists are in E.CATEGORIES and E.VERBS already.
+function E.Adopt(p)
+	if type(p) ~= "table" or type(p.id) ~= "string" then return end
+	if p.verbs ~= nil and E.VERBS[p.id] == nil then E.VERBS[p.id] = p.verbs end
+	local c = p.simpleCategory
+	if type(c) == "string" then c = { id = c } end
+	if type(c) ~= "table" or type(c.id) ~= "string" then return end
+	local cat = E.BY_ID[c.id]
+	if not cat then
+		cat = { id = c.id, label = c.label or p.label or c.id, kinds = {}, icon = c.icon or "Interface\\Icons\\INV_Misc_QuestionMark" }
+		E.CATEGORIES[#E.CATEGORIES + 1] = cat
+		E.BY_ID[c.id] = cat
+	end
+	for _, k in ipairs(cat.kinds) do if k == p.id then return end end
+	cat.kinds[#cat.kinds + 1] = p.id
+end
+
 --- The categories to sort into: every one with at least one of its kinds loaded.
 function E.Visible()
 	local out = {}
