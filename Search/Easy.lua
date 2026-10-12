@@ -506,6 +506,8 @@ local function QuestionToAdvanced(text)
 		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
 		return "@quest " .. which .. " " .. (#dq.words > 0 and (table.concat(dq.words, " ") .. " ") or "")
 	end
+	local pq = ns.GroupQuests and ns.GroupQuests.Question and ns.GroupQuests.Question(text)
+	if pq then return ns.GroupQuests.ToAdvanced(pq) end
 	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
 	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
@@ -791,6 +793,7 @@ function E.HelpLines()
 		"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows.",
 		"Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list.",
 		"Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line).",
+		"Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line.",
 		"Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character.",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it.",
 		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
@@ -802,3 +805,7 @@ function E.HelpLines()
 	}
 end
 
+
+-- Terminal's own lists registered before this file loaded (RegisterProvider adopts only once Easy exists): their own
+-- verbs and Simple mode categories (`verbs`, `simpleCategory`: GroupQuests.lua's)
+for _, id in ipairs(ns.providerOrder or {}) do E.Adopt(ns.providers[id]) end

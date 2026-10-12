@@ -15,6 +15,7 @@ local EASY_NONE_NEAR = "None of those on this continent that Questie knows of."
 local EASY_NO_FLIGHTS = "No flight path like that on this continent."
 local EASY_ALL_FLIGHTS = "You know every flight path on this continent."
 local MISSING_GONE = "Restart the game for the recipes you don't know: this update added a file, and a /reload doesn't load new files."
+local GROUP_QUESTS_GONE = "Restart the game for party quests: this update added a file, and a /reload doesn't load new files."
 local EASY_FLIGHTS_UNCHECKED = "Terminal doesn't know your flight paths here yet: open any flight master's map on this continent."
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
 local QUESTION_MARK = 134400 -- (an icon for rows without one)
@@ -596,6 +597,12 @@ Scan.ANSWERS = {
 		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
 		if q then return ns.QuestDrop.Answer(q) end
 	end,
+	-- "party quests", "quests to share", "same quests as my group": GroupQuests.lua (before the group's: "party members
+	-- missing quests" is about quests)
+	function(text)
+		local q = ns.GroupQuests and ns.GroupQuests.Question(text)
+		if q then return ns.GroupQuests.Answer(q) end
+	end,
 	-- "my mail", "mail running out", "cod mail": Mail.lua
 	function(text)
 		local q = ns.Mail and ns.Mail.Question(text)
@@ -686,6 +693,7 @@ function Scan.Finish(q, res)
 	if q.kinds then Leads(q.kinds) end
 	if q.also then Leads(q.also) end
 	if q.missingGone then table.insert(res, 1, PseudoEntries({ MISSING_GONE })[1]) end
+	if q.goneLine then table.insert(res, 1, PseudoEntries({ q.goneLine })[1]) end
 	local blocked = q.blocked
 	if not blocked then return res end
 	-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
@@ -774,9 +782,20 @@ function Scan.Parse(self, text)
 			end
 		end
 	end
+	-- "@group quests": the quests in your log with who in your party is on them (GroupQuests.lua), not your group's members
+	local goneLine
+	if kinds and kinds.group then
+		for i = #tokens, 1, -1 do
+			if tokens[i] == "quests" or tokens[i] == "quest" then
+				table.remove(tokens, i)
+				if ns.providers.groupquests then kinds.group, kinds.groupquests = nil, true else goneLine = GROUP_QUESTS_GONE end
+				break
+			end
+		end
+	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
 		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear, advAct = advAct,
-		also = also, missingGone = missingGone }
+		also = also, missingGone = missingGone, goneLine = goneLine }
 end
 
 --- Simple mode: an action word and a place named among the words, taken out of them (q.act, q.tokens, q.filters).

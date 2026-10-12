@@ -326,6 +326,12 @@ IS.inrange = GroupIs(function(e) return e.inRange == true end)
 IS.unbuffed = GroupIs(function(e) return e.missing ~= nil and #e.missing > 0 end)
 IS.outofrange, IS.near, IS.damage, IS.damager, IS.healers, IS.tanks = IS.far, IS.inrange, IS.dps, IS.dps, IS.healer, IS.tank
 -- missing:<buff>: group members lacking it (fortitude, int, mark, spirit, shadow, blessing, or any buff's name)
+-- quests with your party (GroupQuests.lua): someone in your party lacks it and the game lets you share it; someone in
+-- your party is on it too
+local function PartyIs(test) return function(e) return e.kind == "groupquests" and test(e) or false end end
+IS.shareable = PartyIs(function(e) return e.canShare == true end)
+IS.together = PartyIs(function(e) return e.together == true end)
+IS.sharable, IS.toshare, IS.common, IS.same = IS.shareable, IS.shareable, IS.together, IS.together
 KEYS.missing = function(v) return ns.Group and ns.Group.MissingFilter(v) or nil end
 KEYS.needs = KEYS.missing
 IS.notdone, IS.undone = IS.todo, IS.todo
@@ -338,7 +344,8 @@ F.VALUES = {
 		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
-		"cod", "expiring", "unread", "returned", "auction", "money", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed" },
+		"cod", "expiring", "unread", "returned", "auction", "money", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
+		"shareable", "together" },
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
@@ -381,6 +388,7 @@ F.HELP = {
 	{ "is:unknown", "@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)" },
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
 	{ "is:dead", "@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)" },
+	{ "is:shareable", "@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too" },
 	{ "is:expiring", "@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached); on:<character>" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },

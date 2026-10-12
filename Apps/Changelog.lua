@@ -13,6 +13,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.47.1", when = "in testing",
+		items = {
+			"Quests with your party: \"party quests\" (Advanced: @group quests) shows each quest in your log with who in your party is on it too; Enter shares it with the party, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line: \"On the same quests: ... I can share: ...\".",
+		},
+	},
+	{
 		v = "0.47.0", when = "released October 2026",
 		items = {
 			"Your group: @group (Simple mode: \"who is dead\", \"who needs fortitude\", \"group healers\", \"missing buffs\") shows each member's role, whether they're dead, offline or out of range, and the group's buffs they lack; Enter targets them, Shift+Enter casts your buff on them. \"@group >>> party\" sums it up in one line, and \"missing consumables\" finds who has no food or flask. In boss fights the game hides some of it, and Terminal says so.",
@@ -60,27 +66,6 @@ CL.LOG = {
 			"Fixes: chains never guess: \"mats for core leather belt\" no longer gives another recipe's mats; with no such name it offers the closest, and when several names fit it asks which. Chains also count bars you just bought, take @kinds (@recipe thorium belt > mats) and names like \"Pattern: Linen Belt\". \"upgrades\" no longer calls any +1 stat better than gear with no stats. Sending every result names everything asked for (\"Swords and axes\"), reaches whispers to first and last names, and never sends twice. A tooltip stuck on \"Retrieving item information\" fills in once the item arrives. The loot log keeps two of the same drop apart. The first Alt+` after a /reload opens in Advanced; .zen off leaves bars other addons hide alone. A click on the second line of a long prompt puts the cursor there; Shift+Enter on an equipment set lists its items as links; the mount journal points at the mount in its list.",
 		},
 	},
-	{
-		v = "0.44.0", when = "released October 2026",
-		items = {
-			"Ask in plain words: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (also \"fishing spots\", \"zones for level 35\"), \"what killed me\", \"what dropped\", \"what did bob get\". Alt+` shows any of them in Advanced form.",
-			"Chains: \"mats for thorium belt\" (with how many you have, bank and alts too), \"where to get thorium bar\", \"what uses copper bar\". Enter goes one step further, the footer shows the path, and a row sent to chat says what it is: \"Mats for Thorium Belt: 12x [Thorium Bar]\". Advanced: thorium belt > mats > alts; .chains lists them.",
-			"Experience: @xp (Simple mode: \"xp\") shows your level, experience and rested experience, and your alts' as of when you last played them, their rested topped up for the time away.",
-			"A loot log: @drop (Simple mode: Loot log) keeps what dropped (green and better) and who got it, with the boss and zone, across sessions.",
-			"@combatlog keeps your deaths and what killed you, from the game's Death Recap.",
-			"Stored items sent to chat say who holds how many: \"[Linen Cloth] x53: Alt 28 (bank), Bob 20 (bags 12, bank 8)\".",
-			"Zones show their level range, and lvl: works on zones and dungeons; fish: finds zones your fishing skill is enough for.",
-			"\"upgrades\" weighs the stats your class wants against what you wear, not just item level.",
-			"PvP NPCs: \"nearby battlemaster\", \"nearest pvp vendor\" (Advanced: is:battlemaster, is:pvpvendor).",
-			"Ctrl+click an item, spell or quest link in chat to look it up in Terminal.",
-			".zen hides the menu and bag buttons, XP bar and quest tracker (action bars and minimap stay) to play from Terminal.",
-			"Fuzzy mode's glow: breathing, steady, bright, a thin line or off, in any colour (options panel).",
-			"Simple mode keeps its footer once you start typing; @loot comes before @drop when picking a kind.",
-			"Quicker searches and tidier code; the loot list no longer rebuilds while item names come in.",
-			"Fixes: @loot now has AtlasLoot's classic dungeons and WoW Forever's own (it had only Burning Crusade's); Shift+Enter on an NPC only targets it (no map pin); a level said in a question is used; a death could go unrecorded; \"boss loot\" and \"dungeon locations\" are searches again.",
-		},
-	},
-
 }
 
 local Theme = ns.Theme

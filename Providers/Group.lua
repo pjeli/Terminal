@@ -709,11 +709,12 @@ local function ShortNames(rows)
 end
 
 --- Packs sections ({ label, items } or { text }) into chat lines of at most `LM` characters, `ML` lines; what doesn't
---- fit is counted on the last ("+3 more"). An item too long for a line of its own is cut to fit (`fit(room)`).
-local function Pack(sections, ML, LM)
+--- fit is counted on the last ("+3 more"). An item too long for a line of its own is cut to fit (`fit(room)`). Sections
+--- are joined with `between` ("  ·  "; party quests: ". ").
+local function Pack(sections, ML, LM, between)
 	local tokens = {}
 	for i, s in ipairs(sections) do
-		local sep = i > 1 and "  ·  " or ""
+		local sep = i > 1 and (between or "  ·  ") or ""
 		if s.text then
 			tokens[#tokens + 1] = { text = s.text, sep = sep }
 		else
@@ -749,6 +750,8 @@ local function Pack(sections, ML, LM)
 	end
 	return lines
 end
+GR.Pack = Pack -- (party quests' line: GroupQuests.lua)
+GR.ShortNames = ShortNames
 
 --- The group's rows as chat lines, as few words as they take: "Missing buffs: Fortitude (Cid, Bob), Mark of the Wild
 --- (everyone), Blessing (all but Ann)"; asked about: "Dead: Bob  ·  Out of range: Cid"; consumables: "Missing
