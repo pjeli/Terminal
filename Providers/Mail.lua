@@ -159,6 +159,94 @@ function MA.ReadInbox()
 end
 
 ----------------------------------------------------------------------
+-- Mail you send to your own characters: in their list at once (until they open a mailbox, which reads the real one)
+----------------------------------------------------------------------
+
+MA.KEEP_DAYS, MA.COD_DAYS = 30, 3 -- (a player's mail lasts 30 days; COD mail 3)
+MA.SEND_WAIT = 60 -- (s a send is waited on for MAIL_SEND_SUCCESS)
+
+local pendingSend
+
+-- a name as compared: lowercase, no spaces or hyphens ("Plamen Pally-Forever" = "plamenpallyforever")
+local function NameKey(s) return (Lower(s):gsub("[%s%-]", "")) end
+
+--- The note key (GUID) of your character called `name` (as typed in the To box: "Plamen Pally", "Plamen Pally-Forever"),
+--- from Terminal's own notes of your characters (their mailboxes, their experience); nil for anyone else.
+function MA.OwnKey(name)
+	local want = Str(name) and NameKey(name)
+	if not want then return nil end
+	local myKey = MyKey()
+	for _, notes in ipairs({ Boxes() or {}, ns.db and type(ns.db.xpChars) == "table" and ns.db.xpChars or {} }) do
+		for key, c in pairs(notes) do
+			if key ~= myKey and type(c) == "table" and Str(c.name) then
+				if NameKey(c.name) == want or (c.realm and NameKey(c.name .. c.realm) == want) then return key, c end
+			end
+		end
+	end
+	return nil
+end
+
+--- The mail being sent, as the send window holds it when the game's own SendMail runs (hooked): kept until the game
+--- says it went (MAIL_SEND_SUCCESS) or failed.
+function MA.OnSend(to, subject)
+	to = Str(to)
+	if not to then return nil end
+	local items = {}
+	for a = 1, (Num(_G.ATTACHMENTS_MAX_SEND) or 12) do
+		if Safe(_G.HasSendMailItem, a) == true then
+			local name, id, icon, count, quality = Safe(_G.GetSendMailItem, a)
+			if Str(name) or Num(id) then
+				items[#items + 1] = { id = Num(id), name = Str(name), count = Num(count) or 1, q = Num(quality),
+					link = Str(Safe(_G.GetSendMailItemLink, a)), icon = icon }
+			end
+		end
+	end
+	local money, cod = Num(Safe(_G.GetSendMailMoney)) or 0, Num(Safe(_G.GetSendMailCOD)) or 0
+	subject = Str(subject)
+	if not subject and items[1] then -- (the game titles an empty subject after the first item)
+		subject = (items[1].name or "?") .. ((items[1].count or 1) > 1 and (" (" .. items[1].count .. ")") or "")
+	end
+	pendingSend = { to = to, at = Now(), mail = { from = ns.CharacterName() or Str(Safe(UnitName, "player")), subject = subject,
+		money = money > 0 and money or nil, cod = cod > 0 and cod or nil, items = #items > 0 and items or nil } }
+	return pendingSend
+end
+
+--- The game sent it: into the recipient's list when it's one of your characters (a note made for one that has none yet).
+function MA.SendDone()
+	local s = pendingSend
+	pendingSend = nil
+	if not s or Now() - s.at > MA.SEND_WAIT then return nil end
+	local key, c = MA.OwnKey(s.to)
+	if not key then
+		ns:Trace("mail: sent to " .. s.to .. ", not one of your characters Terminal knows: not kept")
+		return nil
+	end
+	local boxes = Boxes()
+	local box = boxes[key]
+	if type(box) ~= "table" or type(box.mails) ~= "table" then
+		box = { name = c.name, realm = c.realm, class = c.class, mails = {} } -- (no t: never opened with Terminal)
+		boxes[key] = box
+	end
+	local m = s.mail
+	m.sent = s.at
+	m.expires = s.at + (m.cod and MA.COD_DAYS or MA.KEEP_DAYS) * 86400
+	table.insert(box.mails, 1, m)
+	while #box.mails > MA.MAX_MAILS do table.remove(box.mails) end
+	Dirty()
+	ns:Trace("mail: sent to your " .. tostring(c.name) .. ": kept in its list until it opens a mailbox")
+	return box
+end
+
+--- Hooks the game's SendMail (after it runs; the send itself stays the game's). True once hooked.
+function MA.HookSend()
+	if MA.hooked then return true end
+	if type(_G.hooksecurefunc) ~= "function" or type(_G.SendMail) ~= "function" then return false end
+	_G.hooksecurefunc("SendMail", function(to, subject) pcall(MA.OnSend, to, subject) end)
+	MA.hooked = true
+	return true
+end
+
+----------------------------------------------------------------------
 -- Rows
 ----------------------------------------------------------------------
 
@@ -351,7 +439,11 @@ local function Tooltip(e, t)
 	if inv then t:AddLine(inv, 0.8, 0.8, 0.8, true) end
 	t:AddLine(LeftText(e.left) .. ", then " .. (m.deletes and "it's deleted" .. ((m.money or m.items) and " with what's in it" or "")
 		or ("it goes back to " .. (m.from or "its sender"))), 1, 1, 1, true)
-	if not m.read then t:AddLine("Unread", 0.4, 1, 0.4) end
+	if m.sent then
+		t:AddLine(("You sent it %s; it shows here until %s opens a mailbox"):format(ns.Ago(Now() - m.sent), e.who), 0.6, 0.8, 1, true)
+	elseif not m.read then
+		t:AddLine("Unread", 0.4, 1, 0.4)
+	end
 	t:AddLine(((MA.open and e.mine) and "Enter: point at it in the inbox" or "Enter: in chat")
 		.. "    Shift+Enter: waypoint to the nearest mailbox", 0.6, 0.6, 0.6, true)
 end
@@ -364,6 +456,7 @@ local function MailRow(key, box, m, i, mine, who, now)
 	local soon = left < MA.SOON
 	local d = {}
 	if m.from then d[#d + 1] = "from " .. m.from end
+	if m.sent then d[#d + 1] = "you sent it " .. ns.Ago(now - m.sent) end
 	if m.money then d[#d + 1] = Money(m.money) end
 	if m.cod then d[#d + 1] = RED .. "COD|r " .. Money(m.cod) end
 	if m.items then
@@ -381,6 +474,7 @@ local function MailRow(key, box, m, i, mine, who, now)
 	if not m.read then words[#words + 1] = "unread new" end
 	if soon then words[#words + 1] = "expiring running out" end
 	if m.auction then words[#words + 1] = "auction ah " .. m.auction end
+	if m.sent then words[#words + 1] = "sent" end
 	words[#words + 1] = who
 	local e = {
 		key = key .. ":" .. i .. ":" .. MA.Sig(m), name = Title(m), mail = m, mailKind = "mail", boxKey = key, who = who,
@@ -409,7 +503,8 @@ local function BoxRow(key, box, mine, who, now, mails, gone, newFrom)
 	if next then d[#d + 1] = "the next in " .. MA.Left(next) end
 	if box and box.more then d[#d + 1] = "+" .. box.more .. " on the server" end
 	if newFrom then d[#d + 1] = "|cff40ff40new mail|r" end
-	if box then d[#d + 1] = GREY .. "opened " .. ns.Ago(now - (box.t or now)) .. "|r" end
+	if box and box.t then d[#d + 1] = GREY .. "opened " .. ns.Ago(now - box.t) .. "|r"
+	elseif box then d[#d + 1] = GREY .. "no mailbox opened with Terminal yet|r" end
 	if not box then d = { "|cff40ff40new mail|r", GREY .. "not opened with Terminal yet|r" } end
 	return {
 		key = "box:" .. key, name = who, who = who, mailKind = "box", boxKey = key, mine = mine or nil,
@@ -704,9 +799,14 @@ function MA.OnEvent(event, ...)
 		if MAIL_TYPE and ... == MAIL_TYPE then MA.open = false end
 	elseif event == "MAIL_INBOX_UPDATE" then
 		ReadSoon() -- (read only if the mailbox still shows then)
+	elseif event == "MAIL_SEND_SUCCESS" then
+		pcall(MA.SendDone)
+	elseif event == "MAIL_FAILED" then
+		pendingSend = nil
 	elseif event == "UPDATE_PENDING_MAIL" then
 		Dirty()
 	elseif event == "PLAYER_ENTERING_WORLD" then
+		MA.HookSend() -- (once; at load too)
 		local login = ...
 		if login and not MA.warned then
 			MA.warned = true
@@ -718,7 +818,9 @@ end
 local ev = CreateFrame("Frame")
 MA.frame = ev
 for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD",
+	"MAIL_SEND_SUCCESS", "MAIL_FAILED",
 	"PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end
 ev:SetScript("OnEvent", function(_, event, ...) MA.OnEvent(event, ...) end)
+MA.HookSend()

@@ -13,9 +13,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.3", when = "in testing",
+		v = "0.46.4", when = "in testing",
 		items = {
-			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
+			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. Mail you send to one of your own characters is in its list at once. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
 			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",
 			"Quests and spells: Enter opens your quest log or spellbook with your own key and points at the quest or spell, also as soon as you scroll or turn to it (it no longer turns to it for you: that could leave spells in the book refusing to cast). Click the quest for its details.",
 			"Dropping a quest with Shift+Enter (or >> drop) asks in Terminal's own window, as dropping several does.",

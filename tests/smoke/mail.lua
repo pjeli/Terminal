@@ -233,6 +233,79 @@ do
 	rows, said = MA.Answer(Q("my mail"))
 	check(#rows == 0 and said == MA.NONE, "nothing kept yet: says how it comes")
 
+	-- mail you send to one of your own characters: in its list at once, contents and all (the player's report on 0.46.3:
+	-- mail from Warr to Pally showed only "new mail from Plamen Warr" on Pally, its contents unknown)
+	local xpWas = ns.db.xpChars
+	ns.db.xpChars = { ["Player-1-CCC"] = { name = "Plamen Pally", realm = "Forever", class = "PALADIN", level = 20 },
+		["Player-1-AAA"] = { name = "Plamen Warr", realm = "Forever", class = "WARRIOR", level = 23 } }
+	local attached = { [1] = { "Linen Cloth", 2589, 1, 20, 1 }, [3] = { "Copper Bar", 2840, 2, 10, 1 } }
+	local sendWas = { has = _G.HasSendMailItem, get = _G.GetSendMailItem, link = _G.GetSendMailItemLink,
+		money = _G.GetSendMailMoney, cod = _G.GetSendMailCOD, send = _G.SendMail, hook = _G.hooksecurefunc, hooked = MA.hooked }
+	_G.HasSendMailItem = function(a) return attached[a] ~= nil end
+	_G.GetSendMailItem = function(a) local it = attached[a] if it then return it[1], it[2], it[3], it[4], it[5] end end
+	_G.GetSendMailItemLink = function(a) local it = attached[a] return it and ("|Hitem:" .. it[2] .. "|h[" .. it[1] .. "]|h") or nil end
+	local sendMoney, sendCod = 10000, 0
+	_G.GetSendMailMoney = function() return sendMoney end
+	_G.GetSendMailCOD = function() return sendCod end
+	-- the game's own SendMail, hooked after it runs
+	local sent = 0
+	_G.SendMail = function() sent = sent + 1 end
+	_G.hooksecurefunc = function(name, fn)
+		local orig = _G[name]
+		_G[name] = function(...) orig(...); fn(...) end
+	end
+	MA.hooked = nil
+	check(MA.HookSend() and MA.HookSend(), "SendMail hooked, once")
+	check(MA.OwnKey("Plamen Pally") == "Player-1-CCC" and MA.OwnKey("plamen pally-Forever") == "Player-1-CCC" and MA.OwnKey("Bob") == nil
+		and MA.OwnKey("Plamen Warr") == nil, "your characters by name (with or without the realm); not you, not others")
+	local onSendWas, onSends = MA.OnSend, 0
+	MA.OnSend = function(...) onSends = onSends + 1; return onSendWas(...) end
+	_G.SendMail("Plamen Pally", "", "")
+	MA.OnSend = onSendWas
+	check(sent == 1 and onSends == 1, "the game's send still runs; Terminal notes it once: " .. onSends)
+	check(next(ns.db.mailboxes) == nil, "nothing kept before the game says it went")
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	local pally = ns.db.mailboxes["Player-1-CCC"]
+	local m = pally and pally.mails[1]
+	check(m and m.from == "Plamen Warr" and m.subject == "Linen Cloth (20)" and m.money == 10000 and #m.items == 2 and m.sent == now
+		and m.expires == now + 30 * DAY and not m.deletes and pally.t == nil,
+		"sent to Pally: its list has it, from you, titled after the first item, gold and both items, 30 days")
+	P._dirty = true
+	res = UI:Search("@mail pally")
+	local box2, row2
+	for _, e in ipairs(res) do if e.mailKind == "box" then box2 = e elseif e.mailKind == "mail" then row2 = e end end
+	check(box2 and box2.detail:find("no mailbox opened with Terminal yet", 1, true) and row2 and row2.detail:find("you sent it", 1, true)
+		and row2.detail:find("2 items", 1, true), "Pally's mailbox and the mail sent: " .. tostring(row2 and row2.detail))
+	-- COD: 3 days; a failed send isn't kept; mail to someone else isn't kept
+	sendMoney, sendCod = 0, 5000
+	MA.OnSend("Plamen Pally", "Pay up")
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	check(pally.mails[1].subject == "Pay up" and pally.mails[1].cod == 5000 and pally.mails[1].expires == now + 3 * DAY, "COD mail: 3 days")
+	MA.OnSend("Plamen Pally", "Lost")
+	MA.OnEvent("MAIL_FAILED")
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	local traceWas, traced = ns.Trace, {}
+	ns.Trace = function(self, t) traced[#traced + 1] = t; return traceWas(self, t) end
+	MA.OnSend("Bob", "For Bob")
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	ns.Trace = traceWas
+	check(traced[#traced] == "mail: sent to Bob, not one of your characters Terminal knows: not kept", "mail to someone else: said in the trace")
+	check(#pally.mails == 2 and ns.db.mailboxes["Player-1-BBB"] == nil, "a failed send and mail to others: not kept")
+	-- Pally opens a mailbox: the real inbox replaces what was sent
+	_G.UnitGUID = function() return "Player-1-CCC" end
+	ns.CharacterName = function() return "Plamen Pally" end
+	inbox = { { "Plamen Warr", "Linen Cloth (20)", 10000, 0, 30, 2, false, false, false, items = { { "Linen Cloth", 2589, 1, 20, 1 } } } }
+	MA.OnEvent("MAIL_SHOW")
+	MA.OnEvent("MAIL_INBOX_UPDATE")
+	FlushAll()
+	MA.OnEvent("MAIL_CLOSED")
+	check(#ns.db.mailboxes["Player-1-CCC"].mails == 1 and not ns.db.mailboxes["Player-1-CCC"].mails[1].sent
+		and ns.db.mailboxes["Player-1-CCC"].t == now,
+		"Pally's mailbox read: the inbox as it is replaces the sent copies")
+	_G.HasSendMailItem, _G.GetSendMailItem, _G.GetSendMailItemLink = sendWas.has, sendWas.get, sendWas.link
+	_G.GetSendMailMoney, _G.GetSendMailCOD, _G.SendMail, _G.hooksecurefunc, MA.hooked = sendWas.money, sendWas.cod, sendWas.send, sendWas.hook, sendWas.hooked
+	ns.db.xpChars = xpWas
+
 	_G.UnitGUID, _G.UnitClass, _G.GetRealmName, _G.time = save.guid, save.cls, save.realm, save.time
 	ns.db.mailboxes, ns.db.mailWarn, ns.Output, ns.Print, ns.db.easyMode = save.boxes, save.warn, save.out, save.print, save.easy
 	_G.GetInboxNumItems, _G.GetInboxHeaderInfo, _G.GetInboxItem, _G.GetInboxItemLink = save.n, save.head, save.item, save.ilink
