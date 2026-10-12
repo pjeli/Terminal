@@ -329,6 +329,13 @@ do
 	now = now + 100
 	MA.OnEvent("MAIL_SEND_SUCCESS")
 	check(ns.db.mailSent["Player-1-AAA"][1].mail.subject == "Second", "confirm, MAIL_FAILED, then sent 100 s later: kept")
+	-- 0.47.6 (the player's log: an item to Cai Te went through 101 s after SendMail, no confirmation, no failure)
+	MA.OnSend("Cai Te", "Slow")
+	now = now + 101
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	check(ns.db.mailSent["Player-1-AAA"][1].mail.subject == "Slow", "sent 101 s after SendMail: kept")
+	table.remove(ns.db.mailSent["Player-1-AAA"], 1)
+	now = now - 101
 	MA.OnSend("Cai Te", "Third")
 	MA.OnEvent("SECURE_TRANSFER_CONFIRM_SEND_MAIL")
 	MA.OnEvent("SECURE_TRANSFER_CANCEL")

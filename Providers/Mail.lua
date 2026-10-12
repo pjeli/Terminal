@@ -171,8 +171,11 @@ end
 ----------------------------------------------------------------------
 
 MA.KEEP_DAYS, MA.COD_DAYS = 30, 3 -- (a player's mail lasts 30 days; COD mail 3)
-MA.SEND_WAIT = 60 -- (s a send is waited on for MAIL_SEND_SUCCESS)
-MA.CONFIRM_WAIT = 300 -- (s when the game asks you to confirm sending gold or items to someone not your own)
+-- (s a send is waited on for MAIL_SEND_SUCCESS: 0.47.6, the player's log: mail with an item to "Cai Te" went through
+-- 101 s after the game's SendMail, with no confirmation and no failure between; 60 s dropped it. A new send replaces the
+-- one waited on, so a long wait takes nothing else for it)
+MA.SEND_WAIT = 900
+MA.CONFIRM_WAIT = 900 -- (s when the game asks you to confirm sending gold or items to someone not your own)
 
 local pendingSend
 
