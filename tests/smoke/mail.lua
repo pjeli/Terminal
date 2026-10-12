@@ -314,6 +314,34 @@ do
 	-- takes between accounts), and the auction house's news (sold, won, outbid, expired), a sale with its price
 	_G.UnitGUID = function() return "Player-1-AAA" end
 	ns.CharacterName = function() return "Plamen Warr" end
+	-- 0.47.5 (the player: mail to "Cai Te" not kept, no trace): gold or items to someone not your own wait on the game's
+	-- confirmation (SECURE_TRANSFER_CONFIRM_SEND_MAIL); a MAIL_FAILED before or after it doesn't drop the send
+	MA.OnSend("Cai Te", "Gift")
+	MA.OnEvent("MAIL_FAILED")
+	MA.OnEvent("SECURE_TRANSFER_CONFIRM_SEND_MAIL")
+	now = now + 30
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	local cai = ns.db.mailSent and ns.db.mailSent["Player-1-AAA"] and ns.db.mailSent["Player-1-AAA"][1]
+	check(cai and cai.to == "Cai Te" and cai.mail.subject == "Gift", "confirmed after MAIL_FAILED, sent 30 s later: kept")
+	MA.OnSend("Cai Te", "Second")
+	MA.OnEvent("SECURE_TRANSFER_CONFIRM_SEND_MAIL")
+	MA.OnEvent("MAIL_FAILED")
+	now = now + 100
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	check(ns.db.mailSent["Player-1-AAA"][1].mail.subject == "Second", "confirm, MAIL_FAILED, then sent 100 s later: kept")
+	MA.OnSend("Cai Te", "Third")
+	MA.OnEvent("SECURE_TRANSFER_CONFIRM_SEND_MAIL")
+	MA.OnEvent("SECURE_TRANSFER_CANCEL")
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	check(ns.db.mailSent["Player-1-AAA"][1].mail.subject == "Second", "cancelled: not kept")
+	local traceWas2, traced2 = ns.Trace, {}
+	ns.Trace = function(self, t) traced2[#traced2 + 1] = t; return traceWas2(self, t) end
+	MA.OnEvent("MAIL_SEND_SUCCESS")
+	ns.Trace = traceWas2
+	check(traced2[#traced2] and traced2[#traced2]:find("none was noted", 1, true), "a send with nothing noted before it: traced")
+	table.remove(ns.db.mailSent["Player-1-AAA"], 1)
+	table.remove(ns.db.mailSent["Player-1-AAA"], 1)
+	now = now - 130
 	local sentList = ns.db.mailSent and ns.db.mailSent["Player-1-AAA"]
 	check(sentList and sentList[1] and sentList[1].to == "Bob" and sentList[1].mail.subject == "For Bob" and sentList[1].at == now,
 		"mail to Bob: kept on your list")

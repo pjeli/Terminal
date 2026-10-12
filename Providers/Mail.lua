@@ -172,6 +172,7 @@ end
 
 MA.KEEP_DAYS, MA.COD_DAYS = 30, 3 -- (a player's mail lasts 30 days; COD mail 3)
 MA.SEND_WAIT = 60 -- (s a send is waited on for MAIL_SEND_SUCCESS)
+MA.CONFIRM_WAIT = 300 -- (s when the game asks you to confirm sending gold or items to someone not your own)
 
 local pendingSend
 
@@ -216,14 +217,37 @@ function MA.OnSend(to, subject)
 	end
 	pendingSend = { to = to, at = Now(), mail = { from = ns.CharacterName() or Str(Safe(UnitName, "player")), subject = subject,
 		money = money > 0 and money or nil, cod = cod > 0 and cod or nil, items = #items > 0 and items or nil } }
+	ns:Trace(("mail: sending to %s (%d items, %s): waiting for the game to say it went"):format(to, #items, Money(money, true)))
 	return pendingSend
+end
+
+--- The game asks you to confirm gold or items going to someone not your own (SECURE_TRANSFER_CONFIRM_SEND_MAIL: its
+--- secure dialog sends it when you accept): the send waits longer, and a MAIL_FAILED meanwhile doesn't drop it.
+function MA.SendConfirming()
+	if not pendingSend then return end
+	pendingSend.confirm, pendingSend.failed = true, nil
+	ns:Trace("mail: the game asks you to confirm sending to " .. pendingSend.to .. " (gold or items to someone not your own)")
+end
+
+--- MAIL_FAILED: the send didn't go, unless a confirmation comes or came (0.47.5, the player: mail to "Cai Te" not
+--- kept, no trace at all: dropping the send at MAIL_FAILED lost one the game then sent once you'd confirmed it).
+function MA.SendFailed()
+	if not pendingSend then return end
+	pendingSend.failed = true
+	ns:Trace("mail: the game said the send failed" .. (pendingSend.confirm and " (a confirmation is open: kept)" or ""))
 end
 
 --- The game sent it: into the recipient's list when it's one of your characters (a note made for one that has none yet).
 function MA.SendDone()
 	local s = pendingSend
 	pendingSend = nil
-	if not s or Now() - s.at > MA.SEND_WAIT then return nil end
+	if not s then ns:Trace("mail: a send went through, but none was noted before it (the game's SendMail wasn't seen)") return nil end
+	local age = Now() - s.at
+	if age > (s.confirm and MA.CONFIRM_WAIT or MA.SEND_WAIT) then
+		ns:Trace(("mail: a send went through %d s after the one noted (to %s): not taken for it"):format(age, s.to))
+		return nil
+	end
+	if s.failed and not s.confirm then ns:Trace("mail: the send noted had failed: not kept") return nil end
 	local key, c = MA.OwnKey(s.to)
 	if not key then return MA.KeepSent(s) end -- (anyone else: kept an hour, as on its way)
 	local boxes = Boxes()
@@ -248,6 +272,7 @@ function MA.HookSend()
 	if type(_G.hooksecurefunc) ~= "function" or type(_G.SendMail) ~= "function" then return false end
 	_G.hooksecurefunc("SendMail", function(to, subject) pcall(MA.OnSend, to, subject) end)
 	MA.hooked = true
+	ns:Trace("mail: the game's SendMail hooked (mail you send is noted)")
 	return true
 end
 
@@ -1158,7 +1183,14 @@ function MA.OnEvent(event, ...)
 	elseif event == "MAIL_SEND_SUCCESS" then
 		pcall(MA.SendDone)
 	elseif event == "MAIL_FAILED" then
-		pendingSend = nil
+		MA.SendFailed()
+	elseif event == "SECURE_TRANSFER_CONFIRM_SEND_MAIL" then
+		MA.SendConfirming()
+	elseif event == "SECURE_TRANSFER_CANCEL" then
+		if pendingSend and pendingSend.confirm then
+			ns:Trace("mail: the send to " .. pendingSend.to .. " was cancelled")
+			pendingSend = nil
+		end
 	elseif event == "UPDATE_PENDING_MAIL" then
 		Dirty()
 	elseif event == "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION" then
@@ -1189,7 +1221,8 @@ end
 local ev = CreateFrame("Frame")
 MA.frame = ev
 for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD",
-	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",
+	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "SECURE_TRANSFER_CONFIRM_SEND_MAIL", "SECURE_TRANSFER_CANCEL",
+	"AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",
 	"AUCTION_HOUSE_AUCTION_CREATED", "OWNED_AUCTIONS_UPDATED",
 	"PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do
 	pcall(ev.RegisterEvent, ev, e)
