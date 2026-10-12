@@ -100,6 +100,42 @@ do -- moving the selection repaints only the selection, not every row; the toolt
 	check(heard.GET_ITEM_INFO_RECEIVED, "(back on it: waiting again)")
 	UI:Hide()
 	check(not heard.GET_ITEM_INFO_RECEIVED and not heard.ITEM_DATA_LOAD_RESULT, "the tooltip put away: not heard")
+	-- (0.46.15) a spell (another class's talent) whose text isn't in yet ("Improved Frostbolt  Passive"): asked for, and
+	-- the tooltip drawn again once it is; its kind's events heard only while waiting
+	local CS = C_Spell
+	local cachedSpell, descSpell, reqSpell = CS.IsSpellDataCached, CS.GetSpellDescription, CS.RequestLoadSpellData
+	local spellIn, spellAsks = false, 0
+	CS.IsSpellDataCached = function() return true end
+	CS.GetSpellDescription = function() return spellIn and "Increases the damage of your Frostbolt." or "" end
+	CS.RequestLoadSpellData = function() spellAsks = spellAsks + 1 end
+	C_Item.IsItemDataCachedByID = function() return true end
+	local frost = { name = "Improved Frostbolt", kind = "talents", key = "MAGE:1", spellID = 16763,
+		getLink = function() return "|cff71d5ff|Hspell:16763:0|h[Improved Frostbolt]|h|r" end }
+	UI:Hide(); T.FlushAll()
+	UI:Open("hearthstone")
+	UI.results, UI.sel = { frost }, 1
+	sets = 0
+	UI:UpdateTooltip()
+	check(sets == 1 and tt.waitKind == "spell" and tt.waitID == 16763 and spellAsks == 1 and heard.SPELL_DATA_LOAD_RESULT
+		and heard.SPELL_TEXT_UPDATE and not heard.GET_ITEM_INFO_RECEIVED, "a spell whose text isn't in: shown, asked for, waited on")
+	w.scripts.OnEvent(w, "SPELL_TEXT_UPDATE", 999)
+	check(sets == 1 and tt.waitID == 16763, "another spell's text: nothing redrawn")
+	spellIn = true
+	w.scripts.OnEvent(w, "SPELL_TEXT_UPDATE", 16763)
+	check(sets == 2 and tt.waitID == nil and not heard.SPELL_TEXT_UPDATE, "its text in: drawn again (" .. sets .. "), not heard any more")
+	-- no event: the retries see it come in
+	spellIn = false
+	tt.entry = nil; UI:UpdateTooltip()
+	spellIn = true
+	T.FlushAll()
+	check(sets == 4 and tt.waitID == nil, "no event, the retries see it in: drawn again (" .. sets .. ")")
+	-- already in: nothing waited on
+	sets = 0
+	tt.entry = nil; UI:UpdateTooltip()
+	check(sets == 1 and tt.waitID == nil and spellAsks == 2, "already in: not waited on, not asked: " .. spellAsks)
+	CS.IsSpellDataCached, CS.GetSpellDescription, CS.RequestLoadSpellData = cachedSpell, descSpell, reqSpell
+	UI.results, UI.sel = resWas, selWas
+	UI:Hide()
 	w.RegisterEvent, w.UnregisterEvent = nil, nil
 	C_Item.RequestLoadItemDataByID = reqWas
 	C_Item.IsItemDataCachedByID = cachedWas

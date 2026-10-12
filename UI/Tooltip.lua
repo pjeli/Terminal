@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 
 -- The selected row's tooltip (TerminalTooltip) beside the terminal: the entry's own drawing, its link or its tip
--- text; an item the client hasn't loaded yet is drawn again once its data comes. Split out of UI.lua.
+-- text; an item or spell the client hasn't loaded yet is drawn again once its data comes. Split out of UI.lua.
 
 local UI = ns.UI
 local Theme = ns.Theme
@@ -119,28 +119,63 @@ end
 -- id) redraws it; the server may drop an ask, so it's asked again every TIP_RETRY s, TIP_TRIES times. An item the
 -- server says it doesn't have isn't asked for again for TIP_FAILED s (it answered at once, and every answer redrew
 -- and asked again: an ask a few times a second while the row stayed selected).
+-- A spell is the same (0.46.15, the player: another class's talent showed only "Improved Frostbolt  Passive" until
+-- you moved away and back): its data or its text not in yet (C_Spell.IsSpellDataCached false, or an empty
+-- C_Spell.GetSpellDescription) is asked for (RequestLoadSpellData) and the tooltip drawn again once it is
+-- (SPELL_DATA_LOAD_RESULT / SPELL_TEXT_UPDATE for that spell, or the same retries).
 UI.TIP_RETRY, UI.TIP_TRIES, UI.TIP_FAILED = 0.6, 8, 60
 do
-	local waiter, waitGen, listening = nil, 0, false
-	local failed, failedN = {}, 0 -- item id -> when the server said it has no such item
-	-- (the item-data events fire for everything in the game: heard only while a tooltip waits on an item)
-	local function Listen(on)
-		if not waiter or listening == on then return end
-		listening = on
-		local f = on and waiter.RegisterEvent or waiter.UnregisterEvent
-		pcall(f, waiter, "GET_ITEM_INFO_RECEIVED")
-		pcall(f, waiter, "ITEM_DATA_LOAD_RESULT")
+	local waiter, waitGen, listening = nil, 0, nil
+	local failed, failedN = {}, 0 -- "kind:id" -> when the server said it has no such item or spell
+	-- (these events fire for everything in the game: heard only while a tooltip waits on one, and only its kind's)
+	local EVENTS = {
+		item = { "GET_ITEM_INFO_RECEIVED", "ITEM_DATA_LOAD_RESULT" },
+		spell = { "SPELL_DATA_LOAD_RESULT", "SPELL_TEXT_UPDATE" },
+	}
+	local KIND_OF = {}
+	for kind, list in pairs(EVENTS) do for _, ev in ipairs(list) do KIND_OF[ev] = kind end end
+	local function Listen(kind) -- (nil: none)
+		if not waiter or listening == kind then return end
+		if listening then for _, ev in ipairs(EVENTS[listening]) do pcall(waiter.UnregisterEvent, waiter, ev) end end
+		listening = kind
+		if kind then for _, ev in ipairs(EVENTS[kind]) do pcall(waiter.RegisterEvent, waiter, ev) end end
 	end
-	local function ItemOfTip(e, link)
+	--- What the tooltip shows that may still be loading: "item", id or "spell", id; nil for anything else.
+	local function DataOfTip(e, link)
 		local id = tonumber(e.itemID)
 		if not id and type(link) == "string" then id = tonumber(link:match("item:(%d+)")) end
-		return id
+		if id then return "item", id end
+		if type(link) == "string" then
+			id = tonumber(link:match("spell:(%d+)"))
+			if id then return "spell", id end
+		end
 	end
-	local function Cached(id)
+	local function ItemCached(id)
 		local f = C_Item and C_Item.IsItemDataCachedByID
 		if not f then return true end -- (no way to tell: nothing to wait for)
 		local ok, yes = pcall(f, id)
 		return not ok or yes ~= false
+	end
+	local function SpellLoaded(id)
+		local S = C_Spell
+		if not S then return true end
+		if S.IsSpellDataCached then
+			local ok, yes = pcall(S.IsSpellDataCached, id)
+			if ok and yes == false then return false end
+		end
+		if S.GetSpellDescription then
+			local ok, d = pcall(S.GetSpellDescription, id)
+			if ok and d == "" and not ns.Secret(d) then return false end -- (its text: asked for along with its data)
+		end
+		return true
+	end
+	local function Loaded(kind, id) if kind == "spell" then return SpellLoaded(id) end return ItemCached(id) end
+	local function Ask(kind, id)
+		if kind == "spell" then
+			if C_Spell and C_Spell.RequestLoadSpellData then pcall(C_Spell.RequestLoadSpellData, id) end
+		elseif C_Item and C_Item.RequestLoadItemDataByID then
+			pcall(C_Item.RequestLoadItemDataByID, id)
+		end
 	end
 	local function Redraw(t, e)
 		if t.entry ~= e or not t:IsShown() then return false end
@@ -149,46 +184,50 @@ do
 		return true
 	end
 	local function Now() return GetTime and GetTime() or 0 end
-	--- No tooltip waits on an item any more (the tooltip hidden): nothing heard.
+	--- No tooltip waits on anything any more (the tooltip hidden): nothing heard.
 	function UI.StopTipWait(t)
-		if t then t.waitID = nil end
-		Listen(false)
+		if t then t.waitID, t.waitKind = nil, nil end
+		Listen(nil)
+	end
+
+	local function OnEvent(_, event, got, ok)
+		local tip = Tip()
+		local kind = KIND_OF[event]
+		if not (kind and got and tip.waitKind == kind and tip.waitID == got and tip.entry) then return end
+		if ok == false then -- (the server has no such item or spell: nothing more to wait for)
+			if failedN > 500 then failed, failedN = {}, 0 end
+			local k = kind .. ":" .. got
+			if not failed[k] then failedN = failedN + 1 end
+			failed[k] = Now()
+			UI.StopTipWait(tip)
+			return
+		end
+		if not Loaded(kind, got) then return end -- (not in yet: the timer keeps watching)
+		UI.StopTipWait(tip)
+		Redraw(tip, tip.entry)
 	end
 
 	function UI.WaitForTipItem(t, e, link)
 		waitGen = waitGen + 1
 		UI.StopTipWait(t)
-		local id = ItemOfTip(e, link)
-		if not id or Cached(id) then return end
-		if failed[id] and Now() - failed[id] < UI.TIP_FAILED then return end
-		t.waitID = id
+		local kind, id = DataOfTip(e, link)
+		if not id or Loaded(kind, id) then return end
+		if failed[kind .. ":" .. id] and Now() - failed[kind .. ":" .. id] < UI.TIP_FAILED then return end
+		t.waitID, t.waitKind = id, kind
 		if not waiter then
 			waiter = CreateFrame("Frame")
 			UI.tipWaiter = waiter -- (tests)
-			waiter:SetScript("OnEvent", function(_, _, got, ok)
-				local tip = Tip()
-				if not (got and tip.waitID == got and tip.entry) then return end
-				if ok == false then -- (the server has no such item: nothing more to wait for)
-					if failedN > 500 then failed, failedN = {}, 0 end
-					if not failed[got] then failedN = failedN + 1 end
-					failed[got] = Now()
-					UI.StopTipWait(tip)
-					return
-				end
-				if not Cached(got) then return end -- (not in yet: the timer keeps watching)
-				UI.StopTipWait(tip)
-				Redraw(tip, tip.entry)
-			end)
+			waiter:SetScript("OnEvent", OnEvent)
 		end
-		Listen(true)
-		if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+		Listen(kind)
+		Ask(kind, id)
 		local gen, tries = waitGen, 0
 		local function Again()
 			if gen ~= waitGen or t.waitID ~= id then return end
 			tries = tries + 1
-			if Cached(id) then UI.StopTipWait(t) Redraw(t, e) return end
+			if Loaded(kind, id) then UI.StopTipWait(t) Redraw(t, e) return end
 			if tries >= UI.TIP_TRIES then return end
-			if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+			Ask(kind, id)
 			C_Timer.After(UI.TIP_RETRY, Again)
 		end
 		C_Timer.After(UI.TIP_RETRY, Again)
