@@ -1127,35 +1127,92 @@ do
 	UI:Hide(); T.FlushAll()
 end
 
--- .zen: the game's bars made invisible (alpha 0), never hidden; back as they were (0.43.9)
+-- .zen (0.46.5, the player's call; was: the game's bars made invisible for good, 0.43.9): while Terminal is open the
+-- rest of the interface fades away (UIParent's alpha; Terminal's frames ignore it) and the screen dims; closing brings
+-- it back smoothly, combat at once
 do
-	local Zen = ns.Zen
-	local bar, menu, bags = CreateFrame("Frame"), CreateFrame("Frame"), CreateFrame("Frame")
-	menu:SetAlpha(0.8); bar:Show()
-	bags:SetAlpha(0) -- (kept invisible by another addon)
-	local saveHook = _G.hooksecurefunc
-	_G.hooksecurefunc = function(t, name, fn)
-		local orig = t[name]
-		t[name] = function(...) local r = orig(...) fn(...) return r end
-	end
-	local actions, minimap = CreateFrame("Frame"), CreateFrame("Frame")
-	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster, _G.BagsBar = bar, menu, actions, minimap, bags
-	local out = ns:FindCommand("zen").run("")
-	check(actions:GetAlpha() == 1 and minimap:GetAlpha() == 1, ".zen keeps the action bars and the minimap up (0.43.20)")
-	for _, name in ipairs(Zen.KEEP) do
-		for _, f in ipairs(Zen.FRAMES) do check(f ~= name, ".zen never hides " .. name) end
-	end
-	check(ns.db.zen == true and bar:GetAlpha() == 0 and menu:GetAlpha() == 0 and bar:IsShown(), ".zen: bars invisible, still shown")
-	check(out[1]:find("hidden", 1, true), ".zen says what it did: " .. tostring(out[1]))
-	bar:SetAlpha(1) -- (the game fading a bar back in)
-	check(bar:GetAlpha() == 0, ".zen: a bar the game fades in goes out again")
+	local Zen, P = ns.Zen, _G.UIParent
+	local alphaWas, animWas, combatWas = P:GetAlpha(), ns.Theme.Animation, _G.InCombatLockdown
+	local kidsWas, numWas = rawget(P, "GetChildren"), rawget(P, "GetNumChildren")
+	P:SetAlpha(0.9)
+	local mine, theirs = CreateFrame("Frame"), CreateFrame("Frame")
+	mine.__name, theirs.__name = "TerminalSomethingNew", "ChatFrame1"
+	local ign = {}
+	local function Track(f) f.SetIgnoreParentAlpha = function(self, v) ign[self] = v end end
+	Track(UI.frame); Track(mine); Track(theirs)
+	P.GetChildren = function() return UI.frame, mine, theirs end
+	P.GetNumChildren = function() return 3 end
+	_G.InCombatLockdown = function() return false end
+	local out = ns:FindCommand("zen").run("on")
+	check(ns.db.zen == true and out[1]:find("fades away", 1, true) and P:GetAlpha() == 0.9 and not Zen.active,
+		".zen on: nothing changes until Terminal opens: " .. tostring(out[1]))
+	local function Step(dt) local f = Zen.driver.scripts.OnUpdate if f then f(Zen.driver, dt) end end
+	UI:Open()
+	check(Zen.active and ign[UI.frame] == true and ign[mine] == true and ign[theirs] == nil,
+		"opened: Terminal's frames keep their own alpha (any named Terminal...), the rest of the interface doesn't")
+	Step(0.1)
+	check(P:GetAlpha() < 0.9 and P:GetAlpha() > 0 and Zen.dim:IsShown(), "fading away: " .. P:GetAlpha())
+	Step(1)
+	check(P:GetAlpha() == 0 and math.abs(Zen.dim:GetAlpha() - Zen.DIM) < 1e-6 and Zen.driver.scripts.OnUpdate == nil,
+		"faded away, the screen dimmed, and nothing runs once it's there")
+	-- closing: back smoothly, to exactly what it was
+	UI:HideNow()
+	UI.frame.scripts.OnHide(UI.frame) -- (the game fires OnHide)
+	T.FlushAll()
+	check(Zen.driver.scripts.OnUpdate ~= nil and P:GetAlpha() == 0, "closed: the fade back starts")
+	Step(0.3)
+	check(P:GetAlpha() > 0 and P:GetAlpha() < 0.9, "coming back: " .. P:GetAlpha())
+	Step(1)
+	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil,
+		"back as it was (0.9), the dimming gone: " .. P:GetAlpha())
+	-- one of Terminal's apps in its place: still Terminal; back once it closes
+	local apps = ns.Panel.Registered()
+	local appShown = true
+	local app = { IsShown = function() return appShown end, Close = function() appShown = false end }
+	apps[#apps + 1] = app
+	UI:Open(); Step(1)
+	UI:HideNow(); Zen.Closed()
+	T.Flush(); T.Flush()
+	Step(1)
+	check(Zen.active and P:GetAlpha() == 0, "an app took Terminal's place: the interface stays faded")
+	appShown = false
+	T.FlushAll()
+	Step(1)
+	check(not Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9, "the app closed: the interface comes back")
+	table.remove(apps)
+	-- combat: back at once; Terminal opened in combat leaves the interface alone
+	UI:Open(); Step(1)
+	Zen.OnEvent("PLAYER_REGEN_DISABLED")
+	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active, "combat: the interface is back at once")
+	UI:HideNow(); T.FlushAll()
+	_G.InCombatLockdown = function() return true end
+	UI:Open()
+	check(not Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9, "opened in combat: the interface is left alone")
+	UI:HideNow(); T.FlushAll()
+	_G.InCombatLockdown = function() return false end
+	-- animations off: at once; .zen off while faded: back at once
+	ns.Theme.Animation = function() return nil end
+	UI:Open()
+	check(P:GetAlpha() == 0 and Zen.active, "animations off: faded at once")
 	ns:FindCommand("hideui").run("off")
-	check(ns.db.zen == false and bar:GetAlpha() == 1 and math.abs(menu:GetAlpha() - 0.8) < 0.001, ".zen off: back as they were")
-	check(bags:GetAlpha() == 0, ".zen off: a bar another addon kept invisible stays so (0.44.10)")
-	bar:SetAlpha(0.5)
-	check(bar:GetAlpha() == 0.5, "off: the game's own fading works again")
-	_G.ObjectiveTrackerFrame, _G.MicroMenuContainer, _G.MainActionBar, _G.MinimapCluster, _G.hooksecurefunc = nil, nil, nil, nil, saveHook
-	_G.BagsBar = nil
+	check(ns.db.zen == false and math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.active, ".zen off while faded: back at once")
+	UI:HideNow(); T.FlushAll()
+	UI:Open()
+	check(not Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9, ".zen off: opening changes nothing")
+	UI:HideNow(); T.FlushAll()
+	-- a client that can't keep Terminal up while its parent fades: only the screen dims
+	ns.db.zen = true
+	P.SetIgnoreParentAlpha = false
+	UI:Open()
+	check(Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9 and Zen.dim:IsShown(), "no SetIgnoreParentAlpha: only the dimming")
+	UI:HideNow(); UI.frame.scripts.OnHide(UI.frame); T.FlushAll()
+	check(not Zen.active and not Zen.dim:IsShown(), "and back")
+	P.SetIgnoreParentAlpha = nil
+	ns.db.zen = nil
+	ns.Theme.Animation, _G.InCombatLockdown = animWas, combatWas
+	P.GetChildren, P.GetNumChildren = kidsWas, numWas
+	P:SetAlpha(alphaWas)
+	UI.frame.SetIgnoreParentAlpha = nil
 end
 
 -- a stored item sent to chat says who holds how many (0.43.27): >> party, the menu's chat lines, a chain's "> alts"

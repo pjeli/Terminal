@@ -129,6 +129,7 @@ do
 			UI:HideTooltip()
 			UI:Disarm()
 			LetGo()
+			if ns.Zen then ns.Zen.Closed() end -- (.zen: the interface comes back, unless one of Terminal's apps took its place)
 			-- closed by the game (a window it opened, Esc): the click catcher and the row menu go too, a frame later (a
 			-- click on either may be what's closing it, and its PostClick still needs its entry to finish)
 			C_Timer.After(0, function()
@@ -800,6 +801,7 @@ function UI:Open(text)
 	self.snapNext = true
 	self:FitHeight(text or "")
 	frame:Show()
+	if ns.Zen then ns.Zen.Opened() end -- (.zen: the rest of the interface fades, the screen dims)
 	self:StartOpen(reopening)
 	self.snapNext = true -- opens at the right size; it grows and shrinks from there
 	self.opening = true -- (the rows still come in with the style)
