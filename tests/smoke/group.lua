@@ -134,6 +134,67 @@ do
 		"sent to chat: " .. tostring(ns.Share.Line(cid)))
 	known[1243] = nil
 
+	-- every result at once (0.46.10, the player: "@group >>> party" should list the missing buffs as concisely as
+	-- possible): said once per buff, "everyone" / "all but X" of the whole group, dead and offline left out
+	local SH = ns.Share
+	local function Lines(q) return SH.GroupLines(UI:Search(q), q) end
+	local l = Lines("@group")
+	check(#l == 1 and l[1] == "Missing buffs: Fortitude (Cid), Intellect (Cid), Mark of the Wild (Plamen), Blessing (all but Ann)",
+		"@group >>> party: one line, per buff: " .. tostring(l[1]))
+	check(Lines("@group is:dead")[1] == "Dead: Bob" and Lines("@group is:dead|far")[1] == "Dead: Bob  ·  Out of range: Cid"
+		and Lines("@group is:healer")[1] == "Healers: Ann", "asked about: who, said once: " .. tostring(Lines("@group is:dead")[1])
+		.. " / " .. tostring(Lines("@group is:dead|far")[1]) .. " / " .. tostring(Lines("@group is:healer")[1]))
+	check(Lines("@group missing:fortitude")[1] == "Missing buffs: Fortitude (Cid)", "missing:fortitude: " .. tostring(Lines("@group missing:fortitude")[1]))
+	check(SH.GroupLines(UI:Search("who needs fortitude"), "who needs fortitude")[1] == "Missing buffs: Fortitude (Cid)", "asked in words")
+	check(Lines("@group plamen missing:blessing")[1] == "Missing buffs: Blessing (Plamen)",
+		"a name narrows it: only Plamen, not \"all but Ann\": " .. tostring(Lines("@group plamen missing:blessing")[1]))
+	check(Lines("@group missing:kings")[1] == "Missing buffs: kings (all but Ann)", "a buff by name: " .. tostring(Lines("@group missing:kings")[1]))
+	local all = UI:Search("@group")
+	local group = SH.GroupRows(all)
+	check(SH.GroupHeader(group, "@group") == l[1], ">>> collapsed: the row says what goes")
+	local press = SH.PressLine(all, { cmd = "/s", chat = "SAY" }, "@group")
+	check(press == "/s " .. l[1], "say: one line the game presses: " .. tostring(press))
+	-- consumables: only when asked
+	M.party1.buffs[#M.party1.buffs + 1] = "Well Fed"
+	M.party1.buffs[#M.party1.buffs + 1] = "Elixir of the Mongoose"
+	M.player.buffs[#M.player.buffs + 1] = "Greater Agility"
+	P._dirty = true
+	check(L("@group missing:consumables") == 2 and L("@group missing:food") == 2 and L("@group missing:elixir") == 1,
+		"missing:consumables / food / elixir")
+	check(Lines("@group missing:consumables")[1] == "Missing consumables: food (all but Ann), flask or elixir (Cid)",
+		"consumables to chat: " .. tostring(Lines("@group missing:consumables")[1]))
+	check(A("missing consumables") == "Plamen Warr,Cid" and A("who needs food") == "Plamen Warr,Cid" and A("who needs flask") == "Cid",
+		"asked in words: consumables, food, a flask: " .. A("missing consumables") .. " / " .. A("who needs food") .. " / " .. A("who needs flask"))
+	check(ns.Easy.QuestionToAdvanced("missing consumables") == "@group missing:consumables " and ns.Easy.QuestionToAdvanced("who needs food")
+		== "@group missing:food ", "Alt+`: missing:consumables / missing:food")
+	check(not Lines("@group")[1]:find("food", 1, true), "plain @group: buffs only, no consumables")
+	local tipLines = {}
+	local fakeTip = { SetText = function() end, AddLine = function(_, s2) tipLines[#tipLines + 1] = s2 end, AddDoubleLine = function() end }
+	local annRow
+	for _, e in ipairs(UI:Search("@group")) do if e.name == "Ann" then annRow = e end end
+	annRow.tooltip(annRow, fakeTip)
+	check(table.concat(tipLines, "\n"):find("Consumables: Elixir of the Mongoose, Well Fed", 1, true), "the tooltip names a member's consumables")
+	table.remove(M.party1.buffs); table.remove(M.party1.buffs); table.remove(M.player.buffs)
+	-- nobody missing; buffs hidden; many names cut to fit a line
+	local saved = { M.player.buffs, M.party3.buffs }
+	M.player.buffs, M.party3.buffs = M.party1.buffs, M.party1.buffs
+	P._dirty = true
+	check(Lines("@group")[1] == "Nobody is missing a buff the group can give", "nobody missing: " .. tostring(Lines("@group")[1]))
+	M.player.buffs, M.party3.buffs = saved[1], saved[2]
+	aurasSecret, restricted[0] = true, true
+	P._dirty = true
+	check(Lines("@group")[1] == "Buffs are hidden by the game right now (in combat)", "hidden: " .. tostring(Lines("@group")[1]))
+	aurasSecret, restricted[0] = false, nil
+	P._dirty = true
+	local many = {}
+	for i = 1, 30 do
+		many[i] = { kind = "group", name = "Longnamedmember" .. i, online = true, shareGroup = GR.ShareGroupOf,
+			buffs = i % 2 == 0 and { ["power word: fortitude"] = "Power Word: Fortitude" } or {} }
+	end
+	local cut = SH.GroupLines(many, "@group missing:fortitude", 6, 255)
+	check(#cut == 1 and #cut[1] <= 255 and cut[1]:find("Fortitude (Longnamedmember1, ", 1, true) and cut[1]:find(" %+%d+%)$"),
+		"15 names too long for a line: cut to fit, the rest counted: " .. tostring(cut[1]))
+
 	-- a talent's buff counts once someone has it
 	M.party1.buffs[#M.party1.buffs + 1] = "Divine Spirit"
 	by = Rows()

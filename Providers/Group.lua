@@ -26,17 +26,17 @@ local Safe, Num, Str, Lower, Secret = ns.Safe, ns.Num, ns.Str, ns.Lower, ns.Secr
 -- the buffs, by family: the spells that give it (single first, the group version after; any rank: the name is the same),
 -- the class that casts it, the words that name it, and the short name rows use
 GR.BUFFS = {
-	{ id = "fortitude", label = "Fortitude", class = "PRIEST", spells = { 1243, 21562 },
+	{ id = "fortitude", label = "Fortitude", chat = "Fortitude", class = "PRIEST", spells = { 1243, 21562 },
 		names = { "Power Word: Fortitude", "Prayer of Fortitude" }, words = { "fortitude", "fort", "pwf", "stamina" } },
-	{ id = "intellect", label = "Intellect", class = "MAGE", spells = { 1459, 23028 },
+	{ id = "intellect", label = "Intellect", chat = "Intellect", class = "MAGE", spells = { 1459, 23028 },
 		names = { "Arcane Intellect", "Arcane Brilliance" }, words = { "intellect", "int", "ai", "brilliance", "ab" } },
-	{ id = "wild", label = "Mark of the Wild", class = "DRUID", spells = { 1126, 21849 },
+	{ id = "wild", label = "Mark of the Wild", chat = "Mark of the Wild", class = "DRUID", spells = { 1126, 21849 },
 		names = { "Mark of the Wild", "Gift of the Wild" }, words = { "mark", "motw", "wild", "gotw" } },
-	{ id = "spirit", label = "Divine Spirit", class = "PRIEST", talent = true, spells = { 14752, 27681 },
+	{ id = "spirit", label = "Divine Spirit", chat = "Divine Spirit", class = "PRIEST", talent = true, spells = { 14752, 27681 },
 		names = { "Divine Spirit", "Prayer of Spirit" }, words = { "spirit", "ds" } },
-	{ id = "shadow", label = "Shadow Protection", class = "PRIEST", optional = true, spells = { 976, 27683 },
+	{ id = "shadow", label = "Shadow Protection", chat = "Shadow Protection", class = "PRIEST", optional = true, spells = { 976, 27683 },
 		names = { "Shadow Protection", "Prayer of Shadow Protection" }, words = { "shadow" } },
-	{ id = "blessing", label = "a Blessing", class = "PALADIN",
+	{ id = "blessing", label = "a Blessing", chat = "Blessing", class = "PALADIN",
 		spells = { 20217, 19740, 19742, 1038, 19977, 20911, 25898, 25782, 25894, 25895, 25890, 25899 },
 		names = { "Blessing of Kings", "Blessing of Might", "Blessing of Wisdom", "Blessing of Salvation", "Blessing of Light",
 			"Blessing of Sanctuary", "Greater Blessing of Kings", "Greater Blessing of Might", "Greater Blessing of Wisdom",
@@ -48,6 +48,34 @@ for _, f in ipairs(GR.BUFFS) do
 	GR.BY_ID[f.id] = f
 	for _, w in ipairs(f.words) do GR.BY_WORD[w] = f end
 end
+
+-- Consumables: looked at only when asked ("missing consumables", missing:food / missing:elixir), never expected. Food =
+-- the Well Fed buff (its name as the game says it, and the English one); a flask or elixir = a buff named with "elixir"
+-- or "flask", or one of the classic ones whose buff says neither (English names: the player's client is English).
+GR.ELIXIR_NAMES = {}
+for n in ([[greater agility|greater intellect|greater armor|greater firepower|shadow power|frost power|fire power|
+	mana regeneration|health ii|agility|lesser intellect|spirit of zanza|juju power|juju might|winterfall firewater|
+	rage of ages|strike of the scorpok|spirit of boar|infallible mind|spiritual domination|distilled wisdom|
+	supreme power|chromatic resistance|petrification]]):gmatch("[^|]+") do
+	GR.ELIXIR_NAMES[(n:gsub("^%s+", ""):gsub("%s+$", ""))] = true
+end
+local foodName -- (Well Fed as the game names it, lowercase; worked out once)
+local function SpellNameOf(id) return C_Spell and C_Spell.GetSpellName and Str(Safe(C_Spell.GetSpellName, id)) or nil end
+local function IsFood(n)
+	if foodName == nil then foodName = SpellNameOf(19705) and Lower(SpellNameOf(19705)) or false end
+	return n == "well fed" or (foodName and n == foodName) or false
+end
+local function IsElixir(n) return n:find("elixir", 1, true) ~= nil or n:find("flask", 1, true) ~= nil or GR.ELIXIR_NAMES[n] == true end
+GR.CONS = {
+	{ id = "food", chat = "food", label = "food", words = { "food", "fed", "wellfed" }, test = IsFood },
+	{ id = "elixir", chat = "flask or elixir", label = "a flask or elixir", words = { "elixir", "elixirs", "flask", "flasks" }, test = IsElixir },
+}
+GR.CONS_BY_ID, GR.CONS_BY_WORD = {}, {}
+for _, c in ipairs(GR.CONS) do
+	GR.CONS_BY_ID[c.id] = c
+	for _, w in ipairs(c.words) do GR.CONS_BY_WORD[w] = c end
+end
+GR.CONS_ALL = { consumables = true, consumable = true, cons = true }
 
 local function SpellName(id, fallback)
 	local n = C_Spell and C_Spell.GetSpellName and Str(Safe(C_Spell.GetSpellName, id))
@@ -66,7 +94,7 @@ local function Names(f)
 	f._names = set
 	return set
 end
-GR.ResetNamesForTests = function() for _, f in ipairs(GR.BUFFS) do f._names = nil end end
+GR.ResetNamesForTests = function() for _, f in ipairs(GR.BUFFS) do f._names = nil end foodName = nil end
 
 --- The spell you'd cast for a family: its first spell you know (a single-target one before the group version), by
 --- its name (casting a name casts its highest rank); nil when you know none.
@@ -130,6 +158,13 @@ end
 local function Has(buffs, f)
 	if not buffs then return nil end
 	for n in pairs(Names(f)) do if buffs[n] then return true end end
+	return false
+end
+
+--- Whether a member's buffs hold that consumable (nil: hidden).
+local function HasCons(buffs, c)
+	if not buffs then return nil end
+	for n in pairs(buffs) do if c.test(n) then return true end end
 	return false
 end
 
@@ -224,6 +259,12 @@ local function Tooltip(e, t)
 		for _, n in pairs(e.buffs) do list[#list + 1] = n end
 		table.sort(list)
 		if #list > 0 then t:AddLine("Buffs: " .. table.concat(list, ", ", 1, math.min(#list, 12)) .. (#list > 12 and ", ..." or ""), 0.7, 0.7, 0.7, true) end
+		local cons = {}
+		for _, n in ipairs(list) do
+			local l = Lower(n)
+			if IsFood(l) or IsElixir(l) then cons[#cons + 1] = n end
+		end
+		t:AddLine("Consumables: " .. (#cons > 0 and table.concat(cons, ", ") or "none"), 0.7, 0.7, 0.7, true)
 	end
 	t:AddLine("Enter: target" .. (e.buffWith and ("    Shift+Enter: cast " .. e.buffWith .. " on them") or ""), 0.6, 0.6, 0.6, true)
 end
@@ -281,6 +322,11 @@ local function Row(m, expected, raidInfo)
 			if not Has(m.buffs, f) then missing[#missing + 1] = f.id; labels[#labels + 1] = f.label end
 		end
 	end
+	local cons
+	if m.buffs and not m.dead and m.online ~= false then
+		cons = {}
+		for _, c in ipairs(GR.CONS) do cons[c.id] = HasCons(m.buffs, c) end
+	end
 	local buffWith
 	for _, id in ipairs(missing or {}) do
 		buffWith = GR.YourSpell(GR.BY_ID[id])
@@ -312,11 +358,11 @@ local function Row(m, expected, raidInfo)
 		key = m.guid or m.unit, name = m.name, unit = m.unit, guid = m.guid, mine = m.mine,
 		classFile = m.classFile, className = m.className, level = m.level, role = m.role, roleLabel = roleLabel,
 		dead = m.dead, ghost = m.ghost, online = m.online, inRange = m.inRange, rangeHidden = m.rangeHidden,
-		buffs = m.buffs, buffsHidden = m.buffsHidden, missing = missing, missingLabels = labels, buffWith = buffWith,
+		buffs = m.buffs, buffsHidden = m.buffsHidden, missing = missing, missingLabels = labels, buffWith = buffWith, cons = cons,
 		zone = raidInfo and raidInfo.zone,
 		color = m.online == false and GREY or ns.ClassHex(m.classFile), icon = Icon(m.classFile),
 		detail = table.concat(d, "  ·  "), text = table.concat(words, " "),
-		tooltip = Tooltip, shareLink = ShareText,
+		tooltip = Tooltip, shareLink = ShareText, shareGroup = GR.ShareGroupOf,
 		secure = TARGET_SPEC, isOpen = ns.Never, activate = NoTarget,
 		secondarySecure = buffWith and BUFF_SPEC or nil, secondaryIsOpen = buffWith and ns.Never or nil,
 		secondary = buffWith and NoBuff or nil,
@@ -422,9 +468,10 @@ function GR.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
 	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
 	t = t:gsub("in range", "inrange"):gsub("out of range", "outofrange")
-	local subject, who, cues, rest = false, false, {}, {}
+	local subject, who, cues, rest, consAll = false, false, {}, {}, false
 	for w in t:gmatch("%S+") do
-		if SUBJECT[w] then subject = true
+		if GR.CONS_ALL[w] then cues.missing = true; subject = true; consAll = true
+		elseif SUBJECT[w] then subject = true
 		elseif CUE[w] then cues[CUE[w]] = true; if w == "buff" or w == "buffs" or w == "unbuffed" then subject = true end
 		elseif w == "who" or w == "whos" then who = true
 		elseif not ASK[w] then rest[#rest + 1] = w end
@@ -437,13 +484,17 @@ function GR.Question(text)
 	if cues.dps then roles[#roles + 1] = "DAMAGER" end
 	if #roles > 0 then q.roles = roles end
 	if cues.missing then
-		q.missing, q.buffWords = {}, {}
+		q.missing, q.buffWords, q.cons = {}, {}, {}
+		if consAll then for _, c in ipairs(GR.CONS) do q.cons[#q.cons + 1] = c.id end end
 		local i = 1
 		while i <= #rest do -- (a buff's own words: "shadow protection", "mark of the wild", "kings")
 			local w = rest[i]
 			local f = GR.BY_WORD[w]
+			local c = GR.CONS_BY_WORD[w]
 			if f then
 				q.missing[#q.missing + 1] = f.id
+			elseif c then
+				if not consAll then q.cons[#q.cons + 1] = c.id end
 			else
 				q.buffWords[#q.buffWords + 1] = w
 			end
@@ -483,8 +534,14 @@ local function Wanted(e, q)
 	end
 	if q.missing then
 		if e.dead or e.online == false then return false end
-		if #q.missing == 0 and #(q.buffWords or {}) == 0 then
+		local cons = q.cons and #q.cons > 0
+		if #q.missing == 0 and #(q.buffWords or {}) == 0 and not cons then
 			if not (e.missing and #e.missing > 0) then return false end
+		end
+		if cons then -- (lacking any of the consumables asked for)
+			local lacks = false
+			for _, id in ipairs(q.cons) do if e.cons and e.cons[id] == false then lacks = true end end
+			if not lacks then return false end
 		end
 		for _, id in ipairs(q.missing) do
 			if Has(e.buffs, GR.BY_ID[id]) ~= false then return false end
@@ -501,6 +558,7 @@ local function Labels(q)
 	local out = {}
 	for _, id in ipairs(q.missing or {}) do out[#out + 1] = GR.BY_ID[id].label end
 	if q.buffWords and #q.buffWords > 0 then out[#out + 1] = table.concat(q.buffWords, " ") end
+	for _, id in ipairs(q.cons or {}) do out[#out + 1] = GR.CONS_BY_ID[id].label end
 	return table.concat(out, ", ")
 end
 
@@ -545,8 +603,11 @@ function GR.ToAdvanced(q)
 		parts[#parts + 1] = "is:" .. ({ TANK = "tank", HEALER = "healer", DAMAGER = "dps" })[r]
 	end
 	if q.missing then
-		if #q.missing == 0 and #(q.buffWords or {}) == 0 then parts[#parts + 1] = "is:unbuffed" end
+		local cons = q.cons or {}
+		if #q.missing == 0 and #(q.buffWords or {}) == 0 and #cons == 0 then parts[#parts + 1] = "is:unbuffed" end
 		for _, id in ipairs(q.missing) do parts[#parts + 1] = "missing:" .. id end
+		if #cons == #GR.CONS then parts[#parts + 1] = "missing:consumables"
+		else for _, id in ipairs(cons) do parts[#parts + 1] = "missing:" .. id end end
 		if q.buffWords and #q.buffWords > 0 then parts[#parts + 1] = "missing:" .. table.concat(q.buffWords, "_") end
 	end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
@@ -562,7 +623,214 @@ function GR.MissingFilter(v)
 	if f then
 		return function(e) return e.kind == "group" and not e.dead and e.online ~= false and Has(e.buffs, f) == false end
 	end
+	if GR.CONS_ALL[v] then -- (missing:consumables: lacking food or a flask/elixir)
+		return function(e) return e.kind == "group" and e.cons ~= nil and (e.cons.food == false or e.cons.elixir == false) end
+	end
+	local c = GR.CONS_BY_ID[v] or GR.CONS_BY_WORD[v]
+	if c then return function(e) return e.kind == "group" and e.cons ~= nil and e.cons[c.id] == false end end
 	local words = {}
 	for w in v:gmatch("%S+") do words[#words + 1] = w end
 	return function(e) return e.kind == "group" and not e.dead and e.online ~= false and LacksNamed(e, words) == true end
+end
+
+----------------------------------------------------------------------
+-- Every result at once (">>> party", the menu's "All N to party"): what's missing, said once per buff
+----------------------------------------------------------------------
+
+--- What a search asked of the group (Advanced words or plain ones): { dead, offline, far, near, roles, missing,
+--- families, words, cons }.
+function GR.AskOf(query)
+	local ask = { families = {}, words = {}, cons = {}, roles = {} }
+	local q = GR.Question(query or "")
+	if q then
+		ask.dead, ask.offline, ask.far, ask.near, ask.roles = q.dead, q.offline, q.far, q.near, q.roles or {}
+		if q.missing then
+			ask.missing = true
+			for _, id in ipairs(q.missing) do ask.families[#ask.families + 1] = GR.BY_ID[id] end
+			for _, w in ipairs(q.buffWords or {}) do ask.words[#ask.words + 1] = w end
+			for _, id in ipairs(q.cons or {}) do ask.cons[#ask.cons + 1] = GR.CONS_BY_ID[id] end
+		end
+		return ask
+	end
+	local ROLE = { tank = "TANK", tanks = "TANK", healer = "HEALER", healers = "HEALER", dps = "DAMAGER", damage = "DAMAGER", damager = "DAMAGER" }
+	for w in Lower(query or ""):gmatch("%S+") do
+		local k, v = w:match("^(%a+):(.+)$")
+		if k == "is" then
+			for part in v:gmatch("[^|&]+") do
+				if part == "dead" then ask.dead = true
+				elseif part == "offline" then ask.offline = true
+				elseif part == "far" or part == "outofrange" then ask.far = true
+				elseif part == "inrange" or part == "near" then ask.near = true
+				elseif ROLE[part] then ask.roles[#ask.roles + 1] = ROLE[part]
+				elseif part == "unbuffed" then ask.missing = true end
+			end
+		elseif k == "missing" or k == "needs" then
+			ask.missing = true
+			for part in v:gmatch("[^|]+") do
+				part = part:gsub("_", " ")
+				local f, c = GR.BY_ID[part] or GR.BY_WORD[part], GR.CONS_BY_ID[part] or GR.CONS_BY_WORD[part]
+				if f then ask.families[#ask.families + 1] = f
+				elseif GR.CONS_ALL[part] then for _, x in ipairs(GR.CONS) do ask.cons[#ask.cons + 1] = x end
+				elseif c then ask.cons[#ask.cons + 1] = c
+				else ask.words[#ask.words + 1] = part end
+			end
+		end
+	end
+	return ask
+end
+
+-- names as short as they can be: the first word ("Plamen"), the whole name where two share it
+local function ShortNames(rows)
+	local count, out = {}, {}
+	for _, e in ipairs(rows) do
+		local first = tostring(e.name):match("^(%S+)") or tostring(e.name)
+		count[first] = (count[first] or 0) + 1
+	end
+	for _, e in ipairs(rows) do
+		local first = tostring(e.name):match("^(%S+)") or tostring(e.name)
+		out[e] = count[first] > 1 and tostring(e.name) or first
+	end
+	return out
+end
+
+--- Packs sections ({ label, items } or { text }) into chat lines of at most `LM` characters, `ML` lines; what doesn't
+--- fit is counted on the last ("+3 more"). An item too long for a line of its own is cut to fit (`fit(room)`).
+local function Pack(sections, ML, LM)
+	local tokens = {}
+	for i, s in ipairs(sections) do
+		local sep = i > 1 and "  ·  " or ""
+		if s.text then
+			tokens[#tokens + 1] = { text = s.text, sep = sep }
+		else
+			for j, it in ipairs(s.items) do
+				local text = type(it) == "table" and it.text or it
+				tokens[#tokens + 1] = { text = (j == 1 and (s.label .. ": ") or "") .. text, sep = j == 1 and sep or ", ",
+					fit = type(it) == "table" and it.fit or nil, lead = j == 1 and (s.label .. ": ") or "" }
+			end
+		end
+	end
+	local lines, line, sent = {}, nil, 0
+	local function Room() return LM - (#lines == ML - 1 and 12 or 0) end
+	for _, t in ipairs(tokens) do
+		local text = t.text
+		if #text > Room() and t.fit then text = t.lead .. t.fit(Room() - #t.lead) end -- (cut to fit a line)
+		local joined = line and (line .. t.sep .. text) or text
+		if #joined <= Room() then
+			line = joined
+		else
+			if line then lines[#lines + 1] = line end
+			line = nil
+			if #lines >= ML or #text > Room() then break end
+			line = text
+		end
+		sent = sent + 1
+	end
+	if line and #lines < ML then lines[#lines + 1] = line end
+	local left = #tokens - sent
+	if left > 0 and #lines > 0 then
+		local more = "+" .. left .. " more"
+		if #lines[#lines] + #more + 1 <= LM then lines[#lines] = lines[#lines] .. " " .. more
+		elseif #lines < ML then lines[#lines + 1] = more end
+	end
+	return lines
+end
+
+--- The group's rows as chat lines, as few words as they take: "Missing buffs: Fortitude (Cid, Bob), Mark of the Wild
+--- (everyone), Blessing (all but Ann)"; asked about: "Dead: Bob  ·  Out of range: Cid"; consumables: "Missing
+--- consumables: food (Bob, Cid), flask or elixir (everyone)". Dead and offline members aren't counted for buffs (they
+--- can't be buffed). Every row of the group carries this (`shareGroup`), and Share's GroupLines uses it.
+function GR.ShareGroupOf(rows, query, ML, LM)
+	ML, LM = ML or 6, LM or 255
+	local ask = GR.AskOf(query)
+	local short = ShortNames(rows)
+	local sections = {}
+	local function State(on, label, test)
+		if not on then return end
+		local who = {}
+		for _, e in ipairs(rows) do if test(e) then who[#who + 1] = short[e] end end
+		sections[#sections + 1] = { label = label, items = #who > 0 and who or { "nobody" } }
+	end
+	State(ask.dead, "Dead", function(e) return e.dead end)
+	State(ask.offline, "Offline", function(e) return e.online == false end)
+	State(ask.far, "Out of range", function(e) return e.inRange == false end)
+	State(ask.near, "In range", function(e) return e.inRange == true end)
+	for _, r in ipairs(ask.roles) do
+		State(true, ({ TANK = "Tanks", HEALER = "Healers", DAMAGER = "Damage" })[r], function(e) return e.role == r end)
+	end
+	if ask.missing or #sections == 0 then
+		-- (who can be buffed: alive and online, their buffs readable; "everyone" and "all but" are said of the whole group,
+		-- not only the rows a filtered search sends)
+		local inList = {}
+		for _, e in ipairs(list or {}) do inList[e] = true end
+		local whole = rows
+		for _, e in ipairs(rows) do if not inList[e] then whole = nil break end end
+		whole = whole and list or rows
+		local function Can(e) return not e.dead and e.online ~= false end
+		local eligible, hidden, all = {}, 0, {}
+		for _, e in ipairs(rows) do
+			if Can(e) then
+				if e.buffs then eligible[#eligible + 1] = e else hidden = hidden + 1 end
+			end
+		end
+		for _, e in ipairs(whole) do if Can(e) and e.buffs then all[#all + 1] = e end end
+		local wholeShort = ShortNames(whole)
+		-- "everyone", "all but Ann", or the names (cut to fit a line when there are many)
+		local function Item(label, test)
+			local who, lackingAll, have = {}, 0, {}
+			for _, e in ipairs(eligible) do if test(e) then who[#who + 1] = short[e] end end
+			if #who == 0 then return nil end
+			for _, e in ipairs(all) do
+				if test(e) then lackingAll = lackingAll + 1 else have[#have + 1] = wholeShort[e] or short[e] end
+			end
+			local said
+			if #who == lackingAll then
+				if #have == 0 and #who > 1 then said = "everyone"
+				elseif #have == 1 and #all >= 3 then said = "all but " .. have[1] end
+			end
+			if said then return label .. " (" .. said .. ")" end
+			return { text = label .. " (" .. table.concat(who, ", ") .. ")", fit = function(room)
+				local s, n = label .. " (", 0
+				for i, w in ipairs(who) do
+					local more = #who - i
+					local add = (i > 1 and ", " or "") .. w
+					if #s + #add + (more > 0 and (#tostring(more) + 3) or 0) + 1 > room then break end
+					s, n = s .. add, i
+				end
+				return s .. (n < #who and (" +" .. (#who - n)) or "") .. ")"
+			end }
+		end
+		local items = {}
+		local fams = ask.families
+		if #fams == 0 and #ask.words == 0 and #ask.cons == 0 then fams = GR.expected or {} end
+		for _, f in ipairs(fams) do
+			local it = Item(f.chat or f.label, function(e) return Has(e.buffs, f) == false end)
+			if it then items[#items + 1] = it end
+		end
+		if #ask.words > 0 then
+			local it = Item(table.concat(ask.words, " "), function(e) return LacksNamed(e, ask.words) == true end)
+			if it then items[#items + 1] = it end
+		end
+		for _, c in ipairs(ask.cons) do
+			local it = Item(c.chat, function(e) return e.cons ~= nil and e.cons[c.id] == false end)
+			if it then items[#items + 1] = it end
+		end
+		local consOnly = #ask.cons > 0 and #ask.families == 0 and #ask.words == 0
+		local why = GR.Why()
+		if #items > 0 then
+			if hidden > 0 then items[#items + 1] = ("%d with buffs hidden%s"):format(hidden, why and (", " .. why) or "") end
+			sections[#sections + 1] = { label = consOnly and "Missing consumables" or "Missing buffs", items = items }
+		elseif #eligible == 0 and hidden > 0 then
+			sections[#sections + 1] = { text = "Buffs are hidden by the game right now" .. (why and (" (" .. why .. ")") or "") }
+		elseif consOnly then
+			sections[#sections + 1] = { text = "Everyone has " .. table.concat((function() local t = {} for i, c in ipairs(ask.cons) do t[i] = c.label end return t end)(), " and ") }
+		elseif #ask.families > 0 or #ask.words > 0 then
+			local t = {}
+			for _, f in ipairs(ask.families) do t[#t + 1] = f.chat or f.label end
+			if #ask.words > 0 then t[#t + 1] = table.concat(ask.words, " ") end
+			sections[#sections + 1] = { text = "Nobody is missing " .. table.concat(t, " or ") }
+		else
+			sections[#sections + 1] = { text = "Nobody is missing a buff the group can give" }
+		end
+	end
+	return Pack(sections, ML, LM), #rows
 end

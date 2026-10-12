@@ -529,9 +529,23 @@ end
 --- Second result: "source" when it's the whole loot source (each row's own then isn't repeated), "instance" when
 --- only the instance. Rows whose list says it itself (`shareHeader(rows, what)` -> header, state, the same function on
 --- every row: the loot log) get theirs, and the state goes to each row's `shareMember(e, state, base)`.
+-- (rows whose list says itself all at once, `shareGroup(rows, query, maxLines, lineMax)` -> lines, the same function
+-- on every row: your group's "Missing buffs: Fortitude (Cid), ...": that function, or nil)
+local function OwnGroup(rows)
+	local own = rows[1] and rows[1].shareGroup
+	if type(own) ~= "function" then return nil end
+	for _, e in ipairs(rows) do if e.shareGroup ~= own then return nil end end
+	return own
+end
+
 function SH.GroupHeader(rows, query)
 	local first = rows[1]
 	if not first then return nil end
+	local group = OwnGroup(rows)
+	if group then -- (its first line says what goes)
+		local ok, lines = pcall(group, rows, query, 1, SH.LINE_MAX)
+		if ok and type(lines) == "table" and type(lines[1]) == "string" then return lines[1] end
+	end
 	local ctx = SH.ChainText(first, "x")
 	if ctx then
 		for _, e in ipairs(rows) do if e.pipeRel ~= first.pipeRel or e.pipeFrom ~= first.pipeFrom then ctx = nil break end end
@@ -568,6 +582,11 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 	local ML, LM = maxLines or SH.GROUP_LINES, lineMax or SH.LINE_MAX -- (one line the game presses: SH.PressLine)
 	rows = SH.GroupRows(rows)
 	if #rows == 0 then return {} end
+	local group = OwnGroup(rows)
+	if group then
+		local ok, lines, total = pcall(group, rows, query, ML, LM)
+		if ok and type(lines) == "table" then return lines, total or #rows end
+	end
 	local header, lootHeader = SH.GroupHeader(rows, query)
 	-- a row's text, worked out only when its turn comes: the rows only counted in "+N more" never are (an NPC's text
 	-- sets the map pin it links: 100 of them moved your waypoint 100 times, to one that wasn't even sent)

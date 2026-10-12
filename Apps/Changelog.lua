@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.9", when = "in testing",
+		v = "0.46.10", when = "in testing",
 		items = {
 			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. Mail you send to one of your own characters is in its list at once. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
 			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",
@@ -21,7 +21,7 @@ CL.LOG = {
 			"Dropping a quest with Shift+Enter (or >> drop) asks in Terminal's own window, as dropping several does.",
 			"Collections: Shift+Enter opens the journal and points at the toy, pet or mount, or at its tab when another one shows.",
 			".debug log names the press of Terminal's behind a blocked action the game blames on a /run line.",
-			"Your group: @group (Simple mode: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\") lists every member with their role, whether they're dead, offline or out of range, and the group's buffs they're missing (those someone in the group can cast). Enter targets them; Shift+Enter casts your buff on them. In combat and boss fights the game hides range and buffs from addons, and Terminal says so instead of guessing.",
+			"Your group: @group (Simple mode: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\") lists every member with their role, whether they're dead, offline or out of range, and the group's buffs they're missing (those someone in the group can cast). Enter targets them; Shift+Enter casts your buff on them. \"@group >>> party\" (or right-click a member and pick All to party) says what's missing in one short line (\"Missing buffs: Fortitude (Cid), Blessing (all but Ann)\"), and \"missing consumables\" finds who has no food or flask/elixir. In combat and boss fights the game hides range and buffs from addons, and Terminal says so instead of guessing.",
 			".zen is a calmer mode now: while Terminal is open the rest of the interface fades away and the screen dims behind it; closing Terminal brings it all back smoothly, and combat brings it back at once.",
 		},
 	},
