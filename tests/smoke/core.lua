@@ -133,6 +133,38 @@ do -- moving the selection repaints only the selection, not every row; the toolt
 	sets = 0
 	tt.entry = nil; UI:UpdateTooltip()
 	check(sets == 1 and tt.waitID == nil and spellAsks == 2, "already in: not waited on, not asked: " .. spellAsks)
+	-- right after a /reload: a spell the client hasn't loaded gives no link at all, so no tooltip showed until the
+	-- terminal was opened again (the player's screenshot): asked for, and drawn once it's in
+	local linkIn = false
+	CS.IsSpellDataCached = function() return linkIn end
+	local rend = { name = "Improved Rend", kind = "talents", key = "WARRIOR:2", spellID = 12286,
+		getLink = function() return linkIn and "|cff71d5ff|Hspell:12286:0|h[Improved Rend]|h|r" or nil end }
+	UI.results, UI.sel = { rend }, 1
+	sets, spellAsks = 0, 0
+	tt.entry = nil; UI:UpdateTooltip()
+	check(sets == 0 and not tt.shown and tt.waitKind == "spell" and tt.waitID == 12286 and spellAsks >= 1,
+		"no link yet: nothing shown, the spell asked for and waited on: " .. spellAsks)
+	linkIn = true
+	w.scripts.OnEvent(w, "SPELL_DATA_LOAD_RESULT", 12286, true)
+	check(sets == 1 and tt.shown and tt.entry == rend and tt.waitID == nil, "it came in: the tooltip shows (" .. sets .. ")")
+	-- moved off it before it came in: nothing drawn for it
+	linkIn = false
+	local other = { name = "Hearthstone", kind = "slash" }
+	UI.results, UI.sel = { rend, other }, 1
+	tt.entry = nil; UI:UpdateTooltip()
+	UI.sel = 2; UI:UpdateTooltip()
+	linkIn = true
+	w.scripts.OnEvent(w, "SPELL_DATA_LOAD_RESULT", 12286, true)
+	check(tt.entry ~= rend, "moved off it before it came in: not drawn for it")
+	-- the rows on screen: each spell not loaded asked for once (ready by the time you get to it)
+	local asked = {}
+	CS.IsSpellDataCached = function(id) return id == 3 end
+	CS.RequestLoadSpellData = function(id) asked[#asked + 1] = id end
+	UI.results, UI.sel, UI.offset = { { name = "A", spellID = 1 }, { name = "B", spellID = 2 }, { name = "C", spellID = 3 }, { name = "D" } }, 4, 0
+	local n1 = UI.PrefetchTips()
+	local n2 = UI.PrefetchTips()
+	check(n1 == 2 and n2 == 0 and asked[1] == 1 and asked[2] == 2 and #asked == 2,
+		"the rows on screen: each spell not loaded asked for once: " .. table.concat(asked, ","))
 	CS.IsSpellDataCached, CS.GetSpellDescription, CS.RequestLoadSpellData = cachedSpell, descSpell, reqSpell
 	UI.results, UI.sel = resWas, selWas
 	UI:Hide()

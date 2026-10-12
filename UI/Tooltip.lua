@@ -90,7 +90,13 @@ function UI:UpdateTooltip()
 	end
 	-- never a profession ("trade") link: showing one opens that profession's window, as clicking it does
 	if type(link) == "string" and link:find("|Htrade:", 1, true) then link = nil end
-	if not (link or e.tip or e.tooltip) then return end
+	UI.PrefetchTips() -- (the spells of the rows on screen asked for now: their tooltips are ready when you get to them)
+	if not (link or e.tip or e.tooltip) then
+		-- (0.46.15, the player: right after a /reload no talent showed a tooltip at all until the terminal was opened
+		-- again: a spell the client hasn't loaded gives no link yet) asked for, and drawn once it's in
+		UI.WaitForTipItem(t, e, nil)
+		return
+	end
 	t:SetOwner(frame, "ANCHOR_NONE")
 	PlaceTip(t)
 	local shown = false
@@ -140,13 +146,17 @@ do
 		listening = kind
 		if kind then for _, ev in ipairs(EVENTS[kind]) do pcall(waiter.RegisterEvent, waiter, ev) end end
 	end
-	--- What the tooltip shows that may still be loading: "item", id or "spell", id; nil for anything else.
+	--- What the tooltip shows that may still be loading: "item", id or "spell", id; nil for anything else. No link at
+	--- all (a spell the client hasn't loaded gives none): the row's own spell.
 	local function DataOfTip(e, link)
 		local id = tonumber(e.itemID)
 		if not id and type(link) == "string" then id = tonumber(link:match("item:(%d+)")) end
 		if id then return "item", id end
 		if type(link) == "string" then
 			id = tonumber(link:match("spell:(%d+)"))
+			if id then return "spell", id end
+		elseif link == nil then
+			id = tonumber(e.spellID)
 			if id then return "spell", id end
 		end
 	end
@@ -177,8 +187,11 @@ do
 			pcall(C_Item.RequestLoadItemDataByID, id)
 		end
 	end
+	--- The tooltip drawn again for `e`: shown for it, or waited for with nothing to show yet (no link), while it's the
+	--- row selected.
 	local function Redraw(t, e)
-		if t.entry ~= e or not t:IsShown() then return false end
+		if not e then return false end
+		if not (t.entry == e and t:IsShown()) and not (UI:IsShown() and UI.results[UI.sel] == e) then return false end
 		t.entry = nil -- (the "same row, nothing to redraw" shortcut must not skip it)
 		UI:UpdateTooltip()
 		return true
@@ -186,14 +199,15 @@ do
 	local function Now() return GetTime and GetTime() or 0 end
 	--- No tooltip waits on anything any more (the tooltip hidden): nothing heard.
 	function UI.StopTipWait(t)
-		if t then t.waitID, t.waitKind = nil, nil end
+		if t then t.waitID, t.waitKind, t.waitFor = nil, nil, nil end
 		Listen(nil)
 	end
 
 	local function OnEvent(_, event, got, ok)
 		local tip = Tip()
 		local kind = KIND_OF[event]
-		if not (kind and got and tip.waitKind == kind and tip.waitID == got and tip.entry) then return end
+		local e = tip.waitFor
+		if not (kind and got and tip.waitKind == kind and tip.waitID == got and e) then return end
 		if ok == false then -- (the server has no such item or spell: nothing more to wait for)
 			if failedN > 500 then failed, failedN = {}, 0 end
 			local k = kind .. ":" .. got
@@ -204,7 +218,7 @@ do
 		end
 		if not Loaded(kind, got) then return end -- (not in yet: the timer keeps watching)
 		UI.StopTipWait(tip)
-		Redraw(tip, tip.entry)
+		Redraw(tip, e)
 	end
 
 	function UI.WaitForTipItem(t, e, link)
@@ -213,7 +227,7 @@ do
 		local kind, id = DataOfTip(e, link)
 		if not id or Loaded(kind, id) then return end
 		if failed[kind .. ":" .. id] and Now() - failed[kind .. ":" .. id] < UI.TIP_FAILED then return end
-		t.waitID, t.waitKind = id, kind
+		t.waitID, t.waitKind, t.waitFor = id, kind, e
 		if not waiter then
 			waiter = CreateFrame("Frame")
 			UI.tipWaiter = waiter -- (tests)
@@ -231,6 +245,35 @@ do
 			C_Timer.After(UI.TIP_RETRY, Again)
 		end
 		C_Timer.After(UI.TIP_RETRY, Again)
+	end
+end
+
+-- The rows on screen with a spell (spells, talents, other classes' too): each spell the client hasn't loaded is asked
+-- for once, so its tooltip (link and text) is there by the time the row is selected.
+UI.PREFETCH_MAX = 2000 -- spells asked for, remembered (then forgotten and asked again if still not loaded)
+do
+	local asked, n = {}, 0
+	function UI.PrefetchTips()
+		local S = C_Spell
+		if not (S and S.IsSpellDataCached and S.RequestLoadSpellData) then return 0 end
+		local rows = UI.results or {}
+		local from = (UI.offset or 0) + 1
+		local to = math.min(#rows, from + ((UI.layout and UI.layout.ROWS) or 10) - 1)
+		local sent = 0
+		for i = from, to do
+			local e = rows[i]
+			local id = type(e) == "table" and tonumber(e.spellID)
+			if id and not asked[id] then
+				if n >= UI.PREFETCH_MAX then asked, n = {}, 0 end
+				asked[id], n = true, n + 1
+				local ok, cached = pcall(S.IsSpellDataCached, id)
+				if ok and cached == false then
+					pcall(S.RequestLoadSpellData, id)
+					sent = sent + 1
+				end
+			end
+		end
+		return sent
 	end
 end
 
