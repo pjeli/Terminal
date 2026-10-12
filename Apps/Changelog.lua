@@ -13,9 +13,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.47.1", when = "in testing",
+		v = "0.47.2", when = "in testing",
 		items = {
-			"Quests with your party: \"party quests\" (Advanced: @group quests) shows each quest in your log with who in your party is on it too; Enter shares it with the party, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line: \"On the same quests: ... I can share: ...\".",
+			"Quests with your party: \"party quests\" (Advanced: @group quests) shows each quest in your log with who in your party is on it too; Enter shares it with the party, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line: \"On the same quests: ... I can share: ...\". Where the game doesn't say who's on what, Terminal learns it from sharing (\"is already on that quest\", \"has accepted your quest\").",
 		},
 	},
 	{

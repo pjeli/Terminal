@@ -9,7 +9,12 @@ do
 	check(PQ and P and QP, "the party quests list is registered")
 	if not (PQ and P and QP) then return end
 	local names = { "GetNumSubgroupMembers", "GetNumGroupMembers", "IsInRaid", "IsInGroup", "UnitExists", "UnitName",
-		"UnitIsConnected", "QuestLogPushQuest", "IsUnitOnQuest", "issecretvalue", "RegionalUniqueNamesEnabled" }
+		"UnitIsConnected", "QuestLogPushQuest", "IsUnitOnQuest", "issecretvalue", "RegionalUniqueNamesEnabled", "UnitGUID",
+		"hooksecurefunc", "time" }
+	local trustWas, learnedWas, lastWas, hookedWas = PQ.trusted, PQ.learned, PQ.lastShare, PQ.pushHooked
+	PQ.trusted, PQ.learned, PQ.lastShare = false, {}, nil
+	local clock = 7000000
+	_G.time = function() return clock end
 	local save = {}
 	for _, n in ipairs(names) do save[n] = _G[n] end
 	local QL = C_QuestLog
@@ -38,6 +43,7 @@ do
 	_G.RegionalUniqueNamesEnabled = function() return false end
 	_G.UnitExists = function(u) return party[u] ~= nil and tonumber(u:match("%d+") or 0) <= nParty end
 	_G.UnitName = function(u) return party[u] and party[u].name end
+	_G.UnitGUID = function(u) return party[u] and ("G-" .. party[u].name) or "G-ME" end
 	_G.UnitIsConnected = function(u) return not (party[u] and party[u].offline) end
 	QL.GetNumQuestLogEntries = function() return #log end
 	QL.GetInfo = function(i) return log[i] end
@@ -148,8 +154,55 @@ do
 	-- a member the game can't tell about (a secret answer): not counted as lacking it
 	secretFor = "party2"
 	by = Rows()
-	check(#by[33].lacks == 0 and not by[33].canShare and by[33].party[2].on == nil, "Bob unknown (secret): not lacking Wolves")
+	check(#by[33].lacks == 0 and by[33].unknown[1] == "Bob" and by[33].canShare and by[33].party[2].status == nil,
+		"Bob unknown (secret): not lacking Wolves, offered it")
 	secretFor = nil
+
+	-- 0.47.2 (the player: Steelsnap shared, "is already on that quest", yet not shown; the game's quest log showed no
+	-- "[1]" either): the game never saying "yes" here, its "no" isn't trusted; sharing teaches who has a quest
+	PQ.trusted = false
+	local onWas = onQuest
+	onQuest = {}
+	by = Rows()
+	wolves, princess = by[33], by[35]
+	check(not PQ.trusted and #wolves.lacks == 0 and #wolves.unknown == 2 and wolves.canShare
+		and wolves.detail:find("who has it isn't known", 1, true) and wolves.detail:find("can share", 1, true),
+		"no \"yes\" from the game: who has Wolves isn't known (offered to both): " .. wolves.detail)
+	local _, unknownNote = PQ.Answer({ mode = "all" })
+	check(unknownNote:find(PQ.UNKNOWN_NOTE, 1, true), "the note says so: " .. tostring(unknownNote))
+	-- share Wolves: the game replies
+	pushed = {}
+	wolves.activate(wolves)
+	check(PQ.lastShare and PQ.lastShare.id == 33, "the share is remembered for its replies")
+	check(PQ.Learn("Bob is already on that quest") and not PQ.Learn("Zed is already on that quest"),
+		"\"Bob is already on that quest\": kept; a name not in your party: not")
+	clock = clock + 40
+	check(not PQ.Learn("Ann is already on that quest") and PQ.Learn("Ann has accepted your quest"),
+		"an immediate reply 40 s later: not this share's; an answer they clicked: still is")
+	by = Rows()
+	check(by[33].everyone and not by[33].canShare and table.concat(by[33].on, ",") == "Ann,Bob" and by[35].canShare,
+		"Wolves: the whole party is on it now (learned); Princess still offered")
+	-- through the game's own lines (UI_INFO_MESSAGE: a type, then the text), for a quest shared from the quest log
+	local hooked
+	_G.hooksecurefunc = function(name, fn) local orig = _G[name]; _G[name] = function(...) orig(...); fn(...) end; hooked = name end
+	PQ.pushHooked = nil
+	check(PQ.HookPush() and hooked == "QuestLogPushQuest", "the quest log's own Share is hooked")
+	_G.QuestLogPushQuest(4) -- (Princess, from the quest log)
+	check(PQ.lastShare.id == 35, "a share from the quest log is remembered too")
+	local onEvent = PQ.frame:GetScript("OnEvent")
+	onEvent(PQ.frame, "UI_INFO_MESSAGE", 0, "Ann has completed that quest")
+	onEvent(PQ.frame, "CHAT_MSG_SYSTEM", "Bob is not eligible for that quest")
+	by = Rows()
+	princess = by[35]
+	check(princess.done[1] == "Ann" and princess.cant[1] == "Bob" and not princess.canShare
+		and princess.detail:find("Ann did it", 1, true) and princess.detail:find("Bob can't take it", 1, true),
+		"Princess: Ann has done it, Bob can't take it: nothing to share: " .. princess.detail)
+	-- the game says "yes" once: its "no" counts from then on (Bob lacks Fargodeep)
+	onQuest = { party1 = { [34] = true } }
+	by = Rows()
+	check(PQ.trusted and table.concat(by[34].lacks, ",") == "Bob" and by[34].canShare, "the game said yes once: its no counts")
+	onQuest = onWas
+	PQ.ResetRepliesForTests()
 
 	-- not in a party (the game sends GROUP_ROSTER_UPDATE)
 	nParty = 0
@@ -162,6 +215,7 @@ do
 	check(solo[1] and solo[1].name == PQ.NONE, "@group quests not in a party: the line on top")
 
 	for _, n in ipairs(names) do _G[n] = save[n] end
+	PQ.trusted, PQ.learned, PQ.lastShare, PQ.pushHooked = trustWas, learnedWas, lastWas, hookedWas
 	QL.GetNumQuestLogEntries, QL.GetInfo, QL.IsUnitOnQuest, QL.IsPushableQuest, QL.GetLogIndexForQuestID,
 		QL.GetSelectedQuest, QL.SetSelectedQuest = unpack(qsave, 1, 7)
 	ns.db.easyMode = easyWas

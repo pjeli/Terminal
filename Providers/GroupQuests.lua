@@ -15,6 +15,13 @@ local ns = select(2, ...)
 -- (Ann). I can share: Princess Must Die!." (a name is said only when not the whole party is on it).
 -- A party member who's offline can't be asked (and can't be shared with): counted as unknown, never as lacking it. In a
 -- raid, your own party (subgroup) is who's asked: sharing goes to them.
+--
+-- 0.47.2 (the player: Steelsnap shared, "is already on that quest", yet not shown; the game's own quest log showed no
+-- "[1]" either): on Forever the game may never say a party member is on a quest. So its "no" counts only once it has
+-- said "yes" for someone this session (PQ.trusted); until then who has a quest is unknown, and the game's replies to a
+-- share teach it (PQ.learned: "X is already on that quest", "X has accepted your quest" = on it; "has completed that
+-- quest" = done; "is not eligible", "quest log is full" = can't take it; "declined" = lacks it), whichever way the
+-- quest was shared (QuestLogPushQuest hooked: the quest log's own Share button too).
 
 local PQ = {}
 ns.GroupQuests = PQ
@@ -23,6 +30,12 @@ local Safe, Str, Num, Lower, Secret = ns.Safe, ns.Str, ns.Num, ns.Lower, ns.Secr
 
 PQ.REACH = "@group quests" -- (how a search names this list: .mem, Alt+`, Shift+Right; ns:KindName)
 PQ.NONE = "You're not in a party: party quests need one"
+PQ.UNKNOWN_NOTE = "who has them isn't known: the game doesn't say here, sharing tells"
+PQ.RESULT_WAIT = 15 -- (s: "already on that quest" and the like come at once, for the quest shared last)
+PQ.ANSWER_WAIT = 120 -- (s: "has accepted / declined your quest" come when they click)
+
+PQ.trusted = false -- (the game has said "yes" for someone this session: its "no" counts too)
+PQ.learned = {} -- [member key][questID] = { said = "on" | "done" | "cant" | "declined", at } (this session)
 
 local GREEN, YELLOW, GREY = "|cff7fe07f", "|cffffd200", "|cff9d9d9d"
 
@@ -43,8 +56,10 @@ function PQ.Members()
 		if Safe(_G.UnitExists, unit) == true then
 			local name = ns.Group and ns.Group.NameOf(unit) or Str(Safe(_G.UnitName, unit))
 			local connected = Safe(_G.UnitIsConnected, unit)
+			local guid = Str(Safe(_G.UnitGUID, unit))
 			out[#out + 1] = { unit = unit, name = name or ("party member " .. i), hidden = name == nil or nil,
-				online = Secret(connected) and true or connected ~= false }
+				online = Secret(connected) and true or connected ~= false, guid = guid,
+				key = guid or (name and PQ.NameKey(name)) or unit }
 		end
 	end
 	return out
@@ -63,6 +78,24 @@ function PQ.OnQuest(unit, questID, index)
 		if Secret(v) then return nil end
 		return v == true or v == 1
 	end
+	return nil
+end
+
+-- a name as compared: lowercase, no realm, no spaces ("Plamen Pally-Forever" = "plamenpally")
+function PQ.NameKey(n)
+	n = Lower(tostring(n or "")):gsub("%-.*$", "")
+	return (n:gsub("[%s']", ""))
+end
+
+--- What's known of a member and a quest: "on", "done" (completed it), "cant" (can't take it), "lacks", or nil (not
+--- known). The game's answer first ("yes" always; "no" only once it has said "yes" for someone), then what a share
+--- taught.
+function PQ.Status(m, said, questID)
+	if said == true then return "on" end
+	local l = PQ.learned[m.key]
+	l = l and l[questID]
+	if l then return l.said == "declined" and "lacks" or l.said end
+	if said == false and PQ.trusted then return "lacks" end
 	return nil
 end
 
@@ -109,6 +142,7 @@ function PQ.Share(e)
 		local get, set = C_QuestLog.GetSelectedQuest, C_QuestLog.SetSelectedQuest
 		local was = get and get() or nil
 		if set then set(e.questID) end
+		PQ.lastShare = { id = e.questID, at = (_G.time and _G.time()) or 0 }
 		_G.QuestLogPushQuest(index)
 		if set and was and was ~= e.questID then set(was) end
 	end)
@@ -117,6 +151,84 @@ function PQ.Share(e)
 end
 
 local function NotInLog(e) ns:Print(tostring(e.name) .. ": open your quest log to see it.") end
+
+--- The quest log's own Share too (QuestLogPushQuest hooked, after it runs): which quest was shared last.
+function PQ.HookPush()
+	if PQ.pushHooked then return true end
+	if type(_G.hooksecurefunc) ~= "function" or type(_G.QuestLogPushQuest) ~= "function" then return false end
+	_G.hooksecurefunc("QuestLogPushQuest", function(index)
+		pcall(function()
+			local id
+			local info = index and C_QuestLog.GetInfo and C_QuestLog.GetInfo(index)
+			if type(info) == "table" then id = Num(info.questID) end
+			if not id and C_QuestLog.GetSelectedQuest then id = Num(C_QuestLog.GetSelectedQuest()) end
+			if id then PQ.lastShare = { id = id, at = (_G.time and _G.time()) or 0 } end
+		end)
+	end)
+	PQ.pushHooked = true
+	return true
+end
+
+-- the game's replies to a share, by its own strings (English where a client lacks one)
+local REPLIES = {
+	{ "ERR_QUEST_PUSH_ONQUEST_S", "%s is already on that quest", "on" },
+	{ "ERR_QUEST_PUSH_ACCEPTED_S", "%s has accepted your quest", "on", true },
+	{ "ERR_QUEST_PUSH_ALREADY_DONE_S", "%s has completed that quest", "done" },
+	{ "ERR_QUEST_PUSH_INVALID_S", "%s is not eligible for that quest", "cant" },
+	{ "ERR_QUEST_PUSH_LOG_FULL_S", "%s's quest log is full", "cant" },
+	{ "ERR_QUEST_PUSH_DECLINED_S", "%s has declined your quest", "declined", true },
+}
+local replyPatterns
+local function Pattern(t)
+	local p = t:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"):gsub("%%%%s", "(.+)")
+	return "^" .. p
+end
+
+--- A line the game said: the member's name and what it means ("on", "done", "cant", "declined") and whether it's an
+--- answer they clicked (accepted, declined); nil for any other line.
+function PQ.Reply(text)
+	if type(text) ~= "string" or Secret(text) then return nil end
+	if not replyPatterns then
+		replyPatterns = {}
+		for _, r in ipairs(REPLIES) do
+			local g = Str(_G[r[1]]) or r[2]
+			if g:find("%s", 1, true) then replyPatterns[#replyPatterns + 1] = { Pattern(g), r[3], r[4] } end
+		end
+	end
+	for _, r in ipairs(replyPatterns) do
+		local who = text:match(r[1])
+		if who then return who, r[2], r[3] end
+	end
+	return nil
+end
+PQ.ResetRepliesForTests = function() replyPatterns = nil end
+
+--- What a reply teaches: for the quest shared last (within PQ.RESULT_WAIT, or PQ.ANSWER_WAIT for a clicked answer),
+--- the party member it names. True when it was kept.
+function PQ.Learn(text, now)
+	local who, said, clicked = PQ.Reply(text)
+	if not who then return false end
+	local share = PQ.lastShare
+	now = now or (_G.time and _G.time()) or 0
+	if not share or now - share.at > (clicked and PQ.ANSWER_WAIT or PQ.RESULT_WAIT) then
+		ns:Trace("party quests: \"" .. text .. "\": no share of yours just before it")
+		return false
+	end
+	local want = PQ.NameKey(who)
+	for _, m in ipairs(PQ.Members()) do
+		local full, first = PQ.NameKey(m.name), PQ.NameKey(tostring(m.name):match("^(%S+)") or m.name)
+		if want == full or want == first then
+			PQ.learned[m.key] = PQ.learned[m.key] or {}
+			PQ.learned[m.key][share.id] = { said = said, at = now }
+			local p = ns.providers.groupquests
+			if p then p._dirty = true end
+			ns:Trace(("party quests: %s for quest %d, from the game's reply"):format(said, share.id))
+			return true
+		end
+	end
+	ns:Trace("party quests: \"" .. text .. "\": nobody in your party by that name")
+	return false
+end
 
 ----------------------------------------------------------------------
 -- Rows
@@ -131,10 +243,15 @@ local function Tooltip(e, t)
 	t:AddLine("Your party", 1, 0.82, 0)
 	for _, m in ipairs(e.party or {}) do
 		local said, r, g, b
-		if m.on == true then said, r, g, b = "on it", 0.5, 0.88, 0.5
-		elseif m.on == false then said, r, g, b = "doesn't have it", 1, 0.82, 0
-		else said, r, g, b = m.online and "can't be asked" or "offline", 0.6, 0.6, 0.6 end
+		if m.status == "on" then said, r, g, b = "on it", 0.5, 0.88, 0.5
+		elseif m.status == "lacks" then said, r, g, b = "doesn't have it", 1, 0.82, 0
+		elseif m.status == "done" then said, r, g, b = "has done it", 0.6, 0.6, 0.6
+		elseif m.status == "cant" then said, r, g, b = "can't take it", 0.6, 0.6, 0.6
+		else said, r, g, b = m.online and "not known" or "offline", 0.6, 0.6, 0.6 end
 		t:AddDoubleLine(m.name, said, 1, 1, 1, r, g, b)
+	end
+	if e.unknown and #e.unknown > 0 then
+		t:AddLine("The game doesn't say who's on your quests here: sharing tells (\"is already on that quest\").", 0.6, 0.8, 1, true)
 	end
 	if e.pushable == false then t:AddLine("The game won't let you share this quest", 0.6, 0.6, 0.6, true) end
 	t:AddLine(e.pushable ~= false and "Enter: share with your party    Shift+Enter: show in your quest log"
@@ -154,33 +271,46 @@ end
 
 local list -- (the last collect's rows)
 
-local function Row(q, members, short)
+-- `said`: the game's answers, [member][questID] = true / false / nil, asked once per collect (Collect)
+local function Row(q, members, short, said)
 	local id = q.questID
-	local index = LogIndex(id)
-	local on, lacks, party, online = {}, {}, {}, 0
+	local on, lacks, unknown, done, cant, party, online = {}, {}, {}, {}, {}, {}, 0
 	for _, m in ipairs(members) do
-		local is -- (nil: not asked or it can't say; never `x and false or nil`, which is always nil)
-		if m.online then is = PQ.OnQuest(m.unit, id, index) end
-		party[#party + 1] = { name = short[m], on = is, online = m.online }
-		if m.online then online = online + 1 end
-		if is == true then on[#on + 1] = short[m] elseif is == false then lacks[#lacks + 1] = short[m] end
+		local st
+		if m.online then st = PQ.Status(m, said[m][id], id) end
+		party[#party + 1] = { name = short[m], status = st, online = m.online }
+		if m.online then
+			online = online + 1
+			local n = short[m]
+			if st == "on" then on[#on + 1] = n elseif st == "lacks" then lacks[#lacks + 1] = n
+			elseif st == "done" then done[#done + 1] = n elseif st == "cant" then cant[#cant + 1] = n
+			else unknown[#unknown + 1] = n end
+		end
 	end
 	local pushable = PQ.Pushable(id)
-	local canShare = pushable ~= false and #lacks > 0
+	-- (someone lacks it, or isn't known to have it: the game says "already on that quest" otherwise)
+	local canShare = pushable ~= false and (#lacks + #unknown) > 0
 	local everyone = #on > 0 and #on == online and online > 0
 	local d = { ((q.level and ("Lv " .. q.level .. "  ")) or "") .. (q.zone or "") }
 	if everyone and #on > 1 then d[#d + 1] = GREEN .. "the whole party|r"
 	elseif #on > 0 then d[#d + 1] = GREEN .. Names(on) .. " too|r"
+	elseif #unknown > 0 and #unknown == online then d[#d + 1] = GREY .. "who has it isn't known|r"
 	else d[#d + 1] = GREY .. "only you|r" end
-	if canShare then d[#d + 1] = YELLOW .. ((#lacks == online and #lacks > 1) and "can share" or ("share with " .. Names(lacks))) .. "|r"
-	elseif pushable == false and #lacks > 0 then d[#d + 1] = GREY .. "can't be shared|r" end
+	if #done > 0 then d[#d + 1] = GREY .. Names(done) .. " did it|r" end
+	if #cant > 0 then d[#d + 1] = GREY .. Names(cant) .. " can't take it|r" end
+	local offer = {}
+	for _, n in ipairs(lacks) do offer[#offer + 1] = n end
+	for _, n in ipairs(unknown) do offer[#offer + 1] = n end
+	if canShare then d[#d + 1] = YELLOW .. ((#offer == online and #offer > 1) and "can share" or ("share with " .. Names(offer))) .. "|r"
+	elseif pushable == false and #offer > 0 then d[#d + 1] = GREY .. "can't be shared|r" end
 	local words = { rawget(q, "_ltext") or "", "party quest" }
 	for _, n in ipairs(on) do words[#words + 1] = Lower(n) end
 	if canShare then words[#words + 1] = "share shareable" end
 	local shareIt = pushable ~= false
 	return {
 		key = id, name = q.name, icon = q.icon, questID = id, level = q.level, zone = q.zone, complete = q.complete,
-		quest = q, party = party, on = on, lacks = lacks, pushable = pushable, canShare = canShare, everyone = everyone,
+		quest = q, party = party, on = on, lacks = lacks, unknown = unknown, done = done, cant = cant,
+		pushable = pushable, canShare = canShare, everyone = everyone,
 		together = #on > 0,
 		detail = table.concat(d, "  ·  "), text = table.concat(words, " "),
 		tooltip = Tooltip, getLink = q.getLink, shareExtra = ShareExtra, shareGroup = PQ.ShareGroupOf,
@@ -199,19 +329,42 @@ function PQ.Collect()
 	if PQ.solo then list = {} return list end
 	local short = ShortNames(members)
 	local qp = ns.providers.quests
-	local rows = {}
-	for _, q in ipairs(qp and ns:GetEntries(qp) or {}) do
-		if q.questID then rows[#rows + 1] = Row(q, members, short) end
+	local quests = {}
+	for _, q in ipairs(qp and ns:GetEntries(qp) or {}) do if q.questID then quests[#quests + 1] = q end end
+	-- the game's answers first (a "yes" anywhere makes its "no" count: PQ.trusted), then the rows
+	local said, yes = {}, 0
+	for _, m in ipairs(members) do
+		said[m] = {}
+		if m.online then
+			for _, q in ipairs(quests) do
+				local v = PQ.OnQuest(m.unit, q.questID, LogIndex(q.questID))
+				said[m][q.questID] = v
+				if v == true then yes = yes + 1 end
+			end
+		end
 	end
+	if yes > 0 and not PQ.trusted then
+		PQ.trusted = true
+		ns:Trace("party quests: the game says who's on your quests here (its \"no\" counts from now on)")
+	end
+	local rows = {}
+	for _, q in ipairs(quests) do rows[#rows + 1] = Row(q, members, short, said) end
 	-- (the quest log's own order among equal matches)
 	local n = #rows
 	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end
 	local offline = 0
 	for _, m in ipairs(members) do if not m.online then offline = offline + 1 end end
 	PQ.offline = offline
-	ns:Trace(("party quests: %d quests, %d party members (%d offline), %d with someone else on them, %d to share")
-		:format(#rows, #members, offline, (function() local c = 0 for _, e in ipairs(rows) do if e.together then c = c + 1 end end return c end)(),
-			(function() local c = 0 for _, e in ipairs(rows) do if e.canShare then c = c + 1 end end return c end)()))
+	local together, share, unknown = 0, 0, 0
+	for _, e in ipairs(rows) do
+		if e.together then together = together + 1 end
+		if e.canShare then share = share + 1 end
+		if #e.unknown > 0 then unknown = unknown + 1 end
+	end
+	PQ.unknownRows = unknown
+	ns:Trace(("party quests: %d quests, %d party members (%d offline), %d with someone else on them, %d to share, %d with"
+		.. " someone not known (the game said yes %d times%s)"):format(#rows, #members, offline, together, share, unknown, yes,
+		PQ.trusted and "; trusted" or "; its no isn't trusted yet"))
 	list = rows
 	return rows
 end
@@ -318,6 +471,7 @@ function PQ.Answer(q)
 		elseif q.mode == "together" then note = "Nobody in your party is on your quests" end
 	end
 	if (PQ.offline or 0) > 0 then note = note .. ("  ·  %d offline, not asked"):format(PQ.offline) end
+	if (PQ.unknownRows or 0) > 0 then note = note .. "  ·  " .. PQ.UNKNOWN_NOTE end
 	return rows, note
 end
 
@@ -385,3 +539,20 @@ function PQ.ShareGroupOf(rows, query, ML, LM)
 	if last and not last:find("[%.!?]$") and #last < LM then lines[#lines] = last .. "." end
 	return lines, #rows
 end
+
+----------------------------------------------------------------------
+-- The game's replies to a share; the quest log's own Share
+----------------------------------------------------------------------
+
+local ev = CreateFrame("Frame")
+PQ.frame = ev
+for _, e in ipairs({ "CHAT_MSG_SYSTEM", "UI_INFO_MESSAGE", "UI_ERROR_MESSAGE", "PLAYER_ENTERING_WORLD" }) do
+	pcall(ev.RegisterEvent, ev, e)
+end
+ev:SetScript("OnEvent", function(_, event, a, b)
+	if event == "PLAYER_ENTERING_WORLD" then PQ.HookPush() return end
+	-- (CHAT_MSG_SYSTEM: the text first; UI_INFO_MESSAGE / UI_ERROR_MESSAGE: a message type, then the text)
+	local text = event == "CHAT_MSG_SYSTEM" and a or b
+	if type(text) == "string" and PQ.lastShare then pcall(PQ.Learn, text) end
+end)
+PQ.HookPush()
