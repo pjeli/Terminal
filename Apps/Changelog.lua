@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.47.3", when = "in testing",
+		v = "0.47.4", when = "in testing",
 		items = {
 			"Quests with your party: \"party quests\" (Advanced: @group quests) shows each quest in your log with who in your party is on it too; Enter shares it with the party, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line: \"On the same quests: ... I can share: ...\". Where the game doesn't say who's on what, Terminal learns it from sharing (\"is already on that quest\", \"has accepted your quest\").",
 			"Mail on its way: mail you send to anyone (not just your alts) shows in @mail for the hour it takes to arrive (\"sent mail\"), and the auction house's news shows before you reach a mailbox (\"incoming mail\"): sold (with its price, and when the gold is due), won, outbid and expired.",
