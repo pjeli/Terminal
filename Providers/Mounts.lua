@@ -13,8 +13,8 @@ local MOUNTS_TAB = 1
 local function MountRoot() local M = _G.MountJournal; return M and (M.ScrollBox or M.ListScrollFrame or M) end
 local function PointAtMount(e) local C = ns.Collections if C then C.PointIn(MountRoot, e.name, MOUNTS_TAB) end end
 local function NoJournal(e) local C = ns.Collections if C then C.NoJournal(e) end end -- (combat: nothing opened)
--- (the same press as toys' and pets': Collections.lua loads after this file, so its spec is read at run time)
-local MOUNT_JOURNAL = { binding = "TOGGLECOLLECTIONS", buttons = { "CollectionsMicroButton" }, opensWindow = true }
+-- (Shift+Enter: Collections.JOURNAL_SPEC, the same press as toys' and pets'; Collections.lua loads after this file, so
+-- it's read when the rows are made)
 local function JournalShown() local C = ns.Collections return C and C.JournalShown() or false end
 
 -- Mounts (collected only). Enter = summon, Shift+Enter = show in journal.
@@ -41,7 +41,7 @@ ns:RegisterProvider("mounts", {
 					spellID = spellID,
 					getLink = MountLink, -- (made when selected, not for every mount on every rebuild)
 					activate = SummonMount,
-					secondary = NoJournal, secondarySecure = MOUNT_JOURNAL, secondaryIsOpen = JournalShown,
+					secondary = NoJournal, secondarySecure = ns.Collections and ns.Collections.JOURNAL_SPEC, secondaryIsOpen = JournalShown,
 					secondaryAfter = PointAtMount,
 				}
 			end

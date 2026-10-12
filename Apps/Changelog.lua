@@ -13,7 +13,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.18", when = "in testing",
+		v = "0.46.19", when = "in testing",
 		items = {
 			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. Mail you send to one of your own characters is in its list at once. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
 			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",
@@ -25,6 +25,7 @@ CL.LOG = {
 			".zen is a calmer mode now: while Terminal is open the rest of the interface (the minimap too) fades away and the screen dims behind it, and dragging Terminal still shows its grid; closing Terminal brings it all back smoothly, and combat brings it back at once. Terminal's tooltip, menus and windows stay visible in it.",
 			"Combat closes Terminal at once, and when the fight is over it opens again where you left off: your search, the row you picked, the mode you were in. Press ` during the fight to have it back sooner.",
 			"Spell and talent tooltips (other classes' too) show at once and fill in their text as soon as the game has it, also right after a /reload, instead of showing only the name (or nothing) until you move away and back.",
+			"Fixes: \"food buff\" or \"mail boots\" searches are no longer taken for group or mail questions; Shift+Enter on a Questie quest you have opens its details again; the Spellbook row leaves the book's search alone; @group no longer fails in a boss fight.",
 		},
 	},
 	{

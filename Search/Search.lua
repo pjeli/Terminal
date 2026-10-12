@@ -585,6 +585,12 @@ Scan.ANSWERS = {
 		local q = ns.Spells and ns.Spells.Question(text)
 		if q then return ns.Spells.Answer(q) end
 	end,
+	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua (before the group's: "who is missing
+	-- recipes" is about recipes; the same order as Easy's QuestionToAdvanced)
+	function(text)
+		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)
+		if q then return ns.MissingRecipes.Answer(q) end
+	end,
 	-- "quests to drop", "grey quests": QuestDrop.lua
 	function(text)
 		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
@@ -599,11 +605,6 @@ Scan.ANSWERS = {
 	function(text)
 		local q = ns.Group and ns.Group.Question(text)
 		if q then return ns.Group.Answer(q) end
-	end,
-	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua
-	function(text)
-		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)
-		if q then return ns.MissingRecipes.Answer(q) end
 	end,
 }
 

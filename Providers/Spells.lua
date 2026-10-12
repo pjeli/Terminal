@@ -2,12 +2,13 @@ local ns = select(2, ...)
 local H = ns.Highlight
 
 -- Spells (@spell): every spell in your spellbook.
---   Enter        opens the spellbook on the spell and points at it. The game opens the book (your
---                own Spellbook key, bound to Enter for that press), so nothing runs tainted.
+--   Enter        opens the spellbook on the spell and points at it. The game's own book: opened by its
+--                micro button and turned to the spell's tab and page by the game's own clicks in the same
+--                press (Secure.lua's "Turning a window", NAV below), so nothing runs tainted; with that
+--                turned off (.nav), opened with your Spellbook key and the spell pointed at once it shows.
 --                ClassicUIForever's classic book: turned to the spell's tab and page, as you would,
 --                through the parts its public API (ClassicUIForeverAPI) hands out, and the highest
---                rank shown is pointed at. The game's own book: the press itself turns it there
---                (Blizzard's SpellBookFrame:GoToSpell, run as the game), then Terminal points at it.
+--                rank shown is pointed at.
 --   Shift+Enter  casts it: a /cast line on the secure macro button, pressed by the game. Passive
 --                spells can't be cast. In combat Enter can't be handed to the game, so neither works.
 
@@ -61,12 +62,12 @@ end
 
 local function BookOpen() return SP.Book() ~= nil end
 
--- The game's own spellbook (no ClassicUIForever) is turned to the spell by the game's own clicks (0.46.16, Secure.lua's
+-- The game's own spellbook (no ClassicUIForever) is turned to the spell by the game's own clicks (0.46.18, Secure.lua's
 -- "Turning a window"): the press opens it with its micro button when it's closed, then each step clicks the search
 -- box's clear button, the spell's tab or a page arrow, picked by reading the book (its categories, its pages' element
 -- lists); the book's own code does the turning, untainted. Then Terminal points at the spell. Until 0.46.2 the game
 -- pressed /run ... SpellBookFrame:GoToSpell(id), but a /run line runs tainted (0.46.1), and the book's items set up by
--- it held tainted slots (a click on a spell there, C_SpellBook.CastSpellBookItem, could be blocked); 0.46.2-0.46.15
+-- it held tainted slots (a click on a spell there, C_SpellBook.CastSpellBookItem, could be blocked); 0.46.2-0.46.17
 -- only opened it and pointed. Turned off (.nav) or not possible: opened with your spellbook key and pointed at.
 
 --- The game's own book (PlayerSpellsFrame.SpellBookFrame), shown or not; nil without it.
@@ -106,6 +107,7 @@ function SP.NavStep(e)
 	local okID, tabID = pcall(cat.GetTabID, cat)
 	local okCur, cur = pcall(book.GetTab, book)
 	if okID and okCur and tabID ~= cur then
+		if not (tabs and tabs.GetTabButton) then return nil, "no tab system to switch with" end
 		local okB, btn = pcall(tabs.GetTabButton, tabs, tabID)
 		return okB and btn or nil, "the spell's tab"
 	end
@@ -150,7 +152,9 @@ local function Turns()
 end
 
 local function NavMacro(e)
-	if not Turns() then return nil end
+	-- (a spell's row only: the Spellbook panel row shares this spec, and turning nothing would still clear the book's
+	-- search, 0.47.0 review)
+	if type(e) ~= "table" or not e.spellID or not Turns() then return nil end
 	local book = GameBook()
 	local open
 	if not (book and book:IsVisible()) then
@@ -169,11 +173,7 @@ SP.IsOpen = IsOpen -- (tests)
 --- (only read: its items keep slotIndex/spellBank). The entry's id is its highest rank's.
 function SP.ClientButton(book, e)
 	local paged = book.PagedSpellsFrame or book
-	local slot, bank
-	if C_SpellBook.FindSpellBookSlotForSpell then
-		local ok, s, b = pcall(C_SpellBook.FindSpellBookSlotForSpell, e.spellID, false, true, false, false)
-		if ok then slot, bank = s, b end
-	end
+	local slot, bank = SlotOf(e)
 	local item = ns.FindFrame(paged, function(f)
 		if slot then return f.slotIndex == slot and (bank == nil or f.spellBank == bank) end
 		return type(f.spellBookItemInfo) == "table" and f.spellBookItemInfo.spellID == e.spellID
@@ -246,10 +246,11 @@ SP.HINT_AFTER = 8 -- looks before saying it isn't on the page showing
 local function PointAtSpell(e)
 	local A = CUF()
 	ns:Trace("spells: pointing at " .. tostring(e.name) .. (A and " (ClassicUIForever's book)" or " (client book)"))
-	local turned, last, looks = false, nil, 0
+	local turned, last, looks, seen = false, nil, 0, false
 	H:When(function()
 		local book = SP.Book()
-		if not book then return nil end
+		if not book then if seen then return false end return nil end -- (closed again after it showed: nothing more to look for)
+		seen = true
 		if A then
 			-- turned once; after that only looked at (the highlight's retries don't turn it again)
 			if turned then return (OnPage(A, book, e)) end
@@ -270,7 +271,7 @@ local function PointAtSpell(e)
 	end, function(target) H:Show(target) end, A and 25 or SP.WATCH, function()
 		-- for a .debug log: which step found nothing
 		local book = SP.Book()
-		local slot = C_SpellBook.FindSpellBookSlotForSpell and Call(C_SpellBook.FindSpellBookSlotForSpell, e.spellID, false, true, false, false)
+		local slot = SlotOf(e)
 		ns:Trace(("spells: gave up pointing at %s (book shown: %s, its slot: %s, frame found: %s)"):format(
 			tostring(e.name), book and "yes" or "no", tostring(slot), tostring(book and SP.ClientButton(book, e) ~= nil)))
 	end)

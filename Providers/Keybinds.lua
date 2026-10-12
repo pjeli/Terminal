@@ -1,13 +1,14 @@
 local ns = select(2, ...)
 
 -- Keybindings: every action the game lets you bind (Move Forward, Toggle World Map, Action Button 3,
--- addons' own...), with its keys. Enter opens Options > Keybindings and points at the action's row,
--- where its key is set. "Quick Keybind Mode" is a result too: Enter points at its button, Shift+Enter
--- starts it (hover a button, press a key).
+-- addons' own...), with its keys. Enter opens Options > Keybindings scrolled to the action's section,
+-- unfolds the section, and points at the action's row, where its key is set. "Quick Keybind Mode" is a
+-- result too: Enter points at its button, Shift+Enter starts it (hover a button, press a key).
 --
 -- The Keybindings page and Quick Keybind Mode are opened by the game itself, as a macro line on the
--- secure macro button (QuickKeybindFrame is protected; Terminal's own code never opens either).
--- Afterwards Terminal only reads the page and points at the row (the options search does the same).
+-- secure macro button (QuickKeybindFrame is protected; Terminal's own code never opens either), and the
+-- section is unfolded by the game's own click (NAV below). Terminal's code only reads the page and points
+-- at the row, as GameOptions.lua's HighlightSetting does for a setting.
 
 local K = {}
 ns.Keybinds = K
@@ -35,7 +36,6 @@ function K.OpenMacro()
 	local St = _G.Settings
 	return ns.Secure.SettingsMacro(St and St.KEYBINDINGS_CATEGORY_ID)
 end
-function K.MacroFor() return K.OpenMacro() end -- (every action's: the page; the row is pointed at)
 -- Quick Keybind Mode: the options window steps aside, the protected frame is shown by the game
 K.QUICK_MACRO = "/run if SettingsPanel and SettingsPanel:IsShown() then HideUIPanel(SettingsPanel) end if QuickKeybindFrame then ShowUIPanel(QuickKeybindFrame) end"
 
@@ -55,7 +55,7 @@ local function PageOpen()
 	return false
 end
 
--- The action's section, scrolled to and unfolded by the game's own clicks (0.46.16, Secure.lua's "Turning a window"):
+-- The action's section, scrolled to and unfolded by the game's own clicks (0.46.18, Secure.lua's "Turning a window"):
 -- the press opens the page scrolled to the section's header (C_SettingsUtil.OpenSettingsPanel's own scrolling, by the
 -- section's name), then a step clicks the header when it's folded, which the page answers by unfolding it (its own
 -- code, untainted). Read only: the list's frames. The row is then pointed at when it shows; one further down the
@@ -66,8 +66,11 @@ local function SectionFrame(name)
 	local sp = _G.SettingsPanel
 	local ok, list = pcall(function() return sp:GetSettingsList() end)
 	local box = ok and type(list) == "table" and rawget(list, "ScrollBox")
-	local frames = box and rawget(box, "frames")
-	if type(frames) ~= "table" then return nil end
+	-- (its frames live on its view: ScrollBoxBaseMixin:GetFrames() = self:GetView():GetFrames(), read only. 0.46.18 read
+	-- a field on the box itself, which the client doesn't have: the section was never found, so never unfolded)
+	local okF, frames = false, nil
+	if box and type(box.GetFrames) == "function" then okF, frames = pcall(box.GetFrames, box) end
+	if not okF or type(frames) ~= "table" then return nil end
 	for _, f in ipairs(frames) do
 		local okD, init = pcall(function() return f:GetElementData() end)
 		local data = okD and type(init) == "table" and rawget(init, "data")
@@ -182,7 +185,7 @@ ns:RegisterProvider("keybinds", {
 						detail = (keys or "not bound") .. (category and ("  ·  " .. category) or ""),
 						text = "keybind binding hotkey " .. (keys or "unbound") .. " " .. (category or ""),
 						rowText = name, category = category,
-						-- (the page open: only pointed at)
+						-- (always pressed while the section is unfolded by a click; the route off and the page open: pointed at only)
 						secure = OPEN_SPEC, isOpen = IsOpen, after = PointAtRow, activate = OpenDirect,
 					}
 				end

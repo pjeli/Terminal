@@ -18,11 +18,24 @@ function ns.Secret(v)
 	return issecretvalue and issecretvalue(v) or false
 end
 
---- A usable string: not empty, not secret; else nil.
+--- A usable string: not empty, not secret; else nil. (Secret first: comparing a secret value, even with "", is an
+--- error on this client.)
 function ns.Str(v)
-	if type(v) ~= "string" or v == "" then return nil end
+	if type(v) ~= "string" then return nil end
 	if issecretvalue and issecretvalue(v) then return nil end
+	if v == "" then return nil end
 	return v
+end
+
+--- The given strings that are there (nil and "" left out), joined with `sep`: built by count, as a table with nils in
+--- it would stop table.concat (or make it error) at the first hole.
+function ns.Join(sep, ...)
+	local out = {}
+	for i = 1, select("#", ...) do
+		local v = select(i, ...)
+		if type(v) == "string" and v ~= "" then out[#out + 1] = v end
+	end
+	return table.concat(out, sep)
 end
 
 --- A usable number: not secret; else nil.

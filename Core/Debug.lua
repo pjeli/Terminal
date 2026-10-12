@@ -65,8 +65,9 @@ local function Describe(ev)
 		lines[#lines + 1] = ("  a /run line Terminal had the game press %.1f s before (%s): %s"):format(ev.runAgo or 0,
 			tostring(ev.runPress.via), PressText(ev.runPress))
 	elseif ev.lastRun then
-		lines[#lines + 1] = ("  Terminal's last /run press was %s ago (%s): %s; a block later on can still come from what it wrote"):format(
-			ns.Ago and ns.Ago(ev.lastRunAgo or 0) or (math.floor(ev.lastRunAgo or 0) .. " s"), tostring(ev.lastRun.via), PressText(ev.lastRun))
+		-- (ns.Ago says "5 min ago" / "just now" itself: "was 5 min ago ago" until 0.47.0)
+		lines[#lines + 1] = ("  Terminal's last /run press was %s (%s): %s; a block later on can still come from what it wrote"):format(
+			ns.Ago and ns.Ago(ev.lastRunAgo or 0) or (math.floor(ev.lastRunAgo or 0) .. " s ago"), tostring(ev.lastRun.via), PressText(ev.lastRun))
 	end
 	if ev.cheap and not ev.traced then
 		lines[#lines + 1] = "  (another addon's; what Terminal was doing isn't recorded for these while .debug is off)"
@@ -124,8 +125,6 @@ local function OnAction(event, addon, func)
 		return
 	end
 	D.count = D.count + 1 -- (Terminal's own from here on)
-	-- (right after a press that turned a window for you: that window is only pointed at from now on, Secure.lua)
-	if ns.Secure and ns.Secure.OnBlocked then pcall(ns.Secure.OnBlocked, func, at) end
 	-- the same call blocked again within a second (a loop of them when taint spreads): counted on the
 	-- first's record, which keeps its stack and trace; the chat line is printed once, not every time
 	local last = events[#events]
@@ -133,6 +132,9 @@ local function OnAction(event, addon, func)
 		last.times, last.t = (last.times or 1) + 1, at
 		return
 	end
+	-- (right after a press that turned a window for you: that window is only pointed at from now on, Secure.lua; once
+	-- per new block, not for each repeat of a storm)
+	if ns.Secure and ns.Secure.OnBlocked then pcall(ns.Secure.OnBlocked, func, at) end
 	local ok, stack = pcall(debugstack, 3, 12, 0)
 	local ev = {
 		event = event, addon = addon, func = func, t = at,

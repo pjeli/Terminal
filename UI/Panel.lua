@@ -70,7 +70,14 @@ function P.Opening(app)
 	end
 end
 
-function P.Registered() return panels end -- (tests)
+function P.Registered() return panels end -- (every app built; Zen and the tests read it)
+--- Whether one of Terminal's apps shows (in the terminal's place: they count as Terminal).
+function P.AnyShown()
+	for _, app in ipairs(panels) do
+		if type(app.IsShown) == "function" and app.IsShown() then return true end
+	end
+	return false
+end
 function P.Frames() return frames end
 
 --- Passes this key press on to the game unless it was the app's own (`mine`). Choosing isn't allowed in combat:

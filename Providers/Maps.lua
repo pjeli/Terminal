@@ -87,13 +87,7 @@ end
 
 --- Who last wrote the map's zone (WorldMapFrame.mapID), only read: "the game's own code", else the name the game
 --- blames for it ("*** ForceTaint_Strong ***" for a /run line, an addon's name). Nil when this client can't tell.
-function M.MapWriter()
-	local f, check = _G.WorldMapFrame, _G.issecurevariable
-	if not f or type(check) ~= "function" then return nil end
-	local ok, secure, by = pcall(check, f, "mapID")
-	if not ok then return nil end
-	return secure and "the game's own code" or tostring(by or "an unknown caller")
-end
+function M.MapWriter() return ns.Secure.Writer(_G.WorldMapFrame, "mapID") end
 
 --- Runs once the map is open: show the place, and point at it.
 local function ShowAfter(e)
@@ -107,7 +101,7 @@ local function ShowAfter(e)
 	local writer = M.MapWriter()
 	ns:Trace("maps: the map " .. (switched and "shows " or "doesn't show ") .. tostring(e.name)
 		.. (writer and ("; its zone was set by " .. writer) or "")
-		.. ((writer and writer ~= "the game's own code") and " (its pins may be blocked in combat)" or ""))
+		.. ((writer and writer ~= ns.Secure.GAME) and " (its pins may be blocked in combat)" or ""))
 	local pin = Place(e)
 	if pin and not switched then
 		ns:Print(M.PinLine(pin, e.name) .. ": couldn't switch the map to it.")

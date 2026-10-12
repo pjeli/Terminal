@@ -37,9 +37,10 @@ local LOOKS, HINT_AFTER = 200, 8 -- looks a tenth of a second apart (20 s to get
 --- Points at the row's name inside a part of the journal (rootFn) whenever it shows (reading only). While another tab
 --- shows, its tab `tab` is pointed at and that's said once; a row on another page is said once too.
 local function PointIn(rootFn, name, tab)
-	local looks = 0
+	local looks, seen = 0, false
 	H:When(function()
-		if not JournalShown() then return nil end
+		if not JournalShown() then if seen then return false end return nil end -- (closed again after it showed)
+		seen = true
 		looks = looks + 1
 		local root = rootFn()
 		if root and root:IsVisible() then

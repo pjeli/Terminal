@@ -255,16 +255,20 @@ do
 	check(lines:find("Terminal's /run press", 1, true) and lines:find("0.4 s before (Enter): /run C_Map.OpenWorldMap(1413)", 1, true),
 		"its record names the press: " .. lines:sub(1, 200))
 	check(printed[#printed] and printed[#printed]:find("Blocked Button:SetPassThroughButtons()", 1, true), "and says so in chat, as Terminal's own")
-	-- the same call again at once (taint spreading): folded into that record
+	-- the same call again at once (taint spreading): folded into that record, and (0.47.0 review) the turning routes
+	-- aren't asked about each repeat of a storm
+	local obWas, obCalls = ns.Secure.OnBlocked, 0
+	ns.Secure.OnBlocked = function() obCalls = obCalls + 1 end
 	D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", FT, "Button:SetPassThroughButtons()")
-	check(ev.times == 2 and D.count == mine + 2, "repeats fold into its record: x" .. tostring(ev.times))
+	ns.Secure.OnBlocked = obWas
+	check(ev.times == 2 and D.count == mine + 2 and obCalls == 0, "repeats fold into its record: x" .. tostring(ev.times) .. ", routes asked " .. obCalls)
 	-- minutes later (delayed taint): another's, but the last /run press is named so the player can judge
 	clock = clock + 240
 	D.frame.scripts.OnEvent(D.frame, "ADDON_ACTION_BLOCKED", FT, "Frame:SetAttribute()")
 	ev = D.events[#D.events]
 	lines = table.concat(D.Describe(ev), "\n")
-	check(ev.cheap and ev.lastRun and lines:find("Terminal's last /run press was", 1, true) and lines:find("OpenWorldMap", 1, true),
-		"4 minutes later: another's, the last /run press named: " .. lines:sub(1, 220))
+	check(ev.cheap and ev.lastRun and lines:find("Terminal's last /run press was 4 min ago (", 1, true) and lines:find("OpenWorldMap", 1, true)
+		and not lines:find("ago ago", 1, true), "4 minutes later: another's, the last /run press named (said once \"ago\"): " .. lines:sub(1, 220))
 	-- a press with no /run line (a /click) is noted but never blamed for a ForceTaint_Strong block
 	S.NotePress("/click LegacyMicroButton", "Enter")
 	clock = clock + 0.2

@@ -1,5 +1,5 @@
 local T = ...
--- Turning a window to the right page by the game's own clicks (0.46.16, the player's ask; Secure.lua "Turning a
+-- Turning a window to the right page by the game's own clicks (0.46.18, the player's ask; Secure.lua "Turning a
 -- window"): the press's macro opens the window, then "/click TerminalNavN" lines, each a step whose PreClick picks the
 -- Blizzard button to click (read only) for the secure button to click for the game. Afterwards the window fields the
 -- clicks write are read (issecurevariable): one left written by anyone else turns the route off (.nav, .nav reset).
@@ -158,6 +158,9 @@ do -- the spellbook (the game's own): its micro button when closed, then the sea
 	check(not S.NavOn("spellbook"), "a blocked action right after the press: off")
 	ns.db.navTainted = nil
 	T.FlushAll()
+	-- (0.47.0 review) the Spellbook panel row shares the spec: no spell, no turning (it cleared the book's search)
+	text = S.Resolve(SP.SECURE, { name = "Spellbook" })
+	check(text and not text.macro, "the Spellbook panel row: not turned (the book's search left alone)")
 	-- ClassicUIForever's book: its own route (its key, turned by its own buttons), never these clicks
 	_G.ClassicUIForeverAPI = { GetFrame = function() return book end, IsOn = function() return true end }
 	text = S.Resolve(SP.SECURE, e)
@@ -207,6 +210,16 @@ do -- the quest log (the map's quest panel): its micro button when closed, then 
 	check(not text.macro:find("QuestLogMicroButton"), "open: steps only")
 	clicked = RunMacro(text.macro)
 	check(clicked[1] == det.BackFrame.BackButton and clicked[2] == row and det.shown and det.questID == 33, "another quest's details: back, then its row")
+	-- (review) the route's watch: the details' quest left written by someone else after the press turns it off
+	said = {}
+	det.questID = 34
+	text = S.Resolve(Q.NAV_SECURE, e)
+	RunMacro(text.macro)
+	tainted[det] = { questID = "Terminal" }
+	T.FlushAll()
+	check(not S.NavOn("questlog") and #said == 1, "quest log: its details' quest left tainted turns the route off")
+	tainted[det] = nil
+	ns.db.navTainted = nil
 	-- its header folded (no row for it): the header is unfolded (its row comes with the log's next update)
 	det.shown, folded = false, true
 	row.shown = false
@@ -226,6 +239,13 @@ do -- the quest log (the map's quest panel): its micro button when closed, then 
 	-- the panel row "Quest Log" (no quest): the quest key, as before
 	text = S.Resolve(Q.NAV_SECURE, { name = "Quest Log" })
 	check(text and not text.macro, "no quest: the quest key")
+	-- (0.47.0 review) a Questie row of a quest in your log (Shift+Enter is the log row's press, with the Questie row, its
+	-- quest as `qid`): turned to its details too
+	det.shown, det.questID = false, nil
+	text = S.Resolve(Q.NAV_SECURE, { name = "Wolves Across the Border", qid = 33 })
+	check(text and text.macro and text.macro:find("/click TerminalNav%d"), "a Questie row (qid): turned too")
+	RunMacro(text.macro)
+	check(det.shown and det.questID == 33, "a Questie row: its details show")
 	C_QuestLog.GetInfo, C_QuestLog.GetLogIndexForQuestID = giWas, liWas
 	_G.QuestMapFrame, _G.QuestScrollFrame, _G.QuestLogMicroButton = savedQMF, savedQSF, savedQLMB
 	_G.ForeverClassicUIQuestLog = savedCUIF
@@ -241,7 +261,10 @@ do -- Options > Keybindings: the page scrolled to the action's section (the game
 	local section = Obj("Frame"); section.shown = true
 	section.GetElementData = function() return { data = data } end
 	section.Button = Button(nil, function() data.expanded = not data.expanded end)
-	local box = Obj("Frame"); box.shown = true; box.frames = { section }
+	-- (the frames live on the ScrollBox's view, reached with GetFrames: the review found the 0.46.18 mock had them on the
+	-- box itself, as the client doesn't)
+	local box = Obj("Frame"); box.shown = true
+	box.GetFrames = function() return { section } end
 	local sp = Obj("Frame"); sp.shown = true
 	sp.GetSettingsList = function() return { ScrollBox = box } end
 	sp.GetCurrentCategory = function() return { GetID = function() return 42 end } end
@@ -252,6 +275,20 @@ do -- Options > Keybindings: the page scrolled to the action's section (the game
 	RunMacro(text)
 	check(data.expanded == true, "the folded section unfolded by its header's click")
 	check(K.NavStep(e) == nil, "unfolded: nothing more to click")
+	-- (review) the route's watch: the section's state left written by someone else turns it off
+	data.expanded = false
+	said = {}
+	RunMacro(K.NavMacro(e))
+	tainted[data] = { expanded = "Terminal" }
+	T.FlushAll()
+	check(not S.NavOn("keybinds") and #said == 1, "keybindings: the section's state left tainted turns the route off")
+	tainted[data] = nil
+	ns.db.navTainted = nil
+	-- (review) a blocked action later than NAV_BLAME after the press: not the turning's doing
+	RunMacro(K.NavMacro(e))
+	S.OnBlocked("SomeProtectedCall()", GetTime() + S.NAV_BLAME + 1)
+	check(S.NavOn("keybinds"), "a blocked action long after the press: the route stays on")
+	T.FlushAll()
 	-- the row in view or not (laid out further down the section than the list shows)
 	local G = ns.GameOptions
 	box.GetTop, box.GetBottom = function() return 500 end, function() return 100 end

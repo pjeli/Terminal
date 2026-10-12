@@ -95,7 +95,7 @@ function UI:UpdateTooltip()
 	if not (link or e.tip or e.tooltip) then
 		-- (0.46.15, the player: right after a /reload no talent showed a tooltip at all until the terminal was opened
 		-- again: a spell the client hasn't loaded gives no link yet) asked for, and drawn once it's in
-		UI.WaitForTipItem(t, e, nil)
+		UI.WaitForTipData(t, e, nil)
 		return
 	end
 	t:SetOwner(frame, "ANCHOR_NONE")
@@ -117,7 +117,7 @@ function UI:UpdateTooltip()
 		t:Show()
 		HideComparisons(t)
 		StyleTip(t)
-		UI.WaitForTipItem(t, e, link)
+		UI.WaitForTipData(t, e, link)
 	end
 end
 
@@ -176,7 +176,7 @@ do
 		end
 		if S.GetSpellDescription then
 			local ok, d = pcall(S.GetSpellDescription, id)
-			if ok and d == "" and not ns.Secret(d) then return false end -- (its text: asked for along with its data)
+			if ok and not ns.Secret(d) and d == "" then return false end -- (its text: asked for along with its data)
 		end
 		return true
 	end
@@ -222,7 +222,7 @@ do
 		Redraw(tip, e)
 	end
 
-	function UI.WaitForTipItem(t, e, link)
+	function UI.WaitForTipData(t, e, link)
 		waitGen = waitGen + 1
 		UI.StopTipWait(t)
 		local kind, id = DataOfTip(e, link)

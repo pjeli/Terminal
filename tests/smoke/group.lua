@@ -230,6 +230,45 @@ do
 	check(by["Plamen Warr"] and by["Plamen Warr"].mine and by.Ann and by.Cid and by.Cid.detail:find("group 2", 1, true)
 		and by.Cid.zone == "Razorfen Kraul", "a raid: raid1..3, you among them, subgroup and zone")
 	M.raid1, M.raid2, M.raid3 = nil, nil, nil
+	n, raid = 5, false
+	_G.UnitIsUnit, _G.GetRaidRosterInfo = save.UnitIsUnit, save.GetRaidRosterInfo
+
+	-- (0.47.0 review) an item search with a buff or consumable word stays a search ("food buff" listed you as needing
+	-- agility; "consumables" is @consumable's own word; typing "consecration" flashed the group up at "cons"); a missing
+	-- word with what's missing named still asks
+	check(Q("food buff") == nil and Q("agility buff") == nil and Q("stamina buff") == nil and Q("scroll of agility buff") == nil
+		and Q("consumables") == nil and Q("cons") == nil and Q("buffs") == nil and Q("missing recipes") == nil,
+		"a buff or consumable word alone, or missing with nothing of the group's named: a search")
+	check(Q("missing buffs") and Q("missing consumables") and Q("who needs food") and Q("unbuffed") and Q("party consumables")
+		and Q("needs fortitude"), "still asked: missing buffs / consumables, who needs food, unbuffed, party consumables, needs fortitude")
+	-- "who is missing recipes" is the recipes' question: asked before the group's, in the search and in Alt+` alike
+	UI:Search("who is missing recipes")
+	check(UI.answerNote and UI.answerNote:find("ecipe"), "who is missing recipes: the recipes' answer: " .. tostring(UI.answerNote))
+	check(ns.Easy.QuestionToAdvanced("who is missing recipes"):find("^@recipe"), "and Alt+` writes it as @recipe")
+	-- a member whose class didn't read, with a role: said without an error (a nil in table.concat's list stopped it)
+	check(ns.Join(", ", nil, "Healer") == "Healer" and ns.Join("  ·  ", "Level 20", nil, "", "Zone") == "Level 20  ·  Zone",
+		"ns.Join leaves out what isn't there")
+	M.party1.lclass = nil
+	local ann = Rows().Ann
+	local okLine, line = pcall(ns.Share.Line, ann)
+	local tipLines = {}
+	local tip = { SetText = function() end, AddLine = function(_, l) tipLines[#tipLines + 1] = l end }
+	local okTip = pcall(ann.tooltip, ann, tip)
+	check(okLine and tostring(line):find("Ann (Healer)", 1, true) and okTip and tipLines[1] == "Level 20  ·  Healer",
+		"no class read: \"Ann (Healer)\" in chat, \"Level 20  ·  Healer\" in the tooltip: " .. tostring(line) .. " / " .. tostring(tipLines[1]))
+	M.party1.lclass = "Priest"
+	-- three things hidden: "Range, buffs and roles hidden ..."
+	GR.hidden = { range = 1, buffs = 1, roles = 1 }
+	check(GR.HiddenText():find("^Range, buffs and roles hidden"), "three hidden: " .. tostring(GR.HiddenText()))
+	GR.hidden = nil
+	-- no per-unit events (they fire for every unit, hundreds a second in a fight, and each dirtied the list): read on open
+	local unitEvents = {}
+	for _, ev in ipairs(P.events or {}) do if ev:find("^UNIT_") then unitEvents[#unitEvents + 1] = ev end end
+	check(#unitEvents == 0 and P.refreshOnOpen, "no per-unit events, read afresh on every open: " .. table.concat(unitEvents, ","))
+	-- the footer note and the line sent to chat name the roles alike
+	local _, dpsNote = A("group dps")
+	check(dpsNote:find("Damage dealers", 1, true) and ns.Share.GroupLines(UI:Search("@group is:dps"), "@group is:dps")[1]:find("^Damage dealers: "),
+		"damage dealers named alike in the note and in chat: " .. tostring(dpsNote))
 
 	for _, k in ipairs(names) do _G[k] = save[k] end
 	_G.Enum, ns.db.easyMode, ns.CharacterName = saveEnum, easyWas, cnameWas

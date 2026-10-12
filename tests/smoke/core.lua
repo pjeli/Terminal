@@ -541,3 +541,24 @@ do
 	check(UI.glow:IsShown(), "back on while fuzzy finding")
 	UI:Hide(); T.FlushAll()
 end
+
+do -- (0.47.0 review) one pointing at a time, and a finder can end it; hidden parts of a window aren't walked
+	local H = ns.Highlight
+	local foundA, foundB, triesA = false, false, 0
+	H:When(function() triesA = triesA + 1 return nil end, function() foundA = true end, 50)
+	H:When(function() return {} end, function() foundB = true end, 50)
+	T.FlushAll()
+	check(foundB and not foundA and triesA == 0, "a newer pointing ends the older one (it never looked again): " .. triesA)
+	local looks, gaveUp = 0, false
+	H:When(function() looks = looks + 1 if looks == 2 then return false end return nil end, function() end, 50, function() gaveUp = true end)
+	T.FlushAll()
+	check(looks == 2 and not gaveUp, "a finder saying false ends it at once: " .. looks)
+	-- ns.FindFrame: a hidden frame's children aren't asked for (they're hidden too)
+	local walked = 0
+	local leaf = T.Obj("Frame"); leaf.shown = true
+	local hidden = T.Obj("Frame"); hidden.shown = false
+	hidden.GetChildren = function() walked = walked + 1 return leaf end
+	local root = T.Obj("Frame"); root.shown = true
+	root.GetChildren = function() return hidden end
+	check(ns.FindFrame(root, function(f) return f == leaf end, 5) == nil and walked == 0, "under a hidden frame: not walked")
+end

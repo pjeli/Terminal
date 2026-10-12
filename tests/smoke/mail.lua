@@ -46,7 +46,9 @@ do
 		local first = m.items and m.items[1]
 		return "pkg", "stat", m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], nil, true, false, first and first[4], nil
 	end
+	local itemCalls = 0
 	_G.GetInboxItem = function(i, a)
+		itemCalls = itemCalls + 1
 		local it = inbox[i] and inbox[i].items and inbox[i].items[a]
 		if not it then return nil end
 		return it[1], it[2], it[3], it[4], it[5], true
@@ -75,6 +77,7 @@ do
 	check(note and #note.mails == 4 and note.name == "Plamen Warr" and note.more == 3, "the inbox kept as your note, 3 more on the server: "
 		.. tostring(note and #note.mails))
 	check(textCalls == 0, "a mail's text is never read (that marks it read)")
+	check(itemCalls == 3, "attachments asked for until all are found (2 + 1), not all 16 slots of each: " .. itemCalls)
 	local sale = note.mails[2]
 	check(sale.auction == "sold" and sale.invoice and sale.invoice.bid == 460000 and sale.deletes and sale.expires == now + 2 * DAY,
 		"the sale: an auction, its invoice, deleted when it runs out, in 2 days")
@@ -136,6 +139,11 @@ do
 	check(q and q.words[1] == "bob", "mail from bob: narrowed by the sender")
 	check(Q("mail gloves") == nil and Q("my mail gloves") == nil and Q("mailbox") == nil and Q("nearest mailbox") == nil
 		and Q("mailbox in ratchet") == nil and Q("@mail") == nil and Q("mail") == nil, "other searches stay searches")
+	-- (0.47.0 review) the armour: "mail" with words besides needs a cue only mail has, or "from" before the other words
+	check(Q("mail boots from wailing caverns") == nil and Q("new mail gloves") == nil and Q("mail armor sold by vendors") == nil,
+		"mail armour searches stay searches")
+	check(Q("new mail") and Q("new mail").unread and Q("my mail from bob") and Q("mail from bob") and Q("mailbox from bob")
+		and Q("unread mail from bob") and Q("cod mail gloves").cod, "still asked: new mail, mail from bob, unread / cod mail with words")
 	local rows, said = MA.Answer(Q("my mail"))
 	check(rows[1].mailKind == "box" and rows[2].mailKind == "box" and said:find("Your mail", 1, true) and said:find("5 mails", 1, true),
 		"my mail: the mailboxes, then the mail: " .. tostring(said))

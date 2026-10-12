@@ -1156,7 +1156,7 @@ do
 		ns.providers.items._dirty = true; ns.providers.gear._dirty = true
 	end
 
-	-- (0.46.16: these are the key-and-point route, used when turning the quest log is off: tests/smoke/nav.lua has the turning)
+	-- (0.46.18: these are the key-and-point route, used when turning the quest log is off: tests/smoke/nav.lua has the turning)
 	ns.db.navTainted = { questlog = { what = "test" }, spellbook = { what = "test" } }
 	QuestMapFrame.shown = false
 	C_QuestLog.SetSelectedQuest = function(id) note("SelectQuest", id) end
@@ -1913,14 +1913,11 @@ do
 	check(S.armed == nil and printed and printed:find("passive", 1, true), "Shift+Enter on a passive: nothing cast, it says so")
 	UI:Disarm(); UI:Hide()
 
-	-- the game's own book (no ClassicUIForever): the press opens it and turns it to the spell itself (Blizzard's
-	-- GoToSpell, after clearing a search), whether the book is open or not; Terminal then points at the spell's item
+	-- the game's own book (no ClassicUIForever), with turning it off (.nav): the press opens it with the spellbook key
+	-- and Terminal points at the spell's item when it shows (0.46.2: never a /run line, which runs tainted: the book's
+	-- items set up by GoToSpell from one held tainted slots). The turning (0.46.18) is tests/smoke/nav.lua's.
 	_G.ClassicUIForeverAPI = nil
-	_G.PlayerSpellsUtil = { OpenToSpellBookTab = function() end }
-	-- (0.46.16: the key-and-point route, used when turning the book is off: tests/smoke/nav.lua has the turning)
 	ns.db.navTainted = { spellbook = { what = "test" } }
-	-- 0.46.2: the game's own book is opened with the spellbook key and never turned from here (a /run line runs tainted,
-	-- 0.46.1: the book's items set up by GoToSpell held tainted slots, and casting from them could be blocked)
 	local r = ns.Secure.Resolve(sp.Fireball.secure, sp.Fireball)
 	check(r and r.binding == "TOGGLESPELLBOOK" and not r.macro, "game's book: the spellbook key, never a /run line: " .. tostring(r and (r.macro or r.binding)))
 	local client = Obj("Frame"); client.shown = true
@@ -4901,7 +4898,7 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	key("ENTER")
 	local mt = _G.TerminalMacroProxy.attrs.macrotext or ""
 	local first = mt:match("^[^\n]*")
-	-- (0.46.16: scrolled to the action's section by the game's own call; the /click lines after it unfold the section:
+	-- (0.46.18: scrolled to the action's section by the game's own call; the /click lines after it unfold the section:
 	-- tests/smoke/nav.lua)
 	check(S.armed == "MACRO" and first == '/run C_SettingsUtil.OpenSettingsPanel(42,"Interface Panel Functions")'
 		and mt:find("\n/click TerminalNav%d"), "Enter: the game opens the Keybindings page at its section with its own call: " .. mt)
@@ -4922,7 +4919,7 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == ns.Keybinds.QUICK_MACRO, "Shift+Enter on Quick Keybind Mode: the game starts it")
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
 	local q = kb["Quick Keybind Mode"]
-	check(UI.ClickFor(q, true) == ns.Keybinds.QUICK_MACRO and UI.ClickFor(q, false) == ns.Keybinds.MacroFor(""), "clicks do the same (Shift+click starts it)")
+	check(UI.ClickFor(q, true) == ns.Keybinds.QUICK_MACRO and UI.ClickFor(q, false) == ns.Keybinds.OpenMacro(), "clicks do the same (Shift+click starts it)")
 	local cm = UI.ClickFor(kb["Toggle World Map"], false) or ""
 	check(cm:match("^[^\n]*") == '/run C_SettingsUtil.OpenSettingsPanel(42,"Interface Panel Functions")' and cm:find("\n/click TerminalNav%d"),
 		"a click on an action does what Enter does (the page at its section, then the unfolding clicks): " .. cm)

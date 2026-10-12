@@ -123,7 +123,7 @@ local function Tick(_, elapsed)
 	Apply(level)
 	if level == target then
 		driver:SetScript("OnUpdate", nil) -- (runs only while fading)
-		if level == 0 then Done() elseif level == 1 then HideRest() end
+		if level == 0 then Done() end -- (the minimap was hidden as the fade began: MoveTo)
 	end
 end
 
@@ -136,7 +136,7 @@ local function MoveTo(t, instant)
 		level = t
 		Apply(level)
 		driver:SetScript("OnUpdate", nil)
-		if t == 0 then Done() elseif t == 1 then HideRest() end
+		if t == 0 then Done() end
 		return
 	end
 	driver:SetScript("OnUpdate", Tick)
@@ -171,13 +171,7 @@ function Z.Leave(instant)
 	return true
 end
 
---- Whether one of Terminal's apps shows (in the terminal's place: they count as Terminal).
-local function AppShown()
-	for _, app in ipairs(ns.Panel and ns.Panel.Registered() or {}) do
-		if type(app.IsShown) == "function" and app.IsShown() then return true end
-	end
-	return false
-end
+local function AppShown() return ns.Panel and ns.Panel.AnyShown() or false end
 
 local function Check()
 	watching = false

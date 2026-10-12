@@ -213,7 +213,7 @@ function QD.Confirm(rows)
 		if type(e.questID) == "number" then list[#list + 1] = { questID = e.questID, name = tostring(e.name) } end
 	end
 	if #list == 0 then ns:Print("Nothing to drop.") return end
-	if not (P and P.CanOpen("In combat: drop them once the fight is over.")) then return end
+	if not (P and P.CanOpen(#list == 1 and "In combat: drop it once the fight is over." or "In combat: drop them once the fight is over.")) then return end
 	if not dialog then
 		dialog = P.Build("TerminalDropQuests", app)
 		dialog.title = P.Text(dialog, 15, "CENTER")

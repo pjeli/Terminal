@@ -4,7 +4,7 @@ local H = ns.Highlight
 -- Quests are searched by title AND by their description, objectives and zone,
 -- so "kill 10 boars" or a snippet of flavour text finds the quest.
 --
--- Opening one: the map's quest panel is opened and turned to the quest's details by the game's own clicks (0.46.16:
+-- Opening one: the map's quest panel is opened and turned to the quest's details by the game's own clicks (0.46.18:
 -- its micro button, then the quest's row: QUEST_NAV below), and Terminal points at them. Until 0.46.2 a game-pressed
 -- /run QuestMapFrame_OpenToQuestDetails did it, but a /run line runs tainted too (0.46.1: the game blames it as
 -- "*** ForceTaint_Strong ***"), and that call wrote the map's focused quest and its details' quest: the map's quest
@@ -100,9 +100,19 @@ end
 -- looks (a tenth of a second apart) for the quest's row: it's pointed at whenever it scrolls into view in that time
 local Q_WATCH = 150
 
+--- A row's quest: a quest log row's questID, or a Questie row's qid (its Shift+Enter is the log row's press when the quest
+--- is in your log: QuestieQuests.lua's FromLog hands it this file's secure/isOpen/after, with the Questie row as `e`).
+local function QuestID(e)
+	if type(e) ~= "table" then return nil end
+	local id = e.questID or e.qid
+	return type(id) == "number" and id or nil
+end
+
 local function ShowQuestAfter(e)
-	if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, e.questID) end
-	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(e.questID)
+	local qid = QuestID(e)
+	if not qid then return end
+	if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, qid) end
+	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(qid)
 	-- a classic-style quest log (a classic client's, or ClassicUIForever's): select the quest the way clicking
 	-- it does, and scroll to it. (This client's own log is the map's panel, only pointed at below.)
 	if idx and (Visible(_G.QuestLogFrame) or Visible(_G.ForeverClassicUIQuestLog)
@@ -122,15 +132,19 @@ local function ShowQuestAfter(e)
 	-- shows (never scrolled or opened from here: see the top of this file)
 	if Visible(_G.QuestMapFrame) and not InCombatLockdown() then
 		local details = _G.QuestMapFrame.DetailsFrame
-		if Visible(details) and rawget(details, "questID") == e.questID then
+		if Visible(details) and rawget(details, "questID") == qid then
 			ns:Trace("quests: the quest's details are showing in the map's quest panel; pointing at them")
 			H:Show(details)
 			return
 		end
 	end
 	ns:Trace("quests: looking for '" .. tostring(e.name) .. "' in " .. WindowNames())
+	local seen = false
 	H:When(function()
-		for _, w in ipairs(QuestWindows()) do
+		local wins = QuestWindows()
+		if #wins == 0 then if seen then return false end return nil end -- (closed again after it showed: nothing more to look for)
+		seen = true
+		for _, w in ipairs(wins) do
 			local row = ns.FindFrame(w[1], function(f) return f.Click and TitleMatch(f, e.name) end, 14)
 			if row then return { row = row, click = w[2], window = w[1] } end
 		end
@@ -161,7 +175,7 @@ end
 
 local QUEST_SECURE = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
 
--- The map's quest panel (this client's own quest log) goes on to the quest's details by the game's own clicks (0.46.16,
+-- The map's quest panel (this client's own quest log) goes on to the quest's details by the game's own clicks (0.46.18,
 -- Secure.lua's "Turning a window"): the press opens the log with its micro button when it's closed, then each step
 -- clicks the details' back button (another quest's details showing), the quest's header (folded: it's unfolded, and
 -- its row comes on the next look), or the quest's own row, which the log answers by showing its details (its own
@@ -176,7 +190,7 @@ local function DetailsOf(qm)
 	return qf and rawget(qf, "DetailsFrame") or nil
 end
 
---- The pool's shown buttons whose `key` is `value` (read only), else nil.
+--- The first of the pool's active buttons whose `key` is `value` (read only; the caller checks it shows), else nil.
 local function PoolButton(pool, key, value)
 	if type(pool) ~= "table" or type(pool.EnumerateActive) ~= "function" then return nil end
 	local ok, it, st, k = pcall(pool.EnumerateActive, pool)
@@ -188,32 +202,36 @@ end
 
 --- The header the quest sits under in your log (its log index) and whether it's folded; nil without one.
 local function HeaderOf(questID)
-	local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
+	local idx = C_QuestLog.GetLogIndexForQuestID and ns.Safe(C_QuestLog.GetLogIndexForQuestID, questID)
 	if type(idx) ~= "number" or not C_QuestLog.GetInfo then return nil end
 	for i = idx - 1, 1, -1 do
-		local info = C_QuestLog.GetInfo(i)
+		local info = ns.Safe(C_QuestLog.GetInfo, i)
 		if type(info) == "table" and info.isHeader then return i, info.isCollapsed == true end
 	end
 end
+-- the panel's pools of header buttons (campaigns and callings have their own)
+local HEADER_POOLS = { "headerFramePool", "campaignHeaderFramePool", "campaignHeaderMinimalFramePool", "covenantCallingsHeaderFramePool" }
 
 --- One step toward the quest's details in the map's quest panel: the button to click, and why; nil when they show.
 local function QuestNavStep(e)
+	local qid = QuestID(e)
+	if not qid then return nil, "no quest" end
 	local qm = QuestPanel()
 	if not Visible(qm) then return nil, "the quest log isn't showing" end
 	-- (a click with Shift held tracks the quest instead; the chat box open: it would link it)
 	if IsShiftKeyDown and IsShiftKeyDown() then return nil, "Shift is held" end
 	local det = DetailsOf(qm)
 	if Visible(det) then
-		if rawget(det, "questID") == e.questID then return nil, "its details show" end
+		if rawget(det, "questID") == qid then return nil, "its details show" end
 		local back = rawget(det, "BackFrame")
 		return back and rawget(back, "BackButton") or nil, "another quest's details: back to the list"
 	end
 	local sf = _G.QuestScrollFrame
-	local row = sf and PoolButton(rawget(sf, "titleFramePool"), "questID", e.questID)
+	local row = sf and PoolButton(rawget(sf, "titleFramePool"), "questID", qid)
 	if row and Visible(row) then return row, "the quest's row" end
-	local hdr, folded = HeaderOf(e.questID)
+	local hdr, folded = HeaderOf(qid)
 	if hdr and folded and sf then
-		for _, key in ipairs({ "headerFramePool", "campaignHeaderFramePool", "campaignHeaderMinimalFramePool", "covenantCallingsHeaderFramePool" }) do
+		for _, key in ipairs(HEADER_POOLS) do
 			local h = PoolButton(rawget(sf, key), "questLogIndex", hdr)
 			if h and Visible(h) then return h, "unfold its header" end
 		end
@@ -230,7 +248,7 @@ local QUEST_NAV = {
 
 --- Whether the press opens the quest's details by clicks (else the key, and the row pointed at).
 local function QuestTurns(e)
-	if type(e) ~= "table" or type(e.questID) ~= "number" or not ns.Secure.NavOn("questlog") then return false end
+	if not QuestID(e) or not ns.Secure.NavOn("questlog") then return false end
 	for _, name in ipairs(LOGS) do if Visible(_G[name]) then return false end end -- (a classic-style log)
 	if ns.Secure.EffectiveAction("TOGGLEQUESTLOG") ~= "TOGGLEQUESTLOG" then return false end -- (your key opens another addon's)
 	return QuestPanel() ~= nil

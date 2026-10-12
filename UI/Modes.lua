@@ -342,13 +342,7 @@ local function OtherFocus()
 	return focus ~= nil and focus ~= UI.edit
 end
 
---- Whether one of Terminal's apps shows (in the terminal's place).
-local function AppShown()
-	for _, app in ipairs(ns.Panel and ns.Panel.Registered() or {}) do
-		if type(app.IsShown) == "function" and app.IsShown() then return true end
-	end
-	return false
-end
+local function AppShown() return ns.Panel and ns.Panel.AnyShown() or false end
 
 --- The fight is over (PLAYER_REGEN_ENABLED): the terminal comes back as combat found it. While another text box holds
 --- the keyboard, once it lets go (for up to UI.COMEBACK_WAIT); a fight starting again keeps it for that one's end.

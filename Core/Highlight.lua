@@ -92,9 +92,16 @@ end
 
 --- Poll `finder` (returns a frame, or a list of frames, or nil) until it
 --- succeeds, then call onFound. Gives Blizzard frames time to build/layout.
+--- One pointing at a time (0.47.0 review): a newer When ends the older one (Enter on spell A, then on spell B: turning
+--- the page later no longer points at A, nor says A's hint). `finder` returning false ends it too (its window closed).
+H.gen = 0
 function H:When(finder, onFound, tries, onFail)
+	H.gen = H.gen + 1
+	local gen = H.gen
 	local function try(n)
+		if H.gen ~= gen then return end -- (a newer pointing took over)
 		local ok, res = pcall(finder)
+		if ok and res == false then return end -- (nothing more to look for: its window closed)
 		if ok and res then
 			onFound(res)
 			return
@@ -127,10 +134,11 @@ end
 function ns.FindFrame(root, pred, depth)
 	if not root or not root.GetChildren then return nil end
 	depth = depth or 10
-	if root.IsVisible and root:IsVisible() then
-		local ok, res = pcall(pred, root)
-		if ok and res then return root end
-	end
+	-- (a hidden frame's children are hidden too: not walked, the same answer without a table of children per hidden
+	-- frame; the pointers look 10 times a second for up to 20 s)
+	if root.IsVisible and not root:IsVisible() then return nil end
+	local ok, res = pcall(pred, root)
+	if ok and res then return root end
 	if depth <= 0 then return nil end
 	for _, child in ipairs({ root:GetChildren() }) do
 		local f = ns.FindFrame(child, pred, depth - 1)

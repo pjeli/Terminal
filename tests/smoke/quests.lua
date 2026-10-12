@@ -98,8 +98,8 @@ do
 	mark = #log
 	kobold.secondary(kobold)
 	_G.InCombatLockdown = saveCombat
-	check(printed[#printed] and printed[#printed]:find("In combat: drop", 1, true) and not logHas("SuperTrack", mark + 1) and not QD.app.IsShown(),
-		"in combat: it says so, and doesn't track it instead: " .. tostring(printed[#printed]))
+	check(printed[#printed] and printed[#printed]:find("In combat: drop it once", 1, true) and not logHas("SuperTrack", mark + 1) and not QD.app.IsShown(),
+		"in combat: it says so (one quest: \"drop it\"), and doesn't track it instead: " .. tostring(printed[#printed]))
 	local enter, shift = ns.Easy.Verbs(kobold)
 	local _, rshift = ns.Easy.Verbs(raptor)
 	check(enter == "show in quest log" and shift == "drop" and rshift == "track", "the footer's verbs: drop / track")

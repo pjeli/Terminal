@@ -59,10 +59,11 @@ for n in ([[greater agility|greater intellect|greater armor|greater firepower|sh
 	supreme power|chromatic resistance|petrification]]):gmatch("[^|]+") do
 	GR.ELIXIR_NAMES[(n:gsub("^%s+", ""):gsub("%s+$", ""))] = true
 end
+GR.WELL_FED = 19705 -- (the Well Fed buff's spell)
+local SpellName
 local foodName -- (Well Fed as the game names it, lowercase; worked out once)
-local function SpellNameOf(id) return C_Spell and C_Spell.GetSpellName and Str(Safe(C_Spell.GetSpellName, id)) or nil end
 local function IsFood(n)
-	if foodName == nil then foodName = SpellNameOf(19705) and Lower(SpellNameOf(19705)) or false end
+	if foodName == nil then local fed = SpellName(GR.WELL_FED) foodName = fed and Lower(fed) or false end
 	return n == "well fed" or (foodName and n == foodName) or false
 end
 local function IsElixir(n) return n:find("elixir", 1, true) ~= nil or n:find("flask", 1, true) ~= nil or GR.ELIXIR_NAMES[n] == true end
@@ -77,7 +78,7 @@ for _, c in ipairs(GR.CONS) do
 end
 GR.CONS_ALL = { consumables = true, consumable = true, cons = true }
 
-local function SpellName(id, fallback)
+function SpellName(id, fallback)
 	local n = C_Spell and C_Spell.GetSpellName and Str(Safe(C_Spell.GetSpellName, id))
 	if not n and _G.GetSpellInfo then n = Str((Safe(_G.GetSpellInfo, id))) end
 	return n or fallback
@@ -112,16 +113,18 @@ end
 ----------------------------------------------------------------------
 
 local function Bool(v)
-	if v == nil or Secret(v) then return nil end
+	if Secret(v) or v == nil then return nil end -- (secret first: comparing one is an error)
 	return v == true
 end
 
 --- What the game hides right now, and why: { why = "in combat"... or nil }.
+-- the restrictions in the order they're named (a boss fight first), and how
+local WHY = { { "Encounter", "in a boss fight" }, { "ChallengeMode", "in a keystone dungeon" },
+	{ "PvPMatch", "in a PvP match" }, { "Map", "on this map" }, { "Combat", "in combat" } }
 function GR.Why()
 	local R, E = C_RestrictedActions, Enum and Enum.AddOnRestrictionType
 	if R and R.IsAddOnRestrictionActive and E then
-		for _, k in ipairs({ { "Encounter", "in a boss fight" }, { "ChallengeMode", "in a keystone dungeon" },
-			{ "PvPMatch", "in a PvP match" }, { "Map", "on this map" }, { "Combat", "in combat" } }) do
+		for _, k in ipairs(WHY) do
 			if E[k[1]] ~= nil and Safe(R.IsAddOnRestrictionActive, E[k[1]]) == true then return k[2] end
 		end
 		return nil
@@ -210,6 +213,8 @@ end
 ----------------------------------------------------------------------
 
 local ROLE_LABEL = { TANK = "Tank", HEALER = "Healer", DAMAGER = "Damage" }
+-- (several of them: the answer's note and the line sent to chat say them alike)
+local ROLE_PLURAL = { TANK = "Tanks", HEALER = "Healers", DAMAGER = "Damage dealers" }
 local ROLE_WORDS = { TANK = "tank tanks", HEALER = "healer healers heals", DAMAGER = "dps damage damager" }
 local RED, ORANGE, GREY, YELLOW = "|cffff4040", "|cffff9933", "|cff9d9d9d", "|cffffd200"
 
@@ -236,13 +241,15 @@ local function ShareText(e)
 	if e.online == false then said[#said + 1] = "offline" end
 	if e.inRange == false then said[#said + 1] = "out of range" end
 	if e.missing and #e.missing > 0 then said[#said + 1] = "needs " .. table.concat(e.missingLabels, ", ") end
-	local who = e.name .. ((e.className or e.roleLabel) and (" (" .. table.concat({ e.className, e.roleLabel }, ", ") .. ")") or "")
+	local about = ns.Join(", ", e.className, e.roleLabel)
+	local who = e.name .. (about ~= "" and (" (" .. about .. ")") or "")
 	return who .. (#said > 0 and (": " .. table.concat(said, ", ")) or "")
 end
 
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
-	t:AddLine(table.concat({ e.level and ("Level " .. e.level) or nil, e.className, e.roleLabel, e.zone }, "  ·  "), 1, 1, 1)
+	local about = ns.Join("  ·  ", e.level and ("Level " .. e.level) or nil, e.className, e.roleLabel, e.zone)
+	if about ~= "" then t:AddLine(about, 1, 1, 1) end
 	if e.dead then t:AddLine(e.ghost and "A ghost" or "Dead", 1, 0.25, 0.25) end
 	if e.online == false then t:AddLine("Offline", 0.6, 0.6, 0.6) end
 	if e.inRange == false then t:AddLine("Out of range (the game's own range test, as the raid frames fade)", 1, 0.6, 0.2, true)
@@ -286,8 +293,9 @@ function GR.Read(unit, mine)
 	m.ghost = (m.dead and ghost) or nil
 	m.online = Bool(Safe(UnitIsConnected, unit))
 	local role = Safe(UnitGroupRolesAssigned, unit)
-	if Secret(role) then m.roleHidden = true else role = Str(role) end
-	if role and role ~= "NONE" and not m.roleHidden then m.role = role end
+	-- (a secret role is never compared: that's an error on this client, in a boss fight the collect failed)
+	if Secret(role) then m.roleHidden, role = true, nil else role = Str(role) end
+	if role and role ~= "NONE" then m.role = role end
 	if mine then
 		m.inRange = true
 	else
@@ -408,7 +416,7 @@ function GR.Collect()
 	return rows
 end
 
---- What the game hides right now, in words: "range and buffs are hidden by the game right now (in combat)"; nil when
+--- What the game hides right now, in words: "Range and buffs hidden by the game right now (in combat)"; nil when
 --- nothing is.
 function GR.HiddenText()
 	local h = GR.hidden
@@ -419,7 +427,8 @@ function GR.HiddenText()
 	if h.roles > 0 then what[#what + 1] = "roles" end
 	if #what == 0 then return nil end
 	local why = GR.Why()
-	local s = table.concat(what, #what == 2 and " and " or ", ")
+	-- ("range and buffs", "range, buffs and roles")
+	local s = #what == 1 and what[1] or (table.concat(what, ", ", 1, #what - 1) .. " and " .. what[#what])
 	return s:gsub("^%l", string.upper) .. " hidden by the game right now" .. (why and (" (" .. why .. ")") or "")
 end
 
@@ -432,10 +441,12 @@ ns:RegisterProvider("group", {
 	color = "ff7fe07f", -- (the party frame's green, apart from the slash commands')
 	aliases = { "group", "party", "members" }, -- (@raid is the raids' entrances: Entrances.lua)
 	explicit = true, -- (only with @group, Simple mode's Group category, or asked in words)
-	refreshOnOpen = true, -- (range and buffs move all the time)
-	events = { "GROUP_ROSTER_UPDATE", "UNIT_CONNECTION", "PLAYER_ROLES_ASSIGNED", "UNIT_FLAGS", "UNIT_AURA", "UNIT_HEALTH",
-		"PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
-		"ADDON_RESTRICTION_STATE_CHANGED" },
+	refreshOnOpen = true, -- (range and buffs move all the time: read afresh on every open)
+	-- (no per-unit events: UNIT_AURA, UNIT_HEALTH, UNIT_FLAGS and UNIT_CONNECTION fire for every unit, nameplates and all,
+	-- hundreds a second in a fight, and each dirtied the list, so a search while typing read the whole group again
+	-- about once a second: 4 ms and 1.3 MB of garbage in a 40-man raid. 0.47.0 review)
+	events = { "GROUP_ROSTER_UPDATE", "PLAYER_ROLES_ASSIGNED", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
+		"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ADDON_RESTRICTION_STATE_CHANGED" },
 	guard = 1,
 	-- a line on top: what the game hides right now, or that you're not in a group
 	leadRow = function(p)
@@ -459,24 +470,35 @@ local SUBJECT = { group = true, party = true, raid = true, members = true, membe
 local CUE = { dead = "dead", died = "dead", dying = "dead", ghost = "dead", ghosts = "dead", offline = "offline",
 	disconnected = "offline", dc = "offline", dced = "offline", range = "far", far = "far", oor = "far", outofrange = "far",
 	missing = "missing", needs = "missing", need = "missing", without = "missing", lacks = "missing", lacking = "missing",
-	unbuffed = "missing", buff = "missing", buffs = "missing", tank = "tank", tanks = "tank", healer = "healer",
+	unbuffed = "missing", tank = "tank", tanks = "tank", healer = "healer",
 	healers = "healer", heals = "healer", healing = "healer", dps = "dps", damage = "dps", inrange = "near" }
 
 --- The question: { dead, offline, far, near, missing = { families }, buffWords = { other buff names }, roles = { ROLE }, words },
---- or nil when the line isn't about the group.
+--- or nil when the line isn't about the group. About the group: a group word or "who" (or "unbuffed") and a cue; or,
+--- without one, a missing word with what's missing named ("missing buffs", "needs fortitude", "missing consumables").
+--- "buff" and "consumables" alone are no cue (0.47.0 review: "food buff", "agility buff", "consumables" were answered
+--- as group questions, and typing "consecration" flashed the group up at "cons").
+local BUFF_WORDS = { buff = true, buffs = true }
+local NAME_FILLER = { of = true, the = true, protection = true } -- (left out of a buff's name looked for)
 function GR.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
 	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
 	t = t:gsub("in range", "inrange"):gsub("out of range", "outofrange")
-	local subject, who, cues, rest, consAll = false, false, {}, {}, false
+	local subject, who, cues, rest, consAll, named = false, false, {}, {}, false, false
 	for w in t:gmatch("%S+") do
-		if GR.CONS_ALL[w] then cues.missing = true; subject = true; consAll = true
+		if GR.CONS_ALL[w] then consAll, named = true, true
+		elseif BUFF_WORDS[w] then named = true
 		elseif SUBJECT[w] then subject = true
-		elseif CUE[w] then cues[CUE[w]] = true; if w == "buff" or w == "buffs" or w == "unbuffed" then subject = true end
+		elseif CUE[w] then cues[CUE[w]] = true; if w == "unbuffed" then subject, named = true, true end
 		elseif w == "who" or w == "whos" then who = true
-		elseif not ASK[w] then rest[#rest + 1] = w end
+		elseif not ASK[w] then
+			rest[#rest + 1] = w
+			if GR.BY_WORD[w] or GR.CONS_BY_WORD[w] then named = true end
+		end
 	end
-	if not (subject or who) or not next(cues) then return nil end
+	if consAll then cues.missing = cues.missing or (subject or who) or nil end -- ("who has no consumables" reads as missing)
+	if not next(cues) then return nil end
+	if not (subject or who) and not (cues.missing and named) then return nil end
 	local q = { dead = cues.dead, offline = cues.offline, far = cues.far, near = cues.near, words = {} }
 	local roles = {}
 	if cues.tank then roles[#roles + 1] = "TANK" end
@@ -486,25 +508,18 @@ function GR.Question(text)
 	if cues.missing then
 		q.missing, q.buffWords, q.cons = {}, {}, {}
 		if consAll then for _, c in ipairs(GR.CONS) do q.cons[#q.cons + 1] = c.id end end
-		local i = 1
-		while i <= #rest do -- (a buff's own words: "shadow protection", "mark of the wild", "kings")
-			local w = rest[i]
+		-- each word: a family's ("fortitude", "shadow": GR.BY_WORD), a consumable's, else part of one buff's name
+		for _, w in ipairs(rest) do
 			local f = GR.BY_WORD[w]
 			local c = GR.CONS_BY_WORD[w]
 			if f then
 				q.missing[#q.missing + 1] = f.id
 			elseif c then
 				if not consAll then q.cons[#q.cons + 1] = c.id end
-			else
+			elseif not NAME_FILLER[w] then -- (leftover words are one buff's name: "blessing of kings" -> "blessing kings")
 				q.buffWords[#q.buffWords + 1] = w
 			end
-			i = i + 1
 		end
-		-- leftover words are one buff's name ("thorns", "blessing of kings" -> "kings")
-		local drop = { of = true, the = true, protection = true }
-		local kept = {}
-		for _, w in ipairs(q.buffWords) do if not drop[w] then kept[#kept + 1] = w end end
-		q.buffWords = kept
 	else
 		q.words = rest
 	end
@@ -572,7 +587,7 @@ function GR.Answer(q)
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
 	local what = (q.dead and "Dead") or (q.offline and "Offline") or (q.far and "Out of range") or (q.near and "In range")
 		or (q.missing and ((Labels(q) ~= "" and ("Needs " .. Labels(q))) or "Missing a buff the group can give"))
-		or (q.roles and ({ TANK = "Tanks", HEALER = "Healers", DAMAGER = "Damage dealers" })[q.roles[1]]) or "Your group"
+		or (q.roles and ROLE_PLURAL[q.roles[1]]) or "Your group"
 	local note = what .. ("  ·  %d of %d"):format(#rows, #all)
 	local hidden = GR.HiddenText()
 	if (q.far or q.near) and GR.hidden and GR.hidden.range > 0 then note = note .. "  ·  " .. hidden
@@ -755,7 +770,7 @@ function GR.ShareGroupOf(rows, query, ML, LM)
 	State(ask.far, "Out of range", function(e) return e.inRange == false end)
 	State(ask.near, "In range", function(e) return e.inRange == true end)
 	for _, r in ipairs(ask.roles) do
-		State(true, ({ TANK = "Tanks", HEALER = "Healers", DAMAGER = "Damage" })[r], function(e) return e.role == r end)
+		State(true, ROLE_PLURAL[r], function(e) return e.role == r end)
 	end
 	if ask.missing or #sections == 0 then
 		-- (who can be buffed: alive and online, their buffs readable; "everyone" and "all but" are said of the whole group,

@@ -522,13 +522,6 @@ function SH.Describe(query, rows)
 	return (text:gsub("^%l", string.upper))
 end
 
---- What the rows are, said once before them: a chain's ("Mats for Thorium Belt"), the boss and place every loot row
---- shares ("Dropped by Lorgus Jett in Blackfathom Deeps"), the instance they all share ("Loot from Razorfen Kraul":
---- each then says only its boss), what the filters say they are ("Weapons from Razorfen Kraul"), else what the search
---- says of its NPCs ("Nearby innkeeper").
---- Second result: "source" when it's the whole loot source (each row's own then isn't repeated), "instance" when
---- only the instance. Rows whose list says it itself (`shareHeader(rows, what)` -> header, state, the same function on
---- every row: the loot log) get theirs, and the state goes to each row's `shareMember(e, state, base)`.
 -- (rows whose list says itself all at once, `shareGroup(rows, query, maxLines, lineMax)` -> lines, the same function
 -- on every row: your group's "Missing buffs: Fortitude (Cid), ...": that function, or nil)
 local function OwnGroup(rows)
@@ -538,6 +531,13 @@ local function OwnGroup(rows)
 	return own
 end
 
+--- What the rows are, said once before them: a chain's ("Mats for Thorium Belt"), the boss and place every loot row
+--- shares ("Dropped by Lorgus Jett in Blackfathom Deeps"), the instance they all share ("Loot from Razorfen Kraul":
+--- each then says only its boss), what the filters say they are ("Weapons from Razorfen Kraul"), else what the search
+--- says of its NPCs ("Nearby innkeeper").
+--- Second result: "source" when it's the whole loot source (each row's own then isn't repeated), "instance" when
+--- only the instance. Rows whose list says it itself (`shareHeader(rows, what)` -> header, state, the same function on
+--- every row: the loot log) get theirs, and the state goes to each row's `shareMember(e, state, base)`.
 function SH.GroupHeader(rows, query)
 	local first = rows[1]
 	if not first then return nil end

@@ -106,6 +106,7 @@ function MA.ReadMail(i, now)
 			if name or id then
 				items[#items + 1] = { id = id, name = name, count = Num(count) or 1, q = Num(quality),
 					link = Str(Safe(GetInboxItemLink, i, a)), icon = icon }
+				if #items >= itemCount then break end -- (all of them found: the rest of the 16 slots aren't asked)
 			end
 		end
 		if #items > 0 then m.items = items end
@@ -451,7 +452,7 @@ end
 -- (every row's: shared, not a closure per row)
 local function Secondary() return ns.providers.mailbox and NearestMailbox or nil end
 
-local function MailRow(key, box, m, i, mine, who, now)
+local function MailRow(key, m, i, mine, who, now)
 	local left = m.expires - now
 	local soon = left < MA.SOON
 	local d = {}
@@ -550,7 +551,7 @@ function MA.Collect()
 		local mails, gone = {}, 0
 		for i, m in ipairs(box and box.mails or {}) do
 			if type(m) == "table" and type(m.expires) == "number" then
-				if m.expires > now then mails[#mails + 1] = MailRow(key, box, m, i, mine, who, now) else gone = gone + 1 end
+				if m.expires > now then mails[#mails + 1] = MailRow(key, m, i, mine, who, now) else gone = gone + 1 end
 			end
 		end
 		local b = BoxRow(key, box, mine, who, now, mails, gone, mine and newFrom or nil)
@@ -594,22 +595,34 @@ local CUE = { expiring = "soon", expire = "soon", expires = "soon", expiry = "so
 	run = "soon", runs = "soon", out = "soon", soon = "soon", cod = "cod", gold = "money",
 	money = "money", coins = "money", unread = "unread", new = "unread", returned = "returned", bounced = "returned",
 	auction = "auction", auctions = "auction", ah = "auction", sold = "auction", from = "from", waiting = "all" }
+-- what only mail is: these make even "mail" (the armour too) a question; the other cues (from, sold, new, gold, out...)
+-- count with "mail" only when nothing else is searched ("new mail", "my mail from bob"), else "new mail gloves", "mail
+-- boots from wailing caverns" and "mail armor sold by vendors" were taken for mail questions (0.47.0 review)
+local STRONG_CUE = { expiring = true, expire = true, expires = true, expiry = true, expired = true, cod = true,
+	unread = true, returned = true, bounced = true, waiting = true }
+local STRONG_SUBJECT = { mailbox = true, inbox = true, letters = true, letter = true }
 
 --- The question: { words = what narrows it (a sender, an item...), soon, cod, money, unread, returned, auction }, or nil
 --- when the line isn't asking about mail.
 function MA.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
 	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
-	local subject, inbox, asked, cues, rest = false, false, false, {}, {}
+	t = t:gsub("running out", "expiring")
+	local subject, strong, inbox, asked, cues, rest, strongCue, fromFirst = false, false, false, false, {}, {}, false, false
 	for w in t:gmatch("%S+") do
-		if SUBJECT[w] then subject = true; inbox = inbox or w == "inbox"
-		elseif CUE[w] then cues[CUE[w]] = true
+		if SUBJECT[w] then subject = true; strong = strong or STRONG_SUBJECT[w] == true; inbox = inbox or w == "inbox"
+		elseif CUE[w] then
+			cues[CUE[w]] = true
+			if STRONG_CUE[w] then strongCue = true end
+			if w == "from" and #rest == 0 then fromFirst = true end -- ("mail from bob": the words after it are the sender)
 		elseif ASK[w] then asked = true
 		else rest[#rest + 1] = w end
 	end
 	if not subject then return nil end
 	-- "mail gloves", "nearest mailbox": searches; "my mail" or "check mailbox": the mail; words besides need a cue
 	if not next(cues) and not (inbox and #rest == 0) and not (asked and #rest == 0) then return nil end
+	-- "mail" alone (the armour too): a cue only mail has, or nothing else searched, or "from" before the other words
+	if not strong and not strongCue and #rest > 0 and not (cues.from and fromFirst) then return nil end
 	return { words = rest, soon = cues.soon, cod = cues.cod, money = cues.money, unread = cues.unread,
 		returned = cues.returned, auction = cues.auction }
 end

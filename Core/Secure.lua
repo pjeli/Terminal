@@ -74,12 +74,13 @@ end
 
 --- Who last wrote t[key] (read only): "the game's own code", else the name the game blames ("*** ForceTaint_Strong ***"
 --- for a /run line, an addon's name). Nil when it can't tell (no issecurevariable, no such field).
+S.GAME = "the game's own code" -- (what S.Writer says of a field only the game's code wrote)
 function S.Writer(t, key)
 	local check = _G.issecurevariable
 	if type(t) ~= "table" or type(check) ~= "function" then return nil end
 	local ok, secure, by = pcall(check, t, key)
 	if not ok then return nil end
-	return secure and "the game's own code" or tostring(by or "an unknown caller")
+	return secure and S.GAME or tostring(by or "an unknown caller")
 end
 
 local reported = {} -- path.key -> the writer last traced (each change traced once)
@@ -93,7 +94,7 @@ function S.TaintCheck(after)
 		if t and rawget(t, w[2]) ~= nil then
 			local id = w[1] .. "." .. w[2]
 			local by = S.Writer(t, w[2])
-			if by and by ~= "the game's own code" then
+			if by and by ~= S.GAME then
 				out[id] = by
 				if reported[id] ~= by and ns.Trace then
 					ns:Trace(("taint: %s was written by %s%s: what reads it later may be blocked"):format(id, by,
@@ -471,7 +472,7 @@ function S.Disarm()
 end
 
 ----------------------------------------------------------------------
--- Turning a window to the right page by the game's own clicks (0.46.16, the player's ask)
+-- Turning a window to the right page by the game's own clicks (0.46.18, the player's ask)
 --
 -- The press that opens a window goes on to its tab, page, section or row in the same Enter press: the macro gets lines
 -- "/click TerminalNavN", and each one is one step. Just before it runs, the step's PreClick (Terminal's code, which only
@@ -493,20 +494,26 @@ S.NAV_STEPS = 12 -- the most steps one press takes (the macro's 255 characters m
 S.NAV_BLAME = 3 -- seconds: a blocked action this soon after a turning press turns that route off
 S.NAV_LABELS = { spellbook = "your spellbook", questlog = "the quest log", keybinds = "Options > Keybindings" }
 
-S.navPlans = {} -- slot -> plan: { route, e, step, watch, before, n, at, verified }
+S.navPlans = {} -- slot -> plan: { route, e, step, watch, watchName, before, n, at, quiet, verified }
 local navButtons, navSlot = {}, 0
 
---- Whether a frame can be clicked for the game: a visible, enabled Button the game lets a click reach.
-local function Clickable(f)
+--- Whether a frame is an enabled Button (read only).
+local function IsButton(f)
 	if type(f) ~= "table" or type(f.Click) ~= "function" then return false end
 	local okT, isButton = pcall(f.IsObjectType, f, "Button")
 	if not (okT and isButton) then return false end
-	local okV, vis = pcall(f.IsVisible, f)
-	if not (okV and vis) then return false end
 	if f.IsEnabled then
 		local okE, en = pcall(f.IsEnabled, f)
 		if okE and en == false then return false end
 	end
+	return true
+end
+
+--- Whether a frame can be clicked for the game: a visible, enabled Button the game lets a click reach.
+local function Clickable(f)
+	if not IsButton(f) then return false end
+	local okV, vis = pcall(f.IsVisible, f)
+	if not (okV and vis) then return false end
 	if f.HasAccessConstraints then
 		local okA, c = pcall(f.HasAccessConstraints, f)
 		if okA and c == true then return false end
@@ -554,7 +561,7 @@ local function Verify(plan)
 	plan.verified = true
 	local now = ReadWatch(plan)
 	for i, by in pairs(now) do
-		if by and by ~= "the game's own code" and by ~= plan.before[i] then
+		if by and by ~= S.GAME and by ~= plan.before[i] then
 			local okD, label = pcall(plan.watchName or function() return nil end, i)
 			S.NavTaint(plan.route, okD and label or ("field " .. i), by)
 			return
@@ -600,39 +607,32 @@ local function NavButton(slot)
 end
 
 --- A macro line that clicks a named Blizzard button (a micro button opening a window), or nil when it can't be clicked.
-function S.ClickLine(name)
-	local f = _G[name]
-	if type(f) ~= "table" or type(f.Click) ~= "function" then return nil end
-	local ok, isButton = pcall(f.IsObjectType, f, "Button")
-	if not (ok and isButton) then return nil end
-	if f.IsEnabled then
-		local okE, en = pcall(f.IsEnabled, f)
-		if okE and en == false then return nil end
-	end
-	return "/click " .. name
-end
+function S.ClickLine(name) return IsButton(_G[name]) and ("/click " .. name) or nil end
 
 --- The macro for a turning press: `open` (the lines opening the window, or nil when it shows) and as many step lines as
 --- fit. `def` = { route, step = fn(e, plan) -> button[, why], watch = { fn(e) -> table, key }, watchName = fn(i) }.
 --- Nil when the route is off, or nothing would fit.
 function S.NavMacro(def, e, open)
 	if not (def and S.NavOn(def.route)) or InCombatLockdown() then return nil end
-	navSlot = navSlot % S.NAV_SLOTS + 1
-	local b = NavButton(navSlot)
-	if not b then return nil end
-	local plan = { route = def.route, e = e, step = def.step, watch = def.watch, watchName = def.watchName }
-	plan.before = ReadWatch(plan)
-	S.navPlans[navSlot] = plan
-	local line = "/click " .. b:GetName()
+	if open == "" then open = nil end
+	local slot = navSlot % S.NAV_SLOTS + 1
+	local line = "/click TerminalNav" .. slot
 	local lines = {}
 	local used = 0
-	if open and open ~= "" then lines[1] = open; used = #open end
+	if open then lines[1] = open; used = #open end
 	for _ = 1, S.NAV_STEPS do
-		if used + 1 + #line > S.MACRO_MAX then break end
+		if used + (used > 0 and 1 or 0) + #line > S.MACRO_MAX then break end
 		lines[#lines + 1] = line
 		used = used + (used > 0 and 1 or 0) + #line
 	end
-	if #lines == 0 or (open and #lines == 1) then return nil end
+	if #lines == (open and 1 or 0) then return nil end -- (no room for a single step: the window's own route instead)
+	-- (the slot is taken only now: a macro that couldn't be made leaves the plans as they were)
+	local b = NavButton(slot)
+	if not b then return nil end
+	navSlot = slot
+	local plan = { route = def.route, e = e, step = def.step, watch = def.watch, watchName = def.watchName }
+	plan.before = ReadWatch(plan)
+	S.navPlans[slot] = plan
 	return table.concat(lines, "\n"), plan
 end
 

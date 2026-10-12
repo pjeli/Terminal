@@ -460,6 +460,9 @@ local function QuestionToAdvanced(text)
 	if lq then return "@drop " .. ((lq.who == "me" and "you ") or (lq.who and (Lower(lq.who) .. " ")) or "") end
 	local chain = ns.Pipes and ns.Pipes.Canonical(text)
 	if chain then return chain .. " " end
+	-- (the questions in the order the search asks them: Search.lua's Scan.ANSWERS)
+	local cq = ns.CombatLog and ns.CombatLog.Question and ns.CombatLog.Question(text)
+	if cq then return "@combatlog " .. ((cq == "killed" and "killed") or (cq == "crit" and "taken") or "dealt") .. " " end
 	local Z = ns.Zones
 	local q, said
 	if Z and Z.Question then q, said = Z.Question(text) end
@@ -469,8 +472,6 @@ local function QuestionToAdvanced(text)
 		local kind = (q == "dungeon" and "@dungeon") or (q == "raid" and "@raid") or "@map"
 		return kind .. ((type(lv) == "number" and lv > 0) and (" lvl:" .. lv) or "") .. " "
 	end
-	local cq = ns.CombatLog and ns.CombatLog.Question and ns.CombatLog.Question(text)
-	if cq then return "@combatlog " .. ((cq == "killed" and "killed") or (cq == "crit" and "taken") or "dealt") .. " " end
 	local sq = ns.Spells and ns.Spells.Question and ns.Spells.Question(text)
 	if sq then return "@spell is:unplaced " .. (#sq > 0 and (table.concat(sq, " ") .. " ") or "") end
 	local mq = ns.MissingRecipes and ns.MissingRecipes.Question and ns.MissingRecipes.Question(text)
@@ -480,15 +481,15 @@ local function QuestionToAdvanced(text)
 		for _, w in ipairs(mq.words) do rest[#rest + 1] = w end
 		return "@recipe " .. (mq.learnable and "is:learnable" or "is:unknown") .. " " .. (#rest > 0 and (table.concat(rest, " ") .. " ") or "")
 	end
-	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
-	if gq then return ns.Group.ToAdvanced(gq) end
-	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
-	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
 	if dq then
 		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
 		return "@quest " .. which .. " " .. (#dq.words > 0 and (table.concat(dq.words, " ") .. " ") or "")
 	end
+	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
+	if mq2 then return ns.Mail.ToAdvanced(mq2) end
+	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
+	if gq then return ns.Group.ToAdvanced(gq) end
 end
 E.QuestionToAdvanced = QuestionToAdvanced
 

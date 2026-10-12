@@ -102,10 +102,11 @@ local function InView(f, sp)
 end
 
 local function HighlightSetting(name, hint)
-	local tries = 0
+	local tries, seen = 0, false
 	H:Find(function()
 		local sp = SettingsPanel
-		if not (sp and sp:IsVisible()) then return nil end
+		if not (sp and sp:IsVisible()) then if seen then return false end return nil end -- (closed again after it showed)
+		seen = true
 		tries = tries + 1
 		local hit = ns.FindFrame(sp, function(f) return ExactText(f, name) and InView(f, sp) end, 20)
 		if hit then return hit end
