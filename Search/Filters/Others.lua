@@ -313,6 +313,21 @@ IS.returned = MailIs(function(_, m) return m.returned == true end)
 IS.auction = MailIs(function(_, m) return m.auction ~= nil end)
 IS.money = MailIs(function(_, m) return m.money ~= nil end)
 IS.gold, IS.ah = IS.money, IS.auction
+-- your group (Group.lua): dead (or a ghost), the role set, out of range (the game's own test; hidden in combat: not
+-- judged), missing a buff the group can give; is:online / is:offline above read the same `online`
+local function GroupIs(test) return function(e) return e.kind == "group" and test(e) or false end end
+IS.dead = GroupIs(function(e) return e.dead == true end)
+IS.alive = GroupIs(function(e) return not e.dead end)
+IS.tank = GroupIs(function(e) return e.role == "TANK" end)
+IS.healer = GroupIs(function(e) return e.role == "HEALER" end)
+IS.dps = GroupIs(function(e) return e.role == "DAMAGER" end)
+IS.far = GroupIs(function(e) return e.inRange == false end)
+IS.inrange = GroupIs(function(e) return e.inRange == true end)
+IS.unbuffed = GroupIs(function(e) return e.missing ~= nil and #e.missing > 0 end)
+IS.outofrange, IS.near, IS.damage, IS.damager, IS.healers, IS.tanks = IS.far, IS.inrange, IS.dps, IS.dps, IS.healer, IS.tank
+-- missing:<buff>: group members lacking it (fortitude, int, mark, spirit, shadow, blessing, or any buff's name)
+KEYS.missing = function(v) return ns.Group and ns.Group.MissingFilter(v) or nil end
+KEYS.needs = KEYS.missing
 IS.notdone, IS.undone = IS.todo, IS.todo
 IS.maxed, IS.offcooldown = IS.capped, IS.ready
 IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
@@ -323,7 +338,8 @@ F.VALUES = {
 		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
-		"cod", "expiring", "unread", "returned", "auction", "money" },
+		"cod", "expiring", "unread", "returned", "auction", "money", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed" },
+	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
@@ -364,6 +380,7 @@ F.HELP = {
 	{ "is:ready", "spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..." },
 	{ "is:unknown", "@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)" },
 	{ "is:unlearned", "@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)" },
+	{ "is:dead", "@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)" },
 	{ "is:expiring", "@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached); on:<character>" },
 	{ "in:elwynn_forest", "a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)" },
 	{ "-is:soulbound", "not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)" },

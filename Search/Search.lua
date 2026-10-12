@@ -595,6 +595,11 @@ Scan.ANSWERS = {
 		local q = ns.Mail and ns.Mail.Question(text)
 		if q then return ns.Mail.Answer(q) end
 	end,
+	-- "who is dead", "who needs fortitude", "who is out of range", "group healers": Group.lua
+	function(text)
+		local q = ns.Group and ns.Group.Question(text)
+		if q then return ns.Group.Answer(q) end
+	end,
 	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua
 	function(text)
 		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)

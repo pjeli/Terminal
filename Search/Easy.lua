@@ -65,6 +65,7 @@ E.CATEGORIES = {
 	{ id = "combat", label = "Combat log", kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
 	{ id = "alts", label = "Alts, bank & mail", kinds = { "stored", "mail" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
 	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
+	{ id = "group", label = "Group", kinds = { "group" }, icon = "Interface\\Icons\\Spell_Holy_PrayerOfFortitude" },
 	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = "Character", kinds = { "gold", "experience", "reputation", "currency", "skills", "equipmentset" },
@@ -277,6 +278,9 @@ local function MailVerbs(e) -- (your own mail at an open mailbox: pointed at in 
 	local open = e.mailKind == "mail" and e.mine and ns.Mail and ns.Mail.open
 	return open and "show in inbox" or "show in chat", "nearest mailbox"
 end
+local function GroupVerbs(e) -- (Shift+Enter: your buff they're missing, when you have one: Group.lua)
+	return "target", e.buffWith and ("cast " .. e.buffWith) or nil
+end
 local PLACE = { "show on map", "set waypoint" }
 local TO_CHAT = { "show in chat", "put in the chat box" }
 E.VERBS = {
@@ -284,7 +288,7 @@ E.VERBS = {
 	source = SourceVerbs,
 	stored = { "show in bags", "show in chat" }, lootlog = { "show in bags", "link in chat" },
 	loot = { "show in AtlasLoot", "link in chat" },
-	mail = MailVerbs,
+	mail = MailVerbs, group = GroupVerbs,
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { "show on map", "target" },
@@ -476,6 +480,8 @@ local function QuestionToAdvanced(text)
 		for _, w in ipairs(mq.words) do rest[#rest + 1] = w end
 		return "@recipe " .. (mq.learnable and "is:learnable" or "is:unknown") .. " " .. (#rest > 0 and (table.concat(rest, " ") .. " ") or "")
 	end
+	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
+	if gq then return ns.Group.ToAdvanced(gq) end
 	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
 	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
@@ -763,6 +769,7 @@ function E.HelpLines()
 		"Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out).",
 		"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows.",
 		"Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list.",
+		"Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\" (Enter targets them, Shift+Enter casts your buff on them).",
 		"Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character.",
 		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it.",
 		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
