@@ -13,20 +13,17 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.46.20", when = "in testing",
+		v = "0.47.0", when = "released October 2026",
 		items = {
-			"Your mail: @mail (Simple mode: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed. Mail you send to one of your own characters is in its list at once. At login a chat line tells you when gold or items in your mail run out within 3 days (.mail warn off stops it).",
-			"Fewer \"action blocked\" messages later on: the map, the options and keybindings pages, and the Legacy and Group Finder tabs are now opened by the game's own calls and clicks, so nothing Terminal opens leaves a window that fails in a later fight.",
-			"Opening things goes all the way again, safely: Enter on a spell turns your spellbook to its tab and page, on a quest opens its details in the quest log, on a keybinding scrolls Options > Keybindings to its section and unfolds it. The game makes those clicks itself, so nothing is left tainted (nothing refuses to work later in a fight); if Terminal ever finds a window left tainted anyway, it only opens and points there from then on (.nav shows which).",
-			"Dropping a quest with Shift+Enter (or >> drop) asks in Terminal's own window, as dropping several does.",
-			"Collections: Shift+Enter opens the journal and points at the toy, pet or mount, or at its tab when another one shows.",
-			".debug log names the press of Terminal's behind a blocked action the game blames on a /run line.",
-			"Your group: @group (Simple mode: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\") lists every member with their role, whether they're dead, offline or out of range, and the group's buffs they're missing (those someone in the group can cast). Enter targets them; Shift+Enter casts your buff on them. \"@group >>> party\" (or right-click a member and pick All to party) says what's missing in one short line (\"Missing buffs: Fortitude (Cid), Blessing (all but Ann)\"), and \"missing consumables\" finds who has no food or flask/elixir. In combat and boss fights the game hides range and buffs from addons, and Terminal says so instead of guessing.",
-			".zen is a calmer mode now: while Terminal is open the rest of the interface (the minimap too) fades away and the screen dims behind it, and dragging Terminal still shows its grid; closing Terminal brings it all back smoothly, and combat brings it back at once. Terminal's tooltip, menus and windows stay visible in it.",
-			"Combat closes Terminal at once, and when the fight is over it opens again where you left off: your search, the row you picked, the mode you were in. Press ` during the fight to have it back sooner.",
-			"Spell and talent tooltips (other classes' too) show at once and fill in their text as soon as the game has it, also right after a /reload, instead of showing only the name (or nothing) until you move away and back.",
+			"Your group: @group (Simple mode: \"who is dead\", \"who needs fortitude\", \"group healers\", \"missing buffs\") shows each member's role, whether they're dead, offline or out of range, and the group's buffs they lack; Enter targets them, Shift+Enter casts your buff on them. \"@group >>> party\" sums it up in one line, and \"missing consumables\" finds who has no food or flask. In boss fights the game hides some of it, and Terminal says so.",
+			"Your mail: @mail (\"my mail\", \"mail running out\", \"cod mail\") lists every character's mailbox as Terminal last saw it, mail you send your alts included, and a chat line at login warns when gold or items in your mail run out within 3 days.",
+			"Enter goes all the way again, safely: a spell turns your spellbook to its page, a quest opens its details, a keybinding scrolls Options to its section and unfolds it. The game makes those clicks itself, so nothing is left tainted (.nav shows any window Terminal stopped turning).",
+			"Fewer \"action blocked\" messages later in a fight: the map, the options and other windows are opened by the game's own calls and clicks, never by Blizzard code run from Terminal. Dropping one quest asks in Terminal's own window, as dropping several does.",
+			"Combat closes Terminal at once, and it opens again where you left off when the fight is over.",
+			".zen fades the rest of the interface and dims the screen while Terminal is open, and brings it all back as it closes (at once when combat starts).",
+			"Spell and talent tooltips (other classes' too) fill in as soon as the game has them; Collections' Shift+Enter points at the toy, pet or mount in its journal.",
 			"For addon authors: your addon can add its own list to Terminal (docs/PROVIDERS.md, with a working example).",
-			"Fixes: \"food buff\" or \"mail boots\" searches are no longer taken for group or mail questions; Shift+Enter on a Questie quest you have opens its details again; the Spellbook row leaves the book's search alone; @group no longer fails in a boss fight.",
+			"Fixes: \"food buff\" or \"mail boots\" searches are no longer taken for group or mail questions; Shift+Enter on a Questie quest you have opens its details again; the Spellbook row leaves the book's search alone.",
 		},
 	},
 	{

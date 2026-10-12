@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.47.0
+
+**Your group**
+- `@group` (Simple mode: "who is dead", "who needs fortitude", "who is out of range", "group healers", "missing buffs") lists your party or raid: each member's role, whether they're dead, offline or out of range, and the group's buffs they're missing (only those someone in the group can cast).
+- Enter targets a member; Shift+Enter casts your buff they lack on them.
+- `@group >>> party` (or right-click a member and pick "All to party") says what's missing in one short line: "Missing buffs: Fortitude (Cid), Blessing (all but Ann)". "missing consumables" finds who has no food or flask/elixir.
+- In boss fights, keystones and PvP matches the game hides range and buffs from addons; Terminal says so instead of guessing.
+
+**Your mail**
+- `@mail` (Simple mode: "my mail", "mail running out", "cod mail", "mail from bob") lists what's in every character's mailbox as Terminal last saw it: who sent it, its gold and COD, what's attached, and when it runs out (deleted, or sent back). Open a mailbox once on each character; no bag addon needed.
+- Mail you send to one of your own characters is in its list at once.
+- At login a chat line tells you when gold or items in your mail run out within 3 days (`.mail warn off` stops it).
+
+**Enter goes all the way again, safely**
+- A spell turns your spellbook to its tab and page; a quest opens its details in the quest log; a keybinding scrolls Options > Keybindings to its section and unfolds it. Then Terminal points at it.
+- The game makes those clicks itself, in the same Enter press, so nothing Terminal opens is left tainted. Terminal checks afterwards; if a window ever comes out tainted anyway, it only opens and points there from then on. `.nav` shows which windows it turns, `.nav reset` tries again.
+- The map, the options pages, the Legacy and Group Finder tabs and the collections journal are opened by the game's own calls and clicks too, never by Blizzard code run from Terminal, so they no longer fail later in a fight ("action blocked").
+- Dropping one quest (Shift+Enter, or `>> drop`) asks in Terminal's own window, as dropping several does.
+
+**Combat and .zen**
+- Combat closes Terminal at once; when the fight is over it opens again where you left off: your search, the row you picked, the mode you were in. Press \` during the fight to have it back sooner.
+- `.zen`: while Terminal is open the rest of the interface (the minimap too) fades away and the screen dims behind it; closing Terminal brings it all back smoothly, and combat brings it back at once. Terminal's tooltip, menus and windows stay visible in it, and dragging Terminal still shows its grid.
+
+**For addon authors**
+- Other addons can add their own lists to Terminal: rows found by fuzzy search, `@yourword`, Simple mode categories, tooltips, Enter and Shift+Enter actions the game presses safely, and commands. See [docs/PROVIDERS.md](docs/PROVIDERS.md) and the working example in [docs/example/TerminalNotes](docs/example/TerminalNotes).
+
+**Also**
+- Spell and talent tooltips (other classes' too) fill in their text as soon as the game has it, also right after a /reload; the rows on screen are loaded ahead.
+- Collections: Shift+Enter opens the journal and points at the toy, pet or mount, or at its tab when another one shows.
+- The key binding reads "Toggle Terminal".
+- `.debug log` names the press of Terminal's behind a blocked action the game blames on a /run line.
+- Fixes:
+  - Searches like "food buff", "consumables", "mail boots from wailing caverns" or "new mail gloves" are no longer taken for group or mail questions.
+  - Shift+Enter on a Questie quest you have opens its details in your log again.
+  - The Spellbook row no longer clears the spellbook's search.
+  - `@group` no longer fails in a boss fight, when the game hides members' roles and names.
+  - Enter on one spell or quest and then another no longer points at the first one later, and a window you close stops being looked at.
+
 ## 0.46.0
 
 **Every key in one place**
