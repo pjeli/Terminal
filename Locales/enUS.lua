@@ -1,5 +1,6 @@
--- The English texts Terminal translates: import this file into CurseForge's localization tool (language enUS,
--- format "Lua Additive Table"). Made by tests/gen_locale.py from every L["..."] in the code: don't edit it.
+-- The English texts Terminal translates. A push to main that changes this file imports them into CurseForge's
+-- localization tool (.github/workflows/locales.yml; by hand: tests/gen_locale.py --import, language enUS, format
+-- "Table Additions"). Made by tests/gen_locale.py from every L["..."] in the code: don't edit it.
 -- Not loaded by the game (not in the TOC); English is the keys themselves.
 local L = {}
 L["%.0f yd"] = true

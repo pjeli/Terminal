@@ -1,0 +1,53 @@
+# CurseForge's localization tool gets Terminal's English texts by itself (the player's ask, after 0.48.1): whenever main
+# gets new ones (Locales/enUS.lua changed: tests/gen_locale.py writes it), every text is imported as enUS with
+# "missing-phrase-handling: DoNothing" (texts no longer in the code, and their translations, stay; nothing is deleted).
+# Translators see new texts as soon as they're pushed, and the next tag's build (release.yml) takes their translations.
+# Also run by hand: Actions > "Send English texts to CurseForge" > Run workflow. Uses the release's CF_API_KEY secret.
+# The import API (support.curseforge.com, "CurseForge API"): POST /api/projects/<id>/localization/import with
+# metadata + localizations; sent as form fields, else as one JSON body (the article describes that) if those aren't taken.
+name: Send English texts to CurseForge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Locales/enUS.lua
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+      - name: Make the import lines (L["text"] = "text", as pasted into the Import box)
+        run: python3 tests/gen_locale.py --import "$RUNNER_TEMP/locales"
+      - name: Import them as enUS
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          file="$RUNNER_TEMP/locales/enUS.lua"
+          id=$(tr -d '\r' < Terminal.toc | sed -n 's/^## X-Curse-Project-ID: *\([0-9][0-9]*\).*/\1/p')
+          if [ -z "$CF_API_KEY" ]; then echo "::error::No CF_API_KEY secret: add your CurseForge API token as one"; exit 1; fi
+          if [ -z "$id" ]; then echo "::error::Terminal.toc has no X-Curse-Project-ID"; exit 1; fi
+          url="https://wow.curseforge.com/api/projects/$id/localization/import"
+          meta='{"language":"enUS","formatType":"TableAdditions","missing-phrase-handling":"DoNothing"}'
+          echo "Importing $(wc -l < "$file") English texts into CurseForge project $id"
+          ok() { [ "$1" -ge 200 ] && [ "$1" -lt 300 ]; }
+          code=$(curl -sS -o answer.txt -w '%{http_code}' -X POST -H "X-Api-Token: $CF_API_KEY" \
+            -F "metadata=$meta" -F "localizations=<$file" "$url") || code=0
+          echo "As form fields: HTTP $code"; cat answer.txt; echo
+          if ok "$code"; then exit 0; fi
+          if [ "$code" = 401 ] || [ "$code" = 403 ]; then
+            echo "::error::CurseForge refused the token (HTTP $code): check the CF_API_KEY secret"; exit 1
+          fi
+          jq -n --argjson metadata "$meta" --rawfile localizations "$file" \
+            '{ metadata: $metadata, localizations: $localizations }' > body.json
+          code=$(curl -sS -o answer.txt -w '%{http_code}' -X POST -H "X-Api-Token: $CF_API_KEY" \
+            -H "Content-Type: application/json" --data-binary @body.json "$url") || code=0
+          echo "As JSON: HTTP $code"; cat answer.txt; echo
+          if ok "$code"; then exit 0; fi
+          echo "::error::CurseForge didn't take the import (HTTP $code): see the answers above"; exit 1

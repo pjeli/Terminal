@@ -5,6 +5,7 @@
     python3 tests/gen_locale.py --check  fails when Locales/enUS.lua isn't up to date, when a seeded translation names a
                                          key the code no longer has, or when a translation's %s / %d don't match its key's
     python3 tests/gen_locale.py --import out/   one file per seeded language (its translations, for CurseForge's import)
+                                         and enUS.lua (L["text"] = "text"): what .github/workflows/locales.yml imports
 
 check.py runs --check.
 """
@@ -36,8 +37,9 @@ def keys():
 
 
 def enus_text(ks):
-    lines = ["-- The English texts Terminal translates: import this file into CurseForge's localization tool (language enUS,",
-             "-- format \"Lua Additive Table\"). Made by tests/gen_locale.py from every L[\"...\"] in the code: don't edit it.",
+    lines = ["-- The English texts Terminal translates. A push to main that changes this file imports them into CurseForge's",
+             "-- localization tool (.github/workflows/locales.yml; by hand: tests/gen_locale.py --import, language enUS, format",
+             "-- \"Table Additions\"). Made by tests/gen_locale.py from every L[\"...\"] in the code: don't edit it.",
              "-- Not loaded by the game (not in the TOC); English is the keys themselves.",
              "local L = {}"]
     for k in sorted(ks):
