@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 
 -- .tetris: falling blocks, in a small window where the terminal sits (the .snake pattern). Left/Right
 -- (or A/D) move, Up/W/X rotate, Z/Q rotate the other way, Down/S drops faster, Enter drops at once,

@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 
 -- .lootrun: Loot Run, a maze chase in a small window where the terminal sits (the .snake pattern). You're the map's
 -- arrow, picking up every coin in a dungeon while four raid-marked mobs (skull, cross, square, moon) wake in its

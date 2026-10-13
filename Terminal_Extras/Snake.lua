@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 
 -- .snake: Snake, in a small window where the terminal sits. WASD or the arrow keys steer, Enter
 -- plays again after a game over, Esc or ` quits. No pausing (it's for fun; Space stays the game's). Only the game's keys are taken: any

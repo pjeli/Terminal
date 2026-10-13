@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 
 -- .typing (also .wpm, .typetest): a typing speed test, an easter egg (not in the changelog, as .tetris and .lootrun),
 -- in a window where the terminal sits. Words come in lines; the clock starts with the first letter; Space goes to the

@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 
 -- .wowamp: an easter egg. A small music player in the spirit of cliamp (the terminal music player), where the
 -- terminal sits: ten made-up radio stations, each themed on a place in Azeroth, playing the game's own music,

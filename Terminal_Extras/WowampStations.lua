@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 
 -- .wowamp's stations (Wowamp.lua plays them).
 -- Stations: name, place, genre, a line from the DJ, the visualizer's colours (low, high), its tempo, and

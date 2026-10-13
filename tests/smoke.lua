@@ -276,6 +276,17 @@ for line in io.lines("Terminal/Terminal.toc") do
 end
 io.write("[loaded all files]\n")
 assert(_G.Terminal == ns, "global namespace exported")
+-- Terminal Extras (the games and the radio: a load-on-demand addon of its own, 0.47.8), loaded as the game would when one
+-- is first asked for: its own files, its own private table, Terminal's through _G.Terminal
+local gcBefore = collectgarbage("count")
+for line in io.lines("Terminal/Terminal_Extras/Terminal_Extras.toc") do
+	if line:match("%.lua$") then
+		local chunk = assert(loadfile("Terminal/Terminal_Extras/" .. line:gsub("\\", "/")))
+		chunk("Terminal_Extras", {})
+	end
+end
+_G.SMOKE_EXTRAS_KB = collectgarbage("count") - gcBefore
+assert(ns.Snake and ns.Typing and ns.Wowamp, "Terminal Extras loaded on Terminal's namespace")
 
 -- fire lifecycle events through the captured handler
 local handler
@@ -5462,6 +5473,10 @@ do -- .changelog: what changed, newest first, scrolled back through the last few
 	local tocText = io.open("Terminal/Terminal.toc"):read("*a")
 	local tocVersion = tocText:match("## Version: (%S+)")
 	check(CL.LOG[1].v == tocVersion, "the changelog's top entry is this version (" .. tostring(tocVersion) .. "): " .. tostring(CL.LOG[1].v))
+	local extrasToc = io.open("Terminal/Terminal_Extras/Terminal_Extras.toc"):read("*a")
+	check(extrasToc:match("## Version: (%S+)") == tocVersion and extrasToc:find("## LoadOnDemand: 1", 1, true)
+		and extrasToc:find("## Dependencies: Terminal", 1, true) and extrasToc:match("## Interface:([^\n]*)") == tocText:match("## Interface:([^\n]*)"),
+		"Terminal Extras: the same version and interface, load on demand, needs Terminal")
 	check(#CL.LOG >= 3 and #CL.LOG <= 5, "it keeps the last few versions: " .. #CL.LOG)
 	for i, entry in ipairs(CL.LOG) do
 		check(type(entry.v) == "string" and type(entry.items) == "table" and #entry.items > 0, "entry " .. i .. " has a version and changes")

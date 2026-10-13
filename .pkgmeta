@@ -3,3 +3,7 @@ package-as: Terminal
 ignore:
   - tests
   - CLAUDE.md
+
+# Terminal Extras (the games and the radio): a load-on-demand addon of its own, packaged beside Terminal
+move-folders:
+  Terminal/Terminal_Extras: Terminal_Extras
