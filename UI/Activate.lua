@@ -79,8 +79,8 @@ end
 function UI:TryArmSecure(e)
 	local frame, edit = UI.frame, UI.edit
 	local S = ns.Secure
-	local target = S.Resolve(e.secure, e)
-	if not target then ns:Trace("secure: no binding/button for " .. e.name) return false end
+	-- (asked before the press is worked out: an open window needs none, and a spec may have nothing to press then: the
+	-- Legacy window open on another page. 0.48.8, the player: its tab was never pointed at, the row's fallback ran)
 	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
 		ns:Trace("secure: window already open, highlighting " .. e.name)
 		self:Hide()
@@ -88,6 +88,8 @@ function UI:TryArmSecure(e)
 		AfterSoon(e, 0.05)
 		return true
 	end
+	local target = S.Resolve(e.secure, e)
+	if not target then ns:Trace("secure: no binding/button for " .. e.name) return false end
 	if InCombatLockdown() or not S.Arm(target) then ns:Trace("secure: could not arm for " .. e.name .. " (combat or no proxy)") return false end
 	ns:Trace("secure: armed Enter -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. e.name)
 	ns:Bump(e.freqKey)

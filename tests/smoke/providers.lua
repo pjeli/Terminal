@@ -238,6 +238,16 @@ do
 	H.Find = findWas
 	check(found == treeTab, "the Tree not shown: its tab (LegacySystemFrame.LegacyTreeTab) pointed at")
 	tr.after(tr); T.FlushAll()
+	-- 0.48.8 (the player: the tab was never pointed at): open on another page there's nothing to press (no macro), and
+	-- Enter only points at the tab; it used to give up there and run the row's fallback ("Open the Legacy window...")
+	LegacySystemFrame.currentPage = 1
+	check(S.Resolve(tr.secure, tr) == nil, "open on Rewards: nothing for the Tree to press")
+	found = nil
+	H.Find = function(_, finder) found = finder() end
+	local took = UI:TryArmSecure(tr); T.FlushAll()
+	H.Find = findWas
+	check(took == true and found == treeTab, "Enter on the Tree, the window open on Rewards: its tab pointed at, nothing pressed: "
+		.. tostring(took) .. " " .. tostring(found))
 	-- Rewards: open on it (the window starts there each session): nothing more; on another page: its tab pointed at
 	LegacySystemFrame.currentPage = 1
 	check(rw.isOpen(rw) == true, "open on Rewards: Rewards is open")

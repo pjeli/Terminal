@@ -1148,6 +1148,9 @@ do
 	local mm = CreateFrame("Frame")
 	mm:SetAlpha(0.8); mm:Show()
 	_G.Minimap = mm -- (0.46.8: the minimap's icons stayed up: it's faded on its own, and put back as it was)
+	local fpsWas, fps = _G.FramerateFrame, CreateFrame("Frame")
+	fps:SetAlpha(1); fps:Hide()
+	_G.FramerateFrame = fps -- (0.48.8: the frame-rate counter showed through: WorldFrame's child, faded on its own too)
 	local mine, theirs = CreateFrame("Frame"), CreateFrame("Frame")
 	mine.__name, theirs.__name = "TerminalSomethingNew", "ChatFrame1"
 	local ign = {}
@@ -1174,6 +1177,8 @@ do
 	check(P:GetAlpha() == 0 and math.abs(Zen.dim:GetAlpha() - Zen.DIM) < 1e-6 and Zen.driver.scripts.OnUpdate == nil
 		and mm:GetAlpha() == 0, "faded away (the minimap too), the screen dimmed, and nothing runs once it's there")
 	check(not mm:IsShown(), "faded: the minimap hidden (its blips ignore alpha; 0.46.11)")
+	fps:Show() -- (Ctrl+R while faded: the counter comes up faded)
+	check(fps:GetAlpha() == 0, "faded: the frame-rate counter too, turned on now or before: " .. tostring(fps:GetAlpha()))
 	-- closing: back smoothly, to exactly what it was
 	UI:HideNow()
 	UI.frame.scripts.OnHide(UI.frame) -- (the game fires OnHide)
@@ -1184,6 +1189,7 @@ do
 	Step(0.11) -- (0.46.13: back in 0.2 s, as fast as it went)
 	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil
 		and math.abs(mm:GetAlpha() - 0.8) < 1e-9, "back as it was (0.9; the minimap 0.8), the dimming gone: " .. P:GetAlpha())
+	check(fps:IsShown() and math.abs(fps:GetAlpha() - 1) < 1e-9, "the frame-rate counter back too: " .. tostring(fps:GetAlpha()))
 	-- one of Terminal's apps in its place: still Terminal; back once it closes
 	local apps = ns.Panel.Registered()
 	local appShown = true
@@ -1273,7 +1279,7 @@ do
 	table.remove(appFrames)
 	P:SetAlpha(alphaWas)
 	UI.frame.SetIgnoreParentAlpha = nil
-	_G.Minimap = minimapWas
+	_G.Minimap, _G.FramerateFrame = minimapWas, fpsWas
 end
 
 -- a stored item sent to chat says who holds how many (0.43.27): >> party, the menu's chat lines, a chain's "> alts"

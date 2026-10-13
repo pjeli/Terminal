@@ -18,8 +18,10 @@ ns.Zen = Z
 Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha)
 Z.IN, Z.OUT = 0.2, 0.2 -- (s: fading away as Terminal opens; coming back as it closes; the player's, 0.46.13)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
--- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up)
-Z.ALSO = { "Minimap", "MinimapCluster" }
+-- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up),
+-- and the frame-rate counter (0.48.8, the player: it showed through: its parent is WorldFrame, not UIParent, as the
+-- game's Blizzard_FramerateFrame makes it; one turned on while faded stays faded, its alpha already 0)
+Z.ALSO = { "Minimap", "MinimapCluster", "FramerateFrame" }
 -- frames whose drawing ignores alpha altogether: the minimap's blips (party members, tracked herbs and ores, quest
 -- spots: the engine draws them on the minimap at full strength). Hidden as the fade starts (0.46.13, the player:
 -- sooner; 0.46.11 hid them once it was done), shown again the moment it turns back or combat comes (0.46.11, the
