@@ -4314,19 +4314,53 @@ do
 	key("UP"); check(query() == ".mem", "Up on an empty prompt brings back the last line: '" .. query() .. "'")
 	key("UP"); check(query() == ".about", "Up again goes further back")
 	key("UP"); check(query() == ".about", "and stops at the oldest")
-	key("DOWN"); check(query() == ".mem", "Down comes forward")
-	key("DOWN"); check(query() == "" and UI.histIdx == nil, "Down past the newest empties the prompt again")
-	-- the game may report SetText's change a frame later: Up, then Down still comes back to the empty prompt
+	-- (0.48.3, the player: Down on a line Up brought back went back through the history, emptying the prompt, where its
+	-- results were expected. Down goes into them now, as on any search; Shift+Left is the way back to the empty prompt)
+	local function back()
+		_G.IsShiftKeyDown = function() return true end
+		key("LEFT")
+		_G.IsShiftKeyDown = function() return false end
+		F.scripts.OnKeyUp(F, "LEFT")
+	end
+	check(UI:CanGoBack() and (UI.hints:GetText() or ""):find("Shift+Left", 1, true),
+		"a line Up brought back: Shift+Left goes back, the footer says so: " .. tostring(UI.hints:GetText()))
+	back(); check(query() == ".mem" and UI.histIdx == 1, "Shift+Left comes forward: " .. query())
+	back(); check(query() == "" and UI.histIdx == nil and not UI:CanGoBack(), "Shift+Left past the newest empties the prompt again")
+	ns:RecordHistory(".h")
+	key("UP"); check(query() == ".h" and #UI.results >= 3 and UI.sel == 1, "a line with results: " .. #UI.results)
+	key("DOWN"); check(query() == ".h" and UI.histIdx == 1 and UI.sel == 2, "Down goes into its results, the line kept: '" .. query() .. "'")
+	key("DOWN"); check(UI.sel == 3, "and on down them")
+	key("UP"); key("UP"); check(query() == ".h" and UI.sel == 1, "Up goes back up them")
+	key("UP"); check(query() == ".mem" and UI.histIdx == 2, "from the first one, Up goes on back through the history")
+	back(); check(query() == ".h" and UI.histIdx == 1, "and Shift+Left forward")
+	-- Simple mode, a category picked in it since: Shift+Left is the category's first
+	ns.db.easyMode = true
+	UI.category, UI.categoryAuto, UI.mode = "spells", nil, "search" -- (as a search's line, not a command's, would be)
+	check(not UI:HistoryBack(true) and UI:GoBack() and UI.category == nil and query() == ".h", "a category picked: back to all of them first")
+	check(UI:HistoryBack(true), "then the history again")
+	ns.db.easyMode = false
+	UI:Research()
+	-- nothing listed (nor a search still going): Down goes forward, as there's nothing to go into
+	UI.results = {}
+	UI.searchJob = { step = function() end }
+	key("DOWN"); check(query() == ".h", "a search still going: Down waits for its results")
+	UI.searchJob = nil
+	key("DOWN"); check(query() == "" and UI.histIdx == nil, "nothing listed: Down goes forward, to the empty prompt")
+	-- the game may report SetText's change a frame later: the walk goes on through it
 	do
 		local edit = UI.edit
 		edit.SetText = function(self, t) self.text = t or ""; C_Timer.After(0, function() local f = self.scripts.OnTextChanged; if f then f(self) end end) end
 		key("UP"); Flush()
-		check(query() == ".mem" and UI.histIdx == 1, "Up (late text event): the last line, still walking")
+		check(query() == ".h" and UI.histIdx == 1, "Up (late text event): the last line, still walking")
 		key("DOWN"); Flush()
-		check(query() == "" and UI.histIdx == nil, "then Down: back to the empty prompt: '" .. query() .. "'")
+		check(query() == ".h" and UI.histIdx == 1 and UI.sel == 2, "then Down: into its results: '" .. query() .. "'")
+		key("UP"); Flush(); key("UP"); Flush()
+		check(query() == ".mem" and UI.histIdx == 2, "Up, Up: back up the results, then the line before")
+		back(); Flush(); back(); Flush()
+		check(query() == "" and UI.histIdx == nil, "Shift+Left twice: the empty prompt: '" .. query() .. "'")
 		edit.SetText = nil
 	end
-	key("UP"); typeText("x")
+	key("UP"); key("UP"); typeText("x")
 	check(UI.histIdx == nil and query() == ".memx", "typing leaves the history: " .. query())
 	UI:SetQuery("heal", 4)
 	key("UP"); check(query() == "heal", "Up with something typed still moves the list, not the history")

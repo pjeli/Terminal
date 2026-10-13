@@ -380,6 +380,7 @@ end
 function UI:GoBack()
 	if self.fzf then return false end
 	if self:WalkBack() then return true end
+	if self:HistoryBack() then return true end
 	if EasyOn() and self.category and not self.categoryAuto and UI.mode == "search" then
 		self:SetCategory(nil)
 		return true
@@ -390,7 +391,8 @@ end
 --- Is there somewhere Shift+Left goes back to (the footer says so)?
 function UI:CanGoBack()
 	if self.fzf then return false end
-	return self:WalkTop() ~= nil or (EasyOn() and self.category ~= nil and not self.categoryAuto and UI.mode == "search")
+	return self:WalkTop() ~= nil or self:HistoryBack(true)
+		or (EasyOn() and self.category ~= nil and not self.categoryAuto and UI.mode == "search")
 end
 
 function UI:Move(delta)
@@ -422,8 +424,23 @@ function UI:History(dir)
 	return true
 end
 
---- Up: the list's selection goes up; past the first row of an empty prompt it goes back through
---- the history instead.
+--- A line Up brought back is in the prompt as it brought it. (A category picked in it since, in Simple mode, is a later
+--- step: Up and Shift+Left are the category's then, as on any search.)
+local function Walking(self)
+	return self.histIdx ~= nil and not self.fzf
+		and not (EasyOn() and self.category and not self.categoryAuto and UI.mode == "search")
+end
+
+--- Shift+Left on a line Up brought back: a step toward the newest line, the last step to the empty prompt (`dry`: only
+--- whether it would). False: not walking the history.
+function UI:HistoryBack(dry)
+	if not Walking(self) then return false end
+	if dry then return true end
+	return self:History(1)
+end
+
+--- Up: the list's selection goes up; from the first row of an empty prompt, or of a line it brought back, it goes
+--- back through the history instead (0.48.3, the player: Down then goes into that line's results, as on any search).
 function UI:Up()
 	local edit = UI.edit
 	if self.fzf then return self:Move(-1) end -- (pure fuzzy finding: the arrows only go through the list)
@@ -441,14 +458,17 @@ function UI:Up()
 			return
 		end
 	end
-	if (self.histIdx or (edit:GetText() == "" and UI.sel <= 1)) and self:History(-1) then return end
+	if UI.sel <= 1 and (Walking(self) or edit:GetText() == "") and self:History(-1) then return end
 	self:Move(-1)
 end
 
 function UI:Down()
 	local edit = UI.edit
 	if self.fzf then return self:Move(1) end
-	if self.histIdx ~= nil and self:History(1) then return end
+	-- a line Up brought back: Down goes into its results, as on any search (back toward the empty prompt is Shift+Left's,
+	-- UI:HistoryBack); only with nothing listed (nor coming: a search still going) on toward the newest line. (Until
+	-- 0.48.3 Down always walked the history: Up, then Down to the results, emptied the prompt.)
+	if Walking(self) and #UI.results == 0 and not self.searchJob and self:History(1) then return end
 	if edit:GetText() == "" and #UI.results == 0 and self:Recall() then return end
 	self:Move(1)
 end

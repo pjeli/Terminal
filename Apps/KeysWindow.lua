@@ -49,9 +49,9 @@ K.LINES = {
 		f = L["at the end of the prompt: write its name into it"] },
 
 	{ L["Get around"] },
-	{ "Shift+Left", L["back to the list you came from, your pick selected again"], only = "sa",
-		s = L["back: to the list you came from (your pick selected again), or from a category to all of them"] },
-	{ "Up", L["on an empty prompt: lines you ran before, older with each press"], only = "sa" },
+	{ "Shift+Left", L["back: to the list you came from (your pick selected again), or from a line Up brought back toward the empty prompt"], only = "sa",
+		s = L["back: to the list you came from (your pick selected again), from a category to all of them, or from a line Up brought back toward the empty prompt"] },
+	{ "Up", L["on an empty prompt: the line you ran last; from its first result, the one before it"], only = "sa" },
 	{ "Down", only = "sa", s = L["on an empty prompt: your last search back (Up puts it away)"],
 		a = L["on an empty prompt: your recent picks (Up puts them away)"] },
 

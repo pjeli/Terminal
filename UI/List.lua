@@ -134,7 +134,8 @@ function UI:FitHints()
 	local list
 	local key = "|cff" .. t.text
 	local sel = UI.results[UI.sel]
-	local back = self:WalkTop() ~= nil and not self.fzf -- (a step's search: Shift+Left goes back, UI:GoBack)
+	-- (a step's search, or a line Up brought back: Shift+Left goes back, UI:GoBack)
+	local back = (self:WalkTop() ~= nil or self:HistoryBack(true)) and not self.fzf
 	if self.fzf then
 		list, key = FZF_HINTS, key .. "|fzf"
 	elseif not EasyOn() and sel and sel.syntaxRow then
