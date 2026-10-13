@@ -45,10 +45,7 @@ local function Boxes()
 	return ns.db.mailboxes
 end
 
-local function Dirty()
-	local p = ns.providers.mail
-	if p then p._dirty = true end
-end
+local function Dirty() ns:Changed("mail") end
 
 local function Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
 
@@ -322,6 +319,7 @@ end
 
 --- Mail sent to someone not one of your characters: kept an hour on your character's list.
 function MA.KeepSent(s)
+	MA.Prune() -- (on every write: what's past its time goes even when @mail is never looked at; review, 0.48.6)
 	local list = Mine("mailSent")
 	if not list then return nil end
 	table.insert(list, 1, { to = s.to, at = s.at, mail = s.mail })
@@ -381,6 +379,7 @@ function MA.OnBid(auctionID, amount)
 	if type(info) ~= "table" then return nil end
 	local link = Str(info.itemLink)
 	local key = type(info.itemKey) == "table" and info.itemKey or nil
+	MA.Prune()
 	local bids = Mine("auctionBids")
 	if not bids then return nil end
 	local b = { id = key and Num(key.itemID), link = link, price = Num(amount) or Num(info.buyoutAmount), t = Now() }
@@ -406,6 +405,7 @@ function MA.OnAuction(kind, item, auctionID, now, extra)
 	item = Str(item)
 	if not (kind and item) then return nil end
 	now = now or Now()
+	MA.Prune(now)
 	auctionID = Num(auctionID)
 	local list, key = Mine("mailAuctions")
 	if not list then return nil end
@@ -473,6 +473,7 @@ function MA.AuctionCreated(auctionID)
 	pendingPost = nil
 	auctionID = Num(auctionID)
 	if not (p and auctionID) or Now() - p.at > MA.POST_WAIT then return nil end
+	MA.Prune()
 	local posted = Mine("auctionsPosted")
 	if not posted then return nil end
 	p.t, p.at = p.at, nil
@@ -484,6 +485,7 @@ end
 function MA.ReadOwned()
 	local AH = C_AuctionHouse
 	if not (AH and AH.GetNumOwnedAuctions and AH.GetOwnedAuctionInfo) then return 0 end
+	MA.Prune()
 	local posted = Mine("auctionsPosted")
 	if not posted then return 0 end
 	local n, kept = Num(Safe(AH.GetNumOwnedAuctions)) or 0, 0
@@ -1002,21 +1004,21 @@ function MA.Collect()
 	for key, list in pairs(Store("mailAuctions")) do
 		for i, a in ipairs(list) do
 			local e = AuctionRow(key, a, i, key == myKey, WhoOf(key), now)
-			e._pos = i
+			e._order = i -- (never _pos: that's the letters a search marked, drawn by the list)
 			way[#way + 1] = e
 		end
 	end
 	for key, list in pairs(Store("mailSent")) do
 		for i, sm in ipairs(list) do
 			local e = SentRow(key, sm, i, key == myKey, WhoOf(key), now)
-			e._pos = i
+			e._order = i
 			way[#way + 1] = e
 		end
 	end
 	table.sort(way, function(a, b)
 		if (a.mailKind == "auction") ~= (b.mailKind == "auction") then return a.mailKind == "auction" end
 		if a.at ~= b.at then return a.at > b.at end
-		if a.boxKey == b.boxKey and a._pos ~= b._pos then return a._pos < b._pos end -- (the newer told first)
+		if a.boxKey == b.boxKey and a._order ~= b._order then return a._order < b._order end -- (the newer told first)
 		return a.name < b.name
 	end)
 	for _, e in ipairs(way) do rows[#rows + 1] = e end
@@ -1249,6 +1251,8 @@ ns:RegisterCommand("mail", {
 			for key, box in pairs(boxes) do
 				if type(box) == "table" and box.name and (Lower(box.name) == lw or Lower(box.name .. "-" .. tostring(box.realm)) == lw) then
 					boxes[key] = nil
+					-- (and what that character sent, its auction news and the prices kept for them: review, 0.48.6)
+					for _, store in ipairs({ "mailSent", "mailAuctions", "auctionsPosted", "auctionBids" }) do Store(store)[key] = nil end
 					n = n + 1
 				end
 			end

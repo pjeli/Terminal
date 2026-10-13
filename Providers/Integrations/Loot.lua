@@ -180,9 +180,7 @@ local function FromCache(key)
 end
 I.CacheKey = CacheKey
 
-local function Dirty()
-	if ns.providers.loot then ns.providers.loot._dirty = true end
-end
+local function Dirty() ns:Changed("loot") end
 
 --- An item's name if the client has it: GetItemNameByID, or one GetItemInfo gave the name pump. With `ask`
 --- (the pump only, a batch at a time) GetItemInfo is tried too: it makes the client fetch the item, so reading the

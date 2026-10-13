@@ -43,11 +43,17 @@ local function HoldFor(se, ctrl)
 end
 UI.HoldFor = HoldFor
 
+--- (review, 0.48.6) as FinishSecure does after Enter: a press that asks for more stays open (@who's ask: the answer comes
+--- into the list), and Ctrl held on a press that opens no window keeps it open (F1 says Ctrl+click is Ctrl+Enter); it
+--- always closed before.
 local function FinishClicked(e, se)
 	local edit = UI.edit
 	ns:Bump(e.freqKey)
-	ns:RecordHistory(edit:GetText())
-	UI:Hide()
+	local stays = se and se.staysOpen
+	if stays == nil then stays = e.staysOpen end
+	if not stays then ns:RecordHistory(edit:GetText()) end
+	local hold = HoldFor(se or e, IsControlKeyDown and IsControlKeyDown())
+	if not stays and not hold then UI:Hide() end
 	AfterSoon(se, 0.1)
 end
 UI.FinishClicked = FinishClicked
@@ -184,10 +190,12 @@ end
 --- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the
 --- entry's secondary action; one that opens a window itself (secondarySecure) is armed like
 --- Enter is, with its own isOpen/after (e.g. an equipment set: the character window's sets).
-local function SecureView(e, shift)
+--- `own`: the row's own action even in ">>" mode (the row menu's first lines say the row's verbs; review, 0.48.6: they
+--- sent it to the channel, the menu's own channel lines being for that).
+local function SecureView(e, shift, own)
 	if not e then return nil end
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
-	if UI.sendTo then
+	if UI.sendTo and not own then
 		-- (">> drop" presses nothing: Terminal asks, then drops it with C calls; see SendSelected)
 		if UI.sendTo.drop then return nil end
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
@@ -197,7 +205,9 @@ local function SecureView(e, shift)
 			return setmetatable({ secure = PRESS_ALL_SPEC, isOpen = NeverOpen, after = SentAfter, noClick = true }, { __index = e })
 		end
 		if not UI.sendTo.cmd or UI.sendTo.all or e.noActivate or e.raw or e.completion then return nil end
-		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter }, { __index = e })
+		-- (its verb for the armed line: "Press Enter to send it to Party", not the row's own; review, 0.48.6)
+		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter,
+			actionVerb = L["send it to %s"]:format(tostring(UI.sendTo.label)) }, { __index = e })
 	end
 	if shift and e.secondary then
 		if not e.secondarySecure then return nil end
@@ -227,12 +237,18 @@ UI.SecureView = SecureView
 ----------------------------------------------------------------------
 
 
+-- (">> party" on a resting pointer: the chat line is worked out on the click itself, the catcher's PreClick: working it
+-- out sets an NPC's map pin to link it, and hovering moved your waypoint row by row; review, 0.48.6)
+local SEND_LATER = "\001send"
+UI.SEND_LATER = SEND_LATER
+
 --- The macro a click on this result runs (nil: none), and the entry view it opens. `quiet`: worked
---- out for the pointer resting on a row, not for a press: the macro's steps aren't traced.
-local function ClickFor(e, shift, quiet)
-	local se = SecureView(e, shift)
+--- out for the pointer resting on a row, not for a press: the macro's steps aren't traced. `own`: SecureView's.
+local function ClickFor(e, shift, quiet, own)
+	local se = SecureView(e, shift, own)
 	if not se or se.noClick then return nil end -- (noClick: a click arms Enter instead, Activate)
 	if se.isOpen and se.isOpen(se) then return nil end -- already open: Activate only points at it
+	if quiet and se.secure == SEND_SPEC then return SEND_LATER, se end
 	return ns.Secure.ClickMacro(se.secure, se, quiet), se
 end
 UI.ClickFor = ClickFor
@@ -248,6 +264,7 @@ local function Catcher()
 	c:EnableMouseWheel(true)
 	c:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 	c:SetScript("OnLeave", function() UI:HideCatcher() end)
+	c:SetScript("PreClick", function(self) UI:CatcherPreClick(self) end)
 	c:HookScript("PostClick", function(_, button) UI:CatcherClicked(button) end)
 	if RegisterStateDriver then
 		c:SetAttribute("_onstate-combat", [[ if newstate == "1" then self:Hide() end ]])
@@ -301,12 +318,31 @@ function UI:PlaceCatcher(i)
 	if not c then return end
 	if not AnchorCatcher(c, row) then self:HideCatcher() return end
 	c:SetAttribute("type1", plain and "macro" or "")
-	c:SetAttribute("macrotext1", plain)
+	c:SetAttribute("macrotext1", plain ~= SEND_LATER and plain or "")
 	-- shift: its own action, or none at all (so a shift-click never runs the plain one)
 	c:SetAttribute("shift-type1", shifted and "macro" or "")
-	c:SetAttribute("shift-macrotext1", shifted)
+	c:SetAttribute("shift-macrotext1", shifted ~= SEND_LATER and shifted or "")
+	-- Ctrl and Ctrl+Shift do what plain and Shift do (a ctrl-click found no ctrl- attribute and fell back to type1:
+	-- Ctrl+Shift+click ran Enter's action; review, 0.48.6)
+	c:SetAttribute("ctrl-type1", plain and "macro" or "")
+	c:SetAttribute("ctrl-macrotext1", plain ~= SEND_LATER and plain or "")
+	c:SetAttribute("ctrl-shift-type1", shifted and "macro" or "")
+	c:SetAttribute("ctrl-shift-macrotext1", shifted ~= SEND_LATER and shifted or "")
 	c.row, c.entry, c.plain, c.shifted = i, e, plain, shifted
 	c:Show()
+end
+
+--- Before the catcher's click acts: a chat line to send (">> party") is worked out now, for the row clicked.
+function UI:CatcherPreClick(c)
+	if InCombatLockdown() or not c.entry then return end
+	local shift = IsShiftKeyDown()
+	if (shift and c.shifted or c.plain) ~= SEND_LATER then return end
+	local se = SecureView(c.entry, shift)
+	local text = se and ns.Secure.ClickMacro(se.secure, se) or ""
+	local key = shift and "shift-macrotext1" or "macrotext1"
+	c:SetAttribute(key, text)
+	c:SetAttribute("ctrl-" .. key, text)
+	if shift then c.shifted = text else c.plain = text end
 end
 
 --- After a click on the catcher: if the game ran a macro, finish as after Enter; otherwise
@@ -383,6 +419,7 @@ local function SendEveryResult(self, to)
 	if not to.cmd then return NoChannel(to, ">>>") end
 	if ns.Share.Restricted(to) then
 		-- (say, yell: a click arms Enter for the game's press of one line; Terminal's code can't send there)
+		if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
 		local se = SecureView(UI.results[UI.sel], false)
 		if se and self:TryArmSecure(se) then ns:RecordHistory(UI.edit:GetText()) return end
 		ns:Print(InCombatLockdown() and L["In combat: can't send it now."] or ns.Share.ONE_LINE)
@@ -417,7 +454,7 @@ function UI:Activate(idx, opts)
 	if not e or e.noActivate then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
-	local to = self.sendTo
+	local to = (not opts.own) and self.sendTo or nil -- (own: the row menu's first lines, the row's own action)
 	if to and to.all and not e.completion then return SendEveryResult(self, to) end
 	-- Opening or clicking Blizzard's windows is protected in combat: do nothing rather than
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
@@ -435,7 +472,7 @@ function UI:Activate(idx, opts)
 	-- (a row that only fills the prompt in, "Search Questie for this", is a step, not something run)
 	if not e.staysOpen then ns:RecordHistory(edit:GetText()) end
 	-- windows Blizzard owns are opened by a secure click, never from our own code
-	local se = SecureView(e, opts.secondary)
+	local se = SecureView(e, opts.secondary, opts.own)
 	self.holdOpen = HoldFor(se, opts.keepOpen)
 	if se and self:TryArmSecure(se) then return end
 	self.holdOpen = nil

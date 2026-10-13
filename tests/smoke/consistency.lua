@@ -475,3 +475,42 @@ end
 -- the key bindings' names (Options > Keybindings > Terminal): Terminal is a name, capitalised (0.46.12, the player)
 io.write("[binding names]\n")
 T.check(_G.BINDING_NAME_TERMINAL_TOGGLE == "Toggle Terminal", "the toggle's binding says Terminal: " .. tostring(_G.BINDING_NAME_TERMINAL_TOGGLE))
+
+io.write("[review 0.48.6: the apps say their keys alike]\n")
+do
+	local P = T.ns.Panel
+	local bad = {}
+	for _, f in ipairs({ "Terminal_Extras/LootRun.lua", "Terminal_Extras/Snake.lua", "Terminal_Extras/Tetris.lua", "Terminal_Extras/Typing.lua",
+		"Terminal_Extras/Wowamp.lua", "Apps/Atop.lua", "Apps/Changelog.lua" }) do
+		local h = io.open("Terminal/" .. f)
+		local src = h and h:read("*a") or ""
+		if h then h:close() end
+		for _, w in ipairs({ 'L["Esc quits"]', 'L["Esc: quit"]', 'L["Esc to quit"]', 'L["Esc quit"]', 'L["Enter: again"]', 'L["Enter to play again"]',
+			'L["Esc close (plays on)"]' }) do
+			if src:find(w, 1, true) then bad[#bad + 1] = f .. " " .. w end
+		end
+	end
+	T.check(#bad == 0 and P.QUIT and P.CLOSE and P.AGAIN, "the apps' footers: one way to say quit, close and play again: " .. table.concat(bad, ", "))
+end
+
+io.write("[review 0.48.6: details joined alike]\n")
+do
+	local ns = T.ns
+	-- (kept: Items' "x5  Backpack" and the copies made of them, loot's "Boss  Instance" (read back by Share), the slash
+	-- commands' other spellings, a distance in front, which the list reads)
+	local SKIP = { items = true, consumables = true, mats = true, loot = true, slash = true, lootlog = true }
+	local bad = {}
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		if p and not SKIP[id] and p._entries then
+			for i = 1, math.min(#p._entries, 40) do
+				local d = p._entries[i].detail
+				if type(d) == "string" and not d:find("^%d+ yd") then
+					local plain = ns.Plain(d):gsub("  ·  ", "|")
+					if plain:find("%S  %S") then bad[#bad + 1] = id .. ": " .. d break end
+				end
+			end
+		end
+	end
+	T.check(#bad == 0, "row details join their parts with \"  ·  \": " .. table.concat(bad, "; "))
+end

@@ -381,8 +381,15 @@ function K.Open(m, from)
 end
 
 function K.Close(why)
+	local was = back
 	back = nil
-	return Panel.Close(frame, why, L["The keys window"])
+	local closed = Panel.Close(frame, why, L["The keys window"])
+	-- (a fight: the terminal as F1 found it comes back at the fight's end, as it does without F1; review, 0.48.6)
+	if closed and why == "combat" and was and not UI.combatState then
+		UI.combatState = was
+		UI.comeBackGen = (UI.comeBackGen or 0) + 1
+	end
+	return closed
 end
 
 --- F1 pressed a moment after it opened or closed the window: the held key's own repeats, not a press (they'd flip it

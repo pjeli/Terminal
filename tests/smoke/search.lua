@@ -393,3 +393,134 @@ do
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
 end
+
+
+io.write("[review 0.48.6: the search engine]\n")
+do
+	local E, F, Scan, P = ns.Easy, ns.Filters, UI._Scan, ns.Pipes
+	local IS = F._.IS
+	IS.zzs = function(e) return e.zz == true end
+	IS.zzr = function(e) return e.zzr == true end
+	E.WORDS.zzstrict, E.HARD_WORDS.zzstrict = "is:zzs", true
+	E.WORDS.zzrole, E.HARD_WORDS.zzrole, E.ROLE_WORDS.zzrole = "is:zzr", true, true
+	-- a strict everyday word is an everyday word: "my zzstrict" drops its "my" as the soft ones do
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Alpha Stone", itemID = 1, zz = true },
+			{ name = "Beta Stone", itemID = 2 }, { name = "Hearthstone", itemID = 6948 } }) } },
+		{ "spells", { label = "Spell", aliases = { "spell" }, collect = Rows({ { name = "Stone Skin", zz = true }, { name = "World Map Spell" } }) } },
+		{ "panels", { label = "Panel", aliases = { "panel" }, collect = Rows({ { name = "World Map" } }) } },
+		{ "npc", HintList("Questie's NPCs", "npc", { "Ann Zzrole", "Bob Smith" }, true) } })
+	ns.db.easyMode = true
+	UI.category, UI.categoryAuto = nil, nil
+	local a, b = UI:Search("zzstrict"), UI:Search("my zzstrict")
+	check(#a > 0 and a[1].catId and #b == #a and b[1].catId, "\"my zzstrict\" as \"zzstrict\": " .. #a .. " / " .. #b .. " " .. tostring(b[1] and b[1].name))
+	-- a strict role word: Questie's NPCs looked up by it in the overview; "nearest" with it keeps to friendly NPCs
+	local r = UI:Search("zzrole")
+	local npcs = false
+	for _, e in ipairs(r) do if e.catId == "npcs" then npcs = true end end
+	check(npcs or UI.category == "npcs", "a strict role word: the NPCs it names found: " .. tostring(r[1] and r[1].name))
+	check(Scan.RoleFriendly(nil, { "zzrole" }) ~= nil and Scan.RoleFriendly({ "zzrole" }) ~= nil and Scan.RoleFriendly({ "stone" }) == nil,
+		"a role word, soft or strict, keeps to friendly NPCs")
+	local I = ns.Integrations
+	local hereWas = I.Here
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	local early, here, friendly = Scan.NearestStart({ "ann" }, nil, nil, { "zzrole" })
+	I.Here = hereWas
+	check(not early and here and friendly ~= nil, "\"nearest zzrole\": faction:friendly as for \"nearest innkeeper\"")
+	local nearWas, strictGot = Scan.NearestStart, nil
+	Scan.NearestStart = function(...) strictGot = select(4, ...) return nearWas(...) end
+	UI.category, UI.categoryAuto = nil, nil
+	UI:Search("nearest zzrole")
+	Scan.NearestStart = nearWas
+	check(strictGot and strictGot[1] == "zzrole", "the search hands \"nearest\" its strict words: " .. tostring(strictGot and strictGot[1]))
+	-- close spellings with no category picked
+	UI.category, UI.categoryAuto = nil, nil
+	r = UI:Search("hearhtstone")
+	local found = false
+	for _, e in ipairs(r) do if e.name == "Hearthstone" or (e.catId and (e.detail or ""):find("Hearthstone", 1, true)) then found = true end end
+	check(found and UI.closeSpellings, "Simple mode, no category: close spellings too: " .. tostring(r[1] and r[1].name))
+	-- the category picked has nothing: the categories that do, with the clear winner on top as with none picked
+	UI.category, UI.categoryAuto = "items", nil
+	r = UI:Search("world map")
+	check(r[1] and r[1].name == "World Map" and UI.overviewWinner == r[1], "nothing in Items: the categories, World Map on top: " .. tostring(r[1] and r[1].name))
+	UI.category, UI.categoryAuto = nil, nil
+	ns.db.easyMode = false
+	-- a list made from another (@gear from @item) is stale while that one is: narrowing doesn't keep what's gone
+	local items = { { name = "Sword of A", itemID = 1 }, { name = "Swordbreaker", itemID = 2 } }
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = function()
+			local out = {}
+			for i, x in ipairs(items) do out[i] = { name = x.name, itemID = x.itemID, key = x.itemID } end
+			return out
+		end } },
+		{ "gear", { label = "Gear", aliases = { "gear" }, explicit = true, follows = "items", collect = function()
+			local out = {}
+			for _, e in ipairs(ns:GetEntries(ns.providers.items)) do out[#out + 1] = { name = e.name, key = e.key, itemID = e.itemID } end
+			return out
+		end } } })
+	UI:Search("@gear swo")
+	items = { { name = "Swordbreaker", itemID = 2 } }
+	ns.providers.items._dirty = true
+	r = UI:Search("@gear swor")
+	local names = {}
+	for _, e in ipairs(r) do names[#names + 1] = e.name end
+	check(#r == 1 and r[1].name == "Swordbreaker", "the sword sold: gone from @gear's narrowed search: " .. table.concat(names, ", "))
+	-- items the client hasn't loaded: at most F.ITEM_ASK asked per search, and the search runs again (F.loading)
+	local gii, cached = C_Item.GetItemInfo, C_Item.IsItemDataCachedByID
+	local asked = 0
+	C_Item.GetItemInfo = function() asked = asked + 1 return nil end
+	C_Item.IsItemDataCachedByID = function() return false end
+	local loot = {}
+	for i = 1, 300 do loot[i] = { name = "Blade " .. i, itemID = 50000 + i } end
+	Use({ { "loot", { label = "Loot", aliases = { "loot" }, collect = Rows(loot) } } })
+	UI:Search("@loot blade q:epic")
+	local first = asked
+	UI:Search("@loot blade 1 q:epic") -- (a letter more: a narrowing of the last search, which judged only some)
+	C_Item.GetItemInfo, C_Item.IsItemDataCachedByID = gii, cached
+	check(first <= F.ITEM_ASK and asked - first > 0 and asked - first <= F.ITEM_ASK and F.loading, "uncached items: a few asked per search, not 300: " .. first .. ", " .. (asked - first))
+	-- a chain's views of one row, found the same way: one
+	local npc = { kind = "npc", key = 5, name = "Trader" }
+	local v1 = setmetatable({ pipeHow = "sold by", detail = "a" }, { __index = npc })
+	local v2 = setmetatable({ pipeHow = "sold by", detail = "b" }, { __index = npc })
+	local v3 = setmetatable({ pipeHow = "dropped by" }, { __index = npc })
+	check(P.Id(v1) == P.Id(v2) and P.Id(v1) ~= P.Id(v3), "a chain: the same NPC found the same way is one row")
+	Restore()
+	-- the plan question reads your professions only when a plan word is typed (it's asked every keystroke)
+	local pp, calls = ns.Professions.PlayerProfessions, 0
+	ns.Professions.PlayerProfessions = function(...) calls = calls + 1 return pp(...) end
+	ns.Plan.Question("hearth"); ns.Plan.Question("hearthstone")
+	local noCue = calls
+	ns.Plan.Question("blacksmithing plan")
+	ns.Professions.PlayerProfessions = pp
+	check(noCue == 0 and calls == 1, "the plan question: professions read only with a plan word: " .. noCue .. " / " .. calls)
+	-- the prompt's colours: a word's parse remembered (not every keystroke)
+	local parse, parses = F.Parse, 0
+	F.Parse = function(...) parses = parses + 1 return parse(...) end
+	UI:SyntaxSegments("q:rare lvl:20 stone")
+	local once = parses
+	UI:SyntaxSegments("q:rare lvl:20 stone")
+	F.Parse = parse
+	check(parses == once, "the prompt's colours: the same words not parsed again: " .. once .. " then " .. (parses - once))
+	-- what was picked of a list is looked up once for the list, not per row
+	local many = {}
+	ns:RegisterProvider("zzfreq", { label = "Zz", aliases = { "zzfreq" }, explicit = true, collect = function() return many end })
+	local meta = ns:CompactMeta(ns.providers.zzfreq, {})
+	for i = 1, 300 do many[i] = setmetatable({ _compact = true, key = i, name = "Stone " .. i }, meta) end
+	local fw = { recent = ns.db.recent, freq = ns.db.freq }
+	ns.db.recent, ns.db.freq = {}, {}
+	ns.freqKinds = nil
+	ns:Bump("zzfreq:7")
+	local fk, asks = ns.FreqKind, 0
+	ns.FreqKind = function(...) asks = asks + 1 return fk(...) end
+	UI.lastScan, UI.lastOverview = nil, nil
+	r = UI:Search("@zzfreq stone")
+	ns.FreqKind = fk
+	ns.db.recent, ns.db.freq = fw.recent, fw.freq
+	ns.freqKinds = nil
+	check(asks <= 3 and r[1] and r[1].key == 7, "a list's recent picks looked up once, the pick still first: " .. asks .. " asks")
+	ns.providers.zzfreq = nil
+	for i, x in ipairs(ns.providerOrder) do if x == "zzfreq" then table.remove(ns.providerOrder, i) break end end
+	ns:AliasesChanged()
+	IS.zzs, IS.zzr = nil, nil
+	E.WORDS.zzstrict, E.HARD_WORDS.zzstrict = nil, nil
+	E.WORDS.zzrole, E.HARD_WORDS.zzrole, E.ROLE_WORDS.zzrole = nil, nil, nil
+	UI.lastScan, UI.lastOverview = nil, nil
+end

@@ -227,8 +227,12 @@ local function ShowLink(title, text)
 	link:ClearAllPoints()
 	local pt = ns.db and ns.db.point
 	if long or not pt then
+		link:SetScale(1)
 		link:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	else
+		-- (where the terminal sits: its point is in the terminal's units, its scale's; review, 0.48.6: at scale 1.3 the
+		-- bar showed elsewhere)
+		link:SetScale(t.scale or 1)
 		link:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
 	end
 	link:Show()

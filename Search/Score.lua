@@ -21,8 +21,10 @@ local NO_POS = {}
 UI.NO_POS = NO_POS
 
 --- `kind`: the row's provider id when the caller knows it, so a compact row whose kind was never
---- picked isn't read through its metatable just to find that out.
-local function FreqBonus(e, kind)
+--- picked isn't read through its metatable just to find that out. `picked`: ns:FreqKind(kind), when the caller looked
+--- it up once for the whole list (false: nothing of it picked; review, 0.48.6: it was asked per match, a third of a
+--- broad search's scoring once anything of that kind had been picked).
+local function FreqBonus(e, kind, picked)
 	local freq = ns.db and ns.db.freq
 	if not freq then return 0 end
 	local k = rawget(e, "freqKey")
@@ -32,7 +34,7 @@ local function FreqBonus(e, kind)
 	else
 		-- a compact row (its freqKey would be built on every read): looked up by its own key in what was picked
 		-- of its kind (Core.lua FreqKind; the same "kind:key" its metatable builds)
-		local picked = ns:FreqKind(kind or e.kind)
+		if picked == nil then picked = ns:FreqKind(kind or e.kind) end
 		if not picked then return 0 end
 		local key = rawget(e, "key")
 		if key == nil then key = e.name end

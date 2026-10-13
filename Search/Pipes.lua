@@ -757,9 +757,18 @@ ns:RegisterRelation("alts", {
 
 local function Id(e)
 	local k = rawget(e, "key")
-	if k == nil then return e end
+	if k == nil then
+		-- (a view, View's or NearSaid's: the row it shows and how it was found; review, 0.48.6: each view was its own, so
+		-- a trade supplier selling three of the reagents was listed three times, and passed on three times)
+		local mt = getmetatable(e)
+		local base = mt and type(mt.__index) == "table" and mt.__index or nil
+		k = base and rawget(base, "key")
+		if k == nil then return e end
+		return tostring(base.kind) .. ":" .. tostring(k) .. "|" .. tostring(rawget(e, "pipeHow") or "")
+	end
 	return tostring(e.kind) .. ":" .. tostring(k)
 end
+P.Id = Id -- (tests)
 
 --- The rows a relation gives for these, each once.
 function P.Run(name, rows)
@@ -1017,7 +1026,7 @@ local function Walk(v)
 	local t = v.pipeChain
 	-- (Simple mode: the next step in its own words, "where to get Thorium Bar", never a ">" chain)
 	if SimpleOn() and v.pipeName and P.SIMPLE[v.pipeNext] then t = P.Phrase(v.pipeName, v.pipeNext) end
-	UI:WalkTo(t, v) -- (the step before kept: Backspace goes back to it)
+	UI:WalkTo(t, v) -- (the step before kept: Shift+Left goes back to it)
 end
 local function Opens(v, ...)
 	local o = v.pipeOf
@@ -1038,7 +1047,7 @@ function P.WalkView(e, chain, from)
 end
 
 local function Line(text) return { name = text, kind = "pipe", noActivate = true, raw = true, _score = 1e12 } end
-local function PickRelation(e) local UI = ns.UI UI:WalkTo(e.completion, e) end -- (Backspace: back to the choices)
+local function PickRelation(e) local UI = ns.UI UI:WalkTo(e.completion, e) end -- (Shift+Left: back to the choices)
 
 -- each part's rows, by the chain up to it: typing on in the last part doesn't redo the ones before it (kept while
 -- no list was rebuilt and nothing was still loading; at most STEPS_MAX, then it starts over: a key a letter typed)

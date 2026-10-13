@@ -145,7 +145,7 @@ ns:RegisterProvider("skills", {
 					key = l.id or l.name,
 					name = l.name,
 					icon = "Interface\\Icons\\INV_Sword_04",
-					detail = table.concat(parts, "  "),
+					detail = table.concat(parts, ns.DETAIL_SEP),
 					text = "skill " .. (l.group or "") .. " " .. (l.desc or ""),
 					tip = l.desc,
 					rankText = rank, group = l.group, desc = l.desc,

@@ -570,7 +570,7 @@ local function DrawWords()
 		local big, small
 		if game.over then
 			big = game.newBest and L["new best!"] or L["game over"]
-			small = L["score %d"]:format(game.score) .. "  ·  " .. L["Enter: again"] .. "  ·  " .. L["Esc: quit"]
+			small = L["score %d"]:format(game.score) .. "  ·  " .. Panel.AGAIN .. "  ·  " .. Panel.QUIT
 		elseif game.state == "ready" then
 			big = game.level > 1 and L["level %d"]:format(game.level) or L["ready"]
 			small = L["every coin, and mind the marks"]
@@ -623,7 +623,7 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 9)
 	overlaySub = Text(cover, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -11)
-	footer = Panel.Footer(frame, 9, L["arrows or WASD"] .. "  ·  " .. L["Esc quits"])
+	footer = Panel.Footer(frame, 9, L["arrows or WASD"] .. "  ·  " .. Panel.QUIT)
 	livesText = Text(frame, 11, "RIGHT")
 	livesText:SetPoint("BOTTOMRIGHT", -12, 9)
 	LR.frame = frame

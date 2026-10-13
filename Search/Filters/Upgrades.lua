@@ -14,8 +14,8 @@ local Secret = ns.Secret
 -- the piece you wear there (the weaker of two rings or trinkets; a two-hander against your main and off hand
 -- together). When either side has no stats to weigh (most trinkets, plain white gear) or they aren't loaded yet:
 -- a higher item level. Nothing worn there: within GEAR_EMPTY of your level. (0.41.28-0.43.7 only asked for an item
--- level within GEAR_BELOW of your weakest piece: lots of "upgrades" that weren't.)
-F.GEAR_BELOW, F.GEAR_EMPTY, F.GEAR_ASK = 5, 10, 40
+-- level within 5 of your weakest piece: lots of "upgrades" that weren't.)
+F.GEAR_EMPTY, F.GEAR_ASK = 10, 40
 
 -- what a stat key is (ITEM_MOD_STRENGTH_SHORT -> "str"): the first part of the key that matches, in this order
 local STAT_KINDS = {

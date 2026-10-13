@@ -160,7 +160,7 @@ function UI:SelectPopTarget(final)
 	if not t then return end
 	for i, e in ipairs(UI.results) do
 		-- (the same table, or the same row made again: kind, key and name; rows with no key, a chain's names to pick
-		-- from, by kind and name: Backspace back to them, UI:WalkBack)
+		-- from, by kind and name: Shift+Left back to them, UI:WalkBack)
 		if e == t or (e.kind == t.kind and e.name == t.name and ((e.key ~= nil and e.key == t.key) or (e.key == nil and t.key == nil))) then
 			UI.sel = i
 			UI.offset = math.max(0, math.min(i - 1, #UI.results - LY.ROWS))
@@ -168,7 +168,9 @@ function UI:SelectPopTarget(final)
 			return
 		end
 	end
-	if final then self.popTarget = nil end
+	-- (a search queued for the next frame is still to come: not given up yet; review, 0.48.6: fuzzy finding's way back
+	-- from F1 or a fight searched the restored text a frame later, and the row it came back to was lost)
+	if final and not self.refreshQueued then self.popTarget = nil end
 end
 
 --- The glow round the prompt bar while fuzzy finding: rings of the accent colour inside its edges, fading inward,

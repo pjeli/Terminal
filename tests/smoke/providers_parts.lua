@@ -126,12 +126,12 @@ do
 	end
 	local a = others()
 	local ib, fb = a["Ice Barrier"], a["Partsy Frostbolt"]
-	check(ib and fb and ib.detail == "|cff3fc7ebMage|r  Frost  1 rank" and fb.detail == "|cff3fc7ebMage|r  Frost  5 ranks"
+	check(ib and fb and ib.detail == "|cff3fc7ebMage|r  ·  Frost  ·  1 rank" and fb.detail == "|cff3fc7ebMage|r  ·  Frost  ·  5 ranks"
 		and ib.icon == 135988 and fb.icon == nil and ib.key == "MAGE:2001", "another class's talent rows: " .. tostring(ib and ib.detail))
 	texture = 4242
 	local b = others()
 	check(b["Ice Barrier"] == ib and b["Partsy Frostbolt"] == fb, "a rebuild uses the same rows again, not new tables")
-	check(fb.icon == 4242 and ib.icon == 135988 and ib.detail == "|cff3fc7ebMage|r  Frost  1 rank"
+	check(fb.icon == 4242 and ib.icon == 135988 and ib.detail == "|cff3fc7ebMage|r  ·  Frost  ·  1 rank"
 		and rawget(ib, "_ltext") == "frost mage talent" and ib.className == "Mage" and ib._rank == TL.OTHER_RANK,
 		"...the same fields, and an icon the saved copy lacks asked again as a new row would: " .. tostring(fb.icon))
 	local res = UI:Search("@talent class:mage")
@@ -142,7 +142,7 @@ do
 	_G.RAID_CLASS_COLORS = { MAGE = { colorStr = "ff0000ff" } }
 	local c = others()
 	local ib2 = c["Ice Barrier"]
-	check(ib2 and ib2 ~= ib and ib2.detail == "|cff0000ffMage|r  Frost  1 rank", "the class's colour changed: its rows made again")
+	check(ib2 and ib2 ~= ib and ib2.detail == "|cff0000ffMage|r  ·  Frost  ·  1 rank", "the class's colour changed: its rows made again")
 	ns.db.talentCache = saved() -- (another saved copy: read again)
 	local d = others()
 	check(d["Ice Barrier"] and d["Ice Barrier"] ~= ib2 and d["Ice Barrier"].detail == ib2.detail, "a new saved copy: made again")

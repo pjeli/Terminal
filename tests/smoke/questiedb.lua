@@ -328,6 +328,13 @@ do
 	I.ResetPlacesForTests()
 	rat = I.FindPlace({ "ratchet" })
 	check(I.NpcInPlace(3498, rat) and not I.NpcInPlace(3489, rat), "Ratchet explored: the map tells them apart")
+	-- the places' answers per NPC go with the NPC list (kept all session before)
+	I.PlaceFilter(rat)({ kind = "npc", key = 3498 })
+	local filled = rat.npcs and next(rat.npcs) ~= nil
+	ns.providers.npc._usedAt = -10000
+	ns:DropIdle(1000)
+	check(filled and rat.npcs == nil, "the NPC list freed: the places' answers per NPC too")
+	ns:GetEntries(ns.providers.npc); T.FlushAll(); ns:GetEntries(ns.providers.npc)
 	_G.C_TaxiMap = taxi
 	_G.C_MapExplorationInfo = nil
 	I.ResetPlacesForTests()
@@ -534,6 +541,14 @@ do
 		QD.ResetForTests()
 		UI:Open("nearest mailbox")
 		check(names == 0 and UI.Results()[1] and UI.Results()[1].name == "Mailbox", "a new session reads the saved index, no names: " .. names)
+		-- read before Questie is ready, @mailbox is read again a moment later (it stayed empty for the session)
+		local readyWas = QD.Ready
+		QD.Ready = function() return false end
+		MB._dirty = true
+		local early = #ns:GetEntries(MB)
+		QD.Ready = readyWas
+		T.FlushAll()
+		check(early == 0 and MB._dirty == true and #ns:GetEntries(MB) > 0, "@mailbox read before Questie was ready: read again later")
 		-- the selected mailbox gets the direction arrow, as NPCs do
 		_G.GetPlayerFacing = function() return 0 end
 		UI:SelectionChanged()

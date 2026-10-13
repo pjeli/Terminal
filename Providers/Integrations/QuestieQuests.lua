@@ -194,7 +194,7 @@ local QUESTIE_LAZY = {
 		if t.zone then parts[#parts + 1] = t.zone end
 		local st = Status(t.qid)
 		if st then parts[#parts + 1] = st end
-		return table.concat(parts, "  ")
+		return table.concat(parts, ns.DETAIL_SEP)
 	end,
 	icon = function(t)
 		return Done(t.qid) and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon"
@@ -212,6 +212,7 @@ local QUESTIE_LAZY = {
 	secondary = FromLog("activate", GIVER_OPEN),
 }
 
+I.MAILBOX_RETRY = 5 -- (s: @mailbox read before Questie was ready is read again this much later)
 local function SetupQuestie()
 	-- Questie, or the QuestieDB addon alone (a Blizzard-like UI with Questie's data)
 	if npc.on or not (QD.HasQuestie() or QD.Lib()) then return end
@@ -228,7 +229,8 @@ local function SetupQuestie()
 		noCombat = true,
 		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
 		held = function() return npc.list ~= nil end,
-		onDrop = function() npc.list = nil; ClearNpcFields() end, -- (and the NPCs' small fields the filters read)
+		-- (and the NPCs' small fields the filters read, and the places' in-town answers: review, 0.48.6)
+		onDrop = function() npc.list = nil; ClearNpcFields(); if I.ForgetPlaceNpcs then I.ForgetPlaceNpcs() end end,
 		collect = function()
 			if not npc.list then IndexNPCs() end
 			return npc.list or {}
@@ -242,8 +244,17 @@ local function SetupQuestie()
 			aliases = { "mailbox", "mailboxes" }, -- ("mail" is your mail: Mail.lua)
 			explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
 			lazy = true,
-			collect = function() return I.ObjectRows("mailbox") end,
+			-- (read before Questie is ready, the list was empty for the session: "No mailbox known near you". Now it's
+			-- read again a moment later, and once Questie is; review, 0.48.6)
+			collect = function()
+				if not QD.Ready() then
+					C_Timer.After(I.MAILBOX_RETRY, function() ns:Changed("mailbox") end)
+					return {}
+				end
+				return I.ObjectRows("mailbox")
+			end,
 		})
+		QD.OnReady(function() ns:Changed("mailbox") end)
 	end
 	npc.meta = ns:CompactMeta(ns.providers.npc, {
 		icon = "Interface\\Icons\\INV_Misc_Head_Human_01",

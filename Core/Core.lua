@@ -136,8 +136,9 @@ end
 --                                      -- (made once per list: achievements give only the earned ones)
 --     lazy     = true,                 -- skipped on empty queries (heavy index)
 --     guard    = 1.0,                  -- events within N s of a collect wait until then
---     selfEvents = true,               -- ...or are ignored: collecting fires them itself
+--     selfEvents = true,               -- ...or are ignored when collecting fired them itself (ns.firedOwn)
 --     idleDrop = 600,                  -- free the entries after N s without a search
+--     warmDirty = 2,                   -- read again N s after its events, terminal closed (a costly list in use)
 --     onDrop   = function() end,       -- ...and free whatever else the provider keeps
 --     refreshOnOpen = true,            -- re-collect each time the terminal opens (a number: when older than that, s)
 --     noCombat = true,                 -- Enter does nothing in combat (protected actions)
@@ -269,7 +270,9 @@ function ns:GetEntries(p)
 		if list ~= p._followed then p._dirty, p._followed = true, list end
 	end
 	if p._dirty or not p._entries then
+		ns.firedOwn = false -- (set by a read that opens folded headers or journal filters: ns.ReadExpanded, Widened)
 		local ok, res = pcall(p.collect, p)
+		p._firedOwn, ns.firedOwn = ns.firedOwn, false
 		p._collectedAt = GetTime()
 		p._dirty = false
 		ns.entriesGen = ns.entriesGen + 1
@@ -299,7 +302,7 @@ function ns:GetEntries(p)
 			p._entries = p._entries or {}
 			if not p._warned then
 				p._warned = true
-				self:Print(p.label .. " provider failed: " .. tostring(res))
+				self:Print(ns.L["%s: couldn't read the list: %s"]:format(p.label, tostring(res)))
 			end
 		end
 	end
@@ -323,6 +326,9 @@ function ns:RegisterCommand(name, def)
 		table.insert(self.commandOrder, name)
 	end
 	self.commands[name] = def
+	-- (the command rows are made again: a name registered over another, Terminal Extras' real commands over their
+	-- stand-ins, kept running the old one; review, 0.48.6)
+	self.commandsGen = (self.commandsGen or 0) + 1
 end
 
 ----------------------------------------------------------------------
@@ -332,7 +338,53 @@ end
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 
+--- A list that costs a lot to read again (warmDirty = seconds: @stored, one item info per recorded item) and is in use
+--- (built, not freed) is read again that long after it changed, out of combat with the terminal closed, not inside the
+--- next keystroke's frame (review, 0.48.6). Its last-used time stays as it was: an unused list is still freed.
+local function WarmLater(p)
+	if not p.warmDirty or p._warmTimer or not p._entries then return end
+	p._warmTimer = true
+	C_Timer.After(p.warmDirty, function()
+		p._warmTimer = nil
+		if not (p._dirty and p._entries) then return end
+		if InCombatLockdown() or (ns.background or 0) > 0 then return WarmLater(p) end -- (later)
+		if ns.UI and ns.UI.IsShown and ns.UI:IsShown() then return end -- (the search reads it anyway)
+		local used = p._usedAt
+		ns:GetEntries(p)
+		p._usedAt = used
+	end)
+end
+
+--- A list's own events: changed now, or once the guard after its last read is over (selfEvents: dropped when that read
+--- fired them itself).
+local function Watched(event)
+	local list = watchers[event]
+	if not list then return end
+	local now = GetTime()
+	for _, p in ipairs(list) do
+		local wait = p.guard and p._collectedAt and (p.guard - (now - p._collectedAt)) or 0
+		if wait <= 0 then
+			p._dirty = true
+			WarmLater(p)
+		elseif not (p.selfEvents and p._firedOwn) then -- (selfEvents: dropped only when the read did fire them)
+			-- just after a collect: the change still counts, a moment later (a bag update
+			-- right after a search used to be dropped, leaving stale counts)
+			-- one timer per provider, however many events come in meanwhile
+			p._pendingAt = now
+			if not p._pendingTimer then
+				p._pendingTimer = true
+				C_Timer.After(wait, function()
+					p._pendingTimer = nil
+					if not p._collectedAt or p._collectedAt <= p._pendingAt then p._dirty = true; WarmLater(p) end
+				end)
+			end
+		end
+	end
+end
+
 eventFrame:SetScript("OnEvent", function(_, event, arg1)
+	-- (a list watching ADDON_LOADED or PLAYER_LOGIN is told too: those two returned before the watchers; review, 0.48.6)
+	if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then Watched(event) end
 	if event == "ADDON_LOADED" then
 		if arg1 ~= ADDON then return end
 		TerminalDB = TerminalDB or {}
@@ -362,9 +414,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 				end
 				if chosen then
 					SaveBindings(GetCurrentBindingSet())
-					ns:Print("Loaded. Press " .. chosen .. " (or type /term) to open. Rebind with: /term .bind <KEY>")
+					ns:Print(ns.L["Loaded. Press %s (or type /term) to open. Rebind with: /term .bind <KEY>"]:format(chosen))
 				else
-					ns:Print("Loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE")
+					ns:Print(ns.L["Loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE"])
 				end
 			end
 		end
@@ -381,28 +433,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 		return
 	end
 
-	local list = watchers[event]
-	if list then
-		local now = GetTime()
-		for _, p in ipairs(list) do
-			local wait = p.guard and p._collectedAt and (p.guard - (now - p._collectedAt)) or 0
-			if wait <= 0 then
-				p._dirty = true
-			elseif not p.selfEvents then
-				-- just after a collect: the change still counts, a moment later (a bag update
-				-- right after a search used to be dropped, leaving stale counts)
-				-- one timer per provider, however many events come in meanwhile
-				p._pendingAt = now
-				if not p._pendingTimer then
-					p._pendingTimer = true
-					C_Timer.After(wait, function()
-						p._pendingTimer = nil
-						if not p._collectedAt or p._collectedAt <= p._pendingAt then p._dirty = true end
-					end)
-				end
-			end
-		end
-	end
+	Watched(event)
 end)
 
 -- Prewarming: after login, every list is built ahead of its first search, one per second while

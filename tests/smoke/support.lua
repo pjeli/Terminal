@@ -787,7 +787,17 @@ do
 	check(g.over and ns.db.tetrisBest == 1234 and g.newBest, "the stack at the top: game over, the best kept")
 	check(f.scripts.OnUpdate == nil, "game over: nothing runs every frame")
 	TT.Draw()
+	local gt, t = _G.GetTime, g.overAt
+	_G.GetTime = function() return t end
 	f.scripts.OnKeyDown(f, "ENTER")
+	check(g.over and g.score == 1234, "Enter right at game over: the screen stays (the press that topped out, or its repeats)")
+	t = t + TT.OVER_WAIT
+	g.keys.ENTER = "drop" -- (still held)
+	f.scripts.OnKeyDown(f, "ENTER")
+	check(g.over, "a moment later, Enter still held: the screen stays")
+	f.scripts.OnKeyUp(f, "ENTER")
+	f.scripts.OnKeyDown(f, "ENTER")
+	_G.GetTime = gt
 	check(not g.over and g.score == 0, "Enter plays again")
 	check(f.scripts.OnUpdate ~= nil, "and the game runs again")
 	f.scripts.OnKeyDown(f, "ESCAPE")

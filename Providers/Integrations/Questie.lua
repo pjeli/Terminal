@@ -84,7 +84,7 @@ local function IndexNPCs(after)
 			if names then names[#names + 1] = "\n" .. lname .. (lsub and (" <" .. lsub .. ">") or "") .. "\t" .. id end
 		end
 	end, function()
-		npc.list, npc.busy = out, false
+		npc.list, npc.busy, npc.count = out, false, #out -- (count: said by .integrations once the list is freed)
 		if names then npc.names, npc.nameQuery = table.concat(names) .. "\n", "QueryNPCSingle" end
 		local p = ns.providers.npc
 		if p then

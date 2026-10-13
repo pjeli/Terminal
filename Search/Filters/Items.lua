@@ -13,6 +13,24 @@ local Generations, Keep, Kept, Forget = P.Generations, P.Keep, P.Kept, P.Forget
 -- how many items each cache below keeps in a generation (two generations: P.Generations)
 local CACHE_MAX = P.CACHE_MAX
 
+-- An item the client hasn't loaded: asking its info makes the client fetch it from the server (review, 0.48.6:
+-- "epic", "q:rare", "boe" asked for every AtlasLoot row on every keystroke, thousands at once, and the rows it said
+-- nothing of were left out for good). At most F.ITEM_ASK such asks per search; past that nothing is asked, and both
+-- ways F.loading is set: the search runs again once they're in (UI:RetryWhenLoaded), asking for the next ones.
+F.ITEM_ASK = 40
+local asksLeft = F.ITEM_ASK
+function F.ResetAsks() asksLeft = F.ITEM_ASK end
+local function MayAsk(id)
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	if not cached or type(id) ~= "number" then return true end
+	local ok, yes = pcall(cached, id)
+	if not ok or yes ~= false then return true end -- (loaded, or the client can't say)
+	F.loading = true
+	if asksLeft <= 0 then return false end
+	asksLeft = asksLeft - 1
+	return true
+end
+
 -- an item's info, kept per item id (it doesn't change; filters ask for it on every matching row
 -- of every search): a table each time was garbage for thousands of loot rows
 local infos = Generations(CACHE_MAX)
@@ -23,6 +41,7 @@ local function ItemInfo(id)
 	if c then return c end
 	c = infos.old[id] -- (in use again: back into the current table below)
 	if not c then
+		if not MayAsk(id) then return nil end
 		local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, classID, subID, bindType = pcall(get, id)
 		if not (ok and name) then return nil end -- (not known to the client yet: asked again next time)
 		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc,

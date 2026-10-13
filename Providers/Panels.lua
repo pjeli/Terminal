@@ -46,9 +46,11 @@ local function BagsOpen()
 	return IsBagOpen and IsBagOpen(0) and true or false
 end
 
--- the Currency tab of the character window, through its tab (as the Reputation tab is)
+-- the Currency tab of the character window: the currency key's binding (Forever's TOGGLECURRENCY runs the window's own
+-- ToggleTokenFrame), its tab's /click for a mouse click where the tab is a button. (Review, 0.48.6: with only the tab's
+-- route, on Forever's plain-frame tabs nothing was pressed and Enter ran ToggleCharacter from Terminal's code: taint.)
 local function TokenClick() return ns.Secure.CharTabMacro("TokenFrame", { _G.CURRENCY or "Currency", "Currency" }) end
-local TOKEN_SECURE = { macro = TokenClick, click = TokenClick }
+local TOKEN_SECURE = { binding = "TOGGLECURRENCY", buttons = { "CharacterMicroButton" }, click = TokenClick }
 local function TokenOpen() return Shown("TokenFrame") end
 
 -- game-run openers for panels without a binding command (a /run line on the secure macro button)
@@ -226,8 +228,9 @@ local PANELS = {
 	{ "Character Info", "character equipment gear paperdoll", function() ToggleCharacter("PaperDollFrame") end, "CharacterMicroButton", nil, nil, "PaperDollFrame" },
 	{ "Reputation", "reputation factions renown", function() ToggleCharacter("ReputationFrame") end, "CharacterMicroButton", nil, nil, "ReputationFrame" },
 	{ "Currency", "currency tokens", function()
-		-- the client's own opener first: it doesn't run our code through the Character frame
-		if C_CurrencyInfo and C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() else ToggleCharacter("TokenFrame") end
+		-- (no route left, in combat say: the client's own C opener if it has one, else said; never ToggleCharacter: taint)
+		if C_CurrencyInfo and C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel()
+		else ns:Print(L["Open the Currency tab from your character window (opening it from Terminal's own code would taint it)."]) end
 	end, "CharacterMicroButton", TOKEN_SECURE, TokenOpen },
 	{ "Spellbook", "spellbook abilities spells", function()
 		ns.LoadBlizz("Blizzard_PlayerSpells")
@@ -251,7 +254,10 @@ local PANELS = {
 		{ binding = "TOGGLEENCOUNTERJOURNAL", buttons = { "EJMicroButton" } }, PanelOpen, "EncounterJournal" },
 	{ "Professions", "professions crafting", function() Call("ToggleProfessionsBook") end, "ProfessionMicroButton",
 		{ binding = "TOGGLEPROFESSIONBOOK", buttons = { "ProfessionMicroButton" } }, PanelOpen, "ProfessionsBookFrame" },
-	{ "Calendar", "calendar events", function() Call("ToggleCalendar") end, nil, { binding = "TOGGLECALENDAR" }, PanelOpen, "CalendarFrame" },
+	-- (Forever has no calendar key: the minimap's calendar button, clicked by the game; never ToggleCalendar from here)
+	{ "Calendar", "calendar events", function()
+		ns:Print(L["Open the calendar from the minimap's calendar button (opening it from Terminal's own code would taint it)."])
+	end, nil, { binding = "TOGGLECALENDAR", buttons = { "GameTimeFrame" } }, PanelOpen, "CalendarFrame" },
 	{ "Social / Friends", "friends social who ignore", function() Call("ToggleFriendsFrame") end, nil, { binding = "TOGGLESOCIAL" }, PanelOpen, "FriendsFrame" },
 	{ "Backpack & Bags", "bags backpack inventory", function() Call("ToggleAllBags") end, nil, { binding = "OPENALLBAGS" }, BagsOpen },
 	{ "Game Menu", "game menu escape logout exit", function() Call("ToggleGameMenu") end, "MainMenuMicroButton",

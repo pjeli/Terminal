@@ -184,6 +184,10 @@ end
 
 function B.Refilter()
 	local q = ns.Lower(state.filter)
+	-- (the selected addon stays selected as the list re-sorts every sample, as profiling's Up/Down follow it by name;
+	-- review, 0.48.6: Enter profiled whichever addon had moved under the highlight. Typing starts at the top: `fresh`)
+	local was = not state.fresh and shown and shown[state.sel] or nil
+	state.fresh = nil
 	shown = {}
 	for _, a in ipairs(addons) do
 		if Matches(a, q) then shown[#shown + 1] = a end
@@ -195,6 +199,7 @@ function B.Refilter()
 		if vx ~= vy then return vx > vy end
 		return x.ltitle < y.ltitle
 	end)
+	if was then for i, a in ipairs(shown) do if a.name == was.name then state.sel = i break end end end
 	state.sel = math.max(1, math.min(state.sel, #shown))
 	if state.sel <= state.offset then state.offset = state.sel - 1 end
 	if state.sel > state.offset + fit then state.offset = state.sel - fit end
@@ -555,7 +560,7 @@ local function DrawList(t)
 		end
 	end
 	footer:SetText(L["%d of %d addons"]:format(#shown, #addons) .. "  ·  " .. L["type to filter"] .. "  ·  " .. L["Tab sort"]
-		.. "  ·  " .. L["Enter profile"] .. "  ·  " .. L["Esc or ` close"])
+		.. "  ·  " .. L["Enter profile"] .. "  ·  " .. Panel.CLOSE)
 end
 
 function B.DrawText()
@@ -669,7 +674,7 @@ function B.Key(key)
 	elseif key == "DOWN" then state.sel = state.sel + 1
 	elseif key == "PAGEUP" then state.sel = state.sel - fit
 	elseif key == "PAGEDOWN" then state.sel = state.sel + fit
-	elseif key == "BACKSPACE" then state.filter = state.filter:sub(1, -2); state.sel = 1
+	elseif key == "BACKSPACE" then state.filter = state.filter:sub(1, -2); state.sel, state.fresh = 1, true
 	else return end
 	B.Refilter(); B.DrawText(); B.DrawBars(1)
 end
@@ -677,7 +682,7 @@ end
 function B.Char(ch)
 	if not ch or ch == "`" or ch == "~" or state.focus then return end
 	state.filter = state.filter .. ch
-	state.sel = 1
+	state.sel, state.fresh = 1, true
 	B.Refilter(); B.DrawText(); B.DrawBars(1)
 end
 
@@ -693,7 +698,7 @@ function B.Open()
 	Build()
 	Layout()
 	Panel.Opening(B) -- (straight in: the terminal and the other panels go)
-	state.filter, state.sel, state.offset, state.focus = "", 1, 0, nil
+	state.filter, state.sel, state.offset, state.focus, state.fresh = "", 1, 0, nil, true
 	B.since = B.since or GetTime()
 	ReadAddons()
 	-- each addon's own history starts again (a gap while closed would read as one long step)

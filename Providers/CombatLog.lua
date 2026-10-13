@@ -27,10 +27,7 @@ local me -- your GUID (read on login)
 local lastHit -- the last hit on you: { who, spell, amount, crit }, for a death with no killing blow seen
 CB.state = { events = 0, secret = 0, blocked = false } -- (for .combatlog)
 
-local function Dirty()
-	local p = ns.providers.combatlog
-	if p then p._dirty = true end
-end
+local function Dirty() ns:Changed("combatlog") end
 
 --- Adds an entry: { t, what = "crit"/"critby"/"killed"/"died", who, spell, amount, overkill, zone }.
 function CB.Add(e)

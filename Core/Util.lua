@@ -39,6 +39,12 @@ function ns.Join(sep, ...)
 	return table.concat(out, sep)
 end
 
+--- A row's detail from its parts (nil and "" left out), joined as every list's are: "Lv 20  ·  Elwynn Forest  ·  grey"
+--- (review, 0.48.6: a dozen lists joined theirs with two spaces). Not the distance in front ("80 yd  ..."), which the
+--- list reads, nor Items' "x5  Backpack".
+ns.DETAIL_SEP = "  ·  "
+function ns.Detail(...) return ns.Join(ns.DETAIL_SEP, ...) end
+
 --- A usable number: not secret; else nil.
 function ns.Num(v)
 	if type(v) ~= "number" then return nil end
@@ -93,6 +99,7 @@ function ns.ReadExpanded(api, guard)
 		if r and r.header and r.name and api.collapsed(r) then
 			api.expand(i)
 			opened[#opened + 1] = r.name
+			ns.firedOwn = true -- (the list's own events come from this: Core drops them, and only then; review, 0.48.6)
 		end
 		i, n = i + 1, n + 1
 	end
@@ -142,10 +149,6 @@ function ns.PointAtRow(o)
 	end, o.show or function(row) H:Show(row) end, o.tries or 20, o.fail)
 end
 
---- This character's name as the game keys per-character settings (the AddOn list's on/off): on clients
---- where characters have a surname (RegionalUniqueNamesEnabled: "Plamen Warr"), UnitName gives the two
---- apart and only "Plamen" alone named another character (an old one called just Plamen), so the AddOn
---- list Terminal read and changed was that character's. Joined with the game's own separator, as Syndicator does.
 -- the game's own words for each equipment slot (INVTYPE_x: "Main Hand", "Finger"...; English when the client lacks one)
 local SLOT_INVTYPE = { "INVTYPE_HEAD", "INVTYPE_NECK", "INVTYPE_SHOULDER", "INVTYPE_BODY", "INVTYPE_CHEST", "INVTYPE_WAIST",
 	"INVTYPE_LEGS", "INVTYPE_FEET", "INVTYPE_WRIST", "INVTYPE_HAND", "INVTYPE_FINGER", "INVTYPE_FINGER", "INVTYPE_TRINKET",
@@ -173,6 +176,10 @@ function ns.Said(simple, advanced)
 	return advanced
 end
 
+--- This character's name as the game keys per-character settings (the AddOn list's on/off): on clients
+--- where characters have a surname (RegionalUniqueNamesEnabled: "Plamen Warr"), UnitName gives the two
+--- apart and only "Plamen" alone named another character (an old one called just Plamen), so the AddOn
+--- list Terminal read and changed was that character's. Joined with the game's own separator, as Syndicator does.
 function ns.CharacterName()
 	local name, surname = UnitName("player")
 	name, surname = ns.Str(name), ns.Str(surname)

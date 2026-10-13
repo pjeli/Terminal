@@ -214,7 +214,7 @@ end
 local function WalkLearn(e)
 	local P = ns.Pipes
 	local t = P and P.Phrase and P.Phrase(e.name, "learn") or e.name
-	-- (the list kept to go back to: Backspace, UI:WalkBack)
+	-- (the list kept to go back to: Shift+Left, UI:WalkBack)
 	if ns.UI and ns.UI.WalkTo then ns.UI:WalkTo(t, e) elseif ns.UI and ns.UI.SetQuery then ns.UI:SetQuery(t, #t) end
 end
 local function SpellLink(e)

@@ -152,8 +152,7 @@ function LL.Add(link, who, count, from, src, drop)
 		zone = type(zone) == "string" and zone ~= "" and zone or nil, from = from, src = src, drop = drop }
 	table.insert(log, 1, e)
 	for i = #log, LL.MAX + 1, -1 do log[i] = nil end
-	local p = ns.providers.lootlog
-	if p then p._dirty = true end
+	ns:Changed("lootlog")
 	return e
 end
 

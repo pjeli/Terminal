@@ -158,8 +158,10 @@ local function ShowQuestAfter(e)
 	end)
 end
 
--- Fallback when the secure path isn't available (combat): open the quest log directly.
+-- Fallback when the secure path isn't available: open the quest log directly. Never in combat (review, 0.48.6: a
+-- Shift+Enter that falls back here, party quests' and Questie's, opened the map from Terminal's code in combat: taint).
 local function ShowQuest(e)
+	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
 	ns:Trace("DIRECT ToggleQuestLog (addon code, may be blocked)")
 	if ToggleQuestLog then
 		pcall(ToggleQuestLog)
@@ -279,8 +281,9 @@ local Secret, Call = ns.Secret, ns.Safe
 -- for your level (Forever's QuestMapFrame colours titles by C_PlayerInfo.GetContentDifficultyQuestForPlayer: Trivial;
 -- C_QuestLog.IsQuestTrivial where that's missing), and in a zone left behind when that zone's levels (C_Map.GetMapLevels
 -- of GetQuestUiMapID: the range the world map shows by the zone's name) top out below your level. A complete quest is
--- never one to drop: it's to be turned in. Shift+Enter on one to drop has the game ask, as the quest log's own Abandon
--- does: the press runs QuestMapQuestOptions_AbandonQuest (it picks the dialog that also names the quest's items).
+-- never one to drop: it's to be turned in. Shift+Enter on one to drop opens Terminal's own confirmation (DropAsk ->
+-- QuestDrop.lua's QD.Confirm), since 0.46.2: the game's Abandon (QuestMapQuestOptions_AbandonQuest) is Blizzard Lua, and a
+-- /run line calling it ran tainted.
 ----------------------------------------------------------------------
 
 local TRIVIAL = (Enum and Enum.RelativeContentDifficulty and Enum.RelativeContentDifficulty.Trivial) or 0
@@ -617,7 +620,7 @@ ns:RegisterProvider("quests", {
 						key = info.questID,
 						name = title,
 						icon = "Interface\\GossipFrame\\AvailableQuestIcon",
-						detail = ((level and level > 0) and (L["Lv %d"]:format(level) .. "  ") or "") .. (zone or "") .. (why and ("  ·  " .. why) or ""),
+						detail = ns.Detail((level and level > 0) and L["Lv %d"]:format(level) or nil, zone, why),
 						text = table.concat(parts, " "),
 						questID = info.questID,
 						level = (level and level > 0) and level or nil, zone = zone, -- (lvl: and zone: filters)

@@ -63,7 +63,7 @@ ns:RegisterProvider("macros", {
 					name = name,
 					icon = icon,
 					text = body, -- what the macro says is searchable too
-					detail = (index > 120 and L["Character"] or L["General"]) .. (body ~= "" and ("  " .. OneLine(body)) or ""),
+					detail = ns.Detail(index > 120 and L["Character"] or L["General"], body ~= "" and OneLine(body) or nil),
 					tip = body:gsub("|", "||"),
 					secure = MACRO_RUN,
 					secondary = ShowMacroText, -- without the secure route: its text in a copyable window

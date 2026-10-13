@@ -1,5 +1,6 @@
 local ns = select(2, ...)
 local L = ns.L
+local H = ns.Highlight
 
 -- The recipe and profession rows (@recipe, @profession), made from the index Professions.lua keeps.
 
@@ -39,7 +40,8 @@ local function RecipeLink(e)
 	return ok and l or nil
 end
 local function RecipeActivate(e) P.OpenRecipe(e.recipeID, e.profID, e.name) end
-local function RecipeIsOpen(e) return WindowHas(e.recipeID) end
+-- (its profession's window showing, whatever its search or filters hide: P.WindowShows)
+local function RecipeIsOpen(e) return P.WindowShows(e.profID, e.profName, e.profWindow) end
 local function RecipeAfter(e)
 	if e.profSpell then P.lastSpell = { name = e.profSpell, at = GetTime() } end
 	P.SelectRecipe(e.recipeID, e.name)
@@ -84,7 +86,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		icon = r.icon,
 		color = r.learned == false and "|cff8a8a8a" or DiffColor(r.diff),
 		difficulty = r.diff, -- (is:skillup, is:orange...: as of the window's last read)
-		detail = (r.learned == false and (L["Unlearned"] .. "  ") or "") .. pdata.name,
+		detail = ns.Detail(r.learned == false and L["Unlearned"] or nil, pdata.name),
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and L["Reagents: %s"]:format(table.concat(lines, ", ")) or nil,
 		getLink = RecipeLink,
@@ -94,6 +96,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		profID = pdata.skillLine or profID,
 		profName = pdata.parent or pdata.name, -- (Smelting's recipes are Mining's: its skill they raise, Plan.lua)
 		profSpell = pdata.spell,
+		profWindow = pdata.name, -- (the window it's in: Smelting's, under Mining)
 		activate = RecipeActivate,
 		secure = castSpell and SpellSpec(castSpell) or nil,
 		isOpen = castSpell and RecipeIsOpen or nil,
@@ -187,6 +190,17 @@ end
 local function TradeSpellAfter(e) P.lastSpell = { name = e.name, at = GetTime() } end
 local function TradeSpellInCombat(e) ns:Print(L["%s can't be opened from the terminal in combat."]:format(e.name)) end
 local function ProfessionActivate(e) P.OpenProfession(e.skillLine, e.name) end
+-- a profession's or trade spell's window showing: nothing pressed (its /cast would shut it)
+local function ProfessionOpen(e) return P.WindowShows(e.skillLine, e.name, e.parentName) end
+-- a profession with no window spell: the profession book's key, pressed by the game, the profession pointed at there
+local BOOK_SPEC = { binding = "TOGGLEPROFESSIONBOOK", buttons = { "ProfessionMicroButton" } }
+local function BookOpen() local f = _G.ProfessionsBookFrame return f and f.IsShown and f:IsShown() or false end
+local function BookAfter(e)
+	H:Find(function()
+		local f = _G.ProfessionsBookFrame
+		return f and f:IsVisible() and ns.FindByText(f, e.name) or nil
+	end)
+end
 
 ns:RegisterProvider("professions", {
 	label = L["Profession"],
@@ -206,6 +220,7 @@ ns:RegisterProvider("professions", {
 				link = C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(ts.spellID) or nil,
 				-- cast through Enter itself (casting is protected), then index what opens
 				secure = SpellSpec(ts.name),
+				isOpen = ProfessionOpen,
 				after = TradeSpellAfter,
 				activate = TradeSpellInCombat,
 				spellID = ts.spellID, parentName = ts.parent,
@@ -225,7 +240,9 @@ ns:RegisterProvider("professions", {
 				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
 				secondary = LinkProfession, -- Shift+Enter: that link in chat
 				secondarySecure = PROF_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, -- (Enter opens its window)
-				secure = opener and SpellSpec(opener) or nil,
+				secure = opener and SpellSpec(opener) or BOOK_SPEC,
+				isOpen = opener and ProfessionOpen or BookOpen,
+				after = (not opener) and BookAfter or nil,
 				activate = ProfessionActivate,
 			}
 		end

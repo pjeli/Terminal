@@ -188,7 +188,10 @@ local function Detail(e)
 		state = e.loaded and L["Loaded"] or L["Not loaded"]
 	else
 		state = e.enabled and L["enabled"] or L["disabled"]
-		if e.enabled ~= e.loaded then state = L["%s (.reload to apply)"]:format(state) end
+		-- (on and not loaded: a load-on-demand addon, or one the game wouldn't load, says why as the AddOn list does; a
+		-- reload changes neither. Review, 0.48.6: every AtlasLoot module said ".reload to apply")
+		if e.enabled and not e.loaded and e.why then state = state .. "  ·  " .. e.why
+		elseif e.enabled ~= e.loaded then state = L["%s (.reload to apply)"]:format(state) end
 	end
 	return e.does and (e.does .. "  ·  " .. state) or state
 end
@@ -247,7 +250,7 @@ ns:RegisterProvider("addons", {
 		local who = Character() -- (this character's name, as the AddOn list knows it: once, not per addon)
 
 		for i = 1, C_AddOns.GetNumAddOns() do
-			local name, title, notes = C_AddOns.GetAddOnInfo(i)
+			local name, title, notes, loadable, reason = C_AddOns.GetAddOnInfo(i)
 			if name then
 				local label = Plain(title or name)
 				if label == "" then label = name end
@@ -261,6 +264,16 @@ ns:RegisterProvider("addons", {
 					end
 				end
 				local loaded = C_AddOns.IsAddOnLoaded(name) and true or false
+				-- why it isn't loaded, in the game's words (the AddOn list's _G["ADDON_" .. reason]): load on demand, or
+				-- what kept it from loading; not "disabled" (that's the on/off state itself)
+				local why
+				reason = ns.Str(reason)
+				local lod = C_AddOns.IsAddOnLoadOnDemand and ns.Safe(C_AddOns.IsAddOnLoadOnDemand, name) == true
+				if not loaded and (reason == "DEMAND_LOADED" or reason == "DEP_DEMAND_LOADED" or (lod and loadable)) then
+					why = ns.GameText("ADDON_DEMAND_LOADED", L["loads when needed"])
+				elseif not loaded and reason and not loadable and reason ~= "DISABLED" then
+					why = ns.GameText("ADDON_" .. reason, (reason:lower():gsub("_", " ")))
+				end
 				local does = launch and L["Minimap button"] or (opt and L["Options"]) or nil
 				local plainNotes = notes and Plain(notes) or nil
 				local e = {
@@ -270,7 +283,7 @@ ns:RegisterProvider("addons", {
 					text = name .. " " .. (plainNotes or ""),
 					tip = plainNotes,
 					launch = launch, opt = opt,
-					does = does, loaded = loaded, enabled = EnabledFor(name, who),
+					does = does, loaded = loaded, enabled = EnabledFor(name, who), why = why,
 					secure = ADDON_SPEC, isOpen = NeverOpen, after = Opened,
 					activate = AddonActivate,
 					secondary = ToggleAddon, -- Shift+Enter: on / off

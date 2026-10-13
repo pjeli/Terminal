@@ -3,11 +3,11 @@ local L = ns.L
 
 -- Quests to drop: "quests to drop" (both modes; Advanced: @quest is:drop, or is:grey / is:leftbehind) lists the quests
 -- in your log the game shows grey for your level, and those in zones you've left behind (Quests.lua marks each row:
--- `grey`, `behind`, `complete`, `drop`; complete ones never count: turn them in). Shift+Enter on one has the game ask
--- before dropping it, as the quest log's own Abandon does.
+-- `grey`, `behind`, `complete`, `drop`; complete ones never count: turn them in). Shift+Enter on one opens Terminal's own
+-- confirmation naming it (QD.Confirm, as for several).
 --
 -- Several at once: the answer's top row "Drop all N", the right-click menu's "Drop all N quests", or Advanced
--- ">>> drop" after any quest search (">> drop" drops the selected one: the game asks). The game's own dialog asks
+-- ">>> drop" after any quest search (">> drop" drops the selected one, asked the same way). The game's own dialog asks
 -- about one quest at a time, so a group gets Terminal's own confirmation naming every quest (Enter drops them, Esc
 -- keeps them); then each is dropped as the game's dialog would (C_QuestLog.SetAbandonQuest / AbandonQuest: C calls,
 -- not protected on this client), a moment apart, and a chat line says which went.

@@ -22,6 +22,10 @@ local Safe, Num, Str, Lower = ns.Safe, ns.Num, ns.Str, ns.Lower
 
 PL.SHOWN_CHANCE = { orange = 1, yellow = 0.75, green = 0.25, grey = 0 } -- (no levels known: the window's colour)
 PL.STEPS = 600 -- (crafts planned at most: each looks over every recipe planned)
+-- (a recipe AtlasLoot gives no levels for, Forever's own say: its window's colour holds only for the skill it was read
+-- at, so it's counted for this many points at most, and the note says the plan is rough; review, 0.48.6: one shown
+-- orange was "made" a point at a time up to the cap)
+PL.UNKNOWN_POINTS = 5
 
 local function Diff()
 	return ns.Filters and ns.Filters.DIFF or { orange = 0, yellow = 1, green = 2, grey = 3 }
@@ -177,14 +181,15 @@ function PL.Simulate(plans, pool, rank, cap)
 	for _, p in ipairs(plans) do
 		if #p.mats > 0 then active[#active + 1] = { p = p, low = PL.Levels(p.e.recipeID) } end
 	end
-	local skill = rank
+	local skill, rough = rank, false
 	for _ = 1, PL.STEPS do
-		if cap and cap > 0 and skill >= cap then return cap, true end
+		if cap and cap > 0 and skill >= cap then return cap, true, rough end
 		local best, bestChance, bestCan
 		for i = #active, 1, -1 do
 			local a = active[i]
 			local can = Crafts(a.p.mats, left)
 			local c = can > 0 and PL.Chance(a.p.e, skill) or 0
+			if not a.low and (a.got or 0) >= PL.UNKNOWN_POINTS then c = 0 end -- (its levels unknown: counted this far)
 			if c <= 0 then
 				active[i] = active[#active]
 				active[#active] = nil
@@ -202,9 +207,11 @@ function PL.Simulate(plans, pool, rank, cap)
 		k = math.max(1, math.min(bestCan, k))
 		for _, m in ipairs(best.p.mats) do left[m[1]] = left[m[1]] - m[2] * k end
 		skill = skill + bestChance * k
+		best.got = (best.got or 0) + bestChance * k
+		if not best.low then rough = true end
 	end
-	if cap and cap > 0 and skill >= cap then return cap, true end
-	return skill, false
+	if cap and cap > 0 and skill >= cap then return cap, true, rough end
+	return skill, false, rough
 end
 
 local function View(e, fields) return setmetatable(fields, { __index = e }) end
@@ -283,13 +290,14 @@ local function Round(x) return math.floor(x + 0.5) end
 --- The footer's note: the skill your materials would give each profession planned.
 function PL.Note(order, byProf, own, all)
 	if #order == 0 then return L["Plan: no recipe of yours gives skill now"] end
-	local parts, capped = {}, nil
+	local parts, capped, rough = {}, nil, false
 	for _, name in ipairs(order) do
 		local list = byProf[name]
 		local pr = list[1].pr
 		if pr then
-			local reach, atCap = PL.Simulate(list, own, pr.rank, pr.maxRank)
-			local reachAll, capAll = PL.Simulate(list, all, pr.rank, pr.maxRank)
+			local reach, atCap, r1 = PL.Simulate(list, own, pr.rank, pr.maxRank)
+			local reachAll, capAll, r2 = PL.Simulate(list, all, pr.rank, pr.maxRank)
+			rough = rough or r1 or r2
 			local gain, gainAll = Round(reach - pr.rank), Round(reachAll - pr.rank)
 			parts[#parts + 1] = { name = name, rank = pr.rank, gain = gain, gainAll = gainAll, cap = pr.maxRank }
 			if atCap or capAll then capped = pr.maxRank end
@@ -313,6 +321,7 @@ function PL.Note(order, byProf, own, all)
 		s = L["Plan: about %s"]:format(table.concat(each, ", "))
 	end
 	if capped then s = s .. "  ·  " .. L["%d is your cap: train for more"]:format(capped) end
+	if rough then s = s .. "  ·  " .. L["rough: some recipes' skill levels aren't known"] end
 	return s
 end
 
@@ -333,6 +342,11 @@ local ANY = { profession = true, professions = true, prof = true, profs = true, 
 function PL.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
 	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	-- (a plan word first: this is asked on every keystroke, and your professions are read only when it may be one;
+	-- review, 0.48.6)
+	local cued = false
+	for w in t:gmatch("%S+") do if CUE[w] then cued = true break end end
+	if not cued then return nil end
 	local mine = {}
 	local P = ns.Professions
 	for _, pr in ipairs(P and P.PlayerProfessions and (P.PlayerProfessions()) or {}) do mine[#mine + 1] = pr end

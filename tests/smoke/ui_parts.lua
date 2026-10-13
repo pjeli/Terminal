@@ -447,3 +447,204 @@ do -- combat (0.46.14, the player's ask): open as a fight starts, the terminal g
 	P:SetAlpha(alphaWas)
 	_G.InCombatLockdown, _G.GetCurrentKeyBoardFocus = icl, focusWas
 end
+
+
+io.write("[review 0.48.6: the window's state]\n")
+do
+	local SH = ns.Share
+	local wasEasy = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	local function Drop(id)
+		ns.providers[id] = nil
+		for i, x in ipairs(ns.providerOrder) do if x == id then table.remove(ns.providerOrder, i) break end end
+		ns:AliasesChanged()
+	end
+	-- (the mock's rows have no position: the catcher lies over a row only where it can say where the row is)
+	for _, r in ipairs(UI.rows) do
+		r.GetLeft, r.GetBottom, r.GetEffectiveScale = function() return 100 end, function() return 300 end, function() return 1 end
+	end
+	-- ">> party": hovering rows works out no chat line (an NPC's line sets its map pin to link it); the click does
+	local OWN = { macro = "/targetexact Orc Innkeeper" }
+	local npcs = { { key = 1, npcID = 1, name = "Orc Innkeeper One", secure = OWN, isOpen = ns.Never },
+		{ key = 2, npcID = 2, name = "Orc Innkeeper Two" }, { key = 3, npcID = 3, name = "Orc Innkeeper Three" } }
+	ns:RegisterProvider("zzrev", { label = "Rev", aliases = { "zzrev" }, explicit = true, collect = function() return npcs end })
+	local I = ns.Integrations
+	local basePin, pins = I.NpcPinLink, 0
+	I.NpcPinLink = function() pins = pins + 1; return "[pin]" end
+	UI:Open("@zzrev orc >> party"); T.FlushAll()
+	UI.rows[1].scripts.OnEnter(UI.rows[1])
+	UI.rows[2].scripts.OnEnter(UI.rows[2])
+	local c = UI.catcher
+	check(pins == 0 and c and c.attrs.macrotext1 == "", ">> party: hovering two rows sets no pin: " .. pins)
+	c.scripts.PreClick(c, "LeftButton")
+	check(pins == 1 and (c.attrs.macrotext1 or ""):find("^/p "), "the click works its line out (one pin): " .. tostring(c.attrs.macrotext1))
+	-- the row menu's first lines are the row's own action, not the send
+	pins = 0
+	UI:ShowRowMenu(1)
+	local first = _G.TerminalRowMenu.lines[1]
+	local own
+	for _, b in ipairs(_G.TerminalRowMenu.lines) do
+		if b:IsShown() and b.attrs and b.attrs.macrotext1 == OWN.macro then own = true end
+	end
+	check(pins == 0 and not ((first.attrs and first.attrs.macrotext1) or ""):find("/p ", 1, true) and own,
+		">> party: the menu's first line is the row's own action, nothing worked out to send: " .. tostring(first.attrs and first.attrs.macrotext1))
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	I.NpcPinLink = basePin
+	Drop("zzrev")
+	-- a click finishes as Enter does: a press that asks for more stays open; Ctrl on a no-window press keeps it open
+	local never = ns.Never
+	local rows2 = { { key = "a", name = "Ask zz", secure = { macro = "/who zz" }, isOpen = never, staysOpen = true, kind = "who" },
+		{ key = "b", name = "Toy zz", secure = { macro = "/use item:1" }, isOpen = never } }
+	ns:RegisterProvider("zzrev2", { label = "Rev2", aliases = { "zzrev2" }, explicit = true, collect = function() return rows2 end })
+	local function ClickRow(name, ctrl)
+		UI:Open("@zzrev2 zz"); T.FlushAll()
+		local at
+		for i, r in ipairs(UI.Results()) do if r.name == name then at = i end end
+		UI.rows[at].scripts.OnEnter(UI.rows[at])
+		local cc = UI.catcher
+		local function go() cc.scripts.PostClick(cc, "LeftButton") end
+		if ctrl then T.withCtrl(go) else go() end
+		local shown = UI:IsShown()
+		UI:Hide(); T.FlushAll()
+		return shown, cc
+	end
+	check(ClickRow("Ask zz") == true, "a click on a row that asks for more (@who's): the terminal stays open")
+	local shownToy, cc = ClickRow("Toy zz", true)
+	check(shownToy == true and cc.attrs["ctrl-macrotext1"] == "/use item:1", "Ctrl+click on a no-window press: stays open; ctrl- set")
+	check(ClickRow("Toy zz") == false, "a plain click on it: closes")
+	Drop("zzrev2")
+	-- the footer's notes (gold) are made readable on a light theme whatever else it says
+	do
+		local light = ns.Theme.IsLight
+		ns.Theme.IsLight = function() return true end
+		UI.flightNote, UI.mode = "zz note", "search"
+		UI.results = { { name = "x", key = 1 } }
+		UI:SetStatus()
+		local txt = UI.status.text or ""
+		UI.flightNote = nil
+		ns.Theme.IsLight = light
+		check(txt:find("zz note", 1, true) and not txt:find("|cffffd200zz note", 1, true), "a light theme: the footer's note made readable: " .. txt)
+		UI.results = {}
+	end
+	-- the same text searched again (a list finished loading): the selection stays; the menu's "Write" writes its own row
+	local loading = true
+	local many = {}
+	for i = 1, 8 do many[i] = { key = i, name = "Pebble " .. i } end
+	ns:RegisterProvider("zzrev3", { label = "Rev3", aliases = { "zzrev3" }, explicit = true, collect = function() return many end,
+		busy = function() return loading and "loading pebbles" or nil end })
+	UI:Open("@zzrev3 pebble"); T.FlushAll()
+	UI:UpdateBusy()
+	UI:Move(4)
+	local before = UI.Results()[UI.sel]
+	loading = false
+	UI:UpdateBusy(); T.FlushAll()
+	check(UI.Results()[UI.sel] == before or (UI.Results()[UI.sel] and before and UI.Results()[UI.sel].name == before.name),
+		"a list finished loading: the selected row stays selected: " .. tostring(UI.Results()[UI.sel] and UI.Results()[UI.sel].name))
+	UI:Move(-10); UI:Move(2)
+	local menuOn = UI.Results()[UI.sel]
+	UI:ShowRowMenu(UI.sel)
+	local write
+	for _, b in ipairs(_G.TerminalRowMenu.lines) do if b:IsShown() and b.item and b.item.label == ns.L["Write into the prompt"] then write = b end end
+	UI:Move(2) -- (the selection moves under the open menu)
+	if write then write.scripts.PostClick(write) end
+	check(menuOn and T.query():find(menuOn.name, 1, true), "the menu's Write: its own row: " .. T.query())
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	-- the mouse wheel moving the selection off an armed row disarms it, as the arrows do
+	local lots = {}
+	for i = 1, 40 do lots[i] = { key = i, name = "Gravel " .. i } end
+	ns:RegisterProvider("zzrev5", { label = "Rev5", aliases = { "zzrev5" }, explicit = true, collect = function() return lots end })
+	UI:Open("@zzrev5 gravel"); T.FlushAll()
+	UI.armedEntry = UI.Results()[1]; ns.Secure.armed = "MACRO"
+	UI:Scroll(-3)
+	check(UI.sel > 1 and UI.armedEntry == nil, "the wheel moved the selection: disarmed: " .. UI.sel)
+	UI:Hide(); T.FlushAll()
+	Drop("zzrev5")
+	-- fuzzy finding's way back (F1, a fight) in the game's frame (GetTime the same all frame): the row comes back
+	ns:RegisterProvider("zzrev4", { label = "Rev4", aliases = { "zzrev4" }, collect = function() return many end })
+	UI:FuzzyOnce("pebble"); T.FlushAll()
+	UI:Move(3)
+	local fzBefore = UI.Results()[UI.sel]
+	local st = UI:SaveState()
+	UI:HideNow(); T.FlushAll()
+	local realTime = _G.GetTime
+	local frozen = realTime()
+	_G.GetTime = function() return frozen end
+	UI:RestoreState(st)
+	_G.GetTime = realTime
+	T.FlushAll()
+	check(fzBefore and UI.Results()[UI.sel] and UI.Results()[UI.sel].name == fzBefore.name,
+		"fuzzy finding restored: its row selected again: " .. tostring(UI.Results()[UI.sel] and UI.Results()[UI.sel].name))
+	UI:HideNow(); T.FlushAll()
+	Drop("zzrev3"); Drop("zzrev4")
+	-- ">>> say" while the search still goes on: finished first, every result in the line; an armed row's search goes on
+	local big = {}
+	for i = 1, 3000 do big[i] = { key = i, name = ("Stone %04d%s"):format(i, i % 150 == 0 and " glint" or "") } end
+	ns:RegisterProvider("zzbig", { label = "Big", aliases = { "zzbig" }, explicit = true, collect = function() return big end })
+	local realClock, ms = _G.debugprofilestop, 0
+	_G.debugprofilestop = function() ms = ms + 1; return ms end
+	UI:Open("@zzbig glint >>> say")
+	local going = UI.searchJob ~= nil
+	local finishWas = UI.SEND_FINISH_MS
+	UI.SEND_FINISH_MS = 1e9 -- (the counting clock: give it all the "time" it needs)
+	T.key("ENTER")
+	UI.SEND_FINISH_MS = finishWas
+	local proxy = _G.TerminalMacroProxy
+	local line = proxy and proxy.attrs and proxy.attrs.macrotext or ""
+	local n = 0
+	for _ in line:gmatch("glint") do n = n + 1 end
+	local more = tonumber(line:match("%+(%d+)")) or 0 -- (one line of 255 characters: the rest counted, "+7 more")
+	check(going and n + more == 20 and n > 2, ">>> say mid-search: finished first, all 20 in the line or counted: " .. n .. " + " .. more)
+	UI:Disarm(); UI:Hide(); T.FlushAll()
+	UI:Open("@zzbig glint")
+	going = UI.searchJob ~= nil
+	UI.armedEntry = UI.Results()[1]; ns.Secure.armed = "MACRO"
+	T.FlushAll()
+	_G.debugprofilestop = realClock
+	check(going and #UI.Results() == 20, "a row armed while the search goes on: it still finishes: " .. #UI.Results())
+	UI:Disarm(); UI:Hide(); T.FlushAll()
+	Drop("zzbig")
+	-- ">> party": the hints say Enter sends it (not the row's own verb); the armed line too; ">> drop": Terminal asks
+	ns:RegisterProvider("zzrev6", { label = "Rev6", aliases = { "zzrev6" }, explicit = true, collect = function() return many end })
+	UI:Open("@zzrev6 pebble >> party"); T.FlushAll()
+	local hints = UI.hints:GetText() or ""
+	check(hints:find(ns.L["send it to %s"]:format(UI.sendTo.label), 1, true) and not hints:find("open", 1, true),
+		">> party: the hints say Enter sends it: " .. hints)
+	local sv = UI.SecureView(UI.Results()[1], false)
+	UI.armedEntry = sv; UI:SetStatus()
+	check((UI.status:GetText() or ""):find(ns.L["send it to %s"]:format(UI.sendTo.label), 1, true), "armed: \"Press Enter to send it to ...\": " .. tostring(UI.status:GetText()))
+	UI.armedEntry = nil
+	UI:SetQuery("@zzrev6 pebble >> drop")
+	check((UI.status:GetText() or ""):find("Terminal asks first", 1, true), ">> drop: Terminal asks first: " .. tostring(UI.status:GetText()))
+	-- the footer's colours fixed for light themes always (the flight and recipe notes' gold included)
+	local fixed = 0
+	local fixWas = ns.Theme.FixColors
+	ns.Theme.FixColors = function(x) fixed = fixed + 1 return fixWas(x) end
+	UI:SetQuery("@zzrev6 pebble"); UI:SetStatus()
+	ns.Theme.FixColors = fixWas
+	check(fixed > 0, "a plain footer goes through FixColors too")
+	UI:Hide(); T.FlushAll()
+	Drop("zzrev6")
+	-- a Mac's Cmd+V: Ctrl+V's (the paste), never a typed "v" and the plain box for the session
+	local metaWas = _G.IsMetaKeyDown
+	_G.IsMetaKeyDown = function() return true end
+	local checkedWas = UI.charChecked
+	UI.charChecked = nil
+	UI:Open(""); T.FlushAll()
+	T.key("V")
+	_G.IsMetaKeyDown = metaWas
+	T.FlushAll()
+	check(not UI.noChar and not T.query():find("v", 1, true), "Cmd+V first: no stray \"v\", key capture kept: " .. T.query())
+	UI.charChecked = checkedWas
+	UI:Hide(); T.FlushAll()
+	-- the slim copy bar where the terminal sits, at its scale
+	local t = ns.Theme.Get()
+	local scaleWas, pointWas = t.scale, ns.db.point
+	t.scale, ns.db.point = 1.3, { "TOPLEFT", "TOPLEFT", 200, -150 }
+	ns:ShowText("Link", "https://example.org/x", { compact = true })
+	local bar = _G.TerminalLinkFrame
+	check(bar and bar.scale == 1.3, "the copy bar takes the terminal's scale: " .. tostring(bar and bar.scale))
+	if bar then bar:Hide() end
+	t.scale, ns.db.point = scaleWas, pointWas
+	for _, r in ipairs(UI.rows) do r.GetLeft, r.GetBottom, r.GetEffectiveScale = nil, nil, nil end
+	ns.db.easyMode = wasEasy; UI:EasyChanged()
+end

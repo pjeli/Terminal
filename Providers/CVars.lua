@@ -69,8 +69,8 @@ local function Fill(e, value, default)
 	e.value, e.default = value, default
 	e.changed = value ~= nil and default ~= nil and value ~= default
 	e.color = e.changed and CHANGED or nil
-	e.detail = "= " .. (value or "?") .. (e.changed and ("  " .. L["(default %s)"]:format(default)) or "")
-		.. (e.readOnly and ("  " .. L["read-only"]) or "") .. (e.cat and ("  " .. e.cat) or "")
+	e.detail = ns.Detail("= " .. (value or "?") .. (e.changed and (" " .. L["(default %s)"]:format(default)) or ""),
+		e.readOnly and L["read-only"] or nil, e.cat)
 	e._ltext = ns.Lower(e.help .. " " .. (e.cat or "") .. (e.changed and " changed" or ""))
 end
 

@@ -415,6 +415,29 @@ do
 	sentNames = table.concat(sentNames, " | ")
 	check(sentNames:find("To Bob: For Bob", 1, true) and sentNames:find("Hi Pally", 1, true) and not sentNames:find("Sold", 1, true),
 		"\"sent mail\": to others and to your alts, not the auction house's news: " .. sentNames)
+	-- (review, 0.48.6) drawn too, not just answered: the rows on their way kept their order in _pos (the letters a search
+	-- marks), and drawing them errored; letters an earlier search marked are forgotten by an answer
+	ns.db.easyMode = false
+	UI:Open("@mail bob"); FlushAll()
+	local bobRow
+	for _, e in ipairs(UI.Results()) do if e.mailKind == "sent" then bobRow = e end end
+	local function Marks(e)
+		local n = 0
+		for _ in pairs(type(rawget(e, "_pos")) == "table" and rawget(e, "_pos") or {}) do n = n + 1 end
+		return n
+	end
+	local marked = bobRow and Marks(bobRow) > 0
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = true
+	local okDraw, errDraw = pcall(function() UI:Open("sent mail"); FlushAll() end)
+	local drawn = false
+	for i = 1, #UI.rows do
+		local r = UI.rows[i]
+		if r:IsShown() and (r.label:GetText() or ""):find("To Bob", 1, true) then drawn = true end
+	end
+	check(okDraw and drawn, "\"sent mail\" drawn: " .. tostring(errDraw))
+	check(marked and bobRow and Marks(bobRow) == 0, "the letters \"@mail bob\" marked are gone in the answer: " .. tostring(marked))
+	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
 	local lines = table.concat(MA.AllLines(), "\n")
 	check(lines:find("On its way:", 1, true) and lines:find("To Bob: For Bob", 1, true), ".mail lists what's on its way")
@@ -484,10 +507,21 @@ do
 	check(won and won.icon == 133633 and won.color == "|cffa335ee" and won.detail:find("|cffff4040", 1, true),
 		"a mail with an epic in it: its icon and colour, red in its time left: " .. tostring(won and won.color))
 	check(hello and hello.color == "|cffff4040", "a mail with nothing in it, running out: its name red")
+	-- what's past its time goes on every write, @mail looked at or not
+	ns.db.auctionsPosted["Player-1-AAA"][1] = { price = 1, t = now - MA.POSTED_KEEP - 10 }
+	ns.db.auctionBids = { ["Player-1-AAA"] = { [2] = { price = 1, t = now - MA.POSTED_KEEP - 10 } } }
+	MA.OnEvent("OWNED_AUCTIONS_UPDATED")
+	check(ns.db.auctionsPosted["Player-1-AAA"][1] == nil and ns.db.auctionBids["Player-1-AAA"][2] == nil and ns.db.auctionsPosted["Player-1-AAA"][90],
+		"an old posted price and bid pruned when the Auctions tab is read")
+	-- .mail forget: that character's news, sent mail and kept prices go with its mailbox
+	ns.db.mailboxes["Player-1-AAA"] = { name = "Zz Main", realm = "R", mails = {} }
+	ns:FindCommand("mail").run("forget zz main")
+	check(ns.db.auctionsPosted["Player-1-AAA"] == nil and ns.db.mailAuctions["Player-1-AAA"] == nil and ns.db.auctionBids["Player-1-AAA"] == nil,
+		".mail forget: every store of that character")
 	_G.C_AuctionHouse, _G.C_Item, MA.postHooked = AHwas, Itemwas, nil
 	_G.ERR_AUCTION_SOLD_S, _G.ERR_AUCTION_WON_S = nil, nil
 	MA.ResetChatForTests()
-	ns.db.mailSent, ns.db.mailAuctions, ns.db.auctionsPosted = nil, nil, nil
+	ns.db.mailSent, ns.db.mailAuctions, ns.db.auctionsPosted, ns.db.auctionBids = nil, nil, nil, nil
 
 	_G.HasSendMailItem, _G.GetSendMailItem, _G.GetSendMailItemLink = sendWas.has, sendWas.get, sendWas.link
 	_G.GetSendMailMoney, _G.GetSendMailCOD, _G.SendMail, _G.hooksecurefunc, MA.hooked = sendWas.money, sendWas.cod, sendWas.send, sendWas.hook, sendWas.hooked

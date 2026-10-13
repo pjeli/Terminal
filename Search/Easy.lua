@@ -2,9 +2,9 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- Simple mode (the default; "easy" in the code): Terminal for players who'll never type @npc or q:rare+.
---   - Opens with nothing listed. Typing lists the categories that have it ("Bags  Rumsey Rum +2 more",
+--   - Opens with nothing listed. Typing lists the categories that have it ("Items  Rumsey Rum +2 more",
 --     "Emotes  /dance"), best match first; Enter, a click or Tab picks one, and only it is searched (Questie's
---     lists included). Tab goes back to all of them; clearing the prompt lets the category go. Every list is
+--     lists included). Shift+Left goes back to all of them; clearing the prompt lets the category go. Every list is
 --     in some category, the ones hard mode only searches with their @kind too (emotes, slash commands,
 --     console settings, Questie's quests and NPCs, your alts' bags).
 --   - Everyday words act as filters: "rare sword", "epic", "boe", "ready", "todo", "innkeeper"
@@ -777,8 +777,9 @@ function E.ToAdvanced(text, category, shown)
 		return table.concat(out, " ") .. " "
 	end
 	if nearest then Add(kinds, "@npc") end
-	-- an NPC's role (trainer, vendor, innkeeper...) means one you can use: friendly to you, as Simple mode's place
-	-- and nearest searches keep to ("mining trainer in org" never meant Ironforge's)
+	-- an NPC's role (trainer, vendor, innkeeper...) means one you can use: friendly to you ("mining trainer in org"
+	-- never meant Ironforge's: the player's call, 0.41.16). Simple mode's nearest search keeps to that too; its place
+	-- search keeps to the place only ("vendor crossroads" lists every vendor there; review, 0.48.6: left as it is).
 	if role then Add(filters, "faction:friendly") end
 	if nearest then Add(filters, "sort:nearest") end
 	local out = {}
@@ -972,7 +973,7 @@ function E.HelpLines()
 		L["Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log)."],
 		L["Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out)."],
 		L["Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows."],
-		L["Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list."],
+		L["Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (Terminal asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list."],
 		L["Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line)."],
 		L["Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line."],
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],

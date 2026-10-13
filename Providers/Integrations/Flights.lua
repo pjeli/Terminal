@@ -131,7 +131,7 @@ local function Fits(side, mine) return not mine or side == "N" or side == mine e
 
 local function Now() return (_G.time and _G.time()) or 0 end
 local function MyKey() return Str(Safe(_G.UnitGUID, "player")) end
-local function Dirty() local p = ns.providers.flight if p then p._dirty = true end end
+local function Dirty() ns:Changed("flight") end
 
 --- Every character's note: GUID -> { v, name, class, side, nodes = { [lowercase node name] = known }, conts =
 --- { [continent] = when a flight master's map was read there }, t }. Notes of another version are dropped (0.45.1's

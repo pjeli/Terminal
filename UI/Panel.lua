@@ -1,11 +1,11 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- What the small apps that take the terminal's place share (.atop, .snake, .tetris, .lootrun, .changelog,
--- .wowamp and the .advanced confirmation in Easy.lua): a frame built the same way, laid where the terminal is in its
--- theme's colours, the same kind of text, and a registry so opening one drops the terminal at once and
--- closes the others. Each app keeps its own keys: atop and the .advanced dialog take the keyboard whole,
--- the others pass on the keys they don't use (P.Propagate).
+-- What the small apps that take the terminal's place share (.atop, .changelog, .keybinds, the extras' .snake, .tetris,
+-- .lootrun, .typing and .wowamp, the drop-quests confirmation and the .advanced one in Easy.lua): a frame built the same
+-- way, laid where the terminal is in its theme's colours, the same kind of text, and a registry so opening one drops
+-- the terminal at once and closes the others. Each app keeps its own keys: atop, .typing and the confirmations take the
+-- keyboard whole, the others pass on the keys they don't use (P.Propagate).
 
 local P = {}
 ns.Panel = P
@@ -103,6 +103,12 @@ end
 
 --- Hides an app's frame if it shows; closed by combat starting ("combat"), says so: "<label> closed: combat
 --- started." and `extra`. Gives whether it closed (an app's own closing steps follow only then).
+-- The apps' footers say their keys alike, as the terminal's own footer does ("<key> <what it does>"): review, 0.48.6
+-- (quitting was said seven ways, each its own text to translate)
+P.QUIT = L["Esc or ` quit"]
+P.CLOSE = L["Esc or ` close"]
+P.AGAIN = L["Enter play again"]
+
 function P.Close(frame, why, label, extra)
 	if not frame or not frame:IsShown() then return false end
 	frame:Hide()

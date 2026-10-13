@@ -35,6 +35,9 @@ ns:RegisterCommand("integrations", {
 		local found = src == "QuestieDB" and L["QuestieDB found (without Questie)"] or L["found"]
 		lines[#lines + 1] = "  Questie: " .. (npc.on
 			and (npc.list and L["%s. %d NPCs (@npc), %s quests (@questie)"]:format(found, #npc.list, qdb.list and #qdb.list or L["indexing"])
+				-- (the NPC list freed while unused: nothing is indexing; review, 0.48.6)
+				or (not npc.busy and npc.count and L["%s. %d NPCs (@npc: read again when next searched), %s quests (@questie)"]:format(found,
+					npc.count, qdb.list and #qdb.list or L["indexing"]))
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
 			or L["not found"])
 		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end

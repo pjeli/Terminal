@@ -112,7 +112,7 @@ local function Detail(level, class, extra, zone, online)
 	if #who > 0 then parts[#parts + 1] = table.concat(who, " ") end
 	if extra then parts[#parts + 1] = extra end
 	if online and zone then parts[#parts + 1] = zone end
-	return table.concat(parts, "  ")
+	return table.concat(parts, ns.DETAIL_SEP)
 end
 
 ----------------------------------------------------------------------
@@ -416,7 +416,7 @@ function SO.GuildRows()
 			out[#out + 1] = Row({
 				key = name, name = shown, whisperTo = name, level = level, zone = zone, online = online,
 				class = Str(class), rank = rank, rankIndex = Num(rankIndex), note = note,
-				detail = Detail(level, classShown, rank, zone, online) .. ((skills and #skills > 0) and ("  " .. table.concat(skills, ", ")) or ""),
+				detail = ns.Detail(Detail(level, classShown, rank, zone, online), (skills and #skills > 0) and table.concat(skills, ", ") or nil),
 				color = online and ClassHex(Str(class)) or OFFLINE_HEX,
 				icon = SO.TRADE_ICON,
 				text = table.concat(text, " "),
@@ -573,9 +573,20 @@ function SO.WhoMacro(e)
 	return "/run local F=C_FriendList if F.SetWhoToUi then F.SetWhoToUi(true) end F.SendWho(" .. Quoted(e.whoFilter or "") .. ",1)"
 end
 local WHO_ASK = { macro = SO.WhoMacro }
+--- The wait for the answer over (it came, or SO.WHO_WAIT passed): who-to-UI back off, so the game's own /who prints to chat
+--- again. (Review, 0.48.6: it was put back only by a collect while still waiting, and the busy check that ended the wait
+--- at 5 s left it on for the session; an answer after 0.3 s also waited the whole 5 s.)
+function SO.WhoDone()
+	if not who.waiting then return end
+	who.waiting = nil
+	if C_FriendList and C_FriendList.SetWhoToUi then Safe(C_FriendList.SetWhoToUi, false) end
+	ns:Changed("who")
+end
 local function WhoAsked(e)
-	who.waiting, who.asked = GetTime(), e.whoFilter
+	local t = GetTime()
+	who.waiting, who.asked = t, e.whoFilter
 	ns:Trace("who: asked the server: /who " .. tostring(e.whoFilter))
+	C_Timer.After(SO.WHO_WAIT, function() if who.waiting == t then SO.WhoDone() end end)
 	if ns.UI and ns.UI.UpdateBusy then ns.UI:UpdateBusy() end
 end
 local function WhoInCombat() ns:Print(L["Ask /who again once combat is over (it needs a key press the game allows)."]) end
@@ -627,19 +638,19 @@ ns:RegisterProvider("who", {
 	explicit = true,
 	events = { "WHO_LIST_UPDATE" },
 	collect = function()
-		if who.waiting then
-			who.waiting = nil
-			-- (who-to-UI back off: the game's own /who prints to chat again)
-			if C_FriendList and C_FriendList.SetWhoToUi then Safe(C_FriendList.SetWhoToUi, false) end
-		end
 		local rows = SO.WhoRows()
 		ns:Trace(("who: %d results (/who %s)"):format(#rows, tostring(who.asked or "")))
 		return rows
 	end,
-	busy = function()
-		if who.waiting and GetTime() - who.waiting < SO.WHO_WAIT then return L["Asking the server who's online"] end
-		who.waiting = nil
+	busy = function() -- (only reads: the answer or the timer ends the wait, SO.WhoDone)
+		if who.waiting then return L["Asking the server who's online"] end
 	end,
 	-- the top row of an @who search
 	leadRow = function(_, text) return SO.WhoAskRow(text) end,
 })
+
+-- the answer ends the wait at once (its event also marks the list changed)
+local whoFrame = CreateFrame("Frame")
+pcall(whoFrame.RegisterEvent, whoFrame, "WHO_LIST_UPDATE")
+whoFrame:SetScript("OnEvent", function() SO.WhoDone() end)
+SO.whoFrame = whoFrame -- (tests)

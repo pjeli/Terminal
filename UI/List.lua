@@ -23,7 +23,7 @@ local FZF_HINTS = { { "Enter", L["to Simple"] }, { "Shift+Enter", L["to Advanced
 local SYNTAX_HINTS = { { "Enter", L["write it"] }, { "Tab", L["next"] }, { "Shift+Tab", L["previous"] }, KEYS_HINT }
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
 local BACK_HINT = { "Shift+Left", L["back"] } -- (back to the search a step left, UI:GoBack)
-local BACK_CATEGORIES = { "Shift+Left", L["all categories"] } -- (Simple mode, a category picked: Tab does it too)
+local BACK_CATEGORIES = { "Shift+Left", L["all categories"] } -- (Simple mode, a category picked)
 local EASY_TAB_PICK = { "Tab", L["pick"] }
 
 local QUESTION_MARK = 134400
@@ -90,7 +90,7 @@ do
 		if to and to.drop and self.mode == "search" then
 			local n = to.all and self.groupRows and #self.groupRows
 			local say = (to.all and ((n or 0) == 0 and L["nothing to drop"] or (n == 1 and L["Enter drops it: Terminal asks first"] or L["Enter drops all %s: Terminal asks first"]:format(n))))
-				or L["Enter drops it: the game asks first"]
+				or L["Enter drops it: Terminal asks first"]
 			text = Prepend(HINT .. say .. "|r", text)
 		elseif to and self.mode == "search" then
 			local group = to.all and to.cmd and self:GroupedRows() -- (grouped once per list, not on every status update)
@@ -123,7 +123,7 @@ do
 			once = true
 			text = Prepend(HINT .. FZF_LABEL .. "|r", text)
 		elseif once then text = Prepend(HINT .. ONCE_LABEL .. "|r", text) end
-		status:SetText((self.sendTo or near or cat or once) and Theme.FixColors(text) or text)
+		status:SetText(Theme.FixColors(text)) -- (always: the notes' gold too, on light themes; it returns at once on dark ones)
 		self:FitHints()
 	end
 end
@@ -149,6 +149,14 @@ function UI:FitHints()
 		-- (Tab completes what the faint text after the cursor shows: that text says it)
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(sel) end
+		-- (">> party" / ">> drop": Enter and Shift+Enter both send it, or drop it, whatever the row's own verbs; review,
+		-- 0.48.6: the hints said "Enter open" while the status line said where it would be sent)
+		local to = self.sendTo
+		if to and not to.all and self.mode == "search" and sel and not (sel.noActivate or sel.raw or sel.completion) then
+			if to.drop then enter, shift = L["drop"], nil
+			elseif to.cmd then enter, shift = L["send it to %s"]:format(tostring(to.label)), nil
+			else enter, shift = nil, nil end
+		end
 		local write = enter and self:ResultText(sel) ~= nil
 		list = {}
 		if enter then list[#list + 1] = { "Enter", enter } end

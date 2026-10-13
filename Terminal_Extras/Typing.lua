@@ -406,14 +406,14 @@ function TY.Draw()
 		loreText:SetText(game.book and L["Words from the book: %s"]:format((game.book.title:gsub("|", "||")))
 			or (not any and L["Read a book in the game (on a shelf, a plaque, a note you find) and its words turn up here"]) or "")
 		result:Show(); resultSub:Show(); loreText:Show()
-		footer:SetText((game.sent and L["Your guild heard it"] or L["Enter: tell your guild"]) .. "  ·  " .. L["Tab: again"]
-			.. "  ·  " .. L["Esc quits"])
+		footer:SetText((game.sent and L["Your guild heard it"] or L["Enter tell your guild"]) .. "  ·  " .. L["Tab again"]
+			.. "  ·  " .. Panel.QUIT)
 	else
 		local left = game.start and math.max(0, game.duration - (TY.clock() - game.start)) or game.duration
 		timeText:SetText(Hex(t.accent) .. math.ceil(left) .. "|r")
 		result:Hide(); resultSub:Hide(); loreText:Hide()
-		footer:SetText((game.start and (L["Space: next word"] .. "  ·  " .. L["Tab: start again"])
-			or (L["Start typing"] .. "  ·  " .. L["Tab: 15 / 30 / 60 s"])) .. "  ·  " .. L["Esc quits"])
+		footer:SetText((game.start and (L["Space next word"] .. "  ·  " .. L["Tab again"])
+			or (L["Start typing"] .. "  ·  " .. L["Tab 15 / 30 / 60 s"])) .. "  ·  " .. Panel.QUIT)
 	end
 end
 

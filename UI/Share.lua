@@ -76,7 +76,7 @@ end
 
 --- Where to send: { cmd = "/p", label = "party" }; { pending = true } while the channel is still to be
 --- typed; { bad = word } for a word that isn't one. "drop" isn't chat: quests in your log dropped instead (">> drop"
---- the selected one, the game asks; ">>> drop" every one listed, Terminal asks first: QuestDrop.lua).
+--- the selected one, ">>> drop" every one listed; Terminal asks first either way: QuestDrop.lua).
 function SH.Channel(rest)
 	local w, more = (rest or ""):match("^(%S*)%s*(.-)%s*$")
 	local lw = ns.Lower(w or "")

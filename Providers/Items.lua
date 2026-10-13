@@ -26,8 +26,9 @@ local function PointAtSlot(e)
 	end)
 end
 
--- fallback when the secure path isn't available
+-- fallback when the secure path isn't available (never in combat: the character window from Terminal's code)
 local function ShowEquipped(e)
+	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
 	if not (CharacterFrame and CharacterFrame:IsShown()) then ToggleCharacter("PaperDollFrame") end
 	PointAtSlot(e)
 end
@@ -460,7 +461,10 @@ ns:RegisterProvider("items", {
 	label = L["Item"],
 	color = "ffc8c8c8",
 	aliases = { "item", "items", "bag", "bags", "inventory", "equipped" }, -- (@gear: equipment only, below)
-	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" },
+	-- (not QUEST_LOG_UPDATE: it comes with every kill while questing, and the rows only link an item to a quest, which
+	-- accepting, dropping or handing one in changes; an item a quest needs comes with a bag update. PLAYER_LEVEL_UP:
+	-- gear you can wear now isn't greyed any more; review, 0.48.6)
+	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "PLAYER_LEVEL_UP" },
 	guard = 1,
 	collect = function()
 		local out, byID = {}, {}
@@ -607,8 +611,8 @@ ns:RegisterProvider("gear", {
 				-- known by the item, wherever it is: equipping swaps places (worn Item rows are known by their slot), and
 				-- the history must keep the piece you picked, not whatever it replaced in that slot
 				c.key = e.itemID or e.key
-				c.detail = (_G[loc] or loc) .. (lvl and ("  " .. L["ilvl %s"]:format(lvl)) or "") .. "  "
-					.. (e.slotId and L["Equipped"] or L["In Bag"]) .. (usable and "" or ("  " .. L["can't use"]))
+				c.detail = ns.Detail(_G[loc] or loc, lvl and L["ilvl %s"]:format(lvl) or nil, e.slotId and L["Equipped"] or L["In Bag"],
+					not usable and L["can't use"] or nil)
 				c.text = (rawget(e, "_ltext") or "") .. (e.slotId and " equipped worn" or " in bag bags")
 				if not usable then c.color = "|cff8a8a8a" end
 				GearActions(c, loc) -- (the item row's already, unless its slot type was only found here)

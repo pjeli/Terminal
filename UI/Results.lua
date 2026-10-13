@@ -132,7 +132,9 @@ end
 --- The next frame's share of the search. Once done, the full results replace the early ones.
 function UI:ContinueSearch(job)
 	if self.searchJob ~= job then return end -- typed again, or closed: this search is stale
-	if not self:IsShown() or self.closing or self.armedEntry then self.searchJob = nil return end
+	-- (armed, it goes on: Enter presses the armed entry whatever the list shows; dropped, the list stayed at its first
+	-- slice for good, review 0.48.6)
+	if not self:IsShown() or self.closing then self.searchJob = nil return end
 	local final, done = self:StepSearch(job)
 	if not done then
 		C_Timer.After(0, job.step) -- (one closure per search, not one per frame)
@@ -158,7 +160,7 @@ function UI:FinishSearch(budget)
 end
 
 --- Advanced mode, the last word being typed is "@..." or "key:...": the kinds or the filter's values that fit it, as
---- rows to pick from (Enter/click writes it with a space after it; Shift+Tab cycles them in the prompt), or nil.
+--- rows to pick from (Enter/click writes it with a space after it; Tab / Shift+Tab move the selection round), or nil.
 function UI:SyntaxRows(text)
 	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
 	if EasyOn() or self.fzf or self.opening or (self.cursor or #text) < #text then return nil end
@@ -311,8 +313,14 @@ function UI:Refresh()
 	if self.searchJob then ns:Trace("search: started again before the last one finished (" .. (self.searchJob.slices or 0) .. " frames in)") end
 	self.searchJob = nil -- a search still going on is for the old text
 	self.searchedText = edit:GetText()
+	-- the same text searched again (a list finished loading, item data came in): the row selected stays selected, and
+	-- what was armed stays armed (review, 0.48.6: the selection jumped back to the first row every 1.1 s while data loaded)
+	local same = self.refreshText == self.searchedText
+	local keep = same and (UI.sel > 1 or UI.offset > 0) and UI.results[UI.sel] or nil
+	local keptRow = UI.sel - UI.offset
+	self.refreshText = self.searchedText
 	local t0 = debugprofilestop and debugprofilestop()
-	if self.armedEntry then self:Disarm() end -- the query changed: whatever was armed is stale
+	if self.armedEntry and not same then self:Disarm() end -- the query changed: whatever was armed is stale
 	self.pendingAfter = nil
 	self.args = nil
 	self.mode = "search"
@@ -326,6 +334,17 @@ function UI:Refresh()
 	self.lastSearchSlices = 1
 	self:UpdateBusy()
 	UI.sel, UI.offset = 1, 0
+	if keep then
+		local found
+		for i, e in ipairs(UI.results) do
+			if e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key) then found = i break end
+		end
+		if found then
+			UI.sel, UI.offset = found, math.max(0, math.min(found - keptRow, #UI.results - LY.ROWS))
+		elseif not self.popTarget then
+			self.popTarget = keep -- (not in the first slice: once the search ends, SelectPopTarget)
+		end
+	end
 	self:SelectPopTarget(not self.searchJob)
 	self:Render()
 end
@@ -352,7 +371,7 @@ function UI:WalkTo(text, pick)
 	self:SetQuery(text, #text)
 end
 
---- The step Backspace would go back from: only while the prompt still says what that step wrote (anything else typed
+--- The step Shift+Left would go back from: only while the prompt still says what that step wrote (anything else typed
 --- since: the trail is gone).
 function UI:WalkTop()
 	local w = self.walks
@@ -376,7 +395,7 @@ function UI:WalkBack()
 end
 
 --- Shift+Left: back one step: the search a step left (WalkBack), else in Simple mode from a category you picked to all
---- of them (as Tab). False: nothing to go back to (Shift+Left selects then).
+--- of them. False: nothing to go back to (Shift+Left selects then).
 function UI:GoBack()
 	if self.fzf then return false end
 	if self:WalkBack() then return true end
@@ -494,7 +513,10 @@ end
 function UI:Scroll(delta)
 	local maxOffset = math.max(0, #UI.results - LY.ROWS)
 	UI.offset = math.max(0, math.min(maxOffset, UI.offset - delta * 3))
+	local was = UI.sel
 	UI.sel = math.max(UI.offset + 1, math.min(UI.offset + LY.ROWS, UI.sel))
+	-- (the selection moved: what a click armed is another row's now, as Move does; review, 0.48.6)
+	if UI.sel ~= was and self.armedEntry then self:Disarm() end
 	self:Render()
 end
 

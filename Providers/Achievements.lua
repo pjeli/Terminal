@@ -1,8 +1,9 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Enter: the game opens the window on it (a /run line on the secure button, what an achievement link runs:
--- OpenAchievementFrameToAchievement), never Terminal's code (the window's Lua would run tainted)
+-- Enter: a /run line on the secure button opens the window on it (OpenAchievementFrameToAchievement, what an
+-- achievement link runs). A /run line runs tainted too: it's kept because no clean route exists (no C call, binding or
+-- named button turns the window to an achievement) and nothing protected sits behind it (tests/smoke/macros.lua ALLOW).
 local function AchievementMacro(e)
 	if type(e.key) ~= "number" then return nil end
 	return ("/run if OpenAchievementFrameToAchievement then OpenAchievementFrameToAchievement(%d) else ToggleAchievementFrame() end"):format(e.key)
@@ -31,15 +32,17 @@ end
 local ACH_COLOR = "ffff6fae" -- (rose: the oranges are Camp's and its neighbours')
 local NOT_EARNED = "|cff8a8a8a"
 local achMeta -- shared fields of every achievement row (made once the list is registered)
-local critGen = 0 -- bumped when criteria progress: a row's cached progress is read again then
+local progCache = {} -- achievement id -> its progress text (false: none), emptied when criteria move
 local earned, earnedOf -- the earned rows (plain searches' view), and the list they were picked from
 
 --- "3/10": the completed criteria of an unearned achievement, or a lone criterion's quantity
---- (kill 50 of them: "12/50"). Nil when earned or without criteria. Cached per row until progress moves.
+--- (kill 50 of them: "12/50"). Nil when earned or without criteria. Cached per achievement until progress moves (in a
+--- table of its own: written onto the rows, it took them past the compact rows' eight fields; review, 0.48.6).
 local function Progress(t)
 	if rawget(t, "completed") then return nil end
-	if rawget(t, "_progGen") == critGen then return rawget(t, "_prog") or nil end
 	local id, prog = rawget(t, "key"), nil
+	local kept = progCache[id]
+	if kept ~= nil then return kept or nil end
 	local n = ns.Num(ns.Safe(GetAchievementNumCriteria, id)) or 0
 	if n == 1 then
 		local _, _, _, q, req = ns.Safe(GetAchievementCriteriaInfo, id, 1)
@@ -54,23 +57,29 @@ local function Progress(t)
 		end
 		prog = done .. "/" .. n
 	end
-	rawset(t, "_prog", prog or false)
-	rawset(t, "_progGen", critGen)
+	progCache[id] = prog or false
 	return prog
 end
 
+--- What the row shows besides its name, read from the game when a row is drawn (icon, points, description): kept on
+--- the rows they made them 9-12 fields (16 slots each) where 6 do.
+local function Info(t, n) return (select(n, ns.Safe(GetAchievementInfo, rawget(t, "key")))) end
+local function AchIcon(t) return Info(t, 10) end
+local function AchPoints(t) return ns.Num(Info(t, 3)) end
+local function AchTip(t) return ns.Str(Info(t, 8)) end
+local function AchColor(t) return not rawget(t, "completed") and NOT_EARNED or nil end
+
 local function AchDetail(t)
-	local pts = rawget(t, "points")
+	local pts = AchPoints(t)
 	pts = pts and pts > 0 and L["%s pts"]:format(pts) or ""
-	if rawget(t, "completed") then return L["Done"] .. "  " .. pts end
-	local prog = Progress(t)
-	return prog and (prog .. "  " .. pts) or pts
+	if rawget(t, "completed") then return ns.Detail(L["Done"], pts) end
+	return ns.Detail(Progress(t), pts)
 end
 
 -- criteria move all the time (every kill): only a number is bumped here
 local critWatch = CreateFrame("Frame")
 pcall(critWatch.RegisterEvent, critWatch, "CRITERIA_UPDATE")
-critWatch:SetScript("OnEvent", function() critGen = critGen + 1 end)
+critWatch:SetScript("OnEvent", function() if next(progCache) then progCache = {} end end)
 
 local function CollectAchievements()
 	local out = {}
@@ -78,19 +87,16 @@ local function CollectAchievements()
 	for _, cat in ipairs(ns.Safe(GetCategoryList) or {}) do
 		local num = ns.Safe(GetCategoryNumAchievements, cat, true) or 0
 		for i = 1, num do
-			local id, name, points, completed, _, _, _, description, _, icon = ns.Safe(GetAchievementInfo, cat, i)
+			local id, name, _, completed, _, _, _, description = ns.Safe(GetAchievementInfo, cat, i)
 			if id and ns.Str(name) then
-				description = ns.Str(description)
+				-- (six fields once GetEntries has made _lname and _ltext from name and text; icon, points, the description
+				-- shown and the colour are lazy)
 				out[#out + 1] = setmetatable({
 					_compact = true,
 					key = id,
 					name = name,
-					icon = icon,
-					text = description,
-					tip = description,
-					points = ns.Num(points),
+					text = ns.Str(description),
 					completed = completed and true or false,
-					color = not completed and NOT_EARNED or nil,
 				}, achMeta)
 			end
 		end
@@ -116,8 +122,8 @@ ns:RegisterProvider("achievements", {
 	plain = Earned, -- (plain searches: the earned ones only)
 	lazy = true,
 	events = { "ACHIEVEMENT_EARNED" }, -- earned this session: listed without a /reload
-	idleDrop = 600,
-	onDrop = function() earned, earnedOf = nil, nil end, -- (its rows go with the list)
+	-- (no idleDrop: every plain search reads its earned rows, and a list freed was read again inside a keystroke's frame,
+	-- the prewarm leaving freed lists alone; review, 0.48.6)
 	collect = CollectAchievements,
 })
 
@@ -127,4 +133,4 @@ achMeta = ns:CompactMeta(ns.providers.achievements, {
 	activate = OpenAchievement,
 	secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
 	secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,
-}, { detail = AchDetail, progress = Progress })
+}, { detail = AchDetail, progress = Progress, icon = AchIcon, points = AchPoints, tip = AchTip, color = AchColor })

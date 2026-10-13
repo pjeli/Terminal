@@ -102,7 +102,7 @@ do
 	local t = names(ns:GetEntries(p))
 	local sq = t["Sir Squeaks"]
 	check(sq and t["Black Tabby Cat"], "your pets, by their own name or their species'")
-	check(sq and sq.detail == "Lv 12  Mechanical Squirrel  Favorite", "level, species and favourite shown: " .. tostring(sq and sq.detail))
+	check(sq and sq.detail == "Lv 12  ·  Mechanical Squirrel  ·  Favorite", "level, species and favourite shown: " .. tostring(sq and sq.detail))
 	summoned = "BattlePet-0-000001"
 	check(sq.detail:find("out now", 1, true), "the pet that's out says so")
 	local armed, text = press("@pet squeaks")
@@ -193,9 +193,13 @@ do
 	check(a20 and a20.kind == "achievements" and a10.kind == "achievements" and a20.freqKey == "achievements:8", "earned or not, the rows are one kind")
 	check(a10.completed == true and a20.completed == false, "rows say whether they're earned (completed)")
 	check(crit == 0, "progress isn't worked out for every row up front")
-	check(a20.progress == "3/10" and a20.detail == "3/10  10 pts", "unearned: its criteria done so far: " .. tostring(a20.detail))
+	check(a20.progress == "3/10" and a20.detail == "3/10  ·  10 pts", "unearned: its criteria done so far: " .. tostring(a20.detail))
 	check(a20.color == "|cff8a8a8a" and a10.color == nil, "unearned rows are greyed")
-	check(a10.progress == nil and a10.detail == "Done  10 pts", "earned rows as before: " .. tostring(a10.detail))
+	-- (compact rows of six fields once listed: icon, points, the description shown and the colour are read when drawn)
+	local fields = 0
+	for k in pairs(a20) do if k ~= "_score" and k ~= "_pos" then fields = fields + 1 end end -- (those two: a search's)
+	check(fields <= 6 and a20.icon == 1 and a20.points == 10 and a20.tip, "an achievement row: " .. fields .. " fields, the rest read when drawn")
+	check(a10.progress == nil and a10.detail == "Done  ·  10 pts", "earned rows as before: " .. tostring(a10.detail))
 	local fish = names(UI:Search("@ach fishing"))["Fishing Ace"]
 	check(fish and fish.progress == "12/50", "one counted criterion: its count: " .. tostring(fish and fish.progress))
 	local before = crit
@@ -208,8 +212,8 @@ do
 	for i = 1, 20 do local n, v = debug.getupvalue(idx, i); if n == "lazy" then lazy = v end end
 	local prog = lazy and lazy.progress
 	for i = 1, 20 do
-		local n, v = debug.getupvalue(prog, i)
-		if n == "critGen" then debug.setupvalue(prog, i, v + 1) end
+		local n = debug.getupvalue(prog, i)
+		if n == "progCache" then debug.setupvalue(prog, i, {}) end -- (what CRITERIA_UPDATE does)
 	end
 	check(a20.progress == "4/10", "criteria moved: progress read again: " .. tostring(a20.progress))
 	-- one list (0.44.15: the earned ones were a second list): plain searches read its earned rows, picked out once
@@ -238,11 +242,10 @@ do
 	ns.db.recent, ns.db.freq = savedF.recent, savedF.freq
 	ns.freqKinds = nil
 	check(recent["Level 20"], "an unearned achievement picked before is among your recent picks")
-	p._usedAt = GetTime() - p.idleDrop - 1
+	-- kept (every plain search reads its earned rows: freed, it was read again inside a keystroke's frame)
+	p._usedAt = GetTime() - 100000
 	ns:DropIdle()
-	local upv = {}
-	for i = 1, 30 do local n, v = debug.getupvalue(p.plain, i); if not n then break end upv[n] = v end
-	check(p._entries == nil and upv.earned == nil and upv.earnedOf == nil, "unused a while: freed, its earned view with it")
+	check(p.idleDrop == nil and p._entries ~= nil, "unused a while: kept (plain searches read it)")
 	_G.GetAchievementInfo, _G.GetCategoryNumAchievements, _G.GetAchievementNumCriteria, _G.GetAchievementCriteriaInfo = save.info, save.num, save.nc, save.ci
 	p._dirty = true
 end

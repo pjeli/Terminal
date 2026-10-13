@@ -187,7 +187,7 @@ ns:RegisterProvider("reputation", {
 					name = r.name,
 					icon = "Interface\\Icons\\INV_Misc_Note_02",
 					color = Hex(r.reaction),
-					detail = table.concat(parts, "  "),
+					detail = table.concat(parts, ns.DETAIL_SEP),
 					text = "reputation faction standing " .. (standing or "") .. " " .. (r.group or "") .. " " .. (r.desc or ""),
 					tip = r.group and (r.group .. (r.desc and ("\n" .. r.desc) or "")) or r.desc,
 					factionID = r.id,

@@ -1670,6 +1670,19 @@ do
 	local dbg = table.concat(cmd("profdebug"), "\n")
 	check(dbg:find("GetAllRecipeIDs: 0   GetFilteredRecipeIDs: 5", 1, true) and dbg:find("First recipe: Linen Bandage", 1, true) and dbg:find("First Aid=4", 1, true),
 		"profdebug reports what the window offers: " .. dbg)
+	-- the window filtered ("Has skill up" ticked; only its filtered list answers): the saved index isn't cut down to it
+	local allIds = RECIPES[129].ids
+	RECIPES[129].ids = { 43 }
+	C_TradeSkillUI.GetOnlyShowSkillUpRecipes = function() return true end
+	P.Snapshot(); FlushAll()
+	st = ns.db.recipes["Tester-Realm"]
+	check(#st[129].list == 4 and st[129].unknown and #st[129].unknown == 1, "a filtered window: the recipes kept with what it showed: " .. #st[129].list)
+	C_TradeSkillUI.GetOnlyShowSkillUpRecipes = nil
+	P.Snapshot(); FlushAll()
+	st = ns.db.recipes["Tester-Realm"]
+	check(#st[129].list == 1, "no filter: the window's list is what's kept: " .. #st[129].list)
+	RECIPES[129].ids = allIds
+	P.Snapshot(); FlushAll()
 end
 
 ----------------------------------------------------------------------
@@ -1680,8 +1693,8 @@ do
 	local tl = names(ns:GetEntries(ns.providers.talents))
 	check(tl["Deflection"] and tl["Piercing Howl"], "talents with points are listed")
 	check(tl["Cruelty"] and tl["Cruelty"].taken == false, "talents without points are listed too")
-	check(tl["Deflection"].detail == "Arms  |cff40ff40Taken|r 3/5", "taken, tree and rank shown: " .. tostring(tl["Deflection"].detail))
-	check(tl["Cruelty"].detail == "Fury  |cff8a8a8aNot taken|r 0/3" and tl["Cruelty"].color == "|cffa0a0a0", "not-taken talents are marked and greyed")
+	check(tl["Deflection"].detail == "Arms  ·  |cff40ff40Taken|r 3/5", "taken, tree and rank shown: " .. tostring(tl["Deflection"].detail))
+	check(tl["Cruelty"].detail == "Fury  ·  |cff8a8a8aNot taken|r 0/3" and tl["Cruelty"].color == "|cffa0a0a0", "not-taken talents are marked and greyed")
 	check(has("deflect", "Deflection") and has("@talent fury", "Piercing Howl"), "talents searchable by name and by tree")
 
 	local shownTarget
@@ -1718,7 +1731,7 @@ io.write("[cvar tests]\n")
 do
 	local cv = names(ns:GetEntries(ns.providers.cvars))
 	check(cv.nameplateMaxDistance and not cv.reloadui, "@cvar lists console settings, not console commands")
-	check(cv.nameplateMaxDistance.detail:find("= 41  (default 60)", 1, true) and cv.nameplateMaxDistance.color,
+	check(cv.nameplateMaxDistance.detail:find("= 41 (default 60)", 1, true) and cv.nameplateMaxDistance.color,
 		"a changed setting shows its value and default, marked: " .. tostring(cv.nameplateMaxDistance.detail))
 	check(cv.ffxGlow.detail:find("^= 1") and not cv.ffxGlow.detail:find("default", 1, true), "an unchanged one only its value")
 	check(cv.lockedOne.detail:find("read-only", 1, true), "read-only settings say so")
@@ -1839,7 +1852,7 @@ do
 	ns.providers.spells._dirty = true
 	local sp = names(ns:GetEntries(ns.providers.spells))
 	local count = #ns:GetEntries(ns.providers.spells)
-	check(sp.Fireball and sp.Fireball.spellID == 202 and sp.Fireball.detail == "Rank 2  Fire", "ranks of a spell are one row, the highest rank kept: " .. tostring(sp.Fireball and sp.Fireball.detail))
+	check(sp.Fireball and sp.Fireball.spellID == 202 and sp.Fireball.detail == "Rank 2  ·  Fire", "ranks of a spell are one row, the highest rank kept: " .. tostring(sp.Fireball and sp.Fireball.detail))
 	check(sp["Frost Nova"] and sp["Frost Nova"].spellID == 204, "a slot with no item info is read by its type and id")
 	check(not sp.Hidden and not sp.Portals and count == 3, "secret values and flyouts are skipped: " .. count)
 	check(sp["Arcane Mind"].passive and sp["Arcane Mind"].detail:find("^Passive"), "passives are marked")
@@ -2598,7 +2611,8 @@ do -- the game blocks addon-opened profession windows
 	local nprofs = 0
 	for _ in pairs(profs) do nprofs = nprofs + 1 end
 	check(#recs > nprofs and opens <= nprofs, "the opening spell is looked up once per profession, not per recipe (" .. opens .. " for " .. #recs .. " recipes)")
-	check(pe["Alchemy"].secure == nil, "a profession whose spell doesn't open a window isn't cast")
+	check(pe["Alchemy"].secure and not pe["Alchemy"].secure.spell and pe["Alchemy"].secure.binding == "TOGGLEPROFESSIONBOOK",
+		"a profession whose spell doesn't open a window isn't cast: the profession book's key instead (review, 0.48.6)")
 	local re = names(ns:GetEntries(ns.providers.recipes))
 	check(re["Basic Campfire"] == nil or re["Basic Campfire"].secure == nil or re["Basic Campfire"].secure.spell == "Cooking", "cooking recipes cast Cooking")
 	C_TradeSkillUI.OpenTradeSkill, C_Spell.GetSpellInfo = baseOTS, baseSpell
@@ -2646,7 +2660,7 @@ do -- world map locations
 	local es = ns:GetEntries(ns.providers.maps)
 	local byName = names(es)
 	check(not ns.providers.maps._warned, "maps provider ran clean")
-	check(byName["Elwynn Forest"] and byName["Elwynn Forest"].detail == "Zone  Eastern Kingdoms", "zone listed with its continent: " .. tostring(byName["Elwynn Forest"] and byName["Elwynn Forest"].detail))
+	check(byName["Elwynn Forest"] and byName["Elwynn Forest"].detail == "Zone  ·  Eastern Kingdoms", "zone listed with its continent: " .. tostring(byName["Elwynn Forest"] and byName["Elwynn Forest"].detail))
 	check(not byName["Cosmic"] and not byName["Azeroth"], "cosmic/world roots aren't listed")
 	-- nothing below a zone: points of interest, flight points and dungeon maps are left out
 	check(not byName["Goldshire"] and not byName["Stormwind, Elwynn"] and not byName["The Deadmines"], "no points of interest, flight points or dungeons")
@@ -3252,6 +3266,11 @@ do -- AtlasLoot and Questie integrations
 	FlushAll()
 	again = names(ns:GetEntries(ns.providers.npc))
 	check(again["Marshal McBride"], "and rebuilt on the next @npc search")
+	ns.providers.npc._usedAt = -10000
+	ns:DropIdle(1000)
+	local freed = table.concat(ns.commands.integrations.run(), "\n")
+	check(freed:find("read again when next searched", 1, true) and not freed:find("indexing NPCs", 1, true), ".integrations, the NPC list freed: nothing indexing: " .. freed)
+	ns:GetEntries(ns.providers.npc); FlushAll(); ns:GetEntries(ns.providers.npc)
 	local cmd = ns.commands.integrations.run()
 	check(table.concat(cmd, "\n"):find("AtlasLoot: found") and table.concat(cmd, "\n"):find("Questie: found. 3 NPCs"), "integrations command: " .. table.concat(cmd, " | "))
 	-- clean up
@@ -3328,7 +3347,7 @@ do -- equipment sets: searchable by name or @equipmentset; Enter equips, Shift+E
 	r = UI:Search("@equipmentset")
 	check(#r == 3, "@equipmentset lists every set: " .. #r)
 	local es = names(ns:GetEntries(ns.providers.equipmentset))
-	check(es["Fishing"].detail == "Set  Equipped" and es["Old Raid Set"].detail == "Set  2 missing" and es["Tank Gear"].detail == "Set  1/3 worn", "set state shown")
+	check(es["Fishing"].detail == "Set  ·  Equipped" and es["Old Raid Set"].detail == "Set  ·  2 missing" and es["Tank Gear"].detail == "Set  ·  1/3 worn", "set state shown")
 	local said = {}
 	local basePrint = ns.Print
 	ns.Print = function(_, m) said[#said + 1] = m end
@@ -3495,8 +3514,8 @@ do -- reputations: searchable, with standing and progress; collapsed headers rea
 	_G.FACTION_STANDING_LABEL2, _G.FACTION_STANDING_LABEL6, _G.FACTION_STANDING_LABEL7 = "Hostile", "Honored", "Revered"
 	ns.providers.reputation._dirty = true
 	local reps = names(ns:GetEntries(ns.providers.reputation))
-	check(reps["Stormwind"] and reps["Stormwind"].detail == "Honored  3000/12000", "standing and progress shown: " .. tostring(reps["Stormwind"] and reps["Stormwind"].detail))
-	check(reps["Argent Dawn"] and reps["Argent Dawn"].detail == "Revered  9000/21000  watched", "factions under a collapsed header are read too")
+	check(reps["Stormwind"] and reps["Stormwind"].detail == "Honored  ·  3000/12000", "standing and progress shown: " .. tostring(reps["Stormwind"] and reps["Stormwind"].detail))
+	check(reps["Argent Dawn"] and reps["Argent Dawn"].detail == "Revered  ·  9000/21000  ·  watched", "factions under a collapsed header are read too")
 	check(reps["Timbermaw Hold"] and reps["Timbermaw Hold"].detail:find("Hostile", 1, true), "low standings too")
 	check(not reps["Alliance"], "plain headers aren't listed")
 	check(reps["Steamwheedle Cartel"] and not (reps["Steamwheedle Cartel"].tip or ""):find("Classic", 1, true),
@@ -3778,8 +3797,8 @@ do -- skills: searchable with rank; collapsed groups read too
 	}
 	ns.providers.skills._dirty = true
 	local sk = names(ns:GetEntries(ns.providers.skills))
-	check(sk["Swords"] and sk["Swords"].detail == "120/130 (+5)  Weapon Skills", "rank, bonus and group shown: " .. tostring(sk["Swords"] and sk["Swords"].detail))
-	check(sk["Orcish"] and sk["Orcish"].detail == "300/300  Languages", "skills in a collapsed group are read too")
+	check(sk["Swords"] and sk["Swords"].detail == "120/130 (+5)  ·  Weapon Skills", "rank, bonus and group shown: " .. tostring(sk["Swords"] and sk["Swords"].detail))
+	check(sk["Orcish"] and sk["Orcish"].detail == "300/300  ·  Languages", "skills in a collapsed group are read too")
 	check(LINES[3].isExpanded == false, "the collapsed group is collapsed again")
 	check(not sk["Languages"], "group headers aren't listed")
 	local bs = 0
@@ -4797,8 +4816,12 @@ do
 	-- names arrive one by one: busy until the last
 	_G.BrotherBags.forever["Alt Guy"][-1].items[4] = "7001"
 	_G.BrotherBags.forever["Alt Guy"][-1].items[5] = "7002"
+	local listening
+	St.nameFrame.RegisterEvent = function(_, ev) if ev == "GET_ITEM_INFO_RECEIVED" then listening = true end end
+	St.nameFrame.UnregisterEvent = function(_, ev) if ev == "GET_ITEM_INFO_RECEIVED" then listening = false end end
 	entries()
 	check(St.Busy() and St.Busy():find("item names", 1, true), "busy with several names out")
+	check(listening == true, "item names awaited: the item event listened to (only then)")
 	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 6948, true) -- someone else's item
 	check(St.Busy() ~= nil, "another addon's item arriving doesn't end the wait")
 	NAMES[7001] = "First In"
@@ -4808,6 +4831,8 @@ do
 	P._dirty = false
 	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 7002, true)
 	check(P._dirty == true, "the last one in rebuilds the list")
+	check(listening == false, "and the item event is let go")
+	St.nameFrame.RegisterEvent, St.nameFrame.UnregisterEvent = nil, nil
 	_G.BrotherBags.forever["Alt Guy"][-1].items[4], _G.BrotherBags.forever["Alt Guy"][-1].items[5] = nil, nil
 	local asks = 0 for _, id in ipairs(requested) do if id == 8888 then asks = asks + 1 end end
 	check(asks == 2 and St.Busy() == nil, "a name that never comes is asked for twice, then the spinner stops: " .. asks)
@@ -5390,6 +5415,15 @@ do -- .atop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` c
 		LIST = saveList
 		B.Close(); B.Open()
 		B.Key("DOWN"); B.Key("DOWN")
+		-- the selection follows its addon as the list re-sorts (Enter profiled whichever had moved under it)
+		B.Key("UP")
+		local picked = B.Shown()[B.state.sel].name
+		LIST[1][3] = 5.0 -- (Terminal's CPU tops the list on the next sample)
+		B.Tick(0.6)
+		check(picked == "Terminal" and B.Shown()[B.state.sel].name == "Terminal" and B.state.sel == 1, "re-sorted: the same addon selected: " .. tostring(B.Shown()[B.state.sel].name))
+		LIST[1][3] = 0.20
+		B.Close(); B.Open()
+		B.Key("DOWN"); B.Key("DOWN")
 	end
 	-- it animates: samples come in over time, the graph's bars glide toward them
 	local before = #B.History()
@@ -5881,7 +5915,8 @@ end
 -- { ns, UI, F, S, check, log, logHas, key, typeText, query, withCtrl, names, Obj, Flush, FlushAll, timers }.
 do
 	local T = { ns = ns, UI = UI, F = F, S = S, check = check, log = log, logHas = logHas, key = key, typeText = typeText,
-		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers }
+		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
+		ef = ef }
 	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
 		local chunk, err = loadfile(file)
 		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")

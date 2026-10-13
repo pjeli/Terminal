@@ -3,10 +3,9 @@ local L = ns.L
 local I = ns.Integrations
 local SpotXY, ZoneName, PinObject = I.SpotXY, I.ZoneName, I.PinObject
 
--- Dungeon and raid entrances (@dungeon, @raid): QuestieDB's dungeon list, one row per entrance (Blackrock Depths has
--- two: Searing Gorge and Burning Steppes). Enter: the game opens the map on the entrance's zone, then Terminal pins
--- it (a C API); Shift+Enter only pins; ">>" and the right-click menu send it with a map pin. Raids by name (English, as
--- QuestieDB names them); battlegrounds and the non-instances in that list are left out.
+-- Dungeon and raid entrances (@dungeon, @raid): Terminal's own list below (I.ENTRANCES), one row per entrance
+-- (Blackrock Depths has two: Searing Gorge and Burning Steppes). Enter: the game opens the map on the entrance's zone,
+-- then Terminal pins it (a C API); Shift+Enter only pins; ">>" and the right-click menu send it with a map pin.
 local EntranceAfter = I.SpotAfter -- (its pinName: "<name> entrance")
 -- Instance entrances on WoW Forever's maps: { name, uiMap, x%, y%, raid, min level, max level, note }. From Leatrix
 -- Maps' world map icons (Leatrix_Maps_Icons.lua, its WoW Forever data), which are right for this client: QuestieDB's
@@ -69,7 +68,7 @@ function I.EntranceRows(raids)
 			if zone then parts[#parts + 1] = zone end
 			rows[#rows + 1] = {
 				name = name, key = name .. "-" .. count[name], icon = raids and "Interface\\Icons\\INV_Misc_Head_Dragon_01" or "Interface\\Icons\\INV_Misc_Key_03",
-				detail = table.concat(parts, "  "), zone = zone, level = hi, minLevel = lo,
+				detail = table.concat(parts, ns.DETAIL_SEP), zone = zone, level = hi, minLevel = lo,
 				text = (raids and "raid entrance " or "dungeon instance entrance ") .. (note and (note .. " ") or "") .. (zone or ""),
 				ui = ui, mapID = ui, px = px, py = py, wcont = cont, wx = x, wy = y,
 				pinName = L["%s entrance"]:format(name), what = raids and L["raid"] or L["dungeon"],

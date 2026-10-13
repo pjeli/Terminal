@@ -12,7 +12,7 @@ local L = ns.L
 -- Items only in the bags you carry are left to the Item results. With both addons loaded the
 -- counts come from Syndicator (it has full item links and guild names) and items open in Bagnon.
 -- Bag addon frames belong to those addons, not Blizzard: opening them from here is what their
--- own slash commands do. In combat they can't build their secure item buttons, so Enter waits.
+-- own slash commands do (in combat too: they open their windows as their own keys would).
 
 local S = { mine = {} }
 ns.Stored = S
@@ -304,12 +304,21 @@ local waiting, waitingCount = {}, 0
 local waitGen = 0 -- which wait the give-up timer belongs to (bumped whenever a wait ends)
 local asked = {} -- item id -> times its name was asked for (some never come: stop after two)
 
+--- GET_ITEM_INFO_RECEIVED fires for every item the game loads: listened to only while names are awaited (as Items and
+--- Professions do; review, 0.48.6).
+local function Listen(on)
+	local f = S.nameFrame
+	if not f then return end
+	if on then pcall(f.RegisterEvent, f, "GET_ITEM_INFO_RECEIVED") else pcall(f.UnregisterEvent, f, "GET_ITEM_INFO_RECEIVED") end
+end
+
 local function Arrived(id)
 	if waiting[id] then
 		waiting[id] = nil
 		waitingCount = waitingCount - 1
 		if waitingCount == 0 then
 			waitGen = waitGen + 1
+			Listen(false)
 			if ns.providers.stored then ns.providers.stored._dirty = true end
 		end
 	end
@@ -331,12 +340,14 @@ local function Name(id, link)
 					for k in pairs(waiting) do waiting[k] = nil end
 					waitingCount = 0
 					waitGen = waitGen + 1
+					Listen(false)
 					if ns.providers.stored then ns.providers.stored._dirty = true end
 				end
 			end)
 		end
 		waiting[id] = true
 		waitingCount = waitingCount + 1
+		if waitingCount == 1 then Listen(true) end
 		pcall(C_Item.RequestLoadItemDataByID, id)
 	end
 end
@@ -484,6 +495,9 @@ ns:RegisterProvider("stored", {
 		"GUILDBANKBAGSLOTS_CHANGED", "PLAYER_EQUIPMENT_CHANGED" },
 	guard = 1,
 	idleDrop = 600,
+	-- (read again a moment after a bag, bank or mail change, with the terminal closed: every plain search reads it for
+	-- its hint, and it costs one item info per recorded item; review, 0.48.6)
+	warmDirty = 2,
 	collect = function()
 		local out = {}
 		local byID = {}
@@ -528,8 +542,7 @@ ns:RegisterProvider("stored", {
 
 -- Names the server hadn't sent yet: rebuild once they arrive.
 local f = CreateFrame("Frame")
-S.nameFrame = f
-pcall(f.RegisterEvent, f, "GET_ITEM_INFO_RECEIVED")
+S.nameFrame = f -- (GET_ITEM_INFO_RECEIVED registered only while names are awaited: Listen)
 f:SetScript("OnEvent", function(_, _, itemID, success)
 	if waitingCount == 0 then return end
 	if itemID then Arrived(itemID) return end

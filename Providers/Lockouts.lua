@@ -28,10 +28,7 @@ local function Chars()
 	return ns.db.lockouts
 end
 
-local function Dirty()
-	local p = ns.providers.lockouts
-	if p then p._dirty = true end
-end
+local function Dirty() ns:Changed("lockouts") end
 
 --- Asks the game for your lockouts (it answers with UPDATE_INSTANCE_INFO); at most every `again` seconds when given.
 function LK.Ask(again)

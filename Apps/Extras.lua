@@ -19,7 +19,9 @@ X.COMMANDS = {
 	{ "tetris", L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)"] },
 	{ "lootrun", L["Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)"], { "maze" } },
 	{ "typing", L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"], { "wpm", "typetest" } },
-	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" } },
+	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" },
+		-- (what it takes before the extras are loaded: its stations come with them; review, 0.48.6)
+		function() return { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } } end },
 }
 
 local function Call(f, ...)
@@ -66,7 +68,7 @@ end
 
 for _, c in ipairs(X.COMMANDS) do
 	local name = c[1]
-	local def = { desc = c[2], aliases = c[3], run = function(args) return StubRun(name, args) end }
+	local def = { desc = c[2], aliases = c[3], complete = c[4], run = function(args) return StubRun(name, args) end }
 	stubs[name] = def
 	ns:RegisterCommand(name, def)
 end

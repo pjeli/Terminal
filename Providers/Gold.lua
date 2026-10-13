@@ -179,7 +179,7 @@ local function Row(h)
 		key = h.key, name = h.who, who = h.who, money = h.money, goldKind = h.kind,
 		color = ns.ClassHex(h.class),
 		icon = ICONS[h.kind],
-		detail = G.Text(h.money) .. (h.kind == "me" and ("  |cff9d9d9d" .. L["(you)"] .. "|r") or ""),
+		detail = G.Text(h.money) .. (h.kind == "me" and (" |cff9d9d9d" .. L["(you)"] .. "|r") or ""),
 		text = "gold money " .. WORDS[h.kind],
 		tooltip = Tooltip,
 		activate = PrintAll,
@@ -226,7 +226,7 @@ function G.Collect()
 		local chars = 0
 		for _, h in ipairs(holders) do if h.kind == "me" or h.kind == "alt" then chars = chars + 1 end end
 		local t = Row({ key = "total", who = L["All gold"], money = total, kind = "total" })
-		t.detail = G.Text(total) .. "  |cff9d9d9d" .. (chars == 1 and L["%s character"] or L["%s characters"]):format(chars) .. "|r"
+		t.detail = ns.Detail(G.Text(total), "|cff9d9d9d" .. (chars == 1 and L["%s character"] or L["%s characters"]):format(chars) .. "|r")
 		t._rank = 1
 		table.insert(rows, 1, t)
 	end

@@ -412,6 +412,24 @@ local function ChannelColor(word, typing, filt, base, bad)
 	return (to.cmd or to.pending or to.drop) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
 end
 
+-- Which words parse as filters, remembered (review, 0.48.6: every keystroke parsed every filter word again just to
+-- colour it; "is:upgrade" / "upgrades" read every worn item each time). Only whether it parses is kept, never the
+-- filter, and the mode is part of the key (Simple mode's words are its own); at most WORDS_KEPT, then begun again.
+local WORDS_KEPT = 300
+local parsed, nParsed = {}, 0
+local function Remembered(kind, w, ask)
+	local k = kind .. (EasyOn() and "s" or "a") .. w
+	local v = parsed[k]
+	if v == nil then
+		if nParsed >= WORDS_KEPT then parsed, nParsed = {}, 0 end
+		v = ask(w) and true or false
+		parsed[k], nParsed = v, nParsed + 1
+	end
+	return v
+end
+local function Parses(w) return Remembered("p", w, ns.Filters.Parse) end
+local function IsWord(w) return Remembered("w", w, ns.Easy.Word) end
+
 --- What the typed text is made of: { first byte, last byte, colour } pieces covering it. @kinds in
 --- their own colour (unknown ones in red), filters (lvl:20, is:todo; a filter key with a value it
 --- doesn't take in red), the .command and the /slash command at the start, plain words in the text
@@ -460,10 +478,10 @@ function UI:SyntaxSegments(text, plain)
 				if F and (word:find("[|&]") or word:find("^[-!]%a")) then
 					-- "-is:boe", "q:rare|epic", "sword|axe": a filter once it parses (still being typed: plain)
 					local typing = pos + #word > #text
-					color = F.Parse(word) and filt or ((typing or not key) and base or bad)
+					color = Parses(word) and filt or ((typing or not key) and base or bad)
 				elseif key and F and F.IsKey(key) then
-					color = (value == "" or F.Parse(word)) and filt or bad
-				elseif not key and ns.Easy and ns.Easy.Word(word) then
+					color = (value == "" or Parses(word)) and filt or bad
+				elseif not key and ns.Easy and IsWord(word) then
 					color = filt -- (easy mode: "rare", "ready", "vendor")
 				end
 			end
@@ -473,6 +491,7 @@ function UI:SyntaxSegments(text, plain)
 	end
 	return out
 end
+
 
 --- Bytes from..to of the text, painted by the pieces that cover them.
 local function PaintRange(text, segs, from, to)

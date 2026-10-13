@@ -534,7 +534,7 @@ ns:RegisterProvider("spells", {
 						-- known by its name: learning a new rank mustn't make it another row (its history kept)
 						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
 						e.tab = tab
-						e.detail = (passive and (L["Passive"] .. "  ") or "") .. (rankText and (rankText .. "  ") or "") .. tab
+						e.detail = ns.Detail(passive and L["Passive"] or nil, rankText, tab)
 						e.text = tab .. (passive and " passive" or "")
 						if passive then
 							e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CastFallback, nil, nil, nil

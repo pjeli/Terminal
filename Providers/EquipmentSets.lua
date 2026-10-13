@@ -230,7 +230,7 @@ ns:RegisterProvider("equipmentset", {
 					key = s.id,
 					name = s.name,
 					icon = s.icon or "Interface\\Icons\\INV_Chest_Chain_04",
-					detail = L["Set"] .. "  " .. state,
+					detail = ns.Detail(L["Set"], state),
 					text = "equipment set gear outfit",
 					setID = s.id,
 					activate = Equip,

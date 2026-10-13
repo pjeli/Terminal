@@ -63,6 +63,16 @@ do
 	ns.Wowamp = nil
 	X.loginFrame.scripts.OnEvent(X.loginFrame, "PLAYER_LOGIN")
 	check(cv == "Sound_EnableMusic=1" and ns.db.wowamp.musicWasOn == nil, "the zone music back at login")
+	-- the radio playing (the extras loaded since, and it's on): the zone music stays off
+	cv = nil
+	ns.db.wowamp.musicWasOn = true
+	ns.Wowamp = wowampWas
+	local playingWas = wowampWas.Playing
+	wowampWas.Playing = function() return true end
+	X.loginFrame.scripts.OnEvent(X.loginFrame, "PLAYER_LOGIN")
+	wowampWas.Playing = playingWas
+	check(cv == nil and ns.db.wowamp.musicWasOn == true and type(playingWas) == "function", "the radio playing: the zone music stays off (WoWamp says so)")
+	ns.db.wowamp.musicWasOn = nil
 	ns.Wowamp, _G.C_CVar = wowampWas, cvWas
 	-- none of the extras' files is in Terminal's own TOC
 	local toc = io.open("Terminal/Terminal.toc"):read("*a")

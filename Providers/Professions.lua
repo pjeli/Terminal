@@ -345,9 +345,30 @@ function P.Prune()
 		if pr.skillLine then lines[pr.skillLine] = true end
 		names[Lower(pr.name)] = true
 	end
+	-- (a trade spell's window, Smelting's, is kept as "spell:<name>": it goes with its profession, or once the
+	-- spellbook no longer has the spell; review, 0.48.6: "Smelt Copper" stayed in @recipe after Mining was dropped)
+	local trade
+	local function TradeNames()
+		if trade == nil then
+			local api = TS()
+			trade = false
+			if api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo then
+				trade = {}
+				for _, t in ipairs(P.TradeSpells()) do trade[Lower(t.name)] = true end
+			end
+		end
+		return trade
+	end
 	for key, pdata in pairs(store) do
 		if pdata.fromList and not lines[pdata.skillLine or key] and not names[Lower(pdata.name or "")] then
 			store[key] = nil
+		elseif not pdata.fromList and type(key) == "string" and key:find("^spell:") then
+			if pdata.parent then
+				if not names[Lower(pdata.parent)] then store[key] = nil end
+			else
+				local t = TradeNames()
+				if t and not t[Lower(pdata.spell or pdata.name or "")] then store[key] = nil end
+			end
 		end
 	end
 end
@@ -377,8 +398,9 @@ end
 
 --- Every recipe id the open window offers. On Forever, GetFilteredRecipeIDs (what
 --- ClassicUIForever reads) answers where GetAllRecipeIDs can come back empty, so read both.
+--- The second result: how many came from GetAllRecipeIDs (0: only the window's filtered list answered).
 local function RecipeIDs(api)
-	local ids, seen = {}, {}
+	local ids, seen, all = {}, {}, 0
 	for _, fn in ipairs({ "GetAllRecipeIDs", "GetFilteredRecipeIDs" }) do
 		if api[fn] then
 			local ok, list = pcall(api[fn])
@@ -387,14 +409,39 @@ local function RecipeIDs(api)
 					if not seen[id] and not Secret(id) then
 						seen[id] = true
 						ids[#ids + 1] = id
+						if fn == "GetAllRecipeIDs" then all = all + 1 end
 					end
 				end
 			end
 		end
 	end
-	return ids
+	return ids, all
 end
 P.RecipeIDs = RecipeIDs
+
+--- What the open profession window's filters leave out, as Forever's Professions.IsUsingDefaultFilters reads them
+--- (Blizzard_ProfessionsTemplates/Blizzard_Professions.lua), plus its search box: nil when nothing is filtered. Every
+--- call only reads (C calls). Review, 0.48.6: "Has skill up" ticked, the saved index became the skill-up recipes alone.
+function P.WindowFiltered(api)
+	local function Q(fn, ...)
+		local f = api[fn]
+		if not f then return nil end
+		local ok, v = pcall(f, ...)
+		if ok and not Secret(v) then return v end
+	end
+	local text = Q("GetRecipeItemNameFilter")
+	if type(text) == "string" and text ~= "" then return "search" end
+	if Q("GetOnlyShowMakeableRecipes") or Q("GetOnlyShowSkillUpRecipes") or Q("GetOnlyShowFirstCraftRecipes") then return "only" end
+	if Q("AreAnyInventorySlotsFiltered") or Q("AnyRecipeCategoriesFiltered") then return "slots" end
+	if Q("GetShowLearned") == false then return "learned" end
+	if Q("GetShowUnlearned") == false then return "unlearned" end
+	local pets = _G.C_PetJournal
+	local n = pets and pets.GetNumPetSources and ns.Num(ns.Safe(pets.GetNumPetSources)) or 0
+	for i = 1, math.min(n, 30) do
+		if Q("IsAnyRecipeFromSource", i) and Q("IsRecipeSourceTypeFiltered", i) then return "sources" end
+	end
+	return nil
+end
 
 --- Which of the player's professions the open window belongs to.
 --- Returns key, name, fromList.
@@ -465,7 +512,7 @@ end
 
 --- Stores the recipes read from the open window under its profession (or the profession spell that
 --- opened it), with the spell it was opened by, and drops older copies kept under another key.
-local function SaveSnapshot(store, key, profName, fromList, list, unknown)
+local function SaveSnapshot(store, key, profName, fromList, list, unknown, partial)
 	-- a window opened by a profession spell (Smelting): keep it apart from its profession
 	local spell = P.lastSpell and (GetTime() - P.lastSpell.at) < 6 and P.lastSpell.name or nil
 	if not spell and P.tradeSpellNames[Lower(profName)] then spell = profName end
@@ -488,9 +535,22 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown)
 	P.lastCast = nil
 	-- one entry per profession: drop older copies stored under another key
 	local lname = Lower(profName)
-	local prevCount
+	local prevCount, prev
 	for _, pd in pairs(store) do
-		if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
+		if pd.name and Lower(pd.name) == lname then prevCount, prev = #(pd.list or {}), pd end
+	end
+	-- the window filtered (and only its filtered list answered): what it showed is added to what was kept, never
+	-- put in its place (a recipe read now is the fresher copy; one learned since leaves the unknown ones)
+	if partial and prev then
+		local have = {}
+		for _, r in ipairs(list) do have[r.id] = true end
+		for _, r in ipairs(prev.list or {}) do if not have[r.id] then have[r.id] = true; list[#list + 1] = r end end
+		local seenU = {}
+		for _, u in ipairs(unknown or {}) do seenU[u.id] = true end
+		for _, u in ipairs(prev.unknown or {}) do
+			if not have[u.id] and not seenU[u.id] then seenU[u.id] = true; unknown[#unknown + 1] = u end
+		end
+		ns:Trace(("professions: %s's window is filtered (%s): %d recipes kept with what it showed"):format(profName, partial, #list))
 	end
 	if not P.scanning and prevCount ~= #list then
 		local more = (unknown and #unknown > 0) and (", " .. L["%d more to learn"]:format(#unknown)) or ""
@@ -536,8 +596,9 @@ function P.Snapshot(done)
 		return skip()
 	end
 	local store = Store()
-	local ids = RecipeIDs(api)
+	local ids, all = RecipeIDs(api)
 	if not store or #ids == 0 then return skip() end
+	local partial = all == 0 and P.WindowFiltered(api) or nil
 	local key, profName, fromList = ResolveProfession(api, ids)
 	if not key or not profName then return skip() end
 
@@ -560,7 +621,7 @@ function P.Snapshot(done)
 		if i < #ids then
 			C_Timer.After(0, step) -- spread the work over a few frames
 		else
-			SaveSnapshot(store, key, profName, fromList, list, unknown)
+			SaveSnapshot(store, key, profName, fromList, list, unknown, partial)
 			finish()
 		end
 	end
@@ -610,12 +671,40 @@ local function WindowHas(recipeID)
 	return false
 end
 
+--- Whether the profession window shows this profession now: its skill line, or one of the names given (a trade spell's
+--- own window, Smelting, or its parent), whatever the window's search or filters hide. (Review, 0.48.6: the open check
+--- looked a recipe up in the window's filtered list, so a window with a search typed counted as closed and the /cast
+--- press then shut it; profession and trade-spell rows had no check at all.)
+function P.WindowShows(skillLine, ...)
+	local pf = _G.ProfessionsFrame
+	if not (pf and pf.IsVisible and pf:IsVisible()) then return false end
+	local api = TS()
+	if not api then return false end
+	local want = {}
+	for i = 1, select("#", ...) do
+		local n = select(i, ...)
+		if type(n) == "string" and not Secret(n) then want[Lower(n)] = true end
+	end
+	for _, get in ipairs({ api.GetChildProfessionInfo or false, api.GetBaseProfessionInfo or false }) do
+		local info = get and ns.Safe(get)
+		if type(info) == "table" then
+			local id, pid = ns.Num(info.professionID), ns.Num(info.parentProfessionID)
+			if skillLine and (id == skillLine or pid == skillLine) then return true end
+			local n, pn = ns.Str(info.professionName), ns.Str(info.parentProfessionName)
+			if (n and want[Lower(n)]) or (pn and want[Lower(pn)]) then return true end
+		end
+	end
+	return false
+end
+
+--- A profession with no window spell, no route left (combat): its window only by the protected direct call (tried until
+--- the game blocks it), else said. Never ToggleProfessionsBook from here (review, 0.48.6: the book then held what
+--- Terminal's code wrote); the rows' own route is the book's key (Recipes.lua).
 function P.OpenProfession(skillLine, name)
 	ns.LoadBlizz("Blizzard_Professions")
 	Unhide()
-	if not P.DirectOpen(skillLine) and ToggleProfessionsBook then
-		ns:Trace("DIRECT ToggleProfessionsBook")
-		ToggleProfessionsBook()
+	if not P.DirectOpen(skillLine) then
+		ns:Print(L["Open %s from your profession book (Terminal can't open it from here)."]:format(tostring(name)))
 	end
 end
 

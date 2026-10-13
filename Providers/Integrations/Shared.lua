@@ -21,7 +21,7 @@ I.HINT_FEW = 2 -- (UI.HINT_FEW: a list with this many matches or fewer shows the
 
 -- Integrations/ is one module over several files, loaded in this order (Terminal.toc): Shared (this: the table and
 -- the helpers every part uses), Loot (AtlasLoot), Distances (world positions), Objects (mailboxes), Entrances
--- (@dungeon/@raid), Questie (its data, NPCs, the name index), QuestieQuests (@questie, the Questie providers),
+-- (@dungeon/@raid), Flights (@flight), Questie (its data, NPCs, the name index), QuestieQuests (@questie, the Questie providers),
 -- Places (zones and towns by name), Setup (login, .integrations). What one file needs from another is on I (public)
 -- or on I._ (Terminal's own, between these files only); a later file takes it into a local when it loads.
 I._ = {}

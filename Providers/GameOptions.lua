@@ -64,14 +64,8 @@ local function OpenPage(o)
 	return (pcall(U.OpenSettingsPanel, id, (not o.page) and o.name or nil))
 end
 
-local function ExactText(f, text)
-	if f.GetText then
-		local ok, t = pcall(f.GetText, f)
-		if ok and type(t) == "string" and Plain(t) == text then return true end
-	end
-	for _, r in ipairs({ f:GetRegions() }) do
-		if r.GetObjectType and r:GetObjectType() == "FontString" and Plain(r:GetText()) == text then return true end
-	end
+local function ExactText(f, text) -- (its own text or a FontString of it: Util's FrameTexts)
+	for _, t in ipairs(ns.FrameTexts(f)) do if type(t) == "string" and Plain(t) == text then return true end end
 	return false
 end
 
@@ -157,7 +151,7 @@ ns:RegisterProvider("gameoptions", {
 					key = key,
 					name = label,
 					icon = o.page and "Interface\\Icons\\INV_Misc_Gear_02" or "Interface\\Icons\\Trade_Engineering",
-					detail = o.page and (o.path and (o.path .. "  " .. L["page"]) or L["Options page"]) or o.path,
+					detail = o.page and (o.path and ns.Detail(o.path, L["page"]) or L["Options page"]) or o.path,
 					text = (o.path or "") .. " options settings " .. (o.tip or ""),
 					tip = o.tip,
 					opt = o,

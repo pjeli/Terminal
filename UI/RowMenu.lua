@@ -165,7 +165,11 @@ do
 			end
 		end
 		if not EasyOn() and self:ResultText(e) then
-			items[#items + 1] = { label = L["Write into the prompt"], run = function() UI:FillFromResult() end }
+			-- (the menu's own row, wherever the list has put it since: not whichever row is selected now; review, 0.48.6)
+			items[#items + 1] = { label = L["Write into the prompt"], run = function()
+				for i, r in ipairs(UI.results) do if r == e then UI.sel = i break end end
+				UI:FillFromResult()
+			end }
 		end
 		-- (`run` lines are Terminal's own and keep it open: writing into the prompt, Cancel)
 		items[#items + 1] = { label = L["Cancel"], run = function() end }
@@ -219,7 +223,7 @@ do
 			b.hl:SetAlpha(0.25)
 			-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
 			local macro, view
-			if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true) end
+			if it.secondary ~= nil then macro, view = ClickFor(e, it.secondary, true, true) end -- (the row's own, ">>" or not)
 			if it.chatTo or it.boxLine then macro = "" end -- (the chat line: set in PreClick, see MenuLine)
 			it.view = view
 			b:SetAttribute("type1", macro and "macro" or "")
@@ -323,7 +327,7 @@ function UI:MenuKey(f, key)
 			return true
 		end
 	else
-		se = SecureView(e, it.secondary)
+		se = SecureView(e, it.secondary, true)
 	end
 	if se and self:ArmForPress(se) then
 		f:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
@@ -335,7 +339,7 @@ function UI:MenuKey(f, key)
 	end
 	f:SetPropagateKeyboardInput(false)
 	self:HideRowMenu()
-	if not (it.chatTo or it.boxLine) and found then self:Activate(found, { secondary = it.secondary }) end
+	if not (it.chatTo or it.boxLine) and found then self:Activate(found, { secondary = it.secondary, own = true }) end
 	return true
 end
 
@@ -368,5 +372,5 @@ function UI:MenuPicked(b)
 		FinishClicked(e, it.view or e)
 		return
 	end
-	self:Activate(now, { secondary = it.secondary })
+	self:Activate(now, { secondary = it.secondary, own = true })
 end

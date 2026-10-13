@@ -190,9 +190,9 @@ ns:RegisterProvider("maps", {
 	color = "ff7fd6a8",
 	aliases = { "map", "maps", "zone", "zones", "place", "location", "continent" },
 	noCombat = true, -- opening windows is protected in combat
-	lazy = true, -- thousands of places: only offered once you type something
+	lazy = true, -- (only offered once you type something)
 	-- (no events: the list of continents and zones doesn't depend on where you are)
-	idleDrop = 600, -- thousands of places: freed after 10 minutes without a map search
+	idleDrop = 600, -- (continents and zones: freed after 10 minutes without a map search)
 	collect = function(p)
 		local out = {}
 		meta = meta or ns:CompactMeta(p, PROTO)
@@ -228,7 +228,7 @@ ns:RegisterProvider("maps", {
 				local lv = ns.Zones and ns.Zones.LevelText(ns.Zones.Of(info.mapID))
 				out[#out + 1] = Entry({
 					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
-					detail = (KIND_SAID[kind] or kind) .. (lv and ("  " .. lv) or "") .. (path ~= "" and ("  " .. path) or ""),
+					detail = ns.Detail(KIND_SAID[kind] or kind, lv, path),
 				})
 			end
 		end

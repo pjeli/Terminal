@@ -244,6 +244,79 @@ do
 	ns.providers.panels._dirty = true
 end
 
+io.write("[panels: no window opened from Terminal's own code (review, 0.48.6)]\n")
+do
+	local S = ns.Secure
+	local function row(k) for _, x in ipairs(ns:GetEntries(ns.providers.panels)) do if x.key == k then return x end end end
+	ns.providers.panels._dirty = true
+	local cur, cal = row("Currency"), row("Calendar")
+	-- Currency: the currency key (Forever's TOGGLECURRENCY); Calendar: the minimap's calendar button (no calendar key there)
+	local wasBN = _G.BINDING_NAME_TOGGLECURRENCY
+	_G.BINDING_NAME_TOGGLECURRENCY = "Toggle Currency"
+	local m = cur and S.Resolve(cur.secure, cur)
+	check(m and m.binding == "TOGGLECURRENCY", "Currency: the game's currency key: " .. tostring(m and (m.binding or m.button or m.macro)))
+	_G.BINDING_NAME_TOGGLECURRENCY = wasBN
+	local hadGT = _G.GameTimeFrame
+	_G.GameTimeFrame = Obj("Button")
+	m = cal and S.Resolve(cal.secure, cal)
+	check(m and m.button == "GameTimeFrame", "Calendar, no calendar key: the minimap's button: " .. tostring(m and (m.binding or m.button)))
+	_G.GameTimeFrame = hadGT
+	-- their fallbacks (no route, combat) never open the window from Terminal's code
+	local opened = 0
+	local was = { tc = _G.ToggleCharacter, tcal = _G.ToggleCalendar, ocp = C_CurrencyInfo.OpenCurrencyPanel, pr = ns.Print }
+	_G.ToggleCharacter = function() opened = opened + 1 end
+	_G.ToggleCalendar = function() opened = opened + 1 end
+	C_CurrencyInfo.OpenCurrencyPanel = nil
+	local said = 0
+	ns.Print = function() said = said + 1 end
+	cur.open(); cal.open()
+	ns.providers.currency._dirty = true
+	local coin = ns:GetEntries(ns.providers.currency)[1]
+	if coin and coin.activate then coin.activate(coin) end
+	_G.ToggleCharacter, _G.ToggleCalendar, C_CurrencyInfo.OpenCurrencyPanel, ns.Print = was.tc, was.tcal, was.ocp, was.pr
+	check(opened == 0 and said >= 3, "the fallbacks say where to open it, never open it from here: " .. opened .. " opened, " .. said .. " said")
+end
+
+io.write("[professions: an open window isn't shut, no book from Terminal's code (review, 0.48.6)]\n")
+do
+	local pfWas, tsWas, ndo = _G.ProfessionsFrame, _G.C_TradeSkillUI, ns.db.noDirectOpen
+	_G.ProfessionsFrame = Obj("Frame")
+	ProfessionsFrame.shown = true
+	local info = { professionID = 164, professionName = "Blacksmithing" }
+	_G.C_TradeSkillUI = setmetatable({ GetBaseProfessionInfo = function() return info end, GetChildProfessionInfo = function() return nil end,
+		GetFilteredRecipeIDs = function() return {} end, GetAllRecipeIDs = function() return {} end }, { __index = tsWas })
+	check(P.WindowShows(164) and P.WindowShows(nil, "blacksmithing") and not P.WindowShows(171, "Alchemy"),
+		"the window shows a profession: by its skill line or its name")
+	local row = P.MakeRecipeEntry(164, { name = "Blacksmithing", skillLine = 164 }, { id = 2661, name = "Copper Chain Belt", reagents = {} }, "Blacksmithing")
+	check(row.isOpen(row) == true, "a recipe row: its profession's window shows (its search hiding the recipe): nothing pressed")
+	ProfessionsFrame.shown = false
+	check(row.isOpen(row) == false, "closed: pressed")
+	local booked, said = 0, 0
+	local tpb, pr = _G.ToggleProfessionsBook, ns.Print
+	_G.ToggleProfessionsBook = function() booked = booked + 1 end
+	ns.Print = function() said = said + 1 end
+	ns.db.noDirectOpen = true
+	P.OpenProfession(164, "Blacksmithing")
+	_G.ToggleProfessionsBook, ns.Print = tpb, pr
+	check(booked == 0 and said == 1, "no route: said, never the profession book opened from here")
+	_G.ProfessionsFrame, _G.C_TradeSkillUI, ns.db.noDirectOpen = pfWas, tsWas, ndo
+end
+
+io.write("[quests: no quest log from Terminal's code in combat (review, 0.48.6)]\n")
+do
+	ns.providers.quests._dirty = true
+	local q = ns:GetEntries(ns.providers.quests)[1]
+	local opened = 0
+	local was = { tql = _G.ToggleQuestLog, twm = _G.ToggleWorldMap, icl = _G.InCombatLockdown, pr = ns.Print }
+	_G.ToggleQuestLog = function() opened = opened + 1 end
+	_G.ToggleWorldMap = function() opened = opened + 1 end
+	_G.InCombatLockdown = function() return true end
+	ns.Print = function() end
+	if q then q.activate(q) end
+	_G.ToggleQuestLog, _G.ToggleWorldMap, _G.InCombatLockdown, ns.Print = was.tql, was.twm, was.icl, was.pr
+	check(q and opened == 0, "a quest log row's fallback (party quests' and Questie's Shift+Enter in combat): not opened from here: " .. opened)
+end
+
 io.write("[panel tabs: group finder's browser and who listing]\n")
 do
 	local function row(k)
@@ -669,4 +742,140 @@ do
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	ns.providers.spells._dirty = true
 	SP.placeEvents.scripts.OnEvent(SP.placeEvents, "ACTIONBAR_SLOT_CHANGED")
+end
+
+io.write("[review 0.48.6: the lists]\n")
+do
+	local ns, check, ef = T.ns, T.check, T.ef
+	-- currencies under a folded header: opened for the read, folded back; the read's own events dropped, others not
+	local C = C_CurrencyInfo
+	local save = { size = C.GetCurrencyListSize, info = C.GetCurrencyListInfo, expand = C.ExpandCurrencyList }
+	local open, expands = false, 0
+	local function Rows()
+		local r = { { name = "Misc", isHeader = true, isHeaderExpanded = open } }
+		if open then r[2] = { name = "Badge", iconFileID = 1, quantity = 3, maxQuantity = 0 } end
+		r[#r + 1] = { name = "Gold Coin", iconFileID = 1, quantity = 2, maxQuantity = 0 }
+		return r
+	end
+	C.GetCurrencyListSize = function() return #Rows() end
+	C.GetCurrencyListInfo = function(i) return Rows()[i] end
+	C.ExpandCurrencyList = function(i, on) if i == 1 then open = on; expands = expands + 1 end end
+	local P = ns.providers.currency
+	P._dirty = true
+	local got = T.names(ns:GetEntries(P))
+	check(got["Badge"] and got["Gold Coin"] and not open and expands == 2, "a folded header's currencies listed, folded back: " .. expands)
+	ef.scripts.OnEvent(ef, "CURRENCY_DISPLAY_UPDATE")
+	T.FlushAll()
+	check(P._dirty == false, "the event the read fired itself: dropped")
+	open = true -- (nothing folded: the read opens nothing)
+	P._dirty = true
+	ns:GetEntries(P)
+	ef.scripts.OnEvent(ef, "CURRENCY_DISPLAY_UPDATE")
+	T.FlushAll()
+	check(P._dirty == true, "nothing opened by the read: a real change right after it still counts")
+	C.GetCurrencyListSize, C.GetCurrencyListInfo, C.ExpandCurrencyList = save.size, save.info, save.expand
+	P._dirty = true
+	-- a trade spell's window (Smelting) goes with its profession
+	local Pr = ns.Professions
+	local store = Pr.Store()
+	store["spell:Smelting"] = { name = "Smelting", spell = "Smelting", parent = "Mining", updated = 1,
+		list = { { id = 2657, name = "Smelt Copper", learned = true } } }
+	local saveGP, saveGPI = _G.GetProfessions, _G.GetProfessionInfo
+	_G.GetProfessions = function() return 1 end
+	_G.GetProfessionInfo = function() return "Mining", nil, 50, 75, 1, 10, 186 end
+	Pr.Prune()
+	local kept = store["spell:Smelting"] ~= nil
+	_G.GetProfessionInfo = function() return "Tailoring", nil, 50, 75, 1, 10, 197 end
+	Pr.Prune()
+	_G.GetProfessions, _G.GetProfessionInfo = saveGP, saveGPI
+	check(kept and store["spell:Smelting"] == nil, "a trade spell's index: kept with Mining, dropped without it")
+	store["spell:Smelting"] = nil
+	ns.providers.recipes._dirty = true
+	-- your items: rebuilt when you level (gear you can wear now), not on every quest-log tick
+	local ev = {}
+	for _, x in ipairs(ns.providers.items.events) do ev[x] = true end
+	check(ev.PLAYER_LEVEL_UP and not ev.QUEST_LOG_UPDATE and ev.QUEST_ACCEPTED and ev.BAG_UPDATE_DELAYED, "items: their events")
+	-- an addon on and not loaded says why (load on demand, a missing dependency); only a real change asks for a reload
+	local A = C_AddOns
+	local saveA = { n = A.GetNumAddOns, info = A.GetAddOnInfo, loaded = A.IsAddOnLoaded, state = A.GetAddOnEnableState, lod = A.IsAddOnLoadOnDemand }
+	local LIST = { { "ZzLod", true, "DEMAND_LOADED", false, true }, { "ZzDep", false, "DEP_MISSING", false, false },
+		{ "ZzNew", true, nil, false, false }, { "ZzOff", false, "DISABLED", true, false, 0 } }
+	_G.ADDON_DEMAND_LOADED, _G.ADDON_DEP_MISSING = "Load on Demand", "Dependency missing"
+	A.GetNumAddOns = function() return #LIST end
+	A.GetAddOnInfo = function(i) local a = LIST[i] return a[1], a[1], "", a[2], a[3] end
+	A.IsAddOnLoaded = function(name) for _, a in ipairs(LIST) do if a[1] == name then return a[4] end end end
+	A.GetAddOnEnableState = function(name) for _, a in ipairs(LIST) do if a[1] == name then return a[6] or 2 end end end
+	A.IsAddOnLoadOnDemand = function(name) for _, a in ipairs(LIST) do if a[1] == name then return a[5] end end end
+	ns.providers.addons._dirty = true
+	local ad = T.names(ns:GetEntries(ns.providers.addons))
+	local function D(n) return ad[n] and ad[n].detail or "?" end
+	check(D("ZzLod"):find("Load on Demand", 1, true) and not D("ZzLod"):find("reload", 1, true), "load on demand: says so, no reload: " .. D("ZzLod"))
+	check(D("ZzDep"):find("Dependency missing", 1, true) and not D("ZzDep"):find("reload", 1, true), "a missing dependency: says so: " .. D("ZzDep"))
+	check(D("ZzNew"):find(".reload", 1, true), "turned on, loads after a reload: says so: " .. D("ZzNew"))
+	check(D("ZzOff"):find(".reload", 1, true), "turned off, still loaded: a reload applies it: " .. D("ZzOff"))
+	A.GetNumAddOns, A.GetAddOnInfo, A.IsAddOnLoaded, A.GetAddOnEnableState, A.IsAddOnLoadOnDemand = saveA.n, saveA.info, saveA.loaded, saveA.state, saveA.lod
+	_G.ADDON_DEMAND_LOADED, _G.ADDON_DEP_MISSING = nil, nil
+	ns.providers.addons._dirty = true
+	-- a list watching ADDON_LOADED or PLAYER_LOGIN is told (those two returned before the watchers)
+	ns:RegisterProvider("zzwatch", { label = "Zz", aliases = { "zzwatch" }, explicit = true, events = { "ADDON_LOADED" }, collect = function() return {} end })
+	local W = ns.providers.zzwatch
+	ns:GetEntries(W)
+	W._collectedAt = -100
+	ef.scripts.OnEvent(ef, "ADDON_LOADED", "SomeOtherAddon")
+	check(W._dirty == true, "a list watching ADDON_LOADED: told")
+	ns.providers.zzwatch = nil
+	for i, x in ipairs(ns.providerOrder) do if x == "zzwatch" then table.remove(ns.providerOrder, i) break end end
+	ns:AliasesChanged()
+	-- .debug: the calls blocked once are listed, and .debug reset tries them again
+	ns.db.blockedCalls = { zzcall = true }
+	local brief = table.concat(ns.commands.debug.run(""), "\n")
+	local reset = ns.commands.debug.run("reset")[1]
+	check(brief:find("zzcall", 1, true) and reset:find("zzcall", 1, true) and next(ns.db.blockedCalls) == nil, ".debug lists the blocked calls; reset clears them: " .. reset)
+	-- a command registered over another (Terminal Extras' real ones over their stand-ins): its row runs the new one
+	local UI = T.UI
+	local d1, d2 = { desc = "one", run = function() return { "one" } end }, { desc = "two", run = function() return { "two" } end }
+	ns:RegisterCommand("zzcmd", d1)
+	local function Row() for _, e in ipairs(UI:CommandEntries()) do if e.name == "zzcmd" then return e end end end
+	local first = Row()
+	ns:RegisterCommand("zzcmd", d2)
+	check(first and first.cmd == d1 and Row().cmd == d2, "a command registered again: its row runs the new one")
+	ns.commands.zzcmd = nil
+	for i, x in ipairs(ns.commandOrder) do if x == "zzcmd" then table.remove(ns.commandOrder, i) break end end
+	ns.commandsGen = ns.commandsGen + 1
+	-- WoWamp's stand-in offers what it takes before the extras are loaded
+	local stub = ns.Extras and ns.Extras.stubs and ns.Extras.stubs.wowamp
+	check(stub and stub.complete and stub.complete("")[1][1] == "stop", "the radio's stand-in completes stop / next")
+	-- a costly list in use (warmDirty: @stored) is read again a moment after it changed, the terminal closed
+	local reads = 0
+	ns:RegisterProvider("zzwarm", { label = "Zz", aliases = { "zzwarm" }, explicit = true, events = { "BAG_UPDATE_DELAYED" }, warmDirty = 2,
+		collect = function() reads = reads + 1 return { { name = "Zz" } } end })
+	local Wm = ns.providers.zzwarm
+	ns:GetEntries(Wm)
+	Wm._collectedAt, Wm._usedAt = -100, 5
+	ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED")
+	T.FlushAll()
+	check(reads == 2 and Wm._dirty == false and Wm._usedAt == 5, "a costly list in use: read again in the background, its last use kept")
+	ns.providers.zzwarm = nil
+	for i, x in ipairs(ns.providerOrder) do if x == "zzwarm" then table.remove(ns.providerOrder, i) break end end
+	ns:AliasesChanged()
+	check(ns.providers.stored.warmDirty, "@stored is one")
+	-- a new drop in the loot log, mail kept on its way: their lists know they changed
+	local LL, MA = ns.LootLog, ns.Mail
+	if LL and ns.providers.lootlog then
+		ns.providers.lootlog._dirty = false
+		local logWas = ns.db.lootLog
+		ns.db.lootLog = {}
+		LL.Add("|cff0070dd|Hitem:4445::::::::20:::::|h[Zz Blue]|h|r", "Bob", 1, nil, "loot")
+		check(ns.providers.lootlog._dirty == true, "a drop logged: the loot log list changed")
+		ns.db.lootLog = logWas
+	end
+	if MA and ns.providers.mail then
+		ns.providers.mail._dirty = false
+		local sentWas, guid = ns.db.mailSent, _G.UnitGUID
+		_G.UnitGUID = function() return "Player-1-ZZZ" end
+		MA.KeepSent({ to = "Zz", at = 1, mail = { subject = "x" } })
+		_G.UnitGUID = guid
+		check(ns.providers.mail._dirty == true, "mail kept on its way: the mail list changed")
+		ns.db.mailSent = sentWas
+	end
 end

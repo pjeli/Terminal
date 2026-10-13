@@ -339,6 +339,12 @@ function I.PlaceFilter(place)
 	end
 end
 
+--- The places' in-town answers per NPC (PlaceFilter's) go when the NPC list is freed: one per NPC for each place used,
+--- kept all session before (and an answer from the explored map never looked at again).
+function I.ForgetPlaceNpcs()
+	for _, place in pairs(placeIndex and placeIndex.byName or {}) do place.npcs = nil end
+end
+
 I.ResetPlacesForTests = function()
 	placeIndex, centres, textTowns, townsBuilding = nil, {}, nil, nil
 	ResetDistances() -- (Distances.lua: the map transforms and the NPCs' spots)

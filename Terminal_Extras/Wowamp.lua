@@ -10,8 +10,8 @@ local L = ns.L
 -- How it plays (as Leatrix Plus's music player does): PlaySoundFile(fileID, "Master", false, true) gives a
 -- handle, StopSound(handle) stops it; a played file sends no "finished" event, so each track's length is known
 -- (the data below, from Leatrix Plus's music list) and the next one is started on a timer. While it plays, the
--- zone music is switched off (it would play over the radio) and switched back on when the radio stops, after
--- a /reload too. The radio keeps playing with the window closed (.wowamp stop, or P in the window, stops it).
+-- zone music is switched off (it would play over the radio) and switched back on when the radio stops (after
+-- a /reload too: Apps/Extras.lua, always loaded, does that). The radio keeps playing with the window closed (.wowamp stop, or P in the window, stops it).
 --
 -- The visualizer is made up (the game gives addons no audio to measure): bars driven by each station's tempo,
 -- colours and feel (Moonwell's lo-fi low and smooth, WAR Radio's tall and punchy...), in one of cliamp-like
@@ -239,10 +239,9 @@ function W.Find(text)
 	end
 end
 
--- after a /reload or a login the radio isn't playing any more: the zone music comes back if it was switched off
-local login = CreateFrame("Frame")
-login:RegisterEvent("PLAYER_LOGIN")
-login:SetScript("OnEvent", function() if not state.playing then ZoneMusicBack() end end)
+-- (after a /reload or a login the zone music comes back if the radio had switched it off: Apps/Extras.lua does that,
+-- these files load on demand, after the login; review, 0.48.6: a login frame here never fired)
+function W.Playing() return state.playing and true or false end
 
 ----------------------------------------------------------------------
 -- The window
@@ -697,7 +696,7 @@ local function Build()
 	tipText:SetText(L["Tip: turn on Sound in Background (Options > Audio) and the radio keeps playing while you're tabbed out."])
 	tipText:Hide()
 	footer:SetText(table.concat({ L["Up/Down + Enter tune in"], L["N next"], L["B back"], L["P play/stop"], L["S shuffle"], L["V style"],
-		L["Esc close (plays on)"] }, " · "))
+		L["Esc or ` close (it plays on)"] }, " · "))
 	W.frame = frame
 end
 

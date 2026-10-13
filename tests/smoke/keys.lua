@@ -295,3 +295,26 @@ do -- right-click in fuzzy finding: its first lines do what its Enter and Shift+
 	UI:Hide(); T.FlushAll()
 	ns.db.easyMode = was; UI:EasyChanged()
 end
+
+io.write("[review 0.48.6: the keys window in a fight]\n")
+do
+	local S = ns.Secure
+	local was = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	local icl, fighting = _G.InCombatLockdown, false
+	_G.InCombatLockdown = function() return fighting end
+	UI:Open("hearth"); T.FlushAll()
+	K.flipAt = nil
+	key("F1")
+	check(K.IsShown() and not UI:IsShown(), "(F1 opened the keys window)")
+	fighting = true
+	K.frame.scripts.OnEvent(K.frame, "PLAYER_REGEN_DISABLED")
+	S.OnCombat()
+	fighting = false
+	S.OnRegen()
+	T.FlushAll()
+	check(not K.IsShown() and UI:IsShown() and query() == "hearth", "F1 open as a fight started: the search back at its end: " .. query())
+	_G.InCombatLockdown = icl
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = was; UI:EasyChanged()
+end

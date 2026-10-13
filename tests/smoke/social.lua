@@ -365,6 +365,7 @@ do
 end
 
 io.write("[who]\n")
+local function SO_WAIT() return ns.Social.WHO_WAIT end
 do
 	local save = { fl = _G.C_FriendList, easy = ns.db.easyMode }
 	local RESULTS = {}
@@ -390,6 +391,9 @@ do
 	local m = ask and S.Resolve(ask.secure, ask)
 	check(m and m.macro:find('SendWho("priest undercity",1)', 1, true) and loadstring(m.macro:match("^/run (.*)$")), "the game runs SendWho: " .. tostring(m and m.macro))
 	-- pressed: the terminal stays, the ring says it's asking
+	-- (the answer comes first here: the wait's end is kept aside, FlushAll would run it)
+	local afterWas, later = C_Timer.After, {}
+	C_Timer.After = function(d, f) if (d or 0) >= SO_WAIT() then later[#later + 1] = f else afterWas(d, f) end end
 	S.armed = "MACRO"; UI.armedEntry = ask
 	UI:FinishSecure()
 	FlushAll()
@@ -400,9 +404,23 @@ do
 	RESULTS[2] = { fullName = "Grim-Realm", level = 40, raceStr = "Orc", classStr = "Warrior", area = "Orgrimmar", filename = "WARRIOR" }
 	toUi = true
 	ns.Social.who.asked = nil -- (the mock's answer isn't what was asked: searched by its own words here)
+	ns.Social.whoFrame.scripts.OnEvent(ns.Social.whoFrame, "WHO_LIST_UPDATE") -- (the answer: the wait ends at once)
 	ns.providers.who._dirty = true
 	local rows = ns:GetEntries(ns.providers.who)
 	check(#rows == 2 and toUi == false and not ns.providers.who.busy(ns.providers.who), "answer in: two rows, chat gets /who again, done waiting")
+	-- (review, 0.48.6) no answer: the wait ends after SO.WHO_WAIT and who-to-UI goes back off all the same (the busy check
+	-- that ended it used to leave it on for the session)
+	toUi = true
+	later = {}
+	S.armed = "MACRO"; UI.armedEntry = ask
+	UI:FinishSecure()
+	FlushAll()
+	check(ns.providers.who.busy(ns.providers.who) ~= nil and toUi == true and #later == 1, "asked again: waiting")
+	later[1]()
+	C_Timer.After = afterWas
+	check(toUi == false and not ns.providers.who.busy(ns.providers.who), "no answer in 5 s: done waiting, chat gets /who again")
+	ns.Social.who.asked = nil
+	ns.providers.who._dirty = true
 	local res = UI:Search("@who priest")
 	check(res[1] and res[1].whoFilter and res[2] and res[2].name:find("^Sana") and not res[3], "the answer searched: " .. tostring(res[2] and res[2].name))
 	check(res[2] and res[2].detail:find("Night Watch", 1, true) and res[2].activate == ns.Social.Whisper, "guild shown, whisper ready")

@@ -118,6 +118,7 @@ local function Widened(spec, read)
 	end
 	local ok, out = pcall(read)
 	for i = #undo, 1, -1 do undo[i]() end
+	if #undo > 0 then ns.firedOwn = true end -- (the journal's own events come from this: Core drops them, and only then)
 	if #undo > 0 then ns:Trace(("collections: %d journal filters opened for the read and put back"):format(#undo)) end
 	return ok and out or {}
 end
@@ -153,7 +154,7 @@ local function ToyDetail(t)
 		local left = start + duration - GetTime()
 		if left > 0 then parts[#parts + 1] = L["ready in %s"]:format(Left(left)) end
 	end
-	return table.concat(parts, "  ")
+	return table.concat(parts, ns.DETAIL_SEP)
 end
 
 local function ReadToys()
@@ -245,7 +246,7 @@ local function PetDetail(t)
 	if rawget(t, "fav") then parts[#parts + 1] = L["Favorite"] end
 	local out = C_PetJournal.GetSummonedPetGUID and Safe(C_PetJournal.GetSummonedPetGUID)
 	if out and out == rawget(t, "key") then parts[#parts + 1] = L["out now (Enter puts it away)"] end
-	return table.concat(parts, "  ")
+	return table.concat(parts, ns.DETAIL_SEP)
 end
 
 local function PetRow(out, guid, species, custom, level, fav, icon)

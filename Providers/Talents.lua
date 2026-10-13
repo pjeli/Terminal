@@ -126,6 +126,7 @@ end
 
 -- Direct opener: only used when neither the keybinding nor a micro button is available.
 local function OpenFallback(e)
+	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
 	ns:Trace("DIRECT talent window open (addon code, may be blocked)")
 	ns.LoadBlizz("Blizzard_PlayerSpells")
 	if PlayerSpellsUtil and PlayerSpellsUtil.OpenToClassTalentsTab then
@@ -339,7 +340,7 @@ local OTHER_LAZY = {
 	end,
 	detail = function(t)
 		local tab, ranks = OtherTab(t), rawget(t, "_r")[6] or 1
-		return t.classShown .. "  " .. (tab and (tab .. "  ") or "") .. (ranks == 1 and L["%d rank"] or L["%d ranks"]):format(ranks)
+		return ns.Detail(t.classShown, tab, (ranks == 1 and L["%d rank"] or L["%d ranks"]):format(ranks))
 	end,
 }
 local function OtherMeta(file, cname, shown)
@@ -374,8 +375,7 @@ ns:RegisterProvider("talents", {
 					name = n.name,
 					color = (not taken) and "|cffa0a0a0" or nil,
 					icon = n.icon,
-					detail = ((tab and tab ~= "") and (tab .. "  ") or "") .. (taken and TAKEN or NOT_TAKEN)
-						.. " " .. rank .. "/" .. n.maxRanks,
+					detail = ns.Detail(tab, (taken and TAKEN or NOT_TAKEN) .. " " .. rank .. "/" .. n.maxRanks),
 					text = (tab or "") .. " " .. (myName or "") .. " talent",
 					getLink = TalentLink, -- (made when selected, not per talent on every rebuild)
 					nodeID = n.nodeID,

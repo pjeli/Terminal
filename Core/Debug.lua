@@ -230,6 +230,14 @@ end
 
 --- The whole log as one text for the copy window: where it ran, every recorded event,
 --- then the latest trace lines.
+--- The calls the game blocked once and Terminal no longer tries (ns.Guarded), sorted: { "abandonquest", ... }.
+function D.BlockedCalls()
+	local out = {}
+	for k, v in pairs(ns.db and ns.db.blockedCalls or {}) do if v then out[#out + 1] = tostring(k) end end
+	table.sort(out)
+	return out
+end
+
 function D.Report()
 	local lines = {}
 	local ver = ns.version or "?"
@@ -241,6 +249,8 @@ function D.Report()
 	lines[1] = ("Terminal %s, game %s (build %s), debug %s, taintLog %s"):format(
 		tostring(ver), gv, gb, Live() and "ON" or "off", tostring(Cvar("taintLog")))
 	lines[2] = ""
+	local calls = D.BlockedCalls()
+	if #calls > 0 then lines[#lines + 1] = "Calls not tried again (blocked once): " .. table.concat(calls, ", "); lines[#lines + 1] = "" end
 	for _, l in ipairs(D.Log(EVENT_MAX)) do lines[#lines + 1] = l end
 	if #trace > 0 then
 		lines[#lines + 1] = "Terminal trace (latest last):"
@@ -254,7 +264,7 @@ function D.Report()
 end
 
 ns:RegisterCommand("debug", {
-	desc = L["Why 'Interface action failed because of an AddOn' happens (on | off | log | clear)"],
+	desc = L["Why 'Interface action failed because of an AddOn' happens (on | off | log | clear | reset)"],
 	aliases = { "taintdebug", "taint" },
 	complete = function()
 		return {
@@ -262,6 +272,7 @@ ns:RegisterCommand("debug", {
 			{ "on", L["print every blocked action and step live"] },
 			{ "off", L["stop printing them"] },
 			{ "clear", L["forget what was recorded"] },
+			{ "reset", L["try again the calls the game blocked once"] },
 		}
 	end,
 	run = function(args)
@@ -282,6 +293,12 @@ ns:RegisterCommand("debug", {
 			for i = #events, 1, -1 do events[i] = nil end
 			for i = #trace, 1, -1 do trace[i] = nil end
 			out = { L["Cleared."] }
+		elseif arg == "reset" then
+			-- (a call blocked once, outside combat, is never tried again on any character: a passing restriction kept it
+			-- off for good; review, 0.48.6)
+			local calls = D.BlockedCalls()
+			if ns.db then ns.db.blockedCalls = {} end
+			out = { #calls > 0 and L["Terminal will try these again: %s"]:format(table.concat(calls, ", ")) or L["No call was blocked."] }
 		elseif arg == "log" then
 			-- a real text box: select all is done, Ctrl+C copies it out of the game
 			if ns.ShowText then
@@ -291,11 +308,13 @@ ns:RegisterCommand("debug", {
 				out = D.Report()
 			end
 		elseif arg == "" then
-			out = { L["Debug is %s  (taintLog %s)  -  .debug on | off | log | clear"]:format(Live() and L["ON"] or L["off"], tostring(Cvar("taintLog"))),
+			out = { L["Debug is %s  (taintLog %s)  -  .debug on | off | log | clear | reset"]:format(Live() and L["ON"] or L["off"], tostring(Cvar("taintLog"))),
 				L["Blocked actions this session: %d by Terminal, %d by other addons"]:format(D.count, D.others) }
+			local calls = D.BlockedCalls()
+			if #calls > 0 then out[#out + 1] = L["Not tried again since the game blocked them: %s (.debug reset tries them again)"]:format(table.concat(calls, ", ")) end
 			for _, l in ipairs(D.Log(3)) do out[#out + 1] = l end
 		else
-			out = { L["Usage: .debug on | off | log | clear"] }
+			out = { L["Usage: .debug on | off | log | clear | reset"] }
 		end
 		return out
 	end,

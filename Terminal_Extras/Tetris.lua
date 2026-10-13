@@ -246,8 +246,10 @@ function TT.GhostY()
 	return y
 end
 
+TT.OVER_WAIT = 0.5 -- (s: Enter on the game-over screen starts again only after this, and only a fresh press)
+
 function TT.GameOver()
-	game.over = true
+	game.over, game.overAt = true, GetTime()
 	game.dirty = true
 	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
 	if ns.db and game.score > (ns.db.tetrisBest or 0) then
@@ -392,7 +394,7 @@ local function DrawSide()
 	levelText:SetText(L["level %d"]:format(game.level))
 	if game.over then
 		overlay:SetText(game.newBest and L["new best!"] or L["game over"])
-		overlaySub:SetText(L["score %d"]:format(game.score) .. "\n" .. L["Enter: again"] .. "  ·  " .. L["Esc: quit"])
+		overlaySub:SetText(L["score %d"]:format(game.score) .. "\n" .. Panel.AGAIN .. "  ·  " .. Panel.QUIT)
 		overlay:Show(); overlaySub:Show()
 	else
 		overlay:Hide(); overlaySub:Hide()
@@ -451,7 +453,7 @@ local function Build()
 	overlaySub:SetPoint("TOP", overlay, "BOTTOM", 0, -6)
 	overlaySub:SetWordWrap(true)
 	overlaySub:SetWidth(COLS * CELL - 8)
-	footer = Panel.Footer(frame, 9, L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. L["Esc quit"])
+	footer = Panel.Footer(frame, 9, L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. Panel.QUIT)
 	TT.frame = frame
 end
 
@@ -474,7 +476,10 @@ function TT.KeyDown(self, key)
 	if key == "ESCAPE" or key == "`" then
 		TT.Close()
 	elseif game.over then
-		if action == "drop" then TT.Reset(); TT.Draw() else mine = action ~= nil end
+		-- (not the Enter that dropped the last piece, held or repeated by the game: the "game over / new best!" screen
+		-- was skipped; as .typing's and the drop dialog's waits; review, 0.48.6)
+		if action == "drop" and not game.keys[key] and GetTime() - (game.overAt or 0) >= TT.OVER_WAIT then TT.Reset(); TT.Draw()
+		else mine = action ~= nil end
 	elseif action then
 		if game.keys[key] then
 			-- (the game's own repeat of a key already held)

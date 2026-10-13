@@ -82,8 +82,13 @@ do
 	check(res[4].detail:find("missing Light Leather", 1, true), "none: what's missing (not the vendor's thread): " .. tostring(res[4].detail))
 	check(res[5].detail:find("vendor materials only", 1, true), "vendor materials only: " .. tostring(res[5].detail))
 	-- the footer: best chance first while the materials last (4 belts: 54; with alts 6 belts and 2 gizmos at 0.75: ~58)
-	check(UI.answerNote == "Plan: about +4 Blacksmithing (50 to 54) from bags and bank, +8 with your alts' materials",
-		"the skill they'd give: " .. tostring(UI.answerNote))
+	check(UI.answerNote == "Plan: about +4 Blacksmithing (50 to 54) from bags and bank, +8 with your alts' materials  ·  "
+		.. "rough: some recipes' skill levels aren't known", "the skill they'd give (the Gizmo's levels unknown: rough): " .. tostring(UI.answerNote))
+	-- (review, 0.48.6) a recipe with no levels known is counted a few points at most, not up to the cap
+	local reach, atCap, rough = PL.Simulate({ { e = { recipeID = 900003, difficulty = D.orange }, mats = { { 2840, 1 } }, use = 1 } },
+		{ [2840] = 100 }, 50, 75)
+	check(math.abs(reach - (50 + PL.UNKNOWN_POINTS)) < 1e-9 and not atCap and rough,
+		"no levels, materials for 100: about +" .. PL.UNKNOWN_POINTS .. ", rough: " .. tostring(reach))
 	check(#UI:Search("sort:plan") == 5, "sort:plan alone plans your recipes")
 	check(#UI:Search("@recipe sort:plan mace") == 1, "words narrow it")
 

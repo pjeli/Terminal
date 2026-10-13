@@ -167,7 +167,7 @@ local function Row(key, c, mine, myRealm, now)
 	}
 	local d = { Summary(e, false, true) }
 	if mine then d[#d + 1] = "|cff9d9d9d" .. L["(you)"] .. "|r" else d[#d + 1] = "|cff9d9d9d" .. Ago(c.t) .. "|r" end
-	e.detail = table.concat(d, "  ")
+	e.detail = table.concat(d, ns.DETAIL_SEP)
 	return e
 end
 

@@ -150,7 +150,7 @@ function S.Draw()
 	bestText:SetText(L["best %d"]:format(math.max(ns.db and ns.db.snakeBest or 0, game.score)))
 	if game.over then
 		overlay:SetText(game.won and L["you filled the board!"] or (game.newBest and L["new best!"] or L["game over"]))
-		overlaySub:SetText(L["score %d"]:format(game.score) .. "  ·  " .. L["Enter to play again"] .. "  ·  " .. L["Esc to quit"])
+		overlaySub:SetText(L["score %d"]:format(game.score) .. "  ·  " .. Panel.AGAIN .. "  ·  " .. Panel.QUIT)
 		overlay:Show(); overlaySub:Show()
 	else
 		overlay:Hide(); overlaySub:Hide()
@@ -183,7 +183,7 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 10)
 	overlaySub = Text(board, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -12)
-	footer = Panel.Footer(frame, 9, L["WASD or arrows steer"] .. "  ·  " .. L["Esc or ` quit"])
+	footer = Panel.Footer(frame, 9, L["WASD or arrows steer"] .. "  ·  " .. Panel.QUIT)
 	S.frame = frame
 end
 

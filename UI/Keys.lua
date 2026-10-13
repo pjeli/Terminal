@@ -215,6 +215,14 @@ local function KeysDown(self, key)
 		return
 	end
 	if key == "ENTER" or key == "NUMPADENTER" then
+		-- (">>> say": the one line the game presses holds every result, so a search still going is finished first, as
+		-- ">>> party" and the menu's "All N" lines do; review, 0.48.6: only the first frame's rows went)
+		local to = UI.sendTo
+		if to and to.all and to.cmd and ns.Share.Restricted(to) and not UI:FinishSearch(UI.SEND_FINISH_MS) then
+			self:SetPropagateKeyboardInput(false)
+			ns:Print(UI.STILL_SEARCHING)
+			return
+		end
 		local se = SecureView(UI.results[UI.sel], shift)
 		UI.holdOpen = UI.HoldFor(se, ctrl) -- (Ctrl+Enter: stays open after a press that opens no window)
 		if se and UI:ArmForPress(se) then
@@ -411,7 +419,9 @@ do
 			TabKey(shift)
 		elseif ListKey(key, ctrl) then
 			return
-		elseif ctrl then
+		elseif ctrl or (IsMetaKeyDown and IsMetaKeyDown()) then
+			-- (a Mac's Cmd is Ctrl here: Cmd+A, Cmd+C, Cmd+V; review, 0.48.6: Cmd+V as the first key typed a stray "v" and,
+			-- no typed character following it, switched to the plain text box for the session)
 			if key == "A" then
 				UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
 			elseif key == "V" or key == "C" then
