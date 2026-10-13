@@ -514,9 +514,11 @@ function UI:SetOrResearch(text)
 	if edit:GetText() == text then self:Research() else self:SetQuery(text, #text) end
 end
 
---- Pick a category ("bags", "emotes"...; nil: none, back to the categories): the results are searched again.
+--- Pick a category ("items", "emotes"...; nil: none, back to the categories): the results are searched again. An id
+--- a category took over ("bags", "game": Easy.lua's `was`) picks that category.
 function UI:SetCategory(id)
 	if id ~= nil and not (ns.Easy and ns.Easy.BY_ID[id]) then return end
+	if id ~= nil then id = ns.Easy.BY_ID[id].id end
 	self.category, self.categoryAuto = id, nil
 	self.lastScan, self.lastOverview = nil, nil -- (other kinds: not a narrowing of the last search)
 	if self:IsShown() then self:Research() end

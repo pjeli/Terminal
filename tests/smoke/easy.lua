@@ -146,8 +146,8 @@ Run("typing lists the categories that have it", function()
 	for _, e in ipairs(res) do cats[#cats + 1] = tostring(e.catId) end
 	local joined = table.concat(cats, ",")
 	check(res[1] and res[1].catId, "one row per category: " .. Show(res))
-	check(joined:find("bags", 1, true) and joined:find("quests", 1, true) and joined:find("npcs", 1, true) and joined:find("loot", 1, true)
-		and joined:find("game", 1, true) and joined:find("slash", 1, true), "every category with a sword: " .. joined)
+	check(joined:find("items", 1, true) and joined:find("quests", 1, true) and joined:find("npcs", 1, true) and joined:find("loot", 1, true)
+		and joined:find("settings", 1, true) and joined:find("commands", 1, true), "every category with a sword: " .. joined)
 	check(not joined:find("emotes", 1, true), "no emote has sword: no Emotes row")
 	local npcs
 	for _, e in ipairs(res) do if e.catId == "npcs" then npcs = e end end
@@ -157,12 +157,12 @@ Run("typing lists the categories that have it", function()
 	check(h:find("look in", 1, true) and h:find("pick", 1, true), "Enter: look in it; Tab picks: " .. h)
 	-- Enter on a category row picks it, keeps the words, the terminal stays open
 	local at
-	for i, e in ipairs(res) do if e.catId == "bags" then at = i end end
+	for i, e in ipairs(res) do if e.catId == "items" then at = i end end
 	UI:Activate(at)
-	check(UI:IsShown() and UI.category == "bags" and UI.edit:GetText() == "sword", "Enter picks Bags, the words stay")
+	check(UI:IsShown() and UI.category == "items" and UI.edit:GetText() == "sword", "Enter picks Items, the words stay")
 	res = UI.Results()
-	check(res[1] and Kinds(res).items and not Kinds(res).loot and not Kinds(res).category, "Bags: only what's in your bags, no AtlasLoot: " .. Show(res))
-	check((UI.status:GetText() or ""):find("Bags", 1, true), "the footer names the category: " .. tostring(UI.status:GetText()))
+	check(res[1] and Kinds(res).items and not Kinds(res).loot and not Kinds(res).category, "Items: only your own, no AtlasLoot: " .. Show(res))
+	check((UI.status:GetText() or ""):find("Items", 1, true), "the footer names the category: " .. tostring(UI.status:GetText()))
 	check((UI.hints:GetText() or ""):find("Shift+Left|r all categories", 1, true), "Shift+Left (or Tab): back to all categories: " .. tostring(UI.hints:GetText()))
 	-- (0.45.17) Shift+Left, the back key: back to all categories, as Tab
 	local s4 = _G.IsShiftKeyDown
@@ -172,16 +172,16 @@ Run("typing lists the categories that have it", function()
 	UI.frame.scripts.OnKeyUp(UI.frame, "LEFT")
 	check(UI.category == nil and UI.Results()[1] and UI.Results()[1].catId and UI.edit:GetText() == "sword", "Shift+Left in a category: back to all of them")
 	UI:Activate(at)
-	check(UI.category == "bags", "(picked again)")
+	check(UI.category == "items", "(picked again)")
 	-- (0.45.20) Tab, one rule in every mode: in a category it goes down the list (back is Shift+Left's), Shift+Tab up;
 	-- Tab on a category row picks it
 	local nIn = #UI.Results()
 	key("TAB")
-	check(UI.category == "bags" and nIn >= 2 and UI.Selected() == 2, "Tab in a category: the next result, the category kept: " .. tostring(UI.category) .. " " .. UI.Selected())
+	check(UI.category == "items" and nIn >= 2 and UI.Selected() == 2, "Tab in a category: the next result, the category kept: " .. tostring(UI.category) .. " " .. UI.Selected())
 	_G.IsShiftKeyDown = function() return true end
 	key("TAB")
 	_G.IsShiftKeyDown = s4
-	check(UI.category == "bags" and UI.Selected() == 1, "Shift+Tab: the previous one")
+	check(UI.category == "items" and UI.Selected() == 1, "Shift+Tab: the previous one")
 	UI:SetCategory(nil)
 	check(UI.category == nil and UI.Results()[1].catId, "(the categories again)")
 	key("TAB")
@@ -210,28 +210,111 @@ Run("typing lists the categories that have it", function()
 	t.width = saveW
 end)
 
-Run("every list is in a category: emotes, slash commands, console settings", function()
+Run("every list is in a category: emotes, commands, settings", function()
 	E.Set(true)
 	Lists()
 	UI:Open("dance")
 	local res = UI.Results()
-	check(res[1] and res[1].catId == "emotes" and res[1].detail:find("/dance", 1, true), "dance: Emotes, /dance: " .. Show(res))
+	-- (0.48.4: named exactly what was typed, it's the clear winner, above the categories)
+	check(res[1] and res[1].name == "/dance" and UI.overviewWinner == res[1] and res[2] and res[2].catId == "emotes"
+		and res[2].detail:find("/dance", 1, true), "dance: /dance itself on top, then Emotes: " .. Show(res))
 	res = In("emotes", "dance")
 	check(#res == 1 and res[1].name == "/dance" and res[1].emote, "in Emotes: /dance: " .. Show(res))
 	local h = UI.hints:GetText() or ""
 	check(h:find("do it", 1, true), "Enter: do it: " .. h)
-	res = In("slash", "reload")
-	check(#res == 1 and res[1].name == "/reload", "Slash commands: /reload, no emotes: " .. Show(res))
+	res = In("commands", "reload")
+	check(#res == 1 and res[1].name == "/reload", "Commands: /reload, no emotes: " .. Show(res))
 	UI:Open("camera zoom")
 	res = UI.Results()
-	check(res[1] and res[1].name == "cameraDistanceMaxZoomFactor" and UI.category == "console" and UI.categoryAuto,
-		"camera zoom: only Console settings has it: straight to the setting: " .. Show(res))
+	check(res[1] and res[1].name == "cameraDistanceMaxZoomFactor" and UI.category == "settings" and UI.categoryAuto,
+		"camera zoom: only Settings has it: straight to the setting: " .. Show(res))
 	res = In("npcs", "sword")
 	check(#res == 4 and Kinds(res).npc and not Kinds(res).items, "NPCs: every matching NPC, nothing else: " .. Show(res))
-	res = In("game", "sword")
-	check(Has(res, "Sheathe Sword"), "Game: the keybinding: " .. Show(res))
+	res = In("settings", "sword")
+	check(Has(res, "Sheathe Sword"), "Settings: the keybinding: " .. Show(res))
+	-- (a category's old id picks the one that took it over: a pick kept from before, another addon's simpleCategory)
+	for old, now in pairs({ game = "settings", console = "settings", bags = "items", alts = "items", slash = "commands",
+		lootlog = "recent", combat = "recent" }) do
+		check(E.BY_ID[old] and E.BY_ID[old].id == now, old .. " is " .. now .. " now")
+	end
+	UI:SetCategory(nil); UI:SetCategory("game")
+	check(UI.category == "settings" and Has(UI.Results(), "Sheathe Sword"), "picking an old id picks its new category: " .. tostring(UI.category))
 	res = In("quests", "sword")
 	check(Has(res, "The Sword of Kings") and Has(res, "Sword Practice") and not Kinds(res).items, "Quests: yours and Questie's: " .. Show(res))
+end)
+
+Run("category rows say what they hold; a clear winner goes on top (0.48.4)", function()
+	E.Set(true)
+	Lists()
+	ns:RegisterProvider("toys", { label = "Toy", aliases = { "toy" }, collect = Rows({ { name = "Sword Dummy Toy" },
+		{ name = "Shiny Sword" }, { name = "Old Map" }, { name = "Old Map" }, { name = "Old Map" }, { name = "Gold Map" },
+		{ name = "Gold Map" }, { name = "The Old Lantern" } }) })
+	ns:RegisterProvider("gameoptions", { label = "Game option", aliases = { "option" }, collect = Rows({ { name = "Old Map Fading" },
+		{ name = "Gold Map Shade" }, { name = "Old Lantern Glow" } }) })
+	local t = ns.Theme.Get()
+	local saveW = t.width
+	t.width = 1100
+	UI:Open("sword")
+	local res = UI.Results()
+	local function Row(id) for _, e in ipairs(res) do if e.catId == id then return e end end end
+	local set, q, npcs = Row("settings"), Row("quests"), Row("npcs")
+	check(set and set.labelNote and set.labelNote:find("Keybinding", 1, true) and not set.labelNote:find("Game option", 1, true),
+		"Settings: which of its lists had the words (the keybinding, not the game options): " .. tostring(set and set.labelNote))
+	check(q and q.labelNote and q.labelNote:find("Quest", 1, true) and q.labelNote:find("Questie", 1, true),
+		"Quests: both lists had them: " .. tostring(q and q.labelNote))
+	check(npcs and npcs.labelNote == nil, "a category of one list: nothing to say")
+	local drawn
+	for i = 1, #UI.rows do
+		local r = UI.rows[i]
+		local txt = r:IsShown() and r.label:GetText() or ""
+		if txt:find("Keybinding", 1, true) then drawn = txt end
+	end
+	check(drawn and drawn:find("Settings", 1, true), "drawn after the category's name: " .. tostring(drawn))
+	check(UI.overviewWinner == nil and res[1].catId, "nothing is named \"sword\": no winner")
+	-- the only NPC named that (Questie's name index), another category having the words too
+	UI:SetQuery("sword dummy")
+	res = UI.Results()
+	check(res[1] and res[1].name == "Sword Dummy" and res[1].kind == "npc" and res[2] and res[2].catId and UI.overviewWinner == res[1],
+		"the NPC named exactly that, on top of the categories: " .. Show(res))
+	check((UI.status:GetText() or ""):find("best match first", 1, true), "the footer says so: " .. tostring(UI.status:GetText()))
+	-- named that in two categories: the categories tell them apart
+	UI:SetQuery("shiny sword")
+	res = UI.Results()
+	check(res[1] and res[1].catId and UI.overviewWinner == nil, "Shiny Sword in Items and in Collections: no winner: " .. Show(res))
+	-- two named that in one category: one thing (the first); three: no clear winner
+	UI:SetQuery("gold map")
+	res = UI.Results()
+	check(res[1] and res[1].name == "Gold Map" and res[2] and res[2].catId, "two Gold Maps, one category: the winner: " .. Show(res))
+	UI:SetQuery("old map")
+	res = UI.Results()
+	check(res[1] and res[1].catId and UI.overviewWinner == nil, "three Old Maps: the category to pick: " .. Show(res))
+	-- a leading "the" isn't needed (nor a command's "/": /dance above)
+	UI:SetQuery("old lantern")
+	res = UI.Results()
+	check(res[1] and res[1].name == "The Old Lantern" and UI.overviewWinner == res[1], "\"old lantern\": The Old Lantern: " .. Show(res))
+	UI:SetQuery("lantern")
+	check(UI.overviewWinner == nil, "only part of its name: no winner")
+	-- one category only: opened for you, as before (no winner row then)
+	UI:SetQuery("sheathe sword")
+	check(UI.category == "settings" and UI.categoryAuto and UI.overviewWinner == nil, "one category: straight to it")
+	t.width = saveW
+end)
+
+Run("each list's category, by what you'd do with it (0.48.4)", function()
+	-- (the addon's own lists, as loaded: Run gives them back after each block)
+	local WANT = { items = "items", stored = "items", mail = "character", gold = "character", panels = "windows",
+		gameoptions = "settings", keybinds = "settings", cvars = "settings", addons = "settings", terminal = "settings",
+		macros = "commands", lootlog = "recent", combatlog = "recent", loot = "loot" }
+	local checked = 0
+	for kind, cat in pairs(WANT) do
+		if ns.providers[kind] then
+			checked = checked + 1
+			check(E.CategoryOf({ kind = kind }) == cat, kind .. " is in " .. cat .. ": " .. tostring((E.CategoryOf({ kind = kind }))))
+		end
+	end
+	check(checked >= 10, "(most of them loaded here: " .. checked .. ")")
+	check(E.CategoryOf({ kind = "slash", emote = "DANCE" }) == "emotes" and E.CategoryOf({ kind = "slash" }) == "commands",
+		"slash rows: an emote in Emotes, the rest in Commands")
 end)
 
 Run("everyday words", function()
@@ -516,7 +599,9 @@ Run("rotating examples in the empty prompt", function()
 	UI:Hide(); FlushAll()
 	UI:Open("")
 	local b = E.Example()
-	check(a ~= b and a:find("try:", 1, true) and b:find("try:", 1, true), "a different example each open: " .. tostring(a) .. " / " .. tostring(b))
+	-- (the pool has tips too: "tip: F1 shows every key")
+	local function Ex(x) return type(x) == "string" and (x:find("^try:") or x:find("^tip:")) end
+	check(a ~= b and Ex(a) and Ex(b), "a different example each open: " .. tostring(a) .. " / " .. tostring(b))
 	-- Advanced: its own examples (@kinds, filters, >> chat), shown faintly in the empty prompt
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI:Hide(); FlushAll()

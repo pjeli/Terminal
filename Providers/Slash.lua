@@ -38,7 +38,7 @@ local function RunEntry(e, args) RunSlash(Line(e, args)) end
 -- /console's fallback never types into the chat box: a protected setting would be refused as Terminal's
 local function ConsoleDirect(e, args)
 	if not args or args:match("^%s*$") then
-		ns:Print(L["Usage: /console <setting> <value> %s"]:format(ns.Said(L["(find settings by name: Console settings)"], L["(find settings with @cvar)"])))
+		ns:Print(L["Usage: /console <setting> <value> %s"]:format(ns.Said(L["(find settings by name: Settings)"], L["(find settings with @cvar)"])))
 		return
 	end
 	ns:Print(L["Couldn't hand /console to the game (in combat?). Try again out of combat."])

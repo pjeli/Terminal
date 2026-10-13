@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Your mail (@mail, @inbox; Simple mode: "my mail", "mail running out", "cod mail", under Alts, bank & mail): what's in
+-- Your mail (@mail, @inbox; Simple mode: "my mail", "mail running out", "cod mail", under Character): what's in
 -- each of your characters' mailboxes, kept by Terminal itself every time a mailbox shows (no bag addon needed): who
 -- sent each mail, its gold, its COD, what's attached, and when it runs out. Running out means deleted (with what's in
 -- it: the auction house's gold, the game's own mail) or sent back to whoever sent it (a player's mail); the inbox says

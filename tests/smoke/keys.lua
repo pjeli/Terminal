@@ -135,7 +135,7 @@ do -- the mode of this run comes back: Alt+`'s Advanced, fuzzy finding, Simple m
 	key("F1")
 	check(K.IsShown() and K.Mode() == "simple", "Simple mode: its tab")
 	WKey("ESCAPE"); T.FlushAll()
-	check(UI:IsShown() and UI.category == "bags" and not UI.categoryAuto and query() == "hearth", "back in the category picked (not just opened for you): " .. tostring(UI.category))
+	check(UI:IsShown() and UI.category == "items" and not UI.categoryAuto and query() == "hearth", "back in the category picked (not just opened for you): " .. tostring(UI.category))
 	UI:Hide(); T.FlushAll()
 	ns.db.easyMode = was; UI:EasyChanged()
 end

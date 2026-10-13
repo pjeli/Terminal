@@ -656,6 +656,7 @@ function Scan.ResetFlags(self)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
 	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
 	self.missingNote = nil -- (recipes you don't know listed, a profession's window not read yet: MissingRecipes.LeadRow)
+	self.overviewWinner = nil -- (Simple mode's overview: the clear winner shown above its categories: UI:EasyOverview)
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
@@ -914,11 +915,14 @@ function Scan.SimpleScope(self, q)
 		else
 			easyCat = self.category and ns.Easy.BY_ID[self.category]
 			if not easyCat then
-				local ov, kept, from = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "))
+				local ov, kept, from = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "),
+					Scan.Typed(q.text))
 				-- only one category has it: straight to its results (no step to take)
-				if #ov == 1 and ov[1].catId then
-					self.category, self.categoryAuto = ov[1].catId, true
-					easyCat = ns.Easy.BY_ID[ov[1].catId]
+				local only, cats = nil, 0
+				for i = 1, #ov do if ov[i].catId then only, cats = ov[i], cats + 1 end end
+				if cats == 1 then
+					self.category, self.categoryAuto = only.catId, true
+					easyCat = ns.Easy.BY_ID[only.catId]
 					self.softRelaxed = nil
 					q.overview, q.overviewFrom = kept, from -- (its lists' rows were just scored: Scan.Collect lists them)
 				else
@@ -1282,21 +1286,82 @@ local function OverviewNameWords(tokens, hard, softWords)
 	return nameWords
 end
 
---- The overview's row for a category: its best match and how many more (Enter or a click picks it).
-local function CategoryRow(c, best, bestScore, count)
+--- What was typed, as a name would be written (lowercase, one space between words), for the overview's clear winner.
+function Scan.Typed(text)
+	if type(text) ~= "string" then return nil end
+	local t = ns.Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	if t == "" then return nil end
+	return t
+end
+
+-- A category of several lists: which of them had matches, after its name, as the results' kind column names them
+-- (0.48.4, the player: "Game  World Map +3 more" didn't say the 3 were keybindings), the most matches first.
+local KINDS_SHOWN = 3
+local function KindsNote(c, counts)
+	local loaded, found = 0, {}
+	for i, id in ipairs(c.kinds) do
+		local p = ns.providers[id]
+		if p then
+			loaded = loaded + 1
+			if (counts[id] or 0) > 0 then found[#found + 1] = { p = p, n = counts[id], i = i } end
+		end
+	end
+	if loaded < 2 or #found == 0 then return nil end
+	table.sort(found, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.i < b.i end)
+	local parts = {}
+	for k = 1, math.min(#found, KINDS_SHOWN) do
+		local p = found[k].p
+		parts[k] = "|c" .. (p.color or "ff7fb2ff") .. tostring(p.label or p.id) .. "|r"
+	end
+	local note = table.concat(parts, "  ·  ")
+	if #found > KINDS_SHOWN then note = note .. "  " .. L["+%d more"]:format(#found - KINDS_SHOWN) end
+	return note
+end
+
+--- The overview's row for a category: its best match and how many more (Enter or a click picks it), and what it holds.
+local function CategoryRow(c, best, bestScore, count, counts)
 	return {
 		name = c.label, catId = c.id, kind = "category", icon = c.icon or QUESTION_MARK, kindLabel = "",
 		detail = tostring(best) .. (count > 1 and ("  " .. L["+%d more"]:format(count - 1)) or ""),
+		labelNote = KindsNote(c, counts),
 		staysOpen = true, activate = PickCategory, _score = bestScore or 0, _pos = NO_POS,
 	}
 end
 
---- Easy mode, typed before a category is picked: one row per category that has matches ("Bags  Rumsey Rum
---- +2 more"), the best match first; Enter or a click picks it. Questie's lists are counted by their name index.
---- Spread over frames like the search.
+-- The clear winner (0.48.4, the player's ask): a row named exactly what was typed ("world map", "hearthstone"; a
+-- leading "the", or a command's "/" or ".", not needed), shown above the categories to act on at once. Only when every
+-- such row is in one category, and there are no more than WINNER_MAX of them (your bags' Hearthstone and the one on an
+-- alt: one thing); names in two categories (Mining, the profession and the skill) are for the categories to tell apart.
+local WINNER_MAX = 2
+local function ExactName(name, want)
+	if type(name) ~= "string" then return false end
+	-- (by length first: it's asked of every match, thousands in a broad search; nothing made unless it may be it)
+	local n, w = #name, #want
+	if n == w then return name == want end
+	if n == w + 1 then
+		local b = name:byte(1)
+		return (b == 47 or b == 46) and name:sub(2) == want -- ("/dance", ".mem")
+	end
+	if n == w + 4 then return name:sub(1, 4) == "the " and name:sub(5) == want end
+	return false
+end
+local function Winner(exacts, cats)
+	if cats < 2 or #exacts == 0 or #exacts > WINNER_MAX then return nil end
+	local best
+	for _, x in ipairs(exacts) do
+		if x.cat ~= exacts[1].cat then return nil end
+		if not best or x.sc > best.sc then best = x end
+	end
+	return best.e
+end
+
+--- Easy mode, typed before a category is picked: one row per category that has matches ("Items  Rumsey Rum
+--- +2 more", and which of its lists had them), the best match first; Enter or a click picks it. A row named exactly
+--- what was typed (`want`: Scan.Typed) goes above them when it's the clear winner (Winner). Questie's lists are counted
+--- by their name index. Spread over frames like the search.
 --- (fsig: the search's filter signature. When the words only grew since the last overview, under the same filters
 --- and the same lists, each list is scanned from the rows that matched last time, not in full: lastOverview.)
-function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
+function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want)
 	local reuse, last = nil, self.lastOverview
 	if last and fsig and last.sig == fsig and last.gen == ns.entriesGen and #tokens > 0 and Scan.Narrows(last.tokens, tokens) then
 		reuse = last
@@ -1311,20 +1376,34 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 	-- Questie's lists are looked up by name only (OverviewNameWords)
 	local nameWords = OverviewNameWords(tokens, hard, softWords)
 	-- relaxed: nothing anywhere passed every everyday word, so they only rank (as in RelaxSoft)
+	self.overviewWinner = nil
+	local exacts = {} -- (rows named exactly what was typed: the clear winner, maybe)
 	local function scan(relaxed)
 		local out = {}
+		local exact = want and not relaxed and not empty
 		for _, c in ipairs(ns.Easy.Visible()) do
 			local count, best, bestScore = 0, nil, nil
+			local counts = {} -- (matches per list: what the row says the category holds)
 			local logged = 0 -- (quests from your log whose names Questie's lookup counts too: one quest, not two)
 			for _, id in ipairs(c.kinds) do
 				local p = ns.providers[id]
 				if p and p.hintFind and not self.place then
 					if #nameWords > 0 and not hard and not relaxed then
-						local first, n = p.hintFind(p, nameWords, tick)
+						local first, n, ids = p.hintFind(p, nameWords, tick)
 						if first and (n or 0) > 0 then
 							if id == "questie" then n = math.max(0, n - logged) end
 							count = count + n
+							counts[id] = (counts[id] or 0) + n
 							if not bestScore then best, bestScore = first, TEXT_SCORE end
+							-- (the only one, named exactly that: Hogger)
+							if exact and n == 1 and ExactName(ns.Lower(tostring(first)), want) and p.hintRow
+								and type(ids) == "table" and ids[1] then
+								local row = p.hintRow(p, ids[1])
+								if row and not row.noActivate then
+									if row._score == nil then row._score = TEXT_SCORE end
+									exacts[#exacts + 1] = { e = row, cat = c.id, sc = TEXT_SCORE + FreqBonus(row, id) }
+								end
+							end
 						end
 					end
 				elseif p then
@@ -1352,7 +1431,12 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 								end
 							end
 							count = count + 1
+							counts[id] = (counts[id] or 0) + 1
 							if not bestScore or sc > bestScore then best, bestScore = e.name, sc end
+							if exact and not e.noActivate
+								and ExactName(rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)), want) then
+								exacts[#exacts + 1] = { e = e, cat = c.id, sc = sc + FreqBonus(e, id) + (rawget(e, "_rank") or 0) }
+							end
 							if id == "quests" and #nameWords > 0 then
 								local ln, all = rawget(e, "_lname") or "", true
 								for w = 1, #nameWords do if not ln:find(nameWords[w], 1, true) then all = false break end end
@@ -1363,7 +1447,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 					end
 				end
 			end
-			if count > 0 then out[#out + 1] = CategoryRow(c, best, bestScore, count) end
+			if count > 0 then out[#out + 1] = CategoryRow(c, best, bestScore, count, counts) end
 		end
 		return out
 	end
@@ -1377,6 +1461,12 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig)
 	end
 	table.sort(out, function(a, b) return a._score > b._score end)
 	if #out == 0 then return PseudoEntries({ EASY_NONE }) end
+	-- (the clear winner on top, to act on at once; the categories still narrow the rest)
+	local winner = not self.softRelaxed and Winner(exacts, #out) or nil
+	if winner then
+		table.insert(out, 1, winner)
+		self.overviewWinner = winner
+	end
 	-- (and what each category's lists had of the words, with the lists they were found in: Scan.SimpleScope)
 	return out, keep, from
 end

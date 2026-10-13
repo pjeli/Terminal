@@ -54,31 +54,40 @@ local function NotEmote(e) return e.emote == nil end
 
 -- Each searches these kinds (provider ids; those not loaded are skipped, a category with none never shows),
 -- and only the rows `keep` says yes to when it has one (one list, two categories: emotes and slash commands).
+-- 0.48.4 (the player: "Game" held windows and keybindings while console settings had a category of their own; your
+-- bags and your alts' were two): named for what you'd do with a result, not where Terminal gets it. Windows to open,
+-- Settings to change, Commands to run; Items wherever they are; Dungeon loot (the loot tables) apart from Recent (what
+-- dropped for you, how you died). `was` = the ids a category took over (a pick kept from before, another addon's
+-- simpleCategory "game": E.BY_ID finds them).
 E.CATEGORIES = {
-	{ id = "bags", label = L["Bags"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08" },
+	{ id = "items", label = L["Items"], kinds = { "items", "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags", "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
-	{ id = "loot", label = L["Loot"], kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
-	{ id = "lootlog", label = L["Loot log"], kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
-	{ id = "combat", label = L["Combat log"], kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
-	{ id = "alts", label = L["Alts, bank & mail"], kinds = { "stored", "mail" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
+	{ id = "loot", label = L["Dungeon loot"], kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
+	{ id = "recent", label = L["Recent"], kinds = { "lootlog", "combatlog" }, icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
+		was = { "lootlog", "combat" } },
 	{ id = "people", label = L["Guild & friends"], kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 	{ id = "group", label = L["Group"], kinds = { "group" }, icon = "Interface\\Icons\\Spell_Holy_PrayerOfFortitude" },
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
-	{ id = "character", label = L["Character"], kinds = { "gold", "experience", "lockouts", "reputation", "currency", "skills", "equipmentset" },
+	{ id = "character", label = L["Character"],
+		kinds = { "gold", "experience", "lockouts", "mail", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
+	{ id = "windows", label = L["Windows"], kinds = { "panels" }, icon = "Interface\\Icons\\INV_Misc_Book_11" },
+	{ id = "settings", label = L["Settings"], kinds = { "gameoptions", "keybinds", "cvars", "addons", "terminal" },
+		icon = "Interface\\Icons\\INV_Misc_Gear_01", was = { "game", "console" } },
+	{ id = "commands", label = L["Commands"], kinds = { "slash", "macros" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01",
+		was = { "slash" } },
 	{ id = "emotes", label = L["Emotes"], kinds = { "slash" }, keep = IsEmote, icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss" },
-	{ id = "slash", label = L["Slash commands"], kinds = { "slash" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01" },
-	{ id = "game", label = L["Game"], kinds = { "panels", "gameoptions", "macros", "keybinds", "addons", "terminal" },
-		icon = "Interface\\Icons\\INV_Misc_Gear_01" },
-	{ id = "console", label = L["Console settings"], kinds = { "cvars" }, icon = "Interface\\Icons\\Trade_Engineering" },
 }
 E.BY_ID = {}
-for _, c in ipairs(E.CATEGORIES) do E.BY_ID[c.id] = c end
+for _, c in ipairs(E.CATEGORIES) do
+	E.BY_ID[c.id] = c
+	for _, old in ipairs(c.was or {}) do E.BY_ID[old] = E.BY_ID[old] or c end
+end
 
 --- A list another addon registers once Terminal has loaded (Terminal:RegisterProvider; docs/PROVIDERS.md): its
 --- Simple-mode category (`simpleCategory`: an existing category's id, "game" say, or { id, label, icon } for a new one),
@@ -950,7 +959,7 @@ ns:RegisterCommand("simple", {
 function E.HelpLines()
 	return {
 		L["Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it."],
-		L["Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter, Tab or a click, then the thing itself. Shift+Left goes back to all of them (and back from wherever Enter took you)."],
+		L["Typing lists where it was found (Items, Quests, Settings, Emotes...): pick one with Enter, Tab or a click, then the thing itself; something named exactly what you typed comes first, to open at once. Shift+Left goes back to all of them (and back from wherever Enter took you)."],
 		L["Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\")."],
 		L["Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do: \"All 8 to party\" sends every result at once."],
 		L["Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs)."],

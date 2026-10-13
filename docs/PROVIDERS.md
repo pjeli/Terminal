@@ -62,7 +62,7 @@ That's a working list. Everything else below is optional.
 | `lazy` | `true`: searched only once something is typed (not on an empty prompt). |
 | `refreshOnOpen` | `true`: made again each time Terminal opens; a number: only when older than that many seconds. For lists that change with no event telling (time left, distances). |
 | `noCombat` | `true`: Enter does nothing in combat (opening windows isn't allowed then). |
-| `simpleCategory` | Where its rows go in Simple mode: an existing category's id (`"game"`, `"character"`, `"collections"`...) or `{ id, label, icon }` for a new one. Without it, Simple mode doesn't show the list's rows (Advanced mode does). |
+| `simpleCategory` | Where its rows go in Simple mode: an existing category's id (`"items"`, `"quests"`, `"spells"`, `"crafting"`, `"npcs"`, `"places"`, `"loot"`, `"recent"`, `"people"`, `"group"`, `"collections"`, `"character"`, `"windows"`, `"settings"`, `"commands"`, `"emotes"`; the older `"game"`, `"bags"`... still work) or `{ id, label, icon }` for a new one. Without it, Simple mode doesn't show the list's rows (Advanced mode does). |
 | `verbs` | What Enter and Shift+Enter do, in a word or two: `{ "show in chat", "say in party" }`, or `function(row) return enter, shift end`. The footer and the right-click menu say them. |
 
 ## The row fields

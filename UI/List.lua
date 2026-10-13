@@ -73,6 +73,10 @@ do
 		local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 		local text = quiet and L["keep typing, or Esc to close"] or (count == 1 and L["%s result"] or L["%s results"]):format(count)
 		if count > 0 and UI.results[1].catId then text = (count == 1 and L["found in %s category: pick one"] or L["found in %s categories: pick one"]):format(count) end
+		-- (Simple mode's clear winner above the categories: Search.lua's EasyOverview)
+		if count > 1 and self.overviewWinner and UI.results[1] == self.overviewWinner then
+			text = L["the best match first, or pick one of %s categories"]:format(count - 1)
+		end
 		if count > 0 and UI.results[1].syntaxRow then text = L["%s to pick from: Tab / Shift+Tab, Enter writes it"]:format(count) end
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
 		if self.action and self.mode == "search" then cat = { label = self.action.label } end -- (Advanced: do:use)
@@ -349,7 +353,11 @@ local function FillRow(self, r, e, light)
 		local base = e.color
 		if light and base == "|cffffffff" then base = nil end -- white item names vanish on light themes
 		if e._pos == nil then e._pos = UI.Positions(e, self.posTokens) end -- only for rows on screen
-		r.label:SetText(Theme.FixColors(Fuzzy.Colorize(e.name, e._pos, base)))
+		local text = Fuzzy.Colorize(e.name, e._pos, base)
+		-- (a category row: which of its lists had matches, after its name: Search.lua's KindsNote)
+		local note = rawget(e, "labelNote")
+		if note then text = text .. "     " .. note end
+		r.label:SetText(Theme.FixColors(text))
 	end
 	if e.icon == false then
 		r.icon:Hide()
