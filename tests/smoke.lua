@@ -556,6 +556,15 @@ for _, l in ipairs(log) do if l:match("^PRINT") then io.write(l, "\n") end end
 -- TOC declares the WoW Forever interface number
 local toc = io.open("Terminal/Terminal.toc"):read("*a")
 check(toc:match("## Interface:[^\n]*16001"), "TOC lists Interface 16001")
+-- 0.48.1: WoW Forever's interface numbers only (16xxx): the packager uploads to CurseForge for every game version the
+-- TOCs list, and 0.48.0's "16001, 120100" put it up for retail 12.1.0 as well
+for _, path in ipairs({ "Terminal/Terminal.toc", "Terminal/Terminal_Extras/Terminal_Extras.toc",
+		"Terminal/docs/example/TerminalNotes/TerminalNotes.toc" }) do
+	local line = io.open(path):read("*a"):match("## Interface:([^\n]*)") or ""
+	local others = {}
+	for n in line:gmatch("%d+") do if not n:match("^16%d%d%d$") then others[#others + 1] = n end end
+	check(line:match("%d") and #others == 0, path .. ": only WoW Forever's interface (also " .. table.concat(others, ", ") .. ")")
+end
 
 -- default keybind: ` is free on first login
 check(bound["`"] == "TERMINAL_TOGGLE", "first login binds `")

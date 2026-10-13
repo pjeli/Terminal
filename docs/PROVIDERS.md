@@ -13,7 +13,7 @@ it in your party. Copy the folder into `Interface\AddOns`, `/reload`, and try it
 
 ```lua
 -- TerminalNotes.toc
-## Interface: 16001, 120100
+## Interface: 16001
 ## Title: Terminal Notes (example)
 ## Dependencies: Terminal
 ## SavedVariables: TerminalNotesDB

@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.48.1", when = "in testing",
+		items = {
+			"Listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).",
+		},
+	},
+	{
 		v = "0.48.0", when = "released October 2026",
 		items = {
 			"Terminal speaks German, French, Spanish, Russian and Chinese (simplified), going by your game's language. In those languages Simple mode also understands the game's own words (qualities, slots, weapon kinds, roles, standings, classes, professions) and the main questions in your words: \"nearest ...\", \"mats for ...\", \"where to get ...\", \"where to learn ...\", \"where is ...\". English always works too. Help translate on Terminal's CurseForge page (Localization).",

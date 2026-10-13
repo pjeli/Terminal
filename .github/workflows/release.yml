@@ -26,3 +26,7 @@ jobs:
           fetch-depth: 0
       - name: Package and upload
         uses: BigWigsMods/packager@v2
+        # The TOCs list WoW Forever alone (16001, 0.48.1), and with a single game version the packager adds it to the
+        # file's name and label ("Terminal-0.48.1-forever.zip"): keep them "Terminal-0.48.1.zip" / "0.48.1".
+        with:
+          args: -n "{package-name}-{project-version}:{project-version}"

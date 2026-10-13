@@ -1,4 +1,4 @@
-## Interface: 16001, 120100
+## Interface: 16001
 ## Title: Terminal Notes (example)
 ## Notes: An example of a list in Terminal: your own notes, searched with @note, added with .note.
 ## Author: you
