@@ -372,6 +372,15 @@ local function FillRow(self, r, e, light)
 	else
 		r.icon:Show()
 		r.icon:SetTexture(e.icon or QUESTION_MARK)
+		-- (a picture filling only part of its texture: a holiday's, Calendar.lua) cropped; the next row uncropped again
+		local c = e.iconCoords
+		if type(c) == "table" then
+			r.icon:SetTexCoord(c[1], c[2], c[3], c[4])
+			r.iconCropped = true
+		elseif r.iconCropped then
+			r.icon:SetTexCoord(0, 1, 0, 1)
+			r.iconCropped = nil
+		end
 	end
 	local from = self.linked and self.linked[e]
 	local yd, rest

@@ -346,6 +346,15 @@ IS.sharable, IS.toshare, IS.common, IS.same = IS.shareable, IS.shareable, IS.tog
 IS.raid = function(e) return e.kind == "lockouts" and e.isRaid == true end
 IS.dungeon = function(e) return e.kind == "lockouts" and not e.isRaid end
 IS.raids, IS.dungeons, IS.heroic = IS.raid, IS.dungeon, IS.dungeon
+-- the calendar (Calendar.lua): holidays, invitations you haven't answered, what's on today
+local function CalendarIs(test) return function(e) return e.kind == "calendar" and test(e) or false end end
+IS.holiday = CalendarIs(function(e) return e.type == "HOLIDAY" end)
+IS.invite = CalendarIs(function(e) return e.pending == true end)
+IS.today = CalendarIs(function(e)
+	local today = ns.Calendar and ns.Calendar.Today()
+	return today ~= nil and e.startDN ~= nil and e.startDN <= today and (e.endDN or e.startDN) >= today
+end)
+IS.holidays, IS.invites, IS.invited, IS.pending = IS.holiday, IS.invite, IS.invite, IS.invite
 KEYS.missing = function(v) return ns.Group and ns.Group.MissingFilter(v) or nil end
 KEYS.needs = KEYS.missing
 IS.notdone, IS.undone = IS.todo, IS.todo
@@ -359,7 +368,7 @@ F.VALUES = {
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
-		"shareable", "together", "raid", "dungeon" },
+		"shareable", "together", "raid", "dungeon", "holiday", "invite", "today" },
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
@@ -410,6 +419,7 @@ F.APPLIES = {
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },
 		raid = { "lockouts" }, dungeon = { "lockouts" },
+		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" },
 	},
 	missing = { ["*"] = GROUP },
 	standing = { ["*"] = { "reputation" } },
@@ -487,6 +497,7 @@ F.HELP = {
 	{ "is:dead", L["@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)"] },
 	{ "is:shareable", L["@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too"] },
 	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
+	{ "is:holiday", L["@calendar: holidays; is:invite: invitations you haven't answered; is:today: what's on today"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },
 	{ "is:incoming", L["@auction: your characters' auctions up now with price and time left; is:incoming: the auction house's news (sold, won, outbid, expired); on:<character>"] },
 	{ "in:elwynn_forest", L["a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)"] },

@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.49.1", when = "in testing",
+		items = {
+			"The calendar: @calendar (Simple mode: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\") lists what's on from today to the end of next month: holidays such as the Darkmoon Faire, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, raid resets. Enter opens the calendar on the event, Shift+Enter puts it in the chat box (an event as its link). Advanced: is:holiday, is:invite, is:today.",
+		},
+	},
+	{
 		v = "0.49.0", when = "released October 2026",
 		items = {
 			"Raid lockouts: @lockout (Simple mode: \"my lockouts\", \"raid lockouts\", \"am i saved\") lists what each of your characters is saved to, how many bosses are down and when it resets; Enter names the bosses, Shift+Enter links your own in chat.",
@@ -52,26 +58,6 @@ CL.LOG = {
 			"Spell and talent tooltips (other classes' too) fill in as soon as the game has them; Collections' Shift+Enter points at the toy, pet or mount in its journal.",
 			"For addon authors: your addon can add its own list to Terminal (docs/PROVIDERS.md, with a working example).",
 			"Fixes: \"food buff\" or \"mail boots\" searches are no longer taken for group or mail questions; Shift+Enter on a Questie quest you have opens its details again; the Spellbook row leaves the book's search alone.",
-		},
-	},
-	{
-		v = "0.46.0", when = "released October 2026",
-		items = {
-			"Every key in one place: F1 (or .keybinds) opens a small window with Terminal's keys for Simple mode, Advanced and fuzzy finding, the ones a mode does its own way highlighted; Esc takes you back to your search as you left it. The keys now work alike in every mode: Tab completes (or picks a category) and otherwise goes to the next result, Shift+Tab the previous; Ctrl+Home / Ctrl+End jump to the first / last result; Ctrl+W and Ctrl+Delete delete a word, Ctrl+U everything before the cursor; right-click in fuzzy finding offers what its Enter and Shift+Enter do.",
-			"Shift+Left goes back: after Enter takes you from a list to a recipe's sources (or a chain's next step, a name you picked, Shift+Right's \"write it\"), Shift+Left returns to the list with your pick still selected, wherever the cursor is; in Simple mode it also takes you from a category back to all of them (Tab now goes down the list there, as everywhere).",
-			"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" (Advanced: @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill it needs and how it's learned: a trainer and its cost, a vendor (and whether it's limited supply), a drop or a quest. \"recipes i can learn now\" (is:learnable) keeps those your skill allows. Open each profession's window once, and a trainer's or vendor's window, for Terminal to see what they say; with none to list, a line says why (which window to open).",
-			"Where to learn a recipe: \"where to learn thorium belt\" (also \"who teaches ...\"; Advanced: thorium belt > learn) shows the plans that teach it and who sells or drops them, nearest first, how far in a column of its own with the arrow beside it (only sellers who'd sell to you), or, when no plans exist, that a trainer teaches it and the nearest trainers who can.",
-			"Flight paths: \"nearest unlearned flight master\" points you to the closest flight path you haven't learned yet (Enter opens the map on its flight master, Shift+Enter sets a waypoint), and \"unlearned flight paths\" lists them all. Terminal learns which ones you know from the first flight master's map you open on each continent, per character (until then they say \"not checked yet\"); a row's tooltip shows your alts' too. Advanced: @flight is:unlearned sort:nearest.",
-			"Spells you haven't put anywhere: \"spells not on my bars\" lists the spells you can cast that aren't on any action bar you can see or on a key (a macro casting one counts; passives and auto attacks left out). Advanced: @spell is:unplaced.",
-			"Quests to drop: \"quests to drop\" lists the quests that have gone grey for your level and the ones in zones you've left behind. Shift+Enter drops one (the game still asks first); \"Drop all\" on top, or right-click, drops them together after showing you the list. Advanced: @quest is:drop (or is:grey, is:leftbehind), and >>> drop drops every quest listed.",
-			"Guild professions: guild members now show their professions, so \"guild blacksmith\", \"guild skinner\" or \"guild herbalists\" (Advanced: @guild skinner) finds them, offline ones too.",
-			"Quest tooltips: quests in your log and Questie's (@questie) show a tooltip with their level, zone and objectives and what they reward: the experience at your level, the money and the items (Questie's experience figure, marked as such, where the game gives none).",
-			"Drops sent to chat say who got them, from which boss, where and when: \"[Rotmender's Garb] looted by Zd Zd in Razorfen Downs (26 min ago)\"; all of them at once say what they share once: \"Drops in Razorfen Downs (5): ...\".",
-			"Gear works the same wherever you find it: Shift+Enter on a piece of equipment found with @item, a plain search or Simple mode's Bags equips it, as @gear does; worn gear with a use of its own (a trinket) is used, other worn gear says it's already equipped.",
-			"Moving the terminal: drag it and it snaps to a grid, with lines showing the screen's middles (the one it sits on lights up); hold Shift to place it freely.",
-			"The game's own keys for things that don't get in the way still work while Terminal is open: Ctrl+R (frame rate), Ctrl+S (sound), Ctrl+M (music), volume, screenshots, Alt+Enter (windowed) and the like.",
-			"Sending everything at once (>>> or right-click \"All N to ...\") needs a search first, so your recent picks never go out by themselves; to say and yell it's one line with them all counted, as the game won't let addons send more there.",
-			"Fixes: a > typed in Simple mode is no longer run as a chain (it says that's Advanced mode's); .mem names every list the way you'd search for it.",
 		},
 	},
 }

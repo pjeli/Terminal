@@ -641,6 +641,12 @@ Scan.ANSWERS = {
 		local q = ns.Group and ns.Group.Question(text)
 		if q then return ns.Group.Answer(q) end
 	end,
+	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
+	-- what's on the calendar, or it's a search)
+	function(text)
+		local q = ns.Calendar and ns.Calendar.Question(text)
+		if q then return ns.Calendar.Answer(q) end
+	end,
 }
 
 -- SearchText's steps share one table per search (q):

@@ -76,6 +76,7 @@ E.CATEGORIES = {
 	{ id = "character", label = L["Character"],
 		kinds = { "gold", "experience", "lockouts", "mail", "auctions", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
+	{ id = "calendar", label = L["Calendar"], kinds = { "calendar" }, icon = "Interface\\Icons\\INV_Misc_Note_06" },
 	{ id = "windows", label = L["Windows"], kinds = { "panels" }, icon = "Interface\\Icons\\INV_Misc_Book_11" },
 	{ id = "settings", label = L["Settings"], kinds = { "gameoptions", "keybinds", "cvars", "addons", "terminal" },
 		icon = "Interface\\Icons\\INV_Misc_Gear_01", was = { "game", "console" } },
@@ -489,6 +490,7 @@ E.VERBS = {
 	stored = { L["show in bags"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
 	loot = { L["show in AtlasLoot"], L["link in chat"] },
 	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs,
+	calendar = { L["show in calendar"], L["put in the chat box"] },
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
@@ -699,6 +701,8 @@ local function QuestionToAdvanced(text)
 	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
 	if gq then return ns.Group.ToAdvanced(gq) end
+	local cq2 = ns.Calendar and ns.Calendar.Question and ns.Calendar.Question(text)
+	if cq2 then return ns.Calendar.ToAdvanced(cq2) end
 end
 E.QuestionToAdvanced = QuestionToAdvanced
 
@@ -985,6 +989,7 @@ function E.HelpLines()
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
 		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
+		L["The calendar: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\" (Enter opens it in the calendar)."],
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],

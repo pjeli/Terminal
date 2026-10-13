@@ -80,6 +80,7 @@ local KINDS = {
 	maps = { "WORLD_MAP" },
 	loot = { "LOOT" },
 	stored = { "BANK" },
+	calendar = { "CALENDAR" },
 }
 
 --- Adds the game's words to a provider's aliases (called by RegisterProvider, so providers
