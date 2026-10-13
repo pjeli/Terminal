@@ -626,6 +626,11 @@ Scan.ANSWERS = {
 		local q = ns.Lockouts and ns.Lockouts.Question(text)
 		if q then return ns.Lockouts.Answer(q) end
 	end,
+	-- "my auctions", "what am i selling", "auctions sold": Auctions.lua (never with a mail word: "auction mail" is the mail's)
+	function(text)
+		local q = ns.Auctions and ns.Auctions.Question(text)
+		if q then return ns.Auctions.Answer(q) end
+	end,
 	-- "my mail", "mail running out", "cod mail": Mail.lua
 	function(text)
 		local q = ns.Mail and ns.Mail.Question(text)

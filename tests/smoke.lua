@@ -342,7 +342,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "groupquests" or id == "lockouts", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel
 end
 
 io.write("[providers collected]\n")
@@ -4657,8 +4657,8 @@ do
 					local realm = full:match("%-(.+)$")
 					if c.details.show.inventory ~= false and (not connectedOnly or CONNECTED[realm]) then
 						local r = { character = c.details.character, realmNormalized = realm, bags = nested(c.bags), bank = nested(c.bank) + nested(c.bankTabs),
-							mail = flat(c.mail), equipped = flat(c.equipped), void = 0, auctions = 0 }
-						if r.bags + r.bank + r.mail + r.equipped > 0 then res.characters[#res.characters + 1] = r end
+							mail = flat(c.mail), equipped = flat(c.equipped), void = 0, auctions = flat(c.auctions) }
+						if r.bags + r.bank + r.mail + r.equipped + r.auctions > 0 then res.characters[#res.characters + 1] = r end
 					end
 				end
 				for full, g in pairs(SD.Guilds) do
@@ -4684,6 +4684,16 @@ do
 	check(linen.detail == "x46  ·  3 places", "details: " .. linen.detail)
 	check(by[1234] and by[1234].total == 4 and by[555] and by[555].detail:find("Guildy", 1, true), "bank tabs and guild banks read")
 	check(by[999] == nil, "worn items alone aren't listed")
+	-- (0.48.9, the player: a failed auction's arrows, mailed back and taken, still counted as listed) an auction Terminal
+	-- saw come back by mail isn't counted on the auction house, though Syndicator's record still has it
+	local listed = it(2589, 6, LINK); listed.auctionID = 501
+	SD.Characters["Me-Forever"].auctions = { listed }
+	check(entries()[2589].total == 52, "an auction in Syndicator's record counts: " .. entries()[2589].total)
+	local endedWas = ns.Mail.EndedAuctions
+	ns.Mail.EndedAuctions = function() return { [501] = true } end
+	check(entries()[2589].total == 46, "one Terminal saw come back by mail doesn't: " .. entries()[2589].total)
+	ns.Mail.EndedAuctions = endedWas
+	SD.Characters["Me-Forever"].auctions = {}
 	-- its updates mark the list stale
 	P._dirty = false
 	check(type(callbacks.BagCacheUpdate) == "function", "listens to Syndicator's updates")

@@ -74,7 +74,7 @@ E.CATEGORIES = {
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = L["Character"],
-		kinds = { "gold", "experience", "lockouts", "mail", "reputation", "currency", "skills", "equipmentset" },
+		kinds = { "gold", "experience", "lockouts", "mail", "auctions", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
 	{ id = "windows", label = L["Windows"], kinds = { "panels" }, icon = "Interface\\Icons\\INV_Misc_Book_11" },
 	{ id = "settings", label = L["Settings"], kinds = { "gameoptions", "keybinds", "cvars", "addons", "terminal" },
@@ -471,6 +471,10 @@ local function MailVerbs(e) -- (your own mail at an open mailbox: pointed at in 
 	local open = e.mailKind == "mail" and e.mine and ns.Mail and ns.Mail.open
 	return open and L["show in inbox"] or L["show in chat"], L["nearest mailbox"]
 end
+local function AuctionVerbs(e) -- (the auction house's news: as mail; an auction up now: Auctions.lua)
+	if e.mailKind == "auction" then return MailVerbs(e) end
+	return L["show in chat"], L["put in the chat box"]
+end
 local function LockoutVerbs(e) -- (your own: the game's lockout link; an alt's: in words, Lockouts.lua)
 	return L["show in chat"], (e.mine and not e.world) and L["link in chat"] or L["put in the chat box"]
 end
@@ -484,7 +488,7 @@ E.VERBS = {
 	source = SourceVerbs,
 	stored = { L["show in bags"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
 	loot = { L["show in AtlasLoot"], L["link in chat"] },
-	mail = MailVerbs, group = GroupVerbs, lockouts = LockoutVerbs,
+	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs,
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
@@ -689,6 +693,8 @@ local function QuestionToAdvanced(text)
 	if pq then return ns.GroupQuests.ToAdvanced(pq) end
 	local lq2 = ns.Lockouts and ns.Lockouts.Question and ns.Lockouts.Question(text)
 	if lq2 then return ns.Lockouts.ToAdvanced(lq2) end
+	local aq = ns.Auctions and ns.Auctions.Question and ns.Auctions.Question(text)
+	if aq then return ns.Auctions.ToAdvanced(aq) end
 	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
 	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
@@ -977,6 +983,7 @@ function E.HelpLines()
 		L["Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line)."],
 		L["Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line."],
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
+		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],

@@ -103,6 +103,29 @@ local function SyndicatorItems(A)
 	return seen
 end
 
+--- Auctions in Syndicator's records that Terminal saw come back by mail (Mail.lua's MA.EndedAuctions), as
+--- { [character] = { [itemID] = count } }, or nil: left out of "auctions". 0.48.9, the player: a failed auction's 200
+--- arrows, mailed back and taken, still showed as on the auction house: the game told addons nothing when it came back, so
+--- Syndicator keeps the auction until its next visit to the auction house.
+local function EndedAuctions(A)
+	local M = ns.Mail
+	local ended = M and M.EndedAuctions and M.EndedAuctions()
+	if not (ended and next(ended)) then return nil end
+	local out
+	for _, full in ipairs(A.GetAllCharacters() or {}) do
+		local c = A.GetByCharacterFullName(full)
+		for _, it in pairs(type(c) == "table" and type(c.auctions) == "table" and c.auctions or {}) do
+			if type(it) == "table" and it.auctionID and ended[it.auctionID] and type(it.itemID) == "number" then
+				out = out or {}
+				local mine = out[full] or {}
+				out[full] = mine
+				mine[it.itemID] = (mine[it.itemID] or 0) + (tonumber(it.itemCount) or 1)
+			end
+		end
+	end
+	return out
+end
+
 --- Syndicator: the same counts its own tooltip shows. Every item in its records is looked up with
 --- its API (GetInventoryInfoByItemID), with the tooltip's own settings (SYNDICATOR_CONFIG):
 --- connected realms only (the default on this client), one faction only, guild banks and worn items
@@ -117,6 +140,7 @@ local function ReadSyndicator(A, add)
 	local myRealm = current and current:match("%-(.+)$")
 
 	local seen = SyndicatorItems(A) -- (every item id in the records)
+	local over = EndedAuctions(A) -- (auctions that came back, still in its records)
 
 	local holders = {} -- one per owner and place, shared by every item they hold
 	local PLACES = { "bags", "bank", "mail", "equipped", "void", "auctions" }
@@ -129,6 +153,7 @@ local function ReadSyndicator(A, add)
 				local mine = full == current
 				for _, where in ipairs(PLACES) do
 					local n = tonumber(c[where]) or 0
+					if where == "auctions" and over and over[full] then n = n - (over[full][id] or 0) end
 					if n > 0 and (where ~= "equipped" or showWorn) then
 						local key = full .. "|" .. where
 						local h = holders[key]

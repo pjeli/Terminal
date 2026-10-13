@@ -311,14 +311,16 @@ IS.cod = MailIs(function(_, m) return m.cod ~= nil end)
 IS.expiring = MailIs(function(e) return e.soon == true end)
 IS.unread = MailIs(function(_, m) return not m.read end)
 IS.returned = MailIs(function(_, m) return m.returned == true end)
--- (the auction house's news on its way counts as auction mail, a sale with its price as gold; mail you sent: is:sent,
--- to others and to your alts)
-IS.auction = function(e) return e.kind == "mail" and (e.mailKind == "auction" or (e.mailKind == "mail" and e.mail.auction ~= nil)) or false end
+-- (auction mail; every @auction row (Auctions.lua: the auction house's news among them, 0.48.10) counts as an auction,
+-- a sale with its price as gold; mail you sent: is:sent, to others and to your alts)
+IS.auction = function(e)
+	return (e.kind == "auctions") or (e.kind == "mail" and e.mailKind == "mail" and e.mail.auction ~= nil) or false
+end
 IS.money = function(e)
-	return e.kind == "mail" and ((e.mailKind == "auction" and e.money ~= nil) or (e.mailKind == "mail" and e.mail.money ~= nil)) or false
+	return (e.kind == "auctions" and e.mailKind == "auction" and e.money ~= nil) or (e.kind == "mail" and e.mailKind == "mail" and e.mail.money ~= nil) or false
 end
 IS.sent = function(e) return e.kind == "mail" and (e.mailKind == "sent" or (e.mailKind == "mail" and e.mail.sent ~= nil)) or false end
-IS.incoming = function(e) return e.kind == "mail" and e.mailKind == "auction" or false end
+IS.incoming = function(e) return e.kind == "auctions" and e.mailKind == "auction" or false end -- (the news: @auction's)
 IS.pending, IS.expected = IS.incoming, IS.incoming
 IS.gold, IS.ah = IS.money, IS.auction
 -- your group (Group.lua): dead (or a ghost), the role set, out of range (the game's own test; hidden in combat: not
@@ -403,7 +405,8 @@ F.APPLIES = {
 		flightmaster = { "npc", "flight" }, flightpath = { "flight" }, learned = { "flight", "recipes", "professions" },
 		unlearned = { "flight", "recipes", "professions", "missing" }, unknown = { "flight", "recipes", "professions", "missing" },
 		learnable = { "recipes", "professions", "missing" },
-		cod = MAIL, expiring = MAIL, unread = MAIL, returned = MAIL, auction = MAIL, money = MAIL, sent = MAIL, incoming = MAIL,
+		cod = MAIL, expiring = MAIL, unread = MAIL, returned = MAIL, auction = { "mail", "auctions" }, money = { "mail", "auctions" },
+		sent = MAIL, incoming = { "auctions" },
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },
 		raid = { "lockouts" }, dungeon = { "lockouts" },
@@ -484,7 +487,8 @@ F.HELP = {
 	{ "is:dead", L["@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)"] },
 	{ "is:shareable", L["@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too"] },
 	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
-	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too) incoming (the auction house's news: sold, won, outbid, expired); on:<character>"] },
+	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },
+	{ "is:incoming", L["@auction: your characters' auctions up now with price and time left; is:incoming: the auction house's news (sold, won, outbid, expired); on:<character>"] },
 	{ "in:elwynn_forest", L["a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)"] },
 	{ "-is:soulbound", L["not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)"] },
 	{ "q:rare|epic", L["any of them: | between values, filters or words (slot:head|chest, is:boe|q:epic, sword|axe)"] },
