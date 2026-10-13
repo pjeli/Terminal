@@ -58,12 +58,13 @@ do
 			return
 		end
 		if self.armedEntry then
-			-- (what the press does, as the footer said it: "Press Enter to use", "... to cast")
+			-- (what the press does, as the footer said it: "Press Enter: use", "...: cast"; 0.49.2, review: "Press Enter to %s" read
+			-- "Press Enter to options" where the verb is a noun)
 			local a = self.armedEntry
 			local enter, shift
 			if ns.Easy then enter, shift = ns.Easy.Verbs(a) end -- (not `x and f()`: that keeps only f's first result)
 			local verb = (rawget(a, "isShift") and shift) or enter or L["open"]
-			status:SetText(Theme.FixColors(HINT .. L["Press Enter to %s"]:format(verb) .. "|r  " .. a.name))
+			status:SetText(Theme.FixColors(HINT .. L["Press Enter: %s"]:format(verb) .. "|r  " .. a.name))
 			if hints then hints:Hide() end -- the armed line gets the whole footer
 			return
 		end

@@ -2,10 +2,12 @@ local ns = select(2, ...)
 local L = ns.L
 local H = ns.Highlight
 
+-- (0.49.2, review: RangedSlot too: this client's paper doll has CharacterRangedSlot (bows, guns, wands, thrown, relics:
+-- Filters.SLOTS' slot 18). A client without it errors on the name: each slot is asked in its own pcall, WornRows)
 local EQUIP_SLOTS = {
 	"HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot", "ShirtSlot", "TabardSlot",
 	"WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot", "Finger0Slot", "Finger1Slot",
-	"Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot",
+	"Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot", "RangedSlot",
 }
 
 local QualityHex, Str, Secret = ns.QualityHex, ns.Str, ns.Secret -- (Util.lua)
@@ -13,6 +15,7 @@ local QualityHex, Str, Secret = ns.QualityHex, ns.Str, ns.Secret -- (Util.lua)
 local function BagLabel(bag)
 	if bag == 0 then return L["Backpack"] end
 	if Enum.BagIndex and bag == Enum.BagIndex.ReagentBag then return L["Reagent bag"] end
+	if Enum.BagIndex and bag == Enum.BagIndex.Keyring then return ns.GameText("KEYRING", L["Keyring"]) end -- (0.49.2)
 	return L["Bag %s"]:format(bag)
 end
 
@@ -26,16 +29,18 @@ local function PointAtSlot(e)
 	end)
 end
 
--- fallback when the secure path isn't available (never in combat: the character window from Terminal's code)
-local function ShowEquipped(e)
-	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
-	if not (CharacterFrame and CharacterFrame:IsShown()) then ToggleCharacter("PaperDollFrame") end
-	PointAtSlot(e)
-end
-
 -- Open means the equipment page itself is showing: the window open on another page goes
 -- through the game's own key too (it switches page), never ToggleCharacter from here (taint).
 local function PaperDollOpen() return PaperDollFrame and PaperDollFrame:IsVisible() and true or false end
+
+-- fallback when the secure path isn't available: the equipment page showing, the slot is pointed at; else said.
+-- (0.49.2, review: no ToggleCharacter from Terminal's code here any more: the character window then held what it wrote,
+-- and reads secret values on its next show. Said instead, as Spells' and Currency's fallbacks do)
+local function ShowEquipped(e)
+	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
+	if PaperDollOpen() then return PointAtSlot(e) end
+	ns:Print(L["Open your character window to see %s (opening it from Terminal's own code would taint it)."]:format(tostring(e.name)))
+end
 local CHAR_SECURE = { binding = "TOGGLECHARACTER0", buttons = { "CharacterMicroButton" }, click = ns.Secure.PAPERDOLL_CLICK }
 
 -- Shift+Enter / Shift+click: use the item, as a right-click on it in your bags does (drink, eat,
@@ -424,7 +429,9 @@ end
 --- The worn items' rows, added to out.
 local function WornRows(out)
 	for _, slotName in ipairs(EQUIP_SLOTS) do
-		local slotId = GetInventorySlotInfo(slotName)
+		-- (a slot name this client doesn't know errors: that slot is left out, not every item: 0.49.2, review)
+		local okS, slotId = pcall(GetInventorySlotInfo, slotName)
+		if not (okS and type(slotId) == "number") then slotId = nil end
 		local link = slotId and GetInventoryItemLink("player", slotId)
 		if link then
 			local itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
@@ -470,7 +477,6 @@ ns:RegisterProvider("items", {
 		local out, byID = {}, {}
 		local quests, questExact = QuestIndex()
 
-		local lastBag = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
 		-- each slot on its own: one item the client answers oddly for can't drop the whole list (every item
 		-- vanished from search then, as if the bags were empty); what was read is traced for .debug log
 		local read, failed, failedAt = 0, 0, nil
@@ -497,7 +503,8 @@ ns:RegisterProvider("items", {
 				end
 			end
 		end
-		for bag = 0, lastBag do
+		-- (the backpack to the reagent bag, then the keyring when the client has one: Bags.lua; 0.49.2, review)
+		for _, bag in ipairs(ns.Bags.BagIDs()) do
 			local okn, slots = pcall(C_Container.GetContainerNumSlots, bag)
 			for slot = 1, (okn and type(slots) == "number" and slots or 0) do
 				local ok, err = pcall(Slot, bag, slot)

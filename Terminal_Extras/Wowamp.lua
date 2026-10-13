@@ -214,10 +214,16 @@ function W.SetShuffle(on)
 		-- the rest of the round follows the new setting; the current track keeps playing
 		local current = state.order[state.pos]
 		state.order = Order(st)
-		for k, n in ipairs(state.order) do
-			if n == current then state.order[k], state.order[1] = state.order[1], n break end
+		if on then
+			for k, n in ipairs(state.order) do
+				if n == current then state.order[k], state.order[1] = state.order[1], n break end
+			end
+			state.pos = 1
+		else
+			-- in order: on from where it is (0.49.2, review: swapped to the front of 1..n, track 5 playing gave
+			-- 5, 2, 3, 4, 1, 6...: 2 came next, not 6)
+			state.pos = current or 1
 		end
-		state.pos = 1
 	end
 	if Redraw then Redraw(true) end
 end

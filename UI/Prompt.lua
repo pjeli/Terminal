@@ -475,7 +475,8 @@ function UI:SyntaxSegments(text, plain)
 				color = p and (Hex(p.color) or t.accent) or (#word == 1 and t.accent or bad)
 			else
 				local key, value = word:match("^(%a+):(.*)$")
-				if F and (word:find("[|&]") or word:find("^[-!]%a")) then
+				-- (0.49.2, review: "-малое", "-épée" are "not" too, as the search reads them: a letter of any language)
+				if F and (word:find("[|&]") or word:find("^[-!][%a\128-\255]")) then
 					-- "-is:boe", "q:rare|epic", "sword|axe": a filter once it parses (still being typed: plain)
 					local typing = pos + #word > #text
 					color = Parses(word) and filt or ((typing or not key) and base or bad)

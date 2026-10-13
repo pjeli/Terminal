@@ -17,10 +17,9 @@ local ALLOW = {
 	OpenAchievementFrameToAchievement = { files = { "Providers/Achievements.lua" }, why = "no game call opens an achievement; nothing protected in that window" },
 	ToggleAchievementFrame = { files = { "Providers/Achievements.lua" }, why = "(the same line's fallback)" },
 	AddonList = { files = { "Providers/Panels.lua", "Providers/Addons.lua" }, why = "no game call or button opens the AddOn list; nothing protected in it" },
-	ShowUIPanel = { files = { "Providers/Panels.lua", "Providers/Addons.lua", "Providers/Keybinds.lua" }, why = "the AddOn list / Quick Keybind Mode (above / below)" },
-	HideUIPanel = { files = { "Providers/Keybinds.lua" }, why = "the settings window stepping aside for Quick Keybind Mode" },
-	SettingsPanel = { files = { "Providers/Keybinds.lua" }, why = "read, to hide it for Quick Keybind Mode" },
-	QuickKeybindFrame = { files = { "Providers/Keybinds.lua" }, why = "no game call or button starts Quick Keybind Mode" },
+	ShowUIPanel = { files = { "Providers/Panels.lua", "Providers/Addons.lua" }, why = "the AddOn list (above)" },
+	-- (0.49.2, review: Quick Keybind Mode's /run line, HideUIPanel(SettingsPanel) and ShowUIPanel(QuickKeybindFrame), is
+	-- gone: the Keybindings page has a button that starts it, clicked for the game by a step (Keybinds.lua's QUICK_NAV))
 	-- the whisper box (SO.WhisperMacro: built from pieces, so only the run-time lint sees it)
 	ChatFrame_SendTell = { files = {}, why = "opens the whisper box: no game call or button does" },
 	ChatFrame_SendBNetTell = { files = {}, why = "opens a Battle.net whisper box: no game call or button does" },

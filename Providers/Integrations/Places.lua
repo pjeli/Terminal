@@ -155,14 +155,16 @@ local function TownFromQuests(idx, DB, area, qids)
 	if #xs > 0 then return { Median(xs), Median(ys), n = #xs } end
 end
 
-local townsBuilding
+local townsBuilding -- true while the background build runs, "fight" while it waits for a fight to end
 --- Every town's middle from the quests' words. Built in the background once Questie's quests are indexed
 --- (`sliced`: a few towns a frame); asked before that, worked out at once.
 local function TextTowns(sliced)
 	if textTowns then return textTowns end
 	local idx, DB = PlaceIndex(), QDB()
 	if not (idx and DB and DB.QueryQuestSingle and DB.QueryNPCSingle) then return nil end
-	if sliced and townsBuilding then return nil end
+	-- (0.49.2, review: asked while the background build ran, or waited on a fight, every town was worked out at once on
+	-- the keystroke, 30-100 ms; now not yet, as before the quests are indexed: I.TownsPending)
+	if townsBuilding then return nil end
 	-- (asked before Questie's quests are indexed: reading every quest's text now would stall the game; later)
 	if not sliced and not qdb.list then return nil end
 	local t0 = debugprofilestop and debugprofilestop()
@@ -191,9 +193,28 @@ local function TextTowns(sliced)
 	Finish()
 	return textTowns
 end
-I.BuildTowns = function() return TextTowns(true) end
---- Towns can't be placed from the quests yet (Questie's quests aren't indexed).
-function I.TownsPending() return not textTowns and not qdb.list end
+-- (0.49.2, review: the build 2 s after the quests are indexed was skipped in a fight and never tried again, so the first
+-- "vendor goldshire" worked every town out on the keystroke. Now a fight puts it off until the fight is over.)
+local townWait
+I.BuildTowns = function()
+	if textTowns or townsBuilding == true then return nil end
+	if InCombatLockdown() then
+		townsBuilding = "fight"
+		if not townWait then
+			townWait = CreateFrame("Frame")
+			townWait:SetScript("OnEvent", function(self)
+				self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+				C_Timer.After(2, function() I.BuildTowns() end) -- (a moment after the fight, as after the quests' index)
+			end)
+		end
+		townWait:RegisterEvent("PLAYER_REGEN_ENABLED")
+		return nil
+	end
+	if townsBuilding == "fight" then townsBuilding = nil end
+	return TextTowns(true)
+end
+--- Towns can't be placed from the quests yet (Questie's quests aren't indexed, or the towns are being worked out).
+function I.TownsPending() return not textTowns and (not qdb.list or townsBuilding ~= nil) end
 
 -- a town's middle: its flight point (on its zone's map, else a map above it), else where its quests send you,
 -- in world yards (false: none)

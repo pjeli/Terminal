@@ -408,3 +408,46 @@ Run("Simple mode: the only category with matches opens without its rows scored a
 	ns.Fuzzy.score = base
 	if not ok then error(err, 0) end
 end)
+
+-- (0.49.2, review C9) Simple mode, a misspelling only one category has close spellings of: that category opens with the
+-- rows the overview's close spellings found, not a second pass over its lists (187 ms a keystroke at 30k rows, 98 with
+-- one); a list the overview only looks up by name (Questie's, @stored) still gets its own. The same rows either way.
+Run("Simple mode: close spellings of one category looked up once; the same rows as the category picked", function()
+	ns.db.easyMode = true
+	Use({
+		{ "items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Linen Cloth" }, { name = "Hearthstone" } }) } },
+		{ "stored", { label = "Stored", aliases = { "stored" }, explicit = true,
+			collect = Rows({ { name = "Hearthstone Shard" }, { name = "Wool Cloth" } }),
+			hintFind = function() return nil, 0 end } },
+		{ "spells", { label = "Spell", aliases = { "spell" }, collect = Rows({ { name = "Fireball" }, { name = "Frostbolt" } }) } },
+	})
+	local passes, read, base = 0, 0, UI.CloseSpellings
+	UI.CloseSpellings = function(self, included, ...)
+		passes = passes + 1
+		for _, p in ipairs(included) do read = read + #ns:GetEntries(p) end
+		return base(self, included, ...)
+	end
+	local ok, err = pcall(function()
+		local function Fresh(cat) UI.category, UI.categoryAuto, UI.lastScan, UI.lastOverview = cat, nil, nil, nil end
+		Fresh(nil)
+		local got = Full(UI:Search("fireblal"))
+		check(UI.category == "spells" and UI.closeSpellings and got:find("^Fireball|"), "fireblal: Spells opened, Fireball: " .. got)
+		check(passes == 1, "close spellings looked up once, by the overview: " .. passes .. " passes")
+		Fresh("spells")
+		local want = Full(UI:Search("fireblal"))
+		check(got == want, "the same rows and scores as Spells picked by hand: " .. got .. "  //  " .. want)
+		-- Bags: @stored (looked up by name in the overview) gets its close spellings in the category's own search
+		passes, read = 0, 0
+		Fresh(nil)
+		got = Full(UI:Search("hearhtstone"))
+		check(UI.category == "items" and got:find("Hearthstone|", 1, true) and got:find("Hearthstone Shard|", 1, true),
+			"hearhtstone: Bags opened, the item and the stored one: " .. got)
+		check(passes == 2 and read == 4 + 2, "the overview's pass, then @stored's alone: " .. passes .. " passes, " .. read .. " rows")
+		Fresh("items")
+		want = Full(UI:Search("hearhtstone"))
+		check(got == want, "the same rows and scores as Bags picked by hand: " .. got .. "  //  " .. want)
+	end)
+	UI.CloseSpellings = base
+	UI.category, UI.categoryAuto = nil, nil
+	if not ok then error(err, 0) end
+end)

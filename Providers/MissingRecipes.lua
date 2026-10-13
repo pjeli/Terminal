@@ -227,6 +227,50 @@ local CHATBOX -- (made once ns.ChatBoxSpec is there: below)
 
 local GREY = "|cff8a8a8a"
 
+-- (0.49.2, review) A recipe item the client hasn't loaded has no name yet (the tooltip said "item 92700"): asked for, and
+-- the tooltip drawn again once it's in. Only that id is listened for, only while it's awaited (MR.NAME_WAIT s at most),
+-- each id asked twice at most, and never again once the server says it has no such item.
+MR.NAME_WAIT = 10
+local nameWait = { gen = 0, asked = {}, failed = {} }
+MR.nameWait = nameWait -- (tests)
+local function StopNameWait()
+	nameWait.id, nameWait.e, nameWait.t = nil, nil, nil
+	local f = nameWait.frame
+	if f then
+		pcall(f.UnregisterEvent, f, "GET_ITEM_INFO_RECEIVED")
+		pcall(f.UnregisterEvent, f, "ITEM_DATA_LOAD_RESULT")
+	end
+end
+local function NameCame(_, _, got, ok)
+	if got == nil or got ~= nameWait.id then return end
+	local t, e = nameWait.t, nameWait.e
+	StopNameWait()
+	if ok == false then nameWait.failed[got] = true return end
+	-- (still the row whose tooltip asked: drawn again, the name in it now)
+	if t and e and t.entry == e and t:IsShown() and ns.UI and ns.UI.UpdateTooltip then
+		t.entry = nil
+		ns.UI:UpdateTooltip()
+	end
+end
+function MR.WaitName(t, e, id)
+	local ask = C_Item and C_Item.RequestLoadItemDataByID
+	if not (ask and id) or nameWait.failed[id] or (nameWait.asked[id] or 0) >= 2 then return end
+	if nameWait.id == id and nameWait.e == e then return end -- (already waiting on it)
+	if not nameWait.frame then
+		nameWait.frame = CreateFrame("Frame")
+		nameWait.frame:SetScript("OnEvent", NameCame)
+	end
+	StopNameWait()
+	nameWait.id, nameWait.e, nameWait.t = id, e, t
+	nameWait.asked[id] = (nameWait.asked[id] or 0) + 1
+	nameWait.gen = nameWait.gen + 1
+	pcall(nameWait.frame.RegisterEvent, nameWait.frame, "GET_ITEM_INFO_RECEIVED")
+	pcall(nameWait.frame.RegisterEvent, nameWait.frame, "ITEM_DATA_LOAD_RESULT")
+	pcall(ask, id)
+	local gen = nameWait.gen
+	C_Timer.After(MR.NAME_WAIT, function() if nameWait.gen == gen and nameWait.id then StopNameWait() end end)
+end
+
 --- The tooltip: the skill it needs (against yours), then each way it's learned and where that's from.
 function MR.Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
@@ -249,6 +293,7 @@ function MR.Tooltip(e, t)
 	end
 	if s.rid then
 		local nm = C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, s.rid))
+		if not nm then MR.WaitName(t, e, s.rid) end -- (asked for: drawn again with its name when it comes)
 		t:AddLine(L["Its recipe: %s  (AtlasLoot)"]:format(nm or L["item %s"]:format(s.rid)), 1, 1, 1, true)
 		-- (nearest first, how far: as the learn chain lists them)
 		local vendors = MR.Nearest(s.vendors)

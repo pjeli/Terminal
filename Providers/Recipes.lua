@@ -43,7 +43,8 @@ local function RecipeActivate(e) P.OpenRecipe(e.recipeID, e.profID, e.name) end
 -- (its profession's window showing, whatever its search or filters hide: P.WindowShows)
 local function RecipeIsOpen(e) return P.WindowShows(e.profID, e.profName, e.profWindow) end
 local function RecipeAfter(e)
-	if e.profSpell then P.lastSpell = { name = e.profSpell, at = GetTime() } end
+	-- (`parent`: the profession whose window it is, for SaveSnapshot to check against the window it reads; 0.49.2)
+	if e.profSpell then P.lastSpell = { name = e.profSpell, parent = e.profName, at = GetTime() } end
 	P.SelectRecipe(e.recipeID, e.name)
 end
 local function RecipeLinkInChat(e) ns.LinkInChat(RecipeLink(e)) end
@@ -141,7 +142,15 @@ ns:RegisterProvider("recipes", {
 				detail = L["open a profession once to index it"],
 				text = "recipes crafts crafting professions scan index reagents",
 				activate = function() P.Scan() end,
+				actionVerb = L["scan your professions"], -- (0.49.2, review: the footer said "show recipe")
 			}
+			-- (0.49.2, review) the game won't let addons open profession windows (WoW Forever: db.noDirectOpen): a scan
+			-- would only say so, so the row only says what indexes them
+			if ns.db and ns.db.noDirectOpen then
+				local n = out[1]
+				n.name = L["Open a profession's window once: Terminal reads its recipes from it"]
+				n.detail, n.noActivate, n.activate, n.actionVerb = "", true, nil, nil
+			end
 		end
 		return out
 	end,
@@ -187,7 +196,7 @@ local function LinkProfession(e)
 	if not ns.LinkInChat(ProfessionLink(e)) then ns:Print(L["Couldn't link %s in chat."]:format(tostring(e.name))) end
 end
 
-local function TradeSpellAfter(e) P.lastSpell = { name = e.name, at = GetTime() } end
+local function TradeSpellAfter(e) P.lastSpell = { name = e.name, parent = e.parentName, at = GetTime() } end
 local function TradeSpellInCombat(e) ns:Print(L["%s can't be opened from the terminal in combat."]:format(e.name)) end
 local function ProfessionActivate(e) P.OpenProfession(e.skillLine, e.name) end
 -- a profession's or trade spell's window showing: nothing pressed (its /cast would shut it)
@@ -259,10 +268,13 @@ ns:RegisterCommand("profs", {
 	aliases = { "professions" },
 	run = function()
 		local lines = { L["Professions:"] }
+		-- (0.49.2, review: where the game won't let addons open profession windows, @recipe has no scan to pick)
+		local noScan = ns.db and ns.db.noDirectOpen
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local pd = P.FindIndexed(pr)
 			lines[#lines + 1] = ("  %s %d/%d - %s"):format(pr.name, pr.rank, pr.maxRank,
-				pd and L["%d recipes indexed"]:format(#pd.list) or ns.Said(L["not indexed (open it once)"], L["not indexed (open it once, or search @recipe and pick Index my recipes)"]))
+				pd and L["%d recipes indexed"]:format(#pd.list) or (noScan and L["not indexed (open it once)"])
+					or ns.Said(L["not indexed (open it once)"], L["not indexed (open it once, or search @recipe and pick Index my recipes)"]))
 		end
 		if #lines == 1 then lines[2] = "  " .. L["none found"] end
 		return lines

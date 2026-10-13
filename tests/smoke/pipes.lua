@@ -718,3 +718,25 @@ ns.Integrations.ItemField, ns.Integrations.NpcRow, ns.Integrations.ObjectName, n
 ns.Integrations.NpcField = saved.npcField
 UI.lastScan, UI.lastOverview = nil, nil
 P.ClearCrafts(); P.ClearSteps()
+
+-- (0.49.2, review C7) a phrase that catches no name isn't a chain: your group ("what does my group need" is the group's
+-- question) or a way somewhere ("how do i get to orgrimmar"); they said "Nothing called 'my group'"
+do
+	io.write("[chains: phrases that catch no name]\n")
+	local C = P.Canonical
+	check(C("what does my group need") == nil and C("what does the party need") == nil and C("what does the raid need") == nil
+		and C("what do i need for my group") == nil and C("what does our party members need") == nil, "your group isn't a name")
+	check(C("how do i get to orgrimmar") == nil and C("how to get to booty bay") == nil and C("where do i get to") == nil,
+		"a way somewhere isn't a name")
+	check(C("what does thorium belt need") == "thorium belt > mats" and C("how do i get copper ore") == "copper ore > sources"
+		and C("what does the black book need") == "black book > mats" and C("mats for raid boots") == "raid boots > mats",
+		"names still make chains: " .. tostring(C("mats for raid boots")))
+	local was = ns.db.easyMode
+	ns.db.easyMode = true
+	UI.category, UI.categoryAuto = nil, nil
+	UI:Search("what does my group need")
+	local trail, note = UI.pipeTrail, UI.answerNote
+	ns.db.easyMode = was
+	UI.category, UI.categoryAuto = nil, nil
+	check(trail == nil and note ~= nil, "what does my group need: the group's answer: " .. tostring(trail) .. " / " .. tostring(note))
+end

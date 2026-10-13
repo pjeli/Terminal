@@ -16,27 +16,28 @@ local panels = {} -- every app built: { IsShown, Close }
 local frames = {} -- their frames (.zen keeps them up while the interface fades)
 
 --- A one-line FontString in the input font, at `size` (the font's own when nil), justified left unless told.
+--- (0.49.2, review: a size is its own font object, Theme.FontAt, so `.set font` reaches every app's text; a face set
+--- on the FontString itself stayed the one it was made with)
 function P.Text(parent, size, justify)
 	local fs = parent:CreateFontString(nil, "OVERLAY")
-	fs:SetFontObject(Theme.fonts.input)
-	if size then
-		local font, _, flags = fs:GetFont()
-		if font then fs:SetFont(font, size, flags) end
-	end
+	fs:SetFontObject(size and Theme.FontAt(size) or Theme.fonts.input)
 	fs:SetJustifyH(justify or "LEFT")
 	fs:SetWordWrap(false)
 	return fs
 end
 
 --- An app's frame: named, above the game's windows (DIALOG), kept on screen, hidden, reading the
---- keyboard, and closing itself (`app.Close("combat")`) when combat starts: with the keyboard held you
---- couldn't move or cast. The app (`IsShown`, `Close`) is registered for P.Opening.
+--- keyboard, catching the mouse, and closing itself (`app.Close("combat")`) when combat starts: with the
+--- keyboard held you couldn't move or cast. The app (`IsShown`, `Close`) is registered for P.Opening.
 function P.Build(name, app)
 	local frame = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
 	frame:SetFrameStrata("DIALOG")
 	frame:SetClampedToScreen(true)
 	frame:Hide()
 	frame:EnableKeyboard(true)
+	-- (0.49.2, review: only WoWamp caught the mouse, as the terminal does: a click on F1's or the changelog's text went
+	-- through to the world and targeted the mob behind it, a drag on .atop turned the camera)
+	frame:EnableMouse(true)
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	frame:SetScript("OnEvent", function() app.Close("combat") end)
 	panels[#panels + 1] = app

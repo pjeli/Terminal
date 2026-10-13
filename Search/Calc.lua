@@ -97,6 +97,7 @@ local function Parse(toks)
 			return val
 		elseif t.t == "fn" then
 			pos = pos + 1
+			binops = binops + 1 -- (a function call is an operation too: "sqrt(2)", "max(3, 5)" gave no answer; 0.49.2, review)
 			if not isop("(") then error("(") end
 			pos = pos + 1
 			local args = { expr() }

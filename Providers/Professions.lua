@@ -386,11 +386,15 @@ local function ReagentsOf(recipeID)
 	local made = type(s.outputItemID) == "number" and s.outputItemID > 0 and s.outputItemID or nil
 	if type(s.reagentSlotSchematics) ~= "table" then return nil, made end
 	local out = {}
+	-- (0.49.2, review: one need per slot. Every reagent of every slot was kept as needed: an optional slot's (required
+	-- false) and a slot's alternatives (its quality tiers: any one of them does), so is:craftable and "mats for" asked
+	-- for all of them. A slot's first reagent stands for it)
 	for _, slot in ipairs(s.reagentSlotSchematics) do
-		local qty = slot.quantityRequired or 1
-		for n, rg in ipairs(slot.reagents or {}) do
-			if n > 3 then break end -- quality tiers of one reagent: first few are enough
-			if rg.itemID then out[#out + 1] = { rg.itemID, qty } end
+		if slot.required ~= false then
+			local qty = slot.quantityRequired or 1
+			for _, rg in ipairs(slot.reagents or {}) do
+				if rg.itemID then out[#out + 1] = { rg.itemID, qty } break end
+			end
 		end
 	end
 	return out, made
@@ -514,7 +518,15 @@ end
 --- opened it), with the spell it was opened by, and drops older copies kept under another key.
 local function SaveSnapshot(store, key, profName, fromList, list, unknown, partial)
 	-- a window opened by a profession spell (Smelting): keep it apart from its profession
-	local spell = P.lastSpell and (GetTime() - P.lastSpell.at) < 6 and P.lastSpell.name or nil
+	local last = P.lastSpell
+	local spell = last and (GetTime() - last.at) < 6 and last.name or nil
+	-- (0.49.2, review: only for that spell's own window: the window read is its profession's (Mining for Smelting) or the
+	-- spell's own name. It was kept 6 s whatever opened next, nothing pressed (its window already open) or a cast that
+	-- failed: Blacksmithing opened just after Enter on a Smelting recipe was saved as Smelting's)
+	if spell and last.parent and Lower(profName) ~= Lower(last.parent) and Lower(profName) ~= Lower(spell) then
+		ns:Trace(("professions: %s's window isn't %s's (%s): not kept as it"):format(profName, spell, last.parent))
+		spell = nil
+	end
 	if not spell and P.tradeSpellNames[Lower(profName)] then spell = profName end
 	local parent
 	if spell and Lower(spell) ~= Lower(profName) then
@@ -559,7 +571,7 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown, parti
 	for k, pd in pairs(store) do
 		if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
 	end
-	store[key] = {
+	local saved = {
 		name = profName,
 		skillLine = fromList and key or nil,
 		fromList = fromList or nil,
@@ -571,10 +583,34 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown, parti
 		-- the window's recipes you don't know yet (0.45.14: "recipes i'm missing", MissingRecipes.lua)
 		unknown = unknown,
 	}
+	store[key] = saved
+	return saved
 end
 
---- Reads every recipe of the profession window that is currently open.
-function P.Snapshot(done)
+--- What a read of the open window depends on (0.49.2, review): which profession it is, your skill in it (the game's,
+--- and the window's with its bonus: the recipes' colours follow it) and its recipe ids. The same again: nothing to
+--- read again on a list update.
+local function SnapSig(api, key, profName, ids)
+	local rank
+	for _, pr in ipairs((P.PlayerProfessions())) do
+		if pr.skillLine == key or Lower(pr.name) == Lower(profName) then rank = pr.rank break end
+	end
+	local sum = 0
+	for _, id in ipairs(ids) do if type(id) == "number" then sum = sum + id end end
+	local parts = { tostring(key), profName, tostring(rank), #ids, sum }
+	for _, get in ipairs({ api.GetChildProfessionInfo or false, api.GetBaseProfessionInfo or false }) do
+		local info = get and ns.Safe(get)
+		if type(info) == "table" then
+			parts[#parts + 1] = tostring(ns.Num(info.skillLevel)) .. "+" .. tostring(ns.Num(info.skillModifier))
+		end
+	end
+	return table.concat(parts, ":")
+end
+P.lastRead = nil -- { sig, entry }: the last read of a window, and the saved list it made
+
+--- Reads every recipe of the profession window that is currently open. `quick` (a list update alone): not read again
+--- when nothing it depends on changed since the last read (SnapSig).
+function P.Snapshot(done, quick)
 	local function finish()
 		busy = false
 		P.MarkDirty()
@@ -601,6 +637,20 @@ function P.Snapshot(done)
 	local partial = all == 0 and P.WindowFiltered(api) or nil
 	local key, profName, fromList = ResolveProfession(api, ids)
 	if not key or not profName then return skip() end
+	-- (0.49.2, review: the window sends a list update on every bag change while it's open, and each one read every
+	-- recipe's info and schematic again, made a new saved list and rebuilt three lists. Read again only when something
+	-- the read depends on changed, and while the list it made is still kept: a skill-up changes the signature (the
+	-- colours, 0.42.10), a recipe learned is an event of its own, read in full)
+	local sig = SnapSig(api, key, profName, ids)
+	local last = P.lastRead
+	if quick and last and last.sig == sig then
+		for _, pd in pairs(store) do
+			if pd == last.entry then
+				ns:Trace(("professions: %s's list updated, nothing it lists changed: not read again"):format(profName))
+				return skip()
+			end
+		end
+	end
 
 	busy = true
 	local list, unknown, cats, i = {}, {}, {}, 0
@@ -621,7 +671,7 @@ function P.Snapshot(done)
 		if i < #ids then
 			C_Timer.After(0, step) -- spread the work over a few frames
 		else
-			SaveSnapshot(store, key, profName, fromList, list, unknown, partial)
+			P.lastRead = { sig = sig, entry = SaveSnapshot(store, key, profName, fromList, list, unknown, partial) }
 			finish()
 		end
 	end
@@ -891,6 +941,10 @@ local function WatchNames(on)
 end
 P.WatchNames = WatchNames
 local pendingSnap, pendingPrune
+-- (0.49.2, review) true once an event since the last read wants the window read in full: any but a bare list update
+-- (the window opened, its data source changed, a recipe learned, your skills changed)
+local fullSnap = false
+P.events = ev -- (tests)
 ev:SetScript("OnEvent", function(_, event, id)
 	if event == "GET_ITEM_INFO_RECEIVED" then
 		if id ~= nil and not P.waitingNames[id] then return end -- (someone else's item)
@@ -903,6 +957,7 @@ ev:SetScript("OnEvent", function(_, event, id)
 			end)
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
+		fullSnap = true
 		P.MarkDirty()
 		if ns.providers.professions then ns.providers.professions._dirty = true end -- ranks
 		if not pendingPrune then
@@ -913,12 +968,17 @@ ev:SetScript("OnEvent", function(_, event, id)
 				P.MarkDirty()
 			end)
 		end
-	elseif not pendingSnap and not P.scanBusy then
-		pendingSnap = true
-		C_Timer.After(1.5, function()
-			pendingSnap = false
-			P.Snapshot()
-		end)
+	elseif not P.scanBusy then
+		if event ~= "TRADE_SKILL_LIST_UPDATE" then fullSnap = true end
+		if not pendingSnap then
+			pendingSnap = true
+			C_Timer.After(1.5, function()
+				pendingSnap = false
+				local quick = not fullSnap
+				fullSnap = false
+				P.Snapshot(nil, quick)
+			end)
+		end
 	end
 end)
 

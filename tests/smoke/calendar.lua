@@ -200,6 +200,15 @@ do
 		and N("guild events") == 1 and N("whats on this week") == 5 and N("next week") == 1 and N("next month") == 2,
 		"what each asks: " .. table.concat({ N("holidays"), N("today"), N("tomorrow"), N("this weekend"), N("my invites"),
 			N("guild events"), N("whats on this week"), N("next week"), (N("next month")) }, " "))
+	-- (0.49.2, review) the words a row holds besides its name: its day, month, kind and who invited you
+	check(Q("events on thursday") and N("events on thursday") == 1 and Q("invites from bob") and N("invites from bob") == 1
+		and N("events in november") == 2, "a row's other words: " .. tostring((N("events in november"))))
+	-- (0.49.2, review) the span kept in Advanced mode, and is:pending still @auction's
+	check(E.ToAdvanced("whats on this week") == "@calendar when:week " and E.ToAdvanced("holidays next month")
+		== "@calendar is:holiday when:nextmonth ", "Alt+` keeps the span: " .. E.ToAdvanced("whats on this week"))
+	check(#UI:Search("@calendar when:week") == 5 and #UI:Search("@calendar when:nextmonth") == 2
+		and #UI:Search("@calendar is:holiday when:weekend") == 2, "when:<span>")
+	check(ns.Filters._.IS.pending == ns.Filters._.IS.incoming, "is:pending stays the auction house's news")
 	local n, rows = N("when is hallows end")
 	check(n == 1 and rows[1].name == "Hallow's End", "by name, its ' left out")
 	local _, note = CA.Answer(Q("holidays this week"))

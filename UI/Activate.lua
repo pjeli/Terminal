@@ -140,13 +140,20 @@ function UI:FinishSoon(e)
 			-- the window that just opened closed the terminal first: still point at the result
 			ns.Secure.Disarm()
 			AfterSoon(e, 0.1)
+		elseif self.armedEntry == nil then
+			-- disarmed since (a Down arrow, the wheel, the pointer on another row): the press was made all the same (Enter
+			-- went on to the binding in it), so it's finished as if still armed. (0.49.2, review: the window opened, and the
+			-- terminal stayed over it with Enter still bound, its after-step never run)
+			self:FinishSecure(e)
 		end
 	end)
 end
 
-function UI:FinishSecure()
+--- The armed press was made: disarmed, closed (unless it asks for more, or Ctrl+Enter kept it), the result pointed at.
+--- `pressed`: the entry whose press it was, when nothing is armed any more (FinishSoon).
+function UI:FinishSecure(pressed)
 	local hold = self.holdOpen -- (read before Disarm clears it)
-	local e = self.armedEntry
+	local e = self.armedEntry or pressed
 	-- the press came back after the terminal had closed (the window it opened closed it): still that entry
 	if not e and self.lastArmedEntry and self.lastArmedAt and GetTime() - self.lastArmedAt < ns.Secure.LATE then
 		e = self.lastArmedEntry
@@ -207,7 +214,7 @@ local function SecureView(e, shift, own)
 			return setmetatable({ secure = PRESS_ALL_SPEC, isOpen = NeverOpen, after = SentAfter, noClick = true }, { __index = e })
 		end
 		if not UI.sendTo.cmd or UI.sendTo.all or e.noActivate or e.raw or e.completion then return nil end
-		-- (its verb for the armed line: "Press Enter to send it to Party", not the row's own; review, 0.48.6)
+		-- (its verb for the armed line: "Press Enter: send it to Party", not the row's own; review, 0.48.6)
 		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter,
 			actionVerb = L["send it to %s"]:format(tostring(UI.sendTo.label)) }, { __index = e })
 	end
@@ -218,7 +225,7 @@ local function SecureView(e, shift, own)
 		return setmetatable({
 			secure = e.secondarySecure, isOpen = e.secondaryIsOpen or false, after = e.secondaryAfter or false,
 			staysOpen = e.secondaryStaysOpen, -- (nil: the row's own; a chain's row stays open on Enter, not Shift+Enter)
-			isShift = true, -- (the footer's "Press Enter to <Shift+Enter's verb>")
+			isShift = true, -- (the footer's "Press Enter: <Shift+Enter's verb>")
 		}, { __index = e })
 	end
 	return e.secure and e or nil
@@ -266,7 +273,7 @@ local function Catcher()
 	c:EnableMouseWheel(true)
 	c:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 	c:SetScript("OnLeave", function() UI:HideCatcher() end)
-	c:SetScript("PreClick", function(self) UI:CatcherPreClick(self) end)
+	c:SetScript("PreClick", function(self, button) UI:CatcherPreClick(self, button) end)
 	c:HookScript("PostClick", function(_, button) UI:CatcherClicked(button) end)
 	if RegisterStateDriver then
 		c:SetAttribute("_onstate-combat", [[ if newstate == "1" then self:Hide() end ]])
@@ -308,8 +315,9 @@ function UI:PlaceCatcher(i)
 	if self.fzf then self:HideCatcher() return end -- (a click hands the result over; nothing is opened)
 	local row, e = rows[i], UI.results[UI.offset + i]
 	-- the same result on the same row (the list redrawn under a resting pointer): its macros
-	-- stand, the catcher only follows the row
-	if catcher and e and catcher.entry == e and catcher.row == i and catcher:IsShown() then
+	-- stand, the catcher only follows the row. Not when where it's sent changed (" >> party" typed after it keeps the
+	-- same rows: the click opened the quest log instead of sending it; 0.49.2, review)
+	if catcher and e and catcher.entry == e and catcher.row == i and catcher.sendTo == self.sendTo and catcher:IsShown() then
 		if not AnchorCatcher(catcher, row) then self:HideCatcher() end
 		return
 	end
@@ -330,12 +338,15 @@ function UI:PlaceCatcher(i)
 	c:SetAttribute("ctrl-macrotext1", plain ~= SEND_LATER and plain or "")
 	c:SetAttribute("ctrl-shift-type1", shifted and "macro" or "")
 	c:SetAttribute("ctrl-shift-macrotext1", shifted ~= SEND_LATER and shifted or "")
-	c.row, c.entry, c.plain, c.shifted = i, e, plain, shifted
+	c.row, c.entry, c.plain, c.shifted, c.sendTo = i, e, plain, shifted, self.sendTo
 	c:Show()
 end
 
---- Before the catcher's click acts: a chat line to send (">> party") is worked out now, for the row clicked.
-function UI:CatcherPreClick(c)
+--- Before the catcher's click acts: a chat line to send (">> party") is worked out now, for the row clicked. Only for the
+--- left button: a right-click opens the row's menu, which works nothing out (an NPC's line moves your waypoint to link
+--- it; 0.49.2, review).
+function UI:CatcherPreClick(c, button)
+	if button ~= "LeftButton" then return end
 	if InCombatLockdown() or not c.entry then return end
 	local shift = IsShiftKeyDown()
 	if (shift and c.shifted or c.plain) ~= SEND_LATER then return end
@@ -380,6 +391,9 @@ function UI:CatcherClicked(button)
 			end
 		end)
 		FinishClicked(e, se)
+		-- kept open (Ctrl on a press that opens no window, a press that asks for more): the catcher back over the row the
+		-- pointer rests on, so the next click is pressed by the game too (0.49.2, review: it only armed Enter)
+		if self:IsShown() then self:PlaceCatcher(c.row) end
 	else
 		ns:Trace("click: no window macro for " .. tostring(e.name) .. ", running its usual action")
 		self:Activate(idx, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
@@ -458,6 +472,9 @@ function UI:Activate(idx, opts)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
 	local to = (not opts.own) and self.sendTo or nil -- (own: the row menu's first lines, the row's own action)
 	if to and to.all and not e.completion then return SendEveryResult(self, to) end
+	-- ">> channel": never opened or run, only sent (by the game's press, armed there; in combat it says it can't send:
+	-- 0.49.2, review: a row that opens a window said "can't open in combat", the others "can't send it now")
+	if to and not e.completion then return SendSelected(self, e, to, opts.secondary) end
 	-- Opening or clicking Blizzard's windows is protected in combat: do nothing rather than
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
@@ -466,11 +483,9 @@ function UI:Activate(idx, opts)
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
 		local verb = (opts.secondary and shift) or enter or L["open"]
-		ns:Print(L["%s: can't %s in combat."]:format(tostring(e.name), verb))
+		ns:Print(L["%s: can't do that in combat (%s)."]:format(tostring(e.name), verb))
 		return
 	end
-	-- ">> channel": never opened or run, only sent (by the game's press, armed below)
-	if to and not e.completion then return SendSelected(self, e, to, opts.secondary) end
 	-- (a row that only fills the prompt in, "Search Questie for this", is a step, not something run)
 	if not e.staysOpen then ns:RecordHistory(edit:GetText()) end
 	-- windows Blizzard owns are opened by a secure click, never from our own code

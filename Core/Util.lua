@@ -45,6 +45,23 @@ end
 ns.DETAIL_SEP = "  ·  "
 function ns.Detail(...) return ns.Join(ns.DETAIL_SEP, ...) end
 
+--- A line in a list saying why it lists nothing ("No mail kept yet: ..."): not a result, nothing to run or send.
+function ns.NoteRow(text)
+	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
+		_pos = ns.UI and ns.UI.NO_POS or nil }
+end
+
+--- A list's leadRow saying `text` when the list has nothing at all (asked for by name: @mail, its Simple category);
+--- `empty(p)` tells, after the list is made.
+function ns.EmptyLead(text, empty)
+	return function(p, _, res)
+		if res and #res > 0 then return nil end
+		ns:GetEntries(p)
+		if not empty(p) then return nil end
+		return ns.NoteRow(type(text) == "function" and text() or text)
+	end
+end
+
 --- A usable number: not secret; else nil.
 function ns.Num(v)
 	if type(v) ~= "number" then return nil end

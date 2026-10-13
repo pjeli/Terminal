@@ -124,6 +124,21 @@ do
 	ns.MissingRecipes.ReadMerchant()
 	check(ns.db.vendorItems[5000] and not ns.db.vendorItems[5001], "a vendor's unlimited goods are kept as sold, not limited ones")
 	_G.GetMerchantNumItems, _G.GetMerchantItemID, _G.GetMerchantItemInfo, _G.C_MerchantFrame, _G.UnitGUID = was.n, was.id, was.info, was.mf, was.guid
+
+	-- (0.49.2, review C8) a question's filler isn't a recipe's name; words that leave every recipe out say so (the recipes
+	-- are read: not "open a profession's window"); "leveling plan" is every profession of yours
+	local function Words(text) local q = Q(text) return q and table.concat(q.words, ",") end
+	check(Words("whats the best way to level blacksmithing") == "" and Words("fastest way to level blacksmithing") == ""
+		and Words("blacksmithing leveling guide") == "", "filler words aren't recipe names: "
+		.. tostring(Words("whats the best way to level blacksmithing")) .. " / " .. tostring(Words("blacksmithing leveling guide")))
+	res = UI:Search("whats the best way to level blacksmithing")
+	check(#res == 5 and res[1].name == "Forever Gizmo", "whats the best way to level blacksmithing: the plan: " .. tostring(res[1] and res[1].name))
+	local none = PL.Answer(Q("blacksmithing plan zzqx"))
+	check(#none == 1 and none[1].name == PL.NO_MATCH and PL.NO_MATCH ~= PL.NONE, "words leaving every recipe out: "
+		.. tostring(none[1] and none[1].name))
+	local lp = Q("leveling plan")
+	check(lp and #lp.profs == 0 and #lp.words == 0 and #UI:Search("leveling plan") == 5, "leveling plan: every profession of yours")
+	check(not Q("level plan 20") and not Q("level") and not Q("plan"), "a plan word and a levelling word alone, nothing else")
 end
 
 ns.providers, ns.providerOrder = saved.providers, saved.order

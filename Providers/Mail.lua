@@ -603,16 +603,20 @@ function MA.SettleAuctions(box, now)
 	MA.EndedFromMail(box, now)
 	local list = Mine("mailAuctions")
 	if not (list and box) then return end
+	-- each sold item's newest sale mail, by when the inbox first had it (0.49.2, review: an older sale's mail still in
+	-- the inbox dropped the news of a new sale whose gold hadn't come yet)
 	local soldItems = {}
 	for _, m in ipairs(box.mails or {}) do
 		if m.auction == "sold" or m.auction == "pending" then
 			local item = (m.invoice and m.invoice.item) or (m.subject and m.subject:match(":%s*(.+)$"))
-			if item then soldItems[item] = true end
+			local first = m.first or now
+			if item and first > (soldItems[item] or -1) then soldItems[item] = first end
 		end
 	end
 	for i = #list, 1, -1 do
 		local a = list[i]
-		if (a.kind ~= "sold" and (a.at or 0) <= now) or (a.kind == "sold" and soldItems[a.item]) then table.remove(list, i) end
+		local mailed = a.kind == "sold" and soldItems[a.item]
+		if (a.kind ~= "sold" and (a.at or 0) <= now) or (mailed and mailed >= (a.at or 0)) then table.remove(list, i) end
 	end
 end
 
@@ -857,6 +861,12 @@ local AUCTION_SAID = {
 	won = L["The item comes by mail."], outbid = L["Your bid comes back by mail."], expired = L["The item comes back by mail."],
 }
 
+-- the tooltip's Shift+Enter, only where there is one: the nearest mailbox is Questie's (@mailbox), so without it Shift+Enter
+-- does what Enter does (0.49.2, review: the tooltip promised a waypoint the footer, rightly, didn't)
+local function ShiftHint()
+	return ns.providers.mailbox and ("    " .. L["Shift+Enter: waypoint to the nearest mailbox"]) or ""
+end
+
 local function WayTooltip(e, t)
 	if e.mailKind == "sent" then
 		local m = e.mail
@@ -881,7 +891,7 @@ local function WayTooltip(e, t)
 		end
 		t:AddLine(AUCTION_SAID[e.news] or "", 0.6, 0.8, 1, true)
 	end
-	t:AddLine(L["Enter: in chat"] .. "    " .. L["Shift+Enter: waypoint to the nearest mailbox"], 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: in chat"] .. ShiftHint(), 0.6, 0.6, 0.6, true)
 end
 
 local function Tooltip(e, t)
@@ -904,7 +914,7 @@ local function Tooltip(e, t)
 		if e.more then t:AddLine(L["%d more waiting on the server (the inbox shows 50 at a time)"]:format(e.more), 0.6, 0.6, 0.6, true) end
 		if e.newFrom then t:AddLine(L["New mail from %s"]:format(e.newFrom), 0.4, 1, 0.4, true) end
 		if e.seen then t:AddLine(L["Mailbox last opened %s"]:format(ns.Ago(Now() - e.seen)), 0.6, 0.6, 0.6) end
-		t:AddLine(L["Enter: in chat"] .. "    " .. L["Shift+Enter: waypoint to the nearest mailbox"], 0.6, 0.6, 0.6, true)
+		t:AddLine(L["Enter: in chat"] .. ShiftHint(), 0.6, 0.6, 0.6, true)
 		return
 	end
 	local m = e.mail
@@ -929,7 +939,7 @@ local function Tooltip(e, t)
 		t:AddLine(L["Unread"], 0.4, 1, 0.4)
 	end
 	t:AddLine(((MA.open and e.mine) and L["Enter: point at it in the inbox"] or L["Enter: in chat"])
-		.. "    " .. L["Shift+Enter: waypoint to the nearest mailbox"], 0.6, 0.6, 0.6, true)
+		.. ShiftHint(), 0.6, 0.6, 0.6, true)
 end
 
 -- (every row's: shared, not a closure per row)
@@ -1175,6 +1185,8 @@ ns:RegisterProvider("mail", {
 	refreshOnOpen = 60, -- (the time left moves on)
 	events = { "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD" },
 	guard = 1,
+	-- nothing kept anywhere: a line saying how to fill it (0.49.2, review: @mail said nothing, as @lockout does)
+	leadRow = ns.EmptyLead(function() return MA.NONE end, function() return not (list and #list > 0) end),
 	collect = function() return MA.Collect() end,
 })
 

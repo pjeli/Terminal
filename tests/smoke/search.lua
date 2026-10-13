@@ -524,3 +524,64 @@ do
 	E.WORDS.zzrole, E.HARD_WORDS.zzrole, E.ROLE_WORDS.zzrole = nil, nil, nil
 	UI.lastScan, UI.lastOverview = nil, nil
 end
+
+-- (0.49.2, review C3) "reset" with other words is the lockouts' question only when they name a lockout or an instance
+-- ("reset my keybinds" listed the lockouts); time words are question words ("what resets this week" said "No lockout
+-- has that", and Alt+` wrote "@lockout week")
+do
+	io.write("[search: reset questions]\n")
+	local LK, p = ns.Lockouts, ns.providers.lockouts
+	local save = { entries = p._entries, dirty = p._dirty }
+	local ok, err = pcall(function()
+		p._entries, p._dirty = {}, false
+		check(LK.Question("reset my keybinds") == nil and LK.Question("how do i reset my talents") == nil and LK.Question("reset my ui") == nil
+			and LK.Question("when does my hearthstone reset") == nil and LK.Question("reset all my settings") == nil,
+			"reset with words that name no lockout nor instance: a search")
+		check(LK.Question("when does mc reset") and LK.Question("when does molten core reset") and LK.Question("when does strat reset"),
+			"nothing saved: an instance's name or shorthand still asks")
+		p._entries = { { name = "Molten Core", kind = "lockouts", isRaid = true, mine = true, _lname = "molten core",
+			_ltext = "molten core 40 player resets in 3 d" }, { name = "Wailing Caverns", kind = "lockouts", mine = true,
+			_lname = "wailing caverns", _ltext = "wailing caverns" } }
+		local function Words(text) local q = LK.Question(text) return q and table.concat(q.words, ",") end
+		check(Words("what resets this week") == "" and Words("raid lockouts this week") == "" and Words("when does mc reset tomorrow") == "mc"
+			and Words("am i saved this week") == "", "time words are question words: " .. tostring(Words("what resets this week"))
+			.. " / " .. tostring(Words("raid lockouts this week")) .. " / " .. tostring(Words("when does mc reset tomorrow")))
+		local rows = LK.Answer(LK.Question("when does mc reset tomorrow"))
+		check(#rows == 1 and rows[1].name == "Molten Core", "when does mc reset tomorrow: Molten Core")
+		check(ns.Easy.QuestionToAdvanced("what resets this week") == "@lockout ", "Alt+`: @lockout: "
+			.. tostring(ns.Easy.QuestionToAdvanced("what resets this week")))
+	end)
+	p._entries, p._dirty = save.entries, save.dirty
+	check(ok, "the reset questions block ran: " .. tostring(err))
+end
+
+-- (0.49.2, review C6) words besides the auctions' own need what auctions do (sold, selling, listed) or "auctions" itself:
+-- "where is the ah", "show me the auction house" said "No auction has that"; "what's up" listed your auctions
+do
+	io.write("[search: auction questions]\n")
+	local Q = ns.Auctions.Question
+	check(Q("where is the ah") == nil and Q("where is the auction house") == nil and Q("show me the auction house") == nil
+		and Q("the auction house") == nil and Q("what's up") == nil, "where is the ah / the auction house / what's up: searches")
+	check(Q("my auctions") and Q("what am i selling") and Q("my auctions sold linen") and Q("my auctions on bob") and Q("auction sold")
+		and Q("my ah") and Q("what am i selling") and Q("is my ah selling linen"), "your auctions still asked")
+	local was = ns.db.easyMode
+	ns.db.easyMode = true
+	UI.category, UI.categoryAuto = nil, nil
+	UI:Search("where is the ah")
+	local note = UI.answerNote
+	ns.db.easyMode = was
+	UI.category, UI.categoryAuto = nil, nil
+	check(note == nil, "Simple: where is the ah isn't your auctions: " .. tostring(note))
+end
+
+-- (0.49.2, review C13) the calculator's functions answer on their own ("sqrt(2)", "max(3, 5)": the header lists them, they
+-- gave nothing); a plain number still doesn't (a search word: "20")
+do
+	io.write("[search: calculator functions]\n")
+	local C = ns.Calc
+	check(C.Evaluate("sqrt(2)") == "1.414214" and C.Evaluate("floor(3.7)") == "3" and C.Evaluate("max(3, 5)") == "5"
+		and C.Evaluate("abs(-3)") == "3", "sqrt(2), floor(3.7), max(3, 5), abs(-3): " .. tostring(C.Evaluate("sqrt(2)")))
+	check(C.Evaluate("20") == nil and C.Evaluate("-5") == nil and C.Evaluate("=20") == "20", "a plain number: no answer (=20 is one)")
+	local res = UI:Search("sqrt(2)")
+	check(res[1] and res[1].kind == "calc" and res[1].name == "= 1.414214", "sqrt(2) in the prompt: the answer on top")
+end

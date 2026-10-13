@@ -315,16 +315,34 @@ T.fonts = {
 	small = MakeFont("TerminalFontSmall", _G.GameFontHighlightSmall),
 }
 
+--- Puts font object `f` on the chosen font at `size` (Friz Quadrata if the game won't take it).
+local function SetFace(f, size)
+	local path = T.FONTS[T.Get().font] or T.FONTS.friz
+	local ok, res = pcall(f.SetFont, f, path, size, "")
+	if not ok or res == false then pcall(f.SetFont, f, T.FONTS.friz, size, "") end
+end
+
+-- The apps' texts (Panel.Text) at a size of their own: one font object per size, on the chosen font like the
+-- terminal's own (ApplyFonts keeps them on it). (0.49.2, review: each text set its font face once, when made, so after
+-- .set font an app kept the old face, and F1's rows made later took the new one: two faces in one window)
+local sized = {}
+
+--- The font object for the apps' texts at `size`, made on first use (a copy of the input font: its colour and shadow).
+function T.FontAt(size)
+	local f = sized[size]
+	if f then return f end
+	f = MakeFont(("TerminalFontApp%d"):format(size), T.fonts.input)
+	SetFace(f, size)
+	sized[size] = f
+	return f
+end
+
 function T.ApplyFonts()
 	local t = T.Get()
-	local path = T.FONTS[t.font] or T.FONTS.friz
-	local function set(f, size)
-		local ok, res = pcall(f.SetFont, f, path, size, "")
-		if not ok or res == false then pcall(f.SetFont, f, T.FONTS.friz, size, "") end
-	end
-	set(T.fonts.input, t.fontSize + 3)
-	set(T.fonts.row, t.fontSize)
-	set(T.fonts.small, math.max(9, t.fontSize - 2))
+	SetFace(T.fonts.input, t.fontSize + 3)
+	SetFace(T.fonts.row, t.fontSize)
+	SetFace(T.fonts.small, math.max(9, t.fontSize - 2))
+	for size, f in pairs(sized) do SetFace(f, size) end
 end
 
 ----------------------------------------------------------------------
@@ -393,8 +411,11 @@ function T.Set(key, raw, quiet)
 	if key == "bg" and t.promptBg == T.Darken(t.bg, PROMPT_DARKEN) then
 		t.promptBg = T.Darken(v, PROMPT_DARKEN)
 	end
+	local was = t[key]
 	t[key] = v
-	if PRESET_KEYS[key] then t.preset = "custom" end
+	-- (0.49.2, review: any set made it Custom, even of the value it had: a colour swatch opened and cancelled. A change
+	-- names the theme the colours now are, as T.Import does: the picker's Cancel puts the theme back too)
+	if PRESET_KEYS[key] and v ~= was then t.preset = T.MatchPreset(t) end
 	if not quiet then T.Changed() end
 	return true, v
 end

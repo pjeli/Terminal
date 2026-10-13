@@ -40,6 +40,13 @@ end
 
 M.SECURE = { macro = MapMacro, binding = "TOGGLEWORLDMAP", buttons = { "MiniMapWorldMapButton", "WorldMapMicroButton" } }
 
+-- (0.49.2, review: an NPC Questie knows no spot for, or a quest an object or item starts, still pressed the map key: the
+-- map opened on your own zone, then the after-step said Questie has no location for it. With no place there's nothing
+-- to press, and the row's own action says so.)
+local NO_PLACE = { macro = MapMacro }
+--- The map spec for a row whose place is worked out when read (an NPC's, a quest giver's): M.SECURE when it has one.
+function M.SecureFor(e) return M.Target(e) and M.SECURE or NO_PLACE end
+
 local Safe, Name = ns.Safe, ns.Str -- (Util.lua)
 
 local function MapOpen()
@@ -55,9 +62,16 @@ local function IsOpenFor(e)
 end
 M.IsOpenFor = IsOpenFor
 
-local function Waypoint(mapID, pos)
+--- The game takes a waypoint on that map (a continent doesn't), at a real spot.
+local function CanPin(mapID, pos)
 	if not (C_Map and C_Map.SetUserWaypoint and pos and pos.x and pos.y) then return false end
-	if C_Map.CanSetUserWaypointOnMap and not Safe(C_Map.CanSetUserWaypointOnMap, mapID) then return false end
+	return not (C_Map.CanSetUserWaypointOnMap and not Safe(C_Map.CanSetUserWaypointOnMap, mapID))
+end
+
+local function HasPin() return (C_Map and C_Map.HasUserWaypoint and Safe(C_Map.HasUserWaypoint)) and true or false end
+
+local function Waypoint(mapID, pos)
+	if not CanPin(mapID, pos) then return false end
 	local pt
 	if UiMapPoint and UiMapPoint.CreateFromCoordinates then
 		pt = UiMapPoint.CreateFromCoordinates(mapID, pos.x, pos.y)
@@ -74,10 +88,13 @@ end
 --- the last place picked here. With no pin set, only places with a spot of their own get one.
 --- Returns "moved", "set" or nil.
 local function Place(e)
-	local had = C_Map and C_Map.HasUserWaypoint and Safe(C_Map.HasUserWaypoint)
-	if had and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
+	local had = HasPin()
 	local pos = e.pos or (had and { x = 0.5, y = 0.5 }) or nil
-	if pos and Waypoint(e.mapID, pos) then return had and "moved" or "set" end
+	-- (0.49.2, review: the pin was cleared before asking whether the place takes one: Enter on "@map Kalimdor", a
+	-- continent, lost your quest's waypoint without a word. Now it's only cleared when the new one can be set.)
+	if not (pos and CanPin(e.mapID, pos)) then return nil end
+	if had and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
+	if Waypoint(e.mapID, pos) then return had and "moved" or "set" end
 end
 
 --- The line saying where the map pin went ("set" / "moved": Place's answer): "Waypoint set on Ratchet (The Barrens)",
@@ -155,12 +172,23 @@ local function PinOnly(e)
 	local pin = Place(e)
 	if pin then
 		ns:Print(M.PinLine(pin, e.name))
-	elseif not e.pos then
+	elseif not e.pos and not HasPin() then
 		-- a zone has no spot of its own: it only moves a waypoint that is already set
 		ns:Print(L["A zone only moves a waypoint you already have; set one on the map first."])
 	else
+		-- (a continent: no waypoint goes there, and the one you have stays; 0.49.2)
 		ns:Print(L["Can't set a waypoint there."])
 	end
+end
+
+--- Shift+Enter's verb for a place (Easy.lua's footer and row menu), as PinOnly will do it: "set waypoint" at a spot of
+--- its own, "move waypoint" for a zone while you have one, nothing when nothing would be set (no waypoint to move, or a
+--- map that takes none). (0.49.2, review: a zone said "set waypoint" with none set, and then set nothing.)
+function M.PinVerb(e)
+	local mapID = e.mapID
+	if mapID and C_Map and C_Map.CanSetUserWaypointOnMap and not Safe(C_Map.CanSetUserWaypointOnMap, mapID) then return nil end
+	if e.pos then return L["set waypoint"] end
+	return HasPin() and L["move waypoint"] or nil
 end
 
 M.Direct, M.PinOnly = Direct, PinOnly -- (Zones.lua's answers open zones as @map rows do)

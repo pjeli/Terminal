@@ -28,9 +28,12 @@ local function Chars()
 	return ns.db.xpChars
 end
 
+-- the cap as the game works it out (GameRulesUtil.GetEffectiveMaxLevelForPlayer: the lower of the expansion's cap and
+-- this player's; 0.49.2, review: the expansion's alone may be the retail cap on WoW Forever)
 local function MaxLevel()
-	local f = _G.GetMaxLevelForPlayerExpansion or _G.GetMaxPlayerLevel
-	return f and Num(Safe(f)) or (_G.MAX_PLAYER_LEVEL or 60)
+	local exp, player = Num(Safe(_G.GetMaxLevelForPlayerExpansion)), Num(Safe(_G.GetMaxPlayerLevel))
+	if exp and player then return math.min(exp, player) end
+	return exp or player or (_G.MAX_PLAYER_LEVEL or 60)
 end
 
 local function MyKey() return Str(Safe(UnitGUID, "player")) end

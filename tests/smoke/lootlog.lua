@@ -196,3 +196,14 @@ do
 		ns:AliasesChanged()
 	end
 end
+
+-- (0.49.2, review) an empty loot log says so, as @lockout and @mail do
+do
+	local was = ns.db.lootLog
+	ns.db.lootLog = {}
+	ns.providers.lootlog._dirty = true
+	local res = UI:Search("@drop")
+	check(#res == 1 and res[1].noActivate and res[1].name == ns.L["Nothing looted yet"], "an empty @drop: " .. tostring(res[1] and res[1].name))
+	ns.db.lootLog = was
+	ns.providers.lootlog._dirty = true
+end

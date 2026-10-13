@@ -195,17 +195,38 @@ end
 --- The zone tables: { map = areaId -> uiMapId, sub = sub area -> its zone's area, dungeons }, or nil.
 function QD.Zones() return LibZones() end
 
+-- (0.49.2, review: "@npc ... sort:nearest" asks here for every spawn's area, and each ask was a pcall'd ImportModule and
+-- a pcall into ZoneDB: ~28k a keystroke. Questie's ZoneDB module is kept once found (looked up again for another
+-- QuestieLoader), and each area's map once worked out, per source: a few hundred areas.)
+local zoneMod, zoneLoader -- Questie's ZoneDB module, and the QuestieLoader it came from
+local function ZoneModule()
+	if not QD.QuestieReady() then return nil end -- (as QD.Module: only once Questie is ready)
+	local loader = rawget(_G, "QuestieLoader")
+	if zoneLoader ~= loader then zoneMod, zoneLoader = nil, loader end
+	if not zoneMod then zoneMod = QD.Module("ZoneDB") end
+	return zoneMod
+end
+local uiOfArea, uiFrom = {}, nil -- area -> uiMap (false: none), and where they came from (ZoneDB or QuestieDB's tables)
+
 function QD.UiMapOfArea(areaId)
-	local Z = QD.Module("ZoneDB")
-	if Z and Z.GetUiMapIdByAreaId then return Safe(Z.GetUiMapIdByAreaId, Z, areaId) end
-	local z = LibZones()
-	local ui = z and z.map[areaId]
-	return ui and ui ~= 0 and ui or nil
+	if areaId == nil then return nil end
+	local Z = ZoneModule()
+	local src = (Z and Z.GetUiMapIdByAreaId) and Z or LibZones()
+	if not src then return nil end
+	if src ~= uiFrom then uiOfArea, uiFrom = {}, src end
+	local ui = uiOfArea[areaId]
+	if ui == nil then
+		if src == Z then ui = Safe(Z.GetUiMapIdByAreaId, Z, areaId) else ui = src.map[areaId] end
+		-- (0 is "no map" on either path: Questie's ZoneDB passed it on as a map; 0.49.2, review)
+		if type(ui) ~= "number" or ui == 0 then ui = false end
+		uiOfArea[areaId] = ui
+	end
+	return ui or nil
 end
 
 --- A dungeon's entrances ({ { areaId, x, y }, ... }, percentages), or nil when the area isn't one.
 function QD.DungeonLocation(areaId)
-	local Z = QD.Module("ZoneDB")
+	local Z = ZoneModule()
 	if Z and Z.GetDungeonLocation then return Safe(Z.GetDungeonLocation, Z, areaId) end
 	local z = LibZones()
 	if not z then return nil end
@@ -220,4 +241,7 @@ function QD.OnReady(fn)
 	if type(Q) == "table" and Q.API and Q.API.RegisterOnReady then Safe(Q.API.RegisterOnReady, fn) end
 end
 
-QD.ResetForTests = function() libDB, libFrom, libModule, zones = nil, nil, nil, nil; QUESTIE_DB.module = nil end
+QD.ResetForTests = function()
+	libDB, libFrom, libModule, zones = nil, nil, nil, nil; QUESTIE_DB.module = nil
+	zoneMod, zoneLoader, uiOfArea, uiFrom = nil, nil, {}, nil
+end

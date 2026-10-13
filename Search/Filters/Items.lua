@@ -135,18 +135,22 @@ local statNames = {} -- stat key (ITEM_MOD_STAMINA_SHORT) -> { its shown name, l
 local function Stats(e)
 	local id = ItemOf(e)
 	if not id then return nil end
-	local c = stats.new[id]
+	local own = e.itemID and type(e.link) == "string" and e.link:find("|H", 1, true) and e.link
+	-- (a row's own link with a random suffix, "of the Monkey": its stats are that copy's, kept under the id and the
+	-- suffix; under the id alone every copy got the first one read, an AtlasLoot base link's had none; 0.49.2, review)
+	local suffix = own and own:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
+	local key = (suffix and suffix ~= "0") and (id .. ":" .. suffix) or id
+	local c = stats.new[key]
 	if c then return c end
-	c = stats.old[id]
-	if c then return Keep(stats, id, c) end -- (in use again: back into the current table)
+	c = stats.old[key]
+	if c then return Keep(stats, key, c) end -- (in use again: back into the current table)
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
 	local info = ItemInfo(id)
-	local own = e.itemID and type(e.link) == "string" and e.link:find("|H", 1, true) and e.link
 	local link = own or (info and info.link) or ("item:" .. id)
 	if not (get and info) then return nil end -- (not known to the client yet: asked again next time)
 	local ok, t = pcall(get, link)
 	t = ok and type(t) == "table" and t or {}
-	return Keep(stats, id, t)
+	return Keep(stats, key, t)
 end
 F.ClearStats = function() Forget(stats); statNames = {} end
 P.Stats = Stats
@@ -532,8 +536,9 @@ end
 KEYS.quality = KEYS.q
 
 KEYS.stat = function(v)
-	local word, op, n = v:match("^([%a_][%w_]*)([<>=]+)(%d+)$") -- (mp5 has a digit)
-	if not word then word = v:match("^([%a_][%w_]*)$") end
+	-- (mp5 has a digit; a stat's name in the game's language too, "stat:выносливость": 0.49.2, review)
+	local word, op, n = v:match("^([%a_\128-\255][%w_\128-\255]*)([<>=]+)(%d+)$")
+	if not word then word = v:match("^([%a_\128-\255][%w_\128-\255]*)$") end
 	if not word then return nil end
 	local cmp = op and Range(op .. n)
 	if op and not cmp then return nil end

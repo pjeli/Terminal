@@ -37,6 +37,25 @@ end
 
 local LAST_BAG = (Enum.BagIndex and Enum.BagIndex.ReagentBag) or ((NUM_BAG_SLOTS or 4) + 1)
 
+--- The keyring's bag id when this client shows one (C_ActionBar.ShouldShowKeyring, as the game's bag bar asks), else nil.
+function Bags.Keyring()
+	local id = Enum.BagIndex and Enum.BagIndex.Keyring
+	local should = C_ActionBar and C_ActionBar.ShouldShowKeyring
+	if type(id) ~= "number" or type(should) ~= "function" then return nil end
+	local ok, on = pcall(should)
+	return ok and not ns.Secret(on) and on == true and id or nil
+end
+
+--- Your bags' ids, in order: the backpack to the reagent bag, then the keyring when the client shows one (0.49.2,
+--- review: keys in the keyring were never read, while @stored counts them as in your bags).
+function Bags.BagIDs()
+	local ids = {}
+	for b = 0, LAST_BAG do ids[#ids + 1] = b end
+	local k = Bags.Keyring()
+	if k then ids[#ids + 1] = k end
+	return ids
+end
+
 --- Show your bags, in whichever window shows them. bags: the bag ids that must show (with the
 --- game's own windows, each bag can be open or closed on its own).
 function Bags.Open(bags)
@@ -48,7 +67,7 @@ function Bags.Open(bags)
 	else
 		-- nothing open: all of them, as the bag key does
 		local anyOpen = false
-		for b = 0, LAST_BAG do
+		for _, b in ipairs(Bags.BagIDs()) do -- (the keyring too: the game's OpenAllBags counts it, IsAnyBagOpen)
 			if IsBagOpen(b) then anyOpen = true break end
 		end
 		if not anyOpen then OpenAllBags() end
@@ -126,7 +145,7 @@ local ShowInBags
 --- Where an item is in your bags right now: { {bag, slot}, ... }.
 function Bags.Locations(itemID)
 	local locs = {}
-	for bag = 0, LAST_BAG do
+	for _, bag in ipairs(Bags.BagIDs()) do
 		for slot = 1, C_Container.GetContainerNumSlots(bag) do
 			local info = C_Container.GetContainerItemInfo(bag, slot)
 			if info and info.itemID == itemID then locs[#locs + 1] = { bag, slot } end

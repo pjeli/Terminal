@@ -548,11 +548,12 @@ local ON = { on = true, happening = true, coming = true, upcoming = true, planne
 -- what asks about one by name: "when is the darkmoon faire", "next darkmoon faire", "upcoming holidays"
 local CUE = { when = true, next = true, upcoming = true }
 
--- every word is in one row (its name or words): "hallows" finds Hallow's End
+-- every word is in one row (its name or words): "hallows" finds Hallow's End. (0.49.2, review: the words are in
+-- `_ltext` once the list is made, ns:GetEntries moving `text` there; only the names were searched)
 local function Has(e, w)
-	local hay = (e._calHay)
+	local hay = rawget(e, "_calHay")
 	if not hay then
-		hay = (Lower(e.name) .. " " .. Lower(e.text or "")):gsub("'", "")
+		hay = (Lower(e.name) .. " " .. (rawget(e, "_ltext") or Lower(e.text or ""))):gsub("'", "")
 		e._calHay = hay
 	end
 	return hay:find(w, 1, true) ~= nil
@@ -628,19 +629,29 @@ local function SpanDays(span, today, now)
 	end
 end
 
+--- Whether an event is on during a span ("today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth"):
+--- the question's span, and when:<span> in Advanced mode (Filters/Others.lua).
+CA.SPANS = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" }
+CA.SPAN_OK = {}
+for _, s in ipairs(CA.SPANS) do CA.SPAN_OK[s] = true end
+function CA.InSpan(e, span)
+	local today, _, now = Today()
+	if not (today and e.startDN) then return false end
+	local from, to = SpanDays(span, today, now)
+	if not from then return false end
+	return (e.endDN or e.startDN) >= today + from and e.startDN <= today + to
+end
+
 local SPAN_SAID = { today = L["today"], tomorrow = L["tomorrow"], week = L["this week"], nextweek = L["next week"],
 	weekend = L["this weekend"], month = L["this month"], nextmonth = L["next month"] }
 
 function CA.Answer(q)
 	q = q or {}
 	local all = Rows()
-	local today, _, now = Today()
-	local from, to
-	if q.span and today then from, to = SpanDays(q.span, today, now) end
 	local rows = {}
 	for _, e in ipairs(all) do
 		local ok = true
-		if from and (e.endDN < today + from or e.startDN > today + to) then ok = false end
+		if q.span and not CA.InSpan(e, q.span) then ok = false end
 		if ok and q.holiday and e.type ~= "HOLIDAY" then ok = false end
 		if ok and q.invite and not e.pending then ok = false end
 		if ok and q.guild and not GUILD[e.type] then ok = false end
@@ -660,12 +671,13 @@ function CA.Answer(q)
 	return rows, note
 end
 
---- The question as Advanced syntax (Alt+`): "@calendar is:holiday darkmoon".
+--- The question as Advanced syntax (Alt+`): "@calendar is:holiday when:week darkmoon". (0.49.2, review: every span is
+--- kept, not only today's)
 function CA.ToAdvanced(q)
 	local parts = { "@calendar" }
 	if q.holiday then parts[#parts + 1] = "is:holiday" end
 	if q.invite then parts[#parts + 1] = "is:invite" end
-	if q.span == "today" then parts[#parts + 1] = "is:today" end
+	if q.span then parts[#parts + 1] = "when:" .. q.span end
 	if q.guild then parts[#parts + 1] = "guild" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	return table.concat(parts, " ") .. " "

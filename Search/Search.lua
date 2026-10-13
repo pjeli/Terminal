@@ -949,7 +949,7 @@ function Scan.SimpleScope(self, q)
 		else
 			easyCat = self.category and ns.Easy.BY_ID[self.category]
 			if not easyCat then
-				local ov, kept, from = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "),
+				local ov, kept, from, near = self:EasyOverview(tokens, filters, hard, softs, softWords, table.concat(fsig, " "),
 					Scan.Typed(q.text), q.strictWords)
 				-- only one category has it: straight to its results (no step to take)
 				local only, cats = nil, 0
@@ -959,6 +959,7 @@ function Scan.SimpleScope(self, q)
 					easyCat = ns.Easy.BY_ID[only.catId]
 					self.softRelaxed = nil
 					q.overview, q.overviewFrom = kept, from -- (its lists' rows were just scored: Scan.Collect lists them)
+					q.overviewNear = near and near[only.catId] -- (and its close spellings, when only those matched: Scan.Fallbacks)
 				else
 					return ov
 				end
@@ -1129,7 +1130,26 @@ function Scan.Fallbacks(self, q, out, included, sig)
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
 		-- nothing has every word: names within an edit or two of them ("hearhtstone")
-		if #out == 0 then self:CloseSpellings(included, tokens, filters, out, overBudget) end
+		if #out == 0 then
+			local near = q.overviewNear
+			if near then
+				-- (Simple mode opened this category because only its close spellings matched: the overview has just looked
+				-- them up in every list but the ones it reads by name (Questie's, @stored), so its rows are taken and only
+				-- those lists are looked through here: the same rows, one pass over the rest, not two (187 ms a
+				-- misspelled keystroke at 30k rows, 98 ms with one); 0.49.2, review)
+				local Pass = ns.Filters and ns.Filters.Pass
+				for i = 1, #near do
+					local e = near[i]
+					if not filters or Pass(e, filters) then out[#out + 1] = e end
+					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
+				end
+				local rest = {}
+				for _, p in ipairs(included) do if p.hintFind then rest[#rest + 1] = p end end
+				if #rest > 0 then self:CloseSpellings(rest, tokens, filters, out, overBudget) end
+			else
+				self:CloseSpellings(included, tokens, filters, out, overBudget)
+			end
+		end
 	end
 end
 
@@ -1315,7 +1335,7 @@ function UI.FuzzyPlain(text)
 	local F, out = ns.Filters, {}
 	for w in text:gmatch("%S+") do
 		local key = w:match("^(%a+):")
-		local skip = w:sub(1, 1) == "@" or w:find("^[-!]%a") or w:find("[|&]")
+		local skip = w:sub(1, 1) == "@" or w:find("^[-!][%a\128-\255]") or w:find("[|&]") -- ("-малое" too, 0.49.2)
 			or (F and F.SortOf and F.SortOf(w)) or (key and F and F.IsKey and F.IsKey(key))
 		if not skip then out[#out + 1] = w end
 	end
@@ -1516,7 +1536,9 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 		if #out > 0 then self.softRelaxed = true end
 	end
 	-- still nothing: close spellings, per category, as a category's own search has them (review, 0.48.6: Simple mode
-	-- with no category picked said "Nothing has that" where Advanced found "hearhtstone")
+	-- with no category picked said "Nothing has that" where Advanced found "hearhtstone"); each category's rows kept for
+	-- its own search when it's the only one (nearBy: Scan.Fallbacks lists them, no second pass; 0.49.2, review)
+	local nearBy
 	if #out == 0 and not empty then
 		local included, seen = {}, {}
 		for _, c in ipairs(ns.Easy.Visible()) do
@@ -1528,14 +1550,17 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 		local near = {}
 		self:CloseSpellings(included, tokens, hard, near, function() tick() return false end)
 		local cats, byCat = {}, {}
+		nearBy = {}
 		for _, e in ipairs(near) do
 			local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or ""]
 			if c then
 				local b = byCat[c.id]
-				if not b then b = { c = c, n = 0, counts = {} }; byCat[c.id] = b; cats[#cats + 1] = b end
+				if not b then b = { c = c, n = 0, counts = {} }; byCat[c.id] = b; cats[#cats + 1] = b; nearBy[c.id] = {} end
 				local kind = e.kind
 				b.n, b.counts[kind] = b.n + 1, (b.counts[kind] or 0) + 1
 				if not b.score or e._score > b.score then b.best, b.score = e.name, e._score end
+				local rows = nearBy[c.id]
+				rows[#rows + 1] = e
 			end
 		end
 		for _, b in ipairs(cats) do out[#out + 1] = CategoryRow(b.c, b.best, b.score, b.n, b.counts) end
@@ -1548,8 +1573,9 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 		table.insert(out, 1, winner)
 		self.overviewWinner = winner
 	end
-	-- (and what each category's lists had of the words, with the lists they were found in: Scan.SimpleScope)
-	return out, keep, from
+	-- (and what each category's lists had of the words, with the lists they were found in, and the close spellings
+	-- found per category: Scan.SimpleScope)
+	return out, keep, from, nearBy
 end
 
 

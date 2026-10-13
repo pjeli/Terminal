@@ -4,9 +4,10 @@ local L = ns.L
 -- Simple mode (the default; "easy" in the code): Terminal for players who'll never type @npc or q:rare+.
 --   - Opens with nothing listed. Typing lists the categories that have it ("Items  Rumsey Rum +2 more",
 --     "Emotes  /dance"), best match first; Enter, a click or Tab picks one, and only it is searched (Questie's
---     lists included). Shift+Left goes back to all of them; clearing the prompt lets the category go. Every list is
+--     lists included). Shift+Left goes back to all of them; clearing the prompt lets the category go. Almost every list is
 --     in some category, the ones hard mode only searches with their @kind too (emotes, slash commands,
---     console settings, Questie's quests and NPCs, your alts' bags).
+--     console settings, Questie's quests and NPCs, your alts' bags); the mailboxes, the party's quests and the recipes
+--     you don't know yet are reached by their questions ("nearest mailbox", "party quests", "recipes i'm missing").
 --   - Everyday words act as filters: "rare sword", "epic", "boe", "ready", "todo", "innkeeper"
 --     (a soft filter: a row passes the filter, or has the word in its name, so "Bound Fire" is still found).
 --   - The footer says what Enter and Shift+Enter do for the selected row; no ghost completions of syntax.
@@ -483,6 +484,8 @@ local function GroupVerbs(e) -- (Shift+Enter: your buff they're missing, when yo
 	return L["target"], e.buffWith and L["cast %s"]:format(e.buffWith) or nil
 end
 local PLACE = { L["show on map"], L["set waypoint"] }
+-- (0.49.2, review: a zone only moves a waypoint you have, Maps.lua's PinOnly: "set waypoint" was said with none set)
+local function MapVerbs(e) return L["show on map"], ns.Maps and ns.Maps.PinVerb(e) or nil end
 local TO_CHAT = { L["show in chat"], L["put in the chat box"] } -- ("put in the chat box", "link in chat": RowMenu.lua compares them, translated alike)
 E.VERBS = {
 	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { L["show in bags"] },
@@ -494,7 +497,7 @@ E.VERBS = {
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
-	maps = PLACE, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
+	maps = MapVerbs, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	quests = QuestVerbs,
@@ -761,7 +764,7 @@ function E.ToAdvanced(text, category, shown)
 	for _, w in ipairs(lower) do
 		if E.IsAdvancedWord(w) then
 			if w:sub(1, 1) == "@" then Add(kinds, w) else Add(filters, w) end
-		elseif w:find("[|&]") or w:find("^[-!]%a") then
+		elseif w:find("[|&]") or w:find("^[-!][%a\128-\255]") then -- (any language's "-word", 0.49.2)
 			Add(filters, AdvancedPart(w))
 		elseif E.WORDS[w] then
 			Add(filters, E.WORDS[w])
@@ -836,8 +839,9 @@ function E.JoinLogic(words)
 	while i < #words do
 		if E.OR_WORDS[Lower(words[i])] then
 			local stop = i + 1
-			-- (a "not" after it is for the whole search: "rare sword or axe not boe")
-			while stop + 1 <= #words and not E.OR_WORDS[Lower(words[stop + 1])] and not words[stop + 1]:find("^[-!]%a") do
+			-- (a "not" after it is for the whole search: "rare sword or axe not boe"; any language's letter after the -,
+			-- 0.49.2, review: "-малое" too)
+			while stop + 1 <= #words and not E.OR_WORDS[Lower(words[stop + 1])] and not words[stop + 1]:find("^[-!][%a\128-\255]") do
 				stop = stop + 1
 			end
 			local n = stop - i
@@ -1003,5 +1007,5 @@ end
 
 
 -- Terminal's own lists registered before this file loaded (RegisterProvider adopts only once Easy exists): their own
--- verbs and Simple mode categories (`verbs`, `simpleCategory`: GroupQuests.lua's)
+-- verbs and Simple mode categories (`verbs`, `simpleCategory`: another addon's list registered early)
 for _, id in ipairs(ns.providerOrder or {}) do E.Adopt(ns.providers[id]) end

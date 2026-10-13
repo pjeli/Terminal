@@ -321,7 +321,9 @@ function UI:Refresh()
 	self.refreshText = self.searchedText
 	local t0 = debugprofilestop and debugprofilestop()
 	if self.armedEntry and not same then self:Disarm() end -- the query changed: whatever was armed is stale
-	self.pendingAfter = nil
+	-- (a press finishing (FinishSoon) is kept through the same text searched again: the data retry, the spinner's
+	-- refresh, a queued one; 0.49.2, review: it was dropped, and the terminal stayed over the window it opened)
+	if not same then self.pendingAfter = nil end
 	self.args = nil
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")

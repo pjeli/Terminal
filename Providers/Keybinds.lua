@@ -6,10 +6,11 @@ local L = ns.L
 -- unfolds the section, and points at the action's row, where its key is set. "Quick Keybind Mode" is a
 -- result too: Enter points at its button, Shift+Enter starts it (hover a button, press a key).
 --
--- The Keybindings page and Quick Keybind Mode are opened by the game itself, as a macro line on the
--- secure macro button (QuickKeybindFrame is protected; Terminal's own code never opens either), and the
--- section is unfolded by the game's own click (NAV below). Terminal's code only reads the page and points
--- at the row, as GameOptions.lua's HighlightSetting does for a setting.
+-- The Keybindings page is opened by the game itself, as a macro line on the secure macro button, and the
+-- section is unfolded by the game's own click (NAV below); Quick Keybind Mode is started by the page's own
+-- button, clicked the same way (QUICK_NAV; QuickKeybindFrame is protected: Terminal's code never shows it).
+-- Terminal's code only reads the page and points at the row, as GameOptions.lua's HighlightSetting does for a
+-- setting.
 
 local K = {}
 ns.Keybinds = K
@@ -37,12 +38,6 @@ function K.OpenMacro()
 	local St = _G.Settings
 	return ns.Secure.SettingsMacro(St and St.KEYBINDINGS_CATEGORY_ID)
 end
--- Quick Keybind Mode: the options window steps aside, the protected frame is shown by the game
-K.QUICK_MACRO = "/run if SettingsPanel and SettingsPanel:IsShown() then HideUIPanel(SettingsPanel) end if QuickKeybindFrame then ShowUIPanel(QuickKeybindFrame) end"
-
-local function QuickMacro() return K.QUICK_MACRO end
-local QUICK_SPEC = { macro = QuickMacro, opensWindow = true }
-
 --- Options > Keybindings is the page showing (then only the row is pointed at).
 local function PageOpen()
 	local sp = _G.SettingsPanel
@@ -62,8 +57,9 @@ end
 -- code, untainted). Read only: the list's frames. The row is then pointed at when it shows; one further down the
 -- section than the list shows says to scroll to it (scrolling the list would be Terminal writing into it).
 
---- The settings list's frame for the section named `name`, and its data; nil when it isn't on screen.
-local function SectionFrame(name)
+--- The settings list's frame whose data has `value` at `key` (a section's "name", a button's "buttonText"), and its data;
+--- nil when it isn't on screen.
+local function ListFrame(key, value)
 	local sp = _G.SettingsPanel
 	local ok, list = pcall(function() return sp:GetSettingsList() end)
 	local box = ok and type(list) == "table" and rawget(list, "ScrollBox")
@@ -75,9 +71,11 @@ local function SectionFrame(name)
 	for _, f in ipairs(frames) do
 		local okD, init = pcall(function() return f:GetElementData() end)
 		local data = okD and type(init) == "table" and rawget(init, "data")
-		if type(data) == "table" and rawget(data, "name") == name then return f, data end
+		if type(data) == "table" and value ~= nil and rawget(data, key) == value then return f, data end
 	end
 end
+--- The section named `name`.
+local function SectionFrame(name) return ListFrame("name", name) end
 
 --- One step toward the action's row: its section's header when folded; nil when it's unfolded (or not on screen).
 local function NavStep(e)
@@ -111,6 +109,46 @@ function K.NavMacro(e)
 end
 local OPEN_SPEC = { macro = K.NavMacro, opensWindow = true }
 
+-- Quick Keybind Mode: the Keybindings page's own "Quick Keybind Mode" button (KeybindingsOverrides.lua), clicked for the
+-- game by a step as the sections' headers are: the press opens the page at its top (scrolled to its first row, the
+-- character-bindings checkbox), and the button's own code closes the options window (applying what you changed, as a
+-- click of yours does) and shows the protected QuickKeybindFrame. (0.49.2, review: until then a /run line did both:
+-- HideUIPanel skipped the window's own closing, so unapplied settings were lost, and the frame's OnShow ran tainted, so
+-- the action bars' empty slots, shown only for the game's own code (ActionButton.lua's SetShowGrid), never showed.)
+local function QuickText() return Str(_G.SETTINGS_QUICK_KEYBIND_BUTTON) or Str(_G.QUICK_KEYBIND_MODE) or "Quick Keybind Mode" end
+local function QuickOn()
+	local f = _G.QuickKeybindFrame
+	return f and f.IsShown and f:IsShown() or false
+end
+
+--- The step: the page's Quick Keybind Mode button, until the mode is on.
+local function QuickStep()
+	if QuickOn() then return nil, "Quick Keybind Mode is on" end
+	if not PageOpen() then return nil, "Keybindings isn't showing" end
+	local f = ListFrame("buttonText", QuickText())
+	if not f then return nil, "its button isn't on screen" end
+	return rawget(f, "Button"), "start Quick Keybind Mode"
+end
+K.QuickStep = QuickStep -- (tests)
+
+local QUICK_NAV = {
+	route = "keybinds", step = QuickStep,
+	-- what the click writes, read after the press: the main bar's "every slot shown" (Quick Keybind Mode's OnShow)
+	watch = { function() return _G.MainActionBar, "showAllButtons" end },
+	watchName = function() return L["the action bars' empty slots"] end,
+}
+
+--- The press: the page, then the steps; the page alone when the route is off (the button is then pointed at).
+--- K.QUICK_MACRO keeps the last one worked out (.debug, tests).
+function K.QuickMacro(e)
+	local St = _G.Settings
+	local open = ns.Secure.SettingsMacro(St and St.KEYBINDINGS_CATEGORY_ID, Str(_G.CHARACTER_SPECIFIC_KEYBINDINGS))
+	local text = open and ns.Secure.NavMacro(QUICK_NAV, e, open) or K.OpenMacro()
+	K.QUICK_MACRO = text
+	return text
+end
+local QUICK_SPEC = { macro = K.QuickMacro, opensWindow = true }
+
 --- The page showing and nothing for the press to do: the Quick Keybind row, or the route turned off.
 local function IsOpen(e) return PageOpen() and not (e.category and ns.Secure.NavOn("keybinds")) end
 
@@ -141,7 +179,12 @@ end
 
 local NeverOpen = ns.Never -- (Quick Keybind Mode: always pressed)
 local function QuickInCombat(e) ns:Print(L["In combat: Quick Keybind Mode can't be started now."]) end
-local function QuickStarted() ns:Trace("keybinds: the game started Quick Keybind Mode") end
+local function QuickStarted(e)
+	if QuickOn() then ns:Trace("keybinds: the game started Quick Keybind Mode") return end
+	-- (the route off, or the button not reached: the page is open, its button pointed at)
+	ns:Trace("keybinds: Quick Keybind Mode didn't start; pointing at its button")
+	PointAtRow(e)
+end
 
 local ICON = "Interface\\Icons\\INV_Misc_Key_03"
 

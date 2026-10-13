@@ -296,6 +296,12 @@ LoadLootModules = function()
 		ns:Trace("loot: AtlasLoot has no loot modules yet, asking again (" .. loot.retries .. ")")
 		return C_Timer.After(3, LoadLootModules)
 	end
+	if #mods == 0 then
+		-- (0.49.2, review: built from no modules, the saved index was written over with an empty one; it stays for a
+		-- session whose AtlasLoot lists its modules)
+		ns:Trace("loot: AtlasLoot still lists no loot modules after " .. tostring(loot.retries) .. " tries: nothing indexed, the saved index kept")
+		return
+	end
 	loot.modules = #mods
 	local key = CacheKey(mods)
 	if FromCache(key) then

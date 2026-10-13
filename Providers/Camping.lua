@@ -162,6 +162,10 @@ ns:RegisterProvider("camp", {
 				if hit.pdata and P.MakeRecipeEntry then
 					local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
 					e.recipeID, e.profID = re.recipeID, re.profID
+					-- (0.49.2, review: the window's names too: RecipeIsOpen matches a trade spell's window (Bait and
+					-- Tackle, keyed "spell:...") or one whose info says id 0 only by them, and RecipeAfter reads profSpell.
+					-- Without them an open window counted as closed: Enter's /cast shut it, Shift+Enter's toggled it)
+					e.profName, e.profWindow, e.profSpell = re.profName, re.profWindow, re.profSpell
 					e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after
 					e.recipeSecure, e.recipeIsOpen, e.recipeAfter = re.secure, re.isOpen, re.after
 					e.getLink = re.getLink

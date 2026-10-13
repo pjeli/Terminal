@@ -129,6 +129,27 @@ do
 	check(ns:FindCommand("lockouts").run("forget alt pally")[1]:find("Forgot", 1, true) and not ns.db.lockouts["Player-1-BBB"],
 		".lockouts forget <alt>")
 
+	-- (0.49.2, review) your world boss has no link: its tooltip says Shift+Enter puts it in words
+	do
+		local function TipLines(e)
+		local lines = {}
+		local t = { SetText = function(_, s) lines[#lines + 1] = tostring(s) end,
+			AddLine = function(_, s) lines[#lines + 1] = tostring(s) end,
+			AddDoubleLine = function(_, a, b) lines[#lines + 1] = tostring(a) .. " " .. tostring(b) end }
+		e.tooltip(e, t)
+		return table.concat(lines, "\n")
+	end
+		saved = {}
+		_G.GetNumSavedWorldBosses = function() return 1 end
+		_G.GetSavedWorldBossInfo = function() return "Azuregos", 9, 3600 end
+		LK.OnEvent("UPDATE_INSTANCE_INFO")
+		P._dirty = true
+		local wb
+		for _, e in ipairs(UI:Search("@lockout")) do if e.world then wb = e end end
+		local tl = wb and TipLines(wb) or ""
+		check(wb and wb.mine and tl:find(ns.L["Enter: in chat    Shift+Enter: put it in the chat box"], 1, true)
+			and not tl:find("its link", 1, true), "your world boss: no link promised")
+	end
 	_G.GetNumSavedInstances, _G.GetSavedInstanceInfo, _G.GetSavedInstanceEncounterInfo = save.n, save.info, save.enc
 	_G.GetNumSavedWorldBosses, _G.GetSavedWorldBossInfo, _G.GetSavedInstanceChatLink = save.wn, save.winfo, save.link
 	_G.RequestRaidInfo, _G.UnitGUID, _G.UnitClass, _G.GetRealmName, _G.time = save.ask, save.guid, save.cls, save.realm, save.time

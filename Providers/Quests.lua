@@ -25,9 +25,20 @@ end
 
 -- Frames with "Quest" in their name that are not quest log windows: our own, Questie's
 -- (its tracker is always on screen), and the game's watch/tracker/timer/pin pieces.
+-- (0.49.2, review: QuestFrame, the game's quest dialog with an NPC, is no log: its greeting's title buttons hold quest
+-- titles, and one was clicked from Terminal's code, which chose that quest in the dialog, tainted)
 local function NotAWindow(name)
 	return name:find("^Terminal") or name:find("^Questie") or name:find("Tracker") or name:find("Watch")
-		or name:find("Timer") or name:find("POI") or name:find("Tooltip") or name:find("Banner")
+		or name:find("Timer") or name:find("POI") or name:find("Tooltip") or name:find("Banner") or name == "QuestFrame"
+end
+
+--- Did an addon make the frame named `name` (its global written by an addon, not by the game's own code)? Read only;
+--- no way to tell: no. (0.49.2, review: a row in a window the game owns is only pointed at, never clicked from here)
+local function AddonMade(name)
+	local check = _G.issecurevariable
+	if type(check) ~= "function" then return false end
+	local ok, secure = pcall(check, name)
+	return ok and secure == false
 end
 
 --- Visible quest windows: { frame, clickable }
@@ -41,7 +52,7 @@ local function QuestWindows()
 		local name = ns.FrameName(f)
 		if name and name:find("Quest") and not NotAWindow(name)
 			and not seen[f] and Visible(f) and name ~= "QuestMapFrame" and name ~= "WorldMapFrame" then
-			out[#out + 1] = { f, true }
+			out[#out + 1] = { f, AddonMade(name) } -- (any other window: an addon's is clicked, the game's only pointed at)
 			seen[f] = true
 		end
 	end
@@ -158,17 +169,13 @@ local function ShowQuestAfter(e)
 	end)
 end
 
--- Fallback when the secure path isn't available: open the quest log directly. Never in combat (review, 0.48.6: a
--- Shift+Enter that falls back here, party quests' and Questie's, opened the map from Terminal's code in combat: taint).
+-- Fallback when the secure path isn't available: the quest log showing, the quest is pointed at there; else said. Never
+-- in combat (review, 0.48.6). (0.49.2, review: no ToggleQuestLog / ToggleWorldMap from Terminal's code here any more:
+-- the map then held what it wrote. Said instead, as Spells' and Currency's fallbacks do)
 local function ShowQuest(e)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
-	ns:Trace("DIRECT ToggleQuestLog (addon code, may be blocked)")
-	if ToggleQuestLog then
-		pcall(ToggleQuestLog)
-	elseif ToggleWorldMap then
-		pcall(ToggleWorldMap)
-	end
-	C_Timer.After(0.05, function() ShowQuestAfter(e) end)
+	if LogShown() then return ShowQuestAfter(e) end
+	ns:Print(L["Open your quest log to see %s (opening it from Terminal's own code would taint it)."]:format(tostring(e.name)))
 end
 
 local function TrackQuest(e)

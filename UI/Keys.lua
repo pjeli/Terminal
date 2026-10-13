@@ -41,17 +41,23 @@ local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = t
 	DELETE = true, TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true, F1 = true }
 UI.HELP_KEY = "F1" -- (Apps/KeysWindow.lua: every key, per mode; .keybinds too)
 
---- Is this key press the game's (a chord with Ctrl, Alt or Meta, or a function key, bound to one of PASS_ACTIONS and
---- not one of Terminal's own)? Also the action it's bound to.
-function UI.GameKey(key)
-	if type(key) ~= "string" or OWN_CHORD_KEYS[key] or not GetBindingAction then return false end
+--- The key with the modifiers held, as the game names a binding ("CTRL-SPACE"), and the modifiers: alt, ctrl, shift, meta.
+local function Chord(key)
 	local alt = IsAltKeyDown and IsAltKeyDown() or false
 	local ctrl = IsControlKeyDown and IsControlKeyDown() or false
 	local shift = IsShiftKeyDown and IsShiftKeyDown() or false
 	local meta = IsMetaKeyDown and IsMetaKeyDown() or false
+	return (alt and "ALT-" or "") .. (ctrl and "CTRL-" or "") .. (shift and "SHIFT-" or "") .. (meta and "META-" or "") .. key,
+		alt, ctrl, shift, meta
+end
+
+--- Is this key press the game's (a chord with Ctrl, Alt or Meta, or a function key, bound to one of PASS_ACTIONS and
+--- not one of Terminal's own)? Also the action it's bound to.
+function UI.GameKey(key)
+	if type(key) ~= "string" or OWN_CHORD_KEYS[key] or not GetBindingAction then return false end
+	local chord, alt, ctrl, shift, meta = Chord(key)
 	if (key == "ENTER" or key == "NUMPADENTER") and (ctrl or shift) then return false end
 	if not (alt or ctrl or meta) and not key:match("^F%d+$") then return false end -- (a plain key types)
-	local chord = (alt and "ALT-" or "") .. (ctrl and "CTRL-" or "") .. (shift and "SHIFT-" or "") .. (meta and "META-" or "") .. key
 	local ok, action = pcall(GetBindingAction, chord)
 	if ok and type(action) == "string" and UI.PASS_ACTIONS[action] then return true, action end
 	return false
@@ -124,11 +130,34 @@ local function Types(key)
 end
 UI.KeyTypes = Types -- (tests)
 
+-- Terminal's own binding commands (Bindings.xml) and what each runs
+local OWN_ACTIONS = { TERMINAL_TOGGLE = "Toggle", TERMINAL_FUZZY = "FuzzyOnce", TERMINAL_ADVANCED_ONCE = "AdvancedOnce" }
+
+--- (0.49.2, review: ".bind CTRL-SPACE" opened the terminal, and Ctrl+Space then did nothing in it: the terminal holds the
+--- keyboard, so the game's binding never fires) The key chord is bound to one of Terminal's own commands: which one, else
+--- nil. Not ` (TickKey's: Tab+` and Alt+` too), not Enter (running a result), not a plain key that types (it types).
+function UI.OwnBinding(key)
+	if type(key) ~= "string" or key == "`" or key == "ENTER" or key == "NUMPADENTER" or not GetBindingAction then return nil end
+	local chord, alt, ctrl, _, meta = Chord(key)
+	if not (alt or ctrl or meta) and Types(key) then return nil end
+	local ok, action = pcall(GetBindingAction, chord)
+	if ok and type(action) == "string" and OWN_ACTIONS[action] then return action end
+	return nil
+end
+
+--- A key that types the same character at once on every keyboard: a plain letter or digit, Space. (A dead key, ´ ` ^ ~ ¨,
+--- types nothing until the next key; a symbol key may be one on another layout, the number pad types nothing with Num
+--- Lock off.)
+local function SureChar(key)
+	return key == "SPACE" or (type(key) == "string" and key:match("^%w$") ~= nil)
+end
+
 local function CheckChar(key)
 	local edit = UI.edit
 	-- OnChar should follow this key; if it never does, this client can't do key capture. (Only a key that types: a
-	-- function key pressed before anything was typed switched to the plain text box for good.)
-	if UI.charChecked or not Types(key) then return end
+	-- function key pressed before anything was typed switched to the plain text box for good. And only one that surely
+	-- types at once (0.49.2, review): a dead key first in a session (´ then e for é) switched to it for the session.)
+	if UI.charChecked or not SureChar(key) then return end
 	UI.pendingChar = key
 	C_Timer.After(0, function()
 		local k = UI.pendingChar
@@ -189,6 +218,16 @@ local function KeysDown(self, key)
 		self:SetPropagateKeyboardInput(true)
 		return
 	end
+	-- (0.49.2, review) a key bound to one of Terminal's own commands (".bind CTRL-SPACE", the fuzzy-finding key): run here,
+	-- as the game's binding would, before Terminal's own chords (Ctrl+Space's) take it; never passed on (it would open
+	-- the terminal again)
+	local own = UI.OwnBinding(key)
+	if own then
+		self:SetPropagateKeyboardInput(false)
+		ns:Trace(("key %s: Terminal's %s"):format(key, own))
+		UI[OWN_ACTIONS[own]](UI)
+		return
+	end
 	local game, action = UI.GameKey(key)
 	if game then
 		-- the game's own key for something that doesn't touch Terminal (Ctrl+R, the frame rate): it goes on to it
@@ -198,8 +237,11 @@ local function KeysDown(self, key)
 	end
 	if key == "TAB" then
 		UI.tabHeld = GetTime()
-		-- Tab still held from the press that opened the terminal (its repeats): not a Tab of its own
-		if UI.openedByToggle and GetTime() - UI.openedByToggle < TAB_LATE then
+		-- Tab still held from the press that opened the terminal (its repeats): not a Tab of its own. Unless the client
+		-- tells Tab is down now (IsKeyDown, a plain true): then its "not held" as the toggle key opened the terminal was
+		-- true too, and this is a Tab of its own (0.49.2, review: ` then Tab within a second was swallowed, and its
+		-- key-up turned to fuzzy finding)
+		if UI.openedByToggle and GetTime() - UI.openedByToggle < TAB_LATE and not UI:TabToldDown() then
 			self:SetPropagateKeyboardInput(false)
 			return
 		end
@@ -223,16 +265,26 @@ local function KeysDown(self, key)
 			ns:Print(UI.STILL_SEARCHING)
 			return
 		end
-		local se = SecureView(UI.results[UI.sel], shift)
+		-- something armed for this Enter (Shift+Enter or a click in the game's text box, a click on a row with no click
+		-- route, a line of the mouse menu) on the row still selected: Enter presses that, as the footer says. Else it's
+		-- stale, and Enter works its press out afresh. (0.49.2, review: it always worked it out again, from Shift held
+		-- now and without the menu's own line: the armed "link in chat" ran the plain open, the menu's Open sent it)
+		local sel, armed = UI.results[UI.sel], UI.armedEntry
+		if armed and not (sel and (armed == sel or (armed.kind == sel.kind and armed.key == sel.key and armed.name == sel.name))) then
+			UI:Disarm()
+			armed = nil
+		end
+		local se = armed or SecureView(sel, shift)
 		UI.holdOpen = UI.HoldFor(se, ctrl) -- (Ctrl+Enter: stays open after a press that opens no window)
 		if se and UI:ArmForPress(se) then
-			ns:RecordHistory(edit:GetText())
+			-- (a press that asks for more, @who's "Ask the server", isn't a line to run again: as Activate and a click)
+			if not se.staysOpen then ns:RecordHistory(edit:GetText()) end
 			self:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
 			UI:FinishSoon(se)
 			return
 		end
 		self:SetPropagateKeyboardInput(false)
-		UI:Activate(nil, { keepOpen = ctrl, secondary = shift })
+		UI:Activate(nil, { keepOpen = ctrl, secondary = shift or (armed ~= nil and rawget(armed, "isShift") == true) })
 		return
 	end
 	self:SetPropagateKeyboardInput(false)
@@ -417,9 +469,11 @@ do
 			UI:Down()
 		elseif key == "TAB" then
 			TabKey(shift)
-		elseif ListKey(key, ctrl) then
+		elseif ListKey(key, ctrl and not IsAltKeyDown()) then
 			return
-		elseif ctrl or (IsMetaKeyDown and IsMetaKeyDown()) then
+		elseif (ctrl and not IsAltKeyDown()) or (IsMetaKeyDown and IsMetaKeyDown()) then
+			-- (Ctrl with Alt is AltGr, typing: Polish ą ć ń, Czech and Hungarian @ |; Terminal has no Ctrl+Alt keys. 0.49.2,
+			-- review: AltGr+A selected all, AltGr+C opened the clipboard box, AltGr+W deleted a word)
 			-- (a Mac's Cmd is Ctrl here: Cmd+A, Cmd+C, Cmd+V; review, 0.48.6: Cmd+V as the first key typed a stray "v" and,
 			-- no typed character following it, switched to the plain text box for the session)
 			if key == "A" then

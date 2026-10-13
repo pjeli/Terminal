@@ -239,7 +239,7 @@ do
 			if key == "`" then
 				UI.TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
 			else
-				UI.ListKey(key, IsControlKeyDown())
+				UI.ListKey(key, IsControlKeyDown() and not IsAltKeyDown()) -- (Ctrl with Alt: AltGr, typing; 0.49.2, review)
 			end
 		end)
 	end
@@ -286,15 +286,37 @@ do
 			d:SetPoint("CENTER", busy, "CENTER", math.cos(a) * 7, math.sin(a) * 7)
 			busy.dots[i] = d
 		end
-		busy:SetScript("OnUpdate", function(self, elapsed) UI:SpinBusy(elapsed) end)
-		busy:SetScript("OnEnter", function(self)
-			if not GameTooltip then return end
-			GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
-			GameTooltip:SetText(L["Still loading"], 1, 1, 1)
-			for _, l in ipairs(self.lines or {}) do GameTooltip:AddLine(l, 0.8, 0.8, 0.8, true) end
-			GameTooltip:Show()
+		-- what's still loading, on mouse-over: the game's tooltip, but while .zen fades the interface (GameTooltip with it:
+		-- nothing showed) a tooltip of Terminal's own, which .zen keeps up (Z.OWN; 0.49.2, review)
+		local tip
+		local function Tip()
+			if not (ns.Zen and ns.Zen.active) then return GameTooltip end
+			if not tip then
+				tip = CreateFrame("GameTooltip", "TerminalBusyTip", UIParent, "GameTooltipTemplate")
+				tip:SetFrameStrata("TOOLTIP")
+				if ns.Zen then ns.Zen.Made(tip) end -- (made while .zen has the interface faded: kept up)
+			end
+			return tip
+		end
+		busy:SetScript("OnUpdate", function(self, elapsed)
+			UI:SpinBusy(elapsed) -- (it draws the game's tooltip again when what's loading changed)
+			-- (Terminal's own, the pointer resting on it: drawn again too, UpdateBusy's new lines)
+			if tip and self.tip == tip and tip:IsShown() and self.tipLines ~= self.lines then self:GetScript("OnEnter")(self) end
 		end)
-		busy:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+		busy:SetScript("OnEnter", function(self)
+			local t = Tip()
+			if not t then return end
+			t:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+			t:SetText(L["Still loading"], 1, 1, 1)
+			for _, l in ipairs(self.lines or {}) do t:AddLine(l, 0.8, 0.8, 0.8, true) end
+			self.tip, self.tipLines = t, self.lines -- (on the spinner: nothing is written on the game's tooltip)
+			t:Show()
+		end)
+		busy:SetScript("OnLeave", function(self)
+			local t = self.tip
+			self.tip = nil
+			if t then t:Hide() end
+		end)
 		UI.busy = busy
 	end
 
@@ -781,6 +803,14 @@ end
 
 function UI:Open(text)
 	Build()
+	-- (0.49.2, review) one of Terminal's apps up (.atop, .changelog, F1's keys, the games): it goes, as the terminal goes
+	-- when an app opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took
+	-- the keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
+	if ns.Panel and ns.Panel.Registered then
+		for _, app in ipairs(ns.Panel.Registered()) do
+			if type(app.IsShown) == "function" and app.IsShown() and type(app.Close) == "function" then app.Close() end
+		end
+	end
 	self.combatState = nil -- (opened: nothing to bring back when the fight is over; UI:ComeBack takes it out first)
 	self:Disarm()
 	self.histIdx = nil

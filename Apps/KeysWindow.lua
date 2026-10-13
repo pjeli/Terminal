@@ -146,6 +146,9 @@ local frame, title, modeText, legend, box, scroll, content, thumb, footer, measu
 local tabs = {}
 local pool = {} -- { key = FontString, text = FontString } per row shown
 local offset, mode, back = 0, "simple", nil
+-- the mode in use when it opened, for the header: read in K.Open before the terminal goes (its Hide ends fuzzy finding
+-- and Alt+`'s Advanced, so read in Layout F1 in fuzzy finding said "you're in Simple mode"; 0.49.2, review)
+local inUse = "simple"
 
 local function MaxOffset()
 	if not (content and scroll) then return 0 end
@@ -259,7 +262,7 @@ local function Layout()
 	modeText:SetTextColor(dr, dg, db)
 	legend:SetTextColor(dr, dg, db)
 	title:SetText(Theme.FixColors(("|cff%s%s|r"):format(Hex(t.accent), L["keys"])))
-	modeText:SetText((K.ModeNow() == "fuzzy" and L["you're in %s"] or L["you're in %s mode"]):format(K.LABELS[K.ModeNow()]))
+	modeText:SetText((inUse == "fuzzy" and L["you're in %s"] or L["you're in %s mode"]):format(K.LABELS[inUse]))
 	legend:SetText(Theme.FixColors(L["Keys in %s are %s's own; the rest work the same in every mode they're in."]
 		:format(("|cff%s%s|r"):format(Hex(t.accent), L["this colour"]), K.LABELS[mode])))
 	-- the footer in the terminal's key-hint style: the key in the text colour, its meaning dimmed
@@ -364,14 +367,15 @@ local function Build()
 end
 
 function K.IsShown() return Panel.Shown(frame) end
-function K.Parts() return scroll, content, pool, tabs, footer, legend end -- (tests)
+function K.Parts() return scroll, content, pool, tabs, footer, legend, modeText end -- (tests)
 
 --- Opens on `m`'s tab (nil: the mode in use). `from`: the terminal as it was (UI:SaveState) to go back to; nil: an empty
 --- prompt. The terminal goes while it shows (Panel.Opening).
 function K.Open(m, from)
 	if not Panel.CanOpen(L["The keys window takes the arrow keys while open, which the game doesn't allow in combat."]) then return false end
 	K.flipAt = GetTime()
-	mode = LETTER[m] and m or K.ModeNow()
+	inUse = K.ModeNow() -- (before Panel.Opening closes the terminal)
+	mode = LETTER[m] and m or inUse
 	back = from
 	Build()
 	Panel.Opening(K) -- (straight in, where the terminal was: it and the other panels go)

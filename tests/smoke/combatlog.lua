@@ -140,3 +140,41 @@ do
 	ns.db.combatLog = {}
 	CB.ResetRecaps()
 end
+
+-- (0.49.2, review) the log is the account's: another character's death isn't "what killed me" here, and is named
+do
+	local saveName = ns.CharacterName
+	ns.db.combatLog = {}
+	CB.SetMe("Player-ALT")
+	ns.CharacterName = function() return "Plamen Warr" end
+	CB.Add({ what = "killed", who = "Hogger", spell = "Slam", amount = 245 })
+	CB.SetMe("Player-MAIN")
+	ns.CharacterName = function() return "Plamen Pally" end
+	ns.providers.combatlog._dirty = true
+	local rows = CB.Answer("killed")
+	check(#rows == 0, "another character's death isn't yours: " .. #rows)
+	ns.providers.combatlog._dirty = true
+	local all = UI:Search("@combatlog")
+	check(#all == 1 and all[1].detail:find("on Plamen Warr", 1, true), "@combatlog names whose it is: " .. tostring(all[1] and all[1].detail))
+	CB.Add({ what = "died", who = "Kobold" })
+	ns.providers.combatlog._dirty = true
+	rows = CB.Answer("killed")
+	check(#rows == 1 and rows[1].name:find("Kobold", 1, true) and not rows[1].detail:find("on Plamen", 1, true), "yours: yours")
+	-- an entry kept before entries said whose they were: yours, as before
+	ns.db.combatLog = { { t = now, what = "killed", who = "Murloc" } }
+	ns.providers.combatlog._dirty = true
+	check(#CB.Answer("killed") == 1, "an old entry with no owner stays yours")
+	ns.CharacterName = saveName
+	ns.db.combatLog = {}
+	CB.SetMe("Player-1")
+	ns.providers.combatlog._dirty = true
+end
+
+-- (0.49.2, review) an empty combat log says so
+do
+	ns.db.combatLog = {}
+	ns.providers.combatlog._dirty = true
+	local res = UI:Search("@combatlog")
+	check(#res == 1 and res[1].noActivate and res[1].name == ns.L["Nothing recorded yet"], "an empty @combatlog: " .. tostring(res[1] and res[1].name))
+	ns.providers.combatlog._dirty = true
+end

@@ -112,6 +112,30 @@ local function NpcDistance(id, here)
 end
 I.NpcDistance = NpcDistance
 
+--- The spawn NpcDistance finds (its nearest on your continent), as Questie gives it: the map it's on and its { x%, y% };
+--- nil when none is on your continent. `spawns` = Questie's spawns by area. (0.49.2, review: Questie.lua's NpcLocation,
+--- where Enter shows the NPC and pins it, took the first area pairs() gave: the row said 10 yd, Enter showed another zone.)
+local function NearestSpawn(spawns, here)
+	if not (here and type(spawns) == "table") then return nil end
+	local best, bui, bc
+	for area, list in pairs(spawns) do
+		local ui = QD.UiMapOfArea(area)
+		if ui and type(list) == "table" then
+			for _, c in ipairs(list) do
+				if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
+					local cont, x, y = SpotXY(ui, c)
+					if cont == here.cont then
+						local dx, dy = x - here.x, y - here.y
+						local d = dx * dx + dy * dy
+						if not best or d < best then best, bui, bc = d, ui, c end
+					end
+				end
+			end
+		end
+	end
+	return bui, bc
+end
+
 --- How far a row is from `here` (yards) and that spot ({ cont, x, y }), or nil: an NPC's nearest spawn on your
 --- continent (NpcDistance), or a row that carries its own place in world yards (`wcont`, `wx`, `wy`: @mailbox).
 local function RowDistance(e, here)
@@ -198,7 +222,7 @@ function I.Bearing(here, spot, face)
 	return math.atan2(spot.y - here.y, spot.x - here.x) - face
 end
 
-I._.Spot = Spot
+I._.Spot, I._.NearestSpawn = Spot, NearestSpawn
 -- (Places.lua's ResetPlacesForTests: the map transforms and NPC spots are forgotten with the places)
 I._.ResetDistances = function() xforms, npcSpots, npcSpotCount = {}, {}, 0 end
 I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own maps)

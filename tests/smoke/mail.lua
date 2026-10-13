@@ -600,6 +600,47 @@ do
 		check(not next(MA.EndedAuctions()), "noted as over for as long as an auction is kept, then forgotten")
 		now = nowWas
 	end
+	-- (0.49.2, review) a sale's news goes once its own mail is in, not for an older sale's mail of the same item
+	do
+		local had = ns.db.mailAuctions
+		ns.db.mailAuctions = { ["Player-1-AAA"] = { { kind = "sold", item = "Copper Bar", at = 1000 } } }
+		local box = { mails = { { auction = "sold", subject = "Auction successful: Copper Bar", first = 500 } } }
+		MA.SettleAuctions(box, 1100)
+		check(#ns.db.mailAuctions["Player-1-AAA"] == 1, "an older sale's mail doesn't settle a new sale's news")
+		box.mails[2] = { auction = "sold", subject = "Auction successful: Copper Bar", first = 1050 }
+		MA.SettleAuctions(box, 1100)
+		check(#ns.db.mailAuctions["Player-1-AAA"] == 0, "its own mail does")
+		ns.db.mailAuctions = had
+	end
+	-- (0.49.2, review) the tooltip's Shift+Enter only where there is one (the nearest mailbox is Questie's)
+	do
+		local function TipLines(e)
+		local lines = {}
+		local t = { SetText = function(_, s) lines[#lines + 1] = tostring(s) end,
+			AddLine = function(_, s) lines[#lines + 1] = tostring(s) end,
+			AddDoubleLine = function(_, a, b) lines[#lines + 1] = tostring(a) .. " " .. tostring(b) end }
+		e.tooltip(e, t)
+		return table.concat(lines, "\n")
+	end
+		P._dirty = true
+		local rows = UI:Search("@mail")
+		local mailRow
+		for _, e in ipairs(rows) do if e.mailKind == "mail" then mailRow = e break end end
+		local hadBox = ns.providers.mailbox
+		ns.providers.mailbox = nil
+		check(mailRow and not TipLines(mailRow):find("waypoint", 1, true), "no mailboxes: no Shift+Enter promised")
+		ns.providers.mailbox = hadBox or { id = "mailbox" }
+		check(mailRow and TipLines(mailRow):find("waypoint to the nearest mailbox", 1, true), "with them: said")
+		ns.providers.mailbox = hadBox
+		-- nothing kept anywhere: a line says how to fill it
+		local boxesWas, sentWas = ns.db.mailboxes, ns.db.mailSent
+		ns.db.mailboxes, ns.db.mailSent = {}, nil
+		P._dirty = true
+		rows = UI:Search("@mail")
+		check(#rows == 1 and rows[1].noActivate and rows[1].name == MA.NONE, "an empty @mail says why: " .. tostring(rows[1] and rows[1].name))
+		ns.db.mailboxes, ns.db.mailSent = boxesWas, sentWas
+		P._dirty = true
+	end
 	-- .mail forget: that character's news, sent mail and kept prices go with its mailbox
 	ns.db.mailboxes["Player-1-AAA"] = { name = "Zz Main", realm = "R", mails = {} }
 	ns:FindCommand("mail").run("forget zz main")

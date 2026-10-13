@@ -35,9 +35,21 @@ local function Usable(f)
 	return f and not (f.IsForbidden and f:IsForbidden()) and f.IsVisible and f:IsVisible()
 end
 
+--- The frame a known window's talents are in: PlayerSpellsFrame's talents tab (0.49.2, review: on this client the
+--- spellbook and the talents are both tabs of PlayerSpellsFrame, and the window showing its spellbook counted as the
+--- talents open: Enter pressed nothing and found no node), else the window itself.
+local function RootOf(name)
+	local f = _G[name]
+	if name == "PlayerSpellsFrame" and type(f) == "table" then
+		local t = rawget(f, "TalentsFrame")
+		if type(t) == "table" then return t end
+	end
+	return f
+end
+
 function TL.Window()
 	for _, name in ipairs(ROOTS) do
-		local f = _G[name]
+		local f = RootOf(name)
 		if Usable(f) then return f, name end
 	end
 	-- some other talent window (this client's own, or another addon's)
@@ -124,19 +136,13 @@ function TL.Highlight(nodeID, tabName, tabIndex)
 	end, 60) -- a freshly opened window can take a moment to build its buttons
 end
 
--- Direct opener: only used when neither the keybinding nor a micro button is available.
+-- Only used when neither the keybinding nor a micro button is available: the talents showing, the node is pointed at;
+-- else said. (0.49.2, review: no PlayerSpellsUtil.OpenToClassTalentsTab / ToggleTalentFrame from Terminal's code here
+-- any more: the window then held what it wrote. Said instead, as Spells' and Currency's fallbacks do)
 local function OpenFallback(e)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
-	ns:Trace("DIRECT talent window open (addon code, may be blocked)")
-	ns.LoadBlizz("Blizzard_PlayerSpells")
-	if PlayerSpellsUtil and PlayerSpellsUtil.OpenToClassTalentsTab then
-		pcall(PlayerSpellsUtil.OpenToClassTalentsTab)
-	elseif PlayerSpellsUtil and PlayerSpellsUtil.ToggleClassTalentFrame then
-		pcall(PlayerSpellsUtil.ToggleClassTalentFrame)
-	elseif ToggleTalentFrame then
-		pcall(ToggleTalentFrame)
-	end
-	TL.Highlight(e.nodeID, e.tab, e.tabIndex)
+	if TL.IsOpen() then return TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
+	ns:Print(L["Open your talents to see %s (opening them from Terminal's own code would taint them)."]:format(tostring(e.name)))
 end
 
 -- a tree's tabs: { groupID -> tab name }, { groupID -> its place }

@@ -29,11 +29,15 @@ CB.state = { events = 0, secret = 0, blocked = false } -- (for .combatlog)
 
 local function Dirty() ns:Changed("combatlog") end
 
---- Adds an entry: { t, what = "crit"/"critby"/"killed"/"died", who, spell, amount, overkill, zone }.
+--- Adds an entry: { t, what = "crit"/"critby"/"killed"/"died", who, spell, amount, overkill, zone, guid, char }.
+--- (0.49.2, review: the log is the account's, kept across characters: each entry says whose it is, so "what killed me"
+--- on one character doesn't answer with another's death)
 function CB.Add(e)
 	local log = Log()
 	if not log then return end
 	e.t = e.t or Now()
+	e.guid = e.guid or me
+	e.char = e.char or (ns.CharacterName and ns.CharacterName()) or nil
 	local zone = _G.GetRealZoneText and Safe(_G.GetRealZoneText)
 	e.zone = e.zone or (type(zone) == "string" and zone ~= "" and zone or nil)
 	table.insert(log, 1, e)
@@ -278,6 +282,7 @@ ns:RegisterProvider("combatlog", {
 	aliases = { "combatlog", "combat", "deaths", "crits" },
 	explicit = true,
 	refreshOnOpen = 60, -- (the "5 min ago" moves on: rebuilt on open when a minute old; new entries mark it dirty)
+	leadRow = ns.EmptyLead(L["Nothing recorded yet"], function() return #(Log() or {}) == 0 end), -- (0.49.2, review)
 	collect = function()
 		local out, log = {}, Log() or {}
 		local n = #log
@@ -287,12 +292,15 @@ ns:RegisterProvider("combatlog", {
 				local parts = { Ago(d.t) }
 				if d.overkill then parts[#parts + 1] = L["%s overkill"]:format(Amount(d.overkill)) end
 				if d.zone then parts[#parts + 1] = d.zone end
+				-- another character's (entries kept before 0.49.2 say no one: taken as yours, as they were)
+				local other = d.guid and me and d.guid ~= me or nil
+				if other then parts[#parts + 1] = L["on %s"]:format(d.char or "?") end
 				out[#out + 1] = {
-					key = (d.t or 0) .. ":" .. i, name = line, line = line, what = d.what, amount = d.amount,
+					key = (d.t or 0) .. ":" .. i, name = line, line = line, what = d.what, amount = d.amount, other = other,
 					icon = (d.what == "died" or d.what == "killed") and "Interface\\Icons\\Ability_Rogue_FeignDeath"
 						or "Interface\\Icons\\Ability_CriticalStrike",
 					detail = table.concat(parts, "  ·  "),
-					text = table.concat({ WORDS[d.what] or "", d.who or "", d.spell or "", d.zone or "" }, " "),
+					text = table.concat({ WORDS[d.what] or "", d.who or "", d.spell or "", d.zone or "", other and d.char or "" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99,
 					activate = Say,
 					secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, secondary = ToChat,
@@ -331,7 +339,10 @@ function CB.Answer(kind)
 	local p = ns.providers.combatlog
 	local rows = {}
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
-		if (kind == "killed" and (e.what == "killed" or e.what == "died")) or e.what == kind then rows[#rows + 1] = e end
+		-- (yours only: "what killed me" on this character; @combatlog lists every character's, each named)
+		if not e.other and ((kind == "killed" and (e.what == "killed" or e.what == "died")) or e.what == kind) then
+			rows[#rows + 1] = e
+		end
 	end
 	if kind ~= "killed" then -- (crits: the biggest first)
 		table.sort(rows, function(a, b) return (a.amount or 0) > (b.amount or 0) end)

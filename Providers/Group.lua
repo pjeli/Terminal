@@ -254,9 +254,9 @@ local function Tooltip(e, t)
 	if e.dead then t:AddLine(e.ghost and L["A ghost"] or L["Dead"], 1, 0.25, 0.25) end
 	if e.online == false then t:AddLine(L["Offline"], 0.6, 0.6, 0.6) end
 	if e.inRange == false then t:AddLine(L["Out of range (the game's own range test, as the raid frames fade)"], 1, 0.6, 0.2, true)
-	elseif e.rangeHidden then t:AddLine(L["Range: hidden by the game right now"], 0.6, 0.6, 0.6) end
+	elseif e.rangeHidden then t:AddLine(L["Range hidden by the game right now"], 0.6, 0.6, 0.6) end
 	if e.buffsHidden then
-		t:AddLine(L["Buffs: hidden by the game right now"], 0.6, 0.6, 0.6)
+		t:AddLine(L["Buffs hidden by the game right now"], 0.6, 0.6, 0.6)
 	elseif e.missing and #e.missing > 0 then
 		t:AddLine(L["Needs %s"]:format(table.concat(e.missingLabels, ", ")), 1, 0.82, 0, true)
 	elseif e.buffs then
@@ -419,18 +419,21 @@ end
 
 --- What the game hides right now, in words: "Range and buffs hidden by the game right now (in combat)"; nil when
 --- nothing is.
+-- (0.49.2, review: whole sentences, not "%s hidden ..." filled with "range", "buffs" and "and": a translation can make
+-- its words agree, and a first letter outside ASCII was never made upper case)
+local HIDDEN = {
+	["r"] = L["Range hidden by the game right now"], ["b"] = L["Buffs hidden by the game right now"],
+	["o"] = L["Roles hidden by the game right now"], ["rb"] = L["Range and buffs hidden by the game right now"],
+	["ro"] = L["Range and roles hidden by the game right now"], ["bo"] = L["Buffs and roles hidden by the game right now"],
+	["rbo"] = L["Range, buffs and roles hidden by the game right now"],
+}
 function GR.HiddenText()
 	local h = GR.hidden
 	if not h then return nil end
-	local what = {}
-	if h.range > 0 then what[#what + 1] = L["range"] end
-	if h.buffs > 0 then what[#what + 1] = L["buffs"] end
-	if h.roles > 0 then what[#what + 1] = L["roles"] end
-	if #what == 0 then return nil end
+	local k = (h.range > 0 and "r" or "") .. (h.buffs > 0 and "b" or "") .. (h.roles > 0 and "o" or "")
+	if k == "" then return nil end
 	local why = GR.Why()
-	-- ("range and buffs", "range, buffs and roles")
-	local s = #what == 1 and what[1] or (table.concat(what, ", ", 1, #what - 1) .. " " .. L["and"] .. " " .. what[#what])
-	return L["%s hidden by the game right now"]:format((s:gsub("^%l", string.upper))) .. (why and (" (" .. why .. ")") or "")
+	return HIDDEN[k] .. (why and (" (" .. why .. ")") or "")
 end
 
 local function NoteRow(text)
@@ -481,6 +484,16 @@ local CUE = { dead = "dead", died = "dead", dying = "dead", ghost = "dead", ghos
 --- as group questions, and typing "consecration" flashed the group up at "cons").
 local BUFF_WORDS = { buff = true, buffs = true }
 local NAME_FILLER = { of = true, the = true, protection = true } -- (left out of a buff's name looked for)
+--- Is this word a group buff's or a consumable's word, or a word of a buff's name ("kings": Blessing of Kings)?
+local function BuffWord(w)
+	if GR.BY_WORD[w] or GR.CONS_BY_WORD[w] or NAME_FILLER[w] then return true end
+	for _, f in ipairs(GR.BUFFS) do
+		for n in pairs(Names(f)) do
+			if (" " .. n .. " "):find(" " .. w .. " ", 1, true) then return true end
+		end
+	end
+	return false
+end
 function GR.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
 	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
@@ -490,7 +503,11 @@ function GR.Question(text)
 		if GR.CONS_ALL[w] then consAll, named = true, true
 		elseif BUFF_WORDS[w] then named = true
 		elseif SUBJECT[w] then subject = true
-		elseif CUE[w] then cues[CUE[w]] = true; if w == "unbuffed" then subject, named = true, true end
+		elseif CUE[w] then
+			-- (after other words, "without" is Simple mode's "not": "cloak without stamina", "food without spirit" are
+			-- searches, never "Needs Fortitude, cloak"; 0.49.2, review)
+			if not (w == "without" and #rest > 0) then cues[CUE[w]] = true end
+			if w == "unbuffed" then subject, named = true, true end
 		elseif w == "who" or w == "whos" then who = true
 		elseif not ASK[w] then
 			rest[#rest + 1] = w
@@ -500,6 +517,11 @@ function GR.Question(text)
 	if consAll then cues.missing = cues.missing or (subject or who) or nil end -- ("who has no consumables" reads as missing)
 	if not next(cues) then return nil end
 	if not (subject or who) and not (cues.missing and named) then return nil end
+	-- (no group word nor "who": every other word must name a buff or consumable; an item, slot or type word makes it a
+	-- search: "cloak needs stamina"; 0.49.2, review)
+	if not (subject or who) then
+		for _, w in ipairs(rest) do if not BuffWord(w) then return nil end end
+	end
 	local q = { dead = cues.dead, offline = cues.offline, far = cues.far, near = cues.near, words = {} }
 	local roles = {}
 	if cues.tank then roles[#roles + 1] = "TANK" end
@@ -839,7 +861,7 @@ function GR.ShareGroupOf(rows, query, ML, LM)
 			if hidden > 0 then items[#items + 1] = L["%d with buffs hidden%s"]:format(hidden, why and (", " .. why) or "") end
 			sections[#sections + 1] = { label = consOnly and L["Missing consumables"] or L["Missing buffs"], items = items }
 		elseif #eligible == 0 and hidden > 0 then
-			sections[#sections + 1] = { text = L["Buffs are hidden by the game right now"] .. (why and (" (" .. why .. ")") or "") }
+			sections[#sections + 1] = { text = L["Buffs hidden by the game right now"] .. (why and (" (" .. why .. ")") or "") }
 		elseif consOnly then
 			sections[#sections + 1] = { text = L["Everyone has %s"]:format(table.concat((function() local t = {} for i, c in ipairs(ask.cons) do t[i] = c.label end return t end)(), " " .. L["and"] .. " ")) }
 		elseif #ask.families > 0 or #ask.words > 0 then

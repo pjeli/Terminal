@@ -101,6 +101,15 @@ do
 	for _, c in ipairs(ns.Easy.CATEGORIES) do for _, k in ipairs(c.kinds) do if k == "experience" then cat = c.id end end end
 	check(cat == "character", "Simple mode: experience is under Character")
 
+	-- (0.49.2, review) the cap as the game works it out: the lower of the expansion's and the player's
+	do
+		local hadP = _G.GetMaxPlayerLevel
+		_G.GetMaxLevelForPlayerExpansion, _G.GetMaxPlayerLevel = function() return 80 end, function() return 60 end
+		level = 60
+		local me = X.ReadMe()
+		check(me and me.maxed, "level 60 under a 60 cap (the expansion's 80) is max")
+		_G.GetMaxPlayerLevel = hadP
+	end
 	_G.UnitLevel, _G.UnitXP, _G.UnitXPMax, _G.GetXPExhaustion, _G.IsResting = save.lvl, save.xp, save.xpm, save.ex, save.rest
 	_G.UnitGUID, _G.UnitClass, _G.GetRealmName, _G.GetMaxLevelForPlayerExpansion = save.guid, save.cls, save.realm, save.max
 	_G.time, ns.db.xpChars, ns.db.easyMode = save.time, save.chars, save.easy

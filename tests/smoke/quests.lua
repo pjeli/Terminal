@@ -339,3 +339,71 @@ do
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	ns.providers.quests._dirty = true
 end
+
+io.write("[quests: the game's own quest windows are only pointed at (0.49.2 review)]\n")
+do
+	-- the after-step looks for the quest's row in whatever quest window shows: one the game made is never clicked from
+	-- Terminal's code (its quest dialog with an NPC, QuestFrame, lists quest titles too: a click chose the quest there,
+	-- tainted)
+	local was = { uic = rawget(UIParent, "GetChildren"), qmShown = QuestMapFrame.shown, wmShown = WorldMapFrame.shown,
+		sec = _G.issecurevariable, show = ns.Highlight.Show, print = ns.Print, tql = _G.ToggleQuestLog, twm = _G.ToggleWorldMap,
+		qf = _G.QuestFrame, popup = _G.QuestLogPopupDetailFrame, mine = _G.PartsyQuestLog, classic = _G.ForeverClassicUIQuestLog }
+	QuestMapFrame.shown = false
+	_G.ForeverClassicUIQuestLog = nil -- (ClassicUIForever's log: not on)
+	ns.providers.quests._dirty = true
+	local row = T.names(ns:GetEntries(ns.providers.quests))["Wolves Across the Border"]
+	local clicked, shown = {}, nil
+	ns.Highlight.Show = function(_, target) shown = target end
+	-- (who made a frame: the game, but for one addon's quest log)
+	_G.issecurevariable = function(a)
+		if type(a) == "string" then return a ~= "PartsyQuestLog", a == "PartsyQuestLog" and "PartsyAddon" or nil end
+		return true
+	end
+	local function Window(name)
+		local f = T.Obj("Frame"); f.shown = true; f.__name = name; _G[name] = f
+		local b = T.Obj("Button"); b.shown = true; b.text = "Wolves Across the Border"
+		b.Click = function() clicked[#clicked + 1] = name end
+		f.GetChildren = function() return b end
+		UIParent.GetChildren = function() return f end
+		return b
+	end
+	Window("QuestFrame")
+	if row then row.after(row) end
+	FlushAll()
+	check(row and #clicked == 0 and shown == nil, "the quest dialog with an NPC (QuestFrame): no quest log, its title button neither clicked nor pointed at")
+	local popupRow = Window("QuestLogPopupDetailFrame")
+	if row then row.after(row) end
+	FlushAll()
+	check(#clicked == 0 and shown == popupRow, "a quest window the game made: the quest's row pointed at, never clicked")
+	shown = nil
+	local mineRow = Window("PartsyQuestLog")
+	if row then row.after(row) end
+	FlushAll()
+	check(#clicked == 1 and clicked[1] == "PartsyQuestLog" and shown == mineRow, "another addon's quest log: its row clicked (selects it there) and pointed at")
+
+	-- Enter's own fallback (no quest key, no button): never ToggleQuestLog / ToggleWorldMap from Terminal's code (the map then
+	-- held what it wrote); said, or pointed at in the log when it shows
+	UIParent.GetChildren = was.uic
+	local toggled, said = false, nil
+	_G.ToggleQuestLog = function() toggled = true end
+	_G.ToggleWorldMap = function() toggled = true end
+	ns.Print = function(_, msg) said = msg end
+	shown = nil
+	if row then row.activate(row) end
+	FlushAll()
+	check(row and not toggled and said and said:find("Open your quest log", 1, true) and shown == nil,
+		"the log not showing: said where to open it, nothing opened from here: " .. tostring(said))
+	QuestMapFrame.shown, WorldMapFrame.shown = true, true
+	local details = T.Obj("Frame"); details.shown = true; details.questID = 33
+	rawset(QuestMapFrame, "DetailsFrame", details)
+	said = nil
+	if row then row.activate(row) end
+	FlushAll()
+	check(not toggled and said == nil and shown == details, "the log showing on its details: pointed at there")
+	rawset(QuestMapFrame, "DetailsFrame", nil)
+	QuestMapFrame.shown, WorldMapFrame.shown, UIParent.GetChildren = was.qmShown, was.wmShown, was.uic
+	_G.issecurevariable, ns.Highlight.Show, ns.Print, _G.ToggleQuestLog, _G.ToggleWorldMap = was.sec, was.show, was.print, was.tql, was.twm
+	_G.QuestFrame, _G.QuestLogPopupDetailFrame, _G.PartsyQuestLog = was.qf, was.popup, was.mine
+	_G.ForeverClassicUIQuestLog = was.classic
+	ns.providers.quests._dirty = true
+end

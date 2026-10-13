@@ -262,7 +262,9 @@ function SH.MenuChannels()
 	local function Is(fn, ...) return type(fn) == "function" and Call(fn, ...) and true or false end
 	local instance = _G.LE_PARTY_CATEGORY_INSTANCE
 	local inInstance = instance and Is(_G.IsInGroup, instance)
-	if Is(_G.IsInRaid) then
+	-- (your own raid: one only the instance made (a battleground, the raid finder) takes instance chat, not /raid; 0.49.2,
+	-- review: "All N to raid" was offered there and the game refused it)
+	if Is(_G.IsInRaid, _G.LE_PARTY_CATEGORY_HOME) then
 		out[#out + 1] = { cmd = "/raid", label = L["Send to raid"], chat = "RAID", short = L["raid"] }
 	elseif Is(_G.IsInGroup) and not (inInstance and not Is(_G.IsInGroup, _G.LE_PARTY_CATEGORY_HOME)) then
 		out[#out + 1] = { cmd = "/p", label = L["Send to party"], chat = "PARTY", short = L["party"] }
@@ -745,11 +747,31 @@ SH.NO_SEARCH = L["Search for something first: with nothing searched there's noth
 --- Was something searched (the words before ">>", or the menu's query)? Every result at once needs it.
 function SH.Searched(query) return type(query) == "string" and query:find("%S") ~= nil end
 
+--- The chat type the game takes for `chat` now: party or raid when your only group is one an instance made (a
+--- battleground, the dungeon or raid finder) is instance chat, as the game's chat box switches it itself
+--- (ChatFrameEditBox's UpdateHeader). (0.49.2, review: ">>> raid" there was refused while the trace said sent.)
+function SH.ChatType(chat)
+	local home, inst = _G.LE_PARTY_CATEGORY_HOME, _G.LE_PARTY_CATEGORY_INSTANCE
+	if not (home and inst) or (chat ~= "PARTY" and chat ~= "RAID") then return chat end
+	local test = chat == "RAID" and _G.IsInRaid or _G.IsInGroup
+	if type(test) ~= "function" then return chat end
+	if not Call(test, home) and Call(test, inst) then return "INSTANCE_CHAT" end
+	return chat
+end
+
 function SH.SendAll(rows, to, query)
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
 	if not SH.Searched(query) then return nil, SH.NO_SEARCH end
 	if SH.Restricted(to) then return nil, SH.ONE_LINE end -- (the game blocks them from addon code: SH.PressLine)
 	if not (to and to.chat and send) then return nil, L["Say where to send them: >>> party, guild, raid, say, instance, whisper <name>"] end
+	local chat = SH.ChatType(to.chat)
+	if chat ~= to.chat then
+		ns:Trace(("share: %s goes to instance chat (your only group is the instance's)"):format(to.chat))
+		local copy = {}
+		for k, v in pairs(to) do copy[k] = v end
+		copy.chat = chat
+		to = copy
+	end
 	if Locked() then return nil, LOCKED end
 	if waiting then return nil, L["Still sending the last ones: a moment."] end
 	rows = SH.GroupRows(rows) -- (kept: the list on screen changes while waiting)

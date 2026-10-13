@@ -171,18 +171,20 @@ local MAIL = { mail = true, mails = true, mailbox = true, inbox = true, letter =
 function AU.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
 	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
-	local subject, weak, asked, cues, rest = false, true, false, {}, {}
+	local subject, weak, asked, cues, rest, selling = false, true, false, {}, {}, false
 	for w in t:gmatch("%S+") do
 		if MAIL[w] then return nil end
 		if SUBJECT[w] then subject = true; weak = weak and WEAK[w] == true
-		elseif CUE[w] then cues[CUE[w]] = true
+		elseif CUE[w] then cues[CUE[w]] = true; selling = selling or w ~= "up"
 		elseif ASK[w] then asked = true
 		else rest[#rest + 1] = w end
 	end
-	-- "what am i selling": selling with asking words is about your auctions too
-	if not subject and not (cues.up and asked and #rest == 0) then return nil end
+	-- "what am i selling": selling with asking words is about your auctions too ("what's up" isn't: 0.49.2, review)
+	if not subject and not (cues.up and selling and asked and #rest == 0) then return nil end
 	if subject and weak and not asked and not next(cues) then return nil end
-	if #rest > 0 and not asked then return nil end
+	-- other words: asked, and with what auctions do (sold, selling, listed) or "auctions" itself, as the mail's question
+	-- does ("where is the ah", "show me the auction house" are searches: they said "No auction has that"; 0.49.2, review)
+	if #rest > 0 and not (asked and (selling or not weak)) then return nil end
 	return { words = rest, sold = cues.sold, up = cues.up and not cues.sold or nil }
 end
 

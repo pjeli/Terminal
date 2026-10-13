@@ -47,8 +47,12 @@ end
 
 local SlotText = ns.SlotText -- (the game's own slot names: Util.lua)
 
---- The set's items, one line each, for chat.
-local function ListItems(e)
+-- (0.49.2, review: an item the client hasn't loaded had no name: "Slot: item 12345". Its data is asked for and the list
+-- said this long after, once, with whatever names have come by then)
+local NAME_WAIT = 1
+
+--- The set's items, one line each, for chat. `again`: the second try, after asking for the names it lacked.
+local function SayItems(e, again)
 	local E = API()
 	local lines = { e.name .. ":" }
 	local ids = E and E.GetItemIDs and select(2, pcall(E.GetItemIDs, e.setID))
@@ -56,12 +60,17 @@ local function ListItems(e)
 		ns:Output({ L["%s: no item list available."]:format(e.name) })
 		return
 	end
+	local asked = false
 	for slot = 1, 19 do
 		local itemID = ids[slot]
 		if type(itemID) == "number" and itemID > 0 then
 			local link
 			if C_Item.GetItemInfo then link = select(2, C_Item.GetItemInfo(itemID)) end -- (not `x and f()`: one value)
-			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or L["item %s"]:format(itemID)
+			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID))
+			if not name and not again and C_Item.RequestLoadItemDataByID then
+				asked = pcall(C_Item.RequestLoadItemDataByID, itemID) or asked
+			end
+			name = name or L["item %s"]:format(itemID)
 			local have = C_Item.GetItemCount and C_Item.GetItemCount(itemID, false) or 1
 			local worn = GetInventoryItemID and GetInventoryItemID("player", slot) == itemID
 			lines[#lines + 1] = "  " .. (SlotText(slot) or L["Slot %s"]:format(slot)) .. ": " .. name
@@ -69,8 +78,13 @@ local function ListItems(e)
 		end
 	end
 	if #lines == 1 then lines[#lines + 1] = "  " .. L["(no items saved in this set)"] end
+	if asked and C_Timer and C_Timer.After then
+		C_Timer.After(NAME_WAIT, function() SayItems(e, true) end)
+		return
+	end
 	ns:Output(lines)
 end
+local function ListItems(e) SayItems(e, false) end -- (Shift+Enter's fallback: called with Activate's own arguments)
 
 -- The character window's equipment sets page, opened by the game itself: Shift+Enter is bound
 -- to a macro of /click lines (character micro button, the right-pane arrow when the pane is

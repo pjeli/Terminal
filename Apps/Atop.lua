@@ -232,8 +232,8 @@ end
 local function Build()
 	if frame then return end
 	frame = Panel.Build("TerminalAtop", B)
-	pcall(frame.SetPropagateKeyboardInput, frame, false) -- (every key is atop's while it's open)
-	frame:SetScript("OnKeyDown", function(_, key) B.Key(key) end)
+	pcall(frame.SetPropagateKeyboardInput, frame, false) -- (every key is atop's while it's open, but the game's: B.KeyDown)
+	frame:SetScript("OnKeyDown", function(self, key) B.KeyDown(self, key) end)
 	frame:SetScript("OnChar", function(_, ch) B.Char(ch) end)
 	frame:SetScript("OnUpdate", function(_, elapsed) B.Tick(elapsed) end)
 
@@ -679,6 +679,22 @@ function B.Key(key)
 	B.Refilter(); B.DrawText(); B.DrawBars(1)
 end
 
+-- keys that are never atop's, as from the terminal (UI/Keys.lua's PASS_KEYS): the modifiers and Print Screen
+local GAME_KEYS = {
+	LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true,
+	LMETA = true, RMETA = true, LWIN = true, RWIN = true, PRINTSCREEN = true,
+}
+
+--- A key pressed in atop: those above and the game's own chords the terminal passes on too (Ctrl+R the frame rate,
+--- Ctrl+S sound, the volume, the screenshot key: UI.GameKey) go on to the game; any other key is atop's (B.Key).
+--- (0.49.2, review: atop kept every key, Print Screen and Ctrl+R did nothing while it showed; it never opens in combat)
+function B.KeyDown(self, key)
+	local UI = ns.UI
+	local game = GAME_KEYS[key] or (UI and UI.GameKey and UI.GameKey(key)) or false
+	Panel.Propagate(self, not game)
+	if not game then B.Key(key) end
+end
+
 function B.Char(ch)
 	if not ch or ch == "`" or ch == "~" or state.focus then return end
 	state.filter = state.filter .. ch
@@ -692,6 +708,7 @@ function B.Shown() return shown end
 function B.Fit() return fit end
 function B.MemTexts() return memText, memText2, memText3 end
 function B.History() return hist end
+function B.MemHistory() return memHist end -- (tests)
 
 function B.Open()
 	if not Panel.CanOpen(L["atop reads the keyboard while open, so not in combat."]) then return false end
@@ -701,8 +718,10 @@ function B.Open()
 	state.filter, state.sel, state.offset, state.focus, state.fresh = "", 1, 0, nil, true
 	B.since = B.since or GetTime()
 	ReadAddons()
-	-- each addon's own history starts again (a gap while closed would read as one long step)
+	-- each addon's own history starts again (a gap while closed would read as one long step), and all addons' graphs
+	-- too (0.49.2, review: reopened an hour later, the old samples sat beside the new as if no time had passed)
 	for _, a in ipairs(addons) do a.hist, a.memHist, a.memAt = nil, nil, nil end
+	hist, memHist = {}, {}
 	SampleMem(); SampleCpu()
 	cpuAt, memAt, drawAt = 0, 0, 0
 	B.Refilter()

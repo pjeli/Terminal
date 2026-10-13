@@ -323,7 +323,9 @@ function UI:MenuKey(f, key)
 		if not se then
 			f:SetPropagateKeyboardInput(false)
 			self:HideRowMenu()
-			if m and m ~= "" then ns:Print(L["Too long to put in the chat box from the keyboard: right-click it and pick the line."]) end
+			-- (only that: the mouse menu's way with a line this long is Terminal's own code opening the chat box, which taints
+			-- it; 0.49.2, review: this told you to take that way)
+			if m and m ~= "" then ns:Print(L["Too long to put in the chat box."]) end
 			return true
 		end
 	else
@@ -332,7 +334,8 @@ function UI:MenuKey(f, key)
 	if se and self:ArmForPress(se) then
 		f:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
 		ns:Trace("menu: armed Enter for the press (" .. tostring(ns.Secure.armed) .. ")")
-		if not (it.chatTo or it.boxLine) then ns:RecordHistory(edit:GetText()) end
+		-- (a press that asks for more, @who's "ask the server", stays open and isn't a line run: as Enter; 0.49.2, review)
+		if not (it.chatTo or it.boxLine or se.staysOpen) then ns:RecordHistory(edit:GetText()) end
 		self:FinishSoon(se)
 		self:HideRowMenu()
 		return true

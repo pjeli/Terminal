@@ -37,8 +37,8 @@ do
 	check(V({ kind = "talents", other = true, secondary = use }) == "Wowhead link/link in chat", "another class's talent: Enter is Wowhead")
 	check(V({ kind = "equipmentset", secondary = use }) == "equip/show in manager" and V({ kind = "macros", secondarySecure = {} }) == "run/show in Macros"
 		and V({ kind = "mounts", secondary = use }) == "summon/show in journal" and V({ kind = "cvars", secondary = use }) == "edit/reset to default"
-		and V({ kind = "quests", secondary = use }) == "show in quest log/track" and V({ kind = "maps", secondary = use }) == "show on map/set waypoint",
-		"sets equip, macros run, mounts summon, CVars edit, quests track, maps set a waypoint")
+		and V({ kind = "quests", secondary = use }) == "show in quest log/track" and V({ kind = "maps", pos = { x = 0.5, y = 0.5 }, secondary = use }) == "show on map/set waypoint",
+		"sets equip, macros run, mounts summon, CVars edit, quests track, a place's own spot sets a waypoint (a zone's: world.lua)")
 	check(V({ kind = "terminal", presetId = "x" }) == "apply/nil" and V({ kind = "calc", secondary = use }) == "show in chat/put in the chat box",
 		"themes apply; the calculator shows in chat")
 	-- no Shift+Enter: none said (the @who ask row, an addon's options row)
@@ -123,7 +123,7 @@ do
 	if se then
 		UI:TryArmSecure(se)
 		local st = UI.status:GetText() or ""
-		check(st:find("Press Enter to use", 1, true), "armed: the press's own verb: " .. st)
+		check(st:find("Press Enter: use", 1, true), "armed: the press's own verb: " .. st)
 		UI:Disarm()
 	end
 	UI:Hide(); FlushAll()
@@ -381,7 +381,7 @@ do
 	UI.results, UI.sel = { { kind = "macros", name = "Heal Macro", secure = { macro = "/cast x" }, noCombat = true } }, 1
 	UI:Activate(1)
 	_G.InCombatLockdown, ns.Print = icl, pr
-	check(printed[1] == "Heal Macro: can't run in combat.", "in combat: the refused action by its verb: " .. tostring(printed[1]))
+	check(printed[1] == "Heal Macro: can't do that in combat (run).", "in combat: the refused action by its verb: " .. tostring(printed[1]))
 	UI.results = {}
 end
 

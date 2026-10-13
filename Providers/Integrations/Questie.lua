@@ -2,7 +2,7 @@ local ns = select(2, ...)
 local L = ns.L
 local I = ns.Integrations
 local Safe = ns.Safe -- (Util.lua)
-local RunSliced, WaypointLink = I.RunSliced, I._.WaypointLink
+local RunSliced, WaypointLink, NearestSpawn = I.RunSliced, I._.WaypointLink, I._.NearestSpawn
 
 ----------------------------------------------------------------------
 -- Questie
@@ -201,19 +201,31 @@ local function NpcLocation(id)
 		spawnsByZone = type(n) == "table" and n.spawns or nil
 	end
 	if type(spawnsByZone) ~= "table" then return end
-	for zone, spawns in pairs(spawnsByZone) do
-		local c = type(spawns) == "table" and spawns[1]
+	-- (0.49.2, review: the first area pairs() gave and its first spawn, while the row's "N yd" and arrow are its nearest
+	-- spawn on your continent: "nearest murloc forager" said 10 yd, Enter showed another zone and pinned it there, and
+	-- ">> party" linked that spot. Where you are known: that same spawn.)
+	local ui, c = NearestSpawn(spawnsByZone, I.Here())
+	if ui then return ui, { x = c[1] / 100, y = c[2] / 100 } end
+	-- (else the areas in order, the same answer every time; one out in the world before a dungeon's entrance)
+	local zones = {}
+	for zone in pairs(spawnsByZone) do if type(zone) == "number" then zones[#zones + 1] = zone end end
+	table.sort(zones)
+	local door
+	for _, zone in ipairs(zones) do
+		local spawns = spawnsByZone[zone]
+		c = type(spawns) == "table" and spawns[1]
 		if type(c) == "table" and c[1] and c[1] >= 0 then
 			local dl = QD.DungeonLocation(zone)
 			if type(dl) == "table" and dl[1] then
-				local ui = QD.UiMapOfArea(dl[1][1])
-				if ui then return ui, { x = dl[1][2] / 100, y = dl[1][3] / 100 }, true end
+				ui = not door and QD.UiMapOfArea(dl[1][1])
+				if ui then door = { ui, { x = dl[1][2] / 100, y = dl[1][3] / 100 } } end
 			else
-				local ui = QD.UiMapOfArea(zone)
+				ui = QD.UiMapOfArea(zone)
 				if ui then return ui, { x = c[1] / 100, y = c[2] / 100 } end
 			end
 		end
 	end
+	if door then return door[1], door[2], true end
 end
 
 local function ShowNpc(e)

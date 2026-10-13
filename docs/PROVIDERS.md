@@ -62,7 +62,7 @@ That's a working list. Everything else below is optional.
 | `lazy` | `true`: searched only once something is typed (not on an empty prompt). |
 | `refreshOnOpen` | `true`: made again each time Terminal opens; a number: only when older than that many seconds. For lists that change with no event telling (time left, distances). |
 | `noCombat` | `true`: Enter does nothing in combat (opening windows isn't allowed then). |
-| `simpleCategory` | Where its rows go in Simple mode: an existing category's id (`"items"`, `"quests"`, `"spells"`, `"crafting"`, `"npcs"`, `"places"`, `"loot"`, `"recent"`, `"people"`, `"group"`, `"collections"`, `"character"`, `"windows"`, `"settings"`, `"commands"`, `"emotes"`; the older `"game"`, `"bags"`... still work) or `{ id, label, icon }` for a new one. Without it, Simple mode doesn't show the list's rows (Advanced mode does). |
+| `simpleCategory` | Where its rows go in Simple mode: an existing category's id (`"items"`, `"quests"`, `"spells"`, `"crafting"`, `"npcs"`, `"places"`, `"loot"`, `"recent"`, `"people"`, `"group"`, `"collections"`, `"character"`, `"calendar"`, `"windows"`, `"settings"`, `"commands"`, `"emotes"`; the older `"game"`, `"bags"`... still work) or `{ id, label, icon }` for a new one. Without it, Simple mode doesn't show the list's rows (Advanced mode does). |
 | `verbs` | What Enter and Shift+Enter do, in a word or two: `{ "show in chat", "say in party" }`, or `function(row) return enter, shift end`. The footer and the right-click menu say them. |
 
 ## The row fields
@@ -105,16 +105,23 @@ secondary = NotInCombat,                                                 -- what
 ```
 
 - `{ macro = "text" }` or `{ macro = function(row) return "text" end }`: macro lines (`/cast`, `/use`, `/p`, `/click
-  SomeButton`). At most 255 characters, all lines together (the game cuts the rest).
+  SomeButton`). At most 255 characters, all lines together: a longer one isn't pressed at all (the game would cut it
+  off), and `activate` / `secondary` run instead. Return `nil` when there's nothing to press.
 - `{ binding = "TOGGLESPELLBOOK" }`: presses one of the game's own key bindings (it opens the window exactly as your key
   does). Add `buttons = { "SpellbookMicroButton" }` as the fallback for a client without that binding.
 - `isOpen(row)`: true when there's nothing to press (the window already shows: the key would close it). Then only
   `after` runs.
 - `after(row)`: runs a moment after the press, to point at something in the window that opened. Only **read** the
   window there (find a frame, `T.Highlight:Show(frame)`); never call its functions or change it.
-- Don't put `/run` lines that call Blizzard's Lua functions in a macro: a `/run` line runs tainted too. A `/run` that
-  only calls a `C_...` function is fine.
-- In combat Enter can't be handed to the game: `activate` / `secondary` run instead, so make them say so.
+- Don't put `/run` lines that call Blizzard's Lua functions in a macro: a `/run` line runs tainted too, even pressed by
+  the game. A `/run` that only calls a `C_...` function is fine.
+- Putting text in the chat box (a common Shift+Enter) is the exception, done the one way Terminal itself does it:
+  `secondarySecure = T.ChatBoxSpec(function(row) return "text" end)`, with `secondaryIsOpen = T.ChatBoxNeverOpen`
+  (and `secondary` for when it can't be pressed). Don't call `ChatEdit_InsertLink` or `ChatFrame_OpenChat` from your
+  own code.
+- In combat the game takes no presses from addons: Enter on a row with `secure` only says it can't be done in combat
+  (with your verb); Shift+Enter runs `secondary` instead (make it say so, or set `noCombatSecondary = true` to refuse
+  it too).
 
 ## Commands
 

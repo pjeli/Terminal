@@ -2,9 +2,6 @@ local ns = select(2, ...)
 local L = ns.L
 local H = ns.Highlight
 
---- A global function by name, called in a pcall (nil when the client lacks it).
-local function Call(name, ...) return ns.Safe(_G[name], ...) end
-
 local function MicroGlow(buttonName)
 	C_Timer.After(0.05, function()
 		local b = buttonName and _G[buttonName]
@@ -226,53 +223,52 @@ local function MapRoute()
 	return ns.Maps and ns.Maps.SECURE or { binding = "TOGGLEWORLDMAP" }, PanelOpen
 end
 
--- name, search words, fallback opener (Terminal's code: only without a secure route), micro button,
+-- (0.49.2, review) without the game's own route (no key command, no button on this client), a panel isn't opened by
+-- Terminal's code either (that taints it, as the Currency, Calendar and Legacy rows always said): it says where to open it,
+-- and its micro button glows where there is one
+local function OpenYourself(e)
+	ns:Print(L["Open %s from its button or key (opening it from Terminal's own code would taint it)."]:format(tostring(e and e.name)))
+end
+
+-- name, search words, fallback (only without a secure route), micro button,
 -- secure spec (binding / macro the game presses; or a function giving spec and isOpen), is-it-open check,
 -- frames that mean it's open
 local PANELS = {
-	{ "Character Info", "character equipment gear paperdoll", function() ToggleCharacter("PaperDollFrame") end, "CharacterMicroButton", nil, nil, "PaperDollFrame" },
-	{ "Reputation", "reputation factions renown", function() ToggleCharacter("ReputationFrame") end, "CharacterMicroButton", nil, nil, "ReputationFrame" },
+	{ "Character Info", "character equipment gear paperdoll", OpenYourself, "CharacterMicroButton", nil, nil, "PaperDollFrame" },
+	{ "Reputation", "reputation factions renown", OpenYourself, "CharacterMicroButton", nil, nil, "ReputationFrame" },
 	{ "Currency", "currency tokens", function()
 		-- (no route left, in combat say: the client's own C opener if it has one, else said; never ToggleCharacter: taint)
 		if C_CurrencyInfo and C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel()
 		else ns:Print(L["Open the Currency tab from your character window (opening it from Terminal's own code would taint it)."]) end
 	end, "CharacterMicroButton", TOKEN_SECURE, TokenOpen },
-	{ "Spellbook", "spellbook abilities spells", function()
-		ns.LoadBlizz("Blizzard_PlayerSpells")
-		if PlayerSpellsUtil and PlayerSpellsUtil.ToggleSpellBookFrame then PlayerSpellsUtil.ToggleSpellBookFrame() else Call("ToggleSpellBook", "spell") end
-	end, "PlayerSpellsMicroButton", SpellbookRoute },
-	{ "Talents", "talents specialization spec hero", function()
-		ns.LoadBlizz("Blizzard_PlayerSpells")
-		if PlayerSpellsUtil and PlayerSpellsUtil.ToggleClassTalentFrame then PlayerSpellsUtil.ToggleClassTalentFrame() else Call("ToggleTalentFrame") end
-	end, "PlayerSpellsMicroButton", TalentsRoute },
-	{ "Achievements", "achievements feats", function() ns.LoadBlizz("Blizzard_AchievementUI"); Call("ToggleAchievementFrame") end, "AchievementMicroButton",
+	{ "Spellbook", "spellbook abilities spells", OpenYourself, "PlayerSpellsMicroButton", SpellbookRoute },
+	{ "Talents", "talents specialization spec hero", OpenYourself, "PlayerSpellsMicroButton", TalentsRoute },
+	{ "Achievements", "achievements feats", OpenYourself, "AchievementMicroButton",
 		{ binding = "TOGGLEACHIEVEMENT", buttons = { "AchievementMicroButton" } }, PanelOpen, "AchievementFrame" },
-	{ "Quest Log", "quest log journal", function() Call("ToggleQuestLog") end, "QuestLogMicroButton", QuestLogRoute },
-	{ "World Map", "map world zone", function() Call("ToggleWorldMap") end, nil, MapRoute, nil, "WorldMapFrame" },
-	{ "Collections", "collections mounts pets toys heirlooms transmog appearances", function() Call("ToggleCollectionsJournal") end, "CollectionsMicroButton",
+	{ "Quest Log", "quest log journal", OpenYourself, "QuestLogMicroButton", QuestLogRoute },
+	{ "World Map", "map world zone", OpenYourself, nil, MapRoute, nil, "WorldMapFrame" },
+	{ "Collections", "collections mounts pets toys heirlooms transmog appearances", OpenYourself, "CollectionsMicroButton",
 		{ binding = "TOGGLECOLLECTIONS", buttons = { "CollectionsMicroButton" } }, PanelOpen, "CollectionsJournal" },
-	{ "Group Finder", "group finder dungeon raid lfg pvp", function() Call("PVEFrame_ToggleFrame") end, "LFDMicroButton",
+	{ "Group Finder", "group finder dungeon raid lfg pvp", OpenYourself, "LFDMicroButton",
 		{ buttons = { "LFDMicroButton" } }, PanelOpen, "PVEFrame" },
-	{ "Guild & Communities", "guild communities", function() Call("ToggleGuildFrame") end, "GuildMicroButton",
+	{ "Guild & Communities", "guild communities", OpenYourself, "GuildMicroButton",
 		{ binding = "TOGGLEGUILDTAB", buttons = { "GuildMicroButton" } }, PanelOpen, "CommunitiesFrame", "GuildFrame" },
-	{ "Adventure Guide", "adventure guide encounter journal dungeon journal", function() Call("ToggleEncounterJournal") end, "EJMicroButton",
+	{ "Adventure Guide", "adventure guide encounter journal dungeon journal", OpenYourself, "EJMicroButton",
 		{ binding = "TOGGLEENCOUNTERJOURNAL", buttons = { "EJMicroButton" } }, PanelOpen, "EncounterJournal" },
-	{ "Professions", "professions crafting", function() Call("ToggleProfessionsBook") end, "ProfessionMicroButton",
+	{ "Professions", "professions crafting", OpenYourself, "ProfessionMicroButton",
 		{ binding = "TOGGLEPROFESSIONBOOK", buttons = { "ProfessionMicroButton" } }, PanelOpen, "ProfessionsBookFrame" },
 	-- (Forever has no calendar key: the minimap's calendar button, clicked by the game; never ToggleCalendar from here)
 	{ "Calendar", "calendar events", function()
 		ns:Print(L["Open the calendar from the minimap's calendar button (opening it from Terminal's own code would taint it)."])
 	end, nil, { binding = "TOGGLECALENDAR", buttons = { "GameTimeFrame" } }, PanelOpen, "CalendarFrame" },
-	{ "Social / Friends", "friends social who ignore", function() Call("ToggleFriendsFrame") end, nil, { binding = "TOGGLESOCIAL" }, PanelOpen, "FriendsFrame" },
-	{ "Backpack & Bags", "bags backpack inventory", function() Call("ToggleAllBags") end, nil, { binding = "OPENALLBAGS" }, BagsOpen },
-	{ "Game Menu", "game menu escape logout exit", function() Call("ToggleGameMenu") end, "MainMenuMicroButton",
+	{ "Social / Friends", "friends social who ignore", OpenYourself, nil, { binding = "TOGGLESOCIAL" }, PanelOpen, "FriendsFrame" },
+	{ "Backpack & Bags", "bags backpack inventory", OpenYourself, nil, { binding = "OPENALLBAGS" }, BagsOpen },
+	{ "Game Menu", "game menu escape logout exit", OpenYourself, "MainMenuMicroButton",
 		{ binding = "TOGGLEGAMEMENU", buttons = { "MainMenuMicroButton" } }, PanelOpen, "GameMenuFrame" },
-	{ "Options", "options settings interface video audio", function()
-		if C_SettingsUtil and C_SettingsUtil.OpenSettingsPanel then pcall(C_SettingsUtil.OpenSettingsPanel) end
-	end, nil, { macro = OptionsMacro }, PanelOpen, "SettingsPanel" },
-	{ "AddOn List", "addons manager", function() if AddonList then ShowUIPanel(AddonList) end end, nil, { macro = ADDONLIST_MACRO }, PanelOpen, "AddonList" },
-	{ "Macros", "macros", function() ns.LoadBlizz("Blizzard_MacroUI"); if MacroFrame then ShowUIPanel(MacroFrame) end end, nil, MACRO_WINDOW, MacroWindowOpen },
-	{ "Edit Mode", "edit mode layout hud", function() ns.RunSlash("/editmode") end, nil, { macro = EDITMODE_MACRO }, PanelOpen, "EditModeManagerFrame" },
+	{ "Options", "options settings interface video audio", OpenYourself, nil, { macro = OptionsMacro }, PanelOpen, "SettingsPanel" },
+	{ "AddOn List", "addons manager", OpenYourself, nil, { macro = ADDONLIST_MACRO }, PanelOpen, "AddonList" },
+	{ "Macros", "macros", OpenYourself, nil, MACRO_WINDOW, MacroWindowOpen },
+	{ "Edit Mode", "edit mode layout hud", OpenYourself, nil, { macro = EDITMODE_MACRO }, PanelOpen, "EditModeManagerFrame" },
 	-- WoW Forever's Legacy window (Blizzard_LegacySystem: LegacySystemFrame, its challenges and more), opened by
 	-- the game clicking its micro button (ClassicUIForever moves that button off the bar, but it still clicks);
 	-- listed only where the client has it
@@ -303,7 +299,7 @@ local PANELS = {
 		{ macro = GroupFinderTabMacro, opensWindow = true }, Never, needs = "LFDMicroButton", tab = "BrowsingTab" },
 	{ "Who Listing", "who listing list lfg looking for group dungeon finder", TabFallback, "LFDMicroButton",
 		{ macro = GroupFinderTabMacro, opensWindow = true }, Never, needs = "LFDMicroButton", tab = "WhoListingTab" },
-	{ "Shop", "shop store", function() Call("ToggleStoreUI") end, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
+	{ "Shop", "shop store", OpenYourself, "StoreMicroButton", { buttons = { "StoreMicroButton" } }, PanelOpen, "StoreFrame" },
 }
 
 -- The game's own words for these panels (a Korean client shows 평판, not "Reputation"). The
@@ -331,6 +327,7 @@ local PANEL_SAID = {
 	["Social / Friends"] = L["Social / Friends"], ["Backpack & Bags"] = L["Backpack & Bags"], ["Game Menu"] = L["Game Menu"],
 	["Options"] = L["Options"], ["AddOn List"] = L["AddOn List"], ["Macros"] = L["Macros"], ["Edit Mode"] = L["Edit Mode"],
 	["Legacy"] = L["Legacy"], ["Legacy Challenges"] = L["Legacy Challenges"], ["Legacy Tree"] = L["Legacy Tree"],
+	["Legacy Rewards"] = L["Legacy Rewards"], -- (0.49.2, review: its row was always in English)
 	["Guild Roster"] = L["Guild Roster"], ["Guild Info"] = L["Guild Info"], ["Character Stats"] = L["Character Stats"],
 	["Equipment Manager"] = L["Equipment Manager"], ["Titles"] = L["Titles"], ["Group Browser"] = L["Group Browser"],
 	["Who Listing"] = L["Who Listing"], ["Shop"] = L["Shop"],

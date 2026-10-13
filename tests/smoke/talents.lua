@@ -182,3 +182,41 @@ do
 	ns.db.talentCache, ns.ShowText, ns.db.easyMode, TL.triedOthers = save.cache, save.show, save.easy, nil
 	P._dirty = true
 end
+
+io.write("[talents: the spellbook tab isn't the talents (0.49.2 review)]\n")
+do
+	-- on this client the spellbook and the talents are both tabs of PlayerSpellsFrame
+	local TL = ns.Talents
+	local was = { psf = _G.PlayerSpellsFrame, cuf = _G.ClassicUIForeverTalents, print = ns.Print, psu = _G.PlayerSpellsUtil,
+		ttf = _G.ToggleTalentFrame, cl = _G.InCombatLockdown }
+	_G.ClassicUIForeverTalents = nil
+	_G.InCombatLockdown = function() return false end
+	local W = T.Obj("Frame"); W.shown = true; W.__name = "PlayerSpellsFrame"; _G.PlayerSpellsFrame = W
+	W.SpellBookFrame = T.Obj("Frame"); W.SpellBookFrame.shown = true
+	W.TalentsFrame = T.Obj("Frame"); W.TalentsFrame.shown = false
+	ns.providers.talents._dirty = true
+	local row
+	for _, e in ipairs(ns:GetEntries(ns.providers.talents)) do if not e.other then row = e break end end
+	check(TL.IsOpen() == false and row and row.isOpen(row) == false,
+		"the window showing its spellbook: the talents aren't open, so Enter on a talent presses the Talents key")
+	local panel
+	for _, e in ipairs(ns:GetEntries(ns.providers.panels)) do if e.key == "Talents" then panel = e end end
+	check(panel and panel.isOpen(panel) == false, "...and the Talents panel row too")
+	W.SpellBookFrame.shown, W.TalentsFrame.shown = false, true
+	local root, name = TL.Window()
+	check(TL.IsOpen() == true and root == W.TalentsFrame and name == "PlayerSpellsFrame",
+		"its talents tab showing: open, and the nodes are looked for there")
+	-- no route to press (no key, no button): said, never opened from Terminal's code (the window held what it wrote)
+	local opened, said = false, nil
+	_G.PlayerSpellsUtil = { OpenToClassTalentsTab = function() opened = true end, ToggleClassTalentFrame = function() opened = true end }
+	_G.ToggleTalentFrame = function() opened = true end
+	ns.Print = function(_, msg) said = msg end
+	W.TalentsFrame.shown = false
+	if row then row.activate(row) end
+	T.FlushAll()
+	check(row and not opened and said and said:find("Open your talents", 1, true),
+		"the fallback with the talents closed: said where to open them, nothing opened from here: " .. tostring(said))
+	_G.PlayerSpellsFrame, _G.ClassicUIForeverTalents, ns.Print, _G.PlayerSpellsUtil = was.psf, was.cuf, was.print, was.psu
+	_G.ToggleTalentFrame, _G.InCombatLockdown = was.ttf, was.cl
+	ns.providers.talents._dirty = true
+end

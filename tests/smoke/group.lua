@@ -183,7 +183,7 @@ do
 	M.player.buffs, M.party3.buffs = saved[1], saved[2]
 	aurasSecret, restricted[0] = true, true
 	P._dirty = true
-	check(Lines("@group")[1] == "Buffs are hidden by the game right now (in combat)", "hidden: " .. tostring(Lines("@group")[1]))
+	check(Lines("@group")[1] == "Buffs hidden by the game right now (in combat)", "hidden: " .. tostring(Lines("@group")[1]))
 	aurasSecret, restricted[0] = false, nil
 	P._dirty = true
 	local many = {}

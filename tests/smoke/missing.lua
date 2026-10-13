@@ -317,3 +317,59 @@ do
 	ns.providers.missing._dirty = true
 	Pp.ClearSteps(); Pp.ClearCrafts()
 end
+
+io.write("[item names the client hasn't loaded (0.49.2 review)]\n")
+do
+	local was = { names = C_Item.GetItemNameByID, req = C_Item.RequestLoadItemDataByID, upd = UI.UpdateTooltip, info = C_Item.GetItemInfo,
+		es = _G.C_EquipmentSet, out = ns.Output }
+	local loaded, asked = {}, {}
+	C_Item.GetItemNameByID = function(id) return loaded[id] end
+	C_Item.GetItemInfo = function(id) if loaded[id] then return loaded[id], "|cffffffff|Hitem:" .. id .. "|h[" .. loaded[id] .. "]|h|r" end end
+	C_Item.RequestLoadItemDataByID = function(id) asked[#asked + 1] = id end
+	-- a recipe to learn whose recipe item the client hasn't loaded: its tooltip asks for it, and is drawn again once it's in
+	local lines = {}
+	local tip = { shown = true, IsShown = function(t) return t.shown end, SetText = function() end,
+		AddLine = function(_, s) lines[#lines + 1] = s end }
+	local e = { name = "Partsy Belt", profName = "Blacksmithing", need = 250, rank = 60, sources = { rid = 92700 } }
+	MR.Tooltip(e, tip)
+	check(table.concat(lines, "\n"):find("item 92700", 1, true) and asked[1] == 92700, "its recipe item not loaded: asked for: " .. tostring(asked[1]))
+	tip.entry = e -- (shown: the tooltip is this row's)
+	local redrawn = 0
+	UI.UpdateTooltip = function() redrawn = redrawn + 1 end
+	local f = MR.nameWait and MR.nameWait.frame
+	local function Came(id, ok) if f then f.scripts.OnEvent(f, "GET_ITEM_INFO_RECEIVED", id, ok) end end
+	Came(1234, true)
+	check(redrawn == 0, "another item's answer: nothing drawn again")
+	loaded[92700] = "Plans: Partsy Belt"
+	Came(92700, true)
+	check(redrawn == 1 and tip.entry == nil, "its answer: the tooltip drawn again")
+	lines = {}
+	MR.Tooltip(e, tip)
+	check(table.concat(lines, "\n"):find("Its recipe: Plans: Partsy Belt  (AtlasLoot)", 1, true) and #asked == 1, "...with its name")
+	-- an item the server doesn't have: not asked again
+	e.sources = { rid = 92701 }
+	MR.Tooltip(e, tip)
+	Came(92701, false)
+	MR.Tooltip(e, tip)
+	check(#asked == 2 and asked[2] == 92701 and redrawn == 1, "an item the server doesn't have: asked once, not drawn again")
+	UI.UpdateTooltip = was.upd
+
+	-- an equipment set's items in chat (Shift+Enter's fallback): a name not loaded is asked for and said a moment later
+	_G.C_EquipmentSet = { GetEquipmentSetIDs = function() return { 7 } end,
+		GetEquipmentSetInfo = function(id) return "Partsy Set", 1, id, false, 1, 0, 1, 0 end,
+		GetItemIDs = function() return { [1] = 12345 } end }
+	local said = {}
+	ns.Output = function(_, out) said[#said + 1] = table.concat(out, "\n") end
+	ns.providers.equipmentset._dirty = true
+	local set = ns:GetEntries(ns.providers.equipmentset)[1]
+	asked = {}
+	if set then set.secondary(set, "", UI) end
+	check(#said == 0 and asked[1] == 12345, "the set's item not loaded: asked for, nothing said yet")
+	loaded[12345] = "Partsy Helm"
+	FlushAll()
+	check(#said == 1 and said[1]:find("Partsy Helm", 1, true) and not said[1]:find("item 12345", 1, true),
+		"said a moment later, with its name: " .. tostring(said[1]))
+	C_Item.GetItemNameByID, C_Item.RequestLoadItemDataByID, C_Item.GetItemInfo = was.names, was.req, was.info
+	_G.C_EquipmentSet, ns.Output = was.es, was.out
+	ns.providers.equipmentset._dirty = true
+end

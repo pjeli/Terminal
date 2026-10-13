@@ -71,7 +71,8 @@ local function IndexQuests()
 		if names then qdb.names, qdb.nameQuery = table.concat(names) .. "\n", "QueryQuestSingle" end
 		if ns.providers.questie then ns.providers.questie._dirty = true end
 		-- the towns' middles from the quests' words, for "vendor goldshire" (a few a frame, a little later)
-		C_Timer.After(2, function() if not InCombatLockdown() then I.BuildTowns() end end)
+		-- (in a fight it waits for the fight to end: Places.lua)
+		C_Timer.After(2, function() I.BuildTowns() end)
 		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
 	end)
 end
@@ -200,8 +201,14 @@ local QUESTIE_LAZY = {
 		return Done(t.qid) and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon"
 	end,
 	-- Shift+Enter: the quest in the game (log, or the giver on the map), through the game's own key
-	-- (Maps.lua loads before this file, so its specs are there to read; made once, not per lazy read)
-	secondarySecure = FromLog("secure", ns.Maps.SECURE),
+	-- (Maps.lua loads before this file, so its specs are there to read)
+	-- (0.49.2, review: with no giver on the map, an object or an item starting it, nothing is pressed: the map key opened
+	-- the map on your own zone before the line saying what starts it. So the spec is worked out when read: Maps.SecureFor)
+	secondarySecure = function(t)
+		local l = InLog(t.qid) and LogEntry(t.qid)
+		if l then return l.secure end
+		return ns.Maps.SecureFor(t)
+	end,
 	secondaryIsOpen = FromLog("isOpen", ns.Maps.IsOpenFor),
 	-- the zone the map switches to for a quest you don't have: its giver's
 	mapTarget = function(t)
@@ -258,7 +265,6 @@ local function SetupQuestie()
 	end
 	npc.meta = ns:CompactMeta(ns.providers.npc, {
 		icon = "Interface\\Icons\\INV_Misc_Head_Human_01",
-		secure = ns.Maps.SECURE,
 		isOpen = ns.Maps.IsOpenFor,
 		after = ShowNpc,
 		activate = OpenNpcDirect,
@@ -269,6 +275,9 @@ local function SetupQuestie()
 		npcID = function(t) return rawget(t, "key") end,
 		detail = function(t) return rawget(t, "sub") or (L["NPC"] .. "  #" .. t.npcID) end,
 		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
+		-- (0.49.2, review: an NPC with no known spot pressed the map key, opening your own zone, then said Questie has no
+		-- location for it: now nothing is pressed and Enter only says so)
+		secure = function(t) return ns.Maps.SecureFor(t) end,
 	})
 	ns:RegisterProvider("questie", {
 		label = "Questie",

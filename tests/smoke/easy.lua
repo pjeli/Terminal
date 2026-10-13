@@ -1601,3 +1601,38 @@ Run("E.JoinPairs: two everyday words that mean one thing become one word", funct
 	check(E.ToAdvanced("sword or axe not boe"):find("type:sword|type:axe", 1, true) and E.ToAdvanced("sword or axe not boe"):find("-is:boe", 1, true),
 		"ToAdvanced: or/not pieces as filters: " .. E.ToAdvanced("sword or axe not boe"))
 end)
+
+-- (0.49.2, review C2) "X without Y" is Simple mode's "not", never the group's question: "cloak without stamina" said
+-- "Needs Fortitude, cloak"; a missing word with no group word nor "who" asks only when every other word names a buff
+Run("\"X without Y\" stays a search, not the group's question", function()
+	local Q = ns.Group.Question
+	check(Q("cloak without stamina") == nil and Q("food without spirit") == nil and Q("shield without stamina") == nil
+		and Q("elixir without intellect") == nil and Q("cloak needs stamina") == nil and Q("boots missing spirit") == nil,
+		"an item word with without/needs/missing: a search")
+	check(Q("missing stamina") and Q("needs int") and Q("who is without fortitude") and Q("party without food")
+		and Q("needs blessing of kings") and Q("missing shadow protection") and Q("need flask") and Q("missing buffs"),
+		"still the group's: missing stamina, needs int, who is without fortitude, party without food, a buff by its name")
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Wolf Cloak" }, { name = "Linen Shirt" } }) } } })
+	ns.db.easyMode = true
+	UI:EasyChanged()
+	UI.category, UI.lastOverview = nil, nil
+	local res = UI:Search("cloak without stamina")
+	check(UI.answerNote == nil and res[1] and res[1].name == "Wolf Cloak", "Simple: cloak without stamina lists the cloak: "
+		.. tostring(UI.answerNote) .. " / " .. tostring(res[1] and res[1].name))
+end)
+
+-- (0.49.2, review G14) the examples made for you name your professions, not their trade spells (Smelting: "nearest
+-- smelting trainer", "smelting skillup", "@npc trainer:smelting" found nothing)
+Run("examples name your professions, not their trade spells", function()
+	local rand = E.rand
+	E.rand = function(a) return a end -- (the first of each list)
+	Use({ { "professions", { label = "Profession", aliases = { "profession" }, collect = Rows({
+		{ name = "Smelting", spellID = 2656, parentName = "Mining" }, { name = "Mining", skillLine = 186 } }) } } })
+	local ok, err = pcall(function()
+		local mine = table.concat(E.PersonalExamples(false), " | ") .. " | " .. table.concat(E.PersonalExamples(true), " | ")
+		check(not mine:find("smelting", 1, true) and mine:find("try: mining skillup", 1, true) and mine:find("try: nearest mining trainer", 1, true),
+			"Mining, not Smelting: " .. mine)
+	end)
+	E.rand = rand
+	if not ok then error(err, 0) end
+end)

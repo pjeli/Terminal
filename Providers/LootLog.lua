@@ -281,6 +281,7 @@ ns:RegisterProvider("lootlog", {
 	aliases = { "drop", "dropped", "drops", "lootlog", "looted", "loothistory" },
 	explicit = true, -- (only with @drop, or Simple mode's Loot log)
 	refreshOnOpen = 60, -- (the "5 min ago" moves on: rebuilt on open when a minute old; new entries mark it dirty)
+	leadRow = ns.EmptyLead(L["Nothing looted yet"], function() return #(Log() or {}) == 0 end), -- (0.49.2, review)
 	collect = function()
 		local out, log = {}, Log() or {}
 		-- (drops kept before 0.43.26 that aren't worth rolling for go now)

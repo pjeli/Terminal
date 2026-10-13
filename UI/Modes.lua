@@ -75,13 +75,17 @@ function UI:EndFuzzy(stay)
 	self:UpdateGhost()
 end
 
+--- Does the client itself say Tab is held (IsKeyDown("TAB") a plain true; missing, an error or a secret answer: no)?
+function UI:TabToldDown()
+	local f = _G.IsKeyDown
+	if not f then return false end
+	local ok, down = pcall(f, "TAB")
+	return ok and down == true and not ns.Secret(down)
+end
+
 --- Is Tab held? The client's IsKeyDown("TAB") (a secret answer counts as no), else its key-down seen a moment ago.
 function UI:TabDown()
-	local f = _G.IsKeyDown
-	if f then
-		local ok, down = pcall(f, "TAB")
-		if ok and down == true and not ns.Secret(down) then return true end
-	end
+	if self:TabToldDown() then return true end
 	return self.tabHeld ~= nil and GetTime() - self.tabHeld < TAB_HOLD
 end
 

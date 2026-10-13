@@ -156,10 +156,24 @@ function P.Canonical(text, words)
 		local what = lt:match(ph[1])
 		if what and what:find("%S") then
 			what = what:gsub("^the ", ""):gsub("^a ", ""):gsub("^an ", "")
-			return what .. " > " .. ph[2]
+			if not P.NotAName(what) then return what .. " > " .. ph[2] end
 		end
 	end
 	return nil
+end
+
+-- (0.49.2, review) what a phrase caught that names no item: your group ("what does my group need" is the group's
+-- question, Group.lua), a way somewhere ("how do i get to orgrimmar"). They said "Nothing called 'my group'".
+local GROUP_WORDS = { my = true, our = true, the = true, group = true, party = true, raid = true, members = true,
+	member = true, groupmates = true, team = true }
+function P.NotAName(what)
+	if what == "to" or what:find("^to ") then return true end
+	local group = false
+	for w in what:gmatch("%S+") do
+		if not GROUP_WORDS[w] then return false end
+		if w ~= "my" and w ~= "our" and w ~= "the" then group = true end
+	end
+	return group
 end
 
 ----------------------------------------------------------------------
@@ -882,7 +896,7 @@ local function SeedParse(text)
 			local p = ns:ResolveProvider(w:sub(2))
 			if p then kinds[#kinds + 1] = p.id else words[#words + 1] = w end
 		else
-			local f = (w:find("[:|]") or w:find("^[-!]%a")) and ns.Filters and ns.Filters.Parse(w)
+			local f = (w:find("[:|]") or w:find("^[-!][%a\128-\255]")) and ns.Filters and ns.Filters.Parse(w) -- ("-малое", 0.49.2)
 			if f then filters[#filters + 1] = f else words[#words + 1] = w end
 		end
 	end

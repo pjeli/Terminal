@@ -1,7 +1,7 @@
 -- The providers/core clean-up (0.44.8 refactor, package C): what moved keeps its contract (ns.Bags in Bags.lua,
 -- ns.Guarded in Debug.lua), and the speed-ups give the same results.
 local T = ...
-local ns, UI, check, Obj = T.ns, T.UI, T.check, T.Obj
+local ns, UI, check, Obj, FlushAll = T.ns, T.UI, T.check, T.Obj, T.FlushAll
 
 io.write("[providers parts: guarded calls]\n")
 do
@@ -164,4 +164,201 @@ do
 	local row
 	for _, e in ipairs(ns:GetEntries(p)) do if e.locs then row = e break end end
 	check(row and row.activate == B.Show, "a bag item's Enter is ns.Bags.Show")
+end
+
+io.write("[providers parts: a camp object knows its window (0.49.2 review)]\n")
+do
+	-- Fish Bowl is made in the Bait and Tackle window (a trade spell's: kept as "spell:Bait and Tackle"), whose own info
+	-- says id 0 on this client: only its names tell it's showing
+	local P = ns.Professions
+	local was = { profs = P.PlayerProfessions, pf = _G.ProfessionsFrame, ts = _G.C_TradeSkillUI, last = P.lastSpell,
+		sel = P.SelectRecipe, count = C_Item.GetItemCount, recipes = ns.db.recipes }
+	ns.db.recipes = { [P.CharKey()] = {
+		["spell:Bait and Tackle"] = { name = "Bait and Tackle", spell = "Bait and Tackle", parent = "Fishing", list = {
+			{ id = 5001, name = "Fish Bowl", icon = 1, learned = true, reagents = {}, item = 7001 } } } } }
+	P.PlayerProfessions = function() return { { name = "Fishing", rank = 50, maxRank = 75, skillLine = 356 } } end
+	_G.ProfessionsFrame = Obj("Frame"); ProfessionsFrame.shown = true
+	_G.C_TradeSkillUI = setmetatable({ GetChildProfessionInfo = function() return nil end,
+		GetBaseProfessionInfo = function() return { professionID = 0, professionName = "Bait and Tackle" } end }, { __index = was.ts })
+	P.SelectRecipe = function() end
+	C_Item.GetItemCount = function() return 0 end -- (none in your bags: Shift+Enter makes one)
+	ns.providers.camp._dirty = true
+	local camp
+	for _, e in ipairs(ns:GetEntries(ns.providers.camp)) do if e.name == "Fish Bowl" then camp = e end end
+	check(camp and camp.secure and camp.secure.spell == "Bait and Tackle", "Fish Bowl (@camp) opens with Bait and Tackle")
+	check(camp and camp.isOpen(camp) == true,
+		"its window showing (its info says id 0): open, so Enter presses nothing (the /cast would shut it), as its recipe row")
+	local v = camp and UI.SecureView(camp, true)
+	local r = v and ns.Secure.Resolve(v.secure, v)
+	check(r and r.macro == "/run C_TradeSkillUI.CraftRecipe(5001,1)",
+		"Shift+Enter with its window open: just made (no /cast toggling the window each press): " .. tostring(r and r.macro))
+	P.lastSpell = nil
+	if v then v.after(v) end
+	check(P.lastSpell and P.lastSpell.name == "Bait and Tackle" and P.lastSpell.parent == "Fishing",
+		"the after-step says which spell's window it is (for indexing it)")
+	ProfessionsFrame.shown = false
+	v = camp and UI.SecureView(camp, true)
+	r = v and ns.Secure.Resolve(v.secure, v)
+	check(camp and camp.isOpen(camp) == false and r and r.macro == "/cast Bait and Tackle\n/run C_TradeSkillUI.CraftRecipe(5001,1)",
+		"the window closed: Enter casts it, Shift+Enter opens it and makes it")
+	ns.db.recipes, P.PlayerProfessions, _G.ProfessionsFrame, _G.C_TradeSkillUI = was.recipes, was.profs, was.pf, was.ts
+	P.lastSpell, P.SelectRecipe, C_Item.GetItemCount = was.last, was.sel, was.count
+	ns.providers.camp._dirty, ns.providers.recipes._dirty = true, true
+end
+
+-- a profession window mocked for P.Snapshot: `win` gives the window's own info, `ids` its recipes per profession id,
+-- `info` each recipe's
+local function MockWindow(win, ids, info, schematic)
+	return {
+		GetBaseProfessionInfo = function() return win() end,
+		GetAllRecipeIDs = function() return ids[win().professionID] or {} end,
+		GetRecipeInfo = function(id) return info(id) end,
+		GetRecipeSchematic = schematic or function() return { reagentSlotSchematics = {} } end,
+	}
+end
+
+io.write("[providers parts: the spell a window was opened with (0.49.2 review)]\n")
+do
+	local P = ns.Professions
+	local was = { profs = P.PlayerProfessions, pf = _G.ProfessionsFrame, ts = _G.C_TradeSkillUI, last = P.lastSpell,
+		cast = P.lastCast, read = P.lastRead, sel = P.SelectRecipe, recipes = ns.db.recipes, print = ns.Print }
+	local store = { ["spell:Smelting"] = { name = "Smelting", spell = "Smelting", parent = "Mining", list = {
+		{ id = 2657, name = "Smelt Copper", icon = 1, learned = true, reagents = {} } } } }
+	ns.db.recipes = { [P.CharKey()] = store }
+	P.PlayerProfessions = function() return { { name = "Mining", rank = 50, maxRank = 75, skillLine = 186 },
+		{ name = "Blacksmithing", rank = 40, maxRank = 75, skillLine = 164 } } end
+	_G.ProfessionsFrame = Obj("Frame"); ProfessionsFrame.shown = true
+	local window = { professionID = 186, professionName = "Mining" } -- (Smelting's window: its info names Mining)
+	local names = { [2657] = "Smelt Copper", [2662] = "Copper Chain Pants" }
+	_G.C_TradeSkillUI = MockWindow(function() return window end, { [186] = { 2657 }, [164] = { 2662 } },
+		function(id) return names[id] and { name = names[id], icon = 1, learned = true } end)
+	P.SelectRecipe, ns.Print = function() end, function() end
+	P.lastSpell, P.lastCast = nil, nil
+	ns.providers.recipes._dirty = true
+	local smelt
+	for _, e in ipairs(ns:GetEntries(ns.providers.recipes)) do if e.name == "Smelt Copper" then smelt = e end end
+	check(smelt and smelt.isOpen(smelt), "Smelting's window showing: Enter on Smelt Copper presses nothing, it only points")
+	if smelt then smelt.after(smelt) end -- (that Enter's after-step)
+	-- Blacksmithing opened a moment later: what its window lists is Blacksmithing's, not Smelting's
+	window = { professionID = 164, professionName = "Blacksmithing" }
+	P.Snapshot(); FlushAll()
+	check(store[164] and store[164].list[1] and store[164].list[1].name == "Copper Chain Pants" and not store[164].spell
+		and store["spell:Smelting"] and store["spell:Smelting"].list[1].name == "Smelt Copper",
+		"Blacksmithing opened right after Enter on a Smelting recipe: indexed as Blacksmithing, Smelting's list kept")
+	-- Smelting's own window read again just after: still Smelting's (under Mining)
+	if smelt then smelt.after(smelt) end
+	window = { professionID = 186, professionName = "Mining" }
+	P.Snapshot(); FlushAll()
+	check(store["spell:Smelting"] and store["spell:Smelting"].parent == "Mining" and store["spell:Smelting"].list[1].name == "Smelt Copper"
+		and not store[186], "its own window read again: kept as Smelting's")
+	ns.db.recipes, P.PlayerProfessions, _G.ProfessionsFrame, _G.C_TradeSkillUI = was.recipes, was.profs, was.pf, was.ts
+	P.lastSpell, P.lastCast, P.lastRead, P.SelectRecipe, ns.Print = was.last, was.cast, was.read, was.sel, was.print
+	ns.providers.recipes._dirty, ns.providers.camp._dirty = true, true
+end
+
+io.write("[providers parts: a list update reads the window only when it changed (0.49.2 review)]\n")
+do
+	local P = ns.Professions
+	local was = { profs = P.PlayerProfessions, pf = _G.ProfessionsFrame, ts = _G.C_TradeSkillUI, last = P.lastSpell,
+		cast = P.lastCast, read = P.lastRead, recipes = ns.db.recipes, print = ns.Print }
+	local key = P.CharKey()
+	ns.db.recipes = { [key] = {} }
+	local rank = 50
+	P.PlayerProfessions = function() return { { name = "Blacksmithing", rank = rank, maxRank = 75, skillLine = 164 } } end
+	_G.ProfessionsFrame = Obj("Frame"); ProfessionsFrame.shown = true
+	local reads, ids = 0, { 2662, 2663 }
+	_G.C_TradeSkillUI = MockWindow(function() return { professionID = 164, professionName = "Blacksmithing" } end, { [164] = ids },
+		function(id)
+			reads = reads + 1
+			return { name = "Recipe " .. id, icon = 1, learned = true, relativeDifficulty = rank < 60 and 0 or 1 }
+		end)
+	ns.Print = function() end
+	P.lastSpell, P.lastCast, P.lastRead = nil, nil, nil
+	local ev = P.events
+	local function fire(event) ev.scripts.OnEvent(ev, event); FlushAll() end
+	fire("TRADE_SKILL_SHOW")
+	check(reads == 2, "the window opened: every recipe read: " .. reads)
+	reads = 0
+	fire("TRADE_SKILL_LIST_UPDATE")
+	check(reads == 0, "a list update with nothing it lists changed (a bag change while it's open): not read again: " .. reads)
+	rank = 61
+	fire("TRADE_SKILL_LIST_UPDATE")
+	local bs = ns.db.recipes[key][164]
+	check(reads == 2 and bs and bs.list[1].diff == 1, "a skill-up: read again, the colours with it: " .. reads)
+	reads = 0
+	ids[3] = 2664
+	fire("TRADE_SKILL_LIST_UPDATE")
+	check(reads == 3, "another recipe listed: read again: " .. reads)
+	reads = 0
+	fire("NEW_RECIPE_LEARNED")
+	check(reads == 3, "a recipe learned: always read again: " .. reads)
+	reads = 0
+	fire("SKILL_LINES_CHANGED"); fire("TRADE_SKILL_LIST_UPDATE")
+	check(reads == 3, "after a skill change, the next list update reads it again: " .. reads)
+	reads = 0
+	ns.db.recipes[key][164] = nil -- (the list it made dropped since: Prune)
+	fire("TRADE_SKILL_LIST_UPDATE")
+	check(reads == 3 and ns.db.recipes[key][164], "the list it made gone: read again: " .. reads)
+	ns.db.recipes, P.PlayerProfessions, _G.ProfessionsFrame, _G.C_TradeSkillUI = was.recipes, was.profs, was.pf, was.ts
+	P.lastSpell, P.lastCast, P.lastRead, ns.Print = was.last, was.cast, was.read, was.print
+	ns.providers.recipes._dirty, ns.providers.camp._dirty = true, true
+	if ns.providers.missing then ns.providers.missing._dirty = true end
+end
+
+io.write("[providers parts: one need per reagent slot (0.49.2 review)]\n")
+do
+	local P = ns.Professions
+	local was = { profs = P.PlayerProfessions, pf = _G.ProfessionsFrame, ts = _G.C_TradeSkillUI, last = P.lastSpell,
+		cast = P.lastCast, read = P.lastRead, recipes = ns.db.recipes, print = ns.Print }
+	local key = P.CharKey()
+	ns.db.recipes = { [key] = {} }
+	P.PlayerProfessions = function() return { { name = "Blacksmithing", rank = 50, maxRank = 75, skillLine = 164 } } end
+	_G.ProfessionsFrame = Obj("Frame"); ProfessionsFrame.shown = true
+	_G.C_TradeSkillUI = MockWindow(function() return { professionID = 164, professionName = "Blacksmithing" } end, { [164] = { 2662 } },
+		function() return { name = "Copper Chain Pants", icon = 1, learned = true } end,
+		function() return { outputItemID = 2852, reagentSlotSchematics = {
+			-- one slot whose reagent comes in tiers (any one of them does), an optional slot, a plain one
+			{ quantityRequired = 2, required = true, reagents = { { itemID = 2840 }, { itemID = 2841 }, { itemID = 2842 } } },
+			{ quantityRequired = 1, required = false, reagents = { { itemID = 4000 } } },
+			{ quantityRequired = 3, reagents = { { itemID = 2880 } } } } } end)
+	ns.Print = function() end
+	P.lastSpell, P.lastCast = nil, nil
+	P.Snapshot(); FlushAll()
+	local r = ns.db.recipes[key][164] and ns.db.recipes[key][164].list[1]
+	local got = {}
+	for _, rg in ipairs(r and r.reagents or {}) do got[#got + 1] = rg[1] .. "x" .. rg[2] end
+	check(table.concat(got, ",") == "2840x2,2880x3",
+		"each slot one need (its first reagent), optional slots left out: " .. table.concat(got, ","))
+	ns.db.recipes, P.PlayerProfessions, _G.ProfessionsFrame, _G.C_TradeSkillUI = was.recipes, was.profs, was.pf, was.ts
+	P.lastSpell, P.lastCast, P.lastRead, ns.Print = was.last, was.cast, was.read, was.print
+	ns.providers.recipes._dirty, ns.providers.camp._dirty = true, true
+	if ns.providers.missing then ns.providers.missing._dirty = true end
+end
+
+io.write("[providers parts: no recipes indexed yet (0.49.2 review)]\n")
+do
+	local P = ns.Professions
+	local was = { recipes = ns.db.recipes, nd = ns.db.noDirectOpen, profs = P.PlayerProfessions, easy = ns.db.easyMode }
+	ns.db.recipes = { [P.CharKey()] = {} }
+	P.PlayerProfessions = function() return { { name = "Blacksmithing", rank = 40, maxRank = 75, skillLine = 164 } } end
+	ns.db.easyMode = false
+	local p = ns.providers.recipes
+	ns.db.noDirectOpen = nil
+	p._dirty = true
+	local row = ns:GetEntries(p)[1]
+	check(row and row.key == "scan" and not row.noActivate and ns.Easy.Verbs(row) == "scan your professions",
+		"a client that may let addons open profession windows: the scan row, and the footer says so: " .. tostring(row and ns.Easy.Verbs(row)))
+	ns.db.noDirectOpen = true -- (WoW Forever: the game blocks it)
+	p._dirty = true
+	row = ns:GetEntries(p)[1]
+	check(row and row.noActivate and not row.activate and ns.Easy.Verbs(row) == nil
+		and row.name == "Open a profession's window once: Terminal reads its recipes from it",
+		"where the game won't let addons open them: a note saying what indexes them, nothing to run: " .. tostring(row and row.name))
+	local said = table.concat(ns.commands.profs.run(), "\n")
+	check(said:find("not indexed (open it once)", 1, true) and not said:find("Index my recipes", 1, true),
+		".profs there: open it once (no scan to pick): " .. said)
+	ns.db.recipes, ns.db.noDirectOpen, P.PlayerProfessions, ns.db.easyMode = was.recipes, was.nd, was.profs, was.easy
+	p._dirty = true
+	if ns.providers.missing then ns.providers.missing._dirty = true end
+	ns.providers.camp._dirty = true
 end

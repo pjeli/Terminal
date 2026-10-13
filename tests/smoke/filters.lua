@@ -96,6 +96,9 @@ do -- items: is:quest, is:soulbound, is:boe
 	local seg = UI:SyntaxSegments("@item -is:boe q:rare|epic")
 	local filt = seg[3][3]
 	check(seg[5][3] == filt and seg[3][3] ~= seg[1][3], "-key:value and a|b are coloured as filters")
+	-- (0.49.2, review) a "not" word in any language is coloured as the filter it is ("-cloth" and "-малое" alike)
+	local segA, segB = UI:SyntaxSegments("@item -cloth"), UI:SyntaxSegments("@item -\208\188\208\176\208\187")
+	check(segB[3] and segA[3] and segB[3][3] == segA[3][3], "-<non-ASCII word> coloured as -<word>")
 	-- Simple mode: "or" / "not" in words
 	local E = ns.Easy
 	local w = E.JoinLogic({ "rare", "sword", "or", "axe", "not", "boe" })
@@ -508,4 +511,148 @@ do
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID = save.invId
 	F.ClearCache()
+end
+
+-- (0.49.2, review C1) a "not" before a word in any language ("-малое", "!épée", Simple mode's "not малое"): %a is only
+-- a-z, so those were search words and close spellings listed the very word to leave out; stat: in the game's language
+do
+	local saved = { providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode, info = C_Item.GetItemInfo,
+		stats = C_Item.GetItemStats, mod = _G.ITEM_MOD_STAMINA_SHORT, cat = UI.category }
+	local ok, err = pcall(function()
+		ns.providers, ns.providerOrder = {}, {}
+		local function Rows(list)
+			return function()
+				local out = {}
+				for i, r in ipairs(list) do local e = {} for k, v in pairs(r) do e[k] = v end e.key = i out[i] = e end
+				return out
+			end
+		end
+		ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows({
+			{ name = "Малое зелье лечения", itemID = 9001 }, { name = "Большое зелье лечения", itemID = 9002 },
+			{ name = "Épée longue", itemID = 9003 }, { name = "Hache", itemID = 9004 } }) })
+		UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = nil, nil, nil, nil
+		ns.db.easyMode = false
+		check(F.Parse("-малое") and F.Parse("!épée") and F.Parse("hache|-épée") and F.Parse("-30") == nil,
+			"-word / !word in any language is a \"not\" (-30 stays a range word)")
+		local r = names(UI:Search("зелье -малое"))
+		check(r["Большое зелье лечения"] and not r["Малое зелье лечения"], "зелье -малое: the one left out isn't listed")
+		r = names(UI:Search("@item -épée"))
+		check(r.Hache and not r["Épée longue"], "@item -épée: Épée longue left out")
+		check(UI.FuzzyPlain("зелье -малое hache|épée") == "зелье ", "fuzzy finding keeps only the plain words: "
+			.. UI.FuzzyPlain("зелье -малое hache|épée"))
+		ns.db.easyMode = true
+		UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = nil, nil, nil, nil
+		r = names(UI:Search("зелье not малое"))
+		check(r["Большое зелье лечения"] and not r["Малое зелье лечения"], "Simple: зелье not малое")
+		local w = { "rare", "sword", "or", "axe", "-малое" }
+		ns.Easy.JoinLogic(w)
+		check(table.concat(w, " ") == "rare sword|axe -малое", "Simple: a \"not\" after an \"or\" side ends it: " .. table.concat(w, " "))
+		ns.db.easyMode = false
+		-- stat: by the game's own name of it
+		F.ClearCache()
+		_G.ITEM_MOD_STAMINA_SHORT = "Выносливость"
+		C_Item.GetItemInfo = function(id) if id == 9001 then return "Малое зелье лечения", "|Hitem:9001|h", 2, 20, 15, "Armor", "Cloth", 1, "INVTYPE_CLOAK" end end
+		C_Item.GetItemStats = function() return { ITEM_MOD_STAMINA_SHORT = 5 } end
+		local sf, sg = F.Parse("stat:выносливость"), F.Parse("stat:выносливость>=6")
+		check(sf and sf({ itemID = 9001 }) and sg and not sg({ itemID = 9001 }), "stat:выносливость (and with a number) parses and judges")
+	end)
+	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
+	C_Item.GetItemInfo, C_Item.GetItemStats, _G.ITEM_MOD_STAMINA_SHORT = saved.info, saved.stats, saved.mod
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = nil, nil, saved.cat, nil
+	F.ClearCache()
+	check(ok, "the any-language \"not\" block ran: " .. tostring(err))
+end
+
+-- (0.49.2, review C5) stat: on items with a random suffix: each copy's own stats (its link), kept apart from the base
+-- item's; under the item id alone every copy got whichever was read first ("of the Monkey" and "of the Bear" both had
+-- agility, or neither once AtlasLoot's base row was read first)
+do
+	local saved = { providers = ns.providers, order = ns.providerOrder, info = C_Item.GetItemInfo, stats = C_Item.GetItemStats }
+	local ok, err = pcall(function()
+		C_Item.GetItemInfo = function(id)
+			if id == 9778 then return "Bandit Cloak", "|Hitem:9778|h[Bandit Cloak]|h", 2, 20, 15, "Armor", "Cloth", 1, "INVTYPE_CLOAK" end
+		end
+		C_Item.GetItemStats = function(link)
+			if link:find("Bear", 1, true) then return { ITEM_MOD_STAMINA_SHORT = 5, ITEM_MOD_STRENGTH_SHORT = 5 } end
+			if link:find("Monkey", 1, true) then return { ITEM_MOD_AGILITY_SHORT = 5, ITEM_MOD_STAMINA_SHORT = 1 } end
+			return { RESISTANCE0_NAME = 20 }
+		end
+		ns.providers, ns.providerOrder = {}, {}
+		local function Rows(list)
+			return function()
+				local out = {}
+				for i, r in ipairs(list) do local e = {} for k, v in pairs(r) do e[k] = v end e.key = i out[i] = e end
+				return out
+			end
+		end
+		ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows({
+			{ name = "Bandit Cloak of the Monkey", itemID = 9778, link = "|cff1eff00|Hitem:9778::::::588:12345|h[Bandit Cloak of the Monkey]|h|r" },
+			{ name = "Bandit Cloak of the Bear", itemID = 9778, link = "|cff1eff00|Hitem:9778::::::1100|h[Bandit Cloak of the Bear]|h|r" } }) })
+		ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, explicit = true, collect = Rows({
+			{ name = "Bandit Cloak", itemID = 9778, link = "item:9778" } }) })
+		local function List(q) local t = {} for _, e in ipairs(UI:Search(q)) do t[#t + 1] = e.name end table.sort(t) return table.concat(t, ", ") end
+		for _, lootFirst in ipairs({ false, true }) do
+			F.ClearCache()
+			UI.lastScan = nil
+			if lootFirst then check(List("@loot stat:stamina") == "", "the base item (AtlasLoot's row) has no stamina") end
+			UI.lastScan = nil
+			local agi, str = List("@item stat:agility"), List("@item stat:strength")
+			check(agi == "Bandit Cloak of the Monkey" and str == "Bandit Cloak of the Bear", "each copy its own stats"
+				.. (lootFirst and " (the base item read first)" or "") .. ": agility " .. agi .. " / strength " .. str)
+		end
+	end)
+	ns.providers, ns.providerOrder = saved.providers, saved.order
+	C_Item.GetItemInfo, C_Item.GetItemStats = saved.info, saved.stats
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastOverview = nil, nil
+	F.ClearCache()
+	check(ok, "the random suffix stats block ran: " .. tostring(err))
+end
+
+-- (0.49.2, review C11) Tab offers is:learned after "@profession is:": the recipes are searched too, as for is:skillup
+-- ("@profession is:learned" listed nothing)
+do
+	local saved = { providers = ns.providers, order = ns.providerOrder }
+	local ok, err = pcall(function()
+		ns.providers, ns.providerOrder = {}, {}
+		local function Rows(list)
+			return function()
+				local out = {}
+				for i, r in ipairs(list) do local e = {} for k, v in pairs(r) do e[k] = v end e.key = i out[i] = e end
+				return out
+			end
+		end
+		ns:RegisterProvider("professions", { label = "Profession", aliases = { "profession" }, collect = Rows({ { name = "Blacksmithing" } }) })
+		ns:RegisterProvider("recipes", { label = "Recipe", aliases = { "recipe" }, collect = Rows({
+			{ name = "Copper Chain Belt", recipeID = 2661, difficulty = 0 } }) })
+		UI.lastScan = nil
+		local offered = false
+		for _, v in ipairs(F.ValuesFor("is", "@profession") or {}) do if v == "learned" then offered = true end end
+		check(offered, "Tab offers is:learned after @profession")
+		check(names(UI:Search("@profession is:learned"))["Copper Chain Belt"] and names(UI:Search("@profession is:known"))["Copper Chain Belt"],
+			"@profession is:learned / is:known: your recipes")
+	end)
+	ns.providers, ns.providerOrder = saved.providers, saved.order
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastOverview = nil, nil
+	check(ok, "the @profession is:learned block ran: " .. tostring(err))
+end
+
+-- (0.49.2, review G13) .filters names every list a key works on (F.APPLIES): near:, faction: and sort:nearest named only
+-- Questie's NPCs, on: only @stored; Tab offers missing:'s consumables too
+do
+	local help = {}
+	for _, h in ipairs(F.HELP) do help[h[1]] = h[2] end
+	local KIND = { npc = "@npc", mailbox = "@mailbox", dungeon = "@dungeon", raid = "@raid", flight = "@flight" }
+	local SAID = { npc = "NPCs", mailbox = "mailboxes", dungeon = "dungeon", raid = "raid", flight = "flight paths" }
+	local missed = {}
+	for _, id in ipairs(F.APPLIES.near["*"]) do if not help["near:500"]:find(KIND[id], 1, true) then missed[#missed + 1] = "near:" .. id end end
+	for _, id in ipairs(F.APPLIES.faction["*"]) do if not help["faction:horde"]:find(KIND[id], 1, true) then missed[#missed + 1] = "faction:" .. id end end
+	for _, id in ipairs(F.APPLIES.sort.nearest) do if not help["sort:nearest"]:find(SAID[id], 1, true) then missed[#missed + 1] = "sort:" .. id end end
+	for _, w in ipairs({ "@stored", "@mail", "@lockout", "@auction" }) do if not help["on:name"]:find(w, 1, true) then missed[#missed + 1] = "on:" .. w end end
+	check(#missed == 0, ".filters names every list near:, faction:, sort:nearest and on: work on; missing: " .. table.concat(missed, ", "))
+	local offered = {}
+	for _, v in ipairs(F.VALUES.missing) do offered[v] = F.Parse("missing:" .. v) ~= nil end
+	check(offered.consumables and offered.food and offered.elixir, "Tab offers missing:consumables, food, elixir (and they parse)")
 end

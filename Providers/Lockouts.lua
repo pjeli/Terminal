@@ -181,7 +181,8 @@ local function Tooltip(e, t)
 		else t:AddDoubleLine(b[1], L["still up"], 1, 1, 1, 0.3, 1, 0.3) end
 	end
 	if not e.mine then t:AddLine(L["As of %s"]:format(ns.Ago(Now() - (e.seen or 0))), 0.6, 0.6, 0.6) end
-	t:AddLine(e.mine and L["Enter: in chat    Shift+Enter: its link in the chat box"]
+	-- (your world boss has no link: words, as ShareText sends; 0.49.2, review)
+	t:AddLine((e.mine and not e.world) and L["Enter: in chat    Shift+Enter: its link in the chat box"]
 		or L["Enter: in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
@@ -275,9 +276,10 @@ ns:RegisterProvider("lockouts", {
 ----------------------------------------------------------------------
 
 local ASK = {}
+-- (time words too: "what resets this week", "raid lockouts this week" said "No lockout has that"; 0.49.2, review)
 for w in ([[my me i am im the in a an of is are do does did have has any what whats which how show list check see all
 	for on to still this that it its there theres when where will be been got get our we were was at with currently
-	now]]):gmatch("%a+") do ASK[w] = true end
+	now week today tomorrow tonight next weekly daily time]]):gmatch("%a+") do ASK[w] = true end
 local KIND = { raid = "raid", raids = "raid", dungeon = "dungeon", dungeons = "dungeon", heroic = "dungeon",
 	heroics = "dungeon", instance = "any", instances = "any" }
 -- what makes it about lockouts: these alone ("lockouts", "my lockouts"), or with a raid/dungeon word or a question word
@@ -285,6 +287,42 @@ local STRONG = { lockout = true, lockouts = true, raidinfo = true }
 local WITH_KIND = { saved = true, save = true, id = true, ids = true, reset = true, resets = true, locked = true, lock = true,
 	locks = true }
 local WITH_ASK = { saved = true, reset = true, resets = true }
+
+-- a word found in the row: its name or text, or a shorthand's full name ("mc" = molten core)
+local function Has(e, w)
+	local hay = Lower(e.name) .. " " .. (e._ltext or Lower(e.text or ""))
+	if hay:find(w, 1, true) then return true end
+	for _, full in ipairs(ns.Shorthand and ns.Shorthand[w] or {}) do
+		if hay:find(full, 1, true) then return true end
+	end
+	return false
+end
+
+-- Do these words name a lockout listed (all of them in one row), or an instance (each a word of a dungeon's or raid's
+-- name, the start of one, or its shorthand: "mc", "molten core", "strat")? "reset my keybinds", "when does my
+-- hearthstone reset" aren't about lockouts (0.49.2, review)
+local function NamesLockout(words)
+	local p = ns.providers.lockouts
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		local all = true
+		for _, w in ipairs(words) do if not Has(e, w) then all = false break end end
+		if all then return true end
+	end
+	local I = ns.Integrations
+	for _, w in ipairs(words) do
+		local found = false
+		for _, d in ipairs(I and I.ENTRANCES or {}) do
+			local n = " " .. Lower(d[1]):gsub("'", ""):gsub("[%p]", " ") .. " "
+			if n:find(" " .. w .. (#w >= 4 and "" or " "), 1, true) then found = true break end
+			for _, full in ipairs(ns.Shorthand and ns.Shorthand[w] or {}) do
+				if n:find(" " .. full:gsub("'", "") .. " ", 1, true) then found = true break end
+			end
+			if found then break end
+		end
+		if not found then return false end
+	end
+	return true
+end
 
 --- The question: { words = what narrows it (an instance, a character), raid, dungeon }, or nil when the line isn't
 --- asking about lockouts.
@@ -307,18 +345,10 @@ function LK.Question(text)
 		local kinded = next(kinds) ~= nil
 		if not kinded and not (asked and WITH_ASK[cue]) then return nil end
 		if not kinded and #rest > 0 and cue ~= "reset" and cue ~= "resets" then return nil end
+		-- (other words with "reset": only a lockout's or an instance's name, "when does mc reset")
+		if not kinded and #rest > 0 and not NamesLockout(rest) then return nil end
 	end
 	return { words = rest, raid = kinds.raid and not kinds.dungeon or nil, dungeon = kinds.dungeon and not kinds.raid or nil }
-end
-
--- a word found in the row: its name or text, or a shorthand's full name ("mc" = molten core)
-local function Has(e, w)
-	local hay = Lower(e.name) .. " " .. (e._ltext or Lower(e.text or ""))
-	if hay:find(w, 1, true) then return true end
-	for _, full in ipairs(ns.Shorthand and ns.Shorthand[w] or {}) do
-		if hay:find(full, 1, true) then return true end
-	end
-	return false
 end
 
 LK.NOTE, LK.NOTE_RAID, LK.NOTE_DUNGEON = L["Lockouts"], L["Raid lockouts"], L["Dungeon lockouts"]

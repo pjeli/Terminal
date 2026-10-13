@@ -1192,10 +1192,11 @@ do
 	check(fps:IsShown() and math.abs(fps:GetAlpha() - 1) < 1e-9, "the frame-rate counter back too: " .. tostring(fps:GetAlpha()))
 	-- one of Terminal's apps in its place: still Terminal; back once it closes
 	local apps = ns.Panel.Registered()
-	local appShown = true
+	local appShown = false
 	local app = { IsShown = function() return appShown end, Close = function() appShown = false end }
 	apps[#apps + 1] = app
 	UI:Open(); Step(1)
+	appShown = true -- (it opens in the terminal's place; one already up as the terminal opens is closed: 0.49.2)
 	UI:HideNow(); Zen.Closed()
 	T.Flush(); T.Flush()
 	Step(1)

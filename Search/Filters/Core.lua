@@ -156,6 +156,10 @@ local function RowHas(e, lw)
 end
 F.RowHas = RowHas
 
+-- a "not": - or ! before a letter, any language's ("-малое", "!épée"; %a is only a-z: those were search words, and close
+-- spellings then listed the very word to leave out; 0.49.2, review). "-30" stays a range.
+local NEG = "^[-!][%a\128-\255]"
+
 --- A word's filter, or nil when it's a plain search word. key:value ("q:rare"), and ways to combine:
 ---   -key:value / !key:value / -word   not that ("-is:soulbound", "-cloth", "!q:poor")
 ---   key:a|b, key:a|key2:b, word|word  any of them ("q:rare|epic", "slot:head|chest", "sword|axe", "is:boe|q:epic")
@@ -167,7 +171,7 @@ F.RowHas = RowHas
 --- (no -, | or &) stays a search word: nil. A bad keyed piece makes the whole word a search word.
 local function Piece(atom, key, plain)
 	local neg = false
-	if atom:find("^[-!]%a") then neg, atom = true, atom:sub(2) end
+	if atom:find(NEG) then neg, atom = true, atom:sub(2) end
 	local f
 	if atom:find("^%a+:") then
 		f = ParseOne(atom)
@@ -206,7 +210,7 @@ function F.Parse(word, plain)
 	traced = false
 	if type(word) ~= "string" or word == "" then return nil end
 	local neg = false
-	if word:find("^[-!]%a") then neg, word = true, word:sub(2) end
+	if word:find(NEG) then neg, word = true, word:sub(2) end
 	local f
 	if word:find("[|&]") then
 		local key = word:match("^(%a+):")

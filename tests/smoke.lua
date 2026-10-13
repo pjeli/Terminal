@@ -989,8 +989,14 @@ do
 	-- neither command nor button: direct fallback
 	local savedBtn = _G.CharacterMicroButton
 	_G.CharacterMicroButton = nil
+	-- (0.49.2, review: no longer opened by Terminal's own code, which taints the window: it says where to open it)
+	local printWas, said = ns.Print, nil
+	ns.Print = function(_, m) said = m end
 	UI:Open("character info"); mark = #log; key("ENTER")
-	check(logHas("ToggleCharacter PaperDollFrame", mark + 1) and S.armed == nil and F.propagate == false, "no command and no button: direct fallback")
+	ns.Print = printWas
+	check(not logHas("ToggleCharacter PaperDollFrame", mark + 1) and S.armed == nil and F.propagate == false
+		and tostring(said):find("Character Info", 1, true) and tostring(said):find("taint", 1, true),
+		"no command and no button: not opened by Terminal's code, said where: " .. tostring(said))
 	_G.CharacterMicroButton = savedBtn
 	_G.BINDING_NAME_TOGGLECHARACTER0 = "Character Info"
 
@@ -5005,7 +5011,10 @@ do -- keybindings: found by name, Enter opens the Keybindings page on the row, Q
 	_G.IsShiftKeyDown = function() return true end
 	key("ENTER")
 	_G.IsShiftKeyDown = function() return false end
-	check(S.armed == "MACRO" and _G.TerminalMacroProxy.attrs.macrotext == ns.Keybinds.QUICK_MACRO, "Shift+Enter on Quick Keybind Mode: the game starts it")
+	-- (0.49.2, review: by the Keybindings page's own Quick Keybind button, a NAV step, not a /run of Blizzard's code)
+	local qm = _G.TerminalMacroProxy.attrs.macrotext or ""
+	check(S.armed == "MACRO" and qm == ns.Keybinds.QUICK_MACRO and not qm:find("ShowUIPanel", 1, true)
+		and not qm:find("QuickKeybindFrame", 1, true), "Shift+Enter on Quick Keybind Mode: the game starts it: " .. qm)
 	_G.TerminalMacroProxy.scripts.PostClick(_G.TerminalMacroProxy, "LeftButton", true); FlushAll()
 	local q = kb["Quick Keybind Mode"]
 	check(UI.ClickFor(q, true) == ns.Keybinds.QUICK_MACRO and UI.ClickFor(q, false) == ns.Keybinds.OpenMacro(), "clicks do the same (Shift+click starts it)")

@@ -83,9 +83,10 @@ local function SkillUp(e)
 	local d = Difficulty(e)
 	return d ~= nil and (d == F.DIFF.orange or d == F.DIFF.yellow)
 end
--- is: values only recipes answer: "@profession is:skillup" searches the recipes too
+-- is: values only recipes answer: "@profession is:skillup" searches the recipes too (and is:learned, which Tab offers
+-- there: "@profession is:learned" listed nothing; 0.49.2, review)
 F.RECIPE_IS = { skillup = true, skillups = true, orange = true, yellow = true, green = true, grey = true, gray = true,
-	trivial = true, craftable = true }
+	trivial = true, craftable = true, learned = true, known = true }
 -- is: values only the recipes you don't know answer: "@recipe is:unknown" searches those too (MissingRecipes.lua)
 F.MISSING_IS = { unknown = true, unlearned = true, missing = true, learnable = true, canlearn = true }
 --- Does this typed word ask for the recipes you don't know (is:unknown, is:learnable)?
@@ -350,11 +351,16 @@ IS.raids, IS.dungeons, IS.heroic = IS.raid, IS.dungeon, IS.dungeon
 local function CalendarIs(test) return function(e) return e.kind == "calendar" and test(e) or false end end
 IS.holiday = CalendarIs(function(e) return e.type == "HOLIDAY" end)
 IS.invite = CalendarIs(function(e) return e.pending == true end)
-IS.today = CalendarIs(function(e)
-	local today = ns.Calendar and ns.Calendar.Today()
-	return today ~= nil and e.startDN ~= nil and e.startDN <= today and (e.endDN or e.startDN) >= today
-end)
-IS.holidays, IS.invites, IS.invited, IS.pending = IS.holiday, IS.invite, IS.invite, IS.invite
+IS.today = CalendarIs(function(e) return ns.Calendar.InSpan(e, "today") end)
+-- (0.49.2, review: not is:pending, @auction's word for its news, which this line took over)
+IS.holidays, IS.invites, IS.invited = IS.holiday, IS.invite, IS.invite
+-- when:<span>: on the calendar today, tomorrow, this week (the next 7 days), this weekend, next week, this month or next
+-- month (what a Simple-mode question's span becomes in Advanced mode, Alt+`)
+KEYS.when = function(v)
+	local CA = ns.Calendar
+	if not (CA and CA.SPAN_OK[v]) then return nil end
+	return function(e) return e.kind == "calendar" and CA.InSpan(e, v) or false end
+end
 KEYS.missing = function(v) return ns.Group and ns.Group.MissingFilter(v) or nil end
 KEYS.needs = KEYS.missing
 IS.notdone, IS.undone = IS.todo, IS.todo
@@ -369,7 +375,9 @@ F.VALUES = {
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together", "raid", "dungeon", "holiday", "invite", "today" },
-	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing" },
+	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
+	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
+	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
@@ -422,6 +430,7 @@ F.APPLIES = {
 		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" },
 	},
 	missing = { ["*"] = GROUP },
+	when = { ["*"] = { "calendar" } },
 	standing = { ["*"] = { "reputation" } },
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "mail" } },
@@ -468,7 +477,8 @@ function F.ValuesFor(key, before)
 	return out
 end
 
--- the keys, in the order .filters lists them, with an example each
+-- the keys, in the order .filters lists them, with an example each (each naming every list it works on, as F.APPLIES
+-- says: on:, faction:, near: and sort:nearest named fewer; 0.49.2, review)
 F.HELP = {
 	{ "lvl:20-30", L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"] },
 	{ "ilvl:60+", L["item level"] },
@@ -477,15 +487,15 @@ F.HELP = {
 	{ "slot:wrist", L["item slot, or what a recipe makes or enchants (bracers boots gloves cloak helm ring 2h...)"] },
 	{ "type:mail", L["item type or subtype (cloth, sword, potion...)"] },
 	{ "in:bank", L["where: bags/bank/mail/guild, a quest's or NPC's zone, a loot item's dungeon or boss"] },
-	{ "on:name", L["@stored: on that character (or guild, warband)"] },
+	{ "on:name", L["@stored, @mail, @lockout, @auction: on that character (or guild, warband)"] },
 	{ "count:20+", L["how many you have"] },
 	{ "class:mage", L["talents of that class (class:mine: yours); without it your own class's come first"] },
 	{ "fish:mine", L["@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)"] },
 	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), class (your class), classes (any), profession, pet, riding, weapon"] },
-	{ "faction:horde", L["@npc: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
+	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
-	{ "near:500", L["@npc: within that many yards of you (near:<300, near:200-800)"] },
-	{ "sort:nearest", L["Questie NPCs closest to you first, with how far (the other rows stay, after them)"] },
+	{ "near:500", L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
+	{ "sort:nearest", L["NPCs, mailboxes, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them)"] },
 	{ "sort:plan", L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] },
 	{ "do:use", L["what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)"] },
 	{ "sells:linen_cloth", L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] },
@@ -498,6 +508,7 @@ F.HELP = {
 	{ "is:shareable", L["@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too"] },
 	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
 	{ "is:holiday", L["@calendar: holidays; is:invite: invitations you haven't answered; is:today: what's on today"] },
+	{ "when:week", L["@calendar: what's on today, tomorrow, this week (the next 7 days), this weekend, next week (nextweek), this month or next month (nextmonth)"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },
 	{ "is:incoming", L["@auction: your characters' auctions up now with price and time left; is:incoming: the auction house's news (sold, won, outbid, expired); on:<character>"] },
 	{ "in:elwynn_forest", L["a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)"] },

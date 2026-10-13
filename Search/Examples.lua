@@ -71,10 +71,11 @@ local function Gather()
 	local className, classFile = Safe(UnitClass, "player")
 	className, f.classFile = Str(className), Str(classFile)
 	f.cls = className and Lower(className)
-	-- professions you have (their rows' names), and a consumable you carry
+	-- professions you have (their rows' names; not their trade spells, Smelting: "nearest smelting trainer", "smelting
+	-- skillup" found nothing; 0.49.2, review), and a consumable you carry
 	local profs = {}
 	for _, e in ipairs(Entries("professions")) do
-		local n = Short(e.name and Lower(e.name), 20)
+		local n = not e.spellID and Short(e.name and Lower(e.name), 20)
 		if n then profs[#profs + 1] = n end
 	end
 	f.prof = Pick(profs)

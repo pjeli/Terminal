@@ -330,10 +330,13 @@ end
 ----------------------------------------------------------------------
 
 local ASK = {}
+-- (and a question's filler: "whats the best way to level blacksmithing" looked for recipes named "whats" and "way";
+-- 0.49.2, review)
 for w in ([[my me i the a an to of for how do does can should what which up skill points with is are it best
-	fastest quickly quick next]]):gmatch("%a+") do ASK[w] = true end
+	fastest quickly quick next whats way ways guide cheapest easiest good get]]):gmatch("%a+") do ASK[w] = true end
 -- (not "skillup": "blacksmithing skillup" stays Simple mode's is:skillup search)
 local CUE = { plan = true, planner = true, level = true, leveling = true, levelling = true, lvl = true }
+local PLAN_WORD = { plan = true, planner = true }
 local ANY = { profession = true, professions = true, prof = true, profs = true, crafting = true, craft = true, trade = true,
 	tradeskill = true, tradeskills = true }
 
@@ -351,6 +354,7 @@ function PL.Question(text)
 	local P = ns.Professions
 	for _, pr in ipairs(P and P.PlayerProfessions and (P.PlayerProfessions()) or {}) do mine[#mine + 1] = pr end
 	local cue, any, profs, words, seen = false, false, {}, {}, {}
+	local planSaid, levelSaid = false, false
 	for w in t:gmatch("%S+") do
 		local prof
 		for _, pr in ipairs(mine) do
@@ -360,15 +364,21 @@ function PL.Question(text)
 		end
 		if prof then
 			if not seen[prof.name] then seen[prof.name] = true; profs[#profs + 1] = prof.name end
-		elseif CUE[w] then cue = true
+		elseif CUE[w] then
+			cue = true
+			if PLAN_WORD[w] then planSaid = true else levelSaid = true end
 		elseif ANY[w] then any = true
 		elseif not ASK[w] then words[#words + 1] = w end
 	end
+	-- "leveling plan": every profession of yours (a levelling word and a plan word, nothing else: "level 20" stays a
+	-- search; 0.49.2, review: it was a search, though the comments above give it)
+	if cue and #profs == 0 and not any and planSaid and levelSaid and #words == 0 and #mine > 0 then any = true end
 	if not cue or (#profs == 0 and not any) then return nil end
 	return { profs = profs, words = words }
 end
 
 PL.NONE = L["Open a profession's window once: Terminal reads its recipes from it"]
+PL.NO_MATCH = L["No recipe has that"]
 
 function PL.Answer(q)
 	local p = ns.providers.recipes
@@ -385,7 +395,14 @@ function PL.Answer(q)
 		if ok then rows[#rows + 1] = e end
 	end
 	if #rows == 0 then
-		return { { name = PL.NONE, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
+		-- (the profession's recipes are read, the words left every one out: say that, not "open its window"; 0.49.2, review)
+		local none = PL.NONE
+		if q.words and #q.words > 0 then
+			for _, e in ipairs(all) do
+				if e.recipeID ~= nil and (not next(want) or (e.profName and want[Lower(e.profName)])) then none = PL.NO_MATCH break end
+			end
+		end
+		return { { name = none, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
 			_pos = ns.UI and ns.UI.NO_POS or nil } }, L["Plan"]
 	end
 	local out, note = PL.Rows(rows)
