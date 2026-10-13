@@ -3,6 +3,9 @@
 # "missing-phrase-handling: DoNothing" (texts no longer in the code, and their translations, stay; nothing is deleted).
 # Translators see new texts as soon as they're pushed, and the next tag's build (release.yml) takes their translations.
 # Also run by hand: Actions > "Send English texts to CurseForge" > Run workflow. Uses the release's CF_API_KEY secret.
+# By hand only, "seeds" ticked (the player's ask, 0.48.4: a young project, no translators yet): Terminal's seeded
+# translations (Locales/<lang>.lua's do-not-package blocks: deDE frFR esES esMX ruRU zhCN) are imported too, each as its
+# language. That sets those texts' translations on CurseForge, a translator's included: never on a push.
 # The import API (support.curseforge.com, "CurseForge API"): POST /api/projects/<id>/localization/import with
 # metadata + localizations; sent as form fields, else as one JSON body (the article describes that) if those aren't taken.
 name: Send English texts to CurseForge
@@ -13,6 +16,11 @@ on:
     paths:
       - Locales/enUS.lua
   workflow_dispatch:
+    inputs:
+      seeds:
+        description: "Also send the seeded translations (German, French, Spanish, Russian, Chinese): they replace what CurseForge has for those texts"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,29 +33,41 @@ jobs:
         uses: actions/checkout@v4
       - name: Make the import lines (L["text"] = "text", as pasted into the Import box)
         run: python3 tests/gen_locale.py --import "$RUNNER_TEMP/locales"
-      - name: Import them as enUS
+      - name: Import them as enUS (and, asked by hand, the seeded translations)
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          SEEDS: ${{ github.event_name == 'workflow_dispatch' && inputs.seeds }}
         run: |
-          file="$RUNNER_TEMP/locales/enUS.lua"
           id=$(tr -d '\r' < Terminal.toc | sed -n 's/^## X-Curse-Project-ID: *\([0-9][0-9]*\).*/\1/p')
           if [ -z "$CF_API_KEY" ]; then echo "::error::No CF_API_KEY secret: add your CurseForge API token as one"; exit 1; fi
           if [ -z "$id" ]; then echo "::error::Terminal.toc has no X-Curse-Project-ID"; exit 1; fi
           url="https://wow.curseforge.com/api/projects/$id/localization/import"
-          meta='{"language":"enUS","formatType":"TableAdditions","missing-phrase-handling":"DoNothing"}'
-          echo "Importing $(wc -l < "$file") English texts into CurseForge project $id"
           ok() { [ "$1" -ge 200 ] && [ "$1" -lt 300 ]; }
-          code=$(curl -sS -o answer.txt -w '%{http_code}' -X POST -H "X-Api-Token: $CF_API_KEY" \
-            -F "metadata=$meta" -F "localizations=<$file" "$url") || code=0
-          echo "As form fields: HTTP $code"; cat answer.txt; echo
-          if ok "$code"; then exit 0; fi
-          if [ "$code" = 401 ] || [ "$code" = 403 ]; then
-            echo "::error::CurseForge refused the token (HTTP $code): check the CF_API_KEY secret"; exit 1
+          # one language's lines: as form fields, else as one JSON body
+          import_one() {
+            file="$1"; lang="$2"
+            meta="{\"language\":\"$lang\",\"formatType\":\"TableAdditions\",\"missing-phrase-handling\":\"DoNothing\"}"
+            echo "Importing $(wc -l < "$file") $lang texts into CurseForge project $id"
+            code=$(curl -sS -o answer.txt -w '%{http_code}' -X POST -H "X-Api-Token: $CF_API_KEY" \
+              -F "metadata=$meta" -F "localizations=<$file" "$url") || code=0
+            echo "As form fields: HTTP $code"; cat answer.txt; echo
+            if ok "$code"; then return 0; fi
+            if [ "$code" = 401 ] || [ "$code" = 403 ]; then
+              echo "::error::CurseForge refused the token (HTTP $code): check the CF_API_KEY secret"; return 1
+            fi
+            jq -n --argjson metadata "$meta" --rawfile localizations "$file" \
+              '{ metadata: $metadata, localizations: $localizations }' > body.json
+            code=$(curl -sS -o answer.txt -w '%{http_code}' -X POST -H "X-Api-Token: $CF_API_KEY" \
+              -H "Content-Type: application/json" --data-binary @body.json "$url") || code=0
+            echo "As JSON: HTTP $code"; cat answer.txt; echo
+            if ok "$code"; then return 0; fi
+            echo "::error::CurseForge didn't take the $lang import (HTTP $code): see the answers above"; return 1
+          }
+          import_one "$RUNNER_TEMP/locales/enUS.lua" enUS || exit 1
+          if [ "$SEEDS" = "true" ]; then
+            for f in "$RUNNER_TEMP"/locales/*.lua; do
+              lang=$(basename "$f" .lua)
+              [ "$lang" = enUS ] && continue
+              import_one "$f" "$lang" || exit 1
+            done
           fi
-          jq -n --argjson metadata "$meta" --rawfile localizations "$file" \
-            '{ metadata: $metadata, localizations: $localizations }' > body.json
-          code=$(curl -sS -o answer.txt -w '%{http_code}' -X POST -H "X-Api-Token: $CF_API_KEY" \
-            -H "Content-Type: application/json" --data-binary @body.json "$url") || code=0
-          echo "As JSON: HTTP $code"; cat answer.txt; echo
-          if ok "$code"; then exit 0; fi
-          echo "::error::CurseForge didn't take the import (HTTP $code): see the answers above"; exit 1
