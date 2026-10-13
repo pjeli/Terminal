@@ -313,8 +313,10 @@ function MA.Prune(now)
 	for _, list in pairs(Store("mailAuctions")) do
 		for i = #list, 1, -1 do if type(list[i]) ~= "table" or now - (list[i].at or 0) >= MA.AUCTION_KEEP then table.remove(list, i) end end
 	end
-	for _, posted in pairs(Store("auctionsPosted")) do
-		for id, a in pairs(posted) do if type(a) ~= "table" or now - (a.t or 0) >= MA.POSTED_KEEP then posted[id] = nil end end
+	for _, name in ipairs({ "auctionsPosted", "auctionBids" }) do
+		for _, kept in pairs(Store(name)) do
+			for id, a in pairs(kept) do if type(a) ~= "table" or now - (a.t or 0) >= MA.POSTED_KEEP then kept[id] = nil end end
+		end
 	end
 end
 
@@ -343,8 +345,64 @@ MA.NotificationKind = NotificationKind
 
 local function NameOfLink(link) return type(link) == "string" and link:match("%[(.-)%]") or nil end
 
---- The auction house's news: an entry on your character's list (one told twice within MA.SAME is one).
-function MA.OnAuction(kind, item, auctionID, now)
+--- What an auction's item is (0.48.4, the player: what you bought should show its own icon and quality): its id, link,
+--- quality and icon, from an id or link known, else from its name (the client knows an item by name once the auction
+--- house has shown it). Each nil when not known.
+function MA.ItemFacts(id, link, name)
+	local CI = C_Item
+	id, link = Num(id), Str(link)
+	if not (id or link) and Str(name) and CI and CI.GetItemInfo then
+		local _, l = Safe(CI.GetItemInfo, name)
+		link = Str(l)
+	end
+	if not id and link then id = tonumber(link:match("item:(%d+)")) end
+	if not id then return nil, link end
+	local icon = CI and CI.GetItemIconByID and Safe(CI.GetItemIconByID, id)
+	local q = CI and CI.GetItemQualityByID and Num(Safe(CI.GetItemQualityByID, id))
+	if not q and link then q = tonumber(link:match("|cnIQ(%d+):")) end
+	if type(icon) ~= "number" and type(icon) ~= "string" then icon = nil end
+	return id, link, q, icon
+end
+
+-- what a piece of news is about, written on it: its item's facts once known
+local function Learn(a)
+	local id, link, q, icon = MA.ItemFacts(a.id, a.link, a.item)
+	a.id, a.link = id or a.id, link or a.link
+	a.q, a.icon = q or a.q, icon or a.icon
+end
+
+--- A bid or buyout placed (C_AuctionHouse.PlaceBid, hooked after it runs): the auction's item and what you offered, kept
+--- for the news that you won it (whose notification names only the item).
+function MA.OnBid(auctionID, amount)
+	auctionID = Num(auctionID)
+	local AH = C_AuctionHouse
+	if not (auctionID and AH and AH.GetAuctionInfoByID) then return nil end
+	local info = Safe(AH.GetAuctionInfoByID, auctionID)
+	if type(info) ~= "table" then return nil end
+	local link = Str(info.itemLink)
+	local key = type(info.itemKey) == "table" and info.itemKey or nil
+	local bids = Mine("auctionBids")
+	if not bids then return nil end
+	local b = { id = key and Num(key.itemID), link = link, price = Num(amount) or Num(info.buyoutAmount), t = Now() }
+	bids[auctionID] = b
+	return b
+end
+
+--- A commodity bought (COMMODITY_PURCHASED: no auction id): news that it's on its way, its item known by id. The game's
+--- own "won" notification, if it tells it too, is the same news (MA.OnAuction folds them).
+function MA.OnCommodity(itemID, quantity)
+	itemID = Num(itemID)
+	if not itemID then return nil end
+	local CI = C_Item
+	local name = CI and CI.GetItemNameByID and Str(Safe(CI.GetItemNameByID, itemID))
+	if not name then return nil end
+	return MA.OnAuction("won", name, nil, nil, { id = itemID, count = Num(quantity) })
+end
+
+--- The auction house's news: an entry on your character's list (one told twice within MA.SAME is one), its item's
+--- icon and quality learned (your bid, a commodity bought, your post, else its name: MA.ItemFacts). `extra`: what a
+--- commodity purchase says ({ id, count }).
+function MA.OnAuction(kind, item, auctionID, now, extra)
 	item = Str(item)
 	if not (kind and item) then return nil end
 	now = now or Now()
@@ -355,13 +413,20 @@ function MA.OnAuction(kind, item, auctionID, now)
 		if a.kind == kind and a.item == item and math.abs(now - (a.at or 0)) < MA.SAME
 			and (not auctionID or not a.auctionID or a.auctionID == auctionID) then
 			a.auctionID = a.auctionID or auctionID
+			if extra then a.id, a.count = a.id or extra.id, a.count or extra.count end
+			if not a.icon then Learn(a) end
 			return a
 		end
 	end
 	local posted = auctionID and Store("auctionsPosted")[key]
 	posted = posted and posted[auctionID]
+	local bid = auctionID and Store("auctionBids")[key]
+	bid = bid and bid[auctionID]
 	local a = { kind = kind, item = item, at = now, auctionID = auctionID }
 	if posted then a.link, a.price, a.each, a.count, a.seen = posted.link, posted.price, posted.each, posted.count, posted.seen end
+	if bid and kind == "won" then a.id, a.link, a.price, a.seen = bid.id, a.link or bid.link, bid.price, "bid" end
+	if extra then a.id, a.count = a.id or extra.id, a.count or extra.count end
+	Learn(a)
 	table.insert(list, 1, a)
 	while #list > MA.MAX_MAILS do table.remove(list) end
 	Dirty()
@@ -446,6 +511,10 @@ function MA.HookPost()
 	if type(AH.PostCommodity) == "function" then
 		_G.hooksecurefunc(AH, "PostCommodity", function(loc, _, quantity, unitPrice) pcall(MA.OnPost, loc, quantity, nil, nil, unitPrice) end)
 	end
+	-- (and buying: a bid or buyout's auction, for the news that you won it)
+	if type(AH.PlaceBid) == "function" then
+		_G.hooksecurefunc(AH, "PlaceBid", function(auctionID, amount) pcall(MA.OnBid, auctionID, amount) end)
+	end
 	MA.postHooked = true
 	return true
 end
@@ -474,6 +543,7 @@ end
 
 local ICON_BOX, ICON_MAIL = "Interface\\Icons\\INV_Letter_15", "Interface\\Icons\\INV_Letter_01"
 local ICON_MONEY, ICON_COD = "Interface\\Icons\\INV_Misc_Coin_01", "Interface\\Icons\\INV_Letter_03"
+local ICON_AUCTION = "Interface\\Icons\\INV_Hammer_15"
 local RED, ORANGE, GREY = "|cffff4040", "|cffff9933", "|cff9d9d9d"
 local AUCTION_LABEL = { sold = L["Sold"], won = L["Won"], outbid = L["Outbid"], expired = L["Expired"] } -- (the auction house's news)
 
@@ -488,6 +558,18 @@ end
 
 local function ItemName(it) return it.name or (it.link and it.link:match("%[(.-)%]")) or L["item %s"]:format(tostring(it.id)) end
 
+--- A mail's first item's icon and quality colour (0.48.4: a mail is drawn as what it carries, as every item row is; the
+--- inbox may have given neither, the client not having the item yet: asked by its id).
+local function FirstItemLook(m)
+	local first = m.items and m.items[1]
+	if not first then return nil, nil end
+	local icon, q = first.icon, first.q
+	if first.id and not (icon and q) then
+		local _, _, q2, icon2 = MA.ItemFacts(first.id, first.link)
+		icon, q = icon or icon2, q or q2
+	end
+	return icon, ns.QualityHex(q)
+end
 --- What running out does: "deleted", or "back to Bob".
 local function Fate(m) return m.deletes and L["deleted"] or L["back to %s"]:format(m.from or L["its sender"]) end
 
@@ -668,7 +750,8 @@ local function WayTooltip(e, t)
 		t:AddLine(("%s %s"):format(AUCTION_LABEL[e.news] or L["Auction"], ns.Ago(Now() - e.at)) .. (e.mine and "" or (" " .. L["on %s"]:format(e.who))), 1, 1, 1)
 		if e.price then
 			t:AddDoubleLine(e.each and L["Price each"] or L["Price"], Money(e.each or e.price), 1, 1, 1, 1, 1, 1)
-			t:AddLine(e.seen == "listed" and L["(as the auction house listed it)"] or L["(as you posted it)"], 0.6, 0.6, 0.6)
+			t:AddLine((e.seen == "listed" and L["(as the auction house listed it)"]) or (e.seen == "bid" and L["(what you bid or paid)"])
+				or L["(as you posted it)"], 0.6, 0.6, 0.6)
 		elseif e.news == "sold" then
 			t:AddLine(L["Its price isn't known: Terminal didn't see it posted"], 0.6, 0.6, 0.6, true)
 		end
@@ -762,6 +845,10 @@ local function MailRow(key, m, i, mine, who, now)
 		holders = { { who = who, mine = mine or nil, where = "mail", count = 1 } },
 		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
 	}
+	-- (carrying an item: its icon and quality, as your bags show it; running out stays red in the time left)
+	local icon, hex = FirstItemLook(m)
+	if icon then e.icon = icon end
+	if hex then e.color = hex end
 	return e
 end
 
@@ -813,10 +900,11 @@ local function SentRow(key, s, i, mine, who, now)
 	local words = { "mail sent outgoing to", s.to, m.subject or "", who }
 	for _, it in ipairs(m.items or {}) do words[#words + 1] = ItemName(it) end
 	if m.money then words[#words + 1] = "gold money" end
+	local icon, hex = FirstItemLook(m)
 	return {
 		key = "sent:" .. key .. ":" .. s.at .. ":" .. i, name = L["To %s: %s"]:format(s.to, title), title = title, to = s.to, at = s.at,
-		mail = m, mailKind = "sent", boxKey = key, who = who, mine = mine or nil,
-		icon = (m.items and m.items[1] and m.items[1].icon) or (m.money and ICON_MONEY) or ICON_MAIL,
+		mail = m, mailKind = "sent", boxKey = key, who = who, mine = mine or nil, color = hex,
+		icon = icon or (m.money and ICON_MONEY) or ICON_MAIL,
 		detail = table.concat(d, "  ·  "), plain = plain, text = table.concat(words, " "),
 		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
 	}
@@ -835,12 +923,20 @@ local function AuctionRow(key, a, i, mine, who, now)
 	d[#d + 1] = ns.Ago(now - a.at)
 	local plain = table.concat(d, ", ")
 	if not mine then d[#d + 1] = GREY .. who .. "|r" end
+	-- (its item's own icon and quality: learned when the news came; news kept before that, or an item the client didn't
+	-- have then, asked again here)
+	local link, q, icon = a.link, a.q, a.icon
+	if not (icon and q) then
+		local _, l2, q2, icon2 = MA.ItemFacts(a.id, a.link, a.item)
+		link, q, icon = link or l2, q or q2, icon or icon2
+	end
 	return {
-		key = "ah:" .. key .. ":" .. a.at .. ":" .. i, name = (AUCTION_LABEL[a.kind] or L["Auction"]) .. ": " .. a.item,
-		news = a.kind, at = a.at, price = a.price, each = a.each, seen = a.seen, link = a.link,
+		key = "ah:" .. key .. ":" .. a.at .. ":" .. i, name = (AUCTION_LABEL[a.kind] or L["Auction"]) .. ": " .. a.item
+			.. (((a.count or 1) > 1) and (" x" .. a.count) or ""),
+		news = a.kind, at = a.at, price = a.price, each = a.each, seen = a.seen, link = link,
 		money = (a.kind == "sold" and a.price) or nil, auction = a,
-		mailKind = "auction", boxKey = key, who = who, mine = mine or nil,
-		icon = a.kind == "sold" and ICON_MONEY or "Interface\\Icons\\INV_Hammer_15",
+		mailKind = "auction", boxKey = key, who = who, mine = mine or nil, color = ns.QualityHex(q),
+		icon = icon or (a.kind == "sold" and ICON_MONEY) or ICON_AUCTION,
 		detail = table.concat(d, "  ·  "), plain = plain,
 		text = "mail auction ah incoming pending expected " .. a.kind .. " " .. a.item .. (a.kind == "sold" and " gold money" or "") .. " " .. who,
 		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
@@ -1216,6 +1312,8 @@ function MA.OnEvent(event, ...)
 			local kind, item = MA.ChatNews(text)
 			if kind then pcall(MA.OnAuction, kind, item) end
 		end
+	elseif event == "COMMODITY_PURCHASED" then
+		pcall(MA.OnCommodity, ...)
 	elseif event == "AUCTION_HOUSE_AUCTION_CREATED" then
 		pcall(MA.AuctionCreated, ...)
 	elseif event == "OWNED_AUCTIONS_UPDATED" then
@@ -1236,7 +1334,7 @@ MA.frame = ev
 for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD",
 	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "SECURE_TRANSFER_CONFIRM_SEND_MAIL", "SECURE_TRANSFER_CANCEL",
 	"AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",
-	"AUCTION_HOUSE_AUCTION_CREATED", "OWNED_AUCTIONS_UPDATED",
+	"AUCTION_HOUSE_AUCTION_CREATED", "OWNED_AUCTIONS_UPDATED", "COMMODITY_PURCHASED",
 	"PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end

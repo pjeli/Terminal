@@ -395,7 +395,7 @@ do
 	now = now + 60
 	P._dirty = true
 	found = Kinds("@mail is:incoming")
-	check(found == "auction:Won: Wool Cloth | auction:Sold: Linen Cloth | auction:Sold: Copper Bar", "@mail is:incoming: " .. found)
+	check(found == "auction:Won: Wool Cloth | auction:Sold: Linen Cloth x20 | auction:Sold: Copper Bar", "@mail is:incoming (how many sold): " .. found)
 	local soldRow
 	for _, e in ipairs(UI:Search("@mail is:incoming linen")) do if e.mailKind == "auction" then soldRow = e end end
 	check(soldRow and soldRow.detail:find("45g", 1, true) and soldRow.detail:find("gold due in about 59 min", 1, true),
@@ -431,6 +431,59 @@ do
 	P._dirty = true
 	found = Kinds("@mail")
 	check(not found:find("auction:", 1, true) and not found:find("sent:", 1, true), "an hour later: gone: " .. found)
+	-- 0.48.4 (the player: what you bought should show its own icon and quality): a buyout placed (hooked), then the news
+	-- that you won it: its item's icon and quality, and what you paid
+	local icons, quals = { [4500] = 133633, [2589] = 132889, [3576] = 133219 }, { [4500] = 4, [2589] = 1 }
+	_G.C_Item = setmetatable({ GetItemIconByID = function(id) return icons[id] end, GetItemQualityByID = function(id) return quals[id] end,
+		GetItemInfo = function(n) if n == "Tin Bar" then return "Tin Bar", "|cnIQ1:|Hitem:3576::|h[Tin Bar]|h|r" end end,
+		GetItemNameByID = function(id) return ({ [2589] = "Linen Cloth" })[id] end }, { __index = Itemwas })
+	_G.C_AuctionHouse.PlaceBid = function() end
+	_G.C_AuctionHouse.GetAuctionInfoByID = function(id)
+		if id == 501 then return { itemKey = { itemID = 4500 }, itemLink = "|cnIQ4:|Hitem:4500::|h[Traveler's Backpack]|h|r", buyoutAmount = 90000 } end
+	end
+	MA.postHooked = nil
+	MA.HookPost()
+	_G.C_AuctionHouse.PlaceBid(501, 90000)
+	MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 2, "Traveler's Backpack", 501)
+	-- a commodity bought (no auction id), and the game's own notification of it too: one piece of news
+	MA.OnEvent("COMMODITY_PURCHASED", 2589, 20)
+	MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 2, "Linen Cloth", nil)
+	-- won, no bid seen (bought before Terminal watched): known by its name
+	MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 2, "Tin Bar", 502)
+	local wonCloth = 0
+	for _, a in ipairs(ns.db.mailAuctions["Player-1-AAA"]) do if a.kind == "won" and a.item == "Linen Cloth" then wonCloth = wonCloth + 1 end end
+	P._dirty = true
+	local byItem = {}
+	for _, e in ipairs(UI:Search("@mail is:incoming")) do if e.mailKind == "auction" then byItem[e.auction.item] = e end end
+	local bag, cloth, tin = byItem["Traveler's Backpack"], byItem["Linen Cloth"], byItem["Tin Bar"]
+	check(bag and bag.icon == 133633 and bag.color == "|cffa335ee" and bag.price == 90000 and bag.seen == "bid",
+		"won at a buyout you placed: its icon, its quality, what you paid: " .. tostring(bag and bag.icon) .. " " .. tostring(bag and bag.color))
+	check(cloth and cloth.icon == 132889 and cloth.name == "Won: Linen Cloth x20" and wonCloth == 1,
+		"a commodity bought: its icon and how many, once though the game told it too: " .. tostring(cloth and cloth.name) .. " " .. wonCloth)
+	check(tin and tin.icon == 133219 and tin.color == "|cffffffff", "no bid seen: known by its name: " .. tostring(tin and tin.icon))
+	-- news kept before (no icon on it): asked again when listed
+	table.insert(ns.db.mailAuctions["Player-1-AAA"], { kind = "won", item = "Tin Bar", at = now - 5 })
+	P._dirty = true
+	local old
+	for _, e in ipairs(UI:Search("@mail is:incoming tin")) do if e.mailKind == "auction" and e.at == now - 5 then old = e end end
+	check(old and old.icon == 133219, "news kept before 0.48.4: its icon looked up: " .. tostring(old and old.icon))
+	-- the mail itself: drawn as what it carries (an item the inbox gave no icon for: asked by id); running out stays red in
+	-- its time left; a mail with nothing in it keeps its red name
+	inbox = { { "Stormwind Auction House", "Auction won: Traveler's Backpack", 0, 0, 0.5, 1, false, false, true,
+		items = { { "Traveler's Backpack", 4500, nil, 1, 4 } } }, { "Bob", "Hello", 0, 0, 0.5, 0, false, false, false } }
+	MA.OnEvent("MAIL_SHOW")
+	MA.OnEvent("MAIL_INBOX_UPDATE")
+	FlushAll()
+	MA.OnEvent("MAIL_CLOSED")
+	P._dirty = true
+	local won, hello
+	for _, e in ipairs(UI:Search("@mail")) do
+		if e.mailKind == "mail" and e.name == "Auction won: Traveler's Backpack" then won = e end
+		if e.mailKind == "mail" and e.name == "Hello" then hello = e end
+	end
+	check(won and won.icon == 133633 and won.color == "|cffa335ee" and won.detail:find("|cffff4040", 1, true),
+		"a mail with an epic in it: its icon and colour, red in its time left: " .. tostring(won and won.color))
+	check(hello and hello.color == "|cffff4040", "a mail with nothing in it, running out: its name red")
 	_G.C_AuctionHouse, _G.C_Item, MA.postHooked = AHwas, Itemwas, nil
 	_G.ERR_AUCTION_SOLD_S, _G.ERR_AUCTION_WON_S = nil, nil
 	MA.ResetChatForTests()

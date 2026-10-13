@@ -1762,4 +1762,5 @@ L["Windows"] = "Окна"
 L["Settings"] = "Настройки"
 L["Commands"] = "Команды"
 L["the best match first, or pick one of %s categories"] = "сначала лучшее совпадение, или выберите категорию (их %s)"
+L["(what you bid or paid)"] = "(ваша ставка или цена покупки)"
 --@end-do-not-package@

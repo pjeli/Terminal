@@ -172,6 +172,7 @@ L["(sent back to you)"] = true
 L["(spread over %d frames, about %d ms each)"] = true
 L["(still loading)"] = true
 L["(the gold comes about %02d:%02d, server time)"] = true
+L["(what you bid or paid)"] = true
 L["(you)"] = true
 L["+%d more"] = true
 L["+%d more vendors"] = true

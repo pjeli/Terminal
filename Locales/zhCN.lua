@@ -1762,4 +1762,5 @@ L["Windows"] = "窗口"
 L["Settings"] = "设置"
 L["Commands"] = "命令"
 L["the best match first, or pick one of %s categories"] = "最佳匹配在最前，或从%s个分类中选择一个"
+L["(what you bid or paid)"] = "（你的出价或支付的价格）"
 --@end-do-not-package@

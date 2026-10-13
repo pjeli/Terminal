@@ -1762,4 +1762,5 @@ L["Windows"] = "Fenêtres"
 L["Settings"] = "Réglages"
 L["Commands"] = "Commandes"
 L["the best match first, or pick one of %s categories"] = "d'abord le meilleur résultat, ou choisissez une des %s catégories"
+L["(what you bid or paid)"] = "(ce que vous avez enchéri ou payé)"
 --@end-do-not-package@
