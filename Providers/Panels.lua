@@ -80,17 +80,6 @@ end
 -- for you to click. Until 0.46.2 a /run line clicked it or ran its mouse scripts; but a /run line runs tainted
 -- (0.46.1), and the window it switched then held what it wrote.
 local function TabClickLine(tab) return "/click " .. tab end
--- The Legacy window's tabs. Its addon (Blizzard_LegacySystem) loads on demand: the tabs exist only once the
--- micro button's click has opened it, so the press clicks the button first (only while the window is closed),
--- then the tab (looked up by name when that line runs). Pressed by the game; Terminal's code never clicks them.
-local function LegacyTabMacro(e)
-	local lines = {}
-	if not Shown("LegacySystemFrame") then lines[1] = "/click LegacyMicroButton" end
-	local how = TabKind(_G[e.tab])
-	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. how .. (lines[1] and ", window closed: the micro button first" or ", window open")) end
-	lines[#lines + 1] = TabClickLine(e.tab)
-	return table.concat(lines, "\n")
-end
 -- Group Finder pages (this client's BrowsingTab / WhoListingTab, the player's /fstack names): the window opened by
 -- the Dungeons micro button. Open is told by the window the tab sits in (its parents up to UIParent), so a window
 -- open on another page isn't clicked shut by the micro button.
@@ -116,6 +105,7 @@ end
 local function LegacyTabFallback() ns:Print(L["Open the Legacy window from its button (a click from Terminal's own code would taint it)."]) end
 local Never = ns.Never
 
+
 -- A tab by its path: a global ("LegacyChallengeTab") or a key under one ("CommunitiesFrame.RosterTab").
 local function TabFrame(path)
 	local f = _G
@@ -134,6 +124,66 @@ local function TabAfter(e)
 	end)
 end
 local function TabFallback(e) ns:Print(L["Switch to %s in its window (a click from Terminal's own code would taint it)."]:format(tostring(e and e.name))) end
+
+-- 0.48.4 (the player: "Legacy Tree" and "Legacy Challenges" opened on Rewards): the window's tabs are plain Frames
+-- (Blizzard_LegacySystemTemplates.xml: LargeSideTabButtonTemplate, a Frame; its page is picked on mouse-up), so the
+-- /click on them did nothing and the window showed the page it was last on (Rewards, the first). Forever's own code
+-- does open Challenges: the achievement button's ToggleAchievementFrame is overridden to ToggleLegacyChallenges
+-- (Blizzard_AchievementUI/Camelot), which shows the window on that page. So Challenges is opened by the game's click on
+-- AchievementMicroButton (only when not already showing: it toggles), checked afterwards: a press that didn't show it
+-- (the button refused: no achievement yet, say) is remembered (db.legacyRoute = false) and the window's button is used,
+-- with Terminal pointing at the tab. The Tree has no such route (nothing but its tab selects it; running the window's
+-- code from Terminal would taint the talent tree): the window opens (on the Tree if that's where you left it) and
+-- Terminal points at the Tree tab, saying once why it can't switch it.
+local LEGACY_PAGES = { LegacyChallengeTab = 2, LegacyTreeTab = 3 } -- (the window's own page numbers)
+local function LegacyOn(page)
+	local f = _G.LegacySystemFrame
+	return type(f) == "table" and f.IsShown and f:IsShown() and f.currentPage == page or false
+end
+local function ChallengesRoute()
+	local db = ns.db
+	return _G.AchievementMicroButton and not (db and db.legacyRoute == false)
+end
+-- shown on that page; or shown on another with nothing to press (only Challenges has a route that switches the page)
+local function LegacyPageOpen(e)
+	local page = LEGACY_PAGES[e.tab]
+	if LegacyOn(page) then return true end
+	return Shown("LegacySystemFrame") and not (page == 2 and ChallengesRoute()) or false
+end
+local function LegacyPageMacro(e)
+	if LEGACY_PAGES[e.tab] == 2 and ChallengesRoute() then
+		if not ns.Secure.quiet then ns:Trace("legacy: Challenges by the achievement button (the game's own route to it)") end
+		return "/click AchievementMicroButton"
+	end
+	if Shown("LegacySystemFrame") then return nil end -- (open on another page: nothing to press; Terminal points at the tab)
+	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. TabKind(_G[e.tab]) .. ": the window opened, the tab pointed at") end
+	return "/click LegacyMicroButton"
+end
+local legacyHinted = {}
+local LEGACY_CHECK = 0.6 -- (s after the press: the window is showing what it will)
+local function LegacyAfter(e)
+	local page = LEGACY_PAGES[e.tab]
+	local viaAchievements = page == 2 and ChallengesRoute()
+	C_Timer.After(LEGACY_CHECK, function()
+		if LegacyOn(page) then
+			if viaAchievements and ns.db and ns.db.legacyRoute ~= true then
+				ns.db.legacyRoute = true
+				ns:Trace("legacy: the achievement button opened Challenges")
+			end
+			return
+		end
+		if viaAchievements and ns.db then
+			ns.db.legacyRoute = false
+			ns:Trace("legacy: the achievement button didn't open Challenges: the window's button from now on")
+		end
+		-- (not on that page: point at its tab, and say once why Terminal can't switch it)
+		TabAfter(e)
+		if not legacyHinted[e.tab] then
+			legacyHinted[e.tab] = true
+			ns:Print(L["%s: click its tab (pointed at). The game gives Terminal no clean way to switch the Legacy window's pages."]:format(tostring(e.name)))
+		end
+	end)
+end
 
 -- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals. The press
 -- opens the window (only while it's closed) and asks /click for the tab by its path, which the game looks up itself
@@ -217,11 +267,13 @@ local PANELS = {
 	-- listed only where the client has it
 	{ "Legacy", "legacy system challenges", LegacyTabFallback, "LegacyMicroButton",
 		{ buttons = { "LegacyMicroButton" } }, PanelOpen, "LegacySystemFrame", needs = "LegacyMicroButton", nameFrom = "LegacyMicroButton" },
-	-- its tabs (LegacyChallengeTab, LegacyTreeTab): the game opens the window if it's closed, then the tab
-	{ "Legacy Challenges", "legacy challenges challenge", LegacyTabFallback, "LegacyMicroButton",
-		{ macro = LegacyTabMacro, opensWindow = true }, Never, needs = "LegacyMicroButton", tab = "LegacyChallengeTab" },
+	-- its pages (LegacyChallengeTab, LegacyTreeTab): Challenges by the game's own route, the Tree pointed at (LegacyPageMacro)
+	{ "Legacy Challenges", "legacy challenges challenge achievements", LegacyTabFallback, "LegacyMicroButton",
+		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton", tab = "LegacyChallengeTab",
+		legacy = true },
 	{ "Legacy Tree", "legacy tree talents", LegacyTabFallback, "LegacyMicroButton",
-		{ macro = LegacyTabMacro, opensWindow = true }, Never, needs = "LegacyMicroButton", tab = "LegacyTreeTab" },
+		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton", tab = "LegacyTreeTab",
+		legacy = true },
 	{ "Guild Roster", "guild roster members communities", TabFallback, "GuildMicroButton",
 		{ macro = CommunitiesTabMacro }, CommunitiesTabOpen, tab = "CommunitiesFrame.RosterTab", mode = "ROSTER" },
 	{ "Guild Info", "guild info information news message", TabFallback, "GuildMicroButton",
@@ -323,7 +375,7 @@ ns:RegisterProvider("panels", {
 					for i = 7, #p do e.frames[#e.frames + 1] = p[i] end
 				end
 				if p[1] == "Talents" and ns.Talents then e.after = TalentsAfter end
-				if p.tab then e.tab, e.mode, e.side, e.after = p.tab, p.mode, p.side, TabAfter end
+				if p.tab then e.tab, e.mode, e.side, e.after = p.tab, p.mode, p.side, p.legacy and LegacyAfter or TabAfter end
 			elseif p[7] then
 				-- a tab of the Character window: the game's own key opens it on that page (or switches
 				-- page when it's open on another); Terminal's code never switches it (taint)

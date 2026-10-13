@@ -1763,4 +1763,5 @@ L["Settings"] = "Ajustes"
 L["Commands"] = "Comandos"
 L["the best match first, or pick one of %s categories"] = "primero la mejor coincidencia, o elige una de %s categorías"
 L["(what you bid or paid)"] = "(lo que pujaste o pagaste)"
+L["%s: click its tab (pointed at). The game gives Terminal no clean way to switch the Legacy window's pages."] = "%s: haz clic en su pestaña (señalada). El juego no le da a Terminal una forma limpia de cambiar las páginas de la ventana del Legado."
 --@end-do-not-package@

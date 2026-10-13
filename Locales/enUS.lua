@@ -127,6 +127,7 @@ L["%s/%s worn"] = true
 L["%s:  %d in all"] = true
 L["%s: Questie doesn't know who starts it."] = true
 L["%s: can't %s in combat."] = true
+L["%s: click its tab (pointed at). The game gives Terminal no clean way to switch the Legacy window's pages."] = true
 L["%s: couldn't switch the map to it."] = true
 L["%s: in combat, the map can't be opened now."] = true
 L["%s: no item list available."] = true

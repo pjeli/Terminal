@@ -1763,4 +1763,5 @@ L["Settings"] = "设置"
 L["Commands"] = "命令"
 L["the best match first, or pick one of %s categories"] = "最佳匹配在最前，或从%s个分类中选择一个"
 L["(what you bid or paid)"] = "（你的出价或支付的价格）"
+L["%s: click its tab (pointed at). The game gives Terminal no clean way to switch the Legacy window's pages."] = "%s：请点击它的标签（已标出）。游戏没有给 Terminal 切换传承窗口页面的干净方式。"
 --@end-do-not-package@

@@ -193,17 +193,46 @@ do
 	S.ClickMacro(ch.secure, ch, true)
 	ns.Trace = traceWas
 	check(traced == 0, "a hover's quiet macro traces nothing: " .. traced)
+	-- 0.48.4 (the player: both opened on Rewards: the tabs are plain Frames, so /click on them did nothing): Challenges by
+	-- the game's own route (the achievement button: Forever's code sends it to Legacy Challenges), checked afterwards; the
+	-- Tree: the window opened (on the page it was left on), its tab pointed at, and why said once
+	local hadAch = _G.AchievementMicroButton
+	_G.AchievementMicroButton = Obj("Button")
+	ns.db.legacyRoute = nil
 	local m = ch and S.Resolve(ch.secure, ch)
 	local text = m and m.macro or ""
-	-- 0.46.2: the tab by /click (the game looks it up when the line runs; a plain-frame tab isn't a button, so /click
-	-- does nothing to it and Terminal points at it), never a /run line (it runs tainted, 0.46.1)
-	check(text == "/click LegacyMicroButton\n/click LegacyChallengeTab", "window closed: the micro button, then the tab: " .. text)
+	check(text == "/click AchievementMicroButton", "Challenges: the game's own route, the achievement button: " .. text)
 	check(not text:find("/run", 1, true), "no /run line")
-	LegacySystemFrame.shown = true
 	m = tr and S.Resolve(tr.secure, tr)
-	text = m and m.macro or ""
-	check(text == "/click LegacyTreeTab", "window open: only the tab: " .. text)
-	check(tr.isOpen(tr) == false, "a tab row always presses (clicking the shown tab is harmless)")
+	check(m and m.macro == "/click LegacyMicroButton", "the Tree, window closed: the window's button: " .. tostring(m and m.macro))
+	LegacySystemFrame.shown, LegacySystemFrame.currentPage = true, 1
+	check(tr.isOpen(tr) == true and ch.isOpen(ch) == false, "open on Rewards: nothing to press for the Tree; Challenges still switches it")
+	LegacySystemFrame.currentPage = 3
+	check(tr.isOpen(tr) == true and ch.isOpen(ch) == false, "on the Tree: the Tree is open")
+	-- the press showed Challenges: the route is kept; it didn't: the window's button from now on, the tab pointed at
+	local printed = {}
+	local printWas2 = ns.Print
+	ns.Print = function(_, t) printed[#printed + 1] = t end
+	LegacySystemFrame.currentPage = 2
+	ch.after(ch); T.FlushAll()
+	check(ns.db.legacyRoute == true and #printed == 0, "Challenges shown after the press: the route kept, nothing said")
+	ns.db.legacyRoute = nil
+	LegacySystemFrame.currentPage = 1
+	ch.after(ch); T.FlushAll()
+	check(ns.db.legacyRoute == false and printed[1] and printed[1]:find("click its tab", 1, true),
+		"not shown: the route given up, the tab pointed at and why said: " .. tostring(printed[1]))
+	LegacySystemFrame.shown = false
+	m = S.Resolve(ch.secure, ch)
+	check(m and m.macro == "/click LegacyMicroButton", "given up: the window's button: " .. tostring(m and m.macro))
+	LegacySystemFrame.shown, LegacySystemFrame.currentPage = true, 1
+	check(ch.isOpen(ch) == true, "given up, open on another page: nothing to press (pointed at)")
+	tr.after(tr); T.FlushAll()
+	tr.after(tr); T.FlushAll()
+	local saidTree = 0
+	for _, t in ipairs(printed) do if t:find("Legacy Tree", 1, true) then saidTree = saidTree + 1 end end
+	check(saidTree == 1, "the Tree not shown: why said once: " .. saidTree)
+	ns.Print = printWas2
+	ns.db.legacyRoute, _G.AchievementMicroButton = nil, hadAch
 	b.Click = function() clicked = true end
 	printWas = ns.Print; ns.Print = function() end
 	tr.open()

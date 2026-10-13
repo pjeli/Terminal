@@ -1763,4 +1763,5 @@ L["Settings"] = "Настройки"
 L["Commands"] = "Команды"
 L["the best match first, or pick one of %s categories"] = "сначала лучшее совпадение, или выберите категорию (их %s)"
 L["(what you bid or paid)"] = "(ваша ставка или цена покупки)"
+L["%s: click its tab (pointed at). The game gives Terminal no clean way to switch the Legacy window's pages."] = "%s: щёлкните по его вкладке (она подсвечена). Игра не даёт Terminal чистого способа переключать страницы окна наследия."
 --@end-do-not-package@
