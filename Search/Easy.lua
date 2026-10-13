@@ -669,6 +669,8 @@ local function QuestionToAdvanced(text)
 		for _, w in ipairs(mq.words) do rest[#rest + 1] = w end
 		return "@recipe " .. (mq.learnable and "is:learnable" or "is:unknown") .. " " .. (#rest > 0 and (table.concat(rest, " ") .. " ") or "")
 	end
+	local plq = ns.Plan and ns.Plan.Question and ns.Plan.Question(text)
+	if plq then return ns.Plan.ToAdvanced(plq) end
 	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
 	if dq then
 		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
@@ -966,6 +968,7 @@ function E.HelpLines()
 		L["Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line."],
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
+		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
 		L["Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here."],

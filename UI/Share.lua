@@ -221,7 +221,7 @@ function SH.Context(query, e)
 		if lw:sub(1, 1) == "@" then
 			-- (the kind: an NPC already)
 		elseif F and F.SortOf and F.SortOf(lw) then
-			nearby = true
+			nearby = F.SortOf(lw) == "nearest" -- (sort:plan: recipes, nothing to say of them)
 		elseif key and F and F.IsKey and F.IsKey(key) then
 			val = val:gsub("_", " ")
 			if key == "near" or key == "within" or key == "dist" then

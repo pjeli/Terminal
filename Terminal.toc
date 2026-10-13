@@ -102,6 +102,7 @@ Core\Commands.lua
 Search\Easy.lua
 Search\Examples.lua
 Search\Pipes.lua
+Search\Plan.lua
 UI\ChatLinks.lua
 UI\Zen.lua
 Apps\Atop.lua

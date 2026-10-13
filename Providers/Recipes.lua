@@ -92,6 +92,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		reagents = r.reagents, -- (is:craftable; the index's own table, not a copy)
 		makesItem = r.item, -- (filters: the crafted item's stats, slot, item level; nil: asked of the game)
 		profID = pdata.skillLine or profID,
+		profName = pdata.parent or pdata.name, -- (Smelting's recipes are Mining's: its skill they raise, Plan.lua)
 		profSpell = pdata.spell,
 		activate = RecipeActivate,
 		secure = castSpell and SpellSpec(castSpell) or nil,

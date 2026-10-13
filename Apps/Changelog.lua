@@ -17,6 +17,7 @@ CL.LOG = {
 		v = "0.48.2", when = "in testing",
 		items = {
 			"Raid lockouts: @lockout (Simple mode: \"my lockouts\", \"raid lockouts\", \"am i saved\") lists what each of your characters is saved to, how many bosses are down and when it resets; Enter names the bosses, Shift+Enter links your own in chat.",
+			"Profession levelling plans: \"blacksmithing plan\" or \"level blacksmithing\" (Advanced: @recipe blacksmithing sort:plan) lists your recipes that still give skill by how many times your materials make each, from bags and bank and with your alts; vendor materials don't count, and the footer says about how many points they'd give.",
 			"Listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).",
 		},
 	},

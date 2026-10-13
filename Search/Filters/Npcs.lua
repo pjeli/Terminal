@@ -391,13 +391,15 @@ KEYS.near = function(v)
 end
 KEYS.within, KEYS.dist = KEYS.near, KEYS.near
 
--- sort:nearest: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far
-F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance = "nearest", dist = "nearest" }
+-- sort:nearest: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far.
+-- sort:plan: your recipes that still give skill, by how many times your materials make each (Search/Plan.lua)
+F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance = "nearest", dist = "nearest",
+	plan = "plan", leveling = "plan", levelling = "plan" }
 KEYS.sort = function(v)
 	if not F.SORTS[v] then return nil end
 	return function() return true end
 end
---- "sort:nearest" -> "nearest", else nil.
+--- "sort:nearest" -> "nearest", "sort:plan" -> "plan", else nil.
 function F.SortOf(word)
 	if type(word) ~= "string" then return nil end
 	local k, v = word:match("^(%a+):(%a+)$")

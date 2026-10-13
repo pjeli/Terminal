@@ -95,10 +95,11 @@ function MR.ReadMerchant()
 	local seen = Db("recipeVendors")
 	if not (npc and seen) or n == 0 then return 0 end
 	local kept = 0
+	local sold = Db("vendorItems") -- (everything sold in any number: a leveling plan leaves those materials out, Plan.lua)
 	for i = 1, n do
 		local id = Num(Safe(_G.GetMerchantItemID, i))
-		if id and IsRecipeItem(id) then
-			local price, avail
+		local price, avail
+		if id then
 			local info = C_MerchantFrame and C_MerchantFrame.GetItemInfo and Safe(C_MerchantFrame.GetItemInfo, i)
 			if type(info) == "table" then
 				price, avail = Num(info.price), Num(info.numAvailable)
@@ -106,6 +107,9 @@ function MR.ReadMerchant()
 				local _, _, p, _, a = Safe(_G.GetMerchantItemInfo, i)
 				price, avail = Num(p), Num(a)
 			end
+			if sold and avail == -1 then sold[id] = true end
+		end
+		if id and IsRecipeItem(id) then
 			if avail then
 				local by = seen[id] or {}
 				seen[id] = by

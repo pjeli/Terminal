@@ -184,6 +184,7 @@ local function ItemCount(id, bank)
 	local ok, n = pcall(f, id, bank)
 	return ok and type(n) == "number" and n or 0
 end
+P.ItemCount = ItemCount -- (bags; with `bank`, bank too: Plan.lua)
 local function ItemName(id)
 	local get = C_Item and C_Item.GetItemNameByID
 	local name = get and Safe(get, id)
@@ -284,6 +285,8 @@ local function StoredByID()
 	end
 	return by
 end
+
+P.StoredByID = StoredByID -- (@stored's rows by item: what your alts hold, Plan.lua)
 
 local REAGENT_LABEL = "|cffd9b26a" .. L["Reagent"] .. "|r"
 local SOURCE_LABEL = "|cffd9b26a" .. L["Source"] .. "|r"

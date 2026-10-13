@@ -593,6 +593,11 @@ Scan.ANSWERS = {
 		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)
 		if q then return ns.MissingRecipes.Answer(q) end
 	end,
+	-- "blacksmithing plan", "level blacksmithing", "leveling plan": Plan.lua (sort:plan's question)
+	function(text)
+		local q = ns.Plan and ns.Plan.Question(text)
+		if q then return ns.Plan.Answer(q) end
+	end,
 	-- "quests to drop", "grey quests": QuestDrop.lua
 	function(text)
 		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
@@ -718,6 +723,7 @@ function Scan.Parse(self, text)
 	-- already took a ">>" off); the plain words are still searched
 	local blocked = simple and self.blockedSyntax or nil
 	local sortNear -- Advanced "sort:nearest": NPCs closest first, the rest after
+	local sortPlan -- Advanced "sort:plan": recipes that give skill, by how many times your materials make them (Plan.lua)
 	local advAct -- Advanced "do:use": each row's Enter that action (as Simple mode's "use ...")
 	self.noPosition = nil
 	local words = {}
@@ -732,8 +738,13 @@ function Scan.Parse(self, text)
 		if simple and ns.Easy.IsAdvancedWord(w) then
 			blocked = true
 		elseif ns.Filters and ns.Filters.SortOf and ns.Filters.SortOf(w) then
-			sortNear = true
-			fsig[#fsig + 1] = "^near"
+			if ns.Filters.SortOf(w) == "plan" then
+				sortPlan = true
+				fsig[#fsig + 1] = "^plan"
+			else
+				sortNear = true
+				fsig[#fsig + 1] = "^near"
+			end
 		elseif ns.Filters and ns.Filters.ActionOf and ns.Filters.ActionOf(w) then
 			advAct = ns.Filters.ActionOf(w)
 			fsig[#fsig + 1] = "!" .. advAct.label
@@ -766,6 +777,11 @@ function Scan.Parse(self, text)
 				tokens[#tokens + 1] = ns.Lower(w)
 			end
 		end
+	end
+	-- "sort:plan": what's planned is recipes (with no @kind, or with @profession: searched too)
+	if sortPlan and (not kinds or kinds.professions) then
+		kinds = kinds or {}
+		kinds.recipes = true
 	end
 	-- "@profession is:skillup": what's asked is recipes (only they have a difficulty): searched too
 	if kinds and kinds.professions and not kinds.recipes and ns.Filters and ns.Filters.RecipeWord then
@@ -800,7 +816,7 @@ function Scan.Parse(self, text)
 		end
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
-		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear, advAct = advAct,
+		hard = hard, softs = softs, softWords = softWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, advAct = advAct,
 		also = also, missingGone = missingGone, goneLine = goneLine }
 end
 
@@ -1157,6 +1173,12 @@ function UI:SearchText(text)
 	local stop
 	out, stop = Scan.Nearest(self, q, out)
 	if stop then return Scan.Finish(q, stop) end
+	-- "sort:plan": the recipes that still give skill, by the crafts your materials cover; the footer says the skill
+	if q.sortPlan and ns.Plan then
+		local note
+		out, note = ns.Plan.Rows(out)
+		self.answerNote = note
+	end
 	return Scan.Finish(q, Scan.Finalize(self, q, out))
 end
 
