@@ -86,3 +86,79 @@ do
 	TY.rand, TY.clock, ns.db.typingMode, ns.db.typingBest = save.rand, save.clock, save.mode, save.best
 	_G.C_ChatInfo, _G.IsInGuild, ns.Print = save.chat, save.guild, save.print
 end
+
+-- lore books (0.48.2, the player's ask): the pages of books read in the game are kept (Apps/Extras.lua), and the test's
+-- words are runs from one of them, in no order; the result names the book
+io.write("[typing test: lore books]\n")
+do
+	local TY, X = ns.Typing, ns.Extras
+	local save = { rand = TY.rand, lore = ns.db.lore, item = _G.ItemTextGetItem, text = _G.ItemTextGetText,
+		page = _G.ItemTextGetPage, creator = _G.ItemTextGetCreator, last = TY.lastBook }
+	ns.db.lore = nil
+	-- cleaning: the window's HTML, colour codes, links and the game's $-codes out
+	check(X.CleanLore("<HTML><BODY><P>The |cffff0000Lich King|r rose in $B Northrend. &lt;Arthas&gt; |Hitem:1|h[Frostmourne]|h</P></BODY></HTML>")
+		== "The Lich King rose in Northrend. <Arthas> [Frostmourne]", "cleaned: " .. tostring(X.CleanLore("<P>a $B b c d e f g h i j k l m</P>")))
+	check(X.CleanLore("<P>Hi</P>") == nil, "too short: nothing")
+	-- words to type: lowercase, inner apostrophes, accents dropped, anything else out
+	local w = TY.LoreWords("Kel'Thuzad's \195\137lite -- 1234 caf\195\169 \208\191\209\128\208\184 well-known.")
+	check(table.concat(w, " ") == "kel'thuzad's elite cafe well known", "words: " .. table.concat(w, " "))
+
+	-- reading a book in the game: each page kept as you turn it; a player's letter isn't
+	local BOOK = "The Founding of Quel'Thalas"
+	local title, page, text, creator = BOOK, 1, nil, nil
+	_G.ItemTextGetItem = function() return title end
+	_G.ItemTextGetPage = function() return page end
+	_G.ItemTextGetText = function() return text end
+	_G.ItemTextGetCreator = function() return creator end
+	local OnEvent = X.loreFrame.scripts.OnEvent
+	local long = {}
+	for i = 1, 40 do long[#long + 1] = "word" .. string.char(96 + (i % 26) + 1) end
+	text = "<P>The high elves sailed east from Kalimdor and founded a kingdom of their own in the forests of the north. "
+		.. table.concat(long, " ") .. "</P>"
+	OnEvent(X.loreFrame, "ITEM_TEXT_BEGIN")
+	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
+	page, text = 2, "<P>The trolls of Zul'Aman fought them for many years, until the humans of Arathor came to their aid.</P>"
+	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
+	OnEvent(X.loreFrame, "ITEM_TEXT_CLOSED")
+	local b = ns.db.lore and ns.db.lore["the founding of quel'thalas"]
+	check(b and b.title == title and b.pages[1] and b.pages[2] and b.pages[2]:find("Zul'Aman", 1, true), "both pages kept")
+	title, creator, page, text = "A letter", "Bob", 1, "<P>Hey, could you send me twenty linen cloth for my tailoring please?</P>"
+	OnEvent(X.loreFrame, "ITEM_TEXT_BEGIN")
+	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
+	check(not ns.db.lore["a letter"], "a letter a player wrote isn't kept")
+	creator = nil
+
+	-- the test: runs of the book's words, and the book named at the end
+	local n = 0
+	TY.rand = function(max) n = n + 1 return ((n * 7) % max) + 1 end
+	TY.lastBook = nil
+	check(TY.Open(), "opens")
+	local g = TY.game
+	local words = TY.Books()[1].words
+	local in_book = {}
+	for _, x in ipairs(words) do in_book[x] = true end
+	local all = true
+	for _, x in ipairs(g.words) do if not in_book[x] then all = false end end
+	check(g.book and g.book.title == BOOK and all and #g.words >= TY.WORD_BATCH, "the words are the book's")
+	-- (a run is consecutive in the book; where one run ends and the next starts, the two words aren't neighbours there)
+	local follows = {}
+	for k = 1, #words - 1 do follows[words[k] .. " " .. words[k + 1]] = true end
+	local breaks = 0
+	for i = 2, #g.words do if not follows[g.words[i - 1] .. " " .. g.words[i]] then breaks = breaks + 1 end end
+	check(breaks >= 8, "in runs from all over the book, not read in order: " .. breaks)
+	TY.Finish()
+	TY.Draw()
+	local said = TY.loreText:GetText()
+	check(said and said:find(ns.L["Words from the book: %s"]:format(BOOK), 1, true), "the result names the book: " .. tostring(said))
+	check(TY.BookLines()[2]:find(BOOK, 1, true) and ns:FindCommand("typing").run("books")[1]:find("(1)", 1, true), ".typing books lists it")
+	TY.Close()
+
+	-- no books: Terminal's own words, and the result says where book words come from
+	ns.db.lore = {}
+	TY.Reset()
+	check(not TY.game.book and TY.game.words[1] ~= nil, "no books: Terminal's words")
+	check(TY.BookLines()[1]:find("No books read yet", 1, true), ".typing books: none yet")
+
+	TY.rand, ns.db.lore, TY.lastBook = save.rand, save.lore, save.last
+	_G.ItemTextGetItem, _G.ItemTextGetText, _G.ItemTextGetPage, _G.ItemTextGetCreator = save.item, save.text, save.page, save.creator
+end

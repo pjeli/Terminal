@@ -13,7 +13,10 @@ local L = ns.L
 --
 -- Every key is the test's while it shows (letters must not walk you around), except the F-keys and Print Screen; it
 -- doesn't open in combat and closes when combat starts. The words are Terminal's own list: everyday English and a few
--- of Azeroth's.
+-- of Azeroth's; or, once you've read books in the game (a shelf's book, a plaque, a note you find: Apps/Extras.lua keeps
+-- their pages in db.lore), runs of a few words from one of them, in no order, so typing is reading lore too: which book
+-- it was is said with the result (0.48.2, the player's ask). Only letters (accents dropped) and apostrophes are typed: a
+-- book in Russian or Chinese leaves too few words, and Terminal's list is used.
 
 local TY = {}
 ns.Typing = TY
@@ -49,10 +52,14 @@ for w in ([[the be of and a to in he have it that for they with as not on she at
 	tabard silver copper thorium mithril linen wool silk mageweave runecloth bandage fishing cooking mining skinning]]
 	):gmatch("%a+") do TY.WORDS[#TY.WORDS + 1] = w end
 
+TY.PHRASE_MIN, TY.PHRASE_MAX = 3, 8 -- (words in a run taken from a book)
+TY.BOOK_MIN = 30 -- (words a book needs to be used)
+TY.BOOK_WORDS = 1500 -- (words of a book used at most)
+
 TY.rand = function(n) return math.random(n) end -- (tests replace it)
 TY.clock = function() return GetTime() end -- (tests replace it)
 
-local frame, title, timeText, lines, caret, measure, result, resultSub, footer
+local frame, title, timeText, lines, caret, measure, result, resultSub, loreText, footer
 local game = {}
 TY.game = game
 
@@ -60,7 +67,87 @@ TY.game = game
 -- The test
 ----------------------------------------------------------------------
 
+-- accented Latin letters as plain ones (e acute -> e, sharp s -> ss): U+00C0..U+00FF, two bytes, the second 0x80..0xBF
+local FOLD = {}
+do
+	local plain = { "a", "a", "a", "a", "a", "a", "ae", "c", "e", "e", "e", "e", "i", "i", "i", "i", "d", "n", "o", "o", "o",
+		"o", "o", "", "o", "u", "u", "u", "u", "y", "th", "ss" }
+	for i, v in ipairs(plain) do
+		FOLD[string.char(195, 127 + i)] = v -- (capitals, and sharp s)
+		FOLD[string.char(195, 159 + i)] = v -- (small letters)
+	end
+	FOLD[string.char(195, 191)] = "y" -- (y with diaeresis)
+end
+TY.FOLD = FOLD
+
+--- A book's text as words to type: lowercase letters and inner apostrophes ("kel'thuzad"), accents dropped; a word
+--- with anything else in it (digits, another alphabet) is left out.
+function TY.LoreWords(text)
+	local out = {}
+	if type(text) ~= "string" then return out end
+	local s = text:gsub("\195[\128-\191]", function(c) return FOLD[c] or c end):gsub("\197[\146\147]", "oe")
+	s = s:gsub("[%-/]", " "):lower()
+	for tok in s:gmatch("%S+") do
+		tok = tok:gsub("^[^a-z]+", ""):gsub("[^a-z]+$", "")
+		if tok ~= "" and tok:find("^[a-z']+$") then
+			out[#out + 1] = tok
+			if #out >= TY.BOOK_WORDS then break end
+		end
+	end
+	return out
+end
+
+local bookWords = {} -- title -> { t = when read, words } (worked out once per book as it was read)
+
+--- The books read that have enough words to type: { { title, words } }, by title.
+function TY.Books()
+	local out = {}
+	local lore = ns.db and type(ns.db.lore) == "table" and ns.db.lore or {}
+	for _, b in pairs(lore) do
+		if type(b) == "table" and type(b.title) == "string" and type(b.pages) == "table" then
+			local c = bookWords[b.title]
+			if not c or c.t ~= b.t then
+				local pages = {}
+				for i = 1, 40 do if type(b.pages[i]) == "string" then pages[#pages + 1] = b.pages[i] end end
+				c = { t = b.t, words = TY.LoreWords(table.concat(pages, " ")) }
+				bookWords[b.title] = c
+			end
+			if #c.words >= TY.BOOK_MIN then out[#out + 1] = { title = b.title, words = c.words } end
+		end
+	end
+	table.sort(out, function(a, b) return a.title < b.title end)
+	return out
+end
+
+--- A book for this test (another than the last when there are two or more), or nil when none has enough words.
+function TY.PickBook()
+	local books = TY.Books()
+	if #books == 0 then return nil end
+	local i = TY.rand(#books)
+	if #books > 1 and books[i].title == TY.lastBook then i = i % #books + 1 end
+	TY.lastBook = books[i].title
+	return books[i]
+end
+
 local function MoreWords(n)
+	local book = game.book
+	if book then
+		-- runs of a few words from anywhere in the book, one after another (never the same word twice running)
+		local words, added, tries = book.words, 0, 0
+		while added < n and tries < n * 4 do -- (a book of one word over and over adds nothing: not for ever)
+			tries = tries + 1
+			local len = math.min(#words, TY.PHRASE_MIN + TY.rand(TY.PHRASE_MAX - TY.PHRASE_MIN + 1) - 1)
+			local from = TY.rand(#words - len + 1)
+			for k = from, from + len - 1 do
+				if words[k] ~= game.words[#game.words] then
+					game.words[#game.words + 1] = words[k]
+					added = added + 1
+				end
+			end
+		end
+		if added >= n then return end
+		n = n - added
+	end
 	for _ = 1, n do
 		local w
 		repeat w = TY.WORDS[TY.rand(#TY.WORDS)] until w ~= game.words[#game.words] -- (never the same word twice running)
@@ -83,6 +170,7 @@ function TY.Reset()
 	game.keys, game.right = 0, 0
 	game.duration = Mode()
 	game.result, game.overAt = nil, nil
+	game.book = TY.PickBook() -- (a book read in the game: its words; said with the result)
 	MoreWords(TY.WORD_BATCH)
 	if frame then frame:SetScript("OnUpdate", nil) end
 end
@@ -312,13 +400,18 @@ function TY.Draw()
 		result:SetText(("%s%s|r"):format(Hex(t.accent), L["%d wpm"]:format(r.wpm)) .. (game.newBest and ("   " .. L["new best!"]) or ""))
 		resultSub:SetText(L["accuracy %d%%   raw %d   letters %d / %d / %d / %d (right, wrong, extra, missed)"]
 			:format(r.acc, r.raw, r.correct, r.incorrect, r.extra, r.missed))
-		result:Show(); resultSub:Show()
+		-- the book the words came from, now that the test is over (none read yet: where they come from)
+		local any = false
+		for _ in pairs(ns.db and type(ns.db.lore) == "table" and ns.db.lore or {}) do any = true break end
+		loreText:SetText(game.book and L["Words from the book: %s"]:format((game.book.title:gsub("|", "||")))
+			or (not any and L["Read a book in the game (on a shelf, a plaque, a note you find) and its words turn up here"]) or "")
+		result:Show(); resultSub:Show(); loreText:Show()
 		footer:SetText((game.sent and L["Your guild heard it"] or L["Enter: tell your guild"]) .. "  ·  " .. L["Tab: again"]
 			.. "  ·  " .. L["Esc quits"])
 	else
 		local left = game.start and math.max(0, game.duration - (TY.clock() - game.start)) or game.duration
 		timeText:SetText(Hex(t.accent) .. math.ceil(left) .. "|r")
-		result:Hide(); resultSub:Hide()
+		result:Hide(); resultSub:Hide(); loreText:Hide()
 		footer:SetText((game.start and (L["Space: next word"] .. "  ·  " .. L["Tab: start again"])
 			or (L["Start typing"] .. "  ·  " .. L["Tab: 15 / 30 / 60 s"])) .. "  ·  " .. L["Esc quits"])
 	end
@@ -353,8 +446,11 @@ local function Build()
 	result:SetPoint("TOP", 0, -56)
 	resultSub = Text(frame, 12, "CENTER")
 	resultSub:SetPoint("TOP", result, "BOTTOM", 0, -12)
+	loreText = Text(frame, 12, "CENTER")
+	loreText:SetPoint("TOP", resultSub, "BOTTOM", 0, -12)
+	loreText:SetWidth(BOX_W)
 	footer = Panel.Footer(frame, 9, "")
-	TY.frame = frame
+	TY.frame, TY.loreText = frame, loreText -- (tests)
 end
 
 local function Style()
@@ -366,6 +462,7 @@ local function Style()
 	timeText:SetTextColor(tr, tg, tb)
 	result:SetTextColor(tr, tg, tb)
 	resultSub:SetTextColor(dr, dg, db)
+	loreText:SetTextColor(ar, ag, ab)
 	footer:SetTextColor(dr, dg, db)
 	caret:SetColorTexture(ar, ag, ab, 1)
 end
@@ -413,8 +510,24 @@ function TY.Close(why)
 	Panel.Close(frame, why, L["The typing test"])
 end
 
+--- .typing books: the books read so far whose words the test can use.
+function TY.BookLines()
+	local books = TY.Books()
+	if #books == 0 then return { L["No books read yet: read one in the game (on a shelf, a plaque, a note you find) and the typing test uses its words."] } end
+	local out = { L["Books the typing test can use (%d):"]:format(#books) }
+	for i, b in ipairs(books) do
+		if i > 25 then out[#out + 1] = "  " .. L["+%d more"]:format(#books - 25) break end
+		out[#out + 1] = "  " .. b.title .. "  |cff9d9d9d" .. L["%d words"]:format(#b.words) .. "|r"
+	end
+	return out
+end
+
 ns:RegisterCommand("typing", {
 	desc = L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"],
 	aliases = { "wpm", "typetest" },
-	run = function() TY.Open() end,
+	run = function(args)
+		local a = strtrim(args or ""):lower()
+		if a == "books" or a == "book" or a == "lore" then return TY.BookLines() end
+		TY.Open()
+	end,
 })
