@@ -1718,6 +1718,7 @@ L["tip: F1 shows every key"] = "совет: F1 показывает все кл�
 L["tip: Up = last command, Down = recent picks"] = "совет: Up = последняя команда, Down = недавний выбор"
 L["to Advanced"] = "в расширенный"
 L["to Simple"] = "в простой"
+L["to Simple or Advanced mode, or link it or send it to chat"] = "в простой или расширенный режим, либо дать ссылку или отправить в чат"
 L["track"] = "отслеживать"
 L["trainer"] = "наставник"
 L["trash"] = "обычные противники"

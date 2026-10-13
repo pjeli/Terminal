@@ -27,6 +27,10 @@ do
 		and Find(f, "Shift+Right").text:find("its name", 1, true), "Shift+Right: Simple's menu, Advanced's write it, fuzzy finding's name")
 	check(Find(f, "Enter").text:find("Simple mode", 1, true) and Find(f, "Shift+Enter").text:find("Advanced", 1, true),
 		"fuzzy finding: Enter to Simple, Shift+Enter to Advanced")
+	-- (0.49.0, the player: F1's lines were wrong: fuzzy finding's right-click said "open, use", but its menu offers the
+	-- two modes and the chat lines, RowMenu.lua's MenuItems)
+	check(Find(f, "right-click").text:find("Simple or Advanced", 1, true) and not Find(f, "right-click").text:find("open, use", 1, true)
+		and Find(s, "right-click").text:find("open, use", 1, true), "right-click: fuzzy finding's menu names the two modes, not open/use")
 	check(not Find(f, "Shift+Left") and not Find(f, "Ctrl+Enter") and not Find(f, "."), "fuzzy finding: no back, no Ctrl+Enter, no commands")
 	check(not Find(s, "@kind") and not Find(s, ">> party") and Find(a, "@kind") and Find(a, ">> party"), "Advanced's syntax only in Advanced")
 	check(not Find(a, "Alt+`") and Find(s, "Alt+`") and Find(f, "Alt+`"), "Alt+`: Simple's and fuzzy finding's (Advanced: it closes, as `)")

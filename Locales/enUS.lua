@@ -1713,6 +1713,7 @@ L["tip: F1 shows every key"] = true
 L["tip: Up = last command, Down = recent picks"] = true
 L["to Advanced"] = true
 L["to Simple"] = true
+L["to Simple or Advanced mode, or link it or send it to chat"] = true
 L["track"] = true
 L["trainer"] = true
 L["trash"] = true
