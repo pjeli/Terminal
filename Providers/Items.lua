@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 local EQUIP_SLOTS = {
@@ -10,9 +11,9 @@ local EQUIP_SLOTS = {
 local QualityHex, Str, Secret = ns.QualityHex, ns.Str, ns.Secret -- (Util.lua)
 
 local function BagLabel(bag)
-	if bag == 0 then return "Backpack" end
-	if Enum.BagIndex and bag == Enum.BagIndex.ReagentBag then return "Reagent bag" end
-	return "Bag " .. bag
+	if bag == 0 then return L["Backpack"] end
+	if Enum.BagIndex and bag == Enum.BagIndex.ReagentBag then return L["Reagent bag"] end
+	return L["Bag %s"]:format(bag)
 end
 
 local ShowInBags = ns.Bags.Show -- (Bags.lua: your bags opened on the item, in whichever window shows them)
@@ -50,10 +51,10 @@ local function UsedAfter(e) ns:Trace("items: the game used " .. tostring(e.name)
 -- no secure button could be made
 local function UseInCombat(e)
 	if InCombatLockdown() then
-		ns:Print("In combat: Terminal can't use " .. tostring(e.name) .. " (the game doesn't allow it then).")
+		ns:Print(L["In combat: Terminal can't use %s (the game doesn't allow it then)."]:format(tostring(e.name)))
 	else
 		ns:Trace("items: no secure button to use " .. tostring(e.name))
-		ns:Print("Couldn't use " .. tostring(e.name) .. " from the terminal. Try it from your bags.")
+		ns:Print(L["Couldn't use %s from the terminal. Try it from your bags."]:format(tostring(e.name)))
 	end
 end
 
@@ -354,12 +355,12 @@ local function EquippedAfter(e) ns:Trace("gear: the game equipped " .. tostring(
 -- only when the game couldn't be handed the press (in combat, no secure button)
 local function EquipFallback(e)
 	if InCombatLockdown() then
-		ns:Print("In combat: Terminal can't equip " .. tostring(e.name) .. " (the game doesn't allow it then).")
+		ns:Print(L["In combat: Terminal can't equip %s (the game doesn't allow it then)."]:format(tostring(e.name)))
 	else
-		ns:Print("Couldn't equip " .. tostring(e.name) .. " from the terminal. Try it from your bags.")
+		ns:Print(L["Couldn't equip %s from the terminal. Try it from your bags."]:format(tostring(e.name)))
 	end
 end
-local function AlreadyWorn(e) ns:Print(tostring(e.name) .. " is already equipped.") end
+local function AlreadyWorn(e) ns:Print(L["%s is already equipped."]:format(tostring(e.name))) end
 
 --- Does the item have a use of its own (a trinket's, an engineering helm's)? The game's answer: its use spell.
 local function OnUse(id)
@@ -440,7 +441,7 @@ local function WornRows(out)
 					color = QualityHex(quality),
 					link = link,
 					text = "equipped " .. slotName:gsub("Slot", "") .. " " .. ns.Lower(slotText),
-					detail = "Equipped: " .. slotText,
+					detail = L["Equipped: %s"]:format(slotText),
 					slotName = slotName, slotId = slotId, itemID = itemID,
 					bound = bound or nil, unbound = (not bound) or nil,
 					activate = ShowEquipped,
@@ -456,7 +457,7 @@ local function WornRows(out)
 end
 
 ns:RegisterProvider("items", {
-	label = "Item",
+	label = L["Item"],
 	color = "ffc8c8c8",
 	aliases = { "item", "items", "bag", "bags", "inventory", "equipped" }, -- (@gear: equipment only, below)
 	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" },
@@ -506,7 +507,7 @@ ns:RegisterProvider("items", {
 			failed > 0 and (", " .. failed .. " failed (first: " .. failedAt .. ")") or ""))
 		for _, e in pairs(byID) do
 			local where = BagLabel(e.firstBag)
-			e.detail = (e.questID and "Quest  " or "") .. (e.count > 1 and ("x" .. e.count .. "  ") or "") .. where
+			e.detail = (e.questID and (L["Quest"] .. "  ") or "") .. (e.count > 1 and ("x" .. e.count .. "  ") or "") .. where
 		end
 
 		WornRows(out)
@@ -553,14 +554,14 @@ local function SubKind(id, def)
 end
 
 SubKind("consumables", {
-	label = "Consumable",
+	label = L["Consumable"],
 	color = "fff0ff66", -- (apart from the mounts' green)
 	aliases = { "consumable", "consumables", "consume", "food", "drink", "potion", "potions", "flask", "elixir", "scroll" },
 	want = function(e) return e.classID == CONSUMABLE end,
 })
 
 SubKind("mats", {
-	label = "Crafting mat",
+	label = L["Crafting mat"],
 	color = "ffd9b26a",
 	aliases = { "craftingmats", "craftingmat", "mats", "mat", "materials", "material", "tradegoods", "tradegood" },
 	want = function(e)
@@ -588,7 +589,7 @@ local function CanUse(id)
 end
 
 ns:RegisterProvider("gear", {
-	label = "Gear",
+	label = L["Gear"],
 	color = "ff9fd3ff",
 	aliases = { "gear", "equip", "armor", "armour", "weapon", "weapons" }, -- ("equipment" is the sets', EquipmentSets.lua)
 	explicit = true, -- (a plain search already finds these as Items)
@@ -606,8 +607,8 @@ ns:RegisterProvider("gear", {
 				-- known by the item, wherever it is: equipping swaps places (worn Item rows are known by their slot), and
 				-- the history must keep the piece you picked, not whatever it replaced in that slot
 				c.key = e.itemID or e.key
-				c.detail = (_G[loc] or loc) .. (lvl and ("  ilvl " .. lvl) or "") .. "  "
-					.. (e.slotId and "Equipped" or "In Bag") .. (usable and "" or "  can't use")
+				c.detail = (_G[loc] or loc) .. (lvl and ("  " .. L["ilvl %s"]:format(lvl)) or "") .. "  "
+					.. (e.slotId and L["Equipped"] or L["In Bag"]) .. (usable and "" or ("  " .. L["can't use"]))
 				c.text = (rawget(e, "_ltext") or "") .. (e.slotId and " equipped worn" or " in bag bags")
 				if not usable then c.color = "|cff8a8a8a" end
 				GearActions(c, loc) -- (the item row's already, unless its slot type was only found here)

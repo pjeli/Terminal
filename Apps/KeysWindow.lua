@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- .keybinds (F1 in the terminal): every key Terminal uses, in a small scrollable window where the terminal sits, one
 -- tab per mode: Simple, Advanced and Fuzzy finding (it opens on the one in use). The keys are one set for all three
@@ -14,76 +15,76 @@ local UI, Theme, Panel = ns.UI, ns.Theme, ns.Panel
 local Text, Hex = Panel.Text, Panel.Hex
 
 K.MODES = { "simple", "advanced", "fuzzy" }
-K.LABELS = { simple = "Simple", advanced = "Advanced", fuzzy = "Fuzzy finding" }
+K.LABELS = { simple = L["Simple"], advanced = L["Advanced"], fuzzy = L["Fuzzy finding"] }
 local LETTER = { simple = "s", advanced = "a", fuzzy = "f" }
 
 -- One list for the three modes, so they stay alike. { key, text } is the same in every mode; `s`, `a`, `f` give a
 -- mode's own text (that mode does it its own way: drawn in the accent colour); `only = "sa"` names the modes a line is
 -- for (a line for one mode alone is that mode's own too). { "Title" } alone starts a section.
 K.LINES = {
-	{ "Search" },
-	{ "type", s = "what you're after, in plain words: stamina food, nearest innkeeper, mats for thorium belt",
-		a = "words, @kinds, filters and chains: @npc is:vendor in:barrens, thorium belt > mats",
-		f = "a name's letters in order, over every list at once" },
-	{ "Up / Down", "the previous / next result" },
-	{ "Tab", "complete the faint text after the cursor; nothing to complete: the next result",
-		s = "pick the selected category (or complete the faint text); else the next result",
-		a = "complete the faint text (@kinds, filters, commands); in a pick list the next one; else the next result",
-		f = "the next result" },
-	{ "Shift+Tab", "the previous result", a = "the previous result (in a pick list, the previous one)" },
-	{ "PgUp / PgDn", "a page up / down" },
-	{ "Ctrl+Home / End", "the first / last result" },
-	{ "Ctrl+N / Ctrl+P", "the next / previous result (Ctrl+J / Ctrl+K too)" },
-	{ "mouse wheel", "scroll the results; pointing at a row selects it" },
+	{ L["Search"] },
+	{ L["type"], s = L["what you're after, in plain words: stamina food, nearest innkeeper, mats for thorium belt"],
+		a = L["words, @kinds, filters and chains: @npc is:vendor in:barrens, thorium belt > mats"],
+		f = L["a name's letters in order, over every list at once"] },
+	{ "Up / Down", L["the previous / next result"] },
+	{ "Tab", L["complete the faint text after the cursor; nothing to complete: the next result"],
+		s = L["pick the selected category (or complete the faint text); else the next result"],
+		a = L["complete the faint text (@kinds, filters, commands); in a pick list the next one; else the next result"],
+		f = L["the next result"] },
+	{ "Shift+Tab", L["the previous result"], a = L["the previous result (in a pick list, the previous one)"] },
+	{ "PgUp / PgDn", L["a page up / down"] },
+	{ "Ctrl+Home / End", L["the first / last result"] },
+	{ "Ctrl+N / Ctrl+P", L["the next / previous result (Ctrl+J / Ctrl+K too)"] },
+	{ L["mouse wheel"], L["scroll the results; pointing at a row selects it"] },
 
-	{ "Act on the selected result" },
-	{ "Enter", "do what the footer says: open, use, cast, set a waypoint...",
-		f = "take it to Simple mode, selected there: nothing is run" },
-	{ "Shift+Enter", "its other action (the footer says which)", f = "take it to Advanced mode, as @kind name" },
-	{ "Ctrl+Enter", "act and keep Terminal open (a window it opens still closes it)", only = "sa" },
-	{ "click", "as Enter; with Shift or Ctrl, as Shift+Enter or Ctrl+Enter", f = "as Enter; Shift+click as Shift+Enter" },
-	{ "right-click", "everything it can do: open, use, link it, send it (or all of them) to chat" },
-	{ "Shift+Right", s = "at the end of the prompt: that menu from the keyboard (Up/Down, Enter)",
-		a = "at the end of the prompt: write the result into it, to build on (@npc Thrall)",
-		f = "at the end of the prompt: write its name into it" },
+	{ L["Act on the selected result"] },
+	{ "Enter", L["do what the footer says: open, use, cast, set a waypoint..."],
+		f = L["take it to Simple mode, selected there: nothing is run"] },
+	{ "Shift+Enter", L["its other action (the footer says which)"], f = L["take it to Advanced mode, as @kind name"] },
+	{ "Ctrl+Enter", L["act and keep Terminal open (a window it opens still closes it)"], only = "sa" },
+	{ L["click"], L["as Enter; with Shift or Ctrl, as Shift+Enter or Ctrl+Enter"], f = L["as Enter; Shift+click as Shift+Enter"] },
+	{ L["right-click"], L["everything it can do: open, use, link it, send it (or all of them) to chat"] },
+	{ "Shift+Right", s = L["at the end of the prompt: that menu from the keyboard (Up/Down, Enter)"],
+		a = L["at the end of the prompt: write the result into it, to build on (@npc Thrall)"],
+		f = L["at the end of the prompt: write its name into it"] },
 
-	{ "Get around" },
-	{ "Shift+Left", "back to the list you came from, your pick selected again", only = "sa",
-		s = "back: to the list you came from (your pick selected again), or from a category to all of them" },
-	{ "Up", "on an empty prompt: lines you ran before, older with each press", only = "sa" },
-	{ "Down", only = "sa", s = "on an empty prompt: your last search back (Up puts it away)",
-		a = "on an empty prompt: your recent picks (Up puts them away)" },
+	{ L["Get around"] },
+	{ "Shift+Left", L["back to the list you came from, your pick selected again"], only = "sa",
+		s = L["back: to the list you came from (your pick selected again), or from a category to all of them"] },
+	{ "Up", L["on an empty prompt: lines you ran before, older with each press"], only = "sa" },
+	{ "Down", only = "sa", s = L["on an empty prompt: your last search back (Up puts it away)"],
+		a = L["on an empty prompt: your recent picks (Up puts them away)"] },
 
-	{ "Edit the prompt" },
-	{ "Left / Right", "move the cursor (Ctrl: a word at a time)" },
-	{ "Home / End", "the start / end of the prompt" },
-	{ "Shift+move", "select as the cursor moves (Shift+Left goes back first, where it can); Ctrl+A selects it all" },
-	{ "Right", "at the end of the prompt: take the faint text; Shift+Right on an empty one types the example", only = "sa" },
-	{ "Backspace / Del", "delete a letter (Ctrl: a word)" },
-	{ "Ctrl+W", "delete the word before the cursor" },
-	{ "Ctrl+U", "delete everything before the cursor (at the end: the whole line)" },
-	{ "Ctrl+C / Ctrl+V", "copy / paste (the first press gets the text box ready: press again)" },
+	{ L["Edit the prompt"] },
+	{ "Left / Right", L["move the cursor (Ctrl: a word at a time)"] },
+	{ "Home / End", L["the start / end of the prompt"] },
+	{ L["Shift+move"], L["select as the cursor moves (Shift+Left goes back first, where it can); Ctrl+A selects it all"] },
+	{ "Right", L["at the end of the prompt: take the faint text; Shift+Right on an empty one types the example"], only = "sa" },
+	{ "Backspace / Del", L["delete a letter (Ctrl: a word)"] },
+	{ "Ctrl+W", L["delete the word before the cursor"] },
+	{ "Ctrl+U", L["delete everything before the cursor (at the end: the whole line)"] },
+	{ "Ctrl+C / Ctrl+V", L["copy / paste (the first press gets the text box ready: press again)"] },
 
-	{ "Modes and the window" },
-	{ "` or Esc", "close", s = "close (Down brings the search back next time)" },
-	{ "Alt+`", only = "sf", s = "this search in Advanced mode, this one time", f = "the same words in Advanced mode" },
-	{ "Tab+`", "fuzzy finding over every list (hold Tab, press `)", f = "close" },
-	{ "F1", "this list (also .keybinds)" },
-	{ "drag", "move Terminal: it snaps to a grid, the screen's middles lit (Shift: freely)" },
-	{ "Ctrl+R, Ctrl+S...", "the game's own keys for the frame rate, sound, music, volume and screenshots still work" },
+	{ L["Modes and the window"] },
+	{ "` or Esc", L["close"], s = L["close (Down brings the search back next time)"] },
+	{ "Alt+`", only = "sf", s = L["this search in Advanced mode, this one time"], f = L["the same words in Advanced mode"] },
+	{ "Tab+`", L["fuzzy finding over every list (hold Tab, press `)"], f = L["close"] },
+	{ "F1", L["this list (also .keybinds)"] },
+	{ L["drag"], L["move Terminal: it snaps to a grid, the screen's middles lit (Shift: freely)"] },
+	{ "Ctrl+R, Ctrl+S...", L["the game's own keys for the frame rate, sound, music, volume and screenshots still work"] },
 
-	{ "What you type" },
-	{ "use, nearest...", "start with what to do: use hearthstone, nearest innkeeper, where is hogger", only = "s" },
+	{ L["What you type"] },
+	{ "use, nearest...", L["start with what to do: use hearthstone, nearest innkeeper, where is hogger"], only = "s" },
 	{ "or / not", "sword or axe, rare ring not boe", only = "s" },
-	{ "@kind", "one list: @npc, @item, @recipe (type @ to pick one)", only = "a" },
-	{ "key:value", "a filter: lvl:20-30 q:rare+ is:boe sort:nearest (.filters lists them)", only = "a" },
-	{ "-x  a|b", "not / or: -is:soulbound, sword|axe, q:rare|epic", only = "a" },
-	{ "a > mats", "a chain: thorium belt > mats > alts (.chains)", only = "a" },
-	{ ">> party", "send the selected result to chat; >>> party sends them all", only = "a" },
-	{ ".", "a Terminal command: .help, .options, .theme (Tab completes)", only = "sa" },
-	{ "/", "a slash command or emote: /dance, /who", only = "sa" },
-	{ "3*45g", "a sum, gold too", only = "sa" },
-	{ "anything", "every letter is searched: nothing is syntax here", only = "f" },
+	{ "@kind", L["one list: @npc, @item, @recipe (type @ to pick one)"], only = "a" },
+	{ "key:value", L["a filter: lvl:20-30 q:rare+ is:boe sort:nearest (.filters lists them)"], only = "a" },
+	{ "-x  a|b", L["not / or: -is:soulbound, sword|axe, q:rare|epic"], only = "a" },
+	{ "a > mats", L["a chain: thorium belt > mats > alts (.chains)"], only = "a" },
+	{ ">> party", L["send the selected result to chat; >>> party sends them all"], only = "a" },
+	{ ".", L["a Terminal command: .help, .options, .theme (Tab completes)"], only = "sa" },
+	{ "/", L["a slash command or emote: /dance, /who"], only = "sa" },
+	{ "3*45g", L["a sum, gold too"], only = "sa" },
+	{ L["anything"], L["every letter is searched: nothing is syntax here"], only = "f" },
 }
 
 --- A line's text in `mode`, or nil when the line isn't for that mode.
@@ -256,10 +257,10 @@ local function Layout()
 	local dr, dg, db = Theme.RGB(t.dim)
 	modeText:SetTextColor(dr, dg, db)
 	legend:SetTextColor(dr, dg, db)
-	title:SetText(Theme.FixColors(("|cff%skeys|r"):format(Hex(t.accent))))
-	modeText:SetText("you're in " .. K.LABELS[K.ModeNow()] .. (K.ModeNow() == "fuzzy" and "" or " mode"))
-	legend:SetText(Theme.FixColors(("Keys in |cff%sthis colour|r are %s's own; the rest work the same in every mode they're in.")
-		:format(Hex(t.accent), K.LABELS[mode])))
+	title:SetText(Theme.FixColors(("|cff%s%s|r"):format(Hex(t.accent), L["keys"])))
+	modeText:SetText((K.ModeNow() == "fuzzy" and L["you're in %s"] or L["you're in %s mode"]):format(K.LABELS[K.ModeNow()]))
+	legend:SetText(Theme.FixColors(L["Keys in %s are %s's own; the rest work the same in every mode they're in."]
+		:format(("|cff%s%s|r"):format(Hex(t.accent), L["this colour"]), K.LABELS[mode])))
 	-- the footer in the terminal's key-hint style: the key in the text colour, its meaning dimmed
 	local key = "|cff" .. Hex(t.text)
 	local parts = {}
@@ -270,7 +271,7 @@ local function Layout()
 	Fill(t, W - 20 - 24)
 end
 
-K.FOOTER = { { "Tab", "mode" }, { "Up/Down", "scroll" }, { "Esc / F1", "back to the prompt" }, { "`", "close" } }
+K.FOOTER = { { "Tab", L["mode"] }, { "Up/Down", L["scroll"] }, { "Esc / F1", L["back to the prompt"] }, { "`", L["close"] } }
 
 --- Show `m`'s tab ("simple", "advanced", "fuzzy"), from its top.
 function K.Show(m)
@@ -367,7 +368,7 @@ function K.Parts() return scroll, content, pool, tabs, footer, legend end -- (te
 --- Opens on `m`'s tab (nil: the mode in use). `from`: the terminal as it was (UI:SaveState) to go back to; nil: an empty
 --- prompt. The terminal goes while it shows (Panel.Opening).
 function K.Open(m, from)
-	if not Panel.CanOpen("The keys window takes the arrow keys while open, which the game doesn't allow in combat.") then return false end
+	if not Panel.CanOpen(L["The keys window takes the arrow keys while open, which the game doesn't allow in combat."]) then return false end
 	K.flipAt = GetTime()
 	mode = LETTER[m] and m or K.ModeNow()
 	back = from
@@ -381,7 +382,7 @@ end
 
 function K.Close(why)
 	back = nil
-	return Panel.Close(frame, why, "The keys window")
+	return Panel.Close(frame, why, L["The keys window"])
 end
 
 --- F1 pressed a moment after it opened or closed the window: the held key's own repeats, not a press (they'd flip it
@@ -400,9 +401,9 @@ function K.Back(held)
 end
 
 ns:RegisterCommand("keybinds", {
-	desc = "Every key Terminal uses, for each mode (F1 in the terminal; Esc goes back)",
+	desc = L["Every key Terminal uses, for each mode (F1 in the terminal; Esc goes back)"],
 	aliases = { "keys", "shortcuts", "hotkeys" },
-	complete = function() return { { "simple", "Simple mode's keys" }, { "advanced", "Advanced mode's" }, { "fuzzy", "fuzzy finding's" } } end,
+	complete = function() return { { "simple", L["Simple mode's keys"] }, { "advanced", L["Advanced mode's"] }, { "fuzzy", L["fuzzy finding's"] } } end,
 	run = function(args)
 		local want = strtrim(args or ""):lower()
 		local m

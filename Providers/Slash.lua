@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Every registered slash command (SLASH_<NAME><n> globals), searchable with "/".
 -- Typing "/reload" or "/term" fuzzy-matches; anything after the first word is passed
@@ -37,10 +38,10 @@ local function RunEntry(e, args) RunSlash(Line(e, args)) end
 -- /console's fallback never types into the chat box: a protected setting would be refused as Terminal's
 local function ConsoleDirect(e, args)
 	if not args or args:match("^%s*$") then
-		ns:Print("Usage: /console <setting> <value> " .. ns.Said("(find settings by name: Console settings)", "(find settings with @cvar)"))
+		ns:Print(L["Usage: /console <setting> <value> %s"]:format(ns.Said(L["(find settings by name: Console settings)"], L["(find settings with @cvar)"])))
 		return
 	end
-	ns:Print("Couldn't hand /console to the game (in combat?). Try again out of combat.")
+	ns:Print(L["Couldn't hand /console to the game (in combat?). Try again out of combat."])
 end
 
 -- Shift+Enter: the line in the chat box to finish (with what you typed after it), opened by the game a moment after the
@@ -60,7 +61,7 @@ end
 local EMOTE_GAP, EMOTE_MAX = 50, 2000
 local function Emotes(out, taken)
 	local maxIdx = tonumber(rawget(_G, "MAXEMOTEINDEX")) or EMOTE_MAX
-	local miss, word = 0, ns.GameText and ns.GameText("EMOTE", "Emote") or "Emote"
+	local miss, word = 0, ns.GameText and ns.GameText("EMOTE", L["Emote"]) or L["Emote"]
 	for i = 1, maxIdx do
 		local token = rawget(_G, "EMOTE" .. i .. "_TOKEN")
 		if type(token) ~= "string" then
@@ -88,7 +89,7 @@ local function Emotes(out, taken)
 					icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss",
 					detail = (#alt > 0 and (table.concat(alt, "  ") .. "  ") or "") .. word,
 					text = "emote " .. ns.Lower(token) .. " " .. table.concat(alt, " "),
-					tip = word .. (#alt > 0 and ("\nAliases: " .. table.concat(alt, ", ")) or ""),
+					tip = word .. (#alt > 0 and ("\n" .. L["Aliases: %s"]:format(table.concat(alt, ", "))) or ""),
 					emote = token,
 					secure = SLASH_SPEC, isOpen = NeverOpen, after = SlashAfter,
 					activate = RunEntry, secondary = ChatEntry, secondarySecure = SLASH_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
@@ -102,7 +103,7 @@ ns.SlashEmotes = Emotes
 local cached, cachedCount -- the list, and how many handlers SlashCmdList had when it was made
 
 ns:RegisterProvider("slash", {
-	label = "Slash",
+	label = L["Slash"],
 	color = "ff33ff99",
 	aliases = { "slash", "command", "cmd" },
 	explicit = true,
@@ -139,7 +140,7 @@ ns:RegisterProvider("slash", {
 				icon = "Interface\\Icons\\INV_Misc_Note_01",
 				detail = table.concat(alt, "  "),
 				text = base:lower() .. " " .. table.concat(alt, " "),
-				tip = "Handler: " .. base .. "\nAliases: " .. (#alt > 0 and table.concat(alt, ", ") or "none"),
+				tip = L["Handler: %s"]:format(base) .. "\n" .. L["Aliases: %s"]:format(#alt > 0 and table.concat(alt, ", ") or L["none"]),
 				secure = SLASH_SPEC, isOpen = NeverOpen, after = SlashAfter, -- (the game presses the line)
 				activate = RunEntry, -- (no secure button: the chat box)
 				-- Shift+Enter: drop it in the chat box instead of running it
@@ -164,7 +165,7 @@ ns:RegisterProvider("slash", {
 			for n in (e.detail or ""):gmatch("/%S+") do taken[ns.Lower(n)] = true end
 		end
 		Emotes(out, taken)
-		console.detail = (console.detail ~= "" and (console.detail .. "  ") or "") .. "set a console setting"
+		console.detail = (console.detail ~= "" and (console.detail .. "  ") or "") .. L["set a console setting"]
 		cached, cachedCount = out, count
 		return out
 	end,

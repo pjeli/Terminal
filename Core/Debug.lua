@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Debugging "Interface action failed because of an AddOn".
 --
@@ -146,7 +147,7 @@ local function OnAction(event, addon, func)
 	if Live() then
 		for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
 	else
-		ns:Print(("Blocked %s (%s). Type /term .debug log for what led to it."):format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked"))
+		ns:Print(L["Blocked %s (%s). Type /term .debug log for what led to it."]:format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and L["forbidden"] or L["blocked"]))
 	end
 end
 
@@ -253,14 +254,14 @@ function D.Report()
 end
 
 ns:RegisterCommand("debug", {
-	desc = "Why 'Interface action failed because of an AddOn' happens (on | off | log | clear)",
+	desc = L["Why 'Interface action failed because of an AddOn' happens (on | off | log | clear)"],
 	aliases = { "taintdebug", "taint" },
 	complete = function()
 		return {
-			{ "log", "what led to blocked actions, in a copyable window" },
-			{ "on", "print every blocked action and step live" },
-			{ "off", "stop printing them" },
-			{ "clear", "forget what was recorded" },
+			{ "log", L["what led to blocked actions, in a copyable window"] },
+			{ "on", L["print every blocked action and step live"] },
+			{ "off", L["stop printing them"] },
+			{ "clear", L["forget what was recorded"] },
 		}
 	end,
 	run = function(args)
@@ -269,32 +270,32 @@ ns:RegisterCommand("debug", {
 		if arg == "on" then
 			D.Set(true)
 			out = {
-				"Debug ON. Every blocked action and every step Terminal takes is printed live.",
-				"Also set taintLog 2: the game writes Logs\\taint.log (in your WoW folder) naming the addon and the",
-				"exact line that tainted things. /reload once if it stays empty. Lua error popups are on too.",
-				"Now repeat what failed, then send me the printed lines or Logs\\taint.log.",
+				L["Debug ON. Every blocked action and every step Terminal takes is printed live."],
+				L["Also set taintLog 2: the game writes Logs\\taint.log (in your WoW folder) naming the addon and the"],
+				L["exact line that tainted things. /reload once if it stays empty. Lua error popups are on too."],
+				L["Now repeat what failed, then send me the printed lines or Logs\\taint.log."],
 			}
 		elseif arg == "off" then
 			D.Set(false)
-			out = { "Debug OFF. taintLog and scriptErrors restored. Blocked actions are still recorded: .debug log" }
+			out = { L["Debug OFF. taintLog and scriptErrors restored. Blocked actions are still recorded: .debug log"] }
 		elseif arg == "clear" then
 			for i = #events, 1, -1 do events[i] = nil end
 			for i = #trace, 1, -1 do trace[i] = nil end
-			out = { "Cleared." }
+			out = { L["Cleared."] }
 		elseif arg == "log" then
 			-- a real text box: select all is done, Ctrl+C copies it out of the game
 			if ns.ShowText then
-				ns:ShowText("Terminal debug log", D.Report())
-				out = { "Debug log opened in a window: Ctrl+C copies all of it, Esc closes." }
+				ns:ShowText(L["Terminal debug log"], D.Report())
+				out = { L["Debug log opened in a window: Ctrl+C copies all of it, Esc closes."] }
 			else
 				out = D.Report()
 			end
 		elseif arg == "" then
-			out = { "Debug is " .. (Live() and "ON" or "off") .. "  (taintLog " .. tostring(Cvar("taintLog")) .. ")  -  .debug on | off | log | clear",
-				("Blocked actions this session: %d by Terminal, %d by other addons"):format(D.count, D.others) }
+			out = { L["Debug is %s  (taintLog %s)  -  .debug on | off | log | clear"]:format(Live() and L["ON"] or L["off"], tostring(Cvar("taintLog"))),
+				L["Blocked actions this session: %d by Terminal, %d by other addons"]:format(D.count, D.others) }
 			for _, l in ipairs(D.Log(3)) do out[#out + 1] = l end
 		else
-			out = { "Usage: .debug on | off | log | clear" }
+			out = { L["Usage: .debug on | off | log | clear"] }
 		end
 		return out
 	end,

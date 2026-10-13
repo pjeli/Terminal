@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- World map places: continents and zones (cities are zones). Enter opens the world map on
 -- that place; Shift+Enter moves an existing map pin there without opening anything.
@@ -20,6 +21,7 @@ local M = {}
 ns.Maps = M
 
 local TYPES = { [2] = "Continent", [3] = "Zone" } -- the only kinds listed
+local KIND_SAID = { Continent = L["Continent"], Zone = L["Zone"] } -- (as the rows say it; TYPES stays searchable)
 
 --- The map a place shows: its own, or one worked out for it (an NPC's or quest giver's zone).
 function M.Target(e)
@@ -81,7 +83,7 @@ end
 --- The line saying where the map pin went ("set" / "moved": Place's answer): "Waypoint set on Ratchet (The Barrens)",
 --- "Waypoint moved to Hogger". Every waypoint line says it this way.
 function M.PinLine(pin, name, where)
-	return ("Waypoint %s %s%s"):format(pin == "moved" and "moved to" or "set on", tostring(name),
+	return (pin == "moved" and L["Waypoint moved to %s%s"] or L["Waypoint set on %s%s"]):format(tostring(name),
 		(type(where) == "string" and where ~= "" and where ~= name) and (" (" .. where .. ")") or "")
 end
 
@@ -104,9 +106,9 @@ local function ShowAfter(e)
 		.. ((writer and writer ~= ns.Secure.GAME) and " (its pins may be blocked in combat)" or ""))
 	local pin = Place(e)
 	if pin and not switched then
-		ns:Print(M.PinLine(pin, e.name) .. ": couldn't switch the map to it.")
+		ns:Print(L["%s: couldn't switch the map to it."]:format(M.PinLine(pin, e.name)))
 	elseif not pin and not switched then
-		ns:Print("Opened the map; couldn't switch it to " .. e.name .. ".")
+		ns:Print(L["Opened the map; couldn't switch it to %s."]:format(e.name))
 	end
 end
 
@@ -116,9 +118,9 @@ local function Direct(e) -- no keybinding: open the map from our own code
 		ns:Trace("maps: in combat, map left alone")
 		local pin = Place(e)
 		if pin then
-			ns:Print(M.PinLine(pin, e.name) .. ": in combat, the map can't be opened now.")
+			ns:Print(L["%s: in combat, the map can't be opened now."]:format(M.PinLine(pin, e.name)))
 		else
-			ns:Print("The map can't be opened in combat.")
+			ns:Print(L["The map can't be opened in combat."])
 		end
 		return
 	end
@@ -155,9 +157,9 @@ local function PinOnly(e)
 		ns:Print(M.PinLine(pin, e.name))
 	elseif not e.pos then
 		-- a zone has no spot of its own: it only moves a waypoint that is already set
-		ns:Print("A zone only moves a waypoint you already have; set one on the map first.")
+		ns:Print(L["A zone only moves a waypoint you already have; set one on the map first."])
 	else
-		ns:Print("Can't set a waypoint there.")
+		ns:Print(L["Can't set a waypoint there."])
 	end
 end
 
@@ -184,7 +186,7 @@ local function Entry(o)
 end
 
 ns:RegisterProvider("maps", {
-	label = "Map",
+	label = L["Map"],
 	color = "ff7fd6a8",
 	aliases = { "map", "maps", "zone", "zones", "place", "location", "continent" },
 	noCombat = true, -- opening windows is protected in combat
@@ -226,7 +228,7 @@ ns:RegisterProvider("maps", {
 				local lv = ns.Zones and ns.Zones.LevelText(ns.Zones.Of(info.mapID))
 				out[#out + 1] = Entry({
 					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
-					detail = kind .. (lv and ("  " .. lv) or "") .. (path ~= "" and ("  " .. path) or ""),
+					detail = (KIND_SAID[kind] or kind) .. (lv and ("  " .. lv) or "") .. (path ~= "" and ("  " .. path) or ""),
 				})
 			end
 		end

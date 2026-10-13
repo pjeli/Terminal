@@ -1,12 +1,13 @@
 -- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
 local ns = _G.Terminal
 if not ns then return end
+local L = ns.L
 
 -- .wowamp's stations (Wowamp.lua plays them).
 -- Stations: name, place, genre, a line from the DJ, the visualizer's colours (low, high), its tempo, and
 -- the tracks: { file ID, seconds, title } (file IDs and lengths from Leatrix Plus's music list).
 ns.WowampStations = {
-	{ id = "lionspride", name = "Lion's Pride FM", place = "Goldshire, Elwynn Forest", genre = "Tavern & folk", tag = "Live from the inn: a lute, a fire and an ale that's mostly foam.", lo = "ffd36b", hi = "ff8a2a", bpm = 96, tracks = {
+	{ id = "lionspride", name = L["Lion's Pride FM"], place = L["Goldshire, Elwynn Forest"], genre = L["Tavern & folk"], tag = L["Live from the inn: a lute, a fire and an ale that's mostly foam."], lo = "ffd36b", hi = "ff8a2a", bpm = 96, tracks = {
 		{ 53737, 47, "Tavern Alliance 01" },
 		{ 53738, 51, "Tavern Alliance 02" },
 		{ 53744, 48, "Tavern Horde 01" },
@@ -18,7 +19,7 @@ ns.WowampStations = {
 		{ 53493, 73, "Day Forest 02" },
 		{ 53494, 65, "Day Forest 03" },
 	} },
-	{ id = "classical", name = "Stormwind Classical 101.7", place = "Trade District, Stormwind", genre = "Orchestral", tag = "Brass, choirs and the Cathedral bells. Long live the King.", lo = "8ab4ff", hi = "ffd200", bpm = 72, tracks = {
+	{ id = "classical", name = L["Stormwind Classical 101.7"], place = L["Trade District, Stormwind"], genre = L["Orchestral"], tag = L["Brass, choirs and the Cathedral bells. Long live the King."], lo = "8ab4ff", hi = "ffd200", bpm = 72, tracks = {
 		{ 53202, 55, "Stormwind 01 (moment)" },
 		{ 53203, 36, "Stormwind 02 (moment)" },
 		{ 53204, 70, "Stormwind 03 (moment)" },
@@ -34,7 +35,7 @@ ns.WowampStations = {
 		{ 53250, 16, "Sacred 01" },
 		{ 53251, 19, "Sacred 02" },
 	} },
-	{ id = "warradio", name = "WAR Radio 66.6", place = "Valley of Strength, Orgrimmar", genre = "War drums", tag = "Lok'tar! Drums from the Valley of Strength, all day, all night.", lo = "ff5a2a", hi = "ffd060", bpm = 132, tracks = {
+	{ id = "warradio", name = L["WAR Radio 66.6"], place = L["Valley of Strength, Orgrimmar"], genre = L["War drums"], tag = L["Lok'tar! Drums from the Valley of Strength, all day, all night."], lo = "ff5a2a", hi = "ffd060", bpm = 132, tracks = {
 		{ 53198, 69, "Orgrimmar 01" },
 		{ 53199, 62, "Orgrimmar 02 (moment)" },
 		{ 53200, 62, "Orgrimmar 02" },
@@ -56,7 +57,7 @@ ns.WowampStations = {
 		{ 53229, 45, "Battle 05" },
 		{ 53230, 62, "Battle 06" },
 	} },
-	{ id = "openskies", name = "Open Skies 92.4", place = "The Rises, Thunder Bluff", genre = "Easy listening", tag = "Wind over the mesas. Earth Mother willing, no Grimtotem calls in today.", lo = "8fd18a", hi = "f2d58a", bpm = 80, tracks = {
+	{ id = "openskies", name = L["Open Skies 92.4"], place = L["The Rises, Thunder Bluff"], genre = L["Easy listening"], tag = L["Wind over the mesas. Earth Mother willing, no Grimtotem calls in today."], lo = "8fd18a", hi = "f2d58a", bpm = 80, tracks = {
 		{ 53213, 117, "Thunder Bluff Walking 01" },
 		{ 53214, 116, "Thunder Bluff Walking 02" },
 		{ 53215, 121, "Thunder Bluff Walking 03" },
@@ -68,7 +69,7 @@ ns.WowampStations = {
 		{ 53578, 67, "Day Mountain 02" },
 		{ 53579, 80, "Day Mountain 03" },
 	} },
-	{ id = "moonwell", name = "Moonwell Lo-fi 88.1", place = "Darnassus, Teldrassil", genre = "Elven lo-fi", tag = "Starlight beats to quest and relax to. Elune-adore.", lo = "b38cff", hi = "6ee7e0", bpm = 70, tracks = {
+	{ id = "moonwell", name = L["Moonwell Lo-fi 88.1"], place = L["Darnassus, Teldrassil"], genre = L["Elven lo-fi"], tag = L["Starlight beats to quest and relax to. Elune-adore."], lo = "b38cff", hi = "6ee7e0", bpm = 70, tracks = {
 		{ 53184, 85, "Darnassus Walking 01" },
 		{ 53185, 69, "Darnassus Walking 02" },
 		{ 53186, 68, "Darnassus Walking 03" },
@@ -86,7 +87,7 @@ ns.WowampStations = {
 		{ 53237, 33, "Magic 01 01" },
 		{ 53238, 39, "Magic 01 02" },
 	} },
-	{ id = "underground", name = "The Undercity Underground", place = "Ruins of Lordaeron, Tirisfal", genre = "Gothic", tag = "Broadcasting from the sewers. The Dark Lady is listening.", lo = "6ee7a8", hi = "9b59ff", bpm = 84, tracks = {
+	{ id = "underground", name = L["The Undercity Underground"], place = L["Ruins of Lordaeron, Tirisfal"], genre = L["Gothic"], tag = L["Broadcasting from the sewers. The Dark Lady is listening."], lo = "6ee7a8", hi = "9b59ff", bpm = 84, tracks = {
 		{ 53216, 67, "Undercity 01" },
 		{ 53217, 86, "Undercity 02" },
 		{ 53218, 76, "Undercity 03" },
@@ -108,7 +109,7 @@ ns.WowampStations = {
 		{ 53232, 40, "Gloomy 02" },
 		{ 53252, 26, "Spooky 01 (moment)" },
 	} },
-	{ id = "necropolis", name = "Necropolis Nights", place = "Naxxramas, Eastern Plaguelands", genre = "Doom & dark ambient", tag = "Kel'Thuzad on the late shift. Requests by bone scroll only.", lo = "5fd3ff", hi = "2a6bff", bpm = 66, tracks = {
+	{ id = "necropolis", name = L["Necropolis Nights"], place = L["Naxxramas, Eastern Plaguelands"], genre = L["Doom & dark ambient"], tag = L["Kel'Thuzad on the late shift. Requests by bone scroll only."], lo = "5fd3ff", hi = "2a6bff", bpm = 66, tracks = {
 		{ 53591, 61, "Naxxramas Abomination Boss 01" },
 		{ 53592, 67, "Naxxramas Abomination Boss 02" },
 		{ 53593, 61, "Naxxramas Abomination Wing 01" },
@@ -137,7 +138,7 @@ ns.WowampStations = {
 		{ 53618, 100, "Naxxramas Walking 05" },
 		{ 53619, 99, "Naxxramas Walking 06" },
 	} },
-	{ id = "junglebeats", name = "Zul'Gurub Jungle Beats", place = "Stranglethorn Vale", genre = "Tribal", tag = "Voodoo, drums and a raptor somewhere close. Stay on the path, mon.", lo = "3fdc5a", hi = "ffb000", bpm = 118, tracks = {
+	{ id = "junglebeats", name = L["Zul'Gurub Jungle Beats"], place = L["Stranglethorn Vale"], genre = L["Tribal"], tag = L["Voodoo, drums and a raptor somewhere close. Stay on the path, mon."], lo = "3fdc5a", hi = "ffb000", bpm = 118, tracks = {
 		{ 53541, 46, "Day Jungle 01" },
 		{ 53542, 99, "Day Jungle 02" },
 		{ 53543, 48, "Day Jungle 03" },
@@ -152,7 +153,7 @@ ns.WowampStations = {
 		{ 53699, 70, "Soggy Place 05" },
 		{ 53253, 35, "Swamp 01" },
 	} },
-	{ id = "static", name = "Silithus Static 13.0", place = "Cenarion Hold, Silithus", genre = "Desert mystery", tag = "The sands hum at night. Don't listen to the whispers in between tracks.", lo = "f2c46b", hi = "c0392b", bpm = 76, tracks = {
+	{ id = "static", name = L["Silithus Static 13.0"], place = L["Cenarion Hold, Silithus"], genre = L["Desert mystery"], tag = L["The sands hum at night. Don't listen to the whispers in between tracks."], lo = "f2c46b", hi = "c0392b", bpm = 76, tracks = {
 		{ 53432, 66, "Day Desert 01" },
 		{ 53433, 81, "Day Desert 02" },
 		{ 53434, 54, "Day Desert 03" },
@@ -174,7 +175,7 @@ ns.WowampStations = {
 		{ 53247, 83, "Mystery 08" },
 		{ 53249, 62, "Mystery 10" },
 	} },
-	{ id = "gnomeregan", name = "Gnomeregan Frequency", place = "Tinker Town, Ironforge", genre = "Tinker tech", tag = "Broadcast on a borrowed frequency. Radiation levels: mostly fine.", lo = "ffe14a", hi = "4ad7ff", bpm = 104, tracks = {
+	{ id = "gnomeregan", name = L["Gnomeregan Frequency"], place = L["Tinker Town, Ironforge"], genre = L["Tinker tech"], tag = L["Broadcast on a borrowed frequency. Radiation levels: mostly fine."], lo = "ffe14a", hi = "4ad7ff", bpm = 104, tracks = {
 		{ 53189, 65, "Gnomeregan 01" },
 		{ 53190, 65, "Gnomeregan 02" },
 		{ 53812, 73, "Day Volcanic 01" },

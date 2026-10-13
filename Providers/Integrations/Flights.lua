@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local I = ns.Integrations
 local Safe, Str, Num, Lower = ns.Safe, ns.Str, ns.Num, ns.Lower
 local SpotXY, ZoneName, PinObject = I.SpotXY, I.ZoneName, I.PinObject
@@ -262,7 +263,7 @@ function FL.Checked(cont)
 	local r = MyRecord()
 	return (r and type(r.conts) == "table" and r.conts[cont]) and true or false
 end
-FL.UNCHECKED_NOTE = "not checked here yet: open any flight master's map"
+FL.UNCHECKED_NOTE = L["not checked here yet: open any flight master's map"]
 
 FL.taxiOpen = false
 function FL.OnEvent(event)
@@ -379,32 +380,32 @@ end
 local function Tooltip(e, t)
 	t:SetText(e.full or e.name, 1, 0.82, 0)
 	if e.learned == true then
-		t:AddLine("Learned", 0.4, 1, 0.4)
+		t:AddLine(L["Learned"], 0.4, 1, 0.4)
 	elseif e.learned == false then
-		t:AddLine("Not learned", 1, 0.45, 0.35)
+		t:AddLine(L["Not learned"], 1, 0.45, 0.35)
 	else
-		t:AddLine("Not checked yet", 0.8, 0.8, 0.8)
+		t:AddLine(L["Not checked yet"], 0.8, 0.8, 0.8)
 	end
 	if e.how == "flightmaster" then
 		local r = MyRecord()
-		t:AddLine("As a flight master's map showed it" .. ((r and r.t) and (", " .. ns.Ago(Now() - r.t)) or ""), 0.6, 0.6, 0.6, true)
+		t:AddLine(L["As a flight master's map showed it"] .. ((r and r.t) and (", " .. ns.Ago(Now() - r.t)) or ""), 0.6, 0.6, 0.6, true)
 	elseif e.how == "map" then
-		t:AddLine("As the world map's data says (a flight master's map will tell for sure)", 0.6, 0.6, 0.6, true)
+		t:AddLine(L["As the world map's data says (a flight master's map will tell for sure)"], 0.6, 0.6, 0.6, true)
 	else
-		t:AddLine("Talk to any flight master on this continent: its map tells Terminal which you know", 0.6, 0.6, 0.6, true)
+		t:AddLine(L["Talk to any flight master on this continent: its map tells Terminal which you know"], 0.6, 0.6, 0.6, true)
 	end
 	local alts = FL.Alts(e)
 	if #alts > 0 then
-		t:AddLine("Your other characters:", 0.8, 0.8, 0.8)
+		t:AddLine(L["Your other characters:"], 0.8, 0.8, 0.8)
 		for _, a in ipairs(alts) do
-			if a.yes then t:AddDoubleLine(a.who, "learned", 1, 1, 1, 0.4, 1, 0.4)
-			else t:AddDoubleLine(a.who, "not learned", 1, 1, 1, 1, 0.45, 0.35) end
+			if a.yes then t:AddDoubleLine(a.who, L["learned"], 1, 1, 1, 0.4, 1, 0.4)
+			else t:AddDoubleLine(a.who, L["not learned"], 1, 1, 1, 1, 0.45, 0.35) end
 		end
 	end
-	t:AddLine("Enter: show on map    Shift+Enter: set waypoint", 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: show on map    Shift+Enter: set waypoint"], 0.6, 0.6, 0.6, true)
 end
 
-local STATE = { [true] = "Learned", [false] = "Not learned" }
+local STATE = { [true] = L["Learned"], [false] = L["Not learned"] }
 
 --- The rows: your flight paths (your side's and the neutral ones), each with what this character knows of it.
 function FL.Collect()
@@ -448,14 +449,14 @@ function FL.Collect()
 			rows[#rows + 1] = {
 				name = p[1], key = p.lfull .. "|" .. p[6], full = p.full, side = p[6],
 				icon = ICON[p[6]] or ICON[mine or "A"], color = learned == false and GREY or nil,
-				detail = (STATE[learned] or "Not checked yet") .. "  ·  " .. zone, zone = zone,
+				detail = (STATE[learned] or L["Not checked yet"]) .. "  ·  " .. zone, zone = zone,
 				-- (after the distance in a "nearest" list: "120 yd  The Barrens  ·  not checked yet")
-				distNote = learned == nil and (zone .. "  ·  not checked yet") or zone,
+				distNote = learned == nil and (zone .. "  ·  " .. L["not checked yet"]) or zone,
 				learned = learned, how = how, _rank = FL.RANK[state],
 				friendlyToFaction = p[6] == "N" and "AH" or p[6], -- (faction:, as Questie's NPCs say it)
 				text = "flight path flight master taxi " .. p.full .. " " .. zone,
 				ui = ui, mapID = ui, px = px, py = py, wcont = cont, wx = x, wy = y,
-				pinName = p[1] .. " flight master", what = "flight path",
+				pinName = L["%s flight master"]:format(p[1]), what = L["flight path"],
 				secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor, after = I.SpotAfter, activate = PinObject,
 				secondary = PinObject, tooltip = Tooltip,
 			}
@@ -470,7 +471,7 @@ function FL.Collect()
 end
 
 ns:RegisterProvider("flight", {
-	label = "Flight path", color = "ffdb4dff",
+	label = L["Flight path"], color = "ffdb4dff",
 	aliases = { "flight", "flights", "flightpath", "flightpaths", "fp", "taxi" },
 	lazy = true,
 	collect = function() return FL.Collect() end,

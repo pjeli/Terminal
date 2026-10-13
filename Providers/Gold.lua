@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Your gold (@gold, also @money; Simple mode: "gold", under Character). Your own is read live (GetMoney). With a bag addon
 -- that records your characters, every alt's gold is listed too, plus guild banks and the warband bank, and a row on top
@@ -39,9 +40,9 @@ function G.Text(copper, plain)
 	local s = math.floor((copper % COPPER_PER_GOLD) / COPPER_PER_SILVER)
 	local c = copper % COPPER_PER_SILVER
 	local parts = {}
-	if g > 0 then parts[#parts + 1] = G.Thousands(g) .. (plain and "g" or ICON.gold) end
-	if s > 0 or (g > 0 and c > 0) then parts[#parts + 1] = s .. (plain and "s" or ICON.silver) end
-	if c > 0 or #parts == 0 then parts[#parts + 1] = c .. (plain and "c" or ICON.copper) end
+	if g > 0 then parts[#parts + 1] = plain and L["%sg"]:format(G.Thousands(g)) or (G.Thousands(g) .. ICON.gold) end
+	if s > 0 or (g > 0 and c > 0) then parts[#parts + 1] = plain and L["%ss"]:format(s) or (s .. ICON.silver) end
+	if c > 0 or #parts == 0 then parts[#parts + 1] = plain and L["%sc"]:format(c) or (c .. ICON.copper) end
 	return table.concat(parts, " ")
 end
 
@@ -95,7 +96,7 @@ local function ReadSyndicator(A, add, me)
 	end
 	local w = A.GetWarband and Safe(A.GetWarband, 1)
 	if type(w) == "table" and (w.details == nil or w.details.gold) then
-		add({ key = "warband", who = "Warband bank", money = LiveWarband() or tonumber(w.money) or 0, kind = "warband" })
+		add({ key = "warband", who = L["Warband bank"], money = LiveWarband() or tonumber(w.money) or 0, kind = "warband" })
 	end
 end
 
@@ -120,7 +121,7 @@ local function ReadBrother(bb, add)
 		end
 	end
 	local w = LiveWarband()
-	if w and w > 0 then add({ key = "warband", who = "Warband bank", money = w, kind = "warband" }) end
+	if w and w > 0 then add({ key = "warband", who = L["Warband bank"], money = w, kind = "warband" }) end
 end
 
 ----------------------------------------------------------------------
@@ -135,7 +136,7 @@ local ICONS = {
 
 local list -- the rows of the last collect (the total row's tooltip and Enter list them)
 
-local function Label(e) return e.goldKind == "total" and "All gold" or e.who end
+local function Label(e) return e.goldKind == "total" and L["All gold"] or e.who end
 
 --- What's sent: "All gold: 1,234g 5s 6c", "Plamen Warr: 12g".
 local function ShareText(e) return Label(e) .. ": " .. G.Text(e.money, true) end
@@ -144,8 +145,8 @@ local function Lines()
 	local out = {}
 	for _, e in ipairs(list or {}) do
 		local k = e.goldKind
-		out[#out + 1] = (k == "total" and "All gold" or ("  " .. (e.color or "") .. e.who .. (e.color and "|r" or "")))
-			.. (k == "me" and " (you)" or "") .. ":  " .. G.Text(e.money)
+		out[#out + 1] = (k == "total" and L["All gold"] or ("  " .. (e.color or "") .. e.who .. (e.color and "|r" or "")))
+			.. (k == "me" and (" " .. L["(you)"]) or "") .. ":  " .. G.Text(e.money)
 	end
 	return out
 end
@@ -161,14 +162,14 @@ local function Tooltip(e, t)
 			local k = r.goldKind
 			if k ~= "total" then
 				local cc = r.color or (k == "guild" and "|cff40ff40") or (k == "warband" and "|cff8ab8ff") or "|cffffffff"
-				t:AddDoubleLine(cc .. r.who .. "|r" .. (k == "me" and " |cff9d9d9d(you)|r" or ""), G.Text(r.money), 1, 1, 1, 1, 1, 1)
+				t:AddDoubleLine(cc .. r.who .. "|r" .. (k == "me" and (" |cff9d9d9d" .. L["(you)"] .. "|r") or ""), G.Text(r.money), 1, 1, 1, 1, 1, 1)
 			end
 		end
 		t:AddLine(" ")
 	else
 		t:AddLine(G.Text(e.money), 1, 1, 1)
 	end
-	t:AddLine("Enter: every row in chat    Shift+Enter: put it in the chat box", 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: every row in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 local WORDS = { me = "you me mine my", alt = "alt alts character", guild = "guild bank", warband = "warband bank account", total = "all total everyone alts" }
@@ -178,7 +179,7 @@ local function Row(h)
 		key = h.key, name = h.who, who = h.who, money = h.money, goldKind = h.kind,
 		color = ns.ClassHex(h.class),
 		icon = ICONS[h.kind],
-		detail = G.Text(h.money) .. (h.kind == "me" and "  |cff9d9d9d(you)|r" or ""),
+		detail = G.Text(h.money) .. (h.kind == "me" and ("  |cff9d9d9d" .. L["(you)"] .. "|r") or ""),
 		text = "gold money " .. WORDS[h.kind],
 		tooltip = Tooltip,
 		activate = PrintAll,
@@ -193,7 +194,7 @@ function G.Collect()
 	local holders = {}
 	local function add(h) holders[#holders + 1] = h end
 	local me = Num(Safe(GetMoney)) or 0
-	add({ key = "me", who = ns.CharacterName() or (Str(Safe(UnitName, "player"))) or "You", money = me,
+	add({ key = "me", who = ns.CharacterName() or (Str(Safe(UnitName, "player"))) or L["You"], money = me,
 		class = Str(select(2, Safe(UnitClass, "player"))), kind = "me" })
 	local St = ns.Stored
 	local src = St and St.Source()
@@ -206,7 +207,7 @@ function G.Collect()
 		if bb then G.source = src; ReadBrother(bb, add) end
 	else
 		local w = LiveWarband()
-		if w and w > 0 then add({ key = "warband", who = "Warband bank", money = w, kind = "warband" }) end
+		if w and w > 0 then add({ key = "warband", who = L["Warband bank"], money = w, kind = "warband" }) end
 	end
 	-- the richest first, you always first among the characters; the total on top when there's more than you
 	table.sort(holders, function(a, b)
@@ -224,8 +225,8 @@ function G.Collect()
 	if n > 1 then
 		local chars = 0
 		for _, h in ipairs(holders) do if h.kind == "me" or h.kind == "alt" then chars = chars + 1 end end
-		local t = Row({ key = "total", who = "All gold", money = total, kind = "total" })
-		t.detail = G.Text(total) .. "  |cff9d9d9d" .. chars .. (chars == 1 and " character" or " characters") .. "|r"
+		local t = Row({ key = "total", who = L["All gold"], money = total, kind = "total" })
+		t.detail = G.Text(total) .. "  |cff9d9d9d" .. (chars == 1 and L["%s character"] or L["%s characters"]):format(chars) .. "|r"
 		t._rank = 1
 		table.insert(rows, 1, t)
 	end
@@ -234,14 +235,14 @@ function G.Collect()
 end
 
 ns:RegisterProvider("gold", {
-	label = "Gold",
+	label = L["Gold"],
 	color = "fff0c020", -- (coin gold, apart from the quests' yellow)
 	aliases = { "gold", "money", "coins", "wealth" },
 	busy = function()
 		local St = ns.Stored
 		if St and St.Source() == "Syndicator" then
 			local A = St.SyndicatorAPI()
-			if A and not St.SyndicatorReady(A) then return "Waiting for Syndicator to finish reading your characters" end
+			if A and not St.SyndicatorReady(A) then return L["Waiting for Syndicator to finish reading your characters"] end
 		end
 	end,
 	events = { "PLAYER_MONEY", "ACCOUNT_MONEY", "GUILDBANK_UPDATE_MONEY", "PLAYER_ENTERING_WORLD" },

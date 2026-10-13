@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Chains: pass what one search found on through a relation, and on again.
 --
@@ -102,15 +103,16 @@ P.PHRASES = {
 
 -- Simple mode's words for a one-link chain (it never shows ">"): what Enter writes and what the footer says
 P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s", learn = "where to learn %s" }
-P.SIMPLE_LABEL = { mats = "Mats for %s", uses = "What uses %s", sources = "Where to get %s", alts = "%s on your alts",
-	learn = "Where to learn %s", ["?"] = "Which %s?" }
+P.SIMPLE_LABEL = { mats = L["Mats for %s"], uses = L["What uses %s"], sources = L["Where to get %s"], alts = L["%s on your alts"],
+	learn = L["Where to learn %s"], ["?"] = L["Which %s?"] }
 
 local function SimpleOn() return ns.Easy and ns.Easy.On and ns.Easy.On() end
 
 --- The line that asks for `rel` of `name`: Simple mode's words ("mats for Thorium Bar"), else the chain ("Thorium Bar >
 --- mats").
 function P.Phrase(name, rel)
-	local f = SimpleOn() and P.SIMPLE[rel]
+	-- (the client's language's own words when translated: E.English reads them back)
+	local f = SimpleOn() and ((ns.Easy.LocalPhrase and ns.Easy.LocalPhrase(rel)) or P.SIMPLE[rel])
 	return f and f:format(name) or (name .. " > " .. rel)
 end
 
@@ -283,10 +285,10 @@ local function StoredByID()
 	return by
 end
 
-local REAGENT_LABEL = "|cffd9b26aReagent|r"
-local SOURCE_LABEL = "|cffd9b26aSource|r"
+local REAGENT_LABEL = "|cffd9b26a" .. L["Reagent"] .. "|r"
+local SOURCE_LABEL = "|cffd9b26a" .. L["Source"] .. "|r"
 local function ShowItem(e)
-	if not (ns.Bags and ns.Bags.ShowItem(e.itemID, e.link, e.name)) then ns:Print("You don't carry " .. tostring(e.name) .. ".") end
+	if not (ns.Bags and ns.Bags.ShowItem(e.itemID, e.link, e.name)) then ns:Print(L["You don't carry %s."]:format(tostring(e.name))) end
 end
 
 ----------------------------------------------------------------------
@@ -296,7 +298,7 @@ end
 -- mats: the reagents (several rows: what they need together)
 ns:RegisterRelation("mats", {
 	aliases = { "reagents", "reagent", "materials", "mat" },
-	desc = "its reagents, with how many you have",
+	desc = L["its reagents, with how many you have"],
 	applies = function(e) return P.Reagents(e) ~= nil end,
 	run = function(rows)
 		local need, order = {}, {}
@@ -318,9 +320,9 @@ ns:RegisterRelation("mats", {
 				local st = stored[id]
 				local elsewhere = st and math.max(0, (st.total or 0) - all) or 0
 				local n = need[id]
-				local parts = { ("need %d"):format(n), ("have %d"):format(bags) }
-				if all > bags then parts[#parts] = parts[#parts] .. (" (+%d bank)"):format(all - bags) end
-				if elsewhere > 0 then parts[#parts + 1] = ("%d on alts"):format(elsewhere) end
+				local parts = { L["need %d"]:format(n), L["have %d"]:format(bags) }
+				if all > bags then parts[#parts] = parts[#parts] .. " " .. L["(+%d bank)"]:format(all - bags) end
+				if elsewhere > 0 then parts[#parts + 1] = L["%d on alts"]:format(elsewhere) end
 				local q = C_Item and C_Item.GetItemQualityByID and Safe(C_Item.GetItemQualityByID, id)
 				out[#out + 1] = {
 					key = id, kind = "reagent", kindLabel = REAGENT_LABEL, freqKey = "reagent:" .. id,
@@ -341,7 +343,7 @@ ns:RegisterRelation("mats", {
 -- uses: what an item goes into (your recipes, and every crafted item AtlasLoot knows)
 ns:RegisterRelation("uses", {
 	aliases = { "usedin", "recipes", "crafts", "makes" },
-	desc = "what it goes into",
+	desc = L["what it goes into"],
 	applies = function(e) return ItemOf(e) ~= nil end,
 	run = function(rows)
 		local ids = {}
@@ -433,7 +435,7 @@ local function AddNpcs(out, I, id, field, what, max, how, friendly)
 end
 
 -- a vein or chest with no known spot: said so (the row is still one to send: "gathered from Copper Vein")
-local function NoSpot(e) ns:Print("No known spot for " .. tostring(e.name) .. ".") end
+local function NoSpot(e) ns:Print(L["No known spot for %s."]:format(tostring(e.name))) end
 
 -- the objects an item is gathered or found from, one row per name, at the spawn nearest you (QuestieDB's objects): a
 -- spot row like a mailbox's, Enter shows it on the map, Shift+Enter pins it, >> sends it with a map pin
@@ -450,8 +452,8 @@ local function AddObjects(out, I, objs, what, how)
 	local here = #order > 0 and I.Here and I.Here() or nil
 	local made = {}
 	for k, oname in ipairs(order) do
-		local row = { key = "obj:" .. oname, kind = "source", kindLabel = SOURCE_LABEL, name = oname, pipeHow = how or "gathered from",
-			icon = "Interface\\Icons\\INV_Ore_Copper_01", detail = what or "Gathered or found here", activate = NoSpot, found = true }
+		local row = { key = "obj:" .. oname, kind = "source", kindLabel = SOURCE_LABEL, name = oname, pipeHow = how or L["gathered from"],
+			icon = "Interface\\Icons\\INV_Ore_Copper_01", detail = what or L["Gathered or found here"], activate = NoSpot, found = true }
 		local spot = I.NearestSpawn and I.NearestSpawn(byName[oname], here)
 		if spot and ns.Maps then
 			row.ui, row.mapID, row.px, row.py, row.zone = spot.ui, spot.ui, spot.px, spot.py, spot.zone
@@ -468,11 +470,11 @@ end
 
 -- what each kind of source is to the thing looked for, in the list and in chat ("Sells it" / "sold by"): an item's
 -- own, or (where to learn a recipe) its recipe item's
-P.ITEM_WORDS = { sells = "Sells it", sold = "sold by", drops = "Drops it", dropped = "dropped by",
-	found = "Gathered or found here", gathered = "gathered from", quest = "A quest's reward", reward = "a reward from" }
-P.RECIPE_WORDS = { sells = "Sells the recipe", sold = "the recipe is sold by", drops = "Drops the recipe",
-	dropped = "the recipe drops from", found = "The recipe is found here", gathered = "the recipe is found in",
-	quest = "The recipe is a quest's reward", reward = "the recipe is a reward from" }
+P.ITEM_WORDS = { sells = L["Sells it"], sold = L["sold by"], drops = L["Drops it"], dropped = L["dropped by"],
+	found = L["Gathered or found here"], gathered = L["gathered from"], quest = L["A quest's reward"], reward = L["a reward from"] }
+P.RECIPE_WORDS = { sells = L["Sells the recipe"], sold = L["the recipe is sold by"], drops = L["Drops the recipe"],
+	dropped = L["the recipe drops from"], found = L["The recipe is found here"], gathered = L["the recipe is found in"],
+	quest = L["The recipe is a quest's reward"], reward = L["the recipe is a reward from"] }
 
 -- an item's sellers and droppers, the veins/herbs/chests it's found in (by name, once each, at the spot nearest you)
 -- and the quests rewarding it, from Questie, said in `w`'s words
@@ -493,7 +495,7 @@ end
 -- sources: where to get an item (crafted, sold, dropped, gathered, a quest's reward, AtlasLoot's bosses, your alts)
 ns:RegisterRelation("sources", {
 	aliases = { "source", "get", "where", "from" },
-	desc = "where to get it",
+	desc = L["where to get it"],
 	applies = function(e) return ItemOf(e) ~= nil end,
 	run = function(rows)
 		local I = ns.Integrations
@@ -505,7 +507,7 @@ ns:RegisterRelation("sources", {
 			-- crafted: your recipe for it, else AtlasLoot's (its mats are one step on)
 			local own = OwnRecipes()[id]
 			if own then
-				out[#out + 1] = View(own, "Crafted  ·  your recipe" .. (own.detail and ("  ·  " .. own.detail) or ""), SOURCE_LABEL, "crafted:")
+				out[#out + 1] = View(own, L["Crafted"] .. "  ·  " .. L["your recipe"] .. (own.detail and ("  ·  " .. own.detail) or ""), SOURCE_LABEL, L["crafted:"])
 			else
 				local rg, spell = AtlasCraft(id)
 				if rg then
@@ -513,7 +515,7 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = {
 						key = "craft:" .. id, kind = "source", kindLabel = SOURCE_LABEL, name = name, itemID = id,
 						link = "item:" .. id, icon = Icon(id), reagents = rg,
-						detail = "Crafted" .. (sname and ("  ·  " .. sname) or "") .. "  ·  (a recipe you don't have)", pipeHow = "crafted:",
+						detail = L["Crafted"] .. (sname and ("  ·  " .. sname) or "") .. "  ·  " .. L["(a recipe you don't have)"], pipeHow = L["crafted:"],
 						activate = ShowItem,
 					}
 				end
@@ -527,7 +529,7 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = l
 				end
 			end
-			if stored[id] then out[#out + 1] = View(stored[id], "On your alts  ·  " .. tostring(stored[id].detail or "")) end
+			if stored[id] then out[#out + 1] = View(stored[id], L["On your alts"] .. "  ·  " .. tostring(stored[id].detail or "")) end
 		end
 		return out
 	end,
@@ -649,16 +651,16 @@ local function AddTrainers(out, prof, need)
 	end)
 	for i = 1, math.min(#list, P.TRAINERS) do
 		local t = list[i]
-		local rest = "Teaches it" .. (t.title ~= "" and ("  ·  " .. t.title) or "")
-		out[#out + 1] = NearSaid(View(t.e, rest, nil, "taught by"), t.d, rest)
+		local rest = L["Teaches it"] .. (t.title ~= "" and ("  ·  " .. t.title) or "")
+		out[#out + 1] = NearSaid(View(t.e, rest, nil, L["taught by"]), t.d, rest)
 	end
 end
 
 -- the recipe item: where to get it (Questie, AtlasLoot's bosses, your alts)
 local function AddRecipeItem(out, rid, prof, need, stored)
 	local skill = prof and need and ("  ·  " .. ProfName(prof) .. " " .. need) or ""
-	out[#out + 1] = { key = "recipe:" .. rid, kind = "source", kindLabel = SOURCE_LABEL, name = ItemName(rid) or ("item " .. rid),
-		itemID = rid, link = "item:" .. rid, icon = Icon(rid), detail = "Teaches it" .. skill, pipeHow = "taught by",
+	out[#out + 1] = { key = "recipe:" .. rid, kind = "source", kindLabel = SOURCE_LABEL, name = ItemName(rid) or L["item %d"]:format(rid),
+		itemID = rid, link = "item:" .. rid, icon = Icon(rid), detail = L["Teaches it"] .. skill, pipeHow = L["taught by"],
 		activate = ShowItem }
 	local I = ns.Integrations
 	local from = #out + 1
@@ -670,7 +672,7 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 		local nid = v.pipeHow == P.RECIPE_WORDS.sold and (v.npcID or rawget(v, "key") or v.key)
 		local lim = nid and MR and MR.Limited(rid, nid)
 		if lim ~= nil then
-			local say = lim and "  ·  limited supply" or "  ·  always in stock"
+			local say = "  ·  " .. (lim and L["limited supply"] or L["always in stock"])
 			rawset(v, "detail", v.detail .. say)
 			if rawget(v, "nearRest") then rawset(v, "nearRest", v.nearRest .. say) end -- (kept when the distance updates)
 		end
@@ -680,12 +682,12 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 		if k > 15 then break end
 		out[#out + 1] = l
 	end
-	if stored[rid] then out[#out + 1] = View(stored[rid], "Your alts hold the recipe  ·  " .. tostring(stored[rid].detail or "")) end
+	if stored[rid] then out[#out + 1] = View(stored[rid], L["Your alts hold the recipe"] .. "  ·  " .. tostring(stored[rid].detail or "")) end
 end
 
 ns:RegisterRelation("learn", {
 	aliases = { "learned", "taught", "teach", "teaches", "trainer", "trainers", "recipesource" },
-	desc = "where to learn the recipe: its recipe item, or a trainer",
+	desc = L["where to learn the recipe: its recipe item, or a trainer"],
 	applies = function(e) return P.LearnOf(e) ~= nil end,
 	run = function(rows)
 		local _, Pr = AtlasRecipes()
@@ -701,7 +703,7 @@ ns:RegisterRelation("learn", {
 			made = made or (data and data[1]) or nil
 			-- you know it already: said first
 			local own = (e.kind == "recipes" and e) or (made and OwnRecipes()[made]) or nil
-			if own then out[#out + 1] = View(own, "You know it" .. (own.detail and ("  ·  " .. own.detail) or "")) end
+			if own then out[#out + 1] = View(own, L["You know it"] .. (own.detail and ("  ·  " .. own.detail) or "")) end
 			rid = rid or (Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, spell)) or nil
 			if type(rid) == "number" then
 				AddRecipeItem(out, rid, prof, need, stored)
@@ -716,12 +718,12 @@ ns:RegisterRelation("learn", {
 					prof = prof or P.ProfOfLine(e.profLine) or (seen and P.ProfOfName(seen.skill)) or nil
 					need = need or (seen and seen.rank) or nil
 					local pname = prof and ProfName(prof) or nil
-					local why = (seen and seen.cost) and ("costs " .. (ns.Gold and ns.Gold.Text(seen.cost) or seen.cost .. "c")
-						.. (seen.who and (" (seen at " .. seen.who .. ")") or "")) or "No recipe item teaches it (AtlasLoot)"
+					local why = (seen and seen.cost) and (L["costs %s"]:format(ns.Gold and ns.Gold.Text(seen.cost) or seen.cost .. "c")
+						.. (seen.who and (" " .. L["(seen at %s)"]:format(seen.who)) or "")) or L["No recipe item teaches it (AtlasLoot)"]
 					out[#out + 1] = { key = "trainer:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
-						name = pname and ("Taught by a " .. pname .. " trainer") or "Taught by a trainer",
+						name = pname and L["Taught by a %s trainer"]:format(pname) or L["Taught by a trainer"],
 						icon = "Interface\\Icons\\INV_Misc_Book_11",
-						detail = why .. (pname and need and ("  ·  learn at " .. pname .. " " .. need) or "") }
+						detail = why .. (pname and need and ("  ·  " .. L["learn at %s %s"]:format(pname, need)) or "") }
 					if prof then AddTrainers(out, prof, need) end
 				end
 			end
@@ -733,7 +735,7 @@ ns:RegisterRelation("learn", {
 -- alts: who holds an item on your alts, in banks, the mail...
 ns:RegisterRelation("alts", {
 	aliases = { "stored", "who", "bank", "holders" },
-	desc = "who holds it on your alts and banks",
+	desc = L["who holds it on your alts and banks"],
 	applies = function(e) return ItemOf(e) ~= nil and e.kind ~= "stored" end,
 	run = function(rows)
 		local by = StoredByID()
@@ -1070,7 +1072,7 @@ local function KeepTyping(stages, trail)
 	-- (a name still being typed: "where to get t" would match half of AtlasLoot)
 	local letters = #(stages[1].text:gsub("@%S+", ""):gsub("%S+:%S*", ""):gsub("[%s%p]", ""))
 	if letters < 3 and not stages[1].text:find("[@:]") then
-		return { Line("Keep typing the name: " .. trail[1]) }, trail[1]
+		return { Line(L["Keep typing the name: %s"]:format(trail[1])) }, trail[1]
 	end
 end
 
@@ -1103,14 +1105,14 @@ local function NoSeedRows(chain, stages, rows, trail)
 	local rest = table.concat(after, " ")
 	local oneRel = #stages == 2 and P.Find(stages[2].word) and (stages[2].rest or "") == "" and P.Find(stages[2].word)
 	if rows.choices then
-		local out = { Line(("%d names have \"%s\": pick one"):format(rows.choices.total, trail[1])) }
+		local out = { Line(L["%d names have \"%s\": pick one"]:format(rows.choices.total, trail[1])) }
 		for i, e in ipairs(rows.choices) do out[#out + 1] = Pick(e, i, oneRel, rest) end
 		return out, trail[1] .. " > ?"
 	end
-	local out = { Line(("Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"):format(trail[1])) }
+	local out = { Line(L["Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"]:format(trail[1])) }
 	if rows.near then
 		local d = Pick(rows.near, 1, oneRel, rest)
-		d.name = "Did you mean " .. d.name .. "?"
+		d.name = L["Did you mean %s?"]:format(d.name)
 		out[2] = d
 	end
 	return out, trail[1]
@@ -1124,11 +1126,11 @@ local function RelationChoices(chain, s, rows, trail)
 	for _, a in ipairs(P.Applicable(P.Left(rows))) do
 		if lw == "" or a[1]:sub(1, #lw) == lw or (P.LABELS[a[1]] or ""):sub(1, #lw) == lw then
 			local done = before .. " " .. a[1] .. " "
-			out[#out + 1] = { name = a[1], kind = "pipe", kindLabel = "|cff33ff99link|r", detail = a[2],
+			out[#out + 1] = { name = a[1], kind = "pipe", kindLabel = "|cff33ff99" .. L["link"] .. "|r", detail = a[2],
 				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - #out }
 		end
 	end
-	if #out == 0 then out[1] = Line(("No link called \"%s\": mats, uses, sources, learn, alts"):format(s.word or "")) end
+	if #out == 0 then out[1] = Line(L["No link called \"%s\": mats, uses, sources, learn, alts"]:format(s.word or "")) end
 	trail[#trail + 1] = "?"
 	return out, table.concat(trail, " > ")
 end
@@ -1178,14 +1180,14 @@ local function Refreshed(text)
 end
 
 -- Simple mode's words for a link that gave nothing ("Nothing uses Hearthstone"): it never shows ">"
-P.SIMPLE_NONE = { mats = "No mats for %s: it isn't crafted", uses = "Nothing uses %s", sources = "Nowhere known to get %s",
-	alts = "No %s on your alts", learn = "Nowhere known to learn %s" }
+P.SIMPLE_NONE = { mats = L["No mats for %s: it isn't crafted"], uses = L["Nothing uses %s"], sources = L["Nowhere known to get %s"],
+	alts = L["No %s on your alts"], learn = L["Nowhere known to learn %s"] }
 
 local function NothingThere(trail, stages, rel, from)
 	local f = SimpleOn() and #stages == 2 and (stages[2].rest or "") == "" and P.SIMPLE_NONE[rel]
 	local said = table.concat(trail, " > ")
 	if f then return { Line(f:format(from or trail[1])) }, said end
-	return { Line("Nothing there: " .. (SimpleOn() and P.SimpleLabel(said) or said)) }, said
+	return { Line(L["Nothing there: %s"]:format(SimpleOn() and P.SimpleLabel(said) or said)) }, said
 end
 
 --- Runs a chain: rows, and the footer's trail ("thorium belt > mats > thorium bar > sources").
@@ -1247,15 +1249,15 @@ function P.Left(rows)
 end
 
 ns:RegisterCommand("chains", {
-	desc = "Chains: pass a search on with > (thorium belt > mats, copper bar > uses, mageweave > sources), or in plain words (mats for thorium belt)",
+	desc = L["Chains: pass a search on with > (thorium belt > mats, copper bar > uses, mageweave > sources), or in plain words (mats for thorium belt)"],
 	aliases = { "pipes", "pipe", "links" },
 	run = function()
-		local lines = { "Chains: a  >  passes what a search found on (Enter on a row walks on, Shift+Enter opens it):" }
+		local lines = { L["Chains: a  >  passes what a search found on (Enter on a row walks on, Shift+Enter opens it):"] }
 		for _, name in ipairs(P.order) do
 			local def = P.relations[name][1]
 			lines[#lines + 1] = ("  %s%s  -  %s"):format(name, #def.aliases > 0 and (" (" .. table.concat(def.aliases, ", ") .. ")") or "", def.desc)
 		end
-		lines[#lines + 1] = "In plain words: mats for thorium belt, what uses copper bar, where to get thorium bar, who sells mageweave, where to learn thorium belt."
+		lines[#lines + 1] = L["In plain words: mats for thorium belt, what uses copper bar, where to get thorium bar, who sells mageweave, where to learn thorium belt."]
 		return lines
 	end,
 })

@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The row menu (TerminalRowMenu): right-click a row, or Shift+Right at the end of a Simple prompt, for everything it
 -- can do. Its lines are secure buttons the game presses, so the menu is placed against UIParent by screen position,
@@ -101,13 +102,13 @@ do
 		if self.fzf then
 			-- (0.45.20) fuzzy finding runs nothing: its first lines do what its Enter and Shift+Enter do (they said "Use",
 			-- "Cast"... and then took the row to Simple mode)
-			items[#items + 1] = { label = "To Simple mode", run = function() UI:FuzzyPop(e, false) end }
-			items[#items + 1] = { label = "To Advanced mode", run = function() UI:FuzzyPop(e, true) end }
+			items[#items + 1] = { label = L["To Simple mode"], run = function() UI:FuzzyPop(e, false) end }
+			items[#items + 1] = { label = L["To Advanced mode"], run = function() UI:FuzzyPop(e, true) end }
 		else
-			items[#items + 1] = { label = Cap(enter or "open"), secondary = false }
+			items[#items + 1] = { label = Cap(enter or L["open"]), secondary = false }
 			-- (Shift+Enter's line only when the verbs name one: an action word's row, worn gear, a passive spell have none)
 			if (e.secondary or e.secondarySecure) and (shift or not ns.Easy) then
-				items[#items + 1] = { label = Cap(shift or "more"), secondary = true }
+				items[#items + 1] = { label = Cap(shift or L["more"]), secondary = true }
 			end
 		end
 		-- a quest to drop among others: all of them together, after Terminal's confirmation names them (QuestDrop.lua)
@@ -115,7 +116,7 @@ do
 		if QD and e.kind == "quests" and e.drop then
 			local drops = QD.GroupRows(UI.results)
 			if #drops >= 2 then
-				items[#items + 1] = { label = ("Drop all %d quests"):format(#drops), run = function()
+				items[#items + 1] = { label = L["Drop all %d quests"]:format(#drops), run = function()
 					UI:Hide()
 					QD.Confirm(drops)
 				end }
@@ -133,9 +134,9 @@ do
 			-- and opening the menu, then Cancel, mustn't move your waypoint)
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
 			-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
-			local boxed = { ["link in chat"] = true, ["put in the chat box"] = true }
+			local boxed = { [L["link in chat"]] = true, [L["put in the chat box"]] = true }
 			if self.fzf or (not boxed[shift or ""] and not boxed[enter or ""]) then -- (fuzzy finding's lines above don't)
-				items[#items + 1] = { label = linked and "Link in chat" or "Put in the chat box", boxLine = function() return SH.Line(e, query) end }
+				items[#items + 1] = { label = linked and L["Link in chat"] or L["Put in the chat box"], boxLine = function() return SH.Line(e, query) end }
 			end
 			local channels = SH.MenuChannels()
 			for _, ch in ipairs(channels) do
@@ -150,10 +151,10 @@ do
 				for _, ch in ipairs(channels) do
 					if ch.chat and SH.Restricted(ch) then
 						-- (say, yell: one line the game presses, every result counted in it; Terminal's code can't send there)
-						items[#items + 1] = { label = "All " .. n .. " to " .. ch.short, chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
+						items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
 					elseif ch.chat then
 						local to = { chat = ch.chat, label = ch.short }
-						items[#items + 1] = { label = "All " .. n .. " to " .. ch.short, run = function()
+						items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), run = function()
 							if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
 							local sent, why = SH.SendAll(UI.results, to, query)
 							if not sent then ns:Print(why) return end
@@ -164,10 +165,10 @@ do
 			end
 		end
 		if not EasyOn() and self:ResultText(e) then
-			items[#items + 1] = { label = "Write into the prompt", run = function() UI:FillFromResult() end }
+			items[#items + 1] = { label = L["Write into the prompt"], run = function() UI:FillFromResult() end }
 		end
 		-- (`run` lines are Terminal's own and keep it open: writing into the prompt, Cancel)
-		items[#items + 1] = { label = "Cancel", run = function() end }
+		items[#items + 1] = { label = L["Cancel"], run = function() end }
 		return items
 	end
 
@@ -204,7 +205,7 @@ do
 		local frame = UI.frame
 		local e = UI.results[idx]
 		if not e or e.noActivate or not frame then return end
-		if InCombatLockdown() then ns:Print("In combat: right-click again once it's over.") return end
+		if InCombatLockdown() then ns:Print(L["In combat: right-click again once it's over."]) return end
 		MenuFrame()
 		local t = Theme.Get()
 		local items = MenuItems(self, e)
@@ -213,7 +214,7 @@ do
 			local b = MenuLine(i)
 			b.item = it
 			b.fs:SetText(it.label)
-			b.fs:SetTextColor(Theme.RGB(it.label == "Cancel" and t.dim or t.text))
+			b.fs:SetTextColor(Theme.RGB(it.label == L["Cancel"] and t.dim or t.text))
 			b.hl:SetColorTexture(Theme.RGB(t.accent))
 			b.hl:SetAlpha(0.25)
 			-- a window to open: the game runs the macro on the click (as the catcher does); else Terminal's own action
@@ -318,7 +319,7 @@ function UI:MenuKey(f, key)
 		if not se then
 			f:SetPropagateKeyboardInput(false)
 			self:HideRowMenu()
-			if m and m ~= "" then ns:Print("Too long to put in the chat box from the keyboard: right-click it and pick the line.") end
+			if m and m ~= "" then ns:Print(L["Too long to put in the chat box from the keyboard: right-click it and pick the line."]) end
 			return true
 		end
 	else

@@ -1,6 +1,7 @@
 -- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
 local ns = _G.Terminal
 if not ns then return end
+local L = ns.L
 
 -- .typing (also .wpm, .typetest): a typing speed test, an easter egg (not in the changelog, as .tetris and .lootrun),
 -- in a window where the terminal sits. Words come in lines; the clock starts with the first letter; Space goes to the
@@ -192,18 +193,18 @@ end
 function TY.Brag(r)
 	r = r or game.result
 	if not r then return nil end
-	return ("[Terminal] %d wpm, %d%% accuracy on a %d s typing test%s. Think you're faster? Terminal is on CurseForge.")
-		:format(r.wpm, r.acc, r.seconds, game.newBest and " (a new best)" or "")
+	return L["[Terminal] %d wpm, %d%% accuracy on a %d s typing test%s. Think you're faster? Terminal is on CurseForge."]
+		:format(r.wpm, r.acc, r.seconds, game.newBest and (" " .. L["(a new best)"]) or "")
 end
 
 --- Enter on the result: the guild is told, once (from Terminal's code, inside the key press).
 function TY.TellGuild()
 	if not game.over or not game.result then return false end
 	if game.overAt and TY.clock() - game.overAt < TY.ENTER_WAIT then return false end -- (a key still held from typing)
-	if game.sent then ns:Print("Your guild has heard this one.") return false end
-	if _G.IsInGuild and not _G.IsInGuild() then ns:Print("You're not in a guild: nobody to tell.") return false end
+	if game.sent then ns:Print(L["Your guild has heard this one."]) return false end
+	if _G.IsInGuild and not _G.IsInGuild() then ns:Print(L["You're not in a guild: nobody to tell."]) return false end
 	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
-	if lock and lock() then ns:Print("Chat is held back right now: tell your guild later.") return false end
+	if lock and lock() then ns:Print(L["Chat is held back right now: tell your guild later."]) return false end
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
 	if not send then return false end
 	local ok = pcall(send, TY.Brag(), "GUILD")
@@ -303,23 +304,23 @@ function TY.Draw()
 		caret:Hide()
 	end
 	local best = ns.db and type(ns.db.typingBest) == "table" and ns.db.typingBest[game.duration]
-	title:SetText(("%styping|r   %d s"):format(Hex(t.accent), game.duration)
-		.. (type(best) == "table" and ("   best %d wpm"):format(best.wpm or 0) or ""))
+	title:SetText(("%s%s|r   %s"):format(Hex(t.accent), L["typing"], L["%d s"]:format(game.duration))
+		.. (type(best) == "table" and ("   " .. L["best %d wpm"]:format(best.wpm or 0)) or ""))
 	if game.over then
 		timeText:SetText("")
 		local r = game.result
-		result:SetText(("%s%d wpm|r"):format(Hex(t.accent), r.wpm) .. (game.newBest and "   new best!" or ""))
-		resultSub:SetText(("accuracy %d%%   raw %d   letters %d / %d / %d / %d (right, wrong, extra, missed)")
+		result:SetText(("%s%s|r"):format(Hex(t.accent), L["%d wpm"]:format(r.wpm)) .. (game.newBest and ("   " .. L["new best!"]) or ""))
+		resultSub:SetText(L["accuracy %d%%   raw %d   letters %d / %d / %d / %d (right, wrong, extra, missed)"]
 			:format(r.acc, r.raw, r.correct, r.incorrect, r.extra, r.missed))
 		result:Show(); resultSub:Show()
-		footer:SetText(game.sent and "Your guild heard it  ·  Tab: again  ·  Esc quits"
-			or "Enter: tell your guild  ·  Tab: again  ·  Esc quits")
+		footer:SetText((game.sent and L["Your guild heard it"] or L["Enter: tell your guild"]) .. "  ·  " .. L["Tab: again"]
+			.. "  ·  " .. L["Esc quits"])
 	else
 		local left = game.start and math.max(0, game.duration - (TY.clock() - game.start)) or game.duration
 		timeText:SetText(Hex(t.accent) .. math.ceil(left) .. "|r")
 		result:Hide(); resultSub:Hide()
-		footer:SetText(game.start and "Space: next word  ·  Tab: start again  ·  Esc quits"
-			or "Start typing  ·  Tab: 15 / 30 / 60 s  ·  Esc quits")
+		footer:SetText((game.start and (L["Space: next word"] .. "  ·  " .. L["Tab: start again"])
+			or (L["Start typing"] .. "  ·  " .. L["Tab: 15 / 30 / 60 s"])) .. "  ·  " .. L["Esc quits"])
 	end
 end
 
@@ -397,7 +398,7 @@ end
 function TY.IsShown() return Panel.Shown(frame) end
 
 function TY.Open()
-	if not Panel.CanOpen("The typing test takes over the keyboard, which the game doesn't allow in combat.") then return false end
+	if not Panel.CanOpen(L["The typing test takes over the keyboard, which the game doesn't allow in combat."]) then return false end
 	Build()
 	Style()
 	Panel.Opening(TY)
@@ -409,11 +410,11 @@ end
 
 function TY.Close(why)
 	if frame then frame:SetScript("OnUpdate", nil) end
-	Panel.Close(frame, why, "The typing test")
+	Panel.Close(frame, why, L["The typing test"])
 end
 
 ns:RegisterCommand("typing", {
-	desc = "A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)",
+	desc = L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"],
 	aliases = { "wpm", "typetest" },
 	run = function() TY.Open() end,
 })

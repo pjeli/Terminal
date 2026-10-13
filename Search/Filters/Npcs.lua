@@ -341,6 +341,9 @@ KEYS.trainer = function(v)
 			return false
 		end
 	end
+	-- a class or profession in the client's language (trainer:bergbau): Questie's titles are English (Easy.lua's game words)
+	local said = ns.Easy and ns.Easy.GameWord and ns.Easy.GameWord(v)
+	if said and said:find("^trainer:") then return KEYS.trainer(said:sub(9)) end
 	-- anything else: a word of the title (pet, riding, weapon, portal, demon...)
 	return function(e)
 		local sub = TrainerTitle(e)

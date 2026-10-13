@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Your mail (@mail, @inbox; Simple mode: "my mail", "mail running out", "cod mail", under Alts, bank & mail): what's in
 -- each of your characters' mailboxes, kept by Terminal itself every time a mailbox shows (no bag addon needed): who
@@ -54,10 +55,10 @@ local function Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tos
 --- Seconds left as the inbox says it: "3 days", "1 day", "5 h", "20 min".
 function MA.Left(s)
 	s = math.max(0, tonumber(s) or 0)
-	if s >= 2 * 86400 then return math.floor(s / 86400) .. " days" end
-	if s >= 86400 then return "1 day" end
-	if s >= 3600 then return math.floor(s / 3600) .. " h" end
-	return math.max(1, math.floor(s / 60)) .. " min"
+	if s >= 2 * 86400 then return L["%d days"]:format(math.floor(s / 86400)) end
+	if s >= 86400 then return L["1 day"] end
+	if s >= 3600 then return L["%d h"]:format(math.floor(s / 3600)) end
+	return L["%d min"]:format(math.max(1, math.floor(s / 60)))
 end
 
 ----------------------------------------------------------------------
@@ -149,7 +150,7 @@ function MA.ReadInbox()
 		if m then mails[#mails + 1] = m end
 	end
 	local box = {
-		name = ns.CharacterName() or Str(Safe(UnitName, "player")) or "You", realm = Str(Safe(GetRealmName)),
+		name = ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"], realm = Str(Safe(GetRealmName)),
 		class = Str(select(2, Safe(UnitClass, "player"))), t = now, mails = mails,
 		more = (total and total > n) and (total - n) or nil,
 	}
@@ -474,7 +475,7 @@ end
 local ICON_BOX, ICON_MAIL = "Interface\\Icons\\INV_Letter_15", "Interface\\Icons\\INV_Letter_01"
 local ICON_MONEY, ICON_COD = "Interface\\Icons\\INV_Misc_Coin_01", "Interface\\Icons\\INV_Letter_03"
 local RED, ORANGE, GREY = "|cffff4040", "|cffff9933", "|cff9d9d9d"
-local AUCTION_LABEL = { sold = "Sold", won = "Won", outbid = "Outbid", expired = "Expired" } -- (the auction house's news)
+local AUCTION_LABEL = { sold = L["Sold"], won = L["Won"], outbid = L["Outbid"], expired = L["Expired"] } -- (the auction house's news)
 
 local function Plural(n, one, many) return n .. " " .. (n == 1 and one or many) end
 
@@ -482,17 +483,17 @@ local function Plural(n, one, many) return n .. " " .. (n == 1 and one or many) 
 local function Title(m)
 	if m.subject then return m.subject end
 	local first = m.items and m.items[1]
-	return (first and (first.name or (first.link and first.link:match("%[(.-)%]")))) or "(no subject)"
+	return (first and (first.name or (first.link and first.link:match("%[(.-)%]")))) or L["(no subject)"]
 end
 
-local function ItemName(it) return it.name or (it.link and it.link:match("%[(.-)%]")) or ("item " .. tostring(it.id)) end
+local function ItemName(it) return it.name or (it.link and it.link:match("%[(.-)%]")) or L["item %s"]:format(tostring(it.id)) end
 
 --- What running out does: "deleted", or "back to Bob".
-local function Fate(m) return m.deletes and "deleted" or ("back to " .. (m.from or "its sender")) end
+local function Fate(m) return m.deletes and L["deleted"] or L["back to %s"]:format(m.from or L["its sender"]) end
 
 --- A mail's time left, coloured as the inbox does it (red under a day; orange under MA.SOON).
 local function LeftText(left)
-	local s = MA.Left(left) .. " left"
+	local s = L["%s left"]:format(MA.Left(left))
 	if left < 86400 then return RED .. s .. "|r" end
 	if left < MA.SOON then return ORANGE .. s .. "|r" end
 	return s
@@ -504,13 +505,19 @@ local function InvoiceText(v)
 	local item = (v.item or "?") .. (((v.count or 1) > 1) and (" x" .. v.count) or "")
 	local net = (v.bid or 0) + (v.deposit or 0) - (v.cut or 0)
 	if v.kind == "buyer" then
-		return ("Bought %s%s for %s"):format(item, v.player and (" from " .. v.player) or "", Money(v.bid or 0, true))
+		if v.player then return L["Bought %s from %s for %s"]:format(item, v.player, Money(v.bid or 0, true)) end
+		return L["Bought %s for %s"]:format(item, Money(v.bid or 0, true))
 	elseif v.kind == "seller" then
-		return ("Sold %s%s: %s (%s, deposit %s back, cut %s)"):format(item, v.player and (" to " .. v.player) or "",
+		if v.player then
+			return L["Sold %s to %s: %s (%s, deposit %s back, cut %s)"]:format(item, v.player,
+				Money(net, true), Money(v.bid or 0, true), Money(v.deposit or 0, true), Money(v.cut or 0, true))
+		end
+		return L["Sold %s: %s (%s, deposit %s back, cut %s)"]:format(item,
 			Money(net, true), Money(v.bid or 0, true), Money(v.deposit or 0, true), Money(v.cut or 0, true))
 	elseif v.kind == "seller_temp_invoice" then
-		local eta = (v.etaH and v.etaM) and (" (the gold comes about %02d:%02d, server time)"):format(v.etaH, v.etaM) or ""
-		return ("Sold %s%s: %s on its way%s"):format(item, v.player and (" to " .. v.player) or "", Money(net, true), eta)
+		local eta = (v.etaH and v.etaM) and (" " .. L["(the gold comes about %02d:%02d, server time)"]:format(v.etaH, v.etaM)) or ""
+		if v.player then return L["Sold %s to %s: %s on its way%s"]:format(item, v.player, Money(net, true), eta) end
+		return L["Sold %s: %s on its way%s"]:format(item, Money(net, true), eta)
 	end
 	return nil
 end
@@ -526,21 +533,21 @@ end
 --- A mail's lines for chat: "  From Bob: Auction successful: Copper Bar  ·  45g  ·  2 days left (deleted)".
 local function MailLine(e)
 	local m = e.mail
-	local parts = { (m.from and ("From " .. m.from .. ": ") or "") .. Title(m) }
+	local parts = { m.from and L["From %s: %s"]:format(m.from, Title(m)) or Title(m) }
 	if m.money then parts[#parts + 1] = Money(m.money) end
-	if m.cod then parts[#parts + 1] = "COD " .. Money(m.cod) end
+	if m.cod then parts[#parts + 1] = L["COD %s"]:format(Money(m.cod)) end
 	if m.items then
 		local names = {}
 		for _, it in ipairs(m.items) do names[#names + 1] = (it.link or ItemName(it)) .. ((it.count or 1) > 1 and (" x" .. it.count) or "") end
 		parts[#parts + 1] = table.concat(names, ", ")
 	end
-	parts[#parts + 1] = MA.Left(e.left) .. " left (" .. Fate(m) .. ")"
+	parts[#parts + 1] = L["%s left (%s)"]:format(MA.Left(e.left), Fate(m))
 	return "  " .. table.concat(parts, "  ·  ")
 end
 
 local function BoxLines(key)
 	local box = boxRows and boxRows[key]
-	if not box then return { "No mail kept for that character." } end
+	if not box then return { L["No mail kept for that character."] } end
 	local out = { (box.color or "") .. box.who .. (box.color and "|r" or "") .. ": " .. box.detail }
 	for _, e in ipairs(list or {}) do
 		if e.mailKind == "mail" and e.boxKey == key then out[#out + 1] = MailLine(e) end
@@ -562,7 +569,7 @@ function MA.AllLines()
 		end
 	end
 	if #way > 0 then
-		out[#out + 1] = "On its way:"
+		out[#out + 1] = L["On its way:"]
 		for _, l in ipairs(way) do out[#out + 1] = l end
 	end
 	return out
@@ -593,7 +600,7 @@ function MA.PointAt(e)
 		if button and ns.Highlight then ns.Highlight:Show(button) end
 		ns:Trace(("mail: %s is mail %d, on the page shown: pointed at"):format(Title(e.mail), i))
 	else
-		ns:Print(("%s: on page %d of your inbox (page %d shows)."):format(Title(e.mail), page, shown))
+		ns:Print(L["%s: on page %d of your inbox (page %d shows)."]:format(Title(e.mail), page, shown))
 	end
 	return true
 end
@@ -618,61 +625,62 @@ local function NearestMailbox()
 	if top and I.PinObject then
 		I.PinObject(top)
 	elseif not here then
-		ns:Print("Your position isn't known here, so there's no nearest mailbox.")
+		ns:Print(L["Your position isn't known here, so there's no nearest mailbox."])
 	else
-		ns:Print("No mailbox known near you.")
+		ns:Print(L["No mailbox known near you."])
 	end
 end
 MA.NearestMailbox = NearestMailbox
 
 --- What's sent: "Mail from Bob: Auction successful: Copper Bar (45g, 2 days left)".
 local function ShareText(e)
-	if e.mailKind == "box" then return e.who .. "'s mail: " .. (e.plain or "") end
-	if e.mailKind == "auction" and e.link then return (AUCTION_LABEL[e.news] or "Auction") .. ": " .. e.link .. " (" .. (e.plain or "") .. ")" end
+	if e.mailKind == "box" then return L["%s's mail: %s"]:format(e.who, e.plain or "") end
+	if e.mailKind == "auction" and e.link then return (AUCTION_LABEL[e.news] or L["Auction"]) .. ": " .. e.link .. " (" .. (e.plain or "") .. ")" end
 	if e.mailKind == "sent" or e.mailKind == "auction" then return e.name .. " (" .. (e.plain or "") .. ")" end
 	local m = e.mail
 	local bits = {}
 	if m.money then bits[#bits + 1] = Money(m.money, true) end
-	if m.cod then bits[#bits + 1] = "COD " .. Money(m.cod, true) end
-	bits[#bits + 1] = MA.Left(e.left) .. " left"
-	return "Mail" .. (m.from and (" from " .. m.from) or "") .. ": " .. Title(m) .. " (" .. table.concat(bits, ", ") .. ")"
+	if m.cod then bits[#bits + 1] = L["COD %s"]:format(Money(m.cod, true)) end
+	bits[#bits + 1] = L["%s left"]:format(MA.Left(e.left))
+	if m.from then return L["Mail from %s: %s (%s)"]:format(m.from, Title(m), table.concat(bits, ", ")) end
+	return L["Mail: %s (%s)"]:format(Title(m), table.concat(bits, ", "))
 end
 
 local AUCTION_SAID = {
-	sold = "The gold comes by mail about an hour after the sale, less the auction house's cut (and with your deposit back).",
-	won = "The item comes by mail.", outbid = "Your bid comes back by mail.", expired = "The item comes back by mail.",
+	sold = L["The gold comes by mail about an hour after the sale, less the auction house's cut (and with your deposit back)."],
+	won = L["The item comes by mail."], outbid = L["Your bid comes back by mail."], expired = L["The item comes back by mail."],
 }
 
 local function WayTooltip(e, t)
 	if e.mailKind == "sent" then
 		local m = e.mail
 		t:SetText(e.title, 1, 0.82, 0)
-		t:AddLine(("To %s, sent %s"):format(e.to, ns.Ago(Now() - e.at)) .. (e.mine and "" or (" by " .. e.who)), 1, 1, 1)
-		if m.money then t:AddDoubleLine("Gold", Money(m.money), 1, 1, 1, 1, 1, 1) end
-		if m.cod then t:AddDoubleLine("COD (they pay it when they take it)", Money(m.cod), 1, 0.5, 0.5, 1, 1, 1) end
+		t:AddLine(e.mine and L["To %s, sent %s"]:format(e.to, ns.Ago(Now() - e.at)) or L["To %s, sent %s by %s"]:format(e.to, ns.Ago(Now() - e.at), e.who), 1, 1, 1)
+		if m.money then t:AddDoubleLine(L["Gold"], Money(m.money), 1, 1, 1, 1, 1, 1) end
+		if m.cod then t:AddDoubleLine(L["COD (they pay it when they take it)"], Money(m.cod), 1, 0.5, 0.5, 1, 1, 1) end
 		for _, it in ipairs(m.items or {}) do
 			local hex = ns.QualityHex(it.q)
 			t:AddDoubleLine((hex or "") .. ItemName(it) .. (hex and "|r" or ""), (it.count or 1) > 1 and ("x" .. it.count) or "", 1, 1, 1, 1, 1, 1)
 		end
-		t:AddLine("Mail with items or gold to another account can take up to an hour to arrive: Terminal keeps it here for that hour.", 0.6, 0.8, 1, true)
+		t:AddLine(L["Mail with items or gold to another account can take up to an hour to arrive: Terminal keeps it here for that hour."], 0.6, 0.8, 1, true)
 	else
 		t:SetText(e.name, 1, 0.82, 0)
-		t:AddLine(("%s %s"):format(AUCTION_LABEL[e.news] or "Auction", ns.Ago(Now() - e.at)) .. (e.mine and "" or (" on " .. e.who)), 1, 1, 1)
+		t:AddLine(("%s %s"):format(AUCTION_LABEL[e.news] or L["Auction"], ns.Ago(Now() - e.at)) .. (e.mine and "" or (" " .. L["on %s"]:format(e.who))), 1, 1, 1)
 		if e.price then
-			t:AddDoubleLine(e.each and "Price each" or "Price", Money(e.each or e.price), 1, 1, 1, 1, 1, 1)
-			t:AddLine(e.seen == "listed" and "(as the auction house listed it)" or "(as you posted it)", 0.6, 0.6, 0.6)
+			t:AddDoubleLine(e.each and L["Price each"] or L["Price"], Money(e.each or e.price), 1, 1, 1, 1, 1, 1)
+			t:AddLine(e.seen == "listed" and L["(as the auction house listed it)"] or L["(as you posted it)"], 0.6, 0.6, 0.6)
 		elseif e.news == "sold" then
-			t:AddLine("Its price isn't known: Terminal didn't see it posted", 0.6, 0.6, 0.6, true)
+			t:AddLine(L["Its price isn't known: Terminal didn't see it posted"], 0.6, 0.6, 0.6, true)
 		end
 		t:AddLine(AUCTION_SAID[e.news] or "", 0.6, 0.8, 1, true)
 	end
-	t:AddLine("Enter: in chat    Shift+Enter: waypoint to the nearest mailbox", 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: in chat"] .. "    " .. L["Shift+Enter: waypoint to the nearest mailbox"], 0.6, 0.6, 0.6, true)
 end
 
 local function Tooltip(e, t)
 	if e.mailKind == "sent" or e.mailKind == "auction" then return WayTooltip(e, t) end
 	if e.mailKind == "box" then
-		t:SetText(e.who .. "'s mail", 1, 0.82, 0)
+		t:SetText(L["%s's mail"]:format(e.who), 1, 0.82, 0)
 		local n = 0
 		for _, r in ipairs(list or {}) do
 			if r.mailKind == "mail" and r.boxKey == e.boxKey then
@@ -682,22 +690,22 @@ local function Tooltip(e, t)
 				end
 			end
 		end
-		if n > 12 then t:AddLine(("+%d more"):format(n - 12), 0.6, 0.6, 0.6) end
+		if n > 12 then t:AddLine(L["+%d more"]:format(n - 12), 0.6, 0.6, 0.6) end
 		if e.gone and e.gone > 0 then
-			t:AddLine(("%s ran out since (taken, deleted or sent back)"):format(Plural(e.gone, "mail", "mails")), 0.6, 0.6, 0.6, true)
+			t:AddLine(L["%s ran out since (taken, deleted or sent back)"]:format(Plural(e.gone, L["mail"], L["mails"])), 0.6, 0.6, 0.6, true)
 		end
-		if e.more then t:AddLine(("%d more waiting on the server (the inbox shows 50 at a time)"):format(e.more), 0.6, 0.6, 0.6, true) end
-		if e.newFrom then t:AddLine("New mail from " .. e.newFrom, 0.4, 1, 0.4, true) end
-		if e.seen then t:AddLine("Mailbox last opened " .. ns.Ago(Now() - e.seen), 0.6, 0.6, 0.6) end
-		t:AddLine("Enter: in chat    Shift+Enter: waypoint to the nearest mailbox", 0.6, 0.6, 0.6, true)
+		if e.more then t:AddLine(L["%d more waiting on the server (the inbox shows 50 at a time)"]:format(e.more), 0.6, 0.6, 0.6, true) end
+		if e.newFrom then t:AddLine(L["New mail from %s"]:format(e.newFrom), 0.4, 1, 0.4, true) end
+		if e.seen then t:AddLine(L["Mailbox last opened %s"]:format(ns.Ago(Now() - e.seen)), 0.6, 0.6, 0.6) end
+		t:AddLine(L["Enter: in chat"] .. "    " .. L["Shift+Enter: waypoint to the nearest mailbox"], 0.6, 0.6, 0.6, true)
 		return
 	end
 	local m = e.mail
 	t:SetText(Title(m), 1, 0.82, 0)
-	t:AddLine("From " .. (m.from or "someone unknown") .. (m.returned and " (sent back to you)" or ""), 1, 1, 1)
-	if not e.mine then t:AddLine("In " .. e.who .. "'s mailbox", 0.6, 0.8, 1) end
-	if m.money then t:AddDoubleLine("Gold", Money(m.money), 1, 1, 1, 1, 1, 1) end
-	if m.cod then t:AddDoubleLine("COD (paid when you take it)", Money(m.cod), 1, 0.5, 0.5, 1, 1, 1) end
+	t:AddLine(L["From %s"]:format(m.from or L["someone unknown"]) .. (m.returned and (" " .. L["(sent back to you)"]) or ""), 1, 1, 1)
+	if not e.mine then t:AddLine(L["In %s's mailbox"]:format(e.who), 0.6, 0.8, 1) end
+	if m.money then t:AddDoubleLine(L["Gold"], Money(m.money), 1, 1, 1, 1, 1, 1) end
+	if m.cod then t:AddDoubleLine(L["COD (paid when you take it)"], Money(m.cod), 1, 0.5, 0.5, 1, 1, 1) end
 	for _, it in ipairs(m.items or {}) do
 		local hex = ns.QualityHex(it.q)
 		t:AddDoubleLine((hex or "") .. ItemName(it) .. (hex and "|r" or ""),
@@ -705,15 +713,16 @@ local function Tooltip(e, t)
 	end
 	local inv = InvoiceText(m.invoice)
 	if inv then t:AddLine(inv, 0.8, 0.8, 0.8, true) end
-	t:AddLine(LeftText(e.left) .. ", then " .. (m.deletes and "it's deleted" .. ((m.money or m.items) and " with what's in it" or "")
-		or ("it goes back to " .. (m.from or "its sender"))), 1, 1, 1, true)
+	local after = m.deletes and ((m.money or m.items) and L["it's deleted with what's in it"] or L["it's deleted"])
+		or L["it goes back to %s"]:format(m.from or L["its sender"])
+	t:AddLine(L["%s, then %s"]:format(LeftText(e.left), after), 1, 1, 1, true)
 	if m.sent then
-		t:AddLine(("You sent it %s; it shows here until %s opens a mailbox"):format(ns.Ago(Now() - m.sent), e.who), 0.6, 0.8, 1, true)
+		t:AddLine(L["You sent it %s; it shows here until %s opens a mailbox"]:format(ns.Ago(Now() - m.sent), e.who), 0.6, 0.8, 1, true)
 	elseif not m.read then
-		t:AddLine("Unread", 0.4, 1, 0.4)
+		t:AddLine(L["Unread"], 0.4, 1, 0.4)
 	end
-	t:AddLine(((MA.open and e.mine) and "Enter: point at it in the inbox" or "Enter: in chat")
-		.. "    Shift+Enter: waypoint to the nearest mailbox", 0.6, 0.6, 0.6, true)
+	t:AddLine(((MA.open and e.mine) and L["Enter: point at it in the inbox"] or L["Enter: in chat"])
+		.. "    " .. L["Shift+Enter: waypoint to the nearest mailbox"], 0.6, 0.6, 0.6, true)
 end
 
 -- (every row's: shared, not a closure per row)
@@ -723,14 +732,14 @@ local function MailRow(key, m, i, mine, who, now)
 	local left = m.expires - now
 	local soon = left < MA.SOON
 	local d = {}
-	if m.from then d[#d + 1] = "from " .. m.from end
-	if m.sent then d[#d + 1] = "you sent it " .. ns.Ago(now - m.sent) end
+	if m.from then d[#d + 1] = L["from %s"]:format(m.from) end
+	if m.sent then d[#d + 1] = L["you sent it %s"]:format(ns.Ago(now - m.sent)) end
 	if m.money then d[#d + 1] = Money(m.money) end
-	if m.cod then d[#d + 1] = RED .. "COD|r " .. Money(m.cod) end
+	if m.cod then d[#d + 1] = RED .. L["COD"] .. "|r " .. Money(m.cod) end
 	if m.items then
 		local first = m.items[1]
 		d[#d + 1] = #m.items == 1 and (ItemName(first) .. ((first.count or 1) > 1 and (" x" .. first.count) or ""))
-			or Plural(#m.items, "item", "items")
+			or Plural(#m.items, L["item"], L["items"])
 	end
 	d[#d + 1] = LeftText(left)
 	if not mine then d[#d + 1] = GREY .. who .. "|r" end
@@ -764,16 +773,16 @@ local function BoxRow(key, box, mine, who, now, mails, gone, newFrom)
 		if e.soon then soon = soon + 1 end
 		if not next or e.left < next then next = e.left end
 	end
-	local d, plain = { Plural(#mails, "mail", "mails") }, { Plural(#mails, "mail", "mails") }
+	local d, plain = { Plural(#mails, L["mail"], L["mails"]) }, { Plural(#mails, L["mail"], L["mails"]) }
 	if money > 0 then d[#d + 1] = Money(money); plain[#plain + 1] = Money(money, true) end
-	if cods > 0 then d[#d + 1] = cods .. " COD"; plain[#plain + 1] = cods .. " COD" end
-	if soon > 0 then d[#d + 1] = ORANGE .. soon .. " running out|r" ; plain[#plain + 1] = soon .. " running out soon" end
-	if next then d[#d + 1] = "the next in " .. MA.Left(next) end
-	if box and box.more then d[#d + 1] = "+" .. box.more .. " on the server" end
-	if newFrom then d[#d + 1] = "|cff40ff40new mail|r" end
-	if box and box.t then d[#d + 1] = GREY .. "opened " .. ns.Ago(now - box.t) .. "|r"
-	elseif box then d[#d + 1] = GREY .. "no mailbox opened with Terminal yet|r" end
-	if not box then d = { "|cff40ff40new mail|r", GREY .. "not opened with Terminal yet|r" } end
+	if cods > 0 then d[#d + 1] = L["%d COD"]:format(cods); plain[#plain + 1] = L["%d COD"]:format(cods) end
+	if soon > 0 then d[#d + 1] = ORANGE .. L["%d running out"]:format(soon) .. "|r" ; plain[#plain + 1] = L["%d running out soon"]:format(soon) end
+	if next then d[#d + 1] = L["the next in %s"]:format(MA.Left(next)) end
+	if box and box.more then d[#d + 1] = L["+%d on the server"]:format(box.more) end
+	if newFrom then d[#d + 1] = "|cff40ff40" .. L["new mail"] .. "|r" end
+	if box and box.t then d[#d + 1] = GREY .. L["opened %s"]:format(ns.Ago(now - box.t)) .. "|r"
+	elseif box then d[#d + 1] = GREY .. L["no mailbox opened with Terminal yet"] .. "|r" end
+	if not box then d = { "|cff40ff40" .. L["new mail"] .. "|r", GREY .. L["not opened with Terminal yet"] .. "|r" } end
 	return {
 		key = "box:" .. key, name = who, who = who, mailKind = "box", boxKey = key, mine = mine or nil,
 		color = ns.ClassHex(box and box.class or (mine and select(2, Safe(UnitClass, "player")))),
@@ -792,20 +801,20 @@ local function SentRow(key, s, i, mine, who, now)
 	local title = Title(m)
 	local d = {}
 	if m.money then d[#d + 1] = Money(m.money, true) end
-	if m.cod then d[#d + 1] = "COD " .. Money(m.cod, true) end
+	if m.cod then d[#d + 1] = L["COD %s"]:format(Money(m.cod, true)) end
 	if m.items then
 		local first = m.items[1]
 		d[#d + 1] = #m.items == 1 and (ItemName(first) .. ((first.count or 1) > 1 and (" x" .. first.count) or ""))
-			or Plural(#m.items, "item", "items")
+			or Plural(#m.items, L["item"], L["items"])
 	end
-	d[#d + 1] = "sent " .. ns.Ago(now - s.at)
+	d[#d + 1] = L["sent %s"]:format(ns.Ago(now - s.at))
 	local plain = table.concat(d, ", ")
 	if not mine then d[#d + 1] = GREY .. who .. "|r" end
 	local words = { "mail sent outgoing to", s.to, m.subject or "", who }
 	for _, it in ipairs(m.items or {}) do words[#words + 1] = ItemName(it) end
 	if m.money then words[#words + 1] = "gold money" end
 	return {
-		key = "sent:" .. key .. ":" .. s.at .. ":" .. i, name = "To " .. s.to .. ": " .. title, title = title, to = s.to, at = s.at,
+		key = "sent:" .. key .. ":" .. s.at .. ":" .. i, name = L["To %s: %s"]:format(s.to, title), title = title, to = s.to, at = s.at,
 		mail = m, mailKind = "sent", boxKey = key, who = who, mine = mine or nil,
 		icon = (m.items and m.items[1] and m.items[1].icon) or (m.money and ICON_MONEY) or ICON_MAIL,
 		detail = table.concat(d, "  ·  "), plain = plain, text = table.concat(words, " "),
@@ -816,18 +825,18 @@ end
 --- The auction house's news, kept its hour: "Sold: Linen Cloth", its gold due in about 40 min.
 local function AuctionRow(key, a, i, mine, who, now)
 	local d = {}
-	if a.price then d[#d + 1] = Money(a.each or a.price, true) .. (a.each and " each" or "") end
+	if a.price then d[#d + 1] = a.each and L["%s each"]:format(Money(a.each, true)) or Money(a.price, true) end
 	if a.kind == "sold" then
 		local left = MA.AUCTION_KEEP - (now - a.at)
-		d[#d + 1] = "gold due in about " .. MA.Left(left)
-	elseif a.kind == "won" then d[#d + 1] = "on its way to your mailbox"
-	elseif a.kind == "outbid" then d[#d + 1] = "your bid comes back by mail"
-	else d[#d + 1] = "coming back by mail" end
+		d[#d + 1] = L["gold due in about %s"]:format(MA.Left(left))
+	elseif a.kind == "won" then d[#d + 1] = L["on its way to your mailbox"]
+	elseif a.kind == "outbid" then d[#d + 1] = L["your bid comes back by mail"]
+	else d[#d + 1] = L["coming back by mail"] end
 	d[#d + 1] = ns.Ago(now - a.at)
 	local plain = table.concat(d, ", ")
 	if not mine then d[#d + 1] = GREY .. who .. "|r" end
 	return {
-		key = "ah:" .. key .. ":" .. a.at .. ":" .. i, name = (AUCTION_LABEL[a.kind] or "Auction") .. ": " .. a.item,
+		key = "ah:" .. key .. ":" .. a.at .. ":" .. i, name = (AUCTION_LABEL[a.kind] or L["Auction"]) .. ": " .. a.item,
 		news = a.kind, at = a.at, price = a.price, each = a.each, seen = a.seen, link = a.link,
 		money = (a.kind == "sold" and a.price) or nil, auction = a,
 		mailKind = "auction", boxKey = key, who = who, mine = mine or nil,
@@ -845,7 +854,7 @@ local function NewMail()
 	for _, n in ipairs({ Safe(_G.GetLatestThreeSenders) }) do
 		if Str(n) then names[#names + 1] = n end
 	end
-	return #names > 0 and table.concat(names, ", ") or "someone"
+	return #names > 0 and table.concat(names, ", ") or L["someone"]
 end
 
 function MA.Collect()
@@ -866,7 +875,7 @@ function MA.Collect()
 	table.sort(keys, Order)
 	for _, key in ipairs(keys) do
 		local box, mine = boxes[key], key == myKey
-		local who = box and Who(box, myRealm) or (ns.CharacterName() or Str(Safe(UnitName, "player")) or "You")
+		local who = box and Who(box, myRealm) or (ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"])
 		local mails, gone = {}, 0
 		for i, m in ipairs(box and box.mails or {}) do
 			if type(m) == "table" and type(m.expires) == "number" then
@@ -889,9 +898,9 @@ function MA.Collect()
 	local function WhoOf(key)
 		local box = boxes[key]
 		if box then return Who(box, myRealm) end
-		if key == myKey then return ns.CharacterName() or Str(Safe(UnitName, "player")) or "You" end
+		if key == myKey then return ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"] end
 		local xp = ns.db and type(ns.db.xpChars) == "table" and ns.db.xpChars[key]
-		return (type(xp) == "table" and Str(xp.name)) or "an alt"
+		return (type(xp) == "table" and Str(xp.name)) or L["an alt"]
 	end
 	local way = {}
 	for key, list in pairs(Store("mailAuctions")) do
@@ -922,7 +931,7 @@ function MA.Collect()
 end
 
 ns:RegisterProvider("mail", {
-	label = "Mail",
+	label = L["Mail"],
 	color = "ffffe0c0", -- (an envelope's paper)
 	aliases = { "mail", "mails", "inbox", "letters" },
 	explicit = true, -- (every mail of every character: only with @mail, Simple mode's category, or asked in words)
@@ -1008,10 +1017,10 @@ local function Wanted(e, q)
 	return true
 end
 
-MA.NOTE = "Your mail"
-MA.NOTE_SOON = "Mail running out within 3 days"
-MA.NONE = "No mail kept yet: open a mailbox and Terminal keeps what's in it (on each character)"
-MA.NOTE_SENT, MA.NOTE_INCOMING = "Mail you sent", "The auction house's news, on its way by mail"
+MA.NOTE = L["Your mail"]
+MA.NOTE_SOON = L["Mail running out within 3 days"]
+MA.NONE = L["No mail kept yet: open a mailbox and Terminal keeps what's in it (on each character)"]
+MA.NOTE_SENT, MA.NOTE_INCOMING = L["Mail you sent"], L["The auction house's news, on its way by mail"]
 
 function MA.Answer(q)
 	q = q or {}
@@ -1039,13 +1048,13 @@ function MA.Answer(q)
 	if boxes == 0 then
 		note = MA.NONE
 	elseif mails == 0 then
-		note = (q.sent and "Nothing sent in the last hour") or (q.incoming and "No auction house news in the last hour")
-			or (q.soon and "Nothing in your mail runs out within 3 days") or (q.cod and "No COD mail")
-			or (q.money and "No gold in your mail") or (q.unread and "No unread mail") or (q.returned and "No mail sent back to you")
-			or (q.auction and "No auction house mail") or ((q.words and #q.words > 0) and "No mail has that") or "No mail"
+		note = (q.sent and L["Nothing sent in the last hour"]) or (q.incoming and L["No auction house news in the last hour"])
+			or (q.soon and L["Nothing in your mail runs out within 3 days"]) or (q.cod and L["No COD mail"])
+			or (q.money and L["No gold in your mail"]) or (q.unread and L["No unread mail"]) or (q.returned and L["No mail sent back to you"])
+			or (q.auction and L["No auction house mail"]) or ((q.words and #q.words > 0) and L["No mail has that"]) or L["No mail"]
 	else
 		note = (q.sent and MA.NOTE_SENT) or (q.incoming and MA.NOTE_INCOMING) or (q.soon and MA.NOTE_SOON) or MA.NOTE
-		note = note .. ("  ·  %s"):format(Plural(mails, "mail", "mails")) .. (money > 0 and (", " .. Money(money, true)) or "")
+		note = note .. ("  ·  %s"):format(Plural(mails, L["mail"], L["mails"])) .. (money > 0 and (", " .. Money(money, true)) or "")
 	end
 	return rows, note
 end
@@ -1095,17 +1104,18 @@ function MA.Warnings(now)
 		if (a.key == myKey) ~= (b.key == myKey) then return a.key == myKey end
 		return a.first < b.first
 	end)
-	local out = { "Mail running out (" .. ns.Said('"mail running out"', "@mail is:expiring") .. " lists it):" }
+	local out = { L["Mail running out (%s lists it):"]:format(ns.Said('"mail running out"', "@mail is:expiring")) }
 	for i, w in ipairs(found) do
 		if i > MA.WARN_MAX then
-			out[#out + 1] = ("  +%s more"):format(Plural(#found - MA.WARN_MAX, "character", "characters"))
+			out[#out + 1] = "  " .. L["+%s more"]:format(Plural(#found - MA.WARN_MAX, L["character"], L["characters"]))
 			break
 		end
 		local what = {}
 		if w.money > 0 then what[#what + 1] = Money(w.money) end
-		if w.items > 0 then what[#what + 1] = Plural(w.items, "item", "items") end
-		out[#out + 1] = ("  %s%s: %s in %s, the first in %s (%s)"):format(w.who, w.key == myKey and " (you)" or "",
-			table.concat(what, " and "), Plural(w.mails, "mail", "mails"), MA.Left(w.first), w.fate)
+		if w.items > 0 then what[#what + 1] = Plural(w.items, L["item"], L["items"]) end
+		out[#out + 1] = "  " .. L["%s%s: %s in %s, the first in %s (%s)"]:format(w.who, w.key == myKey and (" " .. L["(you)"]) or "",
+			#what == 2 and L["%s and %s"]:format(what[1], what[2]) or table.concat(what, " and "), Plural(w.mails, L["mail"], L["mails"]),
+			MA.Left(w.first), w.fate)
 	end
 	return out
 end
@@ -1119,12 +1129,12 @@ function MA.Warn()
 end
 
 ns:RegisterCommand("mail", {
-	desc = "Your characters' mail as Terminal last saw it; .mail warn on|off (the login warning), .mail forget <name>",
+	desc = L["Your characters' mail as Terminal last saw it; .mail warn on|off (the login warning), .mail forget <name>"],
 	aliases = { "inbox" },
 	complete = function()
-		local out = { { "warn on", "say at login when mail with something in it runs out soon" }, { "warn off", "don't" } }
+		local out = { { "warn on", L["say at login when mail with something in it runs out soon"] }, { "warn off", L["don't"] } }
 		for _, box in pairs(Boxes() or {}) do
-			if type(box) == "table" and box.name then out[#out + 1] = { "forget " .. box.name, "drop its mailbox" } end
+			if type(box) == "table" and box.name then out[#out + 1] = { "forget " .. box.name, L["drop its mailbox"] } end
 		end
 		return out
 	end,
@@ -1133,8 +1143,8 @@ ns:RegisterCommand("mail", {
 		local la = Lower(a)
 		if la == "warn on" or la == "warn off" then
 			ns.db.mailWarn = la == "warn on"
-			return { la == "warn on" and "Mail: you're told at login when mail with something in it runs out within 3 days."
-				or "Mail: no login warning." }
+			return { la == "warn on" and L["Mail: you're told at login when mail with something in it runs out within 3 days."]
+				or L["Mail: no login warning."] }
 		end
 		local who = a:match("^[Ff]orget%s+(.+)$")
 		if who then
@@ -1147,11 +1157,11 @@ ns:RegisterCommand("mail", {
 				end
 			end
 			Dirty()
-			return { n > 0 and ("Forgot %s's mail."):format(who) or ("No mail kept for %s."):format(who) }
+			return { n > 0 and L["Forgot %s's mail."]:format(who) or L["No mail kept for %s."]:format(who) }
 		end
 		local lines = MA.AllLines()
 		if #lines == 0 then return { MA.NONE .. "." } end
-		table.insert(lines, 1, "Mail:")
+		table.insert(lines, 1, L["Mail:"])
 		return lines
 	end,
 })

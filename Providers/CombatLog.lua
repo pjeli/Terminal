@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- @combatlog (@combat): what hit you hard and what killed you, kept across sessions (the last 300). From the combat
 -- log, only what touches you: critical hits on you and by you, the killing blow on you, and your deaths. Plain
@@ -94,7 +95,7 @@ function CB.OnCombatEvent(...)
 	local who = type(srcName) == "string" and not (Secret and Secret(srcName)) and srcName or nil
 	local target = type(dstName) == "string" and not (Secret and Secret(dstName)) and dstName or nil
 	if dst == me then
-		who = who or (d.env and "the world") or "?"
+		who = who or (d.env and L["the world"]) or "?"
 		lastHit = { who = who, spell = spell, amount = amount, crit = crit and true or false, t = Now() }
 		if type(overkill) == "number" and overkill > 0 then
 			CB.Add({ what = "killed", who = who, spell = spell, amount = amount, overkill = overkill, crit = crit and true or nil })
@@ -104,7 +105,7 @@ function CB.OnCombatEvent(...)
 			CB.Add({ what = "crit", who = who, spell = spell, amount = amount })
 		end
 	elseif src == me and crit and dst ~= me then
-		CB.Add({ what = "critby", who = target or "?", spell = spell or (sub == "SWING_DAMAGE" and "melee" or nil), amount = amount })
+		CB.Add({ what = "critby", who = target or "?", spell = spell or (sub == "SWING_DAMAGE" and L["melee"] or nil), amount = amount })
 	end
 end
 
@@ -172,7 +173,7 @@ function CB.FromRecap(id)
 	local env = Text(best.environmentalType)
 	if not spell and env then spell = env:sub(1, 1):upper() .. env:sub(2):lower() end
 	local over = Num(best.overkill)
-	return { who = Text(best.sourceName) or (env and "the world") or nil, spell = spell, amount = Num(best.amount),
+	return { who = Text(best.sourceName) or (env and L["the world"]) or nil, spell = spell, amount = Num(best.amount),
 		overkill = over and over > 0 and over or nil }
 end
 CB.ResetRecaps = function() recapSeen, recapLink = 0, nil end -- (tests)
@@ -253,13 +254,17 @@ local function Amount(n) return n and (BreakUpLargeNumbers and Safe(BreakUpLarge
 function CB.Line(e)
 	local with = e.spell and (" (" .. e.spell .. ")") or ""
 	local amt = Amount(e.amount)
-	if e.what == "crit" then return ("%s crit you for %s%s"):format(e.who or "?", amt or "?", with) end
-	if e.what == "critby" then return ("You crit %s for %s%s"):format(e.who or "?", amt or "?", with) end
+	if e.what == "crit" then return L["%s crit you for %s%s"]:format(e.who or "?", amt or "?", with) end
+	if e.what == "critby" then return L["You crit %s for %s%s"]:format(e.who or "?", amt or "?", with) end
 	if e.what == "killed" then
-		return ("%s killed you%s%s"):format(e.who or "?", amt and (" with " .. amt) or "", with)
+		if amt then return L["%s killed you with %s%s"]:format(e.who or "?", amt, with) end
+		return L["%s killed you%s"]:format(e.who or "?", with)
 	end
-	if e.who then return ("You died: %s%s%s"):format(e.who, amt and (" hit you for " .. amt) or "", with) end
-	return "You died"
+	if e.who then
+		if amt then return L["You died: %s hit you for %s%s"]:format(e.who, amt, with) end
+		return L["You died: %s%s"]:format(e.who, with)
+	end
+	return L["You died"]
 end
 
 local WORDS = { crit = "crit critical hit you taken", critby = "crit critical you dealt mine", killed = "killed you death died killing blow",
@@ -271,7 +276,7 @@ local CHATBOX = ns.ChatBoxSpec(LineOf) -- (shared by every row)
 local function ToChat(e) ns.LinkInChat(e.line) end
 
 ns:RegisterProvider("combatlog", {
-	label = "Combat log",
+	label = L["Combat log"],
 	color = "ffff6b5c",
 	aliases = { "combatlog", "combat", "deaths", "crits" },
 	explicit = true,
@@ -283,7 +288,7 @@ ns:RegisterProvider("combatlog", {
 			if type(d) == "table" and d.what then
 				local line = CB.Line(d)
 				local parts = { Ago(d.t) }
-				if d.overkill then parts[#parts + 1] = Amount(d.overkill) .. " overkill" end
+				if d.overkill then parts[#parts + 1] = L["%s overkill"]:format(Amount(d.overkill)) end
 				if d.zone then parts[#parts + 1] = d.zone end
 				out[#out + 1] = {
 					key = (d.t or 0) .. ":" .. i, name = line, line = line, what = d.what, amount = d.amount,
@@ -335,31 +340,31 @@ function CB.Answer(kind)
 		table.sort(rows, function(a, b) return (a.amount or 0) > (b.amount or 0) end)
 	end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local note = (kind == "killed" and "Your deaths, newest first") or (kind == "crit" and "The hardest crits on you")
-		or "Your biggest crits"
+	local note = (kind == "killed" and L["Your deaths, newest first"]) or (kind == "crit" and L["The hardest crits on you"])
+		or L["Your biggest crits"]
 	if #rows == 0 then
-		note = (CB.state.blocked and kind ~= "killed") and "The game doesn't give addons the combat log here (crits need it)"
-			or "Nothing recorded yet"
+		note = (CB.state.blocked and kind ~= "killed") and L["The game doesn't give addons the combat log here (crits need it)"]
+			or L["Nothing recorded yet"]
 	end
 	return rows, note
 end
 
 ns:RegisterCommand("combatlog", {
-	desc = "What crit you and what killed you, as recorded; .combatlog clear forgets it",
-	complete = function() return { { "clear", "forget it all" } } end,
+	desc = L["What crit you and what killed you, as recorded; .combatlog clear forgets it"],
+	complete = function() return { { "clear", L["forget it all"] } } end,
 	run = function(args)
 		if strtrim(args or ""):lower() == "clear" then
 			if ns.db then ns.db.combatLog = {} end
 			Dirty()
-			return { "Combat log cleared." }
+			return { L["Combat log cleared."] }
 		end
 		local st, log = CB.state, Log() or {}
-		local lines = { ("Combat log: %d entries kept. %s"):format(#log,
-			ns.Said("Ask \"what killed me\" or \"who crit me\".", "Search it: @combatlog <words>, or ask \"what killed me\".")) }
+		local lines = { L["Combat log: %d entries kept. %s"]:format(#log,
+			ns.Said(L["Ask \"what killed me\" or \"who crit me\"."], L["Search it: @combatlog <words>, or ask \"what killed me\"."])) }
 		if st.blocked then
-			lines[#lines + 1] = "  The game doesn't let addons read the combat log here: only your deaths are kept (what killed you from the Death Recap)."
+			lines[#lines + 1] = "  " .. L["The game doesn't let addons read the combat log here: only your deaths are kept (what killed you from the Death Recap)."]
 		elseif st.events > 0 and st.secret == st.events then
-			lines[#lines + 1] = "  The combat log reaches addons as secret values here: only your deaths are kept (what killed you from the Death Recap)."
+			lines[#lines + 1] = "  " .. L["The combat log reaches addons as secret values here: only your deaths are kept (what killed you from the Death Recap)."]
 		end
 		for i = 1, math.min(5, #log) do lines[#lines + 1] = "  " .. CB.Line(log[i]) .. "  " .. Ago(log[i].t) end
 		return lines

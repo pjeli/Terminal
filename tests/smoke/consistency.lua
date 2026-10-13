@@ -196,9 +196,9 @@ do
 	ns.db.easyMode = false
 	local res = UI:SearchText("@items do:use hearthstone")
 	local r = res[1]
-	check(r and r.actionVerb == "Use" and E.Verbs(r) == "use" and UI.action == A.use, "Advanced do:use: Enter uses it: " .. tostring(r and r.name) .. " " .. tostring(r and E.Verbs(r)))
+	check(r and r.actionVerb == "use" and E.Verbs(r) == "use" and UI.action == A.use, "Advanced do:use: Enter uses it: " .. tostring(r and r.name) .. " " .. tostring(r and E.Verbs(r)))
 	res = UI:SearchText("do:use hearthstone")
-	check(res[1] and res[1].actionVerb == "Use", "do:use with no @kind: the action's own lists")
+	check(res[1] and res[1].actionVerb == "use", "do:use with no @kind: the action's own lists")
 	UI:SearchText("hearthstone")
 	ns.db.easyMode = was
 end

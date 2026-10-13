@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 -- Quests are searched by title AND by their description, objectives and zone,
@@ -170,7 +171,7 @@ end
 
 local function TrackQuest(e)
 	C_SuperTrack.SetSuperTrackedQuestID(e.questID)
-	ns:Print("Tracking: " .. e.name)
+	ns:Print(L["Tracking: %s"]:format(e.name))
 end
 
 local QUEST_SECURE = { binding = "TOGGLEQUESTLOG", buttons = { "QuestLogMicroButton" } }
@@ -243,7 +244,7 @@ local QUEST_NAV = {
 	route = "questlog", step = QuestNavStep,
 	-- what the clicks write, read after the press: the quest the details show
 	watch = { function() return DetailsOf(QuestPanel()), "questID" end },
-	watchName = function() return "the quest log's details" end,
+	watchName = function() return L["the quest log's details"] end,
 }
 
 --- Whether the press opens the quest's details by clicks (else the key, and the row pointed at).
@@ -328,7 +329,7 @@ end
 --- (the protected ones too) blocked. The game's dialog is never shown from here.
 local function DropAsk(e)
 	local QD = ns.QuestDrop
-	if QD and QD.Confirm then QD.Confirm({ e }) else ns:Print("Couldn't drop " .. tostring(e.name) .. " from here.") end
+	if QD and QD.Confirm then QD.Confirm({ e }) else ns:Print(L["Couldn't drop %s from here."]:format(tostring(e.name))) end
 end
 
 ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DropAsk = DropAsk, Grey = Grey, ZoneLevels = ZoneLevels,
@@ -503,7 +504,7 @@ local function XpText(x)
 		local f = _G.BONUS_OBJECTIVE_EXPERIENCE_FORMAT
 		f = type(f) == "string" and f:gsub("%%d", "%%s") or nil
 		local _, n = (f or ""):gsub("%%s", "")
-		XP_FORMAT = (n == 1 and not f:find("%%[^s%%]")) and f or "%s experience"
+		XP_FORMAT = (n == 1 and not f:find("%%[^s%%]")) and f or L["%s experience"]
 	end
 	local T = ns.Gold and ns.Gold.Thousands
 	return XP_FORMAT:format(T and T(x) or tostring(x))
@@ -517,16 +518,16 @@ function QT.Draw(t, q)
 	local c = Colour(q.id, q.level)
 	t:SetText(tostring(q.name), c[1], c[2], c[3], 1, true)
 	local head = {}
-	if q.level and q.level > 0 then head[#head + 1] = "Level " .. q.level end
+	if q.level and q.level > 0 then head[#head + 1] = L["Level %d"]:format(q.level) end
 	if q.zone and q.zone ~= "" then head[#head + 1] = q.zone end
 	if #head > 0 then Line(t, table.concat(head, "  ·  "), DIM) end
 	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
-	if q.needs and me and q.needs > me then Line(t, "Requires level " .. q.needs, QT.COLOURS[4]) end
+	if q.needs and me and q.needs > me then Line(t, L["Requires level %d"]:format(q.needs), QT.COLOURS[4]) end
 	if q.lines and #q.lines > 0 then
 		t:AddLine(" ")
 		for i = 1, math.min(#q.lines, 8) do Line(t, q.lines[i], WHITE, true) end
 	end
-	if q.giver then Line(t, "Started by " .. q.giver, DIM, true) end
+	if q.giver then Line(t, L["Started by %s"]:format(q.giver), DIM, true) end
 	if q.status then Line(t, q.status, q.statusColour or DIM) end
 	-- what it rewards
 	local id = q.id
@@ -538,10 +539,10 @@ function QT.Draw(t, q)
 	if id then given, choose = Items(id) end
 	if (xp and xp > 0) or money or #given > 0 or #choose > 0 or loading then
 		t:AddLine(" ")
-		Line(t, ns.GameText and ns.GameText("QUEST_REWARDS", "Rewards") or "Rewards", GOLD)
+		Line(t, ns.GameText and ns.GameText("QUEST_REWARDS", L["Rewards"]) or L["Rewards"], GOLD)
 		if xp and xp > 0 then
 			if from == "Questie" then
-				t:AddDoubleLine(XpText(xp), "Questie's figure", 1, 1, 1, DIM[1], DIM[2], DIM[3])
+				t:AddDoubleLine(XpText(xp), L["Questie's figure"], 1, 1, 1, DIM[1], DIM[2], DIM[3])
 			else
 				Line(t, XpText(xp), WHITE)
 			end
@@ -555,13 +556,13 @@ function QT.Draw(t, q)
 		end
 		for _, it in ipairs(given) do Item(it) end
 		if #choose > 0 then
-			Line(t, ns.GameText and ns.GameText("REWARD_CHOICES", "Choose one:") or "Choose one:", DIM, true)
+			Line(t, ns.GameText and ns.GameText("REWARD_CHOICES", L["Choose one:"]) or L["Choose one:"], DIM, true)
 			for _, it in ipairs(choose) do Item(it) end
 		end
-		if loading then Line(t, ns.GameText and ns.GameText("RETRIEVING_DATA", "Retrieving data") or "Retrieving data", DIM) end
+		if loading then Line(t, ns.GameText and ns.GameText("RETRIEVING_DATA", L["Retrieving data"]) or L["Retrieving data"], DIM) end
 	elseif xp == 0 then
 		t:AddLine(" ")
-		Line(t, "No experience at your level", DIM)
+		Line(t, L["No experience at your level"], DIM)
 	end
 end
 
@@ -571,14 +572,14 @@ local function LogTooltip(e, t)
 	for _, o in ipairs(e.objectives or {}) do lines[#lines + 1] = o[1] end
 	if #lines == 0 and e.objText then lines[1] = e.objText end
 	local status, sc
-	if e.complete then status, sc = "Ready to turn in", QT.COLOURS[1]
-	elseif e.drop then status = e.grey and "Grey for your level: one to drop" or "In a zone you've left behind: one to drop" end
+	if e.complete then status, sc = L["Ready to turn in"], QT.COLOURS[1]
+	elseif e.drop then status = e.grey and L["Grey for your level: one to drop"] or L["In a zone you've left behind: one to drop"] end
 	QT.Draw(t, { id = e.questID, name = e.name, level = e.level, zone = e.zone, lines = lines, status = status, statusColour = sc })
 end
 QT.LogTooltip = LogTooltip
 
 ns:RegisterProvider("quests", {
-	label = "Quest log",
+	label = L["Quest log"],
 	color = "ffffd200",
 	aliases = { "questlog", "log", "quest", "quests", "q" },
 	-- (a level gained can turn quests grey and leave zones behind)
@@ -611,12 +612,12 @@ ns:RegisterProvider("quests", {
 					local behind = (z and me and me > 0 and z.hi < me) and z or nil
 					local complete = Complete(info.questID)
 					local drop = not complete and (grey or behind ~= nil)
-					local why = drop and (grey and "grey" or ("zone left behind (Lv " .. behind.lo .. "-" .. behind.hi .. ")")) or nil
+					local why = drop and (grey and L["grey"] or L["zone left behind (Lv %d-%d)"]:format(behind.lo, behind.hi)) or nil
 					out[#out + 1] = {
 						key = info.questID,
 						name = title,
 						icon = "Interface\\GossipFrame\\AvailableQuestIcon",
-						detail = ((level and level > 0) and ("Lv " .. level .. "  ") or "") .. (zone or "") .. (why and ("  ·  " .. why) or ""),
+						detail = ((level and level > 0) and (L["Lv %d"]:format(level) .. "  ") or "") .. (zone or "") .. (why and ("  ·  " .. why) or ""),
 						text = table.concat(parts, " "),
 						questID = info.questID,
 						level = (level and level > 0) and level or nil, zone = zone, -- (lvl: and zone: filters)

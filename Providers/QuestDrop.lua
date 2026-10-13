@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Quests to drop: "quests to drop" (both modes; Advanced: @quest is:drop, or is:grey / is:leftbehind) lists the quests
 -- in your log the game shows grey for your level, and those in zones you've left behind (Quests.lua marks each row:
@@ -87,15 +88,15 @@ local function DropAllRow(rows)
 	local list = {}
 	for i, e in ipairs(rows) do list[i] = e end
 	return {
-		name = ("Drop all %d"):format(#list), kind = "dropall", kindLabel = "|cffffd200quests|r", raw = true, lead = true,
-		icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up", detail = "you'll see them all and be asked first",
-		actionVerb = "drop them all", activate = function() QD.Confirm(list) end, _pos = ns.UI and ns.UI.NO_POS or {},
+		name = L["Drop all %d"]:format(#list), kind = "dropall", kindLabel = "|cffffd200" .. L["quests"] .. "|r", raw = true, lead = true,
+		icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up", detail = L["you'll see them all and be asked first"],
+		actionVerb = L["drop them all"], activate = function() QD.Confirm(list) end, _pos = ns.UI and ns.UI.NO_POS or {},
 	}
 end
 
-QD.NOTE = "Quests to drop: grey, or in a zone you've left behind"
-QD.NOTE_GREY = "Grey quests"
-QD.NOTE_BEHIND = "Quests in zones you've left behind"
+QD.NOTE = L["Quests to drop: grey, or in a zone you've left behind"]
+QD.NOTE_GREY = L["Grey quests"]
+QD.NOTE_BEHIND = L["Quests in zones you've left behind"]
 
 --- The answer: the quests to drop (or only the grey ones, or only those in zones left behind), narrowed by the
 --- question's other words, grey first and then by level; "Drop all N" on top when there are two or more. The note.
@@ -113,12 +114,12 @@ function QD.Answer(q)
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
 	local note = (q.grey and QD.NOTE_GREY) or (q.behind and QD.NOTE_BEHIND) or QD.NOTE
 	if #rows == 0 then
-		note = (kept > 0 and "Nothing to drop: the only ones are complete, turn them in")
-			or ((q.words and #q.words > 0) and "None of those quests is one to drop")
-			or (q.grey and "No grey quests in your log") or (q.behind and "No quests in zones you've left behind")
-			or "Nothing to drop: no grey quests, none in zones you've left behind"
+		note = (kept > 0 and L["Nothing to drop: the only ones are complete, turn them in"])
+			or ((q.words and #q.words > 0) and L["None of those quests is one to drop"])
+			or (q.grey and L["No grey quests in your log"]) or (q.behind and L["No quests in zones you've left behind"])
+			or L["Nothing to drop: no grey quests, none in zones you've left behind"]
 	else
-		if kept > 0 then note = note .. ("  ·  %d complete left out: turn %s in"):format(kept, kept == 1 and "it" or "them") end
+		if kept > 0 then note = note .. "  ·  " .. (kept == 1 and L["%d complete left out: turn it in"] or L["%d complete left out: turn them in"]):format(kept) end
 		if #rows >= 2 then
 			local top = DropAllRow(rows)
 			top._score = 2e6
@@ -161,8 +162,8 @@ function QD.DropAll(list)
 		local q = list[i]
 		if not q then
 			local lines = {}
-			if #gone > 0 then lines[#lines + 1] = ("Dropped %d quest%s: %s"):format(#gone, #gone == 1 and "" or "s", table.concat(gone, ", ")) end
-			if #failed > 0 then lines[#lines + 1] = ("Not dropped (no longer in your log, or the game refused): %s"):format(table.concat(failed, ", ")) end
+			if #gone > 0 then lines[#lines + 1] = (#gone == 1 and L["Dropped %d quest: %s"] or L["Dropped %d quests: %s"]):format(#gone, table.concat(gone, ", ")) end
+			if #failed > 0 then lines[#lines + 1] = L["Not dropped (no longer in your log, or the game refused): %s"]:format(table.concat(failed, ", ")) end
 			ns:Trace(("quests: dropped %d of %d"):format(#gone, #list))
 			ns:Output(lines)
 			return
@@ -180,7 +181,7 @@ function app.Close(why)
 	if dialog and dialog:IsShown() then
 		dialog:Hide()
 		pending = nil
-		if why == "combat" then ns:Print("Dropping quests: closed, combat started. Nothing was dropped.") end
+		if why == "combat" then ns:Print(L["Dropping quests: closed, combat started. Nothing was dropped."]) end
 	end
 end
 QD.app = app -- (tests)
@@ -212,8 +213,8 @@ function QD.Confirm(rows)
 	for _, e in ipairs(rows or {}) do
 		if type(e.questID) == "number" then list[#list + 1] = { questID = e.questID, name = tostring(e.name) } end
 	end
-	if #list == 0 then ns:Print("Nothing to drop.") return end
-	if not (P and P.CanOpen(#list == 1 and "In combat: drop it once the fight is over." or "In combat: drop them once the fight is over.")) then return end
+	if #list == 0 then ns:Print(L["Nothing to drop."]) return end
+	if not (P and P.CanOpen(#list == 1 and L["In combat: drop it once the fight is over."] or L["In combat: drop them once the fight is over."])) then return end
 	if not dialog then
 		dialog = P.Build("TerminalDropQuests", app)
 		dialog.title = P.Text(dialog, 15, "CENTER")
@@ -224,8 +225,8 @@ function QD.Confirm(rows)
 		dialog.body:SetWordWrap(true)
 		dialog.body:SetPoint("TOP", 0, -40)
 		dialog.body:SetWidth(QD.CONFIRM_W - 40)
-		dialog.yes = Button(dialog, "Drop them", -92, function() Decide(true) end)
-		dialog.no = Button(dialog, "Keep them", 92, function() Decide(false) end)
+		dialog.yes = Button(dialog, L["Drop them"], -92, function() Decide(true) end)
+		dialog.no = Button(dialog, L["Keep them"], 92, function() Decide(false) end)
 		dialog:SetScript("OnKeyDown", function(_, key)
 			if key == "ENTER" then
 				if GetTime() - (dialog.shownAt or 0) >= QD.ENTER_WAIT then Decide(true) end
@@ -236,16 +237,16 @@ function QD.Confirm(rows)
 	P.Opening(app)
 	local t = P.Layout(dialog)
 	local one = #list == 1
-	dialog.title:SetText(one and ("|cff%sDrop %s?|r"):format(t.text, list[1].name)
-		or ("|cff%sDrop %d quests?|r"):format(t.text, #list))
-	dialog.yes:SetText(one and "Drop it" or "Drop them")
-	dialog.no:SetText(one and "Keep it" or "Keep them")
+	dialog.title:SetText(one and ("|cff%s%s|r"):format(t.text, L["Drop %s?"]:format(list[1].name))
+		or ("|cff%s%s|r"):format(t.text, L["Drop %d quests?"]:format(#list)))
+	dialog.yes:SetText(one and L["Drop it"] or L["Drop them"])
+	dialog.no:SetText(one and L["Keep it"] or L["Keep them"])
 	local names = {}
 	for i = 1, math.min(#list, QD.SHOW_MAX) do names[i] = list[i].name end
 	local more = #list - #names
-	dialog.body:SetText(one and ("|cff%sIt goes from your quest log, and so do the quest items it gave you.|r"):format(t.dim)
-		or ("|cff%s%s%s.\n\nThey go from your quest log at once: the game won't ask again for each.|r"):format(t.dim,
-		table.concat(names, ", "), more > 0 and (", +" .. more .. " more") or ""))
+	dialog.body:SetText(one and ("|cff%s%s|r"):format(t.dim, L["It goes from your quest log, and so do the quest items it gave you."])
+		or ("|cff%s%s%s.\n\n%s|r"):format(t.dim, table.concat(names, ", "), more > 0 and (", " .. L["+%d more"]:format(more)) or "",
+		L["They go from your quest log at once: the game won't ask again for each."]))
 	local h = dialog.body:GetStringHeight()
 	h = type(h) == "number" and h > 0 and h or 42
 	dialog:SetSize(QD.CONFIRM_W, math.floor(40 + h + 14 + 24 + 14 + 4))

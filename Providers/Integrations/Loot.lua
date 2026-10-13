@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 local I = ns.Integrations
 local Safe = ns.Safe -- (Util.lua)
@@ -340,13 +341,13 @@ local function OpenLoot(e)
 	local A = AL()
 	local GUI = A and A.GUI
 	if not (GUI and GUI.frame) then
-		ns:Print("AtlasLoot's window isn't ready yet.")
+		ns:Print(L["AtlasLoot's window isn't ready yet."])
 		return
 	end
 	-- rows from the saved index: the module may not be loaded this session yet
 	if not (A.ItemDB.Storage and A.ItemDB.Storage[e.addon]) then
 		if InCombatLockdown() then
-			ns:Print("AtlasLoot's " .. tostring(e.addon) .. " loads after combat; try again then.")
+			ns:Print(L["AtlasLoot's %s loads after combat; try again then."]:format(tostring(e.addon)))
 			return
 		end
 		Safe(A.Loader.LoadModule, A.Loader, e.addon)
@@ -393,8 +394,8 @@ local function SetupAtlasLoot()
 	loot.on = true
 	ns:RegisterProvider("loot", {
 		-- only while modules are really being read (not while the saved index is looked at)
-		busy = function() return loot.building and ("Indexing AtlasLoot's loot tables (%d of %d)"):format(loot.loaded, loot.modules) or nil end,
-		label = "Loot",
+		busy = function() return loot.building and L["Indexing AtlasLoot's loot tables (%d of %d)"]:format(loot.loaded, loot.modules) or nil end,
+		label = L["Loot"],
 		color = "ffd9a441",
 		aliases = { "loot", "atlasloot", "al" }, -- (@drop is the loot log: what dropped for you)
 		lazy = true,

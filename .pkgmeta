@@ -3,6 +3,12 @@ package-as: Terminal
 ignore:
   - tests
   - CLAUDE.md
+  - Locales/enUS.lua
+
+# the release's notes on CurseForge: the changelog kept in the repo
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
 
 # Terminal Extras (the games and the radio): a load-on-demand addon of its own, packaged beside Terminal
 move-folders:

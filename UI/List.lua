@@ -1,29 +1,30 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The list: the result rows, the selection band, the footer (what was found, the key hints), the arrow on a selected
 -- NPC's row, and the frame's height following the results. Split out of UI.lua.
 
 local UI = ns.UI
 local Fuzzy, Theme = ns.Fuzzy, ns.Theme
-local L = UI.layout
+local LY = UI.layout
 local EasyOn, Wake, Style, rows = UI.EasyOn, UI.Wake, UI.Style, UI.rows
 local MAX_ROWS, FOOTER_H, ONCE_LABEL = UI.MAX_ROWS, UI.FOOTER_H, UI.ONCE_LABEL
 
 -- key hints, most useful first: on a narrow terminal the last ones are left out, never wrapped. Advanced: what Enter
 -- and Shift+Enter do for the selected row (Easy.VERBS), then the command line's own keys
-local SYNTAX_KEYS = { { "@", "kind" }, { "/", "slash" }, { ".", "command" }, { "=", "calc" } }
+local SYNTAX_KEYS = { { "@", L["kind"] }, { "/", L["slash"] }, { ".", L["command"] }, { "=", L["calc"] } }
 
 -- F1: every key, per mode (Apps/KeysWindow.lua). Last in every list but Advanced's (before its syntax keys): the first to
 -- go when the footer is narrow, it's there for finding the rest
-local KEYS_HINT = { "F1", "keys" }
-local FZF_LABEL = "Fuzzy find" -- (Tab+`: pure fuzzy finding over every list, this run)
-local FZF_HINTS = { { "Enter", "to Simple" }, { "Shift+Enter", "to Advanced" }, { "Up/Down", "move" }, { "Tab+`", "close" }, KEYS_HINT }
+local KEYS_HINT = { "F1", L["keys"] }
+local FZF_LABEL = L["Fuzzy find"] -- (Tab+`: pure fuzzy finding over every list, this run)
+local FZF_HINTS = { { "Enter", L["to Simple"] }, { "Shift+Enter", L["to Advanced"] }, { "Up/Down", L["move"] }, { "Tab+`", L["close"] }, KEYS_HINT }
 -- (Advanced's @kind / key: pick lists; "back" is Shift+Left's word, so Shift+Tab is "previous")
-local SYNTAX_HINTS = { { "Enter", "write it" }, { "Tab", "next" }, { "Shift+Tab", "previous" }, KEYS_HINT }
+local SYNTAX_HINTS = { { "Enter", L["write it"] }, { "Tab", L["next"] }, { "Shift+Tab", L["previous"] }, KEYS_HINT }
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
-local BACK_HINT = { "Shift+Left", "back" } -- (back to the search a step left, UI:GoBack)
-local BACK_CATEGORIES = { "Shift+Left", "all categories" } -- (Simple mode, a category picked: Tab does it too)
-local EASY_TAB_PICK = { "Tab", "pick" }
+local BACK_HINT = { "Shift+Left", L["back"] } -- (back to the search a step left, UI:GoBack)
+local BACK_CATEGORIES = { "Shift+Left", L["all categories"] } -- (Simple mode, a category picked: Tab does it too)
+local EASY_TAB_PICK = { "Tab", L["pick"] }
 
 local QUESTION_MARK = 134400
 local HINT = "|cffffd200"
@@ -43,7 +44,7 @@ UI.PlaceRow = PlaceRow
 
 -- (a block: the footer's helpers are SetStatus's own)
 do
-	local MODE_LABEL = { cmd = "commands", slash = "slash commands" }
+	local MODE_LABEL = { cmd = L["commands"], slash = L["slash commands"] }
 	local STATUS_SEP = "  ·  "
 	local function Append(text, x) return text .. (text ~= "" and STATUS_SEP or "") .. x end
 	local function Prepend(x, text) return x .. (text ~= "" and STATUS_SEP or "") .. text end
@@ -52,7 +53,7 @@ do
 		local status, hints, busy = UI.status, UI.hints, UI.busy
 		if not status then return end
 		if self.clipHint and not self.keys then
-			status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and "Press Ctrl+V again to paste" or "Press Ctrl+C again to copy") .. "|r"))
+			status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and L["Press Ctrl+V again to paste"] or L["Press Ctrl+C again to copy"]) .. "|r"))
 			if hints then hints:Hide() end
 			return
 		end
@@ -61,8 +62,8 @@ do
 			local a = self.armedEntry
 			local enter, shift
 			if ns.Easy then enter, shift = ns.Easy.Verbs(a) end -- (not `x and f()`: that keeps only f's first result)
-			local verb = (rawget(a, "isShift") and shift) or enter or "open"
-			status:SetText(Theme.FixColors(HINT .. "Press Enter to " .. verb .. "|r  " .. a.name))
+			local verb = (rawget(a, "isShift") and shift) or enter or L["open"]
+			status:SetText(Theme.FixColors(HINT .. L["Press Enter to %s"]:format(verb) .. "|r  " .. a.name))
 			if hints then hints:Hide() end -- the armed line gets the whole footer
 			return
 		end
@@ -70,9 +71,9 @@ do
 		local count = #UI.results
 		local quiet = count > 0 and UI.results[1].noActivate
 		local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
-		local text = quiet and "keep typing, or Esc to close" or (count .. " result" .. (count == 1 and "" or "s"))
-		if count > 0 and UI.results[1].catId then text = "found in " .. count .. " categor" .. (count == 1 and "y" or "ies") .. ": pick one" end
-		if count > 0 and UI.results[1].syntaxRow then text = count .. " to pick from: Tab / Shift+Tab, Enter writes it" end
+		local text = quiet and L["keep typing, or Esc to close"] or (count == 1 and L["%s result"] or L["%s results"]):format(count)
+		if count > 0 and UI.results[1].catId then text = (count == 1 and L["found in %s category: pick one"] or L["found in %s categories: pick one"]):format(count) end
+		if count > 0 and UI.results[1].syntaxRow then text = L["%s to pick from: Tab / Shift+Tab, Enter writes it"]:format(count) end
 		local cat = self.category and EasyOn() and ns.Easy.BY_ID[self.category]
 		if self.action and self.mode == "search" then cat = { label = self.action.label } end -- (Advanced: do:use)
 		if self.answerNote and self.mode == "search" then cat = { label = self.answerNote } end
@@ -84,35 +85,35 @@ do
 		local to = self.sendTo
 		if to and to.drop and self.mode == "search" then
 			local n = to.all and self.groupRows and #self.groupRows
-			local say = (to.all and ((n or 0) == 0 and "nothing to drop" or ("Enter drops " .. (n == 1 and "it" or ("all " .. n)) .. ": Terminal asks first")))
-				or "Enter drops it: the game asks first"
+			local say = (to.all and ((n or 0) == 0 and L["nothing to drop"] or (n == 1 and L["Enter drops it: Terminal asks first"] or L["Enter drops all %s: Terminal asks first"]:format(n))))
+				or L["Enter drops it: the game asks first"]
 			text = Prepend(HINT .. say .. "|r", text)
 		elseif to and self.mode == "search" then
 			local group = to.all and to.cmd and self:GroupedRows() -- (grouped once per list, not on every status update)
 			local n = group and #group
 			if n and n > 0 then ns.Share.Prefetch(group, true) end -- (their links loaded by the time Enter sends them)
 			local one = n and n > 0 and ns.Share.Restricted(to) -- (say, yell: one line the game presses)
-			local say = (one and ("Enter sends one line to " .. to.label .. ", all " .. n .. " counted"))
-				or (n and (n == 0 and "nothing to send" or ("Enter sends " .. (n == 1 and "the 1" or ("all " .. n)) .. " to " .. to.label)))
-				or (to.cmd and ("Enter sends it to " .. to.label)) or (to.bad and ("no channel called " .. to.bad) or "send to: party, guild, raid, say, whisper <name>...")
+			local say = (one and L["Enter sends one line to %s, all %s counted"]:format(to.label, n))
+				or (n and (n == 0 and L["nothing to send"] or (n == 1 and L["Enter sends the 1 to %s"]:format(to.label) or L["Enter sends all %s to %s"]:format(n, to.label))))
+				or (to.cmd and L["Enter sends it to %s"]:format(to.label)) or (to.bad and L["no channel called %s"]:format(to.bad) or L["send to: party, guild, raid, say, whisper <name>..."])
 			text = Prepend(HINT .. say .. "|r", text)
 		end
 		if mode then text = Append(text, mode) end
 		local near = self.closeSpellings and self.mode == "search" and count > 0
 		if self.softRelaxed and self.mode == "search" and count > 0 then
-			text = Append(text, HINT .. "nothing matches every word: the closest|r")
+			text = Append(text, HINT .. L["nothing matches every word: the closest"] .. "|r")
 			near = true
 		end
-		if near then text = Append(text, HINT .. "no exact match: close spellings|r") end
+		if near then text = Append(text, HINT .. L["no exact match: close spellings"] .. "|r") end
 		if self.noPosition and self.mode == "search" then
-			text = Append(text, HINT .. "sort:nearest: your position isn't known here|r")
+			text = Append(text, HINT .. L["sort:nearest: your position isn't known here"] .. "|r")
 			near = true
 		end
 		-- (flight paths listed on a continent no flight master's map has been read on: Search.lua's Scan.FlightNote)
 		if self.flightNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.flightNote .. "|r") end
 		-- (recipes you don't know listed, a profession's window that would list more not read yet: MissingRecipes.lua)
 		if self.missingNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.missingNote .. "|r") end
-		if busy and busy:IsShown() then text = Append(text, "loading...") end
+		if busy and busy:IsShown() then text = Append(text, L["loading..."]) end
 		local once = ns.Easy and ns.Easy.temp
 		if self.fzf then
 			once = true
@@ -148,7 +149,7 @@ function UI:FitHints()
 		if enter then list[#list + 1] = { "Enter", enter } end
 		if back then list[#list + 1] = BACK_HINT end
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
-		if write then list[#list + 1] = { "Shift+Right", "write it" } end
+		if write then list[#list + 1] = { "Shift+Right", L["write it"] } end
 		list[#list + 1] = KEYS_HINT
 		for _, k in ipairs(SYNTAX_KEYS) do list[#list + 1] = k end
 		key = key .. "|adv|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(write)
@@ -164,7 +165,7 @@ function UI:FitHints()
 		elseif UI.results[UI.sel] and UI.results[UI.sel].catId then list[#list + 1] = EASY_TAB_PICK end
 		if shift then list[#list + 1] = { "Shift+Enter", shift } end
 		local r = UI.results[UI.sel]
-		if r and not (r.catId or r.noActivate) then list[#list + 1] = { "Shift+Right", "more" } end -- (the row menu)
+		if r and not (r.catId or r.noActivate) then list[#list + 1] = { "Shift+Right", L["more"] } end -- (the row menu)
 		list[#list + 1] = KEYS_HINT
 		key = key .. "|" .. tostring(enter) .. "|" .. tostring(shift) .. "|" .. tostring(self.category) .. "|" .. tostring(UI.results[UI.sel] and UI.results[UI.sel].catId)
 	end
@@ -247,9 +248,9 @@ local function NavTick()
 		local shown = math.floor(nav.d + 0.5)
 		if shown ~= nav.shownD then
 			nav.shownD = shown
-			local yd = ("%d yd"):format(shown)
+			local yd = ("%d yd"):format(shown) -- (the detail keeps "N yd", read back by FillRow; the column is translated)
 			e.detail = yd .. ((r.distRest or "") ~= "" and ("  " .. r.distRest) or "")
-			r.dist:SetText(yd)
+			r.dist:SetText(L["%d yd"]:format(shown))
 		end
 	end
 	-- where: the slot before the distance's column (the same place on every such row); else just left of the
@@ -280,7 +281,7 @@ function UI:UpdateNav()
 	local e = UI.results[UI.sel]
 	local i = UI.sel - UI.offset
 	local id = NavID(e)
-	if not (id and frame and frame:IsShown() and not self.closing and i >= 1 and i <= L.ROWS and ns.Integrations
+	if not (id and frame and frame:IsShown() and not self.closing and i >= 1 and i <= LY.ROWS and ns.Integrations
 		and ns.Integrations.Bearing) then
 		return NavHide()
 	end
@@ -362,21 +363,21 @@ local function FillRow(self, r, e, light)
 		-- how far, in its column after the arrow's slot; what it is after that: every such row lines up (0.45.18, the
 		-- player's screenshot: the arrow sat wherever the text began, a different place on every row)
 		r.distShown, r.distRest = true, rest
-		r.dist:SetText(yd)
+		r.dist:SetText(L["%d yd"]:format(tonumber(yd:match("%d+")) or 0)) -- (the detail says "N yd" in English: read here)
 		r.dist:Show()
-		r.detail:SetWidth(math.max(1, L.DETAIL_W - L.NAV_SLOT - L.DIST_W - 6))
+		r.detail:SetWidth(math.max(1, LY.DETAIL_W - LY.NAV_SLOT - LY.DIST_W - 6))
 		r.detail:SetJustifyH("LEFT")
 		r.detail:SetText(rest)
 	else
 		if r.distShown then
 			r.distShown, r.distRest = nil, nil
 			r.dist:Hide()
-			r.detail:SetWidth(L.DETAIL_W)
+			r.detail:SetWidth(LY.DETAIL_W)
 			r.detail:SetJustifyH("RIGHT")
 		end
 		if from and not e.raw then
 			r.label:SetText(ARROW .. r.label:GetText())
-			r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and "maybe needs " or "needs ") .. from.name)
+			r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and L["maybe needs %s"] or L["needs %s"]):format(from.name))
 		else
 			r.detail:SetText(e.detail or "")
 		end
@@ -398,13 +399,13 @@ function UI:Render()
 	for i = 1, MAX_ROWS do
 		local r = rows[i]
 		local idx = UI.offset + i
-		local e = (i <= L.ROWS) and UI.results[idx] or nil
+		local e = (i <= LY.ROWS) and UI.results[idx] or nil
 		if e then
 			entering = EnterRow(r, animated, now, entering)
 			FillRow(self, r, e, light)
 		elseif r:IsShown() and not r.leaving then
 			-- no result for this row any more: it fades as the list shrinks over it
-			if animated and i <= L.ROWS then
+			if animated and i <= LY.ROWS then
 				r.leaving, r.leaveAt, r.fadeAt = true, now, nil
 				Wake()
 			else
@@ -427,7 +428,7 @@ function UI:SelectionChanged()
 end
 
 --- The header's height: the prompt's first line, and every line a long prompt wraps onto.
-local function HeaderH() return L.HEADER_H + (UI.promptExtra or 0) end
+local function HeaderH() return LY.HEADER_H + (UI.promptExtra or 0) end
 
 --- The prompt took more (or fewer) lines: the header grows down, and what's under it moves.
 function UI:SetPromptExtra(extra)
@@ -456,7 +457,7 @@ function UI:LayoutHeader()
 	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(HeaderH() - 4))
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
-		row.baseY = -hh - (i - 1) * L.ROW_H
+		row.baseY = -hh - (i - 1) * LY.ROW_H
 		if not row.slide then PlaceRow(row, 0) end
 	end
 	hit:ClearAllPoints()
@@ -469,7 +470,7 @@ end
 function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open)
 	local frame, edit, divider, footLine, status = UI.frame, UI.edit, UI.divider, UI.footLine, UI.status
 	if not frame then return end
-	local n = math.max(0, math.min(L.ROWS, #UI.results - UI.offset))
+	local n = math.max(0, math.min(LY.ROWS, #UI.results - UI.offset))
 	-- nothing typed yet: just the prompt, no divider, no footer. Once something is typed the footer stays, in both
 	-- modes, even when nothing was found (0.43.4: Simple mode hid it then, and the player lost what the keys do)
 	local bare = #UI.results == 0 and self.mode == "search" and not self.sendTo
@@ -486,7 +487,7 @@ function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open
 	-- (the prompt's own background stops HeaderH - 4 down, inset by the border: the bare frame ends below it,
 	-- or the background covered the bottom border)
 	if bare then h = HeaderH() - 4 + (Theme.Get().frame == "classic" and 4 or 1)
-	else h = HeaderH() + n * L.ROW_H + (self.footerH or FOOTER_H) end
+	else h = HeaderH() + n * LY.ROW_H + (self.footerH or FOOTER_H) end
 	self.heightTo = h
 	local cur = frame:GetHeight()
 	if self.snapNext or not self:Animated() or type(cur) ~= "number" or cur <= 0 then
@@ -502,11 +503,11 @@ function UI:PlaceSelection()
 	if not selBar then return end
 	local i = UI.sel - UI.offset
 	local e = UI.results[UI.sel]
-	if not e or e.noActivate or i < 1 or i > L.ROWS then
+	if not e or e.noActivate or i < 1 or i > LY.ROWS then
 		selBar:Hide(); selEdge:Hide()
 		return
 	end
-	self.selTo = -HeaderH() - (i - 1) * L.ROW_H
+	self.selTo = -HeaderH() - (i - 1) * LY.ROW_H
 	if not (self:Animated() and self.selY and selBar:IsShown()) then
 		self.selY = self.selTo
 		self:SetSelectionY(self.selY)
@@ -522,7 +523,7 @@ function UI:SetSelectionY(y)
 	selBar:ClearAllPoints()
 	selBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, y)
 	selBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, y)
-	selBar:SetHeight(L.ROW_H)
+	selBar:SetHeight(LY.ROW_H)
 	selEdge:ClearAllPoints()
 	selEdge:SetPoint("TOPLEFT", selBar, "TOPLEFT", 0, 0)
 	selEdge:SetPoint("BOTTOMLEFT", selBar, "BOTTOMLEFT", 0, 0)

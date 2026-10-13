@@ -1,11 +1,12 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- What's listed and selected: a search run a slice of a frame at a time, ">>>" collapsing the list into one row, the
 -- pick lists of "@" and "key:", the selection moving and scrolling, Up/Down through the history and back to the last
 -- search, Simple mode's categories. Split out of UI.lua.
 
 local UI = ns.UI
-local L = UI.layout
+local LY = UI.layout
 local EasyOn, SLICE_MS, Forget = UI.EasyOn, UI.SLICE_MS, UI.Forget
 
 --- A search spread over frames: up to SLICE_MS of it now. Gives the results to show, and
@@ -37,7 +38,7 @@ function UI:StepSearch(job)
 	job.slices = (job.slices or 0) + 1
 	if not ok then
 		self.searchJob = nil
-		ns:Print("Search error: " .. tostring(res))
+		ns:Print(L["Search error: %s"]:format(tostring(res)))
 		return {}, true
 	end
 	if coroutine.status(job.co) == "dead" then
@@ -58,23 +59,23 @@ function UI:CollapseGroup(list)
 	if not SH.Searched(to.query) then
 		-- (">>> party" alone: what's listed is your recent picks, nothing that says what they are; never sent)
 		self.groupRows = {}
-		return { { kind = "send", kindLabel = "|cff33ff99chat|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
-			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = "Nothing searched to send",
-			detail = "search first, then >>> " .. (to.drop and "drop" or "party") } }
+		return { { kind = "send", kindLabel = "|cff33ff99" .. L["chat"] .. "|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
+			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = L["Nothing searched to send"],
+			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or "party") } }
 	end
 	if to.drop and ns.QuestDrop then
 		-- ">>> drop": the quests in your log among them (complete ones kept), dropped after Terminal's confirmation
 		local rows, kept = ns.QuestDrop.GroupRows(list, true)
 		self.groupRows = rows
 		local n = #rows
-		local row = { kind = "dropall", kindLabel = "|cffffd200quests|r", icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up",
-			raw = true, sendAll = true, _pos = UI.NO_POS, _score = 0, actionVerb = "drop them all" }
+		local row = { kind = "dropall", kindLabel = "|cffffd200" .. L["quests"] .. "|r", icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up",
+			raw = true, sendAll = true, _pos = UI.NO_POS, _score = 0, actionVerb = L["drop them all"] }
 		if n == 0 then
-			row.name, row.noActivate = "Nothing to drop", true
-			row.detail = kept > 0 and "the quests listed are complete: turn them in" or "no quest in your log among the results"
+			row.name, row.noActivate = L["Nothing to drop"], true
+			row.detail = kept > 0 and L["the quests listed are complete: turn them in"] or L["no quest in your log among the results"]
 		else
-			row.name = ("Drop %s %d quest%s"):format(n == 1 and "the" or "all", n, n == 1 and "" or "s")
-			row.detail = (kept > 0 and (kept .. " complete kept  ·  ") or "") .. "you'll see them all and be asked first"
+			row.name = (n == 1 and L["Drop the %d quest"] or L["Drop all %d quests"]):format(n)
+			row.detail = (kept > 0 and (L["%s complete kept"]:format(kept) .. "  ·  ") or "") .. L["you'll see them all and be asked first"]
 		end
 		return { row }
 	end
@@ -83,18 +84,18 @@ function UI:CollapseGroup(list)
 	local n = #group
 	-- (what the rows are, as the chat line will say it: no row's text worked out, so no NPC's map pin is set here)
 	local what = n > 0 and SH.GroupHeader(group, to.query) or nil
-	local row = { kind = "send", kindLabel = "|cff33ff99chat|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
+	local row = { kind = "send", kindLabel = "|cff33ff99" .. L["chat"] .. "|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
 		sendAll = true, _pos = UI.NO_POS, _score = 0, detail = what or "" }
 	if n == 0 then
-		row.name, row.noActivate, row.detail = "Nothing to send", true, ""
+		row.name, row.noActivate, row.detail = L["Nothing to send"], true, ""
 	elseif to.cmd and SH.Restricted(to) then
 		-- (say, yell: the game presses one line, as many as fit, the rest counted: SH.PressLine)
-		row.name = ("Send %d to %s in one line"):format(n, to.label)
+		row.name = L["Send %d to %s in one line"]:format(n, to.label)
 	elseif to.cmd then
-		row.name = ("Send %s %d to %s"):format(n == 1 and "the" or "all", n, to.label)
+		row.name = (n == 1 and L["Send the %d to %s"] or L["Send all %d to %s"]):format(n, to.label)
 	else
-		row.name = ("%d to send"):format(n)
-		row.detail = to.bad and ("no channel called " .. to.bad) or "say where: party, guild, raid, say, whisper <name>"
+		row.name = L["%d to send"]:format(n)
+		row.detail = to.bad and L["no channel called %s"]:format(to.bad) or L["say where: party, guild, raid, say, whisper <name>"]
 	end
 	return { row }
 end
@@ -117,7 +118,7 @@ local function Completed(self, job, final)
 		for i, e in ipairs(UI.results) do
 			if e == keep then
 				UI.sel = i
-				UI.offset = math.max(0, math.min(i - keptRow, #UI.results - L.ROWS))
+				UI.offset = math.max(0, math.min(i - keptRow, #UI.results - LY.ROWS))
 				break
 			end
 		end
@@ -211,7 +212,7 @@ function UI:SyntaxRows(text)
 		if not values then return nil end
 		val = ns.Lower(val)
 		for _, v in ipairs(values) do
-			if v:sub(1, #val) == val then Row(key .. ":" .. v, "", "filter") end
+			if v:sub(1, #val) == val then Row(key .. ":" .. v, "", L["filter"]) end
 		end
 	end
 	if #picks == 0 then return nil end
@@ -222,7 +223,7 @@ end
 local function FollowSelection(self)
 	local was = UI.offset
 	if UI.sel <= UI.offset then UI.offset = UI.sel - 1 end
-	if UI.sel > UI.offset + L.ROWS then UI.offset = UI.sel - L.ROWS end
+	if UI.sel > UI.offset + LY.ROWS then UI.offset = UI.sel - LY.ROWS end
 	if UI.offset ~= was then self:Render() else self:SelectionChanged() end
 end
 
@@ -471,9 +472,9 @@ function UI:Recall()
 end
 
 function UI:Scroll(delta)
-	local maxOffset = math.max(0, #UI.results - L.ROWS)
+	local maxOffset = math.max(0, #UI.results - LY.ROWS)
 	UI.offset = math.max(0, math.min(maxOffset, UI.offset - delta * 3))
-	UI.sel = math.max(UI.offset + 1, math.min(UI.offset + L.ROWS, UI.sel))
+	UI.sel = math.max(UI.offset + 1, math.min(UI.offset + LY.ROWS, UI.sel))
 	self:Render()
 end
 

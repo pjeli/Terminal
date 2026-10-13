@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Small helpers every provider needs: guarded calls, values that may be "secret" on this
 -- client, and the two routines the character window's lists share (reading a list with its
@@ -149,8 +150,8 @@ end
 local SLOT_INVTYPE = { "INVTYPE_HEAD", "INVTYPE_NECK", "INVTYPE_SHOULDER", "INVTYPE_BODY", "INVTYPE_CHEST", "INVTYPE_WAIST",
 	"INVTYPE_LEGS", "INVTYPE_FEET", "INVTYPE_WRIST", "INVTYPE_HAND", "INVTYPE_FINGER", "INVTYPE_FINGER", "INVTYPE_TRINKET",
 	"INVTYPE_TRINKET", "INVTYPE_CLOAK", "INVTYPE_WEAPONMAINHAND", "INVTYPE_WEAPONOFFHAND", "INVTYPE_RANGED", "INVTYPE_TABARD" }
-local SLOT_ENGLISH = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands", "Finger",
-	"Finger", "Trinket", "Trinket", "Back", "Main Hand", "Off Hand", "Ranged", "Tabard" }
+local SLOT_ENGLISH = { L["Head"], L["Neck"], L["Shoulder"], L["Shirt"], L["Chest"], L["Waist"], L["Legs"], L["Feet"], L["Wrist"],
+	L["Hands"], L["Finger"], L["Finger"], L["Trinket"], L["Trinket"], L["Back"], L["Main Hand"], L["Off Hand"], L["Ranged"], L["Tabard"] }
 --- An equipment slot's name (1-19), as the game says it.
 function ns.SlotText(slot)
 	local g = SLOT_INVTYPE[slot] and _G[SLOT_INVTYPE[slot]]
@@ -160,10 +161,10 @@ end
 --- How long ago, said one way everywhere: "just now" (under a minute), "12 min ago", "3 h ago", "2 d ago".
 function ns.Ago(seconds)
 	local d = math.max(0, tonumber(seconds) or 0)
-	if d < 60 then return "just now" end
-	if d < 3600 then return math.floor(d / 60) .. " min ago" end
-	if d < 86400 then return math.floor(d / 3600) .. " h ago" end
-	return math.floor(d / 86400) .. " d ago"
+	if d < 60 then return L["just now"] end
+	if d < 3600 then return L["%d min ago"]:format(math.floor(d / 60)) end
+	if d < 86400 then return L["%d h ago"]:format(math.floor(d / 3600)) end
+	return L["%d d ago"]:format(math.floor(d / 86400))
 end
 
 --- The words for the mode the player is in: Simple mode's (no @kind, key:value or >>), else Advanced's.

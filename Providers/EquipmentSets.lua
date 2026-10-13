@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Equipment sets (the character window's Equipment Manager). Search by the set's name, or
 -- only sets with @equipmentset (also @set, @sets, @outfit). Enter equips the set; Shift+Enter
@@ -23,20 +24,25 @@ end
 local function Equip(e)
 	local E = API()
 	if InCombatLockdown() then
-		ns:Print("In combat: can't change equipment sets now.")
+		ns:Print(L["In combat: can't change equipment sets now."])
 		return
 	end
 	local info = Info(e.setID)
 	if info and info.equipped then
-		ns:Print(e.name .. " is already equipped.")
+		ns:Print(L["%s is already equipped."]:format(e.name))
 		return
 	end
 	local ok, res = pcall(E.UseEquipmentSet, e.setID)
 	if not ok or res == false then
-		ns:Print("Couldn't equip " .. e.name .. (info and info.lost > 0 and (" (" .. info.lost .. " missing)") or "") .. ".")
+		if info and info.lost > 0 then ns:Print(L["Couldn't equip %s (%s missing)."]:format(e.name, info.lost))
+		else ns:Print(L["Couldn't equip %s."]:format(e.name)) end
 		return
 	end
-	ns:Print("Equipping " .. e.name .. (info and info.lost > 0 and (" (" .. info.lost .. " item" .. (info.lost == 1 and "" or "s") .. " missing)") or "") .. ".")
+	if info and info.lost > 0 then
+		ns:Print((info.lost == 1 and L["Equipping %s (%s item missing)."] or L["Equipping %s (%s items missing)."]):format(e.name, info.lost))
+	else
+		ns:Print(L["Equipping %s."]:format(e.name))
+	end
 end
 
 local SlotText = ns.SlotText -- (the game's own slot names: Util.lua)
@@ -47,7 +53,7 @@ local function ListItems(e)
 	local lines = { e.name .. ":" }
 	local ids = E and E.GetItemIDs and select(2, pcall(E.GetItemIDs, e.setID))
 	if type(ids) ~= "table" then
-		ns:Output({ e.name .. ": no item list available." })
+		ns:Output({ L["%s: no item list available."]:format(e.name) })
 		return
 	end
 	for slot = 1, 19 do
@@ -55,14 +61,14 @@ local function ListItems(e)
 		if type(itemID) == "number" and itemID > 0 then
 			local link
 			if C_Item.GetItemInfo then link = select(2, C_Item.GetItemInfo(itemID)) end -- (not `x and f()`: one value)
-			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or ("item " .. itemID)
+			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or L["item %s"]:format(itemID)
 			local have = C_Item.GetItemCount and C_Item.GetItemCount(itemID, false) or 1
 			local worn = GetInventoryItemID and GetInventoryItemID("player", slot) == itemID
-			lines[#lines + 1] = "  " .. (SlotText(slot) or ("Slot " .. slot)) .. ": " .. name
-				.. ((not worn and (have or 0) == 0) and "  (missing)" or "")
+			lines[#lines + 1] = "  " .. (SlotText(slot) or L["Slot %s"]:format(slot)) .. ": " .. name
+				.. ((not worn and (have or 0) == 0) and ("  " .. L["(missing)"]) or "")
 		end
 	end
-	if #lines == 1 then lines[#lines + 1] = "  (no items saved in this set)" end
+	if #lines == 1 then lines[#lines + 1] = "  " .. L["(no items saved in this set)"] end
 	ns:Output(lines)
 end
 
@@ -197,7 +203,7 @@ local function ShowInManager(e)
 end
 
 ns:RegisterProvider("equipmentset", {
-	label = "Equipment set",
+	label = L["Equipment set"],
 	color = "ff9fe0c0",
 	aliases = { "equipmentset", "equipmentsets", "equipment", "set", "sets", "outfit", "outfits" }, -- (@equipment: the sets; @gear is the pieces)
 	noCombat = true, -- equipping is blocked in combat
@@ -214,17 +220,17 @@ ns:RegisterProvider("equipmentset", {
 			if s then
 				local state
 				if s.equipped then
-					state = "Equipped"
+					state = L["Equipped"]
 				elseif s.lost > 0 then
-					state = s.lost .. " missing"
+					state = L["%s missing"]:format(s.lost)
 				else
-					state = s.worn .. "/" .. s.items .. " worn"
+					state = L["%s/%s worn"]:format(s.worn, s.items)
 				end
 				out[#out + 1] = {
 					key = s.id,
 					name = s.name,
 					icon = s.icon or "Interface\\Icons\\INV_Chest_Chain_04",
-					detail = "Set  " .. state,
+					detail = L["Set"] .. "  " .. state,
 					text = "equipment set gear outfit",
 					setID = s.id,
 					activate = Equip,

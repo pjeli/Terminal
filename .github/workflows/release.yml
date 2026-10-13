@@ -1,0 +1,24 @@
+# Releases (0.47.10, the player's call): pushing a version tag ("0.48.0") has the BigWigs packager build Terminal and
+# Terminal Extras (.pkgmeta), fill in the translations from CurseForge's localization tool (the --@localization@
+# keywords in Locales/), and upload the ZIP to CurseForge (and a GitHub release).
+# Once: add a CurseForge API token (curseforge.com > account > API tokens) as this repository's secret CF_API_KEY.
+name: Package and release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out the repository (with its history: the changelog and tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2

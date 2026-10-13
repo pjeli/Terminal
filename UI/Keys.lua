@@ -1,11 +1,12 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The keyboard: out of combat the terminal reads keys itself (the drawn prompt's editing keys, held keys repeated,
 -- Tab, the toggle key), so Enter on a result that opens a game window goes on to the game's binding in the same press.
 -- Split out of UI.lua.
 
 local UI = ns.UI
-local L = UI.layout
+local LY = UI.layout
 local EasyOn, PrevPos, NextPos, SecureView, TAB_LATE = UI.EasyOn, UI.PrevPos, UI.NextPos, UI.SecureView, UI.TAB_LATE
 
 ----------------------------------------------------------------------
@@ -138,7 +139,7 @@ local function CheckChar(key)
 		local q, c = edit:GetText(), UI.cursor
 		UI:SetQuery(q:sub(1, c) .. ch .. q:sub(c + 1), c + #ch)
 		UI:EnterEdit()
-		ns:Print("This client doesn't pass typed text to addon frames, so the plain search box is used (windows that need a secure click will take Enter twice).")
+		ns:Print(L["This client doesn't pass typed text to addon frames, so the plain search box is used (windows that need a secure click will take Enter twice)."])
 	end)
 end
 
@@ -257,8 +258,8 @@ end
 --- the cursor and Ctrl+W the word before it (as a shell does). True when the key was one of them.
 local function ListKey(key, ctrl)
 	if key == UI.HELP_KEY then UI:KeysWindow()
-	elseif key == "PAGEUP" then UI:Move(-L.ROWS)
-	elseif key == "PAGEDOWN" then UI:Move(L.ROWS)
+	elseif key == "PAGEUP" then UI:Move(-LY.ROWS)
+	elseif key == "PAGEDOWN" then UI:Move(LY.ROWS)
 	elseif not ctrl then return false
 	elseif key == "HOME" then UI:Move(-#UI.results)
 	elseif key == "END" then UI:Move(#UI.results)

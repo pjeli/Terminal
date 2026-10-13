@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- What the small apps that take the terminal's place share (.atop, .snake, .tetris, .lootrun, .changelog,
 -- .wowamp and the .advanced confirmation in Easy.lua): a frame built the same way, laid where the terminal is in its
@@ -105,7 +106,7 @@ end
 function P.Close(frame, why, label, extra)
 	if not frame or not frame:IsShown() then return false end
 	frame:Hide()
-	if why == "combat" then ns:Print(label .. " closed: combat started." .. (extra or "")) end
+	if why == "combat" then ns:Print(L["%s closed: combat started."]:format(label) .. (extra or "")) end
 	return true
 end
 

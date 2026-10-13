@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Running a result (Enter, a click, Shift+Enter). A window Blizzard owns is opened by the game's own press: Enter armed
 -- on a secure button, or the click catcher laid over the hovered row; Terminal's code then only points at the result.
@@ -353,13 +354,13 @@ end
 
 --- What a ">>" / ">>>" with no channel yet, or a word that isn't one, says (arrows: ">>" or ">>>").
 local function NoChannel(to, arrows)
-	local them = arrows == ">>>" and "them" or "it"
-	ns:Print(to.bad and ("No channel called " .. to.bad .. ": " .. arrows .. " party, guild, raid, say, yell, officer, instance, whisper <name>, or a number")
-		or ("Say where to send " .. them .. ": " .. arrows .. " party, guild, raid, say, yell, officer, instance, whisper <name>"))
+	ns:Print(to.bad and L["No channel called %s: %s party, guild, raid, say, yell, officer, instance, whisper <name>, or a number"]:format(to.bad, arrows)
+		or (arrows == ">>>" and L["Say where to send them: %s party, guild, raid, say, yell, officer, instance, whisper <name>"]
+			or L["Say where to send it: %s party, guild, raid, say, yell, officer, instance, whisper <name>"]):format(arrows))
 end
 
-UI.STILL_SEARCHING = "Still searching: press it again in a moment, to send every result."
-UI.STILL_SEARCHING_DROP = "Still searching: press it again in a moment, to drop every quest listed."
+UI.STILL_SEARCHING = L["Still searching: press it again in a moment, to send every result."]
+UI.STILL_SEARCHING_DROP = L["Still searching: press it again in a moment, to drop every quest listed."]
 
 --- ">>> drop": every quest in your log among the results (not complete ones), after Terminal's confirmation.
 local function DropEveryQuest(self)
@@ -367,8 +368,8 @@ local function DropEveryQuest(self)
 	local QD = ns.QuestDrop
 	local rows, kept = QD.GroupRows(self.groupList or UI.results, true)
 	if #rows == 0 then
-		ns:Print(kept > 0 and "Nothing to drop: the quests listed are complete, turn them in."
-			or "Nothing to drop: no quest in your log among the results.")
+		ns:Print(kept > 0 and L["Nothing to drop: the quests listed are complete, turn them in."]
+			or L["Nothing to drop: no quest in your log among the results."])
 		return
 	end
 	ns:RecordHistory(UI.edit:GetText())
@@ -384,7 +385,7 @@ local function SendEveryResult(self, to)
 		-- (say, yell: a click arms Enter for the game's press of one line; Terminal's code can't send there)
 		local se = SecureView(UI.results[UI.sel], false)
 		if se and self:TryArmSecure(se) then ns:RecordHistory(UI.edit:GetText()) return end
-		ns:Print(InCombatLockdown() and "In combat: can't send it now." or ns.Share.ONE_LINE)
+		ns:Print(InCombatLockdown() and L["In combat: can't send it now."] or ns.Share.ONE_LINE)
 		return
 	end
 	if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
@@ -398,7 +399,7 @@ end
 local function SendSelected(self, e, to, secondary)
 	if to.drop then
 		local o = (not (e.noActivate or e.raw or e.completion)) and DropTarget(e) or nil
-		if not o then ns:Print("Only quests in your log can be dropped: " .. tostring(e.name) .. " isn't one.") return end
+		if not o then ns:Print(L["Only quests in your log can be dropped: %s isn't one."]:format(tostring(e.name))) return end
 		ns:RecordHistory(UI.edit:GetText())
 		ns.QuestDrop.Confirm({ o })
 		return
@@ -406,7 +407,7 @@ local function SendSelected(self, e, to, secondary)
 	if not to.cmd then return NoChannel(to, ">>") end
 	local se = SecureView(e, secondary)
 	if se and self:TryArmSecure(se) then ns:RecordHistory(UI.edit:GetText()) return end
-	ns:Print(InCombatLockdown() and "In combat: can't send it now." or ("Couldn't send " .. tostring(e.name) .. "."))
+	ns:Print(InCombatLockdown() and L["In combat: can't send it now."] or L["Couldn't send %s."]:format(tostring(e.name)))
 end
 
 function UI:Activate(idx, opts)
@@ -425,8 +426,8 @@ function UI:Activate(idx, opts)
 		-- (what the key would have done: "use", "show in spellbook", "run"... not always "open")
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
-		local verb = (opts.secondary and shift) or enter or "open"
-		ns:Print(("%s: can't %s in combat."):format(tostring(e.name), verb))
+		local verb = (opts.secondary and shift) or enter or L["open"]
+		ns:Print(L["%s: can't %s in combat."]:format(tostring(e.name), verb))
 		return
 	end
 	-- ">> channel": never opened or run, only sent (by the game's press, armed below)
@@ -449,7 +450,7 @@ function UI:Activate(idx, opts)
 	if not fn then return end
 	local ok, ret = pcall(fn, e, args, self)
 	if not ok then
-		ns:Print("Error: " .. tostring(ret))
+		ns:Print(L["Error: %s"]:format(tostring(ret)))
 		return
 	end
 	-- a command's answer goes to the chat window, not into the results

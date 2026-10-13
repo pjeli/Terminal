@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- A window with some text in a real text box, all selected, so it can be copied (Ctrl+C)
 -- and pasted outside the game. The terminal's own prompt can't reach the clipboard (only a
@@ -79,7 +80,7 @@ local function Build()
 	local close = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 	close:SetSize(90, 24)
 	close:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 12)
-	close:SetText(CLOSE or "Close")
+	close:SetText(CLOSE or L["Close"])
 	close:SetScript("OnClick", function() C.Hide() end)
 	C.close = close
 
@@ -199,7 +200,7 @@ local function ShowLink(title, text)
 	linkHint:SetTextColor(Theme.RGB(t.dim))
 	linkEdit:SetTextColor(Theme.RGB(t.text))
 	linkTitle:SetText(title)
-	linkHint:SetText("Ctrl+C copies  ·  Esc closes")
+	linkHint:SetText(L["Ctrl+C copies  ·  Esc closes"])
 	-- as wide as the text needs (and the title line), within reason
 	local measure = link.measure or link:CreateFontString(nil, "OVERLAY")
 	link.measure = measure
@@ -257,7 +258,7 @@ function C.Show(title, text, options)
 	Build()
 	Style()
 	titleFS:SetText(tostring(title or "Terminal"))
-	hintFS:SetText("Ctrl+C copies everything  -  Esc closes")
+	hintFS:SetText(L["Ctrl+C copies everything  -  Esc closes"])
 	edit:SetText(current)
 	scroll:SetVerticalScroll(0)
 	frame:Show()

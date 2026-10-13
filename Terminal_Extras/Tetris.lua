@@ -1,6 +1,7 @@
 -- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
 local ns = _G.Terminal
 if not ns then return end
+local L = ns.L
 
 -- .tetris: falling blocks, in a small window where the terminal sits (the .snake pattern). Left/Right
 -- (or A/D) move, Up/W/X rotate, Z/Q rotate the other way, Down/S drops faster, Enter drops at once,
@@ -385,13 +386,13 @@ local function DrawSide()
 	local t = Theme.Get()
 	Mini(nextTex, game.queue[1], 52)
 	Mini(holdTex, game.hold, 116, game.held)
-	scoreText:SetText(("|cff%stetris|r"):format(t.accent))
-	bestText:SetText(("best %d"):format(math.max(ns.db and ns.db.tetrisBest or 0, game.score)))
-	linesText:SetText(("score\n%d\n\nlines\n%d"):format(game.score, game.lines))
-	levelText:SetText(("level %d"):format(game.level))
+	scoreText:SetText(("|cff%s%s|r"):format(t.accent, L["tetris"]))
+	bestText:SetText(L["best %d"]:format(math.max(ns.db and ns.db.tetrisBest or 0, game.score)))
+	linesText:SetText(("%s\n%d\n\n%s\n%d"):format(L["score"], game.score, L["lines"], game.lines))
+	levelText:SetText(L["level %d"]:format(game.level))
 	if game.over then
-		overlay:SetText(game.newBest and "new best!" or "game over")
-		overlaySub:SetText(("score %d\nEnter: again  ·  Esc: quit"):format(game.score))
+		overlay:SetText(game.newBest and L["new best!"] or L["game over"])
+		overlaySub:SetText(L["score %d"]:format(game.score) .. "\n" .. L["Enter: again"] .. "  ·  " .. L["Esc: quit"])
 		overlay:Show(); overlaySub:Show()
 	else
 		overlay:Hide(); overlaySub:Hide()
@@ -430,11 +431,11 @@ local function Build()
 	nextLabel = Text(frame, 11, "CENTER")
 	nextLabel:SetPoint("TOPLEFT", sideX, -36)
 	nextLabel:SetWidth(SIDE)
-	nextLabel:SetText("next")
+	nextLabel:SetText(L["next"])
 	holdLabel = Text(frame, 11, "CENTER")
 	holdLabel:SetPoint("TOPLEFT", sideX, -100)
 	holdLabel:SetWidth(SIDE)
-	holdLabel:SetText("hold (C)")
+	holdLabel:SetText(L["hold (C)"])
 	linesText = Text(frame, 12, "CENTER")
 	linesText:SetPoint("TOPLEFT", sideX, -170)
 	linesText:SetWidth(SIDE)
@@ -450,7 +451,7 @@ local function Build()
 	overlaySub:SetPoint("TOP", overlay, "BOTTOM", 0, -6)
 	overlaySub:SetWordWrap(true)
 	overlaySub:SetWidth(COLS * CELL - 8)
-	footer = Panel.Footer(frame, 9, "arrows move/turn  ·  Enter drop  ·  Esc quit")
+	footer = Panel.Footer(frame, 9, L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. L["Esc quit"])
 	TT.frame = frame
 end
 
@@ -511,7 +512,7 @@ end
 function TT.IsShown() return Panel.Shown(frame) end
 
 function TT.Open()
-	if not Panel.CanOpen("Tetris takes over keys, which the game doesn't allow in combat.") then return false end
+	if not Panel.CanOpen(L["Tetris takes over keys, which the game doesn't allow in combat."]) then return false end
 	Build()
 	Style()
 	Panel.Opening(TT) -- (straight in: the terminal and the other panels go)
@@ -522,10 +523,10 @@ function TT.Open()
 end
 
 function TT.Close(why)
-	if Panel.Close(frame, why, "Tetris") then game.keys, game.acts, game.down = {}, {}, false end
+	if Panel.Close(frame, why, L["Tetris"]) then game.keys, game.acts, game.down = {}, {}, false end
 end
 
 ns:RegisterCommand("tetris", {
-	desc = "Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)",
+	desc = L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)"],
 	run = function() TT.Open() end,
 })

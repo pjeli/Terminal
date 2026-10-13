@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 -- Profession recipe index.
@@ -492,8 +493,8 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown)
 		if pd.name and Lower(pd.name) == lname then prevCount = #(pd.list or {}) end
 	end
 	if not P.scanning and prevCount ~= #list then
-		ns:Print(("Indexed %s: %d known recipe%s%s."):format(profName, #list, #list == 1 and "" or "s",
-			(unknown and #unknown > 0) and (", " .. #unknown .. " more to learn") or ""))
+		local more = (unknown and #unknown > 0) and (", " .. L["%d more to learn"]:format(#unknown)) or ""
+		ns:Print((#list == 1 and L["Indexed %s: %d known recipe%s."] or L["Indexed %s: %d known recipes%s."]):format(profName, #list, more))
 	end
 	for k, pd in pairs(store) do
 		if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end
@@ -665,23 +666,23 @@ function P.ScanHelp()
 	for _, pr in ipairs((P.PlayerProfessions())) do
 		if not P.FindIndexed(pr) and P.OpenSpell(pr.name) then todo[#todo + 1] = pr.name end
 	end
-	ns:Print("The game doesn't let addons open profession windows, so Terminal can't scan them itself.")
-	ns:Print("Every profession is indexed the moment you open it. " .. ns.Said("Type its name here", "Search it here (@profession)")
-		.. " and press Enter: that opens it the normal way.")
-	if #todo > 0 then ns:Print("Not indexed yet: " .. table.concat(todo, ", ") .. ".") end
+	ns:Print(L["The game doesn't let addons open profession windows, so Terminal can't scan them itself."])
+	ns:Print(L["Every profession is indexed the moment you open it. %s and press Enter: that opens it the normal way."]:format(
+		ns.Said(L["Type its name here"], L["Search it here (@profession)"])))
+	if #todo > 0 then ns:Print(L["Not indexed yet: %s."]:format(table.concat(todo, ", "))) end
 end
 
 --- quiet: the login scan. The profession window is kept invisible while it's read, and
 --- nothing is printed.
 function P.Scan(quiet)
 	if InCombatLockdown and InCombatLockdown() then
-		if not quiet then ns:Print("Can't scan professions in combat.") end
+		if not quiet then ns:Print(L["Can't scan professions in combat."]) end
 		return
 	end
 	if P.scanBusy then return end
 	local list = P.PlayerProfessions()
 	if #list == 0 then
-		if not quiet then ns:Print("No professions found to scan.") end
+		if not quiet then ns:Print(L["No professions found to scan."]) end
 		return
 	end
 	ns.LoadBlizz("Blizzard_Professions")
@@ -706,8 +707,8 @@ function P.Scan(quiet)
 		if not quiet then
 			local n = 0
 			for _, pd in pairs(Store() or {}) do n = n + #(pd.list or {}) end
-			ns:Print(("Scan finished, %d recipes indexed."):format(n))
-			if #empty > 0 then ns:Print("Nothing to craft yet in: " .. table.concat(empty, ", ") .. ".") end
+			ns:Print(L["Scan finished, %d recipes indexed."]:format(n))
+			if #empty > 0 then ns:Print(L["Nothing to craft yet in: %s."]:format(table.concat(empty, ", "))) end
 		end
 	end
 
@@ -753,7 +754,7 @@ function P.Scan(quiet)
 			end
 		end)
 	end
-	if not quiet then ns:Print(("Scanning %d professions..."):format(#list)) end
+	if not quiet then ns:Print(L["Scanning %d professions..."]:format(#list)) end
 	nextProf()
 end
 

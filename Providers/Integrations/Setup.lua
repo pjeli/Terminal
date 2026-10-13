@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local I = ns.Integrations
 local loot, npc, qdb = I.loot, I.npc, I.qdb
 local LoadedCore = I.LoadedCore
@@ -20,23 +21,23 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function() I.Setup() end)
 
 ns:RegisterCommand("integrations", {
-	desc = "Show which other addons Terminal found (AtlasLoot, Questie)",
+	desc = L["Show which other addons Terminal found (AtlasLoot, Questie)"],
 	run = function()
-		local lines = { "Integrations:" }
+		local lines = { L["Integrations:"] }
 		lines[#lines + 1] = "  AtlasLoot: " .. (loot.on
-			and ("found (" .. tostring(LoadedCore() or "AtlasLoot") .. "). %d loot modules, %d indexed, %d items%s%s"):format(loot.modules, loot.loaded, #loot.rows, loot.done and "" or " (still loading)",
+			and L["found (%s). %d loot modules, %d indexed, %d items%s%s"]:format(tostring(LoadedCore() or "AtlasLoot"), loot.modules, loot.loaded, #loot.rows, loot.done and "" or (" " .. L["(still loading)"]),
 				(function()
 					local n = I.LootWaiting()
-					return n > 0 and (", %d waiting for their names from the server"):format(n) or ""
+					return n > 0 and (", " .. L["%d waiting for their names from the server"]:format(n)) or ""
 				end)())
-			or "not found")
+			or L["not found"])
 		local src = QD.Source()
-		local found = src == "QuestieDB" and "QuestieDB found (without Questie)" or "found"
+		local found = src == "QuestieDB" and L["QuestieDB found (without Questie)"] or L["found"]
 		lines[#lines + 1] = "  Questie: " .. (npc.on
-			and (npc.list and ("%s. %d NPCs (@npc), %s quests (@questie)"):format(found, #npc.list, qdb.list and #qdb.list or "indexing")
-				or (QuestieReady() and (found .. ", indexing NPCs...") or "found, waiting for Questie to finish loading"))
-			or "not found")
-		if ns.Stored then lines[#lines + 1] = "  Alts and banks: " .. ns.Stored.Status() end
+			and (npc.list and L["%s. %d NPCs (@npc), %s quests (@questie)"]:format(found, #npc.list, qdb.list and #qdb.list or L["indexing"])
+				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
+			or L["not found"])
+		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end
 		return lines
 	end,
 })

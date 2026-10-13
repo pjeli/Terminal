@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Terminal Extras: the games and the radio (.snake, .tetris, .lootrun, .typing, .wowamp) live in an addon of their own
 -- that comes with Terminal (the Terminal_Extras folder: ## LoadOnDemand, ## Dependencies: Terminal), loaded the first
@@ -14,11 +15,11 @@ ns.Extras = X
 
 X.ADDON = "Terminal_Extras"
 X.COMMANDS = {
-	{ "snake", "Play Snake (WASD or arrows steer, Esc or ` quits)" },
-	{ "tetris", "Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)" },
-	{ "lootrun", "Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)", { "maze" } },
-	{ "typing", "A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)", { "wpm", "typetest" } },
-	{ "wowamp", "WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)", { "radio", "amp" } },
+	{ "snake", L["Play Snake (WASD or arrows steer, Esc or ` quits)"] },
+	{ "tetris", L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)"] },
+	{ "lootrun", L["Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)"], { "maze" } },
+	{ "typing", L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"], { "wpm", "typetest" } },
+	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" } },
 }
 
 local function Call(f, ...)
@@ -42,12 +43,11 @@ function X.Load()
 	ns:Trace("extras: loading " .. X.ADDON .. ": " .. tostring(loaded) .. (reason and (" (" .. tostring(reason) .. ")") or ""))
 	if loaded then return true end
 	if reason == "DISABLED" then
-		ns:Print("Terminal Extras (the games and the radio) is switched off in your AddOn list: switch it on to play.")
+		ns:Print(L["Terminal Extras (the games and the radio) is switched off in your AddOn list: switch it on to play."])
 	elseif reason == "MISSING" then
-		ns:Print("Terminal Extras (the games and the radio) isn't installed: it comes with Terminal, in its own folder"
-			.. " (Terminal_Extras). Restart the game after updating.")
+		ns:Print(L["Terminal Extras (the games and the radio) isn't installed: it comes with Terminal, in its own folder (Terminal_Extras). Restart the game after updating."])
 	else
-		ns:Print("Terminal Extras couldn't be loaded" .. (reason and (" (" .. tostring(reason) .. ")") or "") .. ".")
+		ns:Print(reason and L["Terminal Extras couldn't be loaded (%s)."]:format(tostring(reason)) or L["Terminal Extras couldn't be loaded."])
 	end
 	return false
 end
@@ -58,7 +58,7 @@ local function StubRun(name, args)
 	if not X.Load() then return nil end
 	local real = ns.commands[name]
 	if not real or real == stubs[name] then
-		ns:Print("Terminal Extras loaded, but ." .. name .. " isn't in it: restart the game after updating.")
+		ns:Print(L["Terminal Extras loaded, but .%s isn't in it: restart the game after updating."]:format(name))
 		return nil
 	end
 	return real.run(args)

@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Secure opening of Blizzard windows.
 --
@@ -492,7 +493,7 @@ end
 S.NAV_SLOTS = 8 -- plans kept at once, one secure button each (a hover's macro and Enter's each get their own)
 S.NAV_STEPS = 12 -- the most steps one press takes (the macro's 255 characters may allow fewer)
 S.NAV_BLAME = 3 -- seconds: a blocked action this soon after a turning press turns that route off
-S.NAV_LABELS = { spellbook = "your spellbook", questlog = "the quest log", keybinds = "Options > Keybindings" }
+S.NAV_LABELS = { spellbook = L["your spellbook"], questlog = L["the quest log"], keybinds = L["Options > Keybindings"] }
 
 S.navPlans = {} -- slot -> plan: { route, e, step, watch, watchName, before, n, at, quiet, verified }
 local navButtons, navSlot = {}, 0
@@ -552,7 +553,7 @@ function S.NavTaint(route, what, by)
 	if ns.db.navTainted[route] then return end
 	ns.db.navTainted[route] = { t = time and time() or 0, what = what, by = by }
 	if ns.Trace then ns:Trace(("nav: %s turned off: %s, by %s"):format(route, tostring(what), tostring(by))) end
-	ns:Print(("Turning %s left %s written by %s (taint), so from now on Terminal only opens it and points. Type /term .nav for more; .nav reset tries again.")
+	ns:Print(L["Turning %s left %s written by %s (taint), so from now on Terminal only opens it and points. Type /term .nav for more; .nav reset tries again."]
 		:format(S.NAV_LABELS[route] or route, tostring(what), tostring(by)))
 end
 
@@ -563,7 +564,7 @@ local function Verify(plan)
 	for i, by in pairs(now) do
 		if by and by ~= S.GAME and by ~= plan.before[i] then
 			local okD, label = pcall(plan.watchName or function() return nil end, i)
-			S.NavTaint(plan.route, okD and label or ("field " .. i), by)
+			S.NavTaint(plan.route, okD and label or L["field %d"]:format(i), by)
 			return
 		end
 	end
@@ -643,32 +644,32 @@ function S.OnBlocked(func, at)
 		if plan.at and (not newest or plan.at > newest.at) then newest = plan end
 	end
 	if newest and (at or GetTime()) - newest.at <= S.NAV_BLAME then
-		S.NavTaint(newest.route, "a blocked action (" .. tostring(func) .. ")", "the game, right after it")
+		S.NavTaint(newest.route, L["a blocked action (%s)"]:format(tostring(func)), L["the game, right after it"])
 	end
 end
 
 ns:RegisterCommand("navigate", {
-	desc = "Which windows Terminal turns to the right page for you, and any it stopped turning because something came out tainted",
+	desc = L["Which windows Terminal turns to the right page for you, and any it stopped turning because something came out tainted"],
 	aliases = { "nav" },
-	complete = function() return { { "reset", "try turning every window again" } } end,
+	complete = function() return { { "reset", L["try turning every window again"] } } end,
 	run = function(args)
 		local a = strtrim(args or ""):lower()
 		local off = ns.db and ns.db.navTainted or {}
 		if a == "reset" then
 			if ns.db then ns.db.navTainted = nil end
-			return { "Terminal turns every window to the right page again." }
+			return { L["Terminal turns every window to the right page again."] }
 		end
-		local out = { "Windows Terminal turns to the right page with the game's own clicks:" }
+		local out = { L["Windows Terminal turns to the right page with the game's own clicks:"] }
 		local names, anyOff = {}, false
 		for route in pairs(S.NAV_LABELS) do names[#names + 1] = route end
 		table.sort(names)
 		for _, route in ipairs(names) do
 			local o = off[route]
 			if o then anyOff = true end
-			out[#out + 1] = ("  %s: %s"):format(S.NAV_LABELS[route], o and ("off (%s written by %s%s)"):format(tostring(o.what), tostring(o.by),
-				(o.t and time and ns.Ago) and (", " .. ns.Ago(time() - o.t)) or "") or "on")
+			out[#out + 1] = ("  %s: %s"):format(S.NAV_LABELS[route], o and L["off (%s written by %s%s)"]:format(tostring(o.what), tostring(o.by),
+				(o.t and time and ns.Ago) and (", " .. ns.Ago(time() - o.t)) or "") or L["on"])
 		end
-		if anyOff then out[#out + 1] = ".nav reset turns them on again." end
+		if anyOff then out[#out + 1] = L[".nav reset turns them on again."] end
 		return out
 	end,
 })

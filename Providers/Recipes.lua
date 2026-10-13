@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The recipe and profession rows (@recipe, @profession), made from the index Professions.lua keeps.
 
@@ -83,9 +84,9 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		icon = r.icon,
 		color = r.learned == false and "|cff8a8a8a" or DiffColor(r.diff),
 		difficulty = r.diff, -- (is:skillup, is:orange...: as of the window's last read)
-		detail = (r.learned == false and "Unlearned  " or "") .. pdata.name,
+		detail = (r.learned == false and (L["Unlearned"] .. "  ") or "") .. pdata.name,
 		text = table.concat(parts, " "),
-		tip = #lines > 0 and ("Reagents: " .. table.concat(lines, ", ")) or nil,
+		tip = #lines > 0 and L["Reagents: %s"]:format(table.concat(lines, ", ")) or nil,
 		getLink = RecipeLink,
 		recipeID = r.id,
 		reagents = r.reagents, -- (is:craftable; the index's own table, not a copy)
@@ -105,8 +106,8 @@ end
 P.MakeRecipeEntry = MakeEntry
 
 ns:RegisterProvider("recipes", {
-	busy = function() return P.scanBusy and "Indexing your professions' recipes" or nil end,
-	label = "Recipe",
+	busy = function() return P.scanBusy and L["Indexing your professions' recipes"] or nil end,
+	label = L["Recipe"],
 	color = "ff66ffc7", -- (mint: apart from professions' teal; kind colours stay apart)
 	aliases = { "recipe", "craft", "crafts", "crafting", "reagent" },
 	collect = function()
@@ -131,9 +132,9 @@ ns:RegisterProvider("recipes", {
 		if count == 0 then
 			out[1] = {
 				key = "scan",
-				name = "Index my recipes (scan professions)",
+				name = L["Index my recipes (scan professions)"],
 				icon = "Interface\\Icons\\INV_Misc_Note_01",
-				detail = "open a profession once to index it",
+				detail = L["open a profession once to index it"],
 				text = "recipes crafts crafting professions scan index reagents",
 				activate = function() P.Scan() end,
 			}
@@ -179,15 +180,15 @@ P.ProfessionLink = ProfessionLink
 -- Shift+Enter: the profession's link (all your recipes) in chat
 local PROF_CHATBOX = ns.ChatBoxSpec(function(e) return ProfessionLink(e) end)
 local function LinkProfession(e)
-	if not ns.LinkInChat(ProfessionLink(e)) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
+	if not ns.LinkInChat(ProfessionLink(e)) then ns:Print(L["Couldn't link %s in chat."]:format(tostring(e.name))) end
 end
 
 local function TradeSpellAfter(e) P.lastSpell = { name = e.name, at = GetTime() } end
-local function TradeSpellInCombat(e) ns:Print(e.name .. " can't be opened from the terminal in combat.") end
+local function TradeSpellInCombat(e) ns:Print(L["%s can't be opened from the terminal in combat."]:format(e.name)) end
 local function ProfessionActivate(e) P.OpenProfession(e.skillLine, e.name) end
 
 ns:RegisterProvider("professions", {
-	label = "Profession",
+	label = L["Profession"],
 	color = "ff5fd0c0",
 	aliases = { "profession", "prof", "profs" }, -- ("skill" is the Skills tab's, Skills.lua)
 	events = { "SPELLS_CHANGED" },
@@ -199,7 +200,7 @@ ns:RegisterProvider("professions", {
 				key = "spell:" .. ts.spellID,
 				name = ts.name,
 				icon = ts.icon,
-				detail = ts.parent or "Profession",
+				detail = ts.parent or L["Profession"],
 				text = (ts.parent or "") .. " profession crafting",
 				link = C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(ts.spellID) or nil,
 				-- cast through Enter itself (casting is protected), then index what opens
@@ -236,16 +237,16 @@ ns:RegisterProvider("professions", {
 ----------------------------------------------------------------------
 
 ns:RegisterCommand("profs", {
-	desc = "Show which professions are indexed",
+	desc = L["Show which professions are indexed"],
 	aliases = { "professions" },
 	run = function()
-		local lines = { "Professions:" }
+		local lines = { L["Professions:"] }
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local pd = P.FindIndexed(pr)
 			lines[#lines + 1] = ("  %s %d/%d - %s"):format(pr.name, pr.rank, pr.maxRank,
-				pd and (#pd.list .. " recipes indexed") or ns.Said("not indexed (open it once)", "not indexed (open it once, or search @recipe and pick Index my recipes)"))
+				pd and L["%d recipes indexed"]:format(#pd.list) or ns.Said(L["not indexed (open it once)"], L["not indexed (open it once, or search @recipe and pick Index my recipes)"]))
 		end
-		if #lines == 1 then lines[2] = "  none found" end
+		if #lines == 1 then lines[2] = "  " .. L["none found"] end
 		return lines
 	end,
 })
@@ -253,7 +254,7 @@ ns:RegisterCommand("profs", {
 -- .profdebug : what the open profession window reports, for bug reports.
 -- Printed to chat as well, so it can be copied.
 ns:RegisterCommand("profdebug", {
-	desc = "Show what the open profession window reports (for bug reports)",
+	desc = L["Show what the open profession window reports (for bug reports)"],
 	run = function()
 		local function S(v)
 			if Secret(v) then return "<secret>" end

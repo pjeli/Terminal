@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 local TOKEN_SECURE, TokenOpen = ns.TOKEN_SECURE, ns.TokenOpen -- (Panels.lua)
 
@@ -28,7 +29,7 @@ local function CurrencyID(info, index)
 end
 
 ns:RegisterProvider("currency", {
-	label = "Currency",
+	label = L["Currency"],
 	color = "ffffe066",
 	aliases = { "currency", "currencies", "token", "tokens" },
 	events = { "CURRENCY_DISPLAY_UPDATE" },

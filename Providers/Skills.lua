@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Skills (the character window's Skills tab): weapon skills, languages, armor
 -- proficiencies, professions... searchable by name or group, or only skills with @skill.
@@ -120,7 +121,7 @@ end
 local SKILL_SECURE = { binding = "TOGGLECHARACTER1", click = ns.Secure.SKILLS_CLICK } -- click: a mouse click opens the tab
 
 ns:RegisterProvider("skills", {
-	label = "Skill",
+	label = L["Skill"],
 	color = "ffd0c090",
 	aliases = { "skill", "skills", "weaponskill", "language", "languages", "proficiency" },
 	noCombat = true, -- opening the character window is blocked in combat

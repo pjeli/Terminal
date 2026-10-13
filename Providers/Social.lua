@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Your guild and your friends (@guild, @friend): "@guild priest online", "@guild blacksmith", "@guild in:undercity",
 -- "@guild officer", "@friend online". Each person's row is searchable by name, class, rank, zone, notes and (where the
@@ -56,7 +57,7 @@ function SO.Whisper(e)
 		return
 	end
 	local who = e.whisperTo or (not e.bnetID and not e.bnetTag and e.name)
-	if not who then ns:Print("Can't whisper " .. tostring(e.name) .. " from here right now.") return end
+	if not who then ns:Print(L["Can't whisper %s from here right now."]:format(tostring(e.name))) return end
 	local tell = ChatFrame_SendTell or (ChatFrameUtil and ChatFrameUtil.SendTell)
 	ns:Trace("social: whisper to " .. tostring(who))
 	if tell then tell(who) else ns.LinkInChat("/w " .. who .. " ") end
@@ -69,9 +70,9 @@ function SO.Invite(e)
 		BNInviteFriend(e.bnetGame)
 		return
 	end
-	if not e.whisperTo then ns:Print(tostring(e.name) .. " isn't playing World of Warcraft right now.") return end
+	if not e.whisperTo then ns:Print(L["%s isn't playing World of Warcraft right now."]:format(tostring(e.name))) return end
 	local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
-	if not invite then ns:Print("Can't invite " .. tostring(e.name) .. " from here right now.") return end
+	if not invite then ns:Print(L["Can't invite %s from here right now."]:format(tostring(e.name))) return end
 	ns:Trace("social: invite " .. tostring(e.whisperTo))
 	invite(e.whisperTo)
 end
@@ -104,9 +105,9 @@ end
 --- "Lv 60 Priest  Officer  Undercity" / "offline  Lv 60 Priest  Officer".
 local function Detail(level, class, extra, zone, online)
 	local parts = {}
-	if not online then parts[#parts + 1] = "offline" end
+	if not online then parts[#parts + 1] = L["offline"] end
 	local who = {}
-	if level and level > 0 then who[#who + 1] = "Lv " .. level end
+	if level and level > 0 then who[#who + 1] = L["Lv %d"]:format(level) end
 	if class then who[#who + 1] = class end
 	if #who > 0 then parts[#parts + 1] = table.concat(who, " ") end
 	if extra then parts[#parts + 1] = extra end
@@ -433,7 +434,7 @@ function SO.GuildRows()
 end
 
 ns:RegisterProvider("guild", {
-	label = "Guild",
+	label = L["Guild"],
 	color = "ff34d080",
 	aliases = { "guild", "guildies", "guildmates", "gmember" },
 	explicit = true, -- (only with @guild, or Simple mode's People: a guild's names would crowd every search)
@@ -442,7 +443,7 @@ ns:RegisterProvider("guild", {
 	events = { "GUILD_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE" },
 	guard = 2,
 	collect = function() return SO.GuildRows() end,
-	busy = function() return SO.CraftsWaiting() and "Asking the server for your guild's professions" or nil end,
+	busy = function() return SO.CraftsWaiting() and L["Asking the server for your guild's professions"] or nil end,
 })
 
 ----------------------------------------------------------------------
@@ -492,7 +493,7 @@ local function BNetRows(out, seen)
 			if (tag or charName or acct) and not (char and (seen[char] or seen[charName])) then
 				local level, class, zone, note = Num(g.characterLevel), Str(g.className), Str(g.areaName), Str(a.note)
 				local who = tag and (tag:gsub("#%d+$", "")) or nil
-				local name = charName and (who and (charName .. " (" .. who .. ")") or charName) or who or ("Battle.net friend " .. i)
+				local name = charName and (who and (charName .. " (" .. who .. ")") or charName) or who or L["Battle.net friend %d"]:format(i)
 				listed = listed + 1
 				if charName then playing = playing + 1 end
 				out[#out + 1] = Row({
@@ -522,7 +523,7 @@ function SO.FriendRows()
 end
 
 ns:RegisterProvider("friends", {
-	label = "Friend",
+	label = L["Friend"],
 	color = "ff4890f8",
 	aliases = { "friend", "friends", "bnet" },
 	explicit = true,
@@ -577,14 +578,14 @@ local function WhoAsked(e)
 	ns:Trace("who: asked the server: /who " .. tostring(e.whoFilter))
 	if ns.UI and ns.UI.UpdateBusy then ns.UI:UpdateBusy() end
 end
-local function WhoInCombat() ns:Print("Ask /who again once combat is over (it needs a key press the game allows).") end
+local function WhoInCombat() ns:Print(L["Ask /who again once combat is over (it needs a key press the game allows)."]) end
 
 --- The row on top of an @who search: ask the server with the typed words.
 function SO.WhoAskRow(text)
 	local filter = SO.WhoFilter(text)
 	return {
-		name = "Ask the server: /who " .. (filter ~= "" and filter or "(everyone in your zone)"),
-		detail = "Enter", kind = "who", kindLabel = "", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
+		name = L["Ask the server: /who %s"]:format(filter ~= "" and filter or L["(everyone in your zone)"]),
+		detail = L["Enter"], kind = "who", kindLabel = "", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
 		whoFilter = filter, lead = true, secure = WHO_ASK, isOpen = Never, after = WhoAsked, activate = WhoInCombat,
 		staysOpen = true, _pos = ns.UI and ns.UI.NO_POS or nil,
 	}
@@ -620,7 +621,7 @@ function SO.WhoRows()
 end
 
 ns:RegisterProvider("who", {
-	label = "Who",
+	label = L["Who"],
 	color = "fff0e890",
 	aliases = { "who" },
 	explicit = true,
@@ -636,7 +637,7 @@ ns:RegisterProvider("who", {
 		return rows
 	end,
 	busy = function()
-		if who.waiting and GetTime() - who.waiting < SO.WHO_WAIT then return "Asking the server who's online" end
+		if who.waiting and GetTime() - who.waiting < SO.WHO_WAIT then return L["Asking the server who's online"] end
 		who.waiting = nil
 	end,
 	-- the top row of an @who search

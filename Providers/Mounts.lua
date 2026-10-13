@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 local function SummonMount(e)
 	if C_MountJournal and C_MountJournal.SummonByID then C_MountJournal.SummonByID(e.key) end
@@ -21,7 +22,7 @@ local function JournalShown() local C = ns.Collections return C and C.JournalSho
 ----------------------------------------------------------------------
 
 ns:RegisterProvider("mounts", {
-	label = "Mount",
+	label = L["Mount"],
 	color = "ff7bd88f",
 	aliases = { "mount" },
 	events = { "NEW_MOUNT_ADDED", "COMPANION_LEARNED" },
@@ -37,7 +38,7 @@ ns:RegisterProvider("mounts", {
 					key = mountID,
 					name = name,
 					icon = icon,
-					detail = isFavorite and "Favorite" or "",
+					detail = isFavorite and L["Favorite"] or "",
 					spellID = spellID,
 					getLink = MountLink, -- (made when selected, not for every mount on every rebuild)
 					activate = SummonMount,

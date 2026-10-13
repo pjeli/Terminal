@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local I = ns.Integrations
 local SpotXY, ZoneName, PinObject = I.SpotXY, I.ZoneName, I.PinObject
 
@@ -38,7 +39,7 @@ I.ENTRANCES = {
 	{ "Dire Maul (North)", 1444, 62.5, 24.9, false, 56, 60 },
 	{ "Dire Maul (West)", 1444, 60.3, 30.2, false, 56, 60 },
 	{ "Dire Maul (East)", 1444, 64.8, 30.2, false, 56, 60 },
-	{ "Dire Maul (East)", 1444, 77.1, 36.9, false, 56, 60, "The Hidden Reach (needs the Crescent Key)" },
+	{ "Dire Maul (East)", 1444, 77.1, 36.9, false, 56, 60, L["The Hidden Reach (needs the Crescent Key)"] },
 	{ "Onyxia's Lair", 1445, 52.6, 76.8, true, 60, 60 },
 	{ "Zul'Farrak", 1446, 38.7, 20.0, false, 44, 54 },
 	{ "Ruins of Ahn'Qiraj", 1451, 28.6, 92.4, true, 60, 60 },
@@ -61,8 +62,8 @@ function I.EntranceRows(raids)
 			count[name] = (count[name] or 0) + 1
 			local cont, x, y = SpotXY(ui, { px, py })
 			local zone = ZoneName(ui)
-			local lv = lo and (lo == hi and ("Lv " .. lo) or ("Lv " .. lo .. "-" .. hi)) or nil
-			local parts = { raids and "Raid" or "Dungeon" }
+			local lv = lo and (lo == hi and L["Lv %d"]:format(lo) or L["Lv %d-%d"]:format(lo, hi)) or nil
+			local parts = { raids and L["Raid"] or L["Dungeon"] }
 			if lv then parts[#parts + 1] = lv end
 			if note then parts[#parts + 1] = note end
 			if zone then parts[#parts + 1] = zone end
@@ -71,7 +72,7 @@ function I.EntranceRows(raids)
 				detail = table.concat(parts, "  "), zone = zone, level = hi, minLevel = lo,
 				text = (raids and "raid entrance " or "dungeon instance entrance ") .. (note and (note .. " ") or "") .. (zone or ""),
 				ui = ui, mapID = ui, px = px, py = py, wcont = cont, wx = x, wy = y,
-				pinName = name .. " entrance", what = raids and "raid" or "dungeon",
+				pinName = L["%s entrance"]:format(name), what = raids and L["raid"] or L["dungeon"],
 				secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor, after = EntranceAfter, activate = PinObject,
 				secondary = PinObject,
 			}
@@ -83,10 +84,10 @@ end
 
 -- @dungeon / @raid: instance entrances (I.ENTRANCES, WoW Forever's own; no Questie needed)
 ns:RegisterProvider("dungeon", {
-	label = "Dungeon", color = "ff8fc0ff", aliases = { "dungeon", "dungeons", "instance", "instances" }, lazy = true,
+	label = L["Dungeon"], color = "ff8fc0ff", aliases = { "dungeon", "dungeons", "instance", "instances" }, lazy = true,
 	collect = function() return I.EntranceRows(false) end,
 })
 ns:RegisterProvider("raid", {
-	label = "Raid", color = "ffff9f6f", aliases = { "raid", "raids" }, lazy = true,
+	label = L["Raid"], color = "ffff9f6f", aliases = { "raid", "raids" }, lazy = true,
 	collect = function() return I.EntranceRows(true) end,
 })

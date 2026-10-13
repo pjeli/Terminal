@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Completion (Tab, Right at the end of the prompt) and the faint text after what's typed: the completion, or on an
 -- empty prompt an example of what to type. Split out of UI.lua.
@@ -7,7 +8,7 @@ local UI = ns.UI
 local Theme = ns.Theme
 local EasyOn, NextPos, ONCE_LABEL = UI.EasyOn, UI.NextPos, UI.ONCE_LABEL
 
-local DOWN_RECENT = "Down: your recent picks"
+local DOWN_RECENT = L["Down: your recent picks"]
 
 UI.HINT_GAP = 6 -- (px between the cursor and an empty prompt's hint)
 local FZF_GHOST = "fzf" -- (the player's call: just that; the footer has the keys)
@@ -268,7 +269,7 @@ function UI:UpdateGhost()
 	if not ghost then return end
 	local add = self:IsShown() and self:Suggestion() or nil
 	if self.clipHint and not self.keys and self:IsShown() then
-		add = (edit:GetText() ~= "" and "   " or "") .. (self.clipHint == "V" and "Ctrl+V again to paste" or "Ctrl+C again to copy")
+		add = (edit:GetText() ~= "" and "   " or "") .. (self.clipHint == "V" and L["Ctrl+V again to paste"] or L["Ctrl+C again to copy"])
 	end
 	-- nothing typed: a faint line in the prompt says what to do (there's nothing under it); fuzzy finding has its own
 	if not add and self:IsShown() and edit:GetText() == "" and self.fzf then
@@ -277,6 +278,8 @@ function UI:UpdateGhost()
 		-- a rotating example of what to type (Advanced: its own syntax, and what Up/Down bring)
 		-- (the option off: the prompt stays empty)
 		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end
+		-- (the examples start "try:" in English, which SuggestionText reads back; only what's shown is translated)
+		if type(add) == "string" and add:sub(1, 4) == "try:" then add = L["try:"] .. add:sub(5) end
 		-- Alt+`: this run is Advanced (Simple again once it closes)
 		if ns.Easy and ns.Easy.temp then add = ONCE_LABEL .. (add and ("  ·  " .. add) or "") end
 	end

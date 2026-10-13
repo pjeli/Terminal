@@ -1,11 +1,12 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The terminal's modes for one run: Alt+` (Advanced, this time), pure fuzzy finding (Tab+`, the glow round the
 -- prompt bar while it's on) and its hand-off of a result to Simple or Advanced mode. Split out of UI.lua.
 
 local UI = ns.UI
 local Theme = ns.Theme
-local L = UI.layout
+local LY = UI.layout
 local Forget, TAB_LATE = UI.Forget, UI.TAB_LATE
 
 -- Tab+` (Tab held, then `) is pure fuzzy finding (0.42.31; the Windows key never reached the game reliably). Tab held:
@@ -162,7 +163,7 @@ function UI:SelectPopTarget(final)
 		-- from, by kind and name: Backspace back to them, UI:WalkBack)
 		if e == t or (e.kind == t.kind and e.name == t.name and ((e.key ~= nil and e.key == t.key) or (e.key == nil and t.key == nil))) then
 			UI.sel = i
-			UI.offset = math.max(0, math.min(i - 1, #UI.results - L.ROWS))
+			UI.offset = math.max(0, math.min(i - 1, #UI.results - LY.ROWS))
 			self.popTarget = nil
 			return
 		end
@@ -297,7 +298,7 @@ function UI:KeysWindow()
 	local K = ns.KeysWindow
 	if not K then
 		-- (a file the update added: a /reload doesn't load it)
-		ns:Print("The keys window came with an update: restart the game to load it (a /reload doesn't load new files).")
+		ns:Print(L["The keys window came with an update: restart the game to load it (a /reload doesn't load new files)."])
 		return false
 	end
 	if K.TooSoon() then return false end -- (F1 held: its repeats after the window closed)

@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local I = ns.Integrations
 local Safe = ns.Safe -- (Util.lua)
 local QD = ns.QuestieData
@@ -87,7 +88,7 @@ local function PinObject(e)
 	if pin then
 		ns:Print(M.PinLine(pin, e.pinName or e.name, e.zone))
 	else
-		ns:Print("Can't set a waypoint there.")
+		ns:Print(L["Can't set a waypoint there."])
 	end
 end
 I.PinObject = PinObject
@@ -148,7 +149,7 @@ function I.ObjectRows(kind)
 	local DB = QDB()
 	local rows = {}
 	if not (ids and DB) then return rows end
-	local label = kind:gsub("^%l", string.upper)
+	local label = (kind == "mailbox" and L["Mailbox"]) or (kind:gsub("^%l", string.upper))
 	for _, id in ipairs(ids) do
 		local spawns = Safe(DB.QueryObjectSingle, id, "spawns")
 		local n = 0

@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Theme: colours, font and layout of the terminal. Stored per account in TerminalDB.theme
 -- and applied live. Change it from the terminal ( .theme, .set ) or the options panel.
@@ -89,7 +90,7 @@ T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "pro
 	"fzfGlow", "fzfColor" }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
-T.FZF_GLOW_LABELS = { breathe = "Breathing", steady = "Steady", bright = "Bright", line = "Thin line", off = "Off" }
+T.FZF_GLOW_LABELS = { breathe = L["Breathing"], steady = L["Steady"], bright = L["Bright"], line = L["Thin line"], off = L["Off"] }
 T.CURSOR_ORDER = { "blinking-line", "solid-line", "blinking-box", "solid-box" }
 
 -- Animation styles: open/close (seconds; `fade`: how long the opening fade takes, if not the whole
@@ -114,8 +115,8 @@ function T.Move(A, x) -- how far along a movement is (may pass 1 for "back")
 	return T.Ease(x)
 end
 T.ANIMATION_ORDER = { "smooth", "snappy", "floaty", "cascade", "dropdown", "off" }
-T.ANIMATION_LABELS = { smooth = "Smooth", snappy = "Snappy", floaty = "Floaty", cascade = "Cascade",
-	dropdown = "Drop Down", off = "Off" }
+T.ANIMATION_LABELS = { smooth = L["Smooth"], snappy = L["Snappy"], floaty = L["Floaty"], cascade = L["Cascade"],
+	dropdown = L["Drop Down"], off = L["Off"] }
 T.ANIMATIONS = {
 	smooth = { open = 0.18, close = 0.12, drift = 10, closeDrift = 6, rowFade = 0.14, stagger = 0.018, slide = 0, speed = 1 },
 	-- pops in with a little bounce (it overshoots and settles), shows up almost at once, and the
@@ -137,33 +138,33 @@ function T.Animation(t)
 	if a == false or a == "off" then return nil end
 	return T.ANIMATIONS[a] or T.ANIMATIONS.smooth
 end
-T.CURSOR_LABELS = { ["blinking-line"] = "Blinking line", ["solid-line"] = "Solid line", ["blinking-box"] = "Blinking box", ["solid-box"] = "Solid box" }
+T.CURSOR_LABELS = { ["blinking-line"] = L["Blinking line"], ["solid-line"] = L["Solid line"], ["blinking-box"] = L["Blinking box"], ["solid-box"] = L["Solid box"] }
 T.FIELDS = {
-	promptText = { kind = "text", label = "Prompt", max = 3 },
-	prompt = { kind = "color", label = "Prompt colour" },
-	accent = { kind = "color", label = "Selection" },
-	match = { kind = "color", label = "Match highlight" },
-	text = { kind = "color", label = "Text" },
-	dim = { kind = "color", label = "Details" },
-	bg = { kind = "color", label = "Background" },
-	promptBg = { kind = "color", label = "Prompt background" },
-	border = { kind = "color", label = "Border" },
-	bgAlpha = { kind = "number", label = "Opacity", min = 0.3, max = 1, step = 0.01 },
-	frame = { kind = "choice", label = "Frame", choices = { "classic", "flat" } },
-	font = { kind = "choice", label = "Font", choices = T.FONT_ORDER },
-	fontSize = { kind = "number", label = "Font size", min = 10, max = 22, step = 1 },
-	width = { kind = "number", label = "Width", min = 420, max = 1100, step = 10 },
-	rows = { kind = "number", label = "Max rows", min = 4, max = 20, step = 1 },
-	scale = { kind = "number", label = "Scale", min = 0.6, max = 1.6, step = 0.05 },
-	hints = { kind = "bool", label = "Key hints in footer" },
-	syntax = { kind = "bool", label = "Colour what you type" },
-	suggest = { kind = "bool", label = "Suggestions in the empty prompt" },
-	animations = { kind = "choice", label = "Animation", choices = T.ANIMATION_ORDER },
-	cursor = { kind = "choice", label = "Cursor", choices = T.CURSOR_ORDER },
-	blinkRate = { kind = "number", label = "Blink speed", min = 0.2, max = 3, step = 0.1 },
-	autoScan = { kind = "bool", label = "Index professions at login" },
-	fzfGlow = { kind = "choice", label = "Fuzzy mode glow", choices = T.FZF_GLOW_ORDER },
-	fzfColor = { kind = "color", label = "Fuzzy glow", optional = true }, -- (accent/default: the selection colour)
+	promptText = { kind = "text", label = L["Prompt"], max = 3 },
+	prompt = { kind = "color", label = L["Prompt colour"] },
+	accent = { kind = "color", label = L["Selection"] },
+	match = { kind = "color", label = L["Match highlight"] },
+	text = { kind = "color", label = L["Text"] },
+	dim = { kind = "color", label = L["Details"] },
+	bg = { kind = "color", label = L["Background"] },
+	promptBg = { kind = "color", label = L["Prompt background"] },
+	border = { kind = "color", label = L["Border"] },
+	bgAlpha = { kind = "number", label = L["Opacity"], min = 0.3, max = 1, step = 0.01 },
+	frame = { kind = "choice", label = L["Frame"], choices = { "classic", "flat" } },
+	font = { kind = "choice", label = L["Font"], choices = T.FONT_ORDER },
+	fontSize = { kind = "number", label = L["Font size"], min = 10, max = 22, step = 1 },
+	width = { kind = "number", label = L["Width"], min = 420, max = 1100, step = 10 },
+	rows = { kind = "number", label = L["Max rows"], min = 4, max = 20, step = 1 },
+	scale = { kind = "number", label = L["Scale"], min = 0.6, max = 1.6, step = 0.05 },
+	hints = { kind = "bool", label = L["Key hints in footer"] },
+	syntax = { kind = "bool", label = L["Colour what you type"] },
+	suggest = { kind = "bool", label = L["Suggestions in the empty prompt"] },
+	animations = { kind = "choice", label = L["Animation"], choices = T.ANIMATION_ORDER },
+	cursor = { kind = "choice", label = L["Cursor"], choices = T.CURSOR_ORDER },
+	blinkRate = { kind = "number", label = L["Blink speed"], min = 0.2, max = 3, step = 0.1 },
+	autoScan = { kind = "bool", label = L["Index professions at login"] },
+	fzfGlow = { kind = "choice", label = L["Fuzzy mode glow"], choices = T.FZF_GLOW_ORDER },
+	fzfColor = { kind = "color", label = L["Fuzzy glow"], optional = true }, -- (accent/default: the selection colour)
 }
 local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
 
@@ -347,7 +348,7 @@ end
 --- Validates and stores one setting. Returns ok, value-or-error. `quiet`: don't redraw yet (a batch, T.Import).
 function T.Set(key, raw, quiet)
 	local f = T.FIELDS[key]
-	if not f then return false, "unknown setting '" .. tostring(key) .. "'" end
+	if not f then return false, L["unknown setting '%s'"]:format(tostring(key)) end
 	local v
 	if f.kind == "color" then
 		local word = tostring(raw or ""):lower()
@@ -356,11 +357,11 @@ function T.Set(key, raw, quiet)
 			v = false -- (the theme's own colour)
 		else
 			v = Hex(raw)
-			if not v then return false, "expected a hex colour such as ff79c6" .. (f.optional and ", or accent" or "") end
+			if not v then return false, L["expected a hex colour such as ff79c6"] .. (f.optional and (", " .. L["or accent"]) or "") end
 		end
 	elseif f.kind == "number" then
 		v = tonumber(raw)
-		if not v then return false, "expected a number from " .. f.min .. " to " .. f.max end
+		if not v then return false, L["expected a number from %s to %s"]:format(f.min, f.max) end
 		v = math.floor(v / f.step + 0.5) * f.step
 		v = math.max(f.min, math.min(f.max, v))
 		v = tonumber(("%.2f"):format(v))
@@ -368,7 +369,7 @@ function T.Set(key, raw, quiet)
 		local s = tostring(raw):lower()
 		if s == "true" or s == "on" or s == "1" or s == "yes" then v = true
 		elseif s == "false" or s == "off" or s == "0" or s == "no" then v = false
-		else return false, "expected on or off" end
+		else return false, L["expected on or off"] end
 	elseif f.kind == "choice" then
 		local s = tostring(raw):lower()
 		-- animations used to be on/off
@@ -378,13 +379,13 @@ function T.Set(key, raw, quiet)
 		for _, c in ipairs(f.choices) do
 			if c == s or c:sub(1, #s) == s and #s > 0 then v = c break end
 		end
-		if not v then return false, "expected one of: " .. table.concat(f.choices, ", ") end
+		if not v then return false, L["expected one of: %s"]:format(table.concat(f.choices, ", ")) end
 	elseif f.kind == "text" then
 		v = tostring(raw or ""):gsub("|", "")
-		if v == "" then return false, "prompt can't be empty" end
+		if v == "" then return false, L["prompt can't be empty"] end
 		local chars = select(2, v:gsub("[^\128-\191]", "")) -- UTF-8 characters, not bytes
 		if chars > f.max then
-			return false, "prompt can be at most " .. f.max .. " characters"
+			return false, L["prompt can be at most %s characters"]:format(f.max)
 		end
 	end
 	local t = T.Get()
@@ -474,7 +475,7 @@ end
 function T.Import(s)
 	s = tostring(s or "")
 	local at = s:find(T.STYLE_MARK, 1, true)
-	if not at then return false, "not a Terminal style: it starts with " .. T.STYLE_MARK end
+	if not at then return false, L["not a Terminal style: it starts with %s"]:format(T.STYLE_MARK) end
 	local body = s:sub(at + #T.STYLE_MARK):gsub(";%s+", ";"):match("^[^%s|]*") or ""
 	local t = T.Get()
 	local set, skipped, bad = 0, 0, {}
@@ -492,32 +493,32 @@ function T.Import(s)
 	if #bad > 0 or set == 0 then
 		for k in pairs(t) do t[k] = nil end
 		for k, v in pairs(keep) do t[k] = v end
-		if set == 0 and #bad == 0 then return false, "no settings in that style string" end
-		return false, "not applied: " .. table.concat(bad, "; ")
+		if set == 0 and #bad == 0 then return false, L["no settings in that style string"] end
+		return false, L["not applied: %s"]:format(table.concat(bad, "; "))
 	end
 	t.preset = T.MatchPreset(t)
 	T.Changed()
-	local msg = set .. " settings applied"
-	if skipped > 0 then msg = msg .. " (" .. skipped .. " unknown skipped)" end
+	local msg = L["%s settings applied"]:format(set)
+	if skipped > 0 then msg = msg .. " " .. L["(%s unknown skipped)"]:format(skipped) end
 	if t.preset ~= "custom" then msg = msg .. ": " .. T.PRESETS[t.preset].label end
 	return true, msg
 end
 
 ns:RegisterCommand("style", {
-	desc = "Share the look: .style copies it as a string, .style TERM1:... applies one",
+	desc = L["Share the look: .style copies it as a string, .style TERM1:... applies one"],
 	aliases = { "skin", "look" },
 	complete = function(args)
 		if (args or "") ~= "" then return {} end
-		return { { "export", "the current look as a string, to copy" }, { "import", "paste a style string after it" } }
+		return { { "export", L["the current look as a string, to copy"] }, { "import", L["paste a style string after it"] } }
 	end,
 	run = function(args)
 		args = strtrim(args or "")
 		if args == "" or args == "export" then
-			ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true })
+			ns:ShowText(L["Terminal style: paste it to a friend"], T.Export(), { compact = true })
 			return {}
 		end
 		local _, msg = T.Import((args:gsub("^import%s*", "")))
-		return { "Style: " .. msg }
+		return { L["Style: %s"]:format(msg) }
 	end,
 })
 
@@ -526,42 +527,42 @@ ns:RegisterCommand("style", {
 ----------------------------------------------------------------------
 
 ns:RegisterCommand("theme", {
-	desc = "List themes, or apply one: .theme dracula  (.theme reset)",
+	desc = L["List themes, or apply one: .theme dracula  (.theme reset)"],
 	aliases = { "themes" },
 	-- Tab completion (and the rows shown while typing): theme names
 	complete = function()
 		local cur = T.Get().preset
 		local out = {}
 		for _, id in ipairs(T.PRESET_ORDER) do
-			out[#out + 1] = { id, T.PRESETS[id].label .. (id == cur and "  (current)" or "") }
+			out[#out + 1] = { id, T.PRESETS[id].label .. (id == cur and ("  " .. L["(current)"]) or "") }
 		end
-		out[#out + 1] = { "reset", "back to the defaults" }
+		out[#out + 1] = { "reset", L["back to the defaults"] }
 		return out
 	end,
 	run = function(args)
 		args = strtrim(args or "")
 		if args == "reset" then
 			T.Reset()
-			return { "Theme reset to defaults." }
+			return { L["Theme reset to defaults."] }
 		end
 		if args ~= "" then
 			local ok, id = T.ApplyPreset(args)
-			if not ok then return { "No theme called '" .. args .. "'. Try .theme" } end
-			return { "Theme: " .. T.PRESETS[id].label }
+			if not ok then return { L["No theme called '%s'. Try .theme"]:format(args) } end
+			return { L["Theme: %s"]:format(T.PRESETS[id].label) }
 		end
 		local cur = T.Get().preset
-		local lines = { "Themes (.theme <name>):" }
+		local lines = { L["Themes (.theme <name>):"] }
 		for _, id in ipairs(T.PRESET_ORDER) do
-			lines[#lines + 1] = ("  %s%s"):format(T.PRESETS[id].label, id == cur and "  (current)" or "")
+			lines[#lines + 1] = ("  %s%s"):format(T.PRESETS[id].label, id == cur and ("  " .. L["(current)"]) or "")
 		end
-		if cur == "custom" then lines[#lines + 1] = "  (current colours are customised)" end
-		lines[#lines + 1] = "Fine-tune with .set, or the options panel: .options"
+		if cur == "custom" then lines[#lines + 1] = "  " .. L["(current colours are customised)"] end
+		lines[#lines + 1] = L["Fine-tune with .set, or the options panel: .options"]
 		return lines
 	end,
 })
 
 ns:RegisterCommand("set", {
-	desc = "Show or change a setting: .set accent ff79c6",
+	desc = L["Show or change a setting: .set accent ff79c6"],
 	aliases = { "config" },
 	-- Tab completion: setting names, then the values a setting takes
 	complete = function(args)
@@ -584,7 +585,7 @@ ns:RegisterCommand("set", {
 				for _, v in ipairs(values) do
 					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or (k == "animations" and T.ANIMATION_LABELS[v])
 					or (k == "fzfGlow" and T.FZF_GLOW_LABELS[v]) or ""
-					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. "(current)") or "") }
+					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. L["(current)"]) or "") }
 				end
 				return out
 			end
@@ -595,7 +596,7 @@ ns:RegisterCommand("set", {
 		local key, value = strtrim(args or ""):match("^(%S*)%s*(.-)$")
 		local t = T.Get()
 		if key == "" then
-			local lines = { "Settings (.set <name> <value>):" }
+			local lines = { L["Settings (.set <name> <value>):"] }
 			for _, k in ipairs(T.ORDER) do
 				lines[#lines + 1] = ("  %s = %s   (%s)"):format(k, T.Format(k, t[k]), T.FIELDS[k].label)
 			end
@@ -606,11 +607,11 @@ ns:RegisterCommand("set", {
 			if k:lower() == key:lower() then key = k break end
 		end
 		if value == "" then
-			if not T.FIELDS[key] then return { "Unknown setting '" .. key .. "'. Try .set" } end
+			if not T.FIELDS[key] then return { L["Unknown setting '%s'. Try .set"]:format(key) } end
 			return { ("%s = %s"):format(key, T.Format(key, t[key])) }
 		end
 		local ok, res = T.Set(key, value)
-		if not ok then return { "Can't set " .. key .. ": " .. res } end
+		if not ok then return { L["Can't set %s: %s"]:format(key, res) } end
 		return { ("%s = %s"):format(key, T.Format(key, res)) }
 	end,
 })

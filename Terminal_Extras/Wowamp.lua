@@ -1,6 +1,7 @@
 -- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
 local ns = _G.Terminal
 if not ns then return end
+local L = ns.L
 
 -- .wowamp: an easter egg. A small music player in the spirit of cliamp (the terminal music player), where the
 -- terminal sits: ten made-up radio stations, each themed on a place in Azeroth, playing the game's own music,
@@ -160,7 +161,7 @@ PlayCurrent = function(again)
 		ns:Trace(("wowamp: the game didn't play %s (%d)"):format(track[3], track[1]))
 		if state.fails >= #st.tracks then
 			W.Stop()
-			ns:Print("WoWamp: the game plays no music for that station. Is the game's sound on?")
+			ns:Print(L["WoWamp: the game plays no music for that station. Is the game's sound on?"])
 			return
 		end
 		C_Timer.After(0.5, function()
@@ -289,7 +290,7 @@ local function Feel() local st = W.Station(); return st and W.FEEL[st.id] or DEF
 -- Visualizer styles (V cycles, as cliamp's do): bars with falling caps, LED blocks, bars mirrored about the
 -- middle, a wave of dots, the falling caps alone, or off (the box folds away and the window gets shorter).
 W.STYLES = { "bars", "blocks", "mirror", "wave", "peaks", "off" }
-W.STYLE_LABELS = { bars = "Bars", blocks = "Blocks", mirror = "Mirror", wave = "Wave", peaks = "Peaks", off = "Off" }
+W.STYLE_LABELS = { bars = L["Bars"], blocks = L["Blocks"], mirror = L["Mirror"], wave = L["Wave"], peaks = L["Peaks"], off = L["Off"] }
 local function CurrentStyle()
 	local s = DB().style
 	return W.STYLE_LABELS[s] and s or "bars"
@@ -572,17 +573,17 @@ Redraw = function(wake)
 	if not (frame and frame:IsShown()) then return end
 	local t = Theme.Get()
 	local acc, dim = Hex(t.accent), Hex(t.dim)
-	title:SetText(Theme.FixColors(("|cff%sWoWamp|r  |cff%s~ radio for the road|r"):format(acc, dim)))
+	title:SetText(Theme.FixColors(("|cff%sWoWamp|r  |cff%s%s|r"):format(acc, dim, L["~ radio for the road"])))
 	local st, track = W.Station(), W.Track()
-	local shuffle = DB().shuffle and "shuffle" or "in order"
-	statusText:SetText((state.playing and "> playing" or "|| stopped") .. "  ·  " .. shuffle .. "  ·  " .. W.STYLE_LABELS[CurrentStyle()])
+	local shuffle = DB().shuffle and L["shuffle"] or L["in order"]
+	statusText:SetText((state.playing and ("> " .. L["playing"]) or ("|| " .. L["stopped"])) .. "  ·  " .. shuffle .. "  ·  " .. W.STYLE_LABELS[CurrentStyle()])
 	if st and track then
 		nowText:SetText(track[3])
 		stationText:SetText(("%s  ·  %s  ·  %s"):format(st.name, st.genre, st.place))
 		tagText:SetText('"' .. st.tag .. '"')
 	else
-		nowText:SetText("Nothing playing")
-		stationText:SetText("Pick a station and press Enter (or its number)")
+		nowText:SetText(L["Nothing playing"])
+		stationText:SetText(L["Pick a station and press Enter (or its number)"])
 		tagText:SetText("")
 	end
 	-- the blocks are coloured once, when placed: again when the station's colours change
@@ -652,7 +653,7 @@ end
 local function BuildStations()
 	listHead = Text(frame, 11)
 	listHead:SetPoint("TOPLEFT", progBg, "BOTTOMLEFT", 0, -11)
-	listHead:SetText("STATIONS")
+	listHead:SetText(L["STATIONS"])
 	for i = 1, LIST_ROWS do
 		local r = CreateFrame("Button", nil, frame)
 		r:SetSize(WIDTH - 20, ROW_H)
@@ -693,9 +694,9 @@ local function Build()
 	tipText = Text(frame, 10)
 	tipText:SetPoint("BOTTOMLEFT", footer, "TOPLEFT", 0, 4)
 	tipText:SetWidth(WIDTH - 24)
-	tipText:SetText("Tip: turn on Sound in Background (Options > Audio) and the radio keeps playing while you're tabbed out.")
+	tipText:SetText(L["Tip: turn on Sound in Background (Options > Audio) and the radio keeps playing while you're tabbed out."])
 	tipText:Hide()
-	footer:SetText("Up/Down + Enter tune in · N next · B back · P play/stop · S shuffle · V style · Esc close (plays on)")
+	footer:SetText(L["Up/Down + Enter tune in · N next · B back · P play/stop · S shuffle · V style · Esc close (plays on)"])
 	W.frame = frame
 end
 
@@ -734,7 +735,7 @@ end
 function W.IsShown() return Panel.Shown(frame) end
 
 function W.Open()
-	if not Panel.CanOpen("WoWamp takes over a few keys, which the game doesn't allow in combat. (The music plays on.)") then return false end
+	if not Panel.CanOpen(L["WoWamp takes over a few keys, which the game doesn't allow in combat. (The music plays on.)"]) then return false end
 	Build()
 	Style()
 	Panel.Opening(W)
@@ -752,15 +753,15 @@ function W.Open()
 end
 
 function W.Close(why)
-	Panel.Close(frame, why, "WoWamp", " The music plays on.")
+	Panel.Close(frame, why, "WoWamp", " " .. L["The music plays on."])
 end
 
 ns:RegisterCommand("wowamp", {
-	desc = "WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)",
+	desc = L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"],
 	aliases = { "radio", "amp" },
 	complete = function(args)
 		if (args or ""):find("%s") then return {} end
-		local out = { { "stop", "stop the radio" }, { "next", "skip this track" } }
+		local out = { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } }
 		for i, st in ipairs(W.STATIONS) do out[#out + 1] = { st.id, i .. "  " .. st.name .. "  ·  " .. st.genre } end
 		return out
 	end,
@@ -768,15 +769,15 @@ ns:RegisterCommand("wowamp", {
 		args = strtrim(args or "")
 		if args == "" then W.Open() return {} end
 		local a = ns.Lower and ns.Lower(args) or args:lower()
-		if a == "stop" then W.Stop() return { "WoWamp: stopped." } end
+		if a == "stop" then W.Stop() return { L["WoWamp: stopped."] } end
 		if a == "next" or a == "skip" then
-			if not state.station then return { "WoWamp: nothing playing. Try .wowamp" } end
+			if not state.station then return { L["WoWamp: nothing playing. Try .wowamp"] } end
 			W.Next()
 			local t = W.Track()
-			return { "WoWamp: " .. (t and t[3] or "next") }
+			return { L["WoWamp: %s"]:format(t and t[3] or L["next"]) }
 		end
 		local i = W.Find(args)
-		if not i then return { "WoWamp: no station called '" .. args .. "'. Try .wowamp" } end
+		if not i then return { L["WoWamp: no station called '%s'. Try .wowamp"]:format(args) } end
 		W.Tune(i)
 		local st, t = W.STATIONS[i], W.Track()
 		return { ("WoWamp: %s  ·  %s"):format(st.name, t and t[3] or "") }

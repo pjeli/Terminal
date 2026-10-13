@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Enter: the game opens the window on it (a /run line on the secure button, what an achievement link runs:
 -- OpenAchievementFrameToAchievement), never Terminal's code (the window's Lua would run tainted)
@@ -8,13 +9,13 @@ local function AchievementMacro(e)
 end
 local ACH_SECURE = { macro = AchievementMacro, binding = "TOGGLEACHIEVEMENT", opensWindow = true }
 local function OpenAchievement(e) -- (no press possible: say so, nothing opened from here)
-	ns:Print("Couldn't open " .. tostring(e.name) .. " from here: the Achievements key opens the window.")
+	ns:Print(L["Couldn't open %s from here: the Achievements key opens the window."]:format(tostring(e.name)))
 end
 local function AchievementLink(e) return GetAchievementLink and GetAchievementLink(e.key) or nil end
 
 -- Shift+Enter: link it in chat
 local function LinkAchievement(e)
-	if not ns.LinkInChat(AchievementLink(e)) then ns:Print("Couldn't link " .. tostring(e.name) .. " in chat.") end
+	if not ns.LinkInChat(AchievementLink(e)) then ns:Print(L["Couldn't link %s in chat."]:format(tostring(e.name))) end
 end
 
 ----------------------------------------------------------------------
@@ -60,8 +61,8 @@ end
 
 local function AchDetail(t)
 	local pts = rawget(t, "points")
-	pts = pts and pts > 0 and (pts .. " pts") or ""
-	if rawget(t, "completed") then return "Done  " .. pts end
+	pts = pts and pts > 0 and L["%s pts"]:format(pts) or ""
+	if rawget(t, "completed") then return L["Done"] .. "  " .. pts end
 	local prog = Progress(t)
 	return prog and (prog .. "  " .. pts) or pts
 end
@@ -109,7 +110,7 @@ local function Earned(_, list)
 end
 
 ns:RegisterProvider("achievements", {
-	label = "Achievement",
+	label = L["Achievement"],
 	color = ACH_COLOR,
 	aliases = { "achievement", "achievements", "ach", "achieve" },
 	plain = Earned, -- (plain searches: the earned ones only)

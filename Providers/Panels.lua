@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 --- A global function by name, called in a pcall (nil when the client lacks it).
@@ -112,7 +113,7 @@ local function GroupFinderTabMacro(e)
 	lines[#lines + 1] = TabClickLine(e.tab)
 	return table.concat(lines, "\n")
 end
-local function LegacyTabFallback() ns:Print("Open the Legacy window from its button (a click from Terminal's own code would taint it).") end
+local function LegacyTabFallback() ns:Print(L["Open the Legacy window from its button (a click from Terminal's own code would taint it)."]) end
 local Never = ns.Never
 
 -- A tab by its path: a global ("LegacyChallengeTab") or a key under one ("CommunitiesFrame.RosterTab").
@@ -132,7 +133,7 @@ local function TabAfter(e)
 		return t and t.IsVisible and t:IsVisible() and t or nil
 	end)
 end
-local function TabFallback(e) ns:Print("Switch to " .. tostring(e and e.name) .. " in its window (a click from Terminal's own code would taint it).") end
+local function TabFallback(e) ns:Print(L["Switch to %s in its window (a click from Terminal's own code would taint it)."]:format(tostring(e and e.name))) end
 
 -- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals. The press
 -- opens the window (only while it's closed) and asks /click for the tab by its path, which the game looks up itself
@@ -253,8 +254,24 @@ local PANEL_GLOBALS = {
 	["Character Stats"] = "PAPERDOLL_SIDEBAR_STATS", ["Equipment Manager"] = "EQUIPMENT_MANAGER", ["Titles"] = "PAPERDOLL_SIDEBAR_TITLES",
 }
 
+-- The names as Terminal says them when the game has no words of its own (the English name stays the key and in the
+-- searchable text)
+local PANEL_SAID = {
+	["Character Info"] = L["Character Info"], ["Reputation"] = L["Reputation"], ["Currency"] = L["Currency"],
+	["Spellbook"] = L["Spellbook"], ["Talents"] = L["Talents"], ["Achievements"] = L["Achievements"],
+	["Quest Log"] = L["Quest Log"], ["World Map"] = L["World Map"], ["Collections"] = L["Collections"],
+	["Group Finder"] = L["Group Finder"], ["Guild & Communities"] = L["Guild & Communities"],
+	["Adventure Guide"] = L["Adventure Guide"], ["Professions"] = L["Professions"], ["Calendar"] = L["Calendar"],
+	["Social / Friends"] = L["Social / Friends"], ["Backpack & Bags"] = L["Backpack & Bags"], ["Game Menu"] = L["Game Menu"],
+	["Options"] = L["Options"], ["AddOn List"] = L["AddOn List"], ["Macros"] = L["Macros"], ["Edit Mode"] = L["Edit Mode"],
+	["Legacy"] = L["Legacy"], ["Legacy Challenges"] = L["Legacy Challenges"], ["Legacy Tree"] = L["Legacy Tree"],
+	["Guild Roster"] = L["Guild Roster"], ["Guild Info"] = L["Guild Info"], ["Character Stats"] = L["Character Stats"],
+	["Equipment Manager"] = L["Equipment Manager"], ["Titles"] = L["Titles"], ["Group Browser"] = L["Group Browser"],
+	["Who Listing"] = L["Who Listing"], ["Shop"] = L["Shop"],
+}
+
 --- The panel's name in the game's own words: its global string, else its micro button's tooltip
---- ("Legacy |cffffd200(L)|r": the key part dropped), else the English name.
+--- ("Legacy |cffffd200(L)|r": the key part dropped), else Terminal's (PANEL_SAID), else the English name.
 local function PanelName(english, button)
 	local name = ns.GameText(PANEL_GLOBALS[english], nil)
 	if not name and button then
@@ -266,7 +283,7 @@ local function PanelName(english, button)
 			if tip ~= "" then name = tip end
 		end
 	end
-	return name or english
+	return name or PANEL_SAID[english] or english
 end
 
 -- the game's keybinding commands for Character window tabs
@@ -282,7 +299,7 @@ local function PanelActivate(e)
 end
 
 ns:RegisterProvider("panels", {
-	label = "Panel",
+	label = L["Panel"],
 	color = "ff7fe0ff",
 	aliases = { "panel", "ui", "window", "frame" },
 	collect = function()

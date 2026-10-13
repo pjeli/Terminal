@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 -- Toys, companion pets and titles: what you own, like the mounts (Mounts.lua).
@@ -23,7 +24,7 @@ local JOURNAL_SPEC = { binding = "TOGGLECOLLECTIONS", buttons = { "CollectionsMi
 local function JournalShown() local J = _G.CollectionsJournal; return J and J.IsVisible and J:IsVisible() or false end
 
 local TAB_KEYS = { "MountsTab", "PetsTab", "ToysTab" }
-local TAB_LABELS = { _G.MOUNTS or "Mounts", _G.PET_JOURNAL or "Pet Journal", _G.TOY_BOX or "Toy Box" }
+local TAB_LABELS = { _G.MOUNTS or L["Mounts"], _G.PET_JOURNAL or L["Pet Journal"], _G.TOY_BOX or L["Toy Box"] }
 --- The journal's tab `i` (read only): its key in the tab container, its Tabs list, or an old client's global.
 local function TabFrame(i)
 	local J = _G.CollectionsJournal
@@ -47,12 +48,12 @@ local function PointIn(rootFn, name, tab)
 			local hit = ns.FindByText(root, name)
 			if hit then return hit end
 			if looks == HINT_AFTER * 2 then
-				ns:Print(("%s isn't on this page of the journal: turn to it or search for it, and Terminal points at it."):format(tostring(name)))
+				ns:Print(L["%s isn't on this page of the journal: turn to it or search for it, and Terminal points at it."]:format(tostring(name)))
 			end
 		elseif looks == HINT_AFTER and tab then
 			local t = TabFrame(tab)
 			if t and t.IsVisible and t:IsVisible() then H:Show(t) end
-			ns:Print(("%s is in the journal's %s tab: open it, and Terminal points at it."):format(tostring(name), TAB_LABELS[tab] or "other"))
+			ns:Print(L["%s is in the journal's %s tab: open it, and Terminal points at it."]:format(tostring(name), TAB_LABELS[tab] or L["other"]))
 		end
 		return nil
 	end, function(f) H:Show(f) end, LOOKS)
@@ -60,8 +61,8 @@ end
 
 --- Without the game's press (no macro route), or in combat: nothing is opened from here.
 local function NoJournal(e)
-	ns:Print(InCombatLockdown() and ("In combat: can't open the journal for " .. tostring(e.name) .. " now.")
-		or ("Couldn't open the journal for " .. tostring(e.name) .. "."))
+	ns:Print(InCombatLockdown() and L["In combat: can't open the journal for %s now."]:format(tostring(e.name))
+		or L["Couldn't open the journal for %s."]:format(tostring(e.name)))
 end
 
 -- (Mounts.lua, loaded before this file, uses these at run time for the mount journal)
@@ -70,9 +71,9 @@ ns.Collections = { JOURNAL_SPEC = JOURNAL_SPEC, JournalShown = JournalShown, Poi
 
 --- "4m", "35s": time left on a cooldown.
 local function Left(sec)
-	if sec >= 3600 then return ("%dh"):format(math.floor(sec / 3600)) end
-	if sec >= 60 then return ("%dm"):format(math.floor(sec / 60)) end
-	return ("%ds"):format(math.ceil(sec))
+	if sec >= 3600 then return L["%dh"]:format(math.floor(sec / 3600)) end
+	if sec >= 60 then return L["%dm"]:format(math.floor(sec / 60)) end
+	return L["%ds"]:format(math.ceil(sec))
 end
 
 --- Runs read() with a journal's filters opened up (collected shown, every type/source/expansion,
@@ -136,7 +137,7 @@ end
 local function ToyMacro(e) return "/use item:" .. e.key end
 local function ToyRoot() local T = _G.ToyBox; return T and (T.iconsFrame or T) end
 local function PointAtToy(e) PointIn(ToyRoot, e.name, TOYS_TAB) end
-local function NoToy(e) ns:Print("Couldn't use " .. tostring(e.name) .. " from here.") end
+local function NoToy(e) ns:Print(L["Couldn't use %s from here."]:format(tostring(e.name))) end
 local function ToyLink(e)
 	local link = C_ToyBox.GetToyLink and Safe(C_ToyBox.GetToyLink, e.key)
 	return Str(link) or ("item:" .. e.key)
@@ -144,13 +145,13 @@ end
 
 local function ToyDetail(t)
 	local parts = {}
-	if rawget(t, "fav") then parts[1] = "Favorite" end
+	if rawget(t, "fav") then parts[1] = L["Favorite"] end
 	local cd = C_Container and C_Container.GetItemCooldown
 	local start, duration = Safe(cd, rawget(t, "key"))
 	start, duration = Num(start), Num(duration)
 	if start and duration and start > 0 and duration > 1.5 then -- (not the global cooldown)
 		local left = start + duration - GetTime()
-		if left > 0 then parts[#parts + 1] = "ready in " .. Left(left) end
+		if left > 0 then parts[#parts + 1] = L["ready in %s"]:format(Left(left)) end
 	end
 	return table.concat(parts, "  ")
 end
@@ -193,7 +194,7 @@ end
 local toyMeta
 if C_ToyBox and C_ToyBox.GetNumToys and C_ToyBox.GetToyFromIndex and C_ToyBox.GetToyInfo then
 	ns:RegisterProvider("toys", {
-		label = "Toy",
+		label = L["Toy"],
 		color = "ff00c8f8",
 		aliases = { "toy", "toys" },
 		events = { "TOYS_UPDATED", "NEW_TOY_ADDED" },
@@ -230,7 +231,7 @@ local function PetRoot() local P = _G.PetJournal; return P and (P.ScrollBox or P
 local function PointAtPet(e) PointIn(PetRoot, e.species or e.name, PETS_TAB) end
 local function NoPet(e)
 	if not ns.Guarded("SummonPetByGUID", C_PetJournal.SummonPetByGUID, e.key) then
-		ns:Print("Couldn't summon " .. tostring(e.name) .. " from here.")
+		ns:Print(L["Couldn't summon %s from here."]:format(tostring(e.name)))
 	end
 end
 local function PetLink(e) return Str(C_PetJournal.GetBattlePetLink and Safe(C_PetJournal.GetBattlePetLink, e.key)) end
@@ -238,12 +239,12 @@ local function PetLink(e) return Str(C_PetJournal.GetBattlePetLink and Safe(C_Pe
 local function PetDetail(t)
 	local parts = {}
 	local level = rawget(t, "level")
-	if level and level > 0 then parts[1] = "Lv " .. level end
+	if level and level > 0 then parts[1] = L["Lv %d"]:format(level) end
 	local species = rawget(t, "species")
 	if species and species ~= rawget(t, "name") then parts[#parts + 1] = species end
-	if rawget(t, "fav") then parts[#parts + 1] = "Favorite" end
+	if rawget(t, "fav") then parts[#parts + 1] = L["Favorite"] end
 	local out = C_PetJournal.GetSummonedPetGUID and Safe(C_PetJournal.GetSummonedPetGUID)
-	if out and out == rawget(t, "key") then parts[#parts + 1] = "out now (Enter puts it away)" end
+	if out and out == rawget(t, "key") then parts[#parts + 1] = L["out now (Enter puts it away)"] end
 	return table.concat(parts, "  ")
 end
 
@@ -301,7 +302,7 @@ end
 local petMeta
 if C_PetJournal and C_PetJournal.SummonPetByGUID and (C_PetJournal.GetOwnedPetIDs or (C_PetJournal.GetNumPets and C_PetJournal.GetPetInfoByIndex)) then
 	ns:RegisterProvider("pets", {
-		label = "Pet",
+		label = L["Pet"],
 		color = "ff60ff40",
 		aliases = { "pet", "pets", "battlepet", "companion" },
 		events = { "PET_JOURNAL_LIST_UPDATE" },
@@ -337,7 +338,7 @@ local NO_TITLE = -1
 local function TitleMacro(e) return "/run SetCurrentTitle(" .. e.key .. ")" end
 local function NoTitle(e)
 	if not ns.Guarded("SetCurrentTitle", SetCurrentTitle, e.key) then
-		ns:Print("Couldn't set the title " .. tostring(e.name) .. " from here.")
+		ns:Print(L["Couldn't set the title %s from here."]:format(tostring(e.name)))
 	end
 end
 local function TitleSet(e) ns:Trace("titles: the game set " .. tostring(e.name)) end
@@ -345,20 +346,20 @@ local function TitleSet(e) ns:Trace("titles: the game set " .. tostring(e.name))
 local function TitleDetail(t)
 	local cur = Num(Safe(GetCurrentTitle)) or 0
 	local key = rawget(t, "key")
-	if key == cur or (key == NO_TITLE and cur <= 0) then return "Current" end
+	if key == cur or (key == NO_TITLE and cur <= 0) then return L["Current"] end
 	return ""
 end
 
 local titleMeta
 if GetNumTitles and GetTitleName and IsTitleKnown and SetCurrentTitle then
 	ns:RegisterProvider("titles", {
-		label = "Title",
+		label = L["Title"],
 		color = "fff0f0ff",
 		aliases = { "title", "titles" },
 		events = { "KNOWN_TITLES_UPDATE", "NEW_TITLE_EARNED" },
 		guard = 1,
 		collect = function()
-			local out = { setmetatable({ _compact = true, key = NO_TITLE, name = ns.GameText("PLAYER_TITLE_NONE", "No title") }, titleMeta) }
+			local out = { setmetatable({ _compact = true, key = NO_TITLE, name = ns.GameText("PLAYER_TITLE_NONE", L["No title"]) }, titleMeta) }
 			for i = 1, Num(Safe(GetNumTitles)) or 0 do
 				if Safe(IsTitleKnown, i) then
 					local name = Str(Safe(GetTitleName, i))

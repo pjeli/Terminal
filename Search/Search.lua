@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The search engine: the searches themselves (SearchText: Advanced and Simple mode, the Simple overview of categories,
 -- fuzzy finding, the "Search Questie for this" rows, close spellings), command and argument rows, the empty terminal's
@@ -8,15 +9,15 @@ local ns = select(2, ...)
 local UI = ns.UI
 local Fuzzy = ns.Fuzzy
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
-local EASY_NONE = "Nothing has that. Check the spelling, or try other words."
-local EASY_NO_NPCS = "\"nearest\" needs Questie (or QuestieDB): it knows where NPCs stand."
-local EASY_NOWHERE = "Can't tell where you are here (in a dungeon?)."
-local EASY_NONE_NEAR = "None of those on this continent that Questie knows of."
-local EASY_NO_FLIGHTS = "No flight path like that on this continent."
-local EASY_ALL_FLIGHTS = "You know every flight path on this continent."
-local MISSING_GONE = "Restart the game for the recipes you don't know: this update added a file, and a /reload doesn't load new files."
-local GROUP_QUESTS_GONE = "Restart the game for party quests: this update added a file, and a /reload doesn't load new files."
-local EASY_FLIGHTS_UNCHECKED = "Terminal doesn't know your flight paths here yet: open any flight master's map on this continent."
+local EASY_NONE = L["Nothing has that. Check the spelling, or try other words."]
+local EASY_NO_NPCS = L["\"nearest\" needs Questie (or QuestieDB): it knows where NPCs stand."]
+local EASY_NOWHERE = L["Can't tell where you are here (in a dungeon?)."]
+local EASY_NONE_NEAR = L["None of those on this continent that Questie knows of."]
+local EASY_NO_FLIGHTS = L["No flight path like that on this continent."]
+local EASY_ALL_FLIGHTS = L["You know every flight path on this continent."]
+local MISSING_GONE = L["Restart the game for the recipes you don't know: this update added a file, and a /reload doesn't load new files."]
+local GROUP_QUESTS_GONE = L["Restart the game for party quests: this update added a file, and a /reload doesn't load new files."]
+local EASY_FLIGHTS_UNCHECKED = L["Terminal doesn't know your flight paths here yet: open any flight master's map on this continent."]
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
 local QUESTION_MARK = 134400 -- (an icon for rows without one)
 -- scoring and sorting (Score.lua), as locals: they run for every row
@@ -73,7 +74,7 @@ function UI:CommandEntries()
 		local c = ns.commands[name]
 		list[#list + 1] = {
 			kind = "cmd",
-			kindLabel = "|cff33ff99cmd|r",
+			kindLabel = "|cff33ff99" .. L["cmd"] .. "|r",
 			name = name,
 			_lname = name,
 			key = name,
@@ -254,19 +255,19 @@ function UI:FrequentEntries()
 	if #out == 0 then
 		-- (nothing picked yet: what to type, in the words of the mode you're in)
 		return PseudoEntries(ns.Said({
-			"Type the name of anything: an item, a quest, a spell, a mount, a place, an NPC, an emote",
-			"Start with what to do: use, cast, summon, equip, where, nearest (\"nearest innkeeper\")",
-			"Ask in plain words: \"where should i level\", \"mats for thorium belt\", \"what killed me\"",
-			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
-			"Right-click a result (or Shift+Right) to send it to chat, or every result at once",
-			"Change the look with  .theme  and  .set , or  .options",
+			L["Type the name of anything: an item, a quest, a spell, a mount, a place, an NPC, an emote"],
+			L["Start with what to do: use, cast, summon, equip, where, nearest (\"nearest innkeeper\")"],
+			L["Ask in plain words: \"where should i level\", \"mats for thorium belt\", \"what killed me\""],
+			L["Type a sum like  3*45g  or  12.5% of 800  for the calculator"],
+			L["Right-click a result (or Shift+Right) to send it to chat, or every result at once"],
+			L["Change the look with  .theme  and  .set , or  .options"],
 		}, {
-			"Type to fuzzy-search items, quests (by text), spells, recipes, camp objects...",
-			"Start with  /  for slash commands,  .  for terminal commands (try .help)",
-			"Add  @questlog  /  @item  /  @recipe  to search a single kind (@questie: every quest, with Questie)",
-			"Type a sum like  3*45g  or  12.5% of 800  for the calculator",
-			"End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat;  >>> party  sends every result at once",
-			"Change the look with  .theme  and  .set , or  .options",
+			L["Type to fuzzy-search items, quests (by text), spells, recipes, camp objects..."],
+			L["Start with  /  for slash commands,  .  for terminal commands (try .help)"],
+			L["Add  @questlog  /  @item  /  @recipe  to search a single kind (@questie: every quest, with Questie)"],
+			L["Type a sum like  3*45g  or  12.5% of 800  for the calculator"],
+			L["End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat;  >>> party  sends every result at once"],
+			L["Change the look with  .theme  and  .set , or  .options"],
 		}))
 	end
 	return SortAndTrim(out)
@@ -1124,6 +1125,8 @@ function UI:SearchText(text)
 		self.noPosition, self.action, self.place = nil, nil, nil
 		return self:FuzzySearch(text)
 	end
+	-- a phrase in the client's language: the English line it stands for (Easy.lua's E.PHRASES)
+	if ns.Easy and ns.Easy.English then text = ns.Easy.English(text) end
 	-- a chain or a question in plain words: its own answer, not a search (Scan.ANSWERS)
 	local answer = Scan.Answer(self, text)
 	if answer then return answer end
@@ -1256,7 +1259,7 @@ end
 local function CategoryRow(c, best, bestScore, count)
 	return {
 		name = c.label, catId = c.id, kind = "category", icon = c.icon or QUESTION_MARK, kindLabel = "",
-		detail = tostring(best) .. (count > 1 and ("  +%d more"):format(count - 1) or ""),
+		detail = tostring(best) .. (count > 1 and ("  " .. L["+%d more"]:format(count - 1)) or ""),
 		staysOpen = true, activate = PickCategory, _score = bestScore or 0, _pos = NO_POS,
 	}
 end
@@ -1519,8 +1522,8 @@ local function HintRow(p, id, text, firstName, count)
 	local kind = ns:KindName(p) or ("@" .. id)
 	local query = text:gsub("^%s+", "")
 	return {
-		name = ("Search %s for this"):format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
-		detail = firstName .. (count > 1 and ("  +%s more"):format(count >= 100 and "99" or count - 1) or ""),
+		name = L["Search %s for this"]:format(p.hintLabel or p.label), kindLabel = "|cff33ff99Tab|r",
+		detail = firstName .. (count > 1 and ("  " .. L["+%d more"]:format(count >= 100 and 99 or count - 1)) or ""),
 		icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
 		completion = kind .. " " .. query, staysOpen = true, activate = HintActivate,
 		_score = math.huge, _pos = NO_POS,

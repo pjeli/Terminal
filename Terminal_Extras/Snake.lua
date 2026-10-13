@@ -1,6 +1,7 @@
 -- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
 local ns = _G.Terminal
 if not ns then return end
+local L = ns.L
 
 -- .snake: Snake, in a small window where the terminal sits. WASD or the arrow keys steer, Enter
 -- plays again after a game over, Esc or ` quits. No pausing (it's for fun; Space stays the game's). Only the game's keys are taken: any
@@ -145,11 +146,11 @@ function S.Draw()
 	else
 		food:Hide()
 	end
-	scoreText:SetText(("|cff%ssnake|r   score %d"):format(t.accent, game.score))
-	bestText:SetText(("best %d"):format(math.max(ns.db and ns.db.snakeBest or 0, game.score)))
+	scoreText:SetText(("|cff%s%s|r   %s"):format(t.accent, L["snake"], L["score %d"]:format(game.score)))
+	bestText:SetText(L["best %d"]:format(math.max(ns.db and ns.db.snakeBest or 0, game.score)))
 	if game.over then
-		overlay:SetText(game.won and "you filled the board!" or (game.newBest and "new best!" or "game over"))
-		overlaySub:SetText(("score %d  ·  Enter to play again  ·  Esc to quit"):format(game.score))
+		overlay:SetText(game.won and L["you filled the board!"] or (game.newBest and L["new best!"] or L["game over"]))
+		overlaySub:SetText(L["score %d"]:format(game.score) .. "  ·  " .. L["Enter to play again"] .. "  ·  " .. L["Esc to quit"])
 		overlay:Show(); overlaySub:Show()
 	else
 		overlay:Hide(); overlaySub:Hide()
@@ -182,7 +183,7 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 10)
 	overlaySub = Text(board, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -12)
-	footer = Panel.Footer(frame, 9, "WASD or arrows steer  ·  Esc or ` quit")
+	footer = Panel.Footer(frame, 9, L["WASD or arrows steer"] .. "  ·  " .. L["Esc or ` quit"])
 	S.frame = frame
 end
 
@@ -230,7 +231,7 @@ end
 function S.IsShown() return Panel.Shown(frame) end
 
 function S.Open()
-	if not Panel.CanOpen("Snake takes over keys, which the game doesn't allow in combat.") then return false end
+	if not Panel.CanOpen(L["Snake takes over keys, which the game doesn't allow in combat."]) then return false end
 	Build()
 	Style()
 	Panel.Opening(S) -- (straight in: the terminal and the other panels go)
@@ -241,10 +242,10 @@ function S.Open()
 end
 
 function S.Close(why)
-	Panel.Close(frame, why, "Snake")
+	Panel.Close(frame, why, L["Snake"])
 end
 
 ns:RegisterCommand("snake", {
-	desc = "Play Snake (WASD or arrows steer, Esc or ` quits)",
+	desc = L["Play Snake (WASD or arrows steer, Esc or ` quits)"],
 	run = function() S.Open() end,
 })

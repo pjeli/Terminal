@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Installed addons. Enter does what clicking the addon's minimap button does, or opens its
 -- own options panel (Game Menu > Options > AddOns) when it has no button. An addon with both
@@ -184,24 +185,24 @@ local function Detail(e)
 	local state
 	if e.enabled == nil then -- (the client doesn't say: what it does, else whether it's loaded)
 		if e.does then return e.does end
-		state = e.loaded and "Loaded" or "Not loaded"
+		state = e.loaded and L["Loaded"] or L["Not loaded"]
 	else
-		state = e.enabled and "enabled" or "disabled"
-		if e.enabled ~= e.loaded then state = state .. " (.reload to apply)" end
+		state = e.enabled and L["enabled"] or L["disabled"]
+		if e.enabled ~= e.loaded then state = L["%s (.reload to apply)"]:format(state) end
 	end
 	return e.does and (e.does .. "  ·  " .. state) or state
 end
 
 local function ToggleAddon(e)
 	if e.key == ns.name then
-		ns:Print(ns.name .. " can't turn itself off from here: use the AddOn list.")
+		ns:Print(L["%s can't turn itself off from here: use the AddOn list."]:format(ns.name))
 		return
 	end
 	local on = Enabled(e.key)
 	if on == nil then on = e.loaded end
 	local fn = on and C_AddOns.DisableAddOn or C_AddOns.EnableAddOn
 	if not (fn and pcall(fn, e.key, Character())) then
-		ns:Print("Couldn't turn " .. tostring(e.name) .. (on and " off." or " on."))
+		ns:Print((on and L["Couldn't turn %s off."] or L["Couldn't turn %s on."]):format(tostring(e.name)))
 		return
 	end
 	-- the change is only in memory until it's saved: the AddOn list's Okay button saves it (SaveAddOns);
@@ -213,7 +214,7 @@ local function ToggleAddon(e)
 		tostring(Character()), tostring(now)))
 	if now == on then
 		-- the game didn't take it (the character name it was given isn't how it knows this character?)
-		ns:Print(("The game didn't turn %s %s (asked for %s). Try the AddOn list."):format(tostring(e.name), on and "off" or "on", tostring(Character())))
+		ns:Print((on and L["The game didn't turn %s off (asked for %s). Try the AddOn list."] or L["The game didn't turn %s on (asked for %s). Try the AddOn list."]):format(tostring(e.name), tostring(Character())))
 		return
 	end
 	if now == nil then now = not on end
@@ -221,14 +222,14 @@ local function ToggleAddon(e)
 	e.detail = Detail(e) -- (shown at once; the list is read again next time too)
 	ns.entriesGen = ns.entriesGen + 1
 	if ns.providers.addons then ns.providers.addons._dirty = true end
-	ns:Print(("%s %s: .reload to apply"):format(tostring(e.name), now and "enabled" or "disabled"))
+	ns:Print((now and L["%s enabled: .reload to apply"] or L["%s disabled: .reload to apply"]):format(tostring(e.name)))
 	local UI = ns.UI
 	if UI and UI.IsShown and UI:IsShown() and UI.Refresh then UI:Refresh() end
 end
 local function BrokerActivate(e) ClickBroker(e.launch) end
 
 ns:RegisterProvider("addons", {
-	label = "AddOn",
+	label = L["AddOn"],
 	color = "ffb0b0b0",
 	aliases = { "addon", "addons", "plugin" },
 	noCombat = true, -- opening windows is protected in combat
@@ -260,7 +261,7 @@ ns:RegisterProvider("addons", {
 					end
 				end
 				local loaded = C_AddOns.IsAddOnLoaded(name) and true or false
-				local does = launch and "Minimap button" or (opt and "Options") or nil
+				local does = launch and L["Minimap button"] or (opt and L["Options"]) or nil
 				local plainNotes = notes and Plain(notes) or nil
 				local e = {
 					key = name,
@@ -280,9 +281,9 @@ ns:RegisterProvider("addons", {
 					-- Enter is its minimap button: its options panel is a row of its own (it was Shift+Enter)
 					out[#out + 1] = {
 						key = "options:" .. name,
-						name = label .. " options",
+						name = L["%s options"]:format(label),
 						icon = "Interface\\Icons\\INV_Misc_Gear_01",
-						detail = "Options",
+						detail = L["Options"],
 						text = name .. " options settings",
 						opt = opt,
 						secure = OPTIONS_SPEC, isOpen = NeverOpen, after = Opened,
@@ -299,7 +300,7 @@ ns:RegisterProvider("addons", {
 					key = "broker:" .. b.name,
 					name = Plain(b.obj.label or b.name),
 					icon = b.icon or "Interface\\Icons\\INV_Misc_Gear_01",
-					detail = "Minimap button",
+					detail = L["Minimap button"],
 					text = b.name .. " minimap button",
 					launch = b,
 					activate = BrokerActivate,

@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local Fuzzy = ns.Fuzzy
 local Theme = ns.Theme
 
@@ -7,7 +8,7 @@ ns.UI = UI
 
 local FOOTER_H = 26 -- one line: the result count on the left, key hints on the right
 UI.FOOTER_H = FOOTER_H
-local ONCE_LABEL = "Advanced, this time" -- (Alt+`: this run is Advanced, Simple again once it closes)
+local ONCE_LABEL = L["Advanced, this time"] -- (Alt+`: this run is Advanced, Simple again once it closes)
 UI.ONCE_LABEL = ONCE_LABEL
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
 UI.EasyOn = EasyOn
@@ -18,9 +19,9 @@ local SLICE_CHECK = 64 -- rows scored between looks at the clock
 UI.SLICE_CHECK = SLICE_CHECK
 UI.SLICE_MS = SLICE_MS
 
--- layout, recomputed from the theme (only ApplyTheme writes it; read through L when needed, never copied at load)
+-- layout, recomputed from the theme (only ApplyTheme writes it; read through LY when needed, never copied at load)
 UI.layout = { ROWS = 10, ROW_H = 26, HEADER_H = 50, LINE_H = 19, DETAIL_W = 192, NAV_SLOT = 22, DIST_W = 52 }
-local L = UI.layout
+local LY = UI.layout
 
 local TAB_LATE = 1.0 -- (opened by the toggle key this long ago, nothing typed since: Tab let go = it was Tab+`)
 UI.TAB_LATE = TAB_LATE
@@ -289,7 +290,7 @@ do
 		busy:SetScript("OnEnter", function(self)
 			if not GameTooltip then return end
 			GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
-			GameTooltip:SetText("Still loading", 1, 1, 1)
+			GameTooltip:SetText(L["Still loading"], 1, 1, 1)
 			for _, l in ipairs(self.lines or {}) do GameTooltip:AddLine(l, 0.8, 0.8, 0.8, true) end
 			GameTooltip:Show()
 		end)
@@ -444,10 +445,10 @@ end
 
 --- The layout numbers, from the theme (every file reads them through UI.layout).
 local function ApplyLayout(t)
-	L.ROWS = math.max(1, math.min(MAX_ROWS, t.rows))
-	L.ROW_H = math.max(22, t.fontSize + 12)
-	L.HEADER_H = math.max(50, t.fontSize + 36)
-	L.LINE_H = t.fontSize + 6
+	LY.ROWS = math.max(1, math.min(MAX_ROWS, t.rows))
+	LY.ROW_H = math.max(22, t.fontSize + 12)
+	LY.HEADER_H = math.max(50, t.fontSize + 36)
+	LY.LINE_H = t.fontSize + 6
 	UI.linesKey = nil -- (fonts changed: the prompt's lines are measured again)
 end
 
@@ -496,7 +497,7 @@ end
 --- The prompt's label and the query box after it, the spinner, the typed text's colours.
 local function ApplyPromptTheme(t)
 	-- prompt, then the query box right after it
-	local mid = -(L.HEADER_H - 4) / 2
+	local mid = -(LY.HEADER_H - 4) / 2
 	promptFS:SetText("|cff" .. t.prompt .. t.promptText:gsub("|", "||") .. "|r")
 	promptFS:ClearAllPoints()
 	promptFS:SetPoint("LEFT", frame, "TOPLEFT", 14, mid)
@@ -535,33 +536,33 @@ local function ApplyRowsTheme(self, t)
 	local dr, dg, db = Theme.RGB(t.dim)
 	-- the detail's room, and in it for a row with a distance: the arrow's slot, the distance's column (as wide as the
 	-- widest distance a continent has, in this font), the rest
-	L.DETAIL_W = math.floor(t.width * 0.3)
-	L.NAV_SLOT = UI.NAV_SIZE + 2
+	LY.DETAIL_W = math.floor(t.width * 0.3)
+	LY.NAV_SLOT = UI.NAV_SIZE + 2
 	local probe, w = rows[1] and rows[1].dist, nil
 	if probe then
-		probe:SetText("88888 yd")
+		probe:SetText(L["%d yd"]:format(88888))
 		w = probe:GetStringWidth()
 		probe:SetText("")
 	end
-	L.DIST_W = math.ceil((type(w) == "number" and w > 0) and w + 4 or 52)
+	LY.DIST_W = math.ceil((type(w) == "number" and w > 0) and w + 4 or 52)
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
-		row:SetHeight(L.ROW_H)
+		row:SetHeight(LY.ROW_H)
 		row.slide = nil
-		row.icon:SetSize(L.ROW_H - 6, L.ROW_H - 6)
-		row.detail:SetWidth(L.DETAIL_W)
+		row.icon:SetSize(LY.ROW_H - 6, LY.ROW_H - 6)
+		row.detail:SetWidth(LY.DETAIL_W)
 		-- (the name ends where the detail's room begins, whatever part of it a distance takes)
 		row.label:ClearAllPoints()
 		row.label:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-		row.label:SetPoint("RIGHT", row.kind, "LEFT", -(16 + L.DETAIL_W), 0)
+		row.label:SetPoint("RIGHT", row.kind, "LEFT", -(16 + LY.DETAIL_W), 0)
 		-- (the distance: just after the arrow's slot at the left of the detail's room)
 		row.dist:ClearAllPoints()
-		row.dist:SetPoint("LEFT", row.kind, "LEFT", -(8 + L.DETAIL_W) + L.NAV_SLOT, 0)
-		row.dist:SetWidth(L.DIST_W)
+		row.dist:SetPoint("LEFT", row.kind, "LEFT", -(8 + LY.DETAIL_W) + LY.NAV_SLOT, 0)
+		row.dist:SetWidth(LY.DIST_W)
 		row.label:SetTextColor(tr, tg, tb)
 		row.detail:SetTextColor(dr, dg, db)
 		row.dist:SetTextColor(dr, dg, db)
-		if i > L.ROWS then row:Hide() end
+		if i > LY.ROWS then row:Hide() end
 	end
 	self:LayoutHeader() -- (the divider, the prompt's background, the rows' places, the click area)
 	status:SetTextColor(dr, dg, db)
@@ -590,7 +591,7 @@ function UI:ApplyTheme()
 	ApplyRowsTheme(self, t)
 
 	Fuzzy.matchColor = "|cff" .. t.match
-	UI.offset = math.max(0, math.min(UI.offset, #UI.results - L.ROWS))
+	UI.offset = math.max(0, math.min(UI.offset, #UI.results - LY.ROWS))
 	self:ForgetTooltip() -- (its colours changed too: drawn again)
 	self:Render()
 	self.snapNext = false

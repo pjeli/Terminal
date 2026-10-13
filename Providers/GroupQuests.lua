@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Quests with your party (Simple mode: "party quests", "quests to share", "same quests as my group"; Advanced:
 -- "@group quests", "@group quests is:shareable"): each quest in your log with who in your party is on it too, as the
@@ -29,8 +30,8 @@ ns.GroupQuests = PQ
 local Safe, Str, Num, Lower, Secret = ns.Safe, ns.Str, ns.Num, ns.Lower, ns.Secret
 
 PQ.REACH = "@group quests" -- (how a search names this list: .mem, Alt+`, Shift+Right; ns:KindName)
-PQ.NONE = "You're not in a party: party quests need one"
-PQ.UNKNOWN_NOTE = "who has them isn't known: the game doesn't say here, sharing tells"
+PQ.NONE = L["You're not in a party: party quests need one"]
+PQ.UNKNOWN_NOTE = L["who has them isn't known: the game doesn't say here, sharing tells"]
 PQ.RESULT_WAIT = 15 -- (s: "already on that quest" and the like come at once, for the quest shared last)
 PQ.ANSWER_WAIT = 120 -- (s: "has accepted / declined your quest" come when they click)
 
@@ -57,7 +58,7 @@ function PQ.Members()
 			local name = ns.Group and ns.Group.NameOf(unit) or Str(Safe(_G.UnitName, unit))
 			local connected = Safe(_G.UnitIsConnected, unit)
 			local guid = Str(Safe(_G.UnitGUID, unit))
-			out[#out + 1] = { unit = unit, name = name or ("party member " .. i), hidden = name == nil or nil,
+			out[#out + 1] = { unit = unit, name = name or L["party member %s"]:format(i), hidden = name == nil or nil,
 				online = Secret(connected) and true or connected ~= false, guid = guid,
 				key = guid or (name and PQ.NameKey(name)) or unit }
 		end
@@ -131,11 +132,11 @@ end
 --- selected around it for clients whose Share pushes the selected one, then put back). The game says the rest in chat
 --- ("Sharing quest with Ann...", "Bob is already on that quest").
 function PQ.Share(e)
-	if Safe(_G.IsInGroup) ~= true then ns:Print("You're not in a party: nobody to share " .. tostring(e.name) .. " with.") return end
-	if e.pushable == false then ns:Print(tostring(e.name) .. " can't be shared.") return end
+	if Safe(_G.IsInGroup) ~= true then ns:Print(L["You're not in a party: nobody to share %s with."]:format(tostring(e.name))) return end
+	if e.pushable == false then ns:Print(L["%s can't be shared."]:format(tostring(e.name))) return end
 	local index = LogIndex(e.questID)
 	if not index or not _G.QuestLogPushQuest then
-		ns:Print(tostring(e.name) .. " isn't in your quest log any more.")
+		ns:Print(L["%s isn't in your quest log any more."]:format(tostring(e.name)))
 		return
 	end
 	local ok = ns.Guarded("sharequest", function()
@@ -147,10 +148,10 @@ function PQ.Share(e)
 		if set and was and was ~= e.questID then set(was) end
 	end)
 	ns:Trace(("party quests: shared %s (log index %d)%s"):format(tostring(e.name), index, ok and "" or ": failed or blocked"))
-	if not ok then ns:Print("Couldn't share " .. tostring(e.name) .. " from here: use the quest log's Share button.") end
+	if not ok then ns:Print(L["Couldn't share %s from here: use the quest log's Share button."]:format(tostring(e.name))) end
 end
 
-local function NotInLog(e) ns:Print(tostring(e.name) .. ": open your quest log to see it.") end
+local function NotInLog(e) ns:Print(L["%s: open your quest log to see it."]:format(tostring(e.name))) end
 
 --- The quest log's own Share too (QuestLogPushQuest hooked, after it runs): which quest was shared last.
 function PQ.HookPush()
@@ -240,29 +241,29 @@ local function Tooltip(e, t)
 	local QT = ns.QuestTip
 	if QT and QT.LogTooltip and e.quest then QT.LogTooltip(e.quest, t) else t:SetText(e.name, 1, 0.82, 0) end
 	t:AddLine(" ")
-	t:AddLine("Your party", 1, 0.82, 0)
+	t:AddLine(L["Your party"], 1, 0.82, 0)
 	for _, m in ipairs(e.party or {}) do
 		local said, r, g, b
-		if m.status == "on" then said, r, g, b = "on it", 0.5, 0.88, 0.5
-		elseif m.status == "lacks" then said, r, g, b = "doesn't have it", 1, 0.82, 0
-		elseif m.status == "done" then said, r, g, b = "has done it", 0.6, 0.6, 0.6
-		elseif m.status == "cant" then said, r, g, b = "can't take it", 0.6, 0.6, 0.6
-		else said, r, g, b = m.online and "not known" or "offline", 0.6, 0.6, 0.6 end
+		if m.status == "on" then said, r, g, b = L["on it"], 0.5, 0.88, 0.5
+		elseif m.status == "lacks" then said, r, g, b = L["doesn't have it"], 1, 0.82, 0
+		elseif m.status == "done" then said, r, g, b = L["has done it"], 0.6, 0.6, 0.6
+		elseif m.status == "cant" then said, r, g, b = L["can't take it"], 0.6, 0.6, 0.6
+		else said, r, g, b = m.online and L["not known"] or L["offline"], 0.6, 0.6, 0.6 end
 		t:AddDoubleLine(m.name, said, 1, 1, 1, r, g, b)
 	end
 	if e.unknown and #e.unknown > 0 then
-		t:AddLine("The game doesn't say who's on your quests here: sharing tells (\"is already on that quest\").", 0.6, 0.8, 1, true)
+		t:AddLine(L["The game doesn't say who's on your quests here: sharing tells (\"is already on that quest\")."], 0.6, 0.8, 1, true)
 	end
-	if e.pushable == false then t:AddLine("The game won't let you share this quest", 0.6, 0.6, 0.6, true) end
-	t:AddLine(e.pushable ~= false and "Enter: share with your party    Shift+Enter: show in your quest log"
-		or "Enter: show in your quest log", 0.6, 0.6, 0.6, true)
+	if e.pushable == false then t:AddLine(L["The game won't let you share this quest"], 0.6, 0.6, 0.6, true) end
+	t:AddLine(e.pushable ~= false and L["Enter: share with your party    Shift+Enter: show in your quest log"]
+		or L["Enter: show in your quest log"], 0.6, 0.6, 0.6, true)
 end
 
 -- one row sent to chat: "[Wolves Across the Border] (also on it: Ann, Bob; I can share it)"
 local function ShareExtra(e, room)
 	local parts = {}
-	if #e.on > 0 then parts[#parts + 1] = (e.everyone and "the whole party is on it") or ("also on it: " .. Names(e.on)) end
-	if e.canShare then parts[#parts + 1] = "I can share it" end
+	if #e.on > 0 then parts[#parts + 1] = (e.everyone and L["the whole party is on it"]) or L["also on it: %s"]:format(Names(e.on)) end
+	if e.canShare then parts[#parts + 1] = L["I can share it"] end
 	if #parts == 0 then return nil end
 	local s = " (" .. table.concat(parts, "; ") .. ")"
 	if room and #s > room then return nil end
@@ -291,18 +292,18 @@ local function Row(q, members, short, said)
 	-- (someone lacks it, or isn't known to have it: the game says "already on that quest" otherwise)
 	local canShare = pushable ~= false and (#lacks + #unknown) > 0
 	local everyone = #on > 0 and #on == online and online > 0
-	local d = { ((q.level and ("Lv " .. q.level .. "  ")) or "") .. (q.zone or "") }
-	if everyone and #on > 1 then d[#d + 1] = GREEN .. "the whole party|r"
-	elseif #on > 0 then d[#d + 1] = GREEN .. Names(on) .. " too|r"
-	elseif #unknown > 0 and #unknown == online then d[#d + 1] = GREY .. "who has it isn't known|r"
-	else d[#d + 1] = GREY .. "only you|r" end
-	if #done > 0 then d[#d + 1] = GREY .. Names(done) .. " did it|r" end
-	if #cant > 0 then d[#d + 1] = GREY .. Names(cant) .. " can't take it|r" end
+	local d = { ((q.level and (L["Lv %d"]:format(q.level) .. "  ")) or "") .. (q.zone or "") }
+	if everyone and #on > 1 then d[#d + 1] = GREEN .. L["the whole party"] .. "|r"
+	elseif #on > 0 then d[#d + 1] = GREEN .. L["%s too"]:format(Names(on)) .. "|r"
+	elseif #unknown > 0 and #unknown == online then d[#d + 1] = GREY .. L["who has it isn't known"] .. "|r"
+	else d[#d + 1] = GREY .. L["only you"] .. "|r" end
+	if #done > 0 then d[#d + 1] = GREY .. L["%s did it"]:format(Names(done)) .. "|r" end
+	if #cant > 0 then d[#d + 1] = GREY .. L["%s can't take it"]:format(Names(cant)) .. "|r" end
 	local offer = {}
 	for _, n in ipairs(lacks) do offer[#offer + 1] = n end
 	for _, n in ipairs(unknown) do offer[#offer + 1] = n end
-	if canShare then d[#d + 1] = YELLOW .. ((#offer == online and #offer > 1) and "can share" or ("share with " .. Names(offer))) .. "|r"
-	elseif pushable == false and #offer > 0 then d[#d + 1] = GREY .. "can't be shared|r" end
+	if canShare then d[#d + 1] = YELLOW .. ((#offer == online and #offer > 1) and L["can share"] or L["share with %s"]:format(Names(offer))) .. "|r"
+	elseif pushable == false and #offer > 0 then d[#d + 1] = GREY .. L["can't be shared"] .. "|r" end
 	local words = { rawget(q, "_ltext") or "", "party quest" }
 	for _, n in ipairs(on) do words[#words + 1] = Lower(n) end
 	if canShare then words[#words + 1] = "share shareable" end
@@ -374,12 +375,12 @@ local function NoteRow(text)
 end
 
 local function Verbs(e)
-	if e.pushable ~= false then return "share with party", "show in quest log" end
-	return "show in quest log"
+	if e.pushable ~= false then return L["share with party"], L["show in quest log"] end
+	return L["show in quest log"]
 end
 
 ns:RegisterProvider("groupquests", {
-	label = "Party quest",
+	label = L["Party quest"],
 	color = "ffa8d86a", -- (between the quest log's yellow and the group's green)
 	-- (no @word of its own: "@group quests" reaches it, Search.lua's Scan.Parse)
 	noKind = true, reach = PQ.REACH, resultText = function(e) return PQ.REACH .. " " .. tostring(e.name) end,
@@ -454,7 +455,7 @@ local function Wanted(e, q)
 	return true
 end
 
-PQ.NOTES = { all = "Party quests", together = "On the same quests as your party", share = "Quests you can share" }
+PQ.NOTES = { all = L["Party quests"], together = L["On the same quests as your party"], share = L["Quests you can share"] }
 
 --- The rows a question asks for, and the footer's note.
 function PQ.Answer(q)
@@ -465,12 +466,12 @@ function PQ.Answer(q)
 	local rows = {}
 	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local note = (PQ.NOTES[q.mode] or PQ.NOTES.all) .. ("  ·  %d of %d"):format(#rows, #all)
+	local note = (PQ.NOTES[q.mode] or PQ.NOTES.all) .. "  ·  " .. L["%d of %d"]:format(#rows, #all)
 	if #rows == 0 then
-		if q.mode == "share" then note = "Nobody in your party lacks a quest you can share"
-		elseif q.mode == "together" then note = "Nobody in your party is on your quests" end
+		if q.mode == "share" then note = L["Nobody in your party lacks a quest you can share"]
+		elseif q.mode == "together" then note = L["Nobody in your party is on your quests"] end
 	end
-	if (PQ.offline or 0) > 0 then note = note .. ("  ·  %d offline, not asked"):format(PQ.offline) end
+	if (PQ.offline or 0) > 0 then note = note .. "  ·  " .. L["%d offline, not asked"]:format(PQ.offline) end
 	if (PQ.unknownRows or 0) > 0 then note = note .. "  ·  " .. PQ.UNKNOWN_NOTE end
 	return rows, note
 end
@@ -523,14 +524,14 @@ function PQ.ShareGroupOf(rows, query, ML, LM)
 	end
 	local sections = {}
 	if mode ~= "share" then
-		if #same > 0 then sections[#sections + 1] = { label = "On the same quests", items = same } end
+		if #same > 0 then sections[#sections + 1] = { label = L["On the same quests"], items = same } end
 	end
 	if mode ~= "together" then
-		if #share > 0 then sections[#sections + 1] = { label = "I can share", items = share } end
+		if #share > 0 then sections[#sections + 1] = { label = L["I can share"], items = share } end
 	end
 	if #sections == 0 then
-		local none = (mode == "share" and "No quests to share") or (mode == "together" and "No quests in common")
-			or "No quests in common, none to share"
+		local none = (mode == "share" and L["No quests to share"]) or (mode == "together" and L["No quests in common"])
+			or L["No quests in common, none to share"]
 		sections[1] = { text = none }
 	end
 	local pack = ns.Group and ns.Group.Pack

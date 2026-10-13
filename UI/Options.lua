@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local T = ns.Theme
 
 -- Options panel (Game Menu > Options > AddOns > Terminal) and the .options command.
@@ -70,7 +71,7 @@ local function PickColor(key)
 			cancelFunc = function() T.Set(key, prev) end,
 		})
 	else
-		ns:Print("Set it from the terminal instead:  .set " .. key .. " rrggbb")
+		ns:Print(L["Set it from the terminal instead:  .set %s rrggbb"]:format(key))
 	end
 end
 
@@ -89,7 +90,7 @@ local function Swatch(key, x, y)
 	end)
 	local l = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	l:SetPoint("LEFT", b, "RIGHT", 6, 0)
-	l:SetText(T.FIELDS[key].label .. (T.FIELDS[key].optional and "  |cff8a8a8a(right-click: selection colour)|r" or ""))
+	l:SetText(T.FIELDS[key].label .. (T.FIELDS[key].optional and ("  |cff8a8a8a" .. L["(right-click: selection colour)"] .. "|r") or ""))
 	O.widgets[key] = b
 end
 
@@ -102,7 +103,7 @@ pv:SetSize(196, 52)
 pv:SetPoint("TOPLEFT", 440, -88)
 pv:SetBackdrop(FLAT)
 if pv.SetClipsChildren then pv:SetClipsChildren(true) end
-Label("Example", "GameFontNormal", 440, -70)
+Label(L["Example"], "GameFontNormal", 440, -70)
 O.preview = pv
 
 pv.prompt = pv:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -234,7 +235,7 @@ pv:SetScript("OnUpdate", function(_, elapsed) O.AnimatePreview(elapsed) end)
 ----------------------------------------------------------------------
 
 Label("Terminal", "GameFontNormalLarge", 16, -16)
-Label("Theme and layout of the terminal. Everything here can also be set from the terminal, e.g.  .set accent ff79c6", "GameFontHighlightSmall", 16, -40)
+Label(L["Theme and layout of the terminal. Everything here can also be set from the terminal, e.g.  .set accent ff79c6"], "GameFontHighlightSmall", 16, -40)
 
 -- Dropdowns: a button that opens a list of choices (themes, cursor styles)
 local openLists = {}
@@ -292,12 +293,12 @@ local function MarkChoice(items, current, labelOf)
 end
 
 -- Themes
-Label("Theme", "GameFontNormal", 16, -70)
+Label(L["Theme"], "GameFontNormal", 16, -70)
 local function ThemeLabel(id) return T.PRESETS[id].label end
 O.widgets.themeMenu, O.widgets.themeList, O.themeItems = Dropdown(16, -90, 200, T.PRESET_ORDER, ThemeLabel, function(id) T.ApplyPreset(id) end)
 
 -- Prompt character: type anything, up to 3 characters
-Label("Prompt character", "GameFontNormal", 16, -150)
+Label(L["Prompt character"], "GameFontNormal", 16, -150)
 local promptBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
 promptBox:SetSize(46, 20)
 promptBox:SetPoint("TOPLEFT", 22, -168)
@@ -319,12 +320,12 @@ end)
 O.widgets.promptText = promptBox
 
 -- Cursor style: a dropdown beside the prompt box
-Label("Cursor", "GameFontNormal", 130, -150)
+Label(L["Cursor"], "GameFontNormal", 130, -150)
 local function CursorLabel(id) return T.CURSOR_LABELS[id] end
 O.widgets.cursor, O.widgets.cursorList, O.cursorItems = Dropdown(130, -168, 150, T.CURSOR_ORDER, CursorLabel, function(id) T.Set("cursor", id) end)
 
 -- Animation style: a dropdown beside the cursor's (the example above plays it)
-Label("Animation", "GameFontNormal", 296, -150)
+Label(L["Animation"], "GameFontNormal", 296, -150)
 local function AnimLabel(id) return T.ANIMATION_LABELS[id] end
 O.widgets.animations, O.widgets.animationList, O.animationItems = Dropdown(296, -168, 150, T.ANIMATION_ORDER, AnimLabel, function(id)
 	T.Set("animations", id)
@@ -332,14 +333,14 @@ O.widgets.animations, O.widgets.animationList, O.animationItems = Dropdown(296, 
 end)
 
 -- Colours
-Label("Colours", "GameFontNormal", 16, -202)
+Label(L["Colours"], "GameFontNormal", 16, -202)
 local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "fzfColor" }
 for i, key in ipairs(colourKeys) do
 	Swatch(key, 16 + ((i - 1) % 3) * 140, -222 - math.floor((i - 1) / 3) * 24)
 end
 
 -- Layout
-Label("Layout", "GameFontNormal", 16, -300)
+Label(L["Layout"], "GameFontNormal", 16, -300)
 Slider("bgAlpha", 16, -322)
 Slider("fontSize", 16, -346)
 Slider("rows", 16, -370)
@@ -393,8 +394,8 @@ local function Check(key, y, note)
 	return Label(label, "GameFontHighlight", 216, y - 5)
 end
 Check("hints", -472)
-Check("syntax", -498, "(@kinds, filters, .commands)")
-Check("suggest", -524, "(\"try: ...\")")
+Check("syntax", -498, L["(@kinds, filters, .commands)"])
+Check("suggest", -524, L["(\"try: ...\")"])
 O.widgets.autoScanLabel = Check("autoScan", -550)
 
 -- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
@@ -409,10 +410,10 @@ local function Action(x, w, text, onClick)
 	b:SetScript("OnClick", onClick)
 	return b
 end
-Action(16, 130, "Open terminal", function() ns.UI:Open() end)
-Action(156, 130, "Reset to defaults", function() T.Reset() end)
+Action(16, 130, L["Open terminal"], function() ns.UI:Open() end)
+Action(156, 130, L["Reset to defaults"], function() T.Reset() end)
 -- Sharing the look: Export opens the style string in a copy window (Ctrl+C); Import takes a pasted one
-Action(296, 110, "Export style", function() ns:ShowText("Terminal style: paste it to a friend", T.Export(), { compact = true }) end)
+Action(296, 110, L["Export style"], function() ns:ShowText(L["Terminal style: paste it to a friend"], T.Export(), { compact = true }) end)
 
 local importDialog -- built on first use
 local function BuildImportDialog()
@@ -431,10 +432,10 @@ local function BuildImportDialog()
 
 	local title = d:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 14, -12)
-	title:SetText("Import a Terminal style")
+	title:SetText(L["Import a Terminal style"])
 	local hint = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	hint:SetPoint("TOPLEFT", 14, -30)
-	hint:SetText("Paste a style string (Ctrl+V): it starts with " .. T.STYLE_MARK)
+	hint:SetText(L["Paste a style string (Ctrl+V): it starts with %s"]:format(T.STYLE_MARK))
 
 	local box = CreateFrame("EditBox", nil, d, "InputBoxTemplate")
 	box:SetSize(492, 22)
@@ -467,12 +468,12 @@ local function BuildImportDialog()
 	local apply = CreateFrame("Button", nil, d, "UIPanelButtonTemplate")
 	apply:SetSize(90, 22)
 	apply:SetPoint("BOTTOMRIGHT", -108, 8)
-	apply:SetText("Apply")
+	apply:SetText(L["Apply"])
 	apply:SetScript("OnClick", Apply)
 	local cancel = CreateFrame("Button", nil, d, "UIPanelButtonTemplate")
 	cancel:SetSize(90, 22)
 	cancel:SetPoint("BOTTOMRIGHT", -12, 8)
-	cancel:SetText("Cancel")
+	cancel:SetText(L["Cancel"])
 	cancel:SetScript("OnClick", function() d:Hide() end)
 	importDialog = d
 	return d
@@ -489,7 +490,7 @@ function O.ImportDialog()
 	return d
 end
 
-Action(416, 110, "Import style", function() O.ImportDialog() end)
+Action(416, 110, L["Import style"], function() O.ImportDialog() end)
 
 ----------------------------------------------------------------------
 -- Sync controls with the stored theme
@@ -507,12 +508,12 @@ function O.Refresh()
 			w:SetBackdropColor(T.RGB(t[key] or t.accent))
 		end
 	end
-	O.widgets.font:SetText("Font: " .. t.font:sub(1, 1):upper() .. t.font:sub(2))
+	O.widgets.font:SetText(L["Font: %s"]:format(t.font:sub(1, 1):upper() .. t.font:sub(2)))
 	local cur = T.CURSOR_LABELS[t.cursor] and t.cursor or "blinking-line"
 	O.widgets.cursor:SetText(CursorLabel(cur))
 	MarkChoice(O.cursorItems, cur, CursorLabel)
-	O.widgets.frame:SetText("Frame: " .. (t.frame == "classic" and "Classic" or "Flat"))
-	O.widgets.fzfGlowButton:SetText("Fuzzy glow: " .. (T.FZF_GLOW_LABELS[t.fzfGlow] or "Breathing"))
+	O.widgets.frame:SetText(L["Frame: %s"]:format(t.frame == "classic" and L["Classic"] or L["Flat"]))
+	O.widgets.fzfGlowButton:SetText(L["Fuzzy glow: %s"]:format(T.FZF_GLOW_LABELS[t.fzfGlow] or L["Breathing"]))
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
@@ -532,7 +533,7 @@ function O.Refresh()
 	O.widgets.animations:SetText(AnimLabel(anim))
 	MarkChoice(O.animationItems, anim, AnimLabel)
 	local preset = T.PRESETS[t.preset]
-	O.widgets.themeMenu:SetText(preset and preset.label or "Custom")
+	O.widgets.themeMenu:SetText(preset and preset.label or L["Custom"])
 	MarkChoice(O.themeItems, t.preset, ThemeLabel)
 	PaintPreview()
 	O.syncing = false
@@ -584,11 +585,11 @@ function O.Open()
 end
 
 ns:RegisterCommand("options", {
-	desc = "Open the Terminal options panel",
+	desc = L["Open the Terminal options panel"],
 	aliases = { "settings", "prefs" },
 	run = function()
 		if not O.Open() then
-			return { "The options panel isn't available in this client. Use .theme and .set instead." }
+			return { L["The options panel isn't available in this client. Use .theme and .set instead."] }
 		end
 	end,
 })
@@ -625,7 +626,7 @@ ns:RegisterProvider("terminal", {
 		local out = {
 			{
 				key = "options",
-				name = "Terminal Options",
+				name = L["Terminal Options"],
 				icon = "Interface\\Icons\\INV_Misc_Gear_01",
 				text = "settings preferences theme colours colors font layout customize prompt",
 				secure = OPTIONS_SPEC, isOpen = ns.Never,
@@ -635,7 +636,7 @@ ns:RegisterProvider("terminal", {
 		for _, id in ipairs(T.PRESET_ORDER) do
 			out[#out + 1] = {
 				key = "theme:" .. id,
-				name = "Theme: " .. T.PRESETS[id].label,
+				name = L["Theme: %s"]:format(T.PRESETS[id].label),
 				icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
 				text = "theme colours colors look skin",
 				presetId = id,

@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 -- Spells (@spell): every spell in your spellbook.
@@ -140,7 +141,7 @@ local NAV = {
 		local paged = book and rawget(book, "PagedSpellsFrame")
 		return paged and rawget(paged, "PagingControls"), "currentPage"
 	end },
-	watchName = function() return "the spellbook's page" end,
+	watchName = function() return L["the spellbook's page"] end,
 }
 
 --- Whether the press turns the game's own book (else ClassicUIForever's route, or the key and pointing).
@@ -265,7 +266,7 @@ local function PointAtSpell(e)
 		last = item
 		looks = looks + 1
 		if looks == SP.HINT_AFTER and not item then
-			ns:Print(("%s isn't on this page of your spellbook: turn to it and Terminal points at it."):format(tostring(e.name)))
+			ns:Print(L["%s isn't on this page of your spellbook: turn to it and Terminal points at it."]:format(tostring(e.name)))
 		end
 		return nil
 	end, function(target) H:Show(target) end, A and 25 or SP.WATCH, function()
@@ -285,7 +286,7 @@ local function OpenSpellBook(e)
 	if A then
 		Call(A.Open, "spellBook")
 	else
-		ns:Print("Couldn't open your spellbook from the terminal. Press your Spellbook key.")
+		ns:Print(L["Couldn't open your spellbook from the terminal. Press your Spellbook key."])
 		return
 	end
 	PointAtSpell(e)
@@ -299,12 +300,12 @@ local function CastAfter(e) ns:Trace("spells: the game cast " .. tostring(e.name
 -- only when the game couldn't be handed the press: in combat, or a passive spell
 local function CastFallback(e)
 	if e.passive then
-		ns:Print(tostring(e.name) .. " is passive: there's nothing to cast.")
+		ns:Print(L["%s is passive: there's nothing to cast."]:format(tostring(e.name)))
 	elseif InCombatLockdown() then
-		ns:Print("In combat: Terminal can't cast " .. tostring(e.name) .. " (the game doesn't allow it then).")
+		ns:Print(L["In combat: Terminal can't cast %s (the game doesn't allow it then)."]:format(tostring(e.name)))
 	else
 		ns:Trace("spells: no secure button to cast " .. tostring(e.name))
-		ns:Print("Couldn't cast " .. tostring(e.name) .. " from the terminal.")
+		ns:Print(L["Couldn't cast %s from the terminal."]:format(tostring(e.name)))
 	end
 end
 
@@ -497,15 +498,15 @@ function SP.Answer(words)
 		end
 	end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local note = "Spells not on your bars or keys"
+	local note = L["Spells not on your bars or keys"]
 	if #rows == 0 then
-		note = (words and #words > 0) and "None of those spells is off your bars" or "Every spell you can cast is on a bar or a key"
+		note = (words and #words > 0) and L["None of those spells is off your bars"] or L["Every spell you can cast is on a bar or a key"]
 	end
 	return rows, note
 end
 
 ns:RegisterProvider("spells", {
-	label = "Spell",
+	label = L["Spell"],
 	color = "ff9d7bff",
 	aliases = { "spell", "spells", "ability", "abilities", "spellbook" },
 	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_TALENT_UPDATE", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" },
@@ -533,7 +534,7 @@ ns:RegisterProvider("spells", {
 						-- known by its name: learning a new rank mustn't make it another row (its history kept)
 						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
 						e.tab = tab
-						e.detail = (passive and "Passive  " or "") .. (rankText and (rankText .. "  ") or "") .. tab
+						e.detail = (passive and (L["Passive"] .. "  ") or "") .. (rankText and (rankText .. "  ") or "") .. tab
 						e.text = tab .. (passive and " passive" or "")
 						if passive then
 							e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CastFallback, nil, nil, nil

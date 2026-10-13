@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- ">> channel": whatever result is selected goes to a chat channel instead of being opened.
 --
@@ -37,6 +38,9 @@ local CHAT_TYPE = { party = "PARTY", guild = "GUILD", raid = "RAID", officer = "
 	instance = "INSTANCE_CHAT" }
 SH.CHAT_TYPE = CHAT_TYPE
 SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop" }
+-- (how a channel is named where it's shown: the footer, the ">>>" row)
+local LABEL = { party = L["party"], guild = L["guild"], raid = L["raid"], officer = L["officer"], say = L["say"],
+	yell = L["yell"], instance = L["instance"] }
 
 --- Does some channel name start with this word? (While it's being typed: not wrong yet.) A number
 --- only when it can still become a channel number (1-20, as Channel takes them).
@@ -79,16 +83,16 @@ function SH.Channel(rest)
 	if lw == "" then return { pending = true } end
 	if lw == "drop" then return { drop = true, label = "drop" } end
 	local ch = CHANNELS[lw]
-	if ch then return { cmd = COMMAND[ch], label = ch, chat = CHAT_TYPE[ch] } end
+	if ch then return { cmd = COMMAND[ch], label = LABEL[ch], chat = CHAT_TYPE[ch] } end
 	if WHISPER[lw] then
 		-- (the whole name: characters here have a surname, "w Plamen Warr")
 		local who = more or ""
-		if who == "" then return { pending = true, label = "whisper" } end
+		if who == "" then return { pending = true, label = L["whisper"] } end
 		local target = SH.WhisperTarget(who)
-		return { cmd = "/w " .. target, label = "whisper " .. who, chat = "WHISPER", target = target }
+		return { cmd = "/w " .. target, label = L["whisper %s"]:format(who), chat = "WHISPER", target = target }
 	end
 	local n = tonumber(lw)
-	if n and n >= 1 and n <= 20 then return { cmd = "/" .. n, label = "channel " .. n, chat = "CHANNEL", target = n } end
+	if n and n >= 1 and n <= 20 then return { cmd = "/" .. n, label = L["channel %s"]:format(n), chat = "CHANNEL", target = n } end
 	return { bad = w }
 end
 
@@ -119,10 +123,9 @@ end
 function SH.LootSource(e)
 	local boss, inst = SH.LootWhere(e)
 	if not boss or (boss == "" and inst == "") then return nil end
-	local where = inst ~= "" and (" in " .. inst) or ""
-	if boss == "" then return "from " .. inst end
-	if ns.Lower(boss):find("trash", 1, true) then return "from trash" .. where end
-	return "dropped by " .. boss .. where
+	if boss == "" then return L["from %s"]:format(inst) end
+	if ns.Lower(boss):find("trash", 1, true) then return inst ~= "" and L["from trash in %s"]:format(inst) or L["from trash"] end
+	return inst ~= "" and L["dropped by %s in %s"]:format(boss, inst) or L["dropped by %s"]:format(boss)
 end
 
 -- the base text with where a loot row's item drops after it, and what the row adds of its own (`shareExtra`: a
@@ -186,11 +189,11 @@ end
 
 -- What an NPC search's filters say the NPC is ("@npc reagent is:vendor sort:nearest" -> "Nearby reagent vendor").
 SH.ROLES = {
-	vendor = "vendor", repair = "repair vendor", inn = "innkeeper", innkeeper = "innkeeper", bank = "banker",
-	banker = "banker", flight = "flight master", flightmaster = "flight master", auctioneer = "auctioneer",
-	stable = "stable master", stablemaster = "stable master", trainer = "trainer",
-	questgiver = "quest giver", classtrainer = "class trainer", proftrainer = "profession trainer",
-	battlemaster = "battlemaster", pvpvendor = "PvP vendor", pvp = "PvP NPC",
+	vendor = L["vendor"], repair = L["repair vendor"], inn = L["innkeeper"], innkeeper = L["innkeeper"], bank = L["banker"],
+	banker = L["banker"], flight = L["flight master"], flightmaster = L["flight master"], auctioneer = L["auctioneer"],
+	stable = L["stable master"], stablemaster = L["stable master"], trainer = L["trainer"],
+	questgiver = L["quest giver"], classtrainer = L["class trainer"], proftrainer = L["profession trainer"],
+	battlemaster = L["battlemaster"], pvpvendor = L["PvP vendor"], pvp = L["PvP NPC"],
 }
 local MY_CLASS = { class = true, my = true, me = true, myclass = true }
 
@@ -228,11 +231,11 @@ function SH.Context(query, e)
 			elseif key == "trainer" then
 				if MY_CLASS[val] then
 					local cls = UnitClass and UnitClass("player")
-					val = type(cls) == "string" and ns.Lower(cls) or "class"
+					val = type(cls) == "string" and ns.Lower(cls) or L["class"]
 				elseif val == "mine" then
-					val = "mining"
+					val = L["mining"]
 				end
-				roles[#roles + 1] = val .. " trainer"
+				roles[#roles + 1] = L["%s trainer"]:format(val)
 			elseif key == "in" or key == "zone" or key == "from" or key == "where" then
 				place = Titled(val)
 			end
@@ -241,34 +244,34 @@ function SH.Context(query, e)
 		end
 	end
 	local parts = {}
-	if nearby then parts[#parts + 1] = "nearby" end
+	if nearby then parts[#parts + 1] = L["nearby"] end
 	if e.generic then parts[#parts + 1] = lname end -- (what it is: the line then carries only its pin)
 	if nearby and e.what then parts[#parts + 1] = e.what end -- ("Nearby dungeon: Razorfen Kraul entrance [pin]")
 	for _, w in ipairs(words) do parts[#parts + 1] = w end
 	for _, r in ipairs(roles) do parts[#parts + 1] = r end
 	if #parts == 0 and not place then return nil end
 	local text = table.concat(parts, " ")
-	if place then text = (text ~= "" and (text .. " in ") or "in ") .. place end
+	if place then text = text ~= "" and L["%s in %s"]:format(text, place) or L["in %s"]:format(place) end
 	return (text:gsub("^%l", string.upper))
 end
 
 --- The channels a row can go to from its right-click menu, those you're in: { cmd, label } (say always; party or
 --- raid, instance, guild when you're in one; your target when it's another player: "/w %t", the game fills the name).
 function SH.MenuChannels()
-	local out = { { cmd = "/s", label = "Say in chat", chat = "SAY", short = "say" } }
+	local out = { { cmd = "/s", label = L["Say in chat"], chat = "SAY", short = L["say"] } }
 	local function Is(fn, ...) return type(fn) == "function" and Call(fn, ...) and true or false end
 	local instance = _G.LE_PARTY_CATEGORY_INSTANCE
 	local inInstance = instance and Is(_G.IsInGroup, instance)
 	if Is(_G.IsInRaid) then
-		out[#out + 1] = { cmd = "/raid", label = "Send to raid", chat = "RAID", short = "raid" }
+		out[#out + 1] = { cmd = "/raid", label = L["Send to raid"], chat = "RAID", short = L["raid"] }
 	elseif Is(_G.IsInGroup) and not (inInstance and not Is(_G.IsInGroup, _G.LE_PARTY_CATEGORY_HOME)) then
-		out[#out + 1] = { cmd = "/p", label = "Send to party", chat = "PARTY", short = "party" }
+		out[#out + 1] = { cmd = "/p", label = L["Send to party"], chat = "PARTY", short = L["party"] }
 	end
-	if inInstance then out[#out + 1] = { cmd = "/i", label = "Send to instance", chat = "INSTANCE_CHAT", short = "instance" } end
-	if Is(_G.IsInGuild) then out[#out + 1] = { cmd = "/g", label = "Send to guild", chat = "GUILD", short = "guild" } end
+	if inInstance then out[#out + 1] = { cmd = "/i", label = L["Send to instance"], chat = "INSTANCE_CHAT", short = L["instance"] } end
+	if Is(_G.IsInGuild) then out[#out + 1] = { cmd = "/g", label = L["Send to guild"], chat = "GUILD", short = L["guild"] } end
 	if Is(_G.UnitIsPlayer, "target") and not Is(_G.UnitIsUnit, "target", "player") then
 		local name = ns.Str(Call(_G.UnitName, "target"))
-		out[#out + 1] = { cmd = "/w %t", label = "Whisper " .. (name or "your target") }
+		out[#out + 1] = { cmd = "/w %t", label = L["Whisper %s"]:format(name or L["your target"]) }
 	end
 	return out
 end
@@ -277,8 +280,8 @@ end
 --- as the chain sees it: a reagent's count ("8x [Thorium Bar]"), a source's way ("sold by Name [pin]"). nil, text
 --- for rows not from a chain.
 SH.CHAIN = {
-	mats = "Mats for %s", uses = "%s is used in", sources = "Where to get %s", -- (alts: the holders say it)
-	learn = "Where to learn %s",
+	mats = L["Mats for %s"], uses = L["%s is used in"], sources = L["Where to get %s"], -- (alts: the holders say it)
+	learn = L["Where to learn %s"],
 }
 function SH.ChainText(e, text)
 	local rel = e.pipeRel
@@ -347,17 +350,17 @@ local MASS = { armor = true, cloth = true, leather = true, mail = true, plate = 
 	ammo = true, jewelry = true, ["trade goods"] = true, junk = true, miscellaneous = true, ammunition = true }
 local PLURAL = { staff = "staves", stave = "staves", knife = "knives", ["fist weapon"] = "fist weapons" }
 local SLOT_NOUN = {
-	head = { "helm", "helms" }, neck = { "necklace", "necklaces" }, shoulder = { "shoulder", "shoulders" },
-	back = { "cloak", "cloaks" }, chest = { "chest piece", "chest pieces" }, wrist = { "bracer", "bracers" },
-	hands = { "glove", "gloves" }, waist = { "belt", "belts" }, legs = { "legging", "leggings" },
-	feet = { "boot", "boots" }, finger = { "ring", "rings" }, trinket = { "trinket", "trinkets" },
-	["two-hand"] = { "two-hander", "two-handers" }, ["one-hand"] = { "one-hander", "one-handers" },
-	["off hand"] = { "off-hand", "off-hands" }, ["main hand"] = { "main-hand weapon", "main-hand weapons" },
-	shield = { "shield", "shields" }, ranged = { "ranged weapon", "ranged weapons" }, tabard = { "tabard", "tabards" },
-	shirt = { "shirt", "shirts" }, weapon = { "weapon", "weapons" },
+	head = { L["helm"], L["helms"] }, neck = { L["necklace"], L["necklaces"] }, shoulder = { L["shoulder"], L["shoulders"] },
+	back = { L["cloak"], L["cloaks"] }, chest = { L["chest piece"], L["chest pieces"] }, wrist = { L["bracer"], L["bracers"] },
+	hands = { L["glove"], L["gloves"] }, waist = { L["belt"], L["belts"] }, legs = { L["legging"], L["leggings"] },
+	feet = { L["boot"], L["boots"] }, finger = { L["ring"], L["rings"] }, trinket = { L["trinket"], L["trinkets"] },
+	["two-hand"] = { L["two-hander"], L["two-handers"] }, ["one-hand"] = { L["one-hander"], L["one-handers"] },
+	["off hand"] = { L["off-hand"], L["off-hands"] }, ["main hand"] = { L["main-hand weapon"], L["main-hand weapons"] },
+	shield = { L["shield"], L["shields"] }, ranged = { L["ranged weapon"], L["ranged weapons"] }, tabard = { L["tabard"], L["tabards"] },
+	shirt = { L["shirt"], L["shirts"] }, weapon = { L["weapon"], L["weapons"] },
 }
 local ARMOUR = { cloth = true, leather = true, mail = true, plate = true }
-SH.QUALITY_WORDS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom" }
+SH.QUALITY_WORDS = { [0] = L["poor"], L["common"], L["uncommon"], L["rare"], L["epic"], L["legendary"], L["artifact"], L["heirloom"] }
 
 local function Plural(w)
 	if MASS[w] then return w end
@@ -377,7 +380,7 @@ local function QualityWord(val)
 	local Q = ns.Filters and ns.Filters.QUALITY
 	local n = tonumber(word) or (Q and Q[word])
 	local q = n and SH.QUALITY_WORDS[n]
-	return q and (q .. (plus == "+" and " or better" or "")) or nil
+	return q and (plus == "+" and L["%s or better"]:format(q) or q) or nil
 end
 
 -- the game's slot word for an everyday one (slot:boots is the feet: Filters' own aliases)
@@ -412,7 +415,7 @@ end
 local function SlotNoun(s, one)
 	local sn = SLOT_NOUN[s]
 	if sn then return one and sn[1] or sn[2] end
-	return s .. (one and "" or " gear")
+	return one and s or L["%s gear"]:format(s)
 end
 
 local function Joined(list, f, sep)
@@ -424,7 +427,7 @@ end
 -- the noun a spec says ("swords and axes", "plate boots", "helm upgrades"), or nil
 local function Noun(spec)
 	local types, slots, up = spec.types, spec.slots, spec.upgrade
-	local sep = up and "/" or " and "
+	local sep = up and "/" or (" " .. L["and"] .. " ")
 	local noun
 	if #types == 1 and ARMOUR[types[1]] and #slots > 0 then
 		noun = types[1] .. " " .. Joined(slots, function(s) return SlotNoun(s, up) end, sep)
@@ -433,15 +436,15 @@ local function Noun(spec)
 	elseif #slots > 0 then
 		noun = Joined(slots, function(s) return SlotNoun(s, up) end, sep)
 	end
-	if up then noun = noun and (noun .. " upgrades") or "upgrades" end
+	if up then noun = noun and L["%s upgrades"]:format(noun) or L["upgrades"] end
 	return noun
 end
 
 -- the words before the noun: "rare or epic", "BoE"
 local function Before(spec)
 	local before = {}
-	if #spec.quals > 0 then before[#before + 1] = table.concat(spec.quals, " or ") end
-	if spec.boe then before[#before + 1] = "BoE" end
+	if #spec.quals > 0 then before[#before + 1] = table.concat(spec.quals, (" " .. L["or"] .. " ")) end
+	if spec.boe then before[#before + 1] = L["BoE"] end
 	return table.concat(before, " ")
 end
 
@@ -505,20 +508,20 @@ function SH.Describe(query, rows)
 				for i, alt in ipairs(alts) do
 					local sub = NewSpec()
 					for _, pc in ipairs(alt) do Add(sub, pc[1], pc[2]) end
-					local b, n = Before(sub), Noun(sub) or "items"
+					local b, n = Before(sub), Noun(sub) or L["items"]
 					phrases[i] = (b ~= "" and (b .. " ") or "") .. n
 				end
 			end
 		end
 	end
-	local noun = phrases and table.concat(phrases, " and ") or Noun(spec)
+	local noun = phrases and table.concat(phrases, (" " .. L["and"] .. " ")) or Noun(spec)
 	local before = Before(spec)
 	if not noun and before == "" and #spec.stats == 0 and not spec.lvl and not spec.ilvl then return nil end
-	noun = noun or "items"
+	noun = noun or L["items"]
 	local text = before .. (before ~= "" and " " or "") .. noun
-	if #spec.stats > 0 then text = text .. " with " .. table.concat(spec.stats, " and ") end
-	if spec.lvl then text = text .. " (level " .. spec.lvl .. ")" end
-	if spec.ilvl then text = text .. " (item level " .. spec.ilvl .. ")" end
+	if #spec.stats > 0 then text = L["%s with %s"]:format(text, table.concat(spec.stats, (" " .. L["and"] .. " "))) end
+	if spec.lvl then text = text .. " " .. L["(level %s)"]:format(spec.lvl) end
+	if spec.ilvl then text = text .. " " .. L["(item level %s)"]:format(spec.ilvl) end
 	return (text:gsub("^%l", string.upper))
 end
 
@@ -570,7 +573,7 @@ function SH.GroupHeader(rows, query)
 			local _, i = SH.LootWhere(e)
 			if i ~= inst then inst = nil break end
 		end
-		if inst and inst ~= "" then return (what or "Loot") .. " from " .. inst, "instance" end
+		if inst and inst ~= "" then return L["%s from %s"]:format(what or L["Loot"], inst), "instance" end
 	end
 	return SH.Context(query, first) or what
 end
@@ -600,7 +603,7 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 			-- (the instance is in the header: each says only who drops it)
 			local boss = SH.LootWhere(e)
 			if boss and boss ~= "" then
-				t = base .. " (" .. (ns.Lower(boss):find("trash", 1, true) and "trash" or boss) .. ")"
+				t = base .. " (" .. (ns.Lower(boss):find("trash", 1, true) and L["trash"] or boss) .. ")"
 			end
 		end
 		local _, chained = SH.ChainText(e, t)
@@ -636,7 +639,7 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 	local total = #rows - skipped
 	local left = total - sent
 	if left > 0 and #lines > 0 then
-		local more = "+" .. left .. " more"
+		local more = L["+%s more"]:format(left)
 		if #lines[#lines] + #more + 1 <= LM then lines[#lines] = lines[#lines] .. " " .. more
 		elseif #lines < ML then lines[#lines + 1] = more end
 	end
@@ -691,7 +694,7 @@ end
 -- 0.45.16 (the player's .debug log: "All 37 to say" from the row menu, 6 lines, the game blocked all 6): not from
 -- Terminal's code at all, even inside the press: only a line the game presses itself (SH.PressLine, one per press)
 local NEEDS_PRESS = { SAY = true, YELL = true, CHANNEL = true }
-SH.ONE_LINE = "Say, yell and channels take one line per key press: Enter sends the first line, the rest counted."
+SH.ONE_LINE = L["Say, yell and channels take one line per key press: Enter sends the first line, the rest counted."]
 
 --- Is this a channel Terminal's code can't send to (say, yell, a numbered channel)?
 function SH.Restricted(to) return type(to) == "table" and NEEDS_PRESS[to.chat or ""] == true end
@@ -714,7 +717,7 @@ SH.LINK_WAIT, SH.LINK_STEP = 3, 0.25 -- (seconds waited for items to load before
 
 local function SendLines(rows, to, query, send)
 	local lines = SH.GroupLines(rows, query)
-	if #lines == 0 then return nil, "Nothing to send." end
+	if #lines == 0 then return nil, L["Nothing to send."] end
 	local n = 0
 	for _, l in ipairs(lines) do
 		local ok = pcall(send, l, to.chat, nil, to.target)
@@ -722,7 +725,7 @@ local function SendLines(rows, to, query, send)
 		n = n + 1
 	end
 	ns:Trace(("share: sent %d of %d lines to %s"):format(n, #lines, tostring(to.label or to.chat)))
-	if n == 0 then return nil, "Couldn't send to " .. tostring(to.label or to.chat) .. "." end
+	if n == 0 then return nil, L["Couldn't send to %s."]:format(tostring(to.label or to.chat)) end
 	return n
 end
 
@@ -730,7 +733,7 @@ end
 --- press or click that asked (say and yell want one). Items the client hasn't loaded would go without their links
 --- (a whole instance's loot): they're asked for, and party, raid, guild, instance and whispers wait for them (up to
 --- LINK_WAIT s) before sending. Returns how many lines went (true when they'll go in a moment), or nil and why not.
-local LOCKED = "The game doesn't let addons send chat right now (in combat in an instance)."
+local LOCKED = L["The game doesn't let addons send chat right now (in combat in an instance)."]
 local function Locked()
 	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
 	return lock and Call(lock) == true
@@ -738,7 +741,7 @@ end
 local waiting -- (a send waiting for its items to load: another Enter meanwhile doesn't send them twice)
 
 -- (0.45.16, the player: ">>> party" with nothing searched sent every recent pick, with no word of what they were)
-SH.NO_SEARCH = "Search for something first: with nothing searched there's nothing to say what they are."
+SH.NO_SEARCH = L["Search for something first: with nothing searched there's nothing to say what they are."]
 --- Was something searched (the words before ">>", or the menu's query)? Every result at once needs it.
 function SH.Searched(query) return type(query) == "string" and query:find("%S") ~= nil end
 
@@ -746,11 +749,11 @@ function SH.SendAll(rows, to, query)
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
 	if not SH.Searched(query) then return nil, SH.NO_SEARCH end
 	if SH.Restricted(to) then return nil, SH.ONE_LINE end -- (the game blocks them from addon code: SH.PressLine)
-	if not (to and to.chat and send) then return nil, "Say where to send them: >>> party, guild, raid, say, instance, whisper <name>" end
+	if not (to and to.chat and send) then return nil, L["Say where to send them: >>> party, guild, raid, say, instance, whisper <name>"] end
 	if Locked() then return nil, LOCKED end
-	if waiting then return nil, "Still sending the last ones: a moment." end
+	if waiting then return nil, L["Still sending the last ones: a moment."] end
 	rows = SH.GroupRows(rows) -- (kept: the list on screen changes while waiting)
-	if #rows == 0 then return nil, "Nothing to send." end
+	if #rows == 0 then return nil, L["Nothing to send."] end
 	local missing = SH.Unloaded(rows)
 	if #missing == 0 or NEEDS_PRESS[to.chat] or not (C_Timer and C_Timer.After) then
 		if #missing > 0 then ns:Trace("share: " .. #missing .. " items not loaded yet go without links (" .. to.chat .. " can't wait)") end

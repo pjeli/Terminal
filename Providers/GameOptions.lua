@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 -- The game's own options (Game Menu > Options): every page (Graphics, Audio, Interface,
@@ -134,7 +135,7 @@ local function OpenOption(e)
 end
 
 ns:RegisterProvider("gameoptions", {
-	label = "Options",
+	label = L["Options"],
 	color = "ff9fb7ff",
 	aliases = { "option", "options", "setting", "settings" },
 	noCombat = true, -- opening windows is protected in combat
@@ -156,7 +157,7 @@ ns:RegisterProvider("gameoptions", {
 					key = key,
 					name = label,
 					icon = o.page and "Interface\\Icons\\INV_Misc_Gear_02" or "Interface\\Icons\\Trade_Engineering",
-					detail = o.page and (o.path and (o.path .. "  page") or "Options page") or o.path,
+					detail = o.page and (o.path and (o.path .. "  " .. L["page"]) or L["Options page"]) or o.path,
 					text = (o.path or "") .. " options settings " .. (o.tip or ""),
 					tip = o.tip,
 					opt = o,

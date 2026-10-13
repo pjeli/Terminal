@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- .atop: the terminal turns into atop, "AddOn top": a small btop (the Linux system monitor) for your addons. A CPU graph
 -- of all addons over time, memory, frame rate and latency, and a list of addons by CPU and memory
@@ -25,7 +26,7 @@ local ROW_H, LIST_TOP, LIST_BOTTOM = 19, 42, 6 -- the list's rows, and the room 
 -- time is charged to Terminal (at every 3 s it was the spike in Terminal's own graph, every sixth bar)
 local CPU_EVERY, MEM_EVERY = 0.5, 10
 local SORTS = { "cpu", "mem", "name" }
-local SORT_LABEL = { cpu = "cpu", mem = "memory", name = "name" } -- (how the list's sort is named in it)
+local SORT_LABEL = { cpu = L["cpu"], mem = L["memory"], name = L["name"] } -- (how the list's sort is named in it)
 -- btop's bar colours: low green, high red (as RGB triples: parsing hex per bar per tick added up)
 local HOT, WARM, COOL = { Theme.RGB("ff5f5f") }, { Theme.RGB("ffd200") }, { Theme.RGB("33ff99") }
 
@@ -36,12 +37,12 @@ local addons, shown = {}, {}
 local state = { sort = "cpu", filter = "", sel = 1, offset = 0, focus = nil }
 local profLines -- the profile view's lines (label, this addon, all addons), made with the frame
 B.METRICS = { -- the profiler's numbers shown for one addon: { metric name, label, kind } (left: times, right: counts)
-	{ "RecentAverageTime", "recent average", "ms" }, { "SessionAverageTime", "session average", "ms" },
-	{ "PeakTime", "peak", "ms" }, { "LastTime", "last frame", "ms" }, { "EncounterAverageTime", "in boss fights", "ms" },
-	{ "CountTimeOver1Ms", "frames over 1 ms", "n" }, { "CountTimeOver5Ms", "over 5 ms", "n" },
-	{ "CountTimeOver10Ms", "over 10 ms", "n" }, { "CountTimeOver50Ms", "over 50 ms", "n" },
-	{ "CountTimeOver100Ms", "over 100 ms", "n" }, { "CountTimeOver500Ms", "over 500 ms", "n" },
-	{ "CountTimeOver1000Ms", "over 1 s", "n" },
+	{ "RecentAverageTime", L["recent average"], "ms" }, { "SessionAverageTime", L["session average"], "ms" },
+	{ "PeakTime", L["peak"], "ms" }, { "LastTime", L["last frame"], "ms" }, { "EncounterAverageTime", L["in boss fights"], "ms" },
+	{ "CountTimeOver1Ms", L["frames over 1 ms"], "n" }, { "CountTimeOver5Ms", L["over 5 ms"], "n" },
+	{ "CountTimeOver10Ms", L["over 10 ms"], "n" }, { "CountTimeOver50Ms", L["over 50 ms"], "n" },
+	{ "CountTimeOver100Ms", L["over 100 ms"], "n" }, { "CountTimeOver500Ms", L["over 500 ms"], "n" },
+	{ "CountTimeOver1000Ms", L["over 1 s"], "n" },
 }
 
 local RGB = Theme.RGB
@@ -234,7 +235,7 @@ local function Build()
 	header, sysText = Panel.Header(frame)
 
 	-- cpu: a graph of all addons' share of each frame
-	local cpu = Box(frame, "cpu", 10, -30, 0, 150)
+	local cpu = Box(frame, L["cpu"], 10, -30, 0, 150)
 	frame.cpuBox = cpu
 	graph = {}
 	for i = 1, GRAPH_COLS do
@@ -247,7 +248,7 @@ local function Build()
 	cpuText:SetPoint("BOTTOMLEFT", 8, 6)
 
 	-- mem: total, a meter against the peak, and a small graph
-	local mem = Box(frame, "mem", 0, -30, 0, 150)
+	local mem = Box(frame, L["mem"], 0, -30, 0, 150)
 	frame.memBox = mem
 	memText = Text(mem, 11)
 	memText:SetPoint("TOPLEFT", 8, -24)
@@ -268,12 +269,12 @@ local function Build()
 	end
 
 	-- the addons
-	local proc = Box(frame, "addons", 10, -186, 0, 0)
+	local proc = Box(frame, L["addons"], 10, -186, 0, 0)
 	frame.procBox = proc
 	filterText = Text(proc, 11, "RIGHT")
 	filterText:SetPoint("TOPRIGHT", -8, -7)
 	colHead = {}
-	for i, c in ipairs({ { "Addon", 10, "LEFT" }, { "CPU ms", 0, "RIGHT" }, { "CPU %", 0, "RIGHT" }, { "Memory", 0, "RIGHT" } }) do
+	for i, c in ipairs({ { L["Addon"], 10, "LEFT" }, { L["CPU ms"], 0, "RIGHT" }, { L["CPU %"], 0, "RIGHT" }, { L["Memory"], 0, "RIGHT" } }) do
 		local fs = Text(proc, 11, c[3])
 		fs:SetText(c[1])
 		colHead[i] = fs
@@ -505,24 +506,24 @@ end
 
 -- the header, the graphs' captions and the boxes' titles (the focused addon's name in them while profiling)
 local function DrawTitles(t, fa)
-	header:SetText(("|cff%satop|r  |cff%saddon top|r"):format(t.accent, t.dim))
+	header:SetText(("|cff%satop|r  |cff%s%s|r"):format(t.accent, t.dim, L["addon top"]))
 	local fps = GetFramerate and GetFramerate() or 0
 	local _, _, home, world = (GetNetStats or function() end)()
 	local up = GetTime() - (B.since or GetTime())
-	sysText:SetText(("fps %.0f  ·  %s ms  ·  up %d:%02d"):format(fps, tostring(world or home or "?"), math.floor(up / 60), math.floor(up % 60)))
+	sysText:SetText(L["fps %.0f  ·  %s ms  ·  up %d:%02d"]:format(fps, tostring(world or home or "?"), math.floor(up / 60), math.floor(up % 60)))
 	if B.hasProfiler then
-		cpuText:SetText(("all addons %.2f ms / frame  ·  %.0f%% of a frame"):format(B.total or 0, (B.total or 0) / (B.frameMs or 16.7) * 100))
+		cpuText:SetText(L["all addons %.2f ms / frame  ·  %.0f%% of a frame"]:format(B.total or 0, (B.total or 0) / (B.frameMs or 16.7) * 100))
 	else
-		cpuText:SetText("|cffff6b6bthis client has no addon CPU profiler|r")
+		cpuText:SetText("|cffff6b6b" .. L["this client has no addon CPU profiler"] .. "|r")
 	end
 	local mine = 0
 	for _, a in ipairs(addons) do if a.name == ns.name then mine = a.mem end end
-	memText:SetText(("%s in %d addons"):format(MB(B.memTotal or 0), #addons))
-	memText2:SetText("peak " .. MB(B.memPeak or 0))
+	memText:SetText(L["%s in %d addons"]:format(MB(B.memTotal or 0), #addons))
+	memText2:SetText(L["peak %s"]:format(MB(B.memPeak or 0)))
 	memText3:SetText(ns.name .. " " .. MB(mine))
-	frame.cpuBox.title:SetText(fa and ("cpu  ·  " .. fa.title) or "cpu")
-	frame.memBox.title:SetText(fa and ("mem  ·  " .. fa.title) or "mem")
-	frame.procBox.title:SetText(fa and ("profile  ·  " .. fa.title) or "addons")
+	frame.cpuBox.title:SetText(fa and (L["cpu"] .. "  ·  " .. fa.title) or L["cpu"])
+	frame.memBox.title:SetText(fa and (L["mem"] .. "  ·  " .. fa.title) or L["mem"])
+	frame.procBox.title:SetText(fa and (L["profile"] .. "  ·  " .. fa.title) or L["addons"])
 	-- (each title only as wide as its words, up to its box: the patch behind it hugs the text)
 	for _, box in ipairs({ frame.cpuBox, frame.memBox, frame.procBox }) do
 		local room = math.max(20, box:GetWidth() - 16)
@@ -536,7 +537,7 @@ end
 -- the list of addons: the filter and sort line, the rows on show, the footer
 local function DrawList(t)
 	for _, l in ipairs(profLines) do l.label:Hide(); l.mine:Hide(); l.all:Hide() end
-	filterText:SetText(("|cff%sfilter|r %s|cff%s_|r   |cff%ssort|r %s"):format(t.dim, state.filter, t.accent, t.dim, SORT_LABEL[state.sort]))
+	filterText:SetText(("|cff%s%s|r %s|cff%s_|r   |cff%s%s|r %s"):format(t.dim, L["filter"], state.filter, t.accent, t.dim, L["sort"], SORT_LABEL[state.sort]))
 	local whole = math.max(0.0001, B.total or 0)
 	for i, r in ipairs(rows) do
 		local a = i <= fit and shown[state.offset + i]
@@ -551,7 +552,7 @@ local function DrawList(t)
 			r:Hide()
 		end
 	end
-	footer:SetText(("%d of %d addons  ·  type to filter  ·  Tab sort  ·  Enter profile  ·  Esc or ` close"):format(#shown, #addons))
+	footer:SetText(L["%d of %d addons  ·  type to filter  ·  Tab sort  ·  Enter profile  ·  Esc or ` close"]:format(#shown, #addons))
 end
 
 function B.DrawText()
@@ -580,22 +581,22 @@ function B.DrawProfile(a, t)
 	local peakMs = 0
 	for _, v in ipairs(a.hist or {}) do if v > peakMs then peakMs = v end end
 	if B.hasProfiler then
-		cpuText:SetText(("%.3f ms/frame  ·  %.1f%% of addons  ·  peak %.3f"):format(a.cpu or 0,
+		cpuText:SetText(L["%.3f ms/frame  ·  %.1f%% of addons  ·  peak %.3f"]:format(a.cpu or 0,
 			(a.cpu or 0) / math.max(0.0001, B.total or 0) * 100, peakMs))
 	end
 	local grow = B.Growth(a)
-	memText:SetText(("%s  ·  %.1f%% of all"):format(MB(a.mem or 0), (a.mem or 0) / math.max(1, B.memTotal or 1) * 100))
-	memText2:SetText(grow and (grow >= 0 and ("growing %.1f KB/s"):format(grow) or ("shrinking %.1f KB/s"):format(-grow)) or "growth: measuring...")
+	memText:SetText(L["%s  ·  %.1f%% of all"]:format(MB(a.mem or 0), (a.mem or 0) / math.max(1, B.memTotal or 1) * 100))
+	memText2:SetText(grow and (grow >= 0 and L["growing %.1f KB/s"]:format(grow) or L["shrinking %.1f KB/s"]:format(-grow)) or L["growth: measuring..."])
 	local mpeak = 0
 	for _, v in ipairs(a.memHist or {}) do if v > mpeak then mpeak = v end end
-	memText3:SetText("peak " .. MB(mpeak))
+	memText3:SetText(L["peak %s"]:format(MB(mpeak)))
 	local prof = B.profile or {}
 	for i, l in ipairs(profLines) do
 		local m = B.METRICS[i - 2]
 		local shownLine = true
 		if i <= 2 then
-			l.label:SetText(i == 1 and "time per frame" or "slow frames")
-			l.mine:SetText("this addon"); l.all:SetText("all addons")
+			l.label:SetText(i == 1 and L["time per frame"] or L["slow frames"])
+			l.mine:SetText(L["this addon"]); l.all:SetText(L["all addons"])
 		elseif prof[m[1]] then
 			local v = prof[m[1]]
 			local f = m[3] == "ms" and Ms or Count
@@ -606,11 +607,11 @@ function B.DrawProfile(a, t)
 		l.label:SetShown(shownLine); l.mine:SetShown(shownLine); l.all:SetShown(shownLine)
 	end
 	if not B.hasProfiler then
-		profLines[3].label:SetText("|cffff6b6bthis client has no addon CPU profiler|r"); profLines[3].label:Show()
+		profLines[3].label:SetText("|cffff6b6b" .. L["this client has no addon CPU profiler"] .. "|r"); profLines[3].label:Show()
 	end
 	-- (atop is Terminal: profiling Terminal measures atop's own drawing and sampling too)
-	footer:SetText(("%d of %d  ·  Up/Down another addon  ·  Esc back to the list%s"):format(state.sel, #shown,
-		a.name == ns.name and "  ·  includes atop itself" or "  ·  ` close"))
+	footer:SetText(L["%d of %d  ·  Up/Down another addon  ·  Esc back to the list"]:format(state.sel, #shown)
+		.. (a.name == ns.name and ("  ·  " .. L["includes atop itself"]) or ("  ·  ` " .. L["close"])))
 end
 
 --- Profile the addon at list position `i` (nil: back to the list).
@@ -685,7 +686,7 @@ function B.MemTexts() return memText, memText2, memText3 end
 function B.History() return hist end
 
 function B.Open()
-	if not Panel.CanOpen("atop reads the keyboard while open, so not in combat.") then return false end
+	if not Panel.CanOpen(L["atop reads the keyboard while open, so not in combat."]) then return false end
 	Build()
 	Layout()
 	Panel.Opening(B) -- (straight in: the terminal and the other panels go)
@@ -708,7 +709,7 @@ function B.Close(why)
 end
 
 ns:RegisterCommand("atop", {
-	desc = "AddOn top: your addons' CPU and memory, live (type to filter, Tab sort, Esc closes)",
+	desc = L["AddOn top: your addons' CPU and memory, live (type to filter, Tab sort, Esc closes)"],
 	aliases = { "top", "htop" },
 	run = function() B.Open() end,
 })

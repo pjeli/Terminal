@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- .zen (a setting, remembered): while Terminal is open, the rest of the game's interface fades away and the screen dims
 -- behind it; closing Terminal brings everything back smoothly, and combat brings it back at once (and Terminal opened in
@@ -200,9 +201,9 @@ function Z.Set(on)
 end
 
 ns:RegisterCommand("zen", {
-	desc = "While Terminal is open, fade the rest of the interface and dim the screen; .zen again turns it off",
+	desc = L["While Terminal is open, fade the rest of the interface and dim the screen; .zen again turns it off"],
 	aliases = { "hideui", "minimal" },
-	complete = function() return { { "on", "fade the interface while Terminal is open" }, { "off", "leave it alone" } } end,
+	complete = function() return { { "on", L["fade the interface while Terminal is open"] }, { "off", L["leave it alone"] } } end,
 	run = function(args)
 		local a = strtrim(args or ""):lower()
 		local want
@@ -210,10 +211,10 @@ ns:RegisterCommand("zen", {
 		Z.Set(want)
 		if want then
 			return { Z.Can()
-				and "Zen on: while Terminal is open, the rest of the interface fades away and the screen dims. Closing Terminal brings it back, and so does combat, at once. .zen again turns it off."
-				or "Zen on: while Terminal is open the screen dims (this client can't fade the interface and keep Terminal up). .zen again turns it off." }
+				and L["Zen on: while Terminal is open, the rest of the interface fades away and the screen dims. Closing Terminal brings it back, and so does combat, at once. .zen again turns it off."]
+				or L["Zen on: while Terminal is open the screen dims (this client can't fade the interface and keep Terminal up). .zen again turns it off."] }
 		end
-		return { "Zen off: the interface stays up while Terminal is open." }
+		return { L["Zen off: the interface stays up while Terminal is open."] }
 	end,
 })
 

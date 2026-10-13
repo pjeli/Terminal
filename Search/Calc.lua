@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Calculator. Type arithmetic and the answer is the top result:
 --   3*45            = 135
@@ -253,7 +254,7 @@ function C.Entry(text)
 	if not answer then return nil end
 	return {
 		kind = "calc",
-		kindLabel = "|cffffa0e0Calc|r", -- (apart from @gear's blue)
+		kindLabel = "|cffffa0e0" .. L["Calc"] .. "|r", -- (apart from @gear's blue)
 		name = "= " .. answer,
 		_lname = answer,
 		key = "calc",

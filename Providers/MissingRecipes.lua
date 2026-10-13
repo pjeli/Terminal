@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Recipes you don't have yet, and where to learn them (0.45.14, the player's ask). "blacksmithing recipes i'm missing"
 -- (both modes; Advanced: @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill
@@ -197,12 +198,12 @@ end
 -- the words for how: "Trainer 1s 50c", "Vendor (limited supply)", "Drop", "Quest reward", "Found"
 local function HowText(s)
 	local parts = {}
-	if s.trainer then parts[#parts + 1] = "Trainer" .. ((s.trainerSeen and s.trainerSeen.cost) and (" " .. Coins(s.trainerSeen.cost)) or "") end
-	if s.vendors and #s.vendors > 0 then parts[#parts + 1] = "Vendor" .. (s.limited and " (limited supply)" or "") end
-	if (s.drops and #s.drops > 0) or (s.bosses and #s.bosses > 0) then parts[#parts + 1] = "Drop" end
-	if s.quests and #s.quests > 0 then parts[#parts + 1] = "Quest reward" end
-	if s.objects and #s.objects > 0 then parts[#parts + 1] = "Found" end
-	if #parts == 0 then return s.rid and "Its recipe item: where to get it isn't known" or "How it's learned isn't known" end
+	if s.trainer then parts[#parts + 1] = (s.trainerSeen and s.trainerSeen.cost) and L["Trainer %s"]:format(Coins(s.trainerSeen.cost)) or L["Trainer"] end
+	if s.vendors and #s.vendors > 0 then parts[#parts + 1] = s.limited and L["Vendor (limited supply)"] or L["Vendor"] end
+	if (s.drops and #s.drops > 0) or (s.bosses and #s.bosses > 0) then parts[#parts + 1] = L["Drop"] end
+	if s.quests and #s.quests > 0 then parts[#parts + 1] = L["Quest reward"] end
+	if s.objects and #s.objects > 0 then parts[#parts + 1] = L["Found"] end
+	if #parts == 0 then return s.rid and L["Its recipe item: where to get it isn't known"] or L["How it's learned isn't known"] end
 	return table.concat(parts, "  ·  ")
 end
 
@@ -227,54 +228,56 @@ function MR.Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	if e.need then
 		local ok = e.rank and e.rank >= e.need
-		t:AddLine(("Requires %s %d (you have %d)"):format(e.profName, e.need, e.rank or 0), 1, ok and 1 or 0.3, ok and 1 or 0.3)
+		t:AddLine(L["Requires %s %d (you have %d)"]:format(e.profName, e.need, e.rank or 0), 1, ok and 1 or 0.3, ok and 1 or 0.3)
 	else
-		t:AddLine(e.profName .. ": the skill it needs isn't known", 0.62, 0.62, 0.62)
+		t:AddLine(L["%s: the skill it needs isn't known"]:format(e.profName), 0.62, 0.62, 0.62)
 	end
 	local s = e.sources or {}
 	local I = ns.Integrations
-	local function NpcName(id) local r = I and I.NpcRow and I.NpcRow(id) return r and r.name or ("NPC " .. id) end
+	local function NpcName(id) local r = I and I.NpcRow and I.NpcRow(id) return r and r.name or L["NPC %s"]:format(id) end
 	if s.trainer then
 		local ts = s.trainerSeen
 		if ts and ts.cost then
-			t:AddLine("Trainer: " .. Coins(ts.cost) .. (ts.who and ("  (seen at " .. ts.who .. ")") or ""), 1, 1, 1, true)
+			t:AddLine(ts.who and L["Trainer: %s  (seen at %s)"]:format(Coins(ts.cost), ts.who) or L["Trainer: %s"]:format(Coins(ts.cost)), 1, 1, 1, true)
 		else
-			t:AddLine("Trainer: no recipe item teaches it (AtlasLoot); its cost shows once you open a trainer's window", 1, 1, 1, true)
+			t:AddLine(L["Trainer: no recipe item teaches it (AtlasLoot); its cost shows once you open a trainer's window"], 1, 1, 1, true)
 		end
 	end
 	if s.rid then
 		local nm = C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, s.rid))
-		t:AddLine("Its recipe: " .. (nm or ("item " .. s.rid)) .. "  (AtlasLoot)", 1, 1, 1, true)
+		t:AddLine(L["Its recipe: %s  (AtlasLoot)"]:format(nm or L["item %s"]:format(s.rid)), 1, 1, 1, true)
 		-- (nearest first, how far: as the learn chain lists them)
 		local vendors = MR.Nearest(s.vendors)
 		for k, n in ipairs(vendors) do
-			if k > 4 then t:AddLine(("  +%d more vendors"):format(#vendors - 4), 0.62, 0.62, 0.62) break end
+			if k > 4 then t:AddLine("  " .. L["+%d more vendors"]:format(#vendors - 4), 0.62, 0.62, 0.62) break end
 			local lim = MR.Limited(s.rid, n.id)
-			t:AddLine("  Sold by " .. NpcName(n.id) .. (n.d and ("  ·  %.0f yd"):format(n.d) or "")
-				.. (lim and "  ·  limited supply" or (lim == false and "  ·  always in stock" or "")), 1, 1, 1)
+			t:AddLine("  " .. L["Sold by %s"]:format(NpcName(n.id)) .. (n.d and ("  ·  " .. L["%.0f yd"]:format(n.d)) or "")
+				.. (lim and ("  ·  " .. L["limited supply"]) or (lim == false and ("  ·  " .. L["always in stock"]) or "")), 1, 1, 1)
 		end
 		for k, l in ipairs(s.bosses or {}) do
 			if k > 3 then break end
-			t:AddLine("  Drops from " .. ns.Plain(tostring(l.detail or "")):gsub("%s%s+", " in ", 1), 1, 1, 1)
+			local said = ns.Plain(tostring(l.detail or "")) -- ("Boss  Instance": "Boss in Instance")
+			local boss, place = said:match("^(.-)%s%s+(.*)$")
+			t:AddLine("  " .. (boss and L["Drops from %s in %s"]:format(boss, place) or L["Drops from %s"]:format(said)), 1, 1, 1)
 		end
 		if s.drops and #s.drops > 0 then
 			local near = MR.Nearest(s.drops)
-			local function Say(n) return NpcName(n.id) .. (n.d and (" (%.0f yd)"):format(n.d) or "") end
-			t:AddLine(#near <= 2 and ("  Drops from " .. Say(near[1]) .. (near[2] and (", " .. Say(near[2])) or ""))
-				or (("  Drops from %d kinds of creature, the nearest %s"):format(#near, Say(near[1]))), 1, 1, 1, true)
+			local function Say(n) return NpcName(n.id) .. (n.d and (" (" .. L["%.0f yd"]:format(n.d) .. ")") or "") end
+			t:AddLine(#near <= 2 and ("  " .. L["Drops from %s"]:format(Say(near[1]) .. (near[2] and (", " .. Say(near[2])) or "")))
+				or ("  " .. L["Drops from %d kinds of creature, the nearest %s"]:format(#near, Say(near[1]))), 1, 1, 1, true)
 		end
 		for k, q in ipairs(s.quests or {}) do
 			if k > 2 then break end
 			local row = I and I.QuestRow and I.QuestRow(q)
-			t:AddLine("  A reward from " .. (row and row.name or ("quest " .. q)), 1, 1, 1)
+			t:AddLine("  " .. L["A reward from %s"]:format(row and row.name or L["quest %s"]:format(q)), 1, 1, 1)
 		end
-		if s.objects and #s.objects > 0 then t:AddLine("  Found in an object (a chest, a crate)", 1, 1, 1) end
+		if s.objects and #s.objects > 0 then t:AddLine("  " .. L["Found in an object (a chest, a crate)"], 1, 1, 1) end
 		if s.vendors and #s.vendors > 0 and s.limited == nil and not MR.AnySeen(s) then
-			t:AddLine("Limited supply or not shows once you open a vendor's window", 0.62, 0.62, 0.62, true)
+			t:AddLine(L["Limited supply or not shows once you open a vendor's window"], 0.62, 0.62, 0.62, true)
 		end
 	end
-	if not s.trainer and not s.rid then t:AddLine("How it's learned isn't known: AtlasLoot doesn't list it", 0.62, 0.62, 0.62, true) end
-	t:AddLine("Enter: where to learn it", 0.62, 0.62, 0.62)
+	if not s.trainer and not s.rid then t:AddLine(L["How it's learned isn't known: AtlasLoot doesn't list it"], 0.62, 0.62, 0.62, true) end
+	t:AddLine(L["Enter: where to learn it"], 0.62, 0.62, 0.62)
 end
 
 --- These Questie NPCs nearest first: { { id, d (yards, nil: no spawn known on your continent) } } (Pipes' order).
@@ -385,8 +388,8 @@ end
 
 -- "your Alchemy window" / "your Alchemy and Tailoring windows" / "your A, B and C windows"
 local function Windows(names)
-	if #names == 1 then return "your " .. names[1] .. " window" end
-	return "your " .. table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names] .. " windows"
+	if #names == 1 then return L["your %s window"]:format(names[1]) end
+	return L["your %s and %s windows"]:format(table.concat(names, ", ", 1, #names - 1), names[#names])
 end
 MR.Windows = Windows
 
@@ -410,7 +413,8 @@ function MR.EmptyRow(q)
 		end
 	end
 	if mine == 0 and #open > 0 then
-		return Note(("Open %s once: Terminal lists the recipes you don't know from %s"):format(Windows(open), #open == 1 and "it" or "them"))
+		return Note((#open == 1 and L["Open %s once: Terminal lists the recipes you don't know from it"]
+			or L["Open %s once: Terminal lists the recipes you don't know from them"]):format(Windows(open)))
 	end
 	if mine == 0 then
 		local P = ns.Professions
@@ -418,12 +422,12 @@ function MR.EmptyRow(q)
 		for _, pr in ipairs(P and P.PlayerProfessions and P.PlayerProfessions() or {}) do
 			if MR.CRAFTING[pr.skillLine or 0] then any = true end
 		end
-		if not any then return Note("None of your professions has recipes to learn") end
+		if not any then return Note(L["None of your professions has recipes to learn"]) end
 		local which = (#(q.profs or {}) == 1) and q.profs[1] or nil
-		return Note("You know every recipe " .. (which and ("your " .. which .. " window") or "your profession windows") .. " listed")
+		return Note(which and L["You know every recipe your %s window listed"]:format(which) or L["You know every recipe your profession windows listed"])
 	end
 	if q.learnable and nextUp then
-		return Note(("None you can learn yet: the next, %s, needs %s %d"):format(nextUp.name, nextUp.profName, nextUp.need))
+		return Note(L["None you can learn yet: the next, %s, needs %s %d"]:format(nextUp.name, nextUp.profName, nextUp.need))
 	end
 	return nil
 end
@@ -461,7 +465,7 @@ function MR.LeadRow(text, res)
 		for _, n in ipairs(q.profs) do want[n] = true end
 		local open = Unlisted(want)
 		if #open > 0 and ns.UI then
-			ns.UI.missingNote = "open " .. Windows(open) .. " once to list " .. (#open == 1 and "its" or "their") .. " recipes to learn"
+			ns.UI.missingNote = (#open == 1 and L["open %s once to list its recipes to learn"] or L["open %s once to list their recipes to learn"]):format(Windows(open))
 		end
 		return nil
 	end
@@ -472,7 +476,7 @@ local REACH = "@recipe is:unknown" -- (how a search names this list: .mem, Alt+`
 local function ResultText(e) return REACH .. " " .. tostring(e.name) end
 
 ns:RegisterProvider("missing", {
-	label = "Recipe to learn",
+	label = L["Recipe to learn"],
 	color = "ff9ec9b4", -- (a grey of the recipes' mint)
 	-- (0.45.16, the player's call: not a kind of its own, no @missing: a filter on @recipe reaches it, is:unknown /
 	-- is:learnable; Alt+` and Shift+Right write @recipe)
@@ -578,27 +582,28 @@ function MR.Answer(q)
 	table.sort(rows, Order)
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
 	local which = (#(q.profs or {}) == 1) and q.profs[1] or nil
-	local note = (q.learnable and "Recipes you can learn now" or "Recipes you don't know yet") .. (which and (": " .. which) or "")
+	local note = (q.learnable and L["Recipes you can learn now"] or L["Recipes you don't know yet"]) .. (which and (": " .. which) or "")
 	if #rows == 0 then
 		if q.learnable and nextUp then
-			note = ("None you can learn yet: the next, %s, needs %s %d"):format(nextUp.name, nextUp.profName, nextUp.need)
+			note = L["None you can learn yet: the next, %s, needs %s %d"]:format(nextUp.name, nextUp.profName, nextUp.need)
 		elseif q.learnable then
-			note = "None you can learn now"
+			note = L["None you can learn now"]
 		else
-			note = "None you don't know" .. (which and (" in " .. which) or "") .. ", as your profession windows listed them"
+			note = which and L["None you don't know in %s, as your profession windows listed them"]:format(which)
+				or L["None you don't know, as your profession windows listed them"]
 		end
 	end
-	if q.learnable and noSkill > 0 then note = note .. ("  ·  %d whose skill isn't known left out"):format(noSkill) end
+	if q.learnable and noSkill > 0 then note = note .. "  ·  " .. L["%d whose skill isn't known left out"]:format(noSkill) end
 	local open = Unlisted(wantProf)
 	if #rows == 0 then
 		-- (none: a line saying why, not an empty list; nothing listed because no window was read: the line says so)
 		local why = MR.EmptyRow(q)
 		if why then -- (the footer then says what was asked, the line why there are none)
-			local said = (q.learnable and "Recipes you can learn now" or "Recipes you don't know yet") .. (which and (": " .. which) or "")
-			if q.learnable and noSkill > 0 then said = said .. ("  ·  %d whose skill isn't known left out"):format(noSkill) end
+			local said = (q.learnable and L["Recipes you can learn now"] or L["Recipes you don't know yet"]) .. (which and (": " .. which) or "")
+			if q.learnable and noSkill > 0 then said = said .. "  ·  " .. L["%d whose skill isn't known left out"]:format(noSkill) end
 			return { why }, said
 		end
 	end
-	if #open > 0 then note = note .. "  ·  open " .. Windows(open) .. " once to list " .. (#open == 1 and "its" or "their") .. " recipes" end
+	if #open > 0 then note = note .. "  ·  " .. (#open == 1 and L["open %s once to list its recipes"] or L["open %s once to list their recipes"]):format(Windows(open)) end
 	return rows, note
 end

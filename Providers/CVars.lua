@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 ----------------------------------------------------------------------
 -- CVars (@cvar): the game's console settings, with their value and default. Many settings the
@@ -68,8 +69,8 @@ local function Fill(e, value, default)
 	e.value, e.default = value, default
 	e.changed = value ~= nil and default ~= nil and value ~= default
 	e.color = e.changed and CHANGED or nil
-	e.detail = "= " .. (value or "?") .. (e.changed and ("  (default " .. default .. ")") or "")
-		.. (e.readOnly and "  read-only" or "") .. (e.cat and ("  " .. e.cat) or "")
+	e.detail = "= " .. (value or "?") .. (e.changed and ("  " .. L["(default %s)"]:format(default)) or "")
+		.. (e.readOnly and ("  " .. L["read-only"]) or "") .. (e.cat and ("  " .. e.cat) or "")
 	e._ltext = ns.Lower(e.help .. " " .. (e.cat or "") .. (e.changed and " changed" or ""))
 end
 
@@ -77,12 +78,12 @@ end
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 1, 1)
 	if e.help ~= "" then t:AddLine(e.help, 0.8, 0.8, 0.8, true) end
-	t:AddDoubleLine("Value", tostring(e.value or "?"), 1, 0.82, 0, 1, 1, 1)
-	t:AddDoubleLine("Default", tostring(e.default or "?"), 1, 0.82, 0, 1, 1, 1)
-	if e.readOnly then t:AddLine("Read-only: the game won't let it be changed", 1, 0.4, 0.4, true) end
-	if e.protected then t:AddLine("Protected: can't be changed in combat", 1, 0.6, 0.3, true) end
+	t:AddDoubleLine(L["Value"], tostring(e.value or "?"), 1, 0.82, 0, 1, 1, 1)
+	t:AddDoubleLine(L["Default"], tostring(e.default or "?"), 1, 0.82, 0, 1, 1, 1)
+	if e.readOnly then t:AddLine(L["Read-only: the game won't let it be changed"], 1, 0.4, 0.4, true) end
+	if e.protected then t:AddLine(L["Protected: can't be changed in combat"], 1, 0.6, 0.3, true) end
 	t:AddLine(" ")
-	t:AddLine("Enter: edit it    Shift+Enter: back to its default", 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: edit it    Shift+Enter: back to its default"], 0.6, 0.6, 0.6, true)
 end
 
 --- The names to look up: { name, category, help } each (the last two only from the game's list), where they came
@@ -116,7 +117,7 @@ local byName = {} -- setting name -> its row (CVAR_UPDATE updates just that row)
 ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return byName end }
 
 ns:RegisterProvider("cvars", {
-	label = "CVar",
+	label = L["CVar"],
 	color = "ff57abd9", -- (steel blue: apart from dungeons and reputation)
 	aliases = { "cvar", "cvars", "console" }, -- ("settings" is the options panel's, GameOptions.lua)
 	explicit = true, -- a few thousand: only with @cvar
@@ -154,8 +155,9 @@ ns:RegisterProvider("cvars", {
 		if #out == 0 then
 			-- the list can come back empty early on: ask again on the next search, and say what happened
 			C_Timer.After(1, function() p._dirty = true end)
-			out[1] = { key = "none", name = "No console settings could be read yet", raw = true, noActivate = true, icon = false,
-				detail = ("%d names from %s, none with a value"):format(#names, from), text = "" }
+			out[1] = { key = "none", name = L["No console settings could be read yet"], raw = true, noActivate = true, icon = false,
+				detail = (from == "Terminal's list" and L["%d names from Terminal's list, none with a value"]
+					or L["%d names from the game's list, none with a value"]):format(#names), text = "" }
 		end
 		return out
 	end,

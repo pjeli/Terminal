@@ -4,10 +4,12 @@ _G.Terminal = ns -- public API for other addons
 ns.name = ADDON
 ns.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "dev"
 
-BINDING_HEADER_TERMINAL = "Terminal"
-BINDING_NAME_TERMINAL_TOGGLE = "Toggle Terminal" -- (Terminal is its name: capitalised, 0.46.12)
-BINDING_NAME_TERMINAL_ADVANCED_ONCE = "Advanced mode, this time (Simple mode's search as a command line)"
-BINDING_NAME_TERMINAL_FUZZY = "Fuzzy find, this time (every list, by name only)"
+-- Translations (0.47.10): L[<an English text>] is the player's language's (Locales/<lang>.lua, loaded right after this file:
+-- CurseForge's packager fills them in from its localization tool), else the English itself. Keys are the English
+-- texts; a text with a value in it is a format string ("%s can't be shared."; translators may write %1$s / %2$s to
+-- change the order). tests/gen_locale.py lists every key in Locales/enUS.lua (the file CurseForge imports).
+ns.LOCALE = (GetLocale and GetLocale()) or "enUS"
+ns.L = setmetatable({}, { __index = function(_, k) return k end })
 
 local DEFAULTS = {
 	freq = {}, -- usage counts, used to boost frequently picked results

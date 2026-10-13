@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Your group (@group, @party; Simple mode: "who is dead", "who needs fortitude", "who is out of range", "group
 -- healers", under Group): every member (you too) with what the game says of them now: role, dead, offline, out of
@@ -26,17 +27,17 @@ local Safe, Num, Str, Lower, Secret = ns.Safe, ns.Num, ns.Str, ns.Lower, ns.Secr
 -- the buffs, by family: the spells that give it (single first, the group version after; any rank: the name is the same),
 -- the class that casts it, the words that name it, and the short name rows use
 GR.BUFFS = {
-	{ id = "fortitude", label = "Fortitude", chat = "Fortitude", class = "PRIEST", spells = { 1243, 21562 },
+	{ id = "fortitude", label = L["Fortitude"], chat = L["Fortitude"], class = "PRIEST", spells = { 1243, 21562 },
 		names = { "Power Word: Fortitude", "Prayer of Fortitude" }, words = { "fortitude", "fort", "pwf", "stamina" } },
-	{ id = "intellect", label = "Intellect", chat = "Intellect", class = "MAGE", spells = { 1459, 23028 },
+	{ id = "intellect", label = L["Intellect"], chat = L["Intellect"], class = "MAGE", spells = { 1459, 23028 },
 		names = { "Arcane Intellect", "Arcane Brilliance" }, words = { "intellect", "int", "ai", "brilliance", "ab" } },
-	{ id = "wild", label = "Mark of the Wild", chat = "Mark of the Wild", class = "DRUID", spells = { 1126, 21849 },
+	{ id = "wild", label = L["Mark of the Wild"], chat = L["Mark of the Wild"], class = "DRUID", spells = { 1126, 21849 },
 		names = { "Mark of the Wild", "Gift of the Wild" }, words = { "mark", "motw", "wild", "gotw" } },
-	{ id = "spirit", label = "Divine Spirit", chat = "Divine Spirit", class = "PRIEST", talent = true, spells = { 14752, 27681 },
+	{ id = "spirit", label = L["Divine Spirit"], chat = L["Divine Spirit"], class = "PRIEST", talent = true, spells = { 14752, 27681 },
 		names = { "Divine Spirit", "Prayer of Spirit" }, words = { "spirit", "ds" } },
-	{ id = "shadow", label = "Shadow Protection", chat = "Shadow Protection", class = "PRIEST", optional = true, spells = { 976, 27683 },
+	{ id = "shadow", label = L["Shadow Protection"], chat = L["Shadow Protection"], class = "PRIEST", optional = true, spells = { 976, 27683 },
 		names = { "Shadow Protection", "Prayer of Shadow Protection" }, words = { "shadow" } },
-	{ id = "blessing", label = "a Blessing", chat = "Blessing", class = "PALADIN",
+	{ id = "blessing", label = L["a Blessing"], chat = L["Blessing"], class = "PALADIN",
 		spells = { 20217, 19740, 19742, 1038, 19977, 20911, 25898, 25782, 25894, 25895, 25890, 25899 },
 		names = { "Blessing of Kings", "Blessing of Might", "Blessing of Wisdom", "Blessing of Salvation", "Blessing of Light",
 			"Blessing of Sanctuary", "Greater Blessing of Kings", "Greater Blessing of Might", "Greater Blessing of Wisdom",
@@ -68,8 +69,8 @@ local function IsFood(n)
 end
 local function IsElixir(n) return n:find("elixir", 1, true) ~= nil or n:find("flask", 1, true) ~= nil or GR.ELIXIR_NAMES[n] == true end
 GR.CONS = {
-	{ id = "food", chat = "food", label = "food", words = { "food", "fed", "wellfed" }, test = IsFood },
-	{ id = "elixir", chat = "flask or elixir", label = "a flask or elixir", words = { "elixir", "elixirs", "flask", "flasks" }, test = IsElixir },
+	{ id = "food", chat = L["food"], label = L["food"], words = { "food", "fed", "wellfed" }, test = IsFood },
+	{ id = "elixir", chat = L["flask or elixir"], label = L["a flask or elixir"], words = { "elixir", "elixirs", "flask", "flasks" }, test = IsElixir },
 }
 GR.CONS_BY_ID, GR.CONS_BY_WORD = {}, {}
 for _, c in ipairs(GR.CONS) do
@@ -119,8 +120,8 @@ end
 
 --- What the game hides right now, and why: { why = "in combat"... or nil }.
 -- the restrictions in the order they're named (a boss fight first), and how
-local WHY = { { "Encounter", "in a boss fight" }, { "ChallengeMode", "in a keystone dungeon" },
-	{ "PvPMatch", "in a PvP match" }, { "Map", "on this map" }, { "Combat", "in combat" } }
+local WHY = { { "Encounter", L["in a boss fight"] }, { "ChallengeMode", L["in a keystone dungeon"] },
+	{ "PvPMatch", L["in a PvP match"] }, { "Map", L["on this map"] }, { "Combat", L["in combat"] } }
 function GR.Why()
 	local R, E = C_RestrictedActions, Enum and Enum.AddOnRestrictionType
 	if R and R.IsAddOnRestrictionActive and E then
@@ -129,7 +130,7 @@ function GR.Why()
 		end
 		return nil
 	end
-	return (InCombatLockdown and InCombatLockdown()) and "in combat" or nil
+	return (InCombatLockdown and InCombatLockdown()) and L["in combat"] or nil
 end
 
 local function AurasSecret() return C_Secrets and C_Secrets.ShouldAurasBeSecret and Safe(C_Secrets.ShouldAurasBeSecret) == true end
@@ -212,9 +213,9 @@ end
 -- Rows
 ----------------------------------------------------------------------
 
-local ROLE_LABEL = { TANK = "Tank", HEALER = "Healer", DAMAGER = "Damage" }
+local ROLE_LABEL = { TANK = L["Tank"], HEALER = L["Healer"], DAMAGER = L["Damage"] }
 -- (several of them: the answer's note and the line sent to chat say them alike)
-local ROLE_PLURAL = { TANK = "Tanks", HEALER = "Healers", DAMAGER = "Damage dealers" }
+local ROLE_PLURAL = { TANK = L["Tanks"], HEALER = L["Healers"], DAMAGER = L["Damage dealers"] }
 local ROLE_WORDS = { TANK = "tank tanks", HEALER = "healer healers heals", DAMAGER = "dps damage damager" }
 local RED, ORANGE, GREY, YELLOW = "|cffff4040", "|cffff9933", "|cff9d9d9d", "|cffffd200"
 
@@ -231,16 +232,16 @@ local function BuffMacro(e)
 	return ("/cast [@%s] %s"):format(GR.UnitOf(e), e.buffWith)
 end
 local TARGET_SPEC, BUFF_SPEC = { macro = TargetMacro }, { macro = BuffMacro }
-local function NoTarget(e) ns:Print(("In combat: target %s from your party or raid frames."):format(tostring(e.name))) end
-local function NoBuff(e) ns:Print(("In combat: cast %s on %s from your bars."):format(tostring(e.buffWith), tostring(e.name))) end
+local function NoTarget(e) ns:Print(L["In combat: target %s from your party or raid frames."]:format(tostring(e.name))) end
+local function NoBuff(e) ns:Print(L["In combat: cast %s on %s from your bars."]:format(tostring(e.buffWith), tostring(e.name))) end
 
 --- What's sent: "Plamen Pally (Paladin, Healer): dead, out of range, needs Fortitude".
 local function ShareText(e)
 	local said = {}
-	if e.dead then said[#said + 1] = e.ghost and "a ghost" or "dead" end
-	if e.online == false then said[#said + 1] = "offline" end
-	if e.inRange == false then said[#said + 1] = "out of range" end
-	if e.missing and #e.missing > 0 then said[#said + 1] = "needs " .. table.concat(e.missingLabels, ", ") end
+	if e.dead then said[#said + 1] = e.ghost and L["a ghost"] or L["dead"] end
+	if e.online == false then said[#said + 1] = L["offline"] end
+	if e.inRange == false then said[#said + 1] = L["out of range"] end
+	if e.missing and #e.missing > 0 then said[#said + 1] = L["needs %s"]:format(table.concat(e.missingLabels, ", ")) end
 	local about = ns.Join(", ", e.className, e.roleLabel)
 	local who = e.name .. (about ~= "" and (" (" .. about .. ")") or "")
 	return who .. (#said > 0 and (": " .. table.concat(said, ", ")) or "")
@@ -248,32 +249,32 @@ end
 
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
-	local about = ns.Join("  ·  ", e.level and ("Level " .. e.level) or nil, e.className, e.roleLabel, e.zone)
+	local about = ns.Join("  ·  ", e.level and L["Level %d"]:format(e.level) or nil, e.className, e.roleLabel, e.zone)
 	if about ~= "" then t:AddLine(about, 1, 1, 1) end
-	if e.dead then t:AddLine(e.ghost and "A ghost" or "Dead", 1, 0.25, 0.25) end
-	if e.online == false then t:AddLine("Offline", 0.6, 0.6, 0.6) end
-	if e.inRange == false then t:AddLine("Out of range (the game's own range test, as the raid frames fade)", 1, 0.6, 0.2, true)
-	elseif e.rangeHidden then t:AddLine("Range: hidden by the game right now", 0.6, 0.6, 0.6) end
+	if e.dead then t:AddLine(e.ghost and L["A ghost"] or L["Dead"], 1, 0.25, 0.25) end
+	if e.online == false then t:AddLine(L["Offline"], 0.6, 0.6, 0.6) end
+	if e.inRange == false then t:AddLine(L["Out of range (the game's own range test, as the raid frames fade)"], 1, 0.6, 0.2, true)
+	elseif e.rangeHidden then t:AddLine(L["Range: hidden by the game right now"], 0.6, 0.6, 0.6) end
 	if e.buffsHidden then
-		t:AddLine("Buffs: hidden by the game right now", 0.6, 0.6, 0.6)
+		t:AddLine(L["Buffs: hidden by the game right now"], 0.6, 0.6, 0.6)
 	elseif e.missing and #e.missing > 0 then
-		t:AddLine("Needs " .. table.concat(e.missingLabels, ", "), 1, 0.82, 0, true)
+		t:AddLine(L["Needs %s"]:format(table.concat(e.missingLabels, ", ")), 1, 0.82, 0, true)
 	elseif e.buffs then
-		t:AddLine("Has every buff the group can give", 0.4, 1, 0.4, true)
+		t:AddLine(L["Has every buff the group can give"], 0.4, 1, 0.4, true)
 	end
 	if e.buffs then
 		local list = {}
 		for _, n in pairs(e.buffs) do list[#list + 1] = n end
 		table.sort(list)
-		if #list > 0 then t:AddLine("Buffs: " .. table.concat(list, ", ", 1, math.min(#list, 12)) .. (#list > 12 and ", ..." or ""), 0.7, 0.7, 0.7, true) end
+		if #list > 0 then t:AddLine(L["Buffs: %s"]:format(table.concat(list, ", ", 1, math.min(#list, 12)) .. (#list > 12 and ", ..." or "")), 0.7, 0.7, 0.7, true) end
 		local cons = {}
 		for _, n in ipairs(list) do
 			local l = Lower(n)
 			if IsFood(l) or IsElixir(l) then cons[#cons + 1] = n end
 		end
-		t:AddLine("Consumables: " .. (#cons > 0 and table.concat(cons, ", ") or "none"), 0.7, 0.7, 0.7, true)
+		t:AddLine(L["Consumables: %s"]:format(#cons > 0 and table.concat(cons, ", ") or L["none"]), 0.7, 0.7, 0.7, true)
 	end
-	t:AddLine("Enter: target" .. (e.buffWith and ("    Shift+Enter: cast " .. e.buffWith .. " on them") or ""), 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: target"] .. (e.buffWith and ("    " .. L["Shift+Enter: cast %s on them"]:format(e.buffWith)) or ""), 0.6, 0.6, 0.6, true)
 end
 
 local list -- (the last collect's rows)
@@ -342,15 +343,15 @@ local function Row(m, expected, raidInfo)
 	end
 	local d = {}
 	local roleLabel = m.role and ROLE_LABEL[m.role]
-	d[#d + 1] = (m.level and ("Lv " .. m.level .. " ") or "") .. (m.className or "")
+	d[#d + 1] = (m.level and (L["Lv %d"]:format(m.level) .. " ") or "") .. (m.className or "")
 	if roleLabel then d[#d + 1] = roleLabel end
-	if m.dead then d[#d + 1] = RED .. (m.ghost and "Ghost" or "Dead") .. "|r" end
-	if m.online == false then d[#d + 1] = GREY .. "Offline|r" end
-	if m.inRange == false then d[#d + 1] = ORANGE .. "out of range|r" elseif m.rangeHidden then d[#d + 1] = GREY .. "range hidden|r" end
-	if m.buffsHidden then d[#d + 1] = GREY .. "buffs hidden|r"
-	elseif labels and #labels > 0 then d[#d + 1] = YELLOW .. "needs " .. table.concat(labels, ", ") .. "|r" end
-	if m.mine then d[#d + 1] = GREY .. "(you)|r" end
-	if raidInfo and raidInfo.group then d[#d + 1] = GREY .. "group " .. raidInfo.group .. "|r" end
+	if m.dead then d[#d + 1] = RED .. (m.ghost and L["Ghost"] or L["Dead"]) .. "|r" end
+	if m.online == false then d[#d + 1] = GREY .. L["Offline"] .. "|r" end
+	if m.inRange == false then d[#d + 1] = ORANGE .. L["out of range"] .. "|r" elseif m.rangeHidden then d[#d + 1] = GREY .. L["range hidden"] .. "|r" end
+	if m.buffsHidden then d[#d + 1] = GREY .. L["buffs hidden"] .. "|r"
+	elseif labels and #labels > 0 then d[#d + 1] = YELLOW .. L["needs %s"]:format(table.concat(labels, ", ")) .. "|r" end
+	if m.mine then d[#d + 1] = GREY .. L["(you)"] .. "|r" end
+	if raidInfo and raidInfo.group then d[#d + 1] = GREY .. L["group %s"]:format(raidInfo.group) .. "|r" end
 	local words = { "group party raid member" }
 	if m.className then words[#words + 1] = Lower(m.className) end
 	if m.role then words[#words + 1] = ROLE_WORDS[m.role] end
@@ -422,14 +423,14 @@ function GR.HiddenText()
 	local h = GR.hidden
 	if not h then return nil end
 	local what = {}
-	if h.range > 0 then what[#what + 1] = "range" end
-	if h.buffs > 0 then what[#what + 1] = "buffs" end
-	if h.roles > 0 then what[#what + 1] = "roles" end
+	if h.range > 0 then what[#what + 1] = L["range"] end
+	if h.buffs > 0 then what[#what + 1] = L["buffs"] end
+	if h.roles > 0 then what[#what + 1] = L["roles"] end
 	if #what == 0 then return nil end
 	local why = GR.Why()
 	-- ("range and buffs", "range, buffs and roles")
-	local s = #what == 1 and what[1] or (table.concat(what, ", ", 1, #what - 1) .. " and " .. what[#what])
-	return s:gsub("^%l", string.upper) .. " hidden by the game right now" .. (why and (" (" .. why .. ")") or "")
+	local s = #what == 1 and what[1] or (table.concat(what, ", ", 1, #what - 1) .. " " .. L["and"] .. " " .. what[#what])
+	return L["%s hidden by the game right now"]:format((s:gsub("^%l", string.upper))) .. (why and (" (" .. why .. ")") or "")
 end
 
 local function NoteRow(text)
@@ -437,7 +438,7 @@ local function NoteRow(text)
 end
 
 ns:RegisterProvider("group", {
-	label = "Group",
+	label = L["Group"],
 	color = "ff7fe07f", -- (the party frame's green, apart from the slash commands')
 	aliases = { "group", "party", "members" }, -- (@raid is the raids' entrances: Entrances.lua)
 	explicit = true, -- (only with @group, Simple mode's Group category, or asked in words)
@@ -453,7 +454,7 @@ ns:RegisterProvider("group", {
 		ns:GetEntries(p)
 		local h = GR.HiddenText()
 		if h then return NoteRow(h) end
-		if GR.solo then return NoteRow("You're not in a group: only you are listed") end
+		if GR.solo then return NoteRow(L["You're not in a group: only you are listed"]) end
 		return nil
 	end,
 	collect = function() return GR.Collect() end,
@@ -585,10 +586,10 @@ function GR.Answer(q)
 	local rows = {}
 	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local what = (q.dead and "Dead") or (q.offline and "Offline") or (q.far and "Out of range") or (q.near and "In range")
-		or (q.missing and ((Labels(q) ~= "" and ("Needs " .. Labels(q))) or "Missing a buff the group can give"))
-		or (q.roles and ROLE_PLURAL[q.roles[1]]) or "Your group"
-	local note = what .. ("  ·  %d of %d"):format(#rows, #all)
+	local what = (q.dead and L["Dead"]) or (q.offline and L["Offline"]) or (q.far and L["Out of range"]) or (q.near and L["In range"])
+		or (q.missing and ((Labels(q) ~= "" and L["Needs %s"]:format(Labels(q))) or L["Missing a buff the group can give"]))
+		or (q.roles and ROLE_PLURAL[q.roles[1]]) or L["Your group"]
+	local note = what .. "  ·  " .. L["%d of %d"]:format(#rows, #all)
 	local hidden = GR.HiddenText()
 	if (q.far or q.near) and GR.hidden and GR.hidden.range > 0 then note = note .. "  ·  " .. hidden
 	elseif q.missing and GR.hidden and GR.hidden.buffs > 0 then note = note .. "  ·  " .. hidden
@@ -596,13 +597,13 @@ function GR.Answer(q)
 	if q.roles and #rows == 0 then
 		local anyRole = false
 		for _, e in ipairs(all) do if e.role then anyRole = true end end
-		if not anyRole then note = note .. "  ·  nobody has a role set (the group finder sets them)" end
+		if not anyRole then note = note .. "  ·  " .. L["nobody has a role set (the group finder sets them)"] end
 	end
-	if GR.solo then note = note .. "  ·  you're not in a group" end
+	if GR.solo then note = note .. "  ·  " .. L["you're not in a group"] end
 	if #rows == 0 and not (GR.hidden and (GR.hidden.range > 0 or GR.hidden.buffs > 0)) then
-		local none = (q.dead and "Nobody is dead") or (q.offline and "Nobody is offline") or (q.far and "Everyone is in range")
-			or (q.missing and "Nobody needs it") or nil
-		if none then note = none .. (GR.solo and "  ·  you're not in a group" or "") end
+		local none = (q.dead and L["Nobody is dead"]) or (q.offline and L["Nobody is offline"]) or (q.far and L["Everyone is in range"])
+			or (q.missing and L["Nobody needs it"]) or nil
+		if none then note = none .. (GR.solo and ("  ·  " .. L["you're not in a group"]) or "") end
 	end
 	return rows, note
 end
@@ -744,7 +745,7 @@ local function Pack(sections, ML, LM, between)
 	if line and #lines < ML then lines[#lines + 1] = line end
 	local left = #tokens - sent
 	if left > 0 and #lines > 0 then
-		local more = "+" .. left .. " more"
+		local more = L["+%s more"]:format(left)
 		if #lines[#lines] + #more + 1 <= LM then lines[#lines] = lines[#lines] .. " " .. more
 		elseif #lines < ML then lines[#lines + 1] = more end
 	end
@@ -766,12 +767,12 @@ function GR.ShareGroupOf(rows, query, ML, LM)
 		if not on then return end
 		local who = {}
 		for _, e in ipairs(rows) do if test(e) then who[#who + 1] = short[e] end end
-		sections[#sections + 1] = { label = label, items = #who > 0 and who or { "nobody" } }
+		sections[#sections + 1] = { label = label, items = #who > 0 and who or { L["nobody"] } }
 	end
-	State(ask.dead, "Dead", function(e) return e.dead end)
-	State(ask.offline, "Offline", function(e) return e.online == false end)
-	State(ask.far, "Out of range", function(e) return e.inRange == false end)
-	State(ask.near, "In range", function(e) return e.inRange == true end)
+	State(ask.dead, L["Dead"], function(e) return e.dead end)
+	State(ask.offline, L["Offline"], function(e) return e.online == false end)
+	State(ask.far, L["Out of range"], function(e) return e.inRange == false end)
+	State(ask.near, L["In range"], function(e) return e.inRange == true end)
 	for _, r in ipairs(ask.roles) do
 		State(true, ROLE_PLURAL[r], function(e) return e.role == r end)
 	end
@@ -802,8 +803,8 @@ function GR.ShareGroupOf(rows, query, ML, LM)
 			end
 			local said
 			if #who == lackingAll then
-				if #have == 0 and #who > 1 then said = "everyone"
-				elseif #have == 1 and #all >= 3 then said = "all but " .. have[1] end
+				if #have == 0 and #who > 1 then said = L["everyone"]
+				elseif #have == 1 and #all >= 3 then said = L["all but %s"]:format(have[1]) end
 			end
 			if said then return label .. " (" .. said .. ")" end
 			return { text = label .. " (" .. table.concat(who, ", ") .. ")", fit = function(room)
@@ -835,19 +836,19 @@ function GR.ShareGroupOf(rows, query, ML, LM)
 		local consOnly = #ask.cons > 0 and #ask.families == 0 and #ask.words == 0
 		local why = GR.Why()
 		if #items > 0 then
-			if hidden > 0 then items[#items + 1] = ("%d with buffs hidden%s"):format(hidden, why and (", " .. why) or "") end
-			sections[#sections + 1] = { label = consOnly and "Missing consumables" or "Missing buffs", items = items }
+			if hidden > 0 then items[#items + 1] = L["%d with buffs hidden%s"]:format(hidden, why and (", " .. why) or "") end
+			sections[#sections + 1] = { label = consOnly and L["Missing consumables"] or L["Missing buffs"], items = items }
 		elseif #eligible == 0 and hidden > 0 then
-			sections[#sections + 1] = { text = "Buffs are hidden by the game right now" .. (why and (" (" .. why .. ")") or "") }
+			sections[#sections + 1] = { text = L["Buffs are hidden by the game right now"] .. (why and (" (" .. why .. ")") or "") }
 		elseif consOnly then
-			sections[#sections + 1] = { text = "Everyone has " .. table.concat((function() local t = {} for i, c in ipairs(ask.cons) do t[i] = c.label end return t end)(), " and ") }
+			sections[#sections + 1] = { text = L["Everyone has %s"]:format(table.concat((function() local t = {} for i, c in ipairs(ask.cons) do t[i] = c.label end return t end)(), " " .. L["and"] .. " ")) }
 		elseif #ask.families > 0 or #ask.words > 0 then
 			local t = {}
 			for _, f in ipairs(ask.families) do t[#t + 1] = f.chat or f.label end
 			if #ask.words > 0 then t[#t + 1] = table.concat(ask.words, " ") end
-			sections[#sections + 1] = { text = "Nobody is missing " .. table.concat(t, " or ") }
+			sections[#sections + 1] = { text = L["Nobody is missing %s"]:format(table.concat(t, " " .. L["or"] .. " ")) }
 		else
-			sections[#sections + 1] = { text = "Nobody is missing a buff the group can give" }
+			sections[#sections + 1] = { text = L["Nobody is missing a buff the group can give"] }
 		end
 	end
 	return Pack(sections, ML, LM), #rows

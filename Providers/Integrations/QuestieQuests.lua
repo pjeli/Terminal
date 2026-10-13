@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local I = ns.Integrations
 local Safe = ns.Safe -- (Util.lua)
 local RunSliced = I.RunSliced
@@ -84,8 +85,8 @@ local function QuestGiver(id)
 		local name = Safe(DB.QueryNPCSingle, by[1][1], "name")
 		return by[1][1], type(name) == "string" and name or nil
 	end
-	if type(by[2]) == "table" and by[2][1] then return nil, nil, "an object" end
-	if type(by[3]) == "table" and by[3][1] then return nil, nil, "an item" end
+	if type(by[2]) == "table" and by[2][1] then return nil, nil, L["an object"] end
+	if type(by[3]) == "table" and by[3][1] then return nil, nil, L["an item"] end
 end
 
 local function InLog(id)
@@ -114,7 +115,7 @@ I.WOWHEAD_QUEST = "https://www.wowhead.com/forever/quest=%d"
 
 local function CopyQuestLink(t)
 	local url = I.WOWHEAD_QUEST:format(t.qid)
-	ns:ShowText("Wowhead: " .. tostring(t.name), url, { compact = true })
+	ns:ShowText(L["Wowhead: %s"]:format(tostring(t.name)), url, { compact = true })
 end
 
 --- What a quest is sent to chat as, the way Questie links one: the game's own quest link when there is one
@@ -138,17 +139,17 @@ end
 local function QuestieShareLink(t) return I.QuestieQuestLink(t.qid) end
 
 local function Status(id)
-	return InLog(id) and "in log" or (Done(id) and "done" or nil)
+	return InLog(id) and L["in log"] or (Done(id) and L["done"] or nil)
 end
 
 local function Giver(fn)
 	return function(entry)
 		local npcID, npcName, other = QuestGiver(entry.qid)
 		if not npcID then
-			ns:Print(entry.name .. (other and (" is started by " .. other .. ".") or ": Questie doesn't know who starts it."))
+			ns:Print(other and L["%s is started by %s."]:format(entry.name, other) or L["%s: Questie doesn't know who starts it."]:format(entry.name))
 			return
 		end
-		fn({ name = entry.name, npcID = npcID, npcName = (npcName or "quest giver") .. " (" .. entry.name .. ")" })
+		fn({ name = entry.name, npcID = npcID, npcName = (npcName or L["quest giver"]) .. " (" .. entry.name .. ")" })
 	end
 end
 local GIVER_AFTER, GIVER_OPEN = Giver(ShowNpc), Giver(OpenNpcDirect)
@@ -180,7 +181,7 @@ local function QuestieTooltip(e, t)
 	local npcID, npcName, other = QuestGiver(id)
 	local done = Done(id)
 	QT.Draw(t, { id = id, name = e.name, level = e.level, zone = e.zone, needs = needs, lines = lines,
-		giver = npcName or other, status = done and "Done" or nil, statusColour = done and QT.COLOURS[1] or nil })
+		giver = npcName or other, status = done and L["Done"] or nil, statusColour = done and QT.COLOURS[1] or nil })
 end
 
 -- (qid is the row's key, read through here: a row of 8 raw fields grew to a 16-slot table the first time a search
@@ -189,7 +190,7 @@ local QUESTIE_LAZY = {
 	qid = function(t) return rawget(t, "key") end,
 	detail = function(t)
 		local parts = {}
-		if t.level and t.level > 0 then parts[#parts + 1] = "Lv " .. t.level end
+		if t.level and t.level > 0 then parts[#parts + 1] = L["Lv %d"]:format(t.level) end
 		if t.zone then parts[#parts + 1] = t.zone end
 		local st = Status(t.qid)
 		if st then parts[#parts + 1] = st end
@@ -216,13 +217,13 @@ local function SetupQuestie()
 	if npc.on or not (QD.HasQuestie() or QD.Lib()) then return end
 	npc.on = true
 	ns:RegisterProvider("npc", {
-		busy = function() return npc.busy and "Indexing Questie's NPCs" or nil end,
+		busy = function() return npc.busy and L["Indexing Questie's NPCs"] or nil end,
 		hintFind = function(_, tokens, tick) return HintFind(npc, tokens, tick) end,
 		hintRow = NpcHintRow,
-		label = "NPC",
+		label = L["NPC"],
 		color = "ffe0a060",
 		aliases = { "npc", "npcs", "n", "mob", "vendor" },
-		hintLabel = "Questie's NPCs",
+		hintLabel = L["Questie's NPCs"],
 		explicit = true, -- tens of thousands of names: only searched with @npc
 		noCombat = true,
 		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
@@ -236,7 +237,7 @@ local function SetupQuestie()
 	-- @mailbox: every mailbox QuestieDB knows (its objects), one row per spot; sort:nearest, near:, in: work on it
 	if QD.Lib() and type(QD.Lib().Object) == "table" or (QDB() and QDB().QueryObjectSingle) then
 		ns:RegisterProvider("mailbox", {
-			label = "Mailbox",
+			label = L["Mailbox"],
 			color = "ffc9a0dc",
 			aliases = { "mailbox", "mailboxes" }, -- ("mail" is your mail: Mail.lua)
 			explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
@@ -255,16 +256,16 @@ local function SetupQuestie()
 		secondary = TargetFallback,
 	}, {
 		npcID = function(t) return rawget(t, "key") end,
-		detail = function(t) return rawget(t, "sub") or ("NPC  #" .. t.npcID) end,
+		detail = function(t) return rawget(t, "sub") or (L["NPC"] .. "  #" .. t.npcID) end,
 		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
 	})
 	ns:RegisterProvider("questie", {
 		label = "Questie",
 		color = "ffb48cff",
 		aliases = { "questie", "questdb", "allquests" },
-		hintLabel = "Questie's quests",
+		hintLabel = L["Questie's quests"],
 		explicit = true, -- every quest in the game: only searched with @questie
-		busy = function() return qdb.busy and "Indexing Questie's quests" or nil end,
+		busy = function() return qdb.busy and L["Indexing Questie's quests"] or nil end,
 		hintFind = function(_, tokens, tick) return HintFind(qdb, tokens, tick) end,
 		hintRow = QuestHintRow,
 		-- Enter only shows a link (fine in combat); Shift+Enter opens windows (not in combat).

@@ -1,6 +1,7 @@
 -- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
 local ns = _G.Terminal
 if not ns then return end
+local L = ns.L
 
 -- .lootrun: Loot Run, a maze chase in a small window where the terminal sits (the .snake pattern). You're the map's
 -- arrow, picking up every coin in a dungeon while four raid-marked mobs (skull, cross, square, moon) wake in its
@@ -563,18 +564,18 @@ local function DrawWords()
 	if said.score ~= game.score or said.level ~= game.level or said.best ~= best or said.lives ~= game.lives
 		or said.state ~= game.state or said.accent ~= accent then
 		said.score, said.level, said.best, said.lives, said.state, said.accent = game.score, game.level, best, game.lives, game.state, accent
-		scoreText:SetText(("|cff%sloot run|r   score %d"):format(accent, game.score))
-		bestText:SetText(("best %d"):format(best))
-		livesText:SetText(("lvl %d  ·  lives %d"):format(game.level, math.max(0, game.lives)))
+		scoreText:SetText(("|cff%s%s|r   %s"):format(accent, L["loot run"], L["score %d"]:format(game.score)))
+		bestText:SetText(L["best %d"]:format(best))
+		livesText:SetText(L["lvl %d"]:format(game.level) .. "  ·  " .. L["lives %d"]:format(math.max(0, game.lives)))
 		local big, small
 		if game.over then
-			big = game.newBest and "new best!" or "game over"
-			small = ("score %d  ·  Enter: again  ·  Esc: quit"):format(game.score)
+			big = game.newBest and L["new best!"] or L["game over"]
+			small = L["score %d"]:format(game.score) .. "  ·  " .. L["Enter: again"] .. "  ·  " .. L["Esc: quit"]
 		elseif game.state == "ready" then
-			big = game.level > 1 and ("level %d"):format(game.level) or "ready"
-			small = "every coin, and mind the marks"
+			big = game.level > 1 and L["level %d"]:format(game.level) or L["ready"]
+			small = L["every coin, and mind the marks"]
 		elseif game.state == "cleared" then
-			big = "level cleared!"
+			big = L["level cleared!"]
 			small = ("+%d"):format(LR.POINTS.level * game.level)
 		end
 		overlay:SetText(big or "")
@@ -622,7 +623,7 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 9)
 	overlaySub = Text(cover, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -11)
-	footer = Panel.Footer(frame, 9, "arrows or WASD  ·  Esc quits")
+	footer = Panel.Footer(frame, 9, L["arrows or WASD"] .. "  ·  " .. L["Esc quits"])
 	livesText = Text(frame, 11, "RIGHT")
 	livesText:SetPoint("BOTTOMRIGHT", -12, 9)
 	LR.frame = frame
@@ -663,7 +664,7 @@ end
 function LR.IsShown() return Panel.Shown(frame) end
 
 function LR.Open()
-	if not Panel.CanOpen("Loot Run takes over keys, which the game doesn't allow in combat.") then return false end
+	if not Panel.CanOpen(L["Loot Run takes over keys, which the game doesn't allow in combat."]) then return false end
 	Build()
 	Style()
 	Panel.Opening(LR) -- (straight in: the terminal and the other panels go)
@@ -674,11 +675,11 @@ function LR.Open()
 end
 
 function LR.Close(why)
-	Panel.Close(frame, why, "Loot Run")
+	Panel.Close(frame, why, L["Loot Run"])
 end
 
 ns:RegisterCommand("lootrun", {
-	desc = "Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)",
+	desc = L["Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)"],
 	aliases = { "maze" },
 	run = function() LR.Open() end,
 })

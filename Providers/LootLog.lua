@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- @drop (@dropped, @drops, @lootlog): a running list of what dropped and who got it, kept across sessions (the game's own loot
 -- history forgets). Only what's worth rolling for: green and better (LL.MIN_QUALITY). Fed by:
@@ -210,7 +211,7 @@ end
 -- In chat a drop says who got it, where and when: "[Rotmender's Garb] looted by Zd Zd from Mordresh Fire Eye in
 -- Razorfen Downs (26 min ago)" (0.45.10: it went as the bare link). The line is yours, so your own drops say "me".
 local function ChatWho(e)
-	if e.mine then return "me" end
+	if e.mine then return L["me"] end
 	local who = e.looter
 	if type(who) ~= "string" or who == "" or who == "?" then return nil end
 	return who
@@ -231,9 +232,9 @@ function LL.ChatExtra(e, room)
 	local d = e.entry or {}
 	local n = d.n and (" x" .. d.n) or ""
 	local who, boss, zone = ChatWho(e), Boss(e), Zone(e)
-	local by = who and (" looted by " .. who) or ""
-	local from = boss and (" from " .. boss) or ""
-	local where = zone and (" in " .. zone) or ""
+	local by = who and (" " .. L["looted by %s"]:format(who)) or ""
+	local from = boss and (" " .. L["from %s"]:format(boss)) or ""
+	local where = zone and (" " .. L["in %s"]:format(zone)) or ""
 	local ago = d.t and (" (" .. LL.Ago(d.t) .. ")") or ""
 	local tries = { n .. by .. from .. where .. ago, n .. by .. from .. where, n .. by .. from, n .. by .. where, n .. by, n }
 	for _, t in ipairs(tries) do
@@ -254,10 +255,10 @@ end
 --- filters say they are, "Weapons", instead of "Drops"). The second result is what each row then leaves out.
 function LL.GroupHeader(rows, what)
 	local s = { who = Shared(rows, ChatWho), boss = Shared(rows, Boss), zone = Shared(rows, Zone) }
-	local h = what or "Drops"
-	if s.who then h = h .. " looted by " .. s.who end
-	if s.boss then h = h .. " from " .. s.boss end
-	if s.zone then h = h .. " in " .. s.zone end
+	local h = what or L["Drops"]
+	if s.who then h = h .. " " .. L["looted by %s"]:format(s.who) end
+	if s.boss then h = h .. " " .. L["from %s"]:format(s.boss) end
+	if s.zone then h = h .. " " .. L["in %s"]:format(s.zone) end
 	return h, s
 end
 
@@ -276,7 +277,7 @@ function LL.GroupMember(e, s, base)
 end
 
 ns:RegisterProvider("lootlog", {
-	label = "Loot log",
+	label = L["Loot log"],
 	color = "ffe6b85c",
 	aliases = { "drop", "dropped", "drops", "lootlog", "looted", "loothistory" },
 	explicit = true, -- (only with @drop, or Simple mode's Loot log)
@@ -293,7 +294,7 @@ ns:RegisterProvider("lootlog", {
 		for i, d in ipairs(log) do
 			if type(d) == "table" and type(d.link) == "string" and d.id then
 				local who = Who(d.who or "?")
-				local parts = { who, LL.Ago(d.t) }
+				local parts = { who == "you" and L["you"] or who, LL.Ago(d.t) } -- ("you" compared below: shown translated)
 				if d.n then table.insert(parts, 1, "x" .. d.n) end -- (how many: in the detail, as bag items show it)
 				if d.from then parts[#parts + 1] = d.from end
 				if d.zone then parts[#parts + 1] = d.zone end
@@ -393,11 +394,11 @@ function LL.Answer(q)
 		if not q.who or (q.who == "me" and e.mine) or (q.who ~= "me" and e.looter == q.who) then rows[#rows + 1] = e end
 	end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local note = (q.who == "me" and "Your drops, newest first") or (q.who and (q.who .. "'s drops, newest first"))
-		or "Drops, newest first"
+	local note = (q.who == "me" and L["Your drops, newest first"]) or (q.who and L["%s's drops, newest first"]:format(q.who))
+		or L["Drops, newest first"]
 	if #rows == 0 then
-		note = (#(Log() or {}) == 0) and "Nothing looted yet" or (q.who == "me" and "Nothing looted by you yet")
-			or "Nothing looted by them yet"
+		note = (#(Log() or {}) == 0) and L["Nothing looted yet"] or (q.who == "me" and L["Nothing looted by you yet"])
+			or L["Nothing looted by them yet"]
 	end
 	return rows, note
 end

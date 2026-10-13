@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Level bands: each zone's level range and the fishing skill it needs, from Leatrix Maps' zone levels (its world map's
 -- "Show zone levels" table, WoW Forever's own zones included; copied: it lives in Leatrix Maps' private namespace).
@@ -82,12 +83,12 @@ function Z.Of(ui) return byMap[ui] end
 --- "Lv 18-30" (a single level: "Lv 60"), or nil for a zone with no level range.
 function Z.LevelText(z)
 	if not (z and z.min) then return nil end
-	return z.min == z.max and ("Lv " .. z.min) or ("Lv " .. z.min .. "-" .. z.max)
+	return z.min == z.max and L["Lv %d"]:format(z.min) or L["Lv %d-%d"]:format(z.min, z.max)
 end
 
 local function FishText(z)
 	if not (z and z.fish) then return nil end
-	return "Fishing " .. z.fish .. (z.fishHigh and (" (" .. z.fishHigh .. " in places)") or "")
+	return z.fishHigh and L["Fishing %d (%d in places)"]:format(z.fish, z.fishHigh) or L["Fishing %d"]:format(z.fish)
 end
 
 ----------------------------------------------------------------------
@@ -244,9 +245,9 @@ end
 local function Join(parts) return table.concat(parts, "  ·  ") end
 
 local function Fit(level, lo, hi)
-	if level >= lo and level <= hi then return "right for you", 2 end
-	if level < lo then return "a bit high for you", 1 end
-	return "nearly outgrown", 0
+	if level >= lo and level <= hi then return L["right for you"], 2 end
+	if level < lo then return L["a bit high for you"], 1 end
+	return L["nearly outgrown"], 0
 end
 
 local function Order(a, b)
@@ -279,7 +280,7 @@ local function LevelRows(level)
 			local centre = math.abs(level - (zz.min + zz.max) / 2)
 			local parts = { Z.LevelText(zz) }
 			local n = counts and counts[ZoneName(zz)] or counts and counts[zz.name]
-			if n and n > 0 then parts[#parts + 1] = n .. (n == 1 and " quest" or " quests") .. " at your level" end
+			if n and n > 0 then parts[#parts + 1] = (n == 1 and L["%d quest at your level"] or L["%d quests at your level"]):format(n) end
 			parts[#parts + 1] = label
 			rows[#rows + 1] = ZoneRow(zz, Join(parts), tier * 1000 - centre * 10 + (n and math.min(n, 30) or 0) / 10,
 				Distance(zz.ui, here))
@@ -309,7 +310,7 @@ local function InstanceRows(level, raids)
 		local e, d = b.e, b.d
 		local label, tier = Fit(level, e.minLevel, e.level)
 		local centre = math.abs(level - (e.minLevel + e.level) / 2)
-		local lv = e.minLevel == e.level and ("Lv " .. e.level) or ("Lv " .. e.minLevel .. "-" .. e.level)
+		local lv = e.minLevel == e.level and L["Lv %d"]:format(e.level) or L["Lv %d-%d"]:format(e.minLevel, e.level)
 		local parts = { lv, label }
 		if e.zone then parts[#parts + 1] = e.zone end
 		rows[#rows + 1] = setmetatable({ detail = Join(parts), _score = tier * 1000 - centre * 10, _dist = d },
@@ -327,11 +328,11 @@ local function FishRows(skill)
 		if zz.fish then
 			local parts = { FishText(zz) }
 			if not skill or zz.fish <= skill then
-				if zz.fishHigh and skill and zz.fishHigh > skill then parts[#parts + 1] = "deeper spots need " .. zz.fishHigh end
+				if zz.fishHigh and skill and zz.fishHigh > skill then parts[#parts + 1] = L["deeper spots need %d"]:format(zz.fishHigh) end
 				if Z.LevelText(zz) then parts[#parts + 1] = Z.LevelText(zz) end
 				ok[#ok + 1] = ZoneRow(zz, Join(parts), skill and zz.fish or -zz.fish, Distance(zz.ui, here))
 			else
-				parts[#parts + 1] = "needs " .. zz.fish
+				parts[#parts + 1] = L["needs %d"]:format(zz.fish)
 				if Z.LevelText(zz) then parts[#parts + 1] = Z.LevelText(zz) end
 				next[#next + 1] = ZoneRow(zz, Join(parts), -zz.fish, Distance(zz.ui, here))
 			end
@@ -359,14 +360,14 @@ function Z.Answer(kind, said)
 	local level = said or PlayerLevel()
 	if kind == "fish" then
 		local skill = Z.FishingSkill()
-		local note = skill and ("Your fishing: " .. skill) or "You haven't learned Fishing: a fishing trainer teaches it"
+		local note = skill and L["Your fishing: %d"]:format(skill) or L["You haven't learned Fishing: a fishing trainer teaches it"]
 		return FishRows(skill), note
 	end
-	if not level then return {}, "Your level isn't known here" end
-	if kind == "dungeon" then return InstanceRows(level, false), "Dungeons for level " .. level end
+	if not level then return {}, L["Your level isn't known here"] end
+	if kind == "dungeon" then return InstanceRows(level, false), L["Dungeons for level %d"]:format(level) end
 	if kind == "raid" then
 		local rows = InstanceRows(level, true)
-		return rows, (#rows == 0 and "Raids are for level 60" or ("Raids for level " .. level))
+		return rows, (#rows == 0 and L["Raids are for level 60"] or L["Raids for level %d"]:format(level))
 	end
-	return LevelRows(level), "Zones for level " .. level
+	return LevelRows(level), L["Zones for level %d"]:format(level)
 end

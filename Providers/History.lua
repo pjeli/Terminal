@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The lines you ran from the prompt. Up arrow on an empty prompt walks back through them
 -- (UI:Up / UI:Down); .history lists them and .history clear forgets them.
@@ -51,17 +52,17 @@ function ns:FindCommand(name)
 end
 
 ns:RegisterCommand("history", {
-	desc = "What you ran from the prompt (Up arrow on an empty prompt walks back through it); .history clear",
-	complete = function() return { { "clear", "forget the history" } } end,
+	desc = L["What you ran from the prompt (Up arrow on an empty prompt walks back through it); .history clear"],
+	complete = function() return { { "clear", L["forget the history"] } } end,
 	run = function(args)
 		local h = ns.db and ns.db.history or {}
 		if strtrim(args or ""):lower() == "clear" then
 			for i = #h, 1, -1 do h[i] = nil end
 			ns.db.historyAdv = {}
-			return { "History cleared." }
+			return { L["History cleared."] }
 		end
-		if #h == 0 then return { "Nothing in the history yet." } end
-		local lines = { #h .. " earlier line(s), newest first:" }
+		if #h == 0 then return { L["Nothing in the history yet."] } end
+		local lines = { L["%s earlier line(s), newest first:"]:format(#h) }
 		for i, l in ipairs(h) do lines[#lines + 1] = ("  %2d  %s"):format(i, l) end
 		return lines
 	end,

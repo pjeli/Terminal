@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 -- Talents: every talent in your tree, taken or not, searchable by name or tree, opened in
@@ -19,8 +20,8 @@ TL.BUTTONS = { "TalentMicroButton", "PlayerSpellsMicroButton" }
 -- opened through the game's own Talents keybinding command; the buttons are the fallback
 TL.SECURE = { binding = "TOGGLETALENTS", buttons = TL.BUTTONS }
 
-local TAKEN = "|cff40ff40Taken|r"
-local NOT_TAKEN = "|cff8a8a8aNot taken|r"
+local TAKEN = "|cff40ff40" .. L["Taken"] .. "|r"
+local NOT_TAKEN = "|cff8a8a8a" .. L["Not taken"] .. "|r"
 
 local function ConfigID()
 	local SI = C_SpecializationInfo
@@ -309,8 +310,8 @@ end
 -- Wowhead has a WoW Forever section: a talent of another class is shown there (its tree isn't yours to open)
 TL.WOWHEAD_SPELL = "https://www.wowhead.com/forever/spell=%d"
 local function ShowOnWowhead(e)
-	if not e.spellID then ns:Print("No page for " .. tostring(e.name) .. ".") return end
-	ns:ShowText("Wowhead: " .. tostring(e.name), TL.WOWHEAD_SPELL:format(e.spellID), { compact = true })
+	if not e.spellID then ns:Print(L["No page for %s."]:format(tostring(e.name))) return end
+	ns:ShowText(L["Wowhead: %s"]:format(tostring(e.name)), TL.WOWHEAD_SPELL:format(e.spellID), { compact = true })
 end
 
 local function HighlightNode(e) TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
@@ -338,7 +339,7 @@ local OTHER_LAZY = {
 	end,
 	detail = function(t)
 		local tab, ranks = OtherTab(t), rawget(t, "_r")[6] or 1
-		return t.classShown .. "  " .. (tab and (tab .. "  ") or "") .. ranks .. (ranks == 1 and " rank" or " ranks")
+		return t.classShown .. "  " .. (tab and (tab .. "  ") or "") .. (ranks == 1 and L["%d rank"] or L["%d ranks"]):format(ranks)
 	end,
 }
 local function OtherMeta(file, cname, shown)
@@ -352,7 +353,7 @@ local function OtherMeta(file, cname, shown)
 end
 
 ns:RegisterProvider("talents", {
-	label = "Talent",
+	label = L["Talent"],
 	color = "ffa3e05f",
 	aliases = { "talent", "talents", "tree" },
 	events = { "TRAIT_CONFIG_UPDATED", "TRAIT_NODE_CHANGED", "PLAYER_TALENT_UPDATE",
@@ -433,7 +434,7 @@ ns:RegisterProvider("talents", {
 
 -- .talentdebug : what Terminal sees of the open talent window, for bug reports.
 ns:RegisterCommand("talentdebug", {
-	desc = "Show what Terminal sees in the open talent window (for bug reports)",
+	desc = L["Show what Terminal sees in the open talent window (for bug reports)"],
 	run = function()
 		local lines = { "Talent debug (open the talent window first):" }
 		local configID, treeID, tabs = ReadTree()

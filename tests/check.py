@@ -32,6 +32,15 @@ if ok and G:
     for p in G.split_reads(files):
         print("FAIL", p)
         ok = False
+# translations: Locales/enUS.lua up to date, the seeded translations' keys and %-values (tests/gen_locale.py)
+import subprocess
+r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen_locale.py"), "--check"],
+    capture_output=True, text=True)
+for line in r.stdout.splitlines():
+    if line.startswith("FAIL"):
+        print(line)
+if r.returncode != 0:
+    ok = False
 if not ok:
     print("problems found")
 elif G:

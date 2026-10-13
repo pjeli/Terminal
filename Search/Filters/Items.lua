@@ -23,9 +23,10 @@ local function ItemInfo(id)
 	if c then return c end
 	c = infos.old[id] -- (in use again: back into the current table below)
 	if not c then
-		local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, _, _, bindType = pcall(get, id)
+		local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, classID, subID, bindType = pcall(get, id)
 		if not (ok and name) then return nil end -- (not known to the client yet: asked again next time)
 		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc,
+			classID = type(classID) == "number" and classID or nil, subID = type(subID) == "number" and subID or nil,
 			bindType = type(bindType) == "number" and bindType or nil }
 		if type(id) ~= "number" then return c end
 	end
@@ -42,11 +43,11 @@ end
 local function Instant(id)
 	local get = C_Item and C_Item.GetItemInfoInstant
 	if not get then return nil end
-	local ok, iid, itemType, subType, equipLoc = pcall(get, id)
+	local ok, iid, itemType, subType, equipLoc, _, classID, subID = pcall(get, id)
 	if not ok or iid ~= id then return nil end
-	return itemType, subType, equipLoc
+	return itemType, subType, equipLoc, classID, subID
 end
---- type:, slot: and is:equippable: test(itemType, subType, equipLoc) -> true (or a number) / false, or nil when what it
+--- type:, slot: and is:equippable: test(itemType, subType, equipLoc, classID, subclassID) -> true (or a number) / false, or nil when what it
 --- was given can't say. On the item's full info when it's kept already (no call to the game, as before); else on what
 --- the client's own item data says (Instant: the same type, subtype and slot type in the game), so the full info of
 --- thousands of loot items isn't asked for on every keystroke any more, and items the client hasn't loaded are judged
@@ -59,7 +60,7 @@ local function Judge(id, test)
 		info = ItemInfo(id)
 		if not info then return false end
 	end
-	return test(info.type, info.subType, info.equipLoc) or false
+	return test(info.type, info.subType, info.equipLoc, info.classID, info.subID) or false
 end
 
 -- type and subtype names, lowercase (a few dozen in the game: lowercased once each, not per row per keystroke)
@@ -105,6 +106,7 @@ F.ClearCache = function()
 	if F.ClearEffects then F.ClearEffects() end
 	if F.ClearPlaces then F.ClearPlaces() end
 	if F.ClearSold then F.ClearSold() end
+	if F.ClearSlotNames then F.ClearSlotNames() end
 end
 P.ItemInfo = ItemInfo
 
@@ -246,6 +248,31 @@ local TRADEGOODS = Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods or 7
 local function IsConsumableOrGoods(id) local c = ClassID(id); return c == nil or c == CONSUMABLE or c == TRADEGOODS end
 P.ClassID = ClassID
 
+-- What an item is, by the game's numbers (0.47.12): GetItemInfoInstant's class and subclass, the same in every language.
+-- type: took only the names (the client's own: "One-Handed Swords", "Einhandschwerter"), so "sword" and Simple mode's
+-- everyday words found nothing in another client's language. Each English word: its class * 100 + subclass numbers
+-- (Enum.ItemWeaponSubclass, Enum.ItemArmorSubclass, the consumables'); a whole class by CLASS_WORDS.
+local TYPE_IDS = {
+	axe = { 200, 201 }, bow = { 202 }, gun = { 203 }, mace = { 204, 205 }, polearm = { 206 }, sword = { 207, 208 },
+	stave = { 210 }, staff = { 210 }, fist = { 213 }, ["fist weapon"] = { 213 }, dagger = { 215 }, thrown = { 216 },
+	crossbow = { 218 }, wand = { 219 }, ["fishing pole"] = { 220 },
+	cloth = { 401 }, leather = { 402 }, mail = { 403 }, plate = { 404 }, shield = { 406 }, libram = { 407 }, idol = { 408 },
+	totem = { 409 }, relic = { 411 },
+	potion = { 1 }, elixir = { 2 }, flask = { 3 }, scroll = { 4 }, food = { 5 }, drink = { 5 }, bandage = { 7 },
+}
+local CLASS_WORDS = { consumable = 0, container = 1, bag = 1, weapon = 2, gem = 3, armor = 4, armour = 4, reagent = 5,
+	projectile = 6, ammo = 6, recipe = 9, quiver = 11, quest = 12, key = 13 }
+F.TYPE_IDS, F.CLASS_WORDS = TYPE_IDS, CLASS_WORDS -- (Easy.lua: the game's own names for them, in Simple mode)
+--- The numbers an English type word stands for (plural or not), or nil: a set of class * 100 + subclass, a class.
+local function TypeIds(v)
+	local list = TYPE_IDS[v] or TYPE_IDS[(v:gsub("es$", ""))] or TYPE_IDS[(v:gsub("s$", ""))]
+	local cls = CLASS_WORDS[v] or CLASS_WORDS[(v:gsub("s$", ""))]
+	if not (list or cls) then return nil end
+	local set
+	if list then set = {} for _, n in ipairs(list) do set[n] = true end end
+	return set, cls
+end
+
 --- Asks the game, ahead of any search, for the text of every consumable in a list (the prewarm calls it for your
 --- bags): "stamina food" right after login then finds the food at once instead of after a retry.
 function F.WarmEffects(list)
@@ -347,6 +374,10 @@ local SLOT_ALIAS = {
 }
 -- an item slot type's own letters for a slot word the game's name may not have (Two-Hand: 2hweapon)
 local SLOT_LOC = { ["two-hand"] = "2hweapon", ["off hand"] = "offhand", ["main hand"] = "mainhand", ["one-hand"] = "invtype_weapon" }
+-- (0.47.12) slot words whose item slot types don't hold them: matched by the English client's names only, so "back",
+-- "hands" and "chest" found nothing in another language (INVTYPE_CLOAK is "Rücken" there)
+local SLOT_TOKENS = { back = { invtype_cloak = true }, hands = { invtype_hand = true }, chest = { invtype_robe = true },
+	["off hand"] = { invtype_holdable = true }, ranged = { invtype_rangedright = true, invtype_thrown = true } }
 -- how enchants name the slot they go on
 local ENCHANT_WORDS = {
 	wrist = { "bracer", "wrist" }, feet = { "boots", "boot", "feet" }, hands = { "gloves", "glove", "hands" },
@@ -357,6 +388,7 @@ local ENCHANT_WORDS = {
 F.SLOT_ALIAS = SLOT_ALIAS -- (slot:boots is the feet: Share.Describe says it so)
 local function SlotWant(v) return SLOT_ALIAS[v] or v end
 local locWords = {} -- INVTYPE_x -> { its shown name, lowercase; itself, lowercase } (a few dozen, kept)
+F.ClearSlotNames = function() locWords = {} end
 --- Does this item slot type answer to the slot word? flat: want without spaces or dashes (worked out once).
 local function SlotIs(loc, want, flat)
 	local w = locWords[loc]
@@ -366,6 +398,7 @@ local function SlotIs(loc, want, flat)
 		locWords[loc] = w
 	end
 	if w[1]:find(want, 1, true) or w[2]:find(flat, 1, true) then return true end
+	if SLOT_TOKENS[want] and SLOT_TOKENS[want][w[2]] then return true end
 	local extra = SLOT_LOC[want]
 	return extra and w[2]:find(extra, 1, true) and (want ~= "one-hand" or w[2] == "invtype_weapon") and true or false
 end
@@ -540,7 +573,11 @@ end
 KEYS.type = function(v)
 	if v == "" then return nil end
 	-- (type and subtype lowercased once per name: LowerWord)
-	local function Is(t, st)
+	local set, cls = TypeIds(v) -- (an English word: the game's numbers too, in any client's language)
+	local function Is(t, st, _, c, sc)
+		if (set or cls) and type(c) == "number" then
+			if cls == c or (set and type(sc) == "number" and set[c * 100 + sc]) then return true end
+		end
 		if type(t) ~= "string" and type(st) ~= "string" then return nil end
 		local lt, lst = LowerWord(t), LowerWord(st)
 		if lt and lt:find(v, 1, true) then return true end

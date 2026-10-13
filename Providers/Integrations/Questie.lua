@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local I = ns.Integrations
 local Safe = ns.Safe -- (Util.lua)
 local RunSliced, WaypointLink = I.RunSliced, I._.WaypointLink
@@ -219,7 +220,7 @@ local function ShowNpc(e)
 	local M = ns.Maps
 	local mapID, pos, dungeon = NpcLocation(e.npcID)
 	if not mapID then
-		ns:Print("Questie has no known location for " .. (e.npcName or e.name) .. ".")
+		ns:Print(L["Questie has no known location for %s."]:format(e.npcName or e.name))
 		return
 	end
 	if not InCombatLockdown() then
@@ -227,18 +228,18 @@ local function ShowNpc(e)
 		local QM = QD.Module("QuestieMap")
 		if QM and QM.ShowNPC then Safe(QM.ShowNPC, QM, e.npcID) end
 	end
-	M.ShowAfter({ name = (e.npcName or e.name) .. (dungeon and " (dungeon entrance)" or ""), mapID = mapID, pos = pos })
+	M.ShowAfter({ name = (e.npcName or e.name) .. (dungeon and (" " .. L["(dungeon entrance)"]) or ""), mapID = mapID, pos = pos })
 end
 
 local function NpcPin(e)
 	local mapID, pos = NpcLocation(e.npcID)
 	local name = e.npcName or e.name
 	if not mapID then
-		ns:Print("Questie has no known location for " .. name .. ".")
+		ns:Print(L["Questie has no known location for %s."]:format(name))
 	else
 		local pin = ns.Maps.Place({ name = name, mapID = mapID, pos = pos })
 		if pin then ns:Print(ns.Maps.PinLine(pin, name)) return end
-		ns:Print("Can't set a waypoint there.")
+		ns:Print(L["Can't set a waypoint there."])
 	end
 end
 
@@ -257,15 +258,15 @@ local function TargetMacro(e) return "/targetexact " .. (e.npcName or e.name) en
 local NPC_TARGET = { macro = TargetMacro }
 local NeverTargeted = ns.Never
 local function TargetFallback(e)
-	if InCombatLockdown() then ns:Print("In combat: can't target " .. tostring(e.name) .. " from here; pinning it instead.") end
+	if InCombatLockdown() then ns:Print(L["In combat: can't target %s from here; pinning it instead."]:format(tostring(e.name))) end
 	NpcPin(e)
 end
 
 local function OpenNpcDirect(e)
 	-- no map keybinding to ride on: open the map ourselves (never in combat)
-	if InCombatLockdown() then ns:Print("In combat: can't open " .. e.name .. " now.") return end
+	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(e.name)) return end
 	if not NpcLocation(e.npcID) then -- nowhere to show it: leave the map alone
-		ns:Print("Questie has no known location for " .. (e.npcName or e.name) .. ".")
+		ns:Print(L["Questie has no known location for %s."]:format(e.npcName or e.name))
 		return
 	end
 	if ToggleWorldMap and not ns.Maps.MapOpen() then pcall(ToggleWorldMap) end

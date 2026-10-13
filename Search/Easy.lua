@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Simple mode (the default; "easy" in the code): Terminal for players who'll never type @npc or q:rare+.
 --   - Opens with nothing listed. Typing lists the categories that have it ("Bags  Rumsey Rum +2 more",
@@ -54,27 +55,27 @@ local function NotEmote(e) return e.emote == nil end
 -- Each searches these kinds (provider ids; those not loaded are skipped, a category with none never shows),
 -- and only the rows `keep` says yes to when it has one (one list, two categories: emotes and slash commands).
 E.CATEGORIES = {
-	{ id = "bags", label = "Bags", kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08" },
-	{ id = "quests", label = "Quests", kinds = { "quests", "questie" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
-	{ id = "spells", label = "Spells", kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
-	{ id = "crafting", label = "Crafting", kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
-	{ id = "npcs", label = "NPCs", kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
-	{ id = "places", label = "Places", kinds = { "maps", "dungeon", "raid", "flight" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
-	{ id = "loot", label = "Loot", kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
-	{ id = "lootlog", label = "Loot log", kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
-	{ id = "combat", label = "Combat log", kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
-	{ id = "alts", label = "Alts, bank & mail", kinds = { "stored", "mail" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
-	{ id = "people", label = "Guild & friends", kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
-	{ id = "group", label = "Group", kinds = { "group" }, icon = "Interface\\Icons\\Spell_Holy_PrayerOfFortitude" },
-	{ id = "collections", label = "Collections", kinds = { "mounts", "toys", "pets", "titles", "achievements" },
+	{ id = "bags", label = L["Bags"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08" },
+	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
+	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
+	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
+	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
+	{ id = "loot", label = L["Loot"], kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
+	{ id = "lootlog", label = L["Loot log"], kinds = { "lootlog" }, icon = "Interface\\Icons\\INV_Misc_Coin_02" },
+	{ id = "combat", label = L["Combat log"], kinds = { "combatlog" }, icon = "Interface\\Icons\\Ability_CriticalStrike" },
+	{ id = "alts", label = L["Alts, bank & mail"], kinds = { "stored", "mail" }, icon = "Interface\\Icons\\INV_Misc_Bag_10_Blue" },
+	{ id = "people", label = L["Guild & friends"], kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
+	{ id = "group", label = L["Group"], kinds = { "group" }, icon = "Interface\\Icons\\Spell_Holy_PrayerOfFortitude" },
+	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
-	{ id = "character", label = "Character", kinds = { "gold", "experience", "reputation", "currency", "skills", "equipmentset" },
+	{ id = "character", label = L["Character"], kinds = { "gold", "experience", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
-	{ id = "emotes", label = "Emotes", kinds = { "slash" }, keep = IsEmote, icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss" },
-	{ id = "slash", label = "Slash commands", kinds = { "slash" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01" },
-	{ id = "game", label = "Game", kinds = { "panels", "gameoptions", "macros", "keybinds", "addons", "terminal" },
+	{ id = "emotes", label = L["Emotes"], kinds = { "slash" }, keep = IsEmote, icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss" },
+	{ id = "slash", label = L["Slash commands"], kinds = { "slash" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01" },
+	{ id = "game", label = L["Game"], kinds = { "panels", "gameoptions", "macros", "keybinds", "addons", "terminal" },
 		icon = "Interface\\Icons\\INV_Misc_Gear_01" },
-	{ id = "console", label = "Console settings", kinds = { "cvars" }, icon = "Interface\\Icons\\Trade_Engineering" },
+	{ id = "console", label = L["Console settings"], kinds = { "cvars" }, icon = "Interface\\Icons\\Trade_Engineering" },
 }
 E.BY_ID = {}
 for _, c in ipairs(E.CATEGORIES) do E.BY_ID[c.id] = c end
@@ -194,6 +195,164 @@ E.WORDS = {
 	learned = "is:learned", known = "is:learned", discovered = "is:learned",
 }
 
+-- The game's own words for them (0.47.12, translations: the client's language). Quality, slot, weapon and armour
+-- kinds, roles, standings, classes and professions already come from the client in every language: "selten" is
+-- q:rare on a German client, "Rücken" slot:back, "Einhandschwerter" type:sword, "Heiler" is:healer, "Ehrfürchtig"
+-- standing:8, "Krieger" and "Bergbau" their trainers. Only for another language than English (English has its own
+-- words above), made the first time one is asked for (the game's globals are there by then); a row passes one when
+-- the filter says so or its name or text has the word, as the word alone found before.
+local SLOT_GLOBALS = {
+	INVTYPE_HEAD = "head", INVTYPE_NECK = "neck", INVTYPE_SHOULDER = "shoulder", INVTYPE_CLOAK = "back",
+	INVTYPE_CHEST = "chest", INVTYPE_ROBE = "chest", INVTYPE_WRIST = "wrist", INVTYPE_HAND = "hands",
+	INVTYPE_WAIST = "waist", INVTYPE_LEGS = "legs", INVTYPE_FEET = "feet", INVTYPE_FINGER = "finger",
+	INVTYPE_TRINKET = "trinket", INVTYPE_SHIELD = "shield", INVTYPE_2HWEAPON = "two-hand", INVTYPE_WEAPON = "one-hand",
+	INVTYPE_WEAPONMAINHAND = "main hand", INVTYPE_WEAPONOFFHAND = "off hand", INVTYPE_HOLDABLE = "off hand",
+	INVTYPE_RANGED = "ranged",
+	HEADSLOT = "head", NECKSLOT = "neck", SHOULDERSLOT = "shoulder", BACKSLOT = "back", CHESTSLOT = "chest",
+	WRISTSLOT = "wrist", HANDSSLOT = "hands", WAISTSLOT = "waist", LEGSSLOT = "legs", FEETSLOT = "feet",
+	FINGER0SLOT = "finger", TRINKET0SLOT = "trinket", MAINHANDSLOT = "main hand", SECONDARYHANDSLOT = "off hand",
+}
+-- the professions by skill line (C_TradeSkillUI.GetTradeSkillDisplayName) and a spell named like them, trainer: words
+local PROF_LINES = { { 171, 2259, "alchemy" }, { 164, 2018, "blacksmithing" }, { 333, 7411, "enchanting" },
+	{ 202, 4036, "engineering" }, { 182, 2366, "herbalism" }, { 165, 2108, "leatherworking" }, { 186, 2575, "mining" },
+	{ 393, 8613, "skinning" }, { 197, 3908, "tailoring" }, { 185, 2550, "cooking" }, { 129, 3273, "firstaid" },
+	{ 356, 7620, "fishing" } }
+local CLASS_WORDS = { WARRIOR = "warrior", PALADIN = "paladin", HUNTER = "hunter", ROGUE = "rogue", PRIEST = "priest",
+	SHAMAN = "shaman", MAGE = "mage", WARLOCK = "warlock", DRUID = "druid" }
+-- NPC roles by the minimap's tracking menu's names ("Gastwirt", "Aubergiste": "nächster Gastwirt" finds the innkeeper)
+local NPC_ROLE_GLOBALS = { MINIMAP_TRACKING_INNKEEPER = "is:innkeeper", MINIMAP_TRACKING_BANKER = "is:banker",
+	MINIMAP_TRACKING_AUCTIONEER = "is:auctioneer", MINIMAP_TRACKING_FLIGHTMASTER = "is:flightmaster",
+	MINIMAP_TRACKING_REPAIR = "is:repair", MINIMAP_TRACKING_STABLEMASTER = "is:stablemaster",
+	MINIMAP_TRACKING_BATTLEMASTER = "is:battlemaster", MINIMAP_TRACKING_TRAINER_CLASS = "is:classtrainer",
+	MINIMAP_TRACKING_TRAINER_PROFESSION = "is:proftrainer", MERCHANT = "is:vendor" }
+-- the game's words that name someone you'd walk to (E.ROLE_WORDS: "nearest" then keeps to NPCs friendly to you)
+local ROLE_SPECS = { ["is:innkeeper"] = true, ["is:banker"] = true, ["is:auctioneer"] = true, ["is:flightmaster"] = true,
+	["is:repair"] = true, ["is:stablemaster"] = true, ["is:battlemaster"] = true, ["is:classtrainer"] = true,
+	["is:proftrainer"] = true, ["is:vendor"] = true }
+local gameWords -- word -> filter text (nil until first asked; English: none)
+local function Str(v) return type(v) == "string" and v ~= "" and v or nil end
+--- The game's own words in the client's language -> the filter each stands for.
+function E.GameWords()
+	if gameWords then return gameWords end
+	gameWords = {}
+	local lang = ns.LOCALE or "enUS"
+	if lang == "enUS" or lang == "enGB" then return gameWords end
+	local function Add(word, spec)
+		word = Str(word)
+		if not word then return end
+		local w = Lower(word):gsub("^%s+", ""):gsub("%s+$", "")
+		if w ~= "" and #w >= 2 and rawget(E.WORDS, w) == nil and gameWords[w] == nil and not E.STOP[w] then gameWords[w] = spec end
+	end
+	for i = 0, 5 do Add(_G["ITEM_QUALITY" .. i .. "_DESC"], "q:" .. i) end
+	for g, slot in pairs(SLOT_GLOBALS) do Add(_G[g], "slot:" .. slot:gsub(" ", "_")) end
+	local F = ns.Filters
+	local sub = (C_Item and C_Item.GetItemSubClassInfo) or _G.GetItemSubClassInfo
+	local cls = (C_Item and C_Item.GetItemClassInfo) or _G.GetItemClassInfo
+	if F and F.TYPE_IDS and sub then
+		for word, ids in pairs(F.TYPE_IDS) do
+			if not word:find(" ", 1, true) then
+				for _, n in ipairs(ids) do
+					local ok, name = pcall(sub, math.floor(n / 100), n % 100)
+					if ok then Add(name, "type:" .. word) end
+				end
+			end
+		end
+	end
+	if F and F.CLASS_WORDS and cls then
+		for word, n in pairs(F.CLASS_WORDS) do
+			local ok, name = pcall(cls, n)
+			if ok then Add(name, "type:" .. word) end
+		end
+	end
+	Add(_G.TANK, "is:tank"); Add(_G.HEALER, "is:healer"); Add(_G.DAMAGER, "is:dps")
+	for g, spec in pairs(NPC_ROLE_GLOBALS) do Add(_G[g], spec) end
+	for i = 1, 8 do
+		Add(_G["FACTION_STANDING_LABEL" .. i], "standing:" .. i)
+		Add(_G["FACTION_STANDING_LABEL" .. i .. "_FEMALE"], "standing:" .. i)
+	end
+	for _, names in ipairs({ _G.LOCALIZED_CLASS_NAMES_MALE or {}, _G.LOCALIZED_CLASS_NAMES_FEMALE or {} }) do
+		for token, name in pairs(names) do if CLASS_WORDS[token] then Add(name, "trainer:" .. CLASS_WORDS[token]) end end
+	end
+	local display = C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillDisplayName
+	local spellName = (C_Spell and C_Spell.GetSpellName) or _G.GetSpellInfo
+	for _, p in ipairs(PROF_LINES) do
+		if display then local ok, name = pcall(display, p[1]) if ok then Add(name, "trainer:" .. p[3]) end end
+		if spellName then local ok, name = pcall(spellName, p[2]) if ok then Add(name, "trainer:" .. p[3]) end end
+	end
+	return gameWords
+end
+--- The filter one of the game's own words stands for, or nil (E.WORDS answers these too, after its own).
+function E.GameWord(w) return type(w) == "string" and E.GameWords()[w] or nil end
+function E.ForgetGameWords() gameWords = nil end -- (tests)
+setmetatable(E.WORDS, { __index = function(_, w) return E.GameWord(w) end })
+--- Whether one of the game's own words names an NPC role (or a class's or profession's trainer).
+function E.GameRole(w)
+	local g = E.GameWord(w)
+	return g ~= nil and (ROLE_SPECS[g] or g:find("^trainer:") ~= nil)
+end
+
+-- Phrases in the client's language (0.47.12, translations): the top questions as each language asks them, from the
+-- translations ("phrases: ..." keys: the language's phrasings, | between them, %s where the thing goes), each made the
+-- English line it stands for before the search reads it ("nächster Gastwirt" = "nearest gastwirt", "Mats für
+-- Thoriumgürtel" = "mats for thoriumgürtel"). English is always understood too. A key nobody translated is skipped.
+E.PHRASES = {
+	{ "mats for %s", L["phrases: mats for %s"], "mats" },
+	{ "what uses %s", L["phrases: what uses %s"], "uses" },
+	{ "where to learn %s", L["phrases: where to learn %s"], "learn" }, -- (before where to get: "the recipe for x")
+	{ "where to get %s", L["phrases: where to get %s"], "sources" },
+	{ "nearest %s", L["phrases: nearest %s"] },
+	{ "where %s", L["phrases: where is %s"] },
+}
+local phrasePatterns -- { { Lua pattern, English line } } (made once)
+local MAGIC = "[%^%$%(%)%%%.%[%]%*%+%-%?]"
+local function Alternatives(said)
+	local out = {}
+	if type(said) ~= "string" or said:find("^phrases: ") then return out end
+	for alt in (said .. "|"):gmatch("([^|]*)|") do
+		alt = Lower(alt):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+		local a, b = alt:match("^(.-)%%s(.*)$")
+		if a and not b:find("%s", 1, true) then out[#out + 1] = { a, b } end
+	end
+	return out
+end
+local function Patterns()
+	if phrasePatterns then return phrasePatterns end
+	phrasePatterns = {}
+	for _, ph in ipairs(E.PHRASES) do
+		for _, ab in ipairs(Alternatives(ph[2])) do
+			phrasePatterns[#phrasePatterns + 1] = { "^" .. ab[1]:gsub(MAGIC, "%%%0") .. "(.+)" .. ab[2]:gsub(MAGIC, "%%%0") .. "$", ph[1] }
+		end
+	end
+	return phrasePatterns
+end
+function E.ForgetPhrases() phrasePatterns = nil end -- (tests)
+
+--- A line in the client's language as the English line it stands for, else the line as it is.
+function E.English(text)
+	if type(text) ~= "string" then return text end
+	local pats = Patterns()
+	if #pats == 0 or text:find("[@>|]") or text:find(":[^%s]") or text:find("^%s*[%./!%-]") then return text end
+	local lt = Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	for _, p in ipairs(pats) do
+		local what = lt:match(p[1])
+		if what and what:find("%S") then return p[2]:format(what) end
+	end
+	return text
+end
+
+--- Simple mode's words for a chain link in the client's language (its first phrasing, as written), or nil (English's).
+function E.LocalPhrase(rel)
+	for _, ph in ipairs(E.PHRASES) do
+		if ph[3] == rel and #Alternatives(ph[2]) > 0 then
+			for alt in (ph[2] .. "|"):gmatch("([^|]*)|") do
+				alt = alt:gsub("^%s+", ""):gsub("%s+$", "")
+				local _, n = alt:gsub("%%s", "")
+				if n == 1 and not alt:find("%%[^s]") then return alt end
+			end
+		end
+	end
+end
+
 -- everyday words that are strict filters, never relaxed away when nothing passes ("helm upgrades" lists no helmet you
 -- can't wear)
 E.HARD_WORDS = { unplaced = true, upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true,
@@ -244,9 +403,14 @@ function E.Word(w)
 	if t ~= nil then return t or nil end
 	local f = ns.Filters and ns.Filters.Parse(spec)
 	if not f then wordTests[w] = false return nil end
-	t = function(e) return f(e) or NameHas(e, w) end
+	if rawget(E.WORDS, w) == nil then -- (the game's own word: as the word alone found, its name or text, or the filter)
+		local RowHas = ns.Filters.RowHas
+		t = function(e) return f(e) or RowHas(e, w) end
+	else
+		t = function(e) return f(e) or NameHas(e, w) end
+	end
 	wordTests[w] = t
-	weights[t] = WEAK[w] and 1 or 3
+	weights[t] = (WEAK[w] or spec:find("^q:")) and 1 or 3
 	return t
 end
 
@@ -261,98 +425,98 @@ end
 --- An item's, and gear's alike (0.45.21: equipment found with @item does what @gear's does, Items.lua GearActions): a
 --- bag piece of equipment equips, a worn one is used only when it has a use (nothing to equip: no Shift+Enter).
 local function ItemVerbs(e)
-	local enter = e.slotId and "show on character" or "show in bags"
+	local enter = e.slotId and L["show on character"] or L["show in bags"]
 	if e.equipLoc then
-		if e.slotId then return enter, e.onUse and "use" or nil end
-		return enter, "equip"
+		if e.slotId then return enter, e.onUse and L["use"] or nil end
+		return enter, L["equip"]
 	end
-	return enter, "use"
+	return enter, L["use"]
 end
 local function SpellVerbs(e)
-	return "show in spellbook", (not e.passive) and "cast" or nil
+	return L["show in spellbook"], (not e.passive) and L["cast"] or nil
 end
 local function TalentVerbs(e)
-	return e.other and "Wowhead link" or "show in talents", "link in chat"
+	return e.other and L["Wowhead link"] or L["show in talents"], L["link in chat"]
 end
 local function AddonVerbs(e)
-	local shift = "turn on/off"
-	if e.launch then return "open", shift end -- (its minimap button)
-	if e.opt then return "options", shift end
-	return "show in AddOn list", shift
+	local shift = L["turn on/off"]
+	if e.launch then return L["open"], shift end -- (its minimap button)
+	if e.opt then return L["options"], shift end
+	return L["show in AddOn list"], shift
 end
 local function WhoVerbs(e)
-	if e.lead then return "ask the server", nil end
-	return "whisper", "invite"
+	if e.lead then return L["ask the server"], nil end
+	return L["whisper"], L["invite"]
 end
 local function TerminalVerbs(e)
-	return e.presetId and "apply" or "open"
+	return e.presetId and L["apply"] or L["open"]
 end
 local function SourceVerbs(e) -- (a chain's source: a vein or chest at its spot, else the item crafted)
-	if e.found or e.pipeHow == "gathered from" then return "show on map", "set waypoint" end -- (a recipe's chest too)
-	return "show in bags"
+	if e.found or e.pipeHow == L["gathered from"] then return L["show on map"], L["set waypoint"] end -- (a recipe's chest too)
+	return L["show in bags"]
 end
 local function QuestVerbs(e) -- (one to drop: grey, or in a zone left behind, QuestDrop.lua)
-	return "show in quest log", e.drop and "drop" or "track"
+	return L["show in quest log"], e.drop and L["drop"] or L["track"]
 end
 local function MailVerbs(e) -- (your own mail at an open mailbox: pointed at in the inbox; Mail.lua)
 	local open = e.mailKind == "mail" and e.mine and ns.Mail and ns.Mail.open
-	return open and "show in inbox" or "show in chat", "nearest mailbox"
+	return open and L["show in inbox"] or L["show in chat"], L["nearest mailbox"]
 end
 local function GroupVerbs(e) -- (Shift+Enter: your buff they're missing, when you have one: Group.lua)
-	return "target", e.buffWith and ("cast " .. e.buffWith) or nil
+	return L["target"], e.buffWith and L["cast %s"]:format(e.buffWith) or nil
 end
-local PLACE = { "show on map", "set waypoint" }
-local TO_CHAT = { "show in chat", "put in the chat box" }
+local PLACE = { L["show on map"], L["set waypoint"] }
+local TO_CHAT = { L["show in chat"], L["put in the chat box"] } -- ("put in the chat box", "link in chat": RowMenu.lua compares them, translated alike)
 E.VERBS = {
-	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { "show in bags" },
+	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { L["show in bags"] },
 	source = SourceVerbs,
-	stored = { "show in bags", "show in chat" }, lootlog = { "show in bags", "link in chat" },
-	loot = { "show in AtlasLoot", "link in chat" },
+	stored = { L["show in bags"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
+	loot = { L["show in AtlasLoot"], L["link in chat"] },
 	mail = MailVerbs, group = GroupVerbs,
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
-	npc = { "show on map", "target" },
+	npc = { L["show on map"], L["target"] },
 	maps = PLACE, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
-	guild = { "whisper", "invite" }, friends = { "whisper", "invite" }, who = WhoVerbs,
-	questie = { "Wowhead link", "show in game" },
+	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
+	questie = { L["Wowhead link"], L["show in game"] },
 	quests = QuestVerbs,
-	missing = { "where to learn", "link in chat" }, -- (a recipe you don't know yet: MissingRecipes.lua)
-	toys = { "use", "show in journal" }, pets = { "summon", "show in journal" }, mounts = { "summon", "show in journal" },
-	titles = { "wear" },
-	achievements = { "show", "link in chat" },
-	professions = { "open", "link in chat" }, recipes = { "show recipe", "link in chat" },
+	missing = { L["where to learn"], L["link in chat"] }, -- (a recipe you don't know yet: MissingRecipes.lua)
+	toys = { L["use"], L["show in journal"] }, pets = { L["summon"], L["show in journal"] }, mounts = { L["summon"], L["show in journal"] },
+	titles = { L["wear"] },
+	achievements = { L["show"], L["link in chat"] },
+	professions = { L["open"], L["link in chat"] }, recipes = { L["show recipe"], L["link in chat"] },
 	addons = AddonVerbs,
-	camp = { "show recipe", "make / use" },
-	slash = { "run", "put in the chat box" }, emote = { "do it", "put in the chat box" },
-	cmd = { "run" }, advanced = { "switch to Advanced mode" }, send = { "send" },
-	equipmentset = { "equip", "show in manager" },
-	macros = { "run", "show in Macros" },
-	cvars = { "edit", "reset to default" },
-	reputation = { "show", "watch" },
-	skills = { "show", "show in chat" },
-	currency = { "show" }, panels = { "open" },
-	gameoptions = { "show in options" }, keybinds = { "show in keybindings", "quick keybind mode" },
+	camp = { L["show recipe"], L["make / use"] },
+	slash = { L["run"], L["put in the chat box"] }, emote = { L["do it"], L["put in the chat box"] },
+	cmd = { L["run"] }, advanced = { L["switch to Advanced mode"] }, send = { L["send"] },
+	equipmentset = { L["equip"], L["show in manager"] },
+	macros = { L["run"], L["show in Macros"] },
+	cvars = { L["edit"], L["reset to default"] },
+	reputation = { L["show"], L["watch"] },
+	skills = { L["show"], L["show in chat"] },
+	currency = { L["show"] }, panels = { L["open"] },
+	gameoptions = { L["show in options"] }, keybinds = { L["show in keybindings"], L["quick keybind mode"] },
 	terminal = TerminalVerbs,
 }
 
 --- The two verbs for a row: Enter's, and Shift+Enter's (nil when it has none).
 function E.Verbs(e)
 	if not e or e.noActivate then return nil end
-	if e.catId then return "look in " .. tostring(e.name) end
+	if e.catId then return L["look in %s"]:format(tostring(e.name)) end
 	-- a chain's row: Enter walks on, Shift+Enter does what the row's own Enter does
 	local nxt = rawget(e, "pipeNext")
 	if nxt then
-		return nxt == "sources" and "where to get it" or "its mats", (E.Verbs(rawget(e, "pipeOf"))) or "open"
+		return nxt == "sources" and L["where to get it"] or L["its mats"], (E.Verbs(rawget(e, "pipeOf"))) or L["open"]
 	end
-	if e.completion then return e.kind == "pipe" and "pick it" or "search there" end
-	if e.actionVerb then return Lower(e.actionVerb), nil end
+	if e.completion then return e.kind == "pipe" and L["pick it"] or L["search there"] end
+	if e.actionVerb then return e.actionVerb, nil end -- (as given: a translated verb may hold capitals, "im Chat verlinken")
 	local v = E.VERBS[(e.emote and "emote") or e.kind or ""]
 	local enter, shift
 	if type(v) == "function" then enter, shift = v(e)
 	elseif v then enter, shift = v[1], v[2]
-	else shift = "more" end -- (a kind without verbs)
+	else shift = L["more"] end -- (a kind without verbs)
 	if not (e.secondary or e.secondarySecure) then shift = nil end -- (no Shift+Enter: none said)
-	return enter or "open", shift
+	return enter or L["open"], shift
 end
 
 ----------------------------------------------------------------------
@@ -363,25 +527,25 @@ end
 -- runs on Enter ("p" its usual one, "s" its Shift+Enter one); no map: any kind, the usual action (only the word
 -- is dropped: "show", "open"). `keep`: only rows it says yes to. `nearest`: NPCs sorted by how far away they are.
 E.ACTIONS = {
-	use = { label = "Use", map = { items = "s", toys = "p", camp = "s" } },
-	cast = { label = "Cast", map = { spells = "s" } },
-	summon = { label = "Summon", map = { mounts = "p", pets = "p" } },
-	mount = { label = "Summon", map = { mounts = "p" } },
-	ride = { label = "Summon", map = { mounts = "p" } },
-	equip = { label = "Equip", map = { items = "s", equipmentset = "p" } },
-	wear = { label = "Wear", map = { titles = "p", items = "s", equipmentset = "p" } },
-	target = { label = "Target", map = { npc = "s" } },
+	use = { label = L["Use"], map = { items = "s", toys = "p", camp = "s" } },
+	cast = { label = L["Cast"], map = { spells = "s" } },
+	summon = { label = L["Summon"], map = { mounts = "p", pets = "p" } },
+	mount = { label = L["Summon"], map = { mounts = "p" } },
+	ride = { label = L["Summon"], map = { mounts = "p" } },
+	equip = { label = L["Equip"], map = { items = "s", equipmentset = "p" } },
+	wear = { label = L["Wear"], map = { titles = "p", items = "s", equipmentset = "p" } },
+	target = { label = L["Target"], map = { npc = "s" } },
 	-- ("l": a link to the row in the chat box, for rows whose Shift+Enter is something else)
-	link = { label = "Link in chat", map = { achievements = "s", professions = "s", recipes = "s", talents = "s",
+	link = { label = L["Link in chat"], verb = L["link in chat"], map = { achievements = "s", professions = "s", recipes = "s", talents = "s",
 		lootlog = "s", loot = "s", items = "l", spells = "l", quests = "l" } },
-	["do"] = { label = "Do", map = { slash = "p" }, keep = IsEmote },
-	where = { label = "Where is", map = { npc = "p", maps = "p", quests = "p", questie = "s", dungeon = "p", raid = "p",
+	["do"] = { label = L["Do"], map = { slash = "p" }, keep = IsEmote },
+	where = { label = L["Where is"], map = { npc = "p", maps = "p", quests = "p", questie = "s", dungeon = "p", raid = "p",
 		mailbox = "p", flight = "p" } },
-	nearest = { label = "Nearest", map = { npc = "p" }, nearest = true },
-	closest = { label = "Nearest", map = { npc = "p" }, nearest = true },
-	nearby = { label = "Nearest", map = { npc = "p" }, nearest = true },
-	who = { label = "Who", map = { who = "p" } },
-	show = { label = "Show" }, open = { label = "Open" }, find = { label = "Find" },
+	nearest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
+	closest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
+	nearby = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
+	who = { label = L["Who"], map = { who = "p" } },
+	show = { label = L["Show"] }, open = { label = L["Open"] }, find = { label = L["Find"] },
 }
 
 -- the words that name what an NPC does (not who it is): "nearest" then keeps to NPCs friendly to you
@@ -390,6 +554,7 @@ E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, ba
 	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true, battlemaster = true,
 	battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true, ["honor vendor"] = true,
 	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true }
+setmetatable(E.ROLE_WORDS, { __index = function(_, w) return E.GameRole(w) or nil end }) -- (the game's own words too)
 
 --- The action a search's first word names, or nil (only with another word after it, or an everyday word).
 function E.Action(word) return E.On() and E.ACTIONS[word] or nil end
@@ -405,13 +570,13 @@ local function LinkNow(e) ns.LinkInChat(LinkText(e)) end -- (combat: Terminal's 
 function E.ActionView(e, act)
 	local how = act.map and act.map[e.kind]
 	if how == "l" then
-		return setmetatable({ secure = LINK_SPEC, isOpen = Never, after = false, activate = LinkNow, actionVerb = act.label,
+		return setmetatable({ secure = LINK_SPEC, isOpen = Never, after = false, activate = LinkNow, actionVerb = act.verb or Lower(act.label),
 			actionOf = e }, { __index = e })
 	end
 	if how ~= "s" or not (e.secondary or e.secondarySecure) then return e end
 	return setmetatable({
 		secure = e.secondarySecure or false, isOpen = e.secondaryIsOpen or Never, after = e.secondaryAfter or false,
-		activate = e.secondary or false, actionVerb = act.label, actionOf = e, -- (false: never the row's own Enter)
+		activate = e.secondary or false, actionVerb = act.verb or Lower(act.label), actionOf = e, -- (false: never the row's own Enter)
 	}, { __index = e })
 end
 
@@ -516,6 +681,7 @@ end
 E.QuestionToAdvanced = QuestionToAdvanced
 
 function E.ToAdvanced(text, category, shown)
+	text = E.English(text) -- (a phrase in the client's language: as its English line)
 	local asked = QuestionToAdvanced(text)
 	if asked then return asked end
 	local words = {}
@@ -667,15 +833,15 @@ end
 local function OfferAdvanced() C_Timer.After(0, E.ShowConfirm) end
 --- The row shown on top when Advanced syntax was typed in Simple mode (Enter: the switch's confirmation).
 E.ADVANCED_ROW = {
-	name = "@, >, >> and key:value are for Advanced mode", kind = "advanced", kindLabel = "",
-	detail = "Enter to switch (or type .advanced)", icon = "Interface\\Icons\\INV_Misc_Gear_01",
+	name = L["@, >, >> and key:value are for Advanced mode"], kind = "advanced", kindLabel = "",
+	detail = L["Enter to switch (or type .advanced)"], icon = "Interface\\Icons\\INV_Misc_Gear_01",
 	activate = OfferAdvanced,
 }
 
 -- ">>" typed in Simple mode: sending is in the right-click menu here
 E.SEND_ROW = {
-	name = "Right-click a result to send it to chat", kind = "advanced", kindLabel = "", noActivate = true,
-	detail = "say, party, guild, whisper, or all of them at once (>> is Advanced mode's)", icon = "Interface\\Icons\\INV_Letter_15",
+	name = L["Right-click a result to send it to chat"], kind = "advanced", kindLabel = "", noActivate = true,
+	detail = L["say, party, guild, whisper, or all of them at once (>> is Advanced mode's)"], icon = "Interface\\Icons\\INV_Letter_15",
 }
 
 ----------------------------------------------------------------------
@@ -688,7 +854,7 @@ local function Confirm(yes)
 	if dialog then dialog:Hide() end
 	if yes then
 		E.Set(false)
-		ns:Print("Advanced mode: the full command line (@kinds, key:value filters, .commands, >> chat). .help lists it all; .simple goes back.")
+		ns:Print(L["Advanced mode: the full command line (@kinds, key:value filters, .commands, >> chat). .help lists it all; .simple goes back."])
 	end
 end
 
@@ -710,7 +876,7 @@ end
 function E.ShowConfirm()
 	local P = ns.Panel
 	if InCombatLockdown() then
-		ns:Print("In combat: type .advanced again once it's over.")
+		ns:Print(L["In combat: type .advanced again once it's over."])
 		return
 	end
 	if not dialog then
@@ -723,8 +889,8 @@ function E.ShowConfirm()
 		dialog.body:SetWordWrap(true)
 		dialog.body:SetPoint("TOP", 0, -E.CONFIRM_BODY_Y)
 		dialog.body:SetWidth(E.CONFIRM_W - 40)
-		dialog.yes = Button(dialog, "Switch to Advanced", -92, function() Confirm(true) end)
-		dialog.no = Button(dialog, "Stay in Simple", 92, function() Confirm(false) end)
+		dialog.yes = Button(dialog, L["Switch to Advanced"], -92, function() Confirm(true) end)
+		dialog.no = Button(dialog, L["Stay in Simple"], 92, function() Confirm(false) end)
 		dialog:SetScript("OnKeyDown", function(_, key)
 			if key == "ENTER" then Confirm(true)
 			elseif key == "ESCAPE" or key == "`" then Confirm(false) end
@@ -732,10 +898,9 @@ function E.ShowConfirm()
 	end
 	P.Opening(app)
 	local t = P.Layout(dialog)
-	dialog.title:SetText("|cff" .. t.text .. "Switch to Advanced mode?|r")
-	dialog.body:SetText("|cff" .. t.dim .. "The full command line: @kinds (@npc Hogger), key:value filters (q:rare+ lvl:20-30), "
-		.. ".commands and >> to send to chat. Words like \"rare\" and \"use\" become plain search words. "
-		.. ".simple comes back.|r")
+	dialog.title:SetText("|cff" .. t.text .. L["Switch to Advanced mode?"] .. "|r")
+	dialog.body:SetText("|cff" .. t.dim .. L["The full command line: @kinds (@npc Hogger), key:value filters (q:rare+ lvl:20-30), .commands and >> to send to chat. Words like \"rare\" and \"use\" become plain search words. .simple comes back."]
+		.. "|r")
 	-- as tall as the text: title, text, buttons, with the same margin around each
 	local h = dialog.body:GetStringHeight()
 	h = type(h) == "number" and h > 0 and h or 42
@@ -744,10 +909,10 @@ function E.ShowConfirm()
 end
 
 ns:RegisterCommand("advanced", {
-	desc = "Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat), after a confirmation",
+	desc = L["Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat), after a confirmation"],
 	aliases = { "hardmode", "hard" },
 	run = function()
-		if not E.On() and not E.temp then return { "Already in Advanced mode (.simple goes back)." } end
+		if not E.On() and not E.temp then return { L["Already in Advanced mode (.simple goes back)."] } end
 		-- after this press is done (the terminal closes on a command): the dialog takes its place
 		C_Timer.After(0, E.ShowConfirm)
 		return {}
@@ -755,7 +920,7 @@ ns:RegisterCommand("advanced", {
 })
 
 ns:RegisterCommand("fuzzy", {
-	desc = "Pure fuzzy finding, this once (.fzf too; also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced",
+	desc = L["Pure fuzzy finding, this once (.fzf too; also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced"],
 	aliases = { "fzf" },
 	run = function(args)
 		-- (after this press is done: running a command closes the terminal first)
@@ -765,43 +930,43 @@ ns:RegisterCommand("fuzzy", {
 })
 
 ns:RegisterCommand("simple", {
-	desc = "Switch to Simple mode: plain words (use hearthstone, nearest innkeeper, stamina food), results sorted by where they are",
+	desc = L["Switch to Simple mode: plain words (use hearthstone, nearest innkeeper, stamina food), results sorted by where they are"],
 	aliases = { "easymode", "easy" },
 	run = function()
-		if E.On() then return { "Already in Simple mode (.advanced for the full command line)." } end
+		if E.On() then return { L["Already in Simple mode (.advanced for the full command line)."] } end
 		E.Set(true)
-		return { "Simple mode: type what you're looking for in plain words (\"use hearthstone\", \"nearest innkeeper\", \"stamina food\"). .advanced for the full command line." }
+		return { L["Simple mode: type what you're looking for in plain words (\"use hearthstone\", \"nearest innkeeper\", \"stamina food\"). .advanced for the full command line."] }
 	end,
 })
 
 --- .help in Simple mode: plain sentences.
 function E.HelpLines()
 	return {
-		"Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it.",
-		"Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter, Tab or a click, then the thing itself. Shift+Left goes back to all of them (and back from wherever Enter took you).",
-		"Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\").",
-		"Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do: \"All 8 to party\" sends every result at once.",
-		"Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs).",
-		"Ask where to go: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (or \"zones for level 35\").",
-		"Flight paths you haven't learned: \"nearest unlearned flight master\", \"unlearned flight paths\" (a flight master's map tells Terminal which you know).",
-		"\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\".",
-		"Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes.",
-		"Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes).",
-		"Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced.",
-		"Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log).",
-		"Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out).",
-		"Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows.",
-		"Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list.",
-		"Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line).",
-		"Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line.",
-		"Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired).",
-		"Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it.",
-		"Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites).",
-		"Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here.",
-		"Ctrl+Enter does it and keeps the terminal open (for things that don't open a window).",
-		"F1 (or .keybinds) shows every key, for each mode; Esc there brings you back.",
-		"Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all).",
-		"Want the full command line (@kinds, filters, chat)? Type .advanced",
+		L["Terminal: type the name of anything (an item, a quest, a spell, a mount, a place, an NPC, an emote) and press Enter to open it."],
+		L["Typing lists where it was found (Bags, Quests, Emotes...): pick one with Enter, Tab or a click, then the thing itself. Shift+Left goes back to all of them (and back from wherever Enter took you)."],
+		L["Start with what to do: use, cast, summon, equip, wear, target, where, nearest (\"use hearthstone\", \"nearest innkeeper\")."],
+		L["Shift+Enter does the other thing (use the item, cast the spell, target the NPC); the footer says which. Right-click a row, or press Shift+Right, for all it can do: \"All 8 to party\" sends every result at once."],
+		L["Words like rare, epic, boe, food, potion, stamina, ready, todo, vendor, trainer narrow the search: \"stamina food\", \"vendor ratchet\" (a place's NPCs)."],
+		L["Ask where to go: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (or \"zones for level 35\")."],
+		L["Flight paths you haven't learned: \"nearest unlearned flight master\", \"unlearned flight paths\" (a flight master's map tells Terminal which you know)."],
+		L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."],
+		L["Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes."],
+		L["Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes)."],
+		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced."],
+		L["Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log)."],
+		L["Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out)."],
+		L["Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows."],
+		L["Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (the game asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list."],
+		L["Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line)."],
+		L["Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line."],
+		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
+		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
+		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
+		L["Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here."],
+		L["Ctrl+Enter does it and keeps the terminal open (for things that don't open a window)."],
+		L["F1 (or .keybinds) shows every key, for each mode; Esc there brings you back."],
+		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
+		L["Want the full command line (@kinds, filters, chat)? Type .advanced"],
 	}
 end
 

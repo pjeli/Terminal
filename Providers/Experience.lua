@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Experience (@experience, @exp, @xp; Simple mode: "xp", under Character): your character's experience and rested
 -- experience, read live, and your alts' as they were when you last played them. No bag addon records experience, so
@@ -49,7 +50,7 @@ function X.ReadMe()
 	local rested = Num(Safe(GetXPExhaustion)) or 0
 	local realm = Str(Safe(GetRealmName))
 	return {
-		name = ns.CharacterName() or Str(Safe(UnitName, "player")) or "You", realm = realm,
+		name = ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"], realm = realm,
 		class = Str(select(2, Safe(UnitClass, "player"))), level = level,
 		xp = (not maxed) and xp or nil, max = (not maxed) and xpMax or nil, rested = (not maxed) and rested or 0,
 		resting = Safe(IsResting) == true, maxed = maxed, disabled = disabled or nil, t = Now(),
@@ -106,14 +107,13 @@ local list -- (the last collect's rows: Enter lists them all)
 
 --- "level 23, 41% (rested 57%)", "level 60 (max)": what's sent and printed; `short`: the row's own ("Lv 23, 41%...").
 local function Summary(e, plain, short)
-	local lv = short and "Lv %d" or "level %d"
-	if e.maxed then return (lv .. " (max)"):format(e.level) end
-	local s = lv:format(e.level)
+	if e.maxed then return (short and L["Lv %d (max)"] or L["level %d (max)"]):format(e.level) end
+	local s = (short and L["Lv %d"] or L["level %d"]):format(e.level)
 	if e.xpMax then s = s .. (", %d%%"):format(Pct(e.xp or 0, e.xpMax)) end
 	if (e.rested or 0) > 0 and e.xpMax then -- (no experience read yet: no "rested 0%")
-		s = s .. (" (%srested %d%%)"):format(e.estimated and "~" or "", Pct(e.rested, e.xpMax))
+		s = s .. " " .. L["(%srested %d%%)"]:format(e.estimated and "~" or "", Pct(e.rested, e.xpMax))
 	end
-	if e.disabled and not plain then s = s .. " (experience turned off)" end
+	if e.disabled and not plain then s = s .. " " .. L["(experience turned off)"] end
 	return s
 end
 
@@ -122,7 +122,7 @@ local function ShareText(e) return e.who .. ": " .. Summary(e, true) end
 local function Lines()
 	local out = {}
 	for _, e in ipairs(list or {}) do
-		out[#out + 1] = "  " .. (e.color or "") .. e.who .. (e.color and "|r" or "") .. (e.mine and " (you)" or "")
+		out[#out + 1] = "  " .. (e.color or "") .. e.who .. (e.color and "|r" or "") .. (e.mine and (" " .. L["(you)"]) or "")
 			.. ":  " .. Summary(e) .. ((not e.mine) and ("  |cff9d9d9d(" .. Ago(e.seen) .. ")|r") or "")
 	end
 	return out
@@ -134,18 +134,18 @@ local CHATBOX = ns.ChatBoxSpec(ShareText)
 
 local function Tooltip(e, t)
 	t:SetText(e.who, 1, 0.82, 0)
-	t:AddLine(("Level %d"):format(e.level), 1, 1, 1)
+	t:AddLine(L["Level %d"]:format(e.level), 1, 1, 1)
 	if e.maxed then
-		t:AddLine("Max level", 0.6, 0.6, 0.6)
+		t:AddLine(L["Max level"], 0.6, 0.6, 0.6)
 	elseif e.xpMax then
-		t:AddDoubleLine("Experience", ("%s / %s (%d%%)"):format(Thousands(e.xp or 0), Thousands(e.xpMax), Pct(e.xp or 0, e.xpMax)), 1, 1, 1, 1, 1, 1)
-		t:AddDoubleLine("To level", Thousands(math.max(0, e.xpMax - (e.xp or 0))), 1, 1, 1, 1, 1, 1)
-		t:AddDoubleLine("Rested" .. (e.estimated and " (estimated)" or ""),
+		t:AddDoubleLine(L["Experience"], ("%s / %s (%d%%)"):format(Thousands(e.xp or 0), Thousands(e.xpMax), Pct(e.xp or 0, e.xpMax)), 1, 1, 1, 1, 1, 1)
+		t:AddDoubleLine(L["To level"], Thousands(math.max(0, e.xpMax - (e.xp or 0))), 1, 1, 1, 1, 1, 1)
+		t:AddDoubleLine(L["Rested"] .. (e.estimated and (" " .. L["(estimated)"]) or ""),
 			("%s (%d%%)"):format(Thousands(e.rested or 0), Pct(e.rested or 0, e.xpMax)), 1, 1, 1, 0.4, 0.6, 1)
 	end
-	if e.resting then t:AddLine(e.mine and "Resting now" or "Logged out resting (inn or city)", 0.4, 0.6, 1) end
-	if not e.mine then t:AddLine("Last played " .. Ago(e.seen), 0.6, 0.6, 0.6) end
-	t:AddLine("Enter: every character in chat    Shift+Enter: put it in the chat box", 0.6, 0.6, 0.6, true)
+	if e.resting then t:AddLine(e.mine and L["Resting now"] or L["Logged out resting (inn or city)"], 0.4, 0.6, 1) end
+	if not e.mine then t:AddLine(L["Last played %s"]:format(Ago(e.seen)), 0.6, 0.6, 0.6) end
+	t:AddLine(L["Enter: every character in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 local ICON_ME, ICON_ALT = "Interface\\Icons\\Spell_Holy_SurgeOfLight", "Interface\\Icons\\INV_Misc_Book_09"
@@ -166,7 +166,7 @@ local function Row(key, c, mine, myRealm, now)
 		secondary = ToChatBox, secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, shareLink = ShareText,
 	}
 	local d = { Summary(e, false, true) }
-	if mine then d[#d + 1] = "|cff9d9d9d(you)|r" else d[#d + 1] = "|cff9d9d9d" .. Ago(c.t) .. "|r" end
+	if mine then d[#d + 1] = "|cff9d9d9d" .. L["(you)"] .. "|r" else d[#d + 1] = "|cff9d9d9d" .. Ago(c.t) .. "|r" end
 	e.detail = table.concat(d, "  ")
 	return e
 end
@@ -201,7 +201,7 @@ function X.Collect()
 end
 
 ns:RegisterProvider("experience", {
-	label = "Experience",
+	label = L["Experience"],
 	color = "ff8a6cff", -- (the XP bar's purple)
 	aliases = { "experience", "exp", "xp", "rested" },
 	refreshOnOpen = true, -- (alts' rested keeps filling)
@@ -211,12 +211,12 @@ ns:RegisterProvider("experience", {
 })
 
 ns:RegisterCommand("xp", {
-	desc = "Your characters' experience and rested experience; .xp forget <name> drops an alt",
+	desc = L["Your characters' experience and rested experience; .xp forget <name> drops an alt"],
 	aliases = { "experience", "rested" },
 	complete = function()
 		local out = {}
 		for _, c in pairs(Chars() or {}) do
-			if type(c) == "table" and c.name then out[#out + 1] = { "forget " .. c.name, "drop it from the list" } end
+			if type(c) == "table" and c.name then out[#out + 1] = { "forget " .. c.name, L["drop it from the list"] } end
 		end
 		return out
 	end,
@@ -234,14 +234,14 @@ ns:RegisterCommand("xp", {
 			end
 			local p = ns.providers.experience
 			if p then p._dirty = true end
-			return { n > 0 and ("Forgot %s."):format(who) or ("No alt called %s (you can't forget the character you're on)."):format(who) }
+			return { n > 0 and L["Forgot %s."]:format(who) or L["No alt called %s (you can't forget the character you're on)."]:format(who) }
 		end
 		X.Collect()
 		local lines = Lines()
 		if #lines <= 1 then
-			lines[#lines + 1] = "  (Alts show up here once you've logged in on them with Terminal.)"
+			lines[#lines + 1] = "  " .. L["(Alts show up here once you've logged in on them with Terminal.)"]
 		end
-		table.insert(lines, 1, "Experience:")
+		table.insert(lines, 1, L["Experience:"])
 		return lines
 	end,
 })

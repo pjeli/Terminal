@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Keybindings: every action the game lets you bind (Move Forward, Toggle World Map, Action Button 3,
 -- addons' own...), with its keys. Enter opens Options > Keybindings scrolled to the action's section,
@@ -97,7 +98,7 @@ local NAV = {
 		local _, data = SectionFrame(e.category)
 		return data, "expanded"
 	end },
-	watchName = function() return "the Keybindings section's state" end,
+	watchName = function() return L["the Keybindings section's state"] end,
 }
 
 function K.NavMacro(e)
@@ -120,9 +121,9 @@ local function PointAtRow(e)
 	if e.category then
 		local _, data = SectionFrame(e.category)
 		if data and rawget(data, "expanded") then
-			hint = ("%s is further down in the %s section: scroll to it, and Terminal points at the row."):format(tostring(e.name), e.category)
+			hint = L["%s is further down in the %s section: scroll to it, and Terminal points at the row."]:format(tostring(e.name), e.category)
 		else
-			hint = ("%s is in the %s section of Keybindings: open it, and Terminal points at the row."):format(tostring(e.name), e.category)
+			hint = L["%s is in the %s section of Keybindings: open it, and Terminal points at the row."]:format(tostring(e.name), e.category)
 		end
 	end
 	if G and G.HighlightSetting then G.HighlightSetting(e.rowText or e.name, hint) end
@@ -139,13 +140,13 @@ local function OpenDirect(e)
 end
 
 local NeverOpen = ns.Never -- (Quick Keybind Mode: always pressed)
-local function QuickInCombat(e) ns:Print("In combat: Quick Keybind Mode can't be started now.") end
+local function QuickInCombat(e) ns:Print(L["In combat: Quick Keybind Mode can't be started now."]) end
 local function QuickStarted() ns:Trace("keybinds: the game started Quick Keybind Mode") end
 
 local ICON = "Interface\\Icons\\INV_Misc_Key_03"
 
 ns:RegisterProvider("keybinds", {
-	label = "Keybind",
+	label = L["Keybind"],
 	color = "ffffb2bf", -- (apart from @stored's lavender)
 	aliases = { "keybind", "keybinds", "binding", "bindings", "hotkey", "hotkeys", "key" },
 	noCombat = true, -- opening windows is protected in combat
@@ -158,9 +159,9 @@ ns:RegisterProvider("keybinds", {
 		local quick = Str(_G.QUICK_KEYBIND_MODE) or "Quick Keybind Mode"
 		out[1] = {
 			key = "quickkeybind", name = quick, icon = ICON,
-			detail = "Shift+Enter: start it",
+			detail = L["Shift+Enter: start it"],
 			text = "keybind keybinding binding hotkey bind keys quick mode",
-			tip = "Hover an action button, spell or macro and press a key to bind it.",
+			tip = L["Hover an action button, spell or macro and press a key to bind it."],
 			rowText = quick,
 			secure = OPEN_SPEC, isOpen = IsOpen, after = PointAtRow, activate = OpenDirect,
 			secondary = QuickInCombat, secondarySecure = QUICK_SPEC, secondaryIsOpen = NeverOpen, secondaryAfter = QuickStarted,
@@ -182,7 +183,7 @@ ns:RegisterProvider("keybinds", {
 					local keys = KeysText(k1, k2)
 					out[#out + 1] = {
 						key = command, name = name, icon = ICON,
-						detail = (keys or "not bound") .. (category and ("  ·  " .. category) or ""),
+						detail = (keys or L["not bound"]) .. (category and ("  ·  " .. category) or ""),
 						text = "keybind binding hotkey " .. (keys or "unbound") .. " " .. (category or ""),
 						rowText = name, category = category,
 						-- (always pressed while the section is unfolded by a click; the route off and the page open: pointed at only)

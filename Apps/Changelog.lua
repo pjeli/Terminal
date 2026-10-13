@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- .changelog: what changed, newest first, in a window where the terminal sits (like .atop).
 -- Arrows, Page Up/Down, Home/End and the mouse wheel scroll; Esc or ` closes. Only those keys are
@@ -13,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.47.9", when = "in testing",
+		v = "0.47.12", when = "in testing",
 		items = {
+			"Terminal speaks German, French, Spanish, Russian and Chinese (simplified), going by your game's language. In those languages Simple mode also understands the game's own words (rare, cloak, sword, healer, exalted, a class or a profession) and the main questions in your words: \"nearest ...\", \"mats for ...\", \"where to get ...\", \"where to learn ...\" and \"where is ...\". English always works too.",
 			"Quests with your party: \"party quests\" (Advanced: @group quests) shows each quest in your log with who in your party is on it too; Enter shares it with the party, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line: \"On the same quests: ... I can share: ...\". Where the game doesn't say who's on what, Terminal learns it from sharing (\"is already on that quest\", \"has accepted your quest\").",
 			"Typing a filter (Advanced: @questlog is:) offers only the values that make sense for the lists you named: quest states for the quest log, not online or equippable.",
 			"Terminal's games and radio are an addon of their own now (Terminal Extras, in its own folder), loaded the first time you use one: Terminal alone takes less memory. Keep it switched on in your AddOn list to play.",
@@ -167,7 +169,7 @@ local function Build()
 	thumb:SetColorTexture(1, 1, 1, 1)
 	thumb:SetWidth(3)
 
-	footer = Panel.Footer(frame, 10, "Up/Down, PgUp/PgDn, mouse wheel scroll  ·  Esc or ` close")
+	footer = Panel.Footer(frame, 10, L["Up/Down, PgUp/PgDn, mouse wheel scroll  ·  Esc or ` close"])
 	CL.frame = frame
 end
 
@@ -182,7 +184,7 @@ local function Layout()
 	footer:SetTextColor(dr, dg, db)
 	versionText:SetTextColor(dr, dg, db)
 	local version = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ns.name, "Version")
-	title:SetText(Theme.FixColors(("|cff%schangelog|r"):format(Hex(t.accent))))
+	title:SetText(Theme.FixColors(("|cff%s%s|r"):format(Hex(t.accent), L["changelog"])))
 	versionText:SetText(ns.name .. " " .. tostring(version or CL.LOG[1].v))
 	-- the text wraps at the box's width; the scroll child is as tall as it
 	local width = W - 20 - 24
@@ -197,7 +199,7 @@ function CL.IsShown() return Panel.Shown(frame) end
 function CL.Parts() return scroll, content, body end -- (tests)
 
 function CL.Open()
-	if not Panel.CanOpen("The changelog takes the arrow keys while open, which the game doesn't allow in combat.") then return false end
+	if not Panel.CanOpen(L["The changelog takes the arrow keys while open, which the game doesn't allow in combat."]) then return false end
 	Build()
 	Layout()
 	Panel.Opening(CL) -- (straight in, where the terminal was: it and the other panels go)
@@ -207,11 +209,11 @@ function CL.Open()
 end
 
 function CL.Close(why)
-	Panel.Close(frame, why, "Changelog")
+	Panel.Close(frame, why, L["Changelog"])
 end
 
 ns:RegisterCommand("changelog", {
-	desc = "What changed in Terminal, newest first (scroll back through the last few versions; Esc closes)",
+	desc = L["What changed in Terminal, newest first (scroll back through the last few versions; Esc closes)"],
 	aliases = { "changes", "news", "whatsnew" },
 	run = function() CL.Open() end,
 })

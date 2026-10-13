@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Items on your other characters, in banks, mailboxes, guild banks and the warband bank,
 -- read from the bag addon that records them: Syndicator (Baganator's) or BagBrother
@@ -18,8 +19,8 @@ ns.Stored = S
 
 
 local WHERE_LABEL = {
-	bags = "bags", bank = "bank", mail = "mail", equipped = "equipped", void = "void storage",
-	auctions = "auctions", guild = "guild bank", warband = "warband bank",
+	bags = L["bags"], bank = L["bank"], mail = L["mail"], equipped = L["equipped"], void = L["void storage"],
+	auctions = L["auctions"], guild = L["guild bank"], warband = L["warband bank"],
 }
 
 --- Syndicator's API when it's loaded (ready or not).
@@ -156,7 +157,7 @@ local function ReadSyndicator(A, add)
 			end
 			local wb = type(info.warband) == "table" and tonumber(info.warband[1]) or 0
 			if wb > 0 then
-				holders.warband = holders.warband or { key = "warband", who = "Warband", where = "warband", owner = "warband" }
+				holders.warband = holders.warband or { key = "warband", who = L["Warband"], where = "warband", owner = "warband" }
 				add(id, wb, it.itemLink, it.iconTexture, it.quality, holders.warband)
 			end
 		end
@@ -220,7 +221,7 @@ local function ReadBrother(bb, add)
 		end
 	end
 	if type(bb.account) == "table" then
-		local h = { key = "account", who = "Warband", where = "warband", owner = "warband" }
+		local h = { key = "account", who = L["Warband"], where = "warband", owner = "warband" }
 		for bag, t in pairs(bb.account) do
 			if tonumber(bag) then items(t, h) end
 		end
@@ -254,7 +255,7 @@ local function LiveCounts(e)
 	local worn = e.holders[S.mine.equipped and S.mine.equipped.key or ""]
 	local live = { bags = math.max(0, carrying - (worn and worn.count or 0)), bank = math.max(0, withBank - carrying) }
 	for where, n in pairs(live) do
-		local base = S.mine[where] or { key = "me|" .. where, who = S.mineName or "You", where = where, mine = true, owner = "me" }
+		local base = S.mine[where] or { key = "me|" .. where, who = S.mineName or L["You"], where = where, mine = true, owner = "me" }
 		local h = e.holders[base.key]
 		local had = h and h.count or 0
 		if had ~= n then
@@ -275,7 +276,7 @@ local QualityHex = ns.QualityHex -- (Util.lua)
 
 local function HolderLabel(h)
 	local where = WHERE_LABEL[h.where] or h.where
-	if h.mine then return "you (" .. where .. ")" end
+	if h.mine then return L["you (%s)"]:format(where) end
 	if h.where == "guild" or h.where == "warband" then return h.who end
 	if h.where == "bags" then return h.who end
 	return h.who .. " (" .. where .. ")"
@@ -349,7 +350,7 @@ local function Groups(e)
 		local g = byOwner[key]
 		if not g then
 			local name = h.who
-			if h.where == "guild" then name = h.who .. " (guild)" end
+			if h.where == "guild" then name = L["%s (guild)"]:format(h.who) end
 			g = { name = name, total = 0, parts = {}, class = h.class, mine = h.mine, place = h.where }
 			byOwner[key] = g
 			list[#list + 1] = g
@@ -376,10 +377,10 @@ local ClassHex = ns.ClassHex
 
 local function Breakdown(e)
 	local link = type(e.link) == "string" and e.link:find("^|c") and e.link or e.name
-	local lines = { link .. ":  " .. e.total .. " in all" }
+	local lines = { L["%s:  %d in all"]:format(link, e.total) }
 	for _, g in ipairs(Groups(e)) do
 		local parts = GroupParts(g)
-		lines[#lines + 1] = ("  %s%s: %d%s"):format(g.name, g.mine and " (you)" or "", g.total, parts ~= "" and ("  (" .. parts .. ")") or "")
+		lines[#lines + 1] = ("  %s%s: %d%s"):format(g.name, g.mine and (" " .. L["(you)"]) or "", g.total, parts ~= "" and ("  (" .. parts .. ")") or "")
 	end
 	return lines
 end
@@ -390,13 +391,13 @@ local function Tooltip(e, t)
 	local c = e.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[e.quality]
 	t:SetText(e.name, c and c.r or 1, c and c.g or 1, c and c.b or 1)
 	for _, g in ipairs(Groups(e)) do
-		local name = (ClassHex(g.class) or "|cffffffff") .. g.name .. "|r" .. (g.mine and " |cff9d9d9d(you)|r" or "")
+		local name = (ClassHex(g.class) or "|cffffffff") .. g.name .. "|r" .. (g.mine and (" |cff9d9d9d" .. L["(you)"] .. "|r") or "")
 		local parts = GroupParts(g)
 		t:AddDoubleLine(name, "|cffffffff" .. g.total .. "|r" .. (parts ~= "" and ("  |cff9d9d9d" .. parts .. "|r") or ""), 1, 1, 1, 1, 1, 1)
 	end
-	t:AddDoubleLine("Total", tostring(e.total), 1, 0.82, 0, 1, 0.82, 0)
+	t:AddDoubleLine(L["Total"], tostring(e.total), 1, 0.82, 0, 1, 0.82, 0)
 	t:AddLine(" ")
-	t:AddLine("Enter: show the ones you carry    Shift+Enter: show in chat", 0.6, 0.6, 0.6, true)
+	t:AddLine(L["Enter: show the ones you carry"] .. "    " .. L["Shift+Enter: show in chat"], 0.6, 0.6, 0.6, true)
 end
 S.Tooltip = Tooltip
 
@@ -423,7 +424,7 @@ function S.ChatSummary(e, room)
 	local n = #parts
 	while n > 0 do
 		local more = #parts - n
-		local text = head .. ": " .. table.concat(parts, ", ", 1, n) .. (more > 0 and (", +" .. more .. " more") or "")
+		local text = head .. ": " .. table.concat(parts, ", ", 1, n) .. (more > 0 and (", " .. L["+%d more"]:format(more)) or "")
 		if not room or #text <= room then return text end
 		n = n - 1
 	end
@@ -458,8 +459,8 @@ local function StoredRow(id, x, name)
 		link = x.link or ("item:" .. id),
 		-- short, so it fits beside the name; the tooltip has the rest
 		detail = "x" .. x.total .. "  ·  " .. (nOwners == 1
-			and ((first.where == "guild" and first.who .. " (guild)" or first.who) .. (first.mine and " (you)" or ""))
-			or (nOwners .. " places")),
+			and ((first.where == "guild" and L["%s (guild)"]:format(first.who) or first.who) .. (first.mine and (" " .. L["(you)"]) or ""))
+			or L["%d places"]:format(nOwners)),
 		quality = quality,
 		tooltip = Tooltip,
 		text = "stored " .. table.concat(words, " "),
@@ -471,12 +472,12 @@ local function StoredRow(id, x, name)
 end
 
 ns:RegisterProvider("stored", {
-	label = "Alts & bank",
+	label = L["Alts & bank"],
 	color = "ffb4a0ff",
 	aliases = { "stored", "alts", "alt", "bank", "banks", "storage", "everywhere", "syndicator", "bagnon" },
 	busy = function() return S.Busy() end, -- the terminal's spinner
 	explicit = true, -- every item on every character: only with @stored (a plain search offers it when only it has a match)
-	hintLabel = "your alts and banks",
+	hintLabel = L["your alts and banks"],
 	hintFull = true, -- (small enough to match fully: by item name and by who has it)
 	hintSecond = true, -- offered under a carried item of the same name, too
 	events = { "BAG_UPDATE_DELAYED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", "MAIL_INBOX_UPDATE",
@@ -509,7 +510,7 @@ ns:RegisterProvider("stored", {
 		local A = src == "Syndicator" and SyndicatorAPI() or nil
 		local bb = src == "BagBrother" and BrotherBags() or nil
 		if A and not SyndicatorReady(A) then A = nil end -- busy() says so; filled in once it's ready
-		S.mineName = ns.CharacterName() or "You" -- (with the surname, as Syndicator names characters)
+		S.mineName = ns.CharacterName() or L["You"] -- (with the surname, as Syndicator names characters)
 		if A then ReadSyndicator(A, add) elseif bb then ReadBrother(bb, add) end
 		for _, x in pairs(byID) do LiveCounts(x) end
 		for id, x in pairs(byID) do
@@ -561,9 +562,10 @@ login:SetScript("OnEvent", function() S.HookSyndicator() end)
 --- the server. The terminal shows a spinner with this text.
 function S.Busy()
 	local A = S.Source() == "Syndicator" and SyndicatorAPI()
-	if A and not SyndicatorReady(A) then return "Waiting for Syndicator to finish reading your characters" end
+	if A and not SyndicatorReady(A) then return L["Waiting for Syndicator to finish reading your characters"] end
 	if waitingCount > 0 then
-		return ("Loading %d item name%s from the server for %s's records"):format(waitingCount, waitingCount == 1 and "" or "s", S.Source() or "your bag addon")
+		return (waitingCount == 1 and L["Loading %d item name from the server for %s's records"] or L["Loading %d item names from the server for %s's records"])
+			:format(waitingCount, S.Source() or L["your bag addon"])
 	end
 end
 
@@ -571,16 +573,16 @@ end
 function S.Status()
 	local src = S.Source()
 	if not src then
-		if BrotherBags() then return "not used: BagBrother's records are there but Bagnon isn't loaded (they'd be stale)" end
-		return "not found (install Syndicator/Baganator or Bagnon)"
+		if BrotherBags() then return L["not used: BagBrother's records are there but Bagnon isn't loaded (they'd be stale)"] end
+		return L["not found (install Syndicator/Baganator or Bagnon)"]
 	end
 	local n = 0
 	if src == "Syndicator" then
-		if not SyndicatorReady(SyndicatorAPI()) then return "Syndicator, still loading (@stored)" end
+		if not SyndicatorReady(SyndicatorAPI()) then return L["Syndicator, still loading (@stored)"] end
 		n = #(SyndicatorAPI().GetAllCharacters() or {})
 		local connected = ConnectedOnly(SyndicatorConfig())
-		return ("Syndicator, %d character(s) tracked, counted as its tooltip counts them%s (@stored)"):format(
-			n, connected and " (connected realms only)" or "")
+		return L["Syndicator, %d character(s) tracked, counted as its tooltip counts them%s (@stored)"]:format(
+			n, connected and (" " .. L["(connected realms only)"]) or "")
 	else
 		for realm, owners in pairs(BrotherBags()) do
 			if realm ~= "account" and type(owners) == "table" then
@@ -588,5 +590,5 @@ function S.Status()
 			end
 		end
 	end
-	return ("%s, %d character(s) (@stored)"):format(src, n)
+	return L["%s, %d character(s) (@stored)"]:format(src, n)
 end

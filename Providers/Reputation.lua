@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- Reputations: every faction you know, searchable by name or with @reputation (@rep,
 -- @faction), showing your standing (Honored, Revered...) and progress. Enter opens the
@@ -145,17 +146,17 @@ local function Watch(e)
 			end
 		end
 	end
-	ns:Print(ok and ("Watching " .. e.name .. ".") or ("Couldn't watch " .. e.name .. "."))
+	ns:Print(ok and L["Watching %s."]:format(e.name) or L["Couldn't watch %s."]:format(e.name))
 end
 
 -- no character key to ride on: say so rather than open it from our code
 local function NoKey(e)
-	ns:Print("Bind a key to the Reputation tab to open it from here (" .. e.name .. ": " .. (e.standing or "?") .. ").")
+	ns:Print(L["Bind a key to the Reputation tab to open it from here (%s: %s)."]:format(e.name, e.standing or "?"))
 end
 local REP_SECURE = { binding = "TOGGLECHARACTER2", click = ns.Secure.REP_CLICK } -- click: a mouse click opens the tab
 
 ns:RegisterProvider("reputation", {
-	label = "Reputation",
+	label = L["Reputation"],
 	color = "fff07ef0", -- (orchid: apart from dungeons' blue)
 	aliases = { "reputation", "reputations", "rep", "reps", "faction", "factions", "standing", "repuatation" },
 	noCombat = true, -- opening the character window is blocked in combat
@@ -180,7 +181,7 @@ ns:RegisterProvider("reputation", {
 				local parts = {}
 				if standing then parts[#parts + 1] = standing end
 				if progress then parts[#parts + 1] = progress end
-				if r.watched then parts[#parts + 1] = "watched" end
+				if r.watched then parts[#parts + 1] = L["watched"] end
 				out[#out + 1] = {
 					key = r.id or r.name,
 					name = r.name,

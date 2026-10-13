@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 
 -- The prompt Terminal draws over the game's text box out of combat: the query set and measured, wrapped onto more
 -- lines when long, the caret and the selection, mouse clicks and drags on it, the loading spinner at its end, and the
@@ -6,7 +7,7 @@ local ns = select(2, ...)
 
 local UI = ns.UI
 local Theme = ns.Theme
-local L = UI.layout
+local LY = UI.layout
 local EasyOn, Wake, NextPos, BUSY_DOTS = UI.EasyOn, UI.Wake, UI.NextPos, UI.BUSY_DOTS
 
 local MAX_LINES = 8 -- a long prompt wraps onto more lines (the header grows down)
@@ -110,7 +111,7 @@ function UI:PromptXY(pos)
 	end
 	local first = lines[i][1]
 	local x = pos >= first and Width(text:sub(first, pos)) or 0
-	return math.min(x, LineRoom()), -(i - 1) * L.LINE_H, i
+	return math.min(x, LineRoom()), -(i - 1) * LY.LINE_H, i
 end
 
 local selBands = {} -- the selection on lines after its first (selText is the first)
@@ -155,7 +156,7 @@ function UI:PlaceTextSel()
 		local from = i == i1 and x1 or 0
 		local to = i == i2 and x2 or math.min(Width(text:sub(lines[i][1], lines[i][2])), LineRoom())
 		band:ClearAllPoints()
-		band:SetPoint("LEFT", edit, "LEFT", from, -(i - 1) * L.LINE_H)
+		band:SetPoint("LEFT", edit, "LEFT", from, -(i - 1) * LY.LINE_H)
 		band:SetSize(math.max(3, to - from), h)
 		band:Show()
 	end
@@ -177,7 +178,7 @@ function UI:UpdateCaret()
 		return
 	end
 	local text = edit:GetText()
-	self:SetPromptExtra((#self:PromptLines() - 1) * L.LINE_H)
+	self:SetPromptExtra((#self:PromptLines() - 1) * LY.LINE_H)
 	local x, y = self:PromptXY(self.cursor)
 	if y ~= self.caretY then self.caretX = nil end -- (to another line: no gliding across)
 	self.caretTo, self.caretY = x, y
@@ -256,7 +257,7 @@ local function IndexAt(x, down)
 	local edit = UI.edit
 	local text = edit:GetText()
 	local lines = UI:PromptLines()
-	local i = math.max(1, math.min(#lines, 1 + math.floor((down or 0) / L.LINE_H + 0.5)))
+	local i = math.max(1, math.min(#lines, 1 + math.floor((down or 0) / LY.LINE_H + 0.5)))
 	local first, last = lines[i][1], lines[i][2]
 	local best, bestD, pos = first - 1, math.abs(x), first - 1
 	while pos < last do
@@ -317,7 +318,7 @@ end
 --- What is still loading, one line per provider that says so.
 function UI:BusyLines()
 	local out, who = {}, {}
-	if self.searchJob then out[1] = "Searching... (the best matches so far are shown)" end
+	if self.searchJob then out[1] = L["Searching... (the best matches so far are shown)"] end
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		if p.busy then
@@ -501,7 +502,7 @@ local function SyntaxLine(i)
 		syntaxLines[i] = fs
 	end
 	fs:ClearAllPoints()
-	fs:SetPoint("LEFT", edit, "LEFT", 0, -(i - 1) * L.LINE_H)
+	fs:SetPoint("LEFT", edit, "LEFT", 0, -(i - 1) * LY.LINE_H)
 	return fs
 end
 

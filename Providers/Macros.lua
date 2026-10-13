@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 local MACRO_WINDOW, MacroWindowOpen = ns.MACRO_WINDOW, ns.MacroWindowOpen -- (Panels.lua)
 
@@ -44,7 +45,7 @@ local function OneLine(body)
 end
 
 ns:RegisterProvider("macros", {
-	label = "Macro",
+	label = L["Macro"],
 	color = "ffffa040",
 	aliases = { "macro", "macros" },
 	events = { "UPDATE_MACROS" },
@@ -62,7 +63,7 @@ ns:RegisterProvider("macros", {
 					name = name,
 					icon = icon,
 					text = body, -- what the macro says is searchable too
-					detail = (index > 120 and "Character" or "General") .. (body ~= "" and ("  " .. OneLine(body)) or ""),
+					detail = (index > 120 and L["Character"] or L["General"]) .. (body ~= "" and ("  " .. OneLine(body)) or ""),
 					tip = body:gsub("|", "||"),
 					secure = MACRO_RUN,
 					secondary = ShowMacroText, -- without the secure route: its text in a copyable window
