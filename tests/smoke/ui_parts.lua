@@ -89,7 +89,8 @@ do -- ">>> party": the rows to send are grouped once per list (CollapseGroup), n
 	check(calls == 1, "the next list: grouped once: " .. calls)
 	-- a pick list after the channel (no grouped list): the footer still counts what's shown
 	SH.GroupRows, SH.Prefetch = base, pre
-	UI:SetQuery("@panel >>> party q:", 19); T.FlushAll()
+	UI:SetQuery("@item >>> party q:", 18); T.FlushAll() -- (q: judges items: "@panel q:" offers nothing since 0.47.7)
+	check(UI.Results()[1] and UI.Results()[1].syntaxRow, "the pick list shows")
 	check(UI.groupList == nil and UI.groupRows == nil, "a pick list: nothing grouped kept")
 	UI:Hide(); T.FlushAll()
 	ns.db.easyMode = wasEasy; UI:EasyChanged()

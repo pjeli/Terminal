@@ -205,7 +205,9 @@ function UI:SyntaxRows(text)
 		end
 	else
 		local key, val = last:match("^(%a+):(%S*)$")
-		local values = key and ns.Filters and ns.Filters.VALUES[ns.Lower(key)]
+		-- (only the values that judge a list typed: "@questlog is:" isn't offered online or equippable)
+		local values = key and ns.Filters and (ns.Filters.ValuesFor and ns.Filters.ValuesFor(key, before)
+			or ns.Filters.VALUES[ns.Lower(key)])
 		if not values then return nil end
 		val = ns.Lower(val)
 		for _, v in ipairs(values) do

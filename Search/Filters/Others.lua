@@ -369,6 +369,86 @@ F.VALUES = {
 		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "riding" },
 }
 
+-- Which lists each value judges (0.47.7, the player: "@questlog is:" offered online, ready, equippable...): the pick
+-- list and Tab offer only the values that judge a list typed (@kinds; "@group quests" = the party quests). A key's "*"
+-- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
+-- (tests/smoke/search.lua walks every is: value).
+local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored" }
+local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "recipes", "missing" } -- (and what recipes make)
+local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
+local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
+-- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
+-- done, so the quest log isn't offered them. Its own: complete (ready to turn in), grey, leftbehind, drop)
+local QUESTS = { "questie", "achievements" }
+local PEOPLE = { "guild", "friends", "who", "group" }
+local NPC = { "npc" }
+local MAIL = { "mail" }
+local GROUP = { "group" }
+local SPOTS = { "npc", "mailbox", "dungeon", "raid", "flight" }
+F.APPLIES = {
+	is = {
+		done = QUESTS, todo = QUESTS, complete = { "quests" }, ready = { "spells" }, -- (ready on a quest = complete: offered once)
+		usable = ITEMS, equippable = ITEMS, upgrade = ITEMS, quest = MADE, soulbound = OWN, boe = MADE,
+		online = PEOPLE, offline = PEOPLE,
+		craftable = RECIPES, skillup = RECIPES, orange = RECIPES, yellow = RECIPES, green = RECIPES,
+		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
+		passive = { "spells" }, unplaced = { "spells" }, capped = { "currency" },
+		vendor = NPC, trainer = NPC, classtrainer = NPC, proftrainer = NPC, innkeeper = NPC, banker = NPC, repair = NPC,
+		auctioneer = NPC, questgiver = NPC, stablemaster = NPC, battlemaster = NPC, pvpvendor = NPC, pvp = NPC,
+		flightmaster = { "npc", "flight" }, flightpath = { "flight" }, learned = { "flight", "recipes", "professions" },
+		unlearned = { "flight", "recipes", "professions", "missing" }, unknown = { "flight", "recipes", "professions", "missing" },
+		learnable = { "recipes", "professions", "missing" },
+		cod = MAIL, expiring = MAIL, unread = MAIL, returned = MAIL, auction = MAIL, money = MAIL, sent = MAIL, incoming = MAIL,
+		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
+		shareable = { "groupquests" }, together = { "groupquests" },
+	},
+	missing = { ["*"] = GROUP },
+	standing = { ["*"] = { "reputation" } },
+	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
+	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "mail" } },
+	faction = { ["*"] = { "npc", "flight" } },
+	sort = { ["*"] = SPOTS }, near = { ["*"] = SPOTS },
+	fish = { ["*"] = { "maps" } },
+	class = { ["*"] = { "talents" } },
+	trainer = { ["*"] = NPC },
+}
+
+--- The lists the typed words name: every @kind (a set of provider ids), "@group" with "quests" being the party quests'
+--- (as Search.lua's Scan.Parse reads it); nil when none is named.
+function F.KindsTyped(text)
+	local kinds
+	local quests = false
+	for w in tostring(text or ""):gmatch("%S+") do
+		if w:sub(1, 1) == "@" then
+			local p = ns.ResolveProvider and ns:ResolveProvider(w:sub(2))
+			if p then kinds = kinds or {}; kinds[p.id] = true end
+		elseif Lower(w) == "quests" or Lower(w) == "quest" then
+			quests = true
+		end
+	end
+	if kinds and kinds.group and quests then kinds.group, kinds.groupquests = nil, true end
+	return kinds
+end
+
+--- The values Tab and the pick list offer after "key:", for what `before` (the words before it) names: those that judge
+--- a list typed, all of them with no @kind typed. Nil when the key has no values to offer.
+function F.ValuesFor(key, before)
+	key = Lower(key or "")
+	local values = F.VALUES[key]
+	if not values then return nil end
+	local kinds = F.KindsTyped(before)
+	local applies = F.APPLIES[key]
+	if not (kinds and applies) then return values end
+	local out = {}
+	for _, v in ipairs(values) do
+		local where = applies[v] or applies["*"]
+		local fits = where == nil
+		for _, k in ipairs(where or {}) do if kinds[k] then fits = true break end end
+		if fits then out[#out + 1] = v end
+	end
+	return out
+end
+
 -- the keys, in the order .filters lists them, with an example each
 F.HELP = {
 	{ "lvl:20-30", "quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)" },

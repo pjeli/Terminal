@@ -126,7 +126,8 @@ end
 --- with values to complete, and its completion.
 local function CompleteFilterValue(text, last)
 	local fkey, fval = last:match("^(%a+):(%S*)$")
-	local values = fkey and ns.Filters and ns.Filters.VALUES[ns.Lower(fkey)]
+	local values = fkey and ns.Filters and (ns.Filters.ValuesFor and ns.Filters.ValuesFor(fkey, text:sub(1, #text - #last))
+		or ns.Filters.VALUES[ns.Lower(fkey)])
 	if not values then return false end
 	local new, final = CompleteWord(ns.Lower(fval), values)
 	if not new then return true, nil end

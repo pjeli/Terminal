@@ -341,6 +341,50 @@ do
 	UI:Open("@items")
 	check(not (UI.Results()[1] and UI.Results()[1].syntaxRow), "Open(\"@items\"): not the pick list")
 	UI:Hide(); FlushAll()
+	-- 0.47.7 (the player: "@questlog is:" offered online, ready, equippable...): only the values that judge a list typed
+	UI:Open("")
+	local function Picks(text)
+		UI:SetQuery("")
+		typeText(text)
+		local t = {}
+		for _, e in ipairs(UI.Results()) do if e.syntaxRow then t[#t + 1] = e.name:gsub("^%a+:", "") end end
+		return table.concat(t, " ")
+	end
+	local quest = Picks("@questlog is:")
+	check(quest == "complete grey leftbehind drop", "@questlog is: only the quest log's: " .. quest)
+	check(Picks("@achievement is:") == "done todo", "@achievement is: done todo: " .. Picks("@achievement is:"))
+	local item = Picks("@item is:")
+	check(item:find("usable", 1, true) and item:find("equippable", 1, true) and item:find("boe", 1, true)
+		and not item:find("online", 1, true) and not item:find("leftbehind", 1, true), "@item is: the items': " .. item)
+	check(Picks("@group quests is:") == "shareable together", "@group quests is: the party quests': " .. Picks("@group quests is:"))
+	check(Picks("@group is:"):find("^online offline dead tank healer dps far inrange unbuffed$"), "@group is: " .. Picks("@group is:"))
+	check(Picks("@spell @currency is:") == "ready passive unplaced capped", "two lists: both lists' values: " .. Picks("@spell @currency is:"))
+	check(#Picks("is:"):gsub("%S+", "x"):gsub(" ", "") == #ns.Filters.VALUES.is, "no list typed: every value")
+	check(Picks("@questlog stat:") == "" and Picks("@npc trainer:"):find("^class classes"), "a key that judges no list typed: none")
+	check(Picks("@questlog is:co") == "complete", "narrowed by what's typed: " .. Picks("@questlog is:co"))
+	-- Tab completes from them too ("co": complete for the quest log; cod or complete with no list typed)
+	UI:SetQuery("")
+	typeText("@questlog is:co")
+	local qc = ns.Filters.ValuesFor("is", "@questlog ")
+	local fromAll = 0
+	for _, v in ipairs(ns.Filters.VALUES.is) do if v:sub(1, 2) == "co" then fromAll = fromAll + 1 end end
+	check(#qc == 4 and fromAll > 1, "the quest log's values, several from all of them")
+	-- every value is said to judge some list, and every list named is one (a typo would hide a value everywhere)
+	local known = { loot = true, questie = true, npc = true } -- (AtlasLoot's and Questie's lists: not loaded in every run)
+	for _, id in ipairs(ns.providerOrder) do known[id] = true end
+	local undeclared, strange = {}, {}
+	for key, values in pairs(ns.Filters.VALUES) do
+		local applies = ns.Filters.APPLIES[key]
+		if applies then
+			for _, v in ipairs(values) do
+				local where = applies[v] or applies["*"]
+				if not where then undeclared[#undeclared + 1] = key .. ":" .. v end
+				for _, k in ipairs(where or {}) do if not known[k] then strange[#strange + 1] = key .. ":" .. v .. " -> " .. k end end
+			end
+		end
+	end
+	check(#undeclared == 0 and #strange == 0, "every value judges a list that exists: " .. table.concat(undeclared, ", ") .. " " .. table.concat(strange, ", "))
+	UI:Hide(); FlushAll()
 	-- Simple mode: none of it
 	ns.db.easyMode = true
 	UI:Open("")
