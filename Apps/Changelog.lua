@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.48.1", when = "in testing",
+		v = "0.48.2", when = "in testing",
 		items = {
+			"Raid lockouts: @lockout (Simple mode: \"my lockouts\", \"raid lockouts\", \"am i saved\") lists what each of your characters is saved to, how many bosses are down and when it resets; Enter names the bosses, Shift+Enter links your own in chat.",
 			"Listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).",
 		},
 	},

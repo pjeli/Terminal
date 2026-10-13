@@ -604,6 +604,11 @@ Scan.ANSWERS = {
 		local q = ns.GroupQuests and ns.GroupQuests.Question(text)
 		if q then return ns.GroupQuests.Answer(q) end
 	end,
+	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
+	function(text)
+		local q = ns.Lockouts and ns.Lockouts.Question(text)
+		if q then return ns.Lockouts.Answer(q) end
+	end,
 	-- "my mail", "mail running out", "cod mail": Mail.lua
 	function(text)
 		local q = ns.Mail and ns.Mail.Question(text)

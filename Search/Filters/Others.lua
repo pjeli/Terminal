@@ -340,6 +340,10 @@ local function PartyIs(test) return function(e) return e.kind == "groupquests" a
 IS.shareable = PartyIs(function(e) return e.canShare == true end)
 IS.together = PartyIs(function(e) return e.together == true end)
 IS.sharable, IS.toshare, IS.common, IS.same = IS.shareable, IS.shareable, IS.together, IS.together
+-- lockouts (Lockouts.lua): a raid's (world bosses too) or a dungeon's
+IS.raid = function(e) return e.kind == "lockouts" and e.isRaid == true end
+IS.dungeon = function(e) return e.kind == "lockouts" and not e.isRaid end
+IS.raids, IS.dungeons, IS.heroic = IS.raid, IS.dungeon, IS.dungeon
 KEYS.missing = function(v) return ns.Group and ns.Group.MissingFilter(v) or nil end
 KEYS.needs = KEYS.missing
 IS.notdone, IS.undone = IS.todo, IS.todo
@@ -353,7 +357,7 @@ F.VALUES = {
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
-		"shareable", "together" },
+		"shareable", "together", "raid", "dungeon" },
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
@@ -402,6 +406,7 @@ F.APPLIES = {
 		cod = MAIL, expiring = MAIL, unread = MAIL, returned = MAIL, auction = MAIL, money = MAIL, sent = MAIL, incoming = MAIL,
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },
+		raid = { "lockouts" }, dungeon = { "lockouts" },
 	},
 	missing = { ["*"] = GROUP },
 	standing = { ["*"] = { "reputation" } },
@@ -477,6 +482,7 @@ F.HELP = {
 	{ "is:unlearned", L["@flight: flight paths you haven't learned (learned: those you have; one no flight master's map has shown yet counts as unlearned)"] },
 	{ "is:dead", L["@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)"] },
 	{ "is:shareable", L["@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too"] },
+	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too) incoming (the auction house's news: sold, won, outbid, expired); on:<character>"] },
 	{ "in:elwynn_forest", L["a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)"] },
 	{ "-is:soulbound", L["not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)"] },

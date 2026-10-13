@@ -69,7 +69,7 @@ E.CATEGORIES = {
 	{ id = "group", label = L["Group"], kinds = { "group" }, icon = "Interface\\Icons\\Spell_Holy_PrayerOfFortitude" },
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
-	{ id = "character", label = L["Character"], kinds = { "gold", "experience", "reputation", "currency", "skills", "equipmentset" },
+	{ id = "character", label = L["Character"], kinds = { "gold", "experience", "lockouts", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
 	{ id = "emotes", label = L["Emotes"], kinds = { "slash" }, keep = IsEmote, icon = "Interface\\Icons\\Spell_Shadow_SoothingKiss" },
 	{ id = "slash", label = L["Slash commands"], kinds = { "slash" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01" },
@@ -462,6 +462,9 @@ local function MailVerbs(e) -- (your own mail at an open mailbox: pointed at in 
 	local open = e.mailKind == "mail" and e.mine and ns.Mail and ns.Mail.open
 	return open and L["show in inbox"] or L["show in chat"], L["nearest mailbox"]
 end
+local function LockoutVerbs(e) -- (your own: the game's lockout link; an alt's: in words, Lockouts.lua)
+	return L["show in chat"], (e.mine and not e.world) and L["link in chat"] or L["put in the chat box"]
+end
 local function GroupVerbs(e) -- (Shift+Enter: your buff they're missing, when you have one: Group.lua)
 	return L["target"], e.buffWith and L["cast %s"]:format(e.buffWith) or nil
 end
@@ -472,7 +475,7 @@ E.VERBS = {
 	source = SourceVerbs,
 	stored = { L["show in bags"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
 	loot = { L["show in AtlasLoot"], L["link in chat"] },
-	mail = MailVerbs, group = GroupVerbs,
+	mail = MailVerbs, group = GroupVerbs, lockouts = LockoutVerbs,
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
@@ -673,6 +676,8 @@ local function QuestionToAdvanced(text)
 	end
 	local pq = ns.GroupQuests and ns.GroupQuests.Question and ns.GroupQuests.Question(text)
 	if pq then return ns.GroupQuests.ToAdvanced(pq) end
+	local lq2 = ns.Lockouts and ns.Lockouts.Question and ns.Lockouts.Question(text)
+	if lq2 then return ns.Lockouts.ToAdvanced(lq2) end
 	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
 	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
@@ -960,6 +965,7 @@ function E.HelpLines()
 		L["Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line)."],
 		L["Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line."],
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
+		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
 		L["Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here."],
