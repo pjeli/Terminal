@@ -11,13 +11,14 @@ local saved = { providers = ns.providers, order = ns.providerOrder, name = C_Ite
 	qdb = ns.QuestieData.DB, vendors = ns.db.vendorItems, easy = ns.db.easyMode, fac = _G.UnitFactionGroup }
 local D = ns.Filters.DIFF
 local NAMES = { [2840] = "Copper Bar", [2880] = "Weak Flux", [2589] = "Linen Cloth", [2835] = "Rough Stone",
-	[2320] = "Coarse Thread", [2318] = "Light Leather" }
+	[2320] = "Coarse Thread", [2318] = "Light Leather", [2836] = "Coarse Stone" }
 C_Item.GetItemNameByID = function(id) return NAMES[id] end
-local BAGS, BANK = { [2840] = 20, [2589] = 4 }, { [2840] = 4 }
+local BAGS, BANK = { [2840] = 20, [2589] = 4, [2836] = 30 }, { [2840] = 4 }
 C_Item.GetItemCount = function(id, bank) return (BAGS[id] or 0) + (bank and (BANK[id] or 0) or 0) end
 -- AtlasLoot's levels: { item, profession, learned, yellow, grey }
 local DATA = { [2661] = { 2857, 2, 35, 75, 115 }, [2660] = { 2862, 2, 1, 15, 35 }, [2737] = { 2844, 2, 15, 55, 95 },
-	[3116] = { 3470, 2, 25, 65, 105 }, [3320] = { 3473, 2, 30, 70, 110 } }
+	[3116] = { 3470, 2, 25, 65, 105 }, [3320] = { 3473, 2, 30, 70, 110 }, [2665] = { 2863, 2, 75, 65, 80 },
+	[3326] = { 3478, 2, 75, 75, 100 } }
 _G.AtlasLoot = { Data = { Profession = { GetProfessionData = function(s) return DATA[s] end } } }
 -- Questie: Coarse Thread sold by a vendor anyone can buy from; Light Leather only by one hostile to both sides
 local FIELDS = { [2320] = { vendors = { 601 } }, [2318] = { vendors = { 602 } } }
@@ -45,6 +46,9 @@ ns:RegisterProvider("recipes", { label = "Recipe", aliases = { "recipe" }, colle
 	{ name = "Green Thing", recipeID = 900002, profName = BS, profID = 164, difficulty = D.green, reagents = { { 2840, 1 } }, text = BS },
 	{ name = "Thread Bracers", recipeID = 3320, profName = BS, profID = 164, difficulty = D.orange,
 		reagents = { { 2320, 3 }, { 2318, 2 } }, text = BS },
+	-- (orange to AtlasLoot's levels at 50, grey in the game's window: the player's Coarse Sharpening Stone, 0.48.3)
+	{ name = "Coarse Sharpening Stone", recipeID = 2665, profName = BS, profID = 164, difficulty = D.grey,
+		reagents = { { 2836, 1 } }, text = BS },
 }) })
 ns:RegisterProvider("stored", { label = "Stored", aliases = { "stored" }, collect = Rows({ { name = "Copper Bar", itemID = 2840, total = 40 } }) })
 ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Copper Bar", itemID = 2840 } }) })
@@ -57,6 +61,12 @@ do
 	check(PL.Chance(e, 50) == 1 and math.abs(PL.Chance(e, 75) - 0.5) < 1e-9 and PL.Chance(e, 95) == 0, "the game's chance by AtlasLoot's levels")
 	check(select(2, PL.Chance(e, 60)) == "yellow" and select(2, PL.Chance(e, 80)) == "green", "yellow, then green")
 	check(PL.Chance({ recipeID = 1, difficulty = D.yellow }) == 0.75, "no levels: the window's colour")
+	-- AtlasLoot's levels aren't always Forever's: the window's colour wins when it's worse
+	check(PL.Chance({ recipeID = 2665, difficulty = D.grey }, 50) == 0, "grey in the game's window, orange to AtlasLoot: grey")
+	local c, col = PL.Chance({ recipeID = 3326, difficulty = D.yellow }, 50)
+	check(c == 0.75 and col == "yellow", "yellow in the window, orange to AtlasLoot: yellow (" .. tostring(c) .. ", " .. tostring(col) .. ")")
+	c, col = PL.Chance({ recipeID = 2737, difficulty = D.orange }, 60)
+	check(math.abs(c - 0.875) < 1e-9 and col == "yellow", "AtlasLoot's worse colour still counts: " .. tostring(c) .. ", " .. tostring(col))
 	check(PL.VendorSold(2880) and PL.VendorSold(2320) and not PL.VendorSold(2318) and not PL.VendorSold(2840),
 		"sold: a vendor's window showed it, or a friendly Questie vendor; not one hostile to you")
 

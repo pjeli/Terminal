@@ -12,7 +12,8 @@ local L = ns.L
 -- and again while the materials last, each craft's chance as the game's: 1 while orange, then (grey - skill) / (grey -
 -- yellow) through yellow and green, 0 at grey (the levels AtlasLoot's crafting data has: { item, profession, learned,
 -- yellow, grey }); a recipe AtlasLoot doesn't know keeps the chance of the colour its window showed last (orange 1,
--- yellow 0.75, green 0.25). It stops at your skill's cap (train for more), and is an estimate: "about +12".
+-- yellow 0.75, green 0.25), and that colour wins over AtlasLoot's when it's worse (PL.Chance: one the window showed grey
+-- is never planned). It stops at your skill's cap (train for more), and is an estimate: "about +12".
 
 local PL = {}
 ns.Plan = PL
@@ -82,19 +83,31 @@ function PL.Levels(recipeID)
 	levels[recipeID] = false
 end
 
---- A craft's chance of a skill point at this skill, and its colour then ("orange", "yellow", "green", "grey").
+local WORSE = { orange = 0, yellow = 1, green = 2, grey = 3 }
+
+--- A craft's chance of a skill point at this skill, and its colour then ("orange", "yellow", "green", "grey"). AtlasLoot's
+--- levels aren't always Forever's (0.48.3, the player: Coarse Sharpening Stone, orange to AtlasLoot at 62 Blacksmithing,
+--- grey in the game's window, was planned): the colour the window showed last wins when it's worse (the skill only goes
+--- up since: one it showed grey gives nothing now).
 function PL.Chance(e, skill)
-	local low, high = PL.Levels(e.recipeID)
-	if low and skill then
-		if skill < low then return 1, "orange" end
-		if skill >= high then return 0, "grey" end
-		return (high - skill) / (high - low), (skill < low + (high - low) / 2) and "yellow" or "green"
-	end
 	local D = Diff()
 	local d = e.difficulty
-	local colour = (d == D.orange and "orange") or (d == D.yellow and "yellow") or (d == D.green and "green")
+	local shown = (d == D.orange and "orange") or (d == D.yellow and "yellow") or (d == D.green and "green")
 		or (d == D.grey and "grey") or nil
-	return colour and PL.SHOWN_CHANCE[colour] or 0, colour
+	local low, high = PL.Levels(e.recipeID)
+	if low and skill then
+		local chance, colour
+		if skill < low then
+			chance, colour = 1, "orange"
+		elseif skill >= high then
+			chance, colour = 0, "grey"
+		else
+			chance, colour = (high - skill) / (high - low), (skill < low + (high - low) / 2) and "yellow" or "green"
+		end
+		if shown and WORSE[shown] > WORSE[colour] then return math.min(chance, PL.SHOWN_CHANCE[shown]), shown end
+		return chance, colour
+	end
+	return shown and PL.SHOWN_CHANCE[shown] or 0, shown
 end
 
 ----------------------------------------------------------------------
