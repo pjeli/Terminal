@@ -108,7 +108,7 @@ local function LegacyTabFallback() ns:Print(L["Open the Legacy window from its b
 local Never = ns.Never
 
 
--- A tab by its path: a global ("LegacyChallengeTab") or a key under one ("CommunitiesFrame.RosterTab").
+-- A tab by its path: a global ("PaperDollSideBarTab1") or a key under one ("CommunitiesFrame.RosterTab").
 local function TabFrame(path)
 	local f = _G
 	for part in path:gmatch("[^%.]+") do
@@ -134,10 +134,15 @@ local function TabFallback(e) ns:Print(L["Switch to %s in its window (a click fr
 -- (Blizzard_AchievementUI/Camelot), which shows the window on that page. So Challenges is opened by the game's click on
 -- AchievementMicroButton (only when not already showing: it toggles), checked afterwards: a press that didn't show it
 -- (the button refused: no achievement yet, say) is remembered (db.legacyRoute = false) and the window's button is used,
--- with Terminal pointing at the tab. The Tree has no such route (nothing but its tab selects it; running the window's
--- code from Terminal would taint the talent tree): the window opens (on the Tree if that's where you left it) and
--- Terminal points at the Tree tab, saying once why it can't switch it.
-local LEGACY_PAGES = { LegacyChallengeTab = 2, LegacyTreeTab = 3 } -- (the window's own page numbers)
+-- with Terminal pointing at the tab. The Tree and Rewards have no such route (nothing but a real mouse release on their
+-- tab selects them: LegacySystemFrameTabMixin's custom OnMouseUp fires "Legacy.SelectPage"; no binding, no button, no C
+-- call; running the window's code from Terminal or a /run line would taint it, the Tree's talent panel with it): the
+-- window opens (on the page you left it on; Rewards the first time a session, its OnLoad picks page 1) and Terminal
+-- points at the tab, saying once why it can't switch it.
+-- 0.48.7: the tabs are keys of LegacySystemFrame (parentKey, no name: Blizzard_LegacySystem.xml), not globals, so
+-- "LegacyTreeTab" alone found nothing and the Tree tab was never pointed at.
+local LEGACY_PAGES = { -- (the window's own page numbers, by the tab's path)
+	["LegacySystemFrame.LegacyRewardTrackTab"] = 1, ["LegacySystemFrame.LegacyChallengeTab"] = 2, ["LegacySystemFrame.LegacyTreeTab"] = 3 }
 local function LegacyOn(page)
 	local f = _G.LegacySystemFrame
 	return type(f) == "table" and f.IsShown and f:IsShown() and f.currentPage == page or false
@@ -158,7 +163,7 @@ local function LegacyPageMacro(e)
 		return "/click AchievementMicroButton"
 	end
 	if Shown("LegacySystemFrame") then return nil end -- (open on another page: nothing to press; Terminal points at the tab)
-	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. TabKind(_G[e.tab]) .. ": the window opened, the tab pointed at") end
+	if not ns.Secure.quiet then ns:Trace("legacy: " .. e.tab .. " is " .. TabKind(TabFrame(e.tab)) .. ": the window opened, the tab pointed at") end
 	return "/click LegacyMicroButton"
 end
 local legacyHinted = {}
@@ -273,13 +278,16 @@ local PANELS = {
 	-- listed only where the client has it
 	{ "Legacy", "legacy system challenges", LegacyTabFallback, "LegacyMicroButton",
 		{ buttons = { "LegacyMicroButton" } }, PanelOpen, "LegacySystemFrame", needs = "LegacyMicroButton", nameFrom = "LegacyMicroButton" },
-	-- its pages (LegacyChallengeTab, LegacyTreeTab): Challenges by the game's own route, the Tree pointed at (LegacyPageMacro)
+	-- its pages: Challenges by the game's own route, Rewards and the Tree opened and pointed at (LegacyPageMacro)
+	{ "Legacy Rewards", "legacy rewards reward track renown", LegacyTabFallback, "LegacyMicroButton",
+		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton",
+		tab = "LegacySystemFrame.LegacyRewardTrackTab", legacy = true },
 	{ "Legacy Challenges", "legacy challenges challenge achievements", LegacyTabFallback, "LegacyMicroButton",
-		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton", tab = "LegacyChallengeTab",
-		legacy = true },
+		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton",
+		tab = "LegacySystemFrame.LegacyChallengeTab", legacy = true },
 	{ "Legacy Tree", "legacy tree talents", LegacyTabFallback, "LegacyMicroButton",
-		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton", tab = "LegacyTreeTab",
-		legacy = true },
+		{ macro = LegacyPageMacro, opensWindow = true }, LegacyPageOpen, needs = "LegacyMicroButton",
+		tab = "LegacySystemFrame.LegacyTreeTab", legacy = true },
 	{ "Guild Roster", "guild roster members communities", TabFallback, "GuildMicroButton",
 		{ macro = CommunitiesTabMacro }, CommunitiesTabOpen, tab = "CommunitiesFrame.RosterTab", mode = "ROSTER" },
 	{ "Guild Info", "guild info information news message", TabFallback, "GuildMicroButton",

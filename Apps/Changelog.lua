@@ -14,13 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.48.6", when = "in testing",
+		v = "0.48.7", when = "in testing",
 		items = {
 			"Raid lockouts: @lockout (Simple mode: \"my lockouts\", \"raid lockouts\", \"am i saved\") lists what each of your characters is saved to, how many bosses are down and when it resets; Enter names the bosses, Shift+Enter links your own in chat.",
 			"Profession levelling plans: \"blacksmithing plan\" or \"level blacksmithing\" (Advanced: @recipe blacksmithing sort:plan) lists your recipes that still give skill by how many times your materials make each, from bags and bank and with your alts; vendor materials don't count, and the footer says about how many points they'd give.",
 			"Simple mode's categories are named for what you'd do: Items (your bags, bank and alts together), Windows, Settings, Commands, Dungeon loot and Recent (your drops and deaths). Each says what it holds, and something named exactly what you typed comes first, ready to open.",
 			"@mail shows what you bought at the auction house with its own icon, quality and count, and mail carrying an item is drawn in that item's colour.",
-			"Legacy Challenges opens the Legacy window on its Challenges page; Legacy Tree opens the window and points at the Tree tab (the game gives Terminal no clean way to switch to it).",
+			"Legacy Challenges opens the Legacy window on its Challenges page; Legacy Rewards and Legacy Tree open the window and point at their tab (the game gives Terminal no clean way to switch to those two).",
 			"Up on an empty prompt brings back a line you ran; Down then goes into its results like any search, Up from the top result goes further back, and Shift+Left steps back toward the empty prompt.",
 			"Listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).",
 			"A full review's fixes: currencies under a folded header are listed; a profession window's search or filters no longer shrink its saved recipes; load-on-demand addons say so instead of asking for a reload; nearest mailbox works right after login; clicks and the right-click menu do what Enter does (>> party sends from the click, not on hover); a fight closing the keys window (F1) brings your search back afterwards.",

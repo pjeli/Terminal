@@ -183,9 +183,11 @@ do
 	local function row(k)
 		for _, x in ipairs(ns:GetEntries(ns.providers.panels)) do if x.key == k then return x end end
 	end
-	local ch, tr = row("Legacy Challenges"), row("Legacy Tree")
-	check(ch and tr and ch.tab == "LegacyChallengeTab" and tr.tab == "LegacyTreeTab", "Legacy Challenges and Legacy Tree rows")
-	check(UI:Search("@panel legacy tree")[1].key == "Legacy Tree" and UI:Search("@panel challenges")[1].key == "Legacy Challenges", "found by their names")
+	local ch, tr, rw = row("Legacy Challenges"), row("Legacy Tree"), row("Legacy Rewards")
+	check(ch and tr and rw and ch.tab == "LegacySystemFrame.LegacyChallengeTab" and tr.tab == "LegacySystemFrame.LegacyTreeTab"
+		and rw.tab == "LegacySystemFrame.LegacyRewardTrackTab", "Legacy Rewards, Challenges and Tree rows, by the tabs' paths")
+	check(UI:Search("@panel legacy tree")[1].key == "Legacy Tree" and UI:Search("@panel challenges")[1].key == "Legacy Challenges"
+		and UI:Search("@panel legacy rewards")[1].key == "Legacy Rewards", "found by their names")
 	LegacySystemFrame.shown = false
 	-- worked out for a resting pointer (every redraw): no trace lines
 	local traceWas, traced = ns.Trace, 0
@@ -226,8 +228,23 @@ do
 	check(m and m.macro == "/click LegacyMicroButton", "given up: the window's button: " .. tostring(m and m.macro))
 	LegacySystemFrame.shown, LegacySystemFrame.currentPage = true, 1
 	check(ch.isOpen(ch) == true, "given up, open on another page: nothing to press (pointed at)")
+	-- 0.48.7: the tabs are keys of the window (no globals by those names): the Tree's tab is found and pointed at
+	local treeTab = Obj("Frame"); treeTab.shown = true
+	LegacySystemFrame.LegacyTreeTab = treeTab
+	local H = ns.Highlight
+	local findWas, found = H.Find, nil
+	H.Find = function(_, finder) found = finder() end
 	tr.after(tr); T.FlushAll()
+	H.Find = findWas
+	check(found == treeTab, "the Tree not shown: its tab (LegacySystemFrame.LegacyTreeTab) pointed at")
 	tr.after(tr); T.FlushAll()
+	-- Rewards: open on it (the window starts there each session): nothing more; on another page: its tab pointed at
+	LegacySystemFrame.currentPage = 1
+	check(rw.isOpen(rw) == true, "open on Rewards: Rewards is open")
+	LegacySystemFrame.shown = false
+	m = S.Resolve(rw.secure, rw)
+	check(m and m.macro == "/click LegacyMicroButton", "Rewards, window closed: the window's button: " .. tostring(m and m.macro))
+	LegacySystemFrame.shown, LegacySystemFrame.currentPage = true, 1
 	local saidTree = 0
 	for _, t in ipairs(printed) do if t:find("Legacy Tree", 1, true) then saidTree = saidTree + 1 end end
 	check(saidTree == 1, "the Tree not shown: why said once: " .. saidTree)

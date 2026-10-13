@@ -5,7 +5,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 ## Dependencies: Terminal
 ## LoadOnDemand: 1
-## Version: 0.48.6
+## Version: 0.48.7
 
 Snake.lua
 Tetris.lua
