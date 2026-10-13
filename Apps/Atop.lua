@@ -510,9 +510,11 @@ local function DrawTitles(t, fa)
 	local fps = GetFramerate and GetFramerate() or 0
 	local _, _, home, world = (GetNetStats or function() end)()
 	local up = GetTime() - (B.since or GetTime())
-	sysText:SetText(L["fps %.0f  ·  %s ms  ·  up %d:%02d"]:format(fps, tostring(world or home or "?"), math.floor(up / 60), math.floor(up % 60)))
+	sysText:SetText(L["fps %.0f"]:format(fps) .. "  ·  " .. L["%s ms"]:format(tostring(world or home or "?")) .. "  ·  "
+		.. L["up %d:%02d"]:format(math.floor(up / 60), math.floor(up % 60)))
 	if B.hasProfiler then
-		cpuText:SetText(L["all addons %.2f ms / frame  ·  %.0f%% of a frame"]:format(B.total or 0, (B.total or 0) / (B.frameMs or 16.7) * 100))
+		cpuText:SetText(L["all addons %.2f ms / frame"]:format(B.total or 0) .. "  ·  "
+			.. L["%.0f%% of a frame"]:format((B.total or 0) / (B.frameMs or 16.7) * 100))
 	else
 		cpuText:SetText("|cffff6b6b" .. L["this client has no addon CPU profiler"] .. "|r")
 	end
@@ -552,7 +554,8 @@ local function DrawList(t)
 			r:Hide()
 		end
 	end
-	footer:SetText(L["%d of %d addons  ·  type to filter  ·  Tab sort  ·  Enter profile  ·  Esc or ` close"]:format(#shown, #addons))
+	footer:SetText(L["%d of %d addons"]:format(#shown, #addons) .. "  ·  " .. L["type to filter"] .. "  ·  " .. L["Tab sort"]
+		.. "  ·  " .. L["Enter profile"] .. "  ·  " .. L["Esc or ` close"])
 end
 
 function B.DrawText()
@@ -581,11 +584,11 @@ function B.DrawProfile(a, t)
 	local peakMs = 0
 	for _, v in ipairs(a.hist or {}) do if v > peakMs then peakMs = v end end
 	if B.hasProfiler then
-		cpuText:SetText(L["%.3f ms/frame  ·  %.1f%% of addons  ·  peak %.3f"]:format(a.cpu or 0,
-			(a.cpu or 0) / math.max(0.0001, B.total or 0) * 100, peakMs))
+		cpuText:SetText(L["%.3f ms/frame"]:format(a.cpu or 0) .. "  ·  "
+			.. L["%.1f%% of addons"]:format((a.cpu or 0) / math.max(0.0001, B.total or 0) * 100) .. "  ·  " .. L["peak %.3f"]:format(peakMs))
 	end
 	local grow = B.Growth(a)
-	memText:SetText(L["%s  ·  %.1f%% of all"]:format(MB(a.mem or 0), (a.mem or 0) / math.max(1, B.memTotal or 1) * 100))
+	memText:SetText(MB(a.mem or 0) .. "  ·  " .. L["%.1f%% of all"]:format((a.mem or 0) / math.max(1, B.memTotal or 1) * 100))
 	memText2:SetText(grow and (grow >= 0 and L["growing %.1f KB/s"]:format(grow) or L["shrinking %.1f KB/s"]:format(-grow)) or L["growth: measuring..."])
 	local mpeak = 0
 	for _, v in ipairs(a.memHist or {}) do if v > mpeak then mpeak = v end end
@@ -610,7 +613,7 @@ function B.DrawProfile(a, t)
 		profLines[3].label:SetText("|cffff6b6b" .. L["this client has no addon CPU profiler"] .. "|r"); profLines[3].label:Show()
 	end
 	-- (atop is Terminal: profiling Terminal measures atop's own drawing and sampling too)
-	footer:SetText(L["%d of %d  ·  Up/Down another addon  ·  Esc back to the list"]:format(state.sel, #shown)
+	footer:SetText(L["%d of %d"]:format(state.sel, #shown) .. "  ·  " .. L["Up/Down another addon"] .. "  ·  " .. L["Esc back to the list"]
 		.. (a.name == ns.name and ("  ·  " .. L["includes atop itself"]) or ("  ·  ` " .. L["close"])))
 end
 

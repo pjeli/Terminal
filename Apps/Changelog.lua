@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.47.12", when = "in testing",
+		v = "0.47.13", when = "in testing",
 		items = {
 			"Terminal speaks German, French, Spanish, Russian and Chinese (simplified), going by your game's language. In those languages Simple mode also understands the game's own words (rare, cloak, sword, healer, exalted, a class or a profession) and the main questions in your words: \"nearest ...\", \"mats for ...\", \"where to get ...\", \"where to learn ...\" and \"where is ...\". English always works too.",
 			"Quests with your party: \"party quests\" (Advanced: @group quests) shows each quest in your log with who in your party is on it too; Enter shares it with the party, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line: \"On the same quests: ... I can share: ...\". Where the game doesn't say who's on what, Terminal learns it from sharing (\"is already on that quest\", \"has accepted your quest\").",
@@ -169,7 +169,7 @@ local function Build()
 	thumb:SetColorTexture(1, 1, 1, 1)
 	thumb:SetWidth(3)
 
-	footer = Panel.Footer(frame, 10, L["Up/Down, PgUp/PgDn, mouse wheel scroll  ·  Esc or ` close"])
+	footer = Panel.Footer(frame, 10, L["Up/Down, PgUp/PgDn, mouse wheel scroll"] .. "  ·  " .. L["Esc or ` close"])
 	CL.frame = frame
 end
 

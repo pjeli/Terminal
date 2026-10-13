@@ -107,10 +107,11 @@ def main():
                 continue
             sd = seeds(lang)
             if sd:
+                # (only the lines: CurseForge's Import box takes the translations, no header or `local L`)
                 with open(os.path.join(out, lang + ".lua"), "w", encoding="utf-8") as w:
-                    w.write("local L = {}\n" + "".join('L["%s"] = "%s"\n' % (k, v) for k, v in sorted(sd.items())))
+                    w.write("".join('L["%s"] = "%s"\n' % (k, v) for k, v in sorted(sd.items()) if k in ks))
         with open(os.path.join(out, "enUS.lua"), "w", encoding="utf-8") as w:
-            w.write(text)
+            w.write("".join('L["%s"] = "%s"\n' % (k, k) for k in sorted(ks)))
         print("written to", out)
         return 0
     if "--check" not in args:
@@ -119,6 +120,12 @@ def main():
         print("Locales/enUS.lua: %d texts" % len(ks))
         return 0
     ok = True
+    # CurseForge's tool turns a key's non-ASCII letters into "u00b7"-like text (·, •: FlareUI's issue 4, Oct 2026), so
+    # the key no longer matches the code and its translation never shows: keys stay ASCII (put a "  ·  " outside them)
+    for k, f in sorted(ks.items()):
+        if any(ord(c) > 127 for c in k):
+            print("FAIL %s: a text with a non-ASCII character (CurseForge mangles those in keys): %s" % (f, k))
+            ok = False
     if not os.path.exists(path) or open(path, encoding="utf-8").read() != text:
         print("FAIL Locales/enUS.lua isn't up to date: run python3 tests/gen_locale.py")
         ok = False

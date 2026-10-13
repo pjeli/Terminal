@@ -696,7 +696,8 @@ local function Build()
 	tipText:SetWidth(WIDTH - 24)
 	tipText:SetText(L["Tip: turn on Sound in Background (Options > Audio) and the radio keeps playing while you're tabbed out."])
 	tipText:Hide()
-	footer:SetText(L["Up/Down + Enter tune in · N next · B back · P play/stop · S shuffle · V style · Esc close (plays on)"])
+	footer:SetText(table.concat({ L["Up/Down + Enter tune in"], L["N next"], L["B back"], L["P play/stop"], L["S shuffle"], L["V style"],
+		L["Esc close (plays on)"] }, " · "))
 	W.frame = frame
 end
 

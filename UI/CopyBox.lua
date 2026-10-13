@@ -200,7 +200,7 @@ local function ShowLink(title, text)
 	linkHint:SetTextColor(Theme.RGB(t.dim))
 	linkEdit:SetTextColor(Theme.RGB(t.text))
 	linkTitle:SetText(title)
-	linkHint:SetText(L["Ctrl+C copies  ·  Esc closes"])
+	linkHint:SetText(L["Ctrl+C copies"] .. "  ·  " .. L["Esc closes"])
 	-- as wide as the text needs (and the title line), within reason
 	local measure = link.measure or link:CreateFontString(nil, "OVERLAY")
 	link.measure = measure
