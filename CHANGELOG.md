@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.48.0
+
+**Terminal speaks your language**
+- Terminal follows your game's language: English, German, French, Spanish, Russian or Chinese (simplified). Every chat line, row, tooltip and window is translated.
+- In those languages Simple mode also understands the game's own words: qualities, slots, weapon and armour kinds, group and NPC roles, standings, classes and professions ("selten", "Rücken", "Heiler", "Krieger"), and English words like "sword" or "back" now work in any language too.
+- The main questions work in your words: "nearest ...", "mats for ...", "what uses ...", "where to get ...", "where to learn ...", "where is ..." ("nächster Gastwirt", "Mats für ..."). English always works.
+- The translations are new and come from the community through CurseForge: open the Localization tab on Terminal's CurseForge page to correct or add one.
+
+**Party quests**
+- "party quests" (Advanced mode: `@group quests`) lists each quest in your log with who in your party is on it too: "Ann too", "the whole party", "share with Bob".
+- Enter shares a quest with the party; "quests to share" lists the ones someone lacks; "quests in common" the ones you're on together.
+- `>>> party` (or right-click and pick "All to party") says it in one line: "On the same quests: Wolves Across the Border (Ann), The Fargodeep Mine. I can share: Wolves Across the Border, Princess Must Die!"
+- Where the game doesn't say who's on what, Terminal learns it from sharing ("is already on that quest", "has accepted your quest").
+
+**Mail on its way**
+- Mail you send to anyone, not just your alts, shows in `@mail` for the hour it takes to arrive ("sent mail"), even when the game takes a minute or two to send it.
+- The auction house's news shows before you reach a mailbox ("incoming mail"): sold (with its price, and when the gold is due), won, outbid and expired.
+
+**Also**
+- Typing a filter offers only the values that make sense for the lists you named: `@questlog is:` offers complete, grey, leftbehind and drop, not online or equippable.
+- Terminal's games and radio are an addon of their own, **Terminal Extras** (in its own folder, it comes with Terminal), loaded the first time you use one, so Terminal alone takes less memory. Keep it switched on in your AddOn list to play.
+
 ## 0.47.0
 
 **Your group**
