@@ -14,13 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.48.10", when = "in testing",
+		v = "0.49.0", when = "released October 2026",
 		items = {
 			"Raid lockouts: @lockout (Simple mode: \"my lockouts\", \"raid lockouts\", \"am i saved\") lists what each of your characters is saved to, how many bosses are down and when it resets; Enter names the bosses, Shift+Enter links your own in chat.",
 			"Profession levelling plans: \"blacksmithing plan\" or \"level blacksmithing\" (Advanced: @recipe blacksmithing sort:plan) lists your recipes that still give skill by how many times your materials make each, from bags and bank and with your alts; vendor materials don't count, and the footer says about how many points they'd give.",
 			"Simple mode's categories are named for what you'd do: Items (your bags, bank and alts together), Windows, Settings, Commands, Dungeon loot and Recent (your drops and deaths). Each says what it holds, and something named exactly what you typed comes first, ready to open.",
-			"@mail shows what you bought at the auction house with its own icon, quality and count, and mail carrying an item is drawn in that item's colour.",
-			"Your auctions: @auction (Simple mode: \"my auctions\", \"what am i selling\") lists what each character has on the auction house as Terminal saw it posted, with its price and time left, then the auction house's news (sold, won, outbid, expired), which moved there from @mail.",
+			"Your auctions: @auction (Simple mode: \"my auctions\", \"what am i selling\") lists what each character has on the auction house as Terminal saw it posted, with its price and time left, then the auction house's news (sold, won, outbid, expired), each item with its own icon, quality and count. The news moved there from @mail; \"incoming mail\" still shows it.",
+			"Mail carrying an item is drawn in that item's colour, with its icon.",
 			"An auction that comes back to you by mail (it failed, expired or was cancelled) no longer counts in @stored as still on the auction house.",
 			"Legacy Challenges opens the Legacy window on its Challenges page; Legacy Rewards and Legacy Tree open the window and point at their tab, also when it's already open on another page (the game gives Terminal no clean way to switch to those two).",
 			".zen hides the frame-rate counter too, and brings it back as Terminal closes.",

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.49.0
+
+**Raid lockouts**
+- "my lockouts", "raid lockouts" or "am i saved" (Advanced mode: `@lockout`) lists what each of your characters is saved to: raids, dungeons and world bosses, how many bosses are down and when each resets. Your alts show up once you've logged in on them with Terminal.
+- Enter puts a lockout in your chat window, with its bosses; Shift+Enter puts your own in the chat box as the game's lockout link (an alt's in words).
+- Advanced mode: `is:raid`, `is:dungeon`; `.lockouts forget <name>` drops an alt from the list.
+
+**Your auctions**
+- "my auctions" or "what am i selling" (Advanced mode: `@auction`) lists what each of your characters has on the auction house, as Terminal saw it posted or on your Auctions tab, with its price and time left.
+- Then the auction house's news: sold, won, outbid and expired, each item with its own icon, quality and count. The news moved here from `@mail`; "incoming mail" still shows it.
+- An auction that comes back to you by mail (it failed, expired or was cancelled) no longer counts in your stored items as still on the auction house.
+
+**Profession levelling plans**
+- "blacksmithing plan" or "level blacksmithing" (Advanced mode: `@recipe blacksmithing sort:plan`) lists your recipes that still give skill, by how many times your materials make each: your bags and bank, and your alts'. Materials a vendor sells don't count.
+- The footer says about how many skill points your materials would give.
+- Recipes the profession window shows grey are left out, even where AtlasLoot's levels say otherwise.
+
+**Simple mode's categories, named for what you'd do**
+- Items (your bags, bank and alts together), Windows, Settings (options, keybindings, console settings, addons and Terminal's own), Commands (slash commands and macros), Emotes, Dungeon loot and Recent (your drops and deaths). Mail is under Character.
+- Each category says which lists it found something in, and a result named exactly what you typed comes first, ready to open.
+
+**Also**
+- Mail carrying an item is drawn in that item's colour, with its icon.
+- The Legacy window: "Legacy Challenges" opens it on its Challenges page; "Legacy Rewards" (new) and "Legacy Tree" open it and point at their tab, also when it's already open on another page. The game gives addons no way to switch to those two tabs themselves.
+- Up on an empty prompt brings back a line you ran; Down then goes into its results like any search, Up from the top result goes further back, and Shift+Left steps back toward the empty prompt.
+- `.zen` hides the frame-rate counter too, and brings it back as Terminal closes.
+- Terminal is listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).
+- Quicker searches once you've picked things before; your alts' items are counted again in the background rather than as you type.
+- `.debug reset` lets Terminal try again what the game once blocked.
+- Fixes:
+  - Currencies under a folded header are listed.
+  - A profession window's search or filters no longer shrink the recipes Terminal keeps for it.
+  - Load-on-demand addons say so in `@addon` instead of asking for a reload.
+  - "nearest mailbox" works right after login.
+  - Clicks and the right-click menu do what Enter does; `>> party` sends from the click, not on hover.
+  - A fight that closes the keys window (F1) brings your search back afterwards.
+  - Row details and the games' and windows' key hints read the same way everywhere.
+
 ## 0.48.0
 
 **Terminal speaks your language**
