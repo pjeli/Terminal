@@ -6,6 +6,9 @@
                                          key the code no longer has, or when a translation's %s / %d don't match its key's
     python3 tests/gen_locale.py --import out/   one file per seeded language (its translations, for CurseForge's import)
                                          and enUS.lua (L["text"] = "text"): what .github/workflows/locales.yml imports
+    python3 tests/gen_locale.py --gaps cf/ out/   cf/<lang>.lua is what CurseForge has translated (its export, as the
+                                         packager fetches it): out/<lang>.lua gets only the seeded translations of texts
+                                         it has none for, so importing them never replaces a translator's text
 
 check.py runs --check.
 """
@@ -95,11 +98,53 @@ def codes(s):
     return sorted(c[:2] if c.startswith("|c") else c for c in CODES.findall(s.replace("||", "")))
 
 
+ESC = re.compile(r'\\(\d{1,3}|x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|.)', re.S)
+SIMPLE_ESC = {"n": "\n", "t": "\t", "r": "\r", "a": "\a", "b": "\b", "f": "\f", "v": "\v"}
+
+
+def unescape(s):
+    """A Lua string literal's text: CurseForge's export may escape a key differently from the code; the game sees the same."""
+    def one(m):
+        e = m.group(1)
+        if e.isdigit():
+            return chr(int(e))
+        if e[0] == "x" and len(e) == 3:
+            return chr(int(e[1:], 16))
+        if e.startswith("u{"):
+            return chr(int(e[2:-1], 16))
+        return SIMPLE_ESC.get(e, e)
+    return ESC.sub(one, s)
+
+
+def gaps(cf_dir, out, ks):
+    """The seeded translations of texts CurseForge has no translation for (cf_dir/<lang>.lua: its export of that
+    language, untranslated texts left out), one file per language; a language CurseForge didn't answer for is skipped."""
+    os.makedirs(out, exist_ok=True)
+    for f in sorted(glob.glob(os.path.join(REPO, "Locales", "*.lua"))):
+        lang = os.path.basename(f)[:-4]
+        sd = seeds(lang) if lang != "enUS" else {}
+        cf = os.path.join(cf_dir, lang + ".lua")
+        if not sd:
+            continue
+        if not os.path.exists(cf):
+            print("  %s: no export from CurseForge, skipped" % lang)
+            continue
+        have = {unescape(k) for k in KEY.findall(open(cf, encoding="utf-8").read())}
+        add = [(k, v) for k, v in sorted(sd.items()) if k in ks and unescape(k) not in have]
+        with open(os.path.join(out, lang + ".lua"), "w", encoding="utf-8") as w:
+            w.write("".join('L["%s"] = "%s"\n' % (k, v) for k, v in add))
+        print("  %s: CurseForge has %d translated; %d seeded texts it lacks" % (lang, len(have), len(add)))
+    return 0
+
+
 def main():
     args = sys.argv[1:]
     ks = keys()
     text = enus_text(ks)
     path = os.path.join(REPO, "Locales", "enUS.lua")
+    if "--gaps" in args:
+        i = args.index("--gaps")
+        return gaps(args[i + 1], args[i + 2], ks)
     if "--import" in args:
         out = args[args.index("--import") + 1]
         os.makedirs(out, exist_ok=True)
