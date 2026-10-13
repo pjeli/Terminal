@@ -36,6 +36,7 @@
   - "nearest mailbox" works right after login.
   - Clicks and the right-click menu do what Enter does; `>> party` sends from the click, not on hover.
   - A fight that closes the keys window (F1) brings your search back afterwards.
+  - F1's pure fuzzy finding tab says what right-click offers there: take the result to Simple or Advanced mode, or link it or send it to chat.
   - Row details and the games' and windows' key hints read the same way everywhere.
 
 ## 0.48.0
