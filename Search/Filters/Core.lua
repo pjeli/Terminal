@@ -13,7 +13,7 @@ local ns = select(2, ...)
 --   type:mail  type:sword        item type or subtype
 --   in:bank  in:deadmines        where: bags/bank/mail/guild (stored), a quest's or NPC's zone,
 --                                a loot item's dungeon or boss (zone: and from: are the same)
---   on:plamen                    stored on that character (or guild, warband)
+--   on:plamen                    stored on that character (or guild)
 --   count:20+                    how many (bags, alts and banks)
 --   trainer:mage trainer:class   Questie trainers by what they teach (a class, a profession, pet,
 --                                riding; class = your class, mine = mining); is:classtrainer, is:proftrainer

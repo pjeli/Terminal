@@ -384,6 +384,9 @@ do
 		end
 	end
 	check(#undeclared == 0 and #strange == 0, "every value judges a list that exists: " .. table.concat(undeclared, ", ") .. " " .. table.concat(strange, ", "))
+	-- (0.50.5, the player: WoW Forever has no warband bank) in: doesn't offer it
+	local inValues = table.concat(ns.Filters.ValuesFor("in", "") or {}, ",")
+	check(not inValues:find("warband", 1, true) and inValues:find("bank", 1, true), "in: offers no warband: " .. inValues)
 	UI:Hide(); FlushAll()
 	-- Simple mode: none of it
 	ns.db.easyMode = true

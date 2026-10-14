@@ -66,7 +66,7 @@ E.CATEGORIES = {
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
-	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
+	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = L["Dungeon loot"], kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "recent", label = L["Recent"], kinds = { "lootlog", "combatlog" }, icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
 		was = { "lootlog", "combat" } },
@@ -195,6 +195,9 @@ E.WORDS = {
 	vendor = "is:vendor", vendors = "is:vendor", trainer = "is:trainer", trainers = "is:trainer",
 	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
 	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
+	-- (two words: "nearest spirit healer"; a graveyard is where one stands; 0.50.5)
+	["spirit healer"] = "is:spirithealer", ["spirit healers"] = "is:spirithealer", ["spirit guide"] = "is:spirithealer",
+	graveyard = "is:spirithealer", graveyards = "is:spirithealer",
 	-- PvP NPCs: only the real ones ("nearby battlemaster", "nearest pvp vendor", "honor vendor")
 	battlemaster = "is:battlemaster", battlemasters = "is:battlemaster",
 	["pvp vendor"] = "is:pvpvendor", ["pvp vendors"] = "is:pvpvendor", ["honor vendor"] = "is:pvpvendor",
@@ -237,7 +240,7 @@ local NPC_ROLE_GLOBALS = { MINIMAP_TRACKING_INNKEEPER = "is:innkeeper", MINIMAP_
 	MINIMAP_TRACKING_BATTLEMASTER = "is:battlemaster", MINIMAP_TRACKING_TRAINER_CLASS = "is:classtrainer",
 	MINIMAP_TRACKING_TRAINER_PROFESSION = "is:proftrainer", MERCHANT = "is:vendor" }
 -- the game's words that name someone you'd walk to (E.ROLE_WORDS: "nearest" then keeps to NPCs friendly to you)
-local ROLE_SPECS = { ["is:innkeeper"] = true, ["is:banker"] = true, ["is:auctioneer"] = true, ["is:flightmaster"] = true,
+local ROLE_SPECS = { ["is:spirithealer"] = true, ["is:innkeeper"] = true, ["is:banker"] = true, ["is:auctioneer"] = true, ["is:flightmaster"] = true,
 	["is:repair"] = true, ["is:stablemaster"] = true, ["is:battlemaster"] = true, ["is:classtrainer"] = true,
 	["is:proftrainer"] = true, ["is:vendor"] = true }
 local gameWords -- word -> filter text (nil until first asked; English: none)
@@ -507,7 +510,7 @@ E.VERBS = {
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
-	maps = MapVerbs, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
+	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
@@ -586,7 +589,8 @@ E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, ba
 	fp = true, flightmaster = true, ah = true, auction = true, auctioneer = true, stable = true, stablemaster = true,
 	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true, battlemaster = true,
 	battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true, ["honor vendor"] = true,
-	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true }
+	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true, ["spirit healer"] = true, ["spirit healers"] = true,
+	["spirit guide"] = true, graveyard = true, graveyards = true }
 setmetatable(E.ROLE_WORDS, { __index = function(_, w) return E.GameRole(w) or nil end }) -- (the game's own words too)
 
 --- The action a search's first word names, or nil (only with another word after it, or an everyday word).
@@ -713,6 +717,8 @@ local function QuestionToAdvanced(text)
 	if pq then return ns.GroupQuests.ToAdvanced(pq) end
 	local lq2 = ns.Lockouts and ns.Lockouts.Question and ns.Lockouts.Question(text)
 	if lq2 then return ns.Lockouts.ToAdvanced(lq2) end
+	local cq3 = ns.Corpse and ns.Corpse.Question and ns.Corpse.Question(text)
+	if cq3 then return ns.Corpse.ToAdvanced(cq3) end
 	local dq2 = ns.Durability and ns.Durability.Question and ns.Durability.Question(text)
 	if dq2 then return ns.Durability.ToAdvanced(dq2) end
 	local aq = ns.Auctions and ns.Auctions.Question and ns.Auctions.Question(text)
@@ -1081,6 +1087,7 @@ function E.HelpLines()
 		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
 		L["With Attune: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\" (how far along you are, and your next step); \"how do i get into mc\" or \"steps for molten core\" lists the steps first to last. Enter opens Attune on it."],
+		L["After a death: \"where is my body\" shows your corpse (how far, the arrow pointing at it) and the nearest spirit healers; \"nearest spirit healer\" on its own too. Enter opens the map on it."],
 		L["Your gear's wear: \"durability\", \"repair cost\", \"what needs repair\", \"broken gear\" (each piece's durability and what repairing it costs, the whole bill on top; Shift+Enter finds the nearest repair vendor)."],
 		L["Other addons' settings: type what a setting is called (\"questie map icons\") to find it in any addon that uses Ace3's options; Enter opens that addon's options on it, Shift+Enter turns an on/off setting on or off."],
 		L["The calendar: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\" (Enter opens it in the calendar)."],

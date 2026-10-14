@@ -159,6 +159,8 @@ function I.MissingFor(text)
 		-- (Attune's: an instance's steps, not "dance steps")
 		if what and (def.addon ~= "Attune" or NamesInstance(what)) then return Missing(def.addon) end
 	end
+	-- spirit healers: Questie's NPCs ("nearest spirit healer", "graveyard")
+	if (line:find("spirit healer", 1, true) or line:find("graveyard", 1, true)) and Missing("Questie") then return Missing("Questie") end
 	-- an instance's loot ("molten core loot", "loot from brd", "dungeon loot"), its attunement ("mc attunement",
 	-- "attunement for onyxia"), how to get in ("how do i get into mc")
 	local at = Missing("AtlasLoot")

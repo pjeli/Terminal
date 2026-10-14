@@ -14,8 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.50.4", when = "in testing",
+		v = "0.50.5", when = "in testing",
 		items = {
+			"Your corpse: after a death, \"where is my body\" (or \"my corpse\", \"corpse run\", \"where did i die\"; Advanced: @corpse) shows where it lies, how far and which way (the arrow on the row turns with you), and the nearest spirit healers. Enter opens the map on it with a pin, Shift+Enter only pins it. With Questie, spirit healers are NPCs too: \"nearest spirit healer\", \"nearest graveyard\" (Advanced: @npc is:spirithealer).",
+			"in:warband is no longer offered when you type in: (WoW Forever has no warband bank).",
 			"Your own commands: .alias rep durability makes .rep run that search; an alias can be any search or question (Simple or Advanced), a /slash command (.alias rl /reload: pressed by the game) or another .command (.alias dark .theme dracula). Words typed after it are added (.rep legs), or go where $* is (.alias wh /w $* hi). .alias lists yours, .unalias <name> forgets one; they're kept for every character.",
 			"Your gear's wear: @durability (Simple mode: \"durability\", \"repair cost\", \"what needs repair\", \"broken gear\") lists every piece that wears down, lowest first, and the damaged ones in your bags, each with its durability and what repairing it costs (the game's own figure, less the reputation discount the last repair vendor gave you; a vendor's own total while its window is open), the whole bill on top. Enter shows it on your character or in your bags, Shift+Enter finds the nearest repair vendor. Advanced: is:damaged, is:broken, dura:<50; .durability.",
 			"Other addons' settings: type what a setting is called (\"questie map icons\", \"attune announce\") to find it in any addon that uses Ace3's options (@addonoption; Simple mode: under Settings). Enter opens that addon's options on it and points at it; Shift+Enter turns an on/off setting on or off. .integrations lists the addons found.",

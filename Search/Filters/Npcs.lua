@@ -11,6 +11,7 @@ local NpcID, NpcField = P.NpcID, P.NpcField
 local ClearStanding = P.ClearStanding
 local Generations, Keep, Kept, Forget = P.Generations, P.Keep, P.Kept, P.Forget
 local Lower = ns.Lower
+local L = ns.L
 
 --- Does the NPC have this role (Questie's npcFlags; its numbers differ between game versions)?
 local function NpcRole(e, flagName)
@@ -430,6 +431,17 @@ local ROLES = { vendor = "VENDOR", trainer = "TRAINER", flightmaster = "FLIGHT_M
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",
 	auctioneer = "AUCTIONEER", questgiver = "QUEST_GIVER", stablemaster = "STABLEMASTER" }
 for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag) end end
+-- spirit healers (0.50.5, the player's ask: "nearest spirit healer"): Questie's flag for them (its names for it differ by
+-- version), else the Spirit Healer himself (6491) or one called that
+local SPIRIT_IDS = { [6491] = true, [13116] = true, [13117] = true } -- (the Spirit Healer; the battlegrounds' Spirit Guides)
+function IS.spirithealer(e)
+	local id = NpcID(e)
+	if not id then return false end
+	if SPIRIT_IDS[id] or NpcRole(e, "SPIRIT_HEALER") or NpcRole(e, "SPIRITHEALER") or NpcRole(e, "SPIRIT_GUIDE") then return true end
+	local n = Lower(tostring(NpcField(e, "name") or ""))
+	return n == "spirit healer" or n == Lower(L["Spirit Healer"])
+end
+IS.spirithealers, IS.graveyard = IS.spirithealer, IS.spirithealer
 -- a flight path's row stands for its flight master (Flights.lua: "nearest unlearned flight master" lists them)
 local function FlightMaster(e) return e.kind == "flight" or NpcRole(e, "FLIGHT_MASTER") end
 IS.flight, IS.flightmaster = FlightMaster, FlightMaster

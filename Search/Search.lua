@@ -636,6 +636,11 @@ Scan.ANSWERS = {
 		local q = ns.Lockouts and ns.Lockouts.Question(text)
 		if q then return ns.Lockouts.Answer(q) end
 	end,
+	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
+	function(text)
+		local q = ns.Corpse and ns.Corpse.Question(text)
+		if q then return ns.Corpse.Answer(q) end
+	end,
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua
 	function(text)
 		local q = ns.Durability and ns.Durability.Question(text)
