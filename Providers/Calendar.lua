@@ -135,14 +135,20 @@ local function DayWord(t, today)
 	return DateText(t)
 end
 
---- When it is, in a few words: "today 20:00", "Friday 8:00 PM", "until Sunday", "tomorrow - Sunday".
+--- Does it end later than it starts (a holiday's hours, the fishing tournament's 2 to 4 PM), not just start?
+local function Lasts(e) return e.finish ~= nil and Mins(e.finish) > Mins(e.start) end
+CA.Lasts = Lasts
+
+--- When it is, in a few words, with the times the calendar's own tooltip gives (0.49.14, the player's ask: a holiday
+--- said only its day, the Stranglethorn fishing tournament not its hours): "today 20:00", "Sunday 14:00 - 16:00",
+--- "until Sunday 23:59", "Sunday 10:00 - Sunday, November 1".
 function CA.When(e, today)
 	today = today or Today() or 0
 	if e.multi then
-		if e.startDN <= today then return L["until %s"]:format(DayWord(e.finish, today)) end
-		return DayWord(e.start, today) .. " - " .. DayWord(e.finish, today)
+		if e.startDN <= today then return L["until %s"]:format(DayWord(e.finish, today) .. " " .. Clock(e.finish)) end
+		return DayWord(e.start, today) .. " " .. Clock(e.start) .. " - " .. DayWord(e.finish, today)
 	end
-	if e.allDay then return DayWord(e.start, today) end
+	if Lasts(e) then return DayWord(e.start, today) .. " " .. Clock(e.start) .. " - " .. Clock(e.finish) end
 	return DayWord(e.start, today) .. " " .. Clock(e.start)
 end
 
@@ -295,7 +301,6 @@ function CA.Read()
 		local fin = g.finish
 		g.multi = fin and DayNum(fin.year, fin.month, fin.monthDay) > g.startDN or nil
 		g.endDN = g.multi and DayNum(fin.year, fin.month, fin.monthDay) or g.startDN
-		g.allDay = g.type == "HOLIDAY" or nil
 		local startMin = Mins(g.start)
 		local over
 		if g.multi or g.type == "HOLIDAY" then
@@ -450,11 +455,12 @@ local CHATBOX = ns.ChatBoxSpec(ShareText)
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	t:AddLine(e.typeLabel, 1, 1, 1)
-	if e.multi then
-		t:AddDoubleLine(L["Starts"], DateText(e.start) .. (e.allDay and "" or (" " .. Clock(e.start))), 1, 1, 1, 1, 1, 1)
-		t:AddDoubleLine(L["Ends"], DateText(e.finish) .. " " .. Clock(e.finish), 1, 1, 1, 1, 1, 1)
+	-- when it starts and ends, to the minute, as the calendar's own tooltip says (an ending the same day: its time)
+	if CA.Lasts(e) then
+		t:AddDoubleLine(L["Starts"], DateText(e.start) .. " " .. Clock(e.start), 1, 1, 1, 1, 1, 1)
+		t:AddDoubleLine(L["Ends"], (e.multi and (DateText(e.finish) .. " ") or "") .. Clock(e.finish), 1, 1, 1, 1, 1, 1)
 	else
-		t:AddDoubleLine(L["When"], DateText(e.start) .. (e.allDay and "" or (" " .. Clock(e.start))), 1, 1, 1, 1, 1, 1)
+		t:AddDoubleLine(L["When"], DateText(e.start) .. " " .. Clock(e.start), 1, 1, 1, 1, 1, 1)
 	end
 	if e.statusText then t:AddLine((e.statusColor or "") .. e.statusText .. (e.statusColor and "|r" or ""), 1, 1, 1) end
 	if e.invitedBy then t:AddLine(L["Invited by %s"]:format(e.invitedBy), 0.8, 0.8, 0.8) end

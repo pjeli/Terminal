@@ -100,13 +100,29 @@ do
 	for _, e in ipairs(res) do by[e.name] = e end
 	local dmf, run, mc, ony, he, fish = by["Darkmoon Faire"], by["Gnomeregan run"], by["Molten Core (40 Player)"], by["Onyxia"],
 		by["Hallow's End"], by["Stranglethorn Fishing Extravaganza"]
-	check(dmf.detail == "until Sunday  ·  Holiday", "a holiday under way: until when: " .. tostring(dmf.detail))
+	check(dmf.detail == "until Sunday 23:59  ·  Holiday", "a holiday under way: until when, to the minute: " .. tostring(dmf.detail))
 	check(run.detail == "today 11:00  ·  Event  ·  Accepted", "an event that started an hour ago still shows: " .. tostring(run.detail))
 	check(mc.detail == "tomorrow 8:00  ·  Raid reset", "tomorrow, with its time: " .. tostring(mc.detail))
 	check(ony.detail == "Thursday 20:00  ·  Guild event  ·  Invited" and ony.pending and ony.color == "|cffffd200",
 		"an invitation not answered yet: " .. tostring(ony.detail))
-	check(he.detail == "Sunday - Sunday, November 1  ·  Holiday", "one to come over several days: " .. tostring(he.detail))
-	check(fish.detail == "Monday, November 2  ·  Holiday", "next month's: " .. tostring(fish.detail))
+	check(he.detail == "Sunday 10:00 - Sunday, November 1  ·  Holiday", "one to come over several days: when it starts: " .. tostring(he.detail))
+	check(fish.detail == "Monday, November 2 14:00 - 16:00  ·  Holiday", "next month's, its hours (0.49.14): " .. tostring(fish.detail))
+	-- (0.49.14, the player's ask) the tooltip says when it starts and ends, as the calendar's own does: the fishing
+	-- tournament's hours were only there
+	local function Tip(e)
+		local lines = {}
+		local t = { SetText = function(_, a) lines[#lines + 1] = a end, AddLine = function(_, a) lines[#lines + 1] = a end,
+			AddDoubleLine = function(_, a, b) lines[#lines + 1] = a .. ": " .. b end }
+		e.tooltip(e, t)
+		return table.concat(lines, "\n")
+	end
+	local ft = Tip(fish)
+	check(ft:find("Starts: Monday, November 2 14:00", 1, true) and ft:find("Ends: 16:00", 1, true), "the fishing tournament's hours: " .. ft)
+	local ht = Tip(he)
+	check(ht:find("Starts: Sunday, October 18 10:00", 1, true) and ht:find("Ends: Sunday, November 1 10:00", 1, true),
+		"several days: when it starts and ends, to the minute: " .. ht)
+	local ot = Tip(ony)
+	check(ot:find("When: Thursday, October 15 20:00", 1, true) and not ot:find("Ends", 1, true), "an event with no end: when: " .. ot)
 	check(dmf.desc == "About Darkmoon Faire" and dmf.iconCoords and dmf.icon == 235448, "a holiday's text and its picture, cropped")
 	check(asked >= 1, "the server is asked for the calendar")
 	local enter, shift = E.Verbs(ony)
@@ -178,7 +194,7 @@ do
 	-- Shift+Enter: in words, or the game's link to the event
 	ony = nil
 	for _, e in ipairs(res) do if e.name == "Onyxia" then ony = e end end
-	check(ns.Share.Text(res[1]) == "Darkmoon Faire: until Sunday", "a holiday in words: " .. tostring(ns.Share.Text(res[1])))
+	check(ns.Share.Text(res[1]) == "Darkmoon Faire: until Sunday 23:59", "a holiday in words: " .. tostring(ns.Share.Text(res[1])))
 	_G.GetCalendarEventLink = function(off, day, i) return "|Hcalendarevent:" .. off .. ":" .. day .. ":" .. i .. "|h[Onyxia]|h" end
 	check(ns.Share.Text(ony) == "|Hcalendarevent:0:15:2|h[Onyxia]|h Thursday 20:00", "an event as its link: " .. tostring(ns.Share.Text(ony)))
 	_G.GetCalendarEventLink = save.link

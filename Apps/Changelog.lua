@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.49.13", when = "in testing",
+		v = "0.49.14", when = "in testing",
 		items = {
 			"The calendar: @calendar (Simple mode: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\") lists what's on from today to the end of next month: holidays such as the Darkmoon Faire, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, raid resets. Enter opens the calendar on the event, Shift+Enter puts it in the chat box (an event as its link). Advanced: is:holiday, is:invite, when:week (today, tomorrow, weekend, nextweek, month, nextmonth).",
 			"A full review, the keys and clicks: Enter does what the footer says after a Shift+Enter or a click set it up; a window opened while lists still load closes Terminal and is pointed at; AltGr letters type (Polish, Czech, Hungarian layouts); a key you bound to Terminal closes it too; F1, .changelog, .atop and the games catch the mouse and close when Terminal opens.",
@@ -22,6 +22,7 @@ CL.LOG = {
 			"Your things: worn bows, wands and relics, and keys on the keyring, are found; \"what killed me\" answers with this character's deaths only; a new sale's news stays until its own mail comes; @mail, @drop and @combatlog say why when they're empty; camp objects and talents open right with their window already up; Questie's NPCs open and get pinned at the spawn the row measures, and your waypoint stays where a place can't take one; Quick Keybind Mode starts from the Keybindings page's own button.",
 			"Opening a profession window no longer says \"Indexed Blacksmithing: 120 known recipes\" in chat; it's still indexed, and debug mode (.debug) says it.",
 			"Trainers: \"enchanting trainer\", \"blacksmithing trainer\", \"mage trainer\", \"hunter pet trainer\" or \"demon trainer\" (\"warlock pet trainer\" too; \"pet trainer\" alone is your class's) lists the nearest ones that teach it, no \"nearest\" needed (\"mining trainer in org\" keeps to the place); found by what they teach, so the Journeyman Enchanter, the Herbalists and the Master Mages are in (\"enchanting\" found nothing, \"enchant\" did).",
+			"@calendar says when each event starts and ends, to the minute, as the calendar's own tooltip does: the Stranglethorn Fishing Extravaganza's 2 to 4 PM, when the Darkmoon Faire closes.",
 		},
 	},
 	{
