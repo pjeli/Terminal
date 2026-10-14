@@ -62,7 +62,7 @@ local function NotEmote(e) return e.emote == nil end
 -- simpleCategory "game": E.BY_ID finds them).
 E.CATEGORIES = {
 	{ id = "items", label = L["Items"], kinds = { "items", "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags", "alts" } },
-	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
+	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
@@ -500,6 +500,7 @@ E.VERBS = {
 	maps = MapVerbs, dungeon = PLACE, raid = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
+	attune = { L["show in Attune"], L["put in the chat box"] },
 	quests = QuestVerbs,
 	missing = { L["where to learn"], L["link in chat"] }, -- (a recipe you don't know yet: MissingRecipes.lua)
 	toys = { L["use"], L["show in journal"] }, pets = { L["summon"], L["show in journal"] }, mounts = { L["summon"], L["show in journal"] },
@@ -664,6 +665,9 @@ local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) e
 local function QuestionToAdvanced(text)
 	local lq = ns.LootLog and ns.LootLog.Question and ns.LootLog.Question(text)
 	if lq then return "@drop " .. ((lq.who == "me" and "you ") or (lq.who and (Lower(lq.who) .. " ")) or "") end
+	-- (Attune's steps before the chains: "how do i get into mc" is its; Search.lua's Scan.ANSWERS)
+	local atq = ns.Attune and ns.Attune.Q and ns.Attune.Q.How(text)
+	if atq then return ns.Attune.Q.ToAdvanced(atq) end
 	local chain = ns.Pipes and ns.Pipes.Canonical(text)
 	if chain then return chain .. " " end
 	-- (the questions in the order the search asks them: Search.lua's Scan.ANSWERS)
@@ -707,6 +711,8 @@ local function QuestionToAdvanced(text)
 	-- (in Scan.ANSWERS' order: the quest rewards' question just before the calendar's; review, 0.49.17)
 	local rq = ns.QuestRewards and ns.QuestRewards.Question and ns.QuestRewards.Question(text)
 	if rq then return ns.QuestRewards.ToAdvanced(rq) end
+	local alq = ns.Attune and ns.Attune.Q and ns.Attune.Q.List(text)
+	if alq then return ns.Attune.Q.ToAdvanced(alq) end
 	local cq2 = ns.Calendar and ns.Calendar.Question and ns.Calendar.Question(text)
 	if cq2 then return ns.Calendar.ToAdvanced(cq2) end
 end
@@ -1061,6 +1067,7 @@ function E.HelpLines()
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
 		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
+		L["With Attune: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\" (how far along you are, and your next step); \"how do i get into mc\" or \"steps for molten core\" lists the steps first to last. Enter opens Attune on it."],
 		L["The calendar: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\" (Enter opens it in the calendar)."],
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],

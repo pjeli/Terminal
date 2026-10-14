@@ -119,6 +119,10 @@ do
 		-- (recipes you don't know listed, a profession's window that would list more not read yet: MissingRecipes.lua)
 		if self.missingNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.missingNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, L["loading..."]) end
+		-- (an addon the line reaches for that isn't installed: which one to add, on a line of its own; Setup.lua)
+		local I = ns.Integrations
+		local missing = self.mode == "search" and not self.bare and I and I.MissingHint and UI.edit and I.MissingHint(UI.edit:GetText()) or nil
+		self:SetFooterExtra(missing and (HINT .. missing .. "|r") or nil)
 		local once = ns.Easy and ns.Easy.temp
 		if self.fzf then
 			once = true
@@ -507,6 +511,7 @@ function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open
 		divider:SetShown(not bare)
 		footLine:SetShown(not bare)
 		status:SetShown(not bare)
+		if bare and self.footExtraOn then self:SetFooterExtra(nil) end
 		self.hintsRoom = nil
 		self:FitHints()
 	end

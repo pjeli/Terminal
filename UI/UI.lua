@@ -448,6 +448,13 @@ do
 		hints:SetJustifyH("RIGHT")
 		hints:SetWordWrap(false)
 		UI.hints = hints
+		-- (an extra line above them, only while it has something to say: an addon to install, List.lua's SetStatus)
+		local extra = frame:CreateFontString(nil, "OVERLAY")
+		extra:SetFontObject(Theme.fonts.small)
+		extra:SetJustifyH("LEFT")
+		extra:SetWordWrap(false)
+		extra:Hide()
+		UI.footExtra = extra
 	end
 
 	Build = function()
@@ -476,8 +483,16 @@ end
 
 --- The footer's line, the result count and the key hints, placed for the font size.
 local function ApplyFooterLayout(t)
-	-- footer: always one line (hints that don't fit are left out, see FitHints)
+	-- footer: one line (hints that don't fit are left out, see FitHints); a second above it while UI.footExtra shows
 	local footerH = math.max(FOOTER_H, t.fontSize + 12)
+	local lineH = t.fontSize + 8
+	local extra = UI.footExtra
+	if extra then
+		extra:ClearAllPoints()
+		extra:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, footerH + lineH / 2 - 2)
+		extra:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, footerH + lineH / 2 - 2)
+		if UI.footExtraOn then footerH = footerH + lineH end
+	end
 	UI.footerH = footerH
 	local classicInset = t.frame == "classic" and 5 or 1
 	footLine:ClearAllPoints()
@@ -487,6 +502,19 @@ local function ApplyFooterLayout(t)
 	status:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, footerH / 2)
 	hints:ClearAllPoints()
 	hints:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, footerH / 2)
+end
+
+--- The footer's extra line: shown with this text (nil: hidden), the footer one line taller while it shows.
+function UI:SetFooterExtra(text)
+	local extra = UI.footExtra
+	if not extra then return end
+	local on = text ~= nil
+	if on then extra:SetText(Theme.FixColors(text)) end
+	if on == (self.footExtraOn or false) then return end
+	self.footExtraOn = on
+	extra:SetShown(on)
+	ApplyFooterLayout(Theme.Get())
+	self:FitHeight()
 end
 
 --- The frame's border and colours, the divider, the prompt's background, the fuzzy-finding glow.

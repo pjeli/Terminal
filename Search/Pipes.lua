@@ -42,15 +42,25 @@ end
 -- how the footer says each one
 P.LABELS = { mats = "mats", uses = "used in", sources = "sources", alts = "alts", learn = "learn", chain = "chain" }
 
+--- Whether a relation can be used now: one of its definitions is (Attune's need Attune: `available`).
+function P.Available(name)
+	for _, def in ipairs(P.relations[name] or {}) do
+		if not def.available or def.available() then return true end
+	end
+	return false
+end
+
 --- The relation's name for a typed word (its name or an alias), or nil.
 function P.Find(word)
 	if type(word) ~= "string" or word == "" then return nil end
 	local w = ns.Lower(word)
 	for _, name in ipairs(P.order) do
-		if w == name then return name end
-		for _, def in ipairs(P.relations[name]) do
-			for _, a in ipairs(def.aliases) do
-				if w == a then return name end
+		if P.Available(name) then
+			if w == name then return name end
+			for _, def in ipairs(P.relations[name]) do
+				for _, a in ipairs(def.aliases) do
+					if w == a then return name end
+				end
 			end
 		end
 	end
@@ -159,7 +169,7 @@ function P.Canonical(text, words)
 	if not first or not (P.FIRST[first:lower()] or P.LAST[last:lower()]) then return nil end
 	local lt = ns.Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
 	for _, ph in ipairs(P.PHRASES) do
-		local what = lt:match(ph[1])
+		local what = P.Available(ph[2]) and lt:match(ph[1])
 		if what and what:find("%S") then
 			what = what:gsub("^the ", ""):gsub("^a ", ""):gsub("^an ", "")
 			if not P.NotAName(what) then return what .. " > " .. ph[2] end
@@ -822,7 +832,7 @@ function P.Applicable(rows)
 	local out = {}
 	for _, name in ipairs(P.order) do
 		local desc
-		for _, def in ipairs(P.relations[name]) do
+		for _, def in ipairs(P.Available(name) and P.relations[name] or {}) do
 			for _, e in ipairs(rows) do
 				if def.applies(e) then desc = def.desc break end
 			end
@@ -1038,6 +1048,7 @@ end
 -- what walking on from a row means: a reagent -> where to get it; a recipe or crafted item -> its mats
 local function NextOf(e, from)
 	if e.kind == "reagent" then return "sources" end
+	if e.kind == "attune" then return nil end -- (Attune's steps open Attune: an item step isn't walked on to its mats)
 	if from ~= "mats" and P.Reagents(e) then return "mats" end
 end
 
@@ -1177,7 +1188,11 @@ local function RelationChoices(chain, s, rows, trail)
 				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - #out }
 		end
 	end
-	if #out == 0 then out[1] = Line(L["No link called \"%s\": mats, uses, sources, learn, alts, chain"]:format(s.word or "")) end
+	if #out == 0 then
+		local names = {}
+		for _, name in ipairs(P.order) do if P.Available(name) then names[#names + 1] = name end end
+		out[1] = Line(L["No link called \"%s\": %s"]:format(s.word or "", table.concat(names, ", ")))
+	end
 	trail[#trail + 1] = "?"
 	return out, table.concat(trail, " > ")
 end

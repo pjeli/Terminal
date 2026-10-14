@@ -152,6 +152,15 @@ end
 
 --- Done / not done: quests by the game's record; achievements by their row's completed (rows without it aren't judged).
 local function DoneOf(e)
+	-- (Attune's: an attunement all done, a step it saw you do; Attune.lua)
+	if e.kind == "attune" and ns.Attune then
+		if e.isStep then return ns.Attune.StepState(e.stepRec) == "done" end
+		local rec = ns.Attune.RecOf(e)
+		if not rec or #rec.keys == 0 then return nil end
+		local pct = ns.Attune.Mine(rec)
+		if pct == nil then return nil end
+		return pct >= 100
+	end
 	local q = QuestOf(e)
 	if q then return Done(q) end
 	if e.kind == "achievements" and type(e.completed) == "boolean" then return e.completed end
@@ -344,8 +353,18 @@ IS.shareable = PartyIs(function(e) return e.canShare == true end)
 IS.together = PartyIs(function(e) return e.together == true end)
 IS.sharable, IS.toshare, IS.common, IS.same = IS.shareable, IS.shareable, IS.together, IS.together
 -- lockouts (Lockouts.lua): a raid's (world bosses too) or a dungeon's
-IS.raid = function(e) return e.kind == "lockouts" and e.isRaid == true end
-IS.dungeon = function(e) return e.kind == "lockouts" and not e.isRaid end
+-- (Attune's attunements: a raid's, a dungeon's quests, a key, a class quest; Attune.lua)
+local function AttuneIs(group)
+	return function(e)
+		local rec = e.kind == "attune" and not e.isStep and ns.Attune and ns.Attune.RecOf(e)
+		return rec and rec.group == group or false
+	end
+end
+local AttuneRaid, AttuneDungeon = AttuneIs("raid"), AttuneIs("dungeon")
+IS.raid = function(e) return (e.kind == "lockouts" and e.isRaid == true) or AttuneRaid(e) end
+IS.dungeon = function(e) return (e.kind == "lockouts" and not e.isRaid) or AttuneDungeon(e) end
+IS.key, IS.class = AttuneIs("key"), AttuneIs("class")
+IS.keys, IS.classquest = IS.key, IS.class
 IS.raids, IS.dungeons, IS.heroic = IS.raid, IS.dungeon, IS.dungeon
 -- the calendar (Calendar.lua): holidays, invitations you haven't answered, what's on today
 local function CalendarIs(test) return function(e) return e.kind == "calendar" and test(e) or false end end
@@ -374,7 +393,7 @@ F.VALUES = {
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
-		"shareable", "together", "raid", "dungeon", "holiday", "invite", "today" },
+		"shareable", "together", "raid", "dungeon", "key", "class", "holiday", "invite", "today" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -403,7 +422,7 @@ local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: boun
 local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
 -- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
 -- done, so the quest log isn't offered them. Its own: complete (ready to turn in), grey, leftbehind, drop)
-local QUESTS = { "questie", "achievements" }
+local QUESTS = { "questie", "achievements", "attune" }
 local PEOPLE = { "guild", "friends", "who", "group" }
 local NPC = { "npc" }
 local MAIL = { "mail" }
@@ -426,7 +445,7 @@ F.APPLIES = {
 		sent = MAIL, incoming = { "auctions" },
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },
-		raid = { "lockouts" }, dungeon = { "lockouts" },
+		raid = { "lockouts", "attune" }, dungeon = { "lockouts", "attune" }, key = { "attune" }, class = { "attune" },
 		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" },
 	},
 	missing = { ["*"] = GROUP },
@@ -437,7 +456,7 @@ F.APPLIES = {
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { nearest = SPOTS, plan = RECIPES }, near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
-	class = { ["*"] = { "talents" } },
+	class = { ["*"] = { "talents", "attune" } },
 	trainer = { ["*"] = NPC },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
 }
@@ -509,6 +528,7 @@ F.HELP = {
 	{ "is:dead", L["@group: dead (or a ghost); tank healer dps (the role set); far (out of range) inrange; unbuffed; online offline; missing:fortitude (int, mark, spirit, shadow, blessing, or any buff's name)"] },
 	{ "is:shareable", L["@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too"] },
 	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
+	{ "is:key", L["@attune (with Attune): your attunements, dungeon quests, keys and class quests, with how far along you are; is:raid is:dungeon is:key is:class, is:done is:todo, class:<class>; > steps lists one's steps"] },
 	{ "is:holiday", L["@calendar: holidays; is:invite: invitations you haven't answered; is:today: what's on today"] },
 	{ "when:week", L["@calendar: what's on today, tomorrow, this week (the next 7 days), this weekend, next week (nextweek), this month or next month (nextmonth)"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },

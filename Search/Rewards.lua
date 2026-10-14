@@ -186,6 +186,7 @@ local function QuestIdOf(e)
 	if type(e) ~= "table" then return nil end
 	if e.kind == "questie" then return e.qid or rawget(e, "key") end
 	if e.kind == "quests" then return e.questID end
+	if e.kind == "attune" then return e.qid end -- (an Attune step that's a quest: Attune.lua)
 end
 QR.QuestIdOf = QuestIdOf
 
@@ -326,6 +327,12 @@ function ForYou(db, id)
 	return Has(Safe(db.QueryQuestSingle, id, "requiredRaces"), race) and Has(Safe(db.QueryQuestSingle, id, "requiredClasses"), class)
 end
 
+--- Can you take this quest (your race and class, as Questie knows it; true without Questie)?
+function QR.ForYou(id)
+	local db = DB()
+	return not db or ForYou(db, id)
+end
+
 --- The quests that lead up to this one, first to last, ending with it: { quest ids }. Every one of preQuestGroup; of
 --- preQuestSingle the one you can take (else the first).
 function QR.Chain(id)
@@ -361,6 +368,7 @@ if ns.RegisterRelation then
 	ns:RegisterRelation("chain", {
 		aliases = { "questchain", "prereqs", "prereq", "prequests", "before", "leadup" },
 		desc = L["the quests that lead up to a quest, first to last (Questie)"],
+		available = function() return ns.providers.questie ~= nil end, addon = "Questie",
 		-- (a chain asked of a name: Questie's quests by that name; else the quests rewarding an item by that name)
 		seedKinds = { "questie" },
 		seedFallback = function(text)

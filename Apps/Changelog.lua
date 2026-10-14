@@ -14,8 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.50.1", when = "in testing",
+		v = "0.50.2", when = "in testing",
 		items = {
+			"With Attune: @attune lists its attunements, dungeon quest lines, keys and class quests (yours, for your faction), each with how far along you are and your next step, your alts' progress in the tooltip. Enter opens Attune on it and points at it, Shift+Enter puts it in the chat box. Simple mode: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\", \"attunements to do\", \"am i attuned to mc\". The steps, first to last: \"how do i get into molten core\", \"steps for the deadmines\" (Advanced: <attunement> > steps; Enter on a step opens Attune on its box), and the attunements a quest is part of (<quest> > attunement). Advanced: is:raid, is:dungeon, is:key, is:class, is:done, is:todo, class:<class>.",
+			"Reaching for Questie, AtlasLoot or Attune without it installed (@questie, @npc, @loot, @attune, > chain, > steps, reward:, sells:, \"nearest innkeeper\", \"molten core loot\", \"how do i get into mc\") adds a line to the footer saying which addon to add for it.",
 			"Alt+click a link in chat to look it up in Terminal (it was Ctrl+click, which is also the game's dressing room: both opened at once). Ctrl+click is the dressing room's alone again.",
 		},
 	},

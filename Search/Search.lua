@@ -575,6 +575,13 @@ Scan.ANSWERS = {
 		local q = ns.LootLog and ns.LootLog.Question(text)
 		if q then return ns.LootLog.Answer(q) end
 	end,
+	-- "how do i get into mc", "how do i get attuned to onyxia": its steps (Search/Attune.lua; before the chains, whose "how
+	-- do i get" is where to get an item)
+	function(text)
+		local Q = ns.Attune and ns.Attune.Q
+		local q = Q and Q.How(text)
+		if q then return Q.Answer(q) end
+	end,
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua
 	function(text)
 		-- (Simple mode takes only the plain words: a ">" typed there is refused like any Advanced syntax)
@@ -646,6 +653,13 @@ Scan.ANSWERS = {
 	function(text)
 		local q = ns.QuestRewards and ns.QuestRewards.Question(text)
 		if q then return ns.QuestRewards.Answer(q) end
+	end,
+	-- "my attunements", "raid attunements", "my keys", "class quests": Attune's list (Search/Attune.lua; late: "dungeon quests
+	-- to share", "grey dungeon quests" are the group's and the quest log's)
+	function(text)
+		local Q = ns.Attune and ns.Attune.Q
+		local q = Q and Q.List(text)
+		if q then return Q.Answer(q) end
 	end,
 	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
 	-- what's on the calendar, or it's a search)
