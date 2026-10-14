@@ -364,6 +364,15 @@ local AttuneRaid, AttuneDungeon = AttuneIs("raid"), AttuneIs("dungeon")
 IS.raid = function(e) return (e.kind == "lockouts" and e.isRaid == true) or AttuneRaid(e) end
 IS.dungeon = function(e) return (e.kind == "lockouts" and not e.isRaid) or AttuneDungeon(e) end
 IS.key, IS.class = AttuneIs("key"), AttuneIs("class")
+-- (your gear's wear: Durability.lua)
+IS.broken = function(e) return e.kind == "durability" and e.duraKind ~= "total" and e.duraCur == 0 end
+IS.damaged = function(e) return e.kind == "durability" and e.duraKind ~= "total" and (e.duraCur or 0) < (e.duraMax or 0) end
+-- dura:<50: durability in percent (@durability)
+KEYS.dura = function(v)
+	local r = Range((v:gsub("%%", "")))
+	return r and function(e) return e.kind == "durability" and e.duraKind ~= "total" and r(e.duraPct) or false end
+end
+KEYS.durability = KEYS.dura
 IS.keys, IS.classquest = IS.key, IS.class
 IS.raids, IS.dungeons, IS.heroic = IS.raid, IS.dungeon, IS.dungeon
 -- the calendar (Calendar.lua): holidays, invitations you haven't answered, what's on today
@@ -393,7 +402,7 @@ F.VALUES = {
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
-		"shareable", "together", "raid", "dungeon", "key", "class", "holiday", "invite", "today" },
+		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -446,6 +455,7 @@ F.APPLIES = {
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },
 		raid = { "lockouts", "attune" }, dungeon = { "lockouts", "attune" }, key = { "attune" }, class = { "attune" },
+		broken = { "durability" }, damaged = { "durability" },
 		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" },
 	},
 	missing = { ["*"] = GROUP },
@@ -458,6 +468,7 @@ F.APPLIES = {
 	fish = { ["*"] = { "maps" } },
 	class = { ["*"] = { "talents", "attune" } },
 	trainer = { ["*"] = NPC },
+	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
 }
 
@@ -529,6 +540,7 @@ F.HELP = {
 	{ "is:shareable", L["@group quests: your quests with who in your party is on each; is:shareable: someone lacks it and you can share it (Enter shares); is:together: someone is on it too"] },
 	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
 	{ "is:key", L["@attune (with Attune): your attunements, dungeon quests, keys and class quests, with how far along you are; is:raid is:dungeon is:key is:class, is:done is:todo, class:<class>; > steps lists one's steps"] },
+	{ "dura:<50", L["@durability: your gear by durability in percent (is:damaged: anything to repair, is:broken: at zero), each with what repairing it costs"] },
 	{ "is:holiday", L["@calendar: holidays; is:invite: invitations you haven't answered; is:today: what's on today"] },
 	{ "when:week", L["@calendar: what's on today, tomorrow, this week (the next 7 days), this weekend, next week (nextweek), this month or next month (nextmonth)"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },

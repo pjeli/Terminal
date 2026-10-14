@@ -75,11 +75,11 @@ E.CATEGORIES = {
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = L["Character"],
-		kinds = { "gold", "experience", "lockouts", "mail", "auctions", "reputation", "currency", "skills", "equipmentset" },
+		kinds = { "gold", "experience", "lockouts", "durability", "mail", "auctions", "reputation", "currency", "skills", "equipmentset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
 	{ id = "calendar", label = L["Calendar"], kinds = { "calendar" }, icon = "Interface\\Icons\\INV_Misc_Note_06" },
 	{ id = "windows", label = L["Windows"], kinds = { "panels" }, icon = "Interface\\Icons\\INV_Misc_Book_11" },
-	{ id = "settings", label = L["Settings"], kinds = { "gameoptions", "keybinds", "cvars", "addons", "terminal" },
+	{ id = "settings", label = L["Settings"], kinds = { "gameoptions", "keybinds", "cvars", "addons", "addonoptions", "terminal" },
 		icon = "Interface\\Icons\\INV_Misc_Gear_01", was = { "game", "console" } },
 	{ id = "commands", label = L["Commands"], kinds = { "slash", "macros" }, keep = NotEmote, icon = "Interface\\Icons\\INV_Misc_Note_01",
 		was = { "slash" } },
@@ -477,6 +477,16 @@ local function AuctionVerbs(e) -- (the auction house's news: as mail; an auction
 	if e.mailKind == "auction" then return MailVerbs(e) end
 	return L["show in chat"], L["put in the chat box"]
 end
+-- (a worn piece: the character window; one in your bags: the bags; the whole bill: chat. Shift+Enter: the nearest repair)
+local function DurabilityVerbs(e)
+	local enter = (e and e.duraKind == "total" and L["show in chat"]) or (e and e.dura and e.dura.bag and L["show in bags"])
+		or L["show on character"]
+	return enter, L["nearest repair"]
+end
+-- (an on/off setting: Shift+Enter turns it on or off; other settings only open)
+local function AddonOptionVerbs(e)
+	return L["open its options"], (e and e.opt and e.opt.toggle) and L["turn on or off"] or nil
+end
 local function LockoutVerbs(e) -- (your own: the game's lockout link; an alt's: in words, Lockouts.lua)
 	return L["show in chat"], (e.mine and not e.world) and L["link in chat"] or L["put in the chat box"]
 end
@@ -492,7 +502,7 @@ E.VERBS = {
 	source = SourceVerbs,
 	stored = { L["show in bags"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
 	loot = { L["show in AtlasLoot"], L["link in chat"] },
-	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs,
+	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs, durability = DurabilityVerbs,
 	calendar = { L["show in calendar"], L["put in the chat box"] },
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
@@ -501,6 +511,7 @@ E.VERBS = {
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
+	addonoptions = AddonOptionVerbs,
 	quests = QuestVerbs,
 	missing = { L["where to learn"], L["link in chat"] }, -- (a recipe you don't know yet: MissingRecipes.lua)
 	toys = { L["use"], L["show in journal"] }, pets = { L["summon"], L["show in journal"] }, mounts = { L["summon"], L["show in journal"] },
@@ -702,6 +713,8 @@ local function QuestionToAdvanced(text)
 	if pq then return ns.GroupQuests.ToAdvanced(pq) end
 	local lq2 = ns.Lockouts and ns.Lockouts.Question and ns.Lockouts.Question(text)
 	if lq2 then return ns.Lockouts.ToAdvanced(lq2) end
+	local dq2 = ns.Durability and ns.Durability.Question and ns.Durability.Question(text)
+	if dq2 then return ns.Durability.ToAdvanced(dq2) end
 	local aq = ns.Auctions and ns.Auctions.Question and ns.Auctions.Question(text)
 	if aq then return ns.Auctions.ToAdvanced(aq) end
 	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
@@ -1068,6 +1081,8 @@ function E.HelpLines()
 		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
 		L["With Attune: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\" (how far along you are, and your next step); \"how do i get into mc\" or \"steps for molten core\" lists the steps first to last. Enter opens Attune on it."],
+		L["Your gear's wear: \"durability\", \"repair cost\", \"what needs repair\", \"broken gear\" (each piece's durability and what repairing it costs, the whole bill on top; Shift+Enter finds the nearest repair vendor)."],
+		L["Other addons' settings: type what a setting is called (\"questie map icons\") to find it in any addon that uses Ace3's options; Enter opens that addon's options on it, Shift+Enter turns an on/off setting on or off."],
 		L["The calendar: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\" (Enter opens it in the calendar)."],
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],

@@ -395,7 +395,9 @@ local function GearActions(e, loc)
 	end
 	return loc
 end
-ns.ItemGear = { GearActions = GearActions, OnUse = OnUse } -- (tests)
+ns.ItemGear = { GearActions = GearActions, OnUse = OnUse, -- (tests)
+	-- (a worn piece's Enter: the character window on its slot, as @gear's; Durability.lua's rows too)
+	WORN = { activate = ShowEquipped, secure = CHAR_SECURE, isOpen = PaperDollOpen, after = PointAtSlot } }
 
 --- A bag item's row, the first time the item is met (bag, slot: where); count and locs are filled by the caller.
 local function NewItemRow(info, name, bag, slot, quests, questExact)

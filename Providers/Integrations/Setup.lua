@@ -42,6 +42,9 @@ ns:RegisterCommand("integrations", {
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
 			or L["not found"])
 		lines[#lines + 1] = "  Attune: " .. ns.Attune.Status()
+		-- (every addon whose options Ace3 holds: @addonoption)
+		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
+		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
 		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end
 		return lines
 	end,
