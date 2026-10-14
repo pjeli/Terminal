@@ -40,7 +40,7 @@ function ns:RegisterRelation(name, def)
 end
 
 -- how the footer says each one
-P.LABELS = { mats = "mats", uses = "used in", sources = "sources", alts = "alts", learn = "learn" }
+P.LABELS = { mats = "mats", uses = "used in", sources = "sources", alts = "alts", learn = "learn", chain = "chain" }
 
 --- The relation's name for a typed word (its name or an alias), or nil.
 function P.Find(word)
@@ -99,12 +99,17 @@ P.PHRASES = {
 	{ "^where to buy (.+)$", "sources" }, { "^where can i buy (.+)$", "sources" }, { "^how to get (.+)$", "sources" },
 	{ "^how do i get (.+)$", "sources" }, { "^sources? for (.+)$", "sources" }, { "^sources? of (.+)$", "sources" },
 	{ "^where does (.+) drop$", "sources" }, { "^who sells (.+)$", "sources" }, { "^what drops (.+)$", "sources" },
+	-- the quests before one (Rewards.lua, 0.49.16): "quest chain for the missing diplomat", "quest chain for outlaw sabre"
+	{ "^quest chain for (.+)$", "chain" }, { "^quest chain of (.+)$", "chain" }, { "^chain for (.+)$", "chain" },
+	{ "^quests? before (.+)$", "chain" }, { "^what leads to (.+)$", "chain" }, { "^prereqs? for (.+)$", "chain" },
+	{ "^(.+) quest chain$", "chain" },
 }
 
 -- Simple mode's words for a one-link chain (it never shows ">"): what Enter writes and what the footer says
-P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s", learn = "where to learn %s" }
+P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s", learn = "where to learn %s",
+	chain = "quest chain for %s" }
 P.SIMPLE_LABEL = { mats = L["Mats for %s"], uses = L["What uses %s"], sources = L["Where to get %s"], alts = L["%s on your alts"],
-	learn = L["Where to learn %s"], ["?"] = L["Which %s?"] }
+	learn = L["Where to learn %s"], chain = L["Quest chain for %s"], ["?"] = L["Which %s?"] }
 
 local function SimpleOn() return ns.Easy and ns.Easy.On and ns.Easy.On() end
 
@@ -888,7 +893,7 @@ end
 
 -- The typed words: the lists an @kind picks (else P.SEED_KINDS), the key:value filters, and the name's words
 -- (lowercase), alone and joined.
-local function SeedParse(text)
+local function SeedParse(text, seedKinds)
 	local kinds, filters, words = {}, {}, {}
 	for w in (text or ""):gmatch("%S+") do
 		if w:sub(1, 1) == "@" and #w > 1 then
@@ -900,7 +905,7 @@ local function SeedParse(text)
 			if f then filters[#filters + 1] = f else words[#words + 1] = w end
 		end
 	end
-	if #kinds == 0 then kinds = P.SEED_KINDS end
+	if #kinds == 0 then kinds = seedKinds or P.SEED_KINDS end
 	local tokens = Tokens(table.concat(words, " "))
 	local whole = table.concat(tokens, " ")
 	return kinds, filters, tokens, whole
@@ -1010,8 +1015,8 @@ end
 --- Never a guess (0.44.4: "core leather belt" gave Comfortable Leather Hat's mats, its letters scattered in the name):
 --- no name with every word -> {} and the closest name (second result); several -> {} and those names to pick from
 --- (third result: rows, best first).
-function P.Seed(text)
-	local kinds, filters, tokens, whole = SeedParse(text)
+function P.Seed(text, seedKinds)
+	local kinds, filters, tokens, whole = SeedParse(text, seedKinds)
 	local from = SeedFrom(kinds, tokens)
 	local gen = ns.entriesGen
 	local all, exact, subs, near, cands = SeedScan(kinds, filters, tokens, whole, from)
@@ -1020,7 +1025,7 @@ function P.Seed(text)
 	if #exact > 0 then return Once(exact) end
 	-- nothing of yours by that name: an item the game or Questie knows by exactly that name (a reagent you don't
 	-- carry: "where to get copper ore")
-	if #subs == 0 and #all == 0 and whole ~= "" then
+	if #subs == 0 and #all == 0 and whole ~= "" and not seedKinds then
 		local out = SeedByReagentName(whole)
 		if #out > 0 then return Once(out) end
 	end
@@ -1102,12 +1107,26 @@ local function KeepTyping(stages, trail)
 	end
 end
 
+-- the first link's own way to start, when it has one (chain: Questie's quests by name, else the quests rewarding an item
+-- by that name; Rewards.lua)
+local function FirstDef(stages)
+	local name = stages[2] and P.Find(stages[2].word)
+	return name and P.relations[name] and P.relations[name][1] or nil, name
+end
+
 -- the first part's rows, kept by its text (the closest name or the names to pick from ride on the list)
 local function SeedRows(key, stages)
+	local def, name = FirstDef(stages)
+	local kinds = def and def.seedKinds
+	if kinds then key = key .. " @" .. name end -- (the same words start another list there)
 	local rows = Cached(key)
 	if not rows then
 		local near, choices
-		rows, near, choices = P.Seed(stages[1].text)
+		rows, near, choices = P.Seed(stages[1].text, kinds)
+		if #rows == 0 and not choices and def and def.seedFallback then
+			local fb = def.seedFallback(stages[1].text)
+			if fb and #fb > 0 then rows, near = Once(fb), nil end
+		end
 		rows.near, rows.choices = near, choices -- (kept with them: the cache hands back the list alone)
 		Keep(key, rows)
 	end
@@ -1135,7 +1154,8 @@ local function NoSeedRows(chain, stages, rows, trail)
 		for i, e in ipairs(rows.choices) do out[#out + 1] = Pick(e, i, oneRel, rest) end
 		return out, trail[1] .. " > ?"
 	end
-	local out = { Line(L["Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"]:format(trail[1])) }
+	local def = FirstDef(stages)
+	local out = { Line(((def and def.seedNone) or L["Nothing called \"%s\" in your bags, recipes, AtlasLoot or alts"]):format(trail[1])) }
 	if rows.near then
 		local d = Pick(rows.near, 1, oneRel, rest)
 		d.name = L["Did you mean %s?"]:format(d.name)
@@ -1156,7 +1176,7 @@ local function RelationChoices(chain, s, rows, trail)
 				completion = done, staysOpen = true, activate = PickRelation, _score = 1e6 - #out }
 		end
 	end
-	if #out == 0 then out[1] = Line(L["No link called \"%s\": mats, uses, sources, learn, alts"]:format(s.word or "")) end
+	if #out == 0 then out[1] = Line(L["No link called \"%s\": mats, uses, sources, learn, alts, chain"]:format(s.word or "")) end
 	trail[#trail + 1] = "?"
 	return out, table.concat(trail, " > ")
 end
@@ -1207,7 +1227,7 @@ end
 
 -- Simple mode's words for a link that gave nothing ("Nothing uses Hearthstone"): it never shows ">"
 P.SIMPLE_NONE = { mats = L["No mats for %s: it isn't crafted"], uses = L["Nothing uses %s"], sources = L["Nowhere known to get %s"],
-	alts = L["No %s on your alts"], learn = L["Nowhere known to learn %s"] }
+	alts = L["No %s on your alts"], learn = L["Nowhere known to learn %s"], chain = L["No quests lead up to %s"] }
 
 local function NothingThere(trail, stages, rel, from)
 	local f = SimpleOn() and #stages == 2 and (stages[2].rest or "") == "" and P.SIMPLE_NONE[rel]

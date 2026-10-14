@@ -641,6 +641,12 @@ Scan.ANSWERS = {
 		local q = ns.Group and ns.Group.Question(text)
 		if q then return ns.Group.Answer(q) end
 	end,
+	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
+	-- quest reward, and no quest is called that)
+	function(text)
+		local q = ns.QuestRewards and ns.QuestRewards.Question(text)
+		if q then return ns.QuestRewards.Answer(q) end
+	end,
 	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
 	-- what's on the calendar, or it's a search)
 	function(text)

@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.49.15", when = "in testing",
+		v = "0.49.16", when = "in testing",
 		items = {
 			"The calendar: @calendar (Simple mode: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\") lists what's on from today to the end of next month: holidays such as the Darkmoon Faire, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, raid resets. Enter opens the calendar on the event, Shift+Enter puts it in the chat box (an event as its link). Advanced: is:holiday, is:invite, when:week (today, tomorrow, weekend, nextweek, month, nextmonth).",
 			"A full review, the keys and clicks: Enter does what the footer says after a Shift+Enter or a click set it up; a window opened while lists still load closes Terminal and is pointed at; AltGr letters type (Polish, Czech, Hungarian layouts); a key you bound to Terminal closes it too; F1, .changelog, .atop and the games catch the mouse and close when Terminal opens.",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"Trainers: \"enchanting trainer\", \"blacksmithing trainer\", \"mage trainer\", \"hunter pet trainer\" or \"demon trainer\" (\"warlock pet trainer\" too; \"pet trainer\" alone is your class's) lists the nearest ones that teach it, no \"nearest\" needed (\"mining trainer in org\" keeps to the place); found by what they teach, so the Journeyman Enchanter, the Herbalists and the Master Mages are in (\"enchanting\" found nothing, \"enchant\" did).",
 			"@calendar says when each event starts and ends, to the minute, as the calendar's own tooltip does: the Stranglethorn Fishing Extravaganza's 2 to 4 PM, when the Darkmoon Faire closes.",
 			"\"recipes to learn\" keeps to the ones your skill allows now (it listed hundreds beyond it), and the footer says how many more need more skill; \"recipes in my skill range\" too, and \"all recipes to learn\" or \"recipes i'm missing\" lists every one.",
+			"Quests by their reward: \"outlaw sabre quest\" or \"quest for outlaw sabre\" lists the quest that rewards it (a close spelling counts; Advanced: @questie reward:outlaw_sabre). And the quests before one: \"quest chain for the missing diplomat\" (Advanced: <quest> > chain) lists them first to last, the one your race and class can take where there's a choice.",
 		},
 	},
 	{

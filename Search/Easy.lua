@@ -689,6 +689,8 @@ local function QuestionToAdvanced(text)
 	end
 	local plq = ns.Plan and ns.Plan.Question and ns.Plan.Question(text)
 	if plq then return ns.Plan.ToAdvanced(plq) end
+	local rq = ns.QuestRewards and ns.QuestRewards.Question and ns.QuestRewards.Question(text)
+	if rq then return ns.QuestRewards.ToAdvanced(rq) end
 	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
 	if dq then
 		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
