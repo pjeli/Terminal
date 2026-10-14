@@ -54,6 +54,12 @@ do
 	check(q and q.learnable and #q.profs == 0, "recipes i can learn now: those your skill allows")
 	check(Q("recipes i dont know") and Q("missing recipes") and Q("tailoring patterns i don't have yet") and Q("learnable recipes").learnable,
 		"other ways to ask")
+	-- (0.49.15, the player's ask: "recipe to learn" listed 600 and more) "to learn" keeps to what your skill allows; "all"
+	-- or "missing" asks for every one; the skill range said in words
+	check(Q("recipe to learn").learnable and Q("blacksmithing recipes to learn").learnable and Q("recipes in my skill range").learnable
+		and Q("recipes within my skill").learnable and Q("recipes within my skill").words[1] == nil, "to learn, in my skill range: what your skill allows")
+	check(not Q("all recipes to learn").learnable and not Q("every recipe to learn").learnable and not Q("recipes i dont know").learnable
+		and not Q("missing recipes").learnable, "all recipes to learn, missing: every one")
 	check(Q("blacksmithing recipes") == nil and Q("recipes that need copper bar") == nil and Q("@recipe is:unknown") == nil
 		and Q("thorium belt") == nil, "other searches stay searches")
 
@@ -122,6 +128,11 @@ do
 	for _, e in ipairs(rows) do names[#names + 1] = e.name end
 	check(table.concat(names, ",") == "Copper Chain Belt" and note:find("^Recipes you can learn now") and note:find("1 whose skill isn't known left out", 1, true),
 		"recipes i can learn now: " .. table.concat(names, ",") .. " / " .. note)
+	rows, note = MR.Answer(Q("recipes to learn"))
+	check(#rows == 1 and rows[1].name == "Copper Chain Belt" and note:find("more need more skill (\"all recipes to learn\" lists them)", 1, true),
+		"recipes to learn: what your skill allows, the footer says how many more and how to list them: " .. note)
+	rows = MR.Answer(Q("all recipes to learn"))
+	check(#rows == 5, "all recipes to learn: every one: " .. #rows)
 	rows, note = MR.Answer(Q("tailoring recipes i can learn now"))
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("None you can learn yet: the next, Brown Linen Shirt, needs Tailoring 10", 1, true)
 		and note == "Recipes you can learn now: Tailoring", "none yet: a line names the next one: " .. tostring(rows[1] and rows[1].name) .. " / " .. note)

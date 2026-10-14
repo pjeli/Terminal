@@ -551,11 +551,17 @@ local SUBJECT = { recipe = true, recipes = true, pattern = true, patterns = true
 	formulas = true, schematic = true, schematics = true, design = true, designs = true, manual = true, manuals = true }
 -- (not "need": "recipes that need copper bar" is what uses it)
 local MISSING = { missing = true, miss = true, unknown = true, unlearned = true, dont = true, havent = true, lack = true,
-	learn = true, learnable = true, new = true, yet = true, still = true }
+	learn = true, learnable = true, new = true, yet = true, still = true, range = true, within = true, reach = true }
+-- (0.49.15, the player's ask: "recipe to learn" listed 600 and more, most beyond your skill) the words that keep to what
+-- your skill allows ("recipes in my skill range", "within my skill"); "to learn" does too, unless every one is asked
+-- for ("all recipes to learn") or the words say missing ("recipes i'm missing", "recipes i don't know")
+local RANGE = { range = true, within = true, reach = true }
+local EVERY = { all = true, every = true, missing = true, miss = true, unknown = true, unlearned = true, dont = true,
+	havent = true, lack = true }
 local ASK = {}
 for w in ([[i im my me the a an all any every what which show list do dont know have havent got get yet learned learn
 	learnt can could now to still are that is there for of in still left more new need missing miss unknown unlearned lack
-	learnable available i'd ive is are profession professions]]):gmatch("%S+") do ASK[w] = true end
+	learnable available i'd ive is are profession professions range within reach skill current]]):gmatch("%S+") do ASK[w] = true end
 
 -- your profession a word names ("blacksmithing", "blacksmith", "smithing"...: its name holds the word, 4 letters or more)
 function ProfWord(w, profs)
@@ -584,10 +590,15 @@ function MR.Question(text)
 	local P = ns.Professions
 	local profs = P and P.PlayerProfessions and P.PlayerProfessions() or {}
 	local q = { profs = {}, words = {} }
-	-- "recipes i can learn (now)", "learnable recipes", "recipes available to learn"
-	local hasLearn = false
-	for _, w in ipairs(list) do if w == "learn" or w == "learnable" or w == "available" then hasLearn = true end end
-	q.learnable = (can and hasLearn) or (now and hasLearn) or nil
+	-- "recipes i can learn (now)", "learnable recipes", "recipes available to learn", "recipes in my skill range"; "recipes
+	-- to learn" too, unless "all recipes to learn" or "recipes i'm missing" asks for every one (0.49.15)
+	local hasLearn, range, every = false, false, false
+	for _, w in ipairs(list) do
+		if w == "learn" or w == "learnable" or w == "available" then hasLearn = true end
+		if RANGE[w] then range = true end
+		if EVERY[w] then every = true end
+	end
+	q.learnable = (can and hasLearn) or (now and hasLearn) or range or (hasLearn and not every) or nil
 	for _, w in ipairs(list) do
 		if not SUBJECT[w] and not ASK[w] then
 			local pn = ProfWord(w, profs)
@@ -609,7 +620,7 @@ end
 function MR.Answer(q)
 	q = q or {}
 	local p = ns.providers.missing
-	local rows, noSkill, nextUp = {}, 0, nil
+	local rows, noSkill, nextUp, later = {}, 0, nil, 0
 	local wantProf = {}
 	for _, n in ipairs(q.profs or {}) do wantProf[n] = true end
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
@@ -622,7 +633,7 @@ function MR.Answer(q)
 			if not e.need then
 				noSkill, ok = noSkill + 1, false
 			elseif not e.canLearn then
-				ok = false
+				ok, later = false, later + 1
 				if not nextUp or e.need < nextUp.need then nextUp = e end
 			end
 		end
@@ -643,6 +654,10 @@ function MR.Answer(q)
 		end
 	end
 	if q.learnable and noSkill > 0 then note = note .. "  ·  " .. L["%d whose skill isn't known left out"]:format(noSkill) end
+	-- (the ones beyond your skill: how many, and how to list them all)
+	if q.learnable and later > 0 and #rows > 0 then
+		note = note .. "  ·  " .. L["%d more need more skill (\"all recipes to learn\" lists them)"]:format(later)
+	end
 	local open = Unlisted(wantProf)
 	if #rows == 0 then
 		-- (none: a line saying why, not an empty list; nothing listed because no window was read: the line says so)

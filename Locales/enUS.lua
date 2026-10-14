@@ -23,6 +23,7 @@ L["%d h ago"] = true
 L["%d is your cap: train for more"] = true
 L["%d min"] = true
 L["%d min ago"] = true
+L["%d more need more skill (\"all recipes to learn\" lists them)"] = true
 L["%d more waiting on the server (the inbox shows 50 at a time)"] = true
 L["%d names from Terminal's list, none with a value"] = true
 L["%d names from the game's list, none with a value"] = true
