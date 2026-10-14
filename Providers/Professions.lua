@@ -564,9 +564,11 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown, parti
 		end
 		ns:Trace(("professions: %s's window is filtered (%s): %d recipes kept with what it showed"):format(profName, partial, #list))
 	end
+	-- a profession indexed (anew, or with more recipes): a trace, so chat says it only in debug mode (0.49.7, the
+	-- player's ask: it was a chat line every time a profession window opened with something new)
 	if not P.scanning and prevCount ~= #list then
-		local more = (unknown and #unknown > 0) and (", " .. L["%d more to learn"]:format(#unknown)) or ""
-		ns:Print((#list == 1 and L["Indexed %s: %d known recipe%s."] or L["Indexed %s: %d known recipes%s."]):format(profName, #list, more))
+		local more = (unknown and #unknown > 0) and (", %d more to learn"):format(#unknown) or ""
+		ns:Trace(("professions: indexed %s: %d known recipe%s%s"):format(profName, #list, #list == 1 and "" or "s", more))
 	end
 	for k, pd in pairs(store) do
 		if k ~= key and pd.name and Lower(pd.name) == lname then store[k] = nil end

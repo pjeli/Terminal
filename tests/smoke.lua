@@ -1651,7 +1651,10 @@ do
 	for _, ev in ipairs(ns.providers.achievements.events or {}) do achEvents[ev] = true end
 	check(achEvents.ACHIEVEMENT_EARNED, "an achievement earned this session is listed without a reload")
 	check(has("valor", "Valor") and not has("honor", "Honor"), "only currencies you hold are listed")
-	check(logFind("Indexed First Aid: 2 known recipes."), "a newly indexed profession is announced in chat")
+	-- (0.49.7, the player's ask) indexing is quiet in chat: a trace, printed only in debug mode
+	local function traced(text) for _, l in ipairs(ns.Debug.trace) do if l.msg:find(text, 1, true) then return true end end return false end
+	check(not logFind("Indexed First Aid") and not logFind("indexed First Aid") and traced("professions: indexed First Aid: 2 known recipes"),
+		"a newly indexed profession: nothing in chat (debug off), a trace kept")
 	check(not logFind("indexed Fishing"), "a scan doesn't announce each profession")
 
 	-- Forever: GetAllRecipeIDs can be empty while GetFilteredRecipeIDs answers; learned may be nil
@@ -1663,13 +1666,16 @@ do
 	C_TradeSkillUI.GetFilteredRecipeIDs = function() return RECIPES[tsState.prof.id] and RECIPES[tsState.prof.id].ids or {} end
 	C_TradeSkillUI.GetTradeSkillLineForRecipe = function(id) if id >= 41 and id <= 45 then return 129, "First Aid", 129 end end
 	tsState.prof = { id = 129, name = "" }
+	local debugWas = ns.db.debug
+	ns.db.debug = true -- (debug mode: the trace is printed)
 	P.Snapshot(); FlushAll()
+	ns.db.debug = debugWas
 	local st = ns.db.recipes["Tester-Realm"]
 	check(st[129] and #st[129].list == 4, "recipes read from GetFilteredRecipeIDs when GetAllRecipeIDs is empty")
 	check(has("heavy linen", "Heavy Linen Bandage"), "Heavy Linen Bandage is found")
 	check(has("silk band", "Silk Bandage"), "recipes without a learned flag count as known")
 	check(not has("runecloth", "Runecloth Bandage"), "explicitly unlearned recipes stay out")
-	check(logFind("Indexed First Aid: 4 known recipes, 1 more to learn."), "re-index with more recipes is announced, and how many to learn")
+	check(logFind("professions: indexed First Aid: 4 known recipes, 1 more to learn"), "debug mode: a re-index with more recipes is said in chat, and how many to learn")
 	check(st[129].unknown and #st[129].unknown == 1 and st[129].unknown[1].name == "Runecloth Bandage" and st[129].unknown[1].id == 44,
 		"the window's recipe you don't know is kept apart (0.45.14: recipes to learn)")
 

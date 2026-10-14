@@ -23,7 +23,6 @@ L["%d h ago"] = true
 L["%d is your cap: train for more"] = true
 L["%d min"] = true
 L["%d min ago"] = true
-L["%d more to learn"] = true
 L["%d more waiting on the server (the inbox shows 50 at a time)"] = true
 L["%d names from Terminal's list, none with a value"] = true
 L["%d names from the game's list, none with a value"] = true
@@ -577,8 +576,6 @@ L["In plain words: mats for thorium belt, what uses copper bar, where to get tho
 L["In range"] = true
 L["Index my recipes (scan professions)"] = true
 L["Index professions at login"] = true
-L["Indexed %s: %d known recipe%s."] = true
-L["Indexed %s: %d known recipes%s."] = true
 L["Indexes will rebuild on next search."] = true
 L["Indexing AtlasLoot's loot tables (%d of %d)"] = true
 L["Indexing Questie's NPCs"] = true
