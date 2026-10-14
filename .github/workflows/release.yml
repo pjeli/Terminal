@@ -24,9 +24,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # The release's notes are this version's part of CHANGELOG.md alone (0.50.0, the player's ask: the whole history
+      # went up with each release): from its "## <tag>" heading to the next one (else the newest part). The ZIP still
+      # carries the whole CHANGELOG.md; .pkgmeta reads RELEASE_NOTES.md and leaves it out of the ZIP.
+      - name: Release notes from this version's part of the changelog
+        run: |
+          awk -v v="$GITHUB_REF_NAME" '
+            { sub(/\r$/, "") }
+            /^## / { if (found) exit; if ($2 == v) found = 1 }
+            found { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::warning::CHANGELOG.md has no '## $GITHUB_REF_NAME' heading: the newest part is used"
+            awk '{ sub(/\r$/, "") } /^## / { n++ } n == 1 { print }' CHANGELOG.md > RELEASE_NOTES.md
+          fi
+          cat RELEASE_NOTES.md
       - name: Package and upload
         uses: BigWigsMods/packager@v2
         # The TOCs list WoW Forever alone (16001, 0.48.1), and with a single game version the packager adds it to the
-        # file's name and label ("Terminal-0.48.1-forever.zip"): keep them "Terminal-0.48.1.zip" / "0.48.1".
+        # file's name and label ("Terminal-0.48.1-forever.zip"): both are "Terminal-<version>.zip" (0.50.0, the player's
+        # ask: CurseForge listed the file as "0.48.1"), the file on CurseForge and on GitHub alike.
         with:
-          args: -n "{package-name}-{project-version}:{project-version}"
+          args: -n "{package-name}-{project-version}:{package-name}-{project-version}.zip"

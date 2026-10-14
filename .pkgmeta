@@ -4,10 +4,12 @@ ignore:
   - tests
   - CLAUDE.md
   - Locales/enUS.lua
+  - RELEASE_NOTES.md
 
-# the release's notes on CurseForge: the changelog kept in the repo
+# the release's notes on CurseForge and GitHub: this version's part of CHANGELOG.md, cut out by release.yml before
+# packaging (the ZIP carries the whole CHANGELOG.md)
 manual-changelog:
-  filename: CHANGELOG.md
+  filename: RELEASE_NOTES.md
   markup-type: markdown
 
 # Terminal Extras (the games and the radio): a load-on-demand addon of its own, packaged beside Terminal
