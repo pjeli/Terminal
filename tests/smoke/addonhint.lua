@@ -54,13 +54,49 @@ do
 	UI:Hide(); FlushAll()
 	UI:Open("@attune"); FlushAll()
 	local said = tostring(UI.footExtra:GetText())
-	check(UI.footExtra:IsShown() and said:find("Attune isn't installed", 1, true) and said:find("attunements, keys and class quest chains", 1, true)
-		and UI.footerH > base and not tostring(UI.status:GetText()):find("installed", 1, true),
-		"@attune without Attune: the extra line says to install it: " .. said)
+	check(UI.footExtra:IsShown() and said:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") == "Install Attune for this."
+		and UI.footerH > base and not tostring(UI.status:GetText()):find("Install", 1, true),
+		"@attune without Attune: the extra line says to install it, in few words: " .. said)
+	-- (0.50.6, the player's screenshot: the line was above the status, in the font's yellow)
+	check(not said:find("|cffffd200", 1, true), "not in a notice's gold: " .. said)
+	check(UI.footExtra.lastPoint[5] < UI.status.lastPoint[5] and UI.status.lastPoint[5] < UI.footerH,
+		"under the status line: " .. tostring(UI.footExtra.lastPoint[5]) .. " < " .. tostring(UI.status.lastPoint[5]))
+	local colour
+	UI.footExtra.SetTextColor = function(_, r, g, b) colour = { r, g, b } end
+	UI:ApplyTheme()
+	local dr, dg, db = ns.Theme.RGB(ns.Theme.Get().dim)
+	check(colour and colour[1] == dr and colour[2] == dg and colour[3] == db, "in the footer's own dim colour")
+	UI.footExtra.SetTextColor = nil
 	UI:Hide(); FlushAll()
 	UI:Open("copper ore"); FlushAll()
 	check(not UI.footExtra:IsShown() and UI.footerH == base, "then a search that needs nothing: the line goes, the footer as it was")
 	UI:Hide(); FlushAll()
+
+	-- your alts' things (0.50.6, the player): Syndicator or BagBrother, said only with neither
+	do
+		local St, B = ns.Stored, ns.Bags
+		local sv = { api = St.SyndicatorAPI, bb = St.BrotherBags, bagnon = B.Bagnon }
+		St.SyndicatorAPI, St.BrotherBags, B.Bagnon = function() return nil end, function() return nil end, function() return nil end
+		for _, c in ipairs({ { "@stored linen", "Syndicator" }, { "@alts", "Syndicator" }, { "@bank", "Syndicator" },
+			{ "linen on:bob", "Syndicator" }, { "linen in:bank", "Syndicator" }, { "linen in:guild", "Syndicator" },
+			{ "linen in:bags", "none" }, { "linen", "none" } }) do
+			check(For(c[1]) == c[2], c[1] .. ": " .. c[2] .. " (" .. For(c[1]) .. ")")
+		end
+		ns.db.easyMode = true
+		check(For("bank") == "none", "Simple mode: \"bank\" is the banker, no hint")
+		ns.db.easyMode = false
+		I.ForgetHint()
+		local said = tostring(I.MissingHint("@stored linen")):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+		check(said == "Install Syndicator or BagBrother for this.", "both named: " .. said)
+		St.SyndicatorAPI = function() return {} end
+		check(For("@stored") == "none", "Syndicator there: no hint")
+		St.SyndicatorAPI, St.BrotherBags = sv.api, function() return { x = 1 } end
+		check(For("@stored") == "none", "BagBrother's records there: no hint")
+		St.BrotherBags, B.Bagnon = function() return nil end, function() return true end
+		check(For("@stored") == "none", "Bagnon there (its records to come): no hint")
+		St.SyndicatorAPI, St.BrotherBags, B.Bagnon = sv.api, sv.bb, sv.bagnon
+		I.ForgetHint()
+	end
 
 	-- installed: no hint
 	ns.providers.questie, ns.providers.npc, ns.providers.loot, ns.providers.mailbox = save.questie or {}, save.npc or {}, save.loot or {}, save.mailbox

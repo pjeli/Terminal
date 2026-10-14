@@ -50,7 +50,7 @@ ns:RegisterCommand("integrations", {
 	end,
 })
 ----------------------------------------------------------------------
--- Reaching for an addon that isn't there (0.50.2, the player's ask): @questie, @npc, @loot, @attune, their chains
+-- Reaching for an addon that isn't there (0.50.2, the player's ask): @questie, @npc, @loot, @attune, @stored, their chains
 -- (> chain, > steps), filters (reward:, sells:) and plain words (an NPC's role in Simple mode, "loot", "attunements",
 -- "how do i get into") say in an extra footer line which addon to install for it. Nothing changes in the search itself.
 ----------------------------------------------------------------------
@@ -59,15 +59,23 @@ I.ADDONS = {
 	{ name = "Questie", missing = function() return not (ns.providers.questie or ns.providers.npc) end,
 		kinds = { questie = true, questdb = true, allquests = true, npc = true, npcs = true, mob = true, mobs = true, vendor = true,
 			mailbox = true, mailboxes = true },
-		keys = { reward = true, rewards = true, sells = true, sold = true },
-		what = L["every quest and NPC: quest chains, quest rewards, vendors and trainers"] },
+		keys = { reward = true, rewards = true, sells = true, sold = true } },
 	{ name = "AtlasLoot", missing = function() return not ns.providers.loot end,
-		kinds = { loot = true, atlasloot = true, al = true },
-		what = L["every dungeon's and raid's loot"] },
+		kinds = { loot = true, atlasloot = true, al = true } },
 	{ name = "Attune", missing = function() return not ns.providers.attune end,
 		kinds = { attune = true, attunes = true, attunement = true, attunements = true },
-		words = { attunements = true, attuned = true },
-		what = L["attunements, keys and class quest chains"] },
+		words = { attunements = true, attuned = true } },
+	-- (0.50.6, the player: your alts' bags and banks, @stored, come from Syndicator or BagBrother (Bagnon's): said only
+	-- with neither detected, naming both. Simple mode's "bank" is the banker: no word of its own)
+	{ name = "Syndicator", also = "BagBrother", missing = function()
+			local S = ns.Stored
+			return not (S and ((S.SyndicatorAPI and S.SyndicatorAPI()) or (S.BrotherBags and S.BrotherBags())
+				or (ns.Bags and ns.Bags.Bagnon and ns.Bags.Bagnon())))
+		end,
+		kinds = { stored = true, alts = true, alt = true, bank = true, banks = true, storage = true, everywhere = true,
+			syndicator = true, bagnon = true },
+		keys = { on = true, who = true },
+		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
 local BY_NAME = {}
 for _, a in ipairs(I.ADDONS) do BY_NAME[a.name] = a end
@@ -140,8 +148,9 @@ function I.MissingFor(text)
 		else
 			local kind = w:match("^@(%S+)")
 			local key = w:match("^[-!]?(%a+):")
+			local kv = key and (key .. ":" .. (w:match(":(.*)$") or ""))
 			for _, a in ipairs(I.ADDONS) do
-				if a.missing() and ((kind and a.kinds[kind]) or (key and a.keys and a.keys[key])
+				if a.missing() and ((kind and a.kinds[kind]) or (key and a.keys and a.keys[key]) or (kv and a.values and a.values[kv])
 					or (simple and not kind and not key and a.words and a.words[w])) then
 					return a
 				end
@@ -187,7 +196,11 @@ function I.MissingHint(text)
 	local LL = ns.LootLog
 	local a = I.MissingFor(text)
 	if a and a.name == "AtlasLoot" and LL and LL.Question and type(text) == "string" and LL.Question(text) then a = nil end
-	hintText = a and L["%s isn't installed: add it for %s in Terminal"]:format(a.name, a.what) or nil
+	-- (short, under the status, the addon's name in the text's colour: 0.50.6, the player's screenshot)
+	local th = ns.Theme and ns.Theme.Get and ns.Theme.Get()
+	local function Named(n) return th and th.text and ("|cff" .. th.text .. n .. "|r") or n end
+	local name = a and (a.also and L["%s or %s"]:format(Named(a.name), Named(a.also)) or Named(a.name))
+	hintText = a and L["Install %s for this."]:format(name) or nil
 	return hintText
 end
 function I.ForgetHint() hintFor, hintText = nil, nil end -- (tests: an addon came or went)

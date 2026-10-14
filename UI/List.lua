@@ -122,7 +122,7 @@ do
 		-- (an addon the line reaches for that isn't installed: which one to add, on a line of its own; Setup.lua)
 		local I = ns.Integrations
 		local missing = self.mode == "search" and not self.bare and I and I.MissingHint and UI.edit and I.MissingHint(UI.edit:GetText()) or nil
-		self:SetFooterExtra(missing and (HINT .. missing .. "|r") or nil)
+		self:SetFooterExtra(missing) -- (the footer's dim colour, not the gold of a notice: 0.50.6)
 		local once = ns.Easy and ns.Easy.temp
 		if self.fzf then
 			once = true

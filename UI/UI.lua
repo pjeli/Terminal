@@ -448,7 +448,7 @@ do
 		hints:SetJustifyH("RIGHT")
 		hints:SetWordWrap(false)
 		UI.hints = hints
-		-- (an extra line above them, only while it has something to say: an addon to install, List.lua's SetStatus)
+		-- (an extra line under them, only while it has something to say: an addon to install, List.lua's SetStatus)
 		local extra = frame:CreateFontString(nil, "OVERLAY")
 		extra:SetFontObject(Theme.fonts.small)
 		extra:SetJustifyH("LEFT")
@@ -483,15 +483,17 @@ end
 
 --- The footer's line, the result count and the key hints, placed for the font size.
 local function ApplyFooterLayout(t)
-	-- footer: one line (hints that don't fit are left out, see FitHints); a second above it while UI.footExtra shows
-	local footerH = math.max(FOOTER_H, t.fontSize + 12)
+	-- footer: one line (hints that don't fit are left out, see FitHints); a second under it while UI.footExtra shows
+	-- (0.50.6, the player's screenshot: it was above the status, and read as the main line)
+	local baseH = math.max(FOOTER_H, t.fontSize + 12)
 	local lineH = t.fontSize + 8
+	local footerH, statusY = baseH, baseH / 2
 	local extra = UI.footExtra
 	if extra then
 		extra:ClearAllPoints()
-		extra:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, footerH + lineH / 2 - 2)
-		extra:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, footerH + lineH / 2 - 2)
-		if UI.footExtraOn then footerH = footerH + lineH end
+		extra:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, lineH / 2 + 3)
+		extra:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, lineH / 2 + 3)
+		if UI.footExtraOn then footerH, statusY = baseH + lineH, lineH + baseH / 2 - 2 end
 	end
 	UI.footerH = footerH
 	local classicInset = t.frame == "classic" and 5 or 1
@@ -499,9 +501,9 @@ local function ApplyFooterLayout(t)
 	footLine:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", classicInset + 6, footerH)
 	footLine:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -classicInset - 6, footerH)
 	status:ClearAllPoints()
-	status:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, footerH / 2)
+	status:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, statusY)
 	hints:ClearAllPoints()
-	hints:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, footerH / 2)
+	hints:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, statusY)
 end
 
 --- The footer's extra line: shown with this text (nil: hidden), the footer one line taller while it shows.
@@ -617,6 +619,7 @@ local function ApplyRowsTheme(self, t)
 	self:LayoutHeader() -- (the divider, the prompt's background, the rows' places, the click area)
 	status:SetTextColor(dr, dg, db)
 	hints:SetTextColor(dr, dg, db)
+	if UI.footExtra then UI.footExtra:SetTextColor(dr, dg, db) end -- (was the font's own yellow: 0.50.6)
 	local lr, lg, lb = Theme.RGB(t.border)
 	footLine:SetColorTexture(lr, lg, lb, 0.35)
 	self.hintsRoom = nil -- fonts and colours may have changed: measure the hints again

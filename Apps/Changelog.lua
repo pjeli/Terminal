@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.50.5", when = "in testing",
+		v = "0.50.6", when = "in testing",
 		items = {
 			"Your corpse: after a death, \"where is my body\" (or \"my corpse\", \"corpse run\", \"where did i die\"; Advanced: @corpse) shows where it lies, how far and which way (the arrow on the row turns with you), and the nearest spirit healers. Enter opens the map on it with a pin, Shift+Enter only pins it. With Questie, spirit healers are NPCs too: \"nearest spirit healer\", \"nearest graveyard\" (Advanced: @npc is:spirithealer).",
 			"in:warband is no longer offered when you type in: (WoW Forever has no warband bank).",
@@ -22,7 +22,7 @@ CL.LOG = {
 			"Your gear's wear: @durability (Simple mode: \"durability\", \"repair cost\", \"what needs repair\", \"broken gear\") lists every piece that wears down, lowest first, and the damaged ones in your bags, each with its durability and what repairing it costs (the game's own figure, less the reputation discount the last repair vendor gave you; a vendor's own total while its window is open), the whole bill on top. Enter shows it on your character or in your bags, Shift+Enter finds the nearest repair vendor. Advanced: is:damaged, is:broken, dura:<50; .durability.",
 			"Other addons' settings: type what a setting is called (\"questie map icons\", \"attune announce\") to find it in any addon that uses Ace3's options (@addonoption; Simple mode: under Settings). Enter opens that addon's options on it and points at it; Shift+Enter turns an on/off setting on or off. .integrations lists the addons found.",
 			"With Attune: @attune lists its attunements, dungeon quest lines, keys and class quests (yours, for your faction), each with how far along you are and your next step, your alts' progress in the tooltip. Enter opens Attune on it and points at it, Shift+Enter puts it in the chat box. Simple mode: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\", \"attunements to do\", \"am i attuned to mc\". The steps, first to last: \"how do i get into molten core\", \"steps for the deadmines\" (Advanced: <attunement> > steps; Enter on a step opens Attune on its box), and the attunements a quest is part of (<quest> > attunement). Advanced: is:raid, is:dungeon, is:key, is:class, is:done, is:todo, class:<class>.",
-			"Reaching for Questie, AtlasLoot or Attune without it installed (@questie, @npc, @loot, @attune, > chain, > steps, reward:, sells:, \"nearest innkeeper\", \"molten core loot\", \"how do i get into mc\") adds a line to the footer saying which addon to add for it.",
+			"Reaching for Questie, AtlasLoot, Attune or your alts' bags without the addon for it installed (@questie, @npc, @loot, @attune, @stored, on:, in:bank, > chain, > steps, reward:, sells:, \"nearest innkeeper\", \"molten core loot\", \"how do i get into mc\") adds a short line under the footer: \"Install Attune for this.\" (for your alts' bags: Syndicator or BagBrother, said only with neither there).",
 			"Alt+click a link in chat to look it up in Terminal (it was Ctrl+click, which is also the game's dressing room: both opened at once). Ctrl+click is the dressing room's alone again.",
 		},
 	},
