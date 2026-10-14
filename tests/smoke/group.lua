@@ -104,6 +104,28 @@ do
 	check(missing == "Plamen Warr,Cid", "missing buffs: you and Cid: " .. missing)
 	check(A("who needs kings") == "Plamen Warr,Cid" and A("who needs shadow protection") == "Plamen Warr,Ann,Cid",
 		"any buff by name (Blessing of Kings), Shadow Protection asked for by name")
+	-- (0.50.7, review) no press set up out of combat: not said to be combat
+	do
+		local pr, icl, said = ns.Print, _G.InCombatLockdown, ""
+		ns.Print = function(_, m) said = tostring(m) end
+		_G.InCombatLockdown = function() return false end
+		ann.activate(ann)
+		check(not said:find("In combat", 1, true) and said:find("Ann", 1, true), "out of combat: not \"In combat\": " .. said)
+		_G.InCombatLockdown = function() return true end
+		ann.activate(ann)
+		check(said:find("In combat", 1, true), "in combat: says so")
+		ns.Print, _G.InCombatLockdown = pr, icl
+	end
+	-- (0.50.7, review) one blessing by name: those without it, not those without any blessing ("blessing" took the family)
+	table.insert(M.party3.buffs, "Blessing of Might")
+	Rows()
+	check(A("who needs blessing of kings") == "Plamen Warr,Cid" and A("who needs greater blessing of might") == "Plamen Warr,Ann,Cid",
+		"who needs blessing of kings: Cid (Might, no Kings) too: " .. A("who needs blessing of kings") .. " / " .. A("who needs greater blessing of might"))
+	check(GR.ToAdvanced(Q("who needs blessing of kings")):find("missing:blessing_kings", 1, true) and L("@group missing:blessing_kings") == 2,
+		"Alt+`: missing:blessing_kings, the same two: " .. GR.ToAdvanced(Q("who needs blessing of kings")))
+	check(A("who needs a blessing") == "Plamen Warr", "any blessing still the family: " .. A("who needs a blessing"))
+	table.remove(M.party3.buffs)
+	Rows()
 	check(A("who is in range") == "Plamen Warr,Ann,Bob", "who is in range (Dee offline: not known)")
 	check(Q("dead") == nil and Q("group finder") == nil and Q("@group is:dead") == nil and Q("tank") == nil
 		and Q("deadmines") == nil, "other searches stay searches")
@@ -229,6 +251,10 @@ do
 	by = Rows()
 	check(by["Plamen Warr"] and by["Plamen Warr"].mine and by.Ann and by.Cid and by.Cid.detail:find("group 2", 1, true)
 		and by.Cid.zone == "Razorfen Kraul", "a raid: raid1..3, you among them, subgroup and zone")
+	-- (0.50.7, review) where unit comparison is restricted UnitIsUnit's answer is secret: you're found by GUID
+	_G.UnitIsUnit = function() return SECRET end
+	by = Rows()
+	check(by["Plamen Warr"] and by["Plamen Warr"].mine and not by.Ann.mine, "UnitIsUnit secret: you still found (by GUID), never compared")
 	M.raid1, M.raid2, M.raid3 = nil, nil, nil
 	n, raid = 5, false
 	_G.UnitIsUnit, _G.GetRaidRosterInfo = save.UnitIsUnit, save.GetRaidRosterInfo

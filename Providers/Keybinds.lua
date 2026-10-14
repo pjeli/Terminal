@@ -196,6 +196,12 @@ ns:RegisterProvider("keybinds", {
 	lazy = true, -- hundreds of actions: only offered once you type something
 	events = { "UPDATE_BINDINGS" },
 	guard = 1,
+	-- (Terminal binds Enter itself for each press it sets up, and lets it go after: UPDATE_BINDINGS then, none of your
+	-- bindings changed; 0.50.7, review: every press made the next search read hundreds of bindings again)
+	ignoreEvent = function()
+		local at = ns.Secure and ns.Secure.boundAt
+		return at ~= nil and GetTime() - at < 0.5
+	end,
 	collect = function()
 		local out = {}
 		-- Quick Keybind Mode: Enter points at its button, Shift+Enter starts it

@@ -219,6 +219,9 @@ function I.TownsPending() return not textTowns and (not qdb.list or townsBuildin
 -- a town's middle: its flight point (on its zone's map, else a map above it), else where its quests send you,
 -- in world yards (false: none)
 local centres = {}
+-- the flight point's answer alone, kept while the quest texts' isn't known yet (0.50.7, review: neither was kept then, so
+-- every keystroke asked the taxi maps again for every NPC "vendor goldshire" judged, until the towns were built)
+local fpCentres = {}
 
 --- A town's flight point in world yards (false: none found), looked for on its zone's map, then up to two maps
 --- above it; also the maps tried and how many flight points were read (for the trace).
@@ -250,8 +253,13 @@ end
 local function TownCentre(place)
 	local c = centres[place.area]
 	if c ~= nil then return c or nil end
-	local tried, seen
-	c, tried, seen = FlightPointCentre(place)
+	local tried, seen = {}, 0
+	local fp = fpCentres[place.area]
+	if fp == nil then
+		fp, tried, seen = FlightPointCentre(place)
+		fpCentres[place.area] = fp or false
+	end
+	c = fp or nil
 	local from = c and "its flight point" or nil
 	if not c then
 		local tt = TextTowns()
@@ -367,7 +375,7 @@ function I.ForgetPlaceNpcs()
 end
 
 I.ResetPlacesForTests = function()
-	placeIndex, centres, textTowns, townsBuilding = nil, {}, nil, nil
+	placeIndex, centres, fpCentres, textTowns, townsBuilding = nil, {}, {}, nil, nil
 	ResetDistances() -- (Distances.lua: the map transforms and the NPCs' spots)
 	ClearNpcFields() -- (Questie.lua: the NPCs' small fields)
 end

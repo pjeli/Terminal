@@ -15,7 +15,8 @@ do
 	check(Run("")[1]:find("No aliases yet", 1, true), ".alias with none: says how to make one")
 	-- making them
 	check(Run("rep durability")[1] == L["Alias .%s runs: %s"]:format("rep", "durability"), "a search")
-	check(Run("rl /reload")[1]:find(".rl", 1, true), "a slash command")
+	-- (0.50.7, review: the example was .alias rl /reload, and rl is .reload's: refused, and this only looked for ".rl")
+	check(Run("brb /afk brb")[1] == L["Alias .%s runs: %s"]:format("brb", "/afk brb"), "a slash command")
 	check(Run("dark .theme dracula")[1]:find(".dark", 1, true), "a dot command")
 	check(Run("wh /w $* hi")[1]:find(".wh", 1, true), "with $*")
 	check(Run("help me")[1] == L[".%s is already one of Terminal's commands: pick another name."]:format("help")
@@ -64,6 +65,25 @@ do
 	check(S.armed == "MACRO" and up and up.attrs.macrotext == "/w bob hi", "a slash alias: the game presses it: " .. tostring(up and up.attrs.macrotext))
 	up.scripts.PostClick(up, "LeftButton", true); FlushAll()
 	check(not UI:IsShown() and S.armed == nil, "pressed: the terminal closes")
+	-- (0.50.7, review) the pointer resting on the row while more words are typed: a click runs the line as typed now
+	UI:Open(".wh bob"); FlushAll()
+	UI:PlaceCatcher(1)
+	local c = _G.TerminalClickCatcher
+	check(c and c.attrs.macrotext1 == "/w bob hi", "the click: /w bob hi: " .. tostring(c and c.attrs.macrotext1))
+	T.typeText(" x"); FlushAll()
+	UI:PlaceCatcher(1)
+	check(c.attrs.macrotext1 == "/w bob x hi", "typed on under the pointer: the click's line follows: " .. tostring(c.attrs.macrotext1))
+	UI:HideCatcher(); UI:Hide(); FlushAll()
+	-- (0.50.7, review) an alias naming a /slash alias: pressed by the game as that one is, not run from Terminal's code
+	Run("heal /cast Flash Heal")
+	Run("fh .heal")
+	local h = ns.commands.fh
+	UI.args = nil -- (the words typed after a command: none here)
+	check(h and h.secure and h.secure.macro() == "/cast Flash Heal" and h.isOpen == ns.Never and h.aliasText == ".heal",
+		".fh -> .heal -> /cast Flash Heal: a slash alias itself: " .. tostring(h and h.secure and h.secure.macro()))
+	Run("fs .rep")
+	check(ns.commands.fs and ns.commands.fs.staysOpen, "one naming a search alias: a search")
+	ns:FindCommand("unalias").run("fh"); ns:FindCommand("unalias").run("fs"); ns:FindCommand("unalias").run("heal")
 	-- a dot command: run
 	local theme = ns.db.theme
 	local out = ns.commands.dark.run("")

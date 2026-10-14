@@ -275,14 +275,16 @@ local function TargetFallback(e)
 end
 
 local function OpenNpcDirect(e)
-	-- no map keybinding to ride on: open the map ourselves (never in combat)
+	-- no press could be set up: the map shown already shows it; else it's pinned and where to open the map said (never
+	-- opened from Terminal's own code: it taints the map; 0.50.7, review)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(e.name)) return end
 	if not NpcLocation(e.npcID) then -- nowhere to show it: leave the map alone
 		ns:Print(L["Questie has no known location for %s."]:format(e.npcName or e.name))
 		return
 	end
-	if ToggleWorldMap and not ns.Maps.MapOpen() then pcall(ToggleWorldMap) end
-	C_Timer.After(0.1, function() ShowNpc(e) end)
+	if ns.Maps.MapOpen() then C_Timer.After(0.1, function() ShowNpc(e) end) return end
+	NpcPin(e)
+	ns:Print(L["Open %s from its button or key (opening it from Terminal's own code would taint it)."]:format(L["World Map"]))
 end
 
 -- (for QuestieQuests.lua: the quest rows' actions and the providers' setup)

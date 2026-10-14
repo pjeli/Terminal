@@ -501,6 +501,22 @@ do -- calculator: the answer is the top result
 	local r = UI:Search("3*45g")
 	check(r[1] and r[1].kind == "calc" and r[1].name == "= 135g" and r[1].detail == "3*45g", "answer is the first result: " .. tostring(r[1] and r[1].name))
 	check(UI:Search("heart")[1].kind ~= "calc", "ordinary searches have no calculator row")
+	-- (0.50.7, review) a sum isn't looked up as words: no close-spellings pass, no "Nothing has that" under the answer
+	do
+		local passes, cs = 0, UI.CloseSpellings
+		UI.CloseSpellings = function(...) passes = passes + 1 return cs(...) end
+		local easy = ns.db.easyMode
+		local rows = {}
+		for _, m in ipairs({ false, true }) do
+			ns.db.easyMode = m
+			UI.lastScan, UI.lastOverview = nil, nil
+			rows[#rows + 1] = UI:Search("12.5% of 800")
+		end
+		ns.db.easyMode = easy
+		UI.CloseSpellings = cs
+		check(passes == 0 and #rows[1] == 1 and #rows[2] == 1 and rows[2][1].kind == "calc",
+			"a sum: just its answer, no close spellings looked for: " .. passes .. " passes, " .. #rows[1] .. "/" .. #rows[2] .. " rows")
+	end
 	local e1, e2 = Cc.Entry("3*4"), Cc.Entry("5*6")
 	check(e1.activate == e2.activate and e1.secondary == e2.secondary, "calc rows share their Enter/Shift+Enter functions (none made per keystroke)")
 	local said = {}
@@ -5821,6 +5837,11 @@ do -- ">> channel": the selected result goes to a chat channel (the game presses
 	check(line("@npc reagent is:vendor ") == "/g Vendor: Jo Reagents " .. PIN, "a word already in the name isn't repeated: " .. tostring(line("@npc reagent is:vendor ")))
 	check(line("@npc trainer:mine in:orgrimmar ", { npcID = 3, name = "Makaru" }) == "/g Mining trainer in Orgrimmar: Makaru " .. PIN, "trainer and place: " .. tostring(line("@npc trainer:mine in:orgrimmar ", { npcID = 3, name = "Makaru" })))
 	check(line("@npc hogger ", { npcID = 448, name = "Hogger" }) == "/g Hogger " .. PIN, "only the name searched: just the NPC")
+	-- (0.50.7, review) either of two, a word left out: not said (a "|" in a chat line is an escape the game refuses)
+	check(line("@npc hogger|vancleef sort:nearest ", { npcID = 448, name = "Hogger" }) == "/g Nearby: Hogger " .. PIN
+		and line("@npc innkeeper -goldshire ", { npcID = 6740, name = "Innkeeper Allison" }) == "/g Innkeeper Allison " .. PIN,
+		"hogger|vancleef, -goldshire: left out: " .. tostring(line("@npc hogger|vancleef sort:nearest ", { npcID = 448, name = "Hogger" }))
+		.. " / " .. tostring(line("@npc innkeeper -goldshire ", { npcID = 6740, name = "Innkeeper Allison" })))
 	check(SH.Macro(jo, { cmd = "/g", query = "@npc " .. ("x"):rep(240) .. " is:vendor" }) == "/g Jo Reagents " .. PIN, "too long for a macro: the words go first")
 	-- through the prompt: the line the game presses
 	UI:Open("@npc reagent is:vendor sort:nearest >> guild")
@@ -5941,7 +5962,7 @@ end
 do
 	local T = { ns = ns, UI = UI, F = F, S = S, check = check, log = log, logHas = logHas, key = key, typeText = typeText,
 		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
-		ef = ef }
+		ef = ef, clock = function() return clock end } -- (clock: the timers' time, for a GetTime that follows them)
 	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
 		local chunk, err = loadfile(file)
 		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")

@@ -565,7 +565,8 @@ end
 E.ACTIONS = {
 	use = { label = L["Use"], map = { items = "s", toys = "p", camp = "s" } },
 	cast = { label = L["Cast"], map = { spells = "s" } },
-	summon = { label = L["Summon"], map = { mounts = "p", pets = "p" } },
+	-- (spells too: "summon voidwalker", "summon imp" are a warlock's spells, cast on Enter; 0.50.7, review: nothing found)
+	summon = { label = L["Summon"], map = { mounts = "p", pets = "p", spells = "s" } },
 	mount = { label = L["Summon"], map = { mounts = "p" } },
 	ride = { label = L["Summon"], map = { mounts = "p" } },
 	equip = { label = L["Equip"], map = { items = "s", equipmentset = "p" } },
@@ -651,6 +652,13 @@ end
 --- The action the words say (the first word, or "nearest" said last: "mining trainer nearby"), taken off the list;
 --- nil when there's none.
 local function ActionOf(words)
+	-- (sentence words before it are dropped as the search drops them: "the nearest innkeeper" is nearest innkeeper;
+	-- 0.50.7, review: Alt+` searched the word "nearest")
+	local first = 1
+	while first < #words and E.STOP[Lower(words[first])] do first = first + 1 end
+	if first > 1 and E.ACTIONS[Lower(words[first])] then
+		for _ = 1, first - 1 do table.remove(words, 1) end
+	end
 	local word = #words > 1 and Lower(words[1]) or nil
 	local act = word and E.ACTIONS[word] or nil
 	if act then

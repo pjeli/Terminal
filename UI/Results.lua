@@ -280,6 +280,11 @@ local function ListFor(self, text, first, edit)
 		local picked = self:SyntaxRows(edit:GetText())
 		if picked then
 			UI.results = picked -- (typing "@" or "stat:": what fits, to pick from)
+			-- (the search before it said things in the footer: not about this list; 0.50.7, review: "no exact match: close
+			-- spellings" and "Use ·" stayed on after " q:")
+			local Scan = UI._Scan
+			if Scan and Scan.ResetFlags then Scan.ResetFlags(self) end
+			self.action, self.noPosition = nil, nil
 		else
 			local done
 			UI.results, done = self:RunSearch(text)

@@ -426,6 +426,18 @@ do
 	check(last and last.name == "Silk Cloth x2" and last.ahKind == "over" and last.detail:find("time ran out 2 h ago", 1, true)
 		and last.color == "|cff9d9d9d", "its time ran out: last, greyed, saying so: " .. tostring(last and last.detail))
 	posted[91] = nil
+	-- (0.50.7, review) several alike, one come back by mail: the one whose time ran out is over, not one still up
+	do
+		local LINK = "|Hitem:4306|h[Silk Cloth]|h"
+		for id = 201, 206 do posted[id] = { link = LINK, name = "Silk Cloth", count = 20, t = now - 3600 - id, seen = "posted", ends = now + 7200 } end
+		posted[207] = { link = LINK, name = "Silk Cloth", count = 20, t = now - 100, seen = "posted", ends = now - 60 }
+		local box = { mails = { { items = { { id = 4306, count = 20 } }, auction = "expired", first = now } } }
+		local n = MA.EndedFromMail(box, now)
+		local left = 0
+		for id = 201, 206 do if posted[id] then left = left + 1 end end
+		check(n == 1 and posted[207] == nil and left == 6, "the one that ran out came back, the six still up stay: " .. n .. ", " .. left .. " left")
+		for id = 201, 207 do posted[id] = nil; MA.Store("auctionsEnded")["Player-1-AAA"][id] = nil end
+	end
 	now = now + 60
 	MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 4, "Linen Cloth", 78)
 	MA.OnEvent("CHAT_MSG_SYSTEM", "You won an auction for Wool Cloth")

@@ -204,7 +204,8 @@ end
 local function SecureView(e, shift, own)
 	if not e then return nil end
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
-	if UI.sendTo and not own then
+	-- (">>>"'s one row has no action of its own: the menu's first line sends them too; 0.50.7, review)
+	if UI.sendTo and (not own or e.sendAll) then
 		-- (">> drop" presses nothing: Terminal asks, then drops it with C calls; see SendSelected)
 		if UI.sendTo.drop then return nil end
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
@@ -317,7 +318,10 @@ function UI:PlaceCatcher(i)
 	-- the same result on the same row (the list redrawn under a resting pointer): its macros
 	-- stand, the catcher only follows the row. Not when where it's sent changed (" >> party" typed after it keeps the
 	-- same rows: the click opened the quest log instead of sending it; 0.49.2, review)
-	if catcher and e and catcher.entry == e and catcher.row == i and catcher.sendTo == self.sendTo and catcher:IsShown() then
+	-- Nor when the words after a command changed (a slash row's or a /slash alias's line is made from them: ".wh bob"
+	-- typed on under a resting pointer clicked "/w  hi"; 0.50.7, review)
+	if catcher and e and catcher.entry == e and catcher.row == i and catcher.sendTo == self.sendTo and catcher.args == self.args
+		and catcher:IsShown() then
 		if not AnchorCatcher(catcher, row) then self:HideCatcher() end
 		return
 	end
@@ -338,7 +342,7 @@ function UI:PlaceCatcher(i)
 	c:SetAttribute("ctrl-macrotext1", plain ~= SEND_LATER and plain or "")
 	c:SetAttribute("ctrl-shift-type1", shifted and "macro" or "")
 	c:SetAttribute("ctrl-shift-macrotext1", shifted ~= SEND_LATER and shifted or "")
-	c.row, c.entry, c.plain, c.shifted, c.sendTo = i, e, plain, shifted, self.sendTo
+	c.row, c.entry, c.plain, c.shifted, c.sendTo, c.args = i, e, plain, shifted, self.sendTo, self.args
 	c:Show()
 end
 
@@ -470,7 +474,9 @@ function UI:Activate(idx, opts)
 	if not e or e.noActivate then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
-	local to = (not opts.own) and self.sendTo or nil -- (own: the row menu's first lines, the row's own action)
+	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. 0.50.7,
+	-- review: its menu's "Send" closed the terminal and sent nothing)
+	local to = (not opts.own or e.sendAll) and self.sendTo or nil
 	if to and to.all and not e.completion then return SendEveryResult(self, to) end
 	-- ">> channel": never opened or run, only sent (by the game's press, armed there; in combat it says it can't send:
 	-- 0.49.2, review: a row that opens a window said "can't open in combat", the others "can't send it now")

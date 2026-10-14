@@ -324,6 +324,19 @@ do
 	check(o and S.Resolve(o.secure, o).macro == "/run C_SettingsUtil.OpenSettingsPanel(42)", "its options page: a row, opened by the game's own call")
 	o.activate(o)
 	check(opened == 42, "...and without the game's press, from here")
+	-- (0.50.7, review) no page to open by the game's C call: the AddOn list isn't shown from Terminal's code, it's said
+	do
+		local sui, sup, pr, cu = _G.ShowUIPanel, _G.InterfaceOptionsFrame_OpenToCategory, ns.Print, _G.C_SettingsUtil
+		local shown, said = 0, ""
+		_G.ShowUIPanel = function() shown = shown + 1 end
+		_G.InterfaceOptionsFrame_OpenToCategory = function() shown = shown + 1 end
+		_G.AddonList = _G.AddonList or Obj("Frame")
+		_G.C_SettingsUtil = nil
+		ns.Print = function(_, m) said = said .. tostring(m) end
+		o.activate(o)
+		_G.ShowUIPanel, _G.InterfaceOptionsFrame_OpenToCategory, ns.Print, _G.C_SettingsUtil = sui, sup, pr, cu
+		check(shown == 0 and said:find(ns.L["AddOn List"], 1, true), "no game call: nothing opened from here, said where: " .. shown .. " " .. said)
+	end
 	check(not a["Cool Addon2 options"], "no extra row for addons without both")
 	_G.Settings, _G.SettingsPanel, _G.Minimap = nil, nil, nil
 	_G.C_SettingsUtil = saveU
@@ -431,6 +444,14 @@ end
 io.write("[mount journal pointer]\n")
 do
 	local m = ns:GetEntries(ns.providers.mounts)[1]
+	-- (0.50.7, review) a favourite set in the journal: the list knows it changed
+	do
+		local M = ns.providers.mounts
+		M._dirty, M._collectedAt = false, -100
+		T.ef.scripts.OnEvent(T.ef, "MOUNT_JOURNAL_SEARCH_UPDATED")
+		check(M._dirty == true, "the mount journal changed (a favourite): mounts read again")
+		ns:GetEntries(M)
+	end
 	local shown
 	local origShow = ns.Highlight.Show
 	ns.Highlight.Show = function(self, t, d) shown = t; return origShow(self, t, d) end

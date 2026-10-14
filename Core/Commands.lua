@@ -72,7 +72,8 @@ ns:RegisterCommand("kinds", {
 ns:RegisterCommand("reload", {
 	desc = L["Reload the UI"],
 	aliases = { "rl" },
-	-- (not a protected call: run from here. Command rows can't carry a game press, see UI:CommandEntries)
+	-- (not a protected call: run from here, no game press needed; 0.50.7, review: command rows can carry one now, see
+	-- UI:CommandEntries and the /slash aliases)
 	run = function()
 		local reload = (C_UI and C_UI.Reload) or ReloadUI
 		if reload then reload() end

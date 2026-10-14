@@ -78,6 +78,8 @@ local function Places(e, v)
 		return false
 	end
 	if e.slotId and ("equipped"):find(v, 1, true) then return true end
+	-- (your own bags' rows say "x5  Backpack", "Bag 2": in:bags is them; 0.50.7, review: only @stored rows matched it)
+	if e.firstBag ~= nil and ("bags"):find(v, 1, true) then return true end
 	local d = LowerField(e, "detail", "_ldetail", "_ldetailOf")
 	return d and d:find(v, 1, true) and true or false
 end
@@ -387,9 +389,10 @@ KEYS.near = function(v)
 	local I = ns.Integrations
 	local here
 	return function(e)
-		if not (I and I.RowDistance) or not (NpcID(e) or e.wcont) then return false end
+		if not (I and I.RowYards) or not (NpcID(e) or e.wcont) then return false end
 		if here == nil then here = I.Here and I.Here() or false end
-		local d = here and I.RowDistance(e, here) -- (Questie's NPCs, and @mailbox rows)
+		-- (Questie's NPCs, and @mailbox rows; the yards alone: RowDistance made a spot table per NPC; 0.50.7, review)
+		local d = here and I.RowYards(e, here)
 		return d and r(d) or false
 	end
 end
@@ -434,12 +437,15 @@ for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag)
 -- spirit healers (0.50.5, the player's ask: "nearest spirit healer"): Questie's flag for them (its names for it differ by
 -- version), else the Spirit Healer himself (6491) or one called that
 local SPIRIT_IDS = { [6491] = true, [13116] = true, [13117] = true } -- (the Spirit Healer; the battlegrounds' Spirit Guides)
+local SPIRIT_NAME, SPIRIT_LNAME = "spirit healer", Lower(L["Spirit Healer"])
 function IS.spirithealer(e)
 	local id = NpcID(e)
 	if not id then return false end
 	if SPIRIT_IDS[id] or NpcRole(e, "SPIRIT_HEALER") or NpcRole(e, "SPIRITHEALER") or NpcRole(e, "SPIRIT_GUIDE") then return true end
-	local n = Lower(tostring(NpcField(e, "name") or ""))
-	return n == "spirit healer" or n == Lower(L["Spirit Healer"])
+	-- (the row's own name, lowercased already: Questie's database asked for every NPC's name made each search slow;
+	-- 0.50.7, review)
+	local n = rawget(e, "_lname") or Lower(tostring(e.name or ""))
+	return n == SPIRIT_NAME or n == SPIRIT_LNAME
 end
 IS.spirithealers, IS.graveyard = IS.spirithealer, IS.spirithealer
 -- a flight path's row stands for its flight master (Flights.lua: "nearest unlearned flight master" lists them)

@@ -276,6 +276,11 @@ Run("close spellings", function()
 	UI:SetQuery("@srch fireball"); FlushAll()
 	s = UI.status and UI.status.text or ""
 	check(not s:find("close spellings", 1, true), "and not for an exact match: " .. s)
+	-- (0.50.7, review) a pick list after it ("q:"): not the search's footer
+	UI:SetQuery("@srch fireblal"); FlushAll()
+	UI:SetQuery("@srch fireblal @s", 17); FlushAll()
+	s = UI.status and UI.status.text or ""
+	check(UI.Results()[1] and UI.Results()[1].syntaxRow and not s:find("close spellings", 1, true), "@s picked after it: not said: " .. s)
 	-- the close word is lit
 	UI:SetQuery("@srch fireblal"); FlushAll()
 	local e = UI.Results()[1]

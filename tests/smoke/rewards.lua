@@ -61,6 +61,7 @@ do
 			[9007] = { name = "Glowing Wand", questRewards = { 301 } },
 			[9008] = { name = "Gray Kodo Cloak", questRewards = { 301 } },
 			[9009] = { name = "Sea Blade", questRewards = { 300 } },
+			[9010] = { name = "Agamaggan's Clutch", questRewards = { 300 } },
 			[9002] = { name = "Strike of the Hydra", questRewards = { 200 } },
 			[9003] = { name = "Diplomat Ring", questRewards = { 101 } },
 			[9004] = { name = "Linen Cloth", vendors = { 240 } },
@@ -73,7 +74,7 @@ do
 	check(I.qdb.list and #I.qdb.list == 10, "the quests indexed: " .. tostring(I.qdb.list and #I.qdb.list))
 
 	-- the items some quest rewards: by name, part of it, a close spelling
-	check(#QR.Index() == 8, "the items quests reward (not the cloth), read in the background: " .. #QR.Index())
+	check(#QR.Index() == 9, "the items quests reward (not the cloth), read in the background: " .. #QR.Index())
 	local q = QR.Question("outlaw saber quest")
 	check(q and q.items[1].name == "Outlaw Sabre", "\"outlaw saber quest\": the Outlaw Sabre (a close spelling)")
 	for _, s in ipairs({ "quest for outlaw sabre", "which quest rewards the outlaw sabre?", "outlaw sabre quest reward", "sabre quest" }) do
@@ -102,6 +103,35 @@ do
 	check(tostring(UI.status:GetText()):find("Quests that reward Outlaw Sabre", 1, true), "the footer says so: " .. tostring(UI.status:GetText()))
 	check(ns.Easy.ToAdvanced("outlaw saber quest") == "@questie reward:outlaw_sabre ", "Alt+`: " .. ns.Easy.ToAdvanced("outlaw saber quest"))
 	UI:Hide(); FlushAll()
+
+	-- (0.50.7, review) a name with an apostrophe: Alt+` writes it as reward: matches it, apostrophes left out
+	check(ns.Easy.ToAdvanced("agamaggans clutch quest") == "@questie reward:agamaggans_clutch ",
+		"Alt+`, an apostrophe: " .. ns.Easy.ToAdvanced("agamaggans clutch quest"))
+	local exact = QR.Items({ "agamaggan's", "clutch" }, true)
+	check(exact[1] and exact[1].name == "Agamaggan's Clutch", "reward:agamaggan's_clutch finds it")
+	-- (0.50.7, review) asked while the index is still being read: the search waits for it, not an empty answer kept
+	QR.Forget()
+	ns.Filters.loading, ns.Pipes.loading = nil, nil
+	local none = QR.Items({ "outlaw" })
+	check(#none == 0 and ns.Filters.loading == true and ns.Pipes.loading == true, "still being read: nothing yet, and the search asks again")
+	FlushAll()
+	ns.Filters.loading, ns.Pipes.loading = nil, nil
+	check(QR.Items({ "outlaw" })[1].name == "Outlaw Sabre", "then it's in")
+
+	-- (0.50.7, review) an NPC's fallback with nothing to press: pinned, the map not opened from Terminal's code
+	do
+		local twm, pr, shown, ui = _G.ToggleWorldMap, ns.Print, WorldMapFrame.shown, QD.UiMapOfArea
+		QD.UiMapOfArea = function(a) return a == 12 and 1429 or nil end
+		local opened, said = 0, {}
+		_G.ToggleWorldMap = function() opened = opened + 1 end
+		ns.Print = function(_, msg) said[#said + 1] = tostring(msg) end
+		WorldMapFrame.shown = false
+		I._.OpenNpcDirect({ npcID = 240, name = "Marshal Dughan" })
+		FlushAll()
+		_G.ToggleWorldMap, ns.Print, WorldMapFrame.shown, QD.UiMapOfArea = twm, pr, shown, ui
+		local text = table.concat(said, " / ")
+		check(opened == 0 and text:find(ns.L["World Map"], 1, true), "an NPC's fallback: not opened from here, said where: " .. opened .. " " .. text)
+	end
 
 	-- Advanced mode: reward:<item>
 	ns.db.easyMode = false

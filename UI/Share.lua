@@ -220,6 +220,9 @@ function SH.Context(query, e)
 		local key, val = lw:match("^(%a+):(.*)$")
 		if lw:sub(1, 1) == "@" then
 			-- (the kind: an NPC already)
+		elseif lw:find("^[-!]") or lw:find("[|&]") then
+			-- (a word left out, or either of several: not what it is, as SH.Describe reads them; a "|" in a chat line is an
+			-- escape the game refuses. 0.50.7, review: "Nearby hogger|vancleef: Hogger")
 		elseif F and F.SortOf and F.SortOf(lw) then
 			nearby = F.SortOf(lw) == "nearest" -- (sort:plan: recipes, nothing to say of them)
 		elseif key and F and F.IsKey and F.IsKey(key) then
@@ -259,7 +262,13 @@ end
 --- raid, instance, guild when you're in one; your target when it's another player: "/w %t", the game fills the name).
 function SH.MenuChannels()
 	local out = { { cmd = "/s", label = L["Say in chat"], chat = "SAY", short = L["say"] } }
-	local function Is(fn, ...) return type(fn) == "function" and Call(fn, ...) and true or false end
+	-- (a secret answer, UnitIsUnit's where unit comparison is restricted, is never tested: false; 0.50.7, review)
+	local function Is(fn, ...)
+		if type(fn) ~= "function" then return false end
+		local v = Call(fn, ...)
+		if ns.Secret(v) then return false end
+		return v and true or false
+	end
 	local instance = _G.LE_PARTY_CATEGORY_INSTANCE
 	local inInstance = instance and Is(_G.IsInGroup, instance)
 	-- (your own raid: one only the instance made (a battleground, the raid finder) takes instance chat, not /raid; 0.49.2,

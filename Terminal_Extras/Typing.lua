@@ -463,7 +463,13 @@ local function Style()
 end
 
 -- keys the game keeps even here (a screenshot of your score, the F-keys)
-local function GameKey(key) return key == "PRINTSCREEN" or (type(key) == "string" and key:find("^F%d+$") ~= nil) end
+-- (and the game's own chords, Ctrl+R, Ctrl+S, Ctrl+M..., as .atop and the terminal pass them: UI.GameKey. 0.50.7,
+-- review: swallowed here)
+local function GameKey(key)
+	if key == "PRINTSCREEN" or (type(key) == "string" and key:find("^F%d+$") ~= nil) then return true end
+	local UI = ns.UI
+	return UI and UI.GameKey and UI.GameKey(key) and true or false
+end
 
 --- Every key is the test's (letters come through OnChar), but the F-keys and Print Screen.
 function TY.KeyDown(self, key)

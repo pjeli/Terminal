@@ -25,7 +25,8 @@ ns:RegisterProvider("mounts", {
 	label = L["Mount"],
 	color = "ff7bd88f",
 	aliases = { "mount" },
-	events = { "NEW_MOUNT_ADDED", "COMPANION_LEARNED" },
+	-- (a favourite set or cleared in the journal, a mount gone: 0.50.7, review: only a new one was ever seen)
+	events = { "NEW_MOUNT_ADDED", "COMPANION_LEARNED", "COMPANION_UNLEARNED", "MOUNT_JOURNAL_SEARCH_UPDATED" },
 	collect = function()
 		local out = {}
 		local M = C_MountJournal

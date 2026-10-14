@@ -634,7 +634,22 @@ function MA.EndedFromMail(box, now)
 	local posted = Mine("auctionsPosted")
 	if not (posted and box and next(posted)) then return 0 end
 	local used, n = {}, 0
-	for id, a in pairs(posted) do
+	-- (the ones whose time ran out first, then the oldest: of two alike, the one that came back is the one that ended;
+	-- 0.50.7, review: pairs' order could mark the one still up as over)
+	now = now or Now()
+	local order = {}
+	for id, a in pairs(posted) do order[#order + 1] = id end
+	local function Ended(a) return type(a.ends) == "number" and a.ends <= now end
+	table.sort(order, function(x, y)
+		local a, b = posted[x], posted[y]
+		local ea, eb = Ended(a), Ended(b)
+		if ea ~= eb then return ea end
+		local ta, tb = tonumber(a.t) or 0, tonumber(b.t) or 0
+		if ta ~= tb then return ta < tb end
+		return tostring(x) < tostring(y)
+	end)
+	for _, id in ipairs(order) do
+		local a = posted[id]
 		local want, wantID = Num(a.count) or 1, ItemIDOf(a.link)
 		for i, m in ipairs(box.mails or {}) do
 			if not used[i] and m.items and (RETURNED[m.auction] or (m.game and not m.auction))

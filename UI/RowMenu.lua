@@ -21,6 +21,15 @@ local MENU_W, MENU_LINE = 190, 22
 
 local function Cap(s) return (tostring(s):gsub("^%l", string.upper)) end
 
+--- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
+--- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
+local function MenuRowIndex(e, idx)
+	if UI.results[idx] == e then return idx end
+	for i, r in ipairs(UI.results) do
+		if r == e or (r.kind == e.kind and r.key ~= nil and r.key == e.key) then return i end
+	end
+end
+
 local function MenuLine(i)
 	local b = menu.lines[i]
 	if b then return b end
@@ -167,7 +176,11 @@ do
 		if not EasyOn() and self:ResultText(e) then
 			-- (the menu's own row, wherever the list has put it since: not whichever row is selected now; review, 0.48.6)
 			items[#items + 1] = { label = L["Write into the prompt"], run = function()
-				for i, r in ipairs(UI.results) do if r == e then UI.sel = i break end end
+				-- (found as the menu's other lines find it: the same kind and key when the list was rebuilt since; 0.50.7,
+				-- review: by identity alone, whichever row was selected got written)
+				local i = MenuRowIndex(e, UI.sel)
+				if not i then return end
+				UI.sel = i
 				UI:FillFromResult()
 			end }
 		end
@@ -258,14 +271,6 @@ function UI:MenuSelect(i)
 end
 function UI:MenuShown() return menu ~= nil and menu:IsShown() end
 
---- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
---- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
-local function MenuRowIndex(e, idx)
-	if UI.results[idx] == e then return idx end
-	for i, r in ipairs(UI.results) do
-		if r == e or (r.kind == e.kind and r.key ~= nil and r.key == e.key) then return i end
-	end
-end
 
 --- A chat line picked from the keyboard: the view whose press has the game send it (Share.Macro) or open the chat box
 --- with it a moment after the press (ChatBoxMacro). nil and the line when there's nothing the game can run.

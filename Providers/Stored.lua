@@ -582,15 +582,18 @@ function S.HookSyndicator()
 	local R = _G.Syndicator and _G.Syndicator.CallbackRegistry
 	if type(R) ~= "table" or not R.RegisterCallback or S.hooked then return end
 	S.hooked = true
+	-- (0.50.7, review: these set the list dirty directly, so it was read again inside the next keystroke, and the
+	-- currency ones, which change no item, did it too; now through ns:Changed, read in the background, money for Gold)
 	local function dirty()
-		if ns.providers.stored then ns.providers.stored._dirty = true end
-		if ns.providers.gold then ns.providers.gold._dirty = true end -- (Gold.lua: money is in the same records)
+		ns:Changed("stored")
+		ns:Changed("gold") -- (Gold.lua: money is in the same records)
 	end
+	local function money() ns:Changed("gold") end
 	for _, ev in ipairs({ "Ready", "BagCacheUpdate", "MailCacheUpdate", "GuildCacheUpdate", "WarbandBankCacheUpdate",
-		"EquippedCacheUpdate", "VoidCacheUpdate", "AuctionsCacheUpdate", "CharacterDeleted", "GuildDeleted",
-		"CurrencyCacheUpdate", "WarbandCurrencyCacheUpdate" }) do
+		"EquippedCacheUpdate", "VoidCacheUpdate", "AuctionsCacheUpdate", "CharacterDeleted", "GuildDeleted" }) do
 		pcall(R.RegisterCallback, R, ev, dirty, S)
 	end
+	for _, ev in ipairs({ "CurrencyCacheUpdate", "WarbandCurrencyCacheUpdate" }) do pcall(R.RegisterCallback, R, ev, money, S) end
 end
 local login = CreateFrame("Frame")
 login:RegisterEvent("PLAYER_LOGIN")

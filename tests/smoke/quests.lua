@@ -128,6 +128,11 @@ do
 	check(ids(UI:SearchText("outleveled quests")) == "all,101,102", "quests in zones left behind")
 	check(ids(UI:SearchText("westfall quests to drop")) == "102", "narrowed by a zone's name")
 	check(ids(UI:SearchText("raptor quests to drop")) == "" and UI.answerNote == "None of those quests is one to drop", "nothing there: said")
+	-- (0.50.7, review) a quest's own name with a cue word in it: a search, unless it plainly asks or names one to drop
+	for _, line in ipairs({ "old blanchy quest", "grey wolf quest", "remove curse quest", "quest item drop", "old murk-eye quest" }) do
+		check(QD.Question(line) == nil, line .. ": a search")
+	end
+	check(QD.Question("old westfall quests") and QD.Question("abandon raptor quests"), "words naming one, or plainly asked: the question")
 	-- the filters, and Alt+`
 	local function names(text)
 		local t = {}

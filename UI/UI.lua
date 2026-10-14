@@ -122,6 +122,7 @@ do
 		frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 		frame:SetScript("OnHide", function(self)
 			if UI.drag then UI:DragStop(self) end -- (closed while dragged: the lines go, the place it had is kept)
+			if not UI.closing then UI:KeepLastSearch() end -- (closed by the game, not by UI:Hide, which kept it already)
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			UI.openedByToggle, UI.tabHeld = nil, nil
@@ -658,6 +659,17 @@ end
 --- Open (closing counts as closed: the fade-out is only for the eye).
 function UI:IsShown() return frame and frame:IsShown() and not self.closing or false end
 
+--- The search to bring back with Down on the next open (only a search: not a .command or /slash). From UI:Hide, and from
+--- the frame's OnHide: a window the game opened can close the terminal first (0.50.7, review: Down then brought back an
+--- older search).
+function UI:KeepLastSearch()
+	local typed = edit and edit:GetText() or ""
+	if typed:find("%S") and self.mode == "search" and not self.fzf then
+		self.lastQuery = typed
+		self.lastCategory = not self.categoryAuto and self.category or nil
+	end
+end
+
 function UI:Hide()
 	self:HideRowMenu()
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
@@ -667,12 +679,7 @@ function UI:Hide()
 	self:Disarm()
 	self:HideTooltip()
 	edit:ClearFocus()
-	-- the search to bring back with Down on the next open (only a search: not a .command or /slash)
-	local typed = edit:GetText()
-	if typed:find("%S") and self.mode == "search" and not self.fzf then
-		self.lastQuery = typed
-		self.lastCategory = not self.categoryAuto and self.category or nil
-	end
+	self:KeepLastSearch()
 	self:EndAdvancedOnce()
 	self:EndFuzzy()
 	self.openedByToggle, self.tabHeld = nil, nil -- (closed, Tab's key-up isn't seen: it isn't trusted as held after)
@@ -737,32 +744,42 @@ do
 		return (UIParent:GetWidth() or 0) * r, (UIParent:GetHeight() or 0) * r
 	end
 
-	local function Line(g, x, y, w, h, a, r, gg, b)
-		local t = g:CreateTexture(nil, "OVERLAY")
+	-- line i of the guides: made once, then re-placed (0.50.7, review: a new frame of ~50 lines was made for every new
+	-- screen size or scale, the old one only hidden)
+	local function Line(g, i, x, y, w, h, a, r, gg, b)
+		local t = g.lines[i]
+		if not t then t = g:CreateTexture(nil, "OVERLAY"); g.lines[i] = t end
+		t:ClearAllPoints()
 		t:SetColorTexture(r, gg, b, a)
 		t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x, y)
 		t:SetSize(w, h)
+		t:Show()
 		return t
 	end
 
 	-- the lines for a screen sw x sh at the terminal's scale, in the theme's accent: faint grid lines, the middles
 	local function Guides(f, sw, sh)
-		local key = ("%d:%d:%s"):format(sw, sh, tostring(f:GetScale()))
+		local accent = Theme.Get().accent
+		local key = ("%d:%d:%s:%s"):format(sw, sh, tostring(f:GetScale()), tostring(accent))
 		if guides and guides.key == key then return guides end
-		if guides then guides:Hide() end
-		guides = CreateFrame("Frame", "TerminalDragGuides", UIParent)
-		guides:SetFrameStrata("HIGH") -- (under the terminal, DIALOG)
-		guides:SetFrameLevel(20) -- (over .zen's dimming, HIGH too)
-		if ns.Zen and ns.Zen.Keep then ns.Zen.Keep(guides) end -- (up while .zen fades the interface: 0.46.11, the player)
+		if not guides then
+			guides = CreateFrame("Frame", "TerminalDragGuides", UIParent)
+			guides:SetFrameStrata("HIGH") -- (under the terminal, DIALOG)
+			guides:SetFrameLevel(20) -- (over .zen's dimming, HIGH too)
+			if ns.Zen and ns.Zen.Keep then ns.Zen.Keep(guides) end -- (up while .zen fades the interface: 0.46.11, the player)
+			guides.lines = {}
+		end
 		guides:SetScale(f:GetScale() or 1) -- (its units: the terminal's)
 		guides:SetAllPoints(UIParent)
 		guides.key = key
-		local r, gg, b = Theme.RGB(Theme.Get().accent)
+		local r, gg, b = Theme.RGB(accent)
 		local step, cx, cy = UI.GRID * UI.GRID_DRAWN, sw / 2, sh / 2
-		for x = cx % step, sw, step do if math.abs(x - cx) > 1 then Line(guides, x, 0, 1, sh, 0.08, r, gg, b) end end
-		for y = cy % step, sh, step do if math.abs(y - cy) > 1 then Line(guides, 0, y, sw, 1, 0.08, r, gg, b) end end
-		guides.midX = Line(guides, cx - 1, 0, 2, sh, 0.35, r, gg, b) -- (the vertical middle)
-		guides.midY = Line(guides, 0, cy - 1, sw, 2, 0.35, r, gg, b) -- (the horizontal middle)
+		local n = 0
+		for x = cx % step, sw, step do if math.abs(x - cx) > 1 then n = n + 1; Line(guides, n, x, 0, 1, sh, 0.08, r, gg, b) end end
+		for y = cy % step, sh, step do if math.abs(y - cy) > 1 then n = n + 1; Line(guides, n, 0, y, sw, 1, 0.08, r, gg, b) end end
+		guides.midX = Line(guides, n + 1, cx - 1, 0, 2, sh, 0.35, r, gg, b) -- (the vertical middle)
+		guides.midY = Line(guides, n + 2, 0, cy - 1, sw, 2, 0.35, r, gg, b) -- (the horizontal middle)
+		for i = n + 3, #guides.lines do guides.lines[i]:Hide() end -- (a smaller screen's: fewer lines)
 		guides:Hide()
 		UI.guides = guides -- (tests)
 		return guides
@@ -858,6 +875,7 @@ function UI:Open(text)
 	self.category, self.categoryAuto = nil, nil -- (each time it opens: no category yet, nothing listed)
 	if ns.Easy then ns.Easy.NextExample() end -- (another example in the empty prompt each time)
 	self.showRecent, self.recalled = nil, nil
+	self.popTarget = nil -- (a row to select from a search stopped by closing: not this one's; 0.50.7, review)
 	-- the last search's rows are gone before the frame shows: it opened at their height and only
 	-- then collapsed to the bare prompt, seen for a moment on every reopen (and reopened while
 	-- still fading out, the fading rows go at once too)

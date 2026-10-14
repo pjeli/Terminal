@@ -468,6 +468,7 @@ do
 		[12] = { "Shield", "|Hitem:12|h", 2, 20, 15, "Armor", "Shields", 1, "INVTYPE_SHIELD" },
 		[14] = { "Helm of Strength", "|Hitem:14|h", 2, 5, 1, "Armor", "Mail", 1, "INVTYPE_HEAD" }, -- +1 str, ilvl 5
 		[15] = { "Plain Helm", "|Hitem:15|h", 1, 25, 15, "Armor", "Mail", 1, "INVTYPE_HEAD" }, -- worn: no stats to weigh
+		[16] = { "Dull Dagger", "|Hitem:16|h", 2, 18, 15, "Weapon", "Daggers", 1, "INVTYPE_WEAPON" },
 	}
 	local STATS = {
 		[1] = { ITEM_MOD_STRENGTH_SHORT = 4, RESISTANCE0_NAME = 100 },
@@ -477,7 +478,7 @@ do
 		[5] = { ITEM_MOD_STRENGTH_SHORT = 2 }, [6] = { ITEM_MOD_STRENGTH_SHORT = 5 }, [7] = { ITEM_MOD_STRENGTH_SHORT = 1 },
 		[10] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12, ITEM_MOD_STRENGTH_SHORT = 2 }, -- (38: over the sword, 36, not sword + shield, ~46)
 		[11] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12 }, [12] = { RESISTANCE0_NAME = 400, ITEM_MOD_STAMINA_SHORT = 3 },
-		[14] = { ITEM_MOD_STRENGTH_SHORT = 1 }, [15] = {},
+		[14] = { ITEM_MOD_STRENGTH_SHORT = 1 }, [15] = {}, [16] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 5 },
 	}
 	local idOf = function(x) return tonumber(tostring(x):match("item:(%d+)")) or tonumber(x) end
 	C_Item.GetItemInfo = function(id) local t = ITEMS[idOf(id) or 0] if t then return unpack(t) end end
@@ -507,6 +508,18 @@ do
 	F.ClearStats()
 	fit = F.GearFit()
 	check(fit({ itemID = 4 }) and not fit({ itemID = 3 }), "a mage: the caster's gloves, not the strength ones")
+	-- (0.50.7, review) a one-hander, the off hand empty: against the main hand for a class that can't dual-wield
+	local dw = _G.CanDualWield
+	wear[17] = nil
+	_G.CanDualWield = function() return false end
+	F.ClearStats()
+	fit = F.GearFit()
+	check(not fit({ itemID = 16 }), "can't dual-wield: a weaker one-hander isn't an upgrade for the empty off hand")
+	_G.CanDualWield = function() return true end
+	F.ClearStats()
+	fit = F.GearFit()
+	check(fit({ itemID = 16 }), "can dual-wield: the empty off hand takes it")
+	_G.CanDualWield, wear[17] = dw, 12
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID = save.invId

@@ -349,6 +349,23 @@ do
 	_G.C_TaxiMap = taxi
 	_G.C_MapExplorationInfo = nil
 	I.ResetPlacesForTests()
+	-- (0.50.7, review) the towns not built from the quests yet: the flight points are asked once, not per NPC judged
+	do
+		local pending, calls, ql = I.TownsPending, 0, I.qdb.list
+		I.TownsPending = function() return true end
+		I.qdb.list = nil -- (Questie's quests not indexed yet: the towns can't be read from their texts)
+		_G.C_TaxiMap = { GetTaxiNodesForMap = function() calls = calls + 1 return {} end }
+		_G.C_MapExplorationInfo = { GetExploredAreaIDsAtPosition = function() return nil end }
+		I.ResetPlacesForTests()
+		local g = I.FindPlace({ "goldshire" })
+		I.NpcInPlace(295, g)
+		local first = calls
+		g.npcs = nil -- (its answer per NPC kept: asked again as the next keystroke's search would, for another NPC)
+		I.NpcInPlace(295, g)
+		check(first > 0 and calls == first, "towns pending: the taxi maps asked once: " .. first .. " then " .. calls)
+		I.TownsPending, _G.C_TaxiMap, _G.C_MapExplorationInfo, I.qdb.list = pending, taxi, nil, ql
+		I.ResetPlacesForTests()
+	end
 	-- the small fields filters read per row are asked of QuestieDB once per NPC
 	do
 		local Npc = _G.LibQuestieDB.Npc

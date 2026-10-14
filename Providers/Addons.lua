@@ -41,14 +41,12 @@ local function SettingsCategories()
 	return out
 end
 
+-- (the game's C call, fine from here; 0.50.7, review: an old client's InterfaceOptionsFrame_OpenToCategory, Blizzard Lua,
+-- is no longer called, nor is the AddOn list shown from Terminal's own code: both taint. Where to open it is said.)
 local function OpenCategory(c)
 	local U = _G.C_SettingsUtil
 	local id = ns.Secure.SettingsID(c.id or c.name)
 	if id and U and U.OpenSettingsPanel and pcall(U.OpenSettingsPanel, id) then return true end
-	if c.panel and InterfaceOptionsFrame_OpenToCategory then
-		InterfaceOptionsFrame_OpenToCategory(c.panel)
-		return true
-	end
 	return false
 end
 
@@ -105,7 +103,7 @@ local function Launch(t)
 end
 
 local function AddonList()
-	if _G.AddonList then ShowUIPanel(_G.AddonList) end
+	ns:Print(L["Open %s from its button or key (opening it from Terminal's own code would taint it)."]:format(L["AddOn List"]))
 end
 
 ----------------------------------------------------------------------

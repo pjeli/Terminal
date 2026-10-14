@@ -468,7 +468,9 @@ local function ActionLists()
 				secondary = Fire("use"), secondarySecure = { macro = "/use item:6948" }, link = "|cffffffff|Hitem:6948|h[Hearthstone]|h|r" },
 			{ name = "Shiny Sword", quality = 3, itemID = 3 } }) } },
 		{ "spells", { label = "Spell", aliases = { "spell" }, collect = Rows({
-			{ name = "Frost Nova", activate = Fire("book"), secondary = Fire("cast"), secondarySecure = { macro = "/cast Frost Nova" } } }) } },
+			{ name = "Frost Nova", activate = Fire("book"), secondary = Fire("cast"), secondarySecure = { macro = "/cast Frost Nova" } },
+			{ name = "Summon Voidwalker", activate = Fire("book"), secondary = Fire("cast"),
+				secondarySecure = { macro = "/cast Summon Voidwalker" } } }) } },
 		{ "mounts", { label = "Mount", aliases = { "mount" }, collect = Rows({ { name = "Swift Raptor", activate = Fire("summon") } }) } },
 		{ "npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = Rows({
 			{ name = "Innkeeper Farley", key = 295, npcID = 295, activate = Fire("map"), secondary = Fire("target"), secondarySecure = { macro = "/targetexact Innkeeper Farley" } },
@@ -501,6 +503,15 @@ Run("action words", function()
 	UI:Open("summon raptor")
 	res = UI.Results()
 	check(res[1] and res[1].name == "Swift Raptor" and #res == 1, "summon raptor: the mount only: " .. Show(res))
+	-- (0.50.7, review) a warlock's "summon voidwalker": the spell, cast on Enter
+	UI:Hide(); FlushAll()
+	UI:Open("summon voidwalker")
+	res = UI.Results()
+	check(res[1] and res[1].name == "Summon Voidwalker", "summon voidwalker: the spell: " .. Show(res))
+	key("ENTER")
+	check(mp.attrs.macrotext == "/cast Summon Voidwalker", "...Enter casts it: " .. tostring(mp.attrs.macrotext))
+	UI:Disarm(); UI:Hide(); FlushAll()
+	UI:Open("summon raptor")
 	local mark = #log
 	UI:Activate(1)
 	check(logHas("RAN summon", mark + 1), "...Enter summons it")
@@ -546,6 +557,9 @@ Run("nearest", function()
 		check(r2[1] and r2[1].name == "Innkeeper Allison" and r2[1].detail == "40 yd", q .. ": as nearest innkeeper: " .. Show(r2))
 	end
 	check(E.ToAdvanced("innkeeper nearby") == "@npc is:innkeeper faction:friendly sort:nearest ", "Alt+` writes innkeeper nearby as sort:nearest: " .. E.ToAdvanced("innkeeper nearby"))
+	-- (0.50.7, review) "the nearest innkeeper": as the search reads it
+	check(E.ToAdvanced("the nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
+		"Alt+`, the nearest innkeeper: " .. E.ToAdvanced("the nearest innkeeper"))
 	UI:Hide(); FlushAll()
 	UI:Open("nearest innkeeper")
 	local mark = #log
@@ -957,6 +971,12 @@ Run("reopening: no flash of the last results; Down brings them back", function()
 	UI.lastQuery = nil
 	UI:Open(".help"); UI:Hide(); FlushAll()
 	check(UI.lastQuery == nil, "a .command isn't kept as the last search")
+	-- (0.50.7, review) closed by the game (a window a press opened), not by Terminal: the search is kept all the same
+	UI:Open("frostbolt"); FlushAll()
+	UI.frame:Hide(); UI.frame.scripts.OnHide(UI.frame); FlushAll()
+	UI:Hide(); FlushAll()
+	check(UI.lastQuery == "frostbolt", "closed by the game: kept for Down: " .. tostring(UI.lastQuery))
+
 	-- Advanced: Down shows your recent picks (even with a last search), Up the last line run
 	ns.db.easyMode = false; UI:EasyChanged()
 	ns:Bump("items:1")

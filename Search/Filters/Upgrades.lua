@@ -5,6 +5,7 @@ local ns = select(2, ...)
 local F = ns.Filters
 local P = F._
 local ItemInfo, ItemOf, Stats, SLOTS = P.ItemInfo, F.ItemOf, P.Stats, F.SLOTS
+local MAIN_ONLY = { 16 } -- (a one-hander for a class that can't dual-wield)
 local Secret = ns.Secret
 
 -- is:upgrade (Simple mode: "upgrades", "helm upgrades"): gear you can equip now (its required level is yours or lower,
@@ -154,6 +155,9 @@ function F.GearFit()
 		local loc = info.equipLoc or ""
 		local slots = SLOTS[loc]
 		if not slots then return false end
+		-- a one-hander goes in the main hand only for a class that can't dual-wield (0.50.7, review: an empty off hand made
+		-- every usable one-hander an upgrade for a mage, a priest)
+		if loc == "INVTYPE_WEAPON" and ns.Safe(_G.CanDualWield) == false then slots = MAIN_ONLY end
 		local need = type(info.minLevel) == "number" and info.minLevel or 0
 		if me and need > me then return false end
 		-- (a kind you can't use: plate on a mage, another class's item)

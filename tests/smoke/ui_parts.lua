@@ -334,6 +334,20 @@ do
 	UI:Hide(); T.FlushAll()
 	if F.scripts.OnHide then F.scripts.OnHide(F) end
 	check(not g:IsShown() and UI.drag == nil, "closed while dragged: the lines go")
+	-- (0.50.7, review) another screen size: the same frame, its lines re-placed (a new frame each time piled up)
+	local lines = #g.lines
+	UIParent.w, UIParent.h = 1920, 1080
+	UI:Open(""); T.FlushAll()
+	F.scripts.OnDragStart(F)
+	check(UI.guides == g and g.key:find("1920", 1, true), "a new screen size: the same guides frame, re-laid: " .. tostring(UI.guides == g))
+	UIParent.w, UIParent.h = 1600, 900
+	F.scripts.OnDragStop(F)
+	F.scripts.OnDragStart(F)
+	local shown = 0
+	for _, t in ipairs(g.lines) do if t:IsShown() then shown = shown + 1 end end
+	check(#g.lines >= lines and shown == lines, "back to the smaller screen: its lines, the rest hidden: " .. shown .. "/" .. lines)
+	F.scripts.OnDragStop(F)
+	UI:Hide(); T.FlushAll()
 	ns.db.point, _G.GetCursorPosition, F.GetLeft, F.GetTop, F.GetEffectiveScale = was.point, was.cur, was.left, was.top, was.fs
 	UIParent.GetEffectiveScale, UIParent.w, UIParent.h, F.w, F.h = was.us, was.uw, was.uh, was.w, was.h
 end
@@ -548,6 +562,30 @@ do
 	UI:Move(2) -- (the selection moves under the open menu)
 	if write then write.scripts.PostClick(write) end
 	check(menuOn and T.query():find(menuOn.name, 1, true), "the menu's Write: its own row: " .. T.query())
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	-- (0.50.7, review) a row to select again, left from a search stopped by closing: not jumped to on the next open
+	UI:Open("@zzrev3 pebble"); T.FlushAll()
+	UI.popTarget = UI.Results()[5]
+	UI:Hide(); T.FlushAll()
+	UI:Open("@zzrev3 pebble"); T.FlushAll()
+	check(UI.sel == 1, "opened again: the top row selected, not one from before: " .. UI.sel)
+	UI:Hide(); T.FlushAll()
+	-- (0.50.7, review) the list rebuilt under the open menu (new tables, the same rows): still its own row
+	UI:Open("@zzrev3 pebble"); T.FlushAll()
+	UI:Move(-10); UI:Move(2)
+	menuOn = UI.Results()[UI.sel]
+	UI:ShowRowMenu(UI.sel)
+	write = nil
+	for _, b in ipairs(_G.TerminalRowMenu.lines) do if b:IsShown() and b.item and b.item.label == ns.L["Write into the prompt"] then write = b end end
+	local rebuilt = {}
+	for i = #UI.results, 1, -1 do
+		local r = {}
+		for k, v in pairs(UI.results[i]) do r[k] = v end
+		rebuilt[#rebuilt + 1] = r
+	end
+	UI.results = rebuilt
+	if write then write.scripts.PostClick(write) end
+	check(menuOn and T.query():find(menuOn.name .. " ", 1, true), "rebuilt under the menu: Write still writes its own row: " .. T.query())
 	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
 	-- the mouse wheel moving the selection off an armed row disarms it, as the arrows do
 	local lots = {}

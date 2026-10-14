@@ -310,8 +310,16 @@ function UI:Search(text)
 	end
 	-- arithmetic: the answer is the top result (see Calc.lua)
 	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
+	-- (a sum answered: its characters aren't words to look for close spellings of, nor is "Nothing has that" said
+	-- under the answer; 0.50.7, review: "3*45g" ran a close-spellings pass over every list on each keystroke)
+	self.calcAnswered = calc and true or nil
 	local res = self:SearchText(text)
-	if calc then table.insert(res, 1, calc) end
+	if calc then
+		for i = #res, 1, -1 do
+			if res[i].noActivate and res[i].name == EASY_NONE then table.remove(res, i) end
+		end
+		table.insert(res, 1, calc)
+	end
 	self:RetryWhenLoaded(text)
 	return res
 end
@@ -1204,8 +1212,8 @@ function Scan.Fallbacks(self, q, out, included, sig)
 		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
-		-- nothing has every word: names within an edit or two of them ("hearhtstone")
-		if #out == 0 then
+		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator answered
+		if #out == 0 and not self.calcAnswered then
 			local near = q.overviewNear
 			if near then
 				-- (Simple mode opened this category because only its close spellings matched: the overview has just looked
@@ -1614,7 +1622,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 	-- with no category picked said "Nothing has that" where Advanced found "hearhtstone"); each category's rows kept for
 	-- its own search when it's the only one (nearBy: Scan.Fallbacks lists them, no second pass; 0.49.2, review)
 	local nearBy
-	if #out == 0 and not empty then
+	if #out == 0 and not empty and not self.calcAnswered then
 		local included, seen = {}, {}
 		for _, c in ipairs(ns.Easy.Visible()) do
 			for _, id in ipairs(c.kinds) do

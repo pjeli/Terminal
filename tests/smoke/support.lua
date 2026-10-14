@@ -1325,3 +1325,17 @@ do
 	local v = setmetatable({ pipeRel = "alts", pipeFrom = "Linen Cloth" }, { __index = e })
 	check(SH.Macro(v, { cmd = "/p" }) == mac, "linen cloth > alts >> party: the same line: " .. tostring(SH.Macro(v, { cmd = "/p" })))
 end
+
+-- (0.50.7, review) .atop's filter: letters in order across an addon's title and folder name ("bagnn": Bag, Bagnon)
+do
+	local T2 = ...
+	local B = T2.ns.Atop
+	local a = { title = "Bag", name = "Bagnon", htitle = "Bag Bagnon", ltitle = "bag bagnon" }
+	T2.check(B.Matches and B.Matches(a, "bagnn") and not B.Matches(a, "zzz"), ".atop: a filter spread over the title and folder name matches")
+end
+
+-- (0.50.7, review) every NPC's spots fit in the cache (WoW Forever has 11.7k NPCs): a broad "nearest" doesn't empty it
+do
+	local T2 = ...
+	T2.check((T2.ns.Integrations._.NPC_SPOTS_MAX or 0) >= 11700, "the NPC spot cache holds every NPC")
+end

@@ -68,6 +68,16 @@ do
 	ns.Stored.hooked = nil
 	ns.Stored.HookSyndicator()
 	P._dirty = true
+	-- (0.50.7, review) a money change dirties the gold, not the stored items; an item change both
+	do
+		local st = ns.providers.stored
+		st._dirty, P._dirty = false, false
+		callbacks.CurrencyCacheUpdate()
+		check(P._dirty == true and st._dirty == false, "Syndicator's money changed: gold read again, not your alts' items")
+		callbacks.BagCacheUpdate()
+		check(st._dirty == true and P._dirty == true, "its bags changed: both")
+		P._dirty = true
+	end
 	res = UI:Search("@gold")
 	local by = {}
 	for _, e in ipairs(res) do by[e.name] = e end

@@ -60,6 +60,16 @@ do
 		and sent[1][1]:find("15 s typing test (a new best)", 1, true) and not sent[1][1]:find("CurseForge", 1, true) and not sent[1][1]:find("?", 1, true), "Enter: the guild told: " .. tostring(sent[1] and sent[1][1]))
 	check(#sent[1][1] <= 255, "within a chat line")
 	check(not TY.TellGuild() and #sent == 1 and printed:find("heard", 1, true), "only once")
+	-- (0.50.7, review) the game's own chords (Ctrl+R: the frame rate) go on to the game, as .atop and the terminal let them
+	do
+		local gk = ns.UI.GameKey
+		ns.UI.GameKey = function(k) return k == "R", "TOGGLEFPS" end
+		TY.KeyDown(TY.frame, "R")
+		check(TY.frame.propagate == true, "Ctrl+R (the game's): passed on")
+		TY.KeyDown(TY.frame, "Q")
+		check(TY.frame.propagate == false, "another key: the test's")
+		ns.UI.GameKey = gk
+	end
 	-- Tab: another test; before the first letter Tab picks the length
 	TY.KeyDown(TY.frame, "TAB")
 	check(not g.over and g.cur == 1 and not g.start and ns.db.typingMode == 15, "Tab after a test: another (the same length)")

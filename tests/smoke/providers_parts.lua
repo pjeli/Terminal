@@ -295,6 +295,17 @@ do
 	reads = 0
 	fire("SKILL_LINES_CHANGED"); fire("TRADE_SKILL_LIST_UPDATE")
 	check(reads == 3, "after a skill change, the next list update reads it again: " .. reads)
+	-- (0.50.7, review) the skills list's own read fired it (it opens folded groups): not a skill change
+	do
+		local sk, md, marks = ns.providers.skills, P.MarkDirty, 0
+		P.MarkDirty = function(...) marks = marks + 1 return md(...) end
+		local own, at = sk._firedOwn, sk._collectedAt
+		sk._firedOwn, sk._collectedAt = true, GetTime()
+		fire("SKILL_LINES_CHANGED")
+		check(marks == 0, "fired by the skills list's own read: the recipes aren't read again: " .. marks)
+		sk._firedOwn, sk._collectedAt = own, at
+		P.MarkDirty = md
+	end
 	reads = 0
 	ns.db.recipes[key][164] = nil -- (the list it made dropped since: Prune)
 	fire("TRADE_SKILL_LIST_UPDATE")

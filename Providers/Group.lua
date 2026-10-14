@@ -232,8 +232,17 @@ local function BuffMacro(e)
 	return ("/cast [@%s] %s"):format(GR.UnitOf(e), e.buffWith)
 end
 local TARGET_SPEC, BUFF_SPEC = { macro = TargetMacro }, { macro = BuffMacro }
-local function NoTarget(e) ns:Print(L["In combat: target %s from your party or raid frames."]:format(tostring(e.name))) end
-local function NoBuff(e) ns:Print(L["In combat: cast %s on %s from your bars."]:format(tostring(e.buffWith), tostring(e.name))) end
+-- (no press set up: in combat, or out of it when the press couldn't be armed; 0.50.7, review: "In combat" was said
+-- either way)
+local function InCombat() return InCombatLockdown and InCombatLockdown() and true or false end
+local function NoTarget(e)
+	ns:Print((InCombat() and L["In combat: target %s from your party or raid frames."] or L["Couldn't target %s from here: use your party or raid frames."])
+		:format(tostring(e.name)))
+end
+local function NoBuff(e)
+	ns:Print((InCombat() and L["In combat: cast %s on %s from your bars."] or L["Couldn't cast %s on %s from here: use your bars."])
+		:format(tostring(e.buffWith), tostring(e.name)))
+end
 
 --- What's sent: "Plamen Pally (Paladin, Healer): dead, out of range, needs Fortitude".
 local function ShareText(e)
@@ -378,13 +387,23 @@ local function Row(m, expected, raidInfo)
 	}
 end
 
+-- Whether a raid unit is you. UnitIsUnit's answer is secret where unit comparison is restricted: never compared, the GUIDs
+-- then (0.50.7, review: compared as it came, an error there, and the list stayed empty)
+local function IsMe(u)
+	if u == "player" then return true end
+	local v = Bool(Safe(UnitIsUnit, u, "player"))
+	if v ~= nil then return v end
+	local a, b = Str(Safe(UnitGUID, u)), Str(Safe(UnitGUID, "player"))
+	return a ~= nil and a == b
+end
+
 function GR.Collect()
 	local members = {}
 	local units = GR.Units()
 	local raid = Safe(IsInRaid) == true
 	local raidInfo = {}
 	for i, u in ipairs(units) do
-		local m = GR.Read(u, u == "player" or (raid and Safe(UnitIsUnit, u, "player") == true))
+		local m = GR.Read(u, u == "player" or (raid and IsMe(u)))
 		if m then
 			members[#members + 1] = m
 			if raid and _G.GetRaidRosterInfo then
@@ -541,6 +560,16 @@ function GR.Question(text)
 				if not consAll then q.cons[#q.cons + 1] = c.id end
 			elseif not NAME_FILLER[w] then -- (leftover words are one buff's name: "blessing of kings" -> "blessing kings")
 				q.buffWords[#q.buffWords + 1] = w
+			end
+		end
+		-- one blessing named ("blessing of kings", "greater blessing of might"): that buff by name, not every Blessing
+		-- (0.50.7, review: "blessing" took the whole family, so a member with Might but no Kings wasn't listed)
+		if #q.buffWords > 0 then
+			for i = #q.missing, 1, -1 do
+				if q.missing[i] == "blessing" then
+					table.remove(q.missing, i)
+					table.insert(q.buffWords, 1, "blessing")
+				end
 			end
 		end
 	else

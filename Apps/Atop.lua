@@ -79,7 +79,10 @@ local function ReadAddons()
 			local a = byName[name] or { name = name, cpu = 0, mem = 0, shownCpu = 0, shownMem = 0 }
 			local plain = ns.Plain and ns.Plain(title or name) or (title or name)
 			a.title = plain ~= "" and plain or name
-			a.ltitle = ns.Lower(a.title .. " " .. name)
+			-- (what's matched: its title and folder name, and that same text lowercased: the fuzzy score takes the two as one
+			-- text; 0.50.7, review: given the title alone and the longer lowercase, it read past its end)
+			a.htitle = a.title .. " " .. name
+			a.ltitle = ns.Lower(a.htitle)
 			list[#list + 1] = a
 		end
 	end
@@ -179,8 +182,10 @@ local function Matches(a, q)
 	if q == "" then return true end
 	if a.ltitle:find(q, 1, true) then return true end
 	local F = ns.Fuzzy
-	return F and F.score and F.score(q, a.title, a.ltitle) ~= nil or false
+	return F and F.score and F.score(q, a.htitle or a.title, a.ltitle) ~= nil or false
 end
+
+B.Matches = Matches -- (tests)
 
 function B.Refilter()
 	local q = ns.Lower(state.filter)

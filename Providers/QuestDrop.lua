@@ -34,6 +34,15 @@ local CUE = { drop = "all", abandon = "all", dump = "all", remove = "all", delet
 	old = "all", droppable = "all", grey = "grey", gray = "grey", trivial = "grey", behind = "behind",
 	outleveled = "behind", outlevelled = "behind", outgrown = "behind" }
 
+-- cue words that ask on their own; the others ("old", "grey", "remove", "drop" alone) are a quest's name as often
+local PLAIN = { abandon = true, droppable = true, outleveled = true, outlevelled = true, outgrown = true, cleanup = true }
+--- Whether the line plainly asks for quests to drop: such a word, or "to <cue>" ("quests to drop", "to clean up").
+function QD.Plain(t)
+	for w in t:gmatch("%S+") do if PLAIN[w] then return true end end
+	for w in t:gmatch("to (%a+)") do if CUE[w] then return true end end
+	return false
+end
+
 --- The question: { words = the words that narrow it, grey = only grey ones, behind = only zones left behind }, or
 --- nil when the line isn't it.
 function QD.Question(text)
@@ -47,7 +56,12 @@ function QD.Question(text)
 	end
 	if not subject or not next(cues) then return nil end
 	local only = not cues.all
-	return { words = rest, grey = only and cues.grey and not cues.behind or nil, behind = only and cues.behind and not cues.grey or nil }
+	local q = { words = rest, grey = only and cues.grey and not cues.behind or nil, behind = only and cues.behind and not cues.grey or nil }
+	-- other words: only when they name one of the quests it would list, unless the line plainly asks ("raptor quests to
+	-- drop", "abandon", "outleveled": then "none of those" is the answer). 0.50.7, review: "old blanchy quest", "grey
+	-- wolf quest", "remove curse quest", "quest item drop" were taken, an empty answer where the quest was searched for
+	if #rest > 0 and not QD.Plain(t) and not QD.AnyFor(q) then return nil end
+	return q
 end
 
 ----------------------------------------------------------------------
@@ -59,6 +73,16 @@ local function Matches(e, words)
 	local hay = (rawget(e, "_lname") or Lower(e.name or "")) .. " " .. (rawget(e, "_ltext") or Lower(e.zone or ""))
 	for _, w in ipairs(words) do if not hay:find(w, 1, true) then return false end end
 	return true
+end
+
+--- Whether some quest in your log is one the question would list (its words named in it).
+function QD.AnyFor(q)
+	local p = ns.providers.quests
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		local which = (q.grey and e.grey) or (q.behind and e.behind) or (not q.grey and not q.behind and (e.grey or e.behind))
+		if which and Matches(e, q.words) then return true end
+	end
+	return false
 end
 
 -- grey first, then the lowest level, then by name

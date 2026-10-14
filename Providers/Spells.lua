@@ -401,13 +401,22 @@ function SP.PlacedNames()
 		if has then used = used + 1 end
 		if has and SP.SlotCounts(slot) then
 			counted = counted + 1
-			local kind, id = Call(_G.GetActionInfo, slot)
-			if Secret(kind) or Secret(id) then kind = nil end -- (never compared: a secret value errors)
+			local kind, id, sub = Call(_G.GetActionInfo, slot)
+			if Secret(kind) or Secret(id) or Secret(sub) then kind = nil end -- (never compared: a secret value errors)
 			if kind == "spell" then
 				local n = SpellNameOf(id)
 				if n then into[ns.Lower(n)] = true end
-			elseif kind == "macro" and type(id) == "number" then
-				AddMacro(id, into)
+			elseif kind == "macro" then
+				-- (a macro's id is what it shows, not its number: a spell's id when it shows a spell, as Blizzard's action
+				-- buttons read it; the macro itself found by its name, for every spell its text casts. 0.50.7, review: the
+				-- id was taken for the macro's number, another macro or none read)
+				if sub == "spell" and type(id) == "number" then
+					local n = SpellNameOf(id)
+					if n then into[ns.Lower(n)] = true end
+				end
+				local text = Call(_G.GetActionText, slot)
+				local index = type(text) == "string" and not Secret(text) and text ~= "" and Call(_G.GetMacroIndexByName, text)
+				if type(index) == "number" and index > 0 then AddMacro(index, into) end
 			end
 		end
 	end
@@ -509,7 +518,8 @@ ns:RegisterProvider("spells", {
 	label = L["Spell"],
 	color = "ff9d7bff",
 	aliases = { "spell", "spells", "ability", "abilities", "spellbook" },
-	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_TALENT_UPDATE", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" },
+	-- (LEARNED_SPELL_IN_SKILL_LINE: this client's name for it; LEARNED_SPELL_IN_TAB is gone and was never registered. 0.50.7)
+	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_TALENT_UPDATE", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" },
 	guard = 2,
 	collect = function()
 		local out, byName = {}, {}

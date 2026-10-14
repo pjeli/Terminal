@@ -5,8 +5,8 @@ local L = ns.L
 -- "@guild officer", "@friend online". Each person's row is searchable by name, class, rank, zone, notes and (where the
 -- game says) professions; lvl: and in: work on them, is:online / is:offline too. Enter opens a whisper
 -- to them, pressed by the game (WHISPER: a /run line that opens the chat box a moment after the press,
--- SO.WhisperMacro; from Terminal's code only in combat, SO.Whisper). Shift+Enter invites them (Terminal's code: the
--- invite isn't protected).
+-- SO.WhisperMacro; from Terminal's code only when no press could be set up, SO.Whisper: in combat Enter on these rows does
+-- nothing, as on every pressed row). Shift+Enter invites them (Terminal's code: the invite isn't protected).
 
 local SO = {}
 ns.Social = SO
@@ -47,7 +47,8 @@ local function AccountName(e)
 	end
 end
 
---- The whisper box from Terminal's code: only where nothing can be pressed (combat).
+--- The whisper box from Terminal's code: only when no press could be set up (out of combat: in combat Activate stops a
+--- pressed row first; 0.50.7, review: these comments said "combat").
 function SO.Whisper(e)
 	local bn = (e.bnetID or e.bnetTag) and AccountName(e)
 	local sendBN = ChatFrame_SendBNetTell or (ChatFrameUtil and ChatFrameUtil.SendBNetTell)
@@ -98,7 +99,7 @@ local WHISPER = { macro = SO.WhisperMacro }
 
 local function Row(t)
 	t.secure, t.isOpen = WHISPER, Never
-	t.activate, t.secondary = SO.Whisper, SO.Invite -- (Enter in combat, when nothing can be pressed: Terminal's own)
+	t.activate, t.secondary = SO.Whisper, SO.Invite -- (Enter with no press set up: Terminal's own)
 	return t
 end
 

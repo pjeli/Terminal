@@ -137,6 +137,7 @@ end
 --     lazy     = true,                 -- skipped on empty queries (heavy index)
 --     guard    = 1.0,                  -- events within N s of a collect wait until then
 --     selfEvents = true,               -- ...or are ignored when collecting fired them itself (ns.firedOwn)
+--     ignoreEvent = function(event) end, -- true: that event isn't a change for this list (Keybinds: Terminal's own Enter)
 --     idleDrop = 600,                  -- free the entries after N s without a search
 --     warmDirty = 2,                   -- read again N s after its events, terminal closed (a costly list in use)
 --     onDrop   = function() end,       -- ...and free whatever else the provider keeps
@@ -190,7 +191,10 @@ end
 --- A list's rows changed in a way no game event of its `events` tells: it's made again the next time it's searched.
 function ns:Changed(id)
 	local p = self.providers[id]
-	if p then p._dirty = true end
+	if p then
+		p._dirty = true
+		if ns.WarmLater then ns.WarmLater(p) end -- (a costly list: read again in the background, not in a keystroke; 0.50.7)
+	end
 end
 
 --- Call after adding to a provider's aliases once it's registered: the @kind lookup is rebuilt.
@@ -352,10 +356,16 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 --- A list that costs a lot to read again (warmDirty = seconds: @stored, one item info per recorded item) and is in use
 --- (built, not freed) is read again that long after it changed, out of combat with the terminal closed, not inside the
 --- next keystroke's frame (review, 0.48.6). Its last-used time stays as it was: an unused list is still freed.
+--- That long after the LAST change, not the first: a stream of them (selling greys, emptying a mailbox, looting a run of
+--- mobs) is read once it's over (0.50.7, review: read every ~3 s while they kept coming).
 local function WarmLater(p)
-	if not p.warmDirty or p._warmTimer or not p._entries then return end
+	if not p.warmDirty or not p._entries then return end
+	p._warmAsked = GetTime()
+	if p._warmTimer then return end
 	p._warmTimer = true
-	C_Timer.After(p.warmDirty, function()
+	local function Fire()
+		local quiet = p.warmDirty - (GetTime() - (p._warmAsked or 0))
+		if quiet > 0.05 then C_Timer.After(quiet, Fire) return end -- (changed again meanwhile: wait for it to settle)
 		p._warmTimer = nil
 		if not (p._dirty and p._entries) then return end
 		if InCombatLockdown() or (ns.background or 0) > 0 then return WarmLater(p) end -- (later)
@@ -363,8 +373,10 @@ local function WarmLater(p)
 		local used = p._usedAt
 		ns:GetEntries(p)
 		p._usedAt = used
-	end)
+	end
+	C_Timer.After(p.warmDirty, Fire)
 end
+ns.WarmLater = WarmLater -- (lists told of a change some other way than an event: Stored's Syndicator callbacks)
 
 --- A list's own events: changed now, or once the guard after its last read is over (selfEvents: dropped when that read
 --- fired them itself).
@@ -374,7 +386,9 @@ local function Watched(event)
 	local now = GetTime()
 	for _, p in ipairs(list) do
 		local wait = p.guard and p._collectedAt and (p.guard - (now - p._collectedAt)) or 0
-		if wait <= 0 then
+		if p.ignoreEvent and p.ignoreEvent(event) then
+			-- (a change that isn't one for this list: Keybinds' UPDATE_BINDINGS from Terminal's own Enter)
+		elseif wait <= 0 then
 			p._dirty = true
 			WarmLater(p)
 		elseif not (p.selfEvents and p._firedOwn) then -- (selfEvents: dropped only when the read did fire them)

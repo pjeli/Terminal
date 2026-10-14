@@ -64,7 +64,10 @@ end
 
 -- each NPC's spawns in world yards, worked out once: id -> flat { cont, x, y, cont, x, y... } (false: none)
 local npcSpots, npcSpotCount = {}, 0
-local NPC_SPOTS_MAX = 6000 -- (forgotten all at once past this: a session of "nearest" asks a few thousand)
+-- (forgotten all at once past this. 0.50.7, review: 6000 was under WoW Forever's 11.7k NPCs, so a broad "@npc
+-- sort:nearest" filled it, emptied it and filled it again in one search, and again on every keystroke; ~4.5 MB at its cap)
+local NPC_SPOTS_MAX = 13000
+I._.NPC_SPOTS_MAX = NPC_SPOTS_MAX -- (tests)
 local function NpcSpots(id)
 	local t = npcSpots[id]
 	if t ~= nil then return t or nil end

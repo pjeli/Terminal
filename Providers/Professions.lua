@@ -959,6 +959,10 @@ ev:SetScript("OnEvent", function(_, event, id)
 			end)
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
+		-- (the skills list's own read opens folded groups, which fires this: no skill changed; its list drops it the same
+		-- way, selfEvents. 0.50.7, review: the recipes, camp and missing lists were all read again for it)
+		local sk = ns.providers.skills
+		if sk and sk._firedOwn and sk._collectedAt and GetTime() - sk._collectedAt < (sk.guard or 2) then return end
 		fullSnap = true
 		P.MarkDirty()
 		if ns.providers.professions then ns.providers.professions._dirty = true end -- ranks

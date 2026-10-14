@@ -351,6 +351,11 @@ do
 	check(#sent == 1 and sent[1][2] == "PARTY" and sent[1][1]:find("^Mats for Thorium Belt %(2%)") and not UI:IsShown(),
 		"Enter: one line to party, terminal closed: " .. tostring(sent[1] and sent[1][1]))
 	check(not T.logHas("Secure.Arm", mark + 1), "nothing armed for the game to press")
+	-- (0.50.7, review) the row menu's first line on that one row ("Send"): sends them, as Enter does
+	sent = {}
+	UI:Open("mats for thorium belt >>> party"); T.FlushAll()
+	UI:Activate(1, { own = true }); T.FlushAll()
+	check(#sent == 1 and sent[1][2] == "PARTY", "the menu's Send on the one row: sent: " .. #sent)
 	-- the game's chat lockdown (an encounter): says so, sends nothing
 	sent = {}
 	_G.C_ChatInfo.InChatMessagingLockdown = function() return true end

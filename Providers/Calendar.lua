@@ -434,7 +434,7 @@ local function Line(e)
 	return "  " .. e.name .. "  " .. ns.Detail(CA.When(e), e.typeLabel, e.statusText)
 end
 
--- (Enter without the game's press: in combat, or no calendar button) the event in chat
+-- (Enter with no press set up: no calendar button, the press not armed; in combat Enter stops before this) the event in chat
 local function Show(e)
 	local lines = { Line(e) }
 	if e.desc then lines[#lines + 1] = "    " .. e.desc end

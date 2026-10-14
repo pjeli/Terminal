@@ -129,7 +129,10 @@ local function ShowAfter(e)
 	end
 end
 
-local function Direct(e) -- no keybinding: open the map from our own code
+-- No press could be set up: the map shown already is pointed at; else the place pinned and where to open it said.
+-- (0.50.7, review: it opened the map from Terminal's own code, which taints the map's state: no window is opened that way,
+-- even as a last resort, as Panels' and the quest log's fallbacks say)
+local function Direct(e)
 	if InCombatLockdown() then
 		-- the map's pins are protected in combat: touching it would only be blocked
 		ns:Trace("maps: in combat, map left alone")
@@ -141,9 +144,11 @@ local function Direct(e) -- no keybinding: open the map from our own code
 		end
 		return
 	end
-	ns:Trace("DIRECT ToggleWorldMap (addon code, may be blocked)")
-	if ToggleWorldMap and not MapOpen() then pcall(ToggleWorldMap) end
-	C_Timer.After(0.1, function() ShowAfter(e) end)
+	if MapOpen() then C_Timer.After(0.1, function() ShowAfter(e) end) return end
+	ns:Trace("maps: nothing to press: pinned, and said where to open the map")
+	local pin = Place(e)
+	if pin then ns:Print(M.PinLine(pin, e.name)) end
+	ns:Print(L["Open %s from its button or key (opening it from Terminal's own code would taint it)."]:format(L["World Map"]))
 end
 
 -- for the addon integrations (Providers/Integrations/), which show places on the map too

@@ -69,17 +69,18 @@ function QR.Build()
 	end, function()
 		index, building = out, false
 		QR.lastKey, QR.lastItems = nil, nil
+		QR.ForgetClose() -- (the close spellings found were the old index's entries: 0.50.7, a review test)
 	end)
 end
-function QR.Forget() index, building, QR.lastKey, QR.lastItems = nil, false, nil, nil end -- (tests: Questie's data read again)
+function QR.Forget() index, building, QR.lastKey, QR.lastItems = nil, false, nil, nil QR.ForgetClose() end -- (tests: Questie's data read again)
 
--- a word typed: at the start of one of the name's words ("sab" is in Outlaw Sabre, "low" isn't in Glowing Wand)
-local function Starts(tk, m)
-	return m:find("%f[%w\128-\255]" .. tk:gsub("%p", "%%%0")) ~= nil
-end
+-- a word typed: at the start of one of the name's words ("sab" is in Outlaw Sabre, "low" isn't in Glowing Wand). The
+-- word's pattern, made once per search (0.50.7, review: made again for every item of the index, per word)
+local function StartPattern(tk) return "%f[%w\128-\255]" .. tk:gsub("%p", "%%%0") end
 
 QR.CLOSE_LEN = 5 -- (a word this long or longer may be a close spelling of the name's: "saber", Sabre)
 local closeSeen, closeOrder = {}, {} -- word -> { [entry] = edits }: the last few words' close spellings, per word
+function QR.ForgetClose() closeSeen, closeOrder = {}, {} end
 local function CloseOf(tk, idx)
 	local c = closeSeen[tk]
 	if c then return c end
@@ -110,18 +111,29 @@ end
 --- again as the search refreshes, and by Alt+`).
 function QR.Items(tokens, oneClose)
 	local idx = QR.Index()
-	if not idx or #tokens == 0 then return {} end
+	if not idx then
+		-- (still being read, a slice at a time: the search asks again once it's in; 0.50.7, review: nothing was found and
+		-- nothing asked again, a chain's empty answer kept)
+		if building and #tokens > 0 then
+			if ns.Filters then ns.Filters.loading = true end
+			if ns.Pipes then ns.Pipes.loading = true end
+		end
+		return {}
+	end
+	if #tokens == 0 then return {} end
 	local whole = table.concat(tokens, " ")
 	local key = whole .. (oneClose and "\1" or "")
 	if QR.lastKey == key then return QR.lastItems end
 	local exact, typed = {}, {}
+	local pats = {}
+	for k, tk in ipairs(tokens) do pats[k] = StartPattern(tk) end
 	for _, it in ipairs(idx) do
 		if it.m == whole then
 			exact[#exact + 1] = it
 		else
 			local all = true
-			for _, tk in ipairs(tokens) do
-				if not Starts(tk, it.m) then all = false break end
+			for _, pat in ipairs(pats) do
+				if not it.m:find(pat) then all = false break end
 			end
 			if all then typed[#typed + 1] = it end
 		end
@@ -134,8 +146,8 @@ function QR.Items(tokens, oneClose)
 		if next(sets) then
 			for _, it in ipairs(idx) do
 				local edits = 0
-				for k, tk in ipairs(tokens) do
-					local d = (Starts(tk, it.m) and 0) or (sets[k] and sets[k][it])
+				for k in ipairs(tokens) do
+					local d = (it.m:find(pats[k]) and 0) or (sets[k] and sets[k][it])
 					if not d then edits = nil break end
 					edits = edits + d
 				end
@@ -196,7 +208,8 @@ if Fk and Fk.KEYS then
 	Fk.KEYS.reward = function(v)
 		if v == "" then return nil end
 		local tokens = {}
-		for w in v:gsub("_", " "):gmatch("%S+") do tokens[#tokens + 1] = w end
+		-- (apostrophes left out, as the names are: "agamaggan's_clutch"; 0.50.7, review)
+		for w in v:gsub("_", " "):gsub("'", ""):gmatch("%S+") do tokens[#tokens + 1] = w end
 		local set -- (looked up on the first quest row, then kept for the search)
 		return function(e)
 			local id = QuestIdOf(e)
@@ -233,9 +246,10 @@ local function QuestCalled(words)
 	local list = I and I.qdb and I.qdb.list
 	for _, e in ipairs(list or {}) do
 		local ln = rawget(e, "_lname") or (type(e.name) == "string" and Lower(e.name)) or ""
+		if ln:find("'", 1, true) then ln = ln:gsub("'", "") end -- (once per quest, not per word: 0.50.7, review)
 		local all = true
 		for _, w in ipairs(words) do
-			if not ln:gsub("'", ""):find(w, 1, true) then all = false break end
+			if not ln:find(w, 1, true) then all = false break end
 		end
 		if all then return true end
 	end
@@ -291,7 +305,8 @@ end
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
 function QR.ToAdvanced(q)
 	local first = q.items[1]
-	local name = (#q.items == 1 or first.ln == table.concat(q.words, " ")) and first.ln or table.concat(q.words, " ")
+	-- (the name as reward: matches it: apostrophes left out; 0.50.7, review)
+	local name = (#q.items == 1 or first.ln == table.concat(q.words, " ")) and first.m or table.concat(q.words, " ")
 	return "@questie reward:" .. name:gsub(" ", "_") .. " "
 end
 

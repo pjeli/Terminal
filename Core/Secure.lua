@@ -422,6 +422,7 @@ end
 
 -- Enter (and the keypad's) bound to one thing only: set(owner, true, key, ...) is SetOverrideBinding/Click/Spell
 local function BindEnter(set, ...)
+	S.boundAt = GetTime() -- (Terminal's own Enter: UPDATE_BINDINGS follows, no binding of yours changed; Keybinds.lua)
 	ClearOverrideBindings(owner)
 	set(owner, true, "ENTER", ...)
 	set(owner, true, "NUMPADENTER", ...)
@@ -468,6 +469,7 @@ function S.Disarm()
 	if InCombatLockdown() then
 		S.dirty = true -- bindings can't change in combat; cleared when it ends
 	else
+		S.boundAt = GetTime()
 		ClearOverrideBindings(owner)
 	end
 end
@@ -680,6 +682,7 @@ end
 
 function S.OnRegen()
 	if S.dirty and not S.armed then
+		S.boundAt = GetTime()
 		ClearOverrideBindings(owner)
 		S.dirty = false
 	end

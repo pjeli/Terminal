@@ -344,6 +344,21 @@ do
 	check(q and opened == 0, "a quest log row's fallback (party quests' and Questie's Shift+Enter in combat): not opened from here: " .. opened)
 end
 
+io.write("[maps: no map from Terminal's code, even when nothing could be pressed (review, 0.50.7)]\n")
+do
+	local was = { twm = _G.ToggleWorldMap, icl = _G.InCombatLockdown, pr = ns.Print, shown = WorldMapFrame.shown }
+	local opened, said = 0, {}
+	_G.ToggleWorldMap = function() opened = opened + 1 end
+	_G.InCombatLockdown = function() return false end
+	ns.Print = function(_, msg) said[#said + 1] = tostring(msg) end
+	WorldMapFrame.shown = false
+	ns.Maps.Direct({ name = "Westfall", mapID = 1436 })
+	T.FlushAll()
+	_G.ToggleWorldMap, _G.InCombatLockdown, ns.Print, WorldMapFrame.shown = was.twm, was.icl, was.pr, was.shown
+	local text = table.concat(said, " / ")
+	check(opened == 0 and text:find(ns.L["World Map"], 1, true), "a map row's fallback: the map not opened from here, said where: " .. opened .. " " .. text)
+end
+
 io.write("[panel tabs: group finder's browser and who listing]\n")
 do
 	local function row(k)
@@ -681,10 +696,14 @@ do
 	-- Evocation on the right bar (switched off), Slow Fall on MultiBar6 (slot 160), Ice Block in slot 181 (no bar: seen
 	-- in game with Blood Fury);
 	-- Arcane Intellect on a key; a character macro on a key casting Frostbolt; Battle Stance on the stance bar
-	local SLOTS = { [3] = { "spell", 101 }, [14] = { "spell", 110 }, [86] = { "macro", 1 }, [26] = { "spell", 113 }, [160] = { "spell", 117 },
+	-- (a macro on a bar: the game gives what it shows, Polymorph's spell id with "spell", and its name; not its number:
+	-- 0.50.7, review, as Blizzard's own action buttons read it)
+	local SLOTS = { [3] = { "spell", 101 }, [14] = { "spell", 110 }, [86] = { "macro", 107, "spell" }, [26] = { "spell", 113 }, [160] = { "spell", 117 },
 		[181] = { "spell", 111 } }
 	_G.HasAction = function(s) return SLOTS[s] ~= nil end
-	_G.GetActionInfo = function(s) local a = SLOTS[s] if a then return a[1], a[2] end end
+	_G.GetActionInfo = function(s) local a = SLOTS[s] if a then return a[1], a[2], a[3] end end
+	_G.GetActionText = function(s) return s == 86 and "Sheep" or nil end
+	_G.GetMacroIndexByName = function(n) return n == "Sheep" and 1 or 0 end
 	local rightShown = false
 	_G.MultiBarRight = { IsShown = function() return rightShown end }
 	local MACROS = { [1] = { "Sheep", "#showtooltip\n/cast [mod:shift] Polymorph; Blink" }, [121] = { "Bolt", "/cast !Frostbolt(Rank 3)" } }
@@ -882,6 +901,41 @@ do
 	ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED")
 	T.FlushAll()
 	check(reads == 2 and Wm._dirty == false and Wm._usedAt == 5, "a costly list in use: read again in the background, its last use kept")
+	-- (0.50.7, review) a spell learned: this client's event for it (LEARNED_SPELL_IN_TAB is gone)
+	do
+		local has = {}
+		for _, e in ipairs(ns.providers.spells.events) do has[e] = true end
+		check(has.LEARNED_SPELL_IN_SKILL_LINE and not has.LEARNED_SPELL_IN_TAB, "spells: LEARNED_SPELL_IN_SKILL_LINE")
+	end
+	-- (0.50.7, review) Terminal binding Enter for a press fires UPDATE_BINDINGS: not a change to your keybinds
+	do
+		local K = ns.providers.keybinds
+		K._dirty, K._collectedAt = false, -100
+		ns.Secure.boundAt = nil
+		local icl = _G.InCombatLockdown
+		_G.InCombatLockdown = function() return false end
+		ns.Secure.Disarm() -- (lets Enter go: the bindings Terminal set are cleared)
+		_G.InCombatLockdown = icl
+		check(ns.Secure.boundAt ~= nil, "Terminal's own binding change is noted")
+		ef.scripts.OnEvent(ef, "UPDATE_BINDINGS")
+		check(K._dirty == false, "Terminal's own Enter binding: @keybind not read again")
+		ns.Secure.boundAt = GetTime() - 10
+		ef.scripts.OnEvent(ef, "UPDATE_BINDINGS")
+		check(K._dirty == true, "a binding of yours changed: read again")
+	end
+	-- (0.50.7, review) changes keep coming (selling greys): read once, that long after the last of them
+	local gt = _G.GetTime
+	_G.GetTime = T.clock -- (time as the timers see it)
+	local t0, readAt = GetTime(), nil
+	local collect = Wm.collect
+	Wm.collect = function() readAt = GetTime() return collect() end
+	ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED")
+	C_Timer.After(1, function() ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED") end)
+	C_Timer.After(1.8, function() ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED") end)
+	T.FlushAll()
+	_G.GetTime = gt
+	check(reads == 3 and readAt and readAt - t0 >= 3.7, "a stream of changes: one read, 2 s after the last: " .. reads .. " reads, at +"
+		.. tostring(readAt and readAt - t0))
 	ns.providers.zzwarm = nil
 	for i, x in ipairs(ns.providerOrder) do if x == "zzwarm" then table.remove(ns.providerOrder, i) break end end
 	ns:AliasesChanged()

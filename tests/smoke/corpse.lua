@@ -42,18 +42,21 @@ do
 	I.ZoneName = function(ui) return ui == 1415 and "Eastern Kingdoms" or nil end
 	I.Here = function() return { cont = 1, x = 0, y = 0 } end
 	-- Questie's NPCs: a spirit healer by its flag, one by its id, an innkeeper
-	local DIST = { [6491] = 300, [7777] = 90, [6740] = 20 }
+	local DIST = { [6491] = 300, [7777] = 90, [6740] = 20, [8888] = 500 }
 	I.NpcDistance = function(id) return DIST[id] end
 	I.NpcFlagDefs = function() return { INNKEEPER = 128, SPIRIT_HEALER = 16384 } end
 	local FIELDS = { [7777] = { npcFlags = 16384, name = "Graveyard Keeper", friendlyToFaction = "AH" },
-		[6491] = { npcFlags = 0, name = "Spirit Healer", friendlyToFaction = "AH" }, [6740] = { npcFlags = 128, name = "Innkeeper Allison" } }
+		[6491] = { npcFlags = 0, name = "Spirit Healer", friendlyToFaction = "AH" }, [6740] = { npcFlags = 128, name = "Innkeeper Allison" },
+		[8888] = { npcFlags = 0, friendlyToFaction = "AH" } } -- (no name in the database: the row's own)
 	I.NpcField = function(id, f) return FIELDS[id] and FIELDS[id][f] end
 	-- (just the two kinds: yours, and Questie's NPCs)
 	local corpse = ns.providers.corpse
 	ns.providers, ns.providerOrder = { corpse = corpse }, { "corpse" }
 	ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function()
 		return { { key = 6491, npcID = 6491, name = "Spirit Healer" }, { key = 7777, npcID = 7777, name = "Graveyard Keeper" },
-			{ key = 6740, npcID = 6740, name = "Innkeeper Allison" } }
+			{ key = 6740, npcID = 6740, name = "Innkeeper Allison" },
+			-- (one known by its row's name alone: Questie's database isn't asked each NPC's name; 0.50.7, review)
+			{ key = 8888, npcID = 8888, name = "Spirit Healer" } }
 	end })
 	ns:AliasesChanged()
 	UI.lastScan = nil
@@ -68,7 +71,7 @@ do
 	UI:Hide(); FlushAll()
 	UI:Open("where is my body"); FlushAll()
 	rows = UI.Results()
-	check(Names(rows) == L["Your corpse"] .. " | Graveyard Keeper | Spirit Healer", "where is my body: it, then the nearest spirit healers: " .. Names(rows))
+	check(Names(rows) == L["Your corpse"] .. " | Graveyard Keeper | Spirit Healer | Spirit Healer", "where is my body: it, then the nearest spirit healers: " .. Names(rows))
 	check(rows[1].detail:find("^50 yd") and rows[2].detail:find("^90 yd"), "how far each is: " .. tostring(rows[1].detail))
 	check(tostring(UI.status:GetText()):find(L["Your corpse"], 1, true), "the footer says so")
 	check(ns.Easy.ToAdvanced("where is my body") == "@corpse ", "Alt+`: @corpse")
@@ -76,19 +79,27 @@ do
 	-- "nearest spirit healer": the healers alone, closest first
 	UI:Open("nearest spirit healer"); FlushAll()
 	rows = UI.Results()
-	check(Names(rows) == "Graveyard Keeper | Spirit Healer", "nearest spirit healer: " .. Names(rows))
+	check(Names(rows) == "Graveyard Keeper | Spirit Healer | Spirit Healer", "nearest spirit healer: " .. Names(rows))
 	UI:Hide(); FlushAll()
 	UI:Open("nearest graveyard"); FlushAll()
 	rows = UI.Results()
-	check(Names(rows) == "Graveyard Keeper | Spirit Healer", "nearest graveyard: the same: " .. Names(rows))
+	check(Names(rows) == "Graveyard Keeper | Spirit Healer | Spirit Healer", "nearest graveyard: the same: " .. Names(rows))
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
+	-- (0.50.7, review) near: asks for the yards alone (no spot table made per NPC)
+	local yards, ry = 0, I.RowYards
+	I.RowYards = function(...) yards = yards + 1 return ry(...) end
+	ns.Filters.ClearCache()
+	res = UI:Search("@npc near:250")
+	I.RowYards = ry
+	check(yards > 0 and #res == 2, "near:250: by RowYards: " .. yards .. " / " .. Names(res))
+	ns.Filters.ClearCache()
 	res = UI:Search("@npc is:spirithealer")
-	check(#res == 2 and not Names(res):find("Innkeeper", 1, true), "@npc is:spirithealer: " .. Names(res))
+	check(#res == 3 and not Names(res):find("Innkeeper", 1, true), "@npc is:spirithealer: " .. Names(res))
 	-- in an instance the game doesn't say: said so, the healers still listed
 	_G.C_DeathInfo = { GetCorpseMapPosition = function() return nil end }
 	rows = C.Answer({})
-	check(rows[1].noActivate and rows[1].name:find("doesn't say", 1, true) and #rows == 3, "no position: said so: " .. Names(rows))
+	check(rows[1].noActivate and rows[1].name:find("doesn't say", 1, true) and #rows == 4, "no position: said so: " .. Names(rows))
 
 	_G.UnitIsDeadOrGhost, _G.C_DeathInfo, _G.C_Map = save.dead, save.DI, save.map
 	I.Here, I.SpotXY, I.NpcDistance, I.ZoneName = save.here, save.spot, save.dist, save.zone
@@ -98,4 +109,14 @@ do
 	I.NpcFlagDefs, I.NpcField, ns.db.easyMode = save.defs, save.field, save.easy
 	ns.Filters.ClearCache()
 	ns.providers.corpse._dirty = true
+end
+
+-- (0.50.7, review) in:bags: your own bags' rows (they say "x5  Backpack", "Bag 2"), not only your alts'
+io.write("[in:bags: your own bags]\n")
+do
+	local KEYS = ns.Filters._.KEYS
+	local mine = { name = "Linen Cloth", kind = "items", firstBag = 0, detail = "x5  Backpack" }
+	local worn = { name = "Sword", kind = "items", slotId = 16, detail = "Main Hand" }
+	check(KEYS["in"]("bags")(mine) and KEYS["in"]("bag")(mine) and not KEYS["in"]("bags")(worn) and KEYS["in"]("equipped")(worn),
+		"in:bags: your bags' rows, not what you wear")
 end

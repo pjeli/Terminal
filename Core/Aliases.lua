@@ -6,7 +6,7 @@ local L = ns.L
 --
 --   a search or a question   .alias rep durability            .rep: the terminal shows "durability"
 --                            .alias mcs molten core > steps   (any search, Simple or Advanced, a chain, a question)
---   a slash command          .alias rl /reload                pressed by the game, as a slash row is (a macro's line)
+--   a slash command          .alias brb /afk brb              pressed by the game, as a slash row is (a macro's line)
 --   a dot command            .alias th .theme dracula         that command, run
 --
 -- Words typed after it are added at the end (.rep legs -> "durability legs"), or go where $* stands
@@ -68,11 +68,30 @@ local function ShowSearch(line)
 	if open then UI:WalkTo(line) else UI:SetQuery(line, #line) end
 end
 
-local function Define(name, text)
+--- Whether a name is taken by one of Terminal's commands (its name or another name of it), not by an alias.
+local function Taken(name)
+	local c = ns:FindCommand(name)
+	return c ~= nil and not c.isAlias
+end
+
+--- What an alias runs once the aliases it names are followed: ".h" with h = ".heal" and heal = "/cast Flash Heal" is
+--- "/cast Flash Heal" (0.50.7, review: run through .heal's own command, a slash line went out from Terminal's code,
+--- tainted, not pressed by the game). Terminal's own commands, and loops past MAX_DEPTH, stay as they are.
+function A.Resolve(text, n)
+	n = n or 0
+	if Kind(text) ~= "dot" or n >= A.MAX_DEPTH then return text end
+	local word, rest = text:match("^%.(%S+)%s*(.-)$")
+	local target = word and (Store() or {})[word]
+	if type(target) ~= "string" or Taken(word) then return text end
+	return A.Resolve(A.Expand(target, rest), n + 1)
+end
+
+local function Define(name, original)
+	local text = A.Resolve(original)
 	local kind = Kind(text)
 	local def = {
-		isAlias = true, aliasText = text,
-		desc = L["your alias: %s"]:format(text),
+		isAlias = true, aliasText = original,
+		desc = L["your alias: %s"]:format(original),
 	}
 	if kind == "search" then
 		def.staysOpen = true
@@ -88,12 +107,6 @@ local function Define(name, text)
 		def.run = function(args) if ns.RunSlash then ns.RunSlash(A.Expand(text, args)) end end
 	end
 	ns:RegisterCommand(name, def)
-end
-
---- Whether a name is taken by one of Terminal's commands (its name or another name of it), not by an alias.
-local function Taken(name)
-	local c = ns:FindCommand(name)
-	return c ~= nil and not c.isAlias
 end
 
 --- Every alias of yours registered as a command (at login; again after a change).
