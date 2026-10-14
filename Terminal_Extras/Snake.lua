@@ -3,8 +3,9 @@ local ns = _G.Terminal
 if not ns then return end
 local L = ns.L
 
--- .snake: Snake, in a small window where the terminal sits. WASD or the arrow keys steer, Enter
--- plays again after a game over, Esc or ` quits. No pausing (it's for fun; Space stays the game's). Only the game's keys are taken: any
+-- .snake: Snake, in a small window where the terminal sits. WASD or the arrow keys steer; after a game
+-- over, as the typing test, the footer says the keys: Enter tells your guild the score and closes (the interface back:
+-- .zen ends; the player's ask), Tab plays again; Esc or ` quits. No pausing (it's for fun; Space stays the game's). Only the game's keys are taken: any
 -- other key still reaches the game (your action bars, chat...). The best score is kept.
 --
 -- Choosing which keys pass on (SetPropagateKeyboardInput) isn't allowed in combat, so the game
@@ -54,7 +55,7 @@ function S.Reset()
 	game.body = { { 6, y }, { 5, y }, { 4, y } } -- head first, moving right
 	game.dir, game.queue = { 1, 0 }, {}
 	game.score, game.speed, game.acc = 0, START_SPEED, 0
-	game.over, game.won = false, false
+	game.over, game.won, game.sent = false, false, false
 	PlaceFood()
 	if frame then frame:SetScript("OnUpdate", OnUpdate) end
 end
@@ -150,11 +151,13 @@ function S.Draw()
 	bestText:SetText(L["best %d"]:format(math.max(ns.db and ns.db.snakeBest or 0, game.score)))
 	if game.over then
 		overlay:SetText(game.won and L["you filled the board!"] or (game.newBest and L["new best!"] or L["game over"]))
-		overlaySub:SetText(L["score %d"]:format(game.score) .. "  ·  " .. Panel.AGAIN .. "  ·  " .. Panel.QUIT)
+		overlaySub:SetText(L["score %d"]:format(game.score))
 		overlay:Show(); overlaySub:Show()
 	else
 		overlay:Hide(); overlaySub:Hide()
 	end
+	-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
+	footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or (L["WASD or arrows steer"] .. "  ·  " .. Panel.QUIT))
 end
 
 ----------------------------------------------------------------------
@@ -183,8 +186,8 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 10)
 	overlaySub = Text(board, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -12)
-	footer = Panel.Footer(frame, 9, L["WASD or arrows steer"] .. "  ·  " .. Panel.QUIT)
-	S.frame = frame
+	footer = Panel.Footer(frame, 9, "")
+	S.frame, S.footer = frame, footer
 end
 
 local function Style()
@@ -200,6 +203,18 @@ local function Style()
 end
 
 --- The game's keys are kept; any other key goes on to the game.
+--- What the guild is told: "[Terminal] Snake: 23 points (a new best)."
+function S.Brag()
+	return L["[Terminal] Snake: %d points%s."]
+		:format(game.score, (game.newBest or game.won) and (" " .. L["(a new best)"]) or "")
+end
+
+--- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
+function S.TellGuild()
+	if not game.over or (game.score or 0) <= 0 then return false end
+	return ns.Extras.TellGuildOnce(game, S.Brag())
+end
+
 function S.KeyDown(self, key)
 	local mine = true
 	if key == "ESCAPE" or key == "`" then
@@ -207,6 +222,13 @@ function S.KeyDown(self, key)
 	elseif DIRS[key] then
 		if not game.over then S.Turn(DIRS[key][1], DIRS[key][2]) end
 	elseif key == "ENTER" or key == "NUMPADENTER" then
+		-- (game over: as the typing test, Enter tells your guild, and closes so the chat shows it; Tab plays again)
+		if game.over then
+			if (game.score or 0) > 0 then S.TellGuild(); S.Close() end
+		else
+			mine = false
+		end
+	elseif key == "TAB" then
 		if game.over then S.Reset(); S.Draw() else mine = false end
 	else
 		mine = false
@@ -246,6 +268,6 @@ function S.Close(why)
 end
 
 ns:RegisterCommand("snake", {
-	desc = L["Play Snake (WASD or arrows steer, Esc or ` quits)"],
+	desc = L["Play Snake (WASD or arrows steer; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"],
 	run = function() S.Open() end,
 })

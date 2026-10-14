@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.49.2", when = "in testing",
+		v = "0.49.6", when = "in testing",
 		items = {
 			"The calendar: @calendar (Simple mode: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\") lists what's on from today to the end of next month: holidays such as the Darkmoon Faire, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, raid resets. Enter opens the calendar on the event, Shift+Enter puts it in the chat box (an event as its link). Advanced: is:holiday, is:invite, when:week (today, tomorrow, weekend, nextweek, month, nextmonth).",
 			"A full review, the keys and clicks: Enter does what the footer says after a Shift+Enter or a click set it up; a window opened while lists still load closes Terminal and is pointed at; AltGr letters type (Polish, Czech, Hungarian layouts); a key you bound to Terminal closes it too; F1, .changelog, .atop and the games catch the mouse and close when Terminal opens.",

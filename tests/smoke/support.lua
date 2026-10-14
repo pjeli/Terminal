@@ -779,7 +779,7 @@ do
 	check(passed == true, "any other key goes on to the game")
 	f.scripts.OnKeyDown(f, "SPACE")
 	check(passed == true, "Space too (no pausing, as Snake)")
-	-- no room for the next piece: game over, best kept; Enter plays again
+	-- no room for the next piece: game over, best kept; Enter tells your guild (not the press that topped out), Tab plays again
 	TT.Reset()
 	for y = 0, 19 do for x = 0, 9 do if x ~= 9 then g.grid[y][x] = "L" end end end
 	g.score = 1234
@@ -789,16 +789,22 @@ do
 	TT.Draw()
 	local gt, t = _G.GetTime, g.overAt
 	_G.GetTime = function() return t end
+	local told = 0
+	local tell = ns.Extras.TellGuildOnce
+	ns.Extras.TellGuildOnce = function(state) told = told + 1; state.sent = true; return true end
 	f.scripts.OnKeyDown(f, "ENTER")
-	check(g.over and g.score == 1234, "Enter right at game over: the screen stays (the press that topped out, or its repeats)")
+	check(g.over and g.score == 1234 and told == 0, "Enter right at game over: nothing told (the press that topped out, or its repeats)")
 	t = t + TT.OVER_WAIT
 	g.keys.ENTER = "drop" -- (still held)
 	f.scripts.OnKeyDown(f, "ENTER")
-	check(g.over, "a moment later, Enter still held: the screen stays")
+	check(g.over and told == 0, "a moment later, Enter still held: nothing told")
 	f.scripts.OnKeyUp(f, "ENTER")
 	f.scripts.OnKeyDown(f, "ENTER")
+	ns.Extras.TellGuildOnce = tell
+	check(g.over and g.score == 1234 and told == 1 and passed == false, "a fresh Enter tells your guild (the screen stays)")
+	f.scripts.OnKeyDown(f, "TAB")
 	_G.GetTime = gt
-	check(not g.over and g.score == 0, "Enter plays again")
+	check(not g.over and g.score == 0 and passed == false, "Tab plays again, as the typing test")
 	check(f.scripts.OnUpdate ~= nil, "and the game runs again")
 	f.scripts.OnKeyDown(f, "ESCAPE")
 	check(not TT.IsShown(), "Esc quits")
@@ -818,7 +824,7 @@ do
 	_G.InCombatLockdown = realCombat
 end
 
--- .snake: the game-over screen runs nothing every frame; Enter (Reset) starts it again
+-- .snake: the game-over screen runs nothing every frame; Tab (Reset) starts it again
 io.write("[snake: rests on game over]\n")
 do
 	local Sn = ns.Snake
@@ -828,8 +834,8 @@ do
 	check(f.scripts.OnUpdate ~= nil, "snake: running while a game is on")
 	for _ = 1, 40 do Sn.Step() end
 	check(g.over and f.scripts.OnUpdate == nil, "snake: game over, nothing runs every frame")
-	f.scripts.OnKeyDown(f, "ENTER")
-	check(not g.over and f.scripts.OnUpdate ~= nil, "snake: Enter plays again, and it runs again")
+	f.scripts.OnKeyDown(f, "TAB")
+	check(not g.over and f.scripts.OnUpdate ~= nil, "snake: Tab plays again, and it runs again")
 	Sn.Close(); Sn.Open()
 	check(f.scripts.OnUpdate ~= nil, "snake: reopened, it runs")
 	Sn.Close()
@@ -1028,7 +1034,7 @@ do
 	check(passed == true, "Space too (no pausing, as Snake)")
 	f.scripts.OnKeyDown(f, "ENTER")
 	check(passed == true, "Enter too while playing")
-	-- the last life: game over, the best kept, nothing runs every frame; Enter plays again
+	-- the last life: game over, the best kept, nothing runs every frame; Tab plays again
 	Fresh()
 	g.lives, g.score = 1, 4321
 	skull.x, skull.y, skull.sleep = p.x, p.y, 0
@@ -1036,8 +1042,8 @@ do
 	Run(LR.DYING + 0.05)
 	check(g.over and ns.db.lootrunBest == 4321 and g.newBest, "the last life: game over, the best kept")
 	check(f.scripts.OnUpdate == nil, "game over: nothing runs every frame")
-	f.scripts.OnKeyDown(f, "ENTER")
-	check(not g.over and g.score == 0 and g.lives == 3 and f.scripts.OnUpdate ~= nil, "Enter plays again, and it runs again")
+	f.scripts.OnKeyDown(f, "TAB")
+	check(not g.over and g.score == 0 and g.lives == 3 and f.scripts.OnUpdate ~= nil, "Tab plays again, and it runs again")
 	f.scripts.OnKeyDown(f, "ESCAPE")
 	check(not LR.IsShown(), "Esc quits")
 	ns.commands.lootrun.run(""); f.scripts.OnKeyDown(f, "`")

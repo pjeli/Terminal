@@ -57,7 +57,7 @@ do
 	check(not TY.TellGuild() and #sent == 0, "Enter at once: nothing (a key still held from typing)")
 	clock = clock + 1
 	check(TY.TellGuild() and #sent == 1 and sent[1][2] == "GUILD" and sent[1][1]:find("^%[Terminal%] 13 wpm")
-		and sent[1][1]:find("15 s typing test (a new best)", 1, true), "Enter: the guild told: " .. tostring(sent[1] and sent[1][1]))
+		and sent[1][1]:find("15 s typing test (a new best)", 1, true) and not sent[1][1]:find("CurseForge", 1, true) and not sent[1][1]:find("?", 1, true), "Enter: the guild told: " .. tostring(sent[1] and sent[1][1]))
 	check(#sent[1][1] <= 255, "within a chat line")
 	check(not TY.TellGuild() and #sent == 1 and printed:find("heard", 1, true), "only once")
 	-- Tab: another test; before the first letter Tab picks the length
@@ -74,6 +74,11 @@ do
 	clock = clock + 1
 	_G.IsInGuild = function() return false end
 	check(not TY.TellGuild() and #sent == 1 and printed:find("not in a guild", 1, true), "not in a guild: said")
+	-- Enter (the key): told, and the test closes, so the chat shows it (.zen's interface back; the player's ask)
+	_G.IsInGuild = function() return true end
+	TY.KeyDown(TY.frame, "ENTER")
+	check(#sent == 2 and not TY.IsShown(), "Enter on the result: the guild told, and the test closes")
+	TY.Open()
 	-- the drawing: three lines, the caret placed (no error with the mock's fonts)
 	TY.KeyDown(TY.frame, "TAB")
 	Type("th")

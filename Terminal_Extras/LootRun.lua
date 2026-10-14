@@ -7,7 +7,8 @@ local L = ns.L
 -- arrow, picking up every coin in a dungeon while four raid-marked mobs (skull, cross, square, moon) wake in its
 -- corners, one after another, and come for you, each its own way. A Divine Shield turns them for a few seconds: bump
 -- into one and it's gone for a while (points); a loot chest shows up now and then. Every coin picked up: the next
--- level, faster. WASD or the arrow keys move, Enter plays again after a game over, Esc or ` quits. Only the game's
+-- level, faster. WASD or the arrow keys move; after a game over, as the typing test, the footer says the keys: Enter
+-- tells your guild the score and closes (the interface back: .zen ends), Tab plays again; Esc or ` quits. Only the game's
 -- keys are taken: any other key still reaches the game. The best score is kept. An easter egg: not in the changelog
 -- (as .tetris).
 --
@@ -264,7 +265,7 @@ end
 
 function LR.Reset()
 	game.score, game.level, game.lives = 0, 1, LR.LIVES
-	game.over, game.newBest, game.clock = false, false, 0
+	game.over, game.newBest, game.clock, game.sent = false, false, 0, false
 	for i, def in ipairs(LR.MOBS) do
 		game.mobs[i] = game.mobs[i] or {}
 		game.mobs[i].def, game.mobs[i].home = def, homes[i]
@@ -562,15 +563,16 @@ local function DrawWords()
 	local best = math.max(ns.db and ns.db.lootrunBest or 0, game.score)
 	local accent = Theme.Get().accent
 	if said.score ~= game.score or said.level ~= game.level or said.best ~= best or said.lives ~= game.lives
-		or said.state ~= game.state or said.accent ~= accent then
+		or said.state ~= game.state or said.accent ~= accent or said.sent ~= game.sent or said.over ~= game.over then
 		said.score, said.level, said.best, said.lives, said.state, said.accent = game.score, game.level, best, game.lives, game.state, accent
+		said.sent, said.over = game.sent, game.over
 		scoreText:SetText(("|cff%s%s|r   %s"):format(accent, L["loot run"], L["score %d"]:format(game.score)))
 		bestText:SetText(L["best %d"]:format(best))
 		livesText:SetText(L["lvl %d"]:format(game.level) .. "  ·  " .. L["lives %d"]:format(math.max(0, game.lives)))
 		local big, small
 		if game.over then
 			big = game.newBest and L["new best!"] or L["game over"]
-			small = L["score %d"]:format(game.score) .. "  ·  " .. Panel.AGAIN .. "  ·  " .. Panel.QUIT
+			small = L["score %d"]:format(game.score)
 		elseif game.state == "ready" then
 			big = game.level > 1 and L["level %d"]:format(game.level) or L["ready"]
 			small = L["every coin, and mind the marks"]
@@ -581,6 +583,8 @@ local function DrawWords()
 		overlay:SetText(big or "")
 		overlaySub:SetText(small or "")
 		cover:SetShown(big ~= nil)
+		-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
+		footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or (L["arrows or WASD"] .. "  ·  " .. Panel.QUIT))
 	end
 end
 
@@ -623,10 +627,10 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 9)
 	overlaySub = Text(cover, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -11)
-	footer = Panel.Footer(frame, 9, L["arrows or WASD"] .. "  ·  " .. Panel.QUIT)
+	footer = Panel.Footer(frame, 9, "")
 	livesText = Text(frame, 11, "RIGHT")
 	livesText:SetPoint("BOTTOMRIGHT", -12, 9)
-	LR.frame = frame
+	LR.frame, LR.footer = frame, footer
 end
 
 local function Style()
@@ -647,6 +651,18 @@ end
 
 --- The game's keys are kept; any other key goes on to the game. A way asked for is kept until it can be taken
 --- (asked during a pause too: off at once when it ends).
+--- What the guild is told: "[Terminal] Loot Run: 3150 points, level 4 (a new best)."
+function LR.Brag()
+	return L["[Terminal] Loot Run: %d points, level %d%s."]
+		:format(game.score, game.level, game.newBest and (" " .. L["(a new best)"]) or "")
+end
+
+--- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
+function LR.TellGuild()
+	if not game.over or (game.score or 0) <= 0 then return false end
+	return ns.Extras.TellGuildOnce(game, LR.Brag())
+end
+
 function LR.KeyDown(self, key)
 	local mine = true
 	if key == "ESCAPE" or key == "`" then
@@ -654,6 +670,13 @@ function LR.KeyDown(self, key)
 	elseif KEYS[key] then
 		if not game.over then game.player.want = KEYS[key] end
 	elseif key == "ENTER" or key == "NUMPADENTER" then
+		-- (game over: as the typing test, Enter tells your guild, and closes so the chat shows it; Tab plays again)
+		if game.over then
+			if (game.score or 0) > 0 then LR.TellGuild(); LR.Close() end
+		else
+			mine = false
+		end
+	elseif key == "TAB" then
 		if game.over then LR.Reset(); LR.Draw() else mine = false end
 	else
 		mine = false
@@ -679,7 +702,7 @@ function LR.Close(why)
 end
 
 ns:RegisterCommand("lootrun", {
-	desc = L["Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)"],
+	desc = L["Play Loot Run, a maze chase (WASD or arrows move; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"],
 	aliases = { "maze" },
 	run = function() LR.Open() end,
 })

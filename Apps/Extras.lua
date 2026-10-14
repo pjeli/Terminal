@@ -15,14 +15,42 @@ ns.Extras = X
 
 X.ADDON = "Terminal_Extras"
 X.COMMANDS = {
-	{ "snake", L["Play Snake (WASD or arrows steer, Esc or ` quits)"] },
-	{ "tetris", L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)"] },
-	{ "lootrun", L["Play Loot Run, a maze chase (WASD or arrows move, Esc or ` quits)"], { "maze" } },
+	{ "snake", L["Play Snake (WASD or arrows steer; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"] },
+	{ "tetris", L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"] },
+	{ "lootrun", L["Play Loot Run, a maze chase (WASD or arrows move; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"], { "maze" } },
 	{ "typing", L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"], { "wpm", "typetest" } },
 	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" },
 		-- (what it takes before the extras are loaded: its stations come with them; review, 0.48.6)
 		function() return { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } } end },
 }
+
+----------------------------------------------------------------------
+-- Telling your guild a score (the typing test since 0.48.x; the games since 0.49.3, the player's ask: "cheeky
+-- advertising"): sent from Terminal's code inside your key press (guild chat isn't held back for addons, as Share's party
+-- and guild lines aren't), once per game, with a [Terminal] banner.
+----------------------------------------------------------------------
+
+-- (the keys are the typing test's on every game-over screen: Enter tells your guild, Tab plays again; the player's ask)
+
+--- Says `text` in guild chat. True when it went out; false, with a line saying why, when it can't.
+function X.TellGuild(text)
+	if type(text) ~= "string" or text == "" then return false end
+	if _G.IsInGuild and not _G.IsInGuild() then ns:Print(L["You're not in a guild: nobody to tell."]) return false end
+	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
+	if lock and lock() then ns:Print(L["Chat is held back right now: tell your guild later."]) return false end
+	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
+	if not send then return false end
+	local ok = pcall(send, text, "GUILD")
+	ns:Trace("extras: told the guild: " .. tostring(ok))
+	return ok
+end
+
+--- Once per game: `state.sent` remembers it (a game's Reset clears it). True when it went out now.
+function X.TellGuildOnce(state, text)
+	if state.sent then ns:Print(L["Your guild has heard this one."]) return false end
+	state.sent = X.TellGuild(text) and true or false
+	return state.sent
+end
 
 local function Call(f, ...)
 	if type(f) ~= "function" then return nil end

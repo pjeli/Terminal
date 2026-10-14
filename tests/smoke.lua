@@ -5516,8 +5516,8 @@ do -- .snake: WASD/arrows steer, apples grow it, walls and the tail end it, Esc 
 	check(g.over and g.why == "wall" and ns.db.snakeBest == 5 and g.newBest, "the wall ends it, and the best score is kept")
 	Sn.Draw()
 	check(Sn.frame and g.over, "game over is shown")
-	f.scripts.OnKeyDown(f, "ENTER")
-	check(not g.over and #g.body == 3 and g.score == 0 and passed == false, "Enter plays again (and isn't passed on)")
+	f.scripts.OnKeyDown(f, "TAB")
+	check(not g.over and #g.body == 3 and g.score == 0 and passed == false, "Tab plays again, as the typing test (and isn't passed on)")
 	-- its own tail ends it
 	g.body = { { 5, 5 }, { 6, 5 }, { 6, 6 }, { 5, 6 }, { 4, 6 } }
 	g.dir, g.queue = { -1, 0 }, {}

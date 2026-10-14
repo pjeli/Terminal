@@ -108,7 +108,16 @@ end
 -- (quitting was said seven ways, each its own text to translate)
 P.QUIT = L["Esc or ` quit"]
 P.CLOSE = L["Esc or ` close"]
-P.AGAIN = L["Enter play again"]
+P.AGAIN = L["Tab again"]
+P.BRAG = L["Enter tell your guild"]
+P.BRAGGED = L["Your guild heard it"]
+
+--- A game's keys on its game-over screen, as the typing test's: Enter tells your guild (a score worth telling; once),
+--- Tab plays again, Esc quits.
+function P.OverKeys(score, sent)
+	local brag = (score or 0) > 0 and ((sent and P.BRAGGED or P.BRAG) .. "  ·  ") or ""
+	return brag .. P.AGAIN .. "  ·  " .. P.QUIT
+end
 
 function P.Close(frame, why, label, extra)
 	if not frame or not frame:IsShown() then return false end

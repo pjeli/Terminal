@@ -5,7 +5,8 @@ local L = ns.L
 
 -- .tetris: falling blocks, in a small window where the terminal sits (the .snake pattern). Left/Right
 -- (or A/D) move, Up/W/X rotate, Z/Q rotate the other way, Down/S drops faster, Enter drops at once,
--- C holds a piece for later, Esc or ` quits. Space stays the game's (no pausing: as Snake). Only the
+-- C holds a piece for later, Esc or ` quits; after a game over, as the typing test, the footer says the keys: Enter
+-- tells your guild the score and closes (the interface back: .zen ends), Tab plays again. Space stays the game's (no pausing: as Snake). Only the
 -- game's keys are taken: any other key still reaches the game. The best score is kept.
 --
 -- Choosing which keys pass on (SetPropagateKeyboardInput) isn't allowed in combat, so the game
@@ -117,7 +118,7 @@ function TT.Reset()
 	for y = 0, ROWS - 1 do game.grid[y] = {} end
 	game.bag, game.queue = {}, {}
 	game.score, game.lines, game.level = 0, 0, 1
-	game.over, game.newBest, game.hold, game.held = false, false, nil, false
+	game.over, game.newBest, game.hold, game.held, game.sent = false, false, nil, false, false
 	game.down, game.keys, game.acts = false, {}, {}
 	game.queue[1] = NextKind()
 	TT.Spawn()
@@ -246,7 +247,7 @@ function TT.GhostY()
 	return y
 end
 
-TT.OVER_WAIT = 0.5 -- (s: Enter on the game-over screen starts again only after this, and only a fresh press)
+TT.OVER_WAIT = 0.5 -- (s: Enter on the game-over screen tells your guild only after this, and only a fresh press)
 
 function TT.GameOver()
 	game.over, game.overAt = true, GetTime()
@@ -394,11 +395,13 @@ local function DrawSide()
 	levelText:SetText(L["level %d"]:format(game.level))
 	if game.over then
 		overlay:SetText(game.newBest and L["new best!"] or L["game over"])
-		overlaySub:SetText(L["score %d"]:format(game.score) .. "\n" .. Panel.AGAIN .. "  ·  " .. Panel.QUIT)
+		overlaySub:SetText(L["score %d"]:format(game.score))
 		overlay:Show(); overlaySub:Show()
 	else
 		overlay:Hide(); overlaySub:Hide()
 	end
+	-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
+	footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or TT.PLAY_KEYS)
 end
 
 function TT.Draw()
@@ -453,7 +456,9 @@ local function Build()
 	overlaySub:SetPoint("TOP", overlay, "BOTTOM", 0, -6)
 	overlaySub:SetWordWrap(true)
 	overlaySub:SetWidth(COLS * CELL - 8)
-	footer = Panel.Footer(frame, 9, L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. Panel.QUIT)
+	TT.PLAY_KEYS = L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. Panel.QUIT
+	footer = Panel.Footer(frame, 9, TT.PLAY_KEYS)
+	TT.footer = footer
 	TT.frame = frame
 end
 
@@ -470,15 +475,30 @@ end
 --- does nothing more: Tick repeats Left/Right itself. Held keys are kept per key (`game.keys`: key -> action) and
 --- per action (`game.acts`: action -> { t, n = keys holding it }): Left and A both move left, and letting go of
 --- one while the other is still held doesn't stop the move.
+--- What the guild is told: "[Terminal] Tetris: 4200 points, 31 lines (a new best)."
+function TT.Brag()
+	return L["[Terminal] Tetris: %d points, %d lines%s."]
+		:format(game.score, game.lines, game.newBest and (" " .. L["(a new best)"]) or "")
+end
+
+--- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
+function TT.TellGuild()
+	if not game.over or (game.score or 0) <= 0 then return false end
+	return ns.Extras.TellGuildOnce(game, TT.Brag())
+end
+
 function TT.KeyDown(self, key)
 	local mine = true
 	local action = KEYS[key]
 	if key == "ESCAPE" or key == "`" then
 		TT.Close()
 	elseif game.over then
-		-- (not the Enter that dropped the last piece, held or repeated by the game: the "game over / new best!" screen
-		-- was skipped; as .typing's and the drop dialog's waits; review, 0.48.6)
-		if action == "drop" and not game.keys[key] and GetTime() - (game.overAt or 0) >= TT.OVER_WAIT then TT.Reset(); TT.Draw()
+		-- as the typing test: Enter tells your guild and closes, so the chat shows it (not the Enter that dropped the
+		-- last piece, held or repeated by the game; as .typing's and the drop dialog's waits; review, 0.48.6), Tab plays again
+		local fresh = not game.keys[key] and GetTime() - (game.overAt or 0) >= TT.OVER_WAIT
+		if key == "TAB" then TT.Reset(); TT.Draw()
+		elseif (key == "ENTER" or key == "NUMPADENTER") and fresh then
+			if (game.score or 0) > 0 then TT.TellGuild(); TT.Close() end
 		else mine = action ~= nil end
 	elseif action then
 		if game.keys[key] then
@@ -532,6 +552,6 @@ function TT.Close(why)
 end
 
 ns:RegisterCommand("tetris", {
-	desc = L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds, Esc or ` quits)"],
+	desc = L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"],
 	run = function() TT.Open() end,
 })

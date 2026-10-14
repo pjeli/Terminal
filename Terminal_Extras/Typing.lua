@@ -9,7 +9,7 @@ local L = ns.L
 -- word. When the time is up: words per minute (correct words' letters and spaces / 5 a minute), accuracy (the keys
 -- typed right), raw speed (every key), and the best per length kept. Enter then tells your guild, with a [Terminal]
 -- banner (from Terminal's code inside your key press: guild chat isn't held back for addons, as Share's party and guild
--- lines aren't). Tab: another test (before the first letter: 15, 30 or 60 seconds); Esc or ` quits.
+-- lines aren't), and closes the test, so the chat shows it (the interface back: .zen ends; the player's ask). Tab: another test (before the first letter: 15, 30 or 60 seconds); Esc or ` quits.
 --
 -- Every key is the test's while it shows (letters must not walk you around), except the F-keys and Print Screen; it
 -- doesn't open in combat and closes when combat starts. The words are Terminal's own list: everyday English and a few
@@ -276,29 +276,25 @@ function TY.Tick()
 	TY.Draw()
 end
 
---- What the guild is told: "[Terminal] 72 wpm, 96% accuracy on a 30 s typing test. Think you're faster? Terminal is on
---- CurseForge."
+--- What the guild is told: "[Terminal] 72 wpm, 96% accuracy on a 30 s typing test." (the [Terminal]
+--- banner is the memo: no CurseForge line, 0.49.5, nor a question, 0.49.6: the player's ask)
 function TY.Brag(r)
 	r = r or game.result
 	if not r then return nil end
-	return L["[Terminal] %d wpm, %d%% accuracy on a %d s typing test%s. Think you're faster? Terminal is on CurseForge."]
+	return L["[Terminal] %d wpm, %d%% accuracy on a %d s typing test%s."]
 		:format(r.wpm, r.acc, r.seconds, game.newBest and (" " .. L["(a new best)"]) or "")
 end
 
---- Enter on the result: the guild is told, once (from Terminal's code, inside the key press).
-function TY.TellGuild()
+--- Is there a result to tell, and is Enter past the wait (not a key still held from typing)?
+function TY.CanTell()
 	if not game.over or not game.result then return false end
-	if game.overAt and TY.clock() - game.overAt < TY.ENTER_WAIT then return false end -- (a key still held from typing)
-	if game.sent then ns:Print(L["Your guild has heard this one."]) return false end
-	if _G.IsInGuild and not _G.IsInGuild() then ns:Print(L["You're not in a guild: nobody to tell."]) return false end
-	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
-	if lock and lock() then ns:Print(L["Chat is held back right now: tell your guild later."]) return false end
-	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
-	if not send then return false end
-	local ok = pcall(send, TY.Brag(), "GUILD")
-	game.sent = ok
-	ns:Trace("typing: told the guild: " .. tostring(ok))
-	return ok
+	return not (game.overAt and TY.clock() - game.overAt < TY.ENTER_WAIT)
+end
+
+--- Enter on the result: the guild is told, once (from Terminal's code, inside the key press); KeyDown then closes.
+function TY.TellGuild()
+	if not TY.CanTell() then return false end
+	return ns.Extras.TellGuildOnce(game, TY.Brag()) -- (Apps/Extras.lua: the games' too)
 end
 
 ----------------------------------------------------------------------
@@ -487,7 +483,7 @@ function TY.KeyDown(self, key)
 		TY.Back(IsControlKeyDown and IsControlKeyDown() or false)
 		TY.Draw()
 	elseif key == "ENTER" or key == "NUMPADENTER" then
-		if game.over then TY.TellGuild(); TY.Draw() end
+		if TY.CanTell() then TY.TellGuild(); TY.Close() end -- (closed: the chat shows it, .zen's faded interface back)
 	end
 	Panel.Propagate(self, mine)
 end

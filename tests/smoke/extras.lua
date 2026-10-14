@@ -79,3 +79,70 @@ do
 	check(not toc:find("Snake.lua", 1, true) and not toc:find("Wowamp.lua", 1, true) and toc:find("Apps\\Extras.lua", 1, true),
 		"Terminal's TOC: only the stand-ins")
 end
+
+-- (0.49.3, the player's ask) the games tell your guild a score with the typing test's keys, said in the footer: Enter on
+-- the game-over screen tells it (once a game, a score worth telling, with the [Terminal] banner) and closes the game (the
+-- chat shows it; .zen's interface comes back), Tab plays again
+io.write("[extras: games tell your guild]\n")
+do
+	local save = { chat = _G.C_ChatInfo, guild = _G.IsInGuild, print = ns.Print, combat = _G.InCombatLockdown }
+	local sent, printed = {}, nil
+	_G.C_ChatInfo = setmetatable({ SendChatMessage = function(text, chan) sent[#sent + 1] = { text, chan } end,
+		InChatMessagingLockdown = function() return false end }, { __index = save.chat })
+	_G.IsInGuild = function() return true end
+	_G.InCombatLockdown = function() return false end
+	ns.Print = function(_, s) printed = s end
+	local games = {
+		{ ns.Snake, "^%[Terminal%] Snake: 23 points %(a new best%)", function(g) g.score = 23; g.newBest = true end },
+		{ ns.Tetris, "^%[Terminal%] Tetris: 4200 points, 31 lines%.", function(g) g.score, g.lines, g.newBest = 4200, 31, false end },
+		{ ns.LootRun, "^%[Terminal%] Loot Run: 3150 points, level 4 %(a new best%)", function(g) g.score, g.level, g.newBest = 3150, 4, true end },
+	}
+	for _, it in ipairs(games) do
+		local G, want, set = it[1], it[2], it[3]
+		G.Open()
+		local g = G.game
+		-- in play Enter tells nobody (Tetris drops a piece with it), and the footer says the game's keys
+		local before = #sent
+		G.KeyDown(G.frame, "ENTER")
+		check(#sent == before and G.IsShown(), "in play: Enter tells nobody")
+		G.Draw()
+		check(not G.footer:GetText():find(ns.L["Enter tell your guild"], 1, true), "in play: the footer says the game's keys")
+		g.keys = g.keys and {} -- (Tetris: the Enter is let go)
+		-- game over (a moment ago): the footer says Enter tells your guild, Tab plays again (as the typing test's)
+		g.over, g.overAt = true, GetTime() - 5
+		set(g)
+		G.Draw()
+		check(G.footer:GetText():find(ns.L["Enter tell your guild"], 1, true) and G.footer:GetText():find(ns.L["Tab again"], 1, true),
+			"game over: the footer says Enter tells your guild, Tab plays again: " .. tostring(G.footer:GetText()))
+		-- Tab plays again
+		G.KeyDown(G.frame, "TAB")
+		check(not g.over and not g.sent and G.IsShown(), "Tab: a new game")
+		-- a score of 0: nothing to tell (the footer doesn't offer it), Enter does nothing
+		g.over, g.score, g.overAt = true, 0, GetTime() - 5
+		G.Draw()
+		check(not G.footer:GetText():find(ns.L["Enter tell your guild"], 1, true), "a score of 0: the footer doesn't offer telling")
+		G.KeyDown(G.frame, "ENTER")
+		check(#sent == before and G.IsShown(), "a score of 0: nobody told, the game stays")
+		-- a score: Enter tells your guild, once, and closes (the chat shows it; .zen's interface comes back)
+		set(g)
+		G.KeyDown(G.frame, "ENTER")
+		local line = sent[#sent]
+		check(#sent == before + 1 and line[2] == "GUILD" and line[1]:find(want) and line[1]:find("^%[Terminal%]") and not line[1]:find("CurseForge", 1, true) and not line[1]:find("?", 1, true)
+			and #line[1] <= 255, "game over, Enter: the guild told: " .. tostring(line and line[1]))
+		check(g.sent and not G.IsShown(), "and the game closes")
+		check(not G.TellGuild() and #sent == before + 1 and tostring(printed):find("heard", 1, true), "only once a game")
+		G.Reset()
+		G.Close()
+	end
+	check(ns.Panel.OverKeys(5, false):find(ns.L["Enter tell your guild"], 1, true) and ns.Panel.OverKeys(5, true):find(ns.L["Your guild heard it"], 1, true)
+		and not ns.Panel.OverKeys(0, false):find(ns.L["Enter tell your guild"], 1, true), "the game-over keys say Enter (when there's a score)")
+	-- not in a guild: said, nothing sent
+	ns.Snake.Open()
+	ns.Snake.game.over, ns.Snake.game.score = true, 3
+	_G.IsInGuild = function() return false end
+	local n = #sent
+	ns.Snake.KeyDown(ns.Snake.frame, "ENTER")
+	check(#sent == n and tostring(printed):find("not in a guild", 1, true) and not ns.Snake.game.sent, "not in a guild: said, nothing sent")
+	ns.Snake.Reset(); ns.Snake.Close()
+	_G.C_ChatInfo, _G.IsInGuild, ns.Print, _G.InCombatLockdown = save.chat, save.guild, save.print, save.combat
+end
