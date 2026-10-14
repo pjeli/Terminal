@@ -331,6 +331,17 @@ function ns:RegisterCommand(name, def)
 	self.commandsGen = (self.commandsGen or 0) + 1
 end
 
+--- A command gone (the player's own aliases, Aliases.lua): its rows made again.
+function ns:UnregisterCommand(name)
+	name = name:lower()
+	if not self.commands[name] then return end
+	self.commands[name] = nil
+	for i = #self.commandOrder, 1, -1 do
+		if self.commandOrder[i] == name then table.remove(self.commandOrder, i) end
+	end
+	self.commandsGen = (self.commandsGen or 0) + 1
+end
+
 ----------------------------------------------------------------------
 -- Events / saved variables
 ----------------------------------------------------------------------

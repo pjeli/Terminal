@@ -74,7 +74,10 @@ function UI:CommandEntries()
 		local c = ns.commands[name]
 		list[#list + 1] = {
 			kind = "cmd",
-			kindLabel = "|cff33ff99" .. L["cmd"] .. "|r",
+			-- (your own aliases, Aliases.lua: labelled so, and what they run decides how: a search stays open on it, a
+			-- slash command is pressed by the game, as a slash row is)
+			kindLabel = "|cff33ff99" .. (c.isAlias and L["alias"] or L["cmd"]) .. "|r",
+			staysOpen = c.staysOpen, secure = c.secure, isOpen = c.isOpen, after = c.after,
 			name = name,
 			_lname = name,
 			key = name,

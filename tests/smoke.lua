@@ -4403,8 +4403,8 @@ do
 	check(table.concat(ns.commands.history.run(""), "\n"):find(".mem", 1, true), ".history lists the lines")
 	ns.commands.history.run("clear"); check(#ns.db.history == 0, ".history clear forgets them")
 
-	-- aliases are gone
-	check(ns.commands.alias == nil and ns.commands.unalias == nil and ns.providers.alias == nil, "no .alias any more")
+	-- the old aliases' list is gone (0.50.4: .alias is back as your own commands, tests/smoke/aliases.lua)
+	check(ns.providers.alias == nil and ns.commands.alias and ns.commands.alias.run, "no @alias list; .alias makes commands")
 	local realOut = ns.Output
 
 	-- non-English clients
