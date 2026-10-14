@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.50.0
+
+**The calendar**
+- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites" or "guild events" (Advanced mode: `@calendar`) lists what's on from today to the end of next month: holidays such as the Darkmoon Faire, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, and raid resets.
+- Each says when it starts and ends, to the minute, as the calendar's own tooltip does: the Stranglethorn Fishing Extravaganza's 2 to 4 PM, when the Darkmoon Faire closes.
+- Enter opens the calendar on the event; Shift+Enter puts it in the chat box (your and your guild's events as the game's link).
+- Advanced mode: `is:holiday`, `is:invite`, `is:today`, `when:week` (also today, tomorrow, weekend, nextweek, month, nextmonth).
+
+**Quests by their reward, and the quests before one**
+- "outlaw sabre quest", "quest for outlaw sabre" or "which quest rewards the outlaw sabre" lists the quest whose reward it is, the one your faction can take. A close spelling counts ("outlaw saber"). Advanced mode: `@questie reward:outlaw_sabre`.
+- "quest chain for the missing diplomat" (Advanced mode: `<quest> > chain`) lists the quests that lead up to it, first to last, each with its step; where the chain branches, the one your race and class can take. "quest chain for outlaw sabre" is the chain of the quest rewarding it.
+
+**Trainers by what they teach**
+- "enchanting trainer", "blacksmithing trainer", "mage trainer" or "hunter pet trainer" lists the nearest ones, no "nearest" needed. They're found by what they teach, so the Journeyman Enchanter, the Herbalists and the Master Mages are in ("enchanting" used to find nothing while "enchant" did).
+- "demon trainer" or "warlock pet trainer" finds the warlocks' Demon Trainers; "pet trainer" alone is your class's.
+- A place said keeps to it ("mining trainer in org", "trainer in mage quarter"), and two professions at once list either's trainers.
+
+**Recipes to learn**
+- "recipes to learn" keeps to the ones your skill allows now (it listed hundreds beyond it), and the footer says how many more need more skill. "recipes in my skill range" does the same; "all recipes to learn" or "recipes i'm missing" lists every one.
+
+**Also**
+- Opening a profession window no longer says "Indexed Blacksmithing: 120 known recipes" in chat; it's still indexed, and debug mode (`.debug`) says it.
+- Enter does what the footer says after a Shift+Enter or a click set it up.
+- A window opened while lists are still loading closes Terminal and is pointed at.
+- AltGr letters type (Polish, Czech and Hungarian keyboard layouts), and a key you bound to Terminal closes it too.
+- F1, `.changelog` and `.atop` catch the mouse, and close when Terminal opens.
+- Searches:
+  - "not" and "-" work with any language's letters.
+  - "cloak without stamina", "reset my keybinds", "where is the ah" and "how do i get to orgrimmar" are searches again, not other questions.
+  - "what does my group need" asks the group, and "leveling plan" plans all your professions.
+  - `sqrt(2)`, `max(3, 5)` and the like add up.
+  - Items "of the Monkey" and "of the Bear" each keep their own stats.
+- Worn bows, wands and relics, and keys on the keyring, are found.
+- "what killed me" answers with this character's deaths only.
+- A new sale's news stays until its own mail comes.
+- `@mail`, `@drop` and `@combatlog` say why when they're empty.
+- Camp objects and talents open right when their window is already up.
+- Questie's NPCs open and get pinned at the spawn the row measures, and your waypoint stays where a place can't take one.
+- Quick Keybind Mode starts from the Keybindings page's own button.
+- Translations reach the release even before CurseForge's translators have done them (0.49.0 shipped some new texts in English only).
+
 ## 0.49.0
 
 **Raid lockouts**
