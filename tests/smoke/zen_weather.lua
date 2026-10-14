@@ -91,3 +91,25 @@ do
 	ns.db.zen, _G.C_Weather, _G.IsIndoors, _G.InCombatLockdown, ns.Theme.Animation = save.zen, save.cw, save.indoors, save.combat, save.anim
 	_G.Enum.WeatherType = save.enum
 end
+
+-- (0.51.1, the player's ask) how dark .zen makes the screen: a setting (Options: Zen dimming; .set zenDim), live
+io.write("[zen: how dark, a setting]\n")
+do
+	local Th, O = ns.Theme, ns.Options
+	local save = { zen = ns.db.zen, combat = _G.InCombatLockdown, anim = Th.Animation, dim = Th.Get().zenDim }
+	_G.InCombatLockdown = function() return false end
+	Th.Animation = function() return nil end -- (at once)
+	ns.db.zen = true
+	check(Th.FIELDS.zenDim and Th.Get().zenDim == 0.55, "a setting, 0.55 (as it was) unless changed")
+	check(O.widgets.zenDim ~= nil, "a slider in the Options panel")
+	UI:Open()
+	check(math.abs(Z.dim:GetAlpha() - 0.55) < 1e-6, "dimmed as before")
+	local ok = Th.Set("zenDim", 0.3)
+	check(ok and math.abs(Z.dim:GetAlpha() - 0.3) < 1e-6, "changed while dimmed: at once: " .. tostring(Z.dim:GetAlpha()))
+	check(Th.Format("zenDim", 0.3) == "30%" and O.widgets.zenDim.valueText:GetText() == "30%", "shown as a percentage")
+	check(select(2, Th.Set("zenDim", 5)) == 0.9 and Th.Set("zenDim", 0), "kept from 0 to 0.9")
+	check(Z.dim:GetAlpha() == 0, "0: no dimming at all")
+	Z.Leave(true); UI:HideNow(); T.FlushAll()
+	Th.Set("zenDim", save.dim)
+	ns.db.zen, _G.InCombatLockdown, Th.Animation = save.zen, save.combat, save.anim
+end

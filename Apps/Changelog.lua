@@ -14,6 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.51.4", when = "in testing",
+		items = {
+			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
+			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
+		},
+	},
+	{
 		v = "0.51.0", when = "released October 2026",
 		items = {
 			"Your corpse: \"where is my body\" (@corpse) shows where it lies, how far and which way, and the nearest spirit healers (\"nearest spirit healer\", @npc is:spirithealer).",
@@ -55,16 +62,6 @@ CL.LOG = {
 			"Listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).",
 			"A full review's fixes: currencies under a folded header are listed; a profession window's search or filters no longer shrink its saved recipes; load-on-demand addons say so instead of asking for a reload; nearest mailbox works right after login; clicks and the right-click menu do what Enter does (>> party sends from the click, not on hover); a fight closing the keys window (F1) brings your search back afterwards.",
 			"Searches are quicker once you've picked things before, and your alts' items are counted again in the background rather than as you type. Row details, and the games' and windows' key hints, read the same way everywhere; .debug reset lets Terminal try again what the game once blocked.",
-		},
-	},
-	{
-		v = "0.48.0", when = "released October 2026",
-		items = {
-			"Terminal speaks German, French, Spanish, Russian and Chinese (simplified), going by your game's language. In those languages Simple mode also understands the game's own words (qualities, slots, weapon kinds, roles, standings, classes, professions) and the main questions in your words: \"nearest ...\", \"mats for ...\", \"where to get ...\", \"where to learn ...\", \"where is ...\". English always works too. Help translate on Terminal's CurseForge page (Localization).",
-			"Party quests: \"party quests\" (Advanced: @group quests) shows who in your party is on each of your quests; Enter shares one, \"quests to share\" lists the ones someone lacks, and >>> party says it in one line. Where the game doesn't say who's on what, Terminal learns it from sharing.",
-			"Mail on its way: what you send anyone shows in @mail for the hour it takes to arrive (\"sent mail\"), and the auction house's news shows before you reach a mailbox (\"incoming mail\"): sold (with its price and when the gold is due), won, outbid and expired.",
-			"Typing a filter offers only the values that make sense for the lists you named: \"@questlog is:\" offers quest states, not online or equippable.",
-			"Terminal's games and radio are an addon of their own now (Terminal Extras, in its own folder), loaded the first time you use one, so Terminal alone takes less memory. Keep it switched on in your AddOn list to play.",
 		},
 	},
 }

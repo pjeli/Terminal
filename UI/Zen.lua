@@ -21,7 +21,14 @@ local L = ns.L
 local Z = {}
 ns.Zen = Z
 
-Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha)
+Z.DIM = 0.55 -- (how dark the screen gets: the black frame's alpha; the theme's zenDim, the Options panel's slider)
+
+--- How dark the screen gets: the player's setting (Options: Zen dimming; .set zenDim 0.4), else Z.DIM.
+function Z.DimAlpha()
+	local t = ns.Theme and ns.Theme.Get and ns.Theme.Get()
+	local v = t and tonumber(t.zenDim)
+	return v and math.max(0, math.min(1, v)) or Z.DIM
+end
 Z.IN, Z.OUT = 0.2, 0.2 -- (s: fading away as Terminal opens; coming back as it closes; the player's, 0.46.13)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
 -- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up),
@@ -201,7 +208,7 @@ local function Apply(v)
 		for f, a in pairs(also or {}) do pcall(f.SetAlpha, f, a * (1 - e)) end
 	end
 	local d = Dim()
-	d:SetAlpha(Z.DIM * e)
+	d:SetAlpha(Z.DimAlpha() * e)
 	if v > 0 then d:Show() else d:Hide() end
 end
 
@@ -294,6 +301,11 @@ function Z.Closed()
 	if not Z.active or watching then return end
 	watching = true
 	C_Timer.After(0, Check)
+end
+
+--- The theme changed (the dimming's slider moved): a dimmed screen takes the new darkness at once.
+function Z.ThemeChanged()
+	if Z.active and level > 0 then Apply(level) end
 end
 
 function Z.Set(on)

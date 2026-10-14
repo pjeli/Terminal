@@ -100,10 +100,10 @@ end
 
 local pv = CreateFrame("Frame", nil, panel, "BackdropTemplate")
 pv:SetSize(196, 52)
-pv:SetPoint("TOPLEFT", 440, -88)
+pv:SetPoint("TOPLEFT", 440, -84)
 pv:SetBackdrop(FLAT)
 if pv.SetClipsChildren then pv:SetClipsChildren(true) end
-Label(L["Example"], "GameFontNormal", 440, -70)
+Label(L["Example"], "GameFontNormal", 440, -66)
 O.preview = pv
 
 pv.prompt = pv:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -164,7 +164,7 @@ local function PreviewAt(y) -- the example moved y pixels from its place (openin
 	if pv._y == y then return end
 	pv._y = y
 	pv:ClearAllPoints()
-	pv:SetPoint("TOPLEFT", 440, -88 + y)
+	pv:SetPoint("TOPLEFT", 440, -84 + y)
 end
 local function LabelAt(dx)
 	dx = math.floor(dx + 0.5)
@@ -293,15 +293,17 @@ local function MarkChoice(items, current, labelOf)
 end
 
 -- Themes
-Label(L["Theme"], "GameFontNormal", 16, -70)
+-- (0.51.1, the player's screenshot: the panel ran past its frame at the bottom: the rows closer together, the style
+-- buttons beside the sliders, the checkboxes in two columns)
+Label(L["Theme"], "GameFontNormal", 16, -66)
 local function ThemeLabel(id) return T.PRESETS[id].label end
-O.widgets.themeMenu, O.widgets.themeList, O.themeItems = Dropdown(16, -90, 200, T.PRESET_ORDER, ThemeLabel, function(id) T.ApplyPreset(id) end)
+O.widgets.themeMenu, O.widgets.themeList, O.themeItems = Dropdown(16, -84, 200, T.PRESET_ORDER, ThemeLabel, function(id) T.ApplyPreset(id) end)
 
 -- Prompt character: type anything, up to 3 characters
-Label(L["Prompt character"], "GameFontNormal", 16, -150)
+Label(L["Prompt character"], "GameFontNormal", 16, -124)
 local promptBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
 promptBox:SetSize(46, 20)
-promptBox:SetPoint("TOPLEFT", 22, -168)
+promptBox:SetPoint("TOPLEFT", 22, -142)
 promptBox:SetAutoFocus(false)
 promptBox:SetMaxLetters(3)
 local function SavePrompt(self)
@@ -320,37 +322,39 @@ end)
 O.widgets.promptText = promptBox
 
 -- Cursor style: a dropdown beside the prompt box
-Label(L["Cursor"], "GameFontNormal", 130, -150)
+Label(L["Cursor"], "GameFontNormal", 130, -124)
 local function CursorLabel(id) return T.CURSOR_LABELS[id] end
-O.widgets.cursor, O.widgets.cursorList, O.cursorItems = Dropdown(130, -168, 150, T.CURSOR_ORDER, CursorLabel, function(id) T.Set("cursor", id) end)
+O.widgets.cursor, O.widgets.cursorList, O.cursorItems = Dropdown(130, -142, 140, T.CURSOR_ORDER, CursorLabel, function(id) T.Set("cursor", id) end)
 
 -- Animation style: a dropdown beside the cursor's (the example above plays it)
-Label(L["Animation"], "GameFontNormal", 296, -150)
+-- (0.51.2, the player's screenshot: it ran up to the Example: both dropdowns narrower, a gap before the Example at 440)
+Label(L["Animation"], "GameFontNormal", 284, -124)
 local function AnimLabel(id) return T.ANIMATION_LABELS[id] end
-O.widgets.animations, O.widgets.animationList, O.animationItems = Dropdown(296, -168, 150, T.ANIMATION_ORDER, AnimLabel, function(id)
+O.widgets.animations, O.widgets.animationList, O.animationItems = Dropdown(284, -142, 140, T.ANIMATION_ORDER, AnimLabel, function(id)
 	T.Set("animations", id)
 	demo.t, demo.acc = 0, 1 -- the example plays the new style from the start
 end)
 
 -- Colours
-Label(L["Colours"], "GameFontNormal", 16, -202)
+Label(L["Colours"], "GameFontNormal", 16, -176)
 local colourKeys = { "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "fzfColor" }
 for i, key in ipairs(colourKeys) do
-	Swatch(key, 16 + ((i - 1) % 3) * 140, -222 - math.floor((i - 1) / 3) * 24)
+	Swatch(key, 16 + ((i - 1) % 3) * 140, -196 - math.floor((i - 1) / 3) * 24)
 end
 
 -- Layout
-Label(L["Layout"], "GameFontNormal", 16, -300)
-Slider("bgAlpha", 16, -322)
-Slider("fontSize", 16, -346)
-Slider("rows", 16, -370)
-Slider("width", 16, -394)
-Slider("scale", 16, -418)
-Slider("blinkRate", 16, -442)
+Label(L["Layout"], "GameFontNormal", 16, -276)
+Slider("bgAlpha", 16, -298)
+Slider("fontSize", 16, -320)
+Slider("rows", 16, -342)
+Slider("width", 16, -364)
+Slider("scale", 16, -386)
+Slider("blinkRate", 16, -408)
+Slider("zenDim", 16, -430) -- (.zen: how dark the screen gets behind the terminal)
 
 local fontButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 fontButton:SetSize(150, 22)
-fontButton:SetPoint("TOPLEFT", 16, -474)
+fontButton:SetPoint("TOPLEFT", 440, -296) -- (beside the sliders)
 fontButton:SetScript("OnClick", function()
 	local cur, list = T.Get().font, T.FONT_ORDER
 	local nextIdx = 1
@@ -363,7 +367,7 @@ O.widgets.font = fontButton
 
 local frameButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 frameButton:SetSize(150, 22)
-frameButton:SetPoint("TOPLEFT", 16, -502)
+frameButton:SetPoint("TOPLEFT", 440, -324)
 frameButton:SetScript("OnClick", function()
 	T.Set("frame", T.Get().frame == "classic" and "flat" or "classic")
 end)
@@ -372,7 +376,7 @@ O.widgets.frame = frameButton
 -- fuzzy finding's glow (Tab+`): its style, a click steps through them (its colour is the last swatch)
 local glowButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 glowButton:SetSize(150, 22)
-glowButton:SetPoint("TOPLEFT", 16, -530)
+glowButton:SetPoint("TOPLEFT", 440, -352)
 glowButton:SetScript("OnClick", function()
 	local cur, list = T.Get().fzfGlow, T.FZF_GLOW_ORDER
 	local nextIdx = 1
@@ -383,34 +387,38 @@ glowButton:SetScript("OnClick", function()
 end)
 O.widgets.fzfGlowButton = glowButton
 
--- an on/off setting: a checkbox at y in the right column, its label beside it (`note` greyed after the label)
-local function Check(key, y, note)
+-- an on/off setting: a checkbox at x, y, its label beside it (`note` greyed after the label)
+local function Check(key, x, y, note)
 	local c = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 	c:SetSize(24, 24)
-	c:SetPoint("TOPLEFT", 190, y)
+	c:SetPoint("TOPLEFT", x, y)
 	c:SetScript("OnClick", function(self) T.Set(key, self:GetChecked() and "on" or "off") end)
 	local label = T.FIELDS[key].label .. (note and ("  |cff8a8a8a" .. note .. "|r") or "")
 	O.widgets[key] = c
-	return Label(label, "GameFontHighlight", 216, y - 5)
+	return Label(label, "GameFontHighlight", x + 26, y - 5)
 end
-Check("hints", -472)
-Check("syntax", -498, L["(@kinds, filters, .commands)"])
-Check("suggest", -524, L["(\"try: ...\")"])
-O.widgets.autoScanLabel = Check("autoScan", -550)
+-- (the long labels on the left, the short ones on the right)
+Check("syntax", 16, -456, L["(@kinds, filters, .commands)"])
+Check("hints", 440, -456)
+Check("suggest", 16, -480, L["(\"try: ...\")"])
+O.widgets.autoScanLabel = Check("autoScan", 440, -480)
 
 -- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
 -- last row of settings shown)
 O.actionRow = O.actionRow or {}
+O.ACTION_Y = -514 -- (under the checkboxes: the panel's last row)
 local function Action(x, w, text, onClick)
 	local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 	b:SetSize(w, 22)
-	b:SetPoint("TOPLEFT", x, -562)
+	b:SetPoint("TOPLEFT", x, O.ACTION_Y)
 	O.actionRow[#O.actionRow + 1] = { b, x }
 	b:SetText(text)
 	b:SetScript("OnClick", onClick)
 	return b
 end
-Action(16, 130, L["Open terminal"], function() ns.UI:Open() end)
+-- (already open: left as it is. 0.51.3, the player: clicking again where the button was opened a fresh terminal each time,
+-- what was typed gone)
+Action(16, 130, L["Open Terminal"], function() if not ns.UI:IsShown() then ns.UI:Open() end end)
 Action(156, 130, L["Reset to defaults"], function() T.Reset() end)
 -- Sharing the look: Export opens the style string in a copy window (Ctrl+C); Import takes a pasted one
 Action(296, 110, L["Export style"], function() ns:ShowText(L["Terminal style: paste it to a friend"], T.Export(), { compact = true }) end)
@@ -524,11 +532,7 @@ function O.Refresh()
 	local canScan = ns.db and ns.db.noDirectOpen == false
 	O.widgets.autoScan:SetShown(canScan)
 	O.widgets.autoScanLabel:SetShown(canScan)
-	-- the panel's buttons sit under the last row shown
-	for _, b in ipairs(O.actionRow or {}) do
-		b[1]:ClearAllPoints()
-		b[1]:SetPoint("TOPLEFT", b[2], canScan and -588 or -562)
-	end
+	-- (the panel's buttons stay under the checkboxes: autoScan's is beside another one now, not a row of its own)
 	local anim = T.ANIMATION_LABELS[t.animations] and t.animations or (t.animations == false and "off" or "smooth")
 	O.widgets.animations:SetText(AnimLabel(anim))
 	MarkChoice(O.animationItems, anim, AnimLabel)

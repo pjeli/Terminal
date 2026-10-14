@@ -1114,6 +1114,31 @@ do
 	local xs = {}
 	for i, b in ipairs(O.actionRow) do xs[i] = b[2] end
 	check(table.concat(xs, ",") == "16,156,296,416", "options: four action buttons in a row: " .. table.concat(xs, ","))
+	-- (0.51.1, the player's screenshot: the panel ran past its frame) everything above y -540, the style buttons beside the
+	-- sliders, the checkboxes in two columns
+	local lowest = 0
+	for _, b in ipairs(O.actionRow) do
+		local p = b[1].lastPoint
+		if p and type(p[3]) == "number" then lowest = math.min(lowest, p[3] - 22) end
+	end
+	local fp = O.widgets.font.lastPoint
+	check(O.ACTION_Y and O.ACTION_Y - 22 >= -540 and lowest >= -540 and fp and fp[2] == 440,
+		"options: fits its frame (lowest " .. lowest .. "), the style buttons beside the sliders")
+	-- (0.51.3, the player) "Open Terminal": a second click while it's open leaves it as it is
+	do
+		local open = O.actionRow[1][1]
+		check(open:GetText() == ns.L["Open Terminal"], "options: the button reads Open Terminal: " .. tostring(open:GetText()))
+		UI:Hide(); T.FlushAll()
+		open.scripts.OnClick(open); T.FlushAll()
+		UI:SetQuery("linen", 5); T.FlushAll()
+		open.scripts.OnClick(open); T.FlushAll()
+		check(UI:IsShown() and UI.edit:GetText() == "linen", "options: clicked again while open: the same terminal, what's typed kept: "
+			.. tostring(UI.edit:GetText()))
+		UI:Hide(); T.FlushAll()
+	end
+	-- (0.51.2, the player's screenshot) the Animation dropdown ends well before the Example (x 440)
+	local ap, aw = O.widgets.animations.lastPoint, O.widgets.animations.w
+	check(ap and aw and ap[2] + aw <= 430, "options: the Animation dropdown clear of the Example: ends at " .. tostring(ap and aw and ap[2] + aw))
 	local C = ns.CopyBox
 	ns:ShowText("t", "keep me")
 	C.edit.text = "typed"

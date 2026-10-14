@@ -41,6 +41,7 @@ T.DEFAULTS = {
 	animations = "smooth", -- how the terminal moves: a style from T.ANIMATIONS, or "off" (everything snaps)
 	cursor = "blinking-line", -- the text cursor: blinking or solid, a line or a box
 	blinkRate = 0.8, -- blinks per second
+	zenDim = 0.55, -- .zen: how dark the screen behind the terminal gets (0.51.1, the player's ask)
 	autoScan = true, -- index professions quietly after login
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
@@ -86,7 +87,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
-	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "autoScan", "syntax", "suggest",
+	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
 	"fzfGlow", "fzfColor" }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
@@ -162,6 +163,7 @@ T.FIELDS = {
 	animations = { kind = "choice", label = L["Animation"], choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = L["Cursor"], choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = L["Blink speed"], min = 0.2, max = 3, step = 0.1 },
+	zenDim = { kind = "number", label = L["Zen dimming"], min = 0, max = 0.9, step = 0.05 },
 	autoScan = { kind = "bool", label = L["Index professions at login"] },
 	fzfGlow = { kind = "choice", label = L["Fuzzy mode glow"], choices = T.FZF_GLOW_ORDER },
 	fzfColor = { kind = "color", label = L["Fuzzy glow"], optional = true }, -- (accent/default: the selection colour)
@@ -294,6 +296,7 @@ function T.Format(key, v)
 	if f.kind == "color" and f.optional and not v then return "accent" end
 	if f.kind == "number" then
 		if key == "blinkRate" then return ("%.1f/s"):format(v) end
+		if key == "zenDim" then return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
 		if f.step < 1 then return ("%.2f"):format(v) end
 		return tostring(math.floor(v + 0.5))
 	end
@@ -351,6 +354,7 @@ end
 
 function T.Changed()
 	if ns.UI and ns.UI.ApplyTheme then ns.UI:ApplyTheme() end
+	if ns.Zen and ns.Zen.ThemeChanged then ns.Zen.ThemeChanged() end
 	if ns.Options and ns.Options.Refresh then ns.Options.Refresh() end
 end
 
