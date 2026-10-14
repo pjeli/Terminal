@@ -311,9 +311,12 @@ do
 	UI:Hide(); T.FlushAll()
 	ns.Atop.Open()
 	check(ns.Atop.IsShown(), "(.atop up)")
-	T.withCtrl(function() ns.ChatLinks.OnRef("item:2589", "|cffffffff|Hitem:2589|h[Linen Cloth]|h|r", "LeftButton") end)
+	local altWas = _G.IsAltKeyDown
+	_G.IsAltKeyDown = function() return true end
+	ns.ChatLinks.OnRef("item:2589", "|cffffffff|Hitem:2589|h[Linen Cloth]|h|r", "LeftButton")
+	_G.IsAltKeyDown = altWas
 	T.FlushAll()
-	check(UI:IsShown() and not ns.Atop.IsShown() and query() == "Linen Cloth", "Ctrl+click on a chat link over .atop: atop closed: " .. query())
+	check(UI:IsShown() and not ns.Atop.IsShown() and query() == "Linen Cloth", "Alt+click on a chat link over .atop: atop closed: " .. query())
 	UI:Hide(); T.FlushAll()
 	if ns.Atop.IsShown() then ns.Atop.Close() end
 end

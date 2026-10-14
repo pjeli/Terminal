@@ -1065,7 +1065,7 @@ function E.HelpLines()
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
-		L["Ctrl+click an item (or a spell, quest, achievement) in chat to look it up here."],
+		L["Alt+click an item (or a spell, quest, achievement) in chat to look it up here."],
 		L["Ctrl+Enter does it and keeps the terminal open (for things that don't open a window)."],
 		L["F1 (or .keybinds) shows every key, for each mode; Esc there brings you back."],
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],

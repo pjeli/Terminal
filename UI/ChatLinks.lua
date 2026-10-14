@@ -1,10 +1,11 @@
 local ns = select(2, ...)
 
--- Ctrl+click a link in chat (an item, a spell, a quest, an achievement...): its name goes into Terminal. Closed, it
--- opens on it (searching it); open, the name goes in where the cursor is.
+-- Alt+click a link in chat (an item, a spell, a quest, an achievement...): its name goes into Terminal. Closed, it
+-- opens on it (searching it); open, the name goes in where the cursor is. (Ctrl+click until 0.50.1, the player's call:
+-- Ctrl+click is the game's dressing room, and both opened at once. Alt alone: Alt+Shift or Ctrl+Alt are left alone.)
 --
 -- The game's own handling of the click runs first and as usual (hooksecurefunc on SetItemRef, never a replacement:
--- that would taint every link click): Ctrl+click on gear also opens the dressing room, as it always has.
+-- that would taint every link click): Alt+click shows the link's tooltip as a plain click does.
 
 local CL = {}
 ns.ChatLinks = CL
@@ -30,14 +31,15 @@ function CL.NameOf(link, text)
 	return name ~= "" and name or nil
 end
 
---- After the game handled a chat link click: with Ctrl held, the link's name goes into Terminal.
+--- After the game handled a chat link click: with Alt held (and only Alt), the link's name goes into Terminal.
 function CL.OnRef(link, text, button)
-	if not (IsControlKeyDown and IsControlKeyDown()) then return end
+	if not (IsAltKeyDown and IsAltKeyDown()) then return end
+	if (IsControlKeyDown and IsControlKeyDown()) or (IsShiftKeyDown and IsShiftKeyDown()) then return end
 	if button and button ~= "LeftButton" then return end
 	local name = CL.NameOf(link, text)
 	if not name then return end
 	local UI = ns.UI
-	ns:Trace("chat link: Ctrl+click on " .. name)
+	ns:Trace("chat link: Alt+click on " .. name)
 	if UI:IsShown() and not UI.closing then
 		-- open: in where the cursor is, with a space between it and the words around it
 		local q = UI.edit and UI.edit:GetText() or ""

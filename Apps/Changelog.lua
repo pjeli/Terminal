@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.50.1", when = "in testing",
+		items = {
+			"Alt+click a link in chat to look it up in Terminal (it was Ctrl+click, which is also the game's dressing room: both opened at once). Ctrl+click is the dressing room's alone again.",
+		},
+	},
+	{
 		v = "0.50.0", when = "released October 2026",
 		items = {
 			"The calendar: @calendar (Simple mode: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\") lists what's on from today to the end of next month, each with when it starts and ends to the minute: holidays such as the Darkmoon Faire or the Stranglethorn Fishing Extravaganza, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, raid resets. Enter opens the calendar on the event, Shift+Enter puts it in the chat box. Advanced: is:holiday, is:invite, when:week.",
@@ -51,20 +57,6 @@ CL.LOG = {
 			"Mail on its way: what you send anyone shows in @mail for the hour it takes to arrive (\"sent mail\"), and the auction house's news shows before you reach a mailbox (\"incoming mail\"): sold (with its price and when the gold is due), won, outbid and expired.",
 			"Typing a filter offers only the values that make sense for the lists you named: \"@questlog is:\" offers quest states, not online or equippable.",
 			"Terminal's games and radio are an addon of their own now (Terminal Extras, in its own folder), loaded the first time you use one, so Terminal alone takes less memory. Keep it switched on in your AddOn list to play.",
-		},
-	},
-	{
-		v = "0.47.0", when = "released October 2026",
-		items = {
-			"Your group: @group (Simple mode: \"who is dead\", \"who needs fortitude\", \"group healers\", \"missing buffs\") shows each member's role, whether they're dead, offline or out of range, and the group's buffs they lack; Enter targets them, Shift+Enter casts your buff on them. \"@group >>> party\" sums it up in one line, and \"missing consumables\" finds who has no food or flask. In boss fights the game hides some of it, and Terminal says so.",
-			"Your mail: @mail (\"my mail\", \"mail running out\", \"cod mail\") lists every character's mailbox as Terminal last saw it, mail you send your alts included, and a chat line at login warns when gold or items in your mail run out within 3 days.",
-			"Enter goes all the way again, safely: a spell turns your spellbook to its page, a quest opens its details, a keybinding scrolls Options to its section and unfolds it. The game makes those clicks itself, so nothing is left tainted (.nav shows any window Terminal stopped turning).",
-			"Fewer \"action blocked\" messages later in a fight: the map, the options and other windows are opened by the game's own calls and clicks, never by Blizzard code run from Terminal. Dropping one quest asks in Terminal's own window, as dropping several does.",
-			"Combat closes Terminal at once, and it opens again where you left off when the fight is over.",
-			".zen fades the rest of the interface and dims the screen while Terminal is open, and brings it all back as it closes (at once when combat starts).",
-			"Spell and talent tooltips (other classes' too) fill in as soon as the game has them; Collections' Shift+Enter points at the toy, pet or mount in its journal.",
-			"For addon authors: your addon can add its own list to Terminal (docs/PROVIDERS.md, with a working example).",
-			"Fixes: \"food buff\" or \"mail boots\" searches are no longer taken for group or mail questions; Shift+Enter on a Questie quest you have opens its details again; the Spellbook row leaves the book's search alone.",
 		},
 	},
 }

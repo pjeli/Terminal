@@ -1126,7 +1126,8 @@ do
 	C.Hide()
 end
 
--- Ctrl+click a link in chat: its name goes into Terminal (0.43.7)
+-- Alt+click a link in chat: its name goes into Terminal (0.43.7; Alt since 0.50.1, the player's call: Ctrl+click is the
+-- game's dressing room, and both opened)
 do
 	local CL = ns.ChatLinks
 	local link, text = "item:2589:0:0", "|cffffffff|Hitem:2589::::|h[Linen Cloth]|h|r"
@@ -1136,14 +1137,22 @@ do
 	UI:Hide(); T.FlushAll()
 	CL.OnRef(link, text, "LeftButton")
 	check(not UI:IsShown(), "a plain click on a link leaves Terminal alone")
+	local ctrlWas, altWas, shiftWas = _G.IsControlKeyDown, _G.IsAltKeyDown, _G.IsShiftKeyDown
 	_G.IsControlKeyDown = function() return true end
 	CL.OnRef(link, text, "LeftButton")
 	_G.IsControlKeyDown = function() return false end
-	check(UI:IsShown() and UI.edit:GetText() == "Linen Cloth", "Ctrl+click opens Terminal on the item: " .. tostring(UI.edit:GetText()))
+	check(not UI:IsShown(), "Ctrl+click (the game's dressing room) leaves Terminal alone")
+	_G.IsAltKeyDown, _G.IsShiftKeyDown = function() return true end, function() return true end
+	CL.OnRef(link, text, "LeftButton")
+	_G.IsShiftKeyDown = function() return false end
+	check(not UI:IsShown(), "Alt+Shift+click leaves it alone too (Alt alone)")
+	CL.OnRef(link, text, "LeftButton")
+	_G.IsAltKeyDown = function() return false end
+	check(UI:IsShown() and UI.edit:GetText() == "Linen Cloth", "Alt+click opens Terminal on the item: " .. tostring(UI.edit:GetText()))
 	UI:SetQuery("wool >> party", 4)
-	_G.IsControlKeyDown = function() return true end
+	_G.IsAltKeyDown = function() return true end
 	CL.OnRef(link, text, "LeftButton")
-	_G.IsControlKeyDown = function() return false end
+	_G.IsControlKeyDown, _G.IsAltKeyDown, _G.IsShiftKeyDown = ctrlWas, altWas, shiftWas
 	check(UI.edit:GetText() == "wool Linen Cloth >> party", "open: the name goes in at the cursor: " .. UI.edit:GetText())
 	UI:Hide(); T.FlushAll()
 end
