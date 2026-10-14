@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.51.0
+
+**Your corpse and the nearest spirit healers**
+- After a death, "where is my body" (or "my corpse", "corpse run", "where did i die"; Advanced mode: `@corpse`) shows where your body lies, how far and which way, with an arrow that turns with you, and the nearest spirit healers under it.
+- Enter opens the map on it with a pin; Shift+Enter only sets the pin. Inside an instance the game doesn't say where your corpse is, and the row says so.
+- With Questie, spirit healers are NPCs like innkeepers: "nearest spirit healer", "nearest graveyard" (Advanced mode: `@npc is:spirithealer`).
+
+**Your gear's wear and the repair bill**
+- "durability", "repair cost", "what needs repair" or "broken gear" (Advanced mode: `@durability`, `.durability`) lists every piece that wears down, lowest first, and the damaged ones in your bags, each with its durability and what repairing it costs, the whole bill on top.
+- The cost is the game's own, less the reputation discount the last repair vendor gave you; at a vendor, its own total.
+- Enter shows the piece on your character or in your bags; Shift+Enter finds the nearest repair vendor. Advanced mode: `is:damaged`, `is:broken`, `dura:<50`.
+
+**Other addons' settings**
+- Type what a setting is called ("questie map icons", "attune announce") to find it in any addon that uses Ace3's options (Advanced mode: `@addonoption`; Simple mode: under Settings).
+- Enter opens that addon's options on it and points at it; Shift+Enter turns an on/off setting on or off. `.integrations` lists the addons found.
+
+**With Attune**
+- "my attunements", "raid attunements", "my keys", "class quests", "attunements to do" or "am i attuned to mc" (Advanced mode: `@attune`) lists your attunements, dungeon quest lines, keys and class quests, each with how far along you are, your next step and your alts' progress.
+- "how do i get into molten core" or "steps for the deadmines" (Advanced mode: `<attunement> > steps`) lists the steps first to last; `<quest> > attunement` names the attunements a quest is part of.
+- Enter opens Attune on it and points at it; Shift+Enter puts it in the chat box.
+
+**Your own commands**
+- `.alias rep durability` makes `.rep` run that search. An alias can be any search or question, a `/slash` command (pressed by the game) or another `.command`.
+- Words typed after it are added at the end (`.rep legs`), or go where `$*` stands (`.alias wh /w $* hi`). `.alias` lists yours, `.unalias <name>` forgets one; they're kept for every character.
+
+**Also**
+- Reaching for Questie, AtlasLoot, Attune or your alts' bags without the addon for it adds a short line under the footer: "Install Attune for this." (Syndicator or BagBrother for your alts' bags).
+- Alt+click a link in chat to look it up in Terminal; Ctrl+click is the game's dressing room alone again.
+- `in:warband` is no longer offered: WoW Forever has no warband bank.
+- A review of the whole addon:
+  - "who needs blessing of kings" lists everyone missing Kings, not only those with no Blessing.
+  - `in:bags` finds what's in your own bags; "summon voidwalker" finds the spell.
+  - "old blanchy quest" and the like are searches again, not quests to drop.
+  - "spells not on my bars" reads the macros on your bars right; `is:upgrade` no longer calls every one-hander an upgrade for a class that can't dual-wield.
+  - `reward:` finds names with an apostrophe, and waits for its list after login.
+  - A sum like `3*45g` shows just its answer.
+  - The row menu's Send on a ">>> party" row sends, and your last search comes back with Down after a window closed Terminal.
+  - A returned auction is matched to the one that ran out, and mount favourites update.
+  - The map, the AddOn list and the options are never opened from Terminal's own code.
+  - "nearest" searches, place names and your alts' items do less work while you type or play.
+
 ## 0.50.0
 
 **The calendar**

@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.50.7", when = "in testing",
+		v = "0.51.0", when = "released October 2026",
 		items = {
 			"Your corpse: \"where is my body\" (@corpse) shows where it lies, how far and which way, and the nearest spirit healers (\"nearest spirit healer\", @npc is:spirithealer).",
 			"Your gear's wear: \"durability\" or \"repair cost\" (@durability) lists each piece's durability and repair cost, the whole bill on top.",
