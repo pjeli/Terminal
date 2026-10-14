@@ -814,6 +814,35 @@ function Scan.Parse(self, text)
 			end
 		end
 	end
+	-- Simple mode: "enchanting trainer" is the trainers who teach enchanting, not the word in their title (the
+	-- Journeyman Enchanter's: Easy.TrainerProfs; 0.49.8, the player's ask); said alone, the nearest (ActionAndPlace)
+	local trainerAsked
+	if simple and softWords and #tokens > 0 then
+		local said = false
+		for _, w in ipairs(softWords) do if w == "trainer" or w == "trainers" then said = true end end
+		local kept, specs = ns.Easy.TrainerProfs(tokens, said)
+		if specs then
+			-- the trainer:<what> filter says trainer by the title: the word's own is:trainer (Questie's trainer flag) goes,
+			-- or the Demon Trainers, who sell grimoires (a vendor's flag), were left out (0.49.13, the player's report)
+			local drop = {}
+			for _, w in ipairs({ "trainer", "trainers" }) do local t = ns.Easy.Word(w); if t then drop[t] = true end end
+			local function Keep(list)
+				local out = {}
+				for _, f in ipairs(list or {}) do if not drop[f] then out[#out + 1] = f end end
+				return #out > 0 and out or nil
+			end
+			filters, softs = Keep(filters), Keep(softs)
+		end
+		for _, spec in ipairs(specs or {}) do
+			local f = ns.Filters.Parse(spec)
+			if f then
+				tokens, trainerAsked = kept, true
+				filters, hard = filters or {}, hard or {}
+				filters[#filters + 1], hard[#hard + 1] = f, f
+				fsig[#fsig + 1] = spec
+			end
+		end
+	end
 	-- "sort:plan": what's planned is recipes (with no @kind, or with @profession: searched too)
 	if sortPlan and (not kinds or kinds.professions) then
 		kinds = kinds or {}
@@ -853,7 +882,7 @@ function Scan.Parse(self, text)
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
 		hard = hard, softs = softs, softWords = softWords, strictWords = strictWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, advAct = advAct,
-		also = also, missingGone = missingGone, goneLine = goneLine }
+		also = also, missingGone = missingGone, goneLine = goneLine, trainerAsked = trainerAsked }
 end
 
 --- Simple mode: an action word and a place named among the words, taken out of them (q.act, q.tokens, q.filters).
@@ -889,6 +918,12 @@ function Scan.ActionAndPlace(self, q)
 			fsig[#fsig + 1] = "@" .. place.key
 			self.place = place
 		end
+	end
+	-- "blacksmithing trainer", "mage trainer" said alone: the nearest of them (0.49.9, the player's ask: it listed nothing,
+	-- the NPCs being searched only when asked for); a place said keeps to the place ("mining trainer in org")
+	if simple and not act and q.trainerAsked and not self.place then
+		act = ns.Easy.ACTIONS.nearest
+		self.action = act
 	end
 	q.act, q.tokens, q.filters, q.hard = act, tokens, filters, hard
 end

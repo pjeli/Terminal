@@ -1636,3 +1636,92 @@ Run("examples name your professions, not their trade spells", function()
 	E.rand = rand
 	if not ok then error(err, 0) end
 end)
+
+-- (0.49.8, the player's ask) "nearest enchanting trainer" found nothing ("nearest enchant trainer" did): a profession
+-- said with trainer is what they teach (trainer:enchanting finds the Journeyman Enchanter), not a word in the title
+Run("a profession's trainer by what they teach", function()
+	for q, want in pairs({ ["nearest enchanting trainer"] = "trainer:enchanting", ["nearest enchant trainer"] = "trainer:enchanting",
+		["blacksmithing trainer"] = "trainer:blacksmithing", ["herbalism trainers"] = "trainer:herbalism",
+		["nearest first aid trainer"] = "trainer:firstaid", ["mining trainer in org"] = "trainer:mining" }) do
+		local a = E.ToAdvanced(q)
+		check(a:find(want, 1, true) and not a:find(" enchanting ", 1, true) and not a:find(" enchant ", 1, true)
+			and not a:find(" aid ", 1, true) and not a:find(" blacksmithing ", 1, true), "Alt+`: " .. q .. " -> " .. a)
+	end
+	local a = E.ToAdvanced("nearest enchanting supplies")
+	check(not a:find("trainer:", 1, true) and a:find("enchanting", 1, true), "no trainer said: the word stays a word: " .. a)
+	a = E.ToAdvanced("nearest first trainer")
+	check(not a:find("trainer:first", 1, true), "\"first\" alone isn't first aid: " .. a)
+	-- the search itself: the Journeyman Enchanter, nearest first; not the blacksmith
+	E.Set(true)
+	Use({ { "npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = Rows({
+		{ name = "Elra Spellweave", key = 7001, npcID = 7001, activate = Fire("map") },
+		{ name = "Tovan Brightquill", key = 7003, npcID = 7003, activate = Fire("map") },
+		{ name = "Gorm Anvilhand", key = 7002, npcID = 7002, activate = Fire("map") },
+		{ name = "Ardan Vey", key = 7004, npcID = 7004, activate = Fire("map") },
+		{ name = "Lysa Fernwhistle", key = 7005, npcID = 7005, activate = Fire("map") },
+		{ name = "Bram Huntsworth", key = 7006, npcID = 7006, activate = Fire("map") },
+		{ name = "Morvek Ashgrin", key = 7007, npcID = 7007, activate = Fire("map") },
+		{ name = "Selis Darrow", key = 7008, npcID = 7008, activate = Fire("map") } }) } } })
+	local I = ns.Integrations
+	local was = { field = I.NpcField, defs = I.NpcFlagDefs, here = I.Here, dist = I.NpcDistance, group = _G.UnitFactionGroup }
+	local FIELDS = { [7001] = { subName = "Journeyman Enchanter", npcFlags = 16, friendlyToFaction = "A" },
+		[7003] = { subName = "Enchanting Trainer", npcFlags = 16, friendlyToFaction = "A" },
+		[7002] = { subName = "Journeyman Blacksmith", npcFlags = 16, friendlyToFaction = "A" },
+		[7004] = { subName = "Master Mage", npcFlags = 16, friendlyToFaction = "A" }, -- (no "trainer" in the title)
+		[7005] = { subName = "Pet Trainer", npcFlags = 16, friendlyToFaction = "A" },
+		[7006] = { subName = "Hunter Trainer", npcFlags = 16, friendlyToFaction = "A" },
+		[7007] = { subName = "Demon Trainer", npcFlags = 4, friendlyToFaction = "A" }, -- (sells grimoires: a vendor's flag, not a trainer's)
+		[7008] = { subName = "Warlock Trainer", npcFlags = 16, friendlyToFaction = "A" } }
+	local DIST = { [7001] = 30, [7003] = 90, [7002] = 10, [7004] = 55, [7005] = 70, [7006] = 5, [7007] = 80, [7008] = 3 }
+	I.NpcField = function(id, f) return FIELDS[id] and FIELDS[id][f] end
+	I.NpcFlagDefs = function() return { TRAINER = 16 } end
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	I.NpcDistance = function(id) return DIST[id] end
+	_G.UnitFactionGroup = function() return "Alliance" end
+	ns.Filters.ClearCache()
+	for _, q in ipairs({ "nearest enchanting trainer", "nearest enchant trainer", "enchanting trainer nearby" }) do
+		UI:Hide(); FlushAll()
+		UI:Open(q)
+		local res = UI.Results()
+		check(res[1] and res[1].name == "Elra Spellweave" and res[2] and res[2].name == "Tovan Brightquill" and not Has(res, "Gorm Anvilhand"),
+			q .. ": the enchanting trainers, nearest first: " .. Show(res))
+	end
+	UI:Hide(); FlushAll()
+	UI:Open("nearest blacksmithing trainer")
+	local res = UI.Results()
+	check(res[1] and res[1].name == "Gorm Anvilhand" and #res == 1, "nearest blacksmithing trainer: the Journeyman Blacksmith: " .. Show(res))
+	-- (0.49.9, the player's ask) said alone, without nearest: the nearest all the same (it listed nothing)
+	for q, want in pairs({ ["blacksmithing trainer"] = "Gorm Anvilhand", ["enchanting trainer"] = "Elra Spellweave",
+		["enchant trainers"] = "Elra Spellweave", ["mage trainer"] = "Ardan Vey", ["hunter pet trainer"] = "Lysa Fernwhistle",
+		["pet trainer"] = "Lysa Fernwhistle", ["demon trainer"] = "Morvek Ashgrin", ["warlock pet trainer"] = "Morvek Ashgrin",
+		["warlock trainer"] = "Selis Darrow" }) do
+		UI:Hide(); FlushAll()
+		UI:Open(q)
+		res = UI.Results()
+		check(res[1] and res[1].name == want and res[1].detail == DIST[res[1].key] .. " yd" and UI.action == E.ACTIONS.nearest,
+			q .. " alone: the nearest, how far: " .. Show(res))
+	end
+	check(E.ToAdvanced("blacksmithing trainer") == "@npc trainer:blacksmithing faction:friendly sort:nearest ",
+		"Alt+` writes it as the nearest: " .. E.ToAdvanced("blacksmithing trainer"))
+	check(E.ToAdvanced("hunter pet trainer") == "@npc trainer:pet faction:friendly sort:nearest ",
+		"hunter pet trainer: the pet trainers, nearest: " .. E.ToAdvanced("hunter pet trainer"))
+	check(E.ToAdvanced("warlock pet trainer") == "@npc trainer:demon faction:friendly sort:nearest ",
+		"warlock pet trainer: the Demon Trainers, nearest: " .. E.ToAdvanced("warlock pet trainer"))
+	-- "pet trainer" alone follows your class: a warlock's are the Demon Trainers ("hunter pet trainer" stays the hunters')
+	local classWas = _G.UnitClass
+	_G.UnitClass = function() return "Warlock", "WARLOCK" end
+	UI:Hide(); FlushAll()
+	UI:Open("pet trainer")
+	res = UI.Results()
+	check(res[1] and res[1].name == "Morvek Ashgrin" and not Has(res, "Lysa Fernwhistle"), "a warlock's pet trainer: the Demon Trainer: " .. Show(res))
+	check(E.ToAdvanced("hunter pet trainer"):find("trainer:pet", 1, true), "a warlock's hunter pet trainer: still the hunters'")
+	_G.UnitClass = function() return "Hunter", "HUNTER" end
+	check(E.ToAdvanced("pet trainer"):find("trainer:pet", 1, true), "a hunter's pet trainer: the pet trainers")
+	_G.UnitClass = classWas
+	-- "trainer" alone, or a name with it, isn't a nearest search
+	UI:Hide(); FlushAll()
+	UI:Open("trainer")
+	check(UI.action == nil, "\"trainer\" alone: no nearest search")
+	I.NpcField, I.NpcFlagDefs, I.Here, I.NpcDistance, _G.UnitFactionGroup = was.field, was.defs, was.here, was.dist, was.group
+	ns.Filters.ClearCache()
+end)

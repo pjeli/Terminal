@@ -306,11 +306,14 @@ local function ProfNamed(v)
 	end
 end
 
+F.ProfNamed = ProfNamed -- (Simple mode: "enchanting trainer" is trainer:enchanting, Easy.lua)
+
 local function AnyClassTrainer(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
 local function AnyProfTrainer(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
 
 local CLASS_SET = {}
 for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
+F.TrainerClass = function(w) return CLASS_SET[w] and w or nil end -- (Simple mode: "mage trainer" is trainer:mage, Easy.lua)
 
 KEYS.trainer = function(v)
 	if v == "" then return nil end

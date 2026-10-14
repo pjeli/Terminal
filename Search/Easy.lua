@@ -709,6 +709,51 @@ local function QuestionToAdvanced(text)
 end
 E.QuestionToAdvanced = QuestionToAdvanced
 
+--- "enchanting trainer": with trainer said, a profession among the words (or the start of one: "enchant", "blacksmith")
+--- or a class ("mage trainer") is what they teach, trainer:enchanting, not a word in their name or title: the
+--- Journeyman Enchanter's title has "enchant", not "enchanting", so "nearest enchanting trainer" found nothing while
+--- "nearest enchant trainer" did (0.49.8, the player's ask; Master Mage has no "trainer"). "first aid" is two words;
+--- "pet trainer" and "hunter pet trainer" are the pet trainers, trainer:pet (0.49.10: the hunter's words were left to
+--- match, and matched nothing); "demon trainer" and "warlock pet trainer" the warlocks' Demon Trainers, trainer:demon
+--- (0.49.11); "pet trainer" alone your class's: a warlock's Demon Trainers, anyone else's the pet trainers (0.49.12). Gives the words left and the filters' text, or the words and nil. A search that names
+--- one is a nearest search (0.49.9: "blacksmithing trainer" alone).
+function E.TrainerProfs(words, trainerSaid)
+	local F = ns.Filters
+	local ProfNamed = trainerSaid and F and F.ProfNamed
+	if not ProfNamed then return words, nil end
+	local pet, demon, warlock, hunter = false, false, false, false
+	for k, w in ipairs(words) do
+		if w == "hunter" or w == "hunters" then hunter = true end
+		if w == "pet" or w == "pets" then pet = true end
+		if (w == "demon" or w == "demons") and words[k + 1] ~= "hunter" then demon = true end
+		if w == "warlock" or w == "warlocks" then warlock = true end
+	end
+	if pet or demon then
+		-- the warlocks' Demon Trainers ("demon trainer", "warlock pet trainer"), or the hunters' pet trainers ("pet
+		-- trainer", "hunter pet trainer"): the words that say which go, whatever else was said stays
+		local SAID = { pet = true, pets = true, hunter = true, hunters = true, demon = true, demons = true, warlock = true, warlocks = true }
+		local kept = {}
+		for _, w in ipairs(words) do if not SAID[w] then kept[#kept + 1] = w end end
+		-- ("pet trainer" alone: your class's, the game's class token being the same in every language)
+		if not (demon or warlock or hunter) and UnitClass and select(2, UnitClass("player")) == "WARLOCK" then warlock = true end
+		return kept, { (demon or warlock) and "trainer:demon" or "trainer:pet" }
+	end
+	local kept, specs = {}, nil
+	for k, w in ipairs(words) do
+		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
+		local prof = not aid and (w ~= "first" or words[k + 1] == "aid") and ProfNamed(w) or nil
+		if not prof and F.TrainerClass then prof = F.TrainerClass(w) end
+		if prof then
+			specs = specs or {}
+			specs[#specs + 1] = "trainer:" .. (prof:gsub(" ", ""))
+		elseif not aid then
+			kept[#kept + 1] = w
+		end
+	end
+	if not specs then return words, nil end
+	return kept, specs
+end
+
 function E.ToAdvanced(text, category, shown)
 	text = E.English(text) -- (a phrase in the client's language: as its English line)
 	local asked = QuestionToAdvanced(text)
@@ -774,6 +819,15 @@ function E.ToAdvanced(text, category, shown)
 			plain[#plain + 1] = w
 		end
 	end
+	-- "enchanting trainer": the profession is what they teach (E.TrainerProfs)
+	local specs
+	plain, specs = E.TrainerProfs(plain, seen["is:trainer"])
+	if specs then -- (trainer:<what> says trainer by the title: is:trainer, Questie's flag, would leave out the Demon Trainers)
+		for k = #filters, 1, -1 do if filters[k] == "is:trainer" then table.remove(filters, k) end end
+	end
+	for _, spec in ipairs(specs or {}) do Add(filters, spec) end
+	-- ("blacksmithing trainer" alone: the nearest, 0.49.9; a place said keeps to the place: "mining trainer in org")
+	if specs and not act and not (filters[1] and filters[1]:find("^in:")) then nearest = true end
 	-- "nearest mailbox": its own list, not NPCs (a place said stays: "nearest mailbox in org")
 	local okind = nearest and ns.Integrations and ns.Integrations.ObjectKind and ns.Integrations.ObjectKind(plain)
 	if okind and ns.providers[okind] then
