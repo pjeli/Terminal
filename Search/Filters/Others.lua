@@ -390,7 +390,7 @@ F.VALUES = {
 	near = { "100", "300", "500", "1000" },
 	trainer = { "class", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
-		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "riding" },
+		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "demon", "riding" },
 }
 
 -- Which lists each value judges (0.47.7, the player: "@questlog is:" offered online, ready, equippable...): the pick
@@ -439,6 +439,7 @@ F.APPLIES = {
 	fish = { ["*"] = { "maps" } },
 	class = { ["*"] = { "talents" } },
 	trainer = { ["*"] = NPC },
+	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
 }
 
 --- The lists the typed words name: every @kind (a set of provider ids), "@group" with "quests" being the party quests'
@@ -499,6 +500,7 @@ F.HELP = {
 	{ "sort:plan", L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] },
 	{ "do:use", L["what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)"] },
 	{ "sells:linen_cloth", L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] },
+	{ "reward:outlaw_sabre", L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling)"] },
 	{ "is:drop", L["quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first"] },
 	{ "is:todo", L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey"] },
 	{ "is:ready", L["spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..."] },

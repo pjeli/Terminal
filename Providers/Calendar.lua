@@ -143,9 +143,11 @@ CA.Lasts = Lasts
 --- said only its day, the Stranglethorn fishing tournament not its hours): "today 20:00", "Sunday 14:00 - 16:00",
 --- "until Sunday 23:59", "Sunday 10:00 - Sunday, November 1".
 function CA.When(e, today)
-	today = today or Today() or 0
+	local td, nowMin = Today()
+	today = today or td or 0
 	if e.multi then
-		if e.startDN <= today then return L["until %s"]:format(DayWord(e.finish, today) .. " " .. Clock(e.finish)) end
+		-- (under way: started by now, not just today; review, 0.49.17: one starting tonight said "until" all day)
+		if Mins(e.start) <= (nowMin or today * 1440) then return L["until %s"]:format(DayWord(e.finish, today) .. " " .. Clock(e.finish)) end
 		return DayWord(e.start, today) .. " " .. Clock(e.start) .. " - " .. DayWord(e.finish, today)
 	end
 	if Lasts(e) then return DayWord(e.start, today) .. " " .. Clock(e.start) .. " - " .. Clock(e.finish) end

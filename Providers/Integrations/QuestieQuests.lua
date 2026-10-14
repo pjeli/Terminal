@@ -73,6 +73,8 @@ local function IndexQuests()
 		-- the towns' middles from the quests' words, for "vendor goldshire" (a few a frame, a little later)
 		-- (in a fight it waits for the fight to end: Places.lua)
 		C_Timer.After(2, function() I.BuildTowns() end)
+		-- the items quests reward (Rewards.lua: "outlaw sabre quest"), a little later again
+		C_Timer.After(4, function() if ns.QuestRewards then ns.QuestRewards.Build() end end)
 		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
 	end)
 end

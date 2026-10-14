@@ -795,13 +795,18 @@ do
 	f.scripts.OnKeyDown(f, "ENTER")
 	check(g.over and g.score == 1234 and told == 0, "Enter right at game over: nothing told (the press that topped out, or its repeats)")
 	t = t + TT.OVER_WAIT
-	g.keys.ENTER = "drop" -- (still held)
+	-- (review, 0.49.17) the Enter pressed in the wait, kept down: its repeat after the wait isn't a fresh press
 	f.scripts.OnKeyDown(f, "ENTER")
-	check(g.over and told == 0, "a moment later, Enter still held: nothing told")
+	check(g.over and told == 0 and TT.IsShown(), "a moment later, the same Enter still held (the game's repeat): nothing told")
 	f.scripts.OnKeyUp(f, "ENTER")
 	f.scripts.OnKeyDown(f, "ENTER")
 	ns.Extras.TellGuildOnce = tell
-	check(g.over and g.score == 1234 and told == 1 and passed == false, "a fresh Enter tells your guild (the screen stays)")
+	check(told == 1 and passed == false and not TT.IsShown(), "a fresh Enter tells your guild, and closes (the chat shows it)")
+	-- Tab plays again: on another game over
+	TT.Open()
+	for y = 0, 19 do for x = 0, 9 do if x ~= 9 then g.grid[y][x] = "L" end end end
+	TT.Spawn("O")
+	check(g.over and TT.IsShown(), "(another game over)")
 	f.scripts.OnKeyDown(f, "TAB")
 	_G.GetTime = gt
 	check(not g.over and g.score == 0 and passed == false, "Tab plays again, as the typing test")

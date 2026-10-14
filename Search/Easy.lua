@@ -689,8 +689,6 @@ local function QuestionToAdvanced(text)
 	end
 	local plq = ns.Plan and ns.Plan.Question and ns.Plan.Question(text)
 	if plq then return ns.Plan.ToAdvanced(plq) end
-	local rq = ns.QuestRewards and ns.QuestRewards.Question and ns.QuestRewards.Question(text)
-	if rq then return ns.QuestRewards.ToAdvanced(rq) end
 	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
 	if dq then
 		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
@@ -706,6 +704,9 @@ local function QuestionToAdvanced(text)
 	if mq2 then return ns.Mail.ToAdvanced(mq2) end
 	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
 	if gq then return ns.Group.ToAdvanced(gq) end
+	-- (in Scan.ANSWERS' order: the quest rewards' question just before the calendar's; review, 0.49.17)
+	local rq = ns.QuestRewards and ns.QuestRewards.Question and ns.QuestRewards.Question(text)
+	if rq then return ns.QuestRewards.ToAdvanced(rq) end
 	local cq2 = ns.Calendar and ns.Calendar.Question and ns.Calendar.Question(text)
 	if cq2 then return ns.Calendar.ToAdvanced(cq2) end
 end
@@ -723,6 +724,10 @@ function E.TrainerProfs(words, trainerSaid)
 	local F = ns.Filters
 	local ProfNamed = trainerSaid and F and F.ProfNamed
 	if not ProfNamed then return words, nil end
+	-- (two words that are one class, not one of the game's here: left as words; review, 0.49.17)
+	for k, w in ipairs(words) do
+		if (w == "demon" and words[k + 1] == "hunter") or (w == "death" and words[k + 1] == "knight") then return words, nil end
+	end
 	local pet, demon, warlock, hunter = false, false, false, false
 	for k, w in ipairs(words) do
 		if w == "hunter" or w == "hunters" then hunter = true end
@@ -744,6 +749,10 @@ function E.TrainerProfs(words, trainerSaid)
 	for k, w in ipairs(words) do
 		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
 		local prof = not aid and (w ~= "first" or words[k + 1] == "aid") and ProfNamed(w) or nil
+		-- (first aid by name only: "firs" isn't it; review, 0.49.17)
+		if (prof == "firstaid" or prof == "first aid") and w ~= "firstaid" and not (w == "first" and words[k + 1] == "aid") then
+			prof = nil
+		end
 		if not prof and F.TrainerClass then prof = F.TrainerClass(w) end
 		if prof then
 			specs = specs or {}
@@ -753,6 +762,8 @@ function E.TrainerProfs(words, trainerSaid)
 		end
 	end
 	if not specs then return words, nil end
+	-- (several said: any of them, "mining herbalism trainer"; review, 0.49.17: both at once matched no one)
+	if #specs > 1 then specs = { table.concat(specs, "|") } end
 	return kept, specs
 end
 
@@ -826,6 +837,7 @@ function E.ToAdvanced(text, category, shown)
 	plain, specs = E.TrainerProfs(plain, seen["is:trainer"])
 	if specs then -- (trainer:<what> says trainer by the title: is:trainer, Questie's flag, would leave out the Demon Trainers)
 		for k = #filters, 1, -1 do if filters[k] == "is:trainer" then table.remove(filters, k) end end
+		Add(kinds, "@npc") -- (NPCs, a place said or not: "mining trainer in org"; review, 0.49.17)
 	end
 	for _, spec in ipairs(specs or {}) do Add(filters, spec) end
 	-- ("blacksmithing trainer" alone: the nearest, 0.49.9; a place said keeps to the place: "mining trainer in org")

@@ -46,12 +46,21 @@ do
 			[106] = { name = "A Horde Errand", questLevel = 22, zoneOrSort = 12, requiredRaces = 2 + 16 + 32 + 128 },
 			[107] = { name = "An Alliance Errand", questLevel = 22, zoneOrSort = 12, requiredRaces = 1 + 4 + 8 + 64 },
 			[102] = { name = "Seeking the Blade", questLevel = 24, zoneOrSort = 12, preQuestGroup = { 101, 105 } },
+			[103] = { name = "Seeking the Blade (Horde)", questLevel = 24, zoneOrSort = 12, preQuestSingle = { 106 },
+				requiredRaces = 2 + 16 + 32 + 128 },
+			[300] = { name = "Blade of the Sea", questLevel = 30, zoneOrSort = 12 },
+			[301] = { name = "A Bear's Errand", questLevel = 10, zoneOrSort = 12 },
 			[200] = { name = "Baron Aquanis", questLevel = 24, zoneOrSort = 12,
 				objectivesText = { "Bring the strange water globe to Je'neu Sancrea." } },
 		}),
 		Npc = Entity({ [240] = { name = "Marshal Dughan", spawns = { [12] = { { 42.1, 65.9 } } }, npcFlags = 2 } }),
 		Item = Entity({
-			[9001] = { name = "Outlaw Sabre", questRewards = { 102 } },
+			[9001] = { name = "Outlaw Sabre", questRewards = { 102, 103 } },
+			[9005] = { name = "Bear Shawl", questRewards = { 301 } },
+			[9006] = { name = "Bone Ring", questRewards = { 301 } },
+			[9007] = { name = "Glowing Wand", questRewards = { 301 } },
+			[9008] = { name = "Gray Kodo Cloak", questRewards = { 301 } },
+			[9009] = { name = "Sea Blade", questRewards = { 300 } },
 			[9002] = { name = "Strike of the Hydra", questRewards = { 200 } },
 			[9003] = { name = "Diplomat Ring", questRewards = { 101 } },
 			[9004] = { name = "Linen Cloth", vendors = { 240 } },
@@ -61,10 +70,10 @@ do
 	}
 	Fresh()
 	I.Setup(); FlushAll()
-	check(I.qdb.list and #I.qdb.list == 7, "the quests indexed: " .. tostring(I.qdb.list and #I.qdb.list))
+	check(I.qdb.list and #I.qdb.list == 10, "the quests indexed: " .. tostring(I.qdb.list and #I.qdb.list))
 
 	-- the items some quest rewards: by name, part of it, a close spelling
-	check(#QR.Index() == 3, "the items quests reward (not the cloth): " .. #QR.Index())
+	check(#QR.Index() == 8, "the items quests reward (not the cloth), read in the background: " .. #QR.Index())
 	local q = QR.Question("outlaw saber quest")
 	check(q and q.items[1].name == "Outlaw Sabre", "\"outlaw saber quest\": the Outlaw Sabre (a close spelling)")
 	for _, s in ipairs({ "quest for outlaw sabre", "which quest rewards the outlaw sabre?", "outlaw sabre quest reward", "sabre quest" }) do
@@ -73,12 +82,21 @@ do
 	end
 	check(QR.Question("linen cloth quest") == nil and QR.Question("outlaw sabre") == nil and QR.Question("@questie sabre") == nil
 		and QR.Question("missing diplomat quest") == nil, "no quest reward named, no quest word, Advanced syntax, a quest called that: a search")
+	-- (review, 0.49.17) a question's little words aren't an item's; words are typed at a name's word's start; a close
+	-- spelling only with two words or more; a quest named with the words, its little words aside, stays a search
+	for _, s in ipairs({ "quests near me", "quests in my zone", "low quests", "gray quests", "grey quests", "blade of the sea quest",
+		"saber quest" }) do
+		check(QR.Question(s) == nil, s .. ": a search, not a reward: " .. tostring(QR.Question(s) and QR.Question(s).items[1].name))
+	end
+	q = QR.Question("what's the quest for outlaw sabre?")
+	check(q and q.items[1].name == "Outlaw Sabre", "what's the quest for outlaw sabre: apostrophes and marks left out")
 
 	-- Simple mode: the quest rewarding it, not the one whose words are close
 	ns.db.easyMode = true
 	UI:Hide(); FlushAll()
 	UI:Open("outlaw saber quest"); FlushAll()
 	local res = UI.Results()
+	-- (the Horde's quest rewards it too: a human is shown the one they can take; review, 0.49.17)
 	check(res[1] and res[1].name == "Seeking the Blade" and res[1].detail:find("^Rewards Outlaw Sabre") and #res == 1,
 		"outlaw saber quest: the quest rewarding it: " .. Names(res) .. " / " .. tostring(res[1] and res[1].detail))
 	check(tostring(UI.status:GetText()):find("Quests that reward Outlaw Sabre", 1, true), "the footer says so: " .. tostring(UI.status:GetText()))
@@ -108,7 +126,11 @@ do
 	res = UI:Search("seeking the blade > chain")
 	check(#res == 5, "no @questie: chain starts from Questie's quests: " .. Names(res))
 	res = UI:Search("outlaw sabre > chain")
-	check(#res == 5 and res[5].name == "Seeking the Blade", "an item's name: the chain of the quest rewarding it: " .. Names(res))
+	check(#res == 5 and res[5].name == "Seeking the Blade", "an item's name: the chain of the quest rewarding it (yours): " .. Names(res))
+	res = UI:Search("prereq for seeking the blade")
+	check(#res == 5, "prereq for (one prereq): the chain: " .. Names(res))
+	check(ns.Easy.ToAdvanced("gray quests"):find("^@quest "), "Alt+` asks the questions in the search's order: gray quests: "
+		.. ns.Easy.ToAdvanced("gray quests"))
 	res = UI:Search("the missing diplomat > chain")
 	check(res[1] and res[1].noActivate, "a quest nothing comes before: said so: " .. Names(res))
 

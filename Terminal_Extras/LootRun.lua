@@ -630,6 +630,9 @@ local function Build()
 	footer = Panel.Footer(frame, 9, "")
 	livesText = Text(frame, 11, "RIGHT")
 	livesText:SetPoint("BOTTOMRIGHT", -12, 9)
+	-- (the keys cut short before the level and lives, not over them: a longer language's; review, 0.49.17)
+	footer:SetPoint("RIGHT", livesText, "LEFT", -8, 0)
+	footer:SetWordWrap(false)
 	LR.frame, LR.footer = frame, footer
 end
 
@@ -649,8 +652,6 @@ local function Style()
 	livesText:SetTextColor(dr, dg, db)
 end
 
---- The game's keys are kept; any other key goes on to the game. A way asked for is kept until it can be taken
---- (asked during a pause too: off at once when it ends).
 --- What the guild is told: "[Terminal] Loot Run: 3150 points, level 4 (a new best)."
 function LR.Brag()
 	return L["[Terminal] Loot Run: %d points, level %d%s."]
@@ -663,6 +664,8 @@ function LR.TellGuild()
 	return ns.Extras.TellGuildOnce(game, LR.Brag())
 end
 
+--- The game's keys are kept; any other key goes on to the game. A way asked for is kept until it can be taken
+--- (asked during a pause too: off at once when it ends).
 function LR.KeyDown(self, key)
 	local mine = true
 	if key == "ESCAPE" or key == "`" then

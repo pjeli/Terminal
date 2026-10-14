@@ -287,7 +287,7 @@ end
 
 --- Is there a result to tell, and is Enter past the wait (not a key still held from typing)?
 function TY.CanTell()
-	if not game.over or not game.result then return false end
+	if not game.over or not game.result or (game.result.wpm or 0) <= 0 then return false end -- (0 wpm: nothing to tell)
 	return not (game.overAt and TY.clock() - game.overAt < TY.ENTER_WAIT)
 end
 
@@ -402,8 +402,7 @@ function TY.Draw()
 		loreText:SetText(game.book and L["Words from the book: %s"]:format((game.book.title:gsub("|", "||")))
 			or (not any and L["Read a book in the game (on a shelf, a plaque, a note you find) and its words turn up here"]) or "")
 		result:Show(); resultSub:Show(); loreText:Show()
-		footer:SetText((game.sent and L["Your guild heard it"] or L["Enter tell your guild"]) .. "  ·  " .. L["Tab again"]
-			.. "  ·  " .. Panel.QUIT)
+		footer:SetText(Panel.OverKeys(r.wpm, game.sent)) -- (the games' own: 0 wpm offers no telling; review, 0.49.17)
 	else
 		local left = game.start and math.max(0, game.duration - (TY.clock() - game.start)) or game.duration
 		timeText:SetText(Hex(t.accent) .. math.ceil(left) .. "|r")

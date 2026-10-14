@@ -157,7 +157,7 @@ function S.Draw()
 		overlay:Hide(); overlaySub:Hide()
 	end
 	-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
-	footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or (L["WASD or arrows steer"] .. "  ·  " .. Panel.QUIT))
+	footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or S.PLAY_KEYS)
 end
 
 ----------------------------------------------------------------------
@@ -186,7 +186,10 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 10)
 	overlaySub = Text(board, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -12)
+	S.PLAY_KEYS = L["WASD or arrows steer"] .. "  ·  " .. Panel.QUIT
 	footer = Panel.Footer(frame, 9, "")
+	footer:SetPoint("RIGHT", frame, "RIGHT", -12, 0) -- (a longer language's keys cut short, not past the edge)
+	footer:SetWordWrap(false)
 	S.frame, S.footer = frame, footer
 end
 
@@ -202,11 +205,11 @@ local function Style()
 	footer:SetTextColor(dr, dg, db)
 end
 
---- The game's keys are kept; any other key goes on to the game.
---- What the guild is told: "[Terminal] Snake: 23 points (a new best)."
+--- What the guild is told: "[Terminal] Snake: 23 points (a new best)." (a new best only when it is one: filling the
+--- board again ties the best; review, 0.49.17)
 function S.Brag()
 	return L["[Terminal] Snake: %d points%s."]
-		:format(game.score, (game.newBest or game.won) and (" " .. L["(a new best)"]) or "")
+		:format(game.score, game.newBest and (" " .. L["(a new best)"]) or "")
 end
 
 --- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
@@ -215,6 +218,7 @@ function S.TellGuild()
 	return ns.Extras.TellGuildOnce(game, S.Brag())
 end
 
+--- The game's keys are kept; any other key goes on to the game.
 function S.KeyDown(self, key)
 	local mine = true
 	if key == "ESCAPE" or key == "`" then

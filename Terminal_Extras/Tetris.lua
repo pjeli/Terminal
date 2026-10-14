@@ -458,6 +458,8 @@ local function Build()
 	overlaySub:SetWidth(COLS * CELL - 8)
 	TT.PLAY_KEYS = L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. Panel.QUIT
 	footer = Panel.Footer(frame, 9, TT.PLAY_KEYS)
+	footer:SetPoint("RIGHT", frame, "RIGHT", -12, 0) -- (a longer language's keys cut short, not past the edge)
+	footer:SetWordWrap(false)
 	TT.footer = footer
 	TT.frame = frame
 end
@@ -471,10 +473,6 @@ local function Style()
 	for _, fs in ipairs({ bestText, nextLabel, holdLabel, overlaySub, footer }) do fs:SetTextColor(dr, dg, db) end
 end
 
---- The game's keys are kept; any other key goes on to the game. A key already held (the game's own repeats)
---- does nothing more: Tick repeats Left/Right itself. Held keys are kept per key (`game.keys`: key -> action) and
---- per action (`game.acts`: action -> { t, n = keys holding it }): Left and A both move left, and letting go of
---- one while the other is still held doesn't stop the move.
 --- What the guild is told: "[Terminal] Tetris: 4200 points, 31 lines (a new best)."
 function TT.Brag()
 	return L["[Terminal] Tetris: %d points, %d lines%s."]
@@ -487,6 +485,10 @@ function TT.TellGuild()
 	return ns.Extras.TellGuildOnce(game, TT.Brag())
 end
 
+--- The game's keys are kept; any other key goes on to the game. A key already held (the game's own repeats)
+--- does nothing more: Tick repeats Left/Right itself. Held keys are kept per key (`game.keys`: key -> action) and
+--- per action (`game.acts`: action -> { t, n = keys holding it }): Left and A both move left, and letting go of
+--- one while the other is still held doesn't stop the move.
 function TT.KeyDown(self, key)
 	local mine = true
 	local action = KEYS[key]
@@ -499,7 +501,12 @@ function TT.KeyDown(self, key)
 		if key == "TAB" then TT.Reset(); TT.Draw()
 		elseif (key == "ENTER" or key == "NUMPADENTER") and fresh then
 			if (game.score or 0) > 0 then TT.TellGuild(); TT.Close() end
-		else mine = action ~= nil end
+		else
+			-- (an Enter in the wait is held from now: its repeats aren't a fresh press; review, 0.49.17: one pressed to
+			-- drop just after the stack topped out, kept down, told the guild on its first repeat)
+			if key == "ENTER" or key == "NUMPADENTER" then game.keys[key] = game.keys[key] or "drop" end
+			mine = action ~= nil
+		end
 	elseif action then
 		if game.keys[key] then
 			-- (the game's own repeat of a key already held)

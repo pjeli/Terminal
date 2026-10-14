@@ -102,8 +102,6 @@ function P.CanOpen(msg)
 	return true
 end
 
---- Hides an app's frame if it shows; closed by combat starting ("combat"), says so: "<label> closed: combat
---- started." and `extra`. Gives whether it closed (an app's own closing steps follow only then).
 -- The apps' footers say their keys alike, as the terminal's own footer does ("<key> <what it does>"): review, 0.48.6
 -- (quitting was said seven ways, each its own text to translate)
 P.QUIT = L["Esc or ` quit"]
@@ -119,6 +117,8 @@ function P.OverKeys(score, sent)
 	return brag .. P.AGAIN .. "  ·  " .. P.QUIT
 end
 
+--- Hides an app's frame if it shows; closed by combat starting ("combat"), says so: "<label> closed: combat
+--- started." and `extra`. Gives whether it closed (an app's own closing steps follow only then).
 function P.Close(frame, why, label, extra)
 	if not frame or not frame:IsShown() then return false end
 	frame:Hide()

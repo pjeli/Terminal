@@ -386,6 +386,8 @@ do
 	UI:Open("mining trainer in org")
 	local mr = UI.Results()
 	check(mr[1] and mr[1].name == "Makaru" and not mr[2], "mining trainer in org: Makaru (not Ironforge's): " .. tostring(mr[1] and mr[1].name) .. "/" .. tostring(mr[2] and mr[2].name))
+	check(ns.Easy.ToAdvanced("mining trainer in org"):find("^@npc in:orgrimmar"), "Alt+`: @npc, a place said (the NPCs are only searched when named; review, 0.49.17): "
+		.. ns.Easy.ToAdvanced("mining trainer in org"))
 	UI:Hide(); FlushAll()
 	UI:Open("vendor ratchet")
 	local r = UI.Results()

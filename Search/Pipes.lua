@@ -139,6 +139,7 @@ for _, ph in ipairs(P.PHRASES) do
 	if l then P.LAST[l] = true end
 end
 P.FIRST.mat, P.FIRST.material, P.FIRST.reagent, P.FIRST.use, P.FIRST.source = true, true, true, true, true
+P.FIRST.prereq = true -- ("^prereqs? for" starts with prereq too; review, 0.49.17)
 
 --- The chain a line means: the line itself when it has links, the chain its plain words say ("mats for x" ->
 --- "x > mats"), else nil. `words`: only the plain words (Simple mode: a ">" typed there is Advanced syntax, refused

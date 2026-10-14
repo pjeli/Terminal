@@ -1718,6 +1718,20 @@ Run("a profession's trainer by what they teach", function()
 	_G.UnitClass = function() return "Hunter", "HUNTER" end
 	check(E.ToAdvanced("pet trainer"):find("trainer:pet", 1, true), "a hunter's pet trainer: the pet trainers")
 	_G.UnitClass = classWas
+	-- (review, 0.49.17) a sentence's little words go as for any everyday word; several professions: any of them; a
+	-- two-word class isn't its first word's; first aid only by name; Alt+` names the NPCs a place or not
+	UI:Hide(); FlushAll()
+	UI:Open("the enchanting trainer")
+	res = UI.Results()
+	check(res[1] and res[1].name == "Elra Spellweave", "the enchanting trainer: the little word isn't searched: " .. Show(res))
+	UI:Hide(); FlushAll()
+	UI:Open("enchanting blacksmithing trainer")
+	res = UI.Results()
+	check(res[1] and res[1].name == "Gorm Anvilhand" and Has(res, "Elra Spellweave"), "two professions: either's trainers: " .. Show(res))
+	check(E.ToAdvanced("mining herbalism trainer"):find("trainer:mining|trainer:herbalism", 1, true), "Alt+`: one filter, either: "
+		.. E.ToAdvanced("mining herbalism trainer"))
+	check(not E.ToAdvanced("demon hunter trainer"):find("trainer:", 1, true), "demon hunter trainer: words: " .. E.ToAdvanced("demon hunter trainer"))
+	check(not E.ToAdvanced("firs trainer"):find("firstaid", 1, true), "firs trainer isn't first aid: " .. E.ToAdvanced("firs trainer"))
 	-- "trainer" alone, or a name with it, isn't a nearest search
 	UI:Hide(); FlushAll()
 	UI:Open("trainer")

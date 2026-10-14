@@ -121,6 +121,9 @@ do
 	local ht = Tip(he)
 	check(ht:find("Starts: Sunday, October 18 10:00", 1, true) and ht:find("Ends: Sunday, November 1 10:00", 1, true),
 		"several days: when it starts and ends, to the minute: " .. ht)
+	-- (review, 0.49.17) one over several days starting later today: when it starts, not "until"
+	local tonight = { multi = true, start = At(2026, 10, 13, 3, 18, 0), finish = At(2026, 10, 16, 6, 18, 0), startDN = CA.DayNum(2026, 10, 13) }
+	check(CA.When(tonight) == "today 18:00 - Friday", "starting tonight: from when: " .. CA.When(tonight))
 	local ot = Tip(ony)
 	check(ot:find("When: Thursday, October 15 20:00", 1, true) and not ot:find("Ends", 1, true), "an event with no end: when: " .. ot)
 	check(dmf.desc == "About Darkmoon Faire" and dmf.iconCoords and dmf.icon == 235448, "a holiday's text and its picture, cropped")

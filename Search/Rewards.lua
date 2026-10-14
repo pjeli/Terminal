@@ -31,16 +31,29 @@ end
 -- The items quests reward
 ----------------------------------------------------------------------
 
-local index -- { { ln = lowercase name, name, id, quests = { quest ids } } }: the items some quest rewards
+local index -- { { ln = lowercase name, m = it without apostrophes, name, id, quests = { quest ids } } }
+local building = false
 
---- The items some quest rewards (Questie's), read the first time asked; nil without Questie's data.
+--- The items some quest rewards (Questie's): nil while they're read (in the background, a few ms a frame: Build) or
+--- without Questie's data.
 function QR.Index()
-	if index then return index end
+	if not index and not building then QR.Build() end
+	return index
+end
+
+--- Reads them, a slice at a time (every Questie item once: 15-20 thousand on WoW Forever; review, 0.49.17: read at once
+--- in the first keystroke that asked, a hitch). Started once Questie's quests are indexed, or when first asked.
+function QR.Build()
+	if index or building then return end
 	local db = DB()
-	if not (db and db.ItemIds) then return nil end
-	local started = _G.debugprofilestop and _G.debugprofilestop()
+	local I = ns.Integrations
+	if not (db and db.ItemIds and I and I.RunSliced) then return end
+	local ids = db.ItemIds() or {}
+	if #ids == 0 then return end -- (not there yet: asked again next time)
+	building = true
 	local out = {}
-	for _, id in ipairs(db.ItemIds() or {}) do
+	I.RunSliced("rewards: items quests reward", #ids, function(i)
+		local id = ids[i]
 		local ok, qs = pcall(db.QueryItemSingle, id, "questRewards")
 		if ok and type(qs) == "table" and next(qs) ~= nil then
 			local quests = {}
@@ -48,63 +61,103 @@ function QR.Index()
 			table.sort(quests)
 			local okN, name = pcall(db.QueryItemSingle, id, "name")
 			name = okN and Str(name) or nil
-			if name and #quests > 0 then out[#out + 1] = { ln = Lower(name), name = name, id = id, quests = quests } end
+			if name and #quests > 0 then
+				local ln = Lower(name)
+				out[#out + 1] = { ln = ln, m = (ln:gsub("'", "")), name = name, id = id, quests = quests }
+			end
 		end
-	end
-	index = out
-	ns:Trace(("rewards: %d Questie items some quest rewards%s"):format(#out,
-		started and (" in %.0f ms"):format(_G.debugprofilestop() - started) or ""))
-	return index
+	end, function()
+		index, building = out, false
+		QR.lastKey, QR.lastItems = nil, nil
+	end)
 end
-function QR.Forget() index = nil end -- (tests; Questie's data read again)
+function QR.Forget() index, building, QR.lastKey, QR.lastItems = nil, false, nil, nil end -- (tests: Questie's data read again)
 
--- does the name have this word as typed, or within a close spelling of one of its words ("saber": Sabre)?
-local function WordIn(tk, ln)
-	if ln:find(tk, 1, true) then return 0 end
+-- a word typed: at the start of one of the name's words ("sab" is in Outlaw Sabre, "low" isn't in Glowing Wand)
+local function Starts(tk, m)
+	return m:find("%f[%w\128-\255]" .. tk:gsub("%p", "%%%0")) ~= nil
+end
+
+QR.CLOSE_LEN = 5 -- (a word this long or longer may be a close spelling of the name's: "saber", Sabre)
+local closeSeen, closeOrder = {}, {} -- word -> { [entry] = edits }: the last few words' close spellings, per word
+local function CloseOf(tk, idx)
+	local c = closeSeen[tk]
+	if c then return c end
+	c = {}
 	local S = ns.Score
 	local limit = S and S.NearLimit(#tk)
-	return limit and S.NearWord(tk, ln, limit) or nil
+	if limit then
+		for _, it in ipairs(idx) do
+			local d = S.NearWord(tk, it.m, limit)
+			if d then c[it] = d end
+		end
+	end
+	closeSeen[tk] = c
+	closeOrder[#closeOrder + 1] = tk
+	if #closeOrder > 8 then closeSeen[table.remove(closeOrder, 1)] = nil end
+	return c
 end
 
---- The items some quest rewards whose names have these (lowercase) words: the exact name, else every word in the name,
---- else every word within a close spelling ("outlaw saber": Outlaw Sabre). { entry }, best first; {} when none.
-function QR.Items(tokens)
+local function Shorter(a, b)
+	if #a.ln ~= #b.ln then return #a.ln < #b.ln end
+	return a.id < b.id
+end
+
+--- The items some quest rewards whose names have these (lowercase, apostrophes left out) words: the exact name, else
+--- every word at the start of one of the name's words, else (two words or more) every word there or a close spelling of
+--- one ("outlaw saber": Outlaw Sabre; only words of CLOSE_LEN letters or more). `oneClose`: one word may be a close
+--- spelling too (reward:saber, typed on purpose). { entry }, best first; {} when none. The last answer is kept (asked
+--- again as the search refreshes, and by Alt+`).
+function QR.Items(tokens, oneClose)
 	local idx = QR.Index()
 	if not idx or #tokens == 0 then return {} end
 	local whole = table.concat(tokens, " ")
-	local exact, typed, close = {}, {}, {}
+	local key = whole .. (oneClose and "\1" or "")
+	if QR.lastKey == key then return QR.lastItems end
+	local exact, typed = {}, {}
 	for _, it in ipairs(idx) do
-		if it.ln == whole then
+		if it.m == whole then
 			exact[#exact + 1] = it
 		else
-			local edits = 0
+			local all = true
 			for _, tk in ipairs(tokens) do
-				local d = WordIn(tk, it.ln)
-				if not d then edits = nil break end
-				edits = edits + d
+				if not Starts(tk, it.m) then all = false break end
 			end
-			if edits == 0 then typed[#typed + 1] = it
-			elseif edits then close[#close + 1] = { it = it, d = edits } end
+			if all then typed[#typed + 1] = it end
 		end
 	end
-	if #exact > 0 then return exact end
-	local function Shorter(a, b)
-		if #a.ln ~= #b.ln then return #a.ln < #b.ln end
-		return a.id < b.id
+	local out = exact
+	if #out == 0 and #typed > 0 then table.sort(typed, Shorter) out = typed end
+	if #out == 0 and (#tokens >= 2 or oneClose) then
+		local close, sets = {}, {}
+		for k, tk in ipairs(tokens) do if #tk >= QR.CLOSE_LEN then sets[k] = CloseOf(tk, idx) end end
+		if next(sets) then
+			for _, it in ipairs(idx) do
+				local edits = 0
+				for k, tk in ipairs(tokens) do
+					local d = (Starts(tk, it.m) and 0) or (sets[k] and sets[k][it])
+					if not d then edits = nil break end
+					edits = edits + d
+				end
+				if edits and edits > 0 then close[#close + 1] = { it = it, d = edits } end
+			end
+			table.sort(close, function(a, b)
+				if a.d ~= b.d then return a.d < b.d end
+				return Shorter(a.it, b.it)
+			end)
+			for _, c in ipairs(close) do out[#out + 1] = c.it end
+		end
 	end
-	if #typed > 0 then table.sort(typed, Shorter) return typed end
-	table.sort(close, function(a, b)
-		if a.d ~= b.d then return a.d < b.d end
-		return Shorter(a.it, b.it)
-	end)
-	local out = {}
-	for _, c in ipairs(close) do out[#out + 1] = c.it end
+	QR.lastKey, QR.lastItems = key, out
 	return out
 end
 
 QR.MAX_ITEMS = 10 -- (items whose quests are listed: "sword" would name hundreds)
 
---- The quest ids rewarding those items (each once, in the items' order).
+local ForYou -- (below)
+
+--- The quest ids rewarding those items (each once, in the items' order): those your race and class can take, or every
+--- one when none fits (review, 0.49.17: the Horde's quest, and its chain, were listed to a human); and each one's item.
 local function QuestsOf(items)
 	local out, seen = {}, {}
 	for k, it in ipairs(items) do
@@ -112,6 +165,14 @@ local function QuestsOf(items)
 		for _, q in ipairs(it.quests) do
 			if not seen[q] then seen[q] = it; out[#out + 1] = q end
 		end
+	end
+	local db = DB()
+	local mine = {}
+	for _, q in ipairs(out) do if not db or ForYou(db, q) then mine[#mine + 1] = q end end
+	if #mine > 0 and #mine < #out then
+		local keep = {}
+		for _, q in ipairs(mine) do keep[q] = seen[q] end
+		return mine, keep
 	end
 	return out, seen
 end
@@ -140,18 +201,13 @@ if Fk and Fk.KEYS then
 			local id = QuestIdOf(e)
 			if not id then return false end
 			if not set then
-				local _, by = QuestsOf(QR.Items(tokens))
+				local _, by = QuestsOf(QR.Items(tokens, true))
 				set = by
 			end
 			return set[id] ~= nil
 		end
 	end
-	Fk.KEYS.rewards = Fk.KEYS.reward
-	local F = ns.Filters
-	if F.APPLIES then F.APPLIES.reward = { ["*"] = { "questie", "quests" } } end
-	if F.HELP then
-		table.insert(F.HELP, 12, { "reward:outlaw_sabre", L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling)"] })
-	end
+	Fk.KEYS.rewards = Fk.KEYS.reward -- (.filters' line and which lists it judges: Filters/Others.lua, with sells:)
 end
 
 ----------------------------------------------------------------------
@@ -159,18 +215,28 @@ end
 ----------------------------------------------------------------------
 
 -- the words a question about a quest's reward is made of, besides the item's name
+-- (review, 0.49.17: "quests near me" was the quests rewarding a Bear Shawl, "quests in my zone" a Bone Ring: the little
+-- words of a question about quests aren't an item's; words under 3 letters never are)
 local QUEST = { quest = true, quests = true }
 local FILLER = {}
-for w in ([[quest quests reward rewards rewarded rewarding gives give gave for that which what the a an is does do from
-	get got with by of as to i can me my]]):gmatch("%S+") do FILLER[w] = true end
+for w in ([[quest quests reward rewards rewarded rewarding gives give gave for that which what whats where wheres the a an
+	is are does do did from get got with by of as to i can me my mine our we you in on at near nearby nearest close closest
+	around here there this these those zone zones area level levels low high show list find all any some every open
+	available daily weekly has have had which one ones still left new old good best grey gray drop party group share
+	shared complete completed done]]):gmatch("%S+") do FILLER[w] = true end
 
--- is some quest of Questie's called this (or does its name have these words as typed)? Then the words are a search
-local function QuestCalled(whole)
+-- is some quest of Questie's called with these words (every one in its name: "blade of the sea quest" is the quest
+-- Blade of the Sea, its little words aside)? Then the words are a search
+local function QuestCalled(words)
 	local I = ns.Integrations
 	local list = I and I.qdb and I.qdb.list
 	for _, e in ipairs(list or {}) do
 		local ln = rawget(e, "_lname") or (type(e.name) == "string" and Lower(e.name)) or ""
-		if ln:find(whole, 1, true) then return true end
+		local all = true
+		for _, w in ipairs(words) do
+			if not ln:gsub("'", ""):find(w, 1, true) then all = false break end
+		end
+		if all then return true end
 	end
 	return false
 end
@@ -179,14 +245,14 @@ end
 --- isn't it (no quest word, no quest reward named, or a quest called that).
 function QR.Question(text)
 	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
-	local t = Lower(text):gsub("[%?%!%.,;\"]", " ")
+	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ") -- ("what's", as the other questions read it)
 	local quest, words = false, {}
 	for w in t:gmatch("%S+") do
-		if QUEST[w] then quest = true elseif not FILLER[w] then words[#words + 1] = w end
+		if QUEST[w] then quest = true elseif not FILLER[w] and #w >= 3 then words[#words + 1] = w end
 	end
-	if not quest or #words == 0 or #table.concat(words) < 3 then return nil end
+	if not quest or #words == 0 then return nil end
 	local items = QR.Items(words)
-	if #items == 0 or QuestCalled(table.concat(words, " ")) then return nil end -- (the cheaper miss first)
+	if #items == 0 or QuestCalled(words) then return nil end -- (the cheaper miss first)
 	return { words = words, items = items }
 end
 
@@ -254,7 +320,7 @@ local function Has(mask, n)
 end
 
 -- can you take this quest: your race and class (Questie's requiredRaces / requiredClasses bits)?
-local function ForYou(db, id)
+function ForYou(db, id)
 	local race = UnitRace and select(3, UnitRace("player"))
 	local class = UnitClass and select(3, UnitClass("player"))
 	return Has(Safe(db.QueryQuestSingle, id, "requiredRaces"), race) and Has(Safe(db.QueryQuestSingle, id, "requiredClasses"), class)
@@ -267,7 +333,7 @@ function QR.Chain(id)
 	if not db then return { id } end
 	local out, state = {}, {}
 	local function Visit(q, depth)
-		if state[q] or #out >= QR.MAX_CHAIN or depth > QR.MAX_CHAIN then return end
+		if state[q] or (depth > 0 and #out >= QR.MAX_CHAIN - 1) or depth > QR.MAX_CHAIN then return end -- (the quest itself last)
 		state[q] = "seen" -- (a loop in the data stops here)
 		for _, p in ipairs(Ids(db, q, "preQuestGroup")) do Visit(p, depth + 1) end
 		local single = Ids(db, q, "preQuestSingle")
@@ -282,10 +348,13 @@ function QR.Chain(id)
 	return out
 end
 
-local function ChainView(row, i, n, last)
+-- (how it was found says which quest it comes before: two chains sharing a quest each keep it, and their steps whole;
+-- review, 0.49.17)
+local function ChainView(row, i, n, last, before)
 	local d = row.detail
 	local say = last and L["the quest itself"] or L["step %d of %d"]:format(i, n)
-	return setmetatable({ detail = say .. ((d and d ~= "") and ("  ·  " .. d) or ""), pipeHow = L["before it"] }, { __index = row })
+	return setmetatable({ detail = say .. ((d and d ~= "") and ("  ·  " .. d) or ""), pipeHow = L["before %s"]:format(before) },
+		{ __index = row })
 end
 
 if ns.RegisterRelation then
@@ -313,9 +382,11 @@ if ns.RegisterRelation then
 			for _, e in ipairs(rows) do
 				local chain = QR.Chain(QuestIdOf(e))
 				if #chain > 1 then
+					local root = I and I.QuestRow and I.QuestRow(chain[#chain])
+					local before = root and tostring(root.name) or tostring(e.name)
 					for i, id in ipairs(chain) do
 						local row = I and I.QuestRow and I.QuestRow(id)
-						if row then out[#out + 1] = ChainView(row, i, #chain - 1, i == #chain) end
+						if row then out[#out + 1] = ChainView(row, i, #chain - 1, i == #chain, before) end
 					end
 				end
 			end

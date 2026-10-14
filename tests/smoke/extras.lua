@@ -136,6 +136,9 @@ do
 	end
 	check(ns.Panel.OverKeys(5, false):find(ns.L["Enter tell your guild"], 1, true) and ns.Panel.OverKeys(5, true):find(ns.L["Your guild heard it"], 1, true)
 		and not ns.Panel.OverKeys(0, false):find(ns.L["Enter tell your guild"], 1, true), "the game-over keys say Enter (when there's a score)")
+	-- (review, 0.49.17) filling the board again ties the best: not "a new best"
+	ns.Snake.game.score, ns.Snake.game.won, ns.Snake.game.newBest = 297, true, false
+	check(not ns.Snake.Brag():find("new best", 1, true), "a tie isn't a new best: " .. ns.Snake.Brag())
 	-- not in a guild: said, nothing sent
 	ns.Snake.Open()
 	ns.Snake.game.over, ns.Snake.game.score = true, 3

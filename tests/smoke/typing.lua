@@ -74,6 +74,13 @@ do
 	clock = clock + 1
 	_G.IsInGuild = function() return false end
 	check(not TY.TellGuild() and #sent == 1 and printed:find("not in a guild", 1, true), "not in a guild: said")
+	-- (review, 0.49.17) 0 wpm: nothing to tell, and the footer doesn't offer it
+	_G.IsInGuild = function() return true end
+	local wpm = g.result.wpm
+	g.result.wpm = 0
+	TY.Draw()
+	check(not TY.CanTell(), "0 wpm: nothing to tell")
+	g.result.wpm = wpm
 	-- Enter (the key): told, and the test closes, so the chat shows it (.zen's interface back; the player's ask)
 	_G.IsInGuild = function() return true end
 	TY.KeyDown(TY.frame, "ENTER")
