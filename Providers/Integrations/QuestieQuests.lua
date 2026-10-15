@@ -75,7 +75,7 @@ local function IndexQuests()
 		C_Timer.After(2, function() I.BuildTowns() end)
 		-- the items quests reward (Rewards.lua: "outlaw sabre quest"), a little later again
 		C_Timer.After(4, function() if ns.QuestRewards then ns.QuestRewards.Build() end end)
-		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
+		if ns.UI and ns.UI:IsShown() then ns.UI:QuietRedo() end -- (held for F5 when a list is shown)
 	end)
 end
 

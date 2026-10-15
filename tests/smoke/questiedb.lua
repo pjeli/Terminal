@@ -566,7 +566,10 @@ do
 		MB._dirty = true
 		local early = #ns:GetEntries(MB)
 		QD.Ready = readyWas
+		local liveSame = UI.LIVE_SAME
+		UI.LIVE_SAME = 0 -- (the open terminal's background search would read it at once: tested in live.lua)
 		T.FlushAll()
+		UI.LIVE_SAME = liveSame
 		check(early == 0 and MB._dirty == true and #ns:GetEntries(MB) > 0, "@mailbox read before Questie was ready: read again later")
 		-- the selected mailbox gets the direction arrow, as NPCs do
 		_G.GetPlayerFacing = function() return 0 end

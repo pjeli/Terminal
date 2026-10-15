@@ -93,7 +93,7 @@ local function IndexNPCs(after)
 			-- text stays for the hint rows, and the next @npc search builds it again
 			if not p._usedAt then p._usedAt = GetTime() end
 		end
-		if ns.UI and ns.UI:IsShown() then ns.UI:Refresh() end
+		if ns.UI and ns.UI:IsShown() then ns.UI:QuietRedo() end -- (held for F5 when a list is shown)
 		finish()
 	end)
 end

@@ -359,6 +359,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 --- That long after the LAST change, not the first: a stream of them (selling greys, emptying a mailbox, looting a run of
 --- mobs) is read once it's over (0.50.7, review: read every ~3 s while they kept coming).
 local function WarmLater(p)
+	if ns.OnDirty then ns.OnDirty(p) end -- (the terminal open on its rows: searched again in the background, UI.lua)
 	if not p.warmDirty or not p._entries then return end
 	p._warmAsked = GetTime()
 	if p._warmTimer then return end

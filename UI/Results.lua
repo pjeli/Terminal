@@ -167,6 +167,67 @@ function UI:NoteCountChange()
 	end)
 end
 
+-- A list changes while its rows are shown (bags while you loot, the loot log, mail; 0.51.12): searched again in the
+-- background UI.LIVE_WAIT s after the last change, what it finds held for F5 as data coming in is (Hold); shown at
+-- once only when nothing real was. A list that keeps changing as it's read (its own events) is searched again at
+-- most UI.LIVE_SAME times in a row while nothing new comes of it.
+UI.LIVE_WAIT, UI.LIVE_SAME = 1, 3
+local live = { kinds = {}, timer = false, same = 0 }
+UI.live = live -- (tests)
+
+--- The same search run again in the background (Refresh's quiet path): data came in, a list changed.
+function UI:QuietRedo()
+	if not self:IsShown() or self.mode ~= "search" then return end
+	self.lastScan, self.lastOverview = nil, nil
+	self.refreshedAt, self.searchedText = nil, nil
+	self.quietRedo = true
+	self:Refresh()
+end
+
+local function SameRows(a, b)
+	if not a or not b or #a ~= #b then return false end
+	for i = 1, #a do if not SameRow(a[i], b[i]) then return false end end
+	return true
+end
+--- A background search for a changed list done: nothing new (nothing held, or what was held already) counts toward
+--- UI.LIVE_SAME.
+function UI.LiveCounted()
+	local before = live.before
+	if before == nil then return end
+	live.before = nil
+	if not UI.held or SameRows(UI.held, before or nil) then live.same = live.same + 1 else live.same = 0 end
+end
+
+local function ShowsKind(kinds)
+	if not Real(UI.results) then return UI.edit and UI.edit:GetText() ~= "" end -- (nothing found yet: any list may have it now)
+	for _, e in ipairs(UI.results) do
+		local k = e.kind
+		if k == "category" or (k and kinds[k]) then return true end
+	end
+	return false
+end
+
+function ns.OnDirty(p)
+	if not (UI.IsShown and UI:IsShown()) or UI.mode ~= "search" then return end
+	live.kinds[p.id] = true
+	live.at = GetTime()
+	if live.timer then return end
+	live.timer = true
+	local function Fire()
+		local quiet = UI.LIVE_WAIT - (GetTime() - live.at)
+		if quiet > 0.05 then C_Timer.After(quiet, Fire) return end -- (changed again meanwhile: once it settles)
+		live.timer = false
+		local kinds = live.kinds
+		live.kinds = {}
+		if not UI:IsShown() or UI.searchJob or not ShowsKind(kinds) then return end
+		if live.same >= UI.LIVE_SAME then return end
+		live.before = UI.held or false
+		UI:QuietRedo()
+		if not UI.searchJob then UI.LiveCounted() end -- (else once it's done: Completed)
+	end
+	C_Timer.After(UI.LIVE_WAIT, Fire)
+end
+
 --- F5: the results a background search held put up (nothing held: nothing changes).
 function UI:ShowNewResults()
 	local held = self.held
@@ -185,6 +246,7 @@ end
 local function Completed(self, job, final)
 	final = self:CollapseGroup(final)
 	if job.quiet and Hold(self, UI.results, final) then -- (run in the background: held for F5)
+		UI.LiveCounted()
 		self:UpdateBusy()
 		return
 	end
@@ -407,7 +469,7 @@ function UI:Refresh()
 	-- every couple of seconds while the items loaded)
 	local quiet = same and self.quietRedo
 	self.quietRedo = nil
-	if not quiet then self.held = nil end -- (a search of its own: whatever a background one held is stale)
+	if not quiet then self.held, live.same = nil, 0 end -- (a search of its own: whatever a background one held is stale)
 	if not same then self.countNote, self.expectCount = nil, nil end -- (typed on: the note was about another list)
 	local shown = UI.results
 	ListFor(self, text, first, edit)

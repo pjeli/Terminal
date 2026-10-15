@@ -3758,7 +3758,10 @@ do -- performance: fast scoring, lazy highlights, top results, narrowing, one se
 	P._dirty = false
 	ef.scripts.OnEvent(ef, "BAG_UPDATE_DELAYED")
 	check(P._dirty == false, "within the guard: not yet")
+	local liveSame = UI.LIVE_SAME
+	UI.LIVE_SAME = 0 -- (the open terminal's background search would read it at once: UI.live, tested in live.lua)
 	FlushAll()
+	UI.LIVE_SAME = liveSame
 	check(P._dirty == true, "a bag change right after a search isn't lost")
 	-- .mem
 	local m = ns.commands.mem.run()

@@ -365,7 +365,7 @@ function UI:UpdateBusy()
 	if finished and self:IsShown() and not self.inBusyRefresh then
 		ns:Trace("busy: loading finished, searching again")
 		self.inBusyRefresh = true
-		self:Refresh()
+		self:QuietRedo() -- (in the background: what it finds waits for F5 when a list is shown; 0.51.12)
 		self.inBusyRefresh = false
 	end
 end
