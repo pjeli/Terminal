@@ -251,6 +251,11 @@ local function KeysDown(self, key)
 	local ctrl, shift = IsControlKeyDown(), IsShiftKeyDown()
 	if UI:MenuKey(self, key) then return end
 	UI:HideRowMenu()
+	-- .tour: Enter goes on, Shift+Left back, Esc ends it (Tour.lua)
+	if ns.Tour and ns.Tour.Key(key, shift) then
+		self:SetPropagateKeyboardInput(false)
+		return
+	end
 	if (key == "ENTER" or key == "NUMPADENTER") and UI.fzf then
 		-- pure fuzzy finding: the result goes over to Simple mode (Enter) or Advanced (Shift+Enter), nothing is run
 		self:SetPropagateKeyboardInput(false)

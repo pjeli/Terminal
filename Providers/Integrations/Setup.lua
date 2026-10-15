@@ -123,6 +123,9 @@ local function Missing(name)
 	return a and a.missing() and a or nil
 end
 
+--- Is this addon (by its name in I.ADDONS: "Questie", "AtlasLoot") not installed, or not ready? (.tour, Tour.lua)
+function I.AddonMissing(name) return Missing(name) ~= nil end
+
 local hintText, hintFor
 --- The addon a line reaches for that isn't installed: { name, what }, or nil. Its syntax in any mode (an @kind, a
 --- key:value filter, a > link); Simple mode's words too (an NPC's role, "molten core loot", "how do i get into mc",

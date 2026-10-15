@@ -682,6 +682,7 @@ function UI:Hide()
 	self:KeepLastSearch()
 	self:EndAdvancedOnce()
 	self:EndFuzzy()
+	if ns.Tour then ns.Tour.Stop() end -- (closed: the tour is over)
 	self.openedByToggle, self.tabHeld = nil, nil -- (closed, Tab's key-up isn't seen: it isn't trusted as held after)
 	self.histIdx = nil
 	Forget(self) -- (rows kept only for the next keystroke)

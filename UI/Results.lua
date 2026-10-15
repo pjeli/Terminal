@@ -254,6 +254,7 @@ local function Completed(self, job, final)
 	self.lastSearchMs, self.lastSearchCount, self.lastSearchSlices = job.ms, #UI.results, job.slices
 	self:SelectPopTarget(true)
 	self:NoteCountChange()
+	if ns.Tour then ns.Tour.Arrived() end -- (.tour: the row its step is about selected)
 	self:UpdateBusy()
 	self:Render()
 end
@@ -504,6 +505,7 @@ function UI:Refresh()
 	end
 	self:SelectPopTarget(not self.searchJob)
 	self:NoteCountChange()
+	if ns.Tour then ns.Tour.Arrived() end -- (.tour: the row its step is about selected)
 	self:Render()
 end
 

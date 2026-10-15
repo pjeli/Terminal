@@ -192,6 +192,7 @@ end
 function UI:SuggestionText()
 	local edit = UI.edit
 	if edit:GetText() ~= "" or #UI.results > 0 or self.histIdx or self.fzf or Theme.Get().suggest == false then return nil end
+	if ns.Tour and ns.Tour.Active() then return nil end -- (.tour: its card says what to do)
 	local ex = ns.Easy and ns.Easy.Example()
 	local body = type(ex) == "string" and ex:match("^try:%s*(.-)%s*$")
 	if not body then return nil end
@@ -278,6 +279,7 @@ function UI:UpdateGhost()
 		-- a rotating example of what to type (Advanced: its own syntax, and what Up/Down bring)
 		-- (the option off: the prompt stays empty)
 		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end
+		if ns.Tour and ns.Tour.Active() then add = nil end -- (.tour: its card says what to do; no other example)
 		-- (the examples start "try:" in English, which SuggestionText reads back; only what's shown is translated)
 		if type(add) == "string" and add:sub(1, 4) == "try:" then add = L["try:"] .. add:sub(5) end
 		-- Alt+`: this run is Advanced (Simple again once it closes)

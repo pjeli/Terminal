@@ -153,12 +153,24 @@ local function Pool()
 	return list
 end
 E.ExamplePool = Pool
+-- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once (0.51.16, the player's ask)
+E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()
+	local db = ns.db
+	pool.first = nil
+	if type(db) == "table" and not db.tourOffered then
+		db.tourOffered = true
+		if #(db.history or {}) == 0 then
+			pool.first = E.TOUR_EXAMPLE
+			return pool.first
+		end
+	end
 	local list = Pool()
 	pool.at = pool.at % #list + 1
 	return list[pool.at]
 end
 function E.Example()
+	if pool.first then return pool.first end
 	local list = Pool()
 	return list[(math.max(1, pool.at) - 1) % #list + 1]
 end
