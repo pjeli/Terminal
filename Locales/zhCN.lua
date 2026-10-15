@@ -903,6 +903,7 @@ L["Other addons' settings: type what a setting is called (\"questie map icons\")
 L["Out of range"] = "超出范围"
 L["Out of range (the game's own range test, as the raid frames fade)"] = "超出范围（游戏自身的距离判断，即团队框体变淡时）"
 L["Outbid"] = "出价被超过"
+L["Over %s:"] = "与%s相比："
 L["Over what you wear (slot: %s):"] = "与当前装备相比（部位：%s）："
 L["P play/stop"] = "P 播放/停止"
 L["Panel"] = "面板"

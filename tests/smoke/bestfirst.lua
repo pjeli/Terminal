@@ -10,7 +10,7 @@ do
 		can = C_PlayerInfo.CanUseItem, det = C_Item.GetDetailedItemLevelInfo, class = _G.UnitClass, inst = C_Item.GetItemInfoInstant,
 		invId = _G.GetInventoryItemID, providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode,
 		head = _G.INVTYPE_HEAD, str = _G.ITEM_MOD_STRENGTH_SHORT, sta = _G.ITEM_MOD_STAMINA_SHORT, agi = _G.ITEM_MOD_AGILITY_SHORT,
-		weapon = _G.INVTYPE_WEAPON, dw = _G.CanDualWield }
+		weapon = _G.INVTYPE_WEAPON, dw = _G.CanDualWield, dps = _G.ITEM_MOD_DAMAGE_PER_SECOND_SHORT }
 	local ITEMS = {
 		[70] = { "Worn Helm", "|Hitem:70|h", 2, 20, 15, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 		[71] = { "Alpha Helm", "|Hitem:71|h", 2, 21, 16, "Armor", "Mail", 1, "INVTYPE_HEAD" },
@@ -91,11 +91,11 @@ do
 	STATS[82] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12, ITEM_MOD_STRENGTH_SHORT = 3 }
 	STATS[83] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 9, ITEM_MOD_STRENGTH_SHORT = 2 }
 	_G.GetInventoryItemLink = function(_, slot)
-		if slot == 16 then return "|Hitem:80|h[Old Mace]|h" elseif slot == 17 then return "|Hitem:81|h[Tower Shield]|h" end
+		if slot == 16 then return "|Hitem:80|h[Old Mace]|h" elseif slot == 17 then return "|Hitem:81|h[" .. ITEMS[81][1] .. "]|h" end
 	end
 	_G.GetInventoryItemID = function(_, slot) if slot == 16 then return 80 elseif slot == 17 then return 81 end end
 	_G.CanDualWield = function() return true end
-	_G.INVTYPE_WEAPON = "One-Hand"
+	_G.INVTYPE_WEAPON, _G.ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "One-Hand", "Damage Per Second"
 	F.ClearCache()
 	local fit = F.GearFit()
 	local better, lesser = { itemID = 82, kind = "loot" }, { itemID = 83, kind = "loot" }
@@ -111,6 +111,18 @@ do
 	F.ClearCache()
 	fit = F.GearFit()
 	check(fit({ itemID = 83, kind = "loot" }), "dual wielding: a mace better than your off-hand one is one")
+	-- (0.51.19, the player's ask) dual wielding: why against each hand it beats; one it doesn't beat isn't said
+	local function WhyText(e)
+		local t = {}
+		for _, l in ipairs(F.UpgradeWhy(e) or {}) do t[#t + 1] = l.text end
+		return table.concat(t, " | ")
+	end
+	local mid, best = { itemID = 83, kind = "loot" }, { itemID = 82, kind = "loot" }
+	fit(mid); fit(best)
+	check(WhyText(mid) == "Over Off Mace: | +1 Damage Per Second | +1 Strength",
+		"better than the off hand only: against it alone: " .. WhyText(mid))
+	check(WhyText(best) == "Over Off Mace: | +4 Damage Per Second | +2 Strength | Over Old Mace: | +2 Damage Per Second | +1 Strength",
+		"better than both: against each, the bigger gain first: " .. WhyText(best))
 
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
@@ -121,7 +133,7 @@ do
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID = save.invId
 	_G.INVTYPE_HEAD, _G.ITEM_MOD_STRENGTH_SHORT, _G.ITEM_MOD_STAMINA_SHORT, _G.ITEM_MOD_AGILITY_SHORT = save.head, save.str, save.sta, save.agi
-	_G.INVTYPE_WEAPON, _G.CanDualWield = save.weapon, save.dw
+	_G.INVTYPE_WEAPON, _G.CanDualWield, _G.ITEM_MOD_DAMAGE_PER_SECOND_SHORT = save.weapon, save.dw, save.dps
 	F.ClearCache()
 	UI:Hide(); FlushAll()
 end

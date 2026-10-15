@@ -105,7 +105,7 @@ function F.StatValue(stats, w) return F.KindsValue(F.StatKinds(stats), w) end
 --- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
 --- stats by kind (kinds[slot]; for "why" an upgrade is one, F.UpgradeWhy).
 local function WornGear(w)
-	local levels, values, kinds, locs = {}, {}, {}, {}
+	local levels, values, kinds, locs, names = {}, {}, {}, {}, {}
 	local link = _G.GetInventoryItemLink
 	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
@@ -119,6 +119,7 @@ local function WornGear(w)
 				lvl = info and info.ilvl
 			end
 			if type(lvl) == "number" then levels[slot] = lvl end
+			names[slot] = l:match("|h%[(.-)%]|h") -- (its name, for "why": over which of two it is)
 			-- (what kind it is: a shield or an off-hand item in the off hand isn't a weapon a one-hander replaces)
 			if (slot == 16 or slot == 17) and C_Item and C_Item.GetItemInfoInstant then
 				local okI, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, l)
@@ -142,7 +143,7 @@ local function WornGear(w)
 		if okId and mh then ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, mh) end
 		if ok and loc == "INVTYPE_2HWEAPON" then levels[17], values[17], kinds[17], values.twoHand = levels[16], values[16], kinds[16], true end
 	end
-	return levels, values, kinds, locs
+	return levels, values, kinds, locs, names
 end
 
 -- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
@@ -215,7 +216,7 @@ function F.GearFit()
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
 	local weights = F.MyWeights()
-	local worn, wornValue, wornKinds, wornLocs = WornGear(weights)
+	local worn, wornValue, wornKinds, wornLocs, wornNames = WornGear(weights)
 	-- a one-hander replaces a weapon: the main hand, and the off hand only when it holds one (dual wielding); a shield
 	-- or an off-hand item stays (0.51.17, the player: a mace was weighed against main hand and shield together)
 	local offWeapon = not (wornLocs[17] == "INVTYPE_SHIELD" or wornLocs[17] == "INVTYPE_HOLDABLE")
@@ -376,18 +377,39 @@ function F.GearFit()
 			end
 		end
 		local mine = F.KindsValue(f.kinds, weights)
+		local up, g
 		if mine and wVal and (mine > 0 or wVal > 0) then
 			if mine > wVal then
-				gains[e] = { gain = mine - wVal, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
-				return true
+				up, g = true, { gain = mine - wVal, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
 			end
-			return false
+		elseif ilvl > wLvl then
+			up, g = true, { gain = ilvl - wLvl, loc = loc, ilvl = ilvl, wLvl = wLvl, byLevel = true }
 		end
-		if ilvl > wLvl then
-			gains[e] = { gain = ilvl - wLvl, loc = loc, ilvl = ilvl, wLvl = wLvl, byLevel = true }
-			return true
+		if not up then return false end
+		-- two slots it could go in (dual wielding, rings, trinkets): against each piece it beats, by name; one it doesn't
+		-- beat isn't said (0.51.19, the player's ask); sorted by the bigger gain
+		if #slots > 1 and loc ~= "INVTYPE_2HWEAPON" then
+			local vs = {}
+			for _, slot in ipairs(slots) do
+				local v, l = wornValue[slot], worn[slot]
+				local one
+				if mine and v and (mine > 0 or v > 0) then
+					if mine > v then one = { gain = mine - v, kinds = f.kinds, worn = wornKinds[slot], ilvl = ilvl, wLvl = l } end
+				elseif l and ilvl > l then
+					one = { gain = ilvl - l, ilvl = ilvl, wLvl = l, byLevel = true }
+				end
+				if one then
+					one.loc, one.name = loc, wornNames[slot]
+					vs[#vs + 1] = one
+				end
+			end
+			if #vs > 0 then
+				table.sort(vs, function(a, b) return a.gain > b.gain end)
+				g.vs, g.gain = vs, vs[1].gain
+			end
 		end
-		return false
+		gains[e] = g
+		return true
 	end
 	return Fit
 end
@@ -426,6 +448,18 @@ function F.UpgradeWhy(e)
 end
 --- The lines for a gain (UpgradeWhy).
 function F.WhyLines(g)
+	if g.vs then -- (against each of two it could replace, each it beats: its own heading, then its lines)
+		local lines = {}
+		for _, one in ipairs(g.vs) do
+			local part = F.WhyLines(one)
+			if one.name then
+				local head = { text = L["Over %s:"]:format(one.name) }
+				if part[1] and part[1].good == nil then part[1] = head else table.insert(part, 1, head) end
+			end
+			for _, l in ipairs(part) do lines[#lines + 1] = l end
+		end
+		return lines
+	end
 	local slotName = _G[g.loc]
 	slotName = type(slotName) == "string" and not Secret(slotName) and slotName:lower() or g.loc
 	if g.empty then return { { text = L["nothing worn there (slot: %s)"]:format(slotName), good = true } } end

@@ -903,6 +903,7 @@ L["Other addons' settings: type what a setting is called (\"questie map icons\")
 L["Out of range"] = "Fuera de alcance"
 L["Out of range (the game's own range test, as the raid frames fade)"] = "Fuera de alcance (la prueba de alcance del propio juego, como cuando se atenúan los marcos de banda)"
 L["Outbid"] = "Puja superada"
+L["Over %s:"] = "Frente a %s:"
 L["Over what you wear (slot: %s):"] = "Frente a lo que llevas (ranura: %s):"
 L["P play/stop"] = "P reproducir/parar"
 L["Panel"] = "Ventana"

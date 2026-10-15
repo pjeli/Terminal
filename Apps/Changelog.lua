@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.51.18", when = "in testing",
+		v = "0.51.19", when = "in testing",
 		items = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
 			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
@@ -33,6 +33,7 @@ CL.LOG = {
 			"Upgrades from quests: \"quest upgrades\" (or \"quests with upgrades\") lists the quests near your level you can still take whose reward is an upgrade for you, the biggest first, with what each rewards and how far its giver is (with Questie). In Advanced mode: @questie is:upgrade sort:best.",
 			"An upgrade's tooltip lists each stat on its own line, gains in green first, then losses in red; a one-hander is weighed against your main hand (and your off-hand weapon when you dual-wield), never against a shield.",
 			"An NPC inside a dungeon says so on its row (\"in The Deadmines\"), and its distance, arrow and map pin point at the dungeon's entrance (it had no location at all); a quest whose giver is in a dungeon says so too.",
+			"Dual wielding (and rings, trinkets): an upgrade's tooltip compares it with each piece it beats, by name; one it doesn't beat isn't listed.",
 		},
 	},
 	{

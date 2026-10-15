@@ -898,6 +898,7 @@ L["Other addons' settings: type what a setting is called (\"questie map icons\")
 L["Out of range"] = true
 L["Out of range (the game's own range test, as the raid frames fade)"] = true
 L["Outbid"] = true
+L["Over %s:"] = true
 L["Over what you wear (slot: %s):"] = true
 L["P play/stop"] = true
 L["Panel"] = true
