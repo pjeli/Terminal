@@ -214,15 +214,14 @@ local function NpcLocation(id)
 	for _, zone in ipairs(zones) do
 		local spawns = spawnsByZone[zone]
 		c = type(spawns) == "table" and spawns[1]
-		if type(c) == "table" and c[1] and c[1] >= 0 then
-			local dl = QD.DungeonLocation(zone)
-			if type(dl) == "table" and dl[1] then
-				ui = not door and QD.UiMapOfArea(dl[1][1])
-				if ui then door = { ui, { x = dl[1][2] / 100, y = dl[1][3] / 100 } } end
-			else
-				ui = QD.UiMapOfArea(zone)
-				if ui then return ui, { x = c[1] / 100, y = c[2] / 100 } end
-			end
+		-- (a dungeon's: its entrance, whatever spot it has inside (Questie's { -1, -1 } for most); 0.51.18, the player's
+		-- ask: they had no location at all)
+		local doors = type(c) == "table" and I.Entrances and I.Entrances(zone)
+		if doors then
+			if not door then door = { doors[1][1], { x = doors[1][2][1] / 100, y = doors[1][2][2] / 100 } } end
+		elseif type(c) == "table" and c[1] and c[1] >= 0 then
+			ui = QD.UiMapOfArea(zone)
+			if ui then return ui, { x = c[1] / 100, y = c[2] / 100 } end
 		end
 	end
 	if door then return door[1], door[2], true end

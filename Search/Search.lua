@@ -496,6 +496,9 @@ end
 --- scored closest first.
 local function NearView(e, d)
 	local rest = rawget(e, "distNote") or (rawget(e, "wcont") and e.zone) or e.sub
+	-- (an NPC in a dungeon: how far its entrance is, and which dungeon; 0.51.18)
+	local inside = e.kind == "npc" and e.inDungeon
+	if inside then rest = (rest and (rest .. ns.DETAIL_SEP) or "") .. L["in %s"]:format(inside) end
 	return setmetatable({ detail = ("%.0f yd"):format(d) .. (rest and ("  " .. rest) or ""), _score = 1e6 - d, _dist = d,
 		nearRest = rest }, { __index = e })
 end

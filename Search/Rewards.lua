@@ -402,6 +402,12 @@ function QR.UpgradeAnswer()
 		local npcID = I.QuestGiver and I.QuestGiver(row.qid or rawget(row, "key"))
 		local d, w
 		if type(npcID) == "number" and here and I.NpcDistance then d, w = I.NpcDistance(npcID, here) end
+		-- (a giver in a dungeon: its entrance, the row saying which dungeon)
+		local inside = type(npcID) == "number" and I.NpcDungeon and I.NpcDungeon(npcID)
+		if inside then
+			rest = rest .. ns.DETAIL_SEP .. L["giver in %s"]:format(inside)
+			v.detail = rest
+		end
 		if d and w then
 			v.detail = ("%.0f yd"):format(d) .. "  " .. rest
 			v._dist, v.wcont, v.wx, v.wy, v.nearRest = d, w.cont, w.x, w.y, rest

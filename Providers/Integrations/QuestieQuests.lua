@@ -277,7 +277,13 @@ local function SetupQuestie()
 		secondary = TargetFallback,
 	}, {
 		npcID = function(t) return rawget(t, "key") end,
-		detail = function(t) return rawget(t, "sub") or (L["NPC"] .. "  #" .. t.npcID) end,
+		detail = function(t)
+			local d = rawget(t, "sub") or (L["NPC"] .. "  #" .. t.npcID)
+			local inside = I.NpcDungeon and I.NpcDungeon(t.npcID)
+			if inside then d = d .. ns.DETAIL_SEP .. L["in %s"]:format(inside) end -- (pointed at its entrance; 0.51.18)
+			return d
+		end,
+		inDungeon = function(t) return I.NpcDungeon and I.NpcDungeon(t.npcID) or false end,
 		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
 		-- (0.49.2, review: an NPC with no known spot pressed the map key, opening your own zone, then said Questie has no
 		-- location for it: now nothing is pressed and Enter only says so)

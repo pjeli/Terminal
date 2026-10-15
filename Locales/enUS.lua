@@ -1546,6 +1546,7 @@ L["game over"] = true
 L["gathered from"] = true
 L["get"] = true
 L["get %d"] = true
+L["giver in %s"] = true
 L["glove"] = true
 L["gloves"] = true
 L["gold due in about %s"] = true

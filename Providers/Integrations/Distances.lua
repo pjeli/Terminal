@@ -62,6 +62,52 @@ local function Spot(ui, c)
 	return cont and { cont = cont, x = x, y = y } or nil
 end
 
+-- An NPC inside a dungeon (0.51.18, the player's ask): Questie keeps its spawns under the dungeon's area, with no spot
+-- in the world (often { -1, -1 }); the dungeon's entrances stand for them: their spots are the NPC's for how far and
+-- which way, and its rows say which dungeon it's in. id -> the dungeon's name (false: it's out in the world too, or
+-- not in one).
+local npcDungeon, npcDungeonCount = {}, 0
+--- The entrances of a dungeon area as { ui, { x%, y% } } pairs, or nil when the area isn't a dungeon's.
+local function Entrances(area)
+	local dl = QD.DungeonLocation(area)
+	if type(dl) ~= "table" or not dl[1] then return nil end
+	local out = {}
+	for _, e in ipairs(dl) do
+		local ui = type(e) == "table" and QD.UiMapOfArea(e[1])
+		if ui and type(e[2]) == "number" and type(e[3]) == "number" then out[#out + 1] = { ui, { e[2], e[3] } } end
+	end
+	return #out > 0 and out or nil
+end
+I.Entrances = Entrances
+--- The dungeon an NPC is in (its name, in the client's language), or nil: one with a spawn out in the world isn't.
+function I.NpcDungeon(id)
+	local d = npcDungeon[id]
+	if d ~= nil then return d or nil end
+	d = false
+	local DB = QDB()
+	local spawns = DB and Safe(DB.QueryNPCSingle, id, "spawns")
+	if type(spawns) == "table" then
+		local name, world
+		for area, list in pairs(spawns) do
+			if type(list) == "table" and #list > 0 then
+				if Entrances(area) then
+					if not name then
+						local n = C_Map and C_Map.GetAreaInfo and Safe(C_Map.GetAreaInfo, area)
+						name = ns.Str(n)
+					end
+				else
+					world = true -- (out in the world too: its spot there)
+					break
+				end
+			end
+		end
+		d = (not world and name) or false
+	end
+	if npcDungeonCount >= 13000 then npcDungeon, npcDungeonCount = {}, 0 end
+	npcDungeon[id], npcDungeonCount = d, npcDungeonCount + 1
+	return d or nil
+end
+
 -- each NPC's spawns in world yards, worked out once: id -> flat { cont, x, y, cont, x, y... } (false: none)
 local npcSpots, npcSpotCount = {}, 0
 -- (forgotten all at once past this. 0.50.7, review: 6000 was under WoW Forever's 11.7k NPCs, so a broad "@npc
@@ -77,7 +123,17 @@ local function NpcSpots(id)
 	if type(spawns) == "table" then
 		for area, list in pairs(spawns) do
 			local ui = QD.UiMapOfArea(area)
-			if ui and type(list) == "table" then
+			local doors = type(list) == "table" and #list > 0 and Entrances(area)
+			if doors then
+				-- (in a dungeon: its entrances, as Questie's map shows it; 0.51.18)
+				for _, door in ipairs(doors) do
+					local cont, x, y = SpotXY(door[1], door[2])
+					if cont then
+						t = t or {}
+						t[#t + 1], t[#t + 2], t[#t + 3] = cont, x, y
+					end
+				end
+			elseif ui and type(list) == "table" then
 				for _, c in ipairs(list) do
 					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
 						local cont, x, y = SpotXY(ui, c)
@@ -227,5 +283,5 @@ end
 
 I._.Spot, I._.NearestSpawn = Spot, NearestSpawn
 -- (Places.lua's ResetPlacesForTests: the map transforms and NPC spots are forgotten with the places)
-I._.ResetDistances = function() xforms, npcSpots, npcSpotCount = {}, {}, 0 end
+I._.ResetDistances = function() xforms, npcSpots, npcSpotCount, npcDungeon, npcDungeonCount = {}, {}, 0, {}, 0 end
 I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own maps)
