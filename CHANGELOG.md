@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.52.0
+
+**Upgrades, the best first**
+- "upgrades" (Advanced mode: `@loot is:upgrade sort:best`) lists gear you can actually get that beats what you wear: about your level, from dungeons you can enter, never raid, profession, PvP or event loot, nor what's bound to one of your alts.
+- The biggest upgrades come first, and each one's tooltip says why: what it's weighed against, then a line per stat, gains in green and losses in red. Dual wielding, rings and trinkets: against each piece it beats, by name.
+- The list is the same each time you ask, and what Terminal learns of items is kept between sessions, so after a /reload upgrades and item colours are right from the first search.
+
+**Quest upgrades (with Questie)**
+- "quest upgrades" (or "quests with upgrades") lists the quests near your level you can still take whose reward is an upgrade for you, the biggest first, with what each rewards and how far its giver is, the arrow pointing the way (Advanced mode: `@questie is:upgrade sort:best`).
+
+**Lists that stay put**
+- When a list changes while you look at it (your bags as you loot, the loot log, mail, item data coming in), it no longer shifts under the cursor: the new list waits for F5, and the footer says so.
+- A row whose count changed (one more cloth in a stack) updates in place; a list that showed nothing takes the new rows at once.
+
+**.tour**
+- `.tour` shows Terminal in a few short steps: a card says what each step shows, the search is typed for you and the result it's about is highlighted. Enter goes on, Shift+Left goes back, Esc ends it.
+- It finds something from your bags and one of the game's settings, says what to do with a kind of thing you have ("use stamina food", "equip shield"), and shows what Questie, AtlasLoot and Attune add, or what installing them would.
+- On a fresh install, the empty prompt suggests it first.
+
+**Also**
+- An NPC inside a dungeon says which one on its row, and its distance, arrow and map pin point at the dungeon's entrance.
+- `.zen`'s dimming is adjustable: Options > Zen dimming (or `.set zenDim 0.4`).
+- `@xp` also lists the alts your bag addon knows of that Terminal hasn't seen yet, saying to log in on each once.
+- Fixes: items in a list no longer show white until you scroll past them; a Simple mode category lists everything its row counted; a command's choices of more than one word are picked whole; the Options panel fits its frame; Terminal Extras has its own icon in the AddOn list; and many smaller fixes from a review before release.
+
 ## 0.51.0
 
 **Your corpse and the nearest spirit healers**
