@@ -14,12 +14,19 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.51.5", when = "in testing",
+		v = "0.51.11", when = "in testing",
 		items = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
 			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
 			"A command's choices of more than one word are picked whole as you type them (one picked by its last word ran garbled).",
 			"Terminal Extras has its own icon in the AddOn list.",
+			"Experience (@xp, .xp): alts your bag addon knows of (Syndicator, BagBrother) that Terminal hasn't seen yet are listed too, saying to log in on them once.",
+			"Items in a list (loot, your things) no longer show white till you scroll past them: they're coloured as soon as the game sends them, however long it takes.",
+			"\"upgrades\" lists the same gear each time: Dungeon loot no longer said 18 and then listed 8, or changed as you stepped in and out.",
+			"\"upgrades\" only offers gear you can get: for about your level (needing at most 6 levels below yours), from dungeons you can enter (no raid, profession, PvP or event loot), and not what's bound to one of your alts; never shirts or tabards.",
+			"\"upgrades\" in Simple mode is as steady as @loot is:upgrade: no searching again while your alts' items load.",
+			"Your list stays put while a search runs again (a category picked, item data come in): anything new waits for F5, the footer saying so; items keep their colours.",
+			"A Simple mode category lists everything its row counted (Dungeon loot's 133 upgrades, not the first 100); when stepping in lists another number (item data came in meanwhile), the footer says so for a few seconds.",
 		},
 	},
 	{

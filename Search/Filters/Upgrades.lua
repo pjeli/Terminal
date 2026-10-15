@@ -4,7 +4,7 @@ local ns = select(2, ...)
 
 local F = ns.Filters
 local P = F._
-local ItemInfo, ItemOf, Stats, SLOTS = P.ItemInfo, F.ItemOf, P.Stats, F.SLOTS
+local ItemInfo, ItemOf, Stats, StatKey, SLOTS = P.ItemInfo, F.ItemOf, P.Stats, P.StatKey, F.SLOTS
 local MAIN_ONLY = { 16 } -- (a one-hander for a class that can't dual-wield)
 local Secret = ns.Secret
 
@@ -17,6 +17,11 @@ local Secret = ns.Secret
 -- a higher item level. Nothing worn there: within GEAR_EMPTY of your level. (0.41.28-0.43.7 only asked for an item
 -- level within 5 of your weakest piece: lots of "upgrades" that weren't.)
 F.GEAR_EMPTY, F.GEAR_ASK = 10, 40
+-- Only gear for about your level (0.51.8, the player: "upgrades" listed far too much, a level 30's old greens beaten by
+-- anything from Ragefire Chasm on): its required level at most GEAR_NEAR below yours (gear needing none: its item
+-- level). Shirts and tabards never: they have nothing to weigh, and an empty shirt slot took any.
+F.GEAR_NEAR = 6
+local NEVER = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 
 -- what a stat key is (ITEM_MOD_STRENGTH_SHORT -> "str"): the first part of the key that matches, in this order
 local STAT_KINDS = {
@@ -119,8 +124,18 @@ local function WornGear(w)
 	return levels, values
 end
 
---- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet wait (F.loading: searched
---- again).
+-- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
+-- by you, its weighed stats (nil: not weighed yet; false: none to weigh), the weights they were weighed with, how it
+-- binds (GetItemInfo's bindType) }. The
+-- client lets go of items it loaded a while ago (AtlasLoot's name pump asks for thousands): a row it no longer had was
+-- left out ("not loaded": a loot row) or asked for again, so the same search said 18 upgrades in Dungeon loot and
+-- then listed 8, and changed again with each step in and out. Read again whenever the client has the item (what you
+-- can use changes as you learn to wear mail); used as it was when it doesn't.
+local fit = {}
+F.ClearFit = function() fit = {} end
+F._fit = function() return fit end -- (tests)
+
+--- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet aren't, for now.
 function F.GearFit()
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
@@ -129,6 +144,7 @@ function F.GearFit()
 	local asked = 0 -- (items asked of the server by this filter: a few at a time, F.GEAR_ASK per search)
 	local instant = C_Item and C_Item.GetItemInfoInstant
 	local cached = C_Item and C_Item.IsItemDataCachedByID
+	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
 	return function(e)
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
@@ -138,34 +154,74 @@ function F.GearFit()
 			local ok, _, _, _, loc = pcall(instant, id)
 			if ok and type(loc) == "string" and not SLOTS[loc] then return false end
 		end
-		-- an item the client hasn't got: GetItemInfo would ask the server for it. AtlasLoot's thousands of items are
-		-- never asked from here (its own name pump does that, a batch at a time); others a few per search
-		if cached and not cached(id) then
-			if e.kind == "loot" or asked >= F.GEAR_ASK then return false end
-			asked = asked + 1
-			if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
-			F.loading = true
-			return false
+		-- only what you can get (0.51.9, the player: Naxxramas gear, engineers' trinkets and cosmetic helms for a level 30
+		-- warrior): AtlasLoot's dungeons you can enter (not raids, professions, PvP, factions, collections or events)
+		if e.kind == "loot" then
+			local place = LootPlace and LootPlace(e)
+			if place and (place.kind ~= "dungeon" or (me and place.enter and place.enter > me)) then return false end
 		end
-		local info = ItemInfo(id)
-		if not info then
-			F.loading = true
-			return false
+		local key = StatKey(e)
+		local f
+		local live = not (cached and not cached(id)) -- (the client has it: read now)
+		if not live then
+			-- an item the client hasn't got (or no longer has): as read when it had it
+			f = fit[key]
+			if not f then
+				-- never read: not one for now. AtlasLoot's thousands of items are never asked for from here (its own name
+				-- pump does that, a batch at a time); others a few per search, in the background: the search isn't run
+				-- again for them (0.51.9, the player: Simple mode's "upgrades", which looks at your alts' bags too, was
+				-- searched again every second or so while they came in, where "@loot is:upgrade" stood still; they're
+				-- in the next search)
+				if e.kind == "loot" or asked >= F.GEAR_ASK then return false end
+				asked = asked + 1
+				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+				return false
+			end
+		else
+			local info = ItemInfo(id)
+			if not info then
+				F.loading = true
+				return false
+			end
+			local loc = info.equipLoc or ""
+			if not SLOTS[loc] then return false end
+			f = fit[key]
+			if f and f[1] == loc then
+				f[2], f[3], f[7] = info.minLevel, info.ilvl, info.bindType
+			else
+				f = { loc, info.minLevel, info.ilvl, nil, nil, nil, info.bindType }
+				fit[key] = f
+			end
+			if f[6] ~= weights then f[5], f[6] = nil, nil end -- (stats weighed again below, when asked for)
 		end
-		local loc = info.equipLoc or ""
+		local loc = f[1]
+		if NEVER[loc] then return false end
+		-- one only other characters hold (your alts' bags, Syndicator): only if it can be sent you, not bound to them
+		-- (bound when picked up, a quest item)
+		if (f[7] == 1 or f[7] == 4) and type(e.holders) == "table" then
+			local yours = false
+			for _, h in pairs(e.holders) do if type(h) == "table" and h.mine then yours = true break end end
+			if not yours then return false end
+		end
 		local slots = SLOTS[loc]
-		if not slots then return false end
 		-- a one-hander goes in the main hand only for a class that can't dual-wield (0.50.7, review: an empty off hand made
 		-- every usable one-hander an upgrade for a mage, a priest)
 		if loc == "INVTYPE_WEAPON" and ns.Safe(_G.CanDualWield) == false then slots = MAIN_ONLY end
-		local need = type(info.minLevel) == "number" and info.minLevel or 0
+		local need = type(f[2]) == "number" and f[2] or 0
 		if me and need > me then return false end
-		-- (a kind you can't use: plate on a mage, another class's item)
-		if C_PlayerInfo and C_PlayerInfo.CanUseItem then
-			local ok, yes = pcall(C_PlayerInfo.CanUseItem, id)
-			if ok and yes == false then return false end
+		local ilvl = type(f[3]) == "number" and f[3] or 0
+		if me and (need > 1 and need or ilvl) < me - F.GEAR_NEAR then return false end -- (well below your level)
+		-- (a kind you can't use: plate on a mage, another class's item; asked whenever the client has the item, as you
+		-- may have learned to wear mail since; not asked yet: not one)
+		if live then
+			local can = true
+			if C_PlayerInfo and C_PlayerInfo.CanUseItem then
+				local ok, yes = pcall(C_PlayerInfo.CanUseItem, id)
+				if ok and yes == false then can = false end
+			end
+			f[4] = can
 		end
-		local ilvl = type(info.ilvl) == "number" and info.ilvl or 0
+		if not f[4] then return false end
 		-- what it would replace: the weaker of its slots (by worth when known, else item level)
 		local wLvl, wVal, empty
 		if loc == "INVTYPE_2HWEAPON" then
@@ -190,7 +246,12 @@ function F.GearFit()
 			end
 		end
 		if empty then return not me or ilvl >= me - F.GEAR_EMPTY end
-		local mine = F.StatValue(Stats(e), weights)
+		-- its stats weighed: once (the client has it: else they wait, and item levels decide meanwhile)
+		if f[6] == nil and live then
+			local st = Stats(e)
+			if st then f[5], f[6] = F.StatValue(st, weights) or false, weights end
+		end
+		local mine = f[6] == weights and f[5] or nil
 		if mine and wVal and (mine > 0 or wVal > 0) then return mine > wVal end
 		return ilvl > wLvl
 	end

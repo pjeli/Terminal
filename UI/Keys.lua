@@ -35,10 +35,11 @@ UI.PASS_ACTIONS = {
 	MINIMAPZOOMIN = true, MINIMAPZOOMOUT = true,
 }
 -- keys Terminal uses with Ctrl or Alt: always Terminal's (select all, the clipboard, the list's Ctrl+N/J/P/K, Ctrl+U/W,
--- words, Alt+`; Ctrl+Enter and Shift+Enter are its own too; F1 the keys window, whatever the game binds to it)
+-- words, Alt+`; Ctrl+Enter and Shift+Enter are its own too; F1 the keys window and F5 new results, whatever the game
+-- binds to them)
 local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = true, K = true, U = true, W = true,
 	["`"] = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, HOME = true, END = true, BACKSPACE = true,
-	DELETE = true, TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true, F1 = true }
+	DELETE = true, TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true, F1 = true, F5 = true }
 UI.HELP_KEY = "F1" -- (Apps/KeysWindow.lua: every key, per mode; .keybinds too)
 
 --- The key with the modifiers held, as the game names a binding ("CTRL-SPACE"), and the modifiers: alt, ctrl, shift, meta.
@@ -314,10 +315,12 @@ local function Cursor(text)
 end
 
 --- The keys Terminal does alike in the drawn prompt and the real text box (combat, the clipboard): F1 the keys window,
---- PageUp/Down a page, Ctrl+Home/End the first/last result, Ctrl+N/J and Ctrl+P/K a row, Ctrl+U deletes what's before
---- the cursor and Ctrl+W the word before it (as a shell does). True when the key was one of them.
+--- F5 the new results a background search held (else the search again), PageUp/Down a page, Ctrl+Home/End the
+--- first/last result, Ctrl+N/J and Ctrl+P/K a row, Ctrl+U deletes what's before the cursor and Ctrl+W the word before it
+--- (as a shell does). True when the key was one of them.
 local function ListKey(key, ctrl)
 	if key == UI.HELP_KEY then UI:KeysWindow()
+	elseif key == UI.UPDATE_KEY then UI:ShowNewResults()
 	elseif key == "PAGEUP" then UI:Move(-LY.ROWS)
 	elseif key == "PAGEDOWN" then UI:Move(LY.ROWS)
 	elseif not ctrl then return false

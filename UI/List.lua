@@ -119,6 +119,10 @@ do
 		-- (recipes you don't know listed, a profession's window that would list more not read yet: MissingRecipes.lua)
 		if self.missingNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.missingNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, L["loading..."]) end
+		-- (a search run again in the background found more: UI.held, shown on F5)
+		if self.held and self.mode == "search" then text = Append(text, HINT .. L["new results: F5 shows them"] .. "|r") end
+		-- (a category listing another number than its row counted: UI:NoteCountChange)
+		if self.countNote and self.mode == "search" then text = Append(text, HINT .. self.countNote.text .. "|r") end
 		-- (an addon the line reaches for that isn't installed: which one to add, on a line of its own; Setup.lua)
 		local I = ns.Integrations
 		local missing = self.mode == "search" and not self.bare and I and I.MissingHint and UI.edit and I.MissingHint(UI.edit:GetText()) or nil
@@ -357,6 +361,90 @@ local function EnterRow(r, animated, now, entering)
 	return entering
 end
 
+-- An item row drawn before the game had that item (its quality: the colour, read as it's drawn) came out white, and
+-- stayed so until it was drawn again (scrolled off and back; the player's screenshot of loot lists). Such an item is
+-- asked for, and the rows on screen are drawn again once it comes: on its GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT,
+-- and, as the server answers late while thousands of AtlasLoot items are asked for (0.51.7: an item given up on after
+-- 10 s, and never asked for again that session, stayed white), looked at every UI.COLOR_POLL s while the terminal is
+-- open; asked for again every UI.COLOR_REASK s, given up on after UI.COLOR_POLLS looks (drawn again: waited for anew).
+UI.COLOR_POLL, UI.COLOR_POLLS, UI.COLOR_REASK = 1, 60, 5
+local colorWait = { ids = {}, n = 0, asked = {}, queued = false, polling = false }
+UI.colorWait = colorWait -- (tests)
+local function ColorWaitDone()
+	for k in pairs(colorWait.ids) do colorWait.ids[k] = nil end
+	colorWait.n = 0
+	local f = colorWait.frame
+	if f then
+		pcall(f.UnregisterEvent, f, "GET_ITEM_INFO_RECEIVED")
+		pcall(f.UnregisterEvent, f, "ITEM_DATA_LOAD_RESULT")
+	end
+end
+local function RedrawSoon()
+	if colorWait.queued then return end
+	colorWait.queued = true
+	C_Timer.After(0.1, function()
+		colorWait.queued = false
+		if UI:IsShown() then UI:Render() end
+	end)
+end
+--- Whether the game has an item yet (no way to tell: as if it had).
+local function ItemCached(id)
+	local f = C_Item and C_Item.IsItemDataCachedByID
+	if not f then return true end
+	local ok, yes = pcall(f, id)
+	return not ok or yes ~= false
+end
+local function Came(id)
+	colorWait.ids[id] = nil
+	colorWait.n = colorWait.n - 1
+end
+local function Poll()
+	colorWait.polling = false
+	if colorWait.n <= 0 then return ColorWaitDone() end
+	local open, any = UI:IsShown(), false
+	for id, looks in pairs(colorWait.ids) do
+		if ItemCached(id) then Came(id); any = true
+		elseif not open or looks >= UI.COLOR_POLLS then Came(id)
+		else colorWait.ids[id] = looks + 1 end
+	end
+	if any then RedrawSoon() end
+	if colorWait.n <= 0 then return ColorWaitDone() end
+	colorWait.polling = true
+	C_Timer.After(UI.COLOR_POLL, Poll)
+end
+local function AwaitItem(id)
+	if not (C_Item and C_Item.RequestLoadItemDataByID) then return end
+	local now = GetTime()
+	local last = colorWait.asked[id]
+	if not last or now - last >= UI.COLOR_REASK then
+		colorWait.asked[id] = now
+		pcall(C_Item.RequestLoadItemDataByID, id)
+	end
+	if colorWait.ids[id] then return end
+	colorWait.ids[id] = 0
+	colorWait.n = colorWait.n + 1
+	local f = colorWait.frame
+	if not f then
+		f = CreateFrame("Frame")
+		colorWait.frame = f
+		f:SetScript("OnEvent", function(_, _, itemID)
+			itemID = tonumber(itemID)
+			if not (itemID and colorWait.ids[itemID]) then return end
+			Came(itemID)
+			if colorWait.n <= 0 then ColorWaitDone() end
+			RedrawSoon()
+		end)
+	end
+	if colorWait.n == 1 then
+		pcall(f.RegisterEvent, f, "GET_ITEM_INFO_RECEIVED")
+		pcall(f.RegisterEvent, f, "ITEM_DATA_LOAD_RESULT")
+	end
+	if not colorWait.polling then
+		colorWait.polling = true
+		C_Timer.After(UI.COLOR_POLL, Poll)
+	end
+end
+
 --- A row's text: its name with the matched letters, the icon, the detail (or what it's needed for), the kind.
 local function FillRow(self, r, e, light)
 	r:Show()
@@ -364,6 +452,10 @@ local function FillRow(self, r, e, light)
 		r.label:SetText(Theme.FixColors(e.name))
 	else
 		local base = e.color
+		if base == nil then -- (an item the game hasn't sent yet: no colour to draw till it comes)
+			local id = tonumber(e.itemID)
+			if id and not ItemCached(id) then AwaitItem(id) end
+		end
 		if light and base == "|cffffffff" then base = nil end -- white item names vanish on light themes
 		if e._pos == nil then e._pos = UI.Positions(e, self.posTokens) end -- only for rows on screen
 		local text = Fuzzy.Colorize(e.name, e._pos, base)

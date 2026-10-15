@@ -2,6 +2,7 @@
 -- from Terminal's own note of them, their rested filling while away.
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
+local L = ns.L
 
 io.write("[experience]\n")
 do
@@ -53,6 +54,28 @@ do
 	check(mage and mage.rested == 7500, "another realm says so; rested caps at a level and a half: " .. tostring(mage and mage.rested))
 	check(by["Maxed Rogue"].detail:find("Lv 60 (max)", 1, true), "max level says so")
 	check(#UI:Search("@xp lvl:30-50") == 1, "lvl: works on them")
+
+	-- alts your bag addon knows of (as @stored reads them) with no note yet: listed, last, saying to log in on them once;
+	-- one noted already (by its first name and realm: the bag addons keep the first name) not twice
+	local G = ns.Gold
+	local saveAlts = G.Alts
+	G.Alts = function()
+		return { { who = "Alt", class = "PALADIN" }, { who = "Bank Toon", class = "WARRIOR" }, { who = "Old-Other", class = "MAGE" },
+			{ who = "Far Toon-Other", class = "PRIEST" } }
+	end
+	P._dirty = true
+	res = UI:Search("@xp")
+	local names = {}
+	for _, e in ipairs(res) do names[#names + 1] = e.who end
+	check(#res == 6 and res[5].who == "Bank Toon" and res[5].unknown and res[6].who == "Far Toon-Other",
+		"alts known only from the bag addon: last, each once: " .. table.concat(names, ", "))
+	check(res[5].detail:find(L["not noted yet: log in on it once"], 1, true), "...saying to log in on it once: " .. res[5].detail)
+	check(#UI:Search("@xp lvl:30-50") == 1, "...and no level to filter by: not in lvl:")
+	local lines = table.concat(ns:FindCommand("xp").run(""), "\n")
+	check(lines:find("Bank Toon:  " .. L["experience not noted yet (log in on it once)"], 1, true) and not lines:find("Alts show up", 1, true),
+		".xp lists them too: " .. lines)
+	G.Alts = saveAlts
+	P._dirty = true
 
 	-- the note follows you: an experience change rewrites it; logging out keeps where the estimate starts
 	xp, resting = 9000, true

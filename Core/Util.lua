@@ -91,6 +91,21 @@ function ns.FrameTexts(f)
 end
 
 --- The colour code of an item quality ("|cffa335ee"), or nil.
+-- An item's quality, kept for the session once the game has said it (0.51.9, the player: rows went white again after
+-- F5): the game lets go of items it loaded a while ago, and asked again for one it no longer has it says nothing.
+local qualityOf = {}
+function ns.ItemQuality(id)
+	if type(id) ~= "number" then return nil end
+	local get = C_Item and C_Item.GetItemQualityByID
+	local q = get and ns.Safe(get, id)
+	if type(q) == "number" and not ns.Secret(q) then qualityOf[id] = q return q end
+	return qualityOf[id]
+end
+--- What the game said of an item's quality elsewhere (GetItemInfo), kept as ns.ItemQuality keeps it.
+function ns.NoteQuality(id, q)
+	if type(id) == "number" and type(q) == "number" and not ns.Secret(q) then qualityOf[id] = q end
+end
+
 function ns.QualityHex(q)
 	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
 	return c and c.hex

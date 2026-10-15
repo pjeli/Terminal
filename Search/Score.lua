@@ -10,6 +10,9 @@ local Fuzzy = ns.Fuzzy
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
 local TEXT_SCORE = 1.0 -- score given to a match found in an entry's secondary text
 local MAX_RESULTS = 100 -- rows a search keeps
+-- rows a Simple mode category keeps (Dungeon loot): all its row said it had, not the best 100 (0.51.7, the player:
+-- "upgrades" said 133 in Dungeon loot, and listed 100 there)
+local LIST_MAX = 1000
 
 ----------------------------------------------------------------------
 -- Scoring
@@ -326,7 +329,7 @@ local function SortAndTrim(list, limit, overBudget)
 end
 
 ns.Score = {
-	NO_POS = NO_POS, TEXT_SCORE = TEXT_SCORE, MAX_RESULTS = MAX_RESULTS,
+	NO_POS = NO_POS, TEXT_SCORE = TEXT_SCORE, MAX_RESULTS = MAX_RESULTS, LIST_MAX = LIST_MAX,
 	FreqBonus = FreqBonus, ScoreEntry = ScoreEntry, TokenScore = TokenScore, RowText = RowText,
 	NearLimit = NearLimit, NearWord = NearWord, Positions = Positions, Better = Better, SortAndTrim = SortAndTrim,
 }

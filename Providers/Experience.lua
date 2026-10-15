@@ -6,7 +6,8 @@ local L = ns.L
 -- Terminal keeps its own note per character (db.xpChars, by GUID): an alt shows up once you've logged in on it with
 -- Terminal. An alt's rested experience is worked out from that note: it keeps filling while you're away, as the game
 -- fills it (5% of a level per 8 hours resting in an inn or city, a quarter of that elsewhere, up to a level and a
--- half), marked "~" as the estimate it is.
+-- half), marked "~" as the estimate it is. Alts your bag addon knows of (Syndicator, BagBrother: as @stored and the
+-- gold list read them) that Terminal has no note of yet are listed too, saying to log in on them once.
 --
 --   Enter        every character's experience in chat (only you see it)
 --   Shift+Enter  the row in the chat box ("Plamen Warr: level 23, 41% (rested 57%)"), to send
@@ -110,6 +111,7 @@ local list -- (the last collect's rows: Enter lists them all)
 
 --- "level 23, 41% (rested 57%)", "level 60 (max)": what's sent and printed; `short`: the row's own ("Lv 23, 41%...").
 local function Summary(e, plain, short)
+	if e.unknown then return short and L["not noted yet: log in on it once"] or L["experience not noted yet (log in on it once)"] end
 	if e.maxed then return (short and L["Lv %d (max)"] or L["level %d (max)"]):format(e.level) end
 	local s = (short and L["Lv %d"] or L["level %d"]):format(e.level)
 	if e.xpMax then s = s .. (", %d%%"):format(Pct(e.xp or 0, e.xpMax)) end
@@ -126,7 +128,7 @@ local function Lines()
 	local out = {}
 	for _, e in ipairs(list or {}) do
 		out[#out + 1] = "  " .. (e.color or "") .. e.who .. (e.color and "|r" or "") .. (e.mine and (" " .. L["(you)"]) or "")
-			.. ":  " .. Summary(e) .. ((not e.mine) and ("  |cff9d9d9d(" .. Ago(e.seen) .. ")|r") or "")
+			.. ":  " .. Summary(e) .. ((not e.mine and e.seen) and ("  |cff9d9d9d(" .. Ago(e.seen) .. ")|r") or "")
 	end
 	return out
 end
@@ -137,6 +139,11 @@ local CHATBOX = ns.ChatBoxSpec(ShareText)
 
 local function Tooltip(e, t)
 	t:SetText(e.who, 1, 0.82, 0)
+	if e.unknown then
+		t:AddLine(L["Terminal hasn't seen this character's experience yet: log in on it once and it's noted."], 1, 1, 1, true)
+		t:AddLine(L["(Known from your bag addon's records.)"], 0.6, 0.6, 0.6, true)
+		return
+	end
 	t:AddLine(L["Level %d"]:format(e.level), 1, 1, 1)
 	if e.maxed then
 		t:AddLine(L["Max level"], 0.6, 0.6, 0.6)
@@ -174,6 +181,36 @@ local function Row(key, c, mine, myRealm, now)
 	return e
 end
 
+--- A name as "first word" and realm: "Plamen Warr" on Forever and "Plamen-Forever" alike are "plamen", "forever" (the
+--- bag addons keep the first name, Terminal's note the name with its surname).
+local function Who(name, realm)
+	name = ns.Lower(tostring(name or ""))
+	local base, r = name:match("^(.-)%-(.+)$")
+	if base then name, realm = base, r end
+	return (name:match("^(%S+)") or name), ns.Lower(tostring(realm or ""))
+end
+
+--- The bag addon's alts with no note of their experience (ns.Gold.Alts): { { who, class } }.
+function X.Unnoted(chars, myKey, myRealm)
+	local G = ns.Gold
+	local ok, alts = pcall(function() return G and G.Alts and G.Alts() end)
+	if not ok or type(alts) ~= "table" then return {} end
+	local noted = {}
+	for key, c in pairs(chars or {}) do
+		if type(c) == "table" and c.name then
+			local n, r = Who(c.name, c.realm or myRealm)
+			noted[n .. "|" .. r] = true
+		end
+	end
+	local out = {}
+	for _, a in ipairs(alts) do
+		local n, r = Who(a.who, myRealm)
+		if a.who and not noted[n .. "|" .. r] then out[#out + 1] = a end
+	end
+	table.sort(out, function(x, y) return x.who < y.who end)
+	return out
+end
+
 function X.Collect()
 	local chars = Chars() or {}
 	local myKey = MyKey()
@@ -197,6 +234,15 @@ function X.Collect()
 		return a.who < b.who
 	end)
 	for _, e in ipairs(alts) do rows[#rows + 1] = e end
+	-- alts the bag addon knows of with no note yet: listed, last, saying to log in on them once
+	for _, a in ipairs(X.Unnoted(chars, myKey, myRealm)) do
+		rows[#rows + 1] = {
+			key = "stored:" .. a.who, name = a.who, who = a.who, unknown = true, color = ns.ClassHex(a.class), icon = ICON_ALT,
+			detail = "|cff9d9d9d" .. Summary({ unknown = true }, false, true) .. "|r",
+			text = "experience exp xp level alt alts character", tooltip = Tooltip, activate = PrintAll,
+			secondary = ToChatBox, secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, shareLink = ShareText,
+		}
+	end
 	local n = #rows
 	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
 	list = rows
@@ -241,7 +287,9 @@ ns:RegisterCommand("xp", {
 		end
 		X.Collect()
 		local lines = Lines()
-		if #lines <= 1 then
+		local anyAlt = false
+		for _, e in ipairs(list or {}) do if not e.mine then anyAlt = true end end
+		if not anyAlt then
 			lines[#lines + 1] = "  " .. L["(Alts show up here once you've logged in on them with Terminal.)"]
 		end
 		table.insert(lines, 1, L["Experience:"])

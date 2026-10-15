@@ -48,6 +48,7 @@ local function ItemInfo(id)
 			classID = type(classID) == "number" and classID or nil, subID = type(subID) == "number" and subID or nil,
 			bindType = type(bindType) == "number" and bindType or nil }
 		if type(id) ~= "number" then return c end
+		ns.NoteQuality(id, quality) -- (its colour, should the game let go of it: Util.lua)
 	end
 	-- (Keep, written out: this runs for every row of every item filter, and past the caps on every keystroke)
 	local n = infos.n
@@ -131,15 +132,21 @@ P.ItemInfo = ItemInfo
 
 local stats = Generations(CACHE_MAX)
 local statNames = {} -- stat key (ITEM_MOD_STAMINA_SHORT) -> { its shown name, lowercase (false: none); the key, lowercase }
---- An item's stats (the game's: { ITEM_MOD_STAMINA_SHORT = 7, ... }), or nil until known.
-local function Stats(e)
+--- The key an item row's stats are kept under (and its own link, if it has one): the item id, or with a row's own link
+--- with a random suffix, "of the Monkey", the id and the suffix (that copy's stats; under the id alone every copy got
+--- the first one read, an AtlasLoot base link's had none; 0.49.2, review). nil: not an item.
+local function StatKey(e)
 	local id = ItemOf(e)
 	if not id then return nil end
 	local own = e.itemID and type(e.link) == "string" and e.link:find("|H", 1, true) and e.link
-	-- (a row's own link with a random suffix, "of the Monkey": its stats are that copy's, kept under the id and the
-	-- suffix; under the id alone every copy got the first one read, an AtlasLoot base link's had none; 0.49.2, review)
 	local suffix = own and own:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
-	local key = (suffix and suffix ~= "0") and (id .. ":" .. suffix) or id
+	return (suffix and suffix ~= "0") and (id .. ":" .. suffix) or id, id, own
+end
+P.StatKey = StatKey
+--- An item's stats (the game's: { ITEM_MOD_STAMINA_SHORT = 7, ... }), or nil until known.
+local function Stats(e)
+	local key, id, own = StatKey(e)
+	if not key then return nil end
 	local c = stats.new[key]
 	if c then return c end
 	c = stats.old[key]
@@ -149,10 +156,19 @@ local function Stats(e)
 	local link = own or (info and info.link) or ("item:" .. id)
 	if not (get and info) then return nil end -- (not known to the client yet: asked again next time)
 	local ok, t = pcall(get, link)
-	t = ok and type(t) == "table" and t or {}
+	if not (ok and type(t) == "table") then
+		-- no stats: the item has none only when the client has it; else they're still coming (0.51.7: kept as none,
+		-- is:upgrade judged it by item level alone until the cache moved on, then by its stats: counts that changed)
+		local cached = C_Item and C_Item.IsItemDataCachedByID
+		if cached and type(id) == "number" then
+			local okC, yes = pcall(cached, id)
+			if okC and yes == false then return nil end
+		end
+		t = {}
+	end
 	return Keep(stats, key, t)
 end
-F.ClearStats = function() Forget(stats); statNames = {} end
+F.ClearStats = function() Forget(stats); statNames = {}; if F.ClearFit then F.ClearFit() end end
 P.Stats = Stats
 
 -- short names for stats -> part of the game's stat key

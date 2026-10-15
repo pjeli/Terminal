@@ -35,6 +35,7 @@ K.LINES = {
 	{ "PgUp / PgDn", L["a page up / down"] },
 	{ "Ctrl+Home / End", L["the first / last result"] },
 	{ "Ctrl+N / Ctrl+P", L["the next / previous result (Ctrl+J / Ctrl+K too)"] },
+	{ "F5", L["put up the new results a search found as item data came in"] },
 	{ L["mouse wheel"], L["scroll the results; pointing at a row selects it"] },
 
 	{ L["Act on the selected result"] },

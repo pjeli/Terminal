@@ -9,7 +9,8 @@ local AddOnVersion = I._.AddOnVersion
 -- AtlasLoot
 ----------------------------------------------------------------------
 
-local loot = { rows = {}, byKey = {}, pending = {}, unnamed = {}, failed = {}, modules = 0, loaded = 0, on = false }
+local loot = { rows = {}, byKey = {}, pending = {}, unnamed = {}, failed = {}, modules = 0, loaded = 0, on = false,
+	places = {} } -- (places[addon][content]: what kind of place it is, the level to enter it; I.LootPlace)
 I.loot = loot
 
 local function AL() return _G.AtlasLoot end
@@ -53,7 +54,7 @@ end
 -- The index is kept between sessions (db.lootCache), so a /reload doesn't load every loot module
 -- again: rows come from the cache at once and a module is loaded only to open its window. It is
 -- rebuilt when AtlasLoot, a module, the game version or this format changes (CacheKey).
-local CACHE_FORMAT = 2 -- (2: indexed for the window's game version, I.WindowVersion)
+local CACHE_FORMAT = 3 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level)
 
 --- One loot row (compact: shared fields come from loot.meta); its name is filled in once the
 --- server has sent it. page: the page the item is on (AtlasLoot shows 100 positions per page).
@@ -98,6 +99,39 @@ function I.WindowVersion(A, storage)
 	return Safe(storage.GetAviableGameVersion, storage, game)
 end
 
+-- What kind of place a loot table is (0.51.9, the player: "upgrades" offered a level 30 warrior Naxxramas gear,
+-- engineers' trinkets and cosmetic helms): "dungeon" (AtlasLoot's Dungeons and WoW Forever's own), "raid", or "other"
+-- (professions, PvP, factions, collections, world events...), by the name of its AtlasLoot content type; and the level
+-- it can be entered at (its LevelRange's first number).
+local DUNGEON_TYPES, RAID_TYPES = { "Dungeons", "Forever Dungeons" }, { "20 Raids", "40 Raids", "Forever Raids", "Raids" }
+function I.PlaceKind(A, c)
+	local name = Safe(c.GetContentType, c)
+	local enter = type(c.LevelRange) == "table" and tonumber(c.LevelRange[1]) or nil
+	if type(name) ~= "string" then return "other", enter end
+	local AL = A.Locales
+	local function Is(list)
+		for _, w in ipairs(list) do
+			if name == w then return true end
+			local ok, v = pcall(function() return AL[w] end) -- (its own language's name; a missing one may be the word itself)
+			if ok and name == v then return true end
+		end
+	end
+	if Is(DUNGEON_TYPES) then return "dungeon", enter end
+	if Is(RAID_TYPES) then return "raid", enter end
+	return "other", enter
+end
+function I.NotePlace(addon, content, kind, enter)
+	if content == nil then return end
+	local t = loot.places[addon]
+	if not t then t = {}; loot.places[addon] = t end
+	t[content] = { kind = kind or "other", enter = tonumber(enter) }
+end
+--- A loot row's place: { kind = "dungeon" / "raid" / "other", enter = level } (nil: not known, an index from before 0.51.9).
+function I.LootPlace(e)
+	local t = loot.places[e.addon]
+	return t and t[e.content] or nil
+end
+
 --- Rows for one loaded loot module: one per item and instance (the first boss and
 --- difficulty it drops on), kept apart from names, which arrive from the server over time.
 --- groups: the cache being built, one entry per boss table ({ addon, content, boss, inst,
@@ -116,6 +150,8 @@ local function IndexModule(addon, storage, groups)
 		if type(c) == "table" and type(c.items) == "table"
 			and (not version or c.gameVersion == nil or c.gameVersion == 0 or c.gameVersion == version) then
 			local inst = Safe(c.GetName, c, true)
+			local kind, enter = I.PlaceKind(A, c)
+			I.NotePlace(addon, content, kind, enter)
 			if type(inst) ~= "string" then inst = tostring(content) end
 			for boss = 1, #c.items do
 				local bossName = Safe(c.GetNameForItemTable, c, boss, true)
@@ -144,7 +180,7 @@ local function IndexModule(addon, storage, groups)
 					end
 				end
 				if groups and #packed > 0 then
-					groups[#groups + 1] = { addon, content, boss, inst, bossName, table.concat(packed, " ") }
+					groups[#groups + 1] = { addon, content, boss, inst, bossName, table.concat(packed, " "), kind, enter }
 				end
 			end
 		end
@@ -170,6 +206,7 @@ local function FromCache(key)
 	for _, g in ipairs(c.groups) do
 		local addon, content, boss, inst, bossName, packed = g[1], g[2], g[3], g[4], g[5], g[6]
 		if type(addon) == "string" and type(packed) == "string" then
+			I.NotePlace(addon, content, g[7], g[8])
 			local detail, ltext = GroupText(tostring(inst), tostring(bossName))
 			for id, diff, page in packed:gmatch("(%d+)%.(%d+)%.(%d+)") do
 				AddRow(addon, content, boss, tonumber(diff), tonumber(page), tonumber(id), detail, ltext)
@@ -428,8 +465,7 @@ local function SetupAtlasLoot()
 		link = function(t) return "item:" .. t.itemID end,
 		-- (read when drawn: its quality's colour, as bag items show; nothing kept on the row)
 		color = function(t)
-			local q = C_Item.GetItemQualityByID and ns.Safe(C_Item.GetItemQualityByID, t.itemID)
-			return ns.QualityHex(q)
+			return ns.QualityHex(ns.ItemQuality(t.itemID)) -- (as said once: the game may have let go of it since)
 		end,
 	})
 	-- the saved index is read at once; building it again (AtlasLoot changed) waits 8 s (LoadLootModules)

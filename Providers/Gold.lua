@@ -190,6 +190,24 @@ local function Row(h)
 	return e
 end
 
+--- Your other characters as the bag addon in use records them (Syndicator's or BagBrother's, as @stored and the gold
+--- list read them: their realms, their faction, those shown): { { who, class } }, "Name" or "Name-Realm" off your
+--- realm. Empty without one, or while it's loading.
+function G.Alts()
+	local out = {}
+	local function add(h) if h.kind == "alt" then out[#out + 1] = { who = h.who, class = h.class } end end
+	local St = ns.Stored
+	local src = St and St.Source()
+	if src == "Syndicator" then
+		local A = St.SyndicatorAPI()
+		if A and St.SyndicatorReady(A) then pcall(ReadSyndicator, A, add, 0) end
+	elseif src == "BagBrother" then
+		local bb = St.BrotherBags()
+		if bb then pcall(ReadBrother, bb, add) end
+	end
+	return out
+end
+
 function G.Collect()
 	local holders = {}
 	local function add(h) holders[#holders + 1] = h end

@@ -107,24 +107,91 @@ function UI:GroupedRows()
 	return ns.Share.GroupRows(self.groupList or UI.results)
 end
 
--- a search done: its full results replace the early ones; the selected result stays selected if it's still there,
--- and the list stays where you scrolled it
-local function Completed(self, job, final)
+--- The same row, or the same row made again (kind, key and name).
+local function SameRow(e, keep) return e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key) end
+
+--- Rows put up in place of the shown ones, the selected row kept selected where it was on screen (if it's there).
+local function PutUp(list)
 	local keep = (UI.sel > 1 or UI.offset > 0) and UI.results[UI.sel] or nil
 	local keptRow = UI.sel - UI.offset
-	UI.results = self:CollapseGroup(final)
+	UI.results = list
 	UI.sel, UI.offset = 1, 0
 	if keep then
 		for i, e in ipairs(UI.results) do
-			if e == keep then
+			if SameRow(e, keep) then
 				UI.sel = i
 				UI.offset = math.max(0, math.min(i - keptRow, #UI.results - LY.ROWS))
 				break
 			end
 		end
 	end
+end
+
+-- A search run again because item data came in (UI:RetryWhenLoaded) runs in the background: the list shown stays as
+-- it is, and what it found waits (UI.held) for F5 (UI.UPDATE_KEY), the footer saying so; unless nothing was shown but
+-- "keep typing" lines (0.51.8, the player: "just generate a result list and stick with it; let the updating happen in
+-- the background or on a key press rather than while I am searching").
+UI.UPDATE_KEY = "F5"
+local function Real(list)
+	for i = 1, #list do if not list[i].noActivate then return true end end
+	return false
+end
+--- The new rows held instead of shown (true), or nil: there was nothing real to keep, so they're shown.
+local function Hold(self, shown, new)
+	if not Real(shown) then return nil end
+	local same = #shown == #new
+	if same then
+		for i = 1, #new do if not SameRow(new[i], shown[i]) then same = false break end end
+	end
+	self.held = (not same) and new or nil
+	self:SetStatus()
+	return true
+end
+
+-- A category stepped into from the list of categories, listing another number than its row counted (0.51.11, the
+-- player: "Dungeon loot" said 100+ upgrades and listed a steady 52, item data having come in meanwhile): the footer
+-- says the list was updated as you stepped in, for UI.COUNT_NOTE_S s.
+UI.COUNT_NOTE_S = 6
+function UI:NoteCountChange()
+	local want = self.expectCount
+	if not want or self.searchJob then return end
+	self.expectCount = nil
+	if want.cat ~= self.category then return end
+	local n = 0
+	for _, e in ipairs(UI.results) do if not e.noActivate and not e.lead then n = n + 1 end end
+	if n == want.n or n >= ns.Score.LIST_MAX then return end
+	local note = { text = L["updated as you stepped in: %d counted a moment ago"]:format(want.n) }
+	self.countNote = note
+	C_Timer.After(UI.COUNT_NOTE_S, function()
+		if self.countNote == note then self.countNote = nil; self:SetStatus() end
+	end)
+end
+
+--- F5: the results a background search held put up (nothing held: nothing changes).
+function UI:ShowNewResults()
+	local held = self.held
+	self.held = nil
+	if not held then return end -- (nothing new: the list stays as it is)
+	PutUp(held)
+	self:SelectPopTarget(true)
+	self:SetStatus()
+	self:Render()
+end
+
+-- a search done: its full results replace the early ones; the selected result stays selected if it's still there,
+-- and the list stays where you scrolled it
+-- (the same row made again counts: kind, key and name, as Refresh has it; 0.51.7: a category row, made anew by every
+-- search, lost the selection to the top row whenever item data came in)
+local function Completed(self, job, final)
+	final = self:CollapseGroup(final)
+	if job.quiet and Hold(self, UI.results, final) then -- (run in the background: held for F5)
+		self:UpdateBusy()
+		return
+	end
+	PutUp(final)
 	self.lastSearchMs, self.lastSearchCount, self.lastSearchSlices = job.ms, #UI.results, job.slices
 	self:SelectPopTarget(true)
+	self:NoteCountChange()
 	self:UpdateBusy()
 	self:Render()
 end
@@ -335,7 +402,28 @@ function UI:Refresh()
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
 	text = TakeSendTo(self, text, first)
+	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,
+	-- not its first frame's best put up meanwhile (0.51.7, the player: "upgrades" jumped about and back to the top
+	-- every couple of seconds while the items loaded)
+	local quiet = same and self.quietRedo
+	self.quietRedo = nil
+	if not quiet then self.held = nil end -- (a search of its own: whatever a background one held is stale)
+	if not same then self.countNote, self.expectCount = nil, nil end -- (typed on: the note was about another list)
+	local shown = UI.results
 	ListFor(self, text, first, edit)
+	-- (the same text searched again otherwise, a category picked: the list shown stays till the search is done, not its
+	-- first frame's best put up meanwhile)
+	if same and not quiet and self.searchJob and Real(shown) then UI.results = shown end
+	if quiet then
+		if self.searchJob then
+			self.searchJob.quiet = true -- (Completed holds what it finds)
+			UI.results = shown
+		elseif Hold(self, shown, UI.results) then
+			UI.results = shown
+			self:UpdateBusy()
+			return
+		end
+	end
 	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
 	self.lastSearchCount = #UI.results
 	self.lastSearchSlices = 1
@@ -353,6 +441,7 @@ function UI:Refresh()
 		end
 	end
 	self:SelectPopTarget(not self.searchJob)
+	self:NoteCountChange()
 	self:Render()
 end
 
@@ -548,6 +637,11 @@ end
 function UI:SetCategory(id)
 	if id ~= nil and not (ns.Easy and ns.Easy.BY_ID[id]) then return end
 	if id ~= nil then id = ns.Easy.BY_ID[id].id end
+	-- what its row in the list of categories counted, to say so if stepping in lists another number (NoteCountChange)
+	self.expectCount, self.countNote = nil, nil
+	for _, e in ipairs(id and UI.results or {}) do
+		if e.catId == id and e.countExact and type(e.count) == "number" then self.expectCount = { cat = id, n = e.count } break end
+	end
 	self.category, self.categoryAuto = id, nil
 	self.lastScan, self.lastOverview = nil, nil -- (other kinds: not a narrowing of the last search)
 	if self:IsShown() then self:Research() end

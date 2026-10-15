@@ -313,6 +313,7 @@ function UI:RetryWhenLoaded(text)
 		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(text, r.tries))
 		self.lastScan, self.lastOverview = nil, nil
 		self.refreshedAt, self.searchedText = nil, nil
+		self.quietRedo = true -- (the list stays as it is till this search is done: UI:Refresh)
 		self:Refresh()
 	end)
 end
@@ -1291,7 +1292,9 @@ end
 function Scan.Finalize(self, q, out)
 	local text, kinds, tokens, empty, filters, act, overBudget = q.text, q.kinds, q.tokens, q.empty, q.filters, q.act, q.overBudget
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
-	local res = SortAndTrim(out, nil, overBudget)
+	-- (a Simple mode category: every match its row counted, up to Score.LIST_MAX; not "nearest", measured for the
+	-- closest MAX_RESULTS only)
+	local res = SortAndTrim(out, (q.easyCat and not q.here) and Score.LIST_MAX or nil, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
 	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
 	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
@@ -1490,8 +1493,9 @@ local function KindsNote(c, counts)
 end
 
 --- The overview's row for a category: its best match and how many more (Enter or a click picks it), and what it holds.
-local function CategoryRow(c, best, bestScore, count, counts)
+local function CategoryRow(c, best, bestScore, count, counts, hinted)
 	return {
+		count = count, countExact = not hinted or nil, -- (what stepping in should list: UI:SetCategory, UI:NoteCountChange)
 		name = c.label, catId = c.id, kind = "category", icon = c.icon or QUESTION_MARK, kindLabel = "",
 		detail = tostring(best) .. (count > 1 and ("  " .. L["+%d more"]:format(count - 1)) or ""),
 		labelNote = KindsNote(c, counts),
@@ -1556,6 +1560,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 		local exact = want and not relaxed and not empty
 		for _, c in ipairs(ns.Easy.Visible()) do
 			local count, best, bestScore = 0, nil, nil
+			local hinted -- (counted by a list's name lookup, Questie's: not what its own search lists, row for row)
 			local counts = {} -- (matches per list: what the row says the category holds)
 			local logged = 0 -- (quests from your log whose names Questie's lookup counts too: one quest, not two)
 			for _, id in ipairs(c.kinds) do
@@ -1564,6 +1569,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 					if #nameWords > 0 and not hardOther and not relaxed then
 						local first, n, ids = p.hintFind(p, nameWords, tick)
 						if first and (n or 0) > 0 then
+							hinted = true
 							if id == "questie" then n = math.max(0, n - logged) end
 							count = count + n
 							counts[id] = (counts[id] or 0) + n
@@ -1620,7 +1626,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 					end
 				end
 			end
-			if count > 0 then out[#out + 1] = CategoryRow(c, best, bestScore, count, counts) end
+			if count > 0 then out[#out + 1] = CategoryRow(c, best, bestScore, count, counts, hinted) end
 		end
 		return out
 	end

@@ -486,7 +486,7 @@ local function StoredRow(id, x, name)
 		local k = h.mine and "me" or h.owner or h.key
 		if not owners[k] then owners[k] = true; nOwners = nOwners + 1; first = h end
 	end
-	local quality = x.quality or (C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id))
+	local quality = x.quality or ns.ItemQuality(id)
 	return {
 		key = id,
 		name = name,
