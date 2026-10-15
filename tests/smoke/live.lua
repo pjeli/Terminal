@@ -63,6 +63,47 @@ do
 	check(UI.results[1] and UI.results[1].name == "Wool Cloth" and not UI.held, "nothing was shown: the new row at once")
 	UI:Hide(); FlushAll()
 
+	-- (0.52.9, the player: after a /reload, F5 came and went while item data came in) F5 only for a list found twice in a
+	-- row: one that changes again isn't offered; one found again is; an offered one is taken back only when sure
+	UI:Open("linen")
+	FlushAll()
+	local base = {}
+	for i, r in ipairs(rows) do base[i] = r end
+	local seen = {}
+	local tries = UI.CONFIRM_TRIES
+	UI.CONFIRM_TRIES = 0 -- (the checks done by hand here, one search at a time)
+	local function Redo() ns.providers.items._dirty = true; UI:QuietRedo(); FlushAll(); seen[#seen + 1] = UI.held ~= nil end
+	table.insert(rows, 1, { name = "Linen Cloth B", itemID = 50600, key = 700 })
+	Redo()
+	rows[1] = { name = "Linen Cloth C", itemID = 50601, key = 701 }
+	Redo()
+	for i = #rows, 1, -1 do rows[i] = nil end
+	for i, r in ipairs(base) do rows[i] = r end
+	Redo()
+	check(not seen[1] and not seen[2] and not seen[3] and UI.held == nil,
+		"lists that keep changing (B, C, then the shown one again): F5 never offered")
+	table.insert(rows, 1, { name = "Linen Cloth D", itemID = 50602, key = 702 })
+	Redo()
+	local once = UI.held ~= nil
+	Redo()
+	check(not once and UI.held ~= nil and tostring(UI.status:GetText()):find("F5", 1, true), "found twice in a row: F5 offered")
+	for i = #rows, 1, -1 do rows[i] = nil end
+	for i, r in ipairs(base) do rows[i] = r end
+	Redo()
+	local kept = UI.held ~= nil
+	Redo()
+	check(kept and UI.held == nil, "the shown list found again: F5 kept the first time, taken back once that's sure")
+	UI.CONFIRM_TRIES = tries
+	-- and by itself: a candidate is checked again a moment later (no other search needed)
+	table.insert(rows, 1, { name = "Linen Cloth E", itemID = 50603, key = 703 })
+	ns.providers.items._dirty = true
+	UI:QuietRedo()
+	FlushAll()
+	check(UI.held ~= nil, "a candidate checked again by itself, then offered")
+	for i = #rows, 1, -1 do rows[i] = nil end
+	for i, r in ipairs(base) do rows[i] = r end
+	UI:Hide(); FlushAll()
+
 	-- (review, 0.51.25) the same rows with new data (one more Linen Cloth in a stack): put up in place, nothing held
 	UI:Open("linen 05")
 	FlushAll()

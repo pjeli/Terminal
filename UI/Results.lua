@@ -158,19 +158,47 @@ end
 --- held rows give back the shown list's, whichever search ran in between (review, 0.51.25: a background search started
 --- again, or F5 pressed while one ran, gave back another's).
 local function Shown(self) self.shownFields = Fields(self) end
+local function Equal(a, b)
+	if not a or not b or #a ~= #b then return false end
+	for i = 1, #a do if not SameRow(a[i], b[i]) then return false end end
+	return true
+end
+-- F5 only for a list that's sure (0.52.9, the player: after a /reload "upgrades" jumped between result sets, F5 coming
+-- and going while item data came in: "if an F5 result appears it should be because we definitely have a new stable
+-- set"): a background search's rows unlike what's shown are a candidate; the same search again UI.CONFIRM_S s later
+-- (or the next one data coming in starts) finding the same rows confirms them, and only then is F5 offered. Likewise
+-- an offered list is taken back only once the shown one is found again twice. At most UI.CONFIRM_TRIES checks a search.
+UI.CONFIRM_S, UI.CONFIRM_TRIES = 1.5, 6
+local confirm = { gen = 0, tries = 0 }
+local function Confirm(self)
+	confirm.tries = confirm.tries + 1
+	if confirm.tries > UI.CONFIRM_TRIES then return end
+	local gen = confirm.gen
+	C_Timer.After(UI.CONFIRM_S, function()
+		if gen ~= confirm.gen or not self.candidate or not self:IsShown() or self.searchJob then return end
+		self:QuietRedo()
+	end)
+end
 local function Hold(self, shown, new)
-	if not Real(shown) then return nil end
-	local same = #shown == #new
-	if same then
-		for i = 1, #new do if not SameRow(new[i], shown[i]) then same = false break end end
-	end
-	if same then
-		self.held, self.heldFields = nil, nil
+	if not Real(shown) then self.candidate = nil return nil end
+	local confirmed = self.candidate ~= nil and Equal(self.candidate, new)
+	self.candidate = nil
+	if Equal(shown, new) then
+		-- (what's shown found again: an F5 offered goes only when that's sure too)
+		if self.held and not confirmed then self.candidate = new; Confirm(self)
+		else self.held, self.heldFields = nil, nil end
 		Shown(self)
 		self:SetStatus()
 		return "same"
 	end
-	self.held, self.heldFields = new, Fields(self)
+	if not (self.held and Equal(self.held, new)) then -- (offered already: as it was)
+		if confirmed then
+			self.held, self.heldFields = new, Fields(self)
+		else
+			self.candidate = new -- (not offered yet: once it's found again)
+			Confirm(self)
+		end
+	end
 	SetFields(self, self.shownFields)
 	self:SetStatus()
 	return "held"
@@ -266,7 +294,7 @@ end
 --- F5: the results a background search held put up (nothing held: nothing changes).
 function UI:ShowNewResults()
 	local held, fields = self.held, self.heldFields
-	self.held, self.heldFields = nil, nil
+	self.held, self.heldFields, self.candidate = nil, nil, nil
 	if not held then return end -- (nothing new: the list stays as it is)
 	SetFields(self, fields)
 	PutUp(held)
@@ -517,7 +545,10 @@ function UI:Refresh()
 	-- every couple of seconds while the items loaded)
 	local quiet = same and self.quietRedo and not yours
 	self.quietRedo = nil
-	if not quiet then self.held, self.heldFields, live.same = nil, nil, 0 end -- (a search of its own: whatever a background one held is stale)
+	if not quiet then
+		self.held, self.heldFields, self.candidate, live.same = nil, nil, nil, 0
+		confirm.gen, confirm.tries = confirm.gen + 1, 0 -- (checks of the last search's candidate: not this one's)
+	end -- (a search of its own: whatever a background one held is stale)
 	if not same then self.countNote, self.expectCount = nil, nil end -- (typed on: the note was about another list)
 	local shown = UI.results
 	ListFor(self, text, first, edit)

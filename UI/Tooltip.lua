@@ -5,9 +5,11 @@ local ns = select(2, ...)
 
 local UI = ns.UI
 local Theme = ns.Theme
+local L = ns.L
 
 -- The terminal's own tooltip. GameTooltip would also pop up the game's "Equipped"
--- comparison tooltips for gear, and those land on top of the terminal.
+-- comparison tooltips for gear, and those land on top of the terminal (an upgrade's comparison is in this one:
+-- Compare, below).
 local tip
 local function Tip()
 	if not tip then
@@ -21,12 +23,79 @@ end
 
 -- the game's comparison tooltips: the tooltip's own list, else the global pair
 local SHOPPING = { "ShoppingTooltip1", "ShoppingTooltip2" }
-local function HideComparisons(t)
+local function Shopping(t, i)
 	local own = t.shoppingTooltips
+	return own and own[i] or _G[SHOPPING[i]]
+end
+local function HideComparisons(t)
 	for i = 1, 2 do
-		local s = own and own[i] or _G[SHOPPING[i]]
+		local s = Shopping(t, i)
 		if s and s.Hide then s:Hide() end
 	end
+end
+
+-- An upgrade's comparison (0.52.3, the player's ask: "use the in-game comparison logic rather than our own"; 0.52.5:
+-- in Terminal's own tooltip, not the game's "Equipped" tooltips beside it): what the game would compare the item with
+-- (C_TooltipComparison.GetItemComparisonInfo: the piece you wear there; both rings, both trinkets; both hands for a
+-- two-hander) and its stat changes as the game words them (GetItemComparisonDelta: "+5 Strength", "-4 Agility"), a
+-- part for each piece, named. Whether it's an upgrade at all stays Terminal's (Upgrades.lua: your class's stats
+-- weighed). Neither call is kept from addons, in combat or out, and nothing of the game's interface is shown.
+local function ItemName(item)
+	local key = item.guid or item.hyperlink
+	local ok, name = pcall(C_Item.GetItemNameByID, key)
+	if not ok or type(name) ~= "string" or ns.Secret(name) or name == "" then return nil end
+	local okQ, q = pcall(C_Item.GetItemQualityByID, key)
+	local hex = okQ and type(q) == "number" and ns.QualityHex and ns.QualityHex(q)
+	return hex and ("|c" .. hex:gsub("^|c", "") .. name .. "|r") or name
+end
+--- The game's comparison of the item with what you wear, added to the tooltip (true), or nothing to add (false: the
+--- calls missing, the item not one the game compares, nothing worn there).
+local function Compare(t, link)
+	local TC = C_TooltipComparison
+	if not (TC and TC.GetItemComparisonInfo and TC.GetItemComparisonDelta) or type(link) ~= "string" then return false end
+	local item = { hyperlink = link }
+	local ok, info = pcall(TC.GetItemComparisonInfo, item)
+	if not ok then return false end
+	if type(info) ~= "table" or type(info.item) ~= "table" then return false, "nothing" end -- (nothing worn there)
+	local M = Enum and Enum.TooltipComparisonMethod or {}
+	local method = info.method or M.Single or 0
+	local single = method == (M.Single or 0)
+	local paired = method == (M.WithBagMainHandItem or 2) or method == (M.WithBagOffHandItem or 3)
+	local more = type(info.additionalItems) == "table" and info.additionalItems[1] or nil
+	-- (one piece; or two to choose from, each its own part: the rings; or a pair taken together: both hands)
+	local pieces = { info.item }
+	if single and more then pieces[2] = more end
+	local any = false
+	for _, worn in ipairs(pieces) do
+		local okD, lines = pcall(TC.GetItemComparisonDelta, item, worn, (not single) and more or nil, paired)
+		if okD and type(lines) == "table" and #lines > 0 then
+			local name = ItemName(worn)
+			local head = (not single and method == (M.WithBothHands or 1) and _G.ITEM_DELTA_MULTIPLE_COMPARISON_DESCRIPTION)
+				or (name and L["Over %s:"]:format(name)) or _G.ITEM_DELTA_DESCRIPTION or "?"
+			t:AddLine(" ")
+			t:AddLine(head, 1, 0.82, 0, true)
+			for _, l in ipairs(lines) do
+				if type(l) == "string" and not ns.Secret(l) then t:AddLine(l, 1, 1, 1, true) end
+			end
+			any = true
+		end
+	end
+	return any
+end
+UI._CompareTip = Compare -- (tests)
+
+--- Is the item something worn (gear: its slot type, by the client's own item data)?
+local function Wearable(id)
+	id = tonumber(id)
+	if not (id and C_Item and C_Item.GetItemInfoInstant) then return false end
+	local ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, id)
+	return ok and type(loc) == "string" and loc ~= "" and loc ~= "INVTYPE_NON_EQUIP" and loc ~= "INVTYPE_NON_EQUIP_IGNORE"
+end
+
+--- An item's link as the game names it, else "item:<id>" (the game takes either).
+local function ItemLink(id)
+	local ok, _, link = pcall(C_Item.GetItemInfo, id)
+	return ok and type(link) == "string" and not ns.Secret(link) and link or ("item:" .. id)
 end
 
 -- Match the terminal: same background and border (light themes keep the game's dark tooltip,
@@ -80,6 +149,7 @@ function UI:UpdateTooltip()
 	-- terminal, which may have been dragged)
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end
 	t:Hide()
+	HideComparisons(t)
 	t.entry = nil
 	UI.StopTipWait(t) -- (another row, or none: the last one's item isn't waited on)
 	if not e or e.noActivate then return end
@@ -113,22 +183,40 @@ function UI:UpdateTooltip()
 		shown = true
 	end
 	if shown then
-		-- an upgrade the search weighed: why it is one ("+7 Strength", "+4 Stamina" over what you wear; 0.51.14)
-		-- (its gains green, its losses red, a line each; 0.51.17)
-		local why = ns.Filters and ns.Filters.UpgradeWhy and ns.Filters.UpgradeWhy(e)
-		if why then
-			t:AddLine(" ")
-			for _, l in ipairs(why) do
-				if l.good == true then t:AddLine(l.text, 0.25, 1, 0.25)
-				elseif l.good == false then t:AddLine(l.text, 1, 0.3, 0.3)
-				else t:AddLine(l.text, 1, 0.82, 0) end
+		-- an upgrade the search weighed (0.51.14): said so, and the game's comparison beside it (Compare, above); a
+		-- quest's: the reward that is one, compared. The item not loaded yet: waited for, then drawn again with it.
+		local F = ns.Filters
+		local cmpID, rewardName
+		if F and F.UpgradeItem then cmpID, rewardName = F.UpgradeItem(e) end -- (both: "a and f()" keeps only the first)
+		-- (a row of a search that weighed upgrades whose verdict a background search has since dropped (it judged the
+		-- same row again: the item let go meanwhile, or found otherwise), still on screen till F5: compared all the
+		-- same; 0.52.8, the player: "sometimes not showing the delta")
+		if not cmpID and F and F.fitMade and not e.slotId and Wearable(e.itemID) then cmpID = tonumber(e.itemID) end
+		local cmpLink
+		if cmpID then
+			cmpLink = (rewardName and ItemLink(cmpID)) or (type(link) == "string" and link:find("item:", 1, true) and link) or ItemLink(cmpID)
+			-- (no "an upgrade" line: the list is of upgrades already; 0.52.6, the player. A quest: which reward it is)
+			if rewardName then
+				t:AddLine(" ")
+				t:AddLine(ItemName({ hyperlink = cmpLink }) or rewardName, 1, 0.82, 0, true)
+			end
+			if not UI.ItemReady(cmpID) then
+				if not rewardName then t:AddLine(" ") end
+				t:AddLine(L["Comparing once the game has the item..."], 0.6, 0.6, 0.6, true)
+			else
+				local done, why = Compare(t, cmpLink)
+				-- (nothing worn in its slot: the game has nothing to compare with; said, not left blank)
+				if not done and why == "nothing" then
+					t:AddLine(" ")
+					t:AddLine(L["Nothing worn there to compare with"], 0.6, 0.6, 0.6, true)
+				end
 			end
 		end
 		t.entry = e
 		t:Show()
 		HideComparisons(t)
 		StyleTip(t)
-		UI.WaitForTipData(t, e, link)
+		UI.WaitForTipData(t, e, link, cmpID)
 	end
 end
 
@@ -233,10 +321,15 @@ do
 		Redraw(tip, e)
 	end
 
-	function UI.WaitForTipData(t, e, link)
+	--- (the item an upgrade's comparison needs: loaded?)
+	function UI.ItemReady(id) return ItemCached(id) end
+
+	function UI.WaitForTipData(t, e, link, compareID)
 		waitGen = waitGen + 1
 		UI.StopTipWait(t)
 		local kind, id = DataOfTip(e, link)
+		-- (the row's own loaded, the item its comparison needs not: that one waited for; 0.52.3)
+		if (not id or Loaded(kind, id)) and compareID and not ItemCached(compareID) then kind, id = "item", compareID end
 		if not id or Loaded(kind, id) then return end
 		if failed[kind .. ":" .. id] and Now() - failed[kind .. ":" .. id] < UI.TIP_FAILED then return end
 		t.waitID, t.waitKind, t.waitFor = id, kind, e
@@ -291,7 +384,7 @@ end
 
 --- The tooltip put away with the terminal (Hide, the frame's OnHide): hidden, nothing kept as shown.
 function UI:HideTooltip()
-	if tip then tip:Hide(); tip.entry = nil end
+	if tip then tip:Hide(); tip.entry = nil; HideComparisons(tip) end
 	UI.StopTipWait(tip)
 end
 

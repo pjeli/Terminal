@@ -110,6 +110,23 @@ do
 	why = table.concat(why, " | ")
 	check(why == "Helm of the Wolf | Over what you wear (slot: head): | +5 Strength", "the tooltip says why: " .. why)
 	check(tostring(UI.status:GetText()):find(ns.L["Quests whose reward is an upgrade for you"], 1, true), "the footer says what they are")
+	-- (0.52.3) its tooltip: which reward is the upgrade, and the game's comparison of that reward
+	local compared = {}
+	local realTC = _G.C_TooltipComparison
+	_G.C_TooltipComparison = { GetItemComparisonInfo = function(item) compared[#compared + 1] = item.hyperlink end,
+		GetItemComparisonDelta = function() return {} end }
+	UI.sel = 1
+	local TT = _G.TerminalTooltip
+	local said, realAdd = {}, TT.AddLine
+	TT.AddLine = function(self, s, ...) said[#said + 1] = tostring(s) return realAdd(self, s, ...) end
+	TT.entry = nil -- (drawn again: shown already as the list came up)
+	UI:UpdateTooltip()
+	TT.AddLine = realAdd
+	_G.C_TooltipComparison = realTC
+	said = table.concat(said, " | ")
+	check(said:find("Helm of the Wolf", 1, true) and not said:find("upgrade for you", 1, true),
+		"the quest's tooltip names the reward compared, no \"an upgrade\" line: " .. said)
+	check(compared[1] == "|Hitem:9501|h", "a quest's tooltip: the game compares its reward: " .. tostring(compared[1]))
 	check(ns.Easy.ToAdvanced("quest upgrades") == "@questie is:upgrade sort:best ", "Alt+`: " .. ns.Easy.ToAdvanced("quest upgrades"))
 	UI:Hide(); FlushAll()
 	-- Advanced: is:upgrade judges a quest by its rewards

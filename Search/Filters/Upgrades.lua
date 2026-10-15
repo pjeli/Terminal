@@ -99,13 +99,37 @@ function F.KindsValue(kinds, w)
 	end
 	return any and v or nil
 end
+-- A clear upgrade (0.52.7, the player: "pretty clear upgrades over what I'm wearing now; only slight trade-offs"): what it
+-- gives up, weighed, at most F.UPGRADE_LOSS of what it gains (+3 Strength for -2 Agility is one; +1 Strength +2 Stamina
+-- for -2 Agility isn't), and what it adds at least F.UPGRADE_MIN of what you wear there is worth (at least
+-- F.UPGRADE_MIN_ABS: one point of your main stat). Only item levels known: at least F.LEVEL_CLEAR above.
+F.UPGRADE_LOSS, F.UPGRADE_MIN, F.UPGRADE_MIN_ABS, F.LEVEL_CLEAR = 0.5, 0.05, 1, 2
+--- What the item's stats add over the worn piece's, weighed (its gain), when it's a clear upgrade; else nil.
+function F.ClearGain(mine, worn, w)
+	if type(mine) ~= "table" then return nil end
+	worn = type(worn) == "table" and worn or {}
+	w = w or GENERIC
+	local up, down = 0, 0
+	local function Add(k)
+		local wk = w[k]
+		if not wk then return end
+		local d = (mine[k] or 0) - (worn[k] or 0)
+		if d > 0 then up = up + wk * d elseif d < 0 then down = down - wk * d end
+	end
+	for k in pairs(mine) do Add(k) end
+	for k in pairs(worn) do if mine[k] == nil then Add(k) end end
+	local net = up - down
+	if net <= 0 or down > F.UPGRADE_LOSS * up then return nil end
+	if net < math.max(F.UPGRADE_MIN_ABS, F.UPGRADE_MIN * (F.KindsValue(worn, w) or 0)) then return nil end
+	return net
+end
 --- An item's worth to you: its stats (the game's table) weighed (nil when there are none to weigh).
 function F.StatValue(stats, w) return F.KindsValue(F.StatKinds(stats), w) end
 
 --- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
 --- stats by kind (kinds[slot]; for "why" an upgrade is one, F.UpgradeWhy).
 local function WornGear(w)
-	local levels, values, kinds, locs, names = {}, {}, {}, {}, {}
+	local levels, values, kinds, locs, names, ids = {}, {}, {}, {}, {}, {}
 	local link = _G.GetInventoryItemLink
 	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
@@ -120,6 +144,8 @@ local function WornGear(w)
 			end
 			if type(lvl) == "number" then levels[slot] = lvl end
 			names[slot] = l:match("|h%[(.-)%]|h") -- (its name, for "why": over which of two it is)
+			local wid = tonumber(l:match("item:(%d+)"))
+			if wid then ids[wid] = true end -- (what you wear is never an upgrade: 0.52.7, the player)
 			-- (what kind it is: a shield or an off-hand item in the off hand isn't a weapon a one-hander replaces)
 			if (slot == 16 or slot == 17) and C_Item and C_Item.GetItemInfoInstant then
 				local okI, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, l)
@@ -145,7 +171,7 @@ local function WornGear(w)
 			levels[17], values[17], kinds[17], names[17], values.twoHand = levels[16], values[16], kinds[16], names[16], true
 		end
 	end
-	return levels, values, kinds, locs, names
+	return levels, values, kinds, locs, names, ids
 end
 
 -- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
@@ -226,7 +252,7 @@ function F.GearFit()
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
 	local weights = F.MyWeights()
-	local worn, wornValue, wornKinds, wornLocs, wornNames = WornGear(weights)
+	local worn, wornValue, wornKinds, wornLocs, wornNames, wornIds = WornGear(weights)
 	-- a one-hander replaces a weapon: the main hand, and the off hand only when it holds one (dual wielding); a shield
 	-- or an off-hand item stays (0.51.17, the player: a mace was weighed against main hand and shield together)
 	local offWeapon = not (wornLocs[17] == "INVTYPE_SHIELD" or wornLocs[17] == "INVTYPE_HOLDABLE")
@@ -246,19 +272,19 @@ function F.GearFit()
 		local qid = QR and QR.QuestIdOf and QR.QuestIdOf(e)
 		local items = qid and QR.RewardsOf and QR.RewardsOf(qid)
 		if not items then return false end
-		local best, bestName
+		local best, bestName, bestId
 		for _, it in ipairs(items) do
 			local probe = probes[it.id]
 			if not probe then probe = { kind = "reward", itemID = it.id }; probes[it.id] = probe end
 			if Fit(probe) then
 				local g = gains[probe]
-				if g and (not best or g.gain > best.gain) then best, bestName = g, it.name end
+				if g and (not best or g.gain > best.gain) then best, bestName, bestId = g, it.name, it.id end
 			end
 		end
 		if not best then return false end
 		local g = {}
 		for k, v in pairs(best) do g[k] = v end
-		g.item = bestName
+		g.item, g.itemID = bestName, bestId -- (the reward: what the tooltip has the game compare)
 		gains[e] = g
 		return true
 	end
@@ -268,6 +294,8 @@ function F.GearFit()
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
 		if not id then return false end
+		-- (one you wear already: not an upgrade, though it beats your other ring, trinket or weapon; 0.52.7, the player)
+		if wornIds[id] then return false end
 		-- not equipment, by the client's own data (no server ask): most rows go here
 		if instant then
 			local ok, _, _, _, loc = pcall(instant, id)
@@ -396,10 +424,11 @@ function F.GearFit()
 		local mine = F.KindsValue(f.kinds, weights)
 		local up, g
 		if mine and wVal and (mine > 0 or wVal > 0) then
-			if mine > wVal then
-				up, g = true, { gain = mine - wVal, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
+			local gain = F.ClearGain(f.kinds, wKinds, weights) -- (a clear upgrade only: slight trade-offs at most)
+			if gain then
+				up, g = true, { gain = gain, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
 			end
-		elseif ilvl > wLvl then
+		elseif ilvl >= wLvl + F.LEVEL_CLEAR then
 			up, g = true, { gain = ilvl - wLvl, loc = loc, ilvl = ilvl, wLvl = wLvl, byLevel = true }
 		end
 		if not up then return false end
@@ -411,8 +440,9 @@ function F.GearFit()
 				local v, l = wornValue[slot], worn[slot]
 				local one
 				if mine and v and (mine > 0 or v > 0) then
-					if mine > v then one = { gain = mine - v, kinds = f.kinds, worn = wornKinds[slot], ilvl = ilvl, wLvl = l } end
-				elseif l and ilvl > l then
+					local gain = F.ClearGain(f.kinds, wornKinds[slot], weights)
+					if gain then one = { gain = gain, kinds = f.kinds, worn = wornKinds[slot], ilvl = ilvl, wLvl = l } end
+				elseif l and ilvl >= l + F.LEVEL_CLEAR then
 					one = { gain = ilvl - l, ilvl = ilvl, wLvl = l, byLevel = true }
 				end
 				if one then
@@ -462,6 +492,13 @@ function F.UpgradeWhy(e)
 	local lines = F.WhyLines(g)
 	if g.item then table.insert(lines, 1, { text = g.item }) end -- (a quest's reward)
 	return lines
+end
+--- The item the game compares for an upgrade row (the tooltip, UI/Tooltip.lua): the row's own, or for a quest the
+--- reward that is the upgrade. nil when the last search didn't find it one.
+function F.UpgradeItem(e)
+	local g = F.fitMade and gains[e]
+	if not g then return nil end
+	return tonumber(g.itemID) or tonumber(e.itemID), g.item
 end
 --- The lines for a gain (UpgradeWhy).
 function F.WhyLines(g)

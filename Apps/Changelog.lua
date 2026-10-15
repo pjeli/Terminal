@@ -14,10 +14,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.52.2", when = "in testing",
+		v = "0.52.9", when = "in testing",
 		items = {
 			"The empty prompt's suggestions fit where you are and what you have: in a city, trainers, the mailbox, the auction house and your mail come up first; out in the world, quests, dungeons and upgrades; in a dungeon, your group and its loot (the others still come up, later). Ones for an addon you don't have (Questie's NPCs, AtlasLoot's loot, Attune) aren't suggested, and there are more of them.",
 			".atop: Left/Right switch the list's CPU % between each addon's share of all addons' time and its share of a frame (1.2% of every frame), a bar full at a tenth of one; the choice is kept.",
+			"An upgrade's tooltip compares it as the game does: what you wear there (both rings, both hands for a two-hander), named, and the game's own stat changes (\"+5 Strength\", \"-4 Agility\"), as AtlasLoot's comparison shows them; for a quest, its reward. An item the game hasn't loaded is compared once it has.",
+			"\"upgrades\" lists clear upgrades only: what it gives up, by your class's stats, at most half of what it gains (+3 Strength for -2 Agility is one, +1 Strength +2 Stamina for -2 Agility isn't), and enough of a gain to matter; never a piece you're wearing already (it beat your other ring or weapon).",
+			"An upgrade's comparison shows on every row of the list, also one a background search has judged again meanwhile; with nothing worn in its slot, the tooltip says so.",
+			"F5's new results are offered only once they're sure: a background search's list has to come out the same twice in a row (checked again a moment later), so F5 no longer comes and goes while item data comes in after a /reload.",
 		},
 	},
 	{
