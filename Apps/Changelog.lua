@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.52.1", when = "in testing",
+		v = "0.52.2", when = "in testing",
 		items = {
 			"The empty prompt's suggestions fit where you are and what you have: in a city, trainers, the mailbox, the auction house and your mail come up first; out in the world, quests, dungeons and upgrades; in a dungeon, your group and its loot (the others still come up, later). Ones for an addon you don't have (Questie's NPCs, AtlasLoot's loot, Attune) aren't suggested, and there are more of them.",
+			".atop: Left/Right switch the list's CPU % between each addon's share of all addons' time and its share of a frame (1.2% of every frame), a bar full at a tenth of one; the choice is kept.",
 		},
 	},
 	{

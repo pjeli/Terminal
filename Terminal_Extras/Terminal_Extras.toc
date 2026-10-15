@@ -5,7 +5,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Dice_01
 ## Dependencies: Terminal
 ## LoadOnDemand: 1
-## Version: 0.52.1
+## Version: 0.52.2
 
 Snake.lua
 Tetris.lua

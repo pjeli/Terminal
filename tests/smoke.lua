@@ -5422,6 +5422,24 @@ do -- .atop: addons' CPU and memory, live; type to filter, Tab sorts, Esc or ` c
 	check(B.Shown()[1].name == "Questie" and B.rows[1].name.text == "Questie", "sorted by CPU, names without colour codes: " .. tostring(B.rows[1].name.text))
 	check(B.rows[1].ms.text == "1.100" and B.rows[1].pct.text == "81.5" and B.rows[1].mem.text == "87.9 MB", "CPU ms, share of all addons, memory: " .. tostring(B.rows[1].pct.text))
 	check(B.cpuText.text:find("1.35 ms", 1, true) and B.cpuText.text:find("8%", 1, true), "all addons' time per frame and share of a frame: " .. tostring(B.cpuText.text))
+	-- (0.52.2, the player's ask) Left/Right: CPU % of a frame (absolute) instead of all addons' (relative), kept
+	local savedMode = ns.db.atopCpu
+	ns.db.atopCpu = nil
+	B.Close(); B.Open()
+	B.Key("RIGHT")
+	check(B.Absolute() and ns.db.atopCpu == "frame", "Right: CPU % of a frame")
+	local byName = {}
+	for i, a in ipairs(B.Shown()) do byName[a.name] = B.rows[i] end
+	check(byName.Questie.pct.text == "6.6" and byName.Terminal.pct.text == "1.2" and byName.Bagnon.pct.text == "0.30",
+		"each addon's share of a 16.7 ms frame: " .. byName.Questie.pct.text .. ", " .. byName.Terminal.pct.text .. ", " .. byName.Bagnon.pct.text)
+	check(tostring(B.footer.text):find("Left/Right", 1, true), "the footer says which keys switch it")
+	B.DrawBars(1)
+	check(math.abs(byName.Questie.bar.shown - 1.10 / (1000 / 60 * B.ABS_FULL)) < 0.01, "its bar: of a tenth of a frame: " .. tostring(byName.Questie.bar.shown))
+	B.Close(); B.Open()
+	check(B.Absolute() and B.rows[1].pct.text == "6.6", "kept when reopened")
+	B.Key("LEFT")
+	check(not B.Absolute() and B.rows[1].pct.text == "81.5", "Left: of all addons again")
+	ns.db.atopCpu = savedMode
 	do -- the memory lines fit their box (the peak and Terminal's share on one line ran past its edge)
 		local m1, m2, m3 = B.MemTexts()
 		local boxW = B.frame.memBox:GetWidth()

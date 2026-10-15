@@ -8,6 +8,9 @@ local L = ns.L
 -- own peak; its memory and how fast it grows), and the list gives way to the profiler's numbers for it beside all
 -- addons' (recent, session, peak, last frame, in combat; frames over 1/5/10/50/100/500/1000 ms). Up/Down step to the
 -- next addon; Esc, Enter or Backspace go back to the list.
+-- Left/Right switch the list's CPU % between each addon's share of all addons' time (relative: "Questie is most of
+-- it") and its share of a frame (absolute: "Questie takes 1.2% of every frame"; its bar full at B.ABS_FULL of a frame);
+-- the choice is kept (0.52.2, the player's ask).
 --
 -- CPU comes from the game's own profiler (C_AddOnProfiler: each addon's recent time per frame);
 -- memory from GetAddOnMemoryUsage, refreshed every few seconds (asking for it is costly). The panel
@@ -35,6 +38,17 @@ local frame, graph, memGraph, rows, header, cpuText, memText, memText2, memText3
 local hist, memHist = {}, {}
 local addons, shown = {}, {}
 local state = { sort = "cpu", filter = "", sel = 1, offset = 0, focus = nil }
+B.ABS_FULL = 0.10 -- (absolute: a bar is full at a tenth of a frame; most addons take far less of one)
+--- Whether the list's CPU % is of a frame (absolute) rather than of all addons' time (relative).
+local function Absolute() return type(ns.db) == "table" and ns.db.atopCpu == "frame" end
+B.Absolute = Absolute
+--- An addon's CPU %: of all addons' time, or of a frame.
+local function CpuPct(a)
+	if Absolute() then return (a.cpu or 0) / math.max(0.0001, B.frameMs or 16.7) * 100 end
+	return (a.cpu or 0) / math.max(0.0001, B.total or 0) * 100
+end
+B.CpuPct = CpuPct
+local function PctText(v) return v < 1 and ("%.2f"):format(v) or ("%.1f"):format(v) end
 local profLines -- the profile view's lines (label, this addon, all addons), made with the frame
 B.METRICS = { -- the profiler's numbers shown for one addon: { metric name, label, kind } (left: times, right: counts)
 	{ "RecentAverageTime", L["recent average"], "ms" }, { "SessionAverageTime", L["session average"], "ms" },
@@ -501,6 +515,7 @@ function B.DrawBars(k)
 	-- the rows' bars: share of all addons' cpu (or of all memory when sorted by memory)
 	local byMem = state.sort == "mem"
 	local whole = byMem and math.max(1, B.memTotal or 1) or math.max(0.0001, B.total or 0)
+	if not byMem and Absolute() then whole = math.max(0.0001, (B.frameMs or 16.7) * B.ABS_FULL) end
 	for i, row in ipairs(rows) do
 		local a = not fa and i <= fit and shown[state.offset + i]
 		if a then
@@ -549,8 +564,9 @@ end
 -- the list of addons: the filter and sort line, the rows on show, the footer
 local function DrawList(t)
 	for _, l in ipairs(profLines) do l.label:Hide(); l.mine:Hide(); l.all:Hide() end
-	filterText:SetText(("|cff%s%s|r %s|cff%s_|r   |cff%s%s|r %s"):format(t.dim, L["filter"], state.filter, t.accent, t.dim, L["sort"], SORT_LABEL[state.sort]))
-	local whole = math.max(0.0001, B.total or 0)
+	filterText:SetText(("|cff%s%s|r %s|cff%s_|r   |cff%s%s|r %s   |cff%s%%|r %s"):format(t.dim, L["filter"], state.filter, t.accent,
+		t.dim, L["sort"], SORT_LABEL[state.sort], t.dim, Absolute() and L["of a frame"] or L["of addons"]))
+	colHead[3]:SetText(Absolute() and L["Frame %"] or L["CPU %"])
 	for i, r in ipairs(rows) do
 		local a = i <= fit and shown[state.offset + i]
 		if a then
@@ -558,13 +574,14 @@ local function DrawList(t)
 			r.sel:SetShown(state.offset + i == state.sel)
 			r.name:SetText(a.title)
 			r.ms:SetText(B.hasProfiler and ("%.3f"):format(a.cpu or 0) or "-")
-			r.pct:SetText(B.hasProfiler and ("%.1f"):format((a.cpu or 0) / whole * 100) or "-")
+			r.pct:SetText(B.hasProfiler and PctText(CpuPct(a)) or "-")
 			r.mem:SetText(MB(a.mem or 0))
 		else
 			r:Hide()
 		end
 	end
 	footer:SetText(L["%d of %d addons"]:format(#shown, #addons) .. "  ·  " .. L["type to filter"] .. "  ·  " .. L["Tab sort"]
+		.. "  ·  " .. L["Left/Right %"]
 		.. "  ·  " .. L["Enter profile"] .. "  ·  " .. Panel.CLOSE)
 end
 
@@ -594,8 +611,9 @@ function B.DrawProfile(a, t)
 	local peakMs = 0
 	for _, v in ipairs(a.hist or {}) do if v > peakMs then peakMs = v end end
 	if B.hasProfiler then
-		cpuText:SetText(L["%.3f ms/frame"]:format(a.cpu or 0) .. "  ·  "
-			.. L["%.1f%% of addons"]:format((a.cpu or 0) / math.max(0.0001, B.total or 0) * 100) .. "  ·  " .. L["peak %.3f"]:format(peakMs))
+		local share = Absolute() and L["%.2f%% of a frame"]:format((a.cpu or 0) / math.max(0.0001, B.frameMs or 16.7) * 100)
+			or L["%.1f%% of addons"]:format((a.cpu or 0) / math.max(0.0001, B.total or 0) * 100)
+		cpuText:SetText(L["%.3f ms/frame"]:format(a.cpu or 0) .. "  ·  " .. share .. "  ·  " .. L["peak %.3f"]:format(peakMs))
 	end
 	local grow = B.Growth(a)
 	memText:SetText(MB(a.mem or 0) .. "  ·  " .. L["%.1f%% of all"]:format((a.mem or 0) / math.max(1, B.memTotal or 1) * 100))
@@ -667,6 +685,12 @@ function B.Key(key)
 			for i, a in ipairs(shown) do if a.name == state.focus then at = i end end
 			return B.Profile(math.max(1, math.min(#shown, at + step)))
 		end
+		return
+	end
+	if key == "LEFT" or key == "RIGHT" then
+		-- CPU %: of all addons (relative) or of a frame (absolute), kept for next time
+		if type(ns.db) == "table" then ns.db.atopCpu = (not Absolute()) and "frame" or nil end
+		B.DrawText(); B.DrawBars(1)
 		return
 	end
 	if key == "ESCAPE" then return B.Close() end
