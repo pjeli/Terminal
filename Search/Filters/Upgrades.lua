@@ -105,7 +105,7 @@ function F.StatValue(stats, w) return F.KindsValue(F.StatKinds(stats), w) end
 --- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
 --- stats by kind (kinds[slot]; for "why" an upgrade is one, F.UpgradeWhy).
 local function WornGear(w)
-	local levels, values, kinds = {}, {}, {}
+	local levels, values, kinds, locs = {}, {}, {}, {}
 	local link = _G.GetInventoryItemLink
 	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
@@ -119,6 +119,11 @@ local function WornGear(w)
 				lvl = info and info.ilvl
 			end
 			if type(lvl) == "number" then levels[slot] = lvl end
+			-- (what kind it is: a shield or an off-hand item in the off hand isn't a weapon a one-hander replaces)
+			if (slot == 16 or slot == 17) and C_Item and C_Item.GetItemInfoInstant then
+				local okI, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, l)
+				if okI and type(loc) == "string" then locs[slot] = loc end
+			end
 			-- (by its own link: a worn piece's random suffix and enchant are its own)
 			if get then
 				local okS, st = pcall(get, l)
@@ -137,7 +142,7 @@ local function WornGear(w)
 		if okId and mh then ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, mh) end
 		if ok and loc == "INVTYPE_2HWEAPON" then levels[17], values[17], kinds[17], values.twoHand = levels[16], values[16], kinds[16], true end
 	end
-	return levels, values, kinds
+	return levels, values, kinds, locs
 end
 
 -- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
@@ -210,7 +215,10 @@ function F.GearFit()
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
 	local weights = F.MyWeights()
-	local worn, wornValue, wornKinds = WornGear(weights)
+	local worn, wornValue, wornKinds, wornLocs = WornGear(weights)
+	-- a one-hander replaces a weapon: the main hand, and the off hand only when it holds one (dual wielding); a shield
+	-- or an off-hand item stays (0.51.17, the player: a mace was weighed against main hand and shield together)
+	local offWeapon = not (wornLocs[17] == "INVTYPE_SHIELD" or wornLocs[17] == "INVTYPE_HOLDABLE")
 	F.fitMade = true -- (this search weighs upgrades: their tooltips say why, F.UpgradeWhy)
 	local asked = 0 -- (items asked of the server by this filter: a few at a time, F.GEAR_ASK per search)
 	local instant = C_Item and C_Item.GetItemInfoInstant
@@ -301,7 +309,7 @@ function F.GearFit()
 		local slots = SLOTS[loc]
 		-- a one-hander goes in the main hand only for a class that can't dual-wield (0.50.7, review: an empty off hand made
 		-- every usable one-hander an upgrade for a mage, a priest)
-		if loc == "INVTYPE_WEAPON" and ns.Safe(_G.CanDualWield) == false then slots = MAIN_ONLY end
+		if loc == "INVTYPE_WEAPON" and (ns.Safe(_G.CanDualWield) == false or not offWeapon) then slots = MAIN_ONLY end
 		local need = type(f[2]) == "number" and f[2] or 0
 		if me and need > me then return false end
 		local ilvl = type(f[3]) == "number" and f[3] or 0
@@ -405,38 +413,45 @@ local function Num(v)
 	return ("%.1f"):format(v)
 end
 
---- Why the row is an upgrade, a line for its tooltip ("+7 Strength, +4 Stamina over current (slot: head)"; a quest:
---- "Helm of Valor: ..."); nil when the last search didn't weigh upgrades, or found it no upgrade.
+--- Why the row is an upgrade, lines for its tooltip: { text, good } each, the first what it's weighed against ("Over
+--- what you wear (slot: head):"; a quest: its reward named first), then a line per stat: gains first (good = true, drawn
+--- green), the biggest first, then losses (good = false, red). nil when the last search didn't weigh upgrades, or found
+--- it no upgrade. (0.51.17, the player: one green line of every stat read badly; gains and losses apart.)
 function F.UpgradeWhy(e)
 	local g = F.fitMade and gains[e]
 	if not g then return nil end
-	local why = F.WhyText(g)
-	if g.item then why = g.item .. ": " .. why end -- (a quest's reward)
-	return why
+	local lines = F.WhyLines(g)
+	if g.item then table.insert(lines, 1, { text = g.item }) end -- (a quest's reward)
+	return lines
 end
---- The words for a gain (UpgradeWhy).
-function F.WhyText(g)
+--- The lines for a gain (UpgradeWhy).
+function F.WhyLines(g)
 	local slotName = _G[g.loc]
 	slotName = type(slotName) == "string" and not Secret(slotName) and slotName:lower() or g.loc
-	if g.empty then return L["nothing worn there (slot: %s)"]:format(slotName) end
-	if g.byLevel then return L["item level %d over %d (slot: %s)"]:format(g.ilvl, g.wLvl, slotName) end
+	if g.empty then return { { text = L["nothing worn there (slot: %s)"]:format(slotName), good = true } } end
+	local byLevel = { { text = L["item level %d over %d (slot: %s)"]:format(g.ilvl or 0, g.wLvl or 0, slotName), good = true } }
+	if g.byLevel then return byLevel end
 	local w = F.MyWeights()
-	local diffs = {}
-	local seen = {}
+	local ups, downs, seen = {}, {}, {}
 	local function add(k)
 		if seen[k] or not w[k] then return end
 		seen[k] = true
 		local d = ((g.kinds or {})[k] or 0) - ((g.worn or {})[k] or 0)
-		if math.abs(d) >= 0.05 then diffs[#diffs + 1] = { k = k, d = d, weight = math.abs(d) * w[k] } end
+		if math.abs(d) < 0.05 then return end
+		local t = d > 0 and ups or downs
+		t[#t + 1] = { k = k, d = d, weight = math.abs(d) * w[k] }
 	end
 	for k in pairs(g.kinds or {}) do add(k) end
 	for k in pairs(g.worn or {}) do add(k) end
-	table.sort(diffs, function(a, b) if a.weight ~= b.weight then return a.weight > b.weight end return a.k < b.k end)
-	local parts = {}
-	for i = 1, math.min(#diffs, 4) do
-		local d = diffs[i]
-		parts[i] = (d.d > 0 and "+" or "-") .. Num(math.abs(d.d)) .. " " .. KindName(d.k)
+	if #ups + #downs == 0 then return byLevel end
+	local function Biggest(a, b) if a.weight ~= b.weight then return a.weight > b.weight end return a.k < b.k end
+	table.sort(ups, Biggest)
+	table.sort(downs, Biggest)
+	local lines = { { text = L["Over what you wear (slot: %s):"]:format(slotName) } }
+	for _, list in ipairs({ ups, downs }) do
+		for _, d in ipairs(list) do
+			lines[#lines + 1] = { text = (d.d > 0 and "+" or "-") .. Num(math.abs(d.d)) .. " " .. KindName(d.k), good = d.d > 0 }
+		end
 	end
-	if #parts == 0 then return L["item level %d over %d (slot: %s)"]:format(g.ilvl, g.wLvl or 0, slotName) end
-	return L["%s over current (slot: %s)"]:format(table.concat(parts, ", "), slotName)
+	return lines
 end

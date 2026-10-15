@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.51.15", when = "in testing",
+		v = "0.51.17", when = "in testing",
 		items = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
 			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
@@ -31,6 +31,7 @@ CL.LOG = {
 			"What Terminal learns of items is kept between sessions: after a /reload, \"upgrades\" and the loot list's colours are right from the first search instead of filling in. (Let go when the game is patched.)",
 			"\"upgrades\" lists the biggest upgrades first, by how much each beats what you wear, and each one's tooltip says why (\"+7 Strength, +4 Stamina over current (slot: head)\"). In Advanced mode: is:upgrade sort:best.",
 			"Upgrades from quests: \"quest upgrades\" (or \"quests with upgrades\") lists the quests near your level you can still take whose reward is an upgrade for you, the biggest first, with what each rewards and how far its giver is (with Questie). In Advanced mode: @questie is:upgrade sort:best.",
+			"An upgrade's tooltip lists each stat on its own line, gains in green first, then losses in red; a one-hander is weighed against your main hand (and your off-hand weapon when you dual-wield), never against a shield.",
 		},
 	},
 	{

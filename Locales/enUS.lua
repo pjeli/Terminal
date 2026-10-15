@@ -114,7 +114,6 @@ L["%s on your alts"] = true
 L["%s options"] = true
 L["%s or %s"] = true
 L["%s or better"] = true
-L["%s over current (slot: %s)"] = true
 L["%s overkill"] = true
 L["%s pts"] = true
 L["%s ran out since (taken, deleted or sent back)"] = true
@@ -899,6 +898,7 @@ L["Other addons' settings: type what a setting is called (\"questie map icons\")
 L["Out of range"] = true
 L["Out of range (the game's own range test, as the raid frames fade)"] = true
 L["Outbid"] = true
+L["Over what you wear (slot: %s):"] = true
 L["P play/stop"] = true
 L["Panel"] = true
 L["Party quest"] = true

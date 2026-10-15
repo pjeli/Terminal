@@ -9,14 +9,15 @@ do
 	local save = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, level = _G.UnitLevel, inv = _G.GetInventoryItemLink,
 		can = C_PlayerInfo.CanUseItem, det = C_Item.GetDetailedItemLevelInfo, class = _G.UnitClass, inst = C_Item.GetItemInfoInstant,
 		invId = _G.GetInventoryItemID, providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode,
-		head = _G.INVTYPE_HEAD, str = _G.ITEM_MOD_STRENGTH_SHORT, sta = _G.ITEM_MOD_STAMINA_SHORT }
+		head = _G.INVTYPE_HEAD, str = _G.ITEM_MOD_STRENGTH_SHORT, sta = _G.ITEM_MOD_STAMINA_SHORT, agi = _G.ITEM_MOD_AGILITY_SHORT,
+		weapon = _G.INVTYPE_WEAPON, dw = _G.CanDualWield }
 	local ITEMS = {
 		[70] = { "Worn Helm", "|Hitem:70|h", 2, 20, 15, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 		[71] = { "Alpha Helm", "|Hitem:71|h", 2, 21, 16, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 		[72] = { "Beta Helm", "|Hitem:72|h", 2, 21, 16, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 		[73] = { "Gamma Helm", "|Hitem:73|h", 2, 21, 16, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 	}
-	local STATS = { [70] = { ITEM_MOD_STRENGTH_SHORT = 3 }, [71] = { ITEM_MOD_STRENGTH_SHORT = 6 },
+	local STATS = { [70] = { ITEM_MOD_STRENGTH_SHORT = 3, ITEM_MOD_AGILITY_SHORT = 2 }, [71] = { ITEM_MOD_STRENGTH_SHORT = 6 },
 		[72] = { ITEM_MOD_STRENGTH_SHORT = 9 }, [73] = { ITEM_MOD_STRENGTH_SHORT = 4, ITEM_MOD_STAMINA_SHORT = 2 } }
 	local idOf = function(x) return tonumber(tostring(x):match("item:(%d+)")) or tonumber(x) end
 	C_Item.GetItemInfo = function(id) local t = ITEMS[idOf(id) or 0] if t then return unpack(t) end end
@@ -28,7 +29,7 @@ do
 	C_PlayerInfo.CanUseItem = function() return true end
 	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:70|h[Worn Helm]|h" end end
 	_G.GetInventoryItemID = function(_, slot) if slot == 1 then return 70 end end
-	_G.INVTYPE_HEAD, _G.ITEM_MOD_STRENGTH_SHORT, _G.ITEM_MOD_STAMINA_SHORT = "Head", "Strength", "Stamina"
+	_G.INVTYPE_HEAD, _G.ITEM_MOD_STRENGTH_SHORT, _G.ITEM_MOD_STAMINA_SHORT, _G.ITEM_MOD_AGILITY_SHORT = "Head", "Strength", "Stamina", "Agility"
 	F.ClearCache()
 	ns.providers, ns.providerOrder = {}, {}
 	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = function()
@@ -51,12 +52,18 @@ do
 	UI:UpdateTooltip() -- (the terminal's own tooltip made)
 	local TT = _G.TerminalTooltip
 	local lines, real = {}, TT.AddLine
-	TT.AddLine = function(self, s, ...) lines[#lines + 1] = tostring(s) if real then return real(self, s, ...) end end
+	TT.AddLine = function(self, s, r, g, b, ...)
+		local colour = (r == 0.25 and g == 1) and "green" or (r == 1 and g == 0.3) and "red" or "other"
+		lines[#lines + 1] = tostring(s) .. "=" .. colour
+		if real then return real(self, s, r, g, b, ...) end
+	end
 	for i, e in ipairs(UI.Results()) do if e.name == "Gamma Helm" then UI.sel = i end end
 	UI:UpdateTooltip()
 	TT.AddLine = real
 	local tip = table.concat(lines, "\n")
-	check(tip:find("+2 Stamina, +1 Strength over current (slot: head)", 1, true), "the tooltip says why: " .. tip:gsub("\n", " | "))
+	-- (0.51.17, the player: gains green, losses red, a line each, gains first)
+	check(tip:find("Over what you wear (slot: head):=other\n+2 Stamina=green\n+1 Strength=green\n-2 Agility=red", 1, true),
+		"the tooltip says why, a line each, gains (green) then losses (red): " .. tip:gsub("\n", " | "))
 	UI:Hide(); FlushAll()
 	-- Advanced: is:upgrade as it was (by name), sort:best the biggest first
 	ns.db.easyMode = false
@@ -73,6 +80,38 @@ do
 	check(F.UpgradeWhy(UI.Results()[1]) == nil, "a search that doesn't weigh upgrades: its tooltips say nothing of them")
 	UI:Hide(); FlushAll()
 
+	-- (0.51.17, the player: a mace weighed against main hand and shield together) a one-hander against the main hand only
+	-- when the off hand holds a shield
+	ITEMS[80] = { "Old Mace", "|Hitem:80|h", 2, 20, 15, "Weapon", "One-Handed Maces", 1, "INVTYPE_WEAPON" }
+	ITEMS[81] = { "Tower Shield", "|Hitem:81|h", 2, 20, 15, "Armor", "Shields", 1, "INVTYPE_SHIELD" }
+	ITEMS[82] = { "Better Mace", "|Hitem:82|h", 2, 21, 16, "Weapon", "One-Handed Maces", 1, "INVTYPE_WEAPON" }
+	ITEMS[83] = { "Lesser Mace", "|Hitem:83|h", 2, 21, 16, "Weapon", "One-Handed Maces", 1, "INVTYPE_WEAPON" }
+	STATS[80] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 10, ITEM_MOD_STRENGTH_SHORT = 2 }
+	STATS[81] = { RESISTANCE0_NAME = 600, ITEM_MOD_STAMINA_SHORT = 3 }
+	STATS[82] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 12, ITEM_MOD_STRENGTH_SHORT = 3 }
+	STATS[83] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 9, ITEM_MOD_STRENGTH_SHORT = 2 }
+	_G.GetInventoryItemLink = function(_, slot)
+		if slot == 16 then return "|Hitem:80|h[Old Mace]|h" elseif slot == 17 then return "|Hitem:81|h[Tower Shield]|h" end
+	end
+	_G.GetInventoryItemID = function(_, slot) if slot == 16 then return 80 elseif slot == 17 then return 81 end end
+	_G.CanDualWield = function() return true end
+	_G.INVTYPE_WEAPON = "One-Hand"
+	F.ClearCache()
+	local fit = F.GearFit()
+	local better, lesser = { itemID = 82, kind = "loot" }, { itemID = 83, kind = "loot" }
+	check(fit(better) and not fit(lesser), "with a shield: against the main hand (a weaker mace than yours isn't one, though it beats the shield)")
+	local why = F.UpgradeWhy(better)
+	local text = {}
+	for _, l in ipairs(why or {}) do text[#text + 1] = l.text end
+	text = table.concat(text, " | ")
+	check(not text:find("600", 1, true) and text:find("+1 Strength", 1, true), "...its why says nothing of the shield's armor: " .. text)
+	-- dual wielding: the weaker weapon of the two
+	ITEMS[81] = { "Off Mace", "|Hitem:81|h", 2, 20, 15, "Weapon", "One-Handed Maces", 1, "INVTYPE_WEAPON" }
+	STATS[81] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 8, ITEM_MOD_STRENGTH_SHORT = 1 }
+	F.ClearCache()
+	fit = F.GearFit()
+	check(fit({ itemID = 83, kind = "loot" }), "dual wielding: a mace better than your off-hand one is one")
+
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
 	UI.lastScan, UI.lastOverview, UI.category = nil, nil, nil
@@ -81,7 +120,8 @@ do
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID = save.invId
-	_G.INVTYPE_HEAD, _G.ITEM_MOD_STRENGTH_SHORT, _G.ITEM_MOD_STAMINA_SHORT = save.head, save.str, save.sta
+	_G.INVTYPE_HEAD, _G.ITEM_MOD_STRENGTH_SHORT, _G.ITEM_MOD_STAMINA_SHORT, _G.ITEM_MOD_AGILITY_SHORT = save.head, save.str, save.sta, save.agi
+	_G.INVTYPE_WEAPON, _G.CanDualWield = save.weapon, save.dw
 	F.ClearCache()
 	UI:Hide(); FlushAll()
 end

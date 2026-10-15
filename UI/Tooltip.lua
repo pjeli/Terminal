@@ -113,11 +113,16 @@ function UI:UpdateTooltip()
 		shown = true
 	end
 	if shown then
-		-- an upgrade the search weighed: why it is one ("+7 Strength, +4 Stamina over current (slot: head)"; 0.51.14)
+		-- an upgrade the search weighed: why it is one ("+7 Strength", "+4 Stamina" over what you wear; 0.51.14)
+		-- (its gains green, its losses red, a line each; 0.51.17)
 		local why = ns.Filters and ns.Filters.UpgradeWhy and ns.Filters.UpgradeWhy(e)
 		if why then
 			t:AddLine(" ")
-			t:AddLine(why, 0.4, 1, 0.4, true)
+			for _, l in ipairs(why) do
+				if l.good == true then t:AddLine(l.text, 0.25, 1, 0.25)
+				elseif l.good == false then t:AddLine(l.text, 1, 0.3, 0.3)
+				else t:AddLine(l.text, 1, 0.82, 0) end
+			end
 		end
 		t.entry = e
 		t:Show()
