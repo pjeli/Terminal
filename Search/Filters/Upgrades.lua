@@ -78,17 +78,28 @@ function F.MyWeights()
 	return F.WEIGHTS[class] or GENERIC
 end
 
---- An item's worth to you: its stats (the game's table) weighed (nil when there are none to weigh).
-function F.StatValue(stats, w)
+--- An item's stats (the game's table) by kind: { str = 7, sta = 4 } (kinds Terminal weighs; others left out).
+function F.StatKinds(stats)
 	if type(stats) ~= "table" then return nil end
-	w = w or GENERIC
-	local v, any = 0, false
+	local out = {}
 	for key, amount in pairs(stats) do
 		local k = type(key) == "string" and type(amount) == "number" and StatKind(key)
-		if k and w[k] then v, any = v + w[k] * amount, true end
+		if k then out[k] = (out[k] or 0) + amount end
+	end
+	return out
+end
+--- Stats by kind weighed (nil when there are none to weigh).
+function F.KindsValue(kinds, w)
+	if type(kinds) ~= "table" then return nil end
+	w = w or GENERIC
+	local v, any = 0, false
+	for k, amount in pairs(kinds) do
+		if w[k] then v, any = v + w[k] * amount, true end
 	end
 	return any and v or nil
 end
+--- An item's worth to you: its stats (the game's table) weighed (nil when there are none to weigh).
+function F.StatValue(stats, w) return F.KindsValue(F.StatKinds(stats), w) end
 
 --- What you wear in each equipment slot (1-18), read once per filter: item levels, and their weighed stats.
 local function WornGear(w)
@@ -125,15 +136,59 @@ local function WornGear(w)
 end
 
 -- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
--- by you, its weighed stats (nil: not weighed yet; false: none to weigh), the weights they were weighed with, how it
--- binds (GetItemInfo's bindType) }. The
+-- by you, -, -, how it binds (GetItemInfo's bindType); kinds = its stats by kind (nil: not read yet) }. The
 -- client lets go of items it loaded a while ago (AtlasLoot's name pump asks for thousands): a row it no longer had was
 -- left out ("not loaded": a loot row) or asked for again, so the same search said 18 upgrades in Dungeon loot and
 -- then listed 8, and changed again with each step in and out. Read again whenever the client has the item (what you
 -- can use changes as you learn to wear mail); used as it was when it doesn't.
+-- Kept between sessions too (0.51.13, the player's ask; ns.ItemStore "facts", by item id): after a /reload, items
+-- the game hasn't sent again are judged as before, and items it has aren't read again. The record, one string:
+-- "slot type;required level;item level;binding;str=7,sta=4;WARRIOR+MAGE-" (the last: usable by each class it was
+-- asked for). A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
 local fit = {}
-F.ClearFit = function() fit = {} end
+F.ClearFit = function() fit = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
+F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)
+
+local function MyClass()
+	local ok, _, class = pcall(_G.UnitClass or function() end, "player")
+	return ok and type(class) == "string" and not Secret(class) and class or nil
+end
+local function Encode(f, class, old)
+	local kinds = {}
+	for k, v in pairs(f.kinds or {}) do kinds[#kinds + 1] = k .. "=" .. (math.floor(v * 100 + 0.5) / 100) end
+	table.sort(kinds)
+	-- (what each other class could use, as it was kept: only this class's is told again)
+	local can = type(old) == "string" and old:match(";([^;]*)$") or ""
+	if class and f[4] ~= nil then
+		can = can:gsub(class .. "[%+%-]", "") .. class .. (f[4] and "+" or "-")
+	end
+	return table.concat({ f[1], tostring(f[2] or ""), tostring(f[3] or ""), tostring(f[7] or ""), table.concat(kinds, ","), can }, ";")
+end
+local function Decode(rec, class)
+	if type(rec) ~= "string" then return nil end
+	local loc, need, ilvl, bind, stats, can = rec:match("^([^;]*);([^;]*);([^;]*);([^;]*);([^;]*);([^;]*)$")
+	if not loc or not SLOTS[loc] then return nil end
+	local kinds = {}
+	for k, v in stats:gmatch("(%a+)=([%-%d%.]+)") do kinds[k] = tonumber(v) end
+	local mine = class and can:match(class .. "([%+%-])")
+	return { loc, tonumber(need), tonumber(ilvl), mine == "+" or (mine ~= "-" and nil), nil, nil, tonumber(bind),
+		kinds = kinds, kept = rec }
+end
+--- What's kept of an item between sessions (nil: nothing; or a row's own suffixed copy).
+local function Remembered(key, class)
+	if type(key) ~= "number" or not ns.ItemStore then return nil end
+	return Decode(ns.ItemStore.Get("facts", key), class)
+end
+--- Keep what's known of it (its stats read: the record is whole).
+local function Remember(key, f, class)
+	if type(key) ~= "number" or not ns.ItemStore or not f.kinds then return end
+	local rec = Encode(f, class, f.kept)
+	if rec ~= f.kept then
+		f.kept = rec
+		ns.ItemStore.Put("facts", key, rec)
+	end
+end
 
 --- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet aren't, for now.
 function F.GearFit()
@@ -145,6 +200,7 @@ function F.GearFit()
 	local instant = C_Item and C_Item.GetItemInfoInstant
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
+	local class = MyClass()
 	return function(e)
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
@@ -161,11 +217,14 @@ function F.GearFit()
 			if place and (place.kind ~= "dungeon" or (me and place.enter and place.enter > me)) then return false end
 		end
 		local key = StatKey(e)
-		local f
+		local f = fit[key]
+		if not f then
+			f = Remembered(key, class) -- (as kept from another session)
+			if f then fit[key] = f end
+		end
 		local live = not (cached and not cached(id)) -- (the client has it: read now)
 		if not live then
 			-- an item the client hasn't got (or no longer has): as read when it had it
-			f = fit[key]
 			if not f then
 				-- never read: not one for now. AtlasLoot's thousands of items are never asked for from here (its own name
 				-- pump does that, a batch at a time); others a few per search, in the background: the search isn't run
@@ -177,7 +236,7 @@ function F.GearFit()
 				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 				return false
 			end
-		else
+		elseif not f then
 			local info = ItemInfo(id)
 			if not info then
 				F.loading = true
@@ -185,14 +244,8 @@ function F.GearFit()
 			end
 			local loc = info.equipLoc or ""
 			if not SLOTS[loc] then return false end
-			f = fit[key]
-			if f and f[1] == loc then
-				f[2], f[3], f[7] = info.minLevel, info.ilvl, info.bindType
-			else
-				f = { loc, info.minLevel, info.ilvl, nil, nil, nil, info.bindType }
-				fit[key] = f
-			end
-			if f[6] ~= weights then f[5], f[6] = nil, nil end -- (stats weighed again below, when asked for)
+			f = { loc, info.minLevel, info.ilvl, nil, nil, nil, info.bindType }
+			fit[key] = f
 		end
 		local loc = f[1]
 		if NEVER[loc] then return false end
@@ -219,7 +272,10 @@ function F.GearFit()
 				local ok, yes = pcall(C_PlayerInfo.CanUseItem, id)
 				if ok and yes == false then can = false end
 			end
-			f[4] = can
+			if f[4] ~= can then
+				f[4] = can
+				Remember(key, f, class)
+			end
 		end
 		if not f[4] then return false end
 		-- what it would replace: the weaker of its slots (by worth when known, else item level)
@@ -246,12 +302,15 @@ function F.GearFit()
 			end
 		end
 		if empty then return not me or ilvl >= me - F.GEAR_EMPTY end
-		-- its stats weighed: once (the client has it: else they wait, and item levels decide meanwhile)
-		if f[6] == nil and live then
+		-- its stats: read once (the client has it: else they wait, and item levels decide meanwhile), then kept
+		if not f.kinds and live then
 			local st = Stats(e)
-			if st then f[5], f[6] = F.StatValue(st, weights) or false, weights end
+			if st then
+				f.kinds = F.StatKinds(st)
+				Remember(key, f, class)
+			end
 		end
-		local mine = f[6] == weights and f[5] or nil
+		local mine = F.KindsValue(f.kinds, weights)
 		if mine and wVal and (mine > 0 or wVal > 0) then return mine > wVal end
 		return ilvl > wLvl
 	end

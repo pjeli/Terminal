@@ -91,20 +91,34 @@ function ns.FrameTexts(f)
 end
 
 --- The colour code of an item quality ("|cffa335ee"), or nil.
--- An item's quality, kept for the session once the game has said it (0.51.9, the player: rows went white again after
--- F5): the game lets go of items it loaded a while ago, and asked again for one it no longer has it says nothing.
+-- An item's quality, kept once the game has said it (0.51.9, the player: rows went white again after F5): the game
+-- lets go of items it loaded a while ago, and asked again for one it no longer has it says nothing. Kept between
+-- sessions too (ItemStore.lua, 0.51.13): after a /reload the loot list has its colours from the first search.
 local qualityOf = {}
+local function Keep(id, q)
+	if qualityOf[id] == q then return end
+	qualityOf[id] = q
+	if ns.ItemStore then ns.ItemStore.Put("quality", id, q) end
+end
 function ns.ItemQuality(id)
 	if type(id) ~= "number" then return nil end
 	local get = C_Item and C_Item.GetItemQualityByID
 	local q = get and ns.Safe(get, id)
-	if type(q) == "number" and not ns.Secret(q) then qualityOf[id] = q return q end
-	return qualityOf[id]
+	if type(q) == "number" and not ns.Secret(q) then Keep(id, q) return q end
+	q = qualityOf[id]
+	if q == nil then -- (looked up once a session; false: none kept)
+		q = ns.ItemStore and ns.ItemStore.Get("quality", id)
+		q = type(q) == "number" and q or false
+		qualityOf[id] = q
+	end
+	return q or nil
 end
 --- What the game said of an item's quality elsewhere (GetItemInfo), kept as ns.ItemQuality keeps it.
 function ns.NoteQuality(id, q)
-	if type(id) == "number" and type(q) == "number" and not ns.Secret(q) then qualityOf[id] = q end
+	if type(id) == "number" and type(q) == "number" and not ns.Secret(q) then Keep(id, q) end
 end
+--- (tests: a new session, what was kept between sessions still there)
+function ns.ForgetSessionQualities() qualityOf = {} end
 
 function ns.QualityHex(q)
 	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]

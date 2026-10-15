@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.51.12", when = "in testing",
+		v = "0.51.13", when = "in testing",
 		items = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
 			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
@@ -28,6 +28,7 @@ CL.LOG = {
 			"Your list stays put while a search runs again (a category picked, item data come in): anything new waits for F5, the footer saying so; items keep their colours.",
 			"A Simple mode category lists everything its row counted (Dungeon loot's 133 upgrades, not the first 100); when stepping in lists another number (item data came in meanwhile), the footer says so for a few seconds.",
 			"Lists that change while you look at them (your bags as you loot, the loot log, mail) no longer shift under the cursor: the new list waits for F5, the footer saying so; a list that showed nothing takes the new rows at once.",
+			"What Terminal learns of items is kept between sessions: after a /reload, \"upgrades\" and the loot list's colours are right from the first search instead of filling in. (Let go when the game is patched.)",
 		},
 	},
 	{
