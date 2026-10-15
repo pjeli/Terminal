@@ -13,27 +13,62 @@ local Safe, Str, Num = ns.Safe, ns.Str, ns.Num
 -- The empty prompt's faint examples (a different one each time it opens)
 ----------------------------------------------------------------------
 
-E.EXAMPLES = {
-	"try: stamina food", "try: nearest innkeeper", "try: use hearthstone", "try: dance", "try: rare sword",
-	"try: where is hogger", "try: nearest repair", "try: shield that drops from kresh",
-	"try: attack power food", "try: vendor goldshire", "try: mining trainer in org", "try: stormwind", "try: gold", "try: rested xp",
-	"try: nearest mailbox", "try: nearest dungeon", "try: sword or axe", "try: rare ring not boe", "try: group browser",
-	"try: who priest undercity", "try: weapon damage", "try: online", "try: where should i level",
-	"try: what dungeon should i do", "try: where should i fish", "try: nearby battlemaster", "try: nearest pvp vendor",
-	"try: what killed me", "try: mats for thorium belt", "try: what uses copper bar", "try: where to get mageweave",
-	"try: nearest unlearned flight master", "try: unlearned flight paths", "try: guild blacksmith", "try: spells not on my bars", "try: quests to drop", "try: recipes i'm missing", "try: recipes i can learn now", "try: what's on this week", "try: next darkmoon faire",
-	L["tip: F1 shows every key"],
+-- Each with what it needs (an addon: "Questie", "AtlasLoot", "Attune", "Syndicator" (a bag addon for your alts);
+-- "guild", "group") and where it's most use ("city": a capital, or resting in a town; "field": out in the world;
+-- "instance": in a dungeon or raid; none: anywhere). One whose addon isn't there isn't offered; the ones for where you
+-- are come first, the others after (0.52.1, the player's ask: "nearest trainer, mailbox" in a city, "nearest dungeon,
+-- best upgrades" outside; "if no Questie, no NPC suggestions").
+E.SIMPLE = {
+	-- in a city
+	{ "nearest mailbox", "Questie", "city" }, { "nearest innkeeper", "Questie", "city" }, { "nearest repair", "Questie", "city" },
+	{ "nearest auctioneer", "Questie", "city" }, { "nearest banker", "Questie", "city" }, { "nearby battlemaster", "Questie", "city" },
+	{ "nearest pvp vendor", "Questie", "city" }, { "mining trainer in org", "Questie", "city" }, { "my auctions", nil, "city" },
+	{ "my mail", nil, "city" }, { "recipes i can learn now", nil, "city" }, { "recipes i'm missing", nil, "city" },
+	{ "mats for thorium belt", nil, "city" }, { "what uses copper bar", nil, "city" }, { "guild blacksmith", "guild", "city" },
+	{ "rested xp", nil, "city" }, { "my lockouts", nil, "city" }, { "group browser", nil, "city" },
+	-- out in the world
+	{ "where should i quest", nil, "field" }, { "where should i level", nil, "field" }, { "quest upgrades", "Questie", "field" },
+	{ "upgrades", nil, "field" }, { "nearest dungeon", nil, "field" }, { "what dungeon should i do", nil, "field" },
+	{ "where should i fish", nil, "field" }, { "where is hogger", "Questie", "field" }, { "vendor goldshire", "Questie", "field" },
+	{ "nearest spirit healer", "Questie", "field" }, { "nearest unlearned flight master", nil, "field" },
+	{ "quests to drop", nil, "field" }, { "stamina food", nil, "field" }, { "attack power food", nil, "field" },
+	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" },
+	-- in a dungeon
+	{ "who needs fortitude", "group", "instance" }, { "missing buffs", "group", "instance" }, { "who is dead", "group", "instance" },
+	{ "group healers", "group", "instance" }, { "what killed me", nil, "instance" }, { "repair cost", nil, "instance" },
+	-- anywhere
+	{ "dance" }, { "rare sword" }, { "sword or axe" }, { "rare ring not boe" }, { "weapon damage" }, { "stormwind" }, { "gold" },
+	{ "shield that drops from kresh", "AtlasLoot" }, { "where to get mageweave" }, { "unlearned flight paths" },
+	{ "who priest undercity" }, { "online", "guild" }, { "spells not on my bars" }, { "what's on this week" },
+	{ "next darkmoon faire" }, { "my attunements", "Attune" }, { "my keys", "Attune" }, { "attunements to do", "Attune" },
+	{ L["tip: F1 shows every key"], tip = true },
 }
--- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands)
-E.ADV_EXAMPLES = {
-	"try: @npc is:vendor in:barrens", "try: @gear slot:feet ilvl:20+", "try: hogger >> party",
-	"try: @item q:rare+ is:boe", "try: @questie lvl:20-25 in:ashenvale", "try: @item stat:sta>=10",
-	"try: @npc trainer:class faction:friendly", "try: @recipe stat:agility", "try: linen cloth >> guild",
-	"try: @npc sells:coarse_thread", "try: @stored linen cloth", "try: @gold", "try: @xp rested", "try: @achievement is:todo",
-	"try: @dungeon sort:nearest", "try: @flight is:unlearned sort:nearest", "try: @map fish:mine", "try: thorium belt > mats > alts", "try: mats for thorium belt >>> party", "try: copper bar > uses", "try: @map lvl:30", "try: @dungeon lvl:25", "try: @recipe is:skillup", "try: @friend is:online", "try: @guild blacksmith", "try: @spell is:unplaced", "try: @quest is:drop", "try: @recipe is:unknown", "try: @recipe is:learnable", "try: @who orc lvl:20-30", "try: @calendar is:holiday",
-	"try: @item is:boe|q:epic", "try: @spell is:ready", "try: @gear slot:head|chest -is:soulbound", "try: @item q:rare|epic", "try: @npc is:repair sort:nearest", "try: @npc trainer:mining near:500", "try: @cvar changed", "try: .filters (every key:value)", "try: .theme dracula",
-	L["tip: Up = last command, Down = recent picks"], L["tip: F1 shows every key"],
+-- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands); one whose @kind isn't there (no Questie:
+-- no @npc) isn't offered (Valid, below)
+E.ADVANCED = {
+	{ "@npc is:vendor in:barrens", "field" }, { "@gear slot:feet ilvl:20+" }, { "hogger >> party" },
+	{ "@item q:rare+ is:boe" }, { "@questie lvl:20-25 in:ashenvale", "field" }, { "@item stat:sta>=10" },
+	{ "@npc trainer:class faction:friendly", "city" }, { "@recipe stat:agility" }, { "linen cloth >> guild" },
+	{ "@npc sells:coarse_thread", "city" }, { "@stored linen cloth", "city" }, { "@gold" }, { "@xp rested", "city" },
+	{ "@achievement is:todo" }, { "@dungeon sort:nearest", "field" }, { "@flight is:unlearned sort:nearest", "field" },
+	{ "@map fish:mine", "field" }, { "thorium belt > mats > alts", "city" }, { "mats for thorium belt >>> party", "city" },
+	{ "copper bar > uses", "city" }, { "@map lvl:30", "field" }, { "@dungeon lvl:25", "field" }, { "@recipe is:skillup", "city" },
+	{ "@friend is:online" }, { "@guild blacksmith", "city" }, { "@spell is:unplaced" }, { "@quest is:drop", "field" },
+	{ "@recipe is:unknown", "city" }, { "@recipe is:learnable", "city" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
+	{ "@item is:boe|q:epic" }, { "@spell is:ready", "instance" }, { "@gear slot:head|chest -is:soulbound" },
+	{ "@item q:rare|epic" }, { "@npc is:repair sort:nearest", "city" }, { "@npc trainer:mining near:500", "city" },
+	{ "@loot is:upgrade sort:best", "field" }, { "@questie is:upgrade sort:best", "field" }, { "@group is:dead", "instance" },
+	{ "@lockout is:raid", "city" }, { "@cvar changed" }, { ".filters (every key:value)" }, { ".theme dracula" },
+	{ L["tip: Up = last command, Down = recent picks"], tip = true }, { L["tip: F1 shows every key"], tip = true },
 }
+local function Texts(list)
+	local out = {}
+	for _, x in ipairs(list) do out[#out + 1] = x.tip and x[1] or ("try: " .. x[1]) end
+	return out
+end
+-- (every one, as shown: "try: ..." and the tips)
+E.EXAMPLES, E.ADV_EXAMPLES = Texts(E.SIMPLE), Texts(E.ADVANCED)
+
 -- Examples made for the character playing (their class, professions, bags, level, where they are, guild): mixed in
 -- with the fixed ones, every other suggestion. Worked out from lists already built (never a big list on its own),
 -- again after a minute or when the level or zone changed.
@@ -95,61 +130,153 @@ local function Gather()
 	local zoneName = GetRealZoneText and Str(Safe(GetRealZoneText))
 	f.zone = Short(zoneName and Lower(zoneName), 22)
 	f.inGuild = IsInGuild and Safe(IsInGuild)
+	-- the dungeon you're in (its loot: "the deadmines upgrades")
+	local inside, kind = Safe(IsInInstance)
+	if inside == true and (kind == "party" or kind == "raid") then
+		f.instance = Short(Str(Safe(GetInstanceInfo)) and Lower(Str(Safe(GetInstanceInfo))), 30)
+	end
 	return f
 end
 
 -- Advanced mode's, each kept only if it works here (its @kinds known, its filters parse)
-local function AdvancedExamples(f, add, out)
+local function AdvancedExamples(f, add)
 	local level, zone, prof = f.level, f.zone, f.prof
-	if f.classFile and PRIMARY[f.classFile] then add("@gear stat:" .. PRIMARY[f.classFile] .. " is:upgrade") end
-	if prof then add("@recipe is:skillup " .. prof); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:nearest") end
+	if f.classFile and PRIMARY[f.classFile] then add("@gear stat:" .. PRIMARY[f.classFile] .. " is:upgrade", nil, "field") end
+	if prof then add("@recipe is:skillup " .. prof, nil, "city"); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:nearest", nil, "city") end
 	if f.inGuild then add("@guild is:online") end
-	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or "")) end
-	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade") end
-	local kept = {}
-	for _, ex in ipairs(out) do if Valid(ex:gsub("^try: ", "")) then kept[#kept + 1] = ex end end
-	return kept
+	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or ""), nil, "field") end
+	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade", nil, "field") end
+	if f.instance then add("@loot " .. f.instance .. " is:upgrade", nil, "instance") end
 end
 
-local function SimpleExamples(f, add, out)
+local function SimpleExamples(f, add)
 	local prof, dungeon = f.prof, f.dungeon
-	if f.cls then add("nearest " .. f.cls .. " trainer") end
-	if prof then add(prof .. " skillup"); add("nearest " .. prof .. " trainer") end
-	if #f.carry > 0 then add("use " .. Pick(f.carry)) end
-	if f.level and f.level < 60 then add(Pick(SLOT_WORDS) .. " upgrades") end
-	if dungeon then add(dungeon); add(dungeon .. " upgrades") end
-	if f.zone then add("vendor " .. f.zone) end
+	if f.cls then add("nearest " .. f.cls .. " trainer", "Questie", "city") end
+	if prof then add(prof .. " skillup", nil, "city"); add("nearest " .. prof .. " trainer", "Questie", "city") end
+	if #f.carry > 0 then add("use " .. Pick(f.carry), nil, "field") end
+	if f.level and f.level < 60 then add(Pick(SLOT_WORDS) .. " upgrades", nil, "field") end
+	if dungeon then add(dungeon, nil, "field"); add(dungeon .. " upgrades", "AtlasLoot", "field") end
+	if f.instance then add(f.instance .. " upgrades", "AtlasLoot", "instance") end
+	if f.zone then add("vendor " .. f.zone, "Questie", "field") end
 	if f.inGuild then add("online") end
-	add("nearest flight master")
+	add("nearest flight master", nil, "field")
+end
+
+--- What an example needs is here: its addon installed, your guild, your group.
+local function Has(need)
+	if not need then return true end
+	if need == "guild" then return Safe(IsInGuild) == true end
+	if need == "group" then return Safe(IsInGroup) == true end
+	local I = ns.Integrations
+	return not (I and I.AddonMissing and I.AddonMissing(need))
+end
+E.HasForExample = Has
+
+--- The character's own examples, tagged as the fixed ones are: { text, need, at, mine = true }, those it has the
+--- addon (or guild, group) for.
+local function Personal(advanced)
+	local out = {}
+	local f = Gather()
+	local function add(s, need, at)
+		if s and Has(need) and (not advanced or Valid(s)) then out[#out + 1] = { s, need, at, mine = true } end
+	end
+	if advanced then AdvancedExamples(f, add) else SimpleExamples(f, add) end
+	return out
+end
+E.PersonalTagged = Personal
+--- (as before: the texts, "try: ..."; tests)
+function E.PersonalExamples(advanced)
+	local out = {}
+	for _, x in ipairs(Personal(advanced)) do out[#out + 1] = "try: " .. x[1] end
 	return out
 end
 
-function E.PersonalExamples(advanced)
+----------------------------------------------------------------------
+-- Where you are, for which examples come first (0.52.1, the player's ask)
+----------------------------------------------------------------------
+
+-- the capitals' maps (and their parts: a city's own sub-maps have it as their parent)
+local CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true,
+	[1947] = true, [1954] = true, [1955] = true }
+E.CAPITALS = CAPITALS
+--- "instance" (a dungeon or raid), "city" (a capital), "town" (resting: an inn elsewhere), or "field" (out in the world).
+function E.Place()
+	local inside, kind = Safe(IsInInstance)
+	if inside == true and (kind == "party" or kind == "raid") then return "instance" end
+	local M = C_Map
+	local map = M and M.GetBestMapForUnit and Num(Safe(M.GetBestMapForUnit, "player"))
+	for _ = 1, 3 do
+		if not map then break end
+		if CAPITALS[map] then return "city" end
+		local info = M.GetMapInfo and Safe(M.GetMapInfo, map)
+		map = type(info) == "table" and Num(info.parentMapID) or nil
+	end
+	if Safe(IsResting) == true then return "town" end
+	return "field"
+end
+-- how much more often an example for where you are comes up: { [where you are] = { [where it's for] = weight } }
+E.PLACE_WEIGHT = {
+	city = { city = 4, field = 0.6, instance = 0.4 },
+	town = { city = 2.5, field = 2, instance = 0.4 },
+	field = { city = 0.6, field = 4, instance = 0.6 },
+	instance = { city = 0.4, field = 0.8, instance = 5 },
+}
+E.MINE_WEIGHT, E.TIP_WEIGHT = 1.5, 0.5
+E.rand01 = math.random
+
+--- The examples to offer ({ text, need, at } each; tip, mine), those for where you are first: each once, in a weighted shuffle (each one's place a draw
+--- weighted by how well it fits here; Efraimidis-Spirakis), so all of them come up, the fitting ones sooner.
+function E.Ordered(list, place)
+	local weights = E.PLACE_WEIGHT[place] or {}
+	local keyed = {}
+	for i, x in ipairs(list) do
+		local at = x[3] -- ({ text, need, at })
+		local w = x.tip and E.TIP_WEIGHT or ((at and weights[at] or 1) * (x.mine and E.MINE_WEIGHT or 1))
+		local u = E.rand01()
+		if type(u) ~= "number" or u <= 0 then u = 1e-6 end
+		keyed[#keyed + 1] = { x = x, k = u ^ (1 / w), i = i }
+	end
+	table.sort(keyed, function(a, b) if a.k ~= b.k then return a.k > b.k end return a.i < b.i end)
 	local out = {}
-	local function add(s) if s then out[#out + 1] = "try: " .. s end end
-	local f = Gather()
-	if advanced then return AdvancedExamples(f, add, out) end
-	return SimpleExamples(f, add, out)
+	for _, e in ipairs(keyed) do out[#out + 1] = e.x end
+	return out
 end
 
-local function Examples() return E.On() and E.EXAMPLES or E.ADV_EXAMPLES end
 local pool = { at = 0 }
---- The list the suggestions come from: the character's own examples between the fixed ones (one of each in turn).
+--- What the examples are offered for: which addons are here, your guild and group (a change: made again).
+local function Setup()
+	local t = {}
+	for _, n in ipairs({ "Questie", "AtlasLoot", "Attune", "Syndicator", "guild", "group" }) do t[#t + 1] = Has(n) and "1" or "0" end
+	return table.concat(t)
+end
+--- The list the suggestions come from: the fixed ones and the character's own, those this setup has, those for where
+--- you are first (E.Ordered); made again after a minute, or when your level, zone, place or setup changed.
 local function Pool()
 	local adv = not E.On()
 	local now = GetTime and GetTime() or 0
 	local level = UnitLevel and Num(Safe(UnitLevel, "player"))
 	local zone = GetRealZoneText and Str(Safe(GetRealZoneText))
-	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and now - (pool.made or 0) < 60 then return pool.list end
-	local fixed, mine = Examples(), {}
-	local ok, got = pcall(E.PersonalExamples, adv)
-	if ok and type(got) == "table" then mine = got end
-	local list, i, j = {}, 1, 1
-	while i <= #fixed or j <= #mine do
-		if j <= #mine then list[#list + 1] = mine[j]; j = j + 1 end
-		if i <= #fixed then list[#list + 1] = fixed[i]; i = i + 1 end
+	local place, setup = E.Place(), Setup()
+	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and pool.place == place
+		and pool.setup == setup and now - (pool.made or 0) < 60 then
+		return pool.list
 	end
-	pool.list, pool.adv, pool.level, pool.zone, pool.made = list, adv, level, zone, now
+	local cands = {}
+	for _, x in ipairs(adv and E.ADVANCED or E.SIMPLE) do
+		-- (Advanced's: the second field is where; Simple's: what it needs, then where)
+		local need, at = x[2], x[3]
+		if adv then need, at = nil, x[2] end
+		if x.tip or (Has(need) and (not adv or Valid(x[1]:gsub(" %b()$", "")))) then
+			cands[#cands + 1] = { x[1], need, at, tip = x.tip }
+		end
+	end
+	local ok, mine = pcall(Personal, adv)
+	for _, x in ipairs(ok and type(mine) == "table" and mine or {}) do cands[#cands + 1] = x end
+	local list = {}
+	for _, x in ipairs(E.Ordered(cands, place)) do list[#list + 1] = x.tip and x[1] or ("try: " .. x[1]) end
+	if #list == 0 then list[1] = L["tip: F1 shows every key"] end
+	pool.list, pool.adv, pool.level, pool.zone, pool.place, pool.setup, pool.made = list, adv, level, zone, place, setup, now
+	pool.at = 0 -- (made again: from its first, the ones for here)
 	return list
 end
 E.ExamplePool = Pool

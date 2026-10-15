@@ -677,7 +677,9 @@ Run("rotating examples in the empty prompt", function()
 end)
 
 Run("examples made for the character", function()
-	local save = { lvl = _G.UnitLevel, cls = _G.UnitClass, zone = _G.GetRealZoneText, guild = _G.IsInGuild, rand = E.rand }
+	local save = { lvl = _G.UnitLevel, cls = _G.UnitClass, zone = _G.GetRealZoneText, guild = _G.IsInGuild, rand = E.rand,
+		missing = ns.Integrations.AddonMissing, rand01 = E.rand01, place = E.Place, group = _G.IsInGroup }
+	ns.Integrations.AddonMissing = function() return false end -- (Questie, AtlasLoot, Attune all there)
 	_G.UnitLevel = function() return 20 end
 	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
 	_G.GetRealZoneText = function() return "Westfall" end
@@ -699,20 +701,85 @@ Run("examples made for the character", function()
 			if w:find("^%a+:%S") then check(ns.Filters.Parse(w) ~= nil, "a working filter: " .. w) end
 		end
 	end
-	-- in the rotation: one of yours, then a fixed one, in turn
+	-- in the rotation: yours and the fixed ones, every one of them
 	E.Set(true)
 	ns.db.easyMode = nil
 	local list = E.ExamplePool()
-	local yours = {}
+	local yours, inPool = {}, {}
+	for _, x in ipairs(list) do inPool[x] = true end
 	for _, x in ipairs(E.PersonalExamples(false)) do yours[x] = true end
-	check(yours[list[1]] and not yours[list[2]] and list[2] == E.EXAMPLES[1], "yours and the fixed ones take turns: " .. tostring(list[1]) .. " / " .. tostring(list[2]))
-	-- every Simple one finds something or at least searches without an error
+	local all, want = true, #E.PersonalExamples(false)
+	for x in pairs(yours) do if not inPool[x] then all = false end end
+	for _, x in ipairs(E.SIMPLE) do
+		local shown = x.tip and x[1] or ("try: " .. x[1])
+		if E.HasForExample(x[2]) then want = want + 1; if not inPool[shown] then all = false end
+		elseif inPool[shown] then all = false end -- (in no group: "who needs fortitude" isn't offered)
+	end
+	check(all and #list == want, "yours and the fixed ones this setup has, each once: " .. #list .. " of " .. want)
+
+	-- (0.52.1, the player's ask) where you are: the examples for it first (a city: trainers, the mailbox; outside:
+	-- quests, dungeons, upgrades; in a dungeon: your group, the loot), the others still offered
+	E.rand01 = function() return 0.5 end -- (each one's draw the same: its weight alone orders them)
+	local TAG = {}
+	for _, x in ipairs(E.SIMPLE) do TAG["try: " .. x[1]] = x[3] end
+	for _, x in ipairs(E.PersonalTagged(false)) do TAG["try: " .. x[1]] = x[3] end
+	_G.IsInGroup = function() return true end
+	for _, where in ipairs({ "city", "field", "instance" }) do
+		E.Place = function() return where end
+		list = E.ExamplePool()
+		local firstOther
+		for i, x in ipairs(list) do if TAG[x] ~= where then firstOther = i break end end
+		local fits = 0
+		for _, x in ipairs(list) do if TAG[x] == where then fits = fits + 1 end end
+		check(fits > 0 and firstOther == fits + 1 and #list >= #E.EXAMPLES - 1, where .. ": its " .. fits .. " first, then the others ("
+			.. tostring(list[1]) .. ", " .. tostring(list[firstOther]) .. "; " .. #list .. ")")
+	end
+	-- the place itself: a capital (or a part of one), a dungeon, an inn elsewhere, out in the world
+	E.Place = save.place
+	local wasMap, wasInst, wasRest = _G.C_Map, _G.IsInInstance, _G.IsResting
+	local map, inst, rest = 1454, false, false
+	_G.C_Map = { GetBestMapForUnit = function() return map end,
+		GetMapInfo = function(m) return m == 1469 and { parentMapID = 1454 } or { parentMapID = 1411 } end }
+	_G.IsInInstance = function() return inst, inst and "party" or "none" end
+	_G.IsResting = function() return rest end
+	check(E.Place() == "city", "Orgrimmar: a city")
+	map = 1469
+	check(E.Place() == "city", "a part of Orgrimmar (its parent): a city")
+	map, rest = 1411, true
+	check(E.Place() == "town", "Durotar, resting at an inn: a town")
+	rest = false
+	check(E.Place() == "field", "Durotar: out in the world")
+	inst = true
+	check(E.Place() == "instance", "in a dungeon")
+	_G.C_Map, _G.IsInInstance, _G.IsResting = wasMap, wasInst, wasRest
+
+	-- (0.52.1, the player's ask) what isn't installed isn't suggested: no Questie, no NPCs; no AtlasLoot, no loot
+	E.Place = function() return "city" end
+	ns.Integrations.AddonMissing = function(n) return n == "Questie" or n == "AtlasLoot" end
+	list = E.ExamplePool()
+	local text = table.concat(list, " | ")
+	check(not text:find("nearest mailbox", 1, true) and not text:find("nearest warrior trainer", 1, true)
+		and not text:find("where is hogger", 1, true) and not text:find("drops from kresh", 1, true)
+		and not text:find("shadowfang keep upgrades", 1, true) and text:find("try: my mail", 1, true),
+		"no Questie, no AtlasLoot: none of their suggestions: " .. text)
+	ns.db.easyMode = false
+	E.Set(false)
+	local advList = table.concat(E.ExamplePool(), " | ")
+	check(not advList:find("@npc", 1, true) and not advList:find("@questie", 1, true) and advList:find("@gold", 1, true),
+		"Advanced: no @npc, no @questie without Questie: " .. advList)
+	E.Set(true)
+	ns.db.easyMode = nil
+	ns.Integrations.AddonMissing = function() return false end
+	_G.IsInGroup = save.group
+	-- every Simple one finds something or at least searches without an error (the fixed ones too)
+	for _, x in ipairs(E.SIMPLE) do if not x.tip then yours["try: " .. x[1]] = true end end
 	for x in pairs(yours) do
 		local ok, err = pcall(UI.Search, UI, x:gsub("^try: ", ""))
 		check(ok, "searchable: " .. x .. " " .. tostring(err))
 	end
 	ns.db.easyMode = false
 	_G.UnitLevel, _G.UnitClass, _G.GetRealZoneText, _G.IsInGuild, E.rand = save.lvl, save.cls, save.zone, save.guild, save.rand
+	ns.Integrations.AddonMissing, E.rand01, E.Place, _G.IsInGroup = save.missing, save.rand01, save.place, save.group
 end)
 
 Run("a pinned row (no score) sorts without an error, first", function()
@@ -1644,8 +1711,9 @@ end)
 -- (0.49.2, review G14) the examples made for you name your professions, not their trade spells (Smelting: "nearest
 -- smelting trainer", "smelting skillup", "@npc trainer:smelting" found nothing)
 Run("examples name your professions, not their trade spells", function()
-	local rand = E.rand
+	local rand, missing = E.rand, ns.Integrations.AddonMissing
 	E.rand = function(a) return a end -- (the first of each list)
+	ns.Integrations.AddonMissing = function() return false end
 	Use({ { "professions", { label = "Profession", aliases = { "profession" }, collect = Rows({
 		{ name = "Smelting", spellID = 2656, parentName = "Mining" }, { name = "Mining", skillLine = 186 } }) } } })
 	local ok, err = pcall(function()
@@ -1653,7 +1721,7 @@ Run("examples name your professions, not their trade spells", function()
 		check(not mine:find("smelting", 1, true) and mine:find("try: mining skillup", 1, true) and mine:find("try: nearest mining trainer", 1, true),
 			"Mining, not Smelting: " .. mine)
 	end)
-	E.rand = rand
+	E.rand, ns.Integrations.AddonMissing = rand, missing
 	if not ok then error(err, 0) end
 end)
 

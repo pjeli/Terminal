@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.52.1", when = "in testing",
+		items = {
+			"The empty prompt's suggestions fit where you are and what you have: in a city, trainers, the mailbox, the auction house and your mail come up first; out in the world, quests, dungeons and upgrades; in a dungeon, your group and its loot (the others still come up, later). Ones for an addon you don't have (Questie's NPCs, AtlasLoot's loot, Attune) aren't suggested, and there are more of them.",
+		},
+	},
+	{
 		v = "0.52.0", when = "released October 2026",
 		items = {
 			"Upgrades: \"upgrades\" lists gear you can get (about your level, from dungeons you can enter) that beats what you wear, the biggest first, and its tooltip says why: a line per stat, gains in green, losses in red. Advanced mode: @loot is:upgrade sort:best.",
@@ -52,23 +58,6 @@ CL.LOG = {
 			"A full review, the keys and clicks: Enter does what the footer says after a Shift+Enter or a click set it up; a window opened while lists still load closes Terminal and is pointed at; AltGr letters type (Polish, Czech, Hungarian layouts); a key you bound to Terminal closes it too; F1, .changelog and .atop catch the mouse and close when Terminal opens.",
 			"Searches: \"not\" and \"-\" work with any language's letters; \"cloak without stamina\", \"reset my keybinds\", \"where is the ah\" and \"how do i get to orgrimmar\" are searches again, not other questions; \"what does my group need\" asks the group; \"leveling plan\" plans all your professions; sqrt(2), max(3, 5) and the like add up; items \"of the Monkey\" and \"of the Bear\" each keep their own stats.",
 			"Your things: worn bows, wands and relics, and keys on the keyring, are found; \"what killed me\" answers with this character's deaths only; a new sale's news stays until its own mail comes; @mail, @drop and @combatlog say why when they're empty; camp objects and talents open right with their window already up; Questie's NPCs open and get pinned at the spawn the row measures; Quick Keybind Mode starts from the Keybindings page's own button.",
-		},
-	},
-	{
-		v = "0.49.0", when = "released October 2026",
-		items = {
-			"Raid lockouts: @lockout (Simple mode: \"my lockouts\", \"raid lockouts\", \"am i saved\") lists what each of your characters is saved to, how many bosses are down and when it resets; Enter names the bosses, Shift+Enter links your own in chat.",
-			"Profession levelling plans: \"blacksmithing plan\" or \"level blacksmithing\" (Advanced: @recipe blacksmithing sort:plan) lists your recipes that still give skill by how many times your materials make each, from bags and bank and with your alts; vendor materials don't count, and the footer says about how many points they'd give.",
-			"Simple mode's categories are named for what you'd do: Items (your bags, bank and alts together), Windows, Settings, Commands, Dungeon loot and Recent (your drops and deaths). Each says what it holds, and something named exactly what you typed comes first, ready to open.",
-			"Your auctions: @auction (Simple mode: \"my auctions\", \"what am i selling\") lists what each character has on the auction house as Terminal saw it posted, with its price and time left, then the auction house's news (sold, won, outbid, expired), each item with its own icon, quality and count. The news moved there from @mail; \"incoming mail\" still shows it.",
-			"Mail carrying an item is drawn in that item's colour, with its icon.",
-			"An auction that comes back to you by mail (it failed, expired or was cancelled) no longer counts in @stored as still on the auction house.",
-			"Legacy Challenges opens the Legacy window on its Challenges page; Legacy Rewards and Legacy Tree open the window and point at their tab, also when it's already open on another page (the game gives Terminal no clean way to switch to those two).",
-			".zen hides the frame-rate counter too, and brings it back as Terminal closes.",
-			"Up on an empty prompt brings back a line you ran; Down then goes into its results like any search, Up from the top result goes further back, and Shift+Left steps back toward the empty prompt.",
-			"Listed on CurseForge for WoW Forever only (0.48.0 also showed up for retail).",
-			"A full review's fixes: currencies under a folded header are listed; a profession window's search or filters no longer shrink its saved recipes; load-on-demand addons say so instead of asking for a reload; nearest mailbox works right after login; clicks and the right-click menu do what Enter does (>> party sends from the click, not on hover); a fight closing the keys window (F1) brings your search back afterwards.",
-			"Searches are quicker once you've picked things before, and your alts' items are counted again in the background rather than as you type. Row details, and the games' and windows' key hints, read the same way everywhere; .debug reset lets Terminal try again what the game once blocked.",
 		},
 	},
 }
