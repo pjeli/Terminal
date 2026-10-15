@@ -136,16 +136,39 @@ local function Real(list)
 	for i = 1, #list do if not list[i].noActivate then return true end end
 	return false
 end
---- The new rows held instead of shown (true), or nil: there was nothing real to keep, so they're shown.
-local function Hold(self, shown, new)
+-- What a search sets beside its rows, read with the rows shown (the footer, Enter, >>> sending): a background search
+-- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
+-- list said the old ones; Simple mode's category label changed with the list staying)
+local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "blockedSyntax", "linked", "answerNote", "pipeTrail",
+	"flightNote", "missingNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
+local NONE = {}
+local function Fields(self)
+	local t = {}
+	for _, k in ipairs(LIST_FIELDS) do local v = self[k] if v == nil then t[k] = NONE else t[k] = v end end
+	return t
+end
+local function SetFields(self, t)
+	if not t then return end
+	for _, k in ipairs(LIST_FIELDS) do local v = t[k] if v == NONE then self[k] = nil else self[k] = v end end
+end
+--- A background search's rows: "held" for F5 (the shown list and what it was searched with kept), "same" (the same
+--- rows: put up in their place, nothing moving, so a stack's count is the new one; review, 0.51.25), or nil: nothing
+--- real was shown, so they're shown.
+local function Hold(self, shown, new, before)
 	if not Real(shown) then return nil end
 	local same = #shown == #new
 	if same then
 		for i = 1, #new do if not SameRow(new[i], shown[i]) then same = false break end end
 	end
-	self.held = (not same) and new or nil
+	if same then
+		self.held, self.heldFields = nil, nil
+		self:SetStatus()
+		return "same"
+	end
+	self.held, self.heldFields = new, Fields(self)
+	SetFields(self, before)
 	self:SetStatus()
-	return true
+	return "held"
 end
 
 -- A category stepped into from the list of categories, listing another number than its row counted (0.51.11, the
@@ -191,10 +214,11 @@ local function SameRows(a, b)
 end
 --- A background search for a changed list done: nothing new (nothing held, or what was held already) counts toward
 --- UI.LIVE_SAME.
-function UI.LiveCounted()
+function UI.LiveCounted(shownNew)
 	local before = live.before
 	if before == nil then return end
 	live.before = nil
+	if shownNew then return end -- (nothing real was shown: what it found is up, not "nothing new")
 	if not UI.held or SameRows(UI.held, before or nil) then live.same = live.same + 1 else live.same = 0 end
 end
 
@@ -211,6 +235,9 @@ function ns.OnDirty(p)
 	if not (UI.IsShown and UI:IsShown()) or UI.mode ~= "search" then return end
 	live.kinds[p.id] = true
 	live.at = GetTime()
+	-- (a change a while after the last search again is a new one, not the list changing as it's read: counted afresh;
+	-- review, 0.51.25: three unrelated changes stopped them for good)
+	if live.redoneAt and live.at - live.redoneAt > 2 * UI.LIVE_WAIT then live.same = 0 end
 	if live.timer then return end
 	live.timer = true
 	local function Fire()
@@ -222,6 +249,7 @@ function ns.OnDirty(p)
 		if not UI:IsShown() or UI.searchJob or not ShowsKind(kinds) then return end
 		if live.same >= UI.LIVE_SAME then return end
 		live.before = UI.held or false
+		live.redoneAt = GetTime()
 		UI:QuietRedo()
 		if not UI.searchJob then UI.LiveCounted() end -- (else once it's done: Completed)
 	end
@@ -230,9 +258,10 @@ end
 
 --- F5: the results a background search held put up (nothing held: nothing changes).
 function UI:ShowNewResults()
-	local held = self.held
-	self.held = nil
+	local held, fields = self.held, self.heldFields
+	self.held, self.heldFields = nil, nil
 	if not held then return end -- (nothing new: the list stays as it is)
+	SetFields(self, fields)
 	PutUp(held)
 	self:SelectPopTarget(true)
 	self:SetStatus()
@@ -245,10 +274,16 @@ end
 -- search, lost the selection to the top row whenever item data came in)
 local function Completed(self, job, final)
 	final = self:CollapseGroup(final)
-	if job.quiet and Hold(self, UI.results, final) then -- (run in the background: held for F5)
-		UI.LiveCounted()
-		self:UpdateBusy()
-		return
+	if job.quiet then -- (run in the background: held for F5)
+		local h = Hold(self, UI.results, final, job.before)
+		UI.LiveCounted(h == nil)
+		if h == "held" then self:UpdateBusy() return end
+		if h == "same" then
+			UI.results = final -- (the same rows in the same places: the selection and scroll stay)
+			self:UpdateBusy()
+			self:Render()
+			return
+		end
 	end
 	PutUp(final)
 	self.lastSearchMs, self.lastSearchCount, self.lastSearchSlices = job.ms, #UI.results, job.slices
@@ -446,6 +481,9 @@ function UI:Refresh()
 	self.refreshCount = (self.refreshCount or 0) + 1
 	if edit:GetText() ~= "" then self.showRecent = nil end -- (Down's recent picks last until you type)
 	if self.searchJob then ns:Trace("search: started again before the last one finished (" .. (self.searchJob.slices or 0) .. " frames in)") end
+	-- (a search of yours still going: one asked for in the background now runs as yours, its first frame's best not held
+	-- behind F5 as if it were the list; review, 0.51.25)
+	local yours = self.searchJob and not self.searchJob.quiet
 	self.searchJob = nil -- a search still going on is for the old text
 	self.searchedText = edit:GetText()
 	-- the same text searched again (a list finished loading, item data came in): the row selected stays selected, and
@@ -459,6 +497,7 @@ function UI:Refresh()
 	-- (a press finishing (FinishSoon) is kept through the same text searched again: the data retry, the spinner's
 	-- refresh, a queued one; 0.49.2, review: it was dropped, and the terminal stayed over the window it opened)
 	if not same then self.pendingAfter = nil end
+	local fields = Fields(self) -- (what the shown list was searched with, before this search resets any: kept if held)
 	self.args = nil
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
@@ -468,23 +507,28 @@ function UI:Refresh()
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,
 	-- not its first frame's best put up meanwhile (0.51.7, the player: "upgrades" jumped about and back to the top
 	-- every couple of seconds while the items loaded)
-	local quiet = same and self.quietRedo
+	local quiet = same and self.quietRedo and not yours
 	self.quietRedo = nil
-	if not quiet then self.held, live.same = nil, 0 end -- (a search of its own: whatever a background one held is stale)
+	if not quiet then self.held, self.heldFields, live.same = nil, nil, 0 end -- (a search of its own: whatever a background one held is stale)
 	if not same then self.countNote, self.expectCount = nil, nil end -- (typed on: the note was about another list)
 	local shown = UI.results
+	local before = quiet and fields or nil
 	ListFor(self, text, first, edit)
 	-- (the same text searched again otherwise, a category picked: the list shown stays till the search is done, not its
 	-- first frame's best put up meanwhile)
 	if same and not quiet and self.searchJob and Real(shown) then UI.results = shown end
 	if quiet then
 		if self.searchJob then
-			self.searchJob.quiet = true -- (Completed holds what it finds)
+			self.searchJob.quiet, self.searchJob.before = true, before -- (Completed holds what it finds)
 			UI.results = shown
-		elseif Hold(self, shown, UI.results) then
-			UI.results = shown
-			self:UpdateBusy()
-			return
+		else
+			local h = Hold(self, shown, UI.results, before)
+			if h == "held" then UI.results = shown end
+			if h then
+				self:UpdateBusy()
+				self:Render()
+				return
+			end
 		end
 	end
 	if t0 then self.lastSearchMs = debugprofilestop() - t0 end
@@ -495,7 +539,7 @@ function UI:Refresh()
 	if keep then
 		local found
 		for i, e in ipairs(UI.results) do
-			if e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key) then found = i break end
+			if SameRow(e, keep) then found = i break end
 		end
 		if found then
 			UI.sel, UI.offset = found, math.max(0, math.min(found - keptRow, #UI.results - LY.ROWS))

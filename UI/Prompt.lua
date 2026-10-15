@@ -318,7 +318,8 @@ end
 --- What is still loading, one line per provider that says so.
 function UI:BusyLines()
 	local out, who = {}, {}
-	if self.searchJob then out[1] = L["Searching... (the best matches so far are shown)"] end
+	-- (a background search: the list shown is the whole last one, not a best-so-far; review, 0.51.25)
+	if self.searchJob and not self.searchJob.quiet then out[1] = L["Searching... (the best matches so far are shown)"] end
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		if p.busy then

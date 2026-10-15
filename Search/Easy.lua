@@ -1105,11 +1105,14 @@ function E.HelpLines()
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
+		L["Gear: upgrades lists what you can get that beats what you wear, the biggest first, and its tooltip says why; quest upgrades lists the quests whose reward is one (with Questie)."],
+		L["When a list changes while you look at it (your bags as you loot, item data coming in), it stays put and the footer says so: F5 shows the new one."],
 		L["Alt+click an item (or a spell, quest, achievement) in chat to look it up here."],
 		L["Ctrl+Enter does it and keeps the terminal open (for things that don't open a window)."],
 		L["F1 (or .keybinds) shows every key, for each mode; Esc there brings you back."],
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
+		L["New here? .tour shows Terminal in a few short steps."],
 		L["Want the full command line (@kinds, filters, chat)? Type .advanced"],
 	}
 end

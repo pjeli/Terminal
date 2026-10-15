@@ -280,6 +280,7 @@ function UI:UpdateGhost()
 		-- (the option off: the prompt stays empty)
 		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end
 		if ns.Tour and ns.Tour.Active() then add = nil end -- (.tour: its card says what to do; no other example)
+		if add and ns.Easy and ns.Easy.ExampleShown then ns.Easy.ExampleShown(add) end
 		-- (the examples start "try:" in English, which SuggestionText reads back; only what's shown is translated)
 		if type(add) == "string" and add:sub(1, 4) == "try:" then add = L["try:"] .. add:sub(5) end
 		-- Alt+`: this run is Advanced (Simple again once it closes)

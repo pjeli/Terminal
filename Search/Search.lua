@@ -1311,7 +1311,7 @@ function Scan.Finalize(self, q, out)
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
 	-- sort:best (Simple mode's "upgrades"): the biggest upgrades first, by how much each beats what you wear (the gain
 	-- is:upgrade worked out for it); the other rows after them, as they were
-	if q.sortBest and ns.Filters and ns.Filters.GainOf then
+	if q.sortBest and ns.Filters and ns.Filters.GainOf and ns.Filters.fitMade then
 		local GainOf = ns.Filters.GainOf
 		for i = 1, #out do
 			local g = GainOf(out[i])

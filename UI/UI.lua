@@ -126,6 +126,7 @@ do
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			UI.openedByToggle, UI.tabHeld = nil, nil
+			if ns.Tour then ns.Tour.Stop() end -- (hidden by the game, Esc's game menu: the tour and its card go too; review, 0.51.25)
 			if ns.Pipes and ns.Pipes.ClearSteps then ns.Pipes.ClearSteps() end -- (a chain's rows: not kept while closed)
 			UI:MotionReset()
 			UI:HideTooltip()
@@ -220,10 +221,15 @@ do
 				UI:UpdateCaret()
 			end
 		end)
+		-- (.tour's keys here too: clicked into the box, or in combat, Enter went to the row; review, 0.51.25)
 		edit:SetScript("OnEnterPressed", function()
+			if ns.Tour and ns.Tour.Key("ENTER", IsShiftKeyDown()) then return end
 			UI:Activate(nil, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 		end)
-		edit:SetScript("OnEscapePressed", function() UI:Hide() end)
+		edit:SetScript("OnEscapePressed", function()
+			if ns.Tour and ns.Tour.Key("ESCAPE") then return end
+			UI:Hide()
+		end)
 		edit:SetScript("OnArrowPressed", function(_, key)
 			if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
 		end)
@@ -237,6 +243,8 @@ do
 				C_Timer.After(0, function() UI:SetStatus(); UI:UpdateGhost() end)
 			end
 			if key == "TAB" then UI.tabHeld = GetTime() end
+			-- (typing ends the tour; Enter and Esc are OnEnterPressed's and OnEscapePressed's)
+			if ns.Tour and key ~= "ENTER" and key ~= "ESCAPE" and key ~= "NUMPADENTER" then ns.Tour.Key(key, IsShiftKeyDown()) end
 			if key == "`" then
 				UI.TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
 			else

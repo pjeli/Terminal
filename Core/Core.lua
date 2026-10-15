@@ -358,8 +358,14 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 --- next keystroke's frame (review, 0.48.6). Its last-used time stays as it was: an unused list is still freed.
 --- That long after the LAST change, not the first: a stream of them (selling greys, emptying a mailbox, looting a run of
 --- mobs) is read once it's over (0.50.7, review: read every ~3 s while they kept coming).
+local Warm
 local function WarmLater(p)
 	if ns.OnDirty then ns.OnDirty(p) end -- (the terminal open on its rows: searched again in the background, UI.lua)
+	Warm(p)
+end
+-- (the reading put off: not another change, so not searched again for it; review, 0.51.25: in combat it was, every
+-- warmDirty seconds)
+Warm = function(p)
 	if not p.warmDirty or not p._entries then return end
 	p._warmAsked = GetTime()
 	if p._warmTimer then return end
@@ -369,7 +375,7 @@ local function WarmLater(p)
 		if quiet > 0.05 then C_Timer.After(quiet, Fire) return end -- (changed again meanwhile: wait for it to settle)
 		p._warmTimer = nil
 		if not (p._dirty and p._entries) then return end
-		if InCombatLockdown() or (ns.background or 0) > 0 then return WarmLater(p) end -- (later)
+		if InCombatLockdown() or (ns.background or 0) > 0 then return Warm(p) end -- (later)
 		if ns.UI and ns.UI.IsShown and ns.UI:IsShown() then return end -- (the search reads it anyway)
 		local used = p._usedAt
 		ns:GetEntries(p)

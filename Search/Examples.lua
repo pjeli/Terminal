@@ -158,16 +158,18 @@ E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()
 	local db = ns.db
 	pool.first = nil
-	if type(db) == "table" and not db.tourOffered then
-		db.tourOffered = true
-		if #(db.history or {}) == 0 then
-			pool.first = E.TOUR_EXAMPLE
-			return pool.first
-		end
+	-- (spent when it's shown, E.ExampleShown: not on an open with suggestions off or with text typed; review, 0.51.25)
+	if type(db) == "table" and not db.tourOffered and #(db.history or {}) == 0 then
+		pool.first = E.TOUR_EXAMPLE
+		return pool.first
 	end
 	local list = Pool()
 	pool.at = pool.at % #list + 1
 	return list[pool.at]
+end
+--- The example in the empty prompt was drawn (Completion.lua): the tour's is offered once.
+function E.ExampleShown(ex)
+	if ex == E.TOUR_EXAMPLE and type(ns.db) == "table" then ns.db.tourOffered = true end
 end
 function E.Example()
 	if pool.first then return pool.first end

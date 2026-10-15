@@ -204,8 +204,8 @@ local function NpcLocation(id)
 	-- (0.49.2, review: the first area pairs() gave and its first spawn, while the row's "N yd" and arrow are its nearest
 	-- spawn on your continent: "nearest murloc forager" said 10 yd, Enter showed another zone and pinned it there, and
 	-- ">> party" linked that spot. Where you are known: that same spawn.)
-	local ui, c = NearestSpawn(spawnsByZone, I.Here())
-	if ui then return ui, { x = c[1] / 100, y = c[2] / 100 } end
+	local ui, c, isDoor = NearestSpawn(spawnsByZone, I.Here())
+	if ui then return ui, { x = c[1] / 100, y = c[2] / 100 }, isDoor end
 	-- (else the areas in order, the same answer every time; one out in the world before a dungeon's entrance)
 	local zones = {}
 	for zone in pairs(spawnsByZone) do if type(zone) == "number" then zones[#zones + 1] = zone end end

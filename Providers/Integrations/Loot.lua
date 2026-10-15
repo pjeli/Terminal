@@ -124,7 +124,9 @@ function I.NotePlace(addon, content, kind, enter)
 	if content == nil then return end
 	local t = loot.places[addon]
 	if not t then t = {}; loot.places[addon] = t end
-	t[content] = { kind = kind or "other", enter = tonumber(enter) }
+	local p, k, n = t[content], kind or "other", tonumber(enter)
+	if p and p.kind == k and p.enter == n then return end -- (once per instance, not per boss)
+	t[content] = { kind = k, enter = n }
 end
 --- A loot row's place: { kind = "dungeon" / "raid" / "other", enter = level } (nil: not known, an index from before 0.51.9).
 function I.LootPlace(e)
@@ -161,14 +163,14 @@ local function IndexModule(addon, storage, groups)
 				local packed = {}
 				for d = 1, ndiff do
 					local list, typ = Safe(A.ItemDB.GetItemTable, A.ItemDB, addon, content, boss, d)
-					local kind = type(typ) == "table" and typ[1] or "Item"
+					local tableKind = type(typ) == "table" and typ[1] or "Item" -- (not the place's kind, below)
 					-- the difficulty actually shown (a missing one falls back to another)
 					local diff = type(list) == "table" and (Safe(A.ItemDB.GetDifficulty, A.ItemDB, addon, content, boss, d) or d)
 					if type(list) == "table" then
 						for _, row in ipairs(list) do
 							local id = type(row) == "table" and row[2]
 							local pos = type(row) == "table" and tonumber(row[1]) or 1
-							id = type(id) == "number" and id > 0 and RowItem(kind, id, A) or nil
+							id = type(id) == "number" and id > 0 and RowItem(tableKind, id, A) or nil
 							if id then
 								local page = math.floor((pos - 1) / 100)
 								if AddRow(addon, content, boss, diff, page, id, detail, ltext) then

@@ -124,6 +124,36 @@ do
 	check(WhyText(best) == "Over Off Mace: | +4 Damage Per Second | +2 Strength | Over Old Mace: | +2 Damage Per Second | +1 Strength",
 		"better than both: against each, the bigger gain first: " .. WhyText(best))
 
+	-- (review, 0.51.25) a two-hander worn: a one-hander is weighed against it once, not as two weapons
+	ITEMS[84] = { "Big Axe", "|Hitem:84|h", 2, 20, 15, "Weapon", "Two-Handed Axes", 1, "INVTYPE_2HWEAPON" }
+	STATS[84] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 9, ITEM_MOD_STRENGTH_SHORT = 1 }
+	_G.GetInventoryItemLink = function(_, slot) if slot == 16 then return "|Hitem:84|h[Big Axe]|h" end end
+	_G.GetInventoryItemID = function(_, slot) if slot == 16 then return 84 end end
+	F.ClearCache()
+	fit = F.GearFit()
+	local over2h = { itemID = 82, kind = "loot" }
+	check(fit(over2h) and WhyText(over2h) == "Over what you wear (slot: one-hand): | +3 Damage Per Second | +2 Strength",
+		"over a two-hander: once, not twice: " .. WhyText(over2h))
+	-- (review, 0.51.25) a gain from an earlier search isn't another's: sort:best without is:upgrade orders nothing by it
+	local e = { itemID = 82, kind = "loot" }
+	fit(e)
+	check(F.GainOf(e) ~= nil, "weighed: a gain")
+	_G.GetInventoryItemLink = function(_, slot) if slot == 16 or slot == 17 then return "|Hitem:82|h[Better Mace]|h" end end
+	_G.GetInventoryItemID = function(_, slot) if slot == 16 or slot == 17 then return 82 end end
+	F.ClearCache()
+	check(not F.GearFit()(e) and F.GainOf(e) == nil, "weighed again, no upgrade now: its old gain gone")
+	-- (review, 0.51.25) an empty slot's piece with no stats to weigh goes after real upgrades, not above them
+	_G.INVTYPE_TRINKET = _G.INVTYPE_TRINKET or "Trinket"
+	ITEMS[85] = { "Shiny Trinket", "|Hitem:85|h", 2, 21, 16, "Armor", "Miscellaneous", 1, "INVTYPE_TRINKET" }
+	STATS[85] = {}
+	F.ClearCache()
+	local tr, helm = { itemID = 85, kind = "loot" }, { itemID = 73, kind = "loot" }
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:70|h[Worn Helm]|h" end end
+	_G.GetInventoryItemID = function(_, slot) if slot == 1 then return 70 end end
+	fit = F.GearFit()
+	check(fit(tr) and fit(helm) and F.GainOf(tr).gain < F.GainOf(helm).gain,
+		"an empty trinket slot's statless trinket below +1 Str +2 Sta: " .. tostring(F.GainOf(tr) and F.GainOf(tr).gain))
+
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
 	UI.lastScan, UI.lastOverview, UI.category = nil, nil, nil

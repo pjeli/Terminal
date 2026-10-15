@@ -90,7 +90,6 @@ function ns.FrameTexts(f)
 	return texts
 end
 
---- The colour code of an item quality ("|cffa335ee"), or nil.
 -- An item's quality, kept once the game has said it (0.51.9, the player: rows went white again after F5): the game
 -- lets go of items it loaded a while ago, and asked again for one it no longer has it says nothing. Kept between
 -- sessions too (ItemStore.lua, 0.51.13): after a /reload the loot list has its colours from the first search.
@@ -120,6 +119,7 @@ end
 --- (tests: a new session, what was kept between sessions still there)
 function ns.ForgetSessionQualities() qualityOf = {} end
 
+--- The colour code of an item quality ("|cffa335ee"), or nil.
 function ns.QualityHex(q)
 	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
 	return c and c.hex

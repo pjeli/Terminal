@@ -62,6 +62,57 @@ do
 	FlushAll()
 	check(UI.results[1] and UI.results[1].name == "Wool Cloth" and not UI.held, "nothing was shown: the new row at once")
 	UI:Hide(); FlushAll()
+
+	-- (review, 0.51.25) the same rows with new data (one more Linen Cloth in a stack): put up in place, nothing held
+	UI:Open("linen 05")
+	FlushAll()
+	local before05 = UI.results[1]
+	rows[6] = { name = "Linen Cloth 05", itemID = 50005, key = 5, count = 7 }
+	ns:Changed("items")
+	FlushAll()
+	check(UI.results[1] and UI.results[1].count == 7 and UI.results[1] ~= before05 and not UI.held,
+		"the same row with a new count: the new one shown in its place, no F5 for it")
+	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) changes a while apart are each searched again: not stopped for good after LIVE_SAME of them
+	UI:Open("linen")
+	FlushAll()
+	for k = 1, UI.LIVE_SAME + 1 do
+		rows[#rows + 1] = { name = "Grey Junk " .. k, itemID = 60000 + k, key = 200 + k }
+		ns:Changed("items"); FlushAll()
+		if UI.live.redoneAt then UI.live.redoneAt = UI.live.redoneAt - 10 end -- (a while passes)
+	end
+	table.insert(rows, 1, { name = "Linen Cloth Bolt", itemID = 50200, key = 300 })
+	ns:Changed("items"); FlushAll()
+	check(UI.held ~= nil, "after a few unrelated changes, a while apart: the next real one still held for F5 (same=" .. UI.live.same .. ")")
+	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) a background search asked for while your own still runs over frames: yours, not its first
+	-- frame's best kept up with the rest behind F5
+	for i = 1, 300 do rows[#rows + 1] = { name = ("Wool Cloth %03d"):format(i), itemID = 70000 + i, key = 1000 + i } end
+	ns.providers.items._dirty = true
+	UI.lastScan, UI.lastOverview = nil, nil
+	local realClock, tick = _G.debugprofilestop, 0
+	_G.debugprofilestop = function() tick = tick + 1; return tick end
+	UI:Open("wool")
+	local partial = UI.searchJob ~= nil
+	UI:QuietRedo()
+	local job = UI.searchJob
+	FlushAll()
+	_G.debugprofilestop = realClock
+	check(partial and job and not job.quiet and not UI.held,
+		"a redo during your search (still going over frames): run as yours, its rows not held behind F5")
+	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) held rows don't change what the shown list was searched with (>>> sends, the footer)
+	UI:Open("linen >>> party")
+	FlushAll()
+	local group = UI.groupRows
+	table.insert(rows, 1, { name = "Linen Cloth Roll", itemID = 50300, key = 400 })
+	ns.providers.items._dirty = true
+	UI:QuietRedo(); FlushAll() -- (as item data coming in asks)
+	check(UI.held ~= nil and UI.groupRows == group, "held for F5: the shown list's >>> rows unchanged: held="
+		.. tostring(UI.held ~= nil) .. " group=" .. tostring(group) .. " now=" .. tostring(UI.groupRows) .. " list=" .. tostring(UI.groupList) .. " #" .. #UI.results)
+	T.key("F5")
+	check(UI.groupRows ~= group, "...F5: the new list's")
+	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
 	UI.lastScan, UI.lastOverview = nil, nil

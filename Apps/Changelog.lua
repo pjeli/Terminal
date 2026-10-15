@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.51.25", when = "in testing",
+		v = "0.51.26", when = "in testing",
 		items = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
 			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
@@ -35,6 +35,7 @@ CL.LOG = {
 			"An upgrade's tooltip lists each stat on its own line, gains in green first, then losses in red; a one-hander is weighed against your main hand (and your off-hand weapon when you dual-wield), never against a shield.",
 			"An NPC inside a dungeon says so on its row (\"in The Deadmines\"), and its distance, arrow and map pin point at the dungeon's entrance (it had no location at all); a quest whose giver is in a dungeon says so too.",
 			"Dual wielding (and rings, trinkets): an upgrade's tooltip compares it with each piece it beats, by name; one it doesn't beat isn't listed.",
+			"A review before release: upgrades keep mana per 5, and who can use an item for each character rather than each class; a one-hander isn't weighed twice against a two-hander; a dungeon NPC's Enter goes to the entrance its distance is to; a list whose rows only changed their data (a stack's count) updates in place; .tour ends when the game closes the terminal and works with the prompt clicked into; .help mentions upgrades, F5 and .tour.",
 		},
 	},
 	{

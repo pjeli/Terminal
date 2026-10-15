@@ -18,6 +18,13 @@ do
 	FlushAll()
 	check(UI:SuggestionText() ~= ".tour", "...once: " .. tostring(UI:SuggestionText()))
 	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) suggestions off: not spent unseen
+	ns.db.tourOffered = nil
+	local realGet = ns.Theme.Get
+	ns.Theme.Get = function() local t = realGet() local c = {} for k, v in pairs(t) do c[k] = v end c.suggest = false return c end
+	UI:Open(""); FlushAll(); UI:Hide(); FlushAll()
+	ns.Theme.Get = realGet
+	check(not ns.db.tourOffered, "suggestions off: the tour's offer not spent")
 	-- someone who has used Terminal: not offered
 	ns.db.tourOffered, ns.db.history = nil, { "hearthstone" }
 	UI:Open("")
@@ -228,6 +235,65 @@ do
 	ns.Tour.Start(); FlushAll()
 	check(ns.Tour.STEPS[2].text == "hearthstone" and Step(L["Say what to do"]).text == "use hearthstone", "only the Hearthstone: it")
 	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) the Hearthstone by its id: a German client's "Ruhestein" left out of step 2 too, and named when
+	-- it's all there is
+	bags = { { name = "Ruhestein", key = 6948, itemID = 6948, firstBag = 0, locs = { { 0, 1 } } }, BAGS[2] }
+	ns.providers.items._dirty = true
+	for i = 1, 4 do
+		math.random = function(n) return n and ((i - 1) % n) + 1 or 0.5 end
+		ns.Tour.STEPS = ns.Tour.Steps()
+		check(ns.Tour.STEPS[2].text == "bolt of linen cloth", "never the Hearthstone, whatever it's called: " .. ns.Tour.STEPS[2].text)
+	end
+	bags = { bags[1] }
+	ns.providers.items._dirty = true
+	ns.Tour.STEPS = ns.Tour.Steps()
+	check(ns.Tour.STEPS[2].text == "ruhestein" and Step(L["Say what to do"]).text == "use ruhestein",
+		"only the Hearthstone: by its name in your language: " .. ns.Tour.STEPS[2].text .. " / " .. Step(L["Say what to do"]).text)
+	math.random = function(n) return n and 1 or 0.5 end
+	bags = BAGS
+	ns.providers.items._dirty = true
+
+	-- (review, 0.51.25) the terminal hidden by the game (the game menu's Esc closes every window): the tour and its card go
+	ns.Tour.Start(); FlushAll()
+	key("ENTER"); FlushAll()
+	_G.TerminalFrame:Hide()
+	_G.TerminalFrame:GetScript("OnHide")(_G.TerminalFrame) -- (as the game runs it)
+	FlushAll()
+	check(not ns.Tour.Active() and not ns.Tour.Card():IsShown(), "hidden by the game: the tour over, its card gone")
+	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) the game's text box has the keys (clicked into, in combat): Enter goes on, Esc ends it, typing too
+	ns.Tour.Start(); FlushAll()
+	local activated = false
+	local realActivate = UI.Activate
+	UI.Activate = function() activated = true end
+	UI.edit:GetScript("OnEnterPressed")(UI.edit)
+	FlushAll()
+	check(ns.Tour.StepIndex() == 2 and not activated, "the text box's Enter: the next step, nothing done")
+	UI.edit:GetScript("OnKeyDown")(UI.edit, "B")
+	check(not ns.Tour.Active(), "...typing there ends it")
+	ns.Tour.Start(); FlushAll()
+	UI.edit:GetScript("OnEscapePressed")(UI.edit)
+	FlushAll()
+	check(not ns.Tour.Active() and not UI:IsShown() and not activated, "...Esc there ends it")
+	UI.Activate = realActivate
+	-- (review, 0.51.25) in a category, Shift+Left is the list's (back to the categories), not the tour's
+	ns.Tour.Start(); FlushAll()
+	key("ENTER"); FlushAll(); key("ENTER"); FlushAll()
+	UI.category = "x"
+	check(ns.Tour.Key("LEFT", true) == false and ns.Tour.StepIndex() == 3, "Shift+Left in a category: the list's")
+	UI.category = nil
+	check(ns.Tour.Key("LEFT", true) == true and ns.Tour.StepIndex() == 2, "...else back a step")
+	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) the last card says the key that opens Terminal: yours
+	local realKey = _G.GetBindingKey
+	for _, case in ipairs({ { "`", L["` (under Esc)"] }, { "CTRL-SPACE", "CTRL-SPACE" }, { nil, "/term" } }) do
+		_G.GetBindingKey = function(a) if a == "TERMINAL_TOGGLE" then return case[1] end end
+		ns.Tour.STEPS = ns.Tour.Steps()
+		local last = ns.Tour.STEPS[#ns.Tour.STEPS].say
+		check(last:find(case[2], 1, true) == 7, "the last card: " .. tostring(case[1]) .. " -> " .. last)
+	end
+	_G.GetBindingKey = realKey
+
 	for k in pairs(ns.providers) do ns.providers[k] = nil end
 	for k, v in pairs(saveP) do ns.providers[k] = v end
 	for i = #ns.providerOrder, 1, -1 do ns.providerOrder[i] = nil end

@@ -39,6 +39,12 @@ do
 	check(view.detail == "30 yd  Defias Kingpin" .. ns.DETAIL_SEP .. L["in %s"]:format("The Deadmines"),
 		"a nearest row: how far (its entrance), what it is, the dungeon: " .. view.detail)
 
+	-- (review, 0.51.25) two entrances: Enter goes to the one the row measures (the nearer), not the first listed
+	QD.DungeonLocation = function(area) if area == 1581 then return { { 12, 10, 10 }, { 40, 42.5, 71.7 } } end end
+	I._.ResetDistances()
+	local ui2, pos2, door2 = I._.NpcLocation(639)
+	check(ui2 == 1436 and pos2 and math.abs(pos2.x - 0.425) < 1e-6 and door2, "two entrances: Enter's the nearer one: " .. tostring(ui2))
+
 	QD.DB, QD.UiMapOfArea, QD.DungeonLocation, _G.C_Map = save.db, save.ui, save.dl, save.map
 	I._.ResetDistances()
 end

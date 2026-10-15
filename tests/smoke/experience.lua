@@ -115,6 +115,18 @@ do
 	-- .xp forget
 	local out = ns:FindCommand("xp").run("forget old mage")
 	check(ns.db.xpChars["Player-1-CCC"] == nil and out[1]:find("Forgot", 1, true), ".xp forget <name>")
+	-- (review, 0.51.25) forgotten: not back as "not noted yet" while the bag addon still knows it; a realm with a space
+	-- is the bag addon's without one
+	ns.db.xpChars["Player-1-FFF"] = { name = "Spaced Rogue", realm = "Argent Dawn", class = "ROGUE", level = 20, xp = 5, max = 100, rested = 0, t = now }
+	G.Alts = function() return { { who = "Old-Other", class = "MAGE" }, { who = "Spaced-ArgentDawn", class = "ROGUE" } } end
+	P._dirty = true
+	res = UI:Search("@xp")
+	local unknown = {}
+	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
+	check(#unknown == 0, "a forgotten alt and one on a realm with a space: neither listed as not noted: " .. table.concat(unknown, ", "))
+	G.Alts = saveAlts
+	ns.db.xpChars["Player-1-FFF"], ns.db.xpForgotten = nil, nil
+	P._dirty = true
 	out = ns:FindCommand("xp").run("forget Nobody")
 	check(out[1]:find("No alt", 1, true), ".xp forget an unknown name says so")
 

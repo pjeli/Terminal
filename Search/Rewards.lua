@@ -409,7 +409,7 @@ function QR.UpgradeAnswer()
 			v.detail = rest
 		end
 		if d and w then
-			v.detail = ("%.0f yd"):format(d) .. "  " .. rest
+			v.detail = (L["%.0f yd"]):format(d) .. "  " .. rest
 			v._dist, v.wcont, v.wx, v.wy, v.nearRest = d, w.cont, w.x, w.y, rest
 		end
 		v = setmetatable(v, { __index = row })

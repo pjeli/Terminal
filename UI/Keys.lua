@@ -320,7 +320,7 @@ local function Cursor(text)
 end
 
 --- The keys Terminal does alike in the drawn prompt and the real text box (combat, the clipboard): F1 the keys window,
---- F5 the new results a background search held (else the search again), PageUp/Down a page, Ctrl+Home/End the
+--- F5 the new results a background search held (nothing held: nothing happens), PageUp/Down a page, Ctrl+Home/End the
 --- first/last result, Ctrl+N/J and Ctrl+P/K a row, Ctrl+U deletes what's before the cursor and Ctrl+W the word before it
 --- (as a shell does). True when the key was one of them.
 local function ListKey(key, ctrl)

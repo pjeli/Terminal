@@ -372,6 +372,8 @@ local colorWait = { ids = {}, n = 0, asked = {}, queued = false, polling = false
 UI.colorWait = colorWait -- (tests)
 local function ColorWaitDone()
 	for k in pairs(colorWait.ids) do colorWait.ids[k] = nil end
+	-- (when each was last asked for: let go with the wait, not kept for every item ever drawn; review, 0.51.25)
+	for k in pairs(colorWait.asked) do colorWait.asked[k] = nil end
 	colorWait.n = 0
 	local f = colorWait.frame
 	if f then

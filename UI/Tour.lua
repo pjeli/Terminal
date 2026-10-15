@@ -31,20 +31,22 @@ local function AttuneText()
 	return "my attunements"
 end
 
---- Your bags' items: the Hearthstone left out (0.51.24, the player: the tour showed it every time), and every one.
+--- Your bags' items: the Hearthstone left out (0.51.24, the player: the tour showed it every time), every one, and the
+--- Hearthstone's row (nil: none in your bags).
+local HEARTHSTONE = 6948 -- (by its id: its name is the client's language's; review, 0.51.25)
 local function BagItems()
 	local p = ns.providers and ns.providers.items
 	if not p then return {}, {} end
 	local ok, rows = pcall(ns.GetEntries, ns, p)
 	if not (ok and type(rows) == "table") then return {}, {} end
-	local some, every = {}, {}
+	local some, every, hearth = {}, {}, nil
 	for _, e in ipairs(rows) do
 		if e.firstBag and type(e.name) == "string" and e.name:find("%S") then
 			every[#every + 1] = e
-			if ns.Lower(e.name) ~= "hearthstone" then some[#some + 1] = e end
+			if e.itemID ~= HEARTHSTONE then some[#some + 1] = e else hearth = e end
 		end
 	end
-	return some, every
+	return some, every, hearth
 end
 local function Random(t) return t[1] and t[math.random(#t)] or nil end
 local function PickItem(e)
@@ -120,6 +122,16 @@ local function DoLine(rows)
 	if c then return c[1], c[2] end
 end
 
+--- The key that opens Terminal, as the last card says it (bound on first run to `, or Ctrl+` when that's taken; any
+--- other the player chose; none: /term). (Review, 0.51.25: the card always said `.)
+local function ToggleKey()
+	local ok, key = pcall(_G.GetBindingKey or function() end, "TERMINAL_TOGGLE")
+	if not ok or type(key) ~= "string" or key == "" then return "/term" end
+	if key == "`" then return L["` (under Esc)"] end
+	local okT, text = pcall(_G.GetBindingText or function() end, key, "KEY_")
+	return okT and type(text) == "string" and text ~= "" and text or key
+end
+
 local MISSING = {
 	{ name = "Questie", title = L["Add Questie"],
 		say = L["Install Questie (or QuestieDB) and Terminal knows every NPC and quest: the nearest innkeeper, mailbox, trainer or vendor with an arrow pointing the way, every quest by its text, and who gives it."],
@@ -133,14 +145,14 @@ local MISSING = {
 }
 
 function T.Steps()
-	local some, every = BagItems()
-	local item = Random(some)
+	local some, every, hearth = BagItems()
+	local item = Random(some) or hearth -- (only the Hearthstone: it, by its name in your language)
 	local steps = {
 		{ text = "", title = L["Welcome to Terminal"],
 			say = L["Find anything in the game by typing a few letters, then press Enter to go straight to it. A few quick steps show you how."] },
-		item and { text = ns.Lower(item.name), pick = PickItem(item), title = L["Type to find"],
+		(item and item ~= hearth) and { text = ns.Lower(item.name), pick = PickItem(item), title = L["Type to find"],
 			say = L["Type a name and Terminal finds it as you type: here, something from your bags. The best match is selected (the highlighted row): Enter would open your bags and point at it."] }
-		or { text = "hearthstone", pick = "hearthstone", title = L["Type to find"],
+		or { text = item and ns.Lower(item.name) or "hearthstone", pick = item and PickItem(item) or "hearthstone", title = L["Type to find"],
 			say = L["Type a name and Terminal finds it as you type. The best match is selected (the highlighted row): Enter would take you to it, opening the right window and pointing at it."] },
 		{ text = "map", pick = "category", title = L["Pick a category"],
 			say = L["What's found is sorted into categories (windows, places, key bindings, settings...): Tab or a click opens one, Shift+Left goes back."] },
@@ -180,14 +192,14 @@ function T.Steps()
 			pick = function(e) return e.itemID ~= nil and ns.Filters.Pass(e, fs) end,
 			say = L["Say what to do and what kind of thing, not its name: Terminal finds what you have that fits (here, %s). Enter does it; right-click a row to see everything it can do."]:format(line) })
 	else
-		Add({ text = "use hearthstone", pick = "first", title = L["Say what to do"],
+		Add({ text = "use " .. (hearth and ns.Lower(hearth.name) or "hearthstone"), pick = "first", title = L["Say what to do"],
 			say = L["Start with what you want to do: use, cast, equip, target. Enter does it. Right-click a row to see everything it can do."] })
 	end
 	Add({ text = "", title = L["That's it"],
-		say = L["Press ` (under Esc) to open Terminal any time. F1 shows every key, .help what you can ask, and .tour shows this again."] })
+		say = L["Press %s to open Terminal any time. F1 shows every key, .help what you can ask, and .tour shows this again."]:format(ToggleKey()) })
 	return steps
 end
-T.STEPS = T.Steps()
+T.STEPS = {} -- (made when the tour starts: your bags and the settings aren't read while the addon loads)
 
 local tour -- { i = the step, picked = its row selected already }
 
@@ -202,7 +214,6 @@ local PAD, GAP = 12, 6
 
 local function Card()
 	if card then return card end
-	local UI = ns.UI
 	local Theme = ns.Theme
 	card = CreateFrame("Frame", "TerminalTourCard", UIParent, "BackdropTemplate")
 	if ns.Zen then ns.Zen.Made(card) end -- (made while .zen has the interface faded: kept up, Zen.lua)
@@ -243,7 +254,13 @@ local function ShowCard()
 	local Theme = ns.Theme
 	local t = Theme.Get()
 	local c = Card()
-	local w = math.max(260, (frame.GetWidth and frame:GetWidth()) or 400)
+	local function Scale(f)
+		local ok, v = pcall(f.GetEffectiveScale, f)
+		return ok and type(v) == "number" and v > 0 and v or 1
+	end
+	local scale = Scale(frame) / Scale(UIParent) -- (the terminal's own scale: the card is UIParent's)
+	local fw = frame.GetWidth and frame:GetWidth()
+	local w = math.max(260, (type(fw) == "number" and fw or 400) * scale)
 	c:SetWidth(w)
 	-- (above the terminal, else below it when there's no room above: clamped to the screen, it sat over the prompt;
 	-- 0.51.21, the player's screenshot)
@@ -272,11 +289,6 @@ local function ShowCard()
 	c:ClearAllPoints()
 	local top = frame.GetTop and frame:GetTop()
 	local screen = UIParent.GetTop and UIParent:GetTop()
-	local function Scale(f)
-		local ok, v = pcall(f.GetEffectiveScale, f)
-		return ok and type(v) == "number" and v > 0 and v or 1
-	end
-	local scale = Scale(frame) / Scale(UIParent)
 	T.below = type(top) == "number" and type(screen) == "number" and (top * scale + GAP + h > screen) or false
 	if T.below then c:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, -GAP) else c:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, GAP) end
 	c:Show()
@@ -307,6 +319,7 @@ end
 
 function T.Start()
 	T.STEPS = T.Steps() -- (which addons are there: now)
+	if type(ns.db) == "table" then ns.db.tourOffered = true end -- (taken: not suggested again)
 	Go(1)
 end
 function T.Next() if tour then Go(tour.i + 1) end end
@@ -324,6 +337,8 @@ function T.Arrived()
 	if not s or tour.picked or not s.pick then return end
 	local UI = ns.UI
 	if UI.searchJob then return end -- (still searching: once it's done)
+	-- (the step's own search: not the last step's rows, its search not started yet; review, 0.51.25)
+	if UI.searchedText ~= s.text then return end
 	tour.picked = true
 	local at
 	for i, e in ipairs(UI.results) do
@@ -353,7 +368,12 @@ function T.Key(key, shift)
 	if not tour then return false end
 	if key == "ENTER" or key == "NUMPADENTER" then T.Next() return true end
 	if key == "ESCAPE" then T.Stop() ns.UI:Hide() return true end
-	if key == "LEFT" and shift then T.Back() return true end
+	-- (in a category, Shift+Left is the list's: back to the categories, as step 3's card says; review, 0.51.25)
+	if key == "LEFT" and shift then
+		if ns.UI.category then return false end
+		T.Back()
+		return true
+	end
 	if TYPED[key] or (type(key) == "string" and #key == 1) then T.Stop() end
 	return false
 end

@@ -187,7 +187,16 @@ local function Who(name, realm)
 	name = ns.Lower(tostring(name or ""))
 	local base, r = name:match("^(.-)%-(.+)$")
 	if base then name, realm = base, r end
-	return (name:match("^(%S+)") or name), ns.Lower(tostring(realm or ""))
+	-- (the realm without spaces or marks: the bag addons' "ArgentDawn" is Terminal's "Argent Dawn"; review, 0.51.25)
+	return (name:match("^(%S+)") or name), (ns.Lower(tostring(realm or "")):gsub("[%s%p]", ""))
+end
+--- Alts forgotten with .xp forget, by Who's "name|realm": not listed again as unnoted while the bag addon still knows
+--- them (review, 0.51.25: "Forgot" and there it was again); noted again once you log in on one.
+local function Forgotten()
+	local db = ns.db
+	if type(db) ~= "table" then return {} end
+	if type(db.xpForgotten) ~= "table" then db.xpForgotten = {} end
+	return db.xpForgotten
 end
 
 --- The bag addon's alts with no note of their experience (ns.Gold.Alts): { { who, class } }.
@@ -202,10 +211,10 @@ function X.Unnoted(chars, myKey, myRealm)
 			noted[n .. "|" .. r] = true
 		end
 	end
-	local out = {}
+	local out, gone = {}, Forgotten()
 	for _, a in ipairs(alts) do
 		local n, r = Who(a.who, myRealm)
-		if a.who and not noted[n .. "|" .. r] then out[#out + 1] = a end
+		if a.who and not noted[n .. "|" .. r] and not gone[n .. "|" .. r] then out[#out + 1] = a end
 	end
 	table.sort(out, function(x, y) return x.who < y.who end)
 	return out
@@ -220,6 +229,8 @@ function X.Collect()
 	local rows = {}
 	if me then
 		if myKey then me = X.Keep(chars, myKey, me) end -- (kept fresh while you play)
+		local n, r = Who(me.name, myRealm)
+		Forgotten()[n .. "|" .. r] = nil -- (logged in on a forgotten one: noted again)
 		rows[1] = Row(myKey or "me", me, true, myRealm, now)
 	end
 	local alts = {}
@@ -279,6 +290,8 @@ ns:RegisterCommand("xp", {
 					or ns.Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
 					chars[key] = nil
 					n = n + 1
+					local fn, fr = Who(c.name, c.realm)
+					Forgotten()[fn .. "|" .. fr] = true
 				end
 			end
 			local p = ns.providers.experience

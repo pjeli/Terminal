@@ -176,23 +176,35 @@ I.NpcDistance = NpcDistance
 --- where Enter shows the NPC and pins it, took the first area pairs() gave: the row said 10 yd, Enter showed another zone.)
 local function NearestSpawn(spawns, here)
 	if not (here and type(spawns) == "table") then return nil end
-	local best, bui, bc
+	local best, bui, bc, bdoor
 	for area, list in pairs(spawns) do
 		local ui = QD.UiMapOfArea(area)
-		if ui and type(list) == "table" then
+		-- (in a dungeon: its entrances, as NpcSpots measures them: Enter went to another entrance than the row's "N yd",
+		-- or to a spawn on another continent; review, 0.51.25)
+		local doors = type(list) == "table" and #list > 0 and Entrances(area)
+		if doors then
+			for _, door in ipairs(doors) do
+				local cont, x, y = SpotXY(door[1], door[2])
+				if cont == here.cont then
+					local dx, dy = x - here.x, y - here.y
+					local d = dx * dx + dy * dy
+					if not best or d < best then best, bui, bc, bdoor = d, door[1], door[2], true end
+				end
+			end
+		elseif ui and type(list) == "table" then
 			for _, c in ipairs(list) do
 				if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
 					local cont, x, y = SpotXY(ui, c)
 					if cont == here.cont then
 						local dx, dy = x - here.x, y - here.y
 						local d = dx * dx + dy * dy
-						if not best or d < best then best, bui, bc = d, ui, c end
+						if not best or d < best then best, bui, bc, bdoor = d, ui, c, nil end
 					end
 				end
 			end
 		end
 	end
-	return bui, bc
+	return bui, bc, bdoor
 end
 
 --- How far a row is from `here` (yards) and that spot ({ cont, x, y }), or nil: an NPC's nearest spawn on your

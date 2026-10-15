@@ -141,7 +141,9 @@ local function WornGear(w)
 		local okId, mh = pcall(_G.GetInventoryItemID, "player", 16)
 		local ok, _, _, _, loc = false
 		if okId and mh then ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, mh) end
-		if ok and loc == "INVTYPE_2HWEAPON" then levels[17], values[17], kinds[17], values.twoHand = levels[16], values[16], kinds[16], true end
+		if ok and loc == "INVTYPE_2HWEAPON" then
+			levels[17], values[17], kinds[17], names[17], values.twoHand = levels[16], values[16], kinds[16], names[16], true
+		end
 	end
 	return levels, values, kinds, locs, names
 end
@@ -154,8 +156,8 @@ end
 -- can use changes as you learn to wear mail); used as it was when it doesn't.
 -- Kept between sessions too (0.51.13, the player's ask; ns.ItemStore "facts", by item id): after a /reload, items
 -- the game hasn't sent again are judged as before, and items it has aren't read again. The record, one string:
--- "slot type;required level;item level;binding;str=7,sta=4;WARRIOR+MAGE-" (the last: usable by each class it was
--- asked for). A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
+-- "slot type;required level;item level;binding;str=7,sta=4;Grom+,Jaina-" (the last: usable by each of your characters
+-- it was asked for). A change to this record or to the stat kinds (STAT_KINDS) needs ItemStore's S.VERSION raised. A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
 local fit = {}
 F.ClearFit = function() fit = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
@@ -171,10 +173,13 @@ function F.GainOf(e) return gains[e] end
 --- A view of a row made after the search (a quest's, Rewards.lua) says why as its row does.
 function F.SetGain(e, g) gains[e] = g end
 
-local function MyClass()
-	local ok, _, class = pcall(_G.UnitClass or function() end, "player")
-	return ok and type(class) == "string" and not Secret(class) and class or nil
+--- Who "usable by you" is kept for: this character (by name). Not the class (review, 0.51.25): one hunter wears mail
+--- from 40, another not yet; weapon skills are each one's own. (Names have no ; , + or -.)
+local function MyName()
+	local ok, name = pcall(_G.UnitName or function() end, "player")
+	return ok and type(name) == "string" and not Secret(name) and name ~= "" and not name:find("[;,%+%-]") and name or nil
 end
+local function Escaped(s) return (s:gsub("%p", "%%%0")) end
 local function Encode(f, class, old)
 	local kinds = {}
 	for k, v in pairs(f.kinds or {}) do kinds[#kinds + 1] = k .. "=" .. (math.floor(v * 100 + 0.5) / 100) end
@@ -182,7 +187,8 @@ local function Encode(f, class, old)
 	-- (what each other class could use, as it was kept: only this class's is told again)
 	local can = type(old) == "string" and old:match(";([^;]*)$") or ""
 	if class and f[4] ~= nil then
-		can = can:gsub(class .. "[%+%-]", "") .. class .. (f[4] and "+" or "-")
+		can = ("," .. can):gsub("," .. Escaped(class) .. "[%+%-]", ""):gsub("^,", "") -- (its own entry told again)
+		can = (can ~= "" and (can .. ",") or "") .. class .. (f[4] and "+" or "-")
 	end
 	return table.concat({ f[1], tostring(f[2] or ""), tostring(f[3] or ""), tostring(f[7] or ""), table.concat(kinds, ","), can }, ";")
 end
@@ -191,8 +197,8 @@ local function Decode(rec, class)
 	local loc, need, ilvl, bind, stats, can = rec:match("^([^;]*);([^;]*);([^;]*);([^;]*);([^;]*);([^;]*)$")
 	if not loc or not SLOTS[loc] then return nil end
 	local kinds = {}
-	for k, v in stats:gmatch("(%a+)=([%-%d%.]+)") do kinds[k] = tonumber(v) end
-	local mine = class and can:match(class .. "([%+%-])")
+	for k, v in stats:gmatch("([%a%d]+)=([%-%d%.]+)") do kinds[k] = tonumber(v) end -- (mp5 too: review, 0.51.25)
+	local mine = class and ("," .. can):match("," .. Escaped(class) .. "([%+%-])")
 	return { loc, tonumber(need), tonumber(ilvl), mine == "+" or (mine ~= "-" and nil), nil, nil, tonumber(bind),
 		kinds = kinds, kept = rec }
 end
@@ -225,12 +231,13 @@ function F.GearFit()
 	local instant = C_Item and C_Item.GetItemInfoInstant
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
-	local class = MyClass()
+	local class = MyName() -- (this character: who "usable" is kept for)
 	local Fit
 	local probes = {} -- item id -> a row of its own, for a quest's rewards
 	-- a quest (Questie's, your log's): one of its rewards is an upgrade (0.51.15, the player's ask; Rewards.lua knows
 	-- what each quest rewards): the best of them, by name
 	local function QuestFit(e)
+		gains[e] = nil -- (a gain from an earlier search isn't this one's: review, 0.51.25)
 		local QR = ns.QuestRewards
 		local qid = QR and QR.QuestIdOf and QR.QuestIdOf(e)
 		local items = qid and QR.RewardsOf and QR.RewardsOf(qid)
@@ -253,6 +260,7 @@ function F.GearFit()
 	end
 	Fit = function(e)
 		if e.kind == "questie" or e.kind == "quests" then return QuestFit(e) end
+		gains[e] = nil -- (a gain from an earlier search isn't this one's: review, 0.51.25)
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
 		if not id then return false end
@@ -310,7 +318,10 @@ function F.GearFit()
 		local slots = SLOTS[loc]
 		-- a one-hander goes in the main hand only for a class that can't dual-wield (0.50.7, review: an empty off hand made
 		-- every usable one-hander an upgrade for a mage, a priest)
-		if loc == "INVTYPE_WEAPON" and (ns.Safe(_G.CanDualWield) == false or not offWeapon) then slots = MAIN_ONLY end
+		-- (a two-hander worn: against it once, not as two weapons; review, 0.51.25)
+		if loc == "INVTYPE_WEAPON" and (ns.Safe(_G.CanDualWield) == false or not offWeapon or wornValue.twoHand) then
+			slots = MAIN_ONLY
+		end
 		local need = type(f[2]) == "number" and f[2] or 0
 		if me and need > me then return false end
 		local ilvl = type(f[3]) == "number" and f[3] or 0
@@ -364,7 +375,9 @@ function F.GearFit()
 					local st = Stats(e)
 					if st then f.kinds = F.StatKinds(st); Remember(key, f, class) end
 				end
-				gains[e] = { gain = F.KindsValue(f.kinds, weights) or ilvl, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true }
+				-- (its stats' worth; none to weigh: after those, by item level, not item levels against stat points: an empty
+				-- trinket slot's every trinket went above real upgrades; review, 0.51.25)
+				gains[e] = { gain = F.KindsValue(f.kinds, weights) or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true }
 			end
 			return yes
 		end
