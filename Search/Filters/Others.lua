@@ -427,6 +427,7 @@ F.VALUES = {
 -- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
 -- (tests/smoke/search.lua walks every is: value).
 local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored" }
+local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "questie", "quests" } -- (a quest: by its rewards)
 local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
 local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
@@ -441,7 +442,7 @@ local SPOTS = { "npc", "mailbox", "dungeon", "raid", "flight" }
 F.APPLIES = {
 	is = {
 		done = QUESTS, todo = QUESTS, complete = { "quests" }, ready = { "spells" }, -- (ready on a quest = complete: offered once)
-		usable = ITEMS, equippable = ITEMS, upgrade = ITEMS, quest = MADE, soulbound = OWN, boe = MADE,
+		usable = ITEMS, equippable = ITEMS, upgrade = UPGRADES, quest = MADE, soulbound = OWN, boe = MADE,
 		online = PEOPLE, offline = PEOPLE,
 		craftable = RECIPES, skillup = RECIPES, orange = RECIPES, yellow = RECIPES, green = RECIPES,
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
@@ -465,7 +466,7 @@ F.APPLIES = {
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
-	sort = { nearest = SPOTS, plan = RECIPES, best = ITEMS }, near = { ["*"] = SPOTS },
+	sort = { nearest = SPOTS, plan = RECIPES, best = UPGRADES }, near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
 	class = { ["*"] = { "talents", "attune" } },
 	trainer = { ["*"] = NPC },

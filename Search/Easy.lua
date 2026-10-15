@@ -736,6 +736,9 @@ local function QuestionToAdvanced(text)
 	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
 	if gq then return ns.Group.ToAdvanced(gq) end
 	-- (in Scan.ANSWERS' order: the quest rewards' question just before the calendar's; review, 0.49.17)
+	if ns.QuestRewards and ns.QuestRewards.UpgradeQuestion and ns.QuestRewards.UpgradeQuestion(text) then
+		return ns.QuestRewards.UpgradeToAdvanced()
+	end
 	local rq = ns.QuestRewards and ns.QuestRewards.Question and ns.QuestRewards.Question(text)
 	if rq then return ns.QuestRewards.ToAdvanced(rq) end
 	local alq = ns.Attune and ns.Attune.Q and ns.Attune.Q.List(text)

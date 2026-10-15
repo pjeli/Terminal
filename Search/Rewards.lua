@@ -72,7 +72,26 @@ function QR.Build()
 		QR.ForgetClose() -- (the close spellings found were the old index's entries: 0.50.7, a review test)
 	end)
 end
-function QR.Forget() index, building, QR.lastKey, QR.lastItems = nil, false, nil, nil QR.ForgetClose() end -- (tests: Questie's data read again)
+function QR.Forget() index, building, QR.lastKey, QR.lastItems = nil, false, nil, nil QR.ForgetClose(); QR.byQuest = nil end -- (tests: Questie's data read again)
+
+--- What a quest rewards: { index entries } (name, id), or nil (none, or not read yet). Made from the index once.
+function QR.RewardsOf(qid)
+	local idx = QR.Index()
+	if not idx then return nil end
+	local by = QR.byQuest
+	if not by or by.idx ~= idx then
+		by = { idx = idx, map = {} }
+		for _, it in ipairs(idx) do
+			for _, q in ipairs(it.quests) do
+				local t = by.map[q]
+				if not t then t = {}; by.map[q] = t end
+				t[#t + 1] = it
+			end
+		end
+		QR.byQuest = by
+	end
+	return by.map[qid]
+end
 
 -- a word typed: at the start of one of the name's words ("sab" is in Outlaw Sabre, "low" isn't in Glowing Wand). The
 -- word's pattern, made once per search (0.50.7, review: made again for every item of the index, per word)
@@ -301,6 +320,104 @@ function QR.Answer(q)
 	local simple = ns.Easy and ns.Easy.On and ns.Easy.On()
 	return rows, note .. "  ·  " .. (simple and L["quest chain for <quest>: the quests before it"] or L["<quest> > chain: the quests before it"])
 end
+
+----------------------------------------------------------------------
+-- Upgrades from quests (0.51.15, the player's ask): "quest upgrades", "upgrade quests", "quests with upgrades": the
+-- quests near your level you can still take whose reward is an upgrade for you (is:upgrade on each reward), the
+-- biggest first, each saying what it rewards and how far its giver is (with the arrow when it's selected).
+----------------------------------------------------------------------
+
+local UPG = { upgrade = true, upgrades = true }
+QR.NEAR_BELOW, QR.NEAR_ABOVE = 6, 3 -- (quest levels taken: this far below yours, and above)
+QR.UPGRADE_ASK = 60 -- (reward items asked of the server per answer; the answer is read again once they're in)
+
+--- "quest upgrades" and the like (a quest word, an upgrade word, nothing else but little words): true.
+function QR.UpgradeQuestion(text)
+	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local quest, upg = false, false
+	for w in t:gmatch("%S+") do
+		if QUEST[w] then quest = true
+		elseif UPG[w] then upg = true
+		elseif not FILLER[w] then return nil end
+	end
+	return quest and upg or nil
+end
+
+local function NoneRow(text)
+	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "" }
+end
+
+--- The answer: the quests' rows, best first, and the footer's note.
+function QR.UpgradeAnswer()
+	local note = L["Quests whose reward is an upgrade for you"]
+	local db = DB()
+	local F = ns.Filters
+	if not (db and F and F.GearFit) then return { NoneRow(L["Needs Questie: it knows what every quest rewards"]) }, note end
+	local idx = QR.Index()
+	if not idx then
+		if building then F.loading = true end -- (read again once the rewards are in: RetryWhenLoaded)
+		return { NoneRow(L["Reading what Questie's quests reward: a moment"]) }, note
+	end
+	QR.RewardsOf(0) -- (the quests' rewards made, once)
+	local me = UnitLevel and UnitLevel("player")
+	me = type(me) == "number" and me > 0 and me or nil
+	local fit = F.GearFit()
+	local I = ns.Integrations
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	local asked, found = 0, {}
+	for qid, items in pairs(QR.byQuest.map) do
+		local ok = not (done and Safe(done, qid))
+		if ok and me then
+			local lvl = ns.Num(Safe(db.QueryQuestSingle, qid, "questLevel"))
+			local need = ns.Num(Safe(db.QueryQuestSingle, qid, "requiredLevel"))
+			if need and need > me then ok = false
+			elseif lvl and lvl > 0 and (lvl < me - QR.NEAR_BELOW or lvl > me + QR.NEAR_ABOVE) then ok = false end
+		end
+		if ok then ok = ForYou(db, qid) end
+		if ok then
+			-- (its rewards the game hasn't sent: asked for, a few, and the answer read again once they're in)
+			for _, it in ipairs(items) do
+				if cached and Safe(cached, it.id) == false and not (F.Known and F.Known(it.id)) and asked < QR.UPGRADE_ASK then
+					asked = asked + 1
+					if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it.id) end
+				end
+			end
+			local row = I and I.QuestRow and I.QuestRow(qid)
+			if row and fit(row) then found[#found + 1] = { row = row, g = F.GainOf(row) } end
+		end
+	end
+	if asked > 0 then F.loading = true end
+	table.sort(found, function(a, b)
+		if a.g.gain ~= b.g.gain then return a.g.gain > b.g.gain end
+		return tostring(a.row.name) < tostring(b.row.name)
+	end)
+	local here = I and I.Here and I.Here()
+	local rows = {}
+	for i, f in ipairs(found) do
+		local row = f.row
+		local rest = L["Rewards %s"]:format(f.g.item or "?")
+		local v = { detail = rest, _score = 1e6 - i }
+		local npcID = I.QuestGiver and I.QuestGiver(row.qid or rawget(row, "key"))
+		local d, w
+		if type(npcID) == "number" and here and I.NpcDistance then d, w = I.NpcDistance(npcID, here) end
+		if d and w then
+			v.detail = ("%.0f yd"):format(d) .. "  " .. rest
+			v._dist, v.wcont, v.wx, v.wy, v.nearRest = d, w.cont, w.x, w.y, rest
+		end
+		v = setmetatable(v, { __index = row })
+		F.SetGain(v, f.g)
+		rows[#rows + 1] = v
+	end
+	if #rows == 0 then
+		return { NoneRow(asked > 0 and L["None yet: the rewards' details are still coming"] or L["No quest near your level rewards an upgrade for you"]) }, note
+	end
+	return rows, note
+end
+
+--- Alt+`: the same in Advanced mode.
+function QR.UpgradeToAdvanced() return "@questie is:upgrade sort:best " end
 
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
 function QR.ToAdvanced(q)

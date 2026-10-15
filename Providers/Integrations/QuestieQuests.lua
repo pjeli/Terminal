@@ -92,6 +92,8 @@ local function QuestGiver(id)
 	if type(by[3]) == "table" and by[3][1] then return nil, nil, L["an item"] end
 end
 
+I.QuestGiver = QuestGiver -- (Rewards.lua: the quests whose reward is an upgrade, their giver's distance)
+
 local function InLog(id)
 	return C_QuestLog and C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(id) and true or false
 end

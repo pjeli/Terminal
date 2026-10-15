@@ -686,6 +686,12 @@ Scan.ANSWERS = {
 		local q = ns.Group and ns.Group.Question(text)
 		if q then return ns.Group.Answer(q) end
 	end,
+	-- "quest upgrades", "quests with upgrades": the quests near your level whose reward is an upgrade (Rewards.lua)
+	function(text)
+		if ns.QuestRewards and ns.QuestRewards.UpgradeQuestion and ns.QuestRewards.UpgradeQuestion(text) then
+			return ns.QuestRewards.UpgradeAnswer()
+		end
+	end,
 	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
 	-- quest reward, and no quest is called that)
 	function(text)

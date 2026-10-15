@@ -154,12 +154,16 @@ local fit = {}
 F.ClearFit = function() fit = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)
+--- Is something known of this item, kept this session or from another (is:upgrade can judge it without the game)?
+function F.Known(id) return fit[id] ~= nil or (ns.ItemStore ~= nil and ns.ItemStore.Get("facts", id) ~= nil) end
 
 -- How much each upgrade the last search found beats what you wear (0.51.14, the player's ask: the best first, and the
 -- tooltip saying why): row -> { gain, kinds (its stats), worn (what it replaces: its stats), loc, ilvl, wLvl, empty }.
 -- gain: weighed stats over the replaced piece's, else item levels over its; nothing worn there: its own worth.
 local gains = setmetatable({}, { __mode = "k" })
 function F.GainOf(e) return gains[e] end
+--- A view of a row made after the search (a quest's, Rewards.lua) says why as its row does.
+function F.SetGain(e, g) gains[e] = g end
 
 local function MyClass()
 	local ok, _, class = pcall(_G.UnitClass or function() end, "player")
@@ -213,7 +217,33 @@ function F.GearFit()
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
 	local class = MyClass()
-	return function(e)
+	local Fit
+	local probes = {} -- item id -> a row of its own, for a quest's rewards
+	-- a quest (Questie's, your log's): one of its rewards is an upgrade (0.51.15, the player's ask; Rewards.lua knows
+	-- what each quest rewards): the best of them, by name
+	local function QuestFit(e)
+		local QR = ns.QuestRewards
+		local qid = QR and QR.QuestIdOf and QR.QuestIdOf(e)
+		local items = qid and QR.RewardsOf and QR.RewardsOf(qid)
+		if not items then return false end
+		local best, bestName
+		for _, it in ipairs(items) do
+			local probe = probes[it.id]
+			if not probe then probe = { kind = "reward", itemID = it.id }; probes[it.id] = probe end
+			if Fit(probe) then
+				local g = gains[probe]
+				if g and (not best or g.gain > best.gain) then best, bestName = g, it.name end
+			end
+		end
+		if not best then return false end
+		local g = {}
+		for k, v in pairs(best) do g[k] = v end
+		g.item = bestName
+		gains[e] = g
+		return true
+	end
+	Fit = function(e)
+		if e.kind == "questie" or e.kind == "quests" then return QuestFit(e) end
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
 		if not id then return false end
@@ -351,6 +381,7 @@ function F.GearFit()
 		end
 		return false
 	end
+	return Fit
 end
 
 -- the stats' names in "why" (the game's own, in its language)
@@ -374,11 +405,17 @@ local function Num(v)
 	return ("%.1f"):format(v)
 end
 
---- Why the row is an upgrade, a line for its tooltip ("+7 Strength, +4 Stamina over current (slot: head)"); nil when
---- the last search didn't weigh upgrades, or found it no upgrade.
+--- Why the row is an upgrade, a line for its tooltip ("+7 Strength, +4 Stamina over current (slot: head)"; a quest:
+--- "Helm of Valor: ..."); nil when the last search didn't weigh upgrades, or found it no upgrade.
 function F.UpgradeWhy(e)
 	local g = F.fitMade and gains[e]
 	if not g then return nil end
+	local why = F.WhyText(g)
+	if g.item then why = g.item .. ": " .. why end -- (a quest's reward)
+	return why
+end
+--- The words for a gain (UpgradeWhy).
+function F.WhyText(g)
 	local slotName = _G[g.loc]
 	slotName = type(slotName) == "string" and not Secret(slotName) and slotName:lower() or g.loc
 	if g.empty then return L["nothing worn there (slot: %s)"]:format(slotName) end
