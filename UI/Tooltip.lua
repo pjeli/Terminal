@@ -113,6 +113,12 @@ function UI:UpdateTooltip()
 		shown = true
 	end
 	if shown then
+		-- an upgrade the search weighed: why it is one ("+7 Strength, +4 Stamina over current (slot: head)"; 0.51.14)
+		local why = ns.Filters and ns.Filters.UpgradeWhy and ns.Filters.UpgradeWhy(e)
+		if why then
+			t:AddLine(" ")
+			t:AddLine(why, 0.4, 1, 0.4, true)
+		end
 		t.entry = e
 		t:Show()
 		HideComparisons(t)

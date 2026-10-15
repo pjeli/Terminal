@@ -291,6 +291,7 @@ function UI:FrequentEntries()
 end
 
 UI.DATA_RETRY, UI.DATA_RETRIES = 1.1, 8 -- (seconds between, and how many: about 9 s of the game loading item data)
+local BEST_BASE = 1e6 -- (sort:best: an upgrade's score, its gain added: above every other row's)
 
 --- A filter met item or spell data the game was still loading ("stamina food" right after login: the food's text
 --- isn't in yet, so it failed stamina): the same search runs again in a moment, from scratch (the narrowing state
@@ -321,6 +322,7 @@ end
 function UI:Search(text)
 	if ns.Filters then
 		ns.Filters.loading = nil
+		ns.Filters.fitMade = nil -- (is:upgrade's filter says so when it's made: its rows' tooltips say why)
 		if ns.Filters.ResetAsks then ns.Filters.ResetAsks() end -- (items the client hasn't loaded: a few asked per search)
 	end
 	-- arithmetic: the answer is the top result (see Calc.lua)
@@ -811,6 +813,7 @@ function Scan.Parse(self, text)
 	local blocked = simple and self.blockedSyntax or nil
 	local sortNear -- Advanced "sort:nearest": NPCs closest first, the rest after
 	local sortPlan -- Advanced "sort:plan": recipes that give skill, by how many times your materials make them (Plan.lua)
+	local sortBest -- "sort:best" (Simple mode's "upgrades" on its own): the biggest upgrades first (Scan.Finalize)
 	local advAct -- Advanced "do:use": each row's Enter that action (as Simple mode's "use ...")
 	self.noPosition = nil
 	local words = {}
@@ -828,6 +831,9 @@ function Scan.Parse(self, text)
 			if ns.Filters.SortOf(w) == "plan" then
 				sortPlan = true
 				fsig[#fsig + 1] = "^plan"
+			elseif ns.Filters.SortOf(w) == "best" then
+				sortBest = true
+				fsig[#fsig + 1] = "^best"
 			else
 				sortNear = true
 				fsig[#fsig + 1] = "^near"
@@ -850,6 +856,8 @@ function Scan.Parse(self, text)
 			if not f and simple and ns.Easy.HARD_WORDS[ns.Lower(w)] then
 				f = ns.Filters.Parse(ns.Easy.WORDS[ns.Lower(w)])
 				if f then strictWords = strictWords or {}; strictWords[#strictWords + 1] = ns.Lower(w) end
+				-- ("upgrades": the biggest first, as sort:best; 0.51.14, the player's ask)
+				if f and ns.Easy.WORDS[ns.Lower(w)] == "is:upgrade" then sortBest = true end
 			end
 			-- easy mode: everyday words ("rare", "ready", "vendor") are soft filters (Easy.lua)
 			local soft = not f and ns.Easy and ns.Easy.Word(w)
@@ -908,7 +916,7 @@ function Scan.Parse(self, text)
 		end
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
-		hard = hard, softs = softs, softWords = softWords, strictWords = strictWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, advAct = advAct,
+		hard = hard, softs = softs, softWords = softWords, strictWords = strictWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, sortBest = sortBest, advAct = advAct,
 		also = also, missingGone = missingGone, goneLine = goneLine }
 end
 
@@ -1292,6 +1300,15 @@ end
 function Scan.Finalize(self, q, out)
 	local text, kinds, tokens, empty, filters, act, overBudget = q.text, q.kinds, q.tokens, q.empty, q.filters, q.act, q.overBudget
 	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
+	-- sort:best (Simple mode's "upgrades"): the biggest upgrades first, by how much each beats what you wear (the gain
+	-- is:upgrade worked out for it); the other rows after them, as they were
+	if q.sortBest and ns.Filters and ns.Filters.GainOf then
+		local GainOf = ns.Filters.GainOf
+		for i = 1, #out do
+			local g = GainOf(out[i])
+			if g then out[i]._score = BEST_BASE + g.gain end
+		end
+	end
 	-- (a Simple mode category: every match its row counted, up to Score.LIST_MAX; not "nearest", measured for the
 	-- closest MAX_RESULTS only)
 	local res = SortAndTrim(out, (q.easyCat and not q.here) and Score.LIST_MAX or nil, overBudget)

@@ -3,6 +3,7 @@ local ns = select(2, ...)
 -- is:upgrade: gear that suits you now, weighed against what you wear (Core.lua's KEYS.is asks F.GearFit()).
 
 local F = ns.Filters
+local L = ns.L
 local P = F._
 local ItemInfo, ItemOf, Stats, StatKey, SLOTS = P.ItemInfo, F.ItemOf, P.Stats, P.StatKey, F.SLOTS
 local MAIN_ONLY = { 16 } -- (a one-hander for a class that can't dual-wield)
@@ -101,9 +102,10 @@ end
 --- An item's worth to you: its stats (the game's table) weighed (nil when there are none to weigh).
 function F.StatValue(stats, w) return F.KindsValue(F.StatKinds(stats), w) end
 
---- What you wear in each equipment slot (1-18), read once per filter: item levels, and their weighed stats.
+--- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
+--- stats by kind (kinds[slot]; for "why" an upgrade is one, F.UpgradeWhy).
 local function WornGear(w)
-	local levels, values = {}, {}
+	local levels, values, kinds = {}, {}, {}
 	local link = _G.GetInventoryItemLink
 	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
@@ -121,7 +123,10 @@ local function WornGear(w)
 			if get then
 				local okS, st = pcall(get, l)
 				-- (nil when it has none to weigh: then item levels are compared, not any stat against nothing)
-				if okS and type(st) == "table" then values[slot] = F.StatValue(st, w) end
+				if okS and type(st) == "table" then
+					kinds[slot] = F.StatKinds(st)
+					values[slot] = F.KindsValue(kinds[slot], w)
+				end
 			end
 		end
 	end
@@ -130,9 +135,9 @@ local function WornGear(w)
 		local okId, mh = pcall(_G.GetInventoryItemID, "player", 16)
 		local ok, _, _, _, loc = false
 		if okId and mh then ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, mh) end
-		if ok and loc == "INVTYPE_2HWEAPON" then levels[17], values[17], values.twoHand = levels[16], values[16], true end
+		if ok and loc == "INVTYPE_2HWEAPON" then levels[17], values[17], kinds[17], values.twoHand = levels[16], values[16], kinds[16], true end
 	end
-	return levels, values
+	return levels, values, kinds
 end
 
 -- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
@@ -149,6 +154,12 @@ local fit = {}
 F.ClearFit = function() fit = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)
+
+-- How much each upgrade the last search found beats what you wear (0.51.14, the player's ask: the best first, and the
+-- tooltip saying why): row -> { gain, kinds (its stats), worn (what it replaces: its stats), loc, ilvl, wLvl, empty }.
+-- gain: weighed stats over the replaced piece's, else item levels over its; nothing worn there: its own worth.
+local gains = setmetatable({}, { __mode = "k" })
+function F.GainOf(e) return gains[e] end
 
 local function MyClass()
 	local ok, _, class = pcall(_G.UnitClass or function() end, "player")
@@ -195,7 +206,8 @@ function F.GearFit()
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
 	local weights = F.MyWeights()
-	local worn, wornValue = WornGear(weights)
+	local worn, wornValue, wornKinds = WornGear(weights)
+	F.fitMade = true -- (this search weighs upgrades: their tooltips say why, F.UpgradeWhy)
 	local asked = 0 -- (items asked of the server by this filter: a few at a time, F.GEAR_ASK per search)
 	local instant = C_Item and C_Item.GetItemInfoInstant
 	local cached = C_Item and C_Item.IsItemDataCachedByID
@@ -279,7 +291,7 @@ function F.GearFit()
 		end
 		if not f[4] then return false end
 		-- what it would replace: the weaker of its slots (by worth when known, else item level)
-		local wLvl, wVal, empty
+		local wLvl, wVal, wKinds, empty
 		if loc == "INVTYPE_2HWEAPON" then
 			-- both hands go: against main hand and off hand together
 			if not worn[16] then empty = true
@@ -288,6 +300,11 @@ function F.GearFit()
 				local mv, ov = wornValue[16], 0
 				if not wornValue.twoHand and worn[17] then ov = wornValue[17] end -- (nil: the off hand's worth unknown)
 				wVal = (mv and ov) and (mv + ov) or nil
+				wKinds = {}
+				for k, v in pairs(wornKinds[16] or {}) do wKinds[k] = v end
+				if not wornValue.twoHand then
+					for k, v in pairs(wornKinds[17] or {}) do wKinds[k] = (wKinds[k] or 0) + v end
+				end
 			end
 		else
 			for _, slot in ipairs(slots) do
@@ -298,10 +315,20 @@ function F.GearFit()
 				if wLvl == nil then weaker = true
 				elseif v ~= nil and wVal ~= nil then weaker = v < wVal
 				else weaker = l < wLvl end
-				if weaker then wLvl, wVal = l, v end
+				if weaker then wLvl, wVal, wKinds = l, v, wornKinds[slot] end
 			end
 		end
-		if empty then return not me or ilvl >= me - F.GEAR_EMPTY end
+		if empty then
+			local yes = not me or ilvl >= me - F.GEAR_EMPTY
+			if yes then
+				if not f.kinds and live then
+					local st = Stats(e)
+					if st then f.kinds = F.StatKinds(st); Remember(key, f, class) end
+				end
+				gains[e] = { gain = F.KindsValue(f.kinds, weights) or ilvl, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true }
+			end
+			return yes
+		end
 		-- its stats: read once (the client has it: else they wait, and item levels decide meanwhile), then kept
 		if not f.kinds and live then
 			local st = Stats(e)
@@ -311,7 +338,68 @@ function F.GearFit()
 			end
 		end
 		local mine = F.KindsValue(f.kinds, weights)
-		if mine and wVal and (mine > 0 or wVal > 0) then return mine > wVal end
-		return ilvl > wLvl
+		if mine and wVal and (mine > 0 or wVal > 0) then
+			if mine > wVal then
+				gains[e] = { gain = mine - wVal, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
+				return true
+			end
+			return false
+		end
+		if ilvl > wLvl then
+			gains[e] = { gain = ilvl - wLvl, loc = loc, ilvl = ilvl, wLvl = wLvl, byLevel = true }
+			return true
+		end
+		return false
 	end
+end
+
+-- the stats' names in "why" (the game's own, in its language)
+local KIND_NAME = { str = "ITEM_MOD_STRENGTH_SHORT", agi = "ITEM_MOD_AGILITY_SHORT", sta = "ITEM_MOD_STAMINA_SHORT",
+	int = "ITEM_MOD_INTELLECT_SHORT", spi = "ITEM_MOD_SPIRIT_SHORT", ap = "ITEM_MOD_ATTACK_POWER_SHORT",
+	rap = "ITEM_MOD_RANGED_ATTACK_POWER_SHORT", sp = "ITEM_MOD_SPELL_POWER_SHORT", heal = "ITEM_MOD_SPELL_HEALING_DONE_SHORT",
+	crit = "ITEM_MOD_CRIT_RATING_SHORT", hit = "ITEM_MOD_HIT_RATING_SHORT", haste = "ITEM_MOD_HASTE_RATING_SHORT",
+	mp5 = "ITEM_MOD_MANA_REGENERATION_SHORT", dps = "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", armor = "ARMOR",
+	def = "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", dodge = "ITEM_MOD_DODGE_RATING_SHORT", parry = "ITEM_MOD_PARRY_RATING_SHORT",
+	block = "ITEM_MOD_BLOCK_RATING_SHORT" }
+local KIND_FALLBACK = { str = "Str", agi = "Agi", sta = "Sta", int = "Int", spi = "Spi", ap = "AP", rap = "RAP", sp = "SP",
+	heal = "Healing", crit = "Crit", hit = "Hit", haste = "Haste", mp5 = "MP5", dps = "DPS", armor = "Armor", def = "Defense",
+	dodge = "Dodge", parry = "Parry", block = "Block" }
+local function KindName(k)
+	local g = KIND_NAME[k] and _G[KIND_NAME[k]]
+	if type(g) == "string" and g ~= "" and not Secret(g) then return g end
+	return KIND_FALLBACK[k] or k
+end
+local function Num(v)
+	if v == math.floor(v) then return tostring(v) end
+	return ("%.1f"):format(v)
+end
+
+--- Why the row is an upgrade, a line for its tooltip ("+7 Strength, +4 Stamina over current (slot: head)"); nil when
+--- the last search didn't weigh upgrades, or found it no upgrade.
+function F.UpgradeWhy(e)
+	local g = F.fitMade and gains[e]
+	if not g then return nil end
+	local slotName = _G[g.loc]
+	slotName = type(slotName) == "string" and not Secret(slotName) and slotName:lower() or g.loc
+	if g.empty then return L["nothing worn there (slot: %s)"]:format(slotName) end
+	if g.byLevel then return L["item level %d over %d (slot: %s)"]:format(g.ilvl, g.wLvl, slotName) end
+	local w = F.MyWeights()
+	local diffs = {}
+	local seen = {}
+	local function add(k)
+		if seen[k] or not w[k] then return end
+		seen[k] = true
+		local d = ((g.kinds or {})[k] or 0) - ((g.worn or {})[k] or 0)
+		if math.abs(d) >= 0.05 then diffs[#diffs + 1] = { k = k, d = d, weight = math.abs(d) * w[k] } end
+	end
+	for k in pairs(g.kinds or {}) do add(k) end
+	for k in pairs(g.worn or {}) do add(k) end
+	table.sort(diffs, function(a, b) if a.weight ~= b.weight then return a.weight > b.weight end return a.k < b.k end)
+	local parts = {}
+	for i = 1, math.min(#diffs, 4) do
+		local d = diffs[i]
+		parts[i] = (d.d > 0 and "+" or "-") .. Num(math.abs(d.d)) .. " " .. KindName(d.k)
+	end
+	if #parts == 0 then return L["item level %d over %d (slot: %s)"]:format(g.ilvl, g.wLvl or 0, slotName) end
+	return L["%s over current (slot: %s)"]:format(table.concat(parts, ", "), slotName)
 end

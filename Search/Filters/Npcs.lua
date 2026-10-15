@@ -400,8 +400,9 @@ KEYS.within, KEYS.dist = KEYS.near, KEYS.near
 
 -- sort:nearest: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far.
 -- sort:plan: your recipes that still give skill, by how many times your materials make each (Search/Plan.lua)
+-- sort:best: with is:upgrade, the biggest upgrades first (F.GainOf; Simple mode's "upgrades" sorts so on its own)
 F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance = "nearest", dist = "nearest",
-	plan = "plan", leveling = "plan", levelling = "plan" }
+	plan = "plan", leveling = "plan", levelling = "plan", best = "best", gain = "best" }
 KEYS.sort = function(v)
 	if not F.SORTS[v] then return nil end
 	return function() return true end
