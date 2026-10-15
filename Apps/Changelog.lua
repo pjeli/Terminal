@@ -14,10 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.51.4", when = "in testing",
+		v = "0.51.5", when = "in testing",
 		items = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4); 0 leaves the screen undimmed.",
 			"The Options panel is tidier and fits its frame; its Open Terminal button leaves an open terminal as it is (a second click started it afresh).",
+			"A command's choices of more than one word are picked whole as you type them (one picked by its last word ran garbled).",
+			"Terminal Extras has its own icon in the AddOn list.",
 		},
 	},
 	{

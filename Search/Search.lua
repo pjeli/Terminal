@@ -108,17 +108,31 @@ function UI:ArgEntries(text)
 	if not ok or type(list) ~= "table" then return nil end
 	local before, argWord = rest:match("^(.-)(%S*)$")
 	local lw = ns.Lower(argWord)
+	local whole = ns.Lower((rest:gsub("^%s+", "")))
+	-- (a list with an argument of several words, "share on": its arguments are whole ones, matched against all that's
+	-- typed; else each is the last word's, after the words before it. 0.51.5: "share on" matched by "on" ran
+	-- "share share on")
+	local several = false
+	for _, cand in ipairs(list) do
+		local v = type(cand) == "table" and cand[1] or cand
+		if type(v) == "string" and v:find("%s") then several = true break end
+	end
 	local out = {}
 	for i, cand in ipairs(list) do
 		local val, detail = cand, nil
 		if type(cand) == "table" then val, detail = cand[1], cand[2] end
 		local lv = type(val) == "string" and ns.Lower(val)
-		local at = lv and (lw == "" and 1 or lv:find(lw, 1, true))
+		local at
+		if several and lv then
+			at = (lv:sub(1, #whole) == whole and 1) or (whole ~= "" and lv:find(whole, 1, true)) or nil
+		else
+			at = lv and (lw == "" and 1 or lv:find(lw, 1, true))
+		end
 		if at then
 			out[#out + 1] = {
 				kind = "cmd", kindLabel = "|cff33ff99." .. c.name .. "|r", icon = "Interface\\Icons\\INV_Misc_Note_01",
 				name = val, _lname = lv, key = c.name .. " " .. val, freqKey = "cmd:" .. c.name,
-				detail = detail or "", cmd = c, argLine = before .. val, activate = RunArg, _nameHit = true,
+				detail = detail or "", cmd = c, argLine = several and val or (before .. val), activate = RunArg, _nameHit = true,
 				_score = (at == 1 and 1000 or 500) - i, -- starts with what's typed first, then in the list's order
 			}
 		end
