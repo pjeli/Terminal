@@ -290,7 +290,8 @@ ns:RegisterCommand("xp", {
 					or ns.Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
 					chars[key] = nil
 					n = n + 1
-					local fn, fr = Who(c.name, c.realm)
+					local me = X.ReadMe()
+					local fn, fr = Who(c.name, c.realm or (me and me.realm)) -- (as Unnoted reads it)
 					Forgotten()[fn .. "|" .. fr] = true
 				end
 			end

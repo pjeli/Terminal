@@ -113,6 +113,34 @@ do
 	T.key("F5")
 	check(UI.groupRows ~= group, "...F5: the new list's")
 	UI:Hide(); FlushAll()
+	-- (review, 0.51.25) over frames: a background search started again mid-way, or F5 pressed while one runs, gives back
+	-- the shown list's (not another background search's first frame's)
+	local realClock2, tick2 = _G.debugprofilestop, 0
+	local function Slow() _G.debugprofilestop = function() tick2 = tick2 + 5; return tick2 end end
+	UI:Open("linen >>> party"); FlushAll()
+	group = UI.groupRows
+	table.insert(rows, 1, { name = "Linen Cloth Scrap", itemID = 50400, key = 500 })
+	ns.providers.items._dirty = true
+	Slow()
+	UI:QuietRedo()
+	local over = UI.searchJob ~= nil
+	UI:QuietRedo() -- (started again: data came in meanwhile)
+	FlushAll()
+	_G.debugprofilestop = realClock2
+	check(over and UI.held ~= nil and UI.groupRows == group, "a background search started again over frames: the shown list's >>> rows kept"
+		.. " (over frames=" .. tostring(over) .. ")")
+	-- F5 while another runs: the F5 list's kept when that one's held too
+	table.insert(rows, 1, { name = "Linen Cloth Shred", itemID = 50500, key = 600 })
+	ns.providers.items._dirty = true
+	Slow()
+	UI:QuietRedo()
+	over = UI.searchJob ~= nil
+	T.key("F5") -- (the list held before put up)
+	local afterF5 = UI.groupRows
+	FlushAll()
+	_G.debugprofilestop = realClock2
+	check(over and UI.held ~= nil and UI.groupRows == afterF5, "F5's list kept while a background search ran and was held")
+	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
 	UI.lastScan, UI.lastOverview = nil, nil

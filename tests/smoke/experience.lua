@@ -124,6 +124,15 @@ do
 	local unknown = {}
 	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
 	check(#unknown == 0, "a forgotten alt and one on a realm with a space: neither listed as not noted: " .. table.concat(unknown, ", "))
+	-- a note with no realm (yours, then): forgotten as the bag addon names it
+	ns.db.xpChars["Player-1-GGG"] = { name = "Norealm", class = "MAGE", level = 9, xp = 1, max = 100, rested = 0, t = now }
+	ns:FindCommand("xp").run("forget norealm")
+	G.Alts = function() return { { who = "Norealm", class = "MAGE" } } end
+	P._dirty = true
+	res = UI:Search("@xp")
+	unknown = {}
+	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
+	check(#unknown == 0, "forgotten, its note with no realm: not back either: " .. table.concat(unknown, ", "))
 	G.Alts = saveAlts
 	ns.db.xpChars["Player-1-FFF"], ns.db.xpForgotten = nil, nil
 	P._dirty = true

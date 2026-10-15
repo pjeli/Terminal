@@ -244,7 +244,10 @@ do
 			end
 			if key == "TAB" then UI.tabHeld = GetTime() end
 			-- (typing ends the tour; Enter and Esc are OnEnterPressed's and OnEscapePressed's)
-			if ns.Tour and key ~= "ENTER" and key ~= "ESCAPE" and key ~= "NUMPADENTER" then ns.Tour.Key(key, IsShiftKeyDown()) end
+			-- (not Shift+Left: the box moves its own caret with it, so the tour's back step is the drawn prompt's)
+			if ns.Tour and key ~= "ENTER" and key ~= "ESCAPE" and key ~= "NUMPADENTER" and key ~= "LEFT" then
+				ns.Tour.Key(key, IsShiftKeyDown())
+			end
 			if key == "`" then
 				UI.TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
 			else

@@ -269,8 +269,14 @@ do
 	UI.edit:GetScript("OnEnterPressed")(UI.edit)
 	FlushAll()
 	check(ns.Tour.StepIndex() == 2 and not activated, "the text box's Enter: the next step, nothing done")
-	UI.edit:GetScript("OnKeyDown")(UI.edit, "B")
-	check(not ns.Tour.Active(), "...typing there ends it")
+	-- (review, 0.51.25) Ctrl+N (a row down), Shift: the list's and nothing, not typing; a letter of another alphabet is
+	_G.IsControlKeyDown = function() return true end
+	UI.edit:GetScript("OnKeyDown")(UI.edit, "N")
+	_G.IsControlKeyDown = function() return false end
+	UI.edit:GetScript("OnKeyDown")(UI.edit, "LSHIFT")
+	check(ns.Tour.Active(), "...Ctrl+N and Shift there don't end it")
+	UI.edit:GetScript("OnKeyDown")(UI.edit, "Ä")
+	check(not ns.Tour.Active(), "...typing there ends it (Ä too)")
 	ns.Tour.Start(); FlushAll()
 	UI.edit:GetScript("OnEscapePressed")(UI.edit)
 	FlushAll()
@@ -286,11 +292,11 @@ do
 	UI:Hide(); FlushAll()
 	-- (review, 0.51.25) the last card says the key that opens Terminal: yours
 	local realKey = _G.GetBindingKey
-	for _, case in ipairs({ { "`", L["` (under Esc)"] }, { "CTRL-SPACE", "CTRL-SPACE" }, { nil, "/term" } }) do
+	for _, case in ipairs({ { "`", L["` (under Esc)"] }, { "CTRL-SPACE", "CTRL-SPACE" }, { nil, "Type /term" } }) do
 		_G.GetBindingKey = function(a) if a == "TERMINAL_TOGGLE" then return case[1] end end
 		ns.Tour.STEPS = ns.Tour.Steps()
 		local last = ns.Tour.STEPS[#ns.Tour.STEPS].say
-		check(last:find(case[2], 1, true) == 7, "the last card: " .. tostring(case[1]) .. " -> " .. last)
+		check(last:find(case[2], 1, true) == (case[1] and 7 or 1), "the last card: " .. tostring(case[1]) .. " -> " .. last)
 	end
 	_G.GetBindingKey = realKey
 

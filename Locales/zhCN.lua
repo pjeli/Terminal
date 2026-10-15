@@ -1266,6 +1266,7 @@ L["Trainer: no recipe item teaches it (AtlasLoot); its cost shows once you open 
 L["Tribal"] = "部族"
 L["Trinket"] = "饰品"
 L["Turning %s left %s written by %s (taint), so from now on Terminal only opens it and points. Type /term .nav for more; .nav reset tries again."] = "翻页%s时，%s被%s写入（污染），因此今后Terminal只会打开它并指出位置。输入 /term .nav 了解更多；.nav reset 重新尝试。"
+L["Type /term to open Terminal any time (or bind a key to it). F1 shows every key, .help what you can ask, and .tour shows this again."] = "随时输入 /term 打开 Terminal（或为它绑定一个按键）。F1 显示所有按键，.help 显示你能问什么，.tour 可再次显示此介绍。"
 L["Type a name and Terminal finds it as you type. The best match is selected (the highlighted row): Enter would take you to it, opening the right window and pointing at it."] = "输入名称，Terminal 会边输入边查找。最佳匹配会被选中（高亮的一行）：回车会带你过去，打开相应窗口并指向它。"
 L["Type a name and Terminal finds it as you type: here, something from your bags. The best match is selected (the highlighted row): Enter would open your bags and point at it."] = "输入名称，Terminal 会边输入边查找：这里是你背包里的一件物品。最佳匹配已被选中（高亮的行）：回车会打开背包并指向它。"
 L["Type a sum like  3*45g  or  12.5% of 800  for the calculator"] = "输入算式，例如  3*45g  或  12.5% of 800 ，即可使用计算器"

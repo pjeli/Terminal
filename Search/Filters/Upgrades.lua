@@ -177,7 +177,11 @@ function F.SetGain(e, g) gains[e] = g end
 --- from 40, another not yet; weapon skills are each one's own. (Names have no ; , + or -.)
 local function MyName()
 	local ok, name = pcall(_G.UnitName or function() end, "player")
-	return ok and type(name) == "string" and not Secret(name) and name ~= "" and not name:find("[;,%+%-]") and name or nil
+	if not (ok and type(name) == "string" and not Secret(name) and name ~= "" and not name:find("[;,%+%-@]")) then return nil end
+	-- (and the realm, its letters only: two of the same name on two realms aren't one)
+	local okR, realm = pcall(_G.GetRealmName or function() end)
+	realm = okR and type(realm) == "string" and not Secret(realm) and realm:gsub("[%s%p]", "") or ""
+	return realm ~= "" and (name .. "@" .. realm) or name
 end
 local function Escaped(s) return (s:gsub("%p", "%%%0")) end
 local function Encode(f, class, old)

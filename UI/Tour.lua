@@ -126,7 +126,7 @@ end
 --- other the player chose; none: /term). (Review, 0.51.25: the card always said `.)
 local function ToggleKey()
 	local ok, key = pcall(_G.GetBindingKey or function() end, "TERMINAL_TOGGLE")
-	if not ok or type(key) ~= "string" or key == "" then return "/term" end
+	if not ok or type(key) ~= "string" or key == "" then return nil end
 	if key == "`" then return L["` (under Esc)"] end
 	local okT, text = pcall(_G.GetBindingText or function() end, key, "KEY_")
 	return okT and type(text) == "string" and text ~= "" and text or key
@@ -196,7 +196,8 @@ function T.Steps()
 			say = L["Start with what you want to do: use, cast, equip, target. Enter does it. Right-click a row to see everything it can do."] })
 	end
 	Add({ text = "", title = L["That's it"],
-		say = L["Press %s to open Terminal any time. F1 shows every key, .help what you can ask, and .tour shows this again."]:format(ToggleKey()) })
+		say = ToggleKey() and L["Press %s to open Terminal any time. F1 shows every key, .help what you can ask, and .tour shows this again."]:format(ToggleKey())
+			or L["Type /term to open Terminal any time (or bind a key to it). F1 shows every key, .help what you can ask, and .tour shows this again."] })
 	return steps
 end
 T.STEPS = {} -- (made when the tour starts: your bags and the settings aren't read while the addon loads)
@@ -364,6 +365,16 @@ end
 --- A key while the tour is on: Enter goes on, Shift+Left back, Esc ends it (true: it was the tour's). Typing ends it
 --- (the key does what it does); Up, Down, Tab and the like are the list's as ever.
 local TYPED = { BACKSPACE = true, DELETE = true, SPACE = true }
+--- A key that types (one character, any language's; the number pad's digits), not one the list or Ctrl has.
+local function Types(key)
+	if type(key) ~= "string" then return false end
+	if TYPED[key] or key:match("^NUMPAD%d$") or key:match("^[%z\1-\127\194-\244][\128-\191]*$") then
+		local ctrl = _G.IsControlKeyDown and _G.IsControlKeyDown()
+		local alt = _G.IsAltKeyDown and _G.IsAltKeyDown()
+		return not ctrl or alt -- (Ctrl+N, Ctrl+C: the list's and the clipboard's; Ctrl+Alt: AltGr, typing)
+	end
+	return false
+end
 function T.Key(key, shift)
 	if not tour then return false end
 	if key == "ENTER" or key == "NUMPADENTER" then T.Next() return true end
@@ -374,7 +385,7 @@ function T.Key(key, shift)
 		T.Back()
 		return true
 	end
-	if TYPED[key] or (type(key) == "string" and #key == 1) then T.Stop() end
+	if Types(key) then T.Stop() end
 	return false
 end
 

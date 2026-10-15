@@ -1261,6 +1261,7 @@ L["Trainer: no recipe item teaches it (AtlasLoot); its cost shows once you open 
 L["Tribal"] = true
 L["Trinket"] = true
 L["Turning %s left %s written by %s (taint), so from now on Terminal only opens it and points. Type /term .nav for more; .nav reset tries again."] = true
+L["Type /term to open Terminal any time (or bind a key to it). F1 shows every key, .help what you can ask, and .tour shows this again."] = true
 L["Type a name and Terminal finds it as you type. The best match is selected (the highlighted row): Enter would take you to it, opening the right window and pointing at it."] = true
 L["Type a name and Terminal finds it as you type: here, something from your bags. The best match is selected (the highlighted row): Enter would open your bags and point at it."] = true
 L["Type a sum like  3*45g  or  12.5% of 800  for the calculator"] = true

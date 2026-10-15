@@ -154,7 +154,11 @@ end
 --- A background search's rows: "held" for F5 (the shown list and what it was searched with kept), "same" (the same
 --- rows: put up in their place, nothing moving, so a stack's count is the new one; review, 0.51.25), or nil: nothing
 --- real was shown, so they're shown.
-local function Hold(self, shown, new, before)
+--- What the list on screen was searched with: kept whenever rows are put up (UI.shownFields), so a background search's
+--- held rows give back the shown list's, whichever search ran in between (review, 0.51.25: a background search started
+--- again, or F5 pressed while one ran, gave back another's).
+local function Shown(self) self.shownFields = Fields(self) end
+local function Hold(self, shown, new)
 	if not Real(shown) then return nil end
 	local same = #shown == #new
 	if same then
@@ -162,11 +166,12 @@ local function Hold(self, shown, new, before)
 	end
 	if same then
 		self.held, self.heldFields = nil, nil
+		Shown(self)
 		self:SetStatus()
 		return "same"
 	end
 	self.held, self.heldFields = new, Fields(self)
-	SetFields(self, before)
+	SetFields(self, self.shownFields)
 	self:SetStatus()
 	return "held"
 end
@@ -194,7 +199,7 @@ end
 -- background UI.LIVE_WAIT s after the last change, what it finds held for F5 as data coming in is (Hold); shown at
 -- once only when nothing real was. A list that keeps changing as it's read (its own events) is searched again at
 -- most UI.LIVE_SAME times in a row while nothing new comes of it.
-UI.LIVE_WAIT, UI.LIVE_SAME = 1, 3
+UI.LIVE_WAIT, UI.LIVE_SAME, UI.LIVE_FRESH = 1, 3, 10
 local live = { kinds = {}, timer = false, same = 0 }
 UI.live = live -- (tests)
 
@@ -237,7 +242,8 @@ function ns.OnDirty(p)
 	live.at = GetTime()
 	-- (a change a while after the last search again is a new one, not the list changing as it's read: counted afresh;
 	-- review, 0.51.25: three unrelated changes stopped them for good)
-	if live.redoneAt and live.at - live.redoneAt > 2 * UI.LIVE_WAIT then live.same = 0 end
+	-- (UI.LIVE_FRESH s: longer than a server's answer to the read itself, which would start it over and over)
+	if live.redoneAt and live.at - live.redoneAt > UI.LIVE_FRESH then live.same = 0 end
 	if live.timer then return end
 	live.timer = true
 	local function Fire()
@@ -250,8 +256,9 @@ function ns.OnDirty(p)
 		if live.same >= UI.LIVE_SAME then return end
 		live.before = UI.held or false
 		live.redoneAt = GetTime()
+		UI.shownNew = nil
 		UI:QuietRedo()
-		if not UI.searchJob then UI.LiveCounted() end -- (else once it's done: Completed)
+		if not UI.searchJob then UI.LiveCounted(UI.shownNew) end -- (else once it's done: Completed)
 	end
 	C_Timer.After(UI.LIVE_WAIT, Fire)
 end
@@ -263,6 +270,7 @@ function UI:ShowNewResults()
 	if not held then return end -- (nothing new: the list stays as it is)
 	SetFields(self, fields)
 	PutUp(held)
+	Shown(self)
 	self:SelectPopTarget(true)
 	self:SetStatus()
 	self:Render()
@@ -275,7 +283,7 @@ end
 local function Completed(self, job, final)
 	final = self:CollapseGroup(final)
 	if job.quiet then -- (run in the background: held for F5)
-		local h = Hold(self, UI.results, final, job.before)
+		local h = Hold(self, UI.results, final)
 		UI.LiveCounted(h == nil)
 		if h == "held" then self:UpdateBusy() return end
 		if h == "same" then
@@ -286,6 +294,7 @@ local function Completed(self, job, final)
 		end
 	end
 	PutUp(final)
+	Shown(self)
 	self.lastSearchMs, self.lastSearchCount, self.lastSearchSlices = job.ms, #UI.results, job.slices
 	self:SelectPopTarget(true)
 	self:NoteCountChange()
@@ -497,7 +506,6 @@ function UI:Refresh()
 	-- (a press finishing (FinishSoon) is kept through the same text searched again: the data retry, the spinner's
 	-- refresh, a queued one; 0.49.2, review: it was dropped, and the terminal stayed over the window it opened)
 	if not same then self.pendingAfter = nil end
-	local fields = Fields(self) -- (what the shown list was searched with, before this search resets any: kept if held)
 	self.args = nil
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
@@ -512,17 +520,17 @@ function UI:Refresh()
 	if not quiet then self.held, self.heldFields, live.same = nil, nil, 0 end -- (a search of its own: whatever a background one held is stale)
 	if not same then self.countNote, self.expectCount = nil, nil end -- (typed on: the note was about another list)
 	local shown = UI.results
-	local before = quiet and fields or nil
 	ListFor(self, text, first, edit)
 	-- (the same text searched again otherwise, a category picked: the list shown stays till the search is done, not its
 	-- first frame's best put up meanwhile)
 	if same and not quiet and self.searchJob and Real(shown) then UI.results = shown end
 	if quiet then
 		if self.searchJob then
-			self.searchJob.quiet, self.searchJob.before = true, before -- (Completed holds what it finds)
+			self.searchJob.quiet = true -- (Completed holds what it finds)
 			UI.results = shown
 		else
-			local h = Hold(self, shown, UI.results, before)
+			local h = Hold(self, shown, UI.results)
+			UI.shownNew = h == nil -- (nothing real was shown: put up, not counted as nothing new)
 			if h == "held" then UI.results = shown end
 			if h then
 				self:UpdateBusy()
@@ -547,6 +555,7 @@ function UI:Refresh()
 			self.popTarget = keep -- (not in the first slice: once the search ends, SelectPopTarget)
 		end
 	end
+	if not (quiet and self.searchJob) then Shown(self) end -- (a background search going on: the old list is up)
 	self:SelectPopTarget(not self.searchJob)
 	self:NoteCountChange()
 	if ns.Tour then ns.Tour.Arrived() end -- (.tour: the row its step is about selected)
