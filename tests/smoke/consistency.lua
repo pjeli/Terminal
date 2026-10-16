@@ -514,3 +514,18 @@ do
 	end
 	T.check(#bad == 0, "row details join their parts with \"  ·  \": " .. table.concat(bad, "; "))
 end
+
+-- (0.53.11) the easter eggs aren't named where players read about Terminal: the extras' Notes line (the AddOn list
+-- shows it) says what they are without naming them
+io.write("[the extras' Notes name no easter egg]\n")
+do
+	local toc = assert(io.open("Terminal/Terminal_Extras/Terminal_Extras.toc"))
+	local notes = ""
+	for line in toc:lines() do notes = line:match("^## Notes:%s*(.*)$") or notes end
+	toc:close()
+	local named = {}
+	for _, egg in ipairs({ "snake", "tetris", "lootrun", "typing", "wowamp", "radio", "games" }) do
+		if notes:lower():find(egg, 1, true) then named[#named + 1] = egg end
+	end
+	T.check(notes ~= "" and #named == 0, "the extras' Notes: " .. notes .. " (names " .. table.concat(named, ", ") .. ")")
+end

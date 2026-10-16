@@ -1,11 +1,11 @@
 ## Interface: 16001
 ## Title: Terminal |cff7fb2ffExtras|r
-## Notes: Terminal's games and radio (.snake, .tetris, .lootrun, .typing, .wowamp), loaded the first time you use one. Comes with Terminal.
+## Notes: Terminal's extras, loaded the first time you use one. Comes with Terminal.
 ## Author: pjeli
 ## IconTexture: Interface\Icons\INV_Misc_Dice_01
 ## Dependencies: Terminal
 ## LoadOnDemand: 1
-## Version: 0.53.10
+## Version: 0.53.11
 
 Game.lua
 Snake.lua
