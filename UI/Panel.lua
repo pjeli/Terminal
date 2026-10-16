@@ -106,16 +106,7 @@ end
 -- (quitting was said seven ways, each its own text to translate)
 P.QUIT = L["Esc or ` quit"]
 P.CLOSE = L["Esc or ` close"]
-P.AGAIN = L["Tab again"]
-P.BRAG = L["Enter tell your guild"]
-P.BRAGGED = L["Your guild heard it"]
-
---- A game's keys on its game-over screen, as the typing test's: Enter tells your guild (a score worth telling; once),
---- Tab plays again, Esc quits.
-function P.OverKeys(score, sent)
-	local brag = (score or 0) > 0 and ((sent and P.BRAGGED or P.BRAG) .. "  ·  ") or ""
-	return brag .. P.AGAIN .. "  ·  " .. P.QUIT
-end
+P.AGAIN = L["Tab again"] -- (the games' own game-over keys: Terminal_Extras/Game.lua)
 
 --- Hides an app's frame if it shows; closed by combat starting ("combat"), says so: "<label> closed: combat
 --- started." and `extra`. Gives whether it closed (an app's own closing steps follow only then).

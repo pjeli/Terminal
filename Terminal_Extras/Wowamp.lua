@@ -129,13 +129,25 @@ local function Watch(gen, track)
 		if ok and on == false and W.Elapsed() < track[2] - 2 then
 			state.cuts = (state.cuts or 0) + 1
 			if state.cuts <= 3 then ns:Trace("wowamp: the game cut " .. tostring(track[3]) .. " short; starting it again") end
-			PlayCurrent(true)
+			W.Again(gen)
 			return
 		end
 		Watch(gen, track)
 	end)
 end
 W.CAN_WATCH = function() return C_Sound and type(C_Sound.IsPlaying) == "function" end
+
+--- The track started again after the game cut it: at once the first time, then 2, 4, 8 s apart while it keeps being
+--- cut (tabbed out with sound in the background off: the file loaded again and a timer made every second for as long
+--- as you were away; review, 0.53.6). Back in the game, the music is back within those seconds.
+W.AGAIN_MAX = 8
+function W.Again(gen)
+	local wait = math.min(W.AGAIN_MAX, (state.cuts or 1) > 1 and 2 ^ (state.cuts - 1) or 0)
+	if wait <= 0 then return PlayCurrent(true) end
+	C_Timer.After(wait, function()
+		if state.gen == gen and state.playing then PlayCurrent(true) end
+	end)
+end
 
 PlayCurrent = function(again)
 	if not again then state.cuts = 0 end
@@ -155,6 +167,12 @@ PlayCurrent = function(again)
 			if state.gen == gen and state.playing then Advance(1) end
 		end)
 		if W.CAN_WATCH() then Watch(gen, track) end
+	elseif again then
+		-- (starting it again after a cut, refused: the game out of focus. The same track later, not the next one, and not
+		-- counted as a station the game has no music for; review, 0.53.6)
+		ns:Trace(("wowamp: the game didn't start %s again yet"):format(track[3]))
+		state.cuts = (state.cuts or 0) + 1
+		W.Again(gen)
 	else
 		-- the game wouldn't play it (sound off, a file this client lacks): try the next, but not forever
 		state.fails = state.fails + 1
@@ -238,6 +256,7 @@ function W.Find(text)
 	text = ns.Lower and ns.Lower(text or "") or tostring(text or ""):lower()
 	if text == "" then return nil end
 	local n = tonumber(text)
+	if n == 0 then n = 10 end -- (the window's "0" and the 0 key: station 10; review, 0.53.6)
 	if n and W.STATIONS[n] then return n end
 	for i, st in ipairs(W.STATIONS) do
 		local hay = (ns.Lower and ns.Lower(st.name .. " " .. st.id .. " " .. st.place .. " " .. st.genre)) or (st.name .. " " .. st.id):lower()
@@ -521,9 +540,12 @@ end
 local function OnUpdate(_, elapsed)
 	vis.acc = vis.acc + elapsed
 	local off = CurrentStyle() == "off"
-	if vis.acc < 1 / (off and FPS_OFF or FPS) then return end
+	local step = 1 / (off and FPS_OFF or FPS)
+	if vis.acc < step then return end
 	local dt = math.min(vis.acc, 0.2)
-	vis.acc = 0
+	-- (the rest carried over: a 60 Hz screen's frames jitter around 1/60 s, and setting it to 0 skipped every other one;
+	-- review, 0.53.6)
+	vis.acc = math.min(vis.acc - step, step)
 	local moving = false
 	if not off then
 		vis.retarget = vis.retarget - dt
@@ -677,7 +699,6 @@ end
 local function Build()
 	if frame then return end
 	frame = Panel.Build("TerminalWowamp", W)
-	frame:EnableMouse(true)
 	frame:SetScript("OnKeyDown", function(self, key) W.KeyDown(self, key) end)
 	frame:SetScript("OnHide", function()
 		frame:SetScript("OnUpdate", nil) -- (a hidden frame runs none anyway; it starts again on open)
@@ -760,30 +781,29 @@ function W.Close(why)
 	Panel.Close(frame, why, "WoWamp", " " .. L["The music plays on."])
 end
 
-ns:RegisterCommand("wowamp", {
-	desc = L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"],
-	aliases = { "radio", "amp" },
-	complete = function(args)
-		if (args or ""):find("%s") then return {} end
-		local out = { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } }
-		for i, st in ipairs(W.STATIONS) do out[#out + 1] = { st.id, i .. "  " .. st.name .. "  ·  " .. st.genre } end
-		return out
-	end,
-	run = function(args)
-		args = strtrim(args or "")
-		if args == "" then W.Open() return {} end
-		local a = ns.Lower and ns.Lower(args) or args:lower()
-		if a == "stop" then W.Stop() return { L["WoWamp: stopped."] } end
-		if a == "next" or a == "skip" then
-			if not state.station then return { L["WoWamp: nothing playing. Try .wowamp"] } end
-			W.Next()
-			local t = W.Track()
-			return { L["WoWamp: %s"]:format(t and t[3] or L["next"]) }
-		end
-		local i = W.Find(args)
-		if not i then return { L["WoWamp: no station called '%s'. Try .wowamp"]:format(args) } end
-		W.Tune(i)
-		local st, t = W.STATIONS[i], W.Track()
-		return { ("WoWamp: %s  ·  %s"):format(st.name, t and t[3] or "") }
-	end,
-})
+local function Complete(args)
+	if (args or ""):find("%s") then return {} end
+	local out = { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } }
+	for i, st in ipairs(W.STATIONS) do out[#out + 1] = { st.id, i .. "  " .. st.name .. ns.DETAIL_SEP .. st.genre } end
+	return out
+end
+
+local function Run(args)
+	args = strtrim(args or "")
+	if args == "" then W.Open() return {} end
+	local a = ns.Lower and ns.Lower(args) or args:lower()
+	if a == "stop" then W.Stop() return { L["WoWamp: stopped."] } end
+	if a == "next" or a == "skip" then
+		if not state.station then return { L["WoWamp: nothing playing. Try .wowamp"] } end
+		W.Next()
+		local t = W.Track()
+		return { L["WoWamp: %s"]:format(t and t[3] or L["next"]) }
+	end
+	local i = W.Find(args)
+	if not i then return { L["WoWamp: no station called '%s'. Try .wowamp"]:format(args) } end
+	W.Tune(i)
+	local st, t = W.STATIONS[i], W.Track()
+	return { L["WoWamp: %s"]:format(st.name .. (t and (ns.DETAIL_SEP .. t[3]) or "")) }
+end
+
+ns.Game.Command("wowamp", Run, Complete)

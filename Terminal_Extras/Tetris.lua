@@ -199,7 +199,7 @@ function TT.Lock()
 	end
 	ClearLines()
 	game.held = false
-	game.dirty = true
+	game.dirty, game.stackDirty, game.sideDirty = true, true, true
 	TT.Spawn()
 end
 
@@ -209,7 +209,7 @@ function TT.Drop(soft)
 	if game.over or not p then return false end
 	if Fits(p.kind, p.rot, p.x, p.y + 1) then
 		p.y = p.y + 1
-		if soft then game.score = game.score + 1 end
+		if soft then game.score = game.score + 1; game.sideDirty = true end
 		game.dirty = true
 		if Grounded() and not game.lockAt then game.lockAt = LOCK_DELAY end
 		return true
@@ -235,7 +235,7 @@ function TT.Hold()
 	local out = game.hold
 	game.hold, game.held = kind, true
 	TT.Spawn(out)
-	game.dirty = true
+	game.dirty, game.sideDirty = true, true
 	return true
 end
 
@@ -251,12 +251,9 @@ TT.OVER_WAIT = 0.5 -- (s: Enter on the game-over screen tells your guild only af
 
 function TT.GameOver()
 	game.over, game.overAt = true, GetTime()
-	game.dirty = true
+	game.dirty, game.sideDirty = true, true
 	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
-	if ns.db and game.score > (ns.db.tetrisBest or 0) then
-		ns.db.tetrisBest = game.score
-		game.newBest = true
-	end
+	ns.Game.KeepBest(game, "tetrisBest")
 end
 
 --- Time passing: gravity (faster with Down held), the lock wait, and held keys repeating.
@@ -286,7 +283,7 @@ function TT.Tick(elapsed)
 			if game.lockAt <= 0 then TT.Lock() end
 		end
 	end
-	if game.dirty then TT.Draw() end
+	if game.dirty then TT.DrawChanged() end
 end
 
 ----------------------------------------------------------------------
@@ -337,7 +334,9 @@ local function Mini(pool, kind, top, dim)
 end
 
 -- the stack: one texture per cell, shown only where a block is
+TT.stackDraws = 0 -- (tests: how often the stack was drawn)
 local function DrawStack()
+	TT.stackDraws = TT.stackDraws + 1
 	local n = 0
 	for y = 0, ROWS - 1 do
 		local row = game.grid[y]
@@ -401,15 +400,23 @@ local function DrawSide()
 		overlay:Hide(); overlaySub:Hide()
 	end
 	-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
-	footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or TT.PLAY_KEYS)
+	footer:SetText(game.over and ns.Game.OverKeys(game.score, game.sent) or TT.PLAY_KEYS)
 end
 
-function TT.Draw()
+--- What changed since the last draw: the piece on every move; the stack only when a piece locks (up to ~150 cells shown
+--- again on every row a piece fell: review, 0.53.6), the side column when the score, hold or queue change.
+function TT.DrawChanged()
 	if not frame then return end
 	game.dirty = false
-	DrawStack()
+	if game.stackDirty then game.stackDirty = false; DrawStack() end
 	DrawPiece()
-	DrawSide()
+	if game.sideDirty then game.sideDirty = false; DrawSide() end
+end
+
+--- Everything drawn again (opening, a new game, the theme).
+function TT.Draw()
+	game.stackDirty, game.sideDirty = true, true
+	TT.DrawChanged()
 end
 
 ----------------------------------------------------------------------
@@ -424,7 +431,6 @@ local function Build()
 	frame:SetSize(COLS * CELL + SIDE + 36, ROWS * CELL + 64)
 	frame:SetScript("OnKeyDown", function(self, key) TT.KeyDown(self, key) end)
 	frame:SetScript("OnKeyUp", function(_, key) TT.KeyUp(key) end)
-	frame:SetScript("OnUpdate", OnUpdate)
 
 	scoreText, bestText = Panel.Header(frame)
 
@@ -457,9 +463,7 @@ local function Build()
 	overlaySub:SetWordWrap(true)
 	overlaySub:SetWidth(COLS * CELL - 8)
 	TT.PLAY_KEYS = L["arrows move/turn"] .. "  ·  " .. L["Enter drop"] .. "  ·  " .. Panel.QUIT
-	footer = Panel.Footer(frame, 9, TT.PLAY_KEYS)
-	footer:SetPoint("RIGHT", frame, "RIGHT", -12, 0) -- (a longer language's keys cut short, not past the edge)
-	footer:SetWordWrap(false)
+	footer = ns.Game.Footer(frame, TT.PLAY_KEYS)
 	TT.footer = footer
 	TT.frame = frame
 end
@@ -480,10 +484,7 @@ function TT.Brag()
 end
 
 --- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
-function TT.TellGuild()
-	if not game.over or (game.score or 0) <= 0 then return false end
-	return ns.Extras.TellGuildOnce(game, TT.Brag())
-end
+function TT.TellGuild() return ns.Game.TellGuild(game, TT.Brag()) end
 
 --- The game's keys are kept; any other key goes on to the game. A key already held (the game's own repeats)
 --- does nothing more: Tick repeats Left/Right itself. Held keys are kept per key (`game.keys`: key -> action) and
@@ -498,9 +499,8 @@ function TT.KeyDown(self, key)
 		-- as the typing test: Enter tells your guild and closes, so the chat shows it (not the Enter that dropped the
 		-- last piece, held or repeated by the game; as .typing's and the drop dialog's waits; review, 0.48.6), Tab plays again
 		local fresh = not game.keys[key] and GetTime() - (game.overAt or 0) >= TT.OVER_WAIT
-		if key == "TAB" then TT.Reset(); TT.Draw()
-		elseif (key == "ENTER" or key == "NUMPADENTER") and fresh then
-			if (game.score or 0) > 0 then TT.TellGuild(); TT.Close() end
+		if ns.Game.OverKey(TT, game, key, fresh) then
+			-- (Tab played again; Enter told your guild and closed)
 		else
 			-- (an Enter in the wait is held from now: its repeats aren't a fresh press; review, 0.49.17: one pressed to
 			-- drop just after the stack topped out, kept down, told the guild on its first repeat)
@@ -523,7 +523,7 @@ function TT.KeyDown(self, key)
 			elseif action == "down" then game.down = true; game.fall = TT.FallEvery(game.level) -- (a row at once)
 			elseif action == "drop" then TT.HardDrop()
 			elseif action == "hold" then TT.Hold() end
-			if game.dirty then TT.Draw() end
+			if game.dirty then TT.DrawChanged() end
 		end
 	else
 		mine = false
@@ -543,22 +543,10 @@ end
 
 function TT.IsShown() return Panel.Shown(frame) end
 
-function TT.Open()
-	if not Panel.CanOpen(L["Tetris takes over keys, which the game doesn't allow in combat."]) then return false end
-	Build()
-	Style()
-	Panel.Opening(TT) -- (straight in: the terminal and the other panels go)
-	TT.Reset()
-	frame:Show()
-	TT.Draw()
-	return true
-end
+function TT.Open() return ns.Game.Open(TT, L["Tetris"], Build, Style) end
 
 function TT.Close(why)
 	if Panel.Close(frame, why, L["Tetris"]) then game.keys, game.acts, game.down = {}, {}, false end
 end
 
-ns:RegisterCommand("tetris", {
-	desc = L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"],
-	run = function() TT.Open() end,
-})
+ns.Game.Command("tetris", function() TT.Open() end)

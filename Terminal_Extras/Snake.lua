@@ -24,7 +24,7 @@ local DIRS = {
 }
 
 local frame, board, scoreText, bestText, overlay, overlaySub, footer
-local segs, food = {}, nil
+local food
 local game = {}
 
 S.rand = function(n) return math.random(n) end -- (tests replace it)
@@ -94,12 +94,7 @@ end
 function S.GameOver(why)
 	game.over, game.why = true, why
 	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
-	if ns.db and game.score > (ns.db.snakeBest or 0) then
-		ns.db.snakeBest = game.score
-		game.newBest = true
-	else
-		game.newBest = false
-	end
+	ns.Game.KeepBest(game, "snakeBest")
 end
 
 S.game = game
@@ -108,14 +103,17 @@ S.game = game
 -- Drawing
 ----------------------------------------------------------------------
 
-local function Seg(i)
-	local t = segs[i]
-	if not t then
-		t = board:CreateTexture(nil, "ARTWORK")
-		t:SetColorTexture(1, 1, 1, 1)
-		t:SetSize(CELL - 2, CELL - 2)
-		segs[i] = t
-	end
+-- each body cell's texture, placed once when the cell is new: a move adds a head and drops a tail, so only those two are
+-- placed and shown (every segment was placed again on every move, up to 16 a second; review, 0.53.6)
+local placed, spare = {}, {} -- cell -> its texture; textures of cells gone, for the next new ones
+S.placed = placed -- (tests)
+
+local function NewSeg()
+	local t = table.remove(spare)
+	if t then return t end
+	t = board:CreateTexture(nil, "ARTWORK")
+	t:SetColorTexture(1, 1, 1, 1)
+	t:SetSize(CELL - 2, CELL - 2)
 	return t
 end
 
@@ -129,18 +127,30 @@ function S.Draw()
 	local t = Theme.Get()
 	local ar, ag, ab = Theme.RGB(t.accent)
 	local tr, tg, tb = Theme.RGB(t.text)
+	local live = {}
 	for i, c in ipairs(game.body) do
-		local seg = Seg(i)
-		Place(seg, c[1], c[2])
+		local seg = placed[c]
+		if not seg then
+			seg = NewSeg()
+			Place(seg, c[1], c[2])
+			seg:Show()
+			placed[c] = seg
+		end
+		live[c] = true
 		if i == 1 then
 			seg:SetVertexColor(ar, ag, ab, 1)
 		else
 			local fade = 1 - 0.5 * (i - 1) / math.max(1, #game.body) -- (the tail fades a little)
 			seg:SetVertexColor(tr, tg, tb, fade)
 		end
-		seg:Show()
 	end
-	for i = #game.body + 1, #segs do segs[i]:Hide() end
+	for c, seg in pairs(placed) do
+		if not live[c] then
+			seg:Hide()
+			placed[c] = nil
+			spare[#spare + 1] = seg
+		end
+	end
 	if game.food then
 		Place(food, game.food[1], game.food[2])
 		food:Show()
@@ -157,7 +167,7 @@ function S.Draw()
 		overlay:Hide(); overlaySub:Hide()
 	end
 	-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
-	footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or S.PLAY_KEYS)
+	footer:SetText(game.over and ns.Game.OverKeys(game.score, game.sent) or S.PLAY_KEYS)
 end
 
 ----------------------------------------------------------------------
@@ -171,7 +181,6 @@ local function Build()
 	frame = Panel.Build("TerminalSnake", S)
 	frame:SetSize(COLS * CELL + 24, ROWS * CELL + 64)
 	frame:SetScript("OnKeyDown", function(self, key) S.KeyDown(self, key) end)
-	frame:SetScript("OnUpdate", OnUpdate)
 
 	scoreText, bestText = Panel.Header(frame)
 
@@ -187,9 +196,7 @@ local function Build()
 	overlaySub = Text(board, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -12)
 	S.PLAY_KEYS = L["WASD or arrows steer"] .. "  ·  " .. Panel.QUIT
-	footer = Panel.Footer(frame, 9, "")
-	footer:SetPoint("RIGHT", frame, "RIGHT", -12, 0) -- (a longer language's keys cut short, not past the edge)
-	footer:SetWordWrap(false)
+	footer = ns.Game.Footer(frame)
 	S.frame, S.footer = frame, footer
 end
 
@@ -213,27 +220,17 @@ function S.Brag()
 end
 
 --- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
-function S.TellGuild()
-	if not game.over or (game.score or 0) <= 0 then return false end
-	return ns.Extras.TellGuildOnce(game, S.Brag())
-end
+function S.TellGuild() return ns.Game.TellGuild(game, S.Brag()) end
 
 --- The game's keys are kept; any other key goes on to the game.
 function S.KeyDown(self, key)
 	local mine = true
 	if key == "ESCAPE" or key == "`" then
 		S.Close()
+	elseif game.over and ns.Game.OverKey(S, game, key) then
+		-- (game over: Enter tells your guild and closes, so the chat shows it; Tab plays again)
 	elseif DIRS[key] then
 		if not game.over then S.Turn(DIRS[key][1], DIRS[key][2]) end
-	elseif key == "ENTER" or key == "NUMPADENTER" then
-		-- (game over: as the typing test, Enter tells your guild, and closes so the chat shows it; Tab plays again)
-		if game.over then
-			if (game.score or 0) > 0 then S.TellGuild(); S.Close() end
-		else
-			mine = false
-		end
-	elseif key == "TAB" then
-		if game.over then S.Reset(); S.Draw() else mine = false end
 	else
 		mine = false
 	end
@@ -256,22 +253,10 @@ end
 
 function S.IsShown() return Panel.Shown(frame) end
 
-function S.Open()
-	if not Panel.CanOpen(L["Snake takes over keys, which the game doesn't allow in combat."]) then return false end
-	Build()
-	Style()
-	Panel.Opening(S) -- (straight in: the terminal and the other panels go)
-	S.Reset()
-	frame:Show()
-	S.Draw()
-	return true
-end
+function S.Open() return ns.Game.Open(S, L["Snake"], Build, Style) end
 
 function S.Close(why)
 	Panel.Close(frame, why, L["Snake"])
 end
 
-ns:RegisterCommand("snake", {
-	desc = L["Play Snake (WASD or arrows steer; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"],
-	run = function() S.Open() end,
-})
+ns.Game.Command("snake", function() S.Open() end)

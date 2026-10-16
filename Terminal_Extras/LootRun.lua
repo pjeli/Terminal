@@ -415,10 +415,7 @@ end
 function LR.GameOver()
 	game.over, game.state = true, "over"
 	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
-	if ns.db and game.score > (ns.db.lootrunBest or 0) then
-		ns.db.lootrunBest = game.score
-		game.newBest = true
-	end
+	ns.Game.KeepBest(game, "lootrunBest")
 end
 
 --- Time passing: the pauses count down; in play, everything moves in short steps.
@@ -584,7 +581,7 @@ local function DrawWords()
 		overlaySub:SetText(small or "")
 		cover:SetShown(big ~= nil)
 		-- the keys in the footer: the game's while playing, the game-over ones after (as the typing test's)
-		footer:SetText(game.over and Panel.OverKeys(game.score, game.sent) or (L["arrows or WASD"] .. "  ·  " .. Panel.QUIT))
+		footer:SetText(game.over and ns.Game.OverKeys(game.score, game.sent) or (L["arrows or WASD"] .. "  ·  " .. Panel.QUIT))
 	end
 end
 
@@ -606,7 +603,6 @@ local function Build()
 	frame = Panel.Build("TerminalLootRun", LR)
 	frame:SetSize(W * CELL + 24, H * CELL + 64)
 	frame:SetScript("OnKeyDown", function(self, key) LR.KeyDown(self, key) end)
-	frame:SetScript("OnUpdate", OnUpdate)
 
 	scoreText, bestText = Panel.Header(frame)
 
@@ -627,12 +623,10 @@ local function Build()
 	overlay:SetPoint("CENTER", 0, 9)
 	overlaySub = Text(cover, 11, "CENTER")
 	overlaySub:SetPoint("CENTER", 0, -11)
-	footer = Panel.Footer(frame, 9, "")
 	livesText = Text(frame, 11, "RIGHT")
 	livesText:SetPoint("BOTTOMRIGHT", -12, 9)
 	-- (the keys cut short before the level and lives, not over them: a longer language's; review, 0.49.17)
-	footer:SetPoint("RIGHT", livesText, "LEFT", -8, 0)
-	footer:SetWordWrap(false)
+	footer = ns.Game.Footer(frame, "", livesText)
 	LR.frame, LR.footer = frame, footer
 end
 
@@ -659,10 +653,7 @@ function LR.Brag()
 end
 
 --- Enter on the game-over screen: the guild is told the score, once (nothing to tell at 0); KeyDown then closes.
-function LR.TellGuild()
-	if not game.over or (game.score or 0) <= 0 then return false end
-	return ns.Extras.TellGuildOnce(game, LR.Brag())
-end
+function LR.TellGuild() return ns.Game.TellGuild(game, LR.Brag()) end
 
 --- The game's keys are kept; any other key goes on to the game. A way asked for is kept until it can be taken
 --- (asked during a pause too: off at once when it ends).
@@ -670,17 +661,10 @@ function LR.KeyDown(self, key)
 	local mine = true
 	if key == "ESCAPE" or key == "`" then
 		LR.Close()
+	elseif game.over and ns.Game.OverKey(LR, game, key) then
+		-- (game over: Enter tells your guild and closes, so the chat shows it; Tab plays again)
 	elseif KEYS[key] then
 		if not game.over then game.player.want = KEYS[key] end
-	elseif key == "ENTER" or key == "NUMPADENTER" then
-		-- (game over: as the typing test, Enter tells your guild, and closes so the chat shows it; Tab plays again)
-		if game.over then
-			if (game.score or 0) > 0 then LR.TellGuild(); LR.Close() end
-		else
-			mine = false
-		end
-	elseif key == "TAB" then
-		if game.over then LR.Reset(); LR.Draw() else mine = false end
 	else
 		mine = false
 	end
@@ -689,23 +673,10 @@ end
 
 function LR.IsShown() return Panel.Shown(frame) end
 
-function LR.Open()
-	if not Panel.CanOpen(L["Loot Run takes over keys, which the game doesn't allow in combat."]) then return false end
-	Build()
-	Style()
-	Panel.Opening(LR) -- (straight in: the terminal and the other panels go)
-	LR.Reset()
-	frame:Show()
-	LR.Draw()
-	return true
-end
+function LR.Open() return ns.Game.Open(LR, L["Loot Run"], Build, Style) end
 
 function LR.Close(why)
 	Panel.Close(frame, why, L["Loot Run"])
 end
 
-ns:RegisterCommand("lootrun", {
-	desc = L["Play Loot Run, a maze chase (WASD or arrows move; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"],
-	aliases = { "maze" },
-	run = function() LR.Open() end,
-})
+ns.Game.Command("lootrun", function() LR.Open() end)

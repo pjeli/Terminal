@@ -101,6 +101,24 @@ do
 	Type("th")
 	local ok = pcall(TY.Draw)
 	check(ok, "drawn while typing")
+	-- (review, 0.53.6) letters of two bytes: an accented one as the words have it, another alphabet's a wrong key; never
+	-- half a letter
+	TY.Back(true)
+	TY.Char("\195\169") -- (e acute)
+	check(g.input == "e", "e acute typed as e: " .. g.input)
+	TY.Char("\208\182") -- (a Cyrillic letter)
+	check(g.input == "e?", "another alphabet's letter: one wrong key: " .. g.input)
+	TY.Back()
+	check(g.input == "e", "Backspace takes it whole")
+	-- the clock alone drawn while it runs: the words aren't laid out again ten times a second
+	local draws, draw = 0, TY.Draw
+	TY.Draw = function(...) draws = draws + 1 return draw(...) end
+	TY.Tick(); TY.Tick()
+	TY.Draw = draw
+	check(draws == 0, "a tick draws only the seconds left: " .. draws)
+	-- a long book: only the start of it read for its words
+	local long = ("word "):rep(TY.BOOK_WORDS * 4)
+	check(#TY.LoreWords(long) == TY.BOOK_WORDS, "a long book's words: as many as are kept")
 	-- Esc quits
 	TY.KeyDown(TY.frame, "ESCAPE")
 	check(not TY.IsShown(), "Esc quits")
@@ -144,6 +162,15 @@ do
 	OnEvent(X.loreFrame, "ITEM_TEXT_CLOSED")
 	local b = ns.db.lore and ns.db.lore["the founding of quel'thalas"]
 	check(b and b.title == title and b.pages[1] and b.pages[2] and b.pages[2]:find("Zul'Aman", 1, true), "both pages kept")
+	-- (review, 0.53.6) a page past those kept isn't kept: it wrote over the last one
+	page, text = X.LORE_PAGES, "<P>The last page that is kept, of a very long book indeed, about the elves.</P>"
+	OnEvent(X.loreFrame, "ITEM_TEXT_BEGIN")
+	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
+	page, text = X.LORE_PAGES + 1, "<P>A page past those kept, which must not take the last one's place.</P>"
+	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
+	check(b.pages[X.LORE_PAGES]:find("last page", 1, true) and not b.pages[X.LORE_PAGES + 1], "a page past those kept: the last kept stays")
+	b.pages[X.LORE_PAGES] = nil
+	page = 1
 	title, creator, page, text = "A letter", "Bob", 1, "<P>Hey, could you send me twenty linen cloth for my tailoring please?</P>"
 	OnEvent(X.loreFrame, "ITEM_TEXT_BEGIN")
 	OnEvent(X.loreFrame, "ITEM_TEXT_READY")

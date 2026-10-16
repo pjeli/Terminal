@@ -84,6 +84,9 @@ end
 function TY.LoreWords(text)
 	local out = {}
 	if type(text) ~= "string" then return out end
+	-- (only as much as the words kept can come from: a long book's every page was folded and lowercased for its first
+	-- BOOK_WORDS words; review, 0.53.6)
+	text = text:sub(1, TY.BOOK_WORDS * 12)
 	local s = text:gsub("\195[\128-\191]", function(c) return FOLD[c] or c end):gsub("\197[\146\147]", "oe")
 	s = s:gsub("[%-/]", " "):lower()
 	for tok in s:gmatch("%S+") do
@@ -107,7 +110,7 @@ function TY.Books()
 			local c = bookWords[b.title]
 			if not c or c.t ~= b.t then
 				local pages = {}
-				for i = 1, 40 do if type(b.pages[i]) == "string" then pages[#pages + 1] = b.pages[i] end end
+				for i = 1, ns.Extras.LORE_PAGES do if type(b.pages[i]) == "string" then pages[#pages + 1] = b.pages[i] end end
 				c = { t = b.t, words = TY.LoreWords(table.concat(pages, " ")) }
 				bookWords[b.title] = c
 			end
@@ -197,10 +200,17 @@ function TY.Char(c)
 		game.start = TY.clock()
 		if frame then frame:SetScript("OnUpdate", OnUpdate) end
 	end
-	game.input = game.input .. c
-	game.keys = game.keys + 1
-	local want = game.words[game.cur]
-	if want:sub(#game.input, #game.input) == c and #game.input <= #want then game.right = game.right + 1 end
+	-- a letter with an accent as the words have it (é -> e, ß -> ss); any other letter not in the words (another
+	-- alphabet) a wrong key, shown as "?": the typed text was byte by byte, a letter of two bytes counted twice and
+	-- Backspace left half of one (review, 0.53.6)
+	if #c > 1 then c = FOLD[c] or "?" end
+	for k = 1, #c do
+		local ch = c:sub(k, k)
+		game.input = game.input .. ch
+		game.keys = game.keys + 1
+		local want = game.words[game.cur]
+		if want:sub(#game.input, #game.input) == ch and #game.input <= #want then game.right = game.right + 1 end
+	end
 end
 
 --- Backspace: a letter off the word; on an empty word, back into the one before when it was typed wrong. With Ctrl:
@@ -268,10 +278,18 @@ function TY.Finish()
 	end
 end
 
+--- Ten times a second while the clock runs: only the seconds left drawn, when they change (the whole test was laid out
+--- and painted again each time; review, 0.53.6); everything at the end.
+local shownLeft
 function TY.Tick()
 	if not game.start or game.over then return end
-	if TY.clock() - game.start >= game.duration then TY.Finish() end
-	TY.Draw()
+	local left = game.duration - (TY.clock() - game.start)
+	if left <= 0 then TY.Finish() TY.Draw() return end
+	local secs = math.ceil(left)
+	if secs ~= shownLeft and timeText then
+		shownLeft = secs
+		timeText:SetText("|cff" .. Theme.Get().accent .. secs .. "|r")
+	end
 end
 
 --- What the guild is told: "[Terminal] 72 wpm, 96% accuracy on a 30 s typing test." (the [Terminal]
@@ -400,10 +418,11 @@ function TY.Draw()
 		loreText:SetText(game.book and L["Words from the book: %s"]:format((game.book.title:gsub("|", "||")))
 			or (not any and L["Read a book in the game (on a shelf, a plaque, a note you find) and its words turn up here"]) or "")
 		result:Show(); resultSub:Show(); loreText:Show()
-		footer:SetText(Panel.OverKeys(r.wpm, game.sent)) -- (the games' own: 0 wpm offers no telling; review, 0.49.17)
+		footer:SetText(ns.Game.OverKeys(r.wpm, game.sent)) -- (the games' own: 0 wpm offers no telling; review, 0.49.17)
 	else
 		local left = game.start and math.max(0, game.duration - (TY.clock() - game.start)) or game.duration
-		timeText:SetText(Hex(t.accent) .. math.ceil(left) .. "|r")
+		shownLeft = math.ceil(left)
+		timeText:SetText(Hex(t.accent) .. shownLeft .. "|r")
 		result:Hide(); resultSub:Hide(); loreText:Hide()
 		footer:SetText((game.start and (L["Space next word"] .. "  ·  " .. L["Tab again"])
 			or (L["Start typing"] .. "  ·  " .. L["Tab 15 / 30 / 60 s"])) .. "  ·  " .. Panel.QUIT)
@@ -493,16 +512,7 @@ end
 
 function TY.IsShown() return Panel.Shown(frame) end
 
-function TY.Open()
-	if not Panel.CanOpen(L["The typing test takes over the keyboard, which the game doesn't allow in combat."]) then return false end
-	Build()
-	Style()
-	Panel.Opening(TY)
-	TY.Reset()
-	frame:Show()
-	TY.Draw()
-	return true
-end
+function TY.Open() return ns.Game.Open(TY, L["The typing test"], Build, Style) end
 
 function TY.Close(why)
 	if frame then frame:SetScript("OnUpdate", nil) end
@@ -516,17 +526,13 @@ function TY.BookLines()
 	local out = { L["Books the typing test can use (%d):"]:format(#books) }
 	for i, b in ipairs(books) do
 		if i > 25 then out[#out + 1] = "  " .. L["+%d more"]:format(#books - 25) break end
-		out[#out + 1] = "  " .. b.title .. "  |cff9d9d9d" .. L["%d words"]:format(#b.words) .. "|r"
+		out[#out + 1] = "  " .. b.title:gsub("|", "||") .. "  |cff9d9d9d" .. L["%d words"]:format(#b.words) .. "|r"
 	end
 	return out
 end
 
-ns:RegisterCommand("typing", {
-	desc = L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"],
-	aliases = { "wpm", "typetest" },
-	run = function(args)
-		local a = strtrim(args or ""):lower()
-		if a == "books" or a == "book" or a == "lore" then return TY.BookLines() end
-		TY.Open()
-	end,
-})
+ns.Game.Command("typing", function(args)
+	local a = strtrim(args or ""):lower()
+	if a == "books" or a == "book" or a == "lore" then return TY.BookLines() end
+	TY.Open()
+end)

@@ -830,10 +830,7 @@ end
 --- (a whole instance's loot): they're asked for, and party, raid, guild, instance and whispers wait for them (up to
 --- LINK_WAIT s) before sending. Returns how many lines went (true when they'll go in a moment), or nil and why not.
 local LOCKED = L["The game doesn't let addons send chat right now (in combat in an instance)."]
-local function Locked()
-	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
-	return lock and Call(lock) == true
-end
+local Locked = ns.ChatLocked
 local waiting -- (a send waiting for its items to load: another Enter meanwhile doesn't send them twice)
 
 -- (0.45.16, the player: ">>> party" with nothing searched sent every recent pick, with no word of what they were)
@@ -854,7 +851,7 @@ function SH.ChatType(chat)
 end
 
 function SH.SendAll(rows, to, query)
-	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
+	local send = ns.ChatSender()
 	if not SH.Searched(query) then return nil, SH.NO_SEARCH end
 	if SH.Restricted(to) then return nil, SH.ONE_LINE end -- (the game blocks them from addon code: SH.PressLine)
 	if not (to and to.chat and send) then -- (as the prompt says it: Activate's NoChannel)

@@ -288,3 +288,13 @@ do -- (review, 0.53.6) one walk over Questie's spawns: a dungeon's NPC by its en
 	local v = I.NearView({ name = "Box", zone = "Elwynn" }, 12.4, "Elwynn")
 	T.check(v.name == "Box" and v._dist == 12.4 and v.nearRest == "Elwynn" and v.detail:find("Elwynn", 1, true), "a near view says how far and the rest")
 end
+
+do -- (review, 0.53.6) telling the guild: a lockdown check that errors doesn't break it (it was called unguarded)
+	local was, sent = _G.C_ChatInfo, nil
+	_G.C_ChatInfo = { InChatMessagingLockdown = function() error("no") end, SendChatMessage = function(t) sent = t end }
+	local guild = _G.IsInGuild
+	_G.IsInGuild = function() return true end
+	local ok = pcall(T.ns.Extras.TellGuild, "hello")
+	T.check(ok and sent == "hello", "sent, the check's error taken as no lockdown")
+	_G.C_ChatInfo, _G.IsInGuild = was, guild
+end

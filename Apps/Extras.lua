@@ -18,7 +18,7 @@ X.COMMANDS = {
 	{ "snake", L["Play Snake (WASD or arrows steer; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"] },
 	{ "tetris", L["Play Tetris (arrows or WASD move and turn, Enter drops, C holds; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"] },
 	{ "lootrun", L["Play Loot Run, a maze chase (WASD or arrows move; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"], { "maze" } },
-	{ "typing", L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc quits)"], { "wpm", "typetest" } },
+	{ "typing", L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc or ` quits)"], { "wpm", "typetest" } },
 	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" },
 		-- (what it takes before the extras are loaded: its stations come with them; review, 0.48.6)
 		function() return { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } } end },
@@ -36,9 +36,8 @@ X.COMMANDS = {
 function X.TellGuild(text)
 	if type(text) ~= "string" or text == "" then return false end
 	if _G.IsInGuild and not _G.IsInGuild() then ns:Print(L["You're not in a guild: nobody to tell."]) return false end
-	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
-	if lock and lock() then ns:Print(L["Chat is held back right now: tell your guild later."]) return false end
-	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
+	if ns.ChatLocked() then ns:Print(L["Chat is held back right now: tell your guild later."]) return false end
+	local send = ns.ChatSender()
 	if not send then return false end
 	local ok = pcall(send, text, "GUILD")
 	ns:Trace("extras: told the guild: " .. tostring(ok))
@@ -52,12 +51,7 @@ function X.TellGuildOnce(state, text)
 	return state.sent
 end
 
-local function Call(f, ...)
-	if type(f) ~= "function" then return nil end
-	local ok, a, b = pcall(f, ...)
-	if ok then return a, b end
-	return nil
-end
+local Call = ns.Safe
 
 --- Whether the extras are loaded now.
 function X.Loaded()
@@ -147,7 +141,9 @@ function X.KeepPage()
 	if not title then return nil, "no title" end
 	local text = X.CleanLore(Str(Safe(_G.ItemTextGetText)))
 	if not text then return nil, "no words" end
-	local page = math.max(1, math.min(X.LORE_PAGES, Num(Safe(_G.ItemTextGetPage)) or 1))
+	local page = math.max(1, Num(Safe(_G.ItemTextGetPage)) or 1)
+	-- (past the pages kept: not kept; pages 41-50 each wrote over page 40. Review, 0.53.6)
+	if page > X.LORE_PAGES then return nil, "past the pages kept" end
 	local key = ns.Lower(title)
 	local b = books[key]
 	if type(b) ~= "table" or type(b.pages) ~= "table" then b = { title = title, pages = {} }; books[key] = b end

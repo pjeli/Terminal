@@ -293,6 +293,14 @@ function ns.Cut(s, n)
 	return cut
 end
 
+--- The game's way to send a chat line (C_ChatInfo's, else the old global), and whether chat is held back from addons
+--- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each (review, 0.53.6).
+function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage end
+function ns.ChatLocked()
+	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
+	return lock ~= nil and ns.Safe(lock) == true
+end
+
 -- Small helpers several lists had a copy of each (0.52.15: one each, here)
 
 --- The clock's time in seconds (time()), or 0.

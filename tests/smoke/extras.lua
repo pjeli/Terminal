@@ -134,8 +134,8 @@ do
 		G.Reset()
 		G.Close()
 	end
-	check(ns.Panel.OverKeys(5, false):find(ns.L["Enter tell your guild"], 1, true) and ns.Panel.OverKeys(5, true):find(ns.L["Your guild heard it"], 1, true)
-		and not ns.Panel.OverKeys(0, false):find(ns.L["Enter tell your guild"], 1, true), "the game-over keys say Enter (when there's a score)")
+	check(ns.Game.OverKeys(5, false):find(ns.L["Enter tell your guild"], 1, true) and ns.Game.OverKeys(5, true):find(ns.L["Your guild heard it"], 1, true)
+		and not ns.Game.OverKeys(0, false):find(ns.L["Enter tell your guild"], 1, true), "the game-over keys say Enter (when there's a score)")
 	-- (review, 0.49.17) filling the board again ties the best: not "a new best"
 	ns.Snake.game.score, ns.Snake.game.won, ns.Snake.game.newBest = 297, true, false
 	check(not ns.Snake.Brag():find("new best", 1, true), "a tie isn't a new best: " .. ns.Snake.Brag())
@@ -148,4 +148,61 @@ do
 	check(#sent == n and tostring(printed):find("not in a guild", 1, true) and not ns.Snake.game.sent, "not in a guild: said, nothing sent")
 	ns.Snake.Reset(); ns.Snake.Close()
 	_G.C_ChatInfo, _G.IsInGuild, ns.Print, _G.InCombatLockdown = save.chat, save.guild, save.print, save.combat
+end
+
+do -- (review, 0.53.6) each real command as its stand-in names it: one description and the same other names
+	local ns, check = T.ns, T.check
+	local X = ns.Extras
+	local same = true
+	for _, c in ipairs(X.COMMANDS) do
+		local real = ns.commands[c[1]]
+		if not real or real == X.stubs[c[1]] or real.desc ~= c[2] or table.concat(real.aliases or {}, ",") ~= table.concat(c[3] or {}, ",") then
+			same = false
+		end
+	end
+	check(same, "the extras' commands: their stand-ins' words")
+	check(type(ns.commands.wowamp.complete) == "function" and #ns.commands.wowamp.complete("") > 2, ".wowamp completes its stations")
+	-- the best kept alike: a game that isn't one isn't "a new best"
+	local g = { score = 1 }
+	local was = ns.db.snakeBest
+	ns.db.snakeBest = 5
+	ns.Game.KeepBest(g, "snakeBest")
+	check(g.newBest == false and ns.db.snakeBest == 5, "under the best: kept as it was")
+	g.score = 9
+	ns.Game.KeepBest(g, "snakeBest")
+	check(g.newBest == true and ns.db.snakeBest == 9, "over it: the new best")
+	ns.db.snakeBest = was
+end
+
+do -- (review, 0.53.6) Tetris draws its stack again only when a piece locks, not on every row a piece falls
+	local ns, check = T.ns, T.check
+	local TT = ns.Tetris
+	TT.Open()
+	local before = TT.stackDraws
+	for _ = 1, 3 do TT.Drop(false); TT.DrawChanged() end
+	check(TT.stackDraws == before, "falling rows: the stack left as it was: " .. (TT.stackDraws - before))
+	TT.HardDrop()
+	if TT.game.dirty then TT.DrawChanged() end
+	check(TT.stackDraws == before + 1, "a piece locked: the stack drawn once: " .. (TT.stackDraws - before))
+	TT.Close()
+end
+
+do -- (review, 0.53.6) Snake places only the new head on a move; the old tail's texture is used again
+	local ns, check = T.ns, T.check
+	local S = ns.Snake
+	S.Open()
+	S.Draw()
+	local placedBefore = {}
+	for c, t in pairs(S.placed) do placedBefore[c] = t end
+	local head = S.game.body[1]
+	local tex = S.placed[head]
+	local moved = 0
+	local set = tex.SetPoint
+	tex.SetPoint = function(...) moved = moved + 1 return set(...) end
+	S.Step(); S.Draw()
+	tex.SetPoint = set
+	local n = 0
+	for _ in pairs(S.placed) do n = n + 1 end
+	check(n == #S.game.body and S.placed[head] == tex and moved == 0, "a move: the old head stays where it was placed: " .. moved)
+	S.Close()
 end

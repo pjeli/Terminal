@@ -539,6 +539,27 @@ do -- .wowamp: tracks the game cuts short come back; each station's own feel; vi
 	playing[W.state.handle] = nil -- the game cut it
 	for _ = 1, 5 do if #played > n then break end T.Flush() end
 	check(#played == n + 1 and played[#played] == first and W.state.playing, "a track the game cut short starts again: " .. #played)
+	-- (review, 0.53.6) cut again and again (tabbed out): started again 2, 4, 8 s apart, not every second; refused while
+	-- out of focus: the same track later, the radio not stopped as if the station had no music
+	do
+		local after, waits = C_Timer.After, {}
+		C_Timer.After = function(d, f) waits[#waits + 1] = d end
+		W.state.cuts = 3
+		W.Again(W.state.gen)
+		check(waits[1] == 4, "the third cut: started again 4 s later: " .. tostring(waits[1]))
+		W.state.cuts = 9
+		W.Again(W.state.gen)
+		check(waits[2] == W.AGAIN_MAX, "never more than " .. W.AGAIN_MAX .. " s apart: " .. tostring(waits[2]))
+		local psf, fails = _G.PlaySoundFile, W.state.fails
+		_G.PlaySoundFile = function() return false end
+		W.state.cuts = 1
+		W.Again(W.state.gen)
+		check(W.state.playing and W.state.fails == fails and #waits >= 3, "refused when started again: tried later, still playing")
+		_G.PlaySoundFile, C_Timer.After = psf, after
+		W.state.cuts = 0
+		W.Tune("moonwell")
+	end
+	check(W.Find("0") == 10, ".wowamp 0 is station 10, as the window and the 0 key have it")
 	-- without C_Sound.IsPlaying nothing watches (and nothing breaks)
 	_G.C_Sound = nil
 	W.Tune("moonwell")
