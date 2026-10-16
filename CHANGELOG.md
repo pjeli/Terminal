@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.54.0
+
+**With What's Training**
+- `@training`, or ask in plain words: **what can i train**, **what do i learn next level**, **spells at level 30**, **weapon skills to learn**, **how much is training**, **when do i learn polymorph**. Every spell, rank, weapon skill and pet ability your class has still to learn, with when you can learn it, what it costs and where it's taught.
+- Enter opens What's Training's window on the spell and points at it. Shift+Enter lists who teaches it, the nearest first; Enter on one of them shows them on the map.
+- **where to learn fireball**: your class trainers, nearest first (pet trainers for a pet ability), the weapon masters for a weapon skill, the quest for a quest's spell, or where to get the book.
+- Advanced mode: `@training is:learnable`, `is:nextlevel`, `is:later`, `is:weapon`, `is:pet`, `lvl:30`, and `@training is:learnable | sum cost` for what it all costs.
+- `.tour` has a step for it, and the footer says to install it (or update it) when you reach for it without.
+
+**Weapon masters**
+- **dagger trainer**, **where do i learn daggers**, **who trains staves**: the weapon masters who teach it, the nearest first and then those on the other continent, even for a weapon skill you already know. Advanced mode: `@npc trainer:daggers`. Without What's Training, every weapon master.
+
+**Tabs**
+- Ctrl+T opens a tab, Ctrl+1-4 or Ctrl+Tab switch between them, Ctrl+Shift+W closes one. Each keeps its own search and mode, the one shown keeps itself up to date, and a dot marks one whose lists changed.
+
+**Summing up and filters**
+- Summed searches group **by dungeon**, **by raid** or **by instance** as they say (no battlegrounds, professions or world bosses), and leave out what has none of it.
+- Filters take quoted values: `q:"Rare"`, `in:"Elwynn Forest"`. Enter on a summed-up group writes the filter you'd type.
+
+**Also**
+- `@dungeon` and `@raid` list Blackrock Mountain's instances once, at the nearer door.
+- `.zen`'s faded interface takes no clicks or hovers; a click on it closes the terminal.
+- Faster: narrowing a search is up to twice as fast, and opening and closing the terminal costs less.
+- Fixes from a review: tabs keep their own search through chat links and the tour; `stat:mp5` and `stat:healing` no longer match health regen, and ranged attack power is its own stat; characters who share a first name are told apart; chat lines read right in other languages; and many smaller fixes.
+
 ## 0.53.0
 
 **Suggestions for where you are**
