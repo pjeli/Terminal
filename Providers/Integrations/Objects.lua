@@ -197,7 +197,7 @@ function I.NearestObjectRows(kind, here, keep)
 	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
 		local f = found[i]
 		local rest = rawget(f.e, "distNote") or f.e.zone
-		rows[i] = setmetatable({ detail = ("%.0f yd"):format(f.d) .. (rest and ("  " .. rest) or ""),
+		rows[i] = setmetatable({ detail = ns.NearDetail(f.d, rest),
 			_score = 1e6 - f.d, _dist = f.d, nearRest = rest }, { __index = f.e })
 	end
 	return rows

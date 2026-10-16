@@ -67,7 +67,7 @@ local function Texts(list)
 	return out
 end
 -- (every one, as shown: "try: ..." and the tips)
-E.EXAMPLES, E.ADV_EXAMPLES = Texts(E.SIMPLE), Texts(E.ADVANCED)
+E.EXAMPLES, E.ADV_EXAMPLES = Texts(E.SIMPLE), Texts(E.ADVANCED) -- (tests)
 
 -- Examples made for the character playing (their class, professions, bags, level, where they are, guild): mixed in
 -- with the fixed ones, every other suggestion. Worked out from lists already built (never a big list on its own),
@@ -200,7 +200,6 @@ end
 -- the capitals' maps (and their parts: a city's own sub-maps have it as their parent)
 local CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true,
 	[1947] = true, [1954] = true, [1955] = true }
-E.CAPITALS = CAPITALS
 --- "instance" (a dungeon or raid), "city" (a capital), "town" (resting: an inn elsewhere), or "field" (out in the world).
 function E.Place()
 	local inside, kind = Safe(IsInInstance)

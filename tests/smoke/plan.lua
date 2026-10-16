@@ -106,6 +106,23 @@ do
 	check(not Q("where should i level") and not Q("blacksmithing skillup") and not Q("plan") and not Q("level 20 sword")
 		and not Q("@recipe sort:plan"), "not questions")
 	check(ns.Easy.ToAdvanced("blacksmithing plan") == "@recipe blacksmithing sort:plan ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing plan"))
+	-- (review, 0.53.6) a name of two words, whole: none of its words left to narrow by
+	do
+		local P = ns.Professions
+		local real = P.PlayerProfessions
+		P.PlayerProfessions = function() return { { name = "First Aid", skillLine = 129 }, { name = "Blacksmithing", skillLine = 164 } } end
+		local q = Q("first aid plan")
+		check(q and q.profs[1] == "First Aid" and #q.words == 0, "\"first aid plan\": First Aid's, nothing to narrow by: "
+			.. tostring(q and q.words[1]))
+		q = Q("level first aid bandage")
+		check(q and q.profs[1] == "First Aid" and #q.words == 1 and q.words[1] == "bandage", "and the other words still narrow it")
+		P.PlayerProfessions = real
+	end
+	-- (review, 0.53.6) Alt+` on a Simple line ending in ">> party" or "| sum value": kept as typed, after the words
+	local adv = ns.Easy.ToAdvanced("hogger >> party")
+	check(adv:find(" >> party$") and not adv:sub(1, -10):find(">>", 1, true), "Alt+`: \"hogger >> party\" -> " .. adv)
+	adv = ns.Easy.ToAdvanced("cloth | sum value")
+	check(adv:find(" | sum value$") and select(2, adv:gsub("sum value", "")) == 1, "Alt+`: \"cloth | sum value\" -> " .. adv)
 	ns.db.easyMode = true
 	res = UI:Search("level blacksmithing")
 	check(#res == 5 and res[1].name == "Forever Gizmo" and UI.answerNote:find("+4 Blacksmithing", 1, true), "Simple mode asks it")

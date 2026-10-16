@@ -355,6 +355,14 @@ local function FishRows(skill)
 end
 
 --- The answer to a question (Z.Question): rows, and the footer's note ("Zones for level 23", "Your fishing: 150").
+--- The question as Advanced mode writes it (Alt+`): "@map lvl:20", "@dungeon lvl:35", "@map fish:mine".
+function Z.ToAdvanced(kind, said)
+	if kind == "fish" then return "@map fish:mine " end
+	local lv = said or PlayerLevel()
+	local which = (kind == "dungeon" and "@dungeon") or (kind == "raid" and "@raid") or "@map"
+	return which .. ((type(lv) == "number" and lv > 0) and (" lvl:" .. lv) or "") .. " "
+end
+
 function Z.Answer(kind, said)
 	local level = said or PlayerLevel()
 	if kind == "fish" then

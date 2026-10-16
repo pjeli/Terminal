@@ -105,6 +105,13 @@ do -- items: is:quest, is:soulbound, is:boe
 	check(#w == 3 and w[2] == "sword|axe" and w[3] == "-boe", "JoinLogic: sword or axe, not boe")
 	w = E.JoinLogic({ "not" })
 	check(#w == 1 and w[1] == "not", "JoinLogic: a lone not stays a word")
+	-- (review, 0.53.6) first, a "not" only before an everyday word or a filter: else a name's first word
+	w = E.JoinLogic({ "no", "rest", "for", "the", "wicked" })
+	check(#w == 5 and w[1] == "no" and w[2] == "rest", "JoinLogic: \"no rest for the wicked\" is a name: " .. table.concat(w, " "))
+	w = E.JoinLogic({ "without", "cloth" })
+	check(#w == 1 and w[1] == "-cloth", "JoinLogic: \"without cloth\" (an everyday word) still a not: " .. table.concat(w, " "))
+	w = E.JoinLogic({ "not", "is:boe" })
+	check(#w == 1 and w[1] == "-is:boe", "JoinLogic: before a filter still a not: " .. table.concat(w, " "))
 	check(E.IsAdvancedWord("-q:poor") and E.IsAdvancedWord("boe|q:epic") and not E.IsAdvancedWord("-boe")
 		and not E.IsAdvancedWord("sword|axe"), "Simple refuses key:value in - and | words, takes plain ones")
 	check(E.ToAdvanced("rare sword or axe not boe") == "type:sword|type:axe -is:boe q:rare "

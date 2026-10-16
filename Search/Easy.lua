@@ -124,10 +124,11 @@ function E.Visible()
 	return out
 end
 
---- The category a row belongs in (the first shown one listing its kind that keeps it), or nil.
+--- The category a row belongs in (the first shown one listing its kind that keeps it), or nil. (Every category holding
+--- a row's own list is shown: its list is loaded. Not E.Visible() made again per row: review, 0.53.6.)
 function E.CategoryOf(e)
 	if not e or not e.kind then return nil end
-	for _, c in ipairs(E.Visible()) do
+	for _, c in ipairs(E.CATEGORIES) do
 		for _, id in ipairs(c.kinds) do
 			if id == e.kind then
 				local ok, yes = true, true
@@ -685,67 +686,9 @@ local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) e
 --- Advanced syntax already typed) stay. Ends with a space to type on. "" for an empty search.
 -- a plain-word question or chain, in Advanced syntax: chains as links ("mats for x" -> "x > mats"), the zone questions
 -- as @map/@dungeon/@raid with lvl: or fish:, the combat ones as @combatlog words. Nil for anything else.
-local function QuestionToAdvanced(text)
-	local lq = ns.LootLog and ns.LootLog.Question and ns.LootLog.Question(text)
-	if lq then return "@drop " .. ((lq.who == "me" and "you ") or (lq.who and (Lower(lq.who) .. " ")) or "") end
-	-- (Attune's steps before the chains: "how do i get into mc" is its; Search.lua's Scan.ANSWERS)
-	local atq = ns.Attune and ns.Attune.Q and ns.Attune.Q.How(text)
-	if atq then return ns.Attune.Q.ToAdvanced(atq) end
-	local chain = ns.Pipes and ns.Pipes.Canonical(text)
-	if chain then return chain .. " " end
-	-- (the questions in the order the search asks them: Search.lua's Scan.ANSWERS)
-	local cq = ns.CombatLog and ns.CombatLog.Question and ns.CombatLog.Question(text)
-	if cq then return "@combatlog " .. ((cq == "killed" and "killed") or (cq == "crit" and "taken") or "dealt") .. " " end
-	local Z = ns.Zones
-	local q, said
-	if Z and Z.Question then q, said = Z.Question(text) end
-	if q then
-		if q == "fish" then return "@map fish:mine " end
-		local lv = said or (UnitLevel and UnitLevel("player"))
-		local kind = (q == "dungeon" and "@dungeon") or (q == "raid" and "@raid") or "@map"
-		return kind .. ((type(lv) == "number" and lv > 0) and (" lvl:" .. lv) or "") .. " "
-	end
-	local sq = ns.Spells and ns.Spells.Question and ns.Spells.Question(text)
-	if sq then return "@spell is:unplaced " .. (#sq > 0 and (table.concat(sq, " ") .. " ") or "") end
-	local mq = ns.MissingRecipes and ns.MissingRecipes.Question and ns.MissingRecipes.Question(text)
-	if mq then
-		local rest = {}
-		for _, n in ipairs(mq.profs) do rest[#rest + 1] = Lower(n) end
-		for _, w in ipairs(mq.words) do rest[#rest + 1] = w end
-		return "@recipe " .. (mq.learnable and "is:learnable" or "is:unknown") .. " " .. (#rest > 0 and (table.concat(rest, " ") .. " ") or "")
-	end
-	local plq = ns.Plan and ns.Plan.Question and ns.Plan.Question(text)
-	if plq then return ns.Plan.ToAdvanced(plq) end
-	local dq = ns.QuestDrop and ns.QuestDrop.Question and ns.QuestDrop.Question(text)
-	if dq then
-		local which = (dq.grey and "is:grey -is:complete") or (dq.behind and "is:leftbehind -is:complete") or "is:drop"
-		return "@quest " .. which .. " " .. (#dq.words > 0 and (table.concat(dq.words, " ") .. " ") or "")
-	end
-	local pq = ns.GroupQuests and ns.GroupQuests.Question and ns.GroupQuests.Question(text)
-	if pq then return ns.GroupQuests.ToAdvanced(pq) end
-	local lq2 = ns.Lockouts and ns.Lockouts.Question and ns.Lockouts.Question(text)
-	if lq2 then return ns.Lockouts.ToAdvanced(lq2) end
-	local cq3 = ns.Corpse and ns.Corpse.Question and ns.Corpse.Question(text)
-	if cq3 then return ns.Corpse.ToAdvanced(cq3) end
-	local dq2 = ns.Durability and ns.Durability.Question and ns.Durability.Question(text)
-	if dq2 then return ns.Durability.ToAdvanced(dq2) end
-	local aq = ns.Auctions and ns.Auctions.Question and ns.Auctions.Question(text)
-	if aq then return ns.Auctions.ToAdvanced(aq) end
-	local mq2 = ns.Mail and ns.Mail.Question and ns.Mail.Question(text)
-	if mq2 then return ns.Mail.ToAdvanced(mq2) end
-	local gq = ns.Group and ns.Group.Question and ns.Group.Question(text)
-	if gq then return ns.Group.ToAdvanced(gq) end
-	-- (in Scan.ANSWERS' order: the quest rewards' question just before the calendar's; review, 0.49.17)
-	if ns.QuestRewards and ns.QuestRewards.UpgradeQuestion and ns.QuestRewards.UpgradeQuestion(text) then
-		return ns.QuestRewards.UpgradeToAdvanced()
-	end
-	local rq = ns.QuestRewards and ns.QuestRewards.Question and ns.QuestRewards.Question(text)
-	if rq then return ns.QuestRewards.ToAdvanced(rq) end
-	local alq = ns.Attune and ns.Attune.Q and ns.Attune.Q.List(text)
-	if alq then return ns.Attune.Q.ToAdvanced(alq) end
-	local cq2 = ns.Calendar and ns.Calendar.Question and ns.Calendar.Question(text)
-	if cq2 then return ns.Calendar.ToAdvanced(cq2) end
-end
+--- A plain-word question or chain as Advanced mode writes it: Search.lua's one list of them (Scan.ANSWERS), read at
+--- run time (it loads after this file).
+local function QuestionToAdvanced(text) return ns.QuestionToAdvanced and ns.QuestionToAdvanced(text) end
 E.QuestionToAdvanced = QuestionToAdvanced
 
 --- "enchanting trainer": with trainer said, a profession among the words (or the start of one: "enchant", "blacksmith")
@@ -803,7 +746,7 @@ function E.TrainerProfs(words, trainerSaid)
 	return kept, specs
 end
 
-function E.ToAdvanced(text, category, shown)
+local function Convert(text, category, shown)
 	text = E.English(text) -- (a phrase in the client's language: as its English line)
 	local asked = QuestionToAdvanced(text)
 	if asked then return asked end
@@ -906,6 +849,21 @@ function E.ToAdvanced(text, category, shown)
 	return #out > 0 and (table.concat(out, " ") .. " ") or ""
 end
 
+--- Simple mode's words as Advanced mode writes them (Alt+`). A ">> party" or "| sum value" typed after them (the very
+--- syntax the Advanced row offers the switch for) is kept as typed, after the words converted (review, 0.53.6:
+--- "hogger >> party" became "hogger party >> ", "cloth | sum value" "sum value type:cloth | ").
+function E.ToAdvanced(text, category, shown)
+	local t, tail = tostring(text or ""), ""
+	local send = t:find(">>", 1, true)
+	if send then t, tail = t:sub(1, send - 1), " " .. t:sub(send) end
+	local A = ns.Aggregate
+	local q, steps = nil, nil
+	if A and A.Split then q, steps = A.Split(t) end
+	if steps then t, tail = q, " | " .. table.concat(steps, " | ") .. tail end
+	if tail == "" then return Convert(text, category, shown) end
+	return (Convert(t, category, shown):gsub("%s+$", "")) .. tail
+end
+
 ----------------------------------------------------------------------
 -- Advanced mode's syntax in Simple mode: not taken, the player is told where it lives
 ----------------------------------------------------------------------
@@ -933,8 +891,11 @@ E.OR_WORDS = { ["or"] = true }
 function E.JoinLogic(words)
 	local i = 1
 	while i < #words do -- not first: "sword or not boe" = sword|-boe
-		local lw = Lower(words[i])
-		if E.NOT_WORDS[lw] and not E.OR_WORDS[Lower(words[i + 1])] and not E.NOT_WORDS[Lower(words[i + 1])] then
+		local lw, nw = Lower(words[i]), Lower(words[i + 1])
+		-- (first, it's a "not" only before an everyday word or a filter, "without cloth", "not boe": else a name's own
+		-- first word, "No Rest for the Wicked", "Without a Trace"; review, 0.53.6)
+		local leads = i > 1 or E.WORDS[nw] ~= nil or E.IsAdvancedWord(words[i + 1])
+		if E.NOT_WORDS[lw] and leads and not E.OR_WORDS[nw] and not E.NOT_WORDS[nw] then
 			words[i] = "-" .. words[i + 1]
 			table.remove(words, i + 1)
 		end

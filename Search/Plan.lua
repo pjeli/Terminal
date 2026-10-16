@@ -355,6 +355,19 @@ function PL.Question(text)
 	for _, pr in ipairs(P and P.PlayerProfessions and (P.PlayerProfessions()) or {}) do mine[#mine + 1] = pr end
 	local cue, any, profs, words, seen = false, false, {}, {}, {}
 	local planSaid, levelSaid = false, false
+	-- a name of several words, whole ("first aid plan", "erste hilfe"): named, and its words not left to narrow by
+	-- (review, 0.53.6: "aid" narrowed First Aid's plan to recipes named "aid")
+	local padded = " " .. (t:gsub("%s+", " ")) .. " "
+	for _, pr in ipairs(mine) do
+		local ln = (Lower(pr.name):gsub("'", ""):gsub("%p", " "):gsub("%s+", " "))
+		local from, to
+		if ln:find(" ", 1, true) then from, to = padded:find(" " .. ln .. " ", 1, true) end
+		if from then
+			if not seen[pr.name] then seen[pr.name] = true; profs[#profs + 1] = pr.name end
+			padded = padded:sub(1, from) .. padded:sub(to)
+		end
+	end
+	t = padded
 	for w in t:gmatch("%S+") do
 		local prof
 		for _, pr in ipairs(mine) do

@@ -418,7 +418,7 @@ end
 -- sat mid-row, the distance cut off at the end)
 local function NearSaid(v, d, rest)
 	if d then
-		v.detail, v._dist, v.nearRest = ("%.0f yd"):format(d) .. "  " .. rest, d, rest
+		v.detail, v._dist, v.nearRest = ns.NearDetail(d, rest), d, rest
 	else
 		v.detail = rest
 	end
@@ -984,14 +984,37 @@ local function Once(list)
 end
 
 -- reagent rows for the items known by exactly this (lowercase) name: your recipes' reagents, else Questie's items
-local function SeedByReagentName(whole)
-	local ids, out = {}, {}
-	for _, r in ipairs(Entries("recipes")) do
-		for _, rg in ipairs(r.reagents or {}) do
-			local n = type(rg[1]) == "number" and ItemName(rg[1])
-			if n and ns.Lower(n) == whole then ids[#ids + 1] = rg[1] end
+-- (your recipes' reagents by lowercase name, made once per recipes list: every keystroke whose words matched no name
+-- read every reagent's name again; made again while some names are still coming. Review, 0.53.6)
+local reagents = { list = nil, byName = nil, whole = false }
+local function ReagentIds(whole)
+	local list = Entries("recipes")
+	if reagents.list ~= list or not reagents.whole then
+		local byName, all, seen = {}, true, {}
+		for _, r in ipairs(list) do
+			for _, rg in ipairs(r.reagents or {}) do
+				local id = rg[1]
+				if type(id) == "number" and not seen[id] then
+					local n = ItemName(id)
+					if n then
+						seen[id] = true
+						local ln = ns.Lower(n)
+						byName[ln] = byName[ln] or {}
+						table.insert(byName[ln], id)
+					else
+						all = false
+					end
+				end
+			end
 		end
+		reagents.list, reagents.byName, reagents.whole = list, byName, all
 	end
+	return reagents.byName[whole]
+end
+
+local function SeedByReagentName(whole)
+	local out = {}
+	local ids = ReagentIds(whole) or {}
 	if #ids == 0 and ns.Filters and ns.Filters.QuestieItemIds then ids = ns.Filters.QuestieItemIds(whole) end
 	for _, id in ipairs(ids) do
 		out[#out + 1] = { key = id, kind = "reagent", kindLabel = REAGENT_LABEL, name = ItemName(id) or whole,
@@ -1316,8 +1339,11 @@ ns:RegisterCommand("chains", {
 	run = function()
 		local lines = { L["Chains: a  >  passes what a search found on (Enter on a row walks on, Shift+Enter opens it):"] }
 		for _, name in ipairs(P.order) do
-			local def = P.relations[name][1]
-			lines[#lines + 1] = ("  %s%s  -  %s"):format(name, #def.aliases > 0 and (" (" .. table.concat(def.aliases, ", ") .. ")") or "", def.desc)
+			-- (only the links you can use: steps and attunement need Attune, chain Questie; review, 0.53.6)
+			local def = P.Available(name) and P.relations[name][1]
+			if def then
+				lines[#lines + 1] = ("  %s%s  -  %s"):format(name, #def.aliases > 0 and (" (" .. table.concat(def.aliases, ", ") .. ")") or "", def.desc)
+			end
 		end
 		lines[#lines + 1] = L["In plain words: mats for thorium belt, what uses copper bar, where to get thorium bar, who sells mageweave, where to learn thorium belt."]
 		return lines

@@ -410,7 +410,7 @@ function QR.UpgradeAnswer()
 			v.detail = rest
 		end
 		if d and w then
-			v.detail = (L["%.0f yd"]):format(d) .. "  " .. rest
+			v.detail = ns.NearDetail(d, rest)
 			v._dist, v.wcont, v.wx, v.wy, v.nearRest = d, w.cont, w.x, w.y, rest
 		end
 		v = setmetatable(v, { __index = row })
@@ -460,9 +460,13 @@ local function Has(mask, n)
 end
 
 -- can you take this quest: your race and class (Questie's requiredRaces / requiredClasses bits)?
+-- (your race and class, read once: they don't change in a session; review, 0.53.6: asked for every reward quest, thousands
+-- a refresh)
+local myRace, myClass
 function ForYou(db, id)
-	local race = UnitRace and select(3, UnitRace("player"))
-	local class = UnitClass and select(3, UnitClass("player"))
+	if not myRace then myRace = UnitRace and tonumber((select(3, Safe(UnitRace, "player")))) end
+	if not myClass then myClass = UnitClass and tonumber((select(3, Safe(UnitClass, "player")))) end
+	local race, class = myRace, myClass
 	return Has(Safe(db.QueryQuestSingle, id, "requiredRaces"), race) and Has(Safe(db.QueryQuestSingle, id, "requiredClasses"), class)
 end
 

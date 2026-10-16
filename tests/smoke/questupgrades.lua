@@ -105,6 +105,16 @@ do
 	check(Names(res) == "Wolf Trouble | Boot Camp", "quest upgrades: the quests whose reward is an upgrade, biggest first: " .. Names(res))
 	check(res[1] and res[1].detail == "42 yd  Rewards Helm of the Wolf" and res[1]._dist == 42 and res[1].wcont == 1,
 		"...what it rewards, and how far its giver is (the arrow's place): " .. tostring(res[1] and res[1].detail))
+	-- (review, 0.53.6) on a client whose "%.0f yd" is "%.0f m": still "42 yd" in the detail, which the list reads back
+	rawset(ns.L, "%.0f yd", "%.0f m")
+	UI:Hide(); FlushAll()
+	UI:Open("quest upgrades"); FlushAll()
+	local de = UI.Results()[1] and UI.Results()[1].detail
+	rawset(ns.L, "%.0f yd", nil)
+	check(de == "42 yd  Rewards Helm of the Wolf", "a German client: the detail keeps the English yd the column reads: " .. tostring(de))
+	UI:Hide(); FlushAll()
+	UI:Open("quest upgrades"); FlushAll()
+	res = UI.Results()
 	local why = {}
 	for _, l in ipairs(T.UpgradeWhy(res[1]) or {}) do why[#why + 1] = l.text end
 	why = table.concat(why, " | ")

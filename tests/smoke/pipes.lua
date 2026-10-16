@@ -745,3 +745,14 @@ do
 	UI.category, UI.categoryAuto = nil, nil
 	check(trail == nil and note ~= nil, "what does my group need: the group's answer: " .. tostring(trail) .. " / " .. tostring(note))
 end
+
+-- (review, 0.53.6) .chains lists only the links you can use (steps and attunement need Attune, chain Questie)
+do
+	local P = T.ns.Pipes
+	local real = P.Available
+	P.Available = function(name) return name ~= "mats" end
+	local out = T.ns:FindCommand("chains").run()
+	P.Available = real
+	local said = table.concat(out, "\n")
+	T.check(not said:find("\n  mats", 1, true) and said:find("\n  uses", 1, true) ~= nil, ".chains: a link you can't use isn't listed")
+end

@@ -45,6 +45,13 @@ end
 ns.DETAIL_SEP = "  ·  "
 function ns.Detail(...) return ns.Join(ns.DETAIL_SEP, ...) end
 
+--- A row's detail with how far it is said first: "80 yd  Sells it". Always the English "N yd": the list reads it back
+--- into its distance column (List.lua FillRow, translated there) and keeps it up to date as you walk; the rest is
+--- `nearRest` (review, 0.53.6: "quest upgrades" wrote the translated "%.0f m", and lost the column on German clients).
+function ns.NearDetail(d, rest)
+	return ("%.0f yd"):format(d) .. ((rest and rest ~= "") and ("  " .. rest) or "")
+end
+
 --- A line in a list saying why it lists nothing ("No mail kept yet: ..."): not a result, nothing to run or send.
 function ns.NoteRow(text)
 	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",

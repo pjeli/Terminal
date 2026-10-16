@@ -543,7 +543,7 @@ local function NearView(e, d)
 	-- (an NPC in a dungeon: how far its entrance is, and which dungeon; 0.51.18)
 	local inside = e.kind == "npc" and e.inDungeon
 	if inside then rest = (rest and (rest .. ns.DETAIL_SEP) or "") .. L["in %s"]:format(inside) end
-	return setmetatable({ detail = ("%.0f yd"):format(d) .. (rest and ("  " .. rest) or ""), _score = 1e6 - d, _dist = d,
+	return setmetatable({ detail = ns.NearDetail(d, rest), _score = 1e6 - d, _dist = d,
 		nearRest = rest }, { __index = e })
 end
 Scan.NearView = NearView -- (tests)
@@ -642,123 +642,115 @@ function Scan.NearestViews(out, here, sortNear, overBudget)
 	return kept
 end
 
--- Answered before any search, in this order: each gives rows and the footer's note (true third: the note is a
--- chain's path), or nothing when the line isn't its kind
+-- The plain-word questions and chains, answered before any search, in this order. Each: `ask(text, converting)` gives
+-- what the line asks (and a second value for answer/toAdvanced) or nil when it isn't its kind; `answer` gives rows and
+-- the footer's note (true third: the note is a chain's path); `toAdvanced` the same question as Advanced mode writes it
+-- (Alt+`, Easy.ToAdvanced). One list for both (review, 0.53.6: Easy.lua kept its own copy in the same order by hand,
+-- and the two had drifted before).
+local function Asks(name) -- a module with Question, Answer and ToAdvanced of its own (ns[name])
+	return {
+		ask = function(text) -- (both its values: the zones' level said, "where should i level at 30")
+			local m = ns[name]
+			if m and m.Question then return m.Question(text) end
+		end,
+		answer = function(q, extra) return ns[name].Answer(q, extra) end,
+		toAdvanced = function(q, extra) return ns[name].ToAdvanced(q, extra) end,
+	}
+end
+local function Words(list) return #list > 0 and (table.concat(list, " ") .. " ") or "" end
 Scan.ANSWERS = {
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
-	function(text)
-		local q = ns.LootLog and ns.LootLog.Question(text)
-		if q then return ns.LootLog.Answer(q) end
-	end,
+	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
+		answer = function(q) return ns.LootLog.Answer(q) end,
+		toAdvanced = function(q) return "@drop " .. ((q.who == "me" and "you ") or (q.who and (ns.Lower(q.who) .. " ")) or "") end },
 	-- "how do i get into mc", "how do i get attuned to onyxia": its steps (Search/Attune.lua; before the chains, whose "how
 	-- do i get" is where to get an item)
-	function(text)
-		local Q = ns.Attune and ns.Attune.Q
-		local q = Q and Q.How(text)
-		if q then return Q.Answer(q) end
-	end,
-	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua
-	function(text)
-		-- (Simple mode takes only the plain words: a ">" typed there is refused like any Advanced syntax)
-		local chain = ns.Pipes and ns.Pipes.Canonical(text, ns.Easy and ns.Easy.On and ns.Easy.On() or nil)
-		if not chain then return nil end
-		local rows, trail = ns.Pipes.Search(chain)
-		return rows, trail, true
-	end,
+	{ ask = function(text) local Q = ns.Attune and ns.Attune.Q return Q and Q.How(text) end,
+		answer = function(q) return ns.Attune.Q.Answer(q) end,
+		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
+	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua. (Simple mode takes only the plain words: a ">"
+	-- typed there is refused like any Advanced syntax; written for Advanced mode, a ">" chain is one too)
+	{ ask = function(text, converting)
+			return ns.Pipes and ns.Pipes.Canonical(text, (not converting) and ns.Easy and ns.Easy.On and ns.Easy.On() or nil)
+		end,
+		answer = function(chain)
+			local rows, trail = ns.Pipes.Search(chain)
+			return rows, trail, true
+		end,
+		toAdvanced = function(chain) return chain .. " " end },
 	-- "what killed me", "who crit me": CombatLog.lua
-	function(text)
-		local q = ns.CombatLog and ns.CombatLog.Question(text)
-		if q then return ns.CombatLog.Answer(q) end
-	end,
+	{ ask = function(text) return ns.CombatLog and ns.CombatLog.Question(text) end,
+		answer = function(q) return ns.CombatLog.Answer(q) end,
+		toAdvanced = function(q) return "@combatlog " .. ((q == "killed" and "killed") or (q == "crit" and "taken") or "dealt") .. " " end },
 	-- "where should i level", "what dungeon should i do", "where should i fish": Zones.lua
-	function(text)
-		local q, said
-		if ns.Zones then q, said = ns.Zones.Question(text) end
-		if q then return ns.Zones.Answer(q, said) end
-	end,
+	Asks("Zones"),
 	-- "spells not on my bars": Spells.lua
-	function(text)
-		local q = ns.Spells and ns.Spells.Question(text)
-		if q then return ns.Spells.Answer(q) end
-	end,
+	{ ask = function(text) return ns.Spells and ns.Spells.Question(text) end,
+		answer = function(q) return ns.Spells.Answer(q) end,
+		toAdvanced = function(q) return "@spell is:unplaced " .. Words(q) end },
 	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua (before the group's: "who is missing
-	-- recipes" is about recipes; the same order as Easy's QuestionToAdvanced)
-	function(text)
-		local q = ns.MissingRecipes and ns.MissingRecipes.Question(text)
-		if q then return ns.MissingRecipes.Answer(q) end
-	end,
+	-- recipes" is about recipes)
+	{ ask = function(text) return ns.MissingRecipes and ns.MissingRecipes.Question(text) end,
+		answer = function(q) return ns.MissingRecipes.Answer(q) end,
+		toAdvanced = function(q)
+			local rest = {}
+			for _, n in ipairs(q.profs) do rest[#rest + 1] = ns.Lower(n) end
+			for _, w in ipairs(q.words) do rest[#rest + 1] = w end
+			return "@recipe " .. (q.learnable and "is:learnable" or "is:unknown") .. " " .. Words(rest)
+		end },
 	-- "blacksmithing plan", "level blacksmithing", "leveling plan": Plan.lua (sort:plan's question)
-	function(text)
-		local q = ns.Plan and ns.Plan.Question(text)
-		if q then return ns.Plan.Answer(q) end
-	end,
+	Asks("Plan"),
 	-- "quests to drop", "grey quests": QuestDrop.lua
-	function(text)
-		local q = ns.QuestDrop and ns.QuestDrop.Question(text)
-		if q then return ns.QuestDrop.Answer(q) end
-	end,
+	{ ask = function(text) return ns.QuestDrop and ns.QuestDrop.Question(text) end,
+		answer = function(q) return ns.QuestDrop.Answer(q) end,
+		toAdvanced = function(q)
+			local which = (q.grey and "is:grey -is:complete") or (q.behind and "is:leftbehind -is:complete") or "is:drop"
+			return "@quest " .. which .. " " .. Words(q.words)
+		end },
 	-- "party quests", "quests to share", "same quests as my group": GroupQuests.lua (before the group's: "party members
 	-- missing quests" is about quests)
-	function(text)
-		local q = ns.GroupQuests and ns.GroupQuests.Question(text)
-		if q then return ns.GroupQuests.Answer(q) end
-	end,
+	Asks("GroupQuests"),
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
-	function(text)
-		local q = ns.Lockouts and ns.Lockouts.Question(text)
-		if q then return ns.Lockouts.Answer(q) end
-	end,
+	Asks("Lockouts"),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
-	function(text)
-		local q = ns.Corpse and ns.Corpse.Question(text)
-		if q then return ns.Corpse.Answer(q) end
-	end,
+	Asks("Corpse"),
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua
-	function(text)
-		local q = ns.Durability and ns.Durability.Question(text)
-		if q then return ns.Durability.Answer(q) end
-	end,
+	Asks("Durability"),
 	-- "my auctions", "what am i selling", "auctions sold": Auctions.lua (never with a mail word: "auction mail" is the mail's)
-	function(text)
-		local q = ns.Auctions and ns.Auctions.Question(text)
-		if q then return ns.Auctions.Answer(q) end
-	end,
+	Asks("Auctions"),
 	-- "my mail", "mail running out", "cod mail": Mail.lua
-	function(text)
-		local q = ns.Mail and ns.Mail.Question(text)
-		if q then return ns.Mail.Answer(q) end
-	end,
+	Asks("Mail"),
 	-- "who is dead", "who needs fortitude", "who is out of range", "group healers": Group.lua
-	function(text)
-		local q = ns.Group and ns.Group.Question(text)
-		if q then return ns.Group.Answer(q) end
-	end,
+	Asks("Group"),
 	-- "quest upgrades", "quests with upgrades": the quests near your level whose reward is an upgrade (Rewards.lua)
-	function(text)
-		if ns.QuestRewards and ns.QuestRewards.UpgradeQuestion and ns.QuestRewards.UpgradeQuestion(text) then
-			return ns.QuestRewards.UpgradeAnswer()
-		end
-	end,
+	{ ask = function(text)
+			local R = ns.QuestRewards
+			return R and R.UpgradeQuestion and R.UpgradeQuestion(text) or nil
+		end,
+		answer = function() return ns.QuestRewards.UpgradeAnswer() end,
+		toAdvanced = function() return ns.QuestRewards.UpgradeToAdvanced() end },
 	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
 	-- quest reward, and no quest is called that)
-	function(text)
-		local q = ns.QuestRewards and ns.QuestRewards.Question(text)
-		if q then return ns.QuestRewards.Answer(q) end
-	end,
+	{ ask = function(text) return ns.QuestRewards and ns.QuestRewards.Question(text) end,
+		answer = function(q) return ns.QuestRewards.Answer(q) end,
+		toAdvanced = function(q) return ns.QuestRewards.ToAdvanced(q) end },
 	-- "my attunements", "raid attunements", "my keys", "class quests": Attune's list (Search/Attune.lua; late: "dungeon quests
 	-- to share", "grey dungeon quests" are the group's and the quest log's)
-	function(text)
-		local Q = ns.Attune and ns.Attune.Q
-		local q = Q and Q.List(text)
-		if q then return Q.Answer(q) end
-	end,
+	{ ask = function(text) local Q = ns.Attune and ns.Attune.Q return Q and Q.List(text) end,
+		answer = function(q) return ns.Attune.Q.Answer(q) end,
+		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
 	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
 	-- what's on the calendar, or it's a search)
-	function(text)
-		local q = ns.Calendar and ns.Calendar.Question(text)
-		if q then return ns.Calendar.Answer(q) end
-	end,
+	Asks("Calendar"),
 }
+
+--- A plain-word question or chain as Advanced mode writes it (Alt+`: Easy.ToAdvanced), or nil when the line is none.
+function ns.QuestionToAdvanced(text)
+	for _, a in ipairs(Scan.ANSWERS) do
+		local q, extra = a.ask(text, true)
+		if q then return a.toAdvanced(q, extra) end
+	end
+end
 
 -- SearchText's steps share one table per search (q):
 --   text; simple: Simple mode; blocked: Advanced syntax typed in Simple mode ("send": a ">>"; "copy": ">> csv",
@@ -796,8 +788,10 @@ end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
 function Scan.Answer(self, text)
-	for _, ask in ipairs(Scan.ANSWERS) do
-		local rows, note, isTrail = ask(text)
+	for _, a in ipairs(Scan.ANSWERS) do
+		local q, extra = a.ask(text)
+		local rows, note, isTrail
+		if q then rows, note, isTrail = a.answer(q, extra) end
 		if rows then
 			self.noPosition, self.action, self.place = nil, nil, nil
 			if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
