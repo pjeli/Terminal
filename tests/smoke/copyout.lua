@@ -118,6 +118,29 @@ do
 	ns.db.easyMode = false
 	UI:EasyChanged()
 
+	-- (release review) Simple mode, the words in two categories: "linen to csv" copies the rows of both, not a line per
+	-- category; coins keep their units when copied
+	ns:RegisterProvider("quests", { label = "Quest", aliases = { "quest" }, collect = function()
+		return { { name = "Linen Delivery", key = 9, questID = 9, detail = "Elwynn" } }
+	end })
+	ns:AliasesChanged()
+	ns.db.easyMode = true
+	UI:EasyChanged()
+	UI.lastScan, UI.lastOverview = nil, nil
+	shown = {}
+	UI:Open("linen to csv")
+	FlushAll()
+	UI:Activate()
+	FlushAll()
+	local copied = shown.text or ""
+	check(copied:find("Linen Delivery,Elwynn,Quest,9", 1, true) and copied:find("Linen Bag", 1, true)
+		and not copied:find("+1 more", 1, true), "Simple mode, two categories: every row copied, not the categories: " .. copied)
+	ns.db.easyMode = false
+	UI:EasyChanged()
+	check(ns.Share.Clean("1,234" .. "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t 5|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t")
+		== "1,234g 5s", "copied coins keep their units: " .. ns.Share.Clean("1|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"))
+	check(ns.Share.Clean("|cnIQ4:[Linen Cloth]|r") == "[Linen Cloth]", "the game's named colours go")
+
 	-- the terminal closed (the key, a click elsewhere) and opened again within UI.REOPEN_KEEP s: what was typed is back;
 	-- after Esc, later, or after running something: empty
 	local realTime = _G.GetTime
@@ -209,6 +232,47 @@ do
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
 	UI:EasyChanged()
+
+	-- (release review) only a run that closes the terminal lets go of the text: a row that keeps it open doesn't
+	now = now + UI.REOPEN_KEEP + 1
+	ns:RegisterProvider("stays", { label = "Stay", aliases = { "stay" }, collect = function()
+		return { { name = "Linen Stay", key = "s", staysOpen = true, activate = function() end } }
+	end })
+	ns:AliasesChanged()
+	UI:Open("")
+	UI:SetQuery("linen stay")
+	FlushAll()
+	UI:Activate()
+	FlushAll()
+	check(UI:IsShown(), "a row that keeps the terminal open")
+	UI:Hide(); FlushAll()
+	now = now + 1
+	UI:Toggle()
+	FlushAll()
+	check(UI.edit:GetText() == "linen stay", "closed by hand right after: the text kept: " .. UI.edit:GetText())
+	UI:Hide(); FlushAll()
+	-- opened another way meanwhile (/term, a chat link): what was kept is over
+	UI:Open("")
+	check(UI.closedText == nil, "opened another way: nothing kept from before")
+	UI:Hide(); FlushAll()
+	-- the tour: Esc ends it with nothing kept, nor its Simple mode
+	now = now + UI.REOPEN_KEEP + 1
+	if ns.Tour and ns.Tour.Start then
+		ns.Tour.Start()
+		FlushAll()
+		ns.Tour.Next() -- (a step with something typed)
+		FlushAll()
+		check(ns.Tour.Active() and UI:IsShown() and UI.edit:GetText() ~= "", "the tour on, a step's search typed: "
+			.. UI.edit:GetText())
+		ns.Tour.Key("ESCAPE")
+		FlushAll()
+		now = now + 1
+		UI:Toggle()
+		FlushAll()
+		check(UI.edit:GetText() == "" and ns.Easy.tempSimple == nil, "the tour ended with Esc: reopened empty, not in its mode: "
+			.. UI.edit:GetText())
+		UI:Hide(); FlushAll()
+	end
 	_G.GetTime = realTime
 
 	ns.ShowText = save.show

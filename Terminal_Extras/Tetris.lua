@@ -197,7 +197,7 @@ function TT.Lock()
 		if y < 0 then return TT.GameOver() end -- (locked above the top)
 		game.grid[y][x] = p.kind
 	end
-	game.lastCleared = ClearLines()
+	ClearLines()
 	game.held = false
 	game.dirty = true
 	TT.Spawn()

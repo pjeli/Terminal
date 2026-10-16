@@ -1340,7 +1340,6 @@ ns:RegisterCommand("chains", {
 
 local A = {}
 ns.Aggregate = A
-A.MAX = 5000 -- rows a search keeps for summing up (a list shows Score.MAX_RESULTS)
 
 local FP = ns.Filters and ns.Filters._ or {}
 local function Info(e)
@@ -1380,7 +1379,7 @@ local function QualityName(q)
 end
 
 --- The fields: text (what a row is grouped by) and/or num (what's summed); money: a num that's copper. order: groups by
---- this number, not by size (qualities: poor to legendary). label: how a row says it.
+--- this number, not by size (qualities: the best first). label: how a row says it.
 A.FIELDS = {
 	kind = { label = L["kind"], text = function(e)
 		local p = e.kind and ns.providers[e.kind]
@@ -1465,7 +1464,11 @@ local function ParseStep(step)
 	local ws = {}
 	for w in step:gmatch("%S+") do ws[#ws + 1] = ns.Lower(w) end
 	local op = A.OPS[ws[1] or ""]
-	if not op then return { bad = ws[1] and L["no step called %s"]:format(ws[1]) or "" } end
+	if not op then
+		-- (a step's start, "| co": still being typed, the line on top says what goes there)
+		for name in pairs(A.OPS) do if ws[1] and #ws == 1 and name:sub(1, #ws[1]) == ws[1] then return { bad = "" } end end
+		return { bad = ws[1] and L["no step called %s"]:format(ws[1]) or "" }
+	end
 	-- the words after it: "[by] field [by field]" ("sum value", "sum by value", "sum value by zone", "group by zone")
 	local k = 2
 	local function Next()
@@ -1533,7 +1536,8 @@ end
 local function Keep(w, e)
 	local t = TextOf(w.where, e)
 	if not t then return false end
-	local lt = ns.Lower(ns.Plain and ns.Plain(t) or t)
+	-- (quote marks aren't compared: a step's value has none, "Captain" Cookie's group neither; release review)
+	local lt = ns.Lower(ns.Plain(t)):gsub('"', "")
 	if lt == w.value then return true end
 	return not w.exact and lt:find(w.value, 1, true) ~= nil
 end
@@ -1553,6 +1557,17 @@ local ICON = "Interface\\Icons\\INV_Misc_Note_01"
 local function Row(name, detail, key, label)
 	return { kind = "aggregate", kindLabel = "|cff33ff99" .. label .. "|r", icon = ICON, raw = true, _score = 0,
 		_pos = ns.UI and ns.UI.NO_POS, name = name, detail = detail, key = key, noActivate = true }
+end
+
+--- A total's Enter: it's said in the chat window (only to you), the search kept in the history (release review: Enter
+--- did nothing, and Up never brought a summed-up search back).
+local function SayTotal(e)
+	ns:Print(ns.Share and ns.Share.Clean(e.copyName or e.name) .. (e.detail ~= "" and ("  (" .. ns.Share.Clean(e.copyDetail or e.detail) .. ")") or "")
+		or tostring(e.name))
+end
+local function Said(r)
+	r.noActivate, r.activate, r.actionVerb = nil, SayTotal, L["show in chat"]
+	return r
 end
 
 --- A group's Enter: the same search, keeping that group's rows (Shift+Left goes back).
@@ -1586,7 +1601,9 @@ function A.Apply(spec, res, base)
 	if not s then return rows end
 	local n = #rows
 	if s.op == "count" then
-		return { Row(L["%d results"]:format(n), base or "", "aggregate:count:" .. n, L["count"]) }
+		local r = Row(L["%d results"]:format(n), base or "", "aggregate:count:" .. n, L["count"])
+		Said(r)
+		return { r }
 	end
 	local f = s.field and A.FIELDS[s.field]
 	-- one total ("sum value") or one per group ("group zone", "sum value by zone")
@@ -1614,7 +1631,7 @@ function A.Apply(spec, res, base)
 	end
 	local function Detail(cnt, got)
 		local parts = { L["%d results"]:format(cnt) }
-		if f and got < cnt then parts[#parts + 1] = L["%d without a %s"]:format(cnt - got, f.label) end
+		if f and got < cnt then parts[#parts + 1] = L["%d with no %s"]:format(cnt - got, f.label) end
 		return table.concat(parts, "  ·  ")
 	end
 	local loading = ns.Filters and ns.Filters.loading
@@ -1627,11 +1644,12 @@ function A.Apply(spec, res, base)
 		if loading then detail = detail .. "  ·  " .. L["item data still coming in"] end
 		local r = Row(name, detail, "aggregate:" .. s.op .. ":" .. tostring(v) .. ":" .. n, opLabel)
 		r.copyName = plain
+		Said(r)
 		return { r }
 	end
 	local byField = A.FIELDS[s.by]
 	for _, g in ipairs(order) do
-		g.value = f and Value(g.sum, g.have) or g.n
+		if f then g.value = Value(g.sum, g.have) else g.value = g.n end -- (an average of none: none, not the count)
 		if byField.order and byField.num then g.rank = byField.num(g.sample) end
 	end
 	table.sort(order, function(a, b)
@@ -1647,6 +1665,7 @@ function A.Apply(spec, res, base)
 		out[1] = Row(L["All: %s"]:format(shown), L["%s of %s"]:format(f.label, Detail(n, have)),
 			"aggregate:all:" .. total .. ":" .. n, opLabel)
 		out[1].copyName = L["All: %s"]:format(plain)
+		Said(out[1])
 	end
 	for _, g in ipairs(order) do
 		local name = g.text or L["no %s"]:format(byField.label)
@@ -1656,14 +1675,15 @@ function A.Apply(spec, res, base)
 		end
 		local detail, copyDetail = L["%d results"]:format(g.n), nil
 		if f then
-			local shown, plain = Shown(s.field, g.value or 0)
+			local shown, plain = "-", "-"
+			if g.value then shown, plain = Shown(s.field, g.value) end
 			detail, copyDetail = shown .. "  ·  " .. Detail(g.n, g.have), plain .. "  ·  " .. Detail(g.n, g.have)
 		end
 		local r = Row(name, detail, "aggregate:" .. s.by .. ":" .. tostring(g.text) .. ":" .. g.n .. ":" .. tostring(g.value), opLabel)
 		r.copyDetail = copyDetail
 		if g.text and base then
 			r.noActivate, r.activate, r.staysOpen = nil, Drill, true
-			r.drillTo = base .. " | " .. s.by .. ':"' .. ns.Plain(g.text) .. '"'
+			r.drillTo = base .. " | " .. s.by .. ':"' .. ns.Plain(g.text):gsub('"', "") .. '"'
 			r.actionVerb = L["list them"]
 		end
 		out[#out + 1] = r

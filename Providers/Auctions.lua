@@ -17,10 +17,10 @@ local AU = {}
 ns.Auctions = AU
 
 local MA = ns.Mail
-local Safe, Num, Str, Lower = ns.Safe, ns.Num, ns.Str, ns.Lower
-local function Now() return (_G.time and _G.time()) or 0 end
-local function MyKey() return Str(Safe(UnitGUID, "player")) end
-local function Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
+local Lower = ns.Lower
+local Now = ns.Now
+local MyKey = ns.PlayerGUID
+local Money = ns.Money
 
 local ICON = "Interface\\Icons\\INV_Hammer_15"
 local GREY = "|cff9d9d9d"
@@ -128,10 +128,7 @@ function AU.Collect()
 	return rows
 end
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end
+local NoteRow = ns.NoteRow
 
 ns:RegisterProvider("auctions", {
 	label = L["Auction"],

@@ -370,9 +370,7 @@ function PQ.Collect()
 	return rows
 end
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "" }
-end
+local NoteRow = ns.NoteRow
 
 local function Verbs(e)
 	if e.pushable ~= false then return L["share with party"], L["show in quest log"] end

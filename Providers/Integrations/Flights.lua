@@ -129,8 +129,8 @@ FL.ForgetSide = function() lastSide = nil end -- (tests)
 --- Is a point of this side yours? (neutral ones are everyone's)
 local function Fits(side, mine) return not mine or side == "N" or side == mine end
 
-local function Now() return (_G.time and _G.time()) or 0 end
-local function MyKey() return Str(Safe(_G.UnitGUID, "player")) end
+local Now = ns.Now
+local MyKey = ns.PlayerGUID
 local function Dirty() ns:Changed("flight") end
 
 --- Every character's note: GUID -> { v, name, class, side, nodes = { [lowercase node name] = known }, conts =

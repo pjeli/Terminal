@@ -36,8 +36,8 @@ MA.WARN_MAX = 4 -- (characters named; the rest counted)
 MA.PER_PAGE = 7 -- (INBOXITEMS_TO_DISPLAY in Forever's MailFrame.lua)
 MA.READ_DELAY = 0.3 -- (s: an inbox update burst read once)
 
-local function Now() return (_G.time and _G.time()) or 0 end
-local function MyKey() return Str(Safe(UnitGUID, "player")) end
+local Now = ns.Now
+local MyKey = ns.PlayerGUID
 
 local function Boxes()
 	if not ns.db then return nil end
@@ -47,7 +47,7 @@ end
 
 local function Dirty() ns:Changed("mail"); ns:Changed("auctions") end -- (@auction lists the news too: Auctions.lua)
 
-local function Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
+local Money = ns.Money
 
 --- Seconds left as the inbox says it: "3 days", "1 day", "5 h", "20 min".
 function MA.Left(s)

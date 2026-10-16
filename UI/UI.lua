@@ -703,7 +703,9 @@ function UI:Hide()
 		local cursor = self.cursor
 		if not self.keys and edit.GetCursorPosition then cursor = edit:GetCursorPosition() or cursor end
 		local E = ns.Easy
-		self.closedText = (typed:find("%S") and not ran and not self.fzf) and { text = typed, at = GetTime(), cursor = cursor,
+		-- (nor the tour's step, nor its Simple mode: release review)
+		local touring = ns.Tour and ns.Tour.Active and ns.Tour.Active()
+		self.closedText = (typed:find("%S") and not ran and not self.fzf and not touring) and { text = typed, at = GetTime(), cursor = cursor,
 			temp = E and E.temp, tempSimple = E and E.tempSimple } or nil
 		self.ran = nil
 	end
@@ -894,6 +896,7 @@ function UI:Open(text)
 		end
 	end
 	self.combatState = nil -- (opened: nothing to bring back when the fight is over; UI:ComeBack takes it out first)
+	self.closedText = nil -- (opened another way meanwhile: what was kept is over; Toggle reads it before it opens)
 	self:Disarm()
 	self.histIdx = nil
 	self.backHeld = nil -- (a Shift+Left that went back, held as the terminal closed: its key-up went elsewhere)

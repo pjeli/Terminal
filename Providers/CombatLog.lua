@@ -16,7 +16,7 @@ CB.MAX = 300
 CB.MAX_DEATHS = 100
 
 local Safe, Secret = ns.Safe, ns.Secret
-local function Now() return (_G.time and _G.time()) or 0 end
+local Now = ns.Now
 local function Log()
 	if not ns.db then return nil end
 	if type(ns.db.combatLog) ~= "table" then ns.db.combatLog = {} end

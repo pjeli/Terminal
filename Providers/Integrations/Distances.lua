@@ -271,17 +271,6 @@ local function ZoneName(ui)
 end
 I.ZoneName = ZoneName
 
---- Which way an NPC is from where you face: radians, counter-clockwise from straight ahead (0 = ahead,
---- pi/2 = to your left), and how far (yards); nil when unknown (no position, no facing, not on your continent).
-function I.NpcBearing(id)
-	local face = I.Facing()
-	if not face then return nil end
-	local here = I.Here()
-	local d, w = I.NpcDistance(id, here)
-	if not d then return nil end
-	return I.Bearing(here, w, face), d
-end
-
 --- Where you face (radians counter-clockwise from north), or nil (unknown, or a secret value).
 function I.Facing()
 	local face = _G.GetPlayerFacing and Safe(_G.GetPlayerFacing)

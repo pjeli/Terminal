@@ -1,13 +1,19 @@
 package-as: Terminal
 
+# only what the game runs goes in the ZIP (the player's ask, 0.52.15): the tests, the add-on authors' guide and example,
+# the changelog's markdown (the game has its own: .changelog) and the notes for this repository stay out. (Files and
+# folders starting with a dot, .github and .pkgmeta, never go in.)
 ignore:
   - tests
+  - docs
+  - CHANGELOG.md
   - CLAUDE.md
+  - CURSEFORGE.md
   - Locales/enUS.lua
   - RELEASE_NOTES.md
 
 # the release's notes on CurseForge and GitHub: this version's part of CHANGELOG.md, cut out by release.yml before
-# packaging (the ZIP carries the whole CHANGELOG.md)
+# packaging
 manual-changelog:
   filename: RELEASE_NOTES.md
   markup-type: markdown

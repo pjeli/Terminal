@@ -21,7 +21,7 @@ X.RESTED_PER_HOUR = 0.05 / 8 -- (of a level, resting; a quarter of it elsewhere)
 X.AWAY_SHARE = 0.25
 X.RESTED_CAP = 1.5 -- (levels)
 
-local function Now() return (_G.time and _G.time()) or 0 end
+local Now = ns.Now
 
 local function Chars()
 	if not ns.db then return nil end
@@ -37,7 +37,7 @@ local function MaxLevel()
 	return exp or player or (_G.MAX_PLAYER_LEVEL or 60)
 end
 
-local function MyKey() return Str(Safe(UnitGUID, "player")) end
+local MyKey = ns.PlayerGUID
 
 --- Your character as it is now: { name, realm, class, level, xp, max, rested, resting, maxed, t }; nil when the game
 --- won't say (secret values, no player yet).

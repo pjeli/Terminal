@@ -448,6 +448,7 @@ function UI:SyntaxSegments(text, plain)
 	end
 	local out, F, pos = {}, ns.Filters, 1
 	local afterSend = false -- (the channel word right after a ">>")
+	local steps = false -- (after a "|" standing alone: "| sum value", "| zone:..."; its words are steps, not filters)
 	while pos <= #text do
 		local sp = text:match("^%s+", pos)
 		if sp then
@@ -458,6 +459,13 @@ function UI:SyntaxSegments(text, plain)
 			local color = base
 			if EasyOn() and ns.Easy.IsAdvancedWord(word) then
 				color = bad -- (Simple mode: Advanced syntax isn't taken)
+			elseif word == "|" and ns.Aggregate then
+				color, steps = t.accent, true
+			elseif steps and ns.Aggregate and word:sub(1, 2) ~= ">>" then
+				-- (a step's field:value: a field it knows in the filters' colour; release review: quality:"Rare", which Enter
+				-- on a group writes, showed as a bad filter)
+				local key = word:match("^(%a+):")
+				if key then color = ns.Aggregate.FieldOf(key) and filt or bad end
 			elseif (word == ">>" or word == ">>>") and ns.Share then
 				color = t.accent
 				afterSend = true

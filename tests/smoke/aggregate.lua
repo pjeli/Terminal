@@ -83,7 +83,28 @@ do
 	check(r[1].name == L["All: %s"]:format(ns.Gold.Text(260 + 165 + 1500)) and r[2].name == "Elwynn Forest"
 		and r[2].detail:find(ns.Gold.Text(1760), 1, true), "sum value by zone: all of it on top, then each zone's: "
 		.. tostring(r[1].name) .. " / " .. tostring(r[2].detail))
-	check(r[1].detail:find(L["%d without a %s"]:format(1, L["value"]), 1, true), "the row with no price is said: " .. r[1].detail)
+	check(r[1].detail:find(L["%d with no %s"]:format(1, L["value"]), 1, true), "the row with no price is said: " .. r[1].detail)
+
+	-- (release review) an average of a group with nothing to average: "-", not its count
+	r = Rows("@item -bolt | avg ilvl by zone")
+	local nozone
+	for _, e in ipairs(r) do if e.name == L["no %s"]:format(L["zone"]) then nozone = e end end
+	check(nozone and nozone.detail:sub(1, 1) == "-", "avg with nothing to average: - : " .. tostring(nozone and nozone.detail))
+	-- Enter on a total: said in the chat window, the search kept in the history
+	local printed
+	local realPrint = ns.Print
+	ns.Print = function(_, msg) printed = msg end
+	Rows("cloth | sum value")
+	UI:Activate()
+	FlushAll()
+	ns.Print = realPrint
+	check(printed and printed:find(ns.Gold.Text(425, true), 1, true) and not UI:IsShown(), "Enter on a total: said in chat: " .. tostring(printed))
+	local hist = ns.db.history or {}
+	local inHist = false
+	for _, l in ipairs(hist) do if l == "cloth | sum value" then inHist = true end end
+	check(inHist, "and the search is in the history")
+	-- a group named with quote marks: Enter still finds its rows
+	ns.providers.items._dirty = true
 
 	-- a group's Enter: its rows (Shift+Left goes back)
 	r = Rows("@item -bolt | group zone")
@@ -142,6 +163,23 @@ do
 		">> text on the total: its money as plain text: " .. tostring(shownText))
 	ns.ShowText = realShow
 
+	-- (release review) every match counted, past 5000; a group whose name has quote marks found again by its Enter
+	ns.providers, ns.providerOrder = {}, {}
+	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function()
+		local rows = { { name = "Cookie's Ladle", key = "q", zone = '"Captain" Cove' } }
+		for i = 1, 6000 do rows[#rows + 1] = { name = "Nail " .. i, key = "n" .. i } end
+		return rows
+	end })
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastOverview = nil, nil
+	r = Rows("nail | count")
+	check(r[1] and r[1].name == L["%d results"]:format(6000), "6000 matches: 6000 counted: " .. tostring(r[1] and r[1].name))
+	r = Rows("ladle | group zone")
+	UI:Activate(1)
+	FlushAll()
+	check(UI.Results()[1] and UI.Results()[1].name == "Cookie's Ladle", "a group named with quote marks: Enter lists its rows: "
+		.. UI.edit:GetText())
+
 	C_Item.GetItemInfo = save.gii
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
@@ -149,4 +187,18 @@ do
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()
+end
+
+-- (release review) the prompt's colours: after a "|", a step's field:value in the filters' colour, not a bad filter's;
+-- pure fuzzy finding keeps no quote marks
+do
+	local UI2 = T.UI
+	local Theme = T.ns.Theme
+	local segs = UI2:SyntaxSegments('@item | quality:"Rare"')
+	local last = segs[#segs]
+	T.check(last and last[3] == Theme.SYNTAX.filter, "| quality:\"Rare\": a step, in the filters' colour")
+	segs = UI2:SyntaxSegments("@item | frob:x")
+	T.check(segs[#segs][3] == Theme.SYNTAX.bad, "| frob:x: no such field, said so")
+	T.check(UI2.FuzzyPlain('"outlaw saber" in:"elwynn forest" | count') == "outlaw saber ",
+		"pure fuzzy finding keeps the words, no quote marks: " .. UI2.FuzzyPlain('"outlaw saber" in:"elwynn forest" | count'))
 end

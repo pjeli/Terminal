@@ -455,9 +455,7 @@ function GR.HiddenText()
 	return HIDDEN[k] .. (why and (" (" .. why .. ")") or "")
 end
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "" }
-end
+local NoteRow = ns.NoteRow
 
 ns:RegisterProvider("group", {
 	label = L["Group"],

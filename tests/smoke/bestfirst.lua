@@ -120,10 +120,19 @@ do
 	UI:UpdateTooltip()
 	tip = table.concat(lines, "\n")
 	check(#asked == 0 and tip:find(ns.L["Comparing once the game has the item..."], 1, true), "not loaded: said so, no comparison yet")
+	-- (release review) never sent: asked as often as the tooltip asks, then the line goes (not waiting for ever)
+	lines = {}
+	for _ = 1, UI.TIP_TRIES + 1 do T.Flush() end
+	FlushAll()
+	tip = table.concat(lines, "\n")
+	check(UI.TipGaveUp(71) and not tip:find(ns.L["Comparing once the game has the item..."], 1, true),
+		"never sent: given up on, the waiting line gone: " .. tip)
 	loaded = true
 	local waiter = UI.tipWaiter
-	waiter:GetScript("OnEvent")(waiter, "GET_ITEM_INFO_RECEIVED", 71, true)
-	check(asked[1] == "item:71", "...loaded: the tooltip drawn again, compared: " .. tostring(asked[1]))
+	asked, lines = {}, {}
+	TT.entry = nil
+	UI:UpdateTooltip()
+	check(asked[1] == "item:71", "...loaded after all: compared: " .. tostring(asked[1]))
 	C_Item.IsItemDataCachedByID = realCached
 	TT.AddLine = real
 	UI:Hide(); FlushAll()
@@ -149,7 +158,7 @@ do
 	-- another search after: no "why" on its rows
 	UI:Open("@loot helm")
 	FlushAll()
-	check(F.UpgradeWhy(UI.Results()[1]) == nil, "a search that doesn't weigh upgrades: its tooltips say nothing of them")
+	check(T.UpgradeWhy(UI.Results()[1]) == nil, "a search that doesn't weigh upgrades: its tooltips say nothing of them")
 	UI:Hide(); FlushAll()
 
 	-- (0.51.17, the player: a mace weighed against main hand and shield together) a one-hander against the main hand only
@@ -172,7 +181,7 @@ do
 	local fit = F.GearFit()
 	local better, lesser = { itemID = 82, kind = "loot" }, { itemID = 83, kind = "loot" }
 	check(fit(better) and not fit(lesser), "with a shield: against the main hand (a weaker mace than yours isn't one, though it beats the shield)")
-	local why = F.UpgradeWhy(better)
+	local why = T.UpgradeWhy(better)
 	local text = {}
 	for _, l in ipairs(why or {}) do text[#text + 1] = l.text end
 	text = table.concat(text, " | ")
@@ -186,7 +195,7 @@ do
 	-- (0.51.19, the player's ask) dual wielding: why against each hand it beats; one it doesn't beat isn't said
 	local function WhyText(e)
 		local t = {}
-		for _, l in ipairs(F.UpgradeWhy(e) or {}) do t[#t + 1] = l.text end
+		for _, l in ipairs(T.UpgradeWhy(e) or {}) do t[#t + 1] = l.text end
 		return table.concat(t, " | ")
 	end
 	local mid, best = { itemID = 83, kind = "loot" }, { itemID = 82, kind = "loot" }

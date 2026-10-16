@@ -82,7 +82,6 @@ local function Compare(t, link)
 	end
 	return any
 end
-UI._CompareTip = Compare -- (tests)
 
 --- Is the item something worn (gear: its slot type, by the client's own item data)?
 local function Wearable(id)
@@ -201,8 +200,11 @@ function UI:UpdateTooltip()
 				t:AddLine(ItemName({ hyperlink = cmpLink }) or rewardName, 1, 0.82, 0, true)
 			end
 			if not UI.ItemReady(cmpID) then
-				if not rewardName then t:AddLine(" ") end
-				t:AddLine(L["Comparing once the game has the item..."], 0.6, 0.6, 0.6, true)
+				-- (waited for as long as the tooltip waits: then not said any more, nothing being waited for; release review)
+				if not (UI.TipGaveUp and UI.TipGaveUp(cmpID)) then
+					if not rewardName then t:AddLine(" ") end
+					t:AddLine(L["Comparing once the game has the item..."], 0.6, 0.6, 0.6, true)
+				end
 			else
 				local done, why = Compare(t, cmpLink)
 				-- (nothing worn in its slot: the game has nothing to compare with; said, not left blank)
@@ -324,6 +326,15 @@ do
 	--- (the item an upgrade's comparison needs: loaded?)
 	function UI.ItemReady(id) return ItemCached(id) end
 
+	local gaveUp = {} -- item id -> asked TIP_TRIES times this session without an answer
+	--- Has the tooltip stopped waiting for this item (asked as often as it asks, or the server said it has none)?
+	function UI.TipGaveUp(id)
+		id = tonumber(id)
+		if not id then return false end
+		if gaveUp[id] then return true end
+		local at = failed["item:" .. id]
+		return at ~= nil and Now() - at < UI.TIP_FAILED
+	end
 	function UI.WaitForTipData(t, e, link, compareID)
 		waitGen = waitGen + 1
 		UI.StopTipWait(t)
@@ -345,7 +356,11 @@ do
 			if gen ~= waitGen or t.waitID ~= id then return end
 			tries = tries + 1
 			if Loaded(kind, id) then UI.StopTipWait(t) Redraw(t, e) return end
-			if tries >= UI.TIP_TRIES then return end
+			if tries >= UI.TIP_TRIES then
+				-- (given up: drawn again without "Comparing once the game has the item...")
+				if kind == "item" then gaveUp[id] = true; Redraw(t, e) end
+				return
+			end
 			Ask(kind, id)
 			C_Timer.After(UI.TIP_RETRY, Again)
 		end

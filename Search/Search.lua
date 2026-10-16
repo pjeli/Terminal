@@ -1133,6 +1133,15 @@ function Scan.SimpleScope(self, q)
 					self.softRelaxed = nil
 					q.overview, q.overviewFrom = kept, from -- (its lists' rows were just scored: Scan.Collect lists them)
 					q.overviewNear = near and near[only.catId] -- (and its close spellings, when only those matched: Scan.Fallbacks)
+				elseif self.sendTo and self.sendTo.copy and self.sendTo.all and cats > 1 then
+					-- copying every result ("linen to csv"): every category's rows, not the categories themselves
+					-- (release review: the CSV had a line per category)
+					kinds = {}
+					for i = 1, #ov do
+						if ov[i].catId then
+							for k in pairs(ns.Easy.Kinds(ov[i].catId) or {}) do kinds[k] = true end
+						end
+					end
 				else
 					return ov
 				end
@@ -1379,9 +1388,10 @@ function Scan.Finalize(self, q, out)
 	end
 	-- (a Simple mode category: every match its row counted, up to Score.LIST_MAX; not "nearest", measured for the
 	-- closest MAX_RESULTS only)
-	-- (summed up, "| sum value": every match, ns.Aggregate.MAX at most)
+	-- (summed up, "| sum value": every match as it is, nothing to sort or trim; release review: at most 5000 counted)
+	local agg = self.aggregate
+	if agg and agg.last and not agg.bad and ns.Aggregate then return out end
 	local limit = (q.easyCat and not q.here) and Score.LIST_MAX or nil
-	if self.aggregate and ns.Aggregate then limit = ns.Aggregate.MAX end
 	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
 	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
@@ -1521,13 +1531,17 @@ function UI.FuzzyPlain(text)
 		if rest then text = query end
 	end
 	if ns.Aggregate then text = (ns.Aggregate.Split(text)) end -- (nor "| sum value")
+	-- (quoted phrases as their words, no quote marks: every letter is searched there; a quoted filter value stays with its
+	-- filter; release review)
+	local words, phrases = Scan.Words(text)
 	local F, out = ns.Filters, {}
-	for w in text:gmatch("%S+") do
+	for _, w in ipairs(words) do
 		local key = w:match("^(%a+):")
 		local skip = w:sub(1, 1) == "@" or w:find("^[-!][%a\128-\255]") or w:find("[|&]") -- ("-малое" too, 0.49.2)
 			or (F and F.SortOf and F.SortOf(w)) or (key and F and F.IsKey and F.IsKey(key))
 		if not skip then out[#out + 1] = w end
 	end
+	for _, ph in ipairs(phrases) do out[#out + 1] = ph end
 	return #out > 0 and (table.concat(out, " ") .. " ") or ""
 end
 

@@ -41,6 +41,23 @@ for line in r.stdout.splitlines():
         print(line)
 if r.returncode != 0:
     ok = False
+# the CurseForge package (0.52.15, the player's ask): only what the game runs. The files the packager would take (what
+# git tracks, less .pkgmeta's ignore list and anything starting with a dot) must be code, the TOCs, Bindings.xml or the
+# licence: a new folder of notes or tools has to be added to .pkgmeta's ignore list.
+repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+meta = open(os.path.join(repo, ".pkgmeta"), encoding="utf-8").read()
+block = meta.split("ignore:", 1)[1].split("\n\n", 1)[0] if "ignore:" in meta else ""
+ignored = [l.strip()[2:].strip() for l in block.splitlines() if l.strip().startswith("- ")]
+tracked = subprocess.run(["git", "ls-files"], cwd=repo, capture_output=True, text=True).stdout.split()
+for f in tracked:
+    if any(part.startswith(".") for part in f.split("/")) or any(f == i or f.startswith(i + "/") for i in ignored):
+        continue
+    if not (f.endswith((".lua", ".toc")) or f in ("Bindings.xml", "LICENSE")):
+        print("FAIL the CurseForge package would carry", f, "(add it to .pkgmeta's ignore list)")
+        ok = False
+    elif f.endswith(".lua") and f.startswith(("tests/", "docs/")):
+        print("FAIL the CurseForge package would carry", f)
+        ok = False
 if not ok:
     print("problems found")
 elif G:

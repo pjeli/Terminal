@@ -143,8 +143,7 @@ do
 	-- which way: facing north (0), Hogger (south-west of you on the map) is behind and to the left
 	C_Map.GetPlayerMapPosition = function() return { x = 0.30, y = 0.80 } end
 	_G.GetPlayerFacing = function() return 0 end
-	local ang = I.NpcBearing(448)
-	check(ang, "a bearing when facing is known")
+	check(I.Facing() == 0, "where you face, when the game says")
 	-- the mock's world x grows with the map's x (east here), so check the formula on a made-up spot instead:
 	-- world x is north, y is west; a spot due west while facing north is a quarter turn to the left
 	local b = I.Bearing({ x = 0, y = 0 }, { x = 0, y = 10 }, 0)
@@ -152,7 +151,7 @@ do
 	b = I.Bearing({ x = 0, y = 0 }, { x = 10, y = 0 }, math.pi / 2)
 	check(math.abs(b + math.pi / 2) < 1e-6, "due north, facing west: a quarter turn right: " .. b)
 	_G.GetPlayerFacing = function() return nil end
-	check(I.NpcBearing(448) == nil, "no facing (an instance): no arrow")
+	check(I.Facing() == nil, "no facing (an instance): no arrow")
 	_G.GetPlayerFacing = nil
 	-- the NPC list built at login and never searched since is freed like any unused list; the names text stays
 	do

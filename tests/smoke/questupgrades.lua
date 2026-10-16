@@ -106,7 +106,7 @@ do
 	check(res[1] and res[1].detail == "42 yd  Rewards Helm of the Wolf" and res[1]._dist == 42 and res[1].wcont == 1,
 		"...what it rewards, and how far its giver is (the arrow's place): " .. tostring(res[1] and res[1].detail))
 	local why = {}
-	for _, l in ipairs(F.UpgradeWhy(res[1]) or {}) do why[#why + 1] = l.text end
+	for _, l in ipairs(T.UpgradeWhy(res[1]) or {}) do why[#why + 1] = l.text end
 	why = table.concat(why, " | ")
 	check(why == "Helm of the Wolf | Over what you wear (slot: head): | +5 Strength", "the tooltip says why: " .. why)
 	check(tostring(UI.status:GetText()):find(ns.L["Quests whose reward is an upgrade for you"], 1, true), "the footer says what they are")

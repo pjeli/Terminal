@@ -22,10 +22,14 @@ function UI:RunSearch(text)
 	-- not finished: the best of what matched so far (on a copy: the search goes on filling it),
 	-- under the calculator's answer when there is one (Search adds it only at the end)
 	local t0 = debugprofilestop()
-	local copy = UI.SortAndTrim(res) -- (a new list: the search goes on filling res)
-	-- ("| sum value": what's found so far, summed up; the whole list once the search is done)
+	-- ("| sum value": what's found so far, summed up, nothing to sort; the whole list once the search is done)
 	local agg = self.aggregate
-	if agg and ns.Aggregate then copy = ns.Aggregate.Apply(agg, res, agg.base) end
+	local copy
+	if agg and agg.last and not agg.bad and ns.Aggregate then copy = ns.Aggregate.Apply(agg, res, agg.base)
+	else
+		copy = UI.SortAndTrim(res) -- (a new list: the search goes on filling res)
+		if agg and ns.Aggregate then copy = ns.Aggregate.Apply(agg, copy, agg.base) end
+	end
 	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
 	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)
@@ -64,13 +68,15 @@ function UI:CollapseGroup(list)
 		self.groupRows = {}
 		return { { kind = "send", kindLabel = "|cff33ff99" .. L["chat"] .. "|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
 			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = L["Nothing searched to send"],
-			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or "party") } }
+			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or to.copy or "party") } }
 	end
 	if to.copy then
 		-- ">>> text", ">>> csv": every result, to copy (Activate opens them in a box)
 		local rows = {}
 		-- (a summed-up list's rows all go, totals too: "| group zone >>> csv")
-		for _, e in ipairs(list) do if not e.noActivate or e.kind == "aggregate" then rows[#rows + 1] = e end end
+		for _, e in ipairs(list) do
+			if not e.noActivate or (e.kind == "aggregate" and e.key ~= "aggregate:hint") then rows[#rows + 1] = e end
+		end
 		self.groupRows = rows
 		local n = #rows
 		local row = { kind = "send", kindLabel = "|cff33ff99" .. L["copy"] .. "|r", icon = "Interface\\Icons\\INV_Misc_Note_01", raw = true,
@@ -188,11 +194,14 @@ end
 -- set"): a background search's rows unlike what's shown are a candidate; the same search again UI.CONFIRM_S s later
 -- (or the next one data coming in starts) finding the same rows confirms them, and only then is F5 offered. Likewise
 -- an offered list is taken back only once the shown one is found again twice. At most UI.CONFIRM_TRIES checks a search.
-UI.CONFIRM_S, UI.CONFIRM_TRIES = 1.5, 6
-local confirm = { gen = 0, tries = 0 }
+-- (release review: the checks are counted per candidate, a new one starting over, so data coming in for a while (a
+-- /reload's "upgrades": a new candidate each time) can't use them all up before the list settles; CONFIRM_ALL caps a
+-- search's checks all the same)
+UI.CONFIRM_S, UI.CONFIRM_TRIES, UI.CONFIRM_ALL = 1.5, 6, 30
+local confirm = { gen = 0, tries = 0, all = 0 }
 local function Confirm(self)
-	confirm.tries = confirm.tries + 1
-	if confirm.tries > UI.CONFIRM_TRIES then return end
+	confirm.tries, confirm.all = confirm.tries + 1, confirm.all + 1
+	if confirm.tries > UI.CONFIRM_TRIES or confirm.all > UI.CONFIRM_ALL then return end
 	local gen = confirm.gen
 	C_Timer.After(UI.CONFIRM_S, function()
 		if gen ~= confirm.gen or not self.candidate or not self:IsShown() or self.searchJob then return end
@@ -202,6 +211,7 @@ end
 local function Hold(self, shown, new)
 	if not Real(shown) then self.candidate = nil return nil end
 	local confirmed = self.candidate ~= nil and Equal(self.candidate, new)
+	if not confirmed then confirm.tries = 0 end -- (another candidate, or none before: its own checks)
 	self.candidate = nil
 	if Equal(shown, new) then
 		-- (what's shown found again: an F5 offered goes only when that's sure too)
@@ -272,7 +282,13 @@ function UI.LiveCounted(shownNew)
 	if before == nil then return end
 	live.before = nil
 	if shownNew then return end -- (nothing real was shown: what it found is up, not "nothing new")
-	if not UI.held or SameRows(UI.held, before or nil) then live.same = live.same + 1 else live.same = 0 end
+	-- (something new: held for F5, or a new candidate waiting to be sure of (0.52.9's), not yet held; release review:
+	-- counted as nothing new, a list changing four times in a row was left on its third)
+	local cand, candBefore = UI.candidate, live.candBefore
+	live.candBefore = nil
+	local newHeld = UI.held and not SameRows(UI.held, before or nil)
+	local newCand = cand and not SameRows(cand, candBefore) and not SameRows(cand, UI.held)
+	if newHeld or newCand then live.same = 0 else live.same = live.same + 1 end
 end
 
 local function ShowsKind(kinds)
@@ -302,7 +318,7 @@ function ns.OnDirty(p)
 		live.kinds = {}
 		if not UI:IsShown() or UI.searchJob or not ShowsKind(kinds) then return end
 		if live.same >= UI.LIVE_SAME then return end
-		live.before = UI.held or false
+		live.before, live.candBefore = UI.held or false, UI.candidate
 		live.redoneAt = GetTime()
 		UI.shownNew = nil
 		UI:QuietRedo()
@@ -593,7 +609,7 @@ function UI:Refresh()
 	self.quietRedo = nil
 	if not quiet then
 		self.held, self.heldFields, self.candidate, live.same = nil, nil, nil, 0
-		confirm.gen, confirm.tries = confirm.gen + 1, 0 -- (checks of the last search's candidate: not this one's)
+		confirm.gen, confirm.tries, confirm.all = confirm.gen + 1, 0, 0 -- (checks of the last search's candidate: not this one's)
 	end -- (a search of its own: whatever a background one held is stale)
 	if not same then self.countNote, self.expectCount = nil, nil end -- (typed on: the note was about another list)
 	local shown = UI.results

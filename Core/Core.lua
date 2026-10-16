@@ -431,15 +431,13 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 		ns:StartPrewarm(10) -- the lists, built ahead of their first search (see Prewarming)
 		-- First run: bind ` (tilde key) to toggle the terminal, or CTRL-` if ` is taken.
 		-- Change it any time with:  /term .bind <KEY>
-		-- (also once after the rename from WoWTerm: its old key binding is taken over)
 		if not ns.db.bindingTerminal then
 			ns.db.bindingTerminal = true
 			if not GetBindingKey("TERMINAL_TOGGLE") then
 				local chosen
-				local old = "WOW" .. "TERM_TOGGLE"
 				for _, key in ipairs({ "`", "CTRL-`" }) do
 					local action = GetBindingAction(key)
-					if (not action or action == "" or action == old) and SetBinding(key, "TERMINAL_TOGGLE") then
+					if (not action or action == "") and SetBinding(key, "TERMINAL_TOGGLE") then
 						chosen = key
 						break
 					end

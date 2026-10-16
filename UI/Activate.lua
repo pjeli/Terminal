@@ -76,6 +76,14 @@ end
 
 --- Called from Activate (Enter in the plain box, or a mouse click) for entries with `secure`.
 --- Returns true if it took over: the window was already open, or Enter is now armed.
+--- Closed because something ran (Enter): what was typed isn't kept for a quick reopen (UI:Hide reads UI.ran). Only where
+--- the terminal closes for a run (release review: set on every Enter, a row that keeps it open, or one refused, "Nothing
+--- to copy", dropped the text of a close by hand right after).
+function UI:HideAfterRun()
+	self.ran = GetTime()
+	self:Hide()
+end
+
 function UI:TryArmSecure(e)
 	local frame, edit = UI.frame, UI.edit
 	local S = ns.Secure
@@ -83,7 +91,7 @@ function UI:TryArmSecure(e)
 	-- Legacy window open on another page. 0.48.8, the player: its tab was never pointed at, the row's fallback ran)
 	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
 		ns:Trace("secure: window already open, highlighting " .. e.name)
-		self:Hide()
+		self:HideAfterRun()
 		ns:Bump(e.freqKey)
 		AfterSoon(e, 0.05)
 		return true
@@ -431,7 +439,7 @@ local function DropEveryQuest(self)
 		return
 	end
 	ns:RecordHistory(UI.edit:GetText())
-	self:Hide()
+	self:HideAfterRun()
 	QD.Confirm(rows)
 end
 --- ">>> channel": every result at once, sent by Terminal inside this press (Share.SendAll); a search still going is
@@ -451,7 +459,7 @@ local function SendEveryResult(self, to)
 	local n, why = ns.Share.SendAll(self.groupList or UI.results, to, to.query)
 	if not n then ns:Print(why) return end
 	ns:RecordHistory(UI.edit:GetText())
-	self:Hide()
+	self:HideAfterRun()
 end
 
 --- ">> text", ">> csv" (">>>": every result): the terminal closes and they open in a box to copy (Ctrl+C).
@@ -465,7 +473,7 @@ local function CopyOut(self, e, to)
 	if n == 0 then ns:Print(L["Nothing to copy."]) return end
 	ns:RecordHistory(UI.edit:GetText())
 	local what = ns.Share.Searched(to.query) and to.query:gsub("^%s+", ""):gsub("%s+$", "") or ns.Share.Clean(e.name)
-	self:Hide()
+	self:HideAfterRun()
 	-- (one line of text: the slim bar; more, or CSV: the window. Either closes once Ctrl+C has copied it: 0.52.12)
 	local one = n == 1 and to.copy == "text"
 	ns:ShowText(L["%s as %s"]:format(what, to.label), text, one and { compact = true } or { closeOnCopy = true })
@@ -494,7 +502,6 @@ function UI:Activate(idx, opts)
 	local copyable = e and e.kind == "aggregate" and self.sendTo and self.sendTo.copy
 	if not e or (e.noActivate and not copyable) then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
-	self.ran = GetTime() -- (something run: closing after it, the text isn't kept for a quick reopen, UI:Hide)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
 	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. 0.50.7,
 	-- review: its menu's "Send" closed the terminal and sent nothing)
@@ -526,7 +533,7 @@ function UI:Activate(idx, opts)
 	local isCmd = e.kind == "cmd"
 	local stays = e.staysOpen
 	if opts.secondary and e.secondary and e.secondaryStaysOpen ~= nil then stays = e.secondaryStaysOpen end
-	if not opts.keepOpen and not stays then self:Hide() end
+	if not opts.keepOpen and not stays then self:HideAfterRun() end
 	ns:Bump(e.freqKey)
 	local fn = (opts.secondary and e.secondary) or e.activate
 	ns:Trace(("DIRECT (addon code) %s: %s [%s]"):format(opts.secondary and "secondary" or "activate", tostring(e.name), tostring(e.kind)))

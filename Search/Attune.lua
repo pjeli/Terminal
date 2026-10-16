@@ -336,10 +336,7 @@ function Q.Question(text) return Q.How(text) or Q.List(text) end
 Q.NOTE = { raid = L["Raid attunements"], dungeon = L["Dungeon quests"], key = L["Keys"], class = L["Class quests"],
 	misc = L["Attunements"] }
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end
+local NoteRow = ns.NoteRow
 
 --- Does an @attune row pass the question's group, state and class?
 function Q.Keeps(q, e)

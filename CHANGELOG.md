@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.53.0
+
+**Suggestions for where you are**
+- The empty prompt's "try:" suggestions fit where you are: in a city, trainers, the mailbox, the auction house and your mail come first; out in the world, quests, dungeons and upgrades; in a dungeon, your group and its loot. The others still come up, later.
+- Suggestions for an addon you don't have (Questie's NPCs, AtlasLoot's loot, Attune) aren't made, and there are more of them.
+
+**Upgrades, compared as the game does**
+- An upgrade's tooltip shows the game's own comparison with what you wear there ("+5 Strength", "-4 Agility"), right in Terminal's tooltip; for a quest, its reward. An item the game hasn't loaded yet is compared once it has.
+- "upgrades" lists clear upgrades only: little given up for what's gained, and never a piece you already wear.
+- F5's new results are offered only once they're sure, so F5 no longer comes and goes while item data comes in after a /reload.
+
+**Copy results out**
+- `>> text` and `>> csv` copy the selected result instead of sending it to chat; `>>> text` and `>>> csv` copy every result (CSV: name, detail, kind, id). A box opens with it; Ctrl+C copies it and the box closes.
+- In Simple mode, say it in words: "linen to csv", "linen as text".
+
+**Search in quotes**
+- Words in quotes are found together, as they are: `"outlaw saber"` finds the Outlaw Saber, not every name with both words in it. Filters too: `in:"elwynn forest"`, `-"outlaw saber"`.
+
+**Summing up (Advanced mode)**
+- A `|` standing alone sums up what a search found, every match and not only the first 100: `in:bags | sum value` (what it all sells for at a vendor), `@quest | group by zone`, `@item | count by quality`, `in:bags | sum value by quality`, `| avg ilvl by slot`.
+- Enter on a group lists its rows (`@quest | zone:"Elwynn Forest"`); Shift+Left goes back.
+
+**Also**
+- Closed with the toggle key or a click elsewhere and opened again within 5 seconds, the terminal has your text back, in the mode it was in. Esc closes it and clears the text.
+- `.atop`: Left/Right switch the CPU % between each addon's share of all addons and its share of a frame.
+- A smaller download: only what the game runs.
+- Fixes: rings, trinkets and two weapons are judged against each piece you wear; a list that changes several times while you look at it keeps up; Enter on a summed-up total says it in chat; and smaller fixes from a review before release.
+
 ## 0.52.0
 
 **Upgrades, the best first**

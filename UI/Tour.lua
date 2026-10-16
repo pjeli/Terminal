@@ -306,7 +306,7 @@ local function Go(i)
 	if i < 1 then i = 1 end
 	if i > #T.STEPS then
 		T.Stop()
-		UI:Hide()
+		UI:Dismiss() -- (over: nothing of it kept for a quick reopen)
 		return
 	end
 	tour = { i = i }
@@ -378,7 +378,7 @@ end
 function T.Key(key, shift)
 	if not tour then return false end
 	if key == "ENTER" or key == "NUMPADENTER" then T.Next() return true end
-	if key == "ESCAPE" then T.Stop() ns.UI:Hide() return true end
+	if key == "ESCAPE" then T.Stop() ns.UI:Dismiss() return true end
 	-- (in a category, Shift+Left is the list's: back to the categories, as step 3's card says; review, 0.51.25)
 	if key == "LEFT" and shift then
 		if ns.UI.category then return false end

@@ -14,18 +14,17 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.52.14", when = "in testing",
+		v = "0.53.0", when = "released October 2026",
 		items = {
-			"The empty prompt's suggestions fit where you are and what you have: in a city, trainers, the mailbox, the auction house and your mail come up first; out in the world, quests, dungeons and upgrades; in a dungeon, your group and its loot (the others still come up, later). Ones for an addon you don't have (Questie's NPCs, AtlasLoot's loot, Attune) aren't suggested, and there are more of them.",
-			".atop: Left/Right switch the list's CPU % between each addon's share of all addons' time and its share of a frame (1.2% of every frame), a bar full at a tenth of one; the choice is kept.",
-			"An upgrade's tooltip compares it as the game does: what you wear there (both rings, both hands for a two-hander), named, and the game's own stat changes (\"+5 Strength\", \"-4 Agility\"), as AtlasLoot's comparison shows them; for a quest, its reward. An item the game hasn't loaded is compared once it has.",
-			"\"upgrades\" lists clear upgrades only: what it gives up, by your class's stats, at most half of what it gains (+3 Strength for -2 Agility is one, +1 Strength +2 Stamina for -2 Agility isn't), and enough of a gain to matter; never a piece you're wearing already (it beat your other ring or weapon).",
-			"An upgrade's comparison shows on every row of the list, also one a background search has judged again meanwhile; with nothing worn in its slot, the tooltip says so.",
-			"F5's new results are offered only once they're sure: a background search's list has to come out the same twice in a row (checked again a moment later), so F5 no longer comes and goes while item data comes in after a /reload.",
-			">> text and >> csv copy instead of sending: the selected result (>>> text, >>> csv: every result) opens in a box as plain lines or as CSV (name, detail, kind, id); Ctrl+C copies it and the box closes. In Simple mode, add \"to csv\" or \"to text\" instead (\"linen to csv\").",
-			"Closed with the toggle key or a click elsewhere and opened again within 5 seconds, the terminal has what you'd typed back, as it was, in the mode it was in (Advanced for that run too); Esc closes it and clears the text (as Enter running something does).",
-			"Words in quotes are found together, as they are: \"outlaw saber\" finds the Outlaw Saber, not every name with both words in it (in Simple mode too; in:\"elwynn forest\" works as well).",
-			"Advanced mode sums up what a search found after a | standing alone: \"in:bags | sum value\" says what it would all sell for at a vendor, \"@quest | group by zone\" how many quests are in each zone, \"@item | count by quality\", \"in:bags | sum value by quality\", \"| avg level\". Every match counts, not only the first 100; Enter on a group lists its rows.",
+			"The empty prompt's suggestions fit where you are (a city, out in the world, a dungeon) and the addons you have.",
+			"Upgrades: the tooltip shows the game's own comparison, only clear upgrades are listed (never what you wear already), and F5 is offered only once a new list is sure.",
+			"Copy results to paste elsewhere: >> text or >> csv (>>> for every result; in Simple mode, \"linen to csv\"). Ctrl+C copies and closes the box.",
+			"Words in quotes are found together, as they are: \"outlaw saber\".",
+			"Advanced mode sums up a search after a | standing alone: \"in:bags | sum value\" (what it all sells for), \"@quest | group by zone\", \"@item | count by quality\". Enter on a group lists its rows.",
+			"Closed and opened again within 5 seconds, the terminal has your text back, in the mode it was in; Esc clears it.",
+			".atop: Left/Right switch CPU % between a share of all addons and a share of a frame.",
+			"A smaller download: only what the game runs.",
+			"Fixes from a review before release: rings, trinkets and two weapons are judged against each piece you wear; a list that changes several times while you look at it keeps up; Simple mode's \"to csv\" copies every row, and copied coins keep their g/s/c; Enter on a total says it in chat; and smaller ones.",
 		},
 	},
 	{

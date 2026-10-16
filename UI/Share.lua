@@ -121,7 +121,11 @@ end
 --- Cloth]"), one line.
 local function Clean(s)
 	if s == nil or ns.Secret(s) then return "" end
-	s = ns.Plain(tostring(s)):gsub("|H.-|h(.-)|h", "%1"):gsub("|A.-|a", ""):gsub("|n", " "):gsub("[\r\n]+", " ")
+	-- (coins drawn as icons keep their units: "12g 3s", not "12 3"; and the game's named colours go, |cnIQ4:; release
+	-- review)
+	s = tostring(s):gsub("|T[^|]-GoldIcon[^|]-|t", "g"):gsub("|T[^|]-SilverIcon[^|]-|t", "s"):gsub("|T[^|]-CopperIcon[^|]-|t", "c")
+		:gsub("|cn[^:|]*:", "")
+	s = ns.Plain(s):gsub("|H.-|h(.-)|h", "%1"):gsub("|A.-|a", ""):gsub("|n", " "):gsub("[\r\n]+", " ")
 	return (s:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
 end
 SH.Clean = Clean
@@ -145,7 +149,7 @@ function SH.CopyText(rows, how)
 	if how == "csv" then out[1] = SH.CSV_HEAD end
 	for _, e in ipairs(rows or {}) do
 		-- (a summed-up row goes too, totals and all, its money as plain text: "| sum value >> text", 0.52.13)
-		if type(e) == "table" and (not e.noActivate or e.kind == "aggregate") then
+		if type(e) == "table" and (not e.noActivate or (e.kind == "aggregate" and e.key ~= "aggregate:hint")) then
 			local name, detail = Clean(e.copyName or e.name), Clean(e.copyDetail or e.detail)
 			if name ~= "" then
 				n = n + 1

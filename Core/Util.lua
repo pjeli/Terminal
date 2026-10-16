@@ -238,3 +238,20 @@ function ns.CharacterName()
 	end
 	return name
 end
+
+-- Small helpers several lists had a copy of each (0.52.15: one each, here)
+
+--- The clock's time in seconds (time()), or 0.
+function ns.Now() return (_G.time and _G.time()) or 0 end
+
+--- This character's GUID: the key its saved records are kept under.
+function ns.PlayerGUID() return ns.Str(ns.Safe(_G.UnitGUID, "player")) end
+
+--- Copper as gold, silver and copper (with coin icons; `plain`: "12g 3s"), Gold.lua's way.
+function ns.Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
+
+--- A line in a list that only says something (nothing to open or send).
+function ns.NoteRow(text)
+	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
+		_pos = ns.UI and ns.UI.NO_POS or nil }
+end

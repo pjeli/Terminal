@@ -19,8 +19,8 @@ local Safe, Num, Str, Lower = ns.Safe, ns.Num, ns.Str, ns.Lower
 LK.ASK_AGAIN = 60 -- (s: the game is asked again for your lockouts at most this often when the list is opened)
 LK.BOSS_WAIT = 3 -- (s after a boss dies before asking: the save comes a moment later)
 
-local function Now() return (_G.time and _G.time()) or 0 end
-local function MyKey() return Str(Safe(UnitGUID, "player")) end
+local Now = ns.Now
+local MyKey = ns.PlayerGUID
 
 local function Chars()
 	if not ns.db then return nil end
@@ -248,10 +248,7 @@ end
 
 LK.NONE = L["No lockouts: none of your characters is saved to a raid or dungeon (an alt shows up once you've logged in on it with Terminal)"]
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end
+local NoteRow = ns.NoteRow
 LK.NoteRow = NoteRow
 
 ns:RegisterProvider("lockouts", {

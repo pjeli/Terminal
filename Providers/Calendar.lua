@@ -513,10 +513,7 @@ end
 CA.NONE = L["Nothing on the calendar this month or next"]
 CA.OFF = L["The calendar is switched off on this server"]
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end
+local NoteRow = ns.NoteRow
 CA.NoteRow = NoteRow
 
 ns:RegisterProvider("calendar", {

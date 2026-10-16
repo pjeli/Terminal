@@ -597,11 +597,6 @@ ns.db.bindingTerminal = nil
 ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
 check(bound["`"] == "SOMETHINGELSE", "existing ` binding left alone")
 check(bound["CTRL-`"] == "TERMINAL_TOGGLE", "falls back to CTRL-`")
--- after the rename: the key WoWTerm had is taken over
-bound = {}; bound["`"] = "WOW" .. "TERM_TOGGLE"
-ns.db.bindingTerminal = nil
-ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
-check(bound["`"] == "TERMINAL_TOGGLE", "the old WoWTerm key binding moves to Terminal")
 check(SlashCmdList.TERMINAL and SLASH_TERMINAL1 == "/term" and SLASH_TERMINAL2 == nil, "/term is the slash command")
 -- user's own existing toggle binding is respected
 bound = { ["F9"] = "TERMINAL_TOGGLE" }
@@ -5978,12 +5973,96 @@ do -- a profession sent to chat: its link, with every recipe you know (as the ga
 	_G.GetProfessions, _G.GetProfessionInfo, C_SpellBook.GetSpellBookItemTradeSkillLink = save.gp, save.gpi, save.tl
 	ns.providers.professions._dirty = true
 end
+-- Why an upgrade is one, in words (0.51.14-0.51.19's tooltip lines; the tooltip shows the game's comparison since 0.52.5,
+-- so these live here now, 0.52.15): the tests read what is:upgrade weighed each row against (F.GainOf) through them.
+local UpgradeWhy
+do
+	local F, L = ns.Filters, ns.L
+	local WhyLines
+	-- the stats' names in "why" (the game's own, in its language)
+	local KIND_NAME = { str = "ITEM_MOD_STRENGTH_SHORT", agi = "ITEM_MOD_AGILITY_SHORT", sta = "ITEM_MOD_STAMINA_SHORT",
+		int = "ITEM_MOD_INTELLECT_SHORT", spi = "ITEM_MOD_SPIRIT_SHORT", ap = "ITEM_MOD_ATTACK_POWER_SHORT",
+		rap = "ITEM_MOD_RANGED_ATTACK_POWER_SHORT", sp = "ITEM_MOD_SPELL_POWER_SHORT", heal = "ITEM_MOD_SPELL_HEALING_DONE_SHORT",
+		crit = "ITEM_MOD_CRIT_RATING_SHORT", hit = "ITEM_MOD_HIT_RATING_SHORT", haste = "ITEM_MOD_HASTE_RATING_SHORT",
+		mp5 = "ITEM_MOD_MANA_REGENERATION_SHORT", dps = "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", armor = "ARMOR",
+		def = "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", dodge = "ITEM_MOD_DODGE_RATING_SHORT", parry = "ITEM_MOD_PARRY_RATING_SHORT",
+		block = "ITEM_MOD_BLOCK_RATING_SHORT" }
+	local KIND_FALLBACK = { str = "Str", agi = "Agi", sta = "Sta", int = "Int", spi = "Spi", ap = "AP", rap = "RAP", sp = "SP",
+		heal = "Healing", crit = "Crit", hit = "Hit", haste = "Haste", mp5 = "MP5", dps = "DPS", armor = "Armor", def = "Defense",
+		dodge = "Dodge", parry = "Parry", block = "Block" }
+	local function KindName(k)
+		local g = KIND_NAME[k] and _G[KIND_NAME[k]]
+		if type(g) == "string" and g ~= "" and not ns.Secret(g) then return g end
+		return KIND_FALLBACK[k] or k
+	end
+	local function Num(v)
+		if v == math.floor(v) then return tostring(v) end
+		return ("%.1f"):format(v)
+	end
+
+	--- Why the row is an upgrade, lines for its tooltip: { text, good } each, the first what it's weighed against ("Over
+	--- what you wear (slot: head):"; a quest: its reward named first), then a line per stat: gains first (good = true, drawn
+	--- green), the biggest first, then losses (good = false, red). nil when the last search didn't weigh upgrades, or found
+	--- it no upgrade. (0.51.17, the player: one green line of every stat read badly; gains and losses apart.)
+	UpgradeWhy = function(e)
+		local g = F.fitMade and F.GainOf(e)
+		if not g then return nil end
+		local lines = WhyLines(g)
+		if g.item then table.insert(lines, 1, { text = g.item }) end -- (a quest's reward)
+		return lines
+	end
+	--- The lines for a gain (UpgradeWhy).
+	WhyLines = function(g)
+		if g.vs then -- (against each of two it could replace, each it beats: its own heading, then its lines)
+			local lines = {}
+			for _, one in ipairs(g.vs) do
+				local part = WhyLines(one)
+				if one.name then
+					local head = { text = L["Over %s:"]:format(one.name) }
+					if part[1] and part[1].good == nil then part[1] = head else table.insert(part, 1, head) end
+				end
+				for _, l in ipairs(part) do lines[#lines + 1] = l end
+			end
+			return lines
+		end
+		local slotName = _G[g.loc]
+		slotName = type(slotName) == "string" and not ns.Secret(slotName) and slotName:lower() or g.loc
+		if g.empty then return { { text = L["nothing worn there (slot: %s)"]:format(slotName), good = true } } end
+		local byLevel = { { text = L["item level %d over %d (slot: %s)"]:format(g.ilvl or 0, g.wLvl or 0, slotName), good = true } }
+		if g.byLevel then return byLevel end
+		local w = F.MyWeights()
+		local ups, downs, seen = {}, {}, {}
+		local function add(k)
+			if seen[k] or not w[k] then return end
+			seen[k] = true
+			local d = ((g.kinds or {})[k] or 0) - ((g.worn or {})[k] or 0)
+			if math.abs(d) < 0.05 then return end
+			local t = d > 0 and ups or downs
+			t[#t + 1] = { k = k, d = d, weight = math.abs(d) * w[k] }
+		end
+		for k in pairs(g.kinds or {}) do add(k) end
+		for k in pairs(g.worn or {}) do add(k) end
+		if #ups + #downs == 0 then return byLevel end
+		local function Biggest(a, b) if a.weight ~= b.weight then return a.weight > b.weight end return a.k < b.k end
+		table.sort(ups, Biggest)
+		table.sort(downs, Biggest)
+		local lines = { { text = L["Over what you wear (slot: %s):"]:format(slotName) } }
+		for _, list in ipairs({ ups, downs }) do
+			for _, d in ipairs(list) do
+				lines[#lines + 1] = { text = (d.d > 0 and "+" or "-") .. Num(math.abs(d.d)) .. " " .. KindName(d.k), good = d.d > 0 }
+			end
+		end
+		return lines
+	end
+
+end
+
 -- Extra test files (tests/smoke/*.lua, alphabetical) run here with the same game and helpers: each gets T =
 -- { ns, UI, F, S, check, log, logHas, key, typeText, query, withCtrl, names, Obj, Flush, FlushAll, timers }.
 do
 	local T = { ns = ns, UI = UI, F = F, S = S, check = check, log = log, logHas = logHas, key = key, typeText = typeText,
 		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
-		ef = ef, clock = function() return clock end } -- (clock: the timers' time, for a GetTime that follows them)
+		ef = ef, clock = function() return clock end, UpgradeWhy = UpgradeWhy } -- (clock: the timers' time, for a GetTime that follows them)
 	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
 		local chunk, err = loadfile(file)
 		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")

@@ -32,7 +32,7 @@ ns:RegisterProvider("mounts", {
 		local M = C_MountJournal
 		if not (M and M.GetMountIDs and M.GetMountInfoByID) then return out end -- (a client without the journal)
 		for _, mountID in ipairs(ns.Safe(M.GetMountIDs) or {}) do
-			local name, spellID, icon, _, isUsable, _, isFavorite, _, _, hideOnChar, isCollected =
+			local name, spellID, icon, _, _, _, isFavorite, _, _, hideOnChar, isCollected =
 				ns.Safe(M.GetMountInfoByID, mountID)
 			if name and isCollected and not hideOnChar then
 				out[#out + 1] = {

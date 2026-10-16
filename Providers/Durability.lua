@@ -24,7 +24,7 @@ DU.SLOTS = { "HeadSlot", "ShoulderSlot", "ChestSlot", "WristSlot", "HandsSlot", 
 	"Trinket0Slot", "Trinket1Slot" }
 DU.LOW, DU.WORN = 20, 50 -- (%: red at or below LOW, yellow at or below WORN)
 
-local function Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
+local Money = ns.Money
 
 -- the game's figure for repairing an item: its tooltip data's repairCost (the retail tooltip API), else what a hidden
 -- tooltip's SetInventoryItem / SetBagItem gives (the classic one), else nil
@@ -154,7 +154,7 @@ end
 
 -- the last repair vendor's word for everything (when the items' own figures aren't there): { cost, at }
 -- (per character, by GUID: TerminalDB is the account's, and an alt's bill isn't yours)
-local function MyKey() return Str(Safe(UnitGUID, "player")) end
+local MyKey = ns.PlayerGUID
 local atVendor = false -- (a repair vendor's window is open: its figure is the bill)
 local function Vendor()
 	local key = MyKey()
@@ -437,10 +437,7 @@ end
 
 DU.NOTE = L["Durability"]
 
-local function NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end
+local NoteRow = ns.NoteRow
 
 --- The rows the question keeps.
 function DU.Match(q)
