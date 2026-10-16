@@ -530,7 +530,7 @@ function QT.Draw(t, q)
 	local head = {}
 	if q.level and q.level > 0 then head[#head + 1] = L["Level %d"]:format(q.level) end
 	if q.zone and q.zone ~= "" then head[#head + 1] = q.zone end
-	if #head > 0 then Line(t, table.concat(head, "  ·  "), DIM) end
+	if #head > 0 then Line(t, table.concat(head, ns.DETAIL_SEP), DIM) end
 	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
 	if q.needs and me and q.needs > me then Line(t, L["Requires level %d"]:format(q.needs), QT.COLOURS[4]) end
 	if q.lines and #q.lines > 0 then
@@ -557,7 +557,7 @@ function QT.Draw(t, q)
 				Line(t, XpText(xp), WHITE)
 			end
 		end
-		if money then Line(t, ns.Gold and ns.Gold.Text and ns.Gold.Text(money) or (money .. "c"), WHITE) end
+		if money then Line(t, ns.Money(money), WHITE) end
 		local function Item(it)
 			local qc = it[4] and ns.QualityHex and ns.QualityHex(it[4])
 			local icon = it[2] and ("|T" .. tostring(it[2]) .. ":0|t ") or ""

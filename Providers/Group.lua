@@ -258,7 +258,7 @@ end
 
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
-	local about = ns.Join("  ·  ", e.level and L["Level %d"]:format(e.level) or nil, e.className, e.roleLabel, e.zone)
+	local about = ns.Join(ns.DETAIL_SEP, e.level and L["Level %d"]:format(e.level) or nil, e.className, e.roleLabel, e.zone)
 	if about ~= "" then t:AddLine(about, 1, 1, 1) end
 	if e.dead then t:AddLine(e.ghost and L["A ghost"] or L["Dead"], 1, 0.25, 0.25) end
 	if e.online == false then t:AddLine(L["Offline"], 0.6, 0.6, 0.6) end
@@ -379,7 +379,7 @@ local function Row(m, expected, raidInfo)
 		buffs = m.buffs, buffsHidden = m.buffsHidden, missing = missing, missingLabels = labels, buffWith = buffWith, cons = cons,
 		zone = raidInfo and raidInfo.zone,
 		color = m.online == false and GREY or ns.ClassHex(m.classFile), icon = Icon(m.classFile),
-		detail = table.concat(d, "  ·  "), text = table.concat(words, " "),
+		detail = table.concat(d, ns.DETAIL_SEP), text = table.concat(words, " "),
 		tooltip = Tooltip, shareLink = ShareText, shareGroup = GR.ShareGroupOf,
 		secure = TARGET_SPEC, isOpen = ns.Never, activate = NoTarget,
 		secondarySecure = buffWith and BUFF_SPEC or nil, secondaryIsOpen = buffWith and ns.Never or nil,
@@ -638,21 +638,21 @@ function GR.Answer(q)
 	local what = (q.dead and L["Dead"]) or (q.offline and L["Offline"]) or (q.far and L["Out of range"]) or (q.near and L["In range"])
 		or (q.missing and ((Labels(q) ~= "" and L["Needs %s"]:format(Labels(q))) or L["Missing a buff the group can give"]))
 		or (q.roles and ROLE_PLURAL[q.roles[1]]) or L["Your group"]
-	local note = what .. "  ·  " .. L["%d of %d"]:format(#rows, #all)
+	local note = what .. ns.DETAIL_SEP .. L["%d of %d"]:format(#rows, #all)
 	local hidden = GR.HiddenText()
-	if (q.far or q.near) and GR.hidden and GR.hidden.range > 0 then note = note .. "  ·  " .. hidden
-	elseif q.missing and GR.hidden and GR.hidden.buffs > 0 then note = note .. "  ·  " .. hidden
-	elseif q.roles and GR.hidden and GR.hidden.roles > 0 then note = note .. "  ·  " .. hidden end
+	if (q.far or q.near) and GR.hidden and GR.hidden.range > 0 then note = note .. ns.DETAIL_SEP .. hidden
+	elseif q.missing and GR.hidden and GR.hidden.buffs > 0 then note = note .. ns.DETAIL_SEP .. hidden
+	elseif q.roles and GR.hidden and GR.hidden.roles > 0 then note = note .. ns.DETAIL_SEP .. hidden end
 	if q.roles and #rows == 0 then
 		local anyRole = false
 		for _, e in ipairs(all) do if e.role then anyRole = true end end
-		if not anyRole then note = note .. "  ·  " .. L["nobody has a role set (the group finder sets them)"] end
+		if not anyRole then note = note .. ns.DETAIL_SEP .. L["nobody has a role set (the group finder sets them)"] end
 	end
-	if GR.solo then note = note .. "  ·  " .. L["you're not in a group"] end
+	if GR.solo then note = note .. ns.DETAIL_SEP .. L["you're not in a group"] end
 	if #rows == 0 and not (GR.hidden and (GR.hidden.range > 0 or GR.hidden.buffs > 0)) then
 		local none = (q.dead and L["Nobody is dead"]) or (q.offline and L["Nobody is offline"]) or (q.far and L["Everyone is in range"])
 			or (q.missing and L["Nobody needs it"]) or nil
-		if none then note = none .. (GR.solo and ("  ·  " .. L["you're not in a group"]) or "") end
+		if none then note = none .. (GR.solo and (ns.DETAIL_SEP .. L["you're not in a group"]) or "") end
 	end
 	return rows, note
 end
@@ -764,7 +764,7 @@ end
 local function Pack(sections, ML, LM, between)
 	local tokens = {}
 	for i, s in ipairs(sections) do
-		local sep = i > 1 and (between or "  ·  ") or ""
+		local sep = i > 1 and (between or ns.DETAIL_SEP) or ""
 		if s.text then
 			tokens[#tokens + 1] = { text = s.text, sep = sep }
 		else

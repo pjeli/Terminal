@@ -171,7 +171,7 @@ local function KnownNow(id, known)
 	return f and Safe(f, id) == true or false
 end
 
-local function Coins(c) return ns.Gold and ns.Gold.Text and ns.Gold.Text(c) or (tostring(c) .. "c") end
+local Coins = ns.Money -- (Util.lua)
 
 -- how a recipe is learned, as far as the data says: { trainer = record or true, rid, vendors = {ids}, limited,
 -- drops = {ids}, bosses = {loot rows}, quests = {ids}, objects = {ids} }
@@ -213,7 +213,7 @@ local function HowText(s)
 	if s.quests and #s.quests > 0 then parts[#parts + 1] = L["Quest reward"] end
 	if s.objects and #s.objects > 0 then parts[#parts + 1] = L["Found"] end
 	if #parts == 0 then return s.rid and L["Its recipe item: where to get it isn't known"] or L["How it's learned isn't known"] end
-	return table.concat(parts, "  ·  ")
+	return table.concat(parts, ns.DETAIL_SEP)
 end
 
 local function WalkLearn(e)
@@ -305,8 +305,8 @@ function MR.Tooltip(e, t)
 		for k, n in ipairs(vendors) do
 			if k > 4 then t:AddLine("  " .. L["+%d more vendors"]:format(#vendors - 4), 0.62, 0.62, 0.62) break end
 			local lim = MR.Limited(s.rid, n.id)
-			t:AddLine("  " .. L["Sold by %s"]:format(NpcName(n.id)) .. (n.d and ("  ·  " .. L["%.0f yd"]:format(n.d)) or "")
-				.. (lim and ("  ·  " .. L["limited supply"]) or (lim == false and ("  ·  " .. L["always in stock"]) or "")), 1, 1, 1)
+			t:AddLine("  " .. L["Sold by %s"]:format(NpcName(n.id)) .. (n.d and (ns.DETAIL_SEP .. L["%.0f yd"]:format(n.d)) or "")
+				.. (lim and (ns.DETAIL_SEP .. L["limited supply"]) or (lim == false and (ns.DETAIL_SEP .. L["always in stock"]) or "")), 1, 1, 1)
 		end
 		for k, l in ipairs(s.bosses or {}) do
 			if k > 3 then break end
@@ -379,7 +379,7 @@ local function Row(u, pd, pr, Rc, Pr)
 		profName = pr.name, profLine = pr.skillLine, rank = pr.rank, need = need, canLearn = can or nil,
 		sources = s, recipeItem = rid,
 		color = (not can) and GREY or nil,
-		detail = pr.name .. (need and (" " .. need) or "") .. "  ·  " .. how,
+		detail = pr.name .. (need and (" " .. need) or "") .. ns.DETAIL_SEP .. how,
 		text = table.concat({ pr.name, pd.name ~= pr.name and pd.name or "", "recipe missing unknown unlearned to learn", lhow }, " "),
 		activate = WalkLearn, staysOpen = true,
 		tooltip = MR.Tooltip, getLink = SpellLink,
@@ -654,10 +654,10 @@ function MR.Answer(q)
 				or L["None you don't know, as your profession windows listed them"]
 		end
 	end
-	if q.learnable and noSkill > 0 then note = note .. "  ·  " .. L["%d whose skill isn't known left out"]:format(noSkill) end
+	if q.learnable and noSkill > 0 then note = note .. ns.DETAIL_SEP .. L["%d whose skill isn't known left out"]:format(noSkill) end
 	-- (the ones beyond your skill: how many, and how to list them all)
 	if q.learnable and later > 0 and #rows > 0 then
-		note = note .. "  ·  " .. L["%d more need more skill (\"all recipes to learn\" lists them)"]:format(later)
+		note = note .. ns.DETAIL_SEP .. L["%d more need more skill (\"all recipes to learn\" lists them)"]:format(later)
 	end
 	local open = Unlisted(wantProf)
 	if #rows == 0 then
@@ -665,10 +665,10 @@ function MR.Answer(q)
 		local why = MR.EmptyRow(q)
 		if why then -- (the footer then says what was asked, the line why there are none)
 			local said = (q.learnable and L["Recipes you can learn now"] or L["Recipes you don't know yet"]) .. (which and (": " .. which) or "")
-			if q.learnable and noSkill > 0 then said = said .. "  ·  " .. L["%d whose skill isn't known left out"]:format(noSkill) end
+			if q.learnable and noSkill > 0 then said = said .. ns.DETAIL_SEP .. L["%d whose skill isn't known left out"]:format(noSkill) end
 			return { why }, said
 		end
 	end
-	if #open > 0 then note = note .. "  ·  " .. (#open == 1 and L["open %s once to list its recipes"] or L["open %s once to list their recipes"]):format(Windows(open)) end
+	if #open > 0 then note = note .. ns.DETAIL_SEP .. (#open == 1 and L["open %s once to list its recipes"] or L["open %s once to list their recipes"]):format(Windows(open)) end
 	return rows, note
 end

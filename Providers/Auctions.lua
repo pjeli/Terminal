@@ -31,7 +31,7 @@ AU.NOTE = L["Your auctions"]
 local list -- (the last collect's rows)
 
 local function NameOf(a)
-	return a.name or (type(a.link) == "string" and a.link:match("%[(.-)%]")) or L["item %s"]:format("?")
+	return a.name or ns.LinkName(a.link) or L["item %s"]:format("?")
 end
 
 --- What's said of an auction up now (or whose time ran out): its price, its time left, plain (for chat).
@@ -45,7 +45,7 @@ local function Said(a, now)
 	return bits
 end
 
-local function Line(e) return "  " .. e.name .. (e.plain ~= "" and ("  ·  " .. e.plain) or "") .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) end
+local function Line(e) return "  " .. e.name .. (e.plain ~= "" and (ns.DETAIL_SEP .. e.plain) or "") .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) end
 local function Show(e) ns:Output({ Line(e) }) end
 local function ShareText(e)
 	local a = e.auction
@@ -139,12 +139,7 @@ ns:RegisterProvider("auctions", {
 	events = { "PLAYER_ENTERING_WORLD" },
 	guard = 1,
 	-- nothing kept anywhere: a line saying so
-	leadRow = function(p, _, res)
-		if res and #res > 0 then return nil end
-		ns:GetEntries(p)
-		if list and #list > 0 then return nil end
-		return NoteRow(AU.NONE)
-	end,
+	leadRow = ns.EmptyLead(function() return AU.NONE end, function() return not (list and #list > 0) end),
 	collect = function() return AU.Collect() end,
 })
 
@@ -205,7 +200,7 @@ function AU.Answer(q)
 	end
 	local up = 0
 	for _, e in ipairs(rows) do if e.ahKind == "up" then up = up + 1 end end
-	return rows, AU.NOTE .. "  ·  " .. L["%d up now"]:format(up)
+	return rows, AU.NOTE .. ns.DETAIL_SEP .. L["%d up now"]:format(up)
 end
 
 --- The question as Advanced syntax (Alt+`): "@auction sold linen".

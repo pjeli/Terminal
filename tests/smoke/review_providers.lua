@@ -122,3 +122,28 @@ do -- Baganator's bag windows: looked for again (at most once a second) while no
 	_G.GetTime = realTime
 	T.check(#soon == 0 and later[1] == f, "a view made later: found once a second has passed")
 end
+do -- ns.NameWait (Items, Stored, Durability alike): asked twice at most, the list marked changed once in or after 10 s
+	local C = _G.C_Item
+	local req, byId = C.RequestLoadItemDataByID, C.GetItemNameByID
+	local asked = 0
+	C.RequestLoadItemDataByID = function() asked = asked + 1 end
+	C.GetItemNameByID = function() return nil end
+	local changed = 0
+	local realChanged = ns.Changed
+	ns.Changed = function(self, id) if id == "durability" then changed = changed + 1 end return realChanged(self, id) end
+	local w = ns.NameWait("durability")
+	local listening = {}
+	w.frame.RegisterEvent = function(_, ev) listening[ev] = true end
+	w.frame.UnregisterEvent = function(_, ev) listening[ev] = nil end
+	T.check(w.Name(7777, "|cff|Hitem:7777|h[]|h|r") == nil and w.count == 1 and listening.GET_ITEM_INFO_RECEIVED
+		and listening.ITEM_DATA_LOAD_RESULT, "a name not loaded: asked for, both events listened to")
+	w.frame.scripts.OnEvent(w.frame, "GET_ITEM_INFO_RECEIVED", 1234) -- (someone else's)
+	T.check(w.count == 1, "another item's event: still waiting")
+	T.FlushAll() -- (10 s on: it never came)
+	T.check(w.count == 0 and changed == 1 and not listening.GET_ITEM_INFO_RECEIVED, "it never came: given up after 10 s, the list made again, events dropped")
+	w.Ask(7777); T.FlushAll()
+	w.Ask(7777)
+	T.check(asked == 2, "asked twice at most: " .. asked)
+	T.check(w.Name(1, "|cff|Hitem:1|h[Linen Cloth]|h|r") == "Linen Cloth", "a link's name used at once")
+	C.RequestLoadItemDataByID, C.GetItemNameByID, ns.Changed = req, byId, realChanged
+end

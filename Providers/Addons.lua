@@ -188,10 +188,10 @@ local function Detail(e)
 		state = e.enabled and L["enabled"] or L["disabled"]
 		-- (on and not loaded: a load-on-demand addon, or one the game wouldn't load, says why as the AddOn list does; a
 		-- reload changes neither. Review, 0.48.6: every AtlasLoot module said ".reload to apply")
-		if e.enabled and not e.loaded and e.why then state = state .. "  ·  " .. e.why
+		if e.enabled and not e.loaded and e.why then state = state .. ns.DETAIL_SEP .. e.why
 		elseif e.enabled ~= e.loaded then state = L["%s (.reload to apply)"]:format(state) end
 	end
-	return e.does and (e.does .. "  ·  " .. state) or state
+	return e.does and (e.does .. ns.DETAIL_SEP .. state) or state
 end
 
 local function ToggleAddon(e)

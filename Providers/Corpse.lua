@@ -149,7 +149,7 @@ function C.Answer()
 	end
 	for _, h in ipairs(Healers(here)) do rows[#rows + 1] = h end
 	for i, e in ipairs(rows) do e._score = 1e7 - i end
-	return rows, C.NOTE .. ((#rows > 1) and ("  ·  " .. L["and the nearest spirit healers"]) or "")
+	return rows, C.NOTE .. ((#rows > 1) and (ns.DETAIL_SEP .. L["and the nearest spirit healers"]) or "")
 end
 
 function C.ToAdvanced() return "@corpse " end

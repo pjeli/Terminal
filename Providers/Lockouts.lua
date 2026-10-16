@@ -174,7 +174,7 @@ local CHATBOX = ns.ChatBoxSpec(ShareText)
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	t:AddLine(e.who .. (e.mine and (" " .. L["(you)"]) or ""), 1, 1, 1)
-	if e.diff then t:AddLine(e.diff .. (e.players and ("  ·  " .. L["%d players"]:format(e.players)) or ""), 0.8, 0.8, 0.8) end
+	if e.diff then t:AddLine(e.diff .. (e.players and (ns.DETAIL_SEP .. L["%d players"]:format(e.players)) or ""), 0.8, 0.8, 0.8) end
 	t:AddDoubleLine(L["Bosses"], Progress(e), 1, 1, 1, 1, 1, 1)
 	t:AddDoubleLine(L["Resets in"], LK.Left((e.resetAt or 0) - Now()), 1, 1, 1, 1, 1, 1)
 	if e.extended then t:AddLine(L["Extended"], 0.4, 0.8, 1) end
@@ -207,7 +207,7 @@ local function Row(key, c, l, mine, who, now)
 	local d = { Progress(e), L["resets in %s"]:format(LK.Left(l.reset - now)) }
 	if l.diff then d[#d + 1] = l.diff end
 	if not mine then d[#d + 1] = (ns.ClassHex(c.class) or "") .. who .. "|r" end
-	e.detail = table.concat(d, "  ·  ")
+	e.detail = table.concat(d, ns.DETAIL_SEP)
 	return e
 end
 
@@ -251,7 +251,6 @@ end
 LK.NONE = L["No lockouts: none of your characters is saved to a raid or dungeon (an alt shows up once you've logged in on it with Terminal)"]
 
 local NoteRow = ns.NoteRow
-LK.NoteRow = NoteRow
 
 ns:RegisterProvider("lockouts", {
 	label = L["Lockout"],
@@ -261,12 +260,7 @@ ns:RegisterProvider("lockouts", {
 	events = { "UPDATE_INSTANCE_INFO" },
 	guard = 1,
 	-- nothing saved anywhere: a line saying so (the list asked for by name: @lockout, the Character category)
-	leadRow = function(p, _, res)
-		if res and #res > 0 then return nil end
-		ns:GetEntries(p)
-		if list and #list > 0 then return nil end
-		return NoteRow(LK.NONE)
-	end,
+	leadRow = ns.EmptyLead(function() return LK.NONE end, function() return not (list and #list > 0) end),
 	collect = function() return LK.Collect() end,
 })
 
@@ -372,7 +366,7 @@ function LK.Answer(q)
 	end
 	local mine = 0
 	for _, e in ipairs(rows) do if e.mine then mine = mine + 1 end end
-	return rows, note .. "  ·  " .. (#rows == mine and L["%d yours"]:format(mine) or L["%d yours, %d on alts"]:format(mine, #rows - mine))
+	return rows, note .. ns.DETAIL_SEP .. (#rows == mine and L["%d yours"]:format(mine) or L["%d yours, %d on alts"]:format(mine, #rows - mine))
 end
 
 --- The question as Advanced syntax (Alt+`): "@lockout is:raid mc".

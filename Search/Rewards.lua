@@ -294,7 +294,7 @@ end
 -- a quest row as this answer shows it: what it rewards first
 local function RewardView(row, it)
 	local d = row.detail
-	return setmetatable({ detail = L["Rewards %s"]:format(it.name) .. ((d and d ~= "") and ("  ·  " .. d) or ""),
+	return setmetatable({ detail = L["Rewards %s"]:format(it.name) .. ((d and d ~= "") and (ns.DETAIL_SEP .. d) or ""),
 		rewardItem = it.id }, { __index = row })
 end
 
@@ -318,7 +318,7 @@ function QR.Answer(q)
 		return { ns.NoteRow(L["No quest Questie knows of rewards it"]) }, note
 	end
 	local simple = ns.Easy and ns.Easy.On and ns.Easy.On()
-	return rows, note .. "  ·  " .. (simple and L["quest chain for <quest>: the quests before it"] or L["<quest> > chain: the quests before it"])
+	return rows, note .. ns.DETAIL_SEP .. (simple and L["quest chain for <quest>: the quests before it"] or L["<quest> > chain: the quests before it"])
 end
 
 ----------------------------------------------------------------------
@@ -500,7 +500,7 @@ end
 local function ChainView(row, i, n, last, before)
 	local d = row.detail
 	local say = last and L["the quest itself"] or L["step %d of %d"]:format(i, n)
-	return setmetatable({ detail = say .. ((d and d ~= "") and ("  ·  " .. d) or ""), pipeHow = L["before %s"]:format(before) },
+	return setmetatable({ detail = say .. ((d and d ~= "") and (ns.DETAIL_SEP .. d) or ""), pipeHow = L["before %s"]:format(before) },
 		{ __index = row })
 end
 

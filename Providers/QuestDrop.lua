@@ -143,7 +143,7 @@ function QD.Answer(q)
 			or (q.grey and L["No grey quests in your log"]) or (q.behind and L["No quests in zones you've left behind"])
 			or L["Nothing to drop: no grey quests, none in zones you've left behind"]
 	else
-		if kept > 0 then note = note .. "  ·  " .. (kept == 1 and L["%d complete left out: turn it in"] or L["%d complete left out: turn them in"]):format(kept) end
+		if kept > 0 then note = note .. ns.DETAIL_SEP .. (kept == 1 and L["%d complete left out: turn it in"] or L["%d complete left out: turn them in"]):format(kept) end
 		if #rows >= 2 then
 			local top = DropAllRow(rows)
 			top._score = 2e6

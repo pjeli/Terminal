@@ -261,3 +261,78 @@ function ns.PlayerGUID() return ns.Str(ns.Safe(_G.UnitGUID, "player")) end
 --- Copper as gold, silver and copper (with coin icons; `plain`: "12g 3s"), Gold.lua's way.
 function ns.Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
 
+
+--- An item's name as its link says it ("|h[Linen Cloth]|h"), or nil (none, empty, secret).
+function ns.LinkName(link)
+	if not ns.Str(link) then return nil end
+	return ns.Str(link:match("|h%[(.-)%]|h"))
+end
+
+-- Item names the game hasn't loaded yet (right after login an item's info can come without its name: a link reads "[]").
+-- One wait per list (ns.NameWait(id)): `w.Name(id, link, given)` gives the name now, or asks for it (twice at most:
+-- some never come) and gives nil; once every name asked for is in, or after ns.NAME_GIVE_UP s, the list is marked
+-- changed (ns:Changed). The game's events are listened to only while names are awaited. (Review, 0.53.6: Items, Stored
+-- and Durability each had a copy, and they had drifted: Durability never gave up, Stored missed ITEM_DATA_LOAD_RESULT.)
+ns.NAME_GIVE_UP = 10
+local NAME_EVENTS = { "GET_ITEM_INFO_RECEIVED", "ITEM_DATA_LOAD_RESULT" }
+function ns.NameWait(listId)
+	local w = { ids = {}, count = 0, asked = {}, gen = 0 } -- (gen: which wait the give-up timer belongs to)
+	local frame = CreateFrame("Frame")
+	w.frame = frame
+	local function Listen(on)
+		for _, ev in ipairs(NAME_EVENTS) do
+			if on then pcall(frame.RegisterEvent, frame, ev) else pcall(frame.UnregisterEvent, frame, ev) end
+		end
+	end
+	local function Done()
+		for k in pairs(w.ids) do w.ids[k] = nil end
+		w.count = 0
+		w.gen = w.gen + 1 -- (a wait that ended early and a new one begun: the old one's timer does nothing)
+		Listen(false)
+		ns:Changed(listId)
+	end
+	--- Ask for an item's name: the list is made again once it's in.
+	function w.Ask(id)
+		local C = _G.C_Item
+		if not id or w.ids[id] or (w.asked[id] or 0) >= 2 or not (C and C.RequestLoadItemDataByID) then return end
+		w.asked[id] = (w.asked[id] or 0) + 1
+		if w.count == 0 then
+			Listen(true)
+			local gen = w.gen
+			C_Timer.After(ns.NAME_GIVE_UP, function() if w.gen == gen and w.count > 0 then Done() end end)
+		end
+		w.ids[id] = true
+		w.count = w.count + 1
+		pcall(C.RequestLoadItemDataByID, id)
+		ns:Trace(("%s: waiting for the name of item %s"):format(listId, tostring(id)))
+	end
+	--- The name: `given`, else the link's, else the game's by id; else nil, and it's asked for.
+	function w.Name(id, link, given)
+		local name = ns.Str(given) or ns.LinkName(link)
+		if name then return name end
+		local C = _G.C_Item
+		name = id and C and C.GetItemNameByID and ns.Str(ns.Safe(C.GetItemNameByID, id))
+		if name then return name end
+		w.Ask(id)
+		return nil
+	end
+	frame:SetScript("OnEvent", function(_, _, id)
+		if w.count == 0 then return end
+		if id ~= nil then
+			if not w.ids[id] then return end -- (someone else's item)
+			w.ids[id] = nil
+			w.count = w.count - 1
+		else
+			-- (a client that doesn't say which: whatever has a name now has arrived)
+			local C = _G.C_Item
+			for k in pairs(w.ids) do
+				if C and C.GetItemNameByID and ns.Str(ns.Safe(C.GetItemNameByID, k)) then
+					w.ids[k] = nil
+					w.count = w.count - 1
+				end
+			end
+		end
+		if w.count <= 0 then Done() end
+	end)
+	return w
+end

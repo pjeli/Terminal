@@ -449,9 +449,9 @@ function FL.Collect()
 			rows[#rows + 1] = {
 				name = p[1], key = p.lfull .. "|" .. p[6], full = p.full, side = p[6],
 				icon = ICON[p[6]] or ICON[mine or "A"], color = learned == false and GREY or nil,
-				detail = (STATE[learned] or L["Not checked yet"]) .. "  ·  " .. zone, zone = zone,
+				detail = (STATE[learned] or L["Not checked yet"]) .. ns.DETAIL_SEP .. zone, zone = zone,
 				-- (after the distance in a "nearest" list: "120 yd  The Barrens  ·  not checked yet")
-				distNote = learned == nil and (zone .. "  ·  " .. L["not checked yet"]) or zone,
+				distNote = learned == nil and (zone .. ns.DETAIL_SEP .. L["not checked yet"]) or zone,
 				learned = learned, how = how, _rank = FL.RANK[state],
 				friendlyToFaction = p[6] == "N" and "AH" or p[6], -- (faction:, as Questie's NPCs say it)
 				text = "flight path flight master taxi " .. p.full .. " " .. zone,

@@ -374,7 +374,7 @@ function Q.Answer(q)
 			or L["No attunement has that"]
 		return { NoteRow(none) }, note
 	end
-	return rows, note .. "  ·  " .. L["%d of %d done"]:format(done, #rows)
+	return rows, note .. ns.DETAIL_SEP .. L["%d of %d done"]:format(done, #rows)
 end
 
 --- The question as Advanced syntax (Alt+`): "@attune is:raid mc", "molten core > steps".

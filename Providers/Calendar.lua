@@ -514,7 +514,6 @@ CA.NONE = L["Nothing on the calendar this month or next"]
 CA.OFF = L["The calendar is switched off on this server"]
 
 local NoteRow = ns.NoteRow
-CA.NoteRow = NoteRow
 
 ns:RegisterProvider("calendar", {
 	label = L["Calendar"],
@@ -525,12 +524,7 @@ ns:RegisterProvider("calendar", {
 		"CALENDAR_NEW_EVENT", "CALENDAR_UPDATE_EVENT", "CALENDAR_UPDATE_INVITE_LIST" },
 	guard = 1,
 	-- nothing on: a line saying so (the list asked for by name: @calendar, the Calendar category)
-	leadRow = function(p, _, res)
-		if res and #res > 0 then return nil end
-		ns:GetEntries(p)
-		if list and #list > 0 then return nil end
-		return NoteRow(CA.Disabled() and CA.OFF or CA.NONE)
-	end,
+	leadRow = ns.EmptyLead(function() return CA.Disabled() and CA.OFF or CA.NONE end, function() return not (list and #list > 0) end),
 	collect = function() return CA.Collect() end,
 })
 
@@ -666,7 +660,7 @@ function CA.Answer(q)
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
 	local note = (q.holiday and L["Holidays"]) or (q.invite and L["Your invites"]) or (q.guild and L["Guild events"])
 		or L["Calendar"]
-	if q.span then note = note .. "  ·  " .. SPAN_SAID[q.span] end
+	if q.span then note = note .. ns.DETAIL_SEP .. SPAN_SAID[q.span] end
 	if #rows == 0 then
 		if #all == 0 then return { NoteRow(CA.Disabled() and CA.OFF or CA.NONE) }, note end
 		local none = (#(q.words or {}) > 0 and L["Nothing on the calendar has that"])

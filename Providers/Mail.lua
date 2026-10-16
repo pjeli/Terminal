@@ -374,7 +374,7 @@ local function NotificationKind(n)
 end
 MA.NotificationKind = NotificationKind
 
-local function NameOfLink(link) return type(link) == "string" and link:match("%[(.-)%]") or nil end
+local NameOfLink = ns.LinkName
 
 --- What an auction's item is (0.48.4, the player: what you bought should show its own icon and quality): its id, link,
 --- quality and icon, from an id or link known, else from its name (the client knows an item by name once the auction
@@ -695,10 +695,10 @@ local function Plural(n, one, many) return n .. " " .. (n == 1 and one or many) 
 local function Title(m)
 	if m.subject then return m.subject end
 	local first = m.items and m.items[1]
-	return (first and (first.name or (first.link and first.link:match("%[(.-)%]")))) or L["(no subject)"]
+	return (first and (first.name or NameOfLink(first.link))) or L["(no subject)"]
 end
 
-local function ItemName(it) return it.name or (it.link and it.link:match("%[(.-)%]")) or L["item %s"]:format(tostring(it.id)) end
+local function ItemName(it) return it.name or NameOfLink(it.link) or L["item %s"]:format(tostring(it.id)) end
 
 --- A mail's first item's icon and quality colour (0.48.4: a mail is drawn as what it carries, as every item row is; the
 --- inbox may have given neither, the client not having the item yet: asked by its id).
@@ -766,7 +766,7 @@ local function MailLine(e)
 		parts[#parts + 1] = table.concat(names, ", ")
 	end
 	parts[#parts + 1] = L["%s left (%s)"]:format(MA.Left(e.left), Fate(m))
-	return "  " .. table.concat(parts, "  ·  ")
+	return "  " .. table.concat(parts, ns.DETAIL_SEP)
 end
 
 local function BoxLines(key)
@@ -831,7 +831,7 @@ function MA.PointAt(e)
 end
 
 -- a sent mail's or an auction's line: "  To Bob: Linen Cloth (20)  ·  1g  ·  sent 12 min ago"
-local function WayLine(e) return "  " .. e.name .. "  ·  " .. (e.plain or "") .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) end
+local function WayLine(e) return "  " .. e.name .. ns.DETAIL_SEP .. (e.plain or "") .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) end
 MA.WayLine = WayLine
 
 local function Show(e)
@@ -990,7 +990,7 @@ local function MailRow(key, m, i, mine, who, now)
 		mine = mine or nil, left = left, soon = soon or nil, sig = MA.Sig(m),
 		icon = (m.items and m.items[1] and m.items[1].icon) or (m.cod and ICON_COD) or (m.money and ICON_MONEY) or ICON_MAIL,
 		color = (left < 86400 and RED) or nil,
-		detail = table.concat(d, "  ·  "), text = table.concat(words, " "),
+		detail = table.concat(d, ns.DETAIL_SEP), text = table.concat(words, " "),
 		holders = { { who = who, mine = mine or nil, where = "mail", count = 1 } },
 		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
 	}
@@ -1022,7 +1022,7 @@ local function BoxRow(key, box, mine, who, now, mails, gone, newFrom)
 	return {
 		key = "box:" .. key, name = who, who = who, mailKind = "box", boxKey = key, mine = mine or nil,
 		color = ns.ClassHex(box and box.class or (mine and select(2, Safe(UnitClass, "player")))),
-		icon = ICON_BOX, detail = table.concat(d, "  ·  "), plain = table.concat(plain, ", "),
+		icon = ICON_BOX, detail = table.concat(d, ns.DETAIL_SEP), plain = table.concat(plain, ", "),
 		text = "mail inbox mailbox " .. (mine and "you me mine" or "alt alts character") .. (money > 0 and " gold money" or "")
 			.. (soon > 0 and " expiring running out" or ""),
 		holders = { { who = who, mine = mine or nil, where = "mail", count = 1 } },
@@ -1054,7 +1054,7 @@ local function SentRow(key, s, i, mine, who, now)
 		key = "sent:" .. key .. ":" .. s.at .. ":" .. i, name = L["To %s: %s"]:format(s.to, title), title = title, to = s.to, at = s.at,
 		mail = m, mailKind = "sent", boxKey = key, who = who, mine = mine or nil, color = hex,
 		icon = icon or (m.money and ICON_MONEY) or ICON_MAIL,
-		detail = table.concat(d, "  ·  "), plain = plain, text = table.concat(words, " "),
+		detail = table.concat(d, ns.DETAIL_SEP), plain = plain, text = table.concat(words, " "),
 		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,
 	}
 end
@@ -1086,7 +1086,7 @@ local function AuctionRow(key, a, i, mine, who, now)
 		money = (a.kind == "sold" and a.price) or nil, auction = a,
 		mailKind = "auction", boxKey = key, who = who, mine = mine or nil, color = ns.QualityHex(q),
 		icon = icon or (a.kind == "sold" and ICON_MONEY) or ICON_AUCTION,
-		detail = table.concat(d, "  ·  "), plain = plain,
+		detail = table.concat(d, ns.DETAIL_SEP), plain = plain,
 		text = "mail auction auctions ah incoming pending expected " .. a.kind .. " " .. a.item .. (a.kind == "sold" and " gold money" or "") .. " " .. who,
 		holders = { { who = who, mine = mine or nil, where = "auctions", count = a.count or 1 } }, -- (on:)
 		tooltip = Tooltip, activate = Show, secondary = Secondary(), shareLink = ShareText,

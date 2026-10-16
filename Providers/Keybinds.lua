@@ -232,7 +232,7 @@ ns:RegisterProvider("keybinds", {
 					local keys = KeysText(k1, k2)
 					out[#out + 1] = {
 						key = command, name = name, icon = ICON,
-						detail = (keys or L["not bound"]) .. (category and ("  ·  " .. category) or ""),
+						detail = (keys or L["not bound"]) .. (category and (ns.DETAIL_SEP .. category) or ""),
 						text = "keybind binding hotkey " .. (keys or "unbound") .. " " .. (category or ""),
 						rowText = name, category = category,
 						-- (always pressed while the section is unfolded by a click; the route off and the page open: pointed at only)

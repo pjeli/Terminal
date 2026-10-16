@@ -79,42 +79,13 @@ end
 DU.CostOf = CostOf -- (tests)
 
 -- Names the client hasn't loaded yet (a link reads "[]" until then: 0.50.3, the player's screenshot showed "Item #270003"):
--- asked for, and the list made again once they're in (GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT for one of them)
-local waiting, waitCount = {}, 0
-local names = CreateFrame("Frame")
-DU.nameFrame = names -- (tests)
-local function Wait(id)
-	if waiting[id] ~= nil then return end
-	waiting[id] = true
-	waitCount = waitCount + 1
-	if waitCount == 1 then
-		pcall(names.RegisterEvent, names, "GET_ITEM_INFO_RECEIVED")
-		pcall(names.RegisterEvent, names, "ITEM_DATA_LOAD_RESULT")
-	end
-	if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
-end
-local queued = false
-names:SetScript("OnEvent", function(_, _, id)
-	if not waiting[id] then return end
-	waiting[id] = false -- (asked once: one that never comes isn't asked again on every list)
-	waitCount = waitCount - 1
-	if waitCount <= 0 then
-		waitCount = 0
-		pcall(names.UnregisterEvent, names, "GET_ITEM_INFO_RECEIVED")
-		pcall(names.UnregisterEvent, names, "ITEM_DATA_LOAD_RESULT")
-	end
-	if queued then return end
-	queued = true
-	C_Timer.After(0.3, function() queued = false; ns:Changed("durability") end)
-end)
+-- asked for, and the list made again once they're in, or after 10 s (Util.lua's ns.NameWait; review, 0.53.6: this copy
+-- never gave up, a name that never came kept the events listened to all session)
+local nameWait = ns.NameWait("durability")
+DU.nameFrame = nameWait.frame -- (tests)
 
 local function ItemName(link, id)
-	local name = link and type(link) == "string" and link:match("|h%[(.-)%]|h")
-	if Str(name) and not ns.Secret(name) then return name end
-	name = id and C_Item and C_Item.GetItemNameByID and Safe(C_Item.GetItemNameByID, id)
-	if Str(name) and not ns.Secret(name) then return name end
-	if id then Wait(id) end
-	return (id and L["Item #%d"]:format(id)) or "?"
+	return nameWait.Name(id, link) or (id and L["Item #%d"]:format(id)) or "?"
 end
 
 --- What wears down, now: { { name, link, itemID, icon, quality, cur, max, pct, cost, slotId, slotName, slotText, bag,
@@ -319,8 +290,8 @@ local function TotalRow(rows)
 		parts[#parts + 1] = L["everything at full durability"]
 	end
 	e.detail = ns.Detail(unpack(parts))
-	e.plainDetail = (plain and (plain .. ", ") or "") .. table.concat(parts, ", "):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-	if damaged == 0 then e.plainDetail = table.concat(parts, ", "):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") end
+	e.plainDetail = (plain and (plain .. ", ") or "") .. ns.Plain(table.concat(parts, ", "))
+	if damaged == 0 then e.plainDetail = ns.Plain(table.concat(parts, ", ")) end
 	return e
 end
 
@@ -479,7 +450,7 @@ function DU.Answer(q)
 	local rows = DU.Match(q)
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
 	local cost, damaged = DU.Total()
-	local note = DU.NOTE .. "  ·  " .. ((damaged == 0 and L["nothing to repair"])
+	local note = DU.NOTE .. ns.DETAIL_SEP .. ((damaged == 0 and L["nothing to repair"])
 		or (cost and L["repair all: %s"]:format(Money(cost))) or L["%d to repair"]:format(damaged))
 	local items = 0
 	for _, e in ipairs(rows) do if e.duraKind ~= "total" then items = items + 1 end end

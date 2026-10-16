@@ -1644,7 +1644,7 @@ local function KindsNote(c, counts)
 		local p = found[k].p
 		parts[k] = "|c" .. (p.color or "ff7fb2ff") .. tostring(p.label or p.id) .. "|r"
 	end
-	local note = table.concat(parts, "  ·  ")
+	local note = table.concat(parts, ns.DETAIL_SEP)
 	if #found > KINDS_SHOWN then note = note .. "  " .. L["+%d more"]:format(#found - KINDS_SHOWN) end
 	return note
 end

@@ -198,7 +198,7 @@ ev:SetScript("OnEvent", function(_, event, ...) pcall(LL.OnEvent, event, ...) en
 --- "just now", "5 min ago", "3 h ago", "2 d ago"
 function LL.Ago(t) return ns.Ago(Now() - (t or 0)) end
 
-local function NameOf(link) return link:match("%[(.-)%]") or link end
+local function NameOf(link) return ns.LinkName(link) or link end
 local function Show(e)
 	if ns.Bags and ns.Bags.ShowItem and ns.Bags.ShowItem(e.itemID, e.link, e.name) then return end
 	ns:Output({ e.link .. ": " .. e.detail }) -- (not carried: where it dropped and who got it, in your chat window)
@@ -312,7 +312,7 @@ ns:RegisterProvider("lootlog", {
 					itemID = d.id, link = d.link,
 					icon = getIcon and Safe(getIcon, d.id) or nil,
 					color = ns.QualityHex(LL.Quality(d.link, d.id)), -- (its quality's colour, as items show)
-					detail = table.concat(parts, "  ·  "),
+					detail = table.concat(parts, ns.DETAIL_SEP),
 					text = table.concat({ who, d.who or "", d.from or "", d.zone or "", "loot drop looted" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99, -- (newest first among equal matches)
 					activate = Show,

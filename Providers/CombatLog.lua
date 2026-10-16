@@ -248,7 +248,7 @@ CB.SetMe = function(guid) me = guid end -- (tests)
 -- The list
 ----------------------------------------------------------------------
 
-local function Ago(t) return ns.LootLog and ns.LootLog.Ago(t) or "" end
+local function Ago(t) return ns.Ago(ns.Now() - (t or 0)) end -- (Util's, not through LootLog's)
 local function Amount(n) return n and (BreakUpLargeNumbers and Safe(BreakUpLargeNumbers, n) or tostring(n)) or nil end
 
 --- The line an entry says ("Hogger crit you for 245 (Mortal Strike)").

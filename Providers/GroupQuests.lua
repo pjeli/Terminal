@@ -468,13 +468,13 @@ function PQ.Answer(q)
 	local rows = {}
 	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
 	for i, e in ipairs(rows) do e._score = 1e6 - i end
-	local note = (PQ.NOTES[q.mode] or PQ.NOTES.all) .. "  ·  " .. L["%d of %d"]:format(#rows, #all)
+	local note = (PQ.NOTES[q.mode] or PQ.NOTES.all) .. ns.DETAIL_SEP .. L["%d of %d"]:format(#rows, #all)
 	if #rows == 0 then
 		if q.mode == "share" then note = L["Nobody in your party lacks a quest you can share"]
 		elseif q.mode == "together" then note = L["Nobody in your party is on your quests"] end
 	end
-	if (PQ.offline or 0) > 0 then note = note .. "  ·  " .. L["%d offline, not asked"]:format(PQ.offline) end
-	if (PQ.unknownRows or 0) > 0 then note = note .. "  ·  " .. PQ.UNKNOWN_NOTE end
+	if (PQ.offline or 0) > 0 then note = note .. ns.DETAIL_SEP .. L["%d offline, not asked"]:format(PQ.offline) end
+	if (PQ.unknownRows or 0) > 0 then note = note .. ns.DETAIL_SEP .. PQ.UNKNOWN_NOTE end
 	return rows, note
 end
 

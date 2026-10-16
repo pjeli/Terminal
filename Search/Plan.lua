@@ -274,9 +274,9 @@ function PL.Rows(rows)
 			d = L["missing %s"]:format(ItemName(p.short or p.mats[1][1]))
 		else
 			d = (p.own == 1 and L["1 craft"] or L["%d crafts"]:format(p.own))
-			if p.all > p.own then d = d .. "  ·  " .. L["%d with alts"]:format(p.all) end
+			if p.all > p.own then d = d .. ns.DETAIL_SEP .. L["%d with alts"]:format(p.all) end
 		end
-		if p.pr then d = d .. "  ·  " .. p.pr.name end
+		if p.pr then d = d .. ns.DETAIL_SEP .. p.pr.name end
 		out[#out + 1] = View(p.e, { detail = d, planCrafts = p.own, planAlts = p.all, _score = 1e6 - #out })
 	end
 	for _, p in ipairs(made) do Add(p) end
@@ -320,8 +320,8 @@ function PL.Note(order, byProf, own, all)
 		end
 		s = L["Plan: about %s"]:format(table.concat(each, ", "))
 	end
-	if capped then s = s .. "  ·  " .. L["%d is your cap: train for more"]:format(capped) end
-	if rough then s = s .. "  ·  " .. L["rough: some recipes' skill levels aren't known"] end
+	if capped then s = s .. ns.DETAIL_SEP .. L["%d is your cap: train for more"]:format(capped) end
+	if rough then s = s .. ns.DETAIL_SEP .. L["rough: some recipes' skill levels aren't known"] end
 	return s
 end
 

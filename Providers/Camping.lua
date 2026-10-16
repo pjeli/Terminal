@@ -151,7 +151,7 @@ ns:RegisterProvider("camp", {
 					name = def.name,
 					icon = hit.r.icon or "Interface\\Icons\\INV_Misc_Spyglass_03",
 					color = GREEN,
-					detail = label .. "  ·  " .. L["Known"],
+					detail = label .. ns.DETAIL_SEP .. L["Known"],
 					text = def.text,
 					tip = def.tip,
 					hit = hit,

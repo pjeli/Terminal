@@ -577,7 +577,7 @@ local function Tooltip(e, t)
 	if Str(a.LEVELS) then head[#head + 1] = L["Level %s"]:format(a.LEVELS) end
 	local size = tonumber(a.GROUPSIZE)
 	if size and size > 1 then head[#head + 1] = L["%d players"]:format(size) end
-	t:AddLine(table.concat(head, "  ·  "), DIM[1], DIM[2], DIM[3])
+	t:AddLine(table.concat(head, ns.DETAIL_SEP), DIM[1], DIM[2], DIM[3])
 	-- (its own words: the raids' and keys' rules; the dungeons' and class quests' say the same for every one)
 	if rec.group ~= "dungeon" and rec.group ~= "class" and Str(a.DESC) then t:AddLine(a.DESC, 0.8, 0.8, 0.8, true) end
 	if #rec.keys == 0 then

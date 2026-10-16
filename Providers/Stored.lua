@@ -323,59 +323,11 @@ local function Sorted(e)
 	return list
 end
 
--- Item names asked of the server and not here yet (BagBrother keeps only item numbers). Each
--- arrives with its own GET_ITEM_INFO_RECEIVED; the list is rebuilt once they're all in.
-local waiting, waitingCount = {}, 0
-local waitGen = 0 -- which wait the give-up timer belongs to (bumped whenever a wait ends)
-local asked = {} -- item id -> times its name was asked for (some never come: stop after two)
-
---- GET_ITEM_INFO_RECEIVED fires for every item the game loads: listened to only while names are awaited (as Items and
---- Professions do; review, 0.48.6).
-local function Listen(on)
-	local f = S.nameFrame
-	if not f then return end
-	if on then pcall(f.RegisterEvent, f, "GET_ITEM_INFO_RECEIVED") else pcall(f.UnregisterEvent, f, "GET_ITEM_INFO_RECEIVED") end
-end
-
-local function Arrived(id)
-	if waiting[id] then
-		waiting[id] = nil
-		waitingCount = waitingCount - 1
-		if waitingCount == 0 then
-			waitGen = waitGen + 1
-			Listen(false)
-			ns:Changed("stored")
-		end
-	end
-end
-
-local function Name(id, link)
-	local name = type(link) == "string" and link:match("|h%[(.-)%]|h")
-	if name and name ~= "" then return name end
-	name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
-	if name and name ~= "" then return name end
-	if C_Item and C_Item.RequestLoadItemDataByID and (asked[id] or 0) < 2 and not waiting[id] then
-		asked[id] = (asked[id] or 0) + 1
-		if waitingCount == 0 then
-			-- names that never come don't keep the list waiting (only this wait: an older one's timer
-			-- would end a newer wait early)
-			local gen = waitGen
-			C_Timer.After(10, function()
-				if waitGen == gen and waitingCount > 0 then
-					for k in pairs(waiting) do waiting[k] = nil end
-					waitingCount = 0
-					waitGen = waitGen + 1
-					Listen(false)
-					ns:Changed("stored")
-				end
-			end)
-		end
-		waiting[id] = true
-		waitingCount = waitingCount + 1
-		if waitingCount == 1 then Listen(true) end
-		pcall(C_Item.RequestLoadItemDataByID, id)
-	end
-end
+-- Item names asked of the server and not here yet (BagBrother keeps only item numbers): the list is made again once
+-- they're all in, or after 10 s (Util.lua's ns.NameWait; GET_ITEM_INFO_RECEIVED listened to only while awaited).
+local nameWait = ns.NameWait("stored")
+S.nameFrame = nameWait.frame
+local function Name(id, link) return nameWait.Name(id, link) end
 
 --- The holders grouped by who has them (a character, a guild, the warband), most first:
 --- { name, total, parts = { "bank 20", "bags 5" }, class, mine, single }.
@@ -494,7 +446,7 @@ local function StoredRow(id, x, name)
 		color = QualityHex(quality),
 		link = x.link or ("item:" .. id),
 		-- short, so it fits beside the name; the tooltip has the rest
-		detail = "x" .. x.total .. "  ·  " .. (nOwners == 1
+		detail = "x" .. x.total .. ns.DETAIL_SEP .. (nOwners == 1
 			and ((first.where == "guild" and L["%s (guild)"]:format(first.who) or first.who) .. (first.mine and (" " .. L["(you)"]) or ""))
 			or L["%d places"]:format(nOwners)),
 		quality = quality,
@@ -565,17 +517,6 @@ ns:RegisterProvider("stored", {
 	end,
 })
 
--- Names the server hadn't sent yet: rebuild once they arrive.
-local f = CreateFrame("Frame")
-S.nameFrame = f -- (GET_ITEM_INFO_RECEIVED registered only while names are awaited: Listen)
-f:SetScript("OnEvent", function(_, _, itemID, success)
-	if waitingCount == 0 then return end
-	if itemID then Arrived(itemID) return end
-	-- some clients don't say which: whatever has a name now has arrived
-	for id in pairs(waiting) do
-		if C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id) then Arrived(id) end
-	end
-end)
 
 -- Syndicator says when its records change (any character, guild or the warband bank).
 function S.HookSyndicator()
@@ -604,9 +545,10 @@ login:SetScript("OnEvent", function() S.HookSyndicator() end)
 function S.Busy()
 	local A = S.Source() == "Syndicator" and SyndicatorAPI()
 	if A and not SyndicatorReady(A) then return L["Waiting for Syndicator to finish reading your characters"] end
-	if waitingCount > 0 then
-		return (waitingCount == 1 and L["Loading %d item name from the server for %s's records"] or L["Loading %d item names from the server for %s's records"])
-			:format(waitingCount, S.Source() or L["your bag addon"])
+	local n = nameWait.count
+	if n > 0 then
+		return (n == 1 and L["Loading %d item name from the server for %s's records"] or L["Loading %d item names from the server for %s's records"])
+			:format(n, S.Source() or L["your bag addon"])
 	end
 end
 

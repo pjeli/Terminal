@@ -241,7 +241,7 @@ local function ZoneRow(z, detail, score, dist)
 	}
 end
 
-local function Join(parts) return table.concat(parts, "  ·  ") end
+local function Join(parts) return table.concat(parts, ns.DETAIL_SEP) end
 
 local function Fit(level, lo, hi)
 	if level >= lo and level <= hi then return L["right for you"], 2 end

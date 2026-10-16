@@ -361,7 +361,7 @@ ns:RegisterRelation("mats", {
 					key = id, kind = "reagent", kindLabel = REAGENT_LABEL, freqKey = "reagent:" .. id,
 					name = name, itemID = id, link = "item:" .. id, icon = Icon(id),
 					color = ns.QualityHex and ns.QualityHex(q) or nil,
-					detail = table.concat(parts, "  ·  "), need = n, count = bags, total = all + elsewhere,
+					detail = table.concat(parts, ns.DETAIL_SEP), need = n, count = bags, total = all + elsewhere,
 					-- short on this character first (what to go and get), then in the recipe's order
 					_order = ((all >= n) and 1000 or 0) + i,
 					activate = ShowItem,
@@ -462,7 +462,7 @@ local function AddNpcs(out, I, id, field, what, max, how, friendly)
 	table.sort(got, NearFirst)
 	for k = 1, math.min(#got, max) do
 		local g = got[k]
-		local rest = what .. ((g.row.detail and g.row.detail ~= "") and ("  ·  " .. tostring(g.row.detail)) or "")
+		local rest = what .. ((g.row.detail and g.row.detail ~= "") and (ns.DETAIL_SEP .. tostring(g.row.detail)) or "")
 		out[#out + 1] = NearSaid(View(g.row, rest, nil, how), g.d, rest)
 	end
 end
@@ -491,7 +491,7 @@ local function AddObjects(out, I, objs, what, how)
 		if spot and ns.Maps then
 			row.ui, row.mapID, row.px, row.py, row.zone = spot.ui, spot.ui, spot.px, spot.py, spot.zone
 			row.wcont, row.wx, row.wy = spot.wcont, spot.wx, spot.wy
-			NearSaid(row, spot.d, row.detail .. (spot.zone and ("  ·  " .. tostring(spot.zone)) or ""))
+			NearSaid(row, spot.d, row.detail .. (spot.zone and (ns.DETAIL_SEP .. tostring(spot.zone)) or ""))
 			row.secure, row.isOpen, row.after = ns.Maps.SECURE, ns.Maps.IsOpenFor, I.SpotAfter
 			row.activate, row.secondary = I.PinObject, I.PinObject
 		end
@@ -520,7 +520,7 @@ local function AddQuestie(out, I, id, w)
 	if type(quests) == "table" and I.QuestRow then
 		for _, qid in ipairs(quests) do
 			local q = type(qid) == "number" and I.QuestRow(qid)
-			if q then out[#out + 1] = View(q, w.quest .. "  ·  " .. tostring(q.detail or ""), nil, w.reward) end
+			if q then out[#out + 1] = View(q, w.quest .. ns.DETAIL_SEP .. tostring(q.detail or ""), nil, w.reward) end
 		end
 	end
 end
@@ -540,7 +540,7 @@ ns:RegisterRelation("sources", {
 			-- crafted: your recipe for it, else AtlasLoot's (its mats are one step on)
 			local own = OwnRecipes()[id]
 			if own then
-				out[#out + 1] = View(own, L["Crafted"] .. "  ·  " .. L["your recipe"] .. (own.detail and ("  ·  " .. own.detail) or ""), SOURCE_LABEL, L["crafted:"])
+				out[#out + 1] = View(own, L["Crafted"] .. ns.DETAIL_SEP .. L["your recipe"] .. (own.detail and (ns.DETAIL_SEP .. own.detail) or ""), SOURCE_LABEL, L["crafted:"])
 			else
 				local rg, spell = AtlasCraft(id)
 				if rg then
@@ -548,7 +548,7 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = {
 						key = "craft:" .. id, kind = "source", kindLabel = SOURCE_LABEL, name = name, itemID = id,
 						link = "item:" .. id, icon = Icon(id), reagents = rg,
-						detail = L["Crafted"] .. (sname and ("  ·  " .. sname) or "") .. "  ·  " .. L["(a recipe you don't have)"], pipeHow = L["crafted:"],
+						detail = L["Crafted"] .. (sname and (ns.DETAIL_SEP .. sname) or "") .. ns.DETAIL_SEP .. L["(a recipe you don't have)"], pipeHow = L["crafted:"],
 						activate = ShowItem,
 					}
 				end
@@ -562,7 +562,7 @@ ns:RegisterRelation("sources", {
 					out[#out + 1] = l
 				end
 			end
-			if stored[id] then out[#out + 1] = View(stored[id], L["On your alts"] .. "  ·  " .. tostring(stored[id].detail or "")) end
+			if stored[id] then out[#out + 1] = View(stored[id], L["On your alts"] .. ns.DETAIL_SEP .. tostring(stored[id].detail or "")) end
 		end
 		return out
 	end,
@@ -684,14 +684,14 @@ local function AddTrainers(out, prof, need)
 	end)
 	for i = 1, math.min(#list, P.TRAINERS) do
 		local t = list[i]
-		local rest = L["Teaches it"] .. (t.title ~= "" and ("  ·  " .. t.title) or "")
+		local rest = L["Teaches it"] .. (t.title ~= "" and (ns.DETAIL_SEP .. t.title) or "")
 		out[#out + 1] = NearSaid(View(t.e, rest, nil, L["taught by"]), t.d, rest)
 	end
 end
 
 -- the recipe item: where to get it (Questie, AtlasLoot's bosses, your alts)
 local function AddRecipeItem(out, rid, prof, need, stored)
-	local skill = prof and need and ("  ·  " .. ProfName(prof) .. " " .. need) or ""
+	local skill = prof and need and (ns.DETAIL_SEP .. ProfName(prof) .. " " .. need) or ""
 	out[#out + 1] = { key = "recipe:" .. rid, kind = "source", kindLabel = SOURCE_LABEL, name = ItemName(rid) or L["item %d"]:format(rid),
 		itemID = rid, link = "item:" .. rid, icon = Icon(rid), detail = L["Teaches it"] .. skill, pipeHow = L["taught by"],
 		activate = ShowItem }
@@ -705,7 +705,7 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 		local nid = v.pipeHow == P.RECIPE_WORDS.sold and (v.npcID or rawget(v, "key") or v.key)
 		local lim = nid and MR and MR.Limited(rid, nid)
 		if lim ~= nil then
-			local say = "  ·  " .. (lim and L["limited supply"] or L["always in stock"])
+			local say = ns.DETAIL_SEP .. (lim and L["limited supply"] or L["always in stock"])
 			rawset(v, "detail", v.detail .. say)
 			if rawget(v, "nearRest") then rawset(v, "nearRest", v.nearRest .. say) end -- (kept when the distance updates)
 		end
@@ -715,7 +715,7 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 		if k > 15 then break end
 		out[#out + 1] = l
 	end
-	if stored[rid] then out[#out + 1] = View(stored[rid], L["Your alts hold the recipe"] .. "  ·  " .. tostring(stored[rid].detail or "")) end
+	if stored[rid] then out[#out + 1] = View(stored[rid], L["Your alts hold the recipe"] .. ns.DETAIL_SEP .. tostring(stored[rid].detail or "")) end
 end
 
 ns:RegisterRelation("learn", {
@@ -736,7 +736,7 @@ ns:RegisterRelation("learn", {
 			made = made or (data and data[1]) or nil
 			-- you know it already: said first
 			local own = (e.kind == "recipes" and e) or (made and OwnRecipes()[made]) or nil
-			if own then out[#out + 1] = View(own, L["You know it"] .. (own.detail and ("  ·  " .. own.detail) or "")) end
+			if own then out[#out + 1] = View(own, L["You know it"] .. (own.detail and (ns.DETAIL_SEP .. own.detail) or "")) end
 			rid = rid or (Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, spell)) or nil
 			if type(rid) == "number" then
 				AddRecipeItem(out, rid, prof, need, stored)
@@ -751,12 +751,12 @@ ns:RegisterRelation("learn", {
 					prof = prof or P.ProfOfLine(e.profLine) or (seen and P.ProfOfName(seen.skill)) or nil
 					need = need or (seen and seen.rank) or nil
 					local pname = prof and ProfName(prof) or nil
-					local why = (seen and seen.cost) and (L["costs %s"]:format(ns.Gold and ns.Gold.Text(seen.cost) or seen.cost .. "c")
+					local why = (seen and seen.cost) and (L["costs %s"]:format(ns.Money(seen.cost))
 						.. (seen.who and (" " .. L["(seen at %s)"]:format(seen.who)) or "")) or L["No recipe item teaches it (AtlasLoot)"]
 					out[#out + 1] = { key = "trainer:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
 						name = pname and L["Taught by a %s trainer"]:format(pname) or L["Taught by a trainer"],
 						icon = "Interface\\Icons\\INV_Misc_Book_11",
-						detail = why .. (pname and need and ("  ·  " .. L["learn at %s %s"]:format(pname, need)) or "") }
+						detail = why .. (pname and need and (ns.DETAIL_SEP .. L["learn at %s %s"]:format(pname, need)) or "") }
 					if prof then AddTrainers(out, prof, need) end
 				end
 			end
@@ -1744,7 +1744,7 @@ function A.Apply(spec, res, base)
 	local function Detail(cnt, got)
 		local parts = { L["%d results"]:format(cnt) }
 		if f and got < cnt then parts[#parts + 1] = L["%d with no %s"]:format(cnt - got, f.label) end
-		return table.concat(parts, "  ·  ")
+		return table.concat(parts, ns.DETAIL_SEP)
 	end
 	local loading = ns.Filters and ns.Filters.loading
 	local opLabel = s.op == "avg" and L["average"] or s.op == "sum" and L["sum"] or L["group"]
@@ -1753,7 +1753,7 @@ function A.Apply(spec, res, base)
 		local name, plain = L["nothing to %s"]:format(opLabel), nil
 		if v then name, plain = Shown(s.field, v) end
 		local detail = (s.op == "avg" and L["average %s of %s"] or L["%s of %s"]):format(f.label, Detail(n, have))
-		if loading then detail = detail .. "  ·  " .. L["item data still coming in"] end
+		if loading then detail = detail .. ns.DETAIL_SEP .. L["item data still coming in"] end
 		local r = Row(name, detail, "aggregate:" .. s.op .. ":" .. tostring(v) .. ":" .. n, opLabel)
 		r.copyName = plain
 		Said(r)
@@ -1788,7 +1788,7 @@ function A.Apply(spec, res, base)
 		if f then
 			local shown, plain = "-", "-"
 			if g.value then shown, plain = Shown(s.field, g.value) end
-			detail, copyDetail = shown .. "  ·  " .. Detail(g.n, g.have), plain .. "  ·  " .. Detail(g.n, g.have)
+			detail, copyDetail = shown .. ns.DETAIL_SEP .. Detail(g.n, g.have), plain .. ns.DETAIL_SEP .. Detail(g.n, g.have)
 		end
 		local r = Row(name, detail, "aggregate:" .. s.by .. ":" .. tostring(g.text) .. ":" .. g.n .. ":" .. tostring(g.value), opLabel)
 		r.copyDetail = copyDetail
@@ -1799,6 +1799,6 @@ function A.Apply(spec, res, base)
 		end
 		out[#out + 1] = r
 	end
-	if loading and out[1] then out[1].detail = out[1].detail .. "  ·  " .. L["item data still coming in"] end
+	if loading and out[1] then out[1].detail = out[1].detail .. ns.DETAIL_SEP .. L["item data still coming in"] end
 	return out
 end
