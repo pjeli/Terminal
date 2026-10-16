@@ -419,11 +419,7 @@ end
 ----------------------------------------------------------------------
 
 -- a line that says something (not a result: Enter does nothing, nothing to send)
-local function Note(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end
-MR.Note = Note
+local Note = ns.NoteRow
 
 -- your crafting professions whose window hasn't listed what you don't know yet (of those asked about: want)
 local function Unlisted(want)

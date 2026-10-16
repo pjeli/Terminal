@@ -415,13 +415,11 @@ function PL.Answer(q)
 				if e.recipeID ~= nil and (not next(want) or (e.profName and want[Lower(e.profName)])) then none = PL.NO_MATCH break end
 			end
 		end
-		return { { name = none, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-			_pos = ns.UI and ns.UI.NO_POS or nil } }, L["Plan"]
+		return { ns.NoteRow(none) }, L["Plan"]
 	end
 	local out, note = PL.Rows(rows)
 	if #out == 0 then
-		return { { name = L["None of these recipes gives skill now: train new ones"], raw = true, icon = false,
-			noActivate = true, kindLabel = "", detail = "", _pos = ns.UI and ns.UI.NO_POS or nil } }, note
+		return { ns.NoteRow(L["None of these recipes gives skill now: train new ones"]) }, note
 	end
 	return out, note
 end

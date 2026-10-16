@@ -66,7 +66,7 @@ ns:RegisterCommand("kinds", {
 				local flags = {}
 				if p.explicit then flags[#flags + 1] = L["explicit"] end
 				if p.lazy then flags[#flags + 1] = L["lazy"] end
-				lines[#lines + 1] = ("  @%s  (%s)%s"):format(p.aliases[1] or id, p.label,
+				lines[#lines + 1] = ("  %s  (%s)%s"):format(ns:KindName(p), p.label,
 					#flags > 0 and ("  [" .. table.concat(flags, ", ") .. "]") or "")
 			end
 		end

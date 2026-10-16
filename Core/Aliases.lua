@@ -81,7 +81,9 @@ function A.Resolve(text, n)
 	n = n or 0
 	if Kind(text) ~= "dot" or n >= A.MAX_DEPTH then return text end
 	local word, rest = text:match("^%.(%S+)%s*(.-)$")
-	local target = word and (Store() or {})[word]
+	-- (the store's names are lowercase, as A.Set keeps them: ".Heal" names heal too; review, 0.53.6: it missed, and ran
+	-- .heal's /cast from Terminal's code, the tainted path 0.50.7 closed)
+	local target = word and (Store() or {})[ns.Lower(word)]
 	if type(target) ~= "string" or Taken(word) then return text end
 	return A.Resolve(A.Expand(target, rest), n + 1)
 end

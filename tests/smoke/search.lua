@@ -591,6 +591,11 @@ do
 	check(C.Evaluate("sqrt(2)") == "1.414214" and C.Evaluate("floor(3.7)") == "3" and C.Evaluate("max(3, 5)") == "5"
 		and C.Evaluate("abs(-3)") == "3", "sqrt(2), floor(3.7), max(3, 5), abs(-3): " .. tostring(C.Evaluate("sqrt(2)")))
 	check(C.Evaluate("20") == nil and C.Evaluate("-5") == nil and C.Evaluate("=20") == "20", "a plain number: no answer (=20 is one)")
+	-- (review, 0.53.6) a number with a trailing point is a number; money rounded to nothing has no sign
+	check(C.Evaluate("3.*2") == "6" and C.Evaluate("10. + 5") == "15" and C.Evaluate(".5*2") == "1",
+		"3.*2, 10. + 5, .5*2: " .. tostring(C.Evaluate("3.*2")) .. ", " .. tostring(C.Evaluate("10. + 5")))
+	check(C.Evaluate("=-0.3c") == "0c", "=-0.3c: 0c, not -0c: " .. tostring(C.Evaluate("=-0.3c")))
+	check(C.Evaluate("3 . 4") == nil, "a point alone is no number")
 	local res = UI:Search("sqrt(2)")
 	check(res[1] and res[1].kind == "calc" and res[1].name == "= 1.414214", "sqrt(2) in the prompt: the answer on top")
 end

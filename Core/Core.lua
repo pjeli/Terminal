@@ -349,6 +349,26 @@ function ns:UnregisterCommand(name)
 	self.commandsGen = (self.commandsGen or 0) + 1
 end
 
+--- The command a name or alias calls (any case), or nil. Next to the registry (it was History.lua's), aliases looked
+--- up in a map made again only when a command is registered or dropped (review, 0.53.6: every alias of every command
+--- lowercased on each call, every keystroke of a ".command").
+local cmdAliases, cmdAliasesGen
+function ns:FindCommand(name)
+	name = ns.Lower(name)
+	local c = self.commands[name]
+	if c then return c end
+	if not cmdAliases or cmdAliasesGen ~= self.commandsGen then
+		cmdAliases, cmdAliasesGen = {}, self.commandsGen
+		for _, n in ipairs(self.commandOrder) do
+			for _, a in ipairs(self.commands[n].aliases or {}) do
+				local la = ns.Lower(a)
+				if cmdAliases[la] == nil then cmdAliases[la] = self.commands[n] end -- (the first command saying it, as before)
+			end
+		end
+	end
+	return cmdAliases[name]
+end
+
 ----------------------------------------------------------------------
 -- Events / saved variables
 ----------------------------------------------------------------------

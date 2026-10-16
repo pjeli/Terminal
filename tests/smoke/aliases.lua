@@ -18,6 +18,12 @@ do
 	-- (0.50.7, review: the example was .alias rl /reload, and rl is .reload's: refused, and this only looked for ".rl")
 	check(Run("brb /afk brb")[1] == L["Alias .%s runs: %s"]:format("brb", "/afk brb"), "a slash command")
 	check(Run("dark .theme dracula")[1]:find(".dark", 1, true), "a dot command")
+	-- (review, 0.53.6) an alias naming another in other letters (".Heal" for heal): followed to what it runs, as the
+	-- store keeps names lowercase; else .heal's own command ran its /cast from Terminal's code, tainted
+	Run("heal /cast Flash Heal")
+	check(A.Resolve(".Heal") == "/cast Flash Heal" and A.Resolve(".heal") == "/cast Flash Heal",
+		"an alias named in capitals followed to its /slash line: " .. tostring(A.Resolve(".Heal")))
+	ns:FindCommand("unalias").run("heal")
 	check(Run("wh /w $* hi")[1]:find(".wh", 1, true), "with $*")
 	check(Run("help me")[1] == L[".%s is already one of Terminal's commands: pick another name."]:format("help")
 		and Run("rl2? x")[1]:find("letters, digits", 1, true) and Run("loop .loop")[1]:find("itself", 1, true)

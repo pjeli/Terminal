@@ -129,10 +129,10 @@ local function TokenScore(tk, xs, name, lname, ltext, exact)
 	end
 	local best, sub = Fuzzy.score(tk, name, lname)
 	if xs and not sub then return nil end
-	local how, at = best and "name", nil
+	local how = best and "name" or nil -- (no shorthand here: no name of one to say)
 	if not sub then best, how = NameExtra(tk, best, name, lname) end
-	if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then return TEXT_SCORE, how, at end
-	return best, how, at
+	if ltext and (not best or best < TEXT_SCORE) and find(ltext, tk, 1, true) then return TEXT_SCORE, how, nil end
+	return best, how, nil
 end
 
 local function RowText(e)

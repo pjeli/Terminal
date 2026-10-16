@@ -41,15 +41,6 @@ end
 
 --- Find a terminal command by name or alias (in registration order, so a shared alias always
 --- finds the same one).
-function ns:FindCommand(name)
-	name = ns.Lower(name)
-	if self.commands[name] then return self.commands[name] end
-	for _, n in ipairs(self.commandOrder) do
-		for _, a in ipairs(self.commands[n].aliases or {}) do
-			if ns.Lower(a) == name then return self.commands[n] end
-		end
-	end
-end
 
 ns:RegisterCommand("history", {
 	desc = L["What you ran from the prompt (Up arrow on an empty prompt walks back through it); .history clear"],

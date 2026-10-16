@@ -103,7 +103,7 @@ end
 
 C.NOTE = L["Your corpse"]
 
-local function NoteRow(text) return ns.NoteRow(text) end
+local NoteRow = ns.NoteRow
 
 -- the nearest spirit healers (Questie's NPCs), each as a nearest view
 local function Healers(here)

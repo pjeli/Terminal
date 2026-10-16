@@ -315,8 +315,7 @@ function QR.Answer(q)
 	local named = (#q.items == 1 or first.ln == table.concat(q.words, " ")) and first.name or nil
 	local note = named and L["Quests that reward %s"]:format(named) or L["Quests that reward \"%s\""]:format(table.concat(q.words, " "))
 	if #rows == 0 then
-		return { { name = L["No quest Questie knows of rewards it"], raw = true, icon = false, noActivate = true, kindLabel = "",
-			detail = "" } }, note
+		return { ns.NoteRow(L["No quest Questie knows of rewards it"]) }, note
 	end
 	local simple = ns.Easy and ns.Easy.On and ns.Easy.On()
 	return rows, note .. "  ·  " .. (simple and L["quest chain for <quest>: the quests before it"] or L["<quest> > chain: the quests before it"])
@@ -345,9 +344,7 @@ function QR.UpgradeQuestion(text)
 	return quest and upg or nil
 end
 
-local function NoneRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "" }
-end
+local NoneRow = ns.NoteRow
 
 --- The answer: the quests' rows, best first, and the footer's note.
 function QR.UpgradeAnswer()

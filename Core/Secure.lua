@@ -523,7 +523,6 @@ local function Clickable(f)
 	end
 	return true
 end
-S.Clickable = Clickable
 
 local function Named(f)
 	local n = ns.FrameName and ns.FrameName(f)

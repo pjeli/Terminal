@@ -84,15 +84,19 @@ function ns.FrameName(f)
 end
 
 --- The texts a row shows: its own GetText (when it has one and it's a string), then every FontString
---- region's text, in that order. Each caller compares them in its own way.
+--- region's text, in that order. Each caller compares them in its own way. A secret text is left out (comparing it
+--- errors: the row counted as no match whatever its other texts said; review, 0.53.6), as is an empty one.
 function ns.FrameTexts(f)
 	local texts = {}
 	if f.GetText then
 		local ok, t = pcall(f.GetText, f)
-		if ok and type(t) == "string" then texts[#texts + 1] = t end
+		if ok and ns.Str(t) then texts[#texts + 1] = t end
 	end
 	for _, r in ipairs({ f:GetRegions() }) do
-		if r.GetObjectType and r:GetObjectType() == "FontString" then texts[#texts + 1] = r:GetText() end
+		if r.GetObjectType and r:GetObjectType() == "FontString" then
+			local t = ns.Str(r:GetText())
+			if t then texts[#texts + 1] = t end
+		end
 	end
 	return texts
 end
@@ -257,8 +261,3 @@ function ns.PlayerGUID() return ns.Str(ns.Safe(_G.UnitGUID, "player")) end
 --- Copper as gold, silver and copper (with coin icons; `plain`: "12g 3s"), Gold.lua's way.
 function ns.Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
 
---- A line in a list that only says something (nothing to open or send).
-function ns.NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
-		_pos = ns.UI and ns.UI.NO_POS or nil }
-end

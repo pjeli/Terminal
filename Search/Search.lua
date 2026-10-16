@@ -26,11 +26,9 @@ local NO_POS, TEXT_SCORE, MAX_RESULTS = Score.NO_POS, Score.TEXT_SCORE, Score.MA
 local FreqBonus, ScoreEntry, TokenScore, RowText = Score.FreqBonus, Score.ScoreEntry, Score.TokenScore, Score.RowText
 local NearLimit, NearWord, SortAndTrim = Score.NearLimit, Score.NearWord, Score.SortAndTrim
 
-local function PseudoEntries(lines)
+local function PseudoEntries(lines) -- (lines saying something: ns.NoteRow each)
 	local out = {}
-	for i, line in ipairs(lines) do
-		out[i] = { name = line, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "" }
-	end
+	for i, line in ipairs(lines) do out[i] = ns.NoteRow(line) end
 	return out
 end
 
@@ -848,8 +846,10 @@ function Scan.Finish(q, res)
 	-- a list that asks the server first (@who), or says why it lists nothing (@recipe is:unknown): its own row on top
 	-- (given the rows so far)
 	local function Leads(set)
-		for k in pairs(set) do
-			local p = ns.providers[k]
+		-- (in the lists' own order, the last one's on top: not the set's hash order, which could change between sessions;
+		-- review, 0.53.6)
+		for _, k in ipairs(ns.providerOrder) do
+			local p = set[k] and ns.providers[k]
 			local row = p and p.leadRow and p.leadRow(p, q.text, res)
 			if row then row.lead = true; table.insert(res, 1, row) end -- (asks something: not a result to send)
 		end
@@ -926,7 +926,7 @@ function Scan.Parse(self, text)
 			-- everyday words all the same (review, 0.48.6): "my upgrades" drops its "my", "nearest battlemaster" keeps to
 			-- friendly NPCs, and the overview looks Questie's NPCs up by them
 			if not f and simple and ns.Easy.HARD_WORDS[lw] then
-				f = ns.Filters.Parse(ns.Easy.WORDS[lw])
+				f = ns.Easy.Strict(lw)
 				if f then strictWords = strictWords or {}; strictWords[#strictWords + 1] = lw end
 				-- ("upgrades": the biggest first, as sort:best; 0.51.14, the player's ask)
 				if f and ns.Easy.WORDS[lw] == "is:upgrade" then sortBest = true end
@@ -1585,6 +1585,23 @@ end
 local function PickCategory(e) UI:SetCategory(e.catId) end
 local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row passes (beats any score gap)
 
+--- How many of Simple mode's everyday words a row passes, each counted by its weight (Easy.Weight: "shield" counts for
+--- more than "rare"). `weights`: SoftWeights(softs), worked out once per search, not per row (review, 0.53.6: the
+--- overview and RelaxSoft each had a copy, weighing every filter again for every row).
+local function SoftWeights(softs)
+	local w = {}
+	for k = 1, #softs do w[k] = ns.Easy.Weight(softs[k]) end
+	return w
+end
+local function SoftPassed(softs, weights, e)
+	local passed = 0
+	for k = 1, #softs do
+		local ok, yes = pcall(softs[k], e)
+		if ok and yes then passed = passed + weights[k] end
+	end
+	return passed
+end
+
 --- The words Questie's lists are looked up by in the overview: by name only, the typed words and the everyday words
 --- as name words ("sword": NPCs called Sword...; "battlemaster", a strict one: NPCs titled so), never with any other
 --- hard filter (a "not", an "or").
@@ -1695,6 +1712,7 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 	-- relaxed: nothing anywhere passed every everyday word, so they only rank (as in RelaxSoft)
 	self.overviewWinner = nil
 	local exacts = {} -- (rows named exactly what was typed: the clear winner, maybe)
+	local softWeights -- (SoftWeights(softs), once a search)
 	local function scan(relaxed)
 		local out = {}
 		local exact = want and not relaxed and not empty
@@ -1744,10 +1762,8 @@ function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, st
 							-- without being scored again, Scan.Collect; a search writes every match's _score anyway)
 							if kept then kept[#kept + 1] = e; e._score = sc end
 							if relaxed then
-								for k = 1, #softs do
-									local ok, yes = pcall(softs[k], e)
-									if ok and yes then sc = sc + SOFT_PASS * ns.Easy.Weight(softs[k]) end
-								end
+								softWeights = softWeights or SoftWeights(softs)
+								sc = sc + SOFT_PASS * SoftPassed(softs, softWeights, e)
 							end
 							count = count + 1
 							counts[id] = (counts[id] or 0) + 1
@@ -1827,6 +1843,7 @@ end
 --- is, "shield", counts for more than how rare it is: Easy.Weight).
 function UI:RelaxSoft(included, tokens, hard, softs, out, overBudget)
 	local Pass = ns.Filters and ns.Filters.Pass
+	local weights
 	for _, p in ipairs(included) do
 		local list = RowsOf(included, p)
 		local id = p.id
@@ -1834,12 +1851,8 @@ function UI:RelaxSoft(included, tokens, hard, softs, out, overBudget)
 			local e = list[i]
 			local sc = ScoreEntry(e, tokens)
 			if sc and (not hard or Pass(e, hard)) then
-				local passed = 0
-				for k = 1, #softs do
-					local ok, yes = pcall(softs[k], e)
-					if ok and yes then passed = passed + ns.Easy.Weight(softs[k]) end
-				end
-				e._score = sc + passed * SOFT_PASS + FreqBonus(e, id) + (rawget(e, "_rank") or 0)
+				weights = weights or SoftWeights(softs)
+				e._score = sc + SoftPassed(softs, weights, e) * SOFT_PASS + FreqBonus(e, id) + (rawget(e, "_rank") or 0)
 				out[#out + 1] = e
 			end
 			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end

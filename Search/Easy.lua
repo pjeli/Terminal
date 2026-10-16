@@ -404,6 +404,12 @@ local function NameHas(e, w)
 	return ln:find(pat) ~= nil
 end
 
+--- A strict everyday word's filter ("upgrades": is:upgrade), made now (F.GearFit reads your level and gear when made),
+--- or nil for any other word. `lw`: lowercase. (Easy.Word and Search.lua's Parse alike; review, 0.53.6.)
+function E.Strict(lw)
+	return E.HARD_WORDS[lw] and ns.Filters and ns.Filters.Parse(E.WORDS[lw]) or nil
+end
+
 --- The soft filter an everyday word stands for, or nil: a row passes when the filter says so, or when its
 --- name has the word ("bound" still finds "Bound Fire Elemental"). Easy mode only.
 function E.Word(w)
@@ -411,7 +417,7 @@ function E.Word(w)
 	w = Lower(w)
 	-- a strict word ("upgrades") is its filter made now: F.GearFit reads your level and gear when made, so a kept one
 	-- would judge by the character as it was ("helm upgrades or boots upgrades" reaches here through the | pieces)
-	if E.HARD_WORDS[w] then return ns.Filters and ns.Filters.Parse(E.WORDS[w]) or nil end
+	if E.HARD_WORDS[w] then return E.Strict(w) end
 	local spec = E.WORDS[w]
 	if not spec then return nil end -- (not an everyday word: nothing kept, or every word typed would stay in the table)
 	local t = wordTests[w]

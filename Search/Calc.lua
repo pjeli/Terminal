@@ -31,7 +31,10 @@ local function Tokenize(s)
 		if ch:match("%s") then
 			i = i + 1
 		elseif ch:match("[%d%.]") then
-			local num = s:match("^%d*%.?%d+", i) or s:match("^%d+%.?", i)
+			-- (digits, a point, digits: "3.5", ".5", "3." (a trailing point is the number too; review, 0.53.6: "3.*2" read
+			-- "3" and stopped at the "."); a "." alone is no number)
+			local num = s:match("^%d*%.?%d*", i)
+			if num == "." or num == "" then num = nil end
 			if not num then return nil end
 			i = i + #num
 			local v = tonumber(num)
@@ -209,6 +212,7 @@ local function FormatMoney(copper)
 	if copper ~= copper or copper == math.huge or copper == -math.huge then return nil end
 	local neg = copper < 0
 	copper = math.floor(math.abs(copper) + 0.5)
+	if copper == 0 then neg = false end -- (rounded to nothing: "0c", not "-0c")
 	local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
 	local parts = {}
 	if g > 0 then parts[#parts + 1] = Group(g) .. "g" end

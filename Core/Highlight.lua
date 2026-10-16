@@ -152,8 +152,8 @@ function ns.FindByText(root, text, depth)
 	return ns.FindFrame(root, function(f)
 		for _, r in ipairs({ f:GetRegions() }) do
 			if r.GetObjectType and r:GetObjectType() == "FontString" then
-				local t = r:GetText()
-				if type(t) == "string" and t:find(text, 1, true) then return true end
+				local t = ns.Str(r:GetText()) -- (a secret text: never searched; review, 0.53.6)
+				if t and t:find(text, 1, true) then return true end
 			end
 		end
 		return false
