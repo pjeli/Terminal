@@ -92,10 +92,7 @@ local function Wearable(id)
 end
 
 --- An item's link as the game names it, else "item:<id>" (the game takes either).
-local function ItemLink(id)
-	local ok, _, link = pcall(C_Item.GetItemInfo, id)
-	return ok and type(link) == "string" and not ns.Secret(link) and link or ("item:" .. id)
-end
+local function ItemLink(id) return ns.ItemLink(id) or ("item:" .. id) end
 
 -- Match the terminal: same background and border (light themes keep the game's dark tooltip,
 -- since item text is drawn for a dark background).
@@ -147,11 +144,15 @@ function UI:UpdateTooltip()
 	-- the same row still selected and its tooltip still up: nothing to redraw (only kept beside the
 	-- terminal, which may have been dragged)
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end
+	-- (the same row with nothing to show: worked out once, not on every keystroke and every frame of a spread search;
+	-- review, 0.53.6. Redraw and ForgetTooltip clear it)
+	if e and t.noneFor == e then return end
+	t.noneFor = nil
 	t:Hide()
 	HideComparisons(t)
 	t.entry = nil
 	UI.StopTipWait(t) -- (another row, or none: the last one's item isn't waited on)
-	if not e or e.noActivate then return end
+	if not e or e.noActivate then t.noneFor = e return end
 	-- entries may supply a link directly, or a function that builds it only when selected
 	local link = e.link
 	if not link and e.getLink then
@@ -165,6 +166,7 @@ function UI:UpdateTooltip()
 		-- (0.46.15, the player: right after a /reload no talent showed a tooltip at all until the terminal was opened
 		-- again: a spell the client hasn't loaded gives no link yet) asked for, and drawn once it's in
 		UI.WaitForTipData(t, e, nil)
+		t.noneFor = e -- (nothing yet: its data arriving draws it, Redraw)
 		return
 	end
 	t:SetOwner(frame, "ANCHOR_NONE")
@@ -294,7 +296,7 @@ do
 	local function Redraw(t, e)
 		if not e then return false end
 		if not (t.entry == e and t:IsShown()) and not (UI:IsShown() and UI.results[UI.sel] == e) then return false end
-		t.entry = nil -- (the "same row, nothing to redraw" shortcut must not skip it)
+		t.entry, t.noneFor = nil, nil -- (the "same row, nothing to redraw" shortcuts must not skip it)
 		UI:UpdateTooltip()
 		return true
 	end
@@ -405,5 +407,5 @@ end
 
 --- The tooltip drawn again the next time it's asked for (ApplyTheme: its colours changed).
 function UI:ForgetTooltip()
-	if tip then tip.entry = nil end
+	if tip then tip.entry, tip.noneFor = nil, nil end
 end

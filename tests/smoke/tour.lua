@@ -235,6 +235,16 @@ do
 	ns.Tour.Start(); FlushAll()
 	check(ns.Tour.STEPS[2].text == "hearthstone" and Step(L["Say what to do"]).text == "use hearthstone", "only the Hearthstone: it")
 	UI:Hide(); FlushAll()
+	-- (review, 0.53.6) nothing in your bags at all: the Hearthstone by the game's name for it, in your language
+	do
+		local byId = C_Item.GetItemNameByID
+		C_Item.GetItemNameByID = function(id) return id == 6948 and "Ruhestein" or nil end
+		bags = {}
+		ns.providers.items._dirty = true
+		ns.Tour.STEPS = ns.Tour.Steps()
+		check(Step(L["Say what to do"]).text == "use ruhestein", "no bags: the game's own name for it: " .. Step(L["Say what to do"]).text)
+		C_Item.GetItemNameByID = byId
+	end
 	-- (review, 0.51.25) the Hearthstone by its id: a German client's "Ruhestein" left out of step 2 too, and named when
 	-- it's all there is
 	bags = { { name = "Ruhestein", key = 6948, itemID = 6948, firstBag = 0, locs = { { 0, 1 } } }, BAGS[2] }

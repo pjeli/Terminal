@@ -90,12 +90,15 @@ local function ReadAddons()
 		local name, title = C_AddOns.GetAddOnInfo(i)
 		if name and (not isLoaded or isLoaded(i)) then
 			local a = byName[name] or { name = name, cpu = 0, mem = 0, shownCpu = 0, shownMem = 0 }
-			local plain = ns.Plain and ns.Plain(title or name) or (title or name)
-			a.title = plain ~= "" and plain or name
-			-- (what's matched: its title and folder name, and that same text lowercased: the fuzzy score takes the two as one
-			-- text; 0.50.7, review: given the title alone and the longer lowercase, it read past its end)
-			a.htitle = a.title .. " " .. name
-			a.ltitle = ns.Lower(a.htitle)
+			if a.rawTitle ~= (title or name) then -- (its texts made again only when its title changes: review, 0.53.6)
+				a.rawTitle = title or name
+				local plain = ns.Plain and ns.Plain(title or name) or (title or name)
+				a.title = plain ~= "" and plain or name
+				-- (what's matched: its title and folder name, and that same text lowercased: the fuzzy score takes the two as
+				-- one text; 0.50.7, review: given the title alone and the longer lowercase, it read past its end)
+				a.htitle = a.title .. " " .. name
+				a.ltitle = ns.Lower(a.htitle)
+			end
 			list[#list + 1] = a
 		end
 	end
@@ -234,7 +237,7 @@ local function Box(parent, title, x, y, w, h)
 	local b = CreateFrame("Frame", nil, parent, "BackdropTemplate")
 	b:SetPoint("TOPLEFT", x, y)
 	b:SetSize(w, h)
-	b:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	ns.Panel.Flat(b, ns.Panel.EDGE)
 	local t = Text(b, 11)
 	t:SetPoint("TOPLEFT", 8, 7)
 	b.title = t
@@ -483,9 +486,11 @@ function B.DrawBars(k)
 		for _, v in ipairs(src) do if v > scale then scale = v end end
 		scale = math.max(scale, 0.001)
 	end
+	-- (only the newest column glides: the others are values already shown, moved one to the left, so they're placed at
+	-- once; each sample set every column gliding, the graph never settled while open. Review, 0.53.6)
 	for i, bar in ipairs(graph) do
 		local v = (src[#src - (GRAPH_COLS - i)] or 0) / scale
-		local f, moved = Ease(bar, v, k)
+		local f, moved = Ease(bar, v, i < GRAPH_COLS and 1 or k)
 		if moved or k == 1 then
 			bar:SetHeight(math.max(1, f * gh))
 			local r, g, b = Heat(f)
@@ -508,7 +513,7 @@ function B.DrawBars(k)
 	end
 	for i, bar in ipairs(memGraph) do
 		local v = msrc[#msrc - (GRAPH_COLS - i)]
-		local f, moved = Ease(bar, v and v / peak or 0, k)
+		local f, moved = Ease(bar, v and v / peak or 0, i < GRAPH_COLS and 1 or k)
 		if moved or k == 1 then bar:SetHeight(math.max(1, f * 42)) end
 	end
 	-- the rows' bars: share of all addons' cpu (or of all memory when sorted by memory)
@@ -547,15 +552,23 @@ local function DrawTitles(t, fa)
 	memText:SetText(L["%s in %d addons"]:format(MB(B.memTotal or 0), #addons))
 	memText2:SetText(L["peak %s"]:format(MB(B.memPeak or 0)))
 	memText3:SetText(ns.name .. " " .. MB(mine))
-	frame.cpuBox.title:SetText(fa and (L["cpu"] .. "  ·  " .. fa.title) or L["cpu"])
-	frame.memBox.title:SetText(fa and (L["mem"] .. "  ·  " .. fa.title) or L["mem"])
-	frame.procBox.title:SetText(fa and (L["profile"] .. "  ·  " .. fa.title) or L["addons"])
-	-- (each title only as wide as its words, up to its box: the patch behind it hugs the text)
-	for _, box in ipairs({ frame.cpuBox, frame.memBox, frame.procBox }) do
-		local room = math.max(20, box:GetWidth() - 16)
-		box.title:SetWidth(room)
-		local w = box.title:GetStringWidth()
-		if type(w) == "number" and w > 0 then box.title:SetWidth(math.min(room, w + 1)) end
+	-- (the box titles change only with the addon looked at, and their widths with the window: set then, not twice a
+	-- second; review, 0.53.6)
+	local th = Theme.Get()
+	local titlesFor = table.concat({ fa and fa.name or "", tostring(frame.cpuBox:GetWidth()), tostring(frame.procBox:GetWidth()),
+		tostring(th.font), tostring(th.fontSize) }, ":")
+	if frame.titlesFor ~= titlesFor then
+		frame.titlesFor = titlesFor
+		frame.cpuBox.title:SetText(fa and (L["cpu"] .. "  ·  " .. fa.title) or L["cpu"])
+		frame.memBox.title:SetText(fa and (L["mem"] .. "  ·  " .. fa.title) or L["mem"])
+		frame.procBox.title:SetText(fa and (L["profile"] .. "  ·  " .. fa.title) or L["addons"])
+		-- (each title only as wide as its words, up to its box: the patch behind it hugs the text)
+		for _, box in ipairs({ frame.cpuBox, frame.memBox, frame.procBox }) do
+			local room = math.max(20, box:GetWidth() - 16)
+			box.title:SetWidth(room)
+			local w = box.title:GetStringWidth()
+			if type(w) == "number" and w > 0 then box.title:SetWidth(math.min(room, w + 1)) end
+		end
 	end
 	for _, fs in ipairs(colHead) do fs:SetShown(not fa) end
 end

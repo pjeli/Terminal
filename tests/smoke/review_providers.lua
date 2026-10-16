@@ -298,3 +298,42 @@ do -- (review, 0.53.6) telling the guild: a lockdown check that errors doesn't b
 	T.check(ok and sent == "hello", "sent, the check's error taken as no lockdown")
 	_G.C_ChatInfo, _G.IsInGuild = was, guild
 end
+
+do -- (review, 0.53.6) a selected row with nothing to show: worked out once, not on every redraw
+	local ns, UI = T.ns, T.ns.UI
+	UI:Open("hearthstone"); T.FlushAll()
+	local asked = 0
+	local row = { kind = "zz", key = 1, name = "Nothing to show", getLink = function() asked = asked + 1 return nil end }
+	UI.results = { row }
+	UI.sel, UI.offset = 1, 0
+	UI:UpdateTooltip(); UI:UpdateTooltip(); UI:UpdateTooltip()
+	T.check(asked == 1, "its link asked for once: " .. asked)
+	UI:ForgetTooltip()
+	UI:UpdateTooltip()
+	T.check(asked == 2, "drawn again once forgotten (a theme change)")
+	UI:Hide(); T.FlushAll()
+end
+
+do -- (review, 0.53.6) .atop's graph: the columns already shown move over at once, only the newest glides
+	local B = T.ns.Atop
+	B.Open()
+	local h = B.History()
+	for i = 1, 48 do h[i] = (i % 5) / 10 end
+	B.DrawBars(0.2)
+	local g = B.graph
+	T.check(g[1].shown == g[1].target and g[47].shown == g[47].target, "the older columns placed at once")
+	B.Close()
+end
+
+do -- (review, 0.53.6) the row menu's backdrop set once, not on every right-click
+	local ns, UI = T.ns, T.ns.UI
+	UI:Open("hearthstone"); T.FlushAll()
+	UI:ShowRowMenu(1)
+	local m = _G.TerminalRowMenu
+	local set, n = m.SetBackdrop, 0
+	m.SetBackdrop = function(...) n = n + 1 return set(...) end
+	UI:HideRowMenu(); UI:ShowRowMenu(1); UI:HideRowMenu(); UI:ShowRowMenu(1)
+	m.SetBackdrop = set
+	T.check(n == 0, "shown again: its backdrop as it was: " .. n)
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+end

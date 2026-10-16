@@ -128,7 +128,7 @@ local function Dim()
 end
 
 local function SetTint(r, g, b)
-	tint = { r, g, b }
+	tint[1], tint[2], tint[3] = r, g, b -- (written into: every frame of a fade made a table; review, 0.53.6)
 	if dim then dim.tex:SetColorTexture(r, g, b, 1) end
 end
 local function Same(a, r, g, b) return math.abs(a[1] - r) + math.abs(a[2] - g) + math.abs(a[3] - b) < 0.004 end

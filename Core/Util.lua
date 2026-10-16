@@ -313,6 +313,15 @@ function ns.PlayerGUID() return ns.Str(ns.Safe(_G.UnitGUID, "player")) end
 function ns.Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
 
 
+--- An item's link as the game makes it ("|cff...|Hitem:..|h[Name]|h|r"), or nil while the client doesn't have it (and
+--- for a secret one). One copy: the tooltip's and the chat lines' (review, 0.53.6).
+function ns.ItemLink(id)
+	local get = C_Item and C_Item.GetItemInfo
+	if not (get and id) then return nil end
+	local ok, _, link = pcall(get, id)
+	return ok and type(link) == "string" and not ns.Secret(link) and link:find("|H", 1, true) and link or nil
+end
+
 --- An item's name as its link says it ("|h[Linen Cloth]|h"), or nil (none, empty, secret).
 function ns.LinkName(link)
 	if not ns.Str(link) then return nil end

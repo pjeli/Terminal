@@ -23,7 +23,7 @@ local function Label(text, template, x, y, parent)
 end
 
 local WHITE = "Interface\\Buttons\\WHITE8X8"
-local FLAT = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 } -- (a white backdrop with a 1 px edge, coloured by each user)
+local FLAT = ns.Panel.FLAT -- (a white backdrop with a 1 px edge, coloured by each user)
 
 ----------------------------------------------------------------------
 -- Controls

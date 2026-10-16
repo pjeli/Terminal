@@ -22,8 +22,7 @@ local frame, edit, scroll, titleFS, hintFS, current = nil, nil, nil, nil, nil, "
 local link, linkEdit, linkTitle, linkHint, linkBox -- the slim one-line bar (below)
 
 local W, H = 700, 440
-local WHITE = "Interface\\Buttons\\WHITE8X8"
-local FLAT = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 } -- (both windows' backdrop, coloured in the theme)
+local FLAT = ns.Panel.FLAT -- (both windows' backdrop, coloured in the theme)
 
 -- read-only text boxes (the window's and the slim bar's): whatever is typed is put back
 local function ReadOnly(self, user)

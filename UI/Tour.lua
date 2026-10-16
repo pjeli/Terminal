@@ -34,6 +34,12 @@ end
 --- Your bags' items: the Hearthstone left out (0.51.24, the player: the tour showed it every time), every one, and the
 --- Hearthstone's row (nil: none in your bags).
 local HEARTHSTONE = 6948 -- (by its id: its name is the client's language's; review, 0.51.25)
+--- The Hearthstone's name in your language, lowercase, when it's in none of your bags (the game knows it by its id;
+--- "hearthstone" found nothing on another client: review, 0.53.6).
+local function HearthName()
+	local n = C_Item and C_Item.GetItemNameByID and ns.Str(ns.Safe(C_Item.GetItemNameByID, HEARTHSTONE))
+	return n and ns.Lower(n) or "hearthstone"
+end
 local function BagItems()
 	local p = ns.providers and ns.providers.items
 	if not p then return {}, {} end
@@ -152,7 +158,7 @@ function T.Steps()
 			say = L["Find anything in the game by typing a few letters, then press Enter to go straight to it. A few quick steps show you how."] },
 		(item and item ~= hearth) and { text = ns.Lower(item.name), pick = PickItem(item), title = L["Type to find"],
 			say = L["Type a name and Terminal finds it as you type: here, something from your bags. The best match is selected (the highlighted row): Enter would open your bags and point at it."] }
-		or { text = item and ns.Lower(item.name) or "hearthstone", pick = item and PickItem(item) or "hearthstone", title = L["Type to find"],
+		or { text = item and ns.Lower(item.name) or HearthName(), pick = item and PickItem(item) or HearthName(), title = L["Type to find"],
 			say = L["Type a name and Terminal finds it as you type. The best match is selected (the highlighted row): Enter would take you to it, opening the right window and pointing at it."] },
 		{ text = "map", pick = "category", title = L["Pick a category"],
 			say = L["What's found is sorted into categories (windows, places, key bindings, settings...): Tab or a click opens one, Shift+Left goes back."] },
@@ -192,7 +198,7 @@ function T.Steps()
 			pick = function(e) return e.itemID ~= nil and ns.Filters.Pass(e, fs) end,
 			say = L["Say what to do and what kind of thing, not its name: Terminal finds what you have that fits (here, %s). Enter does it; right-click a row to see everything it can do."]:format(line) })
 	else
-		Add({ text = "use " .. (hearth and ns.Lower(hearth.name) or "hearthstone"), pick = "first", title = L["Say what to do"],
+		Add({ text = "use " .. (hearth and ns.Lower(hearth.name) or HearthName()), pick = "first", title = L["Say what to do"],
 			say = L["Start with what you want to do: use, cast, equip, target. Enter does it. Right-click a row to see everything it can do."] })
 	end
 	Add({ text = "", title = L["That's it"],
@@ -265,7 +271,7 @@ local function ShowCard()
 	c:SetWidth(w)
 	-- (above the terminal, else below it when there's no room above: clamped to the screen, it sat over the prompt;
 	-- 0.51.21, the player's screenshot)
-	c:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	ns.Panel.Flat(c)
 	local r, g, b = Theme.RGB(t.bg)
 	c:SetBackdropColor(r, g, b, 0.97)
 	c:SetBackdropBorderColor(Theme.RGB(t.accent))

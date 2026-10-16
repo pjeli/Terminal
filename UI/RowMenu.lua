@@ -246,7 +246,7 @@ do
 		end
 		for i = #items + 1, #menu.lines do menu.lines[i]:Hide() end
 		menu:SetSize(MENU_W, #items * MENU_LINE + 8)
-		menu:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+		ns.Panel.Flat(menu)
 		local r, g, b = Theme.RGB(t.bg)
 		menu:SetBackdropColor(r, g, b, 0.97)
 		menu:SetBackdropBorderColor(Theme.RGB(t.border))

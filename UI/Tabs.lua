@@ -256,12 +256,21 @@ function T.Height()
 	return math.max(18, (Theme.Get().fontSize or 14) + 8)
 end
 
+-- the shown list's count, kept while it's the same list (the strip is drawn on every footer update: a held Down ~20 times
+-- a second; review, 0.53.6)
+local countFor, countLen, countN
+local function CountShown()
+	local r = UI.results
+	if r ~= countFor or #r ~= countLen then countFor, countLen, countN = r, #r, T.Count(r) end
+	return countN
+end
+
 --- What a tab's label says: its number, its text (or "new tab"), how many it listed.
 local function Label(i, tab, shown)
 	local t = Theme.Get()
 	local text = shown and UI.edit:GetText() or tab.text
 	text = type(text) == "string" and text:gsub("^%s+", ""):gsub("%s+$", "") or ""
-	local n = shown and T.Count(UI.results) or tab.n
+	local n = shown and CountShown() or tab.n
 	local name = text ~= "" and text:gsub("|", "||") or L["new tab"]
 	local out = "|cff" .. t.dim .. i .. "|r  " .. (shown and "|cff" .. t.text or "|cff" .. t.dim) .. name .. "|r"
 	if type(n) == "number" and n > 0 and text ~= "" then out = out .. "  |cff" .. t.dim .. n .. "|r" end
@@ -290,25 +299,34 @@ function T.Draw()
 	local classic = t.frame == "classic"
 	local pin = classic and 5 or 2
 	local h = T.Height()
-	s:ClearAllPoints()
-	s:SetPoint("TOPLEFT", UI.frame, "TOPLEFT", pin + 4, -pin)
-	s:SetPoint("TOPRIGHT", UI.frame, "TOPRIGHT", -pin - 4, -pin)
-	s:SetHeight(h)
 	local list, cur = T.List(), T.Cur()
 	local w = ((t.width or 600) - 2 * (pin + 4)) / math.max(1, #list)
-	local ar, ag, ab = Theme.RGB(t.accent)
+	-- (placed again only when its size, the number of tabs, the one shown or the accent change; the labels each time)
+	local laid = table.concat({ pin, h, w, #list, cur, tostring(t.accent) }, ":")
+	if s.laid ~= laid then
+		s.laid = laid
+		s:ClearAllPoints()
+		s:SetPoint("TOPLEFT", UI.frame, "TOPLEFT", pin + 4, -pin)
+		s:SetPoint("TOPRIGHT", UI.frame, "TOPRIGHT", -pin - 4, -pin)
+		s:SetHeight(h)
+		local ar, ag, ab = Theme.RGB(t.accent)
+		for i, b in ipairs(s.buttons) do
+			if list[i] then
+				b:ClearAllPoints()
+				b:SetPoint("TOPLEFT", s, "TOPLEFT", (i - 1) * w, 0)
+				b:SetSize(w, h)
+				b.line:SetColorTexture(ar, ag, ab, i == cur and 0.9 or 0)
+				b:Show()
+			else
+				b:Hide()
+			end
+		end
+	end
 	for i, b in ipairs(s.buttons) do
 		local tab = list[i]
 		if tab then
-			b:ClearAllPoints()
-			b:SetPoint("TOPLEFT", s, "TOPLEFT", (i - 1) * w, 0)
-			b:SetSize(w, h)
 			local label = Theme.FixColors(Label(i, tab, i == cur))
 			if b.label ~= label then b.label = label; b.text:SetText(label) end
-			b.line:SetColorTexture(ar, ag, ab, i == cur and 0.9 or 0)
-			b:Show()
-		else
-			b:Hide()
 		end
 	end
 end

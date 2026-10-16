@@ -47,6 +47,18 @@ function P.Build(name, app)
 end
 
 --- Where the terminal is, in its theme: sized W x H (when given) at the terminal's scale, hung from the
+--- The flat backdrop Terminal's windows use (white with a 1 px edge, coloured by each), and one with the edge alone
+--- (a box drawn round a part of a window). One table each (review, 0.53.6: written out in six files).
+P.FLAT = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 }
+P.EDGE = { edgeFile = WHITE, edgeSize = 1 }
+--- Gives a frame the flat backdrop, once (setting it makes its textures again: some did on every show).
+function P.Flat(frame, backdrop)
+	backdrop = backdrop or P.FLAT
+	if frame.flatSet == backdrop then return end
+	frame.flatSet = backdrop
+	frame:SetBackdrop(backdrop)
+end
+
 --- terminal's top, with its background (never more see-through than 0.9) and border. Gives the theme.
 function P.Layout(frame, W, H)
 	local t = Theme.Get()
@@ -55,7 +67,7 @@ function P.Layout(frame, W, H)
 	frame:ClearAllPoints()
 	local term = _G.TerminalFrame
 	if term then frame:SetPoint("TOP", term, "TOP", 0, 0) else frame:SetPoint("CENTER") end
-	frame:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+	P.Flat(frame)
 	local r, g, b = Theme.RGB(t.bg)
 	frame:SetBackdropColor(r, g, b, math.max(0.9, t.bgAlpha or 0.95))
 	local br, bg, bb = Theme.RGB(t.border)
@@ -117,10 +129,65 @@ function P.Close(frame, why, label, extra)
 	return true
 end
 
+--- A scrolling box in an app's window (the changelog, the keys window): its edge, the scroll frame and its content, a
+--- thumb on the right; the mouse wheel scrolls it. `top`: where it starts below the window's top; `step`: pixels a line.
+--- Gives { box, scroll, content, thumb, offset, ScrollTo(to), Max(), KEYS (the scroll keys: Up/Down, PgUp/PgDn,
+--- Home/End) }. (One copy: the two apps had one each, line for line; review, 0.53.6.)
+function P.Scroller(frame, top, step)
+	local sc = { offset = 0, step = step or 40 }
+	local box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+	box:SetPoint("TOPLEFT", 10, top)
+	box:SetPoint("BOTTOMRIGHT", -10, 30)
+	P.Flat(box, P.EDGE)
+	local scroll = CreateFrame("ScrollFrame", nil, box)
+	scroll:SetPoint("TOPLEFT", 10, -8)
+	scroll:SetPoint("BOTTOMRIGHT", -14, 8)
+	local content = CreateFrame("Frame", nil, scroll)
+	content:SetSize(1, 1)
+	scroll:SetScrollChild(content)
+	local thumb = box:CreateTexture(nil, "ARTWORK")
+	thumb:SetColorTexture(1, 1, 1, 1)
+	thumb:SetWidth(3)
+	sc.box, sc.scroll, sc.content, sc.thumb = box, scroll, content, thumb
+	function sc.Max() return math.max(0, (content:GetHeight() or 0) - (scroll:GetHeight() or 0)) end
+	--- Scroll to `to` pixels from the top (kept inside), the thumb following.
+	function sc.ScrollTo(to)
+		local max = sc.Max()
+		sc.offset = math.max(0, math.min(max, to or 0))
+		scroll:SetVerticalScroll(sc.offset)
+		local viewH = scroll:GetHeight() or 1
+		local h = math.max(16, viewH * viewH / math.max(1, viewH + max))
+		thumb:SetHeight(h)
+		thumb:ClearAllPoints()
+		thumb:SetPoint("TOPRIGHT", box, "TOPRIGHT", -3, -4 - (max > 0 and (viewH - h) * sc.offset / max or 0))
+		thumb:SetShown(max > 0)
+	end
+	local function Page() return (scroll:GetHeight() or 200) - sc.step end
+	sc.KEYS = {
+		UP = function() sc.ScrollTo(sc.offset - sc.step) end,
+		DOWN = function() sc.ScrollTo(sc.offset + sc.step) end,
+		PAGEUP = function() sc.ScrollTo(sc.offset - Page()) end,
+		PAGEDOWN = function() sc.ScrollTo(sc.offset + Page()) end,
+		HOME = function() sc.ScrollTo(0) end,
+		END = function() sc.ScrollTo(sc.Max()) end,
+	}
+	frame:EnableMouseWheel(true)
+	frame:SetScript("OnMouseWheel", function(_, delta) sc.ScrollTo(sc.offset - delta * sc.step) end)
+	return sc
+end
+
+--- An app's keys: the scroller's and its own (its own win).
+function P.Keys(sc, own)
+	local keys = {}
+	for k, fn in pairs(sc.KEYS) do keys[k] = fn end
+	for k, fn in pairs(own) do keys[k] = fn end
+	return keys
+end
+
 --- A box inside an app (a game board, the visualizer): white backdrop with a 1 px edge, coloured by P.StyleBoard.
 function P.Board(parent)
 	local b = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-	b:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+	P.Flat(b)
 	return b
 end
 

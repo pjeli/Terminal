@@ -153,30 +153,15 @@ K.FLIP_WAIT = 0.3 -- (s: F1 held, the client's own repeats don't flip back and f
 local frame, title, modeText, legend, box, scroll, content, thumb, footer, measure
 local tabs = {}
 local pool = {} -- { key = FontString, text = FontString } per row shown
-local offset, mode, back = 0, "simple", nil
+local mode, back = "simple", nil
+local sc -- (the scrolling box: Panel.Scroller)
 -- the mode in use when it opened, for the header: read in K.Open before the terminal goes (its Hide ends fuzzy finding
 -- and Alt+`'s Advanced, so read in Layout F1 in fuzzy finding said "you're in Simple mode"; 0.49.2, review)
 local inUse = "simple"
 
-local function MaxOffset()
-	if not (content and scroll) then return 0 end
-	return math.max(0, (content:GetHeight() or 0) - (scroll:GetHeight() or 0))
-end
-
 --- Scroll to `to` pixels from the top (kept inside the list), the thumb following.
-function K.ScrollTo(to)
-	offset = math.max(0, math.min(MaxOffset(), to or 0))
-	if scroll then scroll:SetVerticalScroll(offset) end
-	if thumb and scroll then
-		local viewH, max = scroll:GetHeight() or 1, MaxOffset()
-		local h = math.max(16, viewH * viewH / math.max(1, viewH + max))
-		thumb:SetHeight(h)
-		thumb:ClearAllPoints()
-		thumb:SetPoint("TOPRIGHT", box, "TOPRIGHT", -3, -4 - (max > 0 and (viewH - h) * offset / max or 0))
-		thumb:SetShown(max > 0)
-	end
-end
-function K.Offset() return offset end
+function K.ScrollTo(to) if sc then sc.ScrollTo(to) end end
+function K.Offset() return sc and sc.offset or 0 end
 function K.Mode() return mode end
 
 local function Height(fs, least)
@@ -304,13 +289,8 @@ end
 
 local function Shifted() return IsShiftKeyDown and IsShiftKeyDown() or false end
 
-local KEYS = {
-	UP = function() K.ScrollTo(offset - STEP) end,
-	DOWN = function() K.ScrollTo(offset + STEP) end,
-	PAGEUP = function() K.ScrollTo(offset - (scroll:GetHeight() or 200) + STEP) end,
-	PAGEDOWN = function() K.ScrollTo(offset + (scroll:GetHeight() or 200) - STEP) end,
-	HOME = function() K.ScrollTo(0) end,
-	END = function() K.ScrollTo(MaxOffset()) end,
+local KEYS -- (the scroller's, and these: made with it)
+local OWN_KEYS = {
 	TAB = function() K.Step(Shifted() and -1 or 1) end,
 	LEFT = function() if Shifted() then K.Back(true) else K.Step(-1) end end, -- (Shift+Left: back, as in the terminal)
 	RIGHT = function() K.Step(1) end,
@@ -324,7 +304,7 @@ local KEYS = {
 
 --- Its keys are kept; any other key goes on to the game.
 function K.KeyDown(self, key)
-	local fn = KEYS[key]
+	local fn = KEYS and KEYS[key]
 	if fn then fn() end
 	Panel.Propagate(self, fn)
 end
@@ -332,9 +312,7 @@ end
 local function Build()
 	if frame then return end
 	frame = Panel.Build("TerminalKeysWindow", K)
-	frame:EnableMouseWheel(true)
 	frame:SetScript("OnKeyDown", function(self, key) K.KeyDown(self, key) end)
-	frame:SetScript("OnMouseWheel", function(_, delta) K.ScrollTo(offset - delta * STEP) end)
 
 	title, modeText = Panel.Header(frame)
 	for i, m in ipairs(K.MODES) do
@@ -352,23 +330,11 @@ local function Build()
 	legend:SetPoint("TOPLEFT", 12, -56)
 	legend:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
 
-	box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-	box:SetPoint("TOPLEFT", 10, -74)
-	box:SetPoint("BOTTOMRIGHT", -10, 30)
-	box:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-
-	scroll = CreateFrame("ScrollFrame", nil, box)
-	scroll:SetPoint("TOPLEFT", 10, -8)
-	scroll:SetPoint("BOTTOMRIGHT", -14, 8)
-	content = CreateFrame("Frame", nil, scroll)
-	content:SetSize(1, 1)
-	scroll:SetScrollChild(content)
+	sc = Panel.Scroller(frame, -74, STEP)
+	box, scroll, content, thumb = sc.box, sc.scroll, sc.content, sc.thumb
+	KEYS = Panel.Keys(sc, OWN_KEYS)
 	measure = Text(content, 12)
 	measure:SetAlpha(0)
-
-	thumb = box:CreateTexture(nil, "ARTWORK")
-	thumb:SetColorTexture(1, 1, 1, 1)
-	thumb:SetWidth(3)
 
 	footer = Panel.Footer(frame, 10)
 	K.frame = frame

@@ -75,7 +75,6 @@ local W_MIN, H = 520, 420
 local STEP = 40 -- pixels a line of scrolling moves
 
 local frame, title, versionText, box, scroll, content, body, thumb, footer
-local offset = 0
 
 local Text = Panel.Text
 local Hex = Panel.Hex
@@ -96,41 +95,17 @@ function CL.Text()
 	return table.concat(out, "\n")
 end
 
-local function MaxOffset()
-	if not (content and scroll) then return 0 end
-	return math.max(0, (content:GetHeight() or 0) - (scroll:GetHeight() or 0))
-end
+local sc -- (the scrolling box: Panel.Scroller)
 
 --- Scroll to `to` pixels from the top (kept inside the text), and move the thumb.
-function CL.ScrollTo(to)
-	offset = math.max(0, math.min(MaxOffset(), to or 0))
-	if scroll then scroll:SetVerticalScroll(offset) end
-	if thumb and scroll then
-		local viewH, max = scroll:GetHeight() or 1, MaxOffset()
-		local total = viewH + max
-		local h = math.max(16, viewH * viewH / math.max(1, total))
-		thumb:SetHeight(h)
-		thumb:ClearAllPoints()
-		thumb:SetPoint("TOPRIGHT", box, "TOPRIGHT", -3, -4 - (max > 0 and (viewH - h) * offset / max or 0))
-		thumb:SetShown(max > 0)
-	end
-end
-function CL.Offset() return offset end
+function CL.ScrollTo(to) if sc then sc.ScrollTo(to) end end
+function CL.Offset() return sc and sc.offset or 0 end
 
-local KEYS = {
-	UP = function() CL.ScrollTo(offset - STEP) end,
-	DOWN = function() CL.ScrollTo(offset + STEP) end,
-	PAGEUP = function() CL.ScrollTo(offset - (scroll:GetHeight() or 200) + STEP) end,
-	PAGEDOWN = function() CL.ScrollTo(offset + (scroll:GetHeight() or 200) - STEP) end,
-	HOME = function() CL.ScrollTo(0) end,
-	END = function() CL.ScrollTo(MaxOffset()) end,
-	ESCAPE = function() CL.Close() end,
-	["`"] = function() CL.Close() end,
-}
+local KEYS -- (the scroller's, and Esc / ` close: made with it)
 
 --- Its keys are kept; any other key goes on to the game.
 function CL.KeyDown(self, key)
-	local fn = KEYS[key]
+	local fn = KEYS and KEYS[key]
 	if fn then fn() end
 	Panel.Propagate(self, fn)
 end
@@ -138,32 +113,18 @@ end
 local function Build()
 	if frame then return end
 	frame = Panel.Build("TerminalChangelog", CL)
-	frame:EnableMouseWheel(true)
 	frame:SetScript("OnKeyDown", function(self, key) CL.KeyDown(self, key) end)
-	frame:SetScript("OnMouseWheel", function(_, delta) CL.ScrollTo(offset - delta * STEP) end)
 
 	title, versionText = Panel.Header(frame)
 
-	box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-	box:SetPoint("TOPLEFT", 10, -32)
-	box:SetPoint("BOTTOMRIGHT", -10, 30)
-	box:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-
-	scroll = CreateFrame("ScrollFrame", nil, box)
-	scroll:SetPoint("TOPLEFT", 10, -8)
-	scroll:SetPoint("BOTTOMRIGHT", -14, 8)
-	content = CreateFrame("Frame", nil, scroll)
-	content:SetSize(1, 1)
-	scroll:SetScrollChild(content)
+	sc = Panel.Scroller(frame, -32, STEP)
+	box, scroll, content, thumb = sc.box, sc.scroll, sc.content, sc.thumb
+	KEYS = Panel.Keys(sc, { ESCAPE = function() CL.Close() end, ["`"] = function() CL.Close() end })
 	body = Text(content, 12)
 	body:SetPoint("TOPLEFT")
 	body:SetWordWrap(true) -- (the one text that wraps)
 	body:SetJustifyV("TOP")
 	if body.SetSpacing then body:SetSpacing(3) end
-
-	thumb = box:CreateTexture(nil, "ARTWORK")
-	thumb:SetColorTexture(1, 1, 1, 1)
-	thumb:SetWidth(3)
 
 	footer = Panel.Footer(frame, 10, L["Up/Down, PgUp/PgDn, mouse wheel scroll"] .. "  ·  " .. Panel.CLOSE)
 	CL.frame = frame

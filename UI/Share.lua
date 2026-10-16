@@ -169,12 +169,7 @@ local Call = ns.Safe -- (every use keeps only the first result)
 
 local function IsLink(l) return type(l) == "string" and l:find("|H", 1, true) ~= nil end
 
-local function ItemLink(id)
-	local get = C_Item and C_Item.GetItemInfo
-	if not (get and id) then return nil end
-	local ok, _, link = pcall(get, id)
-	return ok and IsLink(link) and link or nil
-end
+local ItemLink = ns.ItemLink
 
 --- Where a loot row's item drops, from its detail ("Garr  Molten Core"): "dropped by Garr in Molten Core", "from
 --- trash in Stratholme", "from Molten Core" (no boss named); nil for other rows.

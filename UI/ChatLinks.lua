@@ -27,7 +27,7 @@ function CL.NameOf(link, text)
 		name = get and ns.Safe(get, tonumber(id)) or nil
 	end
 	if type(name) ~= "string" or name == "" then return nil end
-	name = name:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("^%s+", ""):gsub("%s+$", "")
+	name = strtrim(ns.Plain(name))
 	return name ~= "" and name or nil
 end
 
