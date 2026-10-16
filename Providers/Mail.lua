@@ -1186,8 +1186,7 @@ function MA.Collect()
 	end
 	table.sort(way, NewerFirst)
 	for _, e in ipairs(way) do rows[#rows + 1] = e end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
+	ns.RankInOrder(rows) -- (this order among equal matches)
 	list, boxRows = rows, byKey
 	return rows
 end
@@ -1317,7 +1316,7 @@ function MA.Answer(q)
 			money = money + ((e.mail and e.mail.money) or e.money or 0)
 		end
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local mails, way = 0, 0
 	for _, e in ipairs(rows) do
 		if e.mailKind == "mail" then mails = mails + 1 elseif e.mailKind ~= "box" then way = way + 1 end

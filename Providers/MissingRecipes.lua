@@ -641,7 +641,7 @@ function MR.Answer(q)
 		if ok then rows[#rows + 1] = e end
 	end
 	table.sort(rows, Order)
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local which = (#(q.profs or {}) == 1) and q.profs[1] or nil
 	local note = (q.learnable and L["Recipes you can learn now"] or L["Recipes you don't know yet"]) .. (which and (": " .. which) or "")
 	if #rows == 0 then

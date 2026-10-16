@@ -57,12 +57,7 @@ local function Walk(cat, path, out, skip, depth)
 end
 
 -- (the fallback, Terminal's own code: the game's own call, which the settings window's code answers itself)
-local function OpenPage(o)
-	local U = _G.C_SettingsUtil
-	local id = ns.Secure.SettingsID(o.id or o.name)
-	if not (U and U.OpenSettingsPanel and id) then return false end
-	return (pcall(U.OpenSettingsPanel, id, (not o.page) and o.name or nil))
-end
+local function OpenPage(o) return ns.Secure.OpenSettings(o.id or o.name, (not o.page) and o.name or nil) end
 
 local function ExactText(f, text) -- (its own text or a FontString of it: Util's FrameTexts)
 	for _, t in ipairs(ns.FrameTexts(f)) do if type(t) == "string" and Plain(t) == text then return true end end

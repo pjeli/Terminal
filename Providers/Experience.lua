@@ -253,8 +253,7 @@ function X.Collect()
 			secondary = ToChatBox, secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, shareLink = ShareText,
 		}
 	end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
+	ns.RankInOrder(rows) -- (this order among equal matches)
 	list = rows
 	return rows
 end

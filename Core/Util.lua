@@ -52,6 +52,20 @@ function ns.NearDetail(d, rest)
 	return ("%.0f yd"):format(d) .. ((rest and rest ~= "") and ("  " .. rest) or "")
 end
 
+--- An answer's rows scored in the order given (the first on top): no search scored them. Returns them.
+function ns.ScoreInOrder(rows)
+	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	return rows
+end
+
+--- A list's rows ranked by their own order, kept among equally good matches (the rank is under 1, a score's tie-break):
+--- `scale` (0.5 by default) how much it may count. Returns them. (Review, 0.53.6: these two loops had 15 and 13 copies.)
+function ns.RankInOrder(rows, scale)
+	local n, k = #rows, scale or 0.5
+	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * k end
+	return rows
+end
+
 --- A line in a list saying why it lists nothing ("No mail kept yet: ..."): not a result, nothing to run or send.
 function ns.NoteRow(text)
 	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
@@ -99,6 +113,17 @@ function ns.FrameTexts(f)
 		end
 	end
 	return texts
+end
+
+--- Does a row show exactly `name` (its own text or one of its FontStrings; `prefix`: or a text starting with it,
+--- "Swords 150/300")? Secret texts never compared (FrameTexts). One test for the lists that point at their row in a
+--- game window (review, 0.53.6: Skills, Reputation and Equipment sets had a copy each, comparing raw texts).
+function ns.HasText(f, name, prefix)
+	if type(name) ~= "string" or name == "" then return false end
+	for _, t in ipairs(ns.FrameTexts(f)) do
+		if t == name or (prefix and t:sub(1, #name) == name) then return true end
+	end
+	return false
 end
 
 -- An item's quality, kept once the game has said it (0.51.9, the player: rows went white again after F5): the game

@@ -13,12 +13,7 @@ end
 -- without the game's route (combat): the client's own opener (a C call) if it has one, else said (never ToggleCharacter
 -- from here: the character window would hold what Terminal's code wrote)
 local function OpenCurrency(e)
-	if C_CurrencyInfo.OpenCurrencyPanel then
-		C_CurrencyInfo.OpenCurrencyPanel()
-		PointAtCurrency(e)
-	else
-		ns:Print(L["Open the Currency tab from your character window (opening it from Terminal's own code would taint it)."])
-	end
+	if ns.OpenCurrency() then PointAtCurrency(e) end -- (Panels.lua's: the client's C opener, else said)
 end
 
 -- Currencies

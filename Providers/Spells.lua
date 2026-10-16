@@ -507,7 +507,7 @@ function SP.Answer(words)
 			if ok then rows[#rows + 1] = e end
 		end
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = L["Spells not on your bars or keys"]
 	if #rows == 0 then
 		note = (words and #words > 0) and L["None of those spells is off your bars"] or L["Every spell you can cast is on a bar or a key"]

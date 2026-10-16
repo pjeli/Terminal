@@ -259,7 +259,7 @@ end
 local function Ranked(rows)
 	table.sort(rows, Order)
 	-- the list's order is the answer: scores counting down, so a later sort keeps it
-	for i, r in ipairs(rows) do r._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	return rows
 end
 
@@ -350,7 +350,7 @@ local function FishRows(skill)
 			last = need
 		end
 	end
-	for i, r in ipairs(rows) do r._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	return rows
 end
 

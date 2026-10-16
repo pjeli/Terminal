@@ -350,7 +350,7 @@ function CB.Answer(kind)
 	if kind ~= "killed" then -- (crits: the biggest first)
 		table.sort(rows, function(a, b) return (a.amount or 0) > (b.amount or 0) end)
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = (kind == "killed" and L["Your deaths, newest first"]) or (kind == "crit" and L["The hardest crits on you"])
 		or L["Your biggest crits"]
 	if #rows == 0 then

@@ -122,8 +122,7 @@ function AU.Collect()
 	for _, e in ipairs(up) do rows[#rows + 1] = e end
 	for _, e in ipairs(over) do rows[#rows + 1] = e end
 	for _, e in ipairs(MA.NewsRows(now)) do rows[#rows + 1] = e end -- (then the news, newest first)
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
+	ns.RankInOrder(rows) -- (this order among equal matches)
 	list = rows
 	return rows
 end
@@ -193,7 +192,7 @@ function AU.Answer(q)
 		for _, w in ipairs(q.words or {}) do if ok and not hay:find(w, 1, true) then ok = false end end
 		if ok then rows[#rows + 1] = e end
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	if #rows == 0 then
 		if #all == 0 then return { NoteRow(AU.NONE) }, AU.NOTE end
 		return { NoteRow(L["No auction has that"]) }, AU.NOTE

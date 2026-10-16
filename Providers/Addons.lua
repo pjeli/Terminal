@@ -43,12 +43,7 @@ end
 
 -- (the game's C call, fine from here; 0.50.7, review: an old client's InterfaceOptionsFrame_OpenToCategory, Blizzard Lua,
 -- is no longer called, nor is the AddOn list shown from Terminal's own code: both taint. Where to open it is said.)
-local function OpenCategory(c)
-	local U = _G.C_SettingsUtil
-	local id = ns.Secure.SettingsID(c.id or c.name)
-	if id and U and U.OpenSettingsPanel and pcall(U.OpenSettingsPanel, id) then return true end
-	return false
-end
+local function OpenCategory(c) return ns.Secure.OpenSettings(c.id or c.name) end
 
 ----------------------------------------------------------------------
 -- Minimap buttons
@@ -130,7 +125,7 @@ end
 -- Blizzard's windows (an options page, the AddOn list) are opened by the game: a /run line on the secure
 -- macro button (as the Keybindings page is), never Settings.OpenToCategory / ShowUIPanel from Terminal's
 -- code, which taints them. A minimap button is another addon's own frame: clicked from here.
-local ADDONLIST_MACRO = "/run if AddonList then ShowUIPanel(AddonList) end"
+local ADDONLIST_MACRO = ns.ADDONLIST_MACRO -- (Panels.lua)
 -- (an options page: the game's own call, answered by the settings window's code: Secure.SettingsMacro)
 local function CategoryMacro(c)
 	if c.panel and not c.id then return nil end -- (an old client's panel object: no line can name it)

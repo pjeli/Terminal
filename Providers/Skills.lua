@@ -93,15 +93,7 @@ local function ShowSkill(e)
 		frame = function() local f = _G.SkillsFrame or _G.SkillFrame; return f and f:IsVisible() and f or nil end,
 		find = function(f)
 			return ns.FindFrame(f, function(b)
-				if not b.Click then return false end
-				if b.GetText then
-					local ok, t = pcall(b.GetText, b)
-					if ok and type(t) == "string" and t:find(e.name, 1, true) == 1 then return true end
-				end
-				for _, r in ipairs({ b:GetRegions() }) do
-					if r.GetObjectType and r:GetObjectType() == "FontString" and r:GetText() == e.name then return true end
-				end
-				return false
+				return b.Click ~= nil and ns.HasText(b, e.name, true) -- ("Swords 150/300": its text starts with the name)
 			end, 10)
 		end,
 		scroll = function(f)

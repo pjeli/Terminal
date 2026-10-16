@@ -147,3 +147,16 @@ do -- ns.NameWait (Items, Stored, Durability alike): asked twice at most, the li
 	T.check(w.Name(1, "|cff|Hitem:1|h[Linen Cloth]|h|r") == "Linen Cloth", "a link's name used at once")
 	C.RequestLoadItemDataByID, C.GetItemNameByID, ns.Changed = req, byId, realChanged
 end
+do -- ns.HasText: a row's own text or a FontString's, exact (or starting with it); a secret text never compared
+	local function FS(t) return { GetObjectType = function() return "FontString" end, GetText = function() return t end } end
+	local function Row(own, ...)
+		local regions = { ... }
+		return { GetText = own and function() return own end or nil, GetRegions = function() return unpack(regions) end }
+	end
+	local was = _G.issecretvalue
+	_G.issecretvalue = function(v) return v == "SECRET" end
+	T.check(ns.HasText(Row(nil, FS("Swords")), "Swords") and not ns.HasText(Row(nil, FS("Swords 150/300")), "Swords")
+		and ns.HasText(Row("Swords 150/300"), "Swords", true) and not ns.HasText(Row("SECRET", FS("Mace")), "SECRET")
+		and ns.HasText(Row("SECRET", FS("Mace")), "Mace"), "exact, by prefix when asked, a secret skipped and the next text read")
+	_G.issecretvalue = was
+end

@@ -170,9 +170,8 @@ end
 -- the fallback without the secure route (Terminal's own code): open, then point
 local function OpenDirect(e)
 	if InCombatLockdown() then return end
-	local U, St = _G.C_SettingsUtil, _G.Settings
-	if U and U.OpenSettingsPanel and St and type(St.KEYBINDINGS_CATEGORY_ID) == "number" then
-		pcall(U.OpenSettingsPanel, St.KEYBINDINGS_CATEGORY_ID)
+	local St = _G.Settings
+	if St and type(St.KEYBINDINGS_CATEGORY_ID) == "number" and ns.Secure.OpenSettings(St.KEYBINDINGS_CATEGORY_ID) then
 		C_Timer.After(0.1, function() PointAtRow(e) end)
 	end
 end

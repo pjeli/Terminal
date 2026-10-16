@@ -241,8 +241,7 @@ function LK.Collect()
 	end
 	table.sort(alts, function(a, b) return tostring(a[2].name) < tostring(b[2].name) end)
 	for _, a in ipairs(alts) do Add(a[1], a[2], false) end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
+	ns.RankInOrder(rows) -- (this order among equal matches)
 	list = rows
 	LK.Ask(LK.ASK_AGAIN) -- (the game's answer, UPDATE_INSTANCE_INFO, marks the list changed)
 	return rows
@@ -356,7 +355,7 @@ function LK.Answer(q)
 		for _, w in ipairs(q.words or {}) do if ok and not Has(e, w) then ok = false end end
 		if ok then rows[#rows + 1] = e end
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = (q.raid and LK.NOTE_RAID) or (q.dungeon and LK.NOTE_DUNGEON) or LK.NOTE
 	if #rows == 0 then
 		if #all == 0 then return { NoteRow(LK.NONE) }, note end

@@ -396,8 +396,7 @@ function AO.Collect()
 		rows[#rows + 1] = setmetatable({ _compact = true, key = o.app .. "\001" .. Join(o.path), name = o.name, opt = o,
 			text = table.concat(words, " ") }, meta)
 	end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (the window's order among equal matches)
+	ns.RankInOrder(rows) -- (the window's order among equal matches)
 	ns:Trace(("addon options: %d settings"):format(#rows))
 	return rows
 end

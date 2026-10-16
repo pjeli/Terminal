@@ -355,8 +355,7 @@ function PQ.Collect()
 	local rows = {}
 	for _, q in ipairs(quests) do rows[#rows + 1] = Row(q, members, short, said) end
 	-- (the quest log's own order among equal matches)
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end
+	ns.RankInOrder(rows)
 	local offline = 0
 	for _, m in ipairs(members) do if not m.online then offline = offline + 1 end end
 	PQ.offline = offline
@@ -467,7 +466,7 @@ function PQ.Answer(q)
 	if PQ.solo then return { NoteRow(PQ.NONE) }, PQ.NOTES[q.mode] or PQ.NOTES.all end
 	local rows = {}
 	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = (PQ.NOTES[q.mode] or PQ.NOTES.all) .. ns.DETAIL_SEP .. L["%d of %d"]:format(#rows, #all)
 	if #rows == 0 then
 		if q.mode == "share" then note = L["Nobody in your party lacks a quest you can share"]

@@ -135,7 +135,7 @@ function QD.Answer(q)
 		end
 	end
 	table.sort(rows, Order)
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = (q.grey and QD.NOTE_GREY) or (q.behind and QD.NOTE_BEHIND) or QD.NOTE
 	if #rows == 0 then
 		note = (kept > 0 and L["Nothing to drop: the only ones are complete, turn them in"])

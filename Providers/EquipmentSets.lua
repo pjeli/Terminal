@@ -198,15 +198,7 @@ local function ShowInManager(e)
 		find = function(p)
 			return ns.FindFrame(p, function(f)
 				if f.setID ~= nil then return f.setID == e.setID end
-				if not f.Click then return false end
-				if f.GetText then
-					local ok, t = pcall(f.GetText, f)
-					if ok and t == e.name then return true end
-				end
-				for _, r in ipairs({ f:GetRegions() }) do
-					if r.GetObjectType and r:GetObjectType() == "FontString" and r:GetText() == e.name then return true end
-				end
-				return false
+				return f.Click ~= nil and ns.HasText(f, e.name)
 			end, 8)
 		end,
 		scroll = function(p) return ns.ScrollBoxTo(p.ScrollBox, function(d) return d.setID == e.setID end) end,

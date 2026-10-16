@@ -49,6 +49,13 @@ end
 local function TokenClick() return ns.Secure.CharTabMacro("TokenFrame", { _G.CURRENCY or "Currency", "Currency" }) end
 local TOKEN_SECURE = { binding = "TOGGLECURRENCY", buttons = { "CharacterMicroButton" }, click = TokenClick }
 local function TokenOpen() return Shown("TokenFrame") end
+--- The Currency tab without the game's route (combat): the client's own C opener if it has one, else said (never
+--- ToggleCharacter from here: the character window would hold what Terminal's code wrote). True when it opened.
+local function OpenCurrency()
+	if C_CurrencyInfo and C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel() return true end
+	ns:Print(L["Open the Currency tab from your character window (opening it from Terminal's own code would taint it)."])
+	return false
+end
 
 -- game-run openers for panels without a binding command (a /run line on the secure macro button)
 -- (the settings window as it was last: the game's own call, answered by the window's own code: Secure.SettingsMacro)
@@ -236,11 +243,7 @@ end
 local PANELS = {
 	{ "Character Info", "character equipment gear paperdoll", OpenYourself, "CharacterMicroButton", nil, nil, "PaperDollFrame" },
 	{ "Reputation", "reputation factions renown", OpenYourself, "CharacterMicroButton", nil, nil, "ReputationFrame" },
-	{ "Currency", "currency tokens", function()
-		-- (no route left, in combat say: the client's own C opener if it has one, else said; never ToggleCharacter: taint)
-		if C_CurrencyInfo and C_CurrencyInfo.OpenCurrencyPanel then C_CurrencyInfo.OpenCurrencyPanel()
-		else ns:Print(L["Open the Currency tab from your character window (opening it from Terminal's own code would taint it)."]) end
-	end, "CharacterMicroButton", TOKEN_SECURE, TokenOpen },
+	{ "Currency", "currency tokens", function() OpenCurrency() end, "CharacterMicroButton", TOKEN_SECURE, TokenOpen },
 	{ "Spellbook", "spellbook abilities spells", OpenYourself, "PlayerSpellsMicroButton", SpellbookRoute },
 	{ "Talents", "talents specialization spec hero", OpenYourself, "PlayerSpellsMicroButton", TalentsRoute },
 	{ "Achievements", "achievements feats", OpenYourself, "AchievementMicroButton",
@@ -404,4 +407,5 @@ ns:RegisterProvider("panels", {
 -- the Macros window: Macros.lua's rows open it too
 ns.MACRO_WINDOW, ns.MacroWindowOpen = MACRO_WINDOW, MacroWindowOpen
 -- the currency tab (Currency.lua's rows open it too)
-ns.TOKEN_SECURE, ns.TokenOpen = TOKEN_SECURE, TokenOpen
+ns.TOKEN_SECURE, ns.TokenOpen, ns.OpenCurrency = TOKEN_SECURE, TokenOpen, OpenCurrency
+ns.ADDONLIST_MACRO = ADDONLIST_MACRO -- (Addons.lua's AddOn list row too)

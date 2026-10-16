@@ -503,8 +503,7 @@ function CA.Collect()
 	local rows = {}
 	local today = Today()
 	for _, g in ipairs(CA.Read()) do rows[#rows + 1] = Row(g, today) end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (this order among equal matches)
+	ns.RankInOrder(rows) -- (this order among equal matches)
 	list = rows
 	CA.Ask(CA.ASK_AGAIN) -- (the answer, CALENDAR_UPDATE_EVENT_LIST, marks the list changed)
 	return rows
@@ -657,7 +656,7 @@ function CA.Answer(q)
 		for _, w in ipairs(q.words or {}) do if ok and not Has(e, w) then ok = false end end
 		if ok then rows[#rows + 1] = e end
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = (q.holiday and L["Holidays"]) or (q.invite and L["Your invites"]) or (q.guild and L["Guild events"])
 		or L["Calendar"]
 	if q.span then note = note .. ns.DETAIL_SEP .. SPAN_SAID[q.span] end

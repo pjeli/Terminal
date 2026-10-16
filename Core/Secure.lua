@@ -130,6 +130,17 @@ function S.SettingsID(idOrName)
 	return okID and type(id) == "number" and id or nil
 end
 
+--- Opens the settings window on a category (and scrolls to the setting `name`) from Terminal's own code: the game's C
+--- call, fine from here (SettingsMacro's note). True when it was called. The fallbacks of the presses (Options, Game
+--- options, Keybindings, AddOn settings) share this one (review, 0.53.6: four copies).
+function S.OpenSettings(idOrName, name)
+	local U = _G.C_SettingsUtil
+	local id = S.SettingsID(idOrName)
+	if not (U and type(U.OpenSettingsPanel) == "function" and id) then return false end
+	if type(name) == "string" and name ~= "" then return (pcall(U.OpenSettingsPanel, id, name)) end
+	return (pcall(U.OpenSettingsPanel, id))
+end
+
 --- The line that opens the settings window on a category (and scrolls to the setting `name`), or nil.
 --- C_SettingsUtil.OpenSettingsPanel is the game's own call (Blizzard's Settings.OpenToCategory only calls it): the game
 --- answers with SETTINGS_PANEL_OPEN and the settings window's own code opens itself, as C_Map.OpenWorldMap does for

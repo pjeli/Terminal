@@ -427,8 +427,7 @@ function GR.Collect()
 		if (a.mine and true or false) ~= (b.mine and true or false) then return a.mine and true or false end
 		return (a._order or 0) < (b._order or 0)
 	end)
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end
+	ns.RankInOrder(rows)
 	GR.hidden = hidden
 	GR.expected = expected
 	GR.solo = #units <= 1
@@ -634,7 +633,7 @@ function GR.Answer(q)
 	local all = p and ns:GetEntries(p) or {}
 	local rows = {}
 	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local what = (q.dead and L["Dead"]) or (q.offline and L["Offline"]) or (q.far and L["Out of range"]) or (q.near and L["In range"])
 		or (q.missing and ((Labels(q) ~= "" and L["Needs %s"]:format(Labels(q))) or L["Missing a buff the group can give"]))
 		or (q.roles and ROLE_PLURAL[q.roles[1]]) or L["Your group"]

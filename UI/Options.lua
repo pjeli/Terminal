@@ -578,8 +578,7 @@ function O.Open()
 	if O.category and U and U.OpenSettingsPanel then
 		-- (the game's own call: the settings window's code opens itself; Blizzard's Settings.OpenToCategory only calls it)
 		local id = (O.category.GetID and O.category:GetID()) or O.category.ID
-		id = ns.Secure.SettingsID(id) or ns.Secure.SettingsID("Terminal")
-		if id then pcall(U.OpenSettingsPanel, id) end
+		if not ns.Secure.OpenSettings(id) then ns.Secure.OpenSettings("Terminal") end
 		return true
 	elseif O.legacy and InterfaceOptionsFrame_OpenToCategory then
 		InterfaceOptionsFrame_OpenToCategory(panel)

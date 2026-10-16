@@ -399,7 +399,7 @@ function LL.Answer(q)
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
 		if not q.who or (q.who == "me" and e.mine) or (q.who ~= "me" and e.looter == q.who) then rows[#rows + 1] = e end
 	end
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local note = (q.who == "me" and L["Your drops, newest first"]) or (q.who and L["%s's drops, newest first"]:format(q.who))
 		or L["Drops, newest first"]
 	if #rows == 0 then

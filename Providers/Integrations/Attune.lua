@@ -688,8 +688,7 @@ function AT.Collect()
 	for _, rec in ipairs(idx.list) do
 		if Visible(rec, faction, cls, D) then rows[#rows + 1] = AT.Row(rec) end
 	end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end -- (Attune's order among equal matches)
+	ns.RankInOrder(rows) -- (Attune's order among equal matches)
 	return rows
 end
 

@@ -119,11 +119,7 @@ local function ShowFaction(e)
 				if b.factionID ~= nil then return b.factionID == e.factionID end
 				local d = b.GetElementData and select(2, pcall(b.GetElementData, b))
 				if type(d) == "table" and d.factionID ~= nil then return d.factionID == e.factionID end
-				if not b.Click then return false end
-				for _, r in ipairs({ b:GetRegions() }) do
-					if r.GetObjectType and r:GetObjectType() == "FontString" and r:GetText() == e.name then return true end
-				end
-				return false
+				return b.Click ~= nil and ns.HasText(b, e.name)
 			end, 10)
 		end,
 		scroll = function(f) return ns.ScrollBoxTo(f.ScrollBox, function(d) return d.factionID == e.factionID or d.name == e.name end) end,

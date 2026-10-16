@@ -316,8 +316,7 @@ function DU.Collect()
 		return a.name < b.name
 	end)
 	if #rows > 0 then table.insert(rows, 1, TotalRow(rows)) end
-	local n = #rows
-	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * 0.5 end
+	ns.RankInOrder(rows)
 	list = rows
 	return rows
 end
@@ -448,7 +447,7 @@ end
 function DU.Answer(q)
 	q = q or {}
 	local rows = DU.Match(q)
-	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	ns.ScoreInOrder(rows)
 	local cost, damaged = DU.Total()
 	local note = DU.NOTE .. ns.DETAIL_SEP .. ((damaged == 0 and L["nothing to repair"])
 		or (cost and L["repair all: %s"]:format(Money(cost))) or L["%d to repair"]:format(damaged))

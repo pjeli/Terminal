@@ -1003,6 +1003,7 @@ L["Quests to drop: grey, or in a zone you've left behind"] = true
 L["Quests whose reward is an upgrade for you"] = true
 L["Quests with your party: \"party quests\" (who is on each of yours; Enter shares it), \"quests to share\" (the ones someone lacks); right-click one and pick All to party to say them in one line."] = true
 L["Quests you can share"] = true
+L["Quick Keybind Mode"] = true
 L["Raid"] = true
 L["Raid attunement"] = true
 L["Raid attunements"] = true
