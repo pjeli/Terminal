@@ -399,7 +399,6 @@ local function ApplyStyle()
 	nowText:SetPoint("TOPLEFT", 12, off and -34 or (-32 - VIS_H - 10))
 	W.FitHeight()
 end
-W.ApplyStyle = ApplyStyle
 
 --- The game's "Sound in Background" off: the radio goes quiet whenever you tab out (and comes back with you).
 function W.BackgroundSoundOff() return GetCV("Sound_EnableSoundWhenGameIsInBG") == "0" end
@@ -549,7 +548,6 @@ local function Wake()
 		frame:SetScript("OnUpdate", OnUpdate)
 	end
 end
-W.Wake = Wake
 
 local function Style()
 	local t = Panel.Layout(frame, WIDTH, HEIGHT)

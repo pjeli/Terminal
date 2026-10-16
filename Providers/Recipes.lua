@@ -7,7 +7,7 @@ local H = ns.Highlight
 local P = ns.Professions
 local function TS() return _G.C_TradeSkillUI end
 local Secret, Lower = ns.Secret, ns.Lower
-local PlayerBank, WindowHas, RecipeIDs = P.PlayerBank, P.WindowHas, P.RecipeIDs
+local PlayerBank, RecipeIDs = P.PlayerBank, P.RecipeIDs
 local Store, WatchNames = P.Store, P.WatchNames
 
 ----------------------------------------------------------------------
@@ -188,7 +188,6 @@ local function ProfessionLink(e)
 		if ok and type(link) == "string" and link ~= "" and not Secret(link) and link:find(e.name, 1, true) then return link end
 	end
 end
-P.ProfessionLink = ProfessionLink
 
 -- Shift+Enter: the profession's link (all your recipes) in chat
 local PROF_CHATBOX = ns.ChatBoxSpec(function(e) return ProfessionLink(e) end)

@@ -426,4 +426,3 @@ function LK.OnEvent(event, a1, a2, a3, a4, success)
 	end
 end
 ev:SetScript("OnEvent", function(_, ...) LK.OnEvent(...) end)
-LK.frame = ev -- (tests)

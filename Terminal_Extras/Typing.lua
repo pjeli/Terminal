@@ -78,7 +78,6 @@ do
 	end
 	FOLD[string.char(195, 191)] = "y" -- (y with diaeresis)
 end
-TY.FOLD = FOLD
 
 --- A book's text as words to type: lowercase letters and inner apostrophes ("kel'thuzad"), accents dropped; a word
 --- with anything else in it (digits, another alphabet) is left out.
@@ -160,7 +159,6 @@ local function Mode()
 	for _, s in ipairs(TY.MODES) do if s == m then return m end end
 	return 30
 end
-TY.Mode = Mode
 
 --- A new test: new words, the clock stopped until the first letter.
 function TY.Reset()

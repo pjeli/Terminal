@@ -36,7 +36,6 @@ local function NpcOf(unit)
 	if type(g) ~= "string" or Secret(g) then return nil end
 	return tonumber(g:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)") or g:match("^Vehicle%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
 end
-MR.NpcOf = NpcOf
 
 local function Db(field)
 	local db = ns.db
@@ -441,7 +440,6 @@ local function Windows(names)
 	if #names == 1 then return L["your %s window"]:format(names[1]) end
 	return L["your %s and %s windows"]:format(table.concat(names, ", ", 1, #names - 1), names[#names])
 end
-MR.Windows = Windows
 
 --- When a search or the question lists none of them: a line saying why, or nil (nothing more to say than "none").
 --- q: { profs = the professions asked about, words = the words naming them, learnable = only those your skill allows }.

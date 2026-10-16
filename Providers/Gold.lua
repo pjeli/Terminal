@@ -216,13 +216,12 @@ function G.Collect()
 		class = Str(select(2, Safe(UnitClass, "player"))), kind = "me" })
 	local St = ns.Stored
 	local src = St and St.Source()
-	G.source = nil
 	if src == "Syndicator" then
 		local A = St.SyndicatorAPI()
-		if A and St.SyndicatorReady(A) then G.source = src; ReadSyndicator(A, add, me) end
+		if A and St.SyndicatorReady(A) then ReadSyndicator(A, add, me) end
 	elseif src == "BagBrother" then
 		local bb = St.BrotherBags()
-		if bb then G.source = src; ReadBrother(bb, add) end
+		if bb then ReadBrother(bb, add) end
 	else
 		local w = LiveWarband()
 		if w and w > 0 then add({ key = "warband", who = L["Warband bank"], money = w, kind = "warband" }) end

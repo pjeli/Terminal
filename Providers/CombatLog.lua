@@ -66,7 +66,6 @@ local DAMAGE = {
 	SPELL_PERIODIC_DAMAGE = { 15, 16, 21, spell = 13 }, SPELL_BUILDING_DAMAGE = { 15, 16, 21, spell = 13 },
 	ENVIRONMENTAL_DAMAGE = { 13, 14, 19, env = 12 },
 }
-CB.DAMAGE = DAMAGE
 
 --- One combat log event, given its values as the game lists them (CombatLogGetCurrentEventInfo()).
 function CB.OnCombatEvent(...)

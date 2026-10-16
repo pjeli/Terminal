@@ -235,7 +235,7 @@ local function ZoneRow(z, detail, score, dist)
 	return {
 		name = ZoneName(z), key = "map:" .. z.ui, kind = "maps", mapID = z.ui, icon = "Interface\\Icons\\INV_Misc_Map_01",
 		kindLabel = p and ("|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r") or nil, freqKey = "maps:map:" .. z.ui,
-		detail = detail, _score = score, _pos = nil, _dist = dist, zoneAnswer = true,
+		detail = detail, _score = score, _pos = nil, _dist = dist,
 		secure = M and M.SECURE, isOpen = M and M.IsOpenFor, after = M and M.ShowAfter, activate = M and M.Direct,
 		secondary = M and M.PinOnly,
 	}

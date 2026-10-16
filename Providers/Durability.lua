@@ -61,7 +61,6 @@ local function Cost(slot, bag, bagSlot)
 	cost = ok and Num(cost)
 	return cost and cost > 0 and cost or nil
 end
-DU.Cost = Cost
 
 -- (a piece's repair cost, kept by what it depends on: the item and how worn it is. The list is made again after every
 -- loot (BAG_UPDATE_DELAYED), and each made asked the tooltip API for every damaged piece; review, 0.53.6)
@@ -155,7 +154,6 @@ local function PctHex(pct)
 	if pct <= DU.WORN then return "|cffffd040" end
 	return "|cff40ff40"
 end
-DU.PctHex = PctHex
 
 ----------------------------------------------------------------------
 -- Rows
@@ -382,7 +380,6 @@ function DU.OnEvent(event)
 	elseif atVendor then DU.OnMerchant() end
 end
 ev:SetScript("OnEvent", function(_, event) DU.OnEvent(event) end)
-DU.frame = ev -- (tests)
 
 ----------------------------------------------------------------------
 -- The question: "durability", "my durability", "repair cost", "repair bill", "how much to repair", "what needs repair",

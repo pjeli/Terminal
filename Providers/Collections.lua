@@ -66,8 +66,7 @@ local function NoJournal(e)
 end
 
 -- (Mounts.lua, loaded before this file, uses these at run time for the mount journal)
-ns.Collections = { JOURNAL_SPEC = JOURNAL_SPEC, JournalShown = JournalShown, PointIn = PointIn, NoJournal = NoJournal,
-	TabFrame = TabFrame }
+ns.Collections = { JOURNAL_SPEC = JOURNAL_SPEC, JournalShown = JournalShown, PointIn = PointIn, NoJournal = NoJournal }
 
 --- "4m", "35s": time left on a cooldown.
 local function Left(sec)

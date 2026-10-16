@@ -162,7 +162,6 @@ local askedAt -- (when the server was last asked for the guild's professions)
 
 --- The key a member is matched by in every list: the name as chat shows it, lowercase.
 local function CraftKey(name) return ns.Lower(Short(name)) end
-SO.CraftKey = CraftKey
 
 local function InGuild() return (_G.IsInGuild and Safe(IsInGuild)) and true or false end
 

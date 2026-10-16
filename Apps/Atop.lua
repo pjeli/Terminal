@@ -47,7 +47,6 @@ local function CpuPct(a)
 	if Absolute() then return (a.cpu or 0) / math.max(0.0001, B.frameMs or 16.7) * 100 end
 	return (a.cpu or 0) / math.max(0.0001, B.total or 0) * 100
 end
-B.CpuPct = CpuPct
 local function PctText(v) return v < 1 and ("%.2f"):format(v) or ("%.1f"):format(v) end
 local profLines -- the profile view's lines (label, this addon, all addons), made with the frame
 B.METRICS = { -- the profiler's numbers shown for one addon: { metric name, label, kind } (left: times, right: counts)

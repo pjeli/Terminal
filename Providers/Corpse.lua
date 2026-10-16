@@ -20,7 +20,6 @@ C.HEALERS = 3 -- (the nearest spirit healers listed with it)
 C.ICON = "Interface\\Icons\\Ability_Rogue_FeignDeath"
 
 local function Dead() return Safe(UnitIsDeadOrGhost, "player") and true or false end
-C.Dead = Dead
 
 --- Where your corpse is: map id, x, y (0-1), or nil (you're alive, or the game doesn't say: an instance).
 function C.Where()

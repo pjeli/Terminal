@@ -9,8 +9,6 @@ local L = ns.L
 -- Factions under a collapsed header aren't in the game's list, so headers are expanded
 -- while reading and collapsed again afterwards (game state only; no window is touched).
 
-local R = {}
-ns.Reputation = R
 
 local Safe, Str, Num = ns.Safe, ns.Str, ns.Num -- (Util.lua)
 

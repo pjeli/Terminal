@@ -432,7 +432,8 @@ IS.proftrainer = AnyProfTrainer
 IS.battlemaster = Battlemaster
 IS.pvpvendor = PvpVendor
 IS.pvp = function(e) return Battlemaster(e) or PvpVendor(e) end
-local ROLES = { vendor = "VENDOR", trainer = "TRAINER", flightmaster = "FLIGHT_MASTER", flight = "FLIGHT_MASTER",
+-- (flight and flightmaster: FlightMaster below, the flight paths' own test)
+local ROLES = { vendor = "VENDOR", trainer = "TRAINER",
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",
 	auctioneer = "AUCTIONEER", questgiver = "QUEST_GIVER", stablemaster = "STABLEMASTER" }
 for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag) end end

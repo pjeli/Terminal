@@ -372,7 +372,6 @@ local function NotificationKind(n)
 	end
 	return NOTIFIED[n]
 end
-MA.NotificationKind = NotificationKind
 
 local NameOfLink = ns.LinkName
 
@@ -778,7 +777,6 @@ local function BoxLines(key)
 	end
 	return out
 end
-MA.BoxLines = BoxLines
 
 --- Every mailbox kept, for .mail: each box's line and its mail.
 function MA.AllLines()

@@ -216,7 +216,6 @@ end
 function P.OpenerSpell(skillLine, name)
 	local api = TS()
 	if not (api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return nil end
-	local bank = PlayerBank()
 	local lname = type(name) == "string" and Lower(name) or nil
 	for _, pr in ipairs((P.PlayerProfessions())) do
 		if pr.spellOffset and ((skillLine and pr.skillLine == skillLine) or (lname and Lower(pr.name) == lname)) then
@@ -716,7 +715,6 @@ local function RecipeRow(root, name)
 		return false
 	end, 16)
 end
-P.RecipeRow = RecipeRow
 
 -- A login scan keeps the window invisible; make sure nothing else ever inherits that.
 local function Unhide()
@@ -1001,4 +999,4 @@ ev:SetScript("OnEvent", function(_, event, id)
 end)
 
 -- for Recipes.lua (the rows): the bank check, the open window's recipes
-P.PlayerBank, P.WindowHas, P.RecipeIDs = PlayerBank, WindowHas, RecipeIDs
+P.PlayerBank, P.RecipeIDs = PlayerBank, RecipeIDs

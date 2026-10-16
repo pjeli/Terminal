@@ -32,7 +32,6 @@ local function Lib(name)
 end
 local function Registry() return Lib("AceConfigRegistry-3.0") end
 local function Dialog() return Lib("AceConfigDialog-3.0") end
-AO.Registry, AO.Dialog = Registry, Dialog
 
 -- text without the game's colour, texture and link codes
 local function Plain(s)
@@ -41,7 +40,6 @@ local function Plain(s)
 	s = s:gsub("^%s+", ""):gsub("%s+$", "")
 	return s ~= "" and s or nil
 end
-AO.Plain = Plain
 
 -- the members Ace3 reads from the nearest group up the path when the option has none of its own
 local INHERITED = { set = true, get = true, func = true, confirm = true, validate = true, disabled = true, hidden = true }
@@ -94,7 +92,6 @@ local function Member(name, option, options, path, appName, ...)
 	if type(handler) == "table" and type(handler[member]) == "function" then return pcall(handler[member], handler, info, ...) end
 	return false
 end
-AO.Member = Member
 
 local function Value(name, option, options, path, appName)
 	local ok, v = Member(name, option, options, path, appName)

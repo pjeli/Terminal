@@ -3,7 +3,6 @@ local ns = select(2, ...)
 -- is:upgrade: gear that suits you now, weighed against what you wear (Core.lua's KEYS.is asks F.GearFit()).
 
 local F = ns.Filters
-local L = ns.L
 local P = F._
 local ItemInfo, ItemOf, Stats, StatKey, SLOTS = P.ItemInfo, F.ItemOf, P.Stats, P.StatKey, F.SLOTS
 local MAIN_ONLY = { 16 } -- (a one-hander for a class that can't dual-wield)

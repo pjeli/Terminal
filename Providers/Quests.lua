@@ -342,7 +342,7 @@ local function DropAsk(e)
 	if QD and QD.Confirm then QD.Confirm({ e }) else ns:Print(L["Couldn't drop %s from here."]:format(tostring(e.name))) end
 end
 
-ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown, DropAsk = DropAsk, Grey = Grey, ZoneLevels = ZoneLevels,
+ns.Quests = { SECURE = QUEST_SECURE, LogShown = LogShown,
 	NavStep = QuestNavStep, NAV_SECURE = QUEST_NAV_SECURE } -- (the turning: tests)
 local function QuestLink(e) return GetQuestLink and GetQuestLink(e.questID) or nil end
 

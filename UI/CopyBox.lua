@@ -91,7 +91,6 @@ local function Build()
 	close:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -14, 12)
 	close:SetText(CLOSE or L["Close"])
 	close:SetScript("OnClick", function() C.Hide() end)
-	C.close = close
 
 	C.frame, C.edit = frame, edit
 end

@@ -361,7 +361,6 @@ function Z.OnEvent(event, ...)
 end
 
 local ev = CreateFrame("Frame")
-Z.frame = ev
 for _, e in ipairs({ "PLAYER_REGEN_DISABLED", "PLAYER_LEAVING_WORLD", "ADDON_RESTRICTION_STATE_CHANGED", "WEATHER_CHANGED" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end

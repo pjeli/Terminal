@@ -10,8 +10,6 @@ local L = ns.L
 -- Read through Forever's C_SkillInfo (or the classic GetSkillLineInfo). Groups that are
 -- collapsed are expanded for the read and collapsed again afterwards.
 
-local K = {}
-ns.Skills = K
 
 local Safe, Str, Num = ns.Safe, ns.Str, ns.Num -- (Util.lua)
 
