@@ -572,6 +572,34 @@ local function ListFor(self, text, first, edit)
 	end
 end
 
+--- Does the line hold Advanced syntax (an @kind, key:value, >>, a chain's ">" or a "|" standing alone)?
+function UI.HasAdvancedSyntax(text)
+	local E = ns.Easy
+	if not (E and E.IsAdvancedWord) then return false end
+	for w in tostring(text or ""):gmatch("%S+") do
+		if E.IsAdvancedWord(w) then return true end
+	end
+	return false
+end
+
+--- (0.54.1, a player's ask) Advanced syntax typed in Simple mode runs in Advanced mode, this once, as Alt+` would: the
+--- line as typed, no switch to confirm (E.temp, marked `auto`). Simple again when the line no longer has any, or when
+--- the terminal closes. A .command or /slash line is left as it is.
+function UI:AutoAdvanced(text, first)
+	local E = ns.Easy
+	if not E or E.tempSimple or first == "." or first == "/" then return end
+	local adv = UI.HasAdvancedSyntax(text)
+	if adv and not E.temp and E.On() then
+		E.temp = { from = "", auto = true }
+		self.category, self.categoryAuto, self.action = nil, nil, nil
+		ns:Trace("advanced once: Advanced syntax typed in Simple mode")
+		self:SetStatus()
+	elseif not adv and E.temp and E.temp.auto then
+		E.temp = nil
+		self:SetStatus()
+	end
+end
+
 function UI:Refresh()
 	local frame, edit = UI.frame, UI.edit
 	if not frame then return end
@@ -613,6 +641,7 @@ function UI:Refresh()
 	local text = edit:GetText():gsub("^%s+", "")
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
+	if not self.fzf then self:AutoAdvanced(text, first) end
 	text = TakeSendTo(self, text, first)
 	text = TakeAggregate(self, text, first)
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,

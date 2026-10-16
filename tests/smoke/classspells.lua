@@ -1,0 +1,153 @@
+-- Every class's spells (0.54.1, a player: "'travel form' doesn't list the spell since I don't currently have it.
+-- Ideally it'd tell me that it's a druid spell trainable at level 30"; "upcoming spells", "druid spells" listed nothing;
+-- "healing wave" on a druid found only the shaman talent): @classspell (Providers/ClassSpells.lua), its questions
+-- (Search/ClassSpells.lua), the spell ids of every rank.
+local T = ...
+local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
+local L, CS = ns.L, ns.ClassSpells
+
+local function Names(rows)
+	local t = {}
+	for i, e in ipairs(rows) do t[i] = tostring(e.name) end
+	return table.concat(t, " | ")
+end
+local function Kind(rows, kind)
+	local t = {}
+	for _, e in ipairs(rows) do if e.kind == kind then t[#t + 1] = e.name end end
+	return table.concat(t, " | ")
+end
+
+io.write("[classspells: every class's spells, known or not]\n")
+do
+	local P = ns.providers.classspells
+	local save = { known = rawget(_G, "IsPlayerSpell"), level = _G.UnitLevel, class = _G.UnitClass, show = ns.ShowText,
+		easy = ns.db.easyMode, sub = C_Spell.GetSpellSubtext }
+	local known = {}
+	_G.IsPlayerSpell = function(id) return known[id] == true end
+	_G.UnitLevel = function() return 2 end
+	_G.UnitClass = function() return "Warrior", "WARRIOR" end
+	C_Spell.GetSpellSubtext = function(id) return ({ [332] = "Rank 2", [547] = "Rank 3" })[id] end
+	CS.ForgetRows()
+	P._dirty = true
+	ns.db.easyMode = false; UI:EasyChanged()
+
+	-- a spell you don't have, of another class: found, with its class and level
+	local res = UI:Search("@classspell travel form")
+	check(res[1] and res[1].name == "Travel Form" and res[1].classFile == "DRUID" and res[1].detail:find(L["level %d"]:format(30), 1, true),
+		"travel form: a druid spell, level 30: " .. tostring(res[1] and res[1].detail))
+	res = UI:Search("travel form")
+	check(Kind(res, "classspells") == "Travel Form", "found by a plain search too: " .. Names(res))
+	res = UI:Search("@classspell healing wave")
+	check(res[1] and res[1].name == "Healing Wave" and res[1].classFile == "SHAMAN"
+		and res[1].detail:find(L["levels %d-%d (%d ranks)"]:format(6, 12, 2), 1, true), "healing wave: the shaman's, its ranks: " .. tostring(res[1] and res[1].detail))
+	-- your own class's: only what you don't know (the spellbook has the rest)
+	check(Kind(UI:Search("@classspell charge"), "classspells") == "Charge", "your class's, not known yet: listed")
+	known[100] = true
+	CS.ForgetRows(); P._dirty = true
+	check(Kind(UI:Search("@classspell charge"), "classspells") == "", "known: left to the spellbook")
+	known[100] = nil
+	CS.ForgetRows(); P._dirty = true
+	check(Names(UI:Search("@classspell class:druid")) == "Claw | Travel Form" or Names(UI:Search("@classspell class:druid")) == "Travel Form | Claw",
+		"class:druid: " .. Names(UI:Search("@classspell class:druid")))
+	-- Enter: the Wowhead page; the tooltip: each rank's level and id
+	local shown
+	ns.ShowText = function(_, title, text) shown = text end
+	local hw = UI:Search("@classspell healing wave")[1]
+	hw.activate(hw)
+	check(shown == "https://www.wowhead.com/forever/spell=332", "Enter: its Wowhead page: " .. tostring(shown))
+	local lines = {}
+	local tip = setmetatable({}, { __index = function(_, k)
+		if k == "SetText" or k == "AddLine" then return function(_, s) lines[#lines + 1] = tostring(s) end end
+		if k == "AddDoubleLine" then return function(_, a, b) lines[#lines + 1] = tostring(a) .. " = " .. tostring(b) end end
+		if k == "SetHyperlink" then return function() error("no link") end end
+		return function() end
+	end })
+	hw.tooltip(hw, tip)
+	local text = table.concat(lines, "\n")
+	check(text:find("Rank 2  " .. L["level %d"]:format(6) .. " = " .. L["id %d"]:format(332), 1, true)
+		and text:find("Rank 3  " .. L["level %d"]:format(12), 1, true), "the tooltip: each rank's level and id: " .. text)
+
+	-- the questions
+	local Q = CS.Q
+	local q = Q.Question("druid spells")
+	check(q and q.class == "DRUID", "druid spells")
+	local rows = Q.Answer(q)
+	check(Names(rows) == "Claw | Travel Form", "by level: Claw (28) then Travel Form (30): " .. Names(rows))
+	check(Q.Question("spells for druids").class == "DRUID" and Q.Question("shaman spells at level 12").level == 12, "spells for druids, shaman spells at level 12")
+	check(Names((Q.Answer(Q.Question("shaman spells at level 12")))) == "Healing Wave", "at a level: the spells learned then")
+	q = Q.Question("upcoming spells")
+	check(q and q.upcoming, "upcoming spells")
+	check(Names((Q.Answer(q))) == "Charge", "your class's next: Charge at 4 (you're 2): " .. Names((Q.Answer(q))))
+	check(Names((Q.Answer(Q.Question("spells at level 4")))) == "Charge", "spells at level 4")
+	q = Q.Question("when do i learn travel form")
+	check(q and Names((Q.Answer(q))) == "Travel Form", "when do i learn travel form: another class's when not yours")
+	check(Q.Question("fire spells") == nil and Q.Question("spells not on my bars") == nil and Q.Question("druid talents") == nil
+		and Q.Question("@classspell druid") == nil, "not its questions: a search, another question, talents, Advanced syntax")
+	check(ns.QuestionToAdvanced("druid spells") == "@classspell class:druid ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("druid spells")))
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open("druid spells"); FlushAll()
+	check(Names(UI.Results()) == "Claw | Travel Form", "Simple mode, typed: " .. Names(UI.Results()))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false; UI:EasyChanged()
+
+	-- every rank's spell id
+	rows = ns.SpellIds.Answer(ns.SpellIds.Question("spellid healing wave"))
+	check(Names(rows) == "Healing Wave (Rank 2) | Healing Wave (Rank 3)" and rows[1].spellID == 332 and rows[2].spellID == 547,
+		"spellid healing wave: every rank, from the class data: " .. Names(rows))
+
+	_G.IsPlayerSpell, _G.UnitLevel, _G.UnitClass, ns.ShowText, C_Spell.GetSpellSubtext = save.known, save.level, save.class, save.show, save.sub
+	ns.db.easyMode = save.easy
+	CS.ForgetRows(); P._dirty = true
+	UI:EasyChanged()
+end
+
+-- (0.54.1, a player using TrainerSpells, not What's Training) "dagger trainer", "where do i learn daggers" without What's
+-- Training: Terminal's copy of its weapon masters (ClassSpellData.lua), your faction's
+io.write("[classspells: weapon masters without What's Training]\n")
+do
+	local I, CS = ns.Integrations, ns.ClassSpells
+	local save = { api = rawget(_G, "WT_API"), npcRow = I.NpcRow, npcField = I.NpcField, here = I.Here, dist = I.NpcDistance,
+		fac = _G.UnitFactionGroup, easy = ns.db.easyMode, name = C_Spell.GetSpellName }
+	_G.WT_API = nil
+	_G.UnitFactionGroup = function() return "Horde" end
+	C_Spell.GetSpellName = function(id) if id == 1180 then return "Daggers" end return save.name(id) end
+	local NPCS = {
+		{ npcID = 11868, key = 11868, kind = "npc", name = "Sayoc", sub = "Weapon Master" },
+		{ npcID = 11870, key = 11870, kind = "npc", name = "Archibald", sub = "Weapon Master" },
+		{ npcID = 11867, key = 11867, kind = "npc", name = "Woo Ping", sub = "Weapon Master" },
+		{ npcID = 2704, key = 2704, kind = "npc", name = "Hanashi", sub = "Weapon Master" },
+	}
+	local BY, DIST = {}, { [11868] = 50, [2704] = 20 }
+	for _, n in ipairs(NPCS) do BY[n.key] = n end
+	ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return NPCS end })
+	ns:AliasesChanged()
+	I.NpcRow = function(id) return BY[id] end
+	I.NpcField = function(id, f)
+		if f == "friendlyToFaction" then return "AH" end
+		if f == "subName" then return BY[id] and BY[id].sub end
+	end
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	I.NpcDistance = function(id) return DIST[id] end
+	CS.ForgetSkillRows()
+	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
+	local function Npcs(rows)
+		local t = {}
+		for _, e in ipairs(rows) do if e.kind == "npc" then t[#t + 1] = e.name end end
+		return table.concat(t, " | ")
+	end
+	ns.db.easyMode = true; UI:EasyChanged()
+	check(Npcs(UI:SearchText("dagger trainer")) == "Sayoc | Archibald", "dagger trainer: the Horde's two (not Woo Ping, not Hanashi), the nearer first: "
+		.. Npcs(UI:SearchText("dagger trainer")))
+	local got = UI:SearchText("where do i learn daggers")
+	check(Names(got) == "Sayoc | Archibald" and got[1].detail:find("^50 yd"), "where do i learn daggers: its weapon masters, nearest first: " .. Names(got))
+	ns.db.easyMode = false; UI:EasyChanged()
+	ns.providers.npc = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	_G.WT_API, _G.UnitFactionGroup, C_Spell.GetSpellName = save.api, save.fac, save.name
+	I.NpcRow, I.NpcField, I.Here, I.NpcDistance = save.npcRow, save.npcField, save.here, save.dist
+	ns.db.easyMode = save.easy
+	CS.ForgetSkillRows()
+	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
+	UI:EasyChanged()
+end

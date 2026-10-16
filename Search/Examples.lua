@@ -42,7 +42,7 @@ E.SIMPLE = {
 	{ "shield that drops from kresh", "AtlasLoot" }, { "where to get mageweave" }, { "unlearned flight paths" },
 	{ "who priest undercity" }, { "online", "guild" }, { "spells not on my bars" }, { "what's on this week" },
 	{ "next darkmoon faire" }, { "my attunements", "Attune" }, { "my keys", "Attune" }, { "attunements to do", "Attune" },
-	{ "what do i learn next level", "WhatsTraining" },
+	{ "what do i learn next level", "WhatsTraining" }, { "upcoming spells" }, { "spellid fireball" }, { "healing talents" },
 	{ L["tip: F1 shows every key"], tip = true },
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands); one whose @kind isn't there (no Questie:
@@ -57,7 +57,7 @@ E.ADVANCED = {
 	{ "copper bar > uses", "city" }, { "@map lvl:30", "field" }, { "@dungeon lvl:25", "field" }, { "@recipe is:skillup", "city" },
 	{ "@friend is:online" }, { "@guild blacksmith", "city" }, { "@spell is:unplaced" }, { "@quest is:drop", "field" },
 	{ "@recipe is:unknown", "city" }, { "@recipe is:learnable", "city" }, { "@training is:learnable | sum cost", "city" },
-	{ "@training is:nextlevel" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
+	{ "@training is:nextlevel" }, { "@classspell class:druid lvl:30" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
 	{ "@item is:boe|q:epic" }, { "@spell is:ready", "instance" }, { "@gear slot:head|chest -is:soulbound" },
 	{ "@item q:rare|epic" }, { "@npc is:repair sort:nearest", "city" }, { "@npc trainer:mining near:500", "city" },
 	{ "@loot is:upgrade sort:best", "field" }, { "@questie is:upgrade sort:best", "field" }, { "@group is:dead", "instance" },

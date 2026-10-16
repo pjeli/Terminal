@@ -366,12 +366,12 @@ KEYS.trainer = function(v)
 	if CLASS_SET[v] then
 		return function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) == v or false end
 	end
-	-- a weapon skill (trainer:daggers): the weapon masters What's Training says teach it to your faction; without it (or
-	-- for a weapon it doesn't list for your class), every weapon master
+	-- a weapon skill (trainer:daggers): the weapon masters who teach it to your faction (What's Training's word, else
+	-- Terminal's copy of its list: ClassSpells.lua); none known, every weapon master
 	local weapon = F.WeaponSkillIds(v)
 	if weapon then
-		local WT = ns.WhatsTraining
-		local masters = WT and WT.MasterIds and WT.MasterIds(weapon)
+		local CS = ns.ClassSpells
+		local masters = CS and CS.WeaponMasters and CS.WeaponMasters(weapon)
 		if masters and next(masters) then
 			return function(e) local id = NpcID(e); return id ~= nil and masters[id] == true end
 		end

@@ -394,11 +394,11 @@ do
 	local inValues = table.concat(ns.Filters.ValuesFor("in", "") or {}, ",")
 	check(not inValues:find("warband", 1, true) and inValues:find("bank", 1, true), "in: offers no warband: " .. inValues)
 	UI:Hide(); FlushAll()
-	-- Simple mode: none of it
+	-- Simple mode: an @ typed runs in Advanced mode this once (0.54.1): its kinds list
 	ns.db.easyMode = true
 	UI:Open("")
 	typeText("@")
-	check(not (UI.Results()[1] and UI.Results()[1].syntaxRow), "Simple mode: no kinds list")
+	check(UI.Results()[1] and UI.Results()[1].syntaxRow and not ns.Easy.On(), "Simple mode: @ typed: the kinds list (Advanced this once)")
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
 end

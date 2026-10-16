@@ -232,23 +232,30 @@ function TL.ReadClass(classID, level)
 	if not (CT and CT.InitializeViewLoadout and CT.GetTraitTreeForSpec and view and C_Traits and C_Traits.GetTreeNodes) then return nil end
 	local guarded = ns.Guarded
 	local out, seenTree, seenNode = {}, {}, {}
+	local any, failed = false, false
 	for _, specID in ipairs(SpecsOf(classID)) do
 		local ok, treeID = pcall(CT.GetTraitTreeForSpec, specID)
 		if ok and treeID and not seenTree[treeID] then
 			seenTree[treeID] = true
 			local inited = guarded and guarded("viewloadout", CT.InitializeViewLoadout, specID, level)
 				or (not guarded and pcall(CT.InitializeViewLoadout, specID, level))
-			if not inited then return nil end
-			local tabs, order = ReadTabs(treeID)
-			local okR, nodes = pcall(ReadNodes, view, treeID, tabs, order)
-			for _, n in ipairs(okR and nodes or {}) do
-				if not seenNode[n.nodeID] then
-					seenNode[n.nodeID] = true
-					out[#out + 1] = { n.nodeID, n.name, n.spellID, n.tab or "", n.tabIndex or 0, n.maxRanks, n.icon }
+			-- (one spec the game can't show, a retail one WoW Forever lacks: the class's other trees still read; 0.54.1,
+			-- a druid player: "nothing for druids at all")
+			if not inited then failed = true end
+			if inited then any = true end
+			if inited then
+				local tabs, order = ReadTabs(treeID)
+				local okR, nodes = pcall(ReadNodes, view, treeID, tabs, order)
+				for _, n in ipairs(okR and nodes or {}) do
+					if not seenNode[n.nodeID] then
+						seenNode[n.nodeID] = true
+						out[#out + 1] = { n.nodeID, n.name, n.spellID, n.tab or "", n.tabIndex or 0, n.maxRanks, n.icon }
+					end
 				end
 			end
 		end
 	end
+	if failed and not any then return nil end
 	return out
 end
 
@@ -307,6 +314,72 @@ function TL.OtherClasses()
 	return out, names
 end
 
+----------------------------------------------------------------------
+-- What a talent does: its spell's description (0.54.1, a player's ask: "healing talents", "shaman crit talents",
+-- "druid regen talents" found nothing, a talent's name being all there was to find). Read once its spell's data is in,
+-- kept per game build (lowercase, db.talentDesc); the ones not in yet are asked for in the background, a few at a time,
+-- and the list made again once some arrive.
+----------------------------------------------------------------------
+
+TL.DESC_ASK = 100 -- (spells asked to load each time the list is made; the rest the next time)
+TL.DESC_WAIT = 2 -- (s after descriptions arrive before the list is made again: they come in bursts)
+local asked, descDue = {}, false
+
+local function DescStore()
+	local db = ns.db
+	if not db then return nil end
+	local key = CacheKey()
+	local s = db.talentDesc
+	if not (type(s) == "table" and s.key == key and type(s.d) == "table") then
+		s = { key = key, d = {} }
+		db.talentDesc = s
+	end
+	return s.d
+end
+
+--- A talent's description (its spell's), lowercase, one line ("" for one with none); nil while the game hasn't sent it
+--- (asked for when `budget` has room: { n = how many more may be asked }).
+function TL.Desc(spellID, budget)
+	if type(spellID) ~= "number" then return "" end
+	local store = DescStore()
+	local got = store and store[spellID]
+	if got then return got end
+	local S = C_Spell
+	if not (S and S.GetSpellDescription) then return "" end
+	local ok, d = pcall(S.GetSpellDescription, spellID)
+	if ok and type(d) == "string" and not ns.Secret(d) then
+		local cached = S.IsSpellDataCached and select(2, pcall(S.IsSpellDataCached, spellID)) == true
+		if d ~= "" or cached or asked[spellID] == "in" then -- (its data in: no description is none)
+			got = ns.Lower(ns.Plain(d)):gsub("%s+", " ")
+			if store then store[spellID] = got end
+			return got
+		end
+	end
+	if not asked[spellID] and S.RequestLoadSpellData and (not budget or budget.n > 0) then
+		asked[spellID] = true
+		if budget then budget.n = budget.n - 1 end
+		pcall(S.RequestLoadSpellData, spellID)
+	end
+	return nil
+end
+
+do
+	local f = CreateFrame("Frame")
+	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
+	f:SetScript("OnEvent", function(_, _, spellID)
+		if not asked[spellID] then return end
+		asked[spellID] = "in"
+		if descDue then return end
+		descDue = true
+		C_Timer.After(TL.DESC_WAIT, function()
+			descDue = false
+			ns:Changed("talents")
+		end)
+	end)
+	TL.descFrame = f -- (tests)
+end
+function TL.ForgetDescAsks() asked, descDue = {}, false end -- (tests)
+
 -- Wowhead has a WoW Forever section: a talent of another class is shown there (its tree isn't yours to open)
 TL.WOWHEAD_SPELL = "https://www.wowhead.com/forever/spell=%d"
 local function ShowOnWowhead(e)
@@ -361,6 +434,7 @@ ns:RegisterProvider("talents", {
 	guard = 1,
 	collect = function()
 		local out = {}
+		local budget = { n = TL.DESC_ASK } -- (descriptions asked for this time: TL.Desc)
 		local mine = MyClassFile()
 		local okName, myName = pcall(UnitClass, "player")
 		myName = okName and type(myName) == "string" and myName or nil
@@ -375,7 +449,7 @@ ns:RegisterProvider("talents", {
 					color = (not taken) and "|cffa0a0a0" or nil,
 					icon = n.icon,
 					detail = ns.Detail(tab, (taken and TAKEN or NOT_TAKEN) .. " " .. rank .. "/" .. n.maxRanks),
-					text = (tab or "") .. " " .. (myName or "") .. " talent",
+					text = (tab or "") .. " " .. (myName or "") .. " talent talents " .. (TL.Desc(n.spellID, budget) or ""),
 					getLink = TalentLink, -- (made when selected, not per talent on every rebuild)
 					nodeID = n.nodeID,
 					tab = tab,
@@ -405,8 +479,9 @@ ns:RegisterProvider("talents", {
 			local shown = hex and (hex .. cname .. "|r") or cname
 			local m = TL.otherRows[file]
 			if not (m and m.from == rows and m.shown == shown and m.cname == cname and m.rank == TL.OTHER_RANK
-				and m.never == ns.ChatBoxNeverOpen) then
-				m = { from = rows, shown = shown, cname = cname, rank = TL.OTHER_RANK, never = ns.ChatBoxNeverOpen, rows = {} }
+				and m.never == ns.ChatBoxNeverOpen and m.whole) then
+				m = { from = rows, shown = shown, cname = cname, rank = TL.OTHER_RANK, never = ns.ChatBoxNeverOpen, rows = {},
+					whole = true }
 				local meta, texts = OtherMeta(file, cname, shown), {}
 				for _, r in ipairs(rows) do
 					if type(r[2]) == "string" and r[2] ~= "" then
@@ -415,9 +490,12 @@ ns:RegisterProvider("talents", {
 						local tab = type(r[4]) == "string" and r[4] or ""
 						local ltext = texts[tab]
 						if not ltext then
-							ltext = ns.Lower(tab .. " " .. cname .. " talent")
+							ltext = ns.Lower(tab .. " " .. cname .. " talent talents")
 							texts[tab] = ltext
 						end
+						-- (what it does: its description, when the game has sent it; else made again once it has)
+						local desc = TL.Desc(r[3], budget)
+						if desc == nil then m.whole = false elseif desc ~= "" then ltext = ltext .. " " .. desc end
 						m.rows[#m.rows + 1] = setmetatable({ _compact = true, key = file .. ":" .. tostring(r[1]), name = r[2],
 							_r = r, _rank = TL.OTHER_RANK, _lname = ns.Lower(r[2]), _ltext = ltext }, meta)
 					end

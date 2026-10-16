@@ -126,7 +126,7 @@ _G.C_SpellBook = {
 	GetSpellBookSkillLineInfo = function() return { name = "General", itemIndexOffset = 0, numSpellBookItems = 2 } end,
 	GetSpellBookItemInfo = function(i) return { spellID = 100 + i, itemType = 1, isPassive = i == 2 } end,
 }
-_G.C_Spell = { GetSpellName = function(id) return ({ [1111] = "Deflection", [1112] = "Cruelty", [1113] = "Piercing Howl" })[id] end, GetSpellTexture = function() return 1 end, GetSpellInfo = function(id) return { name = id == 101 and "Fireball" or "Arcane Intellect", iconID = 1 } end,
+_G.C_Spell = { GetSpellName = function(id) return ({ [1111] = "Deflection", [1112] = "Cruelty", [1113] = "Piercing Howl", [783] = "Travel Form", [332] = "Healing Wave", [547] = "Healing Wave", [1082] = "Claw", [3029] = "Claw", [100] = "Charge" })[id] end, GetSpellTexture = function() return 1 end, GetSpellInfo = function(id) return { name = id == 101 and "Fireball" or "Arcane Intellect", iconID = 1 } end,
 	GetSpellLink = function(id) return "|Hspell:" .. id .. "|h[x]|h" end, PickupSpell = function(id) note("PickupSpell", id) end }
 
 -- quests

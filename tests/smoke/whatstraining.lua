@@ -174,7 +174,7 @@ do
 	check(UI.edit:GetText() == "Fireball (Rank 2) > learn" and fb.secondaryStaysOpen and not fb.secondarySecure,
 		"Shift+Enter: who teaches it (> learn), the terminal kept open: " .. UI.edit:GetText())
 	ns.db.easyMode = true; UI:EasyChanged()
-	UI:Open("@training"); FlushAll()
+	UI:Open("what can i train"); FlushAll()
 	fb.secondary(fb)
 	check(UI.edit:GetText() == "where to learn Fireball (Rank 2)", "Simple mode: its words: " .. UI.edit:GetText())
 	ns.db.easyMode = false; UI:EasyChanged()
@@ -378,6 +378,7 @@ do
 			.. Names(Rows("@npc trainer:daggers")))
 		check(Row("Daggers", ns:GetEntries(P)) == nil and WT.Known()[1] and WT.Known()[1].name == "Daggers" and WT.Known()[1].state == "known",
 			"Daggers, known: not listed, kept apart")
+		UI:Hide(); FlushAll() -- (the Advanced line shown would make the next Simple one Advanced too: UI:AutoAdvanced)
 		ns.db.easyMode = true; UI:EasyChanged()
 		for _, said in ipairs({ "dagger trainer", "daggers trainer", "nearest dagger trainer" }) do
 			local got = UI:SearchText(said)
@@ -409,9 +410,9 @@ do
 		check(rawget(got[1], "key") == nil and got[1].key == 11868 and got[1].kind == "npc" and ns.Easy.Verbs(got[1]) == L["show on map"],
 			"each is Questie's NPC: Enter shows it on the map: " .. tostring(ns.Easy.Verbs(got[1])))
 		ns.db.easyMode = false; UI:EasyChanged()
-		-- without What's Training's word on it (a weapon it doesn't list for you): every weapon master
+		-- without What's Training's word on it (a weapon it doesn't list for you): Terminal's own copy of its list (0.54.1)
 		api.GetSource = function(id) if id == 1180 then return nil end return was.getSource(id) end
-		check(Names(Rows("@npc trainer:daggers")) == "Hanashi | Other Master | Sayoc", "not listed for you: every weapon master: "
+		check(Names(Rows("@npc trainer:daggers")) == "Sayoc", "not listed for you: Terminal's copy of the list (Sayoc teaches daggers): "
 			.. Names(Rows("@npc trainer:daggers")))
 		api.GetSource = was.getSource
 		drop("npc")

@@ -216,6 +216,14 @@ function UI:UpdateTooltip()
 				end
 			end
 		end
+		-- the role it's an upgrade for (.weights: several picked; 0.54.1)
+		local g = F and F.fitMade and F.GainOf and F.GainOf(e)
+		if g and g.role and F.MyRoles and F.MyRoles() then
+			t:AddLine(L["An upgrade for: %s"]:format(F.ROLE_SAY[g.role] or g.role), 0.25, 1, 0.25)
+		end
+		-- a spell's id (0.54.1, a player's ask): spells, talents, What's Training's spells
+		local sid = ns.SpellIds and ns.SpellIds.Of(e)
+		if sid then t:AddLine(L["Spell ID: %d"]:format(sid), 0.6, 0.6, 0.6) end
 		t.entry = e
 		t:Show()
 		HideComparisons(t)

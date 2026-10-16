@@ -132,7 +132,7 @@ do
 	local b = others()
 	check(b["Ice Barrier"] == ib and b["Partsy Frostbolt"] == fb, "a rebuild uses the same rows again, not new tables")
 	check(fb.icon == 4242 and ib.icon == 135988 and ib.detail == "|cff3fc7ebMage|r  ·  Frost  ·  1 rank"
-		and rawget(ib, "_ltext") == "frost mage talent" and ib.className == "Mage" and ib._rank == TL.OTHER_RANK,
+		and rawget(ib, "_ltext") == "frost mage talent talents" and ib.className == "Mage" and ib._rank == TL.OTHER_RANK,
 		"...the same fields, and an icon the saved copy lacks asked again as a new row would: " .. tostring(fb.icon))
 	local res = UI:Search("@talent class:mage")
 	check(#res == 2 and res[1].classFile == "MAGE" and res[2].classFile == "MAGE", "class:mage still lists them: " .. #res)

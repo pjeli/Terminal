@@ -14,7 +14,8 @@ local L = ns.L
 --   - The first word can say what to do: use, cast, summon, equip, target, where, nearest (E.ACTIONS).
 --   - .help in plain sentences. Advanced syntax (@kind, key:value, >> channel) isn't taken: a row on top says
 --     it's Advanced mode's and offers the switch. .commands and /slash still run.
--- `.advanced` (after a confirmation) switches to the full command line; `.simple` comes back.
+-- `.advanced` switches to the full command line; `.simple` comes back. Advanced syntax typed in Simple mode runs in
+-- Advanced mode for that line (UI:AutoAdvanced, 0.54.1).
 -- The empty prompt's faint examples (both modes, and the ones made for the character) are in Examples.lua.
 
 local E = {}
@@ -63,7 +64,7 @@ local function NotEmote(e) return e.emote == nil end
 E.CATEGORIES = {
 	{ id = "items", label = L["Items"], kinds = { "items", "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags", "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
-	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
@@ -522,6 +523,7 @@ E.VERBS = {
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
 	training = { L["show in What's Training"], L["who teaches it"] },
+	classspells = { L["Wowhead link"], L["link in chat"] },
 	addonoptions = AddonOptionVerbs,
 	quests = QuestVerbs,
 	missing = { L["where to learn"], L["link in chat"] }, -- (a recipe you don't know yet: MissingRecipes.lua)
@@ -941,8 +943,18 @@ function E.JoinLogic(words)
 	return words
 end
 
-local function OfferAdvanced() C_Timer.After(0, E.ShowConfirm) end
---- The row shown on top when Advanced syntax was typed in Simple mode (Enter: the switch's confirmation).
+--- The switch to Advanced mode asked of a row: the confirmation the first time only (db.advancedAsked), then at once
+--- (0.54.1, a player: "on repeated switches it's just annoying").
+local function OfferAdvanced()
+	local db = ns.db
+	if db and db.advancedAsked then
+		C_Timer.After(0, function() E.SwitchToAdvanced() end)
+		return
+	end
+	if db then db.advancedAsked = true end
+	C_Timer.After(0, E.ShowConfirm)
+end
+--- The row shown on top when Advanced syntax was typed in Simple mode (Enter: the switch, asked the first time).
 E.ADVANCED_ROW = {
 	name = L["@, >, >>, | and key:value are for Advanced mode"], kind = "advanced", kindLabel = "",
 	detail = L["Enter to switch (or type .advanced)"], icon = "Interface\\Icons\\INV_Misc_Gear_01",
@@ -970,12 +982,15 @@ end
 
 local dialog -- the confirmation, on the Panel pattern (it takes the terminal's place)
 
+--- Advanced mode for good, said in chat.
+function E.SwitchToAdvanced()
+	E.Set(false)
+	ns:Print(L["Advanced mode: the full command line (@kinds, key:value filters, .commands, >> chat). .help lists it all; .simple goes back."])
+end
+
 local function Confirm(yes)
 	if dialog then dialog:Hide() end
-	if yes then
-		E.Set(false)
-		ns:Print(L["Advanced mode: the full command line (@kinds, key:value filters, .commands, >> chat). .help lists it all; .simple goes back."])
-	end
+	if yes then E.SwitchToAdvanced() end
 end
 
 local app = {}
@@ -1029,12 +1044,13 @@ function E.ShowConfirm()
 end
 
 ns:RegisterCommand("advanced", {
-	desc = L["Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat), after a confirmation"],
+	desc = L["Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat)"],
 	aliases = { "hardmode", "hard" },
 	run = function()
 		if not E.On() and not E.temp then return { L["Already in Advanced mode (.simple goes back)."] } end
-		-- after this press is done (the terminal closes on a command): the dialog takes its place
-		C_Timer.After(0, E.ShowConfirm)
+		-- (typed: you know what you're asking for, no confirmation; 0.54.1, a player's ask)
+		if ns.db then ns.db.advancedAsked = true end
+		C_Timer.After(0, function() E.SwitchToAdvanced() end)
 		return {}
 	end,
 })
@@ -1076,6 +1092,7 @@ function E.HelpLines()
 		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced."],
 		L["Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log)."],
 		L["Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out)."],
+		L["Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\" (the level each rank is learned at). \"spellid claw\" gives a spell's id to copy, \"spellid 1082\" the spell. Talents by what they do: \"healing talents\", \"shaman crit talents\"."],
 		L["Recipes you don't have yet: \"blacksmithing recipes i'm missing\" lists them with the skill each needs and how it's learned (trainer and cost, vendor and limited supply, a drop, a quest); \"recipes i can learn now\" only those your skill allows."],
 		L["Clean out your quest log: \"quests to drop\" lists the grey ones and those in zones you've left behind. Shift+Enter drops one (Terminal asks first); \"Drop all\" on top, or right-click, drops them together after you've seen the list."],
 		L["Your group: \"who is dead\", \"who needs fortitude\", \"who is out of range\", \"group healers\", \"missing buffs\", \"missing consumables\" (Enter targets them, Shift+Enter casts your buff on them; right-click one and pick All to party to say what's missing in one line)."],
@@ -1092,7 +1109,7 @@ function E.HelpLines()
 		L["Level a profession: \"blacksmithing plan\" or \"level blacksmithing\" lists the recipes that still give skill by how many times your materials make each (bags and bank, and with your alts); the footer says about how many points they'd give."],
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
-		L["Gear: upgrades lists what you can get that beats what you wear, the biggest first, and its tooltip says why; quest upgrades lists the quests whose reward is one (with Questie)."],
+		L["Gear: upgrades lists what you can get that beats what you wear, the biggest first, and its tooltip says why; quest upgrades lists the quests whose reward is one (with Questie). .weights shows how they're judged and picks your roles (.weights feral healer: an upgrade for either counts)."],
 		L["When a list changes while you look at it (your bags as you loot, item data coming in), it stays put and the footer says so: F5 shows the new one."],
 		L["Alt+click an item (or a spell, quest, achievement) in chat to look it up here."],
 		L["Copy what you found, to paste outside the game: add \"to csv\" or \"to text\" (\"linen to csv\"). Every result opens in a box; Ctrl+C copies it and closes the box."],
@@ -1101,7 +1118,7 @@ function E.HelpLines()
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
-		L["Want the full command line (@kinds, filters, chat)? Type .advanced"],
+		L["Want the full command line (@kinds, filters, chat)? Type .advanced, or just type it: a line with an @kind or a key:value runs in Advanced mode that once."],
 	}
 end
 

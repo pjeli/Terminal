@@ -168,6 +168,62 @@ do
 	for _, e in ipairs(ns:GetEntries(P)) do by[e.name] = e end
 	check(by["Ice Barrier"], "combat over: the other classes read and listed")
 	_G.InCombatLockdown = icl
+	-- (0.54.1, a player: "healing talents", "shaman crit talents", "druid regen talents" found nothing; "talents" with an
+	-- s found nothing) a talent is found by what it does, its spell's description; one not sent yet is asked for, and
+	-- found once it arrives
+	do
+		local spellWas = { desc = C_Spell.GetSpellDescription, cached = C_Spell.IsSpellDataCached, ask = C_Spell.RequestLoadSpellData }
+		local DESC = { [53001] = "Increases the amount healed by your Renew spell by 15%.", [52001] = "Absorbs 450 damage. Lasts 1 min.",
+			[52002] = "Reduces the casting time of your Frostbolt spell by 0.5 sec." }
+		local requested = {}
+		C_Spell.GetSpellDescription = function(id) return DESC[id] or "" end
+		C_Spell.IsSpellDataCached = function(id) return DESC[id] ~= nil end
+		C_Spell.RequestLoadSpellData = function(id) requested[id] = true end
+		ns.db.talentDesc = nil
+		TL.ForgetDescAsks()
+		TL.otherRows = {}
+		P._dirty = true
+		local function Names(rows)
+			local t = {}
+			for _, e in ipairs(rows) do if e.kind == "talents" then t[#t + 1] = e.name end end
+			table.sort(t)
+			return table.concat(t, " | ")
+		end
+		check(Names(UI:Search("@talent healed")) == "Improved Renew", "by what it does: \"healed\" is Improved Renew's: " .. Names(UI:Search("@talent healed")))
+		check(Names(UI:Search("priest heal talents")) == "Improved Renew", "\"priest heal talents\" (talents with an s): " .. Names(UI:Search("priest heal talents")))
+		check(Names(UI:Search("mage talents")):find("Ice Barrier", 1, true) and Names(UI:Search("talents absorbs")) == "Ice Barrier",
+			"\"mage talents\", \"talents absorbs\": " .. Names(UI:Search("talents absorbs")))
+		check(requested[52003] and not requested[53001], "one not sent yet (Cruel Winter's) is asked for")
+		check(Names(UI:Search("@talent chill")) == "", "not found by it yet")
+		DESC[52003] = "Your Frost spells have a 10% chance to chill the target."
+		TL.descFrame:GetScript("OnEvent")(TL.descFrame, "SPELL_DATA_LOAD_RESULT", 52003, true)
+		T.FlushAll()
+		check(Names(UI:Search("@talent chill")) == "Cruel Winter", "it came in: found by it: " .. Names(UI:Search("@talent chill")))
+		check(ns.db.talentDesc and ns.db.talentDesc.d[52003] and ns.db.talentDesc.d[52003]:find("^your frost spells"), "kept, lowercase")
+		C_Spell.GetSpellDescription, C_Spell.IsSpellDataCached, C_Spell.RequestLoadSpellData = spellWas.desc, spellWas.cached, spellWas.ask
+		ns.db.talentDesc = nil
+		TL.ForgetDescAsks()
+		TL.otherRows = {}
+		P._dirty = true
+	end
+	-- (0.54.1, a druid player: "nothing for druids at all") a spec the game can't show (a retail spec WoW Forever lacks)
+	-- leaves the class's other trees read: not the whole class, and every other class with it, dropped
+	do
+		local nspec, specInfo, init = _G.GetNumSpecializationsForClassID, _G.GetSpecializationInfoForClassID, C_ClassTalents.InitializeViewLoadout
+		_G.GetNumSpecializationsForClassID = function(id) return id == 11 and 2 or nspec(id) end
+		_G.GetSpecializationInfoForClassID = function(id, i) if id == 11 then return 1100 + i end return specInfo(id, i) end
+		TREE[1101], TREE[1102] = 121, 99
+		C_ClassTalents.InitializeViewLoadout = function(spec)
+			if spec == 1101 then error("no such spec here") end
+			return init(spec)
+		end
+		local rows = TL.ReadClass(11, 60)
+		check(rows and #rows == 1 and rows[1][2] == "Improved Renew", "one spec failing: the other's talents still read: " .. tostring(rows and #rows))
+		C_ClassTalents.InitializeViewLoadout = function() error("none") end
+		check(TL.ReadClass(11, 60) == nil, "every spec failing: none (the view loadout isn't there)")
+		_G.GetNumSpecializationsForClassID, _G.GetSpecializationInfoForClassID, C_ClassTalents.InitializeViewLoadout = nspec, specInfo, init
+		TREE[1101], TREE[1102] = nil, nil
+	end
 	-- a client without the view loadout: none, nothing kept, not asked again this session
 	ns.db.talentCache, TL.triedOthers = nil, nil
 	_G.C_ClassTalents = nil

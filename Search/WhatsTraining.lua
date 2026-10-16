@@ -128,6 +128,8 @@ P.LISTS.trainingknown = function()
 	return WT.Known()
 end
 
+WT.MasterRow = WeaponMasterRow -- (Search/ClassSpells.lua's weapon skills, without What's Training)
+
 ns:RegisterRelation("learn", {
 	aliases = { "learned", "taught", "teach", "teaches", "trainer", "trainers" },
 	desc = L["where a spell is taught: your trainer, a weapon master, a quest, a book (What's Training)"],

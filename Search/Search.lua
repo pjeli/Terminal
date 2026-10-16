@@ -683,6 +683,10 @@ Scan.ANSWERS = {
 	{ ask = function(text) local Q = ns.Attune and ns.Attune.Q return Q and Q.How(text) end,
 		answer = function(q) return ns.Attune.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
+	-- "spellid claw", "spell id 1082": SpellIds.lua (before the chains and searches: the words are a spell's name)
+	{ ask = function(text) local S = ns.SpellIds return S and S.Question(text) end,
+		answer = function(q) return ns.SpellIds.Answer(q) end,
+		toAdvanced = function(q) return ns.SpellIds.ToAdvanced(q) end },
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua. (Simple mode takes only the plain words: a ">"
 	-- typed there is refused like any Advanced syntax; written for Advanced mode, a ">" chain is one too)
 	{ ask = function(text, converting)
@@ -718,6 +722,11 @@ Scan.ANSWERS = {
 	{ ask = function(text) local Q = ns.WhatsTraining and ns.WhatsTraining.Q return Q and Q.Question(text) end,
 		answer = function(q) return ns.WhatsTraining.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.WhatsTraining.Q.ToAdvanced(q) end },
+	-- "druid spells", "upcoming spells", "when do i learn travel form": every class's spells (Search/ClassSpells.lua;
+	-- after What's Training's, which answers for your class when it's there)
+	{ ask = function(text) local Q = ns.ClassSpells and ns.ClassSpells.Q return Q and Q.Question(text) end,
+		answer = function(q) return ns.ClassSpells.Q.Answer(q) end,
+		toAdvanced = function(q) return ns.ClassSpells.Q.ToAdvanced(q) end },
 	-- "blacksmithing plan", "level blacksmithing", "leveling plan": Plan.lua (sort:plan's question)
 	Asks("Plan"),
 	-- "quests to drop", "grey quests": QuestDrop.lua

@@ -14,6 +14,17 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.54.1", when = "in testing",
+		items = {
+			"Advanced syntax typed in Simple mode (@npc, q:rare, >> party) runs in Advanced mode that once; .advanced switches without asking.",
+			"Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\", with the level each rank is learned at.",
+			"Spell ids: \"spellid claw\" lists every rank's id to copy, \"spellid 1082\" shows the spell; spells and talents show their id in the tooltip.",
+			"Talents by what they do: \"healing talents\", \"shaman crit talents\"; \"talents\" with an s works too.",
+			".weights shows how upgrades are judged and picks your roles: .weights feral healer counts an upgrade for either.",
+			"Weapon masters by weapon (\"dagger trainer\", \"where do i learn daggers\") without What's Training too.",
+		},
+	},
+	{
 		v = "0.54.0", when = "released October 2026",
 		items = {
 			"With What's Training: @training, \"what can i train\", \"what do i learn next level\", \"how much is training\": every spell you've still to learn, when, and what it costs. Enter opens What's Training on it; Shift+Enter lists who teaches it, the nearest first.",
@@ -52,20 +63,6 @@ CL.LOG = {
 			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4).",
 			"@xp also lists the alts your bag addon knows of that Terminal hasn't seen yet (log in on each once).",
 			"Fixes: items in a list no longer show white until you scroll past them; a Simple mode category lists everything its row counted; a command's choices of more than one word are picked whole; the Options panel fits its frame; Terminal Extras has its own icon; and many smaller fixes from a review.",
-		},
-	},
-	{
-		v = "0.51.0", when = "released October 2026",
-		items = {
-			"Your corpse: \"where is my body\" (@corpse) shows where it lies, how far and which way, and the nearest spirit healers (\"nearest spirit healer\", @npc is:spirithealer).",
-			"Your gear's wear: \"durability\" or \"repair cost\" (@durability) lists each piece's durability and repair cost, the whole bill on top.",
-			"Other addons' settings: type a setting's name to find it in any Ace3 addon (@addonoption); Enter opens it, Shift+Enter toggles it.",
-			"With Attune: @attune, \"my attunements\", \"how do i get into molten core\": your attunements and keys, your progress and next step.",
-			"Your own commands: .alias rep durability makes .rep run that search, slash command or .command; .unalias forgets one.",
-			"Reaching for Questie, AtlasLoot, Attune or your alts' bags without the addon: the footer says which to install.",
-			"Alt+click a chat link to look it up in Terminal (Ctrl+click is the dressing room's again).",
-			"in:warband is gone (WoW Forever has no warband bank).",
-			"A review of the whole addon: many fixes (\"who needs blessing of kings\", in:bags, \"summon voidwalker\", spells on macros, upgrades for one-handers, the row menu's Send) and less work while you type and play.",
 		},
 	},
 }

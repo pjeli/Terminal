@@ -474,7 +474,7 @@ F.APPLIES = {
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { nearest = SPOTS, plan = RECIPES, best = UPGRADES }, near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
-	class = { ["*"] = { "talents", "attune" } },
+	class = { ["*"] = { "talents", "attune", "classspells" } },
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)

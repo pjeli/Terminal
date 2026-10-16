@@ -542,6 +542,9 @@ ns:RegisterProvider("spells", {
 							out[#out + 1] = e
 						end
 						local rankText = type(rank) == "string" and rank ~= "" and rank or nil
+						-- (every rank's id, for "spellid claw": Search/SpellIds.lua)
+						e.ranks = e.ranks or {}
+						e.ranks[#e.ranks + 1] = { id, rankText }
 						-- known by its name: learning a new rank mustn't make it another row (its history kept)
 						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
 						e.tab = tab

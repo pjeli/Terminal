@@ -84,17 +84,16 @@ do
 	-- Simple mode (0.52.12, the player's call): no ">>", ">> csv" neither; plain words at the end copy every result
 	ns.db.easyMode = true
 	UI:EasyChanged()
+	-- (0.54.1) ">>> csv", ">> party" typed in Simple mode: run in Advanced mode this once
 	UI:Open("linen >>> csv")
 	FlushAll()
-	local top = UI.Results()[1]
-	check(UI.sendTo == nil and UI.blockedSyntax == "copy" and top and top.name == L["To copy, type: %s"]:format("linen to csv"),
-		"Simple mode: >>> csv is Advanced mode's; the row on top says the words: " .. tostring(top and top.name))
-	UI:Activate()
-	FlushAll()
-	check(UI.edit:GetText() == "linen to csv" and UI:IsShown(), "Enter on it writes them: " .. tostring(UI.edit:GetText()))
+	check(UI.sendTo and UI.sendTo.copy == "csv" and UI.sendTo.all and not ns.Easy.On(),
+		"Simple mode: >>> csv runs in Advanced this once: " .. tostring(UI.sendTo and UI.sendTo.copy))
+	UI:Hide(); FlushAll()
 	UI:Open("linen >> party")
 	FlushAll()
-	check(UI.sendTo == nil and UI.blockedSyntax == "send", "Simple mode: >> party is still Advanced mode's")
+	check(UI.sendTo and UI.sendTo.cmd and not ns.Easy.On(), "Simple mode: >> party too")
+	UI:Hide(); FlushAll()
 	shown = {}
 	UI:Open("linen to csv")
 	FlushAll()

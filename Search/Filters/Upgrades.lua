@@ -71,12 +71,79 @@ F.WEIGHTS.DEATHKNIGHT, F.WEIGHTS.MONK, F.WEIGHTS.DEMONHUNTER = F.WEIGHTS.WARRIOR
 F.WEIGHTS.EVOKER = F.WEIGHTS.MAGE
 F.WEIGHTS.GENERIC = GENERIC
 
---- Your class's weights (F.WEIGHTS), or the generic ones.
-function F.MyWeights()
-	if not _G.UnitClass then return GENERIC end
+-- Roles (0.54.1, a player's ask: "How does the addon score upgrades? Can I control it? On a druid I care about both feral
+-- and resto gear"): each class's ways to play, each with its own weights. `.weights` shows them and picks yours (one or
+-- more, kept per character); an item is an upgrade when it's a clear one for any role picked, said in its tooltip. None
+-- picked: the class's all-round weights above.
+local L = ns.L
+local TANK = { sta = 1, def = 1, dodge = 0.8, parry = 0.7, block = 0.5, armor = 0.04, str = 0.6, agi = 0.5, hit = 0.3, dps = 1.5 }
+local HEALER = { int = 0.8, spi = 0.7, heal = 1, sp = 0.5, mp5 = 1.2, sta = 0.3, crit = 0.4, haste = 0.3, armor = 0.005 }
+local CASTER = { int = 0.8, sp = 1, crit = 0.7, hit = 0.9, haste = 0.5, sta = 0.4, spi = 0.3, mp5 = 0.5, dps = 0.2, armor = 0.005 }
+local STR_MELEE = { str = 1, agi = 0.6, ap = 0.5, crit = 0.8, hit = 0.8, haste = 0.5, sta = 0.4, dps = 3, armor = 0.01 }
+F.ROLES = {
+	WARRIOR = { { "dps", STR_MELEE }, { "tank", TANK } },
+	PALADIN = { { "healer", HEALER }, { "tank", TANK },
+		{ "melee", { str = 1, agi = 0.5, int = 0.3, ap = 0.5, crit = 0.8, hit = 0.8, sta = 0.4, dps = 3, armor = 0.01 } } },
+	HUNTER = { { "ranged", F.WEIGHTS.HUNTER } },
+	ROGUE = { { "melee", F.WEIGHTS.ROGUE } },
+	PRIEST = { { "healer", HEALER }, { "caster", CASTER } },
+	MAGE = { { "caster", F.WEIGHTS.MAGE } },
+	WARLOCK = { { "caster", F.WEIGHTS.WARLOCK } },
+	SHAMAN = { { "healer", HEALER }, { "caster", CASTER },
+		{ "melee", { str = 1, agi = 0.8, ap = 0.5, int = 0.2, crit = 0.8, hit = 0.8, sta = 0.4, dps = 3, armor = 0.01 } } },
+	DRUID = { { "healer", HEALER }, { "caster", CASTER },
+		{ "feral", { agi = 1, str = 0.9, ap = 0.5, sta = 0.6, crit = 0.8, hit = 0.8, armor = 0.03, def = 0.3, dodge = 0.4 } } },
+}
+F.ROLE_SAY = { dps = L["damage"], tank = L["tank"], healer = L["healer"], melee = L["melee"], ranged = L["ranged"],
+	caster = L["caster"], feral = L["feral"] }
+-- (what each role's word may be typed as: ".weights resto feral")
+F.ROLE_WORDS = { damage = "dps", dps = "dps", fury = "dps", arms = "dps", tank = "tank", prot = "tank", protection = "tank",
+	bear = "tank", heal = "healer", healer = "healer", healing = "healer", holy = "healer", resto = "healer",
+	restoration = "healer", disc = "healer", melee = "melee", ret = "melee", retribution = "melee", enh = "melee",
+	enhancement = "melee", combat = "melee", ranged = "ranged", caster = "caster", spell = "caster", balance = "caster",
+	boomkin = "caster", elemental = "caster", ele = "caster", shadow = "caster", feral = "feral", cat = "feral" }
+
+local function MyClass()
+	if not _G.UnitClass then return nil end
 	local ok, _, class = pcall(_G.UnitClass, "player")
-	if not ok or type(class) ~= "string" or Secret(class) then return GENERIC end
-	return F.WEIGHTS[class] or GENERIC
+	if not ok or type(class) ~= "string" or Secret(class) then return nil end
+	return class
+end
+
+--- The roles you picked (their ids, in your class's order), or nil: none (the all-round weights).
+function F.MyRoles()
+	local db, key = ns.db, F._MyName and F._MyName()
+	local saved = db and key and type(db.upgradeRoles) == "table" and db.upgradeRoles[key]
+	if type(saved) ~= "table" then return nil end
+	local out = {}
+	for _, r in ipairs(F.ROLES[MyClass() or ""] or {}) do
+		for _, id in ipairs(saved) do if id == r[1] then out[#out + 1] = id end end
+	end
+	return #out > 0 and out or nil
+end
+--- Pick roles for this character (a list of ids; nil or empty: the all-round weights again).
+function F.SetRoles(ids)
+	local db, key = ns.db, F._MyName and F._MyName()
+	if not (db and key) then return end
+	db.upgradeRoles = type(db.upgradeRoles) == "table" and db.upgradeRoles or {}
+	db.upgradeRoles[key] = (ids and #ids > 0) and ids or nil
+end
+
+--- The weights to judge by: { { weights, role } ... } (role nil: the all-round ones).
+function F.MyWeightSets()
+	local class = MyClass()
+	local roles = F.MyRoles()
+	if not roles then return { { class and F.WEIGHTS[class] or GENERIC } } end
+	local out = {}
+	for _, r in ipairs(F.ROLES[class] or {}) do
+		for _, id in ipairs(roles) do if id == r[1] then out[#out + 1] = { r[2], id } end end
+	end
+	return #out > 0 and out or { { F.WEIGHTS[class] or GENERIC } }
+end
+
+--- Your class's weights (the first role you picked, else the all-round ones; F.WEIGHTS), or the generic ones.
+function F.MyWeights()
+	return F.MyWeightSets()[1][1]
 end
 
 --- An item's stats (the game's table) by kind: { str = 7, sta = 4 } (kinds Terminal weighs; others left out).
@@ -264,11 +331,35 @@ local function Remember(key, f, class)
 	end
 end
 
---- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet aren't, for now.
+local GearFitWith
+--- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet aren't, for now. With
+--- several roles picked (.weights): a clear upgrade for any of them, the biggest gain kept and its role said.
 function F.GearFit()
+	local sets = F.MyWeightSets()
+	if #sets == 1 then return GearFitWith(sets[1][1], sets[1][2]) end
+	local fits = {}
+	for i, set in ipairs(sets) do fits[i] = GearFitWith(set[1], set[2]) end
+	return function(e)
+		local best, any
+		for i, fitOne in ipairs(fits) do
+			if fitOne(e) then
+				any = true
+				local g = gains[e]
+				if g and (not best or (g.gain or 0) > (best.gain or 0)) then
+					best = {}
+					for k, v in pairs(g) do best[k] = v end
+					best.role = sets[i][2]
+				end
+			end
+		end
+		gains[e] = best
+		return any or false
+	end
+end
+
+GearFitWith = function(weights, role)
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
-	local weights = F.MyWeights()
 	local worn, wornValue, wornKinds, wornLocs, wornNames, wornIds = WornGear(weights)
 	-- a one-hander replaces a weapon: the main hand, and the off hand only when it holds one (dual wielding); a shield
 	-- or an off-hand item stays (0.51.17, the player: a mace was weighed against main hand and shield together)
@@ -426,7 +517,8 @@ function F.GearFit()
 				end
 				-- (its stats' worth; none to weigh: after those, by item level, not item levels against stat points: an empty
 				-- trinket slot's every trinket went above real upgrades; review, 0.51.25)
-				gains[e] = { gain = F.KindsValue(f.kinds, weights) or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true }
+				gains[e] = { gain = F.KindsValue(f.kinds, weights) or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true,
+					role = role }
 			end
 			return yes
 		end
@@ -439,6 +531,9 @@ function F.GearFit()
 			end
 		end
 		local mine = F.KindsValue(f.kinds, weights)
+		-- (the worn piece's stats read but none of them wanted: worth nothing, not unknown; a role's weights leave many out,
+		-- a healer's an agility helm's: 0.54.1)
+		if wVal == nil and mine and wKinds then wVal = 0 end
 		local up, g
 		-- two slots it could go in (dual wielding, rings, trinkets): an upgrade over either piece is one (release review:
 		-- against only the weaker by worth, a ring of +3 Strength over your Strength ring and nothing lost wasn't one, as
@@ -461,6 +556,7 @@ function F.GearFit()
 			local vs = {}
 			for _, slot in ipairs(slots) do
 				local v, l = wornValue[slot], worn[slot]
+				if v == nil and mine and wornKinds[slot] then v = 0 end
 				local one
 				if mine and v and (mine > 0 or v > 0) then
 					local gain = F.ClearGain(f.kinds, wornKinds[slot], weights)
@@ -477,6 +573,7 @@ function F.GearFit()
 			table.sort(vs, function(a, b) return a.gain > b.gain end)
 			g = { gain = vs[1].gain, vs = vs, kinds = f.kinds, loc = loc, ilvl = ilvl, wLvl = vs[1].wLvl }
 		end
+		if g then g.role = role end
 		gains[e] = g
 		return true
 	end
@@ -490,3 +587,81 @@ function F.UpgradeItem(e)
 	if not g then return nil end
 	return tonumber(g.itemID) or tonumber(e.itemID), g.item
 end
+
+----------------------------------------------------------------------
+-- .weights: how upgrades are judged, and the roles they're judged for (0.54.1, a player's ask)
+----------------------------------------------------------------------
+
+--- A weights table as words, the most wanted first: "agi 1, str 0.9, crit 0.8".
+function F.WeightsText(w, most)
+	local list = {}
+	for k, v in pairs(w or {}) do list[#list + 1] = { k, v } end
+	table.sort(list, function(a, b) if a[2] ~= b[2] then return a[2] > b[2] end return a[1] < b[1] end)
+	local out = {}
+	for i = 1, math.min(#list, most or 6) do out[i] = list[i][1] .. " " .. (math.floor(list[i][2] * 100 + 0.5) / 100) end
+	return table.concat(out, ", ")
+end
+
+--- The role ids these words pick for your class, and the words that pick none.
+function F.RolesFor(words)
+	local class = MyClass()
+	local mine, ids, bad = {}, {}, {}
+	for _, r in ipairs(F.ROLES[class or ""] or {}) do mine[r[1]] = true end
+	for w in tostring(words or ""):gmatch("%S+") do
+		local id = F.ROLE_WORDS[ns.Lower(w)]
+		if id and mine[id] then
+			local dup = false
+			for _, x in ipairs(ids) do if x == id then dup = true end end
+			if not dup then ids[#ids + 1] = id end
+		else
+			bad[#bad + 1] = w
+		end
+	end
+	return ids, bad
+end
+
+ns:RegisterCommand("weights", {
+	desc = L["How upgrades are judged: the stats your class wants. .weights feral healer judges them for those roles (any of them counts); .weights all for all-round"],
+	aliases = { "roles", "role" },
+	complete = function()
+		local out = {}
+		for _, r in ipairs(F.ROLES[MyClass() or ""] or {}) do out[#out + 1] = { r[1], F.WeightsText(r[2], 4) } end
+		out[#out + 1] = { "all", L["all-round (your class's weights)"] }
+		return out
+	end,
+	run = function(args)
+		local class = MyClass()
+		local roles = F.ROLES[class or ""] or {}
+		args = tostring(args or ""):gsub("^%s+", ""):gsub("%s+$", "")
+		local lines = {}
+		if args ~= "" then
+			local low = ns.Lower(args)
+			if low == "all" or low == "reset" or low == "none" or low == "allround" then
+				F.SetRoles(nil)
+				lines[#lines + 1] = L["Upgrades: judged all-round again."]
+			else
+				local ids, bad = F.RolesFor(args)
+				if #bad > 0 then
+					local names = {}
+					for _, r in ipairs(roles) do names[#names + 1] = r[1] end
+					return { L["Not a role of your class: %s. Yours: %s"]:format(table.concat(bad, ", "), table.concat(names, ", ")) }
+				end
+				F.SetRoles(ids)
+				local said = {}
+				for _, id in ipairs(ids) do said[#said + 1] = F.ROLE_SAY[id] or id end
+				lines[#lines + 1] = L["Upgrades: judged for %s (a clear upgrade for any of them counts)."]:format(table.concat(said, ", "))
+			end
+		end
+		lines[#lines + 1] = L["How upgrades are judged: an item's stats weighed for what you want, against the piece you wear there; a clear upgrade gains more than it gives up."]
+		local picked = F.MyRoles()
+		local on = {}
+		for _, id in ipairs(picked or {}) do on[id] = true end
+		if not picked then lines[#lines + 1] = "  " .. L["All-round (now): %s"]:format(F.WeightsText(class and F.WEIGHTS[class] or GENERIC)) end
+		for _, r in ipairs(roles) do
+			lines[#lines + 1] = "  " .. (on[r[1]] and "|cff40ff40" or "") .. (F.ROLE_SAY[r[1]] or r[1]) .. (on[r[1]] and (" " .. L["(now)"] .. "|r") or "")
+				.. ": " .. F.WeightsText(r[2])
+		end
+		lines[#lines + 1] = L[".weights <role> [role...] picks them (.weights feral healer); .weights all goes back to all-round."]
+		return lines
+	end,
+})

@@ -582,24 +582,34 @@ Run("nearest", function()
 	I.Here, I.NpcDistance = saveHere, saveDist
 end)
 
-Run("Advanced syntax is refused in Simple mode", function()
+-- (0.54.1, a player's ask: "if I type a query that's clearly for advanced mode (like starting with @), it should just work
+-- in advanced as a one-off") Advanced syntax typed in Simple mode runs in Advanced mode, this once, as Alt+` would
+Run("Advanced syntax in Simple mode runs once in Advanced", function()
 	E.Set(true)
 	ActionLists()
 	UI:Open("@npc hogger")
 	local res = UI.Results()
-	check(res[1] and res[1].kind == "advanced", "@npc: a row says it's Advanced mode's: " .. Show(res))
-	check(UI:SyntaxSegments("@npc hogger")[1][3] == ns.Theme.SYNTAX.bad, "@npc in the 'not taken' colour")
+	check(res[1] and res[1].name == "Hogger" and not E.On() and E.temp and E.temp.auto and ns.db.easyMode ~= false,
+		"@npc hogger: Hogger, Advanced this once (not for good): " .. Show(res))
+	check(UI:SyntaxSegments("@npc hogger")[1][3] ~= ns.Theme.SYNTAX.bad, "@npc in the taken colour")
+	UI:SetQuery("hogger")
+	check(E.On() and not E.temp, "the line without it: Simple again")
 	UI:SetQuery("hearthstone >> party")
-	res = UI.Results()
-	check(res[1] == E.SEND_ROW and Has(res, "Hearthstone") and not UI.sendTo, ">> party: not sent, a row says to right-click, the item still found: " .. Show(res))
+	check(UI.sendTo and UI.sendTo.cmd and not E.On(), ">> party: the send armed, Advanced")
 	UI:SetQuery("q:rare sword")
-	check(UI.Results()[1].kind == "advanced" and Has(UI.Results(), "Shiny Sword"), "q:rare: the row; sword still searched: " .. Show(UI.Results()))
-	UI:SetQuery("@npc")
-	check(#UI.Results() == 1 and UI.Results()[1].kind == "advanced" and not UI.bare, "only syntax: the row alone")
-	check((UI.hints:GetText() or ""):find("Advanced", 1, true), "Enter: switch to Advanced mode: " .. tostring(UI.hints:GetText()))
-	UI:Activate(1); FlushAll()
-	check(_G.TerminalHardMode and _G.TerminalHardMode:IsShown(), "Enter: the switch's confirmation")
+	check(not Has(UI.Results(), "Shiny Sword") or UI.Results()[1].kind ~= "advanced", "q:rare: a filter, no row refusing it: " .. Show(UI.Results()))
+	UI:SetQuery("/who")
+	check(not E.On(), "a /slash line leaves the mode as it is")
+	UI:Hide(); FlushAll()
+	check(E.On() and ns.db.easyMode ~= false and not E.temp, "closed: Simple again")
+	-- the Advanced row's switch (a search that got there without the prompt): the confirmation the first time, then at once
+	ns.db.advancedAsked = nil
+	E.ADVANCED_ROW.activate(); FlushAll()
+	check(_G.TerminalHardMode and _G.TerminalHardMode:IsShown() and E.On() and ns.db.advancedAsked, "the first time: the confirmation")
 	_G.TerminalHardMode:Hide()
+	E.ADVANCED_ROW.activate(); FlushAll()
+	check(not _G.TerminalHardMode:IsShown() and not E.On() and ns.db.easyMode == false, "after that: switched at once")
+	E.Set(true)
 	-- Advanced mode takes them
 	ns.db.easyMode = false; UI:EasyChanged()
 	res = UI:Search("@npc hogger")
@@ -968,10 +978,17 @@ end)
 
 Run(".advanced and .simple", function()
 	E.Set(true)
+	ns.db.advancedAsked = nil
+	if _G.TerminalHardMode then _G.TerminalHardMode:Hide() end
 	local r = ns:FindCommand("advanced").run("", ns)
 	FlushAll()
+	-- (0.54.1, a player: "if I typed .advanced then clearly I knew what I was doing") no confirmation
+	check(not E.On() and ns.db.easyMode == false and not (_G.TerminalHardMode and _G.TerminalHardMode:IsShown()),
+		".advanced: Advanced at once, no confirmation")
+	E.Set(true)
+	E.ShowConfirm()
 	local d = _G.TerminalHardMode
-	check(d and d:IsShown() and E.On(), ".advanced asks first (still Simple): " .. tostring(d and d:IsShown()))
+	check(d and d:IsShown() and E.On(), "the confirmation (the Advanced row's, the first time): still Simple")
 	d.scripts.OnKeyDown(d, "ESCAPE")
 	check(not d:IsShown() and E.On(), "Esc: stays in Simple mode")
 	-- as tall as its text (it had a lot of empty space): title, text, buttons
@@ -981,7 +998,9 @@ Run(".advanced and .simple", function()
 	d.body.GetStringHeight = nil
 	d.scripts.OnKeyDown(d, "ESCAPE")
 	ns:FindCommand("hardmode").run("", ns); FlushAll()
-	check(d:IsShown(), "(.hardmode still works as another name)")
+	check(not E.On(), "(.hardmode still works as another name)")
+	E.Set(true)
+	E.ShowConfirm()
 	d.yes.scripts.OnClick(d.yes)
 	check(not d:IsShown() and not E.On() and ns.db.easyMode == false, "the button: Advanced mode, saved")
 	r = ns:FindCommand("advanced").run("", ns)
