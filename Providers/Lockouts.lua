@@ -184,8 +184,8 @@ local function Tooltip(e, t)
 	end
 	if not e.mine then t:AddLine(L["As of %s"]:format(ns.Ago(Now() - (e.seen or 0))), 0.6, 0.6, 0.6) end
 	-- (your world boss has no link: words, as ShareText sends; 0.49.2, review)
-	ns.KeyHints(t, (e.mine and not e.world) and L["Enter: in chat    Shift+Enter: its link in the chat box"]
-		or L["Enter: in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, (e.mine and not e.world) and L["Enter: show in chat    Shift+Enter: put its link in the chat box"]
+		or L["Enter: show in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 local ICON, ICON_WORLD = "Interface\\Icons\\INV_Misc_Key_14", "Interface\\Icons\\INV_Misc_Head_Dragon_01"

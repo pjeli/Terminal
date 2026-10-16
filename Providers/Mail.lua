@@ -864,7 +864,7 @@ local AUCTION_SAID = {
 -- the tooltip's Shift+Enter, only where there is one: the nearest mailbox is Questie's (@mailbox), so without it Shift+Enter
 -- does what Enter does (0.49.2, review: the tooltip promised a waypoint the footer, rightly, didn't)
 local function ShiftHint()
-	return ns.providers.mailbox and ("    " .. L["Shift+Enter: waypoint to the nearest mailbox"]) or ""
+	return ns.providers.mailbox and ("    " .. L["Shift+Enter: set a waypoint to the nearest mailbox"]) or ""
 end
 
 local function WayTooltip(e, t)
@@ -891,7 +891,7 @@ local function WayTooltip(e, t)
 		end
 		t:AddLine(AUCTION_SAID[e.news] or "", 0.6, 0.8, 1, true)
 	end
-	t:AddLine(L["Enter: in chat"] .. ShiftHint(), 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: show in chat"] .. ShiftHint(), 0.6, 0.6, 0.6)
 end
 
 local function Tooltip(e, t)
@@ -914,7 +914,7 @@ local function Tooltip(e, t)
 		if e.more then t:AddLine(L["%d more waiting on the server (the inbox shows 50 at a time)"]:format(e.more), 0.6, 0.6, 0.6, true) end
 		if e.newFrom then t:AddLine(L["New mail from %s"]:format(e.newFrom), 0.4, 1, 0.4, true) end
 		if e.seen then t:AddLine(L["Mailbox last opened %s"]:format(ns.Ago(Now() - e.seen)), 0.6, 0.6, 0.6) end
-		t:AddLine(L["Enter: in chat"] .. ShiftHint(), 0.6, 0.6, 0.6, true)
+		ns.KeyHints(t, L["Enter: show in chat"] .. ShiftHint(), 0.6, 0.6, 0.6)
 		return
 	end
 	local m = e.mail
@@ -938,8 +938,8 @@ local function Tooltip(e, t)
 	elseif not m.read then
 		t:AddLine(L["Unread"], 0.4, 1, 0.4)
 	end
-	t:AddLine(((MA.open and e.mine) and L["Enter: point at it in the inbox"] or L["Enter: in chat"])
-		.. ShiftHint(), 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, ((MA.open and e.mine) and L["Enter: show it in the inbox"] or L["Enter: show in chat"])
+		.. ShiftHint(), 0.6, 0.6, 0.6)
 end
 
 -- (every row's: shared, not a closure per row)

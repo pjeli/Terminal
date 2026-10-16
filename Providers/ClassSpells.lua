@@ -109,18 +109,17 @@ local function Tooltip(e, t)
 	local s = rawget(e, "_s")
 	local shown = pcall(t.SetHyperlink, t, "spell:" .. s.ranks[1][1])
 	if not shown then t:SetText(e.name, 1, 0.82, 0) end
-	t:AddLine(" ")
-	t:AddLine(L["A %s spell"]:format(e.classShown), 1, 1, 1, true)
+	t:AddLine(" ") -- (whose spell it is, the row says already: 0.54.8, the player)
 	local lvl = Safe(UnitLevel, "player")
 	for i, r in ipairs(s.ranks) do
 		if i > 14 then t:AddLine(L["and %d more"]:format(#s.ranks - 14), 0.6, 0.6, 0.6) break end
 		local rank = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r[1]))
 		local left = (rank and (rank .. "  ") or "") .. L["level %d"]:format(r[2]) .. (r[3] and ("  " .. L["(a quest)"]) or "")
 		local mine = e.mine and type(lvl) == "number" and r[2] <= lvl
-		t:AddDoubleLine(left, L["id %d"]:format(r[1]), mine and 0.25 or 1, 1, mine and 0.25 or 1, 0.6, 0.6, 0.6)
+		t:AddDoubleLine(left, L["ID %d"]:format(r[1]), mine and 0.25 or 1, 1, mine and 0.25 or 1, 0.6, 0.6, 0.6)
 	end
 	if s.talent then t:AddLine(L["A rank needs a talent first"], 1, 1, 1, true) end
-	ns.KeyHints(t, L["Enter: its Wowhead page    Shift+Enter: link it in chat"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: show its Wowhead page    Shift+Enter: link it in chat"], 0.6, 0.6, 0.6, true)
 end
 
 local LAZY = {

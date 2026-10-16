@@ -143,7 +143,7 @@ local function Tooltip(e, t)
 	else
 		t:AddLine(G.Text(e.money), 1, 1, 1)
 	end
-	ns.KeyHints(t, L["Enter: every row in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: show every row in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 local WORDS = { me = "you me mine my", alt = "alt alts character", guild = "guild bank", warband = "warband bank account", total = "all total everyone alts" }

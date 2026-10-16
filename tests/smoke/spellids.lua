@@ -39,7 +39,7 @@ do
 	-- by name: every rank, each with its id, by rank
 	local rows, note = SI.Answer(SI.Question("spellid claw"))
 	check(Names(rows) == "Claw (Rank 1) | Claw (Rank 2)", "every rank of Claw (not a grimoire): " .. Names(rows))
-	check(rows[1].spellID == 1082 and rows[1].detail:find(L["id %d"]:format(1082), 1, true) and note:find(L["Enter copies one"], 1, true),
+	check(rows[1].spellID == 1082 and rows[1].detail:find(L["ID %d"]:format(1082), 1, true) and note:find(L["Enter copies one"], 1, true),
 		"each says its id: " .. tostring(rows[1].detail))
 	local copied
 	ns.ShowText = function(_, title, text) copied = text end
@@ -51,7 +51,7 @@ do
 	check(rows[1] and rows[1].name == "Claw (Rank 1)" and rows[1].spellID == 1082 and rows[1].tip and rows[1].tip:find("Claw the enemy", 1, true),
 		"spellid 1082: Claw (Rank 1), what it does: " .. Names(rows))
 	rows = SI.Answer(SI.Question("spellid 999999"))
-	check(rows[1] and rows[1].noActivate and rows[1].name == L["No spell with id %d"]:format(999999), "an id the game has no spell for: said")
+	check(rows[1] and rows[1].noActivate and rows[1].name == L["No spell with ID %d"]:format(999999), "an id the game has no spell for: said")
 	rows = SI.Answer(SI.Question("spellid frobnicate"))
 	check(rows[1] and rows[1].noActivate, "a name nothing has: said: " .. Names(rows))
 	-- through the prompt, in Simple mode and Advanced alike

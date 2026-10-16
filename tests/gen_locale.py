@@ -190,11 +190,24 @@ def main():
             print("FAIL Locales/%s.lua: %%-values differ from the English: %s" % (lang, k))
         for k in badCodes:
             print("FAIL Locales/%s.lua: colour codes, links or line breaks differ from the English: %s" % (lang, k))
-        if stale or bad or badCodes:
+        # a tooltip's key hints ("Enter: ...    Shift+Enter: ...") name the keys as the footer does, in every language
+        # (0.54.8, the player: Eingabe, Entrée, Intro, 回车 here, Enter in the footer)
+        badKeys = [k for k, v in sd.items() if k in ks and k_hint(k) and k_hint(k) != k_hint(v)]
+        for k in badKeys:
+            print("FAIL Locales/%s.lua: a key hint names its keys otherwise than the English: %s" % (lang, k))
+        if stale or bad or badCodes or badKeys:
             ok = False
         if sd:
             print("  %s: %d of %d texts translated" % (lang, len([k for k in sd if k in ks]), len(ks)))
     return 0 if ok else 1
+
+
+def k_hint(text):
+    """The keys a tooltip's key hint names, in order ("Enter", "Shift+Enter"), or None when the text isn't one."""
+    import re
+    if not re.match(r"^(Shift\+)?Enter\s?[:：]", text):
+        return None
+    return [m.group(2) for m in re.finditer(r"(^|    )([^\s:：]+)\s?[:：]", text)]
 
 
 if __name__ == "__main__":

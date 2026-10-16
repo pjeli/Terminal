@@ -385,7 +385,7 @@ local function Tooltip(e, t)
 	end
 	t:AddDoubleLine(L["Total"], tostring(e.total), 1, 0.82, 0, 1, 0.82, 0)
 	t:AddLine(" ")
-	t:AddLine(L["Enter: show the ones you carry"] .. "    " .. L["Shift+Enter: show in chat"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: show the ones you carry"] .. "    " .. L["Shift+Enter: show in chat"], 0.6, 0.6, 0.6)
 end
 S.Tooltip = Tooltip
 

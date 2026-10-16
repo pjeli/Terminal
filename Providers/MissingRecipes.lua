@@ -325,7 +325,7 @@ function MR.Tooltip(e, t)
 		end
 	end
 	if not s.trainer and not s.rid then t:AddLine(L["How it's learned isn't known: AtlasLoot doesn't list it"], 0.62, 0.62, 0.62, true) end
-	t:AddLine(L["Enter: where to learn it"], 0.62, 0.62, 0.62)
+	ns.KeyHints(t, L["Enter: show where to learn it"], 0.6, 0.6, 0.6)
 end
 
 --- These Questie NPCs nearest first: { { id, d (yards, nil: no spawn known on your continent) } } (Pipes' order).

@@ -64,10 +64,13 @@ do
 	end })
 	hw.tooltip(hw, tip)
 	local text = table.concat(lines, "\n")
-	check(text:find("Rank 2  " .. L["level %d"]:format(6) .. " = " .. L["id %d"]:format(332), 1, true)
+	check(text:find("Rank 2  " .. L["level %d"]:format(6) .. " = ID 332", 1, true)
 		and text:find("Rank 3  " .. L["level %d"]:format(12), 1, true), "the tooltip: each rank's level and id: " .. text)
 	-- (0.54.3, the player: cleaner) Enter's and Shift+Enter's hints on lines of their own
-	check(text:find("\nEnter: its Wowhead page\nShift+Enter: link it in chat", 1, true), "the keys: a line each: " .. text)
+	check(text:find("\nEnter: show its Wowhead page\nShift+Enter: link it in chat", 1, true), "the keys: a line each: " .. text)
+	-- (0.54.8, the player) no "A Shaman spell" line: the row says whose it is; "ID", as the other tooltips say it
+	check(not text:find(" spell\n", 1, true) and not text:find("Shaman", 1, true) and not text:find("= id ", 1, true),
+		"no class line, ID in capitals: " .. text)
 
 	-- the questions
 	local Q = CS.Q

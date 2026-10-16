@@ -84,7 +84,7 @@ local function Tooltip(e, t)
 	if e.readOnly then t:AddLine(L["Read-only: the game won't let it be changed"], 1, 0.4, 0.4, true) end
 	if e.protected then t:AddLine(L["Protected: can't be changed in combat"], 1, 0.6, 0.3, true) end
 	t:AddLine(" ")
-	ns.KeyHints(t, L["Enter: edit it    Shift+Enter: back to its default"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: edit it    Shift+Enter: reset it to its default"], 0.6, 0.6, 0.6, true)
 end
 
 --- The names to look up: { name, category, help } each (the last two only from the game's list), where they came

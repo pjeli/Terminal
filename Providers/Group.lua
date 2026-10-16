@@ -279,7 +279,7 @@ local function Tooltip(e, t)
 		end
 		t:AddLine(L["Consumables: %s"]:format(#cons > 0 and table.concat(cons, ", ") or L["none"]), 0.7, 0.7, 0.7, true)
 	end
-	t:AddLine(L["Enter: target"] .. (e.buffWith and ("    " .. L["Shift+Enter: cast %s on them"]:format(e.buffWith)) or ""), 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: target them"] .. (e.buffWith and ("    " .. L["Shift+Enter: cast %s on them"]:format(e.buffWith)) or ""), 0.6, 0.6, 0.6)
 end
 
 local list -- (the last collect's rows)

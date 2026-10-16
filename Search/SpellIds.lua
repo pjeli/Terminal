@@ -37,10 +37,10 @@ function SI.Row(id, name, rank, where, extra)
 	local shown = rank and (name .. " (" .. rank .. ")") or name
 	return {
 		key = "spellid:" .. id, kind = "spellid", kindLabel = L["Spell ID"], name = shown, spellID = id,
-		icon = SpellIcon(id) or ICON, detail = ns.Detail(L["id %d"]:format(id), extra, where),
+		icon = SpellIcon(id) or ICON, detail = ns.Detail(L["ID %d"]:format(id), extra, where),
 		getLink = Link, activate = CopyId, staysOpen = false,
 		secondary = LinkIt, secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
-		shareLink = function(e) return (Link(e) or e.name) .. " " .. L["id %d"]:format(e.spellID) end,
+		shareLink = function(e) return (Link(e) or e.name) .. " " .. L["ID %d"]:format(e.spellID) end,
 	}
 end
 
@@ -156,7 +156,7 @@ function SI.Answer(q)
 	local NoteRow = ns.NoteRow
 	if q.id then
 		local e = SI.ById(q.id)
-		if not e then return { NoteRow(L["No spell with id %d"]:format(q.id)) }, L["Spell ID"] end
+		if not e then return { NoteRow(L["No spell with ID %d"]:format(q.id)) }, L["Spell ID"] end
 		return ns.ScoreInOrder({ e }), L["Spell ID"] .. SEP .. L["Enter copies it"]
 	end
 	local rows = SI.ByName(q.words)
