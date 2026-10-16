@@ -14,13 +14,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.53.4", when = "in testing",
+		v = "0.53.5", when = "in testing",
 		items = {
 			"Filters take a quoted value, with or without a |: q:\"Rare\", quality:\"Rare\", in:\"Elwynn Forest\". Enter on a group of a summed search writes the filter you would type (q:rare, in:\"Elwynn Forest\").",
 			".zen: the faded interface takes no clicks or hovers; a click on it closes the terminal.",
 			"Opening and closing the terminal costs less: the empty prompt's suggestions no longer read your bags, quests and professions again, and .zen's fade sets the interface's alpha in steps.",
 			"Summed searches: \"by dungeon\" is dungeons, \"by raid\" raids, \"by instance\" either (not world bosses, battlegrounds, professions or factions); grouping by anything leaves out what has none of it, with no \"no ...\" group.",
 			"@dungeon and @raid list an instance behind two doors (Blackrock Mountain) once, at the nearer door.",
+			"Tabs: Ctrl+T opens a tab, Ctrl+1-4 or Ctrl+Tab switch, Ctrl+Shift+W closes one. Each keeps its search and mode, the one shown updates itself (no F5), and a dot marks one whose lists changed.",
 		},
 	},
 	{

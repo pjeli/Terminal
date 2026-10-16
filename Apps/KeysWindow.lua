@@ -72,6 +72,9 @@ K.LINES = {
 	{ "Alt+`", only = "sf", s = L["this search in Advanced mode, this one time"], f = L["the same words in Advanced mode"] },
 	{ "Tab+`", L["fuzzy finding over every list (hold Tab, press `)"], f = L["close"] },
 	{ "F1", L["this list (also .keybinds)"] },
+	{ "Ctrl+T", L["a new tab: several searches open at once, each kept up to date (four at most)"], only = "sa" },
+	{ "Ctrl+1-4, Ctrl+Tab", L["switch tabs (a click on one too; Ctrl+Shift+Tab the previous)"], only = "sa" },
+	{ "Ctrl+Shift+W", L["close the tab shown (a right-click on a tab too)"], only = "sa" },
 	{ L["drag"], L["move Terminal: it snaps to a grid, the screen's middles lit (Shift: freely)"] },
 	{ "Ctrl+R, Ctrl+S...", L["the game's own keys for the frame rate, sound, music, volume and screenshots still work"] },
 

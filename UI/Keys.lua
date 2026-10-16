@@ -38,6 +38,7 @@ UI.PASS_ACTIONS = {
 -- words, Alt+`; Ctrl+Enter and Shift+Enter are its own too; F1 the keys window and F5 new results, whatever the game
 -- binds to them)
 local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = true, K = true, U = true, W = true,
+	T = true, ["1"] = true, ["2"] = true, ["3"] = true, ["4"] = true, -- (tabs: Ctrl+T, Ctrl+1-4; Tabs.lua)
 	["`"] = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, HOME = true, END = true, BACKSPACE = true,
 	DELETE = true, TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true, F1 = true, F5 = true }
 UI.HELP_KEY = "F1" -- (Apps/KeysWindow.lua: every key, per mode; .keybinds too)
@@ -475,6 +476,8 @@ do
 			UI:Up()
 		elseif key == "DOWN" then
 			UI:Down()
+		elseif ctrl and not IsAltKeyDown() and ns.Tabs and ns.Tabs.Key(key, shift) then
+			return -- (tabs: Ctrl+T, Ctrl+1-4, Ctrl+Tab, Ctrl+Shift+W; Tabs.lua)
 		elseif key == "TAB" then
 			TabKey(shift)
 		elseif ListKey(key, ctrl and not IsAltKeyDown()) then

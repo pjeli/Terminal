@@ -123,6 +123,9 @@ do
 		frame:SetScript("OnHide", function(self)
 			if UI.drag then UI:DragStop(self) end -- (closed while dragged: the lines go, the place it had is kept)
 			if not UI.closing then UI:KeepLastSearch() end -- (closed by the game, not by UI:Hide, which kept it already)
+			-- (the tab shown kept as it is: closed by the game, not by UI:Hide, which kept it before its run's mode ended)
+			if not UI.tabKept and ns.Tabs then ns.Tabs.SaveCurrent() end
+			UI.tabKept = nil
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			UI.openedByToggle, UI.tabHeld = nil, nil
@@ -234,7 +237,10 @@ do
 			if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
 		end)
 		-- (Tab here does what it does in the drawn prompt: Simple mode's categories, Advanced's pick lists, completion)
-		edit:SetScript("OnTabPressed", function() UI.TabKey(IsShiftKeyDown()) end)
+		edit:SetScript("OnTabPressed", function()
+			if IsControlKeyDown() and ns.Tabs and ns.Tabs.On() then return end -- (Ctrl+Tab: the next tab, OnKeyDown's)
+			UI.TabKey(IsShiftKeyDown())
+		end)
 		edit:SetScript("OnKeyUp", function(_, key) if key == "TAB" then UI.tabHeld = nil end end)
 		edit:SetScript("OnKeyDown", function(_, key)
 			-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)
@@ -250,6 +256,8 @@ do
 			end
 			if key == "`" then
 				UI.TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
+			elseif IsControlKeyDown() and not IsAltKeyDown() and ns.Tabs and ns.Tabs.Key(key, IsShiftKeyDown()) then
+				return -- (tabs: Tabs.lua)
 			else
 				UI.ListKey(key, IsControlKeyDown() and not IsAltKeyDown()) -- (Ctrl with Alt: AltGr, typing; 0.49.2, review)
 			end
@@ -561,7 +569,7 @@ end
 --- The prompt's label and the query box after it, the spinner, the typed text's colours.
 local function ApplyPromptTheme(t)
 	-- prompt, then the query box right after it
-	local mid = -(LY.HEADER_H - 4) / 2
+	local mid = -(UI.tabsH or 0) - (LY.HEADER_H - 4) / 2 -- (under the tabs' strip while it shows: Tabs.lua)
 	promptFS:SetText("|cff" .. t.prompt .. t.promptText:gsub("|", "||") .. "|r")
 	promptFS:ClearAllPoints()
 	promptFS:SetPoint("LEFT", frame, "TOPLEFT", 14, mid)
@@ -661,6 +669,7 @@ function UI:ApplyTheme()
 	self:Render()
 	self.snapNext = false
 	self:UpdateCaret()
+	if ns.Tabs then ns.Tabs.Draw() end -- (the tabs' strip: the new width and colours)
 end
 
 ----------------------------------------------------------------------
@@ -709,6 +718,7 @@ function UI:Hide()
 			temp = E and E.temp, tempSimple = E and E.tempSimple } or nil
 		self.ran = nil
 	end
+	if ns.Tabs then ns.Tabs.SaveCurrent(); self.tabKept = true end -- (the tab shown, with its run's mode: before that ends)
 	self:EndAdvancedOnce()
 	self:EndFuzzy()
 	if ns.Tour then ns.Tour.Stop() end -- (closed: the tour is over)
@@ -887,6 +897,10 @@ end
 
 function UI:Open(text)
 	Build()
+	self.tabKept = nil
+	-- (tabs: opened with no text of its own, the tab you were on comes back, in its mode; Tabs.lua)
+	local tab = (text == nil or text == "") and ns.Tabs and ns.Tabs.ForOpen() or nil
+	if tab then text = tab.text end
 	-- (0.49.2, review) one of Terminal's apps up (.atop, .changelog, F1's keys, the games): it goes, as the terminal goes
 	-- when an app opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took
 	-- the keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
@@ -941,6 +955,7 @@ function UI:Open(text)
 		end)
 	end
 	self:UpdateCaret()
+	if tab then ns.Tabs.AfterOpen(tab) elseif ns.Tabs then ns.Tabs.Layout() end
 end
 
 --- What was typed before the terminal closed a moment ago (UI.REOPEN_KEEP), to open with; nil when there's none.
@@ -956,7 +971,8 @@ function UI:Toggle()
 	if self:TabDown() then return self:FuzzyOnce() end
 	-- closed by combat starting: opened by hand before it came back, as it was then
 	if not (self.combatState and self:ComeBack("opened by hand")) then
-		local text, cursor, kept = self:RecentText()
+		local text, cursor, kept
+		if ns.Tabs and ns.Tabs.On() then self.closedText = nil else text, cursor, kept = self:RecentText() end -- (tabs: Open)
 		-- (Advanced for that run, or Simple for it from fuzzy finding: the same again, with its text)
 		-- (only over the mode you're in for good: switched to it since, nothing to bring back)
 		if kept and ns.Easy then

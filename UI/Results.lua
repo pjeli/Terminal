@@ -221,6 +221,10 @@ local function Hold(self, shown, new)
 		self:SetStatus()
 		return "same"
 	end
+	if confirmed and ns.Tabs and ns.Tabs.On() then -- (tabs: a standing view keeps itself up to date, no F5)
+		self.held, self.heldFields = nil, nil
+		return nil
+	end
 	if not (self.held and Equal(self.held, new)) then -- (offered already: as it was)
 		if confirmed then
 			self.held, self.heldFields = new, Fields(self)
@@ -301,6 +305,7 @@ local function ShowsKind(kinds)
 end
 
 function ns.OnDirty(p)
+	if ns.Tabs then ns.Tabs.Dirty(p) end -- (a tab not shown whose rows came from it: a dot on its label)
 	if not (UI.IsShown and UI:IsShown()) or UI.mode ~= "search" then return end
 	live.kinds[p.id] = true
 	live.at = GetTime()

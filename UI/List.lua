@@ -139,6 +139,7 @@ do
 		elseif once then text = Prepend(HINT .. ONCE_LABEL .. "|r", text) end
 		status:SetText(Theme.FixColors(text)) -- (always: the notes' gold too, on light themes; it returns at once on dark ones)
 		self:FitHints()
+		if (self.tabsH or 0) > 0 and ns.Tabs then ns.Tabs.Draw() end -- (the tab shown: its text and count)
 	end
 end
 
@@ -559,7 +560,7 @@ function UI:SelectionChanged()
 end
 
 --- The header's height: the prompt's first line, and every line a long prompt wraps onto.
-local function HeaderH() return LY.HEADER_H + (UI.promptExtra or 0) end
+local function HeaderH() return LY.HEADER_H + (UI.promptExtra or 0) + (UI.tabsH or 0) end -- (tabsH: the tabs' strip over the prompt, Tabs.lua)
 
 --- The prompt took more (or fewer) lines: the header grows down, and what's under it moves.
 function UI:SetPromptExtra(extra)
