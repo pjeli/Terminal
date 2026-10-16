@@ -15,6 +15,10 @@ local ns = select(2, ...)
 --   Attune  its attunements, dungeon quest lines, keys and class quests (@attune), with how far along you are and your
 --       next step; Enter opens Attune's window on one and points at it; "<attunement> > steps" lists its steps.
 --
+--   What's Training (its public API, WT_API)  every spell, rank, weapon skill and pet ability your class has still to
+--       learn (@training), with when, what it costs and where it's taught; Enter opens What's Training's window on one
+--       and points at it; "<spell> > learn" lists who teaches it, the nearest first.
+--
 -- None of them is required; with none installed only the dungeon and raid entrance lists
 -- (@dungeon, @raid: Terminal's own data) are left. .integrations shows what was found.
 
@@ -25,7 +29,7 @@ I.HINT_FEW = 2 -- (UI.HINT_FEW: a list with this many matches or fewer shows the
 -- Integrations/ is one module over several files, loaded in this order (Terminal.toc): Shared (this: the table and
 -- the helpers every part uses), Loot (AtlasLoot), Distances (world positions), Objects (mailboxes), Entrances
 -- (@dungeon/@raid), Flights (@flight), Questie (its data, NPCs, the name index), QuestieQuests (@questie, the Questie providers),
--- Attune (@attune), Places (zones and towns by name), Setup (login, .integrations). What one file needs from another is on I (public)
+-- Attune (@attune), WhatsTraining (@training), Places (zones and towns by name), Setup (login, .integrations). What one file needs from another is on I (public)
 -- or on I._ (Terminal's own, between these files only); a later file takes it into a local when it loads.
 I._ = {}
 

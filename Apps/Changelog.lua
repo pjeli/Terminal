@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.53.6", when = "in testing",
+		v = "0.53.10", when = "in testing",
 		items = {
 			"Filters take a quoted value, with or without a |: q:\"Rare\", quality:\"Rare\", in:\"Elwynn Forest\". Enter on a group of a summed search writes the filter you would type (q:rare, in:\"Elwynn Forest\").",
 			".zen: the faded interface takes no clicks or hovers; a click on it closes the terminal.",
@@ -23,6 +23,8 @@ CL.LOG = {
 			"@dungeon and @raid list an instance behind two doors (Blackrock Mountain) once, at the nearer door.",
 			"Tabs: Ctrl+T opens a tab, Ctrl+1-4 or Ctrl+Tab switch, Ctrl+Shift+W closes one. Each keeps its search and mode, the one shown updates itself (no F5), and a dot marks one whose lists changed.",
 			"Fixes from a review: tabs keep their own search through chat links and the tour; summed searches keep the rows their steps ask for; stat:mp5 and stat:healing no longer match health regen, and rap is its own stat; characters who share a first name are told apart; filters in quotes and place names in other languages read right in chat lines; a search you narrow is up to twice as fast, and lists, tooltips, the tab strip and .atop do less while you look at them; and many smaller fixes.",
+			"With What's Training: @training lists every spell, rank, weapon skill and pet ability you've still to learn, when, what it costs and where it's taught; \"what can i train\", \"what do i learn next level\", \"how much is training\"; \"where to learn fireball\" lists who teaches it, the nearest first. Enter shows it in What's Training. .tour has a step for it, or says what installing it adds.",
+			"Weapon masters: \"dagger trainer\", \"where do i learn daggers\", \"who trains staves\" (and @npc trainer:daggers) list the weapon masters who teach it, the nearest first and then those on another continent, even for a weapon skill you know (from What's Training; without it, every weapon master). Shift+Enter on a spell in @training lists who teaches it; Enter on one shows them on the map.",
 		},
 	},
 	{

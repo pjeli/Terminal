@@ -670,7 +670,7 @@ Run("rotating examples in the empty prompt", function()
 	-- every one is real syntax: its @kinds and filter keys exist
 	for _, ex in ipairs(E.ADV_EXAMPLES) do
 		for w in ex:gsub("^%a+: ", ""):gmatch("%S+") do
-			if w:sub(1, 1) == "@" then check(ns:ResolveProvider(w:sub(2)) ~= nil or w == "@questie" or w == "@npc" or w == "@stored", "known kind in an example: " .. w) end
+			if w:sub(1, 1) == "@" then check(ns:ResolveProvider(w:sub(2)) ~= nil or w == "@questie" or w == "@npc" or w == "@stored" or w == "@training", "known kind in an example: " .. w) end
 			if w:find("^%a+:%S") and not w:find("[()]") then check(ns.Filters.Parse(w) ~= nil, "a working filter in an example: " .. w) end
 		end
 	end

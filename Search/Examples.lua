@@ -13,7 +13,7 @@ local Safe, Str, Num = ns.Safe, ns.Str, ns.Num
 -- The empty prompt's faint examples (a different one each time it opens)
 ----------------------------------------------------------------------
 
--- Each with what it needs (an addon: "Questie", "AtlasLoot", "Attune", "Syndicator" (a bag addon for your alts);
+-- Each with what it needs (an addon: "Questie", "AtlasLoot", "Attune", "WhatsTraining", "Syndicator" (a bag addon for your alts);
 -- "guild", "group") and where it's most use ("city": a capital, or resting in a town; "field": out in the world;
 -- "instance": in a dungeon or raid; none: anywhere). One whose addon isn't there isn't offered; the ones for where you
 -- are come first, the others after (0.52.1, the player's ask: "nearest trainer, mailbox" in a city, "nearest dungeon,
@@ -23,7 +23,8 @@ E.SIMPLE = {
 	{ "nearest mailbox", "Questie", "city" }, { "nearest innkeeper", "Questie", "city" }, { "nearest repair", "Questie", "city" },
 	{ "nearest auctioneer", "Questie", "city" }, { "nearest banker", "Questie", "city" }, { "nearby battlemaster", "Questie", "city" },
 	{ "nearest pvp vendor", "Questie", "city" }, { "mining trainer in org", "Questie", "city" }, { "my auctions", nil, "city" },
-	{ "my mail", nil, "city" }, { "recipes i can learn now", nil, "city" }, { "recipes i'm missing", nil, "city" },
+	{ "my mail", nil, "city" }, { "what can i train", "WhatsTraining", "city" }, { "how much is training", "WhatsTraining", "city" },
+	{ "recipes i can learn now", nil, "city" }, { "recipes i'm missing", nil, "city" },
 	{ "mats for thorium belt", nil, "city" }, { "what uses copper bar", nil, "city" }, { "guild blacksmith", "guild", "city" },
 	{ "rested xp", nil, "city" }, { "my lockouts", nil, "city" }, { "group browser", nil, "city" },
 	-- out in the world
@@ -41,6 +42,7 @@ E.SIMPLE = {
 	{ "shield that drops from kresh", "AtlasLoot" }, { "where to get mageweave" }, { "unlearned flight paths" },
 	{ "who priest undercity" }, { "online", "guild" }, { "spells not on my bars" }, { "what's on this week" },
 	{ "next darkmoon faire" }, { "my attunements", "Attune" }, { "my keys", "Attune" }, { "attunements to do", "Attune" },
+	{ "what do i learn next level", "WhatsTraining" },
 	{ L["tip: F1 shows every key"], tip = true },
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands); one whose @kind isn't there (no Questie:
@@ -54,7 +56,8 @@ E.ADVANCED = {
 	{ "@map fish:mine", "field" }, { "thorium belt > mats > alts", "city" }, { "mats for thorium belt >>> party", "city" },
 	{ "copper bar > uses", "city" }, { "@map lvl:30", "field" }, { "@dungeon lvl:25", "field" }, { "@recipe is:skillup", "city" },
 	{ "@friend is:online" }, { "@guild blacksmith", "city" }, { "@spell is:unplaced" }, { "@quest is:drop", "field" },
-	{ "@recipe is:unknown", "city" }, { "@recipe is:learnable", "city" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
+	{ "@recipe is:unknown", "city" }, { "@recipe is:learnable", "city" }, { "@training is:learnable | sum cost", "city" },
+	{ "@training is:nextlevel" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
 	{ "@item is:boe|q:epic" }, { "@spell is:ready", "instance" }, { "@gear slot:head|chest -is:soulbound" },
 	{ "@item q:rare|epic" }, { "@npc is:repair sort:nearest", "city" }, { "@npc trainer:mining near:500", "city" },
 	{ "@loot is:upgrade sort:best", "field" }, { "@questie is:upgrade sort:best", "field" }, { "@group is:dead", "instance" },
@@ -247,7 +250,7 @@ local pool = { at = 0 }
 --- What the examples are offered for: which addons are here, your guild and group (a change: made again).
 local function Setup()
 	local t = {}
-	for _, n in ipairs({ "Questie", "AtlasLoot", "Attune", "Syndicator", "guild", "group" }) do t[#t + 1] = Has(n) and "1" or "0" end
+	for _, n in ipairs({ "Questie", "AtlasLoot", "Attune", "WhatsTraining", "Syndicator", "guild", "group" }) do t[#t + 1] = Has(n) and "1" or "0" end
 	return table.concat(t)
 end
 --- The list the suggestions come from: the fixed ones and the character's own, those this setup has, those for where

@@ -309,6 +309,40 @@ F.ProfNamed = ProfNamed -- (Simple mode: "enchanting trainer" is trainer:enchant
 local function AnyClassTrainer(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
 local function AnyProfTrainer(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
 
+-- weapon skills by the words for them (0.53.9, the player: "dagger trainer" found no one; weapon masters' titles say
+-- "Weapon Master", not what they teach): their spell ids (What's Training's); the client's own names asked of the game
+F.WEAPON_SKILLS = { dagger = { 1180 }, daggers = { 1180 }, sword = { 201, 202 }, swords = { 201, 202 }, axe = { 196, 197 },
+	axes = { 196, 197 }, mace = { 198, 199 }, maces = { 198, 199 }, staff = { 227 }, staves = { 227 }, polearm = { 200 },
+	polearms = { 200 }, bow = { 264 }, bows = { 264 }, gun = { 266 }, guns = { 266 }, crossbow = { 5011 }, crossbows = { 5011 },
+	thrown = { 2567 }, fist = { 15590 }, fists = { 15590 }, fistweapon = { 15590 }, fistweapons = { 15590 } }
+F.WEAPON_SKILL_IDS = { 1180, 201, 202, 196, 197, 198, 199, 227, 200, 264, 266, 5011, 2567, 15590 }
+local weaponNames -- (the client's names, lowercase -> id; made once the game has them all)
+--- The weapon skills a word names (a list of spell ids), or nil: "dagger", "swords", the client's own "dolche".
+function F.WeaponSkillIds(w)
+	if type(w) ~= "string" or w == "" then return nil end
+	w = Lower(w)
+	if F.WEAPON_SKILLS[w] then return F.WEAPON_SKILLS[w] end
+	if #w < 4 then return nil end
+	local names = weaponNames
+	if not names then
+		names = {}
+		local all = true
+		for _, id in ipairs(F.WEAPON_SKILL_IDS) do
+			local n = ns.Str(ns.Safe(C_Spell and C_Spell.GetSpellName, id)) or ns.Str((ns.Safe(_G.GetSpellInfo, id)))
+			if n then names[Lower(n)] = id else all = false end
+		end
+		if all then weaponNames = names end
+	end
+	local out
+	for n, id in pairs(names) do
+		if n == w or n:sub(1, #w) == w then out = out or {}; out[#out + 1] = id end
+	end
+	if out then table.sort(out) end
+	return out
+end
+--- A word naming a weapon skill, as trainer: takes it (Simple mode: "dagger trainer" is trainer:dagger, Easy.lua), or nil.
+F.TrainerWeapon = function(w) return F.WeaponSkillIds(w) and Lower(w) or nil end
+
 local CLASS_SET = {}
 for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
 F.TrainerClass = function(w) return CLASS_SET[w] and w or nil end -- (Simple mode: "mage trainer" is trainer:mage, Easy.lua)
@@ -331,6 +365,17 @@ KEYS.trainer = function(v)
 	end
 	if CLASS_SET[v] then
 		return function(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) == v or false end
+	end
+	-- a weapon skill (trainer:daggers): the weapon masters What's Training says teach it to your faction; without it (or
+	-- for a weapon it doesn't list for your class), every weapon master
+	local weapon = F.WeaponSkillIds(v)
+	if weapon then
+		local WT = ns.WhatsTraining
+		local masters = WT and WT.MasterIds and WT.MasterIds(weapon)
+		if masters and next(masters) then
+			return function(e) local id = NpcID(e); return id ~= nil and masters[id] == true end
+		end
+		return function(e) local t = NpcTitle(e); return t ~= nil and t:find("weapon master", 1, true) ~= nil end
 	end
 	local prof = ProfNamed(v)
 	if prof then

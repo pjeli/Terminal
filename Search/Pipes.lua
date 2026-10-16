@@ -103,6 +103,8 @@ P.PHRASES = {
 	-- (before the sources: "where to get the recipe for x" is where to learn it)
 	{ "^where to learn (.+)$", "learn" }, { "^where do i learn (.+)$", "learn" }, { "^where can i learn (.+)$", "learn" },
 	{ "^how to learn (.+)$", "learn" }, { "^how do i learn (.+)$", "learn" }, { "^who teaches (.+)$", "learn" },
+	{ "^where to train (.+)$", "learn" }, { "^where do i train (.+)$", "learn" }, { "^where can i train (.+)$", "learn" },
+	{ "^who trains (.+)$", "learn" },
 	{ "^where is (.+) taught$", "learn" }, { "^where to get the recipe for (.+)$", "learn" },
 	{ "^where is the recipe for (.+)$", "learn" }, { "^recipe sources? for (.+)$", "learn" },
 	{ "^where to get (.+)$", "sources" }, { "^where do i get (.+)$", "sources" }, { "^where can i get (.+)$", "sources" },
@@ -197,9 +199,14 @@ end
 ----------------------------------------------------------------------
 
 local Safe = ns.Safe
+-- lists a chain can start from that no search lists (What's Training's weapon skills you know: "daggers > learn"):
+-- id -> function giving its rows
+P.LISTS = {}
 local function Entries(id)
 	local p = ns.providers[id]
-	return p and ns:GetEntries(p) or {}
+	if p then return ns:GetEntries(p) end
+	local list = P.LISTS[id]
+	return list and list() or {}
 end
 local function ItemOf(e)
 	local F = ns.Filters
@@ -411,6 +418,7 @@ ns:RegisterRelation("uses", {
 local function View(e, detail, label, how)
 	return setmetatable({ detail = detail, kindLabel = label or nil, pipeHow = how }, { __index = e })
 end
+P.View = View
 
 -- a view of an NPC or spot with how far it is said first, as "nearest" says it ("80 yd  Sells it  ·  Vendor"): the
 -- selected row's arrow sits just left of the distance, and keeps it up to date as you walk (`_dist`, `nearRest`:
@@ -661,6 +669,7 @@ local function Trainers(word)
 	if not busy and #list > 0 then trainersOf.by[word] = got end
 	return got
 end
+P.Trainers = Trainers -- (What's Training's spells: trainer:class, trainer:pet; Search/WhatsTraining.lua)
 P.ForgetTrainers = function() trainersOf.list, trainersOf.by = nil, {} end -- (tests)
 
 -- the nearest trainers who teach up to `need`, as rows saying so
@@ -904,7 +913,7 @@ end
 
 -- The typed words: the lists an @kind picks (else P.SEED_KINDS), the key:value filters, and the name's words
 -- (lowercase), alone and joined.
-local function SeedParse(text, seedKinds)
+local function SeedParse(text, seedKinds, alsoKinds)
 	local kinds, filters, words = {}, {}, {}
 	for w in (text or ""):gmatch("%S+") do
 		if w:sub(1, 1) == "@" and #w > 1 then
@@ -916,7 +925,15 @@ local function SeedParse(text, seedKinds)
 			if f then filters[#filters + 1] = f else words[#words + 1] = w end
 		end
 	end
-	if #kinds == 0 then kinds = seedKinds or P.SEED_KINDS end
+	if #kinds == 0 then
+		kinds = seedKinds or P.SEED_KINDS
+		if alsoKinds then
+			local all = {}
+			for _, k in ipairs(kinds) do all[#all + 1] = k end
+			for _, k in ipairs(alsoKinds) do all[#all + 1] = k end
+			kinds = all
+		end
+	end
 	local tokens = Tokens(table.concat(words, " "))
 	local whole = table.concat(tokens, " ")
 	return kinds, filters, tokens, whole
@@ -1048,9 +1065,11 @@ end
 --- every belt); else the one name that has every word as typed; with only filters typed, every row that passes.
 --- Never a guess (0.44.4: "core leather belt" gave Comfortable Leather Hat's mats, its letters scattered in the name):
 --- no name with every word -> {} and the closest name (second result); several -> {} and those names to pick from
---- (third result: rows, best first).
-function P.Seed(text, seedKinds)
-	local kinds, filters, tokens, whole = SeedParse(text, seedKinds)
+--- (third result: rows, best first); `applies` (a row -> whether the link can go on from it) keeps, of several names,
+--- those it can, when some can. `alsoKinds`: lists looked in as well as the usual ones (a relation's other
+--- definitions' own: "fireball > learn" looks in What's Training's spells too, P.AlsoSeeds).
+function P.Seed(text, seedKinds, alsoKinds, applies)
+	local kinds, filters, tokens, whole = SeedParse(text, seedKinds, alsoKinds)
 	local from = SeedFrom(kinds, tokens)
 	local gen = ns.entriesGen
 	local all, exact, subs, near, cands = SeedScan(kinds, filters, tokens, whole, from)
@@ -1065,6 +1084,13 @@ function P.Seed(text, seedKinds)
 	end
 	if #tokens == 0 then return Once(all) end -- (only filters typed: every row that passes)
 	if #subs == 0 then return {}, near end
+	-- (the names the chain's link can go on from, when some can: "where to learn dagger" is the Daggers weapon skill,
+	-- not a pick among every dagger AtlasLoot knows; 0.53.9)
+	if applies and #subs > 1 then
+		local fit = {}
+		for _, m in ipairs(subs) do if applies(m[1]) then fit[#fit + 1] = m end end
+		if #fit > 0 then subs = fit end
+	end
 	return SeedChoices(subs)
 end
 
@@ -1149,15 +1175,38 @@ local function FirstDef(stages)
 	return name and P.relations[name] and P.relations[name][1] or nil, name
 end
 
+--- The lists a relation's other definitions start from as well (`seedAlso`: What's Training's spells for "> learn"),
+--- those that are there; nil: none.
+function P.AlsoSeeds(name)
+	local out
+	for k, def in ipairs(name and P.relations[name] or {}) do
+		if k > 1 and def.seedAlso and (not def.available or def.available()) then
+			for _, kind in ipairs(def.seedAlso) do
+				if ns.providers[kind] or P.LISTS[kind] then out = out or {}; out[#out + 1] = kind end
+			end
+		end
+	end
+	return out
+end
+
 -- the first part's rows, kept by its text (the closest name or the names to pick from ride on the list)
 local function SeedRows(key, stages)
 	local def, name = FirstDef(stages)
 	local kinds = def and def.seedKinds
-	if kinds then key = key .. " @" .. name end -- (the same words start another list there)
+	local also = not kinds and P.AlsoSeeds(name) or nil
+	if kinds or also then key = key .. " @" .. name end -- (the same words start another list there)
 	local rows = Cached(key)
 	if not rows then
 		local near, choices
-		rows, near, choices = P.Seed(stages[1].text, kinds)
+		rows, near, choices = P.Seed(stages[1].text, kinds, also, name and function(e)
+			for _, d in ipairs(P.relations[name]) do
+				if not d.available or d.available() then
+					local ok, yes = pcall(d.applies, e)
+					if ok and yes then return true end
+				end
+			end
+			return false
+		end)
 		if #rows == 0 and not choices and def and def.seedFallback then
 			local fb = def.seedFallback(stages[1].text)
 			if fb and #fb > 0 then rows, near = Once(fb), nil end

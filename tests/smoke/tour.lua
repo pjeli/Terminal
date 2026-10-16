@@ -170,6 +170,9 @@ do
 	check(qs and qs.text == "nearest mailbox" and as and as.text == "upgrades" and ts and ts.text == "how do i get the dalaran key",
 		"all installed: their steps search with them, Attune's the Dalaran key: " .. Titles())
 	check(not StepTitled(L["More with addons"]) and StepTitled(L["Find a setting"]), "...no card to install any; a setting found too")
+	-- (0.53.7, the player's ask) What's Training's: what you can train
+	local _, ws = StepTitled(L["What to train (What's Training)"])
+	check(ws and ws.text == "what can i train" and ws.pick == "first", "What's Training's step: what can i train: " .. tostring(ws and ws.text))
 	UI:Hide(); FlushAll()
 	-- an Alliance player: City of Dalaran's quests
 	Q.How = function(t) if t == "how do i get attuned to city of dalaran" then return { steps = "City of Dalaran" } end end
@@ -184,6 +187,11 @@ do
 	check(as2 and as2.text == "" and as2.say:find("Install Attune", 1, true) and not StepTitled(L["Keys and attunements (Attune)"]),
 		"Attune missing: a card saying what installing it adds: " .. Titles())
 	UI:Hide(); FlushAll()
+	Without("WhatsTraining")
+	local _, wm = StepTitled(L["Add What's Training"])
+	check(wm and wm.text == "" and wm.say:find("Install What's Training", 1, true) and not StepTitled(L["What to train (What's Training)"]),
+		"What's Training missing: a card saying what installing it adds: " .. Titles())
+	UI:Hide(); FlushAll()
 	-- two missing: one card naming both
 	Without("Questie", "AtlasLoot")
 	local mi, ms = StepTitled(L["More with addons"])
@@ -191,10 +199,10 @@ do
 	for _ = 2, mi do key("ENTER") FlushAll() end
 	check(ns.Tour.Card().title:GetText() == L["More with addons"] and UI.edit:GetText() == "", "...shown on its card, nothing searched")
 	UI:Hide(); FlushAll()
-	-- none of them: the card names all three
-	Without("Questie", "AtlasLoot", "Attune")
+	-- none of them: the card names all four
+	Without("Questie", "AtlasLoot", "Attune", "WhatsTraining")
 	_, ms = StepTitled(L["More with addons"])
-	check(ms and ms.say:find("Attune:", 1, true), "none installed: the card names all three: " .. Titles())
+	check(ms and ms.say:find("Attune:", 1, true) and ms.say:find("What's Training:", 1, true), "none installed: the card names all four: " .. Titles())
 	UI:Hide(); FlushAll()
 	I.AddonMissing = realMissing
 

@@ -63,7 +63,7 @@ local function NotEmote(e) return e.emote == nil end
 E.CATEGORIES = {
 	{ id = "items", label = L["Items"], kinds = { "items", "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags", "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
-	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
@@ -521,6 +521,7 @@ E.VERBS = {
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
+	training = { L["show in What's Training"], L["who teaches it"] },
 	addonoptions = AddonOptionVerbs,
 	quests = QuestVerbs,
 	missing = { L["where to learn"], L["link in chat"] }, -- (a recipe you don't know yet: MissingRecipes.lua)
@@ -739,6 +740,7 @@ function E.TrainerProfs(words, trainerSaid)
 			prof = nil
 		end
 		if not prof and F.TrainerClass then prof = F.TrainerClass(w) end
+		if not prof and F.TrainerWeapon then prof = F.TrainerWeapon(w) end -- ("dagger trainer": its weapon masters)
 		if prof then
 			specs = specs or {}
 			specs[#specs + 1] = "trainer:" .. (prof:gsub(" ", ""))
@@ -804,8 +806,14 @@ local function Convert(text, category, shown)
 	local others = 0
 	local everyday = {} -- (the everyday words said: "nearest unlearned flight master" is the flight paths')
 	for _, w in ipairs(lower) do if not E.STOP[w] then others = others + 1 end end
+	-- ("dagger trainer": a weapon skill's weapon masters, not an item type; E.TrainerProfs)
+	local trainerSaid = false
+	for _, w in ipairs(lower) do if E.WORDS[w] == "is:trainer" then trainerSaid = true end end
+	local F = ns.Filters
 	for _, w in ipairs(lower) do
-		if E.IsAdvancedWord(w) then
+		if trainerSaid and E.WORDS[w] and E.WORDS[w] ~= "is:trainer" and F and F.TrainerWeapon and F.TrainerWeapon(w) then
+			plain[#plain + 1] = w
+		elseif E.IsAdvancedWord(w) then
 			if w:sub(1, 1) == "@" then Add(kinds, w) else Add(filters, w) end
 		elseif w:find("[|&]") or w:find("^[-!][%a\128-\255]") then -- (any language's "-word", 0.49.2)
 			Add(filters, AdvancedPart(w))
@@ -1076,6 +1084,7 @@ function E.HelpLines()
 		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
 		L["With Attune: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\" (how far along you are, and your next step); \"how do i get into mc\" or \"steps for molten core\" lists the steps first to last. Enter opens Attune on it."],
+		L["With What's Training: \"what can i train\", \"what do i learn next level\", \"spells at level 30\", \"how much is training\" (every spell you've still to learn, when, and what it costs); \"where to learn fireball\" or \"dagger trainer\" lists who teaches it, the nearest first. Enter opens What's Training on a spell, Shift+Enter lists who teaches it; Enter on a trainer shows them on the map."],
 		L["After a death: \"where is my body\" shows your corpse (how far, the arrow pointing at it) and the nearest spirit healers; \"nearest spirit healer\" on its own too. Enter opens the map on it."],
 		L["Your gear's wear: \"durability\", \"repair cost\", \"what needs repair\", \"broken gear\" (each piece's durability and what repairing it costs, the whole bill on top; Shift+Enter finds the nearest repair vendor)."],
 		L["Other addons' settings: type what a setting is called (\"questie map icons\") to find it in any addon that uses Ace3's options; Enter opens that addon's options on it, Shift+Enter turns an on/off setting on or off."],

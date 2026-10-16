@@ -13,7 +13,7 @@ local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Qu
 --- Each on its own: one failing (another version of its addon, a table missing) leaves the others to start (review,
 --- 0.53.6), and .debug log says which.
 function I.Setup()
-	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune" }) do
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining" }) do
 		local ok, err = pcall(I._["Setup" .. name])
 		if not ok then ns:Trace("integrations: " .. name .. " failed to start: " .. tostring(err)) end
 	end
@@ -24,7 +24,7 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function() I.Setup() end)
 
 ns:RegisterCommand("integrations", {
-	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune)"],
+	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training)"],
 	run = function()
 		local lines = { L["Integrations:"] }
 		lines[#lines + 1] = "  AtlasLoot: " .. (loot.on
@@ -44,6 +44,7 @@ ns:RegisterCommand("integrations", {
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
 			or L["not found"])
 		lines[#lines + 1] = "  Attune: " .. ns.Attune.Status()
+		lines[#lines + 1] = "  What's Training: " .. ns.WhatsTraining.Status()
 		-- (every addon whose options Ace3 holds: @addonoption)
 		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
@@ -67,6 +68,11 @@ I.ADDONS = {
 	{ name = "Attune", missing = function() return not ns.providers.attune end,
 		kinds = { attune = true, attunes = true, attunement = true, attunements = true },
 		words = { attunements = true, attuned = true } },
+	-- (0.53.7: @training and its questions; an old What's Training, without the API Terminal reads: "Update")
+	{ name = "WhatsTraining", label = "What's Training", missing = function() return not ns.providers.training end,
+		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and not ns.WhatsTraining.Api() end,
+		kinds = { training = true, train = true, trainable = true, whatstraining = true },
+		words = { training = true, trainable = true } },
 	-- (0.50.6, the player: your alts' bags and banks, @stored, come from Syndicator or BagBrother (Bagnon's): said only
 	-- with neither detected, naming both. Simple mode's "bank" is the banker: no word of its own)
 	{ name = "Syndicator", also = "BagBrother", missing = function()
@@ -128,6 +134,10 @@ end
 --- Is this addon (by its name in I.ADDONS: "Questie", "AtlasLoot") not installed, or not ready? (.tour, Tour.lua)
 function I.AddonMissing(name) return Missing(name) ~= nil end
 
+I.TRAINING_ASKS = { "^what can i train", "^what can i learn$", "^what can i learn now", "^what do i learn",
+	"^what spells can i learn", "^what spells do i learn", "^when do i learn ", "^when can i learn ", "^spells to learn",
+	"^spells to train", "^what should i train", "^what to train" }
+
 local hintText, hintFor
 --- The addon a line reaches for that isn't installed: { name, what }, or nil. Its syntax in any mode (an @kind, a
 --- key:value filter, a > link); Simple mode's words too (an NPC's role, "molten core loot", "how do i get into mc",
@@ -182,6 +192,11 @@ function I.MissingFor(text)
 		local what = line:match("^(.+) loot$") or line:match("^loot from (.+)$") or line:match("^loot in (.+)$")
 		if what and NamesInstance(what) then return at end
 	end
+	-- what you can train ("what can i train", "what do i learn next level", "when do i learn fireball")
+	local wt = Missing("WhatsTraining")
+	if wt then
+		for _, pat in ipairs(I.TRAINING_ASKS) do if line:find(pat) then return wt end end
+	end
 	local an = Missing("Attune")
 	if an then
 		local what = line:match("^(.+) attunement$") or line:match("^attunement for (.+)$")
@@ -204,8 +219,9 @@ function I.MissingHint(text)
 	-- (short, under the status, the addon's name in the text's colour: 0.50.6, the player's screenshot)
 	local th = ns.Theme and ns.Theme.Get and ns.Theme.Get()
 	local function Named(n) return th and th.text and ("|cff" .. th.text .. n .. "|r") or n end
-	local name = a and (a.also and L["%s or %s"]:format(Named(a.name), Named(a.also)) or Named(a.name))
-	hintText = a and L["Install %s for this."]:format(name) or nil
+	local label = a and (a.label or a.name)
+	local name = a and (a.also and L["%s or %s"]:format(Named(label), Named(a.also)) or Named(label))
+	hintText = a and ((a.outdated and a.outdated()) and L["Update %s for this."] or L["Install %s for this."]):format(name) or nil
 	return hintText
 end
 function I.ForgetHint() hintFor, hintText = nil, nil end -- (tests: an addon came or went)

@@ -12,9 +12,9 @@ local T = {}
 ns.Tour = T
 
 -- { text: typed into the prompt, pick: the row to select (its name, lowercase; "first"; "category"; or a test of the
--- row, else the first), title, say }. Questie's, AtlasLoot's and Attune's steps show what they bring when they're
--- installed (0.51.22, 0.51.23: the player's asks); the ones that aren't are named on one card, with what installing
--- them adds. With none of them, two steps of the game's own: an item from your bags, and a setting.
+-- row, else the first), title, say }. Questie's, AtlasLoot's, Attune's and What's Training's steps show what they
+-- bring when they're installed (0.51.22, 0.51.23, 0.53.7: the player's asks); the ones that aren't are named on one
+-- card, with what installing them adds. With none of them, two steps of the game's own: an item from your bags, and a setting.
 local function HasAddon(name)
 	local I = ns.Integrations
 	return not (I and I.AddonMissing and I.AddonMissing(name))
@@ -30,6 +30,21 @@ local function AttuneText()
 	end
 	return "my attunements"
 end
+
+--- What's Training's step: a question with an answer for you: what you can train now, else what comes next level, else
+--- all you've still to learn (nothing in its list yet: still reading your spells; its answer says so).
+local function TrainingText()
+	local p = ns.providers.training
+	local rows = p and ns:GetEntries(p) or {}
+	local next = false
+	for _, e in ipairs(rows) do
+		if e.state == "now" then return "what can i train" end
+		if e.state == "nextlevel" then next = true end
+	end
+	if next then return "what do i learn next level" end
+	return #rows > 0 and "my training" or "what can i train"
+end
+T.TrainingText = TrainingText -- (tests)
 
 --- Your bags' items: the Hearthstone left out (0.51.24, the player: the tour showed it every time), every one, and the
 --- Hearthstone's row (nil: none in your bags).
@@ -148,6 +163,9 @@ local MISSING = {
 	{ name = "Attune", title = L["Add Attune"],
 		say = L["Install Attune and Terminal knows every attunement, key and dungeon quest line: ask how to get a key and its steps are listed in order, with how far along you are."],
 		line = L["Attune: every attunement, key and dungeon quest line, step by step."] },
+	{ name = "WhatsTraining", title = L["Add What's Training"],
+		say = L["Install What's Training and Terminal knows every spell you've still to learn: ask what you can train, what's next level or what training costs, and who teaches it, the nearest first."],
+		line = L["What's Training: every spell you've still to learn, when, and what it costs."] },
 }
 
 function T.Steps()
@@ -183,6 +201,10 @@ function T.Steps()
 	if HasAddon("Attune") then
 		Add({ text = AttuneText(), pick = "first", title = L["Keys and attunements (Attune)"],
 			say = L["With Attune, Terminal knows every attunement, key and dungeon quest line: ask how to get a key (here, Dalaran's) and its steps are listed in order, with the ones you've done."] })
+	end
+	if HasAddon("WhatsTraining") then
+		Add({ text = TrainingText(), pick = "first", title = L["What to train (What's Training)"],
+			say = L["With What's Training, Terminal knows every spell you've still to learn: what you can train now, what's next level, what it costs; Enter opens What's Training on it."] })
 	end
 	if #missing == 1 then
 		Add({ text = "", title = missing[1].title, say = missing[1].say })

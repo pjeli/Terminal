@@ -27,6 +27,11 @@ end
 
 --- Level range of a row: items (the level they need), quests, Questie NPCs, dungeons, zones.
 local function Levels(e)
+	if e.kind == "training" then -- (a grimoire's: the level What's Training says, not the item's)
+		local l = e.level
+		if type(l) == "number" then return l, l end
+		return nil
+	end
 	if e.itemID then
 		local info = ItemInfo(e.itemID)
 		local l = info and info.minLevel
@@ -525,7 +530,7 @@ F.HELP = {
 	{ "count:20+", L["how many you have"] },
 	{ "class:mage", L["talents of that class (class:mine: yours); without it your own class's come first"] },
 	{ "fish:mine", L["@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)"] },
-	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), class (your class), classes (any), profession, pet, riding, weapon"] },
+	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] },
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
 	{ "near:500", L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },

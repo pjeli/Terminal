@@ -713,6 +713,11 @@ Scan.ANSWERS = {
 			for _, w in ipairs(q.words) do rest[#rest + 1] = w end
 			return "@recipe " .. (q.learnable and "is:learnable" or "is:unknown") .. " " .. Words(rest)
 		end },
+	-- "what can i train", "what do i learn next level", "how much is training", "when do i learn fireball": What's
+	-- Training's spells (Search/WhatsTraining.lua; after the recipes': "recipes i can learn" is theirs)
+	{ ask = function(text) local Q = ns.WhatsTraining and ns.WhatsTraining.Q return Q and Q.Question(text) end,
+		answer = function(q) return ns.WhatsTraining.Q.Answer(q) end,
+		toAdvanced = function(q) return ns.WhatsTraining.Q.ToAdvanced(q) end },
 	-- "blacksmithing plan", "level blacksmithing", "leveling plan": Plan.lua (sort:plan's question)
 	Asks("Plan"),
 	-- "quests to drop", "grey quests": QuestDrop.lua
@@ -1008,15 +1013,30 @@ end
 --- words, filters and hard filters left; sets q.trainerAsked.
 function Scan.TrainerWords(q, tokens, filters, hard)
 	local softWords = q.softWords
-	if not (q.simple and softWords and #tokens > 0) then return tokens, filters, hard end
+	if not (q.simple and softWords and (#tokens > 0 or #softWords > 1)) then return tokens, filters, hard end
 	local said = false
 	for _, w in ipairs(softWords) do if w == "trainer" or w == "trainers" then said = true end end
-	local kept, specs = ns.Easy.TrainerProfs(tokens, said)
+	-- ("dagger trainer": the weapon skill's weapon masters, the word no longer an item type; 0.53.9, the player)
+	local F, weapons = ns.Filters, {}
+	if said and F and F.TrainerWeapon then
+		for _, w in ipairs(softWords) do if F.TrainerWeapon(w) then weapons[#weapons + 1] = w end end
+	end
+	local asked = tokens
+	if #weapons > 0 then
+		asked = {}
+		for _, w in ipairs(tokens) do asked[#asked + 1] = w end
+		for _, w in ipairs(weapons) do asked[#asked + 1] = w end
+	end
+	local kept, specs = ns.Easy.TrainerProfs(asked, said)
 	if not specs then return tokens, filters, hard end
+	-- (a weapon's few masters, two or three in your capitals: those on another continent listed too, after the nearest;
+	-- 0.53.10, the player: "daggers trainer" in Orgrimmar listed Sayoc, not Undercity's Archibald)
+	if #weapons > 0 then q.keepFar = true end
 	-- the trainer:<what> filter says trainer by the title: the word's own is:trainer (Questie's trainer flag) goes, or
 	-- the Demon Trainers, who sell grimoires (a vendor's flag), were left out (0.49.13, the player's report)
 	local drop = {}
 	for _, w in ipairs({ "trainer", "trainers" }) do local t = ns.Easy.Word(w); if t then drop[t] = true end end
+	for _, w in ipairs(weapons) do local t = ns.Easy.Word(w); if t then drop[t] = true end end
 	local function Keep(list)
 		local out = {}
 		for _, f in ipairs(list or {}) do if not drop[f] then out[#out + 1] = f end end
@@ -1379,10 +1399,11 @@ function Scan.Nearest(self, q, out)
 		if not here then self.noPosition = true end
 	end
 	-- "nearest": the NPCs that matched, closest first, how far in the detail column (none known: left out;
-	-- sort:nearest keeps every other row, after the NPCs)
+	-- sort:nearest keeps every other row, after the NPCs, as a weapon's trainers do: q.keepFar, Scan.TrainerWords)
 	if here then
-		out = Scan.NearestViews(out, here, sortNear, overBudget)
-		if #out == 0 and not sortNear then return out, PseudoEntries({ EASY_NONE_NEAR }) end
+		local keep = sortNear or q.keepFar
+		out = Scan.NearestViews(out, here, keep, overBudget)
+		if #out == 0 and not keep then return out, PseudoEntries({ EASY_NONE_NEAR }) end
 	end
 	q.here = here
 	return out
