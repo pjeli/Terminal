@@ -410,7 +410,8 @@ end
 --- filter colour, the start of another word still being typed plain, anything else bad.
 local function ChannelColor(word, typing, filt, base, bad)
 	local to = ns.Share.Channel(word)
-	return (to.cmd or to.pending or to.drop) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
+	-- (">> csv", ">>> text": copying is a place to send too; review, 0.53.6)
+	return (to.cmd or to.pending or to.drop or to.copy) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
 end
 
 -- Which words parse as filters, remembered (review, 0.48.6: every keystroke parsed every filter word again just to

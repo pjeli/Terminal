@@ -43,8 +43,8 @@ Z.ALSO = { "Minimap", "MinimapCluster", "FramerateFrame" }
 Z.HIDE = { "Minimap" }
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
 Z.OWN = { "TerminalFrame", "TerminalTooltip", "TerminalRowMenu", "TerminalLinkFrame", "TerminalCopyFrame",
-	"TerminalStyleImport", "TerminalBusyTip" } -- (not the click catcher: a secure button, invisible anyway; the busy
-	-- spinner's tooltip: 0.49.2, review)
+	"TerminalStyleImport", "TerminalBusyTip", "TerminalTourCard" } -- (not the click catcher: a secure button, invisible
+	-- anyway; the busy spinner's tooltip: 0.49.2, review; the tour's card, made before a fade: 0.53.6, review)
 
 local level, target = 0, 0 -- (0: the interface as it was; 1: faded away, the screen dimmed)
 local uiAlpha -- UIParent's alpha before the fade (put back exactly)

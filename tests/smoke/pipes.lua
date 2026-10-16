@@ -454,6 +454,15 @@ do
 		and SH.Describe("@loot slot:feet stat:agility lvl:20-30") == "Boots with agility (level 20-30)"
 		and SH.Describe("@loot type:staff -is:boe") == "Staves",
 		"filters described: " .. tostring(SH.Describe("@loot q:rare+ type:sword|type:axe")) .. " / " .. tostring(SH.Describe("@item type:plate slot:feet is:upgrade")))
+	-- (review, 0.53.6) a quoted filter value is one, as the search reads it
+	check(SH.Describe('@loot q:"rare" type:weapon') == "Rare weapons" and SH.Describe('@loot type:"one-handed swords"') == "One-handed swords"
+		and SH.Context('innkeeper in:"Elwynn Forest"', { npcID = 5, name = "Innkeeper Farley" }) == "In Elwynn Forest",
+		"quoted values described whole: " .. tostring(SH.Context('innkeeper in:"Elwynn Forest"', { npcID = 5, name = "Innkeeper Farley" })))
+	-- (review, 0.53.6) a place typed in another language: capitals only where its words start
+	check(SH.Context("innkeeper in:östliche_pestländer", { npcID = 5, name = "Innkeeper Farley" }) == "In Östliche Pestländer"
+		and ns.UpperFirst("équipement") == "Équipement" and ns.UpperFirst("рыба") == "Рыба" and ns.UpperFirst("") == ""
+		and ns.Titled("un'goro crater") == "Un'goro Crater",
+		"capitals in every language: " .. tostring(SH.Context("innkeeper in:östliche_pestländer", { npcID = 5, name = "Innkeeper Farley" })))
 	-- a whole instance: the instance said once, each item only its boss
 	local rfk = {
 		{ kind = "loot", key = 1, name = "Corpsemaker", detail = "Overlord Ramtusk  Razorfen Kraul" },

@@ -19,7 +19,7 @@ local ChatBoxMacro = ns.ChatBoxMacro -- (Core.lua)
 local menu -- TerminalRowMenu: a small list by the pointer, its lines secure buttons (the game presses windows open)
 local MENU_W, MENU_LINE = 190, 22
 
-local function Cap(s) return (tostring(s):gsub("^%l", string.upper)) end
+local Cap = ns.UpperFirst
 
 --- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
 --- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
@@ -330,7 +330,8 @@ function UI:MenuKey(f, key)
 			self:HideRowMenu()
 			-- (only that: the mouse menu's way with a line this long is Terminal's own code opening the chat box, which taints
 			-- it; 0.49.2, review: this told you to take that way)
-			if m and m ~= "" then ns:Print(L["Too long to put in the chat box."]) end
+			if m and m ~= "" then ns:Print(L["Too long to put in the chat box."])
+			elseif it.chatTo then ns:Print(L["Couldn't send %s."]:format(tostring(e.name))) end -- (nothing to send)
 			return true
 		end
 	else
@@ -364,6 +365,10 @@ function UI:MenuPicked(b)
 		local line = it.boxLine()
 		if line then ns.LinkInChat(line) end
 		self:Hide()
+		return
+	end
+	if it.chatTo and (it.chat or "") == "" then -- (no line to send: nothing was pressed, said so; review, 0.53.6)
+		ns:Print(L["Couldn't send %s."]:format(tostring(e.name)))
 		return
 	end
 	if it.chatTo or it.boxLine then -- the game sent it to chat / opens the chat box with it

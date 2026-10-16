@@ -1130,7 +1130,7 @@ function P.FromName(left, typed)
 	if type(typed) ~= "string" then return nil end
 	local t = typed:gsub("@%S+", ""):gsub("%S+:%S*", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
 	if t == "" then return nil end
-	return (t:gsub("(%a)([%w']*)", function(x, y) return x:upper() .. y end))
+	return ns.Titled(t)
 end
 
 -- "Keep typing" while the first part has under 3 letters (and no @kind or filter)

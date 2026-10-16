@@ -808,6 +808,18 @@ Run("right-click menu", function()
 	UI:ShowRowMenu(1)
 	m.lines[5].scripts.PostClick(m.lines[5], "LeftButton")
 	check(not m:IsShown() and UI:IsShown(), "Cancel: only the menu goes")
+	-- (review, 0.53.6) a chat line with nothing to send: said so, the terminal stays (nothing was pressed)
+	do
+		local lineWas, printWas, said = ns.Share.ChatLine, ns.Print, nil
+		ns.Share.ChatLine = function() return nil end
+		ns.Print = function(_, msg) said = msg end
+		UI:ShowRowMenu(1)
+		local sayLine = m.lines[4]
+		sayLine.scripts.PreClick(sayLine, "LeftButton")
+		sayLine.scripts.PostClick(sayLine, "LeftButton")
+		check(UI:IsShown() and said and said:find("Hearthstone", 1, true), "nothing to send: said, the terminal stays: " .. tostring(said))
+		ns.Share.ChatLine, ns.Print = lineWas, printWas
+	end
 	UI:ShowRowMenu(1)
 	key("DOWN")
 	check(not m:IsShown(), "a key closes it")

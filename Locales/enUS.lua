@@ -1061,7 +1061,6 @@ L["Say what to do"] = true
 L["Say what to do and what kind of thing, not its name: Terminal finds what you have that fits (here, %s). Enter does it; right-click a row to see everything it can do."] = true
 L["Say where to send it: %s party, guild, raid, say, yell, officer, instance, whisper <name>"] = true
 L["Say where to send them: %s party, guild, raid, say, yell, officer, instance, whisper <name>"] = true
-L["Say where to send them: >>> party, guild, raid, say, instance, whisper <name>"] = true
 L["Say, yell and channels take one line per key press: Enter sends the first line, the rest counted."] = true
 L["Scale"] = true
 L["Scan finished, %d recipes indexed."] = true

@@ -175,3 +175,16 @@ do -- (review, 0.53.6) "usable by you" is kept per character: with its surname w
 	T.check(T.ns.SurnameSeparator() == nil, "no surnames: no separator")
 	_G.UnitName, _G.RegionalUniqueNamesEnabled, _G.GetRealmName = name, regional, realm
 end
+
+do -- (review, 0.53.6) the tour's card, made before .zen faded the interface, keeps its own alpha too (by name: a frame
+	-- made while it's faded is kept as it's made, Zen.Made; one made earlier only by Z.OWN)
+	local has = false
+	for _, n in ipairs(T.ns.Zen.OWN) do if n == "TerminalTourCard" then has = true end end
+	T.check(has, "the tour card is one of Terminal's own frames to .zen")
+end
+
+do -- (review, 0.53.6) where to send, said one way: SendAll with no channel says what the prompt says
+	local n, why = T.ns.Share.SendAll({ { kind = "items", key = 1, name = "A" } }, {}, "linen")
+	T.check(not n and why and why:find(">>> party", 1, true) and why:find("yell", 1, true) and why:find("officer", 1, true),
+		"no channel: every channel named, as the prompt does: " .. tostring(why))
+end

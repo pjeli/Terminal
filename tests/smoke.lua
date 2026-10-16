@@ -5953,6 +5953,14 @@ do -- ">> channel": the selected result goes to a chat channel (the game presses
 	segs = UI:SyntaxSegments("hearthstone >> nowhere x")
 	for _, sg in ipairs(segs) do col[("hearthstone >> nowhere x"):sub(sg[1], sg[2])] = sg[3] end
 	check(col.nowhere == ns.Theme.SYNTAX.bad, "a word that isn't a channel in red")
+	-- (review, 0.53.6) copying is a place to send too; another name of a channel, half typed, isn't wrong yet
+	local function ColorOf(text, word)
+		for _, sg in ipairs(UI:SyntaxSegments(text)) do if text:sub(sg[1], sg[2]) == word then return sg[3] end end
+	end
+	check(ColorOf("linen >>> csv x", "csv") == ns.Theme.SYNTAX.filter and ColorOf("linen >> text x", "text") == ns.Theme.SYNTAX.filter,
+		">> csv / >> text: coloured as a place to send")
+	check(ColorOf("linen >> gro", "gro") ~= ns.Theme.SYNTAX.bad and ColorOf("linen >> tel", "tel") ~= ns.Theme.SYNTAX.bad
+		and ColorOf("linen >> cop", "cop") ~= ns.Theme.SYNTAX.bad, "group, tell, copy half typed: not red")
 	UI:Open("hearthstone >> gu")
 	check(UI:AcceptCompletion() and UI.edit:GetText() == "hearthstone >> guild ", "Tab completes the channel: " .. tostring(UI.edit:GetText()))
 	UI:Hide()

@@ -38,6 +38,39 @@ function ns.Lower(s)
 	return (s:gsub("([\195-\213])([\128-\191])", FoldTwoByte))
 end
 
+-- (the other way: a two-byte lowercase letter's capital, for the first letter of a word)
+local function UpperTwoByte(a, b)
+	local cp = (a:byte() - 0xC0) * 64 + (b:byte() - 0x80)
+	local to = cp
+	if cp >= 0xE0 and cp <= 0xFE and cp ~= 0xF7 then to = cp - 32 -- Latin-1
+	elseif cp >= 0x3B1 and cp <= 0x3C9 and cp ~= 0x3C2 then to = cp - 32 -- Greek
+	elseif cp >= 0x430 and cp <= 0x44F then to = cp - 32 -- Cyrillic
+	elseif cp >= 0x450 and cp <= 0x45F then to = cp - 80
+	elseif (cp >= 0x100 and cp <= 0x12F) or (cp >= 0x132 and cp <= 0x137) or (cp >= 0x14A and cp <= 0x177) then
+		if cp % 2 == 1 then to = cp - 1 end
+	elseif (cp >= 0x139 and cp <= 0x148) or (cp >= 0x179 and cp <= 0x17E) then
+		if cp % 2 == 0 then to = cp - 1 end
+	end
+	if to == cp then return a .. b end
+	return string.char(0xC0 + math.floor(to / 64), 0x80 + to % 64)
+end
+
+--- The text with its first letter a capital, in every client language ns.Lower folds ("équipement" -> "Équipement").
+--- (string.upper and "%l" know ASCII only: review, 0.53.6.)
+function ns.UpperFirst(s)
+	s = tostring(s or "")
+	if s:find("^%l") then return (s:gsub("^%l", string.upper)) end
+	local a, b = s:match("^([\195-\213])([\128-\191])")
+	if a then return UpperTwoByte(a, b) .. s:sub(3) end
+	return s
+end
+
+--- Every word with a capital first letter ("östliche pestländer" -> "Östliche Pestländer"; not "öStliche PestläNder",
+--- as an ASCII-only %a made of it: review, 0.53.6).
+function ns.Titled(s)
+	return (tostring(s or ""):gsub("%S+", ns.UpperFirst))
+end
+
 --- Without textures and colour codes.
 function ns.Plain(s)
 	return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))

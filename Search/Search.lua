@@ -78,6 +78,7 @@ function Scan.Words(text)
 	end
 	return words, phrases
 end
+ns.Words = Scan.Words -- (what's said of a search reads its words the same way: Share.lua)
 
 --- Can the last keystroke's matches stand for these words? One more letter on the last word, or one more word, only
 --- narrows (every row that has the new words had the old ones); never when the last word turned into shorthand

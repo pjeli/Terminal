@@ -51,7 +51,10 @@ local LABEL = { party = L["party"], guild = L["guild"], raid = L["raid"], office
 --- only when it can still become a channel number (1-20, as Channel takes them).
 function SH.IsStart(word)
 	local w = ns.Lower(word or "")
-	for _, n in ipairs(SH.NAMES) do if n:sub(1, #w) == w then return true end end
+	-- (every word Channel takes, its other names too: "gro" for group, "tel" for tell, "cop" for copy; review, 0.53.6)
+	for _, names in ipairs({ CHANNELS, WHISPER, COPY, { drop = true } }) do
+		for n in pairs(names) do if n:sub(1, #w) == w then return true end end
+	end
 	return w:match("^[1-9]%d?$") ~= nil and tonumber(w) <= 20
 end
 
@@ -263,7 +266,7 @@ SH.ROLES = {
 }
 local MY_CLASS = { class = true, my = true, me = true, myclass = true }
 
-local function Titled(s) return (s:gsub("(%a)([%w']*)", function(a, b) return a:upper() .. b end)) end
+local Titled = ns.Titled
 
 --- Is the word a shorthand whose full name is in the name ("rfk" for Razorfen Kraul)? Then it says nothing more.
 function SH.ShortIn(word, lname)
@@ -276,12 +279,20 @@ end
 --- Words saying what an NPC sent to chat is, from what was searched: "Nearby reagent vendor", "Mining trainer in
 --- Orgrimmar". The search's own words (those not in the NPC's name), its role and trainer filters, "Nearby" for
 --- sort:nearest / near:, "in <place>" for in:. nil when the search says nothing more than the name.
+--- A search's words as the search reads them: a "quoted phrase" one word, quote marks off (in:"elwynn forest" is
+--- in:elwynn forest: review, 0.53.6, it was said as "Elwynn and forest"). Phrases after the words.
+local function QueryWords(query)
+	local words, phrases = ns.Words(query)
+	for _, p in ipairs(phrases) do words[#words + 1] = p end
+	return ipairs(words)
+end
+
 function SH.Context(query, e)
 	if type(query) ~= "string" or not (e and (e.npcID or (e.ui and e.px))) then return nil end
 	local lname = ns.Lower(tostring(e.name or ""))
 	local F = ns.Filters
 	local nearby, words, roles, place = false, {}, {}, nil
-	for w in query:gmatch("%S+") do
+	for _, w in QueryWords(query) do
 		local lw = ns.Lower(w)
 		local key, val = lw:match("^(%a+):(.*)$")
 		if lw:sub(1, 1) == "@" then
@@ -321,7 +332,7 @@ function SH.Context(query, e)
 	if #parts == 0 and not place then return nil end
 	local text = table.concat(parts, " ")
 	if place then text = text ~= "" and L["%s in %s"]:format(text, place) or L["in %s"]:format(place) end
-	return (text:gsub("^%l", string.upper))
+	return ns.UpperFirst(text)
 end
 
 --- The channels a row can go to from its right-click menu, those you're in: { cmd, label } (say always; party or
@@ -563,7 +574,7 @@ function SH.Describe(query, rows)
 	if type(query) ~= "string" then return nil end
 	if rows and not AllItems(rows) then return nil end
 	local spec, phrases = NewSpec(), nil
-	for w in query:gmatch("%S+") do
+	for _, w in QueryWords(query) do
 		local alts = Alternatives(ns.Lower(w))
 		if alts and #alts == 1 then
 			-- (one part: what it can say of it; other filters say nothing)
@@ -599,7 +610,7 @@ function SH.Describe(query, rows)
 	if #spec.stats > 0 then text = L["%s with %s"]:format(text, table.concat(spec.stats, (" " .. L["and"] .. " "))) end
 	if spec.lvl then text = text .. " " .. L["(level %s)"]:format(spec.lvl) end
 	if spec.ilvl then text = text .. " " .. L["(item level %s)"]:format(spec.ilvl) end
-	return (text:gsub("^%l", string.upper))
+	return ns.UpperFirst(text)
 end
 
 -- (rows whose list says itself all at once, `shareGroup(rows, query, maxLines, lineMax)` -> lines, the same function
@@ -644,7 +655,7 @@ function SH.GroupHeader(rows, query)
 	local src = SH.LootSource(first)
 	if src then
 		for _, e in ipairs(rows) do if SH.LootSource(e) ~= src then src = nil break end end
-		if src then return what and (what .. " " .. src) or (src:gsub("^%l", string.upper)), "source" end
+		if src then return what and (what .. " " .. src) or ns.UpperFirst(src), "source" end
 		local _, inst = SH.LootWhere(first)
 		for _, e in ipairs(rows) do
 			local _, i = SH.LootWhere(e)
@@ -838,7 +849,9 @@ function SH.SendAll(rows, to, query)
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage
 	if not SH.Searched(query) then return nil, SH.NO_SEARCH end
 	if SH.Restricted(to) then return nil, SH.ONE_LINE end -- (the game blocks them from addon code: SH.PressLine)
-	if not (to and to.chat and send) then return nil, L["Say where to send them: >>> party, guild, raid, say, instance, whisper <name>"] end
+	if not (to and to.chat and send) then -- (as the prompt says it: Activate's NoChannel)
+		return nil, L["Say where to send them: %s party, guild, raid, say, yell, officer, instance, whisper <name>"]:format(">>>")
+	end
 	local chat = SH.ChatType(to.chat)
 	if chat ~= to.chat then
 		ns:Trace(("share: %s goes to instance chat (your only group is the instance's)"):format(to.chat))
@@ -852,8 +865,9 @@ function SH.SendAll(rows, to, query)
 	rows = SH.GroupRows(rows) -- (kept: the list on screen changes while waiting)
 	if #rows == 0 then return nil, L["Nothing to send."] end
 	local missing = SH.Unloaded(rows)
-	if #missing == 0 or NEEDS_PRESS[to.chat] or not (C_Timer and C_Timer.After) then
-		if #missing > 0 then ns:Trace("share: " .. #missing .. " items not loaded yet go without links (" .. to.chat .. " can't wait)") end
+	-- (say, yell and channels never get here: SH.Restricted above)
+	if #missing == 0 or not (C_Timer and C_Timer.After) then
+		if #missing > 0 then ns:Trace("share: " .. #missing .. " items not loaded yet go without links") end
 		return SendLines(rows, to, query, send)
 	end
 	local req = C_Item and C_Item.RequestLoadItemDataByID
