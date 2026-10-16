@@ -14,21 +14,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.54.8", when = "in testing",
+		v = "0.55.0", when = "released October 2026",
 		items = {
-			"One mode: type in plain words, and a line with Advanced syntax (@npc, q:rare, >> party) runs in Advanced mode as you type it; .simple and .advanced are gone (.help advanced lists the syntax).",
-			"Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\", with the level each rank is learned at.",
-			"Spell ids: \"spellid claw\" lists every rank's id to copy, \"spellid 1082\" shows the spell; spells and talents show their id in the tooltip.",
-			"Talents by what they do: \"healing talents\", \"shaman crit talents\"; \"talents\" with an s works too.",
+			"One mode: type in plain words, and Advanced syntax (@npc, q:rare, >> party) works as soon as you type it, the words before it written in it too. .simple and .advanced are gone.",
+			"Every class's spells under @spell, known or not, with the level each rank is learned at: \"travel form\", \"druid spells\", \"upcoming spells\", @spell class:druid; \"my spells\" for your spellbook.",
+			"Spell IDs: \"spellid claw\" lists every rank's ID to copy, \"spellid 1082\" shows the spell; tooltips show the ID too.",
+			"Talents by what they do: \"healing talents\", \"shaman crit talents\", \"druid regen talents\"; druid talents are found from every class.",
 			".weights shows how upgrades are judged and picks your roles: .weights feral healer counts an upgrade for either.",
-			"Weapon masters by weapon (\"dagger trainer\", \"where do i learn daggers\") without What's Training too.",
-			"Advanced syntax typed after your words writes them in it at once, as Alt+` does (\"nearest innkeeper >>\" becomes @npc is:innkeeper ... >>). Alt+` with Terminal closed opens it as ` does, and Up goes through every line you ran.",
-			"Tooltips put what Enter and Shift+Enter do on lines of their own.",
-			"Talents by what they do, again: \"healing talents\", \"shaman crit talents\", \"druid regen talents\", \"tank talents\" list the talents that say it (healed, critical, regeneration...), yours first.",
-			"Druid talents are found when you're not a druid: they were never read (\"druid talents\", class:druid).",
-			"@spell lists every class's spells under yours, known or not, as @talent does: class:druid narrows to a class, is:known (or \"my spells\") keeps to your spellbook. @classspell is another name for it.",
-			"Spells you don't know say Spell on the right, as your spellbook's do.",
-			"Tooltips: what Enter and Shift+Enter do is said the same way everywhere (\"show in chat\", \"set a waypoint\"), with the keys named Enter and Shift+Enter in every language; spell tooltips say ID, and no longer repeat the class.",
+			"Weapon masters by weapon (\"dagger trainer\") without What's Training too.",
+			"Alt+` with Terminal closed opens it as ` does; Up goes through every line you ran.",
+			"Tooltips: what Enter and Shift+Enter do, a line each, said the same way everywhere.",
 		},
 	},
 	{

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.55.0
+
+**One mode**
+- Terminal starts in plain words, and Advanced syntax (`@npc`, `q:rare`, `>> party`) works as soon as you type it, for that line. Typed after plain words, it writes them in Advanced syntax too: **nearest innkeeper**, then ` >>`, becomes `@npc is:innkeeper faction:friendly sort:nearest >>`. `.simple` and `.advanced` are gone; `.help advanced` lists the syntax.
+- Alt+\` writes what you typed as Advanced syntax; with Terminal closed it opens it as \` does. Up goes through every line you ran.
+
+**Spells of every class**
+- `@spell` lists your spellbook and every class's spells you don't know yet, with the level each rank is learned at: **travel form**, **healing wave**, **druid spells**, **shaman spells at level 20**, **upcoming spells**, **when do i learn travel form**. `class:druid` narrows to a class, `is:known` (or **my spells**) keeps to your spellbook. Enter opens a spell's Wowhead page.
+- **spellid claw** lists every rank's spell ID, ready to copy; **spellid 1082** shows the spell. Spell, talent and training tooltips show the ID.
+- Weapon masters by weapon (**dagger trainer**, **where do i learn daggers**) without What's Training too.
+
+**Talents by what they do**
+- **healing talents**, **shaman crit talents**, **druid regen talents**, **tank talents**: the talents whose name, tree or description says it ("crit" finds "critical", "healing" finds "healed"), any class's, yours first. **druid talents** lists a class's tree by tree.
+- Druid talents are found from every class: they were never read before.
+
+**Upgrades for your roles**
+- `.weights` shows how upgrades are judged for your class and picks the roles to judge them for: `.weights feral healer` counts an upgrade for either, and the tooltip says which.
+
+**Also**
+- Tooltips say what Enter and Shift+Enter do on a line each, the same way everywhere, with the keys named Enter and Shift+Enter in every language.
+
 ## 0.54.0
 
 **With What's Training**
