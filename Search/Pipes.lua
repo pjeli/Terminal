@@ -1350,7 +1350,8 @@ local function Num(n) return type(n) == "number" and n or nil end
 local function Count(e) return FP.Count and FP.Count(e) or Num(e.total) or Num(e.count) end
 local function Str(s) return type(s) == "string" and s ~= "" and s or nil end
 
---- A loot row's boss, place and the place's kind ("dungeon", "raid"; nil: not known, an index from before 0.51.9)
+--- A loot row's boss, place and the place's kind ("dungeon", "raid", "world": AtlasLoot's World Bosses; nil: not
+--- known, an index from before 0.51.9)
 --- ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText). Only a dungeon's or a raid's:
 --- AtlasLoot's other tables (battlegrounds, professions, factions, PvP...) are no instance and their pages no boss
 --- (0.53.1, the player: "count by dungeon" listed Arathi Basin and Leatherworking).
@@ -1359,7 +1360,7 @@ local function LootParts(e)
 	local I = ns.Integrations
 	local where = I and I.LootPlace and I.LootPlace(e)
 	local kind = where and where.kind
-	if where and kind ~= "dungeon" and kind ~= "raid" then return nil end
+	if where and kind ~= "dungeon" and kind ~= "raid" and kind ~= "world" then return nil end
 	local d = Str(e.detail)
 	if not d then return nil end
 	local boss, place = d:match("^(.-)  (.+)$")
@@ -1372,10 +1373,12 @@ local function PlaceOfKind(want)
 	return function(e)
 		local _, place, kind = LootParts(e)
 		if want and kind ~= want then return nil end
+		if kind == "world" then return nil end -- (World Bosses: a boss's, out in the world, no instance)
 		return place
 	end
 end
 
+local InstanceOf = PlaceOfKind(nil)
 local function ZoneOf(e)
 	local z = Str(e.zone)
 	if z then return z end
@@ -1384,8 +1387,7 @@ local function ZoneOf(e)
 		local got = type(area) == "number" and area > 0 and C_Map and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
 		return Str(got)
 	end
-	local _, place = LootParts(e)
-	return place
+	return InstanceOf(e)
 end
 
 local function QualityName(q)
@@ -1405,7 +1407,7 @@ A.FIELDS = {
 	zone = { label = L["zone"], text = ZoneOf },
 	dungeon = { label = L["dungeon"], text = PlaceOfKind("dungeon") },
 	raid = { label = L["raid"], text = PlaceOfKind("raid") },
-	instance = { label = L["instance"], text = PlaceOfKind(nil) },
+	instance = { label = L["instance"], text = InstanceOf },
 	boss = { label = L["boss"], text = function(e) return (LootParts(e)) end },
 	quality = { label = L["quality"], num = function(e)
 		local q = Num(e.quality)
@@ -1659,6 +1661,11 @@ function A.Apply(spec, res, base)
 	-- one total ("sum value") or one per group ("group zone", "sum value by zone")
 	local groups, order = {}, {}
 	local total, have = 0, 0
+	if s.by then -- (by raid: the raids' rows alone, no "no raid" group; by slot: what has one; 0.53.4, the player)
+		local kept = {}
+		for _, e in ipairs(rows) do if TextOf(s.by, e) then kept[#kept + 1] = e end end
+		rows, n = kept, #kept
+	end
 	for _, e in ipairs(rows) do
 		local v = f and f.num(e)
 		if v then total, have = total + v, have + 1 end

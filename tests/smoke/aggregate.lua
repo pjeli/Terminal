@@ -76,20 +76,21 @@ do
 	r = Rows("@item | count")
 	check(#r == 1 and r[1].name == L["%d results"]:format(154), "count: every match, past the 100 a list shows: " .. tostring(r[1] and r[1].name))
 	r = Rows("@item -bolt | group by zone")
-	check(#r == 3 and r[1].name == "Elwynn Forest" and r[1].detail == L["%d results"]:format(2) and r[2].name == "Westfall"
-		and r[3].name == L["no %s"]:format(L["zone"]), "group by zone: the biggest first, those without one last: "
-		.. tostring(r[1] and r[1].name) .. "/" .. tostring(r[3] and r[3].name))
+	-- (0.53.4, the player: "group by raid" had a "no raid" group of 3164) what has no zone is left out, not a group
+	check(#r == 2 and r[1].name == "Elwynn Forest" and r[1].detail == L["%d results"]:format(2) and r[2].name == "Westfall",
+		"group by zone: the biggest first; what has none left out: " .. #r .. " " .. tostring(r[1] and r[1].name) .. "/"
+		.. tostring(r[#r] and r[#r].name))
 	r = Rows("@item -bolt | sum value by zone")
 	check(r[1].name == L["All: %s"]:format(ns.Gold.Text(260 + 165 + 1500)) and r[2].name == "Elwynn Forest"
 		and r[2].detail:find(ns.Gold.Text(1760), 1, true), "sum value by zone: all of it on top, then each zone's: "
 		.. tostring(r[1].name) .. " / " .. tostring(r[2].detail))
+	check(r[1].detail:find(L["%d results"]:format(3), 1, true) and #r == 3, "the row with no zone isn't in it: " .. r[1].detail)
+	r = Rows("@item -bolt | sum value by kind")
 	check(r[1].detail:find(L["%d with no %s"]:format(1, L["value"]), 1, true), "the row with no price is said: " .. r[1].detail)
 
 	-- (release review) an average of a group with nothing to average: "-", not its count
-	r = Rows("@item -bolt | avg ilvl by zone")
-	local nozone
-	for _, e in ipairs(r) do if e.name == L["no %s"]:format(L["zone"]) then nozone = e end end
-	check(nozone and nozone.detail:sub(1, 1) == "-", "avg with nothing to average: - : " .. tostring(nozone and nozone.detail))
+	r = Rows("@item mystery | avg ilvl by kind")
+	check(r[1] and r[1].detail:sub(1, 1) == "-", "avg with nothing to average: - : " .. tostring(r[1] and r[1].detail))
 	-- Enter on a total: said in the chat window, the search kept in the history
 	local printed
 	local realPrint = ns.Print
@@ -153,14 +154,14 @@ do
 
 	-- ">>> csv" copies the summed-up rows
 	r = Rows("@item -bolt | group zone >>> csv")
-	check(UI.sendTo and UI.sendTo.copy == "csv" and UI.groupRows and #UI.groupRows == 3, "| group zone >>> csv: the groups to copy")
+	check(UI.sendTo and UI.sendTo.copy == "csv" and UI.groupRows and #UI.groupRows == 2, "| group zone >>> csv: the groups to copy")
 
 	local shownText
 	local realShow = ns.ShowText
 	ns.ShowText = function(_, _, text) shownText = text end
 	UI:Activate()
 	FlushAll()
-	check(shownText and shownText:find("Elwynn Forest", 1, true) and shownText:find("no zone", 1, true), ">>> csv: the groups copied: "
+	check(shownText and shownText:find("Elwynn Forest", 1, true) and not shownText:find("no zone", 1, true), ">>> csv: the groups copied: "
 		.. tostring(shownText))
 	shownText = nil
 	Rows("cloth | sum value >> text")
@@ -235,6 +236,12 @@ do
 	check(R(ab) == nil and In(ab) == nil and In(lw) == nil, "a battleground's, a profession's: by none of them")
 	check(D(old) == nil and R(old) == nil and In(old) == "Old Place" and B(old) == "Some Boss",
 		"a table of unknown kind: an instance, neither a dungeon nor a raid")
+	-- (0.53.4, the player: "World Bosses" grouped as a raid) AtlasLoot files them under its raids: bosses, no instance
+	I.NotePlace("T_Agg", "WorldBosses", "raid", 60)
+	local az = Row("WorldBosses", "Azuregos  World Bosses")
+	check(R(az) == nil and In(az) == nil and Z(az) == nil and B(az) == "Azuregos",
+		"a world boss's loot: by boss, not by raid, instance or zone: " .. tostring(R(az)))
+	check(A.FIELDS.raid.text(aq) == "Ruins of Ahn'Qiraj", "(the raids still are)")
 	check(A.FieldOf("raid") == "raid" and A.FieldOf("raids") == "raid" and A.FieldOf("dungeons") == "dungeon"
 		and A.FieldOf("instances") == "instance" and A.FieldOf("instance") == "instance", "by raids, by dungeons, by instances")
 end

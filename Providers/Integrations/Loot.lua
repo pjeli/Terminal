@@ -122,13 +122,16 @@ function I.PlaceKind(A, c)
 end
 function I.NotePlace(addon, content, kind, enter)
 	if content == nil then return end
+	-- (0.53.4, the player: "World Bosses" grouped as a raid) AtlasLoot files Azuregos, Kazzak and the dragons under its
+	-- 40-player raids: bosses out in the world, no instance
+	if content == "WorldBosses" then kind = "world" end
 	local t = loot.places[addon]
 	if not t then t = {}; loot.places[addon] = t end
 	local p, k, n = t[content], kind or "other", tonumber(enter)
 	if p and p.kind == k and p.enter == n then return end -- (once per instance, not per boss)
 	t[content] = { kind = k, enter = n }
 end
---- A loot row's place: { kind = "dungeon" / "raid" / "other", enter = level } (nil: not known, an index from before 0.51.9).
+--- A loot row's place: { kind = "dungeon" / "raid" / "world" (World Bosses) / "other", enter = level } (nil: not known, an index from before 0.51.9).
 function I.LootPlace(e)
 	local t = loot.places[e.addon]
 	return t and t[e.content] or nil
