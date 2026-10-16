@@ -4588,7 +4588,10 @@ do
 	check(by[4242] == nil and requested[1] == 4242, "an item the server hasn't named yet is asked for and listed later")
 	NAMES[4242] = "Late Name"
 	St.nameFrame.scripts.OnEvent(St.nameFrame, "GET_ITEM_INFO_RECEIVED", 4242); FlushAll()
-	check(P._dirty == true, "the list is rebuilt once the name arrives")
+	-- (0.53.6: through ns:Changed, so @stored's warmDirty reads it again in the background, not inside a keystroke)
+	local inBackground = false
+	for _, e in ipairs(rawget(P, "_entries") or {}) do if e.itemID == 4242 or e.key == 4242 then inBackground = true end end
+	check(P._dirty == true or inBackground, "the list is rebuilt once the name arrives (in the background: " .. tostring(inBackground) .. ")")
 	check(entries()[4242] ~= nil, "and then it's there")
 	local lines = St.Breakdown(linen)
 	check(lines[1]:find("48 in all", 1, true) and lines[2] == "  Me Sur (you): 28  (bank 20, mail 3, bags 5)" and lines[3] == "  My Guild (guild): 12" and lines[#lines] == "  Warband: 1", "breakdown by who, with where: " .. table.concat(lines, " | "))

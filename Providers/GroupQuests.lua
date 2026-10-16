@@ -221,8 +221,7 @@ function PQ.Learn(text, now)
 		if want == full or want == first then
 			PQ.learned[m.key] = PQ.learned[m.key] or {}
 			PQ.learned[m.key][share.id] = { said = said, at = now }
-			local p = ns.providers.groupquests
-			if p then p._dirty = true end
+			ns:Changed("groupquests")
 			ns:Trace(("party quests: %s for quest %d, from the game's reply"):format(said, share.id))
 			return true
 		end

@@ -58,6 +58,19 @@ for f in tracked:
     elif f.endswith(".lua") and f.startswith(("tests/", "docs/")):
         print("FAIL the CurseForge package would carry", f)
         ok = False
+# (review, 0.53.6) a list is marked changed through ns:Changed (it also searches an open terminal's list again, dots a
+# tab that showed it, and reads a warmDirty list again in the background), never by setting _dirty from a provider.
+# Core marks its own; the terminal its refreshOnOpen and loaded lists; Questie's NPC index, freed once built, its own.
+import re
+DIRTY_OK = ("Core/Core.lua", "UI/UI.lua", "UI/Prompt.lua", "Providers/Integrations/Questie.lua")
+for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
+    rel = f.split("Terminal/", 1)[1]
+    if "/tests/" in f or rel.startswith("tests/") or rel in DIRTY_OK:
+        continue
+    for i, line in enumerate(open(f, encoding="utf-8"), 1):
+        if re.search(r"_dirty\s*=\s*true", line) and not line.lstrip().startswith("--"):
+            print("FAIL %s:%d sets _dirty: use ns:Changed(id)" % (rel, i))
+            ok = False
 if not ok:
     print("problems found")
 elif G:

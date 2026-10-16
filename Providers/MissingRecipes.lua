@@ -45,10 +45,7 @@ local function Db(field)
 	return db[field]
 end
 
-local function Dirty()
-	local p = ns.providers.missing
-	if p then p._dirty = true end
-end
+local function Dirty() ns:Changed("missing") end
 
 --- Reads the open trainer's window: each service's cost and the skill it needs, by its name (a recipe's name is the
 --- spell's). Only a profession trainer's (a class trainer's spells aren't recipes). How many were kept.

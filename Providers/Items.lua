@@ -293,7 +293,7 @@ local function NamesArrived()
 	nameWait.gen = nameWait.gen + 1
 	pcall(nameFrame.UnregisterEvent, nameFrame, "GET_ITEM_INFO_RECEIVED")
 	pcall(nameFrame.UnregisterEvent, nameFrame, "ITEM_DATA_LOAD_RESULT")
-	if ns.providers.items then ns.providers.items._dirty = true end
+	ns:Changed("items")
 end
 
 local function NameOf(id, link, given)

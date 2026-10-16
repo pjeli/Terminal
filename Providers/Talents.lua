@@ -270,8 +270,7 @@ local function ReadLater()
 	local function Try()
 		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() then C_Timer.After(TL.RETRY, Try) return end
 		TL.retrying = false
-		local p = ns.providers.talents
-		if p then p._dirty = true end
+		ns:Changed("talents")
 	end
 	C_Timer.After(TL.RETRY, Try)
 end

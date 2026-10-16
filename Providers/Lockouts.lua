@@ -82,7 +82,9 @@ function LK.ReadMine(now)
 end
 
 --- Writes down your character's lockouts (on the game's every answer).
-function LK.Record()
+--- `quiet`: from the list's own read (no change to tell: review, 0.53.6, every read marked the list changed again,
+--- dotting other tabs and searching an open list again).
+function LK.Record(quiet)
 	local key, chars = MyKey(), Chars()
 	if not (key and chars) then return nil end
 	local list = LK.ReadMine()
@@ -93,7 +95,7 @@ function LK.Record()
 	}
 	-- (the index is the game's for this session only: not kept for later)
 	for _, l in ipairs(list) do l.index = nil end
-	Dirty()
+	if not quiet then Dirty() end
 	return chars[key]
 end
 
@@ -214,7 +216,7 @@ function LK.Collect()
 	local myRealm = Str(Safe(GetRealmName))
 	-- (yours afresh, as the game says them now: only once it has answered this session, else an empty list read before its
 	-- answer came would replace what was kept)
-	if myKey and LK.answered then LK.Record() end
+	if myKey and LK.answered then LK.Record(true) end
 	local rows = {}
 	local function Add(key, c, mine)
 		if type(c) ~= "table" or type(c.list) ~= "table" then return end

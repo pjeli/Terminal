@@ -57,11 +57,9 @@ P.Store = Store
 
 -- recipes and camp objects come from the index; the professions list doesn't (its own events
 -- and skill changes refresh it)
-function P.MarkDirty()
-	for _, id in ipairs({ "recipes", "camp", "missing" }) do
-		local p = ns.providers[id]
-		if p then p._dirty = true end
-	end
+local FROM_INDEX = { "recipes", "camp", "missing" }
+function P.MarkDirty(ids)
+	for _, id in ipairs(ids or FROM_INDEX) do ns:Changed(id) end
 end
 
 ----------------------------------------------------------------------
@@ -955,7 +953,9 @@ ev:SetScript("OnEvent", function(_, event, id)
 			pendingItems = true
 			C_Timer.After(2, function()
 				pendingItems = false
-				P.MarkDirty()
+				-- (reagents' names: only the recipes list shows them; review, 0.53.6: camp and missing, the costliest to
+				-- read again, were read again for every batch of names)
+				P.MarkDirty({ "recipes" })
 			end)
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
@@ -965,7 +965,7 @@ ev:SetScript("OnEvent", function(_, event, id)
 		if sk and sk._firedOwn and sk._collectedAt and GetTime() - sk._collectedAt < (sk.guard or 2) then return end
 		fullSnap = true
 		P.MarkDirty()
-		if ns.providers.professions then ns.providers.professions._dirty = true end -- ranks
+		ns:Changed("professions") -- ranks
 		if not pendingPrune then
 			pendingPrune = true
 			C_Timer.After(3, function()

@@ -154,7 +154,7 @@ ns:RegisterProvider("cvars", {
 		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #names, ok and "ok" or "failed", #out))
 		if #out == 0 then
 			-- the list can come back empty early on: ask again on the next search, and say what happened
-			C_Timer.After(1, function() p._dirty = true end)
+			C_Timer.After(1, function() ns:Changed("cvars") end) -- (the note goes once it's read: an open list too)
 			out[1] = { key = "none", name = L["No console settings could be read yet"], raw = true, noActivate = true, icon = false,
 				detail = (from == "Terminal's list" and L["%d names from Terminal's list, none with a value"]
 					or L["%d names from the game's list, none with a value"]):format(#names), text = "" }
@@ -173,12 +173,13 @@ cvarWatch:SetScript("OnEvent", function(_, _, name)
 	if not (p and p._entries) then return end
 	local e = type(name) == "string" and byName[name]
 	if not e then
-		if type(name) ~= "string" then p._dirty = true end
+		if type(name) ~= "string" then ns:Changed("cvars") end
 		return
 	end
 	local value, default = Read(name)
 	if value ~= e.value or default ~= e.default then
 		Fill(e, value, default)
 		ns.entriesGen = ns.entriesGen + 1 -- (searches narrowed from the last one see the new value)
+		if ns.OnDirty then ns.OnDirty(p) end -- (an open list shows it: its row, not the list read again; review, 0.53.6)
 	end
 end)

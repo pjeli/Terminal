@@ -81,8 +81,7 @@ function X.Record()
 	local me = X.ReadMe()
 	if not me then return nil end
 	me = X.Keep(chars, key, me)
-	local p = ns.providers.experience
-	if p then p._dirty = true end
+	ns:Changed("experience")
 	return me
 end
 
@@ -295,8 +294,7 @@ ns:RegisterCommand("xp", {
 					Forgotten()[fn .. "|" .. fr] = true
 				end
 			end
-			local p = ns.providers.experience
-			if p then p._dirty = true end
+			ns:Changed("experience")
 			return { n > 0 and L["Forgot %s."]:format(who) or L["No alt called %s (you can't forget the character you're on)."]:format(who) }
 		end
 		X.Collect()

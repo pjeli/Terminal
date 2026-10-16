@@ -141,7 +141,10 @@ function LL.Add(link, who, count, from, src, drop)
 		-- (one drop told two ways: a roll's win or the loot history, then its loot line; told the same way twice, it's
 		-- two drops: two loot lines, two wins)
 		if e.id == id and e.who == who and t - (e.t or 0) <= LL.SAME and not Told(e, src) then
-			if from and not e.from then e.from = from end
+			if from and not e.from then
+				e.from = from
+				ns:Changed("lootlog") -- (its row says the boss now: "@drop <boss>" finds it; review, 0.53.6)
+			end
 			if drop and not e.drop then e.drop = drop end
 			e.src = (e.src or "loot") .. "+" .. src
 			return e

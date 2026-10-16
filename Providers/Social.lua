@@ -383,8 +383,7 @@ for _, ev in ipairs({ "GUILD_TRADESKILL_UPDATE", "PLAYER_GUILD_UPDATE" }) do pca
 craftEvents:SetScript("OnEvent", function(_, event)
 	if event == "GUILD_TRADESKILL_UPDATE" and GetTime() < readUntil then return end
 	if crafts then crafts.stale = true end
-	local p = ns.providers.guild
-	if p then p._dirty = true end
+	ns:Changed("guild")
 end)
 
 -- the trace's counts of the last guild list built: members with a profession from each place, the club's members

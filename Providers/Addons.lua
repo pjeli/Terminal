@@ -222,7 +222,7 @@ local function ToggleAddon(e)
 	e.enabled = now
 	e.detail = Detail(e) -- (shown at once; the list is read again next time too)
 	ns.entriesGen = ns.entriesGen + 1
-	if ns.providers.addons then ns.providers.addons._dirty = true end
+	ns:Changed("addons")
 	ns:Print((now and L["%s enabled: .reload to apply"] or L["%s disabled: .reload to apply"]):format(tostring(e.name)))
 	local UI = ns.UI
 	if UI and UI.IsShown and UI:IsShown() and UI.Refresh then UI:Refresh() end

@@ -69,7 +69,7 @@ local function IndexQuests()
 	end, function()
 		qdb.list, qdb.busy = out, false
 		if names then qdb.names, qdb.nameQuery = table.concat(names) .. "\n", "QueryQuestSingle" end
-		if ns.providers.questie then ns.providers.questie._dirty = true end
+		ns:Changed("questie")
 		-- the towns' middles from the quests' words, for "vendor goldshire" (a few a frame, a little later)
 		-- (in a fight it waits for the fight to end: Places.lua)
 		C_Timer.After(2, function() I.BuildTowns() end)

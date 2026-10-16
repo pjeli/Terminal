@@ -344,7 +344,7 @@ local function Arrived(id)
 		if waitingCount == 0 then
 			waitGen = waitGen + 1
 			Listen(false)
-			if ns.providers.stored then ns.providers.stored._dirty = true end
+			ns:Changed("stored")
 		end
 	end
 end
@@ -366,7 +366,7 @@ local function Name(id, link)
 					waitingCount = 0
 					waitGen = waitGen + 1
 					Listen(false)
-					if ns.providers.stored then ns.providers.stored._dirty = true end
+					ns:Changed("stored")
 				end
 			end)
 		end
