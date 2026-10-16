@@ -106,16 +106,22 @@ C.NOTE = L["Your corpse"]
 local NoteRow = ns.NoteRow
 
 -- the nearest spirit healers (Questie's NPCs), each as a nearest view
+-- (the spirit healers among the NPC list, kept per list: the answer is asked on every keystroke of "corpse", and each
+-- walked every NPC through the role test; only how far each is is worked out again. Review, 0.53.6)
+local healers, healersOf
 local function Healers(here)
 	local p = ns.providers.npc
 	local is = ns.Filters and ns.Filters._ and ns.Filters._.IS and ns.Filters._.IS.spirithealer
 	if not (p and is and here and I and I.RowYards) then return {} end
+	local list = ns:GetEntries(p)
+	if healersOf ~= list then
+		healers, healersOf = {}, list
+		for _, e in ipairs(list) do if is(e) then healers[#healers + 1] = e end end
+	end
 	local found = {}
-	for _, e in ipairs(ns:GetEntries(p)) do
-		if is(e) then
-			local d = I.RowYards(e, here)
-			if d then found[#found + 1] = { e, d } end
-		end
+	for _, e in ipairs(healers) do
+		local d = I.RowYards(e, here)
+		if d then found[#found + 1] = { e, d } end
 	end
 	table.sort(found, function(a, b) return a[2] < b[2] end)
 	local out = {}

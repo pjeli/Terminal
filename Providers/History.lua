@@ -54,7 +54,8 @@ ns:RegisterCommand("history", {
 		end
 		if #h == 0 then return { L["Nothing in the history yet."] } end
 		local lines = { L["%s earlier line(s), newest first:"]:format(#h) }
-		for i, l in ipairs(h) do lines[#lines + 1] = ("  %2d  %s"):format(i, l) end
+		-- (a "|" as typed, "linen|wool": "||" in chat, else it starts an escape; review, 0.53.6)
+		for i, l in ipairs(h) do lines[#lines + 1] = ("  %2d  %s"):format(i, (tostring(l):gsub("|", "||"))) end
 		return lines
 	end,
 })

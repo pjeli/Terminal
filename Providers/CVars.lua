@@ -41,6 +41,7 @@ local function Known()
 			known[name] = { tonumber(cat), help }
 			knownOrder[#knownOrder + 1] = name
 		end
+		ns.CVAR_LIST = nil -- (read: its ~110 KB of text not kept for the session; review, 0.53.6)
 	end
 	return known, knownOrder
 end
@@ -148,7 +149,7 @@ ns:RegisterProvider("cvars", {
 				}
 				Fill(e, value, default)
 				out[#out + 1] = e
-				byName[name] = e
+				byName[ns.Lower(name)] = e -- (a CVar's name is any case: CVAR_UPDATE may spell it otherwise; review, 0.53.6)
 			end
 		end
 		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #names, ok and "ok" or "failed", #out))
@@ -171,12 +172,12 @@ pcall(cvarWatch.RegisterEvent, cvarWatch, "CVAR_UPDATE")
 cvarWatch:SetScript("OnEvent", function(_, _, name)
 	local p = ns.providers.cvars
 	if not (p and p._entries) then return end
-	local e = type(name) == "string" and byName[name]
+	local e = type(name) == "string" and byName[ns.Lower(name)]
 	if not e then
 		if type(name) ~= "string" then ns:Changed("cvars") end
 		return
 	end
-	local value, default = Read(name)
+	local value, default = Read(e.name) -- (the row's own spelling)
 	if value ~= e.value or default ~= e.default then
 		Fill(e, value, default)
 		ns.entriesGen = ns.entriesGen + 1 -- (searches narrowed from the last one see the new value)

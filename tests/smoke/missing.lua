@@ -102,6 +102,15 @@ do
 	MR.events:GetScript("OnEvent")(MR.events, "MERCHANT_SHOW"); FlushAll()
 	check(MR.Limited(92700, 503) == true and MR.Limited(2901, 503) == nil and MR.Limited(92700, 999) == nil,
 		"a vendor's window read: the plans in limited supply there (only recipe items kept)")
+	-- (review, 0.53.6) a burst of updates (buying, selling): one read
+	do
+		local real, reads = MR.ReadMerchant, 0
+		MR.ReadMerchant = function(...) reads = reads + 1 return real(...) end
+		for _ = 1, 5 do MR.events:GetScript("OnEvent")(MR.events, "MERCHANT_UPDATE") end
+		FlushAll()
+		MR.ReadMerchant = real
+		check(reads == 1, "five vendor updates in a row: the window read once: " .. reads)
+	end
 	rows = MR.Answer(Q("blacksmithing recipes i'm missing"))
 	by = {}
 	for _, e in ipairs(rows) do by[e.name] = e end

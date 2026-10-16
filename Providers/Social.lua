@@ -37,12 +37,13 @@ local function AccountName(e)
 	if not B then return nil end
 	if e.bnetID and B.GetAccountInfoByID then
 		local a = Safe(B.GetAccountInfoByID, e.bnetID)
-		if type(a) == "table" and a.accountName then return a.accountName end
+		if type(a) == "table" and Str(a.accountName) then return a.accountName end
 	end
 	if e.bnetTag and B.GetFriendAccountInfo and BNGetNumFriends then
 		for i = 1, (Num(Safe(BNGetNumFriends)) or 0) do
 			local a = Safe(B.GetFriendAccountInfo, i)
-			if type(a) == "table" and a.battleTag == e.bnetTag and a.accountName then return a.accountName end
+			-- (BattleTags and account names can be secret: read through Str, as BNetRows reads them; review, 0.53.6)
+			if type(a) == "table" and Str(a.battleTag) == e.bnetTag and Str(a.accountName) then return a.accountName end
 		end
 	end
 end

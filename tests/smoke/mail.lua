@@ -677,3 +677,14 @@ do
 	MA.ResetSubjectsForTests()
 	P._dirty, ns.providers.auctions._dirty = true, true
 end
+
+-- (review, 0.53.6) new mail waiting: the mail list's own event; @auction isn't marked changed for it
+do
+	local ns = T.ns
+	local changed = {}
+	local real = ns.Changed
+	ns.Changed = function(self, id) changed[id] = true return real(self, id) end
+	ns.Mail.OnEvent("UPDATE_PENDING_MAIL")
+	ns.Changed = real
+	T.check(not changed.auctions, "UPDATE_PENDING_MAIL: @auction left alone (it doesn't show pending mail)")
+end

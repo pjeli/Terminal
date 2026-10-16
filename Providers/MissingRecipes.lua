@@ -140,10 +140,18 @@ end
 local events = CreateFrame("Frame")
 MR.events = events -- (tests)
 for _, ev in ipairs({ "TRAINER_SHOW", "TRAINER_UPDATE", "MERCHANT_SHOW", "MERCHANT_UPDATE" }) do pcall(events.RegisterEvent, events, ev) end
+-- (a moment later: the window fills in after it shows. One read for a burst: a vendor's window sends MERCHANT_UPDATE on
+-- every buy, sell and buyback, and each read walks every item it sells; review, 0.53.6: each one read it again)
+MR.READ_WAIT = 0.2
+local pending = {}
 events:SetScript("OnEvent", function(_, ev)
-	-- (a moment later: the window fills in after it shows)
 	local read = (ev == "TRAINER_SHOW" or ev == "TRAINER_UPDATE") and MR.ReadTrainer or MR.ReadMerchant
-	C_Timer.After(0.2, function() pcall(read) end)
+	if pending[read] then return end
+	pending[read] = true
+	C_Timer.After(MR.READ_WAIT, function()
+		pending[read] = nil
+		pcall(read)
+	end)
 end)
 
 ----------------------------------------------------------------------

@@ -1486,8 +1486,6 @@ function MA.OnEvent(event, ...)
 			ns:Trace("mail: the send to " .. pendingSend.to .. " was cancelled")
 			pendingSend = nil
 		end
-	elseif event == "UPDATE_PENDING_MAIL" then
-		Dirty()
 	elseif event == "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION" then
 		local n, text, auctionID = ...
 		local kind = NotificationKind(n)
@@ -1519,7 +1517,8 @@ end
 
 local ev = CreateFrame("Frame")
 MA.frame = ev
-for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD",
+-- (not UPDATE_PENDING_MAIL: the list's own event already; review, 0.53.6: handled twice, @auction marked changed for it too)
+for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "PLAYER_ENTERING_WORLD",
 	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "SECURE_TRANSFER_CONFIRM_SEND_MAIL", "SECURE_TRANSFER_CANCEL",
 	"AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",
 	"AUCTION_HOUSE_AUCTION_CREATED", "OWNED_AUCTIONS_UPDATED", "AUCTION_CANCELED", "COMMODITY_PURCHASED",

@@ -100,6 +100,15 @@ do
 	_G.C_DeathInfo = { GetCorpseMapPosition = function() return nil end }
 	rows = C.Answer({})
 	check(rows[1].noActivate and rows[1].name:find("doesn't say", 1, true) and #rows == 4, "no position: said so: " .. Names(rows))
+	-- (review, 0.53.6) asked again (the next keystroke of "corpse"): the healers aren't picked out of every NPC again
+	do
+		local IS = ns.Filters._.IS
+		local real, tested = IS.spirithealer, 0
+		IS.spirithealer = function(e) tested = tested + 1 return real(e) end
+		C.Answer({}); C.Answer({})
+		IS.spirithealer = real
+		check(tested == 0, "the spirit healers kept for the NPC list: no NPC tested again: " .. tested)
+	end
 
 	_G.UnitIsDeadOrGhost, _G.C_DeathInfo, _G.C_Map = save.dead, save.DI, save.map
 	I.Here, I.SpotXY, I.NpcDistance, I.ZoneName = save.here, save.spot, save.dist, save.zone

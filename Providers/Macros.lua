@@ -39,7 +39,8 @@ local function ShowMacroText(e)
 end
 
 local function OneLine(body)
-	local line = body:gsub("^#showtooltip[^\n]*\n?", ""):gsub("\n.*", "")
+	-- (#show and #showtooltip, any case, as the game takes them; review, 0.53.6)
+	local line = body:gsub("^#[Ss][Hh][Oo][Ww]%a*[^\n]*\n?", ""):gsub("\n.*", "")
 	if line == "" then line = body:gsub("\n.*", "") end
 	return (line:gsub("|", "||"))
 end

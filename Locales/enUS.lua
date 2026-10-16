@@ -1295,7 +1295,6 @@ L["Type to find"] = true
 L["Type to fuzzy-search items, quests (by text), spells, recipes, camp objects..."] = true
 L["Typing lists where it was found (Items, Quests, Settings, Emotes...): pick one with Enter, Tab or a click, then the thing itself; something named exactly what you typed comes first, to open at once. Shift+Left goes back to all of them (and back from wherever Enter took you)."] = true
 L["Unknown setting '%s'. Try .set"] = true
-L["Unlearned"] = true
 L["Unlocks advanced camp recipes"] = true
 L["Unread"] = true
 L["Up/Down + Enter tune in"] = true

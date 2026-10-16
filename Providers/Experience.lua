@@ -263,7 +263,7 @@ ns:RegisterProvider("experience", {
 	label = L["Experience"],
 	color = "ff8a6cff", -- (the XP bar's purple)
 	aliases = { "experience", "exp", "xp", "rested" },
-	refreshOnOpen = true, -- (alts' rested keeps filling)
+	refreshOnOpen = 60, -- (alts' rested keeps filling: ~5% in 8 h, read again a minute on, not on every open; review, 0.53.6)
 	events = { "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION", "PLAYER_LEVEL_UP", "PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD" },
 	guard = 1,
 	collect = function() return X.Collect() end,

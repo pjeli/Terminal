@@ -142,7 +142,7 @@ ns:RegisterProvider("camp", {
 		local out = {}
 		for _, def in ipairs(ALL) do
 			local hit = idx[def.lname]
-			if hit and hit.r.learned then
+			if hit and hit.r.learned ~= false then -- (as the index keeps it: an older one has no learned field; review, 0.53.6)
 				local label = def.prof
 				if def.tier then label = L["%s T%s"]:format(label, def.tier) end
 				if def.skill then label = label .. " (" .. def.skill .. ")" end

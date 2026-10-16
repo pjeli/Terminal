@@ -80,6 +80,7 @@ local function Places(e, v)
 	if e.slotId and ("equipped"):find(v, 1, true) then return true end
 	-- (your own bags' rows say "x5  Backpack", "Bag 2": in:bags is them; 0.50.7, review: only @stored rows matched it)
 	if e.firstBag ~= nil and ("bags"):find(v, 1, true) then return true end
+	if e.noPlace then return false end -- (a list whose detail never says a place: Achievements)
 	local d = LowerField(e, "detail", "_ldetail", "_ldetailOf")
 	return d and d:find(v, 1, true) and true or false
 end

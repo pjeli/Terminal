@@ -1458,6 +1458,32 @@ do
 	check(st[129] and st[129].name == "First Aid" and #st[129].list == 2 and st[129].fromList, "first aid indexed despite blank profession info")
 	check(has("linen bandage", "Linen Bandage"), "first aid recipe searchable")
 	check(names(ns:GetEntries(ns.providers.camp))["First Aid Kit"].detail:find("Known"), "first aid camp object known")
+	-- (review, 0.53.6) @camp takes a recipe the index keeps with no learned field (an older index) as known, as @recipe does
+	do
+		local real = P.NameIndex
+		local function Count()
+			ns.providers.camp._dirty = true
+			local n = 0
+			for _, e in ipairs(ns:GetEntries(ns.providers.camp)) do if e.hit then n = n + 1 end end
+			return n
+		end
+		local known = Count()
+		P.NameIndex = function()
+			local idx = real()
+			for _, h in pairs(idx) do
+				local copy = {}
+				for k, v in pairs(h.r) do copy[k] = v end
+				copy.learned = nil
+				h.r = copy
+			end
+			return idx
+		end
+		local old = Count()
+		P.NameIndex = real
+		Count()
+		check(known > 0 and old == known, ("an index with no learned field: the same camp objects known (%d of %d)"):format(old, known))
+	end
+
 
 	-- nothing identifies the window at all: a scan knows what it opened
 	C_TradeSkillUI.GetTradeSkillLineForRecipe = nil
@@ -1706,6 +1732,23 @@ do
 	check(#st[129].list == 1, "no filter: the window's list is what's kept: " .. #st[129].list)
 	RECIPES[129].ids = allIds
 	P.Snapshot(); FlushAll()
+	-- (review, 0.53.6) a read asked for while one is spread over frames (a recipe learned meanwhile): read once more after
+	-- it, not dropped
+	local many = { 41, 42 }
+	for k = 1, 43 do
+		many[#many + 1] = 1000 + k
+		RECIPES[129].info[1000 + k] = { name = "Bandage No " .. k, icon = 6, learned = true, categoryID = 4 }
+	end
+	RECIPES[129].ids = many
+	P.Snapshot() -- (45 recipes: 40 this frame, the rest next)
+	many[#many + 1] = 1044
+	RECIPES[129].info[1044] = { name = "Learned Meanwhile", icon = 6, learned = true, categoryID = 4 }
+	P.Snapshot() -- (the window's event, while the first read goes on)
+	FlushAll()
+	check(#ns.db.recipes["Tester-Realm"][129].list == 46, "a read asked for during one: read after it, the recipe learned meanwhile kept: "
+		.. #ns.db.recipes["Tester-Realm"][129].list)
+	RECIPES[129].ids = allIds
+	P.Snapshot(); FlushAll()
 end
 
 ----------------------------------------------------------------------
@@ -1792,6 +1835,12 @@ do
 	CVARS.nameplateMaxDistance[1] = "41"
 	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "41")
 	check(cv.nameplateMaxDistance.changed and names(UI:Search("@cvar changed")).nameplateMaxDistance, "changed again: found by 'changed'")
+	-- (review, 0.53.6) the event naming it in other letters (/console spells it as typed): its row all the same
+	CVARS.nameplateMaxDistance[1] = "55"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "NAMEPLATEMAXDISTANCE", "55")
+	check(cv.nameplateMaxDistance.detail:find("^= 55"), "named in capitals: its row updated: " .. tostring(cv.nameplateMaxDistance.detail))
+	CVARS.nameplateMaxDistance[1] = "41"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "41")
 	-- the tooltip is made when hovered
 	local lines = {}
 	local tt = { SetText = function(_, t) lines[#lines + 1] = t end, AddLine = function(_, t) lines[#lines + 1] = t end,

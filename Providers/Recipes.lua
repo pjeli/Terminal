@@ -85,9 +85,9 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		key = r.id,
 		name = r.name,
 		icon = r.icon,
-		color = r.learned == false and "|cff8a8a8a" or DiffColor(r.diff),
+		color = DiffColor(r.diff), -- (every caller lists known recipes only: no "unlearned" grey; review, 0.53.6)
 		difficulty = r.diff, -- (is:skillup, is:orange...: as of the window's last read)
-		detail = ns.Detail(r.learned == false and L["Unlearned"] or nil, pdata.name),
+		detail = ns.Detail(pdata.name),
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and L["Reagents: %s"]:format(table.concat(lines, ", ")) or nil,
 		getLink = RecipeLink,

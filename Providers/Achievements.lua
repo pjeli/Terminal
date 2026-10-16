@@ -133,4 +133,7 @@ achMeta = ns:CompactMeta(ns.providers.achievements, {
 	activate = OpenAchievement,
 	secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
 	secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,
+	-- (its detail is progress and points, never a place: in: doesn't work it out per row, a GetAchievementInfo and
+	-- the criteria each; review, 0.53.6)
+	noPlace = true,
 }, { detail = AchDetail, progress = Progress, icon = AchIcon, points = AchPoints, tip = AchTip, color = AchColor })

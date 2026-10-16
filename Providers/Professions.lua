@@ -448,16 +448,17 @@ end
 --- Which of the player's professions the open window belongs to.
 --- Returns key, name, fromList.
 local function ResolveProfession(api, ids)
+	-- (every field through ns.Num / ns.Str: a secret one is never compared, not even with 0 or ""; review, 0.53.6)
+	local Num, Str = ns.Num, ns.Str
+	local function Usable(t) return type(t) == "table" and Str(t.professionName) and (Num(t.professionID) or 0) ~= 0 end
 	local info = api.GetChildProfessionInfo and api.GetChildProfessionInfo()
-	if type(info) ~= "table" or not info.professionName or info.professionName == "" or (info.professionID or 0) == 0 then
-		info = api.GetBaseProfessionInfo and api.GetBaseProfessionInfo()
-	end
+	if not Usable(info) then info = api.GetBaseProfessionInfo and api.GetBaseProfessionInfo() end
 	local id, name
-	if type(info) == "table" and not Secret(info.professionID) then
-		id = (info.parentProfessionID and info.parentProfessionID ~= 0) and info.parentProfessionID or info.professionID
-		name = (info.parentProfessionName and info.parentProfessionName ~= "") and info.parentProfessionName or info.professionName
+	if type(info) == "table" then
+		local pid, own = Num(info.parentProfessionID), Num(info.professionID)
+		id = (pid and pid ~= 0) and pid or own
+		name = Str(info.parentProfessionName) or Str(info.professionName)
 		if id == 0 then id = nil end
-		if name == "" then name = nil end
 	end
 
 	-- the recipes themselves know their skill line
@@ -478,6 +479,8 @@ local function ResolveProfession(api, ids)
 	if P.scanning then return P.scanning.skillLine or P.scanning.name, P.scanning.name, true end
 	if id and name then return id, name, false end
 end
+
+P._ResolveProfession = ResolveProfession -- (tests)
 
 local busy = false
 
@@ -610,17 +613,26 @@ P.lastRead = nil -- { sig, entry }: the last read of a window, and the saved lis
 
 --- Reads every recipe of the profession window that is currently open. `quick` (a list update alone): not read again
 --- when nothing it depends on changed since the last read (SnapSig).
+local again -- (a read asked for while one was going: false = a full one, true = a quick one; nil: none)
 function P.Snapshot(done, quick)
 	local function finish()
 		busy = false
 		P.MarkDirty()
 		if done then done() end
+		-- (asked for meanwhile, by an event: read once more now; review, 0.53.6: it was dropped, a recipe learned during
+		-- a read spread over frames went unread until the window's next event)
+		if again ~= nil then
+			local q = again
+			again = nil
+			P.Snapshot(nil, q)
+		end
 	end
 	local function skip()
 		if done then done() end
 	end
 	if busy then
-		if done then C_Timer.After(1, function() P.Snapshot(done) end) end
+		if done then C_Timer.After(1, function() P.Snapshot(done) end)
+		else again = (again ~= false) and (quick and true or false) end -- (full wins over quick)
 		return
 	end
 	local api = TS()

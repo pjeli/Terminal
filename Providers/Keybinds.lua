@@ -115,7 +115,7 @@ local OPEN_SPEC = { macro = K.NavMacro, opensWindow = true }
 -- click of yours does) and shows the protected QuickKeybindFrame. (0.49.2, review: until then a /run line did both:
 -- HideUIPanel skipped the window's own closing, so unapplied settings were lost, and the frame's OnShow ran tainted, so
 -- the action bars' empty slots, shown only for the game's own code (ActionButton.lua's SetShowGrid), never showed.)
-local function QuickText() return Str(_G.SETTINGS_QUICK_KEYBIND_BUTTON) or Str(_G.QUICK_KEYBIND_MODE) or "Quick Keybind Mode" end
+local function QuickText() return Str(_G.SETTINGS_QUICK_KEYBIND_BUTTON) or Str(_G.QUICK_KEYBIND_MODE) or L["Quick Keybind Mode"] end
 local function QuickOn()
 	local f = _G.QuickKeybindFrame
 	return f and f.IsShown and f:IsShown() or false
@@ -205,13 +205,13 @@ ns:RegisterProvider("keybinds", {
 	collect = function()
 		local out = {}
 		-- Quick Keybind Mode: Enter points at its button, Shift+Enter starts it
-		local quick = Str(_G.QUICK_KEYBIND_MODE) or "Quick Keybind Mode"
+		local quick = Str(_G.QUICK_KEYBIND_MODE) or QuickText()
 		out[1] = {
 			key = "quickkeybind", name = quick, icon = ICON,
 			detail = L["Shift+Enter: start it"],
 			text = "keybind keybinding binding hotkey bind keys quick mode",
 			tip = L["Hover an action button, spell or macro and press a key to bind it."],
-			rowText = quick,
+			rowText = QuickText(), -- (the button's own text, as QuickStep finds it; review, 0.53.6: it was the mode's name)
 			secure = OPEN_SPEC, isOpen = IsOpen, after = PointAtRow, activate = OpenDirect,
 			secondary = QuickInCombat, secondarySecure = QUICK_SPEC, secondaryIsOpen = NeverOpen, secondaryAfter = QuickStarted,
 		}

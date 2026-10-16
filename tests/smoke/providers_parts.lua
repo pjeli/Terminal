@@ -373,3 +373,19 @@ do
 	if ns.providers.missing then ns.providers.missing._dirty = true end
 	ns.providers.camp._dirty = true
 end
+
+-- (review, 0.53.6) the open window's profession read through ns.Num / ns.Str: a secret name is never taken (nor
+-- compared: on the client that's an error)
+do
+	local P = T.ns.Professions
+	local was, real = _G.issecretvalue, P.PlayerProfessions
+	_G.issecretvalue = function(v) return v == "SECRET" end
+	P.PlayerProfessions = function() return {} end
+	local api = {
+		GetChildProfessionInfo = function() return { professionName = "SECRET", professionID = 171 } end,
+		GetBaseProfessionInfo = function() return { professionName = "Alchemy", professionID = 171, parentProfessionID = "SECRET" } end,
+	}
+	local key, name = P._ResolveProfession(api, {})
+	T.check(key == 171 and name == "Alchemy", "a secret child name: the base profession's, never the secret: " .. tostring(name))
+	_G.issecretvalue, P.PlayerProfessions = was, real
+end
