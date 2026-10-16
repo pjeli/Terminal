@@ -166,8 +166,8 @@ local MAIL = { mail = true, mails = true, mailbox = true, inbox = true, letter =
 --- alone or asked ("my auctions", "what am i selling"); "auction" and "ah" only asked ("my ah": they're the auctioneer
 --- too); other words only asked ("auction house" stays a search).
 function AU.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local subject, weak, asked, cues, rest, selling = false, true, false, {}, {}, false
 	for w in t:gmatch("%S+") do
 		if MAIL[w] then return nil end

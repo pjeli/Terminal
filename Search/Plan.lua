@@ -343,8 +343,8 @@ local ANY = { profession = true, professions = true, prof = true, profs = true, 
 --- The question: { profs = { your professions named }, words = what narrows it }, or nil when the line isn't asking
 --- for a levelling plan. A plan word (plan, level, leveling) and a profession of yours named (or "profession").
 function PL.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	-- (a plan word first: this is asked on every keystroke, and your professions are read only when it may be one;
 	-- review, 0.48.6)
 	local cued = false

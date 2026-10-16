@@ -512,8 +512,8 @@ local function BuffWord(w)
 	return false
 end
 function GR.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text, { without = true, no = true })
+	if not t then return nil end
 	t = t:gsub("in range", "inrange"):gsub("out of range", "outofrange")
 	local subject, who, cues, rest, consAll, named = false, false, {}, {}, false, false
 	for w in t:gmatch("%S+") do

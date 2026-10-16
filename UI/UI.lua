@@ -895,12 +895,18 @@ do
 	end
 end
 
-function UI:Open(text)
+--- Opens the terminal on `text` (nil: as you left it, the tab you were on with tabs). `opts`: the category to open in
+--- (`category`), whether this run is foreign to the tabs (`foreign`: RestoreState's, kept by SaveState).
+function UI:Open(text, opts)
 	Build()
 	self.tabKept = nil
-	-- (tabs: opened with no text of its own, the tab you were on comes back, in its mode; Tabs.lua)
-	local tab = (text == nil or text == "") and ns.Tabs and ns.Tabs.ForOpen() or nil
-	if tab then text = tab.text end
+	-- (tabs: opened with no text of its own (nil: the key, the options' button; "" is an empty prompt asked for, Alt+`,
+	-- Tab+`, the tour), the tab you were on comes back, in its mode; Tabs.lua. Opened with a text of its own (a chat
+	-- link, /term words), the run is "foreign": it shows that text, and the tab stays as it was. Review, 0.53.6)
+	local tab = text == nil and ns.Tabs and ns.Tabs.ForOpen() or nil
+	if tab then text, opts = tab.text, tab end
+	if opts and opts.foreign ~= nil then self.tabForeign = opts.foreign or nil
+	else self.tabForeign = (not tab and text ~= nil and ns.Tabs and ns.Tabs.On()) or nil end
 	-- (0.49.2, review) one of Terminal's apps up (.atop, .changelog, F1's keys, the games): it goes, as the terminal goes
 	-- when an app opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took
 	-- the keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
@@ -923,7 +929,9 @@ function UI:Open(text)
 	ns.Highlight:Clear()
 	local reopening = self.closing
 	self.closing = false
-	self.category, self.categoryAuto = nil, nil -- (each time it opens: no category yet, nothing listed)
+	-- (each time it opens: no category yet, nothing listed; one asked for (a tab's, F1's or combat's way back) is set
+	-- before its one search, not searched again after it)
+	self.category, self.categoryAuto = opts and UI.CategoryId(opts.category) or nil, nil
 	if ns.Easy then ns.Easy.NextExample() end -- (another example in the empty prompt each time)
 	self.showRecent, self.recalled = nil, nil
 	self.popTarget = nil -- (a row to select from a search stopped by closing: not this one's; 0.50.7, review)
@@ -955,7 +963,8 @@ function UI:Open(text)
 		end)
 	end
 	self:UpdateCaret()
-	if tab then ns.Tabs.AfterOpen(tab) elseif ns.Tabs then ns.Tabs.Layout() end
+	if tab then self:ApplyState(tab) end -- (its row selected again, its caret)
+	if ns.Tabs then ns.Tabs.Opened(tab) end
 end
 
 --- What was typed before the terminal closed a moment ago (UI.REOPEN_KEEP), to open with; nil when there's none.

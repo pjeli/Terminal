@@ -243,7 +243,8 @@ local function KeysDown(self, key)
 		-- tells Tab is down now (IsKeyDown, a plain true): then its "not held" as the toggle key opened the terminal was
 		-- true too, and this is a Tab of its own (0.49.2, review: ` then Tab within a second was swallowed, and its
 		-- key-up turned to fuzzy finding)
-		if UI.openedByToggle and GetTime() - UI.openedByToggle < TAB_LATE and not UI:TabToldDown() then
+		-- (Ctrl+Tab never is: the next tab; review, 0.53.6)
+		if UI.openedByToggle and GetTime() - UI.openedByToggle < TAB_LATE and not UI:TabToldDown() and not IsControlKeyDown() then
 			self:SetPropagateKeyboardInput(false)
 			return
 		end
@@ -317,8 +318,11 @@ end
 local function Cursor(text)
 	local edit = UI.edit
 	local c = UI.keys and UI.cursor or (edit.GetCursorPosition and edit:GetCursorPosition())
-	return math.max(0, math.min(type(c) == "number" and c or #text, #text))
+	return UI.ClampCursor(c, text)
 end
+--- The caret now, in the drawn prompt or the game's text box (UI.cursor is stale in the box: it follows text changes
+--- only; review, 0.53.6: a tab, F1 and combat kept an old caret).
+function UI.CursorNow() return Cursor(UI.edit and UI.edit:GetText() or "") end
 
 --- The keys Terminal does alike in the drawn prompt and the real text box (combat, the clipboard): F1 the keys window,
 --- F5 the new results a background search held (nothing held: nothing happens), PageUp/Down a page, Ctrl+Home/End the

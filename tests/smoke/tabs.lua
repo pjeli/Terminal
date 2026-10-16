@@ -113,6 +113,61 @@ UI:Toggle(); FlushAll()
 check(query() == "", "no tabs: Esc lets go of the text again, as before: " .. query())
 UI:Hide(); FlushAll()
 
+-- (review, 0.53.6) the ways in that ask for an empty prompt, or bring a text of their own, leave the tabs alone
+io.write("[tabs: Alt+`, Tab+`, the tour, links, Ctrl+Tab, the caret]\n")
+UI:Open(""); typeText("linen"); FlushAll()
+withCtrl(function() key("T") end); typeText("wool"); FlushAll()
+UI:Hide(); FlushAll()
+ns.db.easyMode = true
+UI:EasyChanged()
+UI:AdvancedOnce(); FlushAll()
+check(UI:IsShown() and query() == "" and not ns.Easy.On(), "Alt+` closed, with tabs: an empty prompt in Advanced, as before: "
+	.. query() .. " / Simple " .. tostring(ns.Easy.On()))
+UI:Hide(); FlushAll()
+check(Tabs.List()[2].text == "wool", "and the tab it left as it was: " .. tostring(Tabs.List()[2].text))
+UI:FuzzyOnce(); FlushAll()
+check(UI.fzf and query() == "", "Tab+` closed, with tabs: fuzzy finding from an empty prompt: " .. query())
+typeText("zz"); FlushAll()
+withCtrl(function() key("1") end); FlushAll()
+check(Tabs.List()[2].text == "wool" and query() == "linen", "switched from fuzzy finding: its words aren't kept as the tab: "
+	.. tostring(Tabs.List()[2].text))
+UI:Hide(); FlushAll()
+UI:Open("hogger"); FlushAll() -- (a chat link, /term hogger: a text of its own)
+check(query() == "hogger", "opened with a text of its own: that text")
+UI:Hide(); FlushAll()
+UI:Toggle(); FlushAll()
+check(query() == "linen" and Tabs.List()[1].text == "linen", "the tab you were on wasn't written over by it: " .. query())
+ns.Tour.Start(); FlushAll()
+withCtrl(function() key("2") end); FlushAll()
+check(not ns.Tour.Active() and query() == "wool" and Tabs.List()[1].text == "linen", "a switch ends the tour; its step isn't kept as a tab")
+UI:Hide(); FlushAll()
+ns.db.easyMode = false
+UI:EasyChanged()
+-- Ctrl+Tab right after ` opened it: the next tab, never Tab+`'s Tab
+UI:Toggle(); FlushAll()
+UI.openedByToggle = GetTime()
+withCtrl(function() key("TAB") end); FlushAll()
+check(Tabs.Cur() == 1 and not UI.fzf, "Ctrl+Tab just after opening: the next tab: " .. Tabs.Cur())
+-- a tab of no list's rows (a sum): any change; a calculation's: none
+typeText(" | count"); FlushAll()
+withCtrl(function() key("2") end); FlushAll()
+ns:Changed("spells"); FlushAll()
+check(Tabs.Changed(Tabs.List()[1]), "a summing tab: any list's change gives it the dot")
+withCtrl(function() key("1") end); FlushAll()
+withCtrl(function() key("U") end); typeText("=2+2"); FlushAll()
+withCtrl(function() key("2") end); FlushAll()
+ns:Changed("items"); FlushAll()
+check(not Tabs.Changed(Tabs.List()[1]), "a calculation's tab: no dot for a list it doesn't show")
+-- the caret in the game's own text box (combat, the clipboard): where it is now
+withCtrl(function() key("1") end); FlushAll()
+UI:EnterEdit()
+UI.edit.GetCursorPosition = function() return 1 end -- (the caret moved with the arrows: no text change)
+withCtrl(function() UI.edit.scripts.OnKeyDown(UI.edit, "2") end); FlushAll()
+UI.edit.GetCursorPosition = nil
+check(Tabs.List()[1].cursor == 1, "switched from the text box: its caret kept, not a stale one: " .. tostring(Tabs.List()[1].cursor))
+UI:EnterKeys()
+UI:Hide(); FlushAll()
+
 ns.providers, ns.providerOrder = save.providers, save.order
 ns:AliasesChanged()
 UI.lastScan, UI.lastOverview = nil, nil

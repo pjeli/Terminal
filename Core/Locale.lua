@@ -43,6 +43,25 @@ function ns.Plain(s)
 	return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
+-- the words Simple mode reads as "not" (Easy.lua's E.NOT_WORDS: "rare ring not boe")
+local NOT_WORDS = { ["not"] = true, no = true, without = true, except = true }
+
+--- A line as a plain-word question reads it ("party quests", "what killed me"): lower case, apostrophes dropped
+--- ("what's" -> "whats"), the rest of the punctuation as spaces. nil when it can't be one: Advanced syntax (@kinds,
+--- key:value, chains, sums, a .command or /slash), a word the search reads as "not" ("-cod", "!dead"), or a "not" word
+--- the question doesn't read itself (`allow`: the ones it does, { without = true }). Every question reads its line
+--- through this (review, 0.53.6: 19 copies, two of them; "party -dead", "party not dead" and "mail not cod" listed the
+--- very thing left out).
+function ns.QuestionText(text, allow)
+	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	if (" " .. text):find("%s[!%-][%a\128-\255]") then return nil end
+	local t = ns.Lower(text):gsub("'", ""):gsub("%p", " ")
+	for w in t:gmatch("%S+") do
+		if NOT_WORDS[w] and not (allow and allow[w]) then return nil end
+	end
+	return t
+end
+
 --- A key for comparing names: plain, lowercase, without spaces and ASCII punctuation.
 --- Letters of every language are kept ("Deadly Boss Mods" == "deadlybossmods").
 function ns.Norm(s)

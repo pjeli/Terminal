@@ -412,8 +412,8 @@ local THINGS = { gear = true, item = true, items = true, equipment = true, armor
 --- The question: { broken, damaged, words } or nil when the line isn't asking about durability. "repair" alone, "nearest
 --- repair", "repair nearby" are the repair vendors' (an NPC's role), not this.
 function DU.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = ns.Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local q = { words = {} }
 	local strong, repair, cost, needs, state, things = false, false, false, false, false, false
 	for w in t:gmatch("%S+") do

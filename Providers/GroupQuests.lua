@@ -416,8 +416,8 @@ for w in ([[who whos is are on the my our we us i me with in of a an to can coul
 
 --- The question: { mode = "all" | "together" | "share", words }, or nil when the line isn't about quests with your party.
 function PQ.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text, { without = true })
+	if not t then return nil end
 	local quest, group, share, weakShare, together, weakTogether, who, onHas = false, false, false, false, false, false, false, false
 	local rest = {}
 	for w in t:gmatch("%S+") do

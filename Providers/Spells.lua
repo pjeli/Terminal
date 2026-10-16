@@ -480,8 +480,9 @@ local SUBJECT = { spell = true, spells = true, ability = true, abilities = true 
 
 --- The question's words to narrow by ({ ... }, maybe empty), or nil when the line isn't the question.
 function SP.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = " " .. ns.Lower(text):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " ") .. " "
+	local t = ns.QuestionText(text, { ["not"] = true })
+	if not t then return nil end
+	t = " " .. t:gsub("%s+", " ") .. " "
 	local says = t:find(" not on [%a ]-bars? ") or t:find(" arent on [%a ]-bars? ") or t:find(" isnt on [%a ]-bars? ")
 		or t:find(" missing from [%a ]-bars? ") or t:find(" off [%a ]-bars? ") or t:find(" unplaced ") or t:find(" not placed ")
 	if not says then return nil end

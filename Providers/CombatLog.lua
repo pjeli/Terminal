@@ -316,14 +316,15 @@ ns:RegisterProvider("combatlog", {
 ----------------------------------------------------------------------
 
 local ASKS = {}
-for w in ([[what who killed kill me my i did die died deaths death how crit crits crited critted hit hits hardest
+for w in ([[what whats who whos killed kill me my i did die died deaths death how crit crits crited critted hit hits hardest
 	biggest best top last recent the was by on]]):gmatch("%S+") do ASKS[w] = true end
 
 --- "killed" / "crit" / "critby" for a question in plain words, else nil.
 function CB.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local has, n = {}, 0
-	for w in ns.Lower(text):gsub("[%p]", " "):gmatch("%S+") do
+	for w in t:gmatch("%S+") do
 		if not ASKS[w] then return nil end
 		has[w], n = true, n + 1
 	end

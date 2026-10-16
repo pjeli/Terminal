@@ -278,8 +278,9 @@ end
 --- The question: { words = the item's words, items = the quest rewards they name, best first }, or nil when the line
 --- isn't it (no quest word, no quest reward named, or a quest called that).
 function QR.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ") -- ("what's", as the other questions read it)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t -- ("what's", as the other questions read it)
 	local quest, words = false, {}
 	for w in t:gmatch("%S+") do
 		if QUEST[w] then quest = true elseif not FILLER[w] and #w >= 3 then words[#words + 1] = w end
@@ -333,8 +334,8 @@ QR.UPGRADE_ASK = 60 -- (reward items asked of the server per answer; the answer 
 
 --- "quest upgrades" and the like (a quest word, an upgrade word, nothing else but little words): true.
 function QR.UpgradeQuestion(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local quest, upg = false, false
 	for w in t:gmatch("%S+") do
 		if QUEST[w] then quest = true

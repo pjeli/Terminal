@@ -214,8 +214,9 @@ end
 function Q.Forget() stepNames = nil end -- (tests: Attune's data made again)
 
 local function Clean(text)
-	if not ns.providers.attune or type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+	local t = ns.providers.attune and ns.QuestionText(text, { ["not"] = true }) -- ("attunements not done": its own)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
 	return t ~= "" and t or nil
 end
 local function IsKey(e) return AT.RecOf(e) and AT.RecOf(e).group == "key" end

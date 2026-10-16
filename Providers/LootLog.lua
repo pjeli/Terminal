@@ -324,12 +324,12 @@ ns:RegisterProvider("lootlog", {
 ----------------------------------------------------------------------
 
 local ASKS = {}
-for w in ([[what which did do we i me my our us get got gotten have has had drop dropped drops loot looted loots
+for w in ([[what whats which did do we i me my our us get got gotten have has had drop dropped drops loot looted loots
 	lootlog log won win recent recently last latest lately today tonight so far any anything anyone items item show list
 	the from that this run boss bosses all see were was been is are new]]):gmatch("%S+") do ASKS[w] = true end
 local CUES = { drop = true, dropped = true, drops = true, loot = true, looted = true, loots = true, lootlog = true }
 -- (besides a loot word, one of these must be there: "boss loot", "the loot", "item drops" stay searches)
-local ASKING = { what = true, which = true, did = true, my = true, our = true, we = true, i = true, me = true, us = true,
+local ASKING = { what = true, whats = true, which = true, did = true, my = true, our = true, we = true, i = true, me = true, us = true,
 	recent = true, recently = true, last = true, latest = true, lately = true, today = true, tonight = true, lootlog = true,
 	got = true, won = true, new = true, log = true }
 
@@ -360,9 +360,10 @@ local GOT = { get = true, got = true, gotten = true, won = true, win = true }
 --- question words, with a word about loot ("dropped", "loot") or "what did <someone> get"; one name from the log may
 --- stand in it ("what did bob get").
 function LL.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local has, n, other = {}, 0, {}
-	for w in ns.Lower(text):gsub("[%p]", " "):gmatch("%S+") do
+	for w in t:gmatch("%S+") do
 		if ASKS[w] then has[w] = true else other[#other + 1] = w end
 		n = n + 1
 	end

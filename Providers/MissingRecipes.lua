@@ -575,8 +575,8 @@ end
 --- The question: { profs = { names }, words = the words narrowing it by name, learnable = only those your skill
 --- allows }, or nil when the line isn't it.
 function MR.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local subject, cue, can, now, words = false, false, false, false, {}
 	local list = {}
 	for w in t:gmatch("%S+") do list[#list + 1] = w end

@@ -119,11 +119,10 @@ for w in ([[where should i can do to go what which whats wheres best good next f
 --- What a line of plain words asks, if it's one of the questions: "level", "dungeon", "raid" or "fish", and the
 --- level said in it (nil: yours). nil when it isn't one.
 function Z.Question(text)
-	if type(text) ~= "string" then return nil end
-	-- Advanced syntax (@kind, key:value, >>, a|b, .command, /slash) is never a question
-	if text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
+	local line = ns.QuestionText(text)
+	if not line then return nil end
 	local t, has, level = {}, {}, nil
-	for w in ns.Lower(text):gsub("'", ""):gsub("[%p]", " "):gmatch("%S+") do
+	for w in line:gmatch("%S+") do
 		local n = tonumber(w)
 		if n then
 			if n >= 1 and n <= 80 and n == math.floor(n) then level = n else return nil end

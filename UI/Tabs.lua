@@ -57,6 +57,26 @@ function T.Changed(tab)
 	return false
 end
 
+--- The lists a row comes from, for a tab's dot: its own (a provider's), a Simple-mode category's lists; nil for a row of
+--- no list (a sum, a calculation, a note: Snapshot counts a sum as any list).
+local function KindsOf(e, kinds)
+	local k = e.kind
+	if type(k) == "string" and ns.providers[k] then kinds[k] = true return true end
+	local cat = e.catId and ns.Easy and ns.Easy.BY_ID and ns.Easy.BY_ID[e.catId]
+	if cat and cat.kinds then
+		for _, id in ipairs(cat.kinds) do kinds[id] = true end
+		return true
+	end
+	return false
+end
+
+--- How many real rows a list has (not notes, not leads).
+function T.Count(list)
+	local n = 0
+	for _, e in ipairs(list or {}) do if not (e.noActivate or e.lead) then n = n + 1 end end
+	return n
+end
+
 --- The prompt as it is now, as a tab (what's saved: text, cursor, the mode for this run, category, the selected row's
 --- kind, key and name), and what it showed (not saved: the lists its rows came from).
 local function Snapshot()
@@ -68,84 +88,73 @@ local function Snapshot()
 	if type(sel) == "table" and type(sel.name) == "string" and (type(sel.key) == "string" or type(sel.key) == "number") then
 		tab.sel = { kind = sel.kind, key = sel.key, name = sel.name }
 	end
-	local n, kinds, any = 0, {}, false
+	local kinds = {}
 	for _, e in ipairs(UI.results) do
-		if not (e.noActivate or e.lead) then
-			n = n + 1
-			local k = e.kind
-			if type(k) == "string" and ns.providers[k] then kinds[k] = true else any = true end -- (a sum's rows: any list)
-		end
+		if not (e.noActivate or e.lead) then KindsOf(e, kinds) end
 	end
-	tab.n = n
-	run[tab] = { kinds = kinds, any = any, at = Stamp() }
+	tab.n = T.Count(UI.results)
+	-- (a sum's rows are of no list: whatever it summed may change; review, 0.53.6: any row of no list counted, so a tab
+	-- left on Simple mode's categories got a dot on every change)
+	run[tab] = { kinds = kinds, any = UI.aggregate ~= nil, at = Stamp() }
 	return tab
 end
 
---- The tab shown kept as it is now (switching away, closing the terminal). Not pure fuzzy finding's (a run of its own,
---- over the tab: the tab stays as it was), nor the tour's.
-function T.SaveCurrent()
-	if not T.On() or not UI.edit then return end
-	if UI.fzf or (ns.Tour and ns.Tour.Active and ns.Tour.Active()) then return end
-	local t = DB()
+--- The prompt kept into the tab shown, unless this run isn't the tab's: pure fuzzy finding (a run of its own, over
+--- the tab), the tour, a run opened with a text of its own (a chat link, /term words: UI.tabForeign). Review, 0.53.6:
+--- New, Switch and Close kept fuzzy finding's and the tour's text as the tab.
+local function Keep(t)
+	if UI.fzf or UI.tabForeign or (ns.Tour and ns.Tour.Active and ns.Tour.Active()) then return end
 	t.list[t.cur] = Snapshot()
 end
 
---- The mode a tab was in for its run (Alt+`'s Advanced, fuzzy finding's Simple) over the mode you're in for good: only
---- what differs from it (switched for good since: nothing to bring back), as a quick reopen does.
-local function SetMode(tab)
-	local E = ns.Easy
-	if not E then return end
-	local simple = not (ns.db and ns.db.easyMode == false)
-	E.temp, E.tempSimple = simple and tab.temp or nil, (not simple) and tab.tempSimple or nil
+--- The tab shown kept as it is now (closing the terminal).
+function T.SaveCurrent()
+	if not T.On() or not UI.edit then return end
+	Keep(DB())
+end
+
+local function Looked(tab)
+	run[tab] = run[tab] or { kinds = {}, any = false }
+	run[tab].at = Stamp() -- (looked at: no dot)
 end
 
 --- The prompt set to a tab, the terminal open (a switch): searched afresh, its row selected again.
 local function Load(tab)
 	tab = tab or {}
+	if ns.Tour and ns.Tour.Stop then ns.Tour.Stop() end -- (the tour's card and its next step: not over a tab)
 	UI:EndFuzzy()
 	UI:Disarm()
 	UI:HideRowMenu()
-	SetMode(tab)
+	UI.SetRunMode(tab)
 	UI.Forget(UI, true)
+	UI.tabForeign = nil -- (a tab's own now)
 	UI.blockedSyntax, UI.sendTo, UI.action = nil, nil, nil
 	UI.walks, UI.histIdx, UI.showRecent, UI.recalled = {}, nil, nil, nil
-	UI.category, UI.categoryAuto = tab.category, nil
-	UI.popTarget = tab.sel
+	UI.category, UI.categoryAuto = UI.CategoryId(tab.category), nil
 	UI.refreshText = nil -- (another tab: not the same search again, whatever its text)
-	local text = type(tab.text) == "string" and tab.text or ""
-	UI:SetOrResearch(text)
-	UI.cursor = math.max(0, math.min(type(tab.cursor) == "number" and tab.cursor or #text, #text))
-	UI:UpdateCaret()
+	UI:SetOrResearch(type(tab.text) == "string" and tab.text or "")
+	UI:ApplyState(tab)
 	UI:SetStatus()
 	UI:UpdateGhost()
-	run[tab] = run[tab] or { kinds = {}, any = false, at = Stamp() }
-	run[tab].at = Stamp() -- (looked at: no dot)
+	Looked(tab)
 end
 
---- Opening the terminal with tabs: the one you were on (UI:Open, when it opens with no text of its own). Its text, with
---- its mode set; UI:Open calls T.AfterOpen once it's open.
+--- Opening the terminal with tabs: the one you were on (UI:Open, opened with no text of its own), with its mode set;
+--- UI:Open opens on its text and category and calls T.Opened.
 function T.ForOpen()
 	if not T.On() then return nil end
 	local tab = T.List()[T.Cur()] or {}
-	SetMode(tab)
+	UI.SetRunMode(tab)
 	return tab
 end
 
-function T.AfterOpen(tab)
-	if tab.category then UI:SetCategory(tab.category) end
-	if tab.sel then
-		UI.popTarget = tab.sel
-		UI:SelectPopTarget(not UI.searchJob)
-		UI:Render()
-	end
-	local text = UI.edit:GetText()
-	UI.cursor = math.max(0, math.min(type(tab.cursor) == "number" and tab.cursor or #text, #text))
-	UI:UpdateCaret()
-	if run[tab] then run[tab].at = Stamp() end
+--- The terminal opened (on `tab`, T.ForOpen's, or another text): the strip drawn.
+function T.Opened(tab)
+	if tab then Looked(tab) end
 	T.Layout()
 end
 
---- Says something in the chat window, once: "4 tabs at most" and the like.
+--- Says something in the chat window: "4 tabs at most" and the like.
 local function Say(msg) ns:Print(msg) end
 
 --- Ctrl+T: a new tab, empty, in the mode you're in for good; the prompt as it was is the tab before it.
@@ -156,8 +165,12 @@ function T.New()
 		Say(L["%d tabs at most: Ctrl+Shift+W closes one"]:format(T.MAX))
 		return false
 	end
-	if #t.list == 0 then t.list[1], t.cur = {}, 1 end -- (the prompt as it was: tab 1)
-	t.list[t.cur] = Snapshot()
+	if #t.list == 0 then
+		t.list[1], t.cur = {}, 1
+		t.list[1] = Snapshot() -- (the prompt as it was, whatever it is: tab 1)
+	else
+		Keep(t)
+	end
 	local tab = { text = "" }
 	t.list[#t.list + 1] = tab
 	t.cur = #t.list
@@ -173,7 +186,7 @@ function T.Switch(i)
 	if not (t and T.On() and UI:IsShown()) then return false end
 	if type(i) ~= "number" or not t.list[i] then return false end
 	if i == t.cur then return true end
-	t.list[t.cur] = Snapshot()
+	Keep(t)
 	t.cur = i
 	ns:Trace(("tabs: tab %d"):format(i))
 	Load(t.list[i])
@@ -195,7 +208,6 @@ function T.Close(i)
 	i = i or t.cur
 	if not t.list[i] then return false end
 	local shown = i == t.cur
-	if shown then t.list[t.cur] = Snapshot() end -- (the others' numbers move; the one shown, as it is)
 	table.remove(t.list, i)
 	if i < t.cur or (shown and t.cur > #t.list) then t.cur = t.cur - 1 end
 	t.cur = math.max(1, math.min(t.cur, #t.list))
@@ -253,11 +265,7 @@ local function Label(i, tab, shown)
 	local t = Theme.Get()
 	local text = shown and UI.edit:GetText() or tab.text
 	text = type(text) == "string" and text:gsub("^%s+", ""):gsub("%s+$", "") or ""
-	local n = shown and nil or tab.n
-	if shown then
-		n = 0
-		for _, e in ipairs(UI.results) do if not (e.noActivate or e.lead) then n = n + 1 end end
-	end
+	local n = shown and T.Count(UI.results) or tab.n
 	local name = text ~= "" and text:gsub("|", "||") or L["new tab"]
 	local out = "|cff" .. t.dim .. i .. "|r  " .. (shown and "|cff" .. t.text or "|cff" .. t.dim) .. name .. "|r"
 	if type(n) == "number" and n > 0 and text ~= "" then out = out .. "  |cff" .. t.dim .. n .. "|r" end

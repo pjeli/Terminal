@@ -117,7 +117,7 @@ end
 --- already, the terminal closes (as Alt+` pressed again does).
 function UI:FuzzyOnce(text)
 	if self.fzf and self:IsShown() then return self:Hide() end -- (Tab+` again closes, as Alt+` again does)
-	if not self:IsShown() then self:Open() end
+	if not self:IsShown() then self:Open("") end -- (an empty prompt, not the tab you were on)
 	self:StartFuzzy()
 	if type(text) == "string" and text:find("%S") then
 		text = text:gsub("^%s+", "")
@@ -262,11 +262,46 @@ end
 -- the selected row. A panel takes the terminal's place (Panel.Opening hides it), so this is what comes back.
 ----------------------------------------------------------------------
 
+--- A Simple-mode category's id as it is now (one a category took over: that category's), or nil.
+function UI.CategoryId(id)
+	local c = id ~= nil and ns.Easy and ns.Easy.BY_ID and ns.Easy.BY_ID[id]
+	return c and c.id or nil
+end
+
+--- A caret position for `text`: `c` within it, else (none kept) its end.
+function UI.ClampCursor(c, text)
+	return math.max(0, math.min(type(c) == "number" and c or #text, #text))
+end
+
+--- This run's mode (Alt+`'s Advanced, fuzzy finding's Simple) as `kept` had it, over the mode you're in for good: only
+--- what differs from that (switched for good since: nothing to bring back). A quick reopen, a tab, the way back from F1
+--- or combat alike.
+function UI.SetRunMode(kept)
+	local E = ns.Easy
+	if not E then return end
+	kept = kept or {}
+	local simple = not (ns.db and ns.db.easyMode == false)
+	E.temp, E.tempSimple = simple and kept.temp or nil, (not simple) and kept.tempSimple or nil
+end
+
+--- After opening on a kept state (UI:SaveState's, a tab): the row it had selected selected again once the results are
+--- in, and the caret where it was.
+function UI:ApplyState(s)
+	if s.sel then
+		self.popTarget = s.sel -- (a search going on picks it at its end)
+		self:SelectPopTarget(not self.searchJob)
+		self:Render()
+	end
+	self.cursor = UI.ClampCursor(s.cursor, UI.edit:GetText())
+	self:UpdateCaret()
+end
+
 --- The terminal as it is now, for UI:RestoreState.
 function UI:SaveState()
 	local edit, E = UI.edit, ns.Easy
 	return {
-		text = edit and edit:GetText() or "", cursor = self.cursor, fzf = self.fzf and true or nil,
+		text = edit and edit:GetText() or "", cursor = UI.CursorNow and UI.CursorNow() or self.cursor, fzf = self.fzf and true or nil,
+		foreign = self.tabForeign or false, -- (a run that isn't a tab's stays one: Tabs.lua)
 		temp = E and E.temp, tempSimple = E and E.tempSimple,
 		category = (not self.categoryAuto) and self.category or nil, sel = UI.results[UI.sel],
 		recent = self.showRecent and true or nil, recalled = self.recalled, -- (what Down brought up)
@@ -281,9 +316,8 @@ function UI:RestoreState(s)
 	if s.fzf then
 		self:FuzzyOnce(text)
 	else
-		if E then E.temp, E.tempSimple = s.temp, s.tempSimple end
-		self:Open(text)
-		if s.category then self:SetCategory(s.category) end
+		UI.SetRunMode(s)
+		self:Open(text, s)
 		-- Down's recent picks on the empty prompt, Simple mode's last search it brought back (Up puts either away)
 		if s.recent and text == "" then
 			self.showRecent = true
@@ -291,14 +325,7 @@ function UI:RestoreState(s)
 		end
 		if s.recalled and s.recalled == text then self.recalled = text end
 	end
-	if s.sel then
-		self.popTarget = s.sel -- (the row selected again once the results are in: a search going on picks it at its end)
-		self:SelectPopTarget(not self.searchJob)
-		self:Render()
-	end
-	local now = UI.edit:GetText()
-	self.cursor = math.max(0, math.min(type(s.cursor) == "number" and s.cursor or #now, #now))
-	self:UpdateCaret()
+	self:ApplyState(s)
 end
 
 --- F1: the keys window (Apps/KeysWindow.lua) on the tab of the mode in use, coming back here as it was.
@@ -399,7 +426,7 @@ function UI:AdvancedOnce()
 	if not (E and E.On()) then return self:Toggle() end
 	if not self:IsShown() then
 		E.temp = { from = "" }
-		return self:Open()
+		return self:Open("") -- (an empty prompt: not the tab you were on, which would set its own mode; review, 0.53.6)
 	end
 	local text = edit:GetText()
 	-- the lists what shows comes from name the @kinds ("use hearthstone": @item, the list the Hearthstone shown is in,

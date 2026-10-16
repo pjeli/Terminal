@@ -582,8 +582,8 @@ end
 --- "nextweek" | "weekend" | "month" | "nextmonth", holiday, invite, guild }, or nil when the line isn't asking about
 --- the calendar. "calendar" alone stays a search (the Calendar window first, then what's on).
 function CA.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	local q = { words = {} }
 	local strong, calendar, cue, whats, on, nextWord, n = false, false, false, false, false, false, 0
 	for w in t:gmatch("%S+") do

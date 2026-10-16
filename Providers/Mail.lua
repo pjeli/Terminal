@@ -1231,8 +1231,8 @@ local STRONG_SUBJECT = { mailbox = true, inbox = true, letters = true, letter = 
 --- The question: { words = what narrows it (a sender, an item...), soon, cod, money, unread, returned, auction }, or nil
 --- when the line isn't asking about mail.
 function MA.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = Lower(text):gsub("'", ""):gsub("[%p]", " ")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
 	t = t:gsub("running out", "expiring")
 	local subject, strong, inbox, asked, cues, rest, strongCue, fromFirst = false, false, false, false, {}, {}, false, false
 	for w in t:gmatch("%S+") do

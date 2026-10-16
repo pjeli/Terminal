@@ -86,8 +86,9 @@ for w in ([[where wheres is my me i the a to find get back go show did died die 
 
 --- The question, or nil when the line isn't about your corpse.
 function C.Question(text)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./]") then return nil end
-	local t = ns.Lower(text):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
 	if t == "where did i die" or t == "where i died" then return {} end
 	local corpse, body, my = false, false, false
 	for w in t:gmatch("%S+") do
