@@ -57,7 +57,7 @@ E.ADVANCED = {
 	{ "copper bar > uses", "city" }, { "@map lvl:30", "field" }, { "@dungeon lvl:25", "field" }, { "@recipe is:skillup", "city" },
 	{ "@friend is:online" }, { "@guild blacksmith", "city" }, { "@spell is:unplaced" }, { "@quest is:drop", "field" },
 	{ "@recipe is:unknown", "city" }, { "@recipe is:learnable", "city" }, { "@training is:learnable | sum cost", "city" },
-	{ "@training is:nextlevel" }, { "@classspell class:druid lvl:30" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
+	{ "@training is:nextlevel" }, { "@spell class:druid lvl:30" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
 	{ "@item is:boe|q:epic" }, { "@spell is:ready", "instance" }, { "@gear slot:head|chest -is:soulbound" },
 	{ "@item q:rare|epic" }, { "@npc is:repair sort:nearest", "city" }, { "@npc trainer:mining near:500", "city" },
 	{ "@loot is:upgrade sort:best", "field" }, { "@questie is:upgrade sort:best", "field" }, { "@group is:dead", "instance" },

@@ -364,7 +364,7 @@ do
 		and not item:find("online", 1, true) and not item:find("leftbehind", 1, true), "@item is: the items': " .. item)
 	check(Picks("@group quests is:") == "shareable together", "@group quests is: the party quests': " .. Picks("@group quests is:"))
 	check(Picks("@group is:"):find("^online offline dead tank healer dps far inrange unbuffed$"), "@group is: " .. Picks("@group is:"))
-	check(Picks("@spell @currency is:") == "ready passive unplaced capped", "two lists: both lists' values: " .. Picks("@spell @currency is:"))
+	check(Picks("@spell @currency is:") == "ready passive unplaced known capped", "two lists: both lists' values: " .. Picks("@spell @currency is:"))
 	check(#Picks("is:"):gsub("%S+", "x"):gsub(" ", "") == #ns.Filters.VALUES.is, "no list typed: every value")
 	check(Picks("@questlog stat:") == "" and Picks("@npc trainer:"):find("^class classes"), "a key that judges no list typed: none")
 	check(Picks("@questlog is:co") == "complete", "narrowed by what's typed: " .. Picks("@questlog is:co"))

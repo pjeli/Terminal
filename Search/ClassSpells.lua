@@ -8,7 +8,10 @@ local L = ns.L
 --                                                                    level); What's Training's answer when it's there
 --   "when do i learn travel form"                                    the spell, the level it's learned at
 --
--- In Advanced syntax: @classspell class:druid lvl:20.
+--   "my spells", "known spells"                                      your spellbook, as @spell was before it listed
+--                                                                    every class's (0.54.6)
+--
+-- In Advanced syntax: @spell class:druid lvl:20, @spell is:known.
 
 local CS = ns.ClassSpells
 local Q = {}
@@ -55,17 +58,19 @@ function Q.Question(text)
 		elseif NEXT[w] then upcoming = true
 		elseif (w == "level" or w == "lvl" or w == "at") and tonumber(nxt) then q.level = tonumber(nxt); i = i + 1
 		elseif w == "learn" then learn = true
+		elseif w == "my" or w == "known" or w == "know" then q.known = true
 		elseif w == "when" then when = true
 		elseif ClassOf(w) and not q.class then q.class = ClassOf(w)
 		elseif not FILL[w] then q.words[#q.words + 1] = w end
 		i = i + 1
 	end
-	if when and learn and #q.words > 0 then return q end -- ("when do i learn travel form")
+	if when and learn and #q.words > 0 then q.known = nil return q end -- ("when do i learn travel form")
 	if not spell then return nil end
-	if q.class then return q end -- ("druid spells", "shaman spells at level 20")
+	if q.class then q.known = nil return q end -- ("druid spells", "shaman spells at level 20")
 	if #q.words > 0 then return nil end -- ("fire spells": a search)
-	if upcoming then q.upcoming = true return q end
-	if q.level then return q end
+	if upcoming then q.upcoming, q.known = true, nil return q end
+	if q.level then q.known = nil return q end
+	if q.known then return q end -- ("my spells", "spells i know": your spellbook)
 	return nil
 end
 
@@ -90,7 +95,13 @@ function Q.Answer(q)
 	local lvl = ns.Safe(UnitLevel, "player")
 	lvl = type(lvl) == "number" and lvl or 1
 	local rows, note = {}, nil
-	if q.class then
+	if q.known then
+		local P = ns.providers.spells
+		for _, e in ipairs(P and ns:GetEntries(P) or {}) do rows[#rows + 1] = e end
+		table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
+		if #rows == 0 then return { NoteRow(L["No spell that fits"]) }, L["Your spellbook"] end
+		return ns.ScoreInOrder(rows), L["Your spellbook"] .. ns.DETAIL_SEP .. L["%d results"]:format(#rows)
+	elseif q.class then
 		for _, e in ipairs(CS.Rows(q.class, q.class == mine, true)) do
 			if not q.level or RankAt(e, q.level) then rows[#rows + 1] = e end
 		end
@@ -131,9 +142,10 @@ function Q.Answer(q)
 end
 
 function Q.ToAdvanced(q)
-	local parts = { "@classspell" }
+	if q.known then return "@spell is:known " end
+	local parts = { "@spell" }
 	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class)
-	else parts[#parts + 1] = "class:mine" end
+	else parts[#parts + 1] = "class:mine -is:known" end
 	if q.level then parts[#parts + 1] = "lvl:" .. q.level
 	elseif q.upcoming then
 		local lvl = ns.Safe(UnitLevel, "player")

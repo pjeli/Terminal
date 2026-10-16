@@ -85,12 +85,58 @@ do
 	check(q and Names((Q.Answer(q))) == "Travel Form", "when do i learn travel form: another class's when not yours")
 	check(Q.Question("fire spells") == nil and Q.Question("spells not on my bars") == nil and Q.Question("druid talents") == nil
 		and Q.Question("@classspell druid") == nil, "not its questions: a search, another question, talents, Advanced syntax")
-	check(ns.QuestionToAdvanced("druid spells") == "@classspell class:druid ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("druid spells")))
+	check(ns.QuestionToAdvanced("druid spells") == "@spell class:druid ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("druid spells")))
 	ns.db.easyMode = true; UI:EasyChanged()
 	UI:Open("druid spells"); FlushAll()
 	check(Names(UI.Results()) == "Claw | Travel Form", "Simple mode, typed: " .. Names(UI.Results()))
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false; UI:EasyChanged()
+
+	-- (0.54.6, the player: every class's spells under @spell, as @talent) @spell: your spellbook and the spells you don't
+	-- know, any class's; class: narrows; is:known keeps to the spellbook; @classspell is @spell; an action only casts
+	do
+		local SP = ns.providers.spells
+		local book = { { name = "Heroic Strike", spellID = 78 }, { name = "Battle Shout", spellID = 6673 } }
+		local spellsWas = SP.collect
+		SP.collect = function()
+			local out = {}
+			for i, b in ipairs(book) do out[i] = { name = b.name, spellID = b.spellID, key = b.name, classFile = "WARRIOR", className = "Warrior" } end
+			return out
+		end
+		SP._dirty = true
+		CS.ForgetRows(); P._dirty = true
+		local function Kinds(res)
+			local t = {}
+			for _, e in ipairs(res) do t[#t + 1] = tostring(e.name) .. "/" .. tostring(e.kind) end
+			return table.concat(t, " | ")
+		end
+		local res = UI:Search("@spell")
+		check(Kinds(res):find("Heroic Strike/spells", 1, true) and Kinds(res):find("Travel Form/classspells", 1, true)
+			and Kinds(res):find("Charge/classspells", 1, true), "@spell: the spellbook and every class's: " .. Kinds(res))
+		check(res[1] and res[1].kind == "spells", "your spellbook first: " .. Kinds(res))
+		check(Kinds(UI:Search("@spell travel form")) == "Travel Form/classspells", "@spell travel form: the druid's")
+		check(Names(UI:Search("@spell class:druid")) == "Claw | Travel Form" or Names(UI:Search("@spell class:druid")) == "Travel Form | Claw",
+			"@spell class:druid: " .. Names(UI:Search("@spell class:druid")))
+		res = UI:Search("@spell class:mine")
+		check(Kinds(res):find("Heroic Strike/spells", 1, true) and Kinds(res):find("Charge/classspells", 1, true)
+			and not Kinds(res):find("Travel Form", 1, true), "class:mine: yours, known and not: " .. Kinds(res))
+		res = UI:Search("@spell is:known")
+		check(Kinds(res) ~= "" and not Kinds(res):find("classspells", 1, true), "is:known: the spellbook only (as @spell was): " .. Kinds(res))
+		check(not Kinds(UI:Search("@spell -is:known")):find("/spells", 1, true), "-is:known: what you don't know")
+		check(Kinds(UI:Search("@classspell travel form")) == "Travel Form/classspells" and Kinds(UI:Search("@classspell")) == Kinds(UI:Search("@spell")),
+			"@classspell: another name for @spell")
+		check(not Kinds(UI:Search("@spell do:cast")):find("classspells", 1, true), "do:cast: only what you can cast")
+		check(ns:KindName(ns.providers.classspells) == "@spell", "the list is named @spell")
+		-- (0.54.7, the player: still "Class spell" on the right) its rows say Spell, as the spellbook's do, in its colour
+		check(ns.providers.classspells.label == ns.providers.spells.label and ns.providers.classspells.color == ns.providers.spells.color,
+			"labelled Spell: " .. tostring(ns.providers.classspells.label))
+		-- "my spells": your spellbook (a question)
+		local q = Q.Question("my spells")
+		check(q and q.known and Names((Q.Answer(q))) == "Battle Shout | Heroic Strike", "my spells: the spellbook: " .. Names((Q.Answer(q))))
+		check(ns.QuestionToAdvanced("my spells") == "@spell is:known ", "my spells as Advanced: " .. tostring(ns.QuestionToAdvanced("my spells")))
+		check(Q.Question("my druid spells").class == "DRUID" and not Q.Question("my druid spells").known, "my druid spells: the druid's")
+		SP.collect = spellsWas; SP._dirty = true
+	end
 
 	-- every rank's spell id
 	rows = ns.SpellIds.Answer(ns.SpellIds.Question("spellid healing wave"))

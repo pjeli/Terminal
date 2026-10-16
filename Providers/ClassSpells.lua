@@ -171,9 +171,11 @@ end
 function CS.ForgetRows() others = {} end -- (tests)
 
 ns:RegisterProvider("classspells", {
-	label = L["Class spell"],
-	color = "ffc8a2ff",
-	aliases = { "classspell", "classspells", "allspells", "classabilities" },
+	-- (one list with your spellbook since 0.54.6: its rows say Spell, in the spellbook's colour too; 0.54.7, the player)
+	label = L["Spell"],
+	color = "ff9d7bff",
+	-- (0.54.6: reached through @spell, which looks in these too; its words, @classspell and the rest, are @spell's now)
+	aliases = {}, noKind = true, reach = "@spell", oneWith = "spells", -- (part of @spell to the player: its colour too)
 	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_LEVEL_UP" },
 	guard = 2,
 	collect = function()

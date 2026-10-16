@@ -978,6 +978,9 @@ function Scan.Parse(self, text)
 		exact[l] = true
 	end
 	tokens.exact = exact
+	-- "@spell": your spellbook and the spells you don't know yet, any class's (@classspell's rows), are one list to search
+	-- (0.54.6, the player: as @talent is); an action (do:cast) only the spellbook's, which can be cast
+	if kinds and kinds.spells and ns.providers.classspells and not advAct then kinds.classspells = true end
 	-- "sort:plan": what's planned is recipes (with no @kind, or with @profession: searched too)
 	if sortPlan and (not kinds or kinds.professions) then
 		kinds = kinds or {}

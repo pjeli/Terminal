@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.54.5", when = "in testing",
+		v = "0.54.7", when = "in testing",
 		items = {
 			"One mode: type in plain words, and a line with Advanced syntax (@npc, q:rare, >> party) runs in Advanced mode as you type it; .simple and .advanced are gone (.help advanced lists the syntax).",
 			"Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\", with the level each rank is learned at.",
@@ -26,6 +26,8 @@ CL.LOG = {
 			"Tooltips put what Enter and Shift+Enter do on lines of their own.",
 			"Talents by what they do, again: \"healing talents\", \"shaman crit talents\", \"druid regen talents\", \"tank talents\" list the talents that say it (healed, critical, regeneration...), yours first.",
 			"Druid talents are found when you're not a druid: they were never read (\"druid talents\", class:druid).",
+			"@spell lists every class's spells under yours, known or not, as @talent does: class:druid narrows to a class, is:known (or \"my spells\") keeps to your spellbook. @classspell is another name for it.",
+			"Spells you don't know say Spell on the right, as your spellbook's do.",
 		},
 	},
 	{

@@ -393,7 +393,8 @@ do
 		local src = p.collect and debug.getinfo(p.collect, "S").source or ""
 		if src:find("^@Terminal/") and not src:find("tests", 1, true) and p.color then
 			local c = p.color:lower()
-			if seen[c] then same[#same + 1] = seen[c] .. "=" .. id end
+			-- (a list that's part of another to the player, @classspell's rows of @spell's, shares its colour: oneWith)
+			if seen[c] and p.oneWith ~= seen[c] then same[#same + 1] = seen[c] .. "=" .. id end
 			seen[c] = id
 		end
 	end

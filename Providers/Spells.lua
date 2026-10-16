@@ -518,7 +518,9 @@ end
 ns:RegisterProvider("spells", {
 	label = L["Spell"],
 	color = "ff9d7bff",
-	aliases = { "spell", "spells", "ability", "abilities", "spellbook" },
+	-- (0.54.6, the player: every class's spells under @spell, as @talent has every class's talents: @classspell's words
+	-- name this list too, and a search of it looks in @classspell's rows as well, Search.lua; is:known keeps to these)
+	aliases = { "spell", "spells", "ability", "abilities", "spellbook", "classspell", "classspells", "allspells", "classabilities" },
 	-- (LEARNED_SPELL_IN_SKILL_LINE: this client's name for it; LEARNED_SPELL_IN_TAB is gone and was never registered. 0.50.7)
 	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_TALENT_UPDATE", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" },
 	guard = 2,
@@ -558,6 +560,11 @@ ns:RegisterProvider("spells", {
 					end
 				end
 			end
+		end
+		-- (your spells: class:mine and class:<your class> keep them, as the spells of other classes have theirs)
+		local okC, cname, cfile = pcall(UnitClass, "player")
+		if okC and type(cfile) == "string" then
+			for _, e in ipairs(out) do e.classFile, e.className = cfile, cname end
 		end
 		return out
 	end,
