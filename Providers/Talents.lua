@@ -203,7 +203,8 @@ TL.OTHER_RANK = -1.5 -- (below your own class's among equal matches: class:mage 
 TL.PLAYABLE = { WARRIOR = true, PALADIN = true, HUNTER = true, ROGUE = true, PRIEST = true, SHAMAN = true, MAGE = true,
 	WARLOCK = true, DRUID = true }
 TL.RETRY = 10 -- (s: read skipped in combat or with a talent window open, asked again this long after)
-TL.CACHE_FORMAT = 1
+TL.CACHE_FORMAT = 2 -- (2, 0.54.5: copies without the druids, read before the class ids went up to 11, read again)
+TL.MAX_CLASS_ID = 13 -- (Evoker's: the highest class id there is)
 TL.otherRows = {} -- classFile -> the rows last made for it, and what they were made from (the talents list's collect)
 
 local function MyClassFile()
@@ -289,11 +290,15 @@ function TL.OtherClasses()
 		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() then ReadLater() return {}, {} end
 		local level = (GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()) or 60
 		local classes, names, read = {}, {}, 0
-		local okN, n = pcall(GetNumClasses or function() return 13 end)
-		for id = 1, (okN and tonumber(n)) or 13 do
-			local okC, name, file = pcall(GetClassInfo, id)
-			if okC and file and name and (TL.PLAYABLE[file] or file == mine) then
-				local rows = TL.ReadClass(id, level)
+		-- (every class id up to the highest there is: GetNumClasses is how many classes the game has, the highest id only on
+		-- retail. WoW Forever's nine stop at 9 while the Druid is 11, so druids were never read; 0.54.5, the player: "druid
+		-- talents" found nothing. An id the client has no class for may answer with another's: each class read once)
+		local okN, n = pcall(GetNumClasses or function() return 0 end)
+		for id = 1, math.max((okN and tonumber(n)) or 0, TL.MAX_CLASS_ID) do
+			local okC, name, file, cid = pcall(GetClassInfo, id)
+			cid = type(cid) == "number" and cid or id
+			if okC and file and name and (TL.PLAYABLE[file] or file == mine) and not classes[file] then
+				local rows = TL.ReadClass(cid, level)
 				if rows == nil then
 					ns:Trace("talents: other classes can't be read here (no view loadout)")
 					TL.triedOthers = key

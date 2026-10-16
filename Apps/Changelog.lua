@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.54.3", when = "in testing",
+		v = "0.54.5", when = "in testing",
 		items = {
 			"One mode: type in plain words, and a line with Advanced syntax (@npc, q:rare, >> party) runs in Advanced mode as you type it; .simple and .advanced are gone (.help advanced lists the syntax).",
 			"Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\", with the level each rank is learned at.",
@@ -24,6 +24,8 @@ CL.LOG = {
 			"Weapon masters by weapon (\"dagger trainer\", \"where do i learn daggers\") without What's Training too.",
 			"Advanced syntax typed after your words writes them in it at once, as Alt+` does (\"nearest innkeeper >>\" becomes @npc is:innkeeper ... >>). Alt+` with Terminal closed opens it as ` does, and Up goes through every line you ran.",
 			"Tooltips put what Enter and Shift+Enter do on lines of their own.",
+			"Talents by what they do, again: \"healing talents\", \"shaman crit talents\", \"druid regen talents\", \"tank talents\" list the talents that say it (healed, critical, regeneration...), yours first.",
+			"Druid talents are found when you're not a druid: they were never read (\"druid talents\", class:druid).",
 		},
 	},
 	{

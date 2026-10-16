@@ -687,6 +687,11 @@ Scan.ANSWERS = {
 	{ ask = function(text) local S = ns.SpellIds return S and S.Question(text) end,
 		answer = function(q) return ns.SpellIds.Answer(q) end,
 		toAdvanced = function(q) return ns.SpellIds.ToAdvanced(q) end },
+	-- "healing talents", "shaman crit talents", "druid regen talents": talents by what they do (Search/Talents.lua; before
+	-- the chains and searches: "talents for crit" isn't a chain, "crit" and "healing" aren't an item's stats here)
+	{ ask = function(text) local Q = ns.TalentsQ return Q and Q.Question(text) end,
+		answer = function(q) return ns.TalentsQ.Answer(q) end,
+		toAdvanced = function(q) return ns.TalentsQ.ToAdvanced(q) end },
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua. (Simple mode takes only the plain words: a ">"
 	-- typed there is refused like any Advanced syntax; written for Advanced mode, a ">" chain is one too)
 	{ ask = function(text, converting)

@@ -224,6 +224,41 @@ do
 		_G.GetNumSpecializationsForClassID, _G.GetSpecializationInfoForClassID, C_ClassTalents.InitializeViewLoadout = nspec, specInfo, init
 		TREE[1101], TREE[1102] = nil, nil
 	end
+	-- (0.54.5, the player: "druid talents" found nothing) WoW Forever has nine classes, GetNumClasses says 9, and the
+	-- Druid's id is 11: every id up to the highest is read, each class once (an id the client lacks may answer another's)
+	do
+		local gnc, gci = _G.GetNumClasses, _G.GetClassInfo
+		CLASSES[11] = { "Druid", "DRUID" }
+		_G.GetNumClasses = function() return 4 end
+		_G.GetClassInfo = function(i)
+			if i == 6 then return "Mage", "MAGE", 2 end -- (a class Forever lacks: another's answer)
+			return gci(i)
+		end
+		TREE[111] = 131
+		NODES[131] = { { 5001, "Furor", 1, 5 } }
+		local groups = C_Traits.GetGroupDisplayInfoByTreeID
+		C_Traits.GetGroupDisplayInfoByTreeID = function(tree)
+			if tree == 131 then return { { groupID = 1, displayName = "Restoration", orderIndex = 3 } } end
+			return groups(tree)
+		end
+		ns.db.talentCache, TL.triedOthers = nil, nil
+		TL.otherRows = {}
+		inits = 0
+		P._dirty = true
+		local found, mages = nil, 0
+		for _, e in ipairs(ns:GetEntries(P)) do
+			if e.name == "Furor" then found = e end
+			if e.name == "Ice Barrier" then mages = mages + 1 end
+		end
+		check(found and found.classFile == "DRUID" and found.tab == "Restoration", "the Druid (id 11, past GetNumClasses) is read")
+		check(mages == 1 and inits == 4, "each class once, the stray id's answer not again: " .. mages .. " / " .. inits)
+		check(#UI:Search("@talent class:druid") == 1, "class:druid finds it")
+		CLASSES[11], TREE[111], NODES[131] = nil, nil, nil
+		_G.GetNumClasses, _G.GetClassInfo, C_Traits.GetGroupDisplayInfoByTreeID = gnc, gci, groups
+		ns.db.talentCache, TL.triedOthers = nil, nil
+		TL.otherRows = {}
+		P._dirty = true
+	end
 	-- a client without the view loadout: none, nothing kept, not asked again this session
 	ns.db.talentCache, TL.triedOthers = nil, nil
 	_G.C_ClassTalents = nil
