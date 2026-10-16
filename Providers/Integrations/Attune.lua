@@ -103,6 +103,9 @@ local function Ids(v)
 	return out
 end
 
+-- (a name given as "Quest #id" / "NPC #id" while Questie wasn't ready: the index is made again once it is; review,
+-- 0.53.6: those stayed the steps' titles and search text for the session)
+local fellBack = false
 local function QuestName(id)
 	local n = Lang("Q1_" .. id)
 	if n then return n end
@@ -111,6 +114,7 @@ local function QuestName(id)
 	if Str(n) then return n end
 	n = C_QuestLog and C_QuestLog.GetTitleForQuestID and Safe(C_QuestLog.GetTitleForQuestID, id)
 	if Str(n) then return n end
+	fellBack = true
 	return L["Quest #%d"]:format(id)
 end
 local function ItemName(id)
@@ -125,6 +129,7 @@ local function NpcName(id)
 	if n then return n end
 	n = I.NpcField and I.NpcField(id, "name")
 	if Str(n) then return n end
+	fellBack = true
 	return L["NPC #%d"]:format(id)
 end
 
@@ -226,6 +231,7 @@ function AT.Index()
 	local D = Data()
 	if not D then return nil end
 	local started = _G.debugprofilestop and _G.debugprofilestop() or 0
+	fellBack = false
 	local raw = {} -- aid -> its steps Attune shows
 	for _, s in ipairs(D.steps) do
 		if type(s) == "table" and s.ID_ATTUNE and ShowStep(s) then
@@ -274,6 +280,14 @@ function AT.Index()
 		end
 	end
 	index = idx
+	local QD = ns.QuestieData
+	if fellBack and QD and QD.Ready and not QD.Ready() and QD.OnReady and not AT.namesWaiting then
+		AT.namesWaiting = true
+		QD.OnReady(function()
+			AT.namesWaiting = false
+			if index == idx then index = nil; ns:Changed("attune") end -- (made again with Questie's names)
+		end)
+	end
 	if _G.debugprofilestop then
 		ns:Trace(("attune: %d attunements, %d steps read in %.0f ms"):format(#idx.list, #D.steps, _G.debugprofilestop() - started))
 	end

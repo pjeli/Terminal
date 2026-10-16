@@ -48,7 +48,7 @@ I.ENTRANCES = {
 for _, b in ipairs(BRM) do
 	for _, d in ipairs({ { "Blackrock Depths", false }, { "Lower Blackrock Spire", false }, { "Upper Blackrock Spire", false },
 		{ "Molten Core", true }, { "Blackwing Lair", true } }) do
-		I.ENTRANCES[#I.ENTRANCES + 1] = { d[1], b[1], b[2], b[3], d[2], d[2] and 60 or 52, 60, "Blackrock Mountain" }
+		I.ENTRANCES[#I.ENTRANCES + 1] = { d[1], b[1], b[2], b[3], d[2], d[2] and 60 or 52, 60, L["Blackrock Mountain"] }
 	end
 end
 

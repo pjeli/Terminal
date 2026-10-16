@@ -69,6 +69,19 @@ local function Forget(c) c.new, c.old, c.n = {}, {}, 0 end
 P.Generations, P.Keep, P.Kept, P.Forget = Generations, Keep, Kept, Forget
 P.CACHE_MAX = 4000 -- (the item caches' and place texts' `cap`: at most twice that kept)
 
+-- Compact rows (Questie's quests, AtlasLoot's items: thousands each) get no field written onto them (a row of 8 raw
+-- fields grew to 16 slots after one in:): their texts' lowercase copies are kept here by the text itself (zones and
+-- details repeat: "Lv 23  Ashenvale", "Garr  Molten Core"; NPC titles, holders' names, loot's item names), each
+-- lowercased once instead of per row per keystroke.
+local lowerTexts = Generations(P.CACHE_MAX)
+local function LowerText(s)
+	local l = lowerTexts.new[s] or Kept(lowerTexts, s)
+	if not l then l = Keep(lowerTexts, s, Lower(s)) end
+	return l
+end
+P.LowerText = LowerText
+function P.ForgetLowerTexts() Forget(lowerTexts) end
+
 -- the NPC a row is (Questie's), and a field of it
 local function NpcID(e) return e.kind == "npc" and (rawget(e, "key") or e.npcID) or nil end
 local function NpcField(e, field)
@@ -145,7 +158,8 @@ local function RowHas(e, lw)
 	local ln = rawget(e, "_lname")
 	if not ln then
 		local n = e.name
-		ln = type(n) == "string" and Lower(n) or ""
+		-- (a compact row's from the kept copies: loot's 30k rows, every keystroke of a -word; review, 0.53.6)
+		ln = type(n) == "string" and (rawget(e, "_compact") and LowerText(n) or Lower(n)) or ""
 	end
 	if ln:find(lw, 1, true) then return true end
 	local lt = rawget(e, "_ltext")

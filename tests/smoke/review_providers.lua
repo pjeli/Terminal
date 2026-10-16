@@ -188,3 +188,103 @@ do -- (review, 0.53.6) where to send, said one way: SendAll with no channel says
 	T.check(not n and why and why:find(">>> party", 1, true) and why:find("yell", 1, true) and why:find("officer", 1, true),
 		"no channel: every channel named, as the prompt does: " .. tostring(why))
 end
+
+do -- (review, 0.53.6) is:upgrade reads what you wear once while it's the same; a row's lazy link isn't made for its key
+	local ns, F = T.ns, T.ns.Filters
+	local save = { link = _G.GetInventoryItemLink, stats = C_Item.GetItemStats, det = C_Item.GetDetailedItemLevelInfo,
+		cached = C_Item.IsItemDataCachedByID }
+	local worn, reads = "|cffffffff|Hitem:300::::::::|h[Helm]|h|r", 0
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return worn end end
+	C_Item.GetItemStats = function(l) if tostring(l):find("item:300", 1, true) or tostring(l):find("item:301", 1, true) then reads = reads + 1 end return { ITEM_MOD_STAMINA_SHORT = 3 } end
+	C_Item.GetDetailedItemLevelInfo = function() return 10, 10 end
+	C_Item.IsItemDataCachedByID = function() return true end
+	F.ClearCache()
+	F.Parse("is:upgrade"); F.Parse("is:upgrade")
+	T.check(reads == 1, "the same gear: read once for two searches: " .. reads)
+	worn = "|cffffffff|Hitem:301::::::::|h[Helm]|h|r"
+	F.Parse("is:upgrade")
+	T.check(reads == 2, "another piece worn: read again: " .. reads)
+	-- a loot row's link is made on each read: its key doesn't ask for it
+	local made = 0
+	local row = setmetatable({ itemID = 77 }, { __index = function(_, k) if k == "link" then made = made + 1 return "item:77" end end })
+	T.check(ns.Filters._.StatKey(row) == 77 and made == 0, "the key from the row's id, its lazy link never made: " .. made)
+	T.check(ns.Filters._.ItemKey(5, "|Hitem:5:0:0:0:0:0:-12|h") == "5:-12" and ns.Filters._.ItemKey(5, "item:5") == 5, "ItemKey: a random suffix kept")
+	_G.GetInventoryItemLink, C_Item.GetItemStats, C_Item.GetDetailedItemLevelInfo, C_Item.IsItemDataCachedByID = save.link, save.stats, save.det, save.cached
+	F.ClearCache()
+end
+
+do -- (review, 0.53.6) faction:friendly asks your faction once per search, not per row
+	local F, was, asked = T.ns.Filters, _G.UnitFactionGroup, 0
+	_G.UnitFactionGroup = function() asked = asked + 1 return "Horde" end
+	local f = F.Parse("faction:friendly")
+	local a, b = { kind = "flight", friendlyToFaction = "H" }, { kind = "flight", friendlyToFaction = "A" }
+	local ra, rb = f(a), f(b)
+	f(a)
+	T.check(ra and not rb and asked == 1, "once per search: " .. asked)
+	_G.UnitFactionGroup = was
+end
+
+do -- (review, 0.53.6) stat: on an item the client let go of since its info was kept: asked again, the search waits for it
+	local F = T.ns.Filters
+	local save = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, cached = C_Item.IsItemDataCachedByID, req = C_Item.RequestLoadItemDataByID,
+		instant = C_Item.GetItemInfoInstant }
+	C_Item.GetItemInfoInstant = function(id) return id, "Armor", "Misc", "INVTYPE_FINGER", 1, 4, 0 end -- (armour: no effect text read)
+	F.ClearCache(); F.ResetAsks()
+	C_Item.GetItemInfo = function() return "Band", "|Hitem:400|h", 2, 30, 25, "Armor", "Misc", 1, "INVTYPE_FINGER" end
+	C_Item.GetItemStats = function() return nil end
+	local isCached, asked = true, 0
+	C_Item.IsItemDataCachedByID = function() return isCached end
+	C_Item.RequestLoadItemDataByID = function() asked = asked + 1 end
+	local f = F.Parse("stat:stamina")
+	F._.ItemInfo(400) -- (its info kept)
+	isCached = false
+	F.loading = false
+	f({ itemID = 400 })
+	T.check(F.loading == true and asked == 1, "asked again, the search told it's loading: " .. tostring(F.loading) .. " / " .. asked)
+	C_Item.GetItemInfo, C_Item.GetItemStats, C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID = save.info, save.stats, save.cached, save.req
+	C_Item.GetItemInfoInstant = save.instant
+	F.loading = false
+	F.ClearCache()
+end
+
+do -- (review, 0.53.6) slot:shirt in any language; one integration failing leaves the others to start
+	local F = T.ns.Filters
+	local save = { instant = C_Item.GetItemInfoInstant, body = _G.INVTYPE_BODY }
+	_G.INVTYPE_BODY = "Hemd"
+	C_Item.GetItemInfoInstant = function(id) return id, "Armor", "Misc", "INVTYPE_BODY", 1, 4, 0 end
+	F.ClearCache()
+	T.check(F.Parse("slot:shirt")({ itemID = 500, equipLoc = "INVTYPE_BODY" }), "slot:shirt finds a shirt on a German client")
+	C_Item.GetItemInfoInstant, _G.INVTYPE_BODY = save.instant, save.body
+	F.ClearCache()
+	local I = T.ns.Integrations
+	local started = {}
+	local was = { a = I._.SetupAtlasLoot, q = I._.SetupQuestie, t = I._.SetupAttune }
+	I._.SetupAtlasLoot = function() error("an AtlasLoot without its tables") end
+	I._.SetupQuestie = function() started[#started + 1] = "Questie" end
+	I._.SetupAttune = function() started[#started + 1] = "Attune" end
+	local ok = pcall(I.Setup)
+	T.check(ok and table.concat(started, ",") == "Questie,Attune", "AtlasLoot failing: Questie and Attune still start: " .. table.concat(started, ","))
+	I._.SetupAtlasLoot, I._.SetupQuestie, I._.SetupAttune = was.a, was.q, was.t
+end
+
+do -- (review, 0.53.6) a place's filter doesn't parse in:<place> again (a second place filter inside it)
+	local F, I = T.ns.Filters, T.ns.Integrations
+	local parse, parsed = F.Parse, 0
+	F.Parse = function(w, ...) if tostring(w):find("^in:") then parsed = parsed + 1 end return parse(w, ...) end
+	local f = I.PlaceFilter({ key = "goldshire", name = "Goldshire" })
+	F.Parse = parse
+	T.check(parsed == 0 and f({ name = "x", _ltext = "a goldshire thing" }) and not f({ name = "y", _ltext = "elsewhere" }),
+		"the place's own name tested plainly: " .. parsed)
+end
+
+do -- (review, 0.53.6) one walk over Questie's spawns: a dungeon's NPC by its entrances, other spawns as they are
+	local I = T.ns.Integrations
+	local seen, QD = {}, T.ns.QuestieData
+	local uiWas = QD.UiMapOfArea
+	QD.UiMapOfArea = function(a) return a == 12 and 1429 or nil end
+	I._.EachSpot({ [12] = { { 40, 50 }, { -1, -1 }, "x" } }, function(cont, x, y, ui, c, door) seen[#seen + 1] = { c = c, door = door } end, true)
+	T.check(#seen == 1 and seen[1].c[1] == 40 and not seen[1].door, "the real spawns only (no -1 spawns, nothing that isn't one): " .. #seen)
+	QD.UiMapOfArea = uiWas
+	local v = I.NearView({ name = "Box", zone = "Elwynn" }, 12.4, "Elwynn")
+	T.check(v.name == "Box" and v._dist == 12.4 and v.nearRest == "Elwynn" and v.detail:find("Elwynn", 1, true), "a near view says how far and the rest")
+end

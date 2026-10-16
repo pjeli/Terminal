@@ -370,6 +370,30 @@ do
 
 	check(AT.Status():find("7 attunements", 1, true) and AT.Status():find("1 done", 1, true), ".integrations: " .. AT.Status())
 
+	-- (review, 0.53.6) a step named "Quest #id" while Questie wasn't ready: named again once it is
+	do
+		local QD = ns.QuestieData
+		local readyWas, onReadyWas, dbWas, title168 = QD.Ready, QD.OnReady, QD.DB, lang["Q1_168"]
+		local later
+		QD.Ready = function() return false end
+		QD.OnReady = function(fn) later = fn end
+		QD.DB = function() return nil end
+		lang["Q1_168"] = nil
+		local function Title()
+			for _, rec in ipairs(AT.Index().list) do
+				for _, r in ipairs(rec.steps) do for _, q in ipairs(r.qids or {}) do if q == 168 then return r.title end end end
+			end
+		end
+		AT.Forget()
+		local before = Title()
+		lang["Q1_168"] = title168
+		QD.Ready = readyWas
+		if later then later() end
+		check(before == ns.L["Quest #%d"]:format(168) and Title() == "Collecting Memories",
+			"named again once Questie is ready: " .. tostring(before) .. " -> " .. tostring(Title()))
+		QD.OnReady, QD.DB = onReadyWas, dbWas
+	end
+
 	-- put back: Attune gone
 	drop("attune")
 	I.attune.on = false

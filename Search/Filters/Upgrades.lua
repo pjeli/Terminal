@@ -4,7 +4,7 @@ local ns = select(2, ...)
 
 local F = ns.Filters
 local P = F._
-local ItemInfo, ItemOf, Stats, StatKey, SLOTS = P.ItemInfo, F.ItemOf, P.Stats, P.StatKey, F.SLOTS
+local ItemInfo, ItemOf, Stats, StatKey, SLOTS, ItemKey = P.ItemInfo, F.ItemOf, P.Stats, P.StatKey, F.SLOTS, P.ItemKey
 local MAIN_ONLY = { 16 } -- (a one-hander for a class that can't dual-wield)
 local Secret = ns.Secret
 
@@ -126,27 +126,38 @@ end
 
 --- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
 --- stats by kind (kinds[slot]).
+--- Kept while you wear the same (by the links, which a new piece or enchant changes) and the weights are the same: the
+--- search's filter is made on every keystroke (review, 0.53.6: 18 slots' stats and item levels read each time). Only
+--- once every piece was read whole (an item the client is still loading is read again next time).
+local wornKept
 local function WornGear(w)
-	local levels, values, kinds, locs, names, ids = {}, {}, {}, {}, {}, {}
 	local link = _G.GetInventoryItemLink
-	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
-	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
+	local links = {}
 	for slot = 1, 18 do
 		local ok, l = pcall(link or function() end, "player", slot)
-		if ok and type(l) == "string" and not Secret(l) then
+		links[slot] = (ok and type(l) == "string" and not Secret(l)) and l or ""
+	end
+	local key = table.concat(links, "\001", 1, 18)
+	if wornKept and wornKept.key == key and wornKept.w == w then return unpack(wornKept.r, 1, 6) end
+	local levels, values, kinds, locs, names, ids = {}, {}, {}, {}, {}, {}
+	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
+	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
+	local whole = true
+	for slot = 1, 18 do
+		local l = links[slot]
+		if l ~= "" then
 			local lvl = detailed and select(2, pcall(detailed, l))
 			if type(lvl) ~= "number" then
 				local id = tonumber(l:match("item:(%d+)"))
 				local info = id and ItemInfo(id)
 				lvl = info and info.ilvl
 			end
-			if type(lvl) == "number" then levels[slot] = lvl end
+			if type(lvl) == "number" then levels[slot] = lvl else whole = false end
 			names[slot] = l:match("|h%[(.-)%]|h") -- (its name, for "why": over which of two it is)
 			local wid = tonumber(l:match("item:(%d+)"))
 			-- (what you wear is never an upgrade: 0.52.7, the player. Kept as is:upgrade keys its items, StatKey: a
 			-- random suffix's copy, "of the Monkey" while you wear "of the Eagle", is another item; release review)
-			local suffix = l:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
-			if wid then ids[(suffix and suffix ~= "0") and (wid .. ":" .. suffix) or wid] = true end
+			if wid then ids[ItemKey(wid, l)] = true end
 			-- (what kind it is: a shield or an off-hand item in the off hand isn't a weapon a one-hander replaces)
 			if (slot == 16 or slot == 17) and C_Item and C_Item.GetItemInfoInstant then
 				local okI, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, l)
@@ -159,6 +170,8 @@ local function WornGear(w)
 				if okS and type(st) == "table" then
 					kinds[slot] = F.StatKinds(st)
 					values[slot] = F.KindsValue(kinds[slot], w)
+				elseif C_Item and C_Item.IsItemDataCachedByID and wid and C_Item.IsItemDataCachedByID(wid) == false then
+					whole = false -- (no stats yet: still loading)
 				end
 			end
 		end
@@ -172,6 +185,7 @@ local function WornGear(w)
 			levels[17], values[17], kinds[17], names[17], values.twoHand = levels[16], values[16], kinds[16], names[16], true
 		end
 	end
+	wornKept = whole and { key = key, w = w, r = { levels, values, kinds, locs, names, ids } } or nil
 	return levels, values, kinds, locs, names, ids
 end
 
@@ -186,7 +200,7 @@ end
 -- "slot type;required level;item level;binding;str=7,sta=4;Grom+,Jaina-" (the last: usable by each of your characters
 -- it was asked for). A change to this record or to the stat kinds (STAT_KINDS) needs ItemStore's S.VERSION raised. A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
 local fit = {}
-F.ClearFit = function() fit = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
+F.ClearFit = function() fit = {}; wornKept = nil; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)
 --- Is something known of this item, kept this session or from another (is:upgrade can judge it without the game)?
@@ -297,20 +311,20 @@ function F.GearFit()
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
 		if not id then return false end
-		-- (one you wear already: not an upgrade, though it beats your other ring, trinket or weapon; 0.52.7, the player)
-		if wornIds[StatKey(e) or id] then return false end
 		-- not equipment, by the client's own data (no server ask): most rows go here
 		if instant then
 			local ok, _, _, _, loc = pcall(instant, id)
 			if ok and type(loc) == "string" and not SLOTS[loc] then return false end
 		end
+		local key = StatKey(e)
+		-- (one you wear already: not an upgrade, though it beats your other ring, trinket or weapon; 0.52.7, the player)
+		if wornIds[key] then return false end
 		-- only what you can get (0.51.9, the player: Naxxramas gear, engineers' trinkets and cosmetic helms for a level 30
 		-- warrior): AtlasLoot's dungeons you can enter (not raids, professions, PvP, factions, collections or events)
 		if e.kind == "loot" then
 			local place = LootPlace and LootPlace(e)
 			if place and (place.kind ~= "dungeon" or (me and place.enter and place.enter > me)) then return false end
 		end
-		local key = StatKey(e)
 		local f = fit[key]
 		if not f then
 			f = Remembered(key, class) -- (as kept from another session)

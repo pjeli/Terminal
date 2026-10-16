@@ -559,8 +559,7 @@ local function NearView(e, d)
 	-- (an NPC in a dungeon: how far its entrance is, and which dungeon; 0.51.18)
 	local inside = e.kind == "npc" and e.inDungeon
 	if inside then rest = (rest and (rest .. ns.DETAIL_SEP) or "") .. L["in %s"]:format(inside) end
-	return setmetatable({ detail = ns.NearDetail(d, rest), _score = 1e6 - d, _dist = d,
-		nearRest = rest }, { __index = e })
+	return ns.Integrations.NearView(e, d, rest)
 end
 Scan.NearView = NearView -- (tests)
 UI._Scan = Scan -- (tests)

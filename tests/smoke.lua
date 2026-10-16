@@ -3011,6 +3011,19 @@ do -- AtlasLoot and Questie integrations
 	e.page = 1
 	e.activate(e); FlushAll()
 	check(refreshes[#refreshes].page == 1, "an item past position 100 opens on the second page")
+	-- (review, 0.53.6) an AtlasLoot window without one of the pickers: said, no error
+	do
+		local subWas, modWas, printWas, said = AtlasLoot.GUI.frame.subCatSelect, AtlasLoot.GUI.frame.moduleSelect, ns.Print, nil
+		ns.Print = function(_, m) said = m end
+		AtlasLoot.GUI.frame.subCatSelect = nil
+		local ok = pcall(e.activate, e)
+		check(ok, "a window without its content picker: no error")
+		AtlasLoot.GUI.frame.moduleSelect = nil
+		ok = pcall(e.activate, e)
+		check(ok and said and said:find("isn't ready", 1, true), "without its module picker: not ready, said: " .. tostring(said))
+		AtlasLoot.GUI.frame.subCatSelect, AtlasLoot.GUI.frame.moduleSelect, ns.Print = subWas, modWas, printWas
+		FlushAll()
+	end
 	-- the index is saved: the next session takes its rows from it without loading any module
 	local saved = ns.db.lootCache
 	check(type(saved) == "table" and type(saved.key) == "string" and saved.key:find("ALDungeons", 1, true) and #saved.groups >= 2,

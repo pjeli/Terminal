@@ -5,7 +5,7 @@ local Safe = ns.Safe -- (Util.lua)
 local QD = ns.QuestieData
 local function QDB() return QD.DB() end
 local AddOnVersion, WaypointLink = I._.AddOnVersion, I._.WaypointLink
-local SpotXY, ZoneName = I.SpotXY, I.ZoneName
+local ZoneName = I.ZoneName
 
 ----------------------------------------------------------------------
 -- Game objects found by what they are: "nearest mailbox" (QuestieDB's objects: name, spawns)
@@ -117,24 +117,14 @@ function I.NearestSpawn(oids, here)
 	-- (the nearest and the first kept as their numbers: a vein can have thousands of spawns, one table each was garbage)
 	local bUi, bc, bCont, bX, bY, bestD
 	local fUi, fc, fCont, fX, fY
-	for _, oid in ipairs(oids) do
-		local spawns = Safe(DB.QueryObjectSingle, oid, "spawns")
-		for area, list in pairs(type(spawns) == "table" and spawns or {}) do
-			local ui = QD.UiMapOfArea(area)
-			if ui and type(list) == "table" then
-				for _, c in ipairs(list) do
-					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
-						local cont, x, y = SpotXY(ui, c)
-						if not fUi then fUi, fc, fCont, fX, fY = ui, c, cont, x, y end
-						if here and x and cont == here.cont then
-							local d = math.sqrt((x - here.x) ^ 2 + (y - here.y) ^ 2)
-							if not bestD or d < bestD then bUi, bc, bCont, bX, bY, bestD = ui, c, cont, x, y, d end
-						end
-					end
-				end
-			end
+	local function Spot(cont, x, y, ui, c)
+		if not fUi then fUi, fc, fCont, fX, fY = ui, c, cont, x, y end
+		if here and x and cont == here.cont then
+			local d = math.sqrt((x - here.x) ^ 2 + (y - here.y) ^ 2)
+			if not bestD or d < bestD then bUi, bc, bCont, bX, bY, bestD = ui, c, cont, x, y, d end
 		end
 	end
+	for _, oid in ipairs(oids) do I._.EachSpot(Safe(DB.QueryObjectSingle, oid, "spawns"), Spot, true) end
 	if bUi then
 		return { ui = bUi, px = bc[1], py = bc[2], wcont = bCont, wx = bX, wy = bY, zone = ZoneName(bUi), d = bestD }
 	end
@@ -151,25 +141,16 @@ function I.ObjectRows(kind)
 	if not (ids and DB) then return rows end
 	local label = (kind == "mailbox" and L["Mailbox"]) or (kind:gsub("^%l", string.upper))
 	for _, id in ipairs(ids) do
-		local spawns = Safe(DB.QueryObjectSingle, id, "spawns")
 		local n = 0
-		for area, list in pairs(type(spawns) == "table" and spawns or {}) do
-			local ui = QD.UiMapOfArea(area)
-			if ui and type(list) == "table" then
-				for _, c in ipairs(list) do
-					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
-						n = n + 1
-						local cont, x, y = SpotXY(ui, c)
-						local zone = ZoneName(ui)
-						rows[#rows + 1] = I.SpotRow({
-							name = label, key = id .. "-" .. n, kind = kind,
-							detail = zone, zone = zone, text = zone, ui = ui, px = c[1], py = c[2], area = area,
-							wcont = cont, wx = x, wy = y,
-						})
-					end
-				end
-			end
-		end
+		I._.EachSpot(Safe(DB.QueryObjectSingle, id, "spawns"), function(cont, x, y, ui, c, _, area)
+			n = n + 1
+			local zone = ZoneName(ui)
+			rows[#rows + 1] = I.SpotRow({
+				name = label, key = id .. "-" .. n, kind = kind,
+				detail = zone, zone = zone, text = zone, ui = ui, px = c[1], py = c[2], area = area,
+				wcont = cont, wx = x, wy = y,
+			})
+		end, true)
 	end
 	return rows
 end
@@ -189,7 +170,7 @@ function I.NearestObjectRows(kind, here, keep)
 	if not p then return nil end
 	local found = {}
 	for _, e in ipairs(ns:GetEntries(p)) do
-		local d = (not keep or keep(e)) and I.RowDistance(e, here) or nil
+		local d = (not keep or keep(e)) and I.RowYards(e, here) or nil -- (the yards alone: no spot table per row)
 		if d then found[#found + 1] = { e = e, d = d } end
 	end
 	table.sort(found, function(a, b) return a.d < b.d end)
@@ -197,8 +178,7 @@ function I.NearestObjectRows(kind, here, keep)
 	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
 		local f = found[i]
 		local rest = rawget(f.e, "distNote") or f.e.zone
-		rows[i] = setmetatable({ detail = ns.NearDetail(f.d, rest),
-			_score = 1e6 - f.d, _dist = f.d, nearRest = rest }, { __index = f.e })
+		rows[i] = I.NearView(f.e, f.d, rest)
 	end
 	return rows
 end

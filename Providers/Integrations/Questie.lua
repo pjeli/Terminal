@@ -122,12 +122,14 @@ local function FindNames(blob, tokens, tick)
 		local lineEnd = blob:find("\n", at, true) or (#blob + 1)
 		local tab = blob:find("\t", at, true)
 		if tab and tab < lineEnd then -- (a match in the name, not in the id after it)
-			local from = math.max(1, at - 120)
-			local back = blob:sub(from, at):match(".*\n()")
-			local name = blob:sub(back and (from + back - 1) or at, tab - 1)
 			local all = true
-			for k = 1, #tokens do
-				if tokens[k] ~= lead and not name:find(tokens[k], 1, true) then all = false break end
+			if #tokens > 1 then -- (the name cut out only to check the other words: review, 0.53.6)
+				local from = math.max(1, at - 120)
+				local back = blob:sub(from, at):match(".*\n()")
+				local name = blob:sub(back and (from + back - 1) or at, tab - 1)
+				for k = 1, #tokens do
+					if tokens[k] ~= lead and not name:find(tokens[k], 1, true) then all = false break end
+				end
 			end
 			if all then
 				count = count + 1

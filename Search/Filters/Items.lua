@@ -136,12 +136,20 @@ local statNames = {} -- stat key (ITEM_MOD_STAMINA_SHORT) -> { its shown name, l
 --- The key an item row's stats are kept under (and its own link, if it has one): the item id, or with a row's own link
 --- with a random suffix, "of the Monkey", the id and the suffix (that copy's stats; under the id alone every copy got
 --- the first one read, an AtlasLoot base link's had none; 0.49.2, review). nil: not an item.
+--- An item's key by its link: the id, or with a random suffix ("of the Monkey") "id:suffix" (that copy's own stats).
+local function ItemKey(id, link)
+	local suffix = type(link) == "string" and link:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
+	return (suffix and suffix ~= "0") and (id .. ":" .. suffix) or id
+end
+P.ItemKey = ItemKey
 local function StatKey(e)
 	local id = ItemOf(e)
 	if not id then return nil end
-	local own = e.itemID and type(e.link) == "string" and e.link:find("|H", 1, true) and e.link
-	local suffix = own and own:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
-	return (suffix and suffix ~= "0") and (id .. ":" .. suffix) or id, id, own
+	-- (the row's own link only: a loot row's is made on each read, "item:<id>", which has no suffix anyway; review,
+	-- 0.53.6: a new string per row per keystroke, twice per row for is:upgrade)
+	local link = e.itemID and rawget(e, "link")
+	local own = type(link) == "string" and link:find("|H", 1, true) and link
+	return own and ItemKey(id, own) or id, id, own
 end
 P.StatKey = StatKey
 --- An item's stats (the game's: { ITEM_MOD_STAMINA_SHORT = 7, ... }), or nil until known.
@@ -163,7 +171,12 @@ local function Stats(e)
 		local cached = C_Item and C_Item.IsItemDataCachedByID
 		if cached and type(id) == "number" then
 			local okC, yes = pcall(cached, id)
-			if okC and yes == false then return nil end
+			if okC and yes == false then
+				-- (the client let go of it since its info was kept: asked again, and the search runs again once it's in,
+				-- as for its info; review, 0.53.6: the row was left out with nothing asked)
+				if MayAsk(id) and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+				return nil
+			end
 		end
 		t = {}
 	end
@@ -430,7 +443,8 @@ local SLOT_LOC = { ["two-hand"] = "2hweapon", ["off hand"] = "offhand", ["main h
 -- (0.47.12) slot words whose item slot types don't hold them: matched by the English client's names only, so "back",
 -- "hands" and "chest" found nothing in another language (INVTYPE_CLOAK is "Rücken" there)
 local SLOT_TOKENS = { back = { invtype_cloak = true }, hands = { invtype_hand = true }, chest = { invtype_robe = true },
-	["off hand"] = { invtype_holdable = true }, ranged = { invtype_rangedright = true, invtype_thrown = true } }
+	["off hand"] = { invtype_holdable = true }, ranged = { invtype_rangedright = true, invtype_thrown = true },
+	shirt = { invtype_body = true }, shirts = { invtype_body = true } } -- (shirt: INVTYPE_BODY; review, 0.53.6)
 -- how enchants name the slot they go on
 local ENCHANT_WORDS = {
 	wrist = { "bracer", "wrist" }, feet = { "boots", "boot", "feet" }, hands = { "gloves", "glove", "hands" },

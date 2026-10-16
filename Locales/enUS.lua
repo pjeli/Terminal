@@ -311,6 +311,7 @@ L["Battle.net friend %d"] = true
 L["Before any discount your reputation with the vendor's faction gives."] = true
 L["Bind a key to the Reputation tab to open it from here (%s: %s)."] = true
 L["Bind a key to toggle the terminal, e.g. .bind CTRL-SPACE"] = true
+L["Blackrock Mountain"] = true
 L["Blessing"] = true
 L["Blink speed"] = true
 L["Blinking box"] = true

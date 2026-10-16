@@ -17,6 +17,7 @@ local L = ns.L
 local function NpcRole(e, flagName)
 	if not NpcID(e) then return false end
 	local flags = NpcField(e, "npcFlags")
+	if type(flags) ~= "number" then return false end -- (before asking for the database's flag names: most rows)
 	local I = ns.Integrations
 	local defs = I and I.NpcFlagDefs and I.NpcFlagDefs()
 	local bit = defs and defs[flagName]
@@ -35,22 +36,14 @@ local function AreaName(area)
 	end
 	return name or nil
 end
--- Compact rows (Questie's quests, AtlasLoot's items: thousands each) get no field written onto them (a row of 8 raw
--- fields grew to 16 slots after one in:): their texts' lowercase copies are kept here by the text itself (zones and
--- details repeat: "Lv 23  Ashenvale", "Garr  Molten Core"). NPC titles and holders' names too ("Warrior Trainer": a
--- few hundred titles over thousands of NPCs, each lowercased once instead of per row per keystroke).
-local lowerTexts = Generations(P.CACHE_MAX)
-local function LowerText(s)
-	local l = lowerTexts.new[s] or Kept(lowerTexts, s)
-	if not l then l = Keep(lowerTexts, s, Lower(s)) end
-	return l
-end
+-- (a compact row's texts lowercased once each: Core.lua's LowerText)
+local LowerText = P.LowerText
 -- what a (lowercase) trainer title teaches, worked out once per title: a few hundred titles over thousands of NPCs, on
 -- every keystroke of trainer:/is:classtrainer/is:proftrainer (false: nothing; ClassOf, ProfOf)
 local titleClass, titleProf = Generations(P.CACHE_MAX), Generations(P.CACHE_MAX)
 F.ClearPlaces = function()
 	areaNames = {}
-	Forget(lowerTexts); Forget(titleClass); Forget(titleProf)
+	P.ForgetLowerTexts(); Forget(titleClass); Forget(titleProf)
 end
 --- The lowercase copy of a row's text field, kept on the row (like _ltext) while the field's text is the same; a
 --- compact row's from LowerText.
@@ -185,20 +178,21 @@ local function Sellers(v)
 	return c
 end
 
-local placing -- (building a place's filter: in:<place> inside it is the plain one)
+--- The plain in: test for a place's name: a row with it in its text or where it is (Places.lua's PlaceFilter ends in it;
+--- review, 0.53.6: it parsed "in:<place>", which found the place again and made a second place filter inside it).
+function F.InPlaceText(v) return function(e) return Places(e, v) end end
+
 KEYS["in"] = function(v)
 	if v == "" then return nil end
 	-- a place Terminal knows by name (a zone, or a town in one: in:goldshire, in:ratchet, in:org): its NPCs by where
 	-- they stand, as Simple mode's "vendor goldshire" (an NPC's zone alone says Elwynn Forest, never Goldshire)
 	local I = ns.Integrations
-	if I and I.FindPlace and I.PlaceFilter and not placing then -- (PlaceFilter parses in:<place> itself: no loop)
+	if I and I.FindPlace and I.PlaceFilter then
 		local words = {}
 		for w in v:gmatch("%S+") do words[#words + 1] = w end
 		local place, rest = I.FindPlace(words)
 		if place and rest and #rest == 0 then
-			placing = true
 			local ok, inPlace = pcall(I.PlaceFilter, place)
-			placing = false
 			if not ok then return function(e) return Places(e, v) end end
 			-- (other rows: the place filter already ends in this same Places test, by the place's own name;
 			-- NPCs: their zone by name too, as before)
@@ -367,16 +361,19 @@ KEYS.faction = function(v)
 	local want = FACTION[v]
 	local mine = v == "friendly" or v == "mine" or v == "me"
 	if not (want or mine) then return nil end
+	local w -- (yours: asked once per search, not per row; review, 0.53.6)
 	return function(e)
 		local f
 		if NpcID(e) then f = NpcField(e, "friendlyToFaction")
 		elseif e.kind == "flight" then f = e.friendlyToFaction
 		else return false end
 		if type(f) ~= "string" then return false end
-		local w = want
-		if mine then
-			local g = UnitFactionGroup and UnitFactionGroup("player")
-			w = FACTION[g == "Horde" and "horde" or g == "Alliance" and "alliance" or "neutral"]
+		if not w then
+			w = want
+			if mine then
+				local g = ns.Str(ns.Safe(_G.UnitFactionGroup, "player"))
+				w = FACTION[g == "Horde" and "horde" or g == "Alliance" and "alliance" or "neutral"]
+			end
 		end
 		return w[f] or false
 	end

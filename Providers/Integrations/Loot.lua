@@ -386,12 +386,17 @@ I.LoadLootModules = function() return LoadLootModules() end -- (tests: a new ses
 local function OpenLoot(e)
 	local A = AL()
 	local GUI = A and A.GUI
-	if not (GUI and GUI.frame) then
+	-- (its pickers too: an AtlasLoot whose window has other fields said "not ready" instead of an error; review, 0.53.6)
+	local f = GUI and GUI.frame
+	if not (type(f) == "table" and type(f.moduleSelect) == "table") then
+		ns:Trace("loot: AtlasLoot's window or its module picker isn't there")
 		ns:Print(L["AtlasLoot's window isn't ready yet."])
 		return
 	end
+	local function Pick(w, v) if type(w) == "table" then Safe(w.SetSelected, w, v) end end
 	-- rows from the saved index: the module may not be loaded this session yet
-	if not (A.ItemDB.Storage and A.ItemDB.Storage[e.addon]) then
+	local storage = type(A.ItemDB) == "table" and A.ItemDB.Storage
+	if not (storage and storage[e.addon]) and type(A.Loader) == "table" then
 		if InCombatLockdown() then
 			ns:Print(L["AtlasLoot's %s loads after combat; try again then."]:format(tostring(e.addon)))
 			return
@@ -399,18 +404,17 @@ local function OpenLoot(e)
 		Safe(A.Loader.LoadModule, A.Loader, e.addon)
 		ns:Trace("loot: loaded " .. tostring(e.addon) .. " to open it")
 	end
-	local f = GUI.frame
 	if not f:IsShown() then f:Show() end
 	-- the window's own pickers, in the order a player clicks them: each fills the next one's list
-	Safe(f.moduleSelect.SetSelected, f.moduleSelect, e.addon)
-	Safe(f.subCatSelect.SetSelected, f.subCatSelect, e.content)
-	Safe(f.boss.SetSelected, f.boss, e.boss)
+	Pick(f.moduleSelect, e.addon)
+	Pick(f.subCatSelect, e.content)
+	Pick(f.boss, e.boss)
 	local sel = A.db and A.db.GUI and A.db.GUI.selected
-	if type(sel) == "table" and sel[3] ~= e.boss and f.extra then
+	if type(sel) == "table" and sel[3] ~= e.boss then
 		-- not a boss: one of the extra tables listed under the bosses (trash, sets...)
-		Safe(f.extra.SetSelected, f.extra, e.boss)
+		Pick(f.extra, e.boss)
 	end
-	if f.difficulty then Safe(f.difficulty.SetSelected, f.difficulty, e.diff) end
+	Pick(f.difficulty, e.diff)
 	-- Each pick refreshes the item list, but AtlasLoot skips a refresh within 0.1 s of the last
 	-- one, so after these quick picks the list still showed the first (wrong) boss. Refresh it
 	-- once more, past that guard, on the page the item is on.

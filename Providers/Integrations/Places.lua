@@ -347,7 +347,7 @@ end
 --- The filter for a place: NPCs in it; any other row with the place in its text or where it is (in:).
 function I.PlaceFilter(place)
 	local F = ns.Filters
-	local where = F and F.Parse("in:" .. place.key:gsub(" ", "_"))
+	local where = F and F.InPlaceText and F.InPlaceText(place.key)
 	place.npcs = place.npcs or {} -- (kept with the place: the next keystroke asks again)
 	local cache = place.npcs
 	return function(e)

@@ -114,49 +114,50 @@ local npcSpots, npcSpotCount = {}, 0
 -- sort:nearest" filled it, emptied it and filled it again in one search, and again on every keystroke; ~4.5 MB at its cap)
 local NPC_SPOTS_MAX = 13000
 I._.NPC_SPOTS_MAX = NPC_SPOTS_MAX -- (tests)
+--- Each spawn in Questie's spawns by area, in world yards: fn(cont, x, y, ui, c, door, area) (c: Questie's { x%, y% };
+--- door: true for a dungeon's entrance, which stands for its spawns, as Questie's map shows them; 0.51.18). `noDoors`:
+--- the spawns themselves (objects). One walk for every list that reads spawns (review, 0.53.6: NpcSpots and
+--- NearestSpawn had a copy each and had drifted apart once, 0.51.25; Objects two more).
+local function EachSpot(spawns, fn, noDoors)
+	if type(spawns) ~= "table" then return end
+	for area, list in pairs(spawns) do
+		local ui = QD.UiMapOfArea(area)
+		local doors = not noDoors and type(list) == "table" and #list > 0 and Entrances(area)
+		if doors then
+			for _, door in ipairs(doors) do
+				local cont, x, y = SpotXY(door[1], door[2])
+				if cont then fn(cont, x, y, door[1], door[2], true, area) end
+			end
+		elseif ui and type(list) == "table" then
+			for _, c in ipairs(list) do
+				if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
+					local cont, x, y = SpotXY(ui, c)
+					fn(cont, x, y, ui, c, nil, area) -- (cont nil: a map with no place in the world)
+				end
+			end
+		end
+	end
+end
+I._.EachSpot = EachSpot
+
 local function NpcSpots(id)
 	local t = npcSpots[id]
 	if t ~= nil then return t or nil end
 	t = false
 	local DB = QDB()
-	local spawns = DB and Safe(DB.QueryNPCSingle, id, "spawns")
-	if type(spawns) == "table" then
-		for area, list in pairs(spawns) do
-			local ui = QD.UiMapOfArea(area)
-			local doors = type(list) == "table" and #list > 0 and Entrances(area)
-			if doors then
-				-- (in a dungeon: its entrances, as Questie's map shows it; 0.51.18)
-				for _, door in ipairs(doors) do
-					local cont, x, y = SpotXY(door[1], door[2])
-					if cont then
-						t = t or {}
-						t[#t + 1], t[#t + 2], t[#t + 3] = cont, x, y
-					end
-				end
-			elseif ui and type(list) == "table" then
-				for _, c in ipairs(list) do
-					if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
-						local cont, x, y = SpotXY(ui, c)
-						if cont then
-							t = t or {}
-							t[#t + 1], t[#t + 2], t[#t + 3] = cont, x, y
-						end
-					end
-				end
-			end
+	EachSpot(DB and Safe(DB.QueryNPCSingle, id, "spawns"), function(cont, x, y)
+		if cont then
+			t = t or {}
+			t[#t + 1], t[#t + 2], t[#t + 3] = cont, x, y
 		end
-	end
+	end)
 	if npcSpotCount >= NPC_SPOTS_MAX then npcSpots, npcSpotCount = {}, 0 end
 	npcSpots[id], npcSpotCount = t, npcSpotCount + 1
 	return t or nil
 end
 
---- How far an NPC is from `here` (yards, its nearest spawn on your continent), or nil: no known spawn there.
---- Also gives that spawn's world position ({ cont, x, y }: x grows to the north, y to the west).
-local function NpcDistance(id, here)
-	if not here then return nil end
-	local t = NpcSpots(id)
-	if not t then return nil end
+-- the nearest of an NPC's spots on here's continent: its squared distance and its place in the flat list
+local function NearestOf(t, here)
 	local best, bi
 	local hc, hx, hy = here.cont, here.x, here.y
 	for i = 1, #t, 3 do
@@ -166,8 +167,18 @@ local function NpcDistance(id, here)
 			if not best or d < best then best, bi = d, i end
 		end
 	end
+	return best, bi
+end
+
+--- How far an NPC is from `here` (yards, its nearest spawn on your continent), or nil: no known spawn there.
+--- Also gives that spawn's world position ({ cont, x, y }: x grows to the north, y to the west).
+local function NpcDistance(id, here)
+	if not here then return nil end
+	local t = NpcSpots(id)
+	if not t then return nil end
+	local best, bi = NearestOf(t, here)
 	if not best then return nil end
-	return math.sqrt(best), { cont = hc, x = t[bi + 1], y = t[bi + 2] }
+	return math.sqrt(best), { cont = here.cont, x = t[bi + 1], y = t[bi + 2] }
 end
 I.NpcDistance = NpcDistance
 
@@ -177,33 +188,13 @@ I.NpcDistance = NpcDistance
 local function NearestSpawn(spawns, here)
 	if not (here and type(spawns) == "table") then return nil end
 	local best, bui, bc, bdoor
-	for area, list in pairs(spawns) do
-		local ui = QD.UiMapOfArea(area)
-		-- (in a dungeon: its entrances, as NpcSpots measures them: Enter went to another entrance than the row's "N yd",
-		-- or to a spawn on another continent; review, 0.51.25)
-		local doors = type(list) == "table" and #list > 0 and Entrances(area)
-		if doors then
-			for _, door in ipairs(doors) do
-				local cont, x, y = SpotXY(door[1], door[2])
-				if cont == here.cont then
-					local dx, dy = x - here.x, y - here.y
-					local d = dx * dx + dy * dy
-					if not best or d < best then best, bui, bc, bdoor = d, door[1], door[2], true end
-				end
-			end
-		elseif ui and type(list) == "table" then
-			for _, c in ipairs(list) do
-				if type(c) == "table" and type(c[1]) == "number" and c[1] >= 0 then
-					local cont, x, y = SpotXY(ui, c)
-					if cont == here.cont then
-						local dx, dy = x - here.x, y - here.y
-						local d = dx * dx + dy * dy
-						if not best or d < best then best, bui, bc, bdoor = d, ui, c, nil end
-					end
-				end
-			end
+	EachSpot(spawns, function(cont, x, y, ui, c, door)
+		if cont == here.cont then
+			local dx, dy = x - here.x, y - here.y
+			local d = dx * dx + dy * dy
+			if not best or d < best then best, bui, bc, bdoor = d, ui, c, door end
 		end
-	end
+	end)
 	return bui, bc, bdoor
 end
 
@@ -225,18 +216,8 @@ I.RowDistance = RowDistance
 --- NpcDistance's yards alone: no spot table made.
 local function NpcYards(id, here)
 	local t = NpcSpots(id)
-	if not t then return nil end
-	local best
-	local hc, hx, hy = here.cont, here.x, here.y
-	for i = 1, #t, 3 do
-		if t[i] == hc then
-			local dx, dy = t[i + 1] - hx, t[i + 2] - hy
-			local d = dx * dx + dy * dy
-			if not best or d < best then best = d end
-		end
-	end
-	if not best then return nil end
-	return math.sqrt(best)
+	local best = t and NearestOf(t, here)
+	return best and math.sqrt(best) or nil
 end
 
 --- How far a row is from `here` (yards), or nil: RowDistance's first answer, with no spot table made ("nearest" asks
@@ -286,3 +267,9 @@ I._.Spot, I._.NearestSpawn = Spot, NearestSpawn
 -- (Places.lua's ResetPlacesForTests: the map transforms and NPC spots are forgotten with the places)
 I._.ResetDistances = function() xforms, npcSpots, npcSpotCount, npcDungeon, npcDungeonCount = {}, {}, 0, {}, 0 end
 I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own maps)
+
+--- A row's view saying how far it is: "N yd  <rest>", scored closest first (sort:nearest, "nearest mailbox"; one copy,
+--- review 0.53.6: Search.lua's and Objects.lua's).
+function I.NearView(e, d, rest)
+	return setmetatable({ detail = ns.NearDetail(d, rest), _score = 1e6 - d, _dist = d, nearRest = rest }, { __index = e })
+end

@@ -5,16 +5,18 @@ local loot, npc, qdb = I.loot, I.npc, I.qdb
 local LoadedCore = I.LoadedCore
 local QD = ns.QuestieData
 local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Questie ready if installed)
-local SetupAtlasLoot, SetupQuestie, SetupAttune = I._.SetupAtlasLoot, I._.SetupQuestie, I._.SetupAttune
 
 ----------------------------------------------------------------------
 -- At login each integration whose addon is there starts; .integrations says what was found
 ----------------------------------------------------------------------
 
+--- Each on its own: one failing (another version of its addon, a table missing) leaves the others to start (review,
+--- 0.53.6), and .debug log says which.
 function I.Setup()
-	SetupAtlasLoot()
-	SetupQuestie()
-	SetupAttune()
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune" }) do
+		local ok, err = pcall(I._["Setup" .. name])
+		if not ok then ns:Trace("integrations: " .. name .. " failed to start: " .. tostring(err)) end
+	end
 end
 
 local f = CreateFrame("Frame")
