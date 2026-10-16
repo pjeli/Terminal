@@ -225,8 +225,16 @@ do
 	local ab, lw = Row("AB", "Defiler Rewards  Arathi Basin"), Row("LW", "Leather Armor  Leatherworking")
 	local old = Row("Unknown", "Some Boss  Old Place") -- (an index from before 0.51.9: no kind)
 	check(D(dm) == "The Deadmines" and B(dm) == "Edwin VanCleef", "a dungeon's loot: its dungeon and boss")
-	check(D(aq) == "Ruins of Ahn'Qiraj" and B(aq) == "Ossirian", "a raid's: the raid and boss")
+	check(A.FIELDS.raid.text(aq) == "Ruins of Ahn'Qiraj" and B(aq) == "Ossirian", "a raid's: the raid and boss")
 	check(D(ab) == nil and B(ab) == nil and Z(ab) == nil, "a battleground's: no dungeon, no boss: " .. tostring(D(ab)))
 	check(D(lw) == nil and B(lw) == nil and Z(lw) == nil, "a profession's: no dungeon, no boss: " .. tostring(D(lw)))
-	check(D(old) == "Old Place", "a table of unknown kind: taken at its word")
+	-- (0.53.3, the player: "by raid" listed dungeons, "by dungeon" raids) dungeon and raid apart; instance is either
+	local R, In = A.FIELDS.raid.text, A.FIELDS.instance.text
+	check(D(aq) == nil and R(aq) == "Ruins of Ahn'Qiraj" and In(aq) == "Ruins of Ahn'Qiraj", "a raid's: by raid and by instance, not by dungeon")
+	check(R(dm) == nil and In(dm) == "The Deadmines", "a dungeon's: by dungeon and by instance, not by raid")
+	check(R(ab) == nil and In(ab) == nil and In(lw) == nil, "a battleground's, a profession's: by none of them")
+	check(D(old) == nil and R(old) == nil and In(old) == "Old Place" and B(old) == "Some Boss",
+		"a table of unknown kind: an instance, neither a dungeon nor a raid")
+	check(A.FieldOf("raid") == "raid" and A.FieldOf("raids") == "raid" and A.FieldOf("dungeons") == "dungeon"
+		and A.FieldOf("instances") == "instance" and A.FieldOf("instance") == "instance", "by raids, by dungeons, by instances")
 end

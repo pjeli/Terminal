@@ -1350,19 +1350,30 @@ local function Num(n) return type(n) == "number" and n or nil end
 local function Count(e) return FP.Count and FP.Count(e) or Num(e.total) or Num(e.count) end
 local function Str(s) return type(s) == "string" and s ~= "" and s or nil end
 
---- A loot row's boss and place ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText). Only a
---- dungeon's or a raid's: AtlasLoot's other tables (battlegrounds, professions, factions, PvP...) are no dungeon and
---- their pages no boss (0.53.1, the player: "count by dungeon" listed Arathi Basin and Leatherworking). A table of
---- unknown kind (an index from before 0.51.9) is taken at its word.
+--- A loot row's boss, place and the place's kind ("dungeon", "raid"; nil: not known, an index from before 0.51.9)
+--- ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText). Only a dungeon's or a raid's:
+--- AtlasLoot's other tables (battlegrounds, professions, factions, PvP...) are no instance and their pages no boss
+--- (0.53.1, the player: "count by dungeon" listed Arathi Basin and Leatherworking).
 local function LootParts(e)
 	if e.kind ~= "loot" then return nil end
 	local I = ns.Integrations
 	local where = I and I.LootPlace and I.LootPlace(e)
-	if where and where.kind ~= "dungeon" and where.kind ~= "raid" then return nil end
+	local kind = where and where.kind
+	if where and kind ~= "dungeon" and kind ~= "raid" then return nil end
 	local d = Str(e.detail)
 	if not d then return nil end
 	local boss, place = d:match("^(.-)  (.+)$")
-	return Str(boss), Str(place)
+	return Str(boss), Str(place), kind
+end
+
+--- A loot row's place when it's of this kind (0.53.3, the player: "by raid" listed dungeons, "by dungeon" raids;
+--- "by instance" is either).
+local function PlaceOfKind(want)
+	return function(e)
+		local _, place, kind = LootParts(e)
+		if want and kind ~= want then return nil end
+		return place
+	end
 end
 
 local function ZoneOf(e)
@@ -1392,7 +1403,9 @@ A.FIELDS = {
 		return p and Str(p.label) or nil
 	end },
 	zone = { label = L["zone"], text = ZoneOf },
-	dungeon = { label = L["dungeon"], text = function(e) local _, place = LootParts(e); return place end },
+	dungeon = { label = L["dungeon"], text = PlaceOfKind("dungeon") },
+	raid = { label = L["raid"], text = PlaceOfKind("raid") },
+	instance = { label = L["instance"], text = PlaceOfKind(nil) },
 	boss = { label = L["boss"], text = function(e) return (LootParts(e)) end },
 	quality = { label = L["quality"], num = function(e)
 		local q = Num(e.quality)
@@ -1418,10 +1431,10 @@ A.FIELDS = {
 	end },
 }
 A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone", where = "zone", place = "zone",
-	area = "zone", instance = "dungeon", raid = "dungeon", from = "boss", qty = "count", amount = "count", number = "count",
+	area = "zone", dungeons = "dungeon", raids = "raid", instances = "instance", bosses = "boss", from = "boss", qty = "count", amount = "count", number = "count",
 	worth = "value", gold = "value", money = "value", vendor = "value", sell = "value", list = "kind", kinds = "kind",
 	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality" }
-A.ORDER = { "value", "price", "count", "kind", "zone", "dungeon", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
+A.ORDER = { "value", "price", "count", "kind", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 
 local function FieldOf(word)
@@ -1590,6 +1603,8 @@ local FILTER_OF = {
 	count = function(g) return "count:" .. g.text end,
 	zone = function(g) return 'in:"' .. g.text .. '"' end,
 	dungeon = function(g) return 'in:"' .. g.text .. '"' end,
+	raid = function(g) return 'in:"' .. g.text .. '"' end,
+	instance = function(g) return 'in:"' .. g.text .. '"' end,
 	boss = function(g) return 'in:"' .. g.text .. '"' end,
 	type = function(g) return 'type:"' .. g.text .. '"' end,
 	subtype = function(g) return 'type:"' .. g.text .. '"' end,

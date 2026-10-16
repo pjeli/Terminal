@@ -3,8 +3,8 @@ local L = ns.L
 local I = ns.Integrations
 local SpotXY, ZoneName, PinObject = I.SpotXY, I.ZoneName, I.PinObject
 
--- Dungeon and raid entrances (@dungeon, @raid): Terminal's own list below (I.ENTRANCES), one row per entrance
--- (Blackrock Depths has two: Searing Gorge and Burning Steppes). Enter: the game opens the map on the entrance's zone,
+-- Dungeon and raid entrances (@dungeon, @raid): Terminal's own list below (I.ENTRANCES), one row per instance, at the
+-- nearer door of two (Blackrock Depths has two: Searing Gorge and Burning Steppes). Enter: the game opens the map on the entrance's zone,
 -- then Terminal pins it (a C API); Shift+Enter only pins; ">>" and the right-click menu send it with a map pin.
 local EntranceAfter = I.SpotAfter -- (its pinName: "<name> entrance")
 -- Instance entrances on WoW Forever's maps: { name, uiMap, x%, y%, raid, min level, max level, note }. From Leatrix
@@ -52,30 +52,48 @@ for _, b in ipairs(BRM) do
 	end
 end
 
+--- The rows: one per instance (and per door with a note of its own: Dire Maul's Hidden Reach). An instance behind two
+--- doors (Blackrock Mountain's, from Searing Gorge and from Burning Steppes) is one row at the nearer door (0.53.3, the
+--- player: Molten Core and Blackwing Lair were each listed twice); the lists are made again as you change zones.
 function I.EntranceRows(raids)
 	local rows = {}
-	local count = {}
+	local count, doors, order = {}, {}, {}
 	for _, d in ipairs(I.ENTRANCES) do
-		local name, ui, px, py, isRaid, lo, hi, note = d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8]
-		if isRaid == raids then
-			count[name] = (count[name] or 0) + 1
-			local cont, x, y = SpotXY(ui, { px, py })
-			local zone = ZoneName(ui)
-			local lv = lo and (lo == hi and L["Lv %d"]:format(lo) or L["Lv %d-%d"]:format(lo, hi)) or nil
-			local parts = { raids and L["Raid"] or L["Dungeon"] }
-			if lv then parts[#parts + 1] = lv end
-			if note then parts[#parts + 1] = note end
-			if zone then parts[#parts + 1] = zone end
-			rows[#rows + 1] = {
-				name = name, key = name .. "-" .. count[name], icon = raids and "Interface\\Icons\\INV_Misc_Head_Dragon_01" or "Interface\\Icons\\INV_Misc_Key_03",
-				detail = table.concat(parts, ns.DETAIL_SEP), zone = zone, level = hi, minLevel = lo,
-				text = (raids and "raid entrance " or "dungeon instance entrance ") .. (note and (note .. " ") or "") .. (zone or ""),
-				ui = ui, mapID = ui, px = px, py = py, wcont = cont, wx = x, wy = y,
-				pinName = L["%s entrance"]:format(name), what = raids and L["raid"] or L["dungeon"],
-				secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor, after = EntranceAfter, activate = PinObject,
-				secondary = PinObject,
-			}
+		if d[5] == raids then
+			local id = d[1] .. "\0" .. (d[8] or "")
+			if not doors[id] then doors[id] = {}; order[#order + 1] = id end
+			table.insert(doors[id], d)
 		end
+	end
+	local here = I.Here and I.Here()
+	for _, id in ipairs(order) do
+		local d, best = doors[id][1], nil
+		for _, door in ipairs(doors[id]) do
+			local cont, x, y = SpotXY(door[2], { door[3], door[4] })
+			if here and cont == here.cont then
+				local dx, dy = x - here.x, y - here.y
+				local yards = dx * dx + dy * dy
+				if not best or yards < best then d, best = door, yards end
+			end
+		end
+		local name, ui, px, py, lo, hi, note = d[1], d[2], d[3], d[4], d[6], d[7], d[8]
+		count[name] = (count[name] or 0) + 1
+		local cont, x, y = SpotXY(ui, { px, py })
+		local zone = ZoneName(ui)
+		local lv = lo and (lo == hi and L["Lv %d"]:format(lo) or L["Lv %d-%d"]:format(lo, hi)) or nil
+		local parts = { raids and L["Raid"] or L["Dungeon"] }
+		if lv then parts[#parts + 1] = lv end
+		if note then parts[#parts + 1] = note end
+		if zone then parts[#parts + 1] = zone end
+		rows[#rows + 1] = {
+			name = name, key = name .. "-" .. count[name], icon = raids and "Interface\\Icons\\INV_Misc_Head_Dragon_01" or "Interface\\Icons\\INV_Misc_Key_03",
+			detail = table.concat(parts, ns.DETAIL_SEP), zone = zone, level = hi, minLevel = lo,
+			text = (raids and "raid entrance " or "dungeon instance entrance ") .. (note and (note .. " ") or "") .. (zone or ""),
+			ui = ui, mapID = ui, px = px, py = py, wcont = cont, wx = x, wy = y,
+			pinName = L["%s entrance"]:format(name), what = raids and L["raid"] or L["dungeon"],
+			secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor, after = EntranceAfter, activate = PinObject,
+			secondary = PinObject,
+		}
 	end
 	table.sort(rows, function(a, b) return a.name < b.name or (a.name == b.name and a.key < b.key) end)
 	return rows
@@ -84,9 +102,11 @@ end
 -- @dungeon / @raid: instance entrances (I.ENTRANCES, WoW Forever's own; no Questie needed)
 ns:RegisterProvider("dungeon", {
 	label = L["Dungeon"], color = "ff8fc0ff", aliases = { "dungeon", "dungeons", "instance", "instances" }, lazy = true,
+	events = { "ZONE_CHANGED_NEW_AREA" }, -- (the nearer door of two: EntranceRows)
 	collect = function() return I.EntranceRows(false) end,
 })
 ns:RegisterProvider("raid", {
 	label = L["Raid"], color = "ffff9f6f", aliases = { "raid", "raids" }, lazy = true,
+	events = { "ZONE_CHANGED_NEW_AREA" },
 	collect = function() return I.EntranceRows(true) end,
 })

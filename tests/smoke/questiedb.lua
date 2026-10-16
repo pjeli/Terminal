@@ -600,7 +600,32 @@ do
 		check(rd:find("Onyxia's Lair", 1, true) and rd:find("Molten Core", 1, true) and rd:find("Temple of Ahn'Qiraj", 1, true)
 			and not rd:find("Karazhan", 1, true) and not rd:find("Razorfen", 1, true), "@raid: the raids, one per instance behind a shared door: " .. rd)
 		local brd = UI:Search("@dungeon blackrock depths")
-		check(#brd >= 2 and brd[1].detail:find("Blackrock Mountain", 1, true), "Blackrock Depths at both of Blackrock Mountain's doors: " .. tostring(brd[1] and brd[1].detail))
+		check(#brd == 1 and brd[1].detail:find("Blackrock Mountain", 1, true), "Blackrock Depths once, at the nearer of Blackrock Mountain's doors: " .. tostring(brd[1] and brd[1].detail))
+		-- (0.53.3, the player: Molten Core and Blackwing Lair each twice in @raid) one row per instance, at the door nearer you
+		do
+			local I = ns.Integrations
+			local hereWas = I.Here
+			local function At(ui, x, y)
+				local c, wx, wy = I.SpotXY(ui, { x, y })
+				I.Here = function() return { cont = c, x = wx, y = wy } end
+			end
+			local function Door(name)
+				local n, ui = 0, nil
+				for _, e in ipairs(I.EntranceRows(true)) do if e.name == name then n, ui = n + 1, e.ui end end
+				return n, ui
+			end
+			At(1427, 34.8, 85.3) -- (Searing Gorge's door)
+			local n, ui = Door("Molten Core")
+			check(n == 1 and ui == 1427, ("Molten Core once, at Searing Gorge's door from there: %d, %s"):format(n, tostring(ui)))
+			At(1428, 29.4, 38.3) -- (Burning Steppes')
+			n, ui = Door("Blackwing Lair")
+			check(n == 1 and ui == 1428, ("Blackwing Lair once, at Burning Steppes' door from there: %d, %s"):format(n, tostring(ui)))
+			local dm = 0
+			for _, e in ipairs(I.EntranceRows(false)) do if e.name == "Dire Maul (East)" then dm = dm + 1 end end
+			check(dm == 2, "a door with a note of its own (Dire Maul's Hidden Reach) still its own row: " .. dm)
+			I.Here = hereWas
+			check(ns.providers.raid.events and ns.providers.raid.events[1] == "ZONE_CHANGED_NEW_AREA", "@raid made again as you change zones")
+		end
 		check(UI:Search("@dungeon deadmines")[1].detail:find("Lv 17%-26"), "the level range shown: " .. UI:Search("@dungeon deadmines")[1].detail)
 		check(N("rfk"):find("Razorfen Kraul", 1, true), "a plain search finds an entrance by its shorthand: " .. N("rfk"))
 		local rfk = UI:Search("@dungeon rfk")[1]
