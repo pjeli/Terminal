@@ -22,7 +22,7 @@ CL.LOG = {
 			"Summed searches: \"by dungeon\" is dungeons, \"by raid\" raids, \"by instance\" either (not world bosses, battlegrounds, professions or factions); grouping by anything leaves out what has none of it, with no \"no ...\" group.",
 			"@dungeon and @raid list an instance behind two doors (Blackrock Mountain) once, at the nearer door.",
 			"Tabs: Ctrl+T opens a tab, Ctrl+1-4 or Ctrl+Tab switch, Ctrl+Shift+W closes one. Each keeps its search and mode, the one shown updates itself (no F5), and a dot marks one whose lists changed.",
-			"Fixes from a review: tabs keep their own search through chat links and the tour; summed searches keep the rows their steps ask for; stat:mp5 and stat:healing no longer match health regen, and rap is its own stat; characters who share a first name are told apart; filters in quotes and place names in other languages read right in chat lines; searching while you narrow a search is faster; and many smaller fixes.",
+			"Fixes from a review: tabs keep their own search through chat links and the tour; summed searches keep the rows their steps ask for; stat:mp5 and stat:healing no longer match health regen, and rap is its own stat; characters who share a first name are told apart; filters in quotes and place names in other languages read right in chat lines; a search you narrow is up to twice as fast, and lists, tooltips, the tab strip and .atop do less while you look at them; and many smaller fixes.",
 		},
 	},
 	{
