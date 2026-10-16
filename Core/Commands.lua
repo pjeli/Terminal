@@ -8,10 +8,14 @@ local L = ns.L
 --   })
 
 ns:RegisterCommand("help", {
-	desc = L["List terminal commands"],
+	desc = L["How to use Terminal; .help advanced: every command and the Advanced syntax"],
 	aliases = { "?", "h" },
-	run = function()
-		if ns.Easy and ns.Easy.On() then return ns.Easy.HelpLines() end -- (plain sentences in easy mode)
+	complete = function() return { { "advanced", L["every command and the Advanced syntax"] } } end,
+	run = function(args)
+		-- (plain sentences; .help advanced, or a line in Advanced mode: the commands and the syntax)
+		local want = ns.Lower(tostring(args or "")):gsub("%s+", "")
+		local full = want == "advanced" or want == "all" or want == "syntax"
+		if not full and ns.Easy and ns.Easy.On() then return ns.Easy.HelpLines() end
 		local lines = { L["Terminal commands:"] }
 		for _, name in ipairs(ns.commandOrder) do
 			local c = ns.commands[name]

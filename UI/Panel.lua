@@ -2,7 +2,7 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- What the small apps that take the terminal's place share (.atop, .changelog, .keybinds, the extras' .snake, .tetris,
--- .lootrun, .typing and .wowamp, the drop-quests confirmation and the .advanced one in Easy.lua): a frame built the same
+-- .lootrun, .typing and .wowamp, the drop-quests confirmation): a frame built the same
 -- way, laid where the terminal is in its theme's colours, the same kind of text, and a registry so opening one drops
 -- the terminal at once and closes the others. Each app keeps its own keys: atop, .typing and the confirmations take the
 -- keyboard whole, the others pass on the keys they don't use (P.Propagate).

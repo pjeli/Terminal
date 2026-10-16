@@ -14,8 +14,7 @@ local L = ns.L
 --   - The first word can say what to do: use, cast, summon, equip, target, where, nearest (E.ACTIONS).
 --   - .help in plain sentences. Advanced syntax (@kind, key:value, >> channel) isn't taken: a row on top says
 --     it's Advanced mode's and offers the switch. .commands and /slash still run.
--- `.advanced` switches to the full command line; `.simple` comes back. Advanced syntax typed in Simple mode runs in
--- Advanced mode for that line (UI:AutoAdvanced, 0.54.1).
+-- One mode (0.54.1): Advanced syntax typed in Simple mode runs in Advanced mode for that line (UI:AutoAdvanced).
 -- The empty prompt's faint examples (both modes, and the ones made for the character) are in Examples.lua.
 
 local E = {}
@@ -943,22 +942,11 @@ function E.JoinLogic(words)
 	return words
 end
 
---- The switch to Advanced mode asked of a row: the confirmation the first time only (db.advancedAsked), then at once
---- (0.54.1, a player: "on repeated switches it's just annoying").
-local function OfferAdvanced()
-	local db = ns.db
-	if db and db.advancedAsked then
-		C_Timer.After(0, function() E.SwitchToAdvanced() end)
-		return
-	end
-	if db then db.advancedAsked = true end
-	C_Timer.After(0, E.ShowConfirm)
-end
---- The row shown on top when Advanced syntax was typed in Simple mode (Enter: the switch, asked the first time).
+--- The row shown on top when Advanced syntax reaches a Simple search that didn't come from the prompt (typed, a line runs
+--- in Advanced mode that once: UI:AutoAdvanced). Nothing to switch: there's one mode (0.54.1).
 E.ADVANCED_ROW = {
-	name = L["@, >, >>, | and key:value are for Advanced mode"], kind = "advanced", kindLabel = "",
-	detail = L["Enter to switch (or type .advanced)"], icon = "Interface\\Icons\\INV_Misc_Gear_01",
-	activate = OfferAdvanced,
+	name = L["@, >, >>, | and key:value are Advanced syntax"], kind = "advanced", kindLabel = "", noActivate = true,
+	detail = L["typed in the prompt, a line with them runs in Advanced mode"], icon = "Interface\\Icons\\INV_Misc_Gear_01",
 }
 
 -- ">>" typed in Simple mode: sending is in the right-click menu here
@@ -977,83 +965,11 @@ function E.CopyRow(phrase)
 end
 
 ----------------------------------------------------------------------
--- .advanced / .simple (the modes; db.easyMode == false is Advanced)
+-- One mode (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it
+-- switch to advanced when syntax is used"): Simple mode, a line with Advanced syntax running in Advanced mode that once
+-- (UI:AutoAdvanced), Alt+` writing the line as Advanced syntax. db.easyMode == false (Advanced for good) is no longer
+-- offered, and a saved one from before is dropped at load (Core.lua).
 ----------------------------------------------------------------------
-
-local dialog -- the confirmation, on the Panel pattern (it takes the terminal's place)
-
---- Advanced mode for good, said in chat.
-function E.SwitchToAdvanced()
-	E.Set(false)
-	ns:Print(L["Advanced mode: the full command line (@kinds, key:value filters, .commands, >> chat). .help lists it all; .simple goes back."])
-end
-
-local function Confirm(yes)
-	if dialog then dialog:Hide() end
-	if yes then E.SwitchToAdvanced() end
-end
-
-local app = {}
-function app.IsShown() return dialog and dialog:IsShown() or false end
-function app.Close() if dialog then dialog:Hide() end end
-
-E.CONFIRM_W, E.CONFIRM_PAD, E.CONFIRM_BODY_Y = 460, 14, 40 -- (the dialog is as tall as its text needs)
-
-local function Button(parent, label, x, onClick)
-	local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-	b:SetSize(170, 24)
-	b:SetPoint("BOTTOM", parent, "BOTTOM", x, E.CONFIRM_PAD)
-	b:SetText(label)
-	b:SetScript("OnClick", onClick)
-	return b
-end
-
-function E.ShowConfirm()
-	local P = ns.Panel
-	if InCombatLockdown() then
-		ns:Print(L["In combat: type .advanced again once it's over."])
-		return
-	end
-	if not dialog then
-		dialog = P.Build("TerminalHardMode", app)
-		dialog.title = P.Text(dialog, 15, "CENTER")
-		dialog.title:SetPoint("TOP", 0, -E.CONFIRM_PAD)
-		dialog.body = dialog:CreateFontString(nil, "OVERLAY")
-		dialog.body:SetFontObject(ns.Theme.fonts.small)
-		dialog.body:SetJustifyH("LEFT")
-		dialog.body:SetWordWrap(true)
-		dialog.body:SetPoint("TOP", 0, -E.CONFIRM_BODY_Y)
-		dialog.body:SetWidth(E.CONFIRM_W - 40)
-		dialog.yes = Button(dialog, L["Switch to Advanced"], -92, function() Confirm(true) end)
-		dialog.no = Button(dialog, L["Stay in Simple"], 92, function() Confirm(false) end)
-		dialog:SetScript("OnKeyDown", function(_, key)
-			if key == "ENTER" then Confirm(true)
-			elseif key == "ESCAPE" or key == "`" then Confirm(false) end
-		end)
-	end
-	P.Opening(app)
-	local t = P.Layout(dialog)
-	dialog.title:SetText("|cff" .. t.text .. L["Switch to Advanced mode?"] .. "|r")
-	dialog.body:SetText("|cff" .. t.dim .. L["The full command line: @kinds (@npc Hogger), key:value filters (q:rare+ lvl:20-30), .commands and >> to send to chat. Words like \"rare\" and \"use\" become plain search words. .simple comes back."]
-		.. "|r")
-	-- as tall as the text: title, text, buttons, with the same margin around each
-	local h = dialog.body:GetStringHeight()
-	h = type(h) == "number" and h > 0 and h or 42
-	dialog:SetSize(E.CONFIRM_W, math.floor(E.CONFIRM_BODY_Y + h + E.CONFIRM_PAD + 24 + E.CONFIRM_PAD + 4))
-	dialog:Show()
-end
-
-ns:RegisterCommand("advanced", {
-	desc = L["Switch to Advanced mode: the full command line (@kinds, key:value filters, >> chat)"],
-	aliases = { "hardmode", "hard" },
-	run = function()
-		if not E.On() and not E.temp then return { L["Already in Advanced mode (.simple goes back)."] } end
-		-- (typed: you know what you're asking for, no confirmation; 0.54.1, a player's ask)
-		if ns.db then ns.db.advancedAsked = true end
-		C_Timer.After(0, function() E.SwitchToAdvanced() end)
-		return {}
-	end,
-})
 
 ns:RegisterCommand("fuzzy", {
 	desc = L["Pure fuzzy finding, this once (.fzf too; also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced"],
@@ -1062,16 +978,6 @@ ns:RegisterCommand("fuzzy", {
 		-- (after this press is done: running a command closes the terminal first)
 		C_Timer.After(0, function() ns.UI:FuzzyOnce(args) end)
 		return {}
-	end,
-})
-
-ns:RegisterCommand("simple", {
-	desc = L["Switch to Simple mode: plain words (use hearthstone, nearest innkeeper, stamina food), results sorted by where they are"],
-	aliases = { "easymode", "easy" },
-	run = function()
-		if E.On() then return { L["Already in Simple mode (.advanced for the full command line)."] } end
-		E.Set(true)
-		return { L["Simple mode: type what you're looking for in plain words (\"use hearthstone\", \"nearest innkeeper\", \"stamina food\"). .advanced for the full command line."] }
 	end,
 })
 
@@ -1118,7 +1024,7 @@ function E.HelpLines()
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
-		L["Want the full command line (@kinds, filters, chat)? Type .advanced, or just type it: a line with an @kind or a key:value runs in Advanced mode that once."],
+		L["Advanced syntax (@kinds, key:value filters, sending to chat) works as soon as you type it, for that line; .help advanced lists it all."],
 	}
 end
 

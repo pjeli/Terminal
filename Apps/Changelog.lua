@@ -14,9 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.54.1", when = "in testing",
+		v = "0.54.2", when = "in testing",
 		items = {
-			"Advanced syntax typed in Simple mode (@npc, q:rare, >> party) runs in Advanced mode that once; .advanced switches without asking.",
+			"One mode: type in plain words, and a line with Advanced syntax (@npc, q:rare, >> party) runs in Advanced mode as you type it; .simple and .advanced are gone (.help advanced lists the syntax).",
 			"Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\", with the level each rank is learned at.",
 			"Spell ids: \"spellid claw\" lists every rank's id to copy, \"spellid 1082\" shows the spell; spells and talents show their id in the tooltip.",
 			"Talents by what they do: \"healing talents\", \"shaman crit talents\"; \"talents\" with an s works too.",

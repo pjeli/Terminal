@@ -602,14 +602,8 @@ Run("Advanced syntax in Simple mode runs once in Advanced", function()
 	check(not E.On(), "a /slash line leaves the mode as it is")
 	UI:Hide(); FlushAll()
 	check(E.On() and ns.db.easyMode ~= false and not E.temp, "closed: Simple again")
-	-- the Advanced row's switch (a search that got there without the prompt): the confirmation the first time, then at once
-	ns.db.advancedAsked = nil
-	E.ADVANCED_ROW.activate(); FlushAll()
-	check(_G.TerminalHardMode and _G.TerminalHardMode:IsShown() and E.On() and ns.db.advancedAsked, "the first time: the confirmation")
-	_G.TerminalHardMode:Hide()
-	E.ADVANCED_ROW.activate(); FlushAll()
-	check(not _G.TerminalHardMode:IsShown() and not E.On() and ns.db.easyMode == false, "after that: switched at once")
-	E.Set(true)
+	-- (0.54.1) the Advanced row, for a Simple search that didn't come from the prompt: a note, nothing to switch
+	check(E.ADVANCED_ROW.noActivate and not E.ADVANCED_ROW.activate, "the Advanced row: a note")
 	-- Advanced mode takes them
 	ns.db.easyMode = false; UI:EasyChanged()
 	res = UI:Search("@npc hogger")
@@ -976,51 +970,28 @@ Run("right-click: send to chat (Simple mode too)", function()
 	UI:Hide(); FlushAll()
 end)
 
-Run(".advanced and .simple", function()
+-- (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it switch to
+-- advanced when syntax used") one mode: no .advanced, .simple or their other names; Advanced for good, saved from
+-- before, dropped at load; .help in plain sentences, .help advanced the commands and the syntax
+Run("one mode: no .advanced or .simple", function()
 	E.Set(true)
-	ns.db.advancedAsked = nil
-	if _G.TerminalHardMode then _G.TerminalHardMode:Hide() end
-	local r = ns:FindCommand("advanced").run("", ns)
-	FlushAll()
-	-- (0.54.1, a player: "if I typed .advanced then clearly I knew what I was doing") no confirmation
-	check(not E.On() and ns.db.easyMode == false and not (_G.TerminalHardMode and _G.TerminalHardMode:IsShown()),
-		".advanced: Advanced at once, no confirmation")
-	E.Set(true)
-	E.ShowConfirm()
-	local d = _G.TerminalHardMode
-	check(d and d:IsShown() and E.On(), "the confirmation (the Advanced row's, the first time): still Simple")
-	d.scripts.OnKeyDown(d, "ESCAPE")
-	check(not d:IsShown() and E.On(), "Esc: stays in Simple mode")
-	-- as tall as its text (it had a lot of empty space): title, text, buttons
-	d.body.GetStringHeight = function() return 36 end
-	E.ShowConfirm()
-	check(d.h == E.CONFIRM_BODY_Y + 36 + E.CONFIRM_PAD * 2 + 24 + 4 and d.h < 150, "the dialog fits its text: " .. tostring(d.h))
-	d.body.GetStringHeight = nil
-	d.scripts.OnKeyDown(d, "ESCAPE")
-	ns:FindCommand("hardmode").run("", ns); FlushAll()
-	check(not E.On(), "(.hardmode still works as another name)")
-	E.Set(true)
-	E.ShowConfirm()
-	d.yes.scripts.OnClick(d.yes)
-	check(not d:IsShown() and not E.On() and ns.db.easyMode == false, "the button: Advanced mode, saved")
-	r = ns:FindCommand("advanced").run("", ns)
-	check(r[1] and r[1]:find("Already", 1, true), "again: already in Advanced mode")
-	r = ns:FindCommand("simple").run("", ns)
-	check(E.On() and r[1]:find("Simple mode", 1, true), ".simple: straight back, no question")
-	-- .help in plain sentences in Simple mode, the full list in Advanced mode
+	for _, name in ipairs({ "advanced", "hardmode", "hard", "simple", "easymode", "easy" }) do
+		check(ns:FindCommand(name) == nil, "no ." .. name)
+	end
+	-- a saved Advanced-for-good from before: dropped as the addon loads
+	local db = ns.db
+	TerminalDB = { easyMode = false, advancedAsked = true }
+	local ef = T.ef
+	ef:GetScript("OnEvent")(ef, "ADDON_LOADED", "Terminal")
+	check(TerminalDB.easyMode == nil and TerminalDB.advancedAsked == nil and E.On(), "Advanced for good, from before: Simple now")
+	TerminalDB = db
+	ns.db = db
+	-- .help: plain sentences (no ">"), .help advanced the commands and the syntax
 	local help = ns.commands.help.run("", ns)
-	check(help[1]:find("type the name of anything", 1, true) and not table.concat(help, " "):find("lvl:", 1, true), ".help in Simple mode: plain sentences")
-	ns.db.easyMode = false
-	help = ns.commands.help.run("", ns)
-	check(help[1] == "Terminal commands:", ".help in Advanced mode: the commands")
-	-- in combat the dialog doesn't open (it takes the keyboard)
-	ns.db.easyMode = true
-	local ic = _G.InCombatLockdown
-	_G.InCombatLockdown = function() return true end
-	d:Hide()
-	E.ShowConfirm()
-	_G.InCombatLockdown = ic
-	check(not d:IsShown(), "not in combat")
+	check(help[1]:find("type the name of anything", 1, true) and not table.concat(help, " "):find("lvl:", 1, true)
+		and not table.concat(help, " "):find(">", 1, true), ".help: plain sentences")
+	help = ns.commands.help.run("advanced", ns)
+	check(help[1] == "Terminal commands:" and table.concat(help, " "):find("lvl:", 1, true), ".help advanced: the commands and the syntax")
 end)
 
 Run("reopening: no flash of the last results; Down brings them back", function()

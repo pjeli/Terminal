@@ -457,6 +457,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 			end
 		end
 		ns.db = TerminalDB
+		-- (0.54.1: one mode, Simple, a line with Advanced syntax running in Advanced mode that once: Advanced for good, kept
+		-- from before, dropped; the Advanced row's question with it)
+		TerminalDB.easyMode, TerminalDB.advancedAsked = nil, nil
 		return
 	elseif event == "PLAYER_LOGIN" then
 		ns:StartPrewarm(10) -- the lists, built ahead of their first search (see Prewarming)
