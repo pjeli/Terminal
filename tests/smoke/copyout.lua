@@ -162,6 +162,53 @@ do
 	FlushAll()
 	check(UI.edit:GetText() == "", "after running something: not kept: " .. tostring(UI.edit:GetText()))
 	UI:Hide(); FlushAll()
+
+	-- (0.52.14, the player) reopened: the toggle key's ` that opened it isn't typed after the text; the caret where it
+	-- was; Advanced for that run comes back as Advanced, the text as it was ("|" and all)
+	now = now + UI.REOPEN_KEEP + 1
+	UI:Open("")
+	UI:SetQuery("@item | sum value by quality", 5)
+	FlushAll()
+	UI:Hide(); FlushAll()
+	now = now + 1
+	UI:Toggle()
+	FlushAll()
+	if UI.keys then UI:OnChar("`") else UI.edit:SetText(UI.edit:GetText() .. "`") end
+	FlushAll()
+	check(UI.edit:GetText() == "@item | sum value by quality" and UI.cursor == 5,
+		"reopened: no ` from the key that opened it, the caret where it was: " .. UI.edit:GetText() .. " @" .. tostring(UI.cursor))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = true
+	UI:EasyChanged()
+	now = now + UI.REOPEN_KEEP + 1
+	UI:Open("")
+	UI:AdvancedOnce()
+	FlushAll()
+	UI:SetQuery("@item | count")
+	FlushAll()
+	check(not ns.Easy.On(), "Alt+`: Advanced for this run")
+	UI:Hide(); FlushAll()
+	check(ns.Easy.On(), "closed: Simple again")
+	now = now + 1
+	UI:Toggle()
+	FlushAll()
+	check(not ns.Easy.On() and UI.edit:GetText() == "@item | count" and UI.aggregate ~= nil,
+		"reopened a moment later: Advanced again, its text searched as Advanced: " .. UI.edit:GetText())
+	UI:Hide(); FlushAll()
+	check(ns.Easy.On(), "and closed: Simple again")
+	now = now + 1
+	UI:Toggle()
+	FlushAll()
+	check(not ns.Easy.On() and UI.edit:GetText() == "@item | count", "reopened again: Advanced still")
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false -- (switched to Advanced for good meanwhile: nothing "for this run" to bring back)
+	now = now + 1
+	UI:Toggle()
+	FlushAll()
+	check(ns.Easy.temp == nil and UI.edit:GetText() == "@item | count", "Advanced for good since: no run's mode brought back")
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false
+	UI:EasyChanged()
 	_G.GetTime = realTime
 
 	ns.ShowText = save.show

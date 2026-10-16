@@ -913,7 +913,8 @@ end
 --- Is this word Advanced mode's syntax (an @kind, a key:value filter, >>)?
 function E.IsAdvancedWord(w)
 	-- (a ">" standing alone is a chain's link: Simple mode says chains in words, "mats for x", 0.45.13)
-	if w == ">" or w:sub(1, 1) == "@" or w:sub(1, 2) == ">>" then return true end
+	-- (a "|" standing alone too: Advanced mode's "| sum value", 0.52.13)
+	if w == ">" or w == "|" or w:sub(1, 1) == "@" or w:sub(1, 2) == ">>" then return true end
 	-- "-q:poor", "!is:boe", "q:rare|epic", "boe|slot:head": a key:value in any part (plain -word / a|b are Simple's too)
 	for part in w:gmatch("[^|&]+") do
 		local key = part:gsub("^[-!]", ""):match("^(%a+):")
@@ -1094,6 +1095,7 @@ function E.HelpLines()
 		L["Ask where to go: \"where should i level\", \"what dungeon should i do\", \"where should i fish\" (or \"zones for level 35\")."],
 		L["Flight paths you haven't learned: \"nearest unlearned flight master\", \"unlearned flight paths\" (a flight master's map tells Terminal which you know)."],
 		L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."],
+		L["Put words in quotes to find them together, as they are: \"outlaw saber\" finds the Outlaw Saber, not every name with both words."],
 		L["Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes."],
 		L["Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes)."],
 		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced."],

@@ -38,6 +38,8 @@ local function DropTick(want)
 	end)
 end
 
+UI.DropTick = DropTick -- (UI:Toggle: the toggle key that opened it)
+
 --- Pure fuzzy finding for this run (UI.fzf, FuzzySearch): Tab+`, its binding, or .fuzzy (UI:FuzzyOnce). The prompt
 --- keeps its plain words; a soft glow round the prompt bar says the mode is on. Tab+` again closes the terminal (which ends it).
 function UI:StartFuzzy()

@@ -23,6 +23,9 @@ function UI:RunSearch(text)
 	-- under the calculator's answer when there is one (Search adds it only at the end)
 	local t0 = debugprofilestop()
 	local copy = UI.SortAndTrim(res) -- (a new list: the search goes on filling res)
+	-- ("| sum value": what's found so far, summed up; the whole list once the search is done)
+	local agg = self.aggregate
+	if agg and ns.Aggregate then copy = ns.Aggregate.Apply(agg, res, agg.base) end
 	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
 	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)
@@ -66,7 +69,8 @@ function UI:CollapseGroup(list)
 	if to.copy then
 		-- ">>> text", ">>> csv": every result, to copy (Activate opens them in a box)
 		local rows = {}
-		for _, e in ipairs(list) do if not e.noActivate then rows[#rows + 1] = e end end
+		-- (a summed-up list's rows all go, totals too: "| group zone >>> csv")
+		for _, e in ipairs(list) do if not e.noActivate or e.kind == "aggregate" then rows[#rows + 1] = e end end
 		self.groupRows = rows
 		local n = #rows
 		local row = { kind = "send", kindLabel = "|cff33ff99" .. L["copy"] .. "|r", icon = "Interface\\Icons\\INV_Misc_Note_01", raw = true,
@@ -155,7 +159,7 @@ end
 -- What a search sets beside its rows, read with the rows shown (the footer, Enter, >>> sending): a background search
 -- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
 -- list said the old ones; Simple mode's category label changed with the list staying)
-local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "blockedSyntax", "blockedCopy", "linked", "answerNote", "pipeTrail",
+local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "blockedSyntax", "blockedCopy", "aggregate", "linked", "answerNote", "pipeTrail",
 	"flightNote", "missingNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
 local NONE = {}
 local function Fields(self)
@@ -496,6 +500,19 @@ local function TakeSendTo(self, text, first)
 	return text
 end
 
+--- Advanced mode's "| sum value", "| group zone" (0.52.13): the steps after a "|" standing alone, read into UI.aggregate
+--- (the search sums its results up: Pipes.lua's ns.Aggregate); gives the text to search. Simple mode: a "|" is
+--- Advanced mode's (Easy.IsAdvancedWord).
+local function TakeAggregate(self, text, first)
+	self.aggregate = nil
+	local A = ns.Aggregate
+	if self.fzf or first == "." or first == "/" or not A or EasyOn() then return text end
+	local query, steps = A.Split(text)
+	if not steps then return text end
+	self.aggregate = A.Parse(steps, query)
+	return query
+end
+
 --- The rows for what's typed: commands, slash commands, a pick list ("@", "key:") or a search (its first slice
 --- when it goes on in the next frames).
 local function ListFor(self, text, first, edit)
@@ -568,6 +585,7 @@ function UI:Refresh()
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
 	text = TakeSendTo(self, text, first)
+	text = TakeAggregate(self, text, first)
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,
 	-- not its first frame's best put up meanwhile (0.51.7, the player: "upgrades" jumped about and back to the top
 	-- every couple of seconds while the items loaded)

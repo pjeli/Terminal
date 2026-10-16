@@ -490,7 +490,9 @@ function UI:Activate(idx, opts)
 	local edit = UI.edit
 	opts = opts or {}
 	local e = UI.results[idx or UI.sel]
-	if not e or e.noActivate then return end
+	-- (a summed-up total has nothing to open, but ">> text" copies it: "in:bags | sum value >> text", 0.52.13)
+	local copyable = e and e.kind == "aggregate" and self.sendTo and self.sendTo.copy
+	if not e or (e.noActivate and not copyable) then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
 	self.ran = GetTime() -- (something run: closing after it, the text isn't kept for a quick reopen, UI:Hide)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)

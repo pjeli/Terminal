@@ -698,7 +698,13 @@ function UI:Hide()
 	do
 		local typed = edit:GetText() or ""
 		local ran = self.ran and GetTime() - self.ran < 2
-		self.closedText = (typed:find("%S") and not ran and not self.fzf) and { text = typed, at = GetTime(), cursor = self.cursor } or nil
+		-- (the caret where it was: the drawn prompt's, else the game's text box's own; and the mode it was in: Advanced
+		-- for this run (Alt+`) comes back as Advanced, 0.52.14, the player)
+		local cursor = self.cursor
+		if not self.keys and edit.GetCursorPosition then cursor = edit:GetCursorPosition() or cursor end
+		local E = ns.Easy
+		self.closedText = (typed:find("%S") and not ran and not self.fzf) and { text = typed, at = GetTime(), cursor = cursor,
+			temp = E and E.temp, tempSimple = E and E.tempSimple } or nil
 		self.ran = nil
 	end
 	self:EndAdvancedOnce()
@@ -938,7 +944,7 @@ end
 function UI:RecentText()
 	local c = self.closedText
 	self.closedText = nil
-	if c and GetTime() - c.at <= UI.REOPEN_KEEP then return c.text, c.cursor end
+	if c and GetTime() - c.at <= UI.REOPEN_KEEP then return c.text, c.cursor, c end
 end
 
 function UI:Toggle()
@@ -947,9 +953,18 @@ function UI:Toggle()
 	if self:TabDown() then return self:FuzzyOnce() end
 	-- closed by combat starting: opened by hand before it came back, as it was then
 	if not (self.combatState and self:ComeBack("opened by hand")) then
-		local text, cursor = self:RecentText()
+		local text, cursor, kept = self:RecentText()
+		-- (Advanced for that run, or Simple for it from fuzzy finding: the same again, with its text)
+		-- (only over the mode you're in for good: switched to it since, nothing to bring back)
+		if kept and ns.Easy then
+			local simple = not (ns.db and ns.db.easyMode == false)
+			ns.Easy.temp, ns.Easy.tempSimple = simple and kept.temp or nil, not simple and kept.tempSimple or nil
+		end
 		self:Open(text)
 		if text and type(cursor) == "number" then self.cursor = math.min(cursor, #text); self:UpdateCaret() end
+		-- the toggle key's ` can still come as a typed character after the press that opened it: not typed (0.52.14, the
+		-- player: a reopened prompt got a ` on the end)
+		if self.DropTick then self.DropTick(edit:GetText()) end
 	end
 	self.openedByToggle = GetTime() -- (Tab let go just after, nothing typed: it was Tab+`, TabReleased)
 end

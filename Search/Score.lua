@@ -113,8 +113,15 @@ end
 --- match, "ini": the name's initials, "short": a shorthand's full name; nil: only the text), and
 --- which of the shorthand's names. The initials and shorthand are looked at only when the word
 --- isn't in the name as it is, so ordinary word searches rank as they always did.
---- xs: the shorthand's full names when the word is one. Allocation-free.
-local function TokenScore(tk, xs, name, lname, ltext)
+--- xs: the shorthand's full names when the word is one. exact: the word was a "quoted phrase" (0.52.13): only the
+--- phrase as it is counts. Allocation-free.
+local function TokenScore(tk, xs, name, lname, ltext, exact)
+	if exact then -- (a "quoted phrase": in the name as it is, else in the row's text; never letters scattered)
+		local best, sub = Fuzzy.score(tk, name, lname)
+		if best and sub then return best, "name", nil end
+		if ltext and find(ltext, tk, 1, true) then return TEXT_SCORE, nil, nil end
+		return nil
+	end
 	if xs then
 		local where, k = ShortHit(xs, lname or ns.Lower(name), ltext)
 		if where == "name" then return SHORT_PRIO, "short", k end
@@ -158,14 +165,20 @@ local function ScoreEntry(e, tokens)
 		local text = rawget(e, "text")
 		if text then ltext = ns.Lower(text); e._ltext = ltext end
 	end
-	local name, lname, short = e.name, e._lname, tokens.short
+	local name, lname, short, exact = e.name, e._lname, tokens.short, tokens.exact
 	local ini = tokens.ini or IniFirst(tokens)
 	for i = 1, #tokens do
 		local tk = tokens[i]
 		local xs = short and short[i]
 		local best, sub
 		local where = xs and ShortHit(xs, lname or ns.Lower(name), ltext)
-		if where then
+		if exact and exact[tk] then
+			-- a "quoted phrase" (0.52.13, the player's ask): one string, in the name as it is (no letters scattered, no
+			-- initials), else in the row's text
+			best, sub = Fuzzy.score(tk, name, lname)
+			if best and sub then nameHit = true else best = nil end
+			sub = true
+		elseif where then
 			best, sub = SHORT_PRIO, true
 			if where == "name" then nameHit = true end
 		else
@@ -240,9 +253,10 @@ local function Positions(e, tokens)
 		end
 		return set
 	end
+	local exact = tokens.exact
 	for i, tk in ipairs(tokens) do
 		local xs = short and short[i]
-		local _, how, at = TokenScore(tk, xs, name, lname, nil)
+		local _, how, at = TokenScore(tk, xs, name, lname, nil, exact and exact[tk])
 		if how == "name" then
 			local _, pos = Fuzzy.match(tk, name, lname)
 			if pos then

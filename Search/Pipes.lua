@@ -1323,3 +1323,351 @@ ns:RegisterCommand("chains", {
 		return lines
 	end,
 })
+
+----------------------------------------------------------------------
+-- Summing up (0.52.13, the player's ask): Advanced mode's "|" standing alone ends the search; what follows works on
+-- every row it found (not only the 100 a list shows), as a shell's pipe:
+--
+--   in:bags | sum value             what all of it would sell for at a vendor: one row
+--   @quest | group zone             a row per zone with how many are there, the most first ("group by zone" too)
+--   @item | count                   how many were found; "count by quality": a row per quality, as group
+--   in:bags | sum value by quality  a total per quality (and all of them on top); "| avg ilvl by slot"
+--   @quest | zone:"Elwynn Forest"   only the rows with that (a group's Enter writes it: Shift+Left goes back)
+--
+-- Steps chain: "in:bags | q:rare | sum value". The words are fields (ns.Aggregate.FIELDS); a row without one is
+-- left out of a sum and grouped as "no zone".
+----------------------------------------------------------------------
+
+local A = {}
+ns.Aggregate = A
+A.MAX = 5000 -- rows a search keeps for summing up (a list shows Score.MAX_RESULTS)
+
+local FP = ns.Filters and ns.Filters._ or {}
+local function Info(e)
+	local id = ns.Filters and ns.Filters.ItemOf and ns.Filters.ItemOf(e)
+	return id and FP.ItemInfo and FP.ItemInfo(id) or nil
+end
+local function Num(n) return type(n) == "number" and n or nil end
+local function Count(e) return FP.Count and FP.Count(e) or Num(e.total) or Num(e.count) end
+local function Str(s) return type(s) == "string" and s ~= "" and s or nil end
+
+--- A loot row's boss and place ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText).
+local function LootParts(e)
+	if e.kind ~= "loot" then return nil end
+	local d = Str(e.detail)
+	if not d then return nil end
+	local boss, place = d:match("^(.-)  (.+)$")
+	return Str(boss), Str(place)
+end
+
+local function ZoneOf(e)
+	local z = Str(e.zone)
+	if z then return z end
+	if FP.NpcID and FP.NpcID(e) then
+		local area = FP.NpcField(e, "zoneID")
+		local got = type(area) == "number" and area > 0 and C_Map and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
+		return Str(got)
+	end
+	local _, place = LootParts(e)
+	return place
+end
+
+local function QualityName(q)
+	local s = type(q) == "number" and _G["ITEM_QUALITY" .. q .. "_DESC"]
+	local name = Str(s) or (type(q) == "number" and ns.Filters and ns.Filters.QUALITIES and ns.Filters.QUALITIES[q + 1])
+	if not name then return nil end
+	return name, ns.QualityHex and ns.QualityHex(q) -- (the whole code, "|cff0070dd")
+end
+
+--- The fields: text (what a row is grouped by) and/or num (what's summed); money: a num that's copper. order: groups by
+--- this number, not by size (qualities: poor to legendary). label: how a row says it.
+A.FIELDS = {
+	kind = { label = L["kind"], text = function(e)
+		local p = e.kind and ns.providers[e.kind]
+		return p and Str(p.label) or nil
+	end },
+	zone = { label = L["zone"], text = ZoneOf },
+	dungeon = { label = L["dungeon"], text = function(e) local _, place = LootParts(e); return place end },
+	boss = { label = L["boss"], text = function(e) return (LootParts(e)) end },
+	quality = { label = L["quality"], num = function(e)
+		local q = Num(e.quality)
+		if q then return q end
+		local info = Info(e)
+		return info and Num(info.quality)
+	end, text = function(e, f) return (QualityName(f.num(e))) end, order = true },
+	type = { label = L["type"], text = function(e) local i = Info(e); return i and Str(i.type) end },
+	subtype = { label = L["subtype"], text = function(e) local i = Info(e); return i and Str(i.subType) end },
+	slot = { label = L["slot"], text = function(e)
+		local i = Info(e)
+		local loc = i and Str(i.equipLoc)
+		return loc and Str(_G[loc]) or nil
+	end },
+	level = { label = L["level"], num = function(e) return FP.Levels and (FP.Levels(e)) or nil end, order = true },
+	ilvl = { label = L["item level"], num = function(e) local i = Info(e); return i and Num(i.ilvl) end, order = true },
+	count = { label = L["count"], num = function(e) return Count(e) or 1 end },
+	price = { label = L["price"], money = true, num = function(e) local i = Info(e); return i and Num(i.sell) end },
+	value = { label = L["value"], money = true, num = function(e)
+		local i = Info(e)
+		local sell = i and Num(i.sell)
+		return sell and sell * (Count(e) or 1) or nil
+	end },
+}
+A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone", where = "zone", place = "zone",
+	area = "zone", instance = "dungeon", raid = "dungeon", from = "boss", qty = "count", amount = "count", number = "count",
+	worth = "value", gold = "value", money = "value", vendor = "value", sell = "value", list = "kind", kinds = "kind",
+	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality" }
+A.ORDER = { "value", "price", "count", "kind", "zone", "dungeon", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
+A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
+
+local function FieldOf(word)
+	word = ns.Lower(word or "")
+	local name = A.FIELDS[word] and word or A.ALIASES[word]
+	return name and A.FIELDS[name] and name or nil
+end
+A.FieldOf = FieldOf
+
+--- The search and its steps: "in:bags | sum value" -> "in:bags", { "sum value" }. A "|" counts only standing alone,
+--- outside quotes ("sword|axe" is either); nil steps when there's none.
+function A.Split(text)
+	if type(text) ~= "string" or not text:find("|", 1, true) then return text, nil end
+	local parts, from, quoted = {}, 1, false
+	for i = 1, #text do
+		local c = text:sub(i, i)
+		if c == '"' then
+			quoted = not quoted
+		elseif c == "|" and not quoted then
+			local before, after = i == 1 and " " or text:sub(i - 1, i - 1), i == #text and " " or text:sub(i + 1, i + 1)
+			if before:find("%s") and after:find("%s") then
+				parts[#parts + 1] = text:sub(from, i - 1)
+				from = i + 1
+			end
+		end
+	end
+	if #parts == 0 then return text, nil end
+	parts[#parts + 1] = text:sub(from)
+	local query = table.remove(parts, 1):gsub("%s+$", "")
+	for k, p in ipairs(parts) do parts[k] = p:gsub("^%s+", ""):gsub("%s+$", "") end
+	return query, parts
+end
+
+--- One step read: { op = "sum", field = "value", by = "zone" }, { where = field, value = "elwynn forest", exact = true },
+--- or { bad = what to say } (still being typed, or a word it doesn't know).
+local function ParseStep(step)
+	local field, value = step:match("^(%a+):(.*)$")
+	if field then
+		local f = FieldOf(field)
+		if not f then return { bad = L["no field called %s"]:format(field) } end
+		local exact = value:match('^"(.*)"?$')
+		value = (exact or value):gsub('"', ""):gsub("^%s+", ""):gsub("%s+$", "")
+		if value == "" then return { bad = L["say what %s to keep: %s:\"...\""]:format(field, field) } end
+		return { where = f, value = ns.Lower(value), exact = exact ~= nil }
+	end
+	local ws = {}
+	for w in step:gmatch("%S+") do ws[#ws + 1] = ns.Lower(w) end
+	local op = A.OPS[ws[1] or ""]
+	if not op then return { bad = ws[1] and L["no step called %s"]:format(ws[1]) or "" } end
+	-- the words after it: "[by] field [by field]" ("sum value", "sum by value", "sum value by zone", "group by zone")
+	local k = 2
+	local function Next()
+		if ws[k] == "by" or ws[k] == "of" then k = k + 1 end
+		local w = ws[k]
+		k = k + 1
+		return w
+	end
+	local first, second = Next(), Next()
+	if ws[k] then return { bad = L["one field to sum, one to group by: sum value by zone"] } end
+	if op == "count" or op == "group" then
+		if second then return { bad = L["group by one field: group by zone"] } end
+		if not first then
+			if op == "group" then return { bad = L["group by what: zone, kind, quality..."] } end
+			return { op = "count" }
+		end
+		local by = FieldOf(first)
+		if not by then return { bad = L["no field called %s"]:format(first) } end
+		return { op = "group", by = by }
+	end
+	if not first then return { bad = L["%s of what: value, count, level..."]:format(ws[1]) } end
+	local field = FieldOf(first)
+	if not field or not A.FIELDS[field].num then return { bad = L["no number called %s"]:format(first) } end
+	local by
+	if second then
+		by = FieldOf(second)
+		if not by then return { bad = L["no field called %s"]:format(second) } end
+	end
+	return { op = op, field = field, by = by }
+end
+A.ParseStep = ParseStep
+
+--- The steps typed after the search, read: { wheres = { ... }, last = the summing step or nil, bad = what to say, base =
+--- the search with its keeping steps }.
+function A.Parse(steps, query)
+	local spec = { wheres = {} }
+	local base = { query or "" }
+	for k, step in ipairs(steps) do
+		local s = ParseStep(step)
+		if s.bad then spec.bad = s.bad; spec.badStep = step; return spec end
+		if s.where then
+			spec.wheres[#spec.wheres + 1] = s
+			base[#base + 1] = step
+		elseif k < #steps then
+			spec.bad = L["a sum, count or group is the last step"]
+			return spec
+		else
+			spec.last = s
+		end
+	end
+	spec.text = table.concat(steps, " | ")
+	spec.base = table.concat(base, " | ") -- (a group's Enter: this, then its own "| zone:...")
+	return spec
+end
+
+local function Real(e) return not (e.raw or e.noActivate or e.completion or e.lead or e.kind == "calc") end
+
+local function TextOf(name, e)
+	local f = A.FIELDS[name]
+	if f.text then return f.text(e, f) end
+	local n = f.num(e)
+	return n and tostring(n) or nil
+end
+
+local function Keep(w, e)
+	local t = TextOf(w.where, e)
+	if not t then return false end
+	local lt = ns.Lower(ns.Plain and ns.Plain(t) or t)
+	if lt == w.value then return true end
+	return not w.exact and lt:find(w.value, 1, true) ~= nil
+end
+
+--- A number as a row says it (copper as gold, silver and copper), and as plain text (copied: no coin icons).
+local function Shown(field, n)
+	local f = A.FIELDS[field]
+	if f.money then
+		if not ns.Gold then return tostring(n) .. "c", tostring(n) .. "c" end
+		return ns.Gold.Text(n), ns.Gold.Text(n, true)
+	end
+	local t = math.floor(n) == n and tostring(n) or ("%.1f"):format(n)
+	return t, t
+end
+
+local ICON = "Interface\\Icons\\INV_Misc_Note_01"
+local function Row(name, detail, key, label)
+	return { kind = "aggregate", kindLabel = "|cff33ff99" .. label .. "|r", icon = ICON, raw = true, _score = 0,
+		_pos = ns.UI and ns.UI.NO_POS, name = name, detail = detail, key = key, noActivate = true }
+end
+
+--- A group's Enter: the same search, keeping that group's rows (Shift+Left goes back).
+local function Drill(e)
+	local UI = ns.UI
+	if UI and e.drillTo then UI:WalkTo(e.drillTo, e) end
+end
+
+--- The rows the search found, put through the steps: the kept rows (only "where" steps), or the summed-up rows. Rows
+--- whose item data isn't in yet ask for it and the search runs again (Filters.loading: UI:RetryWhenLoaded).
+--- `base`: the text before the summing step (a group's Enter keeps its rows: base | field:"value").
+function A.Apply(spec, res, base)
+	local rows = {}
+	for _, e in ipairs(res or {}) do if Real(e) then rows[#rows + 1] = e end end
+	if spec.bad then
+		-- (still being typed, or a word it doesn't know: the rows as they are, with a line saying what goes there)
+		local fields = {}
+		for _, name in ipairs(A.ORDER) do fields[#fields + 1] = name end
+		local hint = Row(spec.bad ~= "" and spec.bad or L["| count, | sum value, | group by zone, | avg level"],
+			L["fields: %s"]:format(table.concat(fields, ", ")), "aggregate:hint", L["sum up"])
+		local out = { hint }
+		for _, e in ipairs(res or {}) do out[#out + 1] = e end
+		return out
+	end
+	for _, w in ipairs(spec.wheres) do
+		local kept = {}
+		for _, e in ipairs(rows) do if Keep(w, e) then kept[#kept + 1] = e end end
+		rows = kept
+	end
+	local s = spec.last
+	if not s then return rows end
+	local n = #rows
+	if s.op == "count" then
+		return { Row(L["%d results"]:format(n), base or "", "aggregate:count:" .. n, L["count"]) }
+	end
+	local f = s.field and A.FIELDS[s.field]
+	-- one total ("sum value") or one per group ("group zone", "sum value by zone")
+	local groups, order = {}, {}
+	local total, have = 0, 0
+	for _, e in ipairs(rows) do
+		local v = f and f.num(e)
+		if v then total, have = total + v, have + 1 end
+		if s.by then
+			local t = TextOf(s.by, e)
+			local key = t or false
+			local g = groups[key]
+			if not g then
+				g = { text = t, n = 0, sum = 0, have = 0, sample = e }
+				groups[key] = g
+				order[#order + 1] = g
+			end
+			g.n = g.n + 1
+			if v then g.sum, g.have = g.sum + v, g.have + 1 end
+		end
+	end
+	local function Value(sum, got)
+		if s.op == "avg" then return got > 0 and sum / got or nil end
+		return sum
+	end
+	local function Detail(cnt, got)
+		local parts = { L["%d results"]:format(cnt) }
+		if f and got < cnt then parts[#parts + 1] = L["%d without a %s"]:format(cnt - got, f.label) end
+		return table.concat(parts, "  ·  ")
+	end
+	local loading = ns.Filters and ns.Filters.loading
+	local opLabel = s.op == "avg" and L["average"] or s.op == "sum" and L["sum"] or L["group"]
+	if not s.by then
+		local v = Value(total, have)
+		local name, plain = L["nothing to %s"]:format(opLabel), nil
+		if v then name, plain = Shown(s.field, v) end
+		local detail = (s.op == "avg" and L["average %s of %s"] or L["%s of %s"]):format(f.label, Detail(n, have))
+		if loading then detail = detail .. "  ·  " .. L["item data still coming in"] end
+		local r = Row(name, detail, "aggregate:" .. s.op .. ":" .. tostring(v) .. ":" .. n, opLabel)
+		r.copyName = plain
+		return { r }
+	end
+	local byField = A.FIELDS[s.by]
+	for _, g in ipairs(order) do
+		g.value = f and Value(g.sum, g.have) or g.n
+		if byField.order and byField.num then g.rank = byField.num(g.sample) end
+	end
+	table.sort(order, function(a, b)
+		if (a.text == nil) ~= (b.text == nil) then return a.text ~= nil end -- (the rows without one last)
+		if byField.order and a.rank and b.rank and a.rank ~= b.rank then return a.rank > b.rank end
+		local va, vb = a.value or -math.huge, b.value or -math.huge
+		if va ~= vb then return va > vb end
+		return tostring(a.text) < tostring(b.text)
+	end)
+	local out = {}
+	if f and s.op == "sum" then -- (all of them on top)
+		local shown, plain = Shown(s.field, total)
+		out[1] = Row(L["All: %s"]:format(shown), L["%s of %s"]:format(f.label, Detail(n, have)),
+			"aggregate:all:" .. total .. ":" .. n, opLabel)
+		out[1].copyName = L["All: %s"]:format(plain)
+	end
+	for _, g in ipairs(order) do
+		local name = g.text or L["no %s"]:format(byField.label)
+		if s.by == "quality" and g.text then
+			local _, hex = QualityName(byField.num(g.sample))
+			if hex then name = hex .. g.text .. "|r" end -- (0.52.14, the player's screenshot: "|c" put before it showed)
+		end
+		local detail, copyDetail = L["%d results"]:format(g.n), nil
+		if f then
+			local shown, plain = Shown(s.field, g.value or 0)
+			detail, copyDetail = shown .. "  ·  " .. Detail(g.n, g.have), plain .. "  ·  " .. Detail(g.n, g.have)
+		end
+		local r = Row(name, detail, "aggregate:" .. s.by .. ":" .. tostring(g.text) .. ":" .. g.n .. ":" .. tostring(g.value), opLabel)
+		r.copyDetail = copyDetail
+		if g.text and base then
+			r.noActivate, r.activate, r.staysOpen = nil, Drill, true
+			r.drillTo = base .. " | " .. s.by .. ':"' .. ns.Plain(g.text) .. '"'
+			r.actionVerb = L["list them"]
+		end
+		out[#out + 1] = r
+	end
+	if loading and out[1] then out[1].detail = out[1].detail .. "  ·  " .. L["item data still coming in"] end
+	return out
+end

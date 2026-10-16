@@ -144,8 +144,9 @@ function SH.CopyText(rows, how)
 	local out, n = {}, 0
 	if how == "csv" then out[1] = SH.CSV_HEAD end
 	for _, e in ipairs(rows or {}) do
-		if type(e) == "table" and not e.noActivate then
-			local name, detail = Clean(e.name), Clean(e.detail)
+		-- (a summed-up row goes too, totals and all, its money as plain text: "| sum value >> text", 0.52.13)
+		if type(e) == "table" and (not e.noActivate or e.kind == "aggregate") then
+			local name, detail = Clean(e.copyName or e.name), Clean(e.copyDetail or e.detail)
 			if name ~= "" then
 				n = n + 1
 				if how == "csv" then

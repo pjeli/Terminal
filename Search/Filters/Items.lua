@@ -42,11 +42,12 @@ local function ItemInfo(id)
 	c = infos.old[id] -- (in use again: back into the current table below)
 	if not c then
 		if not MayAsk(id) then return nil end
-		local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, _, classID, subID, bindType = pcall(get, id)
+		local ok, name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, _, sellPrice, classID, subID, bindType = pcall(get, id)
 		if not (ok and name) then return nil end -- (not known to the client yet: asked again next time)
 		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc,
 			classID = type(classID) == "number" and classID or nil, subID = type(subID) == "number" and subID or nil,
-			bindType = type(bindType) == "number" and bindType or nil }
+			bindType = type(bindType) == "number" and bindType or nil,
+			sell = type(sellPrice) == "number" and sellPrice or nil } -- (a vendor's price for one: "| sum value", Pipes.lua)
 		if type(id) ~= "number" then return c end
 		ns.NoteQuality(id, quality) -- (its colour, should the game let go of it: Util.lua)
 	end

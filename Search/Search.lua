@@ -44,6 +44,43 @@ function Scan.Budget(self)
 	return function() return slicing and debugprofilestop() > self.sliceUntil end
 end
 
+--- The typed words, split at spaces, but a "quoted phrase" is one string (0.52.13, the player's ask: "outlaw saber"
+--- is one thing, not two words): the words, and the phrases (quote marks off, inner spaces as one) apart, in order.
+--- An open quote runs to the end (while it's being typed). A quote inside a word joins the phrase to it, quote marks
+--- off: in:"elwynn forest" is the word in:elwynn forest, -"outlaw saber" the word -outlaw saber.
+function Scan.Words(text)
+	local words, phrases = {}, {}
+	text = text or ""
+	local i, n = 1, #text
+	while i <= n do
+		local s = text:find("%S", i)
+		if not s then break end
+		local q = text:find('"', s, true)
+		local e = (text:find("%s", s) or n + 1) - 1
+		if q and q <= e then
+			local close = text:find('"', q + 1, true) or n + 1
+			local inside = text:sub(q + 1, close - 1):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+			local before = text:sub(s, q - 1)
+			-- (what follows the closing quote up to the next space stays with it: "a b"c is the phrase, then c)
+			local after_e = (text:find("%s", close + 1) or n + 1) - 1
+			local after = close <= n and text:sub(close + 1, after_e) or ""
+			if before == "" then
+				if inside ~= "" then phrases[#phrases + 1] = inside end
+				if after ~= "" then words[#words + 1] = after end
+			elseif inside ~= "" or after ~= "" then
+				words[#words + 1] = before .. inside .. after
+			else
+				words[#words + 1] = before
+			end
+			i = math.max(after_e, close) + 1
+		else
+			words[#words + 1] = text:sub(s, e)
+			i = e + 1
+		end
+	end
+	return words, phrases
+end
+
 --- Can the last keystroke's matches stand for these words? One more letter on the last word, or one more word, only
 --- narrows (every row that has the new words had the old ones); never when the last word turned into shorthand
 --- ("br" -> "brd": the shorthand matches rows the shorter word didn't), nor the other way ("sw" -> "swo": the
@@ -51,8 +88,11 @@ end
 function Scan.Narrows(last, tokens)
 	local n, ln = #tokens, #last
 	if n ~= ln and n ~= ln + 1 then return false end
+	local ea, eb = last.exact, tokens.exact
 	for i = 1, ln do
 		local a, b = last[i], tokens[i]
+		-- (a word turned into a "quoted phrase" or back: it matches other rows, not fewer of the same)
+		if ((ea and ea[a]) or false) ~= ((eb and eb[b]) or false) then return false end
 		if (i < n and a ~= b) or (i == n and b:sub(1, #a) ~= a)
 			or (i == n and a ~= b and tokens.short and tokens.short[i])
 			or (a ~= b and last.short and last.short[i]) then return false end
@@ -337,6 +377,9 @@ function UI:Search(text)
 		end
 		table.insert(res, 1, calc)
 	end
+	-- "| sum value", "| group zone": what was found, summed up (Pipes.lua; its item data asked for as filters do)
+	local agg = self.aggregate
+	if agg and ns.Aggregate then res = ns.Aggregate.Apply(agg, res, agg.base) end
 	self:RetryWhenLoaded(text)
 	return res
 end
@@ -426,8 +469,9 @@ end
 function Scan.FillShorthand(tokens)
 	local SH = ns.Shorthand
 	if not SH then return end
+	local exact = tokens.exact
 	for i = 1, #tokens do
-		local xs = SH[tokens[i]]
+		local xs = not (exact and exact[tokens[i]]) and SH[tokens[i]]
 		if xs then
 			tokens.short = tokens.short or {}
 			tokens.short[i] = xs
@@ -828,8 +872,8 @@ function Scan.Parse(self, text)
 	local sortBest -- "sort:best" (Simple mode's "upgrades" on its own): the biggest upgrades first (Scan.Finalize)
 	local advAct -- Advanced "do:use": each row's Enter that action (as Simple mode's "use ...")
 	self.noPosition = nil
-	local words = {}
-	for w in text:gmatch("%S+") do words[#words + 1] = w end
+	-- ("quoted phrases" apart: searched as one string each, never a filter or an everyday word; 0.52.13)
+	local words, phrases = Scan.Words(text)
 	-- Simple mode: two everyday words that mean one thing ("attack power food", "spell power")
 	if simple then
 		ns.Easy.JoinPairs(words)
@@ -890,6 +934,15 @@ function Scan.Parse(self, text)
 			end
 		end
 	end
+	-- the "quoted phrases": words like any other, but each must be in a row as it is (Score: tokens.exact)
+	local exact
+	for _, ph in ipairs(phrases) do
+		local l = ns.Lower(ph)
+		tokens[#tokens + 1] = l
+		exact = exact or {}
+		exact[l] = true
+	end
+	tokens.exact = exact
 	-- "sort:plan": what's planned is recipes (with no @kind, or with @profession: searched too)
 	if sortPlan and (not kinds or kinds.professions) then
 		kinds = kinds or {}
@@ -929,7 +982,8 @@ function Scan.Parse(self, text)
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
 		hard = hard, softs = softs, softWords = softWords, strictWords = strictWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, sortBest = sortBest, advAct = advAct,
-		also = also, missingGone = missingGone, goneLine = goneLine, copyPhrase = blocked == "copy" and self.blockedCopy or nil }
+		also = also, missingGone = missingGone, goneLine = goneLine, copyPhrase = blocked == "copy" and self.blockedCopy or nil,
+		exact = exact }
 end
 
 --- Simple mode: "enchanting trainer" is the trainers who teach enchanting, not the word in their title (the Journeyman
@@ -1016,6 +1070,7 @@ function Scan.Prepare(self, q)
 	-- (a trainer's profession said: as an everyday word, the sentence's little words go: "mining trainer in org", "the
 	-- enchanting trainer"; review, 0.49.17)
 	if ns.Easy and ns.Easy.On() and #tokens > 0 then tokens = Scan.DropStop(tokens, softs or q.strictWords or q.trainerAsked) end
+	tokens.exact = q.exact -- ("quoted phrases": as they are; DropStop's list is a new one)
 	local empty = #tokens == 0
 	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
 	-- the Simple overview, which scores with them too)
@@ -1311,7 +1366,8 @@ end
 
 function Scan.Finalize(self, q, out)
 	local text, kinds, tokens, empty, filters, act, overBudget = q.text, q.kinds, q.tokens, q.empty, q.filters, q.act, q.overBudget
-	if not empty and (not kinds or kinds.quests) then LinkQuests(out) end
+	-- (summed up, "| count": only what was found, no quest brought along)
+	if not empty and (not kinds or kinds.quests) and not self.aggregate then LinkQuests(out) end
 	-- sort:best (Simple mode's "upgrades"): the biggest upgrades first, by how much each beats what you wear (the gain
 	-- is:upgrade worked out for it); the other rows after them, as they were
 	if q.sortBest and ns.Filters and ns.Filters.GainOf and ns.Filters.fitMade then
@@ -1323,7 +1379,10 @@ function Scan.Finalize(self, q, out)
 	end
 	-- (a Simple mode category: every match its row counted, up to Score.LIST_MAX; not "nearest", measured for the
 	-- closest MAX_RESULTS only)
-	local res = SortAndTrim(out, (q.easyCat and not q.here) and Score.LIST_MAX or nil, overBudget)
+	-- (summed up, "| sum value": every match, ns.Aggregate.MAX at most)
+	local limit = (q.easyCat and not q.here) and Score.LIST_MAX or nil
+	if self.aggregate and ns.Aggregate then limit = ns.Aggregate.MAX end
+	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
 	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
 	-- an action word: each row's Enter does it ("use": the item's Shift+Enter action)
@@ -1461,6 +1520,7 @@ function UI.FuzzyPlain(text)
 		local query, rest = ns.Share.Split(text)
 		if rest then text = query end
 	end
+	if ns.Aggregate then text = (ns.Aggregate.Split(text)) end -- (nor "| sum value")
 	local F, out = ns.Filters, {}
 	for w in text:gmatch("%S+") do
 		local key = w:match("^(%a+):")
@@ -1492,7 +1552,7 @@ end
 --- What was typed, as a name would be written (lowercase, one space between words), for the overview's clear winner.
 function Scan.Typed(text)
 	if type(text) ~= "string" then return nil end
-	local t = ns.Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	local t = ns.Lower(text):gsub('"', ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
 	if t == "" then return nil end
 	return t
 end
@@ -1747,8 +1807,9 @@ local NEAR_EDIT = 10   -- (closer spellings always first; the usual score orders
 function UI:CloseSpellings(included, tokens, filters, out, overBudget)
 	-- need: the shortest name that could hold a close spelling of one of the words
 	local limits, need = {}, nil
+	local exact = tokens.exact
 	for i = 1, #tokens do
-		limits[i] = NearLimit(#tokens[i])
+		limits[i] = not (exact and exact[tokens[i]]) and NearLimit(#tokens[i]) or nil -- (a "quoted phrase": as it is only)
 		if limits[i] then
 			local least = #tokens[i] - limits[i]
 			if not need or least < need then need = least end
@@ -1771,7 +1832,7 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget)
 					local tk = tokens[i]
 					-- (one word: nothing had it, so no row needs looking at as it is)
 					local sc
-					if not single then sc = TokenScore(tk, short and short[i], name, lname, RowText(e)) end
+					if not single then sc = TokenScore(tk, short and short[i], name, lname, RowText(e), exact and exact[tk]) end
 					if sc then
 						total = total + sc
 					else
