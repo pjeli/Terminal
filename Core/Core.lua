@@ -57,21 +57,23 @@ end
 --- What of this kind was ever picked: { [key] = times } (its freqKeys "kind:key", the key also as a number when it is
 --- one, so a compact row's own key looks it up without building a string), or false. Lets scoring skip compact rows
 --- of kinds nobody picked, and read the rest without making "kind:key" per row.
+-- one pick count into the by-kind index: "kind:key" -> kinds[kind][key] (the key also as a number when it is one)
+local function FreqNote(kinds, k, n)
+	local id, key = nil, nil
+	if type(k) == "string" then id, key = k:match("^([^:]+):(.*)$") end
+	if not id then return end
+	local t = kinds[id]
+	if not t then t = {}; kinds[id] = t end
+	t[key] = n
+	local num = tonumber(key)
+	if num and tostring(num) == key then t[num] = n end
+end
+
 function ns:FreqKind(kind)
 	local kinds = self.freqKinds
 	if not kinds then
 		kinds = {}
-		for k, n in pairs(self.db and self.db.freq or {}) do
-			local id, key = nil, nil
-			if type(k) == "string" then id, key = k:match("^([^:]+):(.*)$") end
-			if id then
-				local t = kinds[id]
-				if not t then t = {}; kinds[id] = t end
-				t[key] = n
-				local num = tonumber(key)
-				if num and tostring(num) == key then t[num] = n end
-			end
-		end
+		for k, n in pairs(self.db and self.db.freq or {}) do FreqNote(kinds, k, n) end
 		self.freqKinds = kinds
 	end
 	return kinds[kind] or false
@@ -112,7 +114,8 @@ end
 function ns:Bump(freqKey)
 	if not freqKey or not self.db then return end
 	self.db.freq[freqKey] = (self.db.freq[freqKey] or 0) + 1
-	self.freqKinds = nil
+	-- (the index made already: this pick put in it, not the whole of db.freq read again by the next search; review, 0.53.6)
+	if self.freqKinds then FreqNote(self.freqKinds, freqKey, self.db.freq[freqKey]) end
 	-- history: most recent first, each thing once
 	local recent = self.db.recent
 	if type(recent) ~= "table" then recent = {}; self.db.recent = recent end

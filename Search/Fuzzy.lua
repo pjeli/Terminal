@@ -142,6 +142,17 @@ local function Parts(needle, n)
 	return c
 end
 
+--- The needle as it is in the name only, no letters scattered (a "quoted phrase"): Fuzzy.score's score when it is, else
+--- nil, without the scattered match worked out and thrown away (review, 0.53.6).
+function Fuzzy.substr(needle, hay, lhay)
+	local n, m = #needle, #hay
+	if n == 0 then return 0 end
+	if n > m or m > MAXLEN then return nil end
+	lhay = lhay or ns.Lower(hay)
+	if n == m then return lhay == needle and EXACT or nil end
+	return (substringScore(needle, hay, lhay, n, m))
+end
+
 function Fuzzy.score(needle, hay, lhay)
 	local n, m = #needle, #hay
 	if n == 0 then return 0 end
@@ -215,7 +226,6 @@ end
 -- scattered matches, under a name that has the letters as they are ("be": Bear before Bracers of
 -- the Eagle). A needle that is only the start of the initials (3+ letters) a little lower again.
 local INI_FULL, INI_PREFIX = WORD - 0.15, WORD - 0.4
-Fuzzy.INI_FULL, Fuzzy.INI_PREFIX = INI_FULL, INI_PREFIX
 
 local function wordChar(b)
 	return b ~= nil and ((b >= 97 and b <= 122) or (b >= 65 and b <= 90) or (b >= 48 and b <= 57) or b >= 128)

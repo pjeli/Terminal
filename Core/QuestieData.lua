@@ -96,6 +96,12 @@ local QUESTIE_DB = {} -- (an older Questie: its module, wrapped the same way)
 
 --- The data, Questie-shaped, or nil while it can't be read (see Ready).
 function QD.DB()
+	-- (the library wrapped already, and nothing it hangs on changed (the same library; Questie's module found, or no
+	-- Questie): at once. NPC filters ask per row on every keystroke; review, 0.53.6: Ready ran its checks each time)
+	if libDB and rawget(_G, "LibQuestieDB") == libFrom and (libModule or not QD.HasQuestie()) then
+		if libModule and type(libModule.npcFlags) == "table" then libDB.npcFlags = libModule.npcFlags end -- (its own, as below)
+		return libDB
+	end
 	if not QD.Ready() then return nil end
 	local L = QD.Lib()
 	if L then

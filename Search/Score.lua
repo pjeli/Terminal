@@ -117,8 +117,8 @@ end
 --- phrase as it is counts. Allocation-free.
 local function TokenScore(tk, xs, name, lname, ltext, exact)
 	if exact then -- (a "quoted phrase": in the name as it is, else in the row's text; never letters scattered)
-		local best, sub = Fuzzy.score(tk, name, lname)
-		if best and sub then return best, "name", nil end
+		local best = Fuzzy.substr(tk, name, lname)
+		if best then return best, "name", nil end
 		if ltext and find(ltext, tk, 1, true) then return TEXT_SCORE, nil, nil end
 		return nil
 	end
@@ -167,7 +167,9 @@ local function ScoreEntry(e, tokens)
 	end
 	local name, lname, short, exact = e.name, e._lname, tokens.short, tokens.exact
 	local ini = tokens.ini or IniFirst(tokens)
-	for i = 1, #tokens do
+	-- (the last word first: narrowing, the rows had every earlier word, and only the one being typed can turn one away;
+	-- the total, the name hit and nil are the same in any order. Review, 0.53.6)
+	for i = #tokens, 1, -1 do
 		local tk = tokens[i]
 		local xs = short and short[i]
 		local best, sub
@@ -175,9 +177,8 @@ local function ScoreEntry(e, tokens)
 		if exact and exact[tk] then
 			-- a "quoted phrase" (0.52.13, the player's ask): one string, in the name as it is (no letters scattered, no
 			-- initials), else in the row's text
-			best, sub = Fuzzy.score(tk, name, lname)
-			if best and sub then nameHit = true else best = nil end
-			sub = true
+			best, sub = Fuzzy.substr(tk, name, lname), true
+			if best then nameHit = true end
 		elseif where then
 			best, sub = SHORT_PRIO, true
 			if where == "name" then nameHit = true end
@@ -280,12 +281,18 @@ end
 -- (a row pinned on top has no score: Simple mode's "Advanced syntax" line, which a sliced search's first frame
 -- sorts along with the rows it shows; it stays first)
 local PINNED = 1e12
+--- The last tie-break, by key: numbers as numbers (no two strings made per compare: dozens of NPCs of one name tie on
+--- score and name; review, 0.53.6), anything else as text.
+local function KeyLess(ka, kb)
+	if type(ka) == "number" and type(kb) == "number" then return ka < kb end
+	return tostring(ka) < tostring(kb)
+end
 local function Better(a, b)
 	local sa, sb = a._score or PINNED, b._score or PINNED
 	if sa ~= sb then return sa > sb end
 	local an, bn = a._lname or "", b._lname or ""
 	if an ~= bn then return an < bn end
-	return tostring(a.key) < tostring(b.key)
+	return KeyLess(a.key, b.key)
 end
 
 UI._Better = Better -- (tests)
@@ -345,7 +352,8 @@ end
 ns.Score = {
 	NO_POS = NO_POS, TEXT_SCORE = TEXT_SCORE, MAX_RESULTS = MAX_RESULTS, LIST_MAX = LIST_MAX,
 	FreqBonus = FreqBonus, ScoreEntry = ScoreEntry, TokenScore = TokenScore, RowText = RowText,
-	NearLimit = NearLimit, NearWord = NearWord, Positions = Positions, Better = Better, SortAndTrim = SortAndTrim,
+	NearLimit = NearLimit, NearWord = NearWord, Positions = Positions, Better = Better, KeyLess = KeyLess,
+	SortAndTrim = SortAndTrim,
 }
 -- for the window (UI.lua): the matched letters of a row on screen, the sorting
 UI.Positions, UI.SortAndTrim = Positions, SortAndTrim

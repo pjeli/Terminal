@@ -252,6 +252,19 @@ end
 --- search. In a heavy list read only because a recent pick names it (loot, NPCs...: thousands of compact rows), a
 --- row's freqKey is made only when its own key is one a recent pick has (RecentKeys); a key that isn't a string or a
 --- whole number below 1e14 is looked at by its freqKey as before.
+--- A compact row's pick key ("kind:key"), made only when it can be one of the recent picks (`keys`: RecentKeys), or
+--- for a key RecentKeys can't vouch for; nil otherwise (no string made per row of a big list).
+local function CompactFreqKey(e, keys)
+	local fk = rawget(e, "freqKey")
+	if fk ~= nil then return fk end
+	local key = rawget(e, "key")
+	if key == nil or key == false then key = e.name end -- (as CompactMeta makes it: key, else name)
+	if keys[key] then return e.freqKey end
+	local t = type(key)
+	if t ~= "string" and (t ~= "number" or key % 1 ~= 0 or key <= -1e14 or key >= 1e14) then return e.freqKey end
+	return nil
+end
+
 function UI:FrequentEntries()
 	local out = {}
 	local rank = {}
@@ -265,10 +278,24 @@ function UI:FrequentEntries()
 		local p = ns.providers[id]
 		if not p.explicit and not p.lazy then
 			local list = ns:GetEntries(p)
+			local picked -- (how often each of this list was picked, for its compact rows: once per list)
 			for i = 1, #list do
 				local e = list[i]
-				local r = rank[e.freqKey]
-				local f = freq[e.freqKey]
+				local r, f
+				if not e._compact then
+					local fk = e.freqKey
+					r, f = rank[fk], freq[fk]
+				else
+					-- (a compact row: its "kind:key" made only when it can be a recent pick, its count looked up by its own
+					-- key; review, 0.53.6: two strings made per row of achievements, toys, maps... each time)
+					keys = keys or RecentKeys(rank)
+					local fk = CompactFreqKey(e, keys)
+					r = fk ~= nil and rank[fk] or nil
+					if picked == nil then picked = ns:FreqKind(id) or false end
+					local key = rawget(e, "key")
+					if key == nil or key == false then key = e.name end
+					f = picked and key ~= nil and picked[key] or nil
+				end
 				if r then
 					e._score, e._pos = 10000 - r, NO_POS
 					out[#out + 1] = e
@@ -287,18 +314,8 @@ function UI:FrequentEntries()
 				if not e._compact then
 					fk = e.freqKey
 				else
-					fk = rawget(e, "freqKey")
-					if fk == nil then
-						keys = keys or RecentKeys(rank)
-						local key = rawget(e, "key")
-						if key == nil or key == false then key = e.name end -- (as CompactMeta makes it: key, else name)
-						if keys[key] then
-							fk = e.freqKey
-						else
-							local t = type(key)
-							if t ~= "string" and (t ~= "number" or key % 1 ~= 0 or key <= -1e14 or key >= 1e14) then fk = e.freqKey end
-						end
-					end
+					keys = keys or RecentKeys(rank)
+					fk = CompactFreqKey(e, keys)
 				end
 				local r = fk ~= nil and rank[fk]
 				if r then
@@ -556,7 +573,7 @@ local function Closer(da, a, db, b)
 	if sa ~= sb then return sa > sb end
 	local an, bn = a._lname or "", b._lname or ""
 	if an ~= bn then return an < bn end
-	return tostring(a.key) < tostring(b.key)
+	return Score.KeyLess(a.key, b.key)
 end
 
 -- The closest rows so far, a heap of parallel lists (yards, row, place in the matches, its view once made) with the
@@ -874,22 +891,27 @@ function Scan.Parse(self, text)
 		ns.Easy.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe
 	end
 	local plainWord = simple and PlainWord or nil
+	local F = ns.Filters
 	for _, w in ipairs(words) do
+		-- (each word's sort: and do: read once, and lowered once; review, 0.53.6: up to three and five times a word)
+		local lw = ns.Lower(w)
+		local sort = not (simple and ns.Easy.IsAdvancedWord(w)) and F and F.SortOf and F.SortOf(w)
+		local act = not sort and F and F.ActionOf and F.ActionOf(w)
 		if simple and ns.Easy.IsAdvancedWord(w) then
 			blocked = true
-		elseif ns.Filters and ns.Filters.SortOf and ns.Filters.SortOf(w) then
-			if ns.Filters.SortOf(w) == "plan" then
+		elseif sort then
+			if sort == "plan" then
 				sortPlan = true
 				fsig[#fsig + 1] = "^plan"
-			elseif ns.Filters.SortOf(w) == "best" then
+			elseif sort == "best" then
 				sortBest = true
 				fsig[#fsig + 1] = "^best"
 			else
 				sortNear = true
 				fsig[#fsig + 1] = "^near"
 			end
-		elseif ns.Filters and ns.Filters.ActionOf and ns.Filters.ActionOf(w) then
-			advAct = ns.Filters.ActionOf(w)
+		elseif act then
+			advAct = act
 			fsig[#fsig + 1] = "!" .. advAct.label
 		elseif w:sub(1, 1) == "@" then
 			local p = ns:ResolveProvider(w:sub(2))
@@ -903,28 +925,28 @@ function Scan.Parse(self, text)
 			-- Simple mode: a few everyday words are strict ("upgrades": only what suits you, never relaxed away). They're
 			-- everyday words all the same (review, 0.48.6): "my upgrades" drops its "my", "nearest battlemaster" keeps to
 			-- friendly NPCs, and the overview looks Questie's NPCs up by them
-			if not f and simple and ns.Easy.HARD_WORDS[ns.Lower(w)] then
-				f = ns.Filters.Parse(ns.Easy.WORDS[ns.Lower(w)])
-				if f then strictWords = strictWords or {}; strictWords[#strictWords + 1] = ns.Lower(w) end
+			if not f and simple and ns.Easy.HARD_WORDS[lw] then
+				f = ns.Filters.Parse(ns.Easy.WORDS[lw])
+				if f then strictWords = strictWords or {}; strictWords[#strictWords + 1] = lw end
 				-- ("upgrades": the biggest first, as sort:best; 0.51.14, the player's ask)
-				if f and ns.Easy.WORDS[ns.Lower(w)] == "is:upgrade" then sortBest = true end
+				if f and ns.Easy.WORDS[lw] == "is:upgrade" then sortBest = true end
 			end
 			-- easy mode: everyday words ("rare", "ready", "vendor") are soft filters (Easy.lua)
 			local soft = not f and ns.Easy and ns.Easy.Word(w)
 			if f or soft then
 				filters = filters or {}
 				filters[#filters + 1] = f or soft
-				fsig[#fsig + 1] = (soft and "~" or "") .. ns.Lower(w)
+				fsig[#fsig + 1] = (soft and "~" or "") .. lw
 				if soft then
 					softs, softWords = softs or {}, softWords or {}
 					softs[#softs + 1] = soft
-					softWords[#softWords + 1] = ns.Lower(w)
+					softWords[#softWords + 1] = lw
 				else
 					hard = hard or {}
 					hard[#hard + 1] = f
 				end
 			else
-				tokens[#tokens + 1] = ns.Lower(w)
+				tokens[#tokens + 1] = lw
 			end
 		end
 	end
@@ -1251,6 +1273,11 @@ function Scan.Collect(self, q, included, sig, fresh)
 	-- run by UI:RunSearch: past this frame's share, hand back what matched so far and go on
 	-- in the next frame (tens of thousands of NPCs or quests no longer hitch one frame)
 	local overBudget = Scan.Budget(self)
+	-- (which list each run of matches came from, kept with them: narrowing the next keystroke gives each its list's id,
+	-- so a compact row's pick history is looked up once per list, as the full scan does, not once per row; review,
+	-- 0.53.6. A last mark with no id: rows added after, close spellings, are looked up per row as before)
+	local spans = {}
+	local function Span(id) spans[#spans + 1] = { from = #out + 1, id = id } end
 	-- (narrowing in a category opened for you: the last keystroke's matches still having the words are the rows the
 	-- overview kept of each list, in that order; every list must have them, else the matches are scored as before)
 	local kept
@@ -1262,10 +1289,20 @@ function Scan.Collect(self, q, included, sig, fresh)
 		end
 	end
 	if kept then
-		for k = 1, #included do AddOverviewRows(out, kept[k], nil, overBudget) end
+		for k = 1, #included do
+			Span(included[k].id)
+			AddOverviewRows(out, kept[k], included[k].id, overBudget)
+		end
 	elseif candidates then
+		local sp, j, id, picked = last.spans, 0, nil, nil
 		for i = 1, #candidates do
-			consider(candidates[i])
+			while sp and sp[j + 1] and sp[j + 1].from <= i do
+				j = j + 1
+				id = sp[j].id
+				picked = id and ns:FreqKind(id) or nil
+				Span(id)
+			end
+			consider(candidates[i], id, picked)
 			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
 		end
 	else
@@ -1273,6 +1310,7 @@ function Scan.Collect(self, q, included, sig, fresh)
 			local list = RowsOf(included, p)
 			if overBudget() then coroutine.yield(out) end -- (reading the list may have taken the share)
 			local id = p.id
+			Span(id)
 			local rows = OverviewRows(q, p, list)
 			if rows then
 				AddOverviewRows(out, rows, id, overBudget)
@@ -1285,7 +1323,8 @@ function Scan.Collect(self, q, included, sig, fresh)
 			end
 		end
 	end
-	q.overBudget = overBudget
+	Span(nil)
+	q.overBudget, q.spans = overBudget, spans
 	return out
 end
 
@@ -1298,7 +1337,7 @@ function Scan.Fallbacks(self, q, out, included, sig)
 		-- (not while a filter met data still loading: the rows it couldn't judge are left out, and the next letter
 		-- would narrow from what's left, judge nothing and never ask again)
 		if not (ns.Filters and ns.Filters.loading) then
-			self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out }
+			self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out, spans = q.spans }
 		else
 			self.lastScan = nil
 		end
@@ -1487,7 +1526,7 @@ function UI:FuzzySearch(text)
 		local name = e.name
 		if type(name) ~= "string" then return end
 		local lname, total = e._lname, 0
-		for i = 1, n do
+		for i = n, 1, -1 do -- (the last word first: narrowing, only it can turn a row away)
 			local s = score(tokens[i], name, lname)
 			if not s then return end
 			total = total + s

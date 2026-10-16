@@ -23,6 +23,15 @@ local function QDB() return QD.DB() end
 local SMALL = { npcFlags = true, friendlyToFaction = true, minLevel = true, maxLevel = true, zoneID = true, subName = true }
 local fieldCache, NONE, fieldFrom = {}, {}, nil
 function I.NpcField(id, field)
+	-- (a small field read before: from the cache, without asking for the database first; review, 0.53.6)
+	if fieldFrom and SMALL[field] then
+		local byId = fieldCache[field]
+		local v = byId and byId[id]
+		if v ~= nil then
+			if v == NONE then return nil end
+			return v
+		end
+	end
 	local DB = QDB()
 	if not DB then return nil end
 	if not SMALL[field] then return Safe(DB.QueryNPCSingle, id, field) or nil end
