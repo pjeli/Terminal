@@ -429,7 +429,7 @@
   - A pasted style string changes only the look.
   - The copy bar never cuts off a style string's last line.
   - Reading the toy and pet journals never changes their filters.
-- Lighter: WoWamp redraws less often, earned achievements no longer re-read the whole list, and `sells:` looks its sellers up once per search.
+- Lighter: earned achievements no longer re-read the whole list, and `sells:` looks its sellers up once per search.
 
 ## 0.39.4
 
