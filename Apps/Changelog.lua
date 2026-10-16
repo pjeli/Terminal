@@ -14,11 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.53.1", when = "in testing",
+		v = "0.53.2", when = "in testing",
 		items = {
 			"Filters take a quoted value, with or without a |: q:\"Rare\", quality:\"Rare\", in:\"Elwynn Forest\". Enter on a group of a summed search writes the filter you would type (q:rare, in:\"Elwynn Forest\").",
 			".zen: the faded interface takes no clicks or hovers; a click on it closes the terminal.",
 			"Opening and closing the terminal costs less: the empty prompt's suggestions no longer read your bags, quests and professions again, and .zen's fade sets the interface's alpha in steps.",
+			"A summed search \"by dungeon\" or \"by boss\" counts only dungeons and raids, not battlegrounds, professions or factions.",
 		},
 	},
 	{

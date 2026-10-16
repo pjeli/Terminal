@@ -209,3 +209,24 @@ do
 	T.check(UI2.FuzzyPlain('"outlaw saber" in:"elwynn forest" | count') == "outlaw saber ",
 		"pure fuzzy finding keeps the words, no quote marks: " .. UI2.FuzzyPlain('"outlaw saber" in:"elwynn forest" | count'))
 end
+
+-- (0.53.1, the player: "@loot q:rare | count by dungeon" listed Arathi Basin, Ruins of Ahn'Qiraj... and Leatherworking)
+-- a dungeon's or a raid's loot has a dungeon and a boss; a battleground's, a profession's or a faction's has neither
+do
+	io.write("[aggregate: by dungeon is dungeons and raids only]\n")
+	local I = ns.Integrations
+	I.NotePlace("T_Agg", "Deadmines", "dungeon", 10)
+	I.NotePlace("T_Agg", "AQ20", "raid", 60)
+	I.NotePlace("T_Agg", "AB", "other", nil)
+	I.NotePlace("T_Agg", "LW", "other", nil)
+	local function Row(content, detail) return { kind = "loot", addon = "T_Agg", content = content, detail = detail, name = "x" } end
+	local D, B, Z = A.FIELDS.dungeon.text, A.FIELDS.boss.text, A.FIELDS.zone.text
+	local dm, aq = Row("Deadmines", "Edwin VanCleef  The Deadmines"), Row("AQ20", "Ossirian  Ruins of Ahn'Qiraj")
+	local ab, lw = Row("AB", "Defiler Rewards  Arathi Basin"), Row("LW", "Leather Armor  Leatherworking")
+	local old = Row("Unknown", "Some Boss  Old Place") -- (an index from before 0.51.9: no kind)
+	check(D(dm) == "The Deadmines" and B(dm) == "Edwin VanCleef", "a dungeon's loot: its dungeon and boss")
+	check(D(aq) == "Ruins of Ahn'Qiraj" and B(aq) == "Ossirian", "a raid's: the raid and boss")
+	check(D(ab) == nil and B(ab) == nil and Z(ab) == nil, "a battleground's: no dungeon, no boss: " .. tostring(D(ab)))
+	check(D(lw) == nil and B(lw) == nil and Z(lw) == nil, "a profession's: no dungeon, no boss: " .. tostring(D(lw)))
+	check(D(old) == "Old Place", "a table of unknown kind: taken at its word")
+end

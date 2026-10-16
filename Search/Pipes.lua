@@ -1350,9 +1350,15 @@ local function Num(n) return type(n) == "number" and n or nil end
 local function Count(e) return FP.Count and FP.Count(e) or Num(e.total) or Num(e.count) end
 local function Str(s) return type(s) == "string" and s ~= "" and s or nil end
 
---- A loot row's boss and place ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText).
+--- A loot row's boss and place ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText). Only a
+--- dungeon's or a raid's: AtlasLoot's other tables (battlegrounds, professions, factions, PvP...) are no dungeon and
+--- their pages no boss (0.53.1, the player: "count by dungeon" listed Arathi Basin and Leatherworking). A table of
+--- unknown kind (an index from before 0.51.9) is taken at its word.
 local function LootParts(e)
 	if e.kind ~= "loot" then return nil end
+	local I = ns.Integrations
+	local where = I and I.LootPlace and I.LootPlace(e)
+	if where and where.kind ~= "dungeon" and where.kind ~= "raid" then return nil end
 	local d = Str(e.detail)
 	if not d then return nil end
 	local boss, place = d:match("^(.-)  (.+)$")
