@@ -180,10 +180,7 @@ local REPLIES = {
 	{ "ERR_QUEST_PUSH_DECLINED_S", "%s has declined your quest", "declined", true },
 }
 local replyPatterns
-local function Pattern(t)
-	local p = t:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"):gsub("%%%%s", "(.+)")
-	return "^" .. p
-end
+local function Pattern(t) return (ns.FormatPattern(t)) end
 
 --- A line the game said: the member's name and what it means ("on", "done", "cant", "declined") and whether it's an
 --- answer they clicked (accepted, declined); nil for any other line.
@@ -193,7 +190,7 @@ function PQ.Reply(text)
 		replyPatterns = {}
 		for _, r in ipairs(REPLIES) do
 			local g = Str(_G[r[1]]) or r[2]
-			if g:find("%s", 1, true) then replyPatterns[#replyPatterns + 1] = { Pattern(g), r[3], r[4] } end
+			if g:find("%%%d*%$?s") then replyPatterns[#replyPatterns + 1] = { Pattern(g), r[3], r[4] } end
 		end
 	end
 	for _, r in ipairs(replyPatterns) do

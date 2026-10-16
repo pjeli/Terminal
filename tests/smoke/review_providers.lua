@@ -337,3 +337,39 @@ do -- (review, 0.53.6) the row menu's backdrop set once, not on every right-clic
 	T.check(n == 0, "shown again: its backdrop as it was: " .. n)
 	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
 end
+
+do -- (review, 0.53.6) the profession spells read from the spellbook once until it changes
+	local P = T.ns.Professions
+	local get, asked = C_SpellBook and C_SpellBook.GetSpellBookItemInfo, 0
+	if get then
+		C_SpellBook.GetSpellBookItemInfo = function(...) asked = asked + 1 return get(...) end
+		P.ForgetTradeSpells()
+		P.TradeSpells(); local once = asked
+		P.TradeSpells()
+		T.check(asked == once, "read once while the spellbook is the same")
+		P.tradeFrame.scripts.OnEvent(P.tradeFrame, "SPELLS_CHANGED")
+		P.TradeSpells()
+		T.check(once == 0 or asked > once, "read again once it changes")
+		C_SpellBook.GetSpellBookItemInfo = get
+	end
+end
+
+do -- (review, 0.53.6) one walk over what you wear: a slot name the client doesn't know is left out, the rest given
+	local save = { info = _G.GetInventorySlotInfo, link = _G.GetInventoryItemLink }
+	_G.GetInventorySlotInfo = function(n) if n == "HeadSlot" then return 1 end error("no such slot") end
+	_G.GetInventoryItemLink = function(_, s) return s == 1 and "|cffffffff|Hitem:777::|h[Hat]|h|r" or nil end
+	local got = {}
+	for slotName, slotId, link, slotText, id in T.ns.WornSlots({ "BogusSlot", "HeadSlot" }) do got[#got + 1] = { slotName, slotId, id } end
+	T.check(#got == 1 and got[1][1] == "HeadSlot" and got[1][2] == 1 and got[1][3] == 777, "the known slot with its item: " .. #got)
+	_G.GetInventorySlotInfo, _G.GetInventoryItemLink = save.info, save.link
+end
+
+do -- (review, 0.53.6) the mail's auction subjects read a translation that numbers its argument ("%1$s")
+	local MA = T.ns.Mail
+	local was = _G.AUCTION_SOLD_MAIL_SUBJECT
+	_G.AUCTION_SOLD_MAIL_SUBJECT = "Auktion erfolgreich: %1$s"
+	MA.ResetSubjectsForTests()
+	T.check(MA.AuctionSubject("Auktion erfolgreich: Linen Cloth") == "sold", "a numbered argument read as one")
+	_G.AUCTION_SOLD_MAIL_SUBJECT = was
+	MA.ResetSubjectsForTests()
+end

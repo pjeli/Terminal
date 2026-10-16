@@ -71,6 +71,37 @@ function ns.Titled(s)
 	return (tostring(s or ""):gsub("%S+", ns.UpperFirst))
 end
 
+--- A format string of the game's ("%s receives loot: %sx%d.") as an anchored pattern, and for each capture the format
+--- argument it is ("%2$s" in some languages swaps them). One copy: the loot log's, the group's quest replies' and the
+--- mail's subjects and chat lines had one each, two of them without "%2$s" (review, 0.53.6).
+local PATTERN_MAGIC = { ["("] = true, [")"] = true, ["."] = true, ["+"] = true, ["-"] = true, ["*"] = true, ["?"] = true,
+	["["] = true, ["]"] = true, ["^"] = true, ["$"] = true, ["%"] = true }
+function ns.FormatPattern(fmt)
+	if type(fmt) ~= "string" or fmt == "" then return nil end
+	local out, args, i, nextArg = { "^" }, {}, 1, 1
+	while i <= #fmt do
+		local c = fmt:sub(i, i)
+		if c == "%" then
+			local num, kind, len = fmt:match("^%%(%d)%$([sd])()", i)
+			if not num then kind, len = fmt:match("^%%([sd])()", i) end
+			if kind then
+				out[#out + 1] = kind == "s" and "(.-)" or "(%d+)"
+				args[#args + 1] = tonumber(num) or nextArg
+				nextArg = nextArg + 1
+				i = len
+			else
+				out[#out + 1] = "%%"
+				i = i + ((fmt:sub(i + 1, i + 1) == "%") and 2 or 1)
+			end
+		else
+			out[#out + 1] = PATTERN_MAGIC[c] and ("%" .. c) or c
+			i = i + 1
+		end
+	end
+	out[#out + 1] = "$"
+	return table.concat(out), args
+end
+
 --- Without textures and colour codes.
 function ns.Plain(s)
 	return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))

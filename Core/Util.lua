@@ -243,6 +243,30 @@ function ns.SlotText(slot)
 	return (type(g) == "string" and g ~= "") and g or SLOT_ENGLISH[slot]
 end
 
+--- What you wear, slot by slot over `names` (the game's slot names, "HeadSlot"...): for each slot with an item,
+--- slotName, slotId, link, slotText (where it's worn as the game says it: "Finger", "Off Hand"), itemID. A slot name this
+--- client doesn't know is left out. (One walk: @items' and @durability's each had one; review, 0.53.6.)
+function ns.WornSlots(names)
+	local i = 0
+	return function()
+		while true do
+			i = i + 1
+			local slotName = names[i]
+			if not slotName then return nil end
+			local ok, slotId = pcall(GetInventorySlotInfo, slotName)
+			if ok and type(slotId) == "number" then
+				local link = ns.Str(ns.Safe(GetInventoryItemLink, "player", slotId))
+				if link then
+					local itemID, _, _, equipLoc
+					if C_Item and C_Item.GetItemInfoInstant then itemID, _, _, equipLoc = ns.Safe(C_Item.GetItemInfoInstant, link) end
+					local slotText = (ns.Str(equipLoc) and ns.Str(_G[equipLoc])) or ns.SlotText(slotId) or (slotName:gsub("Slot", ""))
+					return slotName, slotId, link, slotText, tonumber(link:match("item:(%d+)")) or ns.Num(itemID)
+				end
+			end
+		end
+	end
+end
+
 --- How long ago, said one way everywhere: "just now" (under a minute), "12 min ago", "3 h ago", "2 d ago".
 function ns.Ago(seconds)
 	local d = math.max(0, tonumber(seconds) or 0)
@@ -299,6 +323,15 @@ function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _
 function ns.ChatLocked()
 	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
 	return lock ~= nil and ns.Safe(lock) == true
+end
+
+--- ns.db[name] as a table (made when it isn't one), or nil before the saved variables are there. (Mail's and
+--- MissingRecipes' copies: review, 0.53.6.)
+function ns.DbTable(name)
+	local db = ns.db
+	if not db then return nil end
+	if type(db[name]) ~= "table" then db[name] = {} end
+	return db[name]
 end
 
 -- Small helpers several lists had a copy of each (0.52.15: one each, here)

@@ -399,38 +399,31 @@ end
 
 --- The worn items' rows, added to out.
 local function WornRows(out)
-	for _, slotName in ipairs(EQUIP_SLOTS) do
-		-- (a slot name this client doesn't know errors: that slot is left out, not every item: 0.49.2, review)
-		local okS, slotId = pcall(GetInventorySlotInfo, slotName)
-		if not (okS and type(slotId) == "number") then slotId = nil end
-		local link = slotId and GetInventoryItemLink("player", slotId)
-		if link then
-			local itemID, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
-			local name = NameOf(itemID, link)
-			-- (the game's name for where it's worn, as @gear says it: "Finger", "Off Hand", not "Finger0", "SecondaryHand")
-			local slotText = (type(equipLoc) == "string" and equipLoc ~= "" and _G[equipLoc]) or ns.SlotText(slotId) or slotName:gsub("Slot", "")
-			if name then
-				local _, _, quality = C_Item.GetItemInfo(link)
-				local bound = WornBound(slotId)
-				out[#out + 1] = {
-					-- known by the item, as in your bags: equipping swaps places, and the history keeps the piece picked
-					key = itemID or ("eq" .. slotId),
-					name = name,
-					icon = GetInventoryItemTexture("player", slotId),
-					color = QualityHex(quality),
-					link = link,
-					text = "equipped " .. slotName:gsub("Slot", "") .. " " .. ns.Lower(slotText),
-					detail = L["Equipped: %s"]:format(slotText),
-					slotName = slotName, slotId = slotId, itemID = itemID,
-					bound = bound or nil, unbound = (not bound) or nil,
-					activate = ShowEquipped,
-					secure = CHAR_SECURE,
-					isOpen = PaperDollOpen,
-					after = PointAtSlot,
-					secondary = UseInCombat, secondarySecure = USE_SPEC,
-					secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
-				}
-			end
+	-- (a slot name this client doesn't know is left out, not every item: 0.49.2, review. slotText: the game's name for
+	-- where it's worn, as @gear says it: "Finger", "Off Hand", not "Finger0", "SecondaryHand")
+	for slotName, slotId, link, slotText, itemID in ns.WornSlots(EQUIP_SLOTS) do
+		local name = NameOf(itemID, link)
+		if name then
+			local _, _, quality = C_Item.GetItemInfo(link)
+			local bound = WornBound(slotId)
+			out[#out + 1] = {
+				-- known by the item, as in your bags: equipping swaps places, and the history keeps the piece picked
+				key = itemID or ("eq" .. slotId),
+				name = name,
+				icon = GetInventoryItemTexture("player", slotId),
+				color = QualityHex(quality),
+				link = link,
+				text = "equipped " .. slotName:gsub("Slot", "") .. " " .. ns.Lower(slotText),
+				detail = L["Equipped: %s"]:format(slotText),
+				slotName = slotName, slotId = slotId, itemID = itemID,
+				bound = bound or nil, unbound = (not bound) or nil,
+				activate = ShowEquipped,
+				secure = CHAR_SECURE,
+				isOpen = PaperDollOpen,
+				after = PointAtSlot,
+				secondary = UseInCombat, secondarySecure = USE_SPEC,
+				secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
+			}
 		end
 	end
 end

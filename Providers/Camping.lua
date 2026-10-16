@@ -139,7 +139,7 @@ ns:RegisterProvider("camp", {
 	aliases = { "camp", "camping", "campfire", "campsite" },
 	collect = function()
 		local idx = P.NameIndex()
-		local out = {}
+		local out, casts = {}, {} -- (the spell opening each profession's window: worked out once per profession)
 		for _, def in ipairs(ALL) do
 			local hit = idx[def.lname]
 			if hit and hit.r.learned ~= false then -- (as the index keeps it: an older one has no learned field; review, 0.53.6)
@@ -159,8 +159,10 @@ ns:RegisterProvider("camp", {
 				}
 				-- opened like its recipe: the profession it's in (e.g. Bait and Tackle) is cast on
 				-- Enter by the game, then the recipe is selected and pointed at
-				if hit.pdata and P.MakeRecipeEntry then
-					local re = P.MakeRecipeEntry(hit.profID, hit.pdata, hit.r)
+				if hit.pdata and P.RecipeOpenFields then
+					local pd = hit.pdata
+					if casts[pd] == nil then casts[pd] = pd.spell or P.WindowSpell(pd.skillLine, pd.name, pd) or false end
+					local re = P.RecipeOpenFields(hit.profID, pd, hit.r, casts[pd])
 					e.recipeID, e.profID = re.recipeID, re.profID
 					-- (0.49.2, review: the window's names too: RecipeIsOpen matches a trade spell's window (Bait and
 					-- Tackle, keyed "spell:...") or one whose info says id 0 only by them, and RecipeAfter reads profSpell.

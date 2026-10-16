@@ -93,27 +93,21 @@ function DU.Read()
 	local out = {}
 	local dur = _G.GetInventoryItemDurability
 	if dur then
-		for _, slotName in ipairs(DU.SLOTS) do
-			local okS, slotId = pcall(GetInventorySlotInfo, slotName)
-			if okS and type(slotId) == "number" then
-				local cur, max = Safe(dur, slotId)
-				cur, max = Num(cur), Num(max)
-				local link = Str(Safe(GetInventoryItemLink, "player", slotId))
-				if cur and max and max > 0 and link then
-					local id = tonumber(link:match("item:(%d+)")) or (C_Item and C_Item.GetItemInfoInstant and Safe(C_Item.GetItemInfoInstant, link))
-					local equipLoc = C_Item and C_Item.GetItemInfoInstant and select(4, Safe(C_Item.GetItemInfoInstant, link))
-					local quality = C_Item and C_Item.GetItemInfo and select(3, Safe(C_Item.GetItemInfo, link))
-					out[#out + 1] = { name = ItemName(link, id), link = link, itemID = id, quality = quality,
-						icon = Safe(GetInventoryItemTexture, "player", slotId), cur = cur, max = max,
-						cost = (cur < max) and CostOf(link, cur, max, slotId) or nil, slotId = slotId, slotName = slotName,
-						slotText = (Str(equipLoc) and Str(_G[equipLoc])) or (ns.SlotText and ns.SlotText(slotId)) or slotName:gsub("Slot", "") }
-				end
+		for slotName, slotId, link, slotText, id in ns.WornSlots(DU.SLOTS) do
+			local cur, max = Safe(dur, slotId)
+			cur, max = Num(cur), Num(max)
+			if cur and max and max > 0 then
+				local quality = C_Item and C_Item.GetItemInfo and select(3, Safe(C_Item.GetItemInfo, link))
+				out[#out + 1] = { name = ItemName(link, id), link = link, itemID = id, quality = quality,
+					icon = Safe(GetInventoryItemTexture, "player", slotId), cur = cur, max = max,
+					cost = (cur < max) and CostOf(link, cur, max, slotId) or nil, slotId = slotId, slotName = slotName,
+					slotText = slotText }
 			end
 		end
 	end
 	local C = C_Container
 	if C and C.GetContainerItemDurability and C.GetContainerNumSlots then
-		for bag = 0, (_G.NUM_BAG_SLOTS or 4) do
+		for _, bag in ipairs(ns.Bags and ns.Bags.BagIDs() or { 0, 1, 2, 3, 4 }) do
 			for s = 1, Num(Safe(C.GetContainerNumSlots, bag)) or 0 do
 				local cur, max = Safe(C.GetContainerItemDurability, bag, s)
 				cur, max = Num(cur), Num(max)

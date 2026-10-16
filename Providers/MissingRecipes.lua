@@ -37,12 +37,7 @@ local function NpcOf(unit)
 	return tonumber(g:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)") or g:match("^Vehicle%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
 end
 
-local function Db(field)
-	local db = ns.db
-	if not db then return nil end
-	db[field] = db[field] or {}
-	return db[field]
-end
+local Db = ns.DbTable
 
 local function Dirty() ns:Changed("missing") end
 

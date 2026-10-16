@@ -67,10 +67,7 @@ local AUCTION_SUBJECTS = { sold = "AUCTION_SOLD_MAIL_SUBJECT", won = "AUCTION_WO
 	expired = "AUCTION_EXPIRED_MAIL_SUBJECT", outbid = "AUCTION_OUTBID_MAIL_SUBJECT", cancelled = "AUCTION_REMOVED_MAIL_SUBJECT" }
 local subjectPatterns
 
-local function Pattern(s)
-	local p = s:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"):gsub("%%%%s", "(.+)")
-	return "^" .. p .. "$"
-end
+local function Pattern(s) return (ns.FormatPattern(s)) end
 
 --- What an auction house mail is ("sold", "won", "expired", "outbid", "cancelled"), from its subject; nil for others.
 function MA.AuctionSubject(subject)
@@ -79,7 +76,7 @@ function MA.AuctionSubject(subject)
 		subjectPatterns = {}
 		for kind, global in pairs(AUCTION_SUBJECTS) do
 			local s = Str(_G[global])
-			if s and s:find("%s", 1, true) then subjectPatterns[kind] = Pattern(s) end
+			if s and s:find("%%%d*%$?s") then subjectPatterns[kind] = Pattern(s) end
 		end
 	end
 	for kind, p in pairs(subjectPatterns) do
@@ -299,11 +296,7 @@ MA.SAME = 10 -- (s: the same news told twice, the notification and a chat line, 
 MA.POST_WAIT = 30 -- (s a post is waited on for AUCTION_HOUSE_AUCTION_CREATED)
 
 -- db.mailSent / db.mailAuctions / db.auctionsPosted, by your character's GUID
-local function Store(name)
-	if not ns.db then return {} end
-	if type(ns.db[name]) ~= "table" then ns.db[name] = {} end
-	return ns.db[name]
-end
+local function Store(name) return ns.DbTable(name) or {} end
 local function Mine(name)
 	local key = MyKey()
 	if not key then return nil end
@@ -480,7 +473,7 @@ function MA.ChatNews(text)
 		chatPatterns = {}
 		for kind, global in pairs(CHAT_NEWS) do
 			local g = Str(_G[global])
-			if g and g:find("%s", 1, true) then chatPatterns[kind] = Pattern(g) end
+			if g and g:find("%%%d*%$?s") then chatPatterns[kind] = Pattern(g) end
 		end
 	end
 	for kind, p in pairs(chatPatterns) do

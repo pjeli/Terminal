@@ -67,11 +67,28 @@ local function DiffColor(d)
 	return DIFF_HEX[d]
 end
 
---- castSpell: the spell that opens this profession's window (false: none), once per profession;
---- worked out here when not given.
-local function MakeEntry(profID, pdata, r, castSpell)
+--- What opens a recipe in its window, on a row of its own (a recipe's, a camp's): the window's names, how the game opens
+--- it, the link. castSpell: the spell that opens this profession's window (false: none), once per profession; worked
+--- out here when not given. (Camping took a whole recipe row for these, its reagents' names asked of the server and
+--- thrown away: review, 0.53.6.)
+function P.RecipeOpenFields(profID, pdata, r, castSpell)
 	if castSpell == nil then castSpell = pdata.spell or P.WindowSpell(pdata.skillLine, pdata.name, pdata) or false end
 	castSpell = castSpell or nil
+	return {
+		recipeID = r.id,
+		profID = pdata.skillLine or profID,
+		profName = pdata.parent or pdata.name, -- (Smelting's recipes are Mining's: its skill they raise, Plan.lua)
+		profSpell = pdata.spell,
+		profWindow = pdata.name, -- (the window it's in: Smelting's, under Mining)
+		getLink = RecipeLink,
+		secure = castSpell and SpellSpec(castSpell) or nil,
+		isOpen = castSpell and RecipeIsOpen or nil,
+		after = castSpell and RecipeAfter or nil,
+	}
+end
+
+local function MakeEntry(profID, pdata, r, castSpell)
+	local open = P.RecipeOpenFields(profID, pdata, r, castSpell)
 	local parts = { pdata.name, r.cat or "" }
 	local lines = {}
 	for _, rg in ipairs(r.reagents or {}) do
@@ -90,18 +107,13 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		detail = ns.Detail(pdata.name),
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and L["Reagents: %s"]:format(table.concat(lines, ", ")) or nil,
-		getLink = RecipeLink,
-		recipeID = r.id,
+		getLink = open.getLink,
+		recipeID = open.recipeID,
 		reagents = r.reagents, -- (is:craftable; the index's own table, not a copy)
 		makesItem = r.item, -- (filters: the crafted item's stats, slot, item level; nil: asked of the game)
-		profID = pdata.skillLine or profID,
-		profName = pdata.parent or pdata.name, -- (Smelting's recipes are Mining's: its skill they raise, Plan.lua)
-		profSpell = pdata.spell,
-		profWindow = pdata.name, -- (the window it's in: Smelting's, under Mining)
+		profID = open.profID, profName = open.profName, profSpell = open.profSpell, profWindow = open.profWindow,
 		activate = RecipeActivate,
-		secure = castSpell and SpellSpec(castSpell) or nil,
-		isOpen = castSpell and RecipeIsOpen or nil,
-		after = castSpell and RecipeAfter or nil,
+		secure = open.secure, isOpen = open.isOpen, after = open.after,
 		-- Shift+Enter: link the recipe in chat
 		secondary = RecipeLinkInChat,
 		secondarySecure = RECIPE_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, -- (the game opens the chat box with it)

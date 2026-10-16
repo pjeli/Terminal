@@ -103,7 +103,18 @@ end
 --- Forever's like (skinners' tanning and so on). Same test the game's spellbook uses:
 --- C_TradeSkillUI.CanTradeSkillShowCraftingUI(spellID). Opened by casting the spell.
 P.tradeSpellNames = {}
+-- (kept until the spellbook or the skill lines change: every rebuild of the professions list, which plain searches read,
+-- went through the whole spellbook asking each spell; review, 0.53.6)
+local tradeKept
+function P.ForgetTradeSpells() tradeKept = nil end
+do
+	local f = CreateFrame("Frame")
+	for _, ev in ipairs({ "SPELLS_CHANGED", "SKILL_LINES_CHANGED", "LEARNED_SPELL_IN_TAB" }) do pcall(f.RegisterEvent, f, ev) end
+	f:SetScript("OnEvent", function() tradeKept = nil end)
+	P.tradeFrame = f -- (tests)
+end
 function P.TradeSpells()
+	if tradeKept then return tradeKept end
 	local out, seen = {}, {}
 	local api = TS()
 	if not (api and api.CanTradeSkillShowCraftingUI and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then return out end
@@ -140,6 +151,7 @@ function P.TradeSpells()
 			end
 		end
 	end
+	tradeKept = out
 	return out
 end
 

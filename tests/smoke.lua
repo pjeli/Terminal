@@ -1482,6 +1482,23 @@ do
 		P.NameIndex = real
 		Count()
 		check(known > 0 and old == known, ("an index with no learned field: the same camp objects known (%d of %d)"):format(old, known))
+		-- (review, 0.53.6) @camp doesn't ask for its recipes' reagent names: it never shows them
+		local byId, asked = C_Item.GetItemNameByID, 0
+		C_Item.GetItemNameByID = function(...) asked = asked + 1 return byId(...) end
+		P.NameIndex = function()
+			local idx = real()
+			for _, h in pairs(idx) do
+				local copy = {}
+				for k, v in pairs(h.r) do copy[k] = v end
+				copy.reagents = { { 990001, 2 } } -- (a reagent no name was ever read for)
+				h.r = copy
+			end
+			return idx
+		end
+		Count()
+		P.NameIndex = real
+		C_Item.GetItemNameByID = byId
+		check(asked == 0, "camp objects made without their reagents' names asked for: " .. asked)
 	end
 
 
