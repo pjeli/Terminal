@@ -175,6 +175,7 @@ end
 function SI.Of(e)
 	if type(e) ~= "table" then return nil end
 	local k = e.kind
-	if (k == "spells" or k == "talents" or k == "spellid" or k == "classspells") and type(e.spellID) == "number" then return e.spellID end
+	-- (not @classspell's: its tooltip lists every rank's id already; 0.54.3, the player: "redundant")
+	if (k == "spells" or k == "talents" or k == "spellid") and type(e.spellID) == "number" then return e.spellID end
 	if k == "training" and not e.isItem and type(e.wtId) == "number" then return e.wtId end
 end

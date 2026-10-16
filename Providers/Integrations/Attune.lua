@@ -631,7 +631,7 @@ local function Tooltip(e, t)
 			t:AddLine(L["Your alts: %s"]:format(table.concat(list, ", ")), DIM[1], DIM[2], DIM[3], true)
 		end
 	end
-	t:AddLine(L["Enter: show in Attune    Shift+Enter: put it in the chat box"], DIM[1], DIM[2], DIM[3], true)
+	ns.KeyHints(t, L["Enter: show in Attune    Shift+Enter: put it in the chat box"], DIM[1], DIM[2], DIM[3], true)
 end
 
 local function OpenRow(e) AT.Open(RecOf(e)) end
@@ -752,7 +752,7 @@ local function StepTooltip(e, t)
 	end
 	t:AddLine(" ")
 	t:AddLine(L["Step %d of %d of %s (Attune)"]:format(e.stepIndex or 0, #rec.steps, RowName(rec)), GOLD[1], GOLD[2], GOLD[3], true)
-	t:AddLine(L["Enter: show in Attune    Shift+Enter: put it in the chat box"], DIM[1], DIM[2], DIM[3], true)
+	ns.KeyHints(t, L["Enter: show in Attune    Shift+Enter: put it in the chat box"], DIM[1], DIM[2], DIM[3], true)
 end
 
 -- a step for chat: a quest's link, an item's, else its words; with its attunement

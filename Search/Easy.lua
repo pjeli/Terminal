@@ -967,7 +967,8 @@ end
 ----------------------------------------------------------------------
 -- One mode (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it
 -- switch to advanced when syntax is used"): Simple mode, a line with Advanced syntax running in Advanced mode that once
--- (UI:AutoAdvanced), Alt+` writing the line as Advanced syntax. db.easyMode == false (Advanced for good) is no longer
+-- (UI:AutoAdvanced; 0.54.3: the Simple words before it written in Advanced syntax, as Alt+` writes them), Alt+` writing
+-- the line as Advanced syntax (closed, it opens as ` does). db.easyMode == false (Advanced for good) is no longer
 -- offered, and a saved one from before is dropped at load (Core.lua).
 ----------------------------------------------------------------------
 
@@ -1024,7 +1025,7 @@ function E.HelpLines()
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
-		L["Advanced syntax (@kinds, key:value filters, sending to chat) works as soon as you type it, for that line; .help advanced lists it all."],
+		L["Advanced syntax (@kinds, key:value filters, sending to chat) works as soon as you type it, and the words before it are written in it too, as Alt+` does; .help advanced lists it all."],
 	}
 end
 

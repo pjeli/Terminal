@@ -15,7 +15,7 @@ local Forget, TAB_LATE = UI.Forget, UI.TAB_LATE
 local TAB_HOLD = 3
 
 --- Alt+` made this run Advanced: Simple again, and Down brings back what the Simple prompt said (nothing, when
---- Alt+` opened it closed: the Advanced text typed then isn't a Simple search). From Hide and from the frame's
+--- the line was typed in Advanced syntax: it isn't a Simple search). From Hide and from the frame's
 --- OnHide (a window the press opens can close the terminal itself: Hide then returns early).
 function UI:EndAdvancedOnce()
 	if ns.Easy then ns.Easy.tempSimple = nil end -- (Simple for this run, from fuzzy finding: over too)
@@ -343,7 +343,7 @@ end
 ----------------------------------------------------------------------
 -- Combat (0.46.14, the player's ask): open when a fight starts, the terminal goes at once (with .zen the interface
 -- is back at once too), and once it's over it comes back as it was (UI:SaveState). Opened by hand during the fight
--- (`): as it was, then nothing comes back later; any other way of opening it (Alt+`, Tab+`, a link) starts afresh.
+-- (` or Alt+`): as it was, then nothing comes back later; any other way of opening it (Tab+`, a link) starts afresh.
 ----------------------------------------------------------------------
 UI.COMEBACK_STEP = 0.25 -- (s: another text box holding the keyboard as the fight ended, looked at again this often)
 UI.COMEBACK_WAIT = 20 -- (s: waited for that long, then the terminal stays closed)
@@ -413,21 +413,20 @@ end
 
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
 --- syntax (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category
---- looks in) and the search goes on from there; closed, it opens straight in Advanced. Simple comes back when the
---- terminal closes (Hide). Already Advanced (for good or for this run): the same as `.
+--- looks in) and the search goes on from there, in Advanced mode while the line has its syntax. Closed, it opens as `
+--- does (0.54.3). Simple comes back when the terminal closes (Hide). Already Advanced (for good or for this run): the
+--- same as `.
 function UI:AdvancedOnce()
 	local edit = UI.edit
 	local E = ns.Easy
+	-- closed: it opens as ` does (0.54.3, the player: one mode, so nothing to open "in Advanced"; what's typed picks it)
+	if not self:IsShown() then return self:Toggle() end
 	-- in pure fuzzy finding: out of it first (to Advanced, the plain words kept)
 	if self.fzf then
 		self:EndFuzzy(true)
 		if not (E and E.On()) then return end
 	end
 	if not (E and E.On()) then return self:Toggle() end
-	if not self:IsShown() then
-		E.temp = { from = "" }
-		return self:Open("") -- (an empty prompt: not the tab you were on, which would set its own mode; review, 0.53.6)
-	end
 	local text = edit:GetText()
 	-- the lists what shows comes from name the @kinds ("use hearthstone": @item, the list the Hearthstone shown is in,
 	-- not every list "use" looks in): a search still going is finished first if that's quick (a category opened for
@@ -436,7 +435,9 @@ function UI:AdvancedOnce()
 	local cat = not self.categoryAuto and self.category or nil -- (a category opened on its own counts too: it's what shows)
 	local conv = E.ToAdvanced(text, self.category, done and E.ShownKinds(UI.results) or nil)
 	DropTick(conv) -- (the key's ` still comes as a typed character)
-	E.temp, E.tempSimple = { from = text, category = cat }, nil -- (Simple for a run from fuzzy finding: Advanced now)
+	-- (Simple for a run from fuzzy finding: Advanced now. `auto`: Advanced while the line has its syntax, as when it's
+	-- typed; UI:AutoAdvanced)
+	E.temp, E.tempSimple = { from = text, category = cat, auto = true }, nil
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
 	Forget(self, true)

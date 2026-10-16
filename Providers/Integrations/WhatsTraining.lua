@@ -204,7 +204,7 @@ local function Tooltip(e, t)
 		if e.baseCost and e.baseCost ~= e.cost then t:AddLine(L["%s without your discount"]:format(ns.Money(e.baseCost)), DIM[1], DIM[2], DIM[3]) end
 	end
 	for _, line in ipairs(WT.SourceLines(e)) do t:AddLine(line, 1, 1, 1, true) end
-	t:AddLine(L["Enter: show in What's Training    Shift+Enter: who teaches it, the nearest first"], DIM[1], DIM[2], DIM[3], true)
+	ns.KeyHints(t, L["Enter: show in What's Training    Shift+Enter: who teaches it, the nearest first"], DIM[1], DIM[2], DIM[3], true)
 end
 
 ----------------------------------------------------------------------

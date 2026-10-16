@@ -458,8 +458,8 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 		end
 		ns.db = TerminalDB
 		-- (0.54.1: one mode, Simple, a line with Advanced syntax running in Advanced mode that once: Advanced for good, kept
-		-- from before, dropped; the Advanced row's question with it)
-		TerminalDB.easyMode, TerminalDB.advancedAsked = nil, nil
+		-- from before, dropped; the Advanced row's question with it; 0.54.3: the history's Advanced-only marks)
+		TerminalDB.easyMode, TerminalDB.advancedAsked, TerminalDB.historyAdv = nil, nil, nil
 		return
 	elseif event == "PLAYER_LOGIN" then
 		ns:StartPrewarm(10) -- the lists, built ahead of their first search (see Prewarming)
@@ -484,8 +484,8 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 				end
 			end
 		end
-		-- Alt+` (once): Advanced mode for one run. While the terminal is open it reads that key itself; the
-		-- binding opens it straight in Advanced. Only on a free key, never taking another action's.
+		-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, the binding
+		-- opens it as ` does (0.54.3). Only on a free key, never taking another action's.
 		if not ns.db.bindingAdvancedOnce then
 			ns.db.bindingAdvancedOnce = true
 			local action = GetBindingAction("ALT-`")

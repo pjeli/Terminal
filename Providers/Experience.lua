@@ -154,7 +154,7 @@ local function Tooltip(e, t)
 	end
 	if e.resting then t:AddLine(e.mine and L["Resting now"] or L["Logged out resting (inn or city)"], 0.4, 0.6, 1) end
 	if not e.mine then t:AddLine(L["Last played %s"]:format(Ago(e.seen)), 0.6, 0.6, 0.6) end
-	t:AddLine(L["Enter: every character in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: every character in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 local ICON_ME, ICON_ALT = "Interface\\Icons\\Spell_Holy_SurgeOfLight", "Interface\\Icons\\INV_Misc_Book_09"

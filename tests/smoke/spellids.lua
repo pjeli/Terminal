@@ -66,6 +66,8 @@ do
 	check(SI.Of({ kind = "spells", spellID = 1082 }) == 1082 and SI.Of({ kind = "talents", spellID = 7 }) == 7
 		and SI.Of({ kind = "training", wtId = 3029 }) == 3029 and SI.Of({ kind = "training", wtId = "i:1", isItem = true }) == nil
 		and SI.Of({ kind = "items", spellID = 5 }) == nil, "which rows' tooltips say a spell id")
+	-- (0.54.3, the player: @classspell's tooltip lists every rank's id already: no Spell ID line under it)
+	check(SI.Of({ kind = "classspells", spellID = 1714 }) == nil, "@classspell: no Spell ID line, its ranks have them")
 	local lines = {}
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI:Open("spellid claw"); FlushAll()

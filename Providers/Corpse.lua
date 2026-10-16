@@ -45,7 +45,7 @@ local function Tooltip(e, t)
 	if e.zone then t:AddLine(e.zone, 0.8, 0.8, 0.8) end
 	local delay = _G.GetCorpseRecoveryDelay and Num(Safe(_G.GetCorpseRecoveryDelay))
 	if delay and delay > 0 then t:AddLine(L["You can take it back in %d s."]:format(math.ceil(delay)), 1, 1, 1) end
-	t:AddLine(L["Enter: show on map    Shift+Enter: set waypoint"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: show on map    Shift+Enter: set waypoint"], 0.6, 0.6, 0.6, true)
 end
 
 --- Your corpse's row while you're dead and the game says where it lies, else nil.

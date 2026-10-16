@@ -120,7 +120,7 @@ local function Tooltip(e, t)
 		t:AddDoubleLine(left, L["id %d"]:format(r[1]), mine and 0.25 or 1, 1, mine and 0.25 or 1, 0.6, 0.6, 0.6)
 	end
 	if s.talent then t:AddLine(L["A rank needs a talent first"], 1, 1, 1, true) end
-	t:AddLine(L["Enter: its Wowhead page    Shift+Enter: link it in chat"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: its Wowhead page    Shift+Enter: link it in chat"], 0.6, 0.6, 0.6, true)
 end
 
 local LAZY = {

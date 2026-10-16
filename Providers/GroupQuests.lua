@@ -251,7 +251,7 @@ local function Tooltip(e, t)
 		t:AddLine(L["The game doesn't say who's on your quests here: sharing tells (\"is already on that quest\")."], 0.6, 0.8, 1, true)
 	end
 	if e.pushable == false then t:AddLine(L["The game won't let you share this quest"], 0.6, 0.6, 0.6, true) end
-	t:AddLine(e.pushable ~= false and L["Enter: share with your party    Shift+Enter: show in your quest log"]
+	ns.KeyHints(t, e.pushable ~= false and L["Enter: share with your party    Shift+Enter: show in your quest log"]
 		or L["Enter: show in your quest log"], 0.6, 0.6, 0.6, true)
 end
 

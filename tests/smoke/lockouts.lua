@@ -147,7 +147,7 @@ do
 		local wb
 		for _, e in ipairs(UI:Search("@lockout")) do if e.world then wb = e end end
 		local tl = wb and TipLines(wb) or ""
-		check(wb and wb.mine and tl:find(ns.L["Enter: in chat    Shift+Enter: put it in the chat box"], 1, true)
+		check(wb and wb.mine and tl:find("Enter: in chat\nShift+Enter: put it in the chat box", 1, true)
 			and not tl:find("its link", 1, true), "your world boss: no link promised")
 	end
 	_G.GetNumSavedInstances, _G.GetSavedInstanceInfo, _G.GetSavedInstanceEncounterInfo = save.n, save.info, save.enc

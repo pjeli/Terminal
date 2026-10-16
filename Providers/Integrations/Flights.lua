@@ -402,7 +402,7 @@ local function Tooltip(e, t)
 			else t:AddDoubleLine(a.who, L["not learned"], 1, 1, 1, 1, 0.45, 0.35) end
 		end
 	end
-	t:AddLine(L["Enter: show on map    Shift+Enter: set waypoint"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: show on map    Shift+Enter: set waypoint"], 0.6, 0.6, 0.6, true)
 end
 
 local STATE = { [true] = L["Learned"], [false] = L["Not learned"] }

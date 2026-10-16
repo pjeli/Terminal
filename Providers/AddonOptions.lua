@@ -353,7 +353,7 @@ local function Tooltip(e, t)
 		local v = AO.Get(o)
 		if v ~= nil then t:AddDoubleLine(L["Now"], v and L["on"] or L["off"], 1, 1, 1, v and 0.25 or 1, v and 1 or 0.4, v and 0.25 or 0.4) end
 	end
-	t:AddLine(o.toggle and L["Enter: open its options    Shift+Enter: turn it on or off"] or L["Enter: open its options"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, o.toggle and L["Enter: open its options    Shift+Enter: turn it on or off"] or L["Enter: open its options"], 0.6, 0.6, 0.6, true)
 end
 
 local ROW = { activate = AO.Open, tooltip = Tooltip, icon = "Interface\\Icons\\INV_Misc_Gear_02" }

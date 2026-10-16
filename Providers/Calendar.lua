@@ -467,7 +467,7 @@ local function Tooltip(e, t)
 	if e.statusText then t:AddLine((e.statusColor or "") .. e.statusText .. (e.statusColor and "|r" or ""), 1, 1, 1) end
 	if e.invitedBy then t:AddLine(L["Invited by %s"]:format(e.invitedBy), 0.8, 0.8, 0.8) end
 	if e.desc then t:AddLine(e.desc, 0.8, 0.8, 0.8, true) end
-	t:AddLine(L["Enter: open it in the calendar    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: open it in the calendar    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 local GOLD, GREY = "|cffffd200", "|cff9d9d9d"

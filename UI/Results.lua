@@ -582,18 +582,45 @@ function UI.HasAdvancedSyntax(text)
 	return false
 end
 
---- (0.54.1, a player's ask) Advanced syntax typed in Simple mode runs in Advanced mode, this once, as Alt+` would: the
---- line as typed, no switch to confirm (E.temp, marked `auto`). Simple again when the line no longer has any, or when
---- the terminal closes. A .command or /slash line is left as it is.
+--- The line's first Advanced word: where it starts (a byte position in `raw`), or nil.
+local function FirstAdvancedAt(raw)
+	local E = ns.Easy
+	for at, w in tostring(raw or ""):gmatch("()(%S+)") do
+		if E.IsAdvancedWord(w) then return at end
+	end
+end
+
+--- (0.54.1, a player's ask) Advanced syntax typed in Simple mode runs in Advanced mode, as Alt+` would, with no switch to
+--- confirm (E.temp, marked `auto`). Simple again when the line no longer has any, or when the terminal closes. A
+--- .command or /slash line is left as it is.
+--- (0.54.3, the player: "nearest fishing trainer" and then " >>" should act like Alt+`) Simple words typed before it are
+--- written in Advanced syntax as Alt+` writes them, what's typed from the Advanced word on kept as it is: the new line
+--- and its caret are returned (Refresh puts it in the prompt, which searches it); nil when the line stays as it is.
 function UI:AutoAdvanced(text, first)
 	local E = ns.Easy
 	if not E or E.tempSimple or first == "." or first == "/" then return end
 	local adv = UI.HasAdvancedSyntax(text)
 	if adv and not E.temp and E.On() then
-		E.temp = { from = "", auto = true }
+		local raw = UI.edit:GetText()
+		local at = FirstAdvancedAt(raw)
+		local before, tail = at and raw:sub(1, at - 1) or "", at and raw:sub(at) or raw
+		local cat = not self.categoryAuto and self.category or nil
+		local conv
+		if before:find("%S") then
+			-- (the lists the last search's rows came from, when it's done and listed some: Alt+`'s @kinds)
+			local shown = not self.searchJob and E.ShownKinds(UI.results) or nil
+			if shown and next(shown) == nil then shown = nil end
+			conv = (E.ToAdvanced(before, self.category, shown):gsub("%s+$", ""))
+			conv = (conv ~= "" and (conv .. " ") or "") .. tail
+		end
+		E.temp = { from = before:gsub("^%s+", ""):gsub("%s+$", ""), category = cat, auto = true }
 		self.category, self.categoryAuto, self.action = nil, nil, nil
-		ns:Trace("advanced once: Advanced syntax typed in Simple mode")
+		ns:Trace(("advanced once: Advanced syntax typed in Simple mode%s"):format(conv and (" (%q -> %q)"):format(raw, conv) or ""))
 		self:SetStatus()
+		if conv and conv ~= raw then
+			local cursor = math.max(#conv - #tail, #conv - (#raw - (self.cursor or #raw))) -- (as far from the end as it was)
+			return conv, cursor
+		end
 	elseif not adv and E.temp and E.temp.auto then
 		E.temp = nil
 		self:SetStatus()
@@ -641,7 +668,13 @@ function UI:Refresh()
 	local text = edit:GetText():gsub("^%s+", "")
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
-	if not self.fzf then self:AutoAdvanced(text, first) end
+	if not self.fzf then
+		local conv, cursor = self:AutoAdvanced(text, first)
+		if conv then
+			self.refreshedAt = nil -- (the new line's search: now, not put off as a second one in this frame)
+			return self:SetQuery(conv, cursor)
+		end
+	end
 	text = TakeSendTo(self, text, first)
 	text = TakeAggregate(self, text, first)
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,

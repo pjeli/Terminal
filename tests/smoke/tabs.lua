@@ -121,10 +121,10 @@ UI:Hide(); FlushAll()
 ns.db.easyMode = true
 UI:EasyChanged()
 UI:AdvancedOnce(); FlushAll()
-check(UI:IsShown() and query() == "" and not ns.Easy.On(), "Alt+` closed, with tabs: an empty prompt in Advanced, as before: "
+check(UI:IsShown() and query() == "wool" and ns.Easy.On(), "Alt+` closed, with tabs: opens as ` does, on the tab you were on (0.54.3): "
 	.. query() .. " / Simple " .. tostring(ns.Easy.On()))
 UI:Hide(); FlushAll()
-check(Tabs.List()[2].text == "wool", "and the tab it left as it was: " .. tostring(Tabs.List()[2].text))
+check(Tabs.List()[2].text == "wool", "and the tab as it was: " .. tostring(Tabs.List()[2].text))
 UI:FuzzyOnce(); FlushAll()
 check(UI.fzf and query() == "", "Tab+` closed, with tabs: fuzzy finding from an empty prompt: " .. query())
 typeText("zz"); FlushAll()

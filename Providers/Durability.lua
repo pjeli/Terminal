@@ -211,7 +211,7 @@ local function Tooltip(e, t)
 			t:AddLine(L["The game doesn't say what repairing it costs here: a repair vendor shows it."], 0.6, 0.6, 0.6, true)
 		end
 	end
-	t:AddLine(e.duraKind == "total" and L["Enter: every piece in chat    Shift+Enter: the nearest repair vendor"]
+	ns.KeyHints(t, e.duraKind == "total" and L["Enter: every piece in chat    Shift+Enter: the nearest repair vendor"]
 		or (e.dura and e.dura.bag and L["Enter: show in bags    Shift+Enter: the nearest repair vendor"])
 		or L["Enter: show on character    Shift+Enter: the nearest repair vendor"], 0.6, 0.6, 0.6, true)
 end

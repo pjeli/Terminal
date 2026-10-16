@@ -70,7 +70,7 @@ local function Tooltip(e, t)
 	end
 	t:AddLine(L["It leaves this list once it sells, expires, is cancelled or comes back by mail; your Auctions tab's list is read whenever you visit the auction house."],
 		0.6, 0.8, 1, true)
-	t:AddLine(L["Enter: in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
 --- An auction up now, or whose time ran out.

@@ -45,6 +45,15 @@ end
 ns.DETAIL_SEP = "  ·  "
 function ns.Detail(...) return ns.Join(ns.DETAIL_SEP, ...) end
 
+--- A tooltip's key hints, each on a line of its own: "Enter: show on map    Shift+Enter: set waypoint" (the four spaces
+--- every language's text keeps between them) is two lines (0.54.3, the player: cleaner than one wrapped line).
+function ns.KeyHints(t, text, r, g, b)
+	if type(text) ~= "string" then return end
+	for part in (text:gsub("%s%s%s%s+", "\n") .. "\n"):gmatch("([^\n]*)\n") do
+		if part:find("%S") then t:AddLine(part, r, g, b, true) end
+	end
+end
+
 --- A row's detail with how far it is said first: "80 yd  Sells it". Always the English "N yd": the list reads it back
 --- into its distance column (List.lua FillRow, translated there) and keeps it up to date as you walk; the rest is
 --- `nearRest` (review, 0.53.6: "quest upgrades" wrote the translated "%.0f m", and lost the column on German clients).
