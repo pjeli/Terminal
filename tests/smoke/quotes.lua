@@ -88,3 +88,16 @@ do
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()
 end
+
+-- (0.53.1, the player's screenshot) a filter's value in quotes is a filter like any other, and looks it: q:"Rare",
+-- quality:"Rare", in:"elwynn forest" (spaces and all) in the filters' colour, not a bad one's
+do
+	local F, Theme = ns.Filters, ns.Theme
+	check(F.Parse('q:"Rare"') and F.Parse('quality:"Rare"') and F.Parse('in:"elwynn forest"'), "quoted values parse as filters")
+	check(F.Parse('q:""') == nil, "an empty quoted value isn't a filter")
+	for _, t in ipairs({ '@loot q:"Rare"', '@loot quality:"Rare"', 'boar in:"elwynn forest"' }) do
+		local segs = UI:SyntaxSegments(t)
+		local last = segs[#segs]
+		check(last and last[3] == Theme.SYNTAX.filter and last[1] < #t - 4, "coloured as a filter, quotes and all: " .. t)
+	end
+end

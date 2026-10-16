@@ -1521,6 +1521,9 @@ function A.Parse(steps, query)
 	end
 	spec.text = table.concat(steps, " | ")
 	spec.base = table.concat(base, " | ") -- (a group's Enter: this, then its own "| zone:...")
+	spec.query = query or ""
+	table.remove(base, 1)
+	spec.keepSteps = base -- (the keeping steps typed, each as typed: a group's Enter puts its filter before them)
 	return spec
 end
 
@@ -1568,6 +1571,32 @@ end
 local function Said(r)
 	r.noActivate, r.activate, r.actionVerb = nil, SayTotal, L["show in chat"]
 	return r
+end
+
+--- What a group's Enter writes: the search with the group's own filter added, as you'd type it (0.53.1, the player: the
+--- filters work without a "|", so "@loot q:rare", not "@loot | quality:\"Rare\""); a field no filter says the same of
+--- (kind, slot, a name with quote marks in it) keeps its rows by a step, "| slot:\"Finger\"".
+local DrillTo
+local FILTER_OF = {
+	quality = function(g, f) local q = f.num(g.sample) return q and ns.Filters.QUALITIES and ns.Filters.QUALITIES[q + 1] and ("q:" .. ns.Filters.QUALITIES[q + 1]) end,
+	level = function(g) return "lvl:" .. g.text end,
+	ilvl = function(g) return "ilvl:" .. g.text end,
+	count = function(g) return "count:" .. g.text end,
+	zone = function(g) return 'in:"' .. g.text .. '"' end,
+	dungeon = function(g) return 'in:"' .. g.text .. '"' end,
+	boss = function(g) return 'in:"' .. g.text .. '"' end,
+	type = function(g) return 'type:"' .. g.text .. '"' end,
+	subtype = function(g) return 'type:"' .. g.text .. '"' end,
+}
+DrillTo = function(spec, by, g)
+	local text = ns.Plain(g.text)
+	local make = not text:find('"', 1, true) and FILTER_OF[by]
+	local word = make and make({ text = text, sample = g.sample }, A.FIELDS[by])
+	local steps = {}
+	for _, st in ipairs(spec.keepSteps or {}) do steps[#steps + 1] = " | " .. st end
+	-- (a space after the filter: the caret right after a key:value would list its values to pick, not the rows)
+	if word then return (spec.query:gsub("%s+$", "")) .. " " .. word .. (#steps > 0 and table.concat(steps) or " ") end
+	return spec.base .. " | " .. by .. ':"' .. text:gsub('"', "") .. '"'
 end
 
 --- A group's Enter: the same search, keeping that group's rows (Shift+Left goes back).
@@ -1683,7 +1712,7 @@ function A.Apply(spec, res, base)
 		r.copyDetail = copyDetail
 		if g.text and base then
 			r.noActivate, r.activate, r.staysOpen = nil, Drill, true
-			r.drillTo = base .. " | " .. s.by .. ':"' .. ns.Plain(g.text):gsub('"', "") .. '"'
+			r.drillTo = DrillTo(spec, s.by, g)
 			r.actionVerb = L["list them"]
 		end
 		out[#out + 1] = r

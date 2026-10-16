@@ -9,8 +9,8 @@ local L = ns.L
 -- How: UIParent's alpha (every frame of the interface is under it) is faded, and Terminal's own frames are set to
 -- ignore their parent's alpha (SetIgnoreParentAlpha), so they stay as they are; a black frame over the world and under
 -- Terminal (HIGH strata, the terminal is DIALOG) dims the screen. Alpha only: nothing is hidden or moved, so key
--- bindings, secure buttons and clicks all work as before (a faded bar still takes a click where it is). Alpha isn't
--- protected, and nothing of Blizzard's Lua is called. A client without SetIgnoreParentAlpha only gets the dimming.
+-- bindings and secure buttons work as before. Alpha isn't protected, and nothing of Blizzard's Lua is called. The mouse
+-- doesn't reach the faded interface: the dimming frame takes it (a click on it closes the terminal; 0.53.1). A client without SetIgnoreParentAlpha only gets the dimming.
 --
 -- The dimming takes the weather's colour (0.50.6, the player's ask: subtle): bluer in rain, paler in snow, warmer in a
 -- sandstorm, as strong as the weather is (C_Weather.GetCurrentWeather: its type and intensity, 12.1.5); clear skies,
@@ -108,7 +108,14 @@ local function Dim()
 	dim:SetFrameStrata("HIGH") -- (over the interface, under the terminal)
 	dim:SetFrameLevel(1) -- (under the drag grid, also HIGH)
 	dim:SetAllPoints(UIParent)
-	dim:EnableMouse(false) -- (clicks go through to the world)
+	-- (0.53.1, the player: the faded interface still took clicks and hovers where it was, stray clicks set things off)
+	-- while faded, the dimming takes the mouse: nothing under it is clicked or hovered, and a click on it closes the
+	-- terminal, as clicking away from it would; the wheel still turns the camera. Back to clicks going through as soon
+	-- as the interface comes back (MoveTo).
+	dim:EnableMouse(false)
+	dim:SetScript("OnMouseDown", function()
+		if ns.UI and ns.UI:IsShown() then ns.UI:Hide() end
+	end)
 	if dim.SetIgnoreParentAlpha then pcall(dim.SetIgnoreParentAlpha, dim, true) end
 	local t = dim:CreateTexture(nil, "BACKGROUND")
 	t:SetAllPoints(dim)
@@ -200,12 +207,19 @@ function Z.KeepOwn()
 	for _, f in ipairs(ns.Panel and ns.Panel.Frames and ns.Panel.Frames() or {}) do Keep(f) end
 end
 
---- The look at a point of the fade (v: 0 = as it was, 1 = faded away), eased.
+--- The look at a point of the fade (v: 0 = as it was, 1 = faded away), eased. The interface's alpha in Z.STEPS steps,
+--- the dimming every frame: UIParent's alpha goes down through every frame of the interface, and on a fast screen a
+--- fade was 30 of those as Terminal opened and closed (0.53.1, the player: a CPU spike).
+Z.STEPS = 10
+local shownStep
 local function Apply(v)
 	local e = v * v * (3 - 2 * v)
-	if Z.Can() then
-		pcall(UIParent.SetAlpha, UIParent, (uiAlpha or 1) * (1 - e))
-		for f, a in pairs(also or {}) do pcall(f.SetAlpha, f, a * (1 - e)) end
+	local s = math.floor(e * Z.STEPS + 0.5)
+	if Z.Can() and s ~= shownStep then
+		shownStep = s
+		local q = s / Z.STEPS
+		pcall(UIParent.SetAlpha, UIParent, (uiAlpha or 1) * (1 - q))
+		for f, a in pairs(also or {}) do pcall(f.SetAlpha, f, a * (1 - q)) end
 	end
 	local d = Dim()
 	d:SetAlpha(Z.DimAlpha() * e)
@@ -216,7 +230,7 @@ local function Done()
 	Z.active = false
 	Tinting(false)
 	ShowRest()
-	uiAlpha, also = nil, nil
+	uiAlpha, also, shownStep = nil, nil, nil
 	ns:Trace("zen: the interface is back")
 end
 
@@ -236,6 +250,7 @@ local function MoveTo(t, instant)
 	Z.driver = driver
 	target = t
 	if t == 0 then ShowRest() else HideRest() end -- (at once both ways: their drawing can't fade)
+	pcall(Dim().EnableMouse, Dim(), t > 0) -- (the faded interface takes no clicks: Dim)
 	if instant or not (ns.Theme and ns.Theme.Animation()) then
 		level = t
 		Apply(level)
@@ -252,6 +267,7 @@ function Z.Opened()
 	if uiAlpha == nil and Z.Can() then
 		local ok, a = pcall(UIParent.GetAlpha, UIParent)
 		uiAlpha = ok and type(a) == "number" and a or 1
+		shownStep = nil
 		also = {}
 		for _, name in ipairs(Z.ALSO) do
 			local f = _G[name]

@@ -1235,6 +1235,24 @@ do
 	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.dim:IsShown() and not Zen.active and Zen.driver.scripts.OnUpdate == nil
 		and math.abs(mm:GetAlpha() - 0.8) < 1e-9, "back as it was (0.9; the minimap 0.8), the dimming gone: " .. P:GetAlpha())
 	check(fps:IsShown() and math.abs(fps:GetAlpha() - 1) < 1e-9, "the frame-rate counter back too: " .. tostring(fps:GetAlpha()))
+	-- (0.53.1, the player: a CPU spike as Terminal opens and closes) UIParent's alpha goes through the whole interface: a
+	-- fade at 240 frames a second sets it in steps, not every frame; the dimming moves every frame
+	local setAlpha, sets, dims = P.SetAlpha, 0, 0
+	P.SetAlpha = function(self, a) sets = sets + 1 return setAlpha(self, a) end
+	local dimSet = Zen.dim.SetAlpha
+	Zen.dim.SetAlpha = function(self, a) dims = dims + 1 return dimSet(self, a) end
+	UI:Open()
+	for _ = 1, 60 do Step(1 / 240) end
+	check(P:GetAlpha() == 0 and sets <= 11 and dims >= 40,
+		("a fade at 240 fps: the interface's alpha set %d times (at most 11), the dimming's %d"):format(sets, dims))
+	sets = 0
+	UI:HideNow()
+	UI.frame.scripts.OnHide(UI.frame)
+	T.FlushAll()
+	for _ = 1, 60 do Step(1 / 240) end
+	check(math.abs(P:GetAlpha() - 0.9) < 1e-9 and not Zen.active and sets <= 11,
+		("and back: %d times, as it was: %s"):format(sets, tostring(P:GetAlpha())))
+	P.SetAlpha, Zen.dim.SetAlpha = setAlpha, dimSet
 	-- one of Terminal's apps in its place: still Terminal; back once it closes
 	local apps = ns.Panel.Registered()
 	local appShown = false
@@ -1284,8 +1302,13 @@ do
 	P.SetIgnoreParentAlpha = false
 	UI:Open()
 	check(Zen.active and math.abs(P:GetAlpha() - 0.9) < 1e-9 and Zen.dim:IsShown(), "no SetIgnoreParentAlpha: only the dimming")
-	UI:HideNow(); UI.frame.scripts.OnHide(UI.frame); T.FlushAll()
-	check(not Zen.active and not Zen.dim:IsShown(), "and back")
+	-- (0.53.1, the player) the faded interface takes no clicks or hovers: the dimming takes the mouse, and a click on it
+	-- closes the terminal; back to clicks going through once the interface is back
+	check(Zen.dim.mouse == true, "faded: the dimming takes the mouse (nothing under it is clicked)")
+	Zen.dim.scripts.OnMouseDown(Zen.dim, "LeftButton")
+	check(not UI:IsShown(), "a click on the dimming closes the terminal")
+	UI.frame.scripts.OnHide(UI.frame); T.FlushAll()
+	check(not Zen.active and not Zen.dim:IsShown() and Zen.dim.mouse == false, "and back, clicks going through again")
 	P.SetIgnoreParentAlpha = nil
 	-- (0.46.17, the player's screenshot: right after a /reload no tooltip ever showed until Terminal was opened again:
 	-- the tooltip is made the first time it's needed, after .zen had faded UIParent, and faded with it) a frame of

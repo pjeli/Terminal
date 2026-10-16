@@ -134,7 +134,8 @@ local function ParseOne(word)
 	key = Lower(key)
 	local make = KEYS[key]
 	if not make then return nil end
-	value = Lower(value)
+	value = Lower(value):gsub('"', "") -- (a quoted value, q:"Rare", in:"elwynn forest": the words; 0.53.1, the player)
+	if value == "" then return nil end
 	if SPACED[key] then value = value:gsub("_", " ") end
 	return make(value) or nil
 end

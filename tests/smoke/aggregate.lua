@@ -110,12 +110,19 @@ do
 	r = Rows("@item -bolt | group zone")
 	UI:Activate(1)
 	FlushAll()
-	check(UI.edit:GetText() == '@item -bolt | zone:"Elwynn Forest"' and UI:IsShown(), "Enter on a group: its rows, kept by a step: "
+	check(UI.edit:GetText() == '@item -bolt in:"Elwynn Forest" ' and UI:IsShown(), "Enter on a group: its rows, by the filter for it (0.53.1): "
 		.. UI.edit:GetText())
 	local got = {}
 	for _, e in ipairs(UI.Results()) do got[#got + 1] = e.name end
 	table.sort(got)
 	check(table.concat(got, ",") == "Linen Cloth,Rare Ring", "the group's rows: " .. table.concat(got, ","))
+
+	-- (0.53.1) a quality group's Enter: the filter you'd type, no "|"
+	r = Rows("@item -bolt | count by quality")
+	UI:Activate(1)
+	FlushAll()
+	check(UI.edit:GetText() == "@item -bolt q:rare " and UI.Results()[1] and UI.Results()[1].name == "Rare Ring",
+		"Enter on the Rare group: @item -bolt q:rare: " .. UI.edit:GetText() .. " / " .. tostring(UI.Results()[1] and UI.Results()[1].name) .. " #" .. #UI.Results())
 
 	-- chained: keep, then sum
 	r = Rows("@item | q:rare | sum value")

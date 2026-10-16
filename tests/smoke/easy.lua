@@ -1716,6 +1716,7 @@ Run("examples name your professions, not their trade spells", function()
 	ns.Integrations.AddonMissing = function() return false end
 	Use({ { "professions", { label = "Profession", aliases = { "profession" }, collect = Rows({
 		{ name = "Smelting", spellID = 2656, parentName = "Mining" }, { name = "Mining", skillLine = 186 } }) } } })
+	ns:GetEntries(ns.providers.professions) -- (built, as the lists are after login: suggestions never build them, 0.53.1)
 	local ok, err = pcall(function()
 		local mine = table.concat(E.PersonalExamples(false), " | ") .. " | " .. table.concat(E.PersonalExamples(true), " | ")
 		check(not mine:find("smelting", 1, true) and mine:find("try: mining skillup", 1, true) and mine:find("try: nearest mining trainer", 1, true),

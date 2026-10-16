@@ -456,6 +456,14 @@ function UI:SyntaxSegments(text, plain)
 			pos = pos + #sp
 		else
 			local word = text:match("^%S+", pos)
+			-- (a quote opened in it: the word runs to where it closes, spaces and all, as the search reads it: in:"elwynn
+			-- forest" is one filter; 0.53.1, the player: q:"Rare" showed as a bad filter)
+			local _, quotes = word:gsub('"', "")
+			if quotes % 2 == 1 then
+				local close = text:find('"', pos + #word, true)
+				local stop = close and ((text:find("%s", close) or #text + 1) - 1) or #text
+				word = text:sub(pos, stop)
+			end
 			local color = base
 			if EasyOn() and ns.Easy.IsAdvancedWord(word) then
 				color = bad -- (Simple mode: Advanced syntax isn't taken)

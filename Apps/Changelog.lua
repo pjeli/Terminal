@@ -14,6 +14,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.53.1", when = "in testing",
+		items = {
+			"Filters take a quoted value, with or without a |: q:\"Rare\", quality:\"Rare\", in:\"Elwynn Forest\". Enter on a group of a summed search writes the filter you would type (q:rare, in:\"Elwynn Forest\").",
+			".zen: the faded interface takes no clicks or hovers; a click on it closes the terminal.",
+			"Opening and closing the terminal costs less: the empty prompt's suggestions no longer read your bags, quests and professions again, and .zen's fade sets the interface's alpha in steps.",
+		},
+	},
+	{
 		v = "0.53.0", when = "released October 2026",
 		items = {
 			"The empty prompt's suggestions fit where you are (a city, out in the world, a dungeon) and the addons you have.",
@@ -53,19 +61,6 @@ CL.LOG = {
 			"Alt+click a chat link to look it up in Terminal (Ctrl+click is the dressing room's again).",
 			"in:warband is gone (WoW Forever has no warband bank).",
 			"A review of the whole addon: many fixes (\"who needs blessing of kings\", in:bags, \"summon voidwalker\", spells on macros, upgrades for one-handers, the row menu's Send) and less work while you type and play.",
-		},
-	},
-	{
-		v = "0.50.0", when = "released October 2026",
-		items = {
-			"The calendar: @calendar (Simple mode: \"holidays\", \"what's on this week\", \"today\", \"next darkmoon faire\", \"my invites\", \"guild events\") lists what's on from today to the end of next month, each with when it starts and ends to the minute: holidays such as the Darkmoon Faire or the Stranglethorn Fishing Extravaganza, your, your guild's and your communities' events with your answer, invitations you haven't answered yet, raid resets. Enter opens the calendar on the event, Shift+Enter puts it in the chat box. Advanced: is:holiday, is:invite, when:week.",
-			"Quests by their reward: \"outlaw sabre quest\" or \"quest for outlaw sabre\" lists the quest that rewards it, for your faction (Advanced: @questie reward:outlaw_sabre). And the quests before one: \"quest chain for the missing diplomat\" (Advanced: <quest> > chain) lists them first to last.",
-			"Trainers by what they teach, the nearest ones without saying \"nearest\": \"enchanting trainer\", \"mage trainer\", \"hunter pet trainer\", \"demon trainer\" (\"pet trainer\" alone is your class's), several professions at once; the Journeyman Enchanter, the Herbalists and the Master Mages are in. A place said keeps to it: \"mining trainer in org\".",
-			"\"recipes to learn\" keeps to the ones your skill allows now, and the footer says how many more need more skill; \"all recipes to learn\" or \"recipes i'm missing\" lists every one.",
-			"Opening a profession window no longer says \"Indexed Blacksmithing: 120 known recipes\" in chat (debug mode still does).",
-			"A full review, the keys and clicks: Enter does what the footer says after a Shift+Enter or a click set it up; a window opened while lists still load closes Terminal and is pointed at; AltGr letters type (Polish, Czech, Hungarian layouts); a key you bound to Terminal closes it too; F1, .changelog and .atop catch the mouse and close when Terminal opens.",
-			"Searches: \"not\" and \"-\" work with any language's letters; \"cloak without stamina\", \"reset my keybinds\", \"where is the ah\" and \"how do i get to orgrimmar\" are searches again, not other questions; \"what does my group need\" asks the group; \"leveling plan\" plans all your professions; sqrt(2), max(3, 5) and the like add up; items \"of the Monkey\" and \"of the Bear\" each keep their own stats.",
-			"Your things: worn bows, wands and relics, and keys on the keyring, are found; \"what killed me\" answers with this character's deaths only; a new sale's news stays until its own mail comes; @mail, @drop and @combatlog say why when they're empty; camp objects and talents open right with their window already up; Questie's NPCs open and get pinned at the spawn the row measures; Quick Keybind Mode starts from the Keybindings page's own button.",
 		},
 	},
 }

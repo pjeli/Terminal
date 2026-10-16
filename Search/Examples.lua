@@ -77,11 +77,13 @@ local PRIMARY = { WARRIOR = "str", PALADIN = "str", DEATHKNIGHT = "str", ROGUE =
 	MAGE = "int", WARLOCK = "int", PRIEST = "int", DRUID = "int", SHAMAN = "int" }
 E.rand = math.random
 
+--- A list's rows as last built, never built again here (0.53.1, the player: a CPU spike on opening: the suggestions'
+--- list, made again a minute on, rebuilt your bags, quest log and professions each time). A few minutes old is fine for
+--- a suggestion; a list never built yet (or let go) gives none this time.
 local function Entries(id)
 	local p = ns.providers[id]
-	if not p then return {} end
-	local ok, list = pcall(ns.GetEntries, ns, p)
-	return ok and type(list) == "table" and list or {}
+	local list = p and rawget(p, "_entries")
+	return type(list) == "table" and list or {}
 end
 local function Pick(list)
 	if #list == 0 then return nil end
