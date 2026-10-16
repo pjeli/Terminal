@@ -160,3 +160,18 @@ do -- ns.HasText: a row's own text or a FontString's, exact (or starting with it
 		and ns.HasText(Row("SECRET", FS("Mace")), "Mace"), "exact, by prefix when asked, a secret skipped and the next text read")
 	_G.issecretvalue = was
 end
+
+do -- (review, 0.53.6) "usable by you" is kept per character: with its surname where characters have one
+	local F, name, regional, realm = T.ns.Filters, _G.UnitName, _G.RegionalUniqueNamesEnabled, _G.GetRealmName
+	_G.UnitName = function() return "Plamen", "Warr" end
+	_G.RegionalUniqueNamesEnabled = function() return true end
+	_G.GetRealmName = function() return "Forever" end
+	local a = F._MyName()
+	_G.UnitName = function() return "Plamen", "Mage" end
+	local b = F._MyName()
+	T.check(a and b and a ~= b and a:find("Warr", 1, true), "two characters of one first name are two: " .. tostring(a) .. " / " .. tostring(b))
+	_G.RegionalUniqueNamesEnabled = nil
+	T.check(F._MyName() == "Plamen@Forever", "no surnames: the name and realm as before: " .. tostring(F._MyName()))
+	T.check(T.ns.SurnameSeparator() == nil, "no surnames: no separator")
+	_G.UnitName, _G.RegionalUniqueNamesEnabled, _G.GetRealmName = name, regional, realm
+end

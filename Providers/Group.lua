@@ -178,11 +178,7 @@ function GR.NameOf(unit)
 	name, second = Str(name), Str(second)
 	if not name then return nil end
 	if not second then return name end
-	if _G.RegionalUniqueNamesEnabled and Safe(_G.RegionalUniqueNamesEnabled) then
-		local C = _G.Constants and _G.Constants.CharacterNameSeparatorConsts
-		return name .. (C and C.CHARACTERNAME_SURNAME_SEPARATOR or " ") .. second
-	end
-	return name .. "-" .. second
+	return name .. (ns.SurnameSeparator() or "-") .. second
 end
 
 --- The group's units now: "player", then party1..4, or raid1..40 (you among them).

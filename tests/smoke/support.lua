@@ -16,6 +16,17 @@ do -- filters: stat:mp5 (a digit in the stat word), swapped ranges, _ for a spac
 	check(F.Parse("stat:mp5") ~= nil and P("stat:mp5")(band), "stat:mp5 is a filter (its word has a digit) and finds mana regen")
 	check(P("stat:mp5>=5")(band) and not P("stat:mp5>6")(band), "stat:mp5>=5: with a number")
 	check(F.Parse("stat:5mp") == nil, "a stat word still starts with a letter")
+	-- (review, 0.53.6) a stat word's part inside another stat's key isn't that stat
+	C_Item.GetItemStats = function() return { ITEM_MOD_HEALTH_REGENERATION_SHORT = 6, ITEM_MOD_RANGED_ATTACK_POWER_SHORT = 20 } end
+	F.ClearCache()
+	check(not P("stat:mp5")(band) and not P("stat:healing")(band) and not P("stat:ap")(band) and P("stat:rap")(band),
+		"health regen isn't mp5 or healing; ranged attack power is rap, not ap")
+	C_Item.GetItemStats = function() return { ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 9, ITEM_MOD_POWER_REGEN0_SHORT = 4 } end
+	F.ClearCache()
+	check(P("stat:sp")(band) and P("stat:mp5")(band), "spell damage done is sp; the client's mana per 5 is mp5")
+	check(F.StatKinds({ ITEM_MOD_HEALTH_REGENERATION_SHORT = 6 }).mp5 == nil, "upgrades don't weigh hp5 as mp5")
+	C_Item.GetItemStats = function() return { ITEM_MOD_MANA_REGENERATION_SHORT = 6 } end
+	F.ClearCache()
 	check(F.Range("30-20")(25) and F.Range("30-20")(20) and not F.Range("30-20")(31), "a range given backwards (30-20) is 20-30")
 	check(P("in:elwynn_forest")({ zone = "Elwynn Forest" }) and not P("in:elwynn_forest")({ zone = "Elwynn" }), "in:elwynn_forest: _ stands for a space")
 	check(P("type:one-handed_swords")({ itemID = 200 }) == false, "type: takes _ as a space too (no match here)")

@@ -178,6 +178,7 @@ local STAT_WORDS = {
 	sta = "STAMINA", stam = "STAMINA", stamina = "STAMINA", int = "INTELLECT", intellect = "INTELLECT",
 	spi = "SPIRIT", spirit = "SPIRIT", armor = "RESISTANCE0", armour = "RESISTANCE0",
 	ap = "ATTACK_POWER", attackpower = "ATTACK_POWER", sp = "SPELL_POWER", spellpower = "SPELL_POWER",
+	rap = "RANGED_ATTACK_POWER", rangedattackpower = "RANGED_ATTACK_POWER",
 	heal = "HEAL", healing = "HEAL", crit = "CRIT", hit = "HIT", haste = "HASTE", dodge = "DODGE",
 	parry = "PARRY", block = "BLOCK", def = "DEFENSE", defense = "DEFENSE", mp5 = "REGEN",
 	dps = "DAMAGE_PER_SECOND", holy = "RESISTANCE1", fire = "RESISTANCE2", nature = "RESISTANCE3",
@@ -185,14 +186,26 @@ local STAT_WORDS = {
 	-- weapon damage: no item stat has it (StatIs never matches it); sharpening stones, weightstones: their effect text
 	weapondamage = "WEAPON_DAMAGE", wdmg = "WEAPON_DAMAGE", weapon_damage = "WEAPON_DAMAGE",
 }
-F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "ap", "sp", "healing",
+F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "ap", "rap", "sp", "healing",
 	"crit", "hit", "haste", "dodge", "parry", "block", "defense", "mp5", "dps", "fire", "frost",
 	"nature", "shadow", "arcane", "holy", "weapondamage" }
 
+-- a stat word's part, where the part alone also names other stats in the game's keys (review, 0.53.6: mp5 found
+-- HEALTH_REGEN, hp5; healing found HEALTH; ap ranged attack power, which has its own word; sp missed the older
+-- SPELL_DAMAGE_DONE). Upgrades.lua's STAT_KINDS tells them apart the same way.
+local KEY_PARTS = {
+	REGEN = { "MANA_REGEN", "POWER_REGEN0" }, HEAL = { "HEALING" }, SPELL_POWER = { "SPELL_POWER", "SPELL_DAMAGE" },
+	ATTACK_POWER = { "MOD_ATTACK_POWER", "FERAL_ATTACK_POWER" },
+}
 --- Does this stat key (ITEM_MOD_STAMINA_SHORT) answer to the typed word?
 local function StatIs(key, word)
 	local part = STAT_WORDS[word]
-	if part then return key:find(part, 1, true) ~= nil end
+	if part then
+		for _, p in ipairs(KEY_PARTS[part] or { part }) do
+			if key:find(p, 1, true) then return true end
+		end
+		return false
+	end
 	local n = statNames[key] -- (lowercased once per key, not per stat per row per keystroke)
 	if not n then
 		local shown = _G[key]

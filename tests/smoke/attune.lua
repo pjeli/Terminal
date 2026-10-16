@@ -290,6 +290,10 @@ do
 	_G.UnitName = function() return "Tester" end
 	AT.ForgetToon()
 	check(AT.MyToon() == nil, "two records start with it: none taken")
+	-- (review, 0.53.6) both names, no record of them yet: not an alt's with the same first name
+	_G.UnitName = function() return "Guildie", "Newcomer" end
+	AT.ForgetToon()
+	check(AT.MyToon() == nil, "both names and no record of them: not the record of another Guildie")
 	_G.UnitName = function() return "Tester", "Prime" end
 	AT.ForgetToon()
 

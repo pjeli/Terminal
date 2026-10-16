@@ -85,9 +85,7 @@ end
 function SH.WhisperTarget(who)
 	local first, rest = who:match("^(%S+)%s+(.-)$")
 	if not first then return who end
-	local regional = _G.RegionalUniqueNamesEnabled and ns.Safe(_G.RegionalUniqueNamesEnabled)
-	local C = regional and _G.Constants and _G.Constants.CharacterNameSeparatorConsts
-	return first .. (C and C.CHARACTERNAME_SURNAME_SEPARATOR or " ") .. rest
+	return first .. (ns.SurnameSeparator() or " ") .. rest
 end
 
 --- Where to send: { cmd = "/p", label = "party" }; { pending = true } while the channel is still to be

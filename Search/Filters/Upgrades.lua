@@ -23,11 +23,12 @@ F.GEAR_EMPTY, F.GEAR_ASK = 10, 40
 F.GEAR_NEAR = 6
 local NEVER = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 
--- what a stat key is (ITEM_MOD_STRENGTH_SHORT -> "str"): the first part of the key that matches, in this order
+-- what a stat key is (ITEM_MOD_STRENGTH_SHORT -> "str"): the first part of the key that matches, in this order (not
+-- HEALTH_REGEN: hp5 isn't mp5; review, 0.53.6)
 local STAT_KINDS = {
 	{ "RANGED_ATTACK_POWER", "rap" }, { "ATTACK_POWER", "ap" }, { "STRENGTH", "str" }, { "AGILITY", "agi" },
 	{ "STAMINA", "sta" }, { "INTELLECT", "int" }, { "SPIRIT", "spi" }, { "HEALING", "heal" }, { "SPELL_DAMAGE", "sp" },
-	{ "SPELL_POWER", "sp" }, { "CRIT", "crit" }, { "HIT", "hit" }, { "HASTE", "haste" }, { "REGEN", "mp5" },
+	{ "SPELL_POWER", "sp" }, { "CRIT", "crit" }, { "HIT", "hit" }, { "HASTE", "haste" }, { "MANA_REGEN", "mp5" }, { "POWER_REGEN0", "mp5" },
 	{ "DAMAGE_PER_SECOND", "dps" }, { "RESISTANCE0", "armor" }, { "DEFENSE", "def" }, { "DODGE", "dodge" },
 	{ "PARRY", "parry" }, { "BLOCK", "block" },
 }
@@ -202,13 +203,15 @@ function F.SetGain(e, g) gains[e] = g end
 --- Who "usable by you" is kept for: this character (by name). Not the class (review, 0.51.25): one hunter wears mail
 --- from 40, another not yet; weapon skills are each one's own. (Names have no ; , + or -.)
 local function MyName()
-	local ok, name = pcall(_G.UnitName or function() end, "player")
-	if not (ok and type(name) == "string" and not Secret(name) and name ~= "" and not name:find("[;,%+%-@]")) then return nil end
+	-- (with its surname where characters have one: "Plamen Warr" and "Plamen Mage" are two. Review, 0.53.6)
+	local ok, name = pcall(ns.CharacterName)
+	if not (ok and type(name) == "string" and name ~= "" and not name:find("[;,%+%-@]")) then return nil end
 	-- (and the realm, its letters only: two of the same name on two realms aren't one)
 	local okR, realm = pcall(_G.GetRealmName or function() end)
 	realm = okR and type(realm) == "string" and not Secret(realm) and realm:gsub("[%s%p]", "") or ""
 	return realm ~= "" and (name .. "@" .. realm) or name
 end
+F._MyName = MyName -- (tests)
 local function Escaped(s) return (s:gsub("%p", "%%%0")) end
 local function Encode(f, class, old)
 	local kinds = {}

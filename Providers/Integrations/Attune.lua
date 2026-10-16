@@ -293,8 +293,12 @@ local function MyToon()
 	if type(toons) ~= "table" then return nil end
 	if myKey and type(toons[myKey]) == "table" then return toons[myKey], myKey end
 	local first, last = Safe(UnitName, "player")
-	if type(first) ~= "string" then return nil end
-	if type(last) == "string" and last ~= "" and type(toons[first .. " " .. last]) == "table" then
+	first, last = Str(first), Str(last)
+	if not first then return nil end
+	if last then
+		-- (with both names, only that record: another starting with the first name is another character, an alt with
+		-- the same first name. Review, 0.53.6: its attunements were shown as yours before you had a record)
+		if type(toons[first .. " " .. last]) ~= "table" then return nil end
 		myKey = first .. " " .. last
 		return toons[myKey], myKey
 	end

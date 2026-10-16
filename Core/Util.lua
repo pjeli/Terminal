@@ -266,13 +266,17 @@ function ns.CharacterName()
 	local name, surname = UnitName("player")
 	name, surname = ns.Str(name), ns.Str(surname)
 	if not name then return nil end
-	local regional = _G.RegionalUniqueNamesEnabled and ns.Safe(_G.RegionalUniqueNamesEnabled)
-	if surname and regional then
-		local C = _G.Constants and _G.Constants.CharacterNameSeparatorConsts
-		local sep = C and C.CHARACTERNAME_SURNAME_SEPARATOR or " "
-		return name .. sep .. surname
-	end
-	return name
+	local sep = ns.SurnameSeparator()
+	return (surname and sep) and (name .. sep .. surname) or name
+end
+
+--- What joins a name and its surname, where characters have one (RegionalUniqueNamesEnabled: the game's own
+--- separator, " " when it doesn't say), else nil: UnitName's second answer is then the realm. (One copy: the AddOn
+--- list's key, a group member's name and a whisper's target each had their own.)
+function ns.SurnameSeparator()
+	if not (_G.RegionalUniqueNamesEnabled and ns.Safe(_G.RegionalUniqueNamesEnabled)) then return nil end
+	local C = _G.Constants and _G.Constants.CharacterNameSeparatorConsts
+	return C and C.CHARACTERNAME_SURNAME_SEPARATOR or " "
 end
 
 -- Small helpers several lists had a copy of each (0.52.15: one each, here)
