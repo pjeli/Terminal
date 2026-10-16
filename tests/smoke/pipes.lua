@@ -463,6 +463,15 @@ do
 		and ns.UpperFirst("équipement") == "Équipement" and ns.UpperFirst("рыба") == "Рыба" and ns.UpperFirst("") == ""
 		and ns.Titled("un'goro crater") == "Un'goro Crater",
 		"capitals in every language: " .. tostring(SH.Context("innkeeper in:östliche_pestländer", { npcID = 5, name = "Innkeeper Farley" })))
+	-- (review, 0.53.6) GroupLines: the header counts the rows that go; a long search's header stays within a line
+	local gl = SH.GroupLines({ { kind = "items", key = 1, name = "Aaa" }, { kind = "items", key = 2, name = "" },
+		{ kind = "items", key = 3, name = "Bbb" } }, "@item q:rare type:sword")
+	check(gl[1] == "Rare swords (2): Aaa, Bbb", "a row with nothing to say isn't counted in the header: " .. tostring(gl[1]))
+	gl = SH.GroupLines({ { npcID = 5, name = "Innkeeper Farley" } }, "@npc " .. ("zzword "):rep(60))
+	local within = true
+	for _, l in ipairs(gl) do if #l > SH.LINE_MAX then within = false end end
+	check(within, "a long search's header: every line within what the game sends: " .. #tostring(gl[1]))
+	check(ns.Cut("abcé", 4) == "abc" and ns.Cut("abcé", 5) == "abcé" and ns.Cut("ab", 5) == "ab", "ns.Cut never splits a letter")
 	-- a whole instance: the instance said once, each item only its boss
 	local rfk = {
 		{ kind = "loot", key = 1, name = "Corpsemaker", detail = "Overlord Ramtusk  Razorfen Kraul" },

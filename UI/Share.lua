@@ -702,10 +702,14 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 		end
 		return nil
 	end
-	local lines, line = {}, header and (header .. " (" .. #rows .. "):") or nil
+	-- (review, 0.53.6: a long search's header made a line the game refuses; cut, room left for the count and a row)
+	if header then header = ns.Cut(header, LM - 20) end
+	local head = header and (header .. " (" .. #rows .. "):") or nil
+	local lines, line = {}, head
 	local sent, skipped = 0, 0
-	-- (the last line keeps room for "+N more")
-	local function Room() return LM - (#lines == ML - 1 and 12 or 0) end
+	-- (the last line keeps room for "+N more", as long as the client's language says it)
+	local moreRoom = #L["+%s more"]:format(#rows) + 1
+	local function Room() return LM - (#lines == ML - 1 and moreRoom or 0) end
 	for _, e in ipairs(rows) do
 		local t = TextOf(e)
 		if not t then
@@ -725,6 +729,10 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 	end
 	if line and #lines < ML then lines[#lines + 1] = line end
 	local total = #rows - skipped
+	-- (the header's count: the rows that went or are counted, not those with nothing to say; review, 0.53.6)
+	if head and skipped > 0 and lines[1] and lines[1]:sub(1, #head) == head then
+		lines[1] = header .. " (" .. total .. "):" .. lines[1]:sub(#head + 1)
+	end
 	local left = total - sent
 	if left > 0 and #lines > 0 then
 		local more = L["+%s more"]:format(left)

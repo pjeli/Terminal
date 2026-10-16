@@ -279,6 +279,20 @@ function ns.SurnameSeparator()
 	return C and C.CHARACTERNAME_SURNAME_SEPARATOR or " "
 end
 
+--- The text cut to at most n bytes, never in the middle of a letter (UTF-8: a letter's bytes go whole or not at all).
+function ns.Cut(s, n)
+	s = tostring(s or "")
+	if #s <= n then return s end
+	local cut = s:sub(1, math.max(0, n))
+	local lead = cut:match("()[\192-\255][\128-\191]*$")
+	if lead then
+		local b = cut:byte(lead)
+		local need = (b >= 240 and 4) or (b >= 224 and 3) or 2
+		if #cut - lead + 1 < need then cut = cut:sub(1, lead - 1) end
+	end
+	return cut
+end
+
 -- Small helpers several lists had a copy of each (0.52.15: one each, here)
 
 --- The clock's time in seconds (time()), or 0.
