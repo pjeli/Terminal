@@ -445,7 +445,7 @@ function UI:SyntaxRows(text)
 			if word then
 				local label = p.label or id
 				Row("@" .. word, (p.aliases and #p.aliases > 0) and ("@" .. table.concat(p.aliases, " @")) or "",
-					"|c" .. (p.color or "ff7fb2ff") .. label .. "|r")
+					ns:KindLabel(p, label))
 				-- (a kind whose word the other's starts with goes before it: @loot before @lootlog, whichever
 				-- registered first; AtlasLoot's list comes late)
 				local r = table.remove(picks)

@@ -17,34 +17,8 @@ ns.Gold = G
 
 local Safe, Num, Str = ns.Safe, ns.Num, ns.Str
 
-local COPPER_PER_GOLD, COPPER_PER_SILVER = 10000, 100
-local ICON = {
-	gold = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t",
-	silver = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
-	copper = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
-}
-
---- 1234567 -> "1,234,567" (no %d: past 2^31 it overflows on this client).
-function G.Thousands(n)
-	local s = ("%.0f"):format(math.floor(n))
-	local sep = _G.LARGE_NUMBER_SEPERATOR
-	if type(sep) ~= "string" or sep == "" then sep = "," end
-	local out = s:reverse():gsub("(%d%d%d)", "%1" .. sep:reverse()):reverse()
-	return (out:gsub("^%" .. sep, ""))
-end
-
---- Copper as gold, silver and copper: with coin icons (`plain` false), or "1,234g 5s 6c" for chat.
-function G.Text(copper, plain)
-	copper = math.max(0, math.floor(tonumber(copper) or 0))
-	local g = math.floor(copper / COPPER_PER_GOLD)
-	local s = math.floor((copper % COPPER_PER_GOLD) / COPPER_PER_SILVER)
-	local c = copper % COPPER_PER_SILVER
-	local parts = {}
-	if g > 0 then parts[#parts + 1] = plain and L["%sg"]:format(G.Thousands(g)) or (G.Thousands(g) .. ICON.gold) end
-	if s > 0 or (g > 0 and c > 0) then parts[#parts + 1] = plain and L["%ss"]:format(s) or (s .. ICON.silver) end
-	if c > 0 or #parts == 0 then parts[#parts + 1] = plain and L["%sc"]:format(c) or (c .. ICON.copper) end
-	return table.concat(parts, " ")
-end
+-- (the number and money texts are everyone's: Util.lua's ns.Thousands and ns.Money; review, 0.53.6)
+G.Thousands, G.Text = ns.Thousands, ns.Money
 
 ----------------------------------------------------------------------
 -- Reading
@@ -58,7 +32,7 @@ local function LiveWarband()
 	return Num(Safe(C_Bank.FetchDepositedMoney, Enum.BankType.Account))
 end
 
-local function ReadSyndicator(A, add, me)
+local function ReadSyndicator(A, add)
 	local S = _G.Syndicator
 	local realms = {}
 	local list = S.Utilities and S.Utilities.GetConnectedRealms and Safe(S.Utilities.GetConnectedRealms)
@@ -200,7 +174,7 @@ function G.Alts()
 	local src = St and St.Source()
 	if src == "Syndicator" then
 		local A = St.SyndicatorAPI()
-		if A and St.SyndicatorReady(A) then pcall(ReadSyndicator, A, add, 0) end
+		if A and St.SyndicatorReady(A) then pcall(ReadSyndicator, A, add) end
 	elseif src == "BagBrother" then
 		local bb = St.BrotherBags()
 		if bb then pcall(ReadBrother, bb, add) end
@@ -218,7 +192,7 @@ function G.Collect()
 	local src = St and St.Source()
 	if src == "Syndicator" then
 		local A = St.SyndicatorAPI()
-		if A and St.SyndicatorReady(A) then ReadSyndicator(A, add, me) end
+		if A and St.SyndicatorReady(A) then ReadSyndicator(A, add) end
 	elseif src == "BagBrother" then
 		local bb = St.BrotherBags()
 		if bb then ReadBrother(bb, add) end

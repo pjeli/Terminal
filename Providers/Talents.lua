@@ -31,9 +31,7 @@ local function ConfigID()
 	return id
 end
 
-local function Usable(f)
-	return f and not (f.IsForbidden and f:IsForbidden()) and f.IsVisible and f:IsVisible()
-end
+local Usable = ns.Usable
 
 --- The frame a known window's talents are in: PlayerSpellsFrame's talents tab (0.49.2, review: on this client the
 --- spellbook and the talents are both tabs of PlayerSpellsFrame, and the window showing its spellbook counted as the
@@ -53,12 +51,8 @@ function TL.Window()
 		if Usable(f) then return f, name end
 	end
 	-- some other talent window (this client's own, or another addon's)
-	for _, f in ipairs({ UIParent:GetChildren() }) do
-		local name = ns.FrameName(f)
-		if name and name:find("Talent") and not name:find("^Terminal") and Usable(f) then
-			return f, name
-		end
-	end
+	local w = ns.VisibleWindows("Talent")[1]
+	if w then return w[1], w[2] end
 end
 
 function TL.IsOpen() return TL.Window() ~= nil end

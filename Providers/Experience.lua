@@ -101,7 +101,7 @@ end
 -- Rows
 ----------------------------------------------------------------------
 
-local function Thousands(n) return ns.Gold and ns.Gold.Thousands(n) or ("%.0f"):format(n) end
+local Thousands = ns.Thousands
 local function Pct(a, b) return (b and b > 0) and math.floor(a / b * 100 + 0.5) or 0 end
 
 local function Ago(t) return ns.Ago(Now() - (t or 0)) end -- (Util.lua: said as the loot and combat logs say it)

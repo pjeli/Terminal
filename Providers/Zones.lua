@@ -233,8 +233,8 @@ local function ZoneRow(z, detail, score, dist)
 	local M = ns.Maps
 	local p = ns.providers.maps -- (shown and remembered as the zone's own @map row: its label, its pick count)
 	return {
-		name = ZoneName(z), key = "map:" .. z.ui, kind = "maps", mapID = z.ui, icon = "Interface\\Icons\\INV_Misc_Map_01",
-		kindLabel = p and ("|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r") or nil, freqKey = "maps:map:" .. z.ui,
+		name = ZoneName(z), key = M.Key(z.ui), kind = "maps", mapID = z.ui, icon = "Interface\\Icons\\INV_Misc_Map_01",
+		kindLabel = p and ns:KindLabel(p) or nil, freqKey = ns:FreqKey("maps", M.Key(z.ui)),
 		detail = detail, _score = score, _pos = nil, _dist = dist,
 		secure = M and M.SECURE, isOpen = M and M.IsOpenFor, after = M and M.ShowAfter, activate = M and M.Direct,
 		secondary = M and M.PinOnly,

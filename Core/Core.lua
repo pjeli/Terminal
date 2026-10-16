@@ -248,6 +248,14 @@ end
 
 ns.entriesGen = 0 -- bumped whenever any provider's entries are rebuilt
 
+--- A list's name in its colour, as a row's kind column says it (`label`: another word in its place). One copy: five
+--- places wrote it out (review, 0.53.6).
+function ns:KindLabel(p, label)
+	return "|c" .. (p.color or "ff7fb2ff") .. tostring(label or p.label or p.id) .. "|r"
+end
+--- The key a row is counted under when picked ("<kind>:<key>"): Frequent's, the history's.
+function ns:FreqKey(kind, key) return kind .. ":" .. tostring(key) end
+
 --- Shared fields for compact entries (big lists): an entry holds only what differs (name,
 --- id...), and kind, label, freqKey and anything in `proto` come from its metatable.
 --- `lazy` fields are computed on first read (detail strings and the like).
@@ -256,11 +264,11 @@ function ns:CompactMeta(p, proto, lazy)
 	return { __index = function(t, k)
 		if k == "kind" then return p.id end
 		if k == "kindLabel" then
-			label = label or ("|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r")
+			label = label or ns:KindLabel(p)
 			return label
 		end
 		if k == "noCombat" then return p.noCombat end
-		if k == "freqKey" then return p.id .. ":" .. tostring(rawget(t, "key") or t.name) end
+		if k == "freqKey" then return ns:FreqKey(p.id, rawget(t, "key") or t.name) end
 		local f = lazy and lazy[k]
 		if f then return f(t) end
 		return proto and proto[k]
@@ -285,14 +293,14 @@ function ns:GetEntries(p)
 		ns.entriesGen = ns.entriesGen + 1
 		if ok and type(res) == "table" then
 			local clean = {}
-			local label = "|c" .. (p.color or "ff7fb2ff") .. p.label .. "|r"
+			local label = ns:KindLabel(p)
 			for _, e in ipairs(res) do
 				if type(e.name) == "string" and e.name ~= "" then
 					if not rawget(e, "_compact") then
 						e.kind = p.id
 						if e.noCombat == nil then e.noCombat = p.noCombat end
 						e.kindLabel = label
-						e.freqKey = p.id .. ":" .. tostring(e.key or e.name)
+						e.freqKey = ns:FreqKey(p.id, e.key or e.name)
 					end
 					if not rawget(e, "_lname") then e._lname = ns.Lower(e.name) end
 					-- searchable text is only ever matched in lowercase: keep just that copy

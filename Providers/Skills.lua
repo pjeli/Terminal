@@ -15,11 +15,7 @@ local Safe, Str, Num = ns.Safe, ns.Str, ns.Num -- (Util.lua)
 
 local function API() return _G.C_SkillInfo end
 
-local function Count()
-	local S = API()
-	if S and S.GetNumSkillLines then return Safe(S.GetNumSkillLines) or 0 end
-	return Safe(_G.GetNumSkillLines) or 0
-end
+local function Count() return ns.ApiCall("C_SkillInfo", "GetNumSkillLines") or 0 end
 
 --- One line of the skills list as a table, whichever API this client has.
 local function Line(i)
@@ -49,17 +45,8 @@ local function IsCollapsed(l)
 	return false
 end
 
-local function Expand(i)
-	local S = API()
-	if S and S.ExpandSkillHeader then return Safe(S.ExpandSkillHeader, i) end
-	return Safe(_G.ExpandSkillHeader, i)
-end
-
-local function Collapse(i)
-	local S = API()
-	if S and S.CollapseSkillHeader then return Safe(S.CollapseSkillHeader, i) end
-	return Safe(_G.CollapseSkillHeader, i)
-end
+local function Expand(i) return ns.ApiCall("C_SkillInfo", "ExpandSkillHeader", nil, i) end
+local function Collapse(i) return ns.ApiCall("C_SkillInfo", "CollapseSkillHeader", nil, i) end
 
 local LIST = { count = Count, row = Line, collapsed = IsCollapsed, expand = Expand, collapse = Collapse }
 

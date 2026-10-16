@@ -68,7 +68,7 @@ do
 	check(state.collected == false and state.uncollected == true and state.src[2] == false and state.search == "zzz",
 		"the journal's filters are put back as they were")
 	check(t["Toy Train Set"].detail == "Favorite" and t["Toy Train Set"].kind == "toys", "favourite shown: " .. tostring(t["Toy Train Set"].detail))
-	check(t["Piccolo of the Flaming Fire"].detail:find("ready in 4m", 1, true), "cooldown shown: " .. tostring(t["Piccolo of the Flaming Fire"].detail))
+	check(t["Piccolo of the Flaming Fire"].detail:find("ready in 4 min", 1, true), "cooldown shown, as other times left are said (review, 0.53.6): " .. tostring(t["Piccolo of the Flaming Fire"].detail))
 	check(p.selfEvents and p.guard, "opening the filters fires TOYS_UPDATED: those events are ignored")
 	local armed, text = press("@toy train")
 	check(armed == "MACRO" and text == "/use item:1001", "Enter uses the toy, pressed by the game: " .. tostring(text))

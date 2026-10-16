@@ -68,12 +68,7 @@ end
 -- (Mounts.lua, loaded before this file, uses these at run time for the mount journal)
 ns.Collections = { JOURNAL_SPEC = JOURNAL_SPEC, JournalShown = JournalShown, PointIn = PointIn, NoJournal = NoJournal }
 
---- "4m", "35s": time left on a cooldown.
-local function Left(sec)
-	if sec >= 3600 then return L["%dh"]:format(math.floor(sec / 3600)) end
-	if sec >= 60 then return L["%dm"]:format(math.floor(sec / 60)) end
-	return L["%ds"]:format(math.ceil(sec))
-end
+local Left = ns.Left -- (time left on a cooldown: "4 min", "35 s")
 
 --- Runs read() with a journal's filters opened up (collected shown, every type/source/expansion,
 --- no search), then puts each back as it was. The journals' C calls list only what passes their

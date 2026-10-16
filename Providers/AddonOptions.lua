@@ -34,10 +34,10 @@ local function Registry() return Lib("AceConfigRegistry-3.0") end
 local function Dialog() return Lib("AceConfigDialog-3.0") end
 
 -- text without the game's colour, texture and link codes
+-- (ns.Plain's, and atlas icons and links' markup too; nil when nothing is left)
 local function Plain(s)
 	if type(s) ~= "string" then return nil end
-	s = s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("|A.-|a", ""):gsub("|H.-|h(.-)|h", "%1")
-	s = s:gsub("^%s+", ""):gsub("%s+$", "")
+	s = strtrim((ns.Plain(s):gsub("|A.-|a", ""):gsub("|H.-|h(.-)|h", "%1")))
 	return s ~= "" and s or nil
 end
 

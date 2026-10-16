@@ -19,9 +19,7 @@ local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame
 -- the map's quest list: protected surroundings, so only point at it, never click in it
 local MAP_LOGS = { "QuestMapFrame" }
 
-local function Visible(f)
-	return type(f) == "table" and not (f.IsForbidden and f:IsForbidden()) and f.IsVisible and f:IsVisible()
-end
+local Visible = ns.Usable
 
 -- Frames with "Quest" in their name that are not quest log windows: our own, Questie's
 -- (its tracker is always on screen), and the game's watch/tracker/timer/pin pieces.
@@ -48,10 +46,10 @@ local function QuestWindows()
 		local f = _G[name]
 		if Visible(f) then out[#out + 1] = { f, true }; seen[f] = true end
 	end
-	for _, f in ipairs({ UIParent:GetChildren() }) do
-		local name = ns.FrameName(f)
-		if name and name:find("Quest") and not NotAWindow(name)
-			and not seen[f] and Visible(f) and name ~= "QuestMapFrame" and name ~= "WorldMapFrame" then
+	local function Skip(name) return NotAWindow(name) or name == "QuestMapFrame" or name == "WorldMapFrame" end
+	for _, w in ipairs(ns.VisibleWindows("Quest", Skip)) do
+		local f, name = w[1], w[2]
+		if not seen[f] then
 			out[#out + 1] = { f, AddonMade(name) } -- (any other window: an addon's is clicked, the game's only pointed at)
 			seen[f] = true
 		end
@@ -516,8 +514,7 @@ local function XpText(x)
 		local _, n = (f or ""):gsub("%%s", "")
 		XP_FORMAT = (n == 1 and not f:find("%%[^s%%]")) and f or L["%s experience"]
 	end
-	local T = ns.Gold and ns.Gold.Thousands
-	return XP_FORMAT:format(T and T(x) or tostring(x))
+	return XP_FORMAT:format(ns.Thousands(x))
 end
 
 local function Line(t, text, c, wrap) t:AddLine(text, c[1], c[2], c[3], wrap) end

@@ -217,6 +217,10 @@ local function Tooltip(e, t)
 end
 
 local ITEM = ns.ItemGear and ns.ItemGear.WORN or {}
+-- a damaged piece in your bags: Enter opens them on it (one function for every such row, not one made per row)
+local function ShowInBags(r)
+	if not (ns.Bags and ns.Bags.ShowItem(r.itemID, r.link, r.name)) then ns:Print(L["You don't carry %s."]:format(tostring(r.name))) end
+end
 
 local function Row(d)
 	local e = {
@@ -229,7 +233,7 @@ local function Row(d)
 	if d.slotId then
 		e.activate, e.secure, e.isOpen, e.after = ITEM.activate, ITEM.secure, ITEM.isOpen, ITEM.after
 	else
-		e.activate = function(r) if not (ns.Bags and ns.Bags.ShowItem(r.itemID, r.link, r.name)) then ns:Print(L["You don't carry %s."]:format(tostring(r.name))) end end
+		e.activate = ShowInBags
 	end
 	local where = d.slotText or L["in your bags"]
 	local state = d.cur == 0 and L["broken"] or (d.pct .. "%")

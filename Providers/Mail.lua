@@ -49,14 +49,8 @@ local function Dirty() ns:Changed("mail"); ns:Changed("auctions") end -- (@aucti
 
 local Money = ns.Money
 
---- Seconds left as the inbox says it: "3 days", "1 day", "5 h", "20 min".
-function MA.Left(s)
-	s = math.max(0, tonumber(s) or 0)
-	if s >= 2 * 86400 then return L["%d days"]:format(math.floor(s / 86400)) end
-	if s >= 86400 then return L["1 day"] end
-	if s >= 3600 then return L["%d h"]:format(math.floor(s / 3600)) end
-	return L["%d min"]:format(math.max(1, math.floor(s / 60)))
-end
+--- Seconds left as the inbox says it: "3 days", "1 day", "5 h", "20 min" (under a minute: "1 min", as the inbox does).
+function MA.Left(s) return ns.Left(math.max(60, tonumber(s) or 0)) end
 
 ----------------------------------------------------------------------
 -- Reading the inbox (only while a mailbox shows)

@@ -1830,6 +1830,8 @@ do
 	ns.providers.cvars._dirty = true
 	local none = UI:Search("@cvar")
 	check(#none == 1 and none[1].raw and none[1].name:find("No console settings", 1, true), "nothing readable: says so")
+	check(none[1].lead and not none[1].freqKey and none[1].detail:find("none with a value", 1, true),
+		"(review, 0.53.6) said in a note on top, as other lists do: not a row to pick or count")
 	C_CVar.GetCVarInfo, C_CVar.GetCVar = getInfo, getCVar
 	FlushAll()
 	check(#UI:Search("@cvar") == 4, "and is asked for again")

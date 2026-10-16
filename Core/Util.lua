@@ -67,8 +67,8 @@ function ns.RankInOrder(rows, scale)
 end
 
 --- A line in a list saying why it lists nothing ("No mail kept yet: ..."): not a result, nothing to run or send.
-function ns.NoteRow(text)
-	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = "",
+function ns.NoteRow(text, detail)
+	return { name = text, raw = true, icon = false, noActivate = true, kindLabel = "", detail = detail or "",
 		_pos = ns.UI and ns.UI.NO_POS or nil }
 end
 
@@ -79,7 +79,8 @@ function ns.EmptyLead(text, empty)
 		if res and #res > 0 then return nil end
 		ns:GetEntries(p)
 		if not empty(p) then return nil end
-		return ns.NoteRow(type(text) == "function" and text() or text)
+		if type(text) == "function" then return ns.NoteRow(text()) end -- (a function: the text and its detail)
+		return ns.NoteRow(text)
 	end
 end
 
@@ -267,6 +268,17 @@ function ns.WornSlots(names)
 	end
 end
 
+--- How long is left, said one way everywhere (the mail's days, a cooldown's seconds): "3 days", "1 day", "5 h",
+--- "20 min", "35 s". (The collections' cooldowns said "4m", the mail "20 min": review, 0.53.6.)
+function ns.Left(seconds)
+	local s = math.max(0, tonumber(seconds) or 0)
+	if s >= 2 * 86400 then return L["%d days"]:format(math.floor(s / 86400)) end
+	if s >= 86400 then return L["1 day"] end
+	if s >= 3600 then return L["%d h"]:format(math.floor(s / 3600)) end
+	if s >= 60 then return L["%d min"]:format(math.floor(s / 60)) end
+	return L["%d s"]:format(math.ceil(s))
+end
+
 --- How long ago, said one way everywhere: "just now" (under a minute), "12 min ago", "3 h ago", "2 d ago".
 function ns.Ago(seconds)
 	local d = math.max(0, tonumber(seconds) or 0)
@@ -334,6 +346,33 @@ function ns.DbTable(name)
 	return db[name]
 end
 
+--- A frame that's there to use: shown, and not one the game forbids addons to touch.
+function ns.Usable(f)
+	return type(f) == "table" and not (f.IsForbidden and f:IsForbidden()) and f.IsVisible and f:IsVisible() or false
+end
+
+--- The windows on screen (UIParent's children) whose name holds `word` (plain), not Terminal's own and not one `skip`
+--- says no to: { { frame, name } } in the game's order. (The quest log's and the talents' finders had one each: review,
+--- 0.53.6.)
+function ns.VisibleWindows(word, skip)
+	local out = {}
+	for _, f in ipairs({ UIParent:GetChildren() }) do
+		local name = ns.FrameName(f)
+		if name and name:find(word, 1, true) and not name:find("^Terminal") and not (skip and skip(name)) and ns.Usable(f) then
+			out[#out + 1] = { f, name }
+		end
+	end
+	return out
+end
+
+--- The game's call `method` of the table `ctable` (C_Reputation...), else the old global one (`global`, or `method`),
+--- guarded: its results, or nothing. Looked up at each call (the skills' and reputations' wrappers: review, 0.53.6).
+function ns.ApiCall(ctable, method, global, ...)
+	local C = _G[ctable]
+	local fn = type(C) == "table" and C[method] or nil
+	return ns.Safe(fn or _G[global or method], ...)
+end
+
 -- Small helpers several lists had a copy of each (0.52.15: one each, here)
 
 --- The clock's time in seconds (time()), or 0.
@@ -342,8 +381,34 @@ function ns.Now() return (_G.time and _G.time()) or 0 end
 --- This character's GUID: the key its saved records are kept under.
 function ns.PlayerGUID() return ns.Str(ns.Safe(_G.UnitGUID, "player")) end
 
---- Copper as gold, silver and copper (with coin icons; `plain`: "12g 3s"), Gold.lua's way.
-function ns.Money(c, plain) return ns.Gold and ns.Gold.Text(c, plain) or (tostring(c) .. "c") end
+local COPPER_PER_GOLD, COPPER_PER_SILVER = 10000, 100
+local MONEY_ICON = {
+	gold = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t",
+	silver = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
+	copper = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
+}
+
+--- 1234567 -> "1,234,567" (no %d: past 2^31 it overflows on this client).
+function ns.Thousands(n)
+	local s = ("%.0f"):format(math.floor(n))
+	local sep = _G.LARGE_NUMBER_SEPERATOR
+	if type(sep) ~= "string" or sep == "" then sep = "," end
+	local out = s:reverse():gsub("(%d%d%d)", "%1" .. sep:reverse()):reverse()
+	return (out:gsub("^%" .. sep, ""))
+end
+
+--- Copper as gold, silver and copper: with coin icons (`plain` false), or "1,234g 5s 6c" for chat (and copied).
+function ns.Money(copper, plain)
+	copper = math.max(0, math.floor(tonumber(copper) or 0))
+	local g = math.floor(copper / COPPER_PER_GOLD)
+	local s = math.floor((copper % COPPER_PER_GOLD) / COPPER_PER_SILVER)
+	local c = copper % COPPER_PER_SILVER
+	local parts = {}
+	if g > 0 then parts[#parts + 1] = plain and L["%sg"]:format(ns.Thousands(g)) or (ns.Thousands(g) .. MONEY_ICON.gold) end
+	if s > 0 or (g > 0 and c > 0) then parts[#parts + 1] = plain and L["%ss"]:format(s) or (s .. MONEY_ICON.silver) end
+	if c > 0 or #parts == 0 then parts[#parts + 1] = plain and L["%sc"]:format(c) or (c .. MONEY_ICON.copper) end
+	return table.concat(parts, " ")
+end
 
 
 --- An item's link as the game makes it ("|cff...|Hitem:..|h[Name]|h|r"), or nil while the client doesn't have it (and

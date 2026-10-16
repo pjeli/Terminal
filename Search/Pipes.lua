@@ -1614,7 +1614,7 @@ local function Shown(field, n)
 	local f = A.FIELDS[field]
 	if f.money then
 		if not ns.Gold then return tostring(n) .. "c", tostring(n) .. "c" end
-		return ns.Gold.Text(n), ns.Gold.Text(n, true)
+		return ns.Money(n), ns.Money(n, true)
 	end
 	local t = math.floor(n) == n and tostring(n) or ("%.1f"):format(n)
 	return t, t

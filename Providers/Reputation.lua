@@ -13,11 +13,7 @@ local L = ns.L
 local Safe, Str, Num = ns.Safe, ns.Str, ns.Num -- (Util.lua)
 
 --- The faction list API, retail (C_Reputation) or classic (GetFactionInfo).
-local function Count()
-	local C = _G.C_Reputation
-	if C and C.GetNumFactions then return Safe(C.GetNumFactions) or 0 end
-	return Safe(_G.GetNumFactions) or 0
-end
+local function Count() return ns.ApiCall("C_Reputation", "GetNumFactions") or 0 end
 
 --- One row of the faction list as a table, whichever API this client has.
 local function Row(i)
@@ -42,17 +38,8 @@ local function Row(i)
 	}
 end
 
-local function Expand(i)
-	local C = _G.C_Reputation
-	if C and C.ExpandFactionHeader then return Safe(C.ExpandFactionHeader, i) end
-	return Safe(_G.ExpandFactionHeader, i)
-end
-
-local function Collapse(i)
-	local C = _G.C_Reputation
-	if C and C.CollapseFactionHeader then return Safe(C.CollapseFactionHeader, i) end
-	return Safe(_G.CollapseFactionHeader, i)
-end
+local function Expand(i) return ns.ApiCall("C_Reputation", "ExpandFactionHeader", nil, i) end
+local function Collapse(i) return ns.ApiCall("C_Reputation", "CollapseFactionHeader", nil, i) end
 
 local function Collapsed(r) return r.collapsed end
 local LIST = { count = Count, row = Row, collapsed = Collapsed, expand = Expand, collapse = Collapse }

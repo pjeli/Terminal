@@ -45,6 +45,10 @@ local function OneLine(body)
 	return (line:gsub("|", "||"))
 end
 
+-- the account's macros take the first slots, the character's come after them (the game's number; review, 0.53.6)
+-- (read when the list is made: the macro window's code may set it later than this file loads)
+local ACCOUNT_SLOTS = 120
+
 ns:RegisterProvider("macros", {
 	label = L["Macro"],
 	color = "ffffa040",
@@ -54,6 +58,7 @@ ns:RegisterProvider("macros", {
 	collect = function()
 		local out = {}
 		local numAccount, numChar = GetNumMacros()
+		ACCOUNT_SLOTS = tonumber(_G.MAX_ACCOUNT_MACROS) or 120
 		local function add(index)
 			local name, icon, body = GetMacroInfo(index)
 			if name and name ~= "" then
@@ -64,7 +69,7 @@ ns:RegisterProvider("macros", {
 					name = name,
 					icon = icon,
 					text = body, -- what the macro says is searchable too
-					detail = ns.Detail(index > 120 and L["Character"] or L["General"], body ~= "" and OneLine(body) or nil),
+					detail = ns.Detail(index > ACCOUNT_SLOTS and L["Character"] or L["General"], body ~= "" and OneLine(body) or nil),
 					tip = body:gsub("|", "||"),
 					secure = MACRO_RUN,
 					secondary = ShowMacroText, -- without the secure route: its text in a copyable window
@@ -76,7 +81,7 @@ ns:RegisterProvider("macros", {
 			end
 		end
 		for i = 1, numAccount do add(i) end
-		for i = 121, 120 + numChar do add(i) end
+		for i = ACCOUNT_SLOTS + 1, ACCOUNT_SLOTS + numChar do add(i) end
 		return out
 	end,
 })

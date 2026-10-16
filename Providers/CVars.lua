@@ -117,6 +117,7 @@ end
 local byName = {} -- setting name -> its row (CVAR_UPDATE updates just that row)
 ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return byName end }
 
+local emptyNote -- (the last collect found nothing readable: why)
 ns:RegisterProvider("cvars", {
 	label = L["CVar"],
 	color = "ff57abd9", -- (steel blue: apart from dungeons and reputation)
@@ -125,6 +126,9 @@ ns:RegisterProvider("cvars", {
 	lazy = true,
 	idleDrop = 600,
 	onDrop = function() byName = {} end,
+	-- nothing readable yet: a note saying so, on top
+	leadRow = ns.EmptyLead(function() return L["No console settings could be read yet"], emptyNote end,
+		function() return emptyNote ~= nil end),
 	collect = function(p)
 		local out = {}
 		byName = {}
@@ -153,12 +157,13 @@ ns:RegisterProvider("cvars", {
 			end
 		end
 		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #names, ok and "ok" or "failed", #out))
+		emptyNote = nil
 		if #out == 0 then
-			-- the list can come back empty early on: ask again on the next search, and say what happened
+			-- the list can come back empty early on: ask again on the next search, and say what happened (a note on top,
+			-- as other lists say they're empty: not a row of the list, counted or picked; review, 0.53.6)
 			C_Timer.After(1, function() ns:Changed("cvars") end) -- (the note goes once it's read: an open list too)
-			out[1] = { key = "none", name = L["No console settings could be read yet"], raw = true, noActivate = true, icon = false,
-				detail = (from == "Terminal's list" and L["%d names from Terminal's list, none with a value"]
-					or L["%d names from the game's list, none with a value"]):format(#names), text = "" }
+			emptyNote = (from == "Terminal's list" and L["%d names from Terminal's list, none with a value"]
+				or L["%d names from the game's list, none with a value"]):format(#names)
 		end
 		return out
 	end,

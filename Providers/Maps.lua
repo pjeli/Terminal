@@ -20,6 +20,9 @@ local L = ns.L
 local M = {}
 ns.Maps = M
 
+--- A map row's key: "map:<uiMapID>" (Zones' zone rows are counted as these: review, 0.53.6).
+function M.Key(mapID) return "map:" .. tostring(mapID) end
+
 local TYPES = { [2] = "Continent", [3] = "Zone" } -- the only kinds listed
 local KIND_SAID = { Continent = L["Continent"], Zone = L["Zone"] } -- (as the rows say it; TYPES stays searchable)
 
@@ -260,7 +263,7 @@ ns:RegisterProvider("maps", {
 				local path = pathOf(info)
 				local lv = ns.Zones and ns.Zones.LevelText(ns.Zones.Of(info.mapID))
 				out[#out + 1] = Entry({
-					key = "map:" .. info.mapID, name = info.name, mapID = info.mapID, kind = kind, path = path,
+					key = M.Key(info.mapID), name = info.name, mapID = info.mapID, kind = kind, path = path,
 					detail = ns.Detail(KIND_SAID[kind] or kind, lv, path),
 				})
 			end

@@ -1642,7 +1642,7 @@ local function KindsNote(c, counts)
 	local parts = {}
 	for k = 1, math.min(#found, KINDS_SHOWN) do
 		local p = found[k].p
-		parts[k] = "|c" .. (p.color or "ff7fb2ff") .. tostring(p.label or p.id) .. "|r"
+		parts[k] = ns:KindLabel(p)
 	end
 	local note = table.concat(parts, ns.DETAIL_SEP)
 	if #found > KINDS_SHOWN then note = note .. "  " .. L["+%d more"]:format(#found - KINDS_SHOWN) end
