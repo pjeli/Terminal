@@ -270,9 +270,10 @@ local function ShareExtra(e, room)
 end
 
 local list -- (the last collect's rows)
+local Row -- (below; PQ._Row for tests)
 
 -- `said`: the game's answers, [member][questID] = true / false / nil, asked once per collect (Collect)
-local function Row(q, members, short, said)
+function Row(q, members, short, said)
 	local id = q.questID
 	local on, lacks, unknown, done, cant, party, online = {}, {}, {}, {}, {}, {}, 0
 	for _, m in ipairs(members) do
@@ -291,7 +292,10 @@ local function Row(q, members, short, said)
 	-- (someone lacks it, or isn't known to have it: the game says "already on that quest" otherwise)
 	local canShare = pushable ~= false and (#lacks + #unknown) > 0
 	local everyone = #on > 0 and #on == online and online > 0
-	local d = { ((q.level and (L["Lv %d"]:format(q.level) .. "  ")) or "") .. (q.zone or "") }
+	-- (level and zone as the quest log's rows say them, parts left out when missing; review, 0.53.6: one with neither
+	-- began "  ·  the whole party")
+	local d = { q.level and L["Lv %d"]:format(q.level) or nil }
+	if q.zone and q.zone ~= "" then d[#d + 1] = q.zone end
 	if everyone and #on > 1 then d[#d + 1] = GREEN .. L["the whole party"] .. "|r"
 	elseif #on > 0 then d[#d + 1] = GREEN .. L["%s too"]:format(Names(on)) .. "|r"
 	elseif #unknown > 0 and #unknown == online then d[#d + 1] = GREY .. L["who has it isn't known"] .. "|r"
@@ -312,7 +316,7 @@ local function Row(q, members, short, said)
 		quest = q, party = party, on = on, lacks = lacks, unknown = unknown, done = done, cant = cant,
 		pushable = pushable, canShare = canShare, everyone = everyone,
 		together = #on > 0,
-		detail = table.concat(d, "  ·  "), text = table.concat(words, " "),
+		detail = table.concat(d, ns.DETAIL_SEP), text = table.concat(words, " "),
 		tooltip = Tooltip, getLink = q.getLink, shareExtra = ShareExtra, shareGroup = PQ.ShareGroupOf,
 		-- Enter: share; a quest the game won't let you share: the quest log at it (the log row's own Enter)
 		activate = shareIt and PQ.Share or (q.activate or NotInLog),
@@ -322,6 +326,7 @@ local function Row(q, members, short, said)
 		secondaryAfter = shareIt and q.after or nil,
 	}
 end
+PQ._Row = Row -- (tests)
 
 function PQ.Collect()
 	local members = PQ.Members()

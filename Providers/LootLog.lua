@@ -80,8 +80,10 @@ local function Me() return ns.CharacterName and ns.CharacterName() or (UnitName 
 function LL.Parse(msg)
 	if type(msg) ~= "string" or (ns.Secret and ns.Secret(msg)) then return nil end
 	for _, f in ipairs(Patterns()) do
-		local got = { msg:match(f.p) }
-		if #got > 0 then
+		-- (a table only for the form that matched: every loot line of the group goes through the six; review, 0.53.6)
+		local a, b, c, d = msg:match(f.p)
+		if a then
+			local got = { a, b, c, d }
 			local caps = {} -- (by format argument)
 			for k, v in ipairs(got) do caps[f.args[k] or k] = v end
 			local link = caps[f.link]

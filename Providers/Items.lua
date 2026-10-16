@@ -90,8 +90,12 @@ local function QuestIndex()
 	local qp = ns.providers.quests
 	local rows = qp and ns:GetEntries(qp) or {}
 	if questIndex and rows == questIndexFrom then
-		questIndex[1].questieItems, questIndex[1].questieDB = nil, nil -- (Questie's item needs: asked again per index of your bags)
-		return questIndex[1], questIndex[2]
+		-- (Questie's item needs for the same quests: kept while its data is the same; asked again only when it wasn't ready
+		-- or changed. Review, 0.53.6: three QueryQuestSingle per quest on every bag change)
+		local q1 = questIndex[1]
+		local DB = ns.QuestieData and ns.QuestieData.DB()
+		if q1.questieItems == false or q1.questieDB ~= DB then q1.questieItems, q1.questieDB = nil, nil end
+		return q1, questIndex[2]
 	end
 	local list, exact = {}, {}
 	for _, e in ipairs(rows) do
@@ -145,12 +149,21 @@ local function QuestieItems(quests)
 	return map, DB
 end
 
+-- (the quest an item starts, by Questie: the data doesn't change, asked once per item and database; review, 0.53.6: asked
+-- for nearly every bag item on every rebuild)
+local startOf, startFrom = {}, nil
 local function QuestieFor(itemID, quests)
 	local map, DB = QuestieItems(quests)
 	if not map then return nil end
 	if DB.QueryItemSingle then -- an item that starts a quest
-		local ok, start = pcall(DB.QueryItemSingle, itemID, "startQuest")
-		if ok and start then
+		if startFrom ~= DB then startOf, startFrom = {}, DB end
+		local start = startOf[itemID]
+		if start == nil then
+			local ok, v = pcall(DB.QueryItemSingle, itemID, "startQuest")
+			start = ok and v or false
+			startOf[itemID] = start
+		end
+		if start then
 			for _, qq in ipairs(quests) do if qq.id == start then return { id = qq.id, title = qq.title, how = "Questie" } end end
 		end
 	end
@@ -343,12 +356,18 @@ end)
 --- info: one answer missing (an item the client hasn't cached) mustn't leave gear out.
 local function EquipLoc(e)
 	local slots = ns.Filters and ns.Filters.SLOTS or {}
+	local sure = false -- (the client's own data answered: "" is "not equipment", nothing more to ask)
 	for _, what in ipairs({ e.itemID or false, e.link or false }) do
 		if what and C_Item.GetItemInfoInstant then
 			local ok, _, _, _, loc = pcall(C_Item.GetItemInfoInstant, what)
-			if ok and type(loc) == "string" and slots[loc] then return loc end
+			if ok and type(loc) == "string" then
+				if slots[loc] then return loc end
+				sure = true
+			end
 		end
 	end
+	-- (review, 0.53.6: every bag item that isn't gear went on to GetItemInfo on every collect)
+	if sure then return nil end
 	if e.itemID and C_Item.GetItemInfo then
 		local ok, _, _, _, _, _, _, _, _, loc = pcall(C_Item.GetItemInfo, e.itemID)
 		if ok and type(loc) == "string" and slots[loc] then return loc end
@@ -395,7 +414,7 @@ local function GearActions(e, loc)
 	end
 	return loc
 end
-ns.ItemGear = { GearActions = GearActions, OnUse = OnUse, -- (tests)
+ns.ItemGear = { GearActions = GearActions, OnUse = OnUse, EquipLoc = EquipLoc, -- (tests)
 	-- (a worn piece's Enter: the character window on its slot, as @gear's; Durability.lua's rows too)
 	WORN = { activate = ShowEquipped, secure = CHAR_SECURE, isOpen = PaperDollOpen, after = PointAtSlot } }
 
@@ -607,6 +626,9 @@ ns:RegisterProvider("gear", {
 	aliases = { "gear", "equip", "armor", "armour", "weapon", "weapons" }, -- ("equipment" is the sets', EquipmentSets.lua)
 	explicit = true, -- (a plain search already finds these as Items)
 	follows = "items", -- made again whenever the item list is (Core's GetEntries)
+	-- (and when a skill is learned: Plate Mail, Two-Handed Swords at a trainer change what you can use, and no bag event
+	-- comes with them; review, 0.53.6: plate stayed greyed "can't use" until the bags changed)
+	events = { "SKILL_LINES_CHANGED" },
 	collect = function()
 		local out = {}
 		for _, e in ipairs(ns:GetEntries(ns.providers.items)) do

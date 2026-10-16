@@ -296,10 +296,12 @@ ns:RegisterProvider("combatlog", {
 				local other = d.guid and me and d.guid ~= me or nil
 				if other then parts[#parts + 1] = L["on %s"]:format(d.char or "?") end
 				out[#out + 1] = {
-					key = (d.t or 0) .. ":" .. i, name = line, line = line, what = d.what, amount = d.amount, other = other,
+					-- (by what it is, not its place: each new entry moved every older one's key, and picks never matched again;
+					-- review, 0.53.6)
+					key = table.concat({ d.t or 0, d.what, tostring(d.who), tostring(d.spell), tostring(d.amount) }, ":"), name = line, line = line, what = d.what, amount = d.amount, other = other,
 					icon = (d.what == "died" or d.what == "killed") and "Interface\\Icons\\Ability_Rogue_FeignDeath"
 						or "Interface\\Icons\\Ability_CriticalStrike",
-					detail = table.concat(parts, "  ·  "),
+					detail = table.concat(parts, ns.DETAIL_SEP),
 					text = table.concat({ WORDS[d.what] or "", d.who or "", d.spell or "", d.zone or "", other and d.char or "" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99,
 					activate = Say,

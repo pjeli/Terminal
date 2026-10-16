@@ -83,10 +83,21 @@ function Bags.Open(bags)
 	return which
 end
 
--- Baganator's bag windows are named Baganator_<View>BackpackViewFrame<group>: found once, kept.
-local baganatorRoots
+-- Baganator's bag windows are named Baganator_<View>BackpackViewFrame<group>: kept once found, looked for again (at most
+-- once a second: every name in _G) while none of them shows, as switching its view makes another one. Review, 0.53.6: the
+-- walk ran on every 0.1 s poll while none was found, and a view made later was never searched.
+local baganatorRoots, rootsAt
+local function AnyShown(list)
+	for _, f in ipairs(list) do
+		local ok, shown = pcall(f.IsShown, f)
+		if ok and shown then return true end
+	end
+	return false
+end
 local function BaganatorRoots()
-	if not baganatorRoots or #baganatorRoots == 0 then
+	local now = GetTime and GetTime() or 0
+	if not baganatorRoots or (not AnyShown(baganatorRoots) and (not rootsAt or now - rootsAt >= 1)) then
+		rootsAt = now
 		baganatorRoots = {}
 		for k, v in pairs(_G) do
 			if type(k) == "string" and k:find("^Baganator_.*BackpackViewFrame") and type(v) == "table" and v.GetChildren then
@@ -95,6 +106,11 @@ local function BaganatorRoots()
 		end
 	end
 	return baganatorRoots
+end
+
+ns.Bags._BaganatorRoots = function(reset) -- (tests; `reset`: forget what was found)
+	if reset then baganatorRoots, rootsAt = nil, nil end
+	return BaganatorRoots()
 end
 
 local function NumOf(f, method)
@@ -155,8 +171,12 @@ function Bags.Locations(itemID)
 end
 
 ShowInBags = function(e)
+	-- (where it is now: the row may be an older list's, kept while a new one waits for F5, and the stack moved or was
+	-- sold since; one pass over the bags, on Enter only. Review, 0.53.6)
+	local now = e.itemID and Bags.Locations(e.itemID)
+	local locs = (now and #now > 0) and now or e.locs
 	local bags, seen = {}, {}
-	for _, loc in ipairs(e.locs or {}) do
+	for _, loc in ipairs(locs or {}) do
 		if not seen[loc[1]] then seen[loc[1]] = true; bags[#bags + 1] = loc[1] end
 	end
 	local which = Bags.Open(#bags > 0 and bags or nil)
@@ -166,10 +186,10 @@ ShowInBags = function(e)
 		C_Timer.After(0.2, function() pcall(R.TriggerEvent, R, "HighlightIdenticalItems", e.link) end)
 	end
 	ns:Trace("items: showing " .. tostring(e.name) .. " in " .. (which or "the game's bags"))
-	if not e.locs then return end
+	if not locs then return end
 	H:Find(function()
 		local found = {}
-		for _, loc in ipairs(e.locs) do
+		for _, loc in ipairs(locs) do
 			local b = FindBagButton(loc[1], loc[2])
 			if b then found[#found + 1] = b end
 		end

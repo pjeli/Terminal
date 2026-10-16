@@ -39,6 +39,14 @@ do
 	ns.providers.combatlog._dirty = true
 	res = UI:Search("@combatlog mortal")
 	check(#res >= 2, "@combatlog mortal: by the spell")
+	-- (review, 0.53.6) a row's key is the entry's own, not its place: a new entry leaves the older ones' keys as they were
+	local function KeyOf(what)
+		ns.providers.combatlog._dirty = true
+		for _, e in ipairs(ns:GetEntries(ns.providers.combatlog)) do if e.what == what then return e.key end end
+	end
+	local before = KeyOf("killed")
+	Ev("SPELL_DAMAGE", "Creature-1", "Hogger", "Player-1", "Me", 1, "Mortal Strike", 1, 400, -1, 1, 0, 0, 0, true)
+	check(before ~= nil and KeyOf("killed") == before, "a new crit kept: the killing blow's key unchanged: " .. tostring(before))
 	-- a death with no killing blow seen: the last hit says what
 	now = now + 100
 	Ev("SPELL_DAMAGE", "Creature-3", "Murloc", "Player-1", "Me", 1, "Bite", 1, 12, -1, 1, 0, 0, 0, false)

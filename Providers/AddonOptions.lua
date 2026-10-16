@@ -11,15 +11,15 @@ local H = ns.Highlight
 --   Shift+Enter  an on/off setting: turned on or off right there, as its checkbox would (not one that asks first, checks
 --                what you set, or is greyed out)
 --
--- Read when first searched and again when older than REREAD (an addon may add options as you go); only what the window
--- would show (hidden ones left out). Each addon's own code answers for its names and values, called as Ace3 calls it.
+-- Read when first searched and again when an addon says its options changed (AceConfigRegistry's ConfigTableChange) or one
+-- loads; only what the window would show (hidden ones left out). Each addon's own code answers for its names and values,
+-- called as Ace3 calls it.
 
 local AO = {}
 ns.AddonOptions = AO
 
 local Str, Lower = ns.Str, ns.Lower
 
-AO.REREAD = 300 -- (s)
 AO.MAX_PER_APP, AO.MAX = 3000, 10000
 AO.DEPTH = 10
 local DIALOG = "AceConfigDialog-3.0"
@@ -377,9 +377,18 @@ local LAZY = {
 }
 local meta
 
+-- (an addon telling its options changed (AceConfigRegistry's ConfigTableChange, sent on NotifyChange): the list is
+-- read again the next time it's searched. Listened to from the first read on)
+local function Watch()
+	local reg = Registry()
+	if AO.watching or not (reg and reg.RegisterCallback) then return end
+	AO.watching = pcall(reg.RegisterCallback, AO, "ConfigTableChange", function() ns:Changed("addonoptions") end) or nil
+end
+
 function AO.Collect()
 	local p = ns.providers.addonoptions
 	meta = meta or ns:CompactMeta(p, ROW, LAZY)
+	Watch()
 	local rows = {}
 	for i, o in ipairs(AO.Read()) do
 		local words = { Lower(o.title), Lower(o.app), o.desc and Lower(o.desc) or "", TYPE_WORD[o.type] or "", "option options setting settings" }
@@ -407,6 +416,8 @@ ns:RegisterProvider("addonoptions", {
 	color = "ff70a8a0",
 	aliases = { "addonoption", "addonoptions", "addonsetting", "addonsettings", "aceoptions" },
 	lazy = true, -- (read on the first search that needs it)
-	refreshOnOpen = AO.REREAD, -- (an addon may add or rename options as you play)
+	-- (read again when an addon says its options changed (Watch), or one loads; not every 5 minutes inside a keystroke:
+	-- every option of every addon, its own functions called for each, review 0.53.6)
+	events = { "ADDON_LOADED" },
 	collect = function() return AO.Collect() end,
 })

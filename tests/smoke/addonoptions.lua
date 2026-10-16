@@ -49,6 +49,9 @@ do
 	} }
 	local notified, opened, selected = {}, {}, {}
 	local reg = { tables = {} }
+	-- (review, 0.53.6) the registry's callbacks: the list is read again when an addon says its options changed
+	local callbacks = {}
+	function reg.RegisterCallback(target, event, fn) callbacks[event] = fn end
 	-- (as AceConfigRegistry: a function to call with the uiType, or, given one, the table itself; review, 0.50.3)
 	function reg.GetOptionsTable(_, app, uiType)
 		local f = reg.tables[app]
@@ -91,6 +94,10 @@ do
 	-- every visible setting and page, in the window's order; headers, hidden ones and inline groups' own rows left out
 	check(Names(res) == "Announce attunements | Map | Show map icons | Icon scale | Tracker | Font size | Lock tracker | General | Announce quests | Ask first | Checked value | Reset everything | Paged | Deep setting | PluginAlpha",
 		"the settings, in the window's order: " .. Names(res))
+	check(P.refreshOnOpen == nil and callbacks.ConfigTableChange ~= nil, "listening to ConfigTableChange, not read again every 5 minutes")
+	P._dirty = false
+	callbacks.ConfigTableChange("SomeAddon")
+	check(P._dirty == true, "an addon's options changed: the list to be read again")
 	local function Row(name, rows)
 		for _, e in ipairs(rows or all) do if e.name == name then return e end end
 	end

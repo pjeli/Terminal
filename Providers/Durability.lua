@@ -63,6 +63,21 @@ local function Cost(slot, bag, bagSlot)
 end
 DU.Cost = Cost
 
+-- (a piece's repair cost, kept by what it depends on: the item and how worn it is. The list is made again after every
+-- loot (BAG_UPDATE_DELAYED), and each made asked the tooltip API for every damaged piece; review, 0.53.6)
+local costs, costCount = {}, 0
+local function CostOf(link, cur, max, slot, bag, bagSlot)
+	local key = tostring(link) .. ":" .. cur .. ":" .. max
+	local c = costs[key]
+	if c == nil then
+		c = Cost(slot, bag, bagSlot) or false
+		if costCount >= 200 then costs, costCount = {}, 0 end -- (a few pieces at a time: never grows for long)
+		costs[key], costCount = c, costCount + 1
+	end
+	return c or nil
+end
+DU.CostOf = CostOf -- (tests)
+
 -- Names the client hasn't loaded yet (a link reads "[]" until then: 0.50.3, the player's screenshot showed "Item #270003"):
 -- asked for, and the list made again once they're in (GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT for one of them)
 local waiting, waitCount = {}, 0
@@ -120,7 +135,7 @@ function DU.Read()
 					local quality = C_Item and C_Item.GetItemInfo and select(3, Safe(C_Item.GetItemInfo, link))
 					out[#out + 1] = { name = ItemName(link, id), link = link, itemID = id, quality = quality,
 						icon = Safe(GetInventoryItemTexture, "player", slotId), cur = cur, max = max,
-						cost = (cur < max) and Cost(slotId) or nil, slotId = slotId, slotName = slotName,
+						cost = (cur < max) and CostOf(link, cur, max, slotId) or nil, slotId = slotId, slotName = slotName,
 						slotText = (Str(equipLoc) and Str(_G[equipLoc])) or (ns.SlotText and ns.SlotText(slotId)) or slotName:gsub("Slot", "") }
 				end
 			end
@@ -136,7 +151,8 @@ function DU.Read()
 					local info = C.GetContainerItemInfo and Safe(C.GetContainerItemInfo, bag, s)
 					if type(info) == "table" and info.itemID then
 						out[#out + 1] = { name = ItemName(info.hyperlink, info.itemID), link = info.hyperlink, itemID = info.itemID,
-							quality = info.quality, icon = info.iconFileID, cur = cur, max = max, cost = Cost(nil, bag, s),
+							quality = info.quality, icon = info.iconFileID, cur = cur, max = max,
+							cost = CostOf(info.hyperlink or info.itemID, cur, max, nil, bag, s),
 							bag = bag, bagSlot = s }
 					end
 				end

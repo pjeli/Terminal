@@ -221,3 +221,9 @@ do
 	ns.db.easyMode = easyWas
 	QP._dirty, P._dirty = true, true
 end
+
+-- (review, 0.53.6) a quest with no level and no zone: its detail doesn't start with a lone separator
+do
+	local row = T.ns.GroupQuests._Row({ questID = 99001, name = "Nowhere Quest" }, {}, {}, {})
+	T.check(row and not row.detail:find("^%s*·") and row.detail:find("only you", 1, true), "no level, no zone: \"" .. tostring(row and row.detail) .. "\"")
+end
