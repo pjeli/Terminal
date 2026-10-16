@@ -1312,7 +1312,8 @@ function Scan.Fallbacks(self, q, out, included, sig)
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
 		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator answered
-		if #out == 0 and not self.calcAnswered then
+		-- (nor for a sum: "lnen clth | count" counts nothing, not the close spellings; review, 0.53.6)
+		if #out == 0 and not self.calcAnswered and not (ns.Aggregate and ns.Aggregate.Summing(self.aggregate)) then
 			local near = q.overviewNear
 			if near then
 				-- (Simple mode opened this category because only its close spellings matched: the overview has just looked
@@ -1389,8 +1390,11 @@ function Scan.Finalize(self, q, out)
 	-- (a Simple mode category: every match its row counted, up to Score.LIST_MAX; not "nearest", measured for the
 	-- closest MAX_RESULTS only)
 	-- (summed up, "| sum value": every match as it is, nothing to sort or trim; release review: at most 5000 counted)
-	local agg = self.aggregate
-	if agg and agg.last and not agg.bad and ns.Aggregate then return out end
+	if ns.Aggregate and ns.Aggregate.Summing(self.aggregate) then
+		-- (a quest in your log counted once, not with its Questie copy too; review, 0.53.6)
+		if kinds and kinds.quests and kinds.questie then out = Scan.OneQuest(out) end
+		return out
+	end
 	local limit = (q.easyCat and not q.here) and Score.LIST_MAX or nil
 	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end

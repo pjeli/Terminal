@@ -969,7 +969,7 @@ end
 local function OfferAdvanced() C_Timer.After(0, E.ShowConfirm) end
 --- The row shown on top when Advanced syntax was typed in Simple mode (Enter: the switch's confirmation).
 E.ADVANCED_ROW = {
-	name = L["@, >, >> and key:value are for Advanced mode"], kind = "advanced", kindLabel = "",
+	name = L["@, >, >>, | and key:value are for Advanced mode"], kind = "advanced", kindLabel = "",
 	detail = L["Enter to switch (or type .advanced)"], icon = "Interface\\Icons\\INV_Misc_Gear_01",
 	activate = OfferAdvanced,
 }

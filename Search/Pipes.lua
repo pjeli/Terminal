@@ -159,7 +159,7 @@ function P.Canonical(text, words)
 	if P.Split(text) then
 		if words then return nil end
 		-- (only a ">" standing alone, and not Advanced's other syntax using ">")
-		return text:gsub("^%s+", ""):gsub("%s+$", "")
+		return (text:gsub("^%s+", ""):gsub("%s+$", ""))
 	end
 	-- (Advanced syntax isn't a phrase: @kind, key:value, | and > in filters; a ":" before a space is a name's own,
 	-- "where to get Pattern: Linen Belt")
@@ -1335,7 +1335,7 @@ ns:RegisterCommand("chains", {
 --   @quest | zone:"Elwynn Forest"   only the rows with that (a group's Enter writes it: Shift+Left goes back)
 --
 -- Steps chain: "in:bags | q:rare | sum value". The words are fields (ns.Aggregate.FIELDS); a row without one is
--- left out of a sum and grouped as "no zone".
+-- left out of a sum, and of the groups (0.53.4: no "no zone" group).
 ----------------------------------------------------------------------
 
 local A = {}
@@ -1379,13 +1379,19 @@ local function PlaceOfKind(want)
 end
 
 local InstanceOf = PlaceOfKind(nil)
+local areaNames = {} -- (an area's name, asked once: it doesn't change)
 local function ZoneOf(e)
 	local z = Str(e.zone)
 	if z then return z end
 	if FP.NpcID and FP.NpcID(e) then
 		local area = FP.NpcField(e, "zoneID")
-		local got = type(area) == "number" and area > 0 and C_Map and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
-		return Str(got)
+		if type(area) ~= "number" or area <= 0 then return nil end
+		local got = areaNames[area]
+		if got == nil then
+			got = C_Map and C_Map.GetAreaInfo and Str(C_Map.GetAreaInfo(area)) or false
+			areaNames[area] = got
+		end
+		return got or nil
 	end
 	return InstanceOf(e)
 end
@@ -1480,6 +1486,14 @@ local function ParseStep(step)
 		local exact = value:match('^"(.*)"?$')
 		value = (exact or value):gsub('"', ""):gsub("^%s+", ""):gsub("%s+$", "")
 		if value == "" then return { bad = L["say what %s to keep: %s:\"...\""]:format(field, field) } end
+		-- (a number: kept by its range, as the filters read one; review, 0.53.6: "| lvl:20-30" kept nothing, "| lvl:2"
+		-- kept level 25 as "2" is in "25")
+		local fd = A.FIELDS[f]
+		if fd.num and not fd.text then
+			local test = ns.Filters and ns.Filters.Range and ns.Filters.Range(value)
+			if not test then return { bad = L["a number or a range: %s:20-30"]:format(field) } end
+			return { where = f, value = ns.Lower(value), test = test }
+		end
 		return { where = f, value = ns.Lower(value), exact = exact ~= nil }
 	end
 	local ws = {}
@@ -1508,6 +1522,7 @@ local function ParseStep(step)
 		end
 		local by = FieldOf(first)
 		if not by then return { bad = L["no field called %s"]:format(first) } end
+		if A.FIELDS[by].money then return { bad = L["group by what: zone, kind, quality..."] } end -- (copper amounts)
 		return { op = "group", by = by }
 	end
 	if not first then return { bad = L["%s of what: value, count, level..."]:format(ws[1]) } end
@@ -1517,6 +1532,7 @@ local function ParseStep(step)
 	if second then
 		by = FieldOf(second)
 		if not by then return { bad = L["no field called %s"]:format(second) } end
+		if A.FIELDS[by].money then return { bad = L["group by what: zone, kind, quality..."] } end
 	end
 	return { op = op, field = field, by = by }
 end
@@ -1557,7 +1573,8 @@ local function TextOf(name, e)
 	return n and tostring(n) or nil
 end
 
-local function Keep(w, e)
+local function KeepsRow(w, e)
+	if w.test then return w.test(A.FIELDS[w.where].num(e)) end -- (a number's step: by its range, "lvl:20-30")
 	local t = TextOf(w.where, e)
 	if not t then return false end
 	-- (quote marks aren't compared: a step's value has none, "Captain" Cookie's group neither; release review)
@@ -1618,8 +1635,9 @@ DrillTo = function(spec, by, g)
 	local steps = {}
 	for _, st in ipairs(spec.keepSteps or {}) do steps[#steps + 1] = " | " .. st end
 	-- (a space after the filter: the caret right after a key:value would list its values to pick, not the rows)
-	if word then return (spec.query:gsub("%s+$", "")) .. " " .. word .. (#steps > 0 and table.concat(steps) or " ") end
-	return spec.base .. " | " .. by .. ':"' .. text:gsub('"', "") .. '"'
+	-- (after the steps too: the caret after "| q:rare" listed q:'s values; review, 0.53.6)
+	if word then return (spec.query:gsub("%s+$", "")) .. " " .. word .. table.concat(steps) .. " " end
+	return spec.base .. " | " .. by .. ':"' .. (text:gsub('"', "")) .. '" '
 end
 
 --- A group's Enter: the same search, keeping that group's rows (Shift+Left goes back).
@@ -1631,6 +1649,13 @@ end
 --- The rows the search found, put through the steps: the kept rows (only "where" steps), or the summed-up rows. Rows
 --- whose item data isn't in yet ask for it and the search runs again (Filters.loading: UI:RetryWhenLoaded).
 --- `base`: the text before the summing step (a group's Enter keeps its rows: base | field:"value").
+--- Do the steps change what the search gives (sum it up, or keep some of its rows)? Then the search hands over every
+--- match, untrimmed and with no close spellings, and A.Apply sorts and trims what's kept (review, 0.53.6: a keeping
+--- step alone ran over the best 100: "| zone:\"Cap Cove\"" listed 9 of a group's 30).
+function A.Summing(spec)
+	return spec ~= nil and not spec.bad and (spec.last ~= nil or #(spec.wheres or {}) > 0)
+end
+
 function A.Apply(spec, res, base)
 	local rows = {}
 	for _, e in ipairs(res or {}) do if Real(e) then rows[#rows + 1] = e end end
@@ -1646,11 +1671,11 @@ function A.Apply(spec, res, base)
 	end
 	for _, w in ipairs(spec.wheres) do
 		local kept = {}
-		for _, e in ipairs(rows) do if Keep(w, e) then kept[#kept + 1] = e end end
+		for _, e in ipairs(rows) do if KeepsRow(w, e) then kept[#kept + 1] = e end end
 		rows = kept
 	end
 	local s = spec.last
-	if not s then return rows end
+	if not s then return ns.UI.SortAndTrim(rows) end
 	local n = #rows
 	if s.op == "count" then
 		local r = Row(L["%d results"]:format(n), base or "", "aggregate:count:" .. n, L["count"])
@@ -1661,21 +1686,25 @@ function A.Apply(spec, res, base)
 	-- one total ("sum value") or one per group ("group zone", "sum value by zone")
 	local groups, order = {}, {}
 	local total, have = 0, 0
+	local texts -- (each row's group, read once: a zone is a Questie lookup per NPC row; review, 0.53.6)
 	if s.by then -- (by raid: the raids' rows alone, no "no raid" group; by slot: what has one; 0.53.4, the player)
 		local kept = {}
-		for _, e in ipairs(rows) do if TextOf(s.by, e) then kept[#kept + 1] = e end end
+		texts = {}
+		for _, e in ipairs(rows) do
+			local t = TextOf(s.by, e)
+			if t then kept[#kept + 1] = e; texts[#kept] = t end
+		end
 		rows, n = kept, #kept
 	end
-	for _, e in ipairs(rows) do
+	for i, e in ipairs(rows) do
 		local v = f and f.num(e)
 		if v then total, have = total + v, have + 1 end
 		if s.by then
-			local t = TextOf(s.by, e)
-			local key = t or false
-			local g = groups[key]
+			local t = texts[i]
+			local g = groups[t]
 			if not g then
 				g = { text = t, n = 0, sum = 0, have = 0, sample = e }
-				groups[key] = g
+				groups[t] = g
 				order[#order + 1] = g
 			end
 			g.n = g.n + 1
@@ -1710,7 +1739,6 @@ function A.Apply(spec, res, base)
 		if byField.order and byField.num then g.rank = byField.num(g.sample) end
 	end
 	table.sort(order, function(a, b)
-		if (a.text == nil) ~= (b.text == nil) then return a.text ~= nil end -- (the rows without one last)
 		if byField.order and a.rank and b.rank and a.rank ~= b.rank then return a.rank > b.rank end
 		local va, vb = a.value or -math.huge, b.value or -math.huge
 		if va ~= vb then return va > vb end
@@ -1725,7 +1753,7 @@ function A.Apply(spec, res, base)
 		Said(out[1])
 	end
 	for _, g in ipairs(order) do
-		local name = g.text or L["no %s"]:format(byField.label)
+		local name = g.text
 		if s.by == "quality" and g.text then
 			local _, hex = QualityName(byField.num(g.sample))
 			if hex then name = hex .. g.text .. "|r" end -- (0.52.14, the player's screenshot: "|c" put before it showed)

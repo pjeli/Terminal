@@ -91,6 +91,21 @@ do
 	-- (release review) an average of a group with nothing to average: "-", not its count
 	r = Rows("@item mystery | avg ilvl by kind")
 	check(r[1] and r[1].detail:sub(1, 1) == "-", "avg with nothing to average: - : " .. tostring(r[1] and r[1].detail))
+	-- (review, 0.53.6) a number's step is kept by its range; a group's Enter after a step ends with a space; close
+	-- spellings aren't counted; money isn't a group
+	r = Rows("@item -bolt | lvl:20-30")
+	check(#r == 1 and r[1].name == "Rare Ring", "| lvl:20-30: the level-25 ring: " .. #r)
+	r = Rows("@item -bolt | lvl:2")
+	check(#r == 0, "| lvl:2: not the level-25 ring (\"2\" in \"25\"): " .. #r)
+	check(A.ParseStep("lvl:abc").bad and A.ParseStep("group by value").bad and A.ParseStep("sum count by price").bad,
+		"| lvl:abc says what goes there; copper amounts aren't groups")
+	r = Rows("@item -bolt | q:rare | group by level")
+	UI:Activate(1); FlushAll()
+	check(UI.edit:GetText():sub(-1) == " " and not (UI.Results()[1] and UI.Results()[1].syntaxRow),
+		"a group's Enter after a step: a space after it, the rows listed (not q:'s values): \"" .. UI.edit:GetText() .. "\"")
+	r = Rows("@item linnen | count")
+	check(r[1] and r[1].name == L["%d results"]:format(0), "a count of a misspelling: 0, not the close spellings: " .. tostring(r[1] and r[1].name))
+
 	-- Enter on a total: said in the chat window, the search kept in the history
 	local printed
 	local realPrint = ns.Print
@@ -147,7 +162,7 @@ do
 	UI:EasyChanged()
 	UI.lastScan, UI.lastOverview = nil, nil
 	r = Rows("cloth | sum value")
-	check(UI.aggregate == nil and r[1] and r[1].name == L["@, >, >> and key:value are for Advanced mode"],
+	check(UI.aggregate == nil and r[1] and r[1].name == L["@, >, >>, | and key:value are for Advanced mode"],
 		"Simple mode: a | is Advanced mode's: " .. tostring(r[1] and r[1].name))
 	ns.db.easyMode = false
 	UI:EasyChanged()
@@ -187,6 +202,23 @@ do
 	FlushAll()
 	check(UI.Results()[1] and UI.Results()[1].name == "Cookie's Ladle", "a group named with quote marks: Enter lists its rows: "
 		.. UI.edit:GetText())
+
+	-- a keeping step alone: over every match, not the best 100 (review, 0.53.6: 9 of a group's 30)
+	ns.providers, ns.providerOrder = {}, {}
+	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function()
+		local out = {}
+		for i = 1, 200 do out[#out + 1] = { name = "Bolt " .. i, key = "b" .. i, zone = "Westfall" } end
+		for i = 1, 30 do out[#out + 1] = { name = "Zbolt " .. i, key = "z" .. i, zone = '"Cap" Cove' } end
+		return out
+	end })
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastOverview = nil, nil
+	r = Rows("bolt | group by zone")
+	local cap
+	for _, e in ipairs(r) do if e.name == '"Cap" Cove' then cap = e end end
+	check(cap and cap.detail == L["%d results"]:format(30), "the group: 30 rows: " .. tostring(cap and cap.detail))
+	r = Rows('bolt | zone:"Cap Cove"')
+	check(#r == 30, "its Enter's step keeps all 30, not the few of them in the best 100: " .. #r)
 
 	C_Item.GetItemInfo = save.gii
 	ns.providers, ns.providerOrder = save.providers, save.order

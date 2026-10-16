@@ -25,7 +25,7 @@ function UI:RunSearch(text)
 	-- ("| sum value": what's found so far, summed up, nothing to sort; the whole list once the search is done)
 	local agg = self.aggregate
 	local copy
-	if agg and agg.last and not agg.bad and ns.Aggregate then copy = ns.Aggregate.Apply(agg, res, agg.base)
+	if ns.Aggregate and ns.Aggregate.Summing(agg) then copy = ns.Aggregate.Apply(agg, res, agg.base)
 	else
 		copy = UI.SortAndTrim(res) -- (a new list: the search goes on filling res)
 		if agg and ns.Aggregate then copy = ns.Aggregate.Apply(agg, copy, agg.base) end
