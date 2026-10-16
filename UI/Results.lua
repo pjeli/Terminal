@@ -135,22 +135,28 @@ end
 
 --- The same row, or the same row made again (kind, key and name).
 local function SameRow(e, keep) return e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key) end
+UI.SameRow = SameRow -- (one test of it: the menu, Enter's armed press, the row a chain goes back to, the catcher's click)
+
+--- The row `keep` selected again in the rows now shown, at the same place on screen (keptRow: its row there). True when
+--- it's there; else the first row is (one copy: PutUp's and Refresh's).
+local function KeepSelection(keep, keptRow)
+	UI.sel, UI.offset = 1, 0
+	if not keep then return false end
+	for i, e in ipairs(UI.results) do
+		if SameRow(e, keep) then
+			UI.sel, UI.offset = i, math.max(0, math.min(i - keptRow, #UI.results - LY.ROWS))
+			return true
+		end
+	end
+	return false
+end
 
 --- Rows put up in place of the shown ones, the selected row kept selected where it was on screen (if it's there).
 local function PutUp(list)
 	local keep = (UI.sel > 1 or UI.offset > 0) and UI.results[UI.sel] or nil
 	local keptRow = UI.sel - UI.offset
 	UI.results = list
-	UI.sel, UI.offset = 1, 0
-	if keep then
-		for i, e in ipairs(UI.results) do
-			if SameRow(e, keep) then
-				UI.sel = i
-				UI.offset = math.max(0, math.min(i - keptRow, #UI.results - LY.ROWS))
-				break
-			end
-		end
-	end
+	KeepSelection(keep, keptRow)
 end
 
 -- A search run again because item data came in (UI:RetryWhenLoaded) runs in the background: the list shown stays as
@@ -161,6 +167,12 @@ UI.UPDATE_KEY = "F5"
 local function Real(list)
 	for i = 1, #list do if not list[i].noActivate then return true end end
 	return false
+end
+--- How many real rows a list has (not notes, not leads): the footer's count, a tab's, a category's.
+function UI.RealCount(list)
+	local n = 0
+	for _, e in ipairs(list or {}) do if not (e.noActivate or e.lead) then n = n + 1 end end
+	return n
 end
 -- What a search sets beside its rows, read with the rows shown (the footer, Enter, >>> sending): a background search
 -- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
@@ -184,11 +196,13 @@ end
 --- held rows give back the shown list's, whichever search ran in between (review, 0.51.25: a background search started
 --- again, or F5 pressed while one ran, gave back another's).
 local function Shown(self) self.shownFields = Fields(self) end
-local function Equal(a, b)
+--- The same rows, in the same order (SameRow each).
+local function SameRows(a, b)
 	if not a or not b or #a ~= #b then return false end
 	for i = 1, #a do if not SameRow(a[i], b[i]) then return false end end
 	return true
 end
+UI.SameRows = SameRows
 -- F5 only for a list that's sure (0.52.9, the player: after a /reload "upgrades" jumped between result sets, F5 coming
 -- and going while item data came in: "if an F5 result appears it should be because we definitely have a new stable
 -- set"): a background search's rows unlike what's shown are a candidate; the same search again UI.CONFIRM_S s later
@@ -210,10 +224,10 @@ local function Confirm(self)
 end
 local function Hold(self, shown, new)
 	if not Real(shown) then self.candidate = nil return nil end
-	local confirmed = self.candidate ~= nil and Equal(self.candidate, new)
+	local confirmed = self.candidate ~= nil and SameRows(self.candidate, new)
 	if not confirmed then confirm.tries = 0 end -- (another candidate, or none before: its own checks)
 	self.candidate = nil
-	if Equal(shown, new) then
+	if SameRows(shown, new) then
 		-- (what's shown found again: an F5 offered goes only when that's sure too)
 		if self.held and not confirmed then self.candidate = new; Confirm(self)
 		else self.held, self.heldFields = nil, nil end
@@ -225,7 +239,7 @@ local function Hold(self, shown, new)
 		self.held, self.heldFields = nil, nil
 		return nil
 	end
-	if not (self.held and Equal(self.held, new)) then -- (offered already: as it was)
+	if not (self.held and SameRows(self.held, new)) then -- (offered already: as it was)
 		if confirmed then
 			self.held, self.heldFields = new, Fields(self)
 		else
@@ -247,8 +261,7 @@ function UI:NoteCountChange()
 	if not want or self.searchJob then return end
 	self.expectCount = nil
 	if want.cat ~= self.category then return end
-	local n = 0
-	for _, e in ipairs(UI.results) do if not e.noActivate and not e.lead then n = n + 1 end end
+	local n = UI.RealCount(UI.results)
 	if n == want.n or n >= ns.Score.LIST_MAX then return end
 	local note = { text = L["updated as you stepped in: %d counted a moment ago"]:format(want.n) }
 	self.countNote = note
@@ -274,11 +287,6 @@ function UI:QuietRedo()
 	self:Refresh()
 end
 
-local function SameRows(a, b)
-	if not a or not b or #a ~= #b then return false end
-	for i = 1, #a do if not SameRow(a[i], b[i]) then return false end end
-	return true
-end
 --- A background search for a changed list done: nothing new (nothing held, or what was held already) counts toward
 --- UI.LIVE_SAME.
 function UI.LiveCounted(shownNew)
@@ -641,17 +649,8 @@ function UI:Refresh()
 	self.lastSearchCount = #UI.results
 	self.lastSearchSlices = 1
 	self:UpdateBusy()
-	UI.sel, UI.offset = 1, 0
-	if keep then
-		local found
-		for i, e in ipairs(UI.results) do
-			if SameRow(e, keep) then found = i break end
-		end
-		if found then
-			UI.sel, UI.offset = found, math.max(0, math.min(found - keptRow, #UI.results - LY.ROWS))
-		elseif not self.popTarget then
-			self.popTarget = keep -- (not in the first slice: once the search ends, SelectPopTarget)
-		end
+	if not KeepSelection(keep, keptRow) and keep and not self.popTarget then
+		self.popTarget = keep -- (not in the first slice: once the search ends, SelectPopTarget)
 	end
 	if not (quiet and self.searchJob) then Shown(self) end -- (a background search going on: the old list is up)
 	self:SelectPopTarget(not self.searchJob)
@@ -719,10 +718,14 @@ function UI:GoBack()
 end
 
 --- Is there somewhere Shift+Left goes back to (the footer says so)?
+--- A step's search, or a line Up brought back, to go back from (the footer's hint says Shift+Left for these).
+function UI:CanStepBack()
+	return not self.fzf and (self:WalkTop() ~= nil or self:HistoryBack(true)) or false
+end
+--- Shift+Left goes somewhere: a step back, or out of Simple mode's category.
 function UI:CanGoBack()
 	if self.fzf then return false end
-	return self:WalkTop() ~= nil or self:HistoryBack(true)
-		or (EasyOn() and self.category ~= nil and not self.categoryAuto and UI.mode == "search")
+	return self:CanStepBack() or (EasyOn() and self.category ~= nil and not self.categoryAuto and UI.mode == "search")
 end
 
 function UI:Move(delta)

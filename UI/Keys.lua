@@ -278,7 +278,7 @@ local function KeysDown(self, key)
 		-- stale, and Enter works its press out afresh. (0.49.2, review: it always worked it out again, from Shift held
 		-- now and without the menu's own line: the armed "link in chat" ran the plain open, the menu's Open sent it)
 		local sel, armed = UI.results[UI.sel], UI.armedEntry
-		if armed and not (sel and (armed == sel or (armed.kind == sel.kind and armed.key == sel.key and armed.name == sel.name))) then
+		if armed and not (sel and UI.SameRow(sel, armed)) then
 			UI:Disarm()
 			armed = nil
 		end

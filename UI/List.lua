@@ -154,7 +154,7 @@ function UI:FitHints()
 	local key = "|cff" .. t.text
 	local sel = UI.results[UI.sel]
 	-- (a step's search, or a line Up brought back: Shift+Left goes back, UI:GoBack)
-	local back = (self:WalkTop() ~= nil or self:HistoryBack(true)) and not self.fzf
+	local back = self:CanStepBack()
 	if self.fzf then
 		list, key = FZF_HINTS, key .. "|fzf"
 	elseif not EasyOn() and sel and sel.syntaxRow then
@@ -216,7 +216,7 @@ function UI:FitHints()
 		text = try
 	end
 	hints:SetText(text)
-	self.hintCount = #parts
+	self.hintCount = #parts -- (tests)
 	hints:SetShown(text ~= "")
 end
 
@@ -284,12 +284,18 @@ local function NavTick()
 	end
 	-- where: the slot before the distance's column (the same place on every such row); else just left of the
 	-- detail's text as shown (cut to the room it has: a long one is cut off, never wider)
+	-- (measured when the row or its text changes, not every frame the arrow turns: review, 0.53.6)
 	local w = 0
 	if not r.distShown then
-		w = r.detail:GetStringWidth()
-		w = type(w) == "number" and w or 0
-		local room = r.detail:GetWidth()
-		if type(room) == "number" and room > 0 and w > room then w = room end
+		local text, room = r.detail:GetText(), r.detail:GetWidth()
+		if nav.wRow == r and nav.wText == text and nav.wRoom == room then
+			w = nav.wDetail
+		else
+			w = r.detail:GetStringWidth()
+			w = type(w) == "number" and w or 0
+			if type(room) == "number" and room > 0 and w > room then w = room end
+			nav.wRow, nav.wText, nav.wRoom, nav.wDetail = r, text, room, w
+		end
 	end
 	local key = r.distShown and -1 or w
 	if key ~= nav.w or nav.placedRow ~= r then
@@ -656,8 +662,13 @@ function UI:SetSelectionY(y)
 	selBar:ClearAllPoints()
 	selBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, y)
 	selBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, y)
-	selBar:SetHeight(LY.ROW_H)
-	selEdge:ClearAllPoints()
-	selEdge:SetPoint("TOPLEFT", selBar, "TOPLEFT", 0, 0)
-	selEdge:SetPoint("BOTTOMLEFT", selBar, "BOTTOMLEFT", 0, 0)
+	-- (every frame of a glide: only the bar moves; its height when the theme's rows change, the edge anchored to it once.
+	-- Review, 0.53.6)
+	if selBar.h ~= LY.ROW_H then selBar.h = LY.ROW_H; selBar:SetHeight(LY.ROW_H) end
+	if not selEdge.anchored then
+		selEdge.anchored = true
+		selEdge:ClearAllPoints()
+		selEdge:SetPoint("TOPLEFT", selBar, "TOPLEFT", 0, 0)
+		selEdge:SetPoint("BOTTOMLEFT", selBar, "BOTTOMLEFT", 0, 0)
+	end
 end

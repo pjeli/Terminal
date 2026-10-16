@@ -71,11 +71,7 @@ local function KindsOf(e, kinds)
 end
 
 --- How many real rows a list has (not notes, not leads).
-function T.Count(list)
-	local n = 0
-	for _, e in ipairs(list or {}) do if not (e.noActivate or e.lead) then n = n + 1 end end
-	return n
-end
+function T.Count(list) return UI.RealCount(list) end
 
 --- The prompt as it is now, as a tab (what's saved: text, cursor, the mode for this run, category, the selected row's
 --- kind, key and name), and what it showed (not saved: the lists its rows came from).

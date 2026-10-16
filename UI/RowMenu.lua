@@ -26,7 +26,7 @@ local Cap = ns.UpperFirst
 local function MenuRowIndex(e, idx)
 	if UI.results[idx] == e then return idx end
 	for i, r in ipairs(UI.results) do
-		if r == e or (r.kind == e.kind and r.key ~= nil and r.key == e.key) then return i end
+		if UI.SameRow(r, e) then return i end -- (rows with no key too: commands, slash rows; review, 0.53.6)
 	end
 end
 

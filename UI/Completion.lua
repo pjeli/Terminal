@@ -45,11 +45,16 @@ end
 --- Complete `word` from `cands`: the text that should replace it, and whether that's final.
 local function CompleteWord(word, cands)
 	local hits, seen = {}, {}
+	local lw, n = ns.Lower(word), #word
 	for _, c in ipairs(cands) do
 		if type(c) == "table" then c = c[1] end -- { value, detail }
-		if type(c) == "string" and StartsWith(c, word) and not seen[ns.Lower(c)] then
-			seen[ns.Lower(c)] = true
-			hits[#hits + 1] = c
+		-- (the start compared first, the whole lowercased only for a hit: thousands of slash commands a keystroke)
+		if type(c) == "string" and ns.Lower(c:sub(1, n)) == lw then
+			local lc = ns.Lower(c)
+			if not seen[lc] then
+				seen[lc] = true
+				hits[#hits + 1] = c
+			end
 		end
 	end
 	if #hits == 0 then return nil end
@@ -86,14 +91,19 @@ local function CompleteCommand(text)
 	return true, Replace(text, argWord, new, final)
 end
 
+local slashFor, slashNames = nil, {}
 --- "/rel" -> "/reload": a slash command. Whether the text is one, and its completion.
 local function CompleteSlash(text)
 	if text:sub(1, 1) ~= "/" then return false end
 	if text:find("%s") then return true, nil end
-	local cands = {}
 	local p = ns.providers.slash
-	if p then for _, e in ipairs(ns:GetEntries(p)) do cands[#cands + 1] = e.name end end
-	local new, final = CompleteWord(text, cands)
+	local list = p and ns:GetEntries(p)
+	-- (the names kept while the list is the same: made again on every keystroke of "/xyz"; review, 0.53.6)
+	if slashFor ~= list then
+		slashFor, slashNames = list, {}
+		for _, e in ipairs(list or {}) do slashNames[#slashNames + 1] = e.name end
+	end
+	local new, final = CompleteWord(text, slashNames)
 	if new then return true, Replace(text, text, new, final) end
 	return true, nil
 end
@@ -107,18 +117,24 @@ local function CompleteChannel(text, last)
 	return true, Replace(text, last, new, final)
 end
 
+local kindCands, kindFor, kindN
 --- "@equ" -> "@equipment": a kind. Whether the last word is one, and its completion.
 local function CompleteKind(text, last)
 	if last:sub(1, 1) ~= "@" then return false end
-	local cands = {}
-	for _, id in ipairs(ns.providerOrder) do
-		local p = ns.providers[id]
-		if not p.noKind then
-			cands[#cands + 1] = "@" .. id
-			for _, a in ipairs(p.aliases or {}) do cands[#cands + 1] = "@" .. a end
+	-- (kept while the kinds are the same: the alias map is made again whenever they change, ns:AliasesChanged)
+	if not ns.aliasMap then ns:ResolveProvider("") end -- (makes the map)
+	local map = ns.aliasMap
+	if not kindCands or kindFor ~= map or kindN ~= #ns.providerOrder then
+		kindFor, kindN, kindCands = map, #ns.providerOrder, {}
+		for _, id in ipairs(ns.providerOrder) do
+			local p = ns.providers[id]
+			if not p.noKind then
+				kindCands[#kindCands + 1] = "@" .. id
+				for _, a in ipairs(p.aliases or {}) do kindCands[#kindCands + 1] = "@" .. a end
+			end
 		end
 	end
-	local new, final = CompleteWord(last, cands)
+	local new, final = CompleteWord(last, kindCands)
 	if not new then return true, nil end
 	return true, Replace(text, last, new, final)
 end

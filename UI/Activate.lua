@@ -384,8 +384,13 @@ function UI:CatcherClicked(button)
 		return
 	end
 	self:HideCatcher()
-	if UI.results[idx] ~= e then return end
-	UI.sel = idx
+	-- (the row where it is now: the list may have been made again since the pointer came to rest; review, 0.53.6: a
+	-- click the game had pressed then never finished, the terminal left open)
+	if UI.results[idx] ~= e then
+		idx = nil
+		for i, r in ipairs(UI.results) do if UI.SameRow(r, e) then idx = i break end end
+	end
+	if idx then UI.sel = idx end
 	local kind, text
 	if SecureButton_GetModifiedAttribute then
 		kind = SecureButton_GetModifiedAttribute(c, "type", button or "LeftButton")
@@ -408,7 +413,7 @@ function UI:CatcherClicked(button)
 		-- kept open (Ctrl on a press that opens no window, a press that asks for more): the catcher back over the row the
 		-- pointer rests on, so the next click is pressed by the game too (0.49.2, review: it only armed Enter)
 		if self:IsShown() then self:PlaceCatcher(c.row) end
-	else
+	elseif idx then
 		ns:Trace("click: no window macro for " .. tostring(e.name) .. ", running its usual action")
 		self:Activate(idx, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 	end

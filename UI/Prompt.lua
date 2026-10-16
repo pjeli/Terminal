@@ -522,7 +522,7 @@ local function PaintRange(text, segs, from, to)
 	return table.concat(out)
 end
 
---- The typed text with colour codes (see SyntaxSegments). Spaces are kept as typed.
+--- The typed text with colour codes (see SyntaxSegments). Spaces are kept as typed. (tests)
 function UI:Highlighted(text)
 	return PaintRange(text, self:SyntaxSegments(text), 1, #text)
 end

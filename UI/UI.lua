@@ -45,7 +45,7 @@ UI.Style, UI.Wake = Style, Wake
 UI.results = {}
 function UI.Results() return UI.results end
 UI.sel, UI.offset = 1, 0
-function UI.Selected() return UI.sel end
+function UI.Selected() return UI.sel end -- (tests)
 UI.args = nil
 UI.keys = false   -- true while the terminal reads keystrokes itself (Keys.lua)
 UI.noChar = false -- set if this client never sends typed characters to frames

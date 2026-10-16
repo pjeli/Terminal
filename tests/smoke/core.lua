@@ -421,6 +421,17 @@ do -- the click catcher and the row menu don't outlive the terminal when the gam
 	T.FlushAll()
 	check(logHas("SelectQuest 33", mark + 1), "the click's after-step still runs (the quest selected in the log)")
 	check(not c.shown, "and the catcher is gone")
+	-- (review, 0.53.6) the list made again after the pointer came to rest (the same row, a new table): the click the game
+	-- pressed still finishes
+	c = OpenOver()
+	local mark2 = #T.log
+	local copy = {}
+	for k, v in pairs(UI.results[1]) do copy[k] = v end
+	UI.results[1] = setmetatable(copy, getmetatable(c.entry))
+	c.scripts.PostClick(c, "LeftButton")
+	T.FlushAll()
+	check(logHas("SelectQuest 33", mark2 + 1), "the list made again: the click's after-step still runs")
+	UI:Hide(); T.FlushAll()
 	-- the row menu too
 	UI:Open("hearthstone")
 	UI:ShowRowMenu(1)
