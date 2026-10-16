@@ -9,6 +9,8 @@ local L = ns.L
 --   ns:ShowText(title, text, { compact = true })   one line (a link, a style string): a slim bar in the
 --       terminal's look, sized to the text (wrapping onto a few lines when it's long), that closes by
 --       itself once Ctrl+C has copied it
+--   ns:ShowText(title, text, { closeOnCopy = true })   the window, closing by itself once Ctrl+C has copied it too
+--       (">> csv", ">>> text": 0.52.12, the player's ask, as the slim bar does)
 --
 -- The box can be scrolled and clicked into, but not edited (typing puts the text back).
 -- Esc or the Close button closes it.
@@ -75,6 +77,13 @@ local function Build()
 	edit:SetMaxLetters(0)
 	edit:SetScript("OnEscapePressed", function() C.Hide() end)
 	edit:SetScript("OnTextChanged", ReadOnly)
+	-- (asked for: gone once copied, as the slim bar is; the copy itself is the game's own, on this key)
+	edit:SetScript("OnKeyDown", function(_, key)
+		if C.closeOnCopy and key == "C" and IsControlKeyDown() then
+			C.copied = true
+			C_Timer.After(0.1, C.Hide)
+		end
+	end)
 	sf:SetScrollChild(edit)
 
 	local close = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -246,7 +255,7 @@ end
 
 function C.Show(title, text, options)
 	local opts = options or {}
-	C.copied = false
+	C.copied, C.closeOnCopy = false, opts.closeOnCopy and true or false
 	if opts.compact then
 		current = tostring(text or "")
 		if frame then frame:Hide() end

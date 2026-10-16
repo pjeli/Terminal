@@ -63,6 +63,22 @@ function UI:CollapseGroup(list)
 			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = L["Nothing searched to send"],
 			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or "party") } }
 	end
+	if to.copy then
+		-- ">>> text", ">>> csv": every result, to copy (Activate opens them in a box)
+		local rows = {}
+		for _, e in ipairs(list) do if not e.noActivate then rows[#rows + 1] = e end end
+		self.groupRows = rows
+		local n = #rows
+		local row = { kind = "send", kindLabel = "|cff33ff99" .. L["copy"] .. "|r", icon = "Interface\\Icons\\INV_Misc_Note_01", raw = true,
+			sendAll = true, _pos = UI.NO_POS, _score = 0, actionVerb = L["copy as %s"]:format(to.label),
+			detail = L["Enter opens them in a box to copy (Ctrl+C)"] }
+		if n == 0 then
+			row.name, row.noActivate, row.detail = L["Nothing to copy"], true, ""
+		else
+			row.name = (n == 1 and L["Copy the %d as %s"] or L["Copy all %d as %s"]):format(n, to.label)
+		end
+		return { row }
+	end
 	if to.drop and ns.QuestDrop then
 		-- ">>> drop": the quests in your log among them (complete ones kept), dropped after Terminal's confirmation
 		local rows, kept = ns.QuestDrop.GroupRows(list, true)
@@ -139,7 +155,7 @@ end
 -- What a search sets beside its rows, read with the rows shown (the footer, Enter, >>> sending): a background search
 -- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
 -- list said the old ones; Simple mode's category label changed with the list staying)
-local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "blockedSyntax", "linked", "answerNote", "pipeTrail",
+local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "blockedSyntax", "blockedCopy", "linked", "answerNote", "pipeTrail",
 	"flightNote", "missingNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
 local NONE = {}
 local function Fields(self)
@@ -450,11 +466,23 @@ local function TakeSendTo(self, text, first)
 	if self.fzf then
 		-- (nothing to take off)
 	elseif first ~= "." and first ~= "/" and ns.Share and EasyOn() then
-		-- Simple mode: no sending to chat; the words before ">>" are searched and a row says it's Advanced mode's
+		-- Simple mode: no ">>" (the words before it are searched and a row says it's Advanced mode's, ">> csv" too); to
+		-- copy, plain words at the end: "linen to csv", "linen as text" (every result; 0.52.12, the player's call)
 		local query, rest = ns.Share.Split(text)
 		if rest then
-			self.blockedSyntax = "send"
-			text = query:gsub("%s+$", "")
+			local to = ns.Share.Channel(rest)
+			query = query:gsub("%s+$", "")
+			self.blockedSyntax = to.copy and query ~= "" and "copy" or "send"
+			self.blockedCopy = to.copy and query .. " to " .. to.copy or nil
+			text = query
+		else
+			local q, how = ns.Share.PlainCopy(text)
+			if q then
+				local to = ns.Share.Channel(how)
+				to.query, to.all = q, true
+				self.sendTo = to
+				text = q
+			end
 		end
 	elseif first ~= "." and first ~= "/" and ns.Share then
 		local query, rest, all = ns.Share.Split(text)

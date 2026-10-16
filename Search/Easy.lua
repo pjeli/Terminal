@@ -979,6 +979,15 @@ E.SEND_ROW = {
 	detail = L["say, party, guild, whisper, or all of them at once (>> is Advanced mode's)"], icon = "Interface\\Icons\\INV_Letter_15",
 }
 
+-- ">> csv" typed in Simple mode (0.52.12): copying is said in words here; Enter writes them ("linen to csv")
+function E.CopyRow(phrase)
+	return {
+		name = L["To copy, type: %s"]:format(phrase), kind = "advanced", kindLabel = "", staysOpen = true,
+		detail = L["Enter writes it for you (>> is Advanced mode's)"], icon = "Interface\\Icons\\INV_Letter_15",
+		activate = function() if ns.UI then ns.UI:SetQuery(phrase, #phrase) end end,
+	}
+end
+
 ----------------------------------------------------------------------
 -- .advanced / .simple (the modes; db.easyMode == false is Advanced)
 ----------------------------------------------------------------------
@@ -1108,6 +1117,7 @@ function E.HelpLines()
 		L["Gear: upgrades lists what you can get that beats what you wear, the biggest first, and its tooltip says why; quest upgrades lists the quests whose reward is one (with Questie)."],
 		L["When a list changes while you look at it (your bags as you loot, item data coming in), it stays put and the footer says so: F5 shows the new one."],
 		L["Alt+click an item (or a spell, quest, achievement) in chat to look it up here."],
+		L["Copy what you found, to paste outside the game: add \"to csv\" or \"to text\" (\"linen to csv\"). Every result opens in a box; Ctrl+C copies it and closes the box."],
 		L["Ctrl+Enter does it and keeps the terminal open (for things that don't open a window)."],
 		L["F1 (or .keybinds) shows every key, for each mode; Esc there brings you back."],
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],

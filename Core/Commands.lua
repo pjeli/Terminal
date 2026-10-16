@@ -21,6 +21,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = L["Filters (add to a search, .filters for all): lvl:20-30  q:rare+  stat:stamina  slot:wrist  in:bank  is:todo  is:usable"]
 		lines[#lines + 1] = L["Send a result to chat with  >>  :  hearthstone >> party   @npc hogger >> guild   copper bar >> w Name"]
 		lines[#lines + 1] = L["Every result at once with  >>>  :  mats for thorium belt >>> party   @loot lorgus jett >>> guild"]
+		lines[#lines + 1] = L["To copy and paste elsewhere:  >> text  (the selected result),  >>> text  or  >>> csv  (every result): they open in a box, Ctrl+C copies"]
 	lines[#lines + 1] = L["Drop quests with  >> drop  (the selected one)  and  >>> drop  (every quest listed), Terminal asking first:  @quest is:drop >>> drop"]
 		lines[#lines + 1] = L["Chains: thorium belt > mats, copper bar > uses, thorium bar > sources, thorium belt > learn (.chains); plain words work too: mats for thorium belt, where to learn thorium belt"]
 		lines[#lines + 1] = L["Guildies by what they do: @guild blacksmith, @guild priest is:online (Enter whispers, Shift+Enter invites)"]

@@ -717,7 +717,8 @@ Scan.ANSWERS = {
 }
 
 -- SearchText's steps share one table per search (q):
---   text; simple: Simple mode; blocked: Advanced syntax typed in Simple mode ("send": a ">>"); kinds: the lists asked
+--   text; simple: Simple mode; blocked: Advanced syntax typed in Simple mode ("send": a ">>"; "copy": ">> csv",
+--   q.copyPhrase the words that do it there); kinds: the lists asked
 --   for (a set of ids: @kinds, an action word's, a category's); tokens: the words searched, lowercase; filters: every
 --   filter; hard: the typed key:value ones (and a place's, an action's, a category's test); softs / softWords: Simple
 --   mode's everyday words' filters, and the words; fsig: the filters' signature (a narrowing needs the same); sortNear:
@@ -804,8 +805,10 @@ function Scan.Finish(q, res)
 	if q.goneLine then table.insert(res, 1, PseudoEntries({ q.goneLine })[1]) end
 	local blocked = q.blocked
 	if not blocked then return res end
-	-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); else the Advanced row
-	local out = { blocked == "send" and ns.Easy.SEND_ROW or ns.Easy.ADVANCED_ROW }
+	-- only a ">>" typed: where sending lives in Simple mode (the right-click menu); ">> csv": the words that copy
+	-- ("linen to csv"); else the Advanced row
+	local out = { blocked == "send" and ns.Easy.SEND_ROW
+		or blocked == "copy" and q.copyPhrase and ns.Easy.CopyRow(q.copyPhrase) or ns.Easy.ADVANCED_ROW }
 	for i = 1, #res do out[i + 1] = res[i] end
 	return out
 end
@@ -926,7 +929,7 @@ function Scan.Parse(self, text)
 	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
 		hard = hard, softs = softs, softWords = softWords, strictWords = strictWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, sortBest = sortBest, advAct = advAct,
-		also = also, missingGone = missingGone, goneLine = goneLine }
+		also = also, missingGone = missingGone, goneLine = goneLine, copyPhrase = blocked == "copy" and self.blockedCopy or nil }
 end
 
 --- Simple mode: "enchanting trainer" is the trainers who teach enchanting, not the word in their title (the Journeyman

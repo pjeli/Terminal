@@ -228,7 +228,7 @@ do
 		end)
 		edit:SetScript("OnEscapePressed", function()
 			if ns.Tour and ns.Tour.Key("ESCAPE") then return end
-			UI:Hide()
+			UI:Dismiss()
 		end)
 		edit:SetScript("OnArrowPressed", function(_, key)
 			if key == "UP" then UI:Up() elseif key == "DOWN" then UI:Down() end
@@ -681,6 +681,10 @@ function UI:KeepLastSearch()
 	end
 end
 
+-- Closed and opened again within UI.REOPEN_KEEP s (0.52.10, the player's ask): what was typed is back, the caret where
+-- it was. Not after something was run (Enter: UI.ran), only after closing it (the key, a click elsewhere): Esc
+-- (UI:Dismiss) closes it and lets go of the text too (0.52.11, the player's ask).
+UI.REOPEN_KEEP = 5
 function UI:Hide()
 	self:HideRowMenu()
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
@@ -691,6 +695,12 @@ function UI:Hide()
 	self:HideTooltip()
 	edit:ClearFocus()
 	self:KeepLastSearch()
+	do
+		local typed = edit:GetText() or ""
+		local ran = self.ran and GetTime() - self.ran < 2
+		self.closedText = (typed:find("%S") and not ran and not self.fzf) and { text = typed, at = GetTime(), cursor = self.cursor } or nil
+		self.ran = nil
+	end
 	self:EndAdvancedOnce()
 	self:EndFuzzy()
 	if ns.Tour then ns.Tour.Stop() end -- (closed: the tour is over)
@@ -706,6 +716,12 @@ function UI:Hide()
 	else
 		frame:Hide()
 	end
+end
+
+--- Esc: closed, and what was typed let go (a quick reopen starts empty).
+function UI:Dismiss()
+	self:Hide()
+	self.closedText = nil
 end
 
 --- Gone at once, without the closing animation (something else takes its place: .atop).
@@ -918,11 +934,22 @@ function UI:Open(text)
 	self:UpdateCaret()
 end
 
+--- What was typed before the terminal closed a moment ago (UI.REOPEN_KEEP), to open with; nil when there's none.
+function UI:RecentText()
+	local c = self.closedText
+	self.closedText = nil
+	if c and GetTime() - c.at <= UI.REOPEN_KEEP then return c.text, c.cursor end
+end
+
 function UI:Toggle()
 	if self:IsShown() then return self:Hide() end
 	-- Tab+` (the game sees the toggle key; Tab held): opens in pure fuzzy finding
 	if self:TabDown() then return self:FuzzyOnce() end
 	-- closed by combat starting: opened by hand before it came back, as it was then
-	if not (self.combatState and self:ComeBack("opened by hand")) then self:Open() end
+	if not (self.combatState and self:ComeBack("opened by hand")) then
+		local text, cursor = self:RecentText()
+		self:Open(text)
+		if text and type(cursor) == "number" then self.cursor = math.min(cursor, #text); self:UpdateCaret() end
+	end
 	self.openedByToggle = GetTime() -- (Tab let go just after, nothing typed: it was Tab+`, TabReleased)
 end

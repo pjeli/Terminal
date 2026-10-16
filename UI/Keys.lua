@@ -436,7 +436,7 @@ do
 		if key == "`" then
 			TickKey()
 		elseif key == "ESCAPE" then
-			UI:Hide()
+			UI:Dismiss()
 		elseif (key == "BACKSPACE" or key == "DELETE") and DeleteSelection(text) then
 			return
 		elseif key == "BACKSPACE" then

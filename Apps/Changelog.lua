@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.52.9", when = "in testing",
+		v = "0.52.12", when = "in testing",
 		items = {
 			"The empty prompt's suggestions fit where you are and what you have: in a city, trainers, the mailbox, the auction house and your mail come up first; out in the world, quests, dungeons and upgrades; in a dungeon, your group and its loot (the others still come up, later). Ones for an addon you don't have (Questie's NPCs, AtlasLoot's loot, Attune) aren't suggested, and there are more of them.",
 			".atop: Left/Right switch the list's CPU % between each addon's share of all addons' time and its share of a frame (1.2% of every frame), a bar full at a tenth of one; the choice is kept.",
@@ -22,6 +22,8 @@ CL.LOG = {
 			"\"upgrades\" lists clear upgrades only: what it gives up, by your class's stats, at most half of what it gains (+3 Strength for -2 Agility is one, +1 Strength +2 Stamina for -2 Agility isn't), and enough of a gain to matter; never a piece you're wearing already (it beat your other ring or weapon).",
 			"An upgrade's comparison shows on every row of the list, also one a background search has judged again meanwhile; with nothing worn in its slot, the tooltip says so.",
 			"F5's new results are offered only once they're sure: a background search's list has to come out the same twice in a row (checked again a moment later), so F5 no longer comes and goes while item data comes in after a /reload.",
+			">> text and >> csv copy instead of sending: the selected result (>>> text, >>> csv: every result) opens in a box as plain lines or as CSV (name, detail, kind, id); Ctrl+C copies it and the box closes. In Simple mode, add \"to csv\" or \"to text\" instead (\"linen to csv\").",
+			"Closed with the toggle key or a click elsewhere and opened again within 5 seconds, the terminal has what you'd typed back; Esc closes it and clears the text (as Enter running something does).",
 		},
 	},
 	{

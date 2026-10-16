@@ -152,6 +152,8 @@ end
 --- The armed press was made: disarmed, closed (unless it asks for more, or Ctrl+Enter kept it), the result pointed at.
 --- `pressed`: the entry whose press it was, when nothing is armed any more (FinishSoon).
 function UI:FinishSecure(pressed)
+	-- (a press made: something was run, so no text kept for a quick reopen, even if its window closed the terminal first)
+	self.ran, self.closedText = GetTime(), nil
 	local hold = self.holdOpen -- (read before Disarm clears it)
 	local e = self.armedEntry or pressed
 	-- the press came back after the terminal had closed (the window it opened closed it): still that entry
@@ -452,6 +454,23 @@ local function SendEveryResult(self, to)
 	self:Hide()
 end
 
+--- ">> text", ">> csv" (">>>": every result): the terminal closes and they open in a box to copy (Ctrl+C).
+local function CopyOut(self, e, to)
+	local rows = { e }
+	if to.all then
+		if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
+		rows = self.groupRows or self.groupList or UI.results
+	end
+	local text, n = ns.Share.CopyText(rows, to.copy)
+	if n == 0 then ns:Print(L["Nothing to copy."]) return end
+	ns:RecordHistory(UI.edit:GetText())
+	local what = ns.Share.Searched(to.query) and to.query:gsub("^%s+", ""):gsub("%s+$", "") or ns.Share.Clean(e.name)
+	self:Hide()
+	-- (one line of text: the slim bar; more, or CSV: the window. Either closes once Ctrl+C has copied it: 0.52.12)
+	local one = n == 1 and to.copy == "text"
+	ns:ShowText(L["%s as %s"]:format(what, to.label), text, one and { compact = true } or { closeOnCopy = true })
+end
+
 --- ">> channel": the selected result is sent, never opened or run: the game presses the chat line (armed here).
 local function SendSelected(self, e, to, secondary)
 	if to.drop then
@@ -473,10 +492,12 @@ function UI:Activate(idx, opts)
 	local e = UI.results[idx or UI.sel]
 	if not e or e.noActivate then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
+	self.ran = GetTime() -- (something run: closing after it, the text isn't kept for a quick reopen, UI:Hide)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
 	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. 0.50.7,
 	-- review: its menu's "Send" closed the terminal and sent nothing)
 	local to = (not opts.own or e.sendAll) and self.sendTo or nil
+	if to and to.copy and not e.completion then return CopyOut(self, e, to) end
 	if to and to.all and not e.completion then return SendEveryResult(self, to) end
 	-- ">> channel": never opened or run, only sent (by the game's press, armed there; in combat it says it can't send:
 	-- 0.49.2, review: a row that opens a window said "can't open in combat", the others "can't send it now")

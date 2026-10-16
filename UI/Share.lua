@@ -19,6 +19,10 @@ local L = ns.L
 -- these lines are sent by Terminal itself, inside the key press or click that asked (SH.SendAll). The right-click
 -- menu has the same as "All N to party" (Simple mode too).
 
+-- ">> text" and ">> csv" (0.52.10, the player's ask: "simple copy pasting of outputs") aren't chat: the selected result
+-- (">>> text": every result) opens in a box to copy (Ctrl+C), as plain lines or as CSV (name,detail,kind,id). In Simple
+-- mode too.
+
 local SH = {}
 ns.Share = SH
 
@@ -37,7 +41,8 @@ local WHISPER = { w = true, whisper = true, tell = true, t = true }
 local CHAT_TYPE = { party = "PARTY", guild = "GUILD", raid = "RAID", officer = "OFFICER", say = "SAY", yell = "YELL",
 	instance = "INSTANCE_CHAT" }
 SH.CHAT_TYPE = CHAT_TYPE
-SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop" }
+SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop", "text", "csv" }
+local COPY = { text = "text", txt = "text", copy = "text", csv = "csv" }
 -- (how a channel is named where it's shown: the footer, the ">>>" row)
 local LABEL = { party = L["party"], guild = L["guild"], raid = L["raid"], officer = L["officer"], say = L["say"],
 	yell = L["yell"], instance = L["instance"] }
@@ -64,6 +69,17 @@ function SH.Split(text)
 	return text:sub(1, at - 1), (text:sub(at + (all and 3 or 2)):gsub("^%s+", ""):gsub("%s+$", "")), all or nil
 end
 
+--- Simple mode's way to copy (0.52.12, the player's call: ">>" is Advanced mode's): "linen to csv", "linen as text"
+--- at the end of a search copies every result. Gives the search and "csv" / "text", or nil.
+function SH.PlainCopy(text)
+	if type(text) ~= "string" then return nil end
+	local query, pre, how = text:match("^(.-%S)%s+(%a%a)%s+(%a+)%s*$")
+	if not query then return nil end
+	pre, how = ns.Lower(pre), ns.Lower(how)
+	if (pre ~= "to" and pre ~= "as") or (how ~= "csv" and how ~= "text") then return nil end
+	return query, how
+end
+
 --- A whisper's target as typed ("Plamen Warr"): a first name and surname joined the way the game joins them
 --- (ns.CharacterName); one word as it is.
 function SH.WhisperTarget(who)
@@ -82,6 +98,7 @@ function SH.Channel(rest)
 	local lw = ns.Lower(w or "")
 	if lw == "" then return { pending = true } end
 	if lw == "drop" then return { drop = true, label = "drop" } end
+	if COPY[lw] then return { copy = COPY[lw], label = COPY[lw] == "csv" and "CSV" or L["text"] } end
 	local ch = CHANNELS[lw]
 	if ch then return { cmd = COMMAND[ch], label = LABEL[ch], chat = CHAT_TYPE[ch] } end
 	if WHISPER[lw] then
@@ -94,6 +111,52 @@ function SH.Channel(rest)
 	local n = tonumber(lw)
 	if n and n >= 1 and n <= 20 then return { cmd = "/" .. n, label = L["channel %s"]:format(n), chat = "CHANNEL", target = n } end
 	return { bad = w }
+end
+
+----------------------------------------------------------------------
+-- ">> text", ">> csv": results to copy
+----------------------------------------------------------------------
+
+--- A row's text as pasted elsewhere: no colour codes, icons or link markup ("|Hitem:..|h[Linen Cloth]|h" -> "[Linen
+--- Cloth]"), one line.
+local function Clean(s)
+	if s == nil or ns.Secret(s) then return "" end
+	s = ns.Plain(tostring(s)):gsub("|H.-|h(.-)|h", "%1"):gsub("|A.-|a", ""):gsub("|n", " "):gsub("[\r\n]+", " ")
+	return (s:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
+end
+SH.Clean = Clean
+local function KindOf(e)
+	local p = e.kind and ns.providers[e.kind]
+	return Clean((p and p.label) or e.kindLabel or e.kind or "") -- (its label, "Item": not its @kind)
+end
+local function IdOf(e)
+	local id = e.itemID or e.spellID or e.questID or e.npcID or e.achievementID or e.mountID
+	return type(id) == "number" and tostring(id) or ""
+end
+local function Field(s)
+	if s:find('[",]') then s = '"' .. s:gsub('"', '""') .. '"' end
+	return s
+end
+SH.CSV_HEAD = "name,detail,kind,id"
+--- The rows as text to copy ("text": a line each, its name and what the row says; "csv": a header and a line each),
+--- and how many rows went in (rows that are only notes left out).
+function SH.CopyText(rows, how)
+	local out, n = {}, 0
+	if how == "csv" then out[1] = SH.CSV_HEAD end
+	for _, e in ipairs(rows or {}) do
+		if type(e) == "table" and not e.noActivate then
+			local name, detail = Clean(e.name), Clean(e.detail)
+			if name ~= "" then
+				n = n + 1
+				if how == "csv" then
+					out[#out + 1] = table.concat({ Field(name), Field(detail), Field(KindOf(e)), IdOf(e) }, ",")
+				else
+					out[#out + 1] = detail ~= "" and (name .. " - " .. detail) or name
+				end
+			end
+		end
+	end
+	return table.concat(out, "\n"), n
 end
 
 local Call = ns.Safe -- (every use keeps only the first result)
