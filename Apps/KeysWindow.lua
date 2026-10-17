@@ -70,6 +70,7 @@ K.LINES = {
 	{ L["Modes and the window"] },
 	{ "` or Esc", L["close"], s = L["close (Down brings the search back next time)"] },
 	{ "Alt+`", only = "sf", s = L["this search in Advanced mode, this one time (Alt+` again or Shift+Left: your words back)"], f = L["the same words in Advanced mode"] },
+	{ "Alt+F, Alt+S, Alt+G", L["the bar's Filter, Sort and Group menus: Up/Down move, Enter or Space picks, Left/Right the next menu, Esc closes"], only = "s" },
 	{ "Tab+`", L["fuzzy finding over every list (hold Tab, press `)"], f = L["close"] },
 	{ "F1", L["this list (also .keybinds)"] },
 	{ "Ctrl+T", L["a new tab: several searches open at once, each kept up to date (four at most)"], only = "sa" },

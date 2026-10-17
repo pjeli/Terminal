@@ -230,6 +230,15 @@ local function KeysDown(self, key)
 		UI[OWN_ACTIONS[own]](UI)
 		return
 	end
+	-- (0.55.13, the player) Alt+F, Alt+S, Alt+G: the bar's Filter, Sort and Group menus, to pick from with the keys; and
+	-- a bar menu open from the keys takes them (Bar.lua). Before the game's keys: the bar is showing, they're its
+	local B = ns.Bar
+	if B and B.MenuKey(self, key) then return end
+	if B and IsAltKeyDown and IsAltKeyDown() and not IsControlKeyDown() and B.ALT_KEYS[key] and B.KeyOpen(B.ALT_KEYS[key]) then
+		self:SetPropagateKeyboardInput(false)
+		UI.swallowChar = GetTime() -- (a Mac's Option+F types a character after it: not typed)
+		return
+	end
 	local game, action = UI.GameKey(key)
 	if game then
 		-- the game's own key for something that doesn't touch Terminal (Ctrl+R, the frame rate): it goes on to it
@@ -528,6 +537,11 @@ function UI:OnChar(text)
 	-- the ` of Alt+` (its OnChar follows the key that switched to Advanced): not typed
 	if text == "`" and self.swallowTick and GetTime() - self.swallowTick < 0.5 then
 		self.swallowTick = nil
+		return
+	end
+	-- the character a key the bar took types after it (Alt+F's on a Mac, Space picking a line): not typed (Bar.lua)
+	if self.swallowChar and GetTime() - self.swallowChar < 0.5 then
+		self.swallowChar = nil
 		return
 	end
 	local q, c = edit:GetText(), self.cursor

@@ -865,6 +865,7 @@ function E.HelpLines()
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
+		L["The bar under the prompt narrows, sorts and groups what's found: Filter, Sort and Group (Alt+F, Alt+S, Alt+G open them, Up/Down and Enter pick); the speaker button sends or copies every result."],
 		L["Advanced syntax (@kinds, key:value filters, sort:name, sending to chat) works right here as you type it: your words stay as they are, and the bar under the prompt shows what it picks; .help advanced lists it all."],
 	}
 end

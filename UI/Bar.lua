@@ -625,12 +625,14 @@ local function MenuLine(m, i)
 	b.hl:SetAllPoints()
 	b.hl:Hide()
 	b:SetScript("OnEnter", function() b.hl:Show() end)
-	b:SetScript("OnLeave", function() b.hl:Hide() end)
+	b:SetScript("OnLeave", function() if not (m.keys and m.keySel == i) then b.hl:Hide() end end)
 	b:SetScript("OnClick", function()
 		local which, id = m.which, b.id
+		if id == nil then return end -- (a line saying something: nothing to pick)
 		if id == false then B.Clear(which) m:Hide() return end
 		B.Pick(which, id)
-		if which == "filter" then B.ShowMenu(which, m.owner) else m:Hide() end -- (filters add up: it stays open)
+		-- (filters add up: it stays open, the keys' line where it was)
+		if which == "filter" then B.ShowMenu(which, m.owner, m.keys, m.keys and m.keySel) else m:Hide() end
 	end)
 	m.lines[i] = b
 	return b
@@ -639,7 +641,7 @@ end
 local function HasOn(opts) for _, o in ipairs(opts) do if o.on then return true end end return false end
 
 --- A button's menu, under it: its options, the ones picked ticked (typed ones say so), "None" on top to clear.
-function B.ShowMenu(which, owner)
+function B.ShowMenu(which, owner, keys, sel)
 	local m = MenuFrame()
 	local t = Theme.Get()
 	local opts = B.Options(which)
@@ -650,16 +652,25 @@ function B.ShowMenu(which, owner)
 	m.which, m.owner = which, owner
 	for i, it in ipairs(items) do
 		local b = MenuLine(m, i)
-		b.id = (not it.dead) and it.id or nil
+		-- ("No filter" is false: kept, not turned into nil by an and/or; a line saying something has none)
+		if it.dead then b.id = nil else b.id = it.id end
 		b.fs:SetText(it.typed and L["%s (typed)"]:format(it.label) or it.label)
 		b.fs:SetTextColor(Theme.RGB(it.dead and t.dim or (it.on and t.accent or t.text)))
 		b.check:SetShown(it.on and true or false)
 		b.hl:SetColorTexture(Theme.RGB(t.accent))
 		b.hl:SetAlpha(0.25)
+		b.hl:Hide()
 		b:EnableMouse(not it.dead)
 		b:Show()
 	end
 	for i = #items + 1, #m.lines do m.lines[i]:Hide() end
+	-- (opened from the keys, Alt+F/S/G: a line picked to move from, the one ticked first; B.MenuKey)
+	m.n, m.keys, m.keySel = #items, keys and true or nil, nil
+	if keys then
+		local first
+		for i, it in ipairs(items) do if it.on and i > 1 then first = first or i end end
+		B.MenuSelect(sel or first or 1)
+	end
 	m:SetSize(MENU_W, #items * LINE + 8)
 	ns.Panel.Flat(m)
 	local r, g, bb = Theme.RGB(t.bg)
@@ -678,6 +689,72 @@ function B.ShowMenu(which, owner)
 end
 
 function B.HideMenu() if B.menu then B.menu:Hide() end end
+
+----------------------------------------------------------------------
+-- The keys (0.55.13, the player: "allow Alt+F, Alt+S and Alt+G to step into the filter, sort and group menus"): the
+-- menu opens with a line picked; Up/Down (Tab) move, Enter or Space picks (Filter's stay open), Left/Right go to the
+-- next menu, Esc closes it. Any other key closes it and does what it does.
+----------------------------------------------------------------------
+
+B.ALT_KEYS = { F = "filter", S = "sort", G = "group" }
+local ORDER = { "filter", "sort", "group" }
+
+--- Line `i` of the open menu picked from the keys (round the ends; a line saying something skipped).
+function B.MenuSelect(i, dir)
+	local m = B.menu
+	if not (m and m.n and m.n > 0) then return end
+	for _ = 1, m.n do
+		i = (i - 1) % m.n + 1
+		if m.lines[i].id ~= nil then break end
+		i = i + (dir or 1)
+	end
+	if m.keySel and m.lines[m.keySel] then m.lines[m.keySel].hl:Hide() end
+	m.keySel = i
+	m.lines[i].hl:Show()
+end
+
+--- Alt+F / Alt+S / Alt+G: that menu, from the keys. False when the bar isn't showing (the key does what it did).
+function B.KeyOpen(which)
+	if not B.On() then return false end
+	B.Update()
+	local s = B.strip
+	if not s then return false end
+	for _, b in ipairs(s.buttons) do
+		if b.which == which then B.ShowMenu(which, b, true) return true end
+	end
+	return false
+end
+
+--- A key while a bar menu opened from the keys is up: true when it was the menu's.
+function B.MenuKey(f, key)
+	local m = B.menu
+	if not (m and m.keys and m:IsShown()) then return false end
+	local function Took() f:SetPropagateKeyboardInput(false) return true end
+	if IsAltKeyDown and IsAltKeyDown() and B.ALT_KEYS[key] then
+		UI.swallowChar = GetTime()
+		if B.ALT_KEYS[key] == m.which then B.HideMenu() else B.KeyOpen(B.ALT_KEYS[key]) end
+		return Took()
+	end
+	if key == "UP" or (key == "TAB" and IsShiftKeyDown()) then
+		B.MenuSelect((m.keySel or 1) - 1, -1)
+	elseif key == "DOWN" or key == "TAB" then
+		B.MenuSelect((m.keySel or 0) + 1, 1)
+	elseif key == "LEFT" or key == "RIGHT" then
+		local at = 1
+		for i, w in ipairs(ORDER) do if w == m.which then at = i end end
+		B.KeyOpen(ORDER[(at - 1 + (key == "LEFT" and -1 or 1)) % #ORDER + 1])
+	elseif key == "ENTER" or key == "NUMPADENTER" or key == "SPACE" then
+		if key == "SPACE" then UI.swallowChar = GetTime() end
+		local b = m.keySel and m.lines[m.keySel]
+		if b then b:GetScript("OnClick")(b) end
+	elseif key == "ESCAPE" or key == "`" then
+		B.HideMenu()
+	else
+		B.HideMenu()
+		return false
+	end
+	return Took()
+end
 
 --- The first result to send (the selected one when it is one), its place in the list; nil when none is.
 function B.FirstReal()

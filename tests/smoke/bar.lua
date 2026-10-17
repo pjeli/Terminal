@@ -154,6 +154,53 @@ do
 	check(shown == UI.sel and share == true, "the horn: the row menu's sending lines for the selected result")
 	UI:Hide(); FlushAll()
 
+	-- (0.55.13, the player) Alt+F, Alt+S, Alt+G: the bar's menus from the keys
+	do
+		local key = T.key
+		local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
+		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
+		alt(function() key("F", "f") end)
+		local m = B.menu
+		check(m and m:IsShown() and m.which == "filter" and m.keys and m.keySel == 1 and UI.edit:GetText() == "sword",
+			"Alt+F: Filter's menu, its first line picked, nothing typed: '" .. UI.edit:GetText() .. "'")
+		local rareAt
+		for i = 1, m.n do if m.lines[i].id == "q:rare+" then rareAt = i end end
+		while m.keySel ~= rareAt do key("DOWN") end
+		key("ENTER"); FlushAll()
+		check(B.state.filters[1] == "q:rare+" and m:IsShown() and m.keySel == rareAt and not Names():find("Iron", 1, true),
+			"Enter: picked, the menu stays (filters add up), the line where it was: " .. Names())
+		key("SPACE", " "); FlushAll()
+		check(#B.state.filters == 0 and UI.edit:GetText() == "sword", "Space picks too (unticked), and types nothing: '" .. UI.edit:GetText() .. "'")
+		key("RIGHT")
+		check(m:IsShown() and m.which == "sort", "Right: the next menu, Sort")
+		local nameAt
+		for i = 1, m.n do if m.lines[i].id == "name" then nameAt = i end end
+		while m.keySel ~= nameAt do key("DOWN") end
+		key("ENTER"); FlushAll()
+		check(B.state.sort == "name" and not m:IsShown() and Names() == "Arcanite Sword | Bronze Sword | Copper Sword | Iron Sword | Mithril Sword",
+			"Sort by name from the keys, the menu gone: " .. Names())
+		alt(function() key("G", "g") end)
+		check(m:IsShown() and m.which == "group" and UI.edit:GetText() == "sword", "Alt+G: Group's menu")
+		key("ESCAPE")
+		check(not m:IsShown() and UI:IsShown(), "Esc: only the menu goes")
+		alt(function() key("S", "s") end)
+		check(m.lines[m.keySel].id == "name", "opened again: the line ticked is the one picked")
+		while m.keySel ~= 1 do key("UP") end
+		key("UP")
+		check(m.keySel == m.n, "Up from the first line: round to the last")
+		key("DOWN"); key("ENTER"); FlushAll()
+		check(B.state.sort == nil, "Best match from the keys: no sort: " .. tostring(B.state.sort))
+		alt(function() key("F", "f") end)
+		key("A", "a"); FlushAll()
+		check(not m:IsShown() and UI.edit:GetText() == "sworda", "another key: the menu goes, the key types: '" .. UI.edit:GetText() .. "'")
+		UI:Hide(); FlushAll()
+		UI:Open("", nil); FlushAll()
+		alt(function() key("F", "f") end)
+		check(not (B.menu and B.menu:IsShown()), "no bar (nothing typed): Alt+F opens nothing")
+		UI:Hide(); FlushAll()
+		B.Reset()
+	end
+
 	-- (0.55.12, the player's screenshot: "Filter: Q:rare") a filter typed in Advanced syntax is named in words
 	check(B.SpecLabel("q:rare", "q:rare") == "Rare" and B.SpecLabel("q:epic+", "q:epic+") == "Epic or better"
 		and B.SpecLabel("-is:boe", "-is:boe") == "Not boe" and B.SpecLabel("is:unlearned", "is:unlearned") == "Unlearned"
