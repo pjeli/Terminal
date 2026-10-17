@@ -396,7 +396,9 @@ function UI:Search(text)
 	-- "| sum value", "| group zone": what was found, summed up (Pipes.lua; its item data asked for as filters do)
 	local agg = self.aggregate
 	if agg and agg.fromBar and ns.Bar and ns.Bar.Overview(res) then agg = nil end -- (the bar's Group: not over the categories)
-	if agg and ns.Aggregate then res = ns.Aggregate.Apply(agg, res, agg.base) end
+	-- (the rows before they're summed up: the bar's Sort and Group menus read what fields they have; Bar.lua)
+	self.ungrouped = nil
+	if agg and ns.Aggregate then self.ungrouped = res; res = ns.Aggregate.Apply(agg, res, agg.base) end
 	self:RetryWhenLoaded(text)
 	return res
 end

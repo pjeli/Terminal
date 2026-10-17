@@ -113,7 +113,9 @@ function B.Typed()
 	local out = { filters = {}, sort = t and t.sort or nil, group = UI.typedGroup }
 	for _, p in ipairs(t and t.filters or {}) do
 		local spec = p.spec
-		local shown
+		-- (an everyday word's of those kinds, "rare"; any filter typed as key:value, in:"Scarlet Monastery" a group's Enter
+		-- wrote (0.55.14): you're in that group, the bar says so and takes it back out)
+		local shown = type(p.word) == "string" and p.word:find("^[-!]?%a+:") ~= nil
 		for _, pat in ipairs(SHOWN_SPEC) do if type(spec) == "string" and spec:find(pat) then shown = true break end end
 		if shown then out.filters[#out.filters + 1] = p end
 	end
@@ -135,6 +137,18 @@ function B.SpecLabel(spec, word)
 	elseif key == "is" then
 		out = ns.UpperFirst((val:gsub("_", " ")))
 	end
+	-- (a value of several words, quoted or with _: in:"Scarlet Monastery - Cathedral" In Scarlet Monastery - Cathedral)
+	if not out then
+		local n2, k2, v2 = tostring(spec):match("^([-!]?)(%a+):(.+)$")
+		if k2 then
+			v2 = v2:gsub('"', ""):gsub("_", " ")
+			k2 = ns.Lower(k2)
+			if k2 == "in" or k2 == "zone" or k2 == "where" then out = L["In %s"]:format(v2)
+			elseif k2 == "lvl" or k2 == "level" then out = L["Level %s"]:format(v2)
+			else out = ns.UpperFirst(v2) end
+			neg = n2
+		end
+	end
 	if out and neg ~= "" then return L["Not %s"]:format(ns.Lower(out)) end
 	return out or ns.UpperFirst(word or tostring(spec))
 end
@@ -144,7 +158,14 @@ function B.DropWords(words)
 	local edit = UI.edit
 	if not edit then return end
 	local text = edit:GetText() or ""
+	-- (a filter's value of several words is read without its quotes, in:Scarlet Monastery; the line has them: either)
+	local forms = {}
 	for _, w in ipairs(words) do
+		forms[#forms + 1] = w
+		local k, v = w:match("^([-!]?%a+:)(.+)$")
+		if k and v:find("%s") and not v:find('"', 1, true) then forms[#forms + 1] = k .. '"' .. v .. '"' end
+	end
+	for _, w in ipairs(forms) do
 		local pat = ns.Lower(w):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"):gsub("%s+", "%%s+")
 		local lower, from = ns.Lower(text), 1
 		while true do
@@ -284,19 +305,29 @@ function B.Options(which)
 	end
 	if overview then return out end
 	-- (the rows' own fields: the first few dozen are asked)
+	-- (the rows' own fields: the first hundred are asked)
+	-- (grouped: the rows the groups were made of, so another group can be picked from them)
 	local sample = {}
-	for _, e in ipairs(UI.results or {}) do
-		if Real(e) then sample[#sample + 1] = e; if #sample >= 40 then break end end
+	local from = UI.results or {}
+	if UI.ungrouped and from[1] and from[1].kind == "aggregate" then from = UI.ungrouped end
+	for _, e in ipairs(from) do
+		if Real(e) then sample[#sample + 1] = e; if #sample >= 100 then break end end
 	end
 	local A = ns.Aggregate
+	-- (0.55.14, the player: "I am already in a chosen group and it is letting me group again" (a group's Enter: its rows
+	-- all in one dungeon) only what tells the rows apart: two values or more, as a sort or a group by one value does
+	-- nothing)
 	local function Has(field)
 		if field == "name" then return #sample >= 2 end
 		local f = A and A.FIELDS[field]
 		if not f then return false end
+		local first
 		for _, e in ipairs(sample) do
 			local ok, v
 			if f.text then ok, v = pcall(f.text, e, f) else ok, v = pcall(f.num, e) end
-			if ok and v ~= nil then return true end
+			if ok and v ~= nil then
+				if first == nil then first = v elseif v ~= first then return true end
+			end
 		end
 		return false
 	end

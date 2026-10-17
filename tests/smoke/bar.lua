@@ -66,6 +66,11 @@ do
 	local groups = 0
 	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then groups = groups + 1 end end
 	check(groups >= 3, "grouped by quality: a row per quality: " .. groups)
+	local gopts = {}
+	for _, o in ipairs(B.Options("group")) do gopts[#gopts + 1] = o.id end
+	local sopts = {}
+	for _, o in ipairs(B.Options("sort")) do sopts[#sopts + 1] = o.id end
+	check(table.concat(sopts, " "):find("quality", 1, true), "grouped: the menus read the rows the groups are made of: " .. table.concat(sopts, " "))
 	local one
 	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" and tostring(e.detail):find("^1 result") then one = e.detail end end
 	check(one == "1 result", "a group of one says 1 result (not 1 results): " .. tostring(one))
@@ -77,6 +82,12 @@ do
 	local drilled = UI.edit:GetText()
 	check(drilled:find("^sword q:") and not B.state.group and Names() ~= "" and E.On(),
 		"a group's Enter: its rows, Simple mode, the Group let go: '" .. drilled .. "' " .. Names())
+	-- (0.55.14, the player: "I am already in a chosen group and it is letting me group again") in a group: the bar's
+	-- Filter says which, and Group doesn't offer what the rows all share
+	local offered = {}
+	for _, o in ipairs(B.Options("group")) do offered[#offered + 1] = o.id end
+	check(not table.concat(offered, " "):find("quality", 1, true), "in a quality's group: no Group by quality offered: " .. table.concat(offered, " "))
+	check(B.strip.buttons[1].label:find("Filter: ", 1, true) and B.strip.buttons[1].active, "Filter says the group's filter: " .. B.strip.buttons[1].label)
 	check(UI:GoBack() and UI.edit:GetText() == "sword" and B.state.group == "quality", "Shift+Left: the groups again: " .. UI.edit:GetText())
 	FlushAll()
 	B.Clear("group"); FlushAll()
@@ -152,6 +163,13 @@ do
 	B.Horn()
 	UI.ShowRowMenu = was
 	check(shown == UI.sel and share == true, "the horn: the row menu's sending lines for the selected result")
+	UI:Hide(); FlushAll()
+
+	-- (0.55.14) a filter typed as key:value shows too, named in words; unticked, its words go, quotes and all
+	UI:Open(""); UI:SetQuery('sword in:"Scarlet Monastery" '); FlushAll()
+	check(B.strip.buttons[1].label == L["Filter: %s"]:format("In Scarlet Monastery"), "in: typed: " .. B.strip.buttons[1].label)
+	B.Pick("filter", "in:Scarlet Monastery"); FlushAll()
+	check(UI.edit:GetText() == "sword ", "unticked: in:\"...\" taken out: '" .. UI.edit:GetText() .. "'")
 	UI:Hide(); FlushAll()
 
 	-- (0.55.13, the player) Alt+F, Alt+S, Alt+G: the bar's menus from the keys

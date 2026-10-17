@@ -681,6 +681,7 @@ L["ID %d"] = true
 L["Ignored in What's Training"] = true
 L["Import a Terminal style"] = true
 L["Import style"] = true
+L["In %s"] = true
 L["In %s's mailbox"] = true
 L["In Bag"] = true
 L["In a zone you've left behind: one to drop"] = true
