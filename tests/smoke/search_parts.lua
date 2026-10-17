@@ -8,12 +8,12 @@ local saved = { providers = ns.providers, order = ns.providerOrder }
 local function Use(defs)
 	ns.providers, ns.providerOrder = {}, {}
 	for _, d in ipairs(defs) do ns:RegisterProvider(d[1], d[2]) end
-	UI.lastScan, UI.lastOverview, UI.lastFzf = nil, nil, nil
+	UI.lastScan, UI.lastExtra, UI.lastFzf = nil, nil, nil
 end
 local function Restore()
 	ns.providers, ns.providerOrder = saved.providers, saved.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview, UI.lastFzf = nil, nil, nil
+	UI.lastScan, UI.lastExtra, UI.lastFzf = nil, nil, nil
 end
 local function Rows(list)
 	return function()
@@ -375,29 +375,30 @@ Run("Simple mode: the only category with matches opens without its rows scored a
 			UI:Open("")
 			for k = 1, #phrase do
 				local part = phrase:sub(1, k)
-				local ov = UI.lastOverview
-				local before = 0
-				for _, rows in pairs(ov and ov.rows or {}) do before = before + #rows end
+				-- (the overview's own narrowing: the matches of every category's lists, one cache: lastScan)
+				local ov = UI.lastScan
+				local before = ov and #ov.matches or 0
 				calls = 0
 				UI:SetQuery(part, #part)
 				local got, n = Full(UI.Results()), calls
+				local narrowedNow = UI.lastSearchNarrowed
 				if UI.categoryAuto then
 					autos = autos + 1
 					opened[UI.category] = true
 					-- the same category picked by hand: no overview, its lists searched the usual way
-					local scanWas, ovWas, catWas = UI.lastScan, UI.lastOverview, UI.category
-					UI.lastScan, UI.lastOverview, UI.categoryAuto = nil, nil, nil
+					local scanWas, ovWas, catWas = UI.lastScan, UI.lastExtra, UI.category
+					UI.lastScan, UI.lastExtra, UI.categoryAuto = nil, nil, nil
 					calls = 0
 					local want = Full(UI:Search(part))
 					check(got == want, ("'%s' (%s opened for you): the same rows, order and scores as picked by hand (%s  //  %s)"):format(part, catWas, got, want))
 					if catWas == "loot" and n < calls then fewer = fewer + 1 end -- (picked by hand: all 1500 loot rows scored)
 					-- narrowing: only what the last overview kept is scored, once (it was twice); the rows drawn work out
 					-- their matched letters with the same scorer (a few more)
-					if ov and k > 1 and ov.tokens and #ov.tokens > 0 and catWas == "loot" then
+					if narrowedNow and catWas == "loot" then
 						narrowed = narrowed + 1
 						check(n <= (before + 20) * #UI.posTokens, ("'%s': %d words scored for %d rows kept by the last keystroke"):format(part, n, before))
 					end
-					UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = scanWas, ovWas, catWas, true
+					UI.lastScan, UI.lastExtra, UI.category, UI.categoryAuto = scanWas, ovWas, catWas, true
 				end
 			end
 			UI:Hide(); FlushAll()
@@ -428,7 +429,7 @@ Run("Simple mode: close spellings of one category looked up once; the same rows 
 		return base(self, included, ...)
 	end
 	local ok, err = pcall(function()
-		local function Fresh(cat) UI.category, UI.categoryAuto, UI.lastScan, UI.lastOverview = cat, nil, nil, nil end
+		local function Fresh(cat) UI.category, UI.categoryAuto, UI.lastScan, UI.lastExtra = cat, nil, nil, nil end
 		Fresh(nil)
 		local got = Full(UI:Search("fireblal"))
 		check(UI.category == "spells" and UI.closeSpellings and got:find("^Fireball|"), "fireblal: Spells opened, Fireball: " .. got)

@@ -282,7 +282,7 @@ UI.live = live -- (tests)
 --- The same search run again in the background (Refresh's quiet path): data came in, a list changed.
 function UI:QuietRedo()
 	if not self:IsShown() or self.mode ~= "search" then return end
-	self.lastScan, self.lastOverview = nil, nil
+	self.lastScan, self.lastExtra = nil, nil
 	self.refreshedAt, self.searchedText = nil, nil
 	self.quietRedo = true
 	self:Refresh()
@@ -928,7 +928,7 @@ function UI:SetCategory(id)
 		if e.catId == id and e.countExact and type(e.count) == "number" then self.expectCount = { cat = id, n = e.count } break end
 	end
 	self.category, self.categoryAuto = id, nil
-	self.lastScan, self.lastOverview = nil, nil -- (other kinds: not a narrowing of the last search)
+	self.lastScan, self.lastExtra = nil, nil -- (other kinds: not a narrowing of the last search)
 	if self:IsShown() then self:Research() end
 end
 

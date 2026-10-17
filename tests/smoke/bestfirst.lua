@@ -43,7 +43,7 @@ do
 	end
 	-- Simple mode: "upgrades" (the only category with them: opened for you), the biggest first
 	ns.Easy.Set(true)
-	UI.lastScan, UI.lastOverview, UI.category = nil, nil, nil
+	UI.lastScan, UI.lastExtra, UI.category = nil, nil, nil
 	UI:Open("upgrades")
 	FlushAll()
 	check(Names(UI.Results()) == "Beta Helm, Alpha Helm",
@@ -259,7 +259,7 @@ do
 
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview, UI.category = nil, nil, nil
+	UI.lastScan, UI.lastExtra, UI.category = nil, nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv

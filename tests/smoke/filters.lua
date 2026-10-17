@@ -550,7 +550,7 @@ do
 		ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows({
 			{ name = "Малое зелье лечения", itemID = 9001 }, { name = "Большое зелье лечения", itemID = 9002 },
 			{ name = "Épée longue", itemID = 9003 }, { name = "Hache", itemID = 9004 } }) })
-		UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = nil, nil, nil, nil
+		UI.lastScan, UI.lastExtra, UI.category, UI.categoryAuto = nil, nil, nil, nil
 		ns.db.easyMode = false
 		check(F.Parse("-малое") and F.Parse("!épée") and F.Parse("hache|-épée") and F.Parse("-30") == nil,
 			"-word / !word in any language is a \"not\" (-30 stays a range word)")
@@ -561,7 +561,7 @@ do
 		check(UI.FuzzyPlain("зелье -малое hache|épée") == "зелье ", "fuzzy finding keeps only the plain words: "
 			.. UI.FuzzyPlain("зелье -малое hache|épée"))
 		ns.db.easyMode = true
-		UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = nil, nil, nil, nil
+		UI.lastScan, UI.lastExtra, UI.category, UI.categoryAuto = nil, nil, nil, nil
 		r = names(UI:Search("зелье not малое"))
 		check(r["Большое зелье лечения"] and not r["Малое зелье лечения"], "Simple: зелье not малое")
 		local w = { "rare", "sword", "or", "axe", "-малое" }
@@ -579,7 +579,7 @@ do
 	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.ITEM_MOD_STAMINA_SHORT = saved.info, saved.stats, saved.mod
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = nil, nil, saved.cat, nil
+	UI.lastScan, UI.lastExtra, UI.category, UI.categoryAuto = nil, nil, saved.cat, nil
 	F.ClearCache()
 	check(ok, "the any-language \"not\" block ran: " .. tostring(err))
 end
@@ -625,7 +625,7 @@ do
 	ns.providers, ns.providerOrder = saved.providers, saved.order
 	C_Item.GetItemInfo, C_Item.GetItemStats = saved.info, saved.stats
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	F.ClearCache()
 	check(ok, "the random suffix stats block ran: " .. tostring(err))
 end
@@ -655,7 +655,7 @@ do
 	end)
 	ns.providers, ns.providerOrder = saved.providers, saved.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	check(ok, "the @profession is:learned block ran: " .. tostring(err))
 end
 

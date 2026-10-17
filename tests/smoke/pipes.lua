@@ -732,7 +732,7 @@ ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL
 ns.Integrations.ItemField, ns.Integrations.NpcRow, ns.Integrations.ObjectName, ns.Integrations.QuestRow = saved.field, saved.npc, saved.obj, saved.quest
 ns.Integrations.NpcField = saved.npcField
-UI.lastScan, UI.lastOverview = nil, nil
+UI.lastScan, UI.lastExtra = nil, nil
 P.ClearCrafts(); P.ClearSteps()
 
 -- (0.49.2, review C7) a phrase that catches no name isn't a chain: your group ("what does my group need" is the group's

@@ -63,7 +63,7 @@ do
 	ns:AliasesChanged()
 	ns.db.easyMode = false
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	local function Rows(text)
 		UI:Open(text)
 		FlushAll()
@@ -160,7 +160,7 @@ do
 	-- Simple mode: Advanced mode's, run in it this once (0.54.1)
 	ns.db.easyMode = true
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	r = Rows("cloth | sum value")
 	check(UI.aggregate and r[1] and r[1].kind == "aggregate" and not ns.Easy.On(),
 		"Simple mode: a | runs in Advanced this once: " .. tostring(r[1] and r[1].name))
@@ -195,7 +195,7 @@ do
 		return rows
 	end })
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	r = Rows("nail | count")
 	check(r[1] and r[1].name == L["%d results"]:format(6000), "6000 matches: 6000 counted: " .. tostring(r[1] and r[1].name))
 	r = Rows("ladle | group zone")
@@ -213,7 +213,7 @@ do
 		return out
 	end })
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	r = Rows("bolt | group by zone")
 	local cap
 	for _, e in ipairs(r) do if e.name == '"Cap" Cove' then cap = e end end
@@ -224,7 +224,7 @@ do
 	C_Item.GetItemInfo = save.gii
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()

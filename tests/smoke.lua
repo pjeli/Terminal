@@ -509,7 +509,7 @@ do -- calculator: the answer is the top result
 		local rows = {}
 		for _, m in ipairs({ false, true }) do
 			ns.db.easyMode = m
-			UI.lastScan, UI.lastOverview = nil, nil
+			UI.lastScan, UI.lastExtra = nil, nil
 			rows[#rows + 1] = UI:Search("12.5% of 800")
 		end
 		ns.db.easyMode = easy

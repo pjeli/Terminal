@@ -33,7 +33,7 @@ do
 	ns:AliasesChanged()
 	ns.db.easyMode = false
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	local function Found(text)
 		UI:Open(text)
 		FlushAll()
@@ -70,7 +70,7 @@ do
 	-- Simple mode too
 	ns.db.easyMode = true
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open('"outlaw saber"')
 	FlushAll()
 	local names = {}
@@ -83,7 +83,7 @@ do
 
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()

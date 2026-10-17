@@ -1486,14 +1486,14 @@ Run("typing on narrows from the last keystroke's matches, with the same results"
 			local part = phrase:sub(1, k)
 			UI:SetQuery(part, #part)
 			local got = Sig(UI.Results())
-			if UI.lastOverviewReused then reused = reused + 1 end
+			if UI.lastSearchNarrowed then reused = reused + 1 end
 			-- the same search from scratch (then the narrowing state put back for the next letter)
-			local scanWas, ovWas, catWas, autoWas = UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto
-			UI.lastScan, UI.lastOverview = nil, nil
+			local scanWas, ovWas, catWas, autoWas = UI.lastScan, UI.lastExtra, UI.category, UI.categoryAuto
+			UI.lastScan, UI.lastExtra = nil, nil
 			if autoWas then UI.category, UI.categoryAuto = nil, nil end
 			local fresh = Sig(UI:Search(part))
 			check(got == fresh, ("'%s': narrowed = fresh (%s / %s)"):format(part, got, fresh))
-			UI.lastScan, UI.lastOverview, UI.category, UI.categoryAuto = scanWas, ovWas, catWas, autoWas
+			UI.lastScan, UI.lastExtra, UI.category, UI.categoryAuto = scanWas, ovWas, catWas, autoWas
 		end
 		UI:Hide(); FlushAll()
 	end
@@ -1705,7 +1705,7 @@ Run("upgrades inside an or (helm upgrades or boots upgrades): made new each sear
 	-- the same search after the character changed (level 21, nothing worn): the new level and gear count
 	_G.UnitLevel = function() return 21 end
 	_G.GetInventoryItemLink = function() return nil end
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	res = In("items", "helm upgrades or boots upgrades")
 	check(Has(res, "Good Helm") and Has(res, "Good Boots"), "level 21, nothing worn: both are upgrades now: " .. Show(res))
 	-- a hard word reached as a plain piece is the strict filter itself (no name fallback)
@@ -1742,7 +1742,7 @@ Run("\"X without Y\" stays a search, not the group's question", function()
 	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Wolf Cloak" }, { name = "Linen Shirt" } }) } } })
 	ns.db.easyMode = true
 	UI:EasyChanged()
-	UI.category, UI.lastOverview = nil, nil
+	UI.category, UI.lastExtra = nil, nil
 	local res = UI:Search("cloak without stamina")
 	check(UI.answerNote == nil and res[1] and res[1].name == "Wolf Cloak", "Simple: cloak without stamina lists the cloak: "
 		.. tostring(UI.answerNote) .. " / " .. tostring(res[1] and res[1].name))

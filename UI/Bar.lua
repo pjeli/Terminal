@@ -224,7 +224,7 @@ end
 
 --- Something picked or dropped: the search again (its filters, sort and summing), the bar redrawn.
 function B.Changed()
-	UI.lastScan, UI.lastOverview = nil, nil -- (another filter: not a narrowing of the last keystroke's matches)
+	UI.lastScan, UI.lastExtra = nil, nil -- (another filter: not a narrowing of the last keystroke's matches)
 	if UI.frame and UI:IsShown() then UI:Research() end
 	B.Update()
 end

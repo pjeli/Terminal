@@ -368,7 +368,7 @@ function UI:RetryWhenLoaded(text)
 		if self.dataRetry ~= r or not self:IsShown() or UI.edit:GetText() ~= r.typed then return end
 		r.tries = r.tries + 1
 		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(text, r.tries))
-		self.lastScan, self.lastOverview = nil, nil
+		self.lastScan, self.lastExtra = nil, nil
 		self.refreshedAt, self.searchedText = nil, nil
 		self.quietRedo = true -- (the list stays as it is till this search is done: UI:Refresh)
 		self:Refresh()
@@ -952,7 +952,7 @@ function Scan.ResetFlags(self)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
 	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
 	self.missingNote = nil -- (recipes you don't know listed, a profession's window not read yet: MissingRecipes.LeadRow)
-	self.overviewWinner = nil -- (Simple mode's overview: the clear winner shown above its categories: UI:EasyOverview)
+	self.overviewWinner = nil -- (Simple mode's overview: the clear winner shown above its categories: Scan.Overview)
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
@@ -1258,32 +1258,7 @@ function Scan.SimpleScope(self, q)
 		return
 	end
 	local easyCat = self.category and ns.Easy.BY_ID[self.category]
-	if not easyCat then
-		local ov, kept, from, near = self:EasyOverview(q.tokens, q.filters, q.hard, q.softs, q.softWords,
-			table.concat(q.fsig, " "), Scan.Typed(q.text), q.strictWords)
-		-- only one category has it: straight to its results (no step to take)
-		local only, cats = nil, 0
-		for i = 1, #ov do if ov[i].catId then only, cats = ov[i], cats + 1 end end
-		if cats == 1 then
-			self.category, self.categoryAuto = only.catId, true
-			easyCat = ns.Easy.BY_ID[only.catId]
-			self.softRelaxed = nil
-			q.overview, q.overviewFrom = kept, from -- (its lists' rows were just scored: Scan.Collect lists them)
-			q.overviewNear = near and near[only.catId] -- (and its close spellings, when only those matched: Scan.Fallbacks)
-		elseif self.sendTo and self.sendTo.copy and self.sendTo.all and cats > 1 then
-			-- copying every result ("linen to csv"): every category's rows, not the categories themselves
-			-- (release review: the CSV had a line per category)
-			q.kinds = {}
-			for i = 1, #ov do
-				if ov[i].catId then
-					for k in pairs(ns.Easy.Kinds(ov[i].catId) or {}) do q.kinds[k] = true end
-				end
-			end
-			return
-		else
-			return ov
-		end
-	end
+	if not easyCat then return Scan.Overview(self, q) end -- (the categories; or the only one, opened for you)
 	q.kinds, q.easyCat = ns.Easy.Kinds(easyCat.id), easyCat
 	Scan.AddFilter(q, easyCat.keep, "hard", easyCat.keep and ("#" .. easyCat.id))
 end
@@ -1328,40 +1303,19 @@ local function RowsOf(included, p)
 end
 Scan.RowsOf = RowsOf
 
---- Simple mode, a category opened for you (the only one with matches): the overview has just scored its lists' rows,
---- each match's score for the words left in its _score (q.overview, UI:EasyOverview). The rows it kept of p's list,
---- when what it read is this same list; nil: the list is scored as usual (Questie's, only looked up by name there; a
---- list built again since).
-local function OverviewRows(q, p, list)
-	local ov = q.overview
-	if not ov then return nil end
-	local lkey = q.easyCat.id .. "/" .. p.id
-	if q.overviewFrom[lkey] == list then return ov.rows[lkey] end
-end
-
---- Those rows as matches: what Collect's consider gives a match on top of its score for the words (kind: as consider
---- is given it). A row is in one list of a category (as every category in Easy.CATEGORIES is), so each gets it once.
-local function AddOverviewRows(out, rows, kind, overBudget)
-	local picked = kind and ns:FreqKind(kind) -- (once for the list; nil without a kind: per row)
-	for i = 1, #rows do
-		local e = rows[i]
-		e._score = e._score + FreqBonus(e, kind, picked) + (rawget(e, "_rank") or 0) -- (rank: a list's own order, < 1)
-		out[#out + 1] = e
-		if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
-	end
-end
-
 --- Every row of the lists that has the words and passes the filters, scored; or the last keystroke's matches scored
---- again when the words only grew (Scan.Narrows); or, in a category Simple mode opened for you, the rows its overview
---- just scored (OverviewRows: the same rows, in the same order, scored once). Spread over frames (q.overBudget, set here).
+--- again when the words only grew (Scan.Narrows). Spread over frames (q.overBudget, set here).
 function Scan.Collect(self, q, included, sig, fresh)
 	local empty, filters, tokens = q.empty, q.filters, q.tokens
 	local Pass = ns.Filters and ns.Filters.Pass
 	local out = {}
 	-- typing one more letter, or one more word, can only narrow the matches: score just the last
 	-- ones again (every one of them had the earlier words, so a new word still picks from them)
-	local last = self.lastScan
-	if last and last.gen ~= ns.entriesGen then last, self.lastScan = nil, nil end -- (its rows may be freed lists')
+	-- (q.slot: which narrowing this is: the search's own, or the lists Simple mode's overview only counted, searched after
+	-- it opened their category: Scan.Search)
+	local slot = q.slot or "lastScan"
+	local last = self[slot]
+	if last and last.gen ~= ns.entriesGen then last, self[slot] = nil, nil end -- (its rows may be freed lists')
 	local candidates
 	if not empty and fresh and last and last.sig == sig and Scan.Narrows(last.tokens, tokens) then candidates = last.matches end
 	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
@@ -1389,22 +1343,7 @@ function Scan.Collect(self, q, included, sig, fresh)
 	-- 0.53.6. A last mark with no id: rows added after, close spellings, are looked up per row as before)
 	local spans = {}
 	local function Span(id) spans[#spans + 1] = { from = #out + 1, id = id } end
-	-- (narrowing in a category opened for you: the last keystroke's matches still having the words are the rows the
-	-- overview kept of each list, in that order; every list must have them, else the matches are scored as before)
-	local kept
-	if candidates and q.overview then
-		kept = {}
-		for k, p in ipairs(included) do
-			kept[k] = OverviewRows(q, p, p._entries)
-			if not kept[k] then kept = nil break end
-		end
-	end
-	if kept then
-		for k = 1, #included do
-			Span(included[k].id)
-			AddOverviewRows(out, kept[k], included[k].id, overBudget)
-		end
-	elseif candidates then
+	if candidates then
 		local sp, j, id, picked = last.spans, 0, nil, nil
 		for i = 1, #candidates do
 			while sp and sp[j + 1] and sp[j + 1].from <= i do
@@ -1422,15 +1361,10 @@ function Scan.Collect(self, q, included, sig, fresh)
 			if overBudget() then coroutine.yield(out) end -- (reading the list may have taken the share)
 			local id = p.id
 			Span(id)
-			local rows = OverviewRows(q, p, list)
-			if rows then
-				AddOverviewRows(out, rows, id, overBudget)
-			else
-				local picked = ns:FreqKind(id) -- (what was picked of this list: once, not per row)
-				for i = 1, #list do
-					consider(list[i], id, picked)
-					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
-				end
+			local picked = ns:FreqKind(id) -- (what was picked of this list: once, not per row)
+			for i = 1, #list do
+				consider(list[i], id, picked)
+				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
 			end
 		end
 	end
@@ -1442,42 +1376,52 @@ end
 --- The matches kept for the next keystroke; nothing matched: Simple mode's closest by the everyday words, else close
 --- spellings (added to out).
 function Scan.Fallbacks(self, q, out, included, sig)
-	local empty, tokens, filters, hard, softs, overBudget = q.empty, q.tokens, q.filters, q.hard, q.softs, q.overBudget
+	local empty, tokens, hard, softs, overBudget = q.empty, q.tokens, q.hard, q.softs, q.overBudget
 	if not empty then
 		-- (out itself: SortAndTrim leaves it as it is; rows added to it below only make the net wider)
 		-- (not while a filter met data still loading: the rows it couldn't judge are left out, and the next letter
 		-- would narrow from what's left, judge nothing and never ask again)
+		local slot = q.slot or "lastScan"
 		if not (ns.Filters and ns.Filters.loading) then
-			self.lastScan = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out, spans = q.spans }
+			self[slot] = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out, spans = q.spans }
 		else
-			self.lastScan = nil
+			self[slot] = nil
 		end
 		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
 		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator answered
 		-- (nor for a sum: "lnen clth | count" counts nothing, not the close spellings; review, 0.53.6)
+		-- (with the hard filters only: an everyday word, relaxed above, is no reason to leave a close spelling out)
 		if #out == 0 and not self.calcAnswered and not (ns.Aggregate and ns.Aggregate.Summing(self.aggregate)) then
-			local near = q.overviewNear
-			if near then
-				-- (Simple mode opened this category because only its close spellings matched: the overview has just looked
-				-- them up in every list but the ones it reads by name (Questie's, @stored), so its rows are taken and only
-				-- those lists are looked through here: the same rows, one pass over the rest, not two (187 ms a
-				-- misspelled keystroke at 30k rows, 98 ms with one); 0.49.2, review)
-				local Pass = ns.Filters and ns.Filters.Pass
-				for i = 1, #near do
-					local e = near[i]
-					if not filters or Pass(e, filters) then out[#out + 1] = e end
-					if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
-				end
-				local rest = {}
-				for _, p in ipairs(included) do if p.hintFind then rest[#rest + 1] = p end end
-				if #rest > 0 then self:CloseSpellings(rest, tokens, filters, out, overBudget) end
-			else
-				self:CloseSpellings(included, tokens, filters, out, overBudget)
-			end
+			self:CloseSpellings(included, tokens, hard, out, overBudget)
 		end
 	end
+end
+
+--- A category Simple mode's overview opened for you: its lists the overview only counted by name (Questie's, @stored)
+--- searched now, as the overview found the rest (strictly, relaxed, or by close spellings), with a narrowing of their
+--- own (lastExtra). The matches, those added to a copy of `matched`.
+function Scan.Extra(self, q, matched)
+	local out = {}
+	for i = 1, #matched do out[i] = matched[i] end
+	local eq = setmetatable({ kinds = q.extraKinds, slot = "lastExtra" }, { __index = q })
+	local included, sig, fresh = Scan.Lists(eq)
+	local narrowed = self.lastSearchNarrowed -- (the overview's: what the search narrowed is its matches, not these few lists)
+	local more = Scan.Collect(self, eq, included, sig, fresh)
+	self.lastSearchNarrowed = narrowed
+	if not (ns.Filters and ns.Filters.loading) and not q.empty then
+		self.lastExtra = { sig = sig, gen = ns.entriesGen, tokens = q.tokens, matches = more, spans = eq.spans }
+	end
+	if self.softRelaxed and q.softs and #more == 0 then
+		more = {}
+		self:RelaxSoft(included, q.tokens, q.hard, q.softs, more, eq.overBudget)
+	elseif self.closeSpellings and #more == 0 then
+		more = {}
+		self:CloseSpellings(included, q.tokens, q.hard, more, eq.overBudget)
+	end
+	for i = 1, #more do out[#out + 1] = more[i] end
+	return out
 end
 
 --- "nearest" / sort:nearest: the rows with a distance, closest first (Scan.NearestViews). The rows, and the rows to
@@ -1577,12 +1521,19 @@ function UI:SearchText(text)
 	if rows then return Scan.Finish(q, rows) end
 	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
 	if q.empty and not q.kinds and not q.filters then
-		self.lastScan, self.lastOverview = nil, nil
+		self.lastScan, self.lastExtra = nil, nil
 		return self.showRecent and self:FrequentEntries() or {}
 	end
-	local included, sig, fresh = Scan.Lists(q)
-	local out = Scan.Collect(self, q, included, sig, fresh)
-	Scan.Fallbacks(self, q, out, included, sig)
+	-- (a category the overview opened for you: its matches are found already, and its lists only counted are searched
+	-- now; else the search)
+	local out = q.matched
+	if out then
+		if q.extraKinds then out = Scan.Extra(self, q, out) end
+	else
+		local included, sig, fresh = Scan.Lists(q)
+		out = Scan.Collect(self, q, included, sig, fresh)
+		Scan.Fallbacks(self, q, out, included, sig)
+	end
 	-- easy mode: nothing in the picked category: the categories that have it instead
 	if q.easyCat and #out == 0 then
 		local keep = q.easyCat.keep
@@ -1590,8 +1541,8 @@ function UI:SearchText(text)
 		-- (with the search's own signature, the category's test and "#id" left out, and what was typed: the clear winner
 		-- and narrowing as when no category was picked; review, 0.48.6)
 		if keep then Scan.DropFilters(q, { [keep] = true }, "#" .. q.easyCat.id) end
-		return Scan.Finish(q, self:EasyOverview(q.tokens, q.filters, q.hard, q.softs, q.softWords, table.concat(q.fsig, " "),
-			Scan.Typed(q.text), q.strictWords))
+		q.kinds, q.easyCat = nil, nil
+		return Scan.Finish(q, Scan.Overview(self, q, true))
 	end
 	local stop
 	out, stop = Scan.Nearest(self, q, out)
@@ -1800,156 +1751,126 @@ local function Winner(exacts, cats)
 	return best.e
 end
 
---- Easy mode, typed before a category is picked: one row per category that has matches ("Items  Rumsey Rum
---- +2 more", and which of its lists had them), the best match first; Enter or a click picks it. A row named exactly
---- what was typed (`want`: Scan.Typed) goes above them when it's the clear winner (Winner). Questie's lists are counted
---- by their name index. Spread over frames like the search.
---- (fsig: the search's filter signature. When the words only grew since the last overview, under the same filters
---- and the same lists, each list is scanned from the rows that matched last time, not in full: lastOverview.)
-function UI:EasyOverview(tokens, filters, hard, softs, softWords, fsig, want, strictWords)
-	local reuse, last = nil, self.lastOverview
-	if last and fsig and last.sig == fsig and last.gen == ns.entriesGen and #tokens > 0 and Scan.Narrows(last.tokens, tokens) then
-		reuse = last
+--- Simple mode, before a category is picked: one row per category that has matches ("Items  Rumsey Rum +2 more", and
+--- which of its lists had them), the best match first; Enter or a click picks it. A row named exactly what was typed
+--- (Scan.Typed) goes above them when it's the clear winner (Winner). 0.55.5, the search's rewrite: a view of one search,
+--- not a second one. The lists of every category are searched as any search is (Scan.Collect: the same scoring,
+--- narrowing, relaxing and close spellings), then the matches are grouped by category (Easy.CategoryOf); Questie's lists
+--- are counted by their name index (hintFind), as reading them whole on every keystroke would cost too much.
+--- Returns the category rows; or nil, with the only category that has matches opened for you (self.category,
+--- categoryAuto; q.kinds, q.easyCat) and its rows in q.matched when they're all here (none of them only counted).
+--- noAuto: the category rows even when there's one (a picked category that had nothing: Scan.Search's fallback).
+function Scan.Overview(self, q, noAuto)
+	local tokens, empty = q.tokens, q.empty
+	-- the lists: every category's, but Questie's (counted by name below)
+	local kinds, hinting = {}, {}
+	for _, c in ipairs(ns.Easy.Visible()) do
+		for _, id in ipairs(c.kinds) do
+			local p = ns.providers[id]
+			-- (with a place, read whole: a name lookup can't say where)
+			if p and p.hintFind and not self.place then hinting[#hinting + 1] = { c = c, p = p } elseif p then kinds[id] = true end
+		end
 	end
-	local keep = { sig = fsig, tokens = tokens, rows = {} }
-	local from = {} -- (the whole list each kept one was found in: SearchText takes the rows if their category opens)
-	local overBudget = Scan.Budget(self)
-	-- (pausing shows what's already on screen: an empty list collapsed the frame to the bare prompt for a frame)
-	local function tick() if overBudget() then coroutine.yield(UI.Results()) end end
-	local Pass = ns.Filters and ns.Filters.Pass
-	local empty = #tokens == 0
-	-- Questie's lists are looked up by name only (OverviewNameWords)
-	-- (hard filters other than the strict everyday words: Questie's lists, looked up by name, can't be judged by them)
-	local hardOther = hard and #hard > (strictWords and #strictWords or 0) or nil
-	local nameWords = OverviewNameWords(tokens, hardOther, softWords, strictWords)
-	-- relaxed: nothing anywhere passed every everyday word, so they only rank (as in RelaxSoft)
-	self.overviewWinner = nil
+	local oq = setmetatable({ kinds = kinds }, { __index = q }) -- (the query, over those lists)
+	local included, sig, fresh = Scan.Lists(oq)
+	local out = Scan.Collect(self, oq, included, sig, fresh)
+	Scan.Fallbacks(self, oq, out, included, sig)
+	q.overBudget = oq.overBudget
+	local relaxed = self.softRelaxed or self.closeSpellings
+	-- each match to its category (a list in two categories, the slash commands and the emotes, by the category's test)
+	local byCat, order = {}, {}
+	local want = Scan.Typed(q.text)
 	local exacts = {} -- (rows named exactly what was typed: the clear winner, maybe)
-	local softWeights -- (SoftWeights(softs), once a search)
-	local function scan(relaxed)
-		local out = {}
-		local exact = want and not relaxed and not empty
-		for _, c in ipairs(ns.Easy.Visible()) do
-			local count, best, bestScore = 0, nil, nil
-			local hinted -- (counted by a list's name lookup, Questie's: not what its own search lists, row for row)
-			local counts = {} -- (matches per list: what the row says the category holds)
-			local logged = 0 -- (quests from your log whose names Questie's lookup counts too: one quest, not two)
-			for _, id in ipairs(c.kinds) do
-				local p = ns.providers[id]
-				if p and p.hintFind and not self.place then
-					if #nameWords > 0 and not hardOther and not relaxed then
-						local first, n, ids = p.hintFind(p, nameWords, tick)
-						if first and (n or 0) > 0 then
-							hinted = true
-							if id == "questie" then n = math.max(0, n - logged) end
-							count = count + n
-							counts[id] = (counts[id] or 0) + n
-							if not bestScore then best, bestScore = first, TEXT_SCORE end
-							-- (the only one, named exactly that: Hogger)
-							if exact and n == 1 and ExactName(ns.Lower(tostring(first)), want) and p.hintRow
-								and type(ids) == "table" and ids[1] then
-								local row = p.hintRow(p, ids[1])
-								if row and not row.noActivate then
-									if row._score == nil then row._score = TEXT_SCORE end
-									exacts[#exacts + 1] = { e = row, cat = c.id, sc = TEXT_SCORE + FreqBonus(row, id) }
-								end
-							end
-						end
+	local loggedNames = {} -- (your quest log's matches: Questie's name count has them too)
+	for _, e in ipairs(out) do
+		local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or ""]
+		if c then
+			local b = byCat[c.id]
+			if not b then b = { c = c, rows = {}, counts = {} }; byCat[c.id] = b; order[#order + 1] = b end
+			b.rows[#b.rows + 1] = e
+			b.counts[e.kind] = (b.counts[e.kind] or 0) + 1
+			if not b.score or e._score > b.score then b.best, b.score = e.name, e._score end
+			if want and not relaxed and not empty and not e.noActivate
+				and ExactName(rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)), want) then
+				exacts[#exacts + 1] = { e = e, cat = c.id, sc = e._score }
+			end
+			if e.kind == "quests" then loggedNames[#loggedNames + 1] = rawget(e, "_lname") or "" end
+		end
+	end
+	-- Questie's lists, by name (the typed words and the everyday words as name words; never with another hard filter,
+	-- which a name can't be judged by, nor with a place, nor once nothing passed the everyday words)
+	local hardOther = q.hard and #q.hard > (q.strictWords and #q.strictWords or 0) or nil
+	local nameWords = OverviewNameWords(tokens, hardOther, q.softWords, q.strictWords)
+	if #nameWords > 0 and not hardOther and not relaxed and not self.place then
+		local overBudget = q.overBudget
+		local function tick() if overBudget and overBudget() then coroutine.yield(UI.Results()) end end
+		for _, h in ipairs(hinting) do
+			local c, p = h.c, h.p
+			local first, n, ids = p.hintFind(p, nameWords, tick)
+			if first and (n or 0) > 0 then
+				if p.id == "questie" then -- (a quest from your log counted once: its row here, not Questie's name count too)
+					for _, ln in ipairs(loggedNames) do
+						local all = true
+						for w = 1, #nameWords do if not ln:find(nameWords[w], 1, true) then all = false break end end
+						if all then n = n - 1 end
 					end
-				elseif p then
-					local gen = ns.entriesGen
-					local list = ns:GetEntries(p)
-					local lkey = c.id .. "/" .. id
-					local whole = list
-					-- (a list rebuilt meanwhile is scanned in full: its old rows may be gone)
-					if reuse and not relaxed and gen == ns.entriesGen and reuse.rows[lkey] then list = reuse.rows[lkey] end
-					local kept = (not relaxed and not empty) and {} or nil
-					if kept then keep.rows[lkey], from[lkey] = kept, whole end
-					local need = filters
-					if relaxed then need = hard end -- (nil: no typed key:value filter)
-					for i = 1, #list do
-						local e = list[i]
-						local sc = (not c.keep or c.keep(e)) and (empty and 0 or ScoreEntry(e, tokens)) or nil
-						if sc and (not need or Pass(e, need)) then
-							-- (its score for the words kept on it: when this is the only category, its rows are listed
-							-- without being scored again, Scan.Collect; a search writes every match's _score anyway)
-							if kept then kept[#kept + 1] = e; e._score = sc end
-							if relaxed then
-								softWeights = softWeights or SoftWeights(softs)
-								sc = sc + SOFT_PASS * SoftPassed(softs, softWeights, e)
-							end
-							count = count + 1
-							counts[id] = (counts[id] or 0) + 1
-							if not bestScore or sc > bestScore then best, bestScore = e.name, sc end
-							if exact and not e.noActivate
-								and ExactName(rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)), want) then
-								exacts[#exacts + 1] = { e = e, cat = c.id, sc = sc + FreqBonus(e, id) + (rawget(e, "_rank") or 0) }
-							end
-							if id == "quests" and #nameWords > 0 then
-								local ln, all = rawget(e, "_lname") or "", true
-								for w = 1, #nameWords do if not ln:find(nameWords[w], 1, true) then all = false break end end
-								if all then logged = logged + 1 end
-							end
+					n = math.max(0, n)
+				end
+				if n > 0 then
+					local b = byCat[c.id]
+					if not b then b = { c = c, rows = {}, counts = {} }; byCat[c.id] = b; order[#order + 1] = b end
+					b.hinted, b.n = true, (b.n or 0) + n
+					b.counts[p.id] = (b.counts[p.id] or 0) + n
+					if not b.score then b.best, b.score = first, TEXT_SCORE end
+					-- (the only one, named exactly that: Hogger)
+					if want and not empty and n == 1 and ExactName(ns.Lower(tostring(first)), want) and p.hintRow
+						and type(ids) == "table" and ids[1] then
+						local row = p.hintRow(p, ids[1])
+						if row and not row.noActivate then
+							if row._score == nil then row._score = TEXT_SCORE end
+							exacts[#exacts + 1] = { e = row, cat = c.id, sc = TEXT_SCORE + FreqBonus(row, p.id) }
 						end
-						if i % SLICE_CHECK == 0 then tick() end
 					end
 				end
 			end
-			if count > 0 then out[#out + 1] = CategoryRow(c, best, bestScore, count, counts, hinted) end
 		end
-		return out
 	end
-	local out = scan(false)
-	keep.gen = ns.entriesGen
-	self.lastOverview = (fsig and #tokens > 0 and not (ns.Filters and ns.Filters.loading)) and keep or nil
-	self.lastOverviewReused = reuse ~= nil -- (tests)
-	if #out == 0 and softs and not empty then
-		out = scan(true)
-		if #out > 0 then self.softRelaxed = true end
+	self.overviewWinner = nil
+	local rows = {}
+	for _, b in ipairs(order) do
+		rows[#rows + 1] = CategoryRow(b.c, b.best, b.score, #b.rows + (b.n or 0), b.counts, b.hinted)
 	end
-	-- still nothing: close spellings, per category, as a category's own search has them (review, 0.48.6: Simple mode
-	-- with no category picked said "Nothing has that" where Advanced found "hearhtstone"); each category's rows kept for
-	-- its own search when it's the only one (nearBy: Scan.Fallbacks lists them, no second pass; 0.49.2, review)
-	local nearBy
-	if #out == 0 and not empty and not self.calcAnswered then
-		local included, seen = {}, {}
-		for _, c in ipairs(ns.Easy.Visible()) do
-			for _, id in ipairs(c.kinds) do
-				local p = ns.providers[id]
-				if p and not p.hintFind and not seen[p] then seen[p] = true; included[#included + 1] = p end
-			end
+	table.sort(rows, function(a, b) return a._score > b._score end)
+	if #rows == 0 then return PseudoEntries({ EASY_NONE }) end
+	-- only one category has it: straight to its results (no step to take); its rows are these, unless some were only
+	-- counted by name (Questie's: then the category is searched as picked)
+	if #rows == 1 and not noAuto then
+		local b = byCat[rows[1].catId]
+		self.category, self.categoryAuto = b.c.id, true
+		q.kinds, q.easyCat = ns.Easy.Kinds(b.c.id), b.c
+		Scan.AddFilter(q, b.c.keep, "hard", b.c.keep and ("#" .. b.c.id))
+		-- its matches are found already; its lists only counted by name (Questie's, @stored) are searched after (q.extraKinds)
+		q.matched = b.rows
+		for _, h in ipairs(hinting) do
+			if h.c == b.c then q.extraKinds = q.extraKinds or {}; q.extraKinds[h.p.id] = true end
 		end
-		local near = {}
-		self:CloseSpellings(included, tokens, hard, near, function() tick() return false end)
-		local cats, byCat = {}, {}
-		nearBy = {}
-		for _, e in ipairs(near) do
-			local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or ""]
-			if c then
-				local b = byCat[c.id]
-				if not b then b = { c = c, n = 0, counts = {} }; byCat[c.id] = b; cats[#cats + 1] = b; nearBy[c.id] = {} end
-				local kind = e.kind
-				b.n, b.counts[kind] = b.n + 1, (b.counts[kind] or 0) + 1
-				if not b.score or e._score > b.score then b.best, b.score = e.name, e._score end
-				local rows = nearBy[c.id]
-				rows[#rows + 1] = e
-			end
-		end
-		for _, b in ipairs(cats) do out[#out + 1] = CategoryRow(b.c, b.best, b.score, b.n, b.counts) end
+		return nil
 	end
-	table.sort(out, function(a, b) return a._score > b._score end)
-	if #out == 0 then return PseudoEntries({ EASY_NONE }) end
+	-- copying every result ("linen to csv"): every category's rows, not the categories themselves (release review: the
+	-- CSV had a line per category)
+	if not noAuto and self.sendTo and self.sendTo.copy and self.sendTo.all then
+		q.kinds = {}
+		for _, b in ipairs(order) do for k in pairs(ns.Easy.Kinds(b.c.id) or {}) do q.kinds[k] = true end end
+		return nil
+	end
 	-- (the clear winner on top, to act on at once; the categories still narrow the rest)
-	local winner = not self.softRelaxed and Winner(exacts, #out) or nil
+	local winner = not relaxed and Winner(exacts, #rows) or nil
 	if winner then
-		table.insert(out, 1, winner)
+		table.insert(rows, 1, winner)
 		self.overviewWinner = winner
 	end
-	-- (and what each category's lists had of the words, with the lists they were found in, and the close spellings
-	-- found per category: Scan.SimpleScope)
-	return out, keep, from, nearBy
+	return rows
 end
-
 
 --- Easy mode: the typed words matched nothing that passes every everyday word. The rows with the words
 --- (and every typed key:value filter) are listed instead, ranked by the everyday words they pass (what an item

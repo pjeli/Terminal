@@ -94,7 +94,7 @@ local function World(filler)
 		ns.providers, ns.providerOrder = saved.providers, saved.order
 		ns:AliasesChanged()
 		C_Item.GetItemNameByID = saved.name
-		T.UI.lastScan, T.UI.lastOverview = nil, nil
+		T.UI.lastScan, T.UI.lastExtra = nil, nil
 		P.ClearCrafts(); P.ClearSteps()
 	end, loot
 end

@@ -22,7 +22,7 @@ do
 	end
 	ns.db.easyMode = false
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 
 	-- ">> text": the selected one, as a line to copy (the slim bar)
 	UI:Open("linen cloth >> text")
@@ -125,7 +125,7 @@ do
 	ns:AliasesChanged()
 	ns.db.easyMode = true
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	shown = {}
 	UI:Open("linen to csv")
 	FlushAll()
@@ -277,7 +277,7 @@ do
 	ns.ShowText = save.show
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()

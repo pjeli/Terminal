@@ -163,5 +163,5 @@ ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL
 I.ItemField, I.NpcRow, I.NpcField, ns.Professions.PlayerProfessions = saved.field, saved.npc, saved.npcField, saved.profs
 ns.QuestieData.DB, ns.db.vendorItems, ns.db.easyMode, _G.UnitFactionGroup = saved.qdb, saved.vendors, saved.easy, saved.fac
-UI.lastScan, UI.lastOverview = nil, nil
+UI.lastScan, UI.lastExtra = nil, nil
 PL.Forget()

@@ -145,7 +145,7 @@ do
 	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = Rows({
 		{ name = "Helm of Might", itemID = 61, kind = "loot" }, { name = "Helm of Valor", itemID = 62, kind = "loot" },
 		{ name = "Helm of Rage", itemID = 63, kind = "loot" }, { name = "Shiny Helm of the Owl", itemID = 64, kind = "loot" } }) })
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	ns.Easy.Set(true)
 	UI.category = nil
 	UI:Open("upgrades")
@@ -181,7 +181,7 @@ do
 
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview, UI.category = nil, nil, nil
+	UI.lastScan, UI.lastExtra, UI.category = nil, nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
@@ -209,7 +209,7 @@ do
 	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = Rows(150, "Helm %03d", 30000) })
 	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows(3000, "Pebble %04d", 40000) })
 	ns.Easy.Set(true)
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open("helm")
 	FlushAll()
 	UI:SetCategory("loot")
@@ -282,7 +282,7 @@ do
 	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview, UI.category = nil, nil, nil
+	UI.lastScan, UI.lastExtra, UI.category = nil, nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()

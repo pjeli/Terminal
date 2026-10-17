@@ -19,7 +19,7 @@ do
 		return out
 	end })
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	ns.db.easyMode = true; UI:EasyChanged()
 	local function Names()
 		local t = {}
@@ -121,6 +121,6 @@ do
 	ns.providers, ns.providerOrder = saved.providers, saved.order
 	ns:AliasesChanged()
 	ns.db.easyMode = saved.easy; UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	B.Reset()
 end

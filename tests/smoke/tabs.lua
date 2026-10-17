@@ -19,7 +19,7 @@ ns.db.easyMode = false
 UI:EasyChanged()
 _G.GetTime = function() return T.clock() end
 ns.db.tabs = nil
-UI.lastScan, UI.lastOverview = nil, nil
+UI.lastScan, UI.lastExtra = nil, nil
 
 UI:Open("")
 typeText("linen")
@@ -170,7 +170,7 @@ UI:Hide(); FlushAll()
 
 ns.providers, ns.providerOrder = save.providers, save.order
 ns:AliasesChanged()
-UI.lastScan, UI.lastOverview = nil, nil
+UI.lastScan, UI.lastExtra = nil, nil
 ns.db.easyMode = save.easy
 ns.db.tabs = save.tabs
 UI:EasyChanged()

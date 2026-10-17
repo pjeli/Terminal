@@ -519,7 +519,7 @@ do
 	ns:Bump("zzfreq:7")
 	local fk, asks = ns.FreqKind, 0
 	ns.FreqKind = function(...) asks = asks + 1 return fk(...) end
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	r = UI:Search("@zzfreq stone")
 	ns.FreqKind = fk
 	ns.db.recent, ns.db.freq = fw.recent, fw.freq
@@ -531,7 +531,7 @@ do
 	IS.zzs, IS.zzr = nil, nil
 	E.WORDS.zzstrict, E.HARD_WORDS.zzstrict = nil, nil
 	E.WORDS.zzrole, E.HARD_WORDS.zzrole, E.ROLE_WORDS.zzrole = nil, nil, nil
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 end
 
 -- (0.49.2, review C3) "reset" with other words is the lockouts' question only when they name a lockout or an instance

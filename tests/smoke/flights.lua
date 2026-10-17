@@ -256,7 +256,7 @@ local function Body()
 	I.NpcField = function(id, f) if id == 16227 then return ({ npcFlags = 8, friendlyToFaction = "AH" })[f] end end
 	I.NpcFlagDefs = function() return { FLIGHT_MASTER = 8 } end
 	ns.Filters.ClearCache()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	E.Set(true)
 	UI:Open("nearest flight master")
 	res = UI.Results()
@@ -268,7 +268,7 @@ local function Body()
 	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder = {}, {}
 	ns:RegisterProvider("flight", P)
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open("nearest flight master")
 	res = UI.Results()
 	check(res[1] and res[1].name == "Ratchet" and Has(res, "Crossroads"), "no NPCs to look in: every flight path, closest first: " .. Show(res))
@@ -278,7 +278,7 @@ local function Body()
 	ns:AliasesChanged()
 	I.NpcField, I.NpcFlagDefs, I.NpcDistance = saved.field, saved.defs, saved.dist
 	ns.Filters.ClearCache()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 
 	-- the world map's data: believed only once seen to tell (it said "undiscovered" of one a flight master's map showed you
 	-- lack, and never otherwise than one)
@@ -389,7 +389,7 @@ _G.RAID_CLASS_COLORS, _G.TaxiButtonTypes = saved.rcc, saved.tbt
 FL.taxiOpen, FL.trusted = false, false
 I._.ResetDistances(); I._.ResetZoneNames(); FL.ForgetSide()
 UI:Hide(); FlushAll()
-UI.category, UI.lastScan, UI.lastOverview = nil, nil, nil
+UI.category, UI.lastScan, UI.lastExtra = nil, nil, nil
 ns.db.easyMode = saved.easy
 UI:EasyChanged()
 ns.Filters.ClearCache()

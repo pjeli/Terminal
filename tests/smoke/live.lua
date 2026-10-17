@@ -19,7 +19,7 @@ do
 	ns:RegisterProvider("spells", { label = "Spell", aliases = { "spell" }, collect = function() return { { name = "Fireball", key = 1 } } end })
 	ns.db.easyMode = false
 	UI:EasyChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open("linen")
 	FlushAll()
 	UI.sel, UI.offset = 12, 8
@@ -130,7 +130,7 @@ do
 	-- frame's best kept up with the rest behind F5
 	for i = 1, 300 do rows[#rows + 1] = { name = ("Wool Cloth %03d"):format(i), itemID = 70000 + i, key = 1000 + i } end
 	ns.providers.items._dirty = true
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	local realClock, tick = _G.debugprofilestop, 0
 	_G.debugprofilestop = function() tick = tick + 1; return tick end
 	UI:Open("wool")
@@ -184,7 +184,7 @@ do
 	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder = save.providers, save.order
 	ns:AliasesChanged()
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	ns.db.easyMode = save.easy
 	UI:EasyChanged()
 	UI:Hide(); FlushAll()

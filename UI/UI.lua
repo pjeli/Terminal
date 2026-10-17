@@ -54,7 +54,7 @@ UI.cursor = 0     -- byte position of the caret in the query
 --- The last search forgotten: nothing to narrow from, no completion kept for its rows. `looks`: the footer's key
 --- hints are measured and the prompt's colours drawn again too (another mode).
 local function Forget(self, looks)
-	self.lastScan, self.lastOverview = nil, nil
+	self.lastScan, self.lastExtra = nil, nil
 	self:ForgetCompletion()
 	if looks then self.hintsRoom, self.syntaxKey = nil, nil end
 end

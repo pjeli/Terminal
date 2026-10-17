@@ -18,7 +18,7 @@ local function drop(id)
 	ns:AliasesChanged()
 end
 local function Rows(text)
-	UI.lastScan, UI.lastOverview = nil, nil
+	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open(text)
 	FlushAll()
 	return UI.Results()
