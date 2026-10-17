@@ -178,7 +178,7 @@ end
 -- What a search sets beside its rows, read with the rows shown (the footer, Enter, >>> sending): a background search
 -- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
 -- list said the old ones; Simple mode's category label changed with the list staying)
-local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "blockedSyntax", "blockedCopy", "aggregate", "linked", "answerNote", "pipeTrail",
+local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "aggregate", "linked", "answerNote", "pipeTrail",
 	"flightNote", "missingNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
 local NONE = {}
 local function Fields(self)
@@ -496,35 +496,23 @@ end
 local function TakeSendTo(self, text, first)
 	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
 	self.sendTo, self.groupList, self.groupRows = nil, nil, nil
-	self.blockedSyntax = nil
-	if self.fzf then
-		-- (nothing to take off)
-	elseif first ~= "." and first ~= "/" and ns.Share and EasyOn() then
-		-- Simple mode: no ">>" (the words before it are searched and a row says it's Advanced mode's, ">> csv" too); to
-		-- copy, plain words at the end: "linen to csv", "linen as text" (every result; 0.52.12, the player's call)
-		local query, rest = ns.Share.Split(text)
-		if rest then
-			local to = ns.Share.Channel(rest)
-			query = query:gsub("%s+$", "")
-			self.blockedSyntax = to.copy and query ~= "" and "copy" or "send"
-			self.blockedCopy = to.copy and query .. " to " .. to.copy or nil
-			text = query
-		else
-			local q, how = ns.Share.PlainCopy(text)
-			if q then
-				local to = ns.Share.Channel(how)
-				to.query, to.all = q, true
-				self.sendTo = to
-				text = q
-			end
-		end
-	elseif first ~= "." and first ~= "/" and ns.Share then
-		local query, rest, all = ns.Share.Split(text)
-		if rest then
-			self.sendTo = ns.Share.Channel(rest)
-			self.sendTo.query = query -- (what was searched: the chat line says what the result is, Share.Context)
-			self.sendTo.all = all -- (">>> party": every result at once, Share.SendAll)
-			text = query:gsub("%s+$", "")
+	if self.fzf or first == "." or first == "/" or not ns.Share then return text end
+	local query, rest, all = ns.Share.Split(text)
+	if rest then
+		self.sendTo = ns.Share.Channel(rest)
+		self.sendTo.query = query -- (what was searched: the chat line says what the result is, Share.Context)
+		self.sendTo.all = all -- (">>> party": every result at once, Share.SendAll)
+		return (query:gsub("%s+$", ""))
+	end
+	-- Simple mode: copying said in plain words at the end: "linen to csv", "linen as text" (every result; 0.52.12, the
+	-- player's call). (A ">>" typed makes the line Advanced first: UI:AutoAdvanced.)
+	if EasyOn() then
+		local q, how = ns.Share.PlainCopy(text)
+		if q then
+			local to = ns.Share.Channel(how)
+			to.query, to.all = q, true
+			self.sendTo = to
+			return q
 		end
 	end
 	return text

@@ -256,19 +256,12 @@ do
 	local res = UI:SearchText("mats for black book cover")
 	check(res[1] and not res[1].name:find(">", 1, true), "through the search too: " .. tostring(res[1] and res[1].name))
 	check(not table.concat(ns.Easy.HelpLines(), " "):find(">", 1, true), "Simple help: no >")
-	-- (0.45.13, the player: "the > is working in simple mode") a ">" typed in Simple mode is Advanced syntax: refused
-	-- like an @kind (the Advanced row on top, the other words searched), never run as a chain; the plain words still are
+	-- (0.55.4, one query) a ">" chain runs however the line came (typed, it's Advanced already: UI:AutoAdvanced); the
+	-- plain words are one too
 	res = UI:SearchText("thorium belt > mats")
-	check(UI.pipeTrail == nil and res[1] and res[1].kind == "advanced" and res[1].name:find(">", 1, true),
-		"Simple: a typed > isn't a chain: the Advanced row on top: " .. tostring(res[1] and res[1].name) .. " / " .. tostring(UI.pipeTrail))
-	res = UI:SearchText("thorium belt > learn")
-	check(UI.pipeTrail == nil and res[1] and res[1].kind == "advanced", "nor > learn")
+	check(UI.pipeTrail == "thorium belt > mats", "a > chain runs: " .. tostring(UI.pipeTrail))
 	res = UI:SearchText("mats for thorium belt")
-	check(UI.pipeTrail == "thorium belt > mats" and res[1] and res[1].kind ~= "advanced", "the plain words still are a chain")
-	local segs = UI:SyntaxSegments("thorium belt > mats")
-	local gt
-	for _, sg in ipairs(segs) do if sg[1] == 14 and sg[2] == 14 then gt = sg[3] end end
-	check(gt == ns.Theme.SYNTAX.bad, "the > in the 'not taken' colour")
+	check(UI.pipeTrail == "thorium belt > mats" and res[1], "the plain words are a chain too")
 	check(P.Canonical("thorium belt > mats", true) == nil and P.Canonical("mats for thorium belt", true) == "thorium belt > mats",
 		"Canonical with words only: no > chains, phrases as before")
 	ns.db.easyMode = easyWas; UI:EasyChanged()

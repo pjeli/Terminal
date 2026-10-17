@@ -942,28 +942,6 @@ function E.JoinLogic(words)
 	return words
 end
 
---- The row shown on top when Advanced syntax reaches a Simple search that didn't come from the prompt (typed, a line runs
---- in Advanced mode that once: UI:AutoAdvanced). Nothing to switch: there's one mode (0.54.1).
-E.ADVANCED_ROW = {
-	name = L["@, >, >>, | and key:value are Advanced syntax"], kind = "advanced", kindLabel = "", noActivate = true,
-	detail = L["typed in the prompt, a line with them runs in Advanced mode"], icon = "Interface\\Icons\\INV_Misc_Gear_01",
-}
-
--- ">>" typed in Simple mode: sending is in the right-click menu here
-E.SEND_ROW = {
-	name = L["Right-click a result to send it to chat"], kind = "advanced", kindLabel = "", noActivate = true,
-	detail = L["say, party, guild, whisper, or all of them at once (>> is Advanced mode's)"], icon = "Interface\\Icons\\INV_Letter_15",
-}
-
--- ">> csv" typed in Simple mode (0.52.12): copying is said in words here; Enter writes them ("linen to csv")
-function E.CopyRow(phrase)
-	return {
-		name = L["To copy, type: %s"]:format(phrase), kind = "advanced", kindLabel = "", staysOpen = true,
-		detail = L["Enter writes it for you (>> is Advanced mode's)"], icon = "Interface\\Icons\\INV_Letter_15",
-		activate = function() if ns.UI then ns.UI:SetQuery(phrase, #phrase) end end,
-	}
-end
-
 ----------------------------------------------------------------------
 -- One mode (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it
 -- switch to advanced when syntax is used"): Simple mode, a line with Advanced syntax running in Advanced mode that once

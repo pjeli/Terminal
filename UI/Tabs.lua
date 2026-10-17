@@ -125,7 +125,7 @@ local function Load(tab)
 	UI.SetRunMode(tab)
 	UI.Forget(UI, true)
 	UI.tabForeign = nil -- (a tab's own now)
-	UI.blockedSyntax, UI.sendTo, UI.action = nil, nil, nil
+	UI.sendTo, UI.action = nil, nil
 	UI.walks, UI.histIdx, UI.showRecent, UI.recalled = {}, nil, nil, nil
 	UI.category, UI.categoryAuto = UI.CategoryId(tab.category), nil
 	UI.refreshText = nil -- (another tab: not the same search again, whatever its text)

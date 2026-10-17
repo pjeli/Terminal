@@ -602,8 +602,6 @@ Run("Advanced syntax in Simple mode runs once in Advanced", function()
 	check(not E.On(), "a /slash line leaves the mode as it is")
 	UI:Hide(); FlushAll()
 	check(E.On() and ns.db.easyMode ~= false and not E.temp, "closed: Simple again")
-	-- (0.54.1) the Advanced row, for a Simple search that didn't come from the prompt: a note, nothing to switch
-	check(E.ADVANCED_ROW.noActivate and not E.ADVANCED_ROW.activate, "the Advanced row: a note")
 	-- Advanced mode takes them
 	ns.db.easyMode = false; UI:EasyChanged()
 	res = UI:Search("@npc hogger")
@@ -787,9 +785,10 @@ Run("examples made for the character", function()
 end)
 
 Run("a pinned row (no score) sorts without an error, first", function()
-	local rows = { { name = "Console settings", _score = 1, key = 1 }, ns.Easy.ADVANCED_ROW, { name = "B", _score = 3, key = 2 } }
+	local note = ns.NoteRow("a line saying something")
+	local rows = { { name = "Console settings", _score = 1, key = 1 }, note, { name = "B", _score = 3, key = 2 } }
 	local ok, err = pcall(table.sort, rows, UI._Better)
-	check(ok and rows[1] == ns.Easy.ADVANCED_ROW, "the Advanced syntax row sorts first: " .. tostring(err))
+	check(ok and rows[1] == note, "a note row sorts first: " .. tostring(err))
 end)
 
 Run("right-click menu", function()

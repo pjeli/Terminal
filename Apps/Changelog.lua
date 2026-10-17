@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.55.3", when = "in testing",
+		v = "0.55.4", when = "in testing",
 		items = {
 			"A bar under the prompt in Simple mode: Filter, Sort and Group a click away, and a horn to send results to chat or copy them. Advanced mode sorts too: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
 		},

@@ -50,7 +50,7 @@ function UI:StartFuzzy()
 	self.fzf = true
 	DropTick(plain)
 	ns:Trace(("fuzzy find: on (%q -> %q)"):format(text, plain))
-	self.category, self.categoryAuto, self.action, self.place, self.sendTo, self.blockedSyntax = nil, nil, nil, nil, nil, nil
+	self.category, self.categoryAuto, self.action, self.place, self.sendTo = nil, nil, nil, nil, nil
 	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
 	Forget(self, true)
 	self.lastFzf = nil
@@ -134,7 +134,7 @@ function UI:FuzzyPop(e, advanced)
 	local simpleUser = not (ns.db and ns.db.easyMode == false)
 	self:EndFuzzy()
 	Forget(self, true)
-	self.blockedSyntax, self.sendTo = nil, nil
+	self.sendTo = nil
 	local text
 	if advanced then
 		if E then
@@ -447,7 +447,6 @@ function UI:AdvancedOnce()
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
 	Forget(self, true)
-	self.blockedSyntax = nil
 	self:SetOrResearch(conv)
 	self:SetStatus()
 	self:UpdateGhost()
