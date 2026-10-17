@@ -212,6 +212,7 @@ end)
 
 local function KeysDown(self, key)
 	local edit = UI.edit
+	UI.swallowChar = nil -- (a character to drop comes right after its own key, before the next one: Bar.lua)
 	if InCombatLockdown() then
 		UI:EnterEdit()
 		return
@@ -236,7 +237,7 @@ local function KeysDown(self, key)
 	if B and B.MenuKey(self, key) then return end
 	if B and IsAltKeyDown and IsAltKeyDown() and not IsControlKeyDown() and B.ALT_KEYS[key] and B.KeyOpen(B.ALT_KEYS[key]) then
 		self:SetPropagateKeyboardInput(false)
-		B.SwallowAltChar() -- (a Mac's Option+F types a character after it: not typed)
+		B.SwallowAltChar(key) -- (the character the client types for it after the key: not typed)
 		return
 	end
 	local game, action = UI.GameKey(key)
@@ -543,7 +544,8 @@ function UI:OnChar(text)
 	local sw = self.swallowChar
 	if sw then
 		self.swallowChar = nil
-		if GetTime() - sw.at < 0.5 and (sw.ch == nil or sw.ch == text) then return end
+		local want = (sw.ch and text == sw.ch) or (sw.letter and (ns.Lower(text) == sw.letter or text:byte(1) > 127))
+		if GetTime() - sw.at < 0.5 and want then return end
 	end
 	local q, c = edit:GetText(), self.cursor
 	local lo, hi = self:SelRange()

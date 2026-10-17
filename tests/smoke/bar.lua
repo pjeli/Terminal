@@ -193,7 +193,7 @@ do
 		local key = T.key
 		local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
 		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
-		alt(function() key("F") end)
+		alt(function() key("F", "f") end)
 		local m = B.menu
 		check(m and m:IsShown() and m.which == "filter" and m.keys and m.keySel == 1 and UI.edit:GetText() == "sword",
 			"Alt+F: Filter's menu, its first line picked, nothing typed: '" .. UI.edit:GetText() .. "'")
@@ -213,38 +213,39 @@ do
 		key("ENTER"); FlushAll()
 		check(B.state.sort == "name" and not m:IsShown() and Names() == "Arcanite Sword | Bronze Sword | Copper Sword | Iron Sword | Mithril Sword",
 			"Sort by name from the keys, the menu gone: " .. Names())
-		alt(function() key("G") end)
+		alt(function() key("G", "g") end)
 		check(m:IsShown() and m.which == "group" and UI.edit:GetText() == "sword", "Alt+G: Group's menu")
 		key("ESCAPE")
 		check(not m:IsShown() and UI:IsShown(), "Esc: only the menu goes")
-		alt(function() key("S") end)
+		alt(function() key("S", "s") end)
 		check(m.lines[m.keySel].id == "name", "opened again: the line ticked is the one picked")
 		while m.keySel ~= 1 do key("UP") end
 		key("UP")
 		check(m.keySel == m.n, "Up from the first line: round to the last")
 		key("DOWN"); key("ENTER"); FlushAll()
 		check(B.state.sort == nil, "Best match from the keys: no sort: " .. tostring(B.state.sort))
-		alt(function() key("F") end)
+		alt(function() key("F", "f") end)
 		key("A", "a"); FlushAll()
 		check(not m:IsShown() and UI.edit:GetText() == "sworda", "another key: the menu goes, the key types: '" .. UI.edit:GetText() .. "'")
 		UI:Hide(); FlushAll()
 		UI:Open("", nil); FlushAll()
-		alt(function() key("F") end)
+		alt(function() key("F", "f") end)
 		check(not (B.menu and B.menu:IsShown()), "no bar (nothing typed): Alt+F opens nothing")
 		UI:Hide(); FlushAll()
 		B.Reset()
-		-- (0.55.18, review) a Mac's Option+F types a character: not typed; elsewhere none comes, and the next key isn't eaten
+		-- (0.55.19, the player: "pressing Alt+G is both typing g and opening the menu") the character the client types for
+		-- the key (Windows: g; a Mac's Option: ©) isn't typed; when none comes, the next letter isn't eaten
 		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
-		local macWas = _G.IsMacClient
-		_G.IsMacClient = function() return true end
+		alt(function() key("G", "g") end)
+		check(B.menu:IsShown() and B.menu.which == "group" and UI.edit:GetText() == "sword", "Windows: Alt+G's g not typed: '" .. UI.edit:GetText() .. "'")
+		key("ESCAPE")
 		alt(function() key("F", "ƒ") end)
-		_G.IsMacClient = macWas
 		key("ESCAPE")
-		check(UI.edit:GetText() == "sword", "Mac: Option+F's character not typed: '" .. UI.edit:GetText() .. "'")
-		alt(function() key("F") end)
+		check(UI.edit:GetText() == "sword", "Mac: Option+F's ƒ not typed: '" .. UI.edit:GetText() .. "'")
+		alt(function() key("S") end)
 		key("ESCAPE")
-		key("X", "x"); FlushAll()
-		check(UI.edit:GetText() == "swordx", "elsewhere: the next letter typed after Alt+F isn't eaten: '" .. UI.edit:GetText() .. "'")
+		key("S", "s"); FlushAll()
+		check(UI.edit:GetText() == "swords", "nothing came for Alt+S: the s typed next is typed: '" .. UI.edit:GetText() .. "'")
 		-- the categories showing: Sort and Group can't be used, so their keys open nothing (as a click)
 		UI:Hide(); FlushAll()
 		B.Reset()

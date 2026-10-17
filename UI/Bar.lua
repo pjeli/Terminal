@@ -778,11 +778,11 @@ function B.HideMenu() if B.menu then B.menu:Hide() end end
 
 B.ALT_KEYS = { F = "filter", S = "sort", G = "group" }
 
---- Alt+F's character, on a client that types one for it (a Mac's Option+F types ƒ): not typed. Anywhere else nothing
---- comes, and the next key typed isn't eaten (0.55.18, review: the next letter was).
-function B.SwallowAltChar()
-	local mac = _G.IsMacClient and _G.IsMacClient()
-	if mac then UI.swallowChar = { at = GetTime() } end
+--- Alt+F's character, when the client types one for it (Windows types the f, a Mac's Option+F ƒ; 0.55.19, the player:
+--- "pressing Alt+G is both typing g and opening the menu"): not typed. Only that key's letter, or a character a Mac
+--- makes of it, and only before the next key goes down (Keys.lua): nothing coming, the next letter isn't eaten.
+function B.SwallowAltChar(key)
+	UI.swallowChar = { at = GetTime(), letter = type(key) == "string" and ns.Lower(key) or nil }
 end
 local ORDER = { "filter", "sort", "group" }
 
@@ -824,7 +824,7 @@ function B.MenuKey(f, key)
 	if not (m and m.keys and m:IsShown()) then return false end
 	local function Took() f:SetPropagateKeyboardInput(false) return true end
 	if IsAltKeyDown and IsAltKeyDown() and B.ALT_KEYS[key] then
-		B.SwallowAltChar()
+		B.SwallowAltChar(key)
 		if B.ALT_KEYS[key] == m.which then B.HideMenu() else B.KeyOpen(B.ALT_KEYS[key]) end
 		return Took()
 	end
