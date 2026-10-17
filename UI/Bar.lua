@@ -304,13 +304,20 @@ local function Build()
 	if horn.RegisterForClicks then horn:RegisterForClicks("LeftButtonUp") end
 	horn:SetScript("OnClick", function() if not UI.closing then B.Horn() end end)
 	horn:SetScript("OnEnter", function()
-		if not GameTooltip then return end
-		GameTooltip:SetOwner(horn, "ANCHOR_TOP")
-		GameTooltip:SetText(L["Send or copy"], 1, 1, 1)
-		GameTooltip:AddLine(L["The selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV"], 0.8, 0.8, 0.8, true)
-		GameTooltip:Show()
+		-- (its own tooltip, as the spinner's: the game's faded with the interface under .zen; Zen.lua keeps this one)
+		if not B.tip then
+			local ok, tip = pcall(CreateFrame, "GameTooltip", "TerminalBarTip", UIParent, "GameTooltipTemplate")
+			B.tip = ok and tip or nil
+			if B.tip and ns.Zen then ns.Zen.Made(B.tip) end
+		end
+		local tip = B.tip
+		if not tip then return end
+		tip:SetOwner(horn, "ANCHOR_TOP")
+		tip:SetText(L["Send or copy"], 1, 1, 1)
+		tip:AddLine(L["The selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV"], 0.8, 0.8, 0.8, true)
+		tip:Show()
 	end)
-	horn:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+	horn:SetScript("OnLeave", function() if B.tip then B.tip:Hide() end end)
 	strip.horn = horn
 	B.strip = strip
 	return strip
@@ -391,6 +398,7 @@ local MENU_W, LINE = 180, 20
 local function MenuFrame()
 	if B.menu then return B.menu end
 	local m = CreateFrame("Frame", "TerminalBarMenu", UIParent, "BackdropTemplate")
+	if ns.Zen then ns.Zen.Made(m) end -- (made while .zen has the interface faded: kept up, Zen.lua; else it faded with it)
 	m:SetFrameStrata("TOOLTIP")
 	m:SetClampedToScreen(true)
 	m:EnableMouse(true)

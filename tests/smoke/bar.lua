@@ -83,6 +83,19 @@ do
 	UI:Hide(); FlushAll()
 	check(not B.Active() and #B.state.filters == 0, "closed: nothing picked any more")
 
+	-- (0.55.3, the player: under .zen the bar did nothing) its menu is made kept up while the interface is faded, and
+	-- .zen keeps it by name on later opens
+	local Z = ns.Zen
+	local wasActive = Z.active
+	Z.active = true
+	B.menu = nil
+	B.ShowMenu("filter", B.strip.buttons[1])
+	check(B.menu and Z.Kept(B.menu), "the menu made under .zen keeps its own alpha (not faded with the interface)")
+	local own = table.concat(Z.OWN, " ")
+	check(own:find("TerminalBarMenu", 1, true) and own:find("TerminalBarTip", 1, true), ".zen keeps the bar's menu and tooltip by name")
+	B.HideMenu()
+	Z.active = wasActive
+
 	-- the prompt cleared: what was picked goes
 	UI:Open(""); UI:SetQuery("sword"); FlushAll()
 	B.Pick("filter", "q:epic+"); FlushAll()
