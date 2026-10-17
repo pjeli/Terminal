@@ -31,6 +31,19 @@ do
 	check((UI.barH or 0) == 0, "nothing typed: no bar")
 	UI:SetQuery("sword"); FlushAll()
 	check(UI.barH == B.H and B.strip and B.strip:IsShown(), "words typed in Simple mode: the bar shows")
+	-- (0.55.1, the player: "mousing over and clicking do nothing") the buttons aren't placed again on every footer
+	-- update, a hover or a selection: a frame moved under the pointer loses its hover and its click
+	local moved = 0
+	for _, b in ipairs(B.strip.buttons) do
+		local was = b.ClearAllPoints
+		b.ClearAllPoints = function(self, ...) moved = moved + 1; return was(self, ...) end
+	end
+	UI:SetStatus(); B.Update(); B.Update()
+	B.strip.buttons[1]:GetScript("OnEnter")(B.strip.buttons[1])
+	B.strip.buttons[1]:GetScript("OnLeave")(B.strip.buttons[1])
+	UI:SetStatus()
+	check(moved == 0, "the bar's buttons stay put through updates and hovers: moved " .. moved .. " times")
+	for _, b in ipairs(B.strip.buttons) do b.ClearAllPoints = nil end
 	local ids = {}
 	for _, o in ipairs(B.Options("filter")) do ids[#ids + 1] = o.id end
 	ids = table.concat(ids, " ")

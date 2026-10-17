@@ -292,8 +292,8 @@ local function Build()
 			if B.menu and B.menu:IsShown() and B.menu.which == which then B.HideMenu() return end
 			B.ShowMenu(which, b)
 		end)
-		b:SetScript("OnEnter", function() b.hover = true; B.Update() end)
-		b:SetScript("OnLeave", function() b.hover = nil; B.Update() end)
+		b:SetScript("OnEnter", function() b.hover = true; B.Shade(b) end) -- (only its shade: nothing moves under the pointer)
+		b:SetScript("OnLeave", function() b.hover = nil; B.Shade(b) end)
 		strip.buttons[#strip.buttons + 1] = b
 	end
 	local horn = CreateFrame("Button", nil, strip)
@@ -338,34 +338,53 @@ function B.Update()
 	local classic = t.frame == "classic"
 	local inset = classic and 9 or 6
 	local top = (UI.tabsH or 0) + ns.UI.layout.HEADER_H + (UI.promptExtra or 0) - 4
-	s:ClearAllPoints()
-	s:SetPoint("TOPLEFT", UI.frame, "TOPLEFT", inset, -top)
-	s:SetPoint("TOPRIGHT", UI.frame, "TOPRIGHT", -inset, -top)
-	s:SetHeight(h - 2)
 	local _, overview = ShownKinds()
-	local x = 0
-	local ar, ag, ab = Theme.RGB(t.accent)
+	-- (placed again only when where it goes or a label's width changed: a frame moved under the pointer loses it, so
+	-- placing the buttons on every footer update took every hover and click away; 0.55.1, the player: "mousing over and
+	-- clicking do nothing")
+	local widths = {}
+	for i, b in ipairs(s.buttons) do
+		local label = Label(b.which)
+		if b.label ~= label then b.label = label; b.text:SetText(label) end
+		widths[i] = math.ceil((b.text:GetStringWidth() or 40) + 18)
+	end
+	local laid = table.concat({ inset, top, h, table.concat(widths, ",") }, ":")
+	if s.laid ~= laid then
+		s.laid = laid
+		s:ClearAllPoints()
+		s:SetPoint("TOPLEFT", UI.frame, "TOPLEFT", inset, -top)
+		s:SetPoint("TOPRIGHT", UI.frame, "TOPRIGHT", -inset, -top)
+		s:SetHeight(h - 2)
+		local x = 0
+		for i, b in ipairs(s.buttons) do
+			b:ClearAllPoints()
+			b:SetPoint("TOPLEFT", s, "TOPLEFT", x, 0)
+			b:SetSize(widths[i], h - 2)
+			b:Show()
+			x = x + widths[i] + 4
+		end
+		local horn = s.horn
+		horn:ClearAllPoints()
+		horn:SetPoint("RIGHT", s, "RIGHT", -2, 0)
+		horn:SetSize(h - 6, h - 6)
+	end
 	for _, b in ipairs(s.buttons) do
 		local active = (b.which == "filter" and #state.filters > 0) or (b.which == "sort" and state.sort) or (b.which == "group" and state.group)
 		b.off = overview and b.which ~= "filter" and not active
-		b.text:SetText(Label(b.which))
+		b.active = active and true or false
 		local col = b.off and t.dim or (active and t.accent or t.text)
 		b.text:SetTextColor(Theme.RGB(col))
-		b.bg:SetColorTexture(ar, ag, ab, (active and 0.18 or 0) + (b.hover and not b.off and 0.12 or 0))
-		local w = math.ceil((b.text:GetStringWidth() or 40) + 18)
-		b:ClearAllPoints()
-		b:SetPoint("TOPLEFT", s, "TOPLEFT", x, 0)
-		b:SetSize(w, h - 2)
-		b:Show()
-		x = x + w + 4
+		B.Shade(b)
 	end
-	local horn = s.horn
-	horn:ClearAllPoints()
-	horn:SetPoint("RIGHT", s, "RIGHT", -2, 0)
-	horn:SetSize(h - 6, h - 6)
 	local e = UI.results and UI.results[UI.sel]
-	horn.off = not Real(e)
-	horn:SetAlpha(horn.off and 0.35 or 1)
+	s.horn.off = not Real(e)
+	s.horn:SetAlpha(s.horn.off and 0.35 or 1)
+end
+
+--- A button's background: the accent, stronger when it has something picked, a little more under the pointer.
+function B.Shade(b)
+	local ar, ag, ab = Theme.RGB(Theme.Get().accent)
+	b.bg:SetColorTexture(ar, ag, ab, (b.active and 0.18 or 0) + (b.hover and not b.off and 0.14 or 0))
 end
 
 local MENU_W, LINE = 180, 20
