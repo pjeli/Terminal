@@ -522,11 +522,14 @@ end
 --- into UI.aggregate (the search sums its results up: Pipes.lua's ns.Aggregate); gives the text to search. Simple mode's
 --- bar's Group when none is typed ("| group by zone" as Advanced writes it; not over the categories, Bar.lua).
 local function TakeAggregate(self, text, first)
-	self.aggregate, self.typedGroup = nil, nil
+	self.aggregate, self.typedGroup, self.barGroupIgnored = nil, nil, nil
 	local A = ns.Aggregate
 	if self.fzf or first == "." or first == "/" or not A then return text end
 	local query, steps = A.Split(text)
 	if steps then
+		-- (steps typed: they sum up, the bar's Group doesn't; the bar says so, Bar.lua; 0.55.18, review)
+		local bar = EasyOn() and ns.Bar and ns.Bar.Active()
+		self.barGroupIgnored = bar and bar.group and true or nil
 		self.aggregate = A.Parse(steps, query)
 		-- (Simple mode: a group typed shows on the bar as its Group, to take back out from there)
 		local last = self.aggregate.last
@@ -617,6 +620,8 @@ function UI:Refresh()
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
 	if text == "" and ns.Bar then ns.Bar.Reset() end -- (the prompt cleared: what the bar picked goes too)
+	-- (a .command or /slash line: no search for the bar's picks; they'd come back on the next search; 0.55.18)
+	if ns.Bar and (text:sub(1, 1) == "." or text:sub(1, 1) == "/") and not self.fzf then ns.Bar.Reset() end
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
 	text = TakeSendTo(self, text, first)
@@ -765,6 +770,7 @@ function UI:History(dir)
 		idx = (idx or 0) - 1
 	end
 	local text = idx >= 1 and h[idx] or ""
+	if ns.Bar then ns.Bar.Reset() end -- (another line: what the bar picked was for the last one; 0.55.18)
 	-- the game may report this change a frame later: the walk goes on while the text is the one it set
 	self.histText = text
 	self._histSet = true

@@ -1133,14 +1133,15 @@ Run("Alt+`: Advanced mode for this run only", function()
 	local F = T.F
 	local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
 	-- what a Simple search says, in Advanced syntax
-	check(E.ToAdvanced("rare sword") == "sword q:rare " or E.ToAdvanced("rare sword") == "q:rare type:sword ",
+	-- (0.55.18: a kind of item said as a word is that kind or the word in a name, sword|type:sword, as searched)
+	check(E.ToAdvanced("rare sword") == "q:rare sword|type:sword ",
 		"rare sword -> filters: " .. E.ToAdvanced("rare sword"))
-	check(E.ToAdvanced("attack power food") == "stat:ap type:food ", "attack power food -> stat:ap type:food: " .. E.ToAdvanced("attack power food"))
+	check(E.ToAdvanced("attack power food") == "stat:ap food|type:food ", "attack power food -> stat:ap type:food: " .. E.ToAdvanced("attack power food"))
 	check(E.ToAdvanced("cast frost nova") == "@spell do:cast frost nova ", "cast frost nova -> @spell do:cast (0.44.11: the action stays): " .. E.ToAdvanced("cast frost nova"))
 	check(E.ToAdvanced("nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
 		"nearest innkeeper -> @npc ... sort:nearest: " .. E.ToAdvanced("nearest innkeeper"))
 	check(E.ToAdvanced("hearthstone", "bags") == "@item hearthstone ", "a picked category -> its @kind: " .. E.ToAdvanced("hearthstone", "bags"))
-	check(E.ToAdvanced("shield that drops from kresh") == "kresh type:shield ", "sentence words dropped: " .. E.ToAdvanced("shield that drops from kresh"))
+	check(E.ToAdvanced("shield that drops from kresh") == "kresh shield|type:shield ", "sentence words dropped: " .. E.ToAdvanced("shield that drops from kresh"))
 	check(E.ToAdvanced("") == "", "nothing typed: nothing")
 	-- Alt+` in an open Simple prompt: written in Advanced syntax, searched as Advanced
 	UI:Open("cast frost nova")

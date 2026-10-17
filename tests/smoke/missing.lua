@@ -163,6 +163,19 @@ do
 	check(ns:ResolveProvider("missing") == nil and ns:ResolveProvider("miss") == nil and ns:ResolveProvider("tolearn") == nil
 		and ns:ResolveProvider("recipe to learn") == nil, "no @missing (nor its old names)")
 	check(UI:ResultText(by["Thorium Belt"]) == "@recipe is:unknown Thorium Belt", "Shift+Right writes @recipe: " .. tostring(UI:ResultText(by["Thorium Belt"])))
+	-- (0.55.18, review) Simple mode searches it too: typed, or the bar's "Not known yet"
+	do
+		local was = ns.db.easyMode
+		ns.db.easyMode = true; UI:EasyChanged()
+		local m = 0
+		for _, e in ipairs(UI:Search("@recipe is:unknown")) do if e.kind == "missing" then m = m + 1 end end
+		check(m == 5, "Simple mode, @recipe is:unknown: the recipes you don't know: " .. m)
+		m = 0
+		for _, e in ipairs(UI:Search("is:learnable")) do if e.kind == "missing" or (e.catId == "crafting") then m = m + 1 end end
+		check(m >= 1, "Simple mode, is:learnable alone: found (in Crafting): " .. m)
+		ns.db.easyMode = was; UI:EasyChanged()
+		UI.category, UI.categoryAuto = nil, nil
+	end
 	local kinds = table.concat(ns.commands.kinds.run() or {}, "\n")
 	check(not kinds:find("Recipe to learn", 1, true), ".kinds doesn't list it")
 	-- (0.45.22, the player: .mem still said @missing) named by how a search reaches it, wherever a list is named

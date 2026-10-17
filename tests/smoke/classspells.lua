@@ -140,6 +140,8 @@ do
 		-- (0.55.15, the player's screenshot: "46 results · 46 results") the note says what, the footer how many
 		local _, note = Q.Answer(q)
 		check(note == ns.L["Your spellbook"], "the note has no count of its own: " .. tostring(note))
+		-- (0.55.18, review) Alt+` keeps Advanced words typed after a question
+		check(ns.QuestionToAdvanced("my spells sort:name") == "@spell is:known sort:name ", "a question's sort: kept: " .. tostring(ns.QuestionToAdvanced("my spells sort:name")))
 		check(Q.Question("my druid spells").class == "DRUID" and not Q.Question("my druid spells").known, "my druid spells: the druid's")
 		SP.collect = spellsWas; SP._dirty = true
 	end

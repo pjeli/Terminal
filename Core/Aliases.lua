@@ -62,7 +62,11 @@ local function ShowSearch(line)
 	-- (Advanced syntax in Simple mode, "@durability is:damaged": searched as typed, Simple mode kept; 0.55.9)
 	local open = UI:IsShown()
 	if not open then UI:Open("") end
-	if open then UI:WalkTo(line) else UI:SetQuery(line, #line) end
+	-- (the bar's picks were for the line the alias ran from: kept with the step, Shift+Left brings them back; 0.55.18)
+	local B = ns.Bar
+	local saved = B and B.Save()
+	if B then B.Reset() end
+	if open then UI:WalkTo(line, nil, saved) else UI:SetQuery(line, #line) end
 end
 
 --- Whether a name is taken by one of Terminal's commands (its name or another name of it), not by an alias.

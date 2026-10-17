@@ -48,6 +48,7 @@ function UI:StartFuzzy()
 	local text = edit:GetText()
 	local plain = UI.FuzzyPlain(text)
 	self.fzf = true
+	if ns.Bar then ns.Bar.Reset() end -- (picked for the search left: not the one fuzzy finding hands back; 0.55.18)
 	DropTick(plain)
 	ns:Trace(("fuzzy find: on (%q -> %q)"):format(text, plain))
 	self.category, self.categoryAuto, self.action, self.place, self.sendTo = nil, nil, nil, nil, nil
@@ -303,6 +304,7 @@ function UI:SaveState()
 		temp = E and E.temp, tempSimple = E and E.tempSimple,
 		category = (not self.categoryAuto) and self.category or nil, sel = UI.results[UI.sel],
 		recent = self.showRecent and true or nil, recalled = self.recalled, -- (what Down brought up)
+		bar = ns.Bar and ns.Bar.Active() and ns.Bar.Save() or nil, -- (the bar's picks: F1, combat, back as they were; 0.55.18)
 	}
 end
 
@@ -324,6 +326,7 @@ function UI:RestoreState(s)
 		if s.recalled and s.recalled == text then self.recalled = text end
 	end
 	self:ApplyState(s)
+	if s.bar and ns.Bar and not s.fzf then ns.Bar.Restore(s.bar); ns.Bar.Changed() end
 end
 
 --- F1: the keys window (Apps/KeysWindow.lua) on the tab of the mode in use, coming back here as it was.

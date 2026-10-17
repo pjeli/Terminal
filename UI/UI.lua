@@ -128,6 +128,10 @@ do
 			UI.tabKept = nil
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
+			if ns.Bar then ns.Bar.Reset() end -- (closed by the game: the bar's picks and its menu go too, as UI:Hide does)
+			-- (a line's "| group by", ">> party": read again from the line when it's searched; kept, a search made while
+			-- closed, UI:Search from a tab kept up to date or another addon, summed its rows up; 0.55.18, review)
+			UI.aggregate, UI.sendTo, UI.typedGroup, UI.barGroupIgnored, UI.ungrouped = nil, nil, nil, nil, nil
 			UI.openedByToggle, UI.tabHeld = nil, nil
 			if ns.Tour then ns.Tour.Stop() end -- (hidden by the game, Esc's game menu: the tour and its card go too; review, 0.51.25)
 			if ns.Pipes and ns.Pipes.ClearSteps then ns.Pipes.ClearSteps() end -- (a chain's rows: not kept while closed)
@@ -697,6 +701,9 @@ UI.REOPEN_KEEP = 5
 function UI:Hide()
 	self:HideRowMenu()
 	if ns.Bar then ns.Bar.Reset() end -- (Simple mode's bar: what it picked lasts while the terminal is open)
+	-- (what the line's "| group by" and ">> party" said: read again when it's searched next; 0.55.18, review: a search
+	-- made while closed, UI:Search, summed its rows up as the last line did)
+	self.aggregate, self.sendTo, self.typedGroup, self.barGroupIgnored, self.ungrouped = nil, nil, nil, nil, nil
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
 	UI.HideNav()
 	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)

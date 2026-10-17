@@ -44,7 +44,8 @@ K.LINES = {
 	{ "Shift+Enter", L["its other action (the footer says which)"], f = L["take it back to the search with its list named, as @kind name"] },
 	{ "Ctrl+Enter", L["act and keep Terminal open (a window it opens still closes it)"], only = "sa" },
 	{ L["click"], L["as Enter; with Shift or Ctrl, as Shift+Enter or Ctrl+Enter"], f = L["as Enter; Shift+click as Shift+Enter"] },
-	{ L["right-click"], L["everything it can do: open, use, link it, send it (or all of them) to chat"],
+	{ L["right-click"], s = L["everything it can do: open, use, link it, send it to chat or copy it (all of them: the speaker button under the prompt)"],
+		a = L["everything it can do: open, use, link it, send it to chat or copy it (all of them: >>> party, >>> csv)"],
 		f = L["back to the search (with its list named, or not), or link it or send it to chat"] }, -- (fuzzy finding's menu runs nothing: RowMenu.lua)
 	{ "Shift+Right", s = L["at the end of the prompt: that menu from the keyboard (Up/Down, Enter)"],
 		a = L["at the end of the prompt: write the result into it, to build on (@npc Thrall)"],
@@ -52,7 +53,7 @@ K.LINES = {
 
 	{ L["Get around"] },
 	{ "Shift+Left", L["back: to the list you came from (your pick selected again), or from a line Up brought back toward the empty prompt"], only = "sa",
-		s = L["back: to the list you came from (your pick selected again), from a category to all of them, or from a line Up brought back toward the empty prompt"] },
+		s = L["back: to the list you came from (your pick selected again), from a category to all of them, from Alt+`'s line to your words, or from a line Up brought back toward the empty prompt"] },
 	{ "Up", L["on an empty prompt: the line you ran last; from its first result, the one before it"], only = "sa" },
 	{ "Down", only = "sa", s = L["on an empty prompt: your last search back (Up puts it away)"],
 		a = L["on an empty prompt: your recent picks (Up puts them away)"] },

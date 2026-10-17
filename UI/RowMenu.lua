@@ -101,6 +101,9 @@ do
 		end)
 	end
 
+	-- "All 8 to party"; one result: "It to party" reads oddly, "The result to party" (0.55.18, review)
+	local function AllTo(n, to) return (n == 1 and L["The result to %s"] or L["All %s to %s"]):format(n == 1 and to or n, n == 1 and nil or to) end
+
 	--- The menu's lines for row `e`, in order: { label, and secondary (Enter's / Shift+Enter's verb), boxLine (the chat
 	--- box), chatTo (a channel) or run (Terminal's own) }.
 	local function MenuItems(self, e, share)
@@ -167,10 +170,10 @@ do
 					for _, ch in ipairs(channels) do
 						if ch.chat and SH.Restricted(ch) then
 							-- (say, yell: one line the game presses, every result counted in it; Terminal's code can't send there)
-							items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
+							items[#items + 1] = { label = AllTo(n, ch.short), chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
 						elseif ch.chat then
 							local to = { chat = ch.chat, label = ch.short }
-							items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), run = function()
+							items[#items + 1] = { label = AllTo(n, ch.short), run = function()
 								if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
 								local sent, why = SH.SendAll(UI.results, to, query)
 								if not sent then ns:Print(why) return end
@@ -183,7 +186,8 @@ do
 		end
 		-- copied out (Activate.lua's CopyOut, as "linen to csv" does): the row from its menu, every result from the send
 		-- button
-		if not self.fzf and UI.CopyOut and ns.Share and ns.Share.Channel and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
+		local summed = share and e.kind == "aggregate" -- (the send button over groups or a sum: copied out, as >>> csv does)
+		if not self.fzf and UI.CopyOut and ns.Share and ns.Share.Channel and (summed or not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead)) then
 			local query = ns.Share.Split(edit:GetText() or "")
 			local function Copy(how, all)
 				return function()

@@ -193,7 +193,7 @@ do
 		local key = T.key
 		local function alt(fn) _G.IsAltKeyDown = function() return true end; fn(); _G.IsAltKeyDown = function() return false end end
 		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
-		alt(function() key("F", "f") end)
+		alt(function() key("F") end)
 		local m = B.menu
 		check(m and m:IsShown() and m.which == "filter" and m.keys and m.keySel == 1 and UI.edit:GetText() == "sword",
 			"Alt+F: Filter's menu, its first line picked, nothing typed: '" .. UI.edit:GetText() .. "'")
@@ -213,27 +213,129 @@ do
 		key("ENTER"); FlushAll()
 		check(B.state.sort == "name" and not m:IsShown() and Names() == "Arcanite Sword | Bronze Sword | Copper Sword | Iron Sword | Mithril Sword",
 			"Sort by name from the keys, the menu gone: " .. Names())
-		alt(function() key("G", "g") end)
+		alt(function() key("G") end)
 		check(m:IsShown() and m.which == "group" and UI.edit:GetText() == "sword", "Alt+G: Group's menu")
 		key("ESCAPE")
 		check(not m:IsShown() and UI:IsShown(), "Esc: only the menu goes")
-		alt(function() key("S", "s") end)
+		alt(function() key("S") end)
 		check(m.lines[m.keySel].id == "name", "opened again: the line ticked is the one picked")
 		while m.keySel ~= 1 do key("UP") end
 		key("UP")
 		check(m.keySel == m.n, "Up from the first line: round to the last")
 		key("DOWN"); key("ENTER"); FlushAll()
 		check(B.state.sort == nil, "Best match from the keys: no sort: " .. tostring(B.state.sort))
-		alt(function() key("F", "f") end)
+		alt(function() key("F") end)
 		key("A", "a"); FlushAll()
 		check(not m:IsShown() and UI.edit:GetText() == "sworda", "another key: the menu goes, the key types: '" .. UI.edit:GetText() .. "'")
 		UI:Hide(); FlushAll()
 		UI:Open("", nil); FlushAll()
-		alt(function() key("F", "f") end)
+		alt(function() key("F") end)
 		check(not (B.menu and B.menu:IsShown()), "no bar (nothing typed): Alt+F opens nothing")
 		UI:Hide(); FlushAll()
 		B.Reset()
+		-- (0.55.18, review) a Mac's Option+F types a character: not typed; elsewhere none comes, and the next key isn't eaten
+		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
+		local macWas = _G.IsMacClient
+		_G.IsMacClient = function() return true end
+		alt(function() key("F", "ƒ") end)
+		_G.IsMacClient = macWas
+		key("ESCAPE")
+		check(UI.edit:GetText() == "sword", "Mac: Option+F's character not typed: '" .. UI.edit:GetText() .. "'")
+		alt(function() key("F") end)
+		key("ESCAPE")
+		key("X", "x"); FlushAll()
+		check(UI.edit:GetText() == "swordx", "elsewhere: the next letter typed after Alt+F isn't eaten: '" .. UI.edit:GetText() .. "'")
+		-- the categories showing: Sort and Group can't be used, so their keys open nothing (as a click)
+		UI:Hide(); FlushAll()
+		B.Reset()
 	end
+
+	-- (0.55.18, review) the bar's picks belong to the search they were picked for
+	do
+		local function Picked() return #B.state.filters end
+		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
+		B.Pick("filter", "q:epic+"); FlushAll()
+		UI:SetQuery(".help", 5); FlushAll()
+		check(Picked() == 0, "a .command line: the picks go (they came back on the next search)")
+		UI:SetQuery("sword", 5); B.Pick("filter", "q:epic+"); FlushAll()
+		UI:StartFuzzy()
+		check(Picked() == 0, "fuzzy finding: the picks go")
+		UI:EndFuzzy(true)
+		UI:SetQuery("sword", 5); B.Pick("filter", "q:epic+"); FlushAll()
+		ns.db.history = { "iron" }
+		UI:SetQuery("", 0); FlushAll(); B.Pick("filter", "q:epic+")
+		UI:History(-1); FlushAll()
+		check(Picked() == 0 and UI.edit:GetText() == "iron", "a history line: the picks go: " .. UI.edit:GetText())
+		-- closed by the game (Esc's menu, a window): the picks and an open menu go, as with UI:Hide
+		UI:SetQuery("sword", 5); B.Pick("filter", "q:epic+"); FlushAll()
+		_G.IsAltKeyDown = function() return true end; T.key("F"); _G.IsAltKeyDown = function() return false end
+		local tf = _G.TerminalFrame
+		tf:Hide(); tf.scripts.OnHide(tf)
+		check(Picked() == 0 and not (B.menu and B.menu:IsShown()), "hidden by the game: no picks, no menu left up")
+		FlushAll()
+		-- F1 (and combat) come back as they were, picks and all
+		UI:Open(""); UI:SetQuery("sword", 5); B.Pick("filter", "q:epic+"); FlushAll()
+		local st = UI:SaveState()
+		UI:Hide(); FlushAll()
+		UI:RestoreState(st); FlushAll()
+		check(B.state.filters[1] == "q:epic+" and Names() == "Arcanite Sword", "back as it was, the filter too: " .. Names())
+		UI:Hide(); FlushAll()
+	end
+
+	-- (0.55.18, review) the line's "| group by" is the line's: a search made once it's closed isn't summed up
+	UI:Open(""); UI:SetQuery("sword | count", 13); FlushAll()
+	UI:Hide(); FlushAll()
+	local after = UI:Search("sword")
+	check(after[1] and after[1].kind ~= "aggregate", "closed: UI:Search isn't summed up as the last line was: " .. tostring(after[1] and after[1].kind))
+	-- (0.55.18, review) a category opened for you goes with an @kind typed (the footer named it)
+	UI:Open(""); UI:SetQuery("arcanite", 8); FlushAll()
+	UI:SetQuery("@item iron", 10); FlushAll()
+	check(UI.category == nil, "@kind typed: no category left over: " .. tostring(UI.category))
+	UI:Hide(); FlushAll()
+
+	-- (0.55.18, review) taking words back out of the line
+	do
+		UI:Open(""); UI:SetQuery("sword not boe", 13); FlushAll()
+		check(B.Typed().filters[1] and B.Typed().filters[1].spec == "-is:boe", "(not boe: a filter typed)")
+		B.Pick("filter", "-is:boe"); FlushAll()
+		check(UI.edit:GetText() == "sword", "\"not boe\" unticked: its two words go: '" .. UI.edit:GetText() .. "'")
+		UI:SetQuery('"big rare sword" rare', 21); FlushAll()
+		B.Pick("filter", "q:rare"); FlushAll()
+		check(UI.edit:GetText() == '"big rare sword"', "a quoted phrase is left alone: '" .. UI.edit:GetText() .. "'")
+		UI:SetQuery("rare sword rare", 15); FlushAll()
+		B.Pick("filter", "q:rare"); FlushAll()
+		check(UI.edit:GetText() == "sword" and not B.Typed().filters[1], "said twice: both go: '" .. UI.edit:GetText() .. "'")
+		UI:Hide(); FlushAll()
+	end
+
+	-- (0.55.18, review) steps typed sum up their own way: the bar's Group isn't shown as on
+	do
+		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
+		B.Pick("group", "quality"); FlushAll()
+		UI:SetQuery("sword | count", 13); FlushAll()
+		check(B.strip.buttons[3].label == L["Group"] and not B.strip.buttons[3].active, "| count typed: Group not shown as on: " .. B.strip.buttons[3].label)
+		B.Reset()
+		-- grouped: the send button copies them out
+		UI:SetQuery("sword", 5); B.Pick("group", "quality"); FlushAll()
+		local shown, share
+		local was = UI.ShowRowMenu
+		UI.ShowRowMenu = function(_, idx, keys, sh) shown, share = idx, sh end
+		B.Horn()
+		UI.ShowRowMenu = was
+		check(shown and share, "grouped: the send button still works (copy them all)")
+		UI:Hide(); FlushAll()
+		B.Reset()
+	end
+
+	-- (0.55.18) nothing passed an everyday word, the closest shown: Alt+` writes the word as a word, not a filter that
+	-- finds nothing
+	UI:Open(""); UI:SetQuery("legendary arcanite", 18); FlushAll()
+	check(UI.softRelaxed and Names() == "Arcanite Sword", "(legendary arcanite: it isn't, the closest shown: " .. Names() .. ")")
+	local advL = E.ToAdvanced("legendary arcanite")
+	check(not advL:find("q:legendary", 1, true) and advL:find("legendary", 1, true), "Alt+` writes it as a word: " .. advL)
+	UI:SetQuery("epic arcanite", 13); FlushAll()
+	check(E.ToAdvanced("legendary arcanite"):find("q:legendary", 1, true), "(another line, not the one shown: the filter)")
+	UI:Hide(); FlushAll()
 
 	-- (0.55.12, the player's screenshot: "Filter: Q:rare") a filter typed in Advanced syntax is named in words
 	check(B.SpecLabel("q:rare", "q:rare") == "Rare" and B.SpecLabel("q:epic+", "q:epic+") == "Epic or better"
@@ -243,13 +345,24 @@ do
 	-- (0.55.12, the player's screenshot: "q:rare type:sword | group by dungeon", 0 results) a sum over the categories:
 	-- every category's rows summed up, not the categories
 	ns:RegisterProvider("spells", { label = "Spell", aliases = { "spell" }, collect = function()
-		return { { name = "Sword Dance", key = 1 } }
+		return { { name = "Sword Dance", key = 1 }, { name = "Mithril Ward", key = 2 } }
 	end })
 	ns:AliasesChanged()
 	UI:Open(""); UI:SetQuery("sword | group by quality"); FlushAll()
 	local gq = 0
 	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" and e.drillTo then gq = gq + 1 end end
 	check(gq >= 3 and not B.Overview(UI.Results()), "grouped over every category's rows, not over the categories: " .. gq)
+	-- (0.55.18, review) and typing on narrows from the last keystroke's matches (every list was read twice a keystroke)
+	UI:SetQuery("", 0); FlushAll()
+	UI:SetQuery("mithr", 5); FlushAll()
+	B.Pick("group", "quality"); FlushAll()
+	local Scan, calls = UI._Scan, 0
+	local collectWas = Scan.Collect
+	Scan.Collect = function(...) calls = calls + 1 return collectWas(...) end
+	UI:SetQuery("mithri", 6); FlushAll()
+	Scan.Collect = collectWas
+	check(calls == 1 and UI.lastSearchNarrowed and B.Overview(UI.Results()) == false, "grouped over the categories: one pass, narrowed as typed: " .. calls)
+	B.Reset()
 	UI:Hide(); FlushAll()
 	ns.providers.spells = nil
 	for i, id in ipairs(ns.providerOrder) do if id == "spells" then table.remove(ns.providerOrder, i) break end end

@@ -103,6 +103,13 @@ function B.Active()
 	return state
 end
 
+--- The group the rows are in: a "| group by" typed, else the bar's (unless steps typed sum them up their own way).
+function B.GroupOn()
+	if UI.typedGroup then return UI.typedGroup.id, true end
+	if UI.barGroupIgnored then return nil end
+	return state.group, false
+end
+
 --- What's picked, copied (Alt+` keeps it to come back to: UI:BackToSimple), and put back.
 function B.Save()
 	local f = {}
@@ -118,6 +125,7 @@ function B.Reset()
 	local had = #state.filters > 0 or state.sort or state.group
 	state.filters, state.sort, state.group = {}, nil, nil
 	if B.menu then B.menu:Hide() end
+	if B.tipUp then B.tipUp = nil; if B.tip then B.tip:Hide() end end
 	return had
 end
 
@@ -176,25 +184,38 @@ function B.DropWords(words)
 	local edit = UI.edit
 	if not edit then return end
 	local text = edit:GetText() or ""
-	-- (a filter's value of several words is read without its quotes, in:Scarlet Monastery; the line has them: either)
+	-- the ways each may stand in the line: a filter's value of several words is read without its quotes (in:Scarlet
+	-- Monastery; the line has them); "not boe" is read as -boe (Easy.JoinLogic: the line has the words; 0.55.18)
 	local forms = {}
 	for _, w in ipairs(words) do
 		forms[#forms + 1] = w
 		local k, v = w:match("^([-!]?%a+:)(.+)$")
 		if k and v:find("%s") and not v:find('"', 1, true) then forms[#forms + 1] = k .. '"' .. v .. '"' end
+		local neg = w:match("^[-!]([^:]+)$")
+		if neg then
+			for nw in pairs(ns.Easy and ns.Easy.NOT_WORDS or {}) do forms[#forms + 1] = nw .. " " .. neg end
+		end
+	end
+	-- (every time it's there, whole words only, never inside a "quoted phrase": that's searched as it is)
+	local function Quoted(at)
+		local n = 0
+		for _ in text:sub(1, at - 1):gmatch('"') do n = n + 1 end
+		return n % 2 == 1
 	end
 	for _, w in ipairs(forms) do
 		local pat = ns.Lower(w):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"):gsub("%s+", "%%s+")
-		local lower, from = ns.Lower(text), 1
+		local from = 1
 		while true do
+			local lower = ns.Lower(text)
 			local a, b = lower:find(pat, from)
 			if not a then break end
 			local before, after = lower:sub(a - 1, a - 1), lower:sub(b + 1, b + 1)
-			if (a == 1 or before:find("%s")) and (after == "" or after:find("%s")) then
+			if (a == 1 or before:find("%s")) and (after == "" or after:find("%s")) and not Quoted(a) then
 				text = text:sub(1, a - 1) .. text:sub(b + 1)
-				break
+				from = a
+			else
+				from = a + 1
 			end
-			from = a + 1
 		end
 	end
 	local had = (edit:GetText() or ""):find("%s$") -- (a space typed after the last word stays: the next word is on its way)
@@ -359,11 +380,12 @@ function B.Options(which)
 		end
 	elseif which == "group" then
 		local tg = typed.group
+		local on = B.GroupOn()
 		for _, id in ipairs(B.GROUPS) do
 			local typedHere = tg and tg.id == id
-			if Has(id) or state.group == id or typedHere then
+			if Has(id) or on == id or typedHere then
 				local f = A.FIELDS[id]
-				out[#out + 1] = { id = id, label = ns.UpperFirst(f and f.label or id), on = (state.group == id and not tg) or typedHere,
+				out[#out + 1] = { id = id, label = ns.UpperFirst(f and f.label or id), on = on == id,
 					typed = typedHere and tg.word or nil }
 			end
 		end
@@ -482,7 +504,7 @@ local function Label(which)
 		local o = (state.sort and ById(B.SORTS, state.sort)) or (typed.sort and ById(B.SORTS, typed.sort.id))
 		return o and L["Sort: %s"]:format(o.label) or L["Sort"]
 	else
-		local g = (typed.group and typed.group.id) or state.group -- (a group typed is the one summed up: TakeAggregate)
+		local g = B.GroupOn() -- (a group typed is the one summed up: TakeAggregate; steps typed: none of the bar's)
 		local f = g and ns.Aggregate and ns.Aggregate.FIELDS[g]
 		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or L["Group"]
 	end
@@ -577,7 +599,12 @@ function B.Update()
 	local s = Build()
 	if not s then return end
 	s:SetShown(h > 0)
-	if h == 0 then B.HideMenu() return end
+	if h == 0 then
+		B.HideMenu()
+		-- (gone under the pointer: no OnLeave may come; its tooltip goes, and the row's may show again)
+		if B.tipUp then B.tipUp = nil; if B.tip then B.tip:Hide() end end
+		return
+	end
 	local t = Theme.Get()
 	local classic = t.frame == "classic"
 	local inset = classic and 9 or 6
@@ -615,7 +642,7 @@ function B.Update()
 	for _, b in ipairs(s.buttons) do
 		local typed = B.Typed()
 		local active = (b.which == "filter" and (#state.filters > 0 or #typed.filters > 0)) or (b.which == "sort" and (state.sort or typed.sort))
-			or (b.which == "group" and (state.group or typed.group))
+			or (b.which == "group" and B.GroupOn())
 		b.off = overview and b.which ~= "filter" and not active
 		b.active = active and true or false
 		local col = b.off and t.dim or (active and t.accent or t.text)
@@ -681,7 +708,8 @@ local function MenuLine(m, i)
 		if id == false then B.Clear(which) m:Hide() return end
 		B.Pick(which, id)
 		-- (filters add up: it stays open, the keys' line where it was)
-		if which == "filter" then B.ShowMenu(which, m.owner, m.keys, m.keys and m.keySel) else m:Hide() end
+		-- (the keys' line: the one picked again, found by what it is; a typed one unticked has gone: the line where it was)
+		if which == "filter" then B.ShowMenu(which, m.owner, m.keys, m.keys and m.keySel, id) else m:Hide() end
 	end)
 	m.lines[i] = b
 	return b
@@ -690,7 +718,7 @@ end
 local function HasOn(opts) for _, o in ipairs(opts) do if o.on then return true end end return false end
 
 --- A button's menu, under it: its options, the ones picked ticked (typed ones say so), "None" on top to clear.
-function B.ShowMenu(which, owner, keys, sel)
+function B.ShowMenu(which, owner, keys, sel, selId)
 	local m = MenuFrame()
 	local t = Theme.Get()
 	local opts = B.Options(which)
@@ -716,9 +744,12 @@ function B.ShowMenu(which, owner, keys, sel)
 	-- (opened from the keys, Alt+F/S/G: a line picked to move from, the one ticked first; B.MenuKey)
 	m.n, m.keys, m.keySel = #items, keys and true or nil, nil
 	if keys then
-		local first
-		for i, it in ipairs(items) do if it.on and i > 1 then first = first or i end end
-		B.MenuSelect(sel or first or 1)
+		local first, byId
+		for i, it in ipairs(items) do
+			if it.on and i > 1 then first = first or i end
+			if selId ~= nil and it.id == selId and not it.dead then byId = byId or i end
+		end
+		B.MenuSelect(byId or (sel and math.min(sel, #items)) or first or 1)
 	end
 	m:SetSize(MENU_W, #items * LINE + 8)
 	ns.Panel.Flat(m)
@@ -746,6 +777,13 @@ function B.HideMenu() if B.menu then B.menu:Hide() end end
 ----------------------------------------------------------------------
 
 B.ALT_KEYS = { F = "filter", S = "sort", G = "group" }
+
+--- Alt+F's character, on a client that types one for it (a Mac's Option+F types ƒ): not typed. Anywhere else nothing
+--- comes, and the next key typed isn't eaten (0.55.18, review: the next letter was).
+function B.SwallowAltChar()
+	local mac = _G.IsMacClient and _G.IsMacClient()
+	if mac then UI.swallowChar = { at = GetTime() } end
+end
 local ORDER = { "filter", "sort", "group" }
 
 --- Line `i` of the open menu picked from the keys (round the ends; a line saying something skipped).
@@ -768,8 +806,14 @@ function B.KeyOpen(which)
 	B.Update()
 	local s = B.strip
 	if not s then return false end
+	if UI.HideRowMenu then UI:HideRowMenu() end -- (one menu from the keys at a time)
 	for _, b in ipairs(s.buttons) do
-		if b.which == which then B.ShowMenu(which, b, true) return true end
+		-- (one that can't be used now, Sort and Group over the categories, as a click: the key taken, nothing opened)
+		if b.which == which then
+			if b.off then B.HideMenu() return true end
+			B.ShowMenu(which, b, true)
+			return true
+		end
 	end
 	return false
 end
@@ -780,7 +824,7 @@ function B.MenuKey(f, key)
 	if not (m and m.keys and m:IsShown()) then return false end
 	local function Took() f:SetPropagateKeyboardInput(false) return true end
 	if IsAltKeyDown and IsAltKeyDown() and B.ALT_KEYS[key] then
-		UI.swallowChar = GetTime()
+		B.SwallowAltChar()
 		if B.ALT_KEYS[key] == m.which then B.HideMenu() else B.KeyOpen(B.ALT_KEYS[key]) end
 		return Took()
 	end
@@ -789,11 +833,18 @@ function B.MenuKey(f, key)
 	elseif key == "DOWN" or key == "TAB" then
 		B.MenuSelect((m.keySel or 0) + 1, 1)
 	elseif key == "LEFT" or key == "RIGHT" then
-		local at = 1
+		-- (the next menu that can be used: Filter alone over the categories)
+		local at, step = 1, key == "LEFT" and -1 or 1
 		for i, w in ipairs(ORDER) do if w == m.which then at = i end end
-		B.KeyOpen(ORDER[(at - 1 + (key == "LEFT" and -1 or 1)) % #ORDER + 1])
+		local off = {}
+		for _, b in ipairs(B.strip and B.strip.buttons or {}) do off[b.which] = b.off end
+		for _ = 1, #ORDER do
+			at = (at - 1 + step) % #ORDER + 1
+			if not off[ORDER[at]] then break end
+		end
+		if ORDER[at] ~= m.which then B.KeyOpen(ORDER[at]) end
 	elseif key == "ENTER" or key == "NUMPADENTER" or key == "SPACE" then
-		if key == "SPACE" then UI.swallowChar = GetTime() end
+		if key == "SPACE" then UI.swallowChar = { at = GetTime(), ch = " " } end
 		local b = m.keySel and m.lines[m.keySel]
 		if b then b:GetScript("OnClick")(b) end
 	elseif key == "ESCAPE" or key == "`" then
@@ -810,6 +861,8 @@ function B.FirstReal()
 	local res = UI.results or {}
 	if Real(res[UI.sel]) then return UI.sel end
 	for i, e in ipairs(res) do if Real(e) then return i end end
+	-- (grouped or summed up: its rows, to copy out all of them; 0.55.18, review: the button was greyed out)
+	for i, e in ipairs(res) do if type(e) == "table" and e.kind == "aggregate" and not e.noActivate then return i end end
 end
 
 --- The send button: every result at once, to a channel or copied (0.55.12, the player: the "All" lines only here; a

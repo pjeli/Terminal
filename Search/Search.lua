@@ -787,14 +787,23 @@ Scan.ANSWERS = {
 --- level" by how well each zone fits, "my mail" with the auction house's news, stays as it was said: its toAdvanced says
 --- nil. Questions are answered in Advanced mode too, so what's written finds what was shown; "@map lvl:23" didn't.)
 function ns.QuestionToAdvanced(text)
-	for _, a in ipairs(Scan.ANSWERS) do
-		local q, extra = a.ask(text, true)
-		if q then
-			local line = a.toAdvanced(q, extra)
-			if line == nil then line = (text:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
-			return line
+	local function Print(t)
+		for _, a in ipairs(Scan.ANSWERS) do
+			local q, extra = a.ask(t, true)
+			if q then
+				local line = a.toAdvanced(q, extra)
+				if line == nil then line = (t:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
+				return line
+			end
 		end
 	end
+	local line = Print(text)
+	if line then return line end
+	-- (a question with Advanced filters or sorts after it, as Scan.Answer reads it: the question's form, then them;
+	-- 0.55.18, review: "who crit me sort:name" was written as a search of its words, which found nothing)
+	local rest, tail = Scan.SplitTail(text)
+	line = rest and Print(rest)
+	if line then return (line:gsub("%s+$", "")) .. " " .. table.concat(tail, " ") .. " " end
 end
 
 ----------------------------------------------------------------------
@@ -859,10 +868,28 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		if AddKinds(set) == 0 then AddKinds(set, true) end
 	end
 	local nearest = act and act.nearest
-	local specs = {}
+	-- (0.55.18) the words shown found nothing passing every everyday word, so the closest were listed (UI.softRelaxed,
+	-- this very line): those words written as words, not as filters nothing passes ("linen cloth": not type:cloth)
+	local relaxed = {}
+	local UIr = ns.UI
+	local function Trim(t) return (t:gsub("^%s+", ""):gsub("%s+$", "")) end
+	if UIr and UIr.softRelaxed and UIr.edit and ns.Lower(Trim(UIr.edit:GetText() or "")) == ns.Lower(Trim(text)) then
+		for i, f in ipairs(q.softs or {}) do relaxed[f] = q.softWords and q.softWords[i] or true end
+	end
+	-- (an everyday word for a kind of item, "sword": that kind, or the word in a name; written so, sword|type:sword, as
+	-- type:sword alone left out what's named so without the item data saying it; 0.55.18)
+	local softWord = {}
+	for i, f in ipairs(q.softs or {}) do softWord[f] = q.softWords and q.softWords[i] end
+	local specs, plainWords = {}, {}
 	for _, f in ipairs(q.filters or {}) do
 		local spec = q.specOf and q.specOf[f]
-		if spec then specs[#specs + 1] = spec end
+		local w = softWord[f]
+		if spec and w and spec:find("^type:") and not w:find("[%s|]") then spec = w .. "|" .. spec end
+		if relaxed[f] then
+			if type(relaxed[f]) == "string" then plainWords[#plainWords + 1] = relaxed[f] end
+		elseif spec then
+			specs[#specs + 1] = spec
+		end
 	end
 	table.sort(specs, function(a, b) -- (a place first: "in:ratchet is:vendor"; else as said)
 		local pa, pb = a:find("^in:") ~= nil, b:find("^in:") ~= nil
@@ -894,12 +921,20 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	-- what Enter does stays what was asked ("use hearthstone": do:use)
 	if act and act.map and not nearest and q.actWord then Add("do:" .. q.actWord) end
 	for _, w in ipairs(q.tokens) do Add(q.exact and q.exact[w] and ('"' .. w .. '"') or w) end
+	for _, w in ipairs(plainWords) do Add(w) end
 	-- (a value of several words, read without its quotes, in:The Barrens: written with them again, in:"The Barrens";
 	-- 0.55.16, the player's screenshot: Alt+` wrote in:The Barrens, which searched for "Barrens" as a word too)
-	for i, sp in ipairs(specs) do
-		local k, v = sp:match("^([-!]?%a+:)(.+)$")
-		if k and v:find("%s") and not v:find('"', 1, true) then specs[i] = k .. '"' .. v .. '"' end
+	-- (each piece of a | or & list on its own, after its - or key: -"outlaw saber", type:dagger|"pirate saber"; review)
+	local function Quoted(sp)
+		if sp:find('"', 1, true) or not sp:find("%s") then return sp end
+		return (sp:gsub("[^|&]+", function(piece)
+			local neg, key, v = piece:match("^([-!]?)(%a+:)(.+)$")
+			if not key then neg, v = piece:match("^([-!]?)(.+)$"); key = "" end
+			if v and v:find("%s") then return neg .. key .. '"' .. v .. '"' end
+			return piece
+		end))
 	end
+	for i, sp in ipairs(specs) do specs[i] = Quoted(sp) end
 	for _, sp in ipairs(specs) do Add(sp) end
 	-- an NPC's role (trainer, vendor...) nearest: one who'll serve you (Scan.NearestStart)
 	if nearest and Scan.RoleFriendly(q.softWords, q.strictWords) then Add("faction:friendly") end
@@ -1225,9 +1260,15 @@ function Scan.Parse(self, text)
 	-- "@recipe is:unknown": the recipes you don't know are their own list (MissingRecipes.lua): searched too; with no
 	-- @kind ("is:learnable" alone) along with every other list (also). Its file not loaded (it came with an update and a
 	-- /reload doesn't load a new file): a line says so (missingGone, Scan.Finish)
-	if not simple and (not kinds or kinds.recipes or kinds.professions) and not (kinds and kinds.missing) and F
+	-- (Simple mode too since 0.55.18: Advanced syntax typed there is searched as typed, and the bar's "Not known yet",
+	-- "Can learn now" are these filters; review: Simple mode left the list out)
+	local barWords = simple and ns.Bar and ns.Bar.Active() and ns.Bar.Active().filters or {}
+	local missingWords = {}
+	for _, w in ipairs(words) do missingWords[#missingWords + 1] = w end
+	for _, w in ipairs(barWords) do missingWords[#missingWords + 1] = w end
+	if (not kinds or kinds.recipes or kinds.professions) and not (kinds and kinds.missing) and F
 		and F.MissingWord then
-		for _, w in ipairs(words) do
+		for _, w in ipairs(missingWords) do
 			if F.MissingWord(w) then
 				if not ns.providers.missing then q.missingGone = true
 				elseif kinds then kinds.missing = true
@@ -1359,11 +1400,13 @@ end
 --- category (picked, or the only one that has it). The rows to finish with instead of searching (just the prompt,
 --- "nearest" stopping early, the categories to pick from), or nil: q.kinds, q.easyCat (and q.here) say what to search.
 function Scan.SimpleScope(self, q)
-	if not q.simple or q.typedKinds then return end
+	if not q.simple then return end
 	-- (no reset of lastScan here: its signature holds the lists and filters searched, so a category picked for you, or
 	-- by you, narrows keystroke by keystroke like Advanced does)
-	-- a category picked for you (only one had it) is worked out again with every keystroke
+	-- a category picked for you (only one had it) is worked out again with every keystroke (an @kind typed: none; review,
+	-- 0.55.18: the one opened for "horse" stayed on for "@item iron", the footer said Collections)
 	if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
+	if q.typedKinds then return end
 	if q.empty and not q.filters then
 		self.category = nil
 		-- just the prompt: its faint placeholder says what to type (UpdateGhost); Down asked for your recent picks
@@ -1383,6 +1426,8 @@ function Scan.SimpleScope(self, q)
 	local easyCat = self.category and ns.Easy.BY_ID[self.category]
 	if not easyCat then return Scan.Overview(self, q) end -- (the categories; or the only one, opened for you)
 	q.kinds, q.easyCat = ns.Easy.Kinds(easyCat.id), easyCat
+	-- (a list only searched when asked, the recipes you don't know with is:unknown: with its category's; ALSO_CATEGORY)
+	for id in pairs(q.also or {}) do if Scan.ALSO_CATEGORY[id] == easyCat.id then q.kinds[id] = true end end
 	Scan.AddFilter(q, easyCat.keep, "hard", easyCat.keep and ("#" .. easyCat.id))
 end
 
@@ -1887,6 +1932,10 @@ end
 --- Returns the category rows; or nil, with the only category that has matches opened for you (self.category,
 --- categoryAuto; q.kinds, q.easyCat) and its rows in q.matched when they're all here (none of them only counted).
 --- noAuto: the category rows even when there's one (a picked category that had nothing: Scan.Search's fallback).
+-- A list only searched when asked for (Scan.Parse's q.also, "is:unknown": the recipes you don't know) and the category
+-- its rows show in, in Simple mode (0.55.18, review: typed there, it found nothing).
+Scan.ALSO_CATEGORY = { missing = "crafting" }
+
 function Scan.Overview(self, q, noAuto)
 	local tokens, empty = q.tokens, q.empty
 	-- the lists: every category's, but Questie's (counted by name below)
@@ -1898,6 +1947,7 @@ function Scan.Overview(self, q, noAuto)
 			if p and p.hintFind and not self.place then hinting[#hinting + 1] = { c = c, p = p } elseif p then kinds[id] = true end
 		end
 	end
+	for id in pairs(q.also or {}) do if ns.providers[id] and Scan.ALSO_CATEGORY[id] then kinds[id] = true end end
 	local oq = setmetatable({ kinds = kinds }, { __index = q }) -- (the query, over those lists)
 	local included, sig, fresh = Scan.Lists(oq)
 	local out = Scan.Collect(self, oq, included, sig, fresh)
@@ -1910,7 +1960,7 @@ function Scan.Overview(self, q, noAuto)
 	local exacts = {} -- (rows named exactly what was typed: the clear winner, maybe)
 	local loggedNames = {} -- (your quest log's matches: Questie's name count has them too)
 	for _, e in ipairs(out) do
-		local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or ""]
+		local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or Scan.ALSO_CATEGORY[e.kind] or ""]
 		if c then
 			local b = byCat[c.id]
 			if not b then b = { c = c, rows = {}, counts = {} }; byCat[c.id] = b; order[#order + 1] = b end
@@ -1975,6 +2025,7 @@ function Scan.Overview(self, q, noAuto)
 		local b = byCat[rows[1].catId]
 		self.category, self.categoryAuto = b.c.id, true
 		q.kinds, q.easyCat = ns.Easy.Kinds(b.c.id), b.c
+		for id in pairs(q.also or {}) do if Scan.ALSO_CATEGORY[id] == b.c.id then q.kinds[id] = true end end
 		Scan.AddFilter(q, b.c.keep, "hard", b.c.keep and ("#" .. b.c.id))
 		-- its matches are found already; its lists only counted by name (Questie's, @stored) are searched after (q.extraKinds)
 		q.matched = b.rows
@@ -1990,6 +2041,14 @@ function Scan.Overview(self, q, noAuto)
 	if not noAuto and ((self.sendTo and self.sendTo.copy and self.sendTo.all) or summing) then
 		q.kinds = {}
 		for _, b in ipairs(order) do for k in pairs(ns.Easy.Kinds(b.c.id) or {}) do q.kinds[k] = true end end
+		-- (the rows found already, the lists only counted by name searched after: not every list read a second time, which
+		-- also took the overview's narrowing away; 0.55.18, review: two full passes a keystroke)
+		local cats = {}
+		for _, b in ipairs(order) do cats[b.c] = true end
+		q.matched = out
+		for _, h in ipairs(hinting) do
+			if cats[h.c] then q.extraKinds = q.extraKinds or {}; q.extraKinds[h.p.id] = true end
+		end
 		return nil
 	end
 	-- (the clear winner on top, to act on at once; the categories still narrow the rest)

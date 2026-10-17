@@ -77,6 +77,10 @@ do
 	for _, e in ipairs(UI.Results()) do names[#names + 1] = tostring(e.name) end
 	local all = table.concat(names, ",")
 	check(not all:find("Saber of the Outlaw", 1, true) and not all:find("Advanced", 1, true), "Simple mode: quoted too: " .. all)
+	-- (0.55.18, review) Alt+` keeps each phrase quoted, after a - or inside a | list
+	local a1, a2 = ns.Easy.ToAdvanced('outlaw -"outlaw saber"'), ns.Easy.ToAdvanced('saber|"outlaw dagger"')
+	check(a1:find('-"outlaw saber"', 1, true) and a2:find('"outlaw dagger"', 1, true) and not a2:find('"saber|', 1, true),
+		"Alt+`: phrases quoted where they stand: " .. a1 .. " / " .. a2)
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
 	UI:EasyChanged()

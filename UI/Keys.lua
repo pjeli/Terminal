@@ -236,7 +236,7 @@ local function KeysDown(self, key)
 	if B and B.MenuKey(self, key) then return end
 	if B and IsAltKeyDown and IsAltKeyDown() and not IsControlKeyDown() and B.ALT_KEYS[key] and B.KeyOpen(B.ALT_KEYS[key]) then
 		self:SetPropagateKeyboardInput(false)
-		UI.swallowChar = GetTime() -- (a Mac's Option+F types a character after it: not typed)
+		B.SwallowAltChar() -- (a Mac's Option+F types a character after it: not typed)
 		return
 	end
 	local game, action = UI.GameKey(key)
@@ -540,9 +540,10 @@ function UI:OnChar(text)
 		return
 	end
 	-- the character a key the bar took types after it (Alt+F's on a Mac, Space picking a line): not typed (Bar.lua)
-	if self.swallowChar and GetTime() - self.swallowChar < 0.5 then
+	local sw = self.swallowChar
+	if sw then
 		self.swallowChar = nil
-		return
+		if GetTime() - sw.at < 0.5 and (sw.ch == nil or sw.ch == text) then return end
 	end
 	local q, c = edit:GetText(), self.cursor
 	local lo, hi = self:SelRange()
