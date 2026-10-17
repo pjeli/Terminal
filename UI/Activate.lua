@@ -484,6 +484,8 @@ local function CopyOut(self, e, to)
 	ns:ShowText(L["%s as %s"]:format(what, to.label), text, one and { compact = true } or { closeOnCopy = true })
 end
 
+UI.CopyOut = CopyOut -- (the bar's horn: Bar.lua, RowMenu.lua)
+
 --- ">> channel": the selected result is sent, never opened or run: the game presses the chat line (armed here).
 local function SendSelected(self, e, to, secondary)
 	if to.drop then

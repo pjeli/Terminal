@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.55.1", when = "in testing",
+		items = {
+			"A bar under the prompt in Simple mode: Filter, Sort and Group a click away, and a horn to send results to chat or copy them. Advanced mode sorts too: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
+		},
+	},
+	{
 		v = "0.55.0", when = "released October 2026",
 		items = {
 			"One mode: type in plain words, and Advanced syntax (@npc, q:rare, >> party) works as soon as you type it, the words before it written in it too. .simple and .advanced are gone.",
@@ -51,20 +57,6 @@ CL.LOG = {
 			".atop: Left/Right switch CPU % between a share of all addons and a share of a frame.",
 			"A smaller download: only what the game runs.",
 			"Fixes from a review before release: rings, trinkets and two weapons are judged against each piece you wear; a list that changes several times while you look at it keeps up; Simple mode's \"to csv\" copies every row, and copied coins keep their g/s/c; Enter on a total says it in chat; and smaller ones.",
-		},
-	},
-	{
-		v = "0.52.0", when = "released October 2026",
-		items = {
-			"Upgrades: \"upgrades\" lists gear you can get (about your level, from dungeons you can enter) that beats what you wear, the biggest first, and its tooltip says why: a line per stat, gains in green, losses in red. Advanced mode: @loot is:upgrade sort:best.",
-			"Quest upgrades (with Questie): \"quest upgrades\" lists the quests near your level whose reward is an upgrade for you, with what each rewards and how far its giver is. Advanced mode: @questie is:upgrade sort:best.",
-			"Lists stay put while you look at them: when your bags, the loot log, mail or item data change, the new list waits for F5 and the footer says so; a row whose count changed updates in place.",
-			".tour: Terminal in a few short steps, each search typed for you and its result highlighted, including what Questie, AtlasLoot and Attune add when they're installed. A fresh install suggests it first.",
-			"What Terminal learns of items is kept between sessions: after a /reload, upgrades and item colours are right from the first search.",
-			"An NPC inside a dungeon says which one on its row, and its distance, arrow and map pin point at the dungeon's entrance.",
-			".zen's dimming is adjustable: Options > Zen dimming (or .set zenDim 0.4).",
-			"@xp also lists the alts your bag addon knows of that Terminal hasn't seen yet (log in on each once).",
-			"Fixes: items in a list no longer show white until you scroll past them; a Simple mode category lists everything its row counted; a command's choices of more than one word are picked whole; the Options panel fits its frame; Terminal Extras has its own icon; and many smaller fixes from a review.",
 		},
 	},
 }

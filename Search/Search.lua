@@ -395,6 +395,7 @@ function UI:Search(text)
 	end
 	-- "| sum value", "| group zone": what was found, summed up (Pipes.lua; its item data asked for as filters do)
 	local agg = self.aggregate
+	if agg and agg.fromBar and ns.Bar and ns.Bar.Overview(res) then agg = nil end -- (the bar's Group: not over the categories)
 	if agg and ns.Aggregate then res = ns.Aggregate.Apply(agg, res, agg.base) end
 	self:RetryWhenLoaded(text)
 	return res
@@ -901,6 +902,7 @@ function Scan.Parse(self, text)
 	local sortPlan -- Advanced "sort:plan": recipes that give skill, by how many times your materials make them (Plan.lua)
 	local sortBest -- "sort:best" (Simple mode's "upgrades" on its own): the biggest upgrades first (Scan.Finalize)
 	local advAct -- Advanced "do:use": each row's Enter that action (as Simple mode's "use ...")
+	local sortField -- sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count (and Simple mode's bar)
 	self.noPosition = nil
 	-- ("quoted phrases" apart: searched as one string each, never a filter or an everyday word; 0.52.13)
 	local words, phrases = Scan.Words(text)
@@ -925,9 +927,12 @@ function Scan.Parse(self, text)
 			elseif sort == "best" then
 				sortBest = true
 				fsig[#fsig + 1] = "^best"
-			else
+			elseif sort == "nearest" then
 				sortNear = true
 				fsig[#fsig + 1] = "^near"
+			else
+				sortField = sort -- (sort:name, sort:level...: Scan.Finalize, by Bar.lua's B.SortRows)
+				fsig[#fsig + 1] = "^" .. sort
 			end
 		elseif act then
 			advAct = act
@@ -1018,10 +1023,23 @@ function Scan.Parse(self, text)
 			end
 		end
 	end
+	-- Simple mode's bar (Bar.lua, 0.55.1): its filters taken as typed ones (hard: never relaxed away), its sort
+	local bar = simple and ns.Bar and ns.Bar.Active()
+	if bar then
+		for _, w in ipairs(bar.filters) do
+			local f = ns.Filters and ns.Filters.Parse(w)
+			if f then
+				filters, hard = filters or {}, hard or {}
+				filters[#filters + 1], hard[#hard + 1] = f, f
+				fsig[#fsig + 1] = "!bar:" .. w
+			end
+		end
+		if bar.sort == "nearest" then sortNear = true elseif bar.sort then sortField = bar.sort end
+	end
 	return { text = text, simple = simple, blocked = blocked, kinds = kinds, tokens = tokens, filters = filters,
 		hard = hard, softs = softs, softWords = softWords, strictWords = strictWords, fsig = fsig, sortNear = sortNear, sortPlan = sortPlan, sortBest = sortBest, advAct = advAct,
 		also = also, missingGone = missingGone, goneLine = goneLine, copyPhrase = blocked == "copy" and self.blockedCopy or nil,
-		exact = exact }
+		exact = exact, sortField = sortField }
 end
 
 --- Simple mode: "enchanting trainer" is the trainers who teach enchanting, not the word in their title (the Journeyman
@@ -1466,6 +1484,8 @@ function Scan.Finalize(self, q, out)
 		if kinds and kinds.quests and kinds.questie then out = Scan.OneQuest(out) end
 		return out
 	end
+	-- (Simple mode's bar: sorted by name, level, value... the rows that have it first, in its order; Bar.lua)
+	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField) end
 	local limit = (q.easyCat and not q.here) and Score.LIST_MAX or nil
 	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end

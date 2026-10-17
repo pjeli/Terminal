@@ -696,6 +696,7 @@ end
 UI.REOPEN_KEEP = 5
 function UI:Hide()
 	self:HideRowMenu()
+	if ns.Bar then ns.Bar.Reset() end -- (Simple mode's bar: what it picked lasts while the terminal is open)
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
 	UI.HideNav()
 	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)

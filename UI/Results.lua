@@ -24,6 +24,7 @@ function UI:RunSearch(text)
 	local t0 = debugprofilestop()
 	-- ("| sum value": what's found so far, summed up, nothing to sort; the whole list once the search is done)
 	local agg = self.aggregate
+	if agg and agg.fromBar and ns.Bar and ns.Bar.Overview(res) then agg = nil end -- (the categories: nothing to group)
 	local copy
 	if ns.Aggregate and ns.Aggregate.Summing(agg) then copy = ns.Aggregate.Apply(agg, res, agg.base)
 	else
@@ -535,6 +536,13 @@ end
 local function TakeAggregate(self, text, first)
 	self.aggregate = nil
 	local A = ns.Aggregate
+	-- (Simple mode's bar: its Group, "| group by zone" as Advanced writes it; not over the categories, Bar.lua)
+	local bar = A and EasyOn() and not self.fzf and first ~= "." and first ~= "/" and ns.Bar and ns.Bar.Active()
+	if bar and bar.group then
+		self.aggregate = A.Parse({ "group by " .. bar.group }, text)
+		self.aggregate.fromBar = true
+		return text
+	end
 	if self.fzf or first == "." or first == "/" or not A or EasyOn() then return text end
 	local query, steps = A.Split(text)
 	if not steps then return text end
@@ -605,20 +613,30 @@ function UI:AutoAdvanced(text, first)
 		local at = FirstAdvancedAt(raw)
 		local before, tail = at and raw:sub(1, at - 1) or "", at and raw:sub(at) or raw
 		local cat = not self.categoryAuto and self.category or nil
-		local conv
+		local conv, stepLen = nil, 0
 		if before:find("%S") then
 			-- (the lists the last search's rows came from, when it's done and listed some: Alt+`'s @kinds)
 			local shown = not self.searchJob and E.ShownKinds(UI.results) or nil
 			if shown and next(shown) == nil then shown = nil end
-			conv = (E.ToAdvanced(before, self.category, shown):gsub("%s+$", ""))
-			conv = (conv ~= "" and (conv .. " ") or "") .. tail
+			local head = (E.ToAdvanced(before, self.category, shown):gsub("%s+$", ""))
+			-- (what Simple mode's bar has picked, written in too: its filters and sort after the words; its group step
+			-- before a ">>" typed, else after what's typed, unless that has a "|" of its own; Bar.lua)
+			local words, step = "", nil
+			if ns.Bar and ns.Bar.Active() then words, step = ns.Bar.Syntax() end
+			head = (head .. words):gsub("^%s+", "")
+			if step and tail:find("|", 1, true) then step = nil end
+			if step and tail:find("^%s*>>") then head, step = head .. " " .. step, nil end
+			stepLen = step and (#step + 1) or 0
+			conv = (head ~= "" and (head .. " ") or "") .. tail .. (step and (" " .. step) or "")
 		end
+		if ns.Bar then ns.Bar.Reset() end -- (the line is Advanced: the bar goes, what it had picked with it)
 		E.temp = { from = before:gsub("^%s+", ""):gsub("%s+$", ""), category = cat, auto = true }
 		self.category, self.categoryAuto, self.action = nil, nil, nil
 		ns:Trace(("advanced once: Advanced syntax typed in Simple mode%s"):format(conv and (" (%q -> %q)"):format(raw, conv) or ""))
 		self:SetStatus()
 		if conv and conv ~= raw then
-			local cursor = math.max(#conv - #tail, #conv - (#raw - (self.cursor or #raw))) -- (as far from the end as it was)
+			-- (as far from the end of what was typed as it was; a group step written after it stays after the caret)
+			local cursor = math.max(#conv - stepLen - #tail, #conv - stepLen - (#raw - (self.cursor or #raw)))
 			return conv, cursor
 		end
 	elseif not adv and E.temp and E.temp.auto then
@@ -666,6 +684,7 @@ function UI:Refresh()
 	self.args = nil
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
+	if text == "" and ns.Bar then ns.Bar.Reset() end -- (the prompt cleared: what the bar picked goes too)
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
 	if not self.fzf then

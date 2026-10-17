@@ -103,12 +103,14 @@ do
 
 	--- The menu's lines for row `e`, in order: { label, and secondary (Enter's / Shift+Enter's verb), boxLine (the chat
 	--- box), chatTo (a channel) or run (Terminal's own) }.
-	local function MenuItems(self, e)
+	local function MenuItems(self, e, share)
 		local edit = UI.edit
 		local items = {}
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end
-		if self.fzf then
+		if share then
+			-- (the bar's horn, Bar.lua: sending and copying only)
+		elseif self.fzf then
 			-- (0.45.20) fuzzy finding runs nothing: its first lines do what its Enter and Shift+Enter do (they said "Use",
 			-- "Cast"... and then took the row to Simple mode)
 			items[#items + 1] = { label = L["To Simple mode"], run = function() UI:FuzzyPop(e, false) end }
@@ -122,7 +124,7 @@ do
 		end
 		-- a quest to drop among others: all of them together, after Terminal's confirmation names them (QuestDrop.lua)
 		local QD = ns.QuestDrop
-		if QD and e.kind == "quests" and e.drop then
+		if QD and e.kind == "quests" and e.drop and not share then
 			local drops = QD.GroupRows(UI.results)
 			if #drops >= 2 then
 				items[#items + 1] = { label = L["Drop all %d quests"]:format(#drops), run = function()
@@ -144,7 +146,7 @@ do
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
 			-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
 			local boxed = { [L["link in chat"]] = true, [L["put in the chat box"]] = true }
-			if self.fzf or (not boxed[shift or ""] and not boxed[enter or ""]) then -- (fuzzy finding's lines above don't)
+			if share or self.fzf or (not boxed[shift or ""] and not boxed[enter or ""]) then -- (fuzzy finding's lines above don't)
 				items[#items + 1] = { label = linked and L["Link in chat"] or L["Put in the chat box"], boxLine = function() return SH.Line(e, query) end }
 			end
 			local channels = SH.MenuChannels()
@@ -173,7 +175,23 @@ do
 				end
 			end
 		end
-		if not EasyOn() and self:ResultText(e) then
+		-- (the horn: copied out too, the selected one or every result; Activate.lua's CopyOut, as "linen to csv" does)
+		if share and UI.CopyOut and ns.Share and ns.Share.Channel then
+			local query = ns.Share.Split(edit:GetText() or "")
+			local function Copy(how, all)
+				return function()
+					local to = ns.Share.Channel(how)
+					to.query, to.all = query, all
+					UI.CopyOut(UI, e, to)
+				end
+			end
+			items[#items + 1] = { label = L["Copy as text"], run = Copy("text", false) }
+			if #UI.results > 1 then
+				items[#items + 1] = { label = L["Copy all as text"], run = Copy("text", true) }
+				items[#items + 1] = { label = L["Copy all as CSV"], run = Copy("csv", true) }
+			end
+		end
+		if not EasyOn() and not share and self:ResultText(e) then
 			-- (the menu's own row, wherever the list has put it since: not whichever row is selected now; review, 0.48.6)
 			items[#items + 1] = { label = L["Write into the prompt"], run = function()
 				-- (found as the menu's other lines find it: the same kind and key when the list was rebuilt since; 0.50.7,
@@ -218,14 +236,14 @@ do
 
 	--- Right-click on row `idx`: its actions (Enter's, Shift+Enter's, Link in chat; Advanced: write it into the prompt).
 	--- Window-opening ones are macros the game runs when the line is clicked, as the click catcher's are.
-	function UI:ShowRowMenu(idx, fromKeys)
+	function UI:ShowRowMenu(idx, fromKeys, share)
 		local frame = UI.frame
 		local e = UI.results[idx]
 		if not e or e.noActivate or not frame then return end
 		if InCombatLockdown() then ns:Print(L["In combat: right-click again once it's over."]) return end
 		MenuFrame()
 		local t = Theme.Get()
-		local items = MenuItems(self, e)
+		local items = MenuItems(self, e, share)
 		menu.entry, menu.idx = e, idx
 		for i, it in ipairs(items) do
 			local b = MenuLine(i)

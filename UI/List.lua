@@ -52,6 +52,7 @@ do
 	function UI:SetStatus()
 		local status, hints, busy = UI.status, UI.hints, UI.busy
 		if not status then return end
+		if ns.Bar then ns.Bar.Update() end -- (Simple mode's bar: shown or not, what it says; Bar.lua)
 		if self.clipHint and not self.keys then
 			status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and L["Press Ctrl+V again to paste"] or L["Press Ctrl+C again to copy"]) .. "|r"))
 			if hints then hints:Hide() end
@@ -566,7 +567,8 @@ function UI:SelectionChanged()
 end
 
 --- The header's height: the prompt's first line, and every line a long prompt wraps onto.
-local function HeaderH() return LY.HEADER_H + (UI.promptExtra or 0) + (UI.tabsH or 0) end -- (tabsH: the tabs' strip over the prompt, Tabs.lua)
+-- (tabsH: the tabs' strip over the prompt, Tabs.lua; barH: Simple mode's bar under it, Bar.lua)
+local function HeaderH() return LY.HEADER_H + (UI.promptExtra or 0) + (UI.tabsH or 0) + (UI.barH or 0) end
 
 --- The prompt took more (or fewer) lines: the header grows down, and what's under it moves.
 function UI:SetPromptExtra(extra)
