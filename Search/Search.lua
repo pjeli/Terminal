@@ -894,6 +894,12 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	-- what Enter does stays what was asked ("use hearthstone": do:use)
 	if act and act.map and not nearest and q.actWord then Add("do:" .. q.actWord) end
 	for _, w in ipairs(q.tokens) do Add(q.exact and q.exact[w] and ('"' .. w .. '"') or w) end
+	-- (a value of several words, read without its quotes, in:The Barrens: written with them again, in:"The Barrens";
+	-- 0.55.16, the player's screenshot: Alt+` wrote in:The Barrens, which searched for "Barrens" as a word too)
+	for i, sp in ipairs(specs) do
+		local k, v = sp:match("^([-!]?%a+:)(.+)$")
+		if k and v:find("%s") and not v:find('"', 1, true) then specs[i] = k .. '"' .. v .. '"' end
+	end
 	for _, sp in ipairs(specs) do Add(sp) end
 	-- an NPC's role (trainer, vendor...) nearest: one who'll serve you (Scan.NearestStart)
 	if nearest and Scan.RoleFriendly(q.softWords, q.strictWords) then Add("faction:friendly") end

@@ -318,6 +318,7 @@ L["Background"] = true
 L["Backpack"] = true
 L["Backpack & Bags"] = true
 L["Bag %s"] = true
+L["Bank & alts"] = true
 L["Bars"] = true
 L["Battle.net friend %d"] = true
 L["Before any discount your reputation with the vendor's faction gives."] = true

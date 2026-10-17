@@ -61,7 +61,9 @@ local function NotEmote(e) return e.emote == nil end
 -- dropped for you, how you died). `was` = the ids a category took over (a pick kept from before, another addon's
 -- simpleCategory "game": E.BY_ID finds them).
 E.CATEGORIES = {
-	{ id = "items", label = L["Items"], kinds = { "items", "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags", "alts" } },
+	-- (0.55.16, the player: "separate out Items / inventory from Stored / bank & alts": two again, as before 0.48.4)
+	{ id = "items", label = L["Items"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags" } },
+	{ id = "stored", label = L["Bank & alts"], kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },

@@ -437,13 +437,13 @@ Run("Simple mode: close spellings of one category looked up once; the same rows 
 		Fresh("spells")
 		local want = Full(UI:Search("fireblal"))
 		check(got == want, "the same rows and scores as Spells picked by hand: " .. got .. "  //  " .. want)
-		-- Bags: @stored (looked up by name in the overview) gets its close spellings in the category's own search
+		-- Items: your bags (0.55.16: @stored, bank & alts, a category of its own, only counted by name in the overview)
 		passes, read = 0, 0
 		Fresh(nil)
 		got = Full(UI:Search("hearhtstone"))
-		check(UI.category == "items" and got:find("Hearthstone|", 1, true) and got:find("Hearthstone Shard|", 1, true),
-			"hearhtstone: Bags opened, the item and the stored one: " .. got)
-		check(passes == 2 and read == 4 + 2, "the overview's pass, then @stored's alone: " .. passes .. " passes, " .. read .. " rows")
+		check(UI.category == "items" and got:find("Hearthstone|", 1, true) and not got:find("Hearthstone Shard|", 1, true),
+			"hearhtstone: Items opened, your bags' only: " .. got)
+		check(passes == 1 and read == 4, "close spellings looked up once, by the overview: " .. passes .. " passes, " .. read .. " rows")
 		Fresh("items")
 		want = Full(UI:Search("hearhtstone"))
 		check(got == want, "the same rows and scores as Bags picked by hand: " .. got .. "  //  " .. want)

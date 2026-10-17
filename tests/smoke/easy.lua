@@ -233,7 +233,7 @@ Run("every list is in a category: emotes, commands, settings", function()
 	res = In("settings", "sword")
 	check(Has(res, "Sheathe Sword"), "Settings: the keybinding: " .. Show(res))
 	-- (a category's old id picks the one that took it over: a pick kept from before, another addon's simpleCategory)
-	for old, now in pairs({ game = "settings", console = "settings", bags = "items", alts = "items", slash = "commands",
+	for old, now in pairs({ game = "settings", console = "settings", bags = "items", alts = "stored", slash = "commands",
 		lootlog = "recent", combat = "recent" }) do
 		check(E.BY_ID[old] and E.BY_ID[old].id == now, old .. " is " .. now .. " now")
 	end
@@ -302,7 +302,8 @@ end)
 
 Run("each list's category, by what you'd do with it (0.48.4)", function()
 	-- (the addon's own lists, as loaded: Run gives them back after each block)
-	local WANT = { items = "items", stored = "items", mail = "character", gold = "character", panels = "windows",
+	-- (0.55.16, the player: your bags and your bank & alts apart again)
+	local WANT = { items = "items", stored = "stored", mail = "character", gold = "character", panels = "windows",
 		gameoptions = "settings", keybinds = "settings", cvars = "settings", addons = "settings", terminal = "settings",
 		macros = "commands", lootlog = "recent", combatlog = "recent", loot = "loot" }
 	local checked = 0
@@ -593,6 +594,13 @@ Run("nearest", function()
 	r3 = UI.Results()
 	check(not ns.Bar.state.group and r3[1] and r3[1].kind ~= "aggregate" and Has(r3, "Innkeeper Allison"),
 		"Enter on the zone: its NPCs, nearest first: " .. Show(r3) .. " [" .. T.query() .. "]")
+	-- (0.55.16, the player's screenshot: Alt+` then wrote in:Elwynn Forest, unquoted: nothing found) quoted again
+	local adv = E.ToAdvanced(T.query())
+	check(adv:find('in:"Elwynn Forest"', 1, true), "Alt+` keeps a place of several words quoted: " .. adv)
+	ns.db.easyMode = false
+	local r4 = UI:Search(adv)
+	ns.db.easyMode = true
+	check(Has(r4, "Innkeeper Allison"), "and finds the same: " .. Show(r4))
 	UI:Hide(); FlushAll()
 	_G.C_Map = saveMap
 	ns.Bar.Reset()
