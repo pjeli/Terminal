@@ -578,6 +578,24 @@ Run("nearest", function()
 	check(#res == 1 and res[1].name == "Bernie Heisten", "nearest repair: the Alliance repairer, not the closer Horde one: " .. Show(res))
 	UI:SetQuery("nearest hogger")
 	check(UI.Results()[1] and UI.Results()[1].name == "Hogger", "nearest hogger: a name, anyone (no faction kept to)")
+	-- (0.55.10, the player's screenshot: "nearest unlearned flight master" grouped by zone from the bar, Enter on the
+	-- zone kept grouping, in:"Winterspring" written again on each) a group's Enter lists the NPCs
+	FIELDS[295].zoneID, FIELDS[6740].zoneID = 12, 12
+	local saveMap = _G.C_Map
+	_G.C_Map = setmetatable({ GetAreaInfo = function(id) return id == 12 and "Elwynn Forest" or nil end }, { __index = saveMap })
+	ns.Filters.ClearCache()
+	UI:Open("nearest innkeeper"); FlushAll()
+	ns.Bar.Pick("group", "zone"); FlushAll()
+	local r3 = UI.Results()
+	check(r3[1] and r3[1].kind == "aggregate" and r3[1].drillTo, "(grouped by zone: " .. Show(r3) .. ")")
+	UI.sel = 1
+	T.key("ENTER"); FlushAll()
+	r3 = UI.Results()
+	check(not ns.Bar.state.group and r3[1] and r3[1].kind ~= "aggregate" and Has(r3, "Innkeeper Allison"),
+		"Enter on the zone: its NPCs, nearest first: " .. Show(r3) .. " [" .. T.query() .. "]")
+	UI:Hide(); FlushAll()
+	_G.C_Map = saveMap
+	ns.Bar.Reset()
 	I.NpcField, I.NpcFlagDefs, _G.UnitFactionGroup = saveField, saveDefs, saveGroup
 	I.Here, I.NpcDistance = saveHere, saveDist
 end)

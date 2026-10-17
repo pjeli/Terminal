@@ -1642,6 +1642,8 @@ function A.Parse(steps, query)
 end
 
 local function Real(e) return not (e.raw or e.noActivate or e.completion or e.lead or e.kind == "calc") end
+-- "1 result", "3 results" (the footer's words: 0.55.10, the player's screenshot said "1 results")
+local function ResultsN(n) return (n == 1 and L["%s result"] or L["%s results"]):format(n) end
 
 local function TextOf(name, e)
 	local f = A.FIELDS[name]
@@ -1713,7 +1715,10 @@ DrillTo = function(spec, by, g)
 	for _, st in ipairs(spec.keepSteps or {}) do steps[#steps + 1] = " | " .. st end
 	-- (a space after the filter: the caret right after a key:value would list its values to pick, not the rows)
 	-- (after the steps too: the caret after "| q:rare" listed q:'s values; review, 0.53.6)
-	if word then return (spec.query:gsub("%s+$", "")) .. " " .. word .. table.concat(steps) .. " " end
+	-- (the line has it already: not written twice; 0.55.10, the player's screenshot had in:"Winterspring" seven times)
+	local q = spec.query:gsub("%s+$", "")
+	if word and (" " .. q .. " "):find(" " .. word .. " ", 1, true) then return q .. table.concat(steps) .. " " end
+	if word then return q .. " " .. word .. table.concat(steps) .. " " end
 	return spec.base .. " | " .. by .. ':"' .. (text:gsub('"', "")) .. '" '
 end
 
@@ -1760,7 +1765,7 @@ function A.Apply(spec, res, base)
 	if not s then return ns.UI.SortAndTrim(rows) end
 	local n = #rows
 	if s.op == "count" then
-		local r = Row(L["%d results"]:format(n), base or "", "aggregate:count:" .. n, L["count"])
+		local r = Row(ResultsN(n), base or "", "aggregate:count:" .. n, L["count"])
 		Said(r)
 		return { r }
 	end
@@ -1798,7 +1803,7 @@ function A.Apply(spec, res, base)
 		return sum
 	end
 	local function Detail(cnt, got)
-		local parts = { L["%d results"]:format(cnt) }
+		local parts = { ResultsN(cnt) }
 		if f and got < cnt then parts[#parts + 1] = L["%d with no %s"]:format(cnt - got, f.label) end
 		return table.concat(parts, ns.DETAIL_SEP)
 	end
@@ -1840,7 +1845,7 @@ function A.Apply(spec, res, base)
 			local _, hex = QualityName(byField.num(g.sample))
 			if hex then name = hex .. g.text .. "|r" end -- (0.52.14, the player's screenshot: "|c" put before it showed)
 		end
-		local detail, copyDetail = L["%d results"]:format(g.n), nil
+		local detail, copyDetail = ResultsN(g.n), nil
 		if f then
 			local shown, plain = "-", "-"
 			if g.value then shown, plain = Shown(s.field, g.value) end

@@ -66,6 +66,9 @@ do
 	local groups = 0
 	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then groups = groups + 1 end end
 	check(groups >= 3, "grouped by quality: a row per quality: " .. groups)
+	local one
+	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" and tostring(e.detail):find("^1 result") then one = e.detail end end
+	check(one == "1 result", "a group of one says 1 result (not 1 results): " .. tostring(one))
 	-- (0.55.10) a group's Enter: its rows, the bar's Group let go (else they'd be grouped again, one row); Shift+Left back
 	-- to the groups, the bar's Group with them
 	local gi
