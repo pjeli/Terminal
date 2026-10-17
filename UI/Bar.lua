@@ -507,7 +507,8 @@ local function Label(which)
 	else
 		local g = B.GroupOn() -- (a group typed is the one summed up: TakeAggregate; steps typed: none of the bar's)
 		local f = g and ns.Aggregate and ns.Aggregate.FIELDS[g]
-		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or L["Group"]
+		-- ("Group by": "Group" is the party's, and some languages say the two differently; 0.56.0)
+		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or L["Group by"]
 	end
 end
 

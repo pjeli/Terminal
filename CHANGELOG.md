@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.56.0
+
+**The bar**
+- In plain words, a bar under the prompt narrows, sorts and groups what's found. **Filter** offers what fits the results shown: quality, usable, upgrades, bind on equip, known, ready, complete, not on your action bars, quests to drop, needs repair, unread mail, sold auctions, holidays and more; several add up. **Sort** goes nearest first, or by name, level, item level, quality, value or count. **Group** gives a row per zone, quality, type, slot, dungeon, raid, boss or level, with how many in each; Enter on one lists its rows, and Shift+Left brings the groups back.
+- **Alt+F**, **Alt+S** and **Alt+G** open the menus from the keyboard: Up and Down move, Enter or Space picks, Left and Right go to the next menu, Esc closes.
+- The **speaker button** on the right sends every result at once (All 8 to party, raid, guild, say…) or copies them all as text or CSV. One result is sent or copied from its right-click menu.
+- What your words already ask shows on the bar: **rare sword** shows Filter: Rare, **nearest innkeeper** Sort: Nearest first. Untick it and the word leaves the line.
+
+**Your words stay your words**
+- Advanced syntax typed in plain words (`@npc`, `q:rare+`, `sort:name`, `>> party`, `| group by zone`) works right there: nothing is rewritten, so Shift+Left and the categories keep working. The `@` and `key:` pick lists and completion work there too.
+- **Alt+\`** writes what you typed as Advanced syntax, finding exactly the same results. **Alt+\`** again, or **Shift+Left**, brings back your words, their category and the bar's picks.
+
+**Questions take the bar too**
+- **my auctions**, **my spells**, **what killed me**, **where should i level**…: the bar's Filter and Sort apply to their answers, and Advanced filters and sorts can follow them: `my auctions q:rare+ sort:value`.
+- Alt+\` writes what a question asks so it finds the same: `@auction is:sold`, `@calendar is:guild`, `@drop is:mine`, `@drop looter:bob`, `@combatlog is:mine is:taken sort:damage`. A question no search can answer the same way (where to level, your corpse, quest upgrades, talents by what they do) is kept as you said it: questions work in Advanced syntax too.
+
+**Attunement steps, outlined**
+- **steps for blackfathom deeps** numbers each step as Attune lays it out: 1, then 2a, 2b, 2c side by side, then 3a, 3b, 3c. Each letter is one line of quests, done one after the other. Side quests say no quest leads up to them. Sort **Line by line** (`sort:line`) lists each line in turn instead.
+
+**Also**
+- Advanced mode sorts: `sort:name`, `sort:level`, `sort:ilvl`, `sort:quality`, `sort:value`, `sort:count`, `sort:damage`.
+- Items (your bags) and Bank & alts are two categories again.
+- The categories are now one search that narrows as you type, with the same scoring, close spellings and everyday words as any other: quicker on big lists, and the same results whichever way you ask.
+- Many fixes from a review of the new search: the bar's picks never carry over to another search, quoted phrases and places of several words survive Alt+\`, unknown recipes are found in plain words, and more.
+
 ## 0.55.0
 
 **One mode**

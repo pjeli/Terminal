@@ -14,12 +14,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.55.21", when = "in testing",
+		v = "0.56.0", when = "released October 2026",
 		items = {
-			"A bar under the prompt in Simple mode: Filter, Sort and Group a click away (or Alt+F, Alt+S, Alt+G), and a speaker button to send every result to chat or copy them all (a single result: right-click it). Words you type like \"rare\" or \"nearest\" show on it, and questions (\"my auctions\") are filtered and sorted too. Advanced mode sorts as well: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
-			"Advanced syntax typed in Simple mode (@kinds, key:value, sort:name, sending to chat, \"| group by\") now works right there: your words stay as typed and the bar shows what it picks. Alt+` again, or Shift+Left, brings back your words after Alt+`.",
-			"Simple mode's categories: your bags (Items) and your bank and alts (Bank & alts) are two again.",
-			"An attunement's steps are numbered as Attune lays them out and listed in that order: 1, 2a, 2b, 3a, 3b (each letter one line of quests; Sort \"Line by line\" lists each line in turn); a side quest says no quest leads up to it.",
+			"A bar under the prompt: Filter, Sort and Group a click away (or Alt+F, Alt+S, Alt+G), and a speaker button that sends every result to chat or copies them all.",
+			"Your words stay your words: Advanced syntax typed in plain words works right there, and the bar shows what it picks. Alt+` writes the line in Advanced syntax; Alt+` again or Shift+Left brings your words back.",
+			"Questions take the bar too: \"my auctions\" sorted by value, \"my spells\" not on your action bars. Alt+` writes what they ask so it finds the same.",
+			"Each list's own filters on the bar: not on my action bars, quests to drop, needs repair, unread mail, sold auctions, holidays and more.",
+			"Advanced mode sorts too: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
+			"Attunement steps numbered as Attune lays them out (1, 2a, 2b, 3a...), side quests marked; Sort \"Line by line\" lists each line of quests in turn.",
+			"Items and Bank & alts are two categories again; one result is sent or copied from its right-click menu.",
+			"The search underneath is simpler and quicker: the categories are one search that narrows as you type, and many fixes from a review.",
 		},
 	},
 	{

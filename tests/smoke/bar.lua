@@ -314,7 +314,7 @@ do
 		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
 		B.Pick("group", "quality"); FlushAll()
 		UI:SetQuery("sword | count", 13); FlushAll()
-		check(B.strip.buttons[3].label == L["Group"] and not B.strip.buttons[3].active, "| count typed: Group not shown as on: " .. B.strip.buttons[3].label)
+		check(B.strip.buttons[3].label == L["Group by"] and not B.strip.buttons[3].active, "| count typed: Group not shown as on: " .. B.strip.buttons[3].label)
 		B.Reset()
 		-- grouped: the send button copies them out
 		UI:SetQuery("sword", 5); B.Pick("group", "quality"); FlushAll()

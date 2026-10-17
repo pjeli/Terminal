@@ -649,6 +649,7 @@ L["Grey quests"] = true
 L["Group"] = true
 L["Group Browser"] = true
 L["Group Finder"] = true
+L["Group by"] = true
 L["Group: %s"] = true
 L["Guild"] = true
 L["Guild & Communities"] = true
