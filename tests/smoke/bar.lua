@@ -4,6 +4,7 @@
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local B, E = ns.Bar, ns.Easy
+local L = ns.L
 
 io.write("[bar: Simple mode's filter, sort, group and horn]\n")
 do
@@ -111,6 +112,61 @@ do
 	UI.ShowRowMenu = was
 	check(shown == UI.sel and share == true, "the horn: the row menu's sending lines for the selected result")
 	UI:Hide(); FlushAll()
+
+	-- (0.55.7, the search's rewrite, phase 4) the bar edits the query: a filter typed as a word shows as picked, and is
+	-- taken back out of the line from the bar
+	UI:Open(""); UI:SetQuery("rare sword"); FlushAll()
+	local b1 = B.strip.buttons[1]
+	check(b1.label == L["Filter: %s"]:format("Rare") and b1.active, "a filter typed as a word shows picked: " .. tostring(b1.label))
+	local typedOpt
+	for _, o in ipairs(B.Options("filter")) do if o.typed then typedOpt = o end end
+	check(typedOpt and typedOpt.id == "q:rare" and typedOpt.on, "its menu line: ticked, typed: " .. tostring(typedOpt and typedOpt.id))
+	B.Pick("filter", "q:rare"); FlushAll()
+	check(UI.edit:GetText() == "sword", "unticked: its word taken out of the line: '" .. UI.edit:GetText() .. "'")
+	check(#B.state.filters == 0 and not B.Typed().filters[1], "and nothing picked: " .. #B.state.filters)
+	UI:SetQuery("sword rare usable"); FlushAll()
+	B.Clear("filter"); FlushAll()
+	check(UI.edit:GetText() == "sword", "Filter cleared: every filter word typed goes too: '" .. UI.edit:GetText() .. "'")
+	B.DropWords({ "bind on equip" })
+	UI:SetQuery("Bind  on Equip sword"); FlushAll()
+	B.DropWords({ "bind on equip" }); FlushAll()
+	check(UI.edit:GetText() == "sword", "a phrase taken out whatever its case and spaces: '" .. UI.edit:GetText() .. "'")
+	UI:Hide(); FlushAll()
+
+	-- questions are filtered and sorted as searches are: the bar's, and Advanced words after the question
+	local Scan = UI._Scan
+	local NOTE = { name = "Your swords", noActivate = true, raw = true }
+	table.insert(Scan.ANSWERS, 1, {
+		ask = function(text) return text == "my swords" or nil end,
+		answer = function()
+			local out = { NOTE }
+			for i, r in ipairs(ROWS) do out[#out + 1] = { name = r.name, quality = r.quality, key = i, kind = "items" } end
+			return out
+		end,
+		toAdvanced = function() return "@item sword " end })
+	local ok, err = pcall(function()
+		UI:Open(""); UI:SetQuery("my swords"); FlushAll()
+		check(Names():find("Iron Sword", 1, true), "the question answered: " .. Names())
+		B.Pick("filter", "q:rare+"); FlushAll()
+		check(not Names():find("Iron", 1, true) and Names():find("Arcanite", 1, true), "the bar's filter on a question's rows: " .. Names())
+		check(UI.Results()[1] == NOTE, "its own lines kept")
+		B.Pick("sort", "name"); FlushAll()
+		check(Names() == "Arcanite Sword | Bronze Sword | Mithril Sword", "the bar's sort on a question's rows: " .. Names())
+		check(ns.QueryToAdvanced("my swords"):find("q:rare+ sort:name", 1, true), "Alt+` writes them after the question: " .. ns.QueryToAdvanced("my swords"))
+		B.Pick("filter", "q:epic+"); B.Pick("filter", "q:rare+"); B.Pick("filter", "is:online"); FlushAll()
+		check(UI.Results()[1] == NOTE and UI.Results()[2] and UI.Results()[2].noActivate and #UI.Results() == 2,
+			"nothing passes: the answer's line, and one saying so: " .. #UI.Results())
+		UI:Hide(); FlushAll()
+		ns.db.easyMode = false; UI:EasyChanged()
+		local r = UI:Search("my swords q:rare+ sort:name")
+		local t = {}
+		for _, e in ipairs(r) do if B.Real(e) then t[#t + 1] = e.name end end
+		check(table.concat(t, " | ") == "Arcanite Sword | Bronze Sword | Mithril Sword", "Advanced words after a question: " .. table.concat(t, " | "))
+		ns.db.easyMode = true; UI:EasyChanged()
+	end)
+	table.remove(Scan.ANSWERS, 1)
+	B.Reset()
+	if not ok then error(err, 0) end
 
 	-- Advanced mode's own sort:name (the bar's sorts in Advanced syntax)
 	ns.db.easyMode = false; UI:EasyChanged()

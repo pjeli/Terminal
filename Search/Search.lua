@@ -798,7 +798,16 @@ end
 function ns.QueryToAdvanced(text, category, shown, noGroup)
 	text = ns.Easy and ns.Easy.English and ns.Easy.English(text) or text
 	local asked = ns.QuestionToAdvanced(text)
-	if asked then return asked end
+	if asked then
+		-- (a question: what Simple mode's bar picked after it, as its search takes them: Scan.AnswerView)
+		local bar = ns.Easy and ns.Easy.On() and ns.Bar and ns.Bar.Active()
+		if not bar then return asked end
+		local line = asked:gsub("%s+$", "")
+		for _, w in ipairs(bar.filters) do line = line .. " " .. w end
+		if bar.sort then line = line .. " sort:" .. bar.sort end
+		if bar.group and not noGroup then line = line .. " | group by " .. bar.group end
+		return line .. " "
+	end
 	local scratch = {} -- (the steps say things to the window: not to this one)
 	-- (the words read as plain words, whatever mode the terminal is in: Alt+` writes what Simple mode would search)
 	local E = ns.Easy
@@ -953,10 +962,92 @@ function Scan.ResetFlags(self)
 	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
 	self.missingNote = nil -- (recipes you don't know listed, a profession's window not read yet: MissingRecipes.LeadRow)
 	self.overviewWinner = nil -- (Simple mode's overview: the clear winner shown above its categories: Scan.Overview)
+	self.typedPicks = nil -- (Simple mode: the filters and the sort typed as words, which the bar shows: Bar.lua)
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
+--- (0.55.7, the search's rewrite: an answer is filtered and sorted as a search is: Advanced filters and sorts typed after
+--- the question, "my auctions q:rare+ sort:value", and Simple mode's bar; Scan.AnswerView. Its group was already: "| group
+--- by" sums up any rows.)
 function Scan.Answer(self, text)
+	local rows = Scan.Ask(self, text)
+	local tail
+	if not rows then
+		local rest
+		rest, tail = Scan.SplitTail(text)
+		if rest then rows = Scan.Ask(self, rest) end
+		if not rows then return nil end
+	end
+	return Scan.AnswerView(self, rows, tail)
+end
+
+--- The Advanced filters and sorts at the end of a line ("my auctions q:rare+ sort:value"): the line before them, and
+--- them (nil: none, or a chain, whose last step takes its own).
+function Scan.SplitTail(text)
+	local F = ns.Filters
+	if not (F and F.Parse) or text:find(">", 1, true) then return nil end
+	local words = {}
+	for w in text:gmatch("%S+") do words[#words + 1] = w end
+	local tail = {}
+	while #words > 1 do
+		local w = words[#words]
+		if w:find(":", 1, true) and w:sub(1, 1) ~= "@" and ((F.SortOf and F.SortOf(w)) or F.Parse(w)) then
+			table.insert(tail, 1, w)
+			words[#words] = nil
+		else
+			break
+		end
+	end
+	if #tail == 0 then return nil end
+	return table.concat(words, " "), tail
+end
+
+--- A question's rows filtered and sorted: by the Advanced words after it (tail) and Simple mode's bar. Lines that aren't
+--- results (a heading, a note) stay; the results between two of them are sorted among themselves (B.Order), or all of
+--- them by distance (nearest first). Nothing left: a line saying so, under the answer's own lines on top.
+function Scan.AnswerView(self, rows, tail)
+	local F, B = ns.Filters, ns.Bar
+	if not (F and B) then return rows end
+	local filters, sort = {}, nil
+	for _, w in ipairs(tail or {}) do
+		local so = F.SortOf and F.SortOf(w)
+		if so then sort = so else filters[#filters + 1] = F.Parse(w) end
+	end
+	local bar = EasyOn() and B.Active()
+	if bar then
+		for _, w in ipairs(bar.filters) do filters[#filters + 1] = F.Parse(w) end
+		sort = bar.sort or sort
+	end
+	if #filters == 0 and not sort then return rows end
+	local Real = B.Real
+	local out, any = {}, false
+	for _, e in ipairs(rows) do
+		if not Real(e) then out[#out + 1] = e
+		elseif #filters == 0 or F.Pass(e, filters) then out[#out + 1] = e; any = true end
+	end
+	if not any then
+		local head = {}
+		for _, e in ipairs(out) do if type(e) == "table" and (e.lead or e.raw) then head[#head + 1] = e end end
+		head[#head + 1] = PseudoEntries({ EASY_NONE })[1]
+		return head
+	end
+	if sort == "nearest" then
+		local I = ns.Integrations
+		local here = I and I.Here and I.Here()
+		if not here then self.noPosition = true return out end
+		local real, other = {}, {}
+		for _, e in ipairs(out) do if Real(e) then real[#real + 1] = e else other[#other + 1] = e end end
+		real = Scan.NearestViews(real, here, true, Scan.Budget(self))
+		for _, e in ipairs(real) do other[#other + 1] = e end
+		return other
+	elseif sort then
+		return B.Order(out, sort)
+	end
+	return out
+end
+
+--- The question's own answer (Scan.ANSWERS), as it gives it: the rows, or nil.
+function Scan.Ask(self, text)
 	for _, a in ipairs(Scan.ANSWERS) do
 		local q, extra = a.ask(text)
 		local rows, note, isTrail
@@ -1032,6 +1123,10 @@ function Scan.Parse(self, text)
 	local plainWord = simple and PlainWord or nil
 	local F = ns.Filters
 	local tokens, kinds = q.tokens, nil
+	-- (Simple mode: the filters typed as words, for the bar to show as picked and take back out of the line: Bar.lua)
+	local function Picked(spec, word)
+		if simple and spec then q.picks = q.picks or {}; q.picks[#q.picks + 1] = { spec = spec, word = word } end
+	end
 	for _, w in ipairs(words) do
 		-- (each word's sort: and do: read once, and lowered once; review, 0.53.6: up to three and five times a word)
 		local lw = ns.Lower(w)
@@ -1063,16 +1158,23 @@ function Scan.Parse(self, text)
 			local strict = not f and simple and ns.Easy.HARD_WORDS[lw] and ns.Easy.Strict(lw)
 			if f then
 				-- (written as Advanced does: Simple mode's "-boe", "sword|axe" as -is:boe, type:sword|type:axe)
-				Scan.AddFilter(q, f, "hard", lw, nil,
-					(simple and not ns.Easy.IsAdvancedWord(w)) and ns.Easy.AdvancedPart(lw) or w)
+				local spec = (simple and not ns.Easy.IsAdvancedWord(w)) and ns.Easy.AdvancedPart(lw) or w
+				Scan.AddFilter(q, f, "hard", lw, nil, spec)
+				Picked(spec, w)
 			elseif strict then
 				Scan.AddFilter(q, strict, "strict", lw, lw, ns.Easy.WORDS[lw])
+				Picked(ns.Easy.WORDS[lw], w)
 				-- ("upgrades": the biggest first, as sort:best; 0.51.14, the player's ask)
 				if ns.Easy.WORDS[lw] == "is:upgrade" then q.sortBest = true end
 			else
 				-- everyday words ("rare", "ready", "vendor") are soft filters in Simple mode (Easy.lua)
 				local soft = ns.Easy and ns.Easy.Word(w)
-				if soft then Scan.AddFilter(q, soft, "soft", "~" .. lw, lw, ns.Easy.WORDS[lw]) else tokens[#tokens + 1] = lw end
+				if soft then
+					Scan.AddFilter(q, soft, "soft", "~" .. lw, lw, ns.Easy.WORDS[lw])
+					Picked(ns.Easy.WORDS[lw], w)
+				else
+					tokens[#tokens + 1] = lw
+				end
 			end
 		end
 	end
@@ -1517,6 +1619,10 @@ function UI:SearchText(text)
 	local q = Scan.Parse(self, text)
 	Scan.ActionAndPlace(self, q)
 	Scan.Prepare(self, q)
+	if q.simple then
+		local act = q.act
+		self.typedPicks = { filters = q.picks or {}, sort = act and act.nearest and q.actWord and { id = "nearest", word = q.actWord } or nil }
+	end
 	local rows = Scan.SimpleScope(self, q)
 	if rows then return Scan.Finish(q, rows) end
 	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)

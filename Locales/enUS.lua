@@ -70,6 +70,7 @@ L["%d/%d bosses"] = true
 L["%s (%s): %s"] = true
 L["%s (.reload to apply)"] = true
 L["%s (guild)"] = true
+L["%s (typed)"] = true
 L["%s T%s"] = true
 L["%s and %s"] = true
 L["%s as %s"] = true

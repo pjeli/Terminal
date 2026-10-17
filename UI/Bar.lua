@@ -11,6 +11,9 @@ local L = ns.L
 --   Group    a row per zone, quality, type, slot, dungeon... with how many in each (Advanced's "| group by")
 --   (horn)   the selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV
 --
+-- What the words typed already ask shows too ("rare sword": Filter: Rare; "nearest ...": Sort: Nearest first), and
+-- unticking it takes the word out of the line: the bar is one more way to write the search's query (0.55.7). A question's
+-- answer ("my auctions") is filtered, sorted and grouped like any search's rows.
 -- A click on one opens its menu; a right-click clears it. What's picked lasts while the prompt has words and goes
 -- when it's cleared or the terminal closes. Typing Advanced syntax takes the bar away (that line is Advanced); Alt+`,
 -- or Advanced syntax typed after the words, writes what's picked into the line ("q:rare+ sort:nearest | group by
@@ -88,6 +91,47 @@ function B.Reset()
 	return had
 end
 
+--- The filters and the sort typed as words in Simple mode ("rare", "usable", "nearest"), as the search read them
+--- (Search.lua's UI.typedPicks): shown as picked, and taken back out of the line from here (0.55.7, the search's rewrite:
+--- the bar edits the query, the words typed included). Filters only of the kinds Filter offers (quality, is:, friendly).
+local SHOWN_SPEC = { "^%-?is:", "^%-?q:", "^faction:" }
+function B.Typed()
+	local t = UI.typedPicks
+	local out = { filters = {}, sort = t and t.sort or nil }
+	for _, p in ipairs(t and t.filters or {}) do
+		local spec = p.spec
+		local shown
+		for _, pat in ipairs(SHOWN_SPEC) do if type(spec) == "string" and spec:find(pat) then shown = true break end end
+		if shown then out.filters[#out.filters + 1] = p end
+	end
+	return out
+end
+
+--- Words taken out of the prompt (case aside, whole words; a phrase's spaces any spaces), the search run again.
+function B.DropWords(words)
+	local edit = UI.edit
+	if not edit then return end
+	local text = edit:GetText() or ""
+	for _, w in ipairs(words) do
+		local pat = ns.Lower(w):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"):gsub("%s+", "%%s+")
+		local lower, from = ns.Lower(text), 1
+		while true do
+			local a, b = lower:find(pat, from)
+			if not a then break end
+			local before, after = lower:sub(a - 1, a - 1), lower:sub(b + 1, b + 1)
+			if (a == 1 or before:find("%s")) and (after == "" or after:find("%s")) then
+				text = text:sub(1, a - 1) .. text:sub(b + 1)
+				break
+			end
+			from = a + 1
+		end
+	end
+	local had = (edit:GetText() or ""):find("%s$") -- (a space typed after the last word stays: the next word is on its way)
+	text = text:gsub("%s%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	if had and text ~= "" then text = text .. " " end
+	if UI.SetQuery then UI:SetQuery(text, #text) else edit:SetText(text) end
+end
+
 --- The search's sort for a field (Search.lua's Scan.Finalize): the rows that have it in its order (the biggest first,
 --- or A-Z / the lowest first), then the rest as they were. Changes their scores.
 local function NumOf(field, e)
@@ -100,14 +144,15 @@ end
 local function Real(e) return type(e) == "table" and not (e.raw or e.noActivate or e.completion or e.lead or e.catId or e.syntaxRow) end
 B.Real = Real
 
-function B.SortRows(rows, id)
-	local s = ById(B.SORTS, id)
-	if not (s and s.field) or #rows > 5000 then return rows end
+local function KeyOf(s, e)
+	if s.field == "name" then return ns.Lower(ns.Plain(tostring(e.name or ""))) end
+	return NumOf(s.field, e)
+end
+local function Keyed(s, rows)
 	local keyed, rest = {}, {}
 	for i, e in ipairs(rows) do
 		if Real(e) then
-			local k
-			if s.field == "name" then k = ns.Lower(ns.Plain(tostring(e.name or ""))) else k = NumOf(s.field, e) end
+			local k = KeyOf(s, e)
 			if k ~= nil then keyed[#keyed + 1] = { e = e, k = k, i = i } else rest[#rest + 1] = e end
 		end
 	end
@@ -118,8 +163,35 @@ function B.SortRows(rows, id)
 		end
 		return a.i < b.i
 	end)
+	return keyed, rest
+end
+
+function B.SortRows(rows, id)
+	local s = ById(B.SORTS, id)
+	if not (s and s.field) or #rows > 5000 then return rows end
+	local keyed = Keyed(s, rows)
 	for i, r in ipairs(keyed) do r.e._score = 1e10 - i end -- (above any search score; a pinned row stays on top)
 	return rows
+end
+
+--- A question's rows in a field's order (Search.lua's Scan.AnswerView: an answer isn't scored): each run of results
+--- between its lines (a heading, a note) sorted on its own, the rows with the field first. A new list.
+function B.Order(rows, id)
+	local s = ById(B.SORTS, id)
+	if not (s and s.field) or #rows > 5000 then return rows end
+	local out, run = {}, {}
+	local function Flush()
+		if #run == 0 then return end
+		local keyed, rest = Keyed(s, run)
+		for _, r in ipairs(keyed) do out[#out + 1] = r.e end
+		for _, e in ipairs(rest) do out[#out + 1] = e end
+		run = {}
+	end
+	for _, e in ipairs(rows) do
+		if Real(e) then run[#run + 1] = e else Flush(); out[#out + 1] = e end
+	end
+	Flush()
+	return out
 end
 
 --- The lists the shown rows come from (a category's lists for its row), and whether the categories show.
@@ -161,11 +233,20 @@ B.Fits = Fits
 function B.Options(which)
 	local kinds, overview = ShownKinds()
 	local out = {}
+	local typed = B.Typed()
 	if which == "filter" then
-		local on = {}
+		local on, listed = {}, {}
 		for _, id in ipairs(state.filters) do on[id] = true end
+		-- (typed ones first: "usable" typed is Usable ticked; one Filter doesn't offer, its word: "Rare")
+		for _, p in ipairs(typed.filters) do
+			if not listed[p.spec] then
+				listed[p.spec] = true
+				local o = ById(B.FILTERS, p.spec)
+				out[#out + 1] = { id = p.spec, label = o and o.label or ns.UpperFirst(p.word), on = true, typed = p.word }
+			end
+		end
 		for _, o in ipairs(B.FILTERS) do
-			if on[o.id] or Fits(o.id, kinds) then out[#out + 1] = { id = o.id, label = o.label, on = on[o.id] } end
+			if not listed[o.id] and (on[o.id] or Fits(o.id, kinds)) then out[#out + 1] = { id = o.id, label = o.label, on = on[o.id] } end
 		end
 		return out
 	end
@@ -189,8 +270,11 @@ function B.Options(which)
 	end
 	if which == "sort" then
 		for _, o in ipairs(B.SORTS) do
+			local typedHere = typed.sort and typed.sort.id == o.id
 			local fits = o.near and Fits("sort:nearest", kinds) or (o.field and Has(o.field))
-			if fits or state.sort == o.id then out[#out + 1] = { id = o.id, label = o.label, on = state.sort == o.id } end
+			if fits or state.sort == o.id or typedHere then
+				out[#out + 1] = { id = o.id, label = o.label, on = state.sort == o.id or typedHere, typed = typedHere and typed.sort.word or nil }
+			end
 		end
 	elseif which == "group" then
 		for _, id in ipairs(B.GROUPS) do
@@ -205,11 +289,21 @@ end
 
 --- Pick or drop an option: Filter's add up, Sort's and Group's are one each. The terminal searches again.
 function B.Pick(which, id)
+	local typed = B.Typed()
 	if which == "filter" then
+		-- (one typed as a word, not picked here: its word taken out of the line)
+		local mine = false
+		for _, f in ipairs(state.filters) do if f == id then mine = true end end
+		if not mine then
+			for _, p in ipairs(typed.filters) do
+				if p.spec == id then B.DropWords({ p.word }) B.Update() return end
+			end
+		end
 		local had
 		for i, f in ipairs(state.filters) do if f == id then table.remove(state.filters, i); had = true break end end
 		if not had then state.filters[#state.filters + 1] = id end
 	elseif which == "sort" then
+		if typed.sort and typed.sort.id == id and state.sort ~= id then B.DropWords({ typed.sort.word }) B.Update() return end
 		state.sort = (state.sort ~= id) and id or nil
 	elseif which == "group" then
 		state.group = (state.group ~= id) and id or nil
@@ -217,8 +311,19 @@ function B.Pick(which, id)
 	B.Changed()
 end
 
+--- Nothing picked for Filter, Sort or Group: the words typed for it taken out of the line too.
 function B.Clear(which)
-	if which == "filter" then state.filters = {} elseif which == "sort" then state.sort = nil else state.group = nil end
+	local typed, words = B.Typed(), {}
+	if which == "filter" then
+		state.filters = {}
+		for _, p in ipairs(typed.filters) do words[#words + 1] = p.word end
+	elseif which == "sort" then
+		state.sort = nil
+		if typed.sort then words[1] = typed.sort.word end
+	else
+		state.group = nil
+	end
+	if #words > 0 then B.DropWords(words) end
 	B.Changed()
 end
 
@@ -237,13 +342,21 @@ local strip
 local HORN = "Interface\\Icons\\INV_Misc_Horn_01"
 
 local function Label(which)
+	local typed = B.Typed()
 	if which == "filter" then
-		local n = #state.filters
-		if n == 1 then local o = ById(B.FILTERS, state.filters[1]) return L["Filter: %s"]:format(o and o.label or state.filters[1]) end
-		if n > 1 then return L["Filter: %d"]:format(n) end
+		-- (what's picked here and what's typed: one list, the typed words' once each)
+		local labels, seen = {}, {}
+		for _, p in ipairs(typed.filters) do
+			if not seen[p.spec] then seen[p.spec] = true; local o = ById(B.FILTERS, p.spec); labels[#labels + 1] = o and o.label or ns.UpperFirst(p.word) end
+		end
+		for _, id in ipairs(state.filters) do
+			if not seen[id] then seen[id] = true; local o = ById(B.FILTERS, id); labels[#labels + 1] = o and o.label or id end
+		end
+		if #labels == 1 then return L["Filter: %s"]:format(labels[1]) end
+		if #labels > 1 then return L["Filter: %d"]:format(#labels) end
 		return L["Filter"]
 	elseif which == "sort" then
-		local o = state.sort and ById(B.SORTS, state.sort)
+		local o = (state.sort and ById(B.SORTS, state.sort)) or (typed.sort and ById(B.SORTS, typed.sort.id))
 		return o and L["Sort: %s"]:format(o.label) or L["Sort"]
 	else
 		local f = state.group and ns.Aggregate and ns.Aggregate.FIELDS[state.group]
@@ -356,7 +469,9 @@ function B.Update()
 		horn:SetSize(h - 6, h - 6)
 	end
 	for _, b in ipairs(s.buttons) do
-		local active = (b.which == "filter" and #state.filters > 0) or (b.which == "sort" and state.sort) or (b.which == "group" and state.group)
+		local typed = B.Typed()
+		local active = (b.which == "filter" and (#state.filters > 0 or #typed.filters > 0)) or (b.which == "sort" and (state.sort or typed.sort))
+			or (b.which == "group" and state.group)
 		b.off = overview and b.which ~= "filter" and not active
 		b.active = active and true or false
 		local col = b.off and t.dim or (active and t.accent or t.text)
@@ -424,20 +539,22 @@ local function MenuLine(m, i)
 	return b
 end
 
---- A button's menu, under it: its options, the ones picked ticked, "None" on top to clear.
+local function HasOn(opts) for _, o in ipairs(opts) do if o.on then return true end end return false end
+
+--- A button's menu, under it: its options, the ones picked ticked (typed ones say so), "None" on top to clear.
 function B.ShowMenu(which, owner)
 	local m = MenuFrame()
 	local t = Theme.Get()
 	local opts = B.Options(which)
 	local items = { { id = false, label = which == "filter" and L["No filter"] or which == "sort" and L["Best match"] or L["No groups"],
-		on = (which == "filter" and #state.filters == 0) or (which == "sort" and not state.sort) or (which == "group" and not state.group) } }
+		on = #opts == 0 or not HasOn(opts) } }
 	for _, o in ipairs(opts) do items[#items + 1] = o end
 	if #opts == 0 then items[#items + 1] = { label = L["Nothing to pick for these results"], dead = true } end
 	m.which, m.owner = which, owner
 	for i, it in ipairs(items) do
 		local b = MenuLine(m, i)
 		b.id = (not it.dead) and it.id or nil
-		b.fs:SetText(it.label)
+		b.fs:SetText(it.typed and L["%s (typed)"]:format(it.label) or it.label)
 		b.fs:SetTextColor(Theme.RGB(it.dead and t.dim or (it.on and t.accent or t.text)))
 		b.check:SetShown(it.on and true or false)
 		b.hl:SetColorTexture(Theme.RGB(t.accent))
