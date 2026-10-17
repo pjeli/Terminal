@@ -250,6 +250,25 @@ do
 	check(Names(res) == "Reach level 10 | Collecting Memories | Miners' Union Card | Collecting Memories | The Defias Brotherhood | The Defias Brotherhood, Part Two",
 		"the Deadmines: each line in turn: " .. Names(res))
 	check(res[3].detail:find("get 4", 1, true), "an item needed four times: " .. res[3].detail)
+	-- (0.55.20, the player: "outline what the steps are") numbered by Attune's columns, each line its letter: the level 1,
+	-- one line 2a 3a 4a, the other 2b 3b
+	local labels = {}
+	for i, e in ipairs(res) do labels[i] = e.detail:match("^step (%w+) of") or "?" end
+	check(table.concat(labels, " ") == "1 2a 3a 4a 2b 3b" and res[1].detail:find("^step 1 of 4"),
+		"the Deadmines' steps numbered by column and line: " .. table.concat(labels, " ") .. " / " .. res[1].detail)
+	-- a side quest (one you come across inside, no quest before it): says so, no number; lines meeting: no letter
+	local rec = { steps = {
+		{ id = "10", type = "Level", step = { FOLLOWS = "0", STAGE = "10" } },
+		{ id = "20", type = "Quest", step = { FOLLOWS = "10", STAGE = "20" } },
+		{ id = "21", type = "Quest", step = { FOLLOWS = "10", STAGE = "20" } },
+		{ id = "30", type = "Item", step = { FOLLOWS = "20", STAGE = "30" } },
+		{ id = "40", type = "Turn In", step = { FOLLOWS = "30&21", STAGE = "40" } },
+		{ id = "50", type = "Quest", step = { FOLLOWS = "0", STAGE = "40", SIDE = true }, side = true },
+	} }
+	AT.Number(rec)
+	local got = {}
+	for i, r in ipairs(rec.steps) do got[i] = r.label or (r.side and "side") or "?" end
+	check(table.concat(got, " ") == "1 2a 2b 3a 4 side" and rec.stages == 4, "lines, a meeting, a side quest: " .. table.concat(got, " "))
 	-- Enter on a step: Attune on its attunement, pointing at the step's box
 	shown = nil
 	res[3].activate(res[3]); FlushAll()
@@ -268,6 +287,13 @@ do
 	text = table.concat(lines, "\n")
 	check(text:find("Recover a Core Fragment.", 1, true) and text:find("Lothos Riftwaker", 1, true) and text:find("Step 2 of 4 of Molten Core (Attune)", 1, true),
 		"a quest step's tooltip: " .. text)
+	-- (0.55.20) a line's step: its number and letter, and what the letter means
+	lines = {}
+	res = UI:Search("deadmines > steps")
+	res[2].tooltip(res[2], tip)
+	text = table.concat(lines, "\n")
+	check(text:find("Step 2a of 4 of The Deadmines (Attune)", 1, true) and text:find("The letter is its line of quests", 1, true),
+		"a line's step's tooltip: " .. text)
 
 	-- (review, 0.50.2) a chain split by race: each branch whole, then what either leads to
 	local split = {}

@@ -225,6 +225,59 @@ local function Add(map, id, aid)
 	t[#t + 1] = aid
 end
 
+-- The steps' numbers (0.55.20, the player: "do a better job of outlining what the steps are"): Attune's columns (STAGE)
+-- in order are the numbers, 1, 2, 3; where lines of quests run side by side, each line has its letter, the same down the
+-- columns: 2a, 3a, 4a is one line, 2b, 3b the next. A side quest (Attune's SIDE: one you'll come across inside, with no
+-- quest before it) has no number: it says so (r.label nil, r.side). Sets r.label ("2a") and rec.stages (how many numbers).
+local LETTERS = "abcdefghijklmnopqrstuvwxyz"
+function AT.Number(rec)
+	local byId = {}
+	for _, r in ipairs(rec.steps) do
+		byId[r.id] = r
+		for _, id in ipairs(r.ids or {}) do byId[id] = r end
+	end
+	-- the lines: a step after nothing but the level (or nothing) starts one; a step after one line's step goes on with it;
+	-- after two lines' (where they meet): none
+	local lines, line = 0, {}
+	for _, r in ipairs(rec.steps) do
+		if not r.side and r.type ~= "Level" then
+			local seen, mine, many = {}, nil, false
+			for _, id in ipairs((Follows(r.step.FOLLOWS))) do
+				local p = byId[id]
+				if p and p ~= r and p.type ~= "Level" and not seen[p] then
+					seen[p] = true
+					local l = line[p]
+					if mine == nil then mine = l elseif l ~= mine then many = true end
+					if l == nil then many = true end
+				end
+			end
+			if next(seen) == nil then lines = lines + 1; line[r] = lines
+			elseif not many then line[r] = mine end
+		end
+	end
+	-- the numbers: Attune's columns in order, side quests left out
+	local stages, rank, inStage = {}, {}, {}
+	for _, r in ipairs(rec.steps) do
+		if not r.side then
+			local st = tonumber(r.step.STAGE) or 0
+			if not inStage[st] then inStage[st] = {}; stages[#stages + 1] = st end
+			inStage[st][#inStage[st] + 1] = r
+		end
+	end
+	table.sort(stages)
+	for i, st in ipairs(stages) do rank[st] = i end
+	for _, st in ipairs(stages) do
+		local these = inStage[st]
+		for k, r in ipairs(these) do
+			-- (a line's letter wherever lines run side by side, alone in its column too: 2a 3a 4a; else a letter only to
+			-- tell steps of one column apart)
+			local n = (lines > 1 and line[r]) or (#these > 1 and not line[r] and k) or nil
+			r.label = tostring(rank[st]) .. (n and LETTERS:sub(n, n) or "")
+		end
+	end
+	rec.stages = #stages
+end
+
 --- The attunements and their steps, read from Attune once (its data doesn't change in a session); nil without Attune.
 function AT.Index()
 	if index then return index end
@@ -270,6 +323,7 @@ function AT.Index()
 					end
 				end
 			end
+			AT.Number(rec)
 			for _, r in ipairs(rec.steps) do
 				for _, q in ipairs(r.qids or {}) do Add(idx.byQuest, q, aid) end
 				Add(idx.byItem, r.itemID, aid)
@@ -751,7 +805,15 @@ local function StepTooltip(e, t)
 		elseif state == "next" then t:AddLine(L["Next"], YELLOW[1], YELLOW[2], YELLOW[3]) end
 	end
 	t:AddLine(" ")
-	t:AddLine(L["Step %d of %d of %s (Attune)"]:format(e.stepIndex or 0, #rec.steps, RowName(rec)), GOLD[1], GOLD[2], GOLD[3], true)
+	-- (its number, AT.Number: "Step 2a of 4"; a side quest says what it is: nothing leads up to it)
+	local head
+	if r.label then head = L["Step %s of %d of %s (Attune)"]:format(r.label, rec.stages or 0, RowName(rec))
+	elseif r.side then head = L["A side quest of %s (Attune): no quests lead up to it"]:format(RowName(rec))
+	else head = L["Step %d of %d of %s (Attune)"]:format(e.stepIndex or 0, #rec.steps, RowName(rec)) end
+	t:AddLine(head, GOLD[1], GOLD[2], GOLD[3], true)
+	if r.label and r.label:find("%a$") then
+		t:AddLine(L["The letter is its line of quests: steps with the same letter are done one after the other, the other letters beside them"], DIM[1], DIM[2], DIM[3], true)
+	end
 	ns.KeyHints(t, L["Enter: show in Attune    Shift+Enter: put it in the chat box"], DIM[1], DIM[2], DIM[3], true)
 end
 
@@ -784,7 +846,9 @@ AT.STEP_LAZY = {
 	detail = function(t)
 		local r = t.stepRec
 		local rec = index and index.byId[r.aid]
-		local parts = { L["step %d of %d"]:format(t.stepIndex or 0, rec and #rec.steps or 0) }
+		-- ("step 2a of 4": its column and line; a side quest: no quests lead up to it; AT.Number)
+		local parts = { r.label and L["step %s of %d"]:format(r.label, rec and rec.stages or 0)
+			or (r.side and L["side quest: no quests before it"]) or L["step %d of %d"]:format(t.stepIndex or 0, rec and #rec.steps or 0) }
 		local verb = AT.VERB[r.type]
 		if r.type == "Item" and (r.count or 1) > 1 then verb = L["get %d"]:format(r.count) end
 		if verb and r.type ~= "Level" and r.type ~= "Rep" then parts[#parts + 1] = verb end
