@@ -14,7 +14,7 @@ local L = ns.L
 -- A click on one opens its menu; a right-click clears it. What's picked lasts while the prompt has words and goes
 -- when it's cleared or the terminal closes. Typing Advanced syntax takes the bar away (that line is Advanced); Alt+`,
 -- or Advanced syntax typed after the words, writes what's picked into the line ("q:rare+ sort:nearest | group by
--- zone"). While the categories show (nothing picked yet), only Filter works: they count what passes it.
+-- zone": the search's query printed, Search.lua's ns.QueryToAdvanced). While the categories show (nothing picked yet), only Filter works: they count what passes it.
 
 local UI, Theme = ns.UI, ns.Theme
 local B = {}
@@ -86,26 +86,6 @@ function B.Reset()
 	state.filters, state.sort, state.group = {}, nil, nil
 	if B.menu then B.menu:Hide() end
 	return had
-end
-
---- What's picked, as Advanced syntax (Alt+`, or Advanced syntax typed after the words): " q:rare+ sort:nearest", and
---- the step " | group by zone" apart (it goes last).
-function B.Syntax()
-	local words, step = {}, nil
-	for _, id in ipairs(state.filters) do words[#words + 1] = id end
-	if state.sort then words[#words + 1] = "sort:" .. state.sort end
-	if state.group then step = "| group by " .. state.group end
-	return #words > 0 and (" " .. table.concat(words, " ")) or "", step
-end
-
---- `conv` (a line written in Advanced syntax) with what's picked put in: the filters and sort after its words, the group
---- step after them unless what follows (`tail`) has a "|" of its own. Nothing picked: `conv` as it is.
-function B.Fold(conv, tail)
-	if not B.Active() then return conv end
-	local words, step = B.Syntax()
-	local out = (conv or "") .. words
-	if step and not (tail or ""):find("|", 1, true) then out = out .. " " .. step end
-	return (out:gsub("^%s+", ""))
 end
 
 --- The search's sort for a field (Search.lua's Scan.Finalize): the rows that have it in its order (the biggest first,

@@ -31,7 +31,7 @@ E.tempSimple = nil
 
 --- Is easy mode on? It is unless the player chose hard mode (db.easyMode == false) or Alt+` made this run Advanced.
 function E.On()
-	if E.tempSimple then return true end
+	if E.tempSimple or E.reading then return true end -- (reading: plain words printed as Advanced, ns.QueryToAdvanced)
 	if E.temp then return false end
 	local db = ns.db
 	return not (db and db.easyMode == false)
@@ -631,7 +631,6 @@ end
 -- Alt+`: what a Simple search says, written in Advanced mode's syntax
 ----------------------------------------------------------------------
 
-local function KindWord(kind) return ns:KindName(ns.providers[kind]) end
 
 --- The lists the rows a search shows come from (real results only: no category, hint, help, pick or completion row,
 --- nor a row that asks something), as a set of list ids. Alt+` names only these: "use hearthstone" shows the
@@ -658,42 +657,12 @@ function E.JoinPairs(words)
 	end
 end
 
---- The action the words say (the first word, or "nearest" said last: "mining trainer nearby"), taken off the list;
---- nil when there's none.
-local function ActionOf(words)
-	-- (sentence words before it are dropped as the search drops them: "the nearest innkeeper" is nearest innkeeper;
-	-- 0.50.7, review: Alt+` searched the word "nearest")
-	local first = 1
-	while first < #words and E.STOP[Lower(words[first])] do first = first + 1 end
-	if first > 1 and E.ACTIONS[Lower(words[first])] then
-		for _ = 1, first - 1 do table.remove(words, 1) end
-	end
-	local word = #words > 1 and Lower(words[1]) or nil
-	local act = word and E.ACTIONS[word] or nil
-	if act then
-		table.remove(words, 1)
-	elseif #words > 1 then
-		local tail = E.ACTIONS[Lower(words[#words])]
-		if tail and tail.nearest then act = tail; table.remove(words) end
-	end
-	return act, act and word
-end
-
 -- a word's pieces that are everyday words as their filters ("-boe" -> -is:boe, "sword|axe" -> type:sword|type:axe,
 -- rare&sword -> q:rare&type:sword; plain pieces stay words: "-cloth")
 local function PieceFilter(neg, a) return neg .. (E.WORDS[a] or a) end
--- what @flight already says (Alt+`: "nearest unlearned flight master" -> "@flight is:unlearned sort:nearest")
-local FLIGHT_SAID = { ["is:flight"] = true, ["is:flightmaster"] = true, ["is:flightpath"] = true }
 local function AdvancedPart(w) return (w:gsub("([-!]?)([^|&]+)", PieceFilter)) end
+E.AdvancedPart = AdvancedPart -- (Search.lua's printed query)
 
---- A Simple search as Advanced mode would type it: the lists the action word or the picked category looks in as @kinds
---- (given `shown`, E.ShownKinds of what the search shows, only those of them that show something: "use hearthstone"
---- -> "@item do:use hearthstone"; none showing: no @kind after an action word, whose do: stands for its lists, and all
---- of a category's), "nearest" as @npc sort:nearest (with faction:friendly for a role), a place as in:<place>,
---- everyday words as their key:value filters ("attack power" = stat:ap), sentence words dropped; other words (and any
---- Advanced syntax already typed) stay. Ends with a space to type on. "" for an empty search.
--- a plain-word question or chain, in Advanced syntax: chains as links ("mats for x" -> "x > mats"), the zone questions
--- as @map/@dungeon/@raid with lvl: or fish:, the combat ones as @combatlog words. Nil for anything else.
 --- A plain-word question or chain as Advanced mode writes it: Search.lua's one list of them (Scan.ANSWERS), read at
 --- run time (it loads after this file).
 local function QuestionToAdvanced(text) return ns.QuestionToAdvanced and ns.QuestionToAdvanced(text) end
@@ -755,119 +724,10 @@ function E.TrainerProfs(words, trainerSaid)
 	return kept, specs
 end
 
-local function Convert(text, category, shown)
-	text = E.English(text) -- (a phrase in the client's language: as its English line)
-	local asked = QuestionToAdvanced(text)
-	if asked then return asked end
-	local words = {}
-	for w in tostring(text or ""):gmatch("%S+") do words[#words + 1] = w end
-	local kinds, filters, plain, seen = {}, {}, {}, {}
-	local function Add(list, w) if w and not seen[w] then seen[w] = true; list[#list + 1] = w end end
-	-- these lists as @kinds (sorted), those showing something when that's known; how many were named
-	local function AddKinds(ids, all)
-		local ks = {}
-		for _, k in ipairs(ids) do if all or not shown or shown[k] then ks[#ks + 1] = k end end
-		table.sort(ks)
-		local n = #kinds
-		for _, k in ipairs(ks) do Add(kinds, KindWord(k)) end
-		return #kinds - n
-	end
-	E.JoinPairs(words) -- two everyday words that mean one thing ("attack power food")
-	E.JoinLogic(words) -- "sword or axe" -> sword|axe, "not boe" -> -boe (made filters below)
-	-- the first word can say what to do ("use hearthstone", "nearest innkeeper")
-	local act, actWord = ActionOf(words)
-	local nearest, doWord
-	if act then
-		nearest = act.nearest
-		if act.map then
-			local ids = {}
-			for k in pairs(act.map) do ids[#ids + 1] = k end
-			-- (none showing anything: no @kind, do:<word> stands for every list the action looks in)
-			AddKinds(ids)
-			-- what Enter does stays what was asked ("use hearthstone": do:use, not just the item shown in your bags)
-			if not nearest and actWord then doWord = "do:" .. actWord end
-		end
-	end
-	if not (act and act.map) and E.BY_ID[category or ""] then
-		-- (none showing anything: all of them, there's no one word for a category)
-		if AddKinds(E.BY_ID[category].kinds) == 0 then AddKinds(E.BY_ID[category].kinds, true) end
-	end
-	-- a place, when there's something else to look for in it ("vendor ratchet")
-	local lower = {}
-	for k, w in ipairs(words) do lower[k] = E.IsAdvancedWord(w) and w or Lower(w) end
-	local I = ns.Integrations
-	if #lower > 1 and I and I.FindPlace then
-		local place, rest = I.FindPlace(lower)
-		if place and rest and #rest > 0 then
-			Add(filters, "in:" .. tostring(place.key):gsub(" ", "_"))
-			lower = rest
-		end
-	end
-	local role
-	local others = 0
-	local everyday = {} -- (the everyday words said: "nearest unlearned flight master" is the flight paths')
-	for _, w in ipairs(lower) do if not E.STOP[w] then others = others + 1 end end
-	-- ("dagger trainer": a weapon skill's weapon masters, not an item type; E.TrainerProfs)
-	local trainerSaid = false
-	for _, w in ipairs(lower) do if E.WORDS[w] == "is:trainer" then trainerSaid = true end end
-	local F = ns.Filters
-	for _, w in ipairs(lower) do
-		if trainerSaid and E.WORDS[w] and E.WORDS[w] ~= "is:trainer" and F and F.TrainerWeapon and F.TrainerWeapon(w) then
-			plain[#plain + 1] = w
-		elseif E.IsAdvancedWord(w) then
-			if w:sub(1, 1) == "@" then Add(kinds, w) else Add(filters, w) end
-		elseif w:find("[|&]") or w:find("^[-!][%a\128-\255]") then -- (any language's "-word", 0.49.2)
-			Add(filters, AdvancedPart(w))
-		elseif E.WORDS[w] then
-			Add(filters, E.WORDS[w])
-			everyday[#everyday + 1] = w
-			if E.ROLE_WORDS[w] then role = true end
-		elseif not (E.STOP[w] and others > 0) then
-			plain[#plain + 1] = w
-		end
-	end
-	-- "enchanting trainer": the profession is what they teach (E.TrainerProfs)
-	local specs
-	plain, specs = E.TrainerProfs(plain, seen["is:trainer"])
-	if specs then -- (trainer:<what> says trainer by the title: is:trainer, Questie's flag, would leave out the Demon Trainers)
-		for k = #filters, 1, -1 do if filters[k] == "is:trainer" then table.remove(filters, k) end end
-		Add(kinds, "@npc") -- (NPCs, a place said or not: "mining trainer in org"; review, 0.49.17)
-	end
-	for _, spec in ipairs(specs or {}) do Add(filters, spec) end
-	-- ("blacksmithing trainer" alone: the nearest, 0.49.9; a place said keeps to the place: "mining trainer in org")
-	if specs and not act and not (filters[1] and filters[1]:find("^in:")) then nearest = true end
-	-- "nearest mailbox": its own list, not NPCs (a place said stays: "nearest mailbox in org")
-	local okind = nearest and ns.Integrations and ns.Integrations.ObjectKind and ns.Integrations.ObjectKind(plain)
-	if okind and ns.providers[okind] then
-		return "@" .. okind .. " " .. (#filters > 0 and (table.concat(filters, " ") .. " ") or "") .. "sort:nearest "
-	end
-	-- "nearest unlearned flight master", "closest flight path": the flight paths' own list (Flights.lua), not NPCs; the
-	-- words that only say flight path or flight master go (@flight says it), a name or a place stays
-	local flight = nearest and I and I.FlightAsked and ns.providers.flight and I.FlightAsked(plain, everyday, not ns.providers.npc)
-	if flight then
-		local out = { KindWord("flight") }
-		for _, w in ipairs(flight) do out[#out + 1] = w end
-		for _, f in ipairs(filters) do if not FLIGHT_SAID[f] then out[#out + 1] = f end end
-		out[#out + 1] = "sort:nearest"
-		return table.concat(out, " ") .. " "
-	end
-	if nearest then Add(kinds, "@npc") end
-	-- an NPC's role (trainer, vendor, innkeeper...) means one you can use: friendly to you ("mining trainer in org"
-	-- never meant Ironforge's: the player's call, 0.41.16). Simple mode's nearest search keeps to that too; its place
-	-- search keeps to the place only ("vendor crossroads" lists every vendor there; review, 0.48.6: left as it is).
-	if role then Add(filters, "faction:friendly") end
-	if nearest then Add(filters, "sort:nearest") end
-	local out = {}
-	for _, list in ipairs({ kinds, { doWord }, plain, filters }) do -- ("@spell do:cast frost nova": the verb first)
-		for _, w in ipairs(list) do out[#out + 1] = w end
-	end
-	return #out > 0 and (table.concat(out, " ") .. " ") or ""
-end
-
 --- Simple mode's words as Advanced mode writes them (Alt+`). A ">> party" or "| sum value" typed after them (the very
 --- syntax the Advanced row offers the switch for) is kept as typed, after the words converted (review, 0.53.6:
 --- "hogger >> party" became "hogger party >> ", "cloth | sum value" "sum value type:cloth | ").
-function E.ToAdvanced(text, category, shown)
+function E.ToAdvanced(text, category, shown, noGroup)
 	local t, tail = tostring(text or ""), ""
 	local send = t:find(">>", 1, true)
 	if send then t, tail = t:sub(1, send - 1), " " .. t:sub(send) end
@@ -875,8 +735,10 @@ function E.ToAdvanced(text, category, shown)
 	local q, steps = nil, nil
 	if A and A.Split then q, steps = A.Split(t) end
 	if steps then t, tail = q, " | " .. table.concat(steps, " | ") .. tail end
-	if tail == "" then return Convert(text, category, shown) end
-	return (Convert(t, category, shown):gsub("%s+$", "")) .. tail
+	-- (the words read by the search's own steps and its query printed: Search.lua's ns.QueryToAdvanced)
+	local Print = ns.QueryToAdvanced
+	if tail == "" then return Print(text, category, shown, noGroup) end
+	return (Print(t, category, shown, noGroup or tail:find("|", 1, true) ~= nil):gsub("%s+$", "")) .. tail
 end
 
 ----------------------------------------------------------------------

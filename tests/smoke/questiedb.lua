@@ -433,10 +433,13 @@ do
 	check(table.concat(got, ","):find("Zargh", 1, true) and table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Pestle", 1, true),
 		"in:barrens: the zone's vendors, not Elwynn's: " .. table.concat(got, ", "))
 	local conv = ns.Easy.ToAdvanced("vendor ratchet")
-	check(conv == "in:ratchet is:vendor faction:friendly ", "Alt+` writes vendor ratchet as in:ratchet is:vendor faction:friendly: " .. conv)
-	-- a role carries faction:friendly into the conversion: "mining trainer in org" is Makaru, never Ironforge's
+	-- (0.55.4: what the search does, printed: a place's vendors are every vendor there, as Simple mode lists them; review,
+	-- 0.48.6. Easy.lua's own converter said faction:friendly, which the search never asked for)
+	check(conv == "in:ratchet is:vendor ", "Alt+` writes vendor ratchet as in:ratchet is:vendor: " .. conv)
+	-- "mining trainer in org" is Makaru, never Ironforge's: the place says so (0.55.4: the conversion is what the search
+	-- asks, a place search keeps to the place; faction:friendly is "nearest"'s)
 	conv = ns.Easy.ToAdvanced("mining trainer in org", "npcs")
-	check(conv:find("faction:friendly", 1, true) and conv:find("in:orgrimmar", 1, true), "mining trainer in org -> " .. conv)
+	check(conv:find("in:orgrimmar", 1, true) and conv:find("trainer:mining", 1, true), "mining trainer in org -> " .. conv)
 	local baseFaction = _G.UnitFactionGroup
 	_G.UnitFactionGroup = function() return "Horde" end
 	got = List(conv)

@@ -456,19 +456,17 @@ local function LinkQuests(out)
 end
 
 --- Simple mode: an action word ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS) first, or a nearest-type one
---- last ("mining trainer nearby"), taken out of the tokens. The action, or nil.
+--- last ("mining trainer nearby"), taken out of the tokens. The action and its word, or nil.
 function Scan.TakeAction(tokens, filters)
 	local a = ns.Easy.Action(tokens[1])
 	if a and (#tokens > 1 or filters) then
-		table.remove(tokens, 1)
-		return a
+		return a, table.remove(tokens, 1)
 	end
 	if #tokens > 1 then
 		-- "nearest"/"nearby"/"closest" said last: "mining trainer nearby"
 		local b = ns.Easy.Action(tokens[#tokens])
 		if b and b.nearest then
-			table.remove(tokens)
-			return b
+			return b, table.remove(tokens)
 		end
 	end
 end
@@ -786,6 +784,106 @@ function ns.QuestionToAdvanced(text)
 	end
 end
 
+----------------------------------------------------------------------
+-- The query printed: Advanced syntax for what a line asks (Alt+`, Advanced syntax typed after plain words, the right-
+-- click menu's chat lines). 0.55.4, the search's rewrite: the line is read by the search's own steps and its query
+-- written out, so what's printed is what's searched (Easy.lua's Convert read the words a second way, and drifted:
+-- "vendor ratchet" said faction:friendly the search never asked for, a place needed other words the search didn't).
+----------------------------------------------------------------------
+
+--- `text` (plain words, maybe with Advanced syntax in it) as Advanced syntax, ending with a space to type on ("" for
+--- nothing). category: Simple mode's category picked (its lists as @kinds); shown: the lists the rows shown come from
+--- (E.ShownKinds), so an action or a category names only those ("use hearthstone": @item, not @camp @item @toy).
+--- noGroup: leave the bar's group step out (the caller puts it after what follows).
+function ns.QueryToAdvanced(text, category, shown, noGroup)
+	text = ns.Easy and ns.Easy.English and ns.Easy.English(text) or text
+	local asked = ns.QuestionToAdvanced(text)
+	if asked then return asked end
+	local scratch = {} -- (the steps say things to the window: not to this one)
+	-- (the words read as plain words, whatever mode the terminal is in: Alt+` writes what Simple mode would search)
+	local E = ns.Easy
+	local was = E.reading
+	E.reading = true
+	local ok, q = pcall(function()
+		local r = Scan.Parse(scratch, text)
+		Scan.ActionAndPlace(scratch, r)
+		Scan.Prepare(scratch, r)
+		return r
+	end)
+	E.reading = was
+	if not ok then error(q) end
+	local out, seen = {}, {}
+	local function Add(w) if w and w ~= "" and not seen[w] then seen[w] = true; out[#out + 1] = w end end
+	local function KindWord(id) return ns:KindName(ns.providers[id]) end
+	-- the lists: @kinds typed; an action's (those showing something; none showing: do:<word> stands for them all); a
+	-- category's (those showing, else all of them); a trainer's word or "nearest": the NPCs
+	local act = q.act
+	local function AddKinds(set, all)
+		local ids, n = {}, 0
+		for k in pairs(set or {}) do if all or not shown or shown[k] then ids[#ids + 1] = k end end
+		table.sort(ids)
+		for _, k in ipairs(ids) do if ns.providers[k] then Add(KindWord(k)); n = n + 1 end end
+		return n
+	end
+	if q.typedKinds then
+		AddKinds(q.kinds, true)
+	elseif act and act.map then
+		local set = {}
+		for k in pairs(act.map) do set[k] = true end
+		AddKinds(set)
+	elseif category and ns.Easy.BY_ID[category] then
+		local set = {}
+		for _, k in ipairs(ns.Easy.BY_ID[category].kinds) do set[k] = true end
+		if AddKinds(set) == 0 then AddKinds(set, true) end
+	end
+	local nearest = act and act.nearest
+	local specs = {}
+	for _, f in ipairs(q.filters or {}) do
+		local spec = q.specOf and q.specOf[f]
+		if spec then specs[#specs + 1] = spec end
+	end
+	table.sort(specs, function(a, b) -- (a place first: "in:ratchet is:vendor"; else as said)
+		local pa, pb = a:find("^in:") ~= nil, b:find("^in:") ~= nil
+		if pa ~= pb then return pa end
+		return false
+	end)
+	local I = ns.Integrations
+	if nearest then
+		-- "nearest mailbox": its own list, not NPCs; "nearest unlearned flight master": the flight paths' (the words that
+		-- only say flight path or flight master go, @flight says it)
+		local okind = I and I.ObjectKind and I.ObjectKind(q.tokens)
+		if okind and ns.providers[okind] then
+			local line = { "@" .. okind }
+			for _, sp in ipairs(specs) do line[#line + 1] = sp end
+			line[#line + 1] = "sort:nearest"
+			return table.concat(line, " ") .. " "
+		end
+		local rest = I and I.FlightAsked and ns.providers.flight and I.FlightAsked(q.tokens, q.softWords, not ns.providers.npc)
+		if rest then
+			local SAID = { ["is:flight"] = true, ["is:flightmaster"] = true, ["is:flightpath"] = true }
+			local line = { KindWord("flight") }
+			for _, w in ipairs(rest) do line[#line + 1] = w end
+			for _, sp in ipairs(specs) do if not SAID[sp] then line[#line + 1] = sp end end
+			line[#line + 1] = "sort:nearest"
+			return table.concat(line, " ") .. " "
+		end
+	end
+	if q.trainerAsked or nearest then Add(KindWord("npc") or "@npc") end
+	-- what Enter does stays what was asked ("use hearthstone": do:use)
+	if act and act.map and not nearest and q.actWord then Add("do:" .. q.actWord) end
+	for _, w in ipairs(q.tokens) do Add(q.exact and q.exact[w] and ('"' .. w .. '"') or w) end
+	for _, sp in ipairs(specs) do Add(sp) end
+	-- an NPC's role (trainer, vendor...) nearest: one who'll serve you (Scan.NearestStart)
+	if nearest and Scan.RoleFriendly(q.softWords, q.strictWords) then Add("faction:friendly") end
+	if nearest or q.sortNear then Add("sort:nearest") end
+	if q.sortPlan then Add("sort:plan") end
+	if q.sortBest then Add("sort:best") end
+	if q.sortField then Add("sort:" .. q.sortField) end
+	local line = table.concat(out, " ")
+	if q.group and not noGroup then line = line .. (line ~= "" and " " or "") .. "| group by " .. q.group end
+	return line ~= "" and (line .. " ") or ""
+end
+
 -- SearchText's steps share one table per search, the query (q). What's asked, however it was said (plain words, Advanced
 -- syntax, Simple mode's bar):
 --   text; simple: Simple mode (plain words read as everyday words, the categories); kinds: the lists asked for (a set of
@@ -806,11 +904,13 @@ end
 --- One filter for the query, every view of it kept together (0.55.4, the search's rewrite: seven places appended to
 --- filters, hard and fsig by hand, and drifted). how: "hard" (a typed key:value, a place's, an action's, a category's,
 --- the bar's), "strict" (a strict everyday word: hard, and its word), "soft" (an everyday word: relaxed when nothing
---- passes). sig: its part of the signature a narrowing must match (nil: none).
-function Scan.AddFilter(q, f, how, sig, word)
+--- passes). sig: its part of the signature a narrowing must match (nil: none). spec: how Advanced syntax writes it.
+function Scan.AddFilter(q, f, how, sig, word, spec)
 	if not f then return end
 	q.filters = q.filters or {}
 	q.filters[#q.filters + 1] = f
+	-- (what it is in Advanced syntax, for printing the query: Scan.Print; none for one the lists or the action say)
+	if spec then q.specOf = q.specOf or {}; q.specOf[f] = spec end
 	if how == "soft" then
 		q.softs, q.softWords = q.softs or {}, q.softWords or {}
 		q.softs[#q.softs + 1] = f
@@ -936,7 +1036,8 @@ function Scan.Parse(self, text)
 		-- (each word's sort: and do: read once, and lowered once; review, 0.53.6: up to three and five times a word)
 		local lw = ns.Lower(w)
 		local sort = F and F.SortOf and F.SortOf(w)
-		local act = not sort and F and F.ActionOf and F.ActionOf(w)
+		local act, actWord
+		if not sort and F and F.ActionOf then act, actWord = F.ActionOf(w) end
 		if sort then
 			-- sort:nearest, sort:plan (recipes that give skill, by how many times your materials make them: Plan.lua),
 			-- sort:best (the biggest upgrades first), sort:name / level / ilvl / quality / value / count (Scan.Finalize)
@@ -946,7 +1047,7 @@ function Scan.Parse(self, text)
 			else q.sortField = sort end
 			q.fsig[#q.fsig + 1] = "^" .. (sort == "nearest" and "near" or sort)
 		elseif act then
-			q.advAct = act -- (do:use: each row's Enter that action, as the action word "use ..." says it; Scan.UseAction)
+			q.advAct, q.actWord = act, actWord -- (do:use: each row's Enter that action, as "use ..." says it; Scan.UseAction)
 		elseif w:sub(1, 1) == "@" then
 			local p = ns:ResolveProvider(w:sub(2))
 			if p then
@@ -961,15 +1062,17 @@ function Scan.Parse(self, text)
 			-- friendly NPCs, and the overview looks Questie's NPCs up by them
 			local strict = not f and simple and ns.Easy.HARD_WORDS[lw] and ns.Easy.Strict(lw)
 			if f then
-				Scan.AddFilter(q, f, "hard", lw)
+				-- (written as Advanced does: Simple mode's "-boe", "sword|axe" as -is:boe, type:sword|type:axe)
+				Scan.AddFilter(q, f, "hard", lw, nil,
+					(simple and not ns.Easy.IsAdvancedWord(w)) and ns.Easy.AdvancedPart(lw) or w)
 			elseif strict then
-				Scan.AddFilter(q, strict, "strict", lw, lw)
+				Scan.AddFilter(q, strict, "strict", lw, lw, ns.Easy.WORDS[lw])
 				-- ("upgrades": the biggest first, as sort:best; 0.51.14, the player's ask)
 				if ns.Easy.WORDS[lw] == "is:upgrade" then q.sortBest = true end
 			else
 				-- everyday words ("rare", "ready", "vendor") are soft filters in Simple mode (Easy.lua)
 				local soft = ns.Easy and ns.Easy.Word(w)
-				if soft then Scan.AddFilter(q, soft, "soft", "~" .. lw, lw) else tokens[#tokens + 1] = lw end
+				if soft then Scan.AddFilter(q, soft, "soft", "~" .. lw, lw, ns.Easy.WORDS[lw]) else tokens[#tokens + 1] = lw end
 			end
 		end
 	end
@@ -1024,8 +1127,9 @@ function Scan.Parse(self, text)
 	-- Simple mode's bar (Bar.lua, 0.55.1): its filters taken as typed ones (hard: never relaxed away), its sort
 	local bar = simple and ns.Bar and ns.Bar.Active()
 	if bar then
-		for _, w in ipairs(bar.filters) do Scan.AddFilter(q, F and F.Parse(w), "hard", "!bar:" .. w) end
+		for _, w in ipairs(bar.filters) do Scan.AddFilter(q, F and F.Parse(w), "hard", "!bar:" .. w, nil, w) end
 		if bar.sort == "nearest" then q.sortNear = true elseif bar.sort then q.sortField = bar.sort end
+		q.group = bar.group
 	end
 	return q
 end
@@ -1065,7 +1169,7 @@ function Scan.TrainerWords(q)
 		local f = ns.Filters.Parse(spec)
 		if f then
 			q.tokens, q.trainerAsked = kept, true
-			Scan.AddFilter(q, f, "hard", spec)
+			Scan.AddFilter(q, f, "hard", spec, nil, spec)
 		end
 	end
 end
@@ -1088,7 +1192,7 @@ end
 function Scan.ActionAndPlace(self, q)
 	local simple = q.simple
 	local act = q.advAct
-	if simple and not act and q.tokens[1] then act = Scan.TakeAction(q.tokens, q.filters) end
+	if simple and not act and q.tokens[1] then act, q.actWord = Scan.TakeAction(q.tokens, q.filters) end
 	Scan.UseAction(q, act)
 	-- Simple mode: a place named among the words ("vendor ratchet", "trainer in booty bay", "food barrens"): NPCs
 	-- there, other rows that name it (Integrations.FindPlace / PlaceFilter); checked after the cheaper filters
@@ -1098,7 +1202,7 @@ function Scan.ActionAndPlace(self, q)
 		local place, rest = I.FindPlace(q.tokens)
 		if place and (#rest > 0 or q.filters or act) then
 			q.tokens = rest
-			Scan.AddFilter(q, I.PlaceFilter(place), "hard", "@" .. place.key)
+			Scan.AddFilter(q, I.PlaceFilter(place), "hard", "@" .. place.key, nil, "in:" .. tostring(place.key):gsub(" ", "_"))
 			self.place = place
 		end
 	end
@@ -1149,7 +1253,7 @@ function Scan.SimpleScope(self, q)
 			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords)
 			if early then return early end
 			q.here = here
-			Scan.AddFilter(q, friendly, "hard", "faction:friendly")
+			Scan.AddFilter(q, friendly, "hard", "faction:friendly", nil, "faction:friendly")
 		end
 		return
 	end

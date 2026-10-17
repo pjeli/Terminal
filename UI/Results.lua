@@ -606,12 +606,10 @@ function UI:AutoAdvanced(text, first)
 			-- (the lists the last search's rows came from, when it's done and listed some: Alt+`'s @kinds)
 			local shown = not self.searchJob and E.ShownKinds(UI.results) or nil
 			if shown and next(shown) == nil then shown = nil end
-			local head = (E.ToAdvanced(before, self.category, shown):gsub("%s+$", ""))
-			-- (what Simple mode's bar has picked, written in too: its filters and sort after the words; its group step
-			-- before a ">>" typed, else after what's typed, unless that has a "|" of its own; Bar.lua)
-			local words, step = "", nil
-			if ns.Bar and ns.Bar.Active() then words, step = ns.Bar.Syntax() end
-			head = (head .. words):gsub("^%s+", "")
+			-- (what Simple mode's bar has picked is in the query printed: its filters and sort; its group step goes before
+			-- a ">>" typed, else after what's typed, unless that has a "|" of its own; Bar.lua)
+			local step = ns.Bar and ns.Bar.Active() and ns.Bar.state.group and ("| group by " .. ns.Bar.state.group) or nil
+			local head = (E.ToAdvanced(before, self.category, shown, true):gsub("%s+$", ""))
 			if step and tail:find("|", 1, true) then step = nil end
 			if step and tail:find("^%s*>>") then head, step = head .. " " .. step, nil end
 			stepLen = step and (#step + 1) or 0

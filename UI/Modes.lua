@@ -434,12 +434,8 @@ function UI:AdvancedOnce()
 	local done = self:FinishSearch(UI.FINISH_MS)
 	local cat = not self.categoryAuto and self.category or nil -- (a category opened on its own counts too: it's what shows)
 	local conv = E.ToAdvanced(text, self.category, done and E.ShownKinds(UI.results) or nil)
-	-- (what Simple mode's bar has picked, written in too: its filters, sort and group; Bar.lua)
-	if ns.Bar then
-		local folded = ns.Bar.Fold((conv:gsub("%s+$", "")), "")
-		if folded ~= conv:gsub("%s+$", "") then conv = folded .. " " end
-		ns.Bar.Reset()
-	end
+	-- (what Simple mode's bar has picked is in the query printed: its filters, sort and group; the bar goes with the mode)
+	if ns.Bar then ns.Bar.Reset() end
 	DropTick(conv) -- (the key's ` still comes as a typed character)
 	-- (Simple for a run from fuzzy finding: Advanced now. `auto`: Advanced while the line has its syntax, as when it's
 	-- typed; UI:AutoAdvanced)
