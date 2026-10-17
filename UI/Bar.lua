@@ -76,6 +76,7 @@ B.SORTS = {
 	{ id = "value", label = L["Value"], field = "value" },
 	{ id = "count", label = L["Count"], field = "count" },
 	{ id = "damage", label = L["Biggest hit"], field = "damage" },
+	{ id = "line", label = L["Line by line"], field = "line", asc = true },
 }
 -- what Group offers: Aggregate's fields that name something
 B.GROUPS = { "kind", "zone", "quality", "type", "slot", "dungeon", "raid", "boss", "level" }

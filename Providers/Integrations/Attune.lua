@@ -273,6 +273,7 @@ function AT.Number(rec)
 			-- tell steps of one column apart)
 			local n = (lines > 1 and line[r]) or (#these > 1 and not line[r] and k) or nil
 			r.label = tostring(rank[st]) .. (n and LETTERS:sub(n, n) or "")
+			r.order = rank[st] * 100 + (n or 0) -- (listed by it: 1, 2a, 2b, 2c, 3a...; AT.StepRows)
 		end
 	end
 	rec.stages = #stages
@@ -879,13 +880,22 @@ AT.STEP_LAZY = {
 	attuneId = function(t) return t.stepRec.aid end,
 }
 
---- An attunement's step rows, first to last. `how`: what the chain says found them.
+--- An attunement's step rows, by their numbers: 1, 2a, 2b, 2c, 3a... (0.55.21, the player), side quests last; each line
+--- of quests in turn, as Attune's tree reads it, is the bar's Sort "Line by line" (sort:line: stepIndex). `how`: what the
+--- chain says found them.
 function AT.StepRows(rec, how)
 	local out = {}
 	if not (rec and AT.stepMeta) then return out end
-	for i, r in ipairs(rec.steps) do
+	local order = {}
+	for i, r in ipairs(rec.steps) do order[i] = { r = r, i = i, k = r.order or (r.side and 1e6) or (1e5 + i) } end
+	table.sort(order, function(a, b)
+		if a.k ~= b.k then return a.k < b.k end
+		return a.i < b.i
+	end)
+	for n, o in ipairs(order) do
+		local r, i = o.r, o.i
 		out[#out + 1] = setmetatable({ _compact = true, key = rec.id .. "-" .. r.id, name = r.title, _lname = Lower(r.title),
-			stepRec = r, stepIndex = i, pipeHow = how, _score = 1e6 - i }, AT.stepMeta)
+			stepRec = r, stepIndex = i, pipeHow = how, _score = 1e6 - n }, AT.stepMeta)
 	end
 	return out
 end

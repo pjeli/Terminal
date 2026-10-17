@@ -246,15 +246,16 @@ do
 	check(res[1].detail:find("^step 1 of 4") and res[1].detail:find("done", 1, true) and res[3].detail:find("next", 1, true)
 		and res[2].detail:find("pick up", 1, true) and res[4].detail:find("turn in", 1, true), "each says its step: " .. res[3].detail)
 	check(res[2].qid == 7848 and res[3].itemID == 18412, "a quest step carries its quest, an item step its item")
+	-- (0.55.21, the player: "display them in order of 1, 2a, 2b, 2c, then 3a, 3b, 3c") by their numbers
 	res = UI:Search("deadmines > steps")
-	check(Names(res) == "Reach level 10 | Collecting Memories | Miners' Union Card | Collecting Memories | The Defias Brotherhood | The Defias Brotherhood, Part Two",
-		"the Deadmines: each line in turn: " .. Names(res))
-	check(res[3].detail:find("get 4", 1, true), "an item needed four times: " .. res[3].detail)
+	check(Names(res) == "Reach level 10 | Collecting Memories | The Defias Brotherhood | Miners' Union Card | The Defias Brotherhood, Part Two | Collecting Memories",
+		"the Deadmines: by their numbers: " .. Names(res))
+	check(res[4].detail:find("get 4", 1, true), "an item needed four times: " .. res[4].detail)
 	-- (0.55.20, the player: "outline what the steps are") numbered by Attune's columns, each line its letter: the level 1,
 	-- one line 2a 3a 4a, the other 2b 3b
 	local labels = {}
 	for i, e in ipairs(res) do labels[i] = e.detail:match("^step (%w+) of") or "?" end
-	check(table.concat(labels, " ") == "1 2a 3a 4a 2b 3b" and res[1].detail:find("^step 1 of 4"),
+	check(table.concat(labels, " ") == "1 2a 2b 3a 3b 4a" and res[1].detail:find("^step 1 of 4"),
 		"the Deadmines' steps numbered by column and line: " .. table.concat(labels, " ") .. " / " .. res[1].detail)
 	-- a side quest (one you come across inside, no quest before it): says so, no number; lines meeting: no letter
 	local rec = { steps = {
@@ -271,8 +272,26 @@ do
 	check(table.concat(got, " ") == "1 2a 2b 3a 4 side" and rec.stages == 4, "lines, a meeting, a side quest: " .. table.concat(got, " "))
 	-- Enter on a step: Attune on its attunement, pointing at the step's box
 	shown = nil
-	res[3].activate(res[3]); FlushAll()
+	res[4].activate(res[4]); FlushAll()
 	check(selected[#selected]:find("\001170$") and shown == _G.Attune_Node_520, "Enter on a step: its box pointed at")
+	-- the bar's Sort "Line by line" (sort:line): each line in turn, as Attune's tree reads
+	local was = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	local byLine = UI:Search("deadmines > steps sort:line")
+	check(Names(byLine) == "Reach level 10 | Collecting Memories | Miners' Union Card | Collecting Memories | The Defias Brotherhood | The Defias Brotherhood, Part Two",
+		"sort:line: each line in turn: " .. Names(byLine))
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open(""); UI:SetQuery("steps for the deadmines", 23); FlushAll()
+	local offered
+	for _, o in ipairs(ns.Bar.Options("sort")) do if o.id == "line" then offered = true end end
+	check(offered, "the bar's Sort offers Line by line for the steps")
+	check(ns.QuestionToAdvanced("deadmines > steps sort:line"):find("steps sort:line", 1, true), "Alt+` keeps a chain's sort after it: " .. tostring(ns.QuestionToAdvanced("deadmines > steps sort:line")))
+	ns.Bar.Pick("sort", "line"); FlushAll()
+	local shownNames = {}
+	for _, e in ipairs(UI.Results()) do if ns.Bar.Real(e) then shownNames[#shownNames + 1] = tostring(e.name) end end
+	check(table.concat(shownNames, " | ") == Names(byLine), "picked on the bar: line by line: " .. table.concat(shownNames, " | "))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = was; UI:EasyChanged()
 	check(table.concat({ ns.Easy.Verbs(res[3]) }, "/") == "show in Attune/put in the chat box", "a step's verbs")
 	-- a step that's another attunement: that one's steps, and Enter opens it
 	res = UI:Search("@attune onyxia > steps")

@@ -797,6 +797,12 @@ function ns.QuestionToAdvanced(text)
 			end
 		end
 	end
+	-- (a chain with a sort after it: the chain, then the sort, as Scan.Answer reads it)
+	if text:find(">", 1, true) then
+		local rest, tail = Scan.SplitTail(text, true)
+		local line = rest and Print(rest)
+		if line then return (line:gsub("%s+$", "")) .. " " .. table.concat(tail, " ") .. " " end
+	end
 	local line = Print(text)
 	if line then return line end
 	-- (a question with Advanced filters or sorts after it, as Scan.Answer reads it: the question's form, then them;
@@ -1024,6 +1030,13 @@ end
 --- the question, "my auctions q:rare+ sort:value", and Simple mode's bar; Scan.AnswerView. Its group was already: "| group
 --- by" sums up any rows.)
 function Scan.Answer(self, text)
+	-- (a chain with a sort after it, "deadmines > steps sort:line": the chain, then sorted; 0.55.21. Only sorts: a filter
+	-- typed at the end is the last step's own)
+	if text:find(">", 1, true) then
+		local rest, tail = Scan.SplitTail(text, true)
+		local rows = rest and Scan.Ask(self, rest)
+		if rows then return Scan.AnswerView(self, rows, tail) end
+	end
 	local rows = Scan.Ask(self, text)
 	local tail
 	if not rows then
@@ -1037,15 +1050,16 @@ end
 
 --- The Advanced filters and sorts at the end of a line ("my auctions q:rare+ sort:value"): the line before them, and
 --- them (nil: none, or a chain, whose last step takes its own).
-function Scan.SplitTail(text)
+function Scan.SplitTail(text, sortsOnly)
 	local F = ns.Filters
-	if not (F and F.Parse) or text:find(">", 1, true) then return nil end
+	if not (F and F.Parse) or (text:find(">", 1, true) and not sortsOnly) then return nil end
 	local words = {}
 	for w in text:gmatch("%S+") do words[#words + 1] = w end
 	local tail = {}
 	while #words > 1 do
 		local w = words[#words]
-		if w:find(":", 1, true) and w:sub(1, 1) ~= "@" and ((F.SortOf and F.SortOf(w)) or F.Parse(w)) then
+		local so = F.SortOf and F.SortOf(w)
+		if w:find(":", 1, true) and w:sub(1, 1) ~= "@" and (so or (not sortsOnly and F.Parse(w))) then
 			table.insert(tail, 1, w)
 			words[#words] = nil
 		else

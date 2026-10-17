@@ -14,12 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.55.20", when = "in testing",
+		v = "0.55.21", when = "in testing",
 		items = {
 			"A bar under the prompt in Simple mode: Filter, Sort and Group a click away (or Alt+F, Alt+S, Alt+G), and a speaker button to send every result to chat or copy them all (a single result: right-click it). Words you type like \"rare\" or \"nearest\" show on it, and questions (\"my auctions\") are filtered and sorted too. Advanced mode sorts as well: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
 			"Advanced syntax typed in Simple mode (@kinds, key:value, sort:name, sending to chat, \"| group by\") now works right there: your words stay as typed and the bar shows what it picks. Alt+` again, or Shift+Left, brings back your words after Alt+`.",
 			"Simple mode's categories: your bags (Items) and your bank and alts (Bank & alts) are two again.",
-			"An attunement's steps are numbered as Attune lays them out: 1, then 2a, 3a, 4a for one line of quests and 2b, 3b for the one beside it; a side quest says no quest leads up to it.",
+			"An attunement's steps are numbered as Attune lays them out and listed in that order: 1, 2a, 2b, 3a, 3b (each letter one line of quests; Sort \"Line by line\" lists each line in turn); a side quest says no quest leads up to it.",
 		},
 	},
 	{
