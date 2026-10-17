@@ -8,7 +8,7 @@ ns.UI = UI
 
 local FOOTER_H = 26 -- one line: the result count on the left, key hints on the right
 UI.FOOTER_H = FOOTER_H
-local ONCE_LABEL = L["Advanced, this time"] -- (Alt+`: this run is Advanced, Simple again once it closes)
+local ONCE_LABEL = L["Advanced"] -- (Alt+`: this run is Advanced, Simple again once it closes; 0.55.17, the player: not "Advanced, this time")
 UI.ONCE_LABEL = ONCE_LABEL
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
 UI.EasyOn = EasyOn

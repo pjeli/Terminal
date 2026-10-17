@@ -837,7 +837,7 @@ function E.HelpLines()
 		L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."],
 		L["Put words in quotes to find them together, as they are: \"outlaw saber\" finds the Outlaw Saber, not every name with both words."],
 		L["Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes."],
-		L["Alt+` turns what you typed into Advanced mode's command line, for that one time; Alt+` again, or Shift+Left, brings your words back (Simple again once it closes)."],
+		L["Alt+` turns what you typed into Advanced mode's command line; Alt+` again, or Shift+Left, brings your words back (Simple again once it closes)."],
 		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result back here, Shift+Enter with its list named (@npc Hogger)."],
 		L["Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log)."],
 		L["Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out)."],
