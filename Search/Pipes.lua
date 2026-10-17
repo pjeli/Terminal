@@ -1720,7 +1720,12 @@ end
 --- A group's Enter: the same search, keeping that group's rows (Shift+Left goes back).
 local function Drill(e)
 	local UI = ns.UI
-	if UI and e.drillTo then UI:WalkTo(e.drillTo, e) end
+	if not (UI and e.drillTo) then return end
+	-- (the bar's Group made these groups: its rows aren't grouped again; Shift+Left brings the Group back with the step)
+	local B = ns.Bar
+	local saved = B and B.Save()
+	if e.drillFromBar and B then B.state.group = nil end
+	UI:WalkTo(e.drillTo, e, saved)
 end
 
 --- The rows the search found, put through the steps: the kept rows (only "where" steps), or the summed-up rows. Rows
@@ -1846,6 +1851,7 @@ function A.Apply(spec, res, base)
 		if g.text and base then
 			r.noActivate, r.activate, r.staysOpen = nil, Drill, true
 			r.drillTo = DrillTo(spec, s.by, g)
+			r.drillFromBar = spec.fromBar -- (Simple mode's bar's Group: let go on the way in, Drill)
 			r.actionVerb = L["list them"]
 		end
 		out[#out + 1] = r

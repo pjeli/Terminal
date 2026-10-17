@@ -676,13 +676,14 @@ UI.WALKS_MAX = 10
 
 --- Writes `text` as the new search, keeping the one it leaves (and the row it was left from: `pick`, else the
 --- selected one) to go back to.
-function UI:WalkTo(text, pick)
+function UI:WalkTo(text, pick, bar)
 	local from = UI.edit:GetText()
 	if from ~= text then
 		local w = self.walks
 		if #w >= UI.WALKS_MAX then table.remove(w, 1) end
+		-- (bar: what Simple mode's bar had picked there, to come back with: the caller's when it changes it first)
 		w[#w + 1] = { from = from, to = text, pick = pick or UI.results[UI.sel],
-			category = (not self.categoryAuto) and self.category or nil }
+			category = (not self.categoryAuto) and self.category or nil, bar = bar or (ns.Bar and ns.Bar.Save()) }
 	end
 	self:SetQuery(text, #text)
 end
@@ -705,6 +706,7 @@ function UI:WalkBack()
 	table.remove(self.walks)
 	self.popTarget = top.pick -- (selected again once the results are in: SelectPopTarget)
 	self.category, self.categoryAuto = top.category, nil
+	if top.bar and ns.Bar then ns.Bar.Restore(top.bar) end
 	ns:Trace(("back: %q -> %q"):format(top.to, top.from))
 	self:SetQuery(top.from, #top.from)
 	return true

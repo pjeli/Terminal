@@ -66,6 +66,16 @@ do
 	local groups = 0
 	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then groups = groups + 1 end end
 	check(groups >= 3, "grouped by quality: a row per quality: " .. groups)
+	-- (0.55.10) a group's Enter: its rows, the bar's Group let go (else they'd be grouped again, one row); Shift+Left back
+	-- to the groups, the bar's Group with them
+	local gi
+	for i, e in ipairs(UI.Results()) do if e.kind == "aggregate" and e.drillTo then gi = gi or i end end
+	UI:Activate(gi, {}); FlushAll()
+	local drilled = UI.edit:GetText()
+	check(drilled:find("^sword q:") and not B.state.group and Names() ~= "" and E.On(),
+		"a group's Enter: its rows, Simple mode, the Group let go: '" .. drilled .. "' " .. Names())
+	check(UI:GoBack() and UI.edit:GetText() == "sword" and B.state.group == "quality", "Shift+Left: the groups again: " .. UI.edit:GetText())
+	FlushAll()
 	B.Clear("group"); FlushAll()
 
 	-- (0.55.9) Advanced syntax typed: Simple mode stays, the line as typed, the bar and its picks with it
@@ -118,6 +128,19 @@ do
 	UI:SetQuery(""); FlushAll()
 	check(#B.state.filters == 0, "the prompt cleared: the filter goes")
 
+	-- (0.55.10, the player's screenshot) the send button's tooltip doesn't sit over the selected row's: that one goes while
+	-- the pointer is on the button, and comes back after
+	UI:SetQuery("sword"); FlushAll()
+	UI.results[UI.sel].tip = "a sword"; UI:ForgetTooltip(); UI:UpdateTooltip()
+	local rowTip = _G.TerminalTooltip
+	check(rowTip and rowTip:IsShown(), "(the selected row's tooltip is up)")
+	local horn = B.strip.horn
+	horn:GetScript("OnEnter")(horn)
+	check(not rowTip:IsShown() and B.tip and B.tip:IsShown(), "on the send button: its own tooltip, not the row's")
+	UI:UpdateTooltip()
+	check(not rowTip:IsShown(), "and the row's stays away meanwhile")
+	horn:GetScript("OnLeave")(horn)
+	check(rowTip:IsShown() and not B.tip:IsShown(), "off it: the row's back")
 	-- the horn: the selected result's sending and copying lines only
 	UI:SetQuery("sword"); FlushAll()
 	local shown, share

@@ -139,8 +139,9 @@ function UI:UpdateTooltip()
 	local frame = UI.frame
 	local t = Tip()
 	local e = UI:IsShown() and UI.results[UI.sel] or nil
-	-- the row menu is up: no tooltip (both sit beside the terminal, on top of each other)
-	if UI:MenuShown() then e = nil end
+	-- the row menu is up: no tooltip (both sit beside the terminal, on top of each other); nor while the pointer is on
+	-- the bar's send button, whose own says what it does (Bar.lua)
+	if UI:MenuShown() or (ns.Bar and ns.Bar.tipUp) then e = nil end
 	-- the same row still selected and its tooltip still up: nothing to redraw (only kept beside the
 	-- terminal, which may have been dragged)
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end

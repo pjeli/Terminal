@@ -473,12 +473,20 @@ local function Build()
 		end
 		local tip = B.tip
 		if not tip then return end
-		tip:SetOwner(horn, "ANCHOR_TOP")
+		-- (0.55.10, the player's screenshot: it sat over the selected row's tooltip beside the terminal) that one put
+		-- away while the pointer is here, and this one growing left, over the terminal
+		if UI.HideTooltip then UI:HideTooltip() end
+		B.tipUp = true
+		tip:SetOwner(horn, "ANCHOR_TOPLEFT")
 		tip:SetText(L["Send or copy"], 1, 1, 1)
 		tip:AddLine(L["The selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV"], 0.8, 0.8, 0.8, true)
 		tip:Show()
 	end)
-	horn:SetScript("OnLeave", function() if B.tip then B.tip:Hide() end end)
+	horn:SetScript("OnLeave", function()
+		if B.tip then B.tip:Hide() end
+		B.tipUp = nil
+		if UI.UpdateTooltip and UI:IsShown() then UI:UpdateTooltip() end -- (the selected row's back)
+	end)
 	strip.horn = horn
 	B.strip = strip
 	return strip
