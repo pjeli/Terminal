@@ -137,6 +137,9 @@ do
 		local q = Q.Question("my spells")
 		check(q and q.known and Names((Q.Answer(q))) == "Battle Shout | Heroic Strike", "my spells: the spellbook: " .. Names((Q.Answer(q))))
 		check(ns.QuestionToAdvanced("my spells") == "@spell is:known ", "my spells as Advanced: " .. tostring(ns.QuestionToAdvanced("my spells")))
+		-- (0.55.15, the player's screenshot: "46 results · 46 results") the note says what, the footer how many
+		local _, note = Q.Answer(q)
+		check(note == ns.L["Your spellbook"], "the note has no count of its own: " .. tostring(note))
 		check(Q.Question("my druid spells").class == "DRUID" and not Q.Question("my druid spells").known, "my druid spells: the druid's")
 		SP.collect = spellsWas; SP._dirty = true
 	end

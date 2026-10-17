@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.55.14", when = "in testing",
+		v = "0.55.15", when = "in testing",
 		items = {
 			"A bar under the prompt in Simple mode: Filter, Sort and Group a click away (or Alt+F, Alt+S, Alt+G), and a speaker button to send every result to chat or copy them all (a single result: right-click it). Words you type like \"rare\" or \"nearest\" show on it, and questions (\"my auctions\") are filtered and sorted too. Advanced mode sorts as well: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
 			"Advanced syntax typed in Simple mode (@kinds, key:value, sort:name, sending to chat, \"| group by\") now works right there: your words stay as typed and the bar shows what it picks. Alt+` again, or Shift+Left, brings back your words after Alt+`.",

@@ -162,7 +162,7 @@ function TQ.Answer(q)
 		return { ns.NoteRow(L["No talent says that yet"], still) }, L["Talents by what they do"]
 	end
 	ns.ScoreInOrder(out)
-	return out, ns.Detail(L["Talents by what they do"], L["%d results"]:format(#out), still)
+	return out, ns.Detail(L["Talents by what they do"], still) -- (the footer counts them)
 end
 
 -- (as said, 0.55.7: the talents are found by what they do, the words' kin and the descriptions scored, which "@talent crit"

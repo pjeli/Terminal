@@ -100,7 +100,8 @@ function Q.Answer(q)
 		for _, e in ipairs(P and ns:GetEntries(P) or {}) do rows[#rows + 1] = e end
 		table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
 		if #rows == 0 then return { NoteRow(L["No spell that fits"]) }, L["Your spellbook"] end
-		return ns.ScoreInOrder(rows), L["Your spellbook"] .. ns.DETAIL_SEP .. L["%d results"]:format(#rows)
+		-- (no count: the footer says how many, after the bar's filter too; 0.55.15, the player's screenshot had it twice)
+		return ns.ScoreInOrder(rows), L["Your spellbook"]
 	elseif q.class then
 		for _, e in ipairs(CS.Rows(q.class, q.class == mine, true)) do
 			if not q.level or RankAt(e, q.level) then rows[#rows + 1] = e end
@@ -138,7 +139,7 @@ function Q.Answer(q)
 	if #rows == 0 then
 		return { NoteRow(q.upcoming and L["Nothing new to learn above your level"] or L["No spell that fits"]) }, note
 	end
-	return ns.ScoreInOrder(rows), note .. ns.DETAIL_SEP .. L["%d results"]:format(#rows)
+	return ns.ScoreInOrder(rows), note
 end
 
 function Q.ToAdvanced(q)

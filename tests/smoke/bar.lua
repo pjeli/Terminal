@@ -165,6 +165,22 @@ do
 	check(shown == UI.sel and share == true, "the horn: the row menu's sending lines for the selected result")
 	UI:Hide(); FlushAll()
 
+	-- (0.55.15, the player: "missing the is:unplaced / missing from my action bars filter") every list's own filters,
+	-- each where its list is shown
+	do
+		local function Ids(kinds)
+			local t = {}
+			for _, o in ipairs(B.FILTERS) do if B.Fits(o.id, kinds) then t[#t + 1] = o.id end end
+			return " " .. table.concat(t, " ") .. " "
+		end
+		local sp = Ids({ spells = true })
+		check(sp:find(" is:unplaced ", 1, true) and sp:find(" is:passive ", 1, true) and sp:find(" is:ready ", 1, true) and not sp:find(" q:rare+ ", 1, true),
+			"spells: not on your bars, passive, ready: " .. sp)
+		check(Ids({ group = true }):find(" is:dead ", 1, true) and Ids({ mail = true }):find(" is:expiring ", 1, true)
+			and Ids({ quests = true }):find(" is:drop ", 1, true) and Ids({ auctions = true }):find(" is:sold ", 1, true), "and the others' own")
+		for _, o in ipairs(B.FILTERS) do check(ns.Filters.Parse(o.id) ~= nil, "a filter the search knows: " .. o.id) end
+	end
+
 	-- (0.55.14) a filter typed as key:value shows too, named in words; unticked, its words go, quotes and all
 	UI:Open(""); UI:SetQuery('sword in:"Scarlet Monastery" '); FlushAll()
 	check(B.strip.buttons[1].label == L["Filter: %s"]:format("In Scarlet Monastery"), "in: typed: " .. B.strip.buttons[1].label)
