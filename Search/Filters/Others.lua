@@ -338,6 +338,29 @@ end
 IS.sent = function(e) return e.kind == "mail" and (e.mailKind == "sent" or (e.mailKind == "mail" and e.mail.sent ~= nil)) or false end
 IS.incoming = function(e) return e.kind == "auctions" and e.mailKind == "auction" or false end -- (the news: @auction's)
 IS.pending, IS.expected = IS.incoming, IS.incoming
+-- (0.55.7, the search's rewrite: what "auctions sold" and "what am i selling" ask, as filters, so Alt+` writes them)
+IS.sold = function(e) return e.kind == "auctions" and e.mailKind == "auction" and e.news == "sold" or false end
+IS.listed = function(e) return e.kind == "auctions" and e.ahKind == "up" or false end
+IS.selling = IS.listed
+-- yours: the loot you looted (LootLog.lua), what happened to this character (CombatLog.lua: @combatlog lists every
+-- character's); the combat log's deaths, crits on you (taken) and your crits (dealt)
+IS.mine = function(e)
+	if e.kind == "lootlog" then return e.mine == true end
+	if e.kind == "combatlog" then return not e.other end
+	return false
+end
+IS.yours = IS.mine
+local function CombatIs(test) return function(e) return e.kind == "combatlog" and test(e.what) or false end end
+IS.death = CombatIs(function(w) return w == "killed" or w == "died" end)
+IS.taken = CombatIs(function(w) return w == "crit" end)
+IS.dealt = CombatIs(function(w) return w == "critby" end)
+IS.deaths, IS.killed = IS.death, IS.death
+-- looter:bob: the loot log's drops that someone looted (the name, _ for a space: looter:bob_stormrage)
+KEYS.looter = function(v)
+	if v == "" then return nil end
+	local want = Lower((v:gsub("_", " ")))
+	return function(e) return e.kind == "lootlog" and type(e.looter) == "string" and Lower(e.looter) == want or false end
+end
 IS.gold, IS.ah = IS.money, IS.auction
 -- your group (Group.lua): dead (or a ghost), the role set, out of range (the game's own test; hidden in combat: not
 -- judged), missing a buff the group can give; is:online / is:offline above read the same `online`
@@ -388,6 +411,7 @@ IS.invite = CalendarIs(function(e) return e.pending == true end)
 IS.today = CalendarIs(function(e) return ns.Calendar.InSpan(e, "today") end)
 -- (0.49.2, review: not is:pending, @auction's word for its news, which this line took over)
 IS.holidays, IS.invites, IS.invited = IS.holiday, IS.invite, IS.invite
+IS.guild = CalendarIs(function(e) return ns.Calendar.GUILD[e.type] == true end) -- (your guild's events and announcements)
 -- when:<span>: on the calendar today, tomorrow, this week (the next 7 days), this weekend, next week, this month or next
 -- month (what a Simple-mode question's span becomes in Advanced mode, Alt+`)
 KEYS.when = function(v)
@@ -408,7 +432,8 @@ F.VALUES = {
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
-		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today" },
+		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today", "guild",
+		"sold", "listed", "mine", "death", "taken", "dealt" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -418,7 +443,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "nearest", "plan", "best", "name", "level", "ilvl", "quality", "value", "count" },
+	sort = { "nearest", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage" },
 	fish = { "mine", "75", "150", "225", "300" },
 	class = { "mine", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid" },
 	["do"] = { "use", "cast", "summon", "equip", "wear", "target", "link", "where" },
@@ -465,8 +490,11 @@ F.APPLIES = {
 		shareable = { "groupquests" }, together = { "groupquests" },
 		raid = { "lockouts", "attune" }, dungeon = { "lockouts", "attune" }, key = { "attune" }, class = { "attune" },
 		broken = { "durability" }, damaged = { "durability" },
-		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" },
+		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" }, guild = { "calendar" },
+		sold = { "auctions" }, listed = { "auctions" }, mine = { "lootlog", "combatlog" },
+		death = { "combatlog" }, taken = { "combatlog" }, dealt = { "combatlog" },
 	},
+	looter = { ["*"] = { "lootlog" } },
 	missing = { ["*"] = GROUP },
 	when = { ["*"] = { "calendar" } },
 	standing = { ["*"] = { "reputation" } },
@@ -474,7 +502,8 @@ F.APPLIES = {
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { nearest = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
-		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" } },
+		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
+		damage = { "combatlog" } },
 	near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
 	class = { ["*"] = { "talents", "attune", "spells", "classspells" } },
@@ -555,10 +584,13 @@ F.HELP = {
 	{ "is:raid", L["@lockout: your characters' raid lockouts (is:dungeon: dungeons'), with bosses down and when each resets; on:<character>"] },
 	{ "is:key", L["@attune (with Attune): your attunements, dungeon quests, keys and class quests, with how far along you are; is:raid is:dungeon is:key is:class, is:done is:todo, class:<class>; > steps lists one's steps"] },
 	{ "dura:<50", L["@durability: your gear by durability in percent (is:damaged: anything to repair, is:broken: at zero), each with what repairing it costs"] },
-	{ "is:holiday", L["@calendar: holidays; is:invite: invitations you haven't answered; is:today: what's on today"] },
+	{ "is:holiday", L["@calendar: holidays; is:invite: invitations you haven't answered; is:today: what's on today; is:guild: your guild's events"] },
 	{ "when:week", L["@calendar: what's on today, tomorrow, this week (the next 7 days), this weekend, next week (nextweek), this month or next month (nextmonth)"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },
 	{ "is:incoming", L["@auction: your characters' auctions up now with price and time left; is:incoming: the auction house's news (sold, won, outbid, expired); on:<character>"] },
+	{ "is:sold", L["@auction: the auction house's news of a sale; is:listed: your auctions up now"] },
+	{ "is:mine", L["@drop: what you looted (looter:bob: what Bob looted); @combatlog: this character's, not your alts'"] },
+	{ "is:death", L["@combatlog: what killed you; is:taken: the crits on you; is:dealt: your crits; sort:damage: the biggest first"] },
 	{ "in:elwynn_forest", L["a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)"] },
 	{ "-is:soulbound", L["not that: - or ! before a filter or a word (-is:boe, !q:poor, -cloth)"] },
 	{ "q:rare|epic", L["any of them: | between values, filters or words (slot:head|chest, is:boe|q:epic, sword|axe)"] },

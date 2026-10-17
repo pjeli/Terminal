@@ -137,7 +137,9 @@ do
 	check(said:find("Helm of the Wolf", 1, true) and not said:find("upgrade for you", 1, true),
 		"the quest's tooltip names the reward compared, no \"an upgrade\" line: " .. said)
 	check(compared[1] == "|Hitem:9501|h", "a quest's tooltip: the game compares its reward: " .. tostring(compared[1]))
-	check(ns.Easy.ToAdvanced("quest upgrades") == "@questie is:upgrade sort:best ", "Alt+`: " .. ns.Easy.ToAdvanced("quest upgrades"))
+	-- (0.55.7: as said: the level window, the done check, race and class are the question's own)
+	check(ns.Easy.ToAdvanced("quest upgrades") == "quest upgrades ", "Alt+`: " .. ns.Easy.ToAdvanced("quest upgrades"))
+	check(T.SameAsAdvanced("quest upgrades"))
 	UI:Hide(); FlushAll()
 	-- Advanced: is:upgrade judges a quest by its rewards
 	ns.db.easyMode = false

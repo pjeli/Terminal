@@ -165,7 +165,10 @@ function TQ.Answer(q)
 	return out, ns.Detail(L["Talents by what they do"], L["%d results"]:format(#out), still)
 end
 
-function TQ.ToAdvanced(q)
+-- (as said, 0.55.7: the talents are found by what they do, the words' kin and the descriptions scored, which "@talent crit"
+-- doesn't do: nil, Search.lua's ns.QuestionToAdvanced)
+function TQ.ToAdvanced() return nil end
+function TQ.ToAdvancedApprox(q)
 	local parts = { "@talent" }
 	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class) end
 	for _, w in ipairs(q.words) do parts[#parts + 1] = w end

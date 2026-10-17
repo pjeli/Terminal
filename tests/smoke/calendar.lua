@@ -234,6 +234,9 @@ do
 	check(note == ns.L["Holidays"] .. "  ·  " .. ns.L["this week"], "the footer: " .. tostring(note))
 	check(E.ToAdvanced("holidays") == "@calendar is:holiday " and E.ToAdvanced("next darkmoon faire") == "@calendar darkmoon faire "
 		and E.ToAdvanced("my invites") == "@calendar is:invite ", "Alt+`: " .. E.ToAdvanced("holidays"))
+	-- (0.55.7) "guild events" as is:guild ("guild" was a word searched), and each finds what the question does
+	check(E.ToAdvanced("guild events") == "@calendar is:guild ", "Alt+`: " .. E.ToAdvanced("guild events"))
+	for _, q in ipairs({ "guild events", "holidays", "my invites", "whats on this week" }) do check(T.SameAsAdvanced(q)) end
 	ns.db.easyMode = true
 	res = UI:Search("holidays")
 	check(#res == 3 and UI.answerNote and UI.answerNote:find(ns.L["Holidays"], 1, true), "Simple mode asks it too")

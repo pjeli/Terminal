@@ -1506,6 +1506,8 @@ A.FIELDS = {
 	level = { label = L["level"], num = function(e) return FP.Levels and (FP.Levels(e)) or nil end, order = true },
 	ilvl = { label = L["item level"], num = function(e) local i = Info(e); return i and Num(i.ilvl) end, order = true },
 	count = { label = L["count"], num = function(e) return Count(e) or 1 end },
+	-- (the combat log's hits: sort:damage; 0.55.7)
+	damage = { label = L["damage"], num = function(e) return e.kind == "combatlog" and Num(e.amount) or nil end },
 	price = { label = L["price"], money = true, num = function(e) local i = Info(e); return i and Num(i.sell) end },
 	value = { label = L["value"], money = true, num = function(e)
 		local i = Info(e)

@@ -56,7 +56,9 @@ do
 	local Q = ns.TalentsQ
 	check(Q.Question("talents window") == nil and Q.Question("reset talents") == nil and Q.Question("talents") == nil
 		and Q.Question("@talent crit") == nil and Q.Question("crit food") == nil, "not its questions")
-	check(ns.QuestionToAdvanced("shaman crit talents") == "@talent class:shaman crit ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("shaman crit talents")))
+	-- (0.55.7: as said: "@talent class:shaman crit" didn't find by the words' kin and the descriptions)
+	check(ns.QuestionToAdvanced("shaman crit talents") == "shaman crit talents ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("shaman crit talents")))
+	check(T.SameAsAdvanced("shaman crit talents"))
 	-- a description not sent yet: asked for at once, said in the footer, found once it's in
 	local later = DESC[90002]
 	DESC[90002] = nil

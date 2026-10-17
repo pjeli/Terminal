@@ -120,8 +120,10 @@ do
 	check(#res == 2 and res[1].name == "Crescent Belt" and UI.answerNote == "Bob's drops, newest first", "someone's drops: " .. #res)
 	res = UI:SearchText("what did i loot")
 	check(#res == 1 and res[1].name == "Linen Cloth" and res[1].detail:find("^x2"), "your drops: " .. #res)
-	check(ns.Easy.ToAdvanced("what dropped") == "@drop " and ns.Easy.ToAdvanced("what did i loot") == "@drop you "
-		and ns.Easy.ToAdvanced("what did bob get") == "@drop bob ", "Alt+`: their Advanced forms: " .. ns.Easy.ToAdvanced("what did i loot"))
+	check(ns.Easy.ToAdvanced("what dropped") == "@drop " and ns.Easy.ToAdvanced("what did i loot") == "@drop is:mine "
+		and ns.Easy.ToAdvanced("what did bob get") == "@drop looter:bob ", "Alt+`: their Advanced forms: " .. ns.Easy.ToAdvanced("what did i loot"))
+	-- (0.55.7) and they find what the questions do (is:mine, looter:: "@drop you" found "you" in a row's words)
+	for _, q in ipairs({ "what dropped", "what did i loot", "what did bob get" }) do check(T.SameAsAdvanced(q)) end
 	ns.db.easyMode = false
 	check(ns.Filters.Parse("q:uncommon") ~= nil, "(filters work on its rows: they carry the item)")
 	do -- to chat, a drop says who got it, where and when (0.45.10: ">> @drop rotmender's garb >> party" sent the bare link)

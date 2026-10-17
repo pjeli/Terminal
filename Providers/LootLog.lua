@@ -368,8 +368,11 @@ end
 function LL.Answer(q)
 	local p = ns.providers.lootlog
 	local rows = {}
+	-- (the filters Alt+` writes, is:mine and looter:<name>: one test for both ways of asking; Filters/Others.lua)
+	local F = ns.Filters
+	local test = (q.who == "me" and F.Parse("is:mine")) or (q.who and F.Parse("looter:" .. ns.Lower(q.who):gsub("%s+", "_"))) or nil
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
-		if not q.who or (q.who == "me" and e.mine) or (q.who ~= "me" and e.looter == q.who) then rows[#rows + 1] = e end
+		if not test or test(e) then rows[#rows + 1] = e end
 	end
 	ns.ScoreInOrder(rows)
 	local note = (q.who == "me" and L["Your drops, newest first"]) or (q.who and L["%s's drops, newest first"]:format(q.who))

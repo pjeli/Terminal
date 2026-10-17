@@ -421,7 +421,8 @@ function QR.UpgradeAnswer()
 end
 
 --- Alt+`: the same in Advanced mode.
-function QR.UpgradeToAdvanced() return "@questie is:upgrade sort:best " end
+-- (as said: the quests near your level, not done, for your race and class; "@questie is:upgrade" had none of that; 0.55.7)
+function QR.UpgradeToAdvanced() return nil end
 
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
 function QR.ToAdvanced(q)

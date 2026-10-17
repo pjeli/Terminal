@@ -340,11 +340,12 @@ end
 function CB.Answer(kind)
 	local p = ns.providers.combatlog
 	local rows = {}
+	-- (the filters Alt+` writes: is:mine, and is:death / is:taken / is:dealt; Filters/Others.lua)
+	local F = ns.Filters
+	local mine, which = F.Parse("is:mine"), F.Parse((kind == "killed" and "is:death") or (kind == "crit" and "is:taken") or "is:dealt")
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
 		-- (yours only: "what killed me" on this character; @combatlog lists every character's, each named)
-		if not e.other and ((kind == "killed" and (e.what == "killed" or e.what == "died")) or e.what == kind) then
-			rows[#rows + 1] = e
-		end
+		if mine(e) and which(e) then rows[#rows + 1] = e end
 	end
 	if kind ~= "killed" then -- (crits: the biggest first)
 		table.sort(rows, function(a, b) return (a.amount or 0) > (b.amount or 0) end)

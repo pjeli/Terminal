@@ -36,6 +36,8 @@ do
 		"what killed me: the killing blow: " .. tostring(res[1] and res[1].name))
 	res = UI:SearchText("who crit me")
 	check(#res == 1 and res[1].what == "crit", "who crit me: the crit on you")
+	-- (0.55.7) their Advanced forms find the same (yours only, the biggest first: is:mine, sort:damage)
+	for _, q in ipairs({ "what killed me", "who crit me", "my biggest crit" }) do check(T.SameAsAdvanced(q)) end
 	ns.providers.combatlog._dirty = true
 	res = UI:Search("@combatlog mortal")
 	check(#res >= 2, "@combatlog mortal: by the spell")

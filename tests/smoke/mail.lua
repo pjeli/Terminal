@@ -153,8 +153,11 @@ do
 	check(#rows == 1 and rows[1].name == "Here you go", "mail from bob: Bob's")
 	res = UI:Search("cod mail")
 	check(#res == 1 and res[1].name == "Linen for you" and UI.answerNote, "asked in the prompt: answered, with a note")
+	-- (0.55.7: "mail from bob" lists the auction house's news too, which @mail doesn't: kept as said, and still answered)
 	check(ns.Easy.QuestionToAdvanced("mail running out") == "@mail is:expiring " and ns.Easy.QuestionToAdvanced("mail from bob")
-		== "@mail bob ", "Alt+` writes it as @mail")
+		== "mail from bob ", "Alt+` writes it as @mail, or as said: " .. tostring(ns.Easy.QuestionToAdvanced("mail from bob")))
+	check(T.SameAsAdvanced("mail running out"))
+	check(T.SameAsAdvanced("mail from bob"))
 	check(table.concat({ ns.Easy.Verbs(res[1]) }, "/") == "show in chat/nearest mailbox" or not ns.providers.mailbox,
 		"verbs: in chat, the nearest mailbox")
 
@@ -407,7 +410,9 @@ do
 		and MA.Question("auction mail"), "\"my auctions\" / \"what am i selling\" are @auction's; \"auction house\", \"ah\" stay searches, \"auction mail\" is the mail's")
 	local ans = ns.Auctions.Answer(ns.Auctions.Question("what am i selling"))
 	check(#ans == 2 and ans[1].ahKind == "up", "\"what am i selling\": the auctions up now")
-	check(ns.Auctions.ToAdvanced(ns.Auctions.Question("my auctions sold linen")) == "@auction sold linen ", "Alt+`: @auction sold linen")
+	check(ns.Auctions.ToAdvanced(ns.Auctions.Question("my auctions sold linen")) == "@auction is:sold linen ", "Alt+`: @auction is:sold linen")
+	-- (0.55.7) and it finds what the question does ("sold", "listed" were words searched)
+	check(T.SameAsAdvanced("what am i selling"))
 	check(MA.ToAdvanced(MA.Question("incoming mail")) == "@auction is:incoming ", "Alt+` on \"incoming mail\": @auction's news: "
 		.. MA.ToAdvanced(MA.Question("incoming mail")))
 	-- the Auctions tab's list without one kept as posted: it's over (paid out, expired or cancelled)

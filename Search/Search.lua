@@ -676,7 +676,9 @@ Scan.ANSWERS = {
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
 	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,
-		toAdvanced = function(q) return "@drop " .. ((q.who == "me" and "you ") or (q.who and (ns.Lower(q.who) .. " ")) or "") end },
+		toAdvanced = function(q)
+			return "@drop " .. ((q.who == "me" and "is:mine ") or (q.who and ("looter:" .. ns.Lower(q.who):gsub("%s+", "_") .. " ")) or "")
+		end },
 	-- "how do i get into mc", "how do i get attuned to onyxia": its steps (Search/Attune.lua; before the chains, whose "how
 	-- do i get" is where to get an item)
 	{ ask = function(text) local Q = ns.Attune and ns.Attune.Q return Q and Q.How(text) end,
@@ -703,7 +705,9 @@ Scan.ANSWERS = {
 	-- "what killed me", "who crit me": CombatLog.lua
 	{ ask = function(text) return ns.CombatLog and ns.CombatLog.Question(text) end,
 		answer = function(q) return ns.CombatLog.Answer(q) end,
-		toAdvanced = function(q) return "@combatlog " .. ((q == "killed" and "killed") or (q == "crit" and "taken") or "dealt") .. " " end },
+		toAdvanced = function(q)
+			return "@combatlog is:mine " .. ((q == "killed" and "is:death") or (q == "crit" and "is:taken sort:damage") or "is:dealt sort:damage") .. " "
+		end },
 	-- "where should i level", "what dungeon should i do", "where should i fish": Zones.lua
 	Asks("Zones"),
 	-- "spells not on my bars": Spells.lua
@@ -777,10 +781,17 @@ Scan.ANSWERS = {
 }
 
 --- A plain-word question or chain as Advanced mode writes it (Alt+`: Easy.ToAdvanced), or nil when the line is none.
+--- (0.55.7, the search's rewrite: a question whose answer no search gives, ranked or gathered its own way, "where should i
+--- level" by how well each zone fits, "my mail" with the auction house's news, stays as it was said: its toAdvanced says
+--- nil. Questions are answered in Advanced mode too, so what's written finds what was shown; "@map lvl:23" didn't.)
 function ns.QuestionToAdvanced(text)
 	for _, a in ipairs(Scan.ANSWERS) do
 		local q, extra = a.ask(text, true)
-		if q then return a.toAdvanced(q, extra) end
+		if q then
+			local line = a.toAdvanced(q, extra)
+			if line == nil then line = (text:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
+			return line
+		end
 	end
 end
 

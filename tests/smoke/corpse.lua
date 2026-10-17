@@ -74,7 +74,8 @@ do
 	check(Names(rows) == L["Your corpse"] .. " | Graveyard Keeper | Spirit Healer | Spirit Healer", "where is my body: it, then the nearest spirit healers: " .. Names(rows))
 	check(rows[1].detail:find("^50 yd") and rows[2].detail:find("^90 yd"), "how far each is: " .. tostring(rows[1].detail))
 	check(tostring(UI.status:GetText()):find(L["Your corpse"], 1, true), "the footer says so")
-	check(ns.Easy.ToAdvanced("where is my body") == "@corpse ", "Alt+`: @corpse")
+	-- (0.55.7: as said, the spirit healers come too: @corpse lists only the corpse)
+	check(ns.Easy.ToAdvanced("where is my body") == "where is my body ", "Alt+`: as said: " .. ns.Easy.ToAdvanced("where is my body"))
 	UI:Hide(); FlushAll()
 	-- "nearest spirit healer": the healers alone, closest first
 	UI:Open("nearest spirit healer"); FlushAll()

@@ -101,12 +101,11 @@ do
 		and Z.Question("instance locations") == nil, "place words ask only about fishing and levelling (0.43.27)")
 	local saveLvl, saveGP, saveGPI = UnitLevel, _G.GetProfessions, _G.GetProfessionInfo
 	UnitLevel = function() return 23 end
-	check(E.ToAdvanced("where should i fish") == "@map fish:mine " and E.ToAdvanced("fishing spots") == "@map fish:mine ",
-		"fishing questions -> @map fish:mine: " .. E.ToAdvanced("where should i fish"))
-	check(E.ToAdvanced("where should i level") == "@map lvl:23 " and E.ToAdvanced("what dungeon should i do") == "@dungeon lvl:23 "
-		and E.ToAdvanced("dungeon for 30") == "@dungeon lvl:30 " and E.ToAdvanced("what raid should i do") == "@raid lvl:23 ",
-		"level and dungeon questions -> lvl: on @map/@dungeon/@raid: " .. E.ToAdvanced("where should i level"))
-	check(E.ToAdvanced("mats for thorium belt") == "thorium belt > mats " and E.ToAdvanced("what killed me") == "@combatlog killed ",
+	-- (0.55.7: as said: ranked by how well each fits, which "@map lvl:23" didn't do; and answered in Advanced mode too)
+	check(E.ToAdvanced("where should i fish") == "where should i fish " and E.ToAdvanced("where should i level") == "where should i level "
+		and E.ToAdvanced("dungeon for 30") == "dungeon for 30 ", "zone questions as said: " .. E.ToAdvanced("where should i level"))
+	for _, q in ipairs({ "where should i level", "what dungeon should i do", "dungeon for 30" }) do check(T.SameAsAdvanced(q)) end
+	check(E.ToAdvanced("mats for thorium belt") == "thorium belt > mats " and E.ToAdvanced("what killed me") == "@combatlog is:mine is:death ",
 		"chains and combat questions: their Advanced forms")
 	-- fish: on zone rows
 	_G.GetProfessions = function() return nil, nil, nil, 4 end

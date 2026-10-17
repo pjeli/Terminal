@@ -143,6 +143,9 @@ end
 
 function Q.ToAdvanced(q)
 	if q.known then return "@spell is:known " end
+	-- (as said, 0.55.7: the next level you learn something new at, which lvl:N+ didn't say, nor "when do i learn":
+	-- your class's first. Search.lua's ns.QuestionToAdvanced)
+	if q.upcoming or (not q.class and #(q.words or {}) > 0) then return nil end
 	local parts = { "@spell" }
 	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class)
 	else parts[#parts + 1] = "class:mine -is:known" end

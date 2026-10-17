@@ -6151,8 +6151,29 @@ end
 
 -- Extra test files (tests/smoke/*.lua, alphabetical) run here with the same game and helpers: each gets T =
 -- { ns, UI, F, S, check, log, logHas, key, typeText, query, withCtrl, names, Obj, Flush, FlushAll, timers }.
+-- (0.55.7, the search's rewrite) a question and its Advanced form (Alt+`) give the same results, in the same order: the
+-- result names of each, and the line ("" when the same; else what differs)
+local function SameAsAdvanced(question)
+	local was = ns.db.easyMode
+	ns.db.easyMode = true
+	local line = ns.Easy.ToAdvanced(question)
+	local function Names(res)
+		local t = {}
+		for _, e in ipairs(res) do if ns.Bar.Real(e) then t[#t + 1] = tostring(e.name) end end
+		return table.concat(t, " | ")
+	end
+	for _, p in pairs(ns.providers) do p._dirty = true end
+	local a = Names(UI:Search(question))
+	ns.db.easyMode = false
+	for _, p in pairs(ns.providers) do p._dirty = true end
+	local b = Names(UI:Search(line))
+	ns.db.easyMode = was
+	return a == b and a ~= "", ("'%s' -> '%s': %s  //  %s"):format(question, line, a, b)
+end
+
 do
 	local T = { ns = ns, UI = UI, F = F, S = S, check = check, log = log, logHas = logHas, key = key, typeText = typeText,
+		SameAsAdvanced = SameAsAdvanced,
 		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
 		ef = ef, clock = function() return clock end, UpgradeWhy = UpgradeWhy } -- (clock: the timers' time, for a GetTime that follows them)
 	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do

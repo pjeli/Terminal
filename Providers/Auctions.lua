@@ -184,10 +184,13 @@ function AU.Answer(q)
 	local p = ns.providers.auctions
 	local all = p and ns:GetEntries(p) or {}
 	local rows = {}
+	-- (the filters Alt+` writes, is:sold and is:listed: one test for both ways of asking; Filters/Others.lua)
+	local F = ns.Filters
+	local sold, listed = F.Parse("is:sold"), F.Parse("is:listed")
 	for _, e in ipairs(all) do
 		local ok = true
-		if q.sold and not (e.mailKind == "auction" and e.news == "sold") then ok = false end
-		if q.up and e.ahKind ~= "up" then ok = false end
+		if q.sold and not sold(e) then ok = false end
+		if q.up and not listed(e) then ok = false end
 		local hay = ok and (Lower(e.name) .. " " .. (e._ltext or Lower(e.text or ""))) or ""
 		for _, w in ipairs(q.words or {}) do if ok and not hay:find(w, 1, true) then ok = false end end
 		if ok then rows[#rows + 1] = e end
@@ -202,11 +205,11 @@ function AU.Answer(q)
 	return rows, AU.NOTE .. ns.DETAIL_SEP .. L["%d up now"]:format(up)
 end
 
---- The question as Advanced syntax (Alt+`): "@auction sold linen".
+--- The question as Advanced syntax (Alt+`): "@auction is:sold linen".
 function AU.ToAdvanced(q)
 	local parts = { "@auction" }
-	if q.sold then parts[#parts + 1] = "sold" end
-	if q.up then parts[#parts + 1] = "listed" end
+	if q.sold then parts[#parts + 1] = "is:sold" end
+	if q.up then parts[#parts + 1] = "is:listed" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	return table.concat(parts, " ") .. " "
 end

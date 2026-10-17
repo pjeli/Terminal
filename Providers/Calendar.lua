@@ -172,6 +172,7 @@ local TYPE_WORDS = {
 -- the kinds you're invited to, with an answer
 local RSVP = { PLAYER = true, GUILD_EVENT = true, COMMUNITY_EVENT = true }
 local GUILD = { GUILD_EVENT = true, GUILD_ANNOUNCEMENT = true }
+CA.GUILD = GUILD -- (is:guild: Filters/Others.lua)
 
 local ICONS = {
 	HOLIDAY = "Interface\\Icons\\INV_Misc_Note_06", RAID_LOCKOUT = "Interface\\Icons\\INV_Misc_Key_14",
@@ -652,7 +653,7 @@ function CA.Answer(q)
 		if q.span and not CA.InSpan(e, q.span) then ok = false end
 		if ok and q.holiday and e.type ~= "HOLIDAY" then ok = false end
 		if ok and q.invite and not e.pending then ok = false end
-		if ok and q.guild and not GUILD[e.type] then ok = false end
+		if ok and q.guild and not GUILD[e.type] then ok = false end -- (is:guild's test too: Alt+` writes it)
 		for _, w in ipairs(q.words or {}) do if ok and not Has(e, w) then ok = false end end
 		if ok then rows[#rows + 1] = e end
 	end
@@ -676,7 +677,7 @@ function CA.ToAdvanced(q)
 	if q.holiday then parts[#parts + 1] = "is:holiday" end
 	if q.invite then parts[#parts + 1] = "is:invite" end
 	if q.span then parts[#parts + 1] = "when:" .. q.span end
-	if q.guild then parts[#parts + 1] = "guild" end
+	if q.guild then parts[#parts + 1] = "is:guild" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	return table.concat(parts, " ") .. " "
 end

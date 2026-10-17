@@ -1325,6 +1325,9 @@ end
 
 --- The question as Advanced syntax (Alt+`): "@mail is:expiring bob".
 function MA.ToAdvanced(q)
+	-- (as said, 0.55.7: "my mail" lists the auction house's news and every mailbox too, and gold or auction mail the
+	-- news's sales: no one list has them. Search.lua's ns.QuestionToAdvanced)
+	if not Filtered(q) or q.money or q.auction then return nil end
 	local parts = { q.incoming and "@auction" or "@mail" } -- (the auction house's news is @auction's)
 	if q.soon then parts[#parts + 1] = "is:expiring" end
 	if q.cod then parts[#parts + 1] = "is:cod" end
