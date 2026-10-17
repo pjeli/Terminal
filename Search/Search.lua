@@ -1976,8 +1976,10 @@ function Scan.Overview(self, q, noAuto)
 		return nil
 	end
 	-- copying every result ("linen to csv"): every category's rows, not the categories themselves (release review: the
-	-- CSV had a line per category)
-	if not noAuto and self.sendTo and self.sendTo.copy and self.sendTo.all then
+	-- CSV had a line per category); summed up too, "q:rare type:sword | group by dungeon" (0.55.12, the player's
+	-- screenshot: the categories were grouped, none has a dungeon: 0 results)
+	local summing = ns.Aggregate and ns.Aggregate.Summing(self.aggregate)
+	if not noAuto and ((self.sendTo and self.sendTo.copy and self.sendTo.all) or summing) then
 		q.kinds = {}
 		for _, b in ipairs(order) do for k in pairs(ns.Easy.Kinds(b.c.id) or {}) do q.kinds[k] = true end end
 		return nil

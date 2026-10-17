@@ -154,6 +154,26 @@ do
 	check(shown == UI.sel and share == true, "the horn: the row menu's sending lines for the selected result")
 	UI:Hide(); FlushAll()
 
+	-- (0.55.12, the player's screenshot: "Filter: Q:rare") a filter typed in Advanced syntax is named in words
+	check(B.SpecLabel("q:rare", "q:rare") == "Rare" and B.SpecLabel("q:epic+", "q:epic+") == "Epic or better"
+		and B.SpecLabel("-is:boe", "-is:boe") == "Not boe" and B.SpecLabel("is:unlearned", "is:unlearned") == "Unlearned"
+		and B.SpecLabel("q:rare+", "x") == L["Rare or better"],
+		"typed filters in words: " .. B.SpecLabel("q:rare", "q:rare") .. " / " .. B.SpecLabel("-is:boe", "-is:boe"))
+	-- (0.55.12, the player's screenshot: "q:rare type:sword | group by dungeon", 0 results) a sum over the categories:
+	-- every category's rows summed up, not the categories
+	ns:RegisterProvider("spells", { label = "Spell", aliases = { "spell" }, collect = function()
+		return { { name = "Sword Dance", key = 1 } }
+	end })
+	ns:AliasesChanged()
+	UI:Open(""); UI:SetQuery("sword | group by quality"); FlushAll()
+	local gq = 0
+	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" and e.drillTo then gq = gq + 1 end end
+	check(gq >= 3 and not B.Overview(UI.Results()), "grouped over every category's rows, not over the categories: " .. gq)
+	UI:Hide(); FlushAll()
+	ns.providers.spells = nil
+	for i, id in ipairs(ns.providerOrder) do if id == "spells" then table.remove(ns.providerOrder, i) break end end
+	ns:AliasesChanged()
+
 	-- (0.55.7, the search's rewrite, phase 4) the bar edits the query: a filter typed as a word shows as picked, and is
 	-- taken back out of the line from the bar
 	UI:Open(""); UI:SetQuery("rare sword"); FlushAll()

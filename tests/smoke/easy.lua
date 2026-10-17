@@ -821,14 +821,14 @@ Run("right-click menu", function()
 	local labels = {}
 	for _, b in ipairs(m.lines) do if b:IsShown() then labels[#labels + 1] = b.fs:GetText() end end
 	local all = table.concat(labels, ",")
-	check(all == "Show in bags,Use,Link in chat,Say in chat,Cancel", "its actions in words: " .. all)
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Copy as text,Cancel", "its actions in words (0.55.12: copied as text here, not from the send button): " .. all)
 	local use = m.lines[2]
 	check(use.attrs.type1 == "macro" and use.attrs.macrotext1 == "/use item:6948", "Use: the game runs /use on the click: " .. tostring(use.attrs.macrotext1))
 	use.scripts.PostClick(use, "LeftButton"); FlushAll()
 	check(not m:IsShown() and not UI:IsShown(), "after it: menu and terminal gone")
 	UI:Open("hearthstone")
 	UI:ShowRowMenu(1)
-	m.lines[5].scripts.PostClick(m.lines[5], "LeftButton")
+	m.lines[6].scripts.PostClick(m.lines[6], "LeftButton")
 	check(not m:IsShown() and UI:IsShown(), "Cancel: only the menu goes")
 	-- (review, 0.53.6) a chat line with nothing to send: said so, the terminal stays (nothing was pressed)
 	do
@@ -865,7 +865,7 @@ Run("right-click menu", function()
 	key("DOWN")
 	check(m:IsShown() and m.lines[2].hl:IsShown() and not m.lines[1].hl:IsShown(), "Down: the next line, the menu stays")
 	key("UP"); key("UP")
-	check(m.lines[5].hl:IsShown(), "Up from the first: round to the last (Cancel)")
+	check(m.lines[6].hl:IsShown(), "Up from the first: round to the last (Cancel)")
 	key("ESCAPE")
 	check(not m:IsShown() and UI:IsShown(), "Esc: only the menu goes")
 	check(_G.TerminalTooltip:IsShown(), "and the tooltip comes back")
@@ -961,7 +961,7 @@ Run("right-click: send to chat (Simple mode too)", function()
 	local byLabel, labels = {}, {}
 	for _, b in ipairs(m.lines) do if b:IsShown() then byLabel[b.fs:GetText()] = b; labels[#labels + 1] = b.fs:GetText() end end
 	local all = table.concat(labels, ",")
-	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild,Whisper Thrall,Cancel", "the channels you're in: " .. all)
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild,Whisper Thrall,Copy as text,Cancel", "the channels you're in: " .. all)
 	local g, w = byLabel["Send to guild"], byLabel["Whisper Thrall"]
 	check(g and (g.attrs.macrotext1 or "") == "", "nothing worked out (no waypoint moved) until a line is clicked")
 	if g then g.scripts.PreClick(g, "LeftButton") end

@@ -144,39 +144,46 @@ do
 			-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
 			-- and opening the menu, then Cancel, mustn't move your waypoint)
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
-			-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
-			local boxed = { [L["link in chat"]] = true, [L["put in the chat box"]] = true }
-			if share or self.fzf or (not boxed[shift or ""] and not boxed[enter or ""]) then -- (fuzzy finding's lines above don't)
-				items[#items + 1] = { label = linked and L["Link in chat"] or L["Put in the chat box"], boxLine = function() return SH.Line(e, query) end }
-			end
+			-- (0.55.12, the player: "remove All X from individual results and move it to the megaphone only; likewise remove
+			-- individual row outputs from the megaphone") a row's menu sends or copies that row; the bar's send button
+			-- (share) every result at once
 			local channels = SH.MenuChannels()
-			for _, ch in ipairs(channels) do
-				items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
-			end
-			-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll); the
-			-- search finished first if it's still going (all of its results, not its first frame's), else none yet
-			local group = searched and self:FinishSearch(UI.SEND_FINISH_MS) and SH.GroupRows(UI.results) or {}
-			local n = #group
-			if n >= 2 then
-				SH.Prefetch(group, true)
+			if not share then
+				-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
+				local boxed = { [L["link in chat"]] = true, [L["put in the chat box"]] = true }
+				if self.fzf or (not boxed[shift or ""] and not boxed[enter or ""]) then -- (fuzzy finding's lines above don't)
+					items[#items + 1] = { label = linked and L["Link in chat"] or L["Put in the chat box"], boxLine = function() return SH.Line(e, query) end }
+				end
 				for _, ch in ipairs(channels) do
-					if ch.chat and SH.Restricted(ch) then
-						-- (say, yell: one line the game presses, every result counted in it; Terminal's code can't send there)
-						items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
-					elseif ch.chat then
-						local to = { chat = ch.chat, label = ch.short }
-						items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), run = function()
-							if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
-							local sent, why = SH.SendAll(UI.results, to, query)
-							if not sent then ns:Print(why) return end
-							UI:Hide()
-						end }
+					items[#items + 1] = { label = ch.label, chatTo = { cmd = ch.cmd, query = query } }
+				end
+			else
+				-- every result at once ("All 8 to party"): Terminal sends them on the click or Enter (Share.SendAll); the
+				-- search finished first if it's still going (all of its results, not its first frame's), else none yet
+				local group = searched and self:FinishSearch(UI.SEND_FINISH_MS) and SH.GroupRows(UI.results) or {}
+				local n = #group
+				if n >= 1 then
+					SH.Prefetch(group, true)
+					for _, ch in ipairs(channels) do
+						if ch.chat and SH.Restricted(ch) then
+							-- (say, yell: one line the game presses, every result counted in it; Terminal's code can't send there)
+							items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
+						elseif ch.chat then
+							local to = { chat = ch.chat, label = ch.short }
+							items[#items + 1] = { label = L["All %s to %s"]:format(n, ch.short), run = function()
+								if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
+								local sent, why = SH.SendAll(UI.results, to, query)
+								if not sent then ns:Print(why) return end
+								UI:Hide()
+							end }
+						end
 					end
 				end
 			end
 		end
-		-- (the horn: copied out too, the selected one or every result; Activate.lua's CopyOut, as "linen to csv" does)
-		if share and UI.CopyOut and ns.Share and ns.Share.Channel then
+		-- copied out (Activate.lua's CopyOut, as "linen to csv" does): the row from its menu, every result from the send
+		-- button
+		if not self.fzf and UI.CopyOut and ns.Share and ns.Share.Channel and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
 			local query = ns.Share.Split(edit:GetText() or "")
 			local function Copy(how, all)
 				return function()
@@ -185,10 +192,11 @@ do
 					UI.CopyOut(UI, e, to)
 				end
 			end
-			items[#items + 1] = { label = L["Copy as text"], run = Copy("text", false) }
-			if #UI.results > 1 then
+			if share then
 				items[#items + 1] = { label = L["Copy all as text"], run = Copy("text", true) }
 				items[#items + 1] = { label = L["Copy all as CSV"], run = Copy("csv", true) }
+			else
+				items[#items + 1] = { label = L["Copy as text"], run = Copy("text", false) }
 			end
 		end
 		if not EasyOn() and not share and self:ResultText(e) then

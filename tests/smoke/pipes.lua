@@ -364,7 +364,8 @@ do
 	check(#sent == 0 and (printed[1] or ""):find("No channel called zzz", 1, true), "a bad channel: says so: " .. tostring(printed[1]))
 	ns.Print = pr
 	UI:Hide(); T.FlushAll()
-	-- the right-click menu: "All 2 to <channel>" for each channel you're in (Simple mode too)
+	-- the send button's menu: "All 2 to <channel>" for each channel you're in (Simple mode too); 0.55.12, the player:
+	-- only there, the row's right-click menu sends that row
 	local g = { _G.IsInGroup, _G.IsInRaid, _G.IsInGuild }
 	_G.IsInGroup = function(c) return c ~= 2 end
 	_G.IsInRaid = function() return false end
@@ -372,10 +373,18 @@ do
 	ns.db.easyMode = true; UI:EasyChanged()
 	UI:Open("mats for thorium belt"); T.FlushAll()
 	UI:ShowRowMenu(1)
+	local rowLabels = {}
+	for _, b in ipairs(_G.TerminalRowMenu.lines) do if b:IsShown() then rowLabels[#rowLabels + 1] = b.fs:GetText() end end
+	check(not table.concat(rowLabels, ","):find("All ", 1, true) and table.concat(rowLabels, ","):find("Send to party", 1, true),
+		"a row's menu: that row to each channel, no All lines: " .. table.concat(rowLabels, ","))
+	UI:HideRowMenu()
+	ns.Bar.Horn()
 	local m, byLabel, labels = _G.TerminalRowMenu, {}, {}
 	for _, b in ipairs(m.lines) do if b:IsShown() then byLabel[b.fs:GetText()] = b; labels[#labels + 1] = b.fs:GetText() end end
 	local all3 = table.concat(labels, ",")
-	check(byLabel["All 2 to party"] and byLabel["All 2 to guild"] and byLabel["All 2 to say"], "menu: All N to each channel: " .. all3)
+	check(byLabel["All 2 to party"] and byLabel["All 2 to guild"] and byLabel["All 2 to say"] and byLabel["Copy all as CSV"]
+		and not byLabel["Send to party"] and not byLabel["Link in chat"] and not byLabel["Copy as text"],
+		"the send button: All N to each channel, copied all; none of a row's own lines: " .. all3)
 	local b = byLabel["All 2 to guild"]
 	if b then b.scripts.PreClick(b, "LeftButton"); b.scripts.PostClick(b, "LeftButton") end
 	T.FlushAll()
@@ -385,7 +394,7 @@ do
 	sent = {}
 	UI:Open(""); T.FlushAll()
 	UI.results = { { kind = "items", key = 1, name = "Pick One" }, { kind = "items", key = 2, name = "Pick Two" } }
-	UI:ShowRowMenu(1)
+	UI:ShowRowMenu(1, false, true)
 	labels = {}
 	for _, b2 in ipairs(m.lines) do if b2:IsShown() then labels[#labels + 1] = b2.fs:GetText() end end
 	check(not table.concat(labels, ","):find("All 2", 1, true), "menu, nothing searched: no All lines: " .. table.concat(labels, ","))
@@ -418,7 +427,7 @@ do
 	-- the menu's "All N to say": a chat line the game presses (not Terminal's code)
 	_G.IsInGroup, _G.IsInRaid, _G.IsInGuild = function() return false end, function() return false end, function() return false end
 	UI:Open("mats for thorium belt"); T.FlushAll()
-	UI:ShowRowMenu(1)
+	UI:ShowRowMenu(1, false, true) -- (the send button's)
 	local sayAll
 	for _, b3 in ipairs(m.lines) do if b3:IsShown() and b3.fs:GetText() == "All 2 to say" then sayAll = b3 end end
 	check(sayAll and sayAll.item.chatTo and sayAll.item.chatTo.all and not sayAll.item.run, "menu: All 2 to say is a chat line the game presses")

@@ -120,7 +120,7 @@ do -- every result sent while the search still goes on over frames: finished fir
 	-- the row menu's "All N": counted and sent from the whole search too
 	UI:Open("@bigsend glint")
 	check(UI.searchJob ~= nil, "(the search still going)")
-	UI:ShowRowMenu(1)
+	UI:ShowRowMenu(1, false, true) -- (the send button's menu: its All lines, 0.55.12)
 	local menu = _G.TerminalRowMenu
 	local all
 	for _, b in ipairs(menu.lines or {}) do

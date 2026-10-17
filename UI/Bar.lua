@@ -120,6 +120,25 @@ function B.Typed()
 	return out
 end
 
+--- What a filter typed is called on the bar: Filter's own name for it; else in words, "q:rare" Rare, "q:rare+" Rare or
+--- better, "is:unlearned" Unlearned, "-is:boe" Not boe; else the word as typed (0.55.12, the player's screenshot said
+--- "Q:rare").
+function B.SpecLabel(spec, word)
+	local o = ById(B.FILTERS, spec)
+	if o then return o.label end
+	local neg, key, val = tostring(spec):match("^([-!]?)(%a+):([%w_]+%+?)$")
+	local out
+	if key == "q" or key == "quality" then
+		local plus = val:find("%+$")
+		val = val:gsub("%+$", "")
+		out = ns.UpperFirst(val) .. (plus and (" " .. L["or better"]) or "")
+	elseif key == "is" then
+		out = ns.UpperFirst((val:gsub("_", " ")))
+	end
+	if out and neg ~= "" then return L["Not %s"]:format(ns.Lower(out)) end
+	return out or ns.UpperFirst(word or tostring(spec))
+end
+
 --- Words taken out of the prompt (case aside, whole words; a phrase's spaces any spaces), the search run again.
 function B.DropWords(words)
 	local edit = UI.edit
@@ -255,7 +274,7 @@ function B.Options(which)
 			if not listed[p.spec] then
 				listed[p.spec] = true
 				local o = ById(B.FILTERS, p.spec)
-				out[#out + 1] = { id = p.spec, label = o and o.label or ns.UpperFirst(p.word), on = true, typed = p.word }
+				out[#out + 1] = { id = p.spec, label = B.SpecLabel(p.spec, p.word), on = true, typed = p.word }
 			end
 		end
 		for _, o in ipairs(B.FILTERS) do
@@ -402,7 +421,7 @@ local function Label(which)
 		-- (what's picked here and what's typed: one list, the typed words' once each)
 		local labels, seen = {}, {}
 		for _, p in ipairs(typed.filters) do
-			if not seen[p.spec] then seen[p.spec] = true; local o = ById(B.FILTERS, p.spec); labels[#labels + 1] = o and o.label or ns.UpperFirst(p.word) end
+			if not seen[p.spec] then seen[p.spec] = true; labels[#labels + 1] = B.SpecLabel(p.spec, p.word) end
 		end
 		for _, id in ipairs(state.filters) do
 			if not seen[id] then seen[id] = true; local o = ById(B.FILTERS, id); labels[#labels + 1] = o and o.label or id end
@@ -478,8 +497,8 @@ local function Build()
 		if UI.HideTooltip then UI:HideTooltip() end
 		B.tipUp = true
 		tip:SetOwner(horn, "ANCHOR_TOPLEFT")
-		tip:SetText(L["Send or copy"], 1, 1, 1)
-		tip:AddLine(L["The selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV"], 0.8, 0.8, 0.8, true)
+		tip:SetText(L["Send or copy all"], 1, 1, 1)
+		tip:AddLine(L["Every result at once, to say, party, raid, guild..., or copied as text or CSV (one result: right-click it)"], 0.8, 0.8, 0.8, true)
 		tip:Show()
 	end)
 	horn:SetScript("OnLeave", function()
@@ -554,8 +573,7 @@ function B.Update()
 		b.text:SetTextColor(Theme.RGB(col))
 		B.Shade(b)
 	end
-	local e = UI.results and UI.results[UI.sel]
-	s.horn.off = not Real(e)
+	s.horn.off = not B.FirstReal()
 	s.horn:SetAlpha(s.horn.off and 0.35 or 1)
 	s.horn.bg:SetColorTexture(0, 0, 0, 0.6)
 	local br, bg, bb = Theme.RGB(t.border)
@@ -661,10 +679,18 @@ end
 
 function B.HideMenu() if B.menu then B.menu:Hide() end end
 
---- The horn: the selected result's sending lines, all of them to a channel, or copied (the row menu's, those only).
+--- The first result to send (the selected one when it is one), its place in the list; nil when none is.
+function B.FirstReal()
+	local res = UI.results or {}
+	if Real(res[UI.sel]) then return UI.sel end
+	for i, e in ipairs(res) do if Real(e) then return i end end
+end
+
+--- The send button: every result at once, to a channel or copied (0.55.12, the player: the "All" lines only here; a
+--- row's own are its right-click menu's).
 function B.Horn()
 	B.HideMenu()
-	local e = UI.results and UI.results[UI.sel]
-	if not Real(e) then ns:Print(L["Pick a result first: the horn sends or copies it."]) return end
-	UI:ShowRowMenu(UI.sel, false, true)
+	local i = B.FirstReal()
+	if not i then ns:Print(L["Nothing to send yet: search for something first."]) return end
+	UI:ShowRowMenu(i, false, true)
 end
