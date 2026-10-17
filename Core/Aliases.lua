@@ -59,12 +59,9 @@ end
 local function ShowSearch(line)
 	local UI = ns.UI
 	if not UI then return end
-	local E = ns.Easy
-	-- (Advanced syntax in Simple mode, "@durability is:damaged": Advanced for this one run, as Alt+` makes it)
-	local advanced = line:find("[@>|]") or line:find("%a:%S")
+	-- (Advanced syntax in Simple mode, "@durability is:damaged": searched as typed, Simple mode kept; 0.55.9)
 	local open = UI:IsShown()
 	if not open then UI:Open("") end
-	if advanced and E and E.On() then E.temp = { from = line } end
 	if open then UI:WalkTo(line) else UI:SetQuery(line, #line) end
 end
 

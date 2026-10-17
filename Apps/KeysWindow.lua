@@ -41,11 +41,11 @@ K.LINES = {
 	{ L["Act on the selected result"] },
 	{ "Enter", L["do what the footer says: open, use, cast, set a waypoint..."],
 		f = L["take it to Simple mode, selected there: nothing is run"] },
-	{ "Shift+Enter", L["its other action (the footer says which)"], f = L["take it to Advanced mode, as @kind name"] },
+	{ "Shift+Enter", L["its other action (the footer says which)"], f = L["take it back to the search with its list named, as @kind name"] },
 	{ "Ctrl+Enter", L["act and keep Terminal open (a window it opens still closes it)"], only = "sa" },
 	{ L["click"], L["as Enter; with Shift or Ctrl, as Shift+Enter or Ctrl+Enter"], f = L["as Enter; Shift+click as Shift+Enter"] },
 	{ L["right-click"], L["everything it can do: open, use, link it, send it (or all of them) to chat"],
-		f = L["to Simple or Advanced mode, or link it or send it to chat"] }, -- (fuzzy finding's menu runs nothing: RowMenu.lua)
+		f = L["back to the search (with its list named, or not), or link it or send it to chat"] }, -- (fuzzy finding's menu runs nothing: RowMenu.lua)
 	{ "Shift+Right", s = L["at the end of the prompt: that menu from the keyboard (Up/Down, Enter)"],
 		a = L["at the end of the prompt: write the result into it, to build on (@npc Thrall)"],
 		f = L["at the end of the prompt: write its name into it"] },
@@ -69,7 +69,7 @@ K.LINES = {
 
 	{ L["Modes and the window"] },
 	{ "` or Esc", L["close"], s = L["close (Down brings the search back next time)"] },
-	{ "Alt+`", only = "sf", s = L["this search in Advanced mode, this one time"], f = L["the same words in Advanced mode"] },
+	{ "Alt+`", only = "sf", s = L["this search in Advanced mode, this one time (Alt+` again or Shift+Left: your words back)"], f = L["the same words in Advanced mode"] },
 	{ "Tab+`", L["fuzzy finding over every list (hold Tab, press `)"], f = L["close"] },
 	{ "F1", L["this list (also .keybinds)"] },
 	{ "Ctrl+T", L["a new tab: several searches open at once, each kept up to date (four at most)"], only = "sa" },

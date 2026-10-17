@@ -84,15 +84,15 @@ do
 	-- Simple mode (0.52.12, the player's call): no ">>", ">> csv" neither; plain words at the end copy every result
 	ns.db.easyMode = true
 	UI:EasyChanged()
-	-- (0.54.1) ">>> csv", ">> party" typed in Simple mode: run in Advanced mode this once
+	-- ">>> csv", ">> party" typed in Simple mode: run as typed, Simple mode kept (0.55.9; Advanced this once 0.54.1-0.55.8)
 	UI:Open("linen >>> csv")
 	FlushAll()
-	check(UI.sendTo and UI.sendTo.copy == "csv" and UI.sendTo.all and not ns.Easy.On(),
-		"Simple mode: >>> csv runs in Advanced this once: " .. tostring(UI.sendTo and UI.sendTo.copy))
+	check(UI.sendTo and UI.sendTo.copy == "csv" and UI.sendTo.all and ns.Easy.On(),
+		"Simple mode: >>> csv, in Simple mode: " .. tostring(UI.sendTo and UI.sendTo.copy))
 	UI:Hide(); FlushAll()
 	UI:Open("linen >> party")
 	FlushAll()
-	check(UI.sendTo and UI.sendTo.cmd and not ns.Easy.On(), "Simple mode: >> party too")
+	check(UI.sendTo and UI.sendTo.cmd and ns.Easy.On(), "Simple mode: >> party too")
 	UI:Hide(); FlushAll()
 	shown = {}
 	UI:Open("linen to csv")
@@ -203,7 +203,7 @@ do
 	ns.db.easyMode = true
 	UI:EasyChanged()
 	now = now + UI.REOPEN_KEEP + 1
-	UI:Open("")
+	UI:Open("@item") -- (0.55.9: Alt+` on an empty line, nothing Advanced to write, leaves Simple mode as it is)
 	UI:AdvancedOnce()
 	FlushAll()
 	UI:SetQuery("@item | count")

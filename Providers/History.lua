@@ -21,7 +21,7 @@ function ns:RecordHistory(line)
 end
 
 --- The history Up walks, newest first: every line, whatever mode ran it. (Until 0.54.3 Simple mode left out what ran
---- in Advanced; with one mode a line of Advanced syntax brought back runs in Advanced again by itself, UI:AutoAdvanced.)
+--- in Advanced; a line of Advanced syntax brought back is searched as it is, Simple mode kept since 0.55.9.)
 function ns:HistoryLines()
 	local h = self.db and self.db.history
 	if type(h) ~= "table" then return {} end

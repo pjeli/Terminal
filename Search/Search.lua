@@ -695,7 +695,7 @@ Scan.ANSWERS = {
 		toAdvanced = function(q) return ns.TalentsQ.ToAdvanced(q) end },
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Pipes.lua. (Simple mode takes only the plain words: a ">"
 	-- typed there is refused like any Advanced syntax; written for Advanced mode, a ">" chain is one too)
-	-- (a ">" chain runs whichever way it came: a line typed with one is Advanced already, UI:AutoAdvanced; 0.55.4)
+	-- (a ">" chain runs whichever way it came, in either mode; 0.55.4)
 	{ ask = function(text) return ns.Pipes and ns.Pipes.Canonical(text) end,
 		answer = function(chain)
 			local rows, trail = ns.Pipes.Search(chain)
@@ -1151,6 +1151,8 @@ function Scan.Parse(self, text)
 			elseif sort == "best" then q.sortBest = true
 			elseif sort == "nearest" then q.sortNear = true
 			else q.sortField = sort end
+			-- (Simple mode: the bar shows it as its Sort, and takes the word back out of the line: Bar.lua)
+			if simple then q.typedSort = { id = sort, word = w, drop = true } end
 			q.fsig[#q.fsig + 1] = "^" .. (sort == "nearest" and "near" or sort)
 		elseif act then
 			q.advAct, q.actWord = act, actWord -- (do:use: each row's Enter that action, as "use ..." says it; Scan.UseAction)
@@ -1632,7 +1634,7 @@ function UI:SearchText(text)
 	Scan.Prepare(self, q)
 	if q.simple then
 		local act = q.act
-		self.typedPicks = { filters = q.picks or {}, sort = act and act.nearest and q.actWord and { id = "nearest", word = q.actWord } or nil }
+		self.typedPicks = { filters = q.picks or {}, sort = q.typedSort or (act and act.nearest and q.actWord and { id = "nearest", word = q.actWord }) or nil }
 	end
 	local rows = Scan.SimpleScope(self, q)
 	if rows then return Scan.Finish(q, rows) end

@@ -68,12 +68,27 @@ do
 	check(groups >= 3, "grouped by quality: a row per quality: " .. groups)
 	B.Clear("group"); FlushAll()
 
-	-- Advanced syntax typed: the bar goes, what it picked written into the line
+	-- (0.55.9) Advanced syntax typed: Simple mode stays, the line as typed, the bar and its picks with it
 	B.Pick("filter", "q:rare+"); B.Pick("sort", "name"); FlushAll()
 	UI:SetQuery("sword >>", 8); FlushAll()
-	check(UI.edit:GetText():find("q:rare+", 1, true) and UI.edit:GetText():find("sort:name", 1, true) and UI.edit:GetText():find(">>$"),
-		"Advanced syntax typed: the bar's picks written in: " .. UI.edit:GetText())
-	check((UI.barH or 0) == 0 and not B.Active(), "and the bar is gone (the line is Advanced)")
+	check(UI.edit:GetText() == "sword >>" and E.On() and UI.barH == B.H and B.Active() and Names() == "Arcanite Sword | Bronze Sword | Mithril Sword",
+		"Advanced syntax typed: the line, the bar and its picks kept: " .. UI.edit:GetText() .. " / " .. Names())
+	B.Reset()
+	-- what's typed in Advanced syntax shows on the bar as picked: a filter, a sort, a group; taken back out from there
+	UI:SetQuery("sword q:rare+ sort:name "); FlushAll() -- (a space after: a key:value at the caret is its pick list)
+	check(B.strip.buttons[1].label == L["Filter: %s"]:format(L["Rare or better"]) and B.strip.buttons[2].label == L["Sort: %s"]:format(L["Name"]),
+		"typed q:rare+ and sort:name show: " .. B.strip.buttons[1].label .. " / " .. B.strip.buttons[2].label)
+	B.Pick("sort", "quality"); FlushAll()
+	check(UI.edit:GetText() == "sword q:rare+ " and B.state.sort == "quality" and Names():find("^Arcanite Sword"),
+		"another sort picked: the typed sort: goes from the line: '" .. UI.edit:GetText() .. "' " .. Names())
+	B.Reset()
+	UI:SetQuery("sword | group by quality"); FlushAll()
+	local groups2 = 0
+	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then groups2 = groups2 + 1 end end
+	check(E.On() and groups2 >= 3 and B.strip.buttons[3].label:find(ns.UpperFirst(ns.Aggregate.FIELDS.quality.label), 1, true),
+		"a | group typed in Simple mode: grouped, and the bar says so: " .. groups2 .. " " .. B.strip.buttons[3].label)
+	B.Pick("group", "quality"); FlushAll()
+	check(UI.edit:GetText() == "sword" and not B.state.group, "unticked: the step goes from the line: '" .. UI.edit:GetText() .. "'")
 	UI:Hide(); FlushAll()
 
 	-- Alt+`: written in too, the group step last

@@ -157,13 +157,13 @@ do
 	r = Rows("cloth | sum frob")
 	check(r[1].name == L["no number called %s"]:format("frob"), "an unknown field says so: " .. tostring(r[1].name))
 
-	-- Simple mode: Advanced mode's, run in it this once (0.54.1)
+	-- Simple mode: summed up as typed, Simple mode kept (0.55.9; 0.54.1-0.55.8 it ran in Advanced this once)
 	ns.db.easyMode = true
 	UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil
 	r = Rows("cloth | sum value")
-	check(UI.aggregate and r[1] and r[1].kind == "aggregate" and not ns.Easy.On(),
-		"Simple mode: a | runs in Advanced this once: " .. tostring(r[1] and r[1].name))
+	check(UI.aggregate and r[1] and r[1].kind == "aggregate" and ns.Easy.On(),
+		"Simple mode: a | sums up, in Simple mode: " .. tostring(r[1] and r[1].name))
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
 	UI:EasyChanged()

@@ -256,7 +256,7 @@ do
 	local res = UI:SearchText("mats for black book cover")
 	check(res[1] and not res[1].name:find(">", 1, true), "through the search too: " .. tostring(res[1] and res[1].name))
 	check(not table.concat(ns.Easy.HelpLines(), " "):find(">", 1, true), "Simple help: no >")
-	-- (0.55.4, one query) a ">" chain runs however the line came (typed, it's Advanced already: UI:AutoAdvanced); the
+	-- (0.55.4, one query) a ">" chain runs however the line came (typed in Simple mode too); the
 	-- plain words are one too
 	res = UI:SearchText("thorium belt > mats")
 	check(UI.pipeTrail == "thorium belt > mats", "a > chain runs: " .. tostring(UI.pipeTrail))

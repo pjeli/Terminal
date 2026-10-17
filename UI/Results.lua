@@ -415,7 +415,7 @@ end
 --- rows to pick from (Enter/click writes it with a space after it; Tab / Shift+Tab move the selection round), or nil.
 function UI:SyntaxRows(text)
 	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
-	if EasyOn() or self.fzf or self.opening or (self.cursor or #text) < #text then return nil end
+	if self.fzf or self.opening or (self.cursor or #text) < #text then return nil end -- (Simple mode too: 0.55.9)
 	-- (a line Up brought back from the history runs as it is: "@npc is:repair sort:nearest" isn't a pick list)
 	if self._histSet or (self.histIdx and text == self.histText) then return nil end
 	local last = text:match("(%S+)$")
@@ -505,7 +505,7 @@ local function TakeSendTo(self, text, first)
 		return (query:gsub("%s+$", ""))
 	end
 	-- Simple mode: copying said in plain words at the end: "linen to csv", "linen as text" (every result; 0.52.12, the
-	-- player's call). (A ">>" typed makes the line Advanced first: UI:AutoAdvanced.)
+	-- player's call).
 	if EasyOn() then
 		local q, how = ns.Share.PlainCopy(text)
 		if q then
@@ -518,24 +518,27 @@ local function TakeSendTo(self, text, first)
 	return text
 end
 
---- Advanced mode's "| sum value", "| group zone" (0.52.13): the steps after a "|" standing alone, read into UI.aggregate
---- (the search sums its results up: Pipes.lua's ns.Aggregate); gives the text to search. Simple mode: a "|" is
---- Advanced mode's (Easy.IsAdvancedWord).
+--- "| sum value", "| group zone" (0.52.13; Simple mode too since 0.55.9): the steps after a "|" standing alone, read
+--- into UI.aggregate (the search sums its results up: Pipes.lua's ns.Aggregate); gives the text to search. Simple mode's
+--- bar's Group when none is typed ("| group by zone" as Advanced writes it; not over the categories, Bar.lua).
 local function TakeAggregate(self, text, first)
-	self.aggregate = nil
+	self.aggregate, self.typedGroup = nil, nil
 	local A = ns.Aggregate
-	-- (Simple mode's bar: its Group, "| group by zone" as Advanced writes it; not over the categories, Bar.lua)
-	local bar = A and EasyOn() and not self.fzf and first ~= "." and first ~= "/" and ns.Bar and ns.Bar.Active()
+	if self.fzf or first == "." or first == "/" or not A then return text end
+	local query, steps = A.Split(text)
+	if steps then
+		self.aggregate = A.Parse(steps, query)
+		-- (Simple mode: a group typed shows on the bar as its Group, to take back out from there)
+		local last = self.aggregate.last
+		if EasyOn() and last and last.op == "group" and last.by then self.typedGroup = { id = last.by, word = "| " .. steps[#steps] } end
+		return query
+	end
+	local bar = EasyOn() and ns.Bar and ns.Bar.Active()
 	if bar and bar.group then
 		self.aggregate = A.Parse({ "group by " .. bar.group }, text)
 		self.aggregate.fromBar = true
-		return text
 	end
-	if self.fzf or first == "." or first == "/" or not A or EasyOn() then return text end
-	local query, steps = A.Split(text)
-	if not steps then return text end
-	self.aggregate = A.Parse(steps, query)
-	return query
+	return text
 end
 
 --- The rows for what's typed: commands, slash commands, a pick list ("@", "key:") or a search (its first slice
@@ -568,68 +571,11 @@ local function ListFor(self, text, first, edit)
 	end
 end
 
---- Does the line hold Advanced syntax (an @kind, key:value, >>, a chain's ">" or a "|" standing alone)?
-function UI.HasAdvancedSyntax(text)
-	local E = ns.Easy
-	if not (E and E.IsAdvancedWord) then return false end
-	for w in tostring(text or ""):gmatch("%S+") do
-		if E.IsAdvancedWord(w) then return true end
-	end
-	return false
-end
-
---- The line's first Advanced word: where it starts (a byte position in `raw`), or nil.
-local function FirstAdvancedAt(raw)
-	local E = ns.Easy
-	for at, w in tostring(raw or ""):gmatch("()(%S+)") do
-		if E.IsAdvancedWord(w) then return at end
-	end
-end
-
---- (0.54.1, a player's ask) Advanced syntax typed in Simple mode runs in Advanced mode, as Alt+` would, with no switch to
---- confirm (E.temp, marked `auto`). Simple again when the line no longer has any, or when the terminal closes. A
---- .command or /slash line is left as it is.
---- (0.54.3, the player: "nearest fishing trainer" and then " >>" should act like Alt+`) Simple words typed before it are
---- written in Advanced syntax as Alt+` writes them, what's typed from the Advanced word on kept as it is: the new line
---- and its caret are returned (Refresh puts it in the prompt, which searches it); nil when the line stays as it is.
-function UI:AutoAdvanced(text, first)
-	local E = ns.Easy
-	if not E or E.tempSimple or first == "." or first == "/" then return end
-	local adv = UI.HasAdvancedSyntax(text)
-	if adv and not E.temp and E.On() then
-		local raw = UI.edit:GetText()
-		local at = FirstAdvancedAt(raw)
-		local before, tail = at and raw:sub(1, at - 1) or "", at and raw:sub(at) or raw
-		local cat = not self.categoryAuto and self.category or nil
-		local conv, stepLen = nil, 0
-		if before:find("%S") then
-			-- (the lists the last search's rows came from, when it's done and listed some: Alt+`'s @kinds)
-			local shown = not self.searchJob and E.ShownKinds(UI.results) or nil
-			if shown and next(shown) == nil then shown = nil end
-			-- (what Simple mode's bar has picked is in the query printed: its filters and sort; its group step goes before
-			-- a ">>" typed, else after what's typed, unless that has a "|" of its own; Bar.lua)
-			local step = ns.Bar and ns.Bar.Active() and ns.Bar.state.group and ("| group by " .. ns.Bar.state.group) or nil
-			local head = (E.ToAdvanced(before, self.category, shown, true):gsub("%s+$", ""))
-			if step and tail:find("|", 1, true) then step = nil end
-			if step and tail:find("^%s*>>") then head, step = head .. " " .. step, nil end
-			stepLen = step and (#step + 1) or 0
-			conv = (head ~= "" and (head .. " ") or "") .. tail .. (step and (" " .. step) or "")
-		end
-		if ns.Bar then ns.Bar.Reset() end -- (the line is Advanced: the bar goes, what it had picked with it)
-		E.temp = { from = before:gsub("^%s+", ""):gsub("%s+$", ""), category = cat, auto = true }
-		self.category, self.categoryAuto, self.action = nil, nil, nil
-		ns:Trace(("advanced once: Advanced syntax typed in Simple mode%s"):format(conv and (" (%q -> %q)"):format(raw, conv) or ""))
-		self:SetStatus()
-		if conv and conv ~= raw then
-			-- (as far from the end of what was typed as it was; a group step written after it stays after the caret)
-			local cursor = math.max(#conv - stepLen - #tail, #conv - stepLen - (#raw - (self.cursor or #raw)))
-			return conv, cursor
-		end
-	elseif not adv and E.temp and E.temp.auto then
-		E.temp = nil
-		self:SetStatus()
-	end
-end
+-- (0.55.9, the player: "if things are written in simple mode let's try to keep them in simple mode as much as we can,
+-- because then we lose the ability to go back") Advanced syntax typed in Simple mode no longer turns the line Advanced
+-- (0.54.1-0.55.8: UI:AutoAdvanced rewrote the Simple words before it in Advanced syntax): Simple mode searches @kinds,
+-- key:value, sort:, do:, ">>", a chain's ">" and "| group by" as they're typed, and the words around them as Simple
+-- words; the bar shows what they pick (Bar.lua). Alt+` is the one way over, and back.
 
 function UI:Refresh()
 	local frame, edit = UI.frame, UI.edit
@@ -673,13 +619,6 @@ function UI:Refresh()
 	if text == "" and ns.Bar then ns.Bar.Reset() end -- (the prompt cleared: what the bar picked goes too)
 	local first = text:sub(1, 1)
 	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
-	if not self.fzf then
-		local conv, cursor = self:AutoAdvanced(text, first)
-		if conv then
-			self.refreshedAt = nil -- (the new line's search: now, not put off as a second one in this frame)
-			return self:SetQuery(conv, cursor)
-		end
-	end
 	text = TakeSendTo(self, text, first)
 	text = TakeAggregate(self, text, first)
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,
@@ -777,6 +716,8 @@ function UI:GoBack()
 	if self.fzf then return false end
 	if self:WalkBack() then return true end
 	if self:HistoryBack() then return true end
+	-- (0.55.9) Alt+`'s Advanced line, as it wrote it: back to the Simple words it came from (as Alt+` again does)
+	if self:CanUndoAdvanced() then self:BackToSimple() return true end
 	if EasyOn() and self.category and not self.categoryAuto and UI.mode == "search" then
 		self:SetCategory(nil)
 		return true
@@ -787,7 +728,14 @@ end
 --- Is there somewhere Shift+Left goes back to (the footer says so)?
 --- A step's search, or a line Up brought back, to go back from (the footer's hint says Shift+Left for these).
 function UI:CanStepBack()
-	return not self.fzf and (self:WalkTop() ~= nil or self:HistoryBack(true)) or false
+	return not self.fzf and (self:WalkTop() ~= nil or self:HistoryBack(true) or self:CanUndoAdvanced()) or false
+end
+
+--- Is the prompt Alt+`'s Advanced line as it wrote it (nothing typed since): Shift+Left goes back to the Simple words?
+function UI:CanUndoAdvanced()
+	local once = ns.Easy and ns.Easy.temp
+	if not (once and once.conv and UI.edit) or self.fzf then return false end
+	return (UI.edit:GetText():gsub("%s+$", "")) == (once.conv:gsub("%s+$", ""))
 end
 --- Shift+Left goes somewhere: a step back, or out of Simple mode's category.
 function UI:CanGoBack()

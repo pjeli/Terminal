@@ -378,7 +378,7 @@ do
 			.. Names(Rows("@npc trainer:daggers")))
 		check(Row("Daggers", ns:GetEntries(P)) == nil and WT.Known()[1] and WT.Known()[1].name == "Daggers" and WT.Known()[1].state == "known",
 			"Daggers, known: not listed, kept apart")
-		UI:Hide(); FlushAll() -- (the Advanced line shown would make the next Simple one Advanced too: UI:AutoAdvanced)
+		UI:Hide(); FlushAll() -- (a fresh prompt for the next one)
 		ns.db.easyMode = true; UI:EasyChanged()
 		for _, said in ipairs({ "dagger trainer", "daggers trainer", "nearest dagger trainer" }) do
 			local got = UI:SearchText(said)

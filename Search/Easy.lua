@@ -14,7 +14,7 @@ local L = ns.L
 --   - The first word can say what to do: use, cast, summon, equip, target, where, nearest (E.ACTIONS).
 --   - .help in plain sentences. Advanced syntax (@kind, key:value, >> channel) isn't taken: a row on top says
 --     it's Advanced mode's and offers the switch. .commands and /slash still run.
--- One mode (0.54.1): Advanced syntax typed in Simple mode runs in Advanced mode for that line (UI:AutoAdvanced).
+-- Advanced syntax typed in Simple mode is searched as typed, Simple mode kept (0.55.9; 0.54.1-0.55.8 it switched).
 -- The empty prompt's faint examples (both modes, and the ones made for the character) are in Examples.lua.
 
 local E = {}
@@ -806,14 +806,14 @@ end
 
 ----------------------------------------------------------------------
 -- One mode (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it
--- switch to advanced when syntax is used"): Simple mode, a line with Advanced syntax running in Advanced mode that once
--- (UI:AutoAdvanced; 0.54.3: the Simple words before it written in Advanced syntax, as Alt+` writes them), Alt+` writing
--- the line as Advanced syntax (closed, it opens as ` does). db.easyMode == false (Advanced for good) is no longer
+-- switch to advanced when syntax is used"): Simple mode; since 0.55.9 (the player: "keep them in simple mode as much
+-- as we can") a line with Advanced syntax is searched as typed in Simple mode, no switch. Alt+` writes the line as
+-- Advanced syntax (closed, it opens as ` does); Alt+` again or Shift+Left brings the Simple words back. db.easyMode == false (Advanced for good) is no longer
 -- offered, and a saved one from before is dropped at load (Core.lua).
 ----------------------------------------------------------------------
 
 ns:RegisterCommand("fuzzy", {
-	desc = L["Pure fuzzy finding, this once (.fzf too; also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result to Simple mode, Shift+Enter to Advanced"],
+	desc = L["Pure fuzzy finding, this once (.fzf too; also Tab+`: hold Tab, press `): every list, by name only; Enter takes the result back to the search, Shift+Enter with its list named (@kind name)"],
 	aliases = { "fzf" },
 	run = function(args)
 		-- (after this press is done: running a command closes the terminal first)
@@ -835,8 +835,8 @@ function E.HelpLines()
 		L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."],
 		L["Put words in quotes to find them together, as they are: \"outlaw saber\" finds the Outlaw Saber, not every name with both words."],
 		L["Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes."],
-		L["Alt+` turns what you typed into Advanced mode's command line, for that one time (Simple again once it closes)."],
-		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result to Simple mode, Shift+Enter to Advanced."],
+		L["Alt+` turns what you typed into Advanced mode's command line, for that one time; Alt+` again, or Shift+Left, brings your words back (Simple again once it closes)."],
+		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result back here, Shift+Enter with its list named (@npc Hogger)."],
 		L["Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log)."],
 		L["Spells you haven't put anywhere: \"spells not on my bars\" (not on any bar or key; passives left out)."],
 		L["Any class's spells, known or not: \"travel form\", \"healing wave\", \"druid spells\", \"upcoming spells\" (the level each rank is learned at). \"spellid claw\" gives a spell's id to copy, \"spellid 1082\" the spell. Talents by what they do: \"healing talents\", \"shaman crit talents\"."],
@@ -865,7 +865,7 @@ function E.HelpLines()
 		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
-		L["Advanced syntax (@kinds, key:value filters, sending to chat) works as soon as you type it, and the words before it are written in it too, as Alt+` does; .help advanced lists it all."],
+		L["Advanced syntax (@kinds, key:value filters, sort:name, sending to chat) works right here as you type it: your words stay as they are, and the bar under the prompt shows what it picks; .help advanced lists it all."],
 	}
 end
 

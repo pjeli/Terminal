@@ -114,7 +114,7 @@ do
 			-- (0.45.20) fuzzy finding runs nothing: its first lines do what its Enter and Shift+Enter do (they said "Use",
 			-- "Cast"... and then took the row to Simple mode)
 			items[#items + 1] = { label = L["To Simple mode"], run = function() UI:FuzzyPop(e, false) end }
-			items[#items + 1] = { label = L["To Advanced mode"], run = function() UI:FuzzyPop(e, true) end }
+			items[#items + 1] = { label = L["With its list named"], run = function() UI:FuzzyPop(e, true) end }
 		else
 			items[#items + 1] = { label = Cap(enter or L["open"]), secondary = false }
 			-- (Shift+Enter's line only when the verbs name one: an action word's row, worn gear, a passive spell have none)

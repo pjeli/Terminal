@@ -85,6 +85,17 @@ function B.Active()
 	return state
 end
 
+--- What's picked, copied (Alt+` keeps it to come back to: UI:BackToSimple), and put back.
+function B.Save()
+	local f = {}
+	for i, id in ipairs(state.filters) do f[i] = id end
+	return { filters = f, sort = state.sort, group = state.group }
+end
+function B.Restore(saved)
+	state.filters, state.sort, state.group = {}, saved.sort, saved.group
+	for i, id in ipairs(saved.filters or {}) do state.filters[i] = id end
+end
+
 function B.Reset()
 	local had = #state.filters > 0 or state.sort or state.group
 	state.filters, state.sort, state.group = {}, nil, nil
@@ -98,7 +109,8 @@ end
 local SHOWN_SPEC = { "^%-?is:", "^%-?q:", "^faction:" }
 function B.Typed()
 	local t = UI.typedPicks
-	local out = { filters = {}, sort = t and t.sort or nil }
+	-- (a "| group by zone" typed: TakeAggregate's, Results.lua)
+	local out = { filters = {}, sort = t and t.sort or nil, group = UI.typedGroup }
 	for _, p in ipairs(t and t.filters or {}) do
 		local spec = p.spec
 		local shown
@@ -278,10 +290,13 @@ function B.Options(which)
 			end
 		end
 	elseif which == "group" then
+		local tg = typed.group
 		for _, id in ipairs(B.GROUPS) do
-			if Has(id) or state.group == id then
+			local typedHere = tg and tg.id == id
+			if Has(id) or state.group == id or typedHere then
 				local f = A.FIELDS[id]
-				out[#out + 1] = { id = id, label = ns.UpperFirst(f and f.label or id), on = state.group == id }
+				out[#out + 1] = { id = id, label = ns.UpperFirst(f and f.label or id), on = (state.group == id and not tg) or typedHere,
+					typed = typedHere and tg.word or nil }
 			end
 		end
 	end
@@ -306,7 +321,20 @@ function B.Pick(which, id)
 	elseif which == "sort" then
 		if typed.sort and typed.sort.id == id and state.sort ~= id then B.DropWords({ typed.sort.word }) B.Update() return end
 		state.sort = (state.sort ~= id) and id or nil
+		-- (another sort picked: a sort: typed goes from the line, one sort at a time; "nearest" stays, it says the NPCs)
+		if state.sort and typed.sort and typed.sort.drop then
+			B.DropWords({ typed.sort.word })
+			B.Update()
+			return
+		end
 	elseif which == "group" then
+		-- (a group typed: unticked, or another picked, its step goes from the line; the bar's own group then)
+		if typed.group then
+			state.group = (typed.group.id ~= id) and id or nil
+			B.DropWords({ typed.group.word })
+			B.Update()
+			return
+		end
 		state.group = (state.group ~= id) and id or nil
 	end
 	B.Changed()
@@ -323,6 +351,7 @@ function B.Clear(which)
 		if typed.sort then words[1] = typed.sort.word end
 	else
 		state.group = nil
+		if typed.group then words[1] = typed.group.word end
 	end
 	if #words > 0 then B.DropWords(words) end
 	B.Changed()
@@ -341,6 +370,31 @@ end
 
 local strip
 local HORN = "Interface\\Icons\\INV_Misc_Horn_01"
+-- the speaker (a megaphone's look): the chat frame's voice button's atlas, the voice chat's own; else the old voice
+-- chat textures (a speaker, its sound waves over it); else the horn
+local SPEAKER_ATLASES = { "chatframe-button-icon-speaker-on", "voicechat-icon-speaker" }
+local SPEAKER, WAVES = "Interface\\Common\\VoiceChat-Speaker", "Interface\\Common\\VoiceChat-On"
+
+--- The send button's picture on these textures: which one was used ("atlas:<name>", "file", "horn").
+function B.SpeakerIcon(icon, waves)
+	waves:Hide()
+	local CT = _G.C_Texture
+	if CT and CT.GetAtlasInfo and icon.SetAtlas then
+		for _, name in ipairs(SPEAKER_ATLASES) do
+			local ok, info = pcall(CT.GetAtlasInfo, name)
+			if ok and info and pcall(icon.SetAtlas, icon, name) then return "atlas:" .. name end
+		end
+	end
+	-- (SetTexture says whether the file was there; a client that says nothing: taken as there)
+	local ok, there = pcall(icon.SetTexture, icon, SPEAKER)
+	if ok and there ~= false then
+		if waves:SetTexture(WAVES) ~= false then waves:Show() end
+		return "file"
+	end
+	icon:SetTexture(HORN)
+	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	return "horn"
+end
 
 local function Label(which)
 	local typed = B.Typed()
@@ -360,7 +414,8 @@ local function Label(which)
 		local o = (state.sort and ById(B.SORTS, state.sort)) or (typed.sort and ById(B.SORTS, typed.sort.id))
 		return o and L["Sort: %s"]:format(o.label) or L["Sort"]
 	else
-		local f = state.group and ns.Aggregate and ns.Aggregate.FIELDS[state.group]
+		local g = (typed.group and typed.group.id) or state.group -- (a group typed is the one summed up: TakeAggregate)
+		local f = g and ns.Aggregate and ns.Aggregate.FIELDS[g]
 		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or L["Group"]
 	end
 end
@@ -391,10 +446,22 @@ local function Build()
 		strip.buttons[#strip.buttons + 1] = b
 	end
 	local horn = CreateFrame("Button", nil, strip)
+	-- (0.55.9, the player: "more like a megaphone": the game's own speaker on a dark square with a thin edge)
+	horn.bg = horn:CreateTexture(nil, "BACKGROUND")
+	horn.bg:SetAllPoints()
+	horn.edges = {}
+	for i = 1, 4 do horn.edges[i] = horn:CreateTexture(nil, "BORDER") end
+	local e1, e2, e3, e4 = horn.edges[1], horn.edges[2], horn.edges[3], horn.edges[4]
+	e1:SetPoint("TOPLEFT"); e1:SetPoint("TOPRIGHT"); e1:SetHeight(1)
+	e2:SetPoint("BOTTOMLEFT"); e2:SetPoint("BOTTOMRIGHT"); e2:SetHeight(1)
+	e3:SetPoint("TOPLEFT"); e3:SetPoint("BOTTOMLEFT"); e3:SetWidth(1)
+	e4:SetPoint("TOPRIGHT"); e4:SetPoint("BOTTOMRIGHT"); e4:SetWidth(1)
 	horn.icon = horn:CreateTexture(nil, "ARTWORK")
-	horn.icon:SetAllPoints()
-	horn.icon:SetTexture(HORN)
-	horn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	horn.icon:SetPoint("TOPLEFT", 2, -2)
+	horn.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+	horn.waves = horn:CreateTexture(nil, "OVERLAY")
+	horn.waves:SetAllPoints(horn.icon)
+	B.SpeakerIcon(horn.icon, horn.waves)
 	if horn.RegisterForClicks then horn:RegisterForClicks("LeftButtonUp") end
 	horn:SetScript("OnClick", function() if not UI.closing then B.Horn() end end)
 	horn:SetScript("OnEnter", function()
@@ -467,12 +534,12 @@ function B.Update()
 		local horn = s.horn
 		horn:ClearAllPoints()
 		horn:SetPoint("RIGHT", s, "RIGHT", -2, 0)
-		horn:SetSize(h - 6, h - 6)
+		horn:SetSize(h - 4, h - 4)
 	end
 	for _, b in ipairs(s.buttons) do
 		local typed = B.Typed()
 		local active = (b.which == "filter" and (#state.filters > 0 or #typed.filters > 0)) or (b.which == "sort" and (state.sort or typed.sort))
-			or (b.which == "group" and state.group)
+			or (b.which == "group" and (state.group or typed.group))
 		b.off = overview and b.which ~= "filter" and not active
 		b.active = active and true or false
 		local col = b.off and t.dim or (active and t.accent or t.text)
@@ -482,6 +549,9 @@ function B.Update()
 	local e = UI.results and UI.results[UI.sel]
 	s.horn.off = not Real(e)
 	s.horn:SetAlpha(s.horn.off and 0.35 or 1)
+	s.horn.bg:SetColorTexture(0, 0, 0, 0.6)
+	local br, bg, bb = Theme.RGB(t.border)
+	for _, edge in ipairs(s.horn.edges) do edge:SetColorTexture(br, bg, bb, 1) end
 end
 
 --- A button's background: the accent, stronger when it has something picked, a little more under the pointer.

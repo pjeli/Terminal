@@ -18,7 +18,7 @@ local SYNTAX_KEYS = { { "@", L["kind"] }, { "/", L["slash"] }, { ".", L["command
 -- go when the footer is narrow, it's there for finding the rest
 local KEYS_HINT = { "F1", L["keys"] }
 local FZF_LABEL = L["Fuzzy find"] -- (Tab+`: pure fuzzy finding over every list, this run)
-local FZF_HINTS = { { "Enter", L["to Simple"] }, { "Shift+Enter", L["to Advanced"] }, { "Up/Down", L["move"] }, { "Tab+`", L["close"] }, KEYS_HINT }
+local FZF_HINTS = { { "Enter", L["to Simple"] }, { "Shift+Enter", L["with its list"] }, { "Up/Down", L["move"] }, { "Tab+`", L["close"] }, KEYS_HINT }
 -- (Advanced's @kind / key: pick lists; "back" is Shift+Left's word, so Shift+Tab is "previous")
 local SYNTAX_HINTS = { { "Enter", L["write it"] }, { "Tab", L["next"] }, { "Shift+Tab", L["previous"] }, KEYS_HINT }
 -- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row

@@ -54,12 +54,12 @@ do
 	check(UI:IsShown() and UI.edit:GetText() == "durability", "run with the terminal closed: it opens on the search")
 	UI:Hide(); FlushAll()
 
-	-- Advanced syntax from Simple mode: Advanced for that one run (as Alt+` makes it)
+	-- Advanced syntax from Simple mode: searched as typed, Simple mode kept (0.55.9)
 	Run("dmg @durability is:damaged")
 	ns.db.easyMode = true
 	UI:Open(".dmg"); FlushAll()
 	key("ENTER"); FlushAll()
-	check(UI:IsShown() and UI.edit:GetText() == "@durability is:damaged" and not ns.Easy.On(), "Simple mode: Advanced for that run: "
+	check(UI:IsShown() and UI.edit:GetText() == "@durability is:damaged" and ns.Easy.On(), "Simple mode: kept: "
 		.. UI.edit:GetText() .. " / " .. tostring(ns.Easy.On()))
 	UI:Hide(); FlushAll()
 	check(ns.Easy.On(), "and Simple again once it closes")

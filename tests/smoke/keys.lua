@@ -25,12 +25,12 @@ do
 	local s, a, f = K.Rows("simple"), K.Rows("advanced"), K.Rows("fuzzy")
 	check(Find(s, "Shift+Right").text:find("menu", 1, true) and Find(a, "Shift+Right").text:find("write the result", 1, true)
 		and Find(f, "Shift+Right").text:find("its name", 1, true), "Shift+Right: Simple's menu, Advanced's write it, fuzzy finding's name")
-	check(Find(f, "Enter").text:find("Simple mode", 1, true) and Find(f, "Shift+Enter").text:find("Advanced", 1, true),
-		"fuzzy finding: Enter to Simple, Shift+Enter to Advanced")
+	check(Find(f, "Enter").text:find("Simple mode", 1, true) and Find(f, "Shift+Enter").text:find("@kind name", 1, true),
+		"fuzzy finding: Enter to Simple, Shift+Enter with its list named (0.55.9: Simple mode kept)")
 	-- (0.49.0, the player: F1's lines were wrong: fuzzy finding's right-click said "open, use", but its menu offers the
 	-- two modes and the chat lines, RowMenu.lua's MenuItems)
-	check(Find(f, "right-click").text:find("Simple or Advanced", 1, true) and not Find(f, "right-click").text:find("open, use", 1, true)
-		and Find(s, "right-click").text:find("open, use", 1, true), "right-click: fuzzy finding's menu names the two modes, not open/use")
+	check(Find(f, "right-click").text:find("with its list named", 1, true) and not Find(f, "right-click").text:find("open, use", 1, true)
+		and Find(s, "right-click").text:find("open, use", 1, true), "right-click: fuzzy finding's menu names its two ways back, not open/use")
 	check(not Find(f, "Shift+Left") and not Find(f, "Ctrl+Enter") and not Find(f, "."), "fuzzy finding: no back, no Ctrl+Enter, no commands")
 	check(not Find(s, "@kind") and not Find(s, ">> party") and Find(a, "@kind") and Find(a, ">> party"), "Advanced's syntax only in Advanced")
 	check(not Find(a, "Alt+`") and Find(s, "Alt+`") and Find(f, "Alt+`"), "Alt+`: Simple's and fuzzy finding's (Advanced: it closes, as `)")
@@ -291,7 +291,7 @@ do -- right-click in fuzzy finding: its first lines do what its Enter and Shift+
 	if e then
 		UI:ShowRowMenu(1)
 		local l1, l2 = _G.TerminalRowMenuLine1, _G.TerminalRowMenuLine2
-		check(l1.fs:GetText() == "To Simple mode" and l2.fs:GetText() == "To Advanced mode",
+		check(l1.fs:GetText() == "To Simple mode" and l2.fs:GetText() == "With its list named",
 			"the menu's first lines: " .. tostring(l1.fs:GetText()) .. " / " .. tostring(l2.fs:GetText()))
 		UI:MenuPicked(l2)
 		check(not UI.fzf and UI:IsShown() and not E.On() and query():find(ns.Plain(e.name), 1, true), "To Advanced mode: as Shift+Enter: " .. query())

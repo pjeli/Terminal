@@ -137,10 +137,8 @@ function UI:FuzzyPop(e, advanced)
 	self.sendTo = nil
 	local text
 	if advanced then
-		if E then
-			E.tempSimple = nil
-			if simpleUser and not E.temp then E.temp = { from = name } end
-		end
+		-- ("@kind name": Simple mode searches it as typed, so a Simple player stays in it; 0.55.9)
+		if E then E.tempSimple = nil end
 		text = self:ResultText(e) or name
 		self.category, self.categoryAuto = nil, nil
 	else
@@ -411,6 +409,25 @@ function UI:ComeBackAfterCombat()
 	return true
 end
 
+--- Alt+` again after Alt+`: Simple mode again for this run. The line as Alt+` wrote it (nothing typed since): the Simple
+--- words it came from, in their category, the bar's picks back; else the line as it is now.
+function UI:BackToSimple()
+	local E = ns.Easy
+	local once = E.temp
+	E.temp = nil
+	local now = (UI.edit:GetText() or ""):gsub("%s+$", "")
+	local same = once.conv and now == once.conv:gsub("%s+$", "")
+	local text = same and once.from or UI.edit:GetText()
+	DropTick(text)
+	self.category, self.categoryAuto, self.action = same and once.fromCategory or nil, nil, nil
+	if ns.Bar then ns.Bar.Reset(); if same and once.bar then ns.Bar.Restore(once.bar) end end
+	ns:Trace(("advanced once: back to Simple (%q)"):format(text))
+	Forget(self, true)
+	self:SetOrResearch(text)
+	self:SetStatus()
+	self:UpdateGhost()
+end
+
 --- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
 --- syntax (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category
 --- looks in) and the search goes on from there, in Advanced mode while the line has its syntax. Closed, it opens as `
@@ -426,6 +443,10 @@ function UI:AdvancedOnce()
 		self:EndFuzzy(true)
 		if not (E and E.On()) then return end
 	end
+	-- (0.55.9, the player: "we lose the ability to go back") Alt+` again, in the Advanced it made: back to Simple, with
+	-- the words and the bar's picks it came from while the line is as Alt+` wrote it; edited, the line as it is now
+	-- (Simple mode searches Advanced syntax as typed)
+	if E and E.temp and not E.tempSimple then return self:BackToSimple() end
 	if not (E and E.On()) then return self:Toggle() end
 	local text = edit:GetText()
 	-- the lists what shows comes from name the @kinds ("use hearthstone": @item, the list the Hearthstone shown is in,
@@ -434,12 +455,18 @@ function UI:AdvancedOnce()
 	local done = self:FinishSearch(UI.FINISH_MS)
 	local cat = not self.categoryAuto and self.category or nil -- (a category opened on its own counts too: it's what shows)
 	local conv = E.ToAdvanced(text, self.category, done and E.ShownKinds(UI.results) or nil)
-	-- (what Simple mode's bar has picked is in the query printed: its filters, sort and group; the bar goes with the mode)
+	-- (nothing Advanced to write, an empty line or plain words that stay plain: Simple mode, as the line was; 0.54.3's
+	-- "the line picks the mode")
+	local syntax = false
+	for w in conv:gmatch("%S+") do if E.IsAdvancedWord(w) or w:find("^do:") or w:find("^sort:") then syntax = true break end end
+	if not syntax then DropTick(text) return end
+	-- (what Simple mode's bar has picked is in the query printed: its filters, sort and group; the bar goes with the mode,
+	-- kept to come back with: UI:BackToSimple)
+	local bar = ns.Bar and ns.Bar.Save()
 	if ns.Bar then ns.Bar.Reset() end
 	DropTick(conv) -- (the key's ` still comes as a typed character)
-	-- (Simple for a run from fuzzy finding: Advanced now. `auto`: Advanced while the line has its syntax, as when it's
-	-- typed; UI:AutoAdvanced)
-	E.temp, E.tempSimple = { from = text, category = cat, auto = true }, nil
+	-- (Simple for a run from fuzzy finding: Advanced now)
+	E.temp, E.tempSimple = { from = text, category = cat, conv = conv, bar = bar, fromCategory = self.category }, nil
 	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
 	Forget(self, true)

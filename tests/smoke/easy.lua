@@ -582,24 +582,25 @@ Run("nearest", function()
 	I.Here, I.NpcDistance = saveHere, saveDist
 end)
 
--- (0.54.1, a player's ask: "if I type a query that's clearly for advanced mode (like starting with @), it should just work
--- in advanced as a one-off") Advanced syntax typed in Simple mode runs in Advanced mode, this once, as Alt+` would
-Run("Advanced syntax in Simple mode runs once in Advanced", function()
+-- (0.54.1, a player's ask: "if I type a query that's clearly for advanced mode (like starting with @), it should just work")
+-- (0.55.9, the player: "if things are written in simple mode let's try to keep them in simple mode as much as we can")
+-- Advanced syntax typed in Simple mode is searched as typed, in Simple mode: no switch, nothing rewritten
+Run("Advanced syntax in Simple mode: searched as typed, Simple kept", function()
 	E.Set(true)
 	ActionLists()
 	UI:Open("@npc hogger")
 	local res = UI.Results()
-	check(res[1] and res[1].name == "Hogger" and not E.On() and E.temp and E.temp.auto and ns.db.easyMode ~= false,
-		"@npc hogger: Hogger, Advanced this once (not for good): " .. Show(res))
+	check(res[1] and res[1].name == "Hogger" and E.On() and not E.temp and T.query() == "@npc hogger",
+		"@npc hogger: Hogger, Simple mode kept, the line as typed: " .. Show(res))
 	check(UI:SyntaxSegments("@npc hogger")[1][3] ~= ns.Theme.SYNTAX.bad, "@npc in the taken colour")
 	UI:SetQuery("hogger")
-	check(E.On() and not E.temp, "the line without it: Simple again")
+	check(E.On() and not E.temp, "the line without it: Simple")
 	UI:SetQuery("hearthstone >> party")
-	check(UI.sendTo and UI.sendTo.cmd and not E.On(), ">> party: the send armed, Advanced")
+	check(UI.sendTo and UI.sendTo.cmd and E.On(), ">> party: the send armed, Simple kept")
 	UI:SetQuery("q:rare sword")
 	check(not Has(UI.Results(), "Shiny Sword") or UI.Results()[1].kind ~= "advanced", "q:rare: a filter, no row refusing it: " .. Show(UI.Results()))
 	UI:SetQuery("/who")
-	check(not E.On(), "a /slash line leaves the mode as it is")
+	check(E.On(), "a /slash line leaves the mode as it is")
 	UI:Hide(); FlushAll()
 	check(E.On() and ns.db.easyMode ~= false and not E.temp, "closed: Simple again")
 	-- Advanced mode takes them
@@ -1135,11 +1136,33 @@ Run("Alt+`: Advanced mode for this run only", function()
 	UI:AdvancedOnce()
 	check(UI:IsShown() and E.On() and not E.temp, "the binding (closed): opens as ` does, in Simple")
 	UI:SetQuery("@spell nova")
-	check(UI.Results()[1] and UI.Results()[1].name == "Frost Nova" and not E.On(), "Advanced syntax typed: Advanced for it")
-	-- Alt+` again (already Advanced this run): closes, like `
-	alt(function() key("`") end)
-	check(not UI:IsShown() and E.On(), "Alt+` again: closes, Simple again")
-	FlushAll()
+	check(UI.Results()[1] and UI.Results()[1].name == "Frost Nova" and E.On(), "Advanced syntax typed: found, Simple kept (0.55.9)")
+	UI:Hide(); FlushAll()
+	-- (0.55.9, the player: "we lose the ability to go back") Alt+` again: back to the Simple words, the bar's picks too
+	UI:Open("cast frost nova")
+	ns.Bar.Pick("sort", "name")
+	alt(function() key("`", "`") end)
+	check(not E.On() and T.query():find("^@spell do:cast frost nova") and not ns.Bar.Active(), "(Alt+`: Advanced)")
+	alt(function() key("`", "`") end)
+	check(UI:IsShown() and E.On() and not E.temp and T.query() == "cast frost nova" and ns.Bar.state.sort == "name",
+		"Alt+` again: the Simple words back, and the bar's sort: " .. T.query())
+	-- Shift+Left does it too (the footer says so)
+	alt(function() key("`", "`") end)
+	check(not E.On() and UI:CanGoBack(), "(Advanced again; Shift+Left can go back)")
+	check(UI:GoBack() and E.On() and T.query() == "cast frost nova", "Shift+Left: the Simple words back: " .. T.query())
+	-- edited since: the line as it is now, in Simple mode
+	alt(function() key("`", "`") end)
+	key("SPACE", " "); key("X", "x")
+	check(not UI:CanUndoAdvanced(), "edited: Shift+Left doesn't undo Alt+` any more")
+	local edited = T.query()
+	alt(function() key("`", "`") end)
+	check(E.On() and T.query() == edited, "edited, then Alt+`: Simple, the line kept: " .. T.query())
+	ns.Bar.Reset()
+	-- plain words with nothing Advanced to write: Alt+` leaves the line and the mode as they are
+	UI:SetQuery("", 0)
+	alt(function() key("`", "`") end)
+	check(E.On() and not E.temp and T.query() == "", "an empty line: Alt+` changes nothing: " .. T.query())
+	UI:Hide(); FlushAll()
 	-- in Advanced for good, Alt+` is just the toggle
 	ns.db.easyMode = false
 	UI:AdvancedOnce()
@@ -1147,35 +1170,27 @@ Run("Alt+`: Advanced mode for this run only", function()
 	UI:Hide(); FlushAll()
 end)
 
-Run("Advanced syntax typed after Simple words: written as Alt+` writes them, at once (0.54.3)", function()
+Run("Advanced syntax typed after Simple words: kept as typed, in Simple mode (0.55.9; 0.54.3-0.55.8 rewrote the line)", function()
 	E.Set(true)
 	ActionLists()
-	-- "nearest innkeeper", then " >": the words in Advanced syntax, the ">" kept, the caret after it
+	local function Names() local t = {} for _, e in ipairs(UI.Results()) do if ns.Bar.Real(e) then t[#t + 1] = tostring(e.name) end end return table.concat(t, " | ") end
 	UI:Open("")
-	UI:SetQuery("nearest innkeeper", 17); FlushAll()
-	check(E.On(), "(Simple while it's plain words)")
-	UI:SetQuery("nearest innkeeper >", 19); FlushAll()
-	check(T.query() == "@npc is:innkeeper faction:friendly sort:nearest >" and not E.On(),
-		"\" >\" typed: the line written in Advanced syntax: " .. T.query())
-	check(UI.cursor == #T.query(), "the caret at the end still: " .. tostring(UI.cursor))
-	key(">", ">")
-	check(T.query() == "@npc is:innkeeper faction:friendly sort:nearest >>", "typing goes on: " .. T.query())
+	UI:SetQuery("cast frost nova", 15); FlushAll()
+	local plain = Names()
+	UI:SetQuery("cast frost nova >> party", 24); FlushAll()
+	check(T.query() == "cast frost nova >> party" and E.On() and UI.sendTo and UI.sendTo.cmd, "cast frost nova >> party: as typed, Simple: " .. T.query())
+	check(Names() == plain and UI.Results()[1].actionVerb == "cast", "the same results, Enter still casts: " .. Names())
 	UI:Hide(); FlushAll()
-	check(E.On() and UI.lastQuery == "nearest innkeeper", "closed: Simple again, Down brings back the Simple words: " .. tostring(UI.lastQuery))
-	-- an action and a channel; the line run as Advanced
-	UI:Open("")
-	UI:SetQuery("cast frost nova >> party"); FlushAll()
-	check(T.query() == "@spell do:cast frost nova >> party", "cast frost nova >> party: " .. T.query())
-	UI:Hide(); FlushAll()
+	check(E.On() and UI.lastQuery == "cast frost nova >> party", "closed: Down brings the line back as it was: " .. tostring(UI.lastQuery))
 	-- a filter typed after the words
 	UI:Open("")
 	UI:SetQuery("cast frost nova q:rare"); FlushAll()
-	check(T.query() == "@spell do:cast frost nova q:rare", "a key:value after them: " .. T.query())
+	check(T.query() == "cast frost nova q:rare" and E.On(), "a key:value after them: as typed: " .. T.query())
 	UI:Hide(); FlushAll()
 	-- the line starting with it: as it is
 	UI:Open("")
 	UI:SetQuery("@spell nova"); FlushAll()
-	check(T.query() == "@spell nova" and not E.On(), "@spell nova: as typed")
+	check(T.query() == "@spell nova" and E.On() and UI.Results()[1] and UI.Results()[1].name == "Frost Nova", "@spell nova: as typed")
 	UI:Hide(); FlushAll()
 	-- a .command, and Simple's own a|b: left alone
 	UI:Open("")
@@ -1266,7 +1281,7 @@ Run("Alt+` names the lists the results come from (use hearthstone: @item, not @c
 	check(q == "@camp @item @toy do:use train ", "a search too long to finish now: every list the action looks in: " .. q)
 end)
 
-Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Simple, Shift+Enter to Advanced", function()
+Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Simple, Shift+Enter with its @kind", function()
 	E.Set(true)
 	ActionLists()
 	local function win(fn) local was = _G.IsKeyDown; _G.IsKeyDown = function(k) return k == "TAB" end; fn(); _G.IsKeyDown = was end
@@ -1360,7 +1375,7 @@ Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Sim
 	check(UI.fzf and T.query() == "", "Tab+` on the empty prompt: fuzzy finding")
 	UI:SetQuery("frost", 5)
 	shifted(function() key("ENTER") end)
-	check(not UI.fzf and not E.On() and E.temp and T.query() == "@spell Frost Nova ", "Shift+Enter: to Advanced: " .. T.query())
+	check(not UI.fzf and E.On() and not E.temp and T.query() == "@spell Frost Nova ", "Shift+Enter: \"@kind name\", Simple kept (0.55.9): " .. T.query())
 	r = UI.Results()
 	check(r[UI.Selected()] and r[UI.Selected()].name == "Frost Nova", "selected: " .. Show(r))
 	check(ns.db.easyMode == true, "the saved mode stays Simple")
@@ -1455,7 +1470,7 @@ Run("Up walks every line run, whatever mode ran it (0.54.3: one mode)", function
 	check(ns.db.history[1] == "@spell do:cast frost nova", "the Advanced line is in the history: " .. tostring(ns.db.history[1]))
 	-- Up: it, then the Simple one; brought back, it runs in Advanced again by itself
 	UI:Open(""); key("UP")
-	check(T.query() == "@spell do:cast frost nova" and not E.On(), "Up: the Advanced line, run in Advanced: " .. T.query())
+	check(T.query() == "@spell do:cast frost nova" and E.On(), "Up: the Advanced line, searched as it is (Simple kept): " .. T.query())
 	key("UP")
 	check(T.query() == "shiny sword", "Up again: the Simple one: " .. T.query())
 	UI:Hide(); FlushAll()
@@ -1520,12 +1535,12 @@ Run("Alt+` ends with the terminal however it closes; Up's history line runs as i
 	check(E.temp == nil and E.On(), "the frame hidden directly: Simple again")
 	check(UI.lastQuery == "cast frost nova", "and Down brings back the Simple search: " .. tostring(UI.lastQuery))
 	FlushAll()
-	-- Advanced syntax typed: what was typed isn't a Simple search to bring back
+	-- Advanced syntax typed: a Simple search like any (0.55.9): Down brings it back
 	UI.lastQuery = "old simple search"
 	UI:Open("")
 	UI:SetQuery("@spell nova", 11)
 	UI:Hide(); FlushAll()
-	check(UI.lastQuery == nil, "Advanced syntax typed: Down doesn't bring it into Simple mode: " .. tostring(UI.lastQuery))
+	check(UI.lastQuery == "@spell nova", "Advanced syntax typed: Down brings it back: " .. tostring(UI.lastQuery))
 	-- Advanced: a history line ending in a filter runs, it isn't a pick list
 	ns.db.easyMode = false; UI:EasyChanged()
 	ns.db.history = { "@spell is:passive" }

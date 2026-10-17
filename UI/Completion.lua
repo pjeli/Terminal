@@ -180,7 +180,8 @@ local function ComputeCompletion(self, text)
 	if matched then return value end
 	matched, value = CompleteSlash(text)
 	if matched then return value end
-	if EasyOn() then return nil end -- (Simple mode: no @kinds, filters or channels to complete)
+	-- (Simple mode too since 0.55.9: an @kind, a key:value or a channel typed is searched as typed there, so it's
+	-- completed as in Advanced; a result's name isn't, Simple mode's Tab picks a category)
 	local last = text:match("(%S*)$") or ""
 	matched, value = CompleteChannel(text, last)
 	if matched then return value end
@@ -188,6 +189,7 @@ local function ComputeCompletion(self, text)
 	if matched then return value end
 	matched, value = CompleteFilterValue(text, last)
 	if matched then return value end
+	if EasyOn() then return nil end
 	return CompleteName(text)
 end
 
