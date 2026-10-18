@@ -10,7 +10,8 @@ local I, TS, CS, F = ns.Integrations, ns.TrainerSpells, ns.ClassSpells, ns.Filte
 io.write("[trainerspells: its tables, checked and read]\n")
 do
 	local G = { "TrainerSpellsBuiltin", "TrainerSpellsClassTrainers", "TrainerSpellsProfessionTrainers", "TrainerSpellsPetTrainers",
-		"TrainerSpellsPortalTrainers", "TrainerSpellsBuiltin_Profession", "TrainerSpellsWeaponSkills" }
+		"TrainerSpellsPortalTrainers", "TrainerSpellsBuiltin_Profession", "TrainerSpellsWeaponSkills", "TrainerSpellsBuiltin_HunterPet",
+		"TrainerSpellsBuiltin_WarlockPet", "TrainerSpells_Character" }
 	local save = { providers = ns.providers, order = ns.providerOrder, print = ns.Print, wt = rawget(_G, "WT_API"), race = _G.UnitRace,
 		faction = _G.UnitFactionGroup, known = rawget(_G, "IsPlayerSpell"), name = C_Spell.GetSpellName, profs = ns.Professions.PlayerProfessions,
 		here = I.Here, dist = I.RowDistance, failed = I.failed, on = TS.on, easy = ns.db.easyMode, class = _G.UnitClass, globals = {},
@@ -26,6 +27,7 @@ do
 				[24] = { [9005] = { cost = 2500, rank = 2 } } }, -- (Pounce rank 2: its first a quest's)
 			PRIEST = { [10] = { [2652] = { cost = 15, rank = 1, race = "Scourge" }, [2006] = { cost = 15, rank = 1 } } },
 			WARRIOR = { [1] = { [201] = { cost = 10 } } }, -- (a weapon skill: not a class spell)
+			HUNTER = { [10] = { [1494] = { cost = 10, rank = 1 } } },
 		}
 		-- (its masters' zoneID an area, its zones table the map of each)
 		_G.TrainerSpellsWeaponSkills = { order = { 201, 200, 227 },
@@ -47,7 +49,13 @@ do
 				locations = { { uiMapID = 1454, x = 40, y = 40 } } } },
 		}
 		_G.TrainerSpellsPetTrainers = { HUNTER = { { npcID = 9005, faction = "A", names = { enUS = "Pete Pet" },
-			locations = { { uiMapID = 1453, x = 30, y = 30 } } } } }
+			locations = { { uiMapID = 1453, x = 30, y = 30 } } } },
+			WARLOCK = { { npcID = 5520, faction = "A", names = { enUS = "Spackle Thornberry" }, locations = { { uiMapID = 1453, x = 39.5, y = 84.5 } } } } }
+		-- (its pet abilities: a hunter's from the pet trainers, a warlock's demons' sold by the Demon Trainers)
+		_G.TrainerSpellsBuiltin_HunterPet = { [10] = { [4187] = { cost = 10, rank = 1 } }, [12] = { [4188] = { cost = 120, rank = 2 } },
+			[40] = { [4190] = { cost = 1400, rank = 4 } } }
+		_G.TrainerSpellsBuiltin_WarlockPet = { Imp = { [4] = { [20397] = { cost = 100, rank = 1 } }, [8] = { [20270] = { cost = 100, rank = 2 } },
+			[14] = { [20322] = { cost = 900, rank = 1 } } }, Voidwalker = { [16] = { [20381] = { cost = 900, rank = 1 } } }, Incubus = {} }
 		_G.TrainerSpellsPortalTrainers = { MAGE = { { npcID = 9004, faction = "A", names = { enUS = "Paula Portal" },
 			locations = { { uiMapID = 1453, x = 60, y = 60 } } } } }
 		_G.TrainerSpellsBuiltin_Profession = { Tailoring = { [1] = { [2393] = { cost = 25 } }, [50] = { [3915] = { cost = 100 }, [3909] = { cost = 500 } },
@@ -57,7 +65,10 @@ do
 		C_Spell.GetSpellName = function(id)
 			return ({ [2393] = "Bolt of Linen Cloth", [3915] = "Brown Linen Shirt", [2964] = "Bolt of Silk Cloth", [99] = "Demoralizing Roar",
 				[768] = "Cat Form", [2652] = "Touch of Weakness", [2006] = "Resurrection", [1735] = "Demoralizing Roar", [9005] = "Pounce",
-				[200] = "Polearms", [201] = "One-Handed Swords", [227] = "Staves", [3909] = "Tailoring", [3910] = "Tailoring" })[id] or save.name(id)
+				[200] = "Polearms", [201] = "One-Handed Swords", [227] = "Staves", [3909] = "Tailoring", [3910] = "Tailoring", [4187] = "Great Stamina", [4188] = "Great Stamina", [4190] = "Great Stamina",
+				[20397] = "Blood Pact", [20270] = "Blood Pact", [20322] = "Fire Shield", [20381] = "Sacrifice", [688] = "Summon Imp",
+				[697] = "Summon Voidwalker", [712] = "Summon Succubus", [691] = "Summon Felhunter", [101822] = "Summon Incubus",
+				[30146] = "Summon Felguard", [1494] = "Track Beasts" })[id] or save.name(id)
 		end
 		C_Spell.GetSpellSubtext = function(id) return ({ [3909] = "Journeyman", [3910] = "Expert", [99] = "Rank 1", [1735] = "Rank 2" })[id] end
 		-- no Questie: TrainerSpells' trainers are @npc
@@ -77,8 +88,9 @@ do
 		local rows = TS.TrainerRows()
 		local by = {}
 		for _, e in ipairs(rows) do by[e.npcID] = e end
-		check(#rows == 8 and by[9001].sub == "Mage Trainer" and by[9002].sub == "Journeyman Tailor" and by[9004].sub == "Portal Trainer"
-			and by[9005].sub == "Pet Trainer" and by[11867].sub == "Weapon Master", "class, profession, pet and portal trainers, weapon masters, each its title: " .. #rows)
+		check(#rows == 9 and by[9001].sub == "Mage Trainer" and by[9002].sub == "Journeyman Tailor" and by[9004].sub == "Portal Trainer"
+			and by[9005].sub == "Pet Trainer" and by[11867].sub == "Weapon Master" and by[5520].sub == "Demon Trainer",
+			"class, profession, pet, demon and portal trainers, weapon masters, each its title: " .. #rows)
 		check(by[11870].ui == 1458 and by[11870].px == 57.3, "a weapon master's area: its map (Undercity's): " .. tostring(by[11870].ui))
 		-- the filters read their own title, faction and role (Questie isn't there to ask)
 		local function Is(spec, e) local f = F.Parse(spec) return f and f(e) and true or false end
@@ -188,6 +200,53 @@ do
 		local lines0 = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines0:find(ns.L["Training:"] .. " TrainerSpells (", 1, true) and lines0:find(ns.L["%d profession spells (@recipe is:unknown)"]:format(5), 1, true)
 			and not lines0:find("What's Training", 1, true), ".integrations: one Training line, TrainerSpells' with its counts: " .. lines0)
+
+		-- (0.57.6, the author's ask) your pets' abilities: a warlock's demons' (those you can summon), sold as grimoires
+		check(Is("trainer:demon", by[5520]) and not Is("trainer:pet", by[5520]) and Is("trainer:pet", by[9005]),
+			"a Demon Trainer is trainer:demon, not a hunter's pet trainer")
+		local unitExists, petBank = _G.UnitExists, C_SpellBook.GetSpellBookItemName
+		_G.UnitClass = function() return "Warlock", "WARLOCK" end
+		_G.UnitLevel = function() return 14 end
+		_G.IsPlayerSpell = function(id) return id == 688 end -- (the Imp, not the Voidwalker)
+		_G.UnitExists = function(u) if u == "pet" then return true end return unitExists(u) end
+		C_SpellBook.GetSpellBookItemName = function(i, bank) if i == 1 then return "Blood Pact", "Rank 1" end end -- (the Imp out: Blood Pact 1)
+		tp._dirty = true
+		local pr = {}
+		for _, e in ipairs(ns:GetEntries(tp)) do if e.pet then pr[e.name] = e end end
+		check(pr["Blood Pact (Rank 2)"] and pr["Fire Shield"] and not pr["Blood Pact (Rank 1)"] and not pr["Sacrifice"],
+			"the Imp's: Blood Pact Rank 2 and Fire Shield (Rank 1 its pet has; not the Voidwalker's, which you can't summon)")
+		local fs = pr["Fire Shield"]
+		check(fs and fs.demon and fs.state == "now" and fs.cost == 900 and ns.Plain(fs.detail):find("Imp", 1, true)
+			and ns.Plain(fs.detail):find(ns.L["a Demon Trainer"], 1, true), "its demon and where it's sold, in the row: " .. tostring(fs and ns.Plain(fs.detail)))
+		check(#ns.WhatsTraining.SourceLines(fs) == 1 and ns.WhatsTraining.SourceLines(fs)[1] == ns.L["A grimoire, sold by the Demon Trainers"], "its tooltip says so")
+		-- TrainerSpells saw your pet with it: known too
+		_G.TrainerSpells_Character = { learnedSpellsPet = { Imp = { [20322] = true } } }
+		tp._dirty = true
+		pr = {}
+		for _, e in ipairs(ns:GetEntries(tp)) do if e.pet then pr[e.name] = e end end
+		check(not pr["Fire Shield"] and pr["Blood Pact (Rank 2)"], "one TrainerSpells saw your pet know: not to learn")
+		_G.TrainerSpells_Character = nil
+		tp._dirty = true
+		-- "where to learn fire shield": the Demon Trainers
+		UI:Open("where to learn fire shield"); FlushAll()
+		r = UI.Results()
+		local spackle = false
+		for _, e in ipairs(r) do if e.name == "Spackle Thornberry" then spackle = true end end
+		check(spackle, "where to learn a demon's ability: the Demon Trainers")
+		UI:Hide(); FlushAll()
+		-- a hunter's, from the pet trainers
+		_G.UnitClass = function() return "Hunter", "HUNTER" end
+		_G.IsPlayerSpell = function(id) return id == 4187 end
+		_G.UnitExists = function(u) if u == "pet" then return false end return unitExists(u) end
+		tp._dirty = true
+		pr = {}
+		for _, e in ipairs(ns:GetEntries(tp)) do if e.pet then pr[e.name] = e end end
+		check(pr["Great Stamina (Rank 2)"] and pr["Great Stamina (Rank 2)"].state == "now" and pr["Great Stamina (Rank 4)"].state == "later"
+			and not pr["Great Stamina (Rank 1)"] and not pr["Blood Pact (Rank 2)"], "a hunter's: the pet trainers' abilities, not a warlock's")
+		check(ns:GetEntries(tp)[1].pet ~= true, "your own spells before your pet's")
+		_G.UnitExists, C_SpellBook.GetSpellBookItemName = unitExists, petBank
+		_G.UnitClass = function() return "Druid", "DRUID" end
+		_G.UnitLevel = function() return 19 end
 
 		-- profession training: the recipes a trainer teaches, among the recipes you don't know (@recipe is:unknown)
 		ns.Professions.PlayerProfessions = function() return { { name = "Tailoring", rank = 60, maxRank = 75, skillLine = 197 } } end

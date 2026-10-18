@@ -188,7 +188,8 @@ function WT.SourceLines(e)
 		local n = id and (Str(Safe(C_Item and C_Item.GetItemNameByID, id)) or Str((Safe(C_Item and C_Item.GetItemInfo, id))))
 		out[#out + 1] = n and L["From an item: %s"]:format(n) or L["From an item"]
 	else
-		out[#out + 1] = e.pet and L["Taught by a pet trainer"] or L["Taught by your class trainer"]
+		out[#out + 1] = (e.demon and L["A grimoire, sold by the Demon Trainers"]) or (e.pet and L["Taught by a pet trainer"])
+			or L["Taught by your class trainer"]
 	end
 	return out
 end

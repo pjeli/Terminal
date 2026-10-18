@@ -79,11 +79,11 @@ end
 
 -- the trainers who teach it (Questie's NPCs friendly to you): your class's, or the pet trainers for a pet ability; the
 -- nearest first
-local function Trainers(pet)
+local function Trainers(word)
 	local I = ns.Integrations
 	local here = I and I.Here and I.Here() or nil
 	local found = {}
-	for _, e in ipairs(P.Trainers(pet and "pet" or "class")) do
+	for _, e in ipairs(P.Trainers(word)) do
 		-- (I.RowYards: Questie's spawns, or a row's own place: TrainerSpells' trainers without Questie; 0.57.1)
 		found[#found + 1] = { e = e, d = here and I.RowYards and I.RowYards(e, here) or nil }
 	end
@@ -176,15 +176,17 @@ ns:RegisterRelation("learn", {
 					for _, r in ipairs(P.Run("sources", { { itemID = id, name = e.spellName or e.name, kind = "items" } })) do out[#out + 1] = r end
 				end
 			else
-				-- your class's trainers (a pet trainer: a pet ability), once for every spell they teach
+				-- your class's trainers (a pet trainer: a pet ability; the Demon Trainers: a demon's, a grimoire they sell),
+				-- once for every spell they teach
 				local pet = e.pet == true
-				local key = pet and "pet" or "class"
+				local key = (rawget(e, "demon") and "demon") or (pet and "pet") or "class"
 				if not trainersFor[key] then
 					trainersFor[key] = true
-					local list = Trainers(pet)
+					local list = Trainers(key)
 					if #list == 0 then
 						out[#out + 1] = { key = "wt:" .. key, kind = "source", noActivate = true, icon = "Interface\\Icons\\INV_Misc_Book_11",
-							name = pet and L["Taught by a pet trainer"] or L["Taught by your class trainer"], detail = Costs(e):gsub("^" .. SEP, ""),
+							name = (key == "demon" and L["A grimoire, sold by the Demon Trainers"]) or (pet and L["Taught by a pet trainer"])
+								or L["Taught by your class trainer"], detail = Costs(e):gsub("^" .. SEP, ""),
 							pipeHow = HOW }
 					end
 					for i = 1, math.min(#list, P.TRAINERS) do

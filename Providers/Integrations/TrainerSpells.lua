@@ -184,6 +184,61 @@ function TS.WeaponData()
 	end)
 end
 
+-- (pet abilities)
+--- One level-keyed table of pet abilities ({ [level] = { [spellID] = { cost, rank } } }) as a list, or nil and why.
+local function PetList(levels, what)
+	if type(levels) ~= "table" then return nil, what .. " is " .. type(levels) end
+	local out, bad = {}, 0
+	for level, spells in pairs(levels) do
+		if type(level) == "number" and type(spells) == "table" then
+			for id, d in pairs(spells) do
+				if type(id) == "number" and type(d) == "table" then
+					out[#out + 1] = { id = id, level = level, rank = Num(d.rank), cost = Num(d.cost) or 0 }
+				else
+					bad = bad + 1
+				end
+			end
+		else
+			bad = bad + 1
+		end
+	end
+	return out, bad
+end
+
+--- A hunter's pet abilities a pet trainer teaches (TrainerSpellsBuiltin_HunterPet[level][spellID] = { cost, rank }): a
+--- list of { id, level, rank, cost }, or nil (none in this build: left out quietly).
+function TS.HunterPetData()
+	return Part("hunterpet", "TrainerSpellsBuiltin_HunterPet", L["Its pet abilities are unavailable."], function(raw)
+		local list, bad = PetList(raw, "TrainerSpellsBuiltin_HunterPet")
+		if not list or #list == 0 then return nil, "TrainerSpellsBuiltin_HunterPet: no pet ability in the shape expected" end
+		if bad > 0 then ns:Trace(("trainerspells: %d hunter pet entries not in the shape expected, left out"):format(bad)) end
+		return list
+	end, true)
+end
+
+-- each demon TrainerSpells lists (its English key) and the spell that summons it
+TS.DEMONS = { { key = "Imp", summon = 688 }, { key = "Voidwalker", summon = 697 }, { key = "Succubus", summon = 712 },
+	{ key = "Incubus", summon = 101822 }, { key = "Felhunter", summon = 691 }, { key = "Felguard", summon = 30146 } }
+
+--- A warlock's demons' abilities, sold as grimoires by the Demon Trainers (TrainerSpellsBuiltin_WarlockPet[demon][level]
+--- [spellID] = { cost, rank }): demon key -> list of { id, level, rank, cost }, or nil (none in this build: quietly).
+function TS.WarlockPetData()
+	return Part("warlockpet", "TrainerSpellsBuiltin_WarlockPet", L["Its pet abilities are unavailable."], function(raw)
+		local out, any, bad = {}, false, 0
+		for _, d in ipairs(TS.DEMONS) do
+			local levels = raw[d.key]
+			if levels ~= nil then
+				local list, b = PetList(levels, "TrainerSpellsBuiltin_WarlockPet." .. d.key)
+				if list then out[d.key] = list; any = any or #list > 0 end
+				bad = bad + (list and b or 1)
+			end
+		end
+		if not any then return nil, "TrainerSpellsBuiltin_WarlockPet: no demon's ability in the shape expected" end
+		if bad > 0 then ns:Trace(("trainerspells: %d warlock pet entries not in the shape expected, left out"):format(bad)) end
+		return out
+	end, true)
+end
+
 --- A trainer's row: one of @npc's, a spot on the map (Enter opens the map there with the pin, as a mailbox's does).
 local function TrainerRow(t, title, shown)
 	local id, name = Num(t.npcID), Named(t.names)
@@ -237,8 +292,12 @@ function TS.TrainerRows()
 			end
 		end
 		local pets = rawget(_G, "TrainerSpellsPetTrainers")
-		for _, list in pairs(type(pets) == "table" and pets or {}) do
-			for _, t in ipairs(type(list) == "table" and list or {}) do Add(t, "Pet Trainer", L["Pet Trainer"]) end
+		-- (a hunter's pet trainers; a warlock's are Demon Trainers, who sell the grimoires: "demon trainer", trainer:demon)
+		for cls, list in pairs(type(pets) == "table" and pets or {}) do
+			local demon = cls == "WARLOCK"
+			for _, t in ipairs(type(list) == "table" and list or {}) do
+				if demon then Add(t, "Demon Trainer", L["Demon Trainer"]) else Add(t, "Pet Trainer", L["Pet Trainer"]) end
+			end
 		end
 		local portals = rawget(_G, "TrainerSpellsPortalTrainers")
 		for _, list in pairs(type(portals) == "table" and portals or {}) do
@@ -460,6 +519,145 @@ end
 local trainingKnown = {} -- (the weapon skills you know: "daggers > learn" starts from them, Search/WhatsTraining.lua)
 function TS.TrainingKnown() return trainingKnown end
 
+-- (pet abilities: 0.57.6, the author's ask)
+
+--- Each demon's name in your language: its summoning spell's name without what they all share ("Summon Imp": "Imp"),
+--- as TrainerSpells names them. Made once the game has every one.
+local demonNames
+local function DemonName(key)
+	if not demonNames then
+		local names, all = {}, true
+		for _, d in ipairs(TS.DEMONS) do
+			local n = SpellName(d.summon)
+			if n then names[d.key] = n else all = false end
+		end
+		local list = {}
+		for _, n in pairs(names) do list[#list + 1] = n end
+		local pre, suf = nil, nil
+		for _, n in ipairs(list) do
+			if not pre then pre, suf = n, n
+			else
+				local i = 0
+				while i < #pre and i < #n and pre:byte(i + 1) == n:byte(i + 1) do i = i + 1 end
+				pre = pre:sub(1, i)
+				local j = 0
+				while j < #suf and j < #n and suf:byte(#suf - j) == n:byte(#n - j) do j = j + 1 end
+				suf = j > 0 and suf:sub(#suf - j + 1) or ""
+			end
+		end
+		local out = {}
+		for k, n in pairs(names) do
+			local cut = #list > 1 and n:sub(#(pre or "") + 1, #n - #(suf or "")) or n
+			cut = cut:match("^%s*(.-)%s*$")
+			out[k] = (cut ~= "" and cut) or n
+		end
+		if all then demonNames = out end
+		return out[key] or key
+	end
+	return demonNames[key] or key
+end
+TS.DemonName = DemonName
+
+--- Your pet's abilities now (its spellbook): name -> the highest rank it has (1 without ranks), or {} with no pet out.
+local function PetBook()
+	local out = {}
+	if not Safe(UnitExists, "pet") then return out end
+	local SB = C_SpellBook
+	local bank = (Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Pet) or 1 -- (the game's Pet bank)
+	for i = 1, 200 do
+		local name, rank
+		if SB and SB.GetSpellBookItemName and bank then name, rank = Safe(SB.GetSpellBookItemName, i, bank)
+		elseif _G.GetSpellBookItemName then name, rank = Safe(_G.GetSpellBookItemName, i, _G.BOOKTYPE_PET or "pet") end
+		name = Str(name)
+		if not name then break end
+		local n = tonumber(type(rank) == "string" and rank:match("%d+") or "") or 1
+		if n > (out[name] or 0) then out[name] = n end
+	end
+	return out
+end
+
+--- What TrainerSpells saw your pets know (its own record of your pets' spellbooks, read as it is): spell id -> true.
+local function PetsSeen()
+	local out = {}
+	local c = rawget(_G, "TrainerSpells_Character")
+	local seen = type(c) == "table" and type(c.learnedSpellsPet) == "table" and c.learnedSpellsPet or {}
+	for _, pet in pairs(seen) do
+		if type(pet) == "table" then for id, yes in pairs(pet) do if yes == true and type(id) == "number" then out[id] = true end end end
+	end
+	return out
+end
+
+local PET_ICON = "Interface\\Icons\\Ability_Hunter_BeastTraining"
+
+--- Your pets' abilities still to learn, as @training rows (a hunter's from the pet trainers; a warlock's demons', for
+--- each demon you can summon, sold as grimoires by the Demon Trainers): added to `rows`. Known: the spell is yours, your
+--- pet out has it (or a later rank), or TrainerSpells saw one of your pets with it.
+function TS.PetRows(cls, level, rows)
+	local groups = {}
+	if cls == "HUNTER" then
+		local list = TS.HunterPetData()
+		if list then groups[1] = { key = "HUNTER", list = list } end
+	elseif cls == "WARLOCK" then
+		local data = TS.WarlockPetData()
+		for _, d in ipairs(TS.DEMONS) do
+			if data and data[d.key] and KnownSpell(d.summon) then
+				groups[#groups + 1] = { key = d.key, list = data[d.key], demon = DemonName(d.key) }
+			end
+		end
+	end
+	if #groups == 0 then return end
+	local book, seen = PetBook(), PetsSeen()
+	local WT = ns.WhatsTraining
+	for _, g in ipairs(groups) do
+		-- (its spells by name, ranks in order: made once; what's known read each time)
+		local id = "pet|" .. g.key
+		local st = classStatic[id]
+		if not st then
+			local mine, byName, all = {}, {}, true
+			for _, r in ipairs(g.list) do
+				local name = SpellName(r.id)
+				if name then
+					local k = { r = r, name = name }
+					mine[#mine + 1] = k
+					byName[name] = byName[name] or {}
+					table.insert(byName[name], k)
+				else
+					all = false
+				end
+			end
+			for _, l in pairs(byName) do table.sort(l, Before) end
+			st = { mine = mine, byName = byName }
+			if all then classStatic[id] = st end
+		end
+		for _, k in ipairs(st.mine) do
+			local has = book[k.name]
+			k.known = KnownSpell(k.r.id) or seen[k.r.id] == true or (has ~= nil and (k.r.rank or 1) <= has)
+		end
+		for _, l in pairs(st.byName) do
+			local last = 0
+			for i, k in ipairs(l) do if k.known then last = i end end
+			for i = 1, last do l[i].known = true end
+		end
+		local from = g.demon and L["from %s"]:format(L["a Demon Trainer"]) or L["from %s"]:format(WT and WT.SOURCE and WT.SOURCE.pet or L["a pet trainer"])
+		for _, k in ipairs(st.mine) do
+			if not k.known then
+				local r = k.r
+				local state = (r.level > level + 1 and "later") or (r.level == level + 1 and "nextlevel") or "now"
+				if k.rank == nil then
+					k.rank = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r.id))
+						or (r.rank and (r.rank > 1 or #st.byName[k.name] > 1) and L["Rank %d"]:format(r.rank)) or false
+					k.icon = Safe(C_Spell and C_Spell.GetSpellTexture, r.id) or PET_ICON
+				end
+				local e = TrainingRow(r.id, k.name, k.rank or nil, state, r.level, r.cost, nil, k.icon)
+				e.pet, e.demon, e.petName = true, g.demon and true or nil, g.demon
+				e.detail = (g.demon and (g.demon .. SEP) or "") .. e.detail .. SEP .. from
+				e.text = e.text .. " pet ability" .. (g.demon and (" demon grimoire " .. Lower(g.demon)) or "")
+				rows[#rows + 1] = e
+			end
+		end
+	end
+end
+
 --- @training's rows from TrainerSpells: your class's spells (your race's and faction's) and weapon skills you don't
 --- know, each learn now, next level, later, or after an earlier rank ("needsrank": one not known, or a first rank no
 --- trainer teaches: a talent's or a quest's). What's Training's order: learn now first, then by level and name.
@@ -535,10 +733,12 @@ function TS.TrainingRows()
 			if known then trainingKnown[#trainingKnown + 1] = e else rows[#rows + 1] = e end
 		end
 	end
+	TS.PetRows(cls, level, rows)
 	local ORDER = { now = 1, needsrank = 2, nextlevel = 3, later = 4 }
 	table.sort(rows, function(a, b)
 		if a.state ~= b.state then return ORDER[a.state] < ORDER[b.state] end
 		if (a.weapon == true) ~= (b.weapon == true) then return not a.weapon end -- (spells, then weapon skills)
+		if (a.pet == true) ~= (b.pet == true) then return not a.pet end -- (then your pet's)
 		if a.level ~= b.level then return (a.level or 0) < (b.level or 0) end
 		return a.name < b.name
 	end)
@@ -556,6 +756,8 @@ local function SetupTrainerSpells()
 	-- (each part read now, so one not as expected is said at login, not on a keystroke)
 	local classes = TS.ClassData()
 	TS.WeaponData()
+	TS.HunterPetData()
+	TS.WarlockPetData()
 	local trainers = TS.TrainerRows()
 	-- its trainers as @npc only with no Questie (Questie knows every NPC, these among them; it takes @npc if it comes)
 	if trainers and not ns.providers.npc then
@@ -572,7 +774,7 @@ local function SetupTrainerSpells()
 		ns:RegisterProvider("training", {
 			label = L["Training"], color = "ff82c5ff", aliases = { "training", "train", "trainable" },
 			fromTrainerSpells = true, guard = 1,
-			events = { "PLAYER_LEVEL_UP", "LEARNED_SPELL_IN_SKILL_LINE", "SPELLS_CHANGED" },
+			events = { "PLAYER_LEVEL_UP", "LEARNED_SPELL_IN_SKILL_LINE", "SPELLS_CHANGED", "UNIT_PET" }, -- (a pet out: its spellbook)
 			leadRow = ns.EmptyLead(L["Nothing left to train: you know every spell TrainerSpells lists for you"],
 				function() return not (list and #list > 0) end),
 			collect = function() list = TS.TrainingRows() return list end,
