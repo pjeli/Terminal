@@ -14,6 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.56.1", when = "in testing",
+		items = {
+			"The bar's button says Group again.",
+			"Every class's spells (\"travel form\", \"druid spells\", \"upcoming spells\") and the weapon masters (\"dagger trainer\") come straight from What's Training now, so they stay as up to date as it is. Without What's Training the footer says to install it.",
+		},
+	},
+	{
 		v = "0.56.0", when = "released October 2026",
 		items = {
 			"A bar under the prompt: Filter, Sort and Group a click away (or Alt+F, Alt+S, Alt+G), and a speaker button that sends every result to chat or copies them all.",
@@ -50,20 +57,6 @@ CL.LOG = {
 			".zen's faded interface takes no clicks; a click on it closes the terminal.",
 			"Faster: narrowing a search is up to twice as fast, and opening the terminal costs less.",
 			"Fixes from a review: tabs, summed searches, stats (mp5, healing, ranged attack power), characters who share a first name, chat lines in other languages, and many smaller ones.",
-		},
-	},
-	{
-		v = "0.53.0", when = "released October 2026",
-		items = {
-			"The empty prompt's suggestions fit where you are (a city, out in the world, a dungeon) and the addons you have.",
-			"Upgrades: the tooltip shows the game's own comparison, only clear upgrades are listed (never what you wear already), and F5 is offered only once a new list is sure.",
-			"Copy results to paste elsewhere: >> text or >> csv (>>> for every result; in Simple mode, \"linen to csv\"). Ctrl+C copies and closes the box.",
-			"Words in quotes are found together, as they are: \"outlaw saber\".",
-			"Advanced mode sums up a search after a | standing alone: \"in:bags | sum value\" (what it all sells for), \"@quest | group by zone\", \"@item | count by quality\". Enter on a group lists its rows.",
-			"Closed and opened again within 5 seconds, the terminal has your text back, in the mode it was in; Esc clears it.",
-			".atop: Left/Right switch CPU % between a share of all addons and a share of a frame.",
-			"A smaller download: only what the game runs.",
-			"Fixes from a review before release: rings, trinkets and two weapons are judged against each piece you wear; a list that changes several times while you look at it keeps up; Simple mode's \"to csv\" copies every row, and copied coins keep their g/s/c; Enter on a total says it in chat; and smaller ones.",
 		},
 	},
 }

@@ -14,6 +14,8 @@ local AddOnVersion = I._.AddOnVersion
 --                           talent first, a pet ability, ignored, known), level, cost at your faction's prices, link
 --   WT_API.GetSource(id)    where it's taught: your class trainer, a weapon master (which, and where), a quest, an item
 --   its callbacks           Ready, SpellsChanged, LevelChanged, IgnoredChanged: the list made again (ns:Changed)
+--   WT_API.GetCatalog(cls)  every class's spells and weapon masters (0.56.1): @spell's other classes' spells, "druid
+--                           spells", "dagger trainer" (Providers/ClassSpells.lua); ClassReady: their names came in
 --
 -- Known spells are @spell's; the ones you ignored in What's Training are listed last, said so. Enter opens What's
 -- Training's window on the spell and points at it; Shift+Enter lists who teaches it, the nearest first (Enter on one:
@@ -335,21 +337,6 @@ function WT.Collect()
 	return rows
 end
 
---- The weapon masters who teach these weapon skills (spell ids) to your faction, as What's Training lists them: a set of
---- NPC ids (Questie's), or nil without What's Training. Its records too: { npc, name, uiMapId, x, y } (0-100).
-function WT.MasterIds(ids)
-	local api = WT.Api()
-	if not api then return nil end
-	local set, list = {}, {}
-	for _, id in ipairs(ids or {}) do
-		local ok, src = pcall(api.GetSource, id)
-		for _, t in ipairs(ok and type(src) == "table" and type(src.trainers) == "table" and src.trainers or {}) do
-			if type(t.npc) == "number" and not set[t.npc] then set[t.npc] = true; list[#list + 1] = t end
-		end
-	end
-	return set, list
-end
-
 --- Is the API's list ready (its login reading done)?
 function WT.Ready()
 	local api = WT.Api()
@@ -365,6 +352,13 @@ local list -- (the last collect's rows)
 ----------------------------------------------------------------------
 
 local function Changed() ns:Changed("training") end
+--- ClassReady: a class's names, rank texts and links came in (WT_API.LoadClass): every class's spells read again.
+local function ClassReady()
+	local CS = ns.ClassSpells
+	if CS then CS.Forget(); CS.ForgetRows() end
+	ns:Changed("classspells")
+end
+WT.ClassReady = ClassReady
 WT.CALLBACKS = { "READY", "SPELLS_CHANGED", "LEVEL_CHANGED", "IGNORED_CHANGED" }
 
 local function SetupWhatsTraining()
@@ -394,6 +388,12 @@ local function SetupWhatsTraining()
 			local okR, err = pcall(api.RegisterCallback, WT, ev, Changed)
 			if not okR then ns:Trace("training: callback " .. ev .. " failed: " .. tostring(err)) end
 		end
+	end
+	-- (every class's spells, its catalog: their names, once What's Training has loaded them)
+	local ok, ev = pcall(function() return api.Event.CLASS_READY end)
+	if ok and type(ev) == "string" then
+		local okR, err = pcall(api.RegisterCallback, WT, ev, ClassReady)
+		if not okR then ns:Trace("training: callback " .. ev .. " failed: " .. tostring(err)) end
 	end
 end
 I._.SetupWhatsTraining = SetupWhatsTraining

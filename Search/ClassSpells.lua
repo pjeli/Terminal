@@ -41,9 +41,9 @@ end
 Q.ClassOf = ClassOf
 
 --- "druid spells": { class, level }; "upcoming spells": { upcoming = true }; "spells at level 30": { level };
---- "when do i learn travel form": { words }; nil when the line isn't one of these.
-function Q.Question(text)
-	if not ns.providers.classspells then return nil end
+--- "when do i learn travel form": { words }; nil when the line isn't one of these. Whether What's Training is there or
+--- not (Q.Question asks that; the footer's "Install What's Training" asks this: Integrations/Setup.lua).
+function Q.Parse(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local tokens = {}
@@ -72,6 +72,15 @@ function Q.Question(text)
 	if q.level then q.known = nil return q end
 	if q.known then return q end -- ("my spells", "spells i know": your spellbook)
 	return nil
+end
+
+--- The question, when it can be answered: every class's spells are What's Training's (its catalog); "my spells" (your
+--- spellbook) needs nothing.
+function Q.Question(text)
+	if not ns.providers.classspells then return nil end
+	local q = Q.Parse(text)
+	if q and not q.known and not CS.Api() then return nil end
+	return q
 end
 
 --- Does one of the row's ranks come at this level (one you don't know yet, `unknown`)?
@@ -158,53 +167,3 @@ function Q.ToAdvanced(q)
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	return table.concat(parts, " ") .. " "
 end
-
-----------------------------------------------------------------------
--- "where do i learn daggers" without What's Training (0.54.1, a player using another trainer addon): the weapon skills
--- as a list a chain starts from (no search lists them), and > learn on one: its weapon masters, the nearest first
-----------------------------------------------------------------------
-
-local P = ns.Pipes
-local skillRows
---- The weapon skills, one row each (their names in your language); none while What's Training's own rows stand in.
-P.LISTS.weaponskills = function()
-	local WT = ns.WhatsTraining
-	if WT and WT.Api and WT.Api() and ns.providers.training then return {} end
-	if not skillRows then
-		skillRows = {}
-		for _, id in ipairs(ns.Filters.WEAPON_SKILL_IDS or {}) do
-			local name = ns.Str(ns.Safe(C_Spell and C_Spell.GetSpellName, id))
-			if name then
-				skillRows[#skillRows + 1] = { key = "weaponskill:" .. id, kind = "weaponskill", name = name, skillId = id,
-					_lname = Lower(name), icon = ns.Safe(C_Spell and C_Spell.GetSpellTexture, id) }
-			end
-		end
-	end
-	return skillRows
-end
-function CS.ForgetSkillRows() skillRows = nil end -- (tests)
-
-ns:RegisterRelation("learn", {
-	aliases = { "taught", "trainer", "trainers" },
-	desc = L["where a weapon skill is taught: its weapon masters"],
-	seedAlso = { "weaponskills" },
-	applies = function(e) return e.kind == "weaponskill" end,
-	run = function(rows)
-		local I = ns.Integrations
-		local WT = ns.WhatsTraining
-		local out = {}
-		for _, e in ipairs(rows) do
-			local _, list = CS.WeaponMasters({ e.skillId })
-			local masters = {}
-			for _, t in ipairs(list or {}) do masters[#masters + 1] = WT and WT.MasterRow and WT.MasterRow(t, e) end
-			table.sort(masters, function(a, b)
-				local da, db = rawget(a, "_dist"), rawget(b, "_dist")
-				if (da ~= nil) ~= (db ~= nil) then return da ~= nil end
-				if da and db and da ~= db then return da < db end
-				return tostring(a.name) < tostring(b.name)
-			end)
-			for _, r in ipairs(masters) do out[#out + 1] = r end
-		end
-		return out
-	end,
-})

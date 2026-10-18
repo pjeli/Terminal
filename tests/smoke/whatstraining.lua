@@ -371,6 +371,13 @@ do
 			end
 			return was.getSource(id)
 		end
+		-- (0.56.1: trainer:daggers reads its catalog, every class's weapon masters, your faction's)
+		api.GetCatalog = function(cls)
+			if cls ~= "MAGE" then return {} end
+			return { { id = 1180, kind = "weaponMaster", level = 1, cost = 0, trainers = { Horde = {
+				{ npc = 2704, name = "Hanashi", zoneId = 1637, uiMapId = 1454, x = 40, y = 60 },
+				{ npc = 11868, name = "Sayoc", zoneId = 1637, uiMapId = 1454, x = 81, y = 19 } } } } }
+		end
 		ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
 		check(ns.Filters.WeaponSkillIds("dagger")[1] == 1180 and ns.Filters.WeaponSkillIds("swords")[2] == 202 and ns.Filters.WeaponSkillIds("dag") == nil,
 			"the words for weapon skills")
@@ -410,9 +417,10 @@ do
 		check(rawget(got[1], "key") == nil and got[1].key == 11868 and got[1].kind == "npc" and ns.Easy.Verbs(got[1]) == L["show on map"],
 			"each is Questie's NPC: Enter shows it on the map: " .. tostring(ns.Easy.Verbs(got[1])))
 		ns.db.easyMode = false; UI:EasyChanged()
-		-- without What's Training's word on it (a weapon it doesn't list for you): Terminal's own copy of its list (0.54.1)
-		api.GetSource = function(id) if id == 1180 then return nil end return was.getSource(id) end
-		check(Names(Rows("@npc trainer:daggers")) == "Sayoc", "not listed for you: Terminal's copy of the list (Sayoc teaches daggers): "
+		-- an older What's Training, without its catalog: every weapon master (0.56.1: Terminal keeps no copy of its list)
+		api.GetCatalog = nil
+		ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
+		check(Names(Rows("@npc trainer:daggers")) == "Hanashi | Other Master | Sayoc", "without its catalog: every weapon master: "
 			.. Names(Rows("@npc trainer:daggers")))
 		api.GetSource = was.getSource
 		drop("npc")

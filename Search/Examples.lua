@@ -42,7 +42,7 @@ E.SIMPLE = {
 	{ "shield that drops from kresh", "AtlasLoot" }, { "where to get mageweave" }, { "unlearned flight paths" },
 	{ "who priest undercity" }, { "online", "guild" }, { "spells not on my bars" }, { "what's on this week" },
 	{ "next darkmoon faire" }, { "my attunements", "Attune" }, { "my keys", "Attune" }, { "attunements to do", "Attune" },
-	{ "what do i learn next level", "WhatsTraining" }, { "upcoming spells" }, { "spellid fireball" }, { "healing talents" },
+	{ "what do i learn next level", "WhatsTraining" }, { "upcoming spells", "WhatsTraining" }, { "spellid fireball" }, { "healing talents" },
 	{ L["tip: F1 shows every key"], tip = true },
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands); one whose @kind isn't there (no Questie:

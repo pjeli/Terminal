@@ -314,7 +314,13 @@ do
 		UI:Open(""); UI:SetQuery("sword", 5); FlushAll()
 		B.Pick("group", "quality"); FlushAll()
 		UI:SetQuery("sword | count", 13); FlushAll()
-		check(B.strip.buttons[3].label == L["Group by"] and not B.strip.buttons[3].active, "| count typed: Group not shown as on: " .. B.strip.buttons[3].label)
+		check(B.strip.buttons[3].label == B.GroupWord() and not B.strip.buttons[3].active, "| count typed: Group not shown as on: " .. B.strip.buttons[3].label)
+		-- (0.56.1, the player) the button says "Group"; a language with its own word for grouping says that one
+		check(B.strip.buttons[3].label == "Group", "its word: Group: " .. B.strip.buttons[3].label)
+		local was = rawget(L, "Group by")
+		rawset(L, "Group by", "分组")
+		check(B.GroupWord() == "分组", "translated: grouping's word, not the party's: " .. B.GroupWord())
+		rawset(L, "Group by", was)
 		B.Reset()
 		-- grouped: the send button copies them out
 		UI:SetQuery("sword", 5); B.Pick("group", "quality"); FlushAll()

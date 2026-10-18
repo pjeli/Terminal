@@ -3,10 +3,14 @@ local L = ns.L
 
 -- Every class's spells, known or not (0.54.1, a player's ask: "'travel form' doesn't list the spell since I don't
 -- currently have it. Ideally it'd tell me that it's a druid spell trainable at level 30"; "healing wave" on a druid
--- found only a talent; "druid spells" found nothing). @classspell: a row per spell of every class (ClassSpellData.lua,
--- What's Training's data), with the level each rank is learned at; your own class's only those you don't know yet
--- (the spellbook has the rest). Enter shows its Wowhead page, Shift+Enter links it in chat. class:druid narrows to a
--- class; "druid spells", "upcoming spells" are Search/ClassSpells.lua's questions.
+-- found only a talent; "druid spells" found nothing). @classspell: a row per spell of every class, with the level each
+-- rank is learned at; your own class's only those you don't know yet (the spellbook has the rest). Enter shows its
+-- Wowhead page, Shift+Enter links it in chat. class:druid narrows to a class; "druid spells", "upcoming spells" are
+-- Search/ClassSpells.lua's questions.
+--
+-- The spells come from What's Training (0.56.1, the player: "I would prefer to rely on WT"): its WT_API.GetCatalog,
+-- every class's trainer and quest spells with their levels, races and factions, and its weapon masters. Terminal
+-- kept a copy of that data before; without What's Training these lists are empty and the footer says to install it.
 
 local CS = {}
 ns.ClassSpells = CS
@@ -15,31 +19,66 @@ local Safe, Str, Lower = ns.Safe, ns.Str, ns.Lower
 CS.MINE_RANK, CS.OTHER_RANK = -1, -1.6 -- (below your spellbook's and @training's rows among equal matches)
 CS.CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 
-local parsed -- CLASS -> { { id, level, race, faction ("a"/"h"), talent, quest }, ... }
---- The data read: each class's ranks, by level.
+local cachedFor -- (the API the data below was read from: another one, read again)
+local bySkill -- weapon skill id -> faction -> { trainer records }, read once from the catalogs (CS.Forget: again)
+
+--- What's Training's API when it has the catalog (GetCatalog), else nil.
+function CS.Api()
+	local WT = ns.WhatsTraining
+	local api = WT and WT.Api and WT.Api()
+	if not api then return nil end
+	local ok, f = pcall(function() return api.GetCatalog end)
+	api = ok and type(f) == "function" and api or nil
+	if api and api ~= cachedFor then
+		cachedFor = api
+		if CS.Forget then CS.Forget() end
+	end
+	return api
+end
+
+--- One class's catalog from What's Training (a list of its entries), or nil.
+local loading = {}
+local function Catalog(api, cls)
+	if not loading[cls] and type(api.LoadClass) == "function" then
+		-- (its names, rank texts and links loaded: asked once per class; ClassReady says when, Integrations/WhatsTraining)
+		loading[cls] = true
+		pcall(api.LoadClass, cls)
+	end
+	local ok, cat = pcall(api.GetCatalog, cls)
+	return ok and type(cat) == "table" and cat or nil
+end
+
+local FACTION = { Alliance = "a", Horde = "h" }
+local parsed -- CLASS -> { { id, level, races, faction ("a"/"h"), talent, quest, name, rank }, ... }
+--- The data: each class's ranks, by level (What's Training's trainer and quest spells; not its weapon skills or tomes).
 function CS.Data()
 	if parsed then return parsed end
+	local api = CS.Api()
+	if not api then return {} end -- (not kept: What's Training may come later)
 	parsed = {}
-	for cls, s in pairs(ns.ClassSpellData or {}) do
+	for _, cls in ipairs(CS.CLASSES) do
 		local list = {}
-		for entry in s:gmatch("[^,]+") do
-			local id, level, marks = entry:match("^(%d+):(%d+)(.*)$")
-			if id then
-				local r = { tonumber(id), tonumber(level) }
-				for m in marks:gmatch(":([^:]+)") do
-					if m:sub(1, 1) == "r" then r.race = tonumber(m:sub(2))
-					elseif m == "a" or m == "h" then r.faction = m
-					elseif m == "t" then r.talent = true
-					elseif m == "q" then r.quest = true end
+		for _, e in ipairs(Catalog(api, cls) or {}) do
+			if type(e) == "table" and type(e.id) == "number" and type(e.level) == "number" and (e.kind == "trainer" or e.kind == "quest") then
+				local races = type(e.races) == "table" and e.races or nil
+				if e.kind == "quest" and type(e.quest) == "table" then -- (a quest's races: each of its variants')
+					for _, v in ipairs(e.quest) do
+						if type(v) ~= "table" or type(v.races) ~= "table" then races = nil break end
+						races = races or {}
+						for _, r in ipairs(v.races) do races[#races + 1] = r end
+					end
 				end
-				list[#list + 1] = r
+				list[#list + 1] = { e.id, e.level, races = races, faction = FACTION[e.faction], talent = e.requiredTalentId ~= nil or nil,
+					quest = e.kind == "quest" or nil, name = Str(e.name), rank = Str(e.subText) }
 			end
 		end
+		table.sort(list, function(a, b) if a[2] ~= b[2] then return a[2] < b[2] end return a[1] < b[1] end)
 		parsed[cls] = list
 	end
 	return parsed
 end
-function CS.Forget() parsed = nil end -- (tests)
+function CS.Forget() parsed, bySkill = nil, nil end -- (What's Training's names came in; tests)
+function CS.ForgetLoads() loading = {} end -- (tests)
 
 function CS.MyClass()
 	local ok, name, file = pcall(UnitClass, "player")
@@ -56,6 +95,8 @@ local function Known(id)
 end
 CS.Known = Known
 
+local function Has(list, v) for _, x in ipairs(list) do if x == v then return true end end return false end
+
 --- A class's spells by name, in the order they're first learned: { name, ranks = { {id, level, quest, talent}, ... },
 --- level (the first rank's), quest, talent }. `mine`: your class (your race's and faction's alone).
 function CS.Spells(cls, mine)
@@ -67,8 +108,8 @@ function CS.Spells(cls, mine)
 	end
 	local byName, out = {}, {}
 	for _, r in ipairs(CS.Data()[cls] or {}) do
-		local fits = not mine or ((not r.race or r.race == race) and (not r.faction or not faction or r.faction == faction))
-		local name = fits and Str(Safe(C_Spell and C_Spell.GetSpellName, r[1]))
+		local fits = not mine or ((not r.races or not race or Has(r.races, race)) and (not r.faction or not faction or r.faction == faction))
+		local name = fits and (Str(Safe(C_Spell and C_Spell.GetSpellName, r[1])) or r.name)
 		if name and not ns.Secret(name) then
 			local s = byName[name]
 			if not s then
@@ -76,7 +117,7 @@ function CS.Spells(cls, mine)
 				byName[name] = s
 				out[#out + 1] = s
 			end
-			s.ranks[#s.ranks + 1] = { r[1], r[2], r.quest, r.talent }
+			s.ranks[#s.ranks + 1] = { r[1], r[2], r.quest, r.talent, r.rank }
 			if r.quest then s.quest = true end
 			if r.talent then s.talent = true end
 		end
@@ -113,7 +154,7 @@ local function Tooltip(e, t)
 	local lvl = Safe(UnitLevel, "player")
 	for i, r in ipairs(s.ranks) do
 		if i > 14 then t:AddLine(L["and %d more"]:format(#s.ranks - 14), 0.6, 0.6, 0.6) break end
-		local rank = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r[1]))
+		local rank = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r[1])) or r[5]
 		local left = (rank and (rank .. "  ") or "") .. L["level %d"]:format(r[2]) .. (r[3] and ("  " .. L["(a quest)"]) or "")
 		local mine = e.mine and type(lvl) == "number" and r[2] <= lvl
 		t:AddDoubleLine(left, L["ID %d"]:format(r[1]), mine and 0.25 or 1, 1, mine and 0.25 or 1, 0.6, 0.6, 0.6)
@@ -164,7 +205,7 @@ function CS.Rows(cls, mine, all)
 				_ltext = ltext .. (s.quest and " quest" or ""), known = known or nil }, meta)
 		end
 	end
-	if not mine then others[cls] = rows end
+	if not mine and #rows > 0 then others[cls] = rows end -- (none: What's Training not there yet)
 	return rows
 end
 function CS.ForgetRows() others = {} end -- (tests)
@@ -188,29 +229,40 @@ ns:RegisterProvider("classspells", {
 })
 
 ----------------------------------------------------------------------
--- Weapon masters (0.54.1: "dagger trainer" and "where do i learn daggers" without What's Training too)
+-- Weapon masters ("dagger trainer", trainer:daggers): What's Training's, for every class's weapon skills
 ----------------------------------------------------------------------
 
---- The weapon masters who teach any of these weapon skills (spell ids) to your faction: What's Training's when it's
---- there, else Terminal's copy of its list (ClassSpellData.lua). A set of NPC ids, and their records { npc, name,
---- uiMapId, x, y } (x, y: 0-100).
+--- The weapon masters who teach any of these weapon skills (spell ids) to your faction, as What's Training lists them:
+--- a set of NPC ids, and their records { npc, name, uiMapId, x, y } (x, y: 0-100). Nil without What's Training.
 function CS.WeaponMasters(ids)
-	local WT = ns.WhatsTraining
-	if WT and WT.Api and WT.Api() and WT.MasterIds then
-		local set, list = WT.MasterIds(ids)
-		if set and next(set) then return set, list end
+	local api = CS.Api()
+	if not api then return nil end
+	if not bySkill then
+		bySkill = {}
+		for _, cls in ipairs(CS.CLASSES) do
+			for _, e in ipairs(Catalog(api, cls) or {}) do
+				if type(e) == "table" and e.kind == "weaponMaster" and e.id ~= nil and type(e.trainers) == "table" then
+					local f = bySkill[e.id] or {}
+					bySkill[e.id] = f
+					for fac, ts in pairs(e.trainers) do
+						f[fac] = f[fac] or {}
+						for _, t in ipairs(type(ts) == "table" and ts or {}) do
+							if type(t) == "table" and type(t.npc) == "number" then f[fac][#f[fac] + 1] = t end
+						end
+					end
+				end
+			end
+		end
 	end
-	local f = Str(Safe(UnitFactionGroup, "player"))
-	f = f == "Alliance" and "a" or f == "Horde" and "h" or nil
-	local want = {}
-	for _, id in ipairs(ids or {}) do want[id] = true end
+	local faction = Str(Safe(UnitFactionGroup, "player"))
 	local set, list = {}, {}
-	for npc, m in pairs(ns.WeaponMasterData or {}) do
-		local teaches = false
-		for _, sk in ipairs(m[6]) do if want[sk] then teaches = true break end end
-		if teaches and (not f or m[1] == f) then
-			set[npc] = true
-			list[#list + 1] = { npc = npc, name = m[5], uiMapId = m[2], x = m[3], y = m[4] }
+	for _, id in ipairs(ids or {}) do
+		for fac, ts in pairs(bySkill[id] or {}) do
+			if not faction or fac == faction then
+				for _, t in ipairs(ts) do
+					if not set[t.npc] then set[t.npc] = true; list[#list + 1] = t end
+				end
+			end
 		end
 	end
 	table.sort(list, function(a, b) return a.npc < b.npc end)

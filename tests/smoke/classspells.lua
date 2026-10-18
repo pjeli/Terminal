@@ -1,7 +1,8 @@
 -- Every class's spells (0.54.1, a player: "'travel form' doesn't list the spell since I don't currently have it.
 -- Ideally it'd tell me that it's a druid spell trainable at level 30"; "upcoming spells", "druid spells" listed nothing;
 -- "healing wave" on a druid found only the shaman talent): @classspell (Providers/ClassSpells.lua), its questions
--- (Search/ClassSpells.lua), the spell ids of every rank.
+-- (Search/ClassSpells.lua), the spell ids of every rank. Since 0.56.1 they're What's Training's catalog (WT_API.GetCatalog),
+-- not a copy of its data (the player: "I would prefer to rely on WT").
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local L, CS = ns.L, ns.ClassSpells
@@ -17,11 +18,39 @@ local function Kind(rows, kind)
 	return table.concat(t, " | ")
 end
 
+-- What's Training's catalog, as its Api.lua makes it: each class's trainer and quest spells, its weapon masters
+local function Entry(id, level, extra)
+	local e = { id = id, kind = "trainer", level = level, cost = 100, petAbility = false }
+	for k, v in pairs(extra or {}) do e[k] = v end
+	return e
+end
+local CATALOG = {
+	WARRIOR = { Entry(100, 4), Entry(9001, 6, { races = { 3 } }), Entry(9002, 10, { kind = "quest", cost = 0, quest = { { races = { 1 }, level = 10 } } }),
+		Entry(1180, 1, { kind = "weaponMaster", trainers = { Horde = { { npc = 11868, name = "Sayoc", uiMapId = 1454, x = 81.7, y = 19.6 },
+			{ npc = 11870, name = "Archibald", uiMapId = 1458, x = 57.3, y = 32.8 } }, Alliance = { { npc = 11867, name = "Woo Ping", uiMapId = 1453, x = 63.9, y = 69.1 } } } }) },
+	DRUID = { Entry(3029, 28, { requiredTalentId = 16942 }), Entry(783, 30) },
+	SHAMAN = { Entry(332, 6), Entry(547, 12) },
+	ROGUE = { Entry(1180, 1, { kind = "weaponMaster", trainers = { Horde = { { npc = 11868, name = "Sayoc", uiMapId = 1454, x = 81.7, y = 19.6 } } } }),
+		Entry(200, 20, { kind = "weaponMaster", trainers = { Horde = { { npc = 2704, name = "Hanashi", uiMapId = 1454, x = 81.5, y = 19.6 } } } }) },
+}
+local loads = {}
+local function CatalogApi()
+	return { version = 1, Status = {}, Event = { CLASS_READY = "ClassReady" }, IsReady = function() return true end,
+		GetSpells = function() return {} end, GetSource = function() end, RegisterCallback = function() end,
+		GetCatalog = function(cls) return CATALOG[cls] or {} end,
+		LoadClass = function(cls) loads[cls] = (loads[cls] or 0) + 1 return true end }
+end
+T.WTCatalogApi = CatalogApi -- (other tests: a What's Training with its catalog)
+
 io.write("[classspells: every class's spells, known or not]\n")
 do
 	local P = ns.providers.classspells
 	local save = { known = rawget(_G, "IsPlayerSpell"), level = _G.UnitLevel, class = _G.UnitClass, show = ns.ShowText,
-		easy = ns.db.easyMode, sub = C_Spell.GetSpellSubtext }
+		easy = ns.db.easyMode, sub = C_Spell.GetSpellSubtext, api = rawget(_G, "WT_API"), race = _G.UnitRace, name = C_Spell.GetSpellName }
+	_G.WT_API = CatalogApi()
+	_G.UnitRace = function() return "Human", "Human", 1 end
+	C_Spell.GetSpellName = function(id) return ({ [9001] = "Stoneform Strike", [9002] = "Defensive Stance" })[id] or save.name(id) end
+	CS.Forget(); CS.ForgetLoads()
 	local known = {}
 	_G.IsPlayerSpell = function(id) return known[id] == true end
 	_G.UnitLevel = function() return 2 end
@@ -151,29 +180,74 @@ do
 	check(Names(rows) == "Healing Wave (Rank 2) | Healing Wave (Rank 3)" and rows[1].spellID == 332 and rows[2].spellID == 547,
 		"spellid healing wave: every rank, from the class data: " .. Names(rows))
 
-	_G.IsPlayerSpell, _G.UnitLevel, _G.UnitClass, ns.ShowText, C_Spell.GetSpellSubtext = save.known, save.level, save.class, save.show, save.sub
-	ns.db.easyMode = save.easy
+	-- (0.56.1) What's Training's catalog: each class's loaded once (its names, ranks and links); your race's and
+	-- faction's alone for your class; a quest's spell said so
+	check(loads.DRUID == 1 and loads.WARRIOR == 1, "LoadClass: once per class: " .. tostring(loads.DRUID) .. " " .. tostring(loads.WARRIOR))
 	CS.ForgetRows(); P._dirty = true
+	check(Kind(UI:Search("@classspell stoneform strike"), "classspells") == "", "another race's spell (dwarf): not for your class's rows")
+	res = UI:Search("@classspell defensive stance")
+	check(res[1] and res[1].name == "Defensive Stance" and res[1].detail:find(L["a quest"], 1, true), "your race's quest spell: listed, a quest: "
+		.. tostring(res[1] and res[1].detail))
+	_G.UnitClass = function() return "Druid", "DRUID" end
+	CS.ForgetRows(); P._dirty = true
+	check(Kind(UI:Search("@classspell stoneform strike"), "classspells") == "Stoneform Strike", "another class's: every race's")
+	_G.UnitClass = function() return "Warrior", "WARRIOR" end
+	-- a name the game hasn't loaded yet: What's Training's, once ClassReady says it has it
+	C_Spell.GetSpellName = function(id) if id == 783 then return nil end return ({ [9001] = "Stoneform Strike", [9002] = "Defensive Stance" })[id] or save.name(id) end
+	CS.Forget(); CS.ForgetRows(); P._dirty = true
+	check(Kind(UI:Search("@classspell travel form"), "classspells") == "", "no name yet: not listed")
+	CATALOG.DRUID[2].name = "Travel Form"
+	ns.WhatsTraining.ClassReady(); FlushAll()
+	check(Kind(UI:Search("@classspell travel form"), "classspells") == "Travel Form", "ClassReady: listed by What's Training's name")
+	CATALOG.DRUID[2].name = nil
+
+	-- without What's Training: no other class's spells, "druid spells" isn't asked and the footer says to install it;
+	-- "my spells" (the spellbook) still answered
+	_G.WT_API = nil
+	CS.Forget(); CS.ForgetRows(); P._dirty = true
+	check(Kind(UI:Search("@spell travel form"), "classspells") == "", "without it: no class spells")
+	check(Q.Question("druid spells") == nil and Q.Question("upcoming spells") == nil and Q.Question("my spells") ~= nil,
+		"without it: its questions aren't asked, \"my spells\" is")
+	ns.db.easyMode = true; UI:EasyChanged()
+	local addons = _G.C_AddOns
+	_G.C_AddOns = setmetatable({ IsAddOnLoaded = function() return false end }, { __index = addons })
+	ns.Integrations.ForgetHint()
+	local hint = ns.Integrations.MissingHint("druid spells")
+	check(hint and hint:find("What's Training", 1, true) and hint:find(L["Install %s for this."]:sub(1, 7), 1, true), "the hint: install What's Training: " .. tostring(hint))
+	-- an older What's Training (its API without the catalog): update it
+	_G.C_AddOns = setmetatable({ IsAddOnLoaded = function(n) return n == "WhatsTraining" end }, { __index = addons })
+	ns.Integrations.ForgetHint()
+	hint = ns.Integrations.MissingHint("druid spells")
+	check(hint and hint:find(L["Update %s for this."]:sub(1, 6), 1, true), "an older What's Training: update it: " .. tostring(hint))
+	_G.C_AddOns = addons
+	ns.Integrations.ForgetHint()
+	check(ns.Integrations.MissingHint("my spells") == nil, "\"my spells\": no hint")
+	ns.Integrations.ForgetHint()
+	ns.db.easyMode = false; UI:EasyChanged()
+
+	_G.IsPlayerSpell, _G.UnitLevel, _G.UnitClass, ns.ShowText, C_Spell.GetSpellSubtext = save.known, save.level, save.class, save.show, save.sub
+	_G.WT_API, _G.UnitRace, C_Spell.GetSpellName = save.api, save.race, save.name
+	ns.db.easyMode = save.easy
+	CS.Forget(); CS.ForgetRows(); P._dirty = true
 	UI:EasyChanged()
 end
 
--- (0.54.1, a player using TrainerSpells, not What's Training) "dagger trainer", "where do i learn daggers" without What's
--- Training: Terminal's copy of its weapon masters (ClassSpellData.lua), your faction's
-io.write("[classspells: weapon masters without What's Training]\n")
+-- "dagger trainer": What's Training's weapon masters (its catalog, every class's weapon skills; 0.56.1: no copy of its
+-- list any more), your faction's; without What's Training, every weapon master
+io.write("[classspells: weapon masters from What's Training's catalog]\n")
 do
 	local I, CS = ns.Integrations, ns.ClassSpells
 	local save = { api = rawget(_G, "WT_API"), npcRow = I.NpcRow, npcField = I.NpcField, here = I.Here, dist = I.NpcDistance,
-		fac = _G.UnitFactionGroup, easy = ns.db.easyMode, name = C_Spell.GetSpellName }
-	_G.WT_API = nil
+		fac = _G.UnitFactionGroup, easy = ns.db.easyMode }
+	_G.WT_API = CatalogApi()
 	_G.UnitFactionGroup = function() return "Horde" end
-	C_Spell.GetSpellName = function(id) if id == 1180 then return "Daggers" end return save.name(id) end
 	local NPCS = {
 		{ npcID = 11868, key = 11868, kind = "npc", name = "Sayoc", sub = "Weapon Master" },
 		{ npcID = 11870, key = 11870, kind = "npc", name = "Archibald", sub = "Weapon Master" },
 		{ npcID = 11867, key = 11867, kind = "npc", name = "Woo Ping", sub = "Weapon Master" },
 		{ npcID = 2704, key = 2704, kind = "npc", name = "Hanashi", sub = "Weapon Master" },
 	}
-	local BY, DIST = {}, { [11868] = 50, [2704] = 20 }
+	local BY, DIST = {}, { [11868] = 50, [2704] = 20, [11870] = 70, [11867] = 90 }
 	for _, n in ipairs(NPCS) do BY[n.key] = n end
 	ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return NPCS end })
 	ns:AliasesChanged()
@@ -184,26 +258,31 @@ do
 	end
 	I.Here = function() return { cont = 1, x = 0, y = 0 } end
 	I.NpcDistance = function(id) return DIST[id] end
-	CS.ForgetSkillRows()
 	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
 	local function Npcs(rows)
 		local t = {}
 		for _, e in ipairs(rows) do if e.kind == "npc" then t[#t + 1] = e.name end end
 		return table.concat(t, " | ")
 	end
+	local set, list = CS.WeaponMasters({ 1180 })
+	check(set[11868] and set[11870] and not set[11867] and not set[2704] and #list == 2 and list[1].npc == 11868,
+		"daggers: the Horde's two, each once (the warrior's and the rogue's lists): " .. #list)
 	ns.db.easyMode = true; UI:EasyChanged()
 	check(Npcs(UI:SearchText("dagger trainer")) == "Sayoc | Archibald", "dagger trainer: the Horde's two (not Woo Ping, not Hanashi), the nearer first: "
 		.. Npcs(UI:SearchText("dagger trainer")))
-	local got = UI:SearchText("where do i learn daggers")
-	check(Names(got) == "Sayoc | Archibald" and got[1].detail:find("^50 yd"), "where do i learn daggers: its weapon masters, nearest first: " .. Names(got))
+	-- without What's Training: every weapon master
+	_G.WT_API = nil
+	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
+	check(CS.WeaponMasters({ 1180 }) == nil, "without it: no list of its own")
+	check(Npcs(UI:SearchText("dagger trainer")) == "Hanashi | Sayoc | Archibald | Woo Ping", "without it: every weapon master, the nearest first: "
+		.. Npcs(UI:SearchText("dagger trainer")))
 	ns.db.easyMode = false; UI:EasyChanged()
 	ns.providers.npc = nil
 	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
 	ns:AliasesChanged()
-	_G.WT_API, _G.UnitFactionGroup, C_Spell.GetSpellName = save.api, save.fac, save.name
+	_G.WT_API, _G.UnitFactionGroup = save.api, save.fac
 	I.NpcRow, I.NpcField, I.Here, I.NpcDistance = save.npcRow, save.npcField, save.here, save.dist
 	ns.db.easyMode = save.easy
-	CS.ForgetSkillRows()
 	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
 	UI:EasyChanged()
 end

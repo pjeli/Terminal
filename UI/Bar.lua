@@ -507,9 +507,16 @@ local function Label(which)
 	else
 		local g = B.GroupOn() -- (a group typed is the one summed up: TakeAggregate; steps typed: none of the bar's)
 		local f = g and ns.Aggregate and ns.Aggregate.FIELDS[g]
-		-- ("Group by": "Group" is the party's, and some languages say the two differently; 0.56.0)
-		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or L["Group by"]
+		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or B.GroupWord()
 	end
+end
+
+--- The Group button's word when nothing's grouped: "Group" (0.56.1, the player). Translated as "Group by", since "Group"
+--- is also the party's word and some languages say the two differently (zhCN: 队伍, the party; 分组, grouping).
+function B.GroupWord()
+	local t = L["Group by"]
+	if t == "Group by" then t = L["Group"] end -- (English, or not translated yet)
+	return t
 end
 
 local function Build()

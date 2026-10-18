@@ -66,7 +66,7 @@ local function Candidates()
 			end
 		end
 	end
-	-- every class's spells, every rank (ClassSpellData.lua)
+	-- every class's spells, every rank (What's Training's catalog: Providers/ClassSpells.lua)
 	local CS = ns.ClassSpells
 	if CS then
 		for _, cls in ipairs(CS.CLASSES) do

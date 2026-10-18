@@ -73,6 +73,11 @@ I.ADDONS = {
 		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and not ns.WhatsTraining.Api() end,
 		kinds = { training = true, train = true, trainable = true, whatstraining = true },
 		words = { training = true, trainable = true } },
+	-- (0.56.1: every class's spells and weapon masters are What's Training's catalog, WT_API.GetCatalog: "druid spells",
+	-- "upcoming spells"; an older What's Training, without it: "Update")
+	{ name = "WhatsTrainingCatalog", label = "What's Training", kinds = {},
+		missing = function() return not (ns.ClassSpells and ns.ClassSpells.Api and ns.ClassSpells.Api()) end,
+		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and true or false end },
 	-- (0.50.6, the player: your alts' bags and banks, @stored, come from Syndicator or BagBrother (Bagnon's): said only
 	-- with neither detected, naming both. Simple mode's "bank" is the banker: no word of its own)
 	{ name = "Syndicator", also = "BagBrother", missing = function()
@@ -196,6 +201,13 @@ function I.MissingFor(text)
 	local wt = Missing("WhatsTraining")
 	if wt then
 		for _, pat in ipairs(I.TRAINING_ASKS) do if line:find(pat) then return wt end end
+	end
+	-- every class's spells ("druid spells", "upcoming spells", "spells at level 30"; not "my spells": the spellbook's)
+	local cat = Missing("WhatsTrainingCatalog")
+	local CQ = cat and ns.ClassSpells and ns.ClassSpells.Q
+	if CQ and CQ.Parse then
+		local q = CQ.Parse(text)
+		if q and not q.known then return cat end
 	end
 	local an = Missing("Attune")
 	if an then
