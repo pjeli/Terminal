@@ -254,8 +254,9 @@ ns:RegisterProvider("professions", {
 			local opener = P.WindowSpell(pr.skillLine, pr.name)
 			-- (its next rank at a trainer, as TrainerSpells lists it: what it needs and costs; 0.57.1)
 			local nr = TS and TS.NextRank and TS.NextRank(pr)
-			local nextSaid = nr and ns.DETAIL_SEP .. (nr.now and "|cff40ff40" or "") .. L["next rank%s at skill %d: %s"]:format(
-				nr.title and (" (" .. nr.title .. ")") or "", nr.skill, ns.Money(nr.cost or 0)) .. (nr.now and "|r" or "") or ""
+			local nextSaid = nr and ns.DETAIL_SEP .. (nr.now and "|cff40ff40" or "") .. L["next rank%s at skill %d"]:format(
+				nr.title and (" (" .. nr.title .. ")") or "", nr.skill) .. ((nr.cost or 0) > 0 and (": " .. ns.Money(nr.cost)) or "")
+				.. (nr.now and "|r" or "") or ""
 			out[#out + 1] = {
 				key = pr.name,
 				name = pr.name,

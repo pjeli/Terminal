@@ -87,6 +87,7 @@ local HEX = { now = "|cff40ff40", needsrank = "|cffff9933", nextlevel = "|cff82c
 WT.HEX = HEX
 local RGB = { now = { 0.25, 1, 0.25 }, needsrank = { 1, 0.6, 0.2 }, nextlevel = { 0.51, 0.77, 1 }, later = { 1, 0.31, 0.31 },
 	pet = { 1, 1, 1 }, needstalent = { 1, 1, 1 }, ignored = { 1, 1, 0.63 }, known = { 0.62, 0.62, 0.62 } }
+WT.RGB = RGB
 WT.SAY = { now = L["learn now"], needsrank = L["needs another rank first"], nextlevel = L["next level"], later = L["later"],
 	pet = L["pet ability"], needstalent = L["needs a talent"], ignored = L["ignored"], known = L["known"] }
 -- (the words a row is found by: its state's, and what it is)

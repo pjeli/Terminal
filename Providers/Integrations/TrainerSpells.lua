@@ -38,7 +38,9 @@ function TS.Loaded()
 end
 
 local parts = {} -- each part read once: its result, or false (not usable)
-function TS.Forget() parts = {} end -- (tests)
+local spellNames, profSplit, classStatic = {}, {}, {} -- (the caches below: a spell's name, each profession's ranks and
+-- crafts, your class's spells by name; none of these change in a session)
+function TS.Forget() parts, spellNames, profSplit, classStatic = {}, {}, {}, {} end -- (tests)
 
 --- One part of its data: `global` read and made usable by `make(raw)` (which gives the part, or nil and why). A part
 --- whose table is missing or not in the shape expected is said once (`lost`: what's unavailable without it); `optional`:
@@ -309,7 +311,14 @@ function TS.Taught(id)
 	return r and { cost = r.cost, rank = r.skill, from = TS.NAME } or nil
 end
 
-local function SpellName(id) return Str(Safe(C_Spell and C_Spell.GetSpellName, id)) end
+--- A spell's name, asked of the game once (one it hasn't loaded yet asked again next time).
+local function SpellName(id)
+	local n = spellNames[id]
+	if n then return n end
+	n = Str(Safe(C_Spell and C_Spell.GetSpellName, id))
+	spellNames[id] = n
+	return n
+end
 -- (in your spellbook, known, or the player's: Providers/ClassSpells.lua's, as What's Training asks it)
 local function KnownSpell(id)
 	local CS = ns.ClassSpells
@@ -325,18 +334,38 @@ local function IsRank(name, pr, key)
 	return n == Lower(pr.name or "") or n == Lower(key)
 end
 
+--- A profession's spells in TrainerSpells, split: its ranks (Journeyman, Expert...) and the crafts a trainer teaches,
+--- each by the skill it needs. Made once per profession (its names in your language: pr.name).
+local function Split(pr)
+	local d = TS.ProfData()
+	local key = d and pr and TS.PROF_KEY[pr.skillLine or 0]
+	if not key then return nil end
+	local id = key .. "|" .. tostring(pr.name)
+	local got = profSplit[id]
+	if got then return got end
+	local ranks, crafts, all = {}, {}, true
+	for _, r in ipairs(d.list[key] or {}) do -- (by skill)
+		local name = SpellName(r.id)
+		if not name then all = false
+		elseif IsRank(name, pr, key) then ranks[#ranks + 1] = r
+		else crafts[#crafts + 1] = { r = r, name = name } end
+	end
+	got = { ranks = ranks, crafts = crafts }
+	if all then profSplit[id] = got end -- (a name not loaded yet: made again next time)
+	return got
+end
+
 --- Your profession's spells a trainer teaches (not its ranks) that you don't know: { { id, name, icon, skill, cost },
 --- ... }, skill first (Providers/MissingRecipes.lua lists them with the recipes your windows list: a window not opened
 --- yet, its trainer's still are). pr: Professions.PlayerProfessions()'s.
 function TS.Unknown(pr)
-	local d = TS.ProfData()
-	local key = d and pr and TS.PROF_KEY[pr.skillLine or 0]
+	local sp = Split(pr)
 	local out = {}
-	for _, r in ipairs(key and d.list[key] or {}) do
-		local name = SpellName(r.id)
-		if name and not IsRank(name, pr, key) and not KnownSpell(r.id) then
-			out[#out + 1] = { id = r.id, name = name, skill = r.skill, cost = r.cost,
-				icon = r.icon or Safe(C_Spell and C_Spell.GetSpellTexture, r.id) or ICON }
+	for _, c in ipairs(sp and sp.crafts or {}) do
+		local r = c.r
+		if not KnownSpell(r.id) then
+			if not c.icon then c.icon = r.icon or Safe(C_Spell and C_Spell.GetSpellTexture, r.id) or ICON end
+			out[#out + 1] = { id = r.id, name = c.name, skill = r.skill, cost = r.cost, icon = c.icon }
 		end
 	end
 	return out
@@ -345,13 +374,9 @@ end
 --- Your profession's next rank at a trainer (the first you don't know): { id, title ("Journeyman"), skill (what it
 --- needs), cost, now (your skill's there) }, or nil (every rank known, or TrainerSpells not there).
 function TS.NextRank(pr)
-	local d = TS.ProfData()
-	local key = d and pr and TS.PROF_KEY[pr.skillLine or 0]
-	local ranks = {}
-	for _, r in ipairs(key and d.list[key] or {}) do -- (by skill)
-		local name = SpellName(r.id)
-		if name and IsRank(name, pr, key) then ranks[#ranks + 1] = r end
-	end
+	local sp = Split(pr)
+	local ranks = sp and sp.ranks or {}
+	if #ranks == 0 then return nil end
 	-- (the first after the last one you know: Expert replaces Journeyman in the spellbook)
 	local ids = {}
 	for i, r in ipairs(ranks) do ids[i] = r.id end
@@ -380,36 +405,56 @@ local function TrainingTooltip(e, t)
 		or (e.state == "nextlevel" and L["You can learn it at level %d (next level)"]:format(e.level or 0))
 		or (e.state == "later" and L["You can learn it at level %d"]:format(e.level or 0))
 		or (e.state == "needsrank" and L["Learn the rank before it first"]) or (e.state == "known" and L["You know it"]) or ""
-	t:AddLine(said, 1, 1, 1, true)
-	if (e.cost or 0) > 0 then t:AddDoubleLine(L["Costs"], ns.Money(e.cost), 1, 1, 1, 1, 1, 1) end
 	local WT = ns.WhatsTraining
+	local c = WT and WT.RGB and WT.RGB[e.state] or { 1, 1, 1 } -- (What's Training's colours: green now, blue soon, red later)
+	t:AddLine(said, c[1], c[2], c[3], true)
+	if (e.cost or 0) > 0 then t:AddDoubleLine(L["Costs"], ns.Money(e.cost), 1, 1, 1, 1, 1, 1) end
 	for _, line in ipairs(WT and WT.SourceLines and WT.SourceLines(e) or {}) do t:AddLine(line, 1, 1, 1, true) end
 	t:AddLine(L["As TrainerSpells lists it."], 0.6, 0.6, 0.6)
 	ns.KeyHints(t, L["Enter: list who teaches it, the nearest first    Shift+Enter: link it in chat"], 0.6, 0.6, 0.6, true)
 end
 
 local function Teaches(e) local WT = ns.WhatsTraining; if WT and WT.WhoTeaches then WT.WhoTeaches(e) end end
-local function LinkTraining(e) ns.LinkInChat(e.link or e.name) end
+-- (its link asked for when it's used, not for every row a list makes)
+local function LinkOf(e)
+	local l = rawget(e, "link")
+	if l == nil then
+		l = Str(Safe(C_Spell and C_Spell.GetSpellLink, e.wtId)) or false
+		e.link = l
+	end
+	return l or nil
+end
+local function LinkTraining(e) ns.LinkInChat(LinkOf(e) or e.name) end
+local function ShareTraining(e)
+	LinkOf(e)
+	local WT = ns.WhatsTraining
+	return WT and WT.ShareText and WT.ShareText(e) or e.name
+end
 
 -- the words a row is found by (What's Training's rows': Providers/Integrations/WhatsTraining.lua)
 local WORDS = { now = "now available learnable trainable", needsrank = "requirements needs rank", nextlevel = "next level soon coming",
 	later = "later", known = "known" }
 
-local function TrainingRow(id, name, rank, state, level, cost, weapon)
+local function TrainingRow(id, name, rank, state, level, cost, weapon, icon)
 	local WT = ns.WhatsTraining
 	local e = {
 		kind = "training", key = id, wtId = id, spellName = name, rank = rank,
 		name = rank and (name .. " (" .. rank .. ")") or name,
 		state = state, weapon = weapon or nil, level = level, cost = cost or 0,
-		link = Str(Safe(C_Spell and C_Spell.GetSpellLink, id)), icon = Safe(C_Spell and C_Spell.GetSpellTexture, id) or ICON,
+		icon = icon or Safe(C_Spell and C_Spell.GetSpellTexture, id) or ICON,
 		activate = Teaches, staysOpen = true, tooltip = TrainingTooltip, secondary = LinkTraining,
-		shareLink = WT and WT.ShareText or nil, fromTrainerSpells = true,
+		shareLink = ShareTraining, getLink = LinkOf, fromTrainerSpells = true,
 	}
 	e.color = WT and WT.HEX and WT.HEX[state] or nil
 	e.detail = WT and WT.Detail and WT.Detail(e) or ""
 	e.text = table.concat({ "train training trainable", WORDS[state] or "", weapon and "weapon skill" or "",
 		rank and Lower(rank) or "", level and ("level " .. level) or "" }, " ")
 	return e
+end
+
+local function Before(a, b) -- (a's rank comes before b's)
+	if a.r.level ~= b.r.level then return a.r.level < b.r.level end
+	return (a.r.rank or 0) < (b.r.rank or 0)
 end
 
 local trainingKnown = {} -- (the weapon skills you know: "daggers > learn" starts from them, Search/WhatsTraining.lua)
@@ -426,26 +471,33 @@ function TS.TrainingRows()
 	local level = Num(Safe(UnitLevel, "player")) or 1
 	local race = Str((select(2, Safe(UnitRace, "player"))))
 	local fac = FACTION[Str(Safe(UnitFactionGroup, "player")) or ""]
-	local mine, byName = {}, {}
-	for _, r in ipairs(data[cls] or {}) do
-		if (not r.raceFile or not race or r.raceFile == race) and (not r.faction or not fac or r.faction == fac) then
-			local name = SpellName(r.id)
-			if name then
-				local k = { r = r, name = name, known = KnownSpell(r.id) }
-				mine[#mine + 1] = k
-				byName[name] = byName[name] or {}
-				table.insert(byName[name], k)
+	-- your class's spells (your race's and faction's), each with its name and icon and its ranks together: made once
+	local id = cls .. "|" .. tostring(race) .. "|" .. tostring(fac)
+	local st = classStatic[id]
+	if not st then
+		local mine, byName, all = {}, {}, true
+		for _, r in ipairs(data[cls] or {}) do
+			if (not r.raceFile or not race or r.raceFile == race) and (not r.faction or not fac or r.faction == fac) then
+				local name = SpellName(r.id)
+				if name then
+					local k = { r = r, name = name }
+					mine[#mine + 1] = k
+					byName[name] = byName[name] or {}
+					table.insert(byName[name], k)
+				else
+					all = false
+				end
 			end
 		end
+		for _, list in pairs(byName) do table.sort(list, Before) end
+		st = { mine = mine, byName = byName }
+		if all then classStatic[id] = st end -- (a name not loaded yet: made again next time)
 	end
-	local function Before(a, b) -- (a's rank comes before b's)
-		if a.r.level ~= b.r.level then return a.r.level < b.r.level end
-		return (a.r.rank or 0) < (b.r.rank or 0)
-	end
+	local mine, byName = st.mine, st.byName
+	for _, k in ipairs(mine) do k.known = KnownSpell(k.r.id) end
 	-- (a rank a later one replaced: the spellbook says it isn't known, but it was learned; 0.57.2, the player's level
 	-- 30 warrior had Battle Shout Rank 1 to learn)
 	for _, list in pairs(byName) do
-		table.sort(list, Before)
 		local last = 0
 		for i, k in ipairs(list) do if k.known then last = i end end
 		for i = 1, last do list[i].known = true end
@@ -464,10 +516,13 @@ function TS.TrainingRows()
 				-- (a later rank of a spell whose first no trainer teaches, none of it known: a talent's, a quest's)
 				if earlier or ((r.rank or 0) > 1 and not anyKnown and #byName[k.name] == 1) then state = "needsrank" end
 			end
-			-- (the game's rank text; else TrainerSpells' rank, for a spell of more than one)
-			local rank = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r.id))
-				or (r.rank and (r.rank > 1 or #byName[k.name] > 1) and L["Rank %d"]:format(r.rank)) or nil
-			rows[#rows + 1] = TrainingRow(r.id, k.name, rank, state, r.level, r.cost)
+			-- (the game's rank text; else TrainerSpells' rank, for a spell of more than one; its icon: each asked once)
+			if k.rank == nil then
+				k.rank = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r.id))
+					or (r.rank and (r.rank > 1 or #byName[k.name] > 1) and L["Rank %d"]:format(r.rank)) or false
+				k.icon = Safe(C_Spell and C_Spell.GetSpellTexture, r.id) or ICON
+			end
+			rows[#rows + 1] = TrainingRow(r.id, k.name, k.rank or nil, state, r.level, r.cost, nil, k.icon)
 		end
 	end
 	local w = TS.WeaponData()

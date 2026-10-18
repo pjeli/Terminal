@@ -18,7 +18,7 @@ I.LOST = {
 	Questie = { "Questie", L["@npc and @questie are unavailable."] },
 	Attune = { "Attune", L["@attune is unavailable."] },
 	WhatsTraining = { "What's Training", L["@training is unavailable."] },
-	TrainerSpells = { "TrainerSpells", L["Its profession training, trainers and class spells are unavailable."] },
+	TrainerSpells = { "TrainerSpells", L["Its trainers, weapon masters, class spells and profession training are unavailable."] },
 }
 function I.Setup()
 	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells" }) do

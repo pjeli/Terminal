@@ -265,7 +265,7 @@ do
 		I.Setup()
 		I._.SetupTrainerSpells = setupWas
 		I._.SetupAtlasLoot, I._.SetupQuestie, I._.SetupAttune, I._.SetupWhatsTraining = otherWas[1], otherWas[2], otherWas[3], otherWas[4]
-		check(Said(ns.L["Its profession training, trainers and class spells are unavailable."]), "failing to start: said, with what's unavailable")
+		check(Said(ns.L["Its trainers, weapon masters, class spells and profession training are unavailable."]), "failing to start: said, with what's unavailable")
 		-- Questie's database without the calls Terminal reads: @npc said unavailable, not an empty list
 		said = {}
 		local QD = ns.QuestieData

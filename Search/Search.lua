@@ -729,8 +729,8 @@ Scan.ANSWERS = {
 			for _, w in ipairs(q.words) do rest[#rest + 1] = w end
 			return "@recipe " .. (q.learnable and "is:learnable" or "is:unknown") .. " " .. Words(rest)
 		end },
-	-- "what can i train in tailoring", "tailoring training", "profession training": TrainerSpells' profession training
-	-- (Search/ProfTraining.lua; before What's Training's, whose "what can i train" is your class's spells)
+	-- "what can i train in tailoring", "tailoring training", "profession training": the recipes a trainer teaches you
+	-- don't know (Search/ProfTraining.lua; before What's Training's, whose "what can i train" is your class's spells)
 	Asks("ProfTraining"),
 	-- "what can i train", "what do i learn next level", "how much is training", "when do i learn fireball": What's
 	-- Training's spells (Search/WhatsTraining.lua; after the recipes': "recipes i can learn" is theirs)

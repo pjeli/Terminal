@@ -137,8 +137,8 @@ local function NextRanks(q)
 		if q.profs and want[pr.name] or (not q.profs and #said < 2) then
 			local nr = TS.NextRank(pr)
 			if nr then
-				said[#said + 1] = pr.name .. ": " .. L["next rank%s at skill %d: %s"]:format(nr.title and (" (" .. nr.title .. ")") or "",
-					nr.skill, ns.Money(nr.cost or 0))
+				said[#said + 1] = pr.name .. ": " .. L["next rank%s at skill %d"]:format(nr.title and (" (" .. nr.title .. ")") or "",
+					nr.skill) .. ((nr.cost or 0) > 0 and (": " .. ns.Money(nr.cost)) or "")
 			end
 		end
 	end
