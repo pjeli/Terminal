@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.56.13", when = "in testing",
+		v = "0.56.14", when = "in testing",
 		items = {
 			"The bar's button says Group again.",
 			"Every class's spells (\"travel form\", \"druid spells\", \"upcoming spells\") and the weapon masters (\"dagger trainer\") come straight from What's Training now, so they stay as up to date as it is. Without What's Training the footer says to install it.",
@@ -25,11 +25,12 @@ CL.LOG = {
 			"Attune's new look: Enter opens it on the right attunement (its Archived group too) and points at it in the list or the icon view; a step out of view is scrolled to; steps are lettered left to right as its chart draws them, a split's branches each their own letter; side quests are named by its \"Inside the dungeon\" box; its short names (\"ubrs\", \"dal key\") find attunements.",
 			"The bar underlines the F of Filter, the S of Sort and the G of Group: Alt+F, Alt+S and Alt+G open them.",
 			"\"nearest\" mistyped (\"nearset\", \"neareset\") still means nearest; an NPC's role said alone (\"inn\", \"bank\", \"repair\", \"weapon master\") lists the nearest of them, and \"skinner\", \"miner\" or \"herbalist\" the nearest trainer of it.",
-			"The / key opens Terminal on a slash command, the \"/\" already typed (out of combat; in combat it opens the chat box as before). Off: .set slashKey off, or Options.",
+			"The / key can open Terminal on a slash command, the \"/\" already typed: turn it on with .set slashKey on, or Options (out of combat; in combat / opens the chat box as before).",
 			"Every list of NPCs is sorted nearest first unless you pick another sort (trainers, merchants, reagent vendors...); \"merchant\" means vendor.",
 			"In Simple mode the categories come in a better order: NPCs whose title has your word (\"reagent\": the reagent vendors) near the top, a category with more matches above one with fewer, and the category you picked for those words before higher each time. .forget clears those picks too.",
 			"@auction lists your sales of the last 30 days too (\"auctions sold\"): the price, the buyer and what you got, from the auction house's news, the Auctions tab or the sale's mail. Auctions posted one after another each keep their own price, and one kept with no price takes the Auctions tab's.",
 			".credits: a thank-you to the people who kept Terminal going.",
+			"Upgrades weigh only what you want: gear whose stats are all ones your class or role doesn't use (Intellect and Spell Power for a warrior) is never an upgrade, whatever its item level, and spells' hit and crit and feral attack power count only for those who use them. A tooltip says when an upgrade was judged by item level.",
 		},
 	},
 	{

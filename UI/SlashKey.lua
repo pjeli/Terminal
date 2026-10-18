@@ -1,11 +1,11 @@
 local ns = select(2, ...)
-local L = ns.L
 local UI = ns.UI
 
 -- The / key opens Terminal on a slash command (0.56.9, the player's ask: "have Terminal open on a / character as well;
 -- as if the player is trying to type a slash command"). The game's own / (open the chat box with "/") is taken over only
 -- while you're out of combat, and only when / still does that: another binding of yours on / is left alone. In combat
--- / opens the chat box as ever (Terminal closes in combat). Off with .set slashKey off (Options: Open on /).
+-- / opens the chat box as ever (Terminal closes in combat). Off unless turned on (0.56.14): .set slashKey on, or Options:
+-- Open on /.
 --
 -- An override binding of Terminal's own (never saved to your key bindings): set out of combat, taken off as combat
 -- starts (PLAYER_REGEN_DISABLED comes before the game locks bindings), set again after.
@@ -23,7 +23,7 @@ local applied = false
 function SK.Wanted()
 	local T = ns.Theme
 	local t = T and T.Get and T.Get()
-	if not t or t.slashKey == false then return false end
+	if not (t and t.slashKey == true) then return false end
 	if InCombatLockdown() then return false end
 	local ok, action = pcall(GetBindingAction, SK.KEY)
 	return ok and action == SK.GAME
@@ -37,11 +37,6 @@ function SK.Apply()
 	applied = want
 	if want then
 		SetOverrideBinding(owner, false, SK.KEY, SK.ACTION)
-		local db = ns.db
-		if db and not db.slashKeyTold then
-			db.slashKeyTold = true
-			ns:Print(L["/ now opens Terminal on a slash command (in combat, the chat box as before). Off: /term .set slashKey off"])
-		end
 	else
 		SetOverrideBinding(owner, false, SK.KEY, nil)
 	end

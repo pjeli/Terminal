@@ -7,7 +7,7 @@ local ns = select(2, ...)
 -- game's build changes (a patch may change items).
 local S = {}
 ns.ItemStore = S
-S.VERSION = 2 -- (2: "usable" kept per character, not per class; 0.51.25)
+S.VERSION = 3 -- (2: "usable" kept per character, not per class; 0.51.25. 3: spells' hit and crit, feral attack power: 0.56.14)
 S.CAP = { quality = 12000, facts = 6000 }
 
 local cur -- (the store as found this session: { db = ns.db, t = the saved table })

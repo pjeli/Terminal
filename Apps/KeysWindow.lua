@@ -70,7 +70,7 @@ K.LINES = {
 
 	{ L["Modes and the window"] },
 	{ "` or Esc", L["close"], s = L["close (Down brings the search back next time)"] },
-	{ "/", L["closed: opens Terminal on a slash command, out of combat (.set slashKey off: the chat box's again)"] },
+	{ "/", L["closed: opens Terminal on a slash command, out of combat, once turned on (.set slashKey on, or Options)"] },
 	{ "Alt+`", only = "sf", s = L["this search in Advanced mode (Alt+` again or Shift+Left: your words back)"], f = L["the same words in Advanced mode"] },
 	{ "Alt+F, Alt+S, Alt+G", L["the bar's Filter, Sort and Group menus: Up/Down move, Enter or Space picks, Left/Right the next menu, Esc closes"], only = "s" },
 	{ "Tab+`", L["fuzzy finding over every list (hold Tab, press `)"], f = L["close"] },

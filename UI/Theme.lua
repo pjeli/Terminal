@@ -45,10 +45,10 @@ T.DEFAULTS = {
 	autoScan = true, -- index professions quietly after login
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
-	slashKey = true, -- the / key opens Terminal on a slash command (SlashKey.lua)
+	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on, 0.56.14)
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
-	v = 3, -- theme defaults version (see T.Get)
+	v = 4, -- theme defaults version (see T.Get)
 }
 
 T.PRESET_ORDER = { "forever", "foreverblue", "midnight", "matrix", "dracula", "solarized", "horde", "alliance",
@@ -208,6 +208,11 @@ function T.Get()
 			CopyPreset(t, t.preset)
 		end
 		t.v = 3
+	end
+	-- v4 (0.56.14, the author's call): the / key off unless turned on; the test builds before had it on for everyone
+	if t.v == 3 then
+		t.slashKey = nil
+		t.v = 4
 	end
 	-- animations were on/off before there were styles
 	if t.animations == true then t.animations = "smooth" elseif t.animations == false then t.animations = "off" end

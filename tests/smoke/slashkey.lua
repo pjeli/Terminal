@@ -7,18 +7,25 @@ local SK = ns.SlashKey
 io.write("[slashkey: / opens Terminal on a slash command]\n")
 do
 	local save = { action = _G.GetBindingAction, set = _G.SetOverrideBinding, combat = _G.InCombatLockdown, easy = ns.db.easyMode,
-		told = ns.db.slashKeyTold, print = ns.Print }
+		print = ns.Print }
 	local base, over, combat, said = { ["/"] = "OPENCHATSLASH" }, {}, false, {}
 	_G.GetBindingAction = function(k) return base[k] or "" end
 	_G.SetOverrideBinding = function(o, _, k, cmd) over[k] = cmd; return save.set and save.set(o, _, k, cmd) end
 	_G.InCombatLockdown = function() return combat end
 	ns.Print = function(_, m) said[#said + 1] = m end
-	ns.db.slashKeyTold = nil
+	-- (0.56.14, the author's call) off unless turned on; a theme saved by the test builds, when it was on for everyone, too
+	local theme = ns.db.theme
+	ns.db.theme = { v = 3, preset = "forever", slashKey = true }
+	check(ns.Theme.Get().slashKey == false and ns.Theme.Get().v == 4, "a test build's theme: off now")
+	ns.db.theme = {}
+	check(ns.Theme.Get().slashKey == false, "a new theme: off")
+	ns.db.theme = theme
+	ns.Theme.Set("slashKey", "off")
 	SK.OnEvent(nil, "PLAYER_LOGIN")
-	check(SK.Applied() and over["/"] == "TERMINAL_SLASH", "/ the game's chat key: Terminal's now: " .. tostring(over["/"]))
-	check(#said == 1 and said[1]:find("/term .set slashKey off", 1, true), "said once, with how to turn it off")
-	SK.OnEvent(nil, "UPDATE_BINDINGS")
-	check(#said == 1, "not said again")
+	check(not SK.Applied() and over["/"] == nil, "off: / is the chat box's")
+	ns.Theme.Set("slashKey", "on")
+	check(SK.Applied() and over["/"] == "TERMINAL_SLASH", "turned on, / the game's chat key: Terminal's now: " .. tostring(over["/"]))
+	check(#said == 0, "nothing said in chat (you turned it on)")
 	-- combat: the chat box's again (taken off before the game locks bindings), back after
 	SK.OnEvent(nil, "PLAYER_REGEN_DISABLED")
 	check(not SK.Applied() and over["/"] == nil, "combat: / opens the chat box")
@@ -55,7 +62,8 @@ do
 	UI:Hide(); FlushAll()
 
 	_G.GetBindingAction, _G.SetOverrideBinding, _G.InCombatLockdown = save.action, save.set, save.combat
+	ns.Theme.Set("slashKey", "off")
 	SK.OnEvent(nil, "PLAYER_REGEN_DISABLED") -- (the override off, as the other tests expect)
-	ns.Print, ns.db.slashKeyTold, ns.db.easyMode = save.print, save.told, save.easy
+	ns.Print, ns.db.easyMode = save.print, save.easy
 	UI:EasyChanged()
 end

@@ -1607,7 +1607,7 @@ do
 		check(ratio(P.text, P.bg) >= 7 and ratio(P.dim, P.bg) >= 4.5 and ratio(P.prompt, P.bg) >= 4.5, id .. " text, details and prompt readable on brown")
 	end
 	ns.db.theme = { preset = "forever", bg = "000000", rows = 9, v = 2 }
-	check(Th.Get().bg == "47331f" and Th.Get().rows == 9 and Th.Get().v == 3, "black Forever from 0.7.0 moves to the brown")
+	check(Th.Get().bg == "47331f" and Th.Get().rows == 9 and Th.Get().v == 4, "black Forever from 0.7.0 moves to the brown (and on to v4)")
 	ns.db.theme = { preset = "forever", bg = "112233", v = 2 }
 	check(Th.Get().bg == "112233", "a tuned background is kept")
 	ns.db.theme = nil

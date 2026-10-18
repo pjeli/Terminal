@@ -24,11 +24,14 @@ F.GEAR_NEAR = 6
 local NEVER = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 
 -- what a stat key is (ITEM_MOD_STRENGTH_SHORT -> "str"): the first part of the key that matches, in this order (not
--- HEALTH_REGEN: hp5 isn't mp5; review, 0.53.6)
+-- HEALTH_REGEN: hp5 isn't mp5; review, 0.53.6). Spells' hit and crit and a druid's feral attack power are their own
+-- (0.56.14: a warrior's weights counted a caster's +1% spell hit as hit, a feral staff's attack power in forms as his)
 local STAT_KINDS = {
-	{ "RANGED_ATTACK_POWER", "rap" }, { "ATTACK_POWER", "ap" }, { "STRENGTH", "str" }, { "AGILITY", "agi" },
-	{ "STAMINA", "sta" }, { "INTELLECT", "int" }, { "SPIRIT", "spi" }, { "HEALING", "heal" }, { "SPELL_DAMAGE", "sp" },
-	{ "SPELL_POWER", "sp" }, { "CRIT", "crit" }, { "HIT", "hit" }, { "HASTE", "haste" }, { "MANA_REGEN", "mp5" }, { "POWER_REGEN0", "mp5" },
+	{ "FERAL_ATTACK_POWER", "feralap" }, { "RANGED_ATTACK_POWER", "rap" }, { "ATTACK_POWER", "ap" }, { "STRENGTH", "str" },
+	{ "AGILITY", "agi" }, { "STAMINA", "sta" }, { "INTELLECT", "int" }, { "SPIRIT", "spi" }, { "HEALING", "heal" },
+	{ "SPELL_DAMAGE", "sp" }, { "SPELL_POWER", "sp" }, { "HIT_SPELL", "spellhit" }, { "CRIT_SPELL", "spellcrit" },
+	{ "SPELL_HIT", "spellhit" }, { "SPELL_CRIT", "spellcrit" },
+	{ "CRIT", "crit" }, { "HIT", "hit" }, { "HASTE", "haste" }, { "MANA_REGEN", "mp5" }, { "POWER_REGEN0", "mp5" },
 	{ "DAMAGE_PER_SECOND", "dps" }, { "RESISTANCE0", "armor" }, { "DEFENSE", "def" }, { "DODGE", "dodge" },
 	{ "PARRY", "parry" }, { "BLOCK", "block" },
 }
@@ -47,25 +50,26 @@ end
 
 -- how much each stat is worth to a class (rough: what it wants most is 1)
 local GENERIC = { str = 0.6, agi = 0.6, int = 0.6, spi = 0.3, sta = 0.5, ap = 0.3, rap = 0.2, sp = 0.4, heal = 0.3,
-	crit = 0.5, hit = 0.5, haste = 0.4, mp5 = 0.5, dps = 1.5, armor = 0.01, def = 0.3, dodge = 0.3, parry = 0.3, block = 0.2 }
+	crit = 0.5, hit = 0.5, spellhit = 0.4, spellcrit = 0.4, haste = 0.4, mp5 = 0.5, dps = 1.5, armor = 0.01, def = 0.3,
+	dodge = 0.3, parry = 0.3, block = 0.2 }
 F.WEIGHTS = {
 	WARRIOR = { str = 1, agi = 0.7, sta = 0.6, ap = 0.5, crit = 0.8, hit = 0.8, haste = 0.5, dps = 3, armor = 0.02,
 		def = 0.5, dodge = 0.5, parry = 0.5, block = 0.3 },
 	PALADIN = { str = 1, int = 0.6, sta = 0.6, spi = 0.2, agi = 0.4, ap = 0.4, sp = 0.6, heal = 0.5, crit = 0.7,
-		hit = 0.6, mp5 = 1, dps = 2.5, armor = 0.02, def = 0.4, block = 0.2 },
+		hit = 0.6, spellcrit = 0.4, mp5 = 1, dps = 2.5, armor = 0.02, def = 0.4, block = 0.2 },
 	HUNTER = { agi = 1, ap = 0.4, rap = 0.5, sta = 0.5, int = 0.3, spi = 0.1, crit = 0.8, hit = 0.8, haste = 0.5,
 		dps = 2, armor = 0.01 },
 	ROGUE = { agi = 1, str = 0.5, ap = 0.5, sta = 0.5, crit = 0.8, hit = 0.8, haste = 0.6, dps = 3, armor = 0.01 },
-	PRIEST = { int = 1, spi = 0.8, sta = 0.5, sp = 0.8, heal = 0.8, crit = 0.5, haste = 0.4, mp5 = 1.2, dps = 0.3,
-		armor = 0.005 },
-	MAGE = { int = 1, spi = 0.5, sta = 0.5, sp = 1, crit = 0.7, hit = 0.8, haste = 0.5, mp5 = 0.8, dps = 0.3,
-		armor = 0.005 },
-	WARLOCK = { int = 0.8, spi = 0.4, sta = 0.7, sp = 1, crit = 0.5, hit = 0.8, haste = 0.5, mp5 = 0.6, dps = 0.3,
-		armor = 0.005 },
+	PRIEST = { int = 1, spi = 0.8, sta = 0.5, sp = 0.8, heal = 0.8, crit = 0.5, spellcrit = 0.5, spellhit = 0.3, haste = 0.4,
+		mp5 = 1.2, dps = 0.3, armor = 0.005 },
+	MAGE = { int = 1, spi = 0.5, sta = 0.5, sp = 1, crit = 0.7, hit = 0.8, spellcrit = 0.7, spellhit = 0.8, haste = 0.5,
+		mp5 = 0.8, dps = 0.3, armor = 0.005 },
+	WARLOCK = { int = 0.8, spi = 0.4, sta = 0.7, sp = 1, crit = 0.5, hit = 0.8, spellcrit = 0.5, spellhit = 0.8, haste = 0.5,
+		mp5 = 0.6, dps = 0.3, armor = 0.005 },
 	SHAMAN = { int = 0.8, str = 0.6, agi = 0.5, sta = 0.5, spi = 0.3, sp = 0.7, heal = 0.6, ap = 0.4, crit = 0.6,
-		hit = 0.5, mp5 = 1, dps = 2, armor = 0.015 },
-	DRUID = { int = 0.7, agi = 0.6, str = 0.6, sta = 0.5, spi = 0.4, sp = 0.6, heal = 0.6, ap = 0.4, crit = 0.6,
-		mp5 = 1, dps = 0.5, armor = 0.01 },
+		hit = 0.5, spellcrit = 0.5, spellhit = 0.4, mp5 = 1, dps = 2, armor = 0.015 },
+	DRUID = { int = 0.7, agi = 0.6, str = 0.6, sta = 0.5, spi = 0.4, sp = 0.6, heal = 0.6, ap = 0.4, feralap = 0.4,
+		crit = 0.6, spellcrit = 0.5, spellhit = 0.3, mp5 = 1, dps = 0.5, armor = 0.01 },
 }
 F.WEIGHTS.DEATHKNIGHT, F.WEIGHTS.MONK, F.WEIGHTS.DEMONHUNTER = F.WEIGHTS.WARRIOR, F.WEIGHTS.ROGUE, F.WEIGHTS.ROGUE
 F.WEIGHTS.EVOKER = F.WEIGHTS.MAGE
@@ -77,8 +81,10 @@ F.WEIGHTS.GENERIC = GENERIC
 -- picked: the class's all-round weights above.
 local L = ns.L
 local TANK = { sta = 1, def = 1, dodge = 0.8, parry = 0.7, block = 0.5, armor = 0.04, str = 0.6, agi = 0.5, hit = 0.3, dps = 1.5 }
-local HEALER = { int = 0.8, spi = 0.7, heal = 1, sp = 0.5, mp5 = 1.2, sta = 0.3, crit = 0.4, haste = 0.3, armor = 0.005 }
-local CASTER = { int = 0.8, sp = 1, crit = 0.7, hit = 0.9, haste = 0.5, sta = 0.4, spi = 0.3, mp5 = 0.5, dps = 0.2, armor = 0.005 }
+local HEALER = { int = 0.8, spi = 0.7, heal = 1, sp = 0.5, mp5 = 1.2, sta = 0.3, crit = 0.4, spellcrit = 0.4, haste = 0.3,
+	armor = 0.005 }
+local CASTER = { int = 0.8, sp = 1, crit = 0.7, hit = 0.9, spellcrit = 0.7, spellhit = 0.9, haste = 0.5, sta = 0.4, spi = 0.3,
+	mp5 = 0.5, dps = 0.2, armor = 0.005 }
 local STR_MELEE = { str = 1, agi = 0.6, ap = 0.5, crit = 0.8, hit = 0.8, haste = 0.5, sta = 0.4, dps = 3, armor = 0.01 }
 F.ROLES = {
 	WARRIOR = { { "dps", STR_MELEE }, { "tank", TANK } },
@@ -92,7 +98,8 @@ F.ROLES = {
 	SHAMAN = { { "healer", HEALER }, { "caster", CASTER },
 		{ "melee", { str = 1, agi = 0.8, ap = 0.5, int = 0.2, crit = 0.8, hit = 0.8, sta = 0.4, dps = 3, armor = 0.01 } } },
 	DRUID = { { "healer", HEALER }, { "caster", CASTER },
-		{ "feral", { agi = 1, str = 0.9, ap = 0.5, sta = 0.6, crit = 0.8, hit = 0.8, armor = 0.03, def = 0.3, dodge = 0.4 } } },
+		{ "feral", { agi = 1, str = 0.9, ap = 0.5, feralap = 0.5, sta = 0.6, crit = 0.8, hit = 0.8, armor = 0.03, def = 0.3,
+			dodge = 0.4 } } },
 }
 F.ROLE_SAY = { dps = L["damage"], tank = L["tank"], healer = L["healer"], melee = L["melee"], ranged = L["ranged"],
 	caster = L["caster"], feral = L["feral"] }
@@ -166,6 +173,15 @@ function F.KindsValue(kinds, w)
 	end
 	return any and v or nil
 end
+--- What an item's stats by kind are worth to you: weighed; 0 when it has stats but none of them are ones you want; nil
+--- when it has none to weigh (then item levels decide). 0.56.14, the player: a warrior was offered Snake Hoop
+--- (Intellect, Spell Power) over rings of Strength and Agility: stats none of which were wanted were taken as unknown,
+--- and its higher item level made it an upgrade (an empty slot took any such item too).
+function F.Worth(kinds, w)
+	local v = F.KindsValue(kinds, w)
+	if v == nil and type(kinds) == "table" and next(kinds) ~= nil then return 0 end
+	return v
+end
 -- A clear upgrade (0.52.7, the player: "pretty clear upgrades over what I'm wearing now; only slight trade-offs"): what it
 -- gives up, weighed, at most F.UPGRADE_LOSS of what it gains (+3 Strength for -2 Agility is one; +1 Strength +2 Stamina
 -- for -2 Agility isn't), and what it adds at least F.UPGRADE_MIN of what you wear there is worth (at least
@@ -196,7 +212,9 @@ end
 --- Kept while you wear the same (by the links, which a new piece or enchant changes) and the weights are the same: the
 --- search's filter is made on every keystroke (review, 0.53.6: 18 slots' stats and item levels read each time). Only
 --- once every piece was read whole (an item the client is still loading is read again next time).
-local wornKept
+-- (one per weights table: with two roles picked each judged its own, and a single kept copy was read again for each,
+-- every keystroke; 0.56.14)
+local wornKept = {}
 local function WornGear(w)
 	local link = _G.GetInventoryItemLink
 	local links = {}
@@ -205,7 +223,8 @@ local function WornGear(w)
 		links[slot] = (ok and type(l) == "string" and not Secret(l)) and l or ""
 	end
 	local key = table.concat(links, "\001", 1, 18)
-	if wornKept and wornKept.key == key and wornKept.w == w then return unpack(wornKept.r, 1, 6) end
+	local kept = wornKept[w]
+	if kept and kept.key == key then return unpack(kept.r, 1, 6) end
 	local levels, values, kinds, locs, names, ids = {}, {}, {}, {}, {}, {}
 	local detailed = C_Item and C_Item.GetDetailedItemLevelInfo or _G.GetDetailedItemLevelInfo
 	local get = (C_Item and C_Item.GetItemStats) or _G.GetItemStats
@@ -236,7 +255,7 @@ local function WornGear(w)
 				-- (nil when it has none to weigh: then item levels are compared, not any stat against nothing)
 				if okS and type(st) == "table" then
 					kinds[slot] = F.StatKinds(st)
-					values[slot] = F.KindsValue(kinds[slot], w)
+					values[slot] = F.Worth(kinds[slot], w)
 				elseif C_Item and C_Item.IsItemDataCachedByID and wid and C_Item.IsItemDataCachedByID(wid) == false then
 					whole = false -- (no stats yet: still loading)
 				end
@@ -252,7 +271,7 @@ local function WornGear(w)
 			levels[17], values[17], kinds[17], names[17], values.twoHand = levels[16], values[16], kinds[16], names[16], true
 		end
 	end
-	wornKept = whole and { key = key, w = w, r = { levels, values, kinds, locs, names, ids } } or nil
+	wornKept[w] = whole and { key = key, r = { levels, values, kinds, locs, names, ids } } or nil
 	return levels, values, kinds, locs, names, ids
 end
 
@@ -267,7 +286,7 @@ end
 -- "slot type;required level;item level;binding;str=7,sta=4;Grom+,Jaina-" (the last: usable by each of your characters
 -- it was asked for). A change to this record or to the stat kinds (STAT_KINDS) needs ItemStore's S.VERSION raised. A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
 local fit = {}
-F.ClearFit = function() fit = {}; wornKept = nil; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
+F.ClearFit = function() fit = {}; wornKept = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)
 --- Is something known of this item, kept this session or from another (is:upgrade can judge it without the game)?
@@ -515,9 +534,12 @@ GearFitWith = function(weights, role)
 					local st = Stats(e)
 					if st then f.kinds = F.StatKinds(st); Remember(key, f, class) end
 				end
+				-- (nothing you want on it: not one, even for an empty slot)
+				local worth = F.Worth(f.kinds, weights)
+				if worth == 0 then return false end
 				-- (its stats' worth; none to weigh: after those, by item level, not item levels against stat points: an empty
 				-- trinket slot's every trinket went above real upgrades; review, 0.51.25)
-				gains[e] = { gain = F.KindsValue(f.kinds, weights) or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true,
+				gains[e] = { gain = worth or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true,
 					role = role }
 			end
 			return yes
@@ -530,7 +552,8 @@ GearFitWith = function(weights, role)
 				Remember(key, f, class)
 			end
 		end
-		local mine = F.KindsValue(f.kinds, weights)
+		local mine = F.Worth(f.kinds, weights)
+		if mine == 0 then return false end -- (stats, none of them ones you want: whatever its item level)
 		-- (the worn piece's stats read but none of them wanted: worth nothing, not unknown; a role's weights leave many out,
 		-- a healer's an agility helm's: 0.54.1)
 		if wVal == nil and mine and wKinds then wVal = 0 end

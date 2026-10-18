@@ -539,7 +539,7 @@ function O.Refresh()
 	local canScan = ns.db and ns.db.noDirectOpen == false
 	O.widgets.autoScan:SetShown(canScan)
 	O.widgets.autoScanLabel:SetShown(canScan)
-	O.widgets.slashKey:SetChecked(t.slashKey ~= false)
+	O.widgets.slashKey:SetChecked(t.slashKey == true)
 	-- (beside Suggestions where the profession indexing is hidden; else under it, the panel's buttons a row lower)
 	if O.slashPlaced ~= canScan then
 		O.slashPlaced = canScan
