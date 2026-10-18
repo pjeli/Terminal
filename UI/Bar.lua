@@ -532,6 +532,10 @@ local function Build()
 		b.text:SetWordWrap(false)
 		b.bg = b:CreateTexture(nil, "BACKGROUND")
 		b.bg:SetAllPoints()
+		-- (its key's letter underlined, Alt+F, Alt+S, Alt+G: B.Underline)
+		b.under = b:CreateTexture(nil, "OVERLAY")
+		b.under:SetHeight(1)
+		b.under:Hide()
 		if b.RegisterForClicks then b:RegisterForClicks("LeftButtonUp", "RightButtonUp") end
 		b:SetScript("OnClick", function(_, button)
 			if UI.closing then return end
@@ -544,6 +548,9 @@ local function Build()
 		b:SetScript("OnLeave", function() b.hover = nil; B.Shade(b) end)
 		strip.buttons[#strip.buttons + 1] = b
 	end
+	strip.measure = strip:CreateFontString(nil, "OVERLAY") -- (B.Underline's ruler: never shown)
+	strip.measure:SetFontObject(Theme.fonts.small)
+	strip.measure:Hide()
 	local horn = CreateFrame("Button", nil, strip)
 	-- (0.55.9, the player: "more like a megaphone": the game's own speaker on a dark square with a thin edge)
 	horn.bg = horn:CreateTexture(nil, "BACKGROUND")
@@ -625,7 +632,7 @@ function B.Update()
 	local widths = {}
 	for i, b in ipairs(s.buttons) do
 		local label = Label(b.which)
-		if b.label ~= label then b.label = label; b.text:SetText(label) end
+		if b.label ~= label then b.label = label; b.text:SetText(label); B.Underline(b) end
 		widths[i] = math.ceil((b.text:GetStringWidth() or 40) + 18)
 	end
 	local laid = table.concat({ inset, top, h, table.concat(widths, ",") }, ":")
@@ -643,6 +650,7 @@ function B.Update()
 			b:Show()
 			x = x + widths[i] + 4
 		end
+		for _, b in ipairs(s.buttons) do B.Underline(b) end
 		local horn = s.horn
 		horn:ClearAllPoints()
 		horn:SetPoint("RIGHT", s, "RIGHT", -2, 0)
@@ -656,6 +664,7 @@ function B.Update()
 		b.active = active and true or false
 		local col = b.off and t.dim or (active and t.accent or t.text)
 		b.text:SetTextColor(Theme.RGB(col))
+		b.under:SetColorTexture(Theme.RGB(col))
 		B.Shade(b)
 	end
 	s.horn.off = not B.FirstReal()
@@ -663,6 +672,29 @@ function B.Update()
 	s.horn.bg:SetColorTexture(0, 0, 0, 0.6)
 	local br, bg, bb = Theme.RGB(t.border)
 	for _, edge in ipairs(s.horn.edges) do edge:SetColorTexture(br, bg, bb, 1) end
+end
+
+-- each button's key: Alt+F, Alt+S, Alt+G (Keys.lua)
+B.KEY_LETTER = { filter = "f", sort = "s", group = "g" }
+
+--- Its key's letter underlined in its label, as a menu's keys are shown (0.56.7, the player: "a hint that there is a
+--- shortcut"): the first F of "Filter", S of "Sort", G of "Group". A language whose word hasn't that letter: none.
+function B.Underline(b)
+	local u, label = b.under, ns.Plain and ns.Plain(tostring(b.label or "")) or tostring(b.label or "")
+	local letter = B.KEY_LETTER[b.which]
+	local at = letter and label:lower():find(letter, 1, true)
+	local m = strip and strip.measure
+	if not (at and m) then u:Hide() return end
+	m:SetText(label:sub(1, at - 1))
+	local before = at > 1 and (m:GetStringWidth() or 0) or 0
+	m:SetText(label:sub(at, at))
+	local wide = m:GetStringWidth() or 0
+	if wide <= 0 then u:Hide() return end
+	u:ClearAllPoints()
+	u:SetPoint("TOPLEFT", b.text, "BOTTOMLEFT", math.floor(before + 0.5), 0)
+	u:SetWidth(math.max(1, math.floor(wide + 0.5)))
+	u:Show()
+	b.underAt, b.underWide = before, wide -- (tests)
 end
 
 --- A button's background: the accent, stronger when it has something picked, a little more under the pointer.

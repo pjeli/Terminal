@@ -325,6 +325,17 @@ do
 		check(B.strip.buttons[3].label == B.GroupWord() and not B.strip.buttons[3].active, "| count typed: Group not shown as on: " .. B.strip.buttons[3].label)
 		-- (0.56.1, the player) the button says "Group"; a language with its own word for grouping says that one
 		check(B.strip.buttons[3].label == "Group", "its word: Group: " .. B.strip.buttons[3].label)
+		-- (0.56.7, the player) each button's key letter underlined: F, S, G; none in a language whose word hasn't it
+		local f, so, g = B.strip.buttons[1], B.strip.buttons[2], B.strip.buttons[3]
+		check(f.under:IsShown() and so.under:IsShown() and g.under:IsShown() and f.underAt == 0 and g.underAt == 0
+			and f.underWide == 7, "Filter's F, Sort's S, Group's G underlined: " .. tostring(f.underAt) .. " " .. tostring(f.underWide))
+		local sortWas = rawget(L, "Sort")
+		rawset(L, "Sort", "Порядок"); so.label = nil
+		B.Update()
+		check(not so.under:IsShown(), "a word without the letter: no line under it")
+		rawset(L, "Sort", sortWas); so.label = nil
+		B.Update()
+		check(so.under:IsShown(), "back: underlined again")
 		local was = rawget(L, "Group by")
 		rawset(L, "Group by", "分组")
 		check(B.GroupWord() == "分组", "translated: grouping's word, not the party's: " .. B.GroupWord())
