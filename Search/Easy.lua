@@ -203,6 +203,9 @@ E.WORDS = {
 	graveyard = "is:spirithealer", graveyards = "is:spirithealer",
 	-- PvP NPCs: only the real ones ("nearby battlemaster", "nearest pvp vendor", "honor vendor")
 	battlemaster = "is:battlemaster", battlemasters = "is:battlemaster",
+	-- (0.56.8, a player's comment: "weapon master" alone, the nearest of them)
+	weaponmaster = "is:weaponmaster", weaponmasters = "is:weaponmaster", ["weapon master"] = "is:weaponmaster",
+	["weapon masters"] = "is:weaponmaster",
 	["pvp vendor"] = "is:pvpvendor", ["pvp vendors"] = "is:pvpvendor", ["honor vendor"] = "is:pvpvendor",
 	["honor vendors"] = "is:pvpvendor", ["pvp quartermaster"] = "is:pvpvendor", pvp = "is:pvp",
 	-- flight paths, and whether you know them ("unlearned flight paths", "nearest unlearned flight master": Flights.lua)
@@ -374,7 +377,8 @@ end
 -- can't wear)
 E.HARD_WORDS = { unplaced = true, upgrade = true, upgrades = true, skillup = true, skillups = true, ["skill up"] = true, ["skill ups"] = true,
 	battlemaster = true, battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true,
-	["honor vendor"] = true, ["honor vendors"] = true, ["pvp quartermaster"] = true }
+	["honor vendor"] = true, ["honor vendors"] = true, ["pvp quartermaster"] = true,
+	weaponmaster = true, weaponmasters = true, ["weapon master"] = true, ["weapon masters"] = true }
 
 -- left out of a search typed like a sentence (only when another word is left)
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
@@ -602,11 +606,27 @@ E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, ba
 	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true, battlemaster = true,
 	battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true, ["honor vendor"] = true,
 	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true, ["spirit healer"] = true, ["spirit healers"] = true,
-	["spirit guide"] = true, graveyard = true, graveyards = true }
+	["spirit guide"] = true, graveyard = true, graveyards = true, weaponmaster = true, weaponmasters = true,
+	["weapon master"] = true, ["weapon masters"] = true }
 setmetatable(E.ROLE_WORDS, { __index = function(_, w) return E.GameRole(w) or nil end }) -- (the game's own words too)
 
+--- "nearset", "neareset", "neares": "nearest" as it's often mistyped (0.56.8, a player's comment), "nearbby" too; a
+--- word starting with n, within two letters of it (one of "nearby").
+function E.NearTypo(word)
+	local D = ns.DidYouMean and ns.DidYouMean.Distance
+	if not (D and type(word) == "string" and #word >= 5 and word:sub(1, 1) == "n") then return nil end
+	if D(word, "nearest", 2) <= 2 or D(word, "nearby", 1) <= 1 then return E.ACTIONS.nearest end
+end
+
 --- The action a search's first word names, or nil (only with another word after it, or an everyday word).
-function E.Action(word) return E.On() and E.ACTIONS[word] or nil end
+function E.Action(word) return E.On() and (E.ACTIONS[word] or E.NearTypo(word)) or nil end
+
+-- the people a profession's trainer is said as ("skinner": the nearest skinning trainer; 0.56.8, a player's comment)
+E.PROF_PEOPLE = { skinner = "skinning", skinners = "skinning", miner = "mining", miners = "mining", herbalist = "herbalism",
+	herbalists = "herbalism", alchemist = "alchemy", alchemists = "alchemy", enchanter = "enchanting", enchanters = "enchanting",
+	engineer = "engineering", engineers = "engineering", leatherworker = "leatherworking", leatherworkers = "leatherworking",
+	tailor = "tailoring", tailors = "tailoring", blacksmith = "blacksmithing", blacksmiths = "blacksmithing",
+	fisherman = "fishing", angler = "fishing" }
 
 local Never = ns.Never
 

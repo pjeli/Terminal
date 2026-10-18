@@ -476,6 +476,9 @@ KEYS.sold = KEYS.sells
 IS.classtrainer = AnyClassTrainer
 IS.proftrainer = AnyProfTrainer
 IS.battlemaster = Battlemaster
+-- weapon masters, by their title (0.56.8: "weapon master" alone)
+IS.weaponmaster = function(e) local t = NpcTitle(e); return t ~= nil and t:find("weapon master", 1, true) ~= nil end
+IS.weaponmasters = IS.weaponmaster
 IS.pvpvendor = PvpVendor
 IS.pvp = function(e) return Battlemaster(e) or PvpVendor(e) end
 -- (flight and flightmaster: FlightMaster below, the flight paths' own test)

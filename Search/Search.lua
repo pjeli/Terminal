@@ -1320,6 +1320,18 @@ end
 --- q.trainerAsked, and the words and filters left.
 function Scan.TrainerWords(q)
 	local softWords, tokens = q.softWords, q.tokens
+	-- "skinner", "miner", "herbalist" said alone: that profession's trainers (0.56.8, a player's comment: "skinner" is the
+	-- nearest skinning trainer, ActionAndPlace)
+	local prof = q.simple and #tokens == 1 and not (softWords and #softWords > 0) and ns.Easy.PROF_PEOPLE[tokens[1]]
+	if prof then
+		local spec = "trainer:" .. prof
+		local f = ns.Filters and ns.Filters.Parse(spec)
+		if f then
+			q.tokens, q.trainerAsked = {}, true
+			Scan.AddFilter(q, f, "hard", spec, nil, spec)
+		end
+		return
+	end
 	if not (q.simple and softWords and (#tokens > 0 or #softWords > 1)) then return end
 	local said = false
 	for _, w in ipairs(softWords) do if w == "trainer" or w == "trainers" then said = true end end
@@ -1367,6 +1379,20 @@ function Scan.UseAction(q, act)
 	q.fsig[#q.fsig + 1] = "!" .. act.label
 end
 
+--- Are the words all an NPC's role ("inn", "bank banker", "weapon master")? Nothing else typed.
+function Scan.OnlyRoles(q)
+	if #q.tokens > 0 or q.typedKinds then return false end
+	local any = false
+	for _, list in ipairs({ q.softWords or {}, q.strictWords or {} }) do
+		for _, w in ipairs(list) do
+			-- ("trainer" alone: which trainer isn't said, a list as before; "skinner", "mage trainer" are the nearest)
+			if not ns.Easy.ROLE_WORDS[w] or w == "trainer" or w == "trainers" then return false end
+			any = true
+		end
+	end
+	return any
+end
+
 --- The action (an action word first, "use hearthstone"; a nearest-type word last; do:use) and a place named among the
 --- words, taken out of them.
 function Scan.ActionAndPlace(self, q)
@@ -1392,6 +1418,16 @@ function Scan.ActionAndPlace(self, q)
 	if simple and not act and q.trainerAsked and not self.place then
 		act = ns.Easy.ACTIONS.nearest
 		Scan.UseAction(q, act)
+	end
+	-- (0.56.8, a player's comment: "if I search for inn, bank, skinner, weapon master, I'm looking for the nearest") NPC
+	-- roles said alone ("inn", "bank", "repair", "weapon master"): the nearest of them, as "nearest inn" lists; not with a
+	-- place said ("vendor goldshire"), nor with the bar's own sort picked
+	-- (nowhere known, in a dungeon: listed as before, not "can't tell where you are")
+	if simple and not act and not self.place and not q.sortField and ns.providers.npc and Scan.OnlyRoles(q)
+		and ns.Integrations and ns.Integrations.Here and ns.Integrations.Here() then
+		act = ns.Easy.ACTIONS.nearest
+		Scan.UseAction(q, act)
+		q.nearImplied = true
 	end
 	self.action = act
 end

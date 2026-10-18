@@ -558,6 +558,36 @@ Run("nearest", function()
 		check(r2[1] and r2[1].name == "Innkeeper Allison" and r2[1].detail == "40 yd", q .. ": as nearest innkeeper: " .. Show(r2))
 	end
 	check(E.ToAdvanced("innkeeper nearby") == "@npc is:innkeeper faction:friendly sort:nearest ", "Alt+` writes innkeeper nearby as sort:nearest: " .. E.ToAdvanced("innkeeper nearby"))
+	-- (0.56.8, a player's comment) "nearest" mistyped ("nearset", "neareset", "nearbby"), and an NPC's role said alone
+	-- ("inn", "innkeeper"): the nearest, as "nearest innkeeper" lists them
+	for _, q in ipairs({ "nearset innkeeper", "neareset innkeeper", "innkeeper nearbby", "innkeeper", "inn" }) do
+		UI:Hide(); FlushAll()
+		UI:Open(q)
+		local r2 = UI.Results()
+		check(r2[1] and r2[1].name == "Innkeeper Allison" and r2[1].detail == "40 yd" and not Has(r2, "Innkeeper Far Away"),
+			q .. ": the nearest innkeeper: " .. Show(r2))
+	end
+	check(E.NearTypo("nearer") and not E.NearTypo("dearest") and not E.NearTypo("near") and not E.NearTypo("neutral"),
+		"nearest's typos: n..., two letters off at most")
+	-- "skinner", "weapon master": a profession's trainers, the weapon masters; the nearest (Questie's titles)
+	check(E.ToAdvanced("skinner"):find("trainer:skinning", 1, true) and E.ToAdvanced("skinner"):find("sort:nearest", 1, true),
+		"skinner: the nearest skinning trainer: " .. E.ToAdvanced("skinner"))
+	check(E.ToAdvanced("weapon master"):find("is:weaponmaster", 1, true) and E.ToAdvanced("weapon master"):find("sort:nearest", 1, true),
+		"weapon master: the nearest of them: " .. E.ToAdvanced("weapon master"))
+	local wm = ns.Filters.Parse("is:weaponmaster")
+	check(wm and ns.Filters.Pass({ npcID = 1, kind = "npc", sub = "Weapon Master", name = "Woo Ping" }, { wm })
+		and not ns.Filters.Pass({ npcID = 2, kind = "npc", sub = "Mage Trainer", name = "Maginor" }, { wm }), "is:weaponmaster: by the title")
+	-- nowhere known (a dungeon): "innkeeper" listed as before, not "can't tell where you are"
+	local hereWas = I.Here
+	I.Here = function() return nil end
+	UI:Hide(); FlushAll()
+	UI:Open("innkeeper"); FlushAll()
+	check(not (UI.action and UI.action.nearest), "innkeeper, nowhere known: a list as before")
+	I.Here = hereWas
+	-- not with other words, a place or Advanced syntax: "innkeeper hogger" is a search
+	UI:Hide(); FlushAll()
+	UI:Open("innkeeper allison"); FlushAll()
+	check(not (UI.action and UI.action.nearest), "a role with a name: not made nearest")
 	-- (0.50.7, review) "the nearest innkeeper": as the search reads it
 	check(E.ToAdvanced("the nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
 		"Alt+`, the nearest innkeeper: " .. E.ToAdvanced("the nearest innkeeper"))

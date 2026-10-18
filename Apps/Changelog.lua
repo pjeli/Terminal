@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.56.7", when = "in testing",
+		v = "0.56.8", when = "in testing",
 		items = {
 			"The bar's button says Group again.",
 			"Every class's spells (\"travel form\", \"druid spells\", \"upcoming spells\") and the weapon masters (\"dagger trainer\") come straight from What's Training now, so they stay as up to date as it is. Without What's Training the footer says to install it.",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"Battle.net friends show the name the Friends window shows, even when the game keeps it from addons.",
 			"Attune's new look: Enter opens it on the right attunement (its Archived group too) and points at it in the list or the icon view; a step out of view is scrolled to; steps are lettered left to right as its chart draws them, a split's branches each their own letter; side quests are named by its \"Inside the dungeon\" box; its short names (\"ubrs\", \"dal key\") find attunements.",
 			"The bar underlines the F of Filter, the S of Sort and the G of Group: Alt+F, Alt+S and Alt+G open them.",
+			"\"nearest\" mistyped (\"nearset\", \"neareset\") still means nearest; an NPC's role said alone (\"inn\", \"bank\", \"repair\", \"weapon master\") lists the nearest of them, and \"skinner\", \"miner\" or \"herbalist\" the nearest trainer of it.",
 		},
 	},
 	{
