@@ -39,7 +39,6 @@ local function Kind(text)
 	if c == "." then return "dot" end
 	return "search"
 end
-A.Kind = Kind
 
 local depth = 0
 -- a dot command's line: that command, run with its words (an alias running an alias, up to MAX_DEPTH)

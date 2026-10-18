@@ -118,3 +118,29 @@ do
 	check(not mine({ kind = "npc", key = 1 }), "fish: only judges zones")
 	UnitLevel, _G.GetProfessions, _G.GetProfessionInfo = saveLvl, saveGP, saveGPI
 end
+
+-- (review, 0.57.7) the quest counts are kept until Questie's list or your quest log is made again, not every time some
+-- other list is
+io.write("[zones: quest counts kept until the quests change]\n")
+do
+	local ns, check = T.ns, T.check
+	local Z = ns.Zones
+	local save = { questie = ns.providers.questie, quests = ns.providers.quests, done = C_QuestLog.IsQuestFlaggedCompleted }
+	local reads = 0
+	local list = { { key = 1, level = 10, zone = "Elwynn Forest" }, { key = 2, level = 11, zone = "Elwynn Forest" } }
+	ns.providers.questie = { id = "questie", collect = function() return list end, _entries = list }
+	ns.providers.quests = { id = "quests", _entries = {} }
+	C_QuestLog.IsQuestFlaggedCompleted = function() reads = reads + 1 return false end
+	local getWas = ns.GetEntries
+	ns.GetEntries = function(self, p) if p == ns.providers.questie then return list end return getWas(self, p) end
+	local c = Z.QuestCounts(10)
+	check(c and c["Elwynn Forest"] == 2 and reads == 2, "counted: " .. tostring(c and c["Elwynn Forest"]))
+	ns.entriesGen = (ns.entriesGen or 0) + 1 -- (another list made again)
+	Z.QuestCounts(10)
+	check(reads == 2, "another list made again: the counts kept, not read again: " .. reads)
+	ns.providers.quests._entries = {} -- (your quest log made again: a quest turned in)
+	Z.QuestCounts(10)
+	check(reads == 4, "your quest log made again: counted again")
+	ns.GetEntries = getWas
+	ns.providers.questie, ns.providers.quests, C_QuestLog.IsQuestFlaggedCompleted = save.questie, save.quests, save.done
+end

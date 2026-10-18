@@ -107,6 +107,12 @@ do
 	-- (0.50.7, review) a name with an apostrophe: Alt+` writes it as reward: matches it, apostrophes left out
 	check(ns.Easy.ToAdvanced("agamaggans clutch quest") == "@questie reward:agamaggans_clutch ",
 		"Alt+`, an apostrophe: " .. ns.Easy.ToAdvanced("agamaggans clutch quest"))
+	-- (review, 0.57.7) a word still being typed isn't looked for as a close spelling (a pass over every item per letter);
+	-- once it's typed (a space after it, or another word) it is
+	QR.ForgetClose()
+	check(QR.Question("quest outlaw sabe") == nil and QR.Question("quest outlaw saber") == nil, "a word still being typed: no close spelling looked for")
+	local q2 = QR.Question("quest outlaw saber ")
+	check(q2 and q2.items[1] and q2.items[1].name == "Outlaw Sabre", "typed, a space after it: Outlaw Sabre by its close spelling")
 	local exact = QR.Items({ "agamaggan's", "clutch" }, true)
 	check(exact[1] and exact[1].name == "Agamaggan's Clutch", "reward:agamaggan's_clutch finds it")
 	-- (0.50.7, review) asked while the index is still being read: the search waits for it, not an empty answer kept

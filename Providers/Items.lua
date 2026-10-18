@@ -236,6 +236,8 @@ local function QuestFor(bag, slot, name, itemID, quests, exact)
 	end
 end
 
+local bindOf = {} -- item id -> its bind type (GetItemInfo's 14th), once the client has the item
+
 --- Is this bag item a quest item (the game flags it, it is quest-class, or it binds as a quest item)?
 local function IsQuestItem(bag, slot, itemID)
 	if C_Container.GetContainerItemQuestInfo then
@@ -244,7 +246,12 @@ local function IsQuestItem(bag, slot, itemID)
 	end
 	local classID = C_Item.GetItemInfoInstant and select(6, C_Item.GetItemInfoInstant(itemID))
 	if classID == (Enum.ItemClass and Enum.ItemClass.Questitem or 12) then return true end
-	local bindType = C_Item.GetItemInfo and select(14, C_Item.GetItemInfo(itemID))
+	-- (an item's bind type never changes: asked once per item, not on every list made again; review, 0.57.7)
+	local bindType = bindOf[itemID]
+	if bindType == nil and C_Item.GetItemInfo then
+		bindType = select(14, C_Item.GetItemInfo(itemID))
+		if bindType ~= nil then bindOf[itemID] = bindType end
+	end
 	return bindType == 4
 end
 

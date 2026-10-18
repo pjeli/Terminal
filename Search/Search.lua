@@ -999,6 +999,23 @@ function Scan.AddFilter(q, f, how, sig, word, spec)
 		end
 	end
 	if sig then q.fsig[#q.fsig + 1] = sig end
+	-- (a filter whose answer changes while you type, a cooldown or where you stand: the next keystroke doesn't narrow
+	-- from the rows it kept, it reads every row again; review, 0.57.7: "@spell is:ready f" kept Fireball out after its
+	-- cooldown ended)
+	for _, t in ipairs({ spec, sig }) do
+		if type(t) == "string" and Scan.Volatile(t) then q.volatile = true end
+	end
+end
+
+--- Is this filter's answer one that changes by itself (is:ready, near:)?
+Scan.VOLATILE = { "is:ready", "is:offcooldown", "near:" }
+function Scan.Volatile(t)
+	t = t:lower()
+	for _, v in ipairs(Scan.VOLATILE) do
+		local at = t:find(v, 1, true)
+		if at and (at == 1 or t:sub(at - 1, at - 1):find("[%s|!%-]")) then return true end
+	end
+	return false
 end
 
 --- Those filters (a set of tests) taken out again: a category's own test, the everyday words a trainer's word stands for.
@@ -1525,7 +1542,6 @@ local function RowsOf(included, p)
 	if included.plain and included.plain[p] then return p.plain(p, list) end
 	return list
 end
-Scan.RowsOf = RowsOf
 
 --- Every row of the lists that has the words and passes the filters, scored; or the last keystroke's matches scored
 --- again when the words only grew (Scan.Narrows). Spread over frames (q.overBudget, set here).
@@ -1541,7 +1557,9 @@ function Scan.Collect(self, q, included, sig, fresh)
 	local last = self[slot]
 	if last and last.gen ~= ns.entriesGen then last, self[slot] = nil, nil end -- (its rows may be freed lists')
 	local candidates
-	if not empty and fresh and last and last.sig == sig and Scan.Narrows(last.tokens, tokens) then candidates = last.matches end
+	if not empty and fresh and last and last.sig == sig and not q.volatile and Scan.Narrows(last.tokens, tokens) then
+		candidates = last.matches
+	end
 	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
 	local function consider(e, kind, picked)
 		if empty then

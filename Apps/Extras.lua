@@ -108,6 +108,7 @@ X.LORE_BOOKS = 300 -- (books kept at most: the least recently read go first)
 X.LORE_PAGES = 40 -- (pages kept per book)
 X.LORE_CHARS = 4000 -- (characters kept per page)
 X.LORE_MIN = 20 -- (a page shorter than this, cleaned, isn't kept: a sign, a blank page)
+X.LORE_BOOK_CHARS = 18000 -- (a book's characters kept: a typing test reads no more of it, Typing.lua's BOOK_WORDS x 12)
 
 local Safe, Str, Num = ns.Safe, ns.Str, ns.Num
 
@@ -147,6 +148,11 @@ function X.KeepPage()
 	local key = ns.Lower(title)
 	local b = books[key]
 	if type(b) ~= "table" or type(b.pages) ~= "table" then b = { title = title, pages = {} }; books[key] = b end
+	-- (past what a typing test reads of a book: not kept, the saved variables don't grow with text never read;
+	-- review, 0.57.7)
+	local before = 0
+	for i = 1, page - 1 do if type(b.pages[i]) == "string" then before = before + #b.pages[i] end end
+	if before >= X.LORE_BOOK_CHARS then return nil, "past what a typing test reads" end
 	b.pages[page] = text:sub(1, X.LORE_CHARS)
 	b.t = (_G.time and _G.time()) or 0
 	-- the least recently read go when there are too many

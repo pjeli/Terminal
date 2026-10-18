@@ -122,7 +122,11 @@ do
 		frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 		frame:SetScript("OnHide", function(self)
 			if UI.drag then UI:DragStop(self) end -- (closed while dragged: the lines go, the place it had is kept)
-			if not UI.closing then UI:KeepLastSearch() end -- (closed by the game, not by UI:Hide, which kept it already)
+			-- (closed by the game, not by UI:Hide, which kept it already, before Alt+`'s or Tab+`'s run ended; review,
+			-- 0.57.7: UI.closing is false again by the time UI:Hide hides the frame, so it was kept twice, the second time
+			-- Advanced syntax or fuzzy text)
+			if not UI.searchKept then UI:KeepLastSearch() end
+			UI.searchKept = nil
 			-- (the tab shown kept as it is: closed by the game, not by UI:Hide, which kept it before its run's mode ended)
 			if not UI.tabKept and ns.Tabs then ns.Tabs.SaveCurrent() end
 			UI.tabKept = nil
@@ -148,6 +152,9 @@ do
 					UI:HideRowMenu()
 				end
 			end)
+			-- (hidden with the interface, UIParent hidden by a cinematic: the frame still says it's shown, but the keyboard
+			-- went above; closed for real, or it came back drawn without taking keys; review, 0.57.7)
+			if self:IsShown() then self:Hide() end
 		end)
 		frame:SetScript("OnKeyDown", function(self, key)
 			if UI.keys then return UI.KeysDown(self, key) end
@@ -714,6 +721,7 @@ function UI:Hide()
 	self:HideTooltip()
 	edit:ClearFocus()
 	self:KeepLastSearch()
+	self.searchKept = true -- (OnHide doesn't keep it again)
 	do
 		local typed = edit:GetText() or ""
 		local ran = self.ran and GetTime() - self.ran < 2
@@ -909,7 +917,7 @@ end
 --- (`category`), whether this run is foreign to the tabs (`foreign`: RestoreState's, kept by SaveState).
 function UI:Open(text, opts)
 	Build()
-	self.tabKept = nil
+	self.tabKept, self.searchKept = nil, nil
 	-- (tabs: opened with no text of its own (nil: the key, the options' button; "" is an empty prompt asked for, Alt+`,
 	-- Tab+`, the tour), the tab you were on comes back, in its mode; Tabs.lua. Opened with a text of its own (a chat
 	-- link, /term words), the run is "foreign": it shows that text, and the tab stays as it was. Review, 0.53.6)

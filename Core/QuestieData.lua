@@ -71,9 +71,10 @@ local function SortedKeys(t)
 	return ids
 end
 
+--- An entity's ids from LibQuestieDB, or nil when it can't give them (its API changed: Questie.lua says so).
 local function LibIds(entity)
 	local ids = entity and entity.GetAllIds and Safe(entity.GetAllIds)
-	if type(ids) ~= "table" then return {} end
+	if type(ids) ~= "table" then return nil end
 	if #ids > 0 or next(ids) == nil then return ids end
 	return SortedKeys(ids) -- (a hashmap after all)
 end

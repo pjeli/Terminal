@@ -255,6 +255,7 @@ L["@recipe: the recipes of your professions you don't know yet, with how each is
 L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] = true
 L["@stored, @mail, @lockout, @auction: on that character (or guild)"] = true
 L["@training is unavailable."] = true
+L["@training isn't kept up to date as you train."] = true
 L["@training: learnable (now) nextlevel later needsrank needstalent pet weapon ignored quest"] = true
 L["A Battle.net friend (the game hides the name)"] = true
 L["A ghost"] = true

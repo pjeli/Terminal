@@ -121,6 +121,14 @@ do
 	local sum = 0
 	for i = 2, #res do sum = sum + (res[i].cost or 0) end
 	check(res[1].cost == sum and math.abs(sum - 6980) <= 3, "away from it: the pieces' discounted figures added up: " .. tostring(res[1].cost))
+	-- (review, 0.57.7) another merchant's window, one who doesn't repair: the bill as worked out, not the vendor's last total
+	ns.db.repairVendor[UnitGUID("player")].cost = 1234
+	_G.CanMerchantRepair = function() return false end
+	DU.OnEvent("MERCHANT_SHOW")
+	P._dirty = true
+	res = UI:Search("@durability")
+	check(res[1].cost == sum, "at a food vendor: the bill worked out, not a stale repair total: " .. tostring(res[1].cost))
+	DU.OnEvent("MERCHANT_CLOSED")
 	_G.CanMerchantRepair, _G.GetRepairAllCost = save.canRepair, save.allCost
 	ns.db.repairVendor = nil
 	P._dirty = true

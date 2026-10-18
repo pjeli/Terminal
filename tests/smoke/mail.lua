@@ -660,9 +660,11 @@ do
 	end
 	-- .mail forget: that character's news, sent mail and kept prices go with its mailbox
 	ns.db.mailboxes["Player-1-AAA"] = { name = "Zz Main", realm = "R", mails = {} }
+	ns.db.auctionsSold = ns.db.auctionsSold or {}
+	ns.db.auctionsSold["Player-1-AAA"] = { { t = time(), name = "Linen Cloth" } }
 	ns:FindCommand("mail").run("forget zz main")
-	check(ns.db.auctionsPosted["Player-1-AAA"] == nil and ns.db.mailAuctions["Player-1-AAA"] == nil and ns.db.auctionBids["Player-1-AAA"] == nil,
-		".mail forget: every store of that character")
+	check(ns.db.auctionsPosted["Player-1-AAA"] == nil and ns.db.mailAuctions["Player-1-AAA"] == nil and ns.db.auctionBids["Player-1-AAA"] == nil
+		and ns.db.auctionsSold["Player-1-AAA"] == nil, ".mail forget: every store of that character, its sales too (review, 0.57.7)")
 	_G.C_AuctionHouse, _G.C_Item, MA.postHooked = AHwas, Itemwas, nil
 	_G.ERR_AUCTION_SOLD_S, _G.ERR_AUCTION_WON_S = nil, nil
 	MA.ResetChatForTests()

@@ -342,6 +342,10 @@ function MA.KeepSale(id, a, now, item)
 		-- notification's id when it comes second; release review)
 		if not s.auctionID and s.item == name and math.abs(now - (s.at or 0)) < MA.SAME then
 			s.auctionID = id
+			-- (and what was kept of it posted, which the chat line didn't have; review, 0.57.7)
+			if type(a) == "table" then
+				s.link, s.price, s.each, s.count = s.link or a.link, s.price or a.price, s.each or a.each, s.count or a.count
+			end
 			return s
 		end
 	end
@@ -530,6 +534,13 @@ function MA.OnAuction(kind, item, auctionID, now, extra)
 		if a.kind == kind and a.item == item and math.abs(now - (a.at or 0)) < MA.SAME
 			and (not auctionID or not a.auctionID or a.auctionID == auctionID) then
 			a.auctionID = a.auctionID or auctionID
+			-- (told first by a chat line, which has no id: its price from the post, read before MA.Over lets go of it;
+			-- review, 0.57.7)
+			local kept = auctionID and Store("auctionsPosted")[key]
+			kept = kept and kept[auctionID]
+			if kept and a.price == nil and a.each == nil then
+				a.link, a.price, a.each, a.count, a.seen = a.link or kept.link, kept.price, kept.each, a.count or kept.count, a.seen or kept.seen
+			end
 			if extra then a.id, a.count = a.id or extra.id, a.count or extra.count end
 			if not a.icon then Learn(a) end
 			if auctionID and (kind == "sold" or kind == "expired") then MA.Over(auctionID, kind, now, item) end
@@ -1553,7 +1564,7 @@ ns:RegisterCommand("mail", {
 				if type(box) == "table" and box.name and (Lower(box.name) == lw or Lower(box.name .. "-" .. tostring(box.realm)) == lw) then
 					boxes[key] = nil
 					-- (and what that character sent, its auction news and the prices kept for them: review, 0.48.6)
-					for _, store in ipairs({ "mailSent", "mailAuctions", "auctionsPosted", "auctionBids", "auctionsEnded" }) do Store(store)[key] = nil end
+					for _, store in ipairs({ "mailSent", "mailAuctions", "auctionsPosted", "auctionBids", "auctionsEnded", "auctionsSold" }) do Store(store)[key] = nil end
 					n = n + 1
 				end
 			end

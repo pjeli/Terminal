@@ -101,34 +101,63 @@ end
 
 local bookWords = {} -- title -> { t = when read, words } (worked out once per book as it was read)
 
+--- A kept book's words (worked out once, again when it was read since), or nil for one not kept as a book.
+local function WordsOf(b)
+	if not (type(b) == "table" and type(b.title) == "string" and type(b.pages) == "table") then return nil end
+	local c = bookWords[b.title]
+	if not c or c.t ~= b.t then
+		local pages, n = {}, 0
+		for i = 1, ns.Extras.LORE_PAGES do
+			if type(b.pages[i]) == "string" then
+				pages[#pages + 1] = b.pages[i]
+				n = n + #b.pages[i]
+				if n >= TY.BOOK_WORDS * 12 then break end -- (LoreWords reads no more than that)
+			end
+		end
+		c = { t = b.t, words = TY.LoreWords(table.concat(pages, " ")) }
+		bookWords[b.title] = c
+	end
+	return c.words
+end
+
 --- The books read that have enough words to type: { { title, words } }, by title.
 function TY.Books()
 	local out = {}
 	local lore = ns.db and type(ns.db.lore) == "table" and ns.db.lore or {}
 	for _, b in pairs(lore) do
-		if type(b) == "table" and type(b.title) == "string" and type(b.pages) == "table" then
-			local c = bookWords[b.title]
-			if not c or c.t ~= b.t then
-				local pages = {}
-				for i = 1, ns.Extras.LORE_PAGES do if type(b.pages[i]) == "string" then pages[#pages + 1] = b.pages[i] end end
-				c = { t = b.t, words = TY.LoreWords(table.concat(pages, " ")) }
-				bookWords[b.title] = c
-			end
-			if #c.words >= TY.BOOK_MIN then out[#out + 1] = { title = b.title, words = c.words } end
-		end
+		local words = WordsOf(b)
+		if words and #words >= TY.BOOK_MIN then out[#out + 1] = { title = b.title, words = words } end
 	end
 	table.sort(out, function(a, b) return a.title < b.title end)
 	return out
 end
 
---- A book for this test (another than the last when there are two or more), or nil when none has enough words.
+--- A book for this test (another than the last when there are two or more), or nil when none has enough words. Only
+--- the book picked is read for its words (review, 0.57.7: every book read was, the first test of a session, a freeze
+--- with hundreds of them): picked among those with letters enough for them, until one has.
 function TY.PickBook()
-	local books = TY.Books()
-	if #books == 0 then return nil end
-	local i = TY.rand(#books)
-	if #books > 1 and books[i].title == TY.lastBook then i = i % #books + 1 end
-	TY.lastBook = books[i].title
-	return books[i]
+	local lore = ns.db and type(ns.db.lore) == "table" and ns.db.lore or {}
+	local list = {}
+	for _, b in pairs(lore) do
+		if type(b) == "table" and type(b.title) == "string" and type(b.pages) == "table" then
+			local n = 0
+			for i = 1, ns.Extras.LORE_PAGES do if type(b.pages[i]) == "string" then n = n + #b.pages[i] end end
+			if n >= TY.BOOK_MIN * 2 then list[#list + 1] = b end -- (fewer letters than that: not words enough)
+		end
+	end
+	table.sort(list, function(a, b) return a.title < b.title end)
+	while #list > 0 do
+		local i = TY.rand(#list)
+		if #list > 1 and list[i].title == TY.lastBook then i = i % #list + 1 end
+		local b = list[i]
+		local words = WordsOf(b)
+		if words and #words >= TY.BOOK_MIN then
+			TY.lastBook = b.title
+			return { title = b.title, words = words }
+		end
+		table.remove(list, i)
+	end
+	return nil
 end
 
 local function MoreWords(n)

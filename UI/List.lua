@@ -544,7 +544,6 @@ function UI:Render()
 	-- nothing to draw while it's closed (a setting changed in the options panel, say): drawing
 	-- then put the rows up, and the next open showed them without their animation
 	if not frame or not frame:IsShown() then return end
-	local t = Theme.Get()
 	local light = Theme.IsLight()
 	-- rows come in with the style on every open (snapNext, on open, is for the height only);
 	-- only a new layout (theme changes) puts them up at once

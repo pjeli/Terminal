@@ -98,7 +98,6 @@ local function SpellName(id)
 	if type(id) ~= "number" then return nil end
 	return Str(Safe(C_Spell and C_Spell.GetSpellName, id)) or Str((Safe(_G.GetSpellInfo, id)))
 end
-WT.SpellName = SpellName
 
 ----------------------------------------------------------------------
 -- Rows
@@ -225,7 +224,6 @@ end
 ----------------------------------------------------------------------
 
 local function Window() return rawget(_G, "WhatsTrainingFloatingFrame") end
-WT.Window = Window
 
 --- The window's row showing this spell, while it shows it.
 local function RowFor(f, e)
@@ -236,7 +234,6 @@ local function RowFor(f, e)
 		end
 	end
 end
-WT.RowFor = RowFor
 
 WT.FILTER_AFTER, WT.TOGGLE_AFTER = 2, 5 -- (looks before its search is set to the spell, before the other view is tried)
 
@@ -331,12 +328,21 @@ function WT.Collect()
 	local api = WT.Api()
 	if not api then return {} end
 	local ok, spells = pcall(api.GetSpells)
-	if not (ok and type(spells) == "table") then return {} end
-	local rows = {}
+	if not (ok and type(spells) == "table") then
+		-- (its API changed: said once, not an empty list with no word why; review, 0.57.7)
+		I.Failed("What's Training", L["@training is unavailable."], "GetSpells: " .. tostring(ok and type(spells) or spells))
+		return {}
+	end
+	local rows, any = {}, false
 	for _, s in ipairs(spells) do
+		if type(s) == "table" and s.status ~= nil and StateOf(api, s.status) ~= nil then any = true end
 		local e = WT.Row(api, s)
 		if e and e.state == "known" then known[#known + 1] = e
 		elseif e then rows[#rows + 1] = e end
+	end
+	-- (spells listed but none of their statuses one Terminal knows: its Status names changed)
+	if #spells > 0 and not any then
+		I.Failed("What's Training", L["@training is unavailable."], "no spell's status is one of WT_API.Status's known keys")
 	end
 	table.sort(rows, function(a, b)
 		if a.state ~= b.state then return ORDER[a.state] < ORDER[b.state] end
@@ -376,11 +382,25 @@ local function SetupWhatsTraining()
 	local api = WT.Api()
 	if training.on or not api then return end
 	training.on = true
+	-- (its callbacks: the list made again when a spell's status changes, you level, or ignore one; Ready: the first list)
+	local hooked = 0
+	for _, k in ipairs(WT.CALLBACKS) do
+		local ok, ev = pcall(function() return api.Event[k] end)
+		if ok and type(ev) == "string" then
+			local okR, err = pcall(api.RegisterCallback, WT, ev, Changed)
+			if okR then hooked = hooked + 1 else ns:Trace("training: callback " .. ev .. " failed: " .. tostring(err)) end
+		end
+	end
+	-- (none took: its callbacks changed; the game's own events make the list again instead, and it's said; review, 0.57.7)
+	if hooked == 0 then
+		I.Failed("What's Training", L["@training isn't kept up to date as you train."], "no WT_API.Event callback registered")
+	end
 	ns:RegisterProvider("training", {
 		label = L["Training"],
 		color = "ff82c5ff", -- (What's Training's "coming soon" blue)
 		aliases = { "training", "train", "trainable", "whatstraining" },
 		guard = 1,
+		events = hooked == 0 and { "PLAYER_LEVEL_UP", "LEARNED_SPELL_IN_SKILL_LINE", "SPELLS_CHANGED" } or nil,
 		-- nothing yet: What's Training still reading your spells, or nothing left to learn
 		leadRow = ns.EmptyLead(function()
 			return WT.Ready() and L["Nothing left to train: What's Training has every spell as known"]
@@ -392,14 +412,6 @@ local function SetupWhatsTraining()
 			return list
 		end,
 	})
-	-- (its callbacks: the list made again when a spell's status changes, you level, or ignore one; Ready: the first list)
-	for _, k in ipairs(WT.CALLBACKS) do
-		local ok, ev = pcall(function() return api.Event[k] end)
-		if ok and type(ev) == "string" then
-			local okR, err = pcall(api.RegisterCallback, WT, ev, Changed)
-			if not okR then ns:Trace("training: callback " .. ev .. " failed: " .. tostring(err)) end
-		end
-	end
 	-- (every class's spells, its catalog: their names, once What's Training has loaded them)
 	local ok, ev = pcall(function() return api.Event.CLASS_READY end)
 	if ok and type(ev) == "string" then

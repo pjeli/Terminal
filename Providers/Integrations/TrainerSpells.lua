@@ -40,7 +40,7 @@ end
 local parts = {} -- each part read once: its result, or false (not usable)
 local spellNames, profSplit, classStatic = {}, {}, {} -- (the caches below: a spell's name, each profession's ranks and
 -- crafts, your class's spells by name; none of these change in a session)
-function TS.Forget() parts, spellNames, profSplit, classStatic = {}, {}, {}, {} end -- (tests)
+function TS.Forget() parts, spellNames, profSplit, classStatic, TS.demonNames = {}, {}, {}, {}, nil end -- (tests)
 
 --- One part of its data: `global` read and made usable by `make(raw)` (which gives the part, or nil and why). A part
 --- whose table is missing or not in the shape expected is said once (`lost`: what's unavailable without it); `optional`:
@@ -75,7 +75,19 @@ local CLASSES = { WARRIOR = true, PALADIN = true, HUNTER = true, ROGUE = true, P
 	WARLOCK = true, DRUID = true }
 local FACTION = { A = "a", H = "h", Alliance = "a", Horde = "h" }
 
---- Every class's spells: CLASS -> { { id, level, raceFile, faction ("a"/"h"), rank, cost }, ... }, or nil. Weapon skills and
+--- A spell's races, as TrainerSpells writes them (the game's file names: "Scourge"; one, or a list: Desperate Prayer's
+--- { "Dwarf", "Human" }): a set, or nil (every race).
+local function Races(v)
+	if type(v) == "string" and v ~= "" then return { [v] = true } end
+	if type(v) ~= "table" then return nil end
+	local set
+	for _, r in ipairs(v) do if type(r) == "string" then set = set or {}; set[r] = true end end
+	return set
+end
+TS.Races = Races
+
+--- Every class's spells: CLASS -> { { id, level, raceFiles (a set, or nil: every race), faction ("a"/"h"), rank, cost },
+--- ... }, or nil. Weapon skills and
 --- riding aren't class spells (its weapon skill list, TrainerSpellsWeaponSkills.order, leaves them out).
 function TS.ClassData()
 	return Part("class", "TrainerSpellsBuiltin", L["Class spells from it are unavailable."], function(raw)
@@ -93,7 +105,7 @@ function TS.ClassData()
 						for id, d in pairs(spells) do
 							if type(id) == "number" and type(d) == "table" then
 								if not skip[id] then
-									list[#list + 1] = { id = id, level = level, raceFile = Str(d.race), faction = FACTION[d.faction or ""],
+									list[#list + 1] = { id = id, level = level, raceFiles = Races(d.race), faction = FACTION[d.faction or ""],
 										rank = Num(d.rank), cost = Num(d.cost) }
 								end
 								good = good + 1
@@ -385,7 +397,6 @@ local function KnownSpell(id)
 	local f = _G.IsPlayerSpell
 	return f and Safe(f, id) == true or false
 end
-TS.SpellName, TS.KnownSpell = SpellName, KnownSpell
 
 --- A profession's rank (Journeyman, Expert...): a spell of the profession's own name ("Tailoring", its rank "Expert").
 local function IsRank(name, pr, key)
@@ -523,8 +534,8 @@ function TS.TrainingKnown() return trainingKnown end
 
 --- Each demon's name in your language: its summoning spell's name without what they all share ("Summon Imp": "Imp"),
 --- as TrainerSpells names them. Made once the game has every one.
-local demonNames
 local function DemonName(key)
+	local demonNames = TS.demonNames
 	if not demonNames then
 		local names, all = {}, true
 		for _, d in ipairs(TS.DEMONS) do
@@ -551,12 +562,11 @@ local function DemonName(key)
 			cut = cut:match("^%s*(.-)%s*$")
 			out[k] = (cut ~= "" and cut) or n
 		end
-		if all then demonNames = out end
+		if all then TS.demonNames = out end
 		return out[key] or key
 	end
 	return demonNames[key] or key
 end
-TS.DemonName = DemonName
 
 --- Your pet's abilities now (its spellbook): name -> the highest rank it has (1 without ranks), or {} with no pet out.
 local function PetBook()
@@ -675,7 +685,7 @@ function TS.TrainingRows()
 	if not st then
 		local mine, byName, all = {}, {}, true
 		for _, r in ipairs(data[cls] or {}) do
-			if (not r.raceFile or not race or r.raceFile == race) and (not r.faction or not fac or r.faction == fac) then
+			if (not r.raceFiles or not race or r.raceFiles[race]) and (not r.faction or not fac or r.faction == fac) then
 				local name = SpellName(r.id)
 				if name then
 					local k = { r = r, name = name }
@@ -758,9 +768,10 @@ local function SetupTrainerSpells()
 	TS.WeaponData()
 	TS.HunterPetData()
 	TS.WarlockPetData()
-	local trainers = TS.TrainerRows()
-	-- its trainers as @npc only with no Questie (Questie knows every NPC, these among them; it takes @npc if it comes)
-	if trainers and not ns.providers.npc then
+	-- its trainers as @npc only with no Questie (Questie knows every NPC, these among them; it takes @npc if it comes):
+	-- with Questie they aren't made at all (review, 0.57.7: some 570 rows kept for nothing)
+	local trainers = not ns.providers.npc and TS.TrainerRows()
+	if trainers then
 		ns:RegisterProvider("npc", {
 			label = L["NPC"], color = "ffe0a060", aliases = { "npc", "npcs", "n" },
 			explicit = true, trainersOnly = true, -- (Setup.lua: Questie's still missing for every other NPC)

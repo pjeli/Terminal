@@ -469,6 +469,38 @@ do
 	for _, x in ipairs(ns.Easy.SIMPLE) do if x[1] == "what can i train" and x[2] == "WhatsTraining" then has = true end end
 	check(has, "\"what can i train\" among the examples")
 
+	-- (review, 0.57.7) its API changed: said once in chat, and the game's events keep the list up to date
+	do
+		local printWas, said = ns.Print, {}
+		ns.Print = function(_, m) said[#said + 1] = m end
+		local function Said(t) for _, m in ipairs(said) do if m:find(t, 1, true) then return true end end return false end
+		local failedWas = I.failed
+		I.failed = {}
+		local getWas = api.GetSpells
+		api.GetSpells = function() error("renamed") end
+		P._dirty = true
+		ns:GetEntries(P)
+		check(Said(L["@training is unavailable."]), "GetSpells gone: said in chat")
+		api.GetSpells = function() return { S(143, "Fireball", "Rank 2", 6, "learnNow", 100) } end
+		I.failed = {}; said = {}
+		WT.ForgetStates(); P._dirty = true
+		ns:GetEntries(P)
+		check(Said(L["@training is unavailable."]), "statuses renamed: said in chat")
+		api.GetSpells = getWas
+		WT.ForgetStates()
+		-- callbacks that don't take: the game's events instead
+		local regWas = api.RegisterCallback
+		api.RegisterCallback = function() error("no callbacks") end
+		drop("training"); I.whatstraining.on = false; I.failed = {}; said = {}
+		I._.SetupWhatsTraining()
+		local tp = ns.providers.training
+		local hasEv = false
+		for _, ev in ipairs(tp and tp.events or {}) do if ev == "PLAYER_LEVEL_UP" then hasEv = true end end
+		check(hasEv and Said(L["@training isn't kept up to date as you train."]), "callbacks gone: said, and leveling up makes the list again")
+		api.RegisterCallback = regWas
+		ns.Print, I.failed = printWas, failedWas
+	end
+
 	-- put back: What's Training gone
 	drop("training")
 	I.whatstraining.on = false

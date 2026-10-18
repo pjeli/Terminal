@@ -78,13 +78,16 @@ end
 
 local byte = string.byte
 
---- Whether the name could have initials starting with byte c1: its first letter is c1, or it
---- starts with "the ", "a ", "an ", "and " or "of " (left out of the second set of initials).
+--- Whether the name could have initials starting with byte c1: its first letter is c1, it starts with "the ", "a ",
+--- "an ", "and " or "of " (left out of the second set of initials), or with no letter at all (a quote, a number).
 local function StartsRight(name, lname, c1)
 	local s = lname or name
 	local c = byte(s, 1)
 	if c and c >= 65 and c <= 90 then c = c + 32 end
 	if c == c1 then return true end
+	-- (a name that starts with a quote or a number: Fuzzy.initials skips those, so it decides; review, 0.57.7:
+	-- "mp" didn't find "Mr. Pinchy" by its initials)
+	if c and c < 128 and not (c >= 97 and c <= 122) then return true end
 	if c ~= 116 and c ~= 97 and c ~= 111 then return false end
 	local c2, c3, c4 = byte(s, 2, 4)
 	if c2 and c2 >= 65 and c2 <= 90 then c2 = c2 + 32 end

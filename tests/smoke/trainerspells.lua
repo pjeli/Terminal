@@ -25,7 +25,8 @@ do
 		_G.TrainerSpellsBuiltin = {
 			DRUID = { [10] = { [99] = { cost = 300, rank = 1 } }, [18] = { [1735] = { cost = 900, rank = 2 } }, [20] = { [768] = { cost = 2000, rank = 1 } },
 				[24] = { [9005] = { cost = 2500, rank = 2 } } }, -- (Pounce rank 2: its first a quest's)
-			PRIEST = { [10] = { [2652] = { cost = 15, rank = 1, race = "Scourge" }, [2006] = { cost = 15, rank = 1 } } },
+			PRIEST = { [10] = { [2652] = { cost = 15, rank = 1, race = "Scourge" }, [2006] = { cost = 15, rank = 1 },
+				[13908] = { cost = 15, rank = 1, race = { "Dwarf", "Human" } } } }, -- (a list of races: Desperate Prayer's)
 			WARRIOR = { [1] = { [201] = { cost = 10 } } }, -- (a weapon skill: not a class spell)
 			HUNTER = { [10] = { [1494] = { cost = 10, rank = 1 } } },
 		}
@@ -64,7 +65,7 @@ do
 		_G.UnitFactionGroup = function() return "Alliance", "Alliance" end
 		C_Spell.GetSpellName = function(id)
 			return ({ [2393] = "Bolt of Linen Cloth", [3915] = "Brown Linen Shirt", [2964] = "Bolt of Silk Cloth", [99] = "Demoralizing Roar",
-				[768] = "Cat Form", [2652] = "Touch of Weakness", [2006] = "Resurrection", [1735] = "Demoralizing Roar", [9005] = "Pounce",
+				[768] = "Cat Form", [2652] = "Touch of Weakness", [2006] = "Resurrection", [13908] = "Desperate Prayer", [1735] = "Demoralizing Roar", [9005] = "Pounce",
 				[200] = "Polearms", [201] = "One-Handed Swords", [227] = "Staves", [3909] = "Tailoring", [3910] = "Tailoring", [4187] = "Great Stamina", [4188] = "Great Stamina", [4190] = "Great Stamina",
 				[20397] = "Blood Pact", [20270] = "Blood Pact", [20322] = "Fire Shield", [20381] = "Sacrifice", [688] = "Summon Imp",
 				[697] = "Summon Voidwalker", [712] = "Summon Succubus", [691] = "Summon Felhunter", [101822] = "Summon Incubus",
@@ -85,6 +86,15 @@ do
 		local tp = ns.providers.training
 		check(tp and tp.fromTrainerSpells, "without What's Training: @training is TrainerSpells'")
 		check(#said == 0, "its tables as expected: nothing said: " .. tostring(said[1]))
+		-- (review, 0.57.7) with Questie's @npc, its trainers aren't made at all
+		do
+			local was, calls, npcWas = TS.TrainerRows, 0, ns.providers.npc
+			TS.TrainerRows = function(...) calls = calls + 1 return was(...) end
+			ns.providers.npc, TS.on = { id = "npc" }, nil
+			I._.SetupTrainerSpells()
+			check(calls == 0, "Questie there: TrainerSpells' trainer rows not made")
+			ns.providers.npc, TS.TrainerRows = npcWas, was
+		end
 		local rows = TS.TrainerRows()
 		local by = {}
 		for _, e in ipairs(rows) do by[e.npcID] = e end
@@ -92,6 +102,9 @@ do
 			and by[9005].sub == "Pet Trainer" and by[11867].sub == "Weapon Master" and by[5520].sub == "Demon Trainer",
 			"class, profession, pet, demon and portal trainers, weapon masters, each its title: " .. #rows)
 		check(by[11870].ui == 1458 and by[11870].px == 57.3, "a weapon master's area: its map (Undercity's): " .. tostring(by[11870].ui))
+		-- (review, 0.57.7) a trainer with no place known: Enter says so, no error
+		local okPin, errPin = pcall(I.PinObject, { name = "Nowhere Nell", kind = "npc" })
+		check(okPin and Said(ns.L["Can't set a waypoint there."]), "a row with no place: the pin says it can't, no error: " .. tostring(errPin))
 		-- the filters read their own title, faction and role (Questie isn't there to ask)
 		local function Is(spec, e) local f = F.Parse(spec) return f and f(e) and true or false end
 		check(Is("trainer:mage", by[9001]) and not Is("trainer:mage", by[9002]) and Is("trainer:tailoring", by[9002])
@@ -143,11 +156,16 @@ do
 		_G.UnitRace = function() return "Human", "Human", 1 end
 		local names = {}
 		for _, s in ipairs(CS.Spells("PRIEST", true)) do names[s.name] = true end
-		check(names["Resurrection"] and not names["Touch of Weakness"], "a race's own spell: not a human's")
+		check(names["Resurrection"] and not names["Touch of Weakness"] and names["Desperate Prayer"], "a race's own spell: not a human's; one of a list of races: a human's")
 		_G.UnitRace = function() return "Undead", "Scourge", 5 end
 		names = {}
 		for _, s in ipairs(CS.Spells("PRIEST", true)) do names[s.name] = true end
-		check(names["Touch of Weakness"], "an undead priest's: Touch of Weakness")
+		check(names["Touch of Weakness"] and not names["Desperate Prayer"], "an undead priest's: Touch of Weakness, not the dwarves' and humans' Desperate Prayer")
+		_G.UnitClass = function() return "Priest", "PRIEST" end
+		_G.UnitLevel = function() return 10 end
+		local undeadTraining = {}
+		for _, e in ipairs(TS.TrainingRows()) do undeadTraining[e.spellName] = true end
+		check(undeadTraining["Touch of Weakness"] and not undeadTraining["Desperate Prayer"], "@training too: not another race's spell")
 
 		-- @training without What's Training: your class's spells and weapon skills still to learn
 		_G.UnitClass = function() return "Druid", "DRUID" end
@@ -260,6 +278,14 @@ do
 			and byName["Bolt of Silk Cloth"] and not byName["Bolt of Silk Cloth"].canLearn and not byName["Tailoring"] and not byName["Bolt of Linen Cloth"],
 			"recipes you don't know: a trainer's, before the window was opened; not its ranks, not one you know: " .. #mr)
 		local PT = ns.ProfTraining
+		-- (review, 0.57.7) a line with no word of training isn't this question: your professions aren't read for it
+		do
+			local was, reads = ns.Professions.PlayerProfessions, 0
+			ns.Professions.PlayerProfessions = function(...) reads = reads + 1 return was(...) end
+			PT.Question("tailoring shirt")
+			check(reads == 0, "no word of training: your professions not read")
+			ns.Professions.PlayerProfessions = was
+		end
 		local q = PT.Question("what can i train in tailoring")
 		check(q and q.profs and q.profs[1] == "Tailoring" and q.state == "now", "\"what can i train in tailoring\": its question")
 		local ans, note = PT.Answer(q)

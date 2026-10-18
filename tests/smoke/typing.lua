@@ -170,12 +170,35 @@ do
 	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
 	check(b.pages[X.LORE_PAGES]:find("last page", 1, true) and not b.pages[X.LORE_PAGES + 1], "a page past those kept: the last kept stays")
 	b.pages[X.LORE_PAGES] = nil
+	-- (review, 0.57.7) a page past what a typing test reads of the book: not kept
+	local charsWas = X.LORE_BOOK_CHARS
+	X.LORE_BOOK_CHARS = #b.pages[1] + #b.pages[2]
+	page, text = 3, "<P>A third page, past the characters a typing test would ever read of this book.</P>"
+	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
+	check(not b.pages[3], "a page past what a typing test reads: not kept")
+	X.LORE_BOOK_CHARS = charsWas
 	page = 1
 	title, creator, page, text = "A letter", "Bob", 1, "<P>Hey, could you send me twenty linen cloth for my tailoring please?</P>"
 	OnEvent(X.loreFrame, "ITEM_TEXT_BEGIN")
 	OnEvent(X.loreFrame, "ITEM_TEXT_READY")
 	check(not ns.db.lore["a letter"], "a letter a player wrote isn't kept")
 	creator = nil
+
+	-- (review, 0.57.7) picking a book reads only that one's words, not every book's
+	do
+		local loreWas, lw, calls = ns.db.lore, TY.LoreWords, 0
+		local many = {}
+		for k = 1, 40 do
+			local t = "Tome " .. k
+			many[t:lower()] = { title = t, t = k, pages = { string.rep("the quick brown fox jumps over the lazy dog ", 10) } }
+		end
+		ns.db.lore = many
+		TY.LoreWords = function(...) calls = calls + 1 return lw(...) end
+		local was = TY.lastBook
+		local b = TY.PickBook()
+		check(b and #b.words >= TY.BOOK_MIN and calls == 1, "a book picked among 40: only its words read: " .. calls)
+		TY.LoreWords, ns.db.lore, TY.lastBook = lw, loreWas, was
+	end
 
 	-- the test: runs of the book's words, and the book named at the end
 	local n = 0

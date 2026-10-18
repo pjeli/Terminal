@@ -74,7 +74,6 @@ local function NowTime()
 			hour = Num(t.hour) or 0, minute = Num(t.minute) or 0 }
 	end
 end
-CA.NowTime = NowTime
 
 --- Today as a day number, and now in minutes (day * 1440 + minutes), or nil when the game doesn't say.
 local function Today()
@@ -83,7 +82,6 @@ local function Today()
 	local dn = DayNum(t.year, t.month, t.monthDay)
 	return dn, dn * 1440 + t.hour * 60 + t.minute, t
 end
-CA.Today = Today
 
 -- a calendar time as plain numbers ({ year, month, monthDay, weekday, hour, minute }), or nil
 local function TimeOf(t)
@@ -118,7 +116,6 @@ local function DateText(t)
 	end
 	return w .. ", " .. MonthName(t.month) .. " " .. t.monthDay
 end
-CA.DateText = DateText
 
 --- "20:00" / "8:00 PM", as the game's clock is set to show it.
 local function Clock(t)
@@ -451,7 +448,6 @@ local function ShareText(e)
 	end
 	return e.name .. ": " .. CA.When(e)
 end
-CA.ShareText = ShareText
 local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
 local CHATBOX = ns.ChatBoxSpec(ShareText)
 

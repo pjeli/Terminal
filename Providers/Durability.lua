@@ -16,7 +16,7 @@ local L = ns.L
 local DU = {}
 ns.Durability = DU
 
-local Safe, Num, Str = ns.Safe, ns.Num, ns.Str
+local Safe, Num = ns.Safe, ns.Num
 
 -- the slots that wear down (rings, trinkets, neck, back, shirt and tabard don't: their max is 0 or none)
 DU.SLOTS = { "HeadSlot", "ShoulderSlot", "ChestSlot", "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
@@ -373,7 +373,9 @@ function DU.OnMerchant()
 	ns:Changed("durability")
 end
 function DU.OnEvent(event)
-	if event == "MERCHANT_SHOW" then atVendor = true; DU.OnMerchant()
+	-- (a merchant who repairs: any other's window isn't a repair vendor's, whose total stands for the bill; review, 0.57.7:
+	-- a food vendor showed the last repair vendor's stale total as exact)
+	if event == "MERCHANT_SHOW" then atVendor = Safe(_G.CanMerchantRepair) == true; DU.OnMerchant()
 	elseif event == "MERCHANT_CLOSED" then atVendor = false
 	elseif atVendor then DU.OnMerchant() end
 end

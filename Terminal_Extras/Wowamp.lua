@@ -704,6 +704,8 @@ local function Build()
 		frame:SetScript("OnUpdate", nil) -- (a hidden frame runs none anyway; it starts again on open)
 		vis.resting = true
 	end)
+	-- (shown again without being opened, the interface hidden and back: the bars move again; review, 0.57.7)
+	frame:SetScript("OnShow", function() if state.playing then W.Redraw(true) end end)
 
 	title = Text(frame, 14)
 	title:SetPoint("TOPLEFT", 12, -10)

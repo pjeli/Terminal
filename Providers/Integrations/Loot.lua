@@ -199,7 +199,10 @@ local function CacheKey(mods)
 	local A = AL()
 	local ver = AddOnVersion
 	local core = LoadedCore() or "AtlasLoot"
-	local parts = { "v" .. CACHE_FORMAT, core .. "=" .. ver(core), "game=" .. tostring(A.GetGameVersion and Safe(A.GetGameVersion, A)) }
+	-- (and the window's own pick, which I.WindowVersion indexes first; review, 0.57.7: a switch kept the old index)
+	local gui = type(A.db) == "table" and type(A.db.GUI) == "table" and A.db.GUI.selectedGameVersion or nil
+	local parts = { "v" .. CACHE_FORMAT, core .. "=" .. ver(core), "game=" .. tostring(A.GetGameVersion and Safe(A.GetGameVersion, A)),
+		"win=" .. tostring(gui) }
 	for _, m in ipairs(mods) do parts[#parts + 1] = m .. "=" .. ver(m) end
 	return table.concat(parts, " ")
 end
@@ -220,7 +223,6 @@ local function FromCache(key)
 	end
 	return true
 end
-I.CacheKey = CacheKey
 
 local function Dirty() ns:Changed("loot") end
 
@@ -342,6 +344,9 @@ LoadLootModules = function()
 		-- (0.49.2, review: built from no modules, the saved index was written over with an empty one; it stays for a
 		-- session whose AtlasLoot lists its modules)
 		ns:Trace("loot: AtlasLoot still lists no loot modules after " .. tostring(loot.retries) .. " tries: nothing indexed, the saved index kept")
+		-- (its module list changed: said, and .integrations no longer says "still loading"; review, 0.57.7)
+		loot.done = true
+		I.Failed("AtlasLoot", L["@loot (its loot tables) is unavailable."], "Loader.GetLootModuleList: no loot modules")
 		return
 	end
 	loot.modules = #mods
@@ -364,7 +369,12 @@ LoadLootModules = function()
 		if not addon then
 			loot.done, loot.building = true, false
 			loot.byKey = {} -- only for skipping duplicates while indexing
-			if ns.db then ns.db.lootCache = { key = key, groups = groups } end -- kept for the next session
+			if #groups == 0 and loot.loaded > 0 then
+				-- (modules loaded, no item read from them: its item tables changed; said, and no empty index kept)
+				I.Failed("AtlasLoot", L["@loot (its loot tables) is unavailable."], "ItemDB.GetItemTable gave no items")
+			elseif ns.db then
+				ns.db.lootCache = { key = key, groups = groups } -- kept for the next session
+			end
 			Dirty()
 			return PumpNames()
 		end

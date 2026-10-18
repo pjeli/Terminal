@@ -138,6 +138,11 @@ do
 		MA.OnAuction("sold", "Iron Bar")
 		MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 4, "Iron Bar", 301)
 		check(#sales == 1 and sales[1].auctionID == 301, "the chat line, then the notification: one sale, with its id: " .. #sales)
+		-- (review, 0.57.7) and with its posted price, on the sale and on the news
+		check(sales[1].price == 700 and sales[1].count == 5, "...and its posted price and count: " .. tostring(sales[1].price))
+		local news
+		for _, n in ipairs(ns.db.mailAuctions[ME] or {}) do if n.item == "Iron Bar" and n.kind == "sold" then news = n end end
+		check(news and news.price == 700 and news.auctionID == 301, "the news too: " .. tostring(news and news.price))
 		-- alike sale mails, the same item, price and buyer: a sale each
 		local alike = { mails = {} }
 		for k = 1, 3 do

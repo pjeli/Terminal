@@ -206,7 +206,6 @@ local function SameRows(a, b)
 	for i = 1, #a do if not SameRow(a[i], b[i]) then return false end end
 	return true
 end
-UI.SameRows = SameRows
 -- F5 only for a list that's sure (0.52.9, the player: after a /reload "upgrades" jumped between result sets, F5 coming
 -- and going while item data came in: "if an F5 result appears it should be because we definitely have a new stable
 -- set"): a background search's rows unlike what's shown are a candidate; the same search again UI.CONFIRM_S s later

@@ -360,7 +360,9 @@ function UI:UpdateBusy()
 	end
 	busy.who = who
 	local was = busy:IsShown()
-	busy.lines = lines
+	-- (a new table only when what's loading changed: its tooltip is drawn again then, not twice a second; review, 0.57.7)
+	local said = table.concat(lines, "\n")
+	if said ~= busy.said then busy.said, busy.lines = said, lines end
 	busy:SetShown(#lines > 0)
 	if was ~= busy:IsShown() or finished then self:SetStatus() end
 	if finished and self:IsShown() and not self.inBusyRefresh then
@@ -385,8 +387,11 @@ function UI:SpinBusy(elapsed)
 	end
 	if busy.check >= 0.5 then
 		busy.check = 0
+		local before = busy.lines
 		self:UpdateBusy()
-		if busy:IsShown() and GameTooltip and GameTooltip.IsOwned and GameTooltip:IsOwned(busy) then busy:GetScript("OnEnter")(busy) end
+		if busy.lines ~= before and busy:IsShown() and GameTooltip and GameTooltip.IsOwned and GameTooltip:IsOwned(busy) then
+			busy:GetScript("OnEnter")(busy)
+		end
 	end
 end
 

@@ -475,6 +475,9 @@ ns:RegisterProvider("stored", {
 	-- (read again a moment after a bag, bank or mail change, with the terminal closed: every plain search reads it for
 	-- its hint, and it costs one item info per recorded item; review, 0.48.6)
 	warmDirty = 2,
+	-- (Syndicator's records in use, its callbacks heard: they say when its records change, after it has read them; the
+	-- game's own bag, mail and bank events made the whole list again as well, a second time; review, 0.57.7)
+	ignoreEvent = function() return S.hooked == true and S.Source() == "Syndicator" end,
 	collect = function()
 		local out = {}
 		local byID = {}

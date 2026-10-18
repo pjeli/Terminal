@@ -550,6 +550,10 @@ do
 		busy = function() return loading and "loading pebbles" or nil end })
 	UI:Open("@zzrev3 pebble"); T.FlushAll()
 	UI:UpdateBusy()
+	-- (review, 0.57.7) what's loading unchanged: the spinner's lines aren't new (its tooltip isn't drawn again)
+	local lines1 = UI.busy.lines
+	UI:UpdateBusy()
+	check(UI.busy.lines == lines1 and #lines1 > 0, "the same lists loading: the spinner's lines kept, its tooltip not drawn again")
 	UI:Move(4)
 	local before = UI.Results()[UI.sel]
 	loading = false

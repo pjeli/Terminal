@@ -251,7 +251,8 @@ TT.OVER_WAIT = 0.5 -- (s: Enter on the game-over screen tells your guild only af
 
 function TT.GameOver()
 	game.over, game.overAt = true, GetTime()
-	game.dirty, game.sideDirty = true, true
+	-- (the board too: the piece that ended it locked, and the falling one no longer drawn; review, 0.57.7)
+	game.dirty, game.sideDirty, game.stackDirty = true, true, true
 	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
 	ns.Game.KeepBest(game, "tetrisBest")
 end

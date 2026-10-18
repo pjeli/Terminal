@@ -84,7 +84,6 @@ local function Candidates()
 	end
 	return out
 end
-SI.Candidates = Candidates -- (tests)
 
 --- The rows for these (lowercase) words: every spell whose name has each of them, each id once, by name then rank.
 function SI.ByName(words)

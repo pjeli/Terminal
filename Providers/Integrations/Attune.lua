@@ -48,7 +48,6 @@ local function LangRaw(key)
 	local ok, v = pcall(function() return t and t[key] end)
 	return ok and type(v) == "string" and v or key
 end
-AT.Lang = Lang
 
 --- Attune is loaded, with its data.
 local function Present()
@@ -59,7 +58,6 @@ local function Present()
 	end
 	return Data() ~= nil
 end
-AT.Present = Present
 
 ----------------------------------------------------------------------
 -- The data, read once: each attunement's steps in order
@@ -95,7 +93,6 @@ local function Follows(f)
 	for id in f:gmatch("[^&|%s]+") do if id ~= "0" then out[#out + 1] = id end end
 	return out, f:find("|", 1, true) ~= nil
 end
-AT.Follows = Follows
 
 local function Ids(v)
 	local out = {}
@@ -611,7 +608,6 @@ local function Tree()
 		if type(c) == "table" and c.type == "TreeGroup" then return c end
 	end
 end
-AT.Tree = Tree
 
 --- Its path in Attune's list: Attune's own when it has the call (16001-32: a finished one can be in its "Archived"
 --- group), else expansion, group, id.
@@ -623,7 +619,6 @@ local function PathOf(a)
 	end
 	return tostring(a.EXPAC) .. "\001" .. tostring(a.GROUP) .. "\001" .. tostring(a.ID)
 end
-AT.PathOf = PathOf
 
 --- Where Attune opens: its last viewed, kept per character since 16001-32 (Attune_SetLastViewed), else AttuneLastViewed.
 local function SetLastViewed(path)
@@ -823,7 +818,6 @@ local function StepLine(r)
 	if verb ~= "" and r.type ~= "Level" and r.type ~= "Rep" then s = verb .. ": " .. s end
 	return where and (s .. "  " .. "|cff999999(" .. where .. ")|r") or s
 end
-AT.StepLine = StepLine
 
 local function Tooltip(e, t)
 	local rec = RecOf(e)

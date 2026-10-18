@@ -115,7 +115,7 @@ local function CVarNames()
 end
 
 local byName = {} -- setting name -> its row (CVAR_UPDATE updates just that row)
-ns.CVars = { Edit = EditCVar, Default = DefaultCVar, Rows = function() return byName end }
+ns.CVars = { Edit = EditCVar, Default = DefaultCVar }
 
 local emptyNote -- (the last collect found nothing readable: why)
 ns:RegisterProvider("cvars", {

@@ -142,7 +142,6 @@ local function PaintPreview()
 	pv.detail:SetText("First Aid")
 	pv.detail:SetTextColor(T.RGB(t.dim))
 end
-O.PaintPreview = PaintPreview
 
 -- The example plays on a loop, the way the terminal moves with the chosen animation and cursor:
 -- it opens, the query is typed, the result comes in, the cursor blinks while idle, then it closes.

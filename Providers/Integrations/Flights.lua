@@ -151,7 +151,6 @@ local function MyRecord()
 	local r = all and key and all[key]
 	return type(r) == "table" and r or nil
 end
-FL.MyRecord = MyRecord
 
 ----------------------------------------------------------------------
 -- What a flight master's map shows

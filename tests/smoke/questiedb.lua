@@ -475,6 +475,10 @@ do
 		_G.LibQuestieDB.Object.GetAllIds = function() return {} end
 		QD.ResetForTests()
 		check(#I.ObjectRows("mailbox") == 0 and ns.db.objectIndex == nil, "no objects yet: no index saved")
+		-- (review, 0.57.7) ids it can't give at all (its API changed): nil, so @npc can say so
+		_G.LibQuestieDB.Object.GetAllIds = function() return "gone" end
+		QD.ResetForTests()
+		check(QD.DB().ObjectIds() == nil, "ids it can't give: nil, not an empty list")
 		_G.LibQuestieDB.Object.GetAllIds = allWas
 		QD.ResetForTests(); I.ResetObjectsForTests()
 		for _, q in ipairs({ "nearest mailbox", "mailbox nearby" }) do

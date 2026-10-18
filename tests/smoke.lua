@@ -3080,6 +3080,8 @@ do -- AtlasLoot and Questie integrations
 	check(ns.providers.loot.busy() == nil, "and stops when done")
 	check(logHas("ALLoad ALDungeons", mark + 1) and not I.loot.cached and #I.loot.rows == nRows and ns.db.lootCache.key:find("9.9.9", 1, true),
 		"a new AtlasLoot version: the index is built again and saved")
+	-- (review, 0.57.7) the window's own game version is in the key: switching it builds the index again
+	check(ns.db.lootCache.key:find("win=", 1, true), "the saved index's key names the window's game version: " .. ns.db.lootCache.key)
 	C_AddOns.GetAddOnMetadata = baseMeta
 	AtlasLoot.Loader.LoadModule = function(_, a) note("ALLoad", a) end
 	-- WoW Forever's own items (Snake Eye Kaleidoscope) are named only by the server, which drops asks

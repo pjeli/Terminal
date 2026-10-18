@@ -40,7 +40,6 @@ local WHISPER = { w = true, whisper = true, tell = true, t = true }
 -- (the game's chat types, for the lines Terminal sends itself: ">>>")
 local CHAT_TYPE = { party = "PARTY", guild = "GUILD", raid = "RAID", officer = "OFFICER", say = "SAY", yell = "YELL",
 	instance = "INSTANCE_CHAT" }
-SH.CHAT_TYPE = CHAT_TYPE
 SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop", "text", "csv" }
 local COPY = { text = "text", txt = "text", copy = "text", csv = "csv" }
 -- (how a channel is named where it's shown: the footer, the ">>>" row)

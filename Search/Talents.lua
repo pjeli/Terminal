@@ -63,7 +63,6 @@ local function Ways(w)
 	if #w > 3 and w:sub(-1) == "s" then ways[2] = w:sub(1, -2) .. "*" end
 	return ways
 end
-TQ.Ways = Ways
 
 --- "shaman crit talents": { class = "SHAMAN", words = { "crit" }, mine = bool }; nil when the line isn't one.
 function TQ.Question(text)
@@ -168,9 +167,3 @@ end
 -- (as said, 0.55.7: the talents are found by what they do, the words' kin and the descriptions scored, which "@talent crit"
 -- doesn't do: nil, Search.lua's ns.QuestionToAdvanced)
 function TQ.ToAdvanced() return nil end
-function TQ.ToAdvancedApprox(q)
-	local parts = { "@talent" }
-	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class) end
-	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
-	return table.concat(parts, " ") .. " "
-end

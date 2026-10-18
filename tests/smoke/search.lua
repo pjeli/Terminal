@@ -184,6 +184,17 @@ Run("initials", function()
 	UI:Hide(); FlushAll()
 end)
 
+-- (review, 0.57.7) a name starting with a quote or a number is found by its initials too (they skip those)
+Run("initials past a quote or a number", function()
+	Use({ { "srch", { label = "Test", aliases = { "srch" }, explicit = true, collect = Rows({
+		{ name = "\"Mr. Pinchy\"" }, { name = "Imp" }, { name = "Bump" }, { name = "10 Pound Mud Snapper" }, { name = "Pumpkin Mask" },
+	}) } } })
+	local r = UI:Search("@srch mp")
+	check(r[1] and r[1].name == "\"Mr. Pinchy\"", "mp: \"Mr. Pinchy\" by its initials, over Imp and Bump: " .. Show(r))
+	r = UI:Search("@srch pms")
+	check(r[1] and r[1].name == "10 Pound Mud Snapper" and r[1]._score > 2.5, "pms: 10 Pound Mud Snapper by its initials (the number skipped): " .. Show(r))
+end)
+
 Run("place shorthand", function()
 	check(ns.Shorthand and ns.Shorthand.brd and ns.Shorthand.dm[1] == "dire maul" and ns.Shorthand.vc[1] == "deadmines", "the shorthand table (DM is Dire Maul, VC the Deadmines)")
 	Use({ { "srch", { label = "Test", aliases = { "srch" }, explicit = true, collect = Rows({

@@ -162,7 +162,6 @@ local function HasAll(e, words)
 	for _, w in ipairs(words) do if not Has(e, w) then return false end end
 	return true
 end
-Q.Has = Has
 
 -- the rows named by these words (every word in the name), Attune's order
 local function Named(words, keep)
@@ -206,8 +205,9 @@ function Q.NamesStep(t)
 			end
 		end
 	end
+	local st = " " .. t -- (once, not per step name: hundreds, every keystroke; review, 0.57.7)
 	for _, n in ipairs(stepNames) do
-		if n:find(" " .. t, 1, true) then return true end
+		if n:find(st, 1, true) then return true end
 	end
 	return false
 end

@@ -184,6 +184,11 @@ do -- (review, 0.53.6) Tetris draws its stack again only when a piece locks, not
 	TT.HardDrop()
 	if TT.game.dirty then TT.DrawChanged() end
 	check(TT.stackDraws == before + 1, "a piece locked: the stack drawn once: " .. (TT.stackDraws - before))
+	-- (review, 0.57.7) game over: the board drawn again (the piece that ended it shows)
+	before = TT.stackDraws
+	TT.GameOver()
+	TT.DrawChanged()
+	check(TT.stackDraws == before + 1, "game over: the board drawn again: " .. (TT.stackDraws - before))
 	TT.Close()
 end
 

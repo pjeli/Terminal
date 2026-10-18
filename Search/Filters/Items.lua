@@ -292,7 +292,6 @@ local function EffectText(e)
 	end
 	return text
 end
-F.EffectText = EffectText
 
 local CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
 local QUESTITEM = Enum and Enum.ItemClass and Enum.ItemClass.Questitem or 12
@@ -312,7 +311,6 @@ local function IsConsumable(id) local c = ClassID(id); return c == nil or c == C
 -- sharpening stones and weightstones are Trade Goods on classic-era item data (Consumable later): both are read
 local TRADEGOODS = Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods or 7
 local function IsConsumableOrGoods(id) local c = ClassID(id); return c == nil or c == CONSUMABLE or c == TRADEGOODS end
-P.ClassID = ClassID
 
 -- What an item is, by the game's numbers (0.47.12): GetItemInfoInstant's class and subclass, the same in every language.
 -- type: took only the names (the client's own: "One-Handed Swords", "Einhandschwerter"), so "sword" and Simple mode's

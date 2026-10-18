@@ -205,8 +205,12 @@ function Z.QuestCounts(level)
 	if not (p and level) then return nil end
 	local list = ns:GetEntries(p)
 	if #list == 0 then return nil end
+	-- (until Questie's list or your quest log is made again, a quest turned in: not every time any list is; review,
+	-- 0.57.7: entriesGen counts every list's, and @quests is read again on every open)
+	local qp = ns.providers.quests
+	local log = qp and rawget(qp, "_entries") or false
 	local c = questCounts[level]
-	if c and c.gen == ns.entriesGen and c.n == #list then return c.counts end
+	if c and c.list == list and c.log == log then return c.counts end
 	local QD = ns.QuestieData
 	local DB = QD and QD.DB and QD.DB()
 	local raceBit, classBit = RaceClassBits()
@@ -224,7 +228,7 @@ function Z.QuestCounts(level)
 			if ok then counts[zone] = (counts[zone] or 0) + 1 end
 		end
 	end
-	questCounts[level] = { gen = ns.entriesGen, n = #list, counts = counts }
+	questCounts[level] = { list = list, log = log, counts = counts }
 	return counts
 end
 
@@ -360,12 +364,6 @@ end
 --- spots by the catches, which no filter does: "@map lvl:23" listed only exact fits, in another order. Search.lua's
 --- ns.QuestionToAdvanced)
 function Z.ToAdvanced() return nil end
-function Z.ToAdvancedApprox(kind, said)
-	if kind == "fish" then return "@map fish:mine " end
-	local lv = said or PlayerLevel()
-	local which = (kind == "dungeon" and "@dungeon") or (kind == "raid" and "@raid") or "@map"
-	return which .. ((type(lv) == "number" and lv > 0) and (" lvl:" .. lv) or "") .. " "
-end
 
 function Z.Answer(kind, said)
 	local level = said or PlayerLevel()

@@ -497,6 +497,11 @@ do -- .wowamp: radio stations playing the game's music
 	if upd then for _ = 1, 60 do upd(F, 0.05) end end
 	check(F.scripts.OnUpdate == nil and W.vis.resting, "stopped and fallen: the loop rests (no OnUpdate)")
 	W.Toggle()
+	-- (review, 0.57.7) hidden with the interface and shown again while playing: the bars move again
+	F.scripts.OnHide(F)
+	check(F.scripts.OnUpdate == nil, "hidden: the loop stops")
+	F.scripts.OnShow(F)
+	check(F.scripts.OnUpdate ~= nil, "shown again while playing: the bars move again")
 	W.KeyDown(F, "ESCAPE")
 	check(not W.IsShown() and W.state.playing, "Esc closes the window; the music plays on")
 	-- combat: doesn't open, and closes with the music still on

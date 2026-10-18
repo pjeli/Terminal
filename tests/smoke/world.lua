@@ -258,6 +258,10 @@ do
 	I.LoadLootModules(); FlushAll()
 	check(ns.db.lootCache == good and #good.groups == 1, "no modules listed after the retries: the saved index isn't written over")
 	check(Traced("still lists no loot modules"), "and the trace says why nothing was indexed")
+	-- (review, 0.57.7) and it's said in chat, .integrations no longer "still loading"
+	check(loot.done and I.failed.AtlasLoot and I.failed.AtlasLoot[1].what == ns.L["@loot (its loot tables) is unavailable."],
+		"its module list changed: said, not loading forever")
+	I.failed.AtlasLoot = nil
 	for k, v in pairs(was) do loot[k] = v end
 	_G.AtlasLoot, ns.db.lootCache = save.AL, save.cache
 	FlushAll()

@@ -312,7 +312,6 @@ end
 --- Opens the terminal as `s` (UI:SaveState) had it; nil: an empty prompt in the lasting mode.
 function UI:RestoreState(s)
 	s = s or {}
-	local E = ns.Easy
 	local text = type(s.text) == "string" and s.text or ""
 	if s.fzf then
 		self:FuzzyOnce(text)

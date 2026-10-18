@@ -84,7 +84,9 @@ I.ResetObjectsForTests = function() objectIds = nil end
 -- fallback when the game can't be handed the press (combat)
 local function PinObject(e)
 	local M = ns.Maps
-	local pin = M and M.Place and M.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } })
+	-- (a row with no place known, a TrainerSpells trainer without one: said, not an error; review, 0.57.7)
+	local x, y = tonumber(e.px), tonumber(e.py)
+	local pin = e.ui and x and y and M and M.Place and M.Place({ name = e.name, mapID = e.ui, pos = { x = x / 100, y = y / 100 } })
 	if pin then
 		ns:Print(M.PinLine(pin, e.pinName or e.name, e.zone))
 	else

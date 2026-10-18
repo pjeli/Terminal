@@ -80,6 +80,13 @@ function PT.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	t = t:gsub("first aid", "firstaid")
+	-- (no word of training, learning, a trainer or its cost: not this question, before your professions are read; it's
+	-- asked on every keystroke; review, 0.57.7)
+	local cue = false
+	for w in t:gmatch("%S+") do
+		if TRAIN[w] or LEARN[w] or MONEY[w] or w == "trainer" or w == "trainers" then cue = true break end
+	end
+	if not cue then return nil end
 	local byLine, byName = Yours()
 	local q = { words = {}, missing = {} }
 	local train, learn, asked, trainer, all = false, false, false, false, false

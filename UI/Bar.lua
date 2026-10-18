@@ -334,7 +334,6 @@ function B.Options(which)
 		for _, p in ipairs(typed.filters) do
 			if not listed[p.spec] then
 				listed[p.spec] = true
-				local o = ById(B.FILTERS, p.spec)
 				out[#out + 1] = { id = p.spec, label = B.SpecLabel(p.spec, p.word), on = true, typed = p.word }
 			end
 		end
@@ -487,8 +486,8 @@ function B.SpeakerIcon(icon, waves)
 	return "horn"
 end
 
-local function Label(which)
-	local typed = B.Typed()
+local function Label(which, typed)
+	typed = typed or B.Typed()
 	if which == "filter" then
 		-- (what's picked here and what's typed: one list, the typed words' once each)
 		local labels, seen = {}, {}
@@ -630,8 +629,9 @@ function B.Update()
 	-- placing the buttons on every footer update took every hover and click away; 0.55.1, the player: "mousing over and
 	-- clicking do nothing")
 	local widths = {}
+	local typed = B.Typed() -- (once per update, not per button: it runs on every keystroke; review, 0.57.7)
 	for i, b in ipairs(s.buttons) do
-		local label = Label(b.which)
+		local label = Label(b.which, typed)
 		if b.label ~= label then b.label = label; b.text:SetText(label); B.Underline(b) end
 		widths[i] = math.ceil((b.text:GetStringWidth() or 40) + 18)
 	end
@@ -657,7 +657,6 @@ function B.Update()
 		horn:SetSize(h - 4, h - 4)
 	end
 	for _, b in ipairs(s.buttons) do
-		local typed = B.Typed()
 		local active = (b.which == "filter" and (#state.filters > 0 or #typed.filters > 0)) or (b.which == "sort" and (state.sort or typed.sort))
 			or (b.which == "group" and B.GroupOn())
 		b.off = overview and b.which ~= "filter" and not active

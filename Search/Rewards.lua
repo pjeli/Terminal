@@ -126,9 +126,10 @@ end
 --- The items some quest rewards whose names have these (lowercase, apostrophes left out) words: the exact name, else
 --- every word at the start of one of the name's words, else (two words or more) every word there or a close spelling of
 --- one ("outlaw saber": Outlaw Sabre; only words of CLOSE_LEN letters or more). `oneClose`: one word may be a close
---- spelling too (reward:saber, typed on purpose). { entry }, best first; {} when none. The last answer is kept (asked
---- again as the search refreshes, and by Alt+`).
-function QR.Items(tokens, oneClose)
+--- spelling too (reward:saber, typed on purpose). `typing`: the last word is still being typed (no space after it): no
+--- close spelling of it is looked for (every new letter was a pass over the whole index, 50-150 ms; review, 0.57.7).
+--- { entry }, best first; {} when none. The last answer is kept (asked again as the search refreshes, and by Alt+`).
+function QR.Items(tokens, oneClose, typing)
 	local idx = QR.Index()
 	if not idx then
 		-- (still being read, a slice at a time: the search asks again once it's in; 0.50.7, review: nothing was found and
@@ -141,7 +142,7 @@ function QR.Items(tokens, oneClose)
 	end
 	if #tokens == 0 then return {} end
 	local whole = table.concat(tokens, " ")
-	local key = whole .. (oneClose and "\1" or "")
+	local key = whole .. (oneClose and "\1" or "") .. (typing and "\2" or "")
 	if QR.lastKey == key then return QR.lastItems end
 	local exact, typed = {}, {}
 	local pats = {}
@@ -161,7 +162,9 @@ function QR.Items(tokens, oneClose)
 	if #out == 0 and #typed > 0 then table.sort(typed, Shorter) out = typed end
 	if #out == 0 and (#tokens >= 2 or oneClose) then
 		local close, sets = {}, {}
-		for k, tk in ipairs(tokens) do if #tk >= QR.CLOSE_LEN then sets[k] = CloseOf(tk, idx) end end
+		for k, tk in ipairs(tokens) do
+			if #tk >= QR.CLOSE_LEN and not (typing and k == #tokens) then sets[k] = CloseOf(tk, idx) end
+		end
 		if next(sets) then
 			for _, it in ipairs(idx) do
 				local edits = 0
@@ -286,7 +289,9 @@ function QR.Question(text)
 		if QUEST[w] then quest = true elseif not FILLER[w] and #w >= 3 then words[#words + 1] = w end
 	end
 	if not quest or #words == 0 then return nil end
-	local items = QR.Items(words)
+	-- (the last word still being typed: the line's last, no space after it, and not "quest")
+	local typing = not text:find("%s$") and t:match("(%S+)%s*$") == words[#words]
+	local items = QR.Items(words, nil, typing)
 	if #items == 0 or QuestCalled(words) then return nil end -- (the cheaper miss first)
 	return { words = words, items = items }
 end

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.58.0
+
+**TrainerSpells**
+- Terminal reads TrainerSpells when it's installed, at the moment you search (nothing of it is copied). Either What's Training or TrainerSpells is enough for training.
+- Without What's Training, **@training** lists your class's spells, weapon skills and pet abilities still to learn: a hunter's from the pet trainers, a warlock's demons' grimoires from the Demon Trainers. "what can i train", "what do i learn next level" and "where to learn ..." work with it, and every class's spells come from it.
+- Without Questie, its trainers and weapon masters are **@npc**: "nearest mage trainer", "polearm trainer".
+
+**Profession training**
+- The recipes a trainer teaches that you don't know are listed with your other recipes to learn, with the skill each needs and its cost, even before you've opened the profession's window: "what can i train in tailoring", "how much is tailoring training".
+- **@profession** shows each profession's next rank, the skill it needs and its cost.
+
+**Trainers**
+- "polearm trainer" and the like list only the weapon masters who teach that weapon to your faction (What's Training's or TrainerSpells' list), not every weapon master.
+
+**Other addons**
+- When an addon's data isn't in the shape Terminal expects (a new version of it), chat says once what's unavailable, and **.integrations** lists it.
+- **.integrations** has one Training line: What's Training or TrainerSpells, whichever is installed, with how many spells you have to learn.
+
+**Fixes and speed-ups from a review**
+- Down after closing brings back what you typed, not its Advanced syntax or a fuzzy find's letters.
+- Filters whose answer changes by itself (is:ready, near:) stay right as you type.
+- Sold auctions keep their posted price when the chat line comes before the notification; .mail forget also forgets that character's sales.
+- A merchant who doesn't repair no longer shows the last repair vendor's total as your bill.
+- Names starting with a quote or a number are found by their initials ("mp" finds "Mr. Pinchy").
+- Questions about quest rewards no longer pause on every letter of a long word.
+
 ## 0.57.0
 
 **Upgrades you can trust**

@@ -260,6 +260,7 @@ L["@recipe: the recipes of your professions you don't know yet, with how each is
 L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] = "@spell: только ваша книга заклинаний (без фильтра показываются и ещё не изученные заклинания любого класса)"
 L["@stored, @mail, @lockout, @auction: on that character (or guild)"] = "@stored, @mail, @lockout, @auction: у этого персонажа (или гильдии)"
 L["@training is unavailable."] = "@training недоступен."
+L["@training isn't kept up to date as you train."] = "@training не обновляется по мере обучения."
 L["@training: learnable (now) nextlevel later needsrank needstalent pet weapon ignored quest"] = "@training: learnable (сейчас) nextlevel later needsrank needstalent pet weapon ignored quest"
 L["A Battle.net friend (the game hides the name)"] = "Друг Battle.net (игра скрывает имя)"
 L["A ghost"] = "Призрак"

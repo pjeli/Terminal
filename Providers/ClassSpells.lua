@@ -51,9 +51,9 @@ local function Catalog(api, cls)
 end
 
 local FACTION = { Alliance = "a", Horde = "h" }
-local parsed -- CLASS -> { { id, level, races, raceFile, faction ("a"/"h"), talent, quest, name, rank }, ... }
+local parsed -- CLASS -> { { id, level, races, raceFiles (a set), faction ("a"/"h"), talent, quest, name, rank }, ... }
 
---- TrainerSpells' class spells when What's Training's catalog isn't there: CLASS -> { { id, level, raceFile, faction,
+--- TrainerSpells' class spells when What's Training's catalog isn't there: CLASS -> { { id, level, raceFiles, faction,
 --- rank }, ... } (Integrations/TrainerSpells.lua reads and checks them), or nil.
 function CS.FromTrainerSpells()
 	local TS = ns.TrainerSpells
@@ -72,7 +72,7 @@ function CS.Data()
 		for _, cls in ipairs(CS.CLASSES) do
 			local list = {}
 			for _, r in ipairs(ts[cls] or {}) do
-				list[#list + 1] = { r.id, r.level, raceFile = r.raceFile, faction = r.faction, rank = r.rank }
+				list[#list + 1] = { r.id, r.level, raceFiles = r.raceFiles, faction = r.faction, rank = r.rank }
 			end
 			table.sort(list, function(a, b) if a[2] ~= b[2] then return a[2] < b[2] end return a[1] < b[1] end)
 			parsed[cls] = list
@@ -156,7 +156,7 @@ function CS.Spells(cls, mine)
 	local byName, out = {}, {}
 	for _, r in ipairs(CS.Data()[cls] or {}) do
 		local fits = not mine or ((not r.races or not race or Has(r.races, race)) and (not r.faction or not faction or r.faction == faction)
-			and (not r.raceFile or not raceFile or r.raceFile == raceFile))
+			and (not r.raceFiles or not raceFile or r.raceFiles[raceFile])) -- (TrainerSpells': one race or a list of them)
 		local name = fits and (Str(Safe(C_Spell and C_Spell.GetSpellName, r[1])) or r.name)
 		if name and not ns.Secret(name) then
 			local s = byName[name]
@@ -192,7 +192,6 @@ local function Levels(s)
 	if #s.ranks == 1 then return L["level %d"]:format(first) end
 	return L["levels %d-%d (%d ranks)"]:format(first, last, #s.ranks)
 end
-CS.Levels = Levels
 
 local function Tooltip(e, t)
 	local s = rawget(e, "_s")

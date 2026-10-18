@@ -18,7 +18,7 @@ local H = ns.Highlight
 local AO = {}
 ns.AddonOptions = AO
 
-local Str, Lower = ns.Str, ns.Lower
+local Lower = ns.Lower
 
 AO.MAX_PER_APP, AO.MAX = 3000, 10000
 AO.DEPTH = 10

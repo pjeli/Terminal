@@ -286,7 +286,6 @@ local function LootIndex()
 	end
 	return lootBy, lootCrafted
 end
-P.AtlasCraft = AtlasCraft
 --- AtlasLoot's loot rows of an item (its bosses), or {}.
 function P.LootRowsOf(id) return (LootIndex())[id] or {} end
 

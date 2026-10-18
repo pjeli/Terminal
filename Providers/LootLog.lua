@@ -147,7 +147,6 @@ local function FromHistory(encounterID, lootListID)
 	if ns.Secret and (ns.Secret(winner) or ns.Secret(drop.itemHyperlink)) then return end
 	LL.Add(drop.itemHyperlink, winner, 1, from, "history", tostring(encounterID) .. ":" .. tostring(lootListID))
 end
-LL.FromHistory = FromHistory
 
 function LL.OnEvent(event, ...)
 	if event == "CHAT_MSG_LOOT" then
