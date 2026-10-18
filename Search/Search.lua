@@ -2032,7 +2032,15 @@ function Scan.Overview(self, q, noAuto)
 		rows[#rows + 1] = CategoryRow(b.c, b.best, b.score, #b.rows + (b.n or 0), b.counts, b.hinted)
 	end
 	table.sort(rows, function(a, b) return a._score > b._score end)
-	if #rows == 0 then return PseudoEntries({ EASY_NONE }) end
+	if #rows == 0 then
+		-- (0.56.2, the player: "Did you mean...?") the phrases closest to it, under the note; the note keeps what was
+		-- typed, for .missed when the terminal closes on it (DidYouMean.lua)
+		local none = PseudoEntries({ EASY_NONE })
+		none[1].missedText = q.text
+		local DYM = ns.DidYouMean
+		for _, r in ipairs(DYM and not empty and DYM.Rows(q.text) or {}) do none[#none + 1] = r end
+		return none
+	end
 	-- only one category has it: straight to its results (no step to take); its rows are these, unless some were only
 	-- counted by name (Questie's: then the category is searched as picked)
 	if #rows == 1 and not noAuto then

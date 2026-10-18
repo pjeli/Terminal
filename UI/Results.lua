@@ -142,6 +142,9 @@ UI.SameRow = SameRow -- (one test of it: the menu, Enter's armed press, the row 
 --- it's there; else the first row is (one copy: PutUp's and Refresh's).
 local function KeepSelection(keep, keptRow)
 	UI.sel, UI.offset = 1, 0
+	-- ("Nothing has that", then "Did you mean...?": the first suggestion selected, for Enter; DidYouMean.lua)
+	local r1, r2 = UI.results[1], UI.results[2]
+	if r1 and r2 and r1.noActivate and rawget(r2, "kind") == "suggestion" then UI.sel = 2 end
 	if not keep then return false end
 	for i, e in ipairs(UI.results) do
 		if SameRow(e, keep) then

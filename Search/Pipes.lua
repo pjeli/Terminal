@@ -1855,6 +1855,7 @@ function A.Apply(spec, res, base)
 		end
 		local r = Row(name, detail, "aggregate:" .. s.by .. ":" .. tostring(g.text) .. ":" .. g.n .. ":" .. tostring(g.value), opLabel)
 		r.copyDetail = copyDetail
+		r.groupN = g.n -- (how many rows it holds: the footer counts them, "14 groups · 34 results"; List.lua)
 		if g.text and base then
 			r.noActivate, r.activate, r.staysOpen = nil, Drill, true
 			r.drillTo = DrillTo(spec, s.by, g)

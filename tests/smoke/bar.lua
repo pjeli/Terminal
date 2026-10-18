@@ -66,6 +66,14 @@ do
 	local groups = 0
 	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then groups = groups + 1 end end
 	check(groups >= 3, "grouped by quality: a row per quality: " .. groups)
+	-- (0.56.2, the player's screenshot: "14 results" for 14 dungeons holding 34 swords) the footer counts the groups and
+	-- what they hold
+	local inside = 0
+	for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then inside = inside + (tonumber(tostring(e.detail):match("^(%d+)")) or 0) end end
+	UI:SetStatus()
+	local foot = tostring(UI.status:GetText())
+	check(foot:find(L["%d groups"]:format(groups) .. "  ·  " .. L["%s results"]:format(inside), 1, true) and inside > groups,
+		"the footer: groups and the results in them: " .. foot)
 	local gopts = {}
 	for _, o in ipairs(B.Options("group")) do gopts[#gopts + 1] = o.id end
 	local sopts = {}

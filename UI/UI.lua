@@ -699,6 +699,8 @@ end
 -- (UI:Dismiss) closes it and lets go of the text too (0.52.11, the player's ask).
 UI.REOPEN_KEEP = 5
 function UI:Hide()
+	-- (closed on "Nothing has that": what was typed is kept for .missed; DidYouMean.lua)
+	if ns.DidYouMean and frame and frame:IsShown() then ns.DidYouMean.NoteClosed(UI.results) end
 	self:HideRowMenu()
 	if ns.Bar then ns.Bar.Reset() end -- (Simple mode's bar: what it picked lasts while the terminal is open)
 	-- (what the line's "| group by" and ">> party" said: read again when it's searched next; 0.55.18, review: a search

@@ -74,6 +74,17 @@ do
 		local quiet = count > 0 and UI.results[1].noActivate
 		local mode = MODE_LABEL[self.mode or ""] -- plain searching needs no label
 		local text = quiet and L["keep typing, or Esc to close"] or (count == 1 and L["%s result"] or L["%s results"]):format(count)
+		-- (grouped: how many groups, and how many results they hold; 0.56.2, the player's screenshot said "14 results"
+		-- for 14 dungeons holding 34 swords)
+		local groups, inside = 0, 0
+		for _, e in ipairs(UI.results) do
+			local n = rawget(e, "groupN")
+			if n then groups, inside = groups + 1, inside + n end
+		end
+		if groups > 0 then
+			text = (groups == 1 and L["%d group"] or L["%d groups"]):format(groups) .. STATUS_SEP
+				.. (inside == 1 and L["%s result"] or L["%s results"]):format(inside)
+		end
 		if count > 0 and UI.results[1].catId then text = (count == 1 and L["found in %s category: pick one"] or L["found in %s categories: pick one"]):format(count) end
 		-- (Simple mode's clear winner above the categories: Search.lua's EasyOverview)
 		if count > 1 and self.overviewWinner and UI.results[1] == self.overviewWinner then
