@@ -171,7 +171,7 @@ end
 -- An attunement's steps in the order to do them: from each step that starts a line (or follows only the level), the
 -- whole line before the next one, so the Deadmines' five quest lines read one after the other. A step comes after every
 -- step it follows, "20|21" (either is enough) too: a chain split by race (Taming: Dun Morogh or Teldrassil) lists each
--- branch whole, then what both lead to. Attune draws them in columns (STAGE), every line side by side.
+-- branch whole, then what both lead to. Attune draws them in rows (STAGE), every line side by side.
 local function Order(list)
 	local idx, stage = {}, {}
 	for i, s in ipairs(list) do idx[s] = i; stage[s] = tonumber(s.STAGE) or 0 end
@@ -210,11 +210,40 @@ local function Order(list)
 		for _, k in ipairs(kids[s] or {}) do Visit(k, depth + 1) end
 	end
 	for _, s in ipairs(list) do Visit(s, 0) end
-	-- (a step following one that isn't there, or a loop in the data: last, in Attune's column order)
+	-- (a step following one that isn't there, or a loop in the data: last, in Attune's row order)
 	for _, s in ipairs(list) do
 		if not emitted[s] then emitted[s] = true; out[#out + 1] = s end
 	end
 	return out
+end
+
+-- Where Attune draws each step across its chart (0.56.6, Attune 16001-32's chart): each STAGE a row, its steps by ID from
+-- the right edge in, a HALFSIZE step half as wide; the side quests apart, in the "Inside the dungeon" box. x: from the
+-- middle, left negative (AT.Number letters the lines left to right, as you read them there).
+AT.NODE_W, AT.NODE_GAP = 170, 10
+function AT.Columns(list)
+	local byStage, x = {}, {}
+	for _, s in ipairs(list) do
+		if not s.SIDE then
+			local st = tonumber(s.STAGE) or 0
+			byStage[st] = byStage[st] or {}
+			byStage[st][#byStage[st] + 1] = s
+		end
+	end
+	for _, row in pairs(byStage) do
+		table.sort(row, function(a, b) return (tonumber(a.ID) or 0) < (tonumber(b.ID) or 0) end)
+		local total = 0
+		for i, s in ipairs(row) do
+			total = total + (s.HALFSIZE and (AT.NODE_W - AT.NODE_GAP) / 2 or AT.NODE_W) + (i > 1 and AT.NODE_GAP or 0)
+		end
+		local consumed = 0
+		for _, s in ipairs(row) do
+			local w = s.HALFSIZE and (AT.NODE_W - AT.NODE_GAP) / 2 or AT.NODE_W
+			x[s] = total / 2 - consumed - w / 2
+			consumed = consumed + w + AT.NODE_GAP
+		end
+	end
+	return x
 end
 
 local function Add(map, id, aid)
@@ -225,55 +254,113 @@ local function Add(map, id, aid)
 	t[#t + 1] = aid
 end
 
--- The steps' numbers (0.55.20, the player: "do a better job of outlining what the steps are"): Attune's columns (STAGE)
--- in order are the numbers, 1, 2, 3; where lines of quests run side by side, each line has its letter, the same down the
--- columns: 2a, 3a, 4a is one line, 2b, 3b the next. A side quest (Attune's SIDE: one you'll come across inside, with no
--- quest before it) has no number: it says so (r.label nil, r.side). Sets r.label ("2a") and rec.stages (how many numbers).
+-- The steps' numbers (0.55.20, the player: "do a better job of outlining what the steps are"): Attune's rows (STAGE) in
+-- order are the numbers, 1, 2, 3; where lines of quests run side by side, each line has its letter, the same down the
+-- rows: 2a, 3a, 4a is one line, 2b, 3b the next. A side quest (Attune's SIDE: one you'll come across inside, drawn in its
+-- "Inside the dungeon" box) has no number: it says so (r.label nil, r.side). Sets r.label ("2a") and rec.stages.
+--
+-- 0.56.6 (Attune 16001-32, the player: "support the new look ... for labeling steps"), as its chart reads:
+--   letters left to right as it draws them (r.x, AT.Columns: a row's lowest step on the right, so "a" was the right one)
+--   a line that splits (one step, several steps after it alone) ends there: each branch is a line of its own
+--   a letter only for lines that run beside another (a line alone in each of its rows has none: Onyxia's "2", not "2a")
+--   never the same label twice in a row (a step where lines meet, beside others: a letter no line has)
 local LETTERS = "abcdefghijklmnopqrstuvwxyz"
 function AT.Number(rec)
-	local byId = {}
-	for _, r in ipairs(rec.steps) do
+	local byId, at = {}, {}
+	for i, r in ipairs(rec.steps) do
+		at[r] = i
 		byId[r.id] = r
 		for _, id in ipairs(r.ids or {}) do byId[id] = r end
 	end
-	-- the lines: a step after nothing but the level (or nothing) starts one; a step after one line's step goes on with it;
-	-- after two lines' (where they meet): none
-	local lines, line = 0, {}
+	local function Stage(r) return tonumber(r.step.STAGE) or 0 end
+	local function Before(a, b)
+		local sa, sb = Stage(a), Stage(b)
+		if sa ~= sb then return sa < sb end
+		if a.x and b.x and a.x ~= b.x then return a.x < b.x end
+		return at[a] < at[b]
+	end
+	-- each step's steps before it (not the level), and how many steps follow a step alone (a split)
+	local parents, alone = {}, {}
 	for _, r in ipairs(rec.steps) do
 		if not r.side and r.type ~= "Level" then
-			local seen, mine, many = {}, nil, false
+			local ps, seen = {}, {}
 			for _, id in ipairs((Follows(r.step.FOLLOWS))) do
 				local p = byId[id]
-				if p and p ~= r and p.type ~= "Level" and not seen[p] then
-					seen[p] = true
-					local l = line[p]
-					if mine == nil then mine = l elseif l ~= mine then many = true end
-					if l == nil then many = true end
-				end
+				if p and p ~= r and p.type ~= "Level" and not seen[p] then seen[p] = true; ps[#ps + 1] = p end
 			end
-			if next(seen) == nil then lines = lines + 1; line[r] = lines
+			parents[r] = ps
+			if #ps == 1 then alone[ps[1]] = (alone[ps[1]] or 0) + 1 end
+		end
+	end
+	-- the lines: a step after nothing but the level (or nothing) starts one, as each branch of a split does; a step after
+	-- one line's step goes on with it; after two lines' (where they meet): none
+	local lines, line = 0, {}
+	for _, r in ipairs(rec.steps) do
+		local ps = parents[r]
+		if ps then
+			local mine, many = nil, false
+			for _, p in ipairs(ps) do
+				local l = line[p]
+				if l == nil then many = true elseif mine == nil then mine = l elseif l ~= mine then many = true end
+			end
+			if #ps == 0 or (#ps == 1 and (alone[ps[1]] or 0) > 1) then lines = lines + 1; line[r] = lines
 			elseif not many then line[r] = mine end
 		end
 	end
-	-- the numbers: Attune's columns in order, side quests left out
-	local stages, rank, inStage = {}, {}, {}
+	-- the rows, side quests left out; the lines in each
+	local stages, rank, inStage, linesIn = {}, {}, {}, {}
 	for _, r in ipairs(rec.steps) do
 		if not r.side then
-			local st = tonumber(r.step.STAGE) or 0
-			if not inStage[st] then inStage[st] = {}; stages[#stages + 1] = st end
+			local st = Stage(r)
+			if not inStage[st] then inStage[st] = {}; linesIn[st] = {}; stages[#stages + 1] = st end
 			inStage[st][#inStage[st] + 1] = r
+			if line[r] then linesIn[st][line[r]] = true end
 		end
 	end
 	table.sort(stages)
 	for i, st in ipairs(stages) do rank[st] = i end
+	-- the lines that run beside another (in a row with another line) get letters: by the row they start in, then left to
+	-- right
+	local beside, first = {}, {}
+	for _, st in ipairs(stages) do
+		local n = 0
+		for _ in pairs(linesIn[st]) do n = n + 1 end
+		if n > 1 then for l in pairs(linesIn[st]) do beside[l] = true end end
+	end
+	for _, r in ipairs(rec.steps) do
+		local l = line[r]
+		if l and beside[l] and (not first[l] or Before(r, first[l])) then first[l] = r end
+	end
+	local order = {}
+	for l in pairs(beside) do order[#order + 1] = l end
+	table.sort(order, function(p, q) return Before(first[p], first[q]) end)
+	local letter = {}
+	for k, l in ipairs(order) do letter[l] = k end
 	for _, st in ipairs(stages) do
 		local these = inStage[st]
-		for k, r in ipairs(these) do
-			-- (a line's letter wherever lines run side by side, alone in its column too: 2a 3a 4a; else a letter only to
-			-- tell steps of one column apart)
-			local n = (lines > 1 and line[r]) or (#these > 1 and not line[r] and k) or nil
-			r.label = tostring(rank[st]) .. (n and LETTERS:sub(n, n) or "")
-			r.order = rank[st] * 100 + (n or 0) -- (listed by it: 1, 2a, 2b, 2c, 3a...; AT.StepRows)
+		table.sort(these, Before) -- (left to right, as drawn)
+		local used, n = {}, {}
+		for _, r in ipairs(these) do
+			local k = line[r] and letter[line[r]]
+			if k then
+				if used[k] then k = nil else used[k] = true end -- (never twice in a row)
+			end
+			n[r] = k
+		end
+		if #these > 1 then
+			-- (a letter no line has: one shared would read as that line going on; Scarlet Monastery's "4d" was a meeting)
+			local free = #order + 1
+			for _, r in ipairs(these) do
+				if not n[r] then
+					while used[free] do free = free + 1 end
+					n[r], used[free] = free, true
+				end
+			end
+		end
+		for _, r in ipairs(these) do
+			local k = n[r]
+			r.label = tostring(rank[st]) .. (k and LETTERS:sub(k, k) or "")
+			r.order = rank[st] * 100 + (k or 0) -- (listed by it: 1, 2a, 2b, 2c, 3a...; AT.StepRows)
 		end
 	end
 	rec.stages = #stages
@@ -309,9 +396,11 @@ function AT.Index()
 			end
 			-- the steps a row stands for: in order, the same quest for each race once
 			local merged = {}
+			local xs = AT.Columns(list)
 			for _, s in ipairs(Order(list)) do
 				if s.TYPE ~= "Spacer" and s.TYPE ~= "End" then
 					local r = StepRecord(aid, s, D)
+					r.x = xs[s]
 					local same = s.OR and merged[r.type .. "\001" .. r.title .. "\001" .. tostring(s.FOLLOWS)]
 					if same then
 						same.keys[#same.keys + 1] = r.keys[1]
@@ -524,15 +613,82 @@ local function Tree()
 end
 AT.Tree = Tree
 
-local function PathOf(a) return tostring(a.EXPAC) .. "\001" .. tostring(a.GROUP) .. "\001" .. tostring(a.ID) end
+--- Its path in Attune's list: Attune's own when it has the call (16001-32: a finished one can be in its "Archived"
+--- group), else expansion, group, id.
+local function PathOf(a)
+	local f = rawget(_G, "Attune_PathForAttune")
+	if type(f) == "function" then
+		local ok, p = pcall(f, a.ID)
+		if ok and type(p) == "string" and p ~= "" then return p end
+	end
+	return tostring(a.EXPAC) .. "\001" .. tostring(a.GROUP) .. "\001" .. tostring(a.ID)
+end
+AT.PathOf = PathOf
 
---- Attune's window on this attunement (its tree picks it, as a click does), pointing at it, or at one of its steps
---- (`stepId`: the step's box in the chart).
+--- Where Attune opens: its last viewed, kept per character since 16001-32 (Attune_SetLastViewed), else AttuneLastViewed.
+local function SetLastViewed(path)
+	local f = rawget(_G, "Attune_SetLastViewed")
+	if type(f) == "function" and pcall(f, path) then return end
+	_G.AttuneLastViewed = path
+end
+
+local function Split(path)
+	local parts = {}
+	for part in (path .. "\001"):gmatch("(.-)\001") do parts[#parts + 1] = part end
+	return parts
+end
+
+--- The chart's scroll frame (Attune's AceGUI ScrollFrame, right of its list): scrolled so a step's box is in view.
+local function ChartScroll(w, depth)
+	if type(w) ~= "table" or (depth or 0) > 4 then return nil end
+	if w.type == "ScrollFrame" and w.scrollframe and w.content then return w end
+	for _, c in ipairs(type(w.children) == "table" and w.children or {}) do
+		local found = ChartScroll(c, (depth or 0) + 1)
+		if found then return found end
+	end
+end
+function AT.ScrollTo(node)
+	local w = ChartScroll(Tree())
+	if not w then return end
+	local ok = pcall(function()
+		local sf, content = w.scrollframe, w.content
+		local viewH, height = sf:GetHeight(), content:GetHeight()
+		if not (viewH and height) or height <= viewH then return end
+		-- (in the scroll frame's units: the box is drawn zoomed, Attune's own scale)
+		local k = node:GetEffectiveScale() / sf:GetEffectiveScale()
+		local top, bottom = node:GetTop() * k, node:GetBottom() * k
+		local vTop, vBottom = sf:GetTop(), sf:GetBottom()
+		if top <= vTop and bottom >= vBottom then return end -- (in view already)
+		local cTop = content:GetTop()
+		local offset = math.max(0, math.min(height - viewH, (cTop - top) - viewH / 3))
+		local value = 1000 * offset / (height - viewH)
+		if w.scrollbar and w.scrollbar.SetValue then w.scrollbar:SetValue(value) elseif w.SetScroll then w:SetScroll(value) end
+	end)
+	if not ok then ns:Trace("attune: couldn't scroll to the step") end
+end
+
+--- Attune's list button for it: the tree's row, or its icon in Attune's icon view (16001-32).
+local function ListButton(a, path)
+	local t = Tree()
+	if not t then return nil end
+	local holder = rawget(t, "attuneIconHolder")
+	if type(holder) == "table" and holder.IsShown and holder:IsShown() then
+		for _, b in ipairs(type(holder.icons) == "table" and holder.icons or {}) do
+			if tostring(b.id) == tostring(a.ID) and b.IsVisible and b:IsVisible() then return b end
+		end
+		return nil
+	end
+	for _, b in ipairs(type(t.buttons) == "table" and t.buttons or {}) do
+		if b.uniquevalue == path and b.IsVisible and b:IsVisible() then return b end
+	end
+end
+
+--- Attune's window on this attunement (its list picks it, as a click does), pointing at it, or at one of its steps
+--- (`stepId`: the step's box in the chart, scrolled into view).
 function AT.Open(rec, stepId)
 	local a = rec and rec.a
 	if not a then return end
-	local path = PathOf(a)
-	_G.AttuneLastViewed = path -- (where its window opens: the first time, and from its results page)
+	SetLastViewed(PathOf(a)) -- (where its window opens: the first time, and from its results page)
 	local before = MainFrame()
 	if not (before and before:IsShown()) then
 		local slash = _G.SlashCmdList and _G.SlashCmdList.Attune
@@ -549,38 +705,41 @@ function AT.Open(rec, stepId)
 		return
 	end
 	local tree = Tree()
-	local picked = false -- (Attune picked it itself: AttuneLastViewed, made the first time or back from its results page)
+	local picked = false -- (Attune picked it itself: its last viewed, made the first time or back from its results page)
 	if not tree then
 		if type(_G.Attune_ToggleView) == "function" then pcall(_G.Attune_ToggleView) end
 		tree, picked = Tree(), true
 	elseif not before then
 		picked = true
 	end
+	local path = PathOf(a) -- (again: its list is made by now, "Archived" included)
 	if tree then
-		-- Attune picks AttuneLastViewed as one joined path, which doesn't unfold its group: a group you folded kept the
+		-- Attune picks its last viewed as one joined path, which doesn't unfold its group: a group you folded kept the
 		-- row hidden, nothing to point at. Picked again by its parts (as a click on it would), unfolding them; the tree
 		-- kept from before shows the last one picked anyway.
+		local parts = Split(path)
 		local st = tree.status or tree.localstatus
-		local open = type(st) == "table" and type(st.groups) == "table"
-			and st.groups[tostring(a.EXPAC)] and st.groups[tostring(a.EXPAC) .. "\001" .. tostring(a.GROUP)]
-		if not (picked and open) then
-			local ok, err = pcall(tree.SelectByPath, tree, a.EXPAC, a.GROUP, a.ID)
+		local open = type(st) == "table" and type(st.groups) == "table" and st.groups[parts[1]]
+			and st.groups[parts[1] .. "\001" .. tostring(parts[2])]
+		if not (picked and open and st.selected == path) then
+			local ok, err = pcall(tree.SelectByPath, tree, unpack(parts))
 			if not ok then ns:Trace("attune: select failed: " .. tostring(err)) end
 		end
 	end
 	ns:Trace("attune: opened on " .. tostring(a.ID) .. (stepId and (" step " .. tostring(stepId)) or ""))
+	local scrolled = false
 	H:When(function()
 		local mf = MainFrame()
 		if not (mf and mf:IsShown()) then return false end
 		if stepId then
 			local node = _G["Attune_Node_" .. tostring(stepId)]
-			if node and node.IsVisible and node:IsVisible() then return node end
+			if node and node.IsVisible and node:IsVisible() then
+				if not scrolled then scrolled = true; AT.ScrollTo(node) end
+				return node
+			end
 			return nil
 		end
-		local t = Tree()
-		for _, b in ipairs(t and type(t.buttons) == "table" and t.buttons or {}) do
-			if b.uniquevalue == path and b.IsVisible and b:IsVisible() then return b end
-		end
+		return ListButton(a, path)
 	end, function(b) H:Show(b) end, 30, function()
 		ns:Trace("attune: nothing to point at for " .. tostring(a.ID) .. (stepId and (" step " .. tostring(stepId)) or ""))
 	end)
@@ -630,6 +789,9 @@ local function Detail(e)
 	end
 	return table.concat(parts, SEP)
 end
+
+--- What Attune calls the box its side quests are drawn in ("Inside the dungeon", in its own words for your language).
+function AT.InsideWord() return Lang("Inside the dungeon") or L["Inside the dungeon"] end
 
 local function StepLine(r)
 	local verb = AT.VERB[r.type] or ""
@@ -743,6 +905,8 @@ function AT.Row(rec)
 		local loc = LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[rec.a.CLASS]
 		if loc then words[#words + 1] = Lower(loc) end
 	end
+	-- (its short name, Attune's icon caption since 16001-32: "ony", "dal key", "ubrs")
+	if Str(rec.a.SHORT) then words[#words + 1] = Lower(rec.a.SHORT) end
 	-- (what its steps name: "core fragment" finds Molten Core's)
 	for _, r in ipairs(rec.steps) do
 		if r.type ~= "Level" and r.type ~= "Rep" then words[#words + 1] = Lower(r.title) end
@@ -809,7 +973,7 @@ local function StepTooltip(e, t)
 	-- (its number, AT.Number: "Step 2a of 4"; a side quest says what it is: nothing leads up to it)
 	local head
 	if r.label then head = L["Step %s of %d of %s (Attune)"]:format(r.label, rec.stages or 0, RowName(rec))
-	elseif r.side then head = L["A side quest of %s (Attune): no quests lead up to it"]:format(RowName(rec))
+	elseif r.side then head = L["A side quest of %s, in Attune's \"%s\" box: no quests lead up to it"]:format(RowName(rec), AT.InsideWord())
 	else head = L["Step %d of %d of %s (Attune)"]:format(e.stepIndex or 0, #rec.steps, RowName(rec)) end
 	t:AddLine(head, GOLD[1], GOLD[2], GOLD[3], true)
 	if r.label and r.label:find("%a$") then
@@ -847,9 +1011,9 @@ AT.STEP_LAZY = {
 	detail = function(t)
 		local r = t.stepRec
 		local rec = index and index.byId[r.aid]
-		-- ("step 2a of 4": its column and line; a side quest: no quests lead up to it; AT.Number)
+		-- ("step 2a of 4": its row and line; a side quest: no quests lead up to it; AT.Number)
 		local parts = { r.label and L["step %s of %d"]:format(r.label, rec and rec.stages or 0)
-			or (r.side and L["side quest: no quests before it"]) or L["step %d of %d"]:format(t.stepIndex or 0, rec and #rec.steps or 0) }
+			or (r.side and L["side quest, %s"]:format(Lower(AT.InsideWord()))) or L["step %d of %d"]:format(t.stepIndex or 0, rec and #rec.steps or 0) }
 		local verb = AT.VERB[r.type]
 		if r.type == "Item" and (r.count or 1) > 1 then verb = L["get %d"]:format(r.count) end
 		if verb and r.type ~= "Level" and r.type ~= "Rep" then parts[#parts + 1] = verb end

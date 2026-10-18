@@ -65,7 +65,7 @@ do
 			A("20", "Molten Core", "RAIDS", "Both", { GROUPSIZE = 40 }),
 			A("30", "Onyxia's Lair", "RAIDS", "Horde", { GROUPSIZE = 40 }),
 			A("40", "Onyxia's Lair", "RAIDS", "Alliance", { GROUPSIZE = 40 }),
-			A("60", "Naxxramas", "RAIDS", "Both", { GROUPSIZE = 40 }),
+			A("60", "Naxxramas", "RAIDS", "Both", { GROUPSIZE = 40, SHORT = "Necro" }),
 			A("99", "Old Ways", "MISC", "Both", { DEPRECATED = 1 }),
 		},
 		steps = {
@@ -137,6 +137,7 @@ do
 		local path = table.concat(parts, "\001")
 		for i = 1, #parts do self.status.groups[table.concat(parts, "\001", 1, i)] = true end
 		selected[#selected + 1] = path
+		self.status.selected = path -- (AceGUI's: the row picked)
 		_G.AttuneLastViewed = path
 		local b = T.Obj("Button"); b.uniquevalue = path; b:Show()
 		self.buttons = { b }
@@ -274,6 +275,80 @@ do
 	shown = nil
 	res[4].activate(res[4]); FlushAll()
 	check(selected[#selected]:find("\001170$") and shown == _G.Attune_Node_520, "Enter on a step: its box pointed at")
+
+	-- (0.56.6, the player: "Attune has changed its layout") Attune 16001-32
+	do
+		-- a step's box below the chart's fold: scrolled into view (its AceGUI ScrollFrame, right of the list)
+		local set
+		local sf = T.Obj("Frame")
+		sf.GetHeight = function() return 300 end; sf.GetTop = function() return 500 end; sf.GetBottom = function() return 200 end
+		sf.GetEffectiveScale = function() return 1 end
+		local content = T.Obj("Frame")
+		content.GetHeight = function() return 1000 end; content.GetTop = function() return 500 end
+		local scroll = { type = "ScrollFrame", scrollframe = sf, content = content, scrollbar = { SetValue = function(_, v) set = v end } }
+		tree.children = { { type = "SimpleGroup", children = { scroll } } }
+		local node = _G.Attune_Node_520
+		node.GetTop = function() return 100 end; node.GetBottom = function() return 52 end
+		node.GetEffectiveScale = function() return 1 end
+		res[4].activate(res[4]); FlushAll()
+		check(set and math.abs(set - 1000 * 300 / 700) < 0.01 and shown == node, "a step out of view: the chart scrolled to it (a third down): " .. tostring(set))
+		set = nil
+		node.GetTop = function() return 400 end; node.GetBottom = function() return 352 end
+		res[4].activate(res[4]); FlushAll()
+		check(set == nil, "in view already: not scrolled")
+		tree.children = nil
+		node.GetTop, node.GetBottom, node.GetEffectiveScale = nil, nil, nil
+		-- its own path (a finished one in its "Archived" group) and its last viewed kept per character
+		local W = "World of Warcraft"
+		local lastSet
+		_G.Attune_PathForAttune = function(id) if id == "20" then return W .. "\001Archived\00120" end return nil end
+		_G.Attune_SetLastViewed = function(p) lastSet = p end
+		mc.activate(mc); FlushAll()
+		check(lastSet == W .. "\001Archived\00120" and selected[#selected] == W .. "\001Archived\00120",
+			"Molten Core, finished: opened in Attune's Archived group, its last viewed set its way: " .. tostring(selected[#selected]))
+		-- its icon view: the attunement's icon pointed at
+		local holder = T.Obj("Frame"); holder:Show()
+		local icon = T.Obj("Button"); icon.id = "170"; icon:Show()
+		local other = T.Obj("Button"); other.id = "20"; other:Show()
+		holder.icons = { other, icon }
+		tree.attuneIconHolder = holder
+		shown = nil
+		dm.activate(dm); FlushAll()
+		check(shown == icon, "Attune's icon view: the Deadmines' icon pointed at")
+		tree.attuneIconHolder = nil
+		_G.Attune_PathForAttune, _G.Attune_SetLastViewed = nil, nil
+		-- the numbers as its chart reads: letters left to right (a row's lowest step drawn on the right), a split's branches
+		-- lines of their own, a line alone in its rows no letter, never one label twice in a row
+		local rec = { steps = {
+			{ id = "10", type = "Level", step = { FOLLOWS = "0", STAGE = "10" } },
+			{ id = "20", type = "Quest", x = 90, step = { FOLLOWS = "10", STAGE = "20" } },
+			{ id = "21", type = "Quest", x = -90, step = { FOLLOWS = "10", STAGE = "20" } },
+			{ id = "30", type = "Quest", x = 90, step = { FOLLOWS = "20", STAGE = "30" } },
+			{ id = "31", type = "Quest", x = -90, step = { FOLLOWS = "21", STAGE = "30" } },
+			{ id = "40", type = "Quest", x = 0, step = { FOLLOWS = "30&31", STAGE = "40" } },
+			{ id = "50", type = "Quest", x = 90, step = { FOLLOWS = "40", STAGE = "50" } },
+			{ id = "51", type = "Quest", x = -90, step = { FOLLOWS = "40", STAGE = "50" } },
+			{ id = "60", type = "Quest", x = 0, step = { FOLLOWS = "50&51", STAGE = "60" } },
+			{ id = "61", type = "Quest", x = 180, step = { FOLLOWS = "50&51", STAGE = "60" } },
+		} }
+		AT.Number(rec)
+		local got = {}
+		for i, r in ipairs(rec.steps) do got[i] = r.label end
+		check(table.concat(got, " ") == "1 2b 2a 3b 3a 4 5d 5c 6e 6f", "left to right, a split's branches, meetings: " .. table.concat(got, " "))
+		-- found by its short name (Attune's icon caption)
+		local nx = UI:Search("@attune necro")
+		check(nx[1] and nx[1].name == "Naxxramas", "@attune necro: Naxxramas, by Attune's short name: " .. tostring(nx[1] and nx[1].name))
+		-- a side quest: named by Attune's box for them
+		local side = AT.STEP_LAZY.detail({ stepRec = { side = true, type = "Quest", aid = "170", id = "999", step = {}, where = "The Deadmines" } })
+		check(side:find(ns.L["side quest, %s"]:format("inside the dungeon"), 1, true), "a side quest: in Attune's Inside the dungeon box: " .. side)
+		-- Attune's chart: each row by ID from the right
+		local xs = AT.Columns({ { ID = "10", STAGE = "1" }, { ID = "30", STAGE = "2" }, { ID = "20", STAGE = "2" },
+			{ ID = "40", STAGE = "2", HALFSIZE = true }, { ID = "99", STAGE = "2", SIDE = true } })
+		local byId = {}
+		for st, x in pairs(xs) do byId[st.ID] = x end
+		check(byId["10"] == 0 and byId["20"] > byId["30"] and byId["30"] > byId["40"] and byId["99"] == nil,
+			"Attune's chart: the lowest ID on the right, a side quest in its own box: " .. tostring(byId["20"]) .. " " .. tostring(byId["40"]))
+	end
 	-- the bar's Sort "Line by line" (sort:line): each line in turn, as Attune's tree reads
 	local was = ns.db.easyMode
 	ns.db.easyMode = false; UI:EasyChanged()
