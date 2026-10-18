@@ -69,6 +69,21 @@ do
 	local list = c.complete("")
 	check(list[1][1] == "qwzx" and list[3][1] == "durabilty" and tostring(list[3][2]):find(L["%d times"]:format(2), 1, true)
 		and tostring(list[3][2]):find("durability", 1, true) and list[#list][1] == "clear", ".missed lists them: " .. tostring(list[3][2]))
+	-- (0.56.4, the player: Enter on ".missed" printed and stayed open) Enter: the list in the chat window, Terminal closed;
+	-- a search picked from its list: Terminal stays open on it
+	local said = {}
+	local outWas = ns.Output
+	ns.Output = function(_, l) said[#said + 1] = l end
+	UI:Open(".missed"); FlushAll()
+	UI:Activate(1); FlushAll()
+	check(#said == 1 and not UI:IsShown(), ".missed: said, and closed: " .. #said .. " " .. tostring(UI:IsShown()))
+	UI:Open(".missed "); FlushAll()
+	local qi
+	for i, e in ipairs(UI.Results()) do if e.argLine == "qwzx" then qi = i end end
+	if qi then UI:Activate(qi); FlushAll() end
+	check(qi and UI:IsShown() and UI.edit:GetText() == "qwzx", "a search from its list: open on it: " .. tostring(qi) .. " " .. UI.edit:GetText())
+	UI:Hide(); FlushAll()
+	ns.Output = outWas
 	local lines = c.run("")
 	check(lines[2]:find("qwzx", 1, true) and #lines == 4, ".missed alone: the lines: " .. #lines)
 	UI:Open(""); FlushAll()

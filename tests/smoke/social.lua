@@ -46,7 +46,7 @@ do
 			gameAccountInfo = { isOnline = true, clientProgram = "App", richPresence = "In the app" } } end
 		-- (0.56.3, the player's "Battle.net friend 2") offline, nothing readable but the account: their note, else said so
 		if i == 3 then return { bnetAccountID = 77, note = "my cousin", gameAccountInfo = { isOnline = false } } end
-		if i == 4 then return { bnetAccountID = 78, gameAccountInfo = { isOnline = false } } end
+		if i == 4 then return { bnetAccountID = 78, accountName = "|Kq4|k", gameAccountInfo = { isOnline = false } } end
 		-- playing, their BattleTag not readable (a secret value comes through Str as nil): listed by their character
 		return { bnetAccountID = 55, gameAccountInfo = { isOnline = true, clientProgram = "WoW", characterName = "Girl Bird",
 			className = "Druid", areaName = "The Barrens", characterLevel = 18, gameAccountID = 99 } }
@@ -106,6 +106,17 @@ do
 	local hidden = names(UI:Search("@friend is:offline"))
 	check(hidden:find(ns.L["Battle.net friend: %s"]:format("my cousin"), 1, true) and hidden:find(ns.L["A Battle.net friend (the game hides the name)"], 1, true)
 		and not hidden:find("Battle.net friend 3", 1, true), "a Battle.net friend the game doesn't name: their note, else said so: " .. hidden)
+	-- (0.56.4, the player: the Friends window names them) their account name drawn on the row, as the game draws it; never
+	-- in the row's name (sent to chat, copied)
+	local acct
+	for _, e in ipairs(UI:Search("@friend is:offline")) do if rawget(e, "shownName") then acct = e end end
+	check(acct and acct.shownName == "|Kq4|k" and not tostring(acct.name):find("|K", 1, true), "the account name shown, not named: "
+		.. tostring(acct and acct.name))
+	UI:Open("@friend is:offline"); FlushAll()
+	local drawn = false
+	for _, r in ipairs(UI.rows or {}) do if r:IsShown() and tostring(r.label:GetText()):find("|Kq4|k", 1, true) then drawn = true end end
+	check(drawn, "drawn on its row")
+	UI:Hide(); FlushAll()
 	local pal = UI:Search("@friend pal")[1]
 	pal.activate(pal)
 	check(bntold == "|Kq1|k", "a Battle.net friend outside the game: whispered by BattleTag (account name): " .. tostring(bntold))

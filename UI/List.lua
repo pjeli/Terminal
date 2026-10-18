@@ -486,6 +486,10 @@ local function FillRow(self, r, e, light)
 		if light and base == "|cffffffff" then base = nil end -- white item names vanish on light themes
 		if e._pos == nil then e._pos = UI.Positions(e, self.posTokens) end -- only for rows on screen
 		local text = Fuzzy.Colorize(e.name, e._pos, base)
+		-- (a name only the game can show: a Battle.net friend's account name, an escape it draws as their name; never the
+		-- row's name, which goes to chat and copies: Social.lua)
+		local shown = rawget(e, "shownName")
+		if shown then text = (base or "") .. shown .. (base and "|r" or "") end
 		-- (a category row: which of its lists had matches, after its name: Search.lua's KindsNote)
 		local note = rawget(e, "labelNote")
 		if note then text = text .. "     " .. note end

@@ -497,10 +497,14 @@ local function BNetRows(out, seen)
 				-- account name, an escape that shows their real name, never goes in a row: rows are sent to chat)
 				local name = charName and (who and (charName .. " (" .. who .. ")") or charName) or who
 					or (note and L["Battle.net friend: %s"]:format(note)) or L["A Battle.net friend (the game hides the name)"]
+				-- (0.56.4, the player: the Friends window names them: by their account name, an escape the
+				-- game draws as the name. Shown on the row as the window does; the row's name stays the readable one)
+				local acctName = not charName and not who and Str(a.accountName) or nil
+				local shownName = acctName and acctName:find("^|K") and acctName or nil
 				listed = listed + 1
 				if charName then playing = playing + 1 end
 				out[#out + 1] = Row({
-					key = "bn:" .. (tag or acct or i), name = name, bnetTag = tag, bnetID = acct, bnetGame = charName and Num(g.gameAccountID) or nil,
+					key = "bn:" .. (tag or acct or i), name = name, shownName = shownName, bnetTag = tag, bnetID = acct, bnetGame = charName and Num(g.gameAccountID) or nil,
 					whisperTo = char or nil, level = charName and level or nil, zone = charName and zone or nil, online = online, note = note,
 					detail = Detail(charName and level, charName and class, not charName and (online and Str(g.richPresence) or "Battle.net") or nil, zone, online),
 					color = online and nil or OFFLINE_HEX,

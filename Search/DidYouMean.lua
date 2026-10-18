@@ -296,7 +296,9 @@ end
 
 ns:RegisterCommand("missed", {
 	desc = L["The searches that found nothing, kept here to try again (.missed clear forgets them)"],
-	staysOpen = true,
+	-- (the list and clear: said in the chat window, Terminal closed as after any command; one picked to try again: it
+	-- stays open on that search. 0.56.4, the player: Enter on ".missed" printed and stayed open)
+	argStaysOpen = function(v) return Lower(tostring(v or "")) ~= "clear" end,
 	complete = function()
 		local out = {}
 		for _, m in ipairs(Store() or {}) do out[#out + 1] = { m.t, Said(m) } end

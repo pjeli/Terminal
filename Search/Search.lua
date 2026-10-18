@@ -172,6 +172,8 @@ function UI:ArgEntries(text)
 				kind = "cmd", kindLabel = "|cff33ff99." .. c.name .. "|r", icon = "Interface\\Icons\\INV_Misc_Note_01",
 				name = val, _lname = lv, key = c.name .. " " .. val, freqKey = "cmd:" .. c.name,
 				detail = detail or "", cmd = c, argLine = several and val or (before .. val), activate = RunArg, _nameHit = true,
+				-- (an argument that searches, .missed's: Terminal stays open on it; the command's own word, else it closes)
+				staysOpen = c.argStaysOpen and c.argStaysOpen(val) or nil,
 				_score = (at == 1 and 1000 or 500) - i, -- starts with what's typed first, then in the list's order
 			}
 		end

@@ -14,14 +14,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.56.3", when = "in testing",
+		v = "0.56.5", when = "in testing",
 		items = {
 			"The bar's button says Group again.",
 			"Every class's spells (\"travel form\", \"druid spells\", \"upcoming spells\") and the weapon masters (\"dagger trainer\") come straight from What's Training now, so they stay as up to date as it is. Without What's Training the footer says to install it.",
 			"Grouped results say how many groups and how many results they hold: \"14 groups · 34 results\".",
 			"When plain words find nothing, Terminal offers what you may have meant: a spelling put right, a phrase it understands, or the category a word names. .missed lists the searches that found nothing, to try again.",
 			"A result's menu says \"Whisper to target\" with your target's full name, and the whisper reaches them (it went to \"%t\" before).",
-			"A Battle.net friend the game doesn't name shows with your note on them, or says the game hides the name.",
+			"Battle.net friends show the name the Friends window shows, even when the game keeps it from addons.",
 		},
 	},
 	{
