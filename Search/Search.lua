@@ -1659,15 +1659,77 @@ function Scan.NpcOnly(kinds)
 	return any
 end
 
+--- A list of NPCs alone, sorted nearest first by default (0.56.10, the player: "all NPC lists should be sorted by
+--- nearest by default", trainers, merchants, reagent vendors). What was typed still counts first (release review: 120
+--- nearer NPCs whose names had hogger's letters left Hogger out): an NPC named it, then those whose names have every
+--- word, then the rest (a title's word, "reagent"); within each, the closest first, those with no place known last.
+--- Only the best `limit` are kept (as many as the search keeps), each a view saying how far.
+local function NearBand(e, tokens, n, joined)
+	if n == 0 then return 0 end
+	local ln = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
+	if ln == joined then return 2 end
+	for k = 1, n do if not ln:find(tokens[k], 1, true) then return 0 end end
+	return 1
+end
+function Scan.NearDefault(out, here, tokens, limit, overBudget)
+	local yards, n = ns.Integrations.RowYards, #tokens
+	local joined = n > 0 and table.concat(tokens, " ") or nil
+	local hc, he, hd, size = {}, {}, {}, 0 -- (a heap, the lowest on top: the best `limit` so far)
+	local function Swap(a, b) hc[a], hc[b], he[a], he[b], hd[a], hd[b] = hc[b], hc[a], he[b], he[a], hd[b], hd[a] end
+	local function Up(i)
+		while i > 1 do
+			local p = math.floor(i / 2)
+			if hc[i] < hc[p] then Swap(i, p); i = p else return end
+		end
+	end
+	local function Down(i)
+		while true do
+			local l, r, w = i * 2, i * 2 + 1, i
+			if l <= size and hc[l] < hc[w] then w = l end
+			if r <= size and hc[r] < hc[w] then w = r end
+			if w == i then return end
+			Swap(i, w); i = w
+		end
+	end
+	for i = 1, #out do
+		local e = out[i]
+		local d = yards(e, here)
+		local c = NearBand(e, tokens, n, joined) * 2e6 + (d and (1e6 - math.min(d, 999999)) or 0)
+		if size < limit then
+			size = size + 1
+			hc[size], he[size], hd[size] = c, e, d
+			Up(size)
+		elseif c > hc[1] then
+			hc[1], he[1], hd[1] = c, e, d
+			Down(1)
+		end
+		if overBudget and i % 32 == 0 and overBudget() then
+			local snap = {}
+			for k = 1, size do snap[k] = he[k] end
+			coroutine.yield(snap)
+		end
+	end
+	local kept = {}
+	for k = 1, size do
+		local v = hd[k] and NearView(he[k], hd[k]) or setmetatable({}, { __index = he[k] })
+		v._score = hc[k]
+		kept[k] = v
+	end
+	return kept
+end
+
 function Scan.Nearest(self, q, out)
 	local sortNear, here, overBudget = q.sortNear, q.here, q.overBudget
-	-- (0.56.10, the player: "all NPC lists should be sorted by nearest by default", trainers, merchants, reagent vendors)
-	-- a list of NPCs alone, no sort asked for: the nearest first, every row kept (those with no place known after); not
-	-- said where nothing's known of where you are
-	if not sortNear and not here and not q.sortField and not q.act and Scan.NpcOnly(q.kinds) then
+	-- a list of NPCs alone, no sort asked for: the nearest first (Scan.NearDefault); not where nothing's known of where
+	-- you are, nor summed up ("@npc trainer | count": every match counted; release review)
+	if not sortNear and not here and not q.sortField and not q.act and Scan.NpcOnly(q.kinds)
+		and not (ns.Aggregate and ns.Aggregate.Summing(self.aggregate)) then
 		local I = ns.Integrations
 		here = I and I.Here and I.Here() or nil
-		if here then sortNear, q.nearDefault = true, true end
+		if here then
+			q.here, q.nearDefault = here, true
+			return Scan.NearDefault(out, here, q.tokens or {}, q.easyCat and Score.LIST_MAX or MAX_RESULTS, overBudget)
+		end
 	end
 	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
 	if sortNear and not here then
@@ -1727,7 +1789,7 @@ function Scan.Finalize(self, q, out)
 	end
 	-- (Simple mode's bar: sorted by name, level, value... the rows that have it first, in its order; Bar.lua)
 	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField) end
-	local limit = (q.easyCat and not q.here) and Score.LIST_MAX or nil
+	local limit = (q.easyCat and (not q.here or q.nearDefault)) and Score.LIST_MAX or nil
 	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
 	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
@@ -1904,17 +1966,22 @@ local PICKS_KEPT = 300 -- (words remembered; the longest unused go first)
 function UI.CategoryPicks(want)
 	local all, out = ns.db and ns.db.catPicks, {}
 	if type(all) ~= "table" or type(want) ~= "string" then return out end
-	local function Add(t, weight)
+	local exact, longer = {}, {}
+	local function Add(into, t)
 		for cat, n in pairs(t) do
-			if cat ~= "t" and type(n) == "number" then out[cat] = (out[cat] or 0) + math.min(n, PICK_MAX) * weight end
+			if cat ~= "t" and type(n) == "number" then into[cat] = (into[cat] or 0) + math.min(n, PICK_MAX) end
 		end
 	end
-	if type(all[want]) == "table" then Add(all[want], 1) end
+	if type(all[want]) == "table" then Add(exact, all[want]) end
 	if #want >= 3 then
 		for text, t in pairs(all) do
-			if text ~= want and type(t) == "table" and text:sub(1, #want) == want then Add(t, 0.5) end
+			if text ~= want and type(t) == "table" and text:sub(1, #want) == want then Add(longer, t) end
 		end
 	end
+	-- (up to three picks in all: the longer words' together count half, never more; release review: "reagent",
+	-- "reagents" and "reagent vendor" added up to 4.5 for "rea")
+	for cat, n in pairs(exact) do out[cat] = n end
+	for cat, n in pairs(longer) do out[cat] = math.min(PICK_MAX, (out[cat] or 0) + math.min(n, PICK_MAX) * 0.5) end
 	return out
 end
 

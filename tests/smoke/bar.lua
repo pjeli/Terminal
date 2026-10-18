@@ -336,6 +336,16 @@ do
 		rawset(L, "Sort", sortWas); so.label = nil
 		B.Update()
 		check(so.under:IsShown(), "back: underlined again")
+		-- (release review) only in the button's word, never in what's picked after its ":"
+		local labelWas = so.label
+		so.label = "Ordenado: Más cercano primero"
+		B.Underline(so)
+		check(not so.under:IsShown(), "\"Ordenado: Más...\": no s of its own, none underlined in what's picked")
+		so.label = "Sort: Name"
+		B.Underline(so)
+		check(so.under:IsShown() and so.underAt == 0, "\"Sort: Name\": its own S")
+		so.label = labelWas
+		B.Underline(so)
 		local was = rawget(L, "Group by")
 		rawset(L, "Group by", "分组")
 		check(B.GroupWord() == "分组", "translated: grouping's word, not the party's: " .. B.GroupWord())

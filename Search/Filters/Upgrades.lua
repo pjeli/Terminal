@@ -177,9 +177,14 @@ end
 --- when it has none to weigh (then item levels decide). 0.56.14, the player: a warrior was offered Snake Hoop
 --- (Intellect, Spell Power) over rings of Strength and Agility: stats none of which were wanted were taken as unknown,
 --- and its higher item level made it an upgrade (an empty slot took any such item too).
+-- (what every piece has, not a stat a class picks it for: a plain weapon's damage or a white helm's armour, unweighed,
+-- leave item levels to decide; release review: a healer's weights have no dps, and a wand was never an upgrade)
+local PLAIN = { dps = true, armor = true }
 function F.Worth(kinds, w)
 	local v = F.KindsValue(kinds, w)
-	if v == nil and type(kinds) == "table" and next(kinds) ~= nil then return 0 end
+	if v == nil and type(kinds) == "table" then
+		for k in pairs(kinds) do if not PLAIN[k] then return 0 end end
+	end
 	return v
 end
 -- A clear upgrade (0.52.7, the player: "pretty clear upgrades over what I'm wearing now; only slight trade-offs"): what it
@@ -540,7 +545,7 @@ GearFitWith = function(weights, role)
 				-- (its stats' worth; none to weigh: after those, by item level, not item levels against stat points: an empty
 				-- trinket slot's every trinket went above real upgrades; review, 0.51.25)
 				gains[e] = { gain = worth or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true,
-					role = role }
+					role = role, byLevel = worth == nil or nil }
 			end
 			return yes
 		end
@@ -569,6 +574,8 @@ GearFitWith = function(weights, role)
 			if gain then
 				up, g = true, { gain = gain, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
 			end
+		elseif mine == nil and f.kinds and wVal and wVal > 0 then
+			-- (nothing on it you weigh, a plain weapon's damage for a healer, over a piece that has some: never by its level)
 		elseif ilvl >= wLvl + F.LEVEL_CLEAR then
 			up, g = true, { gain = ilvl - wLvl, loc = loc, ilvl = ilvl, wLvl = wLvl, byLevel = true }
 		end
@@ -584,6 +591,8 @@ GearFitWith = function(weights, role)
 				if mine and v and (mine > 0 or v > 0) then
 					local gain = F.ClearGain(f.kinds, wornKinds[slot], weights)
 					if gain then one = { gain = gain, kinds = f.kinds, worn = wornKinds[slot], ilvl = ilvl, wLvl = l } end
+				elseif mine == nil and f.kinds and v and v > 0 then
+					-- (nothing you weigh on it, over a piece that has some: not one; as above)
 				elseif l and ilvl >= l + F.LEVEL_CLEAR then
 					one = { gain = ilvl - l, ilvl = ilvl, wLvl = l, byLevel = true }
 				end

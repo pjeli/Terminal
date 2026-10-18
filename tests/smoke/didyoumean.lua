@@ -96,3 +96,12 @@ do
 	ns.db.easyMode, ns.db.missed = save.easy, save.missed
 	UI:EasyChanged()
 end
+
+io.write("[didyoumean: \"nearest\" alone is no likeness (release review)]\n")
+do
+	local DYM = T.ns.DidYouMean
+	T.check(DYM.Score("nearest inkeeper", "nearest dungeon") == 0 and DYM.Score("newest mail", "nearest dungeon") == 0,
+		"\"nearest inkeeper\" isn't like \"nearest dungeon\" for sharing nearest alone")
+	T.check(DYM.Distance("nearset", "nearest", 2) == 1 and DYM.Distance("kitten", "sitting", 3) == 3 and DYM.Distance("abc", "abc", 1) == 0,
+		"the distance, its rows used again, still right")
+end

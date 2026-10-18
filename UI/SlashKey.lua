@@ -14,7 +14,7 @@ local SK = {}
 ns.SlashKey = SK
 SK.KEY = "/"
 SK.GAME = "OPENCHATSLASH" -- (the game's own action on /)
-SK.ACTION = "TERMINAL_SLASH" -- (Bindings.xml)
+SK.ACTION = "TERMINAL_SLASH" -- (Bindings.xml: hidden from the Key Bindings list, / only; release review: on another key its own character was typed too)
 
 local owner = CreateFrame("Frame")
 local applied = false

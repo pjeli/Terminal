@@ -118,6 +118,7 @@ end
 --- already, the terminal closes (as Alt+` pressed again does).
 function UI:FuzzyOnce(text)
 	if self.fzf and self:IsShown() then return self:Hide() end -- (Tab+` again closes, as Alt+` again does)
+	-- (in combat too: Tab+` isn't a key hit by accident, unlike ` alone; the author's call, 0.57.0)
 	if not self:IsShown() then self:Open("") end -- (an empty prompt, not the tab you were on)
 	self:StartFuzzy()
 	if type(text) == "string" and text:find("%S") then
@@ -439,8 +440,9 @@ end
 function UI:AdvancedOnce()
 	local edit = UI.edit
 	local E = ns.Easy
-	-- closed: it opens as ` does (0.54.3, the player: one mode, so nothing to open "in Advanced"; what's typed picks it)
-	if not self:IsShown() then return self:Toggle() end
+	-- closed: nothing (0.57.0, the author's call: Alt+` only switches what's typed between Simple and Advanced; it opened
+	-- the terminal as ` did since 0.54.3)
+	if not self:IsShown() then return end
 	-- in pure fuzzy finding: out of it first (to Advanced, the plain words kept)
 	if self.fzf then
 		self:EndFuzzy(true)
@@ -450,7 +452,7 @@ function UI:AdvancedOnce()
 	-- the words and the bar's picks it came from while the line is as Alt+` wrote it; edited, the line as it is now
 	-- (Simple mode searches Advanced syntax as typed)
 	if E and E.temp and not E.tempSimple then return self:BackToSimple() end
-	if not (E and E.On()) then return self:Toggle() end
+	if not (E and E.On()) then return end -- (Advanced for good: nothing to switch; it closed the terminal before 0.57.0)
 	local text = edit:GetText()
 	-- the lists what shows comes from name the @kinds ("use hearthstone": @item, the list the Hearthstone shown is in,
 	-- not every list "use" looks in): a search still going is finished first if that's quick (a category opened for

@@ -121,8 +121,7 @@ UI:Hide(); FlushAll()
 ns.db.easyMode = true
 UI:EasyChanged()
 UI:AdvancedOnce(); FlushAll()
-check(UI:IsShown() and query() == "wool" and ns.Easy.On(), "Alt+` closed, with tabs: opens as ` does, on the tab you were on (0.54.3): "
-	.. query() .. " / Simple " .. tostring(ns.Easy.On()))
+check(not UI:IsShown() and ns.Easy.On(), "Alt+` closed, with tabs: nothing (0.57.0: it never opens Terminal)")
 UI:Hide(); FlushAll()
 check(Tabs.List()[2].text == "wool", "and the tab as it was: " .. tostring(Tabs.List()[2].text))
 UI:FuzzyOnce(); FlushAll()

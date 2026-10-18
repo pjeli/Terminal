@@ -984,10 +984,30 @@ function UI:RecentText()
 	if c and GetTime() - c.at <= UI.REOPEN_KEEP then return c.text, c.cursor, c end
 end
 
-function UI:Toggle()
+-- In combat only Ctrl+` opens Terminal (0.57.0, the author's ask): open, it reads the keyboard, and a ` hit by accident
+-- in a fight took the next keys from your spells. A plain ` says so in chat (once every UI.COMBAT_SAY seconds, not on
+-- every press). /term typed opens it as ever (`typed`).
+UI.COMBAT_SAY = 3
+--- May the key open Terminal now? Out of combat yes; in combat only with Ctrl held.
+function UI:CombatOpenOk()
+	if not InCombatLockdown() then return true end
+	if IsControlKeyDown and IsControlKeyDown() then return true end
+	local now = GetTime()
+	if not (self.combatSaid and now - self.combatSaid < UI.COMBAT_SAY) then
+		self.combatSaid = now
+		ns:Print(L["In combat, Ctrl+` opens Terminal."])
+	end
+	return false
+end
+
+function UI:Toggle(typed)
 	if self:IsShown() then return self:Hide() end
 	-- Tab+` (the game sees the toggle key; Tab held): opens in pure fuzzy finding
-	if self:TabDown() then return self:FuzzyOnce() end
+	if self:TabDown() then return self:FuzzyOnce() end -- (in combat too: not a key hit by accident)
+	-- (Alt+` only switches Simple and Advanced, in an open terminal; it never opens it: 0.57.0, the author's call. The game
+	-- hands ` its binding with Alt held when Alt+` has none)
+	if not typed and IsAltKeyDown and IsAltKeyDown() then return end
+	if not typed and not self:CombatOpenOk() then return end
 	-- closed by combat starting: opened by hand before it came back, as it was then
 	if not (self.combatState and self:ComeBack("opened by hand")) then
 		local text, cursor, kept

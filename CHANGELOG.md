@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.57.0
+
+**Upgrades you can trust**
+- **upgrades** weighs only what your class or role uses: gear whose stats are all ones you don't want (Intellect and Spell Power for a warrior) is never an upgrade, however high its item level, nor for an empty slot.
+- Spells' hit and crit and feral attack power count only for those who use them.
+- A plain weapon with nothing but damage is still judged by item level for a healer, but never over one with stats a healer wants.
+- When an upgrade is judged by item level, its tooltip says so.
+
+**NPCs, nearest first**
+- Every list of NPCs is sorted nearest first unless you pick another sort: trainers, merchants, reagent vendors. An NPC named what you typed stays on top.
+- An NPC's role said alone lists the nearest: **inn**, **bank**, **repair**, **weapon master**, **merchant**; **skinner**, **miner** or **herbalist** gives the nearest trainer of it.
+- **nearest** mistyped (**nearset**, **neareset**) still means nearest.
+
+**Finding things**
+- Simple mode's categories come in a better order. NPCs whose title has your word (**reagent**: the reagent vendors) go near the top, a category with more matches above one with fewer, and the category you picked for those words before goes higher each time. **.forget** clears those picks.
+- When plain words find nothing, Terminal offers what you may have meant: a spelling put right, a phrase it understands, or the category a word names. **.missed** lists the searches that found nothing, to try again.
+- Every class's spells (**travel form**, **druid spells**, **upcoming spells**) and the weapon masters (**dagger trainer**) come straight from What's Training's catalog, as up to date as it is.
+
+**Your auctions**
+- **@auction** lists your sales of the last 30 days (**auctions sold**): the price, the buyer and what you got, from the auction house's news, the Auctions tab or the sale's mail.
+- Auctions posted one after another each keep their own price, and one kept without a price takes the Auctions tab's.
+
+**Attune's new look**
+- Enter opens Attune on the right attunement (its Archived group too) and points at it in the list or the icon view, or at a step, scrolling the chart to it.
+- Steps are lettered as its chart draws them, a split's branches each their own letter; side quests are named by its "Inside the dungeon" box.
+- Its short names (**ubrs**, **dal key**) find attunements.
+
+**Also**
+- The bar's button says **Group**, and the F, S and G of Filter, Sort and Group are underlined: Alt+F, Alt+S and Alt+G open them.
+- Grouped results say how many groups and results they hold: "14 groups · 34 results".
+- In combat only **Ctrl+\`** opens Terminal: a \` hit by accident in a fight says so in chat instead of taking your next keys. Tab+\` and `/term` open it as before; / never opens it in combat.
+- **Alt+\`** only switches what you typed between plain words and Advanced syntax; it no longer opens or closes Terminal.
+- The **/** key can open Terminal on a slash command, the "/" already typed: turn it on with `.set slashKey on`, or in Options (out of combat; in combat / opens the chat box as before).
+- A result's menu says **Whisper to target** with your target's full name, and the whisper reaches them.
+- Battle.net friends show the name the Friends window shows.
+- **.credits**: a thank-you to the people who kept Terminal going.
+- Fixes from a review: the send button's menu with a player targeted, a sale told twice kept once, refused auction posts, a commodity's sale, and more.
+
 ## 0.56.0
 
 **The bar**

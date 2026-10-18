@@ -222,9 +222,10 @@ function UI:UpdateTooltip()
 		if g and g.role and F.MyRoles and F.MyRoles() then
 			t:AddLine(L["An upgrade for: %s"]:format(F.ROLE_SAY[g.role] or g.role), 0.25, 1, 0.25)
 		end
-		-- (judged by item level, one of them having no stats to weigh: said, as the stats shown don't decide it; 0.56.14)
+		-- (judged by item level, one of them having no stats to weigh or not loaded: said, as the stats shown don't decide it;
+		-- 0.56.14)
 		if g and (g.byLevel or (g.vs and g.vs[1] and g.vs[1].byLevel)) then
-			t:AddLine(L["An upgrade by item level: no stats to weigh on one of them"], 0.6, 0.6, 0.6, true)
+			t:AddLine(L["Judged by item level: one of them has no stats to compare, or they aren't loaded yet"], 0.6, 0.6, 0.6, true)
 		end
 		-- a spell's id (0.54.1, a player's ask): spells, talents, What's Training's spells
 		local sid = ns.SpellIds and ns.SpellIds.Of(e)

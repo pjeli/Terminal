@@ -60,7 +60,8 @@ function CS.Data()
 		local list = {}
 		for _, e in ipairs(Catalog(api, cls) or {}) do
 			if type(e) == "table" and type(e.id) == "number" and type(e.level) == "number" and (e.kind == "trainer" or e.kind == "quest") then
-				local races = type(e.races) == "table" and e.races or nil
+				-- (a copy: a quest's variants' races are added to it, and What's Training's own list isn't Terminal's to grow)
+				local races = type(e.races) == "table" and { unpack(e.races) } or nil
 				if e.kind == "quest" and type(e.quest) == "table" then -- (a quest's races: each of its variants')
 					for _, v in ipairs(e.quest) do
 						if type(v) ~= "table" or type(v.races) ~= "table" then races = nil break end

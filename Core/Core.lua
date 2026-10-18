@@ -484,8 +484,8 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 				end
 			end
 		end
-		-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, the binding
-		-- opens it as ` does (0.54.3). Only on a free key, never taking another action's.
+		-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, nothing (0.57.0;
+		-- it opened as ` did from 0.54.3). Only on a free key, never taking another action's.
 		if not ns.db.bindingAdvancedOnce then
 			ns.db.bindingAdvancedOnce = true
 			local action = GetBindingAction("ALT-`")
@@ -591,7 +591,7 @@ SLASH_TERMINAL1 = "/term"
 SlashCmdList.TERMINAL = function(msg)
 	msg = strtrim(msg or "")
 	if msg == "" then
-		ns.UI:Toggle()
+		ns.UI:Toggle(true) -- (typed: opens in combat at once, no second press)
 	else
 		ns.UI:Open(msg)
 	end

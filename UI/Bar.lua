@@ -683,6 +683,10 @@ function B.Underline(b)
 	local u, label = b.under, ns.Plain and ns.Plain(tostring(b.label or "")) or tostring(b.label or "")
 	local letter = B.KEY_LETTER[b.which]
 	local at = letter and label:lower():find(letter, 1, true)
+	-- (only in the button's own word, before its ":" and what's picked: "Ordenado: Más cercano" has no s of its own;
+	-- release review, the s of "Más" was underlined)
+	local stop = math.min(label:find(":", 1, true) or #label + 1, label:find("\239\188\154", 1, true) or #label + 1)
+	if at and at >= stop then at = nil end
 	local m = strip and strip.measure
 	if not (at and m) then u:Hide() return end
 	m:SetText(label:sub(1, at - 1))

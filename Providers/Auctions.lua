@@ -171,11 +171,13 @@ function AU.Collect()
 		local a = e.auction
 		if e.news == "sold" and a then told[a.auctionID or (a.item .. "@" .. tostring(a.at))] = true end
 	end
-	local sold = {}
+	local sold, whoOf = {}, {}
 	for _, x in ipairs(MA.Sales()) do
 		local s = x.sale
 		if not told[s.auctionID or (s.item .. "@" .. tostring(s.at))] then
-			sold[#sold + 1] = SoldRow(x.key, x.i, s, x.key == myKey, MA.WhoOf(x.key), now)
+			local who = whoOf[x.key] or MA.WhoOf(x.key) -- (once a character: up to 200 sales each)
+			whoOf[x.key] = who
+			sold[#sold + 1] = SoldRow(x.key, x.i, s, x.key == myKey, who, now)
 		end
 	end
 	table.sort(sold, function(a, b) if a.at ~= b.at then return a.at > b.at end return a.name < b.name end)

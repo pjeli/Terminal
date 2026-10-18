@@ -5,7 +5,7 @@
 	<Binding name="TERMINAL_ADVANCED_ONCE" category="ADDONS">
 		if Terminal and Terminal.UI then Terminal.UI:AdvancedOnce() end
 	</Binding>
-	<Binding name="TERMINAL_SLASH" category="ADDONS">
+	<Binding name="TERMINAL_SLASH" category="ADDONS" hidden="true">
 		if Terminal and Terminal.UI then Terminal.UI:SlashOpen() end
 	</Binding>
 	<Binding name="TERMINAL_FUZZY" category="ADDONS">

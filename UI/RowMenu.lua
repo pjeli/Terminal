@@ -172,7 +172,7 @@ do
 							-- (say, yell: one line the game presses, every result counted in it; Terminal's code can't send there)
 							items[#items + 1] = { label = AllTo(n, ch.short), chatTo = { cmd = ch.cmd, chat = ch.chat, query = query, all = true } }
 						elseif ch.chat then
-							local to = { chat = ch.chat, label = ch.short }
+							local to = { chat = ch.chat, label = ch.short, target = ch.target } -- (a whisper's: whom to)
 							items[#items + 1] = { label = AllTo(n, ch.short), run = function()
 								if not UI:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
 								local sent, why = SH.SendAll(UI.results, to, query)

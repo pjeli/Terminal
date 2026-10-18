@@ -6,6 +6,11 @@ local SK = ns.SlashKey
 
 io.write("[slashkey: / opens Terminal on a slash command]\n")
 do
+	-- (release review) / only: kept out of the Key Bindings list (bound to another key, that key's character was typed too)
+	local fx = io.open("Terminal/Bindings.xml", "r")
+	local xml = fx and fx:read("*a") or ""
+	if fx then fx:close() end
+	check(xml:find('<Binding name="TERMINAL_SLASH"[^>]*hidden="true"') ~= nil, "the / action is hidden from the Key Bindings list")
 	local save = { action = _G.GetBindingAction, set = _G.SetOverrideBinding, combat = _G.InCombatLockdown, easy = ns.db.easyMode,
 		print = ns.Print }
 	local base, over, combat, said = { ["/"] = "OPENCHATSLASH" }, {}, false, {}

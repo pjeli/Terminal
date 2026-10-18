@@ -369,6 +369,11 @@ Run("the categories' order: a job's title, more matches, the player's picks (0.5
 	local pBonus = UI.CategoryPicks("reag").settings
 	check(pBonus and pBonus > 0 and pBonus < UI.CategoryPicks("reagent").settings, "still typing it (reag): half the lift: " .. tostring(pBonus))
 	check(part and part._score < full, "(lower than for the whole word)")
+	-- (release review) longer words' picks together: half of three at most
+	local was = ns.db.catPicks
+	ns.db.catPicks = { reagent = { npcs = 3 }, reagents = { npcs = 3 }, ["reagent vendor"] = { npcs = 3 } }
+	check(UI.CategoryPicks("rea").npcs == 1.5, "longer words' picks together: half of three at most: " .. tostring(UI.CategoryPicks("rea").npcs))
+	ns.db.catPicks = was
 	-- Tab on a category row counts as a pick too
 	Order("linen")
 	key("TAB")
@@ -651,6 +656,8 @@ Run("nearest", function()
 	end
 	check(E.NearTypo("nearer") and not E.NearTypo("dearest") and not E.NearTypo("near") and not E.NearTypo("neutral"),
 		"nearest's typos: n..., two letters off at most")
+	check(not E.NearTypo("newest") and not E.NearTypo("nearly") and E.NearTypo("nearset") and E.NearTypo("nearbby"),
+		"(release review) newest and nearly are words of their own")
 	-- "skinner", "weapon master": a profession's trainers, the weapon masters; the nearest (Questie's titles)
 	check(E.ToAdvanced("skinner"):find("trainer:skinning", 1, true) and E.ToAdvanced("skinner"):find("sort:nearest", 1, true),
 		"skinner: the nearest skinning trainer: " .. E.ToAdvanced("skinner"))
@@ -1287,9 +1294,11 @@ Run("Alt+`: Advanced mode for this run only", function()
 	UI:Open(""); key("DOWN")
 	check(T.query() == "cast frost nova", "Down: the Simple search, not the Advanced one: " .. T.query())
 	UI:Hide(); FlushAll()
-	-- closed: the binding opens it as ` does (0.54.3, the player: one mode, nothing to open "in Advanced")
+	-- closed: the binding does nothing (0.57.0, the author's call: Alt+` only switches Simple and Advanced; it opened
+	-- Terminal as ` did from 0.54.3)
 	UI:AdvancedOnce()
-	check(UI:IsShown() and E.On() and not E.temp, "the binding (closed): opens as ` does, in Simple")
+	check(not UI:IsShown() and E.On() and not E.temp, "the binding (closed): nothing")
+	UI:Open("")
 	UI:SetQuery("@spell nova")
 	check(UI.Results()[1] and UI.Results()[1].name == "Frost Nova" and E.On(), "Advanced syntax typed: found, Simple kept (0.55.9)")
 	UI:Hide(); FlushAll()
@@ -1318,10 +1327,13 @@ Run("Alt+`: Advanced mode for this run only", function()
 	alt(function() key("`", "`") end)
 	check(E.On() and not E.temp and T.query() == "", "an empty line: Alt+` changes nothing: " .. T.query())
 	UI:Hide(); FlushAll()
-	-- in Advanced for good, Alt+` is just the toggle
+	-- in Advanced for good, Alt+` has nothing to switch: it neither opens nor closes Terminal (0.57.0)
 	ns.db.easyMode = false
 	UI:AdvancedOnce()
-	check(UI:IsShown() and not E.temp, "Advanced for good: Alt+` only opens")
+	check(not UI:IsShown() and not E.temp, "Advanced for good, closed: Alt+` doesn't open it")
+	UI:Open("")
+	UI:AdvancedOnce()
+	check(UI:IsShown() and not E.temp, "Advanced for good, open: Alt+` doesn't close it")
 	UI:Hide(); FlushAll()
 end)
 
@@ -2038,3 +2050,35 @@ Run("a profession's trainer by what they teach", function()
 	I.NpcField, I.NpcFlagDefs, I.Here, I.NpcDistance, _G.UnitFactionGroup = was.field, was.defs, was.here, was.dist, was.group
 	ns.Filters.ClearCache()
 end)
+
+io.write("[easy: NPC lists nearest first by default: what was typed first (release review)]\n")
+do
+	local Scan, I = UI._Scan, ns.Integrations
+	local was = I.RowYards
+	I.RowYards = function(e) return e.d end
+	local rows = {}
+	for i = 1, 120 do rows[i] = { name = "Thogg Berrer " .. i, _lname = "thogg berrer " .. i, key = i, d = i * 10, _score = 4 } end
+	rows[#rows + 1] = { name = "Hogger", _lname = "hogger", key = 500, d = 5000, _score = 100 }
+	rows[#rows + 1] = { name = "Hogger's Cousin", _lname = "hogger's cousin", key = 501, d = 8000, _score = 6 }
+	rows[#rows + 1] = { name = "Hogger Lost", _lname = "hogger lost", key = 502, _score = 6 } -- (no place known)
+	local res = UI.SortAndTrim(Scan.NearDefault(rows, { cont = 1, x = 0, y = 0 }, { "hogger" }, 100))
+	check(#res == 100 and res[1].name == "Hogger" and res[1].detail and res[1].detail:find("5000", 1, true)
+		and res[2].name == "Hogger's Cousin" and res[3].name == "Hogger Lost" and res[4].name == "Thogg Berrer 1",
+		"Hogger first (named it), then names with the word (nearest first, no place last), then the rest nearest first: "
+		.. tostring(res[1] and res[1].name) .. ", " .. tostring(res[2] and res[2].name) .. ", " .. tostring(res[3] and res[3].name)
+		.. ", " .. tostring(res[4] and res[4].name))
+	-- a title's word: every one alike, the nearest first
+	local titled = {}
+	for i = 1, 5 do titled[i] = { name = "Vendor " .. i, _lname = "vendor " .. i, key = i, d = (6 - i) * 100, _score = 1 } end
+	res = UI.SortAndTrim(Scan.NearDefault(titled, { cont = 1, x = 0, y = 0 }, { "reagent" }, 100))
+	check(res[1].name == "Vendor 5" and res[5].name == "Vendor 1", "a title's word: the nearest first")
+	-- summed up: every match counted, not the nearest 100
+	local q = { kinds = { npc = true }, tokens = { "thogg" } }
+	local hereWas = I.Here
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	local out = Scan.Nearest({ aggregate = { last = { kind = "count" } } }, q, rows)
+	check(#out == #rows and not q.nearDefault, "summed up (| count): every match, as it is: " .. #out)
+	out = Scan.Nearest({}, { kinds = { npc = true }, tokens = { "thogg" } }, rows)
+	check(#out == 100, "listed: the best 100 by the default nearest: " .. #out)
+	I.Here, I.RowYards = hereWas, was
+end

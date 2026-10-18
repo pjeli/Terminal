@@ -667,6 +667,22 @@ function AT.ScrollTo(node)
 	if not ok then ns:Trace("attune: couldn't scroll to the step") end
 end
 
+--- Is the step's box off to the side of the chart, cut off by its edges? (Attune's chart is scrolled up and down only;
+--- a row wider than its pane, or a narrowed window, leaves the outer steps outside: release review, the highlight was
+--- drawn outside the window.) Terminal can't move it sideways: Attune keeps that to itself.
+function AT.OffSide(node)
+	local w = ChartScroll(Tree())
+	if not (w and w.scrollframe and node) then return false end
+	local ok, off = pcall(function()
+		local sf = w.scrollframe
+		local k = node:GetEffectiveScale() / sf:GetEffectiveScale()
+		local l, r, vl, vr = node:GetLeft(), node:GetRight(), sf:GetLeft(), sf:GetRight()
+		if not (l and r and vl and vr) then return false end
+		return l * k < vl - 1 or r * k > vr + 1
+	end)
+	return ok and off or false
+end
+
 --- Attune's list button for it: the tree's row, or its icon in Attune's icon view (16001-32).
 local function ListButton(a, path)
 	local t = Tree()
@@ -740,7 +756,13 @@ function AT.Open(rec, stepId)
 			return nil
 		end
 		return ListButton(a, path)
-	end, function(b) H:Show(b) end, 30, function()
+	end, function(b)
+		if stepId and AT.OffSide(b) then
+			ns:Print(L["That step is off to the side of Attune's chart: drag the chart sideways to see it."])
+			return
+		end
+		H:Show(b)
+	end, 30, function()
 		ns:Trace("attune: nothing to point at for " .. tostring(a.ID) .. (stepId and (" step " .. tostring(stepId)) or ""))
 	end)
 end

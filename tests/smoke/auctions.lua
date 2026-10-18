@@ -131,6 +131,37 @@ do
 		for _, e in ipairs(ans) do if e.ahKind == "sold" then nSold = nSold + 1 end end
 		check(nSold == 4, "\"auctions sold\": the sales: " .. nSold)
 
+		-- (release review) the chat line first, the notification with its id after: one sale, given the id
+		ns.db.auctionsSold[ME] = {}
+		sales = ns.db.auctionsSold[ME]
+		posted[301] = { name = "Iron Bar", link = L(3575, "Iron Bar"), count = 5, price = 700, t = now, seen = "posted" }
+		MA.OnAuction("sold", "Iron Bar")
+		MA.OnEvent("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", 4, "Iron Bar", 301)
+		check(#sales == 1 and sales[1].auctionID == 301, "the chat line, then the notification: one sale, with its id: " .. #sales)
+		-- alike sale mails, the same item, price and buyer: a sale each
+		local alike = { mails = {} }
+		for k = 1, 3 do
+			alike.mails[k] = { first = now - 100, expires = now - 2 * DAY + 30 * DAY, auction = "sold",
+				invoice = { kind = "seller", item = "Gold Bar", player = "Kim", bid = 5000, deposit = 0, cut = 250, count = 1 } }
+		end
+		check(MA.SalesFromMail(alike, now) == 3 and MA.SalesFromMail(alike, now) == 0, "three alike sale mails: three sales, once")
+		-- a commodity sold whose entry has no link: named by its item id
+		local wasName = _G.C_Item.GetItemNameByID
+		rawset(_G.C_Item, "GetItemNameByID", function(id) return id == 2589 and "Linen Cloth" or nil end)
+		owned = { { auctionID = 401, itemKey = { itemID = 2589 }, quantity = 40, buyoutAmount = 300, status = 1 } }
+		MA.OnEvent("OWNED_AUCTIONS_UPDATED")
+		local linenSale
+		for _, s2 in ipairs(sales) do if s2.auctionID == 401 then linenSale = s2 end end
+		check(linenSale and linenSale.item == "Linen Cloth" and linenSale.price == 300, "a commodity with no link: its sale named by its id")
+		rawset(_G.C_Item, "GetItemNameByID", wasName)
+		-- a post the game refuses leaves the line: the next one made gets its own price
+		AH.PostItem({ link = L(2770, "Copper Ore"), name = "Copper Ore" }, 1, 20, nil, 111)
+		MA.OnEvent("AUCTION_HOUSE_POST_ERROR")
+		AH.PostItem({ link = L(2771, "Tin Ore"), name = "Tin Ore" }, 1, 20, nil, 222)
+		MA.OnEvent("AUCTION_HOUSE_AUCTION_CREATED", 501)
+		check(posted[501] and posted[501].name == "Tin Ore" and posted[501].price == 222 and MA.PendingPosts() == 0,
+			"a refused post: the next one keeps its own price: " .. tostring(posted[501] and posted[501].name))
+
 		-- kept 30 days
 		now = now + 30 * DAY
 		MA.Prune(now)

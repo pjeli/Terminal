@@ -29,7 +29,8 @@ local STOP = {}
 for w in ("the a an of to for is are do does i me can in on at"):gmatch("%S+") do STOP[w] = true end
 -- (words a phrase may share, but not on their own: "my atunements" isn't "my mail")
 local WEAK = {}
-for w in ("my what whats where how who which when should could will get"):gmatch("%S+") do WEAK[w] = true end
+-- ("nearest" too: "nearest inkeeper" isn't "nearest dungeon"; release review)
+for w in ("my what whats where how who which when should could will get nearest nearby closest"):gmatch("%S+") do WEAK[w] = true end
 
 local function Words(s)
 	local out = {}
@@ -39,13 +40,15 @@ end
 DYM.Words = Words
 
 --- The edit distance between two words (letters added, dropped, changed or two swapped), or `cap` + 1 past `cap`.
+--- (Three rows kept and used again: it runs for every known word on a keystroke that found nothing; release review)
+local rowA, rowB, rowC = {}, {}, {}
 local function Distance(a, b, cap)
 	local la, lb = #a, #b
 	if math.abs(la - lb) > cap then return cap + 1 end
-	local prev2, prev, cur = {}, {}, {}
+	local prev2, prev, cur = rowA, rowB, rowC
 	for j = 0, lb do prev[j] = j end
 	for i = 1, la do
-		cur = { [0] = i }
+		cur[0] = i
 		local best = i
 		local ca = a:byte(i)
 		for j = 1, lb do
@@ -57,7 +60,7 @@ local function Distance(a, b, cap)
 			if v < best then best = v end
 		end
 		if best > cap then return cap + 1 end
-		prev2, prev = prev, cur
+		prev2, prev, cur = prev, cur, prev2
 	end
 	return prev[lb]
 end
@@ -222,11 +225,24 @@ local function Row(name, searchText, from, detail, catId)
 		activate = Take, staysOpen = true, actionVerb = L["search this"], _score = 0 }
 end
 
+-- What Terminal understands, made once a while (DYM.Rows runs on every keystroke that finds nothing; release review:
+-- the phrases and the words were made again each time): kept CACHE_FOR seconds, or till your level changes.
+DYM.CACHE_FOR = 30
+local cache
+local function Known()
+	local now = (type(GetTime) == "function" and GetTime()) or 0
+	local level = type(UnitLevel) == "function" and UnitLevel("player") or 0
+	if cache and cache.level == level and now - cache.at < DYM.CACHE_FOR then return cache.phrases, cache.vocab end
+	local phrases = DYM.Phrases()
+	cache = { at = now, level = level, phrases = phrases, vocab = DYM.Vocabulary(phrases) }
+	return cache.phrases, cache.vocab
+end
+function DYM.Forget() cache = nil end -- (tests)
+
 --- The suggestion rows for a search that found nothing (at most DYM.MAX), the closest first.
 function DYM.Rows(text)
 	if type(text) ~= "string" or not text:find("%a") then return {} end
-	local phrases = DYM.Phrases()
-	local vocab = DYM.Vocabulary(phrases)
+	local phrases, vocab = Known()
 	local typed = Lower(text):gsub("^%s+", ""):gsub("%s+$", "")
 	local out, seen = {}, { [typed] = true }
 	local function add(r) if not seen[r.searchText] and #out < DYM.MAX then seen[r.searchText] = true; out[#out + 1] = r end end
@@ -246,7 +262,6 @@ function DYM.Rows(text)
 	for _, x in ipairs(DYM.Categories(typed)) do
 		local r = Row(L["Look in %s: %s"]:format(x.cat.label, x.rest), x.rest, text, L["Its category's name, searched as a word"], x.cat.id)
 		r.key = "dym:cat:" .. x.cat.id
-		seen[r.key] = nil
 		if #out < DYM.MAX then out[#out + 1] = r end
 	end
 	return out

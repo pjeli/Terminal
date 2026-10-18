@@ -338,8 +338,12 @@ function MA.KeepSale(id, a, now, item)
 	if not name then return nil end
 	for _, s in ipairs(list) do
 		if id and s.auctionID == id then return s end
-		-- (news with no id told twice, the notification and a chat line: once)
-		if not id and not s.auctionID and s.item == name and math.abs(now - (s.at or 0)) < MA.SAME then return s end
+		-- (news told twice, the notification and a chat line, is one sale: the chat line's, with no id, takes the
+		-- notification's id when it comes second; release review)
+		if not s.auctionID and s.item == name and math.abs(now - (s.at or 0)) < MA.SAME then
+			s.auctionID = id
+			return s
+		end
 	end
 	local s = { item = name, at = now, auctionID = id }
 	if type(a) == "table" then s.link, s.price, s.each, s.count = a.link, a.price, a.each, a.count end
@@ -365,12 +369,16 @@ function MA.SalesFromMail(box, now)
 	local list = Mine("auctionsSold")
 	if not (list and box) then return 0 end
 	now = now or Now()
-	local n = 0
+	local n, seen = 0, {}
 	for _, m in ipairs(box.mails or {}) do
 		local v = m.invoice
 		if type(v) == "table" and (v.kind == "seller" or v.kind == "seller_temp_invoice") and v.item then
 			local count = v.count or 1
-			local sig = table.concat({ v.item, count, v.bid or 0, v.player or "" }, "|")
+			-- (alike mails, the same item, price and buyer, each their own sale: numbered as the inbox has them; release
+			-- review, several alike were one)
+			local base = table.concat({ v.item, count, v.bid or 0, v.player or "" }, "|")
+			seen[base] = (seen[base] or 0) + 1
+			local sig = base .. "#" .. seen[base]
 			local s
 			for _, x in ipairs(list) do if x.inv == sig then s = x break end end
 			if not s then
@@ -596,6 +604,14 @@ function MA.OnPost(location, quantity, bid, buyout, unitPrice, duration)
 	return p
 end
 
+--- A post the game refused (AUCTION_HOUSE_POST_ERROR, AUCTION_HOUSE_SHOW_ERROR): the last one waiting is no auction, and
+--- the next one made isn't given its price (release review: a refused post stayed in line for 30 s).
+function MA.PostFailed()
+	local p = pendingPosts[#pendingPosts]
+	if p and Now() - p.at <= MA.POST_WAIT then table.remove(pendingPosts) end
+end
+function MA.PendingPosts() return #pendingPosts end -- (tests)
+
 function MA.AuctionCreated(auctionID)
 	local now = Now()
 	while pendingPosts[1] and now - pendingPosts[1].at > MA.POST_WAIT do table.remove(pendingPosts, 1) end
@@ -637,7 +653,12 @@ function MA.ReadOwned()
 			local sold = SOLD ~= nil and info.status == SOLD
 			local link = Str(info.itemLink)
 			local price = Num(info.buyoutAmount) or Num(info.bidAmount)
-			local function Listed() return { link = link, name = NameOfLink(link), count = Num(info.quantity) or 1, price = price, t = now, seen = "listed" } end
+			-- (a commodity's entry may have no link: its name by its item id; release review)
+			local key = type(info.itemKey) == "table" and Num(info.itemKey.itemID) or nil
+			local function Listed()
+				local name = NameOfLink(link) or (key and C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, key)))
+				return { link = link, name = name, id = key, count = Num(info.quantity) or 1, price = price, t = now, seen = "listed" }
+			end
 			if sold then
 				if not posted[id] and not ended[id] then posted[id] = Listed() end -- (its price and item, for the sale)
 				MA.Over(id, "sold", now)
@@ -1598,6 +1619,8 @@ function MA.OnEvent(event, ...)
 		pcall(MA.OnCommodity, ...)
 	elseif event == "AUCTION_HOUSE_AUCTION_CREATED" then
 		pcall(MA.AuctionCreated, ...)
+	elseif event == "AUCTION_HOUSE_POST_ERROR" or event == "AUCTION_HOUSE_SHOW_ERROR" then
+		MA.PostFailed()
 	elseif event == "OWNED_AUCTIONS_UPDATED" then
 		pcall(MA.ReadOwned)
 	elseif event == "AUCTION_CANCELED" then
@@ -1620,6 +1643,7 @@ for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "PLAYER_EN
 	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "SECURE_TRANSFER_CONFIRM_SEND_MAIL", "SECURE_TRANSFER_CANCEL",
 	"AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",
 	"AUCTION_HOUSE_AUCTION_CREATED", "OWNED_AUCTIONS_UPDATED", "AUCTION_CANCELED", "COMMODITY_PURCHASED",
+	"AUCTION_HOUSE_POST_ERROR", "AUCTION_HOUSE_SHOW_ERROR",
 	"PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end

@@ -363,7 +363,9 @@ function SH.MenuChannels()
 			local sep = ns.SurnameSeparator()
 			local target = (second and second ~= "") and (name .. (sep or "-") .. (sep and second or second:gsub("%s", ""))) or name
 			local shown = (second and sep) and (name .. " " .. second) or name
-			out[#out + 1] = { cmd = "/w " .. target, label = L["Whisper to target (%s)"]:format(shown), chat = "WHISPER", target = target }
+			-- (short: "All 8 to Bob", the bar's speaker button; release review: without it that menu errored with a player targeted)
+			out[#out + 1] = { cmd = "/w " .. target, label = L["Whisper to target (%s)"]:format(shown), chat = "WHISPER", target = target,
+				short = shown }
 		end
 	end
 	return out

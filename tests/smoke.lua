@@ -388,7 +388,7 @@ do
 	UI:AdvancedOnce()
 	_G.CreateFrame = cf
 	if built then built.Hide = nil end
-	check(UI:IsShown() and ns.Easy.temp == nil and ns.Easy.On(), "the first open after a reload by Alt+`: opens as ` does (0.54.3)")
+	check(not UI:IsShown() and ns.Easy.temp == nil and ns.Easy.On(), "Alt+` closed, the first time after a reload: nothing (0.57.0: it never opens Terminal)")
 	UI:Hide(); UI:EndAdvancedOnce()
 	ns.db.easyMode = false
 end

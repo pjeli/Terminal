@@ -286,3 +286,21 @@ do
 	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
 	UI:EasyChanged()
 end
+
+io.write("[classspells: What's Training's catalog read, never written]\n")
+do
+	-- (release review) a quest spell's races joined with its variants' were added to What's Training's own list, again on
+	-- every rebuild
+	local was = rawget(_G, "WT_API")
+	local e = Entry(9010, 10, { kind = "quest", cost = 0, races = { 2 }, quest = { { races = { 5 } } } })
+	local api = CatalogApi()
+	api.GetCatalog = function(cls) return cls == "WARRIOR" and { e } or {} end
+	_G.WT_API = api
+	CS.Forget(); CS.Data(); CS.Forget()
+	local data = CS.Data()
+	local mine = data.WARRIOR and data.WARRIOR[1]
+	check(#e.races == 1 and mine and mine.races and #mine.races == 2, "its races and its variants' (" .. tostring(mine and mine.races and #mine.races)
+		.. "), What's Training's list as it was (" .. #e.races .. ")")
+	_G.WT_API = was
+	CS.Forget()
+end

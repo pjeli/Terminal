@@ -612,10 +612,12 @@ E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, ba
 setmetatable(E.ROLE_WORDS, { __index = function(_, w) return E.GameRole(w) or nil end }) -- (the game's own words too)
 
 --- "nearset", "neareset", "neares": "nearest" as it's often mistyped (0.56.8, a player's comment), "nearbby" too; a
---- word starting with n, within two letters of it (one of "nearby").
+--- word starting with "nea", within two letters of it (one of "nearby"). (Release review: "newest" and "nearly" were
+--- taken for it: words of their own.)
+local NOT_NEAR = { nearly = true, neatly = true }
 function E.NearTypo(word)
 	local D = ns.DidYouMean and ns.DidYouMean.Distance
-	if not (D and type(word) == "string" and #word >= 5 and word:sub(1, 1) == "n") then return nil end
+	if not (D and type(word) == "string" and #word >= 5 and word:sub(1, 3) == "nea" and not NOT_NEAR[word]) then return nil end
 	if D(word, "nearest", 2) <= 2 or D(word, "nearby", 1) <= 1 then return E.ACTIONS.nearest end
 end
 
@@ -831,7 +833,7 @@ end
 -- One mode (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it
 -- switch to advanced when syntax is used"): Simple mode; since 0.55.9 (the player: "keep them in simple mode as much
 -- as we can") a line with Advanced syntax is searched as typed in Simple mode, no switch. Alt+` writes the line as
--- Advanced syntax (closed, it opens as ` does); Alt+` again or Shift+Left brings the Simple words back. db.easyMode == false (Advanced for good) is no longer
+-- Advanced syntax (closed, nothing: 0.57.0); Alt+` again or Shift+Left brings the Simple words back. db.easyMode == false (Advanced for good) is no longer
 -- offered, and a saved one from before is dropped at load (Core.lua).
 ----------------------------------------------------------------------
 

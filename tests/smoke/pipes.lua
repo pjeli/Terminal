@@ -390,6 +390,23 @@ do
 	T.FlushAll()
 	check(#sent == 1 and sent[1][2] == "GUILD" and sent[1][1]:find("^Mats for Thorium Belt %(2%)") and not UI:IsShown(),
 		"menu: All 2 to guild sends them: " .. tostring(sent[1] and sent[1][1]))
+	-- a player targeted: "All 2 to <their name>", whispered to them (release review: the menu errored with one targeted)
+	local u = { _G.UnitIsPlayer, _G.UnitIsUnit, _G.UnitName }
+	_G.UnitIsPlayer = function(unit) return unit == "target" end
+	_G.UnitIsUnit = function() return false end
+	_G.UnitName = function(unit) if unit == "target" then return "Bob" end return "Me" end
+	sent = {}
+	UI:Open("mats for thorium belt"); T.FlushAll()
+	local okHorn, errHorn = pcall(ns.Bar.Horn)
+	byLabel = {}
+	for _, b2 in ipairs(m.lines) do if b2:IsShown() then byLabel[b2.fs:GetText()] = b2 end end
+	local wb = byLabel["All 2 to Bob"]
+	check(okHorn and wb, "a player targeted: All 2 to Bob: " .. tostring(errHorn))
+	if wb then wb.scripts.PreClick(wb, "LeftButton"); wb.scripts.PostClick(wb, "LeftButton") end
+	T.FlushAll()
+	check(sent[1] and sent[1][2] == "WHISPER" and sent[1][3] == "Bob", "whispered to Bob: " .. tostring(sent[1] and sent[1][3]))
+	_G.UnitIsPlayer, _G.UnitIsUnit, _G.UnitName = u[1], u[2], u[3]
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
 	-- (0.45.16, the player) nothing searched: no "All N" lines (what's listed is your recent picks, nothing says what)
 	sent = {}
 	UI:Open(""); T.FlushAll()

@@ -296,8 +296,20 @@ do
 		node.GetTop = function() return 400 end; node.GetBottom = function() return 352 end
 		res[4].activate(res[4]); FlushAll()
 		check(set == nil, "in view already: not scrolled")
+		-- (release review) off to the side, cut off by the chart's edge: not pointed at outside the window; said
+		sf.GetLeft = function() return 100 end; sf.GetRight = function() return 400 end
+		node.GetLeft = function() return 420 end; node.GetRight = function() return 480 end
+		local printWas, said = ns.Print, nil
+		ns.Print = function(_, m) said = m end
+		shown = nil
+		res[4].activate(res[4]); FlushAll()
+		ns.Print = printWas
+		check(shown == nil and said and said:find("off to the side", 1, true), "a step off to the side: said, not pointed at: " .. tostring(said))
+		node.GetLeft = function() return 200 end; node.GetRight = function() return 260 end
+		res[4].activate(res[4]); FlushAll()
+		check(shown == node, "inside the chart's edges: pointed at")
 		tree.children = nil
-		node.GetTop, node.GetBottom, node.GetEffectiveScale = nil, nil, nil
+		node.GetTop, node.GetBottom, node.GetEffectiveScale, node.GetLeft, node.GetRight = nil, nil, nil, nil, nil
 		-- its own path (a finished one in its "Archived" group) and its last viewed kept per character
 		local W = "World of Warcraft"
 		local lastSet

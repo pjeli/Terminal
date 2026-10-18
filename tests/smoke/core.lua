@@ -205,12 +205,13 @@ do -- the click catcher: an unchanged hover keeps its macros (no recompute per r
 	_G.CharacterFrame = T.Obj("Frame"); CharacterFrame.shown = false
 	CharacterFrame.ModeTabs = { Tabs = { { frameName = "ReputationFrame" } } }
 	local trace = ns.Debug.trace
-	local n = #trace
+	-- (by the last line, not the count: the trace keeps 200 lines, full by now in a whole run)
+	local n, last = #trace, trace[#trace]
 	local m = S.ClickMacro({ click = S.REP_CLICK }, nil, true)
 	check(m == nil, "quiet: worked out (a plain-frame tab: no click route, no /run line): " .. tostring(m))
-	check(#trace == n and S.quiet == nil, "quiet: no trace lines for a resting pointer (" .. (#trace - n) .. ")")
+	check(trace[#trace] == last and S.quiet == nil, "quiet: no trace lines for a resting pointer (" .. (#trace - n) .. ")")
 	S.ClickMacro({ click = S.REP_CLICK }, nil)
-	check(#trace > n, "a press traces the tab's steps as before")
+	check(trace[#trace] ~= last, "a press traces the tab's steps as before")
 	_G.CharacterFrame, _G.CharacterMicroButton = savedCF, savedMicro
 end
 

@@ -391,7 +391,9 @@ do -- combat (0.46.14, the player's ask): open as a fight starts, the terminal g
 	-- opened by hand during the fight (`): as it was; nothing comes back later
 	UI:Open("e"); T.FlushAll()
 	Fight()
-	UI:Toggle(); T.FlushAll()
+	local ctrlWas = _G.IsControlKeyDown; _G.IsControlKeyDown = function() return true end
+	UI:Toggle(); T.FlushAll() -- (in combat: Ctrl+`, 0.57.0)
+	_G.IsControlKeyDown = ctrlWas
 	check(UI:IsShown() and T.query() == "e" and UI.combatState == nil and UI.keys == false,
 		"` during the fight: back as it was (the game's text box: combat)")
 	UI:Hide(); T.FlushAll()

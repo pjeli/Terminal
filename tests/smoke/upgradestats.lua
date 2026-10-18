@@ -75,6 +75,28 @@ do
 	check(F.Worth({ int = 5, sp = 6 }, F.ROLES.WARRIOR[1][2]) == 0 and F.Worth({}, F.WEIGHTS.WARRIOR) == nil
 		and F.Worth({ str = 2 }, F.WEIGHTS.WARRIOR) == 2, "worth: 0 when none of its stats are wanted, nil with none to weigh")
 
+	-- (release review) a healer's weights have no dps: a plain wand isn't worth 0 (item levels decide), unless it would
+	-- replace one with stats a healer weighs
+	ITEMS[110] = { "Plain Wand", "|Hitem:110|h", 2, 24, 20, "Weapon", "Wands", 1, "INVTYPE_RANGEDRIGHT" }
+	ITEMS[111] = { "Better Plain Wand", "|Hitem:111|h", 2, 32, 28, "Weapon", "Wands", 1, "INVTYPE_RANGEDRIGHT" }
+	ITEMS[112] = { "Sage's Wand", "|Hitem:112|h", 2, 24, 20, "Weapon", "Wands", 1, "INVTYPE_RANGEDRIGHT" }
+	STATS[110], STATS[111] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 10 }, { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 15 }
+	STATS[112] = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 9, ITEM_MOD_INTELLECT_SHORT = 4 }
+	check(F.Worth({ dps = 15 }, F.ROLES.PRIEST[1][2]) == nil, "a plain weapon to a healer: unweighed (item levels decide), not worth 0")
+	_G.UnitClass = function() return "Priest", "PRIEST", 5 end
+	ns.providers, ns.providerOrder = {}, {}
+	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = function()
+		return { { name = "Better Plain Wand", itemID = 111, key = 111, link = "item:111" } }
+	end })
+	ns.db.upgradeRoles = nil
+	F.SetRoles({ "healer" })
+	WORN = { [18] = 110 }
+	F.ClearCache()
+	check(Upgrades() == "Better Plain Wand", "a healer: a plain wand of a higher level over a plain one: " .. Upgrades())
+	WORN = { [18] = 112 }
+	F.ClearCache()
+	check(Upgrades() == "", "over a wand with Intellect: not one: " .. Upgrades())
+
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID, ns.providers, ns.providerOrder, ns.db.easyMode = save.invId, save.providers, save.order, save.easy
