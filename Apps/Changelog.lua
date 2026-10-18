@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.56.9", when = "in testing",
+		v = "0.56.10", when = "in testing",
 		items = {
 			"The bar's button says Group again.",
 			"Every class's spells (\"travel form\", \"druid spells\", \"upcoming spells\") and the weapon masters (\"dagger trainer\") come straight from What's Training now, so they stay as up to date as it is. Without What's Training the footer says to install it.",
@@ -26,6 +26,7 @@ CL.LOG = {
 			"The bar underlines the F of Filter, the S of Sort and the G of Group: Alt+F, Alt+S and Alt+G open them.",
 			"\"nearest\" mistyped (\"nearset\", \"neareset\") still means nearest; an NPC's role said alone (\"inn\", \"bank\", \"repair\", \"weapon master\") lists the nearest of them, and \"skinner\", \"miner\" or \"herbalist\" the nearest trainer of it.",
 			"The / key opens Terminal on a slash command, the \"/\" already typed (out of combat; in combat it opens the chat box as before). Off: .set slashKey off, or Options.",
+			"Every list of NPCs is sorted nearest first unless you pick another sort (trainers, merchants, reagent vendors...); \"merchant\" means vendor.",
 		},
 	},
 	{

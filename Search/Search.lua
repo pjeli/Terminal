@@ -1646,8 +1646,29 @@ end
 
 --- "nearest" / sort:nearest: the rows with a distance, closest first (Scan.NearestViews). The rows, and the rows to
 --- stop with instead (none near), if any.
+--- Does the search look at the NPCs alone (@npc, Simple mode's NPCs)?
+function Scan.NpcOnly(kinds)
+	if type(kinds) ~= "table" then return false end
+	local any = false
+	for k, v in pairs(kinds) do
+		if v then
+			if k ~= "npc" then return false end
+			any = true
+		end
+	end
+	return any
+end
+
 function Scan.Nearest(self, q, out)
 	local sortNear, here, overBudget = q.sortNear, q.here, q.overBudget
+	-- (0.56.10, the player: "all NPC lists should be sorted by nearest by default", trainers, merchants, reagent vendors)
+	-- a list of NPCs alone, no sort asked for: the nearest first, every row kept (those with no place known after); not
+	-- said where nothing's known of where you are
+	if not sortNear and not here and not q.sortField and not q.act and Scan.NpcOnly(q.kinds) then
+		local I = ns.Integrations
+		here = I and I.Here and I.Here() or nil
+		if here then sortNear, q.nearDefault = true, true end
+	end
 	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
 	if sortNear and not here then
 		here = ns.Integrations and ns.Integrations.Here and ns.Integrations.Here()

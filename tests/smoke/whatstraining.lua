@@ -381,7 +381,8 @@ do
 		ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
 		check(ns.Filters.WeaponSkillIds("dagger")[1] == 1180 and ns.Filters.WeaponSkillIds("swords")[2] == 202 and ns.Filters.WeaponSkillIds("dag") == nil,
 			"the words for weapon skills")
-		check(Names(Rows("@npc trainer:daggers")) == "Hanashi | Sayoc", "trainer:daggers: the weapon masters who teach it, not the others: "
+		-- (0.56.10: an NPC list, the nearest first)
+		check(Names(Rows("@npc trainer:daggers")) == "Sayoc | Hanashi", "trainer:daggers: the weapon masters who teach it, not the others: "
 			.. Names(Rows("@npc trainer:daggers")))
 		check(Row("Daggers", ns:GetEntries(P)) == nil and WT.Known()[1] and WT.Known()[1].name == "Daggers" and WT.Known()[1].state == "known",
 			"Daggers, known: not listed, kept apart")
@@ -420,7 +421,7 @@ do
 		-- an older What's Training, without its catalog: every weapon master (0.56.1: Terminal keeps no copy of its list)
 		api.GetCatalog = nil
 		ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()
-		check(Names(Rows("@npc trainer:daggers")) == "Hanashi | Other Master | Sayoc", "without its catalog: every weapon master: "
+		check(Names(Rows("@npc trainer:daggers")) == "Other Master | Sayoc | Hanashi", "without its catalog: every weapon master, the nearest first: "
 			.. Names(Rows("@npc trainer:daggers")))
 		api.GetSource = was.getSource
 		drop("npc")

@@ -577,6 +577,14 @@ Run("nearest", function()
 	local wm = ns.Filters.Parse("is:weaponmaster")
 	check(wm and ns.Filters.Pass({ npcID = 1, kind = "npc", sub = "Weapon Master", name = "Woo Ping" }, { wm })
 		and not ns.Filters.Pass({ npcID = 2, kind = "npc", sub = "Mage Trainer", name = "Maginor" }, { wm }), "is:weaponmaster: by the title")
+	-- (0.56.10, the player: "all NPC lists should be sorted by nearest by default") a list of NPCs alone: the nearest
+	-- first, those with no place known kept after; a sort picked: that one
+	local npcs = UI:Search("@npc is:innkeeper")
+	check(Show(npcs) == "Innkeeper Allison | Innkeeper Farley | Innkeeper Far Away" and npcs[1].detail == "40 yd",
+		"@npc: the nearest first, the unknown ones after: " .. Show(npcs))
+	local byName = UI:Search("@npc is:innkeeper sort:name")
+	check(Show(byName) == "Innkeeper Allison | Innkeeper Far Away | Innkeeper Farley", "a sort asked for: that one: " .. Show(byName))
+	check(E.WORDS.merchant == "is:vendor" and E.ROLE_WORDS.merchant, "merchant: a vendor, an NPC's role")
 	-- nowhere known (a dungeon): "innkeeper" listed as before, not "can't tell where you are"
 	local hereWas = I.Here
 	I.Here = function() return nil end

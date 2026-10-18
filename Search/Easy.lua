@@ -196,6 +196,7 @@ E.WORDS = {
 	repair = "is:repair", repairs = "is:repair", inn = "is:inn", bank = "is:bank", flight = "is:flight",
 	fp = "is:flight", ah = "is:auctioneer", auction = "is:auctioneer", stable = "is:stablemaster",
 	vendor = "is:vendor", vendors = "is:vendor", trainer = "is:trainer", trainers = "is:trainer",
+	merchant = "is:vendor", merchants = "is:vendor", -- (0.56.10, the player: "merchant")
 	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
 	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
 	-- (two words: "nearest spirit healer"; a graveyard is where one stands; 0.50.5)
@@ -603,7 +604,7 @@ E.ACTIONS = {
 -- the words that name what an NPC does (not who it is): "nearest" then keeps to NPCs friendly to you
 E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, bank = true, banker = true, flight = true,
 	fp = true, flightmaster = true, ah = true, auction = true, auctioneer = true, stable = true, stablemaster = true,
-	vendor = true, vendors = true, trainer = true, trainers = true, questgiver = true, battlemaster = true,
+	vendor = true, vendors = true, merchant = true, merchants = true, trainer = true, trainers = true, questgiver = true, battlemaster = true,
 	battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true, ["honor vendor"] = true,
 	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true, ["spirit healer"] = true, ["spirit healers"] = true,
 	["spirit guide"] = true, graveyard = true, graveyards = true, weaponmaster = true, weaponmasters = true,
