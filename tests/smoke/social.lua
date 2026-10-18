@@ -39,11 +39,14 @@ do
 		if i == 1 then return { name = "Buddy", level = 50, className = "Hunter", area = "Feralas", connected = true, notes = "" } end
 		return { name = "Gone", level = 20, className = "Rogue", connected = false }
 	end }
-	_G.BNGetNumFriends = function() return 2 end
+	_G.BNGetNumFriends = function() return 4 end
 	ns.Social.ForgetCrafts()
 	_G.C_BattleNet = { GetFriendAccountInfo = function(i)
 		if i == 1 then return { battleTag = "Pal#1234", note = "", accountName = "|Kq1|k",
 			gameAccountInfo = { isOnline = true, clientProgram = "App", richPresence = "In the app" } } end
+		-- (0.56.3, the player's "Battle.net friend 2") offline, nothing readable but the account: their note, else said so
+		if i == 3 then return { bnetAccountID = 77, note = "my cousin", gameAccountInfo = { isOnline = false } } end
+		if i == 4 then return { bnetAccountID = 78, gameAccountInfo = { isOnline = false } } end
 		-- playing, their BattleTag not readable (a secret value comes through Str as nil): listed by their character
 		return { bnetAccountID = 55, gameAccountInfo = { isOnline = true, clientProgram = "WoW", characterName = "Girl Bird",
 			className = "Druid", areaName = "The Barrens", characterLevel = 18, gameAccountID = 99 } }
@@ -100,6 +103,9 @@ do
 	local fr = names(UI:Search("@friend online"))
 	check(fr:find("Buddy", 1, true) and fr:find("Pal", 1, true) and not fr:find("Gone", 1, true), "@friend online: " .. fr)
 	check(names(UI:Search("@friend hunter")) == "Buddy", "@friend hunter: " .. names(UI:Search("@friend hunter")))
+	local hidden = names(UI:Search("@friend is:offline"))
+	check(hidden:find(ns.L["Battle.net friend: %s"]:format("my cousin"), 1, true) and hidden:find(ns.L["A Battle.net friend (the game hides the name)"], 1, true)
+		and not hidden:find("Battle.net friend 3", 1, true), "a Battle.net friend the game doesn't name: their note, else said so: " .. hidden)
 	local pal = UI:Search("@friend pal")[1]
 	pal.activate(pal)
 	check(bntold == "|Kq1|k", "a Battle.net friend outside the game: whispered by BattleTag (account name): " .. tostring(bntold))

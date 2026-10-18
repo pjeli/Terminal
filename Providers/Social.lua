@@ -493,7 +493,10 @@ local function BNetRows(out, seen)
 			if (tag or charName or acct) and not (char and (seen[char] or seen[charName])) then
 				local level, class, zone, note = Num(g.characterLevel), Str(g.className), Str(g.areaName), Str(a.note)
 				local who = tag and (tag:gsub("#%d+$", "")) or nil
-				local name = charName and (who and (charName .. " (" .. who .. ")") or charName) or who or L["Battle.net friend %d"]:format(i)
+				-- (nothing readable but their account: their note, else said so; 0.56.3, the player's "Battle.net friend 2". The
+				-- account name, an escape that shows their real name, never goes in a row: rows are sent to chat)
+				local name = charName and (who and (charName .. " (" .. who .. ")") or charName) or who
+					or (note and L["Battle.net friend: %s"]:format(note)) or L["A Battle.net friend (the game hides the name)"]
 				listed = listed + 1
 				if charName then playing = playing + 1 end
 				out[#out + 1] = Row({

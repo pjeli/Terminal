@@ -957,7 +957,12 @@ Run("right-click: send to chat (Simple mode too)", function()
 	_G.IsInGuild = function() return true end
 	_G.UnitIsPlayer = function(u) return u == "target" end
 	_G.UnitIsUnit = function() return false end
-	_G.UnitName = function(u) return u == "target" and "Thrall" or "Me" end
+	-- (0.56.3, the player: "/w %t" whispered no one on WoW Forever, and "Whisper Fatherless" read as a friend's name)
+	-- by name, the surname joined the game's way
+	local rune, constsWas = _G.RegionalUniqueNamesEnabled, _G.Constants
+	_G.RegionalUniqueNamesEnabled = function() return true end
+	_G.Constants = setmetatable({ CharacterNameSeparatorConsts = { CHARACTERNAME_SURNAME_SEPARATOR = " " } }, { __index = constsWas })
+	_G.UnitName = function(u) if u == "target" then return "Fatherless", "Behavior" end return "Me" end
 	UI:Open("hearthstone")
 	local textWas, baseWas, texts = ns.Share.Text, ns.Share.BaseText, 0
 	ns.Share.Text = function(...) texts = texts + 1 return textWas(...) end
@@ -969,13 +974,15 @@ Run("right-click: send to chat (Simple mode too)", function()
 	local byLabel, labels = {}, {}
 	for _, b in ipairs(m.lines) do if b:IsShown() then byLabel[b.fs:GetText()] = b; labels[#labels + 1] = b.fs:GetText() end end
 	local all = table.concat(labels, ",")
-	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild,Whisper Thrall,Copy as text,Cancel", "the channels you're in: " .. all)
-	local g, w = byLabel["Send to guild"], byLabel["Whisper Thrall"]
+	local wl = ns.L["Whisper to target (%s)"]:format("Fatherless Behavior")
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild," .. wl .. ",Copy as text,Cancel", "the channels you're in: " .. all)
+	local g, w = byLabel["Send to guild"], byLabel[wl]
 	check(g and (g.attrs.macrotext1 or "") == "", "nothing worked out (no waypoint moved) until a line is clicked")
 	if g then g.scripts.PreClick(g, "LeftButton") end
 	if w then w.scripts.PreClick(w, "LeftButton") end
 	check(g and g.attrs.type1 == "macro" and g.attrs.macrotext1:match("^/g ") and g.attrs.macrotext1:find("|Hitem:6948", 1, true), "guild: the game presses /g with the link: " .. tostring(g and g.attrs.macrotext1))
-	check(w and w.attrs.macrotext1:match("^/w %%t "), "whisper: /w %t, the game fills the target's name: " .. tostring(w and w.attrs.macrotext1))
+	check(w and w.attrs.macrotext1:match("^/w Fatherless Behavior |"), "whisper: to the target by name and surname: " .. tostring(w and w.attrs.macrotext1))
+	_G.RegionalUniqueNamesEnabled, _G.Constants = rune, constsWas
 	local mark = #log
 	g.scripts.PostClick(g, "LeftButton"); FlushAll()
 	check(not m:IsShown() and not UI:IsShown(), "sent: menu and terminal gone")

@@ -331,7 +331,7 @@ function SH.Context(query, e)
 end
 
 --- The channels a row can go to from its right-click menu, those you're in: { cmd, label } (say always; party or
---- raid, instance, guild when you're in one; your target when it's another player: "/w %t", the game fills the name).
+--- raid, instance, guild when you're in one; your target when it's another player: "/w Name").
 function SH.MenuChannels()
 	local out = { { cmd = "/s", label = L["Say in chat"], chat = "SAY", short = L["say"] } }
 	-- (a secret answer, UnitIsUnit's where unit comparison is restricted, is never tested: false; 0.50.7, review)
@@ -353,8 +353,18 @@ function SH.MenuChannels()
 	if inInstance then out[#out + 1] = { cmd = "/i", label = L["Send to instance"], chat = "INSTANCE_CHAT", short = L["instance"] } end
 	if Is(_G.IsInGuild) then out[#out + 1] = { cmd = "/g", label = L["Send to guild"], chat = "GUILD", short = L["guild"] } end
 	if Is(_G.UnitIsPlayer, "target") and not Is(_G.UnitIsUnit, "target", "player") then
-		local name = ns.Str(Call(_G.UnitName, "target"))
-		out[#out + 1] = { cmd = "/w %t", label = L["Whisper %s"]:format(name or L["your target"]) }
+		-- (by name, its realm too when another's: "/w %t" reached WoW Forever as a whisper to "%t", 0.56.3, the player;
+		-- "to target", or the name read as a friend of the row's: the player again. A name the game keeps secret: none)
+		-- (UnitName's second answer: the surname where characters have one, "Fatherless Behavior", joined the game's way;
+		-- else the realm, "-Realm": as a group member's name, Group.lua's NameOf)
+		local name, second = Call(_G.UnitName, "target")
+		name, second = ns.Str(name), ns.Str(second)
+		if name then
+			local sep = ns.SurnameSeparator()
+			local target = (second and second ~= "") and (name .. (sep or "-") .. (sep and second or second:gsub("%s", ""))) or name
+			local shown = (second and sep) and (name .. " " .. second) or name
+			out[#out + 1] = { cmd = "/w " .. target, label = L["Whisper to target (%s)"]:format(shown), chat = "WHISPER", target = target }
+		end
 	end
 	return out
 end
