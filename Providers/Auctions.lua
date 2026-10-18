@@ -8,10 +8,13 @@ local L = ns.L
 --              Auctions tab (read whenever you visit the auction house: MA.ReadOwned), with its price and time left
 --   ran out    one whose time is up with no other news of it
 --   news       sold, won, outbid, expired, each kept its hour (Mail.lua's MA.NewsRows; "incoming mail" reads them too)
+--   sold       your sales of the last 30 days (0.56.12, a player: past sales weren't listed), newest first: each kept as
+--              the auction house told it (MA.KeepSale), the buyer and what you got from its mail (MA.SalesFromMail)
 --
--- Terminal's own records only (the player's call): an auction leaves the list once it sells, expires, is cancelled,
--- comes back by mail or is gone from the Auctions tab's list (MA.Over). Only auctions posted or seen with Terminal
--- running are known. @stored still counts what's on the auction house from the bag addon's record.
+-- Terminal's own records only (the player's call): an auction leaves the list of those up once it sells, expires, is
+-- cancelled, comes back by mail or is gone from the Auctions tab's list (MA.Over). Only auctions posted or seen with
+-- Terminal running are known (and sales whose mail it read). @stored still counts what's on the auction house from the
+-- bag addon's record.
 
 local AU = {}
 ns.Auctions = AU
@@ -73,6 +76,45 @@ local function Tooltip(e, t)
 	ns.KeyHints(t, L["Enter: show in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
 
+local function SoldTooltip(e, t)
+	local s, now = e.sale, Now()
+	t:SetText(e.name, 1, 0.82, 0)
+	t:AddLine(L["Sold %s"]:format(ns.Ago(now - (s.at or now))) .. (e.mine and "" or (" " .. L["on %s"]:format(e.who))), 1, 1, 1)
+	if s.each or s.price then t:AddDoubleLine(s.each and L["Price each"] or L["Price"], Money(s.each or s.price), 1, 1, 1, 1, 1, 1) end
+	if s.buyer then t:AddDoubleLine(L["Bought by"], s.buyer, 1, 1, 1, 1, 1, 1) end
+	if s.net then
+		t:AddDoubleLine(L["You got"], Money(s.net), 1, 1, 1, 1, 1, 1)
+		t:AddLine(L["(the deposit back, the auction house's cut taken)"], 0.6, 0.6, 0.6)
+	end
+	t:AddLine(L["Your sales are kept 30 days: each as the auction house tells it, or from its mail once a mailbox shows it."], 0.6, 0.8, 1, true)
+	ns.KeyHints(t, L["Enter: show in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
+end
+
+--- A sale of yours (MA.KeepSale): "Sold: Linen Cloth x20", its price, its buyer, when.
+local function SoldRow(key, i, s, mine, who, now)
+	local bits = {}
+	if s.each then bits[#bits + 1] = L["%s each"]:format(Money(s.each, true))
+	elseif s.price then bits[#bits + 1] = Money(s.price, true) end
+	if s.buyer then bits[#bits + 1] = L["to %s"]:format(s.buyer) end
+	bits[#bits + 1] = ns.Ago(now - (s.at or now))
+	local plain = table.concat(bits, ", ")
+	local d = {}
+	for _, b in ipairs(bits) do d[#d + 1] = b end
+	if not mine then d[#d + 1] = GREY .. who .. "|r" end
+	local _, link, q, icon = MA.ItemFacts(nil, s.link, s.item)
+	local count = s.count or 1
+	return {
+		key = "sold:" .. key .. ":" .. tostring(s.auctionID or (tostring(s.at) .. ":" .. i)),
+		name = L["Sold"] .. ": " .. s.item .. ((count > 1) and (" x" .. count) or ""),
+		sale = s, auction = s, ahKind = "sold", at = s.at, boxKey = key, who = who, mine = mine or nil,
+		color = ns.QualityHex(q), icon = icon or ICON, link = link or s.link,
+		detail = ns.Detail(unpack(d)), plain = plain,
+		text = "auction auctions ah sold sale sales " .. s.item .. " " .. (s.buyer or "") .. " " .. who,
+		tooltip = SoldTooltip, activate = Show, secondary = ToChatBox,
+		secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, shareLink = ShareText,
+	}
+end
+
 --- An auction up now, or whose time ran out.
 local function UpRow(key, id, a, mine, who, now)
 	local bits = Said(a, now)
@@ -121,7 +163,23 @@ function AU.Collect()
 	local rows = {}
 	for _, e in ipairs(up) do rows[#rows + 1] = e end
 	for _, e in ipairs(over) do rows[#rows + 1] = e end
-	for _, e in ipairs(MA.NewsRows(now)) do rows[#rows + 1] = e end -- (then the news, newest first)
+	local news = MA.NewsRows(now)
+	for _, e in ipairs(news) do rows[#rows + 1] = e end -- (then the news, newest first)
+	-- then your sales, newest first; one the news still tells (its gold due) once, as the news
+	local told = {}
+	for _, e in ipairs(news) do
+		local a = e.auction
+		if e.news == "sold" and a then told[a.auctionID or (a.item .. "@" .. tostring(a.at))] = true end
+	end
+	local sold = {}
+	for _, x in ipairs(MA.Sales()) do
+		local s = x.sale
+		if not told[s.auctionID or (s.item .. "@" .. tostring(s.at))] then
+			sold[#sold + 1] = SoldRow(x.key, x.i, s, x.key == myKey, MA.WhoOf(x.key), now)
+		end
+	end
+	table.sort(sold, function(a, b) if a.at ~= b.at then return a.at > b.at end return a.name < b.name end)
+	for _, e in ipairs(sold) do rows[#rows + 1] = e end
 	ns.RankInOrder(rows) -- (this order among equal matches)
 	list = rows
 	return rows

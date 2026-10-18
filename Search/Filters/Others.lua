@@ -339,7 +339,7 @@ IS.sent = function(e) return e.kind == "mail" and (e.mailKind == "sent" or (e.ma
 IS.incoming = function(e) return e.kind == "auctions" and e.mailKind == "auction" or false end -- (the news: @auction's)
 IS.pending, IS.expected = IS.incoming, IS.incoming
 -- (0.55.7, the search's rewrite: what "auctions sold" and "what am i selling" ask, as filters, so Alt+` writes them)
-IS.sold = function(e) return e.kind == "auctions" and e.mailKind == "auction" and e.news == "sold" or false end
+IS.sold = function(e) return e.kind == "auctions" and ((e.mailKind == "auction" and e.news == "sold") or e.ahKind == "sold") or false end
 IS.listed = function(e) return e.kind == "auctions" and e.ahKind == "up" or false end
 IS.selling = IS.listed
 -- yours: the loot you looted (LootLog.lua), what happened to this character (CombatLog.lua: @combatlog lists every
@@ -590,7 +590,7 @@ F.HELP = {
 	{ "when:week", L["@calendar: what's on today, tomorrow, this week (the next 7 days), this weekend, next week (nextweek), this month or next month (nextmonth)"] },
 	{ "is:expiring", L["@mail: mail running out within 3 days; cod unread returned (sent back to you) auction money (gold attached) sent (the last hour's, to others too); on:<character>"] },
 	{ "is:incoming", L["@auction: your characters' auctions up now with price and time left; is:incoming: the auction house's news (sold, won, outbid, expired); on:<character>"] },
-	{ "is:sold", L["@auction: the auction house's news of a sale; is:listed: your auctions up now"] },
+	{ "is:sold", L["@auction: your sales (the last 30 days, and the auction house's news of one); is:listed: your auctions up now"] },
 	{ "is:mine", L["@drop: what you looted (looter:bob: what Bob looted); @combatlog: this character's, not your alts'"] },
 	{ "is:death", L["@combatlog: what killed you; is:taken: the crits on you; is:dealt: your crits; sort:damage: the biggest first"] },
 	{ "in:elwynn_forest", L["a value of several words: _ for the space (in:elwynn_forest, type:one-handed_swords)"] },

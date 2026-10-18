@@ -427,7 +427,7 @@ do
 	posted[91] = { name = "Silk Cloth", count = 2, price = 900, t = now - 9 * 3600, seen = "posted", ends = now - 7200 }
 	A._dirty = true
 	local res, last = UI:Search("@auction"), nil
-	for _, e in ipairs(res) do if e.ahKind then last = e end end
+	for _, e in ipairs(res) do if e.ahKind == "up" or e.ahKind == "over" then last = e end end -- (your sales after: auctions.lua)
 	check(last and last.name == "Silk Cloth x2" and last.ahKind == "over" and last.detail:find("time ran out 2 h ago", 1, true)
 		and last.color == "|cff9d9d9d", "its time ran out: last, greyed, saying so: " .. tostring(last and last.detail))
 	posted[91] = nil

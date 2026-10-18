@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.56.11", when = "in testing",
+		v = "0.56.12", when = "in testing",
 		items = {
 			"The bar's button says Group again.",
 			"Every class's spells (\"travel form\", \"druid spells\", \"upcoming spells\") and the weapon masters (\"dagger trainer\") come straight from What's Training now, so they stay as up to date as it is. Without What's Training the footer says to install it.",
@@ -28,6 +28,7 @@ CL.LOG = {
 			"The / key opens Terminal on a slash command, the \"/\" already typed (out of combat; in combat it opens the chat box as before). Off: .set slashKey off, or Options.",
 			"Every list of NPCs is sorted nearest first unless you pick another sort (trainers, merchants, reagent vendors...); \"merchant\" means vendor.",
 			"In Simple mode the categories come in a better order: NPCs whose title has your word (\"reagent\": the reagent vendors) near the top, a category with more matches above one with fewer, and the category you picked for those words before higher each time. .forget clears those picks too.",
+			"@auction lists your sales of the last 30 days too (\"auctions sold\"): the price, the buyer and what you got, from the auction house's news, the Auctions tab or the sale's mail. Auctions posted one after another each keep their own price, and one kept with no price takes the Auctions tab's.",
 		},
 	},
 	{
