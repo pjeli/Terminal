@@ -14,12 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.57.4", when = "in testing",
+		v = "0.57.5", when = "in testing",
 		items = {
 			"With TrainerSpells: the recipes a trainer teaches that you don't know are listed with your other recipes to learn (\"recipes i'm missing\", \"what can i train in tailoring\", \"how much is tailoring training\"), with the skill each needs and its cost, even before you've opened the profession's window; a profession shows its next rank and what it costs.",
 			"With TrainerSpells and no What's Training: @training lists your class's spells and weapon skills still to learn (\"what can i train\", \"what do i learn next level\"), and every class's spells come from it. Without Questie its trainers and weapon masters are @npc, so \"nearest mage trainer\" and \"where to learn ...\" work.",
 			"\"polearm trainer\" and the like list only the weapon masters who teach that weapon to your faction, from What's Training or TrainerSpells, not every weapon master.",
 			"An addon whose data isn't in the shape Terminal expects (a new version of it) is said once in chat, with what's unavailable, and .integrations lists it.",
+			".integrations has one Training line: What's Training or TrainerSpells, whichever is installed, with how many spells you have to learn. Either one is enough, and the tips and the tour say so.",
 		},
 	},
 	{

@@ -587,28 +587,3 @@ local function SetupTrainerSpells()
 	if CS and CS.ForgetRows then CS.ForgetRows() end
 end
 I._.SetupTrainerSpells = SetupTrainerSpells
-
---- .integrations' line about TrainerSpells.
-function TS.Status()
-	if not TS.Loaded() then return L["not found"] end
-	local AddOnVersion = I._.AddOnVersion
-	local said = {}
-	local c, t, p = TS.ClassData(), TS.TrainerRows(), TS.ProfData()
-	if p then
-		local n = 0
-		for _, list in pairs(p.list) do n = n + #list end
-		said[#said + 1] = L["%d profession spells (@recipe is:unknown, @profession)"]:format(n)
-	end
-	if t then
-		local p2 = ns.providers.npc
-		said[#said + 1] = (p2 and p2.trainersOnly) and L["%d trainers (@npc, without Questie)"]:format(#t)
-			or L["%d trainers (Questie's @npc has them)"]:format(#t)
-	end
-	if c then
-		local CS = ns.ClassSpells
-		said[#said + 1] = (CS and CS.Api and CS.Api()) and L["class spells (What's Training's used)"] or L["class spells (without What's Training)"]
-		local tr = ns.providers.training
-		if tr and tr.fromTrainerSpells then said[#said + 1] = L["@training (without What's Training)"] end
-	end
-	return L["found (%s)."]:format(AddOnVersion and AddOnVersion(TS.ADDON) or "?") .. (#said > 0 and (" " .. table.concat(said, ", ")) or "")
-end

@@ -39,7 +39,8 @@ do
 	check(WT.Status() == L["not found"], ".integrations: not found: " .. tostring(WT.Status()))
 	check(WT.Q.Question("what can i train") == nil, "without it: its question isn't asked")
 	I.ForgetHint()
-	check(I.MissingHint("@training") == L["Install %s for this."]:format("|cff" .. ns.Theme.Get().text .. "What's Training|r"),
+	check(I.MissingHint("@training") == L["Install %s for this."]:format(L["%s or %s"]:format("|cff" .. ns.Theme.Get().text .. "What's Training|r",
+		"|cff" .. ns.Theme.Get().text .. "TrainerSpells|r")),
 		"@training without it: install What's Training (its name as it's written): " .. tostring(I.MissingHint("@training")))
 	ns.db.easyMode = true
 	I.ForgetHint()
@@ -458,8 +459,9 @@ do
 	Fire("SpellsChanged"); FlushAll()
 
 	-- .integrations, the hint gone, the examples and the tour
-	check(WT.Status():find(L["found (%s). %d spells to learn, %d now"]:sub(1, 5), 1, true) and WT.Status():find("9 ", 1, true)
-		and WT.Status():find("3 ", 1, true), ".integrations: " .. WT.Status())
+	local trl = table.concat(ns.commands.integrations.run(""), "\n")
+	check(trl:find(L["Training:"] .. " " .. L["%s (%s). %d spells to learn, %d now (@training)"]:format("What's Training", "0.1.0", 9, 3), 1, true)
+		and not trl:find("TrainerSpells", 1, true), ".integrations: one Training line, What's Training's counts: " .. trl)
 	I.ForgetHint()
 	check(I.MissingHint("@training") == nil, "with it: no hint")
 	check(ns.Easy.HasForExample("WhatsTraining"), "its examples are offered")

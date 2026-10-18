@@ -171,7 +171,7 @@ do
 		"all installed: their steps search with them, Attune's the Dalaran key: " .. Titles())
 	check(not StepTitled(L["More with addons"]) and StepTitled(L["Find a setting"]), "...no card to install any; a setting found too")
 	-- (0.53.7, the player's ask) What's Training's: what you can train
-	local _, ws = StepTitled(L["What to train (What's Training)"])
+	local _, ws = StepTitled(L["What to train (What's Training or TrainerSpells)"])
 	check(ws and ws.text == "what can i train" and ws.pick == "first", "What's Training's step: what can i train: " .. tostring(ws and ws.text))
 	UI:Hide(); FlushAll()
 	-- an Alliance player: City of Dalaran's quests
@@ -188,8 +188,8 @@ do
 		"Attune missing: a card saying what installing it adds: " .. Titles())
 	UI:Hide(); FlushAll()
 	Without("WhatsTraining")
-	local _, wm = StepTitled(L["Add What's Training"])
-	check(wm and wm.text == "" and wm.say:find("Install What's Training", 1, true) and not StepTitled(L["What to train (What's Training)"]),
+	local _, wm = StepTitled(L["Add What's Training or TrainerSpells"])
+	check(wm and wm.text == "" and wm.say:find("Install What's Training or TrainerSpells", 1, true) and not StepTitled(L["What to train (What's Training or TrainerSpells)"]),
 		"What's Training missing: a card saying what installing it adds: " .. Titles())
 	UI:Hide(); FlushAll()
 	-- two missing: one card naming both
@@ -202,7 +202,7 @@ do
 	-- none of them: the card names all four
 	Without("Questie", "AtlasLoot", "Attune", "WhatsTraining")
 	_, ms = StepTitled(L["More with addons"])
-	check(ms and ms.say:find("Attune:", 1, true) and ms.say:find("What's Training:", 1, true), "none installed: the card names all four: " .. Titles())
+	check(ms and ms.say:find("Attune:", 1, true) and ms.say:find("What's Training or TrainerSpells:", 1, true), "none installed: the card names all four: " .. Titles())
 	UI:Hide(); FlushAll()
 	I.AddonMissing = realMissing
 

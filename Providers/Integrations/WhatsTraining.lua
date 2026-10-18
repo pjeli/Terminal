@@ -408,18 +408,9 @@ local function SetupWhatsTraining()
 end
 I._.SetupWhatsTraining = SetupWhatsTraining
 
---- .integrations' line about What's Training.
+--- What's Training as .integrations' Training line says it (Setup.lua's I.TrainingStatus: it, or TrainerSpells).
 function WT.Status()
-	if training.on then
-		local p = ns.providers.training
-		local rows = p and ns:GetEntries(p) or {}
-		local left, now = 0, 0
-		for _, e in ipairs(rows) do
-			if e.state ~= "ignored" then left = left + 1 end
-			if e.state == "now" then now = now + 1 end
-		end
-		return L["found (%s). %d spells to learn, %d now"]:format(AddOnVersion(WT.ADDON), left, now)
-	end
+	if training.on then return I.TrainingStatus() end
 	if Loaded() then return L["found (%s), without the API Terminal reads: update What's Training"]:format(AddOnVersion(WT.ADDON)) end
 	return L["not found"]
 end

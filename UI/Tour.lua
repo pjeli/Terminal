@@ -163,9 +163,9 @@ local MISSING = {
 	{ name = "Attune", title = L["Add Attune"],
 		say = L["Install Attune and Terminal knows every attunement, key and dungeon quest line: ask how to get a key and its steps are listed in order, with how far along you are."],
 		line = L["Attune: every attunement, key and dungeon quest line, step by step."] },
-	{ name = "WhatsTraining", title = L["Add What's Training"],
-		say = L["Install What's Training and Terminal knows every spell you've still to learn: ask what you can train, what's next level or what training costs, and who teaches it, the nearest first."],
-		line = L["What's Training: every spell you've still to learn, when, and what it costs."] },
+	{ name = "WhatsTraining", title = L["Add What's Training or TrainerSpells"],
+		say = L["Install What's Training or TrainerSpells and Terminal knows every spell you've still to learn: ask what you can train, what's next level or what training costs, and who teaches it, the nearest first."],
+		line = L["What's Training or TrainerSpells: every spell you've still to learn, when, and what it costs."] },
 }
 
 function T.Steps()
@@ -203,8 +203,8 @@ function T.Steps()
 			say = L["With Attune, Terminal knows every attunement, key and dungeon quest line: ask how to get a key (here, Dalaran's) and its steps are listed in order, with the ones you've done."] })
 	end
 	if HasAddon("WhatsTraining") then
-		Add({ text = TrainingText(), pick = "first", title = L["What to train (What's Training)"],
-			say = L["With What's Training, Terminal knows every spell you've still to learn: what you can train now, what's next level, what it costs; Enter opens What's Training on it."] })
+		Add({ text = TrainingText(), pick = "first", title = L["What to train (What's Training or TrainerSpells)"],
+			say = L["With What's Training or TrainerSpells, Terminal knows every spell you've still to learn: what you can train now, what's next level, what it costs, and who teaches it."] })
 	end
 	if #missing == 1 then
 		Add({ text = "", title = missing[1].title, say = missing[1].say })

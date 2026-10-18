@@ -57,7 +57,7 @@ do
 	for _, k in ipairs({ "nextlevel", "later", "needsrank", "needstalent", "weapon", "pet", "ignored" }) do V[#V + 1] = k end
 	for i, h in ipairs(F.HELP) do
 		if h[1] == "is:unknown" then
-			table.insert(F.HELP, i + 1, { "is:nextlevel", L["@training (What's Training): learnable (now) nextlevel later needsrank needstalent pet weapon ignored quest"] })
+			table.insert(F.HELP, i + 1, { "is:nextlevel", L["@training: learnable (now) nextlevel later needsrank needstalent pet weapon ignored quest"] })
 			break
 		end
 	end

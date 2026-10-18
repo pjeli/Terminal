@@ -186,7 +186,8 @@ do
 		check(woo, "where to learn polearms: its weapon master, as TrainerSpells lists him")
 		UI:Hide(); FlushAll()
 		local lines0 = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines0:find(ns.L["@training (without What's Training)"], 1, true), ".integrations: @training from TrainerSpells")
+		check(lines0:find(ns.L["Training:"] .. " TrainerSpells (", 1, true) and lines0:find(ns.L["%d profession spells (@recipe is:unknown)"]:format(5), 1, true)
+			and not lines0:find("What's Training", 1, true), ".integrations: one Training line, TrainerSpells' with its counts: " .. lines0)
 
 		-- profession training: the recipes a trainer teaches, among the recipes you don't know (@recipe is:unknown)
 		ns.Professions.PlayerProfessions = function() return { { name = "Tailoring", rank = 60, maxRank = 75, skillLine = 197 } } end
@@ -255,7 +256,8 @@ do
 		TS.Forget(); TS.ProfData()
 		check(#said == n, "said once a session")
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("TrainerSpells:", 1, true) and lines:find(ns.L["Not as expected:"], 1, true), ".integrations says so: " .. lines)
+		check(lines:find(ns.L["Training:"], 1, true) and lines:find(ns.L["Not as expected:"], 1, true)
+			and lines:find(ns.L["Its profession training is unavailable."], 1, true), ".integrations says so, on the Training line: " .. lines)
 		-- an integration that fails to start: said too
 		said = {}
 		local setupWas = I._.SetupTrainerSpells

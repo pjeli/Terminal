@@ -5,6 +5,7 @@ local loot, npc, qdb = I.loot, I.npc, I.qdb
 local LoadedCore = I.LoadedCore
 local QD = ns.QuestieData
 local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Questie ready if installed)
+local function AddOnVersion(name) return I._.AddOnVersion(name) end -- (Shared.lua's)
 
 ----------------------------------------------------------------------
 -- At login each integration whose addon is there starts; .integrations says what was found
@@ -37,6 +38,43 @@ local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function() I.Setup() end)
 
+--- What @npc is without Questie: nothing, or TrainerSpells' trainers.
+function I.NoQuestieStatus()
+	local p = ns.providers.npc
+	local TS = ns.TrainerSpells
+	local rows = p and p.trainersOnly and TS and TS.TrainerRows and TS.TrainerRows()
+	return rows and L["not found; TrainerSpells' %d trainers are @npc"]:format(#rows) or L["not found"]
+end
+
+--- Training's line: What's Training or TrainerSpells, whichever @training comes from, with its counts ("What's
+--- Training (1.4). 42 spells to learn, 5 now (@training)"); TrainerSpells' recipes a trainer teaches too when it's there
+--- ("442 profession spells"). An old What's Training: said to update; neither: not found, naming both.
+function I.TrainingStatus()
+	local p = ns.providers.training
+	local WT, TS = ns.WhatsTraining, ns.TrainerSpells
+	local tsOn = TS and TS.Loaded()
+	local profs = 0
+	local d = tsOn and TS.ProfData()
+	for _, list in pairs(d and d.list or {}) do profs = profs + #list end
+	local function Profs(said) return profs > 0 and (said .. ", " .. L["%d profession spells (@recipe is:unknown)"]:format(profs)) or said end
+	if p then
+		local left, now = 0, 0
+		for _, e in ipairs(ns:GetEntries(p)) do
+			if e.state ~= "ignored" then left = left + 1 end
+			if e.state == "now" then now = now + 1 end
+		end
+		local ts = p.fromTrainerSpells
+		local said = L["%s (%s). %d spells to learn, %d now (@training)"]:format(ts and "TrainerSpells" or "What's Training",
+			AddOnVersion(ts and TS.ADDON or WT.ADDON), left, now)
+		-- (TrainerSpells too, What's Training's @training: its profession spells named after it)
+		if not ts and tsOn and profs > 0 then return said .. "; " .. L["TrainerSpells: %d profession spells (@recipe is:unknown)"]:format(profs) end
+		return Profs(said)
+	end
+	if WT and WT.Loaded() then return WT.Status() end -- (too old: update it)
+	if tsOn then return Profs(L["%s (%s)."]:format("TrainerSpells", AddOnVersion(TS.ADDON))) end -- (its class spells unusable: said after)
+	return L["not found (What's Training or TrainerSpells)"]
+end
+
 ns:RegisterCommand("integrations", {
 	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training, TrainerSpells)"],
 	run = function()
@@ -56,10 +94,11 @@ ns:RegisterCommand("integrations", {
 				or (not npc.busy and npc.count and L["%s. %d NPCs (@npc: read again when next searched), %s quests (@questie)"]:format(found,
 					npc.count, qdb.list and #qdb.list or L["indexing"]))
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
-			or L["not found"]) .. I.FailedText("Questie")
+			or I.NoQuestieStatus()) .. I.FailedText("Questie")
 		lines[#lines + 1] = "  Attune: " .. ns.Attune.Status() .. I.FailedText("Attune")
-		lines[#lines + 1] = "  What's Training: " .. ns.WhatsTraining.Status() .. I.FailedText("What's Training")
-		lines[#lines + 1] = "  TrainerSpells: " .. (ns.TrainerSpells and ns.TrainerSpells.Status() or L["not found"]) .. I.FailedText("TrainerSpells")
+		-- (0.57.4, the author's ask: one line, as alts and banks are said: What's Training or TrainerSpells, either one
+		-- (never both expected), the one used named with its counts)
+		lines[#lines + 1] = "  " .. L["Training:"] .. " " .. I.TrainingStatus() .. I.FailedText("What's Training") .. I.FailedText("TrainerSpells")
 		-- (every addon whose options Ace3 holds: @addonoption)
 		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
@@ -88,13 +127,14 @@ I.ADDONS = {
 		kinds = { attune = true, attunes = true, attunement = true, attunements = true },
 		words = { attunements = true, attuned = true } },
 	-- (0.53.7: @training and its questions; an old What's Training, without the API Terminal reads: "Update")
-	{ name = "WhatsTraining", label = "What's Training", missing = function() return not ns.providers.training end,
+	-- (0.57.4: or TrainerSpells, which makes @training too: either one, never both expected; the hint names both)
+	{ name = "WhatsTraining", label = "What's Training", also = "TrainerSpells", missing = function() return not ns.providers.training end,
 		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and not ns.WhatsTraining.Api() end,
 		kinds = { training = true, train = true, trainable = true, whatstraining = true },
 		words = { training = true, trainable = true } },
 	-- (0.56.1: every class's spells and weapon masters are What's Training's catalog, WT_API.GetCatalog: "druid spells",
 	-- "upcoming spells"; an older What's Training, without it: "Update")
-	{ name = "WhatsTrainingCatalog", label = "What's Training", kinds = {},
+	{ name = "WhatsTrainingCatalog", label = "What's Training", also = "TrainerSpells", kinds = {},
 		-- (TrainerSpells' class spells do too, 0.57.1: then nothing's missing)
 		missing = function()
 			local CS = ns.ClassSpells
@@ -255,8 +295,10 @@ function I.MissingHint(text)
 	local th = ns.Theme and ns.Theme.Get and ns.Theme.Get()
 	local function Named(n) return th and th.text and ("|cff" .. th.text .. n .. "|r") or n end
 	local label = a and (a.label or a.name)
-	local name = a and (a.also and L["%s or %s"]:format(Named(label), Named(a.also)) or Named(label))
-	hintText = a and ((a.outdated and a.outdated()) and L["Update %s for this."] or L["Install %s for this."]):format(name) or nil
+	local old = a and a.outdated and a.outdated()
+	-- (either of two does it: both named to install; one installed but too old: that one named to update)
+	local name = a and ((a.also and not old) and L["%s or %s"]:format(Named(label), Named(a.also)) or Named(label))
+	hintText = a and (old and L["Update %s for this."] or L["Install %s for this."]):format(name) or nil
 	return hintText
 end
 function I.ForgetHint() hintFor, hintText = nil, nil end -- (tests: an addon came or went)
