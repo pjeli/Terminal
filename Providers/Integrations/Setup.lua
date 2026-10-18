@@ -12,10 +12,24 @@ local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Qu
 
 --- Each on its own: one failing (another version of its addon, a table missing) leaves the others to start (review,
 --- 0.53.6), and .debug log says which.
+-- what each one starting with an error leaves out, said in chat (I.Failed; 0.57.1)
+I.LOST = {
+	AtlasLoot = { "AtlasLoot", L["@loot (its loot tables) is unavailable."] },
+	Questie = { "Questie", L["@npc and @questie are unavailable."] },
+	Attune = { "Attune", L["@attune is unavailable."] },
+	WhatsTraining = { "What's Training", L["@training is unavailable."] },
+	TrainerSpells = { "TrainerSpells", L["Its profession training, trainers and class spells are unavailable."] },
+}
 function I.Setup()
-	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining" }) do
-		local ok, err = pcall(I._["Setup" .. name])
-		if not ok then ns:Trace("integrations: " .. name .. " failed to start: " .. tostring(err)) end
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells" }) do
+		local setup = I._["Setup" .. name]
+		local ok, err = true, nil
+		if setup then ok, err = pcall(setup) end
+		if not ok then
+			ns:Trace("integrations: " .. name .. " failed to start: " .. tostring(err))
+			local lost = I.LOST[name]
+			if lost then I.Failed(lost[1], lost[2], err) end
+		end
 	end
 end
 
@@ -24,7 +38,7 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function() I.Setup() end)
 
 ns:RegisterCommand("integrations", {
-	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training)"],
+	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training, TrainerSpells)"],
 	run = function()
 		local lines = { L["Integrations:"] }
 		lines[#lines + 1] = "  AtlasLoot: " .. (loot.on
@@ -33,7 +47,7 @@ ns:RegisterCommand("integrations", {
 					local n = I.LootWaiting()
 					return n > 0 and (", " .. L["%d waiting for their names from the server"]:format(n)) or ""
 				end)())
-			or L["not found"])
+			or L["not found"]) .. I.FailedText("AtlasLoot")
 		local src = QD.Source()
 		local found = src == "QuestieDB" and L["QuestieDB found (without Questie)"] or L["found"]
 		lines[#lines + 1] = "  Questie: " .. (npc.on
@@ -42,9 +56,10 @@ ns:RegisterCommand("integrations", {
 				or (not npc.busy and npc.count and L["%s. %d NPCs (@npc: read again when next searched), %s quests (@questie)"]:format(found,
 					npc.count, qdb.list and #qdb.list or L["indexing"]))
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
-			or L["not found"])
-		lines[#lines + 1] = "  Attune: " .. ns.Attune.Status()
-		lines[#lines + 1] = "  What's Training: " .. ns.WhatsTraining.Status()
+			or L["not found"]) .. I.FailedText("Questie")
+		lines[#lines + 1] = "  Attune: " .. ns.Attune.Status() .. I.FailedText("Attune")
+		lines[#lines + 1] = "  What's Training: " .. ns.WhatsTraining.Status() .. I.FailedText("What's Training")
+		lines[#lines + 1] = "  TrainerSpells: " .. (ns.TrainerSpells and ns.TrainerSpells.Status() or L["not found"]) .. I.FailedText("TrainerSpells")
 		-- (every addon whose options Ace3 holds: @addonoption)
 		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
@@ -59,7 +74,11 @@ ns:RegisterCommand("integrations", {
 ----------------------------------------------------------------------
 
 I.ADDONS = {
-	{ name = "Questie", missing = function() return not (ns.providers.questie or ns.providers.npc) end,
+	-- (TrainerSpells' trainers as @npc without Questie: Questie still missing for every other NPC; 0.57.1)
+	{ name = "Questie", missing = function()
+			local p = ns.providers.npc
+			return not (ns.providers.questie or (p and not p.trainersOnly))
+		end,
 		kinds = { questie = true, questdb = true, allquests = true, npc = true, npcs = true, mob = true, mobs = true, vendor = true,
 			mailbox = true, mailboxes = true },
 		keys = { reward = true, rewards = true, sells = true, sold = true } },
@@ -76,7 +95,11 @@ I.ADDONS = {
 	-- (0.56.1: every class's spells and weapon masters are What's Training's catalog, WT_API.GetCatalog: "druid spells",
 	-- "upcoming spells"; an older What's Training, without it: "Update")
 	{ name = "WhatsTrainingCatalog", label = "What's Training", kinds = {},
-		missing = function() return not (ns.ClassSpells and ns.ClassSpells.Api and ns.ClassSpells.Api()) end,
+		-- (TrainerSpells' class spells do too, 0.57.1: then nothing's missing)
+		missing = function()
+			local CS = ns.ClassSpells
+			return not (CS and ((CS.Api and CS.Api()) or (CS.FromTrainerSpells and CS.FromTrainerSpells())))
+		end,
 		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and true or false end },
 	-- (0.50.6, the player: your alts' bags and banks, @stored, come from Syndicator or BagBrother (Bagnon's): said only
 	-- with neither detected, naming both. Simple mode's "bank" is the banker: no word of its own)

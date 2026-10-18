@@ -19,6 +19,8 @@ try:
 except ImportError:
     G = None
 if ok and G:
+    # (every file parsed once, side by side, and only those changed since the last run: globals.py's cache)
+    G.analyze_all([f for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)) if "/tests/" not in f])
     for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
         if "/tests/" in f:
             continue

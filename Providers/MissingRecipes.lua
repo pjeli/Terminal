@@ -10,8 +10,8 @@ local L = ns.L
 -- profession whose window hasn't been opened since this came in can't be listed yet: the note says to open it.
 -- How each is learned, and where that's from (each said in the tooltip):
 -- - a trainer and its cost: what a trainer's window showed you (its services' names, costs and skill needed are kept
---   when you open one: `db.recipeTrainers`); a craft AtlasLoot knows with no recipe item is a trainer's too (its cost
---   not seen yet)
+--   when you open one: `db.recipeTrainers`), else TrainerSpells' (which also lists a trainer's recipes your window
+--   hasn't, 0.57.1); a craft AtlasLoot knows with no recipe item is a trainer's too (its cost not seen yet)
 -- - its recipe item (AtlasLoot's Data.Recipe): sold by Questie's vendors (limited supply as a vendor's window showed
 --   it: `db.recipeVendors`), dropped by Questie's NPCs and AtlasLoot's bosses, a quest's reward, found in an object
 -- - the skill it needs: AtlasLoot's (the craft's, else its recipe item's), else what a trainer showed
@@ -118,9 +118,12 @@ function MR.ReadMerchant()
 end
 
 --- What a trainer's window said of a recipe (by its name): { cost, skill, rank, who, t }, or nil.
-function MR.TrainerFor(name)
+function MR.TrainerFor(name, id)
 	local seen = ns.db and ns.db.recipeTrainers
-	return type(name) == "string" and seen and seen[Lower(name)] or nil
+	local r = type(name) == "string" and seen and seen[Lower(name)] or nil
+	-- (no trainer window seen for it: TrainerSpells' cost and skill, when it lists the spell; 0.57.1)
+	if not r and id and ns.TrainerSpells and ns.TrainerSpells.Taught then r = ns.TrainerSpells.Taught(id) end
+	return r
 end
 
 --- Whether a vendor's window showed the recipe item in limited supply at that vendor (nil: not seen there).
@@ -171,7 +174,7 @@ local Coins = ns.Money -- (Util.lua)
 -- drops = {ids}, bosses = {loot rows}, quests = {ids}, objects = {ids} }
 local function Sources(id, name, data, rid)
 	local s = { rid = rid }
-	s.trainerSeen = MR.TrainerFor(name)
+	s.trainerSeen = MR.TrainerFor(name, id)
 	if rid then
 		local I = ns.Integrations
 		if I and I.ItemField then
@@ -285,7 +288,9 @@ function MR.Tooltip(e, t)
 	if s.trainer then
 		local ts = s.trainerSeen
 		if ts and ts.cost then
-			t:AddLine(ts.who and L["Trainer: %s  (seen at %s)"]:format(Coins(ts.cost), ts.who) or L["Trainer: %s"]:format(Coins(ts.cost)), 1, 1, 1, true)
+			local said = (ts.who and L["Trainer: %s  (seen at %s)"]:format(Coins(ts.cost), ts.who))
+				or (ts.from and L["Trainer: %s  (as %s lists it)"]:format(Coins(ts.cost), ts.from)) or L["Trainer: %s"]:format(Coins(ts.cost))
+			t:AddLine(said, 1, 1, 1, true)
 		else
 			t:AddLine(L["Trainer: no recipe item teaches it (AtlasLoot); its cost shows once you open a trainer's window"], 1, 1, 1, true)
 		end
@@ -374,7 +379,9 @@ local function Row(u, pd, pr, Rc, Pr)
 		sources = s, recipeItem = rid,
 		color = (not can) and GREY or nil,
 		detail = pr.name .. (need and (" " .. need) or "") .. ns.DETAIL_SEP .. how,
-		text = table.concat({ pr.name, pd.name ~= pr.name and pd.name or "", "recipe missing unknown unlearned to learn", lhow }, " "),
+		text = table.concat({ pr.name, pd.name ~= pr.name and pd.name or "", "recipe missing unknown unlearned to learn", lhow,
+			s.trainer and "trainer train training" or "" }, " "), -- (English too: "@recipe is:learnable tailoring trainer")
+		cost = s.trainer and s.trainerSeen and Num(s.trainerSeen.cost) or nil,
 		activate = WalkLearn, staysOpen = true,
 		tooltip = MR.Tooltip, getLink = SpellLink,
 		secondary = LinkInChat, secondarySecure = CHATBOX, secondaryIsOpen = ns.Never,
@@ -405,6 +412,23 @@ function MR.Rows()
 				if type(u) == "table" and u.id and type(u.name) == "string" and not seen[u.id] and not KnownNow(u.id, known) then
 					seen[u.id] = true
 					out[#out + 1] = Row(u, pd, pr, Rc, Pr)
+				end
+			end
+		end
+	end
+	-- what a trainer teaches that you don't know, as TrainerSpells lists it (0.57.1): a window not opened yet, its
+	-- trainer's recipes are still listed (with their cost and the skill they need: TrainerFor)
+	local TS = ns.TrainerSpells
+	if TS and TS.Unknown then
+		for _, pr in ipairs(profs) do
+			if MR.CRAFTING[pr.skillLine or 0] then
+				for _, u in ipairs(TS.Unknown(pr)) do
+					if not seen[u.id] and not KnownNow(u.id, known) then
+						seen[u.id] = true
+						local e = Row(u, pr, pr, Rc, Pr)
+						e.fromTrainerSpells = true
+						out[#out + 1] = e
+					end
 				end
 			end
 		end

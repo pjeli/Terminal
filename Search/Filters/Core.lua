@@ -86,8 +86,12 @@ function P.ForgetLowerTexts() Forget(lowerTexts) end
 local function NpcID(e) return e.kind == "npc" and (rawget(e, "key") or e.npcID) or nil end
 local function NpcField(e, field)
 	local id = NpcID(e)
+	if not id then return nil end
+	-- (a row with its own: TrainerSpells' trainers, when Questie isn't there to ask; 0.57.1)
+	local own = rawget(e, "fields")
+	if own then return own[field] end
 	local I = ns.Integrations
-	return id and I and I.NpcField and I.NpcField(id, field) or nil
+	return I and I.NpcField and I.NpcField(id, field) or nil
 end
 P.NpcID, P.NpcField = NpcID, NpcField
 

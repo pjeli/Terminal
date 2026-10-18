@@ -34,6 +34,31 @@ I.HINT_FEW = 2 -- (UI.HINT_FEW: a list with this many matches or fewer shows the
 I._ = {}
 
 local Safe = ns.Safe -- (Util.lua)
+local L = ns.L
+
+-- An integration Terminal can't use as it is (0.57.1, the author's call: "give output when an integration fails and what
+-- to expect"): its addon is there, but not in the shape Terminal reads (a new version moved its data, or starting it
+-- failed). Said once a session in chat, naming what's unavailable ("Questie's data isn't what Terminal expects (a new
+-- version?): @npc and @questie are unavailable."); .integrations lists it. Each part of an addon is said on its own.
+I.failed = {} -- addon name -> { { what, why }, ... }
+--- `name`: the addon as players know it; `what`: what goes missing, a sentence ("@npc and @questie are unavailable.");
+--- `why`: for the .debug trace (what was found instead).
+function I.Failed(name, what, why)
+	local list = I.failed[name] or {}
+	I.failed[name] = list
+	for _, f in ipairs(list) do if f.what == what then return end end
+	list[#list + 1] = { what = what, why = why }
+	ns:Trace("integrations: " .. tostring(name) .. ": " .. tostring(what) .. " (" .. tostring(why) .. ")")
+	ns:Print(L["%s: its data isn't what Terminal expects (a new version?). %s"]:format(tostring(name), tostring(what)))
+end
+--- What .integrations says of an addon's failures ("" when none).
+function I.FailedText(name)
+	local list = I.failed[name]
+	if not list or #list == 0 then return "" end
+	local parts = {}
+	for _, f in ipairs(list) do parts[#parts + 1] = f.what end
+	return " |cffff6060" .. L["Not as expected:"] .. " " .. table.concat(parts, " ") .. "|r"
+end
 
 --- An addon's TOC Version, as text ("?" when unknown).
 local function AddOnVersion(name)

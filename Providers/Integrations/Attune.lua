@@ -1097,7 +1097,18 @@ end
 ----------------------------------------------------------------------
 
 local function SetupAttune()
-	if attune.on or not Present() then return end
+	if attune.on then return end
+	if not Present() then
+		-- (Attune loaded, its data not where Terminal reads it: said, not "not found"; 0.57.1)
+		local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
+		local ok, yes = pcall(isLoaded or function() end, "Attune")
+		if ok and yes then
+			local d = rawget(_G, "Attune_Data")
+			I.Failed("Attune", L["@attune is unavailable."], "Attune_Data " .. type(d) .. (type(d) == "table"
+				and (", attunes " .. type(d.attunes) .. ", steps " .. type(d.steps)) or ""))
+		end
+		return
+	end
 	attune.on = true
 	ns:RegisterProvider("attune", {
 		label = L["Attunement"],

@@ -15,7 +15,7 @@ I.qdb = qdb
 
 -- The data comes from QuestieData.lua: the QuestieDB addon alone, or through Questie (same data).
 local QD = ns.QuestieData
-local QuestieReady = QD.Ready -- (the data can be read: QuestieDB loaded, and Questie ready if installed)
+local function QuestieReady() return QD.Ready() end -- (the data can be read: QuestieDB loaded, and Questie ready if installed)
 local function QDB() return QD.DB() end
 
 --- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
@@ -77,9 +77,18 @@ local function IndexNPCs(after)
 	local function finish() if after then after() end end
 	if npc.list or npc.busy or not QuestieReady() then return finish() end
 	local DB = QDB()
-	if not (DB and DB.QueryNPCSingle) then return finish() end
+	if not DB then return finish() end
+	-- (its database without the calls Terminal reads: said, not an empty list with no word why; 0.57.1)
+	if type(DB.QueryNPCSingle) ~= "function" or type(DB.NpcIds) ~= "function" then
+		I.Failed("Questie", L["@npc is unavailable."], "QueryNPCSingle " .. type(DB.QueryNPCSingle) .. ", NpcIds " .. type(DB.NpcIds))
+		return finish()
+	end
+	local okIds, ids = pcall(DB.NpcIds)
+	if not okIds or type(ids) ~= "table" then
+		I.Failed("Questie", L["@npc is unavailable."], "NpcIds: " .. tostring(ids))
+		return finish()
+	end
 	npc.busy = true
-	local ids = DB.NpcIds()
 	local out, meta = {}, npc.meta
 	local names = not npc.names and {} or nil
 	RunSliced("questie: NPCs", #ids, function(i)

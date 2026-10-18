@@ -79,7 +79,7 @@ end
 function Q.Question(text)
 	if not ns.providers.classspells then return nil end
 	local q = Q.Parse(text)
-	if q and not q.known and not CS.Api() then return nil end
+	if q and not q.known and not (CS.Api() or CS.FromTrainerSpells()) then return nil end
 	return q
 end
 

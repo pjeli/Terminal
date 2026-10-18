@@ -249,13 +249,20 @@ ns:RegisterProvider("professions", {
 				secondarySecure = PROF_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
 			}
 		end
+		local TS = ns.TrainerSpells
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local opener = P.WindowSpell(pr.skillLine, pr.name)
+			-- (its next rank at a trainer, as TrainerSpells lists it: what it needs and costs; 0.57.1)
+			local nr = TS and TS.NextRank and TS.NextRank(pr)
+			local nextSaid = nr and ns.DETAIL_SEP .. (nr.now and "|cff40ff40" or "") .. L["next rank%s at skill %d: %s"]:format(
+				nr.title and (" (" .. nr.title .. ")") or "", nr.skill, ns.Money(nr.cost or 0)) .. (nr.now and "|r" or "") or ""
 			out[#out + 1] = {
 				key = pr.name,
 				name = pr.name,
 				icon = pr.icon,
-				detail = pr.rank .. "/" .. pr.maxRank,
+				detail = pr.rank .. "/" .. pr.maxRank .. nextSaid,
+				text = nr and ("rank trainer train training" .. (nr.now and " learnable" or "")) or nil,
+				nextRank = nr, cost = nr and nr.cost or nil, canLearn = nr and nr.now or nil,
 				skillLine = pr.skillLine,
 				shareLink = ProfessionLink, -- (>> guild: the profession's link; not getLink: the tooltip would open the profession)
 				secondary = LinkProfession, -- Shift+Enter: that link in chat

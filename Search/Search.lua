@@ -13,6 +13,7 @@ local EASY_NONE = L["Nothing has that. Check the spelling, or try other words."]
 local EASY_NO_NPCS = L["\"nearest\" needs Questie (or QuestieDB): it knows where NPCs stand."]
 local EASY_NOWHERE = L["Can't tell where you are here (in a dungeon?)."]
 local EASY_NONE_NEAR = L["None of those on this continent that Questie knows of."]
+local EASY_TRAINERS_ONLY = L["None of those near you. Without Questie, Terminal knows only trainers (TrainerSpells'): install Questie for every other NPC."]
 local EASY_NO_FLIGHTS = L["No flight path like that on this continent."]
 local EASY_ALL_FLIGHTS = L["You know every flight path on this continent."]
 local MISSING_GONE = L["Restart the game for the recipes you don't know: this update added a file, and a /reload doesn't load new files."]
@@ -728,6 +729,9 @@ Scan.ANSWERS = {
 			for _, w in ipairs(q.words) do rest[#rest + 1] = w end
 			return "@recipe " .. (q.learnable and "is:learnable" or "is:unknown") .. " " .. Words(rest)
 		end },
+	-- "what can i train in tailoring", "tailoring training", "profession training": TrainerSpells' profession training
+	-- (Search/ProfTraining.lua; before What's Training's, whose "what can i train" is your class's spells)
+	Asks("ProfTraining"),
 	-- "what can i train", "what do i learn next level", "how much is training", "when do i learn fireball": What's
 	-- Training's spells (Search/WhatsTraining.lua; after the recipes': "recipes i can learn" is theirs)
 	{ ask = function(text) local Q = ns.WhatsTraining and ns.WhatsTraining.Q return Q and Q.Question(text) end,
@@ -1741,7 +1745,11 @@ function Scan.Nearest(self, q, out)
 	if here then
 		local keep = sortNear or q.keepFar
 		out = Scan.NearestViews(out, here, keep, overBudget)
-		if #out == 0 and not keep then return out, PseudoEntries({ EASY_NONE_NEAR }) end
+		if #out == 0 and not keep then
+			-- (TrainerSpells' trainers as @npc, no Questie: only trainers are known; 0.57.1)
+			local p = ns.providers.npc
+			return out, PseudoEntries({ (p and p.trainersOnly) and EASY_TRAINERS_ONLY or EASY_NONE_NEAR })
+		end
 	end
 	q.here = here
 	return out

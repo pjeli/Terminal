@@ -528,7 +528,11 @@ E.VERBS = {
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
-	training = { L["show in What's Training"], L["who teaches it"] },
+	-- (TrainerSpells' rows, What's Training not there: Enter lists who teaches it, Shift+Enter links it; 0.57.2)
+	training = function(e)
+		if rawget(e, "fromTrainerSpells") then return L["who teaches it"], L["link in chat"] end
+		return L["show in What's Training"], L["who teaches it"]
+	end,
 	classspells = { L["Wowhead link"], L["link in chat"] },
 	addonoptions = AddonOptionVerbs,
 	quests = QuestVerbs,

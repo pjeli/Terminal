@@ -10,7 +10,9 @@ local L = ns.L
 --
 -- The spells come from What's Training (0.56.1, the player: "I would prefer to rely on WT"): its WT_API.GetCatalog,
 -- every class's trainer and quest spells with their levels, races and factions, and its weapon masters. Terminal
--- kept a copy of that data before; without What's Training these lists are empty and the footer says to install it.
+-- kept a copy of that data before. Without What's Training, TrainerSpells' (0.57.1: its class spells by level, read
+-- while it's installed, Integrations/TrainerSpells.lua); with neither these lists are empty and the footer says to
+-- install What's Training.
 
 local CS = {}
 ns.ClassSpells = CS
@@ -49,12 +51,34 @@ local function Catalog(api, cls)
 end
 
 local FACTION = { Alliance = "a", Horde = "h" }
-local parsed -- CLASS -> { { id, level, races, faction ("a"/"h"), talent, quest, name, rank }, ... }
---- The data: each class's ranks, by level (What's Training's trainer and quest spells; not its weapon skills or tomes).
+local parsed -- CLASS -> { { id, level, races, raceFile, faction ("a"/"h"), talent, quest, name, rank }, ... }
+
+--- TrainerSpells' class spells when What's Training's catalog isn't there: CLASS -> { { id, level, raceFile, faction,
+--- rank }, ... } (Integrations/TrainerSpells.lua reads and checks them), or nil.
+function CS.FromTrainerSpells()
+	local TS = ns.TrainerSpells
+	return TS and TS.ClassData and TS.ClassData() or nil
+end
+
+--- The data: each class's ranks, by level (What's Training's trainer and quest spells; not its weapon skills or tomes;
+--- else TrainerSpells').
 function CS.Data()
 	if parsed then return parsed end
 	local api = CS.Api()
-	if not api then return {} end -- (not kept: What's Training may come later)
+	if not api then
+		local ts = CS.FromTrainerSpells()
+		if not ts then return {} end -- (not kept: What's Training or TrainerSpells may come later)
+		parsed = {}
+		for _, cls in ipairs(CS.CLASSES) do
+			local list = {}
+			for _, r in ipairs(ts[cls] or {}) do
+				list[#list + 1] = { r.id, r.level, raceFile = r.raceFile, faction = r.faction, rank = r.rank }
+			end
+			table.sort(list, function(a, b) if a[2] ~= b[2] then return a[2] < b[2] end return a[1] < b[1] end)
+			parsed[cls] = list
+		end
+		return parsed
+	end
 	parsed = {}
 	for _, cls in ipairs(CS.CLASSES) do
 		local list = {}
@@ -90,26 +114,49 @@ local function ClassName(file)
 	return (type(m) == "table" and Str(m[file])) or (file:sub(1, 1) .. file:sub(2):lower())
 end
 CS.ClassName = function(file) return ClassName(file) end
+--- Is this spell (this rank of it) yours? Asked as What's Training and TrainerSpells ask it: in your spellbook, known,
+--- or the player's own (0.57.2: IsPlayerSpell alone missed spells WoW Forever's spellbook has). A rank a later one
+--- replaced may still say no: CS.KnownRanks.
 local function Known(id)
-	local f = rawget(_G, "IsPlayerSpell") or (C_SpellBook and C_SpellBook.IsSpellKnown)
+	if type(id) ~= "number" then return false end
+	local SB = C_SpellBook
+	local bank = Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player
+	if SB and SB.IsSpellInSpellBook and Safe(SB.IsSpellInSpellBook, id, bank, false) == true then return true end
+	if SB and SB.IsSpellKnown and Safe(SB.IsSpellKnown, id, bank) == true then return true end
+	local f = rawget(_G, "IsPlayerSpell")
 	return f and Safe(f, id) == true or false
 end
 CS.Known = Known
+
+--- Which of a spell's ranks (in the order they're learned) you have: the ones you know, and every one before the last
+--- you know (a new rank replaces the one before it in the spellbook, which then says it isn't known: a level 30
+--- warrior's Battle Shout Rank 1; 0.57.2). A list of true/false, one per rank.
+function CS.KnownRanks(ids)
+	local out, last = {}, 0
+	for i, id in ipairs(ids) do
+		out[i] = Known(id)
+		if out[i] then last = i end
+	end
+	for i = 1, last do out[i] = true end
+	return out
+end
 
 local function Has(list, v) for _, x in ipairs(list) do if x == v then return true end end return false end
 
 --- A class's spells by name, in the order they're first learned: { name, ranks = { {id, level, quest, talent}, ... },
 --- level (the first rank's), quest, talent }. `mine`: your class (your race's and faction's alone).
 function CS.Spells(cls, mine)
-	local race, faction
+	local race, faction, raceFile
 	if mine then
 		race = select(3, Safe(UnitRace, "player"))
+		raceFile = Str(select(2, Safe(UnitRace, "player"))) -- (TrainerSpells names races by the game's file name: "Scourge")
 		local f = Str(Safe(UnitFactionGroup, "player"))
 		faction = f == "Alliance" and "a" or f == "Horde" and "h" or nil
 	end
 	local byName, out = {}, {}
 	for _, r in ipairs(CS.Data()[cls] or {}) do
-		local fits = not mine or ((not r.races or not race or Has(r.races, race)) and (not r.faction or not faction or r.faction == faction))
+		local fits = not mine or ((not r.races or not race or Has(r.races, race)) and (not r.faction or not faction or r.faction == faction)
+			and (not r.raceFile or not raceFile or r.raceFile == raceFile))
 		local name = fits and (Str(Safe(C_Spell and C_Spell.GetSpellName, r[1])) or r.name)
 		if name and not ns.Secret(name) then
 			local s = byName[name]
@@ -230,12 +277,11 @@ ns:RegisterProvider("classspells", {
 })
 
 ----------------------------------------------------------------------
--- Weapon masters ("dagger trainer", trainer:daggers): What's Training's, for every class's weapon skills
+-- Weapon masters ("dagger trainer", trainer:daggers): What's Training's or TrainerSpells', for every class's weapon skills
 ----------------------------------------------------------------------
 
---- The weapon masters who teach any of these weapon skills (spell ids) to your faction, as What's Training lists them:
---- a set of NPC ids, and their records { npc, name, uiMapId, x, y } (x, y: 0-100). Nil without What's Training.
-function CS.WeaponMasters(ids)
+--- What's Training's weapon masters: weapon skill id -> faction -> { trainer records }, or nil without it.
+local function WTMasters()
 	local api = CS.Api()
 	if not api then return nil end
 	if not bySkill then
@@ -255,17 +301,46 @@ function CS.WeaponMasters(ids)
 			end
 		end
 	end
+	return bySkill
+end
+
+--- TrainerSpells' weapon masters (0.57.1: "polearm trainer" without What's Training listed every weapon master), in
+--- the same shape, or nil.
+local function TSMasters()
+	local TS = ns.TrainerSpells
+	local w = TS and TS.WeaponData and TS.WeaponData()
+	if not w then return nil end
+	local out = {}
+	for id, s in pairs(w.skills) do out[id] = s.trainers end
+	return out
+end
+
+--- The weapon masters who teach any of these weapon skills (spell ids) to your faction: a set of NPC ids, and their
+--- records { npc, name, uiMapId, x, y } (x, y: 0-100). What's Training's; TrainerSpells' when it has none of them (not
+--- installed, or not those skills); nil with neither.
+function CS.WeaponMasters(ids)
 	local faction = Str(Safe(UnitFactionGroup, "player"))
-	local set, list = {}, {}
-	for _, id in ipairs(ids or {}) do
-		for fac, ts in pairs(bySkill[id] or {}) do
-			if not faction or fac == faction then
-				for _, t in ipairs(ts) do
-					if not set[t.npc] then set[t.npc] = true; list[#list + 1] = t end
+	local function From(by)
+		local set, list = {}, {}
+		for _, id in ipairs(ids or {}) do
+			for fac, ts in pairs(by[id] or {}) do
+				if not faction or fac == faction then
+					for _, t in ipairs(ts) do
+						if not set[t.npc] then set[t.npc] = true; list[#list + 1] = t end
+					end
 				end
 			end
 		end
+		table.sort(list, function(a, b) return a.npc < b.npc end)
+		return set, list
 	end
-	table.sort(list, function(a, b) return a.npc < b.npc end)
-	return set, list
+	local wt, ts = WTMasters(), nil
+	if wt then
+		local set, list = From(wt)
+		if next(set) then return set, list end
+	end
+	ts = TSMasters()
+	if ts then return From(ts) end
+	if wt then return From(wt) end
+	return nil
 end

@@ -84,8 +84,8 @@ local function Trainers(pet)
 	local here = I and I.Here and I.Here() or nil
 	local found = {}
 	for _, e in ipairs(P.Trainers(pet and "pet" or "class")) do
-		local id = e.npcID or rawget(e, "key")
-		found[#found + 1] = { e = e, d = here and I.NpcDistance and I.NpcDistance(id, here) or nil }
+		-- (I.RowYards: Questie's spawns, or a row's own place: TrainerSpells' trainers without Questie; 0.57.1)
+		found[#found + 1] = { e = e, d = here and I.RowYards and I.RowYards(e, here) or nil }
 	end
 	table.sort(found, function(a, b)
 		if (a.d ~= nil) ~= (b.d ~= nil) then return a.d ~= nil end
@@ -125,6 +125,8 @@ P.LISTS.trainingknown = function()
 	local p = ns.providers.training
 	if not p then return {} end
 	ns:GetEntries(p)
+	local TS = ns.TrainerSpells
+	if p.fromTrainerSpells and TS and TS.TrainingKnown then return TS.TrainingKnown() end -- (@training from TrainerSpells)
 	return WT.Known()
 end
 
@@ -132,7 +134,7 @@ WT.MasterRow = WeaponMasterRow -- (Search/ClassSpells.lua's weapon skills, witho
 
 ns:RegisterRelation("learn", {
 	aliases = { "learned", "taught", "teach", "teaches", "trainer", "trainers" },
-	desc = L["where a spell is taught: your trainer, a weapon master, a quest, a book (What's Training)"],
+	desc = L["where a spell is taught: your trainer, a weapon master, a quest, a book (What's Training or TrainerSpells)"],
 	available = function() return ns.providers.training ~= nil end, addon = "WhatsTraining",
 	seedAlso = { "training", "trainingknown" }, -- ("fireball > learn", "where to learn daggers": its spells looked in too)
 	applies = function(e) return e.kind == "training" end,
@@ -148,7 +150,7 @@ ns:RegisterRelation("learn", {
 			if kind == "weaponMaster" then
 				-- (the nearest first; those Questie doesn't place after)
 				local masters = {}
-				for _, t in ipairs(src and src.trainers or {}) do masters[#masters + 1] = WeaponMasterRow(t, e) end
+				for _, t in ipairs(src and src.trainers or WT.MastersOf(e)) do masters[#masters + 1] = WeaponMasterRow(t, e) end
 				table.sort(masters, function(a, b)
 					local da, db = rawget(a, "_dist"), rawget(b, "_dist")
 					if (da ~= nil) ~= (db ~= nil) then return da ~= nil end
@@ -308,7 +310,8 @@ function Q.Answer(q)
 			end
 			say = nxt and L["Nothing to train right now: the next at level %d"]:format(nxt) or L["Nothing to train right now"]
 		end
-		if not WT.Ready() then say = L["What's Training is still reading your spells: a moment"] end
+		local p = ns.providers.training
+		if not WT.Ready() and not (p and p.fromTrainerSpells) then say = L["What's Training is still reading your spells: a moment"] end
 		return { NoteRow(say) }, note
 	end
 	if q.money then

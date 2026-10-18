@@ -34,9 +34,17 @@ end
 local function IndexQuests()
 	if qdb.list or qdb.busy or not QuestieReady() then return end
 	local DB = QDB()
-	if not (DB and DB.QueryQuestSingle) then return end
+	if not DB then return end
+	if type(DB.QueryQuestSingle) ~= "function" or type(DB.QuestIds) ~= "function" then -- (said: I.Failed; 0.57.1)
+		I.Failed("Questie", L["@questie is unavailable."], "QueryQuestSingle " .. type(DB.QueryQuestSingle) .. ", QuestIds " .. type(DB.QuestIds))
+		return
+	end
+	local okIds, ids = pcall(DB.QuestIds)
+	if not okIds or type(ids) ~= "table" then
+		I.Failed("Questie", L["@questie is unavailable."], "QuestIds: " .. tostring(ids))
+		return
+	end
 	qdb.busy = true
-	local ids = DB.QuestIds()
 	local out = {}
 	local zones = {} -- zoneOrSort -> { name, searchable text }: thousands of quests share a few hundred zones
 	local function Zone(zone)

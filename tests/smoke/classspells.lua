@@ -27,11 +27,13 @@ end
 local CATALOG = {
 	WARRIOR = { Entry(100, 4), Entry(9001, 6, { races = { 3 } }), Entry(9002, 10, { kind = "quest", cost = 0, quest = { { races = { 1 }, level = 10 } } }),
 		Entry(1180, 1, { kind = "weaponMaster", trainers = { Horde = { { npc = 11868, name = "Sayoc", uiMapId = 1454, x = 81.7, y = 19.6 },
-			{ npc = 11870, name = "Archibald", uiMapId = 1458, x = 57.3, y = 32.8 } }, Alliance = { { npc = 11867, name = "Woo Ping", uiMapId = 1453, x = 63.9, y = 69.1 } } } }) },
+			{ npc = 11870, name = "Archibald", uiMapId = 1458, x = 57.3, y = 32.8 } }, Alliance = { { npc = 11867, name = "Woo Ping", uiMapId = 1453, x = 63.9, y = 69.1 } } } }),
+		Entry(200, 20, { kind = "weaponMaster", trainers = { Horde = { { npc = 11870, name = "Archibald", uiMapId = 1458, x = 57.3, y = 32.8 } },
+			Alliance = { { npc = 11867, name = "Woo Ping", uiMapId = 1453, x = 57.1, y = 57.7 } } } }) },
 	DRUID = { Entry(3029, 28, { requiredTalentId = 16942 }), Entry(783, 30) },
 	SHAMAN = { Entry(332, 6), Entry(547, 12) },
 	ROGUE = { Entry(1180, 1, { kind = "weaponMaster", trainers = { Horde = { { npc = 11868, name = "Sayoc", uiMapId = 1454, x = 81.7, y = 19.6 } } } }),
-		Entry(200, 20, { kind = "weaponMaster", trainers = { Horde = { { npc = 2704, name = "Hanashi", uiMapId = 1454, x = 81.5, y = 19.6 } } } }) },
+		Entry(196, 1, { kind = "weaponMaster", trainers = { Horde = { { npc = 2704, name = "Hanashi", uiMapId = 1454, x = 81.5, y = 19.6 } } } }) },
 }
 local loads = {}
 local function CatalogApi()
@@ -270,6 +272,10 @@ do
 	ns.db.easyMode = true; UI:EasyChanged()
 	check(Npcs(UI:SearchText("dagger trainer")) == "Sayoc | Archibald", "dagger trainer: the Horde's two (not Woo Ping, not Hanashi), the nearer first: "
 		.. Npcs(UI:SearchText("dagger trainer")))
+	-- (0.57.1, the player: "polearm trainer" listed every weapon master)
+	for _, q in ipairs({ "polearm trainer", "polearms trainer", "polearm trainers", "nearest polearm trainer" }) do
+		check(Npcs(UI:SearchText(q)) == "Archibald", q .. ": the Horde's one, Archibald: " .. Npcs(UI:SearchText(q)))
+	end
 	-- without What's Training: every weapon master
 	_G.WT_API = nil
 	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()

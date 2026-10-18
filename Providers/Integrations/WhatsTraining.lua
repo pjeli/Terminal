@@ -149,6 +149,15 @@ local function QuestTitle(qid)
 end
 WT.QuestTitle = QuestTitle
 
+--- A weapon skill's masters for your faction when What's Training doesn't say (TrainerSpells' @training rows):
+--- Providers/ClassSpells.lua's, { { npc, name, uiMapId, x, y } }.
+function WT.MastersOf(e)
+	local CS = ns.ClassSpells
+	local _, list = nil, nil
+	if CS and CS.WeaponMasters and type(e.wtId) == "number" then _, list = CS.WeaponMasters({ e.wtId }) end
+	return list or {}
+end
+
 --- Where it's taught, as tooltip lines: { text, colour }.
 function WT.SourceLines(e)
 	local api = WT.Api()
@@ -167,7 +176,7 @@ function WT.SourceLines(e)
 		if src and Num(src.level) then out[#out + 1] = L["The quest needs level %d"]:format(src.level) end
 	elseif kind == "weaponMaster" then
 		local list = {}
-		for i, t in ipairs(src and src.trainers or {}) do
+		for i, t in ipairs(src and src.trainers or WT.MastersOf(e)) do
 			if i > 4 then break end
 			local zone = t.uiMapId and I.ZoneName and I.ZoneName(t.uiMapId)
 			list[#list + 1] = tostring(t.name) .. (zone and (" (" .. zone .. ")") or "")

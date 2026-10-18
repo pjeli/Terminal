@@ -14,6 +14,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.57.3", when = "in testing",
+		items = {
+			"With TrainerSpells: the recipes a trainer teaches that you don't know are listed with your other recipes to learn (\"recipes i'm missing\", \"what can i train in tailoring\", \"how much is tailoring training\"), with the skill each needs and its cost, even before you've opened the profession's window; a profession shows its next rank and what it costs.",
+			"With TrainerSpells and no What's Training: @training lists your class's spells and weapon skills still to learn (\"what can i train\", \"what do i learn next level\"), and every class's spells come from it. Without Questie its trainers and weapon masters are @npc, so \"nearest mage trainer\" and \"where to learn ...\" work.",
+			"\"polearm trainer\" and the like list only the weapon masters who teach that weapon to your faction, from What's Training or TrainerSpells, not every weapon master.",
+			"An addon whose data isn't in the shape Terminal expects (a new version of it) is said once in chat, with what's unavailable, and .integrations lists it.",
+		},
+	},
+	{
 		v = "0.57.0", when = "released October 2026",
 		items = {
 			"Upgrades weigh only what you want: gear whose stats your class or role doesn't use (Intellect and Spell Power for a warrior) is never an upgrade, whatever its item level, and spells' hit and crit or feral attack power count only for those who use them.",
@@ -56,19 +65,6 @@ CL.LOG = {
 			"Weapon masters by weapon (\"dagger trainer\") without What's Training too.",
 			"Alt+` with Terminal closed opens it as ` does; Up goes through every line you ran.",
 			"Tooltips: what Enter and Shift+Enter do, a line each, said the same way everywhere.",
-		},
-	},
-	{
-		v = "0.54.0", when = "released October 2026",
-		items = {
-			"With What's Training: @training, \"what can i train\", \"what do i learn next level\", \"how much is training\": every spell you've still to learn, when, and what it costs. Enter opens What's Training on it; Shift+Enter lists who teaches it, the nearest first.",
-			"Weapon masters: \"dagger trainer\" or \"where do i learn daggers\" lists the ones who teach it, the nearest first.",
-			"Tabs: Ctrl+T opens one, Ctrl+1-4 or Ctrl+Tab switch, Ctrl+Shift+W closes one; each keeps its own search.",
-			"Summed searches group \"by dungeon\", \"by raid\" or \"by instance\" as they say, and filters take quoted values: q:\"Rare\", in:\"Elwynn Forest\".",
-			"@dungeon and @raid list Blackrock Mountain's instances once, at the nearer door.",
-			".zen's faded interface takes no clicks; a click on it closes the terminal.",
-			"Faster: narrowing a search is up to twice as fast, and opening the terminal costs less.",
-			"Fixes from a review: tabs, summed searches, stats (mp5, healing, ranged attack power), characters who share a first name, chat lines in other languages, and many smaller ones.",
 		},
 	},
 }

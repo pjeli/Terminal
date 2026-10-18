@@ -31,10 +31,11 @@ def line_in(src, name):
     return src.count("\n", 0, m.start()) + 1 if m else "?"
 
 # Scope-aware: report writes to names never declared local in an enclosing scope.
-def scan(path, warnings=None, free=None):
-    src = open(path, encoding="utf-8").read()
-    try: tree = ast.parse(src)
-    except Exception as ex: return [("PARSE " + str(ex)[:80], "?")]
+def scan(path, warnings=None, free=None, parsed=None):
+    src, tree = parsed if parsed else (open(path, encoding="utf-8").read(), None)
+    if tree is None:
+        try: tree = ast.parse(src)
+        except Exception as ex: return [("PARSE " + str(ex)[:80], "?")]
     out = []
     top = set()
     reads = {} # the never-declared names read (for the near-miss warnings)
@@ -111,22 +112,16 @@ def scan(path, warnings=None, free=None):
 ALLOWED = {"BINDING_HEADER_TERMINAL", "BINDING_NAME_TERMINAL_TOGGLE", "BINDING_NAME_TERMINAL_ADVANCED_ONCE", "BINDING_NAME_TERMINAL_FUZZY", "BINDING_NAME_TERMINAL_SLASH", "TerminalDB", "SLASH_TERMINAL1",
            "TerminalNotesDB"}  # (docs/example/TerminalNotes: the example addon's saved variable)
 
-def problems(path):
-    found = scan(path) or []
-    return [f"{path}: " + (n.replace("READ-before-local ", "reads local declared below: ") if n.startswith("READ")
-            else f"global write {n} (line {l})") for n, l in found]
+# Parsing is the slow part (luaparser: seconds for a big file), so each file is parsed once and what the checks need
+# from it is kept: in memory for this run, and on disk by the file's content (tests/__pycache__/globals.json), so a run
+# parses only the files changed since the last one. The cache is keyed by this script's own text too: a change to the
+# checks reads every file again.
+import hashlib, json, os
+CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__pycache__", "globals.json")
+_SELF = hashlib.sha1(open(os.path.abspath(__file__), "rb").read()).hexdigest()
+_memo, _disk = {}, None
 
-def warnings(path):
-    """Reads of a never-declared name one letter away from a file local or a known C_* table."""
-    warns = []
-    scan(path, warns)
-    return [f"{path}: reads global {n} (line {l}), one letter from {near}: a typo?" for n, near, l in warns]
-
-def file_locals(path):
-    """The names a file declares at its top level, without the ones copied from a global (local X = X / _G.X)."""
-    src = open(path, encoding="utf-8").read()
-    try: tree = ast.parse(src)
-    except Exception: return set()
+def _locals_of(tree):
     out = set()
     for st in tree.body.body:
         if isinstance(st, A.LocalFunction): out.add(st.name.id)
@@ -138,17 +133,100 @@ def file_locals(path):
                 if not copied: out.add(t.id)
     return out
 
+def _analyze_src(path, src):
+    """One parse: the file's accidental globals, near-miss warnings, never-declared reads, and own locals."""
+    try: tree = ast.parse(src)
+    except Exception as ex:
+        return {"found": [["PARSE " + str(ex)[:80], "?"]], "warns": [], "free": [], "locals": []}
+    warns, free = [], set()
+    found = scan(path, warns, free, (src, tree))
+    return {"found": [list(x) for x in found], "warns": [list(w) for w in warns], "free": sorted(free),
+            "locals": sorted(_locals_of(tree))}
+
+def _load_disk():
+    global _disk
+    if _disk is None:
+        try:
+            d = json.load(open(CACHE, encoding="utf-8"))
+            _disk = d["files"] if d.get("self") == _SELF else {}
+        except Exception:
+            _disk = {}
+    return _disk
+
+def _save_disk():
+    if _disk is None: return
+    try:
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+        tmp = CACHE + ".tmp"
+        json.dump({"self": _SELF, "files": _disk}, open(tmp, "w", encoding="utf-8"))
+        os.replace(tmp, CACHE)
+    except Exception:
+        pass
+
+def _key(src): return hashlib.sha1(src.encode("utf-8")).hexdigest()
+
+def _work(args):
+    path, src = args
+    return _analyze_src(path, src)
+
+def analyze_all(paths):
+    """Every file's analysis, the ones not cached parsed side by side (one process per core)."""
+    disk = _load_disk()
+    todo = []
+    for p in paths:
+        if p in _memo: continue
+        src = open(p, encoding="utf-8").read()
+        k = _key(src)
+        if k in disk: _memo[p] = disk[k]
+        else: todo.append((p, src, k))
+    if todo:
+        results = None
+        if len(todo) > 1 and (os.cpu_count() or 1) > 1:
+            try:
+                import multiprocessing as mp
+                with mp.get_context("fork").Pool(min(len(todo), os.cpu_count())) as pool:
+                    # (biggest first: the long parses don't end up last on one worker)
+                    order = sorted(range(len(todo)), key=lambda i: -len(todo[i][1]))
+                    got = pool.map(_work, [(todo[i][0], todo[i][1]) for i in order], chunksize=1)
+                    results = [None] * len(todo)
+                    for i, r in zip(order, got): results[i] = r
+            except Exception:
+                results = None
+        if results is None: results = [_analyze_src(p, src) for p, src, _ in todo]
+        for (p, _, k), r in zip(todo, results):
+            _memo[p] = r
+            disk[k] = r
+        # (only the files still there kept: the cache doesn't grow with every edit)
+        live = {_key(open(p, encoding="utf-8").read()) for p in _memo}
+        for k in [k for k in disk if k not in live]: del disk[k]
+        _save_disk()
+    return {p: _memo[p] for p in paths}
+
+def analyze(path): return analyze_all([path])[path]
+
+def problems(path):
+    found = [(n, l) for n, l in analyze(path)["found"]]
+    return [f"{path}: " + (n.replace("READ-before-local ", "reads local declared below: ") if n.startswith("READ")
+            else f"global write {n} (line {l})") for n, l in found]
+
+def warnings(path):
+    """Reads of a never-declared name one letter away from a file local or a known C_* table."""
+    return [f"{path}: reads global {n} (line {l}), one letter from {near}: a typo?" for n, near, l in analyze(path)["warns"]]
+
+def file_locals(path):
+    """The names a file declares at its top level, without the ones copied from a global (local X = X / _G.X)."""
+    return set(analyze(path)["locals"])
+
 def split_reads(paths):
     """Reads of a never-declared name that another file declares as its own local: after moving code between files,
     a name left behind reads a nil global (Lua doesn't say). Returns problem lines."""
+    res = analyze_all(paths)
     owners = {}
     for p in paths:
-        for n in file_locals(p): owners.setdefault(n, []).append(p)
+        for n in res[p]["locals"]: owners.setdefault(n, []).append(p)
     out = []
     for p in paths:
-        free = set()
-        scan(p, None, free)
-        for n in sorted(free):
+        for n in res[p]["free"]:
             if n in owners and p not in owners[n] and n not in SPLIT_OK:
                 out.append(f"{p}: reads {n}, a local of {', '.join(owners[n])} (missing here: a nil global)")
     return out
@@ -157,6 +235,7 @@ def split_reads(paths):
 SPLIT_OK = {"ns", "_", "AddonList"} # (AddonList: the game's window, Addons.lua keeps its own copy)
 
 if __name__ == "__main__":
+    analyze_all(sys.argv[1:])
     bad = [p for f in sys.argv[1:] for p in problems(f)]
     print("\n".join(bad) or "no accidental globals")
     for f in sys.argv[1:]:

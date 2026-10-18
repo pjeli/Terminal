@@ -16,6 +16,8 @@ local L = ns.L
 --- Does the NPC have this role (Questie's npcFlags; its numbers differ between game versions)?
 local function NpcRole(e, flagName)
 	if not NpcID(e) then return false end
+	local roles = rawget(e, "roles") -- (a row that says its own: TrainerSpells' trainers; 0.57.1)
+	if roles then return roles[flagName] == true end
 	local flags = NpcField(e, "npcFlags")
 	if type(flags) ~= "number" then return false end -- (before asking for the database's flag names: most rows)
 	local I = ns.Integrations
