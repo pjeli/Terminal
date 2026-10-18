@@ -397,11 +397,18 @@ local function Check(key, x, y, note)
 	O.widgets[key] = c
 	return Label(label, "GameFontHighlight", x + 26, y - 5)
 end
+-- (moves a checkbox and its label: Open on / takes the place of the profession indexing that WoW Forever hides)
+local function PlaceCheck(key, labelKey, x, y)
+	local c, l = O.widgets[key], O.widgets[labelKey]
+	c:ClearAllPoints(); c:SetPoint("TOPLEFT", x, y)
+	if l then l:ClearAllPoints(); l:SetPoint("TOPLEFT", x + 26, y - 5) end
+end
 -- (the long labels on the left, the short ones on the right)
 Check("syntax", 16, -456, L["(@kinds, filters, .commands)"])
 Check("hints", 440, -456)
 Check("suggest", 16, -480, L["(\"try: ...\")"])
 O.widgets.autoScanLabel = Check("autoScan", 440, -480)
+O.widgets.slashKeyLabel = Check("slashKey", 440, -480, L["(slash commands)"])
 
 -- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
 -- last row of settings shown)
@@ -532,6 +539,16 @@ function O.Refresh()
 	local canScan = ns.db and ns.db.noDirectOpen == false
 	O.widgets.autoScan:SetShown(canScan)
 	O.widgets.autoScanLabel:SetShown(canScan)
+	O.widgets.slashKey:SetChecked(t.slashKey ~= false)
+	-- (beside Suggestions where the profession indexing is hidden; else under it, the panel's buttons a row lower)
+	if O.slashPlaced ~= canScan then
+		O.slashPlaced = canScan
+		if canScan then PlaceCheck("slashKey", "slashKeyLabel", 16, -504) else PlaceCheck("slashKey", "slashKeyLabel", 440, -480) end
+		for _, row in ipairs(O.actionRow) do
+			row[1]:ClearAllPoints()
+			row[1]:SetPoint("TOPLEFT", row[2], O.ACTION_Y - (canScan and 32 or 0))
+		end
+	end
 	-- (the panel's buttons stay under the checkboxes: autoScan's is beside another one now, not a row of its own)
 	local anim = T.ANIMATION_LABELS[t.animations] and t.animations or (t.animations == false and "off" or "smooth")
 	O.widgets.animations:SetText(AnimLabel(anim))

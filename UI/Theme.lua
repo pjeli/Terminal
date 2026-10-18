@@ -45,6 +45,7 @@ T.DEFAULTS = {
 	autoScan = true, -- index professions quietly after login
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
+	slashKey = true, -- the / key opens Terminal on a slash command (SlashKey.lua)
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
 	v = 3, -- theme defaults version (see T.Get)
@@ -88,7 +89,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
-	"fzfGlow", "fzfColor" }
+	"slashKey", "fzfGlow", "fzfColor" }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
 T.FZF_GLOW_LABELS = { breathe = L["Breathing"], steady = L["Steady"], bright = L["Bright"], line = L["Thin line"], off = L["Off"] }
@@ -160,6 +161,7 @@ T.FIELDS = {
 	hints = { kind = "bool", label = L["Key hints in footer"] },
 	syntax = { kind = "bool", label = L["Colour what you type"] },
 	suggest = { kind = "bool", label = L["Suggestions in the empty prompt"] },
+	slashKey = { kind = "bool", label = L["Open on /"] },
 	animations = { kind = "choice", label = L["Animation"], choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = L["Cursor"], choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = L["Blink speed"], min = 0.2, max = 3, step = 0.1 },
@@ -356,6 +358,7 @@ function T.Changed()
 	if ns.UI and ns.UI.ApplyTheme then ns.UI:ApplyTheme() end
 	if ns.Zen and ns.Zen.ThemeChanged then ns.Zen.ThemeChanged() end
 	if ns.Options and ns.Options.Refresh then ns.Options.Refresh() end
+	if ns.SlashKey then ns.SlashKey.Apply() end
 end
 
 local function Hex(v)

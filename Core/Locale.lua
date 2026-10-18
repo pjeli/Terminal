@@ -6,6 +6,7 @@ BINDING_HEADER_TERMINAL = "Terminal"
 BINDING_NAME_TERMINAL_TOGGLE = L["Toggle Terminal"] -- (Terminal is its name: capitalised, 0.46.12)
 BINDING_NAME_TERMINAL_ADVANCED_ONCE = L["Open Terminal, or write its search in Advanced syntax"] -- (closed: as Toggle does, 0.54.3)
 BINDING_NAME_TERMINAL_FUZZY = L["Fuzzy find, this time (every list, by name only)"]
+BINDING_NAME_TERMINAL_SLASH = L["Open Terminal on a slash command (/)"]
 
 -- Text helpers for every client language, and the game's own words for Terminal's kinds.
 --
