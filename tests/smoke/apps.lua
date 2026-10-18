@@ -180,3 +180,27 @@ do
 	end
 	check(Panel.Text(parent).fontObject == Theme.fonts.input, "no size: the input font itself")
 end
+
+io.write("[credits: .credits thanks the people who kept Terminal going]\n")
+do
+	local CR = ns.Credits
+	check(CR and ns.commands.credits and ns.commands.credits.run, ".credits is a command")
+	ns.commands.credits.run("")
+	check(CR.IsShown() and CR.frame.mouse == true, "it opens (catching the mouse)")
+	local txt = CR.Body():GetText() or ""
+	local missing = {}
+	for _, n in ipairs({ "Caite", "Brother", "Wesslan", "Beefnerd", "Cazador", "Kass", "TJ" }) do
+		if not txt:find(n, 1, true) then missing[#missing + 1] = n end
+	end
+	check(#missing == 0 and txt:find("Kass|r", 1, true) and txt:find("and |c", 1, true) and txt:find("believing in me", 1, true),
+		"every name, in the accent colour, in the thanks: " .. txt)
+	CR.frame.scripts.OnKeyDown(CR.frame, "ESCAPE")
+	check(not CR.IsShown(), "Esc closes it")
+	CR.Open()
+	CR.frame.scripts.OnMouseDown(CR.frame, "LeftButton")
+	check(not CR.IsShown(), "a click closes it")
+	CR.Open()
+	CR.frame.scripts.OnKeyDown(CR.frame, "W")
+	check(CR.IsShown() and CR.frame.propagate == true, "other keys go on to the game: " .. tostring(CR.frame.propagate))
+	CR.Close()
+end
