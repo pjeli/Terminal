@@ -896,6 +896,7 @@ end
 function UI:EasyTab()
 	local e = UI.results[UI.sel]
 	if not (e and e.catId) then return false end
+	if UI.NoteCategoryPick then UI.NoteCategoryPick(e.pickText, e.catId) end
 	self:SetCategory(e.catId)
 	return true
 end

@@ -300,6 +300,88 @@ Run("category rows say what they hold; a clear winner goes on top (0.48.4)", fun
 	t.width = saveW
 end)
 
+Run("the categories' order: a job's title, more matches, the player's picks (0.56.11)", function()
+	E.Set(true)
+	ns.db.catPicks = nil
+	-- Questie's NPCs with their titles in the index line ("kyra boucher <reagent vendor>"), as Questie's hintFind hands back
+	local npcs = { { "Kyra Boucher", "reagent vendor" }, { "Hal McAllister", "reagent vendor" }, { "Tamar", "reagent vendor" },
+		{ "Ormak Grimshot", "hunter trainer" } }
+	local titled = { label = "Questie's NPCs", hintLabel = "Questie's NPCs", aliases = { "npc" }, explicit = true,
+		collect = function() return {} end,
+		hintFind = function(_, tokens)
+			local first, count, ids, line = nil, 0, {}, nil
+			for i, n in ipairs(npcs) do
+				local ln = n[1]:lower() .. (n[2] and (" <" .. n[2] .. ">") or "")
+				local all = true
+				for _, tk in ipairs(tokens) do if not ln:find(tk, 1, true) then all = false end end
+				if all then
+					count = count + 1; first = first or n[1]; line = line or ln
+					if #ids < 2 then ids[#ids + 1] = i end
+				end
+			end
+			return first, count, ids, line
+		end }
+	Use({
+		{ "keybinds", { label = "Keybinding", aliases = { "keybind" }, collect = Rows({ { name = "Toggle Reagent Bag" } }) } },
+		{ "items", { label = "Item", aliases = { "item" }, collect = Rows({ { name = "Linen Cloth", itemID = 2589 } }) } },
+		{ "loot", { label = "Loot", aliases = { "loot" }, collect = Rows({ { name = "Reagent Satchel", itemID = 77 } }) } },
+		{ "toys", { label = "Toy", aliases = { "toy" }, collect = Rows({ { name = "Linen Cloth" }, { name = "Linen Cloth" },
+			{ name = "Linen Cloth" } }) } },
+		{ "npc", titled },
+	})
+	local function Order(text)
+		UI:Open(text)
+		local t = {}
+		for _, e in ipairs(UI.Results()) do t[#t + 1] = tostring(e.catId) end
+		return t, table.concat(t, ",")
+	end
+	-- a word that is several NPCs' title names their job: those NPCs first (they were last, scored as text)
+	local o, joined = Order("reagent")
+	check(o[1] == "npcs" and #o == 3, "reagent: the reagent vendors first: " .. joined)
+	local npcRow = UI.Results()[1]
+	check(npcRow.detail:find("Kyra Boucher", 1, true), "(their row names the first of them): " .. tostring(npcRow.detail))
+	local sc, inTitle = UI._HintScore({ "reagent" }, "Kyra Boucher", "kyra boucher <reagent vendor>")
+	check(inTitle and sc > ns.Score.TEXT_SCORE + 1, "a match in the title scores as a word in a name would: " .. tostring(sc))
+	sc, inTitle = UI._HintScore({ "reagent" }, "Reagent Rick", "reagent rick")
+	check(not inTitle and sc > ns.Score.TEXT_SCORE + 1, "in the name: the name's score, not the title's")
+	sc = UI._HintScore({ "kyra" }, "Kyra Boucher")
+	check(sc > ns.Score.TEXT_SCORE + 1, "no index line (another list's hintFind): the name it gave is scored")
+	-- the same best match: more of them, higher
+	o, joined = Order("linen")
+	check(o[1] == "collections" and o[2] == "items", "Linen Cloth thrice in Collections, once in Items: Collections first: " .. joined)
+	-- the category picked for these words before goes higher each time (up to three)
+	for _ = 1, 3 do
+		Order("reagent")
+		local at
+		for i, e in ipairs(UI.Results()) do if e.catId == "settings" then at = i end end
+		UI:Activate(at)
+		check(UI.category == "settings", "(Settings picked)")
+		UI:Hide(); FlushAll()
+	end
+	check(type(ns.db.catPicks) == "table" and ns.db.catPicks.reagent and ns.db.catPicks.reagent.settings == 3,
+		"the picks are kept by the words: " .. tostring(ns.db.catPicks and ns.db.catPicks.reagent and ns.db.catPicks.reagent.settings))
+	o, joined = Order("reagent")
+	check(o[1] == "settings", "picked three times for reagent: Settings first now: " .. joined)
+	local full = UI.Results()[1]._score
+	Order("reag")
+	local part
+	for _, e in ipairs(UI.Results()) do if e.catId == "settings" then part = e end end
+	local pBonus = UI.CategoryPicks("reag").settings
+	check(pBonus and pBonus > 0 and pBonus < UI.CategoryPicks("reagent").settings, "still typing it (reag): half the lift: " .. tostring(pBonus))
+	check(part and part._score < full, "(lower than for the whole word)")
+	-- Tab on a category row counts as a pick too
+	Order("linen")
+	key("TAB")
+	check(UI.category == "collections" and ns.db.catPicks.linen and ns.db.catPicks.linen.collections == 1, "Tab's pick is kept too")
+	UI:Hide(); FlushAll()
+	-- .forget clears them with the rest of the learned ranking
+	ns.commands.forget.run("")
+	check(ns.db.catPicks == nil, ".forget clears the category picks")
+	o, joined = Order("reagent")
+	check(o[1] == "npcs", "and the vendors are first again: " .. joined)
+	ns.db.catPicks = nil
+end)
+
 Run("each list's category, by what you'd do with it (0.48.4)", function()
 	-- (the addon's own lists, as loaded: Run gives them back after each block)
 	-- (0.55.16, the player: your bags and your bank & alts apart again)

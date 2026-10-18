@@ -1891,7 +1891,88 @@ function UI.FuzzyPlain(text)
 	return #out > 0 and (table.concat(out, " ") .. " ") or ""
 end
 
-local function PickCategory(e) UI:SetCategory(e.catId) end
+-- Ranking the categories (0.56.11, the player: "reagent" listed NPCs last, under a keybinding named Toggle Reagent Bag,
+-- when three dozen reagent vendors matched). A category's best match decides, as before; Questie's lists are scored
+-- as a row would be (HintScore: they were all given the lowest score, a match in some text), and then:
+local ROLE_MIN, ROLE_BONUS = 3, 2.0 -- a word that is the title of several NPCs names a job (Reagent Vendor): those are wanted
+local BREADTH, BREADTH_MAX = 0.15, 0.75 -- more matches, a little higher (by log2 of the count): close best matches told apart
+local PICK_BONUS, PICK_MAX = 1.0, 3 -- each time the category was picked for these words (db.catPicks), up to three times
+local PICKS_KEPT = 300 -- (words remembered; the longest unused go first)
+
+--- The categories picked for these words before (Simple mode's overview): category id -> times, the words as typed
+--- counting fully and longer ones they start ("reag" as "reagent" is typed) for half. Empty when there are none.
+function UI.CategoryPicks(want)
+	local all, out = ns.db and ns.db.catPicks, {}
+	if type(all) ~= "table" or type(want) ~= "string" then return out end
+	local function Add(t, weight)
+		for cat, n in pairs(t) do
+			if cat ~= "t" and type(n) == "number" then out[cat] = (out[cat] or 0) + math.min(n, PICK_MAX) * weight end
+		end
+	end
+	if type(all[want]) == "table" then Add(all[want], 1) end
+	if #want >= 3 then
+		for text, t in pairs(all) do
+			if text ~= want and type(t) == "table" and text:sub(1, #want) == want then Add(t, 0.5) end
+		end
+	end
+	return out
+end
+
+--- A category picked from the overview for these words (Enter, a click, Tab): remembered for the next time.
+function UI.NoteCategoryPick(want, catId)
+	if type(want) ~= "string" or want == "" or type(catId) ~= "string" or not ns.db then return end
+	local all = ns.db.catPicks
+	if type(all) ~= "table" then all = {}; ns.db.catPicks = all end
+	local t = all[want]
+	if type(t) ~= "table" then
+		t = {}
+		all[want] = t
+		local n, oldest, oldestT = 0, nil, nil
+		for text, o in pairs(all) do
+			n = n + 1
+			local ot = type(o) == "table" and tonumber(o.t) or 0
+			if text ~= want and (not oldestT or ot < oldestT) then oldest, oldestT = text, ot end
+		end
+		if n > PICKS_KEPT and oldest then all[oldest] = nil end
+	end
+	t[catId] = math.min((t[catId] or 0) + 1, PICK_MAX)
+	t.t = time and time() or 0
+end
+
+--- What a category's row adds to its best match: its count, a job's title (Questie's NPCs), the player's picks.
+local function CategoryBonus(b, count, picks)
+	local bonus = math.min(BREADTH_MAX, BREADTH * math.log(math.max(count, 1)) / math.log(2))
+	if b.role then bonus = bonus + ROLE_BONUS end
+	return bonus + (picks[b.c.id] or 0) * PICK_BONUS
+end
+
+--- A Questie list's first match, scored as a row of it would be: each word by its score in the name, else in the
+--- NPC's title (the index line's "<...>"), else as found in some text. And whether a word was only in the title.
+local function HintScore(words, first, line)
+	local name, title
+	if type(line) == "string" then
+		name, title = line:match("^(.-) <(.*)>$")
+		name = name or line
+	else
+		name = ns.Lower(tostring(first))
+	end
+	local total, inTitle = 0, false
+	for k = 1, #words do
+		local s = Fuzzy.score(words[k], name)
+		if not s and title then
+			s = Fuzzy.score(words[k], title)
+			if s then inTitle = true end
+		end
+		total = total + (s or TEXT_SCORE)
+	end
+	return total, inTitle
+end
+UI._HintScore = HintScore -- (tests)
+
+local function PickCategory(e)
+	UI.NoteCategoryPick(e.pickText, e.catId)
+	UI:SetCategory(e.catId)
+end
 local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row passes (beats any score gap)
 
 --- How many of Simple mode's everyday words a row passes, each counted by its weight (Easy.Weight: "shield" counts for
@@ -2056,7 +2137,7 @@ function Scan.Overview(self, q, noAuto)
 		local function tick() if overBudget and overBudget() then coroutine.yield(UI.Results()) end end
 		for _, h in ipairs(hinting) do
 			local c, p = h.c, h.p
-			local first, n, ids = p.hintFind(p, nameWords, tick)
+			local first, n, ids, line = p.hintFind(p, nameWords, tick)
 			if first and (n or 0) > 0 then
 				if p.id == "questie" then -- (a quest from your log counted once: its row here, not Questie's name count too)
 					for _, ln in ipairs(loggedNames) do
@@ -2071,7 +2152,9 @@ function Scan.Overview(self, q, noAuto)
 					if not b then b = { c = c, rows = {}, counts = {} }; byCat[c.id] = b; order[#order + 1] = b end
 					b.hinted, b.n = true, (b.n or 0) + n
 					b.counts[p.id] = (b.counts[p.id] or 0) + n
-					if not b.score then b.best, b.score = first, TEXT_SCORE end
+					local sc, inTitle = HintScore(nameWords, first, line)
+					if inTitle and n >= ROLE_MIN then b.role = true end
+					if not b.score or sc > b.score then b.best, b.score = first, sc end
 					-- (the only one, named exactly that: Hogger)
 					if want and not empty and n == 1 and ExactName(ns.Lower(tostring(first)), want) and p.hintRow
 						and type(ids) == "table" and ids[1] then
@@ -2087,8 +2170,12 @@ function Scan.Overview(self, q, noAuto)
 	end
 	self.overviewWinner = nil
 	local rows = {}
+	local picks = UI.CategoryPicks(want)
 	for _, b in ipairs(order) do
-		rows[#rows + 1] = CategoryRow(b.c, b.best, b.score, #b.rows + (b.n or 0), b.counts, b.hinted)
+		local count = #b.rows + (b.n or 0)
+		local row = CategoryRow(b.c, b.best, b.score, count, b.counts, b.hinted)
+		row._score, row.pickText = row._score + CategoryBonus(b, count, picks), want
+		rows[#rows + 1] = row
 	end
 	table.sort(rows, function(a, b) return a._score > b._score end)
 	if #rows == 0 then

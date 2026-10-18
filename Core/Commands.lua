@@ -119,6 +119,7 @@ ns:RegisterCommand("forget", {
 	run = function()
 		wipe(ns.db.freq)
 		if ns.db.recent then wipe(ns.db.recent) end -- (the recent picks shown on an empty prompt are learned usage too)
+		ns.db.catPicks = nil -- (and the categories picked for words in Simple mode)
 		ns.freqKinds = nil
 		return { L["Usage history cleared."] }
 	end,

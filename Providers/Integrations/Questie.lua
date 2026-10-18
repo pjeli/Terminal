@@ -107,26 +107,28 @@ local function IndexNPCs(after)
 	end)
 end
 
---- How many names in the text have every typed word (up to 100), the first one's id, and the
---- first FEW ids (a list with only one or two matches shows them as results, not as a hint).
+--- How many names in the text have every typed word (up to 100), the first one's id, the
+--- first FEW ids (a list with only one or two matches shows them as results, not as a hint), and
+--- the first one's line (its name, and an NPC's title in <>).
 --- Scans for the longest word with a plain find (C speed) and checks the others on its line.
 --- tick: called every so often (the search's own budget check, which may pause it a frame).
 local function FindNames(blob, tokens, tick)
 	if type(blob) ~= "string" or #tokens == 0 then return nil, 0 end
 	local lead = tokens[1]
 	for k = 2, #tokens do if #tokens[k] > #lead then lead = tokens[k] end end
-	local pos, count, firstId, looked, ids = 1, 0, nil, 0, {}
+	local pos, count, firstId, looked, ids, firstLine = 1, 0, nil, 0, {}, nil
 	while count < 100 do
 		local at = blob:find(lead, pos, true)
 		if not at then break end
 		local lineEnd = blob:find("\n", at, true) or (#blob + 1)
 		local tab = blob:find("\t", at, true)
 		if tab and tab < lineEnd then -- (a match in the name, not in the id after it)
-			local all = true
-			if #tokens > 1 then -- (the name cut out only to check the other words: review, 0.53.6)
+			local all, name = true, nil
+			-- the line cut out only to check the other words (review, 0.53.6), or for the first match's line
+			if #tokens > 1 or not firstLine then
 				local from = math.max(1, at - 120)
 				local back = blob:sub(from, at):match(".*\n()")
-				local name = blob:sub(back and (from + back - 1) or at, tab - 1)
+				name = blob:sub(back and (from + back - 1) or at, tab - 1)
 				for k = 1, #tokens do
 					if tokens[k] ~= lead and not name:find(tokens[k], 1, true) then all = false break end
 				end
@@ -135,6 +137,7 @@ local function FindNames(blob, tokens, tick)
 				count = count + 1
 				local id = tonumber(blob:sub(tab + 1, lineEnd - 1))
 				firstId = firstId or id
+				firstLine = firstLine or name
 				if id and #ids < I.HINT_FEW then ids[#ids + 1] = id end
 			end
 		end
@@ -142,18 +145,20 @@ local function FindNames(blob, tokens, tick)
 		looked = looked + 1
 		if tick and looked % 64 == 0 then tick() end
 	end
-	return firstId, count, ids
+	return firstId, count, ids, firstLine
 end
 I.FindNames = FindNames
 
---- The provider's hintFind: the first matching name (as the game writes it), the count, and the
---- first ids (UI shows those rows themselves when there are only a few: hintRow).
+--- The provider's hintFind: the first matching name (as the game writes it), the count, the
+--- first ids (UI shows those rows themselves when there are only a few: hintRow), and the first
+--- match's line in the index ("kyra boucher <reagent vendor>": lowercase, an NPC's title in <>),
+--- for the overview to tell a match in the name from one in the title (0.56.11).
 local function HintFind(t, tokens, tick)
-	local id, count, ids = FindNames(t.names, tokens, tick)
+	local id, count, ids, line = FindNames(t.names, tokens, tick)
 	if not id then return nil, 0 end
 	local DB = QDB()
 	local name = DB and t.nameQuery and Safe(DB[t.nameQuery], id, "name")
-	return type(name) == "string" and name or tostring(id), count, ids
+	return type(name) == "string" and name or tostring(id), count, ids, line
 end
 
 --- A list's row by id: from the list when it's built (sorted by id: a binary search), else made
