@@ -288,7 +288,12 @@ do
 	for _, m in ipairs(B.queue) do if m.text:find("^4D") then pieces = pieces + 1 end end
 	check(pieces > 0, "a big bag: the rest of its pieces wait in the queue: " .. pieces)
 	B:Send({ kind = "whisper", target = "Ann" }, "4C 0000000000000001,0000000000000002,bob@realm")
-	check(B.queue[1].text:find("^4C"), "a handshake goes before items still waiting: " .. B.queue[1].text)
+	local atC, atD
+	for i, m in ipairs(B.queue) do
+		if not atC and m.text:find("^4C") then atC = i end
+		if not atD and m.text:find("^4D") then atD = i end
+	end
+	check(atC and atD and atC < atD, "a handshake goes before items still waiting: " .. tostring(atC) .. " < " .. tostring(atD))
 	table.remove(B.queue, 1)
 	for _, m in ipairs(net.sent) do check(#m.text <= 255, "each message fits (255): " .. #m.text) end
 	net.Tick(60)

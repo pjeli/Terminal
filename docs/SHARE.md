@@ -131,8 +131,8 @@ Once connected, each side sends what it shares, and sends it again when it chang
 friend, or every 2 s per message for a big snapshot; what didn't change isn't sent again):
 
 ```
-4D ver,i,n,payload       a snapshot in n pieces of at most 200 characters (at most 150), put back together as they
-                         were. The snapshot: places!items!gold!mode (never a "|", chat's escape character: it doesn't
+4D ver,i,n,payload       a snapshot in n pieces of at most 200 bytes (at most 150), each ending on a whole character
+                         (0.60.0), put back together as they were. The snapshot: places!items!gold!mode (never a "|", chat's escape character: it doesn't
                          survive Battle.net game data)
                            places  "Bob/b,Bobalt/k,/w"   who and where: b bags, k bank, m mail, v void storage,
                                                          w warband bank
@@ -142,8 +142,11 @@ friend, or every 2 s per message for a big snapshot; what didn't change isn't se
 4U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
                          friend has `base` whole, the places and mode are the same, and it's under half the size
 4R                       I don't have your `base`: the next goes whole
+4R n                     (0.60.0) I've just connected to you as a new friend: whole, unless you already sent it whole
+                         since this way came up (you may still have had me, the same session, and sent only changes:
+                         I'd dropped you after 30 minutes' silence, say). Heard during the handshake: whole when it's done
 4L mark                  I left that group (my mark for it): what you share with me is what's left in common
-4P                       still here (every 10 minutes)
+4P                       still here (every 10 minutes; queued ahead of friends' items, 0.60.0)
 4B                       goodbye: drop what I sent
 ```
 
@@ -170,12 +173,22 @@ joined later; `.share share <mode>` too). A friend gets the modes of the groups 
 - Data or a ping from a friend you aren't connected to (you /reloaded and typed the password again) makes
   you say hello to them again (at most every 30 s).
 - Sends go through a queue: six at once, then one a second (the game allows ten, then one a second); a
-  handshake goes before items still waiting; the game's "throttled" answer keeps a message in the queue; of
+  handshake goes before items still waiting, and an answer (C, A, K) before hellos still waiting (0.60.0: a login's
+  hellos to every friend, most not running Terminal, held an answer past the other side's timeout); a ping goes before
+  items too; the game's "throttled" answer keeps a message in the queue; of
   friends' items, the friend with the fewest pieces left goes first (a one-message update never waits behind another
   friend's hundred pieces). A snapshot still going out isn't replaced: the next change waits for its last piece, then
   goes as what changed since. Nothing is sent while the game locks chat messaging
   (`C_ChatInfo.InChatMessagingLockdown`), and a message whose fields are secret values is ignored.
 - `.share off`'s goodbyes go through the queue too: one the game says wait to goes a second later.
+- The guild channel carries hellos only (0.60.0): anything else heard there is let be.
+- A burst of bag events (selling greys) is sent once, the rest a second later (0.60.0, `E:Changed`); a friend
+  connecting gets the snapshot made since the last change, not one made again. The bank is read as @stored last read
+  it, never inside a bag event or Syndicator's callback; once @stored reads itself again (its own warm-up, out of combat)
+  what you share is made again (`SSH.StoredMoved`, from the ticker). Who's a friend or guild member is read again at
+  most every 2 s after their events.
+- A wrong password's way is forgotten after a while (`NOANSWER_KEEP`), so it's said hello to again: they may have
+  typed it again.
 
 ## In searches
 
@@ -210,7 +223,7 @@ tooltip, fade), which any addon can use for its own.
 | `.share` | who you're connected to, who's waiting, what you share |
 | `.share password <words>` | the default group's password; say hello to your friends and guild |
 | `.share join <group> <words>` | join a group of its own, with its own password (five groups at most) |
-| `.share leave <group>` | leave a group, its password forgotten |
+| `.share leave <group>` | leave a group, its password forgotten (also one remembered, not joined yet) |
 | `.share <group> <mode>`, `.share <mode> <group>` | what you share in one group (`.share <group>` alone: what it shares) |
 | `.share connect [name]` | say hello again: to one friend, or to everyone |
 | `.share limited \| all \| mats \| consumables \| none` | what you share in every group (`.share share <mode>` too) |
@@ -226,7 +239,10 @@ tooltip, fade), which any addon can use for its own.
 - Tests: `tests/smoke/crypto.lua` (standard vectors, both bit paths), `tests/smoke/share.lua` (endpoints
   talking: connect, wrong password, strangers, a relay, both at once, the queue, dropping, deltas, retries),
   `tests/smoke/share_groups.lua` (groups: what each sees, a password not matching, joining and leaving, five at once,
-  the review's cases), `tests/smoke/share_game.lua` (the game's events and calls, the prompt, searches, nothing saved).
+  the review's cases), `tests/smoke/share_game.lua` (the game's events and calls, the prompt, searches, nothing saved),
+  `tests/smoke/share_perf.lua` (bursts of events, the queue's order, roster events), `tests/smoke/share_review.lua`
+  (0.60.0 review: the ticker after a login, reconnecting after a drop, the guild channel, pings, pieces) and
+  `tests/smoke/share_mask.lua` (the password in the tab strip and completions).
   The pretend network they share is `tests/share_net.lua`.
 - `@shared` rows are compact (Terminal's lazy rows: an item's quality, icon, link and tooltip lines made when shown),
   made per friend and kept until that friend's items change: one friend's update makes only theirs again.

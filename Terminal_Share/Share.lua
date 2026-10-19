@@ -525,9 +525,9 @@ function E:LeaveGroup(name, rejoining)
 	local others = false
 	for n in pairs(self.groups) do if n ~= name then others = true end end
 	if not others and not rejoining then
-		local deriving = self.deriving
+		local deriving, done = self.deriving, self.derivingDone
 		self:Off()
-		self.deriving = deriving
+		self.deriving, self.derivingDone = deriving, done
 		return true
 	end
 	local myMark = SSH.Mark(g.key, self:Session(), self:Claim()) -- (said to those who stay: "3L <mark>")
@@ -566,7 +566,9 @@ function E:Send(route, text, tag, f, peer)
 	if f then f.queued = (f.queued or 0) + 1 end
 	if peer then peer.queuedMsg = m end -- (not timed out while it waits)
 	local at = #self.queue + 1
-	if not tag then
+	if not tag or tag:sub(1, 5) == "ping:" then
+		-- (a ping too: 0.60.0 review, behind a big first sync to others, friends who had theirs heard nothing for half an
+		-- hour and dropped you)
 		-- (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT to be answered. An answer,
 		-- C A K, before hellos too: a login's hellos to every friend, most not running Terminal, and an answer waited
 		-- behind them past the other side's timeout, never connecting. 0.60.0 review)
@@ -742,13 +744,21 @@ function E:Up(p)
 	f.rows = nil -- (their @shared rows say their groups: made again)
 	self.waiting[p.key] = nil
 	if new then self.env.say(L["Share: connected to %s"]:format(f.name or "?")) end
-	if same and self:ModeFor(f) == f.sentMode then
+	local wantWhole = p.wantWhole
+	p.wantWhole = nil
+	if same and not wantWhole and self:ModeFor(f) == f.sentMode then
 		self:Share(f)
 	else
 		f.sentText = nil -- (sent again whole: this way, or this session of theirs, may be new)
 		self:Share(f, true)
 	end
-	if new then self.env.changed() end
+	if new then
+		self.env.changed()
+		-- (new here: what they share asked for whole. They may have you still, the same session, and send only what
+		-- changes, which would never come. 0.60.0 review: dropped after 30 minutes' silence, connected again, and their
+		-- items never came back. "R n": not sent again if they already did since connecting)
+		self:Send(p.route, SSH.V .. "R n")
+	end
 end
 
 local function HasData(f) return next(f.items) ~= nil or f.gold ~= nil end
@@ -820,16 +830,28 @@ function E:Share(f, force)
 	self.outVer = self.outVer + 1
 	local ver = self:Session() .. To36(self.outVer)
 	f.sentText, f.sentParts, f.sentVer, f.sentAt, f.owed, f.pingAt, f.sentMode = text, parts, ver, now, nil, now, mode
+	if letter == "D" then f.wholeAt = now end
 	-- (pieces of CHUNK characters, put back together as they were; a snapshot past MAX_PIECES is cut at its last whole
 	-- item, so it still reads, and the next goes whole)
-	local max = SSH.CHUNK * SSH.MAX_PIECES
+	local max = (SSH.CHUNK - 3) * SSH.MAX_PIECES -- (a piece may end up to 3 short: below)
 	if #payload > max then
 		local cut = payload:sub(1, max - 1):match("^(.*);") or ""
 		payload = cut .. "!!" .. mode
 		f.sentParts = nil
 	end
 	local pieces = {}
-	for at = 1, math.max(1, #payload), SSH.CHUNK do pieces[#pieces + 1] = payload:sub(at, at + SSH.CHUNK - 1) end
+	-- (each piece ends on a whole character: a name's "á" isn't cut in two, which the game may not send. 0.60.0 review)
+	local at, len = 1, #payload
+	repeat
+		local stop = math.min(at + SSH.CHUNK - 1, len)
+		while stop > at and stop < len do
+			local b = payload:byte(stop + 1)
+			if b < 128 or b >= 192 then break end
+			stop = stop - 1
+		end
+		pieces[#pieces + 1] = payload:sub(at, stop)
+		at = stop + 1
+	until at > len
 	f.sentPieces = #pieces
 	-- (queued here, not by Send: none of theirs is waiting, so nothing to take the place of, and no queue walked a piece)
 	for i, piece in ipairs(pieces) do
@@ -872,6 +894,9 @@ function E:Receive(route, text)
 	if type(text) ~= "string" or #text > 255 then return end
 	local v, letter, rest = text:match("^(%d)(%u) ?(.*)$")
 	if not v then return end
+	-- (the guild channel carries hellos only; everything else goes by whisper. 0.60.0 review: a guild member's "4P" there
+	-- raised an error and said hello to the whole guild, every time)
+	if route.kind == "guild" and letter ~= "H" then return end
 	local p = self:Peer(route)
 	if v ~= SSH.V then
 		-- (another version's hello, from someone you'd hear: said once, so it isn't a silent "no answer")
@@ -1039,8 +1064,17 @@ function E:Receive(route, text)
 		f.rows = nil -- (their @shared rows made again: SSH.Rows)
 		self.env.changed()
 	elseif letter == "R" then
-		-- (they're missing what our last delta built on: the next goes whole)
+		-- (they're missing what our last delta built on: the next goes whole. "R n": they've just connected to you as a
+		-- new friend: whole, unless it already went whole since this way came up; their handshake with you not done
+		-- here yet, whole when it is)
 		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
+		if rest == "n" then
+			if not f then
+				if p and p.state ~= "up" then p.wantWhole = true end
+				return
+			end
+			if (f.wholeAt or -1) >= (p.upAt or 0) then return end
+		end
 		if not f or (f.resentAt and now - f.resentAt < SSH.HELLO_GAP) then return end
 		f.resentAt = now
 		f.sentParts = nil
@@ -1121,7 +1155,8 @@ function E:Stranger(route, p)
 	if p and p.strangerAt and now - p.strangerAt < 6 * SSH.HELLO_GAP then return end
 	if not p and Pending(self) >= SSH.MAX_PENDING then return end
 	self:Hello(route)
-	self:Peer(route).strangerAt = now
+	local q = self:Peer(route)
+	if q then q.strangerAt = now end
 end
 
 --- Every second: the queue, timeouts, pings, snapshots owed, friends who stopped being friends.
@@ -1159,6 +1194,8 @@ function E:Tick()
 			end
 		elseif p.state == "noanswer" and now - (p.noAnswer or now) >= SSH.NOANSWER_KEEP then
 			self.peers[k] = nil -- (no answer for a while: not said any more; a hello from them starts again)
+		elseif p.state == "mismatch" and now - (p.mismatch or now) >= SSH.NOANSWER_KEEP then
+			self.peers[k] = nil -- (the same: tried again in time, they may have typed it again. 0.60.0 review: kept for good)
 		end
 	end
 	for k, w in pairs(self.waiting) do
@@ -1740,10 +1777,15 @@ function SSH.Restore(ep)
 		ep.env.say(L["Share: passwords are kept safer now; type yours again: %s"]:format(concat(stale, ", ")))
 	end
 	if n == 0 then return false end
+	-- (the ticker kept going while the groups wait to be joined, and started again once they are. 0.60.0 review: it
+	-- stopped a second in, nobody in a group yet, and nothing started it again: no pings, retries or snapshots owed
+	-- for the whole session, and friends dropped you after 30 minutes)
+	ep.restoring = true
 	SSH.StartTicker()
 	local ask = C_GuildInfo and C_GuildInfo.GuildRoster or _G.GuildRoster
 	if ask then Safe(ask) end
 	C_Timer.After(SSH.LOGIN_WAIT, function()
+		ep.restoring = nil
 		local joined, n = 0, 0
 		for _ in pairs(ep.groups) do n = n + 1 end
 		for name, g in pairs(Remembered()) do
@@ -1755,6 +1797,7 @@ function SSH.Restore(ep)
 			end
 		end
 		if joined == 0 then return end
+		SSH.StartTicker()
 		ep:Hello()
 		SSH.Badge()
 		ep.env.say(L["Share: using your saved passwords; saying hello to your friends and guild"])
@@ -1814,6 +1857,14 @@ ns:RegisterCommand("share", {
 			local group = SSH.GroupName(rest)
 			if not (group and (ep.groups[group] or (ep.deriving and ep.deriving[group]))) then
 				if rest == "" then return { L["Share: which group? .share leave <group>"] } end
+				-- (remembered, not joined: still waiting at login, or one past five. 0.60.0 review: it couldn't be left)
+				local saved = Saved().groups
+				local name = saved[group or ""] and group or (saved[Lower(rest)] and Lower(rest))
+				if name then
+					SSH.Remember(name, nil)
+					SSH.Badge()
+					return { L["Share: left %s; its password is forgotten"]:format(name) }
+				end
 				return { L["Share: you're not in %s"]:format(rest) }
 			end
 			ep:LeaveGroup(group)
@@ -2111,6 +2162,8 @@ local function Matches(claim, route)
 		-- (0.59.3: Battle.net gave the surname itself, "Girl Bird", as the player's game shows: that name and no other)
 		if not exact and c:find("-", 1, true) then return false end
 		if b.realm and SSH.Claim("x", b.realm) ~= "x@" .. realm then return false end
+		-- (no realm from Battle.net: only a character of your own realm. 0.60.0 review: any realm's taken)
+		if not b.realm and realm ~= "" and realm ~= MyRealm() then return false end
 		-- (0.59.1) The character claimed, as your friend list or guild roster knows it: by its GUID, it's this Battle.net
 		-- friend's character or not. One the game knows only by its name (a friend list or roster without GUIDs, or a
 		-- Battle.net friend whose GUID isn't given): a surname claimed over Battle.net isn't taken for it; they connect
@@ -2362,7 +2415,7 @@ function SSH.StartTicker()
 		ep:Tick()
 		SSH.StoredMoved(ep)
 		-- (off, and the goodbyes all gone: stopped)
-		if not ep:On() and not ep.deriving and #ep.queue == 0 then SSH.StopTicker() return end
+		if not ep:On() and not ep.deriving and not ep.restoring and #ep.queue == 0 then SSH.StopTicker() return end
 		local U = ns.UI
 		local def = U and U.badges and (function() for _, d in ipairs(U.badges) do if d.id == "share" then return d end end end)()
 		if def and def.frame and def.frame:IsShown() then BadgeColour(def.frame) end -- (connecting: the arcs light in turn)
