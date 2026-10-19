@@ -1257,6 +1257,7 @@ L["Share the look: .style copies it as a string, .style TERM1:... applies one"] 
 L["Share: %s disconnected"] = "Share：%s已断开"
 L["Share: %s disconnected (%s)"] = "Share：%s已断开（%s）"
 L["Share: %s isn't on your friend list, in your guild or a Battle.net friend's character"] = "Share：%s不在你的好友列表或公会中，也不是战网好友的角色"
+L["Share: %s runs another version of Terminal: Share; you both need the newest to connect"] = "Share：%s 使用的是另一个版本的 Terminal: Share；你们都需要最新版本才能连接"
 L["Share: %s's password doesn't match yours"] = "Share：%s的密码与你的不匹配"
 L["Share: connected to %s"] = "Share：已连接到%s"
 L["Share: no password yet. Type .share password <words> (8 characters or more), the same one as your friends"] = "Share：尚未设置密码。输入 .share password <密码>（至少8个字符），与好友相同"

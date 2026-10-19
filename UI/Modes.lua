@@ -50,7 +50,7 @@ function UI:StartFuzzy()
 	self.fzf = true
 	if ns.Bar then ns.Bar.Reset() end -- (picked for the search left: not the one fuzzy finding hands back; 0.55.18)
 	DropTick(plain)
-	ns:Trace(("fuzzy find: on (%q -> %q)"):format(text, plain))
+	ns:Trace(("fuzzy find: on (%q -> %q)"):format(ns.MaskSecret(text), ns.MaskSecret(plain))) -- (a password typed: *s; review, 0.58.16)
 	self.category, self.categoryAuto, self.action, self.place, self.sendTo = nil, nil, nil, nil, nil
 	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
 	Forget(self, true)
@@ -152,7 +152,7 @@ function UI:FuzzyPop(e, advanced)
 		local cat = E and E.CategoryOf and E.CategoryOf(e)
 		self.category, self.categoryAuto = cat, nil -- (straight into its category: no list of categories first)
 	end
-	ns:Trace(("fuzzy find: %s -> %s %q"):format(tostring(e.name), advanced and "Advanced" or "Simple", text))
+	ns:Trace(("fuzzy find: %s -> %s %q"):format(tostring(e.name), advanced and "Advanced" or "Simple", ns.MaskSecret(text)))
 	self.popTarget = e
 	self:SetOrResearch(text .. " ")
 	self:SetStatus()
@@ -424,7 +424,7 @@ function UI:BackToSimple()
 	DropTick(text)
 	self.category, self.categoryAuto, self.action = same and once.fromCategory or nil, nil, nil
 	if ns.Bar then ns.Bar.Reset(); if same and once.bar then ns.Bar.Restore(once.bar) end end
-	ns:Trace(("advanced once: back to Simple (%q)"):format(text))
+	ns:Trace(("advanced once: back to Simple (%q)"):format(ns.MaskSecret(text)))
 	Forget(self, true)
 	self:SetOrResearch(text)
 	self:SetStatus()
@@ -471,7 +471,7 @@ function UI:AdvancedOnce()
 	DropTick(conv) -- (the key's ` still comes as a typed character)
 	-- (Simple for a run from fuzzy finding: Advanced now)
 	E.temp, E.tempSimple = { from = text, category = cat, conv = conv, bar = bar, fromCategory = self.category }, nil
-	ns:Trace(("advanced once: %q%s -> %q"):format(text, cat and (" [" .. cat .. "]") or "", conv))
+	ns:Trace(("advanced once: %q%s -> %q"):format(ns.MaskSecret(text), cat and (" [" .. cat .. "]") or "", ns.MaskSecret(conv)))
 	self.category, self.categoryAuto, self.action = nil, nil, nil
 	Forget(self, true)
 	self:SetOrResearch(conv)

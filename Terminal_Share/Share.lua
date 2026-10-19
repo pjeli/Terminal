@@ -26,14 +26,15 @@ local Lower, Str, Num, Safe = ns.Lower, ns.Str, ns.Num, ns.Safe
 local floor, concat, sort = math.floor, table.concat, table.sort
 
 SSH.PREFIX = "TermSSH"
-SSH.V = "1"                -- the protocol's version, each message's first character
+SSH.V = "2"                -- the protocol's version, each message's first character (2: 0.58.16, delta updates,
+                           -- 150-piece snapshots, a session in hellos; a friend on another is told to update)
 SSH.SALT = "Terminal.ssh.1" -- (the key is the same for every pair who typed the same password)
 SSH.KDF_ROUNDS = 2000      -- SHA-256s a password guess costs
 SSH.KDF_SLICE = 50         -- of them a frame
 SSH.MIN_PASSWORD = 8
 SSH.MAC_HEX = 32           -- a proof's length (128 bits, hex)
 SSH.CHUNK = 200            -- a data message's payload, at most
-SSH.MAX_PIECES = 100       -- a snapshot's messages, at most (20000 characters)
+SSH.MAX_PIECES = 150       -- a snapshot's messages, at most (30000 characters: ~2500 items in two places each)
 SSH.MAX_ITEMS = 3000
 SSH.MAX_PLACES = 64        -- characters and banks a snapshot names
 SSH.HANDSHAKE_TIMEOUT = 30 -- s for an answer
@@ -46,6 +47,8 @@ SSH.RECHECK = 60           -- s: are they still a friend?
 SSH.WAIT_KEEP = 600        -- s a "wants to connect" is shown
 SSH.NOANSWER_KEEP = 30     -- s a "no answer" is shown, then forgotten (0.58.11, the player; 0.58.15: sooner)
 SSH.BURST, SSH.RATE = 6, 1 -- the send queue: this many at once, then one a second (the game allows 10, then 1/s)
+SSH.RETRY_TICK = 60        -- s: who to say hello to again is looked at
+SSH.RETRY_EVERY = 600      -- s: a friend who didn't answer is said hello to again after this, then twice it... (8x at most)
 
 -- the game's answers to a send (Enum.SendAddonMessageResult)
 local SENT, THROTTLED = 0, { [3] = true, [8] = true }
@@ -74,11 +77,14 @@ local function ValidClaim(s)
 end
 
 --- Does a claim ("bob@realm") name the character the server says sent it ("Bob", "Bob-Realm", "Plamen Warr")?
-function SSH.ClaimIs(claim, sender)
+--- `myRealm` (as SSH.Claim writes it): the server writes a sender on your realm without one, so "Bob" is bob@<yours>
+--- only (review, 0.58.16: bob@<any realm>, another friend's record taken over).
+function SSH.ClaimIs(claim, sender, myRealm)
 	local name, realm = tostring(claim or ""):match("^(.-)@(.*)$")
 	if not name or name == "" then return false end
 	local s = Canon(sender)
-	return s == name or s == name .. "-" .. realm
+	if s == name then return myRealm == nil or myRealm == "" or realm == myRealm end
+	return s == name .. "-" .. realm
 end
 
 local HEX16 = "^%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x$"
@@ -120,57 +126,85 @@ end
 
 local function Clean(who) return (tostring(who or ""):gsub("[,;|/!]", "")) end
 
---- A snapshot as text, the items in order (the same bags make the same text).
-function SSH.Encode(snap)
+--- A snapshot in its parts, as text: { places = "Bob/b,...", entries = { [itemID] = "0.k,1.3" }, ids = { in order },
+--- gold = base 36 or "", mode }. (Delta updates compare two of these: SSH.Delta.)
+function SSH.EncodeParts(snap)
 	snap = snap or {}
 	local places = {}
 	for i, pl in ipairs(snap.places or {}) do places[i] = Clean(pl.who) .. "/" .. tostring(pl.where) end
-	local ids = {}
+	local ids, entries = {}, {}
 	for id, at in pairs(snap.items or {}) do
-		if type(id) == "number" and id > 0 and type(at) == "table" then ids[#ids + 1] = id end
+		if type(id) == "number" and id > 0 and type(at) == "table" then
+			local where = {}
+			for pi = 1, #places do
+				local n = at[pi]
+				if type(n) == "number" and n > 0 then where[#where + 1] = To36(pi - 1) .. "." .. To36(n) end
+			end
+			if #where > 0 then
+				ids[#ids + 1] = id
+				entries[id] = concat(where, ",")
+			end
+		end
 	end
 	sort(ids)
-	local parts = {}
-	for _, id in ipairs(ids) do
-		local where = {}
-		local at = snap.items[id]
-		for pi = 1, #places do
-			local n = at[pi]
-			if type(n) == "number" and n > 0 then where[#where + 1] = To36(pi - 1) .. "." .. To36(n) end
-		end
-		if #where > 0 then parts[#parts + 1] = To36(id) .. ":" .. concat(where, ",") end
-	end
-	local gold = type(snap.gold) == "number" and snap.gold > 0 and To36(snap.gold) or ""
-	local mode = type(snap.mode) == "string" and snap.mode:match("^%a+$") or ""
-	return concat(places, ",") .. "!" .. concat(parts, ";") .. "!" .. gold .. "!" .. mode
+	return {
+		places = concat(places, ","), entries = entries, ids = ids,
+		gold = type(snap.gold) == "number" and snap.gold > 0 and To36(snap.gold) or "",
+		mode = type(snap.mode) == "string" and snap.mode:match("^%a+$") or "",
+	}
 end
 
---- The text back: { places = { { who, where } }, items = { [itemID] = total }, parts = { [itemID] = { { place, n } } },
---- gold }. At most MAX_PLACES places and MAX_ITEMS items; anything else in it ignored.
+--- The parts as one text, the items in order (the same bags make the same text).
+function SSH.Join(parts)
+	local items = {}
+	for i, id in ipairs(parts.ids) do items[i] = To36(id) .. ":" .. parts.entries[id] end
+	return parts.places .. "!" .. concat(items, ";") .. "!" .. parts.gold .. "!" .. parts.mode
+end
+
+--- A snapshot as text (SSH.EncodeParts, SSH.Join).
+function SSH.Encode(snap) return SSH.Join(SSH.EncodeParts(snap)) end
+
+--- An item's places and counts ("0.k,1.3") read: its total and the same text with only what's good in it (a place
+--- among `nPlaces`, a count over 0, at most 16), or 0 when nothing is.
+local function ParseEntry(list, nPlaces)
+	local total, good = 0, {}
+	for pa, pn in list:gmatch("(%w+)%.(%w+)") do
+		local pi, c = tonumber(pa, 36), tonumber(pn, 36)
+		if pi and c and c > 0 and c < 2 ^ 24 and pi < nPlaces and #good < 16 then
+			good[#good + 1] = pa .. "." .. pn
+			total = total + c
+		end
+	end
+	return total, concat(good, ",")
+end
+
+--- An item's places and counts as a list: { { place (1-based), n } }. (Kept as text on a friend: lists are made only
+--- for a tooltip or a breakdown.)
+function SSH.Parts(entry)
+	local out = {}
+	for pa, pn in tostring(entry or ""):gmatch("(%w+)%.(%w+)") do out[#out + 1] = { place = tonumber(pa, 36) + 1, n = tonumber(pn, 36) } end
+	return out
+end
+
+--- The text back: { places = { { who, where } }, items = { [itemID] = total }, entries = { [itemID] = "0.k,1.3" },
+--- gold, mode }. At most MAX_PLACES places and MAX_ITEMS items; anything else in it ignored.
 function SSH.Decode(text)
-	local out = { places = {}, items = {}, parts = {} }
+	local out = { places = {}, items = {}, entries = {} }
 	local placesText, itemsText, goldText, modeText = tostring(text or ""):match("^([^!]*)!([^!]*)!(%w*)!?(%a*)$")
 	if not placesText then return out end
 	for who, where in placesText:gmatch("([^,/]*)/(%a)") do
 		if #out.places >= SSH.MAX_PLACES then break end
 		out.places[#out.places + 1] = { who = who, where = SSH.WHERE[where] and where or "b" }
 	end
-	local n = 0
+	local n, nPlaces = 0, #out.places
 	for a, list in itemsText:gmatch("(%w+):([%w%.,]+)") do
 		local id = tonumber(a, 36)
 		if id and id > 0 and id < 2 ^ 31 and not out.items[id] then
-			local total, parts = 0, {}
-			for pa, pn in list:gmatch("(%w+)%.(%w+)") do
-				local pi, c = tonumber(pa, 36), tonumber(pn, 36)
-				if pi and c and c > 0 and c < 2 ^ 24 and out.places[pi + 1] and #parts < 16 then
-					parts[#parts + 1] = { place = pi + 1, n = c }
-					total = total + c
-				end
-			end
+			local total, clean = ParseEntry(list, nPlaces)
 			if total > 0 then
 				n = n + 1
 				if n > SSH.MAX_ITEMS then break end
-				out.items[id], out.parts[id] = total, parts
+				out.items[id], out.entries[id] = total, clean
 			end
 		end
 	end
@@ -179,6 +213,52 @@ function SSH.Decode(text)
 	out.mode = modeText ~= "" and modeText or nil
 	if out.mode and out.mode ~= "all" then out.gold = nil end -- (gold is shared with all only)
 	return out
+end
+
+-- Delta updates (0.58.16, the stress test: .share all to 10 friends with 500 items each took 300 messages, 5 minutes,
+-- for every bag change): after a friend has a whole snapshot, a change sends only what changed, "1U ver,base,i,n,..."
+-- with "id:0.k,1.3" for an item changed or new, "id:x" for one gone, and the gold: "changes!gold". The friend applies
+-- it to the snapshot `base`; one they don't have (a piece lost, a /reload) is asked for whole again ("1R").
+
+--- What changed from `old` to `new` (SSH.EncodeParts), as a delta's text; nil when nothing did.
+function SSH.Delta(old, new)
+	local out = {}
+	for _, id in ipairs(new.ids) do
+		local e = new.entries[id]
+		if old.entries[id] ~= e then out[#out + 1] = To36(id) .. ":" .. e end
+	end
+	for id in pairs(old.entries) do
+		if not new.entries[id] then out[#out + 1] = To36(id) .. ":x" end
+	end
+	if #out == 0 and old.gold == new.gold then return nil end
+	return concat(out, ";") .. "!" .. new.gold
+end
+
+--- A delta applied to a friend's items (SSH.Delta's text). False when it doesn't read.
+function SSH.Apply(f, text)
+	local changes, goldText = tostring(text or ""):match("^([^!]*)!(%w*)$")
+	if not changes then return false end
+	local nPlaces = #(f.places or {})
+	local n = f.n or 0
+	for a, list in changes:gmatch("(%w+):([%w%.,]+)") do
+		local id = tonumber(a, 36)
+		if id and id > 0 and id < 2 ^ 31 then
+			if list == "x" then
+				if f.items[id] then n = n - 1 end
+				f.items[id], f.entries[id] = nil, nil
+			else
+				local total, clean = ParseEntry(list, nPlaces)
+				if total > 0 and (f.items[id] or n < SSH.MAX_ITEMS) then
+					if not f.items[id] then n = n + 1 end
+					f.items[id], f.entries[id] = total, clean
+				end
+			end
+		end
+	end
+	local g = goldText ~= "" and tonumber(goldText, 36) or nil
+	f.gold = (f.mode == "all" and g and g > 0 and g < 2 ^ 53) and g or nil
+	f.n = n
+	return true
 end
 
 ----------------------------------------------------------------------
@@ -232,7 +312,7 @@ E.__index = E
 
 function SSH.Endpoint(env)
 	return setmetatable({ env = env, peers = {}, friends = {}, waiting = {}, queue = {}, tokens = SSH.BURST, refillAt = 0,
-		mode = "limited", outVer = 0, recheckAt = 0, hellos = {} }, E)
+		mode = "limited", outVer = 0, recheckAt = 0, hellos = {}, tried = {} }, E)
 end
 
 -- Two records (0.58.3; in game, 0.58.2: connected, "items: 0" on both sides):
@@ -264,13 +344,17 @@ function E:Now() return self.env.now() end
 function E:Claim() return self.env.claim() end
 
 --- Queue a message (sent at once when the queue lets it). `tag` lets a newer one take an older's place ("data:claim").
-function E:Send(route, text, tag)
+--- `f`: a friend's items (counted while they wait: f.queued; friends take turns). `peer`: a handshake's, its time
+--- started when it's sent (review, 0.58.16: started when queued, thirty hellos behind each other timed out unsent).
+function E:Send(route, text, tag, f, peer)
 	if tag then
 		for i = #self.queue, 1, -1 do
-			if self.queue[i].tag == tag then table.remove(self.queue, i) end
+			if self.queue[i].tag == tag then self:Unqueue(i) end
 		end
 	end
-	local m = { route = route, text = text, tag = tag }
+	local m = { route = route, text = text, tag = tag, f = f, peer = peer }
+	if f then f.queued = (f.queued or 0) + 1 end
+	if peer then peer.queuedMsg = m end -- (not timed out while it waits)
 	local at = #self.queue + 1
 	if not tag then
 		-- (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT to be answered)
@@ -282,6 +366,33 @@ function E:Send(route, text, tag)
 	self:Pump()
 end
 
+--- A message taken out of the queue (a friend's items no longer counted as waiting).
+function E:Unqueue(i)
+	local m = table.remove(self.queue, i)
+	if m and m.f then
+		m.f.queued = math.max(0, (m.f.queued or 1) - 1)
+		if m.f.queued == 0 then m.f.doneAt = self:Now() end
+	end
+	return m
+end
+
+--- The next message out: in order, but of friends' items the friend with the fewest pieces left first (review,
+--- 0.58.16: a small update waited behind another friend's hundred pieces, and went stale there). A big snapshot
+--- still goes one friend at a time: each has theirs as soon as can be.
+function E:NextOut()
+	local q = self.queue
+	if not q[1].f then return 1 end
+	local best, fewest = 1, nil
+	for i, m in ipairs(q) do
+		local f = m.f
+		if f and (fewest == nil or (f.queued or 0) < fewest) then
+			best, fewest = i, f.queued or 0
+			if fewest <= 1 then break end
+		end
+	end
+	return best
+end
+
 function E:Pump()
 	local now = self:Now()
 	if now >= self.refillAt then
@@ -291,15 +402,19 @@ function E:Pump()
 	end
 	while self.tokens > 0 and #self.queue > 0 do
 		if self.env.locked() then return end -- (nothing goes while chat is locked: sent once it isn't)
-		local m = table.remove(self.queue, 1)
+		local i = self:NextOut()
+		local m = self.queue[i]
 		local res = self.env.send(m.route, m.text)
 		self.results = self.results or {}
 		self.results[tostring(res)] = (self.results[tostring(res)] or 0) + 1 -- (.ssh debug)
 		if THROTTLED[res] or res == LOCKDOWN then
-			table.insert(self.queue, 1, m) -- (the game said wait: tried again on a later second)
-			self.tokens = 0
+			self.tokens = 0 -- (the game said wait: tried again on a later second, where it was)
 			return
 		end
+		self:Unqueue(i)
+		local p = m.peer
+		if p and p.queuedMsg == m then p.queuedMsg = nil end
+		if p and (p.state == "hello" or p.state == "challenged" or p.state == "proved") then p.since = now end
 		self.sent = (self.sent or 0) + 1
 		self.tokens = self.tokens - 1
 	end
@@ -316,31 +431,48 @@ function E:Peer(route, make)
 	return p
 end
 
+--- Handshakes others started, under way (yours aren't counted: review, 0.58.16, twenty online friends who don't run
+--- it filled the count with your own hellos, and a guildmate who does never connected).
 local function Pending(self)
 	local n = 0
 	for _, p in pairs(self.peers) do
-		if p.state == "hello" or p.state == "challenged" or p.state == "proved" then n = n + 1 end
+		if p.state == "challenged" then n = n + 1 end
 	end
 	return n
+end
+
+--- This session's mark: in hellos (a friend connected already hears a hello to others and lets it be) and snapshot
+--- numbers (a /reload counts from 0 again: its pieces never taken for the last session's).
+function E:Session()
+	if not self.sess then self.sess = self.env.nonce():sub(1, 4) end
+	return self.sess
 end
 
 --- Say hello: to everyone broadcast() names, or to one route.
 function E:Hello(route)
 	if not self.key then return false end
 	local now = self:Now()
-	if route then
-		local p = self:Peer(route, true)
-		p.state, p.nA, p.nB, p.since = "hello", self.env.nonce(), nil, now
-		self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. self:Claim())
+	if route and route.kind == "guild" then
+		-- (the guild channel: one message, answered by each member who has the password; the nonce is the one they echo)
+		local n = self.env.nonce()
+		self.hellos[n], self.lastBroadcast = now, n
+		self:Tried("guild", now)
+		self:Send(route, SSH.V .. "H " .. n .. "," .. self:Claim() .. "," .. self:Session())
 		return true
 	end
-	-- (the guild channel: one message, answered by each member who has the password; the nonce is the one they echo)
+	if route then
+		local p = self:Peer(route, true)
+		-- (connected already this way: what they send still lands while it's proven again)
+		if p.state == "up" then p.wasUp = true end
+		p.state, p.nA, p.nB, p.since = "hello", self.env.nonce(), nil, now
+		self:Tried(p.key, now)
+		self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. self:Claim() .. "," .. self:Session(), nil, nil, p)
+		return true
+	end
 	local seen = {}
 	for _, r in ipairs(self.env.broadcast() or {}) do
 		if r.kind == "guild" then
-			local n = self.env.nonce()
-			self.hellos[n], self.lastBroadcast = now, n
-			self:Send(r, SSH.V .. "H " .. n .. "," .. self:Claim())
+			self:Hello(r)
 		elseif not seen[self:Key(r)] then
 			seen[self:Key(r)] = true
 			self:Hello(r)
@@ -349,18 +481,42 @@ function E:Hello(route)
 	return true
 end
 
+--- A hello said to a way (or the guild channel): when, and how many times without an answer.
+function E:Tried(k, now)
+	local t = self.tried[k]
+	if not t then t = { n = 0 }; self.tried[k] = t end
+	t.n, t.at = t.n + 1, now
+end
+
+--- Hello again, now and then, to who isn't connected (review, 0.58.16: a hello lost, heard in a dungeon while chat was
+--- locked, or a friend list not read yet at login, and nobody ever tried again): after RETRY_EVERY, then twice that...
+--- up to 8 times it; a friend never tried yet (online since), at once. Connected ones hear the guild's and let it be.
+function E:Retry(now)
+	for _, r in ipairs(self.env.broadcast() or {}) do
+		local k = r.kind == "guild" and "guild" or self:Key(r)
+		if r.kind == "guild" or not self.peers[k] then
+			local t = self.tried[k]
+			local wait = t and SSH.RETRY_EVERY * 2 ^ math.min(math.max(t.n - 1, 0), 3) or 0
+			if not t or now - (t.at or 0) >= wait then self:Hello(r) end
+		end
+	end
+end
+
 --- A way proven: its friend connected (a new friend is said so and sent what you share; a friend already connected
 --- another way is sent it this way from now on).
 function E:Up(p)
 	local now = self:Now()
-	p.state, p.mismatch, p.upAt = "up", nil, now
+	p.state, p.mismatch, p.upAt, p.wasUp = "up", nil, now, nil
+	-- (a new handshake: what was being put together, and what their deltas build on, is from before it)
+	p.pieces, p.got, p.inKey = {}, 0, nil
+	self.tried[p.key] = nil
 	local f = self.friends[p.claim]
 	local new = f == nil
 	if new then
-		f = { claim = p.claim, items = {}, parts = {}, places = {}, n = 0 }
+		f = { claim = p.claim, items = {}, entries = {}, places = {}, n = 0 }
 		self.friends[p.claim] = f
 	end
-	f.name, f.route, f.key, f.last = p.name or f.name, p.route, p.key, now
+	f.name, f.route, f.key, f.last, f.ver = p.name or f.name, p.route, p.key, now, nil
 	self.waiting[p.key] = nil
 	if new then self.env.say(L["Share: connected to %s"]:format(f.name or "?")) end
 	f.sentText = nil -- (sent again whole: this way may be a new one to them)
@@ -381,49 +537,63 @@ function E:Drop(f, why)
 	if HasData(f) then self.env.changed() end
 end
 
---- What you share, as text (the same text as before: not sent again).
+--- What you share, as text (the same text as before: not sent again), and in its parts (SSH.EncodeParts: a delta is
+--- made from two of them). "none": an empty text, no parts.
 function E:Snapshot(fresh)
-	if self.mode == "none" then return "" end
+	if self.mode == "none" then return "", nil end
 	-- (made once for every friend a change is sent to: E:Changed starts it again)
 	if fresh or not self.snapText or self.snapMode ~= self.mode then
 		local snap = self.env.items(self.mode) or {}
 		snap.mode = self.mode
 		if self.mode ~= "all" then snap.gold = nil end -- (gold only with all, whatever items() gave)
-		self.snapText, self.snapMode = SSH.Encode(snap), self.mode
+		local parts = SSH.EncodeParts(snap)
+		self.snapText, self.snapParts, self.snapMode = SSH.Join(parts), parts, self.mode
 	end
-	return self.snapText
+	return self.snapText, self.snapParts
 end
 
 --- Send a friend what you share, now (`force`) or when it's been SEND_GAP since the last.
 function E:Share(f, force)
 	if not (f and self.friends[f.claim]) then return end
 	local now = self:Now()
-	-- (a big snapshot, every alt's bank: its messages at most every other second over time)
-	local gap = math.max(SSH.SEND_GAP, (f.sentPieces or 1) * 2)
-	if not force and f.sentAt and now - f.sentAt < gap then f.owed = true return end
-	local text = self:Snapshot(force)
+	local tag = "data:" .. f.claim .. ":"
+	if (f.queued or 0) > 0 then
+		-- (one still going out: the next waits for its last piece, then goes as what changed since. Review, 0.58.16: it
+		-- was dropped for a whole new one at the back of the queue, and a big snapshot to six friends never ended)
+		if not force then f.owed = true return end
+		for i = #self.queue, 1, -1 do
+			local t = self.queue[i].tag
+			if t and t:sub(1, #tag) == tag then self:Unqueue(i) end
+		end
+	end
+	-- (SEND_GAP since the last went out whole)
+	local last = math.max(f.sentAt or 0, f.doneAt or 0)
+	if not force and f.sentAt and now - last < SSH.SEND_GAP then f.owed = true return end
+	local text, parts = self:Snapshot(force)
 	if not force and text == f.sentText then f.owed = nil return end
-	f.sentText, f.sentAt, f.owed, f.pingAt = text, now, nil, now
+	-- only what changed, when they have the last one whole and it's the same places and mode: "2U ver,base,i,n,..."
+	local letter, payload, base = "D", text, ""
+	local old = f.sentParts
+	if not force and old and parts and f.sentVer and old.places == parts.places and old.mode == parts.mode then
+		local delta = SSH.Delta(old, parts)
+		if delta and #delta < #text / 2 then letter, payload, base = "U", delta, f.sentVer .. "," end
+	end
 	self.outVer = self.outVer + 1
-	local ver = To36(self.outVer)
+	local ver = self:Session() .. To36(self.outVer)
+	f.sentText, f.sentParts, f.sentVer, f.sentAt, f.owed, f.pingAt = text, parts, ver, now, nil, now
 	-- (pieces of CHUNK characters, put back together as they were; a snapshot past MAX_PIECES is cut at its last whole
-	-- item, so it still reads)
+	-- item, so it still reads, and the next goes whole)
 	local max = SSH.CHUNK * SSH.MAX_PIECES
-	if #text > max then
-		local cut = text:sub(1, max - 1):match("^(.*);") or ""
-		text = cut .. "!!" .. (self.mode or "")
+	if #payload > max then
+		local cut = payload:sub(1, max - 1):match("^(.*);") or ""
+		payload = cut .. "!!" .. (self.mode or "")
+		f.sentParts = nil
 	end
 	local pieces = {}
-	for at = 1, math.max(1, #text), SSH.CHUNK do pieces[#pieces + 1] = text:sub(at, at + SSH.CHUNK - 1) end
+	for at = 1, math.max(1, #payload), SSH.CHUNK do pieces[#pieces + 1] = payload:sub(at, at + SSH.CHUNK - 1) end
 	f.sentPieces = #pieces
-	-- (the queue keeps one snapshot per friend: an older one still waiting is dropped)
-	local tag = "data:" .. f.claim .. ":"
-	for i = #self.queue, 1, -1 do
-		local t = self.queue[i].tag
-		if t and t:sub(1, #tag) == tag then table.remove(self.queue, i) end
-	end
 	for i, piece in ipairs(pieces) do
-		self:Send(f.route, SSH.V .. "D " .. ver .. "," .. i .. "," .. #pieces .. "," .. piece, tag .. i)
+		self:Send(f.route, SSH.V .. letter .. " " .. ver .. "," .. base .. i .. "," .. #pieces .. "," .. piece, tag .. i, f)
 	end
 end
 
@@ -437,20 +607,36 @@ end
 function E:Receive(route, text)
 	if type(text) ~= "string" or #text > 255 then return end
 	local v, letter, rest = text:match("^(%d)(%u) ?(.*)$")
-	if v ~= SSH.V then return end
+	if not v then return end
 	local p = self:Peer(route)
+	if v ~= SSH.V then
+		-- (another version's hello, from someone you'd hear: said once, so it isn't a silent "no answer")
+		if letter ~= "H" then return end
+		local name = self.env.eligible(route, p)
+		local k = self:Key(route)
+		self.otherV = self.otherV or {}
+		if name and self.key and not self.otherV[k] then
+			self.otherV[k] = true
+			self.env.say(L["Share: %s runs another version of Terminal: Share; you both need the newest to connect"]:format(name))
+		end
+		return
+	end
 	local name = self.env.eligible(route, p)
 	if not name then return end -- (not a friend, a guild member or a Battle.net friend's: ignored)
 	local now = self:Now()
 	self.heard = self.heard or {}
 	self.heard[letter] = (self.heard[letter] or 0) + 1 -- (.ssh debug)
 	if letter == "H" then
-		local nA, claim = rest:match("^(%x+),(.+)$")
+		local nA, claim, sess = rest:match("^(%x+),([^,]+),?(%x*)$")
 		if not (ValidNonce(nA) and ValidClaim(claim) and self.env.matches(claim, route)) then return end
 		if not self.key then
 			self.waiting[self:Key(route)] = { name = name, at = now }
 			return
 		end
+		-- (the guild channel's hello from a friend connected, the same session of theirs: one to others, let be. Review,
+		-- 0.58.16: answered, it broke the connection until it was made again. A hello to you alone is always answered:
+		-- they dropped you, whatever you think)
+		if route.kind == "guild" and p and p.state == "up" and p.claim == claim and sess ~= "" and p.sess == sess then return end
 		if p and p.lastHello and now - p.lastHello < SSH.HELLO_GAP then return end
 		-- (both said hello at once: the smaller claim's hello goes on, the other side answers it)
 		local mine = self:Claim()
@@ -467,34 +653,37 @@ function E:Receive(route, text)
 			end
 			if p.nA and (not p.resent or now - p.resent >= SSH.HELLO_GAP) then
 				p.resent = now
-				self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. mine)
+				self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. mine .. "," .. self:Session(), nil, nil, p)
 			end
 			return
 		end
-		if not p and Pending(self) >= SSH.MAX_PENDING then return end
+		if not (p and p.state == "up") and Pending(self) >= SSH.MAX_PENDING then return end
 		p = self:Peer(route, true)
-		p.lastHello, p.name, p.claim = now, name, claim
+		if p.state == "up" and p.claim == claim then p.wasUp = true end -- (what they send lands meanwhile)
+		p.lastHello, p.name, p.claim, p.sess = now, name, claim, sess
 		p.state, p.nA, p.nB, p.since = "challenged", nA, self.env.nonce(), now
-		self:Send(p.route, SSH.V .. "C " .. nA .. "," .. p.nB .. "," .. mine)
+		self:Send(p.route, SSH.V .. "C " .. nA .. "," .. p.nB .. "," .. mine .. "," .. self:Session(), nil, nil, p)
 	elseif letter == "C" then
-		local nA, nB, claim = rest:match("^(%x+),(%x+),(.+)$")
+		local nA, nB, claim, sess = rest:match("^(%x+),(%x+),([^,]+),?(%x*)$")
 		if not (self.key and ValidNonce(nA) and ValidNonce(nB) and ValidClaim(claim) and self.env.matches(claim, route)) then return end
 		if not (p and p.state == "hello" and p.nA == nA) then
 			-- (an answer to the guild channel's hello)
 			local at = self.hellos[nA]
 			if not (at and now - at < SSH.HANDSHAKE_TIMEOUT) then return end
-			if p and p.state == "up" and p.claim == claim then return end -- (already connected this way: a second answer)
-			if not p and Pending(self) >= SSH.MAX_PENDING then return end
+			if p and p.state == "proved" and p.nB == nB then return end -- (the same answer twice)
 			p = self:Peer(route, true)
-			p.state, p.nA, p.since = "hello", nA, now
+			-- (connected already: answered all the same, they're waiting on it. Review, 0.58.16: let be, their side
+			-- gave up on the connection)
+			if p.state == "up" and p.claim == claim then p.wasUp = true end
+			p.state, p.nA = "hello", nA
 		end
-		p.nB, p.claim, p.name, p.state = nB, claim, name, "proved"
-		self:Send(p.route, SSH.V .. "A " .. nA .. "," .. nB .. "," .. Mac(self.key, "I", nA, nB, self:Claim(), claim))
+		p.nB, p.claim, p.name, p.state, p.since, p.sess = nB, claim, name, "proved", now, sess
+		self:Send(p.route, SSH.V .. "A " .. nA .. "," .. nB .. "," .. Mac(self.key, "I", nA, nB, self:Claim(), claim), nil, nil, p)
 	elseif letter == "A" then
 		local nA, nB, mac = rest:match("^(%x+),(%x+),(%x+)$")
 		if not (self.key and p and p.state == "challenged" and p.nA == nA and p.nB == nB) then return end
 		if mac ~= Mac(self.key, "I", nA, nB, p.claim, self:Claim()) then
-			p.state, p.mismatch = "mismatch", now
+			p.state, p.mismatch, p.wasUp = "mismatch", now, nil
 			self.env.say(L["Share: %s's password doesn't match yours"]:format(name))
 			return -- (no answer: a wrong password learns nothing)
 		end
@@ -504,37 +693,63 @@ function E:Receive(route, text)
 		local nA, nB, mac = rest:match("^(%x+),(%x+),(%x+)$")
 		if not (self.key and p and p.state == "proved" and p.nA == nA and p.nB == nB) then return end
 		if mac ~= Mac(self.key, "R", nA, nB, self:Claim(), p.claim) then
-			p.state, p.mismatch = "mismatch", now
+			p.state, p.mismatch, p.wasUp = "mismatch", now, nil
 			self.env.say(L["Share: %s's password doesn't match yours"]:format(name))
 			return
 		end
 		self:Up(p)
-	elseif letter == "D" then
-		local f = p and p.state == "up" and self.friends[p.claim]
+	elseif letter == "D" or letter == "U" then
+		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
 		if not f then return self:Stranger(route, p) end
-		local ver, i, n, payload = rest:match("^(%w+),(%d+),(%d+),(.*)$")
+		local ver, base, i, n, payload
+		if letter == "D" then
+			ver, i, n, payload = rest:match("^(%w+),(%d+),(%d+),(.*)$")
+		else
+			ver, base, i, n, payload = rest:match("^(%w+),(%w+),(%d+),(%d+),(.*)$")
+		end
 		i, n = tonumber(i), tonumber(n)
 		if not (ver and i and n and n >= 1 and n <= SSH.MAX_PIECES and i >= 1 and i <= n) then return end
 		f.last = now
-		-- (the pieces are put together per way: one snapshot comes one way)
-		if p.inVer ~= ver then p.inVer, p.pieces, p.got = ver, {}, 0 end
+		-- (the pieces are put together per way: one snapshot comes one way. Each piece says the snapshot's kind, number,
+		-- base and count, all of them its key: review, 0.58.16, a number heard again with another count read a piece
+		-- that wasn't there, an error)
+		local key = letter .. ver .. "," .. (base or "") .. "," .. n
+		if p.inKey ~= key then p.inKey, p.pieces, p.got = key, {}, 0 end
 		if not p.pieces[i] then p.got = p.got + 1 end
 		p.pieces[i] = payload
-		if p.got == n then
-			local d = SSH.Decode(concat(p.pieces, "", 1, n))
+		if p.got < n then return end
+		local text = concat(p.pieces, "", 1, n)
+		p.pieces, p.got, p.inKey = {}, 0, nil
+		if letter == "D" then
+			local d = SSH.Decode(text)
 			local count = 0
 			for _ in pairs(d.items) do count = count + 1 end
-			f.items, f.parts, f.places, f.gold, f.mode, f.n, f.gotAt = d.items, d.parts, d.places, d.gold, d.mode, count, now
-			p.pieces, p.got, p.inVer = {}, 0, nil
-			self.env.changed()
+			f.items, f.entries, f.places, f.gold, f.mode, f.n = d.items, d.entries, d.places, d.gold, d.mode, count
+		elseif f.ver ~= base or not SSH.Apply(f, text) then
+			-- (built on a snapshot we don't have: asked for whole, now and then)
+			if not f.askedAt or now - f.askedAt >= SSH.HELLO_GAP then
+				f.askedAt = now
+				self:Send(p.route, SSH.V .. "R")
+			end
+			return
 		end
+		f.ver, f.gotAt = ver, now
+		f.rows = nil -- (their @shared rows made again: SSH.Rows)
+		self.env.changed()
+	elseif letter == "R" then
+		-- (they're missing what our last delta built on: the next goes whole)
+		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
+		if not f or (f.resentAt and now - f.resentAt < SSH.HELLO_GAP) then return end
+		f.resentAt = now
+		f.sentParts = nil
+		self:Share(f, true)
 	elseif letter == "P" then
-		local f = p and p.state == "up" and self.friends[p.claim]
+		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
 		if not f then return self:Stranger(route, p) end
 		f.last = now
 	elseif letter == "B" then
 		local f = p and p.claim and self.friends[p.claim]
-		if f and p.state == "up" then
+		if f and (p.state == "up" or p.wasUp) then
 			self:Drop(f)
 			self.env.say(L["Share: %s disconnected"]:format(f.name or name))
 		elseif p then
@@ -562,6 +777,10 @@ function E:Tick()
 	for n, at in pairs(self.hellos) do
 		if now - at >= SSH.HANDSHAKE_TIMEOUT then self.hellos[n] = nil end
 	end
+	if self.key and now >= (self.retryAt or 0) then
+		if self.retryAt then self:Retry(now) end
+		self.retryAt = now + SSH.RETRY_TICK
+	end
 	local recheck = now >= self.recheckAt
 	if recheck then self.recheckAt = now + SSH.RECHECK end
 	for _, f in pairs(self.friends) do
@@ -579,8 +798,10 @@ function E:Tick()
 	end
 	for k, p in pairs(self.peers) do
 		if p.state == "hello" or p.state == "challenged" or p.state == "proved" then
-			if now - (p.since or now) >= SSH.HANDSHAKE_TIMEOUT then
-				if p.state == "challenged" then self.peers[k] = nil else p.state, p.noAnswer = "noanswer", now end
+			if not p.queuedMsg and now - (p.since or now) >= SSH.HANDSHAKE_TIMEOUT then
+				-- (connected before it: still so, nothing disproved it)
+				if p.wasUp then p.state, p.wasUp = "up", nil
+				elseif p.state == "challenged" then self.peers[k] = nil else p.state, p.noAnswer = "noanswer", now end
 			end
 		elseif p.state == "noanswer" and now - (p.noAnswer or now) >= SSH.NOANSWER_KEEP then
 			self.peers[k] = nil -- (no answer for a while: not said any more; a hello from them starts again)
@@ -599,17 +820,25 @@ function E:SetKey(key)
 	for k, p in pairs(self.peers) do
 		if p.state ~= "up" then self.peers[k] = nil end
 	end
+	self.tried, self.retryAt = {}, self:Now() + SSH.RETRY_TICK
 	self:Hello()
 end
 
 --- `.ssh off`: goodbye to every friend, the key and everything they sent forgotten.
 function E:Off()
-	local had = false
+	local had, byes = false, {}
 	for _, f in pairs(self.friends) do
-		self.env.send(f.route, SSH.V .. "B") -- (straight away: the queue is emptied next)
+		byes[#byes + 1] = f.route
 		if HasData(f) then had = true end
 	end
 	self.peers, self.friends, self.waiting, self.queue, self.hellos, self.key = {}, {}, {}, {}, {}, nil
+	self.tried, self.retryAt = {}, nil
+	-- (a password still being made from: never used. Review, 0.58.16: .share off while it was, and it was set after)
+	self.keyGen, self.deriving = (self.keyGen or 0) + 1, nil
+	-- (the goodbyes through the queue: what the game says wait to goes a second later, the ticker kept until they're
+	-- all gone. Review, 0.58.16: sent straight, past ten friends or in chat lockdown some were lost, and those friends
+	-- showed your bags half an hour on)
+	for _, r in ipairs(byes) do self:Send(r, SSH.V .. "B") end
 	if had then self.env.changed() end
 end
 
@@ -636,7 +865,7 @@ function E:Items()
 			if not x then x = { total = 0, holders = {} }; out[id] = x end
 			x.total = x.total + n
 			local parts = {}
-			for _, pt in ipairs(f.parts and f.parts[id] or {}) do
+			for _, pt in ipairs(SSH.Parts(f.entries and f.entries[id])) do
 				local pl = f.places and f.places[pt.place]
 				if pl then parts[#parts + 1] = { who = pl.who, where = pl.where, n = pt.n } end
 			end
@@ -753,39 +982,83 @@ end }
 -- One row an item a friend (0.58.6, the player: "group and sort by Owner (Cad Man vs Cherry Tusks)"): an item two
 -- friends carry is two rows, "Linen Cloth x20 · Cad Man" and "x15 · Cherry Tusks", each with its owner (Pipes.lua's
 -- owner field: the bar's Group and Sort, sort:owner, | group by owner). The tooltip says who else has it.
-function SSH.Rows(ep)
-	local out = {}
-	for id, x in pairs(ep:Items()) do
+--
+-- (0.58.16, the stress test: tests/stress.py) Rows are compact (ns:CompactMeta): only what a search reads first is on
+-- the row (its name, owner, count); the rest (link, quality, holders, detail...) is worked out when asked and kept.
+-- Each friend's rows are kept on the friend and made again only when what they sent changed (or an item's name came
+-- in): a friend's update no longer remakes every other friend's rows. 10 friends x 500 items: 96 ms and ~10 MB a
+-- remake, before.
+
+local ROW_PROTO = {
+	tooltip = Tooltip, secure = WHISPER, isOpen = ns.Never, activate = Whisper,
+	secondary = function(e) ns:Output(Breakdown(e)) end,
+	shareExtra = ChatSummary,
+}
+local function Keep(t, k, v) if v ~= nil then rawset(t, k, v) end return v end
+local ROW_LAZY = {
+	quality = function(t) return Keep(t, "quality", ns.ItemQuality(t.itemID)) end,
+	color = function(t) return ns.QualityHex(t.quality) end,
+	icon = function(t) return Keep(t, "icon", C_Item and C_Item.GetItemIconByID and Safe(C_Item.GetItemIconByID, t.itemID)) end,
+	link = function(t)
+		local l = ns.ItemLink(t.itemID)
+		if l then rawset(t, "link", l) return l end
+		return "item:" .. t.itemID
+	end,
+	detail = function(t) return "x" .. t.total .. ns.DETAIL_SEP .. t.owner end,
+	-- (the friend as a holder: who, how many, where they keep it)
+	friends = function(t)
+		local f = t.friend
+		local parts = {}
+		for _, pt in ipairs(SSH.Parts(f.entries and f.entries[t.itemID])) do
+			local pl = f.places and f.places[pt.place]
+			if pl then parts[#parts + 1] = { who = pl.who, where = pl.where, n = pt.n } end
+		end
+		return Keep(t, "friends", { { key = f.claim, who = f.name or "?", count = t.total, friend = f, parts = parts } })
+	end,
+	holders = function(t) return Keep(t, "holders", StoredHolders(t.friends)) end,
+	-- (who else has it: read when its tooltip is drawn)
+	others = function(t)
+		local out = {}
+		for _, o in pairs(SSH.game and SSH.game.friends or {}) do
+			local n = o ~= t.friend and o.items[t.itemID]
+			if n then out[#out + 1] = (o.name or "?") .. " " .. n end
+		end
+		sort(out)
+		return #out > 0 and concat(out, ", ") or nil
+	end,
+}
+local rowMeta, lowerName = nil, {}
+
+--- A friend's rows: made when they sent something new, or names were still to come.
+local function FriendRows(f, p)
+	if f.rows and not f.rowsMissing then return f.rows end
+	rowMeta = rowMeta or ns:CompactMeta(p, ROW_PROTO, ROW_LAZY)
+	local rows, missing = {}, false
+	local who = f.name or "?"
+	local text = "shared friend " .. Lower(who)
+	local claim = tostring(f.claim)
+	for id, n in pairs(f.items) do
 		local name = nameWait.Name(id)
 		if name then
-			local quality = ns.ItemQuality(id)
-			local icon = C_Item and C_Item.GetItemIconByID and Safe(C_Item.GetItemIconByID, id)
-			-- (the game's link: the tooltip, chat and the item filters read it; "item:id" until the game has the item)
-			local link = ns.ItemLink(id) or ("item:" .. id)
-			for _, h in ipairs(x.holders) do
-				local mine = { h }
-				local others = {}
-				for _, o in ipairs(Holders({ friends = x.holders })) do
-					if o ~= h then others[#others + 1] = o.who .. " " .. o.count end
-				end
-				out[#out + 1] = {
-					key = id .. ":" .. tostring(h.key), itemID = id, name = name, icon = icon,
-					color = ns.QualityHex(quality), quality = quality, link = link,
-					owner = h.who,
-					detail = "x" .. h.count .. ns.DETAIL_SEP .. h.who,
-					text = "shared friend " .. h.who,
-					holders = StoredHolders(mine), friends = mine, total = h.count,
-					others = #others > 0 and concat(others, ", ") or nil,
-					tooltip = Tooltip,
-					secure = WHISPER, isOpen = ns.Never,
-					activate = Whisper,
-					secondary = function(e) ns:Output(Breakdown(e)) end,
-					shareExtra = ChatSummary,
-				}
-			end
+			local ln = lowerName[id]
+			if not ln then ln = Lower(name); lowerName[id] = ln end
+			rows[#rows + 1] = setmetatable({ _compact = true, key = id .. ":" .. claim, itemID = id, name = name, _lname = ln,
+				_ltext = text, owner = who, total = n, friend = f }, rowMeta)
+		else
+			missing = true
 		end
 	end
-	-- friends' gold (.ssh all): a row each, "gold" finds them
+	f.rows, f.rowsMissing = rows, missing or nil
+	return rows
+end
+
+function SSH.Rows(ep, p)
+	p = p or ns.providers.shared
+	local out = {}
+	for _, f in pairs(ep.friends) do
+		for _, row in ipairs(FriendRows(f, p)) do out[#out + 1] = row end
+	end
+	-- friends' gold (.share all): a row each, "gold" finds them
 	for _, g in ipairs(ep:Gold()) do
 		local said = L["%s's gold"]:format(g.who)
 		local holder = { who = g.who, count = 1, friend = g.friend } -- (Enter whispers them)
@@ -819,7 +1092,7 @@ ns:RegisterProvider("shared", {
 	aliases = { "shared", "ssh" },
 	busy = function() return SSH.Busy() end,
 	hintLabel = L["your friends' bags"],
-	collect = function() return SSH.game and SSH.Rows(SSH.game) or {} end,
+	collect = function(p) return SSH.game and SSH.Rows(SSH.game, p) or {} end,
 })
 
 ----------------------------------------------------------------------
@@ -929,8 +1202,11 @@ function SSH.SetPassword(ep, words, later, done)
 	if #words < SSH.MIN_PASSWORD then
 		return { L["Share: the password needs %d characters or more"]:format(SSH.MIN_PASSWORD) }
 	end
+	ep.keyGen = (ep.keyGen or 0) + 1
+	local gen = ep.keyGen
 	ep.deriving = true
 	SSH.Derive(words, function(key)
+		if ep.keyGen ~= gen then return end -- (.share off, or another password, meanwhile)
 		ep.deriving = nil
 		ep:SetKey(key)
 		SSH.Remember(key)
@@ -1006,7 +1282,7 @@ ns:RegisterCommand("share", {
 		if word == "off" then
 			ep:Off()
 			SSH.Remember(nil)
-			SSH.StopTicker()
+			if #ep.queue == 0 then SSH.StopTicker() end -- (else once the goodbyes are gone)
 			SSH.Badge()
 			return { L["Share: off. The password is forgotten and your friends' items are gone"] }
 		end
@@ -1106,9 +1382,8 @@ function SSH.BadgeTip(t)
 	local now = ep:Now()
 	local up = ep:Connected()
 	local function Items(n) return n == 1 and L["1 item"] or L["%d items"]:format(n) end
-	local mine = SSH.Decode(ep:Snapshot())
-	local n = 0
-	for _ in pairs(mine.items) do n = n + 1 end
+	local _, mine = ep:Snapshot()
+	local n = mine and #mine.ids or 0
 	t:AddDoubleLine(L["Sharing"], L["you: %s"]:format(Items(n) .. ns.DETAIL_SEP .. ep.mode), 1, 1, 1, 0.6, 0.6, 0.6)
 	for _, c in ipairs(up) do
 		local f = c.friend
@@ -1251,7 +1526,7 @@ local function Matches(claim, route)
 		if not (name == c or name:sub(1, #c + 1) == c .. "-") then return false end
 		return not b.realm or SSH.Claim("x", b.realm) == "x@" .. realm
 	end
-	return SSH.ClaimIs(claim, route.target)
+	return SSH.ClaimIs(claim, route.target, MyRealm())
 end
 
 local function Send(route, text)
@@ -1398,7 +1673,8 @@ local function Broadcast()
 	for i = 1, (FL and FL.GetNumFriends and Num(Safe(FL.GetNumFriends)) or 0) do
 		local f = Safe(FL.GetFriendInfoByIndex, i)
 		local n = type(f) == "table" and f.connected and Str(f.name)
-		if n and not done[Canon(n)] then
+		-- (a friend on your realm is "bob" here, "bob-realm" on the roster: review, 0.58.16, said hello twice)
+		if n and not done[Canon(n)] and not done[Canon(n) .. "-" .. MyRealm()] then
 			done[Canon(n)] = true
 			out[#out + 1] = { kind = "whisper", target = n }
 		end
@@ -1448,7 +1724,10 @@ local ticker
 function SSH.StartTicker()
 	if ticker or not (C_Timer and C_Timer.NewTicker) then return end
 	ticker = C_Timer.NewTicker(1, function()
-		SSH.game:Tick()
+		local ep = SSH.game
+		ep:Tick()
+		-- (off, and the goodbyes all gone: stopped)
+		if not ep.key and not ep.deriving and #ep.queue == 0 then SSH.StopTicker() return end
 		local U = ns.UI
 		local def = U and U.badges and (function() for _, d in ipairs(U.badges) do if d.id == "share" then return d end end end)()
 		if def and def.frame and def.frame:IsShown() then BadgeColour(def.frame) end -- (connecting: the arcs light in turn)

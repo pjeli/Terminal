@@ -346,7 +346,9 @@ function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _
 function ns.SecretLine(text)
 	if type(text) ~= "string" then return false end
 	local l = ns.Lower(text)
-	local rest = l:match("^%s*%.?%s*share%s+(.*)$") or l:match("^%s*%.?%s*ssh%s+(.*)$")
+	-- (any "." line: the command search finds .share by a shortened or misspelt name too, ".shar pw ...", ".hare pass
+	-- ...", so a command line whose next word is a password word is one whatever its first. Review, 0.58.16)
+	local rest = l:match("^%s*%.%s*%S+%s+(.*)$") or l:match("^%s*share%s+(.*)$") or l:match("^%s*ssh%s+(.*)$")
 	if not rest then return false end
 	return rest:find("^pass") ~= nil or rest:find("^pw%s") ~= nil or rest == "pw"
 end

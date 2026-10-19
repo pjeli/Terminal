@@ -61,7 +61,7 @@ local function LineRoom() return (UI.edit:GetWidth() or 400) - 2 end
 --- fits, or inside a word too long for a line. Cached for the text and the box's width.
 function UI:PromptLines()
 	local edit = UI.edit
-	local text = ns.MaskSecret(ns.MaskSecret(edit:GetText() or "") or "")
+	local text = ns.MaskSecret(edit:GetText() or "")
 	local room = LineRoom()
 	local key = text .. "\0" .. room .. "\0" .. tostring(self.keys)
 	if self.linesKey == key and self.lines then return self.lines end
@@ -103,7 +103,7 @@ end
 --- Where the caret goes after `pos` bytes: x along its line, y down from the first line, the line.
 function UI:PromptXY(pos)
 	local edit = UI.edit
-	local text = ns.MaskSecret(ns.MaskSecret(edit:GetText() or "") or "")
+	local text = ns.MaskSecret(edit:GetText() or "")
 	local lines = self:PromptLines()
 	local i = 1
 	for k = 2, #lines do
@@ -269,8 +269,17 @@ local function IndexAt(x, down)
 	end
 	-- the end of a wrapped line is the next line's start: stay on this one, before its space
 	if i < #lines and best == last and text:sub(last, last) == " " then best = last - 1 end
+	-- (a password's *s are a * a byte: a click between two of one letter's goes before the letter, never inside it,
+	-- where typing would split it and the key made from it wouldn't match a friend's. Review, 0.58.16)
+	local real = edit:GetText() or ""
+	while best > 0 and best < #real do
+		local b = real:byte(best + 1)
+		if not b or b < 128 or b >= 192 then break end
+		best = best - 1
+	end
 	return best
 end
+UI.PromptIndexAt = IndexAt -- (the tests)
 
 --- Mouse down on the prompt: the cursor goes there (shift extends the selection); dragging
 --- selects. The prompt stays Terminal's own, so the chosen cursor style stays too.
@@ -382,6 +391,14 @@ UI.BadgeTip = BadgeTip
 
 -- (0.58.10, the player's screenshot: the pop-out and the selected row's tooltip on top of each other) The pop-out takes
 -- the row tooltip's place beside the terminal (UI.PlaceTip), and the row's waits until it's put away (UI.badgeTipUp).
+--- A badge's per-frame work (its pop-out drawn again, its fading) started again, when it isn't running.
+local function Tick(f)
+	if f.tick and not f.ticking then
+		f.ticking = true
+		f:SetScript("OnUpdate", f.tick)
+	end
+end
+
 local function DrawTip(f, def)
 	local t = BadgeTip()
 	if not (t and def.tooltip) then return end
@@ -395,6 +412,7 @@ local function DrawTip(f, def)
 	if not ok then ns:Trace("badge " .. tostring(def.id) .. ": " .. tostring(err)) end
 	t:Show()
 	f.tipUp, f.tipAt = true, GetTime()
+	Tick(f)
 end
 
 --- The pop-out put away: the selected row's tooltip back.
@@ -417,6 +435,7 @@ local function MakeBadge(def)
 	f:SetScript("OnEnter", function(self)
 		self.over = true
 		self:SetAlpha(1)
+		Tick(self)
 		DrawTip(self, def)
 	end)
 	f:SetScript("OnLeave", function(self)
@@ -429,15 +448,23 @@ local function MakeBadge(def)
 		self.pinned = not self.pinned
 		if self.pinned then DrawTip(self, def) else HideTip(self) end
 	end)
-	f:SetScript("OnUpdate", function(self, elapsed)
+	f.tick = function(self, elapsed)
 		if self.tipUp and GetTime() - (self.tipAt or 0) >= 1 then DrawTip(self, def) end
 		-- (faded after `fade` seconds, over half a second; never while pointed at or its pop-out kept up)
-		if self.fadeAt and not (self.over or self.pinned) and GetTime() >= self.fadeAt then
-			local a = (self.GetAlpha and self:GetAlpha()) or 1
-			if type(a) ~= "number" then a = 1 end
-			if a > FADED then self:SetAlpha(math.max(FADED, a - (elapsed or 0) * 1.6)) end
+		local a = (self.GetAlpha and self:GetAlpha()) or 1
+		if type(a) ~= "number" then a = 1 end
+		if self.fadeAt and not (self.over or self.pinned) and GetTime() >= self.fadeAt and a > FADED then
+			a = math.max(FADED, a - (elapsed or 0) * 1.6)
+			self:SetAlpha(a)
 		end
-	end)
+		-- (nothing left to do: faded, or no fading, and no pop-out up. Not run every frame for good; woken by a
+		-- point, a wake, a pop-out. Review, 0.58.16)
+		if not (self.tipUp or self.over or self.pinned) and (not self.fadeAt or a <= FADED) then
+			self:SetScript("OnUpdate", nil)
+			self.ticking = nil
+		end
+	end
+	Tick(f)
 	f:SetScript("OnHide", function(self)
 		if self.tipUp then HideTip(self) end
 		self.pinned = nil
@@ -455,6 +482,7 @@ function UI.WakeBadge(id)
 		if def.id == id and f then
 			f:SetAlpha(1)
 			f.fadeAt = def.fade and (GetTime() + def.fade) or nil
+			Tick(f)
 		end
 	end
 end
@@ -705,13 +733,17 @@ end
 function UI:UpdateSyntax()
 	local edit, syntax = UI.edit, UI.syntax
 	if not (syntax and edit) then return end
-	local text = ns.MaskSecret(ns.MaskSecret(edit:GetText() or "") or "")
+	local text = ns.MaskSecret(edit:GetText() or "")
 	local lines = self:PromptLines()
 	local colours = Theme.Get().syntax
 	-- (a password being typed, ".ssh password ...": the copy shows it as *s, so it's always on; the box's own text, in
 	-- the game's typing mode (combat), is the game's password box: all *s. 0.58.6, the player: streams)
 	local secret = ns.SecretLine(text)
-	if edit.SetPassword and edit.secretShown ~= secret then edit.secretShown = secret; pcall(edit.SetPassword, edit, secret and not self.keys) end
+	-- (what's applied, not only whether it's a password line: leaving Terminal's own keys with the line as it is, a
+	-- click into the box or Ctrl+C, turns the box's password mode on. Review, 0.58.16: it stayed off, the password
+	-- in clear)
+	local want = (secret and not self.keys) and true or false
+	if edit.SetPassword and edit.secretShown ~= want then edit.secretShown = want; pcall(edit.SetPassword, edit, want) end
 	local on = self.keys and self:IsShown() and text ~= "" and (colours or #lines > 1 or secret) and true or false
 	if on then
 		local key = (self.linesKey or text) .. "\0" .. tostring(colours)

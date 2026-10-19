@@ -1257,6 +1257,7 @@ L["Share the look: .style copies it as a string, .style TERM1:... applies one"] 
 L["Share: %s disconnected"] = "Share: %s getrennt"
 L["Share: %s disconnected (%s)"] = "Share: %s getrennt (%s)"
 L["Share: %s isn't on your friend list, in your guild or a Battle.net friend's character"] = "Share: %s ist weder auf deiner Freundesliste noch in deiner Gilde noch der Charakter eines Battle.net-Freundes"
+L["Share: %s runs another version of Terminal: Share; you both need the newest to connect"] = "Share: %s nutzt eine andere Version von Terminal: Share; ihr braucht beide die neueste, um euch zu verbinden"
 L["Share: %s's password doesn't match yours"] = "Share: Das Passwort von %s passt nicht zu deinem"
 L["Share: connected to %s"] = "Share: verbunden mit %s"
 L["Share: no password yet. Type .share password <words> (8 characters or more), the same one as your friends"] = "Share: noch kein Passwort. Gib .share password <Wörter> ein (8 Zeichen oder mehr), dasselbe wie deine Freunde"

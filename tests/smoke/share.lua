@@ -143,7 +143,7 @@ do
 	check(back.items[2589] == 40 and back.items[6948] == 1 and back.items[190000] == 1234 and back.items[777] == 2 and back.gold == 123456789,
 		"a snapshot as text and back: " .. text)
 	check(back.places[1].who == "Bob Warr" and back.places[2].where == "k" and back.places[3].where == "w"
-		and #back.parts[2589] == 2 and back.parts[2589][2].n == 5, "...where each is kept")
+		and #SSH.Parts(back.entries[2589]) == 2 and SSH.Parts(back.entries[2589])[2].n == 5, "...where each is kept")
 	for _, junk in ipairs({ "", "zz;;x:y:z;-1:5", "a|b|c|d", "|1:zz.5|", "x/b|1:0.-1;2:0.3|" }) do
 		local ok, d = pcall(SSH.Decode, junk)
 		check(ok and type(d.items) == "table", "rubbish read without an error: " .. junk)
@@ -188,7 +188,7 @@ do
 	B:Changed()
 	net.Tick(SSH.SEND_GAP + 1)
 	local d = 0
-	for i = before + 1, #net.sent do if net.sent[i].text:find("^1D") then d = d + 1 end end
+	for i = before + 1, #net.sent do if net.sent[i].text:find("^2D") then d = d + 1 end end
 	check(d == 0, "bags that didn't change aren't sent again")
 	-- what's shared: limited by default (this character's mats and consumables), mats, consumables, all (alts, gold)
 	check(SSH.Endpoint({}).mode == "limited", "limited is the default")
@@ -278,7 +278,7 @@ do
 	check(not Up(A, "Carl") and not Up(C, "Ann"), "different passwords: not connected")
 	check(net.Said("password doesn't match"), "the side that checked says the password doesn't match: " .. table.concat(net.says, " / "))
 	local said = 0
-	for _, m in ipairs(net.sent) do if m.text:find("^1K") then said = said + 1 end end
+	for _, m in ipairs(net.sent) do if m.text:find("^2K") then said = said + 1 end end
 	check(said == 0, "no proof is ever sent back to a wrong password")
 	net.Tick(SSH.HANDSHAKE_TIMEOUT + 1)
 	local status = table.concat(SSH.Status(C), " / ") .. " // " .. table.concat(SSH.Status(A), " / ")
@@ -307,7 +307,7 @@ do
 	net.Run()
 	check(net.SaidTo("Ann", "Mal") == 0 and not Up(A, "Mal") and next(A.waiting) == nil, "a stranger's hello: no answer, not even a wait")
 	-- data from a stranger is ignored too
-	A:Receive({ kind = "whisper", target = "Mal" }, "1D 1,1,1,1kh:z")
+	A:Receive({ kind = "whisper", target = "Mal" }, "2D 1,1,1,1kh:z")
 	check(next(A:Items()) == nil, "a stranger's items: ignored")
 end
 
@@ -318,7 +318,7 @@ do
 	net.Add("Mal", { friends = { ann = "Ann" } })
 	A:SetKey(GOOD)
 	net.sent = {}
-	A:Receive({ kind = "whisper", target = "Mal" }, "1H 00000000000000aa,bob@realm")
+	A:Receive({ kind = "whisper", target = "Mal" }, "2H 00000000000000aa,bob@realm")
 	check(net.SaidTo("Ann", "Mal") == 0, "a hello claiming another's name: no answer")
 end
 
@@ -337,15 +337,15 @@ do
 	A:Hello({ kind = "whisper", target = "Mal" })
 	local nA = A.peers["w:mal"].nA
 	net.inbox = {}
-	B:Receive({ kind = "whisper", target = "Mal" }, "1H " .. nA .. "," .. mal)
+	B:Receive({ kind = "whisper", target = "Mal" }, "2H " .. nA .. "," .. mal)
 	local challenge = net.sent[#net.sent].text
-	local nB = challenge:match("^1C %x+,(%x+),")
+	local nB = challenge:match("^2C %x+,(%x+),")
 	check(nB ~= nil, "Bob challenges Mal: " .. challenge)
 	-- Mal hands Bob's challenge to Ann, as if it were his own; Ann proves to Mal
 	net.inbox = {}
-	A:Receive({ kind = "whisper", target = "Mal" }, "1C " .. nA .. "," .. nB .. "," .. mal)
+	A:Receive({ kind = "whisper", target = "Mal" }, "2C " .. nA .. "," .. nB .. "," .. mal)
 	local proof = net.sent[#net.sent].text
-	check(proof:find("^1A "), "Ann sends Mal her proof: " .. proof)
+	check(proof:find("^2A "), "Ann sends Mal her proof: " .. proof)
 	-- Mal passes it on to Bob
 	net.inbox = {}
 	B:Receive({ kind = "whisper", target = "Mal" }, proof)
@@ -377,7 +377,7 @@ do
 	check(Up(C, "Ann") and Up(C, "Bob") and Up(A, "Cat") and Up(B, "Cat"), "the third, later: connected to both")
 	-- your own guild message heard back is ignored (the env says you aren't eligible to yourself)
 	net.sent = {}
-	A:Receive({ kind = "guild", target = "Ann" }, "1H 00000000000000ab,ann@realm")
+	A:Receive({ kind = "guild", target = "Ann" }, "2H 00000000000000ab,ann@realm")
 	check(#net.sent == 0, "your own hello heard back: nothing")
 end
 
@@ -393,10 +393,10 @@ do
 	net.Run()
 	check(Up(A, "Bob"), "connected")
 	local pieces = 0
-	for _, m in ipairs(B.queue) do if m.text:find("^1D") then pieces = pieces + 1 end end
+	for _, m in ipairs(B.queue) do if m.text:find("^2D") then pieces = pieces + 1 end end
 	check(pieces > 0, "a big bag: the rest of its pieces wait in the queue: " .. pieces)
-	B:Send({ kind = "whisper", target = "Ann" }, "1C 0000000000000001,0000000000000002,bob@realm")
-	check(B.queue[1].text:find("^1C"), "a handshake goes before items still waiting: " .. B.queue[1].text)
+	B:Send({ kind = "whisper", target = "Ann" }, "2C 0000000000000001,0000000000000002,bob@realm")
+	check(B.queue[1].text:find("^2C"), "a handshake goes before items still waiting: " .. B.queue[1].text)
 	table.remove(B.queue, 1)
 	for _, m in ipairs(net.sent) do check(#m.text <= 255, "each message fits (255): " .. #m.text) end
 	net.Tick(60)
@@ -410,18 +410,60 @@ do
 	-- throttled: kept and sent later
 	net.throttle = 2
 	local before = #net.sent
-	B:Send({ kind = "whisper", target = "Ann" }, "1P")
+	B:Send({ kind = "whisper", target = "Ann" }, "2P")
 	check(#net.sent == before and #B.queue == 1, "the game says wait: kept in the queue")
 	net.Tick(3)
 	check(#B.queue == 0 and #net.sent == before + 1, "...sent a moment later")
 	-- locked
 	net.locked = true
-	B:Send({ kind = "whisper", target = "Ann" }, "1P")
+	B:Send({ kind = "whisper", target = "Ann" }, "2P")
 	net.Tick(3)
 	check(#B.queue == 1, "chat locked: nothing sent")
 	net.locked = false
 	net.Tick(2)
 	check(#B.queue == 0, "...sent once it isn't")
+end
+
+-- delta updates (0.58.16, the stress test): once a friend has a whole snapshot, a change sends only what changed;
+-- one built on a snapshot they don't have is asked for whole again
+do
+	local net = Net()
+	local many = {}
+	for i = 1, 300 do many[200000 + i] = i end
+	local A = net.Add("Ann", { friends = { bob = "Bob" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" }, items = many })
+	A:SetKey(GOOD)
+	B:SetKey(GOOD)
+	net.Tick(40)
+	check(A:Items()[200001] and A:Items()[200300].total == 300, "the whole snapshot first")
+	local function Sent(letter)
+		local n = 0
+		for _, m in ipairs(net.sent) do if m.from == "Bob" and m.text:find("^2" .. letter .. " ") then n = n + 1 end end
+		return n
+	end
+	net.sent = {}
+	many[200005], many[200010], many[200999] = 77, nil, 4
+	B:Changed()
+	net.Tick(SSH.SEND_GAP * 3)
+	check(Sent("U") == 1 and Sent("D") == 0, "a bag change: one small update, not the whole snapshot: " .. Sent("U") .. " / " .. Sent("D"))
+	local it = A:Items()
+	check(it[200005].total == 77 and not it[200010] and it[200999].total == 4 and it[200300].total == 300,
+		"...changed, gone and new items as they are now")
+	-- a delta built on what Ann doesn't have (her copy lost): asked for whole, sent whole
+	A.friends["bob@realm"].ver = "zz"
+	net.sent = {}
+	many[200006] = 66
+	B:Changed()
+	net.Tick(SSH.SEND_GAP * 3 + 20)
+	local asked = 0
+	for _, m in ipairs(net.sent) do if m.from == "Ann" and m.text == "2R" then asked = asked + 1 end end
+	check(asked == 1 and Sent("D") > 0 and A:Items()[200006].total == 66, "a delta on a snapshot Ann doesn't have: she asks, it comes whole")
+	-- nothing changed: nothing sent
+	net.sent = {}
+	B:Changed()
+	net.Tick(SSH.SEND_GAP * 3)
+	check(Sent("U") == 0 and Sent("D") == 0, "nothing changed: nothing sent")
+	check(SSH.Delta(SSH.EncodeParts(SSH.Simple("x", { [1] = 2 })), SSH.EncodeParts(SSH.Simple("x", { [1] = 2 }))) == nil, "the same parts: no delta")
 end
 
 -- memory only: silence drops a friend's items; so does no longer being a friend
@@ -449,7 +491,7 @@ do
 	check(not Up(A, "Bob") and not A:Items()[2589], "30 minutes without a word: dropped")
 	-- Bob still thinks they're connected: his ping makes Ann say hello again
 	net.sent = {}
-	A:Receive({ kind = "whisper", target = "Bob" }, "1P")
+	A:Receive({ kind = "whisper", target = "Bob" }, "2P")
 	net.Run()
 	check(Up(A, "Bob"), "a ping from a friend Ann had dropped: connected again")
 end
@@ -490,6 +532,199 @@ do
 	A:SetKey(BAD)
 	net.Run()
 	check(not Up(B, "Ann") and not Up(A, "Bob"), "a new password: no longer connected to those with the old one")
+end
+
+-- (review, 0.58.16) what the protocol's review found, each kept
+do
+	-- a big snapshot to several friends while bags keep changing: it goes out once, then only what changed; friends
+	-- take turns in the queue; everyone ends with the bags as they are (it was dropped for a whole one at the back of the
+	-- queue each time, and never ended)
+	local net = Net()
+	local many = {}
+	for i = 1, 900 do many[100000 + i * 37] = i end
+	local B = net.Add("Bob", { friends = { a1 = "A1", a2 = "A2", a3 = "A3", a4 = "A4" }, items = many })
+	local As = {}
+	for k = 1, 4 do As[k] = net.Add("A" .. k, { friends = { bob = "Bob" } }) end
+	for k = 1, 4 do As[k]:SetKey(GOOD) end
+	B:SetKey(GOOD)
+	net.Tick(15)
+	for k = 1, 4 do check(Up(As[k], "Bob"), "connected: A" .. k) end
+	local id = 100000 + 37
+	for step = 1, 12 do
+		many[id] = 5000 + step
+		B:Changed()
+		net.Tick(30)
+	end
+	net.Tick(60)
+	local D, U = 0, 0
+	for _, m in ipairs(net.sent) do
+		if m.from == "Bob" then
+			local l = m.text:match("^2(%u) ")
+			if l == "D" then D = D + 1 elseif l == "U" then U = U + 1 end
+		end
+	end
+	local pieces = B.friends["a1@realm"].sentPieces
+	local ok = true
+	for k = 1, 4 do
+		local x = As[k]:Items()[id]
+		if not (x and x.total == 5012) then ok = false end
+	end
+	check(ok and #B.queue == 0, "bags changing under a big snapshot: every friend ends with them as they are, the queue empty")
+	check(U >= 4 and D <= 4 * 60, "...the snapshot once, then what changed: " .. D .. " whole pieces, " .. U .. " updates")
+	check(pieces == 1, "...the last to each a small update: " .. tostring(pieces))
+	-- a small update to one friend while another's whole snapshot goes: it doesn't wait behind it
+	local f1, f2 = B.friends["a1@realm"], B.friends["a2@realm"]
+	f1.sentParts = nil
+	B:Share(f1, true)
+	net.Tick(3)
+	net.sent = {}
+	many[id] = 7777
+	B.snapText = nil
+	f2.sentAt, f2.doneAt = nil, nil
+	B:Share(f2)
+	net.Tick(2)
+	check(As[2]:Items()[id] and As[2]:Items()[id].total == 7777 and #B.queue > 20,
+		"a small update while another friend's snapshot is going: it goes first (" .. #B.queue .. " pieces left behind it)")
+end
+
+do
+	-- your own hellos don't fill the handshake count: twenty-five friends who don't run it, and a guildmate who does
+	local net = Net()
+	local fr = {}
+	for i = 1, 25 do fr["ghost" .. i] = "Ghost" .. i end
+	local A = net.Add("Zoe", { friends = fr, guild = "Gilded" })
+	local G = net.Add("Abe", { guild = "Gilded" })
+	A:SetKey(GOOD)
+	net.Tick(3) -- (Zoe's hello heard before Abe has the password)
+	G:SetKey(GOOD)
+	net.Tick(40)
+	check(Up(A, "Abe") and Up(G, "Zoe"), "many hellos of your own out: a guildmate's hello still answered, connected")
+	-- a handshake's time starts when its hello goes, not when it's queued: the 60th, a minute later, still answered
+	local fr2 = {}
+	for i = 1, 59 do fr2["ghost" .. i] = "Ghost" .. i end
+	local net2 = Net()
+	local P = net2.Add("Pat", { friends = fr2 })
+	local Z = net2.Add("Zed", { friends = { pat = "Pat" } })
+	Z.key = GOOD
+	P:SetKey(GOOD)
+	P.me.friends.zed = "Zed"
+	P:Hello({ kind = "whisper", target = "Zed" })
+	net2.Tick(70)
+	check(Up(P, "Zed"), "a hello queued behind fifty-nine others: answered, connected: " .. tostring(P.peers["w:zed"] and P.peers["w:zed"].state) .. " " .. tostring(Z.peers["w:pat"] and Z.peers["w:pat"].state))
+end
+
+do
+	-- a snapshot's number heard again with another count: no error, nothing mixed (a /reload counts from 0 again)
+	local net = Net()
+	local A = net.Add("Ann", { friends = { bob = "Bob" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" }, items = { [2589] = 5 } })
+	A:SetKey(GOOD)
+	B:SetKey(GOOD)
+	net.Run()
+	local r = { kind = "whisper", target = "Bob" }
+	local ok = pcall(function()
+		A:Receive(r, "2D zz,5,10,Bob/b!")
+		A:Receive(r, "2D zz,6,10,xx")
+		A:Receive(r, "2D zz,1,3,Bob/b!")
+		A:Receive(r, "2D zz,2,3,1kh:0.3;")
+	end)
+	check(ok, "the same number with another count: no error")
+	local mine = B.friends["ann@realm"].sentVer or ""
+	check(mine:sub(1, #B:Session()) == B:Session() and #B:Session() == 4, "a snapshot's number starts with this session's mark: " .. mine)
+	-- a way made again: what was half put together is forgotten
+	A.peers["w:bob"].pieces, A.peers["w:bob"].inKey = { "x" }, "Dold,,5"
+	A:Up(A.peers["w:bob"])
+	check(next(A.peers["w:bob"].pieces) == nil and A.peers["w:bob"].inKey == nil and A.friends["bob@realm"].ver == nil,
+		"connected again: pieces and their base from before forgotten")
+	-- a friend on another version: said once, not a silent "no answer"
+	net.says = {}
+	A:Receive(r, "1H 00000000000000aa,bob@realm")
+	A:Receive(r, "1H 00000000000000ab,bob@realm")
+	local said = 0
+	for _, t in ipairs(net.says) do if t:find("another version", 1, true) then said = said + 1 end end
+	check(said == 1, "another version's hello: said once: " .. said)
+end
+
+do
+	-- a hello lost (chat locked, in a dungeon): said again a while later
+	local net = Net()
+	local A = net.Add("Ann", { friends = { bob = "Bob" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" } })
+	B:SetKey(GOOD)
+	net.inbox = {} -- (lost)
+	A.key = GOOD -- (and Ann's own hello never went: a friend list read after it)
+	net.Tick(SSH.RETRY_EVERY + SSH.RETRY_TICK + 5)
+	check(Up(A, "Bob") and Up(B, "Ann"), "...hello said again later: connected")
+	-- and not again and again to who never answers: twice the wait each time
+	local net2 = Net()
+	local C = net2.Add("Cat", { friends = { nobody = "Nobody" } })
+	C:SetKey(GOOD)
+	net2.Tick(SSH.RETRY_EVERY * 6)
+	local n = net2.SaidTo("Cat", "Nobody")
+	check(n >= 2 and n <= 4, "who never answers: said hello to now and then, less often: " .. n)
+end
+
+do
+	-- goodbyes the game says wait to: still said (.share off)
+	local net = Net()
+	local A = net.Add("Ann", { friends = { bob = "Bob" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" }, items = { [2589] = 5 } })
+	A:SetKey(GOOD)
+	B:SetKey(GOOD)
+	net.Run()
+	check(Up(B, "Ann"), "connected")
+	net.throttle = 3
+	A:Off()
+	net.Tick(5)
+	check(not Up(B, "Ann"), ".share off while the game says wait: the goodbye still goes")
+	-- a password being made when .share off is typed: never used
+	local later = {}
+	local slice = SSH.KDF_SLICE
+	SSH.KDF_SLICE = 1 -- (made over frames)
+	SSH.SetPassword(A, "correct horse battery", function(fn) later[#later + 1] = fn end)
+	SSH.KDF_SLICE = slice
+	check(#later > 0 and A.deriving, "the password made over frames")
+	A:Off()
+	local guard = 0
+	while #later > 0 and guard < 1000 do table.remove(later, 1)(); guard = guard + 1 end
+	check(A.key == nil and not A.deriving, ".share off while the password was being set: it isn't set after")
+end
+
+do
+	-- the guild channel's hello again (.share connect) while connected: the connection holds, items still come
+	local net = Net()
+	local A = net.Add("Ann", { guild = "Gilded" })
+	local B = net.Add("Bob", { guild = "Gilded", items = { [2589] = 5 } })
+	A.key, B.key = GOOD, GOOD
+	A:Hello()
+	net.Tick(5)
+	check(Up(A, "Bob") and Up(B, "Ann"), "connected on the guild channel")
+	net.sent = {}
+	A:Hello()
+	net.Tick(2)
+	local churn = 0
+	for _, m in ipairs(net.sent) do if m.from == "Bob" and m.text:find("^2C ") then churn = churn + 1 end end
+	check(churn == 0, "the guild's hello again, heard by a friend connected: let be, no handshake again: " .. churn)
+	B.me.items[2589] = 9
+	B:Changed()
+	net.Tick(SSH.HANDSHAKE_TIMEOUT + 20)
+	check(B.peers["w:ann"] and B.peers["w:ann"].state == "up" and Up(A, "Bob"), "a hello again: still connected both ways")
+	check(A:Items()[2589] and A:Items()[2589].total == 9, "...and a change still arrives")
+	-- said hello again to one way while connected: what they send still lands meanwhile
+	A:Hello({ kind = "whisper", target = "Bob" })
+	B.me.items[2589] = 11
+	B.friends["ann@realm"].sentAt, B.friends["ann@realm"].doneAt = nil, nil
+	B:Changed()
+	-- (only what Bob sent Ann: the handshake isn't through yet)
+	for i = #net.inbox, 1, -1 do
+		if net.inbox[i].to ~= "ann" then table.remove(net.inbox, i) end
+	end
+	net.Run()
+	check(A:Items()[2589] and A:Items()[2589].total == 11 and Up(A, "Bob"), "...a way proven again: its items still land: "
+		.. tostring(A:Items()[2589] and A:Items()[2589].total) .. " q" .. #B.queue .. " " .. tostring(A.peers["w:bob"].state) .. " " .. tostring(A.peers["w:bob"].wasUp))
+	-- a sender on your realm ("Bob") is bob@<your realm> only
+	check(SSH.ClaimIs("bob@realm", "Bob", "realm") and not SSH.ClaimIs("bob@other", "Bob", "realm")
+		and SSH.ClaimIs("bob@other", "Bob-Other", "realm"), "a claim with no realm in its sender: yours only")
 end
 
 ns.Crypto.HMAC = hmacWas

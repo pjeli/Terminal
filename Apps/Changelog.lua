@@ -14,12 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.58.15", when = "in testing",
+		v = "0.58.16", when = "in testing",
 		items = {
 			"Terminal: Share, a new addon that comes with Terminal (leave it off in the AddOn list if you don't want it): the share shell, .share. Friends who run it and type the same password (.share password <words>) see what's in each other's bags in their searches: \"linen cloth\" lists yours, your alts' and your friends', with how many each has (@shared; Bank & alts in Simple mode; linen cloth > alts).",
 			"Friends' items: one row each friend, grouped or sorted by Owner from the bar (or sort:owner); the tooltip is the item's, with each of their characters below it as @stored shows yours. The password is shown as *s while you type it, and a wifi sign at the end of the prompt shows you're sharing (it fades after a few seconds, and steps aside while you type): point at it (or click it) for who's connected and what each shares.",
 			"What you share: .share limited (the default) is this character's crafting mats and consumables; .share all adds everything on all your characters and in your banks, and your gold; .share mats and .share consumables are just those; .share off stops.",
 			"Only friends, guild members and Battle.net friends' characters are heard; anyone else is ignored. The password is never sent; a key made from it is remembered, so you connect again by yourself when you log in (.share off forgets it). What friends send is kept only until you log out.",
+			"Sharing stays light with many friends: after the first sync only what changed is sent (usually one message), a small update never waits behind another friend's big one, a friend who missed your hello is said hello to again later, and .share off's goodbyes always arrive. Friends need this version too to connect.",
 		},
 	},
 	{

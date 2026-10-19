@@ -1252,6 +1252,7 @@ L["Share the look: .style copies it as a string, .style TERM1:... applies one"] 
 L["Share: %s disconnected"] = true
 L["Share: %s disconnected (%s)"] = true
 L["Share: %s isn't on your friend list, in your guild or a Battle.net friend's character"] = true
+L["Share: %s runs another version of Terminal: Share; you both need the newest to connect"] = true
 L["Share: %s's password doesn't match yours"] = true
 L["Share: connected to %s"] = true
 L["Share: no password yet. Type .share password <words> (8 characters or more), the same one as your friends"] = true

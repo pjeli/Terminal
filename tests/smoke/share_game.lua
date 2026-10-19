@@ -64,7 +64,12 @@ do
 		and ns.SecretLine(".ssh pw secret") and not ns.SecretLine(".ssh pwn")
 		and not ns.SecretLine("linen cloth") and not ns.SecretLine(".ssh share all")
 		and ns.SecretLine(".share password x") and ns.SecretLine("share pw x") and not ns.SecretLine(".share all")
-		and not ns.SecretLine(".shared password"), "the password line is told apart (.share and .ssh)")
+		and not ns.SecretLine("mountain pass") and not ns.SecretLine("shared password"),
+		"the password line is told apart (.share and .ssh)")
+	-- (review, 0.58.16) the command search finds .share by a shortened or misspelt name: those lines are too
+	check(ns.SecretLine(".shar password x") and ns.SecretLine(".sh pw x") and ns.SecretLine(".hare pass x")
+		and ns.SecretLine(".shared password x") and ns.MaskSecret(".shar pw abc") == ".shar pw ***"
+		and not ns.SecretLine(".shar pwn x") and not ns.SecretLine(".set cursor block"), "...a shortened .share too")
 	UI:Open("")
 	T.typeText(".ssh password hunter2hunter2")
 	-- a tab made while it's typed: the line isn't kept in it
@@ -107,15 +112,95 @@ do
 	-- remembered: the key made from it (0.58.6, the player: "saved and re-used automatically on login")
 	check(_G.TerminalShareDB and _G.TerminalShareDB.key == ns.Crypto.Hex(ep.key), "the key is remembered, not the password")
 	local h = ns:HistoryLines()
-	check(not (h[1] and h[1]:find("ssh", 1, true)), "not in the history (Up): " .. tostring(h[1]))
+	local inHist
+	for _, line in ipairs(h) do if tostring(line):find("hunter2", 1, true) then inHist = line end end
+	check(inHist == nil, "not in the history (Up): " .. tostring(inHist))
 	-- hello went to the friend by whisper and the Battle.net friend's character by game data, prefix TermSSH
 	local toFriend, toBN = false, false
 	for _, m in ipairs(sent) do
-		if m.prefix == "TermSSH" and m.chan == "WHISPER" and m.target == "Quilleran" and m.text:find("^1H ") then toFriend = true end
+		if m.prefix == "TermSSH" and m.chan == "WHISPER" and m.target == "Quilleran" and m.text:find("^2H ") then toFriend = true end
 		check(not m.text:find("hunter2", 1, true), "the password is never sent")
 	end
-	for _, m in ipairs(bnSent) do if m.id == 77 and m.prefix == "TermSSH" and m.text:find("^1H ") then toBN = true end end
+	for _, m in ipairs(bnSent) do if m.id == 77 and m.prefix == "TermSSH" and m.text:find("^2H ") then toBN = true end end
 	check(toFriend and toBN, "hello to the friend list (whisper) and the Battle.net friend's character (game data)")
+end
+
+-- (review, 0.58.16) the password's other ways out
+do
+	local edit = UI.edit
+	local pwSet = rawget(edit, "SetPassword")
+	local pwOn
+	rawset(edit, "SetPassword", function(self, v) pwOn = v end)
+	edit.secretShown = nil
+	-- a shortened .share runs the password too: never in the history either
+	UI:Hide(); UI:Open("")
+	T.typeText(".shar password hunter2hunter2")
+	T.FlushAll()
+	check(UI.results[1] and UI.results[1].name == "share", ".shar finds .share: " .. tostring(UI.results[1] and UI.results[1].name))
+	local drawn = UI.syntax and (UI.syntax.text or (UI.syntax.GetText and UI.syntax:GetText())) or ""
+	check(not drawn:find("hunter2", 1, true), "...and the prompt draws it as *s: " .. tostring(drawn))
+	-- leaving Terminal's own keys with the line as it is (a click into the box): the box's own password mode
+	check(UI.keys and pwOn == false, "Terminal's keys: the box's password mode off (the copy over it shows *s)")
+	edit.scripts.OnEditFocusGained(edit)
+	check(not UI.keys and pwOn == true, "the box's own keys: its password mode on (it was left off, the password in clear)")
+	UI:Hide(); UI:Open("")
+	-- traces (.debug) say it as *s: fuzzy finding started on it
+	local traced = {}
+	local trace = ns.Trace
+	ns.Trace = function(_, m) traced[#traced + 1] = tostring(m) end
+	T.typeText(".share password hunter2hunter2")
+	UI:StartFuzzy()
+	UI:EndFuzzy()
+	ns.Trace = trace
+	local leak
+	for _, m in ipairs(traced) do if m:find("hunter2", 1, true) then leak = m end end
+	check(#traced > 0 and leak == nil, "a trace of the line: the password as *s: " .. tostring(leak))
+	-- a click among the *s of one letter (two bytes, two *s): before the letter, never inside it
+	UI:Hide(); UI:Open("")
+	edit:SetText(".share password pässwörter")
+	UI:UpdateSyntax()
+	local real = edit:GetText()
+	local inside
+	for x = 0, 7 * #real, 1 do
+		local at = UI.PromptIndexAt(x, 0)
+		local b = real:byte(at + 1)
+		if at > 0 and b and b >= 128 and b < 192 then inside = at end
+	end
+	check(inside == nil, "a click on the masked password lands between letters: " .. tostring(inside))
+	ns:RecordHistory(".sh pw hunter2hunter2")
+	local h = ns:HistoryLines()
+	check(not tostring(h[1]):find("hunter2", 1, true), "a shortened password line isn't kept")
+	rawset(edit, "SetPassword", pwSet)
+	edit.secretShown = nil
+	UI:Hide()
+end
+
+-- (review, 0.58.16) a guildmate on your friend list: said hello on the guild channel, not by whisper as well (the roster
+-- writes "Quilleran-Realm", the friend list "Quilleran")
+do
+	local was = { rawget(_G, "IsInGuild"), rawget(_G, "GetNumGuildMembers"), rawget(_G, "GetGuildRosterInfo") }
+	local keep = { peers = {}, queue = ep.queue, hellos = ep.hellos, tried = ep.tried }
+	for k, p in pairs(ep.peers) do local c = {}; for a, b in pairs(p) do c[a] = b end; keep.peers[k] = c end
+	ep.queue, ep.hellos, ep.tried = {}, {}, {}
+	_G.IsInGuild = function() return true end
+	_G.GetNumGuildMembers = function() return 1 end
+	_G.GetGuildRosterInfo = function(i) if i == 1 then return "Quilleran-Realm" end end
+	SSH.OnEvent("GUILD_ROSTER_UPDATE")
+	local n0 = #sent
+	ep.tokens = 0
+	ep:Hello()
+	local guild, whisper = 0, 0
+	local function Count(m) if m.text:find("^2H ") then
+		if m.chan == "GUILD" or (m.route and m.route.kind == "guild") then guild = guild + 1
+		elseif m.target == "Quilleran" or (m.route and m.route.target == "Quilleran") then whisper = whisper + 1 end
+	end end
+	for i = n0 + 1, #sent do Count(sent[i]) end
+	for _, m in ipairs(ep.queue) do Count(m) end
+	check(guild == 1 and whisper == 0, "a guildmate on your friend list: one hello, the guild channel's: " .. guild .. "/" .. whisper)
+	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo = was[1], was[2], was[3]
+	SSH.OnEvent("GUILD_ROSTER_UPDATE")
+	ep.peers, ep.queue, ep.hellos, ep.tried = keep.peers, keep.queue, keep.hellos, keep.tried
+	ep.tokens = SSH.BURST
 end
 
 -- at login: the remembered key in use, a few seconds in, everyone said hello to
@@ -128,7 +213,7 @@ do
 	check(ep.key == nil, "not at once: friends and guild are read first")
 	T.FlushAll()
 	check(ep.key and ns.Crypto.Hex(ep.key) == hex, "a few seconds in: the remembered key")
-	check(#sent > n and #bnSent > nb and sent[#sent].text:find("^1H "), "...and hello to everyone")
+	check(#sent > n and #bnSent > nb and sent[#sent].text:find("^2H "), "...and hello to everyone")
 	-- .ssh off forgets it
 	ns:FindCommand("ssh").run("off")
 	check(_G.TerminalShareDB.key == nil and ep.key == nil, ".ssh off: forgotten")
@@ -145,27 +230,27 @@ end
 -- who's heard
 do
 	local n, nb0 = #sent, #bnSent
-	SSH.OnEvent("CHAT_MSG_ADDON", "OtherAddon", "1H 00000000000000aa,quilleran@realm", "WHISPER", "Quilleran")
+	SSH.OnEvent("CHAT_MSG_ADDON", "OtherAddon", "2H 00000000000000aa,quilleran@realm", "WHISPER", "Quilleran")
 	check(#sent == n, "another addon's prefix: ignored")
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "1H 00000000000000aa,eve@realm", "WHISPER", "Eve")
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,eve@realm", "WHISPER", "Eve")
 	check(#sent == n, "a stranger's whisper: ignored, no answer")
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "1H 00000000000000aa,quilleran@realm", "PARTY", "Quilleran")
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,quilleran@realm", "PARTY", "Quilleran")
 	check(#sent == n, "a party message: never read")
 	_G.issecretvalue = function(v) return v == "SECRET" end
 	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "SECRET", "WHISPER", "Quilleran")
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "1H 00000000000000aa,quilleran@realm", "WHISPER", "SECRET")
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,quilleran@realm", "WHISPER", "SECRET")
 	check(#sent == n, "secret fields (chat locked): ignored")
 	_G.issecretvalue = saved.issecretvalue
-	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "1H 00000000000000aa,mal@realm", "WHISPER", 78)
+	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,mal@realm", "WHISPER", 78)
 	check(#bnSent == nb0, "Battle.net data from a game account that isn't a friend's: ignored")
 	-- a friend's hello: challenged, by whisper, to the name the server gave
 	ep.peers = {}
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "1H 00000000000000aa,quilleran@realm", "WHISPER", "Quilleran")
-	check(#sent == n + 1 and Last().text:find("^1C 00000000000000aa,%x+,") and Last().target == "Quilleran" and Last().chan == "WHISPER",
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,quilleran@realm", "WHISPER", "Quilleran")
+	check(#sent == n + 1 and Last().text:find("^2C 00000000000000aa,%x+,") and Last().target == "Quilleran" and Last().chan == "WHISPER",
 		"a friend's hello: challenged: " .. tostring(Last().text))
 	-- a Battle.net friend's character: by game data
-	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "1H 00000000000000ab,zephyrine@realm", "WHISPER", 77)
-	check(bnSent[#bnSent].id == 77 and bnSent[#bnSent].text:find("^1C 00000000000000ab,"), "a Battle.net friend's: challenged by game data")
+	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000ab,zephyrine@realm", "WHISPER", 77)
+	check(bnSent[#bnSent].id == 77 and bnSent[#bnSent].text:find("^2C 00000000000000ab,"), "a Battle.net friend's: challenged by game data")
 end
 
 -- a Battle.net friend, end to end through the game's calls and events (0.58.2, in game: connected over Battle.net,
@@ -223,7 +308,7 @@ do
 		["quilleran@realm"] = { key = "w:quilleran", state = "up", name = "Quilleran", claim = "quilleran@realm", last = GetTime(),
 			route = { kind = "whisper", target = "Quilleran" }, items = { [2589] = 20, [118] = 3 }, n = 2, gold = 12345678,
 			places = { { who = "Quilleran", where = "b" }, { who = "Quillalt", where = "k" } },
-			parts = { [2589] = { { place = 1, n = 5 }, { place = 2, n = 15 } }, [118] = { { place = 1, n = 3 } } } },
+			entries = { [2589] = "0.5,1.f", [118] = "0.3" } },
 		["zephyrine@realm"] = { key = "b:77", state = "up", name = "Zephyrine", claim = "zephyrine@realm", last = GetTime(),
 			route = { kind = "bn", id = 77, name = "Zephyrine", bnetID = 5 }, items = { [2589] = 15 }, n = 1 },
 	}
@@ -382,18 +467,29 @@ do
 	local gt = _G.GetTime
 	local later = gt() + badge.fade + 1
 	_G.GetTime = function() return later end
-	for _ = 1, 10 do f.scripts.OnUpdate(f, 0.1) end
+	local function frames(n) for _ = 1, n do if f.scripts.OnUpdate then f.scripts.OnUpdate(f, 0.1) end end end
+	frames(10)
 	check(f.alpha and f.alpha < 0.3, "after some seconds: faded: " .. tostring(f.alpha))
+	-- (review, 0.58.16: its per-frame script ran for good, faded and with nothing up)
+	check(f.scripts.OnUpdate == nil, "faded with no pop-out: its per-frame script stops")
 	f.scripts.OnEnter(f)
-	check(f.alpha == 1, "pointed at: back")
+	check(f.alpha == 1 and f.scripts.OnUpdate ~= nil, "pointed at: back (and its per-frame script again)")
 	f.scripts.OnLeave(f)
-	for _ = 1, 10 do f.scripts.OnUpdate(f, 0.1) end
+	frames(10)
 	check(f.alpha == 1, "...and stays a while after")
 	later = later + badge.fade + 1
-	for _ = 1, 10 do f.scripts.OnUpdate(f, 0.1) end
-	check(f.alpha < 0.3, "...then fades again")
+	frames(10)
+	check(f.alpha < 0.3 and f.scripts.OnUpdate == nil, "...then fades again, and stops")
 	ns.UI.WakeBadge("share")
-	check(f.alpha == 1, "something new (a friend connects): back")
+	check(f.alpha == 1 and f.scripts.OnUpdate ~= nil, "something new (a friend connects): back")
+	later = later + badge.fade + 1
+	frames(10)
+	f.scripts.OnMouseUp(f) -- (pinned: the pop-out drawn again every second, faded or not)
+	frames(10)
+	check(f.scripts.OnUpdate ~= nil and f.tipUp, "a pop-out kept up: its per-frame script runs")
+	f.scripts.OnMouseUp(f)
+	frames(10)
+	check(f.scripts.OnUpdate == nil, "...put away: stops again")
 	_G.GetTime = gt
 	UI:Hide()
 	-- .ssh: who's connected (by character, never an account name)
@@ -405,8 +501,8 @@ do
 	check(ep.key == nil and next(ep.peers) == nil and #UI:Search("@shared linen") == 0, ".ssh off: " .. tostring(out[1]))
 	check(not badge.shown(), "...the badge goes")
 	local bye = 0
-	for _, m in ipairs(sent) do if m.text == "1B" and m.target == "Quilleran" then bye = bye + 1 end end
-	check(bye == 1 and bnSent[#bnSent].text == "1B", "...each friend was said goodbye to")
+	for _, m in ipairs(sent) do if m.text == "2B" and m.target == "Quilleran" then bye = bye + 1 end end
+	check(bye == 1 and bnSent[#bnSent].text == "2B", "...each friend was said goodbye to")
 end
 
 -- what's shared from this client: limited (the default) = this character's mats and consumables; all = everything,

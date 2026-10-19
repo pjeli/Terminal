@@ -370,7 +370,7 @@ function UI:RetryWhenLoaded(text)
 		r.waiting = false
 		if self.dataRetry ~= r or not self:IsShown() or UI.edit:GetText() ~= r.typed then return end
 		r.tries = r.tries + 1
-		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(text, r.tries))
+		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(ns.MaskSecret(text), r.tries))
 		self.lastScan, self.lastExtra = nil, nil
 		self.refreshedAt, self.searchedText = nil, nil
 		self.quietRedo = true -- (the list stays as it is till this search is done: UI:Refresh)

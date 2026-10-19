@@ -27,33 +27,39 @@ still works.)
 Each side types the same password: `.share password <words>` (8 characters or more), shown as `*`s while it's
 typed (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
 password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 2000 times,
-salted with `Terminal.share.1`, done a slice a frame), and that key is remembered in Terminal: Share's own saved
+salted with `Terminal.ssh.1`, done a slice a frame), and that key is remembered in Terminal: Share's own saved
 variables (`TerminalShareDB.key`, hex). At login it's used again by itself a few seconds in (friends and guild read
 first: `SSH.LOGIN_WAIT`) and everyone is said hello to. Anyone with your WTF folder could connect as you with it,
 the same as knowing the password. A line starting `.share pass` or `.share pw` is never written to the history, a tab,
-`.missed` or anywhere else saved (`ns.SecretLine`, in Terminal itself so it holds whether Share is loaded or not).
+`.missed` or anywhere else saved (`ns.SecretLine`, in Terminal itself so it holds whether Share is loaded or not). Any
+`.` line whose second word is `password`, `pass` or `pw` counts: the command search finds `.share` by a shortened or
+misspelt name too (`.shar pw ...`). The debug traces write it as `*`s, a click among the `*`s never lands inside a
+letter, and leaving Terminal's own keys with it typed (a click into the box) turns the box's password mode on.
 Another password typed says goodbye to the friends connected with the old one. `.share off` forgets the key (and the
 remembered one), says goodbye to every friend and drops what they sent.
 
-The share mode (`.share share ...`) is a setting and is saved (`db.shareShare`), so a /reload never shares more
+The share mode (`.share share ...`) is a setting and is saved (`db.sshShare`), so a /reload never shares more
 than you chose.
 
 ## Connecting (mutual challenge-response)
 
-Messages use the addon prefix `TermSSH`; each starts with the protocol version `1` and a letter.
+Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `2`
+since 0.58.16 (delta updates, 150-piece snapshots, sessions); a hello in another version gets a line in chat, once
+("<name> runs another version of Terminal: Share"), and no answer.
 
 ```
-A -> B   1H nA,idA             hello
-B -> A   1C nA,nB,idB          challenge (B has a password: its own nonce)
-A -> B   1A nA,nB,macI         A proves it holds the key: macI = HMAC(K, "I|nA|nB|idA|idB")
-B -> A   1K nA,nB,macR         B checks macI, then proves it too: macR = HMAC(K, "R|nA|nB|idA|idB")
+A -> B   2H nA,idA,sA          hello (sA: A's session, 4 hex characters made at login)
+B -> A   2C nA,nB,idB,sB       challenge (B has a password: its own nonce)
+A -> B   2A nA,nB,macI         A proves it holds the key: macI = HMAC(K, "I|nA|nB|idA|idB")
+B -> A   2K nA,nB,macR         B checks macI, then proves it too: macR = HMAC(K, "R|nA|nB|idA|idB")
 ```
 
 - Nonces are 16 hex characters (SHA-256 of the time, a counter, `math.random`). Proofs are 32 hex characters
   (128 bits of the HMAC).
 - `idA`/`idB` ("claims") are the characters as `name@realm`, lowercase, the name's words joined by `-`
   ("Plamen Warr" -> `plamen-warr@classicbetapvp`). A claim is accepted only when it names the character the
-  server says sent it (`SSH.ClaimIs`: the sender is `name` or `name-realm`, spaces and `-` alike). Because
+  server says sent it (`SSH.ClaimIs`: the sender is `name-realm`, or `name` and the realm is yours, spaces and `-`
+  alike). Because
   both proofs name both characters, a third character can't pass one friend's proof on to another (a relay:
   Ann's proof to Mal names Ann and Mal; Bob wants one naming Mal and Bob).
 - `I` and `R` make the two proofs different: one can't be sent back as the other.
@@ -64,7 +70,13 @@ B -> A   1K nA,nB,macR         B checks macI, then proves it too: macR = HMAC(K,
 - Both saying hello at once (the guild channel at login): the smaller claim's hello goes on and the other
   side answers it. The smaller side says its hello again, with the same nonce, to a friend whose hello it
   hears while waiting: that friend may have heard the first one before it had a password.
-- Limits: a friend can start a handshake at most every 5 s; at most 20 handshakes are under way at once.
+- Limits: a friend can start a handshake at most every 5 s; at most 20 handshakes others started are under way at
+  once (your own hellos aren't counted). A handshake's 30 s start when its message leaves the queue, not when it's
+  queued.
+- A friend connected already hears your guild channel hello to others and lets it be when it's the same session of
+  yours; a new session (you /reloaded) is a new handshake. While a way is proven again, what comes on it still lands.
+- Hello again: a friend (or the guild channel) who didn't answer is said hello to again 10 minutes on, then 20, 40, 80
+  (a hello lost while chat was locked, a friend list read late at login); a friend not tried yet, within a minute.
 
 ## Ways and friends
 
@@ -80,16 +92,23 @@ Once connected, each side sends what it shares, and sends it again when it chang
 friend, or every 2 s per message for a big snapshot; what didn't change isn't sent again):
 
 ```
-1D ver,i,n,payload    a snapshot in n pieces of at most 200 characters (at most 100 pieces), put back together as
-                      they were. The snapshot: places!items!gold (never a "|", chat's escape
-                      character: it doesn't survive Battle.net game data)
-                        places  "Bob/b,Bobalt/k,/w"   who and where: b bags, k bank, m mail, v void storage,
-                                                      w warband bank
-                        items   "id:place.count,place.count;id:..."  (base 36; place counted from 0)
-                        gold    copper in base 36, or empty
-1P                    still here (every 10 minutes)
-1B                    goodbye: drop what I sent
+2D ver,i,n,payload       a snapshot in n pieces of at most 200 characters (at most 150), put back together as they
+                         were. The snapshot: places!items!gold!mode (never a "|", chat's escape character: it doesn't
+                         survive Battle.net game data)
+                           places  "Bob/b,Bobalt/k,/w"   who and where: b bags, k bank, m mail, v void storage,
+                                                         w warband bank
+                           items   "id:place.count,place.count;id:..."  (base 36; place counted from 0)
+                           gold    copper in base 36, or empty
+                           mode    what they share (limited, all, ...)
+2U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
+                         friend has `base` whole, the places and mode are the same, and it's under half the size
+2R                       I don't have your `base`: the next goes whole
+2P                       still here (every 10 minutes)
+2B                       goodbye: drop what I sent
 ```
+
+`ver` is the session's mark and a count (`a3f01`, `a3f02`...): a /reload's numbers are never taken for the last
+session's. Pieces are put together by their kind, number, base and count all at once.
 
 What you share (`.share <mode>`, or `.share share <mode>`; saved as a setting, `db.shareShare`):
 
@@ -106,9 +125,12 @@ What you share (`.share <mode>`, or `.share share <mode>`; saved as a setting, `
 - Data or a ping from a friend you aren't connected to (you /reloaded and typed the password again) makes
   you say hello to them again (at most every 30 s).
 - Sends go through a queue: six at once, then one a second (the game allows ten, then one a second); a
-  handshake goes before items still waiting; the game's "throttled" answer puts a message back in the queue;
-  a newer snapshot to a friend replaces one still waiting. Nothing is sent while the game locks chat messaging
+  handshake goes before items still waiting; the game's "throttled" answer keeps a message in the queue; of
+  friends' items, the friend with the fewest pieces left goes first (a one-message update never waits behind another
+  friend's hundred pieces). A snapshot still going out isn't replaced: the next change waits for its last piece, then
+  goes as what changed since. Nothing is sent while the game locks chat messaging
   (`C_ChatInfo.InChatMessagingLockdown`), and a message whose fields are secret values is ignored.
+- `.share off`'s goodbyes go through the queue too: one the game says wait to goes a second later.
 
 ## In searches
 
@@ -151,5 +173,31 @@ tooltip, fade), which any addon can use for its own.
 - Terminal itself: `ns.SecretLine` (Core/Util.lua), the `shared` kind in Simple mode's Bank & alts, the item
   filters and the `alts` relation.
 - Tests: `tests/smoke/crypto.lua` (standard vectors, both bit paths), `tests/smoke/share.lua` (endpoints
-  talking: connect, wrong password, strangers, a relay, both at once, the queue, dropping),
+  talking: connect, wrong password, strangers, a relay, both at once, the queue, dropping, deltas, retries),
   `tests/smoke/share_game.lua` (the game's events and calls, searches, nothing saved).
+- `@shared` rows are compact (Terminal's lazy rows: an item's quality, icon, link and tooltip lines made when shown),
+  made per friend and kept until that friend's items change: one friend's update makes only theirs again.
+
+## How far it goes (`python3 tests/stress.py [friends,...] [items,...]`)
+
+The stress test loads Terminal and Terminal: Share in the smoke harness and, for each number of friends and of items
+each shares (`.share all`, every item in one or two places), measures what one snapshot is, how long a full round to
+every friend takes at the game's pace, a 5-item change, reading the snapshots, making the `@shared` rows (and their
+memory), one friend's update, and a plain and an `@shared` search. 0.58.16, this harness (Lua 5.1 through lupa: its
+times compare with `tests/bench.py`'s, not the game's exactly):
+
+| friends × items | snapshot | first sync | an update | rows made / one friend's | memory | search (total) |
+|---|---|---|---|---|---|---|
+| 10 × 100 | 7 msgs | 1 min | 1 msg | 2.6 / 1.1 ms | 0.9 MB | 1 ms |
+| 10 × 500 | 30 msgs | 5 min | 1 msg | 21 / 6 ms | 4 MB | 9 ms |
+| 25 × 500 | 30 msgs | 12 min | 1 msg | 36 / 10 ms | 10 MB | 14 ms |
+| 10 × 2000 | 119 msgs | 20 min | 1 msg | 60 / 17 ms | 17 MB | 26–37 ms |
+| 25 × 2000 | 119 msgs | 50 min | 1 msg | 158 / 42 ms | 41 MB | 66 ms |
+| 50 × 2000 | 119 msgs | 99 min | 1 msg | 313 / 67 ms | 83 MB | 123–129 ms |
+
+- Searching stays smooth: the terminal's search is spread over frames (8 ms each at most, `tests/bench.py`), so a
+  total of 60 ms is ~8 frames of results coming in, not a freeze. Making the rows is one frame: past ~25 friends ×
+  500 items (12,500 rows) a friend's update is a hitch of 10 ms or more.
+- The limit that shows first is the game's send rate (one message a second): the first full sync to everyone grows
+  with friends × items. After it, a bag change is one message per friend.
+- Memory: ~0.8 KB per row; 25 friends sharing 2000 items each is ~40 MB of Lua memory.
