@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.59.0
+
+**Terminal: Share, a new addon that comes with Terminal**
+- Friends who run it and type the same password see what's in each other's bags in their searches: "linen cloth" lists what you carry, what your alts hold, and what your friends have, with how many each has. It's **@shared** (also **@ssh**), in Simple mode's Bank & alts, and **linen cloth > alts** lists it with your alts.
+- **.share password <words>** (8 characters or more) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
+- Don't want it? Turn Terminal: Share off in the AddOn list and none of it runs.
+
+**What you share**
+- **.share limited** (the default): this character's crafting mats and consumables.
+- **.share all**: everything in your bags, on your other characters and in your banks, mail, void storage and warband bank (as @stored reads them), and your gold.
+- **.share mats**, **.share consumables**: just those. **.share none**: see your friends' items, share nothing.
+
+**Friends' items**
+- A row for each friend ("Linen Cloth x20 · Cad Man"), grouped or sorted by **Owner** from the bar, **sort:owner** or **| group by owner**. Item filters work on them (**@shared q:rare**).
+- The tooltip is the item's own, with that friend's characters below it as @stored shows yours. Enter whispers the friend; Shift+Enter and **>> party** work as with @stored.
+- A friend sharing **all** has a gold row ("Bob's gold").
+
+**The wifi sign**
+- While you share, a small wifi sign sits at the end of the prompt: lit with a friend connected, its arcs moving while it connects, red with nobody connected. It fades after a few seconds and steps aside while you type.
+- Point at it (or click it, to keep it up) for who's connected, how many items each shares and what, and who hasn't answered.
+
+**Private and light**
+- Only friends, guild members and Battle.net friends' characters are heard; anyone else is ignored. A Battle.net friend is named by their character, never their account name.
+- What friends send is kept in memory only, until you log out.
+- After the first sync only what changed is sent, usually one message; a small update never waits behind another friend's big one, and friends who missed your hello are said hello to again later.
+
 ## 0.58.0
 
 **TrainerSpells**
