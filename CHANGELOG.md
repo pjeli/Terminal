@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.59.0
+## 0.60.0 (in testing as 0.59.x)
 
 **Terminal: Share, a new addon that comes with Terminal**
 - Friends who run it and type the same password see what's in each other's bags in their searches: "linen cloth" lists what you carry, what your alts hold, and what your friends have, with how many each has. It's **@shared** (also **@ssh**), in Simple mode's Bank & alts, and **linen cloth > alts** lists it with your alts.
@@ -29,6 +29,7 @@
 
 **Private and light**
 - Only friends, guild members and Battle.net friends' characters are heard; anyone else is ignored. A Battle.net friend is named by their character, never their account name.
+- Battle.net gives a character's first name only, so the surname a Battle.net friend's character claims is checked: against your friend list's and guild roster's characters by their GUIDs, and otherwise kept by the Battle.net account that first proved it. A friend with the same first name can't pass for another.
 - What friends send is kept in memory only, until you log out.
 - After the first sync only what changed is sent, usually one message; a small update never waits behind another friend's big one, and friends who missed your hello are said hello to again later.
 - Passwords show as \*s while you type them however you write the command, and are never kept in your history; Enter runs exactly what you typed.

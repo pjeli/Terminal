@@ -742,6 +742,57 @@ do
 	SSH.KDF_SLICE = slice
 end
 
+-- (0.59.1, the player: "resolve this B.net loose name issue") Battle.net gives a character's first name alone; the
+-- surname a friend claims over it is checked against the friend list's and the roster's GUIDs, or kept by the
+-- Battle.net account that first proved it
+do
+	local fl, bnN, gai, ac, ng = C_FriendList.GetNumFriends, _G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo,
+		C_BattleNet.GetFriendAccountInfo, C_BattleNet.GetFriendNumGameAccounts
+	local flInfo = C_FriendList.GetFriendInfoByIndex
+	local friendGuid = "Player-1-0000AAAA"
+	C_FriendList.GetNumFriends = function() return 1 end
+	C_FriendList.GetFriendInfoByIndex = function(i) return i == 1 and { name = "Zephyrine Real", connected = true, guid = friendGuid } or nil end
+	_G.BNGetNumFriends = function() return 2 end
+	C_BattleNet.GetFriendAccountInfo = function(i) return { bnetAccountID = 4 + i, isOnline = true } end
+	C_BattleNet.GetFriendNumGameAccounts = function() return 1 end
+	local guids = { "Player-1-0000AAAA", "Player-1-0000BBBB" }
+	C_BattleNet.GetFriendGameAccountInfo = function(i)
+		return { gameAccountID = 76 + i, characterName = "Zephyrine", realmName = "Realm", clientProgram = "WoW", isOnline = true, playerGuid = guids[i] }
+	end
+	SSH.Forget()
+	for k in pairs(SSH.bnOwner) do SSH.bnOwner[k] = nil end
+	local M = ep.env.matches
+	-- the friend list's Zephyrine Real (GUID ...AAAA): Battle.net account 5 plays her (the same GUID), account 6 doesn't
+	check(M("zephyrine-real@realm", { kind = "bn", id = 77 }), "a surname over Battle.net: the friend list's character by its GUID, the same: taken")
+	check(not M("zephyrine-real@realm", { kind = "bn", id = 78 }), "...another Battle.net friend whose character is another Zephyrine: refused")
+	-- no GUID from Battle.net: a surname the friend list knows isn't taken over it
+	guids = { nil, nil }
+	SSH.Forget()
+	check(not M("zephyrine-real@realm", { kind = "bn", id = 77 }), "no GUID from Battle.net: a surname your friend list knows, not taken over it")
+	-- a surname no one else is known by: the first Battle.net account proven with it keeps it
+	check(M("zephyrine-moon@realm", { kind = "bn", id = 77 }), "a surname no one else knows: taken")
+	ep.env.proven("zephyrine-moon@realm", { kind = "bn", id = 77, bnetID = 5 })
+	check(M("zephyrine-moon@realm", { kind = "bn", id = 77 }) and not M("zephyrine-moon@realm", { kind = "bn", id = 78 }),
+		"...once proven by one Battle.net account, another's claim of it refused")
+	check(M("zephyrine@realm", { kind = "bn", id = 78 }), "a character with no surname: its own name, as before")
+	-- the guild roster's GUIDs too (its 17th answer)
+	local ig, gn, gr = rawget(_G, "IsInGuild"), rawget(_G, "GetNumGuildMembers"), rawget(_G, "GetGuildRosterInfo")
+	_G.IsInGuild = function() return true end
+	_G.GetNumGuildMembers = function() return 1 end
+	_G.GetGuildRosterInfo = function(i)
+		if i == 1 then return "Zephyrine Guild-Realm", nil, nil, nil, nil, nil, nil, nil, true, nil, nil, nil, nil, nil, nil, nil, "Player-1-0000BBBB" end
+	end
+	guids = { "Player-1-0000AAAA", "Player-1-0000BBBB" }
+	SSH.Forget()
+	check(M("zephyrine-guild@realm", { kind = "bn", id = 78 }) and not M("zephyrine-guild@realm", { kind = "bn", id = 77 }),
+		"the guild roster's character: by its GUID too")
+	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo = ig, gn, gr
+	C_FriendList.GetNumFriends, _G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo = fl, bnN, gai
+	C_BattleNet.GetFriendAccountInfo, C_BattleNet.GetFriendNumGameAccounts, C_FriendList.GetFriendInfoByIndex = ac, ng, flInfo
+	for k in pairs(SSH.bnOwner) do SSH.bnOwner[k] = nil end
+	SSH.Forget()
+end
+
 for _, k in ipairs(names) do _G[k] = saved[k] end -- (those that weren't there go again)
 C_Item.GetItemNameByID = savedNameByID
 ns.Crypto.HMAC = hmacWas

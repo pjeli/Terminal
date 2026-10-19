@@ -362,6 +362,7 @@ end
 --   say(text)                 a line in your chat window
 --   nonce()                   16 hex characters, never the same twice
 --   broadcast()               { routes } a hello goes to: the guild channel, friends, Battle.net friends' characters
+--   proven(claim, route)      (optional) a way just proven for that claim
 -- route: { kind = "whisper", target = "Bob-Realm" } | { kind = "guild", target = sender } | { kind = "bn", id = n,
 --   name = character, bnetID = account id }
 
@@ -728,6 +729,7 @@ function E:Up(p)
 	local same = not new and f.key == p.key and p.sess ~= nil and p.sess ~= "" and f.sess == p.sess
 	if not same then p.pieces, p.got, p.inKey, f.ver = {}, 0, nil, nil end
 	f.name, f.route, f.key, f.last, f.sess = p.name or f.name, p.route, p.key, now, p.sess
+	if self.env.proven then pcall(self.env.proven, p.claim, p.route) end -- (the game's: a Battle.net claim kept by its account)
 	-- (the groups you have in common: the ones proven on this way, the one you send by. Review, 0.59.0: every way's
 	-- together, and a way proven in one group got what another way's group shares)
 	local groups = {}
@@ -1980,7 +1982,7 @@ local function People()
 	local now = GetTime()
 	if people and now - peopleAt < 10 then return people end
 	local realm = MyRealm()
-	local names, bn, guild = {}, {}, {}
+	local names, bn, guild, guids, bnNames = {}, {}, {}, {}, {}
 	local function add(set, name, shown)
 		local c = Canon(name)
 		if c == "" then return end
@@ -1991,11 +1993,20 @@ local function People()
 	for i = 1, (FL and FL.GetNumFriends and Num(Safe(FL.GetNumFriends)) or 0) do
 		local f = Safe(FL.GetFriendInfoByIndex, i)
 		local n = type(f) == "table" and Str(f.name)
-		if n then add(names, n, Ambig(n)) end
+		if n then
+			add(names, n, Ambig(n))
+			local guid = Str(f.guid)
+			if guid then add(guids, n, guid) end
+		end
 	end
 	for i = 1, (_G.IsInGuild and Safe(_G.IsInGuild) and Num(Safe(_G.GetNumGuildMembers)) or 0) do
 		local n = Str((Safe(_G.GetGuildRosterInfo, i)))
-		if n then add(names, n, Ambig(n)); add(guild, n, true) end
+		if n then
+			add(names, n, Ambig(n)); add(guild, n, true)
+			-- (the roster's 17th answer: the character's GUID)
+			local guid = Str((select(17, Safe(_G.GetGuildRosterInfo, i))))
+			if guid then add(guids, n, guid) end
+		end
 	end
 	local B = C_BattleNet
 	local wow = _G.BNET_CLIENT_WOW or "WoW"
@@ -2010,15 +2021,16 @@ local function People()
 				local id, char = type(g) == "table" and Num(g.gameAccountID), type(g) == "table" and Str(g.characterName)
 				if id and char and g.clientProgram == wow and (not g.wowProjectID or not _G.WOW_PROJECT_ID or g.wowProjectID == _G.WOW_PROJECT_ID) then
 					local realmName = Str(g.realmName)
-					bn[id] = { name = char, realm = realmName, bnetID = Num(a.bnetAccountID) }
+					bn[id] = { name = char, realm = realmName, bnetID = Num(a.bnetAccountID), guid = Str(g.playerGuid) }
 					local full = realmName and (char .. "-" .. realmName:gsub("[%s']", "")) or char
+					if not names[Canon(char)] then add(bnNames, char, true) end
 					add(names, char, char)
 					add(names, full, char)
 				end
 			end
 		end
 	end
-	people, peopleAt = { names = names, bn = bn, guild = guild, guildN = Num(Safe(_G.GetNumGuildMembers)) or 0 }, now
+	people, peopleAt = { names = names, bn = bn, guild = guild, guids = guids, bnNames = bnNames, guildN = Num(Safe(_G.GetNumGuildMembers)) or 0 }, now
 	return people
 end
 SSH.People = People
@@ -2046,15 +2058,37 @@ local function Eligible(route, peer)
 	return nil
 end
 
+-- A name claimed over Battle.net, with a surname Battle.net didn't give, kept by the Battle.net account first proven
+-- with it (0.59.1, the player: "resolve this B.net loose name issue"): { [claim] = bnetAccountID }, this session.
+local bnOwner = {}
+SSH.bnOwner = bnOwner
+
 local function Matches(claim, route)
 	if route.kind == "bn" then
-		local b = People().bn[route.id]
+		local P = People()
+		local b = P.bn[route.id]
 		if not b then return false end
 		local name, realm = claim:match("^(.-)@(.*)$")
 		local c = Canon(b.name)
 		-- (Battle.net may give the first name alone: the claim's surname after it)
-		if not (name == c or name:sub(1, #c + 1) == c .. "-") then return false end
-		return not b.realm or SSH.Claim("x", b.realm) == "x@" .. realm
+		local exact = name == c
+		if not (exact or name:sub(1, #c + 1) == c .. "-") then return false end
+		if b.realm and SSH.Claim("x", b.realm) ~= "x@" .. realm then return false end
+		-- (0.59.1) The character claimed, as your friend list or guild roster knows it: by its GUID, it's this Battle.net
+		-- friend's character or not. One the game knows only by its name (a friend list or roster without GUIDs, or a
+		-- Battle.net friend whose GUID isn't given): a surname claimed over Battle.net isn't taken for it; they connect
+		-- the way they're known by instead.
+		local key = (realm == MyRealm() or realm == "") and name or (name .. "-" .. realm)
+		local withRealm = name .. "-" .. (realm ~= "" and realm or MyRealm()) -- (the roster writes "Name-Realm")
+		local knownGuid = P.guids[key] or P.guids[withRealm]
+		if knownGuid and b.guid then return knownGuid == b.guid end
+		if not exact then
+			if (P.names[key] and not P.bnNames[key]) or (P.names[withRealm] and not P.bnNames[withRealm]) then return false end
+			-- (a surname no one else is known by: the Battle.net account that first proved it keeps it)
+			local owner = bnOwner[claim]
+			if owner and b.bnetID and owner ~= b.bnetID then return false end
+		end
+		return true
 	end
 	return SSH.ClaimIs(claim, route.target, MyRealm())
 end
@@ -2258,6 +2292,9 @@ SSH.game = SSH.Endpoint({
 	say = function(text) ns:Print(text); SSH.Badge(true) end, -- (said: connected, disconnected... the badge with it)
 	nonce = Nonce,
 	broadcast = Broadcast,
+	proven = function(claim, route)
+		if route.kind == "bn" and route.bnetID and not bnOwner[claim] then bnOwner[claim] = route.bnetID end
+	end,
 })
 
 local ticker
