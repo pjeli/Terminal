@@ -194,6 +194,7 @@ do
 	_G.GetNumGuildMembers = function() return 1 end
 	_G.GetGuildRosterInfo = function(i) if i == 1 then return "Quilleran-Realm" end end
 	SSH.OnEvent("GUILD_ROSTER_UPDATE")
+	SSH.Forget() -- (the roster read again now, not within the 2 s an event leaves it)
 	local n0 = #sent
 	ep.tokens = 0
 	ep:Hello()

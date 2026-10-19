@@ -567,9 +567,12 @@ function E:Send(route, text, tag, f, peer)
 	if peer then peer.queuedMsg = m end -- (not timed out while it waits)
 	local at = #self.queue + 1
 	if not tag then
-		-- (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT to be answered)
+		-- (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT to be answered. An answer,
+		-- C A K, before hellos too: a login's hellos to every friend, most not running Terminal, and an answer waited
+		-- behind them past the other side's timeout, never connecting. 0.60.0 review)
+		local hello = text:sub(2, 2) == "H"
 		for i, q in ipairs(self.queue) do
-			if q.tag and q.tag:sub(1, 5) == "data:" then at = i break end
+			if (q.tag and q.tag:sub(1, 5) == "data:") or (not hello and not q.tag and q.text:sub(2, 2) == "H") then at = i break end
 		end
 	end
 	table.insert(self.queue, at, m)
@@ -803,7 +806,9 @@ function E:Share(f, force)
 	local last = math.max(f.sentAt or 0, f.doneAt or 0)
 	if not force and f.sentAt and now - last < SSH.SEND_GAP then f.owed = true return end
 	local mode = self:ModeFor(f)
-	local text, parts = self:Snapshot(mode, force)
+	-- (as made since the last change: E:Changed starts them again. 0.60.0 review: made again whole for every friend
+	-- connecting, 50 ms each at login with 2000 items)
+	local text, parts = self:Snapshot(mode)
 	if not force and text == f.sentText then f.owed = nil return end
 	-- only what changed, when they have the last one whole and it's the same places and mode: "2U ver,base,i,n,..."
 	local letter, payload, base = "D", text, ""
@@ -826,9 +831,13 @@ function E:Share(f, force)
 	local pieces = {}
 	for at = 1, math.max(1, #payload), SSH.CHUNK do pieces[#pieces + 1] = payload:sub(at, at + SSH.CHUNK - 1) end
 	f.sentPieces = #pieces
+	-- (queued here, not by Send: none of theirs is waiting, so nothing to take the place of, and no queue walked a piece)
 	for i, piece in ipairs(pieces) do
-		self:Send(f.route, SSH.V .. letter .. " " .. ver .. "," .. base .. i .. "," .. #pieces .. "," .. piece, tag .. i, f)
+		local m = { route = f.route, text = SSH.V .. letter .. " " .. ver .. "," .. base .. i .. "," .. #pieces .. "," .. piece, tag = tag .. i, f = f }
+		f.queued = (f.queued or 0) + 1
+		self.queue[#self.queue + 1] = m
 	end
+	self:Pump()
 end
 
 --- What changed from one snapshot's parts to another's, worked out once for every friend who had the same one
@@ -847,6 +856,14 @@ end
 --- Your bags changed: each friend is sent them (within SEND_GAP).
 function E:Changed()
 	self.snaps = {}
+	-- (a burst of them, selling greys, looting a run of mobs: the first sent now, the rest owed, sent by the tick a
+	-- second on. 0.60.0 review: what you share was made again every bag event, 91 times selling 30 greys)
+	local now = self:Now()
+	if self.changedAt and now - self.changedAt < 1 then
+		for _, f in pairs(self.friends) do f.owed = true end
+		return
+	end
+	self.changedAt = now
 	for _, f in pairs(self.friends) do self:Share(f) end
 end
 
@@ -1991,11 +2008,13 @@ local function Ambig(name)
 	return name
 end
 
--- friends, guild members and Battle.net friends' characters, read at most every 10 s
-local people, peopleAt = nil, -100
+-- friends, guild members and Battle.net friends' characters, read at most every 10 s; after their events (peopleStale)
+-- at most every 2 s (0.60.0 review: a big guild's roster events read it all again for the next message, 20 ms each)
+local people, peopleAt, peopleStale = nil, -100, nil
 local function People()
 	local now = GetTime()
-	if people and now - peopleAt < 10 then return people end
+	if people and now - peopleAt < (peopleStale and 2 or 10) then return people end
+	peopleStale = nil
 	local realm = MyRealm()
 	local names, bn, guild, guids, bnNames = {}, {}, {}, {}, {}
 	local function add(set, name, shown)
@@ -2015,11 +2034,12 @@ local function People()
 		end
 	end
 	for i = 1, (_G.IsInGuild and Safe(_G.IsInGuild) and Num(Safe(_G.GetNumGuildMembers)) or 0) do
-		local n = Str((Safe(_G.GetGuildRosterInfo, i)))
+		local n, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, g17 = Safe(_G.GetGuildRosterInfo, i)
+		n = Str(n)
 		if n then
 			add(names, n, Ambig(n)); add(guild, n, true)
 			-- (the roster's 17th answer: the character's GUID)
-			local guid = Str((select(17, Safe(_G.GetGuildRosterInfo, i))))
+			local guid = Str(g17)
 			if guid then add(guids, n, guid) end
 		end
 	end
@@ -2193,6 +2213,28 @@ end
 
 --- What you share in a mode, as a snapshot (SSH.Encode's shape). limited, mats, consumables: this character's bags;
 --- all: everything there, your other characters and banks as @stored reads them (Syndicator or BagBrother), and gold.
+-- @stored as it last read it: a change to it is read in its own time (warmDirty: out of combat, after the last change),
+-- not here inside a bag event or Syndicator's callback (0.60.0 review: 30 reads of it selling 30 greys, up to 450 ms
+-- each with many alts). Read here only the first time. SSH.StoredMoved: once it has read it again, shared again.
+local function StoredList()
+	local p = ns.providers.stored
+	if not p then return {} end
+	local list = (p._dirty and p._entries) or ns:GetEntries(p)
+	SSH.storedSeen = list
+	return list
+end
+
+--- @stored read again since what you share was made: made again (each second, from the ticker).
+function SSH.StoredMoved(ep)
+	local st = ns.providers.stored
+	if st and SSH.storedSeen and st._entries and st._entries ~= SSH.storedSeen and ep:On() then
+		SSH.storedSeen = st._entries
+		ep:Changed()
+		return true
+	end
+	return false
+end
+
 function SSH.Snapshot(mode)
 	local me = ns.CharacterName and ns.CharacterName() or "?"
 	local places, index, items = {}, {}, {}
@@ -2216,8 +2258,7 @@ function SSH.Snapshot(mode)
 	end
 	local gold
 	if mode == "all" then
-		local p = ns.providers.stored
-		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		for _, e in ipairs(StoredList()) do
 			local id = e.itemID
 			for _, h in pairs(type(e.holders) == "table" and e.holders or {}) do
 				local w = WHERE_CODE[h.where]
@@ -2231,8 +2272,7 @@ function SSH.Snapshot(mode)
 	elseif want then
 		-- (0.59.0, the player: "also share the character bank inventory of the same types of items": this character's
 		-- bank as @stored has it, Syndicator or BagBrother)
-		local p = ns.providers.stored
-		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		for _, e in ipairs(StoredList()) do
 			local id = e.itemID
 			for _, h in pairs(id and type(e.holders) == "table" and e.holders or {}) do
 				if h.mine and h.where == "bank" and (h.count or 0) > 0 and want(id) then add(id, place(me, "k"), h.count) end
@@ -2320,6 +2360,7 @@ function SSH.StartTicker()
 	ticker = C_Timer.NewTicker(1, function()
 		local ep = SSH.game
 		ep:Tick()
+		SSH.StoredMoved(ep)
 		-- (off, and the goodbyes all gone: stopped)
 		if not ep:On() and not ep.deriving and #ep.queue == 0 then SSH.StopTicker() return end
 		local U = ns.UI
@@ -2357,7 +2398,7 @@ function SSH.OnEvent(event, ...)
 		if ep:On() then ep:Changed() end -- (sent only when what you share changed: Share compares the text)
 	elseif event == "FRIENDLIST_UPDATE" or event == "GUILD_ROSTER_UPDATE" or event == "BN_FRIEND_INFO_CHANGED"
 		or event == "BN_FRIEND_LIST_SIZE_CHANGED" then
-		people = nil
+		peopleStale = true
 	elseif event == "PLAYER_LOGOUT" then
 		ep:Bye()
 	elseif event == "PLAYER_LOGIN" then

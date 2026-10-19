@@ -88,11 +88,13 @@ do
 	check(A:Items()[1500] and not A:Items()[2589] and not A:Items()[2770], "limited: the crafting mat, not the rest")
 	B:SetMode("mats")
 	B.me.items[400] = 1
+	B.snaps = {} -- (the bags changed: the game's event starts the snapshots again, E:Changed)
 	B:Share(B.friends["ann@realm"], true)
 	net.Tick(2) -- (the send queue: one a second once its burst is spent)
 	check(A:Items()[1500] and not A:Items()[400], "mats: mats only")
 	B.me.items[400] = nil
 	B.me.alt, B.me.gold = { [2589] = 100, [3000] = 1 }, 5000000
+	B.snaps = {}
 	B:SetMode("all")
 	B:Share(B.friends["ann@realm"], true)
 	net.Tick(2) -- (the send queue: one a second once its burst is spent)
@@ -110,16 +112,19 @@ do
 		.. table.concat(SSH.Status(A), " / "))
 	-- whatever the bags say, limited sends no gold
 	B.me.gold = 777
+	B.snaps = {}
 	B:Share(B.friends["ann@realm"], true)
 	net.Tick(2)
 	check(#A:Gold() == 0, "limited never sends gold")
 	B.me.alt, B.me.gold, B.me.items[1500] = nil, nil, nil
+	B.snaps = {}
 	-- share consumables, then nothing
 	B:SetMode("consumables")
 	B:Share(B.friends["ann@realm"], true)
 	net.Tick(2) -- (the send queue: one a second once its burst is spent)
 	check(not A:Items()[2770] and not A:Items()[2589] and next(A:Items()) == nil, "share consumables: only those (none here)")
 	B.me.items[400] = 3
+	B.snaps = {}
 	B:Share(B.friends["ann@realm"], true)
 	net.Tick(2) -- (the send queue: one a second once its burst is spent)
 	check(A:Items()[400] and A:Items()[400].total == 3 and not A:Items()[2770], "...a consumable is")
