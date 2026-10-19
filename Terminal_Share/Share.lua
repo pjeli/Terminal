@@ -12,6 +12,9 @@ local L = ns.L
 -- account), never the message's.
 -- The password: never sent, never kept. It's turned into a key (iterated SHA-256, a slice a frame), and each side proves
 -- it holds the key with an HMAC over both nonces and both names (Crypto.lua). A wrong password gets no answer.
+-- Groups (0.59.0, the player: ".share join group1 password1"): each group a name and a password of its own, and what you
+-- share in it; .share password is the group "default". Friends who joined the same group with the same password see
+-- each other; each sees from you what you share in the groups you have in common (all of them together).
 -- What friends send lives here, in memory, and nowhere else: gone on /reload, logout, goodbye, 30 minutes of silence,
 -- or once they're no longer a friend or guild member. Nothing of it is ever in ns.db.
 --
@@ -26,12 +29,16 @@ local Lower, Str, Num, Safe = ns.Lower, ns.Str, ns.Num, ns.Safe
 local floor, concat, sort = math.floor, table.concat, table.sort
 
 SSH.PREFIX = "TermSSH"
-SSH.V = "2"                -- the protocol's version, each message's first character (2: 0.58.16, delta updates,
-                           -- 150-piece snapshots, a session in hellos; a friend on another is told to update)
+SSH.V = "3"                -- the protocol's version, each message's first character (2: 0.58.16, delta updates,
+                           -- 150-piece snapshots, a session in hellos; 3: 0.59.0, groups. A friend on another is told
+                           -- to update)
 SSH.SALT = "Terminal.ssh.1" -- (the key is the same for every pair who typed the same password)
 SSH.KDF_ROUNDS = 2000      -- SHA-256s a password guess costs
 SSH.KDF_SLICE = 50         -- of them a frame
 SSH.MIN_PASSWORD = 8
+SSH.MAX_GROUPS = 5         -- groups at once (a hello names each; a proof is one per group, in one message)
+SSH.GROUP_LEN = 16         -- a group's name: letters, digits, "-" and "_", this long at most
+SSH.DEFAULT_GROUP = "default" -- .share password's
 SSH.MAC_HEX = 32           -- a proof's length (128 bits, hex)
 SSH.CHUNK = 200            -- a data message's payload, at most
 SSH.MAX_PIECES = 150       -- a snapshot's messages, at most (30000 characters: ~2500 items in two places each)
@@ -216,9 +223,9 @@ function SSH.Decode(text)
 end
 
 -- Delta updates (0.58.16, the stress test: .share all to 10 friends with 500 items each took 300 messages, 5 minutes,
--- for every bag change): after a friend has a whole snapshot, a change sends only what changed, "1U ver,base,i,n,..."
+-- for every bag change): after a friend has a whole snapshot, a change sends only what changed, "3U ver,base,i,n,..."
 -- with "id:0.k,1.3" for an item changed or new, "id:x" for one gone, and the gold: "changes!gold". The friend applies
--- it to the snapshot `base`; one they don't have (a piece lost, a /reload) is asked for whole again ("1R").
+-- it to the snapshot `base`; one they don't have (a piece lost, a /reload) is asked for whole again ("3R").
 
 --- What changed from `old` to `new` (SSH.EncodeParts), as a delta's text; nil when nothing did.
 function SSH.Delta(old, new)
@@ -265,10 +272,17 @@ end
 -- The key
 ----------------------------------------------------------------------
 
+--- A group's salt: the default group's is the one keys were made with before groups (a remembered key still fits).
+local function Salt(group)
+	if group == nil or group == SSH.DEFAULT_GROUP then return SSH.SALT end
+	return SSH.SALT .. "|" .. group
+end
+
 --- The key from a password, a slice at a time (`later(fn)` runs fn on a later frame; nil: all at once). done(key).
-function SSH.Derive(password, done, later)
+--- `group`: the group's name (its salt: the same password in two groups is two keys).
+function SSH.Derive(password, done, later, group)
 	local rounds, slice = SSH.KDF_ROUNDS, SSH.KDF_SLICE
-	local k = C.SHA256(SSH.SALT .. "\0" .. password)
+	local k = C.SHA256(Salt(group) .. "\0" .. password)
 	local left = rounds
 	local function step()
 		local n = math.min(slice, left)
@@ -288,6 +302,40 @@ end
 SSH.Mac = Mac
 
 ----------------------------------------------------------------------
+-- Groups
+----------------------------------------------------------------------
+
+--- A group's name as typed, made plain ("Raid-Team" -> "raid-team"), or nil when it can't be one.
+function SSH.GroupName(s)
+	s = Lower(tostring(s or ""))
+	-- (letters of any language: a character of several bytes counted once; review, 0.59.0)
+	if s == "" or #(s:gsub("[\128-\191]", "")) > SSH.GROUP_LEN or not s:find("^[%w_%-\128-\255]+$") then return nil end
+	return s
+end
+
+local tags = {}
+--- A group's mark in hellos: 8 hex characters of SHA-256 of its name (the name itself is never sent, but a common
+--- name, "raid", can be guessed from its mark: the password is what keeps a group to itself).
+function SSH.Tag(name)
+	local t = tags[name]
+	if not t then t = C.Hex(C.SHA256("Terminal.share.group|" .. name)):sub(1, 8); tags[name] = t end
+	return t
+end
+
+-- What several groups' modes share together: limited is mats and consumables; all is everything.
+local WIDE = { none = {}, mats = { m = true }, consumables = { c = true }, limited = { m = true, c = true } }
+function SSH.Union(modes)
+	local m, c = false, false
+	for _, x in ipairs(modes) do
+		if x == "all" then return "all" end
+		local w = WIDE[x] or {}
+		m, c = m or w.m == true, c or w.c == true
+	end
+	if m and c then return "limited" end
+	return m and "mats" or c and "consumables" or "none"
+end
+
+----------------------------------------------------------------------
 -- An endpoint: the protocol
 ----------------------------------------------------------------------
 -- env:
@@ -298,7 +346,7 @@ SSH.Mac = Mac
 --                             character (a guild channel message: a guild member who isn't you), else nil
 --   matches(claim, route)     the claim names the route's sender
 --   items(mode)               the snapshot you share (SSH.Encode's shape) for a mode: "all", "limited", "mats",
---                             "consumables"
+--                             "consumables" (for a friend: the modes of the groups you have in common, together)
 --   locked()                  the game locks chat messaging now
 --   changed()                 a friend's items changed (the list is made again)
 --   say(text)                 a line in your chat window
@@ -312,7 +360,7 @@ E.__index = E
 
 function SSH.Endpoint(env)
 	return setmetatable({ env = env, peers = {}, friends = {}, waiting = {}, queue = {}, tokens = SSH.BURST, refillAt = 0,
-		mode = "limited", outVer = 0, recheckAt = 0, hellos = {}, tried = {} }, E)
+		defaultMode = "limited", outVer = 0, recheckAt = 0, hellos = {}, tried = {}, groups = {}, byTag = {}, snaps = {} }, E)
 end
 
 -- Two records (0.58.3; in game, 0.58.2: connected, "items: 0" on both sides):
@@ -320,8 +368,10 @@ end
 --                    your own realm dropped: "Bob-Realm", "Bob" and the guild channel's "Bob" are one way), or
 --                    Battle.net "b:<game account>". A friend can have several up at once (a guildmate who's also on
 --                    your friend list, a Battle.net friend).
---   friends[claim]   a friend, however they reach you: what they sent (items, gold), when they were last heard, and
---                    the one way you send to them (the newest proven).
+--   friends[claim]   a friend, however they reach you: what they sent (items, gold), when they were last heard, the
+--                    one way you send to them (the newest proven), and the groups you have in common (f.groups:
+--                    every proven way's p.groups).
+--   groups[name]     the groups you joined: { name, key, tag, mode }; byTag[tag] the same by their mark.
 -- Before, each way was its own friend: the items came in on one and .ssh counted another, then a second way's
 -- connection dropped the first.
 
@@ -342,6 +392,124 @@ end
 
 function E:Now() return self.env.now() end
 function E:Claim() return self.env.claim() end
+
+--- In a group (any): sharing is on.
+function E:On() return next(self.groups) ~= nil end
+
+--- Your groups' marks, sorted, as a hello says them: "1a2b3c4d.5e6f7a8b".
+function E:Tags()
+	local out = {}
+	for _, g in pairs(self.groups) do out[#out + 1] = g.tag end
+	sort(out)
+	return concat(out, ".")
+end
+
+--- Groups' names, sorted and said: "default, raid".
+local function Names(set)
+	local out = {}
+	for n in pairs(set or {}) do out[#out + 1] = n end
+	sort(out)
+	return concat(out, ", ")
+end
+SSH.Names = Names
+
+--- What you share with a friend: the groups you have in common, their modes together.
+function E:ModeFor(f)
+	local modes = {}
+	for name in pairs(f.groups or {}) do
+		local g = self.groups[name]
+		if g then modes[#modes + 1] = g.mode end
+	end
+	return SSH.Union(modes)
+end
+
+--- What you share in all your groups together (the badge's count; .share debug).
+function E:WidestMode()
+	local modes = {}
+	for _, g in pairs(self.groups) do modes[#modes + 1] = g.mode end
+	return SSH.Union(modes)
+end
+
+--- A group joined with its key (another key for a group you're in: that group left first, its friends said goodbye
+--- to). Hello to everyone: friends connected already are proven again, with this group too.
+function E:JoinGroup(name, key, mode, quiet)
+	local g = self.groups[name]
+	if g and g.key ~= key then self:LeaveGroup(name, true) g = nil end
+	if not g then
+		g = { name = name, key = key, tag = SSH.Tag(name), mode = mode or self.defaultMode or "limited" }
+		self.groups[name], self.byTag[g.tag] = g, g
+	end
+	for k, p in pairs(self.peers) do
+		if p.state ~= "up" and not p.wasUp then self.peers[k] = nil end
+	end
+	self.waiting = {}
+	self.tried, self.retryAt = {}, self:Now() + SSH.RETRY_TICK
+	if not quiet then self:Hello() end -- (quiet: more groups to come, one hello after them)
+	return g
+end
+
+--- The default group's key (.share password; the tests' way in).
+function E:SetKey(key) return self:JoinGroup(SSH.DEFAULT_GROUP, key) end
+
+--- What you share in a group (nil: in every group, and in groups joined later): friends whose share changed are
+--- sent it.
+function E:SetMode(mode, name)
+	if name then
+		if not self.groups[name] then return false end
+		self.groups[name].mode = mode
+	else
+		self.defaultMode = mode
+		for _, g in pairs(self.groups) do g.mode = mode end
+	end
+	for _, f in pairs(self.friends) do self:Reshare(f) end
+	return true
+end
+
+--- A friend sent what you share with them again, whole, when that changed (a group's mode, a group left).
+function E:Reshare(f)
+	if self.friends[f.claim] and self:ModeFor(f) ~= f.sentMode then self:Share(f, true) end
+end
+
+--- A group left: friends you have only it in common with are said goodbye to and dropped; the others are told
+--- ("3L <mark>") and sent what you share with them now.
+function E:LeaveGroup(name, rejoining)
+	-- (its password still being made from: never used; review, 0.59.0: it was joined after the leave)
+	if self.deriving and self.deriving[name] then
+		self.deriving[name] = nil
+		if next(self.deriving) == nil then self.deriving = nil end
+	end
+	local g = self.groups[name]
+	if not g then return false end
+	-- (the last group left: everyone said goodbye to, as .share off does, the queue kept for it. Review, 0.59.0: the
+	-- goodbyes queued here were then dropped with the queue. A password being made for another group goes on)
+	local others = false
+	for n in pairs(self.groups) do if n ~= name then others = true end end
+	if not others and not rejoining then
+		local deriving = self.deriving
+		self:Off()
+		self.deriving = deriving
+		return true
+	end
+	self.groups[name], self.byTag[g.tag] = nil, nil
+	for claim, f in pairs(self.friends) do
+		if f.groups and f.groups[name] then
+			f.groups[name] = nil
+			for _, p in pairs(self.peers) do
+				if p.claim == claim and p.groups then p.groups[name] = nil end
+			end
+			if next(f.groups) == nil then
+				self:Send(f.route, SSH.V .. "B")
+				self:Drop(f)
+			else
+				self:Send(f.route, SSH.V .. "L " .. g.tag)
+				self:Reshare(f)
+				f.rows = nil -- (their @shared rows say their groups: made again)
+				self.env.changed()
+			end
+		end
+	end
+	return true
+end
 
 --- Queue a message (sent at once when the queue lets it). `tag` lets a newer one take an older's place ("data:claim").
 --- `f`: a friend's items (counted while they wait: f.queued; friends take turns). `peer`: a handshake's, its time
@@ -450,14 +618,14 @@ end
 
 --- Say hello: to everyone broadcast() names, or to one route.
 function E:Hello(route)
-	if not self.key then return false end
+	if not self:On() then return false end
 	local now = self:Now()
 	if route and route.kind == "guild" then
 		-- (the guild channel: one message, answered by each member who has the password; the nonce is the one they echo)
 		local n = self.env.nonce()
 		self.hellos[n], self.lastBroadcast = now, n
 		self:Tried("guild", now)
-		self:Send(route, SSH.V .. "H " .. n .. "," .. self:Claim() .. "," .. self:Session())
+		self:Send(route, SSH.V .. "H " .. n .. "," .. self:Claim() .. "," .. self:Session() .. "," .. self:Tags())
 		return true
 	end
 	if route then
@@ -466,7 +634,7 @@ function E:Hello(route)
 		if p.state == "up" then p.wasUp = true end
 		p.state, p.nA, p.nB, p.since = "hello", self.env.nonce(), nil, now
 		self:Tried(p.key, now)
-		self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. self:Claim() .. "," .. self:Session(), nil, nil, p)
+		self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. self:Claim() .. "," .. self:Session() .. "," .. self:Tags(), nil, nil, p)
 		return true
 	end
 	local seen = {}
@@ -507,8 +675,6 @@ end
 function E:Up(p)
 	local now = self:Now()
 	p.state, p.mismatch, p.upAt, p.wasUp = "up", nil, now, nil
-	-- (a new handshake: what was being put together, and what their deltas build on, is from before it)
-	p.pieces, p.got, p.inKey = {}, 0, nil
 	self.tried[p.key] = nil
 	local f = self.friends[p.claim]
 	local new = f == nil
@@ -516,11 +682,26 @@ function E:Up(p)
 		f = { claim = p.claim, items = {}, entries = {}, places = {}, n = 0 }
 		self.friends[p.claim] = f
 	end
-	f.name, f.route, f.key, f.last, f.ver = p.name or f.name, p.route, p.key, now, nil
+	-- (proven again, the same way and the same session of theirs, a group joined say: what's under way goes on, and
+	-- only what changed is sent. Review, 0.59.0: every friend was sent everything whole again, both ways, for a group
+	-- joined that most weren't in. Anything else, a new way or they /reloaded: from nothing, whole)
+	local same = not new and f.key == p.key and p.sess ~= nil and p.sess ~= "" and f.sess == p.sess
+	if not same then p.pieces, p.got, p.inKey, f.ver = {}, 0, nil, nil end
+	f.name, f.route, f.key, f.last, f.sess = p.name or f.name, p.route, p.key, now, p.sess
+	-- (the groups you have in common: the ones proven on this way, the one you send by. Review, 0.59.0: every way's
+	-- together, and a way proven in one group got what another way's group shares)
+	local groups = {}
+	for n in pairs(p.groups or {}) do if self.groups[n] then groups[n] = true end end
+	f.groups = groups
+	f.rows = nil -- (their @shared rows say their groups: made again)
 	self.waiting[p.key] = nil
 	if new then self.env.say(L["Share: connected to %s"]:format(f.name or "?")) end
-	f.sentText = nil -- (sent again whole: this way may be a new one to them)
-	self:Share(f, true)
+	if same and self:ModeFor(f) == f.sentMode then
+		self:Share(f)
+	else
+		f.sentText = nil -- (sent again whole: this way, or this session of theirs, may be new)
+		self:Share(f, true)
+	end
 	if new then self.env.changed() end
 end
 
@@ -533,23 +714,32 @@ function E:Drop(f, why)
 	for k, p in pairs(self.peers) do
 		if p.claim == f.claim then self.peers[k] = nil end
 	end
+	-- (what was still waiting to go to them: not sent after a goodbye. Review, 0.59.0: a hundred pieces went on after it)
+	local ping = "ping:" .. f.claim
+	for i = #self.queue, 1, -1 do
+		local m = self.queue[i]
+		if m.f == f or m.tag == ping then self:Unqueue(i) end
+	end
 	if why then self.env.say(L["Share: %s disconnected (%s)"]:format(f.name or "?", why)) end
 	if HasData(f) then self.env.changed() end
 end
 
---- What you share, as text (the same text as before: not sent again), and in its parts (SSH.EncodeParts: a delta is
---- made from two of them). "none": an empty text, no parts.
-function E:Snapshot(fresh)
-	if self.mode == "none" then return "", nil end
-	-- (made once for every friend a change is sent to: E:Changed starts it again)
-	if fresh or not self.snapText or self.snapMode ~= self.mode then
-		local snap = self.env.items(self.mode) or {}
-		snap.mode = self.mode
-		if self.mode ~= "all" then snap.gold = nil end -- (gold only with all, whatever items() gave)
+--- What you share in a mode, as text (the same text as before: not sent again), and in its parts (SSH.EncodeParts: a
+--- delta is made from two of them). "none": an empty text, no parts. Made once a mode for every friend a change is
+--- sent to (E:Changed starts them again).
+function E:Snapshot(mode, fresh)
+	mode = mode or self:WidestMode()
+	if mode == "none" then return "", nil end
+	local s = self.snaps[mode]
+	if fresh or not s then
+		local snap = self.env.items(mode) or {}
+		snap.mode = mode
+		if mode ~= "all" then snap.gold = nil end -- (gold only with all, whatever items() gave)
 		local parts = SSH.EncodeParts(snap)
-		self.snapText, self.snapParts, self.snapMode = SSH.Join(parts), parts, self.mode
+		s = { text = SSH.Join(parts), parts = parts }
+		self.snaps[mode] = s
 	end
-	return self.snapText, self.snapParts
+	return s.text, s.parts
 end
 
 --- Send a friend what you share, now (`force`) or when it's been SEND_GAP since the last.
@@ -569,24 +759,25 @@ function E:Share(f, force)
 	-- (SEND_GAP since the last went out whole)
 	local last = math.max(f.sentAt or 0, f.doneAt or 0)
 	if not force and f.sentAt and now - last < SSH.SEND_GAP then f.owed = true return end
-	local text, parts = self:Snapshot(force)
+	local mode = self:ModeFor(f)
+	local text, parts = self:Snapshot(mode, force)
 	if not force and text == f.sentText then f.owed = nil return end
 	-- only what changed, when they have the last one whole and it's the same places and mode: "2U ver,base,i,n,..."
 	local letter, payload, base = "D", text, ""
 	local old = f.sentParts
 	if not force and old and parts and f.sentVer and old.places == parts.places and old.mode == parts.mode then
-		local delta = SSH.Delta(old, parts)
+		local delta = self:DeltaOf(old, parts)
 		if delta and #delta < #text / 2 then letter, payload, base = "U", delta, f.sentVer .. "," end
 	end
 	self.outVer = self.outVer + 1
 	local ver = self:Session() .. To36(self.outVer)
-	f.sentText, f.sentParts, f.sentVer, f.sentAt, f.owed, f.pingAt = text, parts, ver, now, nil, now
+	f.sentText, f.sentParts, f.sentVer, f.sentAt, f.owed, f.pingAt, f.sentMode = text, parts, ver, now, nil, now, mode
 	-- (pieces of CHUNK characters, put back together as they were; a snapshot past MAX_PIECES is cut at its last whole
 	-- item, so it still reads, and the next goes whole)
 	local max = SSH.CHUNK * SSH.MAX_PIECES
 	if #payload > max then
 		local cut = payload:sub(1, max - 1):match("^(.*);") or ""
-		payload = cut .. "!!" .. (self.mode or "")
+		payload = cut .. "!!" .. mode
 		f.sentParts = nil
 	end
 	local pieces = {}
@@ -597,9 +788,22 @@ function E:Share(f, force)
 	end
 end
 
+--- What changed from one snapshot's parts to another's, worked out once for every friend who had the same one
+--- (0.59.0, the stress test: 50 friends were 50 deltas of the same two snapshots a bag change). Kept by the old parts,
+--- weakly: gone with them.
+function E:DeltaOf(old, new)
+	local cache = self.deltas
+	if not cache then cache = setmetatable({}, { __mode = "k" }); self.deltas = cache end
+	local c = cache[old]
+	if c and c.new == new then return c.delta or nil end
+	local d = SSH.Delta(old, new)
+	cache[old] = { new = new, delta = d or false }
+	return d
+end
+
 --- Your bags changed: each friend is sent them (within SEND_GAP).
 function E:Changed()
-	self.snapText = nil
+	self.snaps = {}
 	for _, f in pairs(self.friends) do self:Share(f) end
 end
 
@@ -615,7 +819,7 @@ function E:Receive(route, text)
 		local name = self.env.eligible(route, p)
 		local k = self:Key(route)
 		self.otherV = self.otherV or {}
-		if name and self.key and not self.otherV[k] then
+		if name and self:On() and not self.otherV[k] then
 			self.otherV[k] = true
 			self.env.say(L["Share: %s runs another version of Terminal: Share; you both need the newest to connect"]:format(name))
 		end
@@ -627,16 +831,38 @@ function E:Receive(route, text)
 	self.heard = self.heard or {}
 	self.heard[letter] = (self.heard[letter] or 0) + 1 -- (.ssh debug)
 	if letter == "H" then
-		local nA, claim, sess = rest:match("^(%x+),([^,]+),?(%x*)$")
+		local nA, claim, sess, theirs = rest:match("^(%x+),([^,]+),(%x*),([%x%.]*)$")
 		if not (ValidNonce(nA) and ValidClaim(claim) and self.env.matches(claim, route)) then return end
-		if not self.key then
+		-- (the groups you have in common: their marks you know)
+		local common, nCommon = {}, 0
+		for t in theirs:gmatch("%x+") do
+			if self.byTag[t] and not common[t] and nCommon < SSH.MAX_GROUPS then common[t] = true; nCommon = nCommon + 1 end
+		end
+		if nCommon == 0 then
 			self.waiting[self:Key(route)] = { name = name, at = now }
 			return
 		end
-		-- (the guild channel's hello from a friend connected, the same session of theirs: one to others, let be. Review,
-		-- 0.58.16: answered, it broke the connection until it was made again. A hello to you alone is always answered:
-		-- they dropped you, whatever you think)
-		if route.kind == "guild" and p and p.state == "up" and p.claim == claim and sess ~= "" and p.sess == sess then return end
+		-- (the guild channel's hello from a friend connected, the same session of theirs and the same groups: one to
+		-- others, let be. Review, 0.58.16: answered, it broke the connection until it was made again. A hello to you
+		-- alone is always answered: they dropped you, whatever you think; another group joined is proven too)
+		local commonText
+		do
+			local list = {}
+			for t in pairs(common) do list[#list + 1] = t end
+			sort(list)
+			commonText = concat(list, ".")
+		end
+		if route.kind == "guild" and p and p.state == "up" and p.claim == claim and sess ~= "" and p.sess == sess
+			and p.common == commonText then return end
+		-- (the same hello again while you challenge it, sent late from a busy queue: your challenge again, the same nonce,
+		-- so their proof of it still fits. Review, 0.59.0: a new nonce, and their proof of the first was ignored)
+		if p and p.state == "challenged" and p.nA == nA and p.claim == claim and p.nB then
+			if not p.reChallenged or now - p.reChallenged >= SSH.HELLO_GAP then
+				p.reChallenged = now
+				self:Send(p.route, SSH.V .. "C " .. nA .. "," .. p.nB .. "," .. self:Claim() .. "," .. self:Session() .. "," .. concat(p.offer or {}, "."), nil, nil, p)
+			end
+			return
+		end
 		if p and p.lastHello and now - p.lastHello < SSH.HELLO_GAP then return end
 		-- (both said hello at once: the smaller claim's hello goes on, the other side answers it)
 		local mine = self:Claim()
@@ -649,11 +875,12 @@ function E:Receive(route, text)
 			-- already on its way still fits)
 			if not (p and p.state == "hello") then
 				p = self:Peer(route, true)
+				if p.state == "up" then p.wasUp = true end -- (review, 0.59.0)
 				p.state, p.nA, p.since = "hello", self.lastBroadcast, now
 			end
 			if p.nA and (not p.resent or now - p.resent >= SSH.HELLO_GAP) then
 				p.resent = now
-				self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. mine .. "," .. self:Session(), nil, nil, p)
+				self:Send(p.route, SSH.V .. "H " .. p.nA .. "," .. mine .. "," .. self:Session() .. "," .. self:Tags(), nil, nil, p)
 			end
 			return
 		end
@@ -661,11 +888,22 @@ function E:Receive(route, text)
 		p = self:Peer(route, true)
 		if p.state == "up" and p.claim == claim then p.wasUp = true end -- (what they send lands meanwhile)
 		p.lastHello, p.name, p.claim, p.sess = now, name, claim, sess
+		local offer = {}
+		for t in pairs(common) do offer[#offer + 1] = t end
+		sort(offer)
+		p.offer, p.common = offer, commonText
 		p.state, p.nA, p.nB, p.since = "challenged", nA, self.env.nonce(), now
-		self:Send(p.route, SSH.V .. "C " .. nA .. "," .. p.nB .. "," .. mine .. "," .. self:Session(), nil, nil, p)
+		self:Send(p.route, SSH.V .. "C " .. nA .. "," .. p.nB .. "," .. mine .. "," .. self:Session() .. "," .. concat(offer, "."), nil, nil, p)
 	elseif letter == "C" then
-		local nA, nB, claim, sess = rest:match("^(%x+),(%x+),([^,]+),?(%x*)$")
-		if not (self.key and ValidNonce(nA) and ValidNonce(nB) and ValidClaim(claim) and self.env.matches(claim, route)) then return end
+		local nA, nB, claim, sess, offered = rest:match("^(%x+),(%x+),([^,]+),(%x*),([%x%.]*)$")
+		if not (self:On() and ValidNonce(nA) and ValidNonce(nB) and ValidClaim(claim) and self.env.matches(claim, route)) then return end
+		-- (the groups they offer: yours, each once)
+		local offer, seen = {}, {}
+		for t in offered:gmatch("%x+") do
+			if self.byTag[t] and not seen[t] and #offer < SSH.MAX_GROUPS then seen[t] = true; offer[#offer + 1] = t end
+		end
+		if #offer == 0 then return end
+		sort(offer)
 		if not (p and p.state == "hello" and p.nA == nA) then
 			-- (an answer to the guild channel's hello)
 			local at = self.hellos[nA]
@@ -677,26 +915,26 @@ function E:Receive(route, text)
 			if p.state == "up" and p.claim == claim then p.wasUp = true end
 			p.state, p.nA = "hello", nA
 		end
-		p.nB, p.claim, p.name, p.state, p.since, p.sess = nB, claim, name, "proved", now, sess
-		self:Send(p.route, SSH.V .. "A " .. nA .. "," .. nB .. "," .. Mac(self.key, "I", nA, nB, self:Claim(), claim), nil, nil, p)
+		p.nB, p.claim, p.name, p.state, p.since, p.sess, p.offer, p.common = nB, claim, name, "proved", now, sess, offer, concat(offer, ".")
+		-- (a proof for each group: "mark:mac.mark:mac", each with that group's key)
+		local proofs = {}
+		for i, t in ipairs(offer) do proofs[i] = t .. ":" .. Mac(self.byTag[t].key, "I", nA, nB, self:Claim(), claim) end
+		self:Send(p.route, SSH.V .. "A " .. nA .. "," .. nB .. "," .. concat(proofs, "."), nil, nil, p)
 	elseif letter == "A" then
-		local nA, nB, mac = rest:match("^(%x+),(%x+),(%x+)$")
-		if not (self.key and p and p.state == "challenged" and p.nA == nA and p.nB == nB) then return end
-		if mac ~= Mac(self.key, "I", nA, nB, p.claim, self:Claim()) then
-			p.state, p.mismatch, p.wasUp = "mismatch", now, nil
-			self.env.say(L["Share: %s's password doesn't match yours"]:format(name))
-			return -- (no answer: a wrong password learns nothing)
-		end
-		self:Send(p.route, SSH.V .. "K " .. nA .. "," .. nB .. "," .. Mac(self.key, "R", nA, nB, p.claim, self:Claim()))
+		local nA, nB, list = rest:match("^(%x+),(%x+),([%x:%.]+)$")
+		if not (self:On() and p and p.state == "challenged" and p.nA == nA and p.nB == nB) then return end
+		local good, answers = self:Proven(p, list, "I", p.claim, self:Claim(), name)
+		if not good then return end -- (no answer: a wrong password learns nothing)
+		for i, t in ipairs(answers) do answers[i] = t .. ":" .. Mac(self.byTag[t].key, "R", nA, nB, p.claim, self:Claim()) end
+		self:Send(p.route, SSH.V .. "K " .. nA .. "," .. nB .. "," .. concat(answers, "."))
+		p.groups = good
 		self:Up(p)
 	elseif letter == "K" then
-		local nA, nB, mac = rest:match("^(%x+),(%x+),(%x+)$")
-		if not (self.key and p and p.state == "proved" and p.nA == nA and p.nB == nB) then return end
-		if mac ~= Mac(self.key, "R", nA, nB, self:Claim(), p.claim) then
-			p.state, p.mismatch, p.wasUp = "mismatch", now, nil
-			self.env.say(L["Share: %s's password doesn't match yours"]:format(name))
-			return
-		end
+		local nA, nB, list = rest:match("^(%x+),(%x+),([%x:%.]+)$")
+		if not (self:On() and p and p.state == "proved" and p.nA == nA and p.nB == nB) then return end
+		local good = self:Proven(p, list, "R", self:Claim(), p.claim, name)
+		if not good then return end
+		p.groups = good
 		self:Up(p)
 	elseif letter == "D" or letter == "U" then
 		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
@@ -743,6 +981,24 @@ function E:Receive(route, text)
 		f.resentAt = now
 		f.sentParts = nil
 		self:Share(f, true)
+	elseif letter == "L" then
+		-- (they left one of your groups: what you share with them is what's left in common; none left, they're gone)
+		local t = rest:match("^(%x+)$")
+		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
+		local g = t and self.byTag[t]
+		if not (f and g and f.groups and f.groups[g.name]) then return end
+		f.groups[g.name] = nil
+		for _, q in pairs(self.peers) do
+			if q.claim == f.claim and q.groups then q.groups[g.name] = nil end
+		end
+		if next(f.groups) == nil then
+			self:Drop(f)
+			self.env.say(L["Share: %s disconnected"]:format(f.name or name))
+		else
+			self:Reshare(f)
+			f.rows = nil -- (their @shared rows say their groups: made again)
+			self.env.changed()
+		end
 	elseif letter == "P" then
 		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
 		if not f then return self:Stranger(route, p) end
@@ -759,9 +1015,41 @@ function E:Receive(route, text)
 	end
 end
 
+--- A list of proofs ("mark:mac.mark:mac") checked against the groups offered in this handshake: the set of groups
+--- proven ({ [name] = true }) and their marks in order, or nil when none is (the way marked a mismatch). Each group whose
+--- proof fails is said ("Bob's password for raid doesn't match yours"). `idA`/`idB`: the hello's sender, then the
+--- challenger.
+function E:Proven(p, list, label, idA, idB, name)
+	local offered = {}
+	for _, t in ipairs(p.offer or {}) do offered[t] = true end
+	local good, marks, n = {}, {}, 0
+	for t, mac in list:gmatch("(%x+):(%x+)") do
+		local g = offered[t] and self.byTag[t]
+		if g then
+			offered[t] = nil
+			if mac == Mac(g.key, label, p.nA, p.nB, idA, idB) then
+				good[g.name], n = true, n + 1
+				marks[#marks + 1] = t
+			elseif g.name == SSH.DEFAULT_GROUP then
+				self.env.say(L["Share: %s's password doesn't match yours"]:format(name))
+			else
+				self.env.say(L["Share: %s's password for %s doesn't match yours"]:format(name, g.name))
+			end
+		end
+	end
+	if n == 0 then
+		p.state, p.mismatch, p.wasUp = "mismatch", self:Now(), nil
+		-- (connected by this way, and none of its groups proven any more: they're not who you share with now)
+		local f = p.claim and self.friends[p.claim]
+		if f and f.key == p.key then self:Drop(f, L["no group in common any more"]) end
+		return nil
+	end
+	return good, marks
+end
+
 --- Data or a ping from a friend who thinks you're connected and you don't (you /reloaded): hello again, now and then.
 function E:Stranger(route, p)
-	if not self.key then return end
+	if not self:On() then return end
 	local now = self:Now()
 	if p and p.since and now - p.since < SSH.HANDSHAKE_TIMEOUT then return end
 	if p and p.strangerAt and now - p.strangerAt < 6 * SSH.HELLO_GAP then return end
@@ -777,7 +1065,7 @@ function E:Tick()
 	for n, at in pairs(self.hellos) do
 		if now - at >= SSH.HANDSHAKE_TIMEOUT then self.hellos[n] = nil end
 	end
-	if self.key and now >= (self.retryAt or 0) then
+	if self:On() and now >= (self.retryAt or 0) then
 		if self.retryAt then self:Retry(now) end
 		self.retryAt = now + SSH.RETRY_TICK
 	end
@@ -812,29 +1100,18 @@ function E:Tick()
 	end
 end
 
---- A key to use (`.ssh password`): hello to everyone.
-function E:SetKey(key)
-	-- (another password: the friends connected with the old one are said goodbye to; the same one: they stay)
-	if self.key and self.key ~= key then self:Off() end
-	self.key = key
-	for k, p in pairs(self.peers) do
-		if p.state ~= "up" then self.peers[k] = nil end
-	end
-	self.tried, self.retryAt = {}, self:Now() + SSH.RETRY_TICK
-	self:Hello()
-end
-
---- `.ssh off`: goodbye to every friend, the key and everything they sent forgotten.
+--- `.share off`: goodbye to every friend, every group and everything they sent forgotten.
 function E:Off()
 	local had, byes = false, {}
 	for _, f in pairs(self.friends) do
 		byes[#byes + 1] = f.route
 		if HasData(f) then had = true end
 	end
-	self.peers, self.friends, self.waiting, self.queue, self.hellos, self.key = {}, {}, {}, {}, {}, nil
+	self.peers, self.friends, self.waiting, self.queue, self.hellos = {}, {}, {}, {}, {}
+	self.groups, self.byTag, self.snaps = {}, {}, {}
 	self.tried, self.retryAt = {}, nil
 	-- (a password still being made from: never used. Review, 0.58.16: .share off while it was, and it was set after)
-	self.keyGen, self.deriving = (self.keyGen or 0) + 1, nil
+	self.deriving = nil
 	-- (the goodbyes through the queue: what the game says wait to goes a second later, the ticker kept until they're
 	-- all gone. Review, 0.58.16: sent straight, past ten friends or in chat lockdown some were lost, and those friends
 	-- showed your bags half an hour on)
@@ -894,6 +1171,7 @@ SSH.nameFrame = nameWait.frame
 
 
 local WHERE_SAID = { b = L["bags"], k = L["bank"], m = L["mail"], v = L["void storage"], w = L["warband bank"] }
+local WHERE_ORDER = { "b", "k", "m", "v", "w" }
 
 -- A friend's item looks as @stored's does (0.58.5, the player: "keep consistency"; .ssh all's one long line of every
 -- character stretched the tooltip across the screen): each character a line, its total and where ("Plamen Pally  53
@@ -948,6 +1226,10 @@ local function Tooltip(e, t)
 	t:AddLine(L["In your friends' bags now (.share)"], 1, 0.82, 0)
 	ns.Stored.GroupLines(e, t)
 	if e.others then t:AddLine(L["Other friends: %s"]:format(e.others), 0.6, 0.6, 0.6, true) end
+	local f = e.friend
+	if f and f.groups and next(f.groups) and not (f.groups[SSH.DEFAULT_GROUP] and not next(f.groups, next(f.groups))) then
+		t:AddLine(L["Shared in: %s"]:format(Names(f.groups)), 0.6, 0.6, 0.6, true)
+	end
 	t:AddLine(" ")
 	local top = Holders(e)[1]
 	ns.KeyHints(t, L["Enter: whisper %s"]:format(top and top.who or "?") .. "    " .. L["Shift+Enter: show in chat"], 0.6, 0.6, 0.6)
@@ -1004,7 +1286,24 @@ local ROW_LAZY = {
 		if l then rawset(t, "link", l) return l end
 		return "item:" .. t.itemID
 	end,
-	detail = function(t) return "x" .. t.total .. ns.DETAIL_SEP .. t.owner end,
+	-- (where they keep it, bags and bank apart: "x20 · Cad Man · bags 12, bank 8"; 0.59.0, the player: "distinctly
+	-- separated as in Bank vs in Bags")
+	detail = function(t)
+		local f = t.friend
+		local by = {}
+		for _, pt in ipairs(SSH.Parts(f.entries and f.entries[t.itemID])) do
+			local pl = f.places and f.places[pt.place]
+			local w = pl and pl.where or "b"
+			by[w] = (by[w] or 0) + pt.n
+		end
+		local where = {}
+		for _, w in ipairs(WHERE_ORDER) do
+			if by[w] then where[#where + 1] = WHERE_SAID[w] .. " " .. by[w] end
+		end
+		local d = "x" .. t.total .. ns.DETAIL_SEP .. t.owner
+		if #where > 0 then d = d .. ns.DETAIL_SEP .. concat(where, ", ") end
+		return Keep(t, "detail", d)
+	end,
 	-- (the friend as a holder: who, how many, where they keep it)
 	friends = function(t)
 		local f = t.friend
@@ -1035,7 +1334,8 @@ local function FriendRows(f, p)
 	rowMeta = rowMeta or ns:CompactMeta(p, ROW_PROTO, ROW_LAZY)
 	local rows, missing = {}, false
 	local who = f.name or "?"
-	local text = "shared friend " .. Lower(who)
+	-- (the groups you have in common: "raid linen" finds raid friends' linen)
+	local text = "shared friend " .. Lower(who) .. " " .. Names(f.groups):gsub(",", "")
 	local claim = tostring(f.claim)
 	for id, n in pairs(f.items) do
 		local name = nameWait.Name(id)
@@ -1086,6 +1386,14 @@ function SSH.Busy()
 	if n > 0 then return L["Loading %d item names from the server for your friends' bags"]:format(n) end
 end
 
+-- (this character's bank, as @stored has it, is in what limited, mats and consumables share: when @stored's records
+-- change, Syndicator's word after the game's bag events, what you share is sent again. Review, 0.59.0)
+if ns.changedHooks then
+	ns.changedHooks[#ns.changedHooks + 1] = function(id)
+		if id == "stored" and SSH.game and SSH.game:On() then SSH.game:Changed() end
+	end
+end
+
 ns:RegisterProvider("shared", {
 	label = L["Shared"], -- (0.58.12, the player: "Rename @friendsbags to @shared")
 	color = "ff7fd4ff",
@@ -1104,21 +1412,51 @@ local MODES = { all = true, limited = true, mats = true, consumables = true, non
 local MODE_ORDER = { "limited", "all", "mats", "consumables", "none" }
 local MODE_SAID = {
 	all = L["your gold, and everything on all your characters and in your banks"],
-	limited = L["this character's crafting mats and consumables"],
-	mats = L["this character's crafting mats"],
-	consumables = L["this character's consumables"],
+	limited = L["this character's crafting mats and consumables, in its bags and bank"],
+	mats = L["this character's crafting mats, in its bags and bank"],
+	consumables = L["this character's consumables, in its bags and bank"],
 	none = L["nothing"],
 }
 SSH.MODES = MODES
 
---- What you share, set: friends connected are sent it now.
-function SSH.SetMode(ep, m)
+-- (a group can't be named as a word .share takes)
+local RESERVED = { password = true, pass = true, pw = true, join = true, leave = true, off = true, connect = true,
+	debug = true, status = true, share = true }
+for m in pairs(MODES) do RESERVED[m] = true end
+SSH.RESERVED = RESERVED
+
+local function Saved()
+	if type(_G.TerminalShareDB) ~= "table" then _G.TerminalShareDB = {} end
+	local db = _G.TerminalShareDB
+	if type(db.groups) ~= "table" then db.groups = {} end
+	-- (anything else in it, a hand edit or another version's: dropped, not an error at login)
+	for k, v in pairs(db.groups) do
+		if type(k) ~= "string" or type(v) ~= "table" then db.groups[k] = nil end
+	end
+	-- (0.58.6-0.58.16 remembered one key: the default group's now)
+	if type(db.key) == "string" then
+		db.groups[SSH.DEFAULT_GROUP] = db.groups[SSH.DEFAULT_GROUP] or { key = db.key }
+		db.key = nil
+	end
+	return db
+end
+SSH.Saved = Saved
+
+--- What you share, set: in one group, or (no group) in every group and those joined later. Friends whose share
+--- changed are sent it now; it's remembered.
+function SSH.SetMode(ep, m, group)
 	if not MODES[m] then
 		return { L["Share: what to share: .share limited (the default), .share all, .share mats, .share consumables or .share none"] }
 	end
-	ep.mode = m
-	if ns.db then ns.db.sshShare = m end
-	for _, f in pairs(ep.friends) do ep:Share(f, true) end
+	if group and not ep.groups[group] then return { L["Share: you're not in %s"]:format(group) } end
+	ep:SetMode(m, group)
+	local db = Saved()
+	if group then
+		if db.groups[group] then db.groups[group].mode = m end
+		return { L["Share: sharing %s in %s"]:format(MODE_SAID[m], group) }
+	end
+	db.mode = m
+	for _, g in pairs(db.groups) do g.mode = m end
 	return { L["Share: sharing %s"]:format(MODE_SAID[m]) }
 end
 
@@ -1132,7 +1470,10 @@ function SSH.Others(ep)
 		elseif p.state == "noanswer" then other[#other + 1] = L["%s: no answer"]:format(p.name or p.route.target or p.route.name or "?")
 		elseif p.state ~= "up" then other[#other + 1] = L["%s: connecting"]:format(p.name or p.route.target or p.route.name or "?") end
 	end
-	for _, w in pairs(ep.waiting) do other[#other + 1] = L["%s wants to connect: type .share password"]:format(w.name) end
+	for _, w in pairs(ep.waiting) do
+		other[#other + 1] = ep:On() and L["%s wants to connect, in a group you haven't joined"]:format(w.name)
+			or L["%s wants to connect: type .share password"]:format(w.name)
+	end
 	sort(other)
 	return other
 end
@@ -1141,22 +1482,34 @@ function SSH.Status(ep)
 	ep = ep or SSH.game
 	local lines = {}
 	if not ep then return { L["Share: not available"] } end
-	if ep.deriving then
-		lines[1] = L["Share: setting the password..."]
-	elseif not ep.key then
-		lines[1] = L["Share: no password yet. Type .share password <words> (8 characters or more), the same one as your friends"]
+	if not ep:On() then
+		lines[1] = ep.deriving and L["Share: setting the password..."]
+			or L["Share: not in a group yet. Type .share password <words> (8 characters or more), the same as your friends, or .share join <group> <words> for a group of its own"]
 	else
-		lines[1] = L["Share: password set (remembered: .share off forgets it); sharing %s"]:format(MODE_SAID[ep.mode] or ep.mode)
+		lines[1] = L["Share: your groups (remembered: .share leave <group> or .share off forgets them)"]
+		local names = {}
+		for n in pairs(ep.groups) do names[#names + 1] = n end
+		sort(names)
+		for _, n in ipairs(names) do
+			lines[#lines + 1] = "  " .. L["%s: sharing %s"]:format(n, MODE_SAID[ep.groups[n].mode] or ep.groups[n].mode)
+		end
+		if ep.deriving then lines[#lines + 1] = "  " .. L["Share: setting the password..."] end
 	end
 	local up = ep:Connected()
 	if #up > 0 then
 		local parts = {}
 		for i, c in ipairs(up) do
-			local m = c.friend and c.friend.mode
-			parts[i] = m and L["%s (items: %d, sharing: %s)"]:format(c.name, c.n, m) or L["%s (items: %d)"]:format(c.name, c.n)
+			local f = c.friend or {}
+			local m, gs = f.mode, Names(f.groups)
+			if gs == "" then
+				parts[i] = m and L["%s (items: %d, sharing: %s)"]:format(c.name, c.n, m) or L["%s (items: %d)"]:format(c.name, c.n)
+			else
+				parts[i] = m and L["%s (items: %d, sharing: %s, in %s)"]:format(c.name, c.n, m, gs)
+					or L["%s (items: %d, in %s)"]:format(c.name, c.n, gs)
+			end
 		end
 		lines[#lines + 1] = "  " .. L["Connected:"] .. " " .. concat(parts, ", ")
-	elseif ep.key then
+	elseif ep:On() then
 		lines[#lines + 1] = "  " .. L["Connected: nobody yet"]
 	end
 	for _, s in ipairs(SSH.Others(ep)) do lines[#lines + 1] = "  " .. s end
@@ -1174,77 +1527,132 @@ function SSH.Debug(ep)
 		return #out > 0 and concat(out, " ") or "-"
 	end
 	local now = ep:Now()
-	lines[1] = ("ssh debug: mode %s, key %s, queue %d, sent (game's answers) %s, heard %s"):format(tostring(ep.mode),
-		ep.key and "set" or "none", #ep.queue, counts(ep.results), counts(ep.heard))
+	local gs = {}
+	for n, g in pairs(ep.groups) do gs[#gs + 1] = n .. "=" .. g.mode .. "/" .. g.tag end
+	sort(gs)
+	lines[1] = ("ssh debug: groups %s, queue %d, sent (game's answers) %s, heard %s"):format(#gs > 0 and concat(gs, " ") or "none",
+		#ep.queue, counts(ep.results), counts(ep.heard))
 	local keys = {}
 	for k in pairs(ep.peers) do keys[#keys + 1] = k end
 	sort(keys)
 	for _, k in ipairs(keys) do
 		local p = ep.peers[k]
-		lines[#lines + 1] = ("  way %s: %s %s%s"):format(k, tostring(p.state), tostring(p.claim or "?"),
-			p.got and p.got > 0 and (" (pieces %d)"):format(p.got) or "")
+		lines[#lines + 1] = ("  way %s: %s %s%s%s"):format(k, tostring(p.state), tostring(p.claim or "?"),
+			p.groups and (" [" .. Names(p.groups) .. "]") or "", p.got and p.got > 0 and (" (pieces %d)"):format(p.got) or "")
 	end
 	for _, c in ipairs(ep:Connected()) do
 		local f = c.friend
 		local text = f.sentText or ""
-		lines[#lines + 1] = ("  friend %s (%s): items %d%s, heard %ds ago, last data %s; sent to them by %s: %d characters"):format(c.name, tostring(f.mode or "?"), c.n,
-			f.gold and (", gold " .. f.gold) or "", floor(now - (f.last or now)), f.gotAt and (floor(now - f.gotAt) .. "s ago") or "never",
-			tostring(f.key), #text)
+		lines[#lines + 1] = ("  friend %s (%s; groups %s): items %d%s, heard %ds ago, last data %s; sent to them by %s: %d characters (%s)"):format(
+			c.name, tostring(f.mode or "?"), Names(f.groups), c.n, f.gold and (", gold " .. f.gold) or "", floor(now - (f.last or now)),
+			f.gotAt and (floor(now - f.gotAt) .. "s ago") or "never", tostring(f.key), #text, tostring(f.sentMode))
 	end
-	local mine = ep:Snapshot(true)
-	lines[#lines + 1] = ("  you share: %d characters: %s"):format(#mine, mine:sub(1, 120))
+	local mine = ep:Snapshot(nil, true)
+	lines[#lines + 1] = ("  you share (all your groups together): %d characters: %s"):format(#mine, mine:sub(1, 120))
 	return lines
 end
 
---- `.ssh password <words>`: the key, made over a few frames, then hello to everyone.
-function SSH.SetPassword(ep, words, later, done)
+--- `.share join <group> <words>` (`.share password <words>`: the group "default"): the key, made over a few frames, then
+--- hello to everyone.
+function SSH.JoinWithPassword(ep, group, words, later, done)
 	words = tostring(words or ""):gsub("^%s+", ""):gsub("%s+$", "")
 	if #words < SSH.MIN_PASSWORD then
 		return { L["Share: the password needs %d characters or more"]:format(SSH.MIN_PASSWORD) }
 	end
-	ep.keyGen = (ep.keyGen or 0) + 1
-	local gen = ep.keyGen
-	ep.deriving = true
+	-- (those joined, and those whose password is still being made from)
+	local n, counted = 0, {}
+	for name in pairs(ep.groups) do n, counted[name] = n + 1, true end
+	for name in pairs(ep.deriving or {}) do if not counted[name] then n = n + 1 end end
+	if not (ep.groups[group] or (ep.deriving and ep.deriving[group])) and n >= SSH.MAX_GROUPS then
+		return { L["Share: %d groups at most; .share leave one first"]:format(SSH.MAX_GROUPS) }
+	end
+	-- (each group's own: another group's being made meanwhile goes on; .share off or leaving it drops it)
+	local gen = {}
+	ep.deriving = ep.deriving or {}
+	ep.deriving[group] = gen
 	SSH.Derive(words, function(key)
-		if ep.keyGen ~= gen then return end -- (.share off, or another password, meanwhile)
-		ep.deriving = nil
-		ep:SetKey(key)
-		SSH.Remember(key)
+		if not (ep.deriving and ep.deriving[group] == gen) then return end
+		ep.deriving[group] = nil
+		if next(ep.deriving) == nil then ep.deriving = nil end
+		local db = Saved()
+		local saved = db.groups[group]
+		local mode = type(saved) == "table" and MODES[saved.mode] and saved.mode or ep.defaultMode
+		ep:JoinGroup(group, key, mode)
+		SSH.StartTicker() -- (stopped meanwhile by a .share leave of another group: on again)
+		SSH.Remember(group, key, mode)
 		SSH.Badge()
-		ep.env.say(L["Share: password set; saying hello to your friends and guild"])
+		if group == SSH.DEFAULT_GROUP then
+			ep.env.say(L["Share: password set; saying hello to your friends and guild"])
+		else
+			ep.env.say(L["Share: joined %s; saying hello to your friends and guild"]:format(group))
+		end
 		if done then done() end
-	end, later)
-	return { L["Share: setting the password (remembered as a key made from it, never as typed; .share off forgets it)"] }
+	end, later, group)
+	if group == SSH.DEFAULT_GROUP then
+		return { L["Share: setting the password (remembered as a key made from it, never as typed; .share off forgets it)"] }
+	end
+	return { L["Share: joining %s (its password remembered as a key made from it, never as typed; .share leave %s forgets it)"]:format(group, group) }
 end
 
--- The password remembered (0.58.6, the player: "saved and re-used automatically on login"): the key made from it, in
--- Terminal: Share's own saved variables (TerminalShareDB.key, hex), never the password as typed. At login it's used a
--- few seconds in (friends and guild read first) and everyone is said hello to. .ssh off forgets it.
--- (Anyone with your WTF folder could connect as you with it: the same as knowing the password, for this.)
+--- `.share password <words>`: the default group's.
+function SSH.SetPassword(ep, words, later, done) return SSH.JoinWithPassword(ep, SSH.DEFAULT_GROUP, words, later, done) end
+
+-- The passwords remembered (0.58.6, the player: "saved and re-used automatically on login"): each group's key made from
+-- its password, and what you share in it, in Terminal: Share's own saved variables (TerminalShareDB.groups[name] =
+-- { key = hex, mode }), never a password as typed. At login they're used a few seconds in (friends and guild read
+-- first) and everyone is said hello to once. .share leave <group> forgets one; .share off, all.
+-- (Anyone with your WTF folder could connect as you with them: the same as knowing the passwords, for this.)
 SSH.LOGIN_WAIT = 5
 
-local function Saved()
-	if type(_G.TerminalShareDB) ~= "table" then _G.TerminalShareDB = {} end
-	return _G.TerminalShareDB
+--- A group's key remembered (nil: forgotten), with what you share in it.
+function SSH.Remember(group, key, mode)
+	local db = Saved()
+	if key then db.groups[group] = { key = C.Hex(key), mode = mode } else db.groups[group] = nil end
 end
-function SSH.Remember(key) Saved().key = key and C.Hex(key) or nil end
+--- Every group forgotten (.share off).
+function SSH.ForgetGroups() Saved().groups = {} end
 
 local function Unhex(h) return (h:gsub("%x%x", function(c) return string.char(tonumber(c, 16)) end)) end
 
---- The remembered key, back in use (at login): true when there was one.
+--- The groups remembered: { name = { key (raw), mode } } of those that read.
+local function Remembered()
+	local out, n = {}, 0
+	local names = {}
+	for name in pairs(Saved().groups) do names[#names + 1] = name end
+	sort(names)
+	for _, name in ipairs(names) do
+		local g = Saved().groups[name]
+		local hex = type(g) == "table" and g.key
+		if SSH.GroupName(name) == name and type(hex) == "string" and #hex == 64 and hex:find("^%x+$") and n < SSH.MAX_GROUPS then
+			out[name], n = { key = Unhex(hex), mode = MODES[g.mode] and g.mode or nil }, n + 1
+		end
+	end
+	return out, n
+end
+
+--- The remembered groups, back in use (at login): true when there was one.
 function SSH.Restore(ep)
 	ep = ep or SSH.game
-	local hex = Saved().key
-	if type(hex) ~= "string" or not hex:find("^%x+$") or #hex ~= 64 then return false end
-	if ep.key then return true end
+	local _, n = Remembered()
+	if n == 0 then return false end
 	SSH.StartTicker()
 	local ask = C_GuildInfo and C_GuildInfo.GuildRoster or _G.GuildRoster
 	if ask then Safe(ask) end
 	C_Timer.After(SSH.LOGIN_WAIT, function()
-		if ep.key or Saved().key ~= hex then return end -- (a password typed meanwhile, or .ssh off)
-		ep:SetKey(Unhex(hex))
+		local joined, n = 0, 0
+		for _ in pairs(ep.groups) do n = n + 1 end
+		for name, g in pairs(Remembered()) do
+			-- (a group joined meanwhile, or forgotten: as it is now; five at most with those joined meanwhile)
+			if not ep.groups[name] and n < SSH.MAX_GROUPS then
+				n = n + 1
+				ep:JoinGroup(name, g.key, g.mode or ep.defaultMode, true)
+				joined = joined + 1
+			end
+		end
+		if joined == 0 then return end
+		ep:Hello()
 		SSH.Badge()
-		ep.env.say(L["Share: using your saved password; saying hello to your friends and guild"])
+		ep.env.say(L["Share: using your saved passwords; saying hello to your friends and guild"])
 	end)
 	return true
 end
@@ -1255,13 +1663,22 @@ local function Later(fn) C_Timer.After(0, fn) end
 -- .ssh is its alias)
 ns:RegisterCommand("share", {
 	aliases = { "ssh" },
-	desc = L["The share shell: your bags in the searches of friends who run Terminal: Share. .share password <words>; what you share: .share limited, all, mats, consumables or none; .share off"],
+	desc = L["The share shell: your bags in the searches of friends who run Terminal: Share. .share password <words>, or .share join <group> <words> for a group of its own; what you share: .share limited, all, mats, consumables or none (.share <group> all: in one group); .share leave <group>; .share off"],
 	complete = function()
 		local out = {
 			{ "password", L["the password you and your friends agree on (remembered: .share off forgets it)"] },
+			{ "join", L["join a group of its own, with its own password: .share join <group> <words>"] },
 			{ "connect", L["say hello to one friend again: .share connect <name>"] },
 		}
 		for _, m in ipairs(MODE_ORDER) do out[#out + 1] = { m, L["share %s"]:format(MODE_SAID[m]) } end
+		local ep = SSH.game
+		local names = {}
+		for n in pairs(ep and ep.groups or {}) do names[#names + 1] = n end
+		sort(names)
+		for _, n in ipairs(names) do
+			out[#out + 1] = { n, L["what you share in %s: .share %s all, limited, mats, consumables or none"]:format(n, n) }
+		end
+		if #names > 0 then out[#out + 1] = { "leave", L["leave a group: .share leave <group> (its password forgotten)"] } end
 		out[#out + 1] = { "off", L["forget the password, say goodbye, drop what friends sent"] }
 		return out
 	end,
@@ -1272,25 +1689,53 @@ ns:RegisterCommand("share", {
 		word = Lower(word)
 		if word == "" or word == "status" then return SSH.Status(ep) end
 		if word == "debug" then return SSH.Debug(ep) end
-		if word == "password" or word == "pass" or word == "pw" then
+		if word == "password" or word == "pass" or word == "pw" or word == "join" then
+			local group = SSH.DEFAULT_GROUP
+			if word == "join" then
+				local typed, words = rest:match("^(%S*)%s*(.-)$")
+				group = SSH.GroupName(typed)
+				if not group or RESERVED[group] then
+					return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes: .share join <group> <password>"]:format(SSH.GROUP_LEN) }
+				end
+				rest = words
+			end
 			SSH.StartTicker()
 			-- (the guild's members, read before their answers come: C_GuildInfo.GuildRoster)
 			local ask = C_GuildInfo and C_GuildInfo.GuildRoster or _G.GuildRoster
 			if ask then Safe(ask) end
-			return SSH.SetPassword(ep, rest, Later)
+			return SSH.JoinWithPassword(ep, group, rest, Later)
+		end
+		if word == "leave" then
+			local group = SSH.GroupName(rest)
+			if not (group and (ep.groups[group] or (ep.deriving and ep.deriving[group]))) then
+				if rest == "" then return { L["Share: which group? .share leave <group>"] } end
+				return { L["Share: you're not in %s"]:format(rest) }
+			end
+			ep:LeaveGroup(group)
+			SSH.Remember(group, nil)
+			if #ep.queue == 0 and not ep:On() and not ep.deriving then SSH.StopTicker() end
+			SSH.Badge()
+			return { L["Share: left %s; its password is forgotten"]:format(group) }
 		end
 		if word == "off" then
 			ep:Off()
-			SSH.Remember(nil)
+			SSH.ForgetGroups()
 			if #ep.queue == 0 then SSH.StopTicker() end -- (else once the goodbyes are gone)
 			SSH.Badge()
 			return { L["Share: off. The password is forgotten and your friends' items are gone"] }
 		end
 		-- (.ssh all, .ssh mats...; .ssh share all too)
+		-- (.share limited raid: the mode, then the group, as well as .share raid limited)
+		if MODES[word] and rest ~= "" then return SSH.SetMode(ep, word, SSH.GroupName(rest) or rest) end
 		if MODES[word] then return SSH.SetMode(ep, word) end
 		if word == "share" then return SSH.SetMode(ep, Lower(rest)) end
+		-- (.share raid all: what you share in one group)
+		if ep.groups[word] then
+			if rest == "" then return { L["%s: sharing %s"]:format(word, MODE_SAID[ep.groups[word].mode] or ep.groups[word].mode) } end
+			return SSH.SetMode(ep, Lower(rest), word)
+		end
 		if word == "connect" then
-			if not ep.key then return { L["Share: set the password first: .share password <words>"] } end
+			if not ep:On() then return { L["Share: set the password first: .share password <words>"] } end
 			if rest == "" then ep:Hello() return { L["Share: saying hello to your friends and guild"] } end
 			local route = SSH.RouteFor(rest)
 			if not route then return { L["Share: %s isn't on your friend list, in your guild or a Battle.net friend's character"]:format(rest) } end
@@ -1382,13 +1827,25 @@ function SSH.BadgeTip(t)
 	local now = ep:Now()
 	local up = ep:Connected()
 	local function Items(n) return n == 1 and L["1 item"] or L["%d items"]:format(n) end
-	local _, mine = ep:Snapshot()
+	local widest = ep:WidestMode()
+	local _, mine = ep:Snapshot(widest)
 	local n = mine and #mine.ids or 0
-	t:AddDoubleLine(L["Sharing"], L["you: %s"]:format(Items(n) .. ns.DETAIL_SEP .. ep.mode), 1, 1, 1, 0.6, 0.6, 0.6)
+	-- (one group: what you share beside you; more: a line of them, what each shares, and each friend's groups)
+	local names = {}
+	for g in pairs(ep.groups) do names[#names + 1] = g end
+	sort(names)
+	local several = #names > 1 or (names[1] and names[1] ~= SSH.DEFAULT_GROUP)
+	t:AddDoubleLine(L["Sharing"], L["you: %s"]:format(Items(n) .. (several and "" or (ns.DETAIL_SEP .. widest))), 1, 1, 1, 0.6, 0.6, 0.6)
+	if several then
+		local gs = {}
+		for i, g in ipairs(names) do gs[i] = g .. " " .. ep.groups[g].mode end
+		t:AddDoubleLine(L["Groups"], concat(gs, ns.DETAIL_SEP), 0.6, 0.6, 0.6, 0.6, 0.6, 0.6)
+	end
 	for _, c in ipairs(up) do
 		local f = c.friend
 		local how = { Items(c.n) }
 		if f.mode then how[#how + 1] = f.mode end
+		if several then how[#how + 1] = Names(f.groups) end
 		if f.gold then how[#how + 1] = ns.Money(f.gold) end
 		how[#how + 1] = f.route and f.route.kind == "bn" and "Battle.net" or L["whisper"]
 		local quiet = now - (f.last or now)
@@ -1414,7 +1871,7 @@ if ns.UI and ns.UI.AddBadge then
 		id = "share",
 		fade = 6, -- (seconds at full strength, then a faint mark until pointed at; 0.58.9, the player)
 		draw = DrawWifi,
-		shown = function() local ep = SSH.game return ep ~= nil and (ep.key ~= nil or ep.deriving == true) end,
+		shown = function() local ep = SSH.game return ep ~= nil and (ep:On() or ep.deriving ~= nil) end,
 		refresh = BadgeColour,
 		tooltip = function(t) SSH.BadgeTip(t) end,
 	})
@@ -1647,6 +2104,16 @@ function SSH.Snapshot(mode)
 			end
 		end
 		gold = AllGold()
+	elseif want then
+		-- (0.59.0, the player: "also share the character bank inventory of the same types of items": this character's
+		-- bank as @stored has it, Syndicator or BagBrother)
+		local p = ns.providers.stored
+		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+			local id = e.itemID
+			for _, h in pairs(id and type(e.holders) == "table" and e.holders or {}) do
+				if h.mine and h.where == "bank" and (h.count or 0) > 0 and want(id) then add(id, place(me, "k"), h.count) end
+			end
+		end
 	end
 	return { places = places, items = items, gold = gold }
 end
@@ -1727,7 +2194,7 @@ function SSH.StartTicker()
 		local ep = SSH.game
 		ep:Tick()
 		-- (off, and the goodbyes all gone: stopped)
-		if not ep.key and not ep.deriving and #ep.queue == 0 then SSH.StopTicker() return end
+		if not ep:On() and not ep.deriving and #ep.queue == 0 then SSH.StopTicker() return end
 		local U = ns.UI
 		local def = U and U.badges and (function() for _, d in ipairs(U.badges) do if d.id == "share" then return d end end end)()
 		if def and def.frame and def.frame:IsShown() then BadgeColour(def.frame) end -- (connecting: the arcs light in turn)
@@ -1760,15 +2227,21 @@ function SSH.OnEvent(event, ...)
 		ep:Receive({ kind = "bn", id = senderID }, text)
 	elseif event == "BAG_UPDATE_DELAYED" or event == "PLAYERBANKSLOTS_CHANGED" or event == "MAIL_INBOX_UPDATE"
 		or event == "PLAYER_MONEY" then
-		if ep.key then ep:Changed() end -- (sent only when what you share changed: Share compares the text)
+		if ep:On() then ep:Changed() end -- (sent only when what you share changed: Share compares the text)
 	elseif event == "FRIENDLIST_UPDATE" or event == "GUILD_ROSTER_UPDATE" or event == "BN_FRIEND_INFO_CHANGED"
 		or event == "BN_FRIEND_LIST_SIZE_CHANGED" then
 		people = nil
 	elseif event == "PLAYER_LOGOUT" then
 		ep:Bye()
 	elseif event == "PLAYER_LOGIN" then
-		if ns.db and MODES[ns.db.sshShare] then ep.mode = ns.db.sshShare end
-		SSH.Restore(ep) -- (the password remembered: connected again by itself)
+		-- (what you share: Terminal's setting until 0.58.16, Terminal: Share's own since groups)
+		local db = Saved()
+		if not MODES[db.mode] and ns.db and MODES[ns.db.sshShare] then db.mode = ns.db.sshShare end
+		local def = db.groups[SSH.DEFAULT_GROUP]
+		if type(def) == "table" and not MODES[def.mode] then def.mode = db.mode end
+		if ns.db then ns.db.sshShare = nil end
+		ep.defaultMode = MODES[db.mode] and db.mode or "limited"
+		SSH.Restore(ep) -- (the passwords remembered: connected again by itself)
 	end
 end
 

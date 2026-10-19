@@ -198,7 +198,10 @@ function ns:Changed(id)
 		p._dirty = true
 		if ns.WarmLater then ns.WarmLater(p) end -- (a costly list: read again in the background, not in a keystroke; 0.50.7)
 	end
+	-- (who else wants to know: Terminal: Share sends your bank again when @stored's records change)
+	for i = 1, #ns.changedHooks do pcall(ns.changedHooks[i], id) end
 end
+ns.changedHooks = {}
 
 --- Call after adding to a provider's aliases once it's registered: the @kind lookup is rebuilt.
 function ns:AliasesChanged() self.aliasMap = nil end

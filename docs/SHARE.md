@@ -7,6 +7,12 @@ lists what you carry, what your alts hold, and what your friends carry ("Linen C
 
 Nothing a friend sends is ever saved: it lives in memory for the session and is gone on logout or /reload.
 
+Friends share in groups (0.59.0): each group has a name, a password of its own, and what you share in it.
+`.share password <words>` is the group `default`; `.share join <group> <words>` joins any other (five at most). Friends
+who joined the same group with the same password see each other, and each sees from you what you share in the groups
+you have in common, together (`.share raid all` and `.share default limited`: a raid friend sees everything, a friend
+in both too, a friend only in default your mats and consumables). Who can talk to you is the same whatever the groups.
+
 ## Who can talk to you
 
 A message is read only when its sender is one of:
@@ -24,35 +30,46 @@ raid, instance and channel messages are never read. Your own guild message, hear
 (The command was `.ssh` until 0.58.14: a nod to secure shell, but `.share` says what it does to a WoW player; `.ssh`
 still works.)
 
-Each side types the same password: `.share password <words>` (8 characters or more), shown as `*`s while it's
-typed (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
+Each side types the same password: `.share password <words>` or `.share join <group> <words>` (8 characters or
+more), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
 password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 2000 times,
-salted with `Terminal.ssh.1`, done a slice a frame), and that key is remembered in Terminal: Share's own saved
-variables (`TerminalShareDB.key`, hex). At login it's used again by itself a few seconds in (friends and guild read
-first: `SSH.LOGIN_WAIT`) and everyone is said hello to. Anyone with your WTF folder could connect as you with it,
-the same as knowing the password. A line starting `.share pass` or `.share pw` is never written to the history, a tab,
+salted with `Terminal.ssh.1`, and `|<group>` for a group other than default: the same password in two groups is two
+keys; done a slice a frame), and each group's key is remembered in Terminal: Share's own saved variables
+(`TerminalShareDB.groups[name] = { key = hex, mode }`; the one key of 0.58.6–0.58.16, `TerminalShareDB.key`, becomes the
+default group's). At login they're used again by themselves a few seconds in (friends and guild read first:
+`SSH.LOGIN_WAIT`) and everyone is said hello to, once for all of them. Anyone with your WTF folder could connect as
+you with them, the same as knowing the passwords. A line starting `.share pass`, `.share pw` or `.share join` is never
+written to the history, a tab,
 `.missed` or anywhere else saved (`ns.SecretLine`, in Terminal itself so it holds whether Share is loaded or not). Any
 `.` line whose second word is `password`, `pass` or `pw` counts: the command search finds `.share` by a shortened or
 misspelt name too (`.shar pw ...`). The debug traces write it as `*`s, a click among the `*`s never lands inside a
 letter, and leaving Terminal's own keys with it typed (a click into the box) turns the box's password mode on.
-Another password typed says goodbye to the friends connected with the old one. `.share off` forgets the key (and the
-remembered one), says goodbye to every friend and drops what they sent.
+Nothing is offered to complete a password's words (Enter runs what's typed). Another password typed for a group says
+goodbye to the friends you had only that group with. `.share leave <group>` forgets one group (and says goodbye to
+those you had only it with; the others are told, `3L`, and sent what you share with them now); `.share off` forgets
+every group, says goodbye to every friend and drops what they sent.
 
-The share mode (`.share share ...`) is a setting and is saved (`db.sshShare`), so a /reload never shares more
-than you chose.
+What you share is saved per group (and `.share <mode>` for all of them and groups joined later:
+`TerminalShareDB.mode`; Terminal's `db.sshShare` until 0.58.16), so a /reload never shares more than you chose.
 
 ## Connecting (mutual challenge-response)
 
-Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `2`
-since 0.58.16 (delta updates, 150-piece snapshots, sessions); a hello in another version gets a line in chat, once
-("<name> runs another version of Terminal: Share"), and no answer.
+Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `3`
+since 0.59.0 (groups; `2`, 0.58.16: delta updates, 150-piece snapshots, sessions); a hello in another version gets a
+line in chat, once ("<name> runs another version of Terminal: Share"), and no answer.
 
 ```
-A -> B   2H nA,idA,sA          hello (sA: A's session, 4 hex characters made at login)
-B -> A   2C nA,nB,idB,sB       challenge (B has a password: its own nonce)
-A -> B   2A nA,nB,macI         A proves it holds the key: macI = HMAC(K, "I|nA|nB|idA|idB")
-B -> A   2K nA,nB,macR         B checks macI, then proves it too: macR = HMAC(K, "R|nA|nB|idA|idB")
+A -> B   3H nA,idA,sA,marks          hello (sA: A's session, 4 hex characters made at login; marks: A's groups)
+B -> A   3C nA,nB,idB,sB,common      challenge: B's nonce, the groups they have in common (B has their passwords)
+A -> B   3A nA,nB,mark:macI.mark:...  A proves it holds each group's key: macI = HMAC(Kg, "I|nA|nB|idA|idB")
+B -> A   3K nA,nB,mark:macR....       B checks each, then proves those that passed: macR = HMAC(Kg, "R|nA|nB|idA|idB")
 ```
+
+- A group's mark is 8 hex characters of SHA-256 of its name; the name itself is never sent (but a common one, "raid",
+  can be guessed from its mark: the password is what keeps a group to itself). Five groups' proofs fit one message
+  (246 characters with long names).
+- A group whose proof fails is said ("<name>'s password for raid doesn't match yours"); the others connect. No group
+  proven on the way you send to a friend by: they're dropped.
 
 - Nonces are 16 hex characters (SHA-256 of the time, a counter, `math.random`). Proofs are 32 hex characters
   (128 bits of the HMAC).
@@ -70,11 +87,15 @@ B -> A   2K nA,nB,macR         B checks macI, then proves it too: macR = HMAC(K,
 - Both saying hello at once (the guild channel at login): the smaller claim's hello goes on and the other
   side answers it. The smaller side says its hello again, with the same nonce, to a friend whose hello it
   hears while waiting: that friend may have heard the first one before it had a password.
+- The same hello again while you challenge it (it left a busy queue late): your challenge again, the same nonce, so
+  their proof of the first still fits.
 - Limits: a friend can start a handshake at most every 5 s; at most 20 handshakes others started are under way at
   once (your own hellos aren't counted). A handshake's 30 s start when its message leaves the queue, not when it's
   queued.
 - A friend connected already hears your guild channel hello to others and lets it be when it's the same session of
-  yours; a new session (you /reloaded) is a new handshake. While a way is proven again, what comes on it still lands.
+  yours and the same groups in common; a new session (you /reloaded), or a group joined, is a new handshake. While a
+  way is proven again, what comes on it still lands, and when it's the same way and session nothing is sent whole
+  again unless what you share with them changed.
 - Hello again: a friend (or the guild channel) who didn't answer is said hello to again 10 minutes on, then 20, 40, 80
   (a hello lost while chat was locked, a friend list read late at login); a friend not tried yet, within a minute.
 
@@ -83,7 +104,8 @@ B -> A   2K nA,nB,macR         B checks macI, then proves it too: macR = HMAC(K,
 A friend can reach you several ways at once: the guild channel and whispers (one way: the server may write the
 name "Bob" or "Bob-Realm", your own realm is dropped), and Battle.net game data ("b:<game account>"). Each way
 has its own handshake (`peers`); a friend (`friends`, by claim) is connected once any way is proven, data from any
-proven way lands on them, and what you share goes the newest proven way. `.share debug` lists both, with what was
+proven way lands on them, and what you share goes the newest proven way, by the groups proven on that way (not every
+way's together: a way proven in one group gets that group's share only). `.share debug` lists both, with what was
 sent (the game's answers) and heard.
 
 ## Sharing
@@ -92,7 +114,7 @@ Once connected, each side sends what it shares, and sends it again when it chang
 friend, or every 2 s per message for a big snapshot; what didn't change isn't sent again):
 
 ```
-2D ver,i,n,payload       a snapshot in n pieces of at most 200 characters (at most 150), put back together as they
+3D ver,i,n,payload       a snapshot in n pieces of at most 200 characters (at most 150), put back together as they
                          were. The snapshot: places!items!gold!mode (never a "|", chat's escape character: it doesn't
                          survive Battle.net game data)
                            places  "Bob/b,Bobalt/k,/w"   who and where: b bags, k bank, m mail, v void storage,
@@ -100,28 +122,34 @@ friend, or every 2 s per message for a big snapshot; what didn't change isn't se
                            items   "id:place.count,place.count;id:..."  (base 36; place counted from 0)
                            gold    copper in base 36, or empty
                            mode    what they share (limited, all, ...)
-2U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
+3U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
                          friend has `base` whole, the places and mode are the same, and it's under half the size
-2R                       I don't have your `base`: the next goes whole
-2P                       still here (every 10 minutes)
-2B                       goodbye: drop what I sent
+3R                       I don't have your `base`: the next goes whole
+3L mark                  I left that group: what you share with me is what's left in common
+3P                       still here (every 10 minutes)
+3B                       goodbye: drop what I sent
 ```
 
 `ver` is the session's mark and a count (`a3f01`, `a3f02`...): a /reload's numbers are never taken for the last
 session's. Pieces are put together by their kind, number, base and count all at once.
 
-What you share (`.share <mode>`, or `.share share <mode>`; saved as a setting, `db.shareShare`):
+What you share, per group (`.share <group> <mode>` or `.share <mode> <group>`; `.share <mode>` in every group and those
+joined later; `.share share <mode>` too). A friend gets the modes of the groups you have in common together
+(`SSH.Union`: mats and consumables are limited; anything and all is all):
 
 | Mode | |
 |---|---|
-| `limited` (the default) | this character's crafting mats and consumables (its bags) |
+| `limited` (the default) | this character's crafting mats and consumables, in its bags and its bank (as @stored has the bank: Syndicator or BagBrother; sent again when @stored's records change) |
 | `all` | everything in this character's bags, everything on your other characters and in your banks, mail, void storage and warband bank as @stored reads them (Syndicator or BagBrother; worn gear, auctions and guild banks aren't shared), and your gold (all characters', as @gold totals it) |
-| `mats` | this character's crafting mats (trade goods, reagents, crafting reagents: as @mats) |
-| `consumables` | this character's consumables (the game's Consumable class: as @consumable) |
+| `mats` | this character's crafting mats (trade goods, reagents, crafting reagents: as @mats), bags and bank |
+| `consumables` | this character's consumables (the game's Consumable class: as @consumable), bags and bank |
 | `none` | connect and see, share nothing |
 
+- The bank is a place of its own in a snapshot (`k`), the bags another (`b`): a friend's row says them apart.
+- One snapshot is made per mode in use among your groups (at most four), once a bag change, for every friend it goes
+  to; the delta from the last one is worked out once for every friend who had it (`E:DeltaOf`).
 - A friend's items are dropped after 30 minutes without a word, on goodbye, and within a minute of their no
-  longer being a friend or guild member.
+  longer being a friend or guild member. What was still queued for them goes with them.
 - Data or a ping from a friend you aren't connected to (you /reloaded and typed the password again) makes
   you say hello to them again (at most every 30 s).
 - Sends go through a queue: six at once, then one a second (the game allows ten, then one a second); a
@@ -134,13 +162,14 @@ What you share (`.share <mode>`, or `.share share <mode>`; saved as a setting, `
 
 ## In searches
 
-`@shared` (also `@ssh`; its rows labelled Shared): one row per item per friend ("Linen Cloth x20 · Cad Man", "x15 · Cherry
-Tusks"), each with its owner: the bar's Group and Sort offer Owner, as do `sort:owner` and `| group by owner`. The
+`@shared` (also `@ssh`; its rows labelled Shared): one row per item per friend ("Linen Cloth x20 · Cad Man · bags 12,
+bank 8", "x15 · Cherry Tusks · bags 15": where they keep it, bags and bank apart), each with its owner: the bar's Group and Sort offer Owner, as do `sort:owner` and `| group by owner`. The
 tooltip is the game's item tooltip, then that friend's characters as @stored shows yours ("Plamen Pally  53  bags 18,
 bank 35"), and who else has it; Shift+Enter and the chat line (`>> party`) are @stored's too. A friend sharing `all`
 has a gold row ("Bob's gold"; "gold" finds it). A plain search lists them too. It's in Simple mode's Bank & alts
 category, and `linen cloth > alts` lists it with your alts. Item filters work on it (`@shared q:rare`, `@shared
-on:bob`). Enter whispers that friend. A Battle.net friend is named by their character, never their account name.
+on:bob`). A group's name finds its friends' items (`@shared raid linen`), and the tooltip says the groups ("Shared in:
+raid, default") when there's more than the default one. Enter whispers that friend. A Battle.net friend is named by their character, never their account name.
 
 ## The badge
 
@@ -150,7 +179,8 @@ while connecting, red with nobody connected and nothing under way. It's at full 
 when a friend connects or goes, and fades to a faint mark after 6 s; pointed at, it's back. It's not there while
 anything is typed in the prompt (badges never are). Pointing at it (or clicking it, which keeps it up) pops out
 Terminal's own tooltip in the row tooltip's place beside the terminal (the row's put away meanwhile), a line each:
-"Sharing" and you (how many items, what you share), each friend ("Cad Mán  39 items · all · Battle.net", how long
+"Sharing" and you (how many items, what you share; with groups, a line of them and what each shares), each friend
+("Cad Mán  39 items · all · raid · Battle.net", how long
 since they were heard once it's a minute or more), who's still connecting (a "no answer" for 30 s, then not said),
 and, after a gap, ".share off to disconnect". It's Terminal's `UI.AddBadge` (Prompt.lua: draw, shown, refresh,
 tooltip, fade), which any addon can use for its own.
@@ -160,10 +190,13 @@ tooltip, fade), which any addon can use for its own.
 | Command | |
 |---|---|
 | `.share` | who you're connected to, who's waiting, what you share |
-| `.share password <words>` | set the shared password (this session) and say hello to your friends and guild |
+| `.share password <words>` | the default group's password; say hello to your friends and guild |
+| `.share join <group> <words>` | join a group of its own, with its own password (five groups at most) |
+| `.share leave <group>` | leave a group, its password forgotten |
+| `.share <group> <mode>`, `.share <mode> <group>` | what you share in one group (`.share <group>` alone: what it shares) |
 | `.share connect [name]` | say hello again: to one friend, or to everyone |
-| `.share limited \| all \| mats \| consumables \| none` | what you share (`.share share <mode>` too) |
-| `.share off` | forget the password, say goodbye, drop everything |
+| `.share limited \| all \| mats \| consumables \| none` | what you share in every group (`.share share <mode>` too) |
+| `.share off` | leave every group, say goodbye, drop everything |
 
 ## Code
 
@@ -174,30 +207,59 @@ tooltip, fade), which any addon can use for its own.
   filters and the `alts` relation.
 - Tests: `tests/smoke/crypto.lua` (standard vectors, both bit paths), `tests/smoke/share.lua` (endpoints
   talking: connect, wrong password, strangers, a relay, both at once, the queue, dropping, deltas, retries),
-  `tests/smoke/share_game.lua` (the game's events and calls, searches, nothing saved).
+  `tests/smoke/share_groups.lua` (groups: what each sees, a password not matching, joining and leaving, five at once,
+  the review's cases), `tests/smoke/share_game.lua` (the game's events and calls, the prompt, searches, nothing saved).
+  The pretend network they share is `tests/share_net.lua`.
 - `@shared` rows are compact (Terminal's lazy rows: an item's quality, icon, link and tooltip lines made when shown),
   made per friend and kept until that friend's items change: one friend's update makes only theirs again.
 
-## How far it goes (`python3 tests/stress.py [friends,...] [items,...]`)
+## How far it goes (`python3 tests/stress.py [friends,...] [items,...] [--groups 1,3,5] [--search 20000,...]`)
 
-The stress test loads Terminal and Terminal: Share in the smoke harness and, for each number of friends and of items
-each shares (`.share all`, every item in one or two places), measures what one snapshot is, how long a full round to
-every friend takes at the game's pace, a 5-item change, reading the snapshots, making the `@shared` rows (and their
-memory), one friend's update, and a plain and an `@shared` search. 0.58.16, this harness (Lua 5.1 through lupa: its
-times compare with `tests/bench.py`'s, not the game's exactly):
+The stress test loads Terminal and Terminal: Share in the smoke harness and measures three things. Its times are this
+harness's (Lua 5.1 through lupa: they compare with `tests/bench.py`'s, not the game's exactly); 0.59.0.
+
+**1. Sharing with friends** (`.share all`, every item in one or two places): one snapshot, a full round to every friend
+at the game's pace, a 5-item change, reading the snapshots, making the `@shared` rows (and their memory), one friend's
+update, a plain and an `@shared` search.
 
 | friends × items | snapshot | first sync | an update | rows made / one friend's | memory | search (total) |
 |---|---|---|---|---|---|---|
-| 10 × 100 | 7 msgs | 1 min | 1 msg | 2.6 / 1.1 ms | 0.9 MB | 1 ms |
-| 10 × 500 | 30 msgs | 5 min | 1 msg | 21 / 6 ms | 4 MB | 9 ms |
-| 25 × 500 | 30 msgs | 12 min | 1 msg | 36 / 10 ms | 10 MB | 14 ms |
-| 10 × 2000 | 119 msgs | 20 min | 1 msg | 60 / 17 ms | 17 MB | 26–37 ms |
-| 25 × 2000 | 119 msgs | 50 min | 1 msg | 158 / 42 ms | 41 MB | 66 ms |
-| 50 × 2000 | 119 msgs | 99 min | 1 msg | 313 / 67 ms | 83 MB | 123–129 ms |
+| 10 × 100 | 7 msgs | 1 min | 1 msg | 4 / 1.5 ms | 0.9 MB | 2 ms |
+| 10 × 500 | 30 msgs | 5 min | 1 msg | 12 / 4 ms | 4 MB | 5 ms |
+| 25 × 500 | 30 msgs | 12 min | 1 msg | 32 / 8 ms | 10 MB | 13 ms |
+| 10 × 2000 | 119 msgs | 20 min | 1 msg | 59 / 15 ms | 17 MB | 20 ms |
+| 25 × 2000 | 119 msgs | 50 min | 1 msg | 174 / 40–140 ms | 41 MB | 90 ms |
+| 50 × 2000 | 119 msgs | 99 min | 1 msg | 300 / 63 ms | 83 MB | 105–111 ms |
 
-- Searching stays smooth: the terminal's search is spread over frames (8 ms each at most, `tests/bench.py`), so a
-  total of 60 ms is ~8 frames of results coming in, not a freeze. Making the rows is one frame: past ~25 friends ×
-  500 items (12,500 rows) a friend's update is a hitch of 10 ms or more.
-- The limit that shows first is the game's send rate (one message a second): the first full sync to everyone grows
-  with friends × items. After it, a bag change is one message per friend.
-- Memory: ~0.8 KB per row; 25 friends sharing 2000 items each is ~40 MB of Lua memory.
+**2. One group against several** (the side that shares; each group sharing another mode, friends spread over them,
+every third in two). What a friend receives is one snapshot whatever the groups, so their side is part 1's.
+
+| groups | friends × items | handshake proofs (A message) | a bag change: snapshots, CPU, messages |
+|---|---|---|---|
+| 1 | 50 × 500 | 1 (78 chars) | 1, 8 ms, 50 |
+| 3 | 50 × 500 | up to 3 (162 chars) | 2, 8 ms, 50 |
+| 5 | 50 × 500 | up to 5 (246 chars) | 4, 8 ms, 43 |
+| 1 | 50 × 2000 | 1 | 1, 27 ms, 50 |
+| 5 | 50 × 2000 | up to 5 | 4, 31 ms, 43 |
+
+Groups cost the side that shares one snapshot per mode in use (four at most) a bag change, and a proof per group in
+a handshake; messages stay one per friend an update (fewer: a friend in a group sharing none gets nothing).
+
+**3. Searching many entries** (made-up rows over 24 lists in three Simple-mode categories, every list in a plain
+search; each search as the terminal runs it, a slice a frame):
+
+| rows | wide search ("k"): first frame / longest / total | nothing found | one list (@kind) | Simple mode's categories: longest / total |
+|---|---|---|---|---|
+| 20,000 | 8 / 8 / 41 ms | 41 ms | 11 ms | 8 / 41 ms |
+| 100,000 | 13 / 13 / 197 ms | 237 ms | 51 ms | 9 / 202 ms |
+| 200,000 | 11–31 / 15–31 / 351 ms | 488 ms | 100 ms | 8 / 406 ms |
+
+- A search's frames stay at ~8 ms (16 with the harness's garbage collection now and then) however many rows: what grows
+  is how many frames the results take to settle, ~0.4 s at 200,000 rows.
+- The stress test found two frames that grew with the rows, fixed in 0.59.0: Simple mode sorted every match into its
+  category in one frame (half a second at 200,000 rows; now a slice a frame, and a row's category from a map made
+  once), and a search's first frame picked the best of every match so far to show (20 ms more at 200,000; now 3 ms at
+  most, the rest a few frames on).
+- Sharing: the limit that shows first is the game's send rate (one message a second): the first full sync to everyone
+  grows with friends × items; after it, a bag change is one message per friend. Making the `@shared` rows is one
+  frame: past ~25 friends × 500 items (12,500 rows) a friend's update is a hitch of 10 ms or more; ~0.8 KB a row.

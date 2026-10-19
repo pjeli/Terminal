@@ -2,6 +2,7 @@
 -- .ssh at the prompt, and what's never kept (the password line; anything a friend sent).
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
+local L = ns.L
 local SSH = ns.Ssh
 
 io.write("[share: the share shell in the game]\n")
@@ -53,6 +54,12 @@ ep:Off()
 
 local function Last() return sent[#sent] end
 
+-- nonces: the game's, 16 hex characters, never the same twice; made cheaply after (the harness's SHA-256 is plain
+-- arithmetic, and these tests say hello many times)
+check(SSH.Nonce():find("^%x+$") and #SSH.Nonce() == 16 and SSH.Nonce() ~= SSH.Nonce(), "a nonce: 16 hex characters, new each time")
+local nonceWas, nn = ep.env.nonce, 0
+ep.env.nonce = function() nn = nn + 1; return ("%016x"):format(nn + 4096) end
+
 -- .ssh is Terminal: Share's (Terminal's stand-in, saying how to turn it on, is registered over)
 check(ns:FindCommand("share") and ns:FindCommand("share").complete ~= nil, ".share is Terminal: Share's, not the stand-in")
 -- (0.58.14, the player: .share the command, .ssh its alias)
@@ -93,7 +100,7 @@ do
 	T.key("ENTER")
 	if T.F.scripts.OnKeyUp then T.F.scripts.OnKeyUp(T.F, "ENTER") end -- (let go: the games after this read a held Enter)
 	T.FlushAll()
-	check(ep.key ~= nil, ".ssh password, Enter: the key is set: " .. tostring(ep.key ~= nil))
+	check(ep.groups.default ~= nil, ".ssh password, Enter: the key is set (the default group): " .. tostring(ep:On()))
 	-- nothing saved holds it
 	local found
 	local seen = {}
@@ -110,7 +117,8 @@ do
 	Walk(_G.TerminalShareDB or {}, "TerminalShareDB")
 	check(found == nil, "the password is nowhere in what's saved: " .. tostring(found))
 	-- remembered: the key made from it (0.58.6, the player: "saved and re-used automatically on login")
-	check(_G.TerminalShareDB and _G.TerminalShareDB.key == ns.Crypto.Hex(ep.key), "the key is remembered, not the password")
+	local saved = _G.TerminalShareDB and _G.TerminalShareDB.groups and _G.TerminalShareDB.groups.default
+	check(saved and saved.key == ns.Crypto.Hex(ep.groups.default.key) and saved.mode == "limited", "the key is remembered, not the password (and what's shared)")
 	local h = ns:HistoryLines()
 	local inHist
 	for _, line in ipairs(h) do if tostring(line):find("hunter2", 1, true) then inHist = line end end
@@ -118,10 +126,10 @@ do
 	-- hello went to the friend by whisper and the Battle.net friend's character by game data, prefix TermSSH
 	local toFriend, toBN = false, false
 	for _, m in ipairs(sent) do
-		if m.prefix == "TermSSH" and m.chan == "WHISPER" and m.target == "Quilleran" and m.text:find("^2H ") then toFriend = true end
+		if m.prefix == "TermSSH" and m.chan == "WHISPER" and m.target == "Quilleran" and m.text:find("^3H ") then toFriend = true end
 		check(not m.text:find("hunter2", 1, true), "the password is never sent")
 	end
-	for _, m in ipairs(bnSent) do if m.id == 77 and m.prefix == "TermSSH" and m.text:find("^2H ") then toBN = true end end
+	for _, m in ipairs(bnSent) do if m.id == 77 and m.prefix == "TermSSH" and m.text:find("^3H ") then toBN = true end end
 	check(toFriend and toBN, "hello to the friend list (whisper) and the Battle.net friend's character (game data)")
 end
 
@@ -190,7 +198,7 @@ do
 	ep.tokens = 0
 	ep:Hello()
 	local guild, whisper = 0, 0
-	local function Count(m) if m.text:find("^2H ") then
+	local function Count(m) if m.text:find("^3H ") then
 		if m.chan == "GUILD" or (m.route and m.route.kind == "guild") then guild = guild + 1
 		elseif m.target == "Quilleran" or (m.route and m.route.target == "Quilleran") then whisper = whisper + 1 end
 	end end
@@ -205,52 +213,56 @@ end
 
 -- at login: the remembered key in use, a few seconds in, everyone said hello to
 do
-	local hex = _G.TerminalShareDB.key
+	local hex = _G.TerminalShareDB.groups.default.key
 	ep:Off()
-	ep.key = nil
 	local n, nb = #sent, #bnSent
 	SSH.OnEvent("PLAYER_LOGIN")
-	check(ep.key == nil, "not at once: friends and guild are read first")
+	check(not ep:On(), "not at once: friends and guild are read first")
 	T.FlushAll()
-	check(ep.key and ns.Crypto.Hex(ep.key) == hex, "a few seconds in: the remembered key")
-	check(#sent > n and #bnSent > nb and sent[#sent].text:find("^2H "), "...and hello to everyone")
+	check(ep.groups.default and ns.Crypto.Hex(ep.groups.default.key) == hex, "a few seconds in: the remembered key")
+	check(#sent > n and #bnSent > nb and sent[#sent].text:find("^3H "), "...and hello to everyone")
 	-- .ssh off forgets it
 	ns:FindCommand("ssh").run("off")
-	check(_G.TerminalShareDB.key == nil and ep.key == nil, ".ssh off: forgotten")
+	check(next(_G.TerminalShareDB.groups) == nil and not ep:On(), ".ssh off: forgotten")
 	SSH.OnEvent("PLAYER_LOGIN")
 	T.FlushAll()
-	check(ep.key == nil, "...and not used at the next login")
-	-- (back as it was for the tests after: the key set)
-	_G.TerminalShareDB.key = hex
+	check(not ep:On(), "...and not used at the next login")
+	-- (0.58.6-0.58.16 remembered one key, TerminalShareDB.key: the default group's now, what was shared with it)
+	_G.TerminalShareDB = { key = hex }
+	ns.db.sshShare = "mats"
 	SSH.OnEvent("PLAYER_LOGIN")
 	T.FlushAll()
+	check(ep.groups.default and ns.Crypto.Hex(ep.groups.default.key) == hex and ep.groups.default.mode == "mats"
+		and _G.TerminalShareDB.key == nil and ns.db.sshShare == nil, "a key remembered before groups: the default group's, its mode kept")
+	ep:SetMode("limited")
+	SSH.Saved().mode, SSH.Saved().groups.default.mode, ep.defaultMode = nil, "limited", "limited"
 	ep.peers, ep.queue, ep.hellos, ep.tokens, ep.refillAt = {}, {}, {}, SSH.BURST, 0 -- (its hellos unanswered: the tests after start clean)
 end
 
 -- who's heard
 do
 	local n, nb0 = #sent, #bnSent
-	SSH.OnEvent("CHAT_MSG_ADDON", "OtherAddon", "2H 00000000000000aa,quilleran@realm", "WHISPER", "Quilleran")
+	SSH.OnEvent("CHAT_MSG_ADDON", "OtherAddon", "3H 00000000000000aa,quilleran@realm,0000," .. SSH.Tag("default"), "WHISPER", "Quilleran")
 	check(#sent == n, "another addon's prefix: ignored")
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,eve@realm", "WHISPER", "Eve")
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "3H 00000000000000aa,eve@realm,0000," .. SSH.Tag("default"), "WHISPER", "Eve")
 	check(#sent == n, "a stranger's whisper: ignored, no answer")
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,quilleran@realm", "PARTY", "Quilleran")
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "3H 00000000000000aa,quilleran@realm,0000," .. SSH.Tag("default"), "PARTY", "Quilleran")
 	check(#sent == n, "a party message: never read")
 	_G.issecretvalue = function(v) return v == "SECRET" end
 	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "SECRET", "WHISPER", "Quilleran")
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,quilleran@realm", "WHISPER", "SECRET")
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "3H 00000000000000aa,quilleran@realm,0000," .. SSH.Tag("default"), "WHISPER", "SECRET")
 	check(#sent == n, "secret fields (chat locked): ignored")
 	_G.issecretvalue = saved.issecretvalue
-	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,mal@realm", "WHISPER", 78)
+	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "3H 00000000000000aa,mal@realm,0000," .. SSH.Tag("default"), "WHISPER", 78)
 	check(#bnSent == nb0, "Battle.net data from a game account that isn't a friend's: ignored")
 	-- a friend's hello: challenged, by whisper, to the name the server gave
 	ep.peers = {}
-	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000aa,quilleran@realm", "WHISPER", "Quilleran")
-	check(#sent == n + 1 and Last().text:find("^2C 00000000000000aa,%x+,") and Last().target == "Quilleran" and Last().chan == "WHISPER",
+	SSH.OnEvent("CHAT_MSG_ADDON", "TermSSH", "3H 00000000000000aa,quilleran@realm,0000," .. SSH.Tag("default"), "WHISPER", "Quilleran")
+	check(#sent == n + 1 and Last().text:find("^3C 00000000000000aa,%x+,") and Last().target == "Quilleran" and Last().chan == "WHISPER",
 		"a friend's hello: challenged: " .. tostring(Last().text))
 	-- a Battle.net friend's character: by game data
-	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "2H 00000000000000ab,zephyrine@realm", "WHISPER", 77)
-	check(bnSent[#bnSent].id == 77 and bnSent[#bnSent].text:find("^2C 00000000000000ab,"), "a Battle.net friend's: challenged by game data")
+	SSH.OnEvent("BN_CHAT_MSG_ADDON", "TermSSH", "3H 00000000000000ab,zephyrine@realm,0000," .. SSH.Tag("default"), "WHISPER", 77)
+	check(bnSent[#bnSent].id == 77 and bnSent[#bnSent].text:find("^3C 00000000000000ab,"), "a Battle.net friend's: challenged by game data")
 end
 
 -- a Battle.net friend, end to end through the game's calls and events (0.58.2, in game: connected over Battle.net,
@@ -277,7 +289,8 @@ do
 		nonce = (function() local n = 0; return function() n = n + 1; return ("%016x"):format(n) end end)(),
 		broadcast = function() return {} end,
 	})
-	friend.mode, friend.key = "all", key
+	friend.defaultMode = "all"
+	friend:JoinGroup("default", key, nil, true)
 	local sendGame = C_BattleNet.SendGameData
 	C_BattleNet.SendGameData = function(id, prefix, text)
 		bnSent[#bnSent + 1] = { id = id, prefix = prefix, text = text }
@@ -295,7 +308,7 @@ do
 	local c = ep:Connected()[1]
 	check(c and c.name == "Zephyrine" and c.n == 2, "a Battle.net friend's items arrive: " .. tostring(c and c.n))
 	local d = table.concat(SSH.Debug(ep), " / ")
-	check(d:find("friend Zephyrine (all): items 2", 1, true), ".ssh debug says so: " .. d)
+	check(d:find("friend Zephyrine (all; groups default): items 2", 1, true), ".ssh debug says so: " .. d)
 	C_BattleNet.SendGameData = sendGame
 	_G.GetTime = gt
 	ep.peers, ep.friends = {}, {}
@@ -322,7 +335,9 @@ do
 	end
 	check(#rows == 2 and e and z and e.kind == "shared" and e.total == 20 and z.total == 15,
 		"@shared linen: a row each friend who has it, with their count: " .. #rows)
-	check(e and e.detail == "x20" .. ns.DETAIL_SEP .. "Quilleran", "...and their name: " .. tostring(e and e.detail))
+	-- (0.59.0, the player: "distinctly separated as in Bank vs in Bags")
+	check(e and e.detail == "x20" .. ns.DETAIL_SEP .. "Quilleran" .. ns.DETAIL_SEP .. L["bags"] .. " 5, " .. L["bank"] .. " 15",
+		"...their name, and bags and bank apart: " .. tostring(e and e.detail))
 	check(e and e.shareExtra(e) == " x20: Quillalt 15 (bank), Quilleran 5 (bags)",
 		"sent to chat: their characters, as @stored says it: " .. tostring(e and e.shareExtra(e)))
 	-- grouped and sorted by owner (0.58.6, the player: "Cad Man vs Cherry Tusks")
@@ -408,7 +423,7 @@ do
 	-- says who's connected and what they share
 	local badge
 	for _, d in ipairs(UI.badges) do if d.id == "share" then badge = d end end
-	ep.key = ep.key or "k"
+	if not ep:On() then ep:JoinGroup("default", "k", nil, true) end
 	UI:Open("")
 	check(badge and badge.shown() and badge.frame and badge.frame.shown ~= false and (UI.badgeRoom or 0) > 0,
 		"the badge shows at the end of the prompt while sharing, the box made room for it")
@@ -498,11 +513,11 @@ do
 		".ssh says who's connected: " .. status)
 	-- .ssh off: gone
 	local out = ns:FindCommand("ssh").run("off")
-	check(ep.key == nil and next(ep.peers) == nil and #UI:Search("@shared linen") == 0, ".ssh off: " .. tostring(out[1]))
+	check(not ep:On() and next(ep.peers) == nil and #UI:Search("@shared linen") == 0, ".ssh off: " .. tostring(out[1]))
 	check(not badge.shown(), "...the badge goes")
 	local bye = 0
-	for _, m in ipairs(sent) do if m.text == "2B" and m.target == "Quilleran" then bye = bye + 1 end end
-	check(bye == 1 and bnSent[#bnSent].text == "2B", "...each friend was said goodbye to")
+	for _, m in ipairs(sent) do if m.text == "3B" and m.target == "Quilleran" then bye = bye + 1 end end
+	check(bye == 1 and bnSent[#bnSent].text == "3B", "...each friend was said goodbye to")
 end
 
 -- what's shared from this client: limited (the default) = this character's mats and consumables; all = everything,
@@ -519,22 +534,198 @@ do
 	local all = SSH.Snapshot("all")
 	check(all.items[2589] and all.items[6948] and all.gold ~= nil, "all: everything, and gold")
 	C_Item.GetItemInfoInstant = inst
-	check(SSH.game.mode == "limited", "limited unless you chose otherwise: " .. tostring(SSH.game.mode))
+	check(SSH.game.defaultMode == "limited", "limited unless you chose otherwise: " .. tostring(SSH.game.defaultMode))
+	-- (0.59.0, the player) limited, mats and consumables: this character's bank too, as @stored has it, apart from its bags
+	local real = ns.GetEntries
+	ns.GetEntries = function(self, p)
+		if p == ns.providers.stored then
+			return { { itemID = 2589, holders = { { mine = true, where = "bank", count = 15 }, { mine = true, where = "bags", count = 5 },
+				{ who = "Alt", where = "bank", count = 7 } } }, { itemID = 6948, holders = { { mine = true, where = "bank", count = 1 } } } }
+		end
+		return real(self, p)
+	end
+	C_Item.GetItemInfoInstant = function(id)
+		local class = ({ [2589] = 7, [6948] = 15, [118] = 0 })[id]
+		return id, "x", "y", "", 1, class
+	end
+	local withBank = SSH.Snapshot("limited")
+	ns.GetEntries = real
+	C_Item.GetItemInfoInstant = inst
+	local bank, bags
+	for i, pl in ipairs(withBank.places) do if pl.where == "k" then bank = i elseif pl.where == "b" then bags = i end end
+	local cloth = withBank.items[2589] or {}
+	check(bank and bags and cloth[bank] == 15 and cloth[bags] and cloth[bags] ~= 15 and not withBank.items[6948] and #withBank.places == 2,
+		"limited: this character's bank too, as its own place (an alt's bank and the Hearthstone not): " .. tostring(cloth[bank]))
 end
 
 -- .ssh share, a short password
 do
 	local out = ns:FindCommand("ssh").run("password short")
-	check(ep.key == nil and out[1]:find("8", 1, true), "a password under 8 characters: refused: " .. tostring(out[1]))
+	check(not ep:On() and out[1]:find("8", 1, true), "a password under 8 characters: refused: " .. tostring(out[1]))
 	out = ns:FindCommand("ssh").run("share consumables")
-	check(ep.mode == "consumables" and ns.db.sshShare == "consumables", ".ssh share consumables: " .. tostring(out[1]))
+	check(ep.defaultMode == "consumables" and SSH.Saved().mode == "consumables", ".ssh share consumables: " .. tostring(out[1]))
 	out = ns:FindCommand("ssh").run("share bags")
-	check(ep.mode == "consumables", "...an unknown mode: unchanged")
+	check(ep.defaultMode == "consumables", "...an unknown mode: unchanged")
 	for _, m in ipairs({ "all", "mats", "limited" }) do
 		ns:FindCommand("ssh").run(m)
-		check(ep.mode == m, ".ssh " .. m)
+		check(ep.defaultMode == m, ".ssh " .. m)
 	end
-	ns.db.sshShare = nil
+	SSH.Saved().mode = nil
+end
+
+-- groups at the prompt (0.59.0, the player: ".share join group1 password1"; a level of sharing each)
+do
+	local share = ns:FindCommand("share")
+	ep:Off()
+	SSH.ForgetGroups()
+	ep.tokens, ep.refillAt = SSH.BURST, 0
+	share.run("join raid hunter2hunter2")
+	T.FlushAll()
+	local db = SSH.Saved()
+	check(ep.groups.raid and db.groups.raid and db.groups.raid.key == ns.Crypto.Hex(ep.groups.raid.key) and db.groups.raid.mode == "limited",
+		".share join raid: joined, its key remembered, sharing limited")
+	local leak
+	for k, v in pairs(db.groups) do if tostring(v.key):find("hunter2", 1, true) or k:find("hunter2", 1, true) then leak = k end end
+	check(leak == nil, "...never the password")
+	check(ns.MaskSecret(".share join raid hunter2") == ".share join raid *******" and ns.SecretLine(".shar join raid my words")
+		and ns.SecretLine(".share join hunter2hunter2") and ns.MaskSecret(".share join raid") == ".share join raid",
+		"the password after .share join <group> as *s, the group's name shown (a password typed without one: never kept either)")
+	ns:RecordHistory(".share join raid hunter2hunter2")
+	check(not tostring(ns:HistoryLines()[1]):find("hunter2", 1, true), "...and never in the history")
+	local out = share.run("join all hunter2hunter2")
+	check(not ep.groups.all and out[1]:find(".share join", 1, true), "a group named as a word .share takes: refused: " .. out[1])
+	out = share.run("join bad! hunter2hunter2")
+	check(not ep.groups["bad!"] and out[1]:find(".share join", 1, true), "a group's name that isn't one word of letters: refused")
+	-- what you share in one group: .share raid all, or .share mats raid
+	out = share.run("raid all")
+	check(ep.groups.raid.mode == "all" and db.groups.raid.mode == "all", ".share raid all: " .. out[1])
+	out = share.run("mats raid")
+	check(ep.groups.raid.mode == "mats" and db.groups.raid.mode == "mats", ".share mats raid: " .. out[1])
+	share.run("password hunter3hunter3")
+	T.FlushAll()
+	check(ep.groups.default and ep.groups.raid and ep.groups.default.mode == "limited", ".share password: the default group, beside raid")
+	local status = table.concat(SSH.Status(ep), " / ")
+	check(status:find("raid: ", 1, true) and status:find("default: ", 1, true), ".share lists each group and what it shares: " .. status)
+	-- five at most
+	for _, g in ipairs({ "g3", "g4", "g5" }) do share.run("join " .. g .. " hunter2hunter2") end
+	T.FlushAll()
+	out = share.run("join g6 hunter2hunter2")
+	T.FlushAll()
+	check(not ep.groups.g6 and out[1]:find("5", 1, true), "a sixth group: refused: " .. out[1])
+	out = share.run("leave g3")
+	check(not ep.groups.g3 and not db.groups.g3 and ep.groups.raid, ".share leave g3: left and forgotten, the others kept")
+	out = share.run("leave nope")
+	check(out[1]:find("nope", 1, true) ~= nil, ".share leave a group you're not in: said so")
+	-- at login: every remembered group, one hello for them all
+	ep:Off()
+	ep.tokens, ep.refillAt = SSH.BURST, 0
+	local n0 = #sent
+	SSH.OnEvent("PLAYER_LOGIN")
+	T.FlushAll()
+	local hellos, tagsSaid = 0, nil
+	for i = n0 + 1, #sent do
+		if sent[i].text:find("^3H ") and sent[i].target == "Quilleran" then hellos = hellos + 1; tagsSaid = sent[i].text:match(",([%x%.]*)$") end
+	end
+	for _, m in ipairs(ep.queue) do
+		if m.text:find("^3H ") and m.route.target == "Quilleran" then hellos = hellos + 1; tagsSaid = m.text:match(",([%x%.]*)$") end
+	end
+	local nGroups = 0
+	for _ in pairs(ep.groups) do nGroups = nGroups + 1 end
+	check(nGroups == 4 and ep.groups.raid.mode == "mats" and hellos == 1 and tagsSaid and #tagsSaid == 4 * 8 + 3,
+		"at login: the four groups back, as they were, one hello naming them all: " .. nGroups .. ", " .. hellos .. ", " .. tostring(tagsSaid))
+	-- rows: "raid linen" finds raid friends' linen; the tooltip says the groups
+	ep.friends = {
+		["quilleran@realm"] = { key = "w:quilleran", name = "Quilleran", claim = "quilleran@realm", last = GetTime(),
+			route = { kind = "whisper", target = "Quilleran" }, items = { [2589] = 20 }, n = 1, groups = { raid = true },
+			places = { { who = "Quilleran", where = "b" } }, entries = { [2589] = "0.k" } },
+	}
+	ns:Changed("shared")
+	local easy = ns.db.easyMode
+	ns.db.easyMode = false
+	local rows = UI:Search("@shared raid linen")
+	ns.db.easyMode = easy
+	check(#rows == 1 and rows[1].owner == "Quilleran", "@shared raid linen: the raid friend's linen: " .. #rows)
+	local lines = {}
+	local tip = setmetatable({ AddLine = function(_, t) lines[#lines + 1] = tostring(t) end, AddDoubleLine = function(_, a, b) lines[#lines + 1] = tostring(a) .. " " .. tostring(b) end,
+		SetText = function(_, t) lines[#lines + 1] = tostring(t) end, SetHyperlink = function() end }, { __index = function() return function() end end })
+	if rows[1] then rows[1].tooltip(rows[1], tip) end
+	check(table.concat(lines, " / "):find(L["Shared in: %s"]:format("raid"), 1, true), "...its tooltip says the group: " .. table.concat(lines, " / "))
+	ep.friends = {}
+	ns:Changed("shared")
+	share.run("off")
+	check(not ep:On() and next(SSH.Saved().groups) == nil, ".share off: every group left and forgotten")
+end
+
+-- (review, 0.59.0) groups at the prompt: what the review found
+do
+	-- (a quick stand-in for SHA-256 here: every join makes a key, and the harness's SHA-256 is plain arithmetic)
+	local shaWas = ns.Crypto.SHA256
+	ns.Crypto.SHA256 = function(m)
+		local a, b = 7, 13
+		for i = 1, #m do local c = m:byte(i); a = (a * 31 + c) % 2147483629; b = (b * 37 + c * 3 + i) % 2147483587 end
+		local out = {}
+		for i = 1, 8 do out[i] = string.char(a % 256, b % 256, math.floor(a / 256) % 256, math.floor(b / 256) % 256); a, b = math.floor(a / 7) + b + i, math.floor(b / 5) + a end
+		return table.concat(out)
+	end
+	local share = ns:FindCommand("share")
+	local slice = SSH.KDF_SLICE
+	SSH.KDF_SLICE = 1 -- (a password made over frames, as in the game: a frame or more to wait)
+	ep:Off()
+	SSH.ForgetGroups()
+	-- leaving a group whose password is still being made: it's never joined
+	share.run("join raid hunter2hunter2")
+	local out = share.run("leave raid")
+	T.FlushAll()
+	check(not ep.groups.raid and not SSH.Saved().groups.raid, ".share leave while its password was being made: never joined: " .. out[1])
+	-- Enter on a password being typed runs what's typed, never a completion of its last word
+	UI:Hide(); UI:Open("")
+	T.typeText(".share join raid correct horse at")
+	T.FlushAll()
+	T.key("ENTER")
+	if T.F.scripts.OnKeyUp then T.F.scripts.OnKeyUp(T.F, "ENTER") end
+	T.FlushAll()
+	local want
+	SSH.Derive("correct horse at", function(k) want = k end, nil, "raid")
+	check(ep.groups.raid and ep.groups.raid.key == want, "Enter on .share join raid <words>: the words typed, not a completion's (\"mats\")")
+	UI:Hide()
+	-- five at most, those still being made counted
+	for _, g in ipairs({ "g2", "g3", "g4", "g5" }) do share.run("join " .. g .. " hunter2hunter2") end
+	out = share.run("join g6 hunter2hunter2")
+	T.FlushAll()
+	local n = 0
+	for _ in pairs(ep.groups) do n = n + 1 end
+	check(n == 5 and not ep.groups.g6, "a sixth while the others' passwords were being made: refused: " .. n)
+	-- your only group's password changed while another group's is being made: both end up joined
+	ep:Off()
+	SSH.ForgetGroups()
+	share.run("join raid hunter2hunter2")
+	T.FlushAll()
+	share.run("join raid hunter3hunter3")
+	share.run("join guild hunter4hunter4")
+	T.FlushAll()
+	check(ep.groups.raid and ep.groups.guild, "another password for your only group, another group joined meanwhile: both joined")
+	-- @stored's records changing (this character's bank): what you share sent again
+	ep.snaps = { limited = { text = "old" } }
+	ns:Changed("stored")
+	check(next(ep.snaps) == nil, "@stored changed: what you share made again and sent")
+	-- .share raid alone: what raid shares; .share leave alone: which group
+	out = share.run("raid")
+	check(out[1]:find("raid", 1, true) and not out[1]:find(".share limited (the default)", 1, true), ".share raid: what raid shares: " .. out[1])
+	out = share.run("leave")
+	check(out[1]:find(".share leave <group>", 1, true) ~= nil, ".share leave alone: which group: " .. out[1])
+	-- a group's name in any language's letters
+	check(SSH.GroupName("рейд") == "рейд" and SSH.GroupName("公会") == "公会" and not SSH.GroupName(string.rep("я", 17))
+		and SSH.GroupName(string.rep("я", 16)), "a group's name in any language's letters, 16 at most")
+	-- what's remembered, broken by hand: dropped, no error
+	ep:Off()
+	_G.TerminalShareDB = { groups = { raid = 5, [1] = { key = string.rep("a", 64) }, ok = { key = string.rep("b", 64), mode = "mats" } } }
+	local fine = pcall(share.run, "all")
+	SSH.OnEvent("PLAYER_LOGIN")
+	T.FlushAll()
+	check(fine and ep.groups.ok and not ep.groups.raid and SSH.Saved().groups.raid == nil, "broken entries in what's remembered: dropped, the rest used")
+	share.run("off")
+	ns.Crypto.SHA256 = shaWas
+	SSH.KDF_SLICE = slice
 end
 
 for _, k in ipairs(names) do _G[k] = saved[k] end -- (those that weren't there go again)
@@ -545,3 +736,4 @@ SSH.Forget()
 ep:Off()
 ns:Changed("shared")
 _G.TerminalShareDB = nil
+ep.env.nonce = nonceWas

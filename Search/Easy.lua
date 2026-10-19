@@ -97,6 +97,7 @@ end
 --- Simple-mode category (`simpleCategory`: an existing category's id, "game" say, or { id, label, icon } for a new one),
 --- else Simple mode never shows its rows; and its verbs (`verbs`: { enter, shift }, or function(e) -> enter, shift) for
 --- the footer and the right-click menu. Terminal's own lists are in E.CATEGORIES and E.VERBS already.
+local byKind -- (kind -> the categories listing it, in order: E.CategoryOf; made again after E.Adopt)
 function E.Adopt(p)
 	if type(p) ~= "table" or type(p.id) ~= "string" then return end
 	if p.verbs ~= nil and E.VERBS[p.id] == nil then E.VERBS[p.id] = p.verbs end
@@ -111,6 +112,7 @@ function E.Adopt(p)
 	end
 	for _, k in ipairs(cat.kinds) do if k == p.id then return end end
 	cat.kinds[#cat.kinds + 1] = p.id
+	byKind = nil
 end
 
 --- The categories to sort into: every one with at least one of its kinds loaded.
@@ -128,16 +130,32 @@ end
 
 --- The category a row belongs in (the first shown one listing its kind that keeps it), or nil. (Every category holding
 --- a row's own list is shown: its list is loaded. Not E.Visible() made again per row: review, 0.53.6.)
-function E.CategoryOf(e)
-	if not e or not e.kind then return nil end
-	for _, c in ipairs(E.CATEGORIES) do
-		for _, id in ipairs(c.kinds) do
-			if id == e.kind then
-				local ok, yes = true, true
-				if c.keep then ok, yes = pcall(c.keep, e) end
-				if ok and yes then return c.id end
+--- (0.59.0, the stress test: tests/stress.py) The categories listing each kind, in order, made once (E.Adopt starts it
+--- again): every category's every kind was walked for each match, 200,000 matches a frame of half a second in Simple
+--- mode's overview.
+local function ByKind()
+	if not byKind then
+		byKind = {}
+		for _, c in ipairs(E.CATEGORIES) do
+			for _, id in ipairs(c.kinds) do
+				local list = byKind[id]
+				if not list then list = {}; byKind[id] = list end
+				list[#list + 1] = c
 			end
 		end
+	end
+	return byKind
+end
+--- The map made again (a category's lists changed some other way than E.Adopt).
+function E.Reindex() byKind = nil end
+function E.CategoryOf(e)
+	if not e or not e.kind then return nil end
+	local list = ByKind()[e.kind]
+	for i = 1, list and #list or 0 do
+		local c = list[i]
+		if not c.keep then return c.id end
+		local ok, yes = pcall(c.keep, e)
+		if ok and yes then return c.id end
 	end
 end
 

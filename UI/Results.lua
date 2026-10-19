@@ -28,7 +28,10 @@ function UI:RunSearch(text)
 	local copy
 	if ns.Aggregate and ns.Aggregate.Summing(agg) then copy = ns.Aggregate.Apply(agg, res, agg.base)
 	else
-		copy = UI.SortAndTrim(res) -- (a new list: the search goes on filling res)
+		-- (a new list: the search goes on filling res. The best of what a few ms can look at: the rest is in the final
+		-- list a few frames on)
+		local stopAt = t0 + UI.FIRST_SORT_MS
+		copy = UI.SortAndTrim(res, nil, nil, function() return debugprofilestop() > stopAt end)
 		if agg and ns.Aggregate then copy = ns.Aggregate.Apply(agg, copy, agg.base) end
 	end
 	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
@@ -398,6 +401,7 @@ function UI:ContinueSearch(job)
 end
 
 UI.FINISH_MS, UI.SEND_FINISH_MS = 12, 40
+UI.FIRST_SORT_MS = 3 -- the most a search's first frame spends picking the best of its matches so far to show
 --- A search still going over frames, finished now if it takes no more than `budget` ms (with none: however long it
 --- takes), its results put up as when it ends by itself: what reads the results (Alt+`, sending every result) then
 --- reads all of them, not the first frame's best. Whether no search is left going (past the budget it goes on as it

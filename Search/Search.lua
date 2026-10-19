@@ -141,6 +141,9 @@ local function RunArg(e) return e.cmd.run(e.argLine, ns) end
 --- the arrows to pick one). With nothing typed yet, the command itself comes first, so Enter
 --- still runs it as typed. Nil when the command takes no listed arguments, or none match.
 function UI:ArgEntries(text)
+	-- (a password being typed: nothing offered for its words, Enter running what's typed. 0.59.0, review: ".share join raid
+	-- correct horse at" + Enter joined with "correct horse mats", the completion's)
+	if ns.SecretLine("." .. text) then return nil end
 	local word, rest = text:match("^%s*(%S+)%s(.*)$")
 	local c = word and ns:FindCommand(word)
 	if not (c and c.complete) then return nil end
@@ -2206,7 +2209,10 @@ function Scan.Overview(self, q, noAuto)
 	local want = Scan.Typed(q.text)
 	local exacts = {} -- (rows named exactly what was typed: the clear winner, maybe)
 	local loggedNames = {} -- (your quest log's matches: Questie's name count has them too)
-	for _, e in ipairs(out) do
+	local overBudget = q.overBudget
+	for i, e in ipairs(out) do
+		-- (spread over frames too: 0.59.0, the stress test, 200,000 matches sorted into categories in one frame)
+		if overBudget and i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(UI.Results()) end
 		local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or Scan.ALSO_CATEGORY[e.kind] or ""]
 		if c then
 			local b = byCat[c.id]
@@ -2226,7 +2232,6 @@ function Scan.Overview(self, q, noAuto)
 	local hardOther = q.hard and #q.hard > (q.strictWords and #q.strictWords or 0) or nil
 	local nameWords = OverviewNameWords(tokens, hardOther, q.softWords, q.strictWords)
 	if #nameWords > 0 and not hardOther and not relaxed and not self.place then
-		local overBudget = q.overBudget
 		local function tick() if overBudget and overBudget() then coroutine.yield(UI.Results()) end end
 		for _, h in ipairs(hinting) do
 			local c, p = h.c, h.p

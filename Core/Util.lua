@@ -350,14 +350,19 @@ function ns.SecretLine(text)
 	-- ...", so a command line whose next word is a password word is one whatever its first. Review, 0.58.16)
 	local rest = l:match("^%s*%.%s*%S+%s+(.*)$") or l:match("^%s*share%s+(.*)$") or l:match("^%s*ssh%s+(.*)$")
 	if not rest then return false end
-	return rest:find("^pass") ~= nil or rest:find("^pw%s") ~= nil or rest == "pw"
+	-- (".share join <group> <password>": a group's password, 0.59.0)
+	-- (any "join ...": a password typed without its group is still a password; 0.59.0, review)
+	return rest:find("^pass") ~= nil or rest:find("^pw%s") ~= nil or rest == "pw" or rest:find("^join%s+%S") ~= nil
 end
 
 --- The line as the prompt shows it: a password line's password as *s, a * a byte (so every place in it is where it
 --- was: the caret, a selection). Anything else as it is. (0.58.6, the player: "incase anyone is streaming")
 function ns.MaskSecret(text)
 	if not ns.SecretLine(text) then return text end
-	local head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s?)(.*)$")
+	local head, rest
+	-- (.share join <group> <password>: the group's name shown, its password not)
+	if ns.Lower(text):find("^%s*%.?%s*%S+%s+join%s") then head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s+%S+%s?)(.*)$") end
+	if not head then head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s?)(.*)$") end
 	if not head then return text end
 	return head .. (rest:gsub(".", "*"))
 end

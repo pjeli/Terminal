@@ -7,13 +7,19 @@
 - **.share password <words>** (8 characters or more) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
 - Don't want it? Turn Terminal: Share off in the AddOn list and none of it runs.
 
+**Groups**
+- **.share join <group> <password>** joins a group of its own, with its own password: a raid team, a crafting circle, your alts' friends. Five groups at most; **.share password** is the group "default".
+- Each group shares what you choose: **.share raid all**, **.share default limited** (or **.share all raid**). A friend sees what you share in the groups you have in common, together: a raid friend everything, a friend only in default your mats and consumables.
+- **.share leave <group>** leaves one (its password forgotten; friends you had only it with are said goodbye to). **.share** lists your groups and what each shares; the wifi sign's pop-out says each friend's groups.
+- **@shared raid linen** finds your raid friends' linen; a friend's tooltip says which groups you share with them.
+
 **What you share**
-- **.share limited** (the default): this character's crafting mats and consumables.
+- **.share limited** (the default): this character's crafting mats and consumables, in its bags and its bank (as @stored has the bank: Syndicator or BagBrother).
 - **.share all**: everything in your bags, on your other characters and in your banks, mail, void storage and warband bank (as @stored reads them), and your gold.
-- **.share mats**, **.share consumables**: just those. **.share none**: see your friends' items, share nothing.
+- **.share mats**, **.share consumables**: just those, bags and bank. **.share none**: see your friends' items, share nothing.
 
 **Friends' items**
-- A row for each friend ("Linen Cloth x20 · Cad Man"), grouped or sorted by **Owner** from the bar, **sort:owner** or **| group by owner**. Item filters work on them (**@shared q:rare**).
+- A row for each friend, saying where they keep it, bags and bank apart ("Linen Cloth x20 · Cad Man · bags 12, bank 8"), grouped or sorted by **Owner** from the bar, **sort:owner** or **| group by owner**. Item filters work on them (**@shared q:rare**).
 - The tooltip is the item's own, with that friend's characters below it as @stored shows yours. Enter whispers the friend; Shift+Enter and **>> party** work as with @stored.
 - A friend sharing **all** has a gold row ("Bob's gold").
 
@@ -25,6 +31,10 @@
 - Only friends, guild members and Battle.net friends' characters are heard; anyone else is ignored. A Battle.net friend is named by their character, never their account name.
 - What friends send is kept in memory only, until you log out.
 - After the first sync only what changed is sent, usually one message; a small update never waits behind another friend's big one, and friends who missed your hello are said hello to again later.
+- Passwords show as \*s while you type them however you write the command, and are never kept in your history; Enter runs exactly what you typed.
+
+**Searching very large lists**
+- Every frame of a search stays short however many rows there are: Simple mode's categories no longer sort every match in one frame, and a search's first results no longer stall picking the best of thousands (found by a new stress test: up to 200,000 rows over 24 lists).
 
 ## 0.58.0
 

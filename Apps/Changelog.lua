@@ -16,10 +16,11 @@ CL.LOG = {
 	{
 		v = "0.59.0", when = "released October 2026",
 		items = {
-			"Terminal: Share, a new addon that comes with Terminal (turn it off in the AddOn list if you don't want it): friends who run it and type the same password (.share password <words>) see what's in each other's bags in their searches. \"linen cloth\" lists yours, your alts' and your friends', with how many each has (@shared; Bank & alts in Simple mode).",
-			"What you share: .share limited (the default) is this character's crafting mats and consumables; .share all adds everything on all your characters and in your banks, and your gold; .share mats and .share consumables are just those; .share off stops.",
-			"Friends' items: a row for each friend, grouped or sorted by Owner; the tooltip is the item's, with their characters below it as @stored shows yours. A wifi sign at the end of the prompt shows you're sharing: point at it for who's connected and what each shares.",
-			"Private and light: only friends, guild members and Battle.net friends' characters are heard; the password is never sent and shows as *s while you type it; a key made from it is remembered, so you connect again by yourself when you log in. What friends send is kept only until you log out, and after the first sync only what changed is sent.",
+			"Terminal: Share, a new addon that comes with Terminal (turn it off in the AddOn list if you don't want it): friends who run it and type the same password (.share password <words>) see what's in each other's bags in their searches. \"linen cloth\" lists yours, your alts' and your friends', with how many each has and where, bags and bank apart (@shared; Bank & alts in Simple mode).",
+			"Groups: .share join <group> <password> for a group of its own, five at most, each sharing what you choose (.share raid all, .share default limited). Friends see what you share in the groups you have in common; .share leave <group> leaves one.",
+			"What you share: .share limited (the default) is this character's crafting mats and consumables, in its bags and bank; .share all adds everything on all your characters and in your banks, and your gold; .share mats and .share consumables are just those; .share off stops.",
+			"Private and light: only friends, guild members and Battle.net friends' characters are heard; passwords are never sent and show as *s while you type them; a key made from each is remembered, so you connect again by yourself when you log in. A wifi sign at the end of the prompt shows who's connected. After the first sync only what changed is sent.",
+			"Searches over very large lists keep every frame short: Simple mode's categories and a search's first results no longer stall with hundreds of thousands of rows.",
 		},
 	},
 	{

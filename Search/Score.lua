@@ -302,8 +302,10 @@ UI._Better = Better -- (tests)
 
 --- The best MAX_RESULTS of the list, in order (a new list: the one given is left as it is). With thousands of matches,
 --- a small heap keeps only the best so far instead of sorting them all. overBudget (a search spread over frames): the
---- pass over thousands of matches is spread too, the heap so far standing for it meanwhile.
-local function SortAndTrim(list, limit, overBudget)
+--- pass over thousands of matches is spread too, the heap so far standing for it meanwhile. stopWhen (no coroutine to
+--- pause: a search's first frame, what it shows while it goes on): the best of the matches looked at before it says
+--- stop (0.59.0, the stress test: 200,000 rows, the first frame's 50,000 matches sorted in 20 ms more).
+local function SortAndTrim(list, limit, overBudget, stopWhen)
 	local n, max = #list, limit or MAX_RESULTS
 	if n > max * 2 then
 		local heap, size = {}, 0 -- worst of the kept ones on top
@@ -327,6 +329,7 @@ local function SortAndTrim(list, limit, overBudget)
 		for k = 1, n do
 			local e = list[k]
 			if overBudget and k % SLICE_CHECK == 0 and overBudget() then coroutine.yield(heap) end
+			if stopWhen and k > max and k % SLICE_CHECK == 0 and stopWhen() then break end
 			if size < max then
 				size = size + 1
 				heap[size] = e
