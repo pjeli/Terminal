@@ -53,4 +53,15 @@ do
 	ns.Crypto = mine -- (Share.lua's stays the one in use)
 	check(other and other ~= mine, "loaded again, with a bit library")
 	if other then Run(other, "LuaBitOp") end
+	-- (a bit library whose answers are unsigned, 0 to 2^32-1: the same hashes, 0.59.0's quicker block either way)
+	local unsigned = {
+		band = function(a, b) return P._band(a, b) end, bor = function(a, b) return P._bor(a, b) end,
+		bxor = function(a, b) return P.bxor(a, b) end, bnot = function(a) return MOD - 1 - (a % MOD) end,
+		rshift = function(a, n) return math.floor((a % MOD) / 2 ^ n) end, lshift = function(a, n) return ((a % MOD) * 2 ^ n) % MOD end,
+	}
+	_G.bit = unsigned
+	local third = chunk("Terminal_Share", {})
+	_G.bit = was
+	ns.Crypto = mine
+	if third then Run(third, "unsigned bit library") end
 end

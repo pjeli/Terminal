@@ -69,7 +69,8 @@ local K = {
 }
 
 local w = {}
-local function Block(h, s, at)
+local Block
+Block = function(h, s, at)
 	for j = 1, 16 do
 		local a, b, c, d = byte(s, at + (j - 1) * 4, at + (j - 1) * 4 + 3)
 		w[j] = ((a * 256 + b) * 256 + c) * 256 + d
@@ -92,6 +93,37 @@ local function Block(h, s, at)
 	end
 	h[1], h[2], h[3], h[4] = (h[1] + a) % MOD, (h[2] + b) % MOD, (h[3] + c) % MOD, (h[4] + d) % MOD
 	h[5], h[6], h[7], h[8] = (h[5] + e) % MOD, (h[6] + f) % MOD, (h[7] + g) % MOD, (h[8] + hh) % MOD
+end
+
+-- (0.59.0: a password's key is many more hashes now) With the game's bit library, a block straight from its functions:
+-- no Lua function between, rotations as two shifts added (their bits don't overlap; a signed answer is the same number
+-- mod 2^32, and every sum is taken mod 2^32). About three times quicker than the block above, on the same answers.
+if type(B) == "table" and B.band and B.bor and B.bxor and B.rshift and B.lshift then
+	local xor, andb, bor, rsh, lsh = B.bxor, B.band, B.bor, B.rshift, B.lshift
+	Block = function(h, s, at)
+		for j = 1, 16 do
+			local a, b, c, d = byte(s, at + (j - 1) * 4, at + (j - 1) * 4 + 3)
+			w[j] = ((a * 256 + b) * 256 + c) * 256 + d
+		end
+		for j = 17, 64 do
+			local x, y = w[j - 15], w[j - 2]
+			local s0 = xor(xor(rsh(x, 7) + lsh(x, 25), rsh(x, 18) + lsh(x, 14)), rsh(x, 3))
+			local s1 = xor(xor(rsh(y, 17) + lsh(y, 15), rsh(y, 19) + lsh(y, 13)), rsh(y, 10))
+			w[j] = (w[j - 16] + s0 + w[j - 7] + s1) % MOD
+		end
+		local a, b, c, d, e, f, g, hh = h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8]
+		for j = 1, 64 do
+			local S1 = xor(xor(rsh(e, 6) + lsh(e, 26), rsh(e, 11) + lsh(e, 21)), rsh(e, 25) + lsh(e, 7))
+			local ch = xor(g, andb(e, xor(f, g))) -- (the same as (e and f) xor (not e and g), a call fewer)
+			local t1 = (hh + S1 + ch + K[j] + w[j]) % MOD
+			local S0 = xor(xor(rsh(a, 2) + lsh(a, 30), rsh(a, 13) + lsh(a, 19)), rsh(a, 22) + lsh(a, 10))
+			local maj = bor(andb(a, b), andb(c, bor(a, b))) -- (the majority of a, b, c)
+			local t2 = (S0 + maj) % MOD
+			hh, g, f, e, d, c, b, a = g, f, e, (d + t1) % MOD, c, b, a, (t1 + t2) % MOD
+		end
+		h[1], h[2], h[3], h[4] = (h[1] + a) % MOD, (h[2] + b) % MOD, (h[3] + c) % MOD, (h[4] + d) % MOD
+		h[5], h[6], h[7], h[8] = (h[5] + e) % MOD, (h[6] + f) % MOD, (h[7] + g) % MOD, (h[8] + hh) % MOD
+	end
 end
 
 --- SHA-256 of a string: 32 raw bytes.

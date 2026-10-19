@@ -32,11 +32,12 @@ still works.)
 
 Each side types the same password: `.share password <words>` or `.share join <group> <words>` (8 characters or
 more), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
-password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 2000 times,
-salted with `Terminal.ssh.1`, and `|<group>` for a group other than default: the same password in two groups is two
-keys; done a slice a frame), and each group's key is remembered in Terminal: Share's own saved variables
-(`TerminalShareDB.groups[name] = { key = hex, mode }`; the one key of 0.58.6–0.58.16, `TerminalShareDB.key`, becomes the
-default group's). At login they're used again by themselves a few seconds in (friends and guild read first:
+password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 20,000 times,
+2,000 until 0.59.0, so each guess at a password costs as much; salted with `Terminal.ssh.1`, and `|<group>` for a group
+other than default: the same password in two groups is two keys, and a guess needs the group's name too, which is never
+sent; done 6 ms a frame, a few seconds in all, `.share` and the badge saying how far), and each group's key is remembered in Terminal: Share's own saved variables
+(`TerminalShareDB.groups[name] = { key = hex, mode, kdf }`; a key made another way, fewer rounds or the one key of
+0.58.6–0.58.16, is forgotten at login and its password asked for again, once). At login they're used again by themselves a few seconds in (friends and guild read first:
 `SSH.LOGIN_WAIT`) and everyone is said hello to, once for all of them. Anyone with your WTF folder could connect as
 you with them, the same as knowing the passwords. A line starting `.share pass`, `.share pw` or `.share join` is never
 written to the history, a tab,
@@ -54,22 +55,26 @@ What you share is saved per group (and `.share <mode>` for all of them and group
 
 ## Connecting (mutual challenge-response)
 
-Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `3`
-since 0.59.0 (groups; `2`, 0.58.16: delta updates, 150-piece snapshots, sessions); a hello in another version gets a
-line in chat, once ("<name> runs another version of Terminal: Share"), and no answer.
+Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `4`
+since 0.59.0 (groups, their marks made from their keys; `2`, 0.58.16: delta updates, 150-piece snapshots, sessions); a
+hello in another version gets a line in chat, once ("<name> runs another version of Terminal: Share"), and no answer.
 
 ```
-A -> B   3H nA,idA,sA,marks          hello (sA: A's session, 4 hex characters made at login; marks: A's groups)
-B -> A   3C nA,nB,idB,sB,common      challenge: B's nonce, the groups they have in common (B has their passwords)
-A -> B   3A nA,nB,mark:macI.mark:...  A proves it holds each group's key: macI = HMAC(Kg, "I|nA|nB|idA|idB")
-B -> A   3K nA,nB,mark:macR....       B checks each, then proves those that passed: macR = HMAC(Kg, "R|nA|nB|idA|idB")
+A -> B   4H nA,idA,sA,marks          hello (sA: A's session, 4 hex characters made at login; marks: A's groups)
+B -> A   4C nA,nB,idB,sB,common      challenge: B's nonce, the marks of the groups they have in common
+A -> B   4A nA,nB,mark:macI.mark:...  A proves it holds each group's key: macI = HMAC(Kg, "I|nA|nB|idA|idB")
+B -> A   4K nA,nB,mark:macR....       B checks each, then proves those that passed: macR = HMAC(Kg, "R|nA|nB|idA|idB")
 ```
 
-- A group's mark is 8 hex characters of SHA-256 of its name; the name itself is never sent (but a common one, "raid",
-  can be guessed from its mark: the password is what keeps a group to itself). Five groups' proofs fit one message
-  (246 characters with long names).
-- A group whose proof fails is said ("<name>'s password for raid doesn't match yours"); the others connect. No group
-  proven on the way you send to a friend by: they're dropped.
+- A group's mark (0.59.0, the player: "hide the group name") is 8 hex characters of HMAC(Kg, "M|session|claim"): made
+  from the group's key, so only who has the key can make it or tell which group it is; another every session, so a
+  guildmate can't tell your groups apart or follow one from one login to the next. A group's name is never sent. B
+  finds its groups in A's hello by making its own marks for A's session and name (`E:MarksOf`, kept per session).
+  Five groups' proofs fit one message (246 characters with long names).
+- Another password for a group makes another mark: the group isn't in common, so the hello gets no answer ("no
+  answer"; the other side lists "<name> wants to connect: no group in common"). No proof is ever sent to someone without
+  the key. A proof that fails all the same is said ("<name>'s password for raid doesn't match yours"). No group proven
+  on the way you send to a friend by: they're dropped.
 
 - Nonces are 16 hex characters (SHA-256 of the time, a counter, `math.random`). Proofs are 32 hex characters
   (128 bits of the HMAC).
@@ -80,10 +85,13 @@ B -> A   3K nA,nB,mark:macR....       B checks each, then proves those that pass
   both proofs name both characters, a third character can't pass one friend's proof on to another (a relay:
   Ann's proof to Mal names Ann and Mal; Bob wants one naming Mal and Bob).
 - `I` and `R` make the two proofs different: one can't be sent back as the other.
-- A connection is made only when the proof checks. A wrong password gets no answer; the side that checked
-  says "<name>'s password doesn't match yours", the other side's `.share` says "no answer" after 30 s.
-- The password is never sent. Someone who sees a proof could guess passwords offline against it, so the key
-  is iterated and the password should be one not used anywhere else.
+- A connection is made only when the proof checks. A wrong password gets no answer (its marks aren't the
+  group's): `.share` says "no answer" after 30 s, and the other side lists you as wanting to connect.
+- The password is never sent. Someone who sees a proof, or a mark, could guess passwords offline against it, so
+  the key is 20,000 rounds of SHA-256 (each guess as many), salted with the group's name (never sent: a guess needs
+  it too, but "default" is known), and a password should be long and one not used anywhere else. Since marks are
+  made from keys, only someone who already has a group's key gets a proof for it from you: a guildmate without it
+  gets no answer at all.
 - Both saying hello at once (the guild channel at login): the smaller claim's hello goes on and the other
   side answers it. The smaller side says its hello again, with the same nonce, to a friend whose hello it
   hears while waiting: that friend may have heard the first one before it had a password.
@@ -114,7 +122,7 @@ Once connected, each side sends what it shares, and sends it again when it chang
 friend, or every 2 s per message for a big snapshot; what didn't change isn't sent again):
 
 ```
-3D ver,i,n,payload       a snapshot in n pieces of at most 200 characters (at most 150), put back together as they
+4D ver,i,n,payload       a snapshot in n pieces of at most 200 characters (at most 150), put back together as they
                          were. The snapshot: places!items!gold!mode (never a "|", chat's escape character: it doesn't
                          survive Battle.net game data)
                            places  "Bob/b,Bobalt/k,/w"   who and where: b bags, k bank, m mail, v void storage,
@@ -122,12 +130,12 @@ friend, or every 2 s per message for a big snapshot; what didn't change isn't se
                            items   "id:place.count,place.count;id:..."  (base 36; place counted from 0)
                            gold    copper in base 36, or empty
                            mode    what they share (limited, all, ...)
-3U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
+4U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
                          friend has `base` whole, the places and mode are the same, and it's under half the size
-3R                       I don't have your `base`: the next goes whole
-3L mark                  I left that group: what you share with me is what's left in common
-3P                       still here (every 10 minutes)
-3B                       goodbye: drop what I sent
+4R                       I don't have your `base`: the next goes whole
+4L mark                  I left that group (my mark for it): what you share with me is what's left in common
+4P                       still here (every 10 minutes)
+4B                       goodbye: drop what I sent
 ```
 
 `ver` is the session's mark and a count (`a3f01`, `a3f02`...): a /reload's numbers are never taken for the last
