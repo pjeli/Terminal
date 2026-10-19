@@ -259,7 +259,7 @@ do
 	SSH.KDF_SLICE = 1
 	local rememberWas, badgeWas = SSH.Remember, SSH.Badge
 	SSH.Remember, SSH.Badge = function() end, function() end
-	SSH.JoinWithPassword(E, "raid", "Raid words 9here", function(fn) later[#later + 1] = fn end)
+	SSH.JoinWithPassword(E, "raid", "Raidwords9here", function(fn) later[#later + 1] = fn end)
 	SSH.KDF_SLICE = slice
 	E:LeaveGroup("default")
 	local guard = 0

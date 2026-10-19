@@ -30,9 +30,9 @@ raid, instance and channel messages are never read. Your own guild message, hear
 (The command was `.ssh` until 0.58.14: a nod to secure shell, but `.share` says what it does to a WoW player; `.ssh`
 still works.)
 
-Each side types the same password: `.share password <words>` or `.share join <group> <words>` (10 characters or
-more with three kinds of them: a capital, a small letter, a number, a symbol or space, a letter of another script; or a
-phrase of 20 characters or more: `SSH.PasswordProblem`, 0.59.2), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
+Each side types the same password: `.share password <password>` or `.share join <group> <password>` (8 characters or
+more, no spaces, with three kinds of them: a capital, a small letter, a number, a symbol, a letter of another script:
+`SSH.PasswordProblem`, 0.59.3; 0.59.2 asked for 10, or a phrase of 20 with spaces), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
 password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 1,000 times,
 2,000 until 0.59.0; 20,000 and 4,000 were tried and were too much for the game's CPU, so the password's own strength
 does the work: each guess costs 1,000 hashes, and there are far more passwords to guess; salted with `Terminal.ssh.1`, and `|<group>` for a group

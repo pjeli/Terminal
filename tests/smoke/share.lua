@@ -569,7 +569,7 @@ do
 	local later = {}
 	local slice = SSH.KDF_SLICE
 	SSH.KDF_SLICE = 1 -- (made over frames)
-	SSH.SetPassword(A, "correct horse battery", function(fn) later[#later + 1] = fn end)
+	SSH.SetPassword(A, "Correct9horse", function(fn) later[#later + 1] = fn end)
 	SSH.KDF_SLICE = slice
 	check(#later > 0 and A.deriving, "the password made over frames")
 	A:Off()

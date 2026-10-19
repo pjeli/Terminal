@@ -40,8 +40,7 @@ SSH.KDF_ROUNDS = 1000      -- SHA-256s a password guess costs (2000 until 0.59.0
 SSH.KDF_MS = 2             -- ms of them a frame, the clock looked at after each (the game's frame stays smooth)
 SSH.KDF_SLICE = 100000     -- of them a frame at most (the tests make it 1: a key made over frames)
 SSH.KDF_ID = "s1000"      -- the way keys are made, remembered with them: a key made another way is typed again
-SSH.MIN_PASSWORD = 10       -- characters, with three kinds of them (SSH.PasswordProblem)
-SSH.PASSPHRASE = 20         -- characters: a phrase this long needs no kinds
+SSH.MIN_PASSWORD = 8        -- characters, no spaces, three kinds of them (SSH.PasswordProblem; 0.59.3, the player)
 SSH.MAX_GROUPS = 5         -- groups at once (a hello names each; a proof is one per group, in one message)
 SSH.GROUP_LEN = 16         -- a group's name: letters, digits, "-" and "_", this long at most
 SSH.DEFAULT_GROUP = "default" -- .share password's
@@ -1545,7 +1544,7 @@ function SSH.Status(ep)
 	if not ep then return { L["Share: not available"] } end
 	if not ep:On() then
 		lines[1] = ep.deriving and SSH.DerivingLine(ep)
-			or L["Share: not in a group yet. Type .share password <words> (10 characters or more: capitals, numbers, symbols; or a long phrase), the same as your friends, or .share join <group> <words> for a group of its own"]
+			or L["Share: not in a group yet. Type .share password <password> (8 characters or more, no spaces: capitals, numbers, symbols), the same as your friends, or .share join <group> <password> for a group of its own"]
 	else
 		lines[1] = L["Share: your groups (remembered: .share leave <group> or .share off forgets them)"]
 		local names = {}
@@ -1615,18 +1614,18 @@ function SSH.Debug(ep)
 end
 
 --- What's wrong with a password, said; nil when it's strong enough (0.59.1, the player: "asking user to have special
---- characters, numbers, capitalizations ... to strengthen the password"): MIN_PASSWORD characters or more with three
---- kinds (a capital, a small letter, a number, a symbol or space, a letter of another script),
---- or a phrase of PASSPHRASE characters or more. Only typing it is checked: both sides type the same.
+--- characters, numbers, capitalizations ... to strengthen the password"; 0.59.3: "No spaces allowed in password. Allow 8
+--- character passwords"): MIN_PASSWORD characters or more, no spaces, with three kinds of them (a capital, a small
+--- letter, a number, a symbol, a letter of another script). Only typing it is checked: both sides type the same.
 function SSH.PasswordProblem(words)
 	words = tostring(words or "")
+	if words:find("%s") then return L["Share: a password can't have spaces"] end
 	local n = #(words:gsub("[\128-\191]", "")) -- (characters, not bytes)
-	if n >= SSH.PASSPHRASE then return nil end
 	-- (a letter of another script, Cyrillic, Chinese, is a kind of its own: it has no capitals here)
 	local kinds = (words:find("%u") and 1 or 0) + (words:find("%l") and 1 or 0) + (words:find("%d") and 1 or 0)
-		+ (words:find("[%p%s]") and 1 or 0) + (words:find("[\128-\255]") and 1 or 0)
+		+ (words:find("%p") and 1 or 0) + (words:find("[\128-\255]") and 1 or 0)
 	if n >= SSH.MIN_PASSWORD and kinds >= 3 then return nil end
-	return L["Share: a password needs %d characters or more with three of: a capital, a small letter, a number, a symbol (or a phrase of %d characters or more)"]:format(SSH.MIN_PASSWORD, SSH.PASSPHRASE)
+	return L["Share: a password needs %d characters or more, no spaces, with three of: a capital, a small letter, a number, a symbol"]:format(SSH.MIN_PASSWORD)
 end
 
 --- `.share join <group> <words>` (`.share password <words>`: the group "default"): the key, made over a few frames, then

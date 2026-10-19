@@ -575,12 +575,15 @@ end
 -- .ssh share, a short password
 do
 	local out = ns:FindCommand("ssh").run("password short")
-	check(not ep:On() and out[1]:find("10", 1, true), "a short password: refused: " .. tostring(out[1]))
-	-- (0.59.1, the player: "special characters, numbers, capitalizations ... to strengthen the password")
+	check(not ep:On() and out[1]:find("8", 1, true), "a short password: refused: " .. tostring(out[1]))
+	-- (0.59.1, the player: "special characters, numbers, capitalizations ... to strengthen the password"; 0.59.3: "No
+	-- spaces allowed in password. Allow 8 character passwords")
 	local P = SSH.PasswordProblem
 	check(P("hunter2hunter2") and P("HUNTER2HUNTER2") and P("Hunterhunter") and P("Sh0rt!") and not P("Hunter2hunter2")
-		and not P("hunter2hunter!") and not P("Hunter!hunter!") and not P("correct horse battery staple")
-		and P("correct horse bat") and not P("пароль-Пароль1"), "a password: 10 or more with three kinds, or a phrase of 20 or more")
+		and not P("hunter2hunter!") and not P("Hunter!hunter!") and not P("Abcdef1!") and not P("Abcdefg1") and P("Abcdef1")
+		and not P("пароль-Пароль1"), "a password: 8 or more with three kinds")
+	check(P("Correct horse 9") and P("Correct\tHorse9") and P("correct horse battery staple") and P("Abc 12345"):find("spaces", 1, true),
+		"...and no spaces")
 	out = ns:FindCommand("ssh").run("password hunter2hunter2")
 	check(not ep:On() and not ep.deriving and out[1]:find("capital", 1, true), "...one with two kinds only: refused, said why: " .. tostring(out[1]))
 	out = ns:FindCommand("ssh").run("share consumables")
@@ -700,13 +703,13 @@ do
 	check(not ep.groups.raid and not SSH.Saved().groups.raid, ".share leave while its password was being made: never joined: " .. out[1])
 	-- Enter on a password being typed runs what's typed, never a completion of its last word
 	UI:Hide(); UI:Open("")
-	T.typeText(".share join raid Correct horse9 at")
+	T.typeText(".share join raid Mats9!xyz")
 	T.FlushAll()
 	T.key("ENTER")
 	if T.F.scripts.OnKeyUp then T.F.scripts.OnKeyUp(T.F, "ENTER") end
 	T.FlushAll()
 	local want
-	SSH.Derive("Correct horse9 at", function(k) want = k end, nil, "raid")
+	SSH.Derive("Mats9!xyz", function(k) want = k end, nil, "raid")
 	check(ep.groups.raid and ep.groups.raid.key == want, "Enter on .share join raid <words>: the words typed, not a completion's (\"mats\")")
 	UI:Hide()
 	-- five at most, those still being made counted
