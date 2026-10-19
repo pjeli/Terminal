@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.60.0 (in testing as 0.59.x)
+## 0.60.0
 
 **Terminal: Share, a new addon that comes with Terminal**
 - Friends who run it and type the same password see what's in each other's bags in their searches: "linen cloth" lists what you carry, what your alts hold, and what your friends have, with how many each has. It's **@shared** (also **@ssh**), in Simple mode's Bank & alts, and **linen cloth > alts** lists it with your alts.
-- **.share password <password>** (8 characters or more, no spaces, with capitals, numbers or symbols) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
+- **.share password <password>** (8 characters or more, no spaces, with three of: capitals, small letters, numbers, symbols) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
 - Don't want it? Turn Terminal: Share off in the AddOn list and none of it runs.
 
 **Groups**
@@ -29,11 +29,18 @@
 
 **Private and light**
 - Only friends, guild members and Battle.net friends' characters are heard; anyone else is ignored. A Battle.net friend is named by their character, never their account name.
-- Battle.net gives a character's first name only, so the surname a Battle.net friend's character claims is checked: against your friend list's and guild roster's characters by their GUIDs, and otherwise kept by the Battle.net account that first proved it. A friend with the same first name can't pass for another.
+- A Battle.net friend's character is checked before it's taken for one: by its GUID against your friend list's and guild roster's characters, the name Battle.net gives it, and its realm. A friend with the same first name can't pass for another.
 - What friends send is kept in memory only, until you log out.
 - After the first sync only what changed is sent, usually one message; a small update never waits behind another friend's big one, and friends who missed your hello are said hello to again later.
-- Passwords show as \*s while you type them however you write the command, and are never kept in your history; Enter runs exactly what you typed.
+- Passwords show as \*s while you type them however you write the command, in the prompt and in the tab strip, are never completed or kept in your history; Enter runs exactly what you typed.
 - Group names are never sent: a group is known in messages only by a mark made from its password, another every session. A password needs 8 characters or more, no spaces, with three kinds of them (capitals, small letters, numbers, symbols): hard to guess. It's turned into a key a sliver of each frame, so play stays smooth (**.share** says how far), and logging in uses the remembered key.
+
+**Fixes and speed-ups from a review**
+- Logging in with saved passwords keeps sharing going all session (friends were dropped after half an hour).
+- A friend who dropped you gets your items again when you reconnect; friends who already have yours keep hearing from you while a big first sync goes to others.
+- With many friends online who don't run Terminal, the ones who do still connect at login.
+- Selling a stack of greys or looting a run of mobs sends one update, not one per bag change, and your bank is read in its own time, never in the middle of combat or a bag change.
+- A big guild's roster changes no longer cost a hitch when a friend's message comes in.
 
 **Searching very large lists**
 - Every frame of a search stays short however many rows there are: Simple mode's categories no longer sort every match in one frame, and a search's first results no longer stall picking the best of thousands (found by a new stress test: up to 200,000 rows over 24 lists).

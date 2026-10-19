@@ -250,7 +250,8 @@ tooltip, fade), which any addon can use for its own.
 ## How far it goes (`python3 tests/stress.py [friends,...] [items,...] [--groups 1,3,5] [--search 20000,...]`)
 
 The stress test loads Terminal and Terminal: Share in the smoke harness and measures three things. Its times are this
-harness's (Lua 5.1 through lupa: they compare with `tests/bench.py`'s, not the game's exactly); 0.59.0.
+harness's (Lua 5.1 through lupa: they compare with `tests/bench.py`'s, not the game's exactly); 0.59.0, part 2's
+last table 0.60.0.
 
 **1. Sharing with friends** (`.share all`, every item in one or two places): one snapshot, a full round to every friend
 at the game's pace, a 5-item change, reading the snapshots, making the `@shared` rows (and their memory), one friend's
@@ -278,6 +279,20 @@ every third in two). What a friend receives is one snapshot whatever the groups,
 
 Groups cost the side that shares one snapshot per mode in use (four at most) a bag change, and a proof per group in
 a handshake; messages stay one per friend an update (fewer: a friend in a group sharing none gets nothing).
+
+The 0.60.0 review, the same runs before and after: the first sync's CPU on the side that shares (each friend
+connecting used to make the snapshot again, and queue its pieces walking the whole queue):
+
+| groups | friends × items | first sync CPU, before → after |
+|---|---|---|
+| 1 | 50 × 500 | 200 → 10 ms |
+| 3 | 50 × 500 | 154 → 10 ms |
+| 1 | 50 × 2000 | 695 → 98 ms |
+| 3 | 50 × 2000 | 946 → 96 ms |
+
+A burst of bag events (selling 30 greys, 10 friends) made the snapshot 91 times and read @stored 31 times (up to
+450 ms each with 20 characters); now 4 snapshots and no read of @stored inside the events. A message after a roster
+event in a 1,000-member guild: 21 ms → 0.04 ms.
 
 **3. Searching many entries** (made-up rows over 24 lists in three Simple-mode categories, every list in a plain
 search; each search as the terminal runs it, a slice a frame):
