@@ -435,6 +435,8 @@ do
 	local said = table.concat(lines, " / ")
 	check(said:find("Quilleran | 2 items", 1, true) and said:find("Zephyrine | 1 item", 1, true) and said:find("Sharing | you: ", 1, true) and lines[#lines] == ".share off to disconnect" and lines[#lines - 1] == " ",
 		"its tooltip: who's connected and how much: " .. said)
+	-- (0.59.0, the player: "put the channel name in the wifi tooltip, default if it is default")
+	check(said:find(L["Group"] .. " | default: ", 1, true) ~= nil, "...and the group, by name, with what you share in it: " .. said)
 	-- (0.58.15, the player) its colour: friends connected, the accent; nobody and nothing under way, red
 	SSH.BadgeColour(badge.frame)
 	check(badge.frame.state == "up", "a friend connected: the accent")

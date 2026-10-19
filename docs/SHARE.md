@@ -179,7 +179,8 @@ while connecting, red with nobody connected and nothing under way. It's at full 
 when a friend connects or goes, and fades to a faint mark after 6 s; pointed at, it's back. It's not there while
 anything is typed in the prompt (badges never are). Pointing at it (or clicking it, which keeps it up) pops out
 Terminal's own tooltip in the row tooltip's place beside the terminal (the row's put away meanwhile), a line each:
-"Sharing" and you (how many items, what you share; with groups, a line of them and what each shares), each friend
+"Sharing" and you (how many items), your groups by name and what you share in each ("Group  default: limited"; "Groups
+raid: all · default: limited"), each friend (their groups too when you're in several)
 ("Cad Mán  39 items · all · raid · Battle.net", how long
 since they were heard once it's a minute or more), who's still connecting (a "no answer" for 30 s, then not said),
 and, after a gap, ".share off to disconnect". It's Terminal's `UI.AddBadge` (Prompt.lua: draw, shown, refresh,

@@ -1830,16 +1830,17 @@ function SSH.BadgeTip(t)
 	local widest = ep:WidestMode()
 	local _, mine = ep:Snapshot(widest)
 	local n = mine and #mine.ids or 0
-	-- (one group: what you share beside you; more: a line of them, what each shares, and each friend's groups)
+	-- (the groups always, each with what you share in it: "default: limited"; 0.59.0, the player: "put the channel name in
+	-- the wifi tooltip, default if it is default". Each friend's groups too once there are several)
 	local names = {}
 	for g in pairs(ep.groups) do names[#names + 1] = g end
 	sort(names)
-	local several = #names > 1 or (names[1] and names[1] ~= SSH.DEFAULT_GROUP)
-	t:AddDoubleLine(L["Sharing"], L["you: %s"]:format(Items(n) .. (several and "" or (ns.DETAIL_SEP .. widest))), 1, 1, 1, 0.6, 0.6, 0.6)
-	if several then
+	local several = #names > 1
+	t:AddDoubleLine(L["Sharing"], L["you: %s"]:format(Items(n)), 1, 1, 1, 0.6, 0.6, 0.6)
+	if #names > 0 then
 		local gs = {}
-		for i, g in ipairs(names) do gs[i] = g .. " " .. ep.groups[g].mode end
-		t:AddDoubleLine(L["Groups"], concat(gs, ns.DETAIL_SEP), 0.6, 0.6, 0.6, 0.6, 0.6, 0.6)
+		for i, g in ipairs(names) do gs[i] = g .. ": " .. ep.groups[g].mode end
+		t:AddDoubleLine(several and L["Groups"] or L["Group"], concat(gs, ns.DETAIL_SEP), 0.6, 0.6, 0.6, 0.85, 0.85, 0.85)
 	end
 	for _, c in ipairs(up) do
 		local f = c.friend
