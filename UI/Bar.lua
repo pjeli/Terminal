@@ -77,9 +77,10 @@ B.SORTS = {
 	{ id = "count", label = L["Count"], field = "count" },
 	{ id = "damage", label = L["Biggest hit"], field = "damage" },
 	{ id = "line", label = L["Line by line"], field = "line", asc = true },
+	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share; 0.58.6)
 }
 -- what Group offers: Aggregate's fields that name something
-B.GROUPS = { "kind", "zone", "quality", "type", "slot", "dungeon", "raid", "boss", "level" }
+B.GROUPS = { "kind", "owner", "zone", "quality", "type", "slot", "dungeon", "raid", "boss", "level" }
 
 local function E() return ns.Easy end
 local function ById(list, id) for _, o in ipairs(list) do if o.id == id then return o end end end
@@ -239,6 +240,13 @@ B.Real = Real
 
 local function KeyOf(s, e)
 	if s.field == "name" then return ns.Lower(ns.Plain(tostring(e.name or ""))) end
+	-- (a field of words, the owner: A-Z by it)
+	local A = ns.Aggregate
+	local f = A and A.FIELDS[s.field]
+	if f and f.text and not f.num then
+		local ok, t = pcall(f.text, e, f)
+		return ok and type(t) == "string" and ns.Lower(ns.Plain(t)) or nil
+	end
 	return NumOf(s.field, e)
 end
 local function Keyed(s, rows)

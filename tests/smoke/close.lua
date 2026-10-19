@@ -14,7 +14,7 @@ do
 		hide(self, ...)
 		self.shown = false
 		local s = self.scripts and self.scripts.OnHide
-		io.write("DBG hide was=" .. tostring(was) .. " s=" .. tostring(s ~= nil) .. " text=" .. tostring(UI.edit:GetText()) .. " lq=" .. tostring(UI.lastQuery) .. "\n"); if was and s then s(self) end
+		if was and s then s(self) end
 	end
 	local th = ns.Theme.Get()
 	local anim = th.animations

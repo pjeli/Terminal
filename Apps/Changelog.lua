@@ -14,6 +14,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.58.15", when = "in testing",
+		items = {
+			"Terminal: Share, a new addon that comes with Terminal (leave it off in the AddOn list if you don't want it): the share shell, .share. Friends who run it and type the same password (.share password <words>) see what's in each other's bags in their searches: \"linen cloth\" lists yours, your alts' and your friends', with how many each has (@shared; Bank & alts in Simple mode; linen cloth > alts).",
+			"Friends' items: one row each friend, grouped or sorted by Owner from the bar (or sort:owner); the tooltip is the item's, with each of their characters below it as @stored shows yours. The password is shown as *s while you type it, and a wifi sign at the end of the prompt shows you're sharing (it fades after a few seconds, and steps aside while you type): point at it (or click it) for who's connected and what each shares.",
+			"What you share: .share limited (the default) is this character's crafting mats and consumables; .share all adds everything on all your characters and in your banks, and your gold; .share mats and .share consumables are just those; .share off stops.",
+			"Only friends, guild members and Battle.net friends' characters are heard; anyone else is ignored. The password is never sent; a key made from it is remembered, so you connect again by yourself when you log in (.share off forgets it). What friends send is kept only until you log out.",
+		},
+	},
+	{
 		v = "0.58.0", when = "released October 2026",
 		items = {
 			"TrainerSpells works with Terminal: without What's Training it gives @training (your class's spells, weapon skills and pet abilities still to learn) and every class's spells; without Questie its trainers and weapon masters are @npc.",
@@ -53,19 +62,6 @@ CL.LOG = {
 			"Attunement steps numbered as Attune lays them out (1, 2a, 2b, 3a...), side quests marked; Sort \"Line by line\" lists each line of quests in turn.",
 			"Items and Bank & alts are two categories again; one result is sent or copied from its right-click menu.",
 			"The search underneath is simpler and quicker: the categories are one search that narrows as you type, and many fixes from a review.",
-		},
-	},
-	{
-		v = "0.55.0", when = "released October 2026",
-		items = {
-			"One mode: type in plain words, and Advanced syntax (@npc, q:rare, >> party) works as soon as you type it, the words before it written in it too. .simple and .advanced are gone.",
-			"Every class's spells under @spell, known or not, with the level each rank is learned at: \"travel form\", \"druid spells\", \"upcoming spells\", @spell class:druid; \"my spells\" for your spellbook.",
-			"Spell IDs: \"spellid claw\" lists every rank's ID to copy, \"spellid 1082\" shows the spell; tooltips show the ID too.",
-			"Talents by what they do: \"healing talents\", \"shaman crit talents\", \"druid regen talents\"; druid talents are found from every class.",
-			".weights shows how upgrades are judged and picks your roles: .weights feral healer counts an upgrade for either.",
-			"Weapon masters by weapon (\"dagger trainer\") without What's Training too.",
-			"Alt+` with Terminal closed opens it as ` does; Up goes through every line you ran.",
-			"Tooltips: what Enter and Shift+Enter do, a line each, said the same way everywhere.",
 		},
 	},
 }

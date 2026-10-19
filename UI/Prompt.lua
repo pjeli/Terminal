@@ -61,7 +61,7 @@ local function LineRoom() return (UI.edit:GetWidth() or 400) - 2 end
 --- fits, or inside a word too long for a line. Cached for the text and the box's width.
 function UI:PromptLines()
 	local edit = UI.edit
-	local text = edit:GetText() or ""
+	local text = ns.MaskSecret(ns.MaskSecret(edit:GetText() or "") or "")
 	local room = LineRoom()
 	local key = text .. "\0" .. room .. "\0" .. tostring(self.keys)
 	if self.linesKey == key and self.lines then return self.lines end
@@ -103,7 +103,7 @@ end
 --- Where the caret goes after `pos` bytes: x along its line, y down from the first line, the line.
 function UI:PromptXY(pos)
 	local edit = UI.edit
-	local text = edit:GetText() or ""
+	local text = ns.MaskSecret(ns.MaskSecret(edit:GetText() or "") or "")
 	local lines = self:PromptLines()
 	local i = 1
 	for k = 2, #lines do
@@ -150,7 +150,7 @@ function UI:PlaceTextSel()
 		selText:Show()
 		return
 	end
-	local text, lines = edit:GetText(), self.lines
+	local text, lines = ns.MaskSecret(edit:GetText() or ""), self.lines
 	for i = i1, i2 do
 		local band = i == i1 and selText or SelBand(i - i1)
 		local from = i == i1 and x1 or 0
@@ -177,7 +177,7 @@ function UI:UpdateCaret()
 		self:UpdateSyntax()
 		return
 	end
-	local text = edit:GetText()
+	local text = ns.MaskSecret(edit:GetText() or "")
 	self:SetPromptExtra((#self:PromptLines() - 1) * LY.LINE_H)
 	local x, y = self:PromptXY(self.cursor)
 	if y ~= self.caretY then self.caretX = nil end -- (to another line: no gliding across)
@@ -255,7 +255,7 @@ end
 --- The caret position (in bytes) nearest to the mouse: its line, then along it.
 local function IndexAt(x, down)
 	local edit = UI.edit
-	local text = edit:GetText()
+	local text = ns.MaskSecret(edit:GetText() or "")
 	local lines = UI:PromptLines()
 	local i = math.max(1, math.min(#lines, 1 + math.floor((down or 0) / LY.LINE_H + 0.5)))
 	local first, last = lines[i][1], lines[i][2]
@@ -340,7 +340,158 @@ function UI:PlaceEdit()
 	if not (edit and self.editLeft) then return end
 	edit:ClearAllPoints()
 	edit:SetPoint("LEFT", frame, "TOPLEFT", self.editLeft, self.editMid)
-	edit:SetPoint("RIGHT", frame, "TOPRIGHT", -38, self.editMid)
+	edit:SetPoint("RIGHT", frame, "TOPRIGHT", -38 - (self.badgeRoom or 0), self.editMid)
+end
+
+----------------------------------------------------------------------
+-- Badges: small icons at the end of the prompt, left of the spinner, each with a tooltip (0.58.6: Terminal: Share's
+-- connection, the player's "a little wifi icon at the very end of the Terminal prompt box"). Another addon adds one:
+--   Terminal.UI.AddBadge({ id = "x", draw = function(f) ... end, shown = function() return true end,
+--       refresh = function(f) ... end, tooltip = function(t) t:SetText(...) end })
+-- draw(f) once on its 22x22 frame; shown() whether it shows now; refresh(f) each time they're placed (its colours);
+-- tooltip(t) fills its pop-out on mouse-over. fade = seconds: then it fades to a faint mark, back on mouse-over or
+-- UI.WakeBadge(id) (0.58.9, the player: "fade to low opacity after some seconds and re-appear on mouse-over").
+-- UI:PlaceBadges() when what they show changed.
+----------------------------------------------------------------------
+
+UI.badges = {}
+local BADGE_W = 22
+local FADED = 0.2 -- (a faded badge's opacity)
+
+function UI.AddBadge(def)
+	for i, d in ipairs(UI.badges) do
+		if d.id == def.id then table.remove(UI.badges, i) break end
+	end
+	UI.badges[#UI.badges + 1] = def
+	if UI.frame then UI:PlaceBadges() end
+end
+
+-- A badge's pop-out: a tooltip of Terminal's own (the game's GameTooltip is anyone's: another addon's or the game's
+-- own redraw took it over, and .zen fades it), out to the right of the badge, drawn again every second while it's up
+-- (what it says changes: a friend connects, their items come in). Hover shows it; a click keeps it up until the next.
+local badgeTip
+local function BadgeTip()
+	if not badgeTip then
+		badgeTip = CreateFrame("GameTooltip", "TerminalBadgeTip", UIParent, "GameTooltipTemplate")
+		badgeTip:SetFrameStrata("TOOLTIP")
+		if ns.Zen and ns.Zen.Made then ns.Zen.Made(badgeTip) end
+	end
+	return badgeTip
+end
+UI.BadgeTip = BadgeTip
+
+-- (0.58.10, the player's screenshot: the pop-out and the selected row's tooltip on top of each other) The pop-out takes
+-- the row tooltip's place beside the terminal (UI.PlaceTip), and the row's waits until it's put away (UI.badgeTipUp).
+local function DrawTip(f, def)
+	local t = BadgeTip()
+	if not (t and def.tooltip) then return end
+	if not UI.badgeTipUp then
+		UI.badgeTipUp = true
+		UI:UpdateTooltip() -- (the row's put away)
+	end
+	t:SetOwner(UI.frame or f, "ANCHOR_NONE")
+	if UI.PlaceTip and UI.frame then UI.PlaceTip(t) else t:ClearAllPoints(); t:SetPoint("TOPLEFT", f, "BOTTOMRIGHT", 4, -4) end
+	local ok, err = pcall(def.tooltip, t)
+	if not ok then ns:Trace("badge " .. tostring(def.id) .. ": " .. tostring(err)) end
+	t:Show()
+	f.tipUp, f.tipAt = true, GetTime()
+end
+
+--- The pop-out put away: the selected row's tooltip back.
+local function HideTip(f)
+	if badgeTip then badgeTip:Hide() end
+	f.tipUp = nil
+	if UI.badgeTipUp then
+		UI.badgeTipUp = nil
+		if UI.ForgetTooltip then UI:ForgetTooltip() end
+		UI:UpdateTooltip()
+	end
+end
+
+local function MakeBadge(def)
+	local f = CreateFrame("Frame", nil, UI.frame)
+	f:SetSize(BADGE_W, BADGE_W)
+	local lvl = UI.edit and UI.edit:GetFrameLevel()
+	f:SetFrameLevel((type(lvl) == "number" and lvl or 1) + 10) -- (over the prompt's own parts)
+	f:EnableMouse(true)
+	f:SetScript("OnEnter", function(self)
+		self.over = true
+		self:SetAlpha(1)
+		DrawTip(self, def)
+	end)
+	f:SetScript("OnLeave", function(self)
+		self.over = nil
+		self.fadeAt = def.fade and (GetTime() + def.fade) or nil
+		if self.pinned then return end
+		if self.tipUp then HideTip(self) end
+	end)
+	f:SetScript("OnMouseUp", function(self)
+		self.pinned = not self.pinned
+		if self.pinned then DrawTip(self, def) else HideTip(self) end
+	end)
+	f:SetScript("OnUpdate", function(self, elapsed)
+		if self.tipUp and GetTime() - (self.tipAt or 0) >= 1 then DrawTip(self, def) end
+		-- (faded after `fade` seconds, over half a second; never while pointed at or its pop-out kept up)
+		if self.fadeAt and not (self.over or self.pinned) and GetTime() >= self.fadeAt then
+			local a = (self.GetAlpha and self:GetAlpha()) or 1
+			if type(a) ~= "number" then a = 1 end
+			if a > FADED then self:SetAlpha(math.max(FADED, a - (elapsed or 0) * 1.6)) end
+		end
+	end)
+	f:SetScript("OnHide", function(self)
+		if self.tipUp then HideTip(self) end
+		self.pinned = nil
+	end)
+	if def.draw then pcall(def.draw, f) end
+	f.fadeAt = def.fade and (GetTime() + def.fade) or nil
+	def.frame = f
+	return f
+end
+
+--- A badge seen again at full strength (something it says changed), fading again after its seconds.
+function UI.WakeBadge(id)
+	for _, def in ipairs(UI.badges) do
+		local f = def.frame
+		if def.id == id and f then
+			f:SetAlpha(1)
+			f.fadeAt = def.fade and (GetTime() + def.fade) or nil
+		end
+	end
+end
+
+--- The badges shown placed right to left after the spinner, the prompt's box made narrower by them.
+function UI:PlaceBadges()
+	local frame = UI.frame
+	if not (frame and self.editMid) then return end
+	-- (the spinner's spot when it's not there, a little in from the frame's edge; 0.58.9, the player: placed better)
+	local x = -14 - ((UI.busy and UI.busy:IsShown()) and (BADGE_W + 2) or 0)
+	local room = 0
+	-- (none while something's typed: the prompt is the text's; 0.58.13, the player: "disappear if the user starts typing
+	-- or has text in the prompt box". EditTextChanged places them again when the box empties or fills)
+	local typed = UI.edit ~= nil and (UI.edit:GetText() or "") ~= ""
+	self.badgesTyped = typed
+	for _, def in ipairs(UI.badges) do
+		local ok, on = pcall(def.shown)
+		on = ok and on and not typed and true or false
+		local f = def.frame or (on and MakeBadge(def)) or nil
+		if f then
+			f:SetShown(on)
+			if on then
+				f:ClearAllPoints()
+				f:SetPoint("RIGHT", frame, "TOPRIGHT", x, self.editMid)
+				if def.refresh then pcall(def.refresh, f) end
+				-- (the pop-out up: drawn again with what's new)
+				if f.tipUp then DrawTip(f, def) end
+				x, room = x - (BADGE_W + 2), room + BADGE_W + 2
+			end
+		end
+	end
+	-- (the spinner's place is kept in -38 already: only the badges' room is more)
+	if room ~= (self.badgeRoom or 0) then
+		self.badgeRoom = room
+		self:PlaceEdit()
+		self.linesKey = nil -- (the box's width changed: the prompt's lines made again)
+	end
 end
 
 --- Show or hide the spinner. When loading ends, the results are searched again so what just
@@ -364,6 +515,7 @@ function UI:UpdateBusy()
 	local said = table.concat(lines, "\n")
 	if said ~= busy.said then busy.said, busy.lines = said, lines end
 	busy:SetShown(#lines > 0)
+	if was ~= busy:IsShown() then self:PlaceBadges() end -- (the badges move over for the spinner)
 	if was ~= busy:IsShown() or finished then self:SetStatus() end
 	if finished and self:IsShown() and not self.inBusyRefresh then
 		ns:Trace("busy: loading finished, searching again")
@@ -553,10 +705,14 @@ end
 function UI:UpdateSyntax()
 	local edit, syntax = UI.edit, UI.syntax
 	if not (syntax and edit) then return end
-	local text = edit:GetText() or ""
+	local text = ns.MaskSecret(ns.MaskSecret(edit:GetText() or "") or "")
 	local lines = self:PromptLines()
 	local colours = Theme.Get().syntax
-	local on = self.keys and self:IsShown() and text ~= "" and (colours or #lines > 1) and true or false
+	-- (a password being typed, ".ssh password ...": the copy shows it as *s, so it's always on; the box's own text, in
+	-- the game's typing mode (combat), is the game's password box: all *s. 0.58.6, the player: streams)
+	local secret = ns.SecretLine(text)
+	if edit.SetPassword and edit.secretShown ~= secret then edit.secretShown = secret; pcall(edit.SetPassword, edit, secret and not self.keys) end
+	local on = self.keys and self:IsShown() and text ~= "" and (colours or #lines > 1 or secret) and true or false
 	if on then
 		local key = (self.linesKey or text) .. "\0" .. tostring(colours)
 		if self.syntaxKey ~= key then

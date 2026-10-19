@@ -451,7 +451,7 @@ F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance
 	-- (0.55.1: by what the rows have, as Simple mode's bar sorts; Bar.lua's B.SortRows)
 	name = "name", alpha = "name", az = "name", level = "level", lvl = "level", ilvl = "ilvl", itemlevel = "ilvl",
 	quality = "quality", q = "quality", value = "value", worth = "value", count = "count", qty = "count",
-	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line" }
+	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner" }
 KEYS.sort = function(v)
 	if not F.SORTS[v] then return nil end
 	return function() return true end

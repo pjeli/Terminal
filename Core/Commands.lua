@@ -233,3 +233,11 @@ ns:RegisterCommand("mem", {
 		return lines
 	end,
 })
+
+-- The share shell, .share (.ssh too), is Terminal: Share's (an addon of its own, 0.58.1): this stands in for it while
+-- that addon is off, and says how to turn it on. Terminal: Share loads after Terminal and registers the real one over it.
+ns:RegisterCommand("share", {
+	aliases = { "ssh" },
+	desc = L["The share shell: share your bags with friends (needs Terminal: Share, on in the AddOn list)"],
+	run = function() return { L["The share shell is in Terminal: Share, which isn't loaded: turn it on in the AddOn list, then /reload."] } end,
+})

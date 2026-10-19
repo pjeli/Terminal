@@ -443,7 +443,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "nearest", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line" },
+	sort = { "nearest", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner" },
 	fish = { "mine", "75", "150", "225", "300" },
 	class = { "mine", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid" },
 	["do"] = { "use", "cast", "summon", "equip", "wear", "target", "link", "where" },
@@ -457,9 +457,9 @@ F.VALUES = {
 -- list and Tab offer only the values that judge a list typed (@kinds; "@group quests" = the party quests). A key's "*"
 -- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
 -- (tests/smoke/search.lua walks every is: value).
-local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored" }
-local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "questie", "quests" } -- (a quest: by its rewards)
-local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "recipes", "missing" } -- (and what recipes make)
+local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "shared" }
+local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "shared", "questie", "quests" } -- (a quest: by its rewards)
+local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "shared", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
 local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
 -- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
@@ -504,7 +504,7 @@ F.APPLIES = {
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { nearest = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
-		damage = { "combatlog" }, line = { "attune" } },
+		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" } },
 	near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
 	class = { ["*"] = { "talents", "attune", "spells", "classspells" } },

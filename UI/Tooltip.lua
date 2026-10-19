@@ -135,13 +135,17 @@ local function PlaceTip(t)
 	end
 end
 
+UI.PlaceTip = PlaceTip -- (a prompt badge's pop-out takes this same place: Prompt.lua)
+
 function UI:UpdateTooltip()
 	local frame = UI.frame
 	local t = Tip()
 	local e = UI:IsShown() and UI.results[UI.sel] or nil
 	-- the row menu is up: no tooltip (both sit beside the terminal, on top of each other); nor while the pointer is on
 	-- the bar's send button, whose own says what it does (Bar.lua)
-	if UI:MenuShown() or (ns.Bar and ns.Bar.tipUp) then e = nil end
+	-- (0.58.10, the player: "make sure the tooltips don't overlap": nor while a prompt badge's pop-out is up, which
+	-- takes this place; Prompt.lua)
+	if UI:MenuShown() or (ns.Bar and ns.Bar.tipUp) or UI.badgeTipUp then e = nil end
 	-- the same row still selected and its tooltip still up: nothing to redraw (only kept beside the
 	-- terminal, which may have been dragged)
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end

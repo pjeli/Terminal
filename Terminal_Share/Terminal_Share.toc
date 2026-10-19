@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: Terminal |cff7fb2ffShare|r
+## Notes: Terminal: Share. The share shell (.share): friends who run Terminal and agree on a password see each other's bags in their searches. What they send is never saved.
+## Author: pjeli
+## IconTexture: Interface\Icons\INV_Misc_Bag_10_Blue
+## Dependencies: Terminal
+## SavedVariables: TerminalShareDB
+## Version: 0.58.15
+
+Crypto.lua
+Share.lua

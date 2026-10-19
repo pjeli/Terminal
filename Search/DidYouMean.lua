@@ -283,7 +283,7 @@ local function Now() return (type(time) == "function" and time()) or 0 end
 function DYM.Record(text, took)
 	local list = Store()
 	text = type(text) == "string" and text:gsub("^%s+", ""):gsub("%s+$", "") or ""
-	if not list or text == "" then return end
+	if not list or text == "" or (ns.SecretLine(text)) then return end
 	local at
 	for i, m in ipairs(list) do if m.t == text then at = i break end end
 	local m = at and table.remove(list, at) or { t = text, n = 0 }

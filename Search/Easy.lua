@@ -63,7 +63,7 @@ local function NotEmote(e) return e.emote == nil end
 E.CATEGORIES = {
 	-- (0.55.16, the player: "separate out Items / inventory from Stored / bank & alts": two again, as before 0.48.4)
 	{ id = "items", label = L["Items"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags" } },
-	{ id = "stored", label = L["Bank & alts"], kinds = { "stored" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
+	{ id = "stored", label = L["Bank & alts"], kinds = { "stored", "shared" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
@@ -517,7 +517,7 @@ local TO_CHAT = { L["show in chat"], L["put in the chat box"] } -- ("put in the 
 E.VERBS = {
 	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { L["show in bags"] },
 	source = SourceVerbs,
-	stored = { L["show in bags"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
+	stored = { L["show in bags"], L["show in chat"] }, shared = { L["whisper"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
 	loot = { L["show in AtlasLoot"], L["link in chat"] },
 	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs, durability = DurabilityVerbs,
 	calendar = { L["show in calendar"], L["put in the chat box"] },

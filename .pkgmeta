@@ -21,3 +21,5 @@ manual-changelog:
 # Terminal Extras (the games and the radio): a load-on-demand addon of its own, packaged beside Terminal
 move-folders:
   Terminal/Terminal_Extras: Terminal_Extras
+  # Terminal: Share (the share shell, .ssh): an addon of its own, so it can be left off (0.58.1)
+  Terminal/Terminal_Share: Terminal_Share

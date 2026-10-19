@@ -78,6 +78,7 @@ function T.Count(list) return UI.RealCount(list) end
 local function Snapshot()
 	local s = UI:SaveState()
 	local tab = { text = s.text or "", cursor = s.cursor, category = s.category }
+	if ns.SecretLine(tab.text) then tab.text, tab.cursor = "", 0 end -- (.ssh password: never saved; Terminal: Share)
 	if type(s.temp) == "table" then tab.temp = { from = s.temp.from, category = s.temp.category } end
 	if s.tempSimple then tab.tempSimple = true end
 	local sel = s.sel

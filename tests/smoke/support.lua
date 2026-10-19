@@ -831,7 +831,7 @@ do
 	ns.Extras.TellGuildOnce = function(state) told = told + 1; state.sent = true; return true end
 	f.scripts.OnKeyDown(f, "ENTER")
 	check(g.over and g.score == 1234 and told == 0, "Enter right at game over: nothing told (the press that topped out, or its repeats)")
-	t = t + TT.OVER_WAIT
+	t = t + TT.OVER_WAIT + 0.001 -- (a hair past it: overAt + 0.5 - overAt can round below 0.5 once the clock is big)
 	-- (review, 0.49.17) the Enter pressed in the wait, kept down: its repeat after the wait isn't a fresh press
 	f.scripts.OnKeyDown(f, "ENTER")
 	check(g.over and told == 0 and TT.IsShown(), "a moment later, the same Enter still held (the game's repeat): nothing told")

@@ -210,6 +210,8 @@ do
 		-- the game can report a change without one (the box resized, say): searching again
 		-- then restarted a search spread over frames forever, and reset the scroll each time
 		if t ~= UI.searchedText then UI:Refresh() end
+		-- (the prompt's badges go once something's typed, back when it's empty: Prompt.lua)
+		if (t ~= "") ~= (UI.badgesTyped or false) then UI:PlaceBadges() end
 		UI:UpdateCaret()
 	end
 
@@ -587,6 +589,7 @@ local function ApplyPromptTheme(t)
 	local pw = promptFS:GetStringWidth() or 10
 	UI.editLeft, UI.editMid = 14 + pw + 8, mid
 	UI:PlaceEdit()
+	UI:PlaceBadges() -- (Terminal: Share's connection and any other addon's: Prompt.lua)
 	edit:SetHeight(t.fontSize + 14)
 	busy:ClearAllPoints()
 	busy:SetPoint("RIGHT", frame, "TOPRIGHT", -12, mid)
@@ -961,6 +964,8 @@ function UI:Open(text, opts)
 	self.snapNext = true
 	self:FitHeight(text or "")
 	frame:Show()
+	self:PlaceBadges() -- (what they show may have changed while it was closed)
+	for _, d in ipairs(UI.badges) do UI.WakeBadge(d.id) end -- (seen as it opens, then faded)
 	if ns.Zen then ns.Zen.Opened() end -- (.zen: the rest of the interface fades, the screen dims)
 	self:StartOpen(reopening)
 	self.snapNext = true -- opens at the right size; it grows and shrinks from there

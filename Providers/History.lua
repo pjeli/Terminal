@@ -11,6 +11,7 @@ function ns:RecordHistory(line)
 	if not self.db then return end
 	line = tostring(line or ""):gsub("^%s+", ""):gsub("%s+$", "")
 	if line == "" then return end
+	if ns.SecretLine(line) then return end -- (.ssh password: never kept; Terminal: Share)
 	local h = self.db.history
 	if type(h) ~= "table" then h = {}; self.db.history = h end
 	for i = #h, 1, -1 do

@@ -286,6 +286,14 @@ for line in io.lines("Terminal/Terminal_Extras/Terminal_Extras.toc") do
 	end
 end
 _G.SMOKE_EXTRAS_KB = collectgarbage("count") - gcBefore
+-- Terminal: Share (the share shell, .ssh; 0.58.1): an addon of its own, loaded at login when it's on
+for line in io.lines("Terminal/Terminal_Share/Terminal_Share.toc") do
+	if line:match("%.lua$") then
+		local chunk = assert(loadfile("Terminal/Terminal_Share/" .. line:gsub("\\", "/")))
+		chunk("Terminal_Share", {})
+	end
+end
+assert(ns.Crypto and ns.Ssh, "Terminal: Share loaded on Terminal's namespace")
 assert(ns.Snake and ns.Typing and ns.Wowamp, "Terminal Extras loaded on Terminal's namespace")
 
 -- fire lifecycle events through the captured handler
@@ -342,7 +350,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "stored" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts" or id == "calendar" or id == "durability" or id == "addonoptions" or id == "corpse" or id == "classspells", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel; classspells: What's Training's catalog
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "shared" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts" or id == "calendar" or id == "durability" or id == "addonoptions" or id == "corpse" or id == "classspells", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel; classspells: What's Training's catalog
 end
 
 io.write("[providers collected]\n")
@@ -574,7 +582,7 @@ local toc = io.open("Terminal/Terminal.toc"):read("*a")
 check(toc:match("## Interface:[^\n]*16001"), "TOC lists Interface 16001")
 -- 0.48.1: WoW Forever's interface numbers only (16xxx): the packager uploads to CurseForge for every game version the
 -- TOCs list, and 0.48.0's "16001, 120100" put it up for retail 12.1.0 as well
-for _, path in ipairs({ "Terminal/Terminal.toc", "Terminal/Terminal_Extras/Terminal_Extras.toc",
+for _, path in ipairs({ "Terminal/Terminal.toc", "Terminal/Terminal_Extras/Terminal_Extras.toc", "Terminal/Terminal_Share/Terminal_Share.toc",
 		"Terminal/docs/example/TerminalNotes/TerminalNotes.toc" }) do
 	local line = io.open(path):read("*a"):match("## Interface:([^\n]*)") or ""
 	local others = {}
@@ -5697,6 +5705,11 @@ do -- .changelog: what changed, newest first, scrolled back through the last few
 	check(extrasToc:match("## Version: (%S+)") == tocVersion and extrasToc:find("## LoadOnDemand: 1", 1, true)
 		and extrasToc:find("## Dependencies: Terminal", 1, true) and extrasToc:match("## Interface:([^\n]*)") == tocText:match("## Interface:([^\n]*)"),
 		"Terminal Extras: the same version and interface, load on demand, needs Terminal")
+	-- (Terminal: Share loads at login, not on demand: it hears friends' hellos)
+	local shareToc = io.open("Terminal/Terminal_Share/Terminal_Share.toc"):read("*a")
+	check(shareToc:match("## Version: (%S+)") == tocVersion and not shareToc:find("LoadOnDemand", 1, true)
+		and shareToc:find("## Dependencies: Terminal", 1, true) and shareToc:match("## Interface:([^\n]*)") == tocText:match("## Interface:([^\n]*)"),
+		"Terminal: Share: the same version and interface, loaded at login, needs Terminal")
 	check(#CL.LOG >= 3 and #CL.LOG <= 5, "it keeps the last few versions: " .. #CL.LOG)
 	for i, entry in ipairs(CL.LOG) do
 		check(type(entry.v) == "string" and type(entry.items) == "table" and #entry.items > 0, "entry " .. i .. " has a version and changes")

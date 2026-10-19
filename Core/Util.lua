@@ -341,6 +341,25 @@ end
 --- The game's way to send a chat line (C_ChatInfo's, else the old global), and whether chat is held back from addons
 --- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each (review, 0.53.6).
 function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage end
+--- A line that carries a password (Terminal: Share's ".share password ...", ".ssh password ..."): never in the history,
+--- a tab, or anything saved. Here, not in Terminal: Share, so the line stays out whether that addon is loaded or not.
+function ns.SecretLine(text)
+	if type(text) ~= "string" then return false end
+	local l = ns.Lower(text)
+	local rest = l:match("^%s*%.?%s*share%s+(.*)$") or l:match("^%s*%.?%s*ssh%s+(.*)$")
+	if not rest then return false end
+	return rest:find("^pass") ~= nil or rest:find("^pw%s") ~= nil or rest == "pw"
+end
+
+--- The line as the prompt shows it: a password line's password as *s, a * a byte (so every place in it is where it
+--- was: the caret, a selection). Anything else as it is. (0.58.6, the player: "incase anyone is streaming")
+function ns.MaskSecret(text)
+	if not ns.SecretLine(text) then return text end
+	local head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s?)(.*)$")
+	if not head then return text end
+	return head .. (rest:gsub(".", "*"))
+end
+
 function ns.ChatLocked()
 	local lock = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
 	return lock ~= nil and ns.Safe(lock) == true

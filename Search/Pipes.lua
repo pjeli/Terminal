@@ -777,13 +777,22 @@ ns:RegisterRelation("learn", {
 ns:RegisterRelation("alts", {
 	aliases = { "stored", "who", "bank", "holders" },
 	desc = L["who holds it on your alts and banks"],
-	applies = function(e) return ItemOf(e) ~= nil and e.kind ~= "stored" end,
+	applies = function(e) return ItemOf(e) ~= nil and e.kind ~= "stored" and e.kind ~= "shared" end,
 	run = function(rows)
 		local by = StoredByID()
+		-- (and your friends' bags, .ssh: Ssh.lua's @shared)
+		local shared = {} -- (an item a friend: each friend's row)
+		for _, e in ipairs(Entries("shared")) do
+			if e.itemID then
+				shared[e.itemID] = shared[e.itemID] or {}
+				table.insert(shared[e.itemID], e)
+			end
+		end
 		local out = {}
 		for _, e in ipairs(rows) do
-			local s = by[ItemOf(e)]
-			if s then out[#out + 1] = s end
+			local id = ItemOf(e)
+			if by[id] then out[#out + 1] = by[id] end
+			for _, s in ipairs(shared[id] or {}) do out[#out + 1] = s end
 		end
 		return out
 	end,
@@ -1507,6 +1516,8 @@ A.FIELDS = {
 	count = { label = L["count"], num = function(e) return Count(e) or 1 end },
 	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line; 0.55.21)
 	line = { label = L["line"], num = function(e) return e.stepRec and e.stepIndex or nil end },
+	-- (who has it: a friend's, Terminal: Share's @shared rows; the bar's Group and Sort, sort:owner; 0.58.6)
+	owner = { label = L["owner"], text = function(e) return Str(rawget(e, "owner")) end },
 	-- (the combat log's hits: sort:damage; 0.55.7)
 	damage = { label = L["damage"], num = function(e) return e.kind == "combatlog" and Num(e.amount) or nil end },
 	price = { label = L["price"], money = true, num = function(e) local i = Info(e); return i and Num(i.sell) end },
@@ -1519,8 +1530,9 @@ A.FIELDS = {
 A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone", where = "zone", place = "zone",
 	area = "zone", dungeons = "dungeon", raids = "raid", instances = "instance", bosses = "boss", from = "boss", qty = "count", amount = "count", number = "count",
 	worth = "value", gold = "value", money = "value", vendor = "value", sell = "value", list = "kind", kinds = "kind",
-	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality" }
-A.ORDER = { "value", "price", "count", "kind", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
+	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality",
+	owners = "owner", friend = "owner", friends = "owner" }
+A.ORDER = { "value", "price", "count", "kind", "owner", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 
 local function FieldOf(word)

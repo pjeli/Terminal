@@ -374,16 +374,21 @@ local function Breakdown(e)
 end
 S.Breakdown = Breakdown
 
---- The terminal's tooltip for a stored item: who has how many, and where, like Baganator's.
-local function Tooltip(e, t)
-	local c = e.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[e.quality]
-	t:SetText(e.name, c and c.r or 1, c and c.g or 1, c and c.b or 1)
+--- Who has how many and where, a line each, and the total (the tooltip's lines; Terminal: Share's friends' items too).
+function S.GroupLines(e, t)
 	for _, g in ipairs(Groups(e)) do
 		local name = (ClassHex(g.class) or "|cffffffff") .. g.name .. "|r" .. (g.mine and (" |cff9d9d9d" .. L["(you)"] .. "|r") or "")
 		local parts = GroupParts(g)
 		t:AddDoubleLine(name, "|cffffffff" .. g.total .. "|r" .. (parts ~= "" and ("  |cff9d9d9d" .. parts .. "|r") or ""), 1, 1, 1, 1, 1, 1)
 	end
 	t:AddDoubleLine(L["Total"], tostring(e.total), 1, 0.82, 0, 1, 0.82, 0)
+end
+
+--- The terminal's tooltip for a stored item: who has how many, and where, like Baganator's.
+local function Tooltip(e, t)
+	local c = e.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[e.quality]
+	t:SetText(e.name, c and c.r or 1, c and c.g or 1, c and c.b or 1)
+	S.GroupLines(e, t)
 	t:AddLine(" ")
 	ns.KeyHints(t, L["Enter: show the ones you carry"] .. "    " .. L["Shift+Enter: show in chat"], 0.6, 0.6, 0.6)
 end
