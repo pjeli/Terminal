@@ -86,8 +86,10 @@ B -> A   4K nA,nB,mark:macR....       B checks each, then proves those that pass
   alike). Because
   both proofs name both characters, a third character can't pass one friend's proof on to another (a relay:
   Ann's proof to Mal names Ann and Mal; Bob wants one naming Mal and Bob).
-- Battle.net gives a character's first name only ("Bob"), so a claim over it may add the surname ("bob-warr@realm").
-  That surname is checked (0.59.1): when your friend list or guild roster knows a character of that name and Battle.net
+- On Forever, Battle.net gives the character's full name with its surname ("Girl Bird", realm "ClassicBetaPvP") and
+  its GUID (`playerGuid`, "Player-4619-..."), as does the guild roster (seen in game, 0.59.3): a claim over Battle.net is
+  then that name exactly ("girl-bird@classicbetapvp"), nothing added. In case Battle.net gives a first name only
+  ("Bob"), a claim over it may add the surname ("bob-warr@realm"), and that surname is checked (0.59.1): when your friend list or guild roster knows a character of that name and Battle.net
   gives the friend's character's GUID, the two GUIDs must be the same; a name they know without a GUID to compare
   isn't taken over Battle.net (that friend connects the way they're known by); a surname no one else is known by is
   kept, this session, by the Battle.net account first proven with it (`SSH.bnOwner`, set by the env's `proven`).

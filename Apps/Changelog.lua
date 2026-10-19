@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.59.3", when = "in testing",
+		v = "0.59.4", when = "in testing",
 		items = {
 			"Terminal: Share, a new addon that comes with Terminal (turn it off in the AddOn list if you don't want it): friends who run it and type the same password (.share password <words>) see what's in each other's bags in their searches. \"linen cloth\" lists yours, your alts' and your friends', with how many each has and where, bags and bank apart (@shared; Bank & alts in Simple mode).",
 			"Groups: .share join <group> <password> for a group of its own, five at most, each sharing what you choose (.share raid all, .share default limited). Friends see what you share in the groups you have in common; .share leave <group> leaves one.",

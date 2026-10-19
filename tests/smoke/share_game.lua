@@ -796,6 +796,21 @@ do
 	SSH.Forget()
 	check(M("zephyrine-guild@realm", { kind = "bn", id = 78 }) and not M("zephyrine-guild@realm", { kind = "bn", id = 77 }),
 		"the guild roster's character: by its GUID too")
+	-- (0.59.3) As the game gives it (the player's /run): Battle.net's name with its surname, "Girl Bird", the realm
+	-- "ClassicBetaPvP" and a GUID; the roster "Girl Bird-ClassicBetaPvP" with the same GUID
+	local bg = "Player-4619-0154DA94"
+	C_BattleNet.GetFriendGameAccountInfo = function(i)
+		return { gameAccountID = 76 + i, characterName = "Girl Bird", realmName = "ClassicBetaPvP", clientProgram = "WoW", isOnline = true,
+			playerGuid = i == 1 and bg or "Player-4619-0000FFFF" }
+	end
+	_G.GetGuildRosterInfo = function(i)
+		if i == 1 then return "Girl Bird-ClassicBetaPvP", nil, nil, nil, nil, nil, nil, nil, true, nil, nil, nil, nil, nil, nil, nil, bg end
+	end
+	SSH.Forget()
+	check(M("girl-bird@classicbetapvp", { kind = "bn", id = 77 }), "Battle.net's full name, the roster's GUID the same: taken")
+	check(not M("girl-bird@classicbetapvp", { kind = "bn", id = 78 }), "...another account's Girl Bird, another GUID: refused")
+	check(not M("girl-bird-x@classicbetapvp", { kind = "bn", id = 77 }) and not M("girl@classicbetapvp", { kind = "bn", id = 77 }),
+		"...Battle.net gave the surname: nothing added to it, nothing taken off")
 	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo = ig, gn, gr
 	C_FriendList.GetNumFriends, _G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo = fl, bnN, gai
 	C_BattleNet.GetFriendAccountInfo, C_BattleNet.GetFriendNumGameAccounts, C_FriendList.GetFriendInfoByIndex = ac, ng, flInfo

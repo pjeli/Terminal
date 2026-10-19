@@ -2088,6 +2088,8 @@ local function Matches(claim, route)
 		-- (Battle.net may give the first name alone: the claim's surname after it)
 		local exact = name == c
 		if not (exact or name:sub(1, #c + 1) == c .. "-") then return false end
+		-- (0.59.3: Battle.net gave the surname itself, "Girl Bird", as the player's game shows: that name and no other)
+		if not exact and c:find("-", 1, true) then return false end
 		if b.realm and SSH.Claim("x", b.realm) ~= "x@" .. realm then return false end
 		-- (0.59.1) The character claimed, as your friend list or guild roster knows it: by its GUID, it's this Battle.net
 		-- friend's character or not. One the game knows only by its name (a friend list or roster without GUIDs, or a
