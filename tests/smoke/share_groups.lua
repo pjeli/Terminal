@@ -299,7 +299,8 @@ do
 	A.markCache = {}
 	check(A:Marks() ~= before and #before == 8, "another session: another mark for the same group (a guildmate can't follow it)")
 	-- guessing a password costs many hashes; the key is made a slice of a frame at a time, by the clock, saying how far
-	check(roundsWas >= 20000, "a password's key: 20,000 SHA-256s or more, each guess the same: " .. roundsWas)
+	check(roundsWas >= 4000 and roundsWas <= 5000, "a password's key: 4,000 SHA-256s, each guess the same, light on the game: " .. roundsWas)
+	check(SSH.KDF_MS <= 2, "...2 ms of them a frame at most: " .. SSH.KDF_MS)
 	local rounds, clockWas, shaWas = SSH.KDF_ROUNDS, _G.debugprofilestop, ns.Crypto.SHA256
 	SSH.KDF_ROUNDS = 200
 	ns.Crypto.SHA256 = function(m) return ("%032x"):format(#m) end -- (the harness's SHA-256 is slow; the slicing's what's tried)
@@ -308,7 +309,7 @@ do
 	local later, done, seen = {}, nil, {}
 	SSH.Derive("words here!", function(k) done = k end, function(fn) later[#later + 1] = fn end, "raid", function(x) seen[#seen + 1] = x end)
 	local steps = 1
-	while #later > 0 and steps < 100 do table.remove(later, 1)(); steps = steps + 1 end
+	while #later > 0 and steps < 1000 do table.remove(later, 1)(); steps = steps + 1 end
 	_G.debugprofilestop = clockWas
 	SSH.KDF_ROUNDS = rounds
 	ns.Crypto.SHA256 = shaWas

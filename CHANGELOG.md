@@ -32,7 +32,7 @@
 - What friends send is kept in memory only, until you log out.
 - After the first sync only what changed is sent, usually one message; a small update never waits behind another friend's big one, and friends who missed your hello are said hello to again later.
 - Passwords show as \*s while you type them however you write the command, and are never kept in your history; Enter runs exactly what you typed.
-- Group names are never sent: a group is known in messages only by a mark made from its password, another every session. Each password is turned into a key with 20,000 rounds of SHA-256, so every guess at it costs as much; setting one takes a few seconds (**.share** says how far), and logging in uses the remembered key.
+- Group names are never sent: a group is known in messages only by a mark made from its password, another every session. Each password is turned into a key with 4,000 rounds of SHA-256, so every guess at it costs as much, made a sliver of each frame so play stays smooth; setting one takes a few seconds (**.share** says how far), and logging in uses the remembered key.
 
 **Searching very large lists**
 - Every frame of a search stays short however many rows there are: Simple mode's categories no longer sort every match in one frame, and a search's first results no longer stall picking the best of thousands (found by a new stress test: up to 200,000 rows over 24 lists).

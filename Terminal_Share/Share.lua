@@ -33,11 +33,12 @@ SSH.V = "4"                -- the protocol's version, each message's first chara
                            -- 150-piece snapshots, a session in hellos; 3: groups; 4: 0.59.0, groups' marks made from
                            -- their keys. A friend on another is told to update)
 SSH.SALT = "Terminal.ssh.1" -- (the key is the same for every pair who typed the same password)
-SSH.KDF_ROUNDS = 20000     -- SHA-256s a password guess costs (2000 until 0.59.0, the player: "make guessing password
-                           -- slower"; a few seconds, once, as it's typed: at login the remembered key is used)
-SSH.KDF_MS = 6             -- ms of them a frame (the game's frame stays smooth)
+SSH.KDF_ROUNDS = 4000      -- SHA-256s a password guess costs (2000 until 0.59.0, the player: "make guessing password
+                           -- slower"; 20000 was a CPU spike in the game, "bring it down ... so we don't impact
+                           -- gameplay". Once, as it's typed: at login the remembered key is used)
+SSH.KDF_MS = 2             -- ms of them a frame, the clock looked at after each (the game's frame stays smooth)
 SSH.KDF_SLICE = 100000     -- of them a frame at most (the tests make it 1: a key made over frames)
-SSH.KDF_ID = "s20000"      -- the way keys are made, remembered with them: a key made another way is typed again
+SSH.KDF_ID = "s4000"      -- the way keys are made, remembered with them: a key made another way is typed again
 SSH.MIN_PASSWORD = 8
 SSH.MAX_GROUPS = 5         -- groups at once (a hello names each; a proof is one per group, in one message)
 SSH.GROUP_LEN = 16         -- a group's name: letters, digits, "-" and "_", this long at most
@@ -284,7 +285,7 @@ end
 --- The key from a password, a slice at a time (`later(fn)` runs fn on a later frame; nil: all at once). done(key).
 --- `group`: the group's name (its salt: the same password in two groups is two keys).
 --- `progress(share done, 0 to 1)` after each frame's slice. A frame's slice is KDF_MS of hashing (the clock looked at
---- every 16), KDF_SLICE at most.
+--- after every hash: a slow machine's frame never takes more than one hash past it), KDF_SLICE at most.
 function SSH.Derive(password, done, later, group, progress)
 	local rounds, slice = SSH.KDF_ROUNDS, SSH.KDF_SLICE
 	local SHA = C.SHA256
@@ -296,7 +297,7 @@ function SSH.Derive(password, done, later, group, progress)
 		while left > 0 do
 			k = SHA(k .. password)
 			left, n = left - 1, n + 1
-			if later and (n >= slice or (clock and n % 16 == 0 and clock() - t0 >= SSH.KDF_MS)) then break end
+			if later and (n >= slice or (clock and clock() - t0 >= SSH.KDF_MS)) then break end
 		end
 		if progress then pcall(progress, 1 - left / rounds) end
 		if left > 0 then later(step) return end
