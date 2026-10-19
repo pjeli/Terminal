@@ -4,7 +4,7 @@
 
 **Terminal: Share, a new addon that comes with Terminal**
 - Friends who run it and type the same password see what's in each other's bags in their searches: "linen cloth" lists what you carry, what your alts hold, and what your friends have, with how many each has. It's **@shared** (also **@ssh**), in Simple mode's Bank & alts, and **linen cloth > alts** lists it with your alts.
-- **.share password <words>** (8 characters or more) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
+- **.share password <words>** (10 characters or more with capitals, numbers or symbols, or a phrase of 20 or more) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
 - Don't want it? Turn Terminal: Share off in the AddOn list and none of it runs.
 
 **Groups**
@@ -33,7 +33,7 @@
 - What friends send is kept in memory only, until you log out.
 - After the first sync only what changed is sent, usually one message; a small update never waits behind another friend's big one, and friends who missed your hello are said hello to again later.
 - Passwords show as \*s while you type them however you write the command, and are never kept in your history; Enter runs exactly what you typed.
-- Group names are never sent: a group is known in messages only by a mark made from its password, another every session. Each password is turned into a key with 4,000 rounds of SHA-256, so every guess at it costs as much, made a sliver of each frame so play stays smooth; setting one takes a few seconds (**.share** says how far), and logging in uses the remembered key.
+- Group names are never sent: a group is known in messages only by a mark made from its password, another every session. A password needs 10 characters or more with three kinds of them (capitals, small letters, numbers, symbols), or a phrase of 20 characters or more: hard to guess. It's turned into a key a sliver of each frame, so play stays smooth (**.share** says how far), and logging in uses the remembered key.
 
 **Searching very large lists**
 - Every frame of a search stays short however many rows there are: Simple mode's categories no longer sort every match in one frame, and a search's first results no longer stall picking the best of thousands (found by a new stress test: up to 200,000 rows over 24 lists).

@@ -14,12 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.59.1", when = "in testing",
+		v = "0.59.2", when = "in testing",
 		items = {
 			"Terminal: Share, a new addon that comes with Terminal (turn it off in the AddOn list if you don't want it): friends who run it and type the same password (.share password <words>) see what's in each other's bags in their searches. \"linen cloth\" lists yours, your alts' and your friends', with how many each has and where, bags and bank apart (@shared; Bank & alts in Simple mode).",
 			"Groups: .share join <group> <password> for a group of its own, five at most, each sharing what you choose (.share raid all, .share default limited). Friends see what you share in the groups you have in common; .share leave <group> leaves one.",
 			"What you share: .share limited (the default) is this character's crafting mats and consumables, in its bags and bank; .share all adds everything on all your characters and in your banks, and your gold; .share mats and .share consumables are just those; .share off stops.",
-			"Private and light: only friends, guild members and Battle.net friends' characters are heard; passwords and group names are never sent, and passwords show as *s while you type them; a key made from each (slow to make, so slow to guess) is remembered, so you connect again by yourself when you log in. A wifi sign at the end of the prompt shows who's connected. After the first sync only what changed is sent.",
+			"Private and light: only friends, guild members and Battle.net friends' characters are heard; passwords and group names are never sent, and passwords show as *s while you type them; a password needs 10 characters with capitals, numbers or symbols (or a long phrase), and a key made from each is remembered, so you connect again by yourself when you log in. A wifi sign at the end of the prompt shows who's connected. After the first sync only what changed is sent.",
 			"A Battle.net friend's character is checked against your friend list and guild roster before it's taken for one of them: a friend with the same first name can't pass for another.",
 			"Searches over very large lists keep every frame short: Simple mode's categories and a search's first results no longer stall with hundreds of thousands of rows.",
 		},

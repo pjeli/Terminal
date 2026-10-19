@@ -1262,12 +1262,13 @@ L["Share: %s runs another version of Terminal: Share; you both need the newest t
 L["Share: %s's password doesn't match yours"] = true
 L["Share: %s's password for %s doesn't match yours"] = true
 L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes: .share join <group> <password>"] = true
+L["Share: a password needs %d characters or more with three of: a capital, a small letter, a number, a symbol (or a phrase of %d characters or more)"] = true
 L["Share: connected to %s"] = true
 L["Share: joined %s; saying hello to your friends and guild"] = true
 L["Share: joining %s (its password remembered as a key made from it, never as typed; .share leave %s forgets it)"] = true
 L["Share: left %s; its password is forgotten"] = true
 L["Share: not available"] = true
-L["Share: not in a group yet. Type .share password <words> (8 characters or more), the same as your friends, or .share join <group> <words> for a group of its own"] = true
+L["Share: not in a group yet. Type .share password <words> (10 characters or more: capitals, numbers, symbols; or a long phrase), the same as your friends, or .share join <group> <words> for a group of its own"] = true
 L["Share: off. The password is forgotten and your friends' items are gone"] = true
 L["Share: password set; saying hello to your friends and guild"] = true
 L["Share: passwords are kept safer now; type yours again: %s"] = true
@@ -1278,7 +1279,6 @@ L["Share: setting the password (remembered as a key made from it, never as typed
 L["Share: setting the password... %d%%"] = true
 L["Share: sharing %s"] = true
 L["Share: sharing %s in %s"] = true
-L["Share: the password needs %d characters or more"] = true
 L["Share: using your saved passwords; saying hello to your friends and guild"] = true
 L["Share: what to share: .share limited (the default), .share all, .share mats, .share consumables or .share none"] = true
 L["Share: which group? .share leave <group>"] = true

@@ -67,7 +67,7 @@ check(ns:FindCommand("ssh") == ns:FindCommand("share") and ns.commands.share and
 
 -- the password line: never kept
 do
-	check(ns.SecretLine(".ssh password hunter2hunter2") and ns.SecretLine("  ssh pass x") and ns.SecretLine(".SSH Password X")
+	check(ns.SecretLine(".ssh password Hunter2hunter2") and ns.SecretLine("  ssh pass x") and ns.SecretLine(".SSH Password X")
 		and ns.SecretLine(".ssh pw secret") and not ns.SecretLine(".ssh pwn")
 		and not ns.SecretLine("linen cloth") and not ns.SecretLine(".ssh share all")
 		and ns.SecretLine(".share password x") and ns.SecretLine("share pw x") and not ns.SecretLine(".share all")
@@ -78,7 +78,7 @@ do
 		and ns.SecretLine(".shared password x") and ns.MaskSecret(".shar pw abc") == ".shar pw ***"
 		and not ns.SecretLine(".shar pwn x") and not ns.SecretLine(".set cursor block"), "...a shortened .share too")
 	UI:Open("")
-	T.typeText(".ssh password hunter2hunter2")
+	T.typeText(".ssh password Hunter2hunter2")
 	-- a tab made while it's typed: the line isn't kept in it
 	ns.Tabs.New()
 	local list = ns.db.tabs and ns.db.tabs.list or {}
@@ -88,9 +88,9 @@ do
 	ns.Tabs.Close()
 	UI:Hide()
 	UI:Open("")
-	T.typeText(".share password hunter2hunter2")
+	T.typeText(".share password Hunter2hunter2")
 	-- shown as *s while it's typed (0.58.6, the player: streams)
-	check(ns.MaskSecret(".ssh password hunter2hunter2") == ".ssh password **************" and ns.MaskSecret("linen") == "linen"
+	check(ns.MaskSecret(".ssh password Hunter2hunter2") == ".ssh password **************" and ns.MaskSecret("linen") == "linen"
 		and ns.MaskSecret(".ssh pw abc") == ".ssh pw ***" and ns.MaskSecret(".share password abc") == ".share password ***",
 		"the password as *s, a * a letter")
 	UI:UpdateSyntax()
@@ -142,7 +142,7 @@ do
 	edit.secretShown = nil
 	-- a shortened .share runs the password too: never in the history either
 	UI:Hide(); UI:Open("")
-	T.typeText(".shar password hunter2hunter2")
+	T.typeText(".shar password Hunter2hunter2")
 	T.FlushAll()
 	check(UI.results[1] and UI.results[1].name == "share", ".shar finds .share: " .. tostring(UI.results[1] and UI.results[1].name))
 	local drawn = UI.syntax and (UI.syntax.text or (UI.syntax.GetText and UI.syntax:GetText())) or ""
@@ -156,7 +156,7 @@ do
 	local traced = {}
 	local trace = ns.Trace
 	ns.Trace = function(_, m) traced[#traced + 1] = tostring(m) end
-	T.typeText(".share password hunter2hunter2")
+	T.typeText(".share password Hunter2hunter2")
 	UI:StartFuzzy()
 	UI:EndFuzzy()
 	ns.Trace = trace
@@ -175,7 +175,7 @@ do
 		if at > 0 and b and b >= 128 and b < 192 then inside = at end
 	end
 	check(inside == nil, "a click on the masked password lands between letters: " .. tostring(inside))
-	ns:RecordHistory(".sh pw hunter2hunter2")
+	ns:RecordHistory(".sh pw Hunter2hunter2")
 	local h = ns:HistoryLines()
 	check(not tostring(h[1]):find("hunter2", 1, true), "a shortened password line isn't kept")
 	rawset(edit, "SetPassword", pwSet)
@@ -284,7 +284,7 @@ do
 	local gt = _G.GetTime
 	_G.GetTime = function() return clock end
 	local key
-	SSH.Derive("hunter2hunter2", function(k) key = k end)
+	SSH.Derive("Hunter2hunter2", function(k) key = k end)
 	local toFriend = {}
 	local friend = SSH.Endpoint({
 		now = function() return clock end,
@@ -575,7 +575,14 @@ end
 -- .ssh share, a short password
 do
 	local out = ns:FindCommand("ssh").run("password short")
-	check(not ep:On() and out[1]:find("8", 1, true), "a password under 8 characters: refused: " .. tostring(out[1]))
+	check(not ep:On() and out[1]:find("10", 1, true), "a short password: refused: " .. tostring(out[1]))
+	-- (0.59.1, the player: "special characters, numbers, capitalizations ... to strengthen the password")
+	local P = SSH.PasswordProblem
+	check(P("hunter2hunter2") and P("HUNTER2HUNTER2") and P("Hunterhunter") and P("Sh0rt!") and not P("Hunter2hunter2")
+		and not P("hunter2hunter!") and not P("Hunter!hunter!") and not P("correct horse battery staple")
+		and P("correct horse bat") and not P("пароль-Пароль1"), "a password: 10 or more with three kinds, or a phrase of 20 or more")
+	out = ns:FindCommand("ssh").run("password hunter2hunter2")
+	check(not ep:On() and not ep.deriving and out[1]:find("capital", 1, true), "...one with two kinds only: refused, said why: " .. tostring(out[1]))
 	out = ns:FindCommand("ssh").run("share consumables")
 	check(ep.defaultMode == "consumables" and SSH.Saved().mode == "consumables", ".ssh share consumables: " .. tostring(out[1]))
 	out = ns:FindCommand("ssh").run("share bags")
@@ -593,7 +600,7 @@ do
 	ep:Off()
 	SSH.ForgetGroups()
 	ep.tokens, ep.refillAt = SSH.BURST, 0
-	share.run("join raid hunter2hunter2")
+	share.run("join raid Hunter2hunter2")
 	T.FlushAll()
 	local db = SSH.Saved()
 	check(ep.groups.raid and db.groups.raid and db.groups.raid.key == ns.Crypto.Hex(ep.groups.raid.key) and db.groups.raid.mode == "limited",
@@ -602,28 +609,28 @@ do
 	for k, v in pairs(db.groups) do if tostring(v.key):find("hunter2", 1, true) or k:find("hunter2", 1, true) then leak = k end end
 	check(leak == nil, "...never the password")
 	check(ns.MaskSecret(".share join raid hunter2") == ".share join raid *******" and ns.SecretLine(".shar join raid my words")
-		and ns.SecretLine(".share join hunter2hunter2") and ns.MaskSecret(".share join raid") == ".share join raid",
+		and ns.SecretLine(".share join Hunter2hunter2") and ns.MaskSecret(".share join raid") == ".share join raid",
 		"the password after .share join <group> as *s, the group's name shown (a password typed without one: never kept either)")
-	ns:RecordHistory(".share join raid hunter2hunter2")
+	ns:RecordHistory(".share join raid Hunter2hunter2")
 	check(not tostring(ns:HistoryLines()[1]):find("hunter2", 1, true), "...and never in the history")
-	local out = share.run("join all hunter2hunter2")
+	local out = share.run("join all Hunter2hunter2")
 	check(not ep.groups.all and out[1]:find(".share join", 1, true), "a group named as a word .share takes: refused: " .. out[1])
-	out = share.run("join bad! hunter2hunter2")
+	out = share.run("join bad! Hunter2hunter2")
 	check(not ep.groups["bad!"] and out[1]:find(".share join", 1, true), "a group's name that isn't one word of letters: refused")
 	-- what you share in one group: .share raid all, or .share mats raid
 	out = share.run("raid all")
 	check(ep.groups.raid.mode == "all" and db.groups.raid.mode == "all", ".share raid all: " .. out[1])
 	out = share.run("mats raid")
 	check(ep.groups.raid.mode == "mats" and db.groups.raid.mode == "mats", ".share mats raid: " .. out[1])
-	share.run("password hunter3hunter3")
+	share.run("password Hunter3hunter3")
 	T.FlushAll()
 	check(ep.groups.default and ep.groups.raid and ep.groups.default.mode == "limited", ".share password: the default group, beside raid")
 	local status = table.concat(SSH.Status(ep), " / ")
 	check(status:find("raid: ", 1, true) and status:find("default: ", 1, true), ".share lists each group and what it shares: " .. status)
 	-- five at most
-	for _, g in ipairs({ "g3", "g4", "g5" }) do share.run("join " .. g .. " hunter2hunter2") end
+	for _, g in ipairs({ "g3", "g4", "g5" }) do share.run("join " .. g .. " Hunter2hunter2") end
 	T.FlushAll()
-	out = share.run("join g6 hunter2hunter2")
+	out = share.run("join g6 Hunter2hunter2")
 	T.FlushAll()
 	check(not ep.groups.g6 and out[1]:find("5", 1, true), "a sixth group: refused: " .. out[1])
 	out = share.run("leave g3")
@@ -687,24 +694,24 @@ do
 	ep:Off()
 	SSH.ForgetGroups()
 	-- leaving a group whose password is still being made: it's never joined
-	share.run("join raid hunter2hunter2")
+	share.run("join raid Hunter2hunter2")
 	local out = share.run("leave raid")
 	T.FlushAll()
 	check(not ep.groups.raid and not SSH.Saved().groups.raid, ".share leave while its password was being made: never joined: " .. out[1])
 	-- Enter on a password being typed runs what's typed, never a completion of its last word
 	UI:Hide(); UI:Open("")
-	T.typeText(".share join raid correct horse at")
+	T.typeText(".share join raid Correct horse9 at")
 	T.FlushAll()
 	T.key("ENTER")
 	if T.F.scripts.OnKeyUp then T.F.scripts.OnKeyUp(T.F, "ENTER") end
 	T.FlushAll()
 	local want
-	SSH.Derive("correct horse at", function(k) want = k end, nil, "raid")
+	SSH.Derive("Correct horse9 at", function(k) want = k end, nil, "raid")
 	check(ep.groups.raid and ep.groups.raid.key == want, "Enter on .share join raid <words>: the words typed, not a completion's (\"mats\")")
 	UI:Hide()
 	-- five at most, those still being made counted
-	for _, g in ipairs({ "g2", "g3", "g4", "g5" }) do share.run("join " .. g .. " hunter2hunter2") end
-	out = share.run("join g6 hunter2hunter2")
+	for _, g in ipairs({ "g2", "g3", "g4", "g5" }) do share.run("join " .. g .. " Hunter2hunter2") end
+	out = share.run("join g6 Hunter2hunter2")
 	T.FlushAll()
 	local n = 0
 	for _ in pairs(ep.groups) do n = n + 1 end
@@ -712,10 +719,10 @@ do
 	-- your only group's password changed while another group's is being made: both end up joined
 	ep:Off()
 	SSH.ForgetGroups()
-	share.run("join raid hunter2hunter2")
+	share.run("join raid Hunter2hunter2")
 	T.FlushAll()
-	share.run("join raid hunter3hunter3")
-	share.run("join guild hunter4hunter4")
+	share.run("join raid Hunter3hunter3")
+	share.run("join guild Hunter4hunter4")
 	T.FlushAll()
 	check(ep.groups.raid and ep.groups.guild, "another password for your only group, another group joined meanwhile: both joined")
 	-- @stored's records changing (this character's bank): what you share sent again

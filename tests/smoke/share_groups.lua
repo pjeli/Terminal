@@ -259,7 +259,7 @@ do
 	SSH.KDF_SLICE = 1
 	local rememberWas, badgeWas = SSH.Remember, SSH.Badge
 	SSH.Remember, SSH.Badge = function() end, function() end
-	SSH.JoinWithPassword(E, "raid", "raid words here", function(fn) later[#later + 1] = fn end)
+	SSH.JoinWithPassword(E, "raid", "Raid words 9here", function(fn) later[#later + 1] = fn end)
 	SSH.KDF_SLICE = slice
 	E:LeaveGroup("default")
 	local guard = 0
@@ -299,7 +299,7 @@ do
 	A.markCache = {}
 	check(A:Marks() ~= before and #before == 8, "another session: another mark for the same group (a guildmate can't follow it)")
 	-- guessing a password costs many hashes; the key is made a slice of a frame at a time, by the clock, saying how far
-	check(roundsWas >= 4000 and roundsWas <= 5000, "a password's key: 4,000 SHA-256s, each guess the same, light on the game: " .. roundsWas)
+	check(roundsWas <= 1000, "a password's key: 1,000 SHA-256s at most, light on the game (the password's strength does the rest): " .. roundsWas)
 	check(SSH.KDF_MS <= 2, "...2 ms of them a frame at most: " .. SSH.KDF_MS)
 	local rounds, clockWas, shaWas = SSH.KDF_ROUNDS, _G.debugprofilestop, ns.Crypto.SHA256
 	SSH.KDF_ROUNDS = 200

@@ -33,13 +33,15 @@ SSH.V = "4"                -- the protocol's version, each message's first chara
                            -- 150-piece snapshots, a session in hellos; 3: groups; 4: 0.59.0, groups' marks made from
                            -- their keys. A friend on another is told to update)
 SSH.SALT = "Terminal.ssh.1" -- (the key is the same for every pair who typed the same password)
-SSH.KDF_ROUNDS = 4000      -- SHA-256s a password guess costs (2000 until 0.59.0, the player: "make guessing password
-                           -- slower"; 20000 was a CPU spike in the game, "bring it down ... so we don't impact
-                           -- gameplay". Once, as it's typed: at login the remembered key is used)
+SSH.KDF_ROUNDS = 1000      -- SHA-256s a password guess costs (2000 until 0.59.0; 20000 and then 4000 were too much for
+                           -- the game's CPU, the player: "bring it down and maybe consider asking user to have special
+                           -- characters, numbers, capitalizations": the password's own strength does the work now,
+                           -- SSH.PasswordProblem. Once, as it's typed: at login the remembered key is used)
 SSH.KDF_MS = 2             -- ms of them a frame, the clock looked at after each (the game's frame stays smooth)
 SSH.KDF_SLICE = 100000     -- of them a frame at most (the tests make it 1: a key made over frames)
-SSH.KDF_ID = "s4000"      -- the way keys are made, remembered with them: a key made another way is typed again
-SSH.MIN_PASSWORD = 8
+SSH.KDF_ID = "s1000"      -- the way keys are made, remembered with them: a key made another way is typed again
+SSH.MIN_PASSWORD = 10       -- characters, with three kinds of them (SSH.PasswordProblem)
+SSH.PASSPHRASE = 20         -- characters: a phrase this long needs no kinds
 SSH.MAX_GROUPS = 5         -- groups at once (a hello names each; a proof is one per group, in one message)
 SSH.GROUP_LEN = 16         -- a group's name: letters, digits, "-" and "_", this long at most
 SSH.DEFAULT_GROUP = "default" -- .share password's
@@ -1543,7 +1545,7 @@ function SSH.Status(ep)
 	if not ep then return { L["Share: not available"] } end
 	if not ep:On() then
 		lines[1] = ep.deriving and SSH.DerivingLine(ep)
-			or L["Share: not in a group yet. Type .share password <words> (8 characters or more), the same as your friends, or .share join <group> <words> for a group of its own"]
+			or L["Share: not in a group yet. Type .share password <words> (10 characters or more: capitals, numbers, symbols; or a long phrase), the same as your friends, or .share join <group> <words> for a group of its own"]
 	else
 		lines[1] = L["Share: your groups (remembered: .share leave <group> or .share off forgets them)"]
 		local names = {}
@@ -1612,13 +1614,27 @@ function SSH.Debug(ep)
 	return lines
 end
 
+--- What's wrong with a password, said; nil when it's strong enough (0.59.1, the player: "asking user to have special
+--- characters, numbers, capitalizations ... to strengthen the password"): MIN_PASSWORD characters or more with three
+--- kinds (a capital, a small letter, a number, a symbol or space, a letter of another script),
+--- or a phrase of PASSPHRASE characters or more. Only typing it is checked: both sides type the same.
+function SSH.PasswordProblem(words)
+	words = tostring(words or "")
+	local n = #(words:gsub("[\128-\191]", "")) -- (characters, not bytes)
+	if n >= SSH.PASSPHRASE then return nil end
+	-- (a letter of another script, Cyrillic, Chinese, is a kind of its own: it has no capitals here)
+	local kinds = (words:find("%u") and 1 or 0) + (words:find("%l") and 1 or 0) + (words:find("%d") and 1 or 0)
+		+ (words:find("[%p%s]") and 1 or 0) + (words:find("[\128-\255]") and 1 or 0)
+	if n >= SSH.MIN_PASSWORD and kinds >= 3 then return nil end
+	return L["Share: a password needs %d characters or more with three of: a capital, a small letter, a number, a symbol (or a phrase of %d characters or more)"]:format(SSH.MIN_PASSWORD, SSH.PASSPHRASE)
+end
+
 --- `.share join <group> <words>` (`.share password <words>`: the group "default"): the key, made over a few frames, then
 --- hello to everyone.
 function SSH.JoinWithPassword(ep, group, words, later, done)
 	words = tostring(words or ""):gsub("^%s+", ""):gsub("%s+$", "")
-	if #words < SSH.MIN_PASSWORD then
-		return { L["Share: the password needs %d characters or more"]:format(SSH.MIN_PASSWORD) }
-	end
+	local problem = SSH.PasswordProblem(words)
+	if problem then return { problem } end
 	-- (those joined, and those whose password is still being made from)
 	local n, counted = 0, {}
 	for name in pairs(ep.groups) do n, counted[name] = n + 1, true end

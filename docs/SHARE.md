@@ -30,10 +30,12 @@ raid, instance and channel messages are never read. Your own guild message, hear
 (The command was `.ssh` until 0.58.14: a nod to secure shell, but `.share` says what it does to a WoW player; `.ssh`
 still works.)
 
-Each side types the same password: `.share password <words>` or `.share join <group> <words>` (8 characters or
-more), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
-password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 4,000 times,
-2,000 until 0.59.0, so each guess at a password costs as much (20,000 was tried: a CPU spike in the game); salted with `Terminal.ssh.1`, and `|<group>` for a group
+Each side types the same password: `.share password <words>` or `.share join <group> <words>` (10 characters or
+more with three kinds of them: a capital, a small letter, a number, a symbol or space, a letter of another script; or a
+phrase of 20 characters or more: `SSH.PasswordProblem`, 0.59.2), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
+password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 1,000 times,
+2,000 until 0.59.0; 20,000 and 4,000 were tried and were too much for the game's CPU, so the password's own strength
+does the work: each guess costs 1,000 hashes, and there are far more passwords to guess; salted with `Terminal.ssh.1`, and `|<group>` for a group
 other than default: the same password in two groups is two keys, and a guess needs the group's name too, which is never
 sent; done 2 ms a frame, the clock looked at after every hash, a few seconds in all, `.share` and the badge saying how far), and each group's key is remembered in Terminal: Share's own saved variables
 (`TerminalShareDB.groups[name] = { key = hex, mode, kdf }`; a key made another way, fewer rounds or the one key of
@@ -93,7 +95,7 @@ B -> A   4K nA,nB,mark:macR....       B checks each, then proves those that pass
 - A connection is made only when the proof checks. A wrong password gets no answer (its marks aren't the
   group's): `.share` says "no answer" after 30 s, and the other side lists you as wanting to connect.
 - The password is never sent. Someone who sees a proof, or a mark, could guess passwords offline against it, so
-  the key is 4,000 rounds of SHA-256 (each guess as many), salted with the group's name (never sent: a guess needs
+  the key is 1,000 rounds of SHA-256 (each guess as many) and a password must be strong (above), salted with the group's name (never sent: a guess needs
   it too, but "default" is known), and a password should be long and one not used anywhere else. Since marks are
   made from keys, only someone who already has a group's key gets a proof for it from you: a guildmate without it
   gets no answer at all.
