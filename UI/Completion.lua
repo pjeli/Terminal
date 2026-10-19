@@ -84,6 +84,10 @@ local function CompleteCommand(text)
 	if not (c and c.complete) then return true, nil end
 	local args = rest:gsub("^%s+", "")
 	local argWord = args:match("(%S*)$") or ""
+	-- (a password being typed: nothing completes it. Its ghost would show letters after the *s, and accepting one would
+	-- put another word in its place, unseen. 0.60.0 review)
+	local masked = ns.MaskSecret and ns.MaskSecret(text) or text
+	if #argWord > 0 and masked ~= text and masked:sub(-#argWord) ~= argWord then return true, nil end
 	local ok, cands = pcall(c.complete, args)
 	if not ok or type(cands) ~= "table" then return true, nil end
 	local new, final = CompleteWord(argWord, cands)

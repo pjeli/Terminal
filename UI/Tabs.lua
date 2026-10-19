@@ -270,7 +270,8 @@ end
 --- What a tab's label says: its number, its text (or "new tab"), how many it listed.
 local function Label(i, tab, shown)
 	local t = Theme.Get()
-	local text = shown and UI.edit:GetText() or tab.text
+	-- (a password typed in it as *s, as the prompt shows it: 0.60.0 review)
+	local text = shown and ns.MaskSecret(UI.edit:GetText() or "") or tab.text
 	text = type(text) == "string" and text:gsub("^%s+", ""):gsub("%s+$", "") or ""
 	local n = shown and CountShown() or tab.n
 	local name = text ~= "" and text:gsub("|", "||") or L["new tab"]
