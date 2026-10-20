@@ -2096,6 +2096,7 @@ local function People()
 	end
 	local B = C_BattleNet
 	local wow = _G.BNET_CLIENT_WOW or "WoW"
+	local myRealmID = Num(Safe(_G.GetRealmID))
 	for i = 1, (Num(Safe(_G.BNGetNumFriends)) or 0) do
 		local a = B and B.GetFriendAccountInfo and Safe(B.GetFriendAccountInfo, i)
 		if type(a) == "table" then
@@ -2105,8 +2106,16 @@ local function People()
 			if nGames == 0 then accounts[1] = a.gameAccountInfo end
 			for _, g in ipairs(accounts) do
 				local id, char = type(g) == "table" and Num(g.gameAccountID), type(g) == "table" and Str(g.characterName)
-				if id and char and g.clientProgram == wow and (not g.wowProjectID or not _G.WOW_PROJECT_ID or g.wowProjectID == _G.WOW_PROJECT_ID) then
-					local realmName = Str(g.realmName)
+				-- (0.60.1, the player: "across rulesets (realms) this should not be possible": a Battle.net friend's character
+				-- on another realm, Forever's PvE beside your PvP, isn't one to share with, whatever its faction. Its realm by
+				-- id when both are known, else by name; neither given, not taken)
+				local realmName = Str(g.realmName)
+				local rid = type(g) == "table" and Num(g.realmID)
+				local same
+				if rid and rid ~= 0 and myRealmID and myRealmID ~= 0 then same = rid == myRealmID
+				elseif realmName then same = Canon((realmName:gsub("[%s%-']", ""))) == realm
+				else same = false end
+				if id and char and same and g.clientProgram == wow and (not g.wowProjectID or not _G.WOW_PROJECT_ID or g.wowProjectID == _G.WOW_PROJECT_ID) then
 					bn[id] = { name = char, realm = realmName, bnetID = Num(a.bnetAccountID), guid = Str(g.playerGuid) }
 					local full = realmName and (char .. "-" .. realmName:gsub("[%s']", "")) or char
 					if not names[Canon(char)] then add(bnNames, char, true) end

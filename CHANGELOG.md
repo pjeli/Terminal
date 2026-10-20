@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.60.1 (in testing)
+
+- Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. A Battle.net friend on your realm still is, whatever their faction.
+
 ## 0.60.0
 
 **Terminal: Share, a new addon that comes with Terminal**

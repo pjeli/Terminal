@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.60.1", when = "in testing",
+		items = {
+			"Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. The other faction on your realm still is.",
+		},
+	},
+	{
 		v = "0.60.0", when = "released October 2026",
 		items = {
 			"Terminal: Share, a new addon that comes with Terminal (turn it off in the AddOn list if you don't want it): friends who run it and type the same password (.share password <password>) see what's in each other's bags in their searches. \"linen cloth\" lists yours, your alts' and your friends', with how many each has and where, bags and bank apart (@shared; Bank & alts in Simple mode).",
@@ -53,19 +59,7 @@ CL.LOG = {
 			"Fixes from a review: the send button with a player targeted, sales told twice, refused auction posts, and more.",
 		},
 	},
-	{
-		v = "0.56.0", when = "released October 2026",
-		items = {
-			"A bar under the prompt: Filter, Sort and Group a click away (or Alt+F, Alt+S, Alt+G), and a speaker button that sends every result to chat or copies them all.",
-			"Your words stay your words: Advanced syntax typed in plain words works right there, and the bar shows what it picks. Alt+` writes the line in Advanced syntax; Alt+` again or Shift+Left brings your words back.",
-			"Questions take the bar too: \"my auctions\" sorted by value, \"my spells\" not on your action bars. Alt+` writes what they ask so it finds the same.",
-			"Each list's own filters on the bar: not on my action bars, quests to drop, needs repair, unread mail, sold auctions, holidays and more.",
-			"Advanced mode sorts too: sort:name, sort:level, sort:ilvl, sort:quality, sort:value, sort:count.",
-			"Attunement steps numbered as Attune lays them out (1, 2a, 2b, 3a...), side quests marked; Sort \"Line by line\" lists each line of quests in turn.",
-			"Items and Bank & alts are two categories again; one result is sent or copied from its right-click menu.",
-			"The search underneath is simpler and quicker: the categories are one search that narrows as you type, and many fixes from a review.",
-		},
-	},
+
 }
 
 local Theme = ns.Theme

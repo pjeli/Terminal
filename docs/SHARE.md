@@ -19,7 +19,10 @@ A message is read only when its sender is one of:
 
 - a character on your friend list,
 - a member of your guild,
-- the character a Battle.net friend is playing (World of Warcraft, this game's version).
+- the character a Battle.net friend is playing (World of Warcraft, this game's version) on your own realm, either
+  faction (0.60.1: a realm is a ruleset on Forever, PvE beside PvP, and sharing never crosses one). The realm is
+  Battle.net's realm id when the game gives both, else its realm name; a character Battle.net gives no realm for is
+  not heard. One already connected from another realm is dropped at the next check (within a minute).
 
 Anything from anyone else is ignored without a reply. The sender is the server's word, never the message's:
 a whisper's sender, the guild channel (only members are on it), a Battle.net message's game account. Party,

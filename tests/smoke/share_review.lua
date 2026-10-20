@@ -117,8 +117,37 @@ do
 	end
 	SSH.Forget()
 	local M = SSH.game.env.matches
-	check(M("zed@realm", { kind = "bn", id = 91 }) and not M("zed@elsewhere", { kind = "bn", id = 91 }),
-		"Battle.net gives no realm: your realm's Zed, not another realm's")
+	-- (0.60.1: and no realm at all from Battle.net: not taken, whatever realm the claim says)
+	check(not M("zed@realm", { kind = "bn", id = 91 }) and not M("zed@elsewhere", { kind = "bn", id = 91 }),
+		"Battle.net gives no realm: not taken (it can't be told to be on your realm)")
+	-- (0.60.1, the player: "if a friend of mine is playing on a different Forever ruleset (PvE server instead of PvP
+	-- server), I can still see their character's items. This should not happen") another realm: not a friend to share
+	-- with; your realm, whatever faction: one
+	local realm, faction = "Realm", "Horde"
+	C_BattleNet.GetFriendGameAccountInfo = function()
+		return { gameAccountID = 91, characterName = "Zed", clientProgram = "WoW", isOnline = true, realmName = realm, factionName = faction }
+	end
+	SSH.Forget()
+	check(M("zed@realm", { kind = "bn", id = 91 }) and SSH.game.env.eligible({ kind = "bn", id = 91 }),
+		"a Battle.net friend's character on your realm: shared with")
+	faction = "Alliance"
+	SSH.Forget()
+	check(SSH.game.env.eligible({ kind = "bn", id = 91 }), "...the other faction on your realm too")
+	realm = "ClassicBetaPvE"
+	SSH.Forget()
+	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }) and not M("zed@classicbetapve", { kind = "bn", id = 91 })
+		and not M("zed@realm", { kind = "bn", id = 91 }), "a Battle.net friend's character on another realm (PvE): not heard, whatever it claims")
+	check(not SSH.People().names["zed"], "...nor its name taken for a friend of yours on your realm")
+	-- the realm by id when the game gives both: the same name on another realm id is another realm
+	realm = "Realm"
+	local idWas = rawget(_G, "GetRealmID")
+	_G.GetRealmID = function() return 4619 end
+	C_BattleNet.GetFriendGameAccountInfo = function()
+		return { gameAccountID = 91, characterName = "Zed", clientProgram = "WoW", isOnline = true, realmName = realm, realmID = 4620 }
+	end
+	SSH.Forget()
+	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...told by realm id when the game gives one")
+	_G.GetRealmID = idWas
 	_G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo, C_BattleNet.GetFriendAccountInfo = bnN, gai, ac
 	C_BattleNet.GetFriendNumGameAccounts = ng
 	_G.C_BattleNet = hadBN
