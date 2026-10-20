@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.60.1", when = "in testing",
+		v = "0.60.2", when = "in testing",
 		items = {
 			"Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. The other faction on your realm still is.",
 		},

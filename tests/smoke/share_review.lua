@@ -138,16 +138,29 @@ do
 	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }) and not M("zed@classicbetapve", { kind = "bn", id = 91 })
 		and not M("zed@realm", { kind = "bn", id = 91 }), "a Battle.net friend's character on another realm (PvE): not heard, whatever it claims")
 	check(not SSH.People().names["zed"], "...nor its name taken for a friend of yours on your realm")
-	-- the realm by id when the game gives both: the same name on another realm id is another realm
-	realm = "Realm"
-	local idWas = rawget(_G, "GetRealmID")
+	-- (0.60.2, the player: "no longer able to connect to my friend on the same realm") Battle.net's realm id isn't
+	-- GetRealmID()'s numbering: the realm's name decides, an id differing or not
+	local idWas, guidWas = rawget(_G, "GetRealmID"), rawget(_G, "UnitGUID")
 	_G.GetRealmID = function() return 4619 end
+	local rname = "Realm"
 	C_BattleNet.GetFriendGameAccountInfo = function()
-		return { gameAccountID = 91, characterName = "Zed", clientProgram = "WoW", isOnline = true, realmName = realm, realmID = 4620 }
+		return { gameAccountID = 91, characterName = "Zed", clientProgram = "WoW", isOnline = true, realmName = rname, realmID = 1,
+			playerGuid = "Player-4619-0000ABCD" }
 	end
 	SSH.Forget()
-	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...told by realm id when the game gives one")
-	_G.GetRealmID = idWas
+	check(SSH.game.env.eligible({ kind = "bn", id = 91 }) and M("zed@realm", { kind = "bn", id = 91 }),
+		"your realm by name, whatever Battle.net's realm id says: connected")
+	-- no realm name: the server in the GUID, as yours
+	rname = nil
+	_G.UnitGUID = function(u) if u == "player" then return "Player-4619-00001234" end end
+	SSH.Forget()
+	check(SSH.game.env.eligible({ kind = "bn", id = 91 }), "no realm name: your server in its GUID, connected")
+	_G.UnitGUID = function(u) if u == "player" then return "Player-4620-00001234" end end
+	SSH.Forget()
+	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...another server in its GUID: not")
+	check(table.concat(SSH.Debug(), "\n"):find("left out (another realm): Zed (no realm)", 1, true),
+		".share debug says who was left out for another realm")
+	_G.GetRealmID, _G.UnitGUID = idWas, guidWas
 	_G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo, C_BattleNet.GetFriendAccountInfo = bnN, gai, ac
 	C_BattleNet.GetFriendNumGameAccounts = ng
 	_G.C_BattleNet = hadBN

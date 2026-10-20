@@ -1647,6 +1647,15 @@ function SSH.Debug(ep)
 	sort(gs)
 	lines[1] = ("ssh debug: groups %s, queue %d, sent (game's answers) %s, heard %s"):format(#gs > 0 and concat(gs, " ") or "none",
 		#ep.queue, counts(ep.results), counts(ep.heard))
+	-- (0.60.2: which Battle.net characters are on your realm, and which were left out for another)
+	local P = SSH.People and SSH.People()
+	if P then
+		local on = {}
+		for _, b in pairs(P.bn or {}) do on[#on + 1] = b.name .. " (" .. tostring(b.realm or "?") .. ")" end
+		sort(on)
+		lines[#lines + 1] = ("  your realm: %s; Battle.net characters on it: %s; left out (another realm): %s"):format(
+			tostring(P.realm), #on > 0 and concat(on, ", ") or "none", #(P.skipped or {}) > 0 and concat(P.skipped, ", ") or "none")
+	end
 	local keys = {}
 	for k in pairs(ep.peers) do keys[#keys + 1] = k end
 	sort(keys)
@@ -2096,7 +2105,9 @@ local function People()
 	end
 	local B = C_BattleNet
 	local wow = _G.BNET_CLIENT_WOW or "WoW"
-	local myRealmID = Num(Safe(_G.GetRealmID))
+	local mine = Str(Safe(_G.UnitGUID, "player"))
+	local myServer = mine and mine:match("^Player%-(%d+)%-")
+	local skipped = {} -- (.share debug: Battle.net characters left out for another realm)
 	for i = 1, (Num(Safe(_G.BNGetNumFriends)) or 0) do
 		local a = B and B.GetFriendAccountInfo and Safe(B.GetFriendAccountInfo, i)
 		if type(a) == "table" then
@@ -2108,13 +2119,20 @@ local function People()
 				local id, char = type(g) == "table" and Num(g.gameAccountID), type(g) == "table" and Str(g.characterName)
 				-- (0.60.1, the player: "across rulesets (realms) this should not be possible": a Battle.net friend's character
 				-- on another realm, Forever's PvE beside your PvP, isn't one to share with, whatever its faction. Its realm by
-				-- id when both are known, else by name; neither given, not taken)
-				local realmName = Str(g.realmName)
-				local rid = type(g) == "table" and Num(g.realmID)
+				-- name; else by the server in its GUID ("Player-4619-..."), as yours; neither given, not taken. 0.60.2:
+				-- not by Battle.net's realm id first, the player: "no longer able to connect to my friend on the same
+				-- realm" (an id that isn't GetRealmID()'s numbering)
+				local realmName = type(g) == "table" and Str(g.realmName)
 				local same
-				if rid and rid ~= 0 and myRealmID and myRealmID ~= 0 then same = rid == myRealmID
-				elseif realmName then same = Canon((realmName:gsub("[%s%-']", ""))) == realm
-				else same = false end
+				if realmName then same = Canon((realmName:gsub("[%s%-']", ""))) == realm
+				else
+					local theirs = type(g) == "table" and Str(g.playerGuid)
+					theirs = theirs and theirs:match("^Player%-(%d+)%-")
+					same = theirs ~= nil and myServer ~= nil and theirs == myServer
+				end
+				if type(g) == "table" and Str(g.characterName) and g.clientProgram == wow and not same then
+					skipped[#skipped + 1] = (Str(g.characterName) or "?") .. " (" .. tostring(realmName or "no realm") .. ")"
+				end
 				if id and char and same and g.clientProgram == wow and (not g.wowProjectID or not _G.WOW_PROJECT_ID or g.wowProjectID == _G.WOW_PROJECT_ID) then
 					bn[id] = { name = char, realm = realmName, bnetID = Num(a.bnetAccountID), guid = Str(g.playerGuid) }
 					local full = realmName and (char .. "-" .. realmName:gsub("[%s']", "")) or char
@@ -2125,7 +2143,8 @@ local function People()
 			end
 		end
 	end
-	people, peopleAt = { names = names, bn = bn, guild = guild, guids = guids, bnNames = bnNames, guildN = Num(Safe(_G.GetNumGuildMembers)) or 0 }, now
+	people, peopleAt = { names = names, bn = bn, guild = guild, guids = guids, bnNames = bnNames, guildN = Num(Safe(_G.GetNumGuildMembers)) or 0,
+		skipped = skipped, realm = realm }, now
 	return people
 end
 SSH.People = People
