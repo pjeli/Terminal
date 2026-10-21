@@ -388,7 +388,8 @@ ev:SetScript("OnEvent", function(_, event) DU.OnEvent(event) end)
 
 local FILL = {}
 for w in ([[my me i is are do does did what whats which how much many the a an of to for on all show list check see it its
-	will would gear items item equipment armor armour stuff things need needs needed]]):gmatch("%a+") do FILL[w] = true end
+	will would gear items item equipment armor armour stuff things need needs needed low lowest worn]]):gmatch("%a+") do FILL[w] = true end
+-- ("low durability", "lowest durability", 0.61.0: the list is lowest first already)
 local COST = { cost = true, costs = true, bill = true, price = true, much = true, pay = true }
 local THINGS = { gear = true, item = true, items = true, equipment = true, armor = true, armour = true, stuff = true }
 

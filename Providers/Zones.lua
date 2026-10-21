@@ -114,7 +114,7 @@ local ASKS = {}
 for w in ([[where should i can do to go what which whats wheres best good next for my me a an the am im now in at
 	is are would you recommend recommended suggest zone zones place places area areas level leveling levelling lvl quest
 	questing quests xp exp grind grinding dungeon dungeons instance instances raid raids fish fishing run try
-	please some lv right spot spots hole holes pool pools location locations]]):gmatch("%S+") do ASKS[w] = true end
+	please some lv right spot spots hole holes pool pools location locations upgrade upgrades]]):gmatch("%S+") do ASKS[w] = true end
 
 --- What a line of plain words asks, if it's one of the questions: "level", "dungeon", "raid" or "fish", and the
 --- level said in it (nil: yours). nil when it isn't one.
@@ -136,8 +136,11 @@ function Z.Question(text)
 	local function any(set) for _, w in ipairs(t) do if set[w] then return true end end return false end
 	-- "where should i ...", "where to ...", "where can i ...", "where do i ..."
 	local where = has.where and (has.should or has.to or has.can or has["do"])
-	local cue = where or any(CUES) or has["for"] and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
+	-- ("dungeons at my level", 0.61.0: as "for my level")
+	local cue = where or any(CUES) or (has["for"] or has.at) and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
 	if not cue then return nil end
+	-- ("best dungeon for upgrades", 0.61.0: the dungeon for your level; "quest upgrades" are QuestUpgrades.lua's)
+	if (has.upgrade or has.upgrades) and not (any(DUNGEON_WORDS) or any(RAID_WORDS)) then return nil end
 	if any(FISH_WORDS) then return "fish", level end
 	if any(DUNGEON_WORDS) then return "dungeon", level end
 	if any(RAID_WORDS) then return "raid", level end
@@ -200,6 +203,25 @@ local function Allows(mask, bitv)
 	if type(mask) ~= "number" or mask == 0 or not bitv or not (_G.bit and _G.bit.band) then return true end
 	return _G.bit.band(mask, bitv) ~= 0
 end
+--- A Questie quest at your level (2 below to 3 above), not done, for your race and class: a test for its rows.
+function Z.QuestFitter(level)
+	local QD = ns.QuestieData
+	local DB = QD and QD.DB and QD.DB()
+	local raceBit, classBit = RaceClassBits()
+	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	return function(q)
+		local lv = rawget(q, "level")
+		if type(lv) ~= "number" or lv < level - 2 or lv > level + 3 then return false end
+		local id = rawget(q, "key")
+		if done and Safe(done, id) then return false end
+		if DB and DB.QueryQuestSingle then
+			return Allows(Safe(DB.QueryQuestSingle, id, "requiredRaces"), raceBit)
+				and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)
+		end
+		return true
+	end
+end
+
 function Z.QuestCounts(level)
 	local p = ns.providers.questie
 	if not (p and level) then return nil end
@@ -211,22 +233,11 @@ function Z.QuestCounts(level)
 	local log = qp and rawget(qp, "_entries") or false
 	local c = questCounts[level]
 	if c and c.list == list and c.log == log then return c.counts end
-	local QD = ns.QuestieData
-	local DB = QD and QD.DB and QD.DB()
-	local raceBit, classBit = RaceClassBits()
-	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	local fits = Z.QuestFitter(level)
 	local counts = {}
 	for _, q in ipairs(list) do
-		local lv, zone = rawget(q, "level"), rawget(q, "zone")
-		if type(lv) == "number" and zone and lv >= level - 2 and lv <= level + 3 then
-			local id = rawget(q, "key")
-			local ok = not (done and Safe(done, id))
-			if ok and DB and DB.QueryQuestSingle then
-				ok = Allows(Safe(DB.QueryQuestSingle, id, "requiredRaces"), raceBit)
-					and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)
-			end
-			if ok then counts[zone] = (counts[zone] or 0) + 1 end
-		end
+		local zone = rawget(q, "zone")
+		if zone and fits(q) then counts[zone] = (counts[zone] or 0) + 1 end
 	end
 	questCounts[level] = { list = list, log = log, counts = counts }
 	return counts

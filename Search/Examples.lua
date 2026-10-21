@@ -33,12 +33,13 @@ E.SIMPLE = {
 	{ "where should i fish", nil, "field" }, { "where is hogger", "Questie", "field" }, { "vendor goldshire", "Questie", "field" },
 	{ "nearest spirit healer", "Questie", "field" }, { "nearest unlearned flight master", nil, "field" },
 	{ "quests to drop", nil, "field" }, { "stamina food", nil, "field" }, { "attack power food", nil, "field" },
-	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" },
+	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" }, { "quests to turn in", nil, "field" },
+	{ "quests here", "Questie", "field" }, { "dungeons at my level", nil, "field" },
 	-- in a dungeon
 	{ "who needs fortitude", "group", "instance" }, { "missing buffs", "group", "instance" }, { "who is dead", "group", "instance" },
 	{ "group healers", "group", "instance" }, { "what killed me", nil, "instance" }, { "repair cost", nil, "instance" },
 	-- anywhere
-	{ "dance" }, { "rare sword" }, { "sword or axe" }, { "rare ring not boe" }, { "weapon damage" }, { "stormwind" }, { "gold" },
+	{ "what should i do" }, { "what can i craft" }, { "dance" }, { "rare sword" }, { "sword or axe" }, { "rare ring not boe" }, { "weapon damage" }, { "stormwind" }, { "gold" },
 	{ "shield that drops from kresh", "AtlasLoot" }, { "where to get mageweave" }, { "unlearned flight paths" },
 	{ "who priest undercity" }, { "online", "guild" }, { "spells not on my bars" }, { "what's on this week" },
 	{ "next darkmoon faire" }, { "my attunements", "Attune" }, { "my keys", "Attune" }, { "attunements to do", "Attune" },

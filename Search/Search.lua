@@ -681,6 +681,13 @@ local function Asks(name) -- a module with Question, Answer and ToAdvanced of it
 end
 local function Words(list) return #list > 0 and (table.concat(list, " ") .. " ") or "" end
 Scan.ANSWERS = {
+	-- "what should i do", "what now", "suggestions": what's worth doing now (Search/Suggest.lua; first: its lines are its own)
+	Asks("Suggest"),
+	-- "quests to turn in", "completed quests": your quest log's ready ones; "quests here": Questie's at your level in
+	-- your zone (Search/Suggest.lua)
+	Asks("TurnIn"),
+	Asks("QuestsHere"),
+	Asks("CanCraft"),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
 	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,
@@ -1486,7 +1493,18 @@ function Scan.SimpleScope(self, q)
 	if q.empty and not q.filters then
 		self.category = nil
 		-- just the prompt: its faint placeholder says what to type (UpdateGhost); Down asked for your recent picks
-		return self.showRecent and self:FrequentEntries() or {}
+		if self.showRecent then return self:FrequentEntries() end
+		-- (0.61.0, the player: "by default / empty, they can be presented with some suggestion results": a few things
+		-- worth doing, from lists already read; .options turns it off)
+		local SG = ns.Suggest
+		if SG and not self.fzf then
+			local rows = SG.EmptyRows()
+			if #rows > 0 then
+				self.answerNote = L["Things to do"]
+				return rows
+			end
+		end
+		return {}
 	end
 	local act = q.act
 	if act and act.map then
@@ -1858,7 +1876,8 @@ function UI:SearchText(text)
 	-- nothing typed: just the prompt (Down brings back the last search, else your recent picks)
 	if q.empty and not q.kinds and not q.filters then
 		self.lastScan, self.lastExtra = nil, nil
-		return self.showRecent and self:FrequentEntries() or {}
+		if self.showRecent then return self:FrequentEntries() end
+		return {}
 	end
 	-- (a category the overview opened for you: its matches are found already, and its lists only counted are searched
 	-- now; else the search)

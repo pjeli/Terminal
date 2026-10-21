@@ -749,6 +749,22 @@ function E.TrainerProfs(words, trainerSaid)
 		return kept, { (demon or warlock) and "trainer:demon" or "trainer:pet" }
 	end
 	local kept, specs = {}, nil
+	-- (0.61.0) "class trainer", "my trainer": your class's (trainer:class); "weapon trainer", "weapon master": the weapon
+	-- masters (is:weaponmaster), not a word in their names
+	local weapon = false
+	for _, w in ipairs(words) do if w == "weapon" or w == "weapons" then weapon = true end end
+	for k, w in ipairs(words) do
+		if w == "class" or w == "my" then
+			specs = specs or {}
+			specs[#specs + 1] = "trainer:class"
+		elseif weapon and (w == "weapon" or w == "weapons" or w == "master" or w == "masters") then
+			if not specs or specs[#specs] ~= "is:weaponmaster" then specs = specs or {}; specs[#specs + 1] = "is:weaponmaster" end
+		else
+			kept[#kept + 1] = w
+		end
+	end
+	if specs then return kept, specs end
+	kept = {}
 	for k, w in ipairs(words) do
 		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
 		local prof = not aid and (w ~= "first" or words[k + 1] == "aid") and ProfNamed(w) or nil
@@ -881,7 +897,8 @@ function E.HelpLines()
 		L["Flight paths you haven't learned: \"nearest unlearned flight master\", \"unlearned flight paths\" (a flight master's map tells Terminal which you know)."],
 		L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."],
 		L["Put words in quotes to find them together, as they are: \"outlaw saber\" finds the Outlaw Saber, not every name with both words."],
-		L["Down on an empty prompt brings back your last search; Up goes through what you ran before. Esc closes."],
+		L["Down on an empty prompt brings back your last search (or goes through the things to do it lists); Up goes through what you ran before. Esc closes."],
+		L["Ask \"what should i do\": gear to repair, junk to sell, spells to train, a class quest, quests to turn in, a dungeon for your level. Enter searches for the one you pick."],
 		L["Alt+` turns what you typed into Advanced mode's command line; Alt+` again, or Shift+Left, brings your words back (Simple again once it closes)."],
 		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result back here, Shift+Enter with its list named (@npc Hogger)."],
 		L["Ask about your fights: \"what killed me\", \"who crit me\", \"my biggest crit\" (what Terminal saw in the combat log)."],

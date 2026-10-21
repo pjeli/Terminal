@@ -320,6 +320,9 @@ assert(ns.db and ns.db.freq, "saved variables initialised")
 assert(ns.Easy and ns.Easy.On(), "a fresh install starts in easy mode")
 ns.db.easyMode = false
 ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
+-- (the empty prompt's things to do, Suggest.lua: off for the tests written for a bare prompt; tests/smoke/suggest.lua
+-- turns them on)
+ns.Theme.Set("todo", "off", true)
 -- every macro the code hands the game during the whole run (a press's or a click's), for tests/smoke/macros.lua's lint
 -- (0.46.2: a /run line runs tainted, so what one may call is checked: game calls, /click and bindings only)
 _G.SMOKE_MACROS = {}
@@ -6196,6 +6199,7 @@ do
 		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")
 		else
 			io.write("[" .. file:match("[^/\\]+$") .. "]\n")
+			ns.Theme.Set("todo", "off", true) -- (Simple mode's things to do: tests/smoke/suggest.lua's; the others had a bare prompt)
 			-- each file gets its own budget under the runaway guard (line 1), not what's left of the run's
 			debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
 			local ok, e = pcall(chunk, T)

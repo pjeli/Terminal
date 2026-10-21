@@ -1,7 +1,19 @@
 # Changelog
 
-## 0.60.2 (in testing)
+## 0.61.0 (in testing)
 
+**What should I do?**
+- Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
+- Simple mode's empty prompt lists the top few under the faint example, from what Terminal has already read (opening the terminal builds nothing). Down goes through them; Up still brings back what you ran. **Things to do** in Options (or **.set todo off**) turns them off.
+
+**Plain questions, and their Advanced syntax**
+- **quests to turn in** / **completed quests** / **which quests are ready**: your quest log's quests ready to turn in (**@questlog is:complete**).
+- **quests here** / **quests in this zone**: Questie's quests at your level in the zone you're in, not done yet (**@questie lvl:20-25 in:<zone>**).
+- **what can i craft** / **what can i cook** / **craftable**: your recipes you have every reagent for (**@recipe is:craftable**).
+- **nearest class trainer** / **my trainer**: your class's trainers (**trainer:class**), no longer NPCs with "class" in their names; **nearest weapon trainer** / **weapon master**: the weapon masters (**is:weaponmaster**).
+- **low durability** is **@durability**; **dungeons at my level** and **best dungeon for upgrades** are the dungeon for your level, as "what dungeon should i do".
+
+**Terminal: Share**
 - Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. A Battle.net friend on your realm still is, whatever their faction.
 
 ## 0.60.0
