@@ -663,15 +663,24 @@ function MA.ReadOwned()
 			listed[id] = true
 			local sold = SOLD ~= nil and info.status == SOLD
 			local link = Str(info.itemLink)
-			local price = Num(info.buyoutAmount) or Num(info.bidAmount)
+			-- (the list's price is for one: x16 at 19c each says 19c, a player saw in game; 0.63.1. What the auction
+			-- brings is that times how many)
+			local each = Num(info.buyoutAmount) or Num(info.bidAmount)
+			local count = Num(info.quantity) or 1
+			local price = each and each * count
 			-- (a commodity's entry may have no link: its name by its item id; release review)
 			local key = type(info.itemKey) == "table" and Num(info.itemKey.itemID) or nil
 			local function Listed()
 				local name = NameOfLink(link) or (key and C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, key)))
-				return { link = link, name = name, id = key, count = Num(info.quantity) or 1, price = price, t = now, seen = "listed" }
+				return { link = link, name = name, id = key, count = count, price = price, each = each, t = now, seen = "listed" }
+			end
+			-- the list's price is the game's own: it puts right one kept from the post (or kept for the whole, before 0.63.1)
+			local function Priced(a)
+				local was, is = a and (ItemIDOf(a.link) or a.id), ItemIDOf(link) or key
+				if a and each and (not was or not is or was == is) then a.each, a.price, a.count = each, price, count end
 			end
 			if sold then
-				if not posted[id] and not ended[id] then posted[id] = Listed() end -- (its price and item, for the sale)
+				if not posted[id] and not ended[id] then posted[id] = Listed() else Priced(posted[id]) end -- (for the sale)
 				MA.Over(id, "sold", now)
 			else
 				if not posted[id] and ended[id] then ended[id] = nil end -- (listed as up after all: up)
@@ -688,8 +697,9 @@ function MA.ReadOwned()
 						a = Listed()
 						a.t = t
 						posted[id] = a
-					elseif not (a.price or a.each) and price then
-						a.price, a.seen = price, "listed"
+					else
+						if not (a.price or a.each) and price then a.seen = "listed" end
+						Priced(a)
 					end
 				end
 				local left = Num(info.timeLeftSeconds)

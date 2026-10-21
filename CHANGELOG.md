@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.63.1 (in testing)
+
+- Your auctions' prices read from the Auctions tab are each item's, as the game shows them (a player checked in game): an x16 stack at 19c says **19c each** and brings 3s 4c. It was taken for the whole stack, so a sale's gold came out too little and an undercut stack was never said to be. Auctions kept before put themselves right the next time you open the Auctions tab.
+
 ## 0.63.0
 
 **What should I do?**

@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.63.1", when = "in testing",
+		items = {
+			"Your auctions' prices read from the Auctions tab are each item's, as the game shows them: an x16 stack at 19c says 19c each and brings 3s 4c (it was taken for the whole stack, so a sale's gold was too little and an undercut stack never said so). Auctions kept before put themselves right the next time you open the Auctions tab.",
+		},
+	},
+	{
 		v = "0.63.0", when = "released October 2026",
 		items = {
 			"Ask \"what should i do\" (or \"what now\") for what's worth doing now, the most pressing first: gear to repair, junk to sell, spells or a weapon skill to train, a profession's next rank or one to level, your class quest, quests to turn in, quests at your level here or a better zone, the dungeon for your level. Enter searches for it (a class quest: its steps); its tooltip shows the Advanced syntax.",
@@ -47,25 +53,6 @@ CL.LOG = {
 			"\"polearm trainer\" and the like list only the weapon masters who teach that weapon to your faction.",
 			"When another addon's data isn't what Terminal expects, chat says once what's unavailable; .integrations has one Training line, for What's Training or TrainerSpells.",
 			"Fixes and speed-ups from a review: Down after closing brings back what you typed, filters like is:ready stay right as you type, sold auctions keep their price, and more.",
-		},
-	},
-	{
-		v = "0.57.0", when = "released October 2026",
-		items = {
-			"Upgrades weigh only what you want: gear whose stats your class or role doesn't use (Intellect and Spell Power for a warrior) is never an upgrade, whatever its item level, and spells' hit and crit or feral attack power count only for those who use them.",
-			"NPC lists are sorted nearest first (trainers, merchants, reagent vendors...), an NPC named what you typed still on top. An NPC's role said alone (\"inn\", \"bank\", \"repair\", \"weapon master\", \"skinner\") lists the nearest, and \"nearest\" mistyped still means nearest.",
-			"Simple mode's categories come in a better order: NPCs whose title has your word (\"reagent\": the reagent vendors) near the top, and the category you picked for those words before higher each time.",
-			"When plain words find nothing, Terminal offers what you may have meant: a spelling put right, a phrase it understands, or the category a word names. .missed lists the searches that found nothing.",
-			"@auction lists your sales of the last 30 days (\"auctions sold\"): the price, the buyer and what you got. Auctions posted one after another each keep their own price.",
-			"Every class's spells and the weapon masters come straight from What's Training, as up to date as it is.",
-			"Attune's new look: Enter opens it on the right attunement and points at it, or at a step; steps are lettered as its chart draws them; its short names (\"ubrs\", \"dal key\") find attunements.",
-			"The bar: its button says Group, the F, S and G of its keys are underlined, and grouped results say how many groups and results they hold.",
-			"The / key can open Terminal on a slash command, the \"/\" already typed: turn it on with .set slashKey on, or Options.",
-			"Whisper to target uses your target's full name and reaches them; Battle.net friends show the name the Friends window shows.",
-			"In combat only Ctrl+` opens Terminal: a ` hit by accident in a fight says so in chat instead of taking your next keys. Tab+` and /term open it as before; / never opens it in combat.",
-			"Alt+` only switches what you typed between plain words and Advanced syntax; it no longer opens or closes Terminal.",
-			".credits: a thank-you to the people who kept Terminal going.",
-			"Fixes from a review: the send button with a player targeted, sales told twice, refused auction posts, and more.",
 		},
 	},
 

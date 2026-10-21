@@ -376,8 +376,8 @@ do
 		GetNumOwnedAuctions = function() return 2 end,
 		-- (the Auctions tab's list: every auction of yours, the one just posted too)
 		GetOwnedAuctionInfo = function(i)
-			if i == 1 then return { auctionID = 90, itemLink = "|Hitem:2592|h[Wool Cloth]|h", quantity = 5, buyoutAmount = 12000, timeLeftSeconds = 7200 } end
-			return { auctionID = 78, itemLink = "|cffffffff|Hitem:2589|h[Linen Cloth]|h|r", quantity = 20, buyoutAmount = 450000 }
+			if i == 1 then return { auctionID = 90, itemLink = "|Hitem:2592|h[Wool Cloth]|h", quantity = 5, buyoutAmount = 2400, timeLeftSeconds = 7200 } end
+			return { auctionID = 78, itemLink = "|cffffffff|Hitem:2589|h[Linen Cloth]|h|r", quantity = 20, buyoutAmount = 22500 }
 		end }
 	_G.hooksecurefunc = function(t, name, fn)
 		if type(t) == "string" then t, name, fn = _G, t, name end
@@ -403,7 +403,7 @@ do
 	local up = {}
 	for _, e in ipairs(UI:Search("@auction")) do if e.ahKind == "up" then up[#up + 1] = e end end
 	check(#up == 2 and up[1].name == "Wool Cloth x5" and up[1].detail:find("2 h left", 1, true) and up[2].name == "Linen Cloth x20"
-		and up[2].detail:find("45g", 1, true) and up[2].detail:find("12 h left", 1, true),
+		and up[2].detail:find("2g 25s each", 1, true) and up[2].detail:find("12 h left", 1, true), -- (the list's price for one: 0.63.1)
 		"@auction: both up now, the soonest first, with price and time left: " .. tostring(up[1] and up[1].detail) .. " / " .. tostring(up[2] and up[2].detail))
 	check(MA.Question("my auctions") == nil and ns.Auctions.Question("my auctions") and ns.Auctions.Question("what am i selling")
 		and not ns.Auctions.Question("auction house") and not ns.Auctions.Question("ah") and not ns.Auctions.Question("auction") and ns.Auctions.Question("auction sold") and not ns.Auctions.Question("my auction mail")
@@ -457,7 +457,7 @@ do
 	check(posted[78] == nil and MA.EndedAuctions()[78], "sold: off the auction house")
 	local soldRow
 	for _, e in ipairs(UI:Search("@auction is:incoming linen")) do if e.mailKind == "auction" then soldRow = e end end
-	check(soldRow and soldRow.detail:find("45g", 1, true) and soldRow.detail:find("gold due in about 59 min", 1, true),
+	check(soldRow and soldRow.detail:find("2g 25s each", 1, true) and soldRow.detail:find("gold due in about 59 min", 1, true),
 		"the sale: its price, the gold due in about an hour: " .. tostring(soldRow and soldRow.detail))
 	MA.OnSend("Plamen Pally", "Hi Pally")
 	MA.OnEvent("MAIL_SEND_SUCCESS")

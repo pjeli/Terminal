@@ -46,22 +46,28 @@ do
 		-- kept with no price (or another item's facts): the Auctions tab's list puts it right
 		posted[103] = { name = "Silk Cloth", link = L(4306, "Silk Cloth"), count = 2, t = now, seen = "posted" }
 		posted[104] = { name = "Linen Cloth", link = L(2589, "Linen Cloth"), count = 20, price = 4500, t = now - 5, seen = "posted" }
+		-- (kept before 0.63.1: the list's price for one taken for the whole x16)
+		posted[105] = { name = "Linen Cloth", link = L(2589, "Linen Cloth"), count = 16, price = 19, t = now, seen = "listed" }
 		owned = {
-			{ auctionID = 101, itemLink = L(2589, "Linen Cloth"), quantity = 20, buyoutAmount = 4500, timeLeftSeconds = 3600, status = 0 },
-			{ auctionID = 102, itemLink = L(2592, "Wool Cloth"), quantity = 5, buyoutAmount = 12000, timeLeftSeconds = 3600, status = 0 },
+			{ auctionID = 101, itemLink = L(2589, "Linen Cloth"), quantity = 20, buyoutAmount = 225, timeLeftSeconds = 3600, status = 0 },
+			{ auctionID = 102, itemLink = L(2592, "Wool Cloth"), quantity = 5, buyoutAmount = 2400, timeLeftSeconds = 3600, status = 0 },
 			{ auctionID = 103, itemLink = L(4306, "Silk Cloth"), quantity = 2, buyoutAmount = 900, timeLeftSeconds = 7200, status = 0 },
-			{ auctionID = 104, itemLink = L(4338, "Mageweave Cloth"), quantity = 10, buyoutAmount = 3000, timeLeftSeconds = 7200, status = 0 },
+			{ auctionID = 104, itemLink = L(4338, "Mageweave Cloth"), quantity = 10, buyoutAmount = 300, timeLeftSeconds = 7200, status = 0 },
+			{ auctionID = 105, itemLink = L(2589, "Linen Cloth"), quantity = 16, buyoutAmount = 19, timeLeftSeconds = 7200, status = 0 },
 		}
 		MA.OnEvent("OWNED_AUCTIONS_UPDATED")
-		check(posted[103] and posted[103].price == 900, "no price kept: the Auctions tab's: " .. tostring(posted[103] and posted[103].price))
+		-- (0.63.1, a player in game: the list's price is for one; the auction brings that times how many)
+		check(posted[103] and posted[103].each == 900 and posted[103].price == 1800, "no price kept: the Auctions tab's, for one: " .. tostring(posted[103] and posted[103].price))
 		check(posted[104] and posted[104].name == "Mageweave Cloth" and posted[104].price == 3000 and posted[104].count == 10
 			and posted[104].t == now - 5, "another item's facts: the list's own (when it was posted kept)")
+		check(posted[105].each == 19 and posted[105].price == 304, "kept with the price for one as the whole: put right: "
+			.. tostring(posted[105].each) .. ", " .. tostring(posted[105].price))
 		A._dirty = true
 		local priced = 0
 		for _, e in ipairs(UI:Search("@auction")) do
 			if e.ahKind == "up" and e.detail:find("[0-9]+[gsc]") then priced = priced + 1 end
 		end
-		check(priced == 4, "every auction up now shows a price: " .. priced)
+		check(priced == 5, "every auction up now shows a price: " .. priced)
 
 		-- sold, the auction house says: the news for its hour, then kept as a sale
 		now = now + 60
@@ -153,11 +159,11 @@ do
 		-- a commodity sold whose entry has no link: named by its item id
 		local wasName = _G.C_Item.GetItemNameByID
 		rawset(_G.C_Item, "GetItemNameByID", function(id) return id == 2589 and "Linen Cloth" or nil end)
-		owned = { { auctionID = 401, itemKey = { itemID = 2589 }, quantity = 40, buyoutAmount = 300, status = 1 } }
+		owned = { { auctionID = 401, itemKey = { itemID = 2589 }, quantity = 40, buyoutAmount = 30, status = 1 } }
 		MA.OnEvent("OWNED_AUCTIONS_UPDATED")
 		local linenSale
 		for _, s2 in ipairs(sales) do if s2.auctionID == 401 then linenSale = s2 end end
-		check(linenSale and linenSale.item == "Linen Cloth" and linenSale.price == 300, "a commodity with no link: its sale named by its id")
+		check(linenSale and linenSale.item == "Linen Cloth" and linenSale.price == 1200, "a commodity with no link: its sale named by its id")
 		rawset(_G.C_Item, "GetItemNameByID", wasName)
 		-- a post the game refuses leaves the line: the next one made gets its own price
 		AH.PostItem({ link = L(2770, "Copper Ore"), name = "Copper Ore" }, 1, 20, nil, 111)
