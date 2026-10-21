@@ -683,6 +683,9 @@ local function Words(list) return #list > 0 and (table.concat(list, " ") .. " ")
 Scan.ANSWERS = {
 	-- "what should i do", "what now", "suggestions": what's worth doing now (Search/Suggest.lua; first: its lines are its own)
 	Asks("Suggest"),
+	-- "untrack quests", "track completed quests", "track rfc quests only", "untrack red quests": QuestTrack.lua (its
+	-- lines start with what to do)
+	Asks("QuestTrack"),
 	-- "quests to turn in", "turn in quests": your quest log's ready ones; "quests here": Questie's at your level in
 	-- your zone (Search/Suggest.lua)
 	Asks("TurnIn"),

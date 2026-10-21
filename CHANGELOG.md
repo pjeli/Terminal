@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.63.2 (in testing)
+## 0.63.5 (in testing)
+
+**Tracking quests in bulk** (a player's idea on CurseForge)
+- **untrack quests**, **track completed quests**, **untrack dungeon quests**, **track class quest**, **track rfc quests only** (those tracked, every other one untracked), **untrack red quests** (by the log's colour for your level), **track nearby quests** (under your zone in the log, or on your map). Quest names and places narrow it ("track raptor thieves quest", "untrack wailing caverns quests"). A place means the quests listed under it in your log, written as one word too ("track thunderbluff quests", "untrack mulgore and thunder bluff quests"); a quest that only mentions it isn't one.
+- The answer lists the quests that change, each marked "to track" or "to untrack", with **Track 4 quests** (or Untrack, or both) on top: Enter does it, and chat says what changed. When the game's tracker is full, it says how many fit.
+- Questie's tracker follows: a quest tracked only on Questie's tracker counts as tracked, and untracking takes it off there too.
+- Alt+` writes each question so it changes the same quests: a place as its heading (**in:"Thunder Bluff"**; **in:** on your quest log is the heading it's listed under), a quest by its title in quotes.
+- Advanced: any quest search, then **>>> track**, **>>> untrack** or **>>> track only** (**>> track**: the selected one). New filters for it: **is:tracked**, **is:untracked**, **is:here**, **is:red** (and is:orange, is:yellow, is:green on quests), **is:dungeon**, **is:raid**, **is:class** on your quest log.
 
 - A sale is listed once in **@auction**: its mail read before the game knew the buyer's name no longer makes it a second sale. One listed twice is put right the next time you open your mailbox.
 - Your auctions' prices read from the Auctions tab are each item's, as the game shows them (a player checked in game): an x16 stack at 19c says **19c each** and brings 3s 4c. It was taken for the whole stack, so a sale's gold came out too little and an undercut stack was never said to be. Auctions kept before put themselves right the next time you open the Auctions tab.

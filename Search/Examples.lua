@@ -35,7 +35,7 @@ E.SIMPLE = {
 	{ "quests to drop", nil, "field" }, { "stamina food", nil, "field" }, { "attack power food", nil, "field" },
 	{ "what should i auction", "Auctionator", "city" },
 	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" }, { "quests to turn in", nil, "field" },
-	{ "quests here", "Questie", "field" }, { "quests per zone", "Questie", "field" }, { "dungeons at my level", nil, "field" },
+	{ "quests here", "Questie", "field" }, { "quests per zone", "Questie", "field" }, { "track nearby quests", nil, "field" }, { "track completed quests", nil, "field" }, { "dungeons at my level", nil, "field" },
 	-- in a dungeon
 	{ "who needs fortitude", "group", "instance" }, { "missing buffs", "group", "instance" }, { "who is dead", "group", "instance" },
 	{ "group healers", "group", "instance" }, { "what killed me", nil, "instance" }, { "repair cost", nil, "instance" },

@@ -203,6 +203,21 @@ KEYS["in"] = function(v)
 	end
 	return function(e) return Places(e, v) end
 end
+-- (your quest log: the heading a quest is listed under, its spaces and punctuation aside: in:"thunder bluff",
+-- in:thunderbluff; a quest whose text names the place isn't in it. 0.63.5, the player: Alt+` on "untrack thunder bluff
+-- quests" took in quests that only mention Thunder Bluff)
+do
+	local InPlace = KEYS["in"]
+	KEYS["in"] = function(v)
+		local base = InPlace(v)
+		if not base then return nil end
+		local want = ns.Norm(v)
+		return function(e)
+			if e.kind == "quests" then return want ~= "" and ns.Norm(tostring(e.zone or "")):find(want, 1, true) ~= nil end
+			return base(e)
+		end
+	end
+end
 KEYS.zone, KEYS.from, KEYS.where = KEYS["in"], KEYS["in"], KEYS["in"]
 
 KEYS.on = function(v)

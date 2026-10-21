@@ -40,7 +40,7 @@ local WHISPER = { w = true, whisper = true, tell = true, t = true }
 -- (the game's chat types, for the lines Terminal sends itself: ">>>")
 local CHAT_TYPE = { party = "PARTY", guild = "GUILD", raid = "RAID", officer = "OFFICER", say = "SAY", yell = "YELL",
 	instance = "INSTANCE_CHAT" }
-SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop", "text", "csv" }
+SH.NAMES = { "party", "guild", "raid", "say", "yell", "officer", "instance", "whisper", "drop", "track", "untrack", "text", "csv" }
 local COPY = { text = "text", txt = "text", copy = "text", csv = "csv" }
 -- (how a channel is named where it's shown: the footer, the ">>>" row)
 local LABEL = { party = L["party"], guild = L["guild"], raid = L["raid"], officer = L["officer"], say = L["say"],
@@ -51,7 +51,7 @@ local LABEL = { party = L["party"], guild = L["guild"], raid = L["raid"], office
 function SH.IsStart(word)
 	local w = ns.Lower(word or "")
 	-- (every word Channel takes, its other names too: "gro" for group, "tel" for tell, "cop" for copy; review, 0.53.6)
-	for _, names in ipairs({ CHANNELS, WHISPER, COPY, { drop = true } }) do
+	for _, names in ipairs({ CHANNELS, WHISPER, COPY, { drop = true, track = true, untrack = true } }) do
 		for n in pairs(names) do if n:sub(1, #w) == w then return true end end
 	end
 	return w:match("^[1-9]%d?$") ~= nil and tonumber(w) <= 20
@@ -98,6 +98,11 @@ function SH.Channel(rest)
 	local lw = ns.Lower(w or "")
 	if lw == "" then return { pending = true } end
 	if lw == "drop" then return { drop = true, label = "drop" } end
+	-- ("track", "untrack", "track only": quests in your log tracked or untracked instead: QuestTrack.lua, 0.63.3)
+	if lw == "track" or lw == "untrack" then
+		local how = lw == "untrack" and "untrack" or (ns.Lower(more or "") == "only" and "only" or "track")
+		return { quests = how, label = how == "only" and "track only" or lw }
+	end
 	if COPY[lw] then return { copy = COPY[lw], label = COPY[lw] == "csv" and "CSV" or L["text"] } end
 	local ch = CHANNELS[lw]
 	if ch then return { cmd = COMMAND[ch], label = LABEL[ch], chat = CHAT_TYPE[ch] } end

@@ -368,7 +368,9 @@ do
 	end
 	local quest = Picks("@questlog is:")
 	-- (is:upgrade: a quest whose reward is an upgrade, 0.51.15)
-	check(quest == "complete upgrade grey leftbehind drop", "@questlog is: only the quest log's: " .. quest)
+	-- (0.63.3: a quest's colour, tracked, here, a dungeon's or raid's, a class quest: bulk tracking's)
+	check(quest == "complete upgrade orange yellow green grey red leftbehind drop tracked untracked here raid dungeon class",
+		"@questlog is: only the quest log's: " .. quest)
 	check(Picks("@achievement is:") == "done todo", "@achievement is: done todo: " .. Picks("@achievement is:"))
 	local item = Picks("@item is:")
 	check(item:find("usable", 1, true) and item:find("equippable", 1, true) and item:find("boe", 1, true)
@@ -385,7 +387,7 @@ do
 	local qc = ns.Filters.ValuesFor("is", "@questlog ")
 	local fromAll = 0
 	for _, v in ipairs(ns.Filters.VALUES.is) do if v:sub(1, 2) == "co" then fromAll = fromAll + 1 end end
-	check(#qc == 5 and fromAll > 1, "the quest log's values, several from all of them")
+	check(#qc == 15 and fromAll > 1, "the quest log's values, several from all of them: " .. #qc)
 	-- every value is said to judge some list, and every list named is one (a typo would hide a value everywhere)
 	local known = { loot = true, questie = true, npc = true, attune = true, training = true } -- (AtlasLoot's, Questie's, Attune's and What's Training's lists: not loaded in every run)
 	for _, id in ipairs(ns.providerOrder) do known[id] = true end
@@ -512,6 +514,8 @@ do
 	ns.Professions.PlayerProfessions = pp
 	check(noCue == 0 and calls == 1, "the plan question: professions read only with a plan word: " .. noCue .. " / " .. calls)
 	-- the prompt's colours: a word's parse remembered (not every keystroke)
+	-- (once before counting: the remembered words start again at 300, and the files before this one may leave it one short)
+	UI:SyntaxSegments("q:rare lvl:20 stone")
 	local parse, parses = F.Parse, 0
 	F.Parse = function(...) parses = parses + 1 return parse(...) end
 	UI:SyntaxSegments("q:rare lvl:20 stone")

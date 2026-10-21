@@ -72,7 +72,7 @@ function UI:CollapseGroup(list)
 		self.groupRows = {}
 		return { { kind = "send", kindLabel = "|cff33ff99" .. L["chat"] .. "|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
 			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = L["Nothing searched to send"],
-			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or to.copy or "party") } }
+			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or to.quests and to.label or to.copy or "party") } }
 	end
 	if to.copy then
 		-- ">>> text", ">>> csv": every result, to copy (Activate opens them in a box)
@@ -91,6 +91,13 @@ function UI:CollapseGroup(list)
 		else
 			row.name = (n == 1 and L["Copy the %d as %s"] or L["Copy all %d as %s"]):format(n, to.label)
 		end
+		return { row }
+	end
+	if to.quests and ns.QuestTrack then
+		-- ">>> track", ">>> untrack", ">>> track only": the quests in your log among them (QuestTrack.lua)
+		local row = ns.QuestTrack.GroupRow(list, to.quests)
+		row._pos = UI.NO_POS
+		self.groupRows = ns.QuestTrack.QuestRows(list)
 		return { row }
 	end
 	if to.drop and ns.QuestDrop then

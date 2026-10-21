@@ -105,6 +105,10 @@ do
 			local say = (to.all and ((n or 0) == 0 and L["nothing to drop"] or (n == 1 and L["Enter drops it: Terminal asks first"] or L["Enter drops all %s: Terminal asks first"]:format(n))))
 				or L["Enter drops it: Terminal asks first"]
 			text = Prepend(HINT .. say .. "|r", text)
+		elseif to and to.quests and self.mode == "search" then
+			local say = to.all and L["Enter changes the tracker for the quests listed"]
+				or (to.quests == "untrack" and L["Enter untracks it"] or L["Enter tracks it"])
+			text = Prepend(HINT .. say .. "|r", text)
 		elseif to and to.copy and self.mode == "search" then
 			local n = to.all and self.groupRows and #self.groupRows
 			local say = to.all and ((n or 0) == 0 and L["nothing to copy"] or L["Enter copies all %s as %s"]:format(n, to.label))
@@ -181,6 +185,7 @@ function UI:FitHints()
 		local to = self.sendTo
 		if to and not to.all and self.mode == "search" and sel and not (sel.noActivate or sel.raw or sel.completion) then
 			if to.drop then enter, shift = L["drop"], nil
+			elseif to.quests then enter, shift = (to.quests == "untrack" and L["untrack"] or L["track"]), nil
 			elseif to.copy then enter, shift = L["copy as %s"]:format(to.label), nil
 			elseif to.cmd then enter, shift = L["send it to %s"]:format(tostring(to.label)), nil
 			else enter, shift = nil, nil end

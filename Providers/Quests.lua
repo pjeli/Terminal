@@ -278,6 +278,7 @@ local function QuestIsOpen(e) return LogShown() and not QuestTurns(e) end
 
 local Str, Num = ns.Str, ns.Num -- (quest text can be a secret value on this client)
 local Secret, Call = ns.Secret, ns.Safe
+local Lower = ns.Lower
 
 ----------------------------------------------------------------------
 -- Quests to drop (the question and the group drop: QuestDrop.lua)
@@ -328,6 +329,69 @@ local function ZoneLevels(id, cache)
 		cache[ui] = z
 	end
 	return z or nil
+end
+
+----------------------------------------------------------------------
+-- What a quest is, for bulk tracking (QuestTrack.lua, 0.63.3) and its filters (is:red, is:dungeon, is:class...)
+----------------------------------------------------------------------
+
+-- the quest log's colour for your level: the game's own judgement (Enum.RelativeContentDifficulty), else by levels
+local RCD = (Enum and Enum.RelativeContentDifficulty) or {}
+local DIFF_NAME = { [RCD.Trivial or 0] = "grey", [RCD.Easy or 1] = "green", [RCD.Fair or 2] = "yellow",
+	[RCD.Difficult or 3] = "orange", [RCD.Impossible or 4] = "red" }
+local function DiffName(id, level, me, grey)
+	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
+	local d = f and Call(f, id)
+	if not Secret(d) and type(d) == "number" and DIFF_NAME[d] then return DIFF_NAME[d] end
+	if grey then return "grey" end
+	if not (level and me and me > 0) then return nil end
+	local x = level - me
+	return (x >= 5 and "red") or (x >= 3 and "orange") or (x >= -2 and "yellow") or "green"
+end
+
+-- the quest's tag, as the log says it ("Dungeon", "Raid": C_QuestLog.GetQuestTagInfo's tagID, Enum.QuestTag)
+local QTAG = (Enum and Enum.QuestTag) or {}
+local TAG_KIND = { [QTAG.Dungeon or 81] = "dungeon", [QTAG.Heroic or 85] = "dungeon", [QTAG.Raid or 62] = "raid",
+	[QTAG.Raid10 or 88] = "raid", [QTAG.Raid25 or 89] = "raid" }
+local function TagKind(id)
+	local f = C_QuestLog.GetQuestTagInfo
+	local t = f and Call(f, id)
+	if Secret(t) or type(t) ~= "table" then return nil end
+	return TAG_KIND[t.tagID]
+end
+
+-- an instance's name as the log's headers say it ("The Deadmines", "Dire Maul"): Terminal's entrances list
+-- (Integrations/Entrances.lua), read once it's there: "dungeon" or "raid"
+local instances
+local function InstanceOf(header)
+	if not header then return nil end
+	if not instances then
+		local I = ns.Integrations
+		if not (I and I.ENTRANCES) then return nil end
+		instances = {}
+		for _, d in ipairs(I.ENTRANCES) do
+			local n = Lower(d[1]):gsub("%s*%(.-%)", ""):gsub("^the ", "")
+			instances[n] = d[5] and "raid" or (instances[n] or "dungeon")
+		end
+	end
+	return instances[(Lower(header):gsub("^the ", ""))]
+end
+
+-- class quests sit under their class's name in the log ("Warrior"): every class's name, both forms, and in English
+local classNames
+local function IsClassHeader(header)
+	if not header then return false end
+	if not classNames then
+		classNames = {}
+		for _, t in ipairs({ _G.LOCALIZED_CLASS_NAMES_MALE or {}, _G.LOCALIZED_CLASS_NAMES_FEMALE or {} }) do
+			for token, name in pairs(t) do
+				if type(name) == "string" then classNames[Lower(name)] = true end
+				if type(token) == "string" then classNames[Lower(token)] = true end
+			end
+		end
+		for w in ("warrior paladin hunter rogue priest shaman mage warlock druid"):gmatch("%a+") do classNames[w] = true end
+	end
+	return classNames[Lower(header)] == true
 end
 
 --- Shift+Enter on a quest to drop: Terminal's own confirmation for that one quest (QuestDrop.lua), then the C calls
@@ -620,6 +684,8 @@ ns:RegisterProvider("quests", {
 					local complete = Complete(info.questID)
 					local drop = not complete and (grey or behind ~= nil)
 					local why = drop and (grey and L["grey"] or L["zone left behind (Lv %d-%d)"]:format(behind.lo, behind.hi)) or nil
+					-- (bulk tracking and its filters: the log's colour, a dungeon's or raid's, a class quest)
+					local instance = TagKind(info.questID) or InstanceOf(zone)
 					out[#out + 1] = {
 						key = info.questID,
 						name = title,
@@ -638,6 +704,8 @@ ns:RegisterProvider("quests", {
 						after = ShowQuestAfter,
 						-- (quests to drop: QuestDrop.lua, the is:grey / is:leftbehind / is:drop filters)
 						grey = grey, behind = behind, complete = complete, drop = drop,
+						diffName = DiffName(info.questID, level, me, grey), instance = instance,
+						classQuest = IsClassHeader(zone) or nil,
 						-- Shift+Enter: one to drop, Terminal asks and drops it; any other, super-track it (the waypoint arrow)
 						secondary = drop and DropAsk or TrackQuest,
 					}

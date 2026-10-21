@@ -305,8 +305,22 @@ IS.passive = function(e) return e.kind == "spells" and e.passive == true end
 IS.unplaced = function(e) return e.kind == "spells" and ns.Spells ~= nil and ns.Spells.Unplaced(e) end
 IS.capped = Capped
 IS.craftable = Craftable
-IS.skillup, IS.orange, IS.yellow = SkillUp, DiffIs("orange"), DiffIs("yellow")
-IS.green = DiffIs("green")
+-- (a quest: the log's colour for your level, Quests.lua's `diffName`; is:red is a quest's only: 0.63.3)
+local function DiffOrQuest(which)
+	local recipe = DiffIs(which)
+	return function(e)
+		if e.kind == "quests" then return e.diffName == which end
+		return recipe(e)
+	end
+end
+IS.skillup, IS.orange, IS.yellow = SkillUp, DiffOrQuest("orange"), DiffOrQuest("yellow")
+IS.green = DiffOrQuest("green")
+IS.red = function(e) return e.kind == "quests" and e.diffName == "red" end
+-- quests the tracker shows (the game's, or Questie's), and those where you are (QuestTrack.lua, 0.63.3)
+IS.tracked = function(e) return e.kind == "quests" and ns.QuestTrack ~= nil and ns.QuestTrack.Tracked(e.questID) end
+IS.untracked = function(e) return e.kind == "quests" and ns.QuestTrack ~= nil and not ns.QuestTrack.Tracked(e.questID) end
+IS.here = function(e) return e.kind == "quests" and ns.QuestTrack ~= nil and ns.QuestTrack.Here(e) end
+IS.watched, IS.nearby = IS.tracked, IS.here
 local RecipeGrey = DiffIs("grey")
 -- grey: a recipe the window shows grey, or a quest the quest log shows grey for your level (Quests.lua's `grey`)
 IS.grey = function(e)
@@ -390,9 +404,15 @@ local function AttuneIs(group)
 	end
 end
 local AttuneRaid, AttuneDungeon = AttuneIs("raid"), AttuneIs("dungeon")
-IS.raid = function(e) return (e.kind == "lockouts" and e.isRaid == true) or AttuneRaid(e) end
-IS.dungeon = function(e) return (e.kind == "lockouts" and not e.isRaid) or AttuneDungeon(e) end
-IS.key, IS.class = AttuneIs("key"), AttuneIs("class")
+-- (a quest in your log: a raid's or a dungeon's by its tag or its header, a class quest under its class's header:
+-- Quests.lua, 0.63.3)
+IS.raid = function(e) return (e.kind == "lockouts" and e.isRaid == true) or (e.kind == "quests" and e.instance == "raid") or AttuneRaid(e) end
+IS.dungeon = function(e)
+	return (e.kind == "lockouts" and not e.isRaid) or (e.kind == "quests" and e.instance == "dungeon") or AttuneDungeon(e)
+end
+local AttuneClass = AttuneIs("class")
+IS.key = AttuneIs("key")
+IS.class = function(e) return (e.kind == "quests" and e.classQuest == true) or AttuneClass(e) end
 -- (your gear's wear: Durability.lua)
 IS.broken = function(e) return e.kind == "durability" and e.duraKind ~= "total" and e.duraCur == 0 end
 IS.damaged = function(e) return e.kind == "durability" and e.duraKind ~= "total" and (e.duraCur or 0) < (e.duraMax or 0) end
@@ -428,7 +448,7 @@ IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
-		"orange", "yellow", "green", "grey", "leftbehind", "drop", "passive", "unplaced", "known",
+		"orange", "yellow", "green", "grey", "red", "leftbehind", "drop", "tracked", "untracked", "here", "passive", "unplaced", "known",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
@@ -462,6 +482,7 @@ local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "s
 local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
 local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
+local RECIPE_QUEST = { "recipes", "professions", "quests" } -- (is:orange: a quest's colour too)
 -- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
 -- done, so the quest log isn't offered them. Its own: complete (ready to turn in), grey, leftbehind, drop)
 local QUESTS = { "questie", "achievements", "attune" }
@@ -475,7 +496,8 @@ F.APPLIES = {
 		done = QUESTS, todo = QUESTS, complete = { "quests" }, ready = { "spells" }, -- (ready on a quest = complete: offered once)
 		usable = ITEMS, equippable = ITEMS, upgrade = UPGRADES, quest = MADE, soulbound = OWN, boe = MADE,
 		online = PEOPLE, offline = PEOPLE,
-		craftable = RECIPES, skillup = RECIPES, orange = RECIPES, yellow = RECIPES, green = RECIPES,
+		craftable = RECIPES, skillup = RECIPES, orange = RECIPE_QUEST, yellow = RECIPE_QUEST, green = RECIPE_QUEST,
+		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
 		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells" }, capped = { "currency" },
 		vendor = NPC, trainer = NPC, classtrainer = NPC, proftrainer = NPC, innkeeper = NPC, banker = NPC, repair = NPC,
@@ -489,7 +511,7 @@ F.APPLIES = {
 		sent = MAIL, incoming = { "auctions" },
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },
-		raid = { "lockouts", "attune" }, dungeon = { "lockouts", "attune" }, key = { "attune" }, class = { "attune" },
+		raid = { "lockouts", "attune", "quests" }, dungeon = { "lockouts", "attune", "quests" }, key = { "attune" }, class = { "attune", "quests" },
 		broken = { "durability" }, damaged = { "durability" },
 		holiday = { "calendar" }, invite = { "calendar" }, today = { "calendar" }, guild = { "calendar" },
 		sold = { "auctions" }, listed = { "auctions" }, mine = { "lootlog", "combatlog" },

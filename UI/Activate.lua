@@ -217,7 +217,7 @@ local function SecureView(e, shift, own)
 	-- (">>>"'s one row has no action of its own: the menu's first line sends them too; 0.50.7, review)
 	if UI.sendTo and (not own or e.sendAll) then
 		-- (">> drop" presses nothing: Terminal asks, then drops it with C calls; see SendSelected)
-		if UI.sendTo.drop then return nil end
+		if UI.sendTo.drop or UI.sendTo.quests then return nil end
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
 		-- (">>> party": Terminal sends every result itself in Activate, a press the game doesn't take; ">>> say": the
 		-- game presses one line with them all, Terminal's code can't send there: SH.PressLine)
@@ -447,10 +447,26 @@ local function DropEveryQuest(self)
 	self:HideAfterRun()
 	QD.Confirm(rows)
 end
+--- ">>> track", ">>> untrack", ">>> track only": the quests in your log among the results (QuestTrack.lua).
+UI.STILL_SEARCHING_TRACK = L["Still searching: press it again in a moment, to change the tracker for every quest listed."]
+local function TrackEveryQuest(self, to)
+	if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING_TRACK) return end
+	local QK = ns.QuestTrack
+	local _, plan = QK.GroupRow(self.groupList or UI.results, to.quests)
+	if #plan.track + #plan.untrack == 0 then
+		ns:Print(plan.matched == 0 and L["Nothing to track: no quest in your log among the results."]
+			or L["Nothing to change: the tracker has them as you asked already."])
+		return
+	end
+	ns:RecordHistory(UI.edit:GetText())
+	self:HideAfterRun()
+	QK.Apply(plan)
+end
 --- ">>> channel": every result at once, sent by Terminal inside this press (Share.SendAll); a search still going is
 --- finished first (else only its first frame's rows would go), or, when that would take long, nothing is sent yet.
 local function SendEveryResult(self, to)
 	if to.drop then return DropEveryQuest(self) end
+	if to.quests then return TrackEveryQuest(self, to) end
 	if not to.cmd then return NoChannel(to, ">>>") end
 	if ns.Share.Restricted(to) then
 		-- (say, yell: a click arms Enter for the game's press of one line; Terminal's code can't send there)
@@ -493,6 +509,14 @@ local function SendSelected(self, e, to, secondary)
 		if not o then ns:Print(L["Only quests in your log can be dropped: %s isn't one."]:format(tostring(e.name))) return end
 		ns:RecordHistory(UI.edit:GetText())
 		ns.QuestDrop.Confirm({ o })
+		return
+	end
+	if to.quests then
+		local o = (not (e.noActivate or e.raw or e.completion)) and DropTarget(e) or nil
+		if not o then ns:Print(L["Only quests in your log can be tracked: %s isn't one."]:format(tostring(e.name))) return end
+		ns:RecordHistory(UI.edit:GetText())
+		self:HideAfterRun()
+		ns.QuestTrack.Apply(ns.QuestTrack.Plan({ o }, to.quests))
 		return
 	end
 	if not to.cmd then return NoChannel(to, ">>") end

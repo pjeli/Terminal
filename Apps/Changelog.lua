@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.63.2", when = "in testing",
+		v = "0.63.5", when = "in testing",
 		items = {
+			"Track and untrack quests in bulk: \"untrack quests\", \"track completed quests\", \"untrack dungeon quests\", \"track class quest\", \"track rfc quests only\" (and untrack the rest), \"untrack red quests\", \"track nearby quests\". The answer lists what changes; Enter does it, Questie's tracker too. A place means the quests listed under it in your log (\"track thunderbluff quests\", \"untrack mulgore and thunder bluff quests\"), and Alt+` says it the same way (in:\"Thunder Bluff\"). Advanced: any quest search, then >>> track, >>> untrack or >>> track only.",
 			"A sale is listed once in @auction: its mail read before the game knew the buyer's name no longer makes it a second sale (one listed twice is put right the next time you open your mailbox).",
 			"Your auctions' prices read from the Auctions tab are each item's, as the game shows them: an x16 stack at 19c says 19c each and brings 3s 4c (it was taken for the whole stack, so a sale's gold was too little and an undercut stack never said so). Auctions kept before put themselves right the next time you open the Auctions tab.",
 		},
