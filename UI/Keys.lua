@@ -240,6 +240,13 @@ local function KeysDown(self, key)
 		B.SwallowAltChar(key) -- (the character the client types for it after the key: not typed)
 		return
 	end
+	-- (0.63.6, the player: "a Ctrl+R history search like a real shell") Ctrl+R is the terminal's while it's open, the
+	-- game's frame rate no longer (it was the game's since 0.45.19; .atop's window still passes it on)
+	if key == "R" and IsControlKeyDown and IsControlKeyDown() and not (IsAltKeyDown and IsAltKeyDown()) then
+		self:SetPropagateKeyboardInput(false)
+		UI:HistoryKey()
+		return
+	end
 	local game, action = UI.GameKey(key)
 	if game then
 		-- the game's own key for something that doesn't touch Terminal (Ctrl+R, the frame rate): it goes on to it
@@ -266,6 +273,12 @@ local function KeysDown(self, key)
 	-- .tour: Enter goes on, Shift+Left back, Esc ends it (Tour.lua)
 	if ns.Tour and ns.Tour.Key(key, shift) then
 		self:SetPropagateKeyboardInput(false)
+		return
+	end
+	if (key == "ENTER" or key == "NUMPADENTER") and UI.histSearch then
+		-- Ctrl+R: the line picked goes in the prompt and is searched (UI/Modes.lua)
+		self:SetPropagateKeyboardInput(false)
+		UI:HistoryAccept(UI.results[UI.sel])
 		return
 	end
 	if (key == "ENTER" or key == "NUMPADENTER") and UI.fzf then
@@ -346,6 +359,7 @@ local function ListKey(key, ctrl)
 	elseif not ctrl then return false
 	elseif key == "HOME" then UI:Move(-#UI.results)
 	elseif key == "END" then UI:Move(#UI.results)
+	elseif key == "R" then UI:HistoryKey() -- (a shell's Ctrl+R: the history searched; again: an older one)
 	elseif key == "N" or key == "J" then UI:Move(1)
 	elseif key == "P" or key == "K" then UI:Move(-1)
 	elseif key == "U" or key == "W" then
@@ -411,8 +425,8 @@ do
 	--- pick list ("@", "q:") goes round. Back is Shift+Left's (Simple mode's Tab in a category no longer goes back to
 	--- all of them). The game's own text box (combat, the clipboard) runs it too (UI.TabKey).
 	local function TabKey(shift)
-		if UI.fzf then
-			UI:Move(shift and -1 or 1) -- (pure fuzzy finding: nothing to complete)
+		if UI.fzf or UI.histSearch then
+			UI:Move(shift and -1 or 1) -- (pure fuzzy finding, Ctrl+R: nothing to complete)
 		elseif UI:StepSyntax(shift and -1 or 1) then
 			return -- (the pick list ("@", "q:"): Tab / Shift+Tab only move through it, Enter writes the one picked)
 		elseif shift then

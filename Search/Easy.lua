@@ -537,6 +537,7 @@ E.VERBS = {
 	source = SourceVerbs,
 	stored = { L["show in bags"], L["show in chat"] }, bank = { L["show in bags"], L["show in chat"] }, shared = { L["whisper"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
 	loot = { L["show in AtlasLoot"], L["link in chat"] },
+	history = { L["search it again"] }, -- (a line you ran: Providers/History.lua)
 	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs, durability = DurabilityVerbs,
 	calendar = { L["show in calendar"], L["put in the chat box"] },
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,

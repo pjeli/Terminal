@@ -34,7 +34,7 @@ function UI:RunSearch(text)
 		copy = UI.SortAndTrim(res, nil, nil, function() return debugprofilestop() > stopAt end)
 		if agg and ns.Aggregate then copy = ns.Aggregate.Apply(agg, copy, agg.base) end
 	end
-	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
+	local calc = not (self.fzf or self.histSearch) and ns.Calc and ns.Calc.Entry(text)
 	if calc then table.insert(copy, 1, calc) end
 	job.ms = job.ms + (debugprofilestop() - t0)
 	return copy, false
@@ -428,7 +428,7 @@ end
 --- rows to pick from (Enter/click writes it with a space after it; Tab / Shift+Tab move the selection round), or nil.
 function UI:SyntaxRows(text)
 	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
-	if self.fzf or self.opening or (self.cursor or #text) < #text then return nil end -- (Simple mode too: 0.55.9)
+	if self.fzf or self.histSearch or self.opening or (self.cursor or #text) < #text then return nil end -- (Simple mode too: 0.55.9)
 	-- (a line Up brought back from the history runs as it is: "@npc is:repair sort:nearest" isn't a pick list)
 	if self._histSet or (self.histIdx and text == self.histText) then return nil end
 	local last = text:match("(%S+)$")
@@ -509,7 +509,7 @@ end
 local function TakeSendTo(self, text, first)
 	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
 	self.sendTo, self.groupList, self.groupRows = nil, nil, nil
-	if self.fzf or first == "." or first == "/" or not ns.Share then return text end
+	if self.fzf or self.histSearch or first == "." or first == "/" or not ns.Share then return text end
 	local query, rest, all = ns.Share.Split(text)
 	if rest then
 		self.sendTo = ns.Share.Channel(rest)
@@ -537,7 +537,7 @@ end
 local function TakeAggregate(self, text, first)
 	self.aggregate, self.typedGroup, self.barGroupIgnored = nil, nil, nil
 	local A = ns.Aggregate
-	if self.fzf or first == "." or first == "/" or not A then return text end
+	if self.fzf or self.histSearch or first == "." or first == "/" or not A then return text end
 	-- ("quests per zone": searched as "@questie | group by zone", its groups' Enter stepping in; 0.61.5, the player)
 	local per = ns.PerField and ns.PerField.Line and ns.PerField.Line(text)
 	if per then text = per end
@@ -641,7 +641,7 @@ function UI:Refresh()
 	-- (a .command or /slash line: no search for the bar's picks; they'd come back on the next search; 0.55.18)
 	if ns.Bar and (text:sub(1, 1) == "." or text:sub(1, 1) == "/") and not self.fzf then ns.Bar.Reset() end
 	local first = text:sub(1, 1)
-	if self.fzf then first = "" end -- (pure fuzzy finding: every line is a search, nothing in it is syntax)
+	if self.fzf or self.histSearch then first = "" end -- (pure fuzzy finding, Ctrl+R: every line is a search, nothing in it is syntax)
 	text = TakeSendTo(self, text, first)
 	text = TakeAggregate(self, text, first)
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,
@@ -738,7 +738,7 @@ end
 --- Shift+Left: back one step: the search a step left (WalkBack), else in Simple mode from a category you picked to all
 --- of them. False: nothing to go back to (Shift+Left selects then).
 function UI:GoBack()
-	if self.fzf then return false end
+	if self.fzf or self.histSearch then return false end
 	if self:WalkBack() then return true end
 	if self:HistoryBack() then return true end
 	-- (0.55.9) Alt+`'s Advanced line, as it wrote it: back to the Simple words it came from (as Alt+` again does)
@@ -753,7 +753,7 @@ end
 --- Is there somewhere Shift+Left goes back to (the footer says so)?
 --- A step's search, or a line Up brought back, to go back from (the footer's hint says Shift+Left for these).
 function UI:CanStepBack()
-	return not self.fzf and (self:WalkTop() ~= nil or self:HistoryBack(true) or self:CanUndoAdvanced()) or false
+	return not (self.fzf or self.histSearch) and (self:WalkTop() ~= nil or self:HistoryBack(true) or self:CanUndoAdvanced()) or false
 end
 
 --- Is the prompt Alt+`'s Advanced line as it wrote it (nothing typed since): Shift+Left goes back to the Simple words?
@@ -764,7 +764,7 @@ function UI:CanUndoAdvanced()
 end
 --- Shift+Left goes somewhere: a step back, or out of Simple mode's category.
 function UI:CanGoBack()
-	if self.fzf then return false end
+	if self.fzf or self.histSearch then return false end
 	return self:CanStepBack() or (EasyOn() and self.category ~= nil and not self.categoryAuto and UI.mode == "search")
 end
 
@@ -817,7 +817,7 @@ end
 --- back through the history instead (0.48.3, the player: Down then goes into that line's results, as on any search).
 function UI:Up()
 	local edit = UI.edit
-	if self.fzf then return self:Move(-1) end -- (pure fuzzy finding: the arrows only go through the list)
+	if self.fzf or self.histSearch then return self:Move(-1) end -- (pure fuzzy finding, Ctrl+R: the arrows only go through the list)
 	-- what Down brought up (your recent picks; Simple mode: the last search), Up on its first row puts away
 	if UI.sel <= 1 and not self.histIdx then
 		local text = edit:GetText()
@@ -838,7 +838,7 @@ end
 
 function UI:Down()
 	local edit = UI.edit
-	if self.fzf then return self:Move(1) end
+	if self.fzf or self.histSearch then return self:Move(1) end
 	-- a line Up brought back: Down goes into its results, as on any search (back toward the empty prompt is Shift+Left's,
 	-- UI:HistoryBack); only with nothing listed (nor coming: a search still going) on toward the newest line. (Until
 	-- 0.48.3 Down always walked the history: Up, then Down to the results, emptied the prompt.)

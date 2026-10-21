@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.63.5 (in testing)
+## 0.63.6 (in testing)
+
+**Your history, as a shell has it**
+- **Ctrl+R** searches what you ran from the prompt: type to find a line (fuzzy, every word), **Ctrl+R** again (or Down) for an older match, **Enter** puts it in the prompt and searches it, **Esc** goes back to what you'd typed. Nothing in it is syntax: ".ma" finds ".mail". (Ctrl+R was the game's frame rate while Terminal was open; it's Terminal's now. The frame rate still toggles with the terminal closed.)
+- **history** (or **my history**, **recent searches**; Advanced **@history**) lists what you ran, newest first, each with when it ran; Enter searches one again, Shift+Left back.
 
 **Tracking quests in bulk** (a player's idea on CurseForge)
 - **untrack quests**, **track completed quests**, **untrack dungeon quests**, **track class quest**, **track rfc quests only** (those tracked, every other one untracked), **untrack red quests** (by the log's colour for your level), **track nearby quests** (under your zone in the log, or on your map). Quest names and places narrow it ("track raptor thieves quest", "untrack wailing caverns quests"). A place means the quests listed under it in your log, written as one word too ("track thunderbluff quests", "untrack mulgore and thunder bluff quests"); a quest that only mentions it isn't one.

@@ -55,6 +55,7 @@ K.LINES = {
 	{ "Shift+Left", L["back: to the list you came from (your pick selected again), or from a line Up brought back toward the empty prompt"], only = "sa",
 		s = L["back: to the list you came from (your pick selected again), from a category to all of them, from Alt+`'s line to your words, or from a line Up brought back toward the empty prompt"] },
 	{ "Up", L["on an empty prompt: the line you ran last; from its first result, the one before it"], only = "sa" },
+	{ "Ctrl+R", L["search what you ran, as a shell does: type to find a line, Ctrl+R again for an older one, Enter puts it in the prompt, Esc goes back"] },
 	{ "Down", only = "sa", s = L["on an empty prompt: your last search back (Up puts it away)"],
 		a = L["on an empty prompt: your recent picks (Up puts them away)"] },
 

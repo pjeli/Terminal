@@ -724,6 +724,9 @@ function UI:Hide()
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
 	UI.HideNav()
 	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)
+	-- (Ctrl+R ends with the terminal: what was typed before it is what's kept)
+	local histSaved = self.histSearch and self.histSearch.saved
+	self.histSearch = nil
 	if not frame or not frame:IsShown() or self.closing then return end
 	self:Disarm()
 	self:HideTooltip()
@@ -731,7 +734,7 @@ function UI:Hide()
 	self:KeepLastSearch()
 	self.searchKept = true -- (OnHide doesn't keep it again)
 	do
-		local typed = edit:GetText() or ""
+		local typed = histSaved or edit:GetText() or ""
 		local ran = self.ran and GetTime() - self.ran < 2
 		-- (the caret where it was: the drawn prompt's, else the game's text box's own; and the mode it was in: Advanced
 		-- for this run (Alt+`) comes back as Advanced, 0.52.14, the player)
@@ -764,6 +767,7 @@ end
 
 --- Esc: closed, and what was typed let go (a quick reopen starts empty).
 function UI:Dismiss()
+	if self.histSearch and self:IsShown() then return self:EndHistorySearch() end -- (Esc in Ctrl+R: back to what was typed)
 	self:Hide()
 	self.closedText = nil
 end

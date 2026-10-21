@@ -266,7 +266,9 @@ do
 	UI:Open(""); T.FlushAll()
 	_G.IsControlKeyDown = function() return true end
 	T.key("R")
-	check(F.propagate == true and T.query() == "", "Ctrl+R: the game's (the frame rate), nothing typed")
+	-- (0.63.6, the player: Ctrl+R searches the history while the terminal is open, as a shell's does)
+	check(F.propagate == false and UI.histSearch ~= nil and T.query() == "", "Ctrl+R: the history search, not the game's frame rate")
+	UI:EndHistorySearch()
 	T.key("S"); local s1 = F.propagate
 	T.key("M"); local m1 = F.propagate
 	check(s1 == true and m1 == true, "Ctrl+S, Ctrl+M: sound, music")

@@ -18,6 +18,7 @@ local SYNTAX_KEYS = { { "@", L["kind"] }, { "/", L["slash"] }, { ".", L["command
 -- go when the footer is narrow, it's there for finding the rest
 local KEYS_HINT = { "F1", L["keys"] }
 local FZF_LABEL = L["Fuzzy find"] -- (Tab+`: pure fuzzy finding over every list, this run)
+local HIST_HINTS = { { "Enter", L["put it in the prompt"] }, { "Ctrl+R", L["older"] }, { "Esc", L["back"] }, KEYS_HINT }
 local FZF_HINTS = { { "Enter", L["to Simple"] }, { "Shift+Enter", L["with its list"] }, { "Up/Down", L["move"] }, { "Tab+`", L["close"] }, KEYS_HINT }
 -- (Advanced's @kind / key: pick lists; "back" is Shift+Left's word, so Shift+Tab is "previous")
 local SYNTAX_HINTS = { { "Enter", L["write it"] }, { "Tab", L["next"] }, { "Shift+Tab", L["previous"] }, KEYS_HINT }
@@ -149,7 +150,10 @@ do
 		local missing = self.mode == "search" and not self.bare and I and I.MissingHint and UI.edit and I.MissingHint(UI.edit:GetText()) or nil
 		self:SetFooterExtra(missing) -- (the footer's dim colour, not the gold of a notice: 0.50.6)
 		local once = ns.Easy and ns.Easy.temp
-		if self.fzf then
+		if self.histSearch then
+			once = true
+			text = Prepend(HINT .. L["History search (Ctrl+R)"] .. "|r", text)
+		elseif self.fzf then
 			once = true
 			text = Prepend(HINT .. FZF_LABEL .. "|r", text)
 		elseif once then text = Prepend(HINT .. ONCE_LABEL .. "|r", text) end
@@ -171,7 +175,9 @@ function UI:FitHints()
 	local sel = UI.results[UI.sel]
 	-- (a step's search, or a line Up brought back: Shift+Left goes back, UI:GoBack)
 	local back = self:CanStepBack()
-	if self.fzf then
+	if self.histSearch then
+		list, key = HIST_HINTS, key .. "|hist"
+	elseif self.fzf then
 		list, key = FZF_HINTS, key .. "|fzf"
 	elseif not EasyOn() and sel and sel.syntaxRow then
 		list, key = SYNTAX_HINTS, key .. "|syntax"

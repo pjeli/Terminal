@@ -533,6 +533,7 @@ function UI:Activate(idx, opts)
 	local copyable = e and e.kind == "aggregate" and self.sendTo and self.sendTo.copy
 	if not e or (e.noActivate and not copyable) then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
+	if self.histSearch then return self:HistoryAccept(e) end -- (Ctrl+R: the line goes in the prompt)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
 	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. 0.50.7,
 	-- review: its menu's "Send" closed the terminal and sent nothing)

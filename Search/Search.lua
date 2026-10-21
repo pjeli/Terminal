@@ -686,6 +686,8 @@ Scan.ANSWERS = {
 	-- "untrack quests", "track completed quests", "track rfc quests only", "untrack red quests": QuestTrack.lua (its
 	-- lines start with what to do)
 	Asks("QuestTrack"),
+	-- "history", "my history", "recent searches": what you ran, newest first (Providers/History.lua)
+	Asks("History"),
 	-- "quests to turn in", "turn in quests": your quest log's ready ones; "quests here": Questie's at your level in
 	-- your zone (Search/Suggest.lua)
 	Asks("TurnIn"),
@@ -1879,6 +1881,11 @@ end
 
 function UI:SearchText(text)
 	Scan.ResetFlags(self)
+	-- Ctrl+R: the lines you ran, nothing else (UI/Modes.lua)
+	if self.histSearch then
+		self.noPosition, self.action, self.place = nil, nil, nil
+		return self:HistorySearch(text)
+	end
 	if self.fzf then
 		self.noPosition, self.action, self.place = nil, nil, nil
 		return self:FuzzySearch(text)

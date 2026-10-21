@@ -78,6 +78,84 @@ function UI:EndFuzzy(stay)
 	self:UpdateGhost()
 end
 
+----------------------------------------------------------------------
+-- Ctrl+R: searching the history (0.63.6, the player: "a Ctrl+R history search like a real shell"). The prompt finds
+-- among the lines you ran (ns:HistoryLines), newest first, fuzzy as you type ("thor blt": "thorium belt > mats");
+-- Ctrl+R again (or Down) goes to an older match; Enter puts the line in the prompt and searches it, as a shell's does;
+-- Esc goes back to what the prompt said. A row clicked does as Enter. Nothing in it is syntax: ".mail", "@npc" and
+-- ">> party" are words to find. The terminal closing ends it.
+----------------------------------------------------------------------
+
+--- The history's lines that match `text` (every word, letters in order), the best first, then the newest: rows.
+function UI:HistorySearch(text)
+	local H = ns.History
+	local rows = H and H.Rows() or {}
+	local tokens = {}
+	for w in (text or ""):gmatch("%S+") do tokens[#tokens + 1] = ns.Lower(w) end
+	self.posTokens = tokens
+	local out = {}
+	local score = ns.Fuzzy and ns.Fuzzy.score
+	for _, e in ipairs(rows) do
+		local total, ok = 0, true
+		for _, t in ipairs(tokens) do
+			local sc = score and score(t, e.name, ns.Lower(e.name))
+			if not sc then ok = false break end
+			total = total + sc
+		end
+		if ok then
+			e._score = total - e.histPos * 0.001 -- (equal matches: the newest first)
+			out[#out + 1] = e
+		end
+	end
+	table.sort(out, function(a, b)
+		if #tokens == 0 then return a.histPos < b.histPos end
+		if a._score ~= b._score then return a._score > b._score end
+		return a.histPos < b.histPos
+	end)
+	return out
+end
+
+--- Ctrl+R: the history search starts, finding what the prompt says now; in it already, the next older match.
+function UI:HistoryKey()
+	if self.histSearch then return self:Move(1) end
+	if not self:IsShown() then return end
+	if self.fzf then self:EndFuzzy(true) end
+	local edit = UI.edit
+	local text = edit:GetText()
+	self.histSearch = { saved = text, cursor = UI.CursorNow and UI.CursorNow() or #text }
+	ns:Trace(("history search: on (%q)"):format(ns.MaskSecret(text)))
+	self.category, self.categoryAuto, self.action, self.place, self.sendTo = nil, nil, nil, nil, nil
+	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
+	if ns.Bar then ns.Bar.Reset() end
+	Forget(self, true)
+	self:SetOrResearch(text)
+	self:SetStatus()
+	self:UpdateGhost()
+end
+
+--- The history search ends: `line` (Enter, a click) goes in the prompt and is searched; nil (Esc) puts back what the
+--- prompt said before it.
+function UI:EndHistorySearch(line)
+	local hs = self.histSearch
+	if not hs then return end
+	self.histSearch = nil
+	ns:Trace("history search: off" .. (line and (" (" .. ns.MaskSecret(line) .. ")") or ""))
+	Forget(self, true)
+	if not self:IsShown() then return end
+	local text = line or hs.saved or ""
+	self:SetQuery(text, line and #text or math.min(hs.cursor or #text, #text))
+	self:Research()
+	self:SetStatus()
+	self:UpdateGhost()
+end
+
+--- Enter (or a click) in the history search: the line picked goes in the prompt (nothing picked: the search's own text).
+function UI:HistoryAccept(e)
+	local line = e and type(rawget(e, "line")) == "string" and e.line or nil
+	if not line then return self:EndHistorySearch(UI.edit:GetText()) end
+	return self:EndHistorySearch(line)
+end
+
 --- Does the client itself say Tab is held (IsKeyDown("TAB") a plain true; missing, an error or a secret answer: no)?
 function UI:TabToldDown()
 	local f = _G.IsKeyDown
