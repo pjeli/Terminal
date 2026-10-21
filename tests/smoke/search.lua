@@ -389,7 +389,7 @@ do
 	for _, v in ipairs(ns.Filters.VALUES.is) do if v:sub(1, 2) == "co" then fromAll = fromAll + 1 end end
 	check(#qc == 15 and fromAll > 1, "the quest log's values, several from all of them: " .. #qc)
 	-- every value is said to judge some list, and every list named is one (a typo would hide a value everywhere)
-	local known = { loot = true, questie = true, npc = true, attune = true, training = true } -- (AtlasLoot's, Questie's, Attune's and What's Training's lists: not loaded in every run)
+	local known = { loot = true, questie = true, npc = true, attune = true, training = true, pets = true, toys = true } -- (AtlasLoot's, Questie's, Attune's and What's Training's lists, the pet journal's and the toy box's: not loaded in every run)
 	for _, id in ipairs(ns.providerOrder) do known[id] = true end
 	local undeclared, strange = {}, {}
 	for key, values in pairs(ns.Filters.VALUES) do

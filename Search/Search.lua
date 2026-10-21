@@ -700,6 +700,8 @@ Scan.ANSWERS = {
 	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ"),
+	-- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts": the list, by name (Providers/Collections.lua)
+	Asks("CollectionsQ"),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
 	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,

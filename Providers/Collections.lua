@@ -372,3 +372,109 @@ if GetNumTitles and GetTitleName and IsTitleKnown and SetCurrentTitle then
 		activate = NoTitle,
 	}, { detail = TitleDetail })
 end
+
+----------------------------------------------------------------------
+-- In plain words: "mounts", "my pets", "toys", "favorite mounts", "raptor mounts", "how many pets do i have"
+----------------------------------------------------------------------
+
+-- is:favorite: a mount, pet or toy you marked in the journal
+do
+	local F = ns.Filters
+	local IS = F and F._ and F._.IS
+	if IS then
+		IS.favorite = function(e) return (e.kind == "mounts" or e.kind == "pets" or e.kind == "toys") and e.fav == true end
+		IS.fav, IS.favourite = IS.favorite, IS.favorite
+		local A = F.APPLIES and F.APPLIES.is
+		local kinds = { "mounts", "pets", "toys" }
+		if A then A.favorite, A.fav, A.favourite = kinds, kinds, kinds end
+		local V = F.VALUES and F.VALUES.is
+		if V then
+			local had = false
+			for _, v in ipairs(V) do if v == "favorite" then had = true end end
+			if not had then V[#V + 1] = "favorite" end
+		end
+	end
+end
+
+local CQ = {}
+ns.CollectionsQ = CQ
+
+-- the word for each list: plural alone ("mounts"), singular only with more said ("my mount", "favorite pet")
+local KIND = { mounts = "mounts", mount = "mounts", pets = "pets", pet = "pets", companions = "pets", companion = "pets",
+	minipets = "pets", minipet = "pets", battlepets = "pets", battlepet = "pets", toys = "toys", toy = "toys" }
+local PLURAL = { mounts = true, pets = true, companions = true, minipets = true, battlepets = true, toys = true }
+local FAV = { favorite = true, favorites = true, favourite = true, favourites = true, fav = true, favs = true, faves = true }
+local FILL = {}
+for w in ([[my all show list me the i have what whats which do does are is of every own owned collected collection
+	how many much got ive im a an in please battle box mine]]):gmatch("%a+") do FILL[w] = true end
+local LABEL = { mounts = L["Your mounts"], pets = L["Your pets"], toys = L["Your toys"] }
+
+--- Does the row's name (a pet's species too) have each word, at a word's start?
+local function Named(e, words)
+	if #words == 0 then return true end
+	local hay = " " .. ns.Lower(tostring(e.name or "")):gsub("'", "") .. " "
+	if e.kind == "pets" then hay = hay .. ns.Lower(tostring(rawget(e, "species") or "")):gsub("'", "") .. " " end
+	hay = hay:gsub("[%p]", " ")
+	for _, w in ipairs(words) do
+		if not hay:find(" " .. w, 1, true) then return false end
+	end
+	return true
+end
+
+--- The rows a question takes: the list's, its favorites only when asked, named by its words.
+local function Rows(q)
+	local p = ns.providers[q.kind]
+	local out = {}
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		if (not q.fav or e.fav == true) and Named(e, q.words) then out[#out + 1] = e end
+	end
+	return out, p
+end
+
+--- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts", "how many pets do i have": { kind, fav, words },
+--- or nil when the line isn't one (a list this client hasn't, a word that names none of them: a search then).
+function CQ.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local q = { words = {} }
+	local said, plural = false, false
+	for w in t:gmatch("%S+") do
+		if KIND[w] then
+			if q.kind and q.kind ~= KIND[w] then return nil end -- ("pet mounts": not one list)
+			q.kind = KIND[w]
+			plural = plural or PLURAL[w] or false
+		elseif FAV[w] then q.fav, said = true, true
+		elseif FILL[w] then said = true
+		else q.words[#q.words + 1] = w end
+	end
+	if not q.kind or not ns.providers[q.kind] then return nil end
+	if not plural and not said and #q.words == 0 then return nil end -- ("mount" alone: a search, as before)
+	if #q.words > 0 and #(Rows(q)) == 0 then return nil end -- ("pet trainer", "mount hyjal": a search)
+	return q
+end
+
+--- The rows by name, and the footer's note: whose, how many.
+function CQ.Answer(q)
+	local rows = Rows(q)
+	local note = LABEL[q.kind]
+	if #rows == 0 then
+		local none = q.fav and L["None marked as a favorite in the journal"] or L["None collected yet"]
+		return { ns.NoteRow(none) }, note
+	end
+	table.sort(rows, function(a, b)
+		local na, nb = ns.Lower(tostring(a.name)), ns.Lower(tostring(b.name))
+		if na ~= nb then return na < nb end
+		return tostring(a.key) < tostring(b.key)
+	end)
+	ns.ScoreInOrder(rows)
+	return rows, note .. ns.DETAIL_SEP .. L["%d collected"]:format(#rows)
+end
+
+local ADV = { mounts = "@mount", pets = "@pet", toys = "@toy" }
+function CQ.ToAdvanced(q)
+	local parts = { ADV[q.kind] }
+	if q.fav then parts[#parts + 1] = "is:favorite" end
+	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:name"
+	return table.concat(parts, " ") .. " "
+end

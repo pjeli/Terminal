@@ -476,3 +476,70 @@ do
 	ns.Highlight.Show = origShow
 	_G.MountJournal, _G.CollectionsJournal = was, wasCJ
 end
+
+-- (0.64.1, the player: "look up mounts, pets and toys in plain words") "mounts", "my pets", "toys", "favorite mounts",
+-- "raptor mounts", "how many pets do i have": the list by name, how many in the footer; Alt+` writes @mount ...
+io.write("[mounts, pets, toys in plain words]\n")
+do
+	local save = { mj = _G.C_MountJournal, pj = _G.C_PetJournal, tb = _G.C_ToyBox, has = _G.PlayerHasToy, easy = ns.db.easyMode }
+	local MOUNTS = { [11] = { "Swift Razzashi Raptor", true }, [12] = { "Brown Horse", false }, [13] = { "Black Wolf", true } }
+	_G.C_MountJournal = { GetMountIDs = function() return { 11, 12, 13 } end,
+		GetMountInfoByID = function(id) local m = MOUNTS[id]; return m[1], 900 + id, 1, false, true, 0, m[2], false, nil, false, true end,
+		SummonByID = function() end }
+	_G.C_PetJournal = {
+		SummonPetByGUID = function() end,
+		GetOwnedPetIDs = function() return { "BattlePet-0-000001", "BattlePet-0-000002" } end,
+		GetPetInfoByPetID = function(g)
+			if g == "BattlePet-0-000001" then return 40, "Sir Squeaks", 12, 0, 0, 1, true, "Mechanical Squirrel", 5, 9 end
+			return 41, nil, 1, 0, 0, 1, false, "Black Tabby Cat", 6, 2
+		end,
+		GetNumPetSources = function() return 0 end,
+	}
+	local TOYS = { 2001, 2002 }
+	_G.C_ToyBox = { GetNumToys = function() return #TOYS end, GetToyFromIndex = function(i) return TOYS[i] end,
+		GetToyInfo = function(id) return id, id == 2001 and "Toy Train Set" or "Piccolo of the Flaming Fire", 7, id == 2002 end }
+	_G.PlayerHasToy = function() return true end
+	reload()
+	ns.providers.mounts._dirty = true
+	local Q = ns.CollectionsQ
+	local function Names(rows) local t = {} for _, e in ipairs(rows) do t[#t + 1] = tostring(e.name) end return table.concat(t, " | ") end
+	local function Ask(line)
+		local q = Q.Question(line)
+		if not q then return nil end
+		local rows, note = Q.Answer(q)
+		return Names(rows), note, q
+	end
+	local got, note = Ask("mounts")
+	check(got == "Black Wolf | Brown Horse | Swift Razzashi Raptor" and note:find("3 collected", 1, true), "mounts: every one by name, how many: " .. tostring(got) .. " / " .. tostring(note))
+	check(Ask("my mounts") == got and Ask("show me my mounts") == got and Ask("how many mounts do i have") == got, "my mounts, show me my mounts, how many")
+	check(Ask("favorite mounts") == "Black Wolf | Swift Razzashi Raptor", "favorite mounts: the journal's favorites: " .. tostring(Ask("favorite mounts")))
+	check(Ask("raptor mounts") == "Swift Razzashi Raptor", "raptor mounts: named by the word: " .. tostring(Ask("raptor mounts")))
+	check(Ask("pets") == "Black Tabby Cat | Sir Squeaks" and Ask("my companions") == Ask("pets") and Ask("battle pets") == Ask("pets"), "pets, my companions, battle pets: " .. tostring(Ask("pets")))
+	check(Ask("squirrel pets") == "Sir Squeaks", "a pet by its species too")
+	check(Ask("toys") == "Piccolo of the Flaming Fire | Toy Train Set" and Ask("my toy box") == Ask("toys"), "toys, my toy box: " .. tostring(Ask("toys")))
+	check(Ask("favourite toys") == "Piccolo of the Flaming Fire", "favourite toys")
+	-- not its lines: a word alone, other searches, other questions
+	for _, line in ipairs({ "mount", "pet", "toy", "pet trainer", "mount hyjal", "hunter pets", "@mount", "pet mounts", "summon pet" }) do
+		check(Q.Question(line) == nil, line .. ": not this question")
+	end
+	-- typed: the answer and its note; Enter summons; Alt+`
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI:Open("my mounts"); FlushAll()
+	check(Names(UI.Results()) == "Black Wolf | Brown Horse | Swift Razzashi Raptor" and (UI.answerNote or ""):find("Your mounts", 1, true),
+		"typed in Simple mode: the mounts, the note: " .. Names(UI.Results()))
+	UI:Hide(); FlushAll()
+	check(ns.Easy.ToAdvanced("favorite mounts") == "@mount is:favorite sort:name " and ns.Easy.ToAdvanced("pets") == "@pet sort:name "
+		and ns.Easy.ToAdvanced("raptor mounts") == "@mount raptor sort:name ", "Alt+`: " .. ns.Easy.ToAdvanced("favorite mounts"))
+	local same, why = T.SameAsAdvanced("favorite mounts")
+	check(same, "favorite mounts finds the same in Advanced: " .. tostring(why))
+	same, why = T.SameAsAdvanced("toys")
+	check(same, "toys finds the same in Advanced: " .. tostring(why))
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI.lastScan = nil
+	check(Names(UI:Search("@pet is:favorite")) == "Sir Squeaks", "is:favorite on pets: " .. Names(UI:Search("@pet is:favorite")))
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	_G.C_MountJournal, _G.C_PetJournal, _G.C_ToyBox, _G.PlayerHasToy = save.mj, save.pj, save.tb, save.has
+	ns.providers.mounts._dirty = true
+	drop("pets"); drop("toys")
+	UI.lastScan = nil
+end

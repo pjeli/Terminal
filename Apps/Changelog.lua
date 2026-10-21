@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.64.1", when = "in testing",
+		items = {
+			"Your collections in plain words: \"mounts\", \"my pets\", \"toys\" list them by name with how many you have; \"favorite mounts\" keeps the journal's favorites, \"raptor mounts\" the ones named so. Enter summons or uses one, Shift+Enter shows it in the journal. Advanced: @mount is:favorite (on pets and toys too).",
+		},
+	},
+	{
 		v = "0.64.0", when = "released October 2026",
 		items = {
 			"Ctrl+R searches what you ran, as a shell's does: type to find a line, Ctrl+R again for an older one, Enter puts it in the prompt and searches it, Esc goes back. \"history\" (or @history) lists what you ran, newest first, with when each ran; Enter searches one again.",
@@ -48,17 +54,6 @@ CL.LOG = {
 			"Searches over very large lists keep every frame short: Simple mode's categories and a search's first results no longer stall with hundreds of thousands of rows.",
 		},
 	},
-	{
-		v = "0.58.0", when = "released October 2026",
-		items = {
-			"TrainerSpells works with Terminal: without What's Training it gives @training (your class's spells, weapon skills and pet abilities still to learn) and every class's spells; without Questie its trainers and weapon masters are @npc.",
-			"Profession training: the recipes a trainer teaches that you don't know are listed with your recipes to learn, with their skill and cost (\"what can i train in tailoring\"), and each profession shows its next rank.",
-			"\"polearm trainer\" and the like list only the weapon masters who teach that weapon to your faction.",
-			"When another addon's data isn't what Terminal expects, chat says once what's unavailable; .integrations has one Training line, for What's Training or TrainerSpells.",
-			"Fixes and speed-ups from a review: Down after closing brings back what you typed, filters like is:ready stay right as you type, sold auctions keep their price, and more.",
-		},
-	},
-
 }
 
 local Theme = ns.Theme

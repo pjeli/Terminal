@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.64.1 (in testing)
+
+**Your collections, in plain words**
+- **mounts**, **my pets** (**companions**, **battle pets**), **toys** (**my toy box**) list yours by name, the footer saying how many; **how many mounts do i have** too. **favorite mounts** keeps the journal's favorites; other words name them (**raptor mounts**, **squirrel pets**: a pet's species counts). Enter summons a mount or pet and uses a toy, Shift+Enter shows it in the journal. A word alone ("mount", "pet") is still a search, as are lines like "pet trainer".
+- Advanced: **@mount sort:name**, and the new **is:favorite** on mounts, pets and toys (Alt+` writes **@mount is:favorite raptor sort:name**).
+
 ## 0.64.0
 
 **Your history, as a shell has it**

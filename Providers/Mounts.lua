@@ -40,6 +40,7 @@ ns:RegisterProvider("mounts", {
 					name = name,
 					icon = icon,
 					detail = isFavorite and L["Favorite"] or "",
+					fav = isFavorite and true or nil, -- (is:favorite, "favorite mounts": Collections.lua)
 					spellID = spellID,
 					getLink = MountLink, -- (made when selected, not for every mount on every rebuild)
 					activate = SummonMount,
