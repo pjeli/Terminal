@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.62.2 (in testing)
+## 0.62.3 (in testing)
 
 **Your bank**
-- **@bank** is this character's own bank (what's in it, how many); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)
+- **@bank** is this character's own bank (what's in it, how many; the game's own word for the bank names it too, in every language); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)
 
 **Wider details**
 - A result's detail no longer stops at a third of the row: a long one takes the room its name doesn't need (a name keeps up to 40% when both are long), so wide windows show it whole.

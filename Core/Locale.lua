@@ -163,7 +163,9 @@ local KINDS = {
 	gameoptions = { "OPTIONS", "SETTINGS" },
 	maps = { "WORLD_MAP" },
 	loot = { "LOOT" },
-	stored = { "BANK" },
+	-- (the game's BANK is @bank, this character's own, not @stored, everyone's: 0.62.3, the player's screenshot, @bank
+	-- listed @stored's rows, its "Bank" word put first)
+	bank = { "BANK" },
 	calendar = { "CALENDAR" },
 }
 

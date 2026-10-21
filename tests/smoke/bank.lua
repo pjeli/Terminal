@@ -9,6 +9,16 @@ local P = ns.providers
 check(P.bank and ns:ResolveProvider("bank") == P.bank and ns:ResolveProvider("mybank") == P.bank, "@bank is its own list")
 check(ns:ResolveProvider("stored") == P.stored and ns:ResolveProvider("alts") == P.stored and ns:ResolveProvider("banks") == P.stored,
 	"@stored, @alts, @banks: everyone's")
+-- (0.62.3, the player's screenshot: @stored took the game's own word for the bank, "Bank", and with it @bank)
+do
+	local was = rawget(_G, "BANK")
+	_G.BANK = "Bank"
+	local st, bk = { id = "stored", aliases = { "stored", "banks" } }, { id = "bank", aliases = { "mybank" } }
+	ns.LocalizeKind(st); ns.LocalizeKind(bk)
+	local function Has(p, w) for _, a in ipairs(p.aliases) do if ns.Lower(a) == w then return true end end return false end
+	check(not Has(st, "bank") and Has(bk, "bank"), "the game's \"Bank\": @bank's, not @stored's")
+	_G.BANK = was
+end
 local function H(who, where, n, mine) return { key = who .. "|" .. where, who = who, where = where, count = n, mine = mine } end
 local ROWS = {
 	{ name = "Linen Cloth", id = 2589, holders = { H("Me", "bank", 12, true), H("Alt", "bags", 40) } },

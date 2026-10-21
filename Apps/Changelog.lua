@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.62.2", when = "in testing",
+		v = "0.62.3", when = "in testing",
 		items = {
 			"@bank is this character's own bank; @stored is still every character's. \"what is in my bank\" lists it.",
 			"A long detail takes the room its name doesn't need, so wide windows show it whole.",
