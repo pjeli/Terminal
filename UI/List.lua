@@ -571,7 +571,10 @@ local function FillRow(self, r, e, light)
 			r.label:SetText(ARROW .. r.label:GetText())
 			r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and L["maybe needs %s"] or L["needs %s"]):format(from.name))
 		else
-			r.detail:SetText(e.detail or "")
+			-- (sorted by AH value: what it brings, where it is; Auctionator.lua)
+			local AN = self.showField and not e.raw and ns.Auctionator
+			local d = AN and AN.DetailFor and AN.DetailFor(e, self.showField)
+			r.detail:SetText(d or e.detail or "")
 		end
 		FitDetail(r)
 	end

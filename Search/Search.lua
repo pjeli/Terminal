@@ -1483,6 +1483,11 @@ function Scan.Prepare(self, q)
 	Scan.FillShorthand(tokens)
 	-- (set before any early return: rows listed straight away, "nearest mailbox", light up these words, not the last search's)
 	self.posTokens = tokens
+	-- (sorted by AH value or price, or is:auctionable: the rows' detail says it, List.lua's FillRow; 0.62.2, the player:
+	-- "the value disappears from the details column when I add my bank into the mix")
+	local sf = q.sortField
+	self.showField = (sf == "ahvalue" or sf == "ahprice") and sf
+		or (ns.Lower(q.text or ""):find("is:auctionable", 1, true) and "ahvalue") or nil
 	q.tokens, q.empty = tokens, #tokens == 0
 end
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.62.1 (in testing)
+## 0.62.2 (in testing)
 
 **Your bank**
 - **@bank** is this character's own bank (what's in it, how many); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)
@@ -18,6 +18,7 @@
 - **what should i do** says **Post on the auction house** when your bags would bring a gold or more, and the empty prompt may say **try: what should i auction (about 30g)** or **try: ah value of my mats (about 12g)**.
 - **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours (not when the cheaper one is your own); **am i undercut** / **@auction is:undercut** lists those. A commodity read off your Auctions tab gets its price by its item too.
 - **sort:ahprice** sorts by the price of one (the bar's Sort: AH price).
+- A search sorted by AH value or price, or with **is:auctionable**, shows it in each row's detail: "AH 3s 77c each · x185: 6g 97s · Bag 4" (**@item @mybank is:auctionable sort:ahvalue**).
 - **.integrations** says whether Auctionator was found.
 
 

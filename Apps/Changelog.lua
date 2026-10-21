@@ -14,11 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.62.1", when = "in testing",
+		v = "0.62.2", when = "in testing",
 		items = {
 			"@bank is this character's own bank; @stored is still every character's. \"what is in my bank\" lists it.",
 			"A long detail takes the room its name doesn't need, so wide windows show it whole.",
-			"\"what should i auction in my bank\", \"... on my alts\", \"... everywhere\": the same with your bank and alts; @stored sort:ahvalue.",
+			"\"what should i auction in my bank\", \"... on my alts\", \"... everywhere\": the same with your bank and alts; @stored sort:ahvalue. A search sorted by AH value (or with is:auctionable) shows it in each row's detail.",
 			"Auctionator: with it installed, items have an AH value (sort:ahvalue, | sum ahvalue); \"what should i auction\" lists your bag items worth more on the auction house than at a vendor, with what each would bring; \"ah value of my mats\" sums them up; @auction says the auction house's price now and which of yours are undercut (\"am i undercut\", is:undercut).",
 			"Ask \"what should i do\" (or \"what now\") for what's worth doing now, the most pressing first: gear to repair, junk to sell, spells or a weapon skill to train, a profession's next rank or one to level, your class quest, quests to turn in, quests at your level here or a better zone, the dungeon for your level. Enter searches for it (a class quest: its steps); its tooltip shows the Advanced syntax.",
 			"\"try: what should i do\" is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing; the prompt itself stays empty.",

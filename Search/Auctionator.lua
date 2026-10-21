@@ -171,6 +171,22 @@ function AN.Auctionable(e)
 	return p > (AN.VendorOf(e) or 0)
 end
 
+--- A row's detail when the search is sorted by its AH value (or price), or is:auctionable: "AH 3s 77c each · x185:
+--- 6g 97s · Bag 4" (what it brings, then where it is, from its own detail); nil without a price.
+function AN.DetailFor(e, field)
+	if type(e) ~= "table" or not AN.On() then return nil end
+	local each = AN.PriceOf(e)
+	if not each then return nil end
+	local n = AN.SellableCount(e)
+	local parts = { L["AH %s each"]:format(Money(each)) }
+	if n > 1 then parts[#parts + 1] = L["x%d: %s"]:format(n, Money(each * n)) end
+	local d = type(e.detail) == "string" and e.detail or ""
+	-- (its own detail without the count it starts with: "x185  Bag 4" -> "Bag 4", "x112 · bank" -> "bank")
+	d = d:gsub("^x%d+%s*", ""):gsub("^" .. SEP:gsub("%p", "%%%0"), ""):gsub("^%s+", "")
+	if d ~= "" then parts[#parts + 1] = d end
+	return table.concat(parts, SEP)
+end
+
 --- About how much, plain: to the gold above a gold, to the silver above a silver ("about 45g").
 function AN.About(copper)
 	copper = Num(copper) or 0

@@ -145,6 +145,24 @@ UI:Hide(); FlushAll()
 check(sum[1] and ns.Plain(sum[1].name):find(ns.Plain(ns.Money(1000 + 1200 + 2700)), 1, true),
 	"@mats | sum ahvalue: Linen, Wool and Iron (49s): " .. tostring(sum[1] and ns.Plain(sum[1].name)))
 check(Names(UI:Search("@item sort:ahprice")):find("^Soulbound Ring | Iron Bar") ~= nil, "sort:ahprice: the dearest each first: " .. Names(UI:Search("@item sort:ahprice")))
+-- (0.62.2, the player: the value went from the details once the line was a search, "@item @mybank is:auctionable
+-- sort:ahvalue") sorted by AH value, or is:auctionable: each row's detail says what it brings, then where it is
+for _, line in ipairs({ "@item is:auctionable sort:ahvalue ", "@item sort:ahvalue ", "@item is:auctionable " }) do
+	UI.lastScan, UI.lastExtra = nil, nil
+	UI:Open(""); UI:SetQuery(line, #line); FlushAll()
+	local shown
+	for i = 1, 10 do
+		local row = UI.rows[i]
+		if row and row.label:GetText() and row.label:GetText():find("Wool Cloth", 1, true) then shown = row.detail:GetText() end
+	end
+	check(shown and shown:find(L["AH %s each"]:format(ns.Money(120)), 1, true) and shown:find(L["x%d: %s"]:format(10, ns.Money(1200)), 1, true),
+		line .. ": the detail says what it brings: " .. tostring(shown))
+	UI:Hide(); FlushAll()
+end
+UI.lastScan, UI.lastExtra = nil, nil
+UI:Open(""); UI:SetQuery("@item wool ", 11); FlushAll()
+check(UI.rows[1].detail:GetText() == (by["Wool Cloth"].detail or ""), "not sorted by it: the row's own detail")
+UI:Hide(); FlushAll()
 check(F.SortOf("sort:ahvalue") == "ahvalue" and F.Parse("is:auctionable") ~= nil and F.Parse("is:undercut") ~= nil, "sort:ahvalue, is:auctionable, is:undercut")
 local offered = false
 for _, o in ipairs(ns.Bar.SORTS) do if o.id == "ahvalue" then offered = true end end
