@@ -155,7 +155,8 @@ for _ = 1, 3 do
 end
 
 -- (the player: "i actually prefer an empty bar on key press... let's make 'what should i do' be a 'try:' suggestion")
--- something worth doing: the empty prompt stays empty, its faint example says "try: what should i do" every other open
+-- something worth doing: the empty prompt stays empty; "try: what should i do" is among its examples, weighted up (0.61.4,
+-- the player: every other open was "too obvious", "it should be part of the random group")
 ns.Durability.Total = function() return 500, 1, 5 end
 -- (opening reads no list: your worn pieces' wear as the game says, a quest's readiness as the game says now)
 local saveDur, saveQL = _G.GetInventoryItemDurability, _G.C_QuestLog
@@ -169,15 +170,36 @@ ns.providers.training._entries = { { name = "Frostbolt", state = "now" } }
 SG.Forget()
 local built = false
 ns.GetEntries = function(self, p) built = true return rawget(p, "collect") and save.get(self, p) or p._entries end
-local offered, other = 0, 0
-for _ = 1, 4 do
+-- (a round of the examples: each once, "what should i do" among them, not every other open)
+local n = #E.ExamplePool()
+local offered, seen = 0, {}
+for _ = 1, n do
 	SG.Forget()
 	UI:Open(""); T.FlushAll()
 	check(#UI.Results() == 0, "the empty prompt stays empty: " .. #UI.Results())
-	if UI:SuggestionText() == "what should i do" then offered = offered + 1 else other = other + 1 end
+	local ex = UI:SuggestionText()
+	if ex == "what should i do" then offered = offered + 1 end
 	UI:Hide(); T.FlushAll()
 end
-check(offered == 2 and other == 2, "\"try: what should i do\" every other open: " .. offered .. " of 4")
+check(n > 10 and offered == 1, "\"try: what should i do\" once in a round of " .. n .. " examples: " .. offered)
+-- weighted up: sooner in the shuffle than an example for anywhere (E.Ordered: a weighted shuffle)
+do
+	local seed = 7
+	local rand = E.rand01
+	E.rand01 = function() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+	local function AvgAt(todo)
+		local sum = 0
+		for _ = 1, 400 do
+			local list = { { "what should i do", todo = todo } }
+			for i = 1, 30 do list[#list + 1] = { "anywhere " .. i } end
+			for i, x in ipairs(E.Ordered(list, "field")) do if x[1] == "what should i do" then sum = sum + i end end
+		end
+		return sum / 400
+	end
+	local plain, up = AvgAt(nil), AvgAt(true)
+	check(up < plain / 2, ("weighted up: about %.1f of 31 (plain %.1f)"):format(up, plain))
+	E.rand01 = rand
+end
 check(not built, "opening builds no list")
 ns.GetEntries = function(self, p) return rawget(p, "collect") and save.get(self, p) or p._entries end
 -- what it reads: the worn piece, the quest still ready, not a list out of date

@@ -227,6 +227,9 @@ E.PLACE_WEIGHT = {
 	instance = { city = 0.4, field = 0.8, instance = 5 },
 }
 E.MINE_WEIGHT, E.TIP_WEIGHT = 1.5, 0.5
+-- (0.61.4, the player: "it should be part of the random group", only more frequent) "what should i do" when there's
+-- something worth doing (Suggest.lua's SG.Pressing: lists already read only)
+E.TODO_WEIGHT = 4 -- (as an example for where you are)
 E.rand01 = math.random
 
 --- The examples to offer ({ text, need, at } each; tip, mine), those for where you are first: each once, in a weighted shuffle (each one's place a draw
@@ -236,7 +239,7 @@ function E.Ordered(list, place)
 	local keyed = {}
 	for i, x in ipairs(list) do
 		local at = x[3] -- ({ text, need, at })
-		local w = x.tip and E.TIP_WEIGHT or ((at and weights[at] or 1) * (x.mine and E.MINE_WEIGHT or 1))
+		local w = x.tip and E.TIP_WEIGHT or ((at and weights[at] or 1) * (x.mine and E.MINE_WEIGHT or 1) * (x.todo and E.TODO_WEIGHT or 1))
 		local u = E.rand01()
 		if type(u) ~= "number" or u <= 0 then u = 1e-6 end
 		keyed[#keyed + 1] = { x = x, k = u ^ (1 / w), i = i }
@@ -262,8 +265,11 @@ local function Pool()
 	local level = UnitLevel and Num(Safe(UnitLevel, "player"))
 	local zone = GetRealZoneText and Str(Safe(GetRealZoneText))
 	local place, setup = E.Place(), Setup()
+	local SG = ns.Suggest
+	local pressing = false
+	if not adv and SG and SG.Pressing then local ok, p = pcall(SG.Pressing); pressing = ok and p or false end
 	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and pool.place == place
-		and pool.setup == setup and now - (pool.made or 0) < 60 then
+		and pool.setup == setup and pool.pressing == pressing and now - (pool.made or 0) < 60 then
 		return pool.list
 	end
 	local cands = {}
@@ -272,7 +278,7 @@ local function Pool()
 		local need, at = x[2], x[3]
 		if adv then need, at = nil, x[2] end
 		if x.tip or (Has(need) and (not adv or Valid(x[1]:gsub(" %b()$", "")))) then
-			cands[#cands + 1] = { x[1], need, at, tip = x.tip }
+			cands[#cands + 1] = { x[1], need, at, tip = x.tip, todo = pressing and x[1] == "what should i do" or nil }
 		end
 	end
 	local ok, mine = pcall(Personal, adv)
@@ -281,13 +287,13 @@ local function Pool()
 	for _, x in ipairs(E.Ordered(cands, place)) do list[#list + 1] = x.tip and x[1] or ("try: " .. x[1]) end
 	if #list == 0 then list[1] = L["tip: F1 shows every key"] end
 	pool.list, pool.adv, pool.level, pool.zone, pool.place, pool.setup, pool.made = list, adv, level, zone, place, setup, now
+	pool.pressing = pressing
 	pool.at = 0 -- (made again: from its first, the ones for here)
 	return list
 end
 E.ExamplePool = Pool
 -- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once (0.51.16, the player's ask)
 E.TOUR_EXAMPLE = "try: .tour"
-E.TODO_EXAMPLE = "try: what should i do"
 function E.NextExample()
 	local db = ns.db
 	pool.first = nil
@@ -295,17 +301,6 @@ function E.NextExample()
 	if type(db) == "table" and not db.tourOffered and #(db.history or {}) == 0 then
 		pool.first = E.TOUR_EXAMPLE
 		return pool.first
-	end
-	-- (0.61.0, the player: "let's make 'what should i do' be a 'try:' suggestion") with something worth doing (gear to
-	-- repair, quests to turn in...: from lists already read), Simple mode's every other open says to ask
-	local SG = ns.Suggest
-	if E.On() and SG and SG.Pressing then
-		pool.todoTurn = not pool.todoTurn
-		local ok, pressing = pcall(SG.Pressing)
-		if pool.todoTurn and ok and pressing then
-			pool.first = E.TODO_EXAMPLE
-			return pool.first
-		end
 	end
 	local list = Pool()
 	pool.at = pool.at % #list + 1

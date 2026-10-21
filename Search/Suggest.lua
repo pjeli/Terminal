@@ -9,9 +9,9 @@ local L = ns.L
 --
 -- What's worth doing now, from what Terminal already knows of your character, the most pressing first. Each row says
 -- why, and Enter searches for it (plain words, so Simple and Advanced mode alike; its tooltip writes the search in
--- Advanced syntax). Asked for ("what should i do", "what now", "suggestions"), every list is read. The empty prompt's
--- faint example says "try: what should i do" when something is (SG.Pressing: only lists already read, so opening the
--- terminal builds none; the player: "I actually prefer an empty bar on key press").
+-- Advanced syntax). Asked for ("what should i do", "what now", "suggestions"), every list is read. "try: what should i
+-- do" is one of the empty prompt's examples, weighted up when something is (SG.Pressing: only lists already read, so
+-- opening the terminal builds none; the player: "I actually prefer an empty bar on key press").
 --
 --   Repair your gear        your lowest piece under SG.REPAIR_PCT %        nearest repair
 --   Sell your junk          grey items (or bags nearly full)               nearest vendor

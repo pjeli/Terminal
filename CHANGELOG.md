@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.61.3 (in testing)
+## 0.61.4 (in testing)
 
 **What should I do?**
 - Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune; Enter lists its steps, and Enter on a step opens Attune on it), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
-- When there's something worth doing, Simple mode's empty prompt says **try: what should i do** every other time it opens (from what Terminal has already read: opening the terminal builds nothing, and the prompt stays empty).
+- **try: what should i do** is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing (from what Terminal has already read: opening the terminal builds nothing, and the prompt stays empty).
 
 **Plain questions, and their Advanced syntax**
 - **quests to turn in** / **turn in quests** / **which quests are ready**: your quest log's quests ready to turn in (**@questlog is:complete**).
