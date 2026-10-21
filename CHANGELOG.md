@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.62.5 (in testing)
+## 0.63.0
+
+**What should I do?**
+- Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune; Enter lists its steps, and Enter on a step opens Attune on it), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), the dungeon that fits your level (its upgrades, with AtlasLoot), and items worth posting on the auction house (Auctionator). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest class trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
+- **try: what should i do** is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing (from what Terminal has already read: opening the terminal builds nothing, and the prompt stays empty).
+
+**Plain questions, and their Advanced syntax**
+- **quests to turn in** / **turn in quests** / **which quests are ready**: your quest log's quests ready to turn in (**@questlog is:complete**).
+- **quests here** / **quests in this zone**: Questie's quests at your level in the zone you're in, not done yet (**@questie lvl:20-25 in:<zone>**).
+- **what can i craft** / **what can i cook** / **craftable items**: your recipes you have every reagent for (**@recipe is:craftable**).
+- **nearest class trainer** / **my trainer**: your class's trainers (**trainer:class**); **nearest weapon trainer** / **weapon master**: the weapon masters (**is:weaponmaster**). A weapon or profession named with them is theirs: **nearest fist weapons trainer** is **trainer:fist** (Sayoc in Orgrimmar), **my tailoring trainer** **trainer:tailoring**. In Advanced mode **@npc trainer:fists**, **trainer:staff**, **trainer:daggers** list the weapon masters What's Training or TrainerSpells says teach it.
+- **quests per zone** / **my quests by zone** / **quests by level** (and **<list> per <field>**, filters after it too: **items by zone q:rare**): the list grouped by it (**@questie | group by zone**); the bar shows it as its Group.
+- Enter on a group steps into it: the words you typed to find the group go ("@questie Death" grouped by zone, Enter on Deathknell: **@questie in:"Deathknell"**, every quest there), not left beside it. Words joined by "or" go together, and a word after "not", "no" or "without" stays.
+- **low durability** is **@durability**; **dungeons at my level** and **best dungeon for upgrades** are the dungeon for your level, as "what dungeon should i do".
+
+**Auction house prices, with Auctionator**
+- With Auctionator installed, Terminal reads its auction house prices through its API for other addons (scan the auction house with Auctionator to have them).
+- Items have an **AH value**: **sort:ahvalue** and **sort:ahprice** (the bar's Sort: AH value, AH price), **| sum ahvalue**, **| avg ahprice**, on your bags, your bank and alts, loot and the items recipes make. A search sorted by it, or with **is:auctionable**, shows it in each row's detail: "AH 3s 77c each · x185: 6g 97s · Bag 4".
+- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (**@item is:auctionable sort:ahvalue**). Add where: **... in my bank**, **... on my alts**, **... everywhere**, each row saying where they are.
+- **ah value of my mats** / **what are my mats worth** (**@mats | sum ahvalue**), and the same for your bags, bank, alts, consumables and gear.
+- **what should i do** says **Post on the auction house** when your bags would bring a gold or more, and the empty prompt may say **try: what should i auction (about 30g)** or **try: ah value of my mats (about 12g)**.
+- **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours (not when the cheaper one is your own); **am i undercut** / **@auction is:undercut** lists those. Item filters work on your auctions too (**@auction q:rare**, **auctions by quality**).
+- **.integrations** says whether Auctionator was found.
 
 **Your bank**
 - **@bank** is this character's own bank (what's in it, how many; the game's own word for the bank names it too, in every language); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)
@@ -8,35 +30,13 @@
 **Wider details**
 - A result's detail no longer stops at a third of the row: a long one takes the room its name doesn't need (a name keeps up to 40% when both are long), so wide windows show it whole.
 
-
-**Auctionator**
-- With Auctionator installed, Terminal reads its auction house prices (through its API for other addons; scan the auction house with Auctionator to have them).
-- Items have an **AH value**: **sort:ahvalue** (the bar's Sort: AH value), **| sum ahvalue**, **| avg ahprice**, on your bags, your alts', loot and the items recipes make.
-- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (**@item is:auctionable sort:ahvalue**). Add where: **... in my bank** (**@bank**), **... on my alts**, **... everywhere** (**@stored**), each saying where they are.
-- **@stored** and **@bank** have AH values too (**@stored sort:ahvalue**, **| sum ahvalue**): what could be posted, not what's worn, up already or in a guild's bank.
-- **ah value of my mats** / **what are my mats worth** (**@mats | sum ahvalue**), and the same for your bags, consumables and gear.
-- **what should i do** says **Post on the auction house** when your bags would bring a gold or more, and the empty prompt may say **try: what should i auction (about 30g)** or **try: ah value of my mats (about 12g)**.
-- **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours (not when the cheaper one is your own); **am i undercut** / **@auction is:undercut** lists those. A commodity read off your Auctions tab gets its price by its item too.
-- **sort:ahprice** sorts by the price of one (the bar's Sort: AH price).
-- A search sorted by AH value or price, or with **is:auctionable**, shows it in each row's detail: "AH 3s 77c each · x185: 6g 97s · Bag 4" (**@item @mybank is:auctionable sort:ahvalue**).
-- **.integrations** says whether Auctionator was found.
-
-
-**What should I do?**
-- Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune; Enter lists its steps, and Enter on a step opens Attune on it), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
-- **try: what should i do** is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing (from what Terminal has already read: opening the terminal builds nothing, and the prompt stays empty).
-
-**Plain questions, and their Advanced syntax**
-- **quests to turn in** / **turn in quests** / **which quests are ready**: your quest log's quests ready to turn in (**@questlog is:complete**).
-- **quests here** / **quests in this zone**: Questie's quests at your level in the zone you're in, not done yet (**@questie lvl:20-25 in:<zone>**).
-- **what can i craft** / **what can i cook** / **craftable**: your recipes you have every reagent for (**@recipe is:craftable**).
-- **nearest class trainer** / **my trainer**: your class's trainers (**trainer:class**), no longer NPCs with "class" in their names; **nearest weapon trainer** / **weapon master**: the weapon masters (**is:weaponmaster**). A weapon or profession named with them is theirs: **nearest fist weapons trainer** is **trainer:fist** (Sayoc in Orgrimmar), **my tailoring trainer** **trainer:tailoring**; in Advanced mode **@npc trainer:fists**, **trainer:staff**, **trainer:daggers** list the weapon masters What's Training or TrainerSpells says teach it.
-- **quests per zone** / **my quests by zone** / **quests by level** (and **<list> per <field>**): the list grouped by it (**@questie | group by zone**); the bar shows it as its Group.
-- Enter on a group steps into it: the words you typed to find the group go ("@questie Death" grouped by zone, Enter on Deathknell: **@questie in:"Deathknell"**, every quest there), not left beside it.
-- **low durability** is **@durability**; **dungeons at my level** and **best dungeon for upgrades** are the dungeon for your level, as "what dungeon should i do".
-
 **Terminal: Share**
 - Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. A Battle.net friend on your realm still is, whatever their faction.
+
+**Fixes from the release review**
+- "items by zone" and other list names found in a fresh session; the empty prompt's example checks what's worth doing once a minute, not on every open; result details measured only when they change.
+- Lines other questions answer stay theirs ("lockouts by raid", "my riding trainer", "craft bags", "dungeon upgrades for my level", "help me").
+- @bank lets go of @stored's memory with it, and is searched by its own place; bound items held in banks aren't counted as worth posting.
 
 ## 0.60.0
 
