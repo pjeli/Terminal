@@ -298,7 +298,6 @@ local function Pool()
 	for _, x in ipairs(E.Ordered(cands, place)) do list[#list + 1] = x.tip and x[1] or ("try: " .. x[1]) end
 	if #list == 0 then list[1] = L["tip: F1 shows every key"] end
 	pool.list, pool.adv, pool.level, pool.zone, pool.place, pool.setup, pool.made = list, adv, level, zone, place, setup, now
-	pool.pressing = pressing
 	pool.at = 0 -- (made again: from its first, the ones for here)
 	return list
 end

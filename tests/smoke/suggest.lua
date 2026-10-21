@@ -258,6 +258,8 @@ do
 	check(not Is(CC.Question, "craft bags") and not Is(CC.Question, "make bags") and not Is(CC.Question, "craftable bags"),
 		"\"craft bags\", \"craftable bags\": searches for bags")
 	check(Is(CC.Question, "what can i make with my mats") and Is(CC.Question, "what can i craft from my bags"), "\"... with my mats\": this")
+	check(Is(CC.Question, "what items can i craft") and Is(CC.Question, "craftable items") and Is(CC.Question, "what can i craft in my bags"),
+		"\"what items can i craft\", \"craftable items\", \"... in my bags\"")
 	check(ns.QuestionToAdvanced("what can i craft") == "@recipe is:craftable ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what can i craft")))
 	check(ns.QuestionToAdvanced("what can i cook") == "@recipe is:craftable cooking ", "cook: " .. tostring(ns.QuestionToAdvanced("what can i cook")))
 	local saveR, saveG, saveC = ns.providers.recipes, ns.GetEntries, C_Item.GetItemCount
@@ -321,6 +323,9 @@ do
 	check(A.DropNamed('sword or axe', "Two-Handed Axes") == "" and A.DropNamed('linen or wool', "Wool Fields") == "", "\"sword or axe\" into Axes: neither side left alone")
 	check(A.DropNamed('@questie ring', "Winterspring") == "@questie ring", "\"ring\" isn't a word of Winterspring (the search matches at word starts)")
 	check(A.DropNamed('@questie glades', "Tirisfal Glades") == "@questie", "a later word of the name: \"glades\"")
+	check(A.DropNamed("death or not kobold", "Deathknell") == "death or not kobold" or A.DropNamed("death or not kobold", "Deathknell") == "",
+		"\"or not kobold\" is one side: never \"kobold\" alone: " .. A.DropNamed("death or not kobold", "Deathknell"))
+	check(A.DropNamed("zul'gurub loot", "Zul'Gurub") == "loot", "an apostrophe as the name's: " .. A.DropNamed("zul'gurub loot", "Zul'Gurub"))
 	check(A.DropNamed('quests without dusk', "Duskwood") == "quests without dusk" and A.DropNamed('quests no death', "Deathknell") == "quests no death",
 		"Simple mode's not-words: without, no")
 	check(A.DropNamed('@questie "death" q:rare', "Deathknell") == '@questie "death" q:rare', "a quoted phrase and a filter stay")
@@ -338,6 +343,9 @@ do
 		"\"a\", \"s\": no list's name")
 	check(PF.Line("items by zone q:rare") == "@items q:rare | group by zone ", "filters after it go before its step: " .. tostring(PF.Line("items by zone q:rare")))
 	check(PF.Line("quests per zone sort:name") == "@questlog sort:name | group by zone ", "a sort too: " .. tostring(PF.Line("quests per zone sort:name")))
+	check(ns.QuestionToAdvanced("items by zone q:rare") == "@items q:rare | group by zone ", "Alt+` writes it so too: " .. tostring(ns.QuestionToAdvanced("items by zone q:rare")))
+	ns:AliasesChanged()
+	check(PF.Line("items by zone") == "@items | group by zone ", "with the list names made again (a list registered late): " .. tostring(PF.Line("items by zone")))
 	check(PF.Line("lockouts by raid") == nil and ns.QuestionToAdvanced("lockouts by raid"):find("@lockout", 1, true),
 		"another question's line stays its own: lockouts by raid -> " .. tostring(ns.QuestionToAdvanced("lockouts by raid")))
 	local saved = { providers = ns.providers, order = ns.providerOrder }

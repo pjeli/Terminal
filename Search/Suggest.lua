@@ -506,11 +506,11 @@ local CC = {}
 ns.CanCraft = CC
 local CRAFT = { craft = true, make = true, cook = true, brew = true, craftable = true }
 local CRAFT_FILL = { what = true, whats = true, can = true, i = true, could = true, ["do"] = true, now = true, right = true,
-	things = true, stuff = true, recipes = true, my = true, me = true, with = true, from = true, the = true, have = true,
-	all = true, which = true, to = true, ["for"] = true }
+	things = true, stuff = true, recipes = true, items = true, my = true, me = true, with = true, from = true, the = true,
+	have = true, all = true, which = true, to = true, ["for"] = true, ["in"] = true }
 -- (what you craft from: filler only after with, from, in, my: "what can i make with my mats"; "craft bags", "craftable
 -- bags" are searches for bags; release review, 0.63.0)
-local CRAFT_FROM = { bags = true, mats = true, materials = true, reagents = true, items = true, inventory = true }
+local CRAFT_FROM = { bags = true, mats = true, materials = true, reagents = true, inventory = true }
 local CRAFT_FROM_AFTER = { with = true, from = true, ["in"] = true, my = true, the = true }
 
 --- { profs = { your professions named } } or nil: a craft word, and nothing but filler and your professions.

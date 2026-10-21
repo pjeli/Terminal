@@ -233,8 +233,10 @@ end
 
 function ns:ResolveProvider(token)
 	token = ns.Lower(token)
+	-- (the map made first, even for "": ns:ResolveProvider("") is how others ask for it; release review, 0.63.0)
+	local map = self.aliasMap or AliasMap(self)
 	if token == "" then return nil end
-	local p = (self.aliasMap or AliasMap(self))[token]
+	local p = map[token]
 	if p then return p end
 	-- (a kind named by the start of its id: the first in order, unless another's id is the start of that one's:
 	-- "@loo" is @loot, not @lootlog, though the loot log registered first)

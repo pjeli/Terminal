@@ -296,8 +296,8 @@ do
 	rows = ns.AuctionatorQ.Answer(ns.AuctionatorQ.Question("what should i auction in my bank"))
 	linen = nil
 	for _, e in ipairs(rows) do if e.name == "Linen Cloth" then linen = e end end
-	check(linen and linen.detail:find(L["warband bank"] .. " 4", 1, true) and not linen.detail:find("Warband " .. L["warband bank"], 1, true),
-		"your bank and the warband's (said once): " .. tostring(linen and linen.detail))
+	check(linen and linen.detail:find(L["bank"] .. " 12", 1, true) and not linen.detail:find(L["warband bank"], 1, true),
+		"your bank: yours only, as @bank (the warband's is everywhere's): " .. tostring(linen and linen.detail))
 	for line, want in pairs({ ["what should i auction"] = "@item is:auctionable sort:ahvalue ", ["what should i auction in my bank"] = "@bank is:auctionable sort:ahvalue ",
 		["what should i auction from my bags and bank"] = "@item @bank is:auctionable sort:ahvalue ",
 		["what should i auction everywhere"] = "@item @stored is:auctionable sort:ahvalue " }) do

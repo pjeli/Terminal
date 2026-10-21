@@ -378,7 +378,7 @@ function AN.ToPostIn(places)
 	local function want(h)
 		-- (yours: your bank; everywhere, your mail and void storage too, the warband bank; your bags are the items')
 		if h.mine then return (places.bank and h.where == "bank") or (places.all and h.where ~= "bags") or false end
-		if h.where == "warband" then return places.all == true or places.bank == true end
+		if h.where == "warband" then return places.all == true end -- (the account's: everywhere, not your bank, as @bank)
 		return places.alts == true
 	end
 	if places.bank or places.alts then

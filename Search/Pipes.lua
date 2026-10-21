@@ -1763,7 +1763,9 @@ function A.DropNamed(line, name)
 		local lw = ns.Lower(tok)
 		if #lw < 2 or OR[lw] or NOT[lw] or lw == "and" or (prev and NOT[prev]) then return false end
 		if tok:find("^[@%-!\"]") or tok:find("[:|>]") then return false end
-		return lname:find(" " .. lw, 1, true) ~= nil
+		-- (its punctuation as the name's: "zul'gurub" is Zul'Gurub)
+		lw = lw:gsub("[%s%p]+", " "):gsub("^ ", ""):gsub(" $", "")
+		return lw ~= "" and lname:find(" " .. lw, 1, true) ~= nil
 	end
 	local out, dropped, k = {}, false, 1
 	while k <= #toks do
@@ -1775,8 +1777,14 @@ function A.DropNamed(line, name)
 		while toks[m + 2] and OR[ns.Lower(toks[m + 1])] do
 			run[#run + 1] = m + 1
 			run[#run + 1] = m + 2
-			if Named(toks[m + 2], ns.Lower(toks[m + 1])) then drop = true end
-			m = m + 2
+			-- ("death or not kobold": the not-word and its word are one side, never left alone)
+			if NOT[ns.Lower(toks[m + 2])] and toks[m + 3] then
+				run[#run + 1] = m + 3
+				m = m + 3
+			else
+				if Named(toks[m + 2], ns.Lower(toks[m + 1])) then drop = true end
+				m = m + 2
+			end
 		end
 		if drop and not (prev and NOT[prev]) then
 			dropped = true

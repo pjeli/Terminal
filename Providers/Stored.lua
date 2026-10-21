@@ -558,7 +558,7 @@ ns:RegisterProvider("bank", {
 				c.holders = { [h.key] = h }
 				c.total = h.count
 				-- (searched by its name and its place, not by every holder @stored's row has: "@bank mail")
-				c.text, c._ltext = nil, ns.Lower("bank " .. tostring(h.who or ""))
+				c.text, c._ltext = nil, ns.Lower(L["bank"] .. " bank " .. tostring(h.who or ""))
 				c.detail = "x" .. h.count .. ns.DETAIL_SEP .. L["bank"]
 				out[#out + 1] = c
 			end

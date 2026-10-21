@@ -812,6 +812,12 @@ Scan.ANSWERS = {
 --- level" by how well each zone fits, "my mail" with the auction house's news, stays as it was said: its toAdvanced says
 --- nil. Questions are answered in Advanced mode too, so what's written finds what was shown; "@map lvl:23" didn't.)
 function ns.QuestionToAdvanced(text)
+	-- ("items by zone q:rare": its filters before its step, as the search runs it: Suggest.lua's PF.Line)
+	local per = ns.PerField and ns.PerField.Line and ns.PerField.Line(text)
+	if per then return per end
+	return ns.QuestionToAdvancedOf(text)
+end
+function ns.QuestionToAdvancedOf(text)
 	local function Print(t)
 		for _, a in ipairs(Scan.ANSWERS) do
 			local q, extra = a.ask(t, true)

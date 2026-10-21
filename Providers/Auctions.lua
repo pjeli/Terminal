@@ -171,7 +171,7 @@ local function UpRow(key, id, a, mine, who, now)
 	local name = NameOf(a) .. (((a.count or 1) > 1) and (" x" .. a.count) or "")
 	return {
 		key = "up:" .. key .. ":" .. id, name = name, auction = a, auctionID = id, ahKind = over and "over" or "up",
-		market = market, undercut = undercut or nil, ahItemID = itemID, each = a.each or (a.price and a.price / math.max(1, a.count or 1)),
+		market = market, undercut = undercut or nil, itemID = itemID, quality = q, each = a.each or (a.price and a.price / math.max(1, a.count or 1)),
 		boxKey = key, who = who, mine = mine or nil, ends = a.ends,
 		color = over and GREY or ns.QualityHex(q), icon = icon or ICON, link = link or a.link,
 		detail = ns.Detail(unpack(d)), plain = plain,
