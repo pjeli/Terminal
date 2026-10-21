@@ -44,13 +44,27 @@ local function Has(addon)
 	return not (I and I.AddonMissing and I.AddonMissing(addon))
 end
 
---- A list's rows: built when asked (`build`), else only if it's been read already (nothing built for the empty prompt).
-local function Entries(id, build)
+--- A list's rows: built when asked (`build`); else only if it's been read and is up to date: the empty prompt builds no
+--- list (tests/smoke/opencost.lua: the player's CPU spike on opening, 0.53.1) and says nothing from one out of date (a
+--- spell learned since). `stale`: the last one read will do (the caller checks what it takes from it).
+local function Entries(id, build, stale)
 	local p = ns.providers[id]
 	if not p then return {} end
 	if build then return ns:GetEntries(p) or {} end
 	local list = rawget(p, "_entries")
+	if rawget(p, "_dirty") and not stale then return {} end
 	return type(list) == "table" and list or {}
+end
+
+--- Still in your log and ready to turn in, as the game says now (the quest log's list is made again on every open: the
+--- empty prompt reads the last one, a quest turned in since not taken for one).
+local function StillReady(e)
+	local id = Num(rawget(e, "questID"))
+	local Q = C_QuestLog
+	if not (id and Q) then return false end
+	if Q.GetLogIndexForQuestID and not Num(Safe(Q.GetLogIndexForQuestID, id)) then return false end
+	local f = Q.ReadyForTurnIn or Q.IsComplete
+	return f ~= nil and Safe(f, id) == true
 end
 
 --- A list another one reads through ns:GetEntries is up to date (built when asked; the empty prompt builds none).
@@ -95,10 +109,25 @@ end
 local CHECKS = {}
 
 -- your gear wearing out
-CHECKS[#CHECKS + 1] = function()
+CHECKS[#CHECKS + 1] = function(build)
 	local DU = ns.Durability
 	if not (DU and DU.Total) then return end
-	local ok, cost, damaged, low = pcall(DU.Total)
+	local ok, cost, damaged, low
+	if build then
+		Entries("durability", true) -- (made again once your gear wore or was repaired: DU.Total reads the last one made)
+		ok, cost, damaged, low = pcall(DU.Total)
+	else
+		-- (the empty prompt: your worn pieces' wear as the game says now, no list made; the bill isn't read)
+		ok, cost, damaged, low = true, nil, 0, 100
+		for slot = 1, 19 do
+			local cur, max = Safe(GetInventoryItemDurability, slot)
+			cur, max = Num(cur), Num(max)
+			if cur and max and max > 0 and cur < max then
+				damaged = damaged + 1
+				low = math.min(low, math.floor(100 * cur / max))
+			end
+		end
+	end
 	if not ok or not low or damaged == 0 or low > SG.REPAIR_PCT then return end
 	local parts = { L["lowest piece %d%%"]:format(low) }
 	if cost and cost > 0 then parts[#parts + 1] = L["repair all: %s"]:format(ns.Money(cost)) end
@@ -114,7 +143,10 @@ CHECKS[#CHECKS + 1] = function()
 	local bags = ns.Bags and ns.Bags.BagIDs and ns.Bags.BagIDs() or { 0, 1, 2, 3, 4 }
 	for _, bag in ipairs(bags) do
 		if bag ~= -2 then -- (the keyring holds keys, not junk)
-			free = free + (Num(C.GetContainerNumFreeSlots and Safe(C.GetContainerNumFreeSlots, bag)) or 0)
+			-- (a herb or ammo bag's free slots aren't room for loot: bag type 0 only)
+			local n, kind = 0, 0
+			if C.GetContainerNumFreeSlots then n, kind = Safe(C.GetContainerNumFreeSlots, bag) end
+			if (Num(kind) or 0) == 0 then free = free + (Num(n) or 0) end
 			for s = 1, Num(Safe(C.GetContainerNumSlots, bag)) or 0 do
 				local info = Safe(C.GetContainerItemInfo, bag, s)
 				if type(info) == "table" and info.quality == 0 and not info.hasNoValue then
@@ -134,6 +166,22 @@ CHECKS[#CHECKS + 1] = function()
 		search = Nearest("vendor", "vendor"), score = 40 + (free <= SG.BAGS_LOW and 35 or 0) + math.min(items, 20) }
 end
 
+--- A weapon skill's word as Simple mode's trainers take it ("Two-Handed Swords" -> "sword"), or nil: by its spell id
+--- (F.WEAPON_SKILLS' words, the shortest; the client's names have spaces and hyphens no trainer word has).
+function SG.WeaponWord(name)
+	local F = ns.Filters
+	if not (F and F.WeaponSkillIds and F.WEAPON_SKILLS) then return nil end
+	local ids = F.WeaponSkillIds(Lower(name))
+	if not ids then return nil end
+	local best
+	for w, list in pairs(F.WEAPON_SKILLS) do
+		for _, id in ipairs(list) do
+			if id == ids[1] and (not best or #w < #best or (#w == #best and w < best)) then best = w end
+		end
+	end
+	return best
+end
+
 -- your class's spells, and weapon skills, to learn now (What's Training's or TrainerSpells' list)
 CHECKS[#CHECKS + 1] = function(build)
 	local spells, cost, weapons = 0, 0, {}
@@ -145,11 +193,10 @@ CHECKS[#CHECKS + 1] = function(build)
 	end
 	local out = {}
 	if spells > 0 then
-		local cls = Str(Safe(UnitClass, "player"))
 		local parts = { (spells == 1 and L["%d spell to learn"] or L["%d spells to learn"]):format(spells) }
 		if cost > 0 then parts[#parts + 1] = ns.Money(cost) end
 		out[#out + 1] = { id = "train", name = L["Train new spells"], detail = table.concat(parts, SEP), icon = "Interface\\Icons\\INV_Misc_Book_09",
-			search = (cls and Has("Questie")) and ("nearest " .. Lower(cls) .. " trainer") or "what can i train", score = 70 + math.min(spells, 10) }
+			search = Has("Questie") and "nearest class trainer" or "what can i train", score = 70 + math.min(spells, 10) }
 	end
 	if #weapons > 0 then
 		local names, word = {}, nil
@@ -158,11 +205,11 @@ CHECKS[#CHECKS + 1] = function(build)
 			local n = Str(e.name)
 			if n then
 				names[#names + 1] = n
-				if not word and F and F.TrainerWeapon then word = F.TrainerWeapon(Lower(n)) end
+				if not word then word = SG.WeaponWord(n) end
 			end
 		end
 		out[#out + 1] = { id = "weapon", name = L["Learn a weapon skill"], detail = table.concat(names, ", "), icon = "Interface\\Icons\\INV_Sword_04",
-			search = Has("Questie") and ("nearest " .. (word or "weapon") .. " trainer") or "weapon skills i can learn", score = 50 }
+			search = Has("Questie") and ("nearest " .. (word or "weapon") .. " trainer") or "what can i train", score = 50 }
 	end
 	return out
 end
@@ -216,18 +263,18 @@ CHECKS[#CHECKS + 1] = function(build)
 			if pct and need and level >= need and pct < 100 and (not best or need < best.need) then best = { e = e, need = need, pct = pct } end
 		end
 	end
-	if not best then return end
+	if not best or not Str(best.e.name) then return end
 	local parts = { L["Lv %d"]:format(best.need), best.pct > 0 and L["%d%% done"]:format(best.pct) or L["not started"] }
 	return { id = "classquest", name = L["Class quest: %s"]:format(Str(best.e.name) or "?"), detail = table.concat(parts, SEP),
 		-- (Enter: that quest's steps, each Enter opening Attune on it; 0.61.0, the player's ask)
-		icon = "Interface\\Icons\\INV_Misc_Note_01", search = "steps for " .. Lower(Str(best.e.name) or ""), score = 60 }
+		icon = "Interface\\Icons\\INV_Misc_Note_01", search = "steps for " .. Lower(Str(best.e.name)), score = 60 }
 end
 
 -- quests ready to turn in
 CHECKS[#CHECKS + 1] = function(build)
 	local names = {}
-	for _, e in ipairs(Entries("quests", build)) do
-		if e.complete then names[#names + 1] = Str(e.name) or "?" end
+	for _, e in ipairs(Entries("quests", build, true)) do
+		if e.complete and (build or StillReady(e)) then names[#names + 1] = Str(e.name) or "?" end
 	end
 	if #names == 0 then return end
 	local shown = {}
@@ -351,13 +398,14 @@ end
 function SG.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
--- "quests to turn in", "turn in quests", "completed quests": your quest log's quests ready to turn in
+-- "quests to turn in", "turn in quests", "quests ready": your quest log's quests ready to turn in
 ----------------------------------------------------------------------
 
 local TI = {}
 ns.TurnIn = TI
 local QUEST = { quest = true, quests = true }
-local READY = { ready = true, complete = true, completed = true, finished = true, done = true }
+-- ("completed", "finished", "done quests": the quests you've done, is:done, as before)
+local READY = { ready = true, complete = true }
 
 function TI.Question(text)
 	local t = ns.QuestionText(text)
@@ -454,25 +502,29 @@ local CRAFT_FILL = { what = true, whats = true, can = true, i = true, could = tr
 function CC.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
-	local craft, profs, any = false, {}, false
+	-- (a craft word first: asked on every keystroke, your professions read only when it may be this)
+	local craft = false
+	for w in t:gmatch("%S+") do if CRAFT[w] then craft = true break end end
+	if not craft then return nil end
+	local profs, named, any = {}, false, false
 	local P = ns.Professions
 	local mine
 	for w in t:gmatch("%S+") do
-		if CRAFT[w] then craft = true; if w == "cook" then profs[#profs + 1] = "cooking" end
+		if CRAFT[w] then
+			if w == "cook" then profs[#profs + 1] = "cooking" end -- (a word of the question, not one asked by: "cook" alone is a search)
 		elseif CRAFT_FILL[w] then any = true
 		else
+			-- (a profession of yours by its whole name: "make leather" is a search for leather)
 			if not mine then mine = P and P.PlayerProfessions and (P.PlayerProfessions()) or {} end
 			local hit
-			for _, pr in ipairs(mine) do
-				local ln = Lower(pr.name)
-				if w == ln or (#w >= 5 and ln:sub(1, #w) == w) then hit = ln end
-			end
+			for _, pr in ipairs(mine) do if w == Lower(pr.name) then hit = w end end
 			if not hit then return nil end
 			profs[#profs + 1] = hit
+			named = true
 		end
 	end
-	-- ("craft" alone, "make": searches; "what can i craft", "craftable", "tailoring i can make": this)
-	if not craft or not (any or #profs > 0 or t:find("craftable", 1, true)) then return nil end
+	-- ("craft", "cook", "make" alone: searches; "what can i craft", "craftable", "tailoring i can make": this)
+	if not (any or named or t:find("craftable", 1, true)) then return nil end
 	return { profs = profs }
 end
 

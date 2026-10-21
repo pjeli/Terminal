@@ -276,6 +276,20 @@ do
 	for _, q in ipairs({ "polearm trainer", "polearms trainer", "polearm trainers", "nearest polearm trainer" }) do
 		check(Npcs(UI:SearchText(q)) == "Archibald", q .. ": the Horde's one, Archibald: " .. Npcs(UI:SearchText(q)))
 	end
+	-- (0.61.1, the player: "it should work for advanced syntax too") trainer:<weapon> in Advanced mode, every way it's
+	-- written, as "fist weapons trainer" is in Simple: the masters What's Training (or TrainerSpells) says teach it
+	ns.db.easyMode = false; UI:EasyChanged()
+	for _, q in ipairs({ "@npc trainer:dagger", "@npc trainer:daggers", "@npc trainer:Daggers sort:nearest" }) do
+		check(Npcs(UI:SearchText(q)) == "Sayoc | Archibald", q .. ": " .. Npcs(UI:SearchText(q)))
+	end
+	for _, q in ipairs({ "@npc trainer:polearm", "@npc trainer:polearms" }) do
+		check(Npcs(UI:SearchText(q)) == "Archibald", q .. ": " .. Npcs(UI:SearchText(q)))
+	end
+	for _, w in ipairs({ "fist", "fists", "fistweapons", "staff", "staves" }) do
+		check(ns.Filters.WeaponSkillIds(w) ~= nil, "trainer:" .. w .. " names a weapon skill")
+	end
+	check(ns.Easy.ToAdvanced("nearest fist weapons trainer"):find("trainer:fist ", 1, true), "Simple's words, as Advanced writes them: trainer:fist")
+	ns.db.easyMode = true; UI:EasyChanged()
 	-- without What's Training: every weapon master
 	_G.WT_API = nil
 	ns.Pipes.ClearSteps(); ns.Pipes.ForgetTrainers()

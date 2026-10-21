@@ -748,23 +748,11 @@ function E.TrainerProfs(words, trainerSaid)
 		if not (demon or warlock or hunter) and UnitClass and select(2, UnitClass("player")) == "WARLOCK" then warlock = true end
 		return kept, { (demon or warlock) and "trainer:demon" or "trainer:pet" }
 	end
-	local kept, specs = {}, nil
-	-- (0.61.0) "class trainer", "my trainer": your class's (trainer:class); "weapon trainer", "weapon master": the weapon
-	-- masters (is:weaponmaster), not a word in their names
-	local weapon = false
-	for _, w in ipairs(words) do if w == "weapon" or w == "weapons" then weapon = true end end
-	for k, w in ipairs(words) do
-		if w == "class" or w == "my" then
-			specs = specs or {}
-			specs[#specs + 1] = "trainer:class"
-		elseif weapon and (w == "weapon" or w == "weapons" or w == "master" or w == "masters") then
-			if not specs or specs[#specs] ~= "is:weaponmaster" then specs = specs or {}; specs[#specs + 1] = "is:weaponmaster" end
-		else
-			kept[#kept + 1] = w
-		end
-	end
-	if specs then return kept, specs end
-	kept = {}
+	-- (0.61.0) "my", "class", "weapon(s)", "master(s)" name no one: set aside while the profession, class or weapon is
+	-- looked for ("my mining trainer", "fist weapons trainer": trainer:mining, trainer:fist); with none named, "class
+	-- trainer" / "my trainer" is your class's (trainer:class) and "weapon trainer" / "weapon master" the weapon masters
+	local ASIDE = { my = true, class = true, weapon = true, weapons = true, master = true, masters = true }
+	local kept, specs, aside = {}, nil, {}
 	for k, w in ipairs(words) do
 		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
 		local prof = not aid and (w ~= "first" or words[k + 1] == "aid") and ProfNamed(w) or nil
@@ -777,11 +765,21 @@ function E.TrainerProfs(words, trainerSaid)
 		if prof then
 			specs = specs or {}
 			specs[#specs + 1] = "trainer:" .. (prof:gsub(" ", ""))
+		elseif ASIDE[w] then
+			aside[w] = true
 		elseif not aid then
 			kept[#kept + 1] = w
 		end
 	end
-	if not specs then return words, nil end
+	if not specs then
+		if aside.weapon or aside.weapons then specs = { "is:weaponmaster" }
+		elseif aside.class or aside.my then specs = { "trainer:class" }
+		else return words, nil end
+		-- ("master" without "weapon": a word of the search, as before)
+		if aside.master and not (aside.weapon or aside.weapons) then kept[#kept + 1] = "master" end
+		if aside.masters and not (aside.weapon or aside.weapons) then kept[#kept + 1] = "masters" end
+		return kept, specs
+	end
 	-- (several said: any of them, "mining herbalism trainer"; review, 0.49.17: both at once matched no one)
 	if #specs > 1 then specs = { table.concat(specs, "|") } end
 	return kept, specs
@@ -897,7 +895,7 @@ function E.HelpLines()
 		L["Flight paths you haven't learned: \"nearest unlearned flight master\", \"unlearned flight paths\" (a flight master's map tells Terminal which you know)."],
 		L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."],
 		L["Put words in quotes to find them together, as they are: \"outlaw saber\" finds the Outlaw Saber, not every name with both words."],
-		L["Down on an empty prompt brings back your last search (or goes through the things to do it lists); Up goes through what you ran before. Esc closes."],
+		L["Down on an empty prompt brings back your last search; Up goes through what you ran before; Tab goes through the things to do listed under it. Esc closes."],
 		L["Ask \"what should i do\": gear to repair, junk to sell, spells to train, a class quest, quests to turn in, a dungeon for your level. Enter searches for the one you pick."],
 		L["Alt+` turns what you typed into Advanced mode's command line; Alt+` again, or Shift+Left, brings your words back (Simple again once it closes)."],
 		L["Tab+` (hold Tab, press `; or .fuzzy / .fzf) is pure fuzzy finding: every list at once, by name only. Enter takes the result back here, Shift+Enter with its list named (@npc Hogger)."],

@@ -136,8 +136,9 @@ function Z.Question(text)
 	local function any(set) for _, w in ipairs(t) do if set[w] then return true end end return false end
 	-- "where should i ...", "where to ...", "where can i ...", "where do i ..."
 	local where = has.where and (has.should or has.to or has.can or has["do"])
-	-- ("dungeons at my level", 0.61.0: as "for my level")
-	local cue = where or any(CUES) or (has["for"] or has.at) and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
+	-- ("dungeons at my level", 0.61.0: as "for my level"; "quests at my level" stays a search)
+	local at = has.at and (any(DUNGEON_WORDS) or any(RAID_WORDS))
+	local cue = where or any(CUES) or (has["for"] or at) and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
 	if not cue then return nil end
 	-- ("best dungeon for upgrades", 0.61.0: the dungeon for your level; "quest upgrades" are QuestUpgrades.lua's)
 	if (has.upgrade or has.upgrades) and not (any(DUNGEON_WORDS) or any(RAID_WORDS)) then return nil end

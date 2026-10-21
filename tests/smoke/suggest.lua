@@ -15,7 +15,7 @@ for _, s in ipairs({ "what should i do", "What should I do now?", "what now", "s
 end
 check(not Is(SG.Question, "what should i do in deadmines") and not Is(SG.Question, "@npc what now") and not Is(SG.Question, "suggest -x"),
 	"only those words; Advanced syntax is never a question")
-for _, s in ipairs({ "quests to turn in", "turn in quests", "completed quests", "which quests are ready", "quests ready to turn in", "finished quests" }) do
+for _, s in ipairs({ "quests to turn in", "turn in quests", "complete quests", "which quests are ready", "quests ready to turn in", "hand in quests" }) do
 	check(Is(TI.Question, s), "ready to turn in: " .. s)
 end
 check(not Is(TI.Question, "quests") and not Is(TI.Question, "done quest chains in zangarmarsh") and not Is(TI.Question, "turn in"),
@@ -24,7 +24,11 @@ check(Is(QH.Question, "quests here") and Is(QH.Question, "quests in this zone") 
 
 -- every one has its Advanced syntax (a question that stays as typed answers in Advanced mode too)
 check(ns.QuestionToAdvanced("quests to turn in") == "@questlog is:complete ", "turn in as Advanced: " .. tostring(ns.QuestionToAdvanced("quests to turn in")))
-check(ns.QuestionToAdvanced("completed quests") == "@questlog is:complete ", "completed quests as Advanced, not the done panel: " .. tostring(ns.QuestionToAdvanced("completed quests")))
+-- (review: "done quests", "completed quests", "finished quest" stay the quests you've done, is:done, as before)
+for _, s in ipairs({ "done quests", "completed quests", "finished quest", "quest done" }) do
+	check(not Is(TI.Question, s), "the done quests' words: " .. s)
+end
+check(ns.Zones.Question("quests at my level") == nil, "\"quests at my level\": a search, not where to level")
 do
 	local save = { lvl = _G.UnitLevel, zone = _G.GetRealZoneText }
 	_G.UnitLevel = function() return 22 end
@@ -42,6 +46,16 @@ check(Adv("nearest weapon trainer"):find("is:weaponmaster", 1, true) and not Adv
 	"\"weapon trainer\": the weapon masters: " .. Adv("nearest weapon trainer"))
 check(Adv("weapon master"):find("is:weaponmaster", 1, true), "\"weapon master\": " .. Adv("weapon master"))
 check(Adv("mining trainer"):find("trainer:mining", 1, true), "a profession's still its own: " .. Adv("mining trainer"))
+-- (the player: "nearest fist weapons trainer" found none on the continent, "near fists trainer" Sayoc) the weapon, the
+-- profession named: theirs, "my" / "weapons" / "class" set aside, no word left to look for in names
+for line, want in pairs({ ["nearest fist weapons trainer"] = "@npc trainer:fist faction:friendly sort:nearest",
+	["nearest fist weapon trainer"] = "@npc trainer:fist faction:friendly sort:nearest",
+	["sword weapon trainer"] = "@npc trainer:sword faction:friendly sort:nearest",
+	["nearest my tailoring trainer"] = "@npc trainer:tailoring faction:friendly sort:nearest",
+	["my weapon trainer"] = "@npc is:weaponmaster faction:friendly sort:nearest",
+	["class trainer"] = "@npc trainer:class faction:friendly sort:nearest" }) do
+	check(Adv(line) == want, ("%q: %s"):format(line, Adv(line)))
+end
 check(Adv("dagger trainer"):find("trainer:dagger", 1, true) or Adv("dagger trainer"):find("trainer:", 1, true),
 	"a weapon by name still its masters: " .. Adv("dagger trainer"))
 
@@ -62,7 +76,7 @@ ns.providers.training = { _entries = { { name = "Frostbolt", state = "now", cost
 	{ name = "Swords", state = "now", weapon = true }, { name = "Arcane Brilliance", state = "later" } } }
 ns.providers.quests = { _entries = { { name = "The Fargodeep Mine", complete = true }, { name = "Kobold Candles" } } }
 ns.providers.attune = nil
-ns.GetEntries = function(self, p) return p._entries end
+ns.GetEntries = function(self, p) return rawget(p, "collect") and save.get(self, p) or p._entries end
 ns.Professions.PlayerProfessions = function() return { { name = "Tailoring", rank = 75, maxRank = 75 }, { name = "Herbalism", rank = 1, maxRank = 150 },
 	{ name = "Mining", rank = 20, maxRank = 150 }, { name = "Cooking", rank = 5, maxRank = 75 } } end
 if ns.TrainerSpells then ns.TrainerSpells.NextRank = function() return nil end end
@@ -131,8 +145,15 @@ check(#got == 1 and got[1].kind ~= "suggestion", "nothing pressing: a note, not 
 
 -- the empty prompt: Simple mode lists the top few; Advanced stays bare; the setting turns them off
 ns.Durability.Total = function() return 500, 1, 5 end
+-- (the empty prompt reads your worn pieces' wear itself, no list made; a quest's readiness as the game says now)
+local saveDur, saveQL = _G.GetInventoryItemDurability, _G.C_QuestLog
+_G.GetInventoryItemDurability = function(slot) if slot == 5 then return 5, 100 end if slot == 7 then return 70, 70 end end
+local ready = { [101] = true }
+_G.C_QuestLog = setmetatable({ GetLogIndexForQuestID = function(id) return ready[id] ~= nil and 1 or nil end,
+	ReadyForTurnIn = function(id) return ready[id] == true end }, { __index = saveQL })
 bag = { { quality = 0, stackCount = 5, itemID = 1 } }
-ns.providers.quests._entries = { { name = "A", complete = true } }
+ns.providers.quests._entries = { { name = "A", complete = true, questID = 101 } }
+ns.providers.quests._dirty = true -- (made again on every open: the empty prompt reads the last one)
 ns.providers.training._entries = { { name = "Frostbolt", state = "now" } }
 ns.Professions.PlayerProfessions = function() return { { name = "Tailoring", rank = 75, maxRank = 75 }, { name = "Cooking", rank = 1, maxRank = 75 } } end
 SG.Forget()
@@ -144,13 +165,39 @@ local res = UI.Results()
 local n = 0
 for _, r in ipairs(res) do if r.kind == "suggestion" then n = n + 1 end end
 check(n >= 1 and n <= SG.EMPTY_MAX and #res == n, "Simple's empty prompt: at most " .. SG.EMPTY_MAX .. " things to do (" .. n .. " of " .. #res .. ")")
-check(res[1] and res[1].suggestId == "repair", "the most pressing first")
+check(res[1] and res[1].suggestId == "repair" and res[1].detail:find("5%", 1, true), "the most pressing first: " .. tostring(res[1] and res[1].detail))
+local turn = false
+for _, r in ipairs(res) do if r.suggestId == "turnin" then turn = true end end
+check(turn, "a quest ready to turn in, from the last quest log read (still ready, the game says)")
 UI:Hide(); T.FlushAll()
+ready[101] = nil -- (turned in since)
+SG.Forget()
+turn = false
+for _, r in ipairs(SG.EmptyRows()) do if r.suggestId == "turnin" then turn = true end end
+check(not turn, "turned in since the quest log was read: not suggested")
+ready[101] = true
+SG.Forget()
+UI:Open(""); T.FlushAll()
+res = UI.Results()
 check(UI.answerNote == L["Things to do"], "under its note: " .. tostring(UI.answerNote))
 check(UI:SuggestionText() ~= nil, "the faint \"try: ...\" example still in the prompt above them")
--- Down goes through them (Up: the lines you ran)
-UI:Down()
-check(UI.sel == 2 and UI.edit:GetText() == "", "Down: the next thing to do, nothing recalled")
+-- none picked: Enter on a prompt just opened does nothing; Tab goes through them; Down still brings back the last search
+check(UI.sel == 0, "none picked till Tab: " .. tostring(UI.sel))
+UI:Activate(); T.FlushAll()
+check(UI.edit:GetText() == "" and UI:IsShown(), "Enter on a prompt just opened: nothing run")
+T.key("TAB")
+check(UI.sel == 1 and UI.edit:GetText() == "", "Tab: the first thing to do")
+T.key("TAB")
+check(UI.sel == 2, "Tab again: the next")
+UI:Activate(); T.FlushAll()
+check(UI.edit:GetText() == res[2].searchText, "Enter: its search: " .. UI.edit:GetText())
+UI:Hide(); T.FlushAll()
+UI.lastQuery = "linen"
+SG.Forget()
+UI:Open(""); T.FlushAll()
+check(#UI.Results() > 0 and UI.sel == 0, "(listed again)")
+T.key("DOWN")
+check(UI.edit:GetText() ~= "", "Down: the last search back, as before: " .. UI.edit:GetText())
 UI:Hide(); T.FlushAll()
 ns.Theme.Set("todo", "off", true)
 SG.Forget()
@@ -165,13 +212,24 @@ UI:Hide(); T.FlushAll()
 -- the empty prompt reads no list it hasn't read: nothing built to open the terminal
 ns.db.easyMode = true; UI:EasyChanged()
 local built = false
-ns.GetEntries = function(self, p) built = true return p._entries end
+ns.GetEntries = function(self, p) if p == ns.providers.training then built = true end return rawget(p, "collect") and save.get(self, p) or p._entries end
 SG.Forget()
 UI:Open(""); T.FlushAll()
-check(not built, "the empty prompt builds no list")
+check(not built, "the empty prompt builds no list (but the cheap ones: your quest log, your gear's wear)")
+UI:Hide(); T.FlushAll()
+-- a list out of date (a spell learned since): nothing said from it
+ns.providers.training._dirty = true
+SG.Forget()
+local train = false
+for _, r in ipairs(SG.EmptyRows()) do if r.suggestId == "train" then train = true end end
+check(not train, "a list out of date: not read for the empty prompt")
+ns.providers.training._dirty = nil
+UI:Open(""); T.FlushAll()
 UI:Hide(); T.FlushAll()
 ns.db.easyMode = wasEasy; UI:EasyChanged()
 ns.Theme.Set("todo", wasTodo == false and "off" or "on", true)
+_G.GetInventoryItemDurability, _G.C_QuestLog = saveDur, saveQL
+ns.providers.quests._dirty = nil
 
 ns.Durability.Total, _G.C_Container, _G.C_Item, ns.Professions.PlayerProfessions = save.du, save.CC, save.CI, save.prof
 if ns.TrainerSpells then ns.TrainerSpells.NextRank = save.ts end
@@ -189,8 +247,9 @@ do
 	local CC = ns.CanCraft
 	check(Is(CC.Question, "what can i craft") and Is(CC.Question, "craftable") and Is(CC.Question, "what can i cook"),
 		"what can i craft / craftable / what can i cook")
-	check(not Is(CC.Question, "craft") and not Is(CC.Question, "make") and not Is(CC.Question, "what can i craft kobold"),
-		"\"craft\" alone, words of a search: not it")
+	check(not Is(CC.Question, "craft") and not Is(CC.Question, "make") and not Is(CC.Question, "what can i craft kobold")
+		and not Is(CC.Question, "cook") and not Is(CC.Question, "make leather"),
+		"\"craft\", \"cook\" alone, words of a search, a profession's first letters: not it")
 	check(ns.QuestionToAdvanced("what can i craft") == "@recipe is:craftable ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what can i craft")))
 	check(ns.QuestionToAdvanced("what can i cook") == "@recipe is:craftable cooking ", "cook: " .. tostring(ns.QuestionToAdvanced("what can i cook")))
 	local saveR, saveG, saveC = ns.providers.recipes, ns.GetEntries, C_Item.GetItemCount
@@ -199,7 +258,7 @@ do
 		{ name = "Spiced Wolf Meat", recipeID = 2, profName = "Cooking", reagents = { { 2672, 1 } } },
 		{ name = "Bolt of Linen Cloth", recipeID = 3, profName = "Tailoring", reagents = { { 2589, 2 } } },
 		{ name = "Heavy Linen Gloves", recipeID = 4, profName = "Tailoring", reagents = { { 2996, 2 } } } } }
-	ns.GetEntries = function(self, p) return p._entries end
+	ns.GetEntries = function(self, p) return rawget(p, "collect") and save.get(self, p) or p._entries end
 	C_Item.GetItemCount = function(id) return id == 2589 and 2 or 0 end
 	local rows = CC.Answer({ profs = {} })
 	local names = {}
@@ -208,4 +267,35 @@ do
 	rows = CC.Answer({ profs = { "cooking" } })
 	check(#rows == 1 and rows[1].kind ~= "recipes" and rows[1].recipeID == nil, "none for cooking: a note")
 	ns.providers.recipes, ns.GetEntries, C_Item.GetItemCount = saveR, saveG, saveC
+end
+
+-- (review) the weapon row's word, as Simple mode's trainers take it: the client's "Two-Handed Swords" is sword
+do
+	local NAMES = { [1180] = "Daggers", [201] = "One-Handed Swords", [202] = "Two-Handed Swords", [196] = "One-Handed Axes",
+		[197] = "Two-Handed Axes", [198] = "One-Handed Maces", [199] = "Two-Handed Maces", [227] = "Staves", [200] = "Polearms",
+		[264] = "Bows", [266] = "Guns", [5011] = "Crossbows", [2567] = "Thrown", [15590] = "Fist Weapons" }
+	local saveName = C_Spell.GetSpellName
+	C_Spell.GetSpellName = function(id) return NAMES[id] end
+	check(SG.WeaponWord("Two-Handed Swords") == "sword" and SG.WeaponWord("Fist Weapons") == "fist" and SG.WeaponWord("Daggers") == "dagger"
+		and SG.WeaponWord("Staves") == "staff", "Two-Handed Swords: sword; Fist Weapons: fist; Staves: staff: " .. tostring(SG.WeaponWord("Staves")))
+	check(SG.WeaponWord("Riding") == nil, "not a weapon: none")
+	C_Spell.GetSpellName = saveName
+end
+
+-- (review) bags nearly full: a herb bag's free slots aren't room for loot
+do
+	local saveCC, saveDU, saveProf = _G.C_Container, ns.Durability.Total, ns.Professions.PlayerProfessions
+	_G.C_Container = setmetatable({
+		GetContainerNumSlots = function(b) return (b == 0 or b == 1) and 16 or 0 end,
+		GetContainerNumFreeSlots = function(b) if b == 0 then return 1, 0 elseif b == 1 then return 16, 32 end return 0, 0 end,
+		GetContainerItemInfo = function(b, s) if b == 0 and s == 1 then return { quality = 0, stackCount = 1, itemID = 1 } end end,
+	}, { __index = saveCC })
+	ns.Durability.Total = function() return 0, 0, 100 end
+	ns.Professions.PlayerProfessions = function() return {} end
+	SG.Forget()
+	local junk
+	for _, r in ipairs(SG.Rows(true, 20)) do if r.suggestId == "junk" then junk = r end end
+	check(junk and junk.detail:find("1 bag slot free", 1, true), "one grey item, one slot free (the herb bag's not counted): " .. tostring(junk and junk.detail))
+	_G.C_Container, ns.Durability.Total, ns.Professions.PlayerProfessions = saveCC, saveDU, saveProf
+	SG.Forget()
 end
