@@ -198,6 +198,21 @@ function SSH.Parts(entry)
 	return out
 end
 
+SSH.NAME_MAX = 48 -- (bytes of a place's name a friend sends: a character's name and realm, with room)
+
+--- A place's name as a friend sent it, safe to show: no "|" (the game's escapes: a texture, a link, a colour), no control
+--- characters, at most NAME_MAX bytes, cut between two letters (0.63.7, review: shown as sent, in rows and tooltips).
+function SSH.SafeName(who)
+	who = tostring(who or ""):gsub("[|%c]", "")
+	if #who > SSH.NAME_MAX then
+		local cut = SSH.NAME_MAX
+		-- (not inside a letter: back over its continuation bytes, 10xxxxxx, to its first)
+		while cut > 0 and (who:byte(cut + 1) or 0) >= 0x80 and (who:byte(cut + 1) or 0) < 0xC0 do cut = cut - 1 end
+		who = who:sub(1, cut)
+	end
+	return who
+end
+
 --- The text back: { places = { { who, where } }, items = { [itemID] = total }, entries = { [itemID] = "0.k,1.3" },
 --- gold, mode }. At most MAX_PLACES places and MAX_ITEMS items; anything else in it ignored.
 function SSH.Decode(text)
@@ -206,7 +221,7 @@ function SSH.Decode(text)
 	if not placesText then return out end
 	for who, where in placesText:gmatch("([^,/]*)/(%a)") do
 		if #out.places >= SSH.MAX_PLACES then break end
-		out.places[#out.places + 1] = { who = who, where = SSH.WHERE[where] and where or "b" }
+		out.places[#out.places + 1] = { who = SSH.SafeName(who), where = SSH.WHERE[where] and where or "b" }
 	end
 	local n, nPlaces = 0, #out.places
 	for a, list in itemsText:gmatch("(%w+):([%w%.,]+)") do
@@ -222,7 +237,7 @@ function SSH.Decode(text)
 	end
 	local g = goldText ~= "" and tonumber(goldText, 36) or nil
 	out.gold = g and g > 0 and g < 2 ^ 53 and g or nil
-	out.mode = modeText ~= "" and modeText or nil
+	out.mode = modeText ~= "" and SSH.MODES and SSH.MODES[modeText] and modeText or nil -- (a mode Terminal knows)
 	if out.mode and out.mode ~= "all" then out.gold = nil end -- (gold is shared with all only)
 	return out
 end

@@ -206,8 +206,9 @@ local function ScoreEntry(e, tokens)
 		total = total + best
 	end
 	-- (not written on compact rows: a field more grew each to the next table size, ~320 B a row over thousands; their
-	-- matched letters are worked out on screen anyway, Positions)
-	e._pos = nil
+	-- matched letters are worked out on screen anyway, Positions. Cleared only when there: in Lua 5.1 a nil written to a
+	-- field a row hasn't makes the field, and a full row doubles; 0.63.7, review: +347 B a matched row)
+	if rawget(e, "_pos") ~= nil then e._pos = nil end
 	if not rawget(e, "_compact") then e._nameHit = nameHit end
 	return total
 end

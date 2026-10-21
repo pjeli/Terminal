@@ -93,6 +93,24 @@ do
 	check(not UI.histSearch and T.query() == "@npc is:repair sort:nearest", "a click: as Enter: " .. T.query())
 	UI:Hide(); FlushAll()
 
+	-- (0.63.7, review) "when it ran" moves on: the list is made again on an open a minute on
+	do
+		local base, wasTime, wasGT = time(), _G.time, _G.GetTime
+		local clock, gt0 = base, GetTime()
+		_G.time = function() return clock end
+		_G.GetTime = function() return gt0 + (clock - base) end
+		ns:RecordHistory("copper ore")
+		UI:Open("@history copper"); FlushAll()
+		local d1 = UI.Results()[1] and UI.Results()[1].detail
+		UI:HideNow(); FlushAll()
+		clock = base + 7200
+		UI:Open("@history copper"); FlushAll()
+		local d2 = UI.Results()[1] and UI.Results()[1].detail
+		UI:HideNow(); FlushAll()
+		_G.time, _G.GetTime = wasTime, wasGT
+		check(d1 == ns.L["just now"] and d2 == ns.L["%d h ago"]:format(2), "two hours on: \"2 h ago\": " .. tostring(d2))
+	end
+
 	-- .history clear forgets the times too
 	ns:FindCommand("history").run("clear")
 	check(#ns.db.history == 0 and next(ns.db.historyAt) == nil, ".history clear: the lines and their times")

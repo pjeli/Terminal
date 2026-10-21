@@ -235,7 +235,8 @@ do
 	check(pl and pl.bags and pl.bank and not pl.alts, "\"... bags and bank\"")
 	check(Q.Question("what should i auction in hogger") == nil, "another word: not it")
 	check(ns.QuestionToAdvanced("what should i auction in my bank") == "@bank is:auctionable sort:ahvalue "
-		and ns.QuestionToAdvanced("what should i auction on my alts") == "@stored is:auctionable sort:ahvalue ", "as Advanced: @bank, @stored")
+		and ns.QuestionToAdvanced("what should i auction on my alts") == "what should i auction on my alts ",
+		"as Advanced: @bank; your alts' kept as said (0.63.7, review: @stored counts every holder)")
 	local function Answer(line)
 		local rows = Q.Answer(Q.Question(line))
 		local t = {}
@@ -300,7 +301,7 @@ do
 		"your bank: yours only, as @bank (the warband's is everywhere's): " .. tostring(linen and linen.detail))
 	for line, want in pairs({ ["what should i auction"] = "@item is:auctionable sort:ahvalue ", ["what should i auction in my bank"] = "@bank is:auctionable sort:ahvalue ",
 		["what should i auction from my bags and bank"] = "@item @bank is:auctionable sort:ahvalue ",
-		["what should i auction everywhere"] = "@item @stored is:auctionable sort:ahvalue " }) do
+		["what should i auction everywhere"] = "what should i auction everywhere " }) do
 		check(ns.QuestionToAdvanced(line) == want, ("%q as Advanced: %s"):format(line, tostring(ns.QuestionToAdvanced(line))))
 	end
 	ns.providers.stored = nil

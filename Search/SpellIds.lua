@@ -44,8 +44,13 @@ function SI.Row(id, name, rank, where, extra)
 	}
 end
 
--- every spell Terminal knows a name and id of: { id, name, rank, where, class }
+-- every spell Terminal knows a name and id of: { id, name, rank, where, class }. Made again only when a list changed
+-- (ns.entriesGen, or one of its lists waiting to be read again), and an every-class rank's subtext asked only for a
+-- name that matched (SI.ByName): 0.63.7, review, ~3,800 calls to the game on every keystroke of "spellid fireball".
+local cached, cachedGen
+local function Stale(id) local p = ns.providers[id] return p ~= nil and p._dirty == true end
 local function Candidates()
+	if cached and cachedGen == ns.entriesGen and not (Stale("spells") or Stale("talents") or Stale("training")) then return cached end
 	local out = {}
 	local function Add(id, name, rank, where, class)
 		if type(id) == "number" and type(name) == "string" and name ~= "" then out[#out + 1] = { id, name, rank, where, class } end
@@ -73,7 +78,7 @@ local function Candidates()
 			local cname
 			for _, s in ipairs(CS.Spells(cls, false)) do
 				cname = cname or (CS.ClassName and CS.ClassName(cls)) or cls
-				for _, r in ipairs(s.ranks) do Add(r[1], s.name, Str(Safe(C_Spell and C_Spell.GetSpellSubtext, r[1])), L["level %d"]:format(r[2]), cname) end
+				for _, r in ipairs(s.ranks) do Add(r[1], s.name, nil, L["level %d"]:format(r[2]), cname) end
 			end
 		end
 	end
@@ -82,8 +87,10 @@ local function Candidates()
 	for _, e in ipairs(tp and ns:GetEntries(tp) or {}) do
 		if type(e.spellID) == "number" then Add(e.spellID, e.name, nil, L["talent"], e.className) end
 	end
+	cached, cachedGen = out, ns.entriesGen -- (after reading the lists: reading one may have made it again)
 	return out
 end
+function SI.ForgetCandidates() cached = nil end -- (tests)
 
 --- The rows for these (lowercase) words: every spell whose name has each of them, each id once, by name then rank.
 function SI.ByName(words)
@@ -97,7 +104,8 @@ function SI.ByName(words)
 		local id, name, rank, where, class = c[1], c[2], c[3], c[4], c[5]
 		if not seen[id] and Has(name) then
 			seen[id] = true
-			rows[#rows + 1] = SI.Row(id, name, rank or Subtext(id), where, class)
+			rank = rank or Subtext(id)
+			rows[#rows + 1] = SI.Row(id, name, rank, where, class)
 			rows[#rows]._sort = Lower(name) .. "\0" .. string.format("%04d", tonumber((rank or ""):match("%d+")) or 0)
 		end
 	end

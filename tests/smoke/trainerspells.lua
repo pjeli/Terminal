@@ -296,6 +296,8 @@ do
 			and PT.Question("tailoring recipes i can learn") == nil, "your class's training, a trainer's place, recipes: other questions")
 		check(PT.ToAdvanced(PT.Question("how much is tailoring training")) == "@recipe is:learnable tailoring trainer | sum cost ",
 			"Alt+`: " .. PT.ToAdvanced(PT.Question("how much is tailoring training")))
+		-- (0.63.7, review) every one still to learn, in the answer's own order: kept as said
+		check(PT.ToAdvanced(PT.Question("tailoring training")) == nil, "Alt+` of tailoring training: as said: " .. tostring(PT.ToAdvanced(PT.Question("tailoring training"))))
 		ns.db.easyMode = false; UI:EasyChanged()
 		local adv = UI:Search("@recipe is:learnable tailoring trainer")
 		check(adv[1] and adv[1].name == "Brown Linen Shirt", "...which finds it: " .. tostring(adv[1] and adv[1].name))

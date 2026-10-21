@@ -140,7 +140,8 @@ do
 		-- a chat line the game presses (Terminal's code never sends chat)
 		local SH = ns.Share
 		-- (@who's "Ask the server" asks something: it isn't a result to send)
-		if SH and SH.Line and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
+		-- (Ctrl+R's lines are what you typed, not results: nothing to send; 0.63.7, review)
+		if SH and SH.Line and not self.histSearch and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
 			local query = SH.Split(edit:GetText() or "")
 			local searched = SH.Searched(query) -- (nothing typed: the list is your recent picks: no "All N to ..." lines)
 			if EasyOn() and ns.Easy and ns.Easy.ToAdvanced then query = ns.Easy.ToAdvanced(query, self.category) end
@@ -187,7 +188,7 @@ do
 		-- copied out (Activate.lua's CopyOut, as "linen to csv" does): the row from its menu, every result from the send
 		-- button
 		local summed = share and e.kind == "aggregate" -- (the send button over groups or a sum: copied out, as >>> csv does)
-		if not self.fzf and UI.CopyOut and ns.Share and ns.Share.Channel and (summed or not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead)) then
+		if not (self.fzf or self.histSearch) and UI.CopyOut and ns.Share and ns.Share.Channel and (summed or not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead)) then
 			local query = ns.Share.Split(edit:GetText() or "")
 			local function Copy(how, all)
 				return function()

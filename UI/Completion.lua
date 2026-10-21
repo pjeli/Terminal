@@ -175,7 +175,7 @@ local function CompleteName(text)
 end
 
 local function ComputeCompletion(self, text)
-	if text == "" or self.fzf or (self.cursor or #text) < #text then return nil end
+	if text == "" or self.fzf or self.histSearch or (self.cursor or #text) < #text then return nil end
 	-- the pick list: the faint completion is the row picked in it (Right takes it)
 	local picked = UI.results[1] and UI.results[1].syntaxRow and UI.results[UI.sel]
 	if picked then return picked.completion end

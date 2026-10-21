@@ -420,6 +420,10 @@ function AT.Index()
 			idx.byId[aid] = idx.byId[aid] or rec
 		end
 	end
+	-- (its tables there, but not as lists: nothing read; said, not an empty @attune. 0.63.7, review)
+	if #idx.list == 0 and (next(D.attunes) ~= nil or next(D.steps) ~= nil) then
+		I.Failed("Attune", L["@attune is unavailable."], ("Attune_Data: %d attunements, %d steps as lists; none read"):format(#D.attunes, #D.steps))
+	end
 	index = idx
 	local QD = ns.QuestieData
 	if fellBack and QD and QD.Ready and not QD.Ready() and QD.OnReady and not AT.namesWaiting then

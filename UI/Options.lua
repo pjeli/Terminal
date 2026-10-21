@@ -98,6 +98,21 @@ end
 -- Colour example: a small sample beside the theme buttons, drawn with the current colours
 ----------------------------------------------------------------------
 
+-- (in the player's language: a few letters of each word of the name, as one would type them; 0.63.7, review: English
+-- always, its matched letters' places written out)
+O.SAMPLE_QUERY, O.SAMPLE_NAME, O.SAMPLE_KIND = L["hvy ban"], L["Heavy Linen Bandage"], L["First Aid"]
+
+--- The sample name's letters the sample search matches (Colorize's set): each word's, as the terminal marks them.
+function O.SampleLetters()
+	local set, name = {}, O.SAMPLE_NAME
+	local lname = ns.Lower and ns.Lower(name) or name:lower()
+	for word in O.SAMPLE_QUERY:gmatch("%S+") do
+		local _, pos = ns.Fuzzy.match(ns.Lower and ns.Lower(word) or word:lower(), name, lname)
+		for _, k in ipairs(pos or {}) do set[k] = true end
+	end
+	return set
+end
+
 local pv = CreateFrame("Frame", nil, panel, "BackdropTemplate")
 pv:SetSize(196, 52)
 pv:SetPoint("TOPLEFT", 440, -84)
@@ -137,15 +152,15 @@ local function PaintPreview()
 	local ar, ag, ab = T.RGB(t.accent)
 	pv.band:SetColorTexture(ar, ag, ab, 0.18)
 	ns.Fuzzy.matchColor = "|cff" .. t.match
-	pv.label:SetText(ns.Fuzzy.Colorize("Heavy Linen Bandage", { [1] = true, [4] = true, [5] = true, [13] = true, [14] = true, [15] = true }))
+	pv.label:SetText(ns.Fuzzy.Colorize(O.SAMPLE_NAME, O.SampleLetters()))
 	pv.label:SetTextColor(T.RGB(t.text))
-	pv.detail:SetText("First Aid")
+	pv.detail:SetText(O.SAMPLE_KIND)
 	pv.detail:SetTextColor(T.RGB(t.dim))
 end
 
 -- The example plays on a loop, the way the terminal moves with the chosen animation and cursor:
 -- it opens, the query is typed, the result comes in, the cursor blinks while idle, then it closes.
-local QUERY = "hvy ban"
+local QUERY = O.SAMPLE_QUERY
 local TYPE_AT, TYPE_STEP, IDLE, GAP = 0.15, 0.11, 2.4, 0.5
 local demo = { t = 0 }
 O.demo = demo

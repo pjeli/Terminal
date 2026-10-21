@@ -388,7 +388,8 @@ function UI:Search(text)
 		if ns.Filters.ResetAsks then ns.Filters.ResetAsks() end -- (items the client hasn't loaded: a few asked per search)
 	end
 	-- arithmetic: the answer is the top result (see Calc.lua)
-	local calc = not self.fzf and ns.Calc and ns.Calc.Entry(text)
+	-- (not in Ctrl+R's history search either: "3*4" there is a line to find; 0.63.7, review)
+	local calc = not (self.fzf or self.histSearch) and ns.Calc and ns.Calc.Entry(text)
 	-- (a sum answered: its characters aren't words to look for close spellings of, nor is "Nothing has that" said
 	-- under the answer; 0.50.7, review: "3*45g" ran a close-spellings pass over every list on each keystroke)
 	self.calcAnswered = calc and true or nil
@@ -822,6 +823,16 @@ function ns.QuestionToAdvanced(text)
 	if per then return per end
 	return ns.QuestionToAdvancedOf(text)
 end
+--- The question's line with the filters and sorts typed after it: before its ">>"/">>>" part, where the search reads
+--- them (0.63.7, review: "untrack quests is:red" was written "@quest >>> untrack is:red", which untracked them all).
+local function WithTail(line, tail)
+	local tailText = table.concat(tail, " ")
+	local head, send = line:match("^(.-)%s+(>>.-)%s*$")
+	if head then return head .. " " .. tailText .. " " .. send .. " " end
+	return (line:gsub("%s+$", "")) .. " " .. tailText .. " "
+end
+Scan.WithTail = WithTail
+
 function ns.QuestionToAdvancedOf(text)
 	local function Print(t)
 		for _, a in ipairs(Scan.ANSWERS) do
@@ -837,7 +848,7 @@ function ns.QuestionToAdvancedOf(text)
 	if text:find(">", 1, true) then
 		local rest, tail = Scan.SplitTail(text, true)
 		local line = rest and Print(rest)
-		if line then return (line:gsub("%s+$", "")) .. " " .. table.concat(tail, " ") .. " " end
+		if line then return WithTail(line, tail) end
 	end
 	local line = Print(text)
 	if line then return line end
@@ -845,7 +856,7 @@ function ns.QuestionToAdvancedOf(text)
 	-- 0.55.18, review: "who crit me sort:name" was written as a search of its words, which found nothing)
 	local rest, tail = Scan.SplitTail(text)
 	line = rest and Print(rest)
-	if line then return (line:gsub("%s+$", "")) .. " " .. table.concat(tail, " ") .. " " end
+	if line then return WithTail(line, tail) end
 end
 
 ----------------------------------------------------------------------
@@ -1038,7 +1049,9 @@ function Scan.AddFilter(q, f, how, sig, word, spec)
 end
 
 --- Is this filter's answer one that changes by itself (is:ready, near:)?
-Scan.VOLATILE = { "is:ready", "is:offcooldown", "near:" }
+-- (where you are, what's tracked: they change too; 0.63.7, review: "@quest is:here r" in Durotar, then "ra" in the
+-- Barrens, narrowed Durotar's rows to nothing)
+Scan.VOLATILE = { "is:ready", "is:offcooldown", "near:", "is:here", "is:nearby", "is:tracked", "is:untracked", "is:watched" }
 function Scan.Volatile(t)
 	t = t:lower()
 	for _, v in ipairs(Scan.VOLATILE) do
@@ -1152,10 +1165,26 @@ function Scan.AnswerView(self, rows, tail)
 	end
 	if #filters == 0 and not sort then return rows end
 	local Real = B.Real
-	local out, any = {}, false
+	local out, kept, any, dropped = {}, {}, false, false
 	for _, e in ipairs(rows) do
 		if not Real(e) then out[#out + 1] = e
-		elseif #filters == 0 or F.Pass(e, filters) then out[#out + 1] = e; any = true end
+		elseif #filters == 0 or F.Pass(e, filters) then out[#out + 1] = e; kept[#kept + 1] = e; any = true
+		else dropped = true end
+	end
+	-- (the row on top that does it to them all, "Untrack 4 quests", "Drop all 5": made again for the ones left; 0.63.7,
+	-- review: "untrack quests is:red" showed two and untracked all four)
+	if dropped and any then
+		local again = {}
+		for _, e in ipairs(out) do
+			local replan = type(e) == "table" and rawget(e, "replan")
+			if replan then
+				local row = replan(kept)
+				if row then row._score = e._score; again[#again + 1] = row end
+			else
+				again[#again + 1] = e
+			end
+		end
+		out = again
 	end
 	if not any then
 		local head = {}
@@ -1293,7 +1322,14 @@ function Scan.Parse(self, text)
 			if f then
 				-- (written as Advanced does: Simple mode's "-boe", "sword|axe" as -is:boe, type:sword|type:axe)
 				local spec = (simple and not ns.Easy.IsAdvancedWord(w)) and ns.Easy.AdvancedPart(lw) or w
-				Scan.AddFilter(q, f, "hard", lw, nil, spec)
+				-- (printed: a kind of item turned down, "-cloth", turns down what's named so too, as "sword" alone is
+				-- written sword|type:sword: -cloth|type:cloth, not -type:cloth that let Linen Cloth back. 0.63.7, review)
+				local printed = spec
+				local neg, a = lw:match("^([-!])(%a+)$")
+				if simple and neg and spec == neg .. tostring(ns.Easy.WORDS[a]) and spec:find("^[-!]type:") then
+					printed = neg .. a .. "|" .. ns.Easy.WORDS[a]
+				end
+				Scan.AddFilter(q, f, "hard", lw, nil, printed)
 				Picked(spec, w)
 			elseif strict then
 				Scan.AddFilter(q, strict, "strict", lw, lw, ns.Easy.WORDS[lw])
@@ -1613,7 +1649,8 @@ function Scan.Collect(self, q, included, sig, fresh)
 			if filters and not Pass(e, filters) then return end
 			e._score = FreqBonus(e, kind, picked) + (rawget(e, "_rank") or 0)
 			-- (compact rows get no field more: Render works their letters out on screen, none with no words)
-			if rawget(e, "_compact") then e._pos = nil else e._pos = NO_POS end
+			-- (cleared only when there: Score.lua's ScoreEntry says why)
+			if not rawget(e, "_compact") then e._pos = NO_POS elseif rawget(e, "_pos") ~= nil then e._pos = nil end
 			out[#out + 1] = e
 		else
 			local s = ScoreEntry(e, tokens)
@@ -1861,8 +1898,8 @@ function Scan.Finalize(self, q, out)
 		return out
 	end
 	-- (Simple mode's bar: sorted by name, level, value... the rows that have it first, in its order; Bar.lua)
-	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField) end
 	local limit = (q.easyCat and (not q.here or q.nearDefault)) and Score.LIST_MAX or nil
+	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField, limit or Score.MAX_RESULTS, overBudget) end
 	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
 	if act and act.map and #res == 0 then return PseudoEntries({ EASY_NONE }) end -- ("use xyzzy": say so)
@@ -2259,21 +2296,32 @@ function Scan.Overview(self, q, noAuto)
 	local exacts = {} -- (rows named exactly what was typed: the clear winner, maybe)
 	local loggedNames = {} -- (your quest log's matches: Questie's name count has them too)
 	local overBudget = q.overBudget
+	local Ez, BY_ID = ns.Easy, ns.Easy.BY_ID
+	-- (a kind's category once, when it doesn't hang on the row: ~1.7 µs a match was a third of a 100k overview; each row's
+	-- kind read once, not through its metatable three times. 0.63.7, review)
+	local fixed = {}
 	for i, e in ipairs(out) do
 		-- (spread over frames too: 0.59.0, the stress test, 200,000 matches sorted into categories in one frame)
 		if overBudget and i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(UI.Results()) end
-		local c = ns.Easy.BY_ID[ns.Easy.CategoryOf(e) or Scan.ALSO_CATEGORY[e.kind] or ""]
+		local kind = e.kind
+		local cid = kind and fixed[kind]
+		if cid == nil then
+			cid = kind and Ez.FixedCategory(kind)
+			if kind then fixed[kind] = cid or false end
+		end
+		local c = BY_ID[cid or Ez.CategoryOf(e) or Scan.ALSO_CATEGORY[kind] or ""]
 		if c then
 			local b = byCat[c.id]
 			if not b then b = { c = c, rows = {}, counts = {} }; byCat[c.id] = b; order[#order + 1] = b end
 			b.rows[#b.rows + 1] = e
-			b.counts[e.kind] = (b.counts[e.kind] or 0) + 1
-			if not b.score or e._score > b.score then b.best, b.score = e.name, e._score end
+			b.counts[kind] = (b.counts[kind] or 0) + 1
+			local sc = e._score
+			if not b.score or sc > b.score then b.best, b.score = e.name, sc end
 			if want and not relaxed and not empty and not e.noActivate
 				and ExactName(rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)), want) then
 				exacts[#exacts + 1] = { e = e, cat = c.id, sc = e._score }
 			end
-			if e.kind == "quests" then loggedNames[#loggedNames + 1] = rawget(e, "_lname") or "" end
+			if kind == "quests" then loggedNames[#loggedNames + 1] = rawget(e, "_lname") or "" end
 		end
 	end
 	-- Questie's lists, by name (the typed words and the everyday words as name words; never with another hard filter,
@@ -2444,7 +2492,7 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget)
 				end
 				if total and edits > 0 and (not filters or Pass(e, filters)) then
 					e._score = total - edits * NEAR_EDIT + FreqBonus(e, id)
-					e._pos = nil
+					if rawget(e, "_pos") ~= nil then e._pos = nil end
 					if not rawget(e, "_compact") then e._nameHit = true end
 					out[#out + 1] = e
 				end
@@ -2528,7 +2576,7 @@ local function AddFewRows(hints, few, res)
 		for k = 1, #hints do if hints[k] == e then dup = true break end end
 		for k = 1, #res do if res[k] == e then dup = true break end end
 		if not dup then
-			e._pos = nil
+			if rawget(e, "_pos") ~= nil then e._pos = nil end
 			if not rawget(e, "_compact") then e._nameHit = true end
 			hints[#hints + 1] = e
 		end

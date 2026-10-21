@@ -52,9 +52,11 @@ do
 	ns:GetEntries(ns.providers.loadrows2)
 	local clockWas, ms = _G.debugprofilestop, 0
 	_G.debugprofilestop = function() ms = ms + 1; return ms end
-	local catOf = E.CategoryOf
+	-- (each match's category looked up: counted where it's read, BY_ID; 0.63.7: CategoryOf only for a kind whose rows
+	-- can go to two)
+	local byId = E.BY_ID
 	local inSlice, most = 0, 0
-	E.CategoryOf = function(e) inSlice = inSlice + 1; return catOf(e) end
+	E.BY_ID = setmetatable({}, { __index = function(_, k) inSlice = inSlice + 1; return byId[k] end })
 	local easy = ns.db.easyMode
 	ns.db.easyMode = true
 	UI:Hide()
@@ -67,7 +69,7 @@ do
 		most = math.max(most, inSlice)
 		guard = guard + 1
 	end
-	E.CategoryOf = catOf
+	E.BY_ID = byId
 	_G.debugprofilestop = clockWas
 	ns.db.easyMode = easy
 	local found

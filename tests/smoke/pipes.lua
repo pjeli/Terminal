@@ -753,6 +753,27 @@ do
 	P.ForgetTrainers()
 end
 
+-- (0.63.7, review) the names a chain's first part offers are kept by its first link too: "copper > mats" doesn't change
+-- what "copper > uses" offers; plain lines pointing at something aren't chains
+do
+	local items = ns.providers.items
+	local wasCollect = items.collect
+	items.collect, items._dirty = Rows({ { name = "Copper Bar", itemID = 2840 }, { name = "Copper Ore", itemID = 2770 } }), true
+	local function N(rows) local t = {} for _, r in ipairs(rows or {}) do t[#t + 1] = tostring(r.name) end return table.concat(t, " | ") end
+	P.ClearSteps()
+	local fresh = N((P.Search("copper > uses")))
+	P.ClearSteps()
+	P.Search("copper > mats")
+	local after = N((P.Search("copper > uses")))
+	check(fresh == after and fresh:find("Copper Ore", 1, true), "copper > uses after copper > mats: as fresh: " .. fresh .. " / " .. after)
+	items.collect, items._dirty = wasCollect, true
+	P.ClearSteps()
+	for _, line in ipairs({ "my mats", "the mats", "where to get it", "how do i get there", "how do i get into mc", "what drops here" }) do
+		check(P.Canonical(line) == nil, line .. ": not a chain: " .. tostring(P.Canonical(line)))
+	end
+	check(P.Canonical("where to get copper ore") == "copper ore > sources", "a name still is")
+end
+
 ns.providers, ns.providerOrder = saved.providers, saved.order
 ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL

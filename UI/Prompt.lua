@@ -624,7 +624,7 @@ local function IsWord(w) return Remembered("w", w, ns.Easy.Word) end
 function UI:SyntaxSegments(text, plain)
 	local t = Theme.Get()
 	local base, bad, filt = t.text, Theme.SYNTAX.bad, Theme.SYNTAX.filter
-	if plain or self.fzf then return { { 1, #text, base } } end
+	if plain or self.fzf or self.histSearch then return { { 1, #text, base } } end
 	local first = text:sub(1, 1)
 	if first == "." or first == "/" then
 		local head = text:match("^(%S*)")

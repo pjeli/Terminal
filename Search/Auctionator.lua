@@ -429,6 +429,9 @@ end
 --- As Advanced syntax: your bags' @item, your bank's @bank, else @stored (your alts and banks).
 function Q.ToAdvanced(q)
 	local pl = (q and q.places) or { bags = true }
+	-- (your alts', everywhere: the answer counts only those holders, @stored every one of each item, yours too; no Advanced
+	-- line finds the same: kept as said. 0.63.7, review)
+	if pl.alts or pl.all then return nil end
 	-- (your bags are @item, your bank @bank, your alts' @stored; together, each list named)
 	local kinds = {}
 	if pl.bags then kinds[#kinds + 1] = "@item" end

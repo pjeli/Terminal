@@ -380,6 +380,9 @@ end
 --- The question as Advanced syntax (Alt+`): "@attune is:raid mc", "molten core > steps".
 function Q.ToAdvanced(q)
 	if q.steps then return q.steps .. " > steps " end
+	-- (words: the answer takes the attunements they name, their steps' text only when none; a search's words take both,
+	-- "mc" Onyxia's too. Kept as said; 0.63.7, review)
+	if q.words and #q.words > 0 then return nil end
 	local parts = { "@attune" }
 	if q.group then parts[#parts + 1] = "is:" .. q.group end
 	if q.state then parts[#parts + 1] = "is:" .. q.state end

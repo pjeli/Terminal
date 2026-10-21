@@ -75,6 +75,8 @@ local function IndexQuests()
 			if names then names[#names + 1] = "\n" .. lname .. "\t" .. id end
 		end
 	end, function()
+		-- (ids but not one name: the database's shape changed; said, not an empty @questie with no word why. 0.63.7, review)
+		if #ids > 0 and #out == 0 then I.Failed("Questie", L["@questie is unavailable."], "QueryQuestSingle(id, \"name\"): no names") end
 		qdb.list, qdb.busy = out, false
 		if names then qdb.names, qdb.nameQuery = table.concat(names) .. "\n", "QueryQuestSingle" end
 		ns:Changed("questie")

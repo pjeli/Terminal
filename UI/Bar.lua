@@ -1,3 +1,4 @@
+local find = string.find
 local ns = select(2, ...)
 local L = ns.L
 
@@ -89,7 +90,8 @@ B.ById = ById
 --- Is the bar in use: Simple mode (not a line run in Advanced, not fuzzy finding), searching, words typed?
 function B.On()
 	local Ez = E()
-	if not (UI.frame and Ez and Ez.On and Ez.On()) or Ez.temp or UI.fzf then return false end
+	-- (Ctrl+R's history search: its lines, nothing to filter; 0.63.7, review)
+	if not (UI.frame and Ez and Ez.On and Ez.On()) or Ez.temp or UI.fzf or UI.histSearch then return false end
 	if UI.mode ~= "search" then return false end
 	local text = UI.edit and UI.edit:GetText() or ""
 	if not text:find("%S") then return false end
@@ -100,7 +102,7 @@ end
 --- What's picked, for the search: only in Simple mode (the bar's own), else nothing.
 function B.Active()
 	local Ez = E()
-	if not (Ez and Ez.On and Ez.On()) or Ez.temp or UI.fzf then return nil end
+	if not (Ez and Ez.On and Ez.On()) or Ez.temp or UI.fzf or UI.histSearch then return nil end
 	if #state.filters == 0 and not state.sort and not state.group then return nil end
 	return state
 end
@@ -239,7 +241,12 @@ local function Real(e) return type(e) == "table" and not (e.raw or e.noActivate 
 B.Real = Real
 
 local function KeyOf(s, e)
-	if s.field == "name" then return ns.Lower(ns.Plain(tostring(e.name or ""))) end
+	if s.field == "name" then
+		-- (the lowered name the search keeps, when it has no colour codes to take out: a sort of 100k rows; 0.63.7)
+		local ln = rawget(e, "_lname")
+		if ln and not find(ln, "|", 1, true) then return ln end
+		return ns.Lower(ns.Plain(tostring(e.name or "")))
+	end
 	-- (a field of words, the owner: A-Z by it)
 	local A = ns.Aggregate
 	local f = A and A.FIELDS[s.field]
@@ -267,11 +274,62 @@ local function Keyed(s, rows)
 	return keyed, rest
 end
 
-function B.SortRows(rows, id)
+--- The search's rows in a field's order (Search.lua's Finalize, "sort:name" typed or picked on the bar): the rows that
+--- have it scored above any search score, in its order (a pinned row stays on top). Past 5000 rows, only the first
+--- `keep` (the rows shown) are found, with a bounded heap: not every row sorted (0.63.7, review: past 5000 the sort was
+--- skipped, "@stress1 ka sort:name" listed by relevance). `overBudget`: the search's clock, to yield on.
+function B.SortRows(rows, id, keep, overBudget)
 	local s = ById(B.SORTS, id)
-	if not (s and s.field) or #rows > 5000 then return rows end
-	local keyed = Keyed(s, rows)
-	for i, r in ipairs(keyed) do r.e._score = 1e10 - i end -- (above any search score; a pinned row stays on top)
+	if not (s and s.field) then return rows end
+	if #rows <= 5000 then
+		local keyed = Keyed(s, rows)
+		for i, r in ipairs(keyed) do r.e._score = 1e10 - i end
+		return rows
+	end
+	keep = keep or 100
+	local asc = s.asc
+	-- (a before b in the field's order; the earlier row first on a tie)
+	local function Before(a, b)
+		if a.k ~= b.k then if asc then return a.k < b.k end return a.k > b.k end
+		return a.i < b.i
+	end
+	local heap, size = {}, 0 -- (the last of the kept ones on top)
+	local function up(i)
+		while i > 1 do
+			local p = math.floor(i / 2)
+			if Before(heap[p], heap[i]) then heap[p], heap[i] = heap[i], heap[p]; i = p else break end
+		end
+	end
+	local function down(i)
+		while true do
+			local l, r, w = i * 2, i * 2 + 1, i
+			if l <= size and Before(heap[w], heap[l]) then w = l end
+			if r <= size and Before(heap[w], heap[r]) then w = r end
+			if w == i then return end
+			heap[w], heap[i] = heap[i], heap[w]
+			i = w
+		end
+	end
+	local check = UI.SLICE_CHECK or 500
+	for i, e in ipairs(rows) do
+		if overBudget and i % check == 0 and overBudget() then coroutine.yield(rows) end -- (the matches so far, as the scan yields)
+		if Real(e) then
+			local k = KeyOf(s, e)
+			if k ~= nil then
+				local r = { e = e, k = k, i = i }
+				if size < keep then
+					size = size + 1
+					heap[size] = r
+					up(size)
+				elseif Before(r, heap[1]) then
+					heap[1] = r
+					down(1)
+				end
+			end
+		end
+	end
+	table.sort(heap, Before)
+	for i, r in ipairs(heap) do r.e._score = 1e10 - i end
 	return rows
 end
 

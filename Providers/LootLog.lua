@@ -266,10 +266,21 @@ ns:RegisterProvider("lootlog", {
 			if type(d) ~= "table" or not LL.Worth(d.link, d.id) then table.remove(log, i) end
 		end
 		local n = #log
+		-- (two alike drops in one second, to the same looter: a key each, the older one's as it was; 0.63.7, review: they
+		-- shared one, and its pick history)
+		local function BaseKey(d) return (d.t or 0) .. ":" .. tostring(d.id) .. ":" .. tostring(d.who) end
+		local total, seen = {}, {}
+		for _, d in ipairs(log) do
+			if type(d) == "table" then local k = BaseKey(d); total[k] = (total[k] or 0) + 1 end
+		end
 		local getIcon = C_Item and C_Item.GetItemIconByID or _G.GetItemIcon
 		for i, d in ipairs(log) do
 			if type(d) == "table" and type(d.link) == "string" and d.id then
 				local who = Who(d.who or "?")
+				local key = BaseKey(d)
+				seen[key] = (seen[key] or 0) + 1
+				local nth = total[key] - seen[key] + 1 -- (newest first: the oldest is the 1st)
+				if nth > 1 then key = key .. "#" .. nth end
 				local parts = { who == "you" and L["you"] or who, LL.Ago(d.t) } -- ("you" compared below: shown translated)
 				if d.n then table.insert(parts, 1, "x" .. d.n) end -- (how many: in the detail, as bag items show it)
 				if d.from then parts[#parts + 1] = d.from end
@@ -278,7 +289,7 @@ ns:RegisterProvider("lootlog", {
 					looter = d.who, mine = who == "you" or nil,
 					entry = d, -- (the log's own entry: what chat says of it, Share's hooks below)
 					shareExtra = LL.ChatExtra, shareHeader = LL.GroupHeader, shareMember = LL.GroupMember,
-					key = (d.t or 0) .. ":" .. d.id .. ":" .. tostring(d.who),
+					key = key,
 					name = NameOf(d.link),
 					itemID = d.id, link = d.link,
 					icon = getIcon and Safe(getIcon, d.id) or nil,
@@ -314,7 +325,9 @@ local ASKING = { what = true, whats = true, which = true, did = true, my = true,
 local names, namesFor
 local function Plainish(s) return (ns.Lower(s):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end
 local function LooterNames(log)
-	local mark = #log .. ":" .. tostring(log[1] and log[1].t)
+	-- (the newest entry itself, not its time: at the log's cap, a drop in the same second as the newest kept the same
+	-- count and time, and a new looter wasn't known; 0.63.7, review)
+	local mark = #log .. ":" .. tostring(log[1])
 	if namesFor == mark then return names end
 	names, namesFor = {}, mark
 	for _, d in ipairs(log) do

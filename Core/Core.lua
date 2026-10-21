@@ -386,6 +386,43 @@ end
 -- Events / saved variables
 ----------------------------------------------------------------------
 
+--- The first run's keys: ` (or CTRL-` if ` is taken) for the terminal, Alt+` for Advanced, each only on a free key.
+--- Not in combat (SetBinding is blocked then): at the fight's end (0.63.7, review: a login in combat used up the first
+--- run, nothing bound).
+function ns.FirstBindings()
+	-- First run: bind ` (tilde key) to toggle the terminal, or CTRL-` if ` is taken.
+	-- Change it any time with:  /term .bind <KEY>
+	if not ns.db.bindingTerminal then
+		ns.db.bindingTerminal = true
+		if not GetBindingKey("TERMINAL_TOGGLE") then
+			local chosen
+			for _, key in ipairs({ "`", "CTRL-`" }) do
+				local action = GetBindingAction(key)
+				if (not action or action == "") and SetBinding(key, "TERMINAL_TOGGLE") then
+					chosen = key
+					break
+				end
+			end
+			if chosen then
+				SaveBindings(GetCurrentBindingSet())
+				ns:Print(ns.L["Loaded. Press %s (or type /term) to open. Rebind with: /term .bind <KEY>"]:format(chosen))
+			else
+				ns:Print(ns.L["Loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE"])
+			end
+		end
+	end
+	-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, nothing (0.57.0;
+	-- it opened as ` did from 0.54.3). Only on a free key, never taking another action's.
+	if not ns.db.bindingAdvancedOnce then
+		ns.db.bindingAdvancedOnce = true
+		local action = GetBindingAction("ALT-`")
+		if not GetBindingKey("TERMINAL_ADVANCED_ONCE") and (not action or action == "")
+			and SetBinding("ALT-`", "TERMINAL_ADVANCED_ONCE") then
+			SaveBindings(GetCurrentBindingSet())
+		end
+	end
+end
+
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 
@@ -468,36 +505,12 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 		return
 	elseif event == "PLAYER_LOGIN" then
 		ns:StartPrewarm(10) -- the lists, built ahead of their first search (see Prewarming)
-		-- First run: bind ` (tilde key) to toggle the terminal, or CTRL-` if ` is taken.
-		-- Change it any time with:  /term .bind <KEY>
-		if not ns.db.bindingTerminal then
-			ns.db.bindingTerminal = true
-			if not GetBindingKey("TERMINAL_TOGGLE") then
-				local chosen
-				for _, key in ipairs({ "`", "CTRL-`" }) do
-					local action = GetBindingAction(key)
-					if (not action or action == "") and SetBinding(key, "TERMINAL_TOGGLE") then
-						chosen = key
-						break
-					end
-				end
-				if chosen then
-					SaveBindings(GetCurrentBindingSet())
-					ns:Print(ns.L["Loaded. Press %s (or type /term) to open. Rebind with: /term .bind <KEY>"]:format(chosen))
-				else
-					ns:Print(ns.L["Loaded. Type /term to open. Both ` and CTRL-` are in use; bind a key with: /term .bind CTRL-SPACE"])
-				end
-			end
-		end
-		-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, nothing (0.57.0;
-		-- it opened as ` did from 0.54.3). Only on a free key, never taking another action's.
-		if not ns.db.bindingAdvancedOnce then
-			ns.db.bindingAdvancedOnce = true
-			local action = GetBindingAction("ALT-`")
-			if not GetBindingKey("TERMINAL_ADVANCED_ONCE") and (not action or action == "")
-				and SetBinding("ALT-`", "TERMINAL_ADVANCED_ONCE") then
-				SaveBindings(GetCurrentBindingSet())
-			end
+		if InCombatLockdown and InCombatLockdown() then
+			local wait = CreateFrame("Frame")
+			wait:RegisterEvent("PLAYER_REGEN_ENABLED")
+			wait:SetScript("OnEvent", function(self) self:UnregisterAllEvents(); ns.FirstBindings() end)
+		else
+			ns.FirstBindings()
 		end
 		return
 	end

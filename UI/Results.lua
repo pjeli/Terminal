@@ -71,7 +71,8 @@ function UI:CollapseGroup(list)
 		-- (">>> party" alone: what's listed is your recent picks, nothing that says what they are; never sent)
 		self.groupRows = {}
 		return { { kind = "send", kindLabel = "|cff33ff99" .. L["chat"] .. "|r", icon = "Interface\\Icons\\Ability_Warrior_BattleShout", raw = true,
-			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = L["Nothing searched to send"],
+			sendAll = true, noActivate = true, _pos = UI.NO_POS, _score = 0, name = (to.quests and L["Nothing searched to change"]) or (to.drop and L["Nothing searched to drop"])
+				or (to.copy and L["Nothing searched to copy"]) or L["Nothing searched to send"],
 			detail = L["search first, then >>> %s"]:format(to.drop and "drop" or to.quests and to.label or to.copy or "party") } }
 	end
 	if to.copy then

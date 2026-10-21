@@ -103,6 +103,13 @@ function QD.DB()
 		if libModule and type(libModule.npcFlags) == "table" then libDB.npcFlags = libModule.npcFlags end -- (its own, as below)
 		return libDB
 	end
+	-- (an older Questie, no library: its module wrapped already, the same Questie still there: at once, not two
+	-- ImportModule calls per NPC row; 0.63.7, review)
+	local w0 = QUESTIE_DB
+	if w0.module and w0.loader == rawget(_G, "QuestieLoader") and rawget(_G, "LibQuestieDB") == nil and QD.QuestieReady() then
+		w0.npcFlags = w0.module.npcFlags
+		return w0
+	end
 	if not QD.Ready() then return nil end
 	local L = QD.Lib()
 	if L then
@@ -135,6 +142,7 @@ function QD.DB()
 	local M = QD.Module("QuestieDB")
 	if not (M and (M.QueryQuestSingle or M.QueryNPCSingle or M.QueryItemSingle)) then return nil end
 	local w = QUESTIE_DB
+	w.loader = rawget(_G, "QuestieLoader")
 	if w.module ~= M then
 		w.module = M
 		w.QueryQuestSingle, w.QueryNPCSingle, w.QueryItemSingle = M.QueryQuestSingle, M.QueryNPCSingle, M.QueryItemSingle

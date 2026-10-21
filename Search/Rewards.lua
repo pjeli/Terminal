@@ -72,7 +72,7 @@ function QR.Build()
 		QR.ForgetClose() -- (the close spellings found were the old index's entries: 0.50.7, a review test)
 	end)
 end
-function QR.Forget() index, building, QR.lastKey, QR.lastItems = nil, false, nil, nil QR.ForgetClose(); QR.byQuest = nil end -- (tests: Questie's data read again)
+function QR.Forget() index, building, QR.lastKey, QR.lastItems, QR.lastPool = nil, false, nil, nil, nil QR.ForgetClose(); QR.byQuest = nil end -- (tests: Questie's data read again)
 
 --- What a quest rewards: { index entries } (name, id), or nil (none, or not read yet). Made from the index once.
 function QR.RewardsOf(qid)
@@ -147,17 +147,27 @@ function QR.Items(tokens, oneClose, typing)
 	local exact, typed = {}, {}
 	local pats = {}
 	for k, tk in ipairs(tokens) do pats[k] = StartPattern(tk) end
-	for _, it in ipairs(idx) do
+	-- (a word typed on, or one more: what has them is among what had the words before; 0.63.7, review: every letter
+	-- was a pass over the whole index, ~13 ms a keystroke)
+	local pool = idx
+	local last = QR.lastPool
+	if last and last.idx == idx and QR.Grew(last.tokens, tokens) then pool = last.items end
+	local passed = {}
+	for _, it in ipairs(pool) do
 		if it.m == whole then
 			exact[#exact + 1] = it
+			passed[#passed + 1] = it
 		else
 			local all = true
 			for _, pat in ipairs(pats) do
 				if not it.m:find(pat) then all = false break end
 			end
-			if all then typed[#typed + 1] = it end
+			if all then typed[#typed + 1] = it; passed[#passed + 1] = it end
 		end
 	end
+	local kept = {}
+	for k, tk in ipairs(tokens) do kept[k] = tk end
+	QR.lastPool = { idx = idx, tokens = kept, items = passed }
 	local out = exact
 	if #out == 0 and #typed > 0 then table.sort(typed, Shorter) out = typed end
 	if #out == 0 and (#tokens >= 2 or oneClose) then
@@ -184,6 +194,15 @@ function QR.Items(tokens, oneClose, typing)
 	end
 	QR.lastKey, QR.lastItems = key, out
 	return out
+end
+
+--- Are `now`'s words `before`'s typed on: each of before's the start of now's there, maybe more words after?
+function QR.Grew(before, now)
+	if type(before) ~= "table" or #now < #before then return false end
+	for k, w in ipairs(before) do
+		if now[k]:sub(1, #w) ~= w then return false end
+	end
+	return true
 end
 
 QR.MAX_ITEMS = 10 -- (items whose quests are listed: "sword" would name hundreds)
@@ -263,9 +282,11 @@ for w in ([[quest quests reward rewards rewarded rewarding gives give gave for t
 
 -- is some quest of Questie's called with these words (every one in its name: "blade of the sea quest" is the quest
 -- Blade of the Sea, its little words aside)? Then the words are a search
+local notCalled -- (the last words no quest is called: typed on, none is either)
 local function QuestCalled(words)
 	local I = ns.Integrations
 	local list = I and I.qdb and I.qdb.list
+	if notCalled and notCalled.list == list and QR.Grew(notCalled.words, words) then return false end
 	for _, e in ipairs(list or {}) do
 		local ln = rawget(e, "_lname") or (type(e.name) == "string" and Lower(e.name)) or ""
 		if ln:find("'", 1, true) then ln = ln:gsub("'", "") end -- (once per quest, not per word: 0.50.7, review)
@@ -275,6 +296,9 @@ local function QuestCalled(words)
 		end
 		if all then return true end
 	end
+	local copy = {}
+	for k, w in ipairs(words) do copy[k] = w end
+	notCalled = { list = list, words = copy }
 	return false
 end
 

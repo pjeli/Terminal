@@ -149,15 +149,10 @@ end
 
 local SKIP = { header = true, description = true }
 
---- Every visible setting of every addon registered with Ace3: { app, title, path, selectPath, name, desc, type, groups }.
-function AO.Read()
-	local reg = Registry()
+--- One addon's visible settings: { app, title, path, selectPath, name, desc, type, groups } (at most MAX_PER_APP).
+local function ReadApp(reg, appName)
 	local out = {}
-	if not (reg and type(reg.tables) == "table") then return out end
-	local apps = {}
-	for appName in pairs(reg.tables) do if type(appName) == "string" then apps[#apps + 1] = appName end end
-	table.sort(apps)
-	for _, appName in ipairs(apps) do
+	do
 		local options = AO.Root(reg, appName)
 		if options then
 			local title = Plain(Value("name", options, options, {}, appName)) or appName
@@ -166,7 +161,7 @@ function AO.Read()
 			local function Walk(group, path, names, selectPath, inline, depth)
 				if depth > AO.DEPTH then return end
 				for _, kv in ipairs(Sorted(group, options, path, appName)) do
-					if count >= AO.MAX_PER_APP or #out >= AO.MAX then return end
+					if count >= AO.MAX_PER_APP then return end
 					local k, v = kv[1], kv[2]
 					path[#path + 1] = k
 					local ty = v.type
@@ -202,6 +197,38 @@ function AO.Read()
 		end
 	end
 	return out
+end
+
+-- each addon's settings as last read, and the addons that said theirs changed since (ConfigTableChange names it): only
+-- those read again (0.63.7, review: Shift+Enter's own change read every addon's options again, their functions called)
+AO.perApp, AO.stale = {}, {}
+
+--- Every visible setting of every addon registered with Ace3 (at most MAX): ReadApp's, an addon's kept until it changes.
+function AO.Read()
+	local reg = Registry()
+	local out = {}
+	if not (reg and type(reg.tables) == "table") then return out end
+	local apps = {}
+	for appName in pairs(reg.tables) do if type(appName) == "string" then apps[#apps + 1] = appName end end
+	table.sort(apps)
+	local kept = {}
+	for _, appName in ipairs(apps) do
+		local list = AO.perApp[appName]
+		if not list or AO.stale[appName] or AO.stale[true] then list = ReadApp(reg, appName) end
+		kept[appName] = list
+		for _, o in ipairs(list) do
+			if #out >= AO.MAX then break end
+			out[#out + 1] = o
+		end
+	end
+	AO.perApp, AO.stale = kept, {} -- (an addon gone: dropped)
+	return out
+end
+
+--- An addon said its options changed (no name: any may have): read again the next time.
+function AO.Changed(appName)
+	AO.stale[type(appName) == "string" and appName or true] = true
+	ns:Changed("addonoptions")
 end
 
 -- the option's table and its root, as read (not asked of the addon again on every draw: a function-made table would be
@@ -379,7 +406,7 @@ local meta
 local function Watch()
 	local reg = Registry()
 	if AO.watching or not (reg and reg.RegisterCallback) then return end
-	AO.watching = pcall(reg.RegisterCallback, AO, "ConfigTableChange", function() ns:Changed("addonoptions") end) or nil
+	AO.watching = pcall(reg.RegisterCallback, AO, "ConfigTableChange", function(_, appName) AO.Changed(appName) end) or nil
 end
 
 function AO.Collect()

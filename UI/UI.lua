@@ -130,6 +130,7 @@ do
 			-- (the tab shown kept as it is: closed by the game, not by UI:Hide, which kept it before its run's mode ended)
 			if not UI.tabKept and ns.Tabs then ns.Tabs.SaveCurrent() end
 			UI.tabKept = nil
+			UI.histSearch = nil -- (Ctrl+R ends with it, closed by the game too; 0.63.7, review)
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			if ns.Bar then ns.Bar.Reset() end -- (closed by the game: the bar's picks and its menu go too, as UI:Hide does)
@@ -701,11 +702,23 @@ function UI:IsShown() return frame and frame:IsShown() and not self.closing or f
 --- The search to bring back with Down on the next open (only a search: not a .command or /slash). From UI:Hide, and from
 --- the frame's OnHide: a window the game opened can close the terminal first (0.50.7, review: Down then brought back an
 --- older search).
+--- What the prompt says, and its caret: in Ctrl+R's history search, what it said before (the search is a step of its
+--- own; 0.63.7, review: closing in it kept the history's filter as your last search, a tab's text, the text closed on).
+function UI:PromptNow()
+	local hs = self.histSearch
+	if hs then return hs.saved or "", hs.cursor or #(hs.saved or "") end
+	local text = edit and edit:GetText() or ""
+	local cursor = self.cursor
+	if not self.keys and edit and edit.GetCursorPosition then cursor = edit:GetCursorPosition() or cursor end
+	return text, cursor
+end
+
 function UI:KeepLastSearch()
-	local typed = edit and edit:GetText() or ""
+	local typed = self:PromptNow()
 	if typed:find("%S") and self.mode == "search" and not self.fzf then
 		self.lastQuery = typed
-		self.lastCategory = not self.categoryAuto and self.category or nil
+		local hs = self.histSearch
+		if hs then self.lastCategory = hs.category else self.lastCategory = not self.categoryAuto and self.category or nil end
 	end
 end
 
@@ -724,22 +737,17 @@ function UI:Hide()
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
 	UI.HideNav()
 	self.clipHint = nil -- (the Ctrl+V / Ctrl+C reminder doesn't outlive the terminal)
-	-- (Ctrl+R ends with the terminal: what was typed before it is what's kept)
-	local histSaved = self.histSearch and self.histSearch.saved
-	self.histSearch = nil
-	if not frame or not frame:IsShown() or self.closing then return end
+	if not frame or not frame:IsShown() or self.closing then self.histSearch = nil return end
 	self:Disarm()
 	self:HideTooltip()
 	edit:ClearFocus()
 	self:KeepLastSearch()
 	self.searchKept = true -- (OnHide doesn't keep it again)
 	do
-		local typed = histSaved or edit:GetText() or ""
-		local ran = self.ran and GetTime() - self.ran < 2
 		-- (the caret where it was: the drawn prompt's, else the game's text box's own; and the mode it was in: Advanced
-		-- for this run (Alt+`) comes back as Advanced, 0.52.14, the player)
-		local cursor = self.cursor
-		if not self.keys and edit.GetCursorPosition then cursor = edit:GetCursorPosition() or cursor end
+		-- for this run (Alt+`) comes back as Advanced, 0.52.14, the player. Ctrl+R: what was typed before it)
+		local typed, cursor = self:PromptNow()
+		local ran = self.ran and GetTime() - self.ran < 2
 		local E = ns.Easy
 		-- (nor the tour's step, nor its Simple mode: release review)
 		local touring = ns.Tour and ns.Tour.Active and ns.Tour.Active()
@@ -748,6 +756,7 @@ function UI:Hide()
 		self.ran = nil
 	end
 	if ns.Tabs then ns.Tabs.SaveCurrent(); self.tabKept = true end -- (the tab shown, with its run's mode: before that ends)
+	self.histSearch = nil -- (Ctrl+R ends with the terminal; what was typed before it was kept, above)
 	self:EndAdvancedOnce()
 	self:EndFuzzy()
 	if ns.Tour then ns.Tour.Stop() end -- (closed: the tour is over)
@@ -930,6 +939,7 @@ end
 function UI:Open(text, opts)
 	Build()
 	self.tabKept, self.searchKept = nil, nil
+	self.histSearch = nil -- (never carried into a new run)
 	-- (tabs: opened with no text of its own (nil: the key, the options' button; "" is an empty prompt asked for, Alt+`,
 	-- Tab+`, the tour), the tab you were on comes back, in its mode; Tabs.lua. Opened with a text of its own (a chat
 	-- link, /term words), the run is "foreign": it shows that text, and the tab stays as it was. Review, 0.53.6)

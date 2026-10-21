@@ -1,6 +1,33 @@
 # Changelog
 
-## 0.63.6 (in testing)
+## 0.63.7 (in testing)
+
+**A review of the whole addon: fixes**
+- A filter after a question narrows what Enter does too: **untrack quests is:red** untracks the red ones it lists (it untracked every tracked quest), **quests to drop is:grey** drops only those. Alt+` writes the filter before **>>>**, where it counts.
+- **sort:name** (typed or the bar's Sort) sorts lists of any size; past 5000 matches it was skipped.
+- **in:rfc**, **in:tb**, **in:sw** on your quest log mean Ragefire Chasm, Thunder Bluff and Stormwind (not the Swamp of Sorrows).
+- **is:here**, **is:nearby**, **is:tracked**, **is:untracked** are worked out afresh as you type: walking to another zone, then typing on, no longer narrows the old zone's quests to nothing.
+- **my mats**, **the mats**, **where to get it**, **how do i get there**, **how do i get into mc** (without Attune) are no longer read as chains of an item called "my", "it", "into mc".
+- A chain's first part offers the same names whichever chain you typed before ("copper > mats" then "copper > uses" left Copper Ore out).
+- **track quests to turn in** tracks your complete quests (it looked for a quest called "turn").
+- Simple mode: **>> party**, **>> text** on a category row pick the category (they sent or copied the word "Items"); the key hints say where Enter sends the row, as Advanced's do. **>> track only** says how many others it untracks; **>>> track** with nothing in your log among the results says so, and **>>> track** alone says "Nothing searched to change".
+- Ctrl+R: no bar and no chat lines in its row menu (its lines are what you typed); "3*4" finds the line, no sum on top. **@history tor** finds the lines with those letters (every line matched a word they all had).
+- Alt+`: lines no Advanced search answers alike stay as you said them: "what should i auction on my alts / everywhere", "shaman spells at level 12", your own class's spells, "molten core attunement", "tailoring training". "quests here" adds sort:level; "linen not cloth" is **-cloth|type:cloth**.
+- The loot log: two alike drops in one second are two rows; "what did zed get" knows a new looter when the log is full.
+- Pointing at a window's text picks the exact one first ("Heal", not "Flash Heal").
+- A first login in combat binds ` (and Alt+`) when the fight ends; it used up the first run with nothing bound.
+- Questie, Attune and What's Training data in a shape Terminal doesn't read now says so once (.integrations) instead of giving empty lists; a What's Training source of an unexpected shape no longer breaks a tooltip.
+- Terminal: Share: a friend's place names are shown without the game's text codes or control characters, at most 48 bytes, and only the share modes Terminal knows are read.
+
+**Faster, lighter**
+- A search no longer grows every compact row it matches (+350 bytes a row in Lua 5.1, on lists of tens of thousands).
+- Simple mode's categories: a list's category is looked up once, not per match (a third of a 100,000-row overview).
+- Questions read the line once per keystroke, not 29 times; an older Questie's database is found at once.
+- "spellid ..." asks the game for each spell's rank only when its name matches (3,800 calls a keystroke before); talents by what they do keep each talent's words (about twice as fast); "... quest" for a reward narrows from the last keystroke's matches.
+- The addon list is read again on an open a minute on, or when an addon loads, not on every open; an addon's options are read again only when that addon says they changed.
+- A town with no centre isn't worked out again for every row; a corpse's spirit healers don't keep the freed NPC list in memory.
+
+## 0.63.6
 
 **Your history, as a shell has it**
 - **Ctrl+R** searches what you ran from the prompt: type to find a line (fuzzy, every word), **Ctrl+R** again (or Down) for an older match, **Enter** puts it in the prompt and searches it, **Esc** goes back to what you'd typed. Nothing in it is syntax: ".ma" finds ".mail". (Ctrl+R was the game's frame rate while Terminal was open; it's Terminal's now. The frame rate still toggles with the terminal closed.)

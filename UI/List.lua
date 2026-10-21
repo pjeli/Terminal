@@ -50,6 +50,16 @@ do
 	local function Append(text, x) return text .. (text ~= "" and STATUS_SEP or "") .. x end
 	local function Prepend(x, text) return x .. (text ~= "" and STATUS_SEP or "") .. text end
 
+	--- ">> track only" on a row: how many others it untracks (0.63.7, review: the footer said only "Enter tracks it").
+	local function OnlyFooter(e)
+		local QK = ns.QuestTrack
+		local o = QK and type(e) == "table" and (rawget(e, "pipeOf") or e) or nil
+		if not (o and o.kind == "quests" and type(o.questID) == "number") then return nil end
+		local n = #QK.Plan({ o }, "only").untrack
+		return n > 0 and (n == 1 and L["Enter tracks only it: 1 other untracked"] or L["Enter tracks only it: %d others untracked"]:format(n))
+			or L["Enter tracks it"]
+	end
+
 	function UI:SetStatus()
 		local status, hints, busy = UI.status, UI.hints, UI.busy
 		if not status then return end
@@ -101,14 +111,21 @@ do
 		end
 		if cat then text = HINT .. cat.label .. "|r  ·  " .. text end
 		local to = self.sendTo
-		if to and to.drop and self.mode == "search" then
+		local selRow = UI.results[UI.sel]
+		if to and self.mode == "search" and selRow and selRow.catId then
+			-- (a category row selected: Enter picks it, the count says so; what's sent is in it. 0.63.7, review: it said
+			-- "Enter sends it to party", and sent the word "Items")
+		elseif to and to.drop and self.mode == "search" then
 			local n = to.all and self.groupRows and #self.groupRows
 			local say = (to.all and ((n or 0) == 0 and L["nothing to drop"] or (n == 1 and L["Enter drops it: Terminal asks first"] or L["Enter drops all %s: Terminal asks first"]:format(n))))
 				or L["Enter drops it: Terminal asks first"]
 			text = Prepend(HINT .. say .. "|r", text)
 		elseif to and to.quests and self.mode == "search" then
-			local say = to.all and L["Enter changes the tracker for the quests listed"]
-				or (to.quests == "untrack" and L["Enter untracks it"] or L["Enter tracks it"])
+			-- (">>>": the one row's own word when it does nothing: "no quest in your log among the results"; 0.63.7, review)
+			local row = UI.results[1]
+			local say = to.all and ((row and row.noActivate and row.detail) or L["Enter changes the tracker for the quests listed"])
+				or (to.quests == "untrack" and L["Enter untracks it"]) or (to.quests == "only" and OnlyFooter(selRow))
+				or L["Enter tracks it"]
 			text = Prepend(HINT .. say .. "|r", text)
 		elseif to and to.copy and self.mode == "search" then
 			local n = to.all and self.groupRows and #self.groupRows
@@ -163,6 +180,23 @@ do
 	end
 end
 
+--- What Enter does to the selected row while ">> party", ">> drop", ">> track"... is typed: the one verb (false: none, no
+--- channel yet), or nil when the row's own verbs stand (">>>", a category to pick, a heading). Both modes (0.63.7, review:
+--- Simple mode's hints said "use" while its footer said where it went). (review, 0.48.6: the hints said "Enter open"
+--- while the status line said where it would be sent)
+local function SendVerb(self, sel)
+	local to = self.sendTo
+	if not (to and not to.all and self.mode == "search" and sel) then return nil end
+	if sel.noActivate or sel.raw or sel.completion or UI.PicksFirst(sel) then return nil end
+	if to.drop then return L["drop"] end
+	if to.quests then
+		return (to.quests == "untrack" and L["untrack"]) or (to.quests == "only" and L["track only it"]) or L["track"]
+	end
+	if to.copy then return L["copy as %s"]:format(to.label) end
+	if to.cmd then return L["send it to %s"]:format(tostring(to.label)) end
+	return false
+end
+
 --- The key hints: each key in the text colour, its meaning dimmed, as many as fit on one
 --- line beside the result count (the less useful ones go first when it's narrow).
 function UI:FitHints()
@@ -186,16 +220,8 @@ function UI:FitHints()
 		-- (Tab completes what the faint text after the cursor shows: that text says it)
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(sel) end
-		-- (">> party" / ">> drop": Enter and Shift+Enter both send it, or drop it, whatever the row's own verbs; review,
-		-- 0.48.6: the hints said "Enter open" while the status line said where it would be sent)
-		local to = self.sendTo
-		if to and not to.all and self.mode == "search" and sel and not (sel.noActivate or sel.raw or sel.completion) then
-			if to.drop then enter, shift = L["drop"], nil
-			elseif to.quests then enter, shift = (to.quests == "untrack" and L["untrack"] or L["track"]), nil
-			elseif to.copy then enter, shift = L["copy as %s"]:format(to.label), nil
-			elseif to.cmd then enter, shift = L["send it to %s"]:format(tostring(to.label)), nil
-			else enter, shift = nil, nil end
-		end
+		local sent = SendVerb(self, sel)
+		if sent ~= nil then enter, shift = sent or nil, nil end
 		local write = enter and self:ResultText(sel) ~= nil
 		list = {}
 		if enter then list[#list + 1] = { "Enter", enter } end
@@ -208,6 +234,8 @@ function UI:FitHints()
 	else
 		-- what Enter and Shift+Enter do for the selected row, in words (Easy.VERBS)
 		local enter, shift = ns.Easy.Verbs(UI.results[UI.sel])
+		local sent = SendVerb(self, sel)
+		if sent ~= nil then enter, shift = sent or nil, nil end
 		list = {}
 		if enter then list[#list + 1] = { "Enter", enter } end
 		-- (before Shift+Enter: on a narrow footer, how to get back counts more; Shift+Left is the back key, Tab too for

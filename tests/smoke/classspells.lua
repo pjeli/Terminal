@@ -120,6 +120,10 @@ do
 	check(Q.Question("fire spells") == nil and Q.Question("spells not on my bars") == nil and Q.Question("druid talents") == nil
 		and Q.Question("@classspell druid") == nil, "not its questions: a search, another question, talents, Advanced syntax")
 	check(ns.QuestionToAdvanced("druid spells") == "@spell class:druid ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("druid spells")))
+	-- (0.63.7, review) a level (a later rank's), your own class's: kept as said, no Advanced line finds the same
+	check(ns.QuestionToAdvanced("shaman spells at level 12") == "shaman spells at level 12 "
+		and ns.QuestionToAdvanced("warrior spells") == "warrior spells ",
+		"a level, your own class: as said: " .. tostring(ns.QuestionToAdvanced("shaman spells at level 12")) .. " / " .. tostring(ns.QuestionToAdvanced("warrior spells")))
 	ns.db.easyMode = true; UI:EasyChanged()
 	UI:Open("druid spells"); FlushAll()
 	check(Names(UI.Results()) == "Claw | Travel Form", "Simple mode, typed: " .. Names(UI.Results()))

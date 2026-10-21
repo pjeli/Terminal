@@ -184,8 +184,15 @@ end
 -- question, Group.lua), a way somewhere ("how do i get to orgrimmar"). They said "Nothing called 'my group'".
 local GROUP_WORDS = { my = true, our = true, the = true, group = true, party = true, raid = true, members = true,
 	member = true, groupmates = true, team = true }
+-- (words that point at something without naming it: "my mats", "where to get it", "what drops here"; 0.63.7, review)
+local POINTERS = { my = true, our = true, the = true, it = true, its = true, there = true, here = true, this = true, that = true,
+	these = true, those = true, them = true, me = true, money = true }
 function P.NotAName(what)
-	if what == "to" or what:find("^to ") then return true end
+	-- (a way somewhere, "to orgrimmar", "into mc": not an item)
+	if what == "to" or what:find("^to ") or what == "into" or what:find("^into ") or what:find("^in ") then return true end
+	local pointing = true
+	for w in what:gmatch("%S+") do if not POINTERS[w] then pointing = false break end end
+	if pointing then return true end
 	local group = false
 	for w in what:gmatch("%S+") do
 		if not GROUP_WORDS[w] then return false end
@@ -1202,7 +1209,9 @@ local function SeedRows(key, stages)
 	local def, name = FirstDef(stages)
 	local kinds = def and def.seedKinds
 	local also = not kinds and P.AlsoSeeds(name) or nil
-	if kinds or also then key = key .. " @" .. name end -- (the same words start another list there)
+	-- (the same words start another list there; and the names to pick from are those the first link takes: kept by it
+	-- too. 0.63.7, review: "copper > mats" then "copper > uses" offered mats' names, Copper Ore missing)
+	if name then key = key .. " @" .. name end
 	local rows = Cached(key)
 	if not rows then
 		local near, choices

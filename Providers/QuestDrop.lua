@@ -108,13 +108,20 @@ function QD.GroupRows(list, explicit)
 	return out, kept
 end
 
-local function DropAllRow(rows)
+local DropAllRow
+DropAllRow = function(rows)
 	local list = {}
 	for i, e in ipairs(rows) do list[i] = e end
 	return {
 		name = L["Drop all %d"]:format(#list), kind = "dropall", kindLabel = "|cffffd200" .. L["quests"] .. "|r", raw = true, lead = true,
 		icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up", detail = L["you'll see them all and be asked first"],
 		actionVerb = L["drop them all"], activate = function() QD.Confirm(list) end, _pos = ns.UI and ns.UI.NO_POS or {},
+		-- (a filter after the question left some: those alone; 0.63.7, review)
+		replan = function(kept)
+			local left = {}
+			for _, e in ipairs(kept) do if type(e) == "table" and e.kind == "quests" then left[#left + 1] = e end end
+			return #left >= 2 and DropAllRow(left) or nil
+		end,
 	}
 end
 

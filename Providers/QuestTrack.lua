@@ -185,7 +185,7 @@ local SUBJECT = { quest = true, quests = true }
 local ALL = { all = true, everything = true, every = true }
 local FILL = {}
 for w in ([[my the of in for from that are which i have please now me some any log questlog these those to and or
-	with at level levels lvl ones one them current currently tracked tracker on ive im is a an each]]):gmatch("%a+") do FILL[w] = true end
+	with at level levels lvl ones one them current currently tracked tracker on ive im is a an each can could]]):gmatch("%a+") do FILL[w] = true end
 local JOIN = { ["and"] = true, ["or"] = true, also = true, plus = true }
 local QUAL = { complete = "complete", completed = "complete", done = "complete", finished = "complete", ready = "complete",
 	incomplete = "incomplete", unfinished = "incomplete", dungeon = "dungeon", dungeons = "dungeon", instance = "dungeon",
@@ -201,6 +201,8 @@ function QK.Question(text)
 	if not t then return nil end
 	t = " " .. t .. " "
 	t = t:gsub(" stop tracking ", " untrack "):gsub(" stop watching ", " untrack ")
+	-- ("quests to turn in", "i can turn in": the complete ones; 0.63.7, review: "turn" was read as a quest's name)
+	t = t:gsub(" turn in ", " complete "):gsub(" turnin ", " complete "):gsub(" hand in ", " complete ")
 	t = t:gsub(" this zone ", " here "):gsub(" this area ", " here "):gsub(" my zone ", " here "):gsub(" current zone ", " here ")
 	local list = {}
 	for w in t:gmatch("%S+") do list[#list + 1] = w end
@@ -296,7 +298,9 @@ function QK.Plan(rows, how)
 			end
 		end
 	end
-	if how == "only" then
+	-- ("only" with nothing it names: nothing untracked either; 0.63.7, review: "track rcf quests only", a typo,
+	-- emptied the tracker)
+	if how == "only" and plan.matched > 0 then
 		for _, o in ipairs(all) do
 			if type(o.questID) == "number" and not seen[o.questID] and QK.Tracked(o.questID, questie) then
 				plan.untrack[#plan.untrack + 1] = o
@@ -334,11 +338,31 @@ local function Marked(o, track)
 	return setmetatable({ pipeOf = o, detail = ns.Detail(mark, o.detail) }, { __index = o })
 end
 
-local function DoRow(plan)
+local DoRow
+
+--- The plan for only these of its quests (a filter after the question kept them: Search.lua's AnswerView).
+function QK.PlanOf(plan, rows)
+	local ids = {}
+	for _, e in ipairs(rows or {}) do
+		local o = type(e) == "table" and (rawget(e, "pipeOf") or e) or nil
+		if o and o.questID then ids[o.questID] = true end
+	end
+	local out = { track = {}, untrack = {}, matched = plan.matched }
+	for _, o in ipairs(plan.track) do if ids[o.questID] then out.track[#out.track + 1] = o end end
+	for _, o in ipairs(plan.untrack) do if ids[o.questID] then out.untrack[#out.untrack + 1] = o end end
+	return out
+end
+
+DoRow = function(plan)
 	return {
 		name = QK.PlanName(plan), kind = "questtrack", kindLabel = "|cffffd200" .. L["quests"] .. "|r", raw = true, lead = true,
 		icon = "Interface\\Icons\\INV_Misc_Map_01", detail = QK.PlanDetail(plan),
 		actionVerb = L["do it"], activate = function() QK.Apply(plan) end, _pos = ns.UI and ns.UI.NO_POS or {},
+		-- (the rows a filter left: the plan for those alone, or no row when it leaves none to change)
+		replan = function(rows)
+			local p = QK.PlanOf(plan, rows)
+			return #p.track + #p.untrack > 0 and DoRow(p) or nil
+		end,
 	}
 end
 

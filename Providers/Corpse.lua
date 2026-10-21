@@ -107,15 +107,19 @@ local NoteRow = ns.NoteRow
 -- the nearest spirit healers (Questie's NPCs), each as a nearest view
 -- (the spirit healers among the NPC list, kept per list: the answer is asked on every keystroke of "corpse", and each
 -- walked every NPC through the role test; only how far each is is worked out again. Review, 0.53.6)
-local healers, healersOf
+-- (by the list, weakly: a list freed as unused (ns:DropIdle) isn't kept alive for this; 0.63.7, review: 5000 NPC rows
+-- held after @npc was freed)
+local healersOf = setmetatable({}, { __mode = "k" })
 local function Healers(here)
 	local p = ns.providers.npc
 	local is = ns.Filters and ns.Filters._ and ns.Filters._.IS and ns.Filters._.IS.spirithealer
 	if not (p and is and here and I and I.RowYards) then return {} end
 	local list = ns:GetEntries(p)
-	if healersOf ~= list then
-		healers, healersOf = {}, list
+	local healers = healersOf[list]
+	if not healers then
+		healers = {}
 		for _, e in ipairs(list) do if is(e) then healers[#healers + 1] = e end end
+		healersOf[list] = healers
 	end
 	local found = {}
 	for _, e in ipairs(healers) do

@@ -214,6 +214,8 @@ function D.Set(on)
 	end
 end
 
+-- (D.Log and D.Report stay in English on every client, as the trace does: they're copied into bug reports for the
+-- author to read, not read in the game; what the player is told goes through L[]. 0.63.7, review)
 function D.Log(n)
 	local lines = {}
 	if #events == 0 then

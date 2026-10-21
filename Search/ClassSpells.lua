@@ -156,6 +156,9 @@ function Q.ToAdvanced(q)
 	-- (as said, 0.55.7: the next level you learn something new at, which lvl:N+ didn't say, nor "when do i learn":
 	-- your class's first. Search.lua's ns.QuestionToAdvanced)
 	if q.upcoming or (not q.class and #(q.words or {}) > 0) then return nil end
+	-- (a level: a spell whose later rank comes then is in, lvl: reads its first; your own class: its class spells, not your
+	-- spellbook's rows too. No Advanced line finds the same: kept as said. 0.63.7, review)
+	if q.class and (q.level or q.class == CS.MyClass()) then return nil end
 	local parts = { "@spell" }
 	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class)
 	else parts[#parts + 1] = "class:mine -is:known" end

@@ -146,13 +146,26 @@ function MA.ReadInbox()
 	}
 	-- when each mail was first seen here (carried over from the reads before): an auction's return is mail that came
 	-- after it was made (MA.EndedFromMail)
-	local before, first = boxes[key], {}
+	-- (the same mail: alike and running out when this one does, each read mail matched once. 0.63.7, review: a new mail
+	-- alike an older one, an auction's arrows back a second time, took the older one's time, and the auction it ended
+	-- was never seen as over)
+	local before, old = boxes[key], {}
 	if type(before) == "table" and type(before.mails) == "table" then
 		for _, m in ipairs(before.mails) do
-			if type(m) == "table" then first[MA.Sig(m)] = m.first or before.t end
+			if type(m) == "table" then old[#old + 1] = { sig = MA.Sig(m), exp = m.expires, first = m.first or before.t } end
 		end
 	end
-	for _, m in ipairs(mails) do m.first = first[MA.Sig(m)] or now end
+	for _, m in ipairs(mails) do
+		local sig, best, bestD = MA.Sig(m), nil, nil
+		for _, o in ipairs(old) do
+			if not o.used and o.sig == sig then
+				local d = (o.exp and m.expires) and math.abs(o.exp - m.expires) or 0
+				if d <= MA.MAIL_KEEP_SAME and (not bestD or d < bestD) then best, bestD = o, d end
+			end
+		end
+		if best then best.used = true end
+		m.first = best and best.first or now
+	end
 	boxes[key] = box
 	MA.SettleAuctions(box, now)
 	Dirty()
@@ -286,6 +299,8 @@ end
 MA.SENT_KEEP = 3600 -- (s: mail with items or gold to another account arrives within the hour)
 MA.AUCTION_KEEP = 3600 -- (s: a sold auction's gold comes about an hour later; won, outbid and expired mail at once)
 MA.POSTED_KEEP = 3 * 86400 -- (s: an auction posted is kept this long for its price: the longest auction is 48 h)
+MA.MAIL_KEEP_SAME = 600 -- (s: two reads of one inbox mail say when it runs out this close (its days left))
+MA.MAIL_SAME = 120 -- (s: two reads of one mail say when it runs out this close)
 MA.SAME = 10 -- (s: the same news told twice, the notification and a chat line, is one)
 MA.POST_WAIT = 30 -- (s a post is waited on for AUCTION_HOUSE_AUCTION_CREATED)
 MA.SOLD_KEEP = 30 * 86400 -- (s: your sales kept for @auction: as long as a sale's gold waits in the mailbox)
@@ -373,39 +388,44 @@ function MA.SalesFromMail(box, now)
 	local list = Mine("auctionsSold")
 	if not (list and box) then return 0 end
 	now = now or Now()
-	local n, seen, seenAnon, changed = 0, {}, {}, false
+	local n, changed, used = 0, false, {}
+	-- a sale's mail is told apart by its item, count and price and by when it runs out (the mail's own, steady to the
+	-- second whatever is read when): not by its buyer (the game can give it a moment after the mail) nor by where
+	-- alike mails sit in the inbox (one taken moves the others). 0.63.7, review: alike sales lost, doubled, or one
+	-- not kept
+	local function Same(x, v, count)
+		return x.item == v.item and (x.count or 1) == count and (not v.bid or x.price == nil or x.price == v.bid)
+	end
 	for _, m in ipairs(box.mails or {}) do
 		local v = m.invoice
 		if type(v) == "table" and (v.kind == "seller" or v.kind == "seller_temp_invoice") and v.item then
 			local count = v.count or 1
-			-- (alike mails, the same item, price and buyer, each their own sale: numbered as the inbox has them; release
-			-- review, several alike were one)
-			local base = table.concat({ v.item, count, v.bid or 0, v.player or "" }, "|")
-			seen[base] = (seen[base] or 0) + 1
-			local sig = base .. "#" .. seen[base]
-			-- the same mail read before the game had its buyer's name ("" for the buyer): that sale is this one (0.63.2, a
-			-- player: one sale listed twice, once with its buyer and once without)
-			local anonBase = table.concat({ v.item, count, v.bid or 0, "" }, "|")
-			seenAnon[anonBase] = (seenAnon[anonBase] or 0) + 1
-			local anonSig = v.player and (anonBase .. "#" .. seenAnon[anonBase]) or nil
-			local s, anon
-			for _, x in ipairs(list) do
-				if x.inv == sig then s = x elseif anonSig and x.inv == anonSig then anon = x end
+			-- (a mail with no time left told: when it was first seen, carried from read to read, stands in)
+			local exp = (type(m.expires) == "number" and m.expires) or (type(m.first) == "number" and m.first + MA.KEEP_DAYS * 86400) or nil
+			local s, best
+			-- this mail's sale, kept before: the one whose mail runs out when this one does (the nearest, each once)
+			if exp then
+				for _, x in ipairs(list) do
+					if not used[x] and x.mailExp and Same(x, v, count) then
+						local d = math.abs(x.mailExp - exp)
+						if d <= MA.MAIL_SAME and (not best or d < best) then s, best = x, d end
+					end
+				end
 			end
-			if anon and s then
-				-- (kept twice before 0.63.2: the one without the buyer goes)
-				for i = #list, 1, -1 do if list[i] == anon then table.remove(list, i) end end
-				changed = true
-			elseif anon then
-				s, anon.inv, anon.buyer = anon, sig, v.player
-				changed = true
+			-- (kept before 0.63.7: named by item, count, price and buyer; it takes this mail's time once)
+			if not s then
+				for i = #list, 1, -1 do
+					local x = list[i]
+					if not used[x] and not x.mailExp and type(x.inv) == "string" and Same(x, v, count) then s = x break end
+				end
 			end
 			if not s then
-				-- the same item and count first, else the same item (a stack bought in part)
+				-- a sale kept from the news, not matched to its mail yet: the same item and count first, else the same item
+				-- (a stack bought in part); the oldest first (sales are mailed in order)
 				for pass = 1, 2 do
 					for i = #list, 1, -1 do
 						local x = list[i]
-						if not x.inv and x.item == v.item and (pass == 2 or (x.count or 1) == count)
+						if not used[x] and not x.inv and x.item == v.item and (pass == 2 or (x.count or 1) == count)
 							and (x.at or 0) <= (m.first or now) + 60 then s = x break end
 					end
 					if s then break end
@@ -425,10 +445,32 @@ function MA.SalesFromMail(box, now)
 					end
 				end
 				if s then
-					s.inv, s.count, s.buyer = sig, count, v.player or s.buyer
+					s.count = count
 					if v.bid then s.price, s.each = v.bid, nil end
 					if v.bid then s.net = v.bid + (v.deposit or 0) - (v.cut or 0) end
 					s.link = s.link or (m.items and m.items[1] and m.items[1].link) or nil
+					changed = true
+				end
+			end
+			if s then
+				used[s] = true
+				-- (its buyer when the game has the name: filled in, never taken away)
+				if v.player and s.buyer ~= v.player then s.buyer, changed = v.player, true end
+				if exp and s.mailExp ~= exp then s.mailExp, changed = exp, true end
+				s.inv = s.inv or true
+			end
+		end
+	end
+	-- (kept twice between 0.63.0 and 0.63.2: once without its buyer, "item|count|price|#n", beside the one with it; the
+	-- copy goes once its sale is matched to its mail)
+	for i = #list, 1, -1 do
+		local x = list[i]
+		if not used[x] and not x.mailExp and type(x.inv) == "string" and x.inv:find("|#%d+$") then
+			for y in pairs(used) do
+				if y ~= x and y.buyer and y.item == x.item and (y.count or 1) == (x.count or 1) and y.price == x.price then
+					table.remove(list, i)
+					changed = true
+					break
 				end
 			end
 		end

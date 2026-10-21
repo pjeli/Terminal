@@ -292,19 +292,33 @@ local Lower = ns.Lower
 -- /run line calling it ran tainted.
 ----------------------------------------------------------------------
 
-local TRIVIAL = (Enum and Enum.RelativeContentDifficulty and Enum.RelativeContentDifficulty.Trivial) or 0
+
+-- (0.63.7, review: one answer for how hard a quest is, where three disagreed when the game gave none)
+local RCD = (Enum and Enum.RelativeContentDifficulty) or {}
+-- the game's difficulty -> 0 grey, 1 green, 2 yellow, 3 orange, 4 red (QT.COLOURS' and DIFF_NAME's order)
+local DIFF_STEP = { [RCD.Trivial or 0] = 0, [RCD.Easy or 1] = 1, [RCD.Fair or 2] = 2, [RCD.Difficult or 3] = 3, [RCD.Impossible or 4] = 4 }
+local DIFF_NAME = { [0] = "grey", "green", "yellow", "orange", "red" }
+
+--- How hard the quest is for you: 0 grey, 1 green, 2 yellow, 3 orange, 4 red; nil when nothing says. The game's own
+--- judgement (as the quest log colours it), else whether it's trivial, else by levels as the classic log did (5+ above
+--- red, 3-4 orange, within 2 yellow, green to GetQuestGreenRange below, then grey). `me`: your level, when known.
+local function Difficulty(id, level, me)
+	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
+	local d = f and id and Call(f, id)
+	if not Secret(d) and type(d) == "number" and DIFF_STEP[d] then return DIFF_STEP[d] end
+	f = C_QuestLog.IsQuestTrivial
+	local t = f and id and Call(f, id)
+	if not Secret(t) and t == true then return 0 end
+	me = me or (_G.UnitLevel and Num(Call(_G.UnitLevel, "player")))
+	if not (me and me > 0 and level and level > 0) then return nil end
+	local x = level - me
+	if x >= 5 then return 4 elseif x >= 3 then return 3 elseif x >= -2 then return 2 end
+	local green = (_G.GetQuestGreenRange and Num(Call(_G.GetQuestGreenRange))) or 8
+	return (-x > green) and 0 or 1
+end
 
 --- Whether the game shows this quest grey for your level.
-local function Grey(id)
-	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
-	if f then
-		local d = Call(f, id)
-		if not Secret(d) and type(d) == "number" then return d == TRIVIAL end
-	end
-	f = C_QuestLog.IsQuestTrivial
-	local t = f and Call(f, id)
-	return not Secret(t) and t == true
-end
+local function Grey(id, level, me) return Difficulty(id, level, me) == 0 end
 
 --- Ready to turn in (or complete): never one to drop.
 local function Complete(id)
@@ -335,18 +349,10 @@ end
 -- What a quest is, for bulk tracking (QuestTrack.lua, 0.63.3) and its filters (is:red, is:dungeon, is:class...)
 ----------------------------------------------------------------------
 
--- the quest log's colour for your level: the game's own judgement (Enum.RelativeContentDifficulty), else by levels
-local RCD = (Enum and Enum.RelativeContentDifficulty) or {}
-local DIFF_NAME = { [RCD.Trivial or 0] = "grey", [RCD.Easy or 1] = "green", [RCD.Fair or 2] = "yellow",
-	[RCD.Difficult or 3] = "orange", [RCD.Impossible or 4] = "red" }
-local function DiffName(id, level, me, grey)
-	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
-	local d = f and Call(f, id)
-	if not Secret(d) and type(d) == "number" and DIFF_NAME[d] then return DIFF_NAME[d] end
-	if grey then return "grey" end
-	if not (level and me and me > 0) then return nil end
-	local x = level - me
-	return (x >= 5 and "red") or (x >= 3 and "orange") or (x >= -2 and "yellow") or "green"
+-- the quest log's colour for your level, as words: is:red, is:orange... (Difficulty)
+local function DiffName(id, level, me)
+	local d = Difficulty(id, level, me)
+	return d and DIFF_NAME[d] or nil
 end
 
 -- the quest's tag, as the log says it ("Dungeon", "Raid": C_QuestLog.GetQuestTagInfo's tagID, Enum.QuestTag)
@@ -361,7 +367,8 @@ local function TagKind(id)
 end
 
 -- an instance's name as the log's headers say it ("The Deadmines", "Dire Maul"): Terminal's entrances list
--- (Integrations/Entrances.lua), read once it's there: "dungeon" or "raid"
+-- (Integrations/Entrances.lua), read once it's there: "dungeon" or "raid". (The list's names are English: on another
+-- client a header names its instance in that language, and only the quest's tag, TagKind, says dungeon or raid.)
 local instances
 local function InstanceOf(header)
 	if not header then return nil end
@@ -443,16 +450,8 @@ QT.COLOURS = { [0] = { 0.53, 0.53, 0.53 }, { 0.25, 0.75, 0.25 }, { 1, 1, 0 }, { 
 local GOLD, WHITE, DIM = { 1, 0.82, 0 }, { 1, 1, 1 }, { 0.62, 0.62, 0.62 }
 
 local function Colour(id, level)
-	local f = C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer
-	local d = f and id and Call(f, id)
-	if not Secret(d) and type(d) == "number" and QT.COLOURS[d] then return QT.COLOURS[d] end
-	-- (no answer: by level, as the classic log did: 5+ above red, 3-4 orange, within 2 yellow, then green, then grey)
-	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
-	if not (me and level and level > 0) then return GOLD end
-	local diff = level - me
-	if diff >= 5 then return QT.COLOURS[4] elseif diff >= 3 then return QT.COLOURS[3] elseif diff >= -2 then return QT.COLOURS[2] end
-	local grey = (_G.GetQuestGreenRange and Num(Call(_G.GetQuestGreenRange))) or 8
-	return (-diff > grey) and QT.COLOURS[0] or QT.COLOURS[1]
+	local d = Difficulty(id, level)
+	return d and QT.COLOURS[d] or GOLD
 end
 
 local function MaxLevel()
@@ -678,7 +677,8 @@ ns:RegisterProvider("quests", {
 					for _, o in ipairs(objectives) do parts[#parts + 1] = o[1] end
 					local level = Num(info.level)
 					-- one to drop: grey, or in a zone you've left behind; never one ready to turn in
-					local grey = Grey(info.questID)
+					local diff = Difficulty(info.questID, level, me) -- (once: grey, and is:red...'s colour)
+					local grey = diff == 0
 					local z = ZoneLevels(info.questID, zones)
 					local behind = (z and me and me > 0 and z.hi < me) and z or nil
 					local complete = Complete(info.questID)
@@ -704,7 +704,7 @@ ns:RegisterProvider("quests", {
 						after = ShowQuestAfter,
 						-- (quests to drop: QuestDrop.lua, the is:grey / is:leftbehind / is:drop filters)
 						grey = grey, behind = behind, complete = complete, drop = drop,
-						diffName = DiffName(info.questID, level, me, grey), instance = instance,
+						diffName = diff and DIFF_NAME[diff] or nil, instance = instance,
 						classQuest = IsClassHeader(zone) or nil,
 						-- Shift+Enter: one to drop, Terminal asks and drops it; any other, super-track it (the waypoint arrow)
 						secondary = drop and DropAsk or TrackQuest,

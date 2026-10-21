@@ -102,6 +102,8 @@ local function IndexNPCs(after)
 			if names then names[#names + 1] = "\n" .. lname .. (lsub and (" <" .. lsub .. ">") or "") .. "\t" .. id end
 		end
 	end, function()
+		-- (ids but not one name: the database's shape changed; said, not an empty @npc with no word why. 0.63.7, review)
+		if #ids > 0 and #out == 0 then I.Failed("Questie", L["@npc is unavailable."], "QueryNPCSingle(id, \"name\"): no names") end
 		npc.list, npc.busy, npc.count = out, false, #out -- (count: said by .integrations once the list is freed)
 		if names then npc.names, npc.nameQuery = table.concat(names) .. "\n", "QueryNPCSingle" end
 		local p = ns.providers.npc

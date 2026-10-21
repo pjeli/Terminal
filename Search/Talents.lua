@@ -110,10 +110,21 @@ local function Says(ways, name, tab, desc)
 	return best
 end
 
+-- (kept by the text: a talent's name, tree and description are the same on every keystroke; 0.63.7, review: three
+-- made for each of 540 talents per keystroke, ~40 ms)
+local whereOf, whereN = {}, 0
 local function Where(s)
-	local text = Lower(tostring(s or "")):gsub("'", ""):gsub("[^%w\128-\255]+", " ")
-	return { text = text, tokens = Tokens(text, {}) }
+	s = tostring(s or "")
+	local w = whereOf[s]
+	if w then return w end
+	local text = Lower(s):gsub("'", ""):gsub("[^%w\128-\255]+", " ")
+	w = { text = text, tokens = Tokens(text, {}) }
+	TQ.made = (TQ.made or 0) + 1 -- (tests: how many made)
+	if whereN >= 6000 then whereOf, whereN = {}, 0 end -- (bounded: a few thousand talents' texts at most)
+	whereOf[s], whereN = w, whereN + 1
+	return w
 end
+function TQ.ForgetWhere() whereOf, whereN = {}, 0 end -- (tests)
 
 TQ.ASK = 400 -- (descriptions asked for at once by one question: the rest the next time)
 

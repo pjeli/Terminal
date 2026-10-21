@@ -120,6 +120,7 @@ local function Load(tab)
 	tab = tab or {}
 	if ns.Tour and ns.Tour.Stop then ns.Tour.Stop() end -- (the tour's card and its next step: not over a tab)
 	UI:EndFuzzy()
+	UI.histSearch = nil -- (another tab: not the history search; 0.63.7, review)
 	UI:Disarm()
 	UI:HideRowMenu()
 	if ns.Bar then ns.Bar.Reset() end -- (Simple mode's bar: picked for the tab left, not this one)

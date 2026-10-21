@@ -85,7 +85,7 @@ function H.Rows()
 		local at = ns:HistoryAt(line)
 		out[#out + 1] = {
 			key = line, name = line, line = line, histPos = i, icon = H.ICON,
-			detail = at and ns.Ago(math.max(0, time() - at)) or nil, text = "history ran earlier",
+			detail = at and ns.Ago(math.max(0, time() - at)) or nil,
 			activate = SearchAgain, staysOpen = true,
 		}
 	end
@@ -97,6 +97,7 @@ ns:RegisterProvider("history", {
 	color = "ff9fd8c8", -- (a pale teal: no other list has it)
 	aliases = { "history", "hist", "ran" },
 	explicit = true, -- (only asked for: @history, "history", Ctrl+R)
+	refreshOnOpen = 60, -- (each row's "when it ran" kept true: made again on an open a minute on; 0.63.7, review)
 	collect = function() return H.Rows() end,
 })
 

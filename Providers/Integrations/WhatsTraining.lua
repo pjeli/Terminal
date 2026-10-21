@@ -168,18 +168,25 @@ function WT.SourceLines(e)
 	local out = {}
 	if kind == "quest" then
 		local names = {}
-		for i, qid in ipairs(src and src.quests or {}) do
-			if i > 3 then names[#names + 1] = L["and %d more"]:format(#src.quests - 3) break end
+		-- (its fields' shapes checked: a source that isn't as expected says less, never breaks the tooltip; 0.63.7, review)
+		local quests = src and type(src.quests) == "table" and src.quests or {}
+		for i, qid in ipairs(quests) do
+			if i > 3 then names[#names + 1] = L["and %d more"]:format(#quests - 3) break end
 			names[#names + 1] = QuestTitle(qid)
 		end
 		out[#out + 1] = #names > 0 and L["From a quest: %s"]:format(table.concat(names, ", ")) or L["From a quest"]
 		if src and Num(src.level) then out[#out + 1] = L["The quest needs level %d"]:format(src.level) end
 	elseif kind == "weaponMaster" then
 		local list = {}
-		for i, t in ipairs(src and src.trainers or WT.MastersOf(e)) do
+		local trainers = src and type(src.trainers) == "table" and src.trainers or WT.MastersOf(e)
+		for i, t in ipairs(trainers) do
 			if i > 4 then break end
-			local zone = t.uiMapId and I.ZoneName and I.ZoneName(t.uiMapId)
-			list[#list + 1] = tostring(t.name) .. (zone and (" (" .. zone .. ")") or "")
+			if type(t) == "table" then
+				local zone = t.uiMapId and I.ZoneName and I.ZoneName(t.uiMapId)
+				list[#list + 1] = tostring(t.name) .. (zone and (" (" .. zone .. ")") or "")
+			elseif type(t) == "string" then
+				list[#list + 1] = t -- (a name alone)
+			end
 		end
 		out[#out + 1] = #list > 0 and L["Weapon masters: %s"]:format(table.concat(list, ", ")) or L["From a weapon master"]
 	elseif kind == "item" then
@@ -328,6 +335,8 @@ function WT.Collect()
 	local api = WT.Api()
 	if not api then return {} end
 	local ok, spells = pcall(api.GetSpells)
+	-- (a table keyed by spell, not a list: as changed, said; 0.63.7, review)
+	if ok and type(spells) == "table" and #spells == 0 and next(spells) ~= nil then ok, spells = true, "a table, not a list" end
 	if not (ok and type(spells) == "table") then
 		-- (its API changed: said once, not an empty list with no word why; review, 0.57.7)
 		I.Failed("What's Training", L["@training is unavailable."], "GetSpells: " .. tostring(ok and type(spells) or spells))

@@ -274,7 +274,9 @@ local function TownCentre(place)
 	ns:Trace(("places: %s %s (flight points read on maps %s: %d)"):format(place.name,
 		c and ("centre from " .. from .. " " .. math.floor(c.x) .. "," .. math.floor(c.y)) or "has no centre found",
 		table.concat(tried, "/"), seen))
-	centres[place.area] = c
+	-- (none found: kept as none, not asked again on every row; 0.63.7, review: a town with no centre was worked out,
+	-- and traced, for each of 50 rows)
+	centres[place.area] = c or false
 	return c or nil
 end
 

@@ -146,16 +146,23 @@ function ns.FindFrame(root, pred, depth)
 	end
 end
 
---- Find a visible frame having a FontString whose text contains `text`.
+--- Does a frame's own text (one of its FontStrings) say `text`: be it (exact), or have it?
+local function Says(f, text, exact)
+	for _, r in ipairs({ f:GetRegions() }) do
+		if r.GetObjectType and r:GetObjectType() == "FontString" then
+			local t = ns.Str(r:GetText()) -- (a secret text: never searched; review, 0.53.6)
+			if t and ((exact and t == text) or (not exact and t:find(text, 1, true))) then return true end
+		end
+	end
+	return false
+end
+
+--- Find a visible frame having a FontString whose text is `text`, else one whose text contains it. The window itself
+--- (`root`) last: its title naming it points at nothing (0.63.7, review: "Heal" pointed at "Flash Heal", the first
+--- button whose text had it).
 function ns.FindByText(root, text, depth)
 	if not text or text == "" then return nil end
-	return ns.FindFrame(root, function(f)
-		for _, r in ipairs({ f:GetRegions() }) do
-			if r.GetObjectType and r:GetObjectType() == "FontString" then
-				local t = ns.Str(r:GetText()) -- (a secret text: never searched; review, 0.53.6)
-				if t and t:find(text, 1, true) then return true end
-			end
-		end
-		return false
-	end, depth)
+	return ns.FindFrame(root, function(f) return f ~= root and Says(f, text, true) end, depth)
+		or ns.FindFrame(root, function(f) return f ~= root and Says(f, text, false) end, depth)
+		or ns.FindFrame(root, function(f) return f == root and Says(f, text, false) end, 0)
 end

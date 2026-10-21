@@ -117,13 +117,22 @@ local NOT_WORDS = { ["not"] = true, no = true, without = true, except = true }
 --- the question doesn't read itself (`allow`: the ones it does, { without = true }). Every question reads its line
 --- through this (review, 0.53.6: 19 copies, two of them; "party -dead", "party not dead" and "mail not cod" listed the
 --- very thing left out).
+-- (the last line read, per `allow`: every question asks of the same line on a keystroke, ~29 times; 0.63.7, review:
+-- a sixth of a plain search's time)
+local qtLast, NO_ALLOW = setmetatable({}, { __mode = "k" }), {}
 function ns.QuestionText(text, allow)
-	if type(text) ~= "string" or text:find("[@:>|]") or text:find("^%s*[%./!%-]") then return nil end
-	if (" " .. text):find("%s[!%-][%a\128-\255]") then return nil end
-	local t = ns.Lower(text):gsub("'", ""):gsub("%p", " ")
-	for w in t:gmatch("%S+") do
-		if NOT_WORDS[w] and not (allow and allow[w]) then return nil end
+	if type(text) ~= "string" then return nil end
+	local last = qtLast[allow or NO_ALLOW]
+	if last and last.text == text then return last.t or nil end
+	local t
+	if not (text:find("[@:>|]") or text:find("^%s*[%./!%-]") or (" " .. text):find("%s[!%-][%a\128-\255]")) then
+		t = ns.Lower(text):gsub("'", ""):gsub("%p", " ")
+		for w in t:gmatch("%S+") do
+			if NOT_WORDS[w] and not (allow and allow[w]) then t = nil break end
+		end
 	end
+	if last then last.text, last.t = text, t or false
+	else qtLast[allow or NO_ALLOW] = { text = text, t = t or false } end
 	return t
 end
 

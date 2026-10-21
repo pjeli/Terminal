@@ -127,6 +127,8 @@ do
 	check(ids(UI:SearchText("grey quests")) == "101", "grey quests (the complete one left out): " .. ids(UI:SearchText("grey quests")))
 	check(ids(UI:SearchText("outleveled quests")) == "all,101,102", "quests in zones left behind")
 	check(ids(UI:SearchText("westfall quests to drop")) == "102", "narrowed by a zone's name")
+	-- (0.63.7, review) a filter after it: "Drop all" for the ones left, none for one
+	check(ids(UI:SearchText("quests to drop is:grey")) == "101", "a filter after it leaves one: no \"Drop all\": " .. ids(UI:SearchText("quests to drop is:grey")))
 	check(ids(UI:SearchText("raptor quests to drop")) == "" and UI.answerNote == "None of those quests is one to drop", "nothing there: said")
 	-- (0.50.7, review) a quest's own name with a cue word in it: a search, unless it plainly asks or names one to drop
 	for _, line in ipairs({ "old blanchy quest", "grey wolf quest", "remove curse quest", "quest item drop", "old murk-eye quest" }) do

@@ -45,6 +45,7 @@ UI.DropTick = DropTick -- (UI:Toggle: the toggle key that opened it)
 function UI:StartFuzzy()
 	local frame, edit = UI.frame, UI.edit
 	if self.fzf or not frame then return end
+	self.histSearch = nil -- (Tab+` from Ctrl+R: fuzzy finding over what's typed; 0.63.7, review: both were on)
 	local text = edit:GetText()
 	local plain = UI.FuzzyPlain(text)
 	self.fzf = true
@@ -103,7 +104,7 @@ function UI:HistorySearch(text)
 			total = total + sc
 		end
 		if ok then
-			e._score = total - e.histPos * 0.001 -- (equal matches: the newest first)
+			e._score = total -- (equal matches: the newest first, by the sort below; 0.63.7, review: a recency weight here outweighed better matches)
 			out[#out + 1] = e
 		end
 	end
@@ -119,10 +120,12 @@ end
 function UI:HistoryKey()
 	if self.histSearch then return self:Move(1) end
 	if not self:IsShown() then return end
-	if self.fzf then self:EndFuzzy(true) end
+	if self.fzf then self:EndFuzzy() end -- (out of fuzzy finding: the history is searched below, once)
 	local edit = UI.edit
 	local text = edit:GetText()
-	self.histSearch = { saved = text, cursor = UI.CursorNow and UI.CursorNow() or #text }
+	-- (what Esc puts back: the text, its caret, the category picked and the bar's picks; 0.63.7, review)
+	self.histSearch = { saved = text, cursor = UI.CursorNow and UI.CursorNow() or #text,
+		category = (not self.categoryAuto) and self.category or nil, bar = ns.Bar and ns.Bar.Active() and ns.Bar.Save() or nil }
 	ns:Trace(("history search: on (%q)"):format(ns.MaskSecret(text)))
 	self.category, self.categoryAuto, self.action, self.place, self.sendTo = nil, nil, nil, nil, nil
 	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
@@ -143,8 +146,14 @@ function UI:EndHistorySearch(line)
 	Forget(self, true)
 	if not self:IsShown() then return end
 	local text = line or hs.saved or ""
-	self:SetQuery(text, line and #text or math.min(hs.cursor or #text, #text))
-	self:Research()
+	if not line then
+		-- (Esc: the category and the bar's picks as they were)
+		self.category, self.categoryAuto = hs.category, nil
+		if hs.bar and ns.Bar then ns.Bar.Restore(hs.bar) end
+	end
+	self.cursor = line and #text or math.min(hs.cursor or #text, #text)
+	self:SetOrResearch(text) -- (once: 0.63.7, review: it was searched twice)
+	if self.UpdateCaret then self:UpdateCaret() end
 	self:SetStatus()
 	self:UpdateGhost()
 end
@@ -376,14 +385,16 @@ end
 
 --- The terminal as it is now, for UI:RestoreState.
 function UI:SaveState()
-	local edit, E = UI.edit, ns.Easy
+	local E = ns.Easy
+	local text, cursor = self:PromptNow() -- (Ctrl+R: what was typed before it)
+	local hs = self.histSearch
 	return {
-		text = edit and edit:GetText() or "", cursor = UI.CursorNow and UI.CursorNow() or self.cursor, fzf = self.fzf and true or nil,
+		text = text, cursor = cursor, fzf = self.fzf and true or nil,
 		foreign = self.tabForeign or false, -- (a run that isn't a tab's stays one: Tabs.lua)
 		temp = E and E.temp, tempSimple = E and E.tempSimple,
-		category = (not self.categoryAuto) and self.category or nil, sel = UI.results[UI.sel],
+		category = hs and hs.category or ((not self.categoryAuto) and self.category or nil), sel = (not hs) and UI.results[UI.sel] or nil,
 		recent = self.showRecent and true or nil, recalled = self.recalled, -- (what Down brought up)
-		bar = ns.Bar and ns.Bar.Active() and ns.Bar.Save() or nil, -- (the bar's picks: F1, combat, back as they were; 0.55.18)
+		bar = (hs and hs.bar) or (ns.Bar and ns.Bar.Active() and ns.Bar.Save()) or nil, -- (the bar's picks: F1, combat, back as they were; 0.55.18)
 	}
 end
 
@@ -520,6 +531,7 @@ function UI:AdvancedOnce()
 	-- closed: nothing (0.57.0, the author's call: Alt+` only switches what's typed between Simple and Advanced; it opened
 	-- the terminal as ` did since 0.54.3)
 	if not self:IsShown() then return end
+	if self.histSearch then self:EndHistorySearch() end -- (Ctrl+R: back to what was typed first; 0.63.7, review)
 	-- in pure fuzzy finding: out of it first (to Advanced, the plain words kept)
 	if self.fzf then
 		self:EndFuzzy(true)

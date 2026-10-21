@@ -211,9 +211,29 @@ do
 	KEYS["in"] = function(v)
 		local base = InPlace(v)
 		if not base then return nil end
-		local want = ns.Norm(v)
+		-- (the place's own name when it's one Terminal knows, or a shorthand's: in:rfc, in:tb, in:sw is Stormwind, not
+		-- the Swamp of Sorrows; else the words as typed. 0.63.7, review)
+		local wants = {}
+		local I = ns.Integrations
+		local words = {}
+		for w in v:gmatch("%S+") do words[#words + 1] = w end
+		local place, rest
+		if I and I.FindPlace then place, rest = I.FindPlace(words) end
+		if place and rest and #rest == 0 and place.name then
+			wants[1] = ns.Norm(place.name)
+		elseif ns.Shorthand and ns.Shorthand[ns.Lower(v)] then
+			for _, name in ipairs(ns.Shorthand[ns.Lower(v)]) do wants[#wants + 1] = ns.Norm(name) end
+		else
+			wants[1] = ns.Norm(v)
+		end
 		return function(e)
-			if e.kind == "quests" then return want ~= "" and ns.Norm(tostring(e.zone or "")):find(want, 1, true) ~= nil end
+			if e.kind == "quests" then
+				local zone = ns.Norm(tostring(e.zone or ""))
+				for _, want in ipairs(wants) do
+					if want ~= "" and zone:find(want, 1, true) then return true end
+				end
+				return false
+			end
 			return base(e)
 		end
 	end

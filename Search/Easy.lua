@@ -159,6 +159,15 @@ function E.CategoryOf(e)
 	end
 end
 
+--- The category every row of this kind goes to, when that doesn't hang on the row (its first category keeps them all);
+--- else nil (CategoryOf, row by row). For the overview: a kind's 50,000 rows looked up once (0.63.7, review).
+function E.FixedCategory(kind)
+	local list = kind and ByKind()[kind]
+	local c = list and list[1]
+	if c and not c.keep then return c.id end
+	return nil
+end
+
 --- The kinds a category searches, as a set (nil for an unknown one).
 function E.Kinds(id)
 	local c = E.BY_ID[id or ""]

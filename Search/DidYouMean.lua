@@ -40,29 +40,10 @@ end
 DYM.Words = Words
 
 --- The edit distance between two words (letters added, dropped, changed or two swapped), or `cap` + 1 past `cap`.
---- (Three rows kept and used again: it runs for every known word on a keystroke that found nothing; release review)
-local rowA, rowB, rowC = {}, {}, {}
+--- (Fuzzy.distance's, the close spellings': one algorithm; it runs for every known word on a keystroke that found
+--- nothing. 0.63.7, review: a copy of it was kept here, a quarter slower)
 local function Distance(a, b, cap)
-	local la, lb = #a, #b
-	if math.abs(la - lb) > cap then return cap + 1 end
-	local prev2, prev, cur = rowA, rowB, rowC
-	for j = 0, lb do prev[j] = j end
-	for i = 1, la do
-		cur[0] = i
-		local best = i
-		local ca = a:byte(i)
-		for j = 1, lb do
-			local cb = b:byte(j)
-			local cost = ca == cb and 0 or 1
-			local v = math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
-			if i > 1 and j > 1 and ca == b:byte(j - 1) and a:byte(i - 1) == cb then v = math.min(v, prev2[j - 2] + 1) end
-			cur[j] = v
-			if v < best then best = v end
-		end
-		if best > cap then return cap + 1 end
-		prev2, prev, cur = prev, cur, prev2
-	end
-	return prev[lb]
+	return ns.Fuzzy.distance(a, b, 1, #b, cap) or cap + 1
 end
 DYM.Distance = Distance
 

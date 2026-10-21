@@ -495,7 +495,8 @@ function QH.ToAdvanced()
 	if not (level and zone) then return nil end
 	local lo, hi = Band(level)
 	local z = Lower(zone)
-	return ("@questie lvl:%d-%d in:%s "):format(lo, hi, z:find(" ", 1, true) and ('"' .. z .. '"') or z)
+	-- (by level, as the answer lists them; 0.63.7, review: by name)
+	return ("@questie lvl:%d-%d in:%s sort:level "):format(lo, hi, z:find(" ", 1, true) and ('"' .. z .. '"') or z)
 end
 
 ----------------------------------------------------------------------

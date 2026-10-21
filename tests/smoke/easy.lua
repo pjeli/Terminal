@@ -1909,6 +1909,8 @@ Run("E.JoinPairs: two everyday words that mean one thing become one word", funct
 	check(E.ToAdvanced("mining trainer nearby"):find("sort:nearest", 1, true), "ToAdvanced: nearest said last: " .. E.ToAdvanced("mining trainer nearby"))
 	check(E.ToAdvanced("sword or axe not boe"):find("type:sword|type:axe", 1, true) and E.ToAdvanced("sword or axe not boe"):find("-is:boe", 1, true),
 		"ToAdvanced: or/not pieces as filters: " .. E.ToAdvanced("sword or axe not boe"))
+	-- (0.63.7, review) a kind of item turned down: written whole, as Simple mode turns it down
+	check(E.ToAdvanced("linen not cloth"):find("-cloth|type:cloth", 1, true), "ToAdvanced: not cloth: " .. E.ToAdvanced("linen not cloth"))
 end)
 
 -- (0.49.2, review C2) "X without Y" is Simple mode's "not", never the group's question: "cloak without stamina" said

@@ -229,7 +229,10 @@ ns:RegisterProvider("addons", {
 	color = "ffb0b0b0",
 	aliases = { "addon", "addons", "plugin" },
 	noCombat = true, -- opening windows is protected in combat
-	refreshOnOpen = true, -- options panels and minimap buttons appear as addons load
+	-- options panels and minimap buttons appear as addons load: read again then, and on an open a minute on (0.63.7,
+	-- review: read on every open, 300 addons each time)
+	refreshOnOpen = 60,
+	events = { "ADDON_LOADED", "PLAYER_ENTERING_WORLD" },
 	collect = function()
 		local out = {}
 		local cats = SettingsCategories()

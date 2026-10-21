@@ -25,9 +25,10 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, LWIN = true, RWIN = true, PRINTSCREEN = true,
 }
 
--- (0.45.19, the player: Ctrl+R should still show the frame rate, Ctrl+S sound, Ctrl+M music...) the game's own
--- actions that don't touch what Terminal does: a key chord bound to one of these still goes to the game while the
--- terminal is open. Not targeting, casting, moving, windows, or anything that hides the UI.
+-- (0.45.19, the player: Ctrl+S should still toggle sound, Ctrl+M music...) the game's own actions that don't touch what
+-- Terminal does: a key chord bound to one of these still goes to the game while the terminal is open. Not targeting,
+-- casting, moving, windows, or anything that hides the UI. (Ctrl+R, the frame rate, was one until 0.63.6: it's the
+-- history search's now, the terminal's own; .atop's window still passes it on.)
 UI.PASS_ACTIONS = {
 	TOGGLEFPS = true, TOGGLESOUND = true, TOGGLEMUSIC = true, TOGGLEAMBIENCE = true, MASTERVOLUMEUP = true,
 	MASTERVOLUMEDOWN = true, SCREENSHOT = true, TOGGLEGRAPHICSSETTINGS = true, TOGGLESELFHIGHLIGHT = true,
@@ -71,6 +72,12 @@ function UI:EnterKeys()
 	if self.clipHint then self.clipHint = nil; self:SetStatus() end
 	self.keys = true
 	self.anchor = nil
+	-- (the game's text box's caret, where it was moved there: the drawn prompt's own follows only text changes; 0.63.7,
+	-- review: back from combat the caret jumped to the end)
+	if edit.HasFocus and edit:HasFocus() and edit.GetCursorPosition then
+		local p = edit:GetCursorPosition()
+		if type(p) == "number" then self.cursor = p end
+	end
 	self.cursor = math.min(self.cursor or 0, #edit:GetText())
 	edit:ClearFocus()
 	frame:EnableKeyboard(true)
@@ -240,16 +247,11 @@ local function KeysDown(self, key)
 		B.SwallowAltChar(key) -- (the character the client types for it after the key: not typed)
 		return
 	end
-	-- (0.63.6, the player: "a Ctrl+R history search like a real shell") Ctrl+R is the terminal's while it's open, the
-	-- game's frame rate no longer (it was the game's since 0.45.19; .atop's window still passes it on)
-	if key == "R" and IsControlKeyDown and IsControlKeyDown() and not (IsAltKeyDown and IsAltKeyDown()) then
-		self:SetPropagateKeyboardInput(false)
-		UI:HistoryKey()
-		return
-	end
+	-- (Ctrl+R: the history search, the terminal's own (ListKey); not passed on to the game's frame rate. 0.63.6, the player)
+	local ctrlR = key == "R" and IsControlKeyDown and IsControlKeyDown() and not (IsAltKeyDown and IsAltKeyDown())
 	local game, action = UI.GameKey(key)
-	if game then
-		-- the game's own key for something that doesn't touch Terminal (Ctrl+R, the frame rate): it goes on to it
+	if game and not ctrlR then
+		-- the game's own key for something that doesn't touch Terminal (Ctrl+S, sound): it goes on to it
 		ns:Trace(("key %s: the game's %s"):format(key, tostring(action)))
 		self:SetPropagateKeyboardInput(true)
 		return

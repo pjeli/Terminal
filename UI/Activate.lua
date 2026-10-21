@@ -211,11 +211,18 @@ end
 --- Enter is, with its own isOpen/after (e.g. an equipment set: the character window's sets).
 --- `own`: the row's own action even in ">>" mode (the row menu's first lines say the row's verbs; review, 0.48.6: they
 --- sent it to the channel, the menu's own channel lines being for that).
+--- A row that's a step before what's sent, copied or dropped: a category to pick, a word to write in, a heading.
+function UI.PicksFirst(e)
+	return type(e) == "table" and (e.catId or e.syntaxRow or e.lead) and true or false
+end
+
 local function SecureView(e, shift, own)
 	if not e then return nil end
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
 	-- (">>>"'s one row has no action of its own: the menu's first line sends them too; 0.50.7, review)
-	if UI.sendTo and (not own or e.sendAll) then
+	-- (a category to pick, a word to write in: their own Enter, never sent nor copied; 0.63.7, review: Simple mode's
+	-- "linen >> party" sent the word "Items")
+	if UI.sendTo and (not own or e.sendAll) and not UI.PicksFirst(e) then
 		-- (">> drop" presses nothing: Terminal asks, then drops it with C calls; see SendSelected)
 		if UI.sendTo.drop or UI.sendTo.quests then return nil end
 		-- (no channel yet, or not one: nothing is pressed; Activate says what's missing)
@@ -531,13 +538,13 @@ function UI:Activate(idx, opts)
 	local e = UI.results[idx or UI.sel]
 	-- (a summed-up total has nothing to open, but ">> text" copies it: "in:bags | sum value >> text", 0.52.13)
 	local copyable = e and e.kind == "aggregate" and self.sendTo and self.sendTo.copy
+	if self.histSearch then return self:HistoryAccept(e) end -- (Ctrl+R: the line goes in the prompt; none matched: what's typed)
 	if not e or (e.noActivate and not copyable) then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
-	if self.histSearch then return self:HistoryAccept(e) end -- (Ctrl+R: the line goes in the prompt)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
 	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. 0.50.7,
 	-- review: its menu's "Send" closed the terminal and sent nothing)
-	local to = (not opts.own or e.sendAll) and self.sendTo or nil
+	local to = (not opts.own or e.sendAll) and not UI.PicksFirst(e) and self.sendTo or nil
 	if to and to.copy and not e.completion then return CopyOut(self, e, to) end
 	if to and to.all and not e.completion then return SendEveryResult(self, to) end
 	-- ">> channel": never opened or run, only sent (by the game's press, armed there; in combat it says it can't send:

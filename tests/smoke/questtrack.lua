@@ -98,6 +98,19 @@ do
 		"a dungeon's by its tag or its header (Wailing Caverns), a raid's by its tag")
 	check(rows[207].classQuest and not rows[203].classQuest, "a class quest: under its class's name in the log")
 
+	-- (0.63.7, review) without the game's word on difficulty, the log's levels decide it, alike for grey and colour
+	do
+		local pi = _G.C_PlayerInfo
+		_G.C_PlayerInfo = nil
+		ns.providers.quests._dirty = true
+		local r2 = {}
+		for _, e in ipairs(ns:GetEntries(ns.providers.quests)) do r2[e.questID] = e end
+		check(r2[201].grey and r2[201].diffName == "grey" and r2[202].diffName == "green" and r2[207].diffName == "red",
+			"by levels: 11 below grey (and is:grey), 3 below green, 5 above red: " .. tostring(r2[201].diffName))
+		_G.C_PlayerInfo = pi
+		ns.providers.quests._dirty = true
+	end
+
 	-- "untrack quests": every tracked one
 	Watch(202, 203, 205, 207)
 	local r, note = Ask("untrack quests")
@@ -135,6 +148,13 @@ do
 	r[1].activate()
 	check(W() == "205,206", "only the rfc quests tracked: " .. W())
 	check(QK.Question("only track ragefire chasm quests").only and QK.Question("just track rfc quests").only, "\"only track\", \"just track\", the full name")
+
+	-- (0.63.7, review) "only" with nothing it names untracks nothing: a typo doesn't empty the tracker
+	Watch(202, 203, 207)
+	local typo, typoNote = Ask("track rcf quests only")
+	check(typo and #typo == 0 and typoNote == "No such quests in your log", "a typo with \"only\": nothing changes: " .. Ids(typo))
+	local none = QK.GroupRow({}, "only")
+	check(none.noActivate and W() == "202,203,207", ">>> track only with no quest listed: nothing to change")
 
 	-- "untrack red quests": by the log's colour
 	Watch(203, 207, 208)
@@ -270,6 +290,33 @@ do
 	Watch(205, 208, 209, 203)
 	UI:Open("@quest is:dungeon|raid >>> untrack"); FlushAll()
 	check(UI.Results()[1].name == "Untrack 3 quests", "is:dungeon|raid >>> untrack: " .. tostring(UI.Results()[1].name))
+	UI:Hide(); FlushAll()
+	-- (0.63.7, review) a filter after the question: the top row does it to the ones shown, Alt+` keeps the filter
+	ns.db.easyMode = true; UI:EasyChanged()
+	Watch(201, 203, 207, 208)
+	UI:Open("untrack quests is:red"); FlushAll()
+	check(UI.Results()[1] and UI.Results()[1].name == "Untrack 2 quests", "untrack quests is:red: the top row counts the two shown: "
+		.. tostring(UI.Results()[1] and UI.Results()[1].name))
+	UI.sel = 1
+	key("ENTER"); FlushAll()
+	check(W() == "201,203", "Enter: only the red ones untracked: " .. W())
+	check(ns.QuestionToAdvancedOf("untrack quests is:red") == "@quest is:red >>> untrack ",
+		"Alt+`: the filter before >>>: " .. tostring(ns.QuestionToAdvancedOf("untrack quests is:red")))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false; UI:EasyChanged()
+	-- (0.63.7, review) ">>> track" with nothing in the log among them: the footer says that, not "Enter changes..."
+	UI:Open("@quest zzzznothing >>> track"); FlushAll()
+	status = UI.status and UI.status:GetText() or ""
+	check(not status:find("Enter changes the tracker", 1, true) and status:find(ns.L["no quest in your log among the results"], 1, true),
+		">>> track, no quest among them: said so: " .. status)
+	UI:Open(">>> track"); FlushAll()
+	check(UI.Results()[1].name == ns.L["Nothing searched to change"], ">>> track alone: not \"to send\": " .. tostring(UI.Results()[1].name))
+	-- (0.63.7, review) ">> track only" on one row: the footer and the hints say the others go
+	Watch(201, 203, 204)
+	UI:Open("@quest hidden enemies >> track only"); FlushAll()
+	status = UI.status and UI.status:GetText() or ""
+	check(status:find(ns.L["Enter tracks only it: %d others untracked"]:format(3), 1, true), ">> track only: how many go: " .. status)
+	check((UI.hintsKey or ""):find(ns.L["track only it"], 1, true), ">> track only: the hints too: " .. tostring(UI.hintsKey))
 	UI:Hide(); FlushAll()
 	-- ">> track": the selected one; not a quest: said
 	Watch()
