@@ -295,3 +295,69 @@ do
 	_G.C_Container, ns.Durability.Total, ns.Professions.PlayerProfessions = saveCC, saveDU, saveProf
 	SG.Forget()
 end
+
+-- (0.61.5, the player) "quests per zone": the list grouped by zone; a group's Enter steps into it: the words typed to
+-- find the group ("Death" for Deathknell) go, not left beside in:"Deathknell"
+io.write("[suggest: quests per zone; a group's Enter steps into it]\n")
+do
+	local A, PF = ns.Aggregate, ns.PerField
+	check(A.DropNamed('@questie Death', "Deathknell") == "@questie", "a word of the group's name goes: " .. A.DropNamed('@questie Death', "Deathknell"))
+	check(A.DropNamed('@questie kobold death', "Deathknell") == "@questie kobold", "another word stays")
+	check(A.DropNamed('@questie not death', "Deathknell") == "@questie not death" and A.DropNamed('@questie -death', "Deathknell") == "@questie -death",
+		"a not-word stays (it leaves the group's rows out, that's the search's)")
+	check(A.DropNamed('@questie kobold or death', "Deathknell") == "@questie kobold", "\"or\" before it goes with it")
+	check(A.DropNamed('@questie "death" q:rare', "Deathknell") == '@questie "death" q:rare', "a quoted phrase and a filter stay")
+	for line, want in pairs({ ["quests per zone"] = "@questlog | group by zone ", ["how many quests per zone"] = "@questlog | group by zone ",
+		["my quests by zone"] = "@questlog | group by zone ", ["quests in each zone"] = "@questlog | group by zone ",
+		["quests by level"] = "@questlog | group by level " }) do
+		local q = PF.Question(line)
+		check(q and q.line == want, ("%q: %s"):format(line, tostring(q and q.line)))
+		check(ns.QuestionToAdvanced(line) == want, "Alt+`: " .. tostring(ns.QuestionToAdvanced(line)))
+	end
+	check(not PF.Question("quests per") and not PF.Question("quests by hogger") and not PF.Question("kobolds by zone")
+		and not PF.Question("quests per zone kobold"), "not every line with per or by")
+	local saved = { providers = ns.providers, order = ns.providerOrder }
+	ns.providers, ns.providerOrder = {}, {}
+	local ROWS = { { "Scavenging Deathknell", "Deathknell" }, { "A Difficult Path", "Deathknell" }, { "The Mindless Ones", "Deathknell" },
+		{ "A Light in the Darkness", "Tirisfal Glades" }, { "Deathguard Report", "Tirisfal Glades" }, { "Kobold Candles", "Elwynn Forest" } }
+	ns:RegisterProvider("quests", { label = "Quest", aliases = { "quest", "questlog" }, collect = function()
+		local out = {}
+		for i, r in ipairs(ROWS) do out[i] = { name = r[1], zone = r[2], key = i } end
+		return out
+	end })
+	ns:AliasesChanged()
+	local function Groups()
+		local t = {}
+		for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" and e.drillTo then t[#t + 1] = ns.Plain(e.name) end end
+		table.sort(t)
+		return table.concat(t, " | ")
+	end
+	local wasEasy = ns.db.easyMode
+	for _, simple in ipairs({ true, false }) do
+		ns.db.easyMode = simple; UI:EasyChanged(); ns.Bar.Reset()
+		UI.lastScan, UI.lastExtra = nil, nil
+		UI:Open("quests per zone"); T.FlushAll()
+		check(Groups() == "Deathknell | Elwynn Forest | Tirisfal Glades", (simple and "Simple" or "Advanced") .. ": quests per zone: " .. Groups())
+		if simple then
+			-- the bar shows it as its Group; unticked there: the list, ungrouped
+			ns.Bar.Pick("group", "zone"); T.FlushAll()
+			check(UI.edit:GetText() == "@questlog " and Groups() == "", "Group: Zone unticked: the quests: " .. UI.edit:GetText())
+		end
+		UI:Hide(); T.FlushAll()
+		UI:Open("@questlog death | group by zone"); T.FlushAll()
+		check(Groups() == "Deathknell | Tirisfal Glades", "typed \"death\": the groups with it: " .. Groups())
+		local at
+		for i, e in ipairs(UI.Results()) do if e.drillTo and ns.Plain(e.name) == "Deathknell" then at = i end end
+		UI.sel = at or 1
+		UI:Activate(); T.FlushAll()
+		check(UI.edit:GetText() == '@questlog in:"Deathknell" ', "Enter on Deathknell: into it, \"death\" gone: " .. UI.edit:GetText())
+		local n = 0
+		for _, e in ipairs(UI.Results()) do if e.kind == "quests" then n = n + 1 end end
+		check(n == 3, "its three quests, not only those named death: " .. n)
+		UI:Hide(); T.FlushAll()
+	end
+	ns.db.easyMode = wasEasy; UI:EasyChanged(); ns.Bar.Reset()
+	ns.providers, ns.providerOrder = saved.providers, saved.order
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+end

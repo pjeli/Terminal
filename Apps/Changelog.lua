@@ -14,12 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.61.4", when = "in testing",
+		v = "0.61.5", when = "in testing",
 		items = {
 			"Ask \"what should i do\" (or \"what now\") for what's worth doing now, the most pressing first: gear to repair, junk to sell, spells or a weapon skill to train, a profession's next rank or one to level, your class quest, quests to turn in, quests at your level here or a better zone, the dungeon for your level. Enter searches for it (a class quest: its steps); its tooltip shows the Advanced syntax.",
 			"\"try: what should i do\" is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing; the prompt itself stays empty.",
-			"New plain questions: \"quests to turn in\" (@questlog is:complete), \"quests here\" (Questie's at your level in your zone), \"what can i craft\" (@recipe is:craftable), \"low durability\", \"dungeons at my level\".",
+			"New plain questions: \"quests per zone\" (@questie | group by zone), \"quests to turn in\" (@questlog is:complete), \"quests here\" (Questie's at your level in your zone), \"what can i craft\" (@recipe is:craftable), \"low durability\", \"dungeons at my level\".",
 			"\"nearest class trainer\" lists your class's trainers and \"nearest weapon trainer\" the weapon masters (trainer:class, is:weaponmaster), not NPCs with those words in their names; \"nearest fist weapons trainer\" finds the fist weapon masters (trainer:fist).",
+			"Enter on a group steps into it: the words you typed to find it go (\"@questie Death\" grouped by zone, Enter on Deathknell: @questie in:\"Deathknell\"), not left beside it.",
 			"Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. The other faction on your realm still is.",
 		},
 	},

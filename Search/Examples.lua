@@ -34,7 +34,7 @@ E.SIMPLE = {
 	{ "nearest spirit healer", "Questie", "field" }, { "nearest unlearned flight master", nil, "field" },
 	{ "quests to drop", nil, "field" }, { "stamina food", nil, "field" }, { "attack power food", nil, "field" },
 	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" }, { "quests to turn in", nil, "field" },
-	{ "quests here", "Questie", "field" }, { "dungeons at my level", nil, "field" },
+	{ "quests here", "Questie", "field" }, { "quests per zone", "Questie", "field" }, { "dungeons at my level", nil, "field" },
 	-- in a dungeon
 	{ "who needs fortitude", "group", "instance" }, { "missing buffs", "group", "instance" }, { "who is dead", "group", "instance" },
 	{ "group healers", "group", "instance" }, { "what killed me", nil, "instance" }, { "repair cost", nil, "instance" },

@@ -688,6 +688,8 @@ Scan.ANSWERS = {
 	Asks("TurnIn"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
+	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's TakeAggregate)
+	Asks("PerField"),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
 	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,

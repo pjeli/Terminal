@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.61.4 (in testing)
+## 0.61.5 (in testing)
 
 **What should I do?**
 - Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune; Enter lists its steps, and Enter on a step opens Attune on it), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
@@ -11,6 +11,8 @@
 - **quests here** / **quests in this zone**: Questie's quests at your level in the zone you're in, not done yet (**@questie lvl:20-25 in:<zone>**).
 - **what can i craft** / **what can i cook** / **craftable**: your recipes you have every reagent for (**@recipe is:craftable**).
 - **nearest class trainer** / **my trainer**: your class's trainers (**trainer:class**), no longer NPCs with "class" in their names; **nearest weapon trainer** / **weapon master**: the weapon masters (**is:weaponmaster**). A weapon or profession named with them is theirs: **nearest fist weapons trainer** is **trainer:fist** (Sayoc in Orgrimmar), **my tailoring trainer** **trainer:tailoring**; in Advanced mode **@npc trainer:fists**, **trainer:staff**, **trainer:daggers** list the weapon masters What's Training or TrainerSpells says teach it.
+- **quests per zone** / **my quests by zone** / **quests by level** (and **<list> per <field>**): the list grouped by it (**@questie | group by zone**); the bar shows it as its Group.
+- Enter on a group steps into it: the words you typed to find the group go ("@questie Death" grouped by zone, Enter on Deathknell: **@questie in:"Deathknell"**, every quest there), not left beside it.
 - **low durability** is **@durability**; **dungeons at my level** and **best dungeon for upgrades** are the dungeon for your level, as "what dungeon should i do".
 
 **Terminal: Share**

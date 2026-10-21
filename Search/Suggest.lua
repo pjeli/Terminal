@@ -545,3 +545,61 @@ end
 function CC.ToAdvanced(q)
 	return "@recipe is:craftable " .. ((#q.profs > 0) and (table.concat(q.profs, " ") .. " ") or "")
 end
+
+----------------------------------------------------------------------
+-- "quests per zone", "my quests by zone", "items by quality": a list grouped by a field, as Advanced mode writes it
+-- ("@questie | group by zone"); the search runs that line (UI/Results.lua's TakeAggregate), Enter on a group lists it
+----------------------------------------------------------------------
+
+local PF = {}
+ns.PerField = PF
+-- (fields a list is grouped by: not the ones summed up, value, price, count)
+local GROUPS = { zone = true, instance = true, dungeon = true, raid = true, boss = true, quality = true, type = true,
+	subtype = true, slot = true, level = true, ilvl = true, kind = true, owner = true }
+local LEAD = { how = true, many = true, number = true, of = true, count = true, the = true, show = true, list = true, all = true }
+
+local function GroupField(w)
+	local A = ns.Aggregate
+	if not (A and A.FIELDS) then return nil end
+	local name = A.FIELDS[w] and w or (A.ALIASES and A.ALIASES[w])
+	return name and A.FIELDS[name] and GROUPS[name] and name or nil
+end
+
+--- "quests": Questie's (your log's without Questie, or "my quests"); another word: the list it names ("items", "mounts").
+local function ListFor(word, mine)
+	if word == "quests" or word == "quest" then
+		return (not mine and ns.providers.questie and Has("Questie")) and "@questie" or "@questlog"
+	end
+	local p = ns.ResolveProvider and ns:ResolveProvider(word) or (word:sub(-1) == "s" and ns:ResolveProvider(word:sub(1, -2)))
+	return p and ("@" .. word) or nil
+end
+
+--- { line = "@questie | group by zone " } or nil: [how many] [my] <list> per|by|in each|for each <field>.
+function PF.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local w = {}
+	for x in t:gmatch("%S+") do w[#w + 1] = x end
+	local i = 1
+	while w[i] and LEAD[w[i]] do i = i + 1 end
+	local mine = w[i] == "my"
+	if mine then i = i + 1 end
+	local what = w[i]
+	if not what then return nil end
+	i = i + 1
+	local by = w[i]
+	if by == "per" or by == "by" or by == "each" then i = i + 1
+	elseif (by == "in" or by == "for") and w[i + 1] == "each" then i = i + 2
+	else return nil end
+	if w[i] == "each" then i = i + 1 end -- ("per each zone")
+	local field = w[i] and GroupField(w[i])
+	if not field or w[i + 1] then return nil end
+	local list = ListFor(what, mine)
+	if not list then return nil end
+	return { line = list .. " | group by " .. field .. " " }
+end
+
+--- (searched as its Advanced line: TakeAggregate; nothing to answer here)
+function PF.Answer() return {} end
+
+function PF.ToAdvanced(q) return q.line end

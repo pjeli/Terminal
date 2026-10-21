@@ -1730,9 +1730,45 @@ DrillTo = function(spec, by, g)
 	-- (after the steps too: the caret after "| q:rare" listed q:'s values; review, 0.53.6)
 	-- (the line has it already: not written twice; 0.55.10, the player's screenshot had in:"Winterspring" seven times)
 	local q = spec.query:gsub("%s+$", "")
+	-- (0.61.5, the player: "@questie Death", grouped by zone, Enter on Deathknell left "Death" in the line beside
+	-- in:"Deathknell": typed to find the group, not to narrow its rows) the plain words the group's name has go
+	if word then q = A.DropNamed(q, text) end
 	if word and (" " .. q .. " "):find(" " .. word .. " ", 1, true) then return q .. table.concat(steps) .. " " end
 	if word then return q .. " " .. word .. table.concat(steps) .. " " end
 	return spec.base .. " | " .. by .. ':"' .. (text:gsub('"', "")) .. '" '
+end
+
+--- The line without its plain words that are part of `name` ("@questie death" for the group Deathknell: "@questie"):
+--- not @kinds, key:value filters, quoted phrases, -words or a word after "not"; an "or" before a word taken goes too.
+function A.DropNamed(line, name)
+	local lname = ns.Lower(ns.Plain(tostring(name or "")))
+	local toks, out = {}, {}
+	-- (quoted phrases kept whole)
+	local rest = line
+	while rest ~= "" do
+		local sp, tok = rest:match("^(%s*)(%b\"\")")
+		if not tok then sp, tok = rest:match("^(%s*)(%S+)") end
+		if not tok then break end
+		toks[#toks + 1] = tok
+		rest = rest:sub(#sp + #tok + 1)
+	end
+	local dropped = false
+	for i, tok in ipairs(toks) do
+		local lw = ns.Lower(tok)
+		local plain = lw:find("^[%w']+$") and not tok:find("^@") and #lw >= 2
+		local prev = toks[i - 1] and ns.Lower(toks[i - 1])
+		local keyword = lw == "or" or lw == "and" or lw == "not"
+		if plain and not keyword and prev ~= "not" and lname:find(lw, 1, true) then
+			dropped = true
+			if prev == "or" and #out > 0 then table.remove(out) end
+		else
+			out[#out + 1] = tok
+		end
+	end
+	if not dropped then return line end
+	-- ("x or": a trailing "or" left by the word after it going)
+	while #out > 0 and (ns.Lower(out[#out]) == "or" or ns.Lower(out[#out]) == "and") do table.remove(out) end
+	return table.concat(out, " ")
 end
 
 --- A group's Enter: the same search, keeping that group's rows (Shift+Left goes back).

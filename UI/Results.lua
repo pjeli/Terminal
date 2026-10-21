@@ -531,6 +531,9 @@ local function TakeAggregate(self, text, first)
 	self.aggregate, self.typedGroup, self.barGroupIgnored = nil, nil, nil
 	local A = ns.Aggregate
 	if self.fzf or first == "." or first == "/" or not A then return text end
+	-- ("quests per zone": searched as "@questie | group by zone", its groups' Enter stepping in; 0.61.5, the player)
+	local per = ns.PerField and ns.PerField.Question(text)
+	if per then text = per.line end
 	local query, steps = A.Split(text)
 	if steps then
 		-- (steps typed: they sum up, the bar's Group doesn't; the bar says so, Bar.lua; 0.55.18, review)
@@ -539,7 +542,9 @@ local function TakeAggregate(self, text, first)
 		self.aggregate = A.Parse(steps, query)
 		-- (Simple mode: a group typed shows on the bar as its Group, to take back out from there)
 		local last = self.aggregate.last
-		if EasyOn() and last and last.op == "group" and last.by then self.typedGroup = { id = last.by, word = "| " .. steps[#steps] } end
+		if EasyOn() and last and last.op == "group" and last.by then
+			self.typedGroup = { id = last.by, word = "| " .. steps[#steps], rest = per and (query:gsub("%s+$", "") .. " ") or nil }
+		end
 		return query
 	end
 	local bar = EasyOn() and ns.Bar and ns.Bar.Active()

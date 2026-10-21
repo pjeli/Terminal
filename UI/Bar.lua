@@ -429,7 +429,9 @@ function B.Pick(which, id)
 		-- (a group typed: unticked, or another picked, its step goes from the line; the bar's own group then)
 		if typed.group then
 			state.group = (typed.group.id ~= id) and id or nil
-			B.DropWords({ typed.group.word })
+			-- ("quests per zone": the words were the group; its list is what's left, "@questie")
+			if typed.group.rest and UI.edit then UI:SetQuery(typed.group.rest, #typed.group.rest)
+			else B.DropWords({ typed.group.word }) end
 			B.Update()
 			return
 		end
