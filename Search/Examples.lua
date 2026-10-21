@@ -33,7 +33,7 @@ E.SIMPLE = {
 	{ "where should i fish", nil, "field" }, { "where is hogger", "Questie", "field" }, { "vendor goldshire", "Questie", "field" },
 	{ "nearest spirit healer", "Questie", "field" }, { "nearest unlearned flight master", nil, "field" },
 	{ "quests to drop", nil, "field" }, { "stamina food", nil, "field" }, { "attack power food", nil, "field" },
-	{ "ah value of my mats", "Auctionator", "city" }, { "what should i auction", "Auctionator", "city" },
+	{ "what should i auction", "Auctionator", "city" },
 	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" }, { "quests to turn in", nil, "field" },
 	{ "quests here", "Questie", "field" }, { "quests per zone", "Questie", "field" }, { "dungeons at my level", nil, "field" },
 	-- in a dungeon

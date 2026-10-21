@@ -623,6 +623,9 @@ local function ApplyRowsTheme(self, t)
 	-- the detail's room, and in it for a row with a distance: the arrow's slot, the distance's column (as wide as the
 	-- widest distance a continent has, in this font), the rest
 	LY.DETAIL_W = math.floor(t.width * 0.3)
+	-- (the name's and the detail's room together: the row less its icon, the kind's column and the gaps; a detail longer
+	-- than DETAIL_W takes what the name doesn't need, List.lua's FitDetail; 0.62.1, the player at 800 wide)
+	LY.SPAN = t.width - 12 - 6 - (LY.ROW_H - 6) - 8 - 88 - 16
 	LY.NAV_SLOT = UI.NAV_SIZE + 2
 	local probe, w = rows[1] and rows[1].dist, nil
 	if probe then
@@ -637,6 +640,7 @@ local function ApplyRowsTheme(self, t)
 		row.slide = nil
 		row.icon:SetSize(LY.ROW_H - 6, LY.ROW_H - 6)
 		row.detail:SetWidth(LY.DETAIL_W)
+		row.detailW = LY.DETAIL_W
 		-- (the name ends where the detail's room begins, whatever part of it a distance takes)
 		row.label:ClearAllPoints()
 		row.label:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)

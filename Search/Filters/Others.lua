@@ -457,9 +457,9 @@ F.VALUES = {
 -- list and Tab offer only the values that judge a list typed (@kinds; "@group quests" = the party quests). A key's "*"
 -- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
 -- (tests/smoke/search.lua walks every is: value).
-local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "shared" }
-local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "shared", "questie", "quests" } -- (a quest: by its rewards)
-local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "shared", "recipes", "missing" } -- (and what recipes make)
+local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared" }
+local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests" } -- (a quest: by its rewards)
+local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
 local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
 -- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
@@ -500,7 +500,7 @@ F.APPLIES = {
 	when = { ["*"] = { "calendar" } },
 	standing = { ["*"] = { "reputation" } },
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
-	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "mail" } },
+	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "bank", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { nearest = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },

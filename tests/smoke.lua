@@ -350,7 +350,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "stored" or id == "shared" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts" or id == "calendar" or id == "durability" or id == "addonoptions" or id == "corpse" or id == "classspells", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel; classspells: What's Training's catalog
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "bank" or id == "shared" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts" or id == "calendar" or id == "durability" or id == "addonoptions" or id == "corpse" or id == "classspells", id .. " produced no entries") -- camp: only objects you can make; options: needs the Settings panel; classspells: What's Training's catalog
 end
 
 io.write("[providers collected]\n")

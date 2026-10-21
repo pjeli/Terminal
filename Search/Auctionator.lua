@@ -21,7 +21,7 @@ ns.Auctionator = AN
 AN.ADDON, AN.CALLER = "Auctionator", "Terminal"
 AN.WORTH_POSTING = 10000 -- (copper: what your auctionable items must come to for "what should i do" to say so: 1g)
 
-local Safe, Str, Num, Lower = ns.Safe, ns.Str, ns.Num, ns.Lower
+local Num = ns.Num
 local SEP = ns.DETAIL_SEP
 local Money = ns.Money
 
@@ -67,7 +67,10 @@ local function Ask(fnLink, fnID, id, link)
 		local ok, v = pcall(api[fnLink], AN.CALLER, link)
 		if ok then got = Num(v) end
 	end
-	if got == nil and type(id) == "number" and type(api[fnID]) == "function" then
+	-- (a copy with a random suffix, "of the Bear", Auctionator hasn't seen: not the plain item's price, another copy's)
+	local suffixed = link and link:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
+	if suffixed == "0" or suffixed == "" then suffixed = nil end
+	if got == nil and not suffixed and type(id) == "number" and type(api[fnID]) == "function" then
 		local ok, v = pcall(api[fnID], AN.CALLER, id)
 		if ok then got = Num(v) end
 	end
@@ -114,14 +117,37 @@ function AN.PriceOf(e)
 	if not id then return nil end
 	return AN.Price(id, RowLink(e))
 end
+local OWN_KINDS = { items = true, gear = true, consumables = true, mats = true }
 local function CountOf(e)
 	local A = ns.Aggregate
 	local f = A and A.FIELDS and A.FIELDS.count
 	return f and f.num(e) or Num(e.count) or 1
 end
+-- (@stored's and @bank's places whose items you could post: not worn, not up already, not the guild's)
+AN.SELLABLE = { bags = true, bank = true, mail = true, void = true, warband = true }
+local HELD = { stored = true, bank = true }
+
+--- How many of a row you could post: your bag stacks (none bound); @stored's and @bank's in places you could sell from
+--- (`want`: which holders count, else every one of those places).
+function AN.SellableCount(e, want)
+	if HELD[e.kind] and type(e.holders) == "table" then
+		local n = 0
+		for _, h in pairs(e.holders) do
+			if AN.SELLABLE[h.where] and (not want or want(h)) then n = n + (h.count or 0) end
+		end
+		return n
+	end
+	if OWN_KINDS[e.kind] and (rawget(e, "slotId") or e.bound) then return 0 end
+	return CountOf(e)
+end
+
 function AN.ValueOf(e)
+	-- (yours: only what could be sold, in your bags and not bound, or held where it could be; worn or bound gear, what's
+	-- up already, a guild's bank bring nothing)
 	local p = AN.PriceOf(e)
-	return p and p * CountOf(e) or nil
+	if not p then return nil end
+	local n = AN.SellableCount(e)
+	return n > 0 and p * n or nil
 end
 --- What a vendor pays for one (copper), or nil.
 function AN.VendorOf(e)
@@ -130,13 +156,16 @@ function AN.VendorOf(e)
 	return f and f.num(e) or nil
 end
 
--- your own stacks in your bags (not worn: equipped gear isn't for sale)
-local OWN = { items = true, gear = true, consumables = true, mats = true }
 
---- Worth posting: in your bags, not bound, not a quest's, the auction house paying more than a vendor.
+--- Worth posting: in your bags (not bound, not a quest's) or held in your bank, on your alts (@bank, @stored), the
+--- auction house paying more than a vendor.
 function AN.Auctionable(e)
-	if type(e) ~= "table" or not OWN[e.kind] or not rawget(e, "locs") or rawget(e, "slotId") then return false end
-	if e.questItem or (e.bound and not e.unbound) then return false end
+	if type(e) ~= "table" then return false end
+	if HELD[e.kind] then
+		if AN.SellableCount(e) <= 0 then return false end
+	elseif not OWN_KINDS[e.kind] or not rawget(e, "locs") or rawget(e, "slotId") or e.questItem or e.bound then
+		return false -- (any stack bound: its count would take them in)
+	end
 	local p = AN.PriceOf(e)
 	if not p then return false end
 	return p > (AN.VendorOf(e) or 0)
@@ -190,6 +219,7 @@ do
 		F.SORTS.ahvalue, F.SORTS.ah, F.SORTS.ahprice, F.SORTS.market = "ahvalue", "ahvalue", "ahprice", "ahprice"
 		local V = F.VALUES
 		V.sort[#V.sort + 1] = "ahvalue"
+		V.sort[#V.sort + 1] = "ahprice"
 		V.is[#V.is + 1] = "auctionable"
 		V.is[#V.is + 1] = "undercut"
 		local IS = F._ and F._.IS
@@ -199,11 +229,11 @@ do
 		end
 		local AP = F.APPLIES and F.APPLIES.is
 		if AP then
-			AP.auctionable = { "items", "gear", "consumables", "mats" }
+			AP.auctionable = { "items", "gear", "consumables", "mats", "bank", "stored" }
 			AP.undercut = { "auctions" }
 		end
 		local AS = F.APPLIES and F.APPLIES.sort
-		if AS then AS.ahvalue = AS.value end -- (what has an item: yours, loot, recipes' crafts)
+		if AS then AS.ahvalue, AS.ahprice = AS.value, AS.value end -- (what has an item: yours, loot, recipes' crafts)
 		for i, h in ipairs(F.HELP or {}) do
 			if h[1] == "sort:name" then
 				table.insert(F.HELP, i + 1, { "is:auctionable", L["Auctionator: bag items worth more on the auction house than at a vendor; sort:ahvalue, | sum ahvalue; @auction is:undercut"] })
@@ -217,6 +247,7 @@ do
 		local at = #B.SORTS + 1
 		for i, o in ipairs(B.SORTS) do if o.id == "value" then at = i + 1 end end
 		table.insert(B.SORTS, at, { id = "ahvalue", label = L["AH value"], field = "ahvalue" })
+		table.insert(B.SORTS, at + 1, { id = "ahprice", label = L["AH price"], field = "ahprice" })
 	end
 end
 
@@ -236,35 +267,127 @@ for _, s in ipairs({ "what should i auction", "what should i sell on the ah", "w
 	"what should i put on the ah", "what can i put on the ah", "what is worth auctioning", "whats worth auctioning",
 	"what sells on the ah", "sell on the ah", "post on the ah" }) do POST[s] = true end
 
+-- (0.62.1, the player: "by default we can assume bags / @items but it is worth it to allow inclusion of bank or alts")
+-- where to look, said after the question: "... in my bank", "... on my alts", "... everywhere", "... bags and bank"
+local SCOPE_FILL = { ["in"] = true, on = true, from = true, my = true, the = true, ["and"] = true, plus = true, with = true,
+	including = true, include = true, also = true, too = true, all = true, characters = true, character = true, of = true }
+local SCOPE_PLACE = { bags = "bags", bag = "bags", bank = "bank", banks = "bank", alts = "alts", alt = "alts",
+	everywhere = "all", anywhere = "all", everything = "all" }
+
+--- The places said after it ({ bags, bank, alts }), or nil when those words aren't only places.
+local function Scope(words, from)
+	local set, any = {}, false
+	for k = from, #words do
+		local w = words[k]
+		local place = SCOPE_PLACE[w]
+		if place == "all" then set.bags, set.bank, set.alts, any = true, true, true, true
+		elseif place then set[place], any = true, true
+		elseif not SCOPE_FILL[w] then return nil end
+	end
+	-- ("all my characters": everywhere)
+	if not any and #words >= from then
+		for k = from, #words do if words[k] == "characters" then set.bags, set.bank, set.alts = true, true, true return set end end
+		return nil
+	end
+	return any and set or nil
+end
+
 function Q.Question(text)
 	if not AN.On() then return nil end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""):gsub(" please$", "")
-	if POST[t] then return {} end
+	if POST[t] then return { places = { bags = true } } end
+	-- the question, then where: "what should i auction in my bank"
+	local words = {}
+	for w in t:gmatch("%S+") do words[#words + 1] = w end
+	for k = #words - 1, 1, -1 do
+		local head = table.concat(words, " ", 1, k)
+		if POST[head] then
+			local places = Scope(words, k + 1)
+			if places then return { places = places } end
+			return nil
+		end
+	end
 	return nil
 end
 
-function Q.Answer()
-	local rows, total, priced = AN.ToPost(true)
+local WHERE = { bags = L["bags"], bank = L["bank"], mail = L["mail"], void = L["void storage"], warband = L["warband bank"] }
+
+--- Where a row's items to post are ("bank 5", "Alt 10, bank 2"): @stored's and @bank's holders that count.
+local function Where(e, want)
+	if type(e.holders) ~= "table" then return nil end
+	local parts = {}
+	for _, h in pairs(e.holders) do
+		if AN.SELLABLE[h.where] and (h.count or 0) > 0 and (not want or want(h)) then
+			parts[#parts + 1] = (h.mine and (WHERE[h.where] or h.where) or (tostring(h.who) .. " " .. (WHERE[h.where] or h.where)))
+				.. " " .. h.count
+		end
+	end
+	table.sort(parts)
+	if #parts > 3 then return L["%d places"]:format(#parts) end
+	return #parts > 0 and table.concat(parts, ", ") or nil
+end
+
+--- What to post from these places: { row, count, where } each (bags: your items; bank: @bank's; alts: your other
+--- characters' bags, banks and mail from @stored), one per item.
+function AN.ToPostIn(places)
+	local out, byID = {}, {}
+	local function Add(e, n, where)
+		local id = ItemID(e)
+		if not id or n <= 0 then return end
+		local got = byID[id]
+		if got then
+			got.n = got.n + n
+			got.where = got.where and where and (got.where .. ", " .. where) or got.where or where
+		else
+			got = { e = e, n = n, where = where }
+			byID[id] = got
+			out[#out + 1] = got
+		end
+	end
+	if places.bags then
+		for _, e in ipairs(AN.ToPost(true)) do Add(e, CountOf(e), (places.bank or places.alts) and L["bags"] or nil) end
+	end
+	local function want(h)
+		if h.mine then return (places.bank and h.where == "bank") or false end
+		return places.alts == true
+	end
+	if places.bank or places.alts then
+		local p = ns.providers.stored
+		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+			local n = AN.SellableCount(e, want)
+			if n > 0 and AN.Auctionable(e) then Add(e, n, Where(e, want)) end
+		end
+	end
+	return out
+end
+
+function Q.Answer(q)
+	local places = (q and q.places) or { bags = true }
+	local found = AN.ToPostIn(places)
 	local note = L["Worth posting"]
-	if #rows == 0 then
-		return { ns.NoteRow(priced and L["Nothing in your bags sells for more on the auction house than at a vendor"]
+	if #found == 0 then
+		local _, _, priced = AN.ToPost(true)
+		return { ns.NoteRow(priced and L["Nothing there sells for more on the auction house than at a vendor"]
 			or L["Auctionator has no prices for your items yet: scan the auction house with it"]) }, note
 	end
-	local out = {}
-	for _, e in ipairs(rows) do
+	local out, total = {}, 0
+	for _, x in ipairs(found) do
+		local e, n = x.e, x.n
 		-- (a copy: the item's own row keeps its detail)
 		local c = {}
 		for k, v in pairs(e) do c[k] = v end
-		local each, n, vendor = AN.PriceOf(e), CountOf(e), AN.VendorOf(e)
+		local each, vendor = AN.PriceOf(e), AN.VendorOf(e)
 		local parts = { L["AH %s each"]:format(Money(each)) }
 		if n > 1 then parts[#parts + 1] = L["x%d: %s"]:format(n, Money(each * n)) end
 		if vendor and vendor > 0 then parts[#parts + 1] = L["vendor %s"]:format(Money(vendor * n)) end
+		if x.where then parts[#parts + 1] = x.where end
 		local age = AN.Age(ItemID(e), RowLink(e))
 		if age and age > 1 then parts[#parts + 1] = L["seen %d days ago"]:format(age) end
 		c.detail = table.concat(parts, SEP)
 		c._ahvalue = each * n
+		total = total + each * n
 		out[#out + 1] = c
 	end
 	table.sort(out, function(a, b)
@@ -275,12 +398,18 @@ function Q.Answer()
 	return out, note .. SEP .. L["about %s on the auction house"]:format(AN.About(total)) .. SEP .. L["before its cut"]
 end
 
-function Q.ToAdvanced() return "@item is:auctionable sort:ahvalue " end
+--- As Advanced syntax: your bags' @item, your bank's @bank, else @stored (your alts and banks).
+function Q.ToAdvanced(q)
+	local pl = (q and q.places) or { bags = true }
+	local kind = (pl.alts or (pl.bags and pl.bank)) and "@stored" or (pl.bank and "@bank") or "@item"
+	return kind .. " is:auctionable sort:ahvalue "
+end
 
 -- "ah value of my mats", "what are my mats worth", "my bags ah value": a list summed up by its AH value
 local LISTS = { mats = "@mats", materials = "@mats", mat = "@mats", reagents = "@mats", bags = "@item in:bags",
 	bag = "@item in:bags", items = "@item in:bags", inventory = "@item in:bags", consumables = "@consumables",
-	potions = "@consumables", food = "@consumables", gear = "@gear" }
+	potions = "@consumables", food = "@consumables", gear = "@gear", bank = "@bank", alts = "@stored", alt = "@stored",
+	stored = "@stored" }
 local VALUE_FILL = { the = true, my = true, of = true, what = true, whats = true, are = true, is = true, how = true, much = true,
 	["in"] = true, on = true, at = true, total = true, all = true, worth = true, value = true, ah = true, auction = true,
 	house = true, price = true, prices = true, sum = true, me = true, i = true, ["do"] = true, have = true }

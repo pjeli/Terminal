@@ -69,7 +69,7 @@ local function Tooltip(e, t)
 	end
 	if e.market then
 		t:AddDoubleLine(e.undercut and L["Auction house now (undercut)"] or L["Auction house now"], Money(e.market), 1, 1, 1,
-			e.undercut and 1 or 1, e.undercut and 0.5 or 1, e.undercut and 0.25 or 1)
+			1, e.undercut and 0.5 or 1, e.undercut and 0.25 or 1)
 		t:AddLine(L["(Auctionator's last scan, each)"], 0.6, 0.6, 0.6)
 	end
 	local left = a.ends and (a.ends - now)
@@ -121,15 +121,37 @@ local function SoldRow(key, i, s, mine, who, now)
 end
 
 --- The auction house's price for one now (Auctionator's last scan; 0.62.0), and whether yours is above it: undercut.
-local function Market(a, link, over)
+local function Market(a, id, link, over)
 	local AN = ns.Auctionator
 	if over or not (AN and AN.On and AN.On()) then return nil end
 	local l = link or a.link
-	local id = type(l) == "string" and tonumber(l:match("|Hitem:(%d+)")) or nil
+	-- (a commodity on your Auctions tab may come without a link: its item id, ReadOwned's)
+	id = id or (type(l) == "string" and tonumber(l:match("|Hitem:(%d+)"))) or ns.Num(a.id)
 	local market = AN.Price(id, l)
 	if not market then return nil end
 	local each = a.each or (a.price and a.price / math.max(1, a.count or 1))
+	-- (the cheapest one up is another of yours: not undercut by yourself)
+	local own = id and AU.ownMin and AU.ownMin[id]
+	if own and own < (each or 0) and market >= own then return market, false end
 	return market, each ~= nil and market < each
+end
+
+--- Your characters' cheapest price each for every item they have up now (Market: your own cheaper auction isn't an
+--- undercut).
+local function OwnMin(now)
+	local min = {}
+	for _, posted in pairs(MA.Store("auctionsPosted")) do
+		if type(posted) == "table" then
+			for _, a in pairs(posted) do
+				if type(a) == "table" and not (a.ends and a.ends <= now) then
+					local id = MA.ItemFacts(a.id, a.link, a.name)
+					local each = a.each or (a.price and a.price / math.max(1, a.count or 1))
+					if id and each and (not min[id] or each < min[id]) then min[id] = each end
+				end
+			end
+		end
+	end
+	return min
 end
 
 --- An auction up now, or whose time ran out.
@@ -139,8 +161,8 @@ local function UpRow(key, id, a, mine, who, now)
 	local d = {}
 	for _, b in ipairs(bits) do d[#d + 1] = b end
 	local over = a.ends and a.ends <= now or false
-	local _, link, q, icon = MA.ItemFacts(nil, a.link, a.name)
-	local market, undercut = Market(a, link, over)
+	local itemID, link, q, icon = MA.ItemFacts(a.id, a.link, a.name)
+	local market, undercut = Market(a, itemID, link, over)
 	if market then
 		d[#d + 1] = undercut and ("|cffff8040" .. L["undercut: AH %s"]:format(Money(market, true)) .. "|r")
 			or ("|cff8a8a8a" .. L["AH %s"]:format(Money(market, true)) .. "|r")
@@ -149,7 +171,7 @@ local function UpRow(key, id, a, mine, who, now)
 	local name = NameOf(a) .. (((a.count or 1) > 1) and (" x" .. a.count) or "")
 	return {
 		key = "up:" .. key .. ":" .. id, name = name, auction = a, auctionID = id, ahKind = over and "over" or "up",
-		market = market, undercut = undercut or nil,
+		market = market, undercut = undercut or nil, itemID = itemID, each = a.each or (a.price and a.price / math.max(1, a.count or 1)),
 		boxKey = key, who = who, mine = mine or nil, ends = a.ends,
 		color = over and GREY or ns.QualityHex(q), icon = icon or ICON, link = link or a.link,
 		detail = ns.Detail(unpack(d)), plain = plain,
@@ -164,6 +186,8 @@ function AU.Collect()
 	local now, myKey = Now(), MyKey()
 	MA.Prune(now)
 	local up, over = {}, {}
+	local AN = ns.Auctionator
+	AU.ownMin = (AN and AN.On and AN.On()) and OwnMin(now) or nil
 	for key, posted in pairs(MA.Store("auctionsPosted")) do
 		if type(posted) == "table" then
 			local who = MA.WhoOf(key)
@@ -236,7 +260,7 @@ local SUBJECT = { auction = true, auctions = true, ah = true, listings = true, l
 -- the auctioneer's words too (Simple mode's role words: "auction", "ah"): about your auctions only when asked
 local WEAK = { auction = true, ah = true }
 local CUE = { sold = "sold", selling = "up", listed = "up", up = "up", posted = "up", active = "up", sell = "up", undercut = "undercut",
-	undercutted = "undercut", undercuts = "undercut", beaten = "undercut", outbid = nil }
+	undercutted = "undercut", undercuts = "undercut" }
 -- "auction mail" is the mail's question (Mail.lua)
 local MAIL = { mail = true, mails = true, mailbox = true, inbox = true, letter = true, letters = true }
 
@@ -250,7 +274,9 @@ function AU.Question(text)
 	for w in t:gmatch("%S+") do
 		if MAIL[w] then return nil end
 		if SUBJECT[w] then subject = true; weak = weak and WEAK[w] == true
-		elseif CUE[w] then cues[CUE[w]] = true; selling = selling or w ~= "up"
+		elseif CUE[w] and (CUE[w] ~= "undercut" or (ns.Auctionator and ns.Auctionator.On())) then
+			-- (undercut: Auctionator's prices say so; without it, a word of the search)
+			cues[CUE[w]] = true; selling = selling or (w ~= "up" and CUE[w] ~= "undercut")
 		elseif ASK[w] then asked = true
 		else rest[#rest + 1] = w end
 	end

@@ -467,7 +467,8 @@ end
 ns:RegisterProvider("stored", {
 	label = L["Alts & bank"],
 	color = "ffb4a0ff",
-	aliases = { "stored", "alts", "alt", "bank", "banks", "storage", "everywhere", "syndicator", "bagnon" },
+	-- ("bank" alone is @bank: this character's own, below; 0.62.1, the player)
+	aliases = { "stored", "alts", "alt", "banks", "storage", "everywhere", "syndicator", "bagnon" },
 	busy = function() return S.Busy() end, -- the terminal's spinner
 	explicit = true, -- every item on every character: only with @stored (a plain search offers it when only it has a match)
 	hintLabel = L["your alts and banks"],
@@ -525,6 +526,82 @@ ns:RegisterProvider("stored", {
 	end,
 })
 
+
+----------------------------------------------------------------------
+-- @bank (0.62.1, the player: "@bank as just MY bank (current player's bank) ... from @stored (which is everyone on alts
+-- as well)"): what this character has in its bank, @stored's rows cut to that one place (its count the bank's, as the
+-- game counts it while you're online: LiveCounts)
+----------------------------------------------------------------------
+
+--- This character's bank holder of a @stored row, or nil.
+function S.MyBank(e)
+	for _, h in pairs(type(e) == "table" and e.holders or {}) do
+		if h.mine and h.where == "bank" and (h.count or 0) > 0 then return h end
+	end
+end
+
+ns:RegisterProvider("bank", {
+	label = L["Bank"],
+	color = "ffc9b27a",
+	aliases = { "bank", "mybank" },
+	explicit = true, -- (the same items as @stored: only asked for)
+	follows = "stored", -- (made again whenever @stored is)
+	busy = function() return S.Busy() end,
+	collect = function()
+		local out = {}
+		for _, e in ipairs(ns:GetEntries(ns.providers.stored)) do
+			local h = S.MyBank(e)
+			if h then
+				local c = {}
+				for k, v in pairs(e) do c[k] = v end -- (a copy: the @stored row keeps every holder)
+				c.holders = { [h.key] = h }
+				c.total = h.count
+				c.detail = "x" .. h.count .. ns.DETAIL_SEP .. L["bank"]
+				out[#out + 1] = c
+			end
+		end
+		return out
+	end,
+})
+
+-- "what is in my bank", "my bank", "bank items": @bank's rows (Search.lua's Scan.ANSWERS: Asks("MyBankQ"))
+local BQ = {}
+ns.MyBankQ = BQ
+local BANK_ASKS = {}
+for _, s in ipairs({ "what is in my bank", "whats in my bank", "what do i have in my bank", "what do i have in the bank",
+	"what is in the bank", "whats in the bank", "my bank", "my bank items", "bank items", "items in my bank", "items in bank",
+	"show my bank", "list my bank", "show bank", "my bank contents", "bank contents", "whats in bank", "what is in bank",
+	"what have i got in my bank", "what did i put in my bank", "what is stored in my bank", "whats stored in my bank" }) do
+	BANK_ASKS[s] = true
+end
+
+function BQ.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""):gsub(" please$", "")
+	if BANK_ASKS[t] then return {} end
+	return nil
+end
+
+function BQ.Answer()
+	local p = ns.providers.bank
+	local note = L["Your bank"]
+	if not (p and S.Source()) then
+		return { ns.NoteRow(L["Needs Syndicator (Baganator) or BagBrother (Bagnon): they keep what's in your bank"]) }, note
+	end
+	local rows = {}
+	for _, e in ipairs(ns:GetEntries(p)) do rows[#rows + 1] = e end
+	if #rows == 0 then
+		return { ns.NoteRow(L["Nothing kept in your bank yet: open it once with your bag addon running"]) }, note
+	end
+	table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
+	ns.ScoreInOrder(rows)
+	local n = 0
+	for _, e in ipairs(rows) do n = n + (e.total or 0) end
+	return rows, note .. ns.DETAIL_SEP .. ((#rows == 1 and L["%d item"] or L["%d items"]):format(#rows))
+end
+
+function BQ.ToAdvanced() return "@bank " end
 
 -- Syndicator says when its records change (any character, guild or the warband bank).
 function S.HookSyndicator()

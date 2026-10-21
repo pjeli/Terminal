@@ -473,6 +473,43 @@ local function AwaitItem(id)
 end
 
 --- A row's text: its name with the matched letters, the icon, the detail (or what it's needed for), the kind.
+--- A text's whole width, however much room it has.
+local function Unbounded(fs)
+	for _, f in ipairs({ fs.GetUnboundedStringWidth, fs.GetStringWidth }) do
+		local ok, w = pcall(f, fs)
+		if ok and type(w) == "number" and w > 0 then return w end
+	end
+	return 0
+end
+
+--- The detail's room on this row (and the name's, which ends where it begins).
+local function SetDetailW(r, w)
+	if r.detailW == w then return end
+	r.detailW = w
+	r.detail:SetWidth(w)
+	r.label:ClearAllPoints()
+	r.label:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
+	r.label:SetPoint("RIGHT", r.kind, "LEFT", -(16 + w), 0)
+end
+
+--- (0.62.1, the player at 800 wide: "a lot of space in the detail column"... details cut off beside short names) a
+--- detail longer than its column takes the room the name doesn't use: the name keeps its own width, up to NAME_SHARE
+--- of the row (cut there when both are long), the detail the rest.
+UI.NAME_SHARE = 0.4
+local function FitDetail(r)
+	local span, base = LY.SPAN, LY.DETAIL_W
+	local w = base
+	if span and span > base then
+		local need = Unbounded(r.detail)
+		if need > base then
+			local name = math.min(Unbounded(r.label), math.floor(span * UI.NAME_SHARE))
+			w = math.max(base, math.min(math.ceil(need) + 2, span - name - 8))
+		end
+	end
+	SetDetailW(r, w)
+end
+UI.FitDetail = FitDetail -- (tests)
+
 local function FillRow(self, r, e, light)
 	r:Show()
 	if e.raw then
@@ -519,14 +556,15 @@ local function FillRow(self, r, e, light)
 		r.distShown, r.distRest = true, rest
 		r.dist:SetText(L["%d yd"]:format(tonumber(yd:match("%d+")) or 0)) -- (the detail says "N yd" in English: read here)
 		r.dist:Show()
+		SetDetailW(r, LY.DETAIL_W) -- (the distance's column lines up on every such row: the detail's room as it was)
 		r.detail:SetWidth(math.max(1, LY.DETAIL_W - LY.NAV_SLOT - LY.DIST_W - 6))
+		r.detailW = nil
 		r.detail:SetJustifyH("LEFT")
 		r.detail:SetText(rest)
 	else
 		if r.distShown then
 			r.distShown, r.distRest = nil, nil
 			r.dist:Hide()
-			r.detail:SetWidth(LY.DETAIL_W)
 			r.detail:SetJustifyH("RIGHT")
 		end
 		if from and not e.raw then
@@ -535,6 +573,7 @@ local function FillRow(self, r, e, light)
 		else
 			r.detail:SetText(e.detail or "")
 		end
+		FitDetail(r)
 	end
 	r.kind:SetText(Theme.FixColors(e.kindLabel or ""))
 end

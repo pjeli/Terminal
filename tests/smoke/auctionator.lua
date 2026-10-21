@@ -12,6 +12,9 @@ check(AN.Price(2589) == nil and AN.ValueOf({ kind = "items", itemID = 2589, coun
 check(not ns.AuctionatorQ.Question("what should i auction"), "without it: \"what should i auction\" isn't asked")
 check(ns.PerField.Question("ah value of my mats") == nil, "without it: \"ah value of my mats\" isn't rewritten")
 check(ns.Integrations.AddonMissing("Auctionator"), "the hint system knows it's missing")
+-- (review) without it, "undercut" is a word of the search: not your auctions' question saying none is
+check(ns.Auctions.Question("am i undercut") == nil and ns.Auctions.Question("undercut") == nil and ns.Auctions.Question("beaten") == nil,
+	"without it: \"am i undercut\" isn't asked")
 
 local save = { ac = rawget(_G, "Auctionator"), addons = _G.C_AddOns, item = C_Item.GetItemInfo, providers = ns.providers,
 	order = ns.providerOrder, easy = ns.db.easyMode }
@@ -30,6 +33,7 @@ local api = {
 		assert(type(caller) == "string", "callerID")
 		local id = tonumber(link:match("|Hitem:(%d+)"))
 		asked = asked + 1
+		if link:find(":1234:", 1, true) then return nil end -- (a copy it hasn't seen)
 		return PRICES[id]
 	end,
 	GetAuctionAgeByItemID = function(caller, id) return AGES[id] end,
@@ -110,6 +114,13 @@ ns:AliasesChanged()
 local items = ns:GetEntries(ns.providers.items)
 local by = {}
 for _, e in ipairs(items) do by[e.name] = e end
+-- (review) a row with some stacks bound: not for sale (its count would take them in); worn and bound: no AH value
+local mixed = { kind = "items", itemID = 2592, count = 4, bound = true, unbound = true, locs = { { 0, 1 } }, link = Link(2592) }
+check(not AN.Auctionable(mixed) and AN.ValueOf(mixed) == nil, "some stacks bound: not auctionable, no value")
+check(AN.ValueOf(by["Worn Sword"]) == nil and AN.ValueOf(by["Soulbound Ring"]) == nil and AN.PriceOf(by["Soulbound Ring"]) == 2000,
+	"worn, bound: no value (the price is still said)")
+-- (review) a copy with a random suffix Auctionator hasn't seen: not the plain item's price
+check(AN.Price(2592, "|cffffffff|Hitem:2592::::::1234:::|h[x]|h|r") == nil, "a suffixed copy unseen: no price (not the plain item's)")
 check(AN.PriceOf(by["Linen Cloth"]) == 50 and AN.ValueOf(by["Linen Cloth"]) == 1000, "Linen Cloth: 50 each, 1000 for 20")
 check(AN.Auctionable(by["Linen Cloth"]) and AN.Auctionable(by["Wool Cloth"]), "cloth: worth posting")
 check(not AN.Auctionable(by["Iron Bar"]), "a vendor pays more: not")
@@ -133,6 +144,7 @@ local sum = UI.Results()
 UI:Hide(); FlushAll()
 check(sum[1] and ns.Plain(sum[1].name):find(ns.Plain(ns.Money(1000 + 1200 + 2700)), 1, true),
 	"@mats | sum ahvalue: Linen, Wool and Iron (49s): " .. tostring(sum[1] and ns.Plain(sum[1].name)))
+check(Names(UI:Search("@item sort:ahprice")):find("^Soulbound Ring | Iron Bar") ~= nil, "sort:ahprice: the dearest each first: " .. Names(UI:Search("@item sort:ahprice")))
 check(F.SortOf("sort:ahvalue") == "ahvalue" and F.Parse("is:auctionable") ~= nil and F.Parse("is:undercut") ~= nil, "sort:ahvalue, is:auctionable, is:undercut")
 local offered = false
 for _, o in ipairs(ns.Bar.SORTS) do if o.id == "ahvalue" then offered = true end end
@@ -171,6 +183,58 @@ for _, simple in ipairs({ true, false }) do
 	UI:Hide(); FlushAll()
 end
 
+-- (0.62.1, the player: "by default we can assume bags / @items but it is worth it to allow inclusion of bank or alts")
+do
+	local function H(who, where, n, mine) return { key = who .. "|" .. where, who = who, where = where, count = n, mine = mine } end
+	local STORED = {
+		{ name = "Linen Cloth", id = 2589, holders = { H("Me", "bags", 20, true), H("Me", "bank", 30, true), H("Alt", "bank", 100) } },
+		{ name = "Wool Cloth", id = 2592, holders = { H("Alt", "bags", 5), H("Alt", "equipped", 1), H("Guild", "guild", 50) } },
+		{ name = "Iron Bar", id = 2772, holders = { H("Me", "bank", 9, true) } }, -- (a vendor pays more)
+	}
+	ns:RegisterProvider("stored", { label = "Alts & bank", aliases = { "stored", "alts" }, explicit = true, collect = function()
+		local out = {}
+		for i, r in ipairs(STORED) do
+			local hs, total = {}, 0
+			for _, h in ipairs(r.holders) do hs[h.key] = h; total = total + h.count end
+			out[i] = { name = r.name, key = r.id, itemID = r.id, holders = hs, total = total, link = Link(r.id) }
+		end
+		return out
+	end })
+	ns:AliasesChanged()
+	local st = {}
+	for _, e in ipairs(ns:GetEntries(ns.providers.stored)) do st[e.name] = e end
+	check(AN.ValueOf(st["Wool Cloth"]) == 5 * 120, "@stored's AH value: what could be posted (not worn, not the guild's): " .. tostring(AN.ValueOf(st["Wool Cloth"])))
+	check(AN.Auctionable(st["Linen Cloth"]) and not AN.Auctionable(st["Iron Bar"]), "@stored is:auctionable")
+	local Q = ns.AuctionatorQ
+	local function Places(line) local q = Q.Question(line) return q and q.places end
+	local pl = Places("what should i auction in my bank")
+	check(pl and pl.bank and not pl.bags and not pl.alts, "\"... in my bank\": the bank")
+	pl = Places("what can i sell on the ah on my alts")
+	check(pl and pl.alts and not pl.bank, "\"... on my alts\": the alts")
+	pl = Places("what should i auction everywhere")
+	check(pl and pl.bags and pl.bank and pl.alts, "\"... everywhere\": all of them")
+	pl = Places("what to post from my bags and bank")
+	check(pl and pl.bags and pl.bank and not pl.alts, "\"... bags and bank\"")
+	check(Q.Question("what should i auction in hogger") == nil, "another word: not it")
+	check(ns.QuestionToAdvanced("what should i auction in my bank") == "@bank is:auctionable sort:ahvalue "
+		and ns.QuestionToAdvanced("what should i auction on my alts") == "@stored is:auctionable sort:ahvalue ", "as Advanced: @bank, @stored")
+	local function Answer(line)
+		local rows = Q.Answer(Q.Question(line))
+		local t = {}
+		for _, e in ipairs(rows) do t[#t + 1] = e.name .. "=" .. tostring(e._ahvalue) end
+		return table.concat(t, " | "), rows
+	end
+	check(Answer("what should i auction in my bank") == "Linen Cloth=1500", "your bank: 30 linen: " .. Answer("what should i auction in my bank"))
+	check(Answer("what should i auction on my alts") == "Linen Cloth=5000 | Wool Cloth=600", "your alts: their linen, wool (not worn, not the guild's): "
+		.. Answer("what should i auction on my alts"))
+	local all, rows = Answer("what should i auction everywhere")
+	check(all == "Linen Cloth=7500 | Wool Cloth=1800", "everywhere: bags 20 + bank 30 + alt 100 linen; bags 10 + alt 5 wool: " .. all)
+	check(rows[1].detail:find(L["bank"], 1, true), "each says where: " .. rows[1].detail)
+	ns.providers.stored = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "stored" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+end
+
 -- "what should i do": worth posting, once it comes to a gold
 local SG = ns.Suggest
 local function Has(id)
@@ -200,6 +264,8 @@ do
 	local posted = { ["Player-1"] = {
 		[1] = { name = "Wool Cloth", link = Link(2592), count = 10, price = 2000, each = 200, ends = ns.Now() + 3600, t = ns.Now() },
 		[2] = { name = "Linen Cloth", link = Link(2589), count = 20, price = 800, each = 40, ends = ns.Now() + 3600, t = ns.Now() },
+		-- (review) a commodity read off your Auctions tab: its item id, no link
+		[3] = { name = "Silk Cloth", id = 4306, count = 10, price = 5000, ends = ns.Now() + 3600, t = ns.Now(), seen = "listed" },
 	} }
 	MA.Store = function(k) if k == "auctionsPosted" then return posted end return saveStore(k) end
 	ns.PlayerGUID = function() return "Player-1" end
@@ -213,14 +279,28 @@ do
 	check(wool and wool.undercut and wool.market == 120 and wool.detail:find(L["undercut: AH %s"]:format(ns.Money(120, true)), 1, true),
 		"200 each, the AH at 120: undercut: " .. tostring(wool and wool.detail))
 	check(linen and not linen.undercut and linen.market == 50, "40 each, the AH at 50: not undercut")
+	local silk
+	for _, e in ipairs(all) do if e.name:find("Silk") then silk = e end end
+	check(silk and silk.market == 300 and silk.undercut, "a commodity with no link: its id's price (500 each, the AH at 300: undercut)")
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil
-	check(Names(UI:Search("@auction is:undercut")) == "Wool Cloth x10", "@auction is:undercut: " .. Names(UI:Search("@auction is:undercut")))
+	check(Names(UI:Search("@auction is:undercut")) == "Silk Cloth x10 | Wool Cloth x10" or Names(UI:Search("@auction is:undercut")) == "Wool Cloth x10 | Silk Cloth x10",
+		"@auction is:undercut: " .. Names(UI:Search("@auction is:undercut")))
 	local AU = ns.Auctions
 	check(AU.Question("am i undercut") and AU.Question("undercut auctions") and AU.Question("my undercut auctions"), "\"am i undercut\"")
 	check(ns.QuestionToAdvanced("am i undercut") == "@auction is:undercut ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("am i undercut")))
 	local rows = AU.Answer(AU.Question("am i undercut"))
-	check(#rows == 1 and rows[1] == wool, "its answer: the one undercut")
+	check(#rows == 2, "its answer: the two undercut")
+	-- (review) your own cheaper auction is the AH's price: the dearer one isn't undercut by you
+	posted["Player-1"][4] = { name = "Wool Cloth", link = Link(2592), count = 5, price = 600, each = 120, ends = ns.Now() + 3600, t = ns.Now() }
+	ns.providers.auctions._dirty = true
+	all = ns:GetEntries(ns.providers.auctions)
+	local dear
+	for _, e in ipairs(all) do if e.name == "Wool Cloth x10" then dear = e end end
+	check(dear and not dear.undercut, "the AH's 120 is your own other auction: not undercut")
+	posted["Player-1"][4] = nil
+	ns.providers.auctions._dirty = true
+	all = ns:GetEntries(ns.providers.auctions)
 	-- its data changed: @auction worked out again
 	ns.providers.auctions._dirty = nil
 	PRICES[2592] = 250

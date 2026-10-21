@@ -1,14 +1,23 @@
 # Changelog
 
-## 0.62.0 (in testing)
+## 0.62.1 (in testing)
+
+**Your bank**
+- **@bank** is this character's own bank (what's in it, how many); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)
+
+**Wider details**
+- A result's detail no longer stops at a third of the row: a long one takes the room its name doesn't need (a name keeps up to 40% when both are long), so wide windows show it whole.
+
 
 **Auctionator**
 - With Auctionator installed, Terminal reads its auction house prices (through its API for other addons; scan the auction house with Auctionator to have them).
 - Items have an **AH value**: **sort:ahvalue** (the bar's Sort: AH value), **| sum ahvalue**, **| avg ahprice**, on your bags, your alts', loot and the items recipes make.
-- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (**@item is:auctionable sort:ahvalue**).
+- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (**@item is:auctionable sort:ahvalue**). Add where: **... in my bank** (**@bank**), **... on my alts**, **... everywhere** (**@stored**), each saying where they are.
+- **@stored** and **@bank** have AH values too (**@stored sort:ahvalue**, **| sum ahvalue**): what could be posted, not what's worn, up already or in a guild's bank.
 - **ah value of my mats** / **what are my mats worth** (**@mats | sum ahvalue**), and the same for your bags, consumables and gear.
 - **what should i do** says **Post on the auction house** when your bags would bring a gold or more, and the empty prompt may say **try: what should i auction (about 30g)** or **try: ah value of my mats (about 12g)**.
-- **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours; **am i undercut** / **@auction is:undercut** lists those.
+- **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours (not when the cheaper one is your own); **am i undercut** / **@auction is:undercut** lists those. A commodity read off your Auctions tab gets its price by its item too.
+- **sort:ahprice** sorts by the price of one (the bar's Sort: AH price).
 - **.integrations** says whether Auctionator was found.
 
 
