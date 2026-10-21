@@ -148,9 +148,6 @@ local function KeepSelection(keep, keptRow)
 	-- ("Nothing has that", then "Did you mean...?": the first suggestion selected, for Enter; DidYouMean.lua)
 	local r1, r2 = UI.results[1], UI.results[2]
 	if r1 and r2 and r1.noActivate and rawget(r2, "kind") == "suggestion" then UI.sel = 2 end
-	-- (Simple mode's things to do under the empty prompt, Suggest.lua: none picked till Tab picks one; Enter on a prompt
-	-- just opened does nothing, Down still brings back the last search)
-	if type(r1) == "table" and rawget(r1, "suggestId") and UI.edit and UI.edit:GetText() == "" then UI.sel = 0 end
 	if not keep then return false end
 	for i, e in ipairs(UI.results) do
 		if SameRow(e, keep) then
@@ -834,7 +831,7 @@ function UI:Down()
 	-- UI:HistoryBack); only with nothing listed (nor coming: a search still going) on toward the newest line. (Until
 	-- 0.48.3 Down always walked the history: Up, then Down to the results, emptied the prompt.)
 	if Walking(self) and #UI.results == 0 and not self.searchJob and self:History(1) then return end
-	if edit:GetText() == "" and (#UI.results == 0 or (UI.sel == 0 and self:TodoListed())) and self:Recall() then return end
+	if edit:GetText() == "" and #UI.results == 0 and self:Recall() then return end
 	self:Move(1)
 end
 

@@ -9,8 +9,9 @@ local L = ns.L
 --
 -- What's worth doing now, from what Terminal already knows of your character, the most pressing first. Each row says
 -- why, and Enter searches for it (plain words, so Simple and Advanced mode alike; its tooltip writes the search in
--- Advanced syntax). Asked for ("what should i do", "what now", "suggestions"), every list is read; on Simple mode's
--- empty prompt (SG.EmptyRows, a setting) only those already read, so opening the terminal never builds one.
+-- Advanced syntax). Asked for ("what should i do", "what now", "suggestions"), every list is read. The empty prompt's
+-- faint example says "try: what should i do" when something is (SG.Pressing: only lists already read, so opening the
+-- terminal builds none; the player: "I actually prefer an empty bar on key press").
 --
 --   Repair your gear        your lowest piece under SG.REPAIR_PCT %        nearest repair
 --   Sell your junk          grey items (or bags nearly full)               nearest vendor
@@ -30,7 +31,6 @@ local Lower, Safe, Str, Num = ns.Lower, ns.Safe, ns.Str, ns.Num
 local SEP = ns.DETAIL_SEP
 
 SG.MAX = 8            -- rows when asked
-SG.EMPTY_MAX = 4      -- rows on the empty prompt
 SG.CACHE_FOR = 10     -- seconds the rows are kept (the empty prompt opens often)
 SG.REPAIR_PCT = 30    -- a worn piece this low (or broken): repair
 SG.JUNK_MIN = 3       -- grey items to be worth a trip (fewer, when bags are nearly full)
@@ -359,12 +359,9 @@ function SG.Rows(build, max)
 end
 function SG.Forget() cache = {} end -- (tests; and a list changed by hand)
 
---- Simple mode's empty prompt: the top few (lists already read only), or none when the setting is off.
-function SG.EmptyRows()
-	-- (the options' "Things to do in the empty prompt")
-	local T = ns.Theme
-	if T and T.Get and T.Get().todo == false then return {} end
-	return SG.Rows(false, SG.EMPTY_MAX)
+--- Anything worth doing, from lists already read (the empty prompt's "try: what should i do": opening builds no list).
+function SG.Pressing()
+	return #SG.Rows(false, 1) > 0
 end
 
 ----------------------------------------------------------------------

@@ -14,10 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.61.2", when = "in testing",
+		v = "0.61.3", when = "in testing",
 		items = {
 			"Ask \"what should i do\" (or \"what now\") for what's worth doing now, the most pressing first: gear to repair, junk to sell, spells or a weapon skill to train, a profession's next rank or one to level, your class quest, quests to turn in, quests at your level here or a better zone, the dungeon for your level. Enter searches for it (a class quest: its steps); its tooltip shows the Advanced syntax.",
-			"Simple mode's empty prompt lists the top few things to do (from what Terminal has already read); Tab goes through them, and Down still brings back your last search. Things to do in Options (or .set todo off) turns them off.",
+			"When there's something worth doing, Simple mode's empty prompt says \"try: what should i do\" every other time it opens; the prompt itself stays empty.",
 			"New plain questions: \"quests to turn in\" (@questlog is:complete), \"quests here\" (Questie's at your level in your zone), \"what can i craft\" (@recipe is:craftable), \"low durability\", \"dungeons at my level\".",
 			"\"nearest class trainer\" lists your class's trainers and \"nearest weapon trainer\" the weapon masters (trainer:class, is:weaponmaster), not NPCs with those words in their names; \"nearest fist weapons trainer\" finds the fist weapon masters (trainer:fist).",
 			"Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. The other faction on your realm still is.",

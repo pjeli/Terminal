@@ -45,7 +45,6 @@ T.DEFAULTS = {
 	autoScan = true, -- index professions quietly after login
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
-	todo = true, -- Simple mode's empty prompt lists a few things worth doing (Suggest.lua; 0.61.0, the player's ask)
 	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on, 0.56.14)
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
@@ -90,7 +89,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
-	"todo", "slashKey", "fzfGlow", "fzfColor" }
+	"slashKey", "fzfGlow", "fzfColor" }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
 T.FZF_GLOW_LABELS = { breathe = L["Breathing"], steady = L["Steady"], bright = L["Bright"], line = L["Thin line"], off = L["Off"] }
@@ -162,7 +161,6 @@ T.FIELDS = {
 	hints = { kind = "bool", label = L["Key hints in footer"] },
 	syntax = { kind = "bool", label = L["Colour what you type"] },
 	suggest = { kind = "bool", label = L["Suggestions in the empty prompt"] },
-	todo = { kind = "bool", label = L["Things to do"] },
 	slashKey = { kind = "bool", label = L["Open on /"] },
 	animations = { kind = "choice", label = L["Animation"], choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = L["Cursor"], choices = T.CURSOR_ORDER },

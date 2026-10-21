@@ -18,7 +18,6 @@ for id, p in pairs(ns.providers) do
 	end
 end
 local easy = ns.db.easyMode
-ns.Theme.Set("todo", "on", true) -- (0.61.0: Simple mode's things to do under the empty prompt, from lists already read)
 for _, simple in ipairs({ true, false }) do
 	ns.db.easyMode = simple
 	UI:EasyChanged()
@@ -36,5 +35,4 @@ end
 for p, c in pairs(wrapped) do p.collect = c end
 ns.db.easyMode = easy
 UI:EasyChanged()
-ns.Theme.Set("todo", "off", true)
 _G.GetTime = realTime

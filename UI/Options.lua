@@ -408,7 +408,6 @@ Check("hints", 440, -456)
 Check("suggest", 16, -480, L["(\"try: ...\")"])
 O.widgets.autoScanLabel = Check("autoScan", 440, -480)
 O.widgets.slashKeyLabel = Check("slashKey", 440, -480, L["(slash commands)"])
-Check("todo", 440, -428, L["(Simple mode)"]) -- (0.61.0: the column beside the sliders is free there)
 
 -- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
 -- last row of settings shown)
@@ -534,7 +533,6 @@ function O.Refresh()
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)
 	O.widgets.syntax:SetChecked(t.syntax and true or false)
 	O.widgets.suggest:SetChecked(t.suggest ~= false)
-	O.widgets.todo:SetChecked(t.todo ~= false)
 	-- only where the game lets addons open profession windows: WoW Forever doesn't (db.noDirectOpen),
 	-- so there each profession is indexed when you open it, and the option would do nothing
 	local canScan = ns.db and ns.db.noDirectOpen == false

@@ -287,6 +287,7 @@ end
 E.ExamplePool = Pool
 -- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once (0.51.16, the player's ask)
 E.TOUR_EXAMPLE = "try: .tour"
+E.TODO_EXAMPLE = "try: what should i do"
 function E.NextExample()
 	local db = ns.db
 	pool.first = nil
@@ -294,6 +295,17 @@ function E.NextExample()
 	if type(db) == "table" and not db.tourOffered and #(db.history or {}) == 0 then
 		pool.first = E.TOUR_EXAMPLE
 		return pool.first
+	end
+	-- (0.61.0, the player: "let's make 'what should i do' be a 'try:' suggestion") with something worth doing (gear to
+	-- repair, quests to turn in...: from lists already read), Simple mode's every other open says to ask
+	local SG = ns.Suggest
+	if E.On() and SG and SG.Pressing then
+		pool.todoTurn = not pool.todoTurn
+		local ok, pressing = pcall(SG.Pressing)
+		if pool.todoTurn and ok and pressing then
+			pool.first = E.TODO_EXAMPLE
+			return pool.first
+		end
 	end
 	local list = Pool()
 	pool.at = pool.at % #list + 1

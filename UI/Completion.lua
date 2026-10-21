@@ -209,18 +209,11 @@ function UI:ResultText(e)
 	return ns:KindName(p) .. " " .. e.name
 end
 
---- Simple mode's empty prompt listing its things to do (Suggest.lua): the prompt's own example still shows above them
---- (till Tab picks one).
-function UI:TodoListed()
-	local r1 = UI.results[1]
-	return UI.edit:GetText() == "" and type(r1) == "table" and rawget(r1, "suggestId") ~= nil
-end
-
 --- The suggestion shown in the empty prompt, as text to type ("try: hogger >> party" -> "hogger >> party"),
 --- or nil (suggestions off, something typed or listed, a tip rather than an example).
 function UI:SuggestionText()
 	local edit = UI.edit
-	if edit:GetText() ~= "" or (#UI.results > 0 and not (UI.sel == 0 and self:TodoListed())) or self.histIdx or self.fzf or Theme.Get().suggest == false then return nil end
+	if edit:GetText() ~= "" or #UI.results > 0 or self.histIdx or self.fzf or Theme.Get().suggest == false then return nil end
 	if ns.Tour and ns.Tour.Active() then return nil end -- (.tour: its card says what to do)
 	local ex = ns.Easy and ns.Easy.Example()
 	local body = type(ex) == "string" and ex:match("^try:%s*(.-)%s*$")
@@ -304,7 +297,7 @@ function UI:UpdateGhost()
 	-- nothing typed: a faint line in the prompt says what to do (there's nothing under it); fuzzy finding has its own
 	if not add and self:IsShown() and edit:GetText() == "" and self.fzf then
 		add = FZF_GHOST
-	elseif not add and self:IsShown() and edit:GetText() == "" and not self.histIdx and (#UI.results == 0 or (UI.sel == 0 and self:TodoListed())) then
+	elseif not add and self:IsShown() and edit:GetText() == "" and not self.histIdx and #UI.results == 0 then
 		-- a rotating example of what to type (Advanced: its own syntax, and what Up/Down bring)
 		-- (the option off: the prompt stays empty)
 		if Theme.Get().suggest ~= false then add = ns.Easy and ns.Easy.Example() or DOWN_RECENT end

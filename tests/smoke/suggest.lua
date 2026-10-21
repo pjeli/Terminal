@@ -4,7 +4,7 @@
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
 local L = ns.L
-io.write("[suggest: what should i do, the empty prompt's things to do]\n")
+io.write("[suggest: what should i do, and its try: in the empty prompt]\n")
 local SG, TI, QH = ns.Suggest, ns.TurnIn, ns.QuestsHere
 check(SG and TI and QH, "Suggest.lua loaded")
 
@@ -143,91 +143,65 @@ SG.Forget()
 got = SG.Answer()
 check(#got == 1 and got[1].kind ~= "suggestion", "nothing pressing: a note, not an empty list")
 
--- the empty prompt: Simple mode lists the top few; Advanced stays bare; the setting turns them off
+-- nothing pressing: the empty prompt's example isn't "what should i do"
+local E = ns.Easy
+local wasEasy = ns.db.easyMode
+ns.db.easyMode = true; UI:EasyChanged()
+check(not SG.Pressing(), "nothing pressing")
+for _ = 1, 3 do
+	UI:Open(""); T.FlushAll()
+	check(UI:SuggestionText() ~= "what should i do", "nothing pressing: not offered: " .. tostring(UI:SuggestionText()))
+	UI:Hide(); T.FlushAll()
+end
+
+-- (the player: "i actually prefer an empty bar on key press... let's make 'what should i do' be a 'try:' suggestion")
+-- something worth doing: the empty prompt stays empty, its faint example says "try: what should i do" every other open
 ns.Durability.Total = function() return 500, 1, 5 end
--- (the empty prompt reads your worn pieces' wear itself, no list made; a quest's readiness as the game says now)
+-- (opening reads no list: your worn pieces' wear as the game says, a quest's readiness as the game says now)
 local saveDur, saveQL = _G.GetInventoryItemDurability, _G.C_QuestLog
 _G.GetInventoryItemDurability = function(slot) if slot == 5 then return 5, 100 end if slot == 7 then return 70, 70 end end
 local ready = { [101] = true }
 _G.C_QuestLog = setmetatable({ GetLogIndexForQuestID = function(id) return ready[id] ~= nil and 1 or nil end,
 	ReadyForTurnIn = function(id) return ready[id] == true end }, { __index = saveQL })
-bag = { { quality = 0, stackCount = 5, itemID = 1 } }
 ns.providers.quests._entries = { { name = "A", complete = true, questID = 101 } }
-ns.providers.quests._dirty = true -- (made again on every open: the empty prompt reads the last one)
+ns.providers.quests._dirty = true -- (made again on every open: the last one read is what's there)
 ns.providers.training._entries = { { name = "Frostbolt", state = "now" } }
-ns.Professions.PlayerProfessions = function() return { { name = "Tailoring", rank = 75, maxRank = 75 }, { name = "Cooking", rank = 1, maxRank = 75 } } end
 SG.Forget()
-local wasEasy, wasTodo = ns.db.easyMode, ns.Theme.Get().todo
-ns.Theme.Set("todo", "on", true)
-ns.db.easyMode = true; UI:EasyChanged()
-UI:Open(""); T.FlushAll()
-local res = UI.Results()
-local n = 0
-for _, r in ipairs(res) do if r.kind == "suggestion" then n = n + 1 end end
-check(n >= 1 and n <= SG.EMPTY_MAX and #res == n, "Simple's empty prompt: at most " .. SG.EMPTY_MAX .. " things to do (" .. n .. " of " .. #res .. ")")
-check(res[1] and res[1].suggestId == "repair" and res[1].detail:find("5%", 1, true), "the most pressing first: " .. tostring(res[1] and res[1].detail))
-local turn = false
-for _, r in ipairs(res) do if r.suggestId == "turnin" then turn = true end end
-check(turn, "a quest ready to turn in, from the last quest log read (still ready, the game says)")
-UI:Hide(); T.FlushAll()
-ready[101] = nil -- (turned in since)
-SG.Forget()
-turn = false
-for _, r in ipairs(SG.EmptyRows()) do if r.suggestId == "turnin" then turn = true end end
-check(not turn, "turned in since the quest log was read: not suggested")
-ready[101] = true
-SG.Forget()
-UI:Open(""); T.FlushAll()
-res = UI.Results()
-check(UI.answerNote == L["Things to do"], "under its note: " .. tostring(UI.answerNote))
-check(UI:SuggestionText() ~= nil, "the faint \"try: ...\" example still in the prompt above them")
--- none picked: Enter on a prompt just opened does nothing; Tab goes through them; Down still brings back the last search
-check(UI.sel == 0, "none picked till Tab: " .. tostring(UI.sel))
-UI:Activate(); T.FlushAll()
-check(UI.edit:GetText() == "" and UI:IsShown(), "Enter on a prompt just opened: nothing run")
-T.key("TAB")
-check(UI.sel == 1 and UI.edit:GetText() == "", "Tab: the first thing to do")
-T.key("TAB")
-check(UI.sel == 2, "Tab again: the next")
-UI:Activate(); T.FlushAll()
-check(UI.edit:GetText() == res[2].searchText, "Enter: its search: " .. UI.edit:GetText())
-UI:Hide(); T.FlushAll()
-UI.lastQuery = "linen"
-SG.Forget()
-UI:Open(""); T.FlushAll()
-check(#UI.Results() > 0 and UI.sel == 0, "(listed again)")
-T.key("DOWN")
-check(UI.edit:GetText() ~= "", "Down: the last search back, as before: " .. UI.edit:GetText())
-UI:Hide(); T.FlushAll()
-ns.Theme.Set("todo", "off", true)
-SG.Forget()
-UI:Open(""); T.FlushAll()
-check(#UI.Results() == 0, "the setting off: the empty prompt bare")
-UI:Hide(); T.FlushAll()
-ns.Theme.Set("todo", "on", true)
-ns.db.easyMode = false; UI:EasyChanged()
-UI:Open(""); T.FlushAll()
-check(#UI.Results() == 0, "Advanced's empty prompt stays bare")
-UI:Hide(); T.FlushAll()
--- the empty prompt reads no list it hasn't read: nothing built to open the terminal
-ns.db.easyMode = true; UI:EasyChanged()
 local built = false
-ns.GetEntries = function(self, p) if p == ns.providers.training then built = true end return rawget(p, "collect") and save.get(self, p) or p._entries end
+ns.GetEntries = function(self, p) built = true return rawget(p, "collect") and save.get(self, p) or p._entries end
+local offered, other = 0, 0
+for _ = 1, 4 do
+	SG.Forget()
+	UI:Open(""); T.FlushAll()
+	check(#UI.Results() == 0, "the empty prompt stays empty: " .. #UI.Results())
+	if UI:SuggestionText() == "what should i do" then offered = offered + 1 else other = other + 1 end
+	UI:Hide(); T.FlushAll()
+end
+check(offered == 2 and other == 2, "\"try: what should i do\" every other open: " .. offered .. " of 4")
+check(not built, "opening builds no list")
+ns.GetEntries = function(self, p) return rawget(p, "collect") and save.get(self, p) or p._entries end
+-- what it reads: the worn piece, the quest still ready, not a list out of date
+local rows = SG.Rows(false, 20)
+local by2 = {}
+for _, r in ipairs(rows) do by2[r.suggestId] = r end
+check(by2.repair and by2.repair.detail:find("5%", 1, true) and by2.turnin and by2.train, "from lists already read: repair, turn in, train")
+ready[101] = nil -- (turned in since)
+ns.providers.training._dirty = true -- (a spell learned since)
 SG.Forget()
-UI:Open(""); T.FlushAll()
-check(not built, "the empty prompt builds no list (but the cheap ones: your quest log, your gear's wear)")
-UI:Hide(); T.FlushAll()
--- a list out of date (a spell learned since): nothing said from it
-ns.providers.training._dirty = true
-SG.Forget()
-local train = false
-for _, r in ipairs(SG.EmptyRows()) do if r.suggestId == "train" then train = true end end
-check(not train, "a list out of date: not read for the empty prompt")
+by2 = {}
+for _, r in ipairs(SG.Rows(false, 20)) do by2[r.suggestId] = r end
+check(not by2.turnin and not by2.train, "turned in since, a list out of date: not taken")
 ns.providers.training._dirty = nil
-UI:Open(""); T.FlushAll()
-UI:Hide(); T.FlushAll()
+-- Advanced: its own examples
+ns.db.easyMode = false; UI:EasyChanged()
+ready[101] = true
+for _ = 1, 3 do
+	SG.Forget()
+	UI:Open(""); T.FlushAll()
+	check(UI:SuggestionText() ~= "what should i do", "Advanced: its own examples")
+	UI:Hide(); T.FlushAll()
+end
 ns.db.easyMode = wasEasy; UI:EasyChanged()
-ns.Theme.Set("todo", wasTodo == false and "off" or "on", true)
 _G.GetInventoryItemDurability, _G.C_QuestLog = saveDur, saveQL
 ns.providers.quests._dirty = nil
 
