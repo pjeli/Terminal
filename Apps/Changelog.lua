@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.61.5", when = "in testing",
+		v = "0.62.0", when = "in testing",
 		items = {
+			"Auctionator: with it installed, items have an AH value (sort:ahvalue, | sum ahvalue); \"what should i auction\" lists your bag items worth more on the auction house than at a vendor, with what each would bring; \"ah value of my mats\" sums them up; @auction says the auction house's price now and which of yours are undercut (\"am i undercut\", is:undercut).",
 			"Ask \"what should i do\" (or \"what now\") for what's worth doing now, the most pressing first: gear to repair, junk to sell, spells or a weapon skill to train, a profession's next rank or one to level, your class quest, quests to turn in, quests at your level here or a better zone, the dungeon for your level. Enter searches for it (a class quest: its steps); its tooltip shows the Advanced syntax.",
 			"\"try: what should i do\" is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing; the prompt itself stays empty.",
 			"New plain questions: \"quests per zone\" (@questie | group by zone), \"quests to turn in\" (@questlog is:complete), \"quests here\" (Questie's at your level in your zone), \"what can i craft\" (@recipe is:craftable), \"low durability\", \"dungeons at my level\".",

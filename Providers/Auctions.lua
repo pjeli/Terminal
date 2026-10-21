@@ -67,6 +67,11 @@ local function Tooltip(e, t)
 		t:AddDoubleLine(a.each and L["Price each"] or L["Price"], Money(a.each or a.price), 1, 1, 1, 1, 1, 1)
 		t:AddLine(a.seen == "listed" and L["(as the auction house listed it)"] or L["(as you posted it)"], 0.6, 0.6, 0.6)
 	end
+	if e.market then
+		t:AddDoubleLine(e.undercut and L["Auction house now (undercut)"] or L["Auction house now"], Money(e.market), 1, 1, 1,
+			e.undercut and 1 or 1, e.undercut and 0.5 or 1, e.undercut and 0.25 or 1)
+		t:AddLine(L["(Auctionator's last scan, each)"], 0.6, 0.6, 0.6)
+	end
 	local left = a.ends and (a.ends - now)
 	if left then
 		t:AddLine(left > 0 and L["%s left"]:format(MA.Left(left)) or L["time ran out %s"]:format(ns.Ago(-left)), 1, 1, 1)
@@ -115,22 +120,40 @@ local function SoldRow(key, i, s, mine, who, now)
 	}
 end
 
+--- The auction house's price for one now (Auctionator's last scan; 0.62.0), and whether yours is above it: undercut.
+local function Market(a, link, over)
+	local AN = ns.Auctionator
+	if over or not (AN and AN.On and AN.On()) then return nil end
+	local l = link or a.link
+	local id = type(l) == "string" and tonumber(l:match("|Hitem:(%d+)")) or nil
+	local market = AN.Price(id, l)
+	if not market then return nil end
+	local each = a.each or (a.price and a.price / math.max(1, a.count or 1))
+	return market, each ~= nil and market < each
+end
+
 --- An auction up now, or whose time ran out.
 local function UpRow(key, id, a, mine, who, now)
 	local bits = Said(a, now)
 	local plain = table.concat(bits, ", ")
 	local d = {}
 	for _, b in ipairs(bits) do d[#d + 1] = b end
-	if not mine then d[#d + 1] = GREY .. who .. "|r" end
 	local over = a.ends and a.ends <= now or false
 	local _, link, q, icon = MA.ItemFacts(nil, a.link, a.name)
+	local market, undercut = Market(a, link, over)
+	if market then
+		d[#d + 1] = undercut and ("|cffff8040" .. L["undercut: AH %s"]:format(Money(market, true)) .. "|r")
+			or ("|cff8a8a8a" .. L["AH %s"]:format(Money(market, true)) .. "|r")
+	end
+	if not mine then d[#d + 1] = GREY .. who .. "|r" end
 	local name = NameOf(a) .. (((a.count or 1) > 1) and (" x" .. a.count) or "")
 	return {
 		key = "up:" .. key .. ":" .. id, name = name, auction = a, auctionID = id, ahKind = over and "over" or "up",
+		market = market, undercut = undercut or nil,
 		boxKey = key, who = who, mine = mine or nil, ends = a.ends,
 		color = over and GREY or ns.QualityHex(q), icon = icon or ICON, link = link or a.link,
 		detail = ns.Detail(unpack(d)), plain = plain,
-		text = "auction auctions ah " .. (over and "ran out expired " or "listed selling up ") .. NameOf(a) .. " " .. who,
+		text = "auction auctions ah " .. (over and "ran out expired " or "listed selling up ") .. (undercut and "undercut " or "") .. NameOf(a) .. " " .. who,
 		holders = { { who = who, mine = mine or nil, where = "auctions", count = a.count or 1 } },
 		tooltip = Tooltip, activate = Show, secondary = ToChatBox,
 		secondarySecure = CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, shareLink = ShareText,
@@ -212,7 +235,8 @@ for w in ([[my me i im am the a an of is are do does did have has got any whats 
 local SUBJECT = { auction = true, auctions = true, ah = true, listings = true, listing = true }
 -- the auctioneer's words too (Simple mode's role words: "auction", "ah"): about your auctions only when asked
 local WEAK = { auction = true, ah = true }
-local CUE = { sold = "sold", selling = "up", listed = "up", up = "up", posted = "up", active = "up", sell = "up" }
+local CUE = { sold = "sold", selling = "up", listed = "up", up = "up", posted = "up", active = "up", sell = "up", undercut = "undercut",
+	undercutted = "undercut", undercuts = "undercut", beaten = "undercut", outbid = nil }
 -- "auction mail" is the mail's question (Mail.lua)
 local MAIL = { mail = true, mails = true, mailbox = true, inbox = true, letter = true, letters = true }
 
@@ -230,13 +254,14 @@ function AU.Question(text)
 		elseif ASK[w] then asked = true
 		else rest[#rest + 1] = w end
 	end
-	-- "what am i selling": selling with asking words is about your auctions too ("what's up" isn't: 0.49.2, review)
-	if not subject and not (cues.up and selling and asked and #rest == 0) then return nil end
+	-- "what am i selling": selling with asking words is about your auctions too ("what's up" isn't: 0.49.2, review);
+	-- "am i undercut", "undercut auctions" (Auctionator's prices, 0.62.0)
+	if not subject and not (cues.up and selling and asked and #rest == 0) and not (cues.undercut and #rest == 0) then return nil end
 	if subject and weak and not asked and not next(cues) then return nil end
 	-- other words: asked, and with what auctions do (sold, selling, listed) or "auctions" itself, as the mail's question
 	-- does ("where is the ah", "show me the auction house" are searches: they said "No auction has that"; 0.49.2, review)
 	if #rest > 0 and not (asked and (selling or not weak)) then return nil end
-	return { words = rest, sold = cues.sold, up = cues.up and not cues.sold or nil }
+	return { words = rest, sold = cues.sold, up = cues.up and not cues.sold or nil, undercut = cues.undercut }
 end
 
 function AU.Answer(q)
@@ -246,11 +271,12 @@ function AU.Answer(q)
 	local rows = {}
 	-- (the filters Alt+` writes, is:sold and is:listed: one test for both ways of asking; Filters/Others.lua)
 	local F = ns.Filters
-	local sold, listed = F.Parse("is:sold"), F.Parse("is:listed")
+	local sold, listed, undercut = F.Parse("is:sold"), F.Parse("is:listed"), q.undercut and F.Parse("is:undercut")
 	for _, e in ipairs(all) do
 		local ok = true
 		if q.sold and not sold(e) then ok = false end
 		if q.up and not listed(e) then ok = false end
+		if undercut and not undercut(e) then ok = false end
 		local hay = ok and (Lower(e.name) .. " " .. (e._ltext or Lower(e.text or ""))) or ""
 		for _, w in ipairs(q.words or {}) do if ok and not hay:find(w, 1, true) then ok = false end end
 		if ok then rows[#rows + 1] = e end
@@ -258,6 +284,7 @@ function AU.Answer(q)
 	ns.ScoreInOrder(rows)
 	if #rows == 0 then
 		if #all == 0 then return { NoteRow(AU.NONE) }, AU.NOTE end
+		if q.undercut then return { NoteRow(L["None of your auctions is undercut, as Auctionator last saw the auction house"]) }, AU.NOTE end
 		return { NoteRow(L["No auction has that"]) }, AU.NOTE
 	end
 	local up = 0
@@ -270,6 +297,7 @@ function AU.ToAdvanced(q)
 	local parts = { "@auction" }
 	if q.sold then parts[#parts + 1] = "is:sold" end
 	if q.up then parts[#parts + 1] = "is:listed" end
+	if q.undercut then parts[#parts + 1] = "is:undercut" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	return table.concat(parts, " ") .. " "
 end

@@ -688,6 +688,9 @@ Scan.ANSWERS = {
 	Asks("TurnIn"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
+	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (Search/Auctionator.lua;
+	-- before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
+	Asks("AuctionatorQ"),
 	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's TakeAggregate)
 	Asks("PerField"),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")

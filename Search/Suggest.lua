@@ -22,6 +22,7 @@ local L = ns.L
 --   Turn in quests          quests in your log ready to turn in            quests to turn in
 --   Quests here / Move on   quests at your level in your zone (Questie)    quests here / where should i quest
 --   Run a dungeon           the dungeon that fits your level best          <dungeon> upgrades
+--   Post on the AH          bag items worth more there (Auctionator)       what should i auction
 --   Level <profession>      a crafting profession under its cap            <profession> plan
 
 local SG = {}
@@ -308,6 +309,17 @@ CHECKS[#CHECKS + 1] = function(build)
 	end
 end
 
+-- bag items worth posting on the auction house (Auctionator's prices): what they'd bring together
+CHECKS[#CHECKS + 1] = function(build)
+	local AN = ns.Auctionator
+	if not (AN and AN.On and AN.On()) then return end
+	local rows, total = AN.ToPost(build)
+	if #rows == 0 or total < AN.WORTH_POSTING then return end
+	return { id = "auction", name = L["Post on the auction house"], icon = "Interface\\Icons\\INV_Misc_Coin_01",
+		detail = (#rows == 1 and L["%d item"] or L["%d items"]):format(#rows) .. SEP .. L["about %s"]:format(AN.About(total)),
+		search = "what should i auction", score = 37 + math.min(math.floor(total / 100000), 20) }
+end
+
 -- the dungeon that fits your level best (its upgrades, with AtlasLoot)
 CHECKS[#CHECKS + 1] = function(build)
 	local Z = ns.Zones
@@ -576,6 +588,10 @@ end
 
 --- { line = "@questie | group by zone " } or nil: [how many] [my] <list> per|by|in each|for each <field>.
 function PF.Question(text)
+	-- ("ah value of my mats": "@mats | sum ahvalue", with Auctionator; Search/Auctionator.lua)
+	local AN = ns.Auctionator
+	local v = AN and AN.ValueQuestion and AN.ValueQuestion(text)
+	if v then return v end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local w = {}

@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.61.5 (in testing)
+## 0.62.0 (in testing)
+
+**Auctionator**
+- With Auctionator installed, Terminal reads its auction house prices (through its API for other addons; scan the auction house with Auctionator to have them).
+- Items have an **AH value**: **sort:ahvalue** (the bar's Sort: AH value), **| sum ahvalue**, **| avg ahprice**, on your bags, your alts', loot and the items recipes make.
+- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (**@item is:auctionable sort:ahvalue**).
+- **ah value of my mats** / **what are my mats worth** (**@mats | sum ahvalue**), and the same for your bags, consumables and gear.
+- **what should i do** says **Post on the auction house** when your bags would bring a gold or more, and the empty prompt may say **try: what should i auction (about 30g)** or **try: ah value of my mats (about 12g)**.
+- **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours; **am i undercut** / **@auction is:undercut** lists those.
+- **.integrations** says whether Auctionator was found.
+
 
 **What should I do?**
 - Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune; Enter lists its steps, and Enter on a step opens Attune on it), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.

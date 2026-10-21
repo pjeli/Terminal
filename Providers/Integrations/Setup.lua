@@ -102,6 +102,7 @@ ns:RegisterCommand("integrations", {
 		-- (every addon whose options Ace3 holds: @addonoption)
 		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
+		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
 		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end
 		return lines
 	end,
@@ -153,6 +154,10 @@ I.ADDONS = {
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
+-- (0.62.0: auction house prices, Search/Auctionator.lua: its filters and fields say to install it)
+I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
+	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,
+	["sort:ahvalue"] = true } }
 local BY_NAME = {}
 for _, a in ipairs(I.ADDONS) do BY_NAME[a.name] = a end
 

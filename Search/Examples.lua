@@ -33,6 +33,7 @@ E.SIMPLE = {
 	{ "where should i fish", nil, "field" }, { "where is hogger", "Questie", "field" }, { "vendor goldshire", "Questie", "field" },
 	{ "nearest spirit healer", "Questie", "field" }, { "nearest unlearned flight master", nil, "field" },
 	{ "quests to drop", nil, "field" }, { "stamina food", nil, "field" }, { "attack power food", nil, "field" },
+	{ "ah value of my mats", "Auctionator", "city" }, { "what should i auction", "Auctionator", "city" },
 	{ "use hearthstone", nil, "field" }, { "durability", nil, "field" }, { "quests to turn in", nil, "field" },
 	{ "quests here", "Questie", "field" }, { "quests per zone", "Questie", "field" }, { "dungeons at my level", nil, "field" },
 	-- in a dungeon
@@ -166,6 +167,15 @@ local function SimpleExamples(f, add)
 	if f.zone then add("vendor " .. f.zone, "Questie", "field") end
 	if f.inGuild then add("online") end
 	add("nearest flight master", nil, "field")
+	-- (Auctionator: what your bags would bring, from the lists as last read; the amount is a note, not typed)
+	local AN = ns.Auctionator
+	if AN and AN.On and AN.On() then
+		local _, total = AN.ToPost(false)
+		if total >= AN.WORTH_POSTING then add("what should i auction (" .. L["about %s"]:format(AN.About(total)) .. ")", "Auctionator", "city") end
+		local mats = 0
+		for _, e in ipairs(Entries("mats")) do mats = mats + (AN.ValueOf(e) or 0) end
+		if mats >= AN.WORTH_POSTING then add("ah value of my mats (" .. L["about %s"]:format(AN.About(mats)) .. ")", "Auctionator", "city") end
+	end
 end
 
 --- What an example needs is here: its addon installed, your guild, your group.
