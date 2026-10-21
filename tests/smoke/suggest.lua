@@ -103,7 +103,7 @@ do
 	SG.Forget()
 	local cq
 	for _, r in ipairs(SG.Rows(true, 20)) do if r.suggestId == "classquest" then cq = r end end
-	check(cq and cq.name:find("Mage's Quest", 1, true) and cq.detail:find("20%", 1, true) and cq.searchText == "class quests",
+	check(cq and cq.name:find("Mage's Quest", 1, true) and cq.detail:find("20%", 1, true) and cq.searchText == "steps for mage's quest",
 		"your class quest for your level: " .. tostring(cq and cq.name))
 	AT.RecOf, AT.Mine = saveRec, saveMine
 	ns.providers.attune = nil

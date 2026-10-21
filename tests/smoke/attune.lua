@@ -252,6 +252,27 @@ do
 	check(Names(res) == "Reach level 10 | Collecting Memories | The Defias Brotherhood | Miners' Union Card | The Defias Brotherhood, Part Two | Collecting Memories",
 		"the Deadmines: by their numbers: " .. Names(res))
 	check(res[4].detail:find("get 4", 1, true), "an item needed four times: " .. res[4].detail)
+	-- (0.61.0, the player: "hitting enter on the recommended class quest suggestion should take me to that specific
+	-- quest/attunement's steps") "what should i do"'s class quest: Enter lists that one's steps, in Simple mode too
+	do
+		local SG = ns.Suggest
+		SG.Forget()
+		local cq
+		local mine = AT.Mine
+		AT.Mine = function(rec) if rec.group == "class" then return 0 end return mine(rec) end -- (this one's done here: not yet)
+		for _, r in ipairs(SG.Rows(true, 20)) do if r.suggestId == "classquest" then cq = r end end
+		AT.Mine = mine
+		check(cq and cq.name:find("A Warrior's Training", 1, true) and cq.searchText == "steps for a warrior's training",
+			"the class quest suggested, its steps searched: " .. tostring(cq and cq.searchText))
+		ns.db.easyMode = true; UI:EasyChanged()
+		UI:Open(""); UI.results = { cq }; UI.sel = 1
+		UI:Activate(); FlushAll()
+		local got = UI.Results()
+		check(UI.edit:GetText() == cq.searchText and #got > 0 and got[1].isStep, "Enter: its steps: " .. Names(got))
+		UI:Hide(); FlushAll()
+		ns.db.easyMode = false; UI:EasyChanged()
+		SG.Forget()
+	end
 	-- (0.55.20, the player: "outline what the steps are") numbered by Attune's columns, each line its letter: the level 1,
 	-- one line 2a 3a 4a, the other 2b 3b
 	local labels = {}

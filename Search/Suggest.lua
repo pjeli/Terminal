@@ -17,7 +17,7 @@ local L = ns.L
 --   Train new spells        class spells you can learn now                 nearest <class> trainer / what can i train
 --   Learn a weapon skill    weapon skills a weapon master teaches you now  nearest <weapon> trainer
 --   <Profession>: next rank skill at the cap, the next rank learnable      nearest <profession> trainer
---   Class quest             one of Attune's class quests for your level    class quests
+--   Class quest             one of Attune's class quests for your level    steps for <its name> (Enter on a step: Attune)
 --   Turn in quests          quests in your log ready to turn in            quests to turn in
 --   Quests here / Move on   quests at your level in your zone (Questie)    quests here / where should i quest
 --   Run a dungeon           the dungeon that fits your level best          <dungeon> upgrades
@@ -219,7 +219,8 @@ CHECKS[#CHECKS + 1] = function(build)
 	if not best then return end
 	local parts = { L["Lv %d"]:format(best.need), best.pct > 0 and L["%d%% done"]:format(best.pct) or L["not started"] }
 	return { id = "classquest", name = L["Class quest: %s"]:format(Str(best.e.name) or "?"), detail = table.concat(parts, SEP),
-		icon = "Interface\\Icons\\INV_Misc_Note_01", search = "class quests", score = 60 }
+		-- (Enter: that quest's steps, each Enter opening Attune on it; 0.61.0, the player's ask)
+		icon = "Interface\\Icons\\INV_Misc_Note_01", search = "steps for " .. Lower(Str(best.e.name) or ""), score = 60 }
 end
 
 -- quests ready to turn in

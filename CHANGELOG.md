@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.61.0 (in testing)
+## 0.61.1 (in testing)
 
 **What should I do?**
-- Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
+- Ask **what should i do** (or **what now**, **suggestions**, **im bored**) for what's worth doing now, the most pressing first: gear to repair when a piece is low, junk to sell (grey items, or bags nearly full), class spells or a weapon skill to train, a profession at its cap with its next rank to learn (or one to level, with its plan), your class quest once you're its level (Attune; Enter lists its steps, and Enter on a step opens Attune on it), quests ready to turn in, quests at your level where you are or a better zone to move on to (Questie), and the dungeon that fits your level (its upgrades, with AtlasLoot). Each row says why; Enter searches for it ("nearest repair", "nearest vendor", "nearest mage trainer", "quests to turn in"...), and its tooltip shows the same search in Advanced syntax.
 - Simple mode's empty prompt lists the top few under the faint example, from what Terminal has already read (opening the terminal builds nothing). Down goes through them; Up still brings back what you ran. **Things to do** in Options (or **.set todo off**) turns them off.
 
 **Plain questions, and their Advanced syntax**
