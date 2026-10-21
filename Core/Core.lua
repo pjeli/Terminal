@@ -581,6 +581,8 @@ function ns:DropIdle(now)
 			p._entries, p._dirty = nil, true
 			if p.onDrop then pcall(p.onDrop) end
 			ns.entriesGen = ns.entriesGen + 1
+			-- (a list made from this one keeps no hold on its rows: @bank's on @stored's; release review, 0.63.0)
+			for _, f in pairs(self.providers) do if f.follows == p.id then f._followed = nil end end
 		end
 	end
 end

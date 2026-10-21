@@ -72,3 +72,25 @@ P.stored = saveStored
 ns:AliasesChanged()
 P.bank._dirty = true
 UI.lastScan, UI.lastExtra = nil, nil
+
+-- (release review, 0.63.0) @bank lets go of @stored's rows with it; its rows are searched by their own place
+do
+	local P2 = ns.providers
+	local saveStored = P2.stored
+	ns:RegisterProvider("stored", { label = "Alts & bank", aliases = { "stored" }, explicit = true, idleDrop = 600, collect = function()
+		local h1, h2 = { key = "me|bank", who = "Me", where = "bank", count = 4, mine = true }, { key = "alt|mail", who = "Alty", where = "mail", count = 9 }
+		return { { name = "Iron Ore", key = 2772, itemID = 2772, holders = { [h1.key] = h1, [h2.key] = h2 }, total = 13, text = "stored Me bank Alty mail" } }
+	end })
+	ns:AliasesChanged()
+	P2.bank._dirty = true
+	local rows = ns:GetEntries(P2.bank)
+	check(#rows == 1 and rows[1]._ltext and not rows[1]._ltext:find("alty", 1, true) and not rows[1]._ltext:find("mail", 1, true),
+		"@bank's row isn't found by @stored's other holders (\"@bank mail\", \"@bank alty\"): " .. tostring(rows[1] and rows[1]._ltext))
+	check(P2.bank._followed ~= nil, "(it follows @stored's list)")
+	P2.stored._usedAt, P2.bank._usedAt = 0, 0
+	ns:DropIdle(10000)
+	check(P2.stored._entries == nil and P2.bank._followed == nil, "@stored let go unused: @bank holds none of its rows")
+	P2.stored = saveStored
+	ns:AliasesChanged()
+	P2.bank._dirty = true
+end

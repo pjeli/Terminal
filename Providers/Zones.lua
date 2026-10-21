@@ -137,11 +137,13 @@ function Z.Question(text)
 	-- "where should i ...", "where to ...", "where can i ...", "where do i ..."
 	local where = has.where and (has.should or has.to or has.can or has["do"])
 	-- ("dungeons at my level", 0.61.0: as "for my level"; "quests at my level" stays a search)
-	local at = has.at and (any(DUNGEON_WORDS) or any(RAID_WORDS))
+	local at = has.at and (any(DUNGEON_WORDS) or any(RAID_WORDS)) and not (has.quest or has.quests) -- ("dungeon quests at my level": a search)
 	local cue = where or any(CUES) or (has["for"] or at) and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
 	if not cue then return nil end
 	-- ("best dungeon for upgrades", 0.61.0: the dungeon for your level; "quest upgrades" are QuestUpgrades.lua's)
-	if (has.upgrade or has.upgrades) and not (any(DUNGEON_WORDS) or any(RAID_WORDS)) then return nil end
+	-- (and asked which: "best dungeon for upgrades"; "dungeon upgrades for my level" stays is:upgrade's search; release
+	-- review, 0.63.0)
+	if (has.upgrade or has.upgrades) and not ((any(DUNGEON_WORDS) or any(RAID_WORDS)) and any(CUES)) then return nil end
 	if any(FISH_WORDS) then return "fish", level end
 	if any(DUNGEON_WORDS) then return "dungeon", level end
 	if any(RAID_WORDS) then return "raid", level end

@@ -157,12 +157,21 @@ function AN.VendorOf(e)
 end
 
 
+--- Bound however it's held (picked up, a quest's, the account's): never posted. A row of @stored or @bank says nothing
+--- of its stacks' binding, the item's own type does (one equipped and banked, bound since, isn't known).
+local BOUND = { [1] = true, [4] = true, [7] = true, [8] = true, [9] = true }
+function AN.BindsOnPickup(e)
+	local F = ns.Filters
+	local info = F and F._ and F._.ItemInfo and F._.ItemInfo(ItemID(e))
+	return info ~= nil and BOUND[info.bindType] == true
+end
+
 --- Worth posting: in your bags (not bound, not a quest's) or held in your bank, on your alts (@bank, @stored), the
 --- auction house paying more than a vendor.
 function AN.Auctionable(e)
 	if type(e) ~= "table" then return false end
 	if HELD[e.kind] then
-		if AN.SellableCount(e) <= 0 then return false end
+		if AN.SellableCount(e) <= 0 or AN.BindsOnPickup(e) then return false end
 	elseif not OWN_KINDS[e.kind] or not rawget(e, "locs") or rawget(e, "slotId") or e.questItem or e.bound then
 		return false -- (any stack bound: its count would take them in)
 	end
@@ -181,8 +190,9 @@ function AN.DetailFor(e, field)
 	local parts = { L["AH %s each"]:format(Money(each)) }
 	if n > 1 then parts[#parts + 1] = L["x%d: %s"]:format(n, Money(each * n)) end
 	local d = type(e.detail) == "string" and e.detail or ""
-	-- (its own detail without the count it starts with: "x185  Bag 4" -> "Bag 4", "x112 · bank" -> "bank")
-	d = d:gsub("^x%d+%s*", ""):gsub("^" .. SEP:gsub("%p", "%%%0"), ""):gsub("^%s+", "")
+	-- (its own detail without the count it starts with: "x185  Bag 4" -> "Bag 4", "x112  ·  bank" -> "bank"; none to
+	-- post, bound: its count kept)
+	if n > 0 then d = d:gsub("^x%d+", ""):gsub("^%s*·%s*", ""):gsub("^%s+", "") end
 	if d ~= "" then parts[#parts + 1] = d end
 	return table.concat(parts, SEP)
 end
@@ -296,13 +306,13 @@ local function Scope(words, from)
 	for k = from, #words do
 		local w = words[k]
 		local place = SCOPE_PLACE[w]
-		if place == "all" then set.bags, set.bank, set.alts, any = true, true, true, true
+		if place == "all" then set.bags, set.bank, set.alts, set.all, any = true, true, true, true, true
 		elseif place then set[place], any = true, true
 		elseif not SCOPE_FILL[w] then return nil end
 	end
 	-- ("all my characters": everywhere)
 	if not any and #words >= from then
-		for k = from, #words do if words[k] == "characters" then set.bags, set.bank, set.alts = true, true, true return set end end
+		for k = from, #words do if words[k] == "characters" then set.bags, set.bank, set.alts, set.all = true, true, true, true return set end end
 		return nil
 	end
 	return any and set or nil
@@ -336,8 +346,8 @@ local function Where(e, want)
 	local parts = {}
 	for _, h in pairs(e.holders) do
 		if AN.SELLABLE[h.where] and (h.count or 0) > 0 and (not want or want(h)) then
-			parts[#parts + 1] = (h.mine and (WHERE[h.where] or h.where) or (tostring(h.who) .. " " .. (WHERE[h.where] or h.where)))
-				.. " " .. h.count
+			local place = WHERE[h.where] or h.where
+			parts[#parts + 1] = ((h.mine or h.where == "warband") and place or (tostring(h.who) .. " " .. place)) .. " " .. h.count
 		end
 	end
 	table.sort(parts)
@@ -366,7 +376,9 @@ function AN.ToPostIn(places)
 		for _, e in ipairs(AN.ToPost(true)) do Add(e, CountOf(e), (places.bank or places.alts) and L["bags"] or nil) end
 	end
 	local function want(h)
-		if h.mine then return (places.bank and h.where == "bank") or false end
+		-- (yours: your bank; everywhere, your mail and void storage too, the warband bank; your bags are the items')
+		if h.mine then return (places.bank and h.where == "bank") or (places.all and h.where ~= "bags") or false end
+		if h.where == "warband" then return places.all == true or places.bank == true end
 		return places.alts == true
 	end
 	if places.bank or places.alts then
@@ -417,8 +429,13 @@ end
 --- As Advanced syntax: your bags' @item, your bank's @bank, else @stored (your alts and banks).
 function Q.ToAdvanced(q)
 	local pl = (q and q.places) or { bags = true }
-	local kind = (pl.alts or (pl.bags and pl.bank)) and "@stored" or (pl.bank and "@bank") or "@item"
-	return kind .. " is:auctionable sort:ahvalue "
+	-- (your bags are @item, your bank @bank, your alts' @stored; together, each list named)
+	local kinds = {}
+	if pl.bags then kinds[#kinds + 1] = "@item" end
+	if pl.alts then kinds[#kinds + 1] = "@stored"
+	elseif pl.bank then kinds[#kinds + 1] = "@bank" end
+	if #kinds == 0 then kinds[1] = "@item" end
+	return table.concat(kinds, " ") .. " is:auctionable sort:ahvalue "
 end
 
 -- "ah value of my mats", "what are my mats worth", "my bags ah value": a list summed up by its AH value
@@ -429,6 +446,10 @@ local LISTS = { mats = "@mats", materials = "@mats", mat = "@mats", reagents = "
 local VALUE_FILL = { the = true, my = true, of = true, what = true, whats = true, are = true, is = true, how = true, much = true,
 	["in"] = true, on = true, at = true, total = true, all = true, worth = true, value = true, ah = true, auction = true,
 	house = true, price = true, prices = true, sum = true, me = true, i = true, ["do"] = true, have = true }
+
+-- (Search.lua's Scan.ANSWERS: Asks("AhValueQ"), for Alt+`; the search runs its line, UI/Results.lua's TakeAggregate)
+ns.AhValueQ = { Question = function(text) return AN.ValueQuestion(text) end, Answer = function() return nil end,
+	ToAdvanced = function(q) return q.line end }
 
 --- { line = "@mats | sum ahvalue " } or nil: a list (mats, bags, consumables, gear) and the auction house's worth of it.
 function AN.ValueQuestion(text)

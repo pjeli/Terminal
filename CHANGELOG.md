@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.62.3 (in testing)
+## 0.62.4 (in testing)
 
 **Your bank**
 - **@bank** is this character's own bank (what's in it, how many; the game's own word for the bank names it too, in every language); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)

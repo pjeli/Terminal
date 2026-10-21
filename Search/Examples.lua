@@ -275,13 +275,14 @@ local function Pool()
 	local level = UnitLevel and Num(Safe(UnitLevel, "player"))
 	local zone = GetRealZoneText and Str(Safe(GetRealZoneText))
 	local place, setup = E.Place(), Setup()
+	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and pool.place == place
+		and pool.setup == setup and now - (pool.made or 0) < 60 then
+		return pool.list
+	end
+	-- (asked only when the pool is made again, a minute on: not on every open; release review, 0.63.0)
 	local SG = ns.Suggest
 	local pressing = false
 	if not adv and SG and SG.Pressing then local ok, p = pcall(SG.Pressing); pressing = ok and p or false end
-	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and pool.place == place
-		and pool.setup == setup and pool.pressing == pressing and now - (pool.made or 0) < 60 then
-		return pool.list
-	end
 	local cands = {}
 	for _, x in ipairs(adv and E.ADVANCED or E.SIMPLE) do
 		-- (Advanced's: the second field is where; Simple's: what it needs, then where)

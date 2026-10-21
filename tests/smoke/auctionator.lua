@@ -10,7 +10,7 @@ io.write("[auctionator: auction house prices from its public API]\n")
 check(AN and not AN.On(), "Auctionator.lua loaded; without Auctionator: off")
 check(AN.Price(2589) == nil and AN.ValueOf({ kind = "items", itemID = 2589, count = 5 }) == nil, "without it: no price")
 check(not ns.AuctionatorQ.Question("what should i auction"), "without it: \"what should i auction\" isn't asked")
-check(ns.PerField.Question("ah value of my mats") == nil, "without it: \"ah value of my mats\" isn't rewritten")
+check(AN.ValueQuestion("ah value of my mats") == nil and ns.PerField.Line("ah value of my mats") == nil, "without it: \"ah value of my mats\" isn't rewritten")
 check(ns.Integrations.AddonMissing("Auctionator"), "the hint system knows it's missing")
 -- (review) without it, "undercut" is a word of the search: not your auctions' question saying none is
 check(ns.Auctions.Question("am i undercut") == nil and ns.Auctions.Question("undercut") == nil and ns.Auctions.Question("beaten") == nil,
@@ -178,11 +178,11 @@ check(ns.QuestionToAdvanced("what should i auction") == "@item is:auctionable so
 for line, want in pairs({ ["ah value of my mats"] = "@mats | sum ahvalue ", ["what are my mats worth"] = "@mats | sum ahvalue ",
 	["mats ah value"] = "@mats | sum ahvalue ", ["ah value of my bags"] = "@item in:bags | sum ahvalue ",
 	["how much are my consumables worth on the ah"] = "@consumables | sum ahvalue " }) do
-	local q = ns.PerField.Question(line)
+	local q = AN.ValueQuestion(line)
 	check(q and q.line == want, ("%q: %s"):format(line, tostring(q and q.line)))
 	check(ns.QuestionToAdvanced(line) == want, "Alt+`: " .. tostring(ns.QuestionToAdvanced(line)))
 end
-check(ns.PerField.Question("mats") == nil and ns.PerField.Question("ah value of hogger") == nil, "not every line")
+check(AN.ValueQuestion("mats") == nil and AN.ValueQuestion("ah value of hogger") == nil, "not every line")
 for _, simple in ipairs({ true, false }) do
 	ns.db.easyMode = simple; UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil
@@ -251,6 +251,71 @@ do
 	ns.providers.stored = nil
 	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "stored" then table.remove(ns.providerOrder, i) end end
 	ns:AliasesChanged()
+end
+
+-- (release review, 0.63.0)
+do
+	local function H(who, where, n, mine) return { key = who .. "|" .. where, who = who, where = where, count = n, mine = mine } end
+	local STORED = {
+		{ name = "Linen Cloth", id = 2589, holders = { H("Me", "bank", 12, true), H("Me", "mail", 3, true), H("Warband", "warband", 4), H("Alt", "bags", 5) } },
+		{ name = "Hearthstone", id = 6948, holders = { H("Me", "bank", 1, true) } },
+	}
+	ns:RegisterProvider("stored", { label = "Alts & bank", aliases = { "stored", "alts" }, explicit = true, collect = function()
+		local out = {}
+		for i, r in ipairs(STORED) do
+			local hs, total = {}, 0
+			for _, h in ipairs(r.holders) do hs[h.key] = h; total = total + h.count end
+			out[i] = { name = r.name, key = r.id, itemID = r.id, holders = hs, total = total, link = Link(r.id), detail = "x" .. total .. ns.DETAIL_SEP .. "4 places" }
+		end
+		return out
+	end })
+	ns:AliasesChanged()
+	local st = {}
+	for _, e in ipairs(ns:GetEntries(ns.providers.stored)) do st[e.name] = e end
+	-- the detail of a search sorted by AH value: no separator left over from the count taken off
+	local d = AN.DetailFor(st["Linen Cloth"], "ahvalue")
+	check(d and not d:find(ns.DETAIL_SEP .. ns.DETAIL_SEP, 1, true) and not d:find("·%s*·") and d:find("4 places", 1, true), "one separator each: " .. tostring(d))
+	-- a held item bound on pickup: not worth posting, whatever the price
+	PRICES[6948], VENDOR[6948] = 5000, 0
+	local saveInfo = C_Item.GetItemInfo
+	C_Item.GetItemInfo = function(id)
+		if id == 6948 then return "Hearthstone", Link(6948), 1, 1, 1, "Misc", "Junk", 1, "", 0, 0, 15, 0, 1 end
+		return saveInfo(id)
+	end
+	F.ClearCache(); AN.Forget()
+	check(not AN.Auctionable(st["Hearthstone"]), "@stored's Hearthstone (bound on pickup): not auctionable")
+	C_Item.GetItemInfo = saveInfo
+	PRICES[6948], VENDOR[6948] = nil, 0
+	F.ClearCache(); AN.Forget()
+	-- everywhere: your mail and the warband bank too; the warband's said without a name
+	local rows = ns.AuctionatorQ.Answer(ns.AuctionatorQ.Question("what should i auction everywhere"))
+	local linen
+	for _, e in ipairs(rows) do if e.name == "Linen Cloth" then linen = e end end
+	-- (bags 20 from @item, bank 12, mail 3, warband 4, alt 5)
+	check(linen and linen._ahvalue == 50 * (20 + 12 + 3 + 4 + 5), "everywhere: bags, bank, mail, warband, alts: " .. tostring(linen and linen._ahvalue))
+	rows = ns.AuctionatorQ.Answer(ns.AuctionatorQ.Question("what should i auction in my bank"))
+	linen = nil
+	for _, e in ipairs(rows) do if e.name == "Linen Cloth" then linen = e end end
+	check(linen and linen.detail:find(L["warband bank"] .. " 4", 1, true) and not linen.detail:find("Warband " .. L["warband bank"], 1, true),
+		"your bank and the warband's (said once): " .. tostring(linen and linen.detail))
+	for line, want in pairs({ ["what should i auction"] = "@item is:auctionable sort:ahvalue ", ["what should i auction in my bank"] = "@bank is:auctionable sort:ahvalue ",
+		["what should i auction from my bags and bank"] = "@item @bank is:auctionable sort:ahvalue ",
+		["what should i auction everywhere"] = "@item @stored is:auctionable sort:ahvalue " }) do
+		check(ns.QuestionToAdvanced(line) == want, ("%q as Advanced: %s"):format(line, tostring(ns.QuestionToAdvanced(line))))
+	end
+	ns.providers.stored = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "stored" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	-- an answer after a search sorted by AH value: its rows keep their own detail; -is:auctionable shows none
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+	UI:Open(""); UI:SetQuery("@item sort:ahvalue ", 19); FlushAll()
+	check(UI.showField == "ahvalue", "(sorted by AH value)")
+	UI:SetQuery("what should i auction", 21); FlushAll()
+	check(UI.showField == nil, "then a question: its own details")
+	UI:SetQuery("@item -is:auctionable ", 22); FlushAll()
+	check(UI.showField == nil, "-is:auctionable: no AH details")
+	UI:Hide(); FlushAll()
 end
 
 -- "what should i do": worth posting, once it comes to a gold

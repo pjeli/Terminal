@@ -1741,8 +1741,13 @@ end
 --- The line without its plain words that are part of `name` ("@questie death" for the group Deathknell: "@questie"):
 --- not @kinds, key:value filters, quoted phrases, -words or a word after "not"; an "or" before a word taken goes too.
 function A.DropNamed(line, name)
-	local lname = ns.Lower(ns.Plain(tostring(name or "")))
-	local toks, out = {}, {}
+	-- (a word starts the group's name, or one of its words: "death" Deathknell, "glades" Tirisfal Glades; not "ring" in
+	-- Winterspring: the search matches at word starts too; release review, 0.63.0)
+	local lname = " " .. ns.Lower(ns.Plain(tostring(name or ""))):gsub("[%s%p]+", " ")
+	local E = ns.Easy
+	local OR = (E and E.OR_WORDS) or { ["or"] = true }
+	local NOT = (E and E.NOT_WORDS) or { ["not"] = true }
+	local toks = {}
 	-- (quoted phrases kept whole)
 	local rest = line
 	while rest ~= "" do
@@ -1752,22 +1757,37 @@ function A.DropNamed(line, name)
 		toks[#toks + 1] = tok
 		rest = rest:sub(#sp + #tok + 1)
 	end
-	local dropped = false
-	for i, tok in ipairs(toks) do
+	-- words joined by "or" go together ("sword or axe": every row of an Axes group passes it; one side alone would
+	-- keep none of them); a word after a "not" word ("not", "no", "without", "except") is the search's own
+	local function Named(tok, prev)
 		local lw = ns.Lower(tok)
-		local plain = lw:find("^[%w']+$") and not tok:find("^@") and #lw >= 2
-		local prev = toks[i - 1] and ns.Lower(toks[i - 1])
-		local keyword = lw == "or" or lw == "and" or lw == "not"
-		if plain and not keyword and prev ~= "not" and lname:find(lw, 1, true) then
-			dropped = true
-			if prev == "or" and #out > 0 then table.remove(out) end
-		else
-			out[#out + 1] = tok
+		if #lw < 2 or OR[lw] or NOT[lw] or lw == "and" or (prev and NOT[prev]) then return false end
+		if tok:find("^[@%-!\"]") or tok:find("[:|>]") then return false end
+		return lname:find(" " .. lw, 1, true) ~= nil
+	end
+	local out, dropped, k = {}, false, 1
+	while k <= #toks do
+		-- a run: a word, then ("or" word)*
+		local run, drop = { k }, false
+		local prev = toks[k - 1] and ns.Lower(toks[k - 1])
+		if Named(toks[k], prev) then drop = true end
+		local m = k
+		while toks[m + 2] and OR[ns.Lower(toks[m + 1])] do
+			run[#run + 1] = m + 1
+			run[#run + 1] = m + 2
+			if Named(toks[m + 2], ns.Lower(toks[m + 1])) then drop = true end
+			m = m + 2
 		end
+		if drop and not (prev and NOT[prev]) then
+			dropped = true
+		else
+			for _, idx in ipairs(run) do out[#out + 1] = toks[idx] end
+		end
+		k = m + 1
 	end
 	if not dropped then return line end
-	-- ("x or": a trailing "or" left by the word after it going)
-	while #out > 0 and (ns.Lower(out[#out]) == "or" or ns.Lower(out[#out]) == "and") do table.remove(out) end
+	-- (a "not" word or "or" left at the end with nothing after it)
+	while #out > 0 and (OR[ns.Lower(out[#out])] or NOT[ns.Lower(out[#out])] or ns.Lower(out[#out]) == "and") do table.remove(out) end
 	return table.concat(out, " ")
 end
 

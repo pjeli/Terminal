@@ -546,6 +546,7 @@ ns:RegisterProvider("bank", {
 	aliases = { "bank", "mybank" },
 	explicit = true, -- (the same items as @stored: only asked for)
 	follows = "stored", -- (made again whenever @stored is)
+	idleDrop = 600, -- (let go with @stored's, unused: its rows hold @stored's holders)
 	busy = function() return S.Busy() end,
 	collect = function()
 		local out = {}
@@ -556,6 +557,8 @@ ns:RegisterProvider("bank", {
 				for k, v in pairs(e) do c[k] = v end -- (a copy: the @stored row keeps every holder)
 				c.holders = { [h.key] = h }
 				c.total = h.count
+				-- (searched by its name and its place, not by every holder @stored's row has: "@bank mail")
+				c.text, c._ltext = nil, ns.Lower("bank " .. tostring(h.who or ""))
 				c.detail = "x" .. h.count .. ns.DETAIL_SEP .. L["bank"]
 				out[#out + 1] = c
 			end
@@ -592,12 +595,11 @@ function BQ.Answer()
 	local rows = {}
 	for _, e in ipairs(ns:GetEntries(p)) do rows[#rows + 1] = e end
 	if #rows == 0 then
-		return { ns.NoteRow(L["Nothing kept in your bank yet: open it once with your bag addon running"]) }, note
+		local busy = S.Busy() -- (Syndicator still reading your characters)
+		return { ns.NoteRow(busy or L["Nothing kept in your bank yet: open it once with your bag addon running"]) }, note
 	end
 	table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
 	ns.ScoreInOrder(rows)
-	local n = 0
-	for _, e in ipairs(rows) do n = n + (e.total or 0) end
 	return rows, note .. ns.DETAIL_SEP .. ((#rows == 1 and L["%d item"] or L["%d items"]):format(#rows))
 end
 

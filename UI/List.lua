@@ -475,11 +475,13 @@ end
 --- A row's text: its name with the matched letters, the icon, the detail (or what it's needed for), the kind.
 --- A text's whole width, however much room it has.
 local function Unbounded(fs)
-	for _, f in ipairs({ fs.GetUnboundedStringWidth, fs.GetStringWidth }) do
+	local f = fs.GetUnboundedStringWidth
+	if f then
 		local ok, w = pcall(f, fs)
 		if ok and type(w) == "number" and w > 0 then return w end
 	end
-	return 0
+	local ok, w = pcall(fs.GetStringWidth, fs)
+	return ok and type(w) == "number" and w or 0
 end
 
 --- The detail's room on this row (and the name's, which ends where it begins).
@@ -497,6 +499,10 @@ end
 --- of the row (cut there when both are long), the detail the rest.
 UI.NAME_SHARE = 0.4
 local function FitDetail(r)
+	-- (measured when the row's texts or the layout change, not on every render; release review, 0.63.0)
+	local name, detail = r.label:GetText(), r.detail:GetText()
+	if r.fitName == name and r.fitDetail == detail and r.fitSpan == LY.SPAN and r.fitBase == LY.DETAIL_W and type(r.detailW) == "number" then return end
+	r.fitName, r.fitDetail, r.fitSpan, r.fitBase = name, detail, LY.SPAN, LY.DETAIL_W
 	local span, base = LY.SPAN, LY.DETAIL_W
 	local w = base
 	if span and span > base then
@@ -556,9 +562,12 @@ local function FillRow(self, r, e, light)
 		r.distShown, r.distRest = true, rest
 		r.dist:SetText(L["%d yd"]:format(tonumber(yd:match("%d+")) or 0)) -- (the detail says "N yd" in English: read here)
 		r.dist:Show()
-		SetDetailW(r, LY.DETAIL_W) -- (the distance's column lines up on every such row: the detail's room as it was)
-		r.detail:SetWidth(math.max(1, LY.DETAIL_W - LY.NAV_SLOT - LY.DIST_W - 6))
-		r.detailW = nil
+		-- (the distance's column lines up on every such row: the detail's room as it was; set once while it stays one)
+		if r.detailW ~= "dist" then
+			SetDetailW(r, LY.DETAIL_W)
+			r.detail:SetWidth(math.max(1, LY.DETAIL_W - LY.NAV_SLOT - LY.DIST_W - 6))
+			r.detailW = "dist"
+		end
 		r.detail:SetJustifyH("LEFT")
 		r.detail:SetText(rest)
 	else

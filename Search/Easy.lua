@@ -751,7 +751,10 @@ function E.TrainerProfs(words, trainerSaid)
 	-- (0.61.0) "my", "class", "weapon(s)", "master(s)" name no one: set aside while the profession, class or weapon is
 	-- looked for ("my mining trainer", "fist weapons trainer": trainer:mining, trainer:fist); with none named, "class
 	-- trainer" / "my trainer" is your class's (trainer:class) and "weapon trainer" / "weapon master" the weapon masters
-	local ASIDE = { my = true, class = true, weapon = true, weapons = true, master = true, masters = true }
+	local weaponSaid = false
+	for _, w in ipairs(words) do if w == "weapon" or w == "weapons" then weaponSaid = true end end
+	-- ("master" is set aside only with "weapon": "master leatherworking trainer" keeps it, a word of the search)
+	local ASIDE = { my = true, class = true, weapon = true, weapons = true, master = weaponSaid, masters = weaponSaid }
 	local kept, specs, aside = {}, nil, {}
 	for k, w in ipairs(words) do
 		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
@@ -772,12 +775,11 @@ function E.TrainerProfs(words, trainerSaid)
 		end
 	end
 	if not specs then
-		if aside.weapon or aside.weapons then specs = { "is:weaponmaster" }
-		elseif aside.class or aside.my then specs = { "trainer:class" }
+		if weaponSaid then specs = { "is:weaponmaster" }
+		-- ("my trainer", "class trainer": your class's; "my riding trainer" names another one: a search, as before;
+		-- release review, 0.63.0)
+		elseif (aside.class or aside.my) and #kept == 0 then specs = { "trainer:class" }
 		else return words, nil end
-		-- ("master" without "weapon": a word of the search, as before)
-		if aside.master and not (aside.weapon or aside.weapons) then kept[#kept + 1] = "master" end
-		if aside.masters and not (aside.weapon or aside.weapons) then kept[#kept + 1] = "masters" end
 		return kept, specs
 	end
 	-- (several said: any of them, "mining herbalism trainer"; review, 0.49.17: both at once matched no one)

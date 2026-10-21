@@ -641,6 +641,7 @@ local function ApplyRowsTheme(self, t)
 		row.icon:SetSize(LY.ROW_H - 6, LY.ROW_H - 6)
 		row.detail:SetWidth(LY.DETAIL_W)
 		row.detailW = LY.DETAIL_W
+		row.fitName, row.fitDetail = nil, nil -- (List.lua's FitDetail measures again in the new layout)
 		-- (the name ends where the detail's room begins, whatever part of it a distance takes)
 		row.label:ClearAllPoints()
 		row.label:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)

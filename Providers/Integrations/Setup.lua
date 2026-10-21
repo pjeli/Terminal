@@ -149,7 +149,7 @@ I.ADDONS = {
 			return not (S and ((S.SyndicatorAPI and S.SyndicatorAPI()) or (S.BrotherBags and S.BrotherBags())
 				or (ns.Bags and ns.Bags.Bagnon and ns.Bags.Bagnon())))
 		end,
-		kinds = { stored = true, alts = true, alt = true, bank = true, banks = true, storage = true, everywhere = true,
+		kinds = { stored = true, alts = true, alt = true, bank = true, banks = true, mybank = true, storage = true, everywhere = true,
 			syndicator = true, bagnon = true },
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },

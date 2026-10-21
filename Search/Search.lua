@@ -691,10 +691,9 @@ Scan.ANSWERS = {
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (Search/Auctionator.lua;
 	-- before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
 	Asks("AuctionatorQ"),
+	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ"),
-	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's TakeAggregate)
-	Asks("PerField"),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
 	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,
@@ -803,6 +802,9 @@ Scan.ANSWERS = {
 	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
 	-- what's on the calendar, or it's a search)
 	Asks("Calendar"),
+	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's
+	-- TakeAggregate). Last: a line another question takes is that one's ("lockouts by raid": @lockout's)
+	(function() local a = Asks("PerField"); a.perField = true; return a end)(),
 }
 
 --- A plain-word question or chain as Advanced mode writes it (Alt+`: Easy.ToAdvanced), or nil when the line is none.
@@ -1059,10 +1061,21 @@ function Scan.ResetFlags(self)
 	self.linkedGuess = {}
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
+	self.showField = nil -- (an answer's rows keep their own detail; a search sorted by AH value sets it: Scan.Parse)
 	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
 	self.missingNote = nil -- (recipes you don't know listed, a profession's window not read yet: MissingRecipes.LeadRow)
 	self.overviewWinner = nil -- (Simple mode's overview: the clear winner shown above its categories: Scan.Overview)
 	self.typedPicks = nil -- (Simple mode: the filters and the sort typed as words, which the bar shows: Bar.lua)
+end
+
+--- Does a question other than "per field"'s take this line? (Suggest.lua's PF.Line: "lockouts by raid" stays @lockout's)
+function ns.PerFieldTaken(text)
+	for _, a in ipairs(Scan.ANSWERS) do
+		if a.perField then return false end
+		local ok, q = pcall(a.ask, text)
+		if ok and q then return true end
+	end
+	return false
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
@@ -1486,8 +1499,9 @@ function Scan.Prepare(self, q)
 	-- (sorted by AH value or price, or is:auctionable: the rows' detail says it, List.lua's FillRow; 0.62.2, the player:
 	-- "the value disappears from the details column when I add my bank into the mix")
 	local sf = q.sortField
-	self.showField = (sf == "ahvalue" or sf == "ahprice") and sf
-		or (ns.Lower(q.text or ""):find("is:auctionable", 1, true) and "ahvalue") or nil
+	local auctionable = false
+	for w in ns.Lower(q.text or ""):gmatch("%S+") do if w == "is:auctionable" then auctionable = true break end end
+	self.showField = (sf == "ahvalue" or sf == "ahprice") and sf or (auctionable and "ahvalue") or nil
 	q.tokens, q.empty = tokens, #tokens == 0
 end
 

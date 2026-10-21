@@ -216,7 +216,7 @@ CHECKS[#CHECKS + 1] = function(build)
 end
 
 -- a profession at its cap with its next rank learnable; or one to level (a crafting one under its cap)
-CHECKS[#CHECKS + 1] = function()
+CHECKS[#CHECKS + 1] = function(build)
 	local P = ns.Professions
 	if not (P and P.PlayerProfessions) then return end
 	local TS = ns.TrainerSpells
@@ -235,7 +235,8 @@ CHECKS[#CHECKS + 1] = function()
 			if nr and (nr.cost or 0) > 0 then parts[#parts + 1] = ns.Money(nr.cost) end
 			out[#out + 1] = { id = "rank:" .. lw, name = L["%s: train the next rank"]:format(name), detail = table.concat(parts, SEP),
 				icon = pr.icon, search = Has("Questie") and ("nearest " .. lw .. " trainer") or (lw .. " training"), score = capped and 75 or 45 }
-		elseif max > 0 and rank < max and not SG.GATHERING[lw] then
+		-- (asked only: on the empty prompt's count, SG.Pressing, nearly everyone has one to level: not pressing)
+		elseif build and max > 0 and rank < max and not SG.GATHERING[lw] then
 			-- (the one furthest from its cap)
 			local gap = (max - rank) / max
 			if not levelUp or gap > levelUp.gap then
@@ -384,8 +385,9 @@ local ASKS = {}
 for _, s in ipairs({ "what should i do", "what should i do now", "what should i do next", "what can i do", "what can i do now",
 	"what do i do", "what do i do now", "what do i do next", "what now", "what next", "whats next", "what to do", "what to do now",
 	"what should i work on", "what should i be doing", "what else", "anything to do", "something to do", "suggest",
-	"suggestions", "suggest something", "ideas", "im bored", "i am bored", "bored", "help me", "now what", "next steps",
-	"what should i do today", "todo list", "to do list" }) do ASKS[s] = true end
+	"suggestions", "suggest something", "ideas", "im bored", "i am bored", "bored", "now what", "next steps",
+	"what should i do today" }) do ASKS[s] = true end
+-- ("help me", "todo list": a search and is:todo's word, as before; release review, 0.63.0)
 
 function SG.Question(text)
 	local t = ns.QuestionText(text)
@@ -504,8 +506,12 @@ local CC = {}
 ns.CanCraft = CC
 local CRAFT = { craft = true, make = true, cook = true, brew = true, craftable = true }
 local CRAFT_FILL = { what = true, whats = true, can = true, i = true, could = true, ["do"] = true, now = true, right = true,
-	things = true, items = true, stuff = true, recipes = true, my = true, me = true, with = true, from = true, bags = true,
-	mats = true, materials = true, reagents = true, the = true, have = true, all = true, which = true, to = true, ["for"] = true }
+	things = true, stuff = true, recipes = true, my = true, me = true, with = true, from = true, the = true, have = true,
+	all = true, which = true, to = true, ["for"] = true }
+-- (what you craft from: filler only after with, from, in, my: "what can i make with my mats"; "craft bags", "craftable
+-- bags" are searches for bags; release review, 0.63.0)
+local CRAFT_FROM = { bags = true, mats = true, materials = true, reagents = true, items = true, inventory = true }
+local CRAFT_FROM_AFTER = { with = true, from = true, ["in"] = true, my = true, the = true }
 
 --- { profs = { your professions named } } or nil: a craft word, and nothing but filler and your professions.
 function CC.Question(text)
@@ -517,11 +523,14 @@ function CC.Question(text)
 	if not craft then return nil end
 	local profs, named, any = {}, false, false
 	local P = ns.Professions
-	local mine
+	local mine, prev
 	for w in t:gmatch("%S+") do
+		local after = prev
+		prev = w
 		if CRAFT[w] then
 			if w == "cook" then profs[#profs + 1] = "cooking" end -- (a word of the question, not one asked by: "cook" alone is a search)
 		elseif CRAFT_FILL[w] then any = true
+		elseif CRAFT_FROM[w] and after and CRAFT_FROM_AFTER[after] then any = true
 		else
 			-- (a profession of yours by its whole name: "make leather" is a search for leather)
 			if not mine then mine = P and P.PlayerProfessions and (P.PlayerProfessions()) or {} end
@@ -582,16 +591,18 @@ local function ListFor(word, mine)
 	if word == "quests" or word == "quest" then
 		return (not mine and ns.providers.questie and Has("Questie")) and "@questie" or "@questlog"
 	end
-	local p = ns.ResolveProvider and ns:ResolveProvider(word) or (word:sub(-1) == "s" and ns:ResolveProvider(word:sub(1, -2)))
-	return p and ("@" .. word) or nil
+	-- (a list's own name or alias, whole, as it's written: not the start of one, "a by zone" isn't @achievements, nor a
+	-- plural made up, "keys"; release review, 0.63.0)
+	if not ns.aliasMap then ns:ResolveProvider("") end
+	local map = ns.aliasMap or {}
+	if map[word] then return "@" .. word end
+	local one = word:sub(-1) == "s" and word:sub(1, -2)
+	if one and #one > 1 and map[one] then return "@" .. one end
+	return nil
 end
 
 --- { line = "@questie | group by zone " } or nil: [how many] [my] <list> per|by|in each|for each <field>.
 function PF.Question(text)
-	-- ("ah value of my mats": "@mats | sum ahvalue", with Auctionator; Search/Auctionator.lua)
-	local AN = ns.Auctionator
-	local v = AN and AN.ValueQuestion and AN.ValueQuestion(text)
-	if v then return v end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local w = {}
@@ -615,7 +626,30 @@ function PF.Question(text)
 	return { line = list .. " | group by " .. field .. " " }
 end
 
---- (searched as its Advanced line: TakeAggregate; nothing to answer here)
-function PF.Answer() return {} end
+--- (searched as its Advanced line: TakeAggregate; nothing to answer here: nil, the other questions asked on)
+function PF.Answer() return nil end
+
+--- The line as the search runs it, or nil: a "per" line with the Advanced filters and sorts typed after it before its
+--- "|" ("items by zone q:rare" -> "@item q:rare | group by zone"), unless another question takes it ("lockouts by raid":
+--- @lockout's; release review, 0.63.0).
+function PF.Line(text)
+	local head, tail = text, {}
+	while true do
+		local h, last = head:match("^(.-)%s+(%S+)%s*$")
+		if not (h and last and last:find("^[-!]?%a+:%S")) then break end
+		table.insert(tail, 1, last)
+		head = h
+	end
+	-- ("ah value of my mats": "@mats | sum ahvalue", with Auctionator, asked before the others: Search/Auctionator.lua;
+	-- else a "per" line no other question takes)
+	local AN = ns.Auctionator
+	local q = AN and AN.ValueQuestion and AN.ValueQuestion(head)
+	if not q then
+		q = PF.Question(head)
+		if not q or (ns.PerFieldTaken and ns.PerFieldTaken(head)) then return nil end
+	end
+	local list, step = q.line:match("^(.-)%s*(|.*)$")
+	return (list .. (#tail > 0 and (" " .. table.concat(tail, " ")) or "") .. " " .. step)
+end
 
 function PF.ToAdvanced(q) return q.line end

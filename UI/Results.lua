@@ -532,8 +532,8 @@ local function TakeAggregate(self, text, first)
 	local A = ns.Aggregate
 	if self.fzf or first == "." or first == "/" or not A then return text end
 	-- ("quests per zone": searched as "@questie | group by zone", its groups' Enter stepping in; 0.61.5, the player)
-	local per = ns.PerField and ns.PerField.Question(text)
-	if per then text = per.line end
+	local per = ns.PerField and ns.PerField.Line and ns.PerField.Line(text)
+	if per then text = per end
 	local query, steps = A.Split(text)
 	if steps then
 		-- (steps typed: they sum up, the bar's Group doesn't; the bar says so, Bar.lua; 0.55.18, review)

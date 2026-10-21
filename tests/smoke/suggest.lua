@@ -45,6 +45,9 @@ check(Adv("my trainer"):find("trainer:class", 1, true), "\"my trainer\": " .. Ad
 check(Adv("nearest weapon trainer"):find("is:weaponmaster", 1, true) and not Adv("nearest weapon trainer"):find(" weapon", 1, true),
 	"\"weapon trainer\": the weapon masters: " .. Adv("nearest weapon trainer"))
 check(Adv("weapon master"):find("is:weaponmaster", 1, true), "\"weapon master\": " .. Adv("weapon master"))
+-- (release review, 0.63.0) "my" with another word naming the trainer: as before; "master" kept without "weapon"
+check(Adv("my riding trainer") == Adv("riding trainer") and Adv("my riding trainer"):find("riding", 1, true), "my riding trainer: " .. Adv("my riding trainer"))
+check(Adv("master leatherworking trainer"):find("master", 1, true), "master leatherworking trainer keeps \"master\": " .. Adv("master leatherworking trainer"))
 check(Adv("mining trainer"):find("trainer:mining", 1, true), "a profession's still its own: " .. Adv("mining trainer"))
 -- (the player: "nearest fist weapons trainer" found none on the continent, "near fists trainer" Sayoc) the weapon, the
 -- profession named: theirs, "my" / "weapons" / "class" set aside, no word left to look for in names
@@ -239,6 +242,11 @@ check(ns.QuestionToAdvanced("low durability") == "@durability ", "\"low durabili
 check(ns.Zones.Question("dungeons at my level") == "dungeon" and ns.Zones.Question("best dungeon for upgrades") == "dungeon",
 	"\"dungeons at my level\", \"best dungeon for upgrades\": the dungeon for your level")
 check(ns.Zones.Question("best quest upgrades") == nil, "\"best quest upgrades\": not a zone question")
+-- (release review, 0.63.0) as before 0.61.0: item upgrade searches, a quest search
+check(ns.Zones.Question("dungeon upgrades for my level") == nil and ns.Zones.Question("dungeon at my level upgrades") == nil,
+	"\"dungeon upgrades for my level\": is:upgrade's search")
+check(ns.Zones.Question("dungeon quests at my level") == nil, "\"dungeon quests at my level\": a search")
+check(not Is(SG.Question, "help me") and not Is(SG.Question, "todo list"), "\"help me\", \"todo list\": searches")
 do
 	local CC = ns.CanCraft
 	check(Is(CC.Question, "what can i craft") and Is(CC.Question, "craftable") and Is(CC.Question, "what can i cook"),
@@ -246,6 +254,10 @@ do
 	check(not Is(CC.Question, "craft") and not Is(CC.Question, "make") and not Is(CC.Question, "what can i craft kobold")
 		and not Is(CC.Question, "cook") and not Is(CC.Question, "make leather"),
 		"\"craft\", \"cook\" alone, words of a search, a profession's first letters: not it")
+	-- (release review, 0.63.0) bags, mats are what's searched for, unless what you craft from
+	check(not Is(CC.Question, "craft bags") and not Is(CC.Question, "make bags") and not Is(CC.Question, "craftable bags"),
+		"\"craft bags\", \"craftable bags\": searches for bags")
+	check(Is(CC.Question, "what can i make with my mats") and Is(CC.Question, "what can i craft from my bags"), "\"... with my mats\": this")
 	check(ns.QuestionToAdvanced("what can i craft") == "@recipe is:craftable ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what can i craft")))
 	check(ns.QuestionToAdvanced("what can i cook") == "@recipe is:craftable cooking ", "cook: " .. tostring(ns.QuestionToAdvanced("what can i cook")))
 	local saveR, saveG, saveC = ns.providers.recipes, ns.GetEntries, C_Item.GetItemCount
@@ -305,7 +317,12 @@ do
 	check(A.DropNamed('@questie kobold death', "Deathknell") == "@questie kobold", "another word stays")
 	check(A.DropNamed('@questie not death', "Deathknell") == "@questie not death" and A.DropNamed('@questie -death', "Deathknell") == "@questie -death",
 		"a not-word stays (it leaves the group's rows out, that's the search's)")
-	check(A.DropNamed('@questie kobold or death', "Deathknell") == "@questie kobold", "\"or\" before it goes with it")
+	check(A.DropNamed('@questie kobold or death', "Deathknell") == "@questie", "words joined by \"or\" go together (every row of the group passes them)")
+	check(A.DropNamed('sword or axe', "Two-Handed Axes") == "" and A.DropNamed('linen or wool', "Wool Fields") == "", "\"sword or axe\" into Axes: neither side left alone")
+	check(A.DropNamed('@questie ring', "Winterspring") == "@questie ring", "\"ring\" isn't a word of Winterspring (the search matches at word starts)")
+	check(A.DropNamed('@questie glades', "Tirisfal Glades") == "@questie", "a later word of the name: \"glades\"")
+	check(A.DropNamed('quests without dusk', "Duskwood") == "quests without dusk" and A.DropNamed('quests no death', "Deathknell") == "quests no death",
+		"Simple mode's not-words: without, no")
 	check(A.DropNamed('@questie "death" q:rare', "Deathknell") == '@questie "death" q:rare', "a quoted phrase and a filter stay")
 	for line, want in pairs({ ["quests per zone"] = "@questlog | group by zone ", ["how many quests per zone"] = "@questlog | group by zone ",
 		["my quests by zone"] = "@questlog | group by zone ", ["quests in each zone"] = "@questlog | group by zone ",
@@ -316,6 +333,13 @@ do
 	end
 	check(not PF.Question("quests per") and not PF.Question("quests by hogger") and not PF.Question("kobolds by zone")
 		and not PF.Question("quests per zone kobold"), "not every line with per or by")
+	-- (release review, 0.63.0) a list's own name, whole: not the start of one, nor a plural made up
+	check(not PF.Question("a by zone") and not PF.Question("s by level") and not PF.Question("zz by zone"),
+		"\"a\", \"s\": no list's name")
+	check(PF.Line("items by zone q:rare") == "@items q:rare | group by zone ", "filters after it go before its step: " .. tostring(PF.Line("items by zone q:rare")))
+	check(PF.Line("quests per zone sort:name") == "@questlog sort:name | group by zone ", "a sort too: " .. tostring(PF.Line("quests per zone sort:name")))
+	check(PF.Line("lockouts by raid") == nil and ns.QuestionToAdvanced("lockouts by raid"):find("@lockout", 1, true),
+		"another question's line stays its own: lockouts by raid -> " .. tostring(ns.QuestionToAdvanced("lockouts by raid")))
 	local saved = { providers = ns.providers, order = ns.providerOrder }
 	ns.providers, ns.providerOrder = {}, {}
 	local ROWS = { { "Scavenging Deathknell", "Deathknell" }, { "A Difficult Path", "Deathknell" }, { "The Mindless Ones", "Deathknell" },
