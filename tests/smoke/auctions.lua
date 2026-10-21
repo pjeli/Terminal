@@ -110,6 +110,23 @@ do
 		check(thorium and thorium.buyer == "Ann" and thorium.seen == "mail" and math.abs(thorium.at - (now - 3 * DAY - 3600)) < 2,
 			"sold while Terminal wasn't watching: kept from its mail, when it sold (its mail's 30 days): " .. tostring(thorium and (now - thorium.at)))
 		check(MA.SalesFromMail(box, now) == 0 and #sales == 4, "the inbox read again: nothing doubled")
+		-- (0.63.2, a player: the sale's mail read first before the game had the buyer's name, then with it: one sale)
+		local nameless = { mails = { { first = now - 200, expires = now - 200 + 30 * DAY, auction = "sold", money = 491,
+			invoice = { kind = "seller", item = "Chunk of Boar Meat", bid = 411, deposit = 100, cut = 20, count = 1 } } } }
+		check(MA.SalesFromMail(nameless, now) == 1, "a sale's mail read before its buyer is known: kept")
+		nameless.mails[1].invoice.player = "Yur"
+		check(MA.SalesFromMail(nameless, now) == 0, "read again with its buyer: not a new sale")
+		local boar = {}
+		for _, s in ipairs(sales) do if s.item == "Chunk of Boar Meat" then boar[#boar + 1] = s end end
+		check(#boar == 1 and boar[1].buyer == "Yur", "one sale, with its buyer: " .. #boar)
+		-- (kept twice before 0.63.2: the one without its buyer goes when the mail is read again)
+		table.insert(sales, 1, { item = "Chunk of Boar Meat", at = now - 199, seen = "mail", count = 1, price = 411,
+			inv = "Chunk of Boar Meat|1|411|#1" })
+		MA.SalesFromMail(nameless, now)
+		boar = {}
+		for _, s in ipairs(sales) do if s.item == "Chunk of Boar Meat" then boar[#boar + 1] = s end end
+		check(#boar == 1 and boar[1].buyer == "Yur", "kept twice before: one again: " .. #boar)
+		for i = #sales, 1, -1 do if sales[i].item == "Chunk of Boar Meat" then table.remove(sales, i) end end
 		local order = {}
 		for _, s in ipairs(sales) do order[#order + 1] = s.item end
 		check(order[4] == "Thorium Bar", "kept newest first: " .. table.concat(order, ", "))

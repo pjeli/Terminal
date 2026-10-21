@@ -373,7 +373,7 @@ function MA.SalesFromMail(box, now)
 	local list = Mine("auctionsSold")
 	if not (list and box) then return 0 end
 	now = now or Now()
-	local n, seen = 0, {}
+	local n, seen, seenAnon, changed = 0, {}, {}, false
 	for _, m in ipairs(box.mails or {}) do
 		local v = m.invoice
 		if type(v) == "table" and (v.kind == "seller" or v.kind == "seller_temp_invoice") and v.item then
@@ -383,8 +383,23 @@ function MA.SalesFromMail(box, now)
 			local base = table.concat({ v.item, count, v.bid or 0, v.player or "" }, "|")
 			seen[base] = (seen[base] or 0) + 1
 			local sig = base .. "#" .. seen[base]
-			local s
-			for _, x in ipairs(list) do if x.inv == sig then s = x break end end
+			-- the same mail read before the game had its buyer's name ("" for the buyer): that sale is this one (0.63.2, a
+			-- player: one sale listed twice, once with its buyer and once without)
+			local anonBase = table.concat({ v.item, count, v.bid or 0, "" }, "|")
+			seenAnon[anonBase] = (seenAnon[anonBase] or 0) + 1
+			local anonSig = v.player and (anonBase .. "#" .. seenAnon[anonBase]) or nil
+			local s, anon
+			for _, x in ipairs(list) do
+				if x.inv == sig then s = x elseif anonSig and x.inv == anonSig then anon = x end
+			end
+			if anon and s then
+				-- (kept twice before 0.63.2: the one without the buyer goes)
+				for i = #list, 1, -1 do if list[i] == anon then table.remove(list, i) end end
+				changed = true
+			elseif anon then
+				s, anon.inv, anon.buyer = anon, sig, v.player
+				changed = true
+			end
 			if not s then
 				-- the same item and count first, else the same item (a stack bought in part)
 				for pass = 1, 2 do
@@ -418,7 +433,7 @@ function MA.SalesFromMail(box, now)
 			end
 		end
 	end
-	if n > 0 then Dirty() end
+	if n > 0 or changed then Dirty() end
 	return n
 end
 

@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.63.1", when = "in testing",
+		v = "0.63.2", when = "in testing",
 		items = {
+			"A sale is listed once in @auction: its mail read before the game knew the buyer's name no longer makes it a second sale (one listed twice is put right the next time you open your mailbox).",
 			"Your auctions' prices read from the Auctions tab are each item's, as the game shows them: an x16 stack at 19c says 19c each and brings 3s 4c (it was taken for the whole stack, so a sale's gold was too little and an undercut stack never said so). Auctions kept before put themselves right the next time you open the Auctions tab.",
 		},
 	},

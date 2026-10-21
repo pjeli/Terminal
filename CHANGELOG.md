@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.63.1 (in testing)
+## 0.63.2 (in testing)
 
+- A sale is listed once in **@auction**: its mail read before the game knew the buyer's name no longer makes it a second sale. One listed twice is put right the next time you open your mailbox.
 - Your auctions' prices read from the Auctions tab are each item's, as the game shows them (a player checked in game): an x16 stack at 19c says **19c each** and brings 3s 4c. It was taken for the whole stack, so a sale's gold came out too little and an undercut stack was never said to be. Auctions kept before put themselves right the next time you open the Auctions tab.
 
 ## 0.63.0
