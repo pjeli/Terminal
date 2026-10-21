@@ -14,15 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.63.7", when = "in testing",
+		v = "0.64.0", when = "released October 2026",
 		items = {
-			"Fixes from a review of the whole addon: a filter after a question (\"untrack quests is:red\", \"quests to drop is:grey\") acts only on the quests it leaves, and Alt+` keeps it before >>>; sort:name sorts lists of any size; in:rfc, in:tb, in:sw on your quest log mean those places; \"my mats\", \"where to get it\" and \"how do i get into mc\" aren't taken for item names; is:here and is:tracked follow you as you move and track.",
-			"Simple mode: >> party (or >> text) on a category row picks the category instead of sending its name; the key hints say where Enter sends the row; \">> track only\" says how many others it untracks. Ctrl+R's history search hides the bar, never shows a sum on top, and keeps what you'd typed when the window closes.",
-			"Faster and lighter: big searches no longer grow every row they match, Simple mode's categories count matches quicker, and the addon list, addon options, talents by what they do, spell IDs and quest rewards are read far less often as you type. A friend's shared place names can't carry the game's text codes, and a login in combat binds your keys once the fight ends.",
 			"Ctrl+R searches what you ran, as a shell's does: type to find a line, Ctrl+R again for an older one, Enter puts it in the prompt and searches it, Esc goes back. \"history\" (or @history) lists what you ran, newest first, with when each ran; Enter searches one again.",
-			"Track and untrack quests in bulk: \"untrack quests\", \"track completed quests\", \"untrack dungeon quests\", \"track class quest\", \"track rfc quests only\" (and untrack the rest), \"untrack red quests\", \"track nearby quests\". The answer lists what changes; Enter does it, Questie's tracker too. A place means the quests listed under it in your log (\"track thunderbluff quests\", \"untrack mulgore and thunder bluff quests\"), and Alt+` says it the same way (in:\"Thunder Bluff\"). Advanced: any quest search, then >>> track, >>> untrack or >>> track only.",
-			"A sale is listed once in @auction: its mail read before the game knew the buyer's name no longer makes it a second sale (one listed twice is put right the next time you open your mailbox).",
-			"Your auctions' prices read from the Auctions tab are each item's, as the game shows them: an x16 stack at 19c says 19c each and brings 3s 4c (it was taken for the whole stack, so a sale's gold was too little and an undercut stack never said so). Auctions kept before put themselves right the next time you open the Auctions tab.",
+			"Track and untrack quests in bulk: \"untrack quests\", \"track completed quests\", \"untrack dungeon quests\", \"track class quest\", \"track rfc quests only\" (and untrack the rest), \"untrack red quests\", \"track nearby quests\". The answer lists what changes; Enter does it, Questie's tracker too. A place means the quests listed under it in your log (\"track thunderbluff quests\"). Advanced: any quest search, then >>> track, >>> untrack or >>> track only.",
+			"@auction: your auctions' prices are each item's, as the Auctions tab shows them, and a sale is listed once, even when its mail was read before the game knew the buyer.",
+			"Fixes and speed-ups from a review of the whole addon: a filter after a question acts only on what it leaves (\"untrack quests is:red\"), sort:name sorts lists of any size, in:rfc / in:tb on your quest log mean those places, >> party on a Simple mode category picks it, and big searches, Simple mode's categories, spell IDs, talents and quest rewards are quicker and lighter as you type.",
 		},
 	},
 	{

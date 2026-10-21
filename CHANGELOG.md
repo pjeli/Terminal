@@ -1,8 +1,23 @@
 # Changelog
 
-## 0.63.7 (in testing)
+## 0.64.0
 
-**A review of the whole addon: fixes**
+**Your history, as a shell has it**
+- **Ctrl+R** searches what you ran from the prompt: type to find a line (fuzzy, every word), **Ctrl+R** again (or Down) for an older match, **Enter** puts it in the prompt and searches it, **Esc** goes back to what you'd typed. Nothing in it is syntax: ".ma" finds ".mail". (Ctrl+R was the game's frame rate while Terminal was open; it's Terminal's now. The frame rate still toggles with the terminal closed.)
+- **history** (or **my history**, **recent searches**; Advanced **@history**) lists what you ran, newest first, each with when it ran; Enter searches one again, Shift+Left back.
+
+**Tracking quests in bulk** (a player's idea on CurseForge)
+- **untrack quests**, **track completed quests**, **untrack dungeon quests**, **track class quest**, **track rfc quests only** (those tracked, every other one untracked), **untrack red quests** (by the log's colour for your level), **track nearby quests** (under your zone in the log, or on your map). Quest names and places narrow it ("track raptor thieves quest", "untrack wailing caverns quests"). A place means the quests listed under it in your log, written as one word too ("track thunderbluff quests", "untrack mulgore and thunder bluff quests"); a quest that only mentions it isn't one.
+- The answer lists the quests that change, each marked "to track" or "to untrack", with **Track 4 quests** (or Untrack, or both) on top: Enter does it, and chat says what changed. When the game's tracker is full, it says how many fit.
+- Questie's tracker follows: a quest tracked only on Questie's tracker counts as tracked, and untracking takes it off there too.
+- Alt+` writes each question so it changes the same quests: a place as its heading (**in:"Thunder Bluff"**; **in:** on your quest log is the heading it's listed under), a quest by its title in quotes.
+- Advanced: any quest search, then **>>> track**, **>>> untrack** or **>>> track only** (**>> track**: the selected one). New filters for it: **is:tracked**, **is:untracked**, **is:here**, **is:red** (and is:orange, is:yellow, is:green on quests), **is:dungeon**, **is:raid**, **is:class** on your quest log.
+
+**Your auctions**
+- A sale is listed once in **@auction**: its mail read before the game knew the buyer's name no longer makes it a second sale. One listed twice is put right the next time you open your mailbox.
+- Your auctions' prices read from the Auctions tab are each item's, as the game shows them (a player checked in game): an x16 stack at 19c says **19c each** and brings 3s 4c. It was taken for the whole stack, so a sale's gold came out too little and an undercut stack was never said to be. Auctions kept before put themselves right the next time you open the Auctions tab.
+
+**Fixes from a review of the whole addon**
 - A filter after a question narrows what Enter does too: **untrack quests is:red** untracks the red ones it lists (it untracked every tracked quest), **quests to drop is:grey** drops only those. Alt+` writes the filter before **>>>**, where it counts.
 - **sort:name** (typed or the bar's Sort) sorts lists of any size; past 5000 matches it was skipped.
 - **in:rfc**, **in:tb**, **in:sw** on your quest log mean Ragefire Chasm, Thunder Bluff and Stormwind (not the Swamp of Sorrows).
@@ -26,22 +41,6 @@
 - "spellid ..." asks the game for each spell's rank only when its name matches (3,800 calls a keystroke before); talents by what they do keep each talent's words (about twice as fast); "... quest" for a reward narrows from the last keystroke's matches.
 - The addon list is read again on an open a minute on, or when an addon loads, not on every open; an addon's options are read again only when that addon says they changed.
 - A town with no centre isn't worked out again for every row; a corpse's spirit healers don't keep the freed NPC list in memory.
-
-## 0.63.6
-
-**Your history, as a shell has it**
-- **Ctrl+R** searches what you ran from the prompt: type to find a line (fuzzy, every word), **Ctrl+R** again (or Down) for an older match, **Enter** puts it in the prompt and searches it, **Esc** goes back to what you'd typed. Nothing in it is syntax: ".ma" finds ".mail". (Ctrl+R was the game's frame rate while Terminal was open; it's Terminal's now. The frame rate still toggles with the terminal closed.)
-- **history** (or **my history**, **recent searches**; Advanced **@history**) lists what you ran, newest first, each with when it ran; Enter searches one again, Shift+Left back.
-
-**Tracking quests in bulk** (a player's idea on CurseForge)
-- **untrack quests**, **track completed quests**, **untrack dungeon quests**, **track class quest**, **track rfc quests only** (those tracked, every other one untracked), **untrack red quests** (by the log's colour for your level), **track nearby quests** (under your zone in the log, or on your map). Quest names and places narrow it ("track raptor thieves quest", "untrack wailing caverns quests"). A place means the quests listed under it in your log, written as one word too ("track thunderbluff quests", "untrack mulgore and thunder bluff quests"); a quest that only mentions it isn't one.
-- The answer lists the quests that change, each marked "to track" or "to untrack", with **Track 4 quests** (or Untrack, or both) on top: Enter does it, and chat says what changed. When the game's tracker is full, it says how many fit.
-- Questie's tracker follows: a quest tracked only on Questie's tracker counts as tracked, and untracking takes it off there too.
-- Alt+` writes each question so it changes the same quests: a place as its heading (**in:"Thunder Bluff"**; **in:** on your quest log is the heading it's listed under), a quest by its title in quotes.
-- Advanced: any quest search, then **>>> track**, **>>> untrack** or **>>> track only** (**>> track**: the selected one). New filters for it: **is:tracked**, **is:untracked**, **is:here**, **is:red** (and is:orange, is:yellow, is:green on quests), **is:dungeon**, **is:raid**, **is:class** on your quest log.
-
-- A sale is listed once in **@auction**: its mail read before the game knew the buyer's name no longer makes it a second sale. One listed twice is put right the next time you open your mailbox.
-- Your auctions' prices read from the Auctions tab are each item's, as the game shows them (a player checked in game): an x16 stack at 19c says **19c each** and brings 3s 4c. It was taken for the whole stack, so a sale's gold came out too little and an undercut stack was never said to be. Auctions kept before put themselves right the next time you open the Auctions tab.
 
 ## 0.63.0
 
