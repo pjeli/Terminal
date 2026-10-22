@@ -1,6 +1,6 @@
 local ns = select(2, ...)
 
--- Filters for NPCs and places: Questie NPCs' roles (is:vendor...), trainer:, faction:, near:, sort:nearest, PvP NPCs,
+-- Filters for NPCs and places: Questie NPCs' roles (is:vendor...), trainer:, faction:, near:, sort:distance, PvP NPCs,
 -- sells:; where a row is (in:/zone:/from:) and who holds a stored item (on:).
 
 local F = ns.Filters
@@ -478,41 +478,45 @@ KEYS.near = function(v)
 end
 KEYS.within, KEYS.dist = KEYS.near, KEYS.near
 
--- sort:nearest: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far.
+-- sort:distance: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far.
 -- sort:plan: your recipes that still give skill, by how many times your materials make each (Search/Plan.lua)
 -- sort:best: with is:upgrade, the biggest upgrades first (F.GainOf; Simple mode's "upgrades" sorts so on its own)
-F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance = "nearest", dist = "nearest",
+-- (0.65.7, the player: "sort:distance ideally", the nearest first; sort:-distance the farthest: as said, sort:farthest)
+F.SORTS = { distance = "distance", dist = "distance", nearest = "distance", near = "distance", closest = "distance",
+	farthest = "-distance", furthest = "-distance", far = "-distance",
 	plan = "plan", leveling = "plan", levelling = "plan", best = "best", gain = "best",
 	-- (0.55.1: by what the rows have, as Simple mode's bar sorts; Bar.lua's B.SortRows)
 	name = "name", alpha = "name", az = "name", level = "level", lvl = "level", ilvl = "ilvl", itemlevel = "ilvl",
 	quality = "quality", q = "quality", value = "value", worth = "value", count = "count", qty = "count",
 	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner" }
--- the sorts that don't turn round: by distance, the plan's, the biggest upgrades (a field's do: sort:-level)
-local NO_REVERSE = { nearest = true, plan = true, best = true }
---- "level" -> "level", "-level" -> "-level" (the other way round: a field's sort only, 0.65.5), else nil.
-local function SortId(v)
-	local neg, name = v:match("^(%-?)(%a+)$")
-	local id = name and F.SORTS[Lower(name)]
-	if not id then return nil end
-	if neg == "-" then return not NO_REVERSE[id] and ("-" .. id) or nil end
-	return id
-end
-KEYS.sort = function(v)
-	if not SortId(v) then return nil end
-	return function() return true end
-end
---- "sort:nearest" -> "nearest", "sort:plan" -> "plan", "sort:-level" -> "-level" (the other way round), else nil.
-function F.SortOf(word)
-	if type(word) ~= "string" then return nil end
-	local k, v = word:match("^(%a+):(%-?%a+)$")
-	if k and Lower(k) == "sort" then return SortId(v) end
-end
+-- the sorts that don't turn round: the plan's, the biggest upgrades (a field's do: sort:-level; distance too, 0.65.7)
+local NO_REVERSE = { plan = true, best = true }
 --- A sort's field and whether it's turned round: "-level" -> "level", true; "level" -> "level", false.
 function F.SortParts(id)
 	if type(id) == "string" and id:sub(1, 1) == "-" then return id:sub(2), true end
 	return id, false
 end
-
+--- "level" -> "level", "-level" -> "-level" (the other way round, 0.65.5), "farthest" -> "-distance", "-farthest" ->
+--- "distance"; else nil.
+local function SortId(v)
+	local neg, name = v:match("^(%-?)(%a+)$")
+	local id = name and F.SORTS[Lower(name)]
+	if not id then return nil end
+	local base, rev = F.SortParts(id)
+	if NO_REVERSE[base] then return neg == "" and id or nil end
+	if neg == "-" then rev = not rev end
+	return rev and ("-" .. base) or base
+end
+KEYS.sort = function(v)
+	if not SortId(v) then return nil end
+	return function() return true end
+end
+--- "sort:distance" -> "nearest", "sort:plan" -> "plan", "sort:-level" -> "-level" (the other way round), else nil.
+function F.SortOf(word)
+	if type(word) ~= "string" then return nil end
+	local k, v = word:match("^(%a+):(%-?%a+)$")
+	if k and Lower(k) == "sort" then return SortId(v) end
+end
 KEYS.sells = function(v)
 	if v == "" then return nil end
 	local set -- (looked up on the first NPC row, then kept for the search: up to 20k rows ask)

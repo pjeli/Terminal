@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.65.6 (in testing)
+## 0.65.7 (in testing)
+
+**Nearest or farthest** (the player: "sort:distance ideally; allow for nearest vs farthest, with unknown distances treated as infinitely far away")
+- **sort:distance** is the sort by distance, the nearest first; **sort:-distance** is the farthest first. Alt+`, the examples and the help write **sort:distance** now; **sort:nearest** (and near, closest) still reads as it did, and **sort:farthest** (furthest) means **sort:-distance**.
+- A row whose distance isn't known (on another continent, or in an instance) counts as infinitely far: after every other row with **sort:distance**, before them all with **sort:-distance**.
+- Plain words: **farthest innkeeper** (or **furthest**, or "innkeeper farthest") lists the farthest first, the unknown ones before them; **farthest mailbox** too. Alt+` writes **sort:-distance**.
+- Simple mode's Sort menu says **Distance** (it said "Nearest first"): picked, the nearest first with an up arrow; picked again, the farthest first with a down arrow.
+
+## 0.65.6
 
 **Fixes** (the player's screenshot: "the advanced version of the bags search loses the slots in the details column")
 - **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**) and any quest search sorted by **sort:slots** say which bag each quest rewards and its slots, as "quests that reward bags" does: "Rewards Tailor's Satchel · 12 slots · Lv 12".
@@ -10,7 +18,7 @@
 
 **Sort ascending or descending** (the player: "an up arrow for ascending, a down arrow for descending instead of the check mark")
 - Simple mode's Sort menu shows an arrow by the sort in use instead of a check: down for the highest (or Z) first, up for the lowest (or A) first. Pick the same sort again to turn it round; **Best match** undoes it. A number's sort (Level, Quality, Slots...) starts with the highest; a name's (Name, Owner) starts with A. **Nearest** has one way and is ticked as before.
-- In Advanced, a **-** turns any sort round: **sort:-level** (the highest first), **sort:-name** (Z to A), **sort:-quality** (the worst first). **sort:nearest**, **sort:best** and **sort:plan** have no other way. Alt+` writes the bar's sort with its direction, and **.filters** lists **sort:-level**.
+- In Advanced, a **-** turns any sort round: **sort:-level** (the highest first), **sort:-name** (Z to A), **sort:-quality** (the worst first). **sort:best** and **sort:plan** have no other way (**sort:distance** turns round since 0.65.7). Alt+` writes the bar's sort with its direction, and **.filters** lists **sort:-level**.
 
 ## 0.65.4
 

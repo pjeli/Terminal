@@ -189,7 +189,7 @@ do
 	-- Alt+` writes the action as do:<word>, which Advanced understands
 	local adv = E.ToAdvanced("use hearthstone")
 	check(adv:find("do:use", 1, true) and adv:find("hearthstone", 1, true), "Alt+`: use hearthstone -> " .. adv)
-	check(not E.ToAdvanced("nearest innkeeper"):find("do:", 1, true), "nearest stays sort:nearest")
+	check(not E.ToAdvanced("nearest innkeeper"):find("do:", 1, true), "nearest stays sort:distance")
 	check(ns.Filters.Parse("do:use") and ns.Filters.ActionOf("do:use") == A.use and not ns.Filters.ActionOf("do:zzz"), "do: is a known key")
 	check(E.IsAdvancedWord("do:use"), "Simple mode refuses do: (it's Advanced syntax)")
 	local was = ns.db.easyMode

@@ -630,6 +630,9 @@ E.ACTIONS = {
 	nearest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
 	closest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
 	nearby = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
+	-- (the other way round: "farthest innkeeper", sort:-distance; 0.65.7, the player)
+	farthest = { label = L["Farthest"], map = { npc = "p" }, nearest = true, far = true },
+	furthest = { label = L["Farthest"], map = { npc = "p" }, nearest = true, far = true },
 	who = { label = L["Who"], map = { who = "p" } },
 	show = { label = L["Show"] }, open = { label = L["Open"] }, find = { label = L["Find"] },
 }

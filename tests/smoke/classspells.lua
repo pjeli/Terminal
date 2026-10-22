@@ -283,7 +283,7 @@ do
 	-- (0.61.1, the player: "it should work for advanced syntax too") trainer:<weapon> in Advanced mode, every way it's
 	-- written, as "fist weapons trainer" is in Simple: the masters What's Training (or TrainerSpells) says teach it
 	ns.db.easyMode = false; UI:EasyChanged()
-	for _, q in ipairs({ "@npc trainer:dagger", "@npc trainer:daggers", "@npc trainer:Daggers sort:nearest" }) do
+	for _, q in ipairs({ "@npc trainer:dagger", "@npc trainer:daggers", "@npc trainer:Daggers sort:distance" }) do
 		check(Npcs(UI:SearchText(q)) == "Sayoc | Archibald", q .. ": " .. Npcs(UI:SearchText(q)))
 	end
 	for _, q in ipairs({ "@npc trainer:polearm", "@npc trainer:polearms" }) do

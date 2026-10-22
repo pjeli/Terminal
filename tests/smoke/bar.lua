@@ -94,8 +94,8 @@ do
 	B.Pick("sort", "quality"); FlushAll()
 	-- Advanced's word for it: sort:-x the other way round; nearest, plan and best have no other way
 	local F = ns.Filters
-	check(F.SortOf("sort:-level") == "-level" and F.SortOf("sort:level") == "level" and F.SortOf("sort:-nearest") == nil
-		and F.SortOf("sort:-bogus") == nil, "sort:-level parsed; sort:-nearest isn't a sort")
+	check(F.SortOf("sort:-level") == "-level" and F.SortOf("sort:level") == "level" and F.SortOf("sort:-plan") == nil
+		and F.SortOf("sort:-bogus") == nil, "sort:-level parsed; sort:-plan isn't a sort")
 	B.Clear("filter"); B.Clear("sort"); FlushAll()
 	check(Names():find("Copper Sword", 1, true), "cleared: every sword again: " .. Names())
 	-- Group: a row per quality

@@ -51,12 +51,12 @@ check(Adv("master leatherworking trainer"):find("master", 1, true), "master leat
 check(Adv("mining trainer"):find("trainer:mining", 1, true), "a profession's still its own: " .. Adv("mining trainer"))
 -- (the player: "nearest fist weapons trainer" found none on the continent, "near fists trainer" Sayoc) the weapon, the
 -- profession named: theirs, "my" / "weapons" / "class" set aside, no word left to look for in names
-for line, want in pairs({ ["nearest fist weapons trainer"] = "@npc trainer:fist faction:friendly sort:nearest",
-	["nearest fist weapon trainer"] = "@npc trainer:fist faction:friendly sort:nearest",
-	["sword weapon trainer"] = "@npc trainer:sword faction:friendly sort:nearest",
-	["nearest my tailoring trainer"] = "@npc trainer:tailoring faction:friendly sort:nearest",
-	["my weapon trainer"] = "@npc is:weaponmaster faction:friendly sort:nearest",
-	["class trainer"] = "@npc trainer:class faction:friendly sort:nearest" }) do
+for line, want in pairs({ ["nearest fist weapons trainer"] = "@npc trainer:fist faction:friendly sort:distance",
+	["nearest fist weapon trainer"] = "@npc trainer:fist faction:friendly sort:distance",
+	["sword weapon trainer"] = "@npc trainer:sword faction:friendly sort:distance",
+	["nearest my tailoring trainer"] = "@npc trainer:tailoring faction:friendly sort:distance",
+	["my weapon trainer"] = "@npc is:weaponmaster faction:friendly sort:distance",
+	["class trainer"] = "@npc trainer:class faction:friendly sort:distance" }) do
 	check(Adv(line) == want, ("%q: %s"):format(line, Adv(line)))
 end
 check(Adv("dagger trainer"):find("trainer:dagger", 1, true) or Adv("dagger trainer"):find("trainer:", 1, true),

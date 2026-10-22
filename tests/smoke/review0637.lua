@@ -76,7 +76,7 @@ end
 io.write("[review 0.63.7: Ctrl+R's history search]\n")
 do
 	local save = { h = ns.db.history, at = ns.db.historyAt, easy = ns.db.easyMode, ctrl = _G.IsControlKeyDown }
-	ns.db.history = { "@npc is:repair sort:nearest", "thorium belt > mats", "linen cloth", ".mail" }
+	ns.db.history = { "@npc is:repair sort:distance", "thorium belt > mats", "linen cloth", ".mail" }
 	ns.db.historyAt = {}
 	ns.providers.history._dirty = true
 	local function CtrlR()

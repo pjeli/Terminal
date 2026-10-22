@@ -257,7 +257,7 @@ local function SetupQuestie()
 			return npc.list or {}
 		end,
 	})
-	-- @mailbox: every mailbox QuestieDB knows (its objects), one row per spot; sort:nearest, near:, in: work on it
+	-- @mailbox: every mailbox QuestieDB knows (its objects), one row per spot; sort:distance, near:, in: work on it
 	if QD.Lib() and type(QD.Lib().Object) == "table" or (QDB() and QDB().QueryObjectSingle) then
 		ns:RegisterProvider("mailbox", {
 			label = L["Mailbox"],

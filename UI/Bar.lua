@@ -17,7 +17,7 @@ local L = ns.L
 -- answer ("my auctions") is filtered, sorted and grouped like any search's rows.
 -- A click on one opens its menu; a right-click clears it. What's picked lasts while the prompt has words and goes
 -- when it's cleared or the terminal closes. Typing Advanced syntax takes the bar away (that line is Advanced); Alt+`,
--- or Advanced syntax typed after the words, writes what's picked into the line ("q:rare+ sort:nearest | group by
+-- or Advanced syntax typed after the words, writes what's picked into the line ("q:rare+ sort:distance | group by
 -- zone": the search's query printed, Search.lua's ns.QueryToAdvanced). While the categories show (nothing picked yet), only Filter works: they count what passes it.
 
 local UI, Theme = ns.UI, ns.Theme
@@ -67,12 +67,14 @@ B.FILTERS = {
 	{ id = "is:trainer", label = L["Trainers"] },
 	{ id = "is:online", label = L["Online"] },
 }
--- what Sort offers: nearest (sort:nearest's lists), else a field the rows have (Aggregate's, and the name)
+-- what Sort offers: nearest (sort:distance's lists), else a field the rows have (Aggregate's, and the name)
 -- a sort's way, in the menu: the game's sort arrow (down as drawn, up flipped)
 B.ARROW = "Interface\\Buttons\\UI-SortArrow"
-B.WORD_SORTS = { name = true, owner = true, line = true } -- (sorts by words: A-Z first when picked)
+-- (the sorts picked the lowest first: by words, A-Z; distance, the nearest (0.65.7, the player: "for distance we should
+-- always prefer nearest"))
+B.LOW_FIRST = { name = true, owner = true, line = true, distance = true }
 B.SORTS = {
-	{ id = "nearest", label = L["Nearest first"], near = true },
+	{ id = "distance", label = L["Distance"], near = true, asc = true },
 	{ id = "name", label = L["Name"], field = "name", asc = true },
 	{ id = "level", label = L["Level"], field = "level", asc = true },
 	{ id = "ilvl", label = L["Item level"], field = "ilvl" },
@@ -468,14 +470,14 @@ function B.Options(which)
 		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
 		for _, o in ipairs(B.SORTS) do
 			local typedHere = typedBase == o.id
-			local fits = o.near and Fits("sort:nearest", kinds) or (o.field and Has(o.field))
+			local fits = o.near and Fits("sort:distance", kinds) or (o.field and Has(o.field))
 			local on = pickedBase == o.id or typedHere
 			if fits or on then
 				-- (which way: an arrow, up for ascending, down for descending, in the tick's place; 0.65.5, the player)
 				local rev = (pickedBase == o.id and pickedRev) or (pickedBase ~= o.id and typedHere and typedRev)
 				-- (asc: true, false or nil, not on: not "on and Ascending() or nil", which made a descending one's false nil)
 				local asc
-				if on and o.field then asc = Ascending(o, rev) end
+				if on and (o.field or o.near) then asc = Ascending(o, rev) end
 				out[#out + 1] = { id = o.id, label = o.label, on = on, typed = typedHere and pickedBase ~= o.id and typed.sort.word or nil,
 					asc = asc }
 			end
@@ -513,7 +515,7 @@ function B.Pick(which, id)
 	elseif which == "sort" then
 		-- (the one picked again: the other way round, the highest first or the lowest; "Best match" undoes it; 0.65.5)
 		local o = ById(B.SORTS, id)
-		local turns = o and o.field and true or false
+		local turns = o and (o.field or o.near) and true or false
 		local pickedBase, pickedRev = SortParts(state.sort)
 		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
 		if typedBase == id and pickedBase ~= id then
@@ -525,14 +527,14 @@ function B.Pick(which, id)
 			return
 		end
 		if pickedBase == id then
-			if not turns then state.sort = nil B.Changed() return end -- (nearest first: no other way round; unpicked, as before)
+			if not turns then state.sort = nil B.Changed() return end -- (one with no other way round: unpicked)
 			state.sort = pickedRev and id or ("-" .. id)
 			B.Changed()
 			return
 		end
 		-- (picked: the highest first, as the player said, "assume descending at first" (0.65.5): the level too; the
 		-- words' sorts, a name, an owner, an attunement's lines, A-Z first; picked again, the other way)
-		state.sort = (turns and o.asc and not B.WORD_SORTS[id]) and ("-" .. id) or id
+		state.sort = (turns and o.asc and not B.LOW_FIRST[id]) and ("-" .. id) or id
 		-- (another sort picked: a sort: typed goes from the line, one sort at a time; "nearest" stays, it says the NPCs)
 		if state.sort and typed.sort and typed.sort.drop then
 			B.DropWords({ typed.sort.word })

@@ -463,7 +463,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "nearest", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner" },
+	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner" },
 	fish = { "mine", "75", "150", "225", "300" },
 	class = { "mine", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid" },
 	["do"] = { "use", "cast", "summon", "equip", "wear", "target", "link", "where" },
@@ -526,7 +526,7 @@ F.APPLIES = {
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "bank", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
-	sort = { nearest = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
+	sort = { distance = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
 		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" } },
 	near = { ["*"] = SPOTS },
@@ -574,7 +574,7 @@ function F.ValuesFor(key, before)
 end
 
 -- the keys, in the order .filters lists them, with an example each (each naming every list it works on, as F.APPLIES
--- says: on:, faction:, near: and sort:nearest named fewer; 0.49.2, review)
+-- says: on:, faction:, near: and sort:distance named fewer; 0.49.2, review)
 F.HELP = {
 	{ "lvl:20-30", L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"] },
 	{ "ilvl:60+", L["item level"] },
@@ -592,9 +592,9 @@ F.HELP = {
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
 	{ "near:500", L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },
-	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:nearest, best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
+	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
-	{ "sort:nearest", L["NPCs, mailboxes, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them)"] },
+	{ "sort:distance", L["NPCs, mailboxes, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },
 	{ "sort:plan", L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] },
 	{ "do:use", L["what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)"] },

@@ -54,14 +54,14 @@ E.ADVANCED = {
 	{ "@item q:rare+ is:boe" }, { "@questie lvl:20-25 in:ashenvale", "field" }, { "@item stat:sta>=10" },
 	{ "@npc trainer:class faction:friendly", "city" }, { "@recipe stat:agility" }, { "linen cloth >> guild" },
 	{ "@npc sells:coarse_thread", "city" }, { "@stored linen cloth", "city" }, { "@gold" }, { "@xp rested", "city" },
-	{ "@achievement is:todo" }, { "@dungeon sort:nearest", "field" }, { "@flight is:unlearned sort:nearest", "field" },
+	{ "@achievement is:todo" }, { "@dungeon sort:distance", "field" }, { "@flight is:unlearned sort:distance", "field" },
 	{ "@map fish:mine", "field" }, { "thorium belt > mats > alts", "city" }, { "mats for thorium belt >>> party", "city" },
 	{ "copper bar > uses", "city" }, { "@map lvl:30", "field" }, { "@dungeon lvl:25", "field" }, { "@recipe is:skillup", "city" },
 	{ "@friend is:online" }, { "@guild blacksmith", "city" }, { "@spell is:unplaced" }, { "@quest is:drop", "field" },
 	{ "@recipe is:unknown", "city" }, { "@recipe is:learnable", "city" }, { "@training is:learnable | sum cost", "city" },
 	{ "@training is:nextlevel" }, { "@spell class:druid lvl:30" }, { "@who orc lvl:20-30" }, { "@calendar is:holiday" },
 	{ "@item is:boe|q:epic" }, { "@spell is:ready", "instance" }, { "@gear slot:head|chest -is:soulbound" },
-	{ "@item q:rare|epic" }, { "@npc is:repair sort:nearest", "city" }, { "@npc trainer:mining near:500", "city" },
+	{ "@item q:rare|epic" }, { "@npc is:repair sort:distance", "city" }, { "@npc trainer:mining near:500", "city" },
 	{ "@loot is:upgrade sort:best", "field" }, { "@questie is:upgrade sort:best", "field" }, { "@group is:dead", "instance" },
 	{ "@lockout is:raid", "city" }, { "@cvar changed" }, { ".filters (every key:value)" }, { ".theme dracula" },
 	{ L["tip: Up = last command, Down = recent picks"], tip = true }, { L["tip: F1 shows every key"], tip = true },
@@ -302,14 +302,14 @@ end
 local function AdvancedExamples(f, add)
 	local level, zone, prof = f.level, f.zone, f.prof
 	if f.classFile and PRIMARY[f.classFile] then add("@gear stat:" .. PRIMARY[f.classFile] .. " is:upgrade", nil, "field") end
-	if prof then add("@recipe is:skillup " .. prof, nil, "city"); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:nearest", nil, "city") end
+	if prof then add("@recipe is:skillup " .. prof, nil, "city"); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:distance", nil, "city") end
 	if f.inGuild then add("@guild is:online") end
 	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or ""), nil, "field") end
 	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade", nil, "field") end
 	if f.instance then add("@loot " .. f.instance .. " is:upgrade", nil, "instance") end
-	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " faction:friendly sort:nearest", nil, nil, true) end
-	if f.reagents then add("@npc reagent is:vendor faction:friendly sort:nearest", nil, nil, f.reagents == "often") end
-	if f.sells then add("@npc is:vendor sells:" .. f.sells .. " faction:friendly sort:nearest", nil, nil, true) end
+	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " faction:friendly sort:distance", nil, nil, true) end
+	if f.reagents then add("@npc reagent is:vendor faction:friendly sort:distance", nil, nil, f.reagents == "often") end
+	if f.sells then add("@npc is:vendor sells:" .. f.sells .. " faction:friendly sort:distance", nil, nil, true) end
 end
 
 local function SimpleExamples(f, add)

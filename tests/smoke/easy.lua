@@ -644,7 +644,43 @@ Run("nearest", function()
 		local r2 = UI.Results()
 		check(r2[1] and r2[1].name == "Innkeeper Allison" and r2[1].detail == "40 yd", q .. ": as nearest innkeeper: " .. Show(r2))
 	end
-	check(E.ToAdvanced("innkeeper nearby") == "@npc is:innkeeper faction:friendly sort:nearest ", "Alt+` writes innkeeper nearby as sort:nearest: " .. E.ToAdvanced("innkeeper nearby"))
+	check(E.ToAdvanced("innkeeper nearby") == "@npc is:innkeeper faction:friendly sort:distance ", "Alt+` writes innkeeper nearby as sort:distance: " .. E.ToAdvanced("innkeeper nearby"))
+	-- (0.65.7, the player: "allow for searching for nearest vs farthest, with unknown distances treated as infinitely far
+	-- away"; "sort:distance should be nearest and sort:-distance furthest") the farthest first; one whose place isn't
+	-- known before them all
+	for _, q in ipairs({ "farthest innkeeper", "furthest innkeeper", "innkeeper farthest" }) do
+		UI:Hide(); FlushAll()
+		UI:Open(q)
+		local r2 = UI.Results()
+		check(Show(r2) == "Innkeeper Far Away | Innkeeper Farley | Innkeeper Allison" and r2[2].detail == "120 yd",
+			q .. ": the farthest first, the unknown one as infinitely far: " .. Show(r2))
+	end
+	check(E.ToAdvanced("farthest innkeeper") == "@npc is:innkeeper faction:friendly sort:-distance ",
+		"Alt+` writes farthest innkeeper as sort:-distance: " .. E.ToAdvanced("farthest innkeeper"))
+	local dist
+	for _, o in ipairs(ns.Bar.Options("sort")) do if o.id == "distance" then dist = o end end
+	check(dist and dist.on and dist.asc == false, "the bar: Sort: Distance, its arrow down (the farthest first)")
+	-- the bar: Distance picked, the nearest first (its arrow up); picked again, the farthest
+	UI:Hide(); FlushAll()
+	ns.Bar.Reset()
+	UI:Open("innkeeper"); FlushAll()
+	ns.Bar.Pick("sort", "distance"); FlushAll()
+	check(ns.Bar.state.sort == "distance" and Show(UI.Results()) == "Innkeeper Allison | Innkeeper Farley | Innkeeper Far Away",
+		"the bar's Distance: the nearest first (the unknown kept, last): " .. Show(UI.Results()))
+	ns.Bar.Pick("sort", "distance"); FlushAll()
+	check(ns.Bar.state.sort == "-distance" and Show(UI.Results()) == "Innkeeper Far Away | Innkeeper Farley | Innkeeper Allison",
+		"picked again: the farthest first: " .. Show(UI.Results()))
+	check(E.ToAdvanced("innkeeper") == "@npc is:innkeeper faction:friendly sort:-distance ", "Alt+` writes the bar's farthest: " .. E.ToAdvanced("innkeeper"))
+	ns.Bar.Reset()
+	-- Advanced: sort:distance, sort:-distance; the words sort:nearest and sort:farthest (and sort:-farthest) still read
+	E.Set(false)
+	local function Adv(line) local t = {} for _, e in ipairs(UI:Search(line)) do t[#t + 1] = e.name end return table.concat(t, ", ") end
+	local near, far = Adv("@npc innkeeper sort:distance"), Adv("@npc innkeeper sort:-distance")
+	check(near == "Innkeeper Allison, Innkeeper Farley, Innkeeper Far Away", "sort:distance: the nearest first, the unknown last: " .. near)
+	check(far == "Innkeeper Far Away, Innkeeper Farley, Innkeeper Allison", "sort:-distance: the unknown first, then the farthest: " .. far)
+	check(Adv("@npc innkeeper sort:nearest") == near and Adv("@npc innkeeper sort:farthest") == far and Adv("@npc innkeeper sort:-farthest") == near,
+		"sort:nearest, sort:farthest and sort:-farthest read as before")
+	E.Set(true)
 	-- (0.56.8, a player's comment) "nearest" mistyped ("nearset", "neareset", "nearbby"), and an NPC's role said alone
 	-- ("inn", "innkeeper"): the nearest, as "nearest innkeeper" lists them
 	for _, q in ipairs({ "nearset innkeeper", "neareset innkeeper", "innkeeper nearbby", "innkeeper", "inn" }) do
@@ -659,9 +695,9 @@ Run("nearest", function()
 	check(not E.NearTypo("newest") and not E.NearTypo("nearly") and E.NearTypo("nearset") and E.NearTypo("nearbby"),
 		"(release review) newest and nearly are words of their own")
 	-- "skinner", "weapon master": a profession's trainers, the weapon masters; the nearest (Questie's titles)
-	check(E.ToAdvanced("skinner"):find("trainer:skinning", 1, true) and E.ToAdvanced("skinner"):find("sort:nearest", 1, true),
+	check(E.ToAdvanced("skinner"):find("trainer:skinning", 1, true) and E.ToAdvanced("skinner"):find("sort:distance", 1, true),
 		"skinner: the nearest skinning trainer: " .. E.ToAdvanced("skinner"))
-	check(E.ToAdvanced("weapon master"):find("is:weaponmaster", 1, true) and E.ToAdvanced("weapon master"):find("sort:nearest", 1, true),
+	check(E.ToAdvanced("weapon master"):find("is:weaponmaster", 1, true) and E.ToAdvanced("weapon master"):find("sort:distance", 1, true),
 		"weapon master: the nearest of them: " .. E.ToAdvanced("weapon master"))
 	local wm = ns.Filters.Parse("is:weaponmaster")
 	check(wm and ns.Filters.Pass({ npcID = 1, kind = "npc", sub = "Weapon Master", name = "Woo Ping" }, { wm })
@@ -686,7 +722,7 @@ Run("nearest", function()
 	UI:Open("innkeeper allison"); FlushAll()
 	check(not (UI.action and UI.action.nearest), "a role with a name: not made nearest")
 	-- (0.50.7, review) "the nearest innkeeper": as the search reads it
-	check(E.ToAdvanced("the nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
+	check(E.ToAdvanced("the nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:distance ",
 		"Alt+`, the nearest innkeeper: " .. E.ToAdvanced("the nearest innkeeper"))
 	UI:Hide(); FlushAll()
 	UI:Open("nearest innkeeper")
@@ -1254,7 +1290,7 @@ Run("release review fixes", function()
 	m.scripts.OnEvent(m, "PLAYER_REGEN_DISABLED")
 	check(not m:IsShown(), "combat starts: the menu goes")
 	UI:Hide(); FlushAll()
-	-- the sort:nearest note doesn't outlive its search
+	-- the sort:distance note doesn't outlive its search
 	UI.noPosition = true
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI:Search("hearthstone")
@@ -1272,8 +1308,8 @@ Run("Alt+`: Advanced mode for this run only", function()
 		"rare sword -> filters: " .. E.ToAdvanced("rare sword"))
 	check(E.ToAdvanced("attack power food") == "stat:ap food|type:food ", "attack power food -> stat:ap type:food: " .. E.ToAdvanced("attack power food"))
 	check(E.ToAdvanced("cast frost nova") == "@spell do:cast frost nova ", "cast frost nova -> @spell do:cast (0.44.11: the action stays): " .. E.ToAdvanced("cast frost nova"))
-	check(E.ToAdvanced("nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:nearest ",
-		"nearest innkeeper -> @npc ... sort:nearest: " .. E.ToAdvanced("nearest innkeeper"))
+	check(E.ToAdvanced("nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:distance ",
+		"nearest innkeeper -> @npc ... sort:distance: " .. E.ToAdvanced("nearest innkeeper"))
 	check(E.ToAdvanced("hearthstone", "bags") == "@item hearthstone ", "a picked category -> its @kind: " .. E.ToAdvanced("hearthstone", "bags"))
 	check(E.ToAdvanced("shield that drops from kresh") == "kresh shield|type:shield ", "sentence words dropped: " .. E.ToAdvanced("shield that drops from kresh"))
 	check(E.ToAdvanced("") == "", "nothing typed: nothing")
@@ -1621,7 +1657,7 @@ Run("pure fuzzy finding (Tab+`): every list, names only, no syntax; Enter to Sim
 		"handed over to Simple, then Alt+`: Advanced this run: " .. T.query() .. " / " .. tostring(top and top.name))
 	UI:Hide(); FlushAll()
 	check(not E.On() and not E.tempSimple and not E.temp, "closed: Advanced again")
-	check(UI.FuzzyPlain(".help") == "" and UI.FuzzyPlain("sword|axe -boe rare sort:nearest") == "rare ", "plain words kept: " .. UI.FuzzyPlain("sword|axe -boe rare sort:nearest"))
+	check(UI.FuzzyPlain(".help") == "" and UI.FuzzyPlain("sword|axe -boe rare sort:distance") == "rare ", "plain words kept: " .. UI.FuzzyPlain("sword|axe -boe rare sort:distance"))
 end)
 
 Run("Up walks every line run, whatever mode ran it (0.54.3: one mode)", function()
@@ -1906,7 +1942,7 @@ Run("E.JoinPairs: two everyday words that mean one thing become one word", funct
 	E.JoinPairs(w)
 	check(table.concat(w, ",") == "rare,sword", "no pair: unchanged")
 	check(E.ToAdvanced("attack power food"):find("stat:ap", 1, true), "ToAdvanced: attack power -> stat:ap: " .. E.ToAdvanced("attack power food"))
-	check(E.ToAdvanced("mining trainer nearby"):find("sort:nearest", 1, true), "ToAdvanced: nearest said last: " .. E.ToAdvanced("mining trainer nearby"))
+	check(E.ToAdvanced("mining trainer nearby"):find("sort:distance", 1, true), "ToAdvanced: nearest said last: " .. E.ToAdvanced("mining trainer nearby"))
 	check(E.ToAdvanced("sword or axe not boe"):find("type:sword|type:axe", 1, true) and E.ToAdvanced("sword or axe not boe"):find("-is:boe", 1, true),
 		"ToAdvanced: or/not pieces as filters: " .. E.ToAdvanced("sword or axe not boe"))
 	-- (0.63.7, review) a kind of item turned down: written whole, as Simple mode turns it down
@@ -2014,11 +2050,11 @@ Run("a profession's trainer by what they teach", function()
 		check(res[1] and res[1].name == want and res[1].detail == DIST[res[1].key] .. " yd" and UI.action == E.ACTIONS.nearest,
 			q .. " alone: the nearest, how far: " .. Show(res))
 	end
-	check(E.ToAdvanced("blacksmithing trainer") == "@npc trainer:blacksmithing faction:friendly sort:nearest ",
+	check(E.ToAdvanced("blacksmithing trainer") == "@npc trainer:blacksmithing faction:friendly sort:distance ",
 		"Alt+` writes it as the nearest: " .. E.ToAdvanced("blacksmithing trainer"))
-	check(E.ToAdvanced("hunter pet trainer") == "@npc trainer:pet faction:friendly sort:nearest ",
+	check(E.ToAdvanced("hunter pet trainer") == "@npc trainer:pet faction:friendly sort:distance ",
 		"hunter pet trainer: the pet trainers, nearest: " .. E.ToAdvanced("hunter pet trainer"))
-	check(E.ToAdvanced("warlock pet trainer") == "@npc trainer:demon faction:friendly sort:nearest ",
+	check(E.ToAdvanced("warlock pet trainer") == "@npc trainer:demon faction:friendly sort:distance ",
 		"warlock pet trainer: the Demon Trainers, nearest: " .. E.ToAdvanced("warlock pet trainer"))
 	-- "pet trainer" alone follows your class: a warlock's are the Demon Trainers ("hunter pet trainer" stays the hunters')
 	local classWas = _G.UnitClass

@@ -5950,20 +5950,20 @@ do -- ">> channel": the selected result goes to a chat channel (the game presses
 	local PIN = "|cffffff00|Hworldmap:37:5000:4000|h[Map Pin Location]|h|r"
 	local jo = { npcID = 1, name = "Jo Reagents" }
 	local function line(q, e) return SH.Macro(e or jo, { cmd = "/g", label = "guild", query = q }) end
-	check(line("@npc reagent is:vendor faction:friendly sort:nearest ", { npcID = 2, name = "Hula'mahi" })
-		== "/g Nearby reagent vendor: Hula'mahi " .. PIN, "nearest reagent vendor: says so: " .. tostring(line("@npc reagent is:vendor faction:friendly sort:nearest ", { npcID = 2, name = "Hula'mahi" })))
+	check(line("@npc reagent is:vendor faction:friendly sort:distance ", { npcID = 2, name = "Hula'mahi" })
+		== "/g Nearby reagent vendor: Hula'mahi " .. PIN, "nearest reagent vendor: says so: " .. tostring(line("@npc reagent is:vendor faction:friendly sort:distance ", { npcID = 2, name = "Hula'mahi" })))
 	check(line("@npc reagent is:vendor ") == "/g Vendor: Jo Reagents " .. PIN, "a word already in the name isn't repeated: " .. tostring(line("@npc reagent is:vendor ")))
 	check(line("@npc trainer:mine in:orgrimmar ", { npcID = 3, name = "Makaru" }) == "/g Mining trainer in Orgrimmar: Makaru " .. PIN, "trainer and place: " .. tostring(line("@npc trainer:mine in:orgrimmar ", { npcID = 3, name = "Makaru" })))
 	check(line("@npc hogger ", { npcID = 448, name = "Hogger" }) == "/g Hogger " .. PIN, "only the name searched: just the NPC")
 	-- (0.50.7, review) either of two, a word left out: not said (a "|" in a chat line is an escape the game refuses)
-	check(line("@npc hogger|vancleef sort:nearest ", { npcID = 448, name = "Hogger" }) == "/g Nearby: Hogger " .. PIN
+	check(line("@npc hogger|vancleef sort:distance ", { npcID = 448, name = "Hogger" }) == "/g Nearby: Hogger " .. PIN
 		and line("@npc innkeeper -goldshire ", { npcID = 6740, name = "Innkeeper Allison" }) == "/g Innkeeper Allison " .. PIN,
-		"hogger|vancleef, -goldshire: left out: " .. tostring(line("@npc hogger|vancleef sort:nearest ", { npcID = 448, name = "Hogger" }))
+		"hogger|vancleef, -goldshire: left out: " .. tostring(line("@npc hogger|vancleef sort:distance ", { npcID = 448, name = "Hogger" }))
 		.. " / " .. tostring(line("@npc innkeeper -goldshire ", { npcID = 6740, name = "Innkeeper Allison" })))
 	check(SH.Macro(jo, { cmd = "/g", query = "@npc " .. ("x"):rep(240) .. " is:vendor" }) == "/g Jo Reagents " .. PIN, "too long for a macro: the words go first")
 	-- through the prompt: the line the game presses
-	UI:Open("@npc reagent is:vendor sort:nearest >> guild")
-	check(UI.sendTo and UI.sendTo.query == "@npc reagent is:vendor sort:nearest ", "the search part is kept with where it goes")
+	UI:Open("@npc reagent is:vendor sort:distance >> guild")
+	check(UI.sendTo and UI.sendTo.query == "@npc reagent is:vendor sort:distance ", "the search part is kept with where it goes")
 	UI:Hide()
 	ns.Integrations.NpcPinLink = baseLink
 	-- something with no link: its name; a loot row ("item:ID"): the item's full link

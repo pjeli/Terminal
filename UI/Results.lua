@@ -430,7 +430,7 @@ end
 function UI:SyntaxRows(text)
 	-- (typed with the caret at the end; not a text set by code: Open("@item") lists the items)
 	if self.fzf or self.histSearch or self.opening or (self.cursor or #text) < #text then return nil end -- (Simple mode too: 0.55.9)
-	-- (a line Up brought back from the history runs as it is: "@npc is:repair sort:nearest" isn't a pick list)
+	-- (a line Up brought back from the history runs as it is: "@npc is:repair sort:distance" isn't a pick list)
 	if self._histSet or (self.histIdx and text == self.histText) then return nil end
 	local last = text:match("(%S+)$")
 	if not last then return nil end

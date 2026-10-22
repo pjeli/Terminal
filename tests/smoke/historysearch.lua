@@ -8,8 +8,8 @@ io.write("[history: Ctrl+R, @history, \"history\"]\n")
 do
 	local save = { h = ns.db.history, at = ns.db.historyAt, easy = ns.db.easyMode, ctrl = _G.IsControlKeyDown }
 	local now = time()
-	ns.db.history = { "@npc is:repair sort:nearest", "thorium belt > mats", "linen cloth", ".mail" }
-	ns.db.historyAt = { ["@npc is:repair sort:nearest"] = now - 30, ["thorium belt > mats"] = now - 600, ["linen cloth"] = now - 7200 }
+	ns.db.history = { "@npc is:repair sort:distance", "thorium belt > mats", "linen cloth", ".mail" }
+	ns.db.historyAt = { ["@npc is:repair sort:distance"] = now - 30, ["thorium belt > mats"] = now - 600, ["linen cloth"] = now - 7200 }
 	ns.providers.history._dirty = true
 	local function Names(rows)
 		local t = {}
@@ -32,7 +32,7 @@ do
 	ns.db.easyMode = true; UI:EasyChanged()
 	UI:Open("history"); FlushAll()
 	local r = UI.Results()
-	check(Names(r) == "linen cloth | @npc is:repair sort:nearest | thorium belt > mats | .mail",
+	check(Names(r) == "linen cloth | @npc is:repair sort:distance | thorium belt > mats | .mail",
 		"\"history\": newest first: " .. Names(r))
 	check(r[1].detail == ns.L["just now"] and r[3].detail == ns.L["%d min ago"]:format(10) and r[4].detail == nil,
 		"each says when it ran (none kept for an old one): " .. tostring(r[3].detail))
@@ -58,7 +58,7 @@ do
 	check(status:find("History search (Ctrl+R)", 1, true), "the footer says so: " .. status)
 	-- typed on: nothing in it is syntax (".ma" finds ".mail", not the commands)
 	UI:SetQuery("", 0); FlushAll()
-	check(Names() == "linen cloth | @npc is:repair sort:nearest | thorium belt > mats | .mail", "nothing typed: every line, newest first: " .. Names())
+	check(Names() == "linen cloth | @npc is:repair sort:distance | thorium belt > mats | .mail", "nothing typed: every line, newest first: " .. Names())
 	T.typeText(".ma"); FlushAll()
 	check(UI.mode == "search" and UI.Results()[1] and UI.Results()[1].name == ".mail", "\".ma\": a word to find, not a command: " .. Names())
 	-- Ctrl+R again: the next (older) match
@@ -90,7 +90,7 @@ do
 	UI:Open(""); FlushAll()
 	CtrlR()
 	UI:Activate(2); FlushAll()
-	check(not UI.histSearch and T.query() == "@npc is:repair sort:nearest", "a click: as Enter: " .. T.query())
+	check(not UI.histSearch and T.query() == "@npc is:repair sort:distance", "a click: as Enter: " .. T.query())
 	UI:Hide(); FlushAll()
 
 	-- (0.63.7, review) "when it ran" moves on: the list is made again on an open a minute on

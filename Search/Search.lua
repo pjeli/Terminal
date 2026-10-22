@@ -520,7 +520,7 @@ function Scan.RoleFriendly(softWords, strictWords)
 	return nil
 end
 
-function Scan.NearestStart(tokens, filters, softWords, strictWords)
+function Scan.NearestStart(tokens, filters, softWords, strictWords, far)
 	local I = ns.Integrations
 	local okind = I and I.ObjectKind and I.ObjectKind(tokens)
 	-- (the flight paths' words left to be in their names or zones, and "unlearned"/"learned" when said)
@@ -540,7 +540,7 @@ function Scan.NearestStart(tokens, filters, softWords, strictWords)
 				return true
 			end
 		end
-		local rows = I.NearestObjectRows(okind, spot, keep)
+		local rows = I.NearestObjectRows(okind, spot, keep, far)
 		local unchecked = okind == "flight" and I.Flights and not I.Flights.Checked(spot.cont)
 		if rows and #rows > 0 then
 			if unchecked then UI.flightNote = I.Flights.UNCHECKED_NOTE end -- (the footer: each row says "not checked yet")
@@ -564,12 +564,12 @@ end
 --- A row with a distance, as a view saying how far and what it is ("120 yd  Mining Trainer", a spot row its zone:
 --- "120 yd  The Barrens", or what it says after a distance: `distNote`; `nearRest`, which the arrow's live text keeps),
 --- scored closest first.
-local function NearView(e, d)
+local function NearView(e, d, far)
 	local rest = rawget(e, "distNote") or (rawget(e, "wcont") and e.zone) or e.sub
 	-- (an NPC in a dungeon: how far its entrance is, and which dungeon; 0.51.18)
 	local inside = e.kind == "npc" and e.inDungeon
 	if inside then rest = (rest and (rest .. ns.DETAIL_SEP) or "") .. L["in %s"]:format(inside) end
-	return ns.Integrations.NearView(e, d, rest)
+	return ns.Integrations.NearView(e, d, rest, far)
 end
 Scan.NearView = NearView -- (tests)
 UI._Scan = Scan -- (tests)
@@ -613,18 +613,25 @@ local function HeapDown(hd, he, hi, hv, size)
 end
 
 --- The matched rows that have a distance (Questie's NPCs, rows with a place of their own: @mailbox), each as a view
---- saying how far (NearView) and scored closest first; sort:nearest keeps every other row too, after them; in the
+--- saying how far (NearView) and scored closest first; sort:distance keeps every other row too, after them; in the
 --- order they came. Every row's distance is measured (I.RowYards: no table made), but only the MAX_RESULTS closest get
 --- a view: a search keeps no more (SortAndTrim), and none of these rows brings a quest along (LinkQuests: NPCs and
 --- spots carry none). Pauses with the search, showing the closest so far.
-function Scan.NearestViews(out, here, sortNear, overBudget)
+-- (far: sort:-distance, the farthest first (0.65.7, the player): the heap keeps the farthest, by their yards turned
+-- negative; the rows with no distance are as if infinitely far, so before them: a view scored above every other)
+local FAR_UNKNOWN = 4e6
+function Scan.NearestViews(out, here, sortNear, overBudget, far)
 	local yards, max = ns.Integrations.RowYards, MAX_RESULTS
+	local function Key(d) return far and -d or d end
+	local function View(e, key) return NearView(e, far and -key or key, far) end
+	local function Unknown(e) return far and setmetatable({ _score = FAR_UNKNOWN + (tonumber(e._score) or 0) }, { __index = e }) or e end
 	local hd, he, hi, hv, size = {}, {}, {}, {}, 0
-	local others, at = {}, {} -- (sort:nearest: the rows with no distance, as they are, and where they came)
+	local others, at = {}, {} -- (sort:distance: the rows with no distance, as they are, and where they came)
 	for i = 1, #out do
 		local e = out[i]
 		local d = yards(e, here)
 		if d then
+			d = Key(d)
 			if size < max then
 				size = size + 1
 				hd[size], he[size], hi[size], hv[size] = d, e, i, nil
@@ -634,7 +641,7 @@ function Scan.NearestViews(out, here, sortNear, overBudget)
 				HeapDown(hd, he, hi, hv, size)
 			end
 		elseif sortNear then
-			others[#others + 1] = e
+			others[#others + 1] = Unknown(e)
 			at[#at + 1] = i
 		end
 		if i % 32 == 0 and overBudget() then
@@ -643,7 +650,7 @@ function Scan.NearestViews(out, here, sortNear, overBudget)
 			local n = #others
 			for k = 1, size do
 				local v = hv[k]
-				if not v then v = NearView(he[k], hd[k]); hv[k] = v end
+				if not v then v = View(he[k], hd[k]); hv[k] = v end
 				others[n + k] = v
 			end
 			coroutine.yield(others)
@@ -661,7 +668,7 @@ function Scan.NearestViews(out, here, sortNear, overBudget)
 	for j = 1, #order do
 		local k = order[j]
 		while o <= n and at[o] < hi[k] do kept[#kept + 1] = others[o]; o = o + 1 end
-		kept[#kept + 1] = hv[k] or NearView(he[k], hd[k])
+		kept[#kept + 1] = hv[k] or View(he[k], hd[k])
 	end
 	for q = o, n do kept[#kept + 1] = others[q] end
 	return kept
@@ -931,6 +938,8 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		if AddKinds(set) == 0 then AddKinds(set, true) end
 	end
 	local nearest = act and act.nearest
+	-- ("farthest innkeeper": sort:-distance; 0.65.7)
+	local distWord = ((act and act.far) or q.sortFar) and "sort:-distance" or "sort:distance"
 	-- (0.55.18) the words shown found nothing passing every everyday word, so the closest were listed (UI.softRelaxed,
 	-- this very line): those words written as words, not as filters nothing passes ("linen cloth": not type:cloth)
 	local relaxed = {}
@@ -967,7 +976,7 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		if okind and ns.providers[okind] then
 			local line = { "@" .. okind }
 			for _, sp in ipairs(specs) do line[#line + 1] = sp end
-			line[#line + 1] = "sort:nearest"
+			line[#line + 1] = distWord
 			return table.concat(line, " ") .. " "
 		end
 		local rest = I and I.FlightAsked and ns.providers.flight and I.FlightAsked(q.tokens, q.softWords, not ns.providers.npc)
@@ -976,7 +985,7 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 			local line = { KindWord("flight") }
 			for _, w in ipairs(rest) do line[#line + 1] = w end
 			for _, sp in ipairs(specs) do if not SAID[sp] then line[#line + 1] = sp end end
-			line[#line + 1] = "sort:nearest"
+			line[#line + 1] = distWord
 			return table.concat(line, " ") .. " "
 		end
 	end
@@ -1001,7 +1010,7 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	for _, sp in ipairs(specs) do Add(sp) end
 	-- an NPC's role (trainer, vendor...) nearest: one who'll serve you (Scan.NearestStart)
 	if nearest and Scan.RoleFriendly(q.softWords, q.strictWords) then Add("faction:friendly") end
-	if nearest or q.sortNear then Add("sort:nearest") end
+	if nearest or q.sortNear then Add(distWord) end
 	if q.sortPlan then Add("sort:plan") end
 	if q.sortBest then Add("sort:best") end
 	if q.sortField then Add("sort:" .. q.sortField) end
@@ -1202,13 +1211,14 @@ function Scan.AnswerView(self, rows, tail)
 		head[#head + 1] = PseudoEntries({ EASY_NONE })[1]
 		return head
 	end
-	if sort == "nearest" then
+	local sortBase, sortRev = ns.Filters.SortParts(sort)
+	if sortBase == "distance" then
 		local I = ns.Integrations
 		local here = I and I.Here and I.Here()
 		if not here then self.noPosition = true return out end
 		local real, other = {}, {}
 		for _, e in ipairs(out) do if Real(e) then real[#real + 1] = e else other[#other + 1] = e end end
-		real = Scan.NearestViews(real, here, true, Scan.Budget(self))
+		real = Scan.NearestViews(real, here, true, Scan.Budget(self), sortRev)
 		for _, e in ipairs(real) do other[#other + 1] = e end
 		return other
 	elseif sort then
@@ -1305,15 +1315,15 @@ function Scan.Parse(self, text)
 		local act, actWord
 		if not sort and F and F.ActionOf then act, actWord = F.ActionOf(w) end
 		if sort then
-			-- sort:nearest, sort:plan (recipes that give skill, by how many times your materials make them: Plan.lua),
+			-- sort:distance, sort:plan (recipes that give skill, by how many times your materials make them: Plan.lua),
 			-- sort:best (the biggest upgrades first), sort:name / level / ilvl / quality / value / count (Scan.Finalize)
 			if sort == "plan" then q.sortPlan = true
 			elseif sort == "best" then q.sortBest = true
-			elseif sort == "nearest" then q.sortNear = true
+			elseif F.SortParts(sort) == "distance" then q.sortNear, q.sortFar = true, sort == "-distance" or nil
 			else q.sortField = sort end
 			-- (Simple mode: the bar shows it as its Sort, and takes the word back out of the line: Bar.lua)
 			if simple then q.typedSort = { id = sort, word = w, drop = true } end
-			q.fsig[#q.fsig + 1] = "^" .. (sort == "nearest" and "near" or sort)
+			q.fsig[#q.fsig + 1] = "^" .. (sort == "distance" and "near" or sort == "-distance" and "far" or sort)
 		elseif act then
 			q.advAct, q.actWord = act, actWord -- (do:use: each row's Enter that action, as "use ..." says it; Scan.UseAction)
 		elseif w:sub(1, 1) == "@" then
@@ -1416,7 +1426,8 @@ function Scan.Parse(self, text)
 	local bar = simple and ns.Bar and ns.Bar.Active()
 	if bar then
 		for _, w in ipairs(bar.filters) do Scan.AddFilter(q, F and F.Parse(w), "hard", "!bar:" .. w, nil, w) end
-		if bar.sort == "nearest" then q.sortNear = true elseif bar.sort then q.sortField = bar.sort end
+		if bar.sort == "distance" or bar.sort == "-distance" then q.sortNear, q.sortFar = true, bar.sort == "-distance" or nil
+		elseif bar.sort then q.sortField = bar.sort end
 		q.group = bar.group
 	end
 	return q
@@ -1589,7 +1600,7 @@ function Scan.SimpleScope(self, q)
 	if act and act.map then
 		-- an action word: its lists (Scan.UseAction), no categories to pick from
 		if act.nearest then
-			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords)
+			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords, act.far or q.sortFar)
 			if early then return early end
 			q.here = here
 			Scan.AddFilter(q, friendly, "hard", "faction:friendly", nil, "faction:friendly")
@@ -1767,7 +1778,7 @@ function Scan.Extra(self, q, matched)
 	return out
 end
 
---- "nearest" / sort:nearest: the rows with a distance, closest first (Scan.NearestViews). The rows, and the rows to
+--- "nearest" / sort:distance: the rows with a distance, closest first (Scan.NearestViews). The rows, and the rows to
 --- stop with instead (none near), if any.
 --- Does the search look at the NPCs alone (@npc, Simple mode's NPCs)?
 function Scan.NpcOnly(kinds)
@@ -1843,6 +1854,8 @@ end
 
 function Scan.Nearest(self, q, out)
 	local sortNear, here, overBudget = q.sortNear, q.here, q.overBudget
+	-- ("farthest innkeeper", sort:-distance: the farthest first, those with no distance known before them; 0.65.7)
+	local far = q.sortFar or (q.act and q.act.far) or nil
 	-- a list of NPCs alone, no sort asked for: the nearest first (Scan.NearDefault); not where nothing's known of where
 	-- you are, nor summed up ("@npc trainer | count": every match counted; release review)
 	if not sortNear and not here and not q.sortField and not q.act and Scan.NpcOnly(q.kinds)
@@ -1854,16 +1867,16 @@ function Scan.Nearest(self, q, out)
 			return Scan.NearDefault(out, here, q.tokens or {}, q.easyCat and Score.LIST_MAX or MAX_RESULTS, overBudget)
 		end
 	end
-	-- "sort:nearest" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
+	-- "sort:distance" (Advanced): where you are, once (an instance or no map: no sorting, the footer says so)
 	if sortNear and not here then
 		here = ns.Integrations and ns.Integrations.Here and ns.Integrations.Here()
 		if not here then self.noPosition = true end
 	end
 	-- "nearest": the NPCs that matched, closest first, how far in the detail column (none known: left out;
-	-- sort:nearest keeps every other row, after the NPCs, as a weapon's trainers do: q.keepFar, Scan.TrainerWords)
+	-- sort:distance keeps every other row, after the NPCs, as a weapon's trainers do: q.keepFar, Scan.TrainerWords)
 	if here then
-		local keep = sortNear or q.keepFar
-		out = Scan.NearestViews(out, here, keep, overBudget)
+		local keep = sortNear or q.keepFar or far
+		out = Scan.NearestViews(out, here, keep, overBudget, far)
 		if #out == 0 and not keep then
 			-- (TrainerSpells' trainers as @npc, no Questie: only trainers are known; 0.57.1)
 			local p = ns.providers.npc
@@ -1954,7 +1967,7 @@ function UI:SearchText(text)
 	Scan.Prepare(self, q)
 	if q.simple then
 		local act = q.act
-		self.typedPicks = { filters = q.picks or {}, sort = q.typedSort or (act and act.nearest and q.actWord and { id = "nearest", word = q.actWord }) or nil }
+		self.typedPicks = { filters = q.picks or {}, sort = q.typedSort or (act and act.nearest and q.actWord and { id = act.far and "-distance" or "distance", word = q.actWord }) or nil }
 	end
 	local rows = Scan.SimpleScope(self, q)
 	if rows then return Scan.Finish(q, rows) end

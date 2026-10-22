@@ -444,10 +444,10 @@ do
 	check(ispvp(bm) and ispvp(qm) and not ispvp(plain), "is:pvp: either")
 	local was = ns.db.easyMode
 	ns.db.easyMode = true
-	check(E.ToAdvanced("nearby battlemaster") == "@npc is:battlemaster faction:friendly sort:nearest ",
+	check(E.ToAdvanced("nearby battlemaster") == "@npc is:battlemaster faction:friendly sort:distance ",
 		"nearby battlemaster -> friendly battlemasters: " .. E.ToAdvanced("nearby battlemaster"))
-	check(E.ToAdvanced("nearest pvp vendor") == "@npc is:pvpvendor faction:friendly sort:nearest "
-		and E.ToAdvanced("nearest honor vendor") == "@npc is:pvpvendor faction:friendly sort:nearest ",
+	check(E.ToAdvanced("nearest pvp vendor") == "@npc is:pvpvendor faction:friendly sort:distance "
+		and E.ToAdvanced("nearest honor vendor") == "@npc is:pvpvendor faction:friendly sort:distance ",
 		"pvp / honor vendor -> is:pvpvendor: " .. E.ToAdvanced("nearest pvp vendor"))
 	check(E.HARD_WORDS.battlemaster and E.HARD_WORDS["pvp vendor"] and not E.HARD_WORDS.pvp, "battlemaster and pvp vendor are strict; pvp alone stays soft (pvp trinket)")
 	ns.db.easyMode = was
@@ -659,7 +659,7 @@ do
 	check(ok, "the @profession is:learned block ran: " .. tostring(err))
 end
 
--- (0.49.2, review G13) .filters names every list a key works on (F.APPLIES): near:, faction: and sort:nearest named only
+-- (0.49.2, review G13) .filters names every list a key works on (F.APPLIES): near:, faction: and sort:distance named only
 -- Questie's NPCs, on: only @stored; Tab offers missing:'s consumables too
 do
 	local help = {}
@@ -669,9 +669,9 @@ do
 	local missed = {}
 	for _, id in ipairs(F.APPLIES.near["*"]) do if not help["near:500"]:find(KIND[id], 1, true) then missed[#missed + 1] = "near:" .. id end end
 	for _, id in ipairs(F.APPLIES.faction["*"]) do if not help["faction:horde"]:find(KIND[id], 1, true) then missed[#missed + 1] = "faction:" .. id end end
-	for _, id in ipairs(F.APPLIES.sort.nearest) do if not help["sort:nearest"]:find(SAID[id], 1, true) then missed[#missed + 1] = "sort:" .. id end end
+	for _, id in ipairs(F.APPLIES.sort.distance) do if not help["sort:distance"]:find(SAID[id], 1, true) then missed[#missed + 1] = "sort:" .. id end end
 	for _, w in ipairs({ "@stored", "@mail", "@lockout", "@auction" }) do if not help["on:name"]:find(w, 1, true) then missed[#missed + 1] = "on:" .. w end end
-	check(#missed == 0, ".filters names every list near:, faction:, sort:nearest and on: work on; missing: " .. table.concat(missed, ", "))
+	check(#missed == 0, ".filters names every list near:, faction:, sort:distance and on: work on; missing: " .. table.concat(missed, ", "))
 	local offered = {}
 	for _, v in ipairs(F.VALUES.missing) do offered[v] = F.Parse("missing:" .. v) ~= nil end
 	check(offered.consumables and offered.food and offered.elixir, "Tab offers missing:consumables, food, elixir (and they parse)")

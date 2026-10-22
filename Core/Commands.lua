@@ -44,7 +44,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = L["Your auctions: my auctions / what am i selling (@auction: every character's auctions up now with price and time left, and the auction house's news; is:incoming: only the news)"]
 		lines[#lines + 1] = L["Lockouts and levelling: my lockouts / raid lockouts (@lockout is:raid; is:dungeon, on:<character>), blacksmithing plan / level blacksmithing (@recipe blacksmithing sort:plan: the recipes that still give skill, by how many times your materials make each; the footer says the points)"]
 		lines[#lines + 1] = L["The calendar: holidays / what's on this week / next darkmoon faire / my invites (@calendar is:holiday, is:invite, when:week; when:today, tomorrow, weekend, nextweek, month, nextmonth)"]
-		lines[#lines + 1] = L["Flight paths you haven't learned: @flight is:unlearned sort:nearest (in plain words: nearest unlearned flight master); a flight master's map tells Terminal which you know"]
+		lines[#lines + 1] = L["Flight paths you haven't learned: @flight is:unlearned sort:distance (in plain words: nearest unlearned flight master); a flight master's map tells Terminal which you know"]
 		lines[#lines + 1] = L["do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"]
 		lines[#lines + 1] = L["Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on; right-click a result for everything it can do"]
 		lines[#lines + 1] = L["Tab+` (hold Tab, press `) is pure fuzzy finding over every list, by name; Alt+click a link in chat to look it up here"]

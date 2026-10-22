@@ -271,6 +271,52 @@ local function SameNear(res, want)
 	return true
 end
 
+-- (0.65.7, the player: "nearest vs farthest, with unknown distances treated as infinitely far away") sort:-distance:
+-- views for the farthest 100, scored farthest first; the rows with no distance before them all
+Run("farthest: views for the farthest; the unknown first", function()
+	local restore = World(NearLists())
+	local ok, err = pcall(function()
+		local I = ns.Integrations
+		local here = I.Here()
+		local Scan = Upvalue(UI.SearchText, "Scan")
+		local out, known = {}, {}
+		for _, id in ipairs({ "npc", "spots" }) do
+			for _, e in ipairs(ns:GetEntries(ns.providers[id])) do
+				out[#out + 1] = e
+				local d = I.RowYards(e, here)
+				if d then known[#known + 1] = d end
+			end
+		end
+		table.sort(known, function(a, b) return a > b end)
+		local kept = Scan.NearestViews(out, here, true, function() return false end, true)
+		local views, unknown, lowest, okScore = 0, 0, math.huge, true
+		for _, v in ipairs(kept) do
+			if rawget(v, "_dist") then
+				views = views + 1
+				lowest = math.min(lowest, v._dist)
+				if v._score ~= 1e6 + v._dist then okScore = false end
+			else
+				unknown = unknown + 1
+				if not (v._score >= 4e6) then okScore = false end
+			end
+		end
+		check(views == 100 and lowest == known[100] and unknown == #out - #known, "the farthest 100 as views, every unknown kept: "
+			.. views .. " views, the nearest of them " .. tostring(lowest) .. " (the 100th farthest " .. tostring(known[100]) .. "), " .. unknown .. " unknown")
+		check(okScore, "scored: the unknown above every view, the views the farthest first")
+		-- the mailbox-like spots: the one on another continent first, then the farthest; sort:distance the other way
+		local function Names(line)
+			local t = {}
+			for _, e in ipairs(UI:Search(line)) do t[#t + 1] = rawget(e, "_dist") and tostring(e.detail) or "Far" end
+			return table.concat(t, " | ")
+		end
+		local far, near = Names("@spots sort:-distance"), Names("@spots sort:distance")
+		check(far:find("^Far") and far:find("14 yd", 1, true) < far:find("0 yd", 1, true), "@spots sort:-distance: " .. far)
+		check(near:find("^0 yd") and near:find("Far$"), "@spots sort:distance: " .. near)
+	end)
+	restore()
+	if not ok then error(err, 0) end
+end)
+
 Run("nearest: views only for the closest; the same rows, order and distances as a view for each", function()
 	local restore = World(NearLists())
 	local ok, err = pcall(function()
@@ -289,7 +335,7 @@ Run("nearest: views only for the closest; the same rows, order and distances as 
 		-- the search: views made only for the closest 100
 		local made, realSet = 0, _G.setmetatable
 		_G.setmetatable = function(t, m) if type(t) == "table" and rawget(t, "_dist") then made = made + 1 end return realSet(t, m) end
-		local res = UI:Search("@npc @spots sort:nearest")
+		local res = UI:Search("@npc @spots sort:distance")
 		_G.setmetatable = realSet
 		local want = OldNearest(here)
 		check(#res == 100 and SameNear(res, want), "the same 100 rows, order, details and distances: " .. Sig(res) .. "  //  " .. Sig(want))
@@ -298,7 +344,7 @@ Run("nearest: views only for the closest; the same rows, order and distances as 
 		-- a test's own distances (I.NpcDistance put in its place) are still asked
 		local saveNpc = I.NpcDistance
 		I.NpcDistance = function(id) return id == 3 and 1 or nil end
-		local fake = UI:Search("@npc sort:nearest")
+		local fake = UI:Search("@npc sort:distance")
 		I.NpcDistance = saveNpc
 		check(fake[1] and fake[1].key == 3 and fake[1].detail == "1 yd" and fake[2] and not fake[2]._dist, "a replaced NpcDistance is asked: " .. Sig(fake))
 		-- spread over frames: what a pause shows holds the closest so far as views, made once and kept for the end

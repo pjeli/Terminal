@@ -67,7 +67,7 @@ do
 	-- Shift+Enter: the nearest repair vendor
 	UI:Open("@durability"); FlushAll()
 	legs.secondary(legs); FlushAll()
-	check(UI.edit:GetText() == "@npc is:repair sort:nearest", "Shift+Enter: the nearest repair vendor: " .. UI.edit:GetText())
+	check(UI.edit:GetText() == "@npc is:repair sort:distance", "Shift+Enter: the nearest repair vendor: " .. UI.edit:GetText())
 	UI:Hide(); FlushAll()
 	-- (0.50.3, the player's screenshot) a name the client hasn't loaded ("[]" in the link): asked for, the list made again
 	-- once it's in, not "Item #905"

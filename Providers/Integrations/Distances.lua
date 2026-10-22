@@ -111,7 +111,7 @@ end
 -- each NPC's spawns in world yards, worked out once: id -> flat { cont, x, y, cont, x, y... } (false: none)
 local npcSpots, npcSpotCount = {}, 0
 -- (forgotten all at once past this. 0.50.7, review: 6000 was under WoW Forever's 11.7k NPCs, so a broad "@npc
--- sort:nearest" filled it, emptied it and filled it again in one search, and again on every keystroke; ~4.5 MB at its cap)
+-- sort:distance" filled it, emptied it and filled it again in one search, and again on every keystroke; ~4.5 MB at its cap)
 local NPC_SPOTS_MAX = 13000
 I._.NPC_SPOTS_MAX = NPC_SPOTS_MAX -- (tests)
 --- Each spawn in Questie's spawns by area, in world yards: fn(cont, x, y, ui, c, door, area) (c: Questie's { x%, y% };
@@ -268,8 +268,10 @@ I._.Spot, I._.NearestSpawn = Spot, NearestSpawn
 I._.ResetDistances = function() xforms, npcSpots, npcSpotCount, npcDungeon, npcDungeonCount = {}, {}, 0, {}, 0 end
 I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own maps)
 
---- A row's view saying how far it is: "N yd  <rest>", scored closest first (sort:nearest, "nearest mailbox"; one copy,
+--- A row's view saying how far it is: "N yd  <rest>", scored closest first (sort:distance, "nearest mailbox"; one copy,
 --- review 0.53.6: Search.lua's and Objects.lua's).
-function I.NearView(e, d, rest)
-	return setmetatable({ detail = ns.NearDetail(d, rest), _score = 1e6 - d, _dist = d, nearRest = rest }, { __index = e })
+--- far: scored the farthest first (sort:-distance, "farthest innkeeper"; 0.65.7).
+function I.NearView(e, d, rest, far)
+	return setmetatable({ detail = ns.NearDetail(d, rest), _score = far and (1e6 + d) or (1e6 - d), _dist = d, nearRest = rest },
+		{ __index = e })
 end

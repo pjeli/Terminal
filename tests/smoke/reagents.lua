@@ -45,9 +45,9 @@ do
 	for _, x in ipairs(E.PersonalTagged(false)) do if x[1] == "nearest reagent vendor" then found = x end end
 	local hadNpc = ns.providers.npc
 	if not hadNpc then ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return {} end }) end
-	for _, x in ipairs(E.PersonalTagged(true)) do if x[1] == "@npc reagent is:vendor faction:friendly sort:nearest" then adv = x end end
+	for _, x in ipairs(E.PersonalTagged(true)) do if x[1] == "@npc reagent is:vendor faction:friendly sort:distance" then adv = x end end
 	check(found and found.todo, "try: nearest reagent vendor, as pressing")
-	check(adv and adv.todo, "Advanced: @npc reagent is:vendor faction:friendly sort:nearest (as Alt+` writes the Simple line)")
+	check(adv and adv.todo, "Advanced: @npc reagent is:vendor faction:friendly sort:distance (as Alt+` writes the Simple line)")
 	if not hadNpc then
 		ns.providers.npc = nil
 		for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
@@ -91,7 +91,7 @@ do
 	_G.UnitClass = function() return "Paladin", "PALADIN" end
 	local function Reagent(adv)
 		for _, x in ipairs(E.PersonalTagged(adv)) do
-			if x[1] == "nearest reagent vendor" or x[1] == "@npc reagent is:vendor faction:friendly sort:nearest" then return x end
+			if x[1] == "nearest reagent vendor" or x[1] == "@npc reagent is:vendor faction:friendly sort:distance" then return x end
 		end
 	end
 	local r = Reagent(false)

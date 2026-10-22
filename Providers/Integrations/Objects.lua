@@ -135,7 +135,7 @@ function I.NearestSpawn(oids, here)
 end
 
 --- The rows of a kind of object (@mailbox): one per spawn, "Mailbox  Stormwind City", each with its map spot and its
---- place in world yards (for sort:nearest, near:, in: and the direction arrow). {} when QuestieDB has none to read.
+--- place in world yards (for sort:distance, near:, in: and the direction arrow). {} when QuestieDB has none to read.
 function I.ObjectRows(kind)
 	local ids = ObjectIds(kind)
 	local DB = QDB()
@@ -167,7 +167,7 @@ end
 --- "nearest mailbox" (Simple mode): the nearest rows of that kind's list (those `keep` keeps: a place said), closest
 --- first, "N yd  Zone" (or what the row says after a distance, `distNote`: a flight path not checked yet says so).
 --- nil when there's no such list; an empty list when none is on your continent.
-function I.NearestObjectRows(kind, here, keep)
+function I.NearestObjectRows(kind, here, keep, far)
 	local p = ns.providers[kind]
 	if not p then return nil end
 	local found = {}
@@ -175,12 +175,13 @@ function I.NearestObjectRows(kind, here, keep)
 		local d = (not keep or keep(e)) and I.RowYards(e, here) or nil -- (the yards alone: no spot table per row)
 		if d then found[#found + 1] = { e = e, d = d } end
 	end
-	table.sort(found, function(a, b) return a.d < b.d end)
+	-- (far: the farthest first, "farthest mailbox"; 0.65.7)
+	if far then table.sort(found, function(a, b) return a.d > b.d end) else table.sort(found, function(a, b) return a.d < b.d end) end
 	local rows = {}
 	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
 		local f = found[i]
 		local rest = rawget(f.e, "distNote") or f.e.zone
-		rows[i] = I.NearView(f.e, f.d, rest)
+		rows[i] = I.NearView(f.e, f.d, rest, far)
 	end
 	return rows
 end

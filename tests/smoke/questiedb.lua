@@ -412,7 +412,7 @@ do
 	local list = table.concat(names, ", ")
 	check(list:find("Jazzik", 1, true) and not list:find("Zargh", 1, true) and not list:find("Fuzruckle", 1, true),
 		"vendor ratchet: Ratchet's vendors: " .. list)
-	-- Advanced: sort:nearest puts Questie's NPCs closest first (with how far), near:<yards> keeps those within reach
+	-- Advanced: sort:distance puts Questie's NPCs closest first (with how far), near:<yards> keeps those within reach
 	ns.db.easyMode = false
 	C_Map.GetPlayerMapPosition = function() return { x = 0.62, y = 0.37 } end -- in Ratchet
 	local function List(q)
@@ -420,9 +420,9 @@ do
 		for _, e in ipairs(UI:Search(q)) do out[#out + 1] = tostring(e.name) .. "=" .. tostring(e.detail) end
 		return out
 	end
-	local got = List("@npc sort:nearest is:vendor")
+	local got = List("@npc sort:distance is:vendor")
 	check(got[1] and got[1]:find("^Jazzik=%d+ yd") and got[2] and got[2]:find("^Zargh=%d+ yd") and got[3] and not got[3]:find(" yd"),
-		"sort:nearest: Jazzik (Ratchet) first, then Zargh (the Crossroads), then the rest (another continent): " .. table.concat(got, ", "))
+		"sort:distance: Jazzik (Ratchet) first, then Zargh (the Crossroads), then the rest (another continent): " .. table.concat(got, ", "))
 	got = List("@npc is:vendor near:300")
 	check(#got >= 1 and table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Zargh", 1, true), "near:300: only the NPCs within 300 yards: " .. table.concat(got, ", "))
 	-- in:<town> knows the towns too (an NPC's zone says the Barrens, not Ratchet): what Alt+` writes for "vendor ratchet"
@@ -448,8 +448,8 @@ do
 	check(not table.concat(got, ","):find("Johan", 1, true), "faction:friendly alone leaves out Ironforge's trainer: " .. table.concat(got, ", "))
 	_G.UnitFactionGroup = baseFaction
 	C_Map.GetPlayerMapPosition = function() return nil end
-	UI:Search("@npc sort:nearest is:vendor")
-	check(UI.noPosition, "no position: sort:nearest says so (the footer)")
+	UI:Search("@npc sort:distance is:vendor")
+	check(UI.noPosition, "no position: sort:distance says so (the footer)")
 	C_Map.GetPlayerMapPosition = function() return { x = 0.60, y = 0.38 } end
 	-- NPC titles are searched and shown: "mining trainer in org" style
 	check(I.npc.list and (function() for _, e in ipairs(I.npc.list) do if e.name == "Fuzruckle" then return e.detail == "Banker" end end end)(), "an NPC's title is its detail (Banker)")
@@ -529,13 +529,26 @@ do
 			"nearest mailbox: the row's letters are lit for this search's words: " .. tostring(UI.posTokens and UI.posTokens[1]))
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest mailbox in ratchet"):find("in:", 1, true), "Alt+`: the place stays: " .. ns.Easy.ToAdvanced("nearest mailbox in ratchet"))
-		-- Advanced: @mailbox is a list like the others: sort:nearest, near:, in: work on it; Alt+` writes it
+		-- (0.65.7) "farthest mailbox": the farthest of this continent's first (a spot's list knows only those it can measure)
+		UI:Open("nearest mailbox")
+		local nearRows = UI.Results()
+		UI:Hide(); FlushAll()
+		UI:Open("farthest mailbox")
+		local farRows = UI.Results()
+		check(#farRows >= 2 and #farRows == #nearRows and farRows[1].py == nearRows[#nearRows].py and farRows[1]._dist >= farRows[2]._dist,
+			"farthest mailbox: the nearest's list the other way round: " .. #farRows)
+		UI:Hide(); FlushAll()
+		check(ns.Easy.ToAdvanced("farthest mailbox") == "@mailbox sort:-distance ", "Alt+`: @mailbox sort:-distance: " .. ns.Easy.ToAdvanced("farthest mailbox"))
+		-- Advanced: @mailbox is a list like the others: sort:distance, near:, in: work on it; Alt+` writes it
 		ns.db.easyMode = false
 		local function L(q) local t = {} for _, e in ipairs(UI:Search(q)) do t[#t + 1] = tostring(e.name) .. "=" .. tostring(e.detail) end return t end
-		local got = L("@mailbox sort:nearest")
-		check(got[1] and got[1]:find("yd  The Barrens$"), "sort:nearest keeps a spot row's zone: " .. tostring(got[1]))
+		local got = L("@mailbox sort:distance")
+		check(got[1] and got[1]:find("yd  The Barrens$"), "sort:distance keeps a spot row's zone: " .. tostring(got[1]))
 		check(#got == 3 and got[1]:find("^Mailbox=%d+ yd") and got[2]:find(" yd") and not got[3]:find(" yd"),
-			"@mailbox sort:nearest: this continent's closest first, the other after: " .. table.concat(got, ", "))
+			"@mailbox sort:distance: this continent's closest first, the other after: " .. table.concat(got, ", "))
+		got = L("@mailbox sort:-distance")
+		check(#got == 3 and not got[1]:find(" yd") and got[2]:find(" yd") and got[3]:find(" yd"),
+			"@mailbox sort:-distance: the other continent's (no distance known: infinitely far) first: " .. table.concat(got, ", "))
 		got = L("@mailbox near:300")
 		check(#got == 1, "@mailbox near:300: only the one in Ratchet: " .. table.concat(got, ", "))
 		got = L("@mailbox in:ratchet")
@@ -555,7 +568,7 @@ do
 		check(pinned and pinned.name == "Mailbox" and pinned.py == 37.0, "a mail's Shift+Enter: the nearest mailbox (Ratchet's) pinned: "
 			.. tostring(pinned and pinned.py))
 		ns.db.easyMode = true
-		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:nearest ", "Alt+`: nearest mailbox -> @mailbox sort:nearest: " .. ns.Easy.ToAdvanced("nearest mailbox"))
+		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:distance ", "Alt+`: nearest mailbox -> @mailbox sort:distance: " .. ns.Easy.ToAdvanced("nearest mailbox"))
 		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/mailbox$"), "the saved index's key names the kinds looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
 		check(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox == "32349,142075", "the mailboxes' ids are kept for next time: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox))
 		-- next session: from the saved index, no pass over every object's name
@@ -640,12 +653,12 @@ do
 		local m = rfk and ns.Secure.Resolve(rfk.secure, rfk)
 		check(m and m.macro == "/run C_Map.OpenWorldMap(1413)", "Enter: the game opens the map on its zone: " .. tostring(m and m.macro))
 		check(ns.Share.Line(rfk, "@dungeon rfk") == "Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "sent: its name and a pin (rfk says nothing more): " .. tostring(ns.Share.Line(rfk, "@dungeon rfk")))
-		check(ns.Share.Line(rfk, "@dungeon sort:nearest") == "Nearby dungeon: Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "nearby: " .. tostring(ns.Share.Line(rfk, "@dungeon sort:nearest")))
+		check(ns.Share.Line(rfk, "@dungeon sort:distance") == "Nearby dungeon: Razorfen Kraul entrance |Hworldmap:1413|h[pin]|h", "nearby: " .. tostring(ns.Share.Line(rfk, "@dungeon sort:distance")))
 		ns.db.easyMode = true
 		UI:Open("nearest dungeon")
 		local r = UI.Results()
 		check(r[1] and r[1].name == "Wailing Caverns" and r[1].detail:find("^%d+ yd"), "Simple: nearest dungeon (you stand in the Barrens): " .. tostring(r[1] and r[1].name) .. " " .. tostring(r[1] and r[1].detail))
-		check(ns.Easy.ToAdvanced("nearest raid") == "@raid sort:nearest ", "Alt+`: nearest raid -> @raid sort:nearest")
+		check(ns.Easy.ToAdvanced("nearest raid") == "@raid sort:distance ", "Alt+`: nearest raid -> @raid sort:distance")
 		UI:Hide(); FlushAll()
 		C_Map.GetUserWaypointHyperlink = nil
 		ns.Maps.Place = placeWas

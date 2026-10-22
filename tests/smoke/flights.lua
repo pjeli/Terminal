@@ -173,12 +173,12 @@ local function Body()
 	check(#res == 1 and res[1].name == "Gadgetzan", "a name with it: that one: " .. Show(res))
 	UI:Hide(); FlushAll()
 	-- Alt+`: the flight paths' list, not NPCs
-	check(E.ToAdvanced("nearest unlearned flight master") == "@flight is:unlearned sort:nearest ",
+	check(E.ToAdvanced("nearest unlearned flight master") == "@flight is:unlearned sort:distance ",
 		"Alt+`: " .. E.ToAdvanced("nearest unlearned flight master"))
-	check(E.ToAdvanced("closest missing flight path") == "@flight is:unlearned sort:nearest ",
+	check(E.ToAdvanced("closest missing flight path") == "@flight is:unlearned sort:distance ",
 		"Alt+`: " .. E.ToAdvanced("closest missing flight path"))
 	local adv = E.ToAdvanced("nearest flight path gadgetzan")
-	check(adv:find("^@flight ") and adv:find("gadgetzan", 1, true) and adv:find("sort:nearest $"), "Alt+`, a name kept: " .. adv)
+	check(adv:find("^@flight ") and adv:find("gadgetzan", 1, true) and adv:find("sort:distance $"), "Alt+`, a name kept: " .. adv)
 	-- every one of them, those you lack first
 	UI:Open("unlearned flight paths")
 	res = UI.Results()
@@ -191,11 +191,11 @@ local function Body()
 		"Alt+`: " .. E.ToAdvanced("unlearned flight paths", "places", E.ShownKinds(res)))
 	UI:Hide(); FlushAll()
 
-	-- Advanced: @flight with sort:nearest, is:, faction:, in:, near:
+	-- Advanced: @flight with sort:distance, is:, faction:, in:, near:
 	ns.db.easyMode = false; UI:EasyChanged()
-	res = UI:Search("@flight is:unlearned sort:nearest")
+	res = UI:Search("@flight is:unlearned sort:distance")
 	check(res[1] and res[1].name == "Ratchet" and res[1].detail == "14 yd  The Barrens" and res[2] and res[2].name == "Camp Taurajo"
-		and not Has(res, "Crossroads"), "@flight is:unlearned sort:nearest: " .. Show(res))
+		and not Has(res, "Crossroads"), "@flight is:unlearned sort:distance: " .. Show(res))
 	check(res[3] and res[3].learned == nil and res[3].detail:find(" yd  Ashenvale  ·  not checked yet$"),
 		"one not checked yet says so after its distance: " .. tostring(res[3] and res[3].detail))
 	check(not res[#res].detail:find(" yd", 1, true), "another continent's after them, with no distance: " .. tostring(res[#res].detail))
@@ -222,7 +222,7 @@ local function Body()
 		"Shift+Enter: a waypoint on its flight master: " .. tostring(printed))
 	local v1, v2 = E.Verbs(r)
 	check(v1 == "show on map" and v2 == "set waypoint", "verbs: show on map, set waypoint")
-	local line = ns.Share.Line(r, "@flight is:unlearned sort:nearest")
+	local line = ns.Share.Line(r, "@flight is:unlearned sort:distance")
 	check(line == "Nearby flight path: Ratchet flight master |Hworldmap:1413|h[pin]|h", "sent to chat: " .. tostring(line))
 
 	-- the tooltip: what's known, where from, your other characters' (a neutral one: both sides')
@@ -273,7 +273,7 @@ local function Body()
 	res = UI.Results()
 	check(res[1] and res[1].name == "Ratchet" and Has(res, "Crossroads"), "no NPCs to look in: every flight path, closest first: " .. Show(res))
 	UI:Hide(); FlushAll()
-	check(E.ToAdvanced("nearest flight master") == "@flight sort:nearest ", "Alt+` then: " .. E.ToAdvanced("nearest flight master"))
+	check(E.ToAdvanced("nearest flight master") == "@flight sort:distance ", "Alt+` then: " .. E.ToAdvanced("nearest flight master"))
 	ns.providers, ns.providerOrder = saved.providers, saved.order
 	ns:AliasesChanged()
 	I.NpcField, I.NpcFlagDefs, I.NpcDistance = saved.field, saved.defs, saved.dist

@@ -255,7 +255,7 @@ function SH.BaseText(e)
 	return e.name
 end
 
--- What an NPC search's filters say the NPC is ("@npc reagent is:vendor sort:nearest" -> "Nearby reagent vendor").
+-- What an NPC search's filters say the NPC is ("@npc reagent is:vendor sort:distance" -> "Nearby reagent vendor").
 SH.ROLES = {
 	vendor = L["vendor"], repair = L["repair vendor"], inn = L["innkeeper"], innkeeper = L["innkeeper"], bank = L["banker"],
 	banker = L["banker"], flight = L["flight master"], flightmaster = L["flight master"], auctioneer = L["auctioneer"],
@@ -277,7 +277,7 @@ end
 
 --- Words saying what an NPC sent to chat is, from what was searched: "Nearby reagent vendor", "Mining trainer in
 --- Orgrimmar". The search's own words (those not in the NPC's name), its role and trainer filters, "Nearby" for
---- sort:nearest / near:, "in <place>" for in:. nil when the search says nothing more than the name.
+--- sort:distance / near:, "in <place>" for in:. nil when the search says nothing more than the name.
 --- A search's words as the search reads them: a "quoted phrase" one word, quote marks off (in:"elwynn forest" is
 --- in:elwynn forest: review, 0.53.6, it was said as "Elwynn and forest"). Phrases after the words.
 local function QueryWords(query)
@@ -300,7 +300,7 @@ function SH.Context(query, e)
 			-- (a word left out, or either of several: not what it is, as SH.Describe reads them; a "|" in a chat line is an
 			-- escape the game refuses. 0.50.7, review: "Nearby hogger|vancleef: Hogger")
 		elseif F and F.SortOf and F.SortOf(lw) then
-			nearby = F.SortOf(lw) == "nearest" -- (sort:plan: recipes, nothing to say of them)
+			nearby = F.SortOf(lw) == "distance" -- (sort:plan: recipes, nothing to say of them; sort:-distance: nor the farthest)
 		elseif key and F and F.IsKey and F.IsKey(key) then
 			val = val:gsub("_", " ")
 			if key == "near" or key == "within" or key == "dist" then

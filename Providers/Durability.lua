@@ -159,7 +159,7 @@ local NEAREST = "nearest repair"
 -- Shift+Enter: the nearest repair vendor (the search Simple mode's "nearest repair" is, Advanced's @npc is:repair)
 local function NearestRepair(e)
 	local UI = ns.UI
-	local text = (ns.Easy and ns.Easy.On and ns.Easy.On()) and NEAREST or "@npc is:repair sort:nearest"
+	local text = (ns.Easy and ns.Easy.On and ns.Easy.On()) and NEAREST or "@npc is:repair sort:distance"
 	UI:WalkTo(text, e)
 end
 

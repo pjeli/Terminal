@@ -153,7 +153,7 @@ do
 		end
 		if near then text = Append(text, HINT .. L["no exact match: close spellings"] .. "|r") end
 		if self.noPosition and self.mode == "search" then
-			text = Append(text, HINT .. L["sort:nearest: your position isn't known here"] .. "|r")
+			text = Append(text, HINT .. L["sort:distance: your position isn't known here"] .. "|r")
 			near = true
 		end
 		-- (flight paths listed on a continent no flight master's map has been read on: Search.lua's Scan.FlightNote)

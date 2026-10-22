@@ -73,14 +73,14 @@ do
 	for _, x in ipairs(E.PersonalTagged(false)) do if x[1] == "nearest vendor sells:shot" then found = x end end
 	local hadNpc = ns.providers.npc
 	if not hadNpc then ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return {} end }) end
-	for _, x in ipairs(E.PersonalTagged(true)) do if x[1] == "@npc is:vendor sells:shot faction:friendly sort:nearest" then adv = x end end
+	for _, x in ipairs(E.PersonalTagged(true)) do if x[1] == "@npc is:vendor sells:shot faction:friendly sort:distance" then adv = x end end
 	if not hadNpc then
 		ns.providers.npc = nil
 		for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
 		ns:AliasesChanged()
 	end
 	check(found and found.todo, "try: nearest vendor sells:shot, as pressing")
-	check(adv, "Advanced: @npc is:vendor sells:shot faction:friendly sort:nearest (as Alt+` writes the Simple line)")
+	check(adv, "Advanced: @npc is:vendor sells:shot faction:friendly sort:distance (as Alt+` writes the Simple line)")
 	bags = { { 11, 200 } }
 	found = nil
 	for _, x in ipairs(E.PersonalTagged(false)) do if x[1]:find("sells:", 1, true) then found = x end end

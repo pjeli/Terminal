@@ -210,7 +210,7 @@ end
 --- The zone tables: { map = areaId -> uiMapId, sub = sub area -> its zone's area, dungeons }, or nil.
 function QD.Zones() return LibZones() end
 
--- (0.49.2, review: "@npc ... sort:nearest" asks here for every spawn's area, and each ask was a pcall'd ImportModule and
+-- (0.49.2, review: "@npc ... sort:distance" asks here for every spawn's area, and each ask was a pcall'd ImportModule and
 -- a pcall into ZoneDB: ~28k a keystroke. Questie's ZoneDB module is kept once found (looked up again for another
 -- QuestieLoader), and each area's map once worked out, per source: a few hundred areas.)
 local zoneMod, zoneLoader -- Questie's ZoneDB module, and the QuestieLoader it came from
