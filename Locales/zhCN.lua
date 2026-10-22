@@ -284,7 +284,7 @@ L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (
 L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] = "@npc、@mailbox、@dungeon、@raid、@flight：距离你不超过这么多码（near:<300、near:200-800）"
 L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] = "@npc：出售某物品的Questie商人（物品名称、部分名称或ID；未知物品没有结果）"
 L["@questie is unavailable."] = "@questie不可用。"
-L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling)"] = "@questie、@quest：奖励该物品的任务（名称、名称的一部分或相近的拼写）"
+L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling); reward:bag, reward:quiver, reward:ammo_pouch: any one"] = "@questie、@quest：奖励该物品的任务（名称、名称的一部分或相近的拼写）；reward:bag、reward:quiver、reward:ammo_pouch：任意一个"
 L["@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)"] = "@recipe：你的专业中尚未学会的配方，以及各自的学习方式（is:learnable：你的技能现在就能学的）"
 L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] = "@spell：只看你的法术书（不加时，也会列出你尚未学会的法术，任何职业的）"
 L["@stored, @mail, @lockout, @auction: on that character (or guild)"] = "@stored、@mail、@lockout、@auction：在该角色（或公会）身上"

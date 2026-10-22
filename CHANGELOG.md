@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.65.2 (in testing)
+## 0.65.3 (in testing)
+
+**Quests that reward bags**
+- **quests that reward bags** (**bag quests**, **which quests give a bag**) lists the quests whose reward is a bag that you can still take (your race and class, not done yet), the most slots first, then the lowest level; each says which bag and how many slots, and a trade's bag says which (Herb Bag). The footer says how many you've done already. **quivers from quests** and **quests that reward ammo pouches** too. Needs Questie, which knows what every quest rewards.
+- Advanced: **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**): every quest whose reward is one, by the item's kind, not its name.
+
+## 0.65.2
 
 **Fixes from a review of 0.65.1** (nothing changed for a player with ` bound; these were for the rest)
 - With only **Ctrl+`** bound (Terminal's first-run choice when ` is taken), the hints are as before: no more "Ctrl+Ctrl+`". With **Ctrl+Space** bound, the in-combat line says "Ctrl+Space", not "Ctrl+Ctrl+Space".

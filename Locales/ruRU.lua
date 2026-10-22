@@ -284,7 +284,7 @@ L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (
 L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] = "@npc, @mailbox, @dungeon, @raid, @flight: не дальше стольких метров от вас (near:<300, near:200-800)"
 L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] = "@npc: торговцы из Questie, продающие предмет (название, его часть или ID; для неизвестного предмета — ничего)"
 L["@questie is unavailable."] = "@questie недоступен."
-L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling)"] = "@questie, @quest: задания с этим предметом в награду (название, его часть или похожее написание)"
+L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling); reward:bag, reward:quiver, reward:ammo_pouch: any one"] = "@questie, @quest: задания с этим предметом в награду (название, его часть или похожее написание); reward:bag, reward:quiver, reward:ammo_pouch: любые"
 L["@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)"] = "@recipe: рецепты ваших профессий, которых вы еще не знаете, и как изучить каждый (is:learnable: те, что позволяет ваш навык сейчас)"
 L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] = "@spell: только ваша книга заклинаний (без фильтра показываются и ещё не изученные заклинания любого класса)"
 L["@stored, @mail, @lockout, @auction: on that character (or guild)"] = "@stored, @mail, @lockout, @auction: у этого персонажа (или гильдии)"

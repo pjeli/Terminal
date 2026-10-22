@@ -803,6 +803,10 @@ Scan.ANSWERS = {
 		toAdvanced = function() return ns.QuestRewards.UpgradeToAdvanced() end },
 	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
 	-- quest reward, and no quest is called that)
+	-- "quests that reward bags", "bag quests" (Rewards.lua; before the one by an item's name: "bags" names no item)
+	{ ask = function(text) return ns.QuestRewards and ns.QuestRewards.BagQuestion(text) end,
+		answer = function(q) return ns.QuestRewards.BagAnswer(q) end,
+		toAdvanced = function(q) return ns.QuestRewards.BagToAdvanced(q) end },
 	{ ask = function(text) return ns.QuestRewards and ns.QuestRewards.Question(text) end,
 		answer = function(q) return ns.QuestRewards.Answer(q) end,
 		toAdvanced = function(q) return ns.QuestRewards.ToAdvanced(q) end },

@@ -48,6 +48,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = L["do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"]
 		lines[#lines + 1] = L["Shift+Right at the end of the prompt writes the selected result into it (@npc Thrall), to build on; right-click a result for everything it can do"]
 		lines[#lines + 1] = L["Tab+` (hold Tab, press `) is pure fuzzy finding over every list, by name; Alt+click a link in chat to look it up here"]
+		lines[#lines + 1] = L["Bags from quests: quests that reward bags (bag quests, quivers from quests): the ones you can still take, the most slots first; Advanced: @questie reward:bag"]
 		lines[#lines + 1] = L["Upgrades: @loot is:upgrade sort:best (what you can get that beats what you wear, the biggest first; the tooltip says why); @questie is:upgrade sort:best: quests whose reward is one"]
 		lines[#lines + 1] = L["F5: a list that changed while you looked at it (your bags, item data coming in) stays put, the footer saying so; F5 shows the new one"]
 		lines[#lines + 1] = L["Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open (a window it opens still closes it), Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes (with nothing to complete: the next result), Shift+Left goes back a step; F1 (or .keybinds) shows every key, for each mode"]

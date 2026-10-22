@@ -248,6 +248,17 @@ if Fk and Fk.KEYS then
 	-- reward:<item>: the quests whose reward is that item (its name, part of it, or a close spelling; _ for a space)
 	Fk.KEYS.reward = function(v)
 		if v == "" then return nil end
+		-- reward:bag, reward:quiver, reward:ammo_pouch: any bag (quiver, ammo pouch) as a reward (0.65.3)
+		local kind = QR.KIND_WORDS[(v:gsub("_", " "))]
+		if kind then
+			local set
+			return function(e)
+				local id = QuestIdOf(e)
+				if not id then return false end
+				if not set then set = select(2, QuestsOf(QR.KindItems(kind))) end
+				return set[id] ~= nil
+			end
+		end
 		local tokens = {}
 		-- (apostrophes left out, as the names are: "agamaggan's_clutch"; 0.50.7, review)
 		for w in v:gsub("_", " "):gsub("'", ""):gmatch("%S+") do tokens[#tokens + 1] = w end
@@ -452,6 +463,161 @@ end
 --- Alt+`: the same in Advanced mode.
 -- (as said: the quests near your level, not done, for your race and class; "@questie is:upgrade" had none of that; 0.55.7)
 function QR.UpgradeToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- Bags (0.65.3, the player's ask: "quests that reward bags"; some notable ones): "quests that reward bags", "bag
+-- quests", "which quests give a bag"; quivers and ammo pouches too. The quests whose reward is one, that you can still
+-- take (your race and class, not done), the most slots first. A reward is a bag by the item's class (the game knows it
+-- for every item at once); its slots are its tooltip's ("16 Slot Bag"), once the game has the item.
+----------------------------------------------------------------------
+
+local CONTAINER, QUIVER_CLASS = 1, 11 -- (Enum.ItemClass: Container, Quiver; a quiver's subclass 2, an ammo pouch's 3)
+local KIND_TEST = {
+	bag = function(class) return class == CONTAINER end,
+	quiver = function(class, sub) return class == QUIVER_CLASS and sub == 2 end,
+	ammo = function(class, sub) return class == QUIVER_CLASS and sub == 3 end,
+}
+-- the words for each ("pouch" alone is a bag: Small Brown Pouch; with "ammo", an ammo pouch)
+QR.KIND_WORDS = { bag = "bag", bags = "bag", container = "bag", containers = "bag", satchel = "bag", satchels = "bag",
+	sack = "bag", sacks = "bag", pouch = "bag", pouches = "bag", quiver = "quiver", quivers = "quiver",
+	["ammo pouch"] = "ammo", ["ammo pouches"] = "ammo" }
+local BAG_EXTRA = { big = true, bigger = true, biggest = true, large = true, larger = true, largest = true, slot = true,
+	slots = true, ammo = true }
+QR.BAG_ASK = 60 -- (bags asked of the server per answer, for their slots; the answer is read again once they're in)
+
+local kindCache = {} -- kind -> { idx = the index it was made from, list = { index entries } }
+
+--- The quest rewards that are bags (or quivers, ammo pouches): index entries, each with sub (its kind's name, "Herb
+--- Bag") once. Made once per index.
+function QR.KindItems(kind)
+	local idx = QR.Index()
+	local test = KIND_TEST[kind]
+	if not (idx and test) then return {} end
+	local c = kindCache[kind]
+	if c and c.idx == idx then return c.list end
+	local get = (C_Item and C_Item.GetItemInfoInstant) or _G.GetItemInfoInstant
+	local list = {}
+	for _, it in ipairs(idx) do
+		local ok, _, _, sub, _, _, class, subID = false, nil, nil, nil, nil, nil, nil, nil
+		if get then ok, _, _, sub, _, _, class, subID = pcall(get, it.id) end
+		if ok and test(ns.Num(class), ns.Num(subID)) then
+			it.sub, it.subID = Str(sub), ns.Num(subID)
+			list[#list + 1] = it
+		end
+	end
+	kindCache[kind] = { idx = idx, list = list }
+	return list
+end
+
+-- a bag's slots, from its tooltip ("16 Slot Bag": the game's CONTAINER_SLOTS), kept once known
+local slotsOf = {}
+local slotPattern
+--- How many slots a bag has (its tooltip says), or nil while the game hasn't the item (or this client can't say).
+function QR.Slots(id)
+	if slotsOf[id] then return slotsOf[id] end
+	local TI = rawget(_G, "C_TooltipInfo")
+	if not (TI and TI.GetItemByID) then return nil end
+	if not slotPattern then
+		local fmt = Str(rawget(_G, "CONTAINER_SLOTS")) or "%d Slot %s"
+		slotPattern = "^" .. fmt:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%d", "(%%d+)"):gsub("%%s", ".+")
+	end
+	local ok, data = pcall(TI.GetItemByID, id)
+	for _, line in ipairs(ok and type(data) == "table" and type(data.lines) == "table" and data.lines or {}) do
+		local text = Str(line.leftText)
+		local n = text and tonumber(text:match(slotPattern))
+		if n then slotsOf[id] = n return n end
+	end
+	return nil
+end
+function QR.ForgetSlots() slotsOf, slotPattern, kindCache = {}, nil, {} end -- (tests)
+
+--- "quests that reward bags", "bag quests", "quivers from quests": { kind = "bag" | "quiver" | "ammo" }, or nil.
+function QR.BagQuestion(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local quest, kind = false, nil
+	t = t:gsub("ammo pouch", "ammo_pouch")
+	for w in t:gmatch("%S+") do
+		local k = QR.KIND_WORDS[(w:gsub("_", " "))]
+		if QUEST[w] then quest = true
+		elseif k then kind = kind or k
+		elseif not (FILLER[w] or BAG_EXTRA[w]) then return nil end
+	end
+	if not (quest and kind) then return nil end
+	return { kind = kind }
+end
+
+local BAG_NOTE = { bag = L["Quests that reward a bag"], quiver = L["Quests that reward a quiver"],
+	ammo = L["Quests that reward an ammo pouch"] }
+
+--- The answer: the quests rewarding one that you can still take, the most slots first (then the lowest level), each
+--- saying which and how many slots; the footer how many you've done already.
+function QR.BagAnswer(q)
+	local note = BAG_NOTE[q.kind] or BAG_NOTE.bag
+	local db = DB()
+	if not db then return { NoneRow(L["Needs Questie: it knows what every quest rewards"]) }, note end
+	local F = ns.Filters
+	if not QR.Index() then
+		if building and F then F.loading = true end
+		return { NoneRow(L["Reading what Questie's quests reward: a moment"]) }, note
+	end
+	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	local best, doneN, asked = {}, 0, 0 -- (quest id -> { it, slots }: the most slots it rewards)
+	local doneSeen = {}
+	for _, it in ipairs(QR.KindItems(q.kind)) do
+		local slots = QR.Slots(it.id)
+		if not slots and cached and Safe(cached, it.id) == false and asked < QR.BAG_ASK then
+			asked = asked + 1
+			if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it.id) end
+		end
+		for _, qid in ipairs(it.quests) do
+			if ForYou(db, qid) then
+				if done and Safe(done, qid) then
+					if not doneSeen[qid] then doneSeen[qid] = true doneN = doneN + 1 end
+				else
+					local b = best[qid]
+					if not b or (slots or 0) > (b.slots or 0) then best[qid] = { it = it, slots = slots } end
+				end
+			end
+		end
+	end
+	if asked > 0 and F then F.loading = true end
+	local I = ns.Integrations
+	local found = {}
+	for qid, b in pairs(best) do
+		local row = I and I.QuestRow and I.QuestRow(qid)
+		if row then found[#found + 1] = { row = row, b = b, lvl = ns.Num(Safe(db.QueryQuestSingle, qid, "questLevel")) or 0 } end
+	end
+	table.sort(found, function(x, y)
+		local a, c = x.b.slots or 0, y.b.slots or 0
+		if a ~= c then return a > c end
+		if x.lvl ~= y.lvl then return x.lvl < y.lvl end
+		return tostring(x.row.name) < tostring(y.row.name)
+	end)
+	local rows = {}
+	for i, f in ipairs(found) do
+		local it, d = f.b.it, f.row.detail
+		local what = L["Rewards %s"]:format(it.name)
+		if f.b.slots then what = what .. ns.DETAIL_SEP .. L["%d slots"]:format(f.b.slots) end
+		-- (a bag for one trade, an Herb Bag: said; a plain one isn't)
+		if q.kind == "bag" and it.sub and it.subID and it.subID ~= 0 then
+			what = what .. ns.DETAIL_SEP .. it.sub
+		end
+		local v = setmetatable({ detail = what .. ((d and d ~= "") and (ns.DETAIL_SEP .. d) or ""), rewardItem = it.id,
+			_score = 1e6 - i }, { __index = f.row })
+		rows[#rows + 1] = v
+	end
+	if doneN > 0 then note = note .. ns.DETAIL_SEP .. L["%d done already, not listed"]:format(doneN) end
+	if #rows == 0 then
+		return { NoneRow(doneN > 0 and L["You've done every one you can take"] or L["No quest Questie knows of rewards one"]) }, note
+	end
+	return rows, note
+end
+
+--- Alt+`: the line as said (Advanced has @questie reward:bag, but not the quests done or another race's left out, nor
+--- the most slots first).
+function QR.BagToAdvanced() return nil end
 
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
 function QR.ToAdvanced(q)
