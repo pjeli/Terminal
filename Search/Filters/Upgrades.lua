@@ -102,13 +102,14 @@ F.ROLES = {
 			dodge = 0.4 } } },
 }
 F.ROLE_SAY = { dps = L["damage"], tank = L["tank"], healer = L["healer"], melee = L["melee"], ranged = L["ranged"],
-	caster = L["caster"], feral = L["feral"] }
+	caster = L["caster"], feral = L["feral"], custom = L["your own weights"] }
 -- (what each role's word may be typed as: ".weights resto feral")
 F.ROLE_WORDS = { damage = "dps", dps = "dps", fury = "dps", arms = "dps", tank = "tank", prot = "tank", protection = "tank",
 	bear = "tank", heal = "healer", healer = "healer", healing = "healer", holy = "healer", resto = "healer",
 	restoration = "healer", disc = "healer", melee = "melee", ret = "melee", retribution = "melee", enh = "melee",
 	enhancement = "melee", combat = "melee", ranged = "ranged", caster = "caster", spell = "caster", balance = "caster",
-	boomkin = "caster", elemental = "caster", ele = "caster", shadow = "caster", feral = "feral", cat = "feral" }
+	boomkin = "caster", elemental = "caster", ele = "caster", shadow = "caster", feral = "feral", cat = "feral",
+	custom = "custom", own = "custom", mine = "custom" }
 
 local function MyClass()
 	if not _G.UnitClass then return nil end
@@ -117,13 +118,123 @@ local function MyClass()
 	return class
 end
 
+----------------------------------------------------------------------
+-- Your own weights (0.65.8, the player: "let's add custom weights; and support for the Pawn scale strings"): .weights
+-- set str=2 agi=1 sta=0.5, or a Pawn scale string; a role of their own ("custom") beside your class's, picked when set,
+-- kept per character. Weighed scaled so their most wanted stat is 1, as the class's are (a clear upgrade gains at least
+-- one point of your main stat: F.UPGRADE_MIN_ABS); said as typed.
+----------------------------------------------------------------------
+-- the words a stat may be typed as (.weights set)
+F.STAT_WORDS = { str = "str", strength = "str", agi = "agi", agility = "agi", sta = "sta", stamina = "sta", int = "int",
+	intellect = "int", spi = "spi", spirit = "spi", ap = "ap", attackpower = "ap", rap = "rap", rangedap = "rap",
+	rangedattackpower = "rap", feralap = "feralap", sp = "sp", spellpower = "sp", spelldamage = "sp", heal = "heal",
+	healing = "heal", crit = "crit", hit = "hit", spellhit = "spellhit", spellcrit = "spellcrit", haste = "haste", mp5 = "mp5",
+	dps = "dps", armor = "armor", def = "def", defense = "def", dodge = "dodge", parry = "parry", block = "block" }
+F.STAT_LIST = "str agi sta int spi ap rap feralap sp heal crit hit spellhit spellcrit haste mp5 dps armor def dodge parry block"
+-- Pawn's names for them (its scale strings: "( Pawn: v1: "Name": Strength=2, HitRating=1.5, Ap=0.8 )"); a rating and the
+-- plain stat alike (Classic's "+1% hit" is its HitRating), its weapon DPS kinds as one
+local PAWN = { strength = "str", agility = "agi", stamina = "sta", intellect = "int", spirit = "spi", ap = "ap", rap = "rap",
+	feralap = "feralap", spelldamage = "sp", spellpower = "sp", healing = "heal", hit = "hit", hitrating = "hit", crit = "crit",
+	critrating = "crit", spellhit = "spellhit", spellhitrating = "spellhit", spellcrit = "spellcrit",
+	spellcritrating = "spellcrit", haste = "haste", hasterating = "haste", spellhasterating = "haste", mp5 = "mp5", dps = "dps",
+	meleedps = "dps", rangeddps = "dps", armor = "armor", defense = "def", defenserating = "def", dodge = "dodge",
+	dodgerating = "dodge", parry = "parry", parryrating = "parry", block = "block", blockrating = "block", blockvalue = "block" }
+F.PAWN_STATS = PAWN
+
+--- "str=2 agi=1.5, sta 0.5" -> { str = 2, agi = 1.5, sta = 0.5 }, and the words that aren't a stat and its number.
+function F.ParseWeights(text)
+	local w, bad, any = {}, {}, false
+	local words = {}
+	for t in tostring(text or ""):gsub(",", " "):gmatch("%S+") do words[#words + 1] = t end
+	local i = 1
+	while i <= #words do
+		local t = words[i]
+		local k, v = t:match("^(%a[%w_]*)[=:](%-?[%d%.]+)$")
+		if not k and t:match("^%a[%w_]*$") and words[i + 1] and tonumber(words[i + 1]) then k, v = t, words[i + 1]; i = i + 1 end
+		local kind = k and F.STAT_WORDS[ns.Lower(k)]
+		local n = v and tonumber(v)
+		if kind and n then w[kind] = n; any = true else bad[#bad + 1] = t end
+		i = i + 1
+	end
+	return any and w or nil, bad
+end
+
+--- A Pawn scale string -> its weights, its name, and the stats Terminal doesn't weigh (sockets, expertise...); nil when
+--- it isn't one ("( Pawn: v1: "Name": Strength=2, ... )").
+function F.ParsePawn(text)
+	local name, body = tostring(text or ""):match('%(%s*Pawn%s*:%s*v%d+%s*:%s*"([^"]*)"%s*:(.-)%)')
+	if not body then return nil end
+	local w, ignored, any = {}, {}, false
+	for piece in body:gmatch("[^,]+") do
+		local k, v = piece:match("^%s*([%w_]+)%s*=%s*(.-)%s*$")
+		local n = v and tonumber(v)
+		if k and n then
+			local kind = PAWN[ns.Lower(k)]
+			if kind then
+				if w[kind] == nil or n > w[kind] then w[kind] = n end -- (melee and ranged DPS, rating and value: the more)
+				any = true
+			elseif n ~= 0 then
+				ignored[#ignored + 1] = k
+			end
+		end
+	end
+	if not any then return nil end
+	return w, name ~= "" and name or nil, ignored
+end
+
+--- Your own weights for this character: { w = { str = 2, ... }, name = a Pawn scale's } or nil.
+function F.CustomWeights()
+	local db, key = ns.db, F._MyName and F._MyName()
+	local c = db and key and type(db.upgradeCustom) == "table" and db.upgradeCustom[key]
+	return type(c) == "table" and type(c.w) == "table" and next(c.w) ~= nil and c or nil
+end
+--- Keep (or forget: nil) your own weights for this character; forgotten, they're no longer one of the roles picked.
+function F.SetCustomWeights(w, name)
+	local db, key = ns.db, F._MyName and F._MyName()
+	if not (db and key) then return end
+	db.upgradeCustom = type(db.upgradeCustom) == "table" and db.upgradeCustom or {}
+	db.upgradeCustom[key] = w and { w = w, name = name } or nil
+	if not w and type(db.upgradeRoles) == "table" and type(db.upgradeRoles[key]) == "table" then
+		local kept = {}
+		for _, id in ipairs(db.upgradeRoles[key]) do if id ~= "custom" then kept[#kept + 1] = id end end
+		db.upgradeRoles[key] = #kept > 0 and kept or nil
+	end
+end
+
+-- (scaled, made once per weights kept: the worn gear's values are kept per weights table)
+local scaled = setmetatable({}, { __mode = "k" })
+--- Weights scaled so their most wanted stat (not weapon DPS or armor, which come in other amounts) is 1.
+function F.Scaled(w)
+	local s = scaled[w]
+	if s then return s end
+	local top = 0
+	for k, v in pairs(w) do if k ~= "dps" and k ~= "armor" and v > top then top = v end end
+	if top <= 0 then for _, v in pairs(w) do if v > top then top = v end end end
+	s = {}
+	for k, v in pairs(w) do s[k] = top > 0 and v / top or v end
+	scaled[w] = s
+	return s
+end
+
+--- Your class's roles, and yours ("custom") after them when you've set your own: { { id, weights } ... }.
+local function RolesOf(class)
+	local list = F.ROLES[class or ""] or {}
+	local c = F.CustomWeights()
+	if not c then return list end
+	local out = {}
+	for i, r in ipairs(list) do out[i] = r end
+	out[#out + 1] = { "custom", F.Scaled(c.w) }
+	return out
+end
+F.RolesOf = RolesOf
+
 --- The roles you picked (their ids, in your class's order), or nil: none (the all-round weights).
 function F.MyRoles()
 	local db, key = ns.db, F._MyName and F._MyName()
 	local saved = db and key and type(db.upgradeRoles) == "table" and db.upgradeRoles[key]
 	if type(saved) ~= "table" then return nil end
 	local out = {}
-	for _, r in ipairs(F.ROLES[MyClass() or ""] or {}) do
+	for _, r in ipairs(RolesOf(MyClass())) do
 		for _, id in ipairs(saved) do if id == r[1] then out[#out + 1] = id end end
 	end
 	return #out > 0 and out or nil
@@ -142,7 +253,7 @@ function F.MyWeightSets()
 	local roles = F.MyRoles()
 	if not roles then return { { class and F.WEIGHTS[class] or GENERIC } } end
 	local out = {}
-	for _, r in ipairs(F.ROLES[class] or {}) do
+	for _, r in ipairs(RolesOf(class)) do
 		for _, id in ipairs(roles) do if id == r[1] then out[#out + 1] = { r[2], id } end end
 	end
 	return #out > 0 and out or { { F.WEIGHTS[class] or GENERIC } }
@@ -638,7 +749,7 @@ end
 function F.RolesFor(words)
 	local class = MyClass()
 	local mine, ids, bad = {}, {}, {}
-	for _, r in ipairs(F.ROLES[class or ""] or {}) do mine[r[1]] = true end
+	for _, r in ipairs(RolesOf(class)) do mine[r[1]] = true end
 	for w in tostring(words or ""):gmatch("%S+") do
 		local id = F.ROLE_WORDS[ns.Lower(w)]
 		if id and mine[id] then
@@ -652,30 +763,75 @@ function F.RolesFor(words)
 	return ids, bad
 end
 
+--- A Pawn scale string taken: your own weights, picked. ok, and the line to say.
+function F.ApplyPawn(text)
+	local w, name, ignored = F.ParsePawn(text)
+	if not w then return false, L["Not a Pawn scale string: it starts with ( Pawn: v1:"] end
+	F.SetCustomWeights(w, name)
+	F.SetRoles({ "custom" })
+	local say = L["Upgrades: judged by your Pawn scale %s: %s"]:format(name and ('"' .. name .. '"') or "", F.WeightsText(w))
+	if #ignored > 0 then say = say .. " " .. L["(not weighed here: %s)"]:format(table.concat(ignored, ", ")) end
+	return true, say
+end
+
 ns:RegisterCommand("weights", {
-	desc = L["How upgrades are judged: the stats your class wants. .weights feral healer judges them for those roles (any of them counts); .weights all for all-round"],
+	desc = L["How upgrades are judged: the stats your class wants. .weights feral healer judges them for those roles (any of them counts); .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for all-round"],
 	aliases = { "roles", "role" },
 	complete = function()
 		local out = {}
-		for _, r in ipairs(F.ROLES[MyClass() or ""] or {}) do out[#out + 1] = { r[1], F.WeightsText(r[2], 4) } end
+		for _, r in ipairs(F.RolesOf(MyClass())) do
+			out[#out + 1] = { r[1], r[1] == "custom" and F.WeightsText(F.CustomWeights().w, 4) or F.WeightsText(r[2], 4) }
+		end
 		out[#out + 1] = { "all", L["all-round (your class's weights)"] }
+		out[#out + 1] = { "set", L["your own: .weights set str=2 agi=1 sta=0.5"] }
+		out[#out + 1] = { "pawn", L["paste a Pawn scale string"] }
+		if F.CustomWeights() then out[#out + 1] = { "clear", L["forget your own weights"] } end
 		return out
 	end,
 	run = function(args)
 		local class = MyClass()
-		local roles = F.ROLES[class or ""] or {}
 		args = tostring(args or ""):gsub("^%s+", ""):gsub("%s+$", "")
 		local lines = {}
+		local low = ns.Lower(args)
+		local first, rest = low:match("^(%S+)%s*(.-)$")
+		local restRaw = args:match("^%S+%s*(.-)$") or ""
 		if args ~= "" then
-			local low = ns.Lower(args)
 			if low == "all" or low == "reset" or low == "none" or low == "allround" then
 				F.SetRoles(nil)
 				lines[#lines + 1] = L["Upgrades: judged all-round again."]
+			elseif first == "set" then
+				-- (0.65.8) your own: .weights set str=2 agi=1 sta=0.5
+				local w, bad = F.ParseWeights(rest)
+				if #bad > 0 or not w then
+					return { (#bad > 0 and L["Not a stat and its weight: %s"]:format(table.concat(bad, " ")) or L["Which stats? .weights set str=2 agi=1 sta=0.5"]),
+						"  " .. L["Stats: %s"]:format(F.STAT_LIST) }
+				end
+				F.SetCustomWeights(w, nil)
+				F.SetRoles({ "custom" })
+				lines[#lines + 1] = L["Upgrades: judged by your own weights: %s"]:format(F.WeightsText(w, 30))
+			elseif first == "pawn" or args:find("^%(%s*[Pp]awn") then
+				-- (0.65.8) a Pawn scale string: typed after it, or pasted in a window (they're often longer than the prompt
+				-- takes)
+				local text = first == "pawn" and restRaw or args
+				if text == "" then
+					local O = ns.Options
+					if O and O.PasteDialog then
+						O.PasteDialog(L["Your Pawn scale"], L["Paste a Pawn scale string (Ctrl+V): it starts with ( Pawn: v1:"], F.ApplyPawn)
+						return { L["Paste your Pawn scale string into the window (Ctrl+V), then Enter."] }
+					end
+					return { L["Not a Pawn scale string: it starts with ( Pawn: v1:"] }
+				end
+				local ok, say = F.ApplyPawn(text)
+				if not ok then return { say } end
+				lines[#lines + 1] = say
+			elseif first == "clear" or first == "forget" then
+				F.SetCustomWeights(nil)
+				lines[#lines + 1] = L["Your own weights forgotten."]
 			else
 				local ids, bad = F.RolesFor(args)
 				if #bad > 0 then
 					local names = {}
-					for _, r in ipairs(roles) do names[#names + 1] = r[1] end
+					for _, r in ipairs(F.RolesOf(class)) do names[#names + 1] = r[1] end
 					return { L["Not a role of your class: %s. Yours: %s"]:format(table.concat(bad, ", "), table.concat(names, ", ")) }
 				end
 				F.SetRoles(ids)
@@ -689,11 +845,20 @@ ns:RegisterCommand("weights", {
 		local on = {}
 		for _, id in ipairs(picked or {}) do on[id] = true end
 		if not picked then lines[#lines + 1] = "  " .. L["All-round (now): %s"]:format(F.WeightsText(class and F.WEIGHTS[class] or GENERIC)) end
-		for _, r in ipairs(roles) do
-			lines[#lines + 1] = "  " .. (on[r[1]] and "|cff40ff40" or "") .. (F.ROLE_SAY[r[1]] or r[1]) .. (on[r[1]] and (" " .. L["(now)"] .. "|r") or "")
-				.. ": " .. F.WeightsText(r[2])
+		local custom = F.CustomWeights()
+		for _, r in ipairs(F.RolesOf(class)) do
+			local id, w = r[1], r[2]
+			local label = F.ROLE_SAY[id] or id
+			-- (your own: as you set them, and the Pawn scale's name)
+			if id == "custom" then
+				w = custom.w
+				if custom.name then label = label .. ' "' .. custom.name .. '"' end
+			end
+			lines[#lines + 1] = "  " .. (on[id] and "|cff40ff40" or "") .. label .. (on[id] and (" " .. L["(now)"] .. "|r") or "")
+				.. ": " .. F.WeightsText(w, id == "custom" and 30 or nil)
 		end
 		lines[#lines + 1] = L[".weights <role> [role...] picks them (.weights feral healer); .weights all goes back to all-round."]
+		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]
 		return lines
 	end,
 })

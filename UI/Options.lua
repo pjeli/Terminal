@@ -459,12 +459,13 @@ local function BuildImportDialog()
 	d:Hide()
 	tinsert(UISpecialFrames, "TerminalStyleImport") -- Esc closes it
 
+	-- (its title, hint and what Apply does: a style's, or a Pawn scale's for .weights; O.PasteDialog, 0.65.8)
 	local title = d:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 14, -12)
-	title:SetText(L["Import a Terminal style"])
+	d.title = title
 	local hint = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	hint:SetPoint("TOPLEFT", 14, -30)
-	hint:SetText(L["Paste a style string (Ctrl+V): it starts with %s"]:format(T.STYLE_MARK))
+	d.hint = hint
 
 	local box = CreateFrame("EditBox", nil, d, "InputBoxTemplate")
 	box:SetSize(492, 22)
@@ -481,7 +482,7 @@ local function BuildImportDialog()
 	d.status = status
 
 	local function Apply()
-		local ok, msg = T.Import(box:GetText())
+		local ok, msg = (d.onApply or T.Import)(box:GetText())
 		status:SetText(msg)
 		status:SetTextColor(ok and 0.4 or 1, ok and 1 or 0.4, 0.4)
 		if ok then
@@ -508,15 +509,23 @@ local function BuildImportDialog()
 	return d
 end
 
---- Opens the paste dialog (empty, focused).
-function O.ImportDialog()
+--- Opens a paste dialog (empty, focused): `title`, `hint`, and `apply(text)` -> ok, the line to say (0.65.8: .weights
+--- pawn's, a Pawn scale string longer than the prompt takes).
+function O.PasteDialog(title, hint, apply)
 	local d = BuildImportDialog()
+	d.title:SetText(title)
+	d.hint:SetText(hint)
+	d.onApply = apply
 	d.box:SetText("")
 	d.status:SetText("")
 	d.shownAt = (d.shownAt or 0) + 1
 	d:Show()
 	C_Timer.After(0.05, function() if d:IsShown() then d.box:SetFocus() end end)
 	return d
+end
+--- Opens the style's paste dialog (empty, focused).
+function O.ImportDialog()
+	return O.PasteDialog(L["Import a Terminal style"], L["Paste a style string (Ctrl+V): it starts with %s"]:format(T.STYLE_MARK), T.Import)
 end
 
 Action(416, 110, L["Import style"], function() O.ImportDialog() end)

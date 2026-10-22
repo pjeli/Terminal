@@ -10,7 +10,7 @@ do
 	local save = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, level = _G.UnitLevel, inv = _G.GetInventoryItemLink,
 		can = C_PlayerInfo.CanUseItem, det = C_Item.GetDetailedItemLevelInfo, class = _G.UnitClass, inst = C_Item.GetItemInfoInstant,
 		invId = _G.GetInventoryItemID, providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode,
-		roles = ns.db.upgradeRoles }
+		roles = ns.db.upgradeRoles, custom = ns.db.upgradeCustom }
 	local ITEMS = {
 		[80] = { "Feral Helm", "|Hitem:80|h", 2, 20, 15, "Armor", "Leather", 1, "INVTYPE_HEAD" },
 		[81] = { "Healer Helm", "|Hitem:81|h", 2, 20, 15, "Armor", "Leather", 1, "INVTYPE_HEAD" },
@@ -83,9 +83,61 @@ do
 	weights.run("all", ns)
 	check(F.MyRoles() == nil and Upgrades() == "Cat Helm", "all: all-round again")
 
+	-- (0.65.8, the player: "let's add custom weights; and support for the Pawn scale strings") your own weights: a role of
+	-- their own, picked when set; weighed scaled (the most wanted 1), said as typed
+	ns.db.upgradeCustom = nil
+	lines = table.concat(weights.run("set int=2 spi 2", ns), "\n")
+	roles = F.MyRoles()
+	check(roles and #roles == 1 and roles[1] == "custom" and lines:find("int 2", 1, true), ".weights set int=2 spi 2: your own, picked: " .. lines)
+	check(Upgrades() == "Healer Helm", "judged by them: the Healer Helm (agility counts for nothing): " .. Upgrades())
+	check(F.MyWeightSets()[1][1].int == 1 and F.CustomWeights().w.int == 2, "weighed scaled (int 1), kept as typed (int 2)")
+	check(type(ns.db.upgradeCustom) == "table" and ns.db.upgradeCustom[F._MyName()], "kept for this character")
+	lines = table.concat(weights.run("set int=2 luck=5", ns), "\n")
+	check(lines:find("luck=5", 1, true) and lines:find("spellcrit", 1, true) and F.CustomWeights().w.spi == 2,
+		"a word that isn't a stat: said, with the stats to use; nothing changed: " .. lines)
+	-- a Pawn scale string: its stats, its name; what Terminal doesn't weigh (sockets) said, the class and the like skipped
+	local PAWN = '( Pawn: v1: "Kitty": Class=Druid, Agility=2, Strength=1.5, HitRating=1, RedSocket=10, MeleeDps=3, RangedDps=1 )'
+	local w, name, ignored = F.ParsePawn(PAWN)
+	check(w and w.agi == 2 and w.str == 1.5 and w.hit == 1 and w.dps == 3 and name == "Kitty" and #ignored == 1 and ignored[1] == "RedSocket",
+		"a Pawn scale read: agi 2, str 1.5, hit 1, dps 3 (the more of melee and ranged); RedSocket not weighed here")
+	check(F.ParsePawn("Agility=2") == nil and F.ParsePawn('( Pawn: v1: "x": Class=Druid )') == nil, "not one, or no stat in it: nil")
+	lines = table.concat(weights.run("pawn " .. PAWN, ns), "\n")
+	check(F.MyRoles()[1] == "custom" and F.CustomWeights().name == "Kitty" and lines:find('"Kitty"', 1, true) and lines:find("RedSocket", 1, true),
+		".weights pawn <string>: taken, named, its sockets said: " .. lines)
+	check(Upgrades() == "Cat Helm", "judged by the Pawn scale: the Cat Helm: " .. Upgrades())
+	weights.run('( Pawn: v1: "Wise": Intellect=3 )', ns)
+	check(F.CustomWeights().name == "Wise" and Upgrades() == "Healer Helm", "a Pawn scale string typed alone after .weights: taken too")
+	-- .weights pawn alone: a window to paste it in (Pawn's strings are often longer than the prompt takes)
+	local O = ns.Options
+	local opened
+	local real = O.PasteDialog
+	O.PasteDialog = function(...) opened = real(...) return opened end
+	lines = table.concat(weights.run("pawn", ns), "\n")
+	O.PasteDialog = real
+	check(opened and opened:IsShown(), ".weights pawn: the paste window opens: " .. lines)
+	if opened then
+		opened.box:SetText(PAWN)
+		opened.Apply()
+		check(F.CustomWeights().name == "Kitty" and tostring(opened.status:GetText()):find("Kitty", 1, true), "pasted and applied: " .. tostring(opened.status:GetText()))
+		opened:Hide()
+		-- (the style's import still a style's)
+		local d = O.ImportDialog()
+		check(d.onApply == ns.Theme.Import and d.title:GetText() == L["Import a Terminal style"], "Options' Import style: still the style's")
+		d:Hide()
+	end
+	-- with a class role too; forgotten: gone from the roles picked
+	weights.run("custom healer", ns)
+	roles = F.MyRoles()
+	check(roles and roles[1] == "healer" and roles[2] == "custom" and Upgrades() == "Cat Helm, Healer Helm", "custom healer: either: " .. Upgrades())
+	lines = table.concat(weights.run("clear", ns), "\n")
+	roles = F.MyRoles()
+	check(F.CustomWeights() == nil and roles and #roles == 1 and roles[1] == "healer", ".weights clear: forgotten, healer still picked: " .. lines)
+	check(table.concat(weights.run("custom", ns), "\n"):find(L["Not a role of your class: %s. Yours: %s"]:sub(1, 12), 1, true), "custom with none set: not a role")
+	weights.run("all", ns)
+
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID, ns.providers, ns.providerOrder, ns.db.easyMode = save.invId, save.providers, save.order, save.easy
-	ns.db.upgradeRoles = save.roles
+	ns.db.upgradeRoles, ns.db.upgradeCustom = save.roles, save.custom
 	F.ClearCache()
 end

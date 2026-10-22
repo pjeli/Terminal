@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.65.7 (in testing)
+## 0.65.8 (in testing)
+
+**Your own upgrade weights** (the player: "let's add custom weights; and support for the Pawn scale strings")
+- **.weights set str=2 agi=1.5 sta=0.5** judges upgrades by your own weights (**k=v** or **k v**; the stats: str agi sta int spi ap rap feralap sp heal crit hit spellhit spellcrit haste mp5 dps armor def dodge parry block, and their full names). A word that isn't one is said, with the list, and nothing changes.
+- **.weights pawn** opens a window to paste a Pawn scale string into (they're often longer than the prompt takes); **.weights pawn ( Pawn: v1: ... )** or the string alone after **.weights** works too. Pawn's stats are read by their names (Strength, Agility, HitRating, Ap, SpellDamage, Healing, Mp5, MeleeDps...); what Terminal doesn't weigh (sockets, expertise) is said, and its Class= and the like are skipped.
+- Your weights are a role of their own, beside your class's: setting them picks them, **.weights custom healer** judges for either, **.weights custom** picks them again, **.weights clear** forgets them. Kept per character. They're weighed scaled so your most wanted stat counts 1, as the class's weights are, so Pawn's numbers work as they are; **.weights** shows them as you set them, with the Pawn scale's name, and an upgrade's tooltip says "An upgrade for: your own weights".
+
+## 0.65.7
 
 **Nearest or farthest** (the player: "sort:distance ideally; allow for nearest vs farthest, with unknown distances treated as infinitely far away")
 - **sort:distance** is the sort by distance, the nearest first; **sort:-distance** is the farthest first. Alt+`, the examples and the help write **sort:distance** now; **sort:nearest** (and near, closest) still reads as it did, and **sort:farthest** (furthest) means **sort:-distance**.

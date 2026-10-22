@@ -772,7 +772,6 @@ L["How it's learned isn't known"] = "Неизвестно, как изучает
 L["How it's learned isn't known: AtlasLoot doesn't list it"] = "Неизвестно, как изучается: в AtlasLoot этого нет"
 L["How to use Terminal; .help advanced: every command and the Advanced syntax"] = "Как пользоваться Terminal; .help advanced: все команды и расширенный синтаксис"
 L["How upgrades are judged: an item's stats weighed for what you want, against the piece you wear there; a clear upgrade gains more than it gives up."] = "Как оцениваются улучшения: характеристики предмета взвешиваются по тому, что вам нужно, против надетого в этот слот; явное улучшение даёт больше, чем отнимает."
-L["How upgrades are judged: the stats your class wants. .weights feral healer judges them for those roles (any of them counts); .weights all for all-round"] = "Как оцениваются улучшения: характеристики, нужные вашему классу. .weights feral healer оценивает их для этих ролей (засчитывается любая); .weights all — для всего"
 L["I can share"] = "Могу поделиться"
 L["I can share it"] = "могу поделиться"
 L["ID %d"] = "ID %d"

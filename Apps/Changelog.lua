@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.7", when = "in testing",
+		v = "0.65.8", when = "in testing",
 		items = {
+			"Your own upgrade weights: .weights set str=2 agi=1.5 sta=0.5 judges upgrades by them, or paste a Pawn scale string (.weights pawn opens a window for it). They're a role of their own beside your class's (.weights custom healer: either counts), kept per character; .weights clear forgets them.",
 			"Nearest or farthest: \"farthest innkeeper\" lists the farthest first, those whose place isn't known (another continent) before them, as if infinitely far. Advanced: sort:distance (the nearest first) and sort:-distance (the farthest); sort:nearest and sort:farthest still work. Simple mode's Sort: Distance starts with the nearest, and turns round when picked again.",
 			"Sort either way: Simple mode's Sort shows an arrow by the sort in use, down for the highest (or Z) first, up for the lowest (or A) first; pick it again to turn it round. A number's sort starts with the highest, a name's with A. In Advanced, a - turns any sort round: sort:-level, sort:-name (Alt+` writes it).",
 			"Quests that reward bags: \"quests that reward bags\" (\"bag quests\", \"quivers from quests\") lists the ones your race, class and faction can still take, the most slots first, each saying which bag and its slots. Alt+` writes @questie reward:bag -is:done sort:slots (reward:quiver, reward:ammo_pouch), whose rows say the bag and its slots too.",
