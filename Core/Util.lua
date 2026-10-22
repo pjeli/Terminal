@@ -596,8 +596,9 @@ local function ChordNow(key)
 	local ctrl = IsControlKeyDown and IsControlKeyDown() or false
 	local shift = IsShiftKeyDown and IsShiftKeyDown() or false
 	local meta = IsMetaKeyDown and IsMetaKeyDown() or false
+	-- (Shift too: Shift+Space bound was named in the hints and typed a space; 0.65.x review)
 	return (alt and "ALT-" or "") .. (ctrl and "CTRL-" or "") .. (shift and "SHIFT-" or "") .. (meta and "META-" or "") .. key,
-		alt or ctrl or meta
+		alt or ctrl or shift or meta, alt
 end
 
 --- Is this key press (as the game names the key: "`", "^", "SPACE") the terminal's own: ` always; a symbol key bound to
@@ -615,6 +616,21 @@ function ns.IsTickKey(key)
 	local chord, modded = ChordNow(key)
 	if not (modded or key:find("^F%d+$")) then return false end
 	for _, k in ipairs(binds) do if k == chord then return true end end
+	return false
+end
+
+--- Is this key, with Alt held, the terminal's key itself (Alt+Q bound to it): it closes the terminal, not Alt+`'s
+--- Advanced mode (0.65.x review: Alt+Q bound was named in the hints, and switched modes with a q typed).
+function ns.IsAltBoundKey(key)
+	if type(key) ~= "string" or key == "" then return false end
+	local chord, _, alt = ChordNow(key)
+	if not alt then return false end
+	for _, k in ipairs(ns.ToggleBindings()) do if k == chord then return true end end
+	return false
+end
+--- Is one of the terminal's keys an Alt chord (Alt+Q)? Then Alt held opens it (UI:Toggle).
+function ns.AltBound()
+	for _, k in ipairs(ns.ToggleBindings()) do if k:find("ALT%-") then return true end end
 	return false
 end
 

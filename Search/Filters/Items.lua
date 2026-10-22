@@ -20,6 +20,8 @@ local CACHE_MAX = P.CACHE_MAX
 F.ITEM_ASK = 40
 local asksLeft = F.ITEM_ASK
 function F.ResetAsks() asksLeft = F.ITEM_ASK end
+--- May an item the client hasn't loaded be asked for now (F.ITEM_ASK per search)? Loaded (or the client can't say):
+--- true. Not loaded: F.loading set either way (the search runs again once it's in).
 local function MayAsk(id)
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	if not cached or type(id) ~= "number" then return true end
@@ -30,6 +32,7 @@ local function MayAsk(id)
 	asksLeft = asksLeft - 1
 	return true
 end
+F.MayAsk = MayAsk -- (Rewards.lua: a bag's slots)
 
 -- an item's info, kept per item id (it doesn't change; filters ask for it on every matching row
 -- of every search): a table each time was garbage for thousands of loot rows

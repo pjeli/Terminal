@@ -477,13 +477,17 @@ local KIND_TEST = {
 	quiver = function(class, sub) return class == QUIVER_CLASS and sub == 2 end,
 	ammo = function(class, sub) return class == QUIVER_CLASS and sub == 3 end,
 }
--- the words for each ("pouch" alone is a bag: Small Brown Pouch; with "ammo", an ammo pouch)
-QR.KIND_WORDS = { bag = "bag", bags = "bag", container = "bag", containers = "bag", satchel = "bag", satchels = "bag",
-	sack = "bag", sacks = "bag", pouch = "bag", pouches = "bag", quiver = "quiver", quivers = "quiver",
+-- the words for each kind (reward:bag, "bag quests"); not "pouch", "satchel" or "sack": reward:pouch is the items named
+-- so, as before 0.65.3, a Small Shot Pouch (an ammo pouch) among them (0.65.x review)
+QR.KIND_WORDS = { bag = "bag", bags = "bag", container = "bag", containers = "bag", quiver = "quiver", quivers = "quiver",
 	["ammo pouch"] = "ammo", ["ammo pouches"] = "ammo" }
+-- the question's words too: those said in the plural ("quests that reward pouches"); one said alone is a name ("pouch
+-- quest": the quests rewarding a pouch, as before)
+local QUESTION_KINDS = setmetatable({ satchels = "bag", sacks = "bag", pouches = "bag" }, { __index = QR.KIND_WORDS })
+-- (words saying the bags are yours, "quests in my bags": not this question)
+local NOT_BAG_QUESTION = { my = true, mine = true }
 local BAG_EXTRA = { big = true, bigger = true, biggest = true, large = true, larger = true, largest = true, slot = true,
 	slots = true, ammo = true }
-QR.BAG_ASK = 60 -- (bags asked of the server per answer, for their slots; the answer is read again once they're in)
 
 local kindCache = {} -- kind -> { idx = the index it was made from, list = { index entries } }
 
@@ -519,7 +523,19 @@ function QR.Slots(id)
 	if not (TI and TI.GetItemByID) then return nil end
 	if not slotPattern then
 		local fmt = Str(rawget(_G, "CONTAINER_SLOTS")) or "%d Slot %s"
-		slotPattern = "^" .. fmt:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%d", "(%%d+)"):gsub("%%s", ".+")
+		-- (other languages: positional codes, "%1$d", and the game's plural forms, "|4ячейка:ячейки:ячеек;", read as any
+		-- text; 0.65.x review)
+		fmt = fmt:gsub("%%%d%$([ds])", "%%%1"):gsub("|4[^;]*;", "\1")
+		slotPattern = "^" .. fmt:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%d", "\2", 1):gsub("%%d", "\3")
+			:gsub("%%s", ".+"):gsub("\1", ".-"):gsub("\2", "(%%d+)"):gsub("\3", "%%d+")
+	end
+	-- (an item the client hasn't loaded: no tooltip to read yet; asked for (a few per search, F.MayAsk), and read once
+	-- it's in. 0.65.x review: every keystroke read 100 empty tooltips, and Advanced never asked for them)
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	if cached and Safe(cached, id) == false then
+		local F = ns.Filters
+		if F and F.MayAsk and F.MayAsk(id) and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+		return nil
 	end
 	local ok, data = pcall(TI.GetItemByID, id)
 	for _, line in ipairs(ok and type(data) == "table" and type(data.lines) == "table" and data.lines or {}) do
@@ -529,38 +545,42 @@ function QR.Slots(id)
 	end
 	return nil
 end
-function QR.ForgetSlots() slotsOf, slotPattern, kindCache = {}, nil, {} end -- (tests)
+local questsCache = {} -- kind -> { list = KindItems' list it was made from, set }
+function QR.ForgetSlots() slotsOf, slotPattern, kindCache, questsCache = {}, nil, {}, {} end -- (tests)
 
---- The quests rewarding one (bag, quiver, ammo pouch) that you can take (your race, class and side): quest id -> the
---- one with the most slots ({ it, slots }). Done ones too (is:done says).
+--- The quests rewarding one (bag, quiver, ammo pouch) that you can take (your race, class and side): quest id -> true.
+--- Done ones too (is:done says). Made once per index (reward:bag's filter is made on every keystroke; its slots aren't
+--- read here: 0.65.x review).
 function QR.KindQuests(kind)
 	local db = DB()
+	if not db then return {} end
+	local list = QR.KindItems(kind)
+	local c = questsCache[kind]
+	if c and c.list == list then return c.set end
 	local out = {}
-	if not db then return out end
-	for _, it in ipairs(QR.KindItems(kind)) do
-		local slots = QR.Slots(it.id)
+	for _, it in ipairs(list) do
 		for _, qid in ipairs(it.quests) do
-			if ForYou(db, qid) then
-				local b = out[qid]
-				if not b or (slots or 0) > (b.slots or 0) then out[qid] = { it = it, slots = slots } end
-			end
+			if out[qid] == nil and ForYou(db, qid) then out[qid] = true end
 		end
 	end
+	questsCache[kind] = { list = list, set = out }
 	return out
 end
 
 --- A quest's reward bag (quiver, ammo pouch) with the most slots: its index entry, its slots (nil: not known yet), its
---- kind's name ("Herb Bag") and subclass; nil when it rewards none.
-function QR.RewardBag(e)
+--- kind's name ("Herb Bag") and subclass; nil when it rewards none. Of the kind asked for when one was (reward:bag,
+--- "quests that reward bags": QR.slotKind; 0.65.x review: a 14-slot quiver counted for reward:bag), else any.
+function QR.RewardBag(e, kind)
 	local id = QuestIdOf(e)
 	if not id then return nil end
+	local test = KIND_TEST[kind or QR.slotKind or ""]
 	local best, bestN, bestSub, bestSubID
 	local get = (C_Item and C_Item.GetItemInfoInstant) or _G.GetItemInfoInstant
 	for _, it in ipairs(QR.RewardsOf(id) or {}) do
 		local ok, _, _, sub, _, _, class, subID = false, nil, nil, nil, nil, nil, nil, nil
 		if get then ok, _, _, sub, _, _, class, subID = pcall(get, it.id) end
 		class = ok and ns.Num(class)
-		if class == CONTAINER or class == QUIVER_CLASS then
+		if (test and test(class, ns.Num(subID))) or (not test and (class == CONTAINER or class == QUIVER_CLASS)) then
 			local n = QR.Slots(it.id)
 			if not best or (n or 0) > (bestN or 0) then
 				best, bestN, bestSub, bestSubID = it, n, Str(sub), class == CONTAINER and ns.Num(subID) or nil
@@ -590,9 +610,11 @@ end
 
 --- Is this typed word one asking for quests' bags (reward:bag, reward:quiver, rewards:ammo_pouch)? Their rows then
 --- say which bag and its slots (Search.lua's showField).
-function QR.IsKindWord(w)
+function QR.IsKindWord(w) return QR.KindOfWord(w) ~= nil end
+--- The kind a typed word asks for: "reward:bag" -> "bag", "reward:ammo_pouch" -> "ammo"; else nil.
+function QR.KindOfWord(w)
 	local k, v = w:match("^(rewards?):(.+)$")
-	return k ~= nil and QR.KIND_WORDS[(v:gsub("_", " "))] ~= nil
+	return k and QR.KIND_WORDS[(v:gsub("_", " "))] or nil
 end
 
 -- (a quest search for bags, or sorted by slots: List.lua's FillRow says which bag and its slots; 0.65.6, the player)
@@ -621,7 +643,8 @@ function QR.BagQuestion(text)
 	local quest, kind = false, nil
 	t = t:gsub("ammo pouch", "ammo_pouch")
 	for w in t:gmatch("%S+") do
-		local k = QR.KIND_WORDS[(w:gsub("_", " "))]
+		local k = QUESTION_KINDS[(w:gsub("_", " "))]
+		if NOT_BAG_QUESTION[w] then return nil end
 		if QUEST[w] then quest = true
 		elseif k then kind = kind or k
 		elseif not (FILLER[w] or BAG_EXTRA[w]) then return nil end
@@ -645,15 +668,11 @@ function QR.BagAnswer(q)
 		return { NoneRow(L["Reading what Questie's quests reward: a moment"]) }, note
 	end
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
-	local cached = C_Item and C_Item.IsItemDataCachedByID
-	local best, doneN, asked = {}, 0, 0 -- (quest id -> { it, slots }: the most slots it rewards)
+	QR.slotKind = q.kind -- (the bar's Sort: Slots on these rows: this kind's; RewardBag)
+	local best, doneN = {}, 0 -- (quest id -> { it, slots }: the most slots it rewards)
 	local doneSeen = {}
 	for _, it in ipairs(QR.KindItems(q.kind)) do
-		local slots = QR.Slots(it.id)
-		if not slots and cached and Safe(cached, it.id) == false and asked < QR.BAG_ASK then
-			asked = asked + 1
-			if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it.id) end
-		end
+		local slots = QR.Slots(it.id) -- (one not loaded yet: asked for, the answer read again once it's in)
 		for _, qid in ipairs(it.quests) do
 			if ForYou(db, qid) then
 				if done and Safe(done, qid) then
@@ -665,18 +684,20 @@ function QR.BagAnswer(q)
 			end
 		end
 	end
-	if asked > 0 and F then F.loading = true end
 	local I = ns.Integrations
 	local found = {}
 	for qid, b in pairs(best) do
 		local row = I and I.QuestRow and I.QuestRow(qid)
 		if row then found[#found + 1] = { row = row, b = b, lvl = ns.Num(Safe(db.QueryQuestSingle, qid, "questLevel")) or 0 } end
 	end
+	-- (as Advanced's sort:slots lists them: the most slots, the lowest level, then the name as its sort reads it; those
+	-- not known yet after, by level then name; Bar.lua's Keyed)
+	for _, f in ipairs(found) do f.ln = ns.Lower(ns.Plain(tostring(f.row.name or ""))) end
 	table.sort(found, function(x, y)
 		local a, c = x.b.slots or 0, y.b.slots or 0
 		if a ~= c then return a > c end
 		if x.lvl ~= y.lvl then return x.lvl < y.lvl end
-		return tostring(x.row.name) < tostring(y.row.name)
+		return x.ln < y.ln
 	end)
 	local rows = {}
 	for i, f in ipairs(found) do
@@ -752,6 +773,8 @@ local function YourSide(db, id)
 	if known ~= nil then return known end
 	if not myFaction then
 		local g = Str(Safe(UnitFactionGroup, "player"))
+		-- (not known yet, early in a login: asked again next time, nothing kept; 0.65.x review)
+		if not g then return true end
 		myFaction = g == "Alliance" and "A" or g == "Horde" and "H" or false
 	end
 	local ok = true

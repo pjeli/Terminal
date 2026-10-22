@@ -1,65 +1,68 @@
 # Changelog
 
-## 0.65.9 (in testing)
+## 0.65.10 (in testing)
 
-**One role at a time** (the player: "only let .weights define one role; that would be easiest on the computation too")
-- **.weights** picks one role: **.weights healer**, **.weights custom** (your own), or **.weights all**. Two at once (**.weights feral healer**) is said to be one at a time, and nothing changes. Several picked before this version: the first that's still yours is used.
-- An upgrade search (**upgrades**, **quest upgrades**, **is:upgrade**) says in its footer "Not what you'd pick? .weights sets how upgrades are judged".
+**Fixes from a review of 0.65**
+- Bag quests list the same in plain words and in Advanced syntax, and Advanced asks the game for bags it hasn't loaded yet.
+- **reward:pouch** (satchel, sack) finds items with that name again; **reward:bag** is every bag.
+- Turning "nearest mailbox" round on Sort gives "farthest mailbox". A typed nearest/farthest wins over the bar.
+- Answers sort by distance correctly; **sort:-distance** is faster.
+- A key bound with Shift or Alt works as its hint says; ` or ^ closing a bar menu isn't typed.
+- **.weights** accepts `str = 2` and `str=1,5`, refuses weights that are all 0, and reads more Pawn strings.
+
+## 0.65.9
+
+- **.weights** picks one role at a time: **.weights healer**, **.weights custom** or **.weights all**.
+- Upgrade searches say in the footer that **.weights** changes how upgrades are judged.
 
 ## 0.65.8
 
-**Your own upgrade weights** (the player: "let's add custom weights; and support for the Pawn scale strings")
-- **.weights set str=2 agi=1.5 sta=0.5** judges upgrades by your own weights (**k=v** or **k v**; the stats: str agi sta int spi ap rap feralap sp heal crit hit spellhit spellcrit haste mp5 dps armor def dodge parry block, and their full names). A word that isn't one is said, with the list, and nothing changes.
-- **.weights pawn** opens a window to paste a Pawn scale string into (they're often longer than the prompt takes); **.weights pawn ( Pawn: v1: ... )** or the string alone after **.weights** works too. Pawn's stats are read by their names (Strength, Agility, HitRating, Ap, SpellDamage, Healing, Mp5, MeleeDps...); what Terminal doesn't weigh (sockets, expertise) is said, and its Class= and the like are skipped.
-- Your weights are a role of their own, beside your class's: setting them picks them, **.weights custom** picks them again, **.weights clear** forgets them. Kept per character. They're weighed scaled so your most wanted stat counts 1, as the class's weights are, so Pawn's numbers work as they are; **.weights** shows them as you set them, with the Pawn scale's name, and an upgrade's tooltip says "An upgrade for: your own weights".
+**Your own upgrade weights**
+- **.weights set str=2 agi=1.5 sta=0.5**, or paste a Pawn scale string with **.weights pawn**.
+- Kept per character; **.weights custom** picks them again, **.weights clear** forgets them.
 
 ## 0.65.7
 
-**Nearest or farthest** (the player: "sort:distance ideally; allow for nearest vs farthest, with unknown distances treated as infinitely far away")
-- **sort:distance** is the sort by distance, the nearest first; **sort:-distance** is the farthest first. Alt+`, the examples and the help write **sort:distance** now; **sort:nearest** (and near, closest) still reads as it did, and **sort:farthest** (furthest) means **sort:-distance**.
-- A row whose distance isn't known (on another continent, or in an instance) counts as infinitely far: after every other row with **sort:distance**, before them all with **sort:-distance**.
-- Plain words: **farthest innkeeper** (or **furthest**, or "innkeeper farthest") lists the farthest first, the unknown ones before them; **farthest mailbox** too. Alt+` writes **sort:-distance**.
-- Simple mode's Sort menu says **Distance** (it said "Nearest first"): picked, the nearest first with an up arrow; picked again, the farthest first with a down arrow.
+**Nearest or farthest**
+- **sort:distance** lists the nearest first, **sort:-distance** the farthest. **sort:nearest** still works.
+- Plain words: **farthest innkeeper**, **farthest mailbox**.
+- Rows with no known distance count as infinitely far: last when nearest, first when farthest.
+- Sort's **Distance** starts with the nearest; pick it again for the farthest.
 
 ## 0.65.6
 
-**Fixes** (the player's screenshot: "the advanced version of the bags search loses the slots in the details column")
-- **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**) and any quest search sorted by **sort:slots** say which bag each quest rewards and its slots, as "quests that reward bags" does: "Rewards Tailor's Satchel · 12 slots · Lv 12".
-- **sort:-ahvalue** (the other way round, new in 0.65.5) says each item's AH value in its detail again, as **sort:ahvalue** does.
+- **@questie reward:bag** and **sort:slots** show each quest's bag and slots, as the plain-words search does.
+- **sort:-ahvalue** shows AH values again.
 
 ## 0.65.5
 
-**Sort ascending or descending** (the player: "an up arrow for ascending, a down arrow for descending instead of the check mark")
-- Simple mode's Sort menu shows an arrow by the sort in use instead of a check: down for the highest (or Z) first, up for the lowest (or A) first. Pick the same sort again to turn it round; **Best match** undoes it. A number's sort (Level, Quality, Slots...) starts with the highest; a name's (Name, Owner) starts with A. **Nearest** has one way and is ticked as before.
-- In Advanced, a **-** turns any sort round: **sort:-level** (the highest first), **sort:-name** (Z to A), **sort:-quality** (the worst first). **sort:best** and **sort:plan** have no other way (**sort:distance** turns round since 0.65.7). Alt+` writes the bar's sort with its direction, and **.filters** lists **sort:-level**.
+**Sort either way**
+- Sort shows an arrow: down for highest (or Z) first, up for lowest (or A) first. Pick it again to flip it.
+- Numbers start highest first; names start A to Z.
+- Advanced: a **-** flips a sort (**sort:-level**, **sort:-name**).
 
 ## 0.65.4
 
-**Quests that reward bags, as the player asked**
-- Your faction counts too: a quest that names no race but is given only by the other side's NPCs (an orc grunt's, for an Alliance player) isn't listed. The same goes for the quests whose reward is an upgrade, the quests rewarding an item, and a quest chain's "any one of" steps.
-- Alt+` writes it in Advanced syntax: **@questie reward:bag -is:done sort:slots**, the same quests in the same order. **sort:slots** (the bar's Sort: Slots) puts the most slots first, then the lowest level; **reward:bag** keeps to quests your race, class and faction can take.
+- Bag quests leave out quests given only by the other faction.
+- Alt+` writes **@questie reward:bag -is:done sort:slots**.
 
 ## 0.65.3
 
 **Quests that reward bags**
-- **quests that reward bags** (**bag quests**, **which quests give a bag**) lists the quests whose reward is a bag that you can still take (your race and class, not done yet), the most slots first, then the lowest level; each says which bag and how many slots, and a trade's bag says which (Herb Bag). The footer says how many you've done already. **quivers from quests** and **quests that reward ammo pouches** too. Needs Questie, which knows what every quest rewards.
-- Advanced: **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**): every quest whose reward is one, by the item's kind, not its name.
+- **quests that reward bags** (**bag quests**, **quivers from quests**) lists the bags you can still get, most slots first. Needs Questie.
+- Advanced: **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**).
 
 ## 0.65.2
 
-**Fixes from a review of 0.65.1** (nothing changed for a player with ` bound; these were for the rest)
-- With only **Ctrl+`** bound (Terminal's first-run choice when ` is taken), the hints are as before: no more "Ctrl+Ctrl+`". With **Ctrl+Space** bound, the in-combat line says "Ctrl+Space", not "Ctrl+Ctrl+Space".
-- AltGr typing (Ctrl+Alt on many European layouts) is never taken for Alt+ your key: AltGr+Q types @ even with Ctrl+Q bound to Terminal.
-- What a command prints of the game's or a player's text (mail, the calendar, the combat log) keeps its `; only Terminal's own help says your key.
-- A key that types (Numpad5, a letter) bound to Terminal isn't named in the hints.
-- Your key closes the changelog, the credits, .atop and the "drop these quests?" question too, and Ctrl+Space or an F-key quits a game or window instead of reaching the game's binding.
-- The row menu closed with ` (or your key) no longer leaves the character typed in the prompt.
+**Fixes for your own key** (nothing changes with ` bound)
+- No more "Ctrl+Ctrl+`" in hints; AltGr typing isn't taken over.
+- Your key closes the changelog, credits, .atop and games too, and isn't typed when it closes the row menu.
 
 ## 0.65.1
 
-**Your own key, on any keyboard** (a player on CurseForge: "how can I keybind the terminal when using the QWERTZ/German layout?")
-- A German keyboard has no plain ` (it's a dead key on Shift+´), nor do several others. Bind any key to Terminal in the game's Key Bindings (AddOns > Terminal) or with **.bind**, and in the open terminal that key does what ` does: it closes it, **Alt+** it writes the search in Advanced mode, **Tab+** it is pure fuzzy finding. That works for a key with a modifier (**Ctrl+Space**) and for a key alone under Esc (**^** on a German keyboard, **²** on a French one), whose character isn't typed into the prompt either. Letters, digits, Space and the characters a search needs (. @ - | : < > and the like) still type.
-- The hints say your key: the windows' footers ("Esc or ^ close"), F1's keys, the help, the commands' descriptions and the in-combat line ("In combat, Ctrl+^ opens Terminal"). With ` bound, nothing changes.
+**Your own key, on any keyboard** (a player on CurseForge: "how can I keybind the terminal on a German layout?")
+- Bind any key to Terminal (Key Bindings > AddOns > Terminal, or **.bind**): it does what ` does, with Alt and Tab too.
+- Works with keys like **^**, **²** or **Ctrl+Space**; the hints name your key.
 
 ## 0.65.0
 

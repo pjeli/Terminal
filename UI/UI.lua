@@ -275,7 +275,7 @@ do
 				ns.Tour.Key(key, IsShiftKeyDown())
 			end
 			if ns.IsTickKey(key) then
-				UI.TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
+				UI.TickKey(key) -- (bindings don't fire while the box has focus, so the toggle key closes it here)
 			elseif IsControlKeyDown() and not IsAltKeyDown() and ns.Tabs and ns.Tabs.Key(key, IsShiftKeyDown()) then
 				return -- (tabs: Tabs.lua)
 			else
@@ -1044,7 +1044,8 @@ function UI:Toggle(typed)
 	if self:TabDown() then return self:FuzzyOnce() end -- (in combat too: not a key hit by accident)
 	-- (Alt+` only switches Simple and Advanced, in an open terminal; it never opens it: 0.57.0, the author's call. The game
 	-- hands ` its binding with Alt held when Alt+` has none)
-	if not typed and IsAltKeyDown and IsAltKeyDown() then return end
+	-- (an Alt chord bound to it, Alt+Q: that opens it; 0.65.x review)
+	if not typed and IsAltKeyDown and IsAltKeyDown() and not ns.AltBound() then return end
 	if not typed and not self:CombatOpenOk() then return end
 	-- closed by combat starting: opened by hand before it came back, as it was then
 	if not (self.combatState and self:ComeBack("opened by hand")) then

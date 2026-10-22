@@ -170,14 +170,26 @@ end
 function I.NearestObjectRows(kind, here, keep, far)
 	local p = ns.providers[kind]
 	if not p then return nil end
-	local found = {}
+	local found, far_ = {}, {}
 	for _, e in ipairs(ns:GetEntries(p)) do
-		local d = (not keep or keep(e)) and I.RowYards(e, here) or nil -- (the yards alone: no spot table per row)
-		if d then found[#found + 1] = { e = e, d = d } end
+		local ok = not keep or keep(e)
+		local d = ok and I.RowYards(e, here) or nil -- (the yards alone: no spot table per row)
+		if d then found[#found + 1] = { e = e, d = d }
+		elseif ok and far then far_[#far_ + 1] = e end -- (the farthest first: those with no distance known before them,
+		-- as if infinitely far, as @mailbox sort:-distance lists them; 0.65.x review)
 	end
 	-- (far: the farthest first, "farthest mailbox"; 0.65.7)
 	if far then table.sort(found, function(a, b) return a.d > b.d end) else table.sort(found, function(a, b) return a.d < b.d end) end
 	local rows = {}
+	for i = 1, math.min(#far_, I.OBJECTS_NEAR) do rows[i] = setmetatable({ _score = 1e6 - i }, { __index = far_[i] }) end
+	if #rows > 0 then
+		local n = #rows
+		for i = 1, math.min(#found, I.OBJECTS_NEAR - n) do
+			local f = found[i]
+			rows[n + i] = I.NearView(f.e, f.d, rawget(f.e, "distNote") or f.e.zone, far)
+		end
+		return rows
+	end
 	for i = 1, math.min(#found, I.OBJECTS_NEAR) do
 		local f = found[i]
 		local rest = rawget(f.e, "distNote") or f.e.zone

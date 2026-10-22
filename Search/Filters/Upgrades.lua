@@ -145,7 +145,9 @@ F.PAWN_STATS = PAWN
 function F.ParseWeights(text)
 	local w, bad, any = {}, {}, false
 	local words = {}
-	for t in tostring(text or ""):gsub(",", " "):gmatch("%S+") do words[#words + 1] = t end
+	-- ("str = 2" spaced, "str=1,5" a decimal comma: read as typed; 0.65.x review)
+	text = tostring(text or ""):gsub("%s*([=:])%s*", "%1"):gsub("(%d),(%d)", "%1.%2")
+	for t in text:gsub(",", " "):gmatch("%S+") do words[#words + 1] = t end
 	local i = 1
 	while i <= #words do
 		local t = words[i]
@@ -161,8 +163,12 @@ end
 
 --- A Pawn scale string -> its weights, its name, and the stats Terminal doesn't weigh (sockets, expertise...); nil when
 --- it isn't one ("( Pawn: v1: "Name": Strength=2, ... )").
+-- (a Pawn string's entries that aren't stats: not said as stats Terminal doesn't weigh; 0.65.x review)
+local PAWN_NOT_STATS = { class = true, spec = true, specid = true, gemqualitylevel = true, metagemqualitylevel = true,
+	speedbaseline = true, unusable = true }
 function F.ParsePawn(text)
-	local name, body = tostring(text or ""):match('%(%s*Pawn%s*:%s*v%d+%s*:%s*"([^"]*)"%s*:(.-)%)')
+	-- (any case: "( pawn: v1: ..."; 0.65.x review)
+	local name, body = tostring(text or ""):match('%(%s*[Pp][Aa][Ww][Nn]%s*:%s*[Vv]%d+%s*:%s*"([^"]*)"%s*:(.-)%)')
 	if not body then return nil end
 	local w, ignored, any = {}, {}, false
 	for piece in body:gmatch("[^,]+") do
@@ -173,13 +179,20 @@ function F.ParsePawn(text)
 			if kind then
 				if w[kind] == nil or n > w[kind] then w[kind] = n end -- (melee and ranged DPS, rating and value: the more)
 				any = true
-			elseif n ~= 0 then
+			elseif n ~= 0 and not PAWN_NOT_STATS[ns.Lower(k)] then
 				ignored[#ignored + 1] = k
 			end
 		end
 	end
 	if not any then return nil end
 	return w, name ~= "" and name or nil, ignored
+end
+
+--- Does a weights table weigh anything (some stat above 0)? (0.65.x review: str=0 agi=0 was taken, and nothing could be
+--- an upgrade again.)
+function F.WeighsAny(w)
+	for _, v in pairs(w or {}) do if type(v) == "number" and v > 0 then return true end end
+	return false
 end
 
 --- Your own weights for this character: { w = { str = 2, ... }, name = a Pawn scale's } or nil.
@@ -749,10 +762,14 @@ end
 --- A Pawn scale string taken: your own weights, picked. ok, and the line to say.
 function F.ApplyPawn(text)
 	local w, name, ignored = F.ParsePawn(text)
-	if not w then return false, L["Not a Pawn scale string: it starts with ( Pawn: v1:"] end
+	-- (not one, or cut off by the prompt's length: the window takes a whole one; 0.65.x review)
+	if not w then return false, L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] end
+	if not F.WeighsAny(w) then return false, L["No stat in it weighs anything (all 0 or less)."] end
 	F.SetCustomWeights(w, name)
+	if not F.CustomWeights() then return false, L["No character to keep them for yet: try again in a moment."] end
 	F.SetRoles({ "custom" })
-	local say = L["Upgrades: judged by your Pawn scale %s: %s"]:format(name and ('"' .. name .. '"') or "", F.WeightsText(w))
+	local say = name and L["Upgrades: judged by your Pawn scale %s: %s"]:format('"' .. name .. '"', F.WeightsText(w, 30))
+		or L["Upgrades: judged by your Pawn scale: %s"]:format(F.WeightsText(w, 30))
 	if #ignored > 0 then say = say .. " " .. L["(not weighed here: %s)"]:format(table.concat(ignored, ", ")) end
 	return true, say
 end
@@ -789,10 +806,11 @@ ns:RegisterCommand("weights", {
 					return { (#bad > 0 and L["Not a stat and its weight: %s"]:format(table.concat(bad, " ")) or L["Which stats? .weights set str=2 agi=1 sta=0.5"]),
 						"  " .. L["Stats: %s"]:format(F.STAT_LIST) }
 				end
+				if not F.WeighsAny(w) then return { L["No stat in it weighs anything (all 0 or less)."] } end
 				F.SetCustomWeights(w, nil)
 				F.SetRoles({ "custom" })
 				lines[#lines + 1] = L["Upgrades: judged by your own weights: %s"]:format(F.WeightsText(w, 30))
-			elseif first == "pawn" or args:find("^%(%s*[Pp]awn") then
+			elseif first == "pawn" or args:find("^%(%s*[Pp][Aa][Ww][Nn]") then
 				-- (0.65.8) a Pawn scale string: typed after it, or pasted in a window (they're often longer than the prompt
 				-- takes)
 				local text = first == "pawn" and restRaw or args
@@ -802,7 +820,7 @@ ns:RegisterCommand("weights", {
 						O.PasteDialog(L["Your Pawn scale"], L["Paste a Pawn scale string (Ctrl+V): it starts with ( Pawn: v1:"], F.ApplyPawn)
 						return { L["Paste your Pawn scale string into the window (Ctrl+V), then Enter."] }
 					end
-					return { L["Not a Pawn scale string: it starts with ( Pawn: v1:"] }
+					return { L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] }
 				end
 				local ok, say = F.ApplyPawn(text)
 				if not ok then return { say } end

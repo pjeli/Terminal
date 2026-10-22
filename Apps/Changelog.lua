@@ -14,13 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.9", when = "in testing",
+		v = "0.65.10", when = "in testing",
 		items = {
-			"Your own upgrade weights: .weights set str=2 agi=1.5 sta=0.5 judges upgrades by them, or paste a Pawn scale string (.weights pawn opens a window for it). They're a role of their own beside your class's, kept per character; .weights clear forgets them. Upgrades are judged for one role at a time now (.weights healer), and an upgrade search's footer says .weights is how to judge them otherwise.",
-			"Nearest or farthest: \"farthest innkeeper\" lists the farthest first, those whose place isn't known (another continent) before them, as if infinitely far. Advanced: sort:distance (the nearest first) and sort:-distance (the farthest); sort:nearest and sort:farthest still work. Simple mode's Sort: Distance starts with the nearest, and turns round when picked again.",
-			"Sort either way: Simple mode's Sort shows an arrow by the sort in use, down for the highest (or Z) first, up for the lowest (or A) first; pick it again to turn it round. A number's sort starts with the highest, a name's with A. In Advanced, a - turns any sort round: sort:-level, sort:-name (Alt+` writes it).",
-			"Quests that reward bags: \"quests that reward bags\" (\"bag quests\", \"quivers from quests\") lists the ones your race, class and faction can still take, the most slots first, each saying which bag and its slots. Alt+` writes @questie reward:bag -is:done sort:slots (reward:quiver, reward:ammo_pouch), whose rows say the bag and its slots too.",
-			"Keyboards without a plain ` (German, French and others): the key you bind to Terminal (Key Bindings > AddOns > Terminal, or .bind) does in it what ` does: it closes it, Alt+ that key writes the search in Advanced mode, Tab+ it is fuzzy finding. Bound alone, a key like ^ or ² works too, and the hints, F1 and the windows' footers name your key instead of `. With ` bound (or Ctrl+`), nothing changes.",
+			"Your own key: bind any key to Terminal (^ on a German keyboard, Ctrl+Space) and it does what ` does; the hints name it.",
+			"Quests that reward bags: \"bag quests\" lists the bags you can still get, most slots first. Advanced: @questie reward:bag.",
+			"Sort either way: an arrow shows the direction; pick a sort again to flip it. Advanced: sort:-level.",
+			"Nearest or farthest: \"farthest innkeeper\", sort:distance and sort:-distance; unknown distances count as infinitely far.",
+			"Your own upgrade weights: .weights set str=2 agi=1, or paste a Pawn scale with .weights pawn. One role at a time.",
 		},
 	},
 	{

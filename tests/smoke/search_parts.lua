@@ -294,15 +294,16 @@ Run("farthest: views for the farthest; the unknown first", function()
 			if rawget(v, "_dist") then
 				views = views + 1
 				lowest = math.min(lowest, v._dist)
-				if v._score ~= 1e6 + v._dist then okScore = false end
+				if v._score ~= ns.Integrations.FAR_BASE + v._dist then okScore = false end
 			else
 				unknown = unknown + 1
-				if not (v._score >= 4e6) then okScore = false end
+				-- (0.65.x review: no table made for each; the views scored under every row's own score instead)
+				if getmetatable(v) and rawget(v, "_score") then okScore = false end
 			end
 		end
 		check(views == 100 and lowest == known[100] and unknown == #out - #known, "the farthest 100 as views, every unknown kept: "
 			.. views .. " views, the nearest of them " .. tostring(lowest) .. " (the 100th farthest " .. tostring(known[100]) .. "), " .. unknown .. " unknown")
-		check(okScore, "scored: the unknown above every view, the views the farthest first")
+		check(okScore, "scored: the views under any row's own score (the unknown as they are, not made views), the farthest first")
 		-- the mailbox-like spots: the one on another continent first, then the farthest; sort:distance the other way
 		local function Names(line)
 			local t = {}

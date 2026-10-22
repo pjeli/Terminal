@@ -621,13 +621,12 @@ end
 --- a view: a search keeps no more (SortAndTrim), and none of these rows brings a quest along (LinkQuests: NPCs and
 --- spots carry none). Pauses with the search, showing the closest so far.
 -- (far: sort:-distance, the farthest first (0.65.7, the player): the heap keeps the farthest, by their yards turned
--- negative; the rows with no distance are as if infinitely far, so before them: a view scored above every other)
-local FAR_UNKNOWN = 4e6
+-- negative; the rows with no distance are as if infinitely far, so before them: the views are scored under every row's
+-- own score (I.NearView), not those rows made views of their own (0.65.x review: a table per unknown row, thousands)
 function Scan.NearestViews(out, here, sortNear, overBudget, far)
 	local yards, max = ns.Integrations.RowYards, MAX_RESULTS
 	local function Key(d) return far and -d or d end
 	local function View(e, key) return NearView(e, far and -key or key, far) end
-	local function Unknown(e) return far and setmetatable({ _score = FAR_UNKNOWN + (tonumber(e._score) or 0) }, { __index = e }) or e end
 	local hd, he, hi, hv, size = {}, {}, {}, {}, 0
 	local others, at = {}, {} -- (sort:distance: the rows with no distance, as they are, and where they came)
 	for i = 1, #out do
@@ -644,7 +643,7 @@ function Scan.NearestViews(out, here, sortNear, overBudget, far)
 				HeapDown(hd, he, hi, hv, size)
 			end
 		elseif sortNear then
-			others[#others + 1] = Unknown(e)
+			others[#others + 1] = e
 			at[#at + 1] = i
 		end
 		if i % 32 == 0 and overBudget() then
@@ -942,7 +941,8 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	end
 	local nearest = act and act.nearest
 	-- ("farthest innkeeper": sort:-distance; 0.65.7)
-	local distWord = ((act and act.far) or q.sortFar) and "sort:-distance" or "sort:distance"
+	local distWord
+	if nearest and q.actWord then distWord = act.far and "sort:-distance" or "sort:distance" else distWord = q.sortFar and "sort:-distance" or "sort:distance" end
 	-- (0.55.18) the words shown found nothing passing every everyday word, so the closest were listed (UI.softRelaxed,
 	-- this very line): those words written as words, not as filters nothing passes ("linen cloth": not type:cloth)
 	local relaxed = {}
@@ -1108,6 +1108,7 @@ function Scan.ResetFlags(self)
 	self.linked = {} -- quest entry -> the item that brought it along (drawn with an arrow)
 	self.answerNote, self.pipeTrail = nil, nil -- (a question's note, a chain's path: only for their own searches)
 	self.showField = nil -- (an answer's rows keep their own detail; a search sorted by AH value sets it: Scan.Parse)
+	self.weightsNote = nil -- (upgrades weighed: UI:Search says so once done)
 	self.flightNote = nil -- (flight paths listed on a continent no flight master's map was read on: Scan.FlightNote)
 	self.missingNote = nil -- (recipes you don't know listed, a profession's window not read yet: MissingRecipes.LeadRow)
 	self.overviewWinner = nil -- (Simple mode's overview: the clear winner shown above its categories: Scan.Overview)
@@ -1222,6 +1223,13 @@ function Scan.AnswerView(self, rows, tail)
 		local real, other = {}, {}
 		for _, e in ipairs(out) do if Real(e) then real[#real + 1] = e else other[#other + 1] = e end end
 		real = Scan.NearestViews(real, here, true, Scan.Budget(self), sortRev)
+		-- (in their order: the views say it in their scores, which an answer isn't sorted by; 0.65.x review)
+		for i, e in ipairs(real) do e._ord = i end
+		table.sort(real, function(a, b)
+			local sa, sb = tonumber(a._score) or 0, tonumber(b._score) or 0
+			if sa ~= sb then return sa > sb end
+			return a._ord < b._ord
+		end)
 		for _, e in ipairs(real) do other[#other + 1] = e end
 		return other
 	elseif sort then
@@ -1573,11 +1581,13 @@ function Scan.Prepare(self, q)
 	-- column") a quest search for bags (reward:bag, sort:slots) says which bag and its slots: Rewards.lua. A sort turned
 	-- round (sort:-ahvalue) says it too.
 	local sf = q.sortField and (q.sortField:gsub("^%-", ""))
-	local auctionable, bags = false, false
+	local auctionable, bags = false, nil
 	for w in ns.Lower(q.text or ""):gmatch("%S+") do
 		if w == "is:auctionable" then auctionable = true
-		elseif ns.QuestRewards and ns.QuestRewards.IsKindWord and ns.QuestRewards.IsKindWord(w) then bags = true end
+		elseif ns.QuestRewards and ns.QuestRewards.KindOfWord then bags = bags or ns.QuestRewards.KindOfWord(w) end
 	end
+	-- (the kind asked for: sort:slots and the detail say that kind's bag, as "quests that reward bags" does)
+	if ns.QuestRewards then ns.QuestRewards.slotKind = bags end
 	self.showField = (sf == "ahvalue" or sf == "ahprice" or sf == "slots") and sf or (auctionable and "ahvalue")
 		or (bags and "slots") or nil
 	q.tokens, q.empty = tokens, #tokens == 0
@@ -1603,7 +1613,7 @@ function Scan.SimpleScope(self, q)
 	if act and act.map then
 		-- an action word: its lists (Scan.UseAction), no categories to pick from
 		if act.nearest then
-			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords, act.far or q.sortFar)
+			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords, (q.actWord and act.far) or (not q.actWord and q.sortFar))
 			if early then return early end
 			q.here = here
 			Scan.AddFilter(q, friendly, "hard", "faction:friendly", nil, "faction:friendly")
@@ -1858,7 +1868,10 @@ end
 function Scan.Nearest(self, q, out)
 	local sortNear, here, overBudget = q.sortNear, q.here, q.overBudget
 	-- ("farthest innkeeper", sort:-distance: the farthest first, those with no distance known before them; 0.65.7)
-	local far = q.sortFar or (q.act and q.act.far) or nil
+	-- (a word said, "nearest" or "farthest", decides over the bar's: 0.65.x review)
+	-- (implied, a role alone: "innkeeper" is the nearest innkeeper unless the bar turns it round)
+	local far
+	if q.act and q.act.nearest and q.actWord then far = q.act.far or nil else far = q.sortFar end
 	-- a list of NPCs alone, no sort asked for: the nearest first (Scan.NearDefault); not where nothing's known of where
 	-- you are, nor summed up ("@npc trainer | count": every match counted; release review)
 	if not sortNear and not here and not q.sortField and not q.act and Scan.NpcOnly(q.kinds)

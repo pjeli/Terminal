@@ -529,14 +529,15 @@ do
 			"nearest mailbox: the row's letters are lit for this search's words: " .. tostring(UI.posTokens and UI.posTokens[1]))
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest mailbox in ratchet"):find("in:", 1, true), "Alt+`: the place stays: " .. ns.Easy.ToAdvanced("nearest mailbox in ratchet"))
-		-- (0.65.7) "farthest mailbox": the farthest of this continent's first (a spot's list knows only those it can measure)
+		-- (0.65.7) "farthest mailbox": the one whose distance isn't known (another continent) first, as if infinitely far,
+		-- as Alt+`'s @mailbox sort:-distance lists it (0.65.x review: it was left out), then this continent's the farthest first
 		UI:Open("nearest mailbox")
 		local nearRows = UI.Results()
 		UI:Hide(); FlushAll()
 		UI:Open("farthest mailbox")
 		local farRows = UI.Results()
-		check(#farRows >= 2 and #farRows == #nearRows and farRows[1].py == nearRows[#nearRows].py and farRows[1]._dist >= farRows[2]._dist,
-			"farthest mailbox: the nearest's list the other way round: " .. #farRows)
+		check(#farRows == #nearRows + 1 and not rawget(farRows[1], "_dist") and farRows[2].py == nearRows[#nearRows].py
+			and farRows[2]._dist >= farRows[3]._dist, "farthest mailbox: the unknown one, then the nearest's list the other way round: " .. #farRows)
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("farthest mailbox") == "@mailbox sort:-distance ", "Alt+`: @mailbox sort:-distance: " .. ns.Easy.ToAdvanced("farthest mailbox"))
 		-- Advanced: @mailbox is a list like the others: sort:distance, near:, in: work on it; Alt+` writes it

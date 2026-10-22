@@ -270,8 +270,10 @@ I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own
 
 --- A row's view saying how far it is: "N yd  <rest>", scored closest first (sort:distance, "nearest mailbox"; one copy,
 --- review 0.53.6: Search.lua's and Objects.lua's).
---- far: scored the farthest first (sort:-distance, "farthest innkeeper"; 0.65.7).
+--- far: scored the farthest first (sort:-distance, "farthest innkeeper"; 0.65.7), under any row's own score (those with
+--- no distance known, as if infinitely far, before them).
+I.FAR_BASE = -1e7
 function I.NearView(e, d, rest, far)
-	return setmetatable({ detail = ns.NearDetail(d, rest), _score = far and (1e6 + d) or (1e6 - d), _dist = d, nearRest = rest },
+	return setmetatable({ detail = ns.NearDetail(d, rest), _score = far and (I.FAR_BASE + d) or (1e6 - d), _dist = d, nearRest = rest },
 		{ __index = e })
 end

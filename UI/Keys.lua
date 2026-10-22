@@ -399,11 +399,11 @@ end
 
 --- The toggle key (`) while the terminal is open, in the drawn prompt and the game's own text box alike: Tab+` = pure
 --- fuzzy finding (in it already: closes), Alt+` = Advanced for this run, else it closes.
-local function TickKey()
+local function TickKey(key)
 	UI:TraceTick()
 	if UI:TabDown() then
 		UI:FuzzyOnce()
-	elseif IsAltKeyDown and IsAltKeyDown() then
+	elseif IsAltKeyDown and IsAltKeyDown() and not ns.IsAltBoundKey(key) then -- (Alt+Q bound: it closes)
 		UI:AdvancedOnce()
 	else
 		UI:Hide()
@@ -474,7 +474,7 @@ do
 		local edit = UI.edit
 		local text, c = edit:GetText(), UI.cursor
 		if ns.IsTickKey(key) then
-			TickKey()
+			TickKey(key)
 		elseif key == "ESCAPE" then
 			UI:Dismiss()
 		elseif (key == "BACKSPACE" or key == "DELETE") and DeleteSelection(text) then

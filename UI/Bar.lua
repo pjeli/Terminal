@@ -8,11 +8,11 @@ local L = ns.L
 --
 --   Filter   what the shown lists can be narrowed by: quality, usable, upgrades, known spells, complete quests...
 --            (several at once; each an Advanced filter the search takes as it takes a typed one)
---   Sort     nearest first, or by name, level, item level, quality, value, count (what the rows have)
+--   Sort     by distance, or by name, level, item level, quality, value, count (what the rows have), either way
 --   Group    a row per zone, quality, type, slot, dungeon... with how many in each (Advanced's "| group by")
 --   (horn)   the selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV
 --
--- What the words typed already ask shows too ("rare sword": Filter: Rare; "nearest ...": Sort: Nearest first), and
+-- What the words typed already ask shows too ("rare sword": Filter: Rare; "nearest ...": Sort: Distance), and
 -- unticking it takes the word out of the line: the bar is one more way to write the search's query (0.55.7). A question's
 -- answer ("my auctions") is filtered, sorted and grouped like any search's rows.
 -- A click on one opens its menu; a right-click clears it. What's picked lasts while the prompt has words and goes
@@ -67,7 +67,7 @@ B.FILTERS = {
 	{ id = "is:trainer", label = L["Trainers"] },
 	{ id = "is:online", label = L["Online"] },
 }
--- what Sort offers: nearest (sort:distance's lists), else a field the rows have (Aggregate's, and the name)
+-- what Sort offers: distance (sort:distance's lists), else a field the rows have (Aggregate's, and the name)
 -- a sort's way, in the menu: the game's sort arrow (down as drawn, up flipped)
 B.ARROW = "Interface\\Buttons\\UI-SortArrow"
 -- (the sorts picked the lowest first: by words, A-Z; distance, the nearest (0.65.7, the player: "for distance we should
@@ -250,6 +250,27 @@ function B.DropWords(words)
 	if UI.SetQuery then UI:SetQuery(text, #text) else edit:SetText(text) end
 end
 
+--- A word of the line in place of another (whole words, the first one): "nearest mailbox" -> "farthest mailbox".
+function B.SwapWord(old, new)
+	local edit = UI.edit
+	if not (edit and type(old) == "string" and old ~= "") then return end
+	local text = edit:GetText() or ""
+	local lower = ns.Lower(text)
+	local pat = ns.Lower(old):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+	local from = 1
+	while true do
+		local a, b = lower:find(pat, from)
+		if not a then return end
+		local before, after = lower:sub(a - 1, a - 1), lower:sub(b + 1, b + 1)
+		if (a == 1 or before:find("%s")) and (after == "" or after:find("%s")) then
+			text = text:sub(1, a - 1) .. new .. text:sub(b + 1)
+			if UI.SetQuery then UI:SetQuery(text, #text) else edit:SetText(text) end
+			return
+		end
+		from = a + 1
+	end
+end
+
 --- The search's sort for a field (Search.lua's Scan.Finalize): the rows that have it in its order (the biggest first,
 --- or A-Z / the lowest first), then the rest as they were. Changes their scores.
 local function NumOf(field, e)
@@ -289,14 +310,35 @@ local function Keyed(s, rows, asc)
 			if k ~= nil then keyed[#keyed + 1] = { e = e, k = k, i = i, t = tie and KeyOf(tie, e) or nil } else rest[#rest + 1] = e end
 		end
 	end
+	-- (a sort with a tie field, sort:slots: then by name, as its question lists them; the rows without the field after,
+	-- by the tie field then the name too, not as they came: 0.65.x review, Simple and Advanced listed them otherwise)
+	local NAME = tie and { field = "name" }
 	table.sort(keyed, function(a, b)
 		if a.k ~= b.k then
 			if asc then return a.k < b.k end
 			return a.k > b.k
 		end
 		if a.t ~= b.t and a.t ~= nil and b.t ~= nil then return a.t < b.t end
+		if NAME then
+			local an, bn = KeyOf(NAME, a.e), KeyOf(NAME, b.e)
+			if an ~= bn then return an < bn end
+		end
 		return a.i < b.i
 	end)
+	if tie and #rest > 1 then
+		local r = {}
+		for i, e in ipairs(rest) do r[i] = { e = e, i = i, t = KeyOf(tie, e), n = KeyOf(NAME, e) } end
+		table.sort(r, function(a, b)
+			if a.t ~= b.t then
+				if a.t == nil then return false end
+				if b.t == nil then return true end
+				return a.t < b.t
+			end
+			if a.n ~= b.n then return a.n < b.n end
+			return a.i < b.i
+		end)
+		for i, x in ipairs(r) do rest[i] = x.e end
+	end
 	return keyed, rest
 end
 
@@ -310,8 +352,10 @@ function B.SortRows(rows, id, keep, overBudget)
 	if not (s and s.field) then return rows end
 	local asc = Ascending(s, rev)
 	if #rows <= 5000 then
-		local keyed = Keyed(s, rows, asc)
+		local keyed, rest = Keyed(s, rows, asc)
 		for i, r in ipairs(keyed) do r.e._score = 1e10 - i end
+		-- (a sort with a tie field: the rows without the field after, in the tie's order; Keyed)
+		if s.tie then for i, e in ipairs(rest) do e._score = 1e9 - i end end
 		return rows
 	end
 	keep = keep or 100
@@ -474,7 +518,10 @@ function B.Options(which)
 			local on = pickedBase == o.id or typedHere
 			if fits or on then
 				-- (which way: an arrow, up for ascending, down for descending, in the tick's place; 0.65.5, the player)
-				local rev = (pickedBase == o.id and pickedRev) or (pickedBase ~= o.id and typedHere and typedRev)
+				-- (a word typed that sorts by distance, "farthest innkeeper": the search goes by it, so the arrow does too;
+				-- 0.65.x review: the arrow said nearest over the farthest listed)
+				local said = typedHere and typed.sort and not typed.sort.drop
+				local rev = (said and typedRev) or (pickedBase == o.id and pickedRev) or (pickedBase ~= o.id and typedHere and typedRev)
 				-- (asc: true, false or nil, not on: not "on and Ascending() or nil", which made a descending one's false nil)
 				local asc
 				if on and (o.field or o.near) then asc = Ascending(o, rev) end
@@ -518,6 +565,14 @@ function B.Pick(which, id)
 		local turns = o and (o.field or o.near) and true or false
 		local pickedBase, pickedRev = SortParts(state.sort)
 		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
+		-- (a word typed that says the sort, "nearest mailbox": turned round, the word is ("farthest mailbox"), as the word
+		-- says the list too: taken out, "mailbox" alone searched no mailboxes; 0.65.x review)
+		if typedBase == id and typed.sort and not typed.sort.drop and o and o.near then
+			state.sort = nil
+			B.SwapWord(typed.sort.word, typedRev and "nearest" or "farthest")
+			B.Update()
+			return
+		end
 		if typedBase == id and pickedBase ~= id then
 			-- (typed as a word: the word goes, and the bar's own sort is it turned round; one that doesn't turn, nearest,
 			-- just goes, as before)
@@ -1011,6 +1066,13 @@ function B.MenuKey(f, key)
 		if B.ALT_KEYS[key] == m.which then B.HideMenu() else B.KeyOpen(B.ALT_KEYS[key]) end
 		return Took()
 	end
+	-- (the terminal's key, ` or ^ or Ctrl+Space: closes the menu, before Space picks a line, and its character isn't typed
+	-- after it, as the row menu's; 0.65.x review)
+	if ns.IsTickKey(key) then
+		B.HideMenu()
+		UI.swallowTick = GetTime()
+		return Took()
+	end
 	if key == "UP" or (key == "TAB" and IsShiftKeyDown()) then
 		B.MenuSelect((m.keySel or 1) - 1, -1)
 	elseif key == "DOWN" or key == "TAB" then
@@ -1030,7 +1092,7 @@ function B.MenuKey(f, key)
 		if key == "SPACE" then UI.swallowChar = { at = GetTime(), ch = " " } end
 		local b = m.keySel and m.lines[m.keySel]
 		if b then b:GetScript("OnClick")(b) end
-	elseif key == "ESCAPE" or ns.IsTickKey(key) then
+	elseif key == "ESCAPE" then
 		B.HideMenu()
 	else
 		B.HideMenu()

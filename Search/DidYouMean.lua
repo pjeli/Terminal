@@ -30,7 +30,7 @@ for w in ("the a an of to for is are do does i me can in on at"):gmatch("%S+") d
 -- (words a phrase may share, but not on their own: "my atunements" isn't "my mail")
 local WEAK = {}
 -- ("nearest" too: "nearest inkeeper" isn't "nearest dungeon"; release review)
-for w in ("my what whats where how who which when should could will get nearest nearby closest"):gmatch("%S+") do WEAK[w] = true end
+for w in ("my what whats where how who which when should could will get nearest nearby closest farthest furthest"):gmatch("%S+") do WEAK[w] = true end
 
 local function Words(s)
 	local out = {}

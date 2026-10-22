@@ -449,7 +449,7 @@ local function BuildImportDialog()
 	if importDialog then return importDialog end
 	local d = CreateFrame("Frame", "TerminalStyleImport", UIParent, "BackdropTemplate")
 	if ns.Zen then ns.Zen.Made(d) end
-	d:SetSize(520, 118)
+	d:SetSize(520, 140)
 	d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	d:SetFrameStrata("DIALOG")
 	d:SetClampedToScreen(true)
@@ -474,11 +474,14 @@ local function BuildImportDialog()
 	box:SetMaxLetters(0)
 	d.box = box
 
+	-- (two lines under the box: a Pawn scale's reply names its stats; 0.65.x review: cut off at one line)
 	local status = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	status:SetPoint("BOTTOMLEFT", 14, 12)
-	status:SetPoint("RIGHT", d, "RIGHT", -200, 0)
+	status:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -6)
+	status:SetPoint("RIGHT", d, "RIGHT", -14, 0)
 	status:SetJustifyH("LEFT")
-	status:SetWordWrap(false)
+	status:SetJustifyV("TOP")
+	status:SetHeight(28)
+	status:SetWordWrap(true)
 	d.status = status
 
 	local function Apply()
