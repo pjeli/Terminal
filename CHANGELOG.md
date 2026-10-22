@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.65.3 (in testing)
+## 0.65.4 (in testing)
+
+**Quests that reward bags, as the player asked**
+- Your faction counts too: a quest that names no race but is given only by the other side's NPCs (an orc grunt's, for an Alliance player) isn't listed. The same goes for the quests whose reward is an upgrade, the quests rewarding an item, and a quest chain's "any one of" steps.
+- Alt+` writes it in Advanced syntax: **@questie reward:bag -is:done sort:slots**, the same quests in the same order. **sort:slots** (the bar's Sort: Slots) puts the most slots first, then the lowest level; **reward:bag** keeps to quests your race, class and faction can take.
+
+## 0.65.3
 
 **Quests that reward bags**
 - **quests that reward bags** (**bag quests**, **which quests give a bag**) lists the quests whose reward is a bag that you can still take (your race and class, not done yet), the most slots first, then the lowest level; each says which bag and how many slots, and a trade's bag says which (Herb Bag). The footer says how many you've done already. **quivers from quests** and **quests that reward ammo pouches** too. Needs Questie, which knows what every quest rewards.

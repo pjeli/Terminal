@@ -258,10 +258,12 @@ local function KeyOf(s, e)
 end
 local function Keyed(s, rows)
 	local keyed, rest = {}, {}
+	-- (a tie-breaker field, lowest first: sort:slots, then the level; 0.65.3)
+	local tie = s.tie and { field = s.tie }
 	for i, e in ipairs(rows) do
 		if Real(e) then
 			local k = KeyOf(s, e)
-			if k ~= nil then keyed[#keyed + 1] = { e = e, k = k, i = i } else rest[#rest + 1] = e end
+			if k ~= nil then keyed[#keyed + 1] = { e = e, k = k, i = i, t = tie and KeyOf(tie, e) or nil } else rest[#rest + 1] = e end
 		end
 	end
 	table.sort(keyed, function(a, b)
@@ -269,6 +271,7 @@ local function Keyed(s, rows)
 			if s.asc then return a.k < b.k end
 			return a.k > b.k
 		end
+		if a.t ~= b.t and a.t ~= nil and b.t ~= nil then return a.t < b.t end
 		return a.i < b.i
 	end)
 	return keyed, rest

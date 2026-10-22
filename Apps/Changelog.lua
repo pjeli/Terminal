@@ -14,9 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.3", when = "in testing",
+		v = "0.65.4", when = "in testing",
 		items = {
-			"Quests that reward bags: \"quests that reward bags\" (\"bag quests\", \"quivers from quests\") lists the ones you can still take, the most slots first, each saying which bag. Advanced: @questie reward:bag (reward:quiver, reward:ammo_pouch).",
+			"Quests that reward bags: \"quests that reward bags\" (\"bag quests\", \"quivers from quests\") lists the ones your race, class and faction can still take, the most slots first, each saying which bag. Alt+` writes @questie reward:bag -is:done sort:slots (reward:quiver, reward:ammo_pouch).",
 			"Keyboards without a plain ` (German, French and others): the key you bind to Terminal (Key Bindings > AddOns > Terminal, or .bind) does in it what ` does: it closes it, Alt+ that key writes the search in Advanced mode, Tab+ it is fuzzy finding. Bound alone, a key like ^ or ² works too, and the hints, F1 and the windows' footers name your key instead of `. With ` bound (or Ctrl+`), nothing changes.",
 		},
 	},

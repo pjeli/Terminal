@@ -255,7 +255,7 @@ if Fk and Fk.KEYS then
 			return function(e)
 				local id = QuestIdOf(e)
 				if not id then return false end
-				if not set then set = select(2, QuestsOf(QR.KindItems(kind))) end
+				if not set then set = QR.KindQuests(kind) end
 				return set[id] ~= nil
 			end
 		end
@@ -531,6 +531,56 @@ function QR.Slots(id)
 end
 function QR.ForgetSlots() slotsOf, slotPattern, kindCache = {}, nil, {} end -- (tests)
 
+--- The quests rewarding one (bag, quiver, ammo pouch) that you can take (your race, class and side): quest id -> the
+--- one with the most slots ({ it, slots }). Done ones too (is:done says).
+function QR.KindQuests(kind)
+	local db = DB()
+	local out = {}
+	if not db then return out end
+	for _, it in ipairs(QR.KindItems(kind)) do
+		local slots = QR.Slots(it.id)
+		for _, qid in ipairs(it.quests) do
+			if ForYou(db, qid) then
+				local b = out[qid]
+				if not b or (slots or 0) > (b.slots or 0) then out[qid] = { it = it, slots = slots } end
+			end
+		end
+	end
+	return out
+end
+
+--- The most slots a quest's reward bag has (sort:slots, | sum slots), or nil (no bag, or not known yet).
+function QR.RewardSlots(e)
+	local id = QuestIdOf(e)
+	if not id then return nil end
+	local best
+	for _, it in ipairs(QR.RewardsOf(id) or {}) do
+		local get = (C_Item and C_Item.GetItemInfoInstant) or _G.GetItemInfoInstant
+		local ok, _, _, _, _, _, class = false
+		if get then ok, _, _, _, _, _, class = pcall(get, it.id) end
+		if ok and (ns.Num(class) == CONTAINER or ns.Num(class) == QUIVER_CLASS) then
+			local n = QR.Slots(it.id)
+			if n and (not best or n > best) then best = n end
+		end
+	end
+	return best
+end
+
+-- sort:slots (the most slots first, then the lowest level: as the question lists them) and | sum slots
+do
+	local A = ns.Aggregate
+	if A and A.FIELDS then A.FIELDS.slots = { label = L["slots"], num = function(e) return QR.RewardSlots(e) end } end
+	local F = ns.Filters
+	if F and F.SORTS then
+		F.SORTS.slots = "slots"
+		if F.VALUES and F.VALUES.sort then F.VALUES.sort[#F.VALUES.sort + 1] = "slots" end
+		local AS = F.APPLIES and F.APPLIES.sort
+		if AS then AS.slots = { "questie", "quests" } end
+	end
+	local B = ns.Bar
+	if B and B.SORTS then B.SORTS[#B.SORTS + 1] = { id = "slots", label = L["Slots"], field = "slots", tie = "level" } end
+end
+
 --- "quests that reward bags", "bag quests", "quivers from quests": { kind = "bag" | "quiver" | "ammo" }, or nil.
 function QR.BagQuestion(text)
 	local t = ns.QuestionText(text)
@@ -615,9 +665,12 @@ function QR.BagAnswer(q)
 	return rows, note
 end
 
---- Alt+`: the line as said (Advanced has @questie reward:bag, but not the quests done or another race's left out, nor
---- the most slots first).
-function QR.BagToAdvanced() return nil end
+local KIND_VALUE = { bag = "bag", quiver = "quiver", ammo = "ammo_pouch" }
+--- Alt+`: the same in Advanced mode: "@questie reward:bag -is:done sort:slots" (reward: keeps to your race, class and
+--- side; 0.65.3, the player: it stayed as said).
+function QR.BagToAdvanced(q)
+	return "@questie reward:" .. (KIND_VALUE[q.kind] or "bag") .. " -is:done sort:slots "
+end
 
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
 function QR.ToAdvanced(q)
@@ -655,12 +708,42 @@ end
 -- can you take this quest: your race and class (Questie's requiredRaces / requiredClasses bits)?
 -- (your race and class, read once: they don't change in a session; review, 0.53.6: asked for every reward quest, thousands
 -- a refresh)
-local myRace, myClass
+local myRace, myClass, myFaction
+local factionOk = {} -- quest id -> its givers are your faction's (kept: a character's faction doesn't change)
+
+--- Is a quest given by your side (0.65.3, the player: "make sure the quests are allowed by my race and faction")? Many
+--- quests name no race at all; their giver says whose they are (Questie's friendlyToFaction: "A", "H", "AH"). One an
+--- NPC of yours gives (or any of them), or an object or an item: yes; only the other side's NPCs: no; not known: yes.
+local function YourSide(db, id)
+	local known = factionOk[id]
+	if known ~= nil then return known end
+	if not myFaction then
+		local g = Str(Safe(UnitFactionGroup, "player"))
+		myFaction = g == "Alliance" and "A" or g == "Horde" and "H" or false
+	end
+	local ok = true
+	local by = myFaction and db.QueryNPCSingle and Safe(db.QueryQuestSingle, id, "startedBy")
+	local npcs = type(by) == "table" and type(by[1]) == "table" and by[1] or nil
+	if npcs and #npcs > 0 and not ((type(by[2]) == "table" and by[2][1]) or (type(by[3]) == "table" and by[3][1])) then
+		local any, theirs = false, false
+		for _, nid in ipairs(npcs) do
+			local f = Str(Safe(db.QueryNPCSingle, nid, "friendlyToFaction"))
+			if not f or f:find(myFaction, 1, true) then any = true break end
+			theirs = true
+		end
+		ok = any or not theirs
+	end
+	factionOk[id] = ok
+	return ok
+end
+function QR.ForgetFaction() myRace, myClass, myFaction, factionOk = nil, nil, nil, {} end -- (tests)
+
 function ForYou(db, id)
 	if not myRace then myRace = UnitRace and tonumber((select(3, Safe(UnitRace, "player")))) end
 	if not myClass then myClass = UnitClass and tonumber((select(3, Safe(UnitClass, "player")))) end
 	local race, class = myRace, myClass
 	return Has(Safe(db.QueryQuestSingle, id, "requiredRaces"), race) and Has(Safe(db.QueryQuestSingle, id, "requiredClasses"), class)
+		and YourSide(db, id)
 end
 
 --- Can you take this quest (your race and class, as Questie knows it; true without Questie)?
