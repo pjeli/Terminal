@@ -204,7 +204,7 @@ end
 
 --- BagBrother's item strings: "1234", "1234;20", or a longer item payload "1234:0:...;20".
 local function ParseBrother(s)
-	if type(s) == "number" then return s, 1 end
+	if type(s) == "number" then return s, 1, 0 end -- (a plain copy: no enchant)
 	if type(s) ~= "string" or not s:find("^%d") then return nil end -- battle pets and the like
 	local id = tonumber(s:match("^(%d+)"))
 	local payload = s:match("^[^;]+")
@@ -212,6 +212,7 @@ local function ParseBrother(s)
 	local e = payload:find(":", 1, true) and ns.LinkEnchant(payload) or 0
 	return id, tonumber(s:match(";(%d+)$")) or 1, e
 end
+S.ParseBrother = ParseBrother -- (tests)
 
 local function ReadBrother(bb, add)
 	local B = Bagnon()
@@ -519,10 +520,10 @@ ns:RegisterProvider("stored", {
 			end
 			h.count = h.count + (count or 1)
 			e.total = e.total + (count or 1)
-			-- (is:enchanted: some copy here has one, some hasn't; the row's and each holder's, for @bank's own)
+			-- (is:enchanted: some copy here has one, some hasn't, each holder's; the row's are the holders' you don't carry)
 			if enchants then
-				if enchants[true] then e.enchanted, h.enchanted = true, true end
-				if enchants[false] then e.unenchanted, h.unenchanted = true, true end
+				if enchants[true] then h.enchanted = true end
+				if enchants[false] then h.unenchanted = true end
 			end
 		end
 		S.HookSyndicator()
@@ -536,10 +537,19 @@ ns:RegisterProvider("stored", {
 		for _, x in pairs(byID) do LiveCounts(x) end
 		for id, x in pairs(byID) do
 			-- only what's somewhere you aren't carrying it (your bags are the Item results)
-			local elsewhere = false
+			-- (is:enchanted: of those copies only, not the one you wear or carry; review, 0.64.3)
+			local elsewhere, known = false, false
+			x.enchanted, x.unenchanted = nil, nil
 			for _, h in pairs(x.holders) do
-				if not Carried(h) then elsewhere = true break end
+				if not Carried(h) then
+					elsewhere = true
+					local en, un = rawget(h, "enchanted"), rawget(h, "unenchanted")
+					if en or un then known = true end
+					if en then x.enchanted = true end
+					if un then x.unenchanted = true end
+				end
 			end
+			if known then x.enchanted, x.unenchanted = x.enchanted or false, x.unenchanted or false end
 			local name = elsewhere and Name(id, x.link)
 			if name then out[#out + 1] = StoredRow(id, x, name) end
 		end
@@ -578,7 +588,8 @@ ns:RegisterProvider("bank", {
 				for k, v in pairs(e) do c[k] = v end -- (a copy: the @stored row keeps every holder)
 				c.holders = { [h.key] = h }
 				c.total = h.count
-				c.enchanted, c.unenchanted = rawget(h, "enchanted"), rawget(h, "unenchanted") -- (the bank's copies' own)
+				-- (the bank's copies' own; unknown: neither, never another character's link; review, 0.64.3)
+				c.enchanted, c.unenchanted = rawget(h, "enchanted") or false, rawget(h, "unenchanted") or false
 				-- (searched by its name and its place, not by every holder @stored's row has: "@bank mail")
 				c.text, c._ltext = nil, ns.Lower(L["bank"] .. " bank " .. tostring(h.who or ""))
 				c.detail = "x" .. h.count .. ns.DETAIL_SEP .. L["bank"]

@@ -107,10 +107,15 @@ end
 function BB.Rows()
 	local out = {}
 	local list = BB.List()
+	local seen = {}
 	for i, x in ipairs(list) do
 		local id = x.link and tonumber(x.link:match("item:(%d+)"))
+		-- (by what and when it was sold, not where in the list: a new sale doesn't move the selection; review, 0.64.3)
+		local key = (x.link or x.name) .. "#" .. tostring(x.t or 0)
+		seen[key] = (seen[key] or 0) + 1
+		if seen[key] > 1 then key = key .. "#" .. seen[key] end
 		out[#out + 1] = {
-			key = (x.link or x.name) .. "#" .. i, name = x.name, icon = x.icon or BB.ICON, link = x.link, itemID = id,
+			key = key, name = x.name, icon = x.icon or BB.ICON, link = x.link, itemID = id,
 			count = x.count, price = x.price, t = x.t,
 			color = id and ns.QualityHex(ns.ItemQuality(id)) or nil,
 			detail = Detail(x), text = "buyback sold vendor",
@@ -140,9 +145,10 @@ function BB.OnEvent(event, isLogin)
 		if isLogin == true and ns.db then ns.db.buyback = {}; ns:Changed("buyback") end
 		return
 	end
+	-- (not on closing: the window gone, the game may say its list is empty; review, 0.64.3)
+	if event == "MERCHANT_CLOSED" then atVendor = false return end
 	if event == "MERCHANT_SHOW" then atVendor = true end
 	if atVendor then BB.Read() end
-	if event == "MERCHANT_CLOSED" then atVendor = false end
 end
 -- (a sale's update comes a moment after the item leaves your bags: read when the game has it)
 ev:SetScript("OnEvent", function(_, event, a)

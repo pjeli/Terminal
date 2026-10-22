@@ -404,38 +404,66 @@ local KIND = { mounts = "mounts", mount = "mounts", pets = "pets", pet = "pets",
 	minipets = "pets", minipet = "pets", battlepets = "pets", battlepet = "pets", toys = "toys", toy = "toys" }
 local PLURAL = { mounts = true, pets = true, companions = true, minipets = true, battlepets = true, toys = true }
 local FAV = { favorite = true, favorites = true, favourite = true, favourites = true, fav = true, favs = true, faves = true }
-local FILL = {}
-for w in ([[my all show list me the i have what whats which do does are is of every own owned collected collection
-	how many much got ive im a an in please battle box mine]]):gmatch("%a+") do FILL[w] = true end
+-- words that ask for the list ("my mount", "all pets", "how many toys"), and words only around it ("which mounts do i
+-- have"): "how do i mount", "what is a mount", "mount battle" are no list (review, 0.64.3)
+local SAID, GLUE = {}, {}
+for w in ([[my all show list every own owned collected collection many much got ive mine]]):gmatch("%a+") do SAID[w] = true end
+for w in ([[me the i have what whats which do does are is of how im a an in please]]):gmatch("%a+") do GLUE[w] = true end
+-- (two words for one list: "battle pets", "toy box")
+local COMPOUND = { ["battle pets"] = "battlepets", ["battle pet"] = "battlepet", ["toy box"] = "toybox" }
+KIND.toybox, PLURAL.toybox = "toys", true
 local LABEL = { mounts = L["Your mounts"], pets = L["Your pets"], toys = L["Your toys"] }
+
+-- each row's name (a pet's species too), lowercased once: " raptor swift " (weak: let go with the rows)
+local hays = setmetatable({}, { __mode = "k" })
+local function Hay(e)
+	local hay = hays[e]
+	if not hay then
+		hay = " " .. ns.Lower(tostring(e.name or "")):gsub("'", "") .. " "
+		if e.kind == "pets" then hay = hay .. ns.Lower(tostring(rawget(e, "species") or "")):gsub("'", "") .. " " end
+		hay = hay:gsub("[%p]", " ")
+		hays[e] = hay
+	end
+	return hay
+end
 
 --- Does the row's name (a pet's species too) have each word, at a word's start?
 local function Named(e, words)
 	if #words == 0 then return true end
-	local hay = " " .. ns.Lower(tostring(e.name or "")):gsub("'", "") .. " "
-	if e.kind == "pets" then hay = hay .. ns.Lower(tostring(rawget(e, "species") or "")):gsub("'", "") .. " " end
-	hay = hay:gsub("[%p]", " ")
+	local hay = Hay(e)
 	for _, w in ipairs(words) do
 		if not hay:find(" " .. w, 1, true) then return false end
 	end
 	return true
 end
 
---- The rows a question takes: the list's, its favorites only when asked, named by its words.
-local function Rows(q)
+--- The rows a question takes: the list's, its favorites only when asked, named by its words (the first only, with one).
+local function Rows(q, one)
 	local p = ns.providers[q.kind]
 	local out = {}
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
-		if (not q.fav or e.fav == true) and Named(e, q.words) then out[#out + 1] = e end
+		if (not q.fav or e.fav == true) and Named(e, q.words) then
+			out[#out + 1] = e
+			if one then break end
+		end
 	end
 	return out, p
 end
 
 --- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts", "how many pets do i have": { kind, fav, words },
 --- or nil when the line isn't one (a list this client hasn't, a word that names none of them: a search then).
+local last = { gen = nil } -- (the last line asked, while the lists are the same: every keystroke asks again)
 function CQ.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
+	if last.t == t and last.gen == ns.entriesGen then return last.q end
+	local q = CQ.Parse(t)
+	last.t, last.gen, last.q = t, ns.entriesGen, q
+	return q
+end
+
+function CQ.Parse(t)
+	for two, one in pairs(COMPOUND) do t = (" " .. t .. " "):gsub(" " .. two .. " ", " " .. one .. " ") end
 	local q = { words = {} }
 	local said, plural = false, false
 	for w in t:gmatch("%S+") do
@@ -444,12 +472,12 @@ function CQ.Question(text)
 			q.kind = KIND[w]
 			plural = plural or PLURAL[w] or false
 		elseif FAV[w] then q.fav, said = true, true
-		elseif FILL[w] then said = true
-		else q.words[#q.words + 1] = w end
+		elseif SAID[w] then said = true
+		elseif not GLUE[w] then q.words[#q.words + 1] = w end
 	end
 	if not q.kind or not ns.providers[q.kind] then return nil end
 	if not plural and not said and #q.words == 0 then return nil end -- ("mount" alone: a search, as before)
-	if #q.words > 0 and #(Rows(q)) == 0 then return nil end -- ("pet trainer", "mount hyjal": a search)
+	if #q.words > 0 and #(Rows(q, true)) == 0 then return nil end -- ("pet trainer", "mount hyjal": a search)
 	return q
 end
 
@@ -472,9 +500,11 @@ end
 
 local ADV = { mounts = "@mount", pets = "@pet", toys = "@toy" }
 function CQ.ToAdvanced(q)
+	-- (named by words: the line as said, which Advanced mode answers the same; "@mount raptor" would be a search of
+	-- letters, finding more; review, 0.64.3)
+	if #q.words > 0 then return nil end
 	local parts = { ADV[q.kind] }
 	if q.fav then parts[#parts + 1] = "is:favorite" end
-	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
 	parts[#parts + 1] = "sort:name"
 	return table.concat(parts, " ") .. " "
 end

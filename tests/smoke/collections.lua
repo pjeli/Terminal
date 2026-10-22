@@ -519,7 +519,10 @@ do
 	check(Ask("toys") == "Piccolo of the Flaming Fire | Toy Train Set" and Ask("my toy box") == Ask("toys"), "toys, my toy box: " .. tostring(Ask("toys")))
 	check(Ask("favourite toys") == "Piccolo of the Flaming Fire", "favourite toys")
 	-- not its lines: a word alone, other searches, other questions
-	for _, line in ipairs({ "mount", "pet", "toy", "pet trainer", "mount hyjal", "hunter pets", "@mount", "pet mounts", "summon pet" }) do
+	check(Ask("my battle pet") == Ask("pets") and Ask("toy box") == Ask("toys"), "my battle pet, toy box: the list, said in two words")
+	-- (review, 0.64.3: words only around the list's word, or a word naming none, are no list)
+	for _, line in ipairs({ "mount", "pet", "toy", "pet trainer", "mount hyjal", "hunter pets", "@mount", "pet mounts", "summon pet",
+		"how do i mount", "what is a mount", "the mount", "which mount", "mount battle", "pet battle", "battle", "box toy" }) do
 		check(Q.Question(line) == nil, line .. ": not this question")
 	end
 	-- typed: the answer and its note; Enter summons; Alt+`
@@ -529,7 +532,19 @@ do
 		"typed in Simple mode: the mounts, the note: " .. Names(UI.Results()))
 	UI:Hide(); FlushAll()
 	check(ns.Easy.ToAdvanced("favorite mounts") == "@mount is:favorite sort:name " and ns.Easy.ToAdvanced("pets") == "@pet sort:name "
-		and ns.Easy.ToAdvanced("raptor mounts") == "@mount raptor sort:name ", "Alt+`: " .. ns.Easy.ToAdvanced("favorite mounts"))
+		and ns.Easy.ToAdvanced("raptor mounts") == "raptor mounts ", "Alt+`: " .. ns.Easy.ToAdvanced("favorite mounts")
+		.. " / " .. ns.Easy.ToAdvanced("raptor mounts"))
+	-- (named by words: the line as said, answered the same; review, 0.64.3)
+	local same0, why0 = T.SameAsAdvanced("raptor mounts")
+	check(same0, "raptor mounts finds the same in Advanced: " .. tostring(why0))
+	-- (each keystroke asks again: each name lowercased once, not per keystroke; review, 0.64.3)
+	local lower, n = ns.Lower, 0
+	local function Type(line) for i = 1, #line do Q.Question(line:sub(1, i)) end end
+	Type("mount swift r")
+	ns.Lower = function(s) if s == "Black Wolf" or s == "Brown Horse" then n = n + 1 end return lower(s) end
+	Type("mount swift raptor"); Type("mount brown h")
+	ns.Lower = lower
+	check(n <= 1, "typing a mount's name: names lowercased once, not per keystroke: " .. n)
 	local same, why = T.SameAsAdvanced("favorite mounts")
 	check(same, "favorite mounts finds the same in Advanced: " .. tostring(why))
 	same, why = T.SameAsAdvanced("toys")

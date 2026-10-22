@@ -2273,7 +2273,7 @@ L["quest giver"] = true
 L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"] = true
 L["quests"] = true
 L["quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first"] = true
-L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey"] = true
+L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey; mounts, pets, toys: favorite"] = true
 L["quick keybind mode"] = true
 L["raid"] = true
 L["range hidden"] = true

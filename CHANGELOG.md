@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.64.2 (in testing)
+## 0.64.3 (in testing)
+
+**Fixes from a review**
+- Plain words: "how do i mount", "what is a mount", "pet battle" and the like are searches again, not your whole mount or pet list ("my mount", "battle pets", "toy box" still are). Typing a mount's or pet's name no longer reads the whole list again on every key. Alt+` keeps "raptor mounts" as said (Advanced answers it the same; "@mount raptor" would find more).
+- Buyback: closing the vendor's window no longer risks emptying the list; a new sale no longer moves the selection.
+- **is:unenchanted** keeps to gear an enchant goes on: not shirts, tabards, necks, rings, trinkets, held off-hands, relics, thrown weapons or wands. **@stored is:enchanted** goes by the copies you don't carry (your enchanted sword no longer lists a plain one on an alt); **@bank** goes by your bank's copies only.
+- Ammo: an ammo pouch isn't room for arrows, nor a quiver for bullets, in when a hunter is low; the suggestion goes as soon as you've bought some (it stayed up to a minute). A client without an ammo slot never suggests it.
+- **is:favorite** is in the filters' help.
+
+## 0.64.2
 
 **Buyback, anywhere**
 - **buyback**, **what did i sell** (**@buyback**): what you've sold to vendors since you logged in, newest first, each with how many, when, and what it costs to buy back; searchable anywhere, without opening a vendor. At any vendor, Enter buys one back (not enough money: said). The game's buyback list holds the last 12 and is lost when you log out: so is this one (a /reload keeps it).

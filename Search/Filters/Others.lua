@@ -600,7 +600,7 @@ F.HELP = {
 	{ "sells:linen_cloth", L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] },
 	{ "reward:outlaw_sabre", L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling)"] },
 	{ "is:drop", L["quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first"] },
-	{ "is:todo", L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey"] },
+	{ "is:todo", L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey; mounts, pets, toys: favorite"] },
 	{ "is:ready", L["spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..."] },
 	{ "is:known", L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] },
 	{ "is:unknown", L["@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)"] },

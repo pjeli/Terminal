@@ -114,6 +114,7 @@ local WEAPON, PROJECTILE, QUIVER = 2, 6, 11 -- (item classes: Enum.ItemClass)
 -- a bow or crossbow shoots arrows, a gun bullets (Enum.ItemWeaponSubclass; Enum.ItemProjectileSubclass 2 arrow, 3 bullet)
 local SHOOTS = { [2] = "arrow", [18] = "arrow", [3] = "shot" }
 local PROJECTILE_KIND = { [2] = "arrow", [3] = "shot" }
+local HOLDS = { [2] = "arrow", [3] = "shot" } -- (a quiver holds arrows, an ammo pouch bullets: Enum.ItemQuiverSubclass)
 E.AMMO_STACK = 200 -- (a stack of arrows or bullets, when the item doesn't say)
 E.AMMO_LOW_SHARE, E.AMMO_LOW_MIN = 0.25, 200 -- (a hunter's ammo is low under a quarter of the quiver, or a stack)
 
@@ -129,7 +130,10 @@ local function Equipped(slot) return GetInventoryItemID and Num(Safe(GetInventor
 --- What your ranged weapon shoots ("arrow", "shot"), or nil: none worn, a wand or a thrown one, or a game with no
 --- ammo (no ammo slot: nothing to buy).
 function E.AmmoKind()
-	if not (GetInventorySlotInfo and pcall(GetInventorySlotInfo, "AmmoSlot")) then return nil end
+	-- (a client with no ammo slot errors, or answers nothing: either way, nothing to buy)
+	local ok, ammoSlot = false, nil
+	if GetInventorySlotInfo then ok, ammoSlot = pcall(GetInventorySlotInfo, "AmmoSlot") end
+	if not (ok and type(ammoSlot) == "number") then return nil end
 	for _, slot in ipairs({ 18, 16 }) do -- (the ranged slot; a client with none: the main hand)
 		local classID, sub = ItemClass(Equipped(slot))
 		if classID == WEAPON and SHOOTS[sub] then return SHOOTS[sub] end
@@ -155,8 +159,9 @@ function E.AmmoCount(kind)
 		-- (the bag itself: a quiver or an ammo pouch, its slots each a stack)
 		if bag > 0 and C.ContainerIDToInventoryID then
 			local inv = Num(Safe(C.ContainerIDToInventoryID, bag))
-			local classID = ItemClass(inv and Equipped(inv))
-			if classID == QUIVER then room = room + slots * E.AMMO_STACK end
+			local classID, sub = ItemClass(inv and Equipped(inv))
+			-- (only the one for this ammo: an ammo pouch is no room for arrows; review, 0.64.3)
+			if classID == QUIVER and HOLDS[sub] == kind then room = room + slots * E.AMMO_STACK end
 		end
 	end
 	return have, room
@@ -207,6 +212,7 @@ local function Gather()
 	f.zone = Short(zoneName and Lower(zoneName), 22)
 	f.inGuild = IsInGuild and Safe(IsInGuild)
 	f.ammo = E.AmmoNeed(f.classFile)
+	E.ammoShown = f.ammo -- (bought: the pool made again at once, not a minute on; E.OnBags)
 	-- the dungeon you're in (its loot: "the deadmines upgrades")
 	local inside, kind = Safe(IsInInstance)
 	if inside == true and (kind == "party" or kind == "raid") then
@@ -375,6 +381,16 @@ local function Pool()
 	return list
 end
 E.ExamplePool = Pool
+--- Your bags changed: with ammo suggested, the pool is made again on the next open (the ammo bought, it goes; review,
+--- 0.64.3: "try: nearest vendor sells:arrow" stayed up to a minute).
+function E.OnBags()
+	if E.ammoShown then pool.made = nil end
+end
+do
+	local f = CreateFrame("Frame")
+	pcall(f.RegisterEvent, f, "BAG_UPDATE_DELAYED")
+	f:SetScript("OnEvent", function() E.OnBags() end)
+end
 -- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once (0.51.16, the player's ask)
 E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()

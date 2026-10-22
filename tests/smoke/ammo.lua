@@ -9,10 +9,10 @@ do
 	local save = { slot = _G.GetInventorySlotInfo, id = _G.GetInventoryItemID, info = C_Item.GetItemInfoInstant, C = _G.C_Container,
 		class = _G.UnitClass }
 	-- items: a bow (2/2), a gun (2/3), a sword (2/7), arrows (6/2), bullets (6/3), a quiver (11/2)
-	local CLASS = { [1] = { 2, 2 }, [2] = { 2, 3 }, [3] = { 2, 7 }, [10] = { 6, 2 }, [11] = { 6, 3 }, [20] = { 11, 2 } }
-	local worn, bags, quiver = {}, {}, nil
+	local CLASS = { [1] = { 2, 2 }, [2] = { 2, 3 }, [3] = { 2, 7 }, [10] = { 6, 2 }, [11] = { 6, 3 }, [20] = { 11, 2 }, [21] = { 11, 3 } }
+	local worn, bags, quiver, pouch = {}, {}, nil, false
 	_G.GetInventorySlotInfo = function(name) if name == "AmmoSlot" then return 0 end error("no such slot") end
-	_G.GetInventoryItemID = function(_, slot) if slot == 20 and quiver then return 20 end return worn[slot] end
+	_G.GetInventoryItemID = function(_, slot) if slot == 20 and quiver then return pouch and 21 or 20 end return worn[slot] end
 	C_Item.GetItemInfoInstant = function(id)
 		local c = CLASS[id]
 		if not c then return nil end
@@ -50,12 +50,17 @@ do
 	check(Need("HUNTER") == "arrow", "300 arrows in a 16-slot quiver: low")
 	bags = { { 10, 200 }, { 10, 200 }, { 10, 200 }, { 10, 200 } }
 	check(Need("HUNTER") == nil, "800 arrows in a 16-slot quiver: fine")
-	quiver = nil
+	-- (an ammo pouch holds bullets: no room for arrows; review, 0.64.3)
+	bags, pouch = { { 10, 200 }, { 10, 100 } }, true
+	check(Need("HUNTER") == nil, "300 arrows and a 16-slot ammo pouch: fine (the pouch isn't for arrows)")
+	quiver, pouch = nil, false
 
 	-- a game with no ammo slot: never
 	_G.GetInventorySlotInfo = function() error("no such slot") end
 	bags = {}
 	check(Need("HUNTER") == nil and Need("WARRIOR") == nil, "no ammo slot in the game: nothing to buy")
+	_G.GetInventorySlotInfo = function() return nil end -- (a client that answers nothing rather than an error)
+	check(Need("HUNTER") == nil and Need("WARRIOR") == nil, "an ammo slot the game doesn't name: nothing to buy")
 	_G.GetInventorySlotInfo = function(name) if name == "AmmoSlot" then return 0 end error("no such slot") end
 
 	-- the suggestion itself: Simple mode's words, Advanced's syntax, offered more often than the others
@@ -80,6 +85,20 @@ do
 	found = nil
 	for _, x in ipairs(E.PersonalTagged(false)) do if x[1]:find("sells:", 1, true) then found = x end end
 	check(not found, "bullets bought: not suggested")
+	-- (the pool shown on the empty prompt: made again when your bags change, not a minute on; review, 0.64.3)
+	local easy = ns.db.easyMode
+	ns.db.easyMode = true
+	bags = {}
+	E.OnBags(); E.ammoShown = "x"; E.OnBags()
+	local function Offered()
+		for _, l in ipairs(E.ExamplePool()) do if l:find("sells:shot", 1, true) then return true end end
+		return false
+	end
+	check(Offered(), "no bullets: the empty prompt offers where to buy them")
+	bags = { { 11, 200 } }
+	E.OnBags()
+	check(not Offered(), "bullets bought: the next open doesn't offer it")
+	ns.db.easyMode = easy
 	I.AddonMissing = missing
 
 	_G.GetInventorySlotInfo, _G.GetInventoryItemID, C_Item.GetItemInfoInstant, _G.C_Container, _G.UnitClass =

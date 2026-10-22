@@ -534,8 +534,18 @@ local function Enchanted(e)
 	local ench = ns.LinkEnchant(e.link)
 	return ench ~= nil and ench ~= 0
 end
+-- (the slots an enchant goes on: not a shirt, tabard, neck, ring, trinket, held off-hand, relic or thrown; review, 0.64.3)
+local ENCHANTABLE = { INVTYPE_HEAD = true, INVTYPE_SHOULDER = true, INVTYPE_CHEST = true, INVTYPE_ROBE = true,
+	INVTYPE_LEGS = true, INVTYPE_FEET = true, INVTYPE_WRIST = true, INVTYPE_HAND = true, INVTYPE_CLOAK = true,
+	INVTYPE_WEAPON = true, INVTYPE_2HWEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_WEAPONOFFHAND = true,
+	INVTYPE_SHIELD = true, INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true }
+local WAND = 19 -- (a weapon subclass: no scope fits one)
+local function EnchantSlot(_, _, loc, classID, subID)
+	if type(loc) ~= "string" then return nil end
+	return ENCHANTABLE[loc] == true and not (classID == 2 and subID == WAND)
+end
 local function Unenchanted(e)
-	if not e.itemID or not Equippable(e) then return false end
+	if not e.itemID or not Judge(e.itemID, EnchantSlot) then return false end
 	if e.enchanted ~= nil or e.unenchanted ~= nil then return e.unenchanted == true end
 	return ns.LinkEnchant(e.link) == 0
 end

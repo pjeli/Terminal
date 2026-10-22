@@ -15,7 +15,8 @@ do
 		game[#game + 1] = { name = name, link = ("|cffffffff|Hitem:%d::::::::|h[%s]|h|r"):format(id, name), count = count, price = price }
 		if #game > 12 then table.remove(game, 1) end
 	end
-	_G.GetNumBuybackItems = function() return #game end
+	local open = false -- (the window closed: the game may count none; review, 0.64.3)
+	_G.GetNumBuybackItems = function() return open and #game or 0 end
 	_G.GetBuybackItemInfo = function(i) local g = game[i]; if g then return g.name, 133, g.price, g.count, 1, true end end
 	_G.GetBuybackItemLink = function(i) return game[i] and game[i].link end
 	local bought
@@ -26,16 +27,20 @@ do
 	ns.db.buyback = {}
 	local function Names(rows) local t = {} for _, e in ipairs(rows) do t[#t + 1] = tostring(e.name) end return table.concat(t, " | ") end
 
+	local function Show() open = true BB.OnEvent("MERCHANT_SHOW") end
+	local function Close() open = false BB.OnEvent("MERCHANT_CLOSED") end
 	-- at a vendor: what you sell is kept, newest first, each with when it was sold and its price
-	BB.OnEvent("MERCHANT_SHOW")
+	Show()
 	Sell(2589, "Linen Cloth", 20, 200)
 	BB.OnEvent("MERCHANT_UPDATE")
+	local linenKey = BB.Rows()[1].key
 	clock = clock + 300
 	Sell(4865, "Ruined Pelt", 1, 5)
 	BB.OnEvent("MERCHANT_UPDATE")
-	BB.OnEvent("MERCHANT_CLOSED")
+	check(BB.Rows()[2].key == linenKey, "a new sale doesn't change a row's key (the selection stays)")
+	Close()
 	local rows = BB.Rows()
-	check(Names(rows) == "Ruined Pelt | Linen Cloth", "kept, newest first: " .. Names(rows))
+	check(Names(rows) == "Ruined Pelt | Linen Cloth", "kept, newest first, after the window closed: " .. Names(rows))
 	check(rows[2].detail:find("x20", 1, true) and rows[2].detail:find(ns.L["%d min ago"]:format(5), 1, true), "how many, when sold: " .. rows[2].detail)
 
 	-- away from the vendor: searchable, in plain words and @buyback; Enter says where to buy it back
@@ -52,7 +57,7 @@ do
 	check(ns.QuestionToAdvanced("buyback") == "@buyback ", "Alt+`: @buyback")
 
 	-- at a vendor again: Enter buys it back, and the list follows the game's
-	BB.OnEvent("MERCHANT_SHOW")
+	Show()
 	local linen
 	for _, e in ipairs(BB.Rows()) do if e.name == "Linen Cloth" then linen = e end end
 	linen.activate(linen)
@@ -65,7 +70,7 @@ do
 	local pricey = BB.Rows()[1]
 	pricey.activate(pricey)
 	check(bought == nil and said[#said]:find("Not enough money", 1, true), "too dear: said")
-	BB.OnEvent("MERCHANT_CLOSED")
+	Close()
 
 	-- a /reload keeps it; a fresh login drops it (the game's list is gone too)
 	BB.OnEvent("PLAYER_ENTERING_WORLD", false)

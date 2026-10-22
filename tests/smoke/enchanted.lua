@@ -25,6 +25,10 @@ do
 		{ itemID = 9002, hyperlink = L(9002, nil, "Zzench Cloak"), stackCount = 1, iconFileID = 1, quality = 2 },
 		{ itemID = 9003, hyperlink = L(9003, "1843", "Zzench Helm"), stackCount = 1, iconFileID = 1, quality = 2 },
 		{ itemID = 9004, hyperlink = L(9004, nil, "Zzench Cloth"), stackCount = 20, iconFileID = 1, quality = 1 },
+		-- (gear no enchant goes on: a shirt, a trinket, a wand; review, 0.64.3)
+		{ itemID = 9005, hyperlink = L(9005, nil, "Zzench Shirt"), stackCount = 1, iconFileID = 1, quality = 1 },
+		{ itemID = 9006, hyperlink = L(9006, nil, "Zzench Trinket"), stackCount = 1, iconFileID = 1, quality = 2 },
+		{ itemID = 9007, hyperlink = L(9007, nil, "Zzench Wand"), stackCount = 1, iconFileID = 1, quality = 2 },
 	}
 	_G.C_Container = setmetatable({ GetContainerNumSlots = function(b) return b == 0 and #bag or 0 end,
 		GetContainerItemInfo = function(b, s) return b == 0 and bag[s] or nil end }, { __index = saveC })
@@ -33,6 +37,9 @@ do
 	C_Item.GetItemInfoInstant = function(id)
 		if GEAR[id] then return id, "Armor", "Misc", GEAR[id], 1, 4, 0 end
 		if id == 9004 then return id, "Trade Goods", "Cloth", "", 1, 7, 5 end
+		if id == 9005 then return id, "Armor", "Misc", "INVTYPE_BODY", 1, 4, 0 end
+		if id == 9006 then return id, "Armor", "Misc", "INVTYPE_TRINKET", 1, 4, 0 end
+		if id == 9007 then return id, "Weapon", "Wands", "INVTYPE_RANGEDRIGHT", 1, 2, 19 end
 		return saveInstant(id)
 	end
 	ns.providers.items._dirty = true
@@ -46,7 +53,7 @@ do
 		return table.concat(t, " | ")
 	end
 	check(Names("@item zzench is:enchanted") == "Zzench Helm | Zzench Sword", "is:enchanted in your bags: " .. Names("@item zzench is:enchanted"))
-	check(Names("@item zzench is:unenchanted") == "Zzench Cloak | Zzench Sword", "is:unenchanted: gear without one (not the cloth): "
+	check(Names("@item zzench is:unenchanted") == "Zzench Cloak | Zzench Sword", "is:unenchanted: gear an enchant goes on, without one (not the cloth, shirt, trinket or wand): "
 		.. Names("@item zzench is:unenchanted"))
 	_G.C_Container, ns.Bags.BagIDs, C_Item.GetItemInfoInstant = saveC, saveBagIDs, saveInstant
 	ns.providers.items._dirty = true
@@ -56,10 +63,10 @@ do
 	local saveSyn, saveSource = rawget(_G, "Syndicator"), S.Source
 	local function it(id, ench, name) return { itemID = id, itemCount = 1, itemLink = L(id, ench, name), quality = 2 } end
 	local CH = {
-		["Me-Forever"] = { details = { character = "Me" }, bags = {}, mail = {}, equipped = {},
+		["Me-Forever"] = { details = { character = "Me" }, bags = { { it(9103, "1900", "Zzbank Mace") } }, mail = {}, equipped = {},
 			bank = { { it(9101, "1897", "Zzbank Sword"), it(9102, nil, "Zzbank Gloves") } } },
 		["Alt-Forever"] = { details = { character = "Alt" }, bank = {}, mail = {}, equipped = {},
-			bags = { { it(9102, "2564", "Zzbank Gloves") } } },
+			bags = { { it(9102, "2564", "Zzbank Gloves"), it(9103, nil, "Zzbank Mace") } } },
 	}
 	_G.Syndicator = { API = {
 		IsReady = function() return true end,
@@ -79,14 +86,20 @@ do
 	} }
 	S.Source = function() return "Syndicator" end
 	C_Item.GetItemInfoInstant = function(id)
-		if id == 9101 or id == 9102 then return id, "Armor", "Misc", id == 9101 and "INVTYPE_WEAPON" or "INVTYPE_HAND", 1, 4, 0 end
+		if id == 9101 or id == 9103 then return id, "Weapon", "Misc", "INVTYPE_WEAPON", 1, 2, 0 end
+		if id == 9102 then return id, "Armor", "Misc", "INVTYPE_HAND", 1, 4, 0 end
 		return saveInstant(id)
 	end
 	ns.providers.stored._dirty = true
 	ns.providers.bank._dirty = true
 	check(Names("@bank zzbank is:enchanted") == "Zzbank Sword", "is:enchanted in your bank: " .. Names("@bank zzbank is:enchanted"))
 	check(Names("@bank zzbank is:unenchanted") == "Zzbank Gloves", "your bank's gloves aren't, though your alt's are: " .. Names("@bank zzbank is:unenchanted"))
-	check(Names("@stored zzbank is:enchanted") == "Zzbank Gloves | Zzbank Sword", "@stored: any copy anywhere: " .. Names("@stored zzbank is:enchanted"))
+	check(Names("@stored zzbank is:enchanted") == "Zzbank Gloves | Zzbank Sword", "@stored: any copy you don't carry (not your own enchanted mace): "
+		.. Names("@stored zzbank is:enchanted"))
+	check(Names("@stored zzbank is:unenchanted") == "Zzbank Gloves | Zzbank Mace", "@stored: the alt's plain mace: " .. Names("@stored zzbank is:unenchanted"))
+	local _, _, en = S.ParseBrother(1234)
+	check(en == 0 and select(3, S.ParseBrother("1234")) == 0 and select(3, S.ParseBrother("1234:1897:0;1")) == 1897,
+		"BagBrother: a plain number is a copy without an enchant, as \"1234\" is")
 	_G.Syndicator, S.Source, C_Item.GetItemInfoInstant = saveSyn, saveSource, saveInstant
 	ns.providers.stored._dirty = true
 	ns.providers.bank._dirty = true
