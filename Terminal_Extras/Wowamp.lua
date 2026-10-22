@@ -733,7 +733,7 @@ local NUMS = { ["1"] = 1, ["2"] = 2, ["3"] = 3, ["4"] = 4, ["5"] = 5, ["6"] = 6,
 function W.KeyDown(self, key)
 	local mine = true
 	local n = #W.STATIONS
-	if key == "ESCAPE" or key == "`" then
+	if key == "ESCAPE" or ns.IsTickKey(key) then
 		W.Close()
 	elseif key == "UP" then
 		cursor = (cursor - 2) % n + 1; Redraw()

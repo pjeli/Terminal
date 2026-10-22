@@ -105,10 +105,12 @@ end
 ----------------------------------------------------------------------
 
 local function RunCmd(e, args) return e.cmd.run(args or "", ns) end
-local cmdList, cmdGen -- the command rows, made again only when a command is registered (Core's commandsGen)
+local cmdList, cmdGen, cmdKey -- the command rows, made again only when a command is registered (Core's commandsGen)
 
 function UI:CommandEntries()
-	if cmdList and cmdGen == ns.commandsGen then return cmdList end
+	-- (made again when the terminal's key changes too: their details say it; 0.65.1)
+	local keyNow = ns.ToggleLabel()
+	if cmdList and cmdGen == ns.commandsGen and cmdKey == keyNow then return cmdList end
 	local list = {}
 	for _, name in ipairs(ns.commandOrder) do
 		local c = ns.commands[name]
@@ -122,14 +124,14 @@ function UI:CommandEntries()
 			_lname = name,
 			key = name,
 			icon = "Interface\\Icons\\INV_Misc_Note_01",
-			detail = c.desc,
+			detail = ns.KeyHint(c.desc),
 			text = table.concat(c.aliases, " "),
 			freqKey = "cmd:" .. name,
 			cmd = c,
 			activate = RunCmd,
 		}
 	end
-	cmdList, cmdGen = list, ns.commandsGen
+	cmdList, cmdGen, cmdKey = list, ns.commandsGen, keyNow
 	return list
 end
 

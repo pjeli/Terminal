@@ -538,3 +538,87 @@ function ns.NameWait(listId)
 	end)
 	return w
 end
+
+----------------------------------------------------------------------
+-- The terminal's own key (0.65.1, a player on CurseForge: "how can I keybind the terminal when using the QWERTZ/German
+-- layout?"). ` is the default, but some keyboards have no plain ` (on a German one it's a dead key on Shift+´), so a
+-- player binds another: ^ (a German keyboard's key under Esc), ² (a French one's), Ctrl+Space. The key bound to the
+-- terminal does in it what ` does (closes it; Alt+ and Tab+ with it too), and the hints say that key, not `.
+----------------------------------------------------------------------
+
+-- symbol keys that may stand alone as the terminal's key: the ones under Esc (^ German, ² French, § Nordic, º Spanish,
+-- ½ Danish, ¬ British...) and others no search needs. Letters, digits and Space never (they type), nor a character of
+-- Terminal's syntax (. @ - | : < > " ! & = and the like: a search needs them).
+local SYMBOL_KEYS = { ["^"] = true, ["~"] = true, ["#"] = true, ["$"] = true, ["["] = true, ["]"] = true, ["{"] = true,
+	["}"] = true, [";"] = true, ["\\"] = true, ["²"] = true, ["³"] = true, ["§"] = true, ["°"] = true, ["´"] = true,
+	["¨"] = true, ["½"] = true, ["¬"] = true, ["º"] = true, ["ª"] = true, ["¦"] = true }
+local MODIFIER = "^[ACMS]%a+%-" -- (ALT-, CTRL-, META-, SHIFT-: a key with a modifier, the game's way)
+
+--- A key the game names in a binding that's a key alone, pressed without a modifier ("^", "²"), and that may close the
+--- terminal from inside it: not a letter, digit or Space (they type), not Enter, Esc or Tab (the terminal's own).
+local function PlainSymbol(k)
+	if type(k) ~= "string" or k == "" or k:find(MODIFIER) then return false end
+	return SYMBOL_KEYS[k] == true
+end
+ns.PlainSymbolKey = PlainSymbol
+
+--- The keys bound to the terminal (TERMINAL_TOGGLE), as the game names them ("`", "CTRL-SPACE", "^"): none, one or two.
+function ns.ToggleBindings()
+	local f = _G.GetBindingKey
+	if not f then return {} end
+	local ok, a, b = pcall(f, "TERMINAL_TOGGLE")
+	if not ok then return {} end
+	local out = {}
+	if type(a) == "string" and a ~= "" then out[#out + 1] = a end
+	if type(b) == "string" and b ~= "" then out[#out + 1] = b end
+	return out
+end
+
+--- Is this key (as a key press names it: "`", "^") the terminal's own, pressed alone: ` always, and a symbol key bound to
+--- the terminal by itself. (Bound with a modifier, CTRL-SPACE: Keys.lua's UI.OwnBinding.)
+function ns.IsTickKey(key)
+	if key == "`" then return true end
+	if not PlainSymbol(key) then return false end
+	for _, k in ipairs(ns.ToggleBindings()) do
+		if k == key then return true end
+	end
+	return false
+end
+
+-- the game's key names, as a hint says them (English, as every key hint is: "Ctrl+Space", "F12")
+local KEY_WORDS = { CTRL = "Ctrl", ALT = "Alt", SHIFT = "Shift", META = "Cmd", SPACE = "Space", BACKSPACE = "Backspace",
+	ESCAPE = "Esc", ENTER = "Enter", TAB = "Tab", DELETE = "Delete", INSERT = "Insert", HOME = "Home", END = "End",
+	PAGEUP = "Page Up", PAGEDOWN = "Page Down", UP = "Up", DOWN = "Down", LEFT = "Left", RIGHT = "Right",
+	NUMLOCK = "Num Lock", CAPSLOCK = "Caps Lock", PRINTSCREEN = "Print Screen", PAUSE = "Pause" }
+
+--- A binding as a hint says it: "CTRL-SPACE" -> "Ctrl+Space", "NUMPAD5" -> "Numpad5", "^" -> "^".
+function ns.KeyLabel(binding)
+	if type(binding) ~= "string" or binding == "" then return "" end
+	local parts = {}
+	local rest = binding
+	while true do
+		local mod, after = rest:match("^(%u+)%-(.+)$")
+		if not (mod and KEY_WORDS[mod] and (mod == "CTRL" or mod == "ALT" or mod == "SHIFT" or mod == "META")) then break end
+		parts[#parts + 1] = KEY_WORDS[mod]
+		rest = after
+	end
+	local word = KEY_WORDS[rest]
+	if not word and rest:find("^%u[%u%d]+$") then word = rest:sub(1, 1) .. rest:sub(2):lower() end
+	parts[#parts + 1] = word or rest
+	return table.concat(parts, "+")
+end
+
+--- What a hint calls the terminal's key: ` while it's one of them (or none is bound), else the first ("^", "Ctrl+Space").
+function ns.ToggleLabel()
+	local keys = ns.ToggleBindings()
+	for _, k in ipairs(keys) do if k == "`" then return "`" end end
+	return keys[1] and ns.KeyLabel(keys[1]) or "`"
+end
+
+--- A hint with ` in it says the terminal's key instead ("Esc or ` close" -> "Esc or ^ close"); as it is when that's `.
+function ns.KeyHint(s)
+	if type(s) ~= "string" or not s:find("`", 1, true) then return s end
+	local label = ns.ToggleLabel()
+	if label == "`" then return s end
+	return (s:gsub("`", (label:gsub("%%", "%%%%"))))
+end

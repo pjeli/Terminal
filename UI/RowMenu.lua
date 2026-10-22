@@ -329,7 +329,7 @@ function UI:MenuKey(f, key)
 		f:SetPropagateKeyboardInput(false); self:MenuSelect((menu.keySel or 1) - 1) return true
 	elseif key == "DOWN" or key == "TAB" then
 		f:SetPropagateKeyboardInput(false); self:MenuSelect((menu.keySel or 0) + 1) return true
-	elseif key == "ESCAPE" or key == "LEFT" or key == "`" then
+	elseif key == "ESCAPE" or key == "LEFT" or ns.IsTickKey(key) then
 		f:SetPropagateKeyboardInput(false); self:HideRowMenu() return true
 	elseif key ~= "ENTER" and key ~= "NUMPADENTER" then
 		return false -- (anything else closes it and does what it does)

@@ -214,6 +214,9 @@ end
 function P.Footer(frame, y, text, size)
 	local fs = P.Text(frame, size or 11)
 	fs:SetPoint("BOTTOMLEFT", 12, y)
+	-- (a ` in it says the terminal's key, whichever it is: "Esc or ^ close"; 0.65.1)
+	local set = fs.SetText
+	fs.SetText = function(self, t, ...) return set(self, ns.KeyHint(t), ...) end
 	if text then fs:SetText(text) end
 	return fs
 end

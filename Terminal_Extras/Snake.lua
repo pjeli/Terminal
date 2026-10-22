@@ -225,7 +225,7 @@ function S.TellGuild() return ns.Game.TellGuild(game, S.Brag()) end
 --- The game's keys are kept; any other key goes on to the game.
 function S.KeyDown(self, key)
 	local mine = true
-	if key == "ESCAPE" or key == "`" then
+	if key == "ESCAPE" or ns.IsTickKey(key) then
 		S.Close()
 	elseif game.over and ns.Game.OverKey(S, game, key) then
 		-- (game over: Enter tells your guild and closes, so the chat shows it; Tab plays again)

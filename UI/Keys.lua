@@ -57,7 +57,7 @@ end
 --- Is this key press the game's (a chord with Ctrl, Alt or Meta, or a function key, bound to one of PASS_ACTIONS and
 --- not one of Terminal's own)? Also the action it's bound to.
 function UI.GameKey(key)
-	if type(key) ~= "string" or OWN_CHORD_KEYS[key] or not GetBindingAction then return false end
+	if type(key) ~= "string" or OWN_CHORD_KEYS[key] or ns.IsTickKey(key) or not GetBindingAction then return false end
 	local chord, alt, ctrl, shift, meta = Chord(key)
 	if (key == "ENTER" or key == "NUMPADENTER") and (ctrl or shift) then return false end
 	if not (alt or ctrl or meta) and not key:match("^F%d+$") then return false end -- (a plain key types)
@@ -144,12 +144,17 @@ local OWN_ACTIONS = { TERMINAL_TOGGLE = "Toggle", TERMINAL_FUZZY = "FuzzyOnce", 
 
 --- (0.49.2, review: ".bind CTRL-SPACE" opened the terminal, and Ctrl+Space then did nothing in it: the terminal holds the
 --- keyboard, so the game's binding never fires) The key chord is bound to one of Terminal's own commands: which one, else
---- nil. Not ` (TickKey's: Tab+` and Alt+` too), not Enter (running a result), not a plain key that types (it types).
+--- nil. Not ` or another key the terminal's bound to alone (TickKey's: Tab+` and Alt+` too), not Enter (running a
+--- result), not a plain key that types (it types). Alt with a key whose chord has no binding: the key without Alt (the
+--- game hands it that binding too), so Alt+Ctrl+Space is Alt+` when Ctrl+Space is the terminal's (0.65.1).
 function UI.OwnBinding(key)
-	if type(key) ~= "string" or key == "`" or key == "ENTER" or key == "NUMPADENTER" or not GetBindingAction then return nil end
+	if type(key) ~= "string" or ns.IsTickKey(key) or key == "ENTER" or key == "NUMPADENTER" or not GetBindingAction then return nil end
 	local chord, alt, ctrl, _, meta = Chord(key)
 	if not (alt or ctrl or meta) and Types(key) then return nil end
 	local ok, action = pcall(GetBindingAction, chord)
+	if alt and ok and (action == nil or action == "") then
+		ok, action = pcall(GetBindingAction, (chord:gsub("ALT%-", "", 1)))
+	end
 	if ok and type(action) == "string" and OWN_ACTIONS[action] then return action end
 	return nil
 end
@@ -235,7 +240,8 @@ local function KeysDown(self, key)
 	if own then
 		self:SetPropagateKeyboardInput(false)
 		ns:Trace(("key %s: Terminal's %s"):format(key, own))
-		UI[OWN_ACTIONS[own]](UI)
+		-- (the terminal's own key, bound with a modifier: what ` does in it, Tab+ and Alt+ too; 0.65.1)
+		if own == "TERMINAL_TOGGLE" then UI.TickKey() else UI[OWN_ACTIONS[own]](UI) end
 		return
 	end
 	-- (0.55.13, the player) Alt+F, Alt+S, Alt+G: the bar's Filter, Sort and Group menus, to pick from with the keys; and
@@ -464,7 +470,7 @@ do
 	EditKey = function(key, ctrl, shift)
 		local edit = UI.edit
 		local text, c = edit:GetText(), UI.cursor
-		if key == "`" then
+		if ns.IsTickKey(key) then
 			TickKey()
 		elseif key == "ESCAPE" then
 			UI:Dismiss()
@@ -552,7 +558,7 @@ function UI:OnChar(text)
 	self.charChecked = true
 	if not self.keys or not self:IsShown() then return end
 	-- the ` of Alt+` (its OnChar follows the key that switched to Advanced): not typed
-	if text == "`" and self.swallowTick and GetTime() - self.swallowTick < 0.5 then
+	if ns.IsTickKey(text) and self.swallowTick and GetTime() - self.swallowTick < 0.5 then
 		self.swallowTick = nil
 		return
 	end

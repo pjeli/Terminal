@@ -132,7 +132,8 @@ function K.Rows(mode)
 			local text = K.TextFor(line, mode)
 			if text then
 				if title then out[#out + 1] = { title = title }; title = nil end
-				out[#out + 1] = { key = line[1], text = text, own = K.Own(line, mode) }
+				-- (` said as the terminal's key, whichever it is: "^ or Esc", "Alt+^"; 0.65.1)
+				out[#out + 1] = { key = ns.KeyHint(line[1]), text = ns.KeyHint(text), own = K.Own(line, mode) }
 			end
 		end
 	end
@@ -309,7 +310,7 @@ local OWN_KEYS = {
 
 --- Its keys are kept; any other key goes on to the game.
 function K.KeyDown(self, key)
-	local fn = KEYS and KEYS[key]
+	local fn = KEYS and (KEYS[key] or (ns.IsTickKey(key) and KEYS["`"])) -- (the terminal's key, whichever: 0.65.1)
 	if fn then fn() end
 	Panel.Propagate(self, fn)
 end

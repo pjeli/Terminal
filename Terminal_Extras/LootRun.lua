@@ -659,7 +659,7 @@ function LR.TellGuild() return ns.Game.TellGuild(game, LR.Brag()) end
 --- (asked during a pause too: off at once when it ends).
 function LR.KeyDown(self, key)
 	local mine = true
-	if key == "ESCAPE" or key == "`" then
+	if key == "ESCAPE" or ns.IsTickKey(key) then
 		LR.Close()
 	elseif game.over and ns.Game.OverKey(LR, game, key) then
 		-- (game over: Enter tells your guild and closes, so the chat shows it; Tab plays again)

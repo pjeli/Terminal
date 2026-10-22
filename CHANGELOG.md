@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.65.1 (in testing)
+
+**Your own key, on any keyboard** (a player on CurseForge: "how can I keybind the terminal when using the QWERTZ/German layout?")
+- A German keyboard has no plain ` (it's a dead key on Shift+´), nor do several others. Bind any key to Terminal in the game's Key Bindings (AddOns > Terminal) or with **.bind**, and in the open terminal that key does what ` does: it closes it, **Alt+** it writes the search in Advanced mode, **Tab+** it is pure fuzzy finding. That works for a key with a modifier (**Ctrl+Space**) and for a key alone under Esc (**^** on a German keyboard, **²** on a French one), whose character isn't typed into the prompt either. Letters, digits, Space and the characters a search needs (. @ - | : < > and the like) still type.
+- The hints say your key: the windows' footers ("Esc or ^ close"), F1's keys, the help, the commands' descriptions and the in-combat line ("In combat, Ctrl+^ opens Terminal"). With ` bound, nothing changes.
+
 ## 0.65.0
 
 **Your collections, in plain words**

@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.65.1", when = "in testing",
+		items = {
+			"Keyboards without a plain ` (German, French and others): the key you bind to Terminal (Key Bindings > AddOns > Terminal, or .bind) does in it what ` does: it closes it, Alt+ that key writes the search in Advanced mode, Tab+ it is fuzzy finding. Bound alone, a key like ^ or ² works too, and the hints, F1 and the windows' footers name your key instead of `.",
+		},
+	},
+	{
 		v = "0.65.0", when = "released October 2026",
 		items = {
 			"Your collections in plain words: \"mounts\", \"my pets\", \"toys\" list them by name with how many you have; \"favorite mounts\" keeps the journal's favorites, \"raptor mounts\" the ones named so. Enter summons or uses one, Shift+Enter shows it in the journal. Advanced: @mount is:favorite (on pets and toys too).",
@@ -45,17 +51,6 @@ CL.LOG = {
 			"@bank is this character's own bank; @stored is still every character's. \"what is in my bank\" lists it.",
 			"A long detail takes the room its name doesn't need, so wide windows show it whole.",
 			"Terminal: Share shares only with characters on your own realm: a Battle.net friend playing on another realm (another ruleset, PvE beside PvP) isn't connected to, and their items aren't shown. The other faction on your realm still is.",
-		},
-	},
-	{
-		v = "0.60.0", when = "released October 2026",
-		items = {
-			"Terminal: Share, a new addon that comes with Terminal (turn it off in the AddOn list if you don't want it): friends who run it and type the same password (.share password <password>) see what's in each other's bags in their searches. \"linen cloth\" lists yours, your alts' and your friends', with how many each has and where, bags and bank apart (@shared; Bank & alts in Simple mode).",
-			"Groups: .share join <group> <password> for a group of its own, five at most, each sharing what you choose (.share raid all, .share default limited). Friends see what you share in the groups you have in common; .share leave <group> leaves one.",
-			"What you share: .share limited (the default) is this character's crafting mats and consumables, in its bags and bank; .share all adds everything on all your characters and in your banks, and your gold; .share mats and .share consumables are just those; .share off stops.",
-			"Private and light: only friends, guild members and Battle.net friends' characters are heard; passwords and group names are never sent, and passwords show as *s wherever you type them; a password needs 8 characters or more, no spaces, with three of: capitals, small letters, numbers, symbols; and a key made from each is remembered, so you connect again by yourself when you log in. A wifi sign at the end of the prompt shows who's connected. After the first sync only what changed is sent, and a burst of bag changes goes as one.",
-			"A Battle.net friend's character is checked against your friend list and guild roster before it's taken for one of them: a friend with the same name can't pass for another.",
-			"Searches over very large lists keep every frame short: Simple mode's categories and a search's first results no longer stall with hundreds of thousands of rows.",
 		},
 	},
 }

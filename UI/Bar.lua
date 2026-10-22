@@ -959,7 +959,7 @@ function B.MenuKey(f, key)
 		if key == "SPACE" then UI.swallowChar = { at = GetTime(), ch = " " } end
 		local b = m.keySel and m.lines[m.keySel]
 		if b then b:GetScript("OnClick")(b) end
-	elseif key == "ESCAPE" or key == "`" then
+	elseif key == "ESCAPE" or ns.IsTickKey(key) then
 		B.HideMenu()
 	else
 		B.HideMenu()

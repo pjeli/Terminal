@@ -214,7 +214,7 @@ end
 
 --- A character typed: a letter goes into the word (the clock starts with the first), a space to the next word.
 function TY.Char(c)
-	if game.over or type(c) ~= "string" or c == "" or c == "`" then return end
+	if game.over or type(c) ~= "string" or c == "" or ns.IsTickKey(c) then return end
 	if c == " " then
 		if game.input == "" then return end -- (a space before anything typed: nothing)
 		local word = game.words[game.cur]
@@ -520,7 +520,7 @@ end
 --- Every key is the test's (letters come through OnChar), but the F-keys and Print Screen.
 function TY.KeyDown(self, key)
 	local mine = not GameKey(key)
-	if key == "ESCAPE" or key == "`" then
+	if key == "ESCAPE" or ns.IsTickKey(key) then
 		TY.Close()
 	elseif key == "TAB" then
 		if not game.start and not game.over and ns.db then -- (before the first letter: the next length)

@@ -611,6 +611,8 @@ bound = { ["F9"] = "TERMINAL_TOGGLE" }
 ns.db.bindingDone = nil
 ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
 check(bound["`"] == nil and bound["CTRL-`"] == nil, "does not add a second binding if one exists")
+-- (from here on, the usual install: ` is the terminal's key; the hints say ` as written. 0.65.1: they say the bound key)
+bound = { ["`"] = "TERMINAL_TOGGLE" }
 
 -- opening via the key must not leave the ` character in the box
 UI:Open("`hea")

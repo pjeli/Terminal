@@ -34,7 +34,9 @@ local function DropTick(want)
 	UI.swallowTick = GetTime()
 	if UI.keys then return end
 	C_Timer.After(0, function()
-		if edit:GetText() == want .. "`" then UI:SetQuery(want, #want) end
+		local text = edit:GetText()
+		-- (the key's character: ` or the one the terminal's bound to, ^ on a German keyboard; 0.65.1)
+		if #text > #want and text:sub(1, #want) == want and ns.IsTickKey(text:sub(#want + 1)) then UI:SetQuery(want, #want) end
 	end)
 end
 

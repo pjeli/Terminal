@@ -494,7 +494,7 @@ function TT.TellGuild() return ns.Game.TellGuild(game, TT.Brag()) end
 function TT.KeyDown(self, key)
 	local mine = true
 	local action = KEYS[key]
-	if key == "ESCAPE" or key == "`" then
+	if key == "ESCAPE" or ns.IsTickKey(key) then
 		TT.Close()
 	elseif game.over then
 		-- as the typing test: Enter tells your guild and closes, so the chat shows it (not the Enter that dropped the

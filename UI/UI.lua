@@ -182,8 +182,14 @@ do
 	local function EditTextChanged(self)
 		-- the key that opened the terminal (` or ~) must not end up typed into the box
 		local t = self:GetText()
-		if t:find("^[`~]") then
-			local stripped = t:gsub("^[`~]+", "")
+		local stripped = t:find("^[`~]") and t:gsub("^[`~]+", "") or t
+		-- (or the key the terminal's bound to alone, ^ on a German keyboard: 0.65.1)
+		for _, k in ipairs(ns.ToggleBindings()) do
+			if k ~= "`" and ns.PlainSymbolKey(k) then
+				while stripped:sub(1, #k) == k do stripped = stripped:sub(#k + 1) end
+			end
+		end
+		if stripped ~= t then
 			UI.cursor = math.max(0, (UI.cursor or 0) - (#t - #stripped))
 			self:SetText(stripped)
 			return
@@ -268,7 +274,7 @@ do
 			if ns.Tour and key ~= "ENTER" and key ~= "ESCAPE" and key ~= "NUMPADENTER" and key ~= "LEFT" then
 				ns.Tour.Key(key, IsShiftKeyDown())
 			end
-			if key == "`" then
+			if ns.IsTickKey(key) then
 				UI.TickKey() -- (bindings don't fire while the box has focus, so the toggle key closes it here)
 			elseif IsControlKeyDown() and not IsAltKeyDown() and ns.Tabs and ns.Tabs.Key(key, IsShiftKeyDown()) then
 				return -- (tabs: Tabs.lua)
@@ -1027,7 +1033,7 @@ function UI:CombatOpenOk()
 	local now = GetTime()
 	if not (self.combatSaid and now - self.combatSaid < UI.COMBAT_SAY) then
 		self.combatSaid = now
-		ns:Print(L["In combat, Ctrl+` opens Terminal."])
+		ns:Print(ns.KeyHint(L["In combat, Ctrl+` opens Terminal."]))
 	end
 	return false
 end
