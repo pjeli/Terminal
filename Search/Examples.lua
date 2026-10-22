@@ -179,6 +179,63 @@ function E.AmmoNeed(classFile)
 	return have == 0 and kind or nil
 end
 
+----------------------------------------------------------------------
+-- Reagents (0.64.4, the player: "try: nearest reagent vendor, if level is appropriate and if it is needed: priest
+-- candles if none, paladin if empty on anything, mages, druids etc."). A class's spells that use one up, each as its
+-- ranks in order with the reagent of each: the highest rank you know says which one you carry. Knowing the spell is the
+-- level being right; none of it in your bags is the need. (Only what's cast often enough to keep on you: not feathers,
+-- fish oil, infernal stones.)
+----------------------------------------------------------------------
+
+local HOLY_CANDLE, SACRED_CANDLE, SYMBOL_OF_DIVINITY, SYMBOL_OF_KINGS = 17028, 17029, 17033, 21177
+local RUNE_OF_TELEPORTATION, RUNE_OF_PORTALS, ARCANE_POWDER, ANKH, FLASH_POWDER = 17031, 17032, 17020, 17030, 5140
+local function Each(ids, item) local t = {} for _, id in ipairs(ids) do t[#t + 1] = { { id, item } } end return t end
+local function Join(...) local t = {} for _, l in ipairs({ ... }) do for _, x in ipairs(l) do t[#t + 1] = x end end return t end
+E.REAGENT_SPELLS = {
+	PRIEST = {
+		{ { 21562, HOLY_CANDLE }, { 21564, SACRED_CANDLE } }, -- Prayer of Fortitude
+		{ { 27681, SACRED_CANDLE } }, -- Prayer of Spirit
+		{ { 27683, SACRED_CANDLE } }, -- Prayer of Shadow Protection
+	},
+	PALADIN = Join({ { { 19752, SYMBOL_OF_DIVINITY } } }, -- Divine Intervention
+		-- the Greater Blessings: Might, Wisdom, Kings, Salvation, Light, Sanctuary
+		Each({ 25782, 25916, 25894, 25918, 25898, 25895, 25890, 25899 }, SYMBOL_OF_KINGS)),
+	MAGE = Join(
+		Each({ 3561, 3562, 3563, 3565, 3566, 3567 }, RUNE_OF_TELEPORTATION), -- the Teleports
+		Each({ 10059, 11416, 11417, 11418, 11419, 11420 }, RUNE_OF_PORTALS), -- the Portals
+		{ { { 23028, ARCANE_POWDER } } }), -- Arcane Brilliance
+	DRUID = {
+		{ { 20484, 17034 }, { 20739, 17035 }, { 20742, 17036 }, { 20747, 17037 }, { 20748, 17038 } }, -- Rebirth: its seeds
+		{ { 21849, 17021 }, { 21850, 17026 } }, -- Gift of the Wild: Wild Berries, Wild Thornroot
+	},
+	SHAMAN = { { { 20608, ANKH } } }, -- Reincarnation
+	ROGUE = { { { 1856, FLASH_POWDER }, { 1857, FLASH_POWDER } } }, -- Vanish
+}
+
+local function BagCount(id)
+	local f = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
+	return f and Num(Safe(f, id, false)) or nil
+end
+
+--- The reagents your class's spells want and your bags have none of: their item ids, in the class's order, or nil.
+function E.ReagentNeed(classFile)
+	local chains = E.REAGENT_SPELLS[classFile or ""]
+	local CS = ns.ClassSpells
+	if not (chains and CS and CS.Known) then return nil end
+	local out, seen = {}, {}
+	for _, chain in ipairs(chains) do
+		local item
+		for i = #chain, 1, -1 do
+			if CS.Known(chain[i][1]) then item = chain[i][2] break end
+		end
+		if item and not seen[item] then
+			seen[item] = true
+			if BagCount(item) == 0 then out[#out + 1] = item end
+		end
+	end
+	return #out > 0 and out or nil
+end
+
 --- What the examples are made from: the character (level, class), its professions and consumables, a dungeon about
 --- its level, where it is, its guild.
 local function Gather()
@@ -212,7 +269,8 @@ local function Gather()
 	f.zone = Short(zoneName and Lower(zoneName), 22)
 	f.inGuild = IsInGuild and Safe(IsInGuild)
 	f.ammo = E.AmmoNeed(f.classFile)
-	E.ammoShown = f.ammo -- (bought: the pool made again at once, not a minute on; E.OnBags)
+	f.reagents = E.ReagentNeed(f.classFile)
+	E.buyShown = (f.ammo or f.reagents) and true or nil -- (bought: the pool made again at once, not a minute on; E.OnBags)
 	-- the dungeon you're in (its loot: "the deadmines upgrades")
 	local inside, kind = Safe(IsInInstance)
 	if inside == true and (kind == "party" or kind == "raid") then
@@ -230,13 +288,16 @@ local function AdvancedExamples(f, add)
 	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or ""), nil, "field") end
 	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade", nil, "field") end
 	if f.instance then add("@loot " .. f.instance .. " is:upgrade", nil, "instance") end
-	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " sort:nearest", nil, nil, true) end
+	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " faction:friendly sort:nearest", nil, nil, true) end
+	if f.reagents then add("@npc reagent is:vendor faction:friendly sort:nearest", nil, nil, true) end
 end
 
 local function SimpleExamples(f, add)
 	local prof, dungeon = f.prof, f.dungeon
 	-- (out of ammo, or a hunter's running low: where to buy it, offered more often than the rest)
 	if f.ammo then add("nearest vendor sells:" .. f.ammo, "Questie", nil, true) end
+	-- (out of a reagent your spells use: candles, symbols, runes, seeds, an ankh)
+	if f.reagents then add("nearest reagent vendor", "Questie", nil, true) end
 	if f.cls then add("nearest " .. f.cls .. " trainer", "Questie", "city") end
 	if prof then add(prof .. " skillup", nil, "city"); add("nearest " .. prof .. " trainer", "Questie", "city") end
 	if #f.carry > 0 then add("use " .. Pick(f.carry), nil, "field") end
@@ -381,10 +442,10 @@ local function Pool()
 	return list
 end
 E.ExamplePool = Pool
---- Your bags changed: with ammo suggested, the pool is made again on the next open (the ammo bought, it goes; review,
+--- Your bags changed: with ammo or a reagent suggested, the pool is made again on the next open (the ammo bought, it goes; review,
 --- 0.64.3: "try: nearest vendor sells:arrow" stayed up to a minute).
 function E.OnBags()
-	if E.ammoShown then pool.made = nil end
+	if E.buyShown then pool.made = nil end
 end
 do
 	local f = CreateFrame("Frame")

@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.64.3 (in testing)
+## 0.64.4 (in testing)
+
+**Reagents**
+- Out of a reagent your spells use, the empty prompt suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**), more often than the other suggestions: a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Divinity or Symbols of Kings, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs, a rogue's flash powder. Only once you know the spell, and only when your bags have none; it goes as soon as you've bought some.
+- The ammo suggestion's Advanced form is friendly vendors only, as Alt+` writes it.
+
+## 0.64.3
 
 **Fixes from a review**
 - Plain words: "how do i mount", "what is a mount", "pet battle" and the like are searches again, not your whole mount or pet list ("my mount", "battle pets", "toy box" still are). Typing a mount's or pet's name no longer reads the whole list again on every key. Alt+` keeps "raptor mounts" as said (Advanced answers it the same; "@mount raptor" would find more).
