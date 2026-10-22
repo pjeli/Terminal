@@ -233,18 +233,19 @@ function F.MyRoles()
 	local db, key = ns.db, F._MyName and F._MyName()
 	local saved = db and key and type(db.upgradeRoles) == "table" and db.upgradeRoles[key]
 	if type(saved) ~= "table" then return nil end
-	local out = {}
-	for _, r in ipairs(RolesOf(MyClass())) do
-		for _, id in ipairs(saved) do if id == r[1] then out[#out + 1] = id end end
-	end
-	return #out > 0 and out or nil
+	-- (one role at a time, 0.65.9, the player: "only let .weights define one role; easiest on the computation too";
+	-- several kept from before: the first of them that's still a role of yours)
+	local mine = {}
+	for _, r in ipairs(RolesOf(MyClass())) do mine[r[1]] = true end
+	for _, id in ipairs(saved) do if mine[id] then return { id } end end
+	return nil
 end
---- Pick roles for this character (a list of ids; nil or empty: the all-round weights again).
+--- Pick the role for this character (a list of one id; nil or empty: the all-round weights again).
 function F.SetRoles(ids)
 	local db, key = ns.db, F._MyName and F._MyName()
 	if not (db and key) then return end
 	db.upgradeRoles = type(db.upgradeRoles) == "table" and db.upgradeRoles or {}
-	db.upgradeRoles[key] = (ids and #ids > 0) and ids or nil
+	db.upgradeRoles[key] = (ids and ids[1]) and { ids[1] } or nil
 end
 
 --- The weights to judge by: { { weights, role } ... } (role nil: the all-round ones).
@@ -470,26 +471,8 @@ local GearFitWith
 --- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet aren't, for now. With
 --- several roles picked (.weights): a clear upgrade for any of them, the biggest gain kept and its role said.
 function F.GearFit()
-	local sets = F.MyWeightSets()
-	if #sets == 1 then return GearFitWith(sets[1][1], sets[1][2]) end
-	local fits = {}
-	for i, set in ipairs(sets) do fits[i] = GearFitWith(set[1], set[2]) end
-	return function(e)
-		local best, any
-		for i, fitOne in ipairs(fits) do
-			if fitOne(e) then
-				any = true
-				local g = gains[e]
-				if g and (not best or (g.gain or 0) > (best.gain or 0)) then
-					best = {}
-					for k, v in pairs(g) do best[k] = v end
-					best.role = sets[i][2]
-				end
-			end
-		end
-		gains[e] = best
-		return any or false
-	end
+	local set = F.MyWeightSets()[1] -- (one role at a time: 0.65.9)
+	return GearFitWith(set[1], set[2])
 end
 
 GearFitWith = function(weights, role)
@@ -775,7 +758,7 @@ function F.ApplyPawn(text)
 end
 
 ns:RegisterCommand("weights", {
-	desc = L["How upgrades are judged: the stats your class wants. .weights feral healer judges them for those roles (any of them counts); .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for all-round"],
+	desc = L["How upgrades are judged: the stats your class wants. .weights healer judges them for that role; .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for all-round"],
 	aliases = { "roles", "role" },
 	complete = function()
 		local out = {}
@@ -829,15 +812,15 @@ ns:RegisterCommand("weights", {
 				lines[#lines + 1] = L["Your own weights forgotten."]
 			else
 				local ids, bad = F.RolesFor(args)
+				local names = {}
+				for _, r in ipairs(F.RolesOf(class)) do names[#names + 1] = r[1] end
 				if #bad > 0 then
-					local names = {}
-					for _, r in ipairs(F.RolesOf(class)) do names[#names + 1] = r[1] end
 					return { L["Not a role of your class: %s. Yours: %s"]:format(table.concat(bad, ", "), table.concat(names, ", ")) }
 				end
+				-- (one role at a time, 0.65.9)
+				if #ids > 1 then return { L["One role at a time: .weights %s. Yours: %s"]:format(ids[1], table.concat(names, ", ")) } end
 				F.SetRoles(ids)
-				local said = {}
-				for _, id in ipairs(ids) do said[#said + 1] = F.ROLE_SAY[id] or id end
-				lines[#lines + 1] = L["Upgrades: judged for %s (a clear upgrade for any of them counts)."]:format(table.concat(said, ", "))
+				lines[#lines + 1] = L["Upgrades: judged for %s."]:format(F.ROLE_SAY[ids[1]] or ids[1])
 			end
 		end
 		lines[#lines + 1] = L["How upgrades are judged: an item's stats weighed for what you want, against the piece you wear there; a clear upgrade gains more than it gives up."]
@@ -857,7 +840,7 @@ ns:RegisterCommand("weights", {
 			lines[#lines + 1] = "  " .. (on[id] and "|cff40ff40" or "") .. label .. (on[id] and (" " .. L["(now)"] .. "|r") or "")
 				.. ": " .. F.WeightsText(w, id == "custom" and 30 or nil)
 		end
-		lines[#lines + 1] = L[".weights <role> [role...] picks them (.weights feral healer); .weights all goes back to all-round."]
+		lines[#lines + 1] = L[".weights <role> picks one (.weights healer); .weights all goes back to all-round."]
 		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]
 		return lines
 	end,

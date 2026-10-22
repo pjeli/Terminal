@@ -160,6 +160,8 @@ do
 		if self.flightNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.flightNote .. "|r") end
 		-- (recipes you don't know listed, a profession's window that would list more not read yet: MissingRecipes.lua)
 		if self.missingNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.missingNote .. "|r") end
+		-- (upgrades weighed: how to judge them otherwise, with them listed or none; Search.lua's UI:Search, 0.65.9)
+		if self.weightsNote and self.mode == "search" then text = Append(text, HINT .. self.weightsNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, L["loading..."]) end
 		-- (a search run again in the background found more: UI.held, shown on F5)
 		if self.held and self.mode == "search" then text = Append(text, HINT .. L["new results: F5 shows them"] .. "|r") end

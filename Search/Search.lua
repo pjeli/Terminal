@@ -396,6 +396,9 @@ function UI:Search(text)
 	-- under the answer; 0.50.7, review: "3*45g" ran a close-spellings pass over every list on each keystroke)
 	self.calcAnswered = calc and true or nil
 	local res = self:SearchText(text)
+	-- (upgrades weighed: the footer says how to judge them otherwise; 0.65.9, the player: "a gentle extended footer
+	-- reminder for user to set .weights if they do not like the results of upgrade searching")
+	self.weightsNote = ns.Filters and ns.Filters.fitMade and L["Not what you'd pick? .weights sets how upgrades are judged"] or nil
 	if calc then
 		for i = #res, 1, -1 do
 			if res[i].noActivate and res[i].name == EASY_NONE then table.remove(res, i) end

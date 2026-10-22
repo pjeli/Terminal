@@ -50,14 +50,24 @@ do
 	check(lines:find(L["All-round (now): %s"]:sub(1, 8), 1, true) and lines:find(F.ROLE_SAY.feral, 1, true) and lines:find(F.ROLE_SAY.healer, 1, true)
 		and lines:find("agi ", 1, true), ".weights: how it's judged, the class's roles and their weights: " .. lines)
 
-	-- feral and healer: either counts
+	-- (0.65.9, the player: "only let .weights define one role") two roles: said, nothing picked
 	lines = table.concat(weights.run("resto feral", ns), "\n")
+	check(F.MyRoles() == nil and lines:find(L["One role at a time: .weights %s. Yours: %s"]:sub(1, 10), 1, true), "resto feral: one at a time: " .. lines)
+	-- one: the healer
+	lines = table.concat(weights.run("resto", ns), "\n")
 	local roles = F.MyRoles()
-	check(roles and roles[1] == "healer" and roles[2] == "feral", "resto feral: healer and feral picked: " .. lines)
-	check(Upgrades() == "Cat Helm, Healer Helm", "for either role: both helms: " .. Upgrades())
+	check(roles and #roles == 1 and roles[1] == "healer" and lines:find(L["Upgrades: judged for %s."]:format(F.ROLE_SAY.healer), 1, true), "resto: the healer: " .. lines)
 	local healer
 	for _, e in ipairs(UI:Search("@loot is:upgrade")) do if e.name == "Healer Helm" then healer = e end end
 	check(F.GainOf(healer) and F.GainOf(healer).role == "healer", "the healer helm: an upgrade as a healer")
+	-- (0.65.9, the player: "a gentle footer reminder to set .weights if they don't like the results of upgrade searching")
+	UI:Open("@loot is:upgrade"); FlushAll()
+	local foot = tostring(UI.status:GetText())
+	check(foot:find(L["Not what you'd pick? .weights sets how upgrades are judged"], 1, true), "an upgrade search's footer: .weights: " .. foot)
+	UI:SetQuery("@loot helm"); FlushAll()
+	foot = tostring(UI.status:GetText())
+	check(not foot:find(".weights", 1, true), "another search's: not: " .. foot)
+	UI:Hide(); FlushAll()
 	-- the tooltip says the role
 	UI:Open("@loot is:upgrade"); FlushAll()
 	UI:UpdateTooltip()
@@ -125,13 +135,17 @@ do
 		check(d.onApply == ns.Theme.Import and d.title:GetText() == L["Import a Terminal style"], "Options' Import style: still the style's")
 		d:Hide()
 	end
-	-- with a class role too; forgotten: gone from the roles picked
-	weights.run("custom healer", ns)
-	roles = F.MyRoles()
-	check(roles and roles[1] == "healer" and roles[2] == "custom" and Upgrades() == "Cat Helm, Healer Helm", "custom healer: either: " .. Upgrades())
+	-- a class role picked: yours kept, not used; .weights custom picks them again; forgotten: all-round again
+	weights.run("feral", ns)
+	check(F.MyRoles()[1] == "feral" and F.CustomWeights() and Upgrades() == "Cat Helm", "feral: yours kept, feral's used: " .. Upgrades())
+	weights.run("custom", ns)
+	check(F.MyRoles()[1] == "custom" and Upgrades() == "Cat Helm", ".weights custom: yours again (Kitty): " .. Upgrades())
 	lines = table.concat(weights.run("clear", ns), "\n")
+	check(F.CustomWeights() == nil and F.MyRoles() == nil, ".weights clear: forgotten, all-round again: " .. lines)
+	-- (several kept from before 0.65.9: the first that's still yours)
+	ns.db.upgradeRoles[F._MyName()] = { "custom", "feral", "healer" }
 	roles = F.MyRoles()
-	check(F.CustomWeights() == nil and roles and #roles == 1 and roles[1] == "healer", ".weights clear: forgotten, healer still picked: " .. lines)
+	check(roles and #roles == 1 and roles[1] == "feral", "several roles kept from before: the first still yours, alone: " .. tostring(roles and table.concat(roles, ",")))
 	check(table.concat(weights.run("custom", ns), "\n"):find(L["Not a role of your class: %s. Yours: %s"]:sub(1, 12), 1, true), "custom with none set: not a role")
 	weights.run("all", ns)
 

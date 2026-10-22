@@ -193,7 +193,7 @@ end
 -- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
 -- list said the old ones; Simple mode's category label changed with the list staying)
 local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "aggregate", "linked", "answerNote", "pipeTrail",
-	"flightNote", "missingNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
+	"flightNote", "missingNote", "weightsNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
 local NONE = {}
 local function Fields(self)
 	local t = {}
