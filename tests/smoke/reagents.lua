@@ -55,17 +55,38 @@ do
 	end
 	-- bought: gone on the next open, not a minute on
 	ns.db.easyMode = true
-	E.buyShown = true; E.OnBags()
-	local function Offered()
-		for _, l in ipairs(E.ExamplePool()) do if l == "try: nearest reagent vendor" then return true end end
+	E.ResetPool()
+	local function Offered(line)
+		for _, l in ipairs(E.ExamplePool()) do if l == "try: " .. (line or "nearest reagent vendor") then return true end end
 		return false
 	end
 	check(Offered(), "no candles: the empty prompt offers the reagent vendor")
+	-- (release review, 0.64.6) bag changes that don't change what's to buy: the pool as it was, not made again (it
+	-- reshuffled the examples on every arrow shot); a burst of them checked once
+	local list = E.ExamplePool()
+	local checks, realCheck = 0, E.CheckBuy
+	E.CheckBuy = function() checks = checks + 1 return realCheck() end
+	for _ = 1, 5 do E.OnBags() end
+	T.FlushAll()
+	E.CheckBuy = realCheck
+	check(checks == 1 and E.ExamplePool() == list, "five bag changes, nothing new to buy: checked once, the pool kept: " .. checks)
 	bags = { [17028] = 20 }
-	E.OnBags()
+	E.OnBags(); T.FlushAll()
 	check(not Offered(), "candles bought: the next open doesn't offer it")
+	-- (release review, 0.64.6) a reagent a reagent vendor doesn't sell: a rogue's Flash Powder, at a poison supplier
+	known, bags = { [1856] = true }, {}
+	_G.UnitClass = function() return "Rogue", "ROGUE" end
+	local saveName = C_Item.GetItemNameByID
+	C_Item.GetItemNameByID = function(id) return id == 5140 and "Flash Powder" or nil end
+	local rv, fp
+	for _, x in ipairs(E.PersonalTagged(false)) do
+		if x[1] == "nearest reagent vendor" then rv = x end
+		if x[1] == "nearest vendor sells:flash_powder" then fp = x end
+	end
+	check(fp and fp.todo and not rv, "a rogue out of Flash Powder: the vendors selling it, not a reagent vendor")
+	C_Item.GetItemNameByID = saveName
 
 	CS.Known, C_Item.GetItemCount, _G.GetItemCount, _G.UnitClass = save.known, save.count, save.gcount, save.class
 	ns.Integrations.AddonMissing, ns.db.easyMode = save.missing, save.easy
-	E.buyShown = true; E.OnBags()
+	E.ResetPool()
 end

@@ -211,6 +211,16 @@ E.REAGENT_SPELLS = {
 	SHAMAN = { { { 20608, ANKH } } }, -- Reincarnation
 	ROGUE = { { { 1856, FLASH_POWDER }, { 1857, FLASH_POWDER } } }, -- Vanish
 }
+-- reagents a reagent vendor doesn't sell: "nearest vendor sells:<it>" instead (Flash Powder: poison suppliers;
+-- release review, 0.64.6)
+E.REAGENT_ELSEWHERE = { [FLASH_POWDER] = true }
+
+--- An item as a sells: value: its name, lowercase, _ for the spaces (the client's language), else its id.
+function E.SellsValue(id)
+	local name = C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, id))
+	if not name and GetItemInfo then name = Str(Safe(GetItemInfo, id)) end
+	return name and (Lower(name):gsub("%s+", "_")) or tostring(id)
+end
 
 local function BagCount(id)
 	local f = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
@@ -269,8 +279,12 @@ local function Gather()
 	f.zone = Short(zoneName and Lower(zoneName), 22)
 	f.inGuild = IsInGuild and Safe(IsInGuild)
 	f.ammo = E.AmmoNeed(f.classFile)
-	f.reagents = E.ReagentNeed(f.classFile)
-	E.buyShown = (f.ammo or f.reagents) and true or nil -- (bought: the pool made again at once, not a minute on; E.OnBags)
+	local need = E.ReagentNeed(f.classFile)
+	for _, id in ipairs(need or {}) do
+		if E.REAGENT_ELSEWHERE[id] then f.sells = f.sells or E.SellsValue(id) else f.reagents = true end
+	end
+	-- (what's to buy, as it was: a bag change made again only when it changes; E.OnBags)
+	E.buyKey = E.BuyKey(f.ammo, need)
 	-- the dungeon you're in (its loot: "the deadmines upgrades")
 	local inside, kind = Safe(IsInInstance)
 	if inside == true and (kind == "party" or kind == "raid") then
@@ -290,6 +304,7 @@ local function AdvancedExamples(f, add)
 	if f.instance then add("@loot " .. f.instance .. " is:upgrade", nil, "instance") end
 	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " faction:friendly sort:nearest", nil, nil, true) end
 	if f.reagents then add("@npc reagent is:vendor faction:friendly sort:nearest", nil, nil, true) end
+	if f.sells then add("@npc is:vendor sells:" .. f.sells .. " faction:friendly sort:nearest", nil, nil, true) end
 end
 
 local function SimpleExamples(f, add)
@@ -298,6 +313,7 @@ local function SimpleExamples(f, add)
 	if f.ammo then add("nearest vendor sells:" .. f.ammo, "Questie", nil, true) end
 	-- (out of a reagent your spells use: candles, symbols, runes, seeds, an ankh)
 	if f.reagents then add("nearest reagent vendor", "Questie", nil, true) end
+	if f.sells then add("nearest vendor sells:" .. f.sells, "Questie", nil, true) end -- (a reagent sold elsewhere)
 	if f.cls then add("nearest " .. f.cls .. " trainer", "Questie", "city") end
 	if prof then add(prof .. " skillup", nil, "city"); add("nearest " .. prof .. " trainer", "Questie", "city") end
 	if #f.carry > 0 then add("use " .. Pick(f.carry), nil, "field") end
@@ -442,14 +458,35 @@ local function Pool()
 	return list
 end
 E.ExamplePool = Pool
---- Your bags changed: with ammo or a reagent suggested, the pool is made again on the next open (the ammo bought, it goes; review,
---- 0.64.3: "try: nearest vendor sells:arrow" stayed up to a minute).
-function E.OnBags()
-	if E.buyShown then pool.made = nil end
+--- What's to buy, as one string: the ammo, then the reagents ("arrow|17028,17033"; "|" for nothing).
+function E.BuyKey(ammo, reagents)
+	return (ammo or "") .. "|" .. table.concat(reagents or {}, ",")
 end
+--- Is what's to buy different from what the pool was made with? (The pool made again when it is: the ammo bought, its
+--- suggestion goes; run out, it comes; review, 0.64.3: it stayed up to a minute. Release review, 0.64.6: not made
+--- again on every bag change while one is up, which reshuffled the examples on every arrow shot.)
+function E.CheckBuy()
+	if E.buyKey == nil or (InCombatLockdown and InCombatLockdown()) then return false end
+	local _, classFile = Safe(UnitClass, "player")
+	classFile = Str(classFile)
+	if E.BuyKey(E.AmmoNeed(classFile), E.ReagentNeed(classFile)) == E.buyKey then return false end
+	pool.made = nil
+	return true
+end
+--- Your bags changed (or combat ended): checked a moment later, once for a burst of changes.
+local checking = false
+function E.OnBags()
+	if checking or E.buyKey == nil then return end
+	checking = true
+	local function Run() checking = false E.CheckBuy() end
+	if C_Timer and C_Timer.After then C_Timer.After(1, Run) else Run() end
+end
+--- The pool made again on the next look (tests).
+function E.ResetPool() pool.made = nil end
 do
 	local f = CreateFrame("Frame")
 	pcall(f.RegisterEvent, f, "BAG_UPDATE_DELAYED")
+	pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED")
 	f:SetScript("OnEvent", function() E.OnBags() end)
 end
 -- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once (0.51.16, the player's ask)

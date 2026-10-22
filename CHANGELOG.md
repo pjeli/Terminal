@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.64.5 (in testing)
+## 0.64.6 (in testing)
+
+**Fixes from a release review**
+- A rogue out of flash powder is pointed at the vendors that sell it (**nearest vendor sells:flash_powder**), not a reagent vendor, which doesn't.
+- With ammo or a reagent to buy, the empty prompt's examples no longer reshuffle on every bag change (every arrow shot): they're made again only when what's to buy changes, a moment after a burst of bag changes, and not in combat. Running out now brings the suggestion up as soon as your bags change too.
+- **@stored is:enchanted** never goes by a copy you carry, even for an alt's copy Terminal knows nothing about.
+- A right-click on a tab's x closes it too.
+- The help's collections line shows the Advanced form Alt+` writes now (**@mount is:favorite sort:name**).
+
+## 0.64.5
 
 **Tabs**
 - Each tab over the prompt shows a small **x** while the pointer is on it; a click closes that tab, so one opened by accident goes with a click (a right-click on the tab and **Ctrl+Shift+W** still close one too).
@@ -8,7 +17,7 @@
 ## 0.64.4
 
 **Reagents**
-- Out of a reagent your spells use, the empty prompt suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**), more often than the other suggestions: a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Divinity or Symbols of Kings, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs, a rogue's flash powder. Only once you know the spell, and only when your bags have none; it goes as soon as you've bought some.
+- Out of a reagent your spells use, the empty prompt suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**), more often than the other suggestions: a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Divinity or Symbols of Kings, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs. A rogue out of flash powder (which reagent vendors don't sell) is offered **nearest vendor sells:flash_powder** instead. Only once you know the spell, and only when your bags have none; it goes as soon as you've bought some.
 - The ammo suggestion's Advanced form is friendly vendors only, as Alt+` writes it.
 
 ## 0.64.3

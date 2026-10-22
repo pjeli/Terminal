@@ -269,7 +269,7 @@ local function Build()
 		x.text:SetFontObject(Theme.fonts.small)
 		x.text:SetPoint("CENTER", 0, 0)
 		x.text:SetText("x")
-		if x.RegisterForClicks then x:RegisterForClicks("LeftButtonUp") end
+		if x.RegisterForClicks then x:RegisterForClicks("LeftButtonUp", "RightButtonUp") end -- (a right-click on it too)
 		x:SetScript("OnClick", function()
 			if UI.closing then return end
 			T.Close(i)

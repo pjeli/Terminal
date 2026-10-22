@@ -63,10 +63,10 @@ do
 	local saveSyn, saveSource = rawget(_G, "Syndicator"), S.Source
 	local function it(id, ench, name) return { itemID = id, itemCount = 1, itemLink = L(id, ench, name), quality = 2 } end
 	local CH = {
-		["Me-Forever"] = { details = { character = "Me" }, bags = { { it(9103, "1900", "Zzbank Mace") } }, mail = {}, equipped = {},
+		["Me-Forever"] = { details = { character = "Me" }, bags = { { it(9103, "1900", "Zzbank Mace"), it(9105, "1900", "Zzbank Axe") } }, mail = {}, equipped = {},
 			bank = { { it(9101, "1897", "Zzbank Sword"), it(9102, nil, "Zzbank Gloves") } } },
 		["Alt-Forever"] = { details = { character = "Alt" }, bank = {}, mail = {}, equipped = {},
-			bags = { { it(9102, "2564", "Zzbank Gloves"), it(9103, nil, "Zzbank Mace") } } },
+			bags = { { it(9102, "2564", "Zzbank Gloves"), it(9103, nil, "Zzbank Mace"), { itemID = 9105, itemCount = 1, quality = 2 } } } },
 	}
 	_G.Syndicator = { API = {
 		IsReady = function() return true end,
@@ -86,7 +86,7 @@ do
 	} }
 	S.Source = function() return "Syndicator" end
 	C_Item.GetItemInfoInstant = function(id)
-		if id == 9101 or id == 9103 then return id, "Weapon", "Misc", "INVTYPE_WEAPON", 1, 2, 0 end
+		if id == 9101 or id == 9103 or id == 9105 then return id, "Weapon", "Misc", "INVTYPE_WEAPON", 1, 2, 0 end
 		if id == 9102 then return id, "Armor", "Misc", "INVTYPE_HAND", 1, 4, 0 end
 		return saveInstant(id)
 	end

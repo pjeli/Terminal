@@ -89,14 +89,14 @@ do
 	local easy = ns.db.easyMode
 	ns.db.easyMode = true
 	bags = {}
-	E.OnBags(); E.buyShown = true; E.OnBags()
+	E.ResetPool()
 	local function Offered()
 		for _, l in ipairs(E.ExamplePool()) do if l:find("sells:shot", 1, true) then return true end end
 		return false
 	end
 	check(Offered(), "no bullets: the empty prompt offers where to buy them")
 	bags = { { 11, 200 } }
-	E.OnBags()
+	E.OnBags(); T.FlushAll()
 	check(not Offered(), "bullets bought: the next open doesn't offer it")
 	ns.db.easyMode = easy
 	I.AddonMissing = missing

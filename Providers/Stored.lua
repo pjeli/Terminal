@@ -549,7 +549,13 @@ ns:RegisterProvider("stored", {
 					if un then x.unenchanted = true end
 				end
 			end
-			if known then x.enchanted, x.unenchanted = x.enchanted or false, x.unenchanted or false end
+			if known then
+				x.enchanted, x.unenchanted = x.enchanted or false, x.unenchanted or false
+			else
+				-- (nothing known of those copies: neither, as @bank. The row's link is any copy's, perhaps the one you
+				-- carry; release review, 0.64.6)
+				x.enchanted, x.unenchanted = false, false
+			end
 			local name = elsewhere and Name(id, x.link)
 			if name then out[#out + 1] = StoredRow(id, x, name) end
 		end
