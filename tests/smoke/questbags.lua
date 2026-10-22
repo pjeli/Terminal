@@ -143,6 +143,32 @@ do
 	check(adv:find("Pouch for a Farmer", 1, true) and adv:find("Herbalist's Favor", 1, true) and not adv:find("A Sword for You", 1, true)
 		and not adv:find("The Fletcher", 1, true) and not adv:find("Grunt's Haversack", 1, true),
 		"@questie reward:bag: the bags' quests you can take, not the Bagged Sword's or the Horde's: " .. adv)
+	-- (0.65.6, the player's screenshot: "the advanced version of the bags search loses the slots in the details column")
+	-- reward:bag or sort:slots typed: each row says which bag and its slots, as the question's rows do
+	local function Shown(line, name)
+		UI.lastScan, UI.lastExtra = nil, nil
+		UI:Open(""); UI:SetQuery(line, #line); FlushAll()
+		local d
+		for i = 1, 10 do
+			local row = UI.rows[i]
+			-- (a shown row: one left from the last search keeps its text, hidden; its name without the typed words lit up)
+			if not d and row and row:IsShown() and not row.leaving and row.label:GetText() and ns.Plain(row.label:GetText()):find(name, 1, true) then
+				d = row.detail:GetText()
+			end
+		end
+		UI:Hide(); FlushAll()
+		return d
+	end
+	for _, line in ipairs({ "@questie reward:bag -is:done sort:slots ", "@questie reward:bag -is:done sort:-slots ", "@questie reward:bag ",
+		"@questie tailor sort:slots " }) do
+		local d = Shown(line, "The Tailor's Errand")
+		check(d and d:find("Rewards Tailor's Satchel", 1, true) and d:find(ns.L["%d slots"]:format(12), 1, true),
+			line .. ": the detail says the bag and its slots: " .. tostring(d))
+	end
+	local d = Shown("@questie reward:bag ", "Herbalist's Favor")
+	check(d and d:find("Herb Bag", 1, true), "a trade's bag says which: " .. tostring(d))
+	d = Shown("@questie tailor ", "The Tailor's Errand")
+	check(d and not d:find("slots", 1, true), "neither typed: the quest's own detail: " .. tostring(d))
 
 	_G.Questie, _G.QuestieLoader, _G.LibQuestieDB = save.Q, save.L, save.Lib
 	_G.UnitRace, _G.UnitClass = save.race, save.class

@@ -549,22 +549,55 @@ function QR.KindQuests(kind)
 	return out
 end
 
---- The most slots a quest's reward bag has (sort:slots, | sum slots), or nil (no bag, or not known yet).
-function QR.RewardSlots(e)
+--- A quest's reward bag (quiver, ammo pouch) with the most slots: its index entry, its slots (nil: not known yet), its
+--- kind's name ("Herb Bag") and subclass; nil when it rewards none.
+function QR.RewardBag(e)
 	local id = QuestIdOf(e)
 	if not id then return nil end
-	local best
+	local best, bestN, bestSub, bestSubID
+	local get = (C_Item and C_Item.GetItemInfoInstant) or _G.GetItemInfoInstant
 	for _, it in ipairs(QR.RewardsOf(id) or {}) do
-		local get = (C_Item and C_Item.GetItemInfoInstant) or _G.GetItemInfoInstant
-		local ok, _, _, _, _, _, class = false
-		if get then ok, _, _, _, _, _, class = pcall(get, it.id) end
-		if ok and (ns.Num(class) == CONTAINER or ns.Num(class) == QUIVER_CLASS) then
+		local ok, _, _, sub, _, _, class, subID = false, nil, nil, nil, nil, nil, nil, nil
+		if get then ok, _, _, sub, _, _, class, subID = pcall(get, it.id) end
+		class = ok and ns.Num(class)
+		if class == CONTAINER or class == QUIVER_CLASS then
 			local n = QR.Slots(it.id)
-			if n and (not best or n > best) then best = n end
+			if not best or (n or 0) > (bestN or 0) then
+				best, bestN, bestSub, bestSubID = it, n, Str(sub), class == CONTAINER and ns.Num(subID) or nil
+			end
 		end
 	end
-	return best
+	return best, bestN, bestSub, bestSubID
 end
+
+--- The most slots a quest's reward bag has (sort:slots, | sum slots), or nil (no bag, or not known yet).
+function QR.RewardSlots(e)
+	local it, n = QR.RewardBag(e)
+	return it and n or nil
+end
+
+--- What a bag quest's row says: "Rewards Tailor's Satchel · 12 slots" (an Herb Bag's kind too), then its own detail;
+--- nil for a quest rewarding none (its own detail stays).
+function QR.BagDetail(e)
+	local it, n, sub, subID = QR.RewardBag(e)
+	if not it then return nil end
+	local what = L["Rewards %s"]:format(it.name)
+	if n then what = what .. ns.DETAIL_SEP .. L["%d slots"]:format(n) end
+	if subID and subID ~= 0 and sub then what = what .. ns.DETAIL_SEP .. sub end -- (a bag for one trade: said)
+	local d = e.detail
+	return what .. ((type(d) == "string" and d ~= "") and (ns.DETAIL_SEP .. d) or "")
+end
+
+--- Is this typed word one asking for quests' bags (reward:bag, reward:quiver, rewards:ammo_pouch)? Their rows then
+--- say which bag and its slots (Search.lua's showField).
+function QR.IsKindWord(w)
+	local k, v = w:match("^(rewards?):(.+)$")
+	return k ~= nil and QR.KIND_WORDS[(v:gsub("_", " "))] ~= nil
+end
+
+-- (a quest search for bags, or sorted by slots: List.lua's FillRow says which bag and its slots; 0.65.6, the player)
+ns.FIELD_DETAIL = ns.FIELD_DETAIL or {}
+ns.FIELD_DETAIL.slots = function(e) return QR.BagDetail(e) end
 
 -- sort:slots (the most slots first, then the lowest level: as the question lists them) and | sum slots
 do

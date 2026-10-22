@@ -9,6 +9,9 @@ local Fuzzy, Theme = ns.Fuzzy, ns.Theme
 local LY = UI.layout
 local EasyOn, Wake, Style, rows = UI.EasyOn, UI.Wake, UI.Style, UI.rows
 local MAX_ROWS, FOOTER_H, ONCE_LABEL = UI.MAX_ROWS, UI.FOOTER_H, UI.ONCE_LABEL
+-- a field's say in the rows' detail when the search is sorted by it (or asks for it): field -> function(e, field)
+-- returning the detail, or nil for the row's own (Auctionator.lua: ahvalue, ahprice; Rewards.lua: slots)
+ns.FIELD_DETAIL = ns.FIELD_DETAIL or {}
 
 -- key hints, most useful first: on a narrow terminal the last ones are left out, never wrapped. Advanced: what Enter
 -- and Shift+Enter do for the selected row (Easy.VERBS), then the command line's own keys
@@ -619,9 +622,10 @@ local function FillRow(self, r, e, light)
 			r.label:SetText(ARROW .. r.label:GetText())
 			r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and L["maybe needs %s"] or L["needs %s"]):format(from.name))
 		else
-			-- (sorted by AH value: what it brings, where it is; Auctionator.lua)
-			local AN = self.showField and not e.raw and ns.Auctionator
-			local d = AN and AN.DetailFor and AN.DetailFor(e, self.showField)
+			-- (sorted by AH value: what it brings, where it is, Auctionator.lua; quests for bags: which and its slots,
+			-- Rewards.lua)
+			local how = self.showField and not e.raw and ns.FIELD_DETAIL[self.showField]
+			local d = how and how(e, self.showField)
 			r.detail:SetText(d or e.detail or "")
 		end
 		FitDetail(r)

@@ -197,6 +197,11 @@ function AN.DetailFor(e, field)
 	return table.concat(parts, SEP)
 end
 
+-- (the rows' detail when sorted by AH value or price: List.lua's FillRow)
+ns.FIELD_DETAIL = ns.FIELD_DETAIL or {}
+ns.FIELD_DETAIL.ahvalue = function(e, field) return AN.DetailFor(e, field) end
+ns.FIELD_DETAIL.ahprice = ns.FIELD_DETAIL.ahvalue
+
 --- About how much, plain: to the gold above a gold, to the silver above a silver ("about 45g").
 function AN.About(copper)
 	copper = Num(copper) or 0

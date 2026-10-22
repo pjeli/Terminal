@@ -1555,10 +1555,17 @@ function Scan.Prepare(self, q)
 	self.posTokens = tokens
 	-- (sorted by AH value or price, or is:auctionable: the rows' detail says it, List.lua's FillRow; 0.62.2, the player:
 	-- "the value disappears from the details column when I add my bank into the mix")
-	local sf = q.sortField
-	local auctionable = false
-	for w in ns.Lower(q.text or ""):gmatch("%S+") do if w == "is:auctionable" then auctionable = true break end end
-	self.showField = (sf == "ahvalue" or sf == "ahprice") and sf or (auctionable and "ahvalue") or nil
+	-- (0.65.6, the player's screenshot: "the advanced version of the bags search loses the slots in the details
+	-- column") a quest search for bags (reward:bag, sort:slots) says which bag and its slots: Rewards.lua. A sort turned
+	-- round (sort:-ahvalue) says it too.
+	local sf = q.sortField and (q.sortField:gsub("^%-", ""))
+	local auctionable, bags = false, false
+	for w in ns.Lower(q.text or ""):gmatch("%S+") do
+		if w == "is:auctionable" then auctionable = true
+		elseif ns.QuestRewards and ns.QuestRewards.IsKindWord and ns.QuestRewards.IsKindWord(w) then bags = true end
+	end
+	self.showField = (sf == "ahvalue" or sf == "ahprice" or sf == "slots") and sf or (auctionable and "ahvalue")
+		or (bags and "slots") or nil
 	q.tokens, q.empty = tokens, #tokens == 0
 end
 

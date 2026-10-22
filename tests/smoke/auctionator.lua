@@ -147,7 +147,8 @@ check(sum[1] and ns.Plain(sum[1].name):find(ns.Plain(ns.Money(1000 + 1200 + 2700
 check(Names(UI:Search("@item sort:ahprice")):find("^Soulbound Ring | Iron Bar") ~= nil, "sort:ahprice: the dearest each first: " .. Names(UI:Search("@item sort:ahprice")))
 -- (0.62.2, the player: the value went from the details once the line was a search, "@item @mybank is:auctionable
 -- sort:ahvalue") sorted by AH value, or is:auctionable: each row's detail says what it brings, then where it is
-for _, line in ipairs({ "@item is:auctionable sort:ahvalue ", "@item sort:ahvalue ", "@item is:auctionable " }) do
+-- (0.65.6: sort:-ahvalue, the other way round, says it too)
+for _, line in ipairs({ "@item is:auctionable sort:ahvalue ", "@item sort:ahvalue ", "@item is:auctionable ", "@item sort:-ahvalue " }) do
 	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open(""); UI:SetQuery(line, #line); FlushAll()
 	local shown

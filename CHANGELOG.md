@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.65.5 (in testing)
+## 0.65.6 (in testing)
+
+**Fixes** (the player's screenshot: "the advanced version of the bags search loses the slots in the details column")
+- **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**) and any quest search sorted by **sort:slots** say which bag each quest rewards and its slots, as "quests that reward bags" does: "Rewards Tailor's Satchel · 12 slots · Lv 12".
+- **sort:-ahvalue** (the other way round, new in 0.65.5) says each item's AH value in its detail again, as **sort:ahvalue** does.
+
+## 0.65.5
 
 **Sort ascending or descending** (the player: "an up arrow for ascending, a down arrow for descending instead of the check mark")
 - Simple mode's Sort menu shows an arrow by the sort in use instead of a check: down for the highest (or Z) first, up for the lowest (or A) first. Pick the same sort again to turn it round; **Best match** undoes it. A number's sort (Level, Quality, Slots...) starts with the highest; a name's (Name, Owner) starts with A. **Nearest** has one way and is ticked as before.
