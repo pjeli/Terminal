@@ -14,13 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.10", when = "in testing",
+		v = "0.65.11", when = "in testing",
 		items = {
 			"Your own key: bind any key to Terminal (^ on a German keyboard, Ctrl+Space) and it does what ` does; the hints name it.",
 			"Quests that reward bags: \"bag quests\" lists the bags you can still get, most slots first. Advanced: @questie reward:bag.",
 			"Sort either way: an arrow shows the direction; pick a sort again to flip it. Advanced: sort:-level.",
 			"Nearest or farthest: \"farthest innkeeper\", sort:distance and sort:-distance; unknown distances count as infinitely far.",
-			"Your own upgrade weights: .weights set str=2 agi=1, or paste a Pawn scale with .weights pawn. One role at a time.",
+			"Upgrades by talent tree, one at a time: .weights fury, .weights holy, .weights bear (or tank, healer); new weights made for WoW Forever. Your own: .weights set str=2 agi=1, or a Pawn scale with .weights pawn.",
 		},
 	},
 	{

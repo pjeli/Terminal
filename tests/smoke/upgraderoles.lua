@@ -47,7 +47,7 @@ do
 	-- all-round (none picked): a druid's own weights; the healer helm gives up too much agility to be a clear upgrade
 	check(F.MyRoles() == nil and Upgrades() == "Cat Helm", "all-round: the Cat Helm only: " .. Upgrades())
 	local lines = table.concat(weights.run("", ns), "\n")
-	check(lines:find(L["All-round (now): %s"]:sub(1, 8), 1, true) and lines:find(F.ROLE_SAY.feral, 1, true) and lines:find(F.ROLE_SAY.healer, 1, true)
+	check(lines:find(L["(now: your class's levelling tree)"], 1, true) and lines:find(F.ROLE_SAY.feral, 1, true) and lines:find(F.ROLE_SAY.restoration, 1, true)
 		and lines:find("agi ", 1, true), ".weights: how it's judged, the class's roles and their weights: " .. lines)
 
 	-- (0.65.9, the player: "only let .weights define one role") two roles: said, nothing picked
@@ -56,10 +56,10 @@ do
 	-- one: the healer
 	lines = table.concat(weights.run("resto", ns), "\n")
 	local roles = F.MyRoles()
-	check(roles and #roles == 1 and roles[1] == "healer" and lines:find(L["Upgrades: judged for %s."]:format(F.ROLE_SAY.healer), 1, true), "resto: the healer: " .. lines)
+	check(roles and #roles == 1 and roles[1] == "restoration" and lines:find(L["Upgrades: judged for %s."]:format(F.ROLE_SAY.restoration), 1, true), "resto: the healer: " .. lines)
 	local healer
 	for _, e in ipairs(UI:Search("@loot is:upgrade")) do if e.name == "Healer Helm" then healer = e end end
-	check(F.GainOf(healer) and F.GainOf(healer).role == "healer", "the healer helm: an upgrade as a healer")
+	check(F.GainOf(healer) and F.GainOf(healer).role == "restoration", "the healer helm: an upgrade as a healer")
 	-- (0.65.9, the player: "a gentle footer reminder to set .weights if they don't like the results of upgrade searching")
 	UI:Open("@loot is:upgrade"); FlushAll()
 	local foot = tostring(UI.status:GetText())
@@ -79,17 +79,17 @@ do
 	TT:Hide()
 	UI:UpdateTooltip()
 	TT.AddLine = add
-	check(table.concat(said, "\n"):find(L["An upgrade for: %s"]:format(F.ROLE_SAY.healer), 1, true), "the tooltip: for which role: " .. table.concat(said, " / "))
+	check(table.concat(said, "\n"):find(L["An upgrade for: %s"]:format(F.ROLE_SAY.restoration), 1, true), "the tooltip: for which role: " .. table.concat(said, " / "))
 	UI:Hide(); FlushAll()
 
 	-- healer alone: the cat helm's agility counts for nothing
 	weights.run("healer", ns)
 	check(Upgrades() == "Healer Helm", "healer alone: " .. Upgrades())
 	-- not a druid's role: said, nothing changed
-	lines = table.concat(weights.run("tank", ns), "\n")
-	check(lines:find(L["Not a role of your class: %s. Yours: %s"]:sub(1, 12), 1, true) and F.MyRoles()[1] == "healer", "tank: not a druid's: " .. lines)
+	lines = table.concat(weights.run("fury", ns), "\n")
+	check(lines:find(L["Not a role of your class: %s. Yours: %s"]:sub(1, 12), 1, true) and F.MyRoles()[1] == "restoration", "fury: not a druid's: " .. lines)
 	-- kept per character
-	check(type(ns.db.upgradeRoles) == "table" and ns.db.upgradeRoles[F._MyName()][1] == "healer", "kept for this character")
+	check(type(ns.db.upgradeRoles) == "table" and ns.db.upgradeRoles[F._MyName()][1] == "restoration", "kept for this character")
 	weights.run("all", ns)
 	check(F.MyRoles() == nil and Upgrades() == "Cat Helm", "all: all-round again")
 

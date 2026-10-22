@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.65.10 (in testing)
+## 0.65.11 (in testing)
+
+**Upgrade weights by talent tree** (the player: "our own single role profile, split by talent tree, good enough for 1-60")
+- **.weights** picks a tree: **.weights arms**, **fury**, **prot**, **holy**, **resto**, **shadow**, **bear**... ("tank" and "healer" still work). None picked: your class's levelling tree.
+- New weights made for WoW Forever, one scale per tree for levels 1-60: healing is its own stat, a school's spell damage counts for its tree, a feral's weapon DPS counts, block value is apart from block chance.
+- A ranged weapon's DPS (a bow, a wand) is weighed apart from a melee weapon's: a hunter's melee stat stick or a caster's staff no longer counts like a bow or wand.
+- **.weights** lists every stat of each tree and marks the one used; **prot**, **holy** and **resto** work for every class that has such a tree.
+- Your own and Pawn weights are scaled by their main stat, so a scale that weighs hit highly still counts Strength.
+- Items' stats kept from before are read again (block value, spell schools and ranged DPS are new).
+
+## 0.65.10
 
 **Fixes from a review of 0.65**
 - Bag quests list the same in plain words and in Advanced syntax, and Advanced asks the game for bags it hasn't loaded yet.

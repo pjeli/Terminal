@@ -27,13 +27,18 @@ local NEVER = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 -- HEALTH_REGEN: hp5 isn't mp5; review, 0.53.6). Spells' hit and crit and a druid's feral attack power are their own
 -- (0.56.14: a warrior's weights counted a caster's +1% spell hit as hit, a feral staff's attack power in forms as his)
 local STAT_KINDS = {
+	-- (a school's spell damage, "+12 Frost Spell Damage": its own, weighed for the trees that cast it; first, so a name
+	-- with SPELL_DAMAGE in it is read as its school too; 0.65.11)
+	{ "FIRE_DAMAGE", "fire" }, { "FROST_DAMAGE", "frost" }, { "ARCANE_DAMAGE", "arcane" }, { "NATURE_DAMAGE", "nature" },
+	{ "SHADOW_DAMAGE", "shadow" }, { "HOLY_DAMAGE", "holy" },
 	{ "FERAL_ATTACK_POWER", "feralap" }, { "RANGED_ATTACK_POWER", "rap" }, { "ATTACK_POWER", "ap" }, { "STRENGTH", "str" },
 	{ "AGILITY", "agi" }, { "STAMINA", "sta" }, { "INTELLECT", "int" }, { "SPIRIT", "spi" }, { "HEALING", "heal" },
 	{ "SPELL_DAMAGE", "sp" }, { "SPELL_POWER", "sp" }, { "HIT_SPELL", "spellhit" }, { "CRIT_SPELL", "spellcrit" },
 	{ "SPELL_HIT", "spellhit" }, { "SPELL_CRIT", "spellcrit" },
 	{ "CRIT", "crit" }, { "HIT", "hit" }, { "HASTE", "haste" }, { "MANA_REGEN", "mp5" }, { "POWER_REGEN0", "mp5" },
 	{ "DAMAGE_PER_SECOND", "dps" }, { "RESISTANCE0", "armor" }, { "DEFENSE", "def" }, { "DODGE", "dodge" },
-	{ "PARRY", "parry" }, { "BLOCK", "block" },
+	-- (a shield's block value is points, its block chance per cent: apart, 0.65.11: 30 block value counted as 30% block)
+	{ "PARRY", "parry" }, { "BLOCK_VALUE", "blockv" }, { "BLOCK", "block" },
 }
 local statKind = {}
 local function StatKind(key)
@@ -48,68 +53,158 @@ local function StatKind(key)
 	return k or nil
 end
 
--- how much each stat is worth to a class (rough: what it wants most is 1)
+-- How much each stat is worth, by talent tree (0.65.11, the player: "our own single role profile, split by talent tree
+-- (.weights fury vs .weights arms), a single simplified stat weight scale good enough for 1-60"). Terminal's own scale:
+-- the tree's main stat is 1, the rest rounded to what a player can read at a glance. Hit, crit, dodge, parry and block
+-- chance are per 1% (as WoW Forever's gear gives them), defense per skill point, the rest per point. Percent stats are
+-- worth more the higher you are (1% hit is about 3 Strength at 20, 12 at 60): one scale for every level sets them for
+-- the levels gear changes most, the 30s and 40s. Weighed from how the stats work (2 attack power per Strength for the
+-- plate and mail melee, a weapon's DPS about 14 attack power, Agility's crit and armor) and checked against what the
+-- wowsims Forever simulations make of them; on Forever, healing is its own stat (spell damage doesn't heal) and a
+-- feral's weapon DPS counts in forms.
 local GENERIC = { str = 0.6, agi = 0.6, int = 0.6, spi = 0.3, sta = 0.5, ap = 0.3, rap = 0.2, sp = 0.4, heal = 0.3,
-	crit = 0.5, hit = 0.5, spellhit = 0.4, spellcrit = 0.4, haste = 0.4, mp5 = 0.5, dps = 1.5, armor = 0.01, def = 0.3,
-	dodge = 0.3, parry = 0.3, block = 0.2 }
-F.WEIGHTS = {
-	WARRIOR = { str = 1, agi = 0.7, sta = 0.6, ap = 0.5, crit = 0.8, hit = 0.8, haste = 0.5, dps = 3, armor = 0.02,
-		def = 0.5, dodge = 0.5, parry = 0.5, block = 0.3 },
-	PALADIN = { str = 1, int = 0.6, sta = 0.6, spi = 0.2, agi = 0.4, ap = 0.4, sp = 0.6, heal = 0.5, crit = 0.7,
-		hit = 0.6, spellcrit = 0.4, mp5 = 1, dps = 2.5, armor = 0.02, def = 0.4, block = 0.2 },
-	HUNTER = { agi = 1, ap = 0.4, rap = 0.5, sta = 0.5, int = 0.3, spi = 0.1, crit = 0.8, hit = 0.8, haste = 0.5,
-		dps = 2, armor = 0.01 },
-	ROGUE = { agi = 1, str = 0.5, ap = 0.5, sta = 0.5, crit = 0.8, hit = 0.8, haste = 0.6, dps = 3, armor = 0.01 },
-	PRIEST = { int = 1, spi = 0.8, sta = 0.5, sp = 0.8, heal = 0.8, crit = 0.5, spellcrit = 0.5, spellhit = 0.3, haste = 0.4,
-		mp5 = 1.2, dps = 0.3, armor = 0.005 },
-	MAGE = { int = 1, spi = 0.5, sta = 0.5, sp = 1, crit = 0.7, hit = 0.8, spellcrit = 0.7, spellhit = 0.8, haste = 0.5,
-		mp5 = 0.8, dps = 0.3, armor = 0.005 },
-	WARLOCK = { int = 0.8, spi = 0.4, sta = 0.7, sp = 1, crit = 0.5, hit = 0.8, spellcrit = 0.5, spellhit = 0.8, haste = 0.5,
-		mp5 = 0.6, dps = 0.3, armor = 0.005 },
-	SHAMAN = { int = 0.8, str = 0.6, agi = 0.5, sta = 0.5, spi = 0.3, sp = 0.7, heal = 0.6, ap = 0.4, crit = 0.6,
-		hit = 0.5, spellcrit = 0.5, spellhit = 0.4, mp5 = 1, dps = 2, armor = 0.015 },
-	DRUID = { int = 0.7, agi = 0.6, str = 0.6, sta = 0.5, spi = 0.4, sp = 0.6, heal = 0.6, ap = 0.4, feralap = 0.4,
-		crit = 0.6, spellcrit = 0.5, spellhit = 0.3, mp5 = 1, dps = 0.5, armor = 0.01 },
+	crit = 3, hit = 3, spellhit = 3, spellcrit = 3, haste = 2, mp5 = 0.5, dps = 2, rdps = 1, armor = 0.01, def = 0.3,
+	dodge = 1, parry = 1, block = 0.5, blockv = 0.05 }
+
+-- shared shapes
+local function With(base, more) local t = {} for k, v in pairs(base) do t[k] = v end for k, v in pairs(more or {}) do t[k] = v end return t end
+-- a plate or mail fighter's: Strength 2 attack power, Agility crit and armor
+-- (Spirit only regenerates health out of combat for them: little; Stamina more; a bow or thrown weapon little)
+local STR_MELEE = { str = 1, agi = 0.5, ap = 0.5, crit = 6, hit = 7, haste = 4, dps = 7, rdps = 0.5, sta = 0.4, spi = 0.2,
+	dodge = 0.8, parry = 0.8, armor = 0.01 }
+-- a tank's: Stamina first, then avoidance; hit and crit for the threat
+local TANK = { sta = 1, str = 0.6, agi = 0.6, def = 0.8, dodge = 4, parry = 4, block = 2, blockv = 0.3, armor = 0.03,
+	hit = 4, crit = 3, haste = 2, ap = 0.3, dps = 4, rdps = 0.3 }
+-- a caster's: Intellect 1, spell damage what the spells hit with, hit and crit per 1%; a wand's DPS while levelling, a
+-- staff's or dagger's next to nothing
+local CASTER = { int = 1, sp = 3, spellhit = 8, spellcrit = 6, crit = 6, haste = 4, spi = 0.5, mp5 = 1, sta = 0.4, rdps = 1,
+	dps = 0.2 }
+-- a healer's: healing (its own stat on Forever), mana, crit; no weapon DPS (a plain wand goes by its item level: release
+-- review)
+local HEALER = { int = 1, heal = 1, spi = 0.6, mp5 = 1.2, spellcrit = 4, crit = 4, haste = 3, sta = 0.3 }
+
+F.ROLES = {
+	WARRIOR = {
+		{ "arms", STR_MELEE },
+		{ "fury", With(STR_MELEE, { dps = 5 }) }, -- (two weapons: each one's DPS counts less)
+		{ "protection", TANK },
+	},
+	PALADIN = {
+		{ "holy", With(HEALER, { spi = 0.4 }) },
+		{ "protection", With(TANK, { int = 0.4, sp = 0.6, holy = 0.6, mp5 = 0.5, spellhit = 2 }) }, -- (holy damage holds threat)
+		{ "retribution", With(STR_MELEE, { int = 0.2, sp = 0.4, holy = 0.4, mp5 = 0.2 }) },
+	},
+	HUNTER = {
+		-- (Agility 2 ranged attack power and a little crit: ranged attack power 0.45 each; mana matters: Intellect and mp5;
+		-- the bow's DPS, the melee weapon's little)
+		{ "beastmastery", { agi = 1, rap = 0.45, ap = 0.45, crit = 6, hit = 7, haste = 4, rdps = 5, dps = 0.5, int = 0.6, mp5 = 1.5,
+			spi = 0.6, sta = 0.3, armor = 0.01 } },
+		{ "marksmanship", { agi = 1, rap = 0.45, ap = 0.45, crit = 6, hit = 7, haste = 4, rdps = 5, dps = 0.5, int = 0.6, mp5 = 1.5,
+			spi = 0.6, sta = 0.3, armor = 0.01 } },
+		-- (Forever's survival fights in melee too: both weapons)
+		{ "survival", { agi = 1, ap = 0.5, rap = 0.4, str = 0.5, crit = 6, hit = 7, haste = 4, dps = 6, rdps = 3, int = 0.5,
+			mp5 = 1.2, spi = 0.6, dodge = 1.5, sta = 0.4, armor = 0.01 } },
+	},
+	ROGUE = (function()
+		local R = { agi = 1, str = 0.5, ap = 0.5, crit = 6, hit = 7, haste = 4, dps = 5, rdps = 0.5, spi = 0.2, dodge = 1, parry = 1,
+			sta = 0.4, armor = 0.01 }
+		return { { "assassination", R }, { "combat", R }, { "subtlety", R } }
+	end)(),
+	PRIEST = {
+		{ "discipline", With(HEALER, { spi = 1 }) },
+		{ "holy", With(HEALER, { spi = 1 }) },
+		{ "shadow", With(CASTER, { shadow = 3, spi = 1, sta = 0.5, rdps = 2 }) }, -- (Spirit Tap, a wand while levelling)
+	},
+	MAGE = {
+		{ "arcane", With(CASTER, { arcane = 3, spi = 1 }) },
+		{ "fire", With(CASTER, { fire = 3, spi = 1 }) },
+		{ "frost", With(CASTER, { frost = 3, spi = 1 }) },
+	},
+	WARLOCK = {
+		{ "affliction", With(CASTER, { shadow = 3, sta = 0.8, spi = 0.3 }) }, -- (Life Tap: Stamina for mana)
+		{ "demonology", With(CASTER, { shadow = 3, sta = 0.8, spi = 0.3 }) },
+		{ "destruction", With(CASTER, { shadow = 2.5, fire = 2.5, sta = 0.6, spi = 0.3 }) },
+	},
+	SHAMAN = {
+		{ "elemental", With(CASTER, { nature = 3, fire = 1, mp5 = 1.2, rdps = 0, dps = 0.3 }) }, -- (no wand)
+		{ "enhancement", With(STR_MELEE, { crit = 7, int = 0.3, sp = 0.3, nature = 0.3, mp5 = 0.8, rdps = 0 }) },
+		{ "restoration", With(HEALER, { spi = 0.5, mp5 = 1.5 }) },
+	},
+	DRUID = {
+		{ "balance", With(CASTER, { arcane = 3, nature = 3, spi = 0.6 }) },
+		-- (a cat: Strength 2 attack power, Agility 1 and crit; on Forever the weapon's DPS counts in forms)
+		{ "feral", { str = 1, agi = 0.9, ap = 0.5, feralap = 0.5, crit = 6, hit = 6, haste = 4, dps = 4.5, sta = 0.4, spi = 0.2,
+			int = 0.2, dodge = 0.8, armor = 0.02 } },
+		{ "bear", With(TANK, { agi = 0.8, str = 0.6, parry = 0, block = 0, blockv = 0, armor = 0.08, feralap = 0.3, dps = 4,
+			rdps = 0 }) },
+		{ "restoration", With(HEALER, { spi = 0.9 }) },
+	},
 }
+-- the tree each class is judged for when none is picked (the one most level with)
+F.DEFAULT_TREE = { WARRIOR = "arms", PALADIN = "retribution", HUNTER = "beastmastery", ROGUE = "combat", PRIEST = "shadow",
+	MAGE = "frost", WARLOCK = "affliction", SHAMAN = "enhancement", DRUID = "feral" }
+F.WEIGHTS = {}
+for class, list in pairs(F.ROLES) do
+	for _, r in ipairs(list) do if r[1] == F.DEFAULT_TREE[class] then F.WEIGHTS[class] = r[2] end end
+end
 F.WEIGHTS.DEATHKNIGHT, F.WEIGHTS.MONK, F.WEIGHTS.DEMONHUNTER = F.WEIGHTS.WARRIOR, F.WEIGHTS.ROGUE, F.WEIGHTS.ROGUE
 F.WEIGHTS.EVOKER = F.WEIGHTS.MAGE
 F.WEIGHTS.GENERIC = GENERIC
 
--- Roles (0.54.1, a player's ask: "How does the addon score upgrades? Can I control it? On a druid I care about both feral
--- and resto gear"): each class's ways to play, each with its own weights. `.weights` shows them and picks yours (one or
--- more, kept per character); an item is an upgrade when it's a clear one for any role picked, said in its tooltip. None
--- picked: the class's all-round weights above.
+-- Roles (0.54.1, a player's ask: "How does the addon score upgrades? Can I control it?"): .weights picks one tree (or
+-- your own weights), kept per character; none picked, the class's levelling tree above.
 local L = ns.L
-local TANK = { sta = 1, def = 1, dodge = 0.8, parry = 0.7, block = 0.5, armor = 0.04, str = 0.6, agi = 0.5, hit = 0.3, dps = 1.5 }
-local HEALER = { int = 0.8, spi = 0.7, heal = 1, sp = 0.5, mp5 = 1.2, sta = 0.3, crit = 0.4, spellcrit = 0.4, haste = 0.3,
-	armor = 0.005 }
-local CASTER = { int = 0.8, sp = 1, crit = 0.7, hit = 0.9, spellcrit = 0.7, spellhit = 0.9, haste = 0.5, sta = 0.4, spi = 0.3,
-	mp5 = 0.5, dps = 0.2, armor = 0.005 }
-local STR_MELEE = { str = 1, agi = 0.6, ap = 0.5, crit = 0.8, hit = 0.8, haste = 0.5, sta = 0.4, dps = 3, armor = 0.01 }
-F.ROLES = {
-	WARRIOR = { { "dps", STR_MELEE }, { "tank", TANK } },
-	PALADIN = { { "healer", HEALER }, { "tank", TANK },
-		{ "melee", { str = 1, agi = 0.5, int = 0.3, ap = 0.5, crit = 0.8, hit = 0.8, sta = 0.4, dps = 3, armor = 0.01 } } },
-	HUNTER = { { "ranged", F.WEIGHTS.HUNTER } },
-	ROGUE = { { "melee", F.WEIGHTS.ROGUE } },
-	PRIEST = { { "healer", HEALER }, { "caster", CASTER } },
-	MAGE = { { "caster", F.WEIGHTS.MAGE } },
-	WARLOCK = { { "caster", F.WEIGHTS.WARLOCK } },
-	SHAMAN = { { "healer", HEALER }, { "caster", CASTER },
-		{ "melee", { str = 1, agi = 0.8, ap = 0.5, int = 0.2, crit = 0.8, hit = 0.8, sta = 0.4, dps = 3, armor = 0.01 } } },
-	DRUID = { { "healer", HEALER }, { "caster", CASTER },
-		{ "feral", { agi = 1, str = 0.9, ap = 0.5, feralap = 0.5, sta = 0.6, crit = 0.8, hit = 0.8, armor = 0.03, def = 0.3,
-			dodge = 0.4 } } },
-}
-F.ROLE_SAY = { dps = L["damage"], tank = L["tank"], healer = L["healer"], melee = L["melee"], ranged = L["ranged"],
-	caster = L["caster"], feral = L["feral"], custom = L["your own weights"] }
--- (what each role's word may be typed as: ".weights resto feral")
-F.ROLE_WORDS = { damage = "dps", dps = "dps", fury = "dps", arms = "dps", tank = "tank", prot = "tank", protection = "tank",
-	bear = "tank", heal = "healer", healer = "healer", healing = "healer", holy = "healer", resto = "healer",
-	restoration = "healer", disc = "healer", melee = "melee", ret = "melee", retribution = "melee", enh = "melee",
-	enhancement = "melee", combat = "melee", ranged = "ranged", caster = "caster", spell = "caster", balance = "caster",
-	boomkin = "caster", elemental = "caster", ele = "caster", shadow = "caster", feral = "feral", cat = "feral",
+F.ROLE_SAY = { arms = L["Arms"], fury = L["Fury"], protection = L["Protection"], holy = L["Holy"],
+	retribution = L["Retribution"], beastmastery = L["Beast Mastery"], marksmanship = L["Marksmanship"],
+	survival = L["Survival"], assassination = L["Assassination"], combat = L["Combat"], subtlety = L["Subtlety"],
+	discipline = L["Discipline"], shadow = L["Shadow"], arcane = L["Arcane"], fire = L["Fire"], frost = L["Frost"],
+	affliction = L["Affliction"], demonology = L["Demonology"], destruction = L["Destruction"], elemental = L["Elemental"],
+	enhancement = L["Enhancement"], restoration = L["Restoration"], balance = L["Balance"], feral = L["Feral"],
+	bear = L["Bear"], custom = L["your own weights"] }
+-- (what each tree may be typed as: ".weights prot", ".weights resto"; a role's word, the tree that plays it for your class:
+-- ".weights tank", ".weights healer"; the roles kept before 0.65.11 read so too)
+F.ROLE_WORDS = { arms = "arms", fury = "fury", prot = "protection", protection = "protection", holy = "holy",
+	ret = "retribution", retribution = "retribution", bm = "beastmastery", beastmastery = "beastmastery",
+	beast = "beastmastery", mm = "marksmanship", marks = "marksmanship", marksmanship = "marksmanship", surv = "survival",
+	survival = "survival", sv = "survival", assa = "assassination", assassination = "assassination", mut = "assassination",
+	mutilate = "assassination", combat = "combat", sub = "subtlety", subtlety = "subtlety", disc = "discipline",
+	discipline = "discipline", shadow = "shadow", spriest = "shadow", arcane = "arcane", fire = "fire", frost = "frost",
+	aff = "affliction", affli = "affliction", affliction = "affliction", demo = "demonology", demonology = "demonology",
+	destro = "destruction", destruction = "destruction", ele = "elemental", elemental = "elemental", enh = "enhancement",
+	enhance = "enhancement", enhancement = "enhancement", resto = "restoration", restoration = "restoration",
+	balance = "balance", boomkin = "balance", moonkin = "balance", feral = "feral", cat = "feral", bear = "bear",
 	custom = "custom", own = "custom", mine = "custom" }
+-- a role said as a role: the tree that plays it, for each class
+F.ROLE_TREES = {
+	tank = { WARRIOR = "protection", PALADIN = "protection", DRUID = "bear" },
+	healer = { PALADIN = "holy", PRIEST = "holy", SHAMAN = "restoration", DRUID = "restoration" },
+	heal = "healer", healing = "healer",
+	dps = { WARRIOR = "arms", PALADIN = "retribution", HUNTER = "beastmastery", ROGUE = "combat", PRIEST = "shadow",
+		MAGE = "frost", WARLOCK = "affliction", SHAMAN = "enhancement", DRUID = "feral" },
+	damage = "dps",
+	melee = { WARRIOR = "arms", PALADIN = "retribution", HUNTER = "survival", ROGUE = "combat", SHAMAN = "enhancement",
+		DRUID = "feral" },
+	ranged = { HUNTER = "beastmastery" },
+	caster = { PRIEST = "shadow", MAGE = "frost", WARLOCK = "affliction", SHAMAN = "elemental", DRUID = "balance" },
+	spell = "caster",
+}
+--- The tree a word names for a class: "prot" -> "protection", "tank" -> a druid's "bear"; nil when none.
+-- (a tree's word for a class whose tree that plays it is named otherwise: "prot" for a druid is its bear, "holy" for a
+-- shaman its restoration, "resto" for a priest its holy; 0.65.x review)
+local AS_ROLE = { prot = "tank", protection = "tank", holy = "healer", resto = "healer", restoration = "healer",
+	disc = "healer", discipline = "healer" }
+function F.TreeOf(word, class)
+	word = ns.Lower(tostring(word or ""))
+	local id = F.ROLE_WORDS[word]
+	if id and (not class or not F.ROLES[class]) then return id end
+	if id then
+		for _, r in ipairs(F.ROLES[class]) do if r[1] == id then return id end end
+		if AS_ROLE[word] then word = AS_ROLE[word] else return id end
+	end
+	local t = F.ROLE_TREES[word]
+	if type(t) == "string" then t = F.ROLE_TREES[t] end
+	return type(t) == "table" and t[class or ""] or nil
+end
 
 local function MyClass()
 	if not _G.UnitClass then return nil end
@@ -129,16 +224,20 @@ F.STAT_WORDS = { str = "str", strength = "str", agi = "agi", agility = "agi", st
 	intellect = "int", spi = "spi", spirit = "spi", ap = "ap", attackpower = "ap", rap = "rap", rangedap = "rap",
 	rangedattackpower = "rap", feralap = "feralap", sp = "sp", spellpower = "sp", spelldamage = "sp", heal = "heal",
 	healing = "heal", crit = "crit", hit = "hit", spellhit = "spellhit", spellcrit = "spellcrit", haste = "haste", mp5 = "mp5",
-	dps = "dps", armor = "armor", def = "def", defense = "def", dodge = "dodge", parry = "parry", block = "block" }
-F.STAT_LIST = "str agi sta int spi ap rap feralap sp heal crit hit spellhit spellcrit haste mp5 dps armor def dodge parry block"
+	dps = "dps", armor = "armor", def = "def", defense = "def", dodge = "dodge", parry = "parry", block = "block",
+	blockv = "blockv", blockvalue = "blockv", rdps = "rdps", rangeddps = "rdps", fire = "fire", frost = "frost", arcane = "arcane", nature = "nature",
+	shadow = "shadow", holy = "holy" }
+F.STAT_LIST = "str agi sta int spi ap rap feralap sp heal crit hit spellhit spellcrit haste mp5 dps rdps armor def dodge parry block blockv fire frost arcane nature shadow holy"
 -- Pawn's names for them (its scale strings: "( Pawn: v1: "Name": Strength=2, HitRating=1.5, Ap=0.8 )"); a rating and the
 -- plain stat alike (Classic's "+1% hit" is its HitRating), its weapon DPS kinds as one
 local PAWN = { strength = "str", agility = "agi", stamina = "sta", intellect = "int", spirit = "spi", ap = "ap", rap = "rap",
 	feralap = "feralap", spelldamage = "sp", spellpower = "sp", healing = "heal", hit = "hit", hitrating = "hit", crit = "crit",
 	critrating = "crit", spellhit = "spellhit", spellhitrating = "spellhit", spellcrit = "spellcrit",
 	spellcritrating = "spellcrit", haste = "haste", hasterating = "haste", spellhasterating = "haste", mp5 = "mp5", dps = "dps",
-	meleedps = "dps", rangeddps = "dps", armor = "armor", defense = "def", defenserating = "def", dodge = "dodge",
-	dodgerating = "dodge", parry = "parry", parryrating = "parry", block = "block", blockrating = "block", blockvalue = "block" }
+	meleedps = "dps", rangeddps = "rdps", armor = "armor", defense = "def", defenserating = "def", dodge = "dodge",
+	dodgerating = "dodge", parry = "parry", parryrating = "parry", block = "block", blockrating = "block", blockvalue = "blockv",
+	firespelldamage = "fire", frostspelldamage = "frost", arcanespelldamage = "arcane", naturespelldamage = "nature",
+	shadowspelldamage = "shadow", holyspelldamage = "holy" }
 F.PAWN_STATS = PAWN
 
 --- "str=2 agi=1.5, sta 0.5" -> { str = 2, agi = 1.5, sta = 0.5 }, and the words that aren't a stat and its number.
@@ -178,6 +277,8 @@ function F.ParsePawn(text)
 			local kind = PAWN[ns.Lower(k)]
 			if kind then
 				if w[kind] == nil or n > w[kind] then w[kind] = n end -- (melee and ranged DPS, rating and value: the more)
+				-- (its plain Dps: a weapon's, either slot)
+				if ns.Lower(k) == "dps" and (w.rdps == nil or n > w.rdps) then w.rdps = n end
 				any = true
 			elseif n ~= 0 and not PAWN_NOT_STATS[ns.Lower(k)] then
 				ignored[#ignored + 1] = k
@@ -216,12 +317,22 @@ end
 
 -- (scaled, made once per weights kept: the worn gear's values are kept per weights table)
 local scaled = setmetatable({}, { __mode = "k" })
---- Weights scaled so their most wanted stat (not weapon DPS or armor, which come in other amounts) is 1.
+-- the main stats: what a scale is scaled by (not 1% hit, which Pawn and the simulations weigh at 10 to 25 Strength: a scale
+-- whose hit is 1 made +3 Strength no upgrade at all; 0.65.11)
+local MAIN_STATS = { "str", "agi", "int", "spi", "sta" }
+--- Weights scaled so their main stat (the most of Strength, Agility, Intellect, Spirit or Stamina; else of spell damage,
+--- healing, attack power; else the most wanted of any) is 1, as the trees' own are.
 function F.Scaled(w)
 	local s = scaled[w]
 	if s then return s end
 	local top = 0
-	for k, v in pairs(w) do if k ~= "dps" and k ~= "armor" and v > top then top = v end end
+	for _, k in ipairs(MAIN_STATS) do if (w[k] or 0) > top then top = w[k] end end
+	-- (spell damage, healing or attack power far above every main stat, Intellect 0.05 next to Healing 1: by that one,
+	-- else a point of the tiny one would be a whole upgrade; 0.65.x review)
+	local power = 0
+	for _, k in ipairs({ "sp", "heal", "ap", "rap", "feralap" }) do if (w[k] or 0) > power then power = w[k] end end
+	if top <= 0 or power > 5 * top then top = power end
+	if top <= 0 then for k, v in pairs(w) do if k ~= "dps" and k ~= "armor" and v > top then top = v end end end
 	if top <= 0 then for _, v in pairs(w) do if v > top then top = v end end end
 	s = {}
 	for k, v in pairs(w) do s[k] = top > 0 and v / top or v end
@@ -250,7 +361,12 @@ function F.MyRoles()
 	-- several kept from before: the first of them that's still a role of yours)
 	local mine = {}
 	for _, r in ipairs(RolesOf(MyClass())) do mine[r[1]] = true end
-	for _, id in ipairs(saved) do if mine[id] then return { id } end end
+	-- (a role kept before 0.65.11, "healer", "tank": the tree that plays it now)
+	local class = MyClass()
+	for _, id in ipairs(saved) do
+		local t = mine[id] and id or F.TreeOf(id, class)
+		if t and mine[t] then return { t } end
+	end
 	return nil
 end
 --- Pick the role for this character (a list of one id; nil or empty: the all-round weights again).
@@ -278,12 +394,17 @@ function F.MyWeights()
 	return F.MyWeightSets()[1][1]
 end
 
---- An item's stats (the game's table) by kind: { str = 7, sta = 4 } (kinds Terminal weighs; others left out).
-function F.StatKinds(stats)
+-- the ranged slot's items: their weapon DPS is a ranged weapon's (a hunter's bow, a caster's wand), not a melee one's
+local RANGED_LOC = { INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true }
+F.RANGED_LOC = RANGED_LOC
+--- An item's stats (the game's table) by kind: { str = 7, sta = 4 } (kinds Terminal weighs; others left out). `ranged`:
+--- it's for the ranged slot, its weapon DPS "rdps" (0.65.x review: a hunter's melee stat stick's DPS weighed as a bow's).
+function F.StatKinds(stats, ranged)
 	if type(stats) ~= "table" then return nil end
 	local out = {}
 	for key, amount in pairs(stats) do
 		local k = type(key) == "string" and type(amount) == "number" and StatKind(key)
+		if k == "dps" and ranged then k = "rdps" end
 		if k then out[k] = (out[k] or 0) + amount end
 	end
 	return out
@@ -304,7 +425,7 @@ end
 --- and its higher item level made it an upgrade (an empty slot took any such item too).
 -- (what every piece has, not a stat a class picks it for: a plain weapon's damage or a white helm's armour, unweighed,
 -- leave item levels to decide; release review: a healer's weights have no dps, and a wand was never an upgrade)
-local PLAIN = { dps = true, armor = true }
+local PLAIN = { dps = true, rdps = true, armor = true } -- (a wand's or bow's too: 0.65.11)
 function F.Worth(kinds, w)
 	local v = F.KindsValue(kinds, w)
 	if v == nil and type(kinds) == "table" then
@@ -384,7 +505,7 @@ local function WornGear(w)
 				local okS, st = pcall(get, l)
 				-- (nil when it has none to weigh: then item levels are compared, not any stat against nothing)
 				if okS and type(st) == "table" then
-					kinds[slot] = F.StatKinds(st)
+					kinds[slot] = F.StatKinds(st, slot == 18)
 					values[slot] = F.Worth(kinds[slot], w)
 				elseif C_Item and C_Item.IsItemDataCachedByID and wid and C_Item.IsItemDataCachedByID(wid) == false then
 					whole = false -- (no stats yet: still loading)
@@ -644,7 +765,7 @@ GearFitWith = function(weights, role)
 			if yes then
 				if not f.kinds and live then
 					local st = Stats(e)
-					if st then f.kinds = F.StatKinds(st); Remember(key, f, class) end
+					if st then f.kinds = F.StatKinds(st, RANGED_LOC[loc]); Remember(key, f, class) end
 				end
 				-- (nothing you want on it: not one, even for an empty slot)
 				local worth = F.Worth(f.kinds, weights)
@@ -660,7 +781,7 @@ GearFitWith = function(weights, role)
 		if not f.kinds and live then
 			local st = Stats(e)
 			if st then
-				f.kinds = F.StatKinds(st)
+				f.kinds = F.StatKinds(st, RANGED_LOC[loc])
 				Remember(key, f, class)
 			end
 		end
@@ -747,7 +868,7 @@ function F.RolesFor(words)
 	local mine, ids, bad = {}, {}, {}
 	for _, r in ipairs(RolesOf(class)) do mine[r[1]] = true end
 	for w in tostring(words or ""):gmatch("%S+") do
-		local id = F.ROLE_WORDS[ns.Lower(w)]
+		local id = F.TreeOf(w, class)
 		if id and mine[id] then
 			local dup = false
 			for _, x in ipairs(ids) do if x == id then dup = true end end
@@ -775,14 +896,14 @@ function F.ApplyPawn(text)
 end
 
 ns:RegisterCommand("weights", {
-	desc = L["How upgrades are judged: the stats your class wants. .weights healer judges them for that role; .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for all-round"],
+	desc = L["How upgrades are judged: the stats your talent tree wants. .weights arms, .weights resto, .weights tank picks a tree; .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for your class's levelling tree"],
 	aliases = { "roles", "role" },
 	complete = function()
 		local out = {}
 		for _, r in ipairs(F.RolesOf(MyClass())) do
 			out[#out + 1] = { r[1], r[1] == "custom" and F.WeightsText(F.CustomWeights().w, 4) or F.WeightsText(r[2], 4) }
 		end
-		out[#out + 1] = { "all", L["all-round (your class's weights)"] }
+		out[#out + 1] = { "all", L["your class's levelling tree"] }
 		out[#out + 1] = { "set", L["your own: .weights set str=2 agi=1 sta=0.5"] }
 		out[#out + 1] = { "pawn", L["paste a Pawn scale string"] }
 		if F.CustomWeights() then out[#out + 1] = { "clear", L["forget your own weights"] } end
@@ -798,7 +919,7 @@ ns:RegisterCommand("weights", {
 		if args ~= "" then
 			if low == "all" or low == "reset" or low == "none" or low == "allround" then
 				F.SetRoles(nil)
-				lines[#lines + 1] = L["Upgrades: judged all-round again."]
+				lines[#lines + 1] = L["Upgrades: judged for your class's levelling tree again."]
 			elseif first == "set" then
 				-- (0.65.8) your own: .weights set str=2 agi=1 sta=0.5
 				local w, bad = F.ParseWeights(rest)
@@ -845,7 +966,11 @@ ns:RegisterCommand("weights", {
 		local picked = F.MyRoles()
 		local on = {}
 		for _, id in ipairs(picked or {}) do on[id] = true end
-		if not picked then lines[#lines + 1] = "  " .. L["All-round (now): %s"]:format(F.WeightsText(class and F.WEIGHTS[class] or GENERIC)) end
+		-- (none picked: the class's levelling tree is the one used, said so on its line; 0.65.x review: an "All-round" line
+		-- repeated it under another name)
+		local default = not picked and class and F.DEFAULT_TREE[class] or nil
+		if not picked and not default then lines[#lines + 1] = "  " .. L["Now: %s"]:format(F.WeightsText(GENERIC, 30)) end
+		if default then on[default] = true end
 		local custom = F.CustomWeights()
 		for _, r in ipairs(F.RolesOf(class)) do
 			local id, w = r[1], r[2]
@@ -855,10 +980,14 @@ ns:RegisterCommand("weights", {
 				w = custom.w
 				if custom.name then label = label .. ' "' .. custom.name .. '"' end
 			end
-			lines[#lines + 1] = "  " .. (on[id] and "|cff40ff40" or "") .. label .. (on[id] and (" " .. L["(now)"] .. "|r") or "")
-				.. ": " .. F.WeightsText(w, id == "custom" and 30 or nil)
+			local now = on[id] and ((id == default) and L["(now: your class's levelling tree)"] or L["(now)"])
+			-- (every stat: the top few were the per-1% ones, and a tree's main stat never showed; 0.65.x review)
+			lines[#lines + 1] = "  " .. (now and "|cff40ff40" or "") .. label .. (now and (" " .. now .. "|r") or "")
+				.. ": " .. F.WeightsText(w, 30)
 		end
-		lines[#lines + 1] = L[".weights <role> picks one (.weights healer); .weights all goes back to all-round."]
+		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to your class's levelling tree."]:format(
+			(F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms")
+		lines[#lines + 1] = "  " .. L["Hit, crit, dodge, parry and block per 1%; defense per point of skill; the rest per point."]
 		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]
 		return lines
 	end,
