@@ -59,6 +59,43 @@ do
 	check(Names() == "Arcanite Sword | Bronze Sword | Mithril Sword", "sorted by name: " .. Names())
 	B.Pick("sort", "quality"); FlushAll()
 	check(Names():find("^Arcanite Sword"), "sorted by quality, the best first: " .. Names())
+	-- (0.65.5, the player: "ascending and descending; an up arrow for ascending, a down arrow for descending instead of
+	-- the check mark"; "assume descending at first") a number's sort picked: the highest first, its arrow down; picked
+	-- again: the lowest first, its arrow up; a name's: A-Z first (up)
+	local function Line(id)
+		B.ShowMenu("sort", B.strip.buttons[2])
+		for _, b in ipairs(B.menu.lines) do if b.id == id and b:IsShown() then return b end end
+	end
+	local q = Line("quality")
+	check(q and q.arrow:IsShown() and not q.check:IsShown() and q.arrow.coord and q.arrow.coord[3] == 0 and q.arrow.coord[4] == 1,
+		"quality picked: a down arrow, not the check: " .. tostring(q and q.arrow.coord and table.concat(q.arrow.coord, ",")))
+	-- (Advanced's sort:x is each sort's own way, as before: sort:quality the best first, sort:level the lowest; sort:-x
+	-- the other way round)
+	check(B.state.sort == "quality" and ns.QueryToAdvanced("sword"):find("sort:quality ", 1, true),
+		"descending first; Alt+` writes sort:quality: " .. tostring(B.state.sort) .. " / " .. ns.QueryToAdvanced("sword"))
+	B.Pick("sort", "quality"); FlushAll()
+	check(Names():find("^Bronze Sword") or Names():find("^Mithril Sword"), "picked again: the lowest first: " .. Names())
+	q = Line("quality")
+	check(q and q.arrow:IsShown() and q.arrow.coord[3] == 1 and q.arrow.coord[4] == 0, "and its arrow up")
+	check(B.state.sort == "-quality" and ns.QueryToAdvanced("sword"):find("sort:-quality ", 1, true), "Alt+` writes sort:-quality")
+	local same, why = T.SameAsAdvanced("sword")
+	check(same, "the bar's ascending sort as Advanced's: " .. tostring(why))
+	local n = Line("name")
+	check(n and not n.arrow:IsShown() and not n.check:IsShown(), "the others: no arrow, no check")
+	B.Pick("sort", "name"); FlushAll()
+	n = Line("name")
+	check(Names() == "Arcanite Sword | Bronze Sword | Mithril Sword" and n.arrow:IsShown() and n.arrow.coord[3] == 1,
+		"a name: A-Z first, its arrow up: " .. Names())
+	B.Pick("sort", "name"); FlushAll()
+	check(Names() == "Mithril Sword | Bronze Sword | Arcanite Sword" and B.state.sort == "-name", "picked again: Z-A: " .. Names())
+	same, why = T.SameAsAdvanced("sword")
+	check(same, "Z-A on the bar as sort:-name in Advanced: " .. tostring(why))
+	B.HideMenu()
+	B.Pick("sort", "quality"); FlushAll()
+	-- Advanced's word for it: sort:-x the other way round; nearest, plan and best have no other way
+	local F = ns.Filters
+	check(F.SortOf("sort:-level") == "-level" and F.SortOf("sort:level") == "level" and F.SortOf("sort:-nearest") == nil
+		and F.SortOf("sort:-bogus") == nil, "sort:-level parsed; sort:-nearest isn't a sort")
 	B.Clear("filter"); B.Clear("sort"); FlushAll()
 	check(Names():find("Copper Sword", 1, true), "cleared: every sword again: " .. Names())
 	-- Group: a row per quality
@@ -463,6 +500,9 @@ do
 	ns.db.easyMode = false; UI:EasyChanged()
 	local res = UI:Search("@item sword sort:name")
 	check(res[1] and res[1].name == "Arcanite Sword" and res[#res].name == "Mithril Sword", "sort:name in Advanced mode: "
+		.. tostring(res[1] and res[1].name) .. " .. " .. tostring(res[#res] and res[#res].name))
+	res = UI:Search("@item sword sort:-name")
+	check(res[1] and res[1].name == "Mithril Sword" and res[#res].name == "Arcanite Sword", "sort:-name in Advanced mode: Z-A: "
 		.. tostring(res[1] and res[1].name) .. " .. " .. tostring(res[#res] and res[#res].name))
 
 	ns.providers, ns.providerOrder = saved.providers, saved.order

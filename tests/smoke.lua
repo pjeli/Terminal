@@ -41,6 +41,7 @@ local function Obj(kind)
 		if k == "SetTextColor" then return function(self, r, g, b, a) self.textColor = { r, g, b, a }; return self end end
 		if k == "SetBackdropColor" then return function(self, r, g, b, a) self.bgColor = { r, g, b, a } end end
 		if k == "SetShown" then return function(self, v) self.shown = v and true or false end end
+		if k == "SetTexCoord" then return function(self, ...) self.coord = { ... } end end
 		if k == "SetScale" then return function(self, v) self.scale = v end end
 		if k == "HasFocus" then return function(self) return self.focused == true end end
 		if k == "SetChecked" then return function(self, v) self.checked = v end end

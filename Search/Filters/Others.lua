@@ -592,6 +592,7 @@ F.HELP = {
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
 	{ "near:500", L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },
+	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:nearest, best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
 	{ "sort:nearest", L["NPCs, mailboxes, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them)"] },
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },

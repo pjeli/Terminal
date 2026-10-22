@@ -487,15 +487,30 @@ F.SORTS = { nearest = "nearest", near = "nearest", closest = "nearest", distance
 	name = "name", alpha = "name", az = "name", level = "level", lvl = "level", ilvl = "ilvl", itemlevel = "ilvl",
 	quality = "quality", q = "quality", value = "value", worth = "value", count = "count", qty = "count",
 	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner" }
+-- the sorts that don't turn round: by distance, the plan's, the biggest upgrades (a field's do: sort:-level)
+local NO_REVERSE = { nearest = true, plan = true, best = true }
+--- "level" -> "level", "-level" -> "-level" (the other way round: a field's sort only, 0.65.5), else nil.
+local function SortId(v)
+	local neg, name = v:match("^(%-?)(%a+)$")
+	local id = name and F.SORTS[Lower(name)]
+	if not id then return nil end
+	if neg == "-" then return not NO_REVERSE[id] and ("-" .. id) or nil end
+	return id
+end
 KEYS.sort = function(v)
-	if not F.SORTS[v] then return nil end
+	if not SortId(v) then return nil end
 	return function() return true end
 end
---- "sort:nearest" -> "nearest", "sort:plan" -> "plan", else nil.
+--- "sort:nearest" -> "nearest", "sort:plan" -> "plan", "sort:-level" -> "-level" (the other way round), else nil.
 function F.SortOf(word)
 	if type(word) ~= "string" then return nil end
-	local k, v = word:match("^(%a+):(%a+)$")
-	if k and Lower(k) == "sort" then return F.SORTS[Lower(v)] end
+	local k, v = word:match("^(%a+):(%-?%a+)$")
+	if k and Lower(k) == "sort" then return SortId(v) end
+end
+--- A sort's field and whether it's turned round: "-level" -> "level", true; "level" -> "level", false.
+function F.SortParts(id)
+	if type(id) == "string" and id:sub(1, 1) == "-" then return id:sub(2), true end
+	return id, false
 end
 
 KEYS.sells = function(v)

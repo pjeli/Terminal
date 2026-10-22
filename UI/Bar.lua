@@ -68,6 +68,9 @@ B.FILTERS = {
 	{ id = "is:online", label = L["Online"] },
 }
 -- what Sort offers: nearest (sort:nearest's lists), else a field the rows have (Aggregate's, and the name)
+-- a sort's way, in the menu: the game's sort arrow (down as drawn, up flipped)
+B.ARROW = "Interface\\Buttons\\UI-SortArrow"
+B.WORD_SORTS = { name = true, owner = true, line = true } -- (sorts by words: A-Z first when picked)
 B.SORTS = {
 	{ id = "nearest", label = L["Nearest first"], near = true },
 	{ id = "name", label = L["Name"], field = "name", asc = true },
@@ -85,6 +88,23 @@ B.GROUPS = { "kind", "owner", "zone", "quality", "type", "slot", "dungeon", "rai
 
 local function E() return ns.Easy end
 local function ById(list, id) for _, o in ipairs(list) do if o.id == id then return o end end end
+--- A sort's id without its direction, and whether it's the other way round ("-level": the highest first; 0.65.5).
+local function SortParts(id)
+	if type(id) == "string" and id:sub(1, 1) == "-" then return id:sub(2), true end
+	return id, false
+end
+B.SortParts = SortParts
+--- Which way a sort goes: true for ascending (A-Z, the lowest first), from its field's own way and the - before it.
+local function Ascending(s, rev)
+	local asc = s.asc and true or false
+	if rev then asc = not asc end
+	return asc
+end
+B.Ascending = function(id)
+	local base, rev = SortParts(id)
+	local s = ById(B.SORTS, base)
+	return s and Ascending(s, rev) or false
+end
 B.ById = ById
 
 --- Is the bar in use: Simple mode (not a line run in Advanced, not fuzzy finding), searching, words typed?
@@ -256,7 +276,8 @@ local function KeyOf(s, e)
 	end
 	return NumOf(s.field, e)
 end
-local function Keyed(s, rows)
+local function Keyed(s, rows, asc)
+	if asc == nil then asc = s.asc end
 	local keyed, rest = {}, {}
 	-- (a tie-breaker field, lowest first: sort:slots, then the level; 0.65.3)
 	local tie = s.tie and { field = s.tie }
@@ -268,7 +289,7 @@ local function Keyed(s, rows)
 	end
 	table.sort(keyed, function(a, b)
 		if a.k ~= b.k then
-			if s.asc then return a.k < b.k end
+			if asc then return a.k < b.k end
 			return a.k > b.k
 		end
 		if a.t ~= b.t and a.t ~= nil and b.t ~= nil then return a.t < b.t end
@@ -282,15 +303,16 @@ end
 --- `keep` (the rows shown) are found, with a bounded heap: not every row sorted (0.63.7, review: past 5000 the sort was
 --- skipped, "@stress1 ka sort:name" listed by relevance). `overBudget`: the search's clock, to yield on.
 function B.SortRows(rows, id, keep, overBudget)
-	local s = ById(B.SORTS, id)
+	local base, rev = SortParts(id)
+	local s = ById(B.SORTS, base)
 	if not (s and s.field) then return rows end
+	local asc = Ascending(s, rev)
 	if #rows <= 5000 then
-		local keyed = Keyed(s, rows)
+		local keyed = Keyed(s, rows, asc)
 		for i, r in ipairs(keyed) do r.e._score = 1e10 - i end
 		return rows
 	end
 	keep = keep or 100
-	local asc = s.asc
 	-- (a before b in the field's order; the earlier row first on a tie)
 	local function Before(a, b)
 		if a.k ~= b.k then if asc then return a.k < b.k end return a.k > b.k end
@@ -339,12 +361,14 @@ end
 --- A question's rows in a field's order (Search.lua's Scan.AnswerView: an answer isn't scored): each run of results
 --- between its lines (a heading, a note) sorted on its own, the rows with the field first. A new list.
 function B.Order(rows, id)
-	local s = ById(B.SORTS, id)
+	local base, rev = SortParts(id)
+	local s = ById(B.SORTS, base)
 	if not (s and s.field) or #rows > 5000 then return rows end
+	local asc = Ascending(s, rev)
 	local out, run = {}, {}
 	local function Flush()
 		if #run == 0 then return end
-		local keyed, rest = Keyed(s, run)
+		local keyed, rest = Keyed(s, run, asc)
 		for _, r in ipairs(keyed) do out[#out + 1] = r.e end
 		for _, e in ipairs(rest) do out[#out + 1] = e end
 		run = {}
@@ -440,11 +464,20 @@ function B.Options(which)
 		return false
 	end
 	if which == "sort" then
+		local pickedBase, pickedRev = SortParts(state.sort)
+		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
 		for _, o in ipairs(B.SORTS) do
-			local typedHere = typed.sort and typed.sort.id == o.id
+			local typedHere = typedBase == o.id
 			local fits = o.near and Fits("sort:nearest", kinds) or (o.field and Has(o.field))
-			if fits or state.sort == o.id or typedHere then
-				out[#out + 1] = { id = o.id, label = o.label, on = state.sort == o.id or typedHere, typed = typedHere and typed.sort.word or nil }
+			local on = pickedBase == o.id or typedHere
+			if fits or on then
+				-- (which way: an arrow, up for ascending, down for descending, in the tick's place; 0.65.5, the player)
+				local rev = (pickedBase == o.id and pickedRev) or (pickedBase ~= o.id and typedHere and typedRev)
+				-- (asc: true, false or nil, not on: not "on and Ascending() or nil", which made a descending one's false nil)
+				local asc
+				if on and o.field then asc = Ascending(o, rev) end
+				out[#out + 1] = { id = o.id, label = o.label, on = on, typed = typedHere and pickedBase ~= o.id and typed.sort.word or nil,
+					asc = asc }
 			end
 		end
 	elseif which == "group" then
@@ -478,8 +511,28 @@ function B.Pick(which, id)
 		for i, f in ipairs(state.filters) do if f == id then table.remove(state.filters, i); had = true break end end
 		if not had then state.filters[#state.filters + 1] = id end
 	elseif which == "sort" then
-		if typed.sort and typed.sort.id == id and state.sort ~= id then B.DropWords({ typed.sort.word }) B.Update() return end
-		state.sort = (state.sort ~= id) and id or nil
+		-- (the one picked again: the other way round, the highest first or the lowest; "Best match" undoes it; 0.65.5)
+		local o = ById(B.SORTS, id)
+		local turns = o and o.field and true or false
+		local pickedBase, pickedRev = SortParts(state.sort)
+		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
+		if typedBase == id and pickedBase ~= id then
+			-- (typed as a word: the word goes, and the bar's own sort is it turned round; one that doesn't turn, nearest,
+			-- just goes, as before)
+			if turns then state.sort = typedRev and id or ("-" .. id) end
+			B.DropWords({ typed.sort.word })
+			B.Update()
+			return
+		end
+		if pickedBase == id then
+			if not turns then state.sort = nil B.Changed() return end -- (nearest first: no other way round; unpicked, as before)
+			state.sort = pickedRev and id or ("-" .. id)
+			B.Changed()
+			return
+		end
+		-- (picked: the highest first, as the player said, "assume descending at first" (0.65.5): the level too; the
+		-- words' sorts, a name, an owner, an attunement's lines, A-Z first; picked again, the other way)
+		state.sort = (turns and o.asc and not B.WORD_SORTS[id]) and ("-" .. id) or id
 		-- (another sort picked: a sort: typed goes from the line, one sort at a time; "nearest" stays, it says the NPCs)
 		if state.sort and typed.sort and typed.sort.drop then
 			B.DropWords({ typed.sort.word })
@@ -572,7 +625,8 @@ local function Label(which, typed)
 		if #labels > 1 then return L["Filter: %d"]:format(#labels) end
 		return L["Filter"]
 	elseif which == "sort" then
-		local o = (state.sort and ById(B.SORTS, state.sort)) or (typed.sort and ById(B.SORTS, typed.sort.id))
+		local base = SortParts(state.sort or (typed.sort and typed.sort.id))
+		local o = base and ById(B.SORTS, base)
 		return o and L["Sort: %s"]:format(o.label) or L["Sort"]
 	else
 		local g = B.GroupOn() -- (a group typed is the one summed up: TakeAggregate; steps typed: none of the bar's)
@@ -812,6 +866,12 @@ local function MenuLine(m, i)
 	b.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
 	b.check:SetSize(14, 14)
 	b.check:SetPoint("LEFT", 3, 0)
+	-- (a sort's way: the game's sort arrow, as its auction house columns show it, up or down; 0.65.5)
+	b.arrow = b:CreateTexture(nil, "OVERLAY")
+	b.arrow:SetTexture(B.ARROW)
+	b.arrow:SetSize(9, 8)
+	b.arrow:SetPoint("CENTER", b.check, "CENTER", 0, 0)
+	b.arrow:Hide()
 	b.hl = b:CreateTexture(nil, "BACKGROUND")
 	b.hl:SetAllPoints()
 	b.hl:Hide()
@@ -848,7 +908,13 @@ function B.ShowMenu(which, owner, keys, sel, selId)
 		if it.dead then b.id = nil else b.id = it.id end
 		b.fs:SetText(it.typed and L["%s (typed)"]:format(it.label) or it.label)
 		b.fs:SetTextColor(Theme.RGB(it.dead and t.dim or (it.on and t.accent or t.text)))
-		b.check:SetShown(it.on and true or false)
+		local way = it.on and it.asc ~= nil
+		b.check:SetShown((it.on and not way) and true or false)
+		b.arrow:SetShown(way and true or false)
+		if way then
+			if it.asc then b.arrow:SetTexCoord(0, 0.5625, 1, 0) else b.arrow:SetTexCoord(0, 0.5625, 0, 1) end -- (up / down)
+			b.arrow:SetVertexColor(Theme.RGB(t.accent))
+		end
 		b.hl:SetColorTexture(Theme.RGB(t.accent))
 		b.hl:SetAlpha(0.25)
 		b.hl:Hide()

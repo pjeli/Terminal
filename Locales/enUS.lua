@@ -1792,6 +1792,7 @@ L["[Terminal] Tetris: %d points, %d lines%s."] = true
 L["\"nearest\" needs Questie (or QuestieDB): it knows where NPCs stand."] = true
 L["\"or\" and \"not\" work too: \"sword or axe\", \"rare ring not boe\", \"potion not minor\"."] = true
 L["` (under Esc)"] = true
+L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:nearest, best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] = true
 L["a Blessing"] = true
 L["a Demon Trainer"] = true
 L["a Terminal command: .help, .options, .theme (Tab completes)"] = true

@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.65.4 (in testing)
+## 0.65.5 (in testing)
+
+**Sort ascending or descending** (the player: "an up arrow for ascending, a down arrow for descending instead of the check mark")
+- Simple mode's Sort menu shows an arrow by the sort in use instead of a check: down for the highest (or Z) first, up for the lowest (or A) first. Pick the same sort again to turn it round; **Best match** undoes it. A number's sort (Level, Quality, Slots...) starts with the highest; a name's (Name, Owner) starts with A. **Nearest** has one way and is ticked as before.
+- In Advanced, a **-** turns any sort round: **sort:-level** (the highest first), **sort:-name** (Z to A), **sort:-quality** (the worst first). **sort:nearest**, **sort:best** and **sort:plan** have no other way. Alt+` writes the bar's sort with its direction, and **.filters** lists **sort:-level**.
+
+## 0.65.4
 
 **Quests that reward bags, as the player asked**
 - Your faction counts too: a quest that names no race but is given only by the other side's NPCs (an orc grunt's, for an Alliance player) isn't listed. The same goes for the quests whose reward is an upgrade, the quests rewarding an item, and a quest chain's "any one of" steps.
