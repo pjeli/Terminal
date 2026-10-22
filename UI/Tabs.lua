@@ -3,8 +3,9 @@ local L = ns.L
 
 -- Tabs (0.53.5, the player's ask: several lists open at once, a shopping list, your route, upgrades; each
 -- one a standing view, not a one-off search). Ctrl+T opens one, Ctrl+1-4 (or Ctrl+Tab / Ctrl+Shift+Tab) switch,
--- Ctrl+Shift+W closes one; a click on a tab switches, a right-click closes it. The strip shows over the prompt while
--- there are two or more.
+-- Ctrl+Shift+W closes one; a click on a tab switches, a right-click or its x (shown while the pointer is on the tab;
+-- 0.64.5, the player: "a visual way to close a tab ... a small x on mouseover") closes it. The strip shows over the
+-- prompt while there are two or more.
 --
 -- A tab is what the prompt had (UI:SaveState's text, cursor, mode for this run, category, selected row), kept in
 -- db.tabs so it's there after a /reload. The one shown keeps itself up to date: a list it shows that changes is
@@ -224,6 +225,20 @@ end
 ----------------------------------------------------------------------
 
 local strip
+T.CLOSE_W = 14
+
+--- A tab's x shown (the pointer on the tab or on the x), or put away; brighter with the pointer on the x itself.
+function T.Hover(b, on)
+	local x = b and b.close
+	if not x then return end
+	b.hover = on or nil
+	x:SetShown(on and true or false)
+	if on then
+		local t = Theme.Get()
+		local over = x:IsMouseOver() and true or false
+		x.text:SetTextColor(Theme.RGB(over and t.text or t.dim))
+	end
+end
 
 local function Build()
 	if strip or not UI.frame then return strip end
@@ -234,7 +249,7 @@ local function Build()
 		b.text = b:CreateFontString(nil, "OVERLAY")
 		b.text:SetFontObject(Theme.fonts.small)
 		b.text:SetPoint("LEFT", 8, 1)
-		b.text:SetPoint("RIGHT", -6, 1)
+		b.text:SetPoint("RIGHT", -(T.CLOSE_W + 4), 1) -- (never under the x)
 		b.text:SetJustifyH("LEFT")
 		b.text:SetWordWrap(false)
 		b.line = b:CreateTexture(nil, "ARTWORK")
@@ -246,6 +261,25 @@ local function Build()
 			if UI.closing then return end
 			if button == "RightButton" then T.Close(i) else T.Switch(i) end
 		end)
+		-- the x: shown while the pointer is on the tab or on it (moving onto it leaves the tab: either one keeps it)
+		local x = CreateFrame("Button", nil, b)
+		x:SetSize(T.CLOSE_W, T.CLOSE_W)
+		x:SetPoint("RIGHT", b, "RIGHT", -3, 1)
+		x.text = x:CreateFontString(nil, "OVERLAY")
+		x.text:SetFontObject(Theme.fonts.small)
+		x.text:SetPoint("CENTER", 0, 0)
+		x.text:SetText("x")
+		if x.RegisterForClicks then x:RegisterForClicks("LeftButtonUp") end
+		x:SetScript("OnClick", function()
+			if UI.closing then return end
+			T.Close(i)
+		end)
+		x:SetScript("OnEnter", function() T.Hover(b, true) end)
+		x:SetScript("OnLeave", function() T.Hover(b, b:IsMouseOver() and true or false) end)
+		x:Hide()
+		b.close = x
+		b:SetScript("OnEnter", function() T.Hover(b, true) end)
+		b:SetScript("OnLeave", function() T.Hover(b, x:IsMouseOver() and true or false) end)
 		b:Hide()
 		strip.buttons[i] = b
 	end
@@ -315,6 +349,7 @@ function T.Draw()
 		s:SetHeight(h)
 		local ar, ag, ab = Theme.RGB(t.accent)
 		for i, b in ipairs(s.buttons) do
+			if b.close then T.Hover(b, b.hover and b:IsMouseOver() and true or false) end -- (another tab under the pointer now)
 			if list[i] then
 				b:ClearAllPoints()
 				b:SetPoint("TOPLEFT", s, "TOPLEFT", (i - 1) * w, 0)

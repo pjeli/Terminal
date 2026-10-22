@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.64.4 (in testing)
+## 0.64.5 (in testing)
+
+**Tabs**
+- Each tab over the prompt shows a small **x** while the pointer is on it; a click closes that tab, so one opened by accident goes with a click (a right-click on the tab and **Ctrl+Shift+W** still close one too).
+
+## 0.64.4
 
 **Reagents**
 - Out of a reagent your spells use, the empty prompt suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**), more often than the other suggestions: a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Divinity or Symbols of Kings, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs, a rogue's flash powder. Only once you know the spell, and only when your bags have none; it goes as soon as you've bought some.

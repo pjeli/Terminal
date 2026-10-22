@@ -167,6 +167,44 @@ check(Tabs.List()[1].cursor == 1, "switched from the text box: its caret kept, n
 UI:EnterKeys()
 UI:Hide(); FlushAll()
 
+-- (0.64.5, the player: "a visual way to close a tab ... a small x on mouseover") each tab's x: shown while the pointer is
+-- on the tab or the x, a click closes that tab
+io.write("[tabs: the x on mouseover]\n")
+UI:Toggle(); FlushAll()
+withCtrl(function() key("T") end); typeText("frost"); FlushAll()
+withCtrl(function() key("1") end); FlushAll()
+check(#Tabs.List() == 3 and Tabs.Cur() == 1, "(three tabs, the first shown)")
+local first, second = query(), Tabs.List()[2].text
+local b2 = Tabs.strip.buttons[2]
+local x2 = b2.close
+local over = {}
+b2.IsMouseOver = function() return over.tab == true end
+x2.IsMouseOver = function() return over.x == true end
+check(x2 and not x2:IsShown(), "no x until the pointer is on a tab")
+over.tab = true; b2.scripts.OnEnter(b2)
+check(x2:IsShown(), "the pointer on the second tab: its x")
+check(not Tabs.strip.buttons[1].close:IsShown() and not Tabs.strip.buttons[3].close:IsShown(), "the other tabs: none")
+over.tab, over.x = false, true; b2.scripts.OnLeave(b2); x2.scripts.OnEnter(x2)
+check(x2:IsShown(), "onto the x itself: still there")
+over.x = false; x2.scripts.OnLeave(x2)
+check(not x2:IsShown(), "the pointer gone: the x gone")
+over.tab = true; b2.scripts.OnEnter(b2); over.tab, over.x = false, true; x2.scripts.OnEnter(x2)
+x2.scripts.OnClick(x2, "LeftButton"); FlushAll()
+check(#Tabs.List() == 2 and Tabs.Cur() == 1 and query() == first and Tabs.List()[2].text == "frost" and second ~= "frost",
+	"its x clicked: that tab closed (" .. tostring(second) .. "), the one shown stays: " .. query())
+-- the x of the tab shown: closed, the one before it shown; down to one: the plain prompt
+local b1, x1 = Tabs.strip.buttons[1], Tabs.strip.buttons[1].close
+over = {}
+b1.IsMouseOver = function() return over.tab == true end
+x1.IsMouseOver = function() return over.x == true end
+withCtrl(function() key("2") end); FlushAll()
+local x2b = Tabs.strip.buttons[2].close
+Tabs.strip.buttons[2].IsMouseOver = function() return false end
+x2b.IsMouseOver = function() return true end
+x2b.scripts.OnEnter(x2b); x2b.scripts.OnClick(x2b, "LeftButton"); FlushAll()
+check(not Tabs.On() and query() == first, "the shown tab's x: closed, down to one, the plain prompt: " .. query())
+UI:Hide(); FlushAll()
+
 ns.providers, ns.providerOrder = save.providers, save.order
 ns:AliasesChanged()
 UI.lastScan, UI.lastExtra = nil, nil
