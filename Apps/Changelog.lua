@@ -14,8 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.64.1", when = "in testing",
+		v = "0.64.2", when = "in testing",
 		items = {
+			"Buyback anywhere: \"buyback\" or \"what did i sell\" (@buyback) lists what you've sold since you logged in, with when and for how much, without opening a vendor; at any vendor Enter buys one back.",
+			"Out of arrows or bullets with a bow or gun, or a hunter running low: the empty prompt suggests \"nearest vendor sells:arrow\" (or sells:shot).",
+			"is:enchanted and is:unenchanted on gear in your bags, bank and alts' (@item is:unenchanted, @bank is:enchanted).",
 			"Your collections in plain words: \"mounts\", \"my pets\", \"toys\" list them by name with how many you have; \"favorite mounts\" keeps the journal's favorites, \"raptor mounts\" the ones named so. Enter summons or uses one, Shift+Enter shows it in the journal. Advanced: @mount is:favorite (on pets and toys too).",
 		},
 	},

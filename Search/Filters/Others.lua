@@ -447,7 +447,7 @@ IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
-	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "craftable", "skillup",
+	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "enchanted", "unenchanted", "craftable", "skillup",
 		"orange", "yellow", "green", "grey", "red", "leftbehind", "drop", "tracked", "untracked", "here", "passive", "unplaced", "known",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
@@ -481,6 +481,7 @@ local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stor
 local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests" } -- (a quest: by its rewards)
 local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
+local HELD = { "items", "gear", "stored", "bank", "shared" } -- (copies of yours or your friends': enchanted or not)
 local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches the recipes too)
 local RECIPE_QUEST = { "recipes", "professions", "quests" } -- (is:orange: a quest's colour too)
 -- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
@@ -495,6 +496,7 @@ F.APPLIES = {
 	is = {
 		done = QUESTS, todo = QUESTS, complete = { "quests" }, ready = { "spells" }, -- (ready on a quest = complete: offered once)
 		usable = ITEMS, equippable = ITEMS, upgrade = UPGRADES, quest = MADE, soulbound = OWN, boe = MADE,
+		enchanted = HELD, unenchanted = HELD,
 		online = PEOPLE, offline = PEOPLE,
 		craftable = RECIPES, skillup = RECIPES, orange = RECIPE_QUEST, yellow = RECIPE_QUEST, green = RECIPE_QUEST,
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
@@ -598,7 +600,7 @@ F.HELP = {
 	{ "sells:linen_cloth", L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] },
 	{ "reward:outlaw_sabre", L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling)"] },
 	{ "is:drop", L["quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first"] },
-	{ "is:todo", L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe; recipes: craftable skillup (orange or yellow) orange yellow green grey"] },
+	{ "is:todo", L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey"] },
 	{ "is:ready", L["spells: ready (off cooldown) passive unplaced (not on any bar or key); currencies: capped; NPCs: vendor trainer classtrainer proftrainer flightmaster innkeeper banker repair..."] },
 	{ "is:known", L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] },
 	{ "is:unknown", L["@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)"] },

@@ -702,6 +702,8 @@ Scan.ANSWERS = {
 	Asks("MyBankQ"),
 	-- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts": the list, by name (Providers/Collections.lua)
 	Asks("CollectionsQ"),
+	-- "buyback", "what did i sell": what you sold since you logged in (Providers/Buyback.lua)
+	Asks("BuybackQ"),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
 	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,

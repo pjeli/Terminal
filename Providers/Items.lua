@@ -424,6 +424,7 @@ local function WornRows(out)
 				detail = L["Equipped: %s"]:format(slotText),
 				slotName = slotName, slotId = slotId, itemID = itemID,
 				bound = bound or nil, unbound = (not bound) or nil,
+				enchanted = (ns.LinkEnchant(link) or 0) ~= 0 or nil, unenchanted = ns.LinkEnchant(link) == 0 or nil,
 				activate = ShowEquipped,
 				secure = CHAR_SECURE,
 				isOpen = PaperDollOpen,
@@ -471,6 +472,11 @@ ns:RegisterProvider("items", {
 				local b = info.isBound
 				if b ~= nil and not Secret(b) then
 					if b then e.bound = true else e.unbound = true end
+				end
+				-- (is:enchanted / is:unenchanted) the same for a copy's enchant (0.64.2; is:unenchanted asks for gear itself)
+				local ench = ns.LinkEnchant(info.hyperlink)
+				if ench then
+					if ench ~= 0 then e.enchanted = true else e.unenchanted = true end
 				end
 			end
 		end

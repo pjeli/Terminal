@@ -105,6 +105,75 @@ local function Valid(ex)
 	return true
 end
 
+----------------------------------------------------------------------
+-- Ammo (0.64.2, the player: "a melee with a bow or gun and no arrows or bullets: try: nearest vendor sells:arrow; a
+-- hunter: when the quiver or ammo pouch is low")
+----------------------------------------------------------------------
+
+local WEAPON, PROJECTILE, QUIVER = 2, 6, 11 -- (item classes: Enum.ItemClass)
+-- a bow or crossbow shoots arrows, a gun bullets (Enum.ItemWeaponSubclass; Enum.ItemProjectileSubclass 2 arrow, 3 bullet)
+local SHOOTS = { [2] = "arrow", [18] = "arrow", [3] = "shot" }
+local PROJECTILE_KIND = { [2] = "arrow", [3] = "shot" }
+E.AMMO_STACK = 200 -- (a stack of arrows or bullets, when the item doesn't say)
+E.AMMO_LOW_SHARE, E.AMMO_LOW_MIN = 0.25, 200 -- (a hunter's ammo is low under a quarter of the quiver, or a stack)
+
+local function ItemClass(id)
+	local get = C_Item and C_Item.GetItemInfoInstant or _G.GetItemInfoInstant
+	if not (get and id) then return nil end
+	local ok, _, _, _, _, _, classID, subClassID = pcall(get, id)
+	if not ok then return nil end
+	return Num(classID), Num(subClassID)
+end
+local function Equipped(slot) return GetInventoryItemID and Num(Safe(GetInventoryItemID, "player", slot)) end
+
+--- What your ranged weapon shoots ("arrow", "shot"), or nil: none worn, a wand or a thrown one, or a game with no
+--- ammo (no ammo slot: nothing to buy).
+function E.AmmoKind()
+	if not (GetInventorySlotInfo and pcall(GetInventorySlotInfo, "AmmoSlot")) then return nil end
+	for _, slot in ipairs({ 18, 16 }) do -- (the ranged slot; a client with none: the main hand)
+		local classID, sub = ItemClass(Equipped(slot))
+		if classID == WEAPON and SHOOTS[sub] then return SHOOTS[sub] end
+	end
+	return nil
+end
+
+--- How much of that ammo is in your bags, and how much your quivers and ammo pouches hold (0: none).
+function E.AmmoCount(kind)
+	local C = C_Container
+	if not (C and C.GetContainerNumSlots and C.GetContainerItemInfo) then return 0, 0 end
+	local have, room = 0, 0
+	for bag = 0, (_G.NUM_BAG_SLOTS or 4) do
+		local slots = Num(Safe(C.GetContainerNumSlots, bag)) or 0
+		for s = 1, slots do
+			local info = Safe(C.GetContainerItemInfo, bag, s)
+			local id = type(info) == "table" and Num(info.itemID)
+			if id then
+				local classID, sub = ItemClass(id)
+				if classID == PROJECTILE and PROJECTILE_KIND[sub] == kind then have = have + (Num(info.stackCount) or 1) end
+			end
+		end
+		-- (the bag itself: a quiver or an ammo pouch, its slots each a stack)
+		if bag > 0 and C.ContainerIDToInventoryID then
+			local inv = Num(Safe(C.ContainerIDToInventoryID, bag))
+			local classID = ItemClass(inv and Equipped(inv))
+			if classID == QUIVER then room = room + slots * E.AMMO_STACK end
+		end
+	end
+	return have, room
+end
+
+--- The ammo to buy ("arrow", "shot"), or nil: a hunter whose ammo is low, anyone else with a bow or gun and none.
+function E.AmmoNeed(classFile)
+	local kind = E.AmmoKind()
+	if not kind then return nil end
+	local have, room = E.AmmoCount(kind)
+	if classFile == "HUNTER" then
+		if have < math.max(E.AMMO_LOW_MIN, room * E.AMMO_LOW_SHARE) then return kind end
+		return nil
+	end
+	return have == 0 and kind or nil
+end
+
 --- What the examples are made from: the character (level, class), its professions and consumables, a dungeon about
 --- its level, where it is, its guild.
 local function Gather()
@@ -137,6 +206,7 @@ local function Gather()
 	local zoneName = GetRealZoneText and Str(Safe(GetRealZoneText))
 	f.zone = Short(zoneName and Lower(zoneName), 22)
 	f.inGuild = IsInGuild and Safe(IsInGuild)
+	f.ammo = E.AmmoNeed(f.classFile)
 	-- the dungeon you're in (its loot: "the deadmines upgrades")
 	local inside, kind = Safe(IsInInstance)
 	if inside == true and (kind == "party" or kind == "raid") then
@@ -154,10 +224,13 @@ local function AdvancedExamples(f, add)
 	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or ""), nil, "field") end
 	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade", nil, "field") end
 	if f.instance then add("@loot " .. f.instance .. " is:upgrade", nil, "instance") end
+	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " sort:nearest", nil, nil, true) end
 end
 
 local function SimpleExamples(f, add)
 	local prof, dungeon = f.prof, f.dungeon
+	-- (out of ammo, or a hunter's running low: where to buy it, offered more often than the rest)
+	if f.ammo then add("nearest vendor sells:" .. f.ammo, "Questie", nil, true) end
 	if f.cls then add("nearest " .. f.cls .. " trainer", "Questie", "city") end
 	if prof then add(prof .. " skillup", nil, "city"); add("nearest " .. prof .. " trainer", "Questie", "city") end
 	if #f.carry > 0 then add("use " .. Pick(f.carry), nil, "field") end
@@ -193,8 +266,8 @@ E.HasForExample = Has
 local function Personal(advanced)
 	local out = {}
 	local f = Gather()
-	local function add(s, need, at)
-		if s and Has(need) and (not advanced or Valid(s)) then out[#out + 1] = { s, need, at, mine = true } end
+	local function add(s, need, at, urgent)
+		if s and Has(need) and (not advanced or Valid(s)) then out[#out + 1] = { s, need, at, mine = true, todo = urgent or nil } end
 	end
 	if advanced then AdvancedExamples(f, add) else SimpleExamples(f, add) end
 	return out

@@ -76,31 +76,44 @@ end
 --- item table carrying a link, icon and quality to show it by.
 local function SyndicatorItems(A)
 	local seen = {}
-	local function note(items)
+	-- (each copy's enchant, by where it is: ench["Name-Realm|bank"][itemID] = { [true] = a copy has one, [false] = one
+	-- hasn't }; is:enchanted, 0.64.2. A row's link is one copy's.)
+	local ench = {}
+	local function note(items, place)
 		for _, it in pairs(type(items) == "table" and items or {}) do
-			if type(it) == "table" and type(it.itemID) == "number" and not seen[it.itemID] then
-				seen[it.itemID] = it
+			if type(it) == "table" and type(it.itemID) == "number" then
+				if not seen[it.itemID] then seen[it.itemID] = it end
+				local e = place and ns.LinkEnchant(it.itemLink)
+				if e then
+					local p = ench[place] or {}
+					ench[place] = p
+					local s = p[it.itemID] or {}
+					p[it.itemID] = s
+					s[e ~= 0] = true
+				end
 			end
 		end
 	end
-	local function notes(bags)
+	local function notes(bags, place)
 		for _, bag in pairs(type(bags) == "table" and bags or {}) do
-			note(type(bag) == "table" and (bag.slots or bag))
+			note(type(bag) == "table" and (bag.slots or bag), place)
 		end
 	end
 	for _, full in ipairs(A.GetAllCharacters() or {}) do
 		local c = A.GetByCharacterFullName(full)
 		if type(c) == "table" then
-			notes(c.bags); notes(c.bank); notes(c.bankTabs); note(c.mail); note(c.equipped); notes(c.void); note(c.auctions)
+			notes(c.bags, full .. "|bags"); notes(c.bank, full .. "|bank"); notes(c.bankTabs, full .. "|bank")
+			note(c.mail, full .. "|mail"); note(c.equipped, full .. "|equipped"); notes(c.void, full .. "|void")
+			note(c.auctions, full .. "|auctions")
 		end
 	end
 	for _, full in ipairs(A.GetAllGuilds and A.GetAllGuilds() or {}) do
 		local g = A.GetByGuildFullName(full)
-		if type(g) == "table" then notes(g.bank) end
+		if type(g) == "table" then notes(g.bank, full .. "|guild") end
 	end
 	local w = A.GetWarband and A.GetWarband(1)
-	if type(w) == "table" then notes(w.bank) end
-	return seen
+	if type(w) == "table" then notes(w.bank, "warband") end
+	return seen, ench
 end
 
 --- Auctions in Syndicator's records that Terminal saw come back by mail (Mail.lua's MA.EndedAuctions), as
@@ -139,7 +152,7 @@ local function ReadSyndicator(A, add)
 	local current = A.GetCurrentCharacter and A.GetCurrentCharacter()
 	local myRealm = current and current:match("%-(.+)$")
 
-	local seen = SyndicatorItems(A) -- (every item id in the records)
+	local seen, ench = SyndicatorItems(A) -- (every item id in the records; each copy's enchant, by place)
 	local over = EndedAuctions(A) -- (auctions that came back, still in its records)
 
 	local holders = {} -- one per owner and place, shared by every item they hold
@@ -165,7 +178,7 @@ local function ReadSyndicator(A, add)
 							holders[key] = h
 							if mine then S.mine[where] = h end
 						end
-						add(id, n, it.itemLink, it.iconTexture, it.quality, h)
+						add(id, n, it.itemLink, it.iconTexture, it.quality, h, ench[key] and ench[key][id])
 					end
 				end
 			end
@@ -176,14 +189,14 @@ local function ReadSyndicator(A, add)
 						local full = g.guild .. "-" .. (g.realmNormalized or "")
 						local key = full .. "|guild"
 						holders[key] = holders[key] or { key = key, who = g.guild, where = "guild", owner = full }
-						add(id, n, it.itemLink, it.iconTexture, it.quality, holders[key])
+						add(id, n, it.itemLink, it.iconTexture, it.quality, holders[key], ench[key] and ench[key][id])
 					end
 				end
 			end
 			local wb = type(info.warband) == "table" and tonumber(info.warband[1]) or 0
 			if wb > 0 then
 				holders.warband = holders.warband or { key = "warband", who = L["Warband"], where = "warband", owner = "warband" }
-				add(id, wb, it.itemLink, it.iconTexture, it.quality, holders.warband)
+				add(id, wb, it.itemLink, it.iconTexture, it.quality, holders.warband, ench.warband and ench.warband[id])
 			end
 		end
 	end
@@ -194,7 +207,10 @@ local function ParseBrother(s)
 	if type(s) == "number" then return s, 1 end
 	if type(s) ~= "string" or not s:find("^%d") then return nil end -- battle pets and the like
 	local id = tonumber(s:match("^(%d+)"))
-	return id, tonumber(s:match(";(%d+)$")) or 1
+	local payload = s:match("^[^;]+")
+	-- ("1234:1897:...": its enchant; "1234" alone is a plain copy: none)
+	local e = payload:find(":", 1, true) and ns.LinkEnchant(payload) or 0
+	return id, tonumber(s:match(";(%d+)$")) or 1, e
 end
 
 local function ReadBrother(bb, add)
@@ -204,8 +220,8 @@ local function ReadBrother(bb, add)
 	local function items(t, holder)
 		for slot, s in pairs(type(t) == "table" and (t.items or t) or {}) do
 			if tonumber(slot) then
-				local id, count = ParseBrother(s)
-				if id then add(id, count, nil, nil, nil, holder) end
+				local id, count, e = ParseBrother(s)
+				if id then add(id, count, nil, nil, nil, holder, e and { [e ~= 0] = true } or nil) end
 			end
 		end
 	end
@@ -457,7 +473,7 @@ local function StoredRow(id, x, name)
 		quality = quality,
 		tooltip = Tooltip,
 		text = "stored " .. table.concat(words, " "),
-		holders = x.holders, total = x.total, itemID = id,
+		holders = x.holders, total = x.total, itemID = id, enchanted = x.enchanted, unenchanted = x.unenchanted,
 		activate = Open,
 		secondary = PrintBreakdown,
 		shareExtra = ChatSummary, -- (sent to chat: who holds how many)
@@ -487,7 +503,7 @@ ns:RegisterProvider("stored", {
 	collect = function()
 		local out = {}
 		local byID = {}
-		local function add(id, count, link, icon, quality, holder)
+		local function add(id, count, link, icon, quality, holder, enchants)
 			local e = byID[id]
 			if not e then
 				e = { id = id, total = 0, holders = {}, link = link, icon = icon, quality = quality }
@@ -503,6 +519,11 @@ ns:RegisterProvider("stored", {
 			end
 			h.count = h.count + (count or 1)
 			e.total = e.total + (count or 1)
+			-- (is:enchanted: some copy here has one, some hasn't; the row's and each holder's, for @bank's own)
+			if enchants then
+				if enchants[true] then e.enchanted, h.enchanted = true, true end
+				if enchants[false] then e.unenchanted, h.unenchanted = true, true end
+			end
 		end
 		S.HookSyndicator()
 		S.mine = {}
@@ -557,6 +578,7 @@ ns:RegisterProvider("bank", {
 				for k, v in pairs(e) do c[k] = v end -- (a copy: the @stored row keeps every holder)
 				c.holders = { [h.key] = h }
 				c.total = h.count
+				c.enchanted, c.unenchanted = rawget(h, "enchanted"), rawget(h, "unenchanted") -- (the bank's copies' own)
 				-- (searched by its name and its place, not by every holder @stored's row has: "@bank mail")
 				c.text, c._ltext = nil, ns.Lower(L["bank"] .. " bank " .. tostring(h.who or ""))
 				c.detail = "x" .. h.count .. ns.DETAIL_SEP .. L["bank"]

@@ -455,6 +455,15 @@ function ns.ItemLink(id)
 	return ok and type(link) == "string" and not ns.Secret(link) and link:find("|H", 1, true) and link or nil
 end
 
+--- The enchant an item link (or item string, "item:1234:1897:...", BagBrother's "1234:1897:...") carries: its id, 0
+--- for none, or nil when there's no link to read (0.64.2: is:enchanted).
+function ns.LinkEnchant(link)
+	if type(link) ~= "string" or ns.Secret(link) then return nil end
+	local ench = link:match("item:%-?%d+:(%-?%d*)") or link:match("^%d+:(%-?%d*)")
+	if ench == nil then return nil end
+	return tonumber(ench) or 0
+end
+
 --- An item's name as its link says it ("|h[Linen Cloth]|h"), or nil (none, empty, secret).
 function ns.LinkName(link)
 	if not ns.Str(link) then return nil end

@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.64.1 (in testing)
+## 0.64.2 (in testing)
+
+**Buyback, anywhere**
+- **buyback**, **what did i sell** (**@buyback**): what you've sold to vendors since you logged in, newest first, each with how many, when, and what it costs to buy back; searchable anywhere, without opening a vendor. At any vendor, Enter buys one back (not enough money: said). The game's buyback list holds the last 12 and is lost when you log out: so is this one (a /reload keeps it).
+
+**Ammo**
+- With a bow, crossbow or gun and no arrows or bullets in your bags (a hunter: under a quarter of your quiver or ammo pouch, or under a stack without one), the empty prompt suggests **nearest vendor sells:arrow** or **sells:shot** (Advanced: **@npc is:vendor sells:arrow sort:nearest**), more often than the other suggestions.
+
+**Enchanted gear**
+- **is:enchanted** and **is:unenchanted**: gear with an enchant, or without one, in your bags and worn (**@item**, **@gear**), your bank (**@bank**) and everyone's (**@stored**), from each copy's link. is:unenchanted keeps to gear (-is:enchanted would take in cloth and potions too).
+
+## 0.64.1
 
 **Your collections, in plain words**
 - **mounts**, **my pets** (**companions**, **battle pets**), **toys** (**my toy box**) list yours by name, the footer saying how many; **how many mounts do i have** too. **favorite mounts** keeps the journal's favorites; other words name them (**raptor mounts**, **squirrel pets**: a pet's species counts). Enter summons a mount or pet and uses a toy, Shift+Enter shows it in the journal. A word alone ("mount", "pet") is still a search, as are lines like "pet trainer".

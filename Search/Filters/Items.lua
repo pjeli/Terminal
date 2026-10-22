@@ -525,6 +525,21 @@ local BIND_QUEST = Enum and Enum.ItemBind and Enum.ItemBind.Quest or 4
 
 local function Soulbound(e) return e.itemID ~= nil and e.bound == true end
 
+--- Enchanted gear (0.64.2, the player's ask: "is:enchanted for gear in bags and bank"): rows of yours know whether a copy
+--- is enchanted or not (enchanted / unenchanted: Items.lua, Stored.lua; one row per item, so two copies answer both);
+--- else the row's link says. is:unenchanted: gear without one (-is:enchanted would take in cloth and potions too).
+local function Enchanted(e)
+	if not e.itemID then return false end
+	if e.enchanted ~= nil or e.unenchanted ~= nil then return e.enchanted == true end
+	local ench = ns.LinkEnchant(e.link)
+	return ench ~= nil and ench ~= 0
+end
+local function Unenchanted(e)
+	if not e.itemID or not Equippable(e) then return false end
+	if e.enchanted ~= nil or e.unenchanted ~= nil then return e.unenchanted == true end
+	return ns.LinkEnchant(e.link) == 0
+end
+
 --- Bind on equip and not bound yet: one of your stacks still free, or (no stacks of yours) the item binds on equip.
 local function BoE(e)
 	local id = ItemOf(e)
@@ -659,6 +674,7 @@ end
 -- is: values for items
 IS.quest = QuestItem
 IS.soulbound = Soulbound
+IS.enchanted, IS.unenchanted = Enchanted, Unenchanted
 IS.boe = BoE
 IS.usable = Usable
 IS.equippable = Equippable
