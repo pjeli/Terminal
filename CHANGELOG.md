@@ -1,55 +1,25 @@
 # Changelog
 
-## 0.64.7 (in testing)
-
-**Reagents**
-- The reagents of spells cast now and then, Divine Intervention's Symbols of Divinity and the Portals' runes, are suggested as often as any other example, not more: a paladin or mage who never carries them no longer sees "nearest reagent vendor" nearly every time. The everyday ones (candles, Symbols of Kings, Arcane Powder, teleport runes, seeds, ankhs) still come up more often.
-
-## 0.64.6
-
-**Fixes from a release review**
-- A rogue out of flash powder is pointed at the vendors that sell it (**nearest vendor sells:flash_powder**), not a reagent vendor, which doesn't.
-- With ammo or a reagent to buy, the empty prompt's examples no longer reshuffle on every bag change (every arrow shot): they're made again only when what's to buy changes, a moment after a burst of bag changes, and not in combat. Running out now brings the suggestion up as soon as your bags change too.
-- **@stored is:enchanted** never goes by a copy you carry, even for an alt's copy Terminal knows nothing about.
-- A right-click on a tab's x closes it too.
-- The help's collections line shows the Advanced form Alt+` writes now (**@mount is:favorite sort:name**).
-
-## 0.64.5
-
-**Tabs**
-- Each tab over the prompt shows a small **x** while the pointer is on it; a click closes that tab, so one opened by accident goes with a click (a right-click on the tab and **Ctrl+Shift+W** still close one too).
-
-## 0.64.4
-
-**Reagents**
-- Out of a reagent your spells use, the empty prompt suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**), more often than the other suggestions: a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Divinity or Symbols of Kings, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs. A rogue out of flash powder (which reagent vendors don't sell) is offered **nearest vendor sells:flash_powder** instead. Only once you know the spell, and only when your bags have none; it goes as soon as you've bought some.
-- The ammo suggestion's Advanced form is friendly vendors only, as Alt+` writes it.
-
-## 0.64.3
-
-**Fixes from a review**
-- Plain words: "how do i mount", "what is a mount", "pet battle" and the like are searches again, not your whole mount or pet list ("my mount", "battle pets", "toy box" still are). Typing a mount's or pet's name no longer reads the whole list again on every key. Alt+` keeps "raptor mounts" as said (Advanced answers it the same; "@mount raptor" would find more).
-- Buyback: closing the vendor's window no longer risks emptying the list; a new sale no longer moves the selection.
-- **is:unenchanted** keeps to gear an enchant goes on: not shirts, tabards, necks, rings, trinkets, held off-hands, relics, thrown weapons or wands. **@stored is:enchanted** goes by the copies you don't carry (your enchanted sword no longer lists a plain one on an alt); **@bank** goes by your bank's copies only.
-- Ammo: an ammo pouch isn't room for arrows, nor a quiver for bullets, in when a hunter is low; the suggestion goes as soon as you've bought some (it stayed up to a minute). A client without an ammo slot never suggests it.
-- **is:favorite** is in the filters' help.
-
-## 0.64.2
-
-**Buyback, anywhere**
-- **buyback**, **what did i sell** (**@buyback**): what you've sold to vendors since you logged in, newest first, each with how many, when, and what it costs to buy back; searchable anywhere, without opening a vendor. At any vendor, Enter buys one back (not enough money: said). The game's buyback list holds the last 12 and is lost when you log out: so is this one (a /reload keeps it).
-
-**Ammo**
-- With a bow, crossbow or gun and no arrows or bullets in your bags (a hunter: under a quarter of your quiver or ammo pouch, or under a stack without one), the empty prompt suggests **nearest vendor sells:arrow** or **sells:shot** (Advanced: **@npc is:vendor sells:arrow sort:nearest**), more often than the other suggestions.
-
-**Enchanted gear**
-- **is:enchanted** and **is:unenchanted**: gear with an enchant, or without one, in your bags and worn (**@item**, **@gear**), your bank (**@bank**) and everyone's (**@stored**), from each copy's link. is:unenchanted keeps to gear (-is:enchanted would take in cloth and potions too).
-
-## 0.64.1
+## 0.65.0
 
 **Your collections, in plain words**
-- **mounts**, **my pets** (**companions**, **battle pets**), **toys** (**my toy box**) list yours by name, the footer saying how many; **how many mounts do i have** too. **favorite mounts** keeps the journal's favorites; other words name them (**raptor mounts**, **squirrel pets**: a pet's species counts). Enter summons a mount or pet and uses a toy, Shift+Enter shows it in the journal. A word alone ("mount", "pet") is still a search, as are lines like "pet trainer".
-- Advanced: **@mount sort:name**, and the new **is:favorite** on mounts, pets and toys (Alt+` writes **@mount is:favorite raptor sort:name**).
+- **mounts**, **my pets** (**companions**, **battle pets**), **toys** (**my toy box**) list yours by name, the footer saying how many; **how many mounts do i have** too. **favorite mounts** keeps the journal's favorites; other words name them (**raptor mounts**, **squirrel pets**: a pet's species counts). Enter summons a mount or pet and uses a toy, Shift+Enter shows it in the journal.
+- A word alone ("mount", "pet") is still a search, as are lines like "pet trainer", "how do i mount" or "pet battle".
+- Advanced: **@mount sort:name**, and the new **is:favorite** on mounts, pets and toys (Alt+` writes **@mount is:favorite sort:name**; "raptor mounts" stays as said, which Advanced answers the same).
+
+**Buyback, anywhere**
+- **buyback**, **what did i sell** (**@buyback**): what you've sold to vendors since you logged in, newest first, each with how many, when, and what it costs to buy back; searchable anywhere, without opening a vendor. At any vendor, Enter buys one back (not enough money: said). The game's buyback list holds the last 12, can only be read at a vendor, and is lost when you log out: so is this one (a /reload keeps it).
+
+**Ammo and reagents, suggested when you're out**
+- With a bow, crossbow or gun and no arrows or bullets in your bags (a hunter: under a quarter of what your quiver or ammo pouch holds, or under a stack without one), the empty prompt suggests **nearest vendor sells:arrow** or **sells:shot** (Advanced: **@npc is:vendor sells:arrow faction:friendly sort:nearest**).
+- Out of a reagent your spells use, it suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**): a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Kings or Symbols of Divinity, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs. A rogue out of flash powder (which reagent vendors don't sell) is offered **nearest vendor sells:flash_powder**.
+- Only once you know the spell, and only when your bags have none. Ammo and the everyday reagents come up more often than the other suggestions; Divine Intervention's symbols and portal runes, cast now and then, as often as any other. Each goes as soon as you've bought some, and the examples don't reshuffle on every bag change meanwhile.
+
+**Enchanted gear**
+- **is:enchanted** and **is:unenchanted**: gear with an enchant, or without one, in your bags and worn (**@item**, **@gear**), your bank (**@bank**) and your alts' (**@stored**), from each copy's link. **is:unenchanted** keeps to gear an enchant goes on (not shirts, tabards, necks, rings, trinkets, held off-hands, relics, thrown weapons or wands). **@stored** goes by the copies you don't carry, **@bank** by your bank's own.
+
+**Tabs**
+- Each tab over the prompt shows a small **x** while the pointer is on it; a click (left or right) closes that tab, so one opened by accident goes with a click. A right-click on the tab and **Ctrl+Shift+W** still close one too.
 
 ## 0.64.0
 
