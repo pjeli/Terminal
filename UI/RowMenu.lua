@@ -330,6 +330,7 @@ function UI:MenuKey(f, key)
 	elseif key == "DOWN" or key == "TAB" then
 		f:SetPropagateKeyboardInput(false); self:MenuSelect((menu.keySel or 0) + 1) return true
 	elseif key == "ESCAPE" or key == "LEFT" or ns.IsTickKey(key) then
+		if key ~= "ESCAPE" and key ~= "LEFT" then UI.swallowTick = GetTime() end -- (its character not typed after it)
 		f:SetPropagateKeyboardInput(false); self:HideRowMenu() return true
 	elseif key ~= "ENTER" and key ~= "NUMPADENTER" then
 		return false -- (anything else closes it and does what it does)

@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.65.1 (in testing)
+## 0.65.2 (in testing)
+
+**Fixes from a review of 0.65.1** (nothing changed for a player with ` bound; these were for the rest)
+- With only **Ctrl+`** bound (Terminal's first-run choice when ` is taken), the hints are as before: no more "Ctrl+Ctrl+`". With **Ctrl+Space** bound, the in-combat line says "Ctrl+Space", not "Ctrl+Ctrl+Space".
+- AltGr typing (Ctrl+Alt on many European layouts) is never taken for Alt+ your key: AltGr+Q types @ even with Ctrl+Q bound to Terminal.
+- What a command prints of the game's or a player's text (mail, the calendar, the combat log) keeps its `; only Terminal's own help says your key.
+- A key that types (Numpad5, a letter) bound to Terminal isn't named in the hints.
+- Your key closes the changelog, the credits, .atop and the "drop these quests?" question too, and Ctrl+Space or an F-key quits a game or window instead of reaching the game's binding.
+- The row menu closed with ` (or your key) no longer leaves the character typed in the prompt.
+
+## 0.65.1
 
 **Your own key, on any keyboard** (a player on CurseForge: "how can I keybind the terminal when using the QWERTZ/German layout?")
 - A German keyboard has no plain ` (it's a dead key on Shift+´), nor do several others. Bind any key to Terminal in the game's Key Bindings (AddOns > Terminal) or with **.bind**, and in the open terminal that key does what ` does: it closes it, **Alt+** it writes the search in Advanced mode, **Tab+** it is pure fuzzy finding. That works for a key with a modifier (**Ctrl+Space**) and for a key alone under Esc (**^** on a German keyboard, **²** on a French one), whose character isn't typed into the prompt either. Letters, digits, Space and the characters a search needs (. @ - | : < > and the like) still type.

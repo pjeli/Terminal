@@ -574,16 +574,52 @@ function ns.ToggleBindings()
 	return out
 end
 
---- Is this key (as a key press names it: "`", "^") the terminal's own, pressed alone: ` always, and a symbol key bound to
---- the terminal by itself. (Bound with a modifier, CTRL-SPACE: Keys.lua's UI.OwnBinding.)
+-- the modifiers a binding names, in the game's order
+local MODS = { ALT = "Alt", CTRL = "Ctrl", SHIFT = "Shift", META = "Cmd" }
+
+--- A binding's key without its modifiers, and the modifiers' words: "CTRL-SPACE" -> "SPACE", { "Ctrl" }.
+local function Base(binding)
+	local words, rest = {}, binding
+	while true do
+		local mod, after = rest:match("^(%u+)%-(.+)$")
+		if not (mod and MODS[mod]) then break end
+		words[#words + 1] = MODS[mod]
+		rest = after
+	end
+	return rest, words
+end
+ns.KeyBase = Base
+
+--- The key with the modifiers held now, as the game names a binding ("CTRL-SPACE"), and whether Alt, Ctrl or Meta is.
+local function ChordNow(key)
+	local alt = IsAltKeyDown and IsAltKeyDown() or false
+	local ctrl = IsControlKeyDown and IsControlKeyDown() or false
+	local shift = IsShiftKeyDown and IsShiftKeyDown() or false
+	local meta = IsMetaKeyDown and IsMetaKeyDown() or false
+	return (alt and "ALT-" or "") .. (ctrl and "CTRL-" or "") .. (shift and "SHIFT-" or "") .. (meta and "META-" or "") .. key,
+		alt or ctrl or meta
+end
+
+--- Is this key press (as the game names the key: "`", "^", "SPACE") the terminal's own: ` always; a symbol key bound to
+--- the terminal by itself; or the chord held now when that's bound to it (Ctrl+Space, F9), so in an app (the changelog,
+--- a game) it closes as ` does rather than reaching the game's binding (0.65.1 review: a footer said "Esc or Ctrl+Space
+--- quit", and Ctrl+Space went to the game).
 function ns.IsTickKey(key)
 	if key == "`" then return true end
-	if not PlainSymbol(key) then return false end
-	for _, k in ipairs(ns.ToggleBindings()) do
-		if k == key then return true end
+	if type(key) ~= "string" or key == "" then return false end
+	local binds = ns.ToggleBindings()
+	if #binds == 0 then return false end
+	if PlainSymbol(key) then
+		for _, k in ipairs(binds) do if k == key then return true end end
 	end
+	local chord, modded = ChordNow(key)
+	if not (modded or key:find("^F%d+$")) then return false end
+	for _, k in ipairs(binds) do if k == chord then return true end end
 	return false
 end
+
+--- The key as a key table names it: "`" for the terminal's own key (whichever), else the key itself.
+function ns.TickAs(key) return ns.IsTickKey(key) and "`" or key end
 
 -- the game's key names, as a hint says them (English, as every key hint is: "Ctrl+Space", "F12")
 local KEY_WORDS = { CTRL = "Ctrl", ALT = "Alt", SHIFT = "Shift", META = "Cmd", SPACE = "Space", BACKSPACE = "Backspace",
@@ -608,17 +644,25 @@ function ns.KeyLabel(binding)
 	return table.concat(parts, "+")
 end
 
---- What a hint calls the terminal's key: ` while it's one of them (or none is bound), else the first ("^", "Ctrl+Space").
+--- What a hint calls the terminal's key: ` while ` is one of them, with a modifier or not (` itself always closes the open
+--- terminal; 0.65.1 review: "CTRL-`" alone made "Ctrl+Ctrl+`"), or none is bound; else the first that does what ` does
+--- in it ("^", "Ctrl+Space", "F9"), never a key that types (Numpad5, a letter: they type in the prompt).
 function ns.ToggleLabel()
 	local keys = ns.ToggleBindings()
-	for _, k in ipairs(keys) do if k == "`" then return "`" end end
-	return keys[1] and ns.KeyLabel(keys[1]) or "`"
+	for _, k in ipairs(keys) do if Base(k) == "`" then return "`" end end
+	for _, k in ipairs(keys) do
+		local base, mods = Base(k)
+		if #mods > 0 or base:find("^F%d+$") or PlainSymbol(base) then return ns.KeyLabel(k) end
+	end
+	return "`"
 end
 
 --- A hint with ` in it says the terminal's key instead ("Esc or ` close" -> "Esc or ^ close"); as it is when that's `.
+--- A modifier the key has already is said once: "Ctrl+`" -> "Ctrl+Space", not "Ctrl+Ctrl+Space" (0.65.1 review).
 function ns.KeyHint(s)
-	if type(s) ~= "string" or not s:find("`", 1, true) then return s end
+	if type(s) ~= "string" or ns.Secret(s) or not s:find("`", 1, true) then return s end
 	local label = ns.ToggleLabel()
 	if label == "`" then return s end
+	for word in label:gmatch("(%a+)%+") do s = s:gsub(word .. "%+`", "`") end
 	return (s:gsub("`", (label:gsub("%%", "%%%%"))))
 end

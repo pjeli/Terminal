@@ -654,7 +654,7 @@ function B.DrawProfile(a, t)
 	end
 	-- (atop is Terminal: profiling Terminal measures atop's own drawing and sampling too)
 	footer:SetText(L["%d of %d"]:format(state.sel, #shown) .. "  ·  " .. L["Up/Down another addon"] .. "  ·  " .. L["Esc back to the list"]
-		.. (a.name == ns.name and ("  ·  " .. L["includes atop itself"]) or ("  ·  ` " .. L["close"])))
+		.. (a.name == ns.name and ("  ·  " .. L["includes atop itself"]) or ("  ·  " .. ns.KeyHint("`") .. " " .. L["close"])))
 end
 
 --- Profile the addon at list position `i` (nil: back to the list).
@@ -686,7 +686,7 @@ function B.Tick(elapsed)
 end
 
 function B.Key(key)
-	if key == "`" then return B.Close() end
+	if ns.IsTickKey(key) then return B.Close() end
 	if state.focus then
 		-- profiling: Up/Down step to the next addon in the list, Esc / Enter / Backspace go back to it
 		if key == "ESCAPE" or key == "ENTER" or key == "BACKSPACE" then return B.Profile(nil) end
@@ -737,7 +737,7 @@ function B.KeyDown(self, key)
 end
 
 function B.Char(ch)
-	if not ch or ch == "`" or ch == "~" or state.focus then return end
+	if not ch or ns.IsTickKey(ch) or ch == "~" or state.focus then return end
 	state.filter = state.filter .. ch
 	state.sel, state.fresh = 1, true
 	B.Refilter(); B.DrawText(); B.DrawBars(1)

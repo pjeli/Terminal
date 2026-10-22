@@ -31,7 +31,7 @@ local function Close() CR.Close() end
 local KEYS = { ESCAPE = Close, ["`"] = Close, ENTER = Close, SPACE = Close }
 
 function CR.KeyDown(self, key)
-	local fn = KEYS[key]
+	local fn = KEYS[ns.TickAs(key)] -- (the terminal's key, whichever: 0.65.1)
 	if fn then fn() end
 	Panel.Propagate(self, fn)
 end

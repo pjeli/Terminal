@@ -35,7 +35,7 @@ function ns:Output(lines)
 	if info then r, g, b = info.r or r, info.g or g, info.b or b end
 	local chat = DEFAULT_CHAT_FRAME
 	for _, line in ipairs(lines) do
-		line = ns.KeyHint and ns.KeyHint(tostring(line)) or tostring(line) -- (` said as the terminal's key: Util.lua)
+		line = tostring(line)
 		if chat and chat.AddMessage then chat:AddMessage(line, r, g, b) else print(line) end
 	end
 end

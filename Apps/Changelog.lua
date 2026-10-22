@@ -14,9 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.1", when = "in testing",
+		v = "0.65.2", when = "in testing",
 		items = {
-			"Keyboards without a plain ` (German, French and others): the key you bind to Terminal (Key Bindings > AddOns > Terminal, or .bind) does in it what ` does: it closes it, Alt+ that key writes the search in Advanced mode, Tab+ it is fuzzy finding. Bound alone, a key like ^ or ² works too, and the hints, F1 and the windows' footers name your key instead of `.",
+			"Keyboards without a plain ` (German, French and others): the key you bind to Terminal (Key Bindings > AddOns > Terminal, or .bind) does in it what ` does: it closes it, Alt+ that key writes the search in Advanced mode, Tab+ it is fuzzy finding. Bound alone, a key like ^ or ² works too, and the hints, F1 and the windows' footers name your key instead of `. With ` bound (or Ctrl+`), nothing changes.",
 		},
 	},
 	{
@@ -91,7 +91,7 @@ local KEYS -- (the scroller's, and Esc / ` close: made with it)
 
 --- Its keys are kept; any other key goes on to the game.
 function CL.KeyDown(self, key)
-	local fn = KEYS and KEYS[key]
+	local fn = KEYS and KEYS[ns.TickAs(key)] -- (the terminal's key, whichever: 0.65.1)
 	if fn then fn() end
 	Panel.Propagate(self, fn)
 end

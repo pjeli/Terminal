@@ -152,8 +152,11 @@ function UI.OwnBinding(key)
 	local chord, alt, ctrl, _, meta = Chord(key)
 	if not (alt or ctrl or meta) and Types(key) then return nil end
 	local ok, action = pcall(GetBindingAction, chord)
-	if alt and ok and (action == nil or action == "") then
-		ok, action = pcall(GetBindingAction, (chord:gsub("ALT%-", "", 1)))
+	-- (only the terminal's key: Alt+ it is Alt+`; and never a key that types with Ctrl and Alt, which is AltGr typing
+	-- on many layouts: AltGr+Q types @; 0.65.1 review)
+	if alt and ok and (action == nil or action == "") and not (ctrl and (#key == 1 or key:find("[\128-\255]"))) then
+		local ok2, a2 = pcall(GetBindingAction, (chord:gsub("ALT%-", "", 1)))
+		if ok2 and a2 == "TERMINAL_TOGGLE" then action = a2 end
 	end
 	if ok and type(action) == "string" and OWN_ACTIONS[action] then return action end
 	return nil

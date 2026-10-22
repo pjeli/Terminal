@@ -61,12 +61,28 @@ do
 	local found = false
 	for _, r in ipairs(rows) do if r.key == "^ or Esc" then found = true end end
 	check(found, "F1's keys say ^ or Esc")
+	-- (0.65.1 review) .help says ^; what a command prints of the game's or a player's text keeps its `
+	local helpSays = table.concat(ns.commands.help.run(""), "\n")
+	check(helpSays:find("Alt+^", 1, true) and not helpSays:find("Alt+`", 1, true), ".help says Alt+^")
 	local said
 	local chat = _G.DEFAULT_CHAT_FRAME
 	_G.DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) said = m end }
-	ns:Output({ ns.L["Esc or ` close"] })
+	ns:Output({ "Mail from Bob: `run` this macro" })
 	_G.DEFAULT_CHAT_FRAME = chat
-	check(said == "Esc or ^ close", "a command's answer says ^ too: " .. tostring(said))
+	check(said == "Mail from Bob: `run` this macro", "a player's text printed as it is, its ` kept: " .. tostring(said))
+	-- (0.65.1 review) the apps' own keys: ^ closes the changelog, F1, the credits, atop, as ` does
+	check(ns.TickAs("^") == "`" and ns.TickAs("A") == "A", "^ is ` to the apps' key tables")
+	-- (0.65.1 review) the row menu closed with the terminal's key: its character isn't typed after it
+	UI:Open("")
+	T.typeText("hearth")
+	FlushAll()
+	local before = query()
+	if UI.results[1] then
+		UI:ShowRowMenu(1, true)
+		key("^", "^")
+		check(query() == before, "the row menu closed with ^: no ^ typed: " .. query())
+	end
+	UI:Hide(); FlushAll()
 
 	-- bound with a modifier (Ctrl+Space): Ctrl+Space closes, Alt+Ctrl+Space is Alt+`'s; the hints say Ctrl+Space
 	bound = { ["CTRL-SPACE"] = "TERMINAL_TOGGLE" }
@@ -81,6 +97,30 @@ do
 	UI:Hide(); FlushAll()
 	UI:EndAdvancedOnce()
 	check(ns.KeyHint("Alt+` again") == "Alt+Ctrl+Space again", "hints: Alt+Ctrl+Space")
+	-- (0.65.1 review) its Ctrl said once, and twice through it is the same
+	local combat = ns.KeyHint(ns.L["In combat, Ctrl+` opens Terminal."])
+	check(combat == "In combat, Ctrl+Space opens Terminal." and ns.KeyHint(combat) == combat, "in combat: Ctrl+Space, not Ctrl+Ctrl+Space: " .. combat)
+	withCtrl(function() check(ns.TickAs("SPACE") == "`", "Ctrl+Space is ` to the apps' key tables (it quits a game, not passed to the game)") end)
+	check(ns.TickAs("SPACE") == "SPACE", "Space alone types")
+	-- (0.65.1 review) CTRL-` alone (the first run's choice when ` is taken): the hints as written, ` closes the open terminal
+	bound = { ["CTRL-`"] = "TERMINAL_TOGGLE" }
+	_G.GetBindingKey = function(action) for k, v in pairs(bound) do if v == action then return k end end end
+	check(ns.ToggleLabel() == "`" and ns.KeyHint("in combat, Ctrl+` only") == "in combat, Ctrl+` only", "CTRL-` bound: hints as written, no Ctrl+Ctrl+`")
+	-- (0.65.1 review) a key that types bound alone (Numpad5): hints don't name it (it types in the prompt)
+	bound = { NUMPAD5 = "TERMINAL_TOGGLE" }
+	check(ns.ToggleLabel() == "`", "Numpad5 bound: hints say ` (Numpad5 types)")
+	-- (0.65.1 review) AltGr (Ctrl+Alt) on a key that types isn't one of Terminal's: CTRL-Q bound to fuzzy finding, AltGr+Q types @
+	bound = { ["CTRL-Q"] = "TERMINAL_FUZZY", ["CTRL-SPACE"] = "TERMINAL_TOGGLE" }
+	_G.GetBindingAction = function(k) return bound[k] or "" end
+	local own
+	withCtrl(function() withAlt(function() own = UI.OwnBinding("Q") end) end)
+	check(own == nil, "AltGr+Q with Ctrl+Q bound to fuzzy finding: typed, not fuzzy finding: " .. tostring(own))
+	bound = { ["CTRL-Q"] = "TERMINAL_TOGGLE" }
+	withCtrl(function() withAlt(function() own = UI.OwnBinding("Q") end) end)
+	check(own == nil, "AltGr+Q with Ctrl+Q the terminal's key: typed (AltGr), not Alt+`'s: " .. tostring(own))
+	bound = { ["CTRL-Q"] = "TERMINAL_FUZZY", ["CTRL-SPACE"] = "TERMINAL_TOGGLE" }
+	withCtrl(function() withAlt(function() own = UI.OwnBinding("SPACE") end) end)
+	check(own == "TERMINAL_TOGGLE", "Alt+Ctrl+Space with Ctrl+Space the terminal's: still Alt+`'s")
 
 	_G.GetBindingKey, _G.GetBindingAction, _G.IsAltKeyDown, _G.IsControlKeyDown = save.key, save.action, save.alt, save.ctrl
 	ns.db.easyMode = save.easy; UI:EasyChanged()

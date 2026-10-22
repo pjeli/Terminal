@@ -261,7 +261,7 @@ function QD.Confirm(rows)
 		dialog:SetScript("OnKeyDown", function(_, key)
 			if key == "ENTER" then
 				if GetTime() - (dialog.shownAt or 0) >= QD.ENTER_WAIT then Decide(true) end
-			elseif key == "ESCAPE" or key == "`" then Decide(false) end
+			elseif key == "ESCAPE" or ns.IsTickKey(key) then Decide(false) end
 		end)
 	end
 	pending = list

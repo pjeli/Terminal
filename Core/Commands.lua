@@ -15,7 +15,10 @@ ns:RegisterCommand("help", {
 		-- (plain sentences; .help advanced, or a line in Advanced mode: the commands and the syntax)
 		local want = ns.Lower(tostring(args or "")):gsub("%s+", "")
 		local full = want == "advanced" or want == "all" or want == "syntax"
-		if not full and ns.Easy and ns.Easy.On() then return ns.Easy.HelpLines() end
+		-- (` said as the terminal's key, whichever it is: Util.lua's KeyHint; only Terminal's own lines, never what a
+		-- command prints of the game's or a player's text; 0.65.1 review)
+		local function Hinted(lines) for i, l in ipairs(lines) do lines[i] = ns.KeyHint(l) end return lines end
+		if not full and ns.Easy and ns.Easy.On() then return Hinted(ns.Easy.HelpLines()) end
 		local lines = { L["Terminal commands:"] }
 		for _, name in ipairs(ns.commandOrder) do
 			local c = ns.commands[name]
@@ -48,7 +51,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = L["Upgrades: @loot is:upgrade sort:best (what you can get that beats what you wear, the biggest first; the tooltip says why); @questie is:upgrade sort:best: quests whose reward is one"]
 		lines[#lines + 1] = L["F5: a list that changed while you looked at it (your bags, item data coming in) stays put, the footer saying so; F5 shows the new one"]
 		lines[#lines + 1] = L["Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open (a window it opens still closes it), Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes (with nothing to complete: the next result), Shift+Left goes back a step; F1 (or .keybinds) shows every key, for each mode"]
-		return lines
+		return Hinted(lines)
 	end,
 })
 

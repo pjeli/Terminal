@@ -310,7 +310,7 @@ local OWN_KEYS = {
 
 --- Its keys are kept; any other key goes on to the game.
 function K.KeyDown(self, key)
-	local fn = KEYS and (KEYS[key] or (ns.IsTickKey(key) and KEYS["`"])) -- (the terminal's key, whichever: 0.65.1)
+	local fn = KEYS and KEYS[ns.TickAs(key)] -- (the terminal's key, whichever: 0.65.1)
 	if fn then fn() end
 	Panel.Propagate(self, fn)
 end
