@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.64.6 (in testing)
+## 0.64.7 (in testing)
+
+**Reagents**
+- The reagents of spells cast now and then, Divine Intervention's Symbols of Divinity and the Portals' runes, are suggested as often as any other example, not more: a paladin or mage who never carries them no longer sees "nearest reagent vendor" nearly every time. The everyday ones (candles, Symbols of Kings, Arcane Powder, teleport runes, seeds, ankhs) still come up more often.
+
+## 0.64.6
 
 **Fixes from a release review**
 - A rogue out of flash powder is pointed at the vendors that sell it (**nearest vendor sells:flash_powder**), not a reagent vendor, which doesn't.

@@ -85,6 +85,24 @@ do
 	end
 	check(fp and fp.todo and not rv, "a rogue out of Flash Powder: the vendors selling it, not a reagent vendor")
 	C_Item.GetItemNameByID = saveName
+	-- (the player, 0.64.6) a reagent of a spell cast now and then (Divine Intervention, a Portal): suggested, but not more
+	-- often than the other examples; an everyday one missing too (Symbols of Kings): more often again
+	known, bags = { [19752] = true, [25898] = true }, { [21177] = 20 }
+	_G.UnitClass = function() return "Paladin", "PALADIN" end
+	local function Reagent(adv)
+		for _, x in ipairs(E.PersonalTagged(adv)) do
+			if x[1] == "nearest reagent vendor" or x[1] == "@npc reagent is:vendor faction:friendly sort:nearest" then return x end
+		end
+	end
+	local r = Reagent(false)
+	check(r and not r.todo, "a paladin out of Symbols of Divinity only: suggested, not more often")
+	bags = {}
+	r = Reagent(false)
+	check(r and r.todo, "out of Symbols of Kings too: more often")
+	known, bags = { [11417] = true }, {}
+	_G.UnitClass = function() return "Mage", "MAGE" end
+	r = Reagent(false)
+	check(r and not r.todo, "a mage out of portal runes only: not more often")
 
 	CS.Known, C_Item.GetItemCount, _G.GetItemCount, _G.UnitClass = save.known, save.count, save.gcount, save.class
 	ns.Integrations.AddonMissing, ns.db.easyMode = save.missing, save.easy

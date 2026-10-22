@@ -214,6 +214,9 @@ E.REAGENT_SPELLS = {
 -- reagents a reagent vendor doesn't sell: "nearest vendor sells:<it>" instead (Flash Powder: poison suppliers;
 -- release review, 0.64.6)
 E.REAGENT_ELSEWHERE = { [FLASH_POWDER] = true }
+-- reagents of spells cast now and then (Divine Intervention, the Portals): suggested as often as any other example, not
+-- more (the player, 0.64.6: always lacking one, a paladin or mage saw it nearly every session)
+E.REAGENT_RARE = { [SYMBOL_OF_DIVINITY] = true, [RUNE_OF_PORTALS] = true }
 
 --- An item as a sells: value: its name, lowercase, _ for the spaces (the client's language), else its id.
 function E.SellsValue(id)
@@ -281,7 +284,9 @@ local function Gather()
 	f.ammo = E.AmmoNeed(f.classFile)
 	local need = E.ReagentNeed(f.classFile)
 	for _, id in ipairs(need or {}) do
-		if E.REAGENT_ELSEWHERE[id] then f.sells = f.sells or E.SellsValue(id) else f.reagents = true end
+		if E.REAGENT_ELSEWHERE[id] then f.sells = f.sells or E.SellsValue(id)
+		elseif E.REAGENT_RARE[id] then f.reagents = f.reagents or "rare"
+		else f.reagents = "often" end
 	end
 	-- (what's to buy, as it was: a bag change made again only when it changes; E.OnBags)
 	E.buyKey = E.BuyKey(f.ammo, need)
@@ -303,7 +308,7 @@ local function AdvancedExamples(f, add)
 	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade", nil, "field") end
 	if f.instance then add("@loot " .. f.instance .. " is:upgrade", nil, "instance") end
 	if f.ammo then add("@npc is:vendor sells:" .. f.ammo .. " faction:friendly sort:nearest", nil, nil, true) end
-	if f.reagents then add("@npc reagent is:vendor faction:friendly sort:nearest", nil, nil, true) end
+	if f.reagents then add("@npc reagent is:vendor faction:friendly sort:nearest", nil, nil, f.reagents == "often") end
 	if f.sells then add("@npc is:vendor sells:" .. f.sells .. " faction:friendly sort:nearest", nil, nil, true) end
 end
 
@@ -311,8 +316,9 @@ local function SimpleExamples(f, add)
 	local prof, dungeon = f.prof, f.dungeon
 	-- (out of ammo, or a hunter's running low: where to buy it, offered more often than the rest)
 	if f.ammo then add("nearest vendor sells:" .. f.ammo, "Questie", nil, true) end
-	-- (out of a reagent your spells use: candles, symbols, runes, seeds, an ankh)
-	if f.reagents then add("nearest reagent vendor", "Questie", nil, true) end
+	-- (out of a reagent your spells use: candles, symbols, runes, seeds, an ankh; offered more often only for the
+	-- everyday ones)
+	if f.reagents then add("nearest reagent vendor", "Questie", nil, f.reagents == "often") end
 	if f.sells then add("nearest vendor sells:" .. f.sells, "Questie", nil, true) end -- (a reagent sold elsewhere)
 	if f.cls then add("nearest " .. f.cls .. " trainer", "Questie", "city") end
 	if prof then add(prof .. " skillup", nil, "city"); add("nearest " .. prof .. " trainer", "Questie", "city") end
