@@ -133,6 +133,7 @@ local function Load(tab)
 	UI.category, UI.categoryAuto = UI.CategoryId(tab.category), nil
 	UI.refreshText = nil -- (another tab: not the same search again, whatever its text)
 	UI:SetOrResearch(type(tab.text) == "string" and tab.text or "")
+	UI:ResetUndo() -- (another tab: the last one's edits aren't this one's)
 	UI:ApplyState(tab)
 	UI:SetStatus()
 	UI:UpdateGhost()

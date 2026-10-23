@@ -67,6 +67,7 @@ K.LINES = {
 	{ "Backspace / Del", L["delete a letter (Ctrl: a word)"] },
 	{ "Ctrl+W", L["delete the word before the cursor"] },
 	{ "Ctrl+U", L["delete everything before the cursor (at the end: the whole line)"] },
+	{ "Ctrl+Z / Ctrl+Y", L["undo / redo the last edit to what you typed (Ctrl+Shift+Z redoes too)"] },
 	{ "Ctrl+C / Ctrl+V", L["copy / paste (the first press gets the text box ready: press again)"] },
 
 	{ L["Modes and the window"] },

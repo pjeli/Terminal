@@ -2499,6 +2499,7 @@ L["type to search what you ran"] = true
 L["typing"] = true
 L["uncommon"] = true
 L["undercut: AH %s"] = true
+L["undo / redo the last edit to what you typed (Ctrl+Shift+Z redoes too)"] = true
 L["unknown setting '%s'"] = true
 L["until %s"] = true
 L["untrack"] = true

@@ -12,8 +12,83 @@ local EasyOn, Wake, NextPos, BUSY_DOTS = UI.EasyOn, UI.Wake, UI.NextPos, UI.BUSY
 
 local MAX_LINES = 8 -- a long prompt wraps onto more lines (the header grows down)
 
+----------------------------------------------------------------------
+-- Undo in the prompt (0.66.1, the player): Ctrl+Z undoes the last edit to what's typed, Ctrl+Y (or Ctrl+Shift+Z) redoes
+-- it. A run of typed letters is one edit (a word at a time, as editors do: a space starts the next), as is a run of
+-- Backspaces; Ctrl+W, Ctrl+U, Ctrl+Backspace, a paste, a completion, Alt+` writing the line out are each one. Kept while
+-- the terminal is open, for the prompt it shows (a new run or another tab starts afresh).
+----------------------------------------------------------------------
+UI.UNDO_MAX = 100 -- edits kept to undo
+UI.UNDO_RUN = 1.5 -- seconds between keys that still make one run of typing
+local undo = { back = {}, fwd = {} }
+
+--- Nothing to undo or redo (the terminal opened, another tab).
+function UI:ResetUndo()
+	undo.back, undo.fwd, undo.run, undo.runAt = {}, {}, nil, nil
+end
+
+--- How `new` differs from `old`: "type" (one character typed), "erase" (one taken away), or nil (more); and whether it
+--- starts a new run all the same (a space after a word).
+local function EditKind(old, new)
+	local dn = #new - #old
+	if dn > 0 and dn <= 4 then
+		-- (one character, UTF-8: up to 4 bytes; typed where the caret was)
+		local c = UI.cursor or #old
+		if new:sub(1, c) == old:sub(1, c) and new:sub(c + 1 + dn) == old:sub(c + 1) then
+			local ch = new:sub(c + 1, c + dn)
+			-- (a space after a word starts the next run: undone, the word stays)
+			if dn == 1 and ch == " " then return "type", c > 0 and old:sub(c, c) ~= " " end
+			if dn == 1 or ch:find("^[\192-\247][\128-\191]+$") then return "type" end
+		end
+	elseif dn < 0 and dn >= -4 then
+		-- (one character taken away: Backspace or Delete, not Ctrl+W's word)
+		local p = 0
+		while p < #new and new:byte(p + 1) == old:byte(p + 1) do p = p + 1 end
+		if p > 0 and old:byte(p) >= 192 and old:byte(p) <= 247 then p = p - 1 end -- (a multi-byte character's start)
+		if new:sub(p + 1) == old:sub(p + 1 - dn) then
+			local ch = old:sub(p + 1, p - dn)
+			if #ch == 1 or ch:find("^[\192-\247][\128-\191]+$") then return "erase" end
+		end
+	end
+end
+
+--- The prompt about to change from `old` (caret `cursor`) to `new`: kept to undo, unless it continues a run of typing or
+--- erasing.
+local function Remember(old, cursor, new)
+	local kind, breaks = EditKind(old, new)
+	local now = GetTime()
+	undo.fwd = {} -- (a new edit: what was undone can't come back)
+	if kind and not breaks and undo.run == kind and undo.runAt and now - undo.runAt <= UI.UNDO_RUN then
+		undo.runAt = now
+		return
+	end
+	undo.run, undo.runAt = kind, now
+	local back = undo.back
+	back[#back + 1] = { text = old, cursor = cursor }
+	if #back > UI.UNDO_MAX then table.remove(back, 1) end
+end
+
+--- Ctrl+Z (dir -1) / Ctrl+Y (dir 1): the prompt as it was before the last edit, or again after it. False when there's
+--- nothing to undo or redo.
+function UI:UndoEdit(dir)
+	local from, to = undo.back, undo.fwd
+	if dir > 0 then from, to = undo.fwd, undo.back end
+	local s = table.remove(from)
+	if not s then return false end
+	to[#to + 1] = { text = UI.edit:GetText(), cursor = self.cursor }
+	undo.run, undo.runAt = nil, nil -- (typing after an undo is an edit of its own)
+	self.undoing = true
+	self:SetQuery(s.text, s.cursor)
+	self.undoing = nil
+	return true
+end
+
+--- How many edits can be undone and redone (the tests).
+function UI:UndoDepth() return #undo.back, #undo.fwd end
+
 function UI:SetQuery(text, cursor)
 	local edit = UI.edit
+	if not self.undoing and edit:GetText() ~= text then Remember(edit:GetText(), self.cursor or #edit:GetText(), text) end
 	self.anchor = nil -- typing, completing or clearing drops any selection
 	self.typedAt = GetTime()
 	self.cursor = math.max(0, math.min(cursor or #text, #text))

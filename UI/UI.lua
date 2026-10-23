@@ -1003,6 +1003,7 @@ function UI:Open(text, opts)
 	if edit:GetText() ~= want then edit:SetText(want) end
 	if self.refreshCount == before then self:Research() end
 	self.cursor = #edit:GetText()
+	self:ResetUndo() -- (a new run: nothing to undo from the last one)
 	self.snapNext, self.opening = false, false
 	if not self:EnterKeys() then
 		-- plain text box: focus next frame so the opening keypress isn't typed into it

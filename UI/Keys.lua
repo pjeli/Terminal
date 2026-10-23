@@ -39,6 +39,7 @@ UI.PASS_ACTIONS = {
 -- words, Alt+`; Ctrl+Enter and Shift+Enter are its own too; F1 the keys window and F5 new results, whatever the game
 -- binds to them)
 local OWN_CHORD_KEYS = { A = true, C = true, V = true, N = true, J = true, P = true, K = true, U = true, W = true,
+	Z = true, Y = true, -- (undo, redo: 0.66.1)
 	T = true, ["1"] = true, ["2"] = true, ["3"] = true, ["4"] = true, -- (tabs: Ctrl+T, Ctrl+1-4; Tabs.lua)
 	["`"] = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, HOME = true, END = true, BACKSPACE = true,
 	DELETE = true, TAB = true, ESCAPE = true, PAGEUP = true, PAGEDOWN = true, SPACE = true, F1 = true, F5 = true }
@@ -530,6 +531,10 @@ do
 				UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
 			elseif key == "V" or key == "C" then
 				ClipKey(key)
+			elseif key == "Z" then
+				UI:UndoEdit(shift and 1 or -1) -- (undo; Ctrl+Shift+Z redoes, as Ctrl+Y does: 0.66.1)
+			elseif key == "Y" then
+				UI:UndoEdit(1)
 			end
 		elseif not IsAltKeyDown() then
 			CheckChar(key)

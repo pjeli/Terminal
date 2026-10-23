@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.1 (in testing)
+
+**Undo in the prompt**
+- **Ctrl+Z** undoes your last edit to what you typed, a word at a time; **Ctrl+Y** (or **Ctrl+Shift+Z**) redoes it. Ctrl+W, Ctrl+U, Ctrl+Backspace, a paste or a completion are each one edit.
+
 ## 0.66.0
 
 **Your own key, on any keyboard** (a player on CurseForge: "how can I keybind the terminal on a German layout?")
