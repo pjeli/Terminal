@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.4 (in testing)
+
+**Sort by more than one field**
+- **sort:quality,-level**: by quality, then on a tie by level (the highest first); as many fields as you like. Distance, plan and best stand alone.
+- Simple mode's **Sort**: with a sort picked, **Shift** on another (a click, or Shift+Enter in Alt+S's menu) is its "then by"; again, the other way round; a third time, gone. The button says both ("Sort: Quality, Level").
+
 ## 0.66.3 (in testing)
 
 **Upgrades know your hit cap**

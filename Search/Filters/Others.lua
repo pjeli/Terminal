@@ -593,6 +593,7 @@ F.HELP = {
 	{ "near:500", L["@npc, @mailbox, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },
 	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
+	{ "sort:quality,-level", L["several fields: by the first, then on a tie by the next (sort:quality,-level: the best first, the highest level first among equals); Simple mode's Sort takes a then by with Shift"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
 	{ "sort:distance", L["NPCs, mailboxes, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },

@@ -507,15 +507,39 @@ local function SortId(v)
 	if neg == "-" then rev = not rev end
 	return rev and ("-" .. base) or base
 end
+-- Sort by more than one field (0.66.4, the player): sort:quality,-level is by quality, then on a tie by level, the
+-- lowest first; as many as typed. Only fields (name, level, value...) follow the first: distance, plan and best sort
+-- their own ways, so they stand alone.
+local NOT_THEN = { distance = true, plan = true, best = true }
+--- "quality,-level" -> "quality,-level" (each part as SortId says it), "nearest" -> "distance"; nil when a part isn't a
+--- sort, or distance, plan or best are in a list of several.
+local function SortIds(v)
+	if not v:find(",", 1, true) then return SortId(v) end
+	local out = {}
+	for part in (v .. ","):gmatch("([^,]*),") do
+		local id = part ~= "" and SortId(part)
+		if not id or NOT_THEN[(F.SortParts(id))] then return nil end
+		out[#out + 1] = id
+	end
+	return #out > 0 and table.concat(out, ",") or nil
+end
+--- A sort's parts: "quality,-level" -> { "quality", "-level" }; nil -> {}.
+function F.SortList(id)
+	local out = {}
+	if type(id) ~= "string" then return out end
+	for part in (id .. ","):gmatch("([^,]*),") do if part ~= "" then out[#out + 1] = part end end
+	return out
+end
 KEYS.sort = function(v)
-	if not SortId(v) then return nil end
+	if not SortIds(v) then return nil end
 	return function() return true end
 end
---- "sort:distance" -> "nearest", "sort:plan" -> "plan", "sort:-level" -> "-level" (the other way round), else nil.
+--- "sort:distance" -> "nearest", "sort:plan" -> "plan", "sort:-level" -> "-level" (the other way round),
+--- "sort:quality,-level" -> "quality,-level", else nil.
 function F.SortOf(word)
 	if type(word) ~= "string" then return nil end
-	local k, v = word:match("^(%a+):(%-?%a+)$")
-	if k and Lower(k) == "sort" then return SortId(v) end
+	local k, v = word:match("^(%a+):([%-%a,]+)$")
+	if k and Lower(k) == "sort" then return SortIds(v) end
 end
 KEYS.sells = function(v)
 	if v == "" then return nil end

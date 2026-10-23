@@ -25,7 +25,7 @@ local B = {}
 ns.Bar = B
 
 B.H = 22
-local state = { filters = {}, sort = nil, group = nil }
+local state = { filters = {}, sort = nil, group = nil, thenBy = nil } -- (thenBy: Sort's "then by", Shift picked; 0.66.4)
 B.state = state -- (tests)
 
 -- what Filter offers: the filter (an Advanced one), what it says; shown when a list it judges is shown (F.APPLIES)
@@ -125,7 +125,7 @@ end
 function B.Active()
 	local Ez = E()
 	if not (Ez and Ez.On and Ez.On()) or Ez.temp or UI.fzf or UI.histSearch then return nil end
-	if #state.filters == 0 and not state.sort and not state.group then return nil end
+	if #state.filters == 0 and not state.sort and not state.group and not state.thenBy then return nil end
 	return state
 end
 
@@ -140,16 +140,16 @@ end
 function B.Save()
 	local f = {}
 	for i, id in ipairs(state.filters) do f[i] = id end
-	return { filters = f, sort = state.sort, group = state.group }
+	return { filters = f, sort = state.sort, group = state.group, thenBy = state.thenBy }
 end
 function B.Restore(saved)
-	state.filters, state.sort, state.group = {}, saved.sort, saved.group
+	state.filters, state.sort, state.group, state.thenBy = {}, saved.sort, saved.group, saved.thenBy
 	for i, id in ipairs(saved.filters or {}) do state.filters[i] = id end
 end
 
 function B.Reset()
-	local had = #state.filters > 0 or state.sort or state.group
-	state.filters, state.sort, state.group = {}, nil, nil
+	local had = #state.filters > 0 or state.sort or state.group or state.thenBy
+	state.filters, state.sort, state.group, state.thenBy = {}, nil, nil, nil
 	if B.menu then B.menu:Hide() end
 	if B.tipUp then B.tipUp = nil; if B.tip then B.tip:Hide() end end
 	return had
@@ -299,15 +299,38 @@ local function KeyOf(s, e)
 	end
 	return NumOf(s.field, e)
 end
-local function Keyed(s, rows, asc)
+--- Of two rows' keys for the "then by" sorts (`more`: { { s, asc } ... }; 0.66.4), which comes first: -1, 1, or 0 for
+--- a tie (a row without the field after one with it).
+local function ThenOrder(more, am, bm)
+	for j, m in ipairs(more) do
+		local x, y = am[j], bm[j]
+		if x ~= y then
+			if x == nil then return 1 end
+			if y == nil then return -1 end
+			if type(x) ~= type(y) then x, y = tostring(x), tostring(y) end
+			if m.asc then return x < y and -1 or 1 end
+			return x > y and -1 or 1
+		end
+	end
+	return 0
+end
+local function MoreKeys(more, e)
+	if not more then return nil end
+	local t = {}
+	for j, m in ipairs(more) do t[j] = KeyOf(m.s, e) end
+	return t
+end
+local function Keyed(s, rows, asc, more)
 	if asc == nil then asc = s.asc end
+	if more and #more == 0 then more = nil end
 	local keyed, rest = {}, {}
 	-- (a tie-breaker field, lowest first: sort:slots, then the level; 0.65.3)
 	local tie = s.tie and { field = s.tie }
 	for i, e in ipairs(rows) do
 		if Real(e) then
 			local k = KeyOf(s, e)
-			if k ~= nil then keyed[#keyed + 1] = { e = e, k = k, i = i, t = tie and KeyOf(tie, e) or nil } else rest[#rest + 1] = e end
+			if k ~= nil then keyed[#keyed + 1] = { e = e, k = k, i = i, t = tie and KeyOf(tie, e) or nil, m = MoreKeys(more, e) }
+			else rest[#rest + 1] = e end
 		end
 	end
 	-- (a sort with a tie field, sort:slots: then by name, as its question lists them; the rows without the field after,
@@ -317,6 +340,11 @@ local function Keyed(s, rows, asc)
 		if a.k ~= b.k then
 			if asc then return a.k < b.k end
 			return a.k > b.k
+		end
+		-- (then by the fields typed after it: sort:quality,-level; 0.66.4)
+		if more then
+			local o = ThenOrder(more, a.m, b.m)
+			if o ~= 0 then return o < 0 end
 		end
 		if a.t ~= b.t and a.t ~= nil and b.t ~= nil then return a.t < b.t end
 		if NAME then
@@ -346,13 +374,29 @@ end
 --- have it scored above any search score, in its order (a pinned row stays on top). Past 5000 rows, only the first
 --- `keep` (the rows shown) are found, with a bounded heap: not every row sorted (0.63.7, review: past 5000 the sort was
 --- skipped, "@stress1 ka sort:name" listed by relevance). `overBudget`: the search's clock, to yield on.
-function B.SortRows(rows, id, keep, overBudget)
-	local base, rev = SortParts(id)
+--- A sort's id (several: "quality,-level", 0.66.4) as its first field's sort, its way, and the fields after it, each with
+--- its way: s, asc, { { s, asc } ... }; nil when the first isn't a field's.
+local function SortSpec(id)
+	local parts = {}
+	if type(id) == "string" then for part in (id .. ","):gmatch("([^,]*),") do if part ~= "" then parts[#parts + 1] = part end end end
+	local base, rev = SortParts(parts[1])
 	local s = ById(B.SORTS, base)
-	if not (s and s.field) then return rows end
-	local asc = Ascending(s, rev)
+	if not (s and s.field) then return nil end
+	local more = {}
+	for j = 2, #parts do
+		local b2, r2 = SortParts(parts[j])
+		local s2 = ById(B.SORTS, b2)
+		if s2 and s2.field then more[#more + 1] = { s = s2, asc = Ascending(s2, r2) } end
+	end
+	return s, Ascending(s, rev), more
+end
+B.SortSpec = SortSpec
+
+function B.SortRows(rows, id, keep, overBudget)
+	local s, asc, more = SortSpec(id)
+	if not s then return rows end
 	if #rows <= 5000 then
-		local keyed, rest = Keyed(s, rows, asc)
+		local keyed, rest = Keyed(s, rows, asc, more)
 		for i, r in ipairs(keyed) do r.e._score = 1e10 - i end
 		-- (a sort with a tie field: the rows without the field after, in the tie's order; Keyed)
 		if s.tie then for i, e in ipairs(rest) do e._score = 1e9 - i end end
@@ -360,8 +404,13 @@ function B.SortRows(rows, id, keep, overBudget)
 	end
 	keep = keep or 100
 	-- (a before b in the field's order; the earlier row first on a tie)
+	if #more == 0 then more = nil end
 	local function Before(a, b)
 		if a.k ~= b.k then if asc then return a.k < b.k end return a.k > b.k end
+		if more then
+			local o = ThenOrder(more, a.m, b.m)
+			if o ~= 0 then return o < 0 end
+		end
 		return a.i < b.i
 	end
 	local heap, size = {}, 0 -- (the last of the kept ones on top)
@@ -387,7 +436,7 @@ function B.SortRows(rows, id, keep, overBudget)
 		if Real(e) then
 			local k = KeyOf(s, e)
 			if k ~= nil then
-				local r = { e = e, k = k, i = i }
+				local r = { e = e, k = k, i = i, m = MoreKeys(more, e) }
 				if size < keep then
 					size = size + 1
 					heap[size] = r
@@ -407,14 +456,12 @@ end
 --- A question's rows in a field's order (Search.lua's Scan.AnswerView: an answer isn't scored): each run of results
 --- between its lines (a heading, a note) sorted on its own, the rows with the field first. A new list.
 function B.Order(rows, id)
-	local base, rev = SortParts(id)
-	local s = ById(B.SORTS, base)
-	if not (s and s.field) or #rows > 5000 then return rows end
-	local asc = Ascending(s, rev)
+	local s, asc, more = SortSpec(id)
+	if not s or #rows > 5000 then return rows end
 	local out, run = {}, {}
 	local function Flush()
 		if #run == 0 then return end
-		local keyed, rest = Keyed(s, run, asc)
+		local keyed, rest = Keyed(s, run, asc, more)
 		for _, r in ipairs(keyed) do out[#out + 1] = r.e end
 		for _, e in ipairs(rest) do out[#out + 1] = e end
 		run = {}
@@ -511,12 +558,19 @@ function B.Options(which)
 	end
 	if which == "sort" then
 		local pickedBase, pickedRev = SortParts(state.sort)
-		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
+		-- (a typed sort of several fields, sort:quality,-level: its first is the sort, the next its "then by")
+		local typedList = ns.Filters and ns.Filters.SortList and ns.Filters.SortList(typed.sort and typed.sort.id) or {}
+		local typedBase, typedRev = SortParts(typedList[1])
+		local thenBase, thenRev = SortParts(state.thenBy or (not state.sort and typedList[2]) or nil)
 		for _, o in ipairs(B.SORTS) do
 			local typedHere = typedBase == o.id
 			local fits = o.near and Fits("sort:distance", kinds) or (o.field and Has(o.field))
 			local on = pickedBase == o.id or typedHere
-			if fits or on then
+			local isThen = not on and thenBase == o.id and o.field and true or false
+			if isThen then
+				-- (the "then by": its arrow too, said as such; 0.66.4)
+				out[#out + 1] = { id = o.id, label = o.label, on = true, thenBy = true, asc = Ascending(o, thenRev) }
+			elseif fits or on then
 				-- (which way: an arrow, up for ascending, down for descending, in the tick's place; 0.65.5, the player)
 				-- (a word typed that sorts by distance, "farthest innkeeper": the search goes by it, so the arrow does too;
 				-- 0.65.x review: the arrow said nearest over the farthest listed)
@@ -545,8 +599,9 @@ function B.Options(which)
 end
 
 --- Pick or drop an option: Filter's add up, Sort's and Group's are one each. The terminal searches again.
-function B.Pick(which, id)
+function B.Pick(which, id, thenBy)
 	local typed = B.Typed()
+	if which == "sort" and thenBy then return B.PickThen(id) end
 	if which == "filter" then
 		-- (one typed as a word, not picked here: its word taken out of the line)
 		local mine = false
@@ -611,6 +666,35 @@ function B.Pick(which, id)
 	B.Changed()
 end
 
+--- Shift picked on Sort (0.66.4, the player: a "then by" pick): rows that tie on the sort go by this one. Picked again:
+--- the other way round; a third time: gone. Nothing sorted yet: it's the sort. A typed sort of several fields
+--- (sort:quality,-level) becomes the bar's own first, its word taken out.
+function B.PickThen(id)
+	local typed = B.Typed()
+	local o = ById(B.SORTS, id)
+	if not (o and o.field) then return B.Pick("sort", id) end
+	local list = ns.Filters and ns.Filters.SortList and ns.Filters.SortList(typed.sort and typed.sort.id) or {}
+	local dropWord
+	if not state.sort and list[1] then
+		-- (the typed sort is the bar's own now: its first field, and its "then by" when it had one)
+		state.sort = list[1]
+		if list[2] and not state.thenBy then state.thenBy = list[2] end
+		dropWord = typed.sort.drop and typed.sort.word or nil
+	end
+	local base = SortParts(state.sort)
+	if not state.sort or base == "distance" or base == id then
+		if dropWord then state.sort, state.thenBy = nil, nil end
+		return B.Pick("sort", id)
+	end
+	local thenBase, thenRev = SortParts(state.thenBy)
+	local first = (o.asc and not B.LOW_FIRST[id]) and ("-" .. id) or id -- (the way a pick starts: as Sort's)
+	if thenBase ~= id then state.thenBy = first
+	elseif state.thenBy == first then state.thenBy = (thenRev and id) or ("-" .. id)
+	else state.thenBy = nil end
+	if dropWord then B.DropWords({ dropWord }) B.Update() return end
+	B.Changed()
+end
+
 --- Nothing picked for Filter, Sort or Group: the words typed for it taken out of the line too.
 function B.Clear(which)
 	local typed, words = B.Typed(), {}
@@ -618,7 +702,7 @@ function B.Clear(which)
 		state.filters = {}
 		for _, p in ipairs(typed.filters) do words[#words + 1] = p.word end
 	elseif which == "sort" then
-		state.sort = nil
+		state.sort, state.thenBy = nil, nil
 		if typed.sort then words[1] = typed.sort.word end
 	else
 		state.group = nil
@@ -629,7 +713,16 @@ function B.Clear(which)
 end
 
 --- Something picked or dropped: the search again (its filters, sort and summing), the bar redrawn.
+--- The "then by" only after a sort of the bar's own that isn't it, nor distance (which sorts its own way): else gone.
+local function TidyThen()
+	if not state.thenBy then return end
+	local nb = SortParts(state.sort)
+	if not state.sort or nb == "distance" or SortParts(state.thenBy) == nb then state.thenBy = nil end
+end
+B.TidyThen = TidyThen
+
 function B.Changed()
+	TidyThen()
 	UI.lastScan, UI.lastExtra = nil, nil -- (another filter: not a narrowing of the last keystroke's matches)
 	if UI.frame and UI:IsShown() then UI:Research() end
 	B.Update()
@@ -682,8 +775,12 @@ local function Label(which, typed)
 		if #labels > 1 then return L["Filter: %d"]:format(#labels) end
 		return L["Filter"]
 	elseif which == "sort" then
-		local base = SortParts(state.sort or (typed.sort and typed.sort.id))
-		local o = base and ById(B.SORTS, base)
+		local list = ns.Filters and ns.Filters.SortList and ns.Filters.SortList(state.sort or (typed.sort and typed.sort.id)) or {}
+		local o = list[1] and ById(B.SORTS, (SortParts(list[1])))
+		-- (and its "then by", "Sort: Quality, Level"; 0.66.4)
+		local nxt = state.thenBy or (not state.sort and list[2]) or nil
+		local t = nxt and ById(B.SORTS, (SortParts(nxt)))
+		if o and t then return L["Sort: %s"]:format(o.label .. ", " .. t.label) end
 		return o and L["Sort: %s"]:format(o.label) or L["Sort"]
 	else
 		local g = B.GroupOn() -- (a group typed is the one summed up: TakeAggregate; steps typed: none of the bar's)
@@ -784,6 +881,7 @@ function B.Height() return B.On() and B.H or 0 end
 
 --- Shown or hidden, its labels: from the footer's update (List.lua), on every keystroke and selection.
 function B.Update()
+	B.TidyThen()
 	if not UI.frame then return end
 	local h = B.Height()
 	if h ~= (UI.barH or 0) then
@@ -938,7 +1036,8 @@ local function MenuLine(m, i)
 		local which, id = m.which, b.id
 		if id == nil then return end -- (a line saying something: nothing to pick)
 		if id == false then B.Clear(which) m:Hide() return end
-		B.Pick(which, id)
+		-- (Shift: Sort's "then by"; 0.66.4)
+		B.Pick(which, id, which == "sort" and IsShiftKeyDown and IsShiftKeyDown() or nil)
 		-- (filters add up: it stays open, the keys' line where it was)
 		-- (the keys' line: the one picked again, found by what it is; a typed one unticked has gone: the line where it was)
 		if which == "filter" then B.ShowMenu(which, m.owner, m.keys, m.keys and m.keySel, id) else m:Hide() end
@@ -958,12 +1057,19 @@ function B.ShowMenu(which, owner, keys, sel, selId)
 		on = #opts == 0 or not HasOn(opts) } }
 	for _, o in ipairs(opts) do items[#items + 1] = o end
 	if #opts == 0 then items[#items + 1] = { label = L["Nothing to pick for these results"], dead = true } end
+	-- (a field sorted by: Shift picks another to go by on a tie; 0.66.4)
+	if which == "sort" then
+		for _, o in ipairs(opts) do
+			local so = o.on and not o.thenBy and ById(B.SORTS, o.id)
+			if so and so.field then items[#items + 1] = { label = L["Shift: then by another"], dead = true } break end
+		end
+	end
 	m.which, m.owner = which, owner
 	for i, it in ipairs(items) do
 		local b = MenuLine(m, i)
 		-- ("No filter" is false: kept, not turned into nil by an and/or; a line saying something has none)
 		if it.dead then b.id = nil else b.id = it.id end
-		b.fs:SetText(it.typed and L["%s (typed)"]:format(it.label) or it.label)
+		b.fs:SetText(it.thenBy and L["then by %s"]:format(it.label) or it.typed and L["%s (typed)"]:format(it.label) or it.label)
 		b.fs:SetTextColor(Theme.RGB(it.dead and t.dim or (it.on and t.accent or t.text)))
 		local way = it.on and it.asc ~= nil
 		b.check:SetShown((it.on and not way) and true or false)

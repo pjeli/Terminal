@@ -14,11 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.66.3", when = "in testing",
+		v = "0.66.4", when = "in testing",
 		items = {
 			"Undo in the prompt: Ctrl+Z undoes your last edit to what you typed (a word, a Ctrl+W, a paste), Ctrl+Y redoes it.",
 			"Upgrades follow your talents: with no tree picked, .weights judges by the tree holding most of your talent points (31 in Fury: Fury), and follows a respec. .weights all goes back to that.",
 			"Upgrades know your hit cap: hit past it counts for nothing (5% melee, 4% spells below 60; 9% and 16% at 60), so a +2% hit item isn't an upgrade once you're capped. .weights says where you stand.",
+			"Sort by more than one field: sort:quality,-level sorts by quality, then by level on a tie. In Simple mode, Shift on a Sort pick makes it the \"then by\".",
 		},
 	},
 	{

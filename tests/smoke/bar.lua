@@ -266,7 +266,10 @@ do
 		check(m.lines[m.keySel].id == "name", "opened again: the line ticked is the one picked")
 		while m.keySel ~= 1 do key("UP") end
 		key("UP")
-		check(m.keySel == m.n, "Up from the first line: round to the last")
+		-- (the last line that picks something: the hint under a sort, "Shift: then by another", says something only; 0.66.4)
+		local lastPick = m.n
+		while m.lines[lastPick].id == nil do lastPick = lastPick - 1 end
+		check(m.keySel == lastPick and lastPick >= m.n - 1, "Up from the first line: round to the last")
 		key("DOWN"); key("ENTER"); FlushAll()
 		check(B.state.sort == nil, "Best match from the keys: no sort: " .. tostring(B.state.sort))
 		alt(function() key("F", "f") end)

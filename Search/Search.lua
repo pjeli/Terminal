@@ -1439,6 +1439,8 @@ function Scan.Parse(self, text)
 		for _, w in ipairs(bar.filters) do Scan.AddFilter(q, F and F.Parse(w), "hard", "!bar:" .. w, nil, w) end
 		if bar.sort == "distance" or bar.sort == "-distance" then q.sortNear, q.sortFar = true, bar.sort == "-distance" or nil
 		elseif bar.sort then q.sortField = bar.sort end
+		-- (Sort's "then by", Shift picked: on a tie, by it; 0.66.4)
+		if bar.thenBy and q.sortField then q.sortField = F.SortList(q.sortField)[1] .. "," .. bar.thenBy end
 		q.group = bar.group
 	end
 	return q
@@ -1580,7 +1582,7 @@ function Scan.Prepare(self, q)
 	-- (0.65.6, the player's screenshot: "the advanced version of the bags search loses the slots in the details
 	-- column") a quest search for bags (reward:bag, sort:slots) says which bag and its slots: Rewards.lua. A sort turned
 	-- round (sort:-ahvalue) says it too.
-	local sf = q.sortField and (q.sortField:gsub("^%-", ""))
+	local sf = q.sortField and ((ns.Filters.SortList(q.sortField)[1] or ""):gsub("^%-", ""))
 	local auctionable, bags = false, nil
 	for w in ns.Lower(q.text or ""):gmatch("%S+") do
 		if w == "is:auctionable" then auctionable = true
