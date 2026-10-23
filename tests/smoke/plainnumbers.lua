@@ -27,6 +27,10 @@ do
 		{ "quests at most level 10", "quests lvl:<=10" },
 		{ "from level 10 to 20", "lvl:10-20" },
 		{ "gear with durability below 50%", "gear with dura:<50" },
+		-- (review) the per cent before the word
+		{ "gear under 50% durability", "gear dura:<50" },
+		{ "gear with 50% durability or less", "gear with dura:<=50" },
+		{ "under 50% off", "under 50% off" },
 		{ "linen under 1 gold 50 silver", "linen value:<1g50s" },
 		{ "cloth worth between 10s and 1g", "cloth value:10s-1g" },
 		{ "item level over 30", "ilvl:>30" },

@@ -74,6 +74,8 @@ do
 	-- plain words
 	local rest, step = E.SetOp("cloth but not in my bank")
 	check(rest == "cloth" and step == "except @bank", "but not in my bank: " .. tostring(rest) .. " / " .. tostring(step))
+	rest = E.SetOp("Hogger  but not in my bank")
+	check(rest == "Hogger", "the line kept as typed: " .. tostring(rest))
 	check(select(2, E.SetOp("cloth plus my alts")) == "also @stored" and select(2, E.SetOp("not in my bank")) == nil
 		and select(2, E.SetOp("cloth not boe")) == nil, "plus my alts; alone or another not: no comparison")
 	ns.db.easyMode = true; UI:EasyChanged()

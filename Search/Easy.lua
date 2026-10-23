@@ -1027,8 +1027,12 @@ function E.PlainNumbers(words)
 				else
 					local v, nv, money = NumAt(lw, i + no, nil)
 					if not v then v, nv = NumAt(lw, i + no, "slots") end
+					-- ("under 50% durability": a per cent, said only of durability; review)
+					local pct
+					if not v then v, nv = NumAt(lw, i + no, "dura"); pct = v ~= nil end
 					if v then
 						local f3, n3 = FieldAt(lw, i + no + nv)
+						if pct and f3 ~= "dura" then f3 = nil end
 						if f3 and (E.NUM_AFTER[f3] or (f3 == "value" and money)) then key, value, take = f3, op .. v, no + nv + n3
 						elseif money then key, value, take = "value", op .. v, no + nv end
 					end
@@ -1038,8 +1042,11 @@ function E.PlainNumbers(words)
 		-- "10 slots or more", "10 slots", "50% durability or less"
 		if not key and not dates then
 			local v, nv = NumAt(lw, i, "slots")
+			local pct
+			if not v then v, nv = NumAt(lw, i, "dura"); pct = v ~= nil end
 			if v then
 				local f3, n3 = FieldAt(lw, i + nv)
+				if pct and f3 ~= "dura" then f3 = nil end
 				if f3 and E.NUM_AFTER[f3] then
 					local post, np = OpAt(lw, i + nv + n3, E.NUM_AFTERWARDS)
 					key, value, take = f3, (post or "") .. v, nv + n3 + (np or 0)
@@ -1183,7 +1190,10 @@ function E.SetOp(text)
 	for _, t in ipairs(setTails) do
 		local tail = t[1]
 		if #lt > #tail and lt:sub(-#tail) == tail then
-			local rest = lt:sub(1, #lt - #tail)
+			-- (the line as typed, its last words gone: "Hogger but not in my bank" keeps "Hogger"; review)
+			local rest = (text:gsub("%s+$", ""))
+			for _ in tail:gmatch("%S+") do rest = (rest:gsub("%s*%S+$", "")) end
+			rest = (rest:gsub("^%s+", ""))
 			if rest:find("%S") then return rest, t[2] end
 		end
 	end
@@ -1481,12 +1491,23 @@ TimeSay = function(v)
 	local t = TIME_SAY[v]
 	if t then return t end
 	local n, unit = v:match("^(%d+%.?%d*)(%a+)$")
-	local units = { m = L["minutes"], h = L["hours"], d = L["days"], w = L["weeks"] }
+	-- (one of them: "1 day", not "1 days"; review)
+	local units = n == "1" and { m = L["minute"], h = L["hour"], d = L["day"], w = L["week"] }
+		or { m = L["minutes"], h = L["hours"], d = L["days"], w = L["weeks"] }
 	local u = unit and units[unit:sub(1, 1)]
 	return n and u and L["%s %s"]:format(n, u) or v
 end
+--- since:'s value said: "in the last 3 days", "in the last hour", "since yesterday" (`upper`: as a label starts).
+local function SinceSay(v, upper)
+	local n, unit = v:match("^(%d+%.?%d*)(%a+)$")
+	if n then
+		local one = n == "1" and ({ m = L["minute"], h = L["hour"], d = L["day"], w = L["week"] })[unit:sub(1, 1)]
+		return (upper and L["In the last %s"] or L["in the last %s"]):format(one or TimeSay(v))
+	end
+	return (upper and L["Since %s"] or L["since %s"]):format(TimeSay(v))
+end
 
-E.LevelSay, E.TimeSay = LevelSay, TimeSay -- (the bar's words for them: Bar.lua's SpecLabel)
+E.LevelSay, E.TimeSay, E.SinceSay = LevelSay, TimeSay, SinceSay -- (the bar's words for them: Bar.lua's SpecLabel)
 
 --- One filter (key:value) said: { noun = ..., adj = ..., after = ... } (where it goes in the sentence).
 local function FilterSay(key, val)
@@ -1515,7 +1536,7 @@ local function FilterSay(key, val)
 	elseif key == "near" then return { after = L["within %s yards"]:format(RangeSay(v)) }
 	elseif key == "reward" or key == "rewards" then return { after = L["rewarding %s"]:format(v) }
 	elseif key == "standing" or key == "rep" then return { after = L["at %s"]:format(RangeSay(v)) }
-	elseif key == "since" then return { after = L["since %s"]:format(TimeSay(v)) }
+	elseif key == "since" then return { after = SinceSay(v) }
 	elseif key == "older" or key == "before" then return { after = v:find("^%d") and L["older than %s"]:format(TimeSay(v)) or L["from before %s"]:format(TimeSay(v)) }
 	elseif key == "class" then return { after = L["of the %s class"]:format(v) }
 	elseif key == "when" then return { after = L["on the calendar %s"]:format(TIME_SAY[v] or v) }
@@ -1672,6 +1693,9 @@ ns:RegisterCommand("explain", {
 			for _, l in ipairs(lines) do
 				if not l:find("^%s*[%./]") then args = l break end
 			end
+			-- (a line in plain words: explained as Advanced writes it, not word for word; review)
+			local looks = ns.UI and ns.UI.LooksAdvanced
+			if args ~= "" and looks and not looks(args) then args = E.ToAdvanced(args) or args end
 			if args == "" then return { L["Which line? .explain @npc is:vendor sort:distance"] } end
 		end
 		local said = E.Explain(args)

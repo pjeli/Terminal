@@ -196,6 +196,7 @@ do
 		end
 		if not UI._histSet and t ~= UI.histText then UI.histIdx = nil end
 		if not UI.keys and UI.NoteBoxText then UI:NoteBoxText(t) end -- (a paste, typing in combat: undone by Ctrl+Z; 0.66.x review)
+		if UI.hit and UI.hit.tip and UI.ExplainTipAgain then UI.ExplainTipAgain() end
 		if not UI.keys then
 			local cp = self:GetCursorPosition()
 			if type(cp) == "number" then UI.cursor = cp end
@@ -308,7 +309,7 @@ do
 		hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
 		hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
 		-- (the pointer on a line of Advanced syntax: it said in plain words; 0.66.9, the player: "the explain")
-		hit:SetScript("OnEnter", function(self)
+		local function ExplainTip(self)
 			local text = edit and edit:GetText() or ""
 			local E = ns.Easy
 			if not (E and E.Explain and UI.LooksAdvanced and UI.LooksAdvanced(text)) then return end
@@ -320,7 +321,16 @@ do
 			t:AddLine(said, 0.8, 0.8, 0.8, true)
 			self.tip = t
 			t:Show()
-		end)
+		end
+		hit:SetScript("OnEnter", ExplainTip)
+		-- (the line changed with the pointer still on it: said again, or gone when it isn't Advanced now; review)
+		UI.ExplainTipAgain = function()
+			local t = hit.tip
+			if not t then return end
+			hit.tip = nil
+			t:Hide()
+			ExplainTip(hit)
+		end
 		hit:SetScript("OnLeave", function(self)
 			local t = self.tip
 			self.tip = nil

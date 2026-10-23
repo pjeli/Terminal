@@ -18,6 +18,10 @@ do
 		{ "@item is:upgrade sort:best >> party", "Upgrades for you, biggest upgrades first, sent to party" },
 		{ "@questie lvl:me-2..me+3", "Quests, from 2 levels below yours to 3 levels above yours" },
 		{ "type:sword|type:axe", "Sword or axe" },
+		-- (review) a time ago said as one: not "since 3 days", "since 1 hours"
+		{ "@drop since:3d", "Loot you saw drop, in the last 3 days" },
+		{ "@drop since:1h", "Loot you saw drop, in the last hour" },
+		{ "@mail older:1d", "Mail, older than 1 day" },
 	}
 	for _, c in ipairs(CASES) do
 		local got = E.Explain(c[1])
@@ -31,6 +35,12 @@ do
 	ns:RecordHistory("@mail is:unread")
 	out = cmd.run("", ns)
 	check(out[1] == "@mail is:unread" and out[2]:find("Unread mail", 1, true), ".explain: the last line run: " .. tostring(out[2]))
+	-- (review) the last line in plain words: explained as Advanced writes it, not word for word
+	ns:RecordHistory("the 3 nearest mailboxes")
+	out = cmd.run("", ns)
+	check(out[1] ~= "the 3 nearest mailboxes" and not tostring(out[2]):find("matching the 3 nearest", 1, true),
+		".explain: a Simple line as Advanced writes it: " .. tostring(out[1]) .. " / " .. tostring(out[2]))
+	check(ns.Bar.SpecLabel("since:3d", "since:3d") == ns.L["In the last %s"]:format("3 " .. ns.L["days"]), "the bar says it so too: " .. tostring(ns.Bar.SpecLabel("since:3d", "since:3d")))
 end
 
 io.write("[explain: the pointer on an Advanced line]\n")
@@ -49,6 +59,13 @@ do
 	UI:SetQuery("hogger"); T.FlushAll()
 	UI.hit.scripts.OnEnter(UI.hit)
 	check(#shown == 0, "plain words: nothing to say")
+	-- (review) the line changed with the pointer still on it: said again
+	UI:SetQuery("@mail is:unread"); T.FlushAll()
+	UI.hit.scripts.OnEnter(UI.hit)
+	shown = {}
+	UI:SetQuery("@npc is:innkeeper sort:distance"); T.FlushAll()
+	check(shown[1] == "Innkeepers, nearest first", "typed on with the pointer on it: said again: " .. tostring(shown[1]))
+	UI.hit.scripts.OnLeave(UI.hit)
 	_G.GameTooltip = realTip
 	UI:Hide(); T.FlushAll()
 end

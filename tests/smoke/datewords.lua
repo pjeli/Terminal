@@ -42,6 +42,16 @@ do
 	_G.date = function(f, t) return os.date(f, t or now) end
 	local midnight = os.time({ year = 2026, month = 10, day = 22, hour = 0 })
 	check(F.TimeStart("today") == midnight and F.TimeStart("yesterday") == midnight - 86400, "today and yesterday: from midnight")
+	-- (review) the day after the clocks went forward: yesterday was 23 hours long, its midnight by the calendar
+	local realT = _G.time
+	_G.time = function(t)
+		if not t then return now end
+		if t.day == 22 then return midnight end
+		if t.day == 21 then return midnight - 23 * 3600 end
+		return realT(t)
+	end
+	check(F.TimeStart("yesterday") == midnight - 23 * 3600, "yesterday on a 23-hour day: its own midnight: " .. tostring(midnight - F.TimeStart("yesterday")))
+	_G.time = realT
 	check(F.TimeStart("3d") == now - 3 * 86400 and F.TimeStart("2h") == now - 7200 and F.TimeStart("30m") == now - 1800
 		and F.TimeStart("week") == now - 7 * 86400, "a time ago")
 	check(F.TimeStart("bogus") == nil and F.Parse("since:bogus") == nil, "since:bogus isn't one")
@@ -85,4 +95,35 @@ do
 	ns.db.combatLog = {}
 	ns.providers.combatlog._dirty = true
 	_G.time, _G.date, ns.Now = save.time, save.date, realNow
+end
+
+io.write("[datewords: a name with a date's or a level's words in it (review)]\n")
+do
+	local B = ns.Bar
+	local saved = { providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode }
+	ns.providers, ns.providerOrder = {}, {}
+	local NAMES = { "Tonight We Dine", "Last Day of Summer", "Next Level Thinking", "Copper Bar" }
+	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function()
+		local out = {}
+		for i, n in ipairs(NAMES) do out[i] = { name = n, key = i, itemID = 9900 + i } end
+		return out
+	end })
+	ns:AliasesChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+	ns.db.easyMode = true; UI:EasyChanged()
+	local function Has(q)
+		local res = UI:Search(q)
+		for _, e in ipairs(res) do
+			local n = tostring((e.catId and e.detail) or e.name)
+			if ns.Lower(n):find(q, 1, true) then return true end
+		end
+		return false, #res
+	end
+	for _, q in ipairs({ "tonight we dine", "last day of summer", "next level thinking" }) do
+		check(Has(q), q .. ": the name found, not a date or level that nothing has")
+	end
+	check(ns.Easy.PlainNumbers({ "loot", "today" })[2] == "since:today", "a date alone is still one")
+	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
+	ns:AliasesChanged(); UI:EasyChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
 end

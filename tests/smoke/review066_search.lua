@@ -155,5 +155,5 @@ do
 	local adv = E.ToAdvanced("5 sword >> party")
 	check(adv:find("| first 5", 1, true) and adv:find(">> party", 1, true), "5 sword >> party: " .. adv)
 	ns.db.easyMode = easy; UI:EasyChanged()
-	check(E.Explain("@drop since:3days") == "Loot you saw drop, since 3 days", "explain says what since: reads: " .. tostring(E.Explain("@drop since:3days")))
+	check(E.Explain("@drop since:3days") == "Loot you saw drop, in the last 3 days", "explain says what since: reads: " .. tostring(E.Explain("@drop since:3days")))
 end

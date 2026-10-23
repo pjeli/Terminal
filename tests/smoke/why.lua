@@ -28,6 +28,28 @@ do
 	check(lines:find(L["\"%s\": %s"]:format("sword", L["in its name"]), 1, true), "the word, in its name")
 	check(lines:find("passed count:2+ (" .. L["%s of them"]:format(L["%s or more"]:format("2")) .. ")", 1, true), "the filter it passed, said: " .. lines)
 	check(lines:find(L["sorted by %s: %s"]:format(L["count"], "3"), 1, true), "the sort's value for it")
+	-- (review) sort:name says its name; a quality its word, not its number
+	UI:SetQuery("@item sword sort:name "); FlushAll()
+	lines = table.concat(UI:WhyLines(UI.Results()[1]), "\n")
+	check(lines:find(L["sorted by %s: %s"]:format(L["name"], "Arcanite Sword"), 1, true), "sorted by name: its name: " .. lines)
+	-- (review) "| also": said only of the rows it added
+	ns:RegisterProvider("bank", { label = "Bank", aliases = { "bank" }, collect = function()
+		return { { name = "Thorium Sword", key = "b1", text = "in the bank" } }
+	end })
+	ns:AliasesChanged()
+	UI:SetQuery("@item sword | also @bank "); FlushAll()
+	local own, added
+	for _, e in ipairs(UI.Results()) do
+		if e.name == "Iron Sword" then own = e elseif e.name == "Thorium Sword" then added = e end
+	end
+	local ownLines = own and table.concat(UI:WhyLines(own), "\n") or ""
+	local addedLines = added and table.concat(UI:WhyLines(added), "\n") or ""
+	check(own and not ownLines:find(L["added by | also %s"]:format("@bank"), 1, true), "a row the search found: not added by | also: " .. ownLines)
+	check(added and addedLines:find(L["added by | also %s"]:format("@bank"), 1, true)
+		and not addedLines:find(L["a close spelling of a word in it"], 1, true), "the row | also added: said so, no words claimed: " .. addedLines)
+	ns.providers.bank = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "bank" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
 	-- a word found elsewhere than its name
 	UI:SetQuery("@item blade"); FlushAll()
 	lines = table.concat(UI:WhyLines(UI.Results()[1]), "\n")

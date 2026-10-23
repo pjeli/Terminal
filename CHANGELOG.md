@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.66.21 (in testing)
+
+**Plain words and Why, from a second review of 0.66.x**
+- A name with a date's or a level's words in it ("Tonight We Dine", "Last Day of Summer", "Next Level Thinking") is found: when the date or level finds nothing, the words are searched as they are and kept if a name has them.
+- "gear under 50% durability", "50% durability or less" work (the per cent before the word wasn't read). "since yesterday" on the day after the clocks change starts at yesterday's own midnight.
+- Said in words: "in the last 3 days", "in the last hour", "older than 1 day" (was "since 3 days", "since 1 hours"), on the bar and in **.explain**. **.explain** alone after a Simple line explains it as Alt+` writes it. The "In plain words" tooltip follows the line as you type.
+- "Hogger but not in my bank" keeps "Hogger" as typed.
+- "Why is this here?": "added by | also" only on the rows **| also** added (not every row); **sort:name** says the name, a quality its word ("Epic", not 4).
+- Ctrl+Z after typing somewhere else in the line (Home, then a key) undoes only that, not the word before it too.
+
 ## 0.66.20 (in testing)
 
 **Top N and comparing, from a second review of 0.66.x**

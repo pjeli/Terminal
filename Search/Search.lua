@@ -396,6 +396,16 @@ function UI:Search(text)
 	-- under the answer; 0.50.7, review: "3*45g" ran a close-spellings pass over every list on each keystroke)
 	self.calcAnswered = calc and true or nil
 	local res = self:SearchText(text)
+	-- (a date's or a level's words that are a name's, "Tonight We Dine", "Last Day of Summer", "Next Level Thinking":
+	-- read as the date or level, nothing had it; the words searched as they are, kept when a name has them; else the
+	-- search as it was, made again for what it set; review)
+	local plain = self.plainPhrases
+	if plain and not Scan.AnyReal(res) then
+		self.noPlain = true
+		local again = self:SearchText(text)
+		self.noPlain = nil
+		if Scan.NamesHave(again, plain) then res = again else res = self:SearchText(text) end
+	end
 	-- (upgrades weighed: the footer says how to judge them otherwise; 0.65.9, the player: "a gentle extended footer
 	-- reminder for user to set .weights if they do not like the results of upgrade searching")
 	self.weightsNote = ns.Filters and ns.Filters.fitMade and L["Not what you'd pick? .weights sets how upgrades are judged"] or nil
@@ -414,6 +424,25 @@ function UI:Search(text)
 	if agg and ns.Aggregate then self.ungrouped = res; res = ns.Aggregate.Apply(agg, res, agg.base) end
 	self:RetryWhenLoaded(text)
 	return res
+end
+
+--- A match (a row, or Simple mode's category of them), not a line saying something.
+local function Found(e) return type(e) == "table" and not (e.raw or e.noActivate or e.completion or e.lead or e.syntaxRow) end
+function Scan.AnyReal(rows)
+	for _, e in ipairs(rows or {}) do if Found(e) then return true end end
+	return false
+end
+--- Whether a match's name (a category's: its best match's, in its details) has each of the phrases.
+function Scan.NamesHave(rows, phrases)
+	for _, e in ipairs(rows or {}) do
+		if Found(e) then
+			local n = ns.Lower(ns.Plain(tostring((e.catId and e.detail) or e.name or "")))
+			local all = true
+			for _, p in ipairs(phrases) do if not n:find(p, 1, true) then all = false break end end
+			if all then return true end
+		end
+	end
+	return false
 end
 
 --- A quest item among the matches brings its quest along, right below it ("Intact Limbs" -> its
@@ -1267,7 +1296,10 @@ function UI:WhyLines(e)
 	local kind = e.kind
 	if kind and E and E.KindNoun then Say(L["it's one of %s"]:format(E.KindNoun(kind))) end
 	local q = self.whyQ
-	if q and q.answer then
+	local also = rawget(e, "_also") -- (a row "| also" added: none of the search's words or filters brought it)
+	if also then
+		Say(L["added by | also %s"]:format(also))
+	elseif q and q.answer then
 		Say(L["your question \"%s\" lists it"]:format(q.answer))
 	elseif q then
 		-- the words typed: where each is in it
@@ -1298,10 +1330,12 @@ function UI:WhyLines(e)
 				local base = part:gsub("^%-", "")
 				local fd = A.FIELDS[base]
 				local ok, v = false, nil
-				if fd and fd.num then ok, v = pcall(fd.num, e)
-				elseif fd and fd.text then ok, v = pcall(fd.text, e, fd) end
-				local shown = ok and v ~= nil and (fd.money and ns.Money and ns.Money(v) or tostring(v)) or L["none"]
-				Say(L["sorted by %s: %s"]:format(fd and fd.label or base, shown))
+				-- (its words before its number: a quality's "Epic", not 4; a name, its own; review)
+				if base == "name" then ok, v = true, name
+				elseif fd and fd.text then ok, v = pcall(fd.text, e, fd)
+				elseif fd and fd.num then ok, v = pcall(fd.num, e) end
+				local shown = ok and v ~= nil and v ~= "" and (fd and fd.money and type(v) == "number" and ns.Money and ns.Money(v) or tostring(v)) or L["none"]
+				Say(L["sorted by %s: %s"]:format(fd and fd.label or (base == "name" and L["name"]) or base, shown))
 			end
 		elseif q.sortBest then
 			Say(L["sorted by the biggest upgrades first"])
@@ -1328,9 +1362,6 @@ function UI:WhyLines(e)
 	-- the steps after the search
 	local agg = self.aggregate
 	if agg and agg.first then Say(L["among the first %d"]:format(agg.first)) end
-	for _, w in ipairs(agg and agg.wheres or {}) do
-		if w.other and not w.except then Say(L["added by | also %s"]:format(w.other)) end
-	end
 	return lines
 end
 
@@ -1479,8 +1510,18 @@ function Scan.Parse(self, text)
 	-- sword|axe, "not boe" -> -boe
 	-- (numbers in plain words: "under level 25" is lvl:<25, "worth more than 1g" value:>1g; 0.66.5, Easy.lua)
 	local said
-	if simple then
+	self.plainPhrases = nil
+	if simple and not self.noPlain then
 		words, said = ns.Easy.PlainNumbers(words)
+		-- (a date's or a level from yours' words: they may be a name's, "Tonight We Dine"; UI:Search)
+		for spec, phrase in pairs(said or {}) do
+			if spec:find("^since:") or spec:find("^older:") or spec:find("^lvl:.*me") then
+				self.plainPhrases = self.plainPhrases or {}
+				self.plainPhrases[#self.plainPhrases + 1] = ns.Lower(phrase)
+			end
+		end
+	end
+	if simple then
 		ns.Easy.JoinPairs(words)
 		ns.Easy.JoinLogic(words)
 	end

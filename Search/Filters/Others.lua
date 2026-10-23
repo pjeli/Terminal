@@ -478,10 +478,13 @@ function F.TimeStart(v)
 	if v == "today" or v == "yesterday" then
 		local okD, t = pcall(_G.date, "*t", now)
 		if not okD or type(t) ~= "table" then return nil end
-		t.hour, t.min, t.sec = 0, 0, 0
+		-- (yesterday's midnight by the calendar, and summer time worked out for that day: on the night the clocks
+		-- change a day is 23 or 25 hours, not 86400 seconds; review)
+		t.hour, t.min, t.sec, t.isdst = 0, 0, 0, nil
+		if v == "yesterday" then t.day = t.day - 1 end
 		local okT, midnight = pcall(_G.time, t)
 		if not okT or type(midnight) ~= "number" then return nil end
-		return v == "today" and midnight or midnight - 86400
+		return midnight
 	end
 	if v == "week" then return now - 7 * 86400 end
 	if v == "month" then return now - 30 * 86400 end

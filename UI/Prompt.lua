@@ -24,12 +24,12 @@ local undo = { back = {}, fwd = {} }
 
 --- Nothing to undo or redo (the terminal opened, another tab).
 function UI:ResetUndo()
-	undo.back, undo.fwd, undo.run, undo.runAt = {}, {}, nil, nil
+	undo.back, undo.fwd, undo.run, undo.runAt, undo.runPos = {}, {}, nil, nil, nil
 	undo.seen = UI.edit and UI.edit:GetText() or nil
 end
 
---- How `new` differs from `old`: "type" (one character typed), "erase" (one taken away), or nil (more); and whether it
---- starts a new run all the same (a space after a word).
+--- How `new` differs from `old`: "type" (one character typed), "erase" (one taken away), or nil (more); whether it
+--- starts a new run all the same (a space after a word); where in the line it was, and where the caret is after it.
 local function EditKind(old, new)
 	local dn = #new - #old
 	if dn > 0 and dn <= 4 then
@@ -38,8 +38,8 @@ local function EditKind(old, new)
 		if new:sub(1, c) == old:sub(1, c) and new:sub(c + 1 + dn) == old:sub(c + 1) then
 			local ch = new:sub(c + 1, c + dn)
 			-- (a space after a word starts the next run: undone, the word stays)
-			if dn == 1 and ch == " " then return "type", c > 0 and old:sub(c, c) ~= " " end
-			if dn == 1 or ch:find("^[\192-\247][\128-\191]+$") then return "type" end
+			if dn == 1 and ch == " " then return "type", c > 0 and old:sub(c, c) ~= " ", c, c + dn end
+			if dn == 1 or ch:find("^[\192-\247][\128-\191]+$") then return "type", nil, c, c + dn end
 		end
 	elseif dn < 0 and dn >= -4 then
 		-- (one character taken away: Backspace or Delete, not Ctrl+W's word)
@@ -48,7 +48,7 @@ local function EditKind(old, new)
 		if p > 0 and old:byte(p) >= 192 and old:byte(p) <= 247 then p = p - 1 end -- (a multi-byte character's start)
 		if new:sub(p + 1) == old:sub(p + 1 - dn) then
 			local ch = old:sub(p + 1, p - dn)
-			if #ch == 1 or ch:find("^[\192-\247][\128-\191]+$") then return "erase" end
+			if #ch == 1 or ch:find("^[\192-\247][\128-\191]+$") then return "erase", nil, p, p end
 		end
 	end
 end
@@ -56,14 +56,17 @@ end
 --- The prompt about to change from `old` (caret `cursor`) to `new`: kept to undo, unless it continues a run of typing or
 --- erasing.
 local function Remember(old, cursor, new)
-	local kind, breaks = EditKind(old, new)
+	local kind, breaks, at, after = EditKind(old, new)
 	local now = GetTime()
 	undo.fwd = {} -- (a new edit: what was undone can't come back)
-	if kind and not breaks and undo.run == kind and undo.runAt and now - undo.runAt <= UI.UNDO_RUN then
-		undo.runAt = now
+	-- (and where the run left off: typing somewhere else, after Home, is an edit of its own; review. Erasing goes on at
+	-- the caret, Delete, or a character before it, Backspace)
+	local here = undo.runPos and at and (at == undo.runPos or (kind == "erase" and at < undo.runPos and at >= undo.runPos - 4))
+	if kind and not breaks and here and undo.run == kind and undo.runAt and now - undo.runAt <= UI.UNDO_RUN then
+		undo.runAt, undo.runPos = now, after
 		return
 	end
-	undo.run, undo.runAt = kind, now
+	undo.run, undo.runAt, undo.runPos = kind, now, after
 	local back = undo.back
 	back[#back + 1] = { text = old, cursor = cursor }
 	if #back > UI.UNDO_MAX then table.remove(back, 1) end
@@ -86,7 +89,7 @@ function UI:UndoEdit(dir)
 	local s = table.remove(from)
 	if not s then return false end
 	to[#to + 1] = { text = UI.edit:GetText(), cursor = self.cursor }
-	undo.run, undo.runAt = nil, nil -- (typing after an undo is an edit of its own)
+	undo.run, undo.runAt, undo.runPos = nil, nil, nil -- (typing after an undo is an edit of its own)
 	self.undoing = true
 	self:SetQuery(s.text, s.cursor)
 	self.undoing = nil

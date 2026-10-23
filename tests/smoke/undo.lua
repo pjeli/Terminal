@@ -49,6 +49,16 @@ do
 	ctrl("Y")
 	check(query() == "linen clothq", "typing after an undo: Ctrl+Y redoes nothing: " .. query())
 
+	-- (review) typing somewhere else in the line, after Home, at once: an edit of its own
+	UI:SetQuery(""); T.FlushAll()
+	now = now + 5
+	typeText("abc")
+	key("HOME")
+	typeText("x")
+	check(query() == "xabc", "typed at the start: " .. query())
+	ctrl("Z")
+	check(query() == "abc", "Ctrl+Z: only the x, where the caret moved to: " .. query())
+
 	-- a new run starts afresh
 	UI:Hide(); T.FlushAll()
 	UI:Open(""); T.FlushAll()

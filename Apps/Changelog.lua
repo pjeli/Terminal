@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.66.20", when = "in testing",
+		v = "0.66.21", when = "in testing",
 		items = {
 			"Undo in the prompt: Ctrl+Z undoes your last edit to what you typed (a word, a Ctrl+W, a paste), Ctrl+Y redoes it.",
 			"Upgrades follow your talents: with no tree picked, .weights judges by the tree holding most of your talent points (31 in Fury: Fury), and follows a respec. .weights all goes back to that.",
@@ -30,7 +30,7 @@ CL.LOG = {
 			"Upgrades you can buy: \"upgrades i can buy\" (or \"vendor upgrades\") lists the friendly vendors selling a clear upgrade for you, nearest first, with what it gains and a standing it needs. Advanced: @npc sells:upgrade. Needs Questie.",
 			"The cheapest upgrades on the auction house: with Auctionator and AtlasLoot, \"ah upgrades\" lists bind-on-equip upgrades at Auctionator's last-scanned price, the most gain per gold first (\"+12 for 3g 40s\").",
 			"Fixes from a review of all the above: a paste can be undone; the AH upgrades' rows open their item; dates after a question (\"loot today\") and a sort with | except work; \"2 sword\" doesn't cut the categories; names like \"the five sorrows\" stay searches; top N works on mailboxes and other places (\"the 3 nearest mailboxes\", \"2 mailboxes\") and across Simple mode's categories (\"top 5 upgrades\"); upgrades are always judged against what you wear (a worn piece whose stats the game didn't give counted as nothing).",
-			"Fixes from a second review: upgrades over a worn piece with a random suffix, or a trinket or ring with no stats, are judged right; rings and trinkets better by item level alone are left off the auction house and vendor lists; @npc sells:upgrade no longer finds nothing on a long vendor list, and sees a piece you just put on; sort:level,distance keeps far rows of the lowest level; clicking a typed sort:quality,-count's Quality turns it round and keeps its then by; | except sees a bank or mail change at once, and past 5000 rows keeps the right first few; \"3 of 250\" counts every match; \"top 0\", \"30 yard range\" and \"the best of both worlds\" stay searches.",
+			"Fixes from a second review: upgrades over a worn piece with a random suffix, or a trinket or ring with no stats, are judged right; rings and trinkets better by item level alone are left off the auction house and vendor lists; @npc sells:upgrade no longer finds nothing on a long vendor list, and sees a piece you just put on; sort:level,distance keeps far rows of the lowest level; clicking a typed sort:quality,-count's Quality turns it round and keeps its then by; | except sees a bank or mail change at once, and past 5000 rows keeps the right first few; \"3 of 250\" counts every match; \"top 0\", \"30 yard range\" and \"the best of both worlds\" stay searches; names with a date or level in them (\"Tonight We Dine\", \"Last Day of Summer\") are found; \"under 50% durability\" works; \"in the last 3 days\" said so; \"Why is this here?\" says \"added by | also\" only of the rows it added, and a sort by name or quality in words; Ctrl+Z after typing somewhere else in the line undoes only that.",
 		},
 	},
 	{

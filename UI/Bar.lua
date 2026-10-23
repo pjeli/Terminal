@@ -199,7 +199,7 @@ function B.SpecLabel(spec, word)
 			if k2 == "in" or k2 == "zone" or k2 == "where" then out = L["In %s"]:format(v2)
 			elseif (k2 == "lvl" or k2 == "level") and v2:find("me", 1, true) and ns.Easy and ns.Easy.LevelSay then
 				out = ns.UpperFirst(ns.Easy.LevelSay(v2)) -- ("3 levels above yours"; review)
-			elseif k2 == "since" and ns.Easy and ns.Easy.TimeSay then out = L["Since %s"]:format(ns.Easy.TimeSay(v2))
+			elseif k2 == "since" and ns.Easy and ns.Easy.SinceSay then out = ns.Easy.SinceSay(v2, true)
 			elseif (k2 == "older" or k2 == "before") and ns.Easy and ns.Easy.TimeSay then
 				out = (v2:find("^%d") and L["Older than %s"] or L["Before %s"]):format(ns.Easy.TimeSay(v2))
 			elseif k2 == "lvl" or k2 == "level" then out = L["Level %s"]:format(v2)

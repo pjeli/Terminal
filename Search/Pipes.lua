@@ -1800,17 +1800,16 @@ function A.Compare(rows, w)
 	local ids = {}
 	if w.except then
 		-- (what the other search holds, worked out once for its rows)
-		local kept = rawget(other, "_ids")
-		if not kept then
-			kept = {}
-			for _, e in ipairs(other) do local id = A.Identity(e) if id then kept[id] = true end end
-			other._ids = kept
+		local held = rawget(other, "_ids")
+		if not held then
+			held = {}
+			for _, e in ipairs(other) do local id = A.Identity(e) if id then held[id] = true end end
+			other._ids = held
 		end
-		ids = kept
 		local kept = {}
 		for _, e in ipairs(rows) do
 			local id = A.Identity(e)
-			if not (id and ids[id]) then kept[#kept + 1] = e end
+			if not (id and held[id]) then kept[#kept + 1] = e end
 		end
 		return kept
 	end
@@ -1831,7 +1830,8 @@ function A.Compare(rows, w)
 		if not (id and ids[id]) then
 			if id then ids[id] = true end
 			k = k + 1
-			out[#out + 1] = setmetatable({ _score = low - k }, { __index = e })
+			-- (_also: added by this step, for "Why is this here?"; review)
+			out[#out + 1] = setmetatable({ _score = low - k, _also = w.other }, { __index = e })
 		end
 	end
 	return out
