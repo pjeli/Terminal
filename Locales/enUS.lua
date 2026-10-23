@@ -2045,6 +2045,7 @@ L["delete everything before the cursor (at the end: the whole line)"] = true
 L["delete the word before the cursor"] = true
 L["deleted"] = true
 L["disabled"] = true
+L["distance"] = true
 L["do it"] = true
 L["do what the footer says: open, use, cast, set a waypoint..."] = true
 L["do:use / do:cast / do:summon... make Enter that action (Simple mode's action words): @items do:use hearthstone"] = true

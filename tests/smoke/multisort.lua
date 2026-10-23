@@ -9,8 +9,8 @@ do
 	-- the words
 	check(F.SortOf("sort:quality,-count") == "quality,-count", "sort:quality,-count read: " .. tostring(F.SortOf("sort:quality,-count")))
 	check(F.SortOf("sort:quality,lvl,name") == "quality,level,name", "each part as its own word says: " .. tostring(F.SortOf("sort:quality,lvl,name")))
-	check(F.SortOf("sort:quality,nearest") == nil and F.SortOf("sort:best,level") == nil and F.SortOf("sort:level,") == nil
-		and F.SortOf("sort:level,bogus") == nil, "distance, plan and best stand alone; a part that isn't a sort: none")
+	check(F.SortOf("sort:quality,nearest") == "quality,distance" and F.SortOf("sort:best,level") == nil and F.SortOf("sort:level,") == nil
+		and F.SortOf("sort:level,bogus") == nil, "plan and best stand alone (distance doesn't: 0.66.16); a part that isn't a sort: none")
 	check(#F.SortList("quality,-count") == 2 and F.SortList("quality,-count")[2] == "-count", "its parts")
 
 	local saved = { providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode }
@@ -100,5 +100,52 @@ do
 	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
 	ns:AliasesChanged(); UI:EasyChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+end
+
+io.write("[multisort: a field, then distance (0.66.16, the player's sort:level,distance)]\n")
+do
+	local I = ns.Integrations
+	local saved = { providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode }
+	local save = { here = I.Here, dist = I.NpcDistance, field = I.NpcField, defs = I.NpcFlagDefs, group = _G.UnitFactionGroup }
+	ns.providers, ns.providerOrder = {}, {}
+	local NPCS = { { "Innkeeper Far", 1, 30 }, { "Innkeeper Near", 2, 30 }, { "Innkeeper Low", 3, 20 }, { "Innkeeper Mid", 4, 30 } }
+	local DIST = { [1] = 900, [2] = 10, [3] = 500, [4] = 100 }
+	local LVL = {}
+	ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function()
+		local out = {}
+		for i, r in ipairs(NPCS) do out[i] = { name = r[1], key = r[2], npcID = r[2], activate = function() end }; LVL[r[2]] = r[3] end
+		return out
+	end })
+	ns:AliasesChanged()
+	I.Here = function() return { cont = 1, x = 0, y = 0 } end
+	I.NpcDistance = function(id) return DIST[id] end
+	I.NpcField = function(id, f)
+		if f == "npcFlags" then return 128 end
+		if f == "friendlyToFaction" then return "AH" end
+		if f == "minLevel" or f == "maxLevel" then return LVL[id] end
+	end
+	I.NpcFlagDefs = function() return { VENDOR = 4, REPAIR = 4096, INNKEEPER = 128 } end
+	_G.UnitFactionGroup = function() return "Alliance" end
+	F.ClearCache()
+	UI.lastScan, UI.lastExtra = nil, nil
+	ns.db.easyMode = false; UI:EasyChanged()
+	check(F.SortOf("sort:level,distance") == "level,distance" and F.SortOf("sort:level,-distance") == "level,-distance"
+		and F.SortOf("sort:distance,level") == "distance,level", "distance in a list of sorts")
+	local function Names(q)
+		UI:Hide(); FlushAll()
+		UI:Open(q); FlushAll()
+		local t = {}
+		for _, e in ipairs(UI.Results()) do if B.Real(e) then t[#t + 1] = tostring(e.name):gsub("Innkeeper ", "") end end
+		return table.concat(t, " ")
+	end
+	check(Names("@npc is:innkeeper faction:friendly sort:level,distance ") == "Low Near Mid Far", "by level, then the nearest: " .. Names("@npc is:innkeeper faction:friendly sort:level,distance "))
+	check(Names("@npc is:innkeeper faction:friendly sort:-level,-distance ") == "Far Mid Near Low", "the highest level, then the farthest: " .. Names("@npc is:innkeeper faction:friendly sort:-level,-distance "))
+	check(Names("@npc is:innkeeper sort:distance,level ") == "Near Mid Low Far", "distance first: the nearest first")
+	UI:Hide(); FlushAll()
+	I.Here, I.NpcDistance, I.NpcField, I.NpcFlagDefs, _G.UnitFactionGroup = save.here, save.dist, save.field, save.defs, save.group
+	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
+	ns:AliasesChanged(); UI:EasyChanged()
+	F.ClearCache()
 	UI.lastScan, UI.lastExtra = nil, nil
 end

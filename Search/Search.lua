@@ -1502,10 +1502,18 @@ function Scan.Parse(self, text)
 		if sort then
 			-- sort:distance, sort:plan (recipes that give skill, by how many times your materials make them: Plan.lua),
 			-- sort:best (the biggest upgrades first), sort:name / level / ilvl / quality / value / count (Scan.Finalize)
+			local parts = F.SortList(sort)
+			local first = F.SortParts(parts[1])
 			if sort == "plan" then q.sortPlan = true
 			elseif sort == "best" then q.sortBest = true
-			elseif F.SortParts(sort) == "distance" then q.sortNear, q.sortFar = true, sort == "-distance" or nil
-			else q.sortField = sort end
+			elseif first == "distance" then
+				-- (the nearest or the farthest first: rows that tie on yards are rare, the rest of the list isn't asked)
+				q.sortNear, q.sortFar = true, parts[1] == "-distance" or nil
+			else
+				q.sortField = sort
+				-- (distance after a field, sort:level,distance: how far each is, worked out to break the field's ties)
+				for k = 2, #parts do if F.SortParts(parts[k]) == "distance" then q.sortNear = true end end
+			end
 			-- (Simple mode: the bar shows it as its Sort, and takes the word back out of the line: Bar.lua)
 			-- (an order said in words, "most valuable": those words; 0.66.7)
 			if simple then q.typedSort = { id = sort, word = said and said[w] or w, drop = true } end

@@ -85,6 +85,7 @@ B.SORTS = {
 	{ id = "line", label = L["Line by line"], field = "line", asc = true },
 	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share; 0.58.6)
 }
+B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
 -- what Group offers: Aggregate's fields that name something
 B.GROUPS = { "kind", "owner", "zone", "quality", "type", "slot", "dungeon", "raid", "boss", "level" }
 
@@ -395,6 +396,8 @@ local function SortSpec(id)
 	for j = 2, #parts do
 		local b2, r2 = SortParts(parts[j])
 		local s2 = ById(B.SORTS, b2)
+		-- (distance after a field: the yards the search worked out; 0.66.16)
+		if b2 == "distance" then s2 = B.DISTANCE_FIELD end
 		if s2 and s2.field then more[#more + 1] = { s = s2, asc = Ascending(s2, r2) } end
 	end
 	return s, Ascending(s, rev), more

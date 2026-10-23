@@ -1523,6 +1523,8 @@ A.FIELDS = {
 	level = { label = L["level"], num = function(e) return FP.Levels and (FP.Levels(e)) or nil end, order = true },
 	ilvl = { label = L["item level"], num = function(e) local i = Info(e); return i and Num(i.ilvl) end, order = true },
 	count = { label = L["count"], num = function(e) return Count(e) or 1 end },
+	-- (how far, where it was worked out: the rows of a search sorted by distance; sort:level,distance. 0.66.16)
+	distance = { label = L["distance"], num = function(e) return Num(rawget(e, "_dist")) end },
 	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line; 0.55.21)
 	line = { label = L["line"], num = function(e) return e.stepRec and e.stepIndex or nil end },
 	-- (who has it: a friend's, Terminal: Share's @shared rows; the bar's Group and Sort, sort:owner; 0.58.6)

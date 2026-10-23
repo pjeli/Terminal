@@ -508,9 +508,9 @@ local function SortId(v)
 	return rev and ("-" .. base) or base
 end
 -- Sort by more than one field (0.66.4, the player): sort:quality,-level is by quality, then on a tie by level, the
--- lowest first; as many as typed. Only fields (name, level, value...) follow the first: distance, plan and best sort
--- their own ways, so they stand alone.
-local NOT_THEN = { distance = true, plan = true, best = true }
+-- lowest first; as many as typed. Distance too (0.66.16, the player's sort:level,distance: the level, the nearest first
+-- among equals); plan and best sort their own ways, so they stand alone.
+local NOT_THEN = { plan = true, best = true }
 --- "quality,-level" -> "quality,-level" (each part as SortId says it), "nearest" -> "distance"; nil when a part isn't a
 --- sort, or distance, plan or best are in a list of several.
 local function SortIds(v)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.16 (in testing)
+
+**Distance after a field** (the player's **sort:level,distance** found nothing)
+- **sort:level,distance**: by level, the nearest first among equals; **sort:-level,-distance** the farthest. Distance first (**sort:distance,level**) is the nearest first, as before.
+
 ## 0.66.15 (in testing)
 
 **Top N, fixed** (the player: "the 3 nearest" and "top 5" didn't work)
@@ -71,7 +76,7 @@
 ## 0.66.4 (in testing)
 
 **Sort by more than one field**
-- **sort:quality,-level**: by quality, then on a tie by level (the highest first); as many fields as you like. Distance, plan and best stand alone.
+- **sort:quality,-level**: by quality, then on a tie by level (the highest first); as many fields as you like. Plan and best stand alone.
 - Simple mode's **Sort**: with a sort picked, **Shift** on another (a click, or Shift+Enter in Alt+S's menu) is its "then by"; again, the other way round; a third time, gone. The button says both ("Sort: Quality, Level").
 
 ## 0.66.3 (in testing)
