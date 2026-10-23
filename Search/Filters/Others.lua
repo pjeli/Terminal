@@ -215,7 +215,32 @@ P.ClearStanding = function() standingWords = nil end
 -- Keys for these rows
 ----------------------------------------------------------------------
 
+-- Levels relative to you (0.66.6, the player): lvl:me (your level), lvl:me+3, lvl:<me, lvl:>=me+1, lvl:me+ (yours and
+-- above), lvl:me-2..me+3 (from two below to three above). Read when the search is made, so a saved search or alias
+-- moves with you as you level.
+--- A level value with "me" in it, as numbers ("me+3" at 30: "33", "me-2..me+3": "28-33"); else the value as it is.
+function F.MyLevelValue(v)
+	if type(v) ~= "string" or not v:find("me", 1, true) then return v end
+	local okL, me = pcall(_G.UnitLevel or function() end, "player")
+	me = okL and type(me) == "number" and not ns.Secret(me) and me > 0 and me or nil
+	if not me then return nil end
+	local function At(sign, n)
+		local l = me + (sign == "-" and -1 or 1) * (tonumber(n) or 0)
+		return tostring(math.max(1, l))
+	end
+	local out = v:gsub("me([%+%-])(%d+)", At):gsub("me", tostring(me))
+	if out:find("[^%d%.%-%+<>=]") then return nil end -- (another word with "me" in it: not a level)
+	-- (a span: "28..33"; "me+" alone is yours and above, as "30+")
+	out = out:gsub("%.%.", "-")
+	if out:find("%d%-%d") and select(2, out:gsub("%-", "")) > 1 then return nil end
+	return out
+end
+
 KEYS.lvl = function(v)
+	if v:find("me", 1, true) then
+		v = F.MyLevelValue(v)
+		if not v then return nil end
+	end
 	local r = Range(v)
 	return r and function(e)
 		local lo, hi = Levels(e)
@@ -578,6 +603,7 @@ end
 -- says: on:, faction:, near: and sort:distance named fewer; 0.49.2, review)
 F.HELP = {
 	{ "lvl:20-30", L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"] },
+	{ "lvl:me+3", L["levels from yours, as you level: lvl:me (yours), lvl:me+1 (next level), lvl:<me, lvl:me-2..me+3 (two below to three above)"] },
 	{ "ilvl:60+", L["item level"] },
 	{ "value:>1g", L["what it sells to a vendor for (a stack: all of it): value:1g-5g, value:<50s (g s c; a bare number is copper)"] },
 	{ "slots:>=10", L["a bag's slots (a quest: the bag it rewards)"] },

@@ -823,6 +823,67 @@ local function ValueAt(lw, i, key, bare)
 	return nil
 end
 
+-- Levels relative to you (0.66.6, the player): "3 levels above me", "within 5 levels of me", "up to 3 levels above me",
+-- "above my level", "around my level", "next level" are lvl:me+3, lvl:me-5..me+5, lvl:me..me+3, lvl:>me,
+-- lvl:me-2..me+3, lvl:me+1: they move with you as you level.
+local ABOVE = { above = "+", over = "+", higher = "+", below = "-", under = "-", lower = "-", beneath = "-" }
+local ME = { me = 1, mine = 1, ["my level"] = 2, ["my lvl"] = 2 }
+--- "me", "mine", "my level" at words[i]: how many words; or nil.
+local function MeAt(lw, i)
+	local two = lw[i + 1] and ME[lw[i] .. " " .. lw[i + 1]]
+	if two then return 2 end
+	if ME[lw[i] or ""] == 1 then return 1 end
+end
+--- A level relative to yours at words[i]: the lvl: value and how many words; or nil.
+local function RelativeAt(lw, i)
+	local w = lw[i]
+	if not w then return nil end
+	-- "next level"
+	if w == "next" and (lw[i + 1] == "level" or lw[i + 1] == "lvl") then return "me+1", 2 end
+	-- "around my level", "near my level", "about my level"
+	if (w == "around" or w == "near" or w == "about") then
+		local n = MeAt(lw, i + 1)
+		if n == 2 then return "me-2..me+3", 1 + n end
+	end
+	-- "at my level", "my level" alone: yours
+	if w == "at" and MeAt(lw, i + 1) == 2 then return "me", 3 end
+	-- "above my level", "below my level", "higher than me", "lower than my level"
+	local sign = ABOVE[w]
+	if sign then
+		local j = i + 1
+		if lw[j] == "than" then j = j + 1 end
+		local n = MeAt(lw, j)
+		if n and (n == 2 or j > i + 1) then return (sign == "+" and ">me" or "<me"), j - i + n end
+	end
+	-- "up to 3 levels above me", "3 levels above me", "within 5 levels of me", "3 levels above my level"
+	local upTo = 0
+	if w == "up" and lw[i + 1] == "to" then upTo = 2 end
+	local within = w == "within" and 1 or 0
+	local k = i + upTo + within
+	local num = lw[k] and lw[k]:match("^(%d+)$")
+	if num and (lw[k + 1] == "levels" or lw[k + 1] == "level" or lw[k + 1] == "lvls") then
+		if within == 1 then
+			if lw[k + 2] == "of" then
+				local n = MeAt(lw, k + 3)
+				if n then return ("me-%s..me+%s"):format(num, num), k + 3 + n - i end
+			end
+			return nil
+		end
+		local s2 = ABOVE[lw[k + 2] or ""]
+		if s2 then
+			local j = k + 3
+			if lw[j] == "than" then j = j + 1 end
+			local n = MeAt(lw, j)
+			if n then
+				local v
+				if upTo > 0 then v = s2 == "+" and ("me..me+" .. num) or ("me-" .. num .. "..me")
+				else v = "me" .. s2 .. num end
+				return v, j + n - i
+			end
+		end
+	end
+end
+
 --- The numbers said in plain words made filters: a new list of words (the phrase's place holding its filter, "lvl:<25"),
 --- and each filter's words as typed (for the bar to take back out of the line). Words that aren't a number phrase stay.
 function E.PlainNumbers(words)
@@ -832,8 +893,12 @@ function E.PlainNumbers(words)
 	local i = 1
 	while i <= #words do
 		local key, take, value
+		-- levels from yours: "3 levels above me", "next level"
+		local rel, nr = RelativeAt(lw, i)
+		if rel then key, value, take = "lvl", rel, nr end
 		-- a field, then its value: "level under 25", "worth more than 1g", "level 20-30", "level 25 or higher"
-		local f, nf = FieldAt(lw, i)
+		local f, nf
+		if not key then f, nf = FieldAt(lw, i) end
 		if f then
 			-- (a number alone after the field: only a level's, "level 25"; "slot 2" is no bag's)
 			local v, nv = ValueAt(lw, i + nf, f, f == "lvl" or f == "ilvl")

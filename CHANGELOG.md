@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.6 (in testing)
+
+**Levels from yours**
+- **quests 3 levels above me**, **up to 3 levels above me**, **within 5 levels of me**, **dungeons around my level**, **gear for next level**, **quests above my level**: as Advanced, **lvl:me+3**, **lvl:me..me+3**, **lvl:me-5..me+5**, **lvl:me-2..me+3**, **lvl:me+1**, **lvl:>me** (and **lvl:me**, **lvl:<me**, **lvl:me+**). Read when searched, so a saved search or an alias moves with you as you level.
+
 ## 0.66.5 (in testing)
 
 **Numbers in plain words**

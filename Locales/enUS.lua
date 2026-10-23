@@ -2120,6 +2120,7 @@ L["level %d (max)"] = true
 L["level cleared!"] = true
 L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] = true
 L["levels %d-%d (%d ranks)"] = true
+L["levels from yours, as you level: lvl:me (yours), lvl:me+1 (next level), lvl:<me, lvl:me-2..me+3 (two below to three above)"] = true
 L["limited supply"] = true
 L["line"] = true
 L["lines"] = true

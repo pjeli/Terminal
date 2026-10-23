@@ -100,3 +100,45 @@ do
 	F.ClearCache()
 	UI.lastScan, UI.lastExtra = nil, nil
 end
+
+io.write("[plainnumbers: levels relative to you (0.66.6)]\n")
+do
+	local realLevel = _G.UnitLevel
+	_G.UnitLevel = function() return 30 end
+	local function Read(text)
+		local words = {}
+		for w in text:gmatch("%S+") do words[#words + 1] = w end
+		return table.concat((E.PlainNumbers(words)), " ")
+	end
+	local CASES = {
+		{ "quests 3 levels above me", "quests lvl:me+3" },
+		{ "quests 2 levels below my level", "quests lvl:me-2" },
+		{ "quests up to 3 levels above me", "quests lvl:me..me+3" },
+		{ "quests within 5 levels of me", "quests lvl:me-5..me+5" },
+		{ "dungeons around my level", "dungeons lvl:me-2..me+3" },
+		{ "gear for next level", "gear for lvl:me+1" },
+		{ "quests above my level", "quests lvl:>me" },
+		{ "quests lower than my level", "quests lvl:<me" },
+		{ "quests at my level", "quests lvl:me" },
+		{ "above me", "above me" },
+		{ "my level", "my level" },
+	}
+	for _, c in ipairs(CASES) do
+		local got = Read(c[1])
+		check(got == c[2], ("%q -> %q: %s"):format(c[1], c[2], got))
+	end
+	-- the values, at level 30
+	check(F.MyLevelValue("me+3") == "33" and F.MyLevelValue("me-2..me+3") == "28-33" and F.MyLevelValue("<me") == "<30"
+		and F.MyLevelValue("me..me+3") == "30-33" and F.MyLevelValue("me+") == "30+" and F.MyLevelValue("me-40") == "1"
+		and F.MyLevelValue("20-30") == "20-30" and F.MyLevelValue("meh") == nil, "lvl:me values at level 30")
+	local f = F.Parse("lvl:me+3")
+	check(f and f({ level = 33 }) and not f({ level = 32 }), "lvl:me+3: 33 at level 30")
+	-- it moves with you: the same words, made again at 31
+	_G.UnitLevel = function() return 31 end
+	f = F.Parse("lvl:me+3")
+	check(f({ level = 34 }) and not f({ level = 33 }), "levelled to 31: 34")
+	local span = F.Parse("lvl:me-2..me+3")
+	check(span({ level = 29 }) and span({ level = 34 }) and not span({ level = 28 }) and not span({ level = 35 }), "two below to three above")
+	check(F.Parse("lvl:me+x") == nil, "lvl:me+x isn't a level")
+	_G.UnitLevel = realLevel
+end
