@@ -588,6 +588,23 @@ local function WornGear(w)
 			-- (by its own link: a worn piece's random suffix and enchant are its own)
 			if get then
 				local okS, st = pcall(get, l)
+				-- (0.66.x, the player's screenshot: "ah upgrades" listed +6 Stamina gloves over Gauntlets of Might, +11
+				-- Strength: the worn piece's own link gave no stats, so everything was an upgrade over nothing. No stats at
+				-- all, not even armor, from a piece you wear isn't believed: its plain item's are read, else it's not known)
+				if okS and type(st) == "table" and next(st) == nil and wid then
+					local info = ItemInfo(wid)
+					local plain = info and info.link
+					if plain and plain ~= l then
+						local ok2, st2 = pcall(get, plain)
+						if ok2 and type(st2) == "table" and next(st2) ~= nil then st = st2 else st = nil end
+					else
+						st = nil
+					end
+					if st == nil then
+						whole = false
+						ns:Trace(("upgrades: no stats read for worn %s (slot %d): not compared against nothing"):format(tostring(names[slot] or wid), slot))
+					end
+				end
 				-- (nil when it has none to weigh: then item levels are compared, not any stat against nothing)
 				if okS and type(st) == "table" then
 					kinds[slot] = F.StatKinds(st, slot == 18)

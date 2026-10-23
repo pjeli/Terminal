@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.17 (in testing)
+
+**Upgrades judged against what you wear, always** (the player's screenshot: "ah upgrades" listed +6 Stamina gloves over Gauntlets of Might)
+- When the game gave no stats for a piece you wear from its own link, it counted as wearing nothing there, so almost anything was an "upgrade". Its plain item's stats are read instead; none at all, and it isn't compared against nothing. Every upgrade search, not only the auction house's.
+
 ## 0.66.16 (in testing)
 
 **Distance after a field** (the player's **sort:level,distance** found nothing)

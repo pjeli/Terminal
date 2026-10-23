@@ -84,6 +84,33 @@ do
 	check(F.GainOf(r[2]) ~= nil, "its tooltip compares it (the gain kept)")
 	check(r[2] and r[2].kind == "loot" and r[2].activate ~= nil and r[2].link ~= nil, "a view of the loot row: its Enter and link kept (review)")
 	UI:Hide(); FlushAll()
+	-- (0.66.x, the player's screenshot) the worn piece's own link gives no stats (an empty table): its plain item's are
+	-- read, not "nothing worn there to beat"; none at all: not compared against nothing
+	local realStats = C_Item.GetItemStats
+	C_Item.GetItemStats = function(link)
+		if tostring(link):find("[Worn Helm]", 1, true) then return {} end
+		return realStats(link)
+	end
+	F.ClearCache(); F.ClearFit()
+	UI:Open(""); FlushAll()
+	UI:SetQuery("ah upgrades"); FlushAll()
+	names = {}
+	for _, e in ipairs(UI.Results()) do names[#names + 1] = tostring(e.name) end
+	check(table.concat(names, " | ") == "Bargain Boots | Bargain Helm | Pricey Helm", "the worn helm's stats from its plain item: " .. table.concat(names, " | "))
+	local gotHelm
+	for _, e in ipairs(UI.Results()) do if e.name == "Bargain Helm" then gotHelm = F.GainOf(e) end end
+	check(gotHelm and math.abs(gotHelm.gain - 4) < 1e-6, "Bargain Helm gains +4 over the worn helm's +3, not +7 over nothing: " .. tostring(gotHelm and gotHelm.gain))
+	C_Item.GetItemStats = function(link)
+		if tostring(link):find("item:9700", 1, true) then return {} end
+		return realStats(link)
+	end
+	F.ClearCache(); F.ClearFit()
+	UI:SetQuery("cheapest upgrades on the ah"); FlushAll()
+	names = {}
+	for _, e in ipairs(UI.Results()) do names[#names + 1] = tostring(e.name) end
+	check(not table.concat(names, " | "):find("Helm", 1, true), "no stats for the worn helm at all: no helm judged against nothing: " .. table.concat(names, " | "))
+	C_Item.GetItemStats = realStats
+	UI:Hide(); FlushAll()
 
 	_G.Auctionator, _G.C_AddOns = save.ac, save.addons
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
