@@ -629,8 +629,10 @@ end
 -- (far: sort:-distance, the farthest first (0.65.7, the player): the heap keeps the farthest, by their yards turned
 -- negative; the rows with no distance are as if infinitely far, so before them: the views are scored under every row's
 -- own score (I.NearView), not those rows made views of their own (0.65.x review: a table per unknown row, thousands)
-function Scan.NearestViews(out, here, sortNear, overBudget, far)
-	local yards, max = ns.Integrations.RowYards, MAX_RESULTS
+-- (all: every row with a distance a view, none trimmed: distance only breaks another field's ties, sort:level,distance,
+-- and the rows that field puts first can be far; review: the level-10 innkeepers 2000 yards off were dropped)
+function Scan.NearestViews(out, here, sortNear, overBudget, far, all)
+	local yards, max = ns.Integrations.RowYards, all and math.huge or MAX_RESULTS
 	local function Key(d) return far and -d or d end
 	local function View(e, key) return NearView(e, far and -key or key, far) end
 	local hd, he, hi, hv, size = {}, {}, {}, {}, 0
@@ -2081,7 +2083,7 @@ function Scan.Nearest(self, q, out)
 	-- sort:distance keeps every other row, after the NPCs, as a weapon's trainers do: q.keepFar, Scan.TrainerWords)
 	if here then
 		local keep = sortNear or q.keepFar or far
-		out = Scan.NearestViews(out, here, keep, overBudget, far)
+		out = Scan.NearestViews(out, here, keep, overBudget, far, sortNear and q.sortField ~= nil)
 		if #out == 0 and not keep then
 			-- (TrainerSpells' trainers as @npc, no Questie: only trainers are known; 0.57.1)
 			local p = ns.providers.npc

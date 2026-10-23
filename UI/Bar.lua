@@ -420,6 +420,9 @@ function B.SortRows(rows, id, keep, overBudget)
 	local function Before(a, b)
 		if a.k ~= b.k then if asc then return a.k < b.k end return a.k > b.k end
 		if more then
+			-- (the "then by" keys worked out only for rows that tie: not for every row; review)
+			if not a.m then a.m = MoreKeys(more, a.e) end
+			if not b.m then b.m = MoreKeys(more, b.e) end
 			local o = ThenOrder(more, a.m, b.m)
 			if o ~= 0 then return o < 0 end
 		end
@@ -447,8 +450,10 @@ function B.SortRows(rows, id, keep, overBudget)
 		if overBudget and i % check == 0 and overBudget() then coroutine.yield(rows) end -- (the matches so far, as the scan yields)
 		if Real(e) then
 			local k = KeyOf(s, e)
-			if k ~= nil then
-				local r = { e = e, k = k, i = i, m = MoreKeys(more, e) }
+			local top = size >= keep and heap[1]
+			-- (one that's plainly after the last kept: no table made for it, past 5000 rows most aren't kept; review)
+			if k ~= nil and not (top and top.k ~= k and (asc and k > top.k or not asc and k < top.k)) then
+				local r = { e = e, k = k, i = i }
 				if size < keep then
 					size = size + 1
 					heap[size] = r
@@ -631,7 +636,10 @@ function B.Pick(which, id, thenBy)
 		local o = ById(B.SORTS, id)
 		local turns = o and (o.field or o.near) and true or false
 		local pickedBase, pickedRev = SortParts(state.sort)
-		local typedBase, typedRev = SortParts(typed.sort and typed.sort.id)
+		-- (a typed sort of several fields, sort:quality,-count: its first is the one shown as on; review: the whole list
+		-- was compared with the pick, and never matched)
+		local typedList = typed.sort and ns.Filters.SortList(typed.sort.id) or {}
+		local typedBase, typedRev = SortParts(typedList[1])
 		-- (a word typed that says the sort, "nearest mailbox": turned round, the word is ("farthest mailbox"), as the word
 		-- says the list too: taken out, "mailbox" alone searched no mailboxes; 0.65.x review)
 		if typedBase == id and typed.sort and not typed.sort.drop and o and o.near then
@@ -644,6 +652,8 @@ function B.Pick(which, id, thenBy)
 			-- (typed as a word: the word goes, and the bar's own sort is it turned round; one that doesn't turn, nearest,
 			-- just goes, as before)
 			if turns then state.sort = typedRev and id or ("-" .. id) end
+			-- (and its "then by" kept, the bar's own now)
+			if turns and typedList[2] and not state.thenBy then state.thenBy = typedList[2] end
 			B.DropWords({ typed.sort.word })
 			B.Update()
 			return
@@ -792,8 +802,9 @@ local function Label(which, typed)
 		local o = list[1] and ById(B.SORTS, (SortParts(list[1])))
 		-- (and its "then by", "Sort: Quality, Level"; 0.66.4)
 		local nxt = state.thenBy or (not state.sort and list[2]) or nil
-		local t = nxt and ById(B.SORTS, (SortParts(nxt)))
-		if o and t then return L["Sort: %s"]:format(o.label .. ", " .. t.label) end
+		-- (none after distance: rows don't tie on yards, so a field after it isn't said; review)
+		local t = nxt and SortParts(list[1]) ~= "distance" and ById(B.SORTS, (SortParts(nxt)))
+		if o and t then return L["Sort: %s, %s"]:format(o.label, t.label) end
 		return o and L["Sort: %s"]:format(o.label) or L["Sort"]
 	else
 		local g = B.GroupOn() -- (a group typed is the one summed up: TakeAggregate; steps typed: none of the bar's)
@@ -801,6 +812,8 @@ local function Label(which, typed)
 		return f and L["Group: %s"]:format(ns.UpperFirst(f.label)) or B.GroupWord()
 	end
 end
+
+B.Label = function(which) return Label(which, B.Typed()) end -- (a button's words, as shown)
 
 --- The Group button's word when nothing's grouped: "Group" (0.56.1, the player). Translated as "Group by", since "Group"
 --- is also the party's word and some languages say the two differently (zhCN: 队伍, the party; 分组, grouping).

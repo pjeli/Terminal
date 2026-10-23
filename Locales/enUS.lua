@@ -1469,6 +1469,7 @@ L["Solid box"] = true
 L["Solid line"] = true
 L["Sort"] = true
 L["Sort: %s"] = true
+L["Sort: %s, %s"] = true
 L["Source"] = true
 L["Space next word"] = true
 L["Spell"] = true

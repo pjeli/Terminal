@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.66.19 (in testing)
+
+**Sorting, from a second review of 0.66.x**
+- **sort:level,distance** with more rows than a search lists: the lowest level first however far away (only the 100 nearest were kept, so a far low-level innkeeper was left out).
+- Simple mode: a typed **sort:quality,-count**, its Quality clicked on the bar, turns round and keeps "then by Count" (it was never matched, and the then by was lost). The Sort button says "Distance" alone when distance comes first.
+- Past 5000 rows, the "then by" fields are worked out only for rows that tie, not for every row.
+
 ## 0.66.18 (in testing)
 
 **Upgrades, from a second review of 0.66.x**

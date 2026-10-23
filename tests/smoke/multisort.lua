@@ -95,6 +95,21 @@ do
 		and Names() == "Arcanite Bronze Mithril Copper Iron Tin",
 		"Shift on another: the bar's own sort now, then by name, the typed word gone: " .. tostring(B.state.thenBy) .. " / "
 		.. UI.edit:GetText() .. " / " .. Names())
+	-- (review) the typed sort's first field clicked: turned round, its "then by" kept (it was never matched: the whole
+	-- "quality,-count" was compared with "quality")
+	B.Reset(); FlushAll()
+	UI:SetQuery("sword sort:quality,-count"); FlushAll()
+	B.Pick("sort", "quality"); FlushAll()
+	check(B.state.sort == "-quality" and B.state.thenBy == "-count" and not UI.edit:GetText():find("sort:", 1, true)
+		and Names() == "Copper Iron Tin Mithril Bronze Arcanite",
+		"its first field clicked: the lowest quality first now, still then the fewest: " .. tostring(B.state.sort) .. " "
+		.. tostring(B.state.thenBy) .. " / " .. Names())
+	-- (review) the Sort button says "Distance" alone when distance is first: no row ties on yards to be sorted by more
+	B.Reset(); FlushAll()
+	UI:SetQuery("sword sort:distance,level"); FlushAll()
+	check(B.Label("sort") == ns.L["Sort: %s"]:format(ns.L["Distance"]), "distance first: its label alone: " .. tostring(B.Label("sort")))
+	UI:SetQuery("sword sort:quality,-count"); FlushAll()
+	check(B.Label("sort") == ns.L["Sort: %s, %s"]:format(ns.L["Quality"], ns.L["Count"]), "a sort and its then by: " .. tostring(B.Label("sort")))
 
 	B.Reset()
 	UI:Hide(); FlushAll()
@@ -142,6 +157,13 @@ do
 	check(Names("@npc is:innkeeper faction:friendly sort:level,distance ") == "Low Near Mid Far", "by level, then the nearest: " .. Names("@npc is:innkeeper faction:friendly sort:level,distance "))
 	check(Names("@npc is:innkeeper faction:friendly sort:-level,-distance ") == "Far Mid Near Low", "the highest level, then the farthest: " .. Names("@npc is:innkeeper faction:friendly sort:-level,-distance "))
 	check(Names("@npc is:innkeeper sort:distance,level ") == "Near Mid Low Far", "distance first: the nearest first")
+	-- (review) more rows than a search lists: the lowest level first, however far (only the 100 nearest were kept, and
+	-- the low-level innkeeper 500 yards off was left out)
+	for i = 1, 150 do NPCS[#NPCS + 1] = { "Innkeeper Town" .. i, 100 + i, 30 }; DIST[100 + i] = i end
+	ns:Changed("npc"); F.ClearCache()
+	local many = Names("@npc is:innkeeper faction:friendly sort:level,distance ")
+	check(many:match("^%S+") == "Low", "150 more near: the lowest level still first: " .. many:sub(1, 40))
+	for i = #NPCS, 5, -1 do NPCS[i] = nil end
 	UI:Hide(); FlushAll()
 	I.Here, I.NpcDistance, I.NpcField, I.NpcFlagDefs, _G.UnitFactionGroup = save.here, save.dist, save.field, save.defs, save.group
 	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
