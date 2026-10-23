@@ -43,6 +43,33 @@ do
 	check(Names() == "Linen Silk", "the other search's words: only wool left out: " .. Names())
 	UI:SetQuery("@item cloth | except @bank | count"); FlushAll()
 	check(tostring(UI.Results()[1] and UI.Results()[1].name):find("2", 1, true), "then counted: 2")
+	-- (review) the bank changed (a list marked to be made again, nothing else yet): its rows are read again, not kept
+	BANK[#BANK + 1] = { "Silk Cloth", 4306 }
+	ns.providers.bank._dirty = true
+	UI:SetQuery("@item cloth | except @bank "); FlushAll()
+	check(Names() == "Linen", "silk put in the bank: left out at once: " .. Names())
+	BANK[#BANK] = nil
+	ns.providers.bank._dirty = true
+	-- (review) past 5000 rows, sorted and the first few kept: those of the rows left after | except, in the sort's order
+	local realBags = BAGS
+	BAGS = {}
+	for i = 1, 5200 do BAGS[i] = { "Thing " .. i, 100000 + i } end
+	BANK[#BANK + 1] = { "Thing 5200", 105200 }
+	BANK[#BANK + 1] = { "Thing 5199", 105199 }
+	ns.providers.items.collect = function()
+		local out = {}
+		for i, r in ipairs(BAGS) do out[i] = { name = r[1], itemID = r[2], key = "bags" .. i, text = "cloth bags", count = i } end
+		return out
+	end
+	ns:Changed("items"); ns.providers.bank._dirty = true
+	UI:SetQuery("@item thing sort:count | first 3 | except @bank "); FlushAll()
+	local got = {}
+	for _, e in ipairs(UI.Results()) do if B.Real(e) then got[#got + 1] = tostring(e.name):match("(%d+)$") end end
+	check(table.concat(got, " ") == "5198 5197 5196", "the 3 biggest counts not in the bank: " .. table.concat(got, " "))
+	BAGS = realBags
+	ns.providers.items.collect = Rows(BAGS, "bags")
+	BANK[#BANK] = nil; BANK[#BANK] = nil
+	ns:Changed("items"); ns.providers.bank._dirty = true
 	check(E.Explain("@item cloth | except @bank") == "Items matching cloth, leaving out your bank", "explained: " .. tostring(E.Explain("@item cloth | except @bank")))
 	-- plain words
 	local rest, step = E.SetOp("cloth but not in my bank")

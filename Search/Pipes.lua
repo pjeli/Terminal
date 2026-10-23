@@ -1735,24 +1735,37 @@ end
 --- The other search's rows (| except, | also): its @kinds (none: the lists the rows come from), filters and words
 --- (each in a row's name or words), every row of them, not the best few. Kept for the search's length: a key per text.
 local otherKept = { gen = nil, rows = {} }
+A.OTHER_KEEP = 5 -- (seconds: "| except @loot since:30m" moves with the clock; review)
 function A.OtherRows(text, fromKinds)
-	local gen = ns.entriesGen
-	-- (a few texts kept: every keystroke of "| except @stored lin..." is another; review)
-	if otherKept.gen ~= gen or (otherKept.n or 0) >= 8 then otherKept = { gen = gen, rows = {}, n = 0 } end
-	local key = text .. "\001" .. table.concat(fromKinds or {}, ",")
-	if otherKept.rows[key] then return otherKept.rows[key] end
 	local kinds, filters, words = {}, {}, {}
-	local F = ns.Filters
-	for _, w in ipairs((ns.Words(text))) do
+	local all = ns.Words(text)
+	for _, w in ipairs(all) do
 		if w:sub(1, 1) == "@" and #w > 1 then
 			local p = ns:ResolveProvider(w:sub(2))
 			if p then kinds[#kinds + 1] = p.id end
-		else
+		end
+	end
+	if #kinds == 0 then kinds = fromKinds or {} end
+	-- (a list changed since, the bank's or mail's: made again first, so what's kept of it goes; review: a sword put in
+	-- the bank was still listed by "| except @bank" until another list changed)
+	for _, id in ipairs(kinds) do
+		local p = ns.providers[id]
+		if p and p._dirty then ns:GetEntries(p) end
+	end
+	local gen, now = ns.entriesGen, GetTime and GetTime() or 0
+	-- (a few texts kept: every keystroke of "| except @stored lin..." is another; review)
+	if otherKept.gen ~= gen or (otherKept.n or 0) >= 8 or now - (otherKept.at or now) > A.OTHER_KEEP then
+		otherKept = { gen = gen, rows = {}, n = 0, at = now }
+	end
+	local key = text .. "\001" .. table.concat(fromKinds or {}, ",")
+	if otherKept.rows[key] then return otherKept.rows[key] end
+	local F = ns.Filters
+	for _, w in ipairs(all) do
+		if not (w:sub(1, 1) == "@" and #w > 1) then
 			local f = (w:find("[:|]") or w:find("^[-!][%a\128-\255]")) and F and F.Parse(w)
 			if f then filters[#filters + 1] = f else words[#words + 1] = ns.Lower(w) end
 		end
 	end
-	if #kinds == 0 then kinds = fromKinds or {} end
 	local out = {}
 	for _, id in ipairs(kinds) do
 		local p = ns.providers[id]
@@ -1995,7 +2008,9 @@ function A.Apply(spec, res, base)
 	-- "| first 3": the first three in the search's order (summed up after: the search's rows came unsorted, sorted
 	-- here); how many there were, for the footer ("3 of 41")
 	if spec.first then
-		spec.firstOf = #rows
+		-- (how many there were: the search's own count, from before it kept the best 100, when nothing was taken out
+		-- since; review: "3 of 100" for 250)
+		spec.firstOf = (#spec.wheres == 0 and spec.matched) or #rows
 		if A.Summing(spec) then rows = ns.UI.SortAndTrim(rows, spec.first) end
 		if #rows > spec.first then
 			local kept = {}

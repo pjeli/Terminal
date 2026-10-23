@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.66.20 (in testing)
+
+**Top N and comparing, from a second review of 0.66.x**
+- **| except @bank** sees a change to the bank (or mail) at once; it kept the other search's rows until some other list changed. Its rows are read again after five seconds too, for **since:30m** and the like.
+- **sort:count | first 3 | except @bank** past 5000 rows: the three biggest counts left after the bank's are taken out (the rows sorted were those taken out, and the gaps filled by relevance).
+- **| first 3**: the footer's "3 of 250" counts every match, not the 100 a search keeps.
+- "top 0 swords", "30 yard range" and "the best of both worlds" stay searches.
+
 ## 0.66.19 (in testing)
 
 **Sorting, from a second review of 0.66.x**

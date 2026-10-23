@@ -1073,8 +1073,10 @@ E.NOT_COUNTED = { stack = true, stacks = true, x = true, of = true, slot = true,
 	gold = true, silver = true, copper = true, g = true, s = true, c = true, percent = true, ["%"] = true, durability = true,
 	day = true, days = true, hour = true, hours = true, minute = true, minutes = true, week = true, weeks = true,
 	month = true, months = true, ago = true, to = true, ["and"] = true, ["or"] = true, handed = true, hand = true,
-	piece = true, pieces = true, point = true, points = true, yards = true, yd = true }
+	piece = true, pieces = true, point = true, points = true, yards = true, yard = true, yd = true, yds = true }
 local TOP_LEAD = { the = true, my = true }
+E.NOT_A_NOUN = { of = true, ["and"] = true, ["or"] = true, the = true, a = true, an = true, ["in"] = true, on = true, to = true,
+	["for"] = true, with = true, at = true, by = true, from = true }
 -- (an order's own words before the thing: "most valuable", "highest level", "best quality")
 E.ORDER_ADJ = { valuable = true, expensive = true, level = true, quality = true, priced = true, item = false }
 -- (one thing, named as a pair: "the cheapest boots" is one pair of boots)
@@ -1125,7 +1127,7 @@ function E.TopN(text)
 	-- "top 5 upgrades", "first 3 quests"
 	if not n and (lw[i] == "top" or lw[i] == "first") and Num(lw[i + 1]) and lw[i + 2] then
 		n = Num(lw[i + 1])
-		if E.NOT_COUNTED[lw[i + 2]] then return text, nil end
+		if n < 1 or E.NOT_COUNTED[lw[i + 2]] then return text, nil end -- ("top 0 swords": no count; review)
 		return Placed(Rest(i, 2)), math.min(n, 100)
 	end
 	if n then
@@ -1143,6 +1145,8 @@ function E.TopN(text)
 		while lw[k + 1] and (E.RANK_WORDS[lw[k]] or E.ORDER_ADJ[lw[k]]) do k = k + 1 end
 		local noun = lw[k]
 		if noun:find("[^s]s$") and not E.ONE_PAIR[noun] then return text, nil end
+		-- (no thing named: "the best of both worlds" is a name; review)
+		if E.NOT_A_NOUN[noun] then return text, nil end
 		return text, 1
 	end
 	return text, nil

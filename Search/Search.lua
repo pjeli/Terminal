@@ -2134,13 +2134,17 @@ function Scan.Finalize(self, q, out)
 		if kinds and kinds.quests and kinds.questie then out = Scan.OneQuest(out) end
 		-- ("| first 10 | sum value": the first ten by the sort typed; "| except @bank" listed by it: its order is set
 		-- here, as the steps sort by it after; 0.66.7, review)
+		-- (rows taken out by "| except" after: every row in its order, else those kept were the ones gone, and the rest
+		-- came by relevance; review)
 		local agg = self.aggregate
 		if (agg.first or not agg.last) and q.sortField and ns.Bar then
-			ns.Bar.SortRows(out, q.sortField, agg.first or Score.MAX_RESULTS, overBudget)
+			ns.Bar.SortRows(out, q.sortField, #(agg.wheres or {}) > 0 and #out or agg.first or Score.MAX_RESULTS, overBudget)
 		end
 		return out
 	end
 	-- (Simple mode's bar: sorted by name, level, value... the rows that have it first, in its order; Bar.lua)
+	-- ("| first 3": how many matched, for the footer's "3 of 250", before the best are kept)
+	if self.aggregate and self.aggregate.first then self.aggregate.matched = #out end
 	local limit = (q.easyCat and (not q.here or q.nearDefault)) and Score.LIST_MAX or nil
 	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField, limit or Score.MAX_RESULTS, overBudget) end
 	local res = SortAndTrim(out, limit, overBudget)

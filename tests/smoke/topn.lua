@@ -29,6 +29,10 @@ do
 		{ "the most valuable items", "the most valuable items", nil },
 		{ "the highest level sword", "the highest level sword", 1 },
 		{ "20", "20", nil },
+		-- (review)
+		{ "top 0 swords", "top 0 swords", nil },
+		{ "30 yard range", "30 yard range", nil },
+		{ "the best of both worlds", "the best of both worlds", nil },
 	}
 	for _, c in ipairs(CASES) do
 		local rest, n = E.TopN(c[1])
@@ -64,6 +68,14 @@ do
 	check(Names() == "Arcanite Bronze", "the 2 best: " .. Names())
 	UI:SetStatus()
 	check(tostring(UI.status:GetText()):find(ns.L["%d of %d"]:format(2, 5), 1, true), "the footer: 2 of 5: " .. tostring(UI.status:GetText()))
+	-- (review) more matches than a search lists: how many there were, not the 100 it kept
+	for i = 1, 245 do ROWS[#ROWS + 1] = { "Plain Sword " .. i, 1, 1 } end
+	ns:Changed("items")
+	UI:SetQuery("@item sword | first 3"); FlushAll()
+	UI:SetStatus()
+	check(tostring(UI.status:GetText()):find(ns.L["%d of %d"]:format(3, 250), 1, true), "the footer: 3 of 250: " .. tostring(UI.status:GetText()))
+	for i = #ROWS, 6, -1 do ROWS[i] = nil end
+	ns:Changed("items")
 	UI:SetQuery("@item sword sort:count | first 2 | sum count"); FlushAll()
 	local r = UI.Results()[1]
 	check(r and tostring(r.name):find("14", 1, true), "the 2 most counted, summed: 9 + 5 = 14: " .. tostring(r and r.name))
