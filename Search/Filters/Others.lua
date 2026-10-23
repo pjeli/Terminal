@@ -464,6 +464,76 @@ KEYS.when = function(v)
 	if not (CA and CA.SPAN_OK[v]) then return nil end
 	return function(e) return e.kind == "calendar" and CA.InSpan(e, v) or false end
 end
+-- Dates (0.66.8, the player: "loot from yesterday", "mail older than 20 days", "auctions sold this week", "what killed me
+-- today"): since:<when> keeps rows from then on, older:<when> rows from before it. <when>: today, yesterday (from their
+-- midnight), week (the last 7 days), month (30), login (this session), or a time ago: 30m, 2h, 3d, 2w. On the lists that
+-- keep times: the loot log, mail, auctions, history, the combat log, buyback.
+local SESSION_START = (_G.time and _G.time()) or 0 -- (when the addon loaded: since:login)
+local SPAN_SECONDS = { m = 60, min = 60, h = 3600, hr = 3600, d = 86400, day = 86400, days = 86400, w = 604800, wk = 604800 }
+--- When a since:/older: value starts (seconds since the epoch, as time() counts), or nil when it isn't one.
+function F.TimeStart(v)
+	local now = ns.Now()
+	if type(v) ~= "string" then return nil end
+	v = Lower(v)
+	if v == "today" or v == "yesterday" then
+		local okD, t = pcall(_G.date, "*t", now)
+		if not okD or type(t) ~= "table" then return nil end
+		t.hour, t.min, t.sec = 0, 0, 0
+		local okT, midnight = pcall(_G.time, t)
+		if not okT or type(midnight) ~= "number" then return nil end
+		return v == "today" and midnight or midnight - 86400
+	end
+	if v == "week" then return now - 7 * 86400 end
+	if v == "month" then return now - 30 * 86400 end
+	if v == "login" or v == "session" then return SESSION_START end
+	local n, unit = v:match("^(%d+%.?%d*)(%a+)$")
+	local s = unit and SPAN_SECONDS[unit]
+	if s then return now - tonumber(n) * s end
+	return nil
+end
+--- When a row's event happened (seconds since the epoch), or nil for a row with no time: a loot, a mail's arrival, an
+--- auction posted or sold, a line run, a hit, a sale to a vendor.
+function F.RowTime(e)
+	if type(e) ~= "table" then return nil end
+	local at = rawget(e, "at")
+	if type(at) == "number" then return at end
+	local k = e.kind
+	if k == "buyback" then return type(e.t) == "number" and e.t or nil end
+	if k == "lootlog" then local d = rawget(e, "entry") return type(d) == "table" and type(d.t) == "number" and d.t or nil end
+	if k == "mail" then
+		local m = rawget(e, "mail")
+		if type(m) ~= "table" then return nil end
+		if type(m.sent) == "number" then return m.sent end
+		local MA = ns.Mail
+		if type(m.expires) == "number" and MA and MA.KEEP_DAYS then
+			return m.expires - (m.cod and MA.COD_DAYS or MA.KEEP_DAYS) * 86400
+		end
+		return type(m.first) == "number" and m.first or nil
+	end
+	if k == "auctions" then
+		local a = rawget(e, "auction")
+		return type(a) == "table" and (type(a.at) == "number" and a.at or type(a.t) == "number" and a.t) or nil
+	end
+	return nil
+end
+-- (when it starts: worked out once, as the search is made)
+KEYS.since = function(v)
+	local from = F.TimeStart(v)
+	if from == nil then return nil end
+	return function(e)
+		local t = F.RowTime(e)
+		return t ~= nil and t >= from
+	end
+end
+KEYS.older = function(v)
+	local from = F.TimeStart(v)
+	if from == nil then return nil end
+	return function(e)
+		local t = F.RowTime(e)
+		return t ~= nil and t < from
+	end
+end
+KEYS.before = KEYS.older
 KEYS.missing = function(v) return ns.Group and ns.Group.MissingFilter(v) or nil end
 KEYS.needs = KEYS.missing
 IS.notdone, IS.undone = IS.todo, IS.todo
@@ -560,6 +630,9 @@ F.APPLIES = {
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
+	since = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
+	older = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
+	before = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	value = { ["*"] = MADE }, worth = { ["*"] = MADE }, slots = { ["*"] = { "items", "loot", "stored", "bank", "shared", "questie", "quests" } },
 }
 
@@ -607,6 +680,7 @@ F.HELP = {
 	{ "ilvl:60+", L["item level"] },
 	{ "value:>1g", L["what it sells to a vendor for (a stack: all of it): value:1g-5g, value:<50s (g s c; a bare number is copper)"] },
 	{ "slots:>=10", L["a bag's slots (a quest: the bag it rewards)"] },
+	{ "since:yesterday", L["from then on: today, yesterday, week (the last 7 days), month, login, or a time ago (30m, 2h, 3d, 2w); older:20d before it. The loot log, mail, auctions, history, the combat log, buyback"] },
 	{ "q:rare+", L["item quality: poor common uncommon rare epic legendary"] },
 	{ "stat:stamina", L["an item stat, or what a consumable gives (elixirs, potions, food); with a number: stat:sta>=10 (str agi sta int spi armor ap sp crit hit mp5 fire...)"] },
 	{ "slot:wrist", L["item slot, or what a recipe makes or enchants (bracers boots gloves cloak helm ring 2h...)"] },

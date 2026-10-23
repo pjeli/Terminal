@@ -876,6 +876,17 @@ function ns.QuestionToAdvancedOf(text)
 	local rest, tail = Scan.SplitTail(text)
 	line = rest and Print(rest)
 	if line then return WithTail(line, tail) end
+	-- (dates and numbers in words after it, "what killed me today": as Scan.Answer reads them; 0.66.8)
+	if EasyOn() and ns.Easy and ns.Easy.PlainNumbers then
+		local words = {}
+		for w in text:gmatch("%S+") do words[#words + 1] = w end
+		local again = table.concat((ns.Easy.PlainNumbers(words)), " ")
+		if again ~= text then
+			rest, tail = Scan.SplitTail(again)
+			line = rest and Print(rest)
+			if line then return WithTail(line, tail) end
+		end
+	end
 end
 
 ----------------------------------------------------------------------
@@ -1143,6 +1154,18 @@ function Scan.Answer(self, text)
 		local rest
 		rest, tail = Scan.SplitTail(text)
 		if rest then rows = Scan.Ask(self, rest) end
+		-- (Simple mode: dates and numbers said in words after the question, "what killed me today", are its filters:
+		-- "what killed me since:today"; 0.66.8)
+		if not rows and EasyOn() and ns.Easy and ns.Easy.PlainNumbers then
+			local words = {}
+			for w in text:gmatch("%S+") do words[#words + 1] = w end
+			local said = ns.Easy.PlainNumbers(words)
+			local again = table.concat(said, " ")
+			if again ~= text then
+				rest, tail = Scan.SplitTail(again)
+				if rest then rows = Scan.Ask(self, rest) end
+			end
+		end
 		if not rows then return nil end
 	end
 	return Scan.AnswerView(self, rows, tail)

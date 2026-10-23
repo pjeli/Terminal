@@ -298,6 +298,7 @@ ns:RegisterProvider("combatlog", {
 					-- (by what it is, not its place: each new entry moved every older one's key, and picks never matched again;
 					-- review, 0.53.6)
 					key = table.concat({ d.t or 0, d.what, tostring(d.who), tostring(d.spell), tostring(d.amount) }, ":"), name = line, line = line, what = d.what, amount = d.amount, other = other,
+					at = d.t, -- (when: since:today; 0.66.8)
 					icon = (d.what == "died" or d.what == "killed") and "Interface\\Icons\\Ability_Rogue_FeignDeath"
 						or "Interface\\Icons\\Ability_CriticalStrike",
 					detail = table.concat(parts, ns.DETAIL_SEP),

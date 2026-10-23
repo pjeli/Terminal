@@ -824,6 +824,56 @@ local function ValueAt(lw, i, key, bare)
 end
 
 local OrderAt -- (below)
+-- Dates in plain words (0.66.8, the player): "loot from yesterday", "mail older than 20 days", "auctions sold this week",
+-- "what killed me today", "in the last 3 days", "this session": since: and older: (Filters/Others.lua).
+local TIME_UNITS = { minute = "m", minutes = "m", min = "m", mins = "m", hour = "h", hours = "h", hr = "h", hrs = "h",
+	day = "d", days = "d", week = "w", weeks = "w" }
+--- Dates at words[i]: the filter words ({ "since:yesterday", "older:today" }) and how many words; or nil.
+local function DateAt(lw, i)
+	local w = lw[i]
+	if not w then return nil end
+	local lead = 0
+	if w == "from" or w == "on" then lead = 1 end -- ("from yesterday", "on yesterday's")
+	local x = lw[i + lead]
+	if x == "today" or x == "tonight" then return { "since:today" }, lead + 1 end
+	if x == "yesterday" then return { "since:yesterday", "older:today" }, lead + 1 end
+	if w == "since" then
+		local y = lw[i + 1]
+		if y == "yesterday" or y == "today" then return { "since:" .. y }, 2 end
+		if y == "login" or (y == "i" and lw[i + 2] == "logged" and lw[i + 3] == "in") then return { "since:login" }, y == "login" and 2 or 4 end
+	end
+	if w == "this" then
+		local y = lw[i + 1]
+		if y == "week" then return { "since:week" }, 2 end
+		if y == "month" then return { "since:month" }, 2 end
+		if y == "session" then return { "since:login" }, 2 end
+	end
+	-- "last 3 days", "past 2 hours", "in the last 10 minutes", "last hour", "last week"
+	local k = i
+	if w == "in" and lw[i + 1] == "the" then k = i + 2 end
+	if lw[k] == "last" or lw[k] == "past" then
+		local n = lw[k + 1] and lw[k + 1]:match("^(%d+)$")
+		local unit = TIME_UNITS[lw[k + (n and 2 or 1)] or ""]
+		if unit then
+			if not n and unit == "w" then return { "since:week" }, k + 2 - i end
+			return { "since:" .. (n or "1") .. unit }, k + (n and 3 or 2) - i
+		end
+	end
+	-- "older than 20 days", "more than 2 weeks old"
+	if w == "older" and lw[i + 1] == "than" then
+		local n = lw[i + 2] and lw[i + 2]:match("^(%d+)$")
+		local unit = n and TIME_UNITS[lw[i + 3] or ""]
+		if unit then return { "older:" .. n .. unit }, 4 end
+		if lw[i + 2] == "yesterday" or lw[i + 2] == "today" then return { "older:" .. lw[i + 2] }, 3 end
+	end
+	if (w == "more" or w == "over") and (w == "over" or lw[i + 1] == "than") then
+		local j = w == "over" and i + 1 or i + 2
+		local n = lw[j] and lw[j]:match("^(%d+)$")
+		local unit = n and TIME_UNITS[lw[j + 1] or ""]
+		if unit and lw[j + 2] == "old" then return { "older:" .. n .. unit }, j + 3 - i end
+	end
+end
+
 -- Levels relative to you (0.66.6, the player): "3 levels above me", "within 5 levels of me", "up to 3 levels above me",
 -- "above my level", "around my level", "next level" are lvl:me+3, lvl:me-5..me+5, lvl:me..me+3, lvl:>me,
 -- lvl:me-2..me+3, lvl:me+1: they move with you as you level.
@@ -908,24 +958,32 @@ function E.PlainNumbers(words)
 	local i = 1
 	while i <= #words do
 		local key, take, value
+		-- dates: "yesterday", "this week", "older than 20 days" (0.66.8)
+		local dates, nd = DateAt(lw, i)
+		if dates then
+			local phrase = table.concat(words, " ", i, i + nd - 1)
+			for _, d in ipairs(dates) do out[#out + 1] = d; said[d] = phrase end
+			i = i + nd
+		end
 		-- levels from yours: "3 levels above me", "next level"
-		local rel, nr = RelativeAt(lw, i)
+		local rel, nr
+		if not dates then rel, nr = RelativeAt(lw, i) end
 		if rel then key, value, take = "lvl", rel, nr end
 		-- an order said: "most valuable", "cheapest", "highest level" (0.66.7)
-		if not key then
+		if not key and not dates then
 			local so, nso = OrderAt(lw, i)
 			if so then key, value, take = "sort", so, nso end
 		end
 		-- a field, then its value: "level under 25", "worth more than 1g", "level 20-30", "level 25 or higher"
 		local f, nf
-		if not key then f, nf = FieldAt(lw, i) end
+		if not key and not dates then f, nf = FieldAt(lw, i) end
 		if f then
 			-- (a number alone after the field: only a level's, "level 25"; "slot 2" is no bag's)
 			local v, nv = ValueAt(lw, i + nf, f, f == "lvl" or f == "ilvl")
 			if v then key, value, take = f, v, nf + nv end
 		end
 		-- "between level 20 and 30", "from level 20 to 30"
-		if not key and (lw[i] == "between" or lw[i] == "from") then
+		if not key and not dates and (lw[i] == "between" or lw[i] == "from") then
 			local f2, n2 = FieldAt(lw, i + 1)
 			if f2 then
 				local copy = { lw[i] }
@@ -935,7 +993,7 @@ function E.PlainNumbers(words)
 			end
 		end
 		-- "under level 25", "at least level 10", "at least 10 slots", "more than 1g", "over 50 silver"
-		if not key then
+		if not key and not dates then
 			local op, no = OpAt(lw, i, E.NUM_BEFORE)
 			if op then
 				local f2, n2 = FieldAt(lw, i + no)
@@ -954,7 +1012,7 @@ function E.PlainNumbers(words)
 			end
 		end
 		-- "10 slots or more", "10 slots", "50% durability or less"
-		if not key then
+		if not key and not dates then
 			local v, nv = NumAt(lw, i, "slots")
 			if v then
 				local f3, n3 = FieldAt(lw, i + nv)
@@ -964,7 +1022,9 @@ function E.PlainNumbers(words)
 				end
 			end
 		end
-		if key then
+		if dates then
+			-- (taken above)
+		elseif key then
 			local word = key .. ":" .. value
 			out[#out + 1] = word
 			said[word] = table.concat(words, " ", i, i + take - 1)

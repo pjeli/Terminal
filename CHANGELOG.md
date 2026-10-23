@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.8 (in testing)
+
+**Dates in plain words**
+- **loot from yesterday**, **loot today**, **mail older than 20 days**, **auctions sold this week**, **what killed me today**, **in the last 3 days**, **past 2 hours**, **this session**: on the lists that keep times (the loot log, mail, auctions, history, the combat log, buyback).
+- Advanced: **since:** and **older:**, with today, yesterday, week, month, login, or a time ago (30m, 2h, 3d, 2w): **@drop since:yesterday older:today**, **@mail older:20d**.
+
 ## 0.66.7 (in testing)
 
 **Top N**

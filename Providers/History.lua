@@ -73,7 +73,7 @@ function H.Rows()
 	for i, line in ipairs(ns:HistoryLines()) do
 		local at = ns:HistoryAt(line)
 		out[#out + 1] = {
-			key = line, name = line, line = line, histPos = i, icon = H.ICON,
+			key = line, name = line, line = line, histPos = i, icon = H.ICON, at = at, -- (at: since:today; 0.66.8)
 			detail = at and ns.Ago(math.max(0, time() - at)) or nil,
 			activate = SearchAgain, staysOpen = true,
 		}

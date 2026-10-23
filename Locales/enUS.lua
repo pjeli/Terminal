@@ -2033,6 +2033,7 @@ L["found, waiting for Questie to finish loading"] = true
 L["fps %.0f"] = true
 L["frames over 1 ms"] = true
 L["from %s"] = true
+L["from then on: today, yesterday, week (the last 7 days), month, login, or a time ago (30m, 2h, 3d, 2w); older:20d before it. The loot log, mail, auctions, history, the combat log, buyback"] = true
 L["from trash"] = true
 L["from trash in %s"] = true
 L["fuzzy finding over every list (hold Tab, press `)"] = true
