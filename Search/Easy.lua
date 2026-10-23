@@ -707,6 +707,191 @@ function E.ShownKinds(rows)
 	return set
 end
 
+----------------------------------------------------------------------
+-- Numbers in plain words (0.66.5, the player): "swords between level 20 and 30", "quests under level 25", "items worth
+-- more than 1g", "bags with at least 10 slots", "gear with durability below 50%" are the Advanced filters lvl:20-30,
+-- lvl:<25, value:>1g, slots:>=10, dura:<50. Alt+` writes them so; the bar shows them as typed filters.
+----------------------------------------------------------------------
+E.NUM_FIELDS = { level = "lvl", levels = "lvl", lvl = "lvl", lvls = "lvl", ["item level"] = "ilvl", ["item levels"] = "ilvl",
+	ilvl = "ilvl", itemlevel = "ilvl", worth = "value", value = "value", valued = "value", ["sells for"] = "value",
+	slot = "slots", slots = "slots", durability = "dura", dura = "dura" }
+-- (the fields said after the number: "10 slots", "50% durability")
+E.NUM_AFTER = { slots = true, dura = true }
+E.NUM_BEFORE = { ["<"] = { "under", "below", "less than", "lower than", "fewer than", "cheaper than", "smaller than", "beneath" },
+	[">"] = { "over", "above", "more than", "greater than", "higher than", "bigger than", "larger than", "pricier than" },
+	[">="] = { "at least", "min", "minimum", "no less than" },
+	["<="] = { "at most", "up to", "max", "maximum", "no more than" } }
+E.NUM_AFTERWARDS = { [">="] = { "or more", "or higher", "or above", "or over", "and up", "and above", "or better", "plus" },
+	["<="] = { "or less", "or lower", "or below", "or fewer", "or under", "and under", "and below" } }
+local MONEY_WORDS = { g = "g", gold = "g", s = "s", silver = "s", c = "c", copper = "c" }
+
+--- Reads "20", "1g", "1g50s", "1 gold 50 silver", "50%" at words[i] for a field (key): its text for the filter and how
+--- many words it took; nil when it isn't one. A money amount says "money".
+local function NumAt(lw, i, key)
+	local w = lw[i]
+	if not w then return nil end
+	if key == "dura" then
+		local n = w:match("^(%d+)%%?$")
+		if n then return n, 1 end
+		return nil
+	end
+	-- money: one word ("1g50s") or a number and its unit's word ("1 gold 50 silver")
+	if (key == "value" or key == nil) then
+		local F = ns.Filters
+		if w:find("^[%d%.]+[gsc]") and F and F.Copper and F.Copper(w) then return w, 1, true end
+		local n, used, text = 0, 0, ""
+		while lw[i + used] and lw[i + used + 1] do
+			local num, unit = lw[i + used]:match("^(%d+)$"), MONEY_WORDS[lw[i + used + 1]]
+			if not (num and unit and #lw[i + used + 1] > 1) then break end
+			text = text .. num .. unit
+			used = used + 2
+			n = n + 1
+		end
+		if n > 0 then return text, used, true end
+		if key == nil then return nil end
+	end
+	local n = w:match("^(%d+)$")
+	if n then return n, 1 end
+	return nil
+end
+
+--- A phrase from E.NUM_BEFORE / NUM_AFTERWARDS starting at words[i]: its operator and how many words; or nil.
+local function OpAt(lw, i, list)
+	for op, said in pairs(list) do
+		for _, phrase in ipairs(said) do
+			local n, ok = 0, true
+			for part in phrase:gmatch("%S+") do
+				if lw[i + n] ~= part then ok = false break end
+				n = n + 1
+			end
+			if ok then return op, n end
+		end
+	end
+end
+
+--- A field's word at words[i] (one or two words): its key and how many words; or nil.
+local function FieldAt(lw, i)
+	local two = lw[i + 1] and E.NUM_FIELDS[lw[i] .. " " .. lw[i + 1]]
+	if two then return two, 2 end
+	local one = E.NUM_FIELDS[lw[i] or ""]
+	if one then return one, 1 end
+end
+
+--- "between 20 and 30", "from 20 to 30", "20 to 30", "20-30", "20+": a range at words[i] for key: its text and how many
+--- words; nil when there's none.
+local function SpanAt(lw, i, key)
+	local w = lw[i]
+	if not w then return nil end
+	if (w == "between" or w == "from") and lw[i + 1] then
+		local a, na = NumAt(lw, i + 1, key)
+		local joiner = lw[i + 1 + (na or 0)]
+		if a and (joiner == "and" or joiner == "to" or joiner == "through" or joiner == "-") then
+			local b, nb = NumAt(lw, i + 2 + na, key)
+			if b then return a .. "-" .. b, 2 + na + nb end
+		end
+		return nil
+	end
+	if key ~= "value" and (w:match("^%d+%-%d+$") or w:match("^%d+%+$")) then return w, 1 end
+	local a, na = NumAt(lw, i, key)
+	if a then
+		local joiner = lw[i + na]
+		if joiner == "to" or joiner == "through" or joiner == "-" then
+			local b, nb = NumAt(lw, i + na + 1, key)
+			if b then return a .. "-" .. b, na + 1 + nb end
+		end
+	end
+	return nil
+end
+
+--- After a field: "under 25", "between 20 and 30", "25 or higher", "20-30", "25": the filter's value and how many words.
+local function ValueAt(lw, i, key, bare)
+	local span, ns_ = SpanAt(lw, i, key)
+	if span then return span, ns_ end
+	local op, no = OpAt(lw, i, E.NUM_BEFORE)
+	if op then
+		local v, nv = NumAt(lw, i + no, key)
+		if v then return op .. v, no + nv end
+		return nil
+	end
+	local v, nv = NumAt(lw, i, key)
+	if v then
+		local post, np = OpAt(lw, i + nv, E.NUM_AFTERWARDS)
+		if post then return post .. v, nv + np end
+		-- (a number alone: that one, "level 25"; never a bare amount of money)
+		if bare and key ~= "value" then return v, nv end
+	end
+	return nil
+end
+
+--- The numbers said in plain words made filters: a new list of words (the phrase's place holding its filter, "lvl:<25"),
+--- and each filter's words as typed (for the bar to take back out of the line). Words that aren't a number phrase stay.
+function E.PlainNumbers(words)
+	local lw = {}
+	for i, w in ipairs(words) do lw[i] = Lower(w) end
+	local out, said = {}, {}
+	local i = 1
+	while i <= #words do
+		local key, take, value
+		-- a field, then its value: "level under 25", "worth more than 1g", "level 20-30", "level 25 or higher"
+		local f, nf = FieldAt(lw, i)
+		if f then
+			-- (a number alone after the field: only a level's, "level 25"; "slot 2" is no bag's)
+			local v, nv = ValueAt(lw, i + nf, f, f == "lvl" or f == "ilvl")
+			if v then key, value, take = f, v, nf + nv end
+		end
+		-- "between level 20 and 30", "from level 20 to 30"
+		if not key and (lw[i] == "between" or lw[i] == "from") then
+			local f2, n2 = FieldAt(lw, i + 1)
+			if f2 then
+				local copy = { lw[i] }
+				for j = i + 1 + n2, #lw do copy[#copy + 1] = lw[j] end
+				local v, nv = SpanAt(copy, 1, f2)
+				if v then key, value, take = f2, v, nv + n2 end
+			end
+		end
+		-- "under level 25", "at least level 10", "at least 10 slots", "more than 1g", "over 50 silver"
+		if not key then
+			local op, no = OpAt(lw, i, E.NUM_BEFORE)
+			if op then
+				local f2, n2 = FieldAt(lw, i + no)
+				if f2 then
+					local v, nv = NumAt(lw, i + no + n2, f2)
+					if v then key, value, take = f2, op .. v, no + n2 + nv end
+				else
+					local v, nv, money = NumAt(lw, i + no, nil)
+					if not v then v, nv = NumAt(lw, i + no, "slots") end
+					if v then
+						local f3, n3 = FieldAt(lw, i + no + nv)
+						if f3 and (E.NUM_AFTER[f3] or (f3 == "value" and money)) then key, value, take = f3, op .. v, no + nv + n3
+						elseif money then key, value, take = "value", op .. v, no + nv end
+					end
+				end
+			end
+		end
+		-- "10 slots or more", "10 slots", "50% durability or less"
+		if not key then
+			local v, nv = NumAt(lw, i, "slots")
+			if v then
+				local f3, n3 = FieldAt(lw, i + nv)
+				if f3 and E.NUM_AFTER[f3] then
+					local post, np = OpAt(lw, i + nv + n3, E.NUM_AFTERWARDS)
+					key, value, take = f3, (post or "") .. v, nv + n3 + (np or 0)
+				end
+			end
+		end
+		if key then
+			local word = key .. ":" .. value
+			out[#out + 1] = word
+			said[word] = table.concat(words, " ", i, i + take - 1)
+			i = i + take
+		else
+			out[#out + 1] = words[i]
+			i = i + 1
+		end
+	end
+	return out, said
+end
+
 --- Two everyday words that mean one thing joined into one ("attack power food" -> "attack power", "food"). Works on
 --- the list in place.
 function E.JoinPairs(words)

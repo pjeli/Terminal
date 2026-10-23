@@ -1308,16 +1308,23 @@ function Scan.Parse(self, text)
 	local words, phrases = Scan.Words(text)
 	-- Simple mode: two everyday words that mean one thing ("attack power food", "spell power"), "sword or axe" ->
 	-- sword|axe, "not boe" -> -boe
+	-- (numbers in plain words: "under level 25" is lvl:<25, "worth more than 1g" value:>1g; 0.66.5, Easy.lua)
+	local said
 	if simple then
+		words, said = ns.Easy.PlainNumbers(words)
 		ns.Easy.JoinPairs(words)
 		ns.Easy.JoinLogic(words)
 	end
 	local plainWord = simple and PlainWord or nil
 	local F = ns.Filters
 	local tokens, kinds = q.tokens, nil
-	-- (Simple mode: the filters typed as words, for the bar to show as picked and take back out of the line: Bar.lua)
+	-- (Simple mode: the filters typed as words, for the bar to show as picked and take back out of the line: Bar.lua; a
+	-- number said in words, its words: shown on the bar whatever its key)
 	local function Picked(spec, word)
-		if simple and spec then q.picks = q.picks or {}; q.picks[#q.picks + 1] = { spec = spec, word = word } end
+		if simple and spec then
+			q.picks = q.picks or {}
+			q.picks[#q.picks + 1] = { spec = spec, word = said and said[word] or word, plain = said and said[word] and true or nil }
+		end
 	end
 	for _, w in ipairs(words) do
 		-- (each word's sort: and do: read once, and lowered once; review, 0.53.6: up to three and five times a word)

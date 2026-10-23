@@ -167,7 +167,7 @@ function B.Typed()
 		local spec = p.spec
 		-- (an everyday word's of those kinds, "rare"; any filter typed as key:value, in:"Scarlet Monastery" a group's Enter
 		-- wrote (0.55.14): you're in that group, the bar says so and takes it back out)
-		local shown = type(p.word) == "string" and p.word:find("^[-!]?%a+:") ~= nil
+		local shown = (type(p.word) == "string" and p.word:find("^[-!]?%a+:") ~= nil) or p.plain == true
 		for _, pat in ipairs(SHOWN_SPEC) do if type(spec) == "string" and spec:find(pat) then shown = true break end end
 		if shown then out.filters[#out.filters + 1] = p end
 	end
@@ -197,6 +197,10 @@ function B.SpecLabel(spec, word)
 			k2 = ns.Lower(k2)
 			if k2 == "in" or k2 == "zone" or k2 == "where" then out = L["In %s"]:format(v2)
 			elseif k2 == "lvl" or k2 == "level" then out = L["Level %s"]:format(v2)
+			elseif k2 == "ilvl" or k2 == "itemlevel" then out = L["Item level %s"]:format(v2)
+			elseif k2 == "value" or k2 == "worth" then out = L["Worth %s"]:format(v2)
+			elseif k2 == "slots" then out = L["Slots %s"]:format(v2)
+			elseif k2 == "dura" or k2 == "durability" then out = L["Durability %s%%"]:format(v2)
 			else out = ns.UpperFirst(v2) end
 			neg = n2
 		end

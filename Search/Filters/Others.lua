@@ -535,6 +535,7 @@ F.APPLIES = {
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
+	value = { ["*"] = MADE }, worth = { ["*"] = MADE }, slots = { ["*"] = { "items", "loot", "stored", "bank", "shared", "questie", "quests" } },
 }
 
 --- The lists the typed words name: every @kind (a set of provider ids), "@group" with "quests" being the party quests'
@@ -578,6 +579,8 @@ end
 F.HELP = {
 	{ "lvl:20-30", L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"] },
 	{ "ilvl:60+", L["item level"] },
+	{ "value:>1g", L["what it sells to a vendor for (a stack: all of it): value:1g-5g, value:<50s (g s c; a bare number is copper)"] },
+	{ "slots:>=10", L["a bag's slots (a quest: the bag it rewards)"] },
 	{ "q:rare+", L["item quality: poor common uncommon rare epic legendary"] },
 	{ "stat:stamina", L["an item stat, or what a consumable gives (elixirs, potions, food); with a number: stat:sta>=10 (str agi sta int spi armor ap sp crit hit mp5 fire...)"] },
 	{ "slot:wrist", L["item slot, or what a recipe makes or enchants (bracers boots gloves cloak helm ring 2h...)"] },

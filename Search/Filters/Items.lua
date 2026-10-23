@@ -586,6 +586,20 @@ KEYS.ilvl = function(v)
 end
 KEYS.itemlevel = KEYS.ilvl
 
+-- value:>1g: what the row sells to a vendor for (a stack: all of it), as sort:value and | sum value count it (0.66.5:
+-- "items worth more than 1g" in plain words)
+KEYS.value = function(v)
+	local r = F.MoneyRange(v)
+	return r and function(e)
+		local A = ns.Aggregate
+		local f = A and A.FIELDS and A.FIELDS.value
+		local ok, n = false, nil
+		if f then ok, n = pcall(f.num, e) end
+		return ok and r(n) or false
+	end
+end
+KEYS.worth = KEYS.value
+
 KEYS.q = function(v)
 	local atLeast = v:sub(-1) == "+"
 	local word = atLeast and v:sub(1, -2) or v

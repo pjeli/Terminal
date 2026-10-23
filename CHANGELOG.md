@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.5 (in testing)
+
+**Numbers in plain words**
+- **swords between level 20 and 30**, **quests under level 25**, **level 25 or higher**, **items worth more than 1g**, **linen under 1 gold 50 silver**, **bags with at least 10 slots**, **10 slots or more**, **gear with durability below 50%**, **item level over 30**. The bar shows each as a filter (unticked, its words go); Alt+` writes **lvl:20-30**, **lvl:<25**, **value:>1g**, **slots:>=10**, **dura:<50**.
+- New in Advanced: **value:** (what it sells for: value:>1g, value:10s-1g) and **slots:** (a bag's slots; a quest's rewarded bag).
+
 ## 0.66.4 (in testing)
 
 **Sort by more than one field**

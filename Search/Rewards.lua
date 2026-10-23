@@ -274,6 +274,27 @@ if Fk and Fk.KEYS then
 		end
 	end
 	Fk.KEYS.rewards = Fk.KEYS.reward -- (.filters' line and which lists it judges: Filters/Others.lua, with sells:)
+	-- slots:>=10: a bag's slots (0.66.5: "bags with at least 10 slots"); a quest's, the bag it rewards
+	Fk.KEYS.slots = function(v)
+		local r = ns.Filters.Range(v)
+		return r and function(e) return r(QR.SlotsOfRow(e)) end
+	end
+end
+
+-- (a container's item class: bags, quivers, ammo pouches; the game's Enum, else 1 as it has always been)
+local CONTAINER = (Enum and Enum.ItemClass and Enum.ItemClass.Container) or 1
+--- A row's bag slots: a bag item's own, a quest's rewarded bag's; nil for anything else (a bag's slots are read from its
+--- tooltip, so only items the game calls containers are read).
+function QR.SlotsOfRow(e)
+	if type(e) ~= "table" then return nil end
+	if e.kind == "questie" or e.kind == "quests" then return QR.RewardSlots(e) end
+	local id = tonumber(rawget(e, "itemID"))
+	if not id then return nil end
+	local inst = C_Item and C_Item.GetItemInfoInstant
+	if not inst then return nil end
+	local ok, _, _, _, _, _, classID = pcall(inst, id)
+	if not ok or classID ~= CONTAINER then return nil end
+	return QR.Slots(id)
 end
 
 ----------------------------------------------------------------------
@@ -624,7 +645,7 @@ ns.FIELD_DETAIL.slots = function(e) return QR.BagDetail(e) end
 -- sort:slots (the most slots first, then the lowest level: as the question lists them) and | sum slots
 do
 	local A = ns.Aggregate
-	if A and A.FIELDS then A.FIELDS.slots = { label = L["slots"], num = function(e) return QR.RewardSlots(e) end } end
+	if A and A.FIELDS then A.FIELDS.slots = { label = L["slots"], num = function(e) return QR.SlotsOfRow(e) end } end
 	local F = ns.Filters
 	if F and F.SORTS then
 		F.SORTS.slots = "slots"

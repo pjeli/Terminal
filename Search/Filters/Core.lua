@@ -118,6 +118,36 @@ local function Range(v)
 end
 F.Range = Range
 
+--- An amount of money in copper: "1g" 10000, "1g50s" 10500, "50s" 5000, "30c" 30, "2.5g" 25000, "123" 123 (copper, as
+--- the game counts it); nil when it isn't one. (0.66.5: value:>1g)
+local MONEY_UNIT = { g = 10000, s = 100, c = 1 }
+local function Copper(v)
+	if type(v) ~= "string" or v == "" then return nil end
+	v = v:lower()
+	if v:match("^%d+$") then return tonumber(v) end
+	local total, rest = 0, v
+	while rest ~= "" do
+		local n, unit, after = rest:match("^(%d+%.?%d*)([gsc])(.*)$")
+		if not n then return nil end
+		total = total + tonumber(n) * MONEY_UNIT[unit]
+		rest = after
+	end
+	return math.floor(total + 0.5)
+end
+F.Copper = Copper
+--- A range of money: "1g-5g", ">1g", "<=50s", "1g+" (each amount as Copper reads it); nil when it isn't one.
+function F.MoneyRange(v)
+	if type(v) ~= "string" then return nil end
+	local bad = false
+	local cv = v:gsub("[%d%.]+[gscGSC][%d%.gscGSC]*", function(m)
+		local c = Copper(m)
+		if not c then bad = true return m end
+		return tostring(c)
+	end)
+	if bad then return nil end
+	return Range(cv)
+end
+
 ----------------------------------------------------------------------
 -- Keys: key -> function(value) giving a test, or nil when the value isn't one this key takes
 ----------------------------------------------------------------------
