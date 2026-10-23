@@ -487,16 +487,52 @@ end
 -- for -2 Agility isn't), and what it adds at least F.UPGRADE_MIN of what you wear there is worth (at least
 -- F.UPGRADE_MIN_ABS: one point of your main stat). Only item levels known: at least F.LEVEL_CLEAR above.
 F.UPGRADE_LOSS, F.UPGRADE_MIN, F.UPGRADE_MIN_ABS, F.LEVEL_CLEAR = 0.5, 0.05, 1, 2
---- What the item's stats add over the worn piece's, weighed (its gain), when it's a clear upgrade; else nil.
+-- Hit over the cap counts for nothing (0.66.3, the player: "weights that know your hit cap"): your hit chance now, from
+-- gear and talents as the game says it, against the chance to miss: a mob of your level below 60 (5% melee and ranged,
+-- 4% spells), a boss three levels above at 60 (9%, 16%). An item's hit counts only up to the cap, after the piece it
+-- replaces gives its own up. The game not saying (or keeping it secret): hit counts in full, as before.
+F.HIT_CAP = { hit = 5, spellhit = 4 }
+F.HIT_CAP_60 = { hit = 9, spellhit = 16 }
+F.HIT_FNS = { hit = "GetHitModifier", spellhit = "GetSpellHitModifier" }
+--- Your hit chances now and their caps: { hit = { now, cap }, spellhit = { now, cap } }, a kind left out when unknown.
+function F.HitNow()
+	local okL, me = pcall(_G.UnitLevel or function() end, "player")
+	me = okL and type(me) == "number" and not Secret(me) and me or nil
+	if not me or me <= 0 then return {} end
+	local caps = me >= 60 and F.HIT_CAP_60 or F.HIT_CAP
+	local out = {}
+	for kind, fn in pairs(F.HIT_FNS) do
+		local f = _G[fn]
+		if type(f) == "function" then
+			local ok, v = pcall(f)
+			-- (a chance in per cent: a number past 100 isn't one)
+			if ok and type(v) == "number" and not Secret(v) and v >= 0 and v <= 100 then out[kind] = { v, caps[kind] } end
+		end
+	end
+	return out
+end
+local hitNow -- (this search's: GearFitWith)
+function F.SetHitNow(h) hitNow = h end -- (tests, and the searches that weigh upgrades)
+
+--- What the item's stats add over the worn piece's, weighed (its gain), when it's a clear upgrade; else nil. Also true
+--- when hit past your cap counted for less.
 function F.ClearGain(mine, worn, w)
 	if type(mine) ~= "table" then return nil end
 	worn = type(worn) == "table" and worn or {}
 	w = w or GENERIC
-	local up, down = 0, 0
+	local up, down, capped = 0, 0, false
 	local function Add(k)
 		local wk = w[k]
 		if not wk then return end
 		local d = (mine[k] or 0) - (worn[k] or 0)
+		local hc = hitNow and hitNow[k]
+		if hc then
+			-- (only the hit under the cap: with the worn piece's given up, against what you have now)
+			local now, cap = hc[1], hc[2]
+			local useful = math.min(now - (worn[k] or 0) + (mine[k] or 0), cap) - math.min(now, cap)
+			if useful < d then capped = true end
+			d = useful
+		end
 		if d > 0 then up = up + wk * d elseif d < 0 then down = down - wk * d end
 	end
 	for k in pairs(mine) do Add(k) end
@@ -504,7 +540,7 @@ function F.ClearGain(mine, worn, w)
 	local net = up - down
 	if net <= 0 or down > F.UPGRADE_LOSS * up then return nil end
 	if net < math.max(F.UPGRADE_MIN_ABS, F.UPGRADE_MIN * (F.KindsValue(worn, w) or 0)) then return nil end
-	return net
+	return net, capped
 end
 
 --- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
@@ -662,6 +698,7 @@ GearFitWith = function(weights, role)
 	local me = _G.UnitLevel and _G.UnitLevel("player") or nil -- (unknown: no level checks)
 	if type(me) ~= "number" or me <= 0 then me = nil end
 	local worn, wornValue, wornKinds, wornLocs, wornNames, wornIds = WornGear(weights)
+	hitNow = F.HitNow() -- (your hit chance now: hit past the cap counts for nothing)
 	-- a one-hander replaces a weapon: the main hand, and the off hand only when it holds one (dual wielding); a shield
 	-- or an off-hand item stays (0.51.17, the player: a mace was weighed against main hand and shield together)
 	local offWeapon = not (wornLocs[17] == "INVTYPE_SHIELD" or wornLocs[17] == "INVTYPE_HOLDABLE")
@@ -847,9 +884,9 @@ GearFitWith = function(weights, role)
 		if multi then
 			up = true
 		elseif mine and wVal and (mine > 0 or wVal > 0) then
-			local gain = F.ClearGain(f.kinds, wKinds, weights) -- (a clear upgrade only: slight trade-offs at most)
+			local gain, capped = F.ClearGain(f.kinds, wKinds, weights) -- (a clear upgrade only: slight trade-offs at most)
 			if gain then
-				up, g = true, { gain = gain, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl }
+				up, g = true, { gain = gain, kinds = f.kinds, worn = wKinds, loc = loc, ilvl = ilvl, wLvl = wLvl, capped = capped }
 			end
 		elseif mine == nil and f.kinds and wVal and wVal > 0 then
 			-- (nothing on it you weigh, a plain weapon's damage for a healer, over a piece that has some: never by its level)
@@ -866,8 +903,8 @@ GearFitWith = function(weights, role)
 				if v == nil and mine and wornKinds[slot] then v = 0 end
 				local one
 				if mine and v and (mine > 0 or v > 0) then
-					local gain = F.ClearGain(f.kinds, wornKinds[slot], weights)
-					if gain then one = { gain = gain, kinds = f.kinds, worn = wornKinds[slot], ilvl = ilvl, wLvl = l } end
+					local gain, capped = F.ClearGain(f.kinds, wornKinds[slot], weights)
+					if gain then one = { gain = gain, kinds = f.kinds, worn = wornKinds[slot], ilvl = ilvl, wLvl = l, capped = capped } end
 				elseif mine == nil and f.kinds and v and v > 0 then
 					-- (nothing you weigh on it, over a piece that has some: not one; as above)
 				elseif l and ilvl >= l + F.LEVEL_CLEAR then
@@ -880,7 +917,7 @@ GearFitWith = function(weights, role)
 			end
 			if #vs == 0 then return false end
 			table.sort(vs, function(a, b) return a.gain > b.gain end)
-			g = { gain = vs[1].gain, vs = vs, kinds = f.kinds, loc = loc, ilvl = ilvl, wLvl = vs[1].wLvl }
+			g = { gain = vs[1].gain, vs = vs, kinds = f.kinds, loc = loc, ilvl = ilvl, wLvl = vs[1].wLvl, capped = vs[1].capped }
 		end
 		if g then g.role = role end
 		gains[e] = g
@@ -1039,6 +1076,15 @@ ns:RegisterCommand("weights", {
 		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."]:format(
 			(F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms")
 		lines[#lines + 1] = "  " .. L["Hit, crit, dodge, parry and block per 1%; defense per point of skill; the rest per point."]
+		-- (the hit cap: what you have now against it; 0.66.3)
+		local h = F.HitNow()
+		local function Pct(v) return (("%.1f"):format(v):gsub("%.0$", "")) end
+		if h.hit then
+			lines[#lines + 1] = "  " .. L["Hit counts up to your cap: %s%% of %s%% now"]:format(Pct(h.hit[1]), Pct(h.hit[2]))
+				.. (h.spellhit and (" " .. L["(spells: %s%% of %s%%)"]:format(Pct(h.spellhit[1]), Pct(h.spellhit[2]))) or "")
+		elseif h.spellhit then
+			lines[#lines + 1] = "  " .. L["Spell hit counts up to your cap: %s%% of %s%% now"]:format(Pct(h.spellhit[1]), Pct(h.spellhit[2]))
+		end
 		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]
 		return lines
 	end,

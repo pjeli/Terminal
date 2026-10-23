@@ -161,3 +161,47 @@ do
 	_G.UnitClass, ns.db.upgradeRoles, TL.Points = save.class, save.roles, save.points
 	F.ClearCache()
 end
+
+io.write("[weightstrees: hit past your cap counts for nothing (0.66.3)]\n")
+do
+	local function Tree(class, id) for _, r in ipairs(F.ROLES[class]) do if r[1] == id then return r[2] end end end
+	local arms = Tree("WARRIOR", "arms")
+	local save = { hit = _G.GetHitModifier, spell = _G.GetSpellHitModifier, level = _G.UnitLevel }
+	-- no hit known: in full, as before
+	F.SetHitNow(nil)
+	local full = F.ClearGain({ hit = 2 }, {}, arms)
+	check(full ~= nil, "+2% hit, nothing known of yours: an upgrade")
+	-- 4% of 5%: only 1% of it counts
+	_G.UnitLevel = function() return 30 end
+	_G.GetHitModifier = function() return 4 end
+	_G.GetSpellHitModifier = function() return 0 end
+	local h = F.HitNow()
+	check(h.hit[1] == 4 and h.hit[2] == 5 and h.spellhit[2] == 4, "below 60: 5% melee, 4% spell caps")
+	F.SetHitNow(h)
+	local g1, capped = F.ClearGain({ hit = 2 }, {}, arms)
+	check(g1 and math.abs(g1 - arms.hit) < 1e-9 and capped, "4% of 5%: +2% hit counts as 1%, said so: " .. tostring(g1))
+	-- capped already: hit is no upgrade at all; one that gives hit up for Strength counts the Strength
+	_G.GetHitModifier = function() return 6 end
+	F.SetHitNow(F.HitNow())
+	check(F.ClearGain({ hit = 2 }, {}, arms) == nil, "6% of 5%: +2% hit is no upgrade")
+	local g2 = F.ClearGain({ str = 6 }, { hit = 1 }, arms)
+	check(g2 and math.abs(g2 - 6) < 1e-9, "over the cap: losing 1% of it costs nothing (6% -> 5%): " .. tostring(g2))
+	check(F.ClearGain({ str = 20 }, { hit = 2 }, arms) and math.abs(F.ClearGain({ str = 20 }, { hit = 2 }, arms) - (20 - arms.hit)) < 1e-9,
+		"losing 2% of 6%: 1% of it counted (under the cap)")
+	-- level 60: the bosses' 9%; nonsense from the game (past 100) not used
+	_G.UnitLevel = function() return 60 end
+	check(F.HitNow().hit[2] == 9 and F.HitNow().spellhit[2] == 16, "at 60: 9% and 16%")
+	_G.GetHitModifier = function() return 700 end
+	check(F.HitNow().hit == nil, "a chance past 100%: not one")
+	-- a search weighing upgrades reads it
+	_G.GetHitModifier = function() return 10 end
+	F.SetHitNow(nil)
+	F.GearFit()
+	check(F.ClearGain({ hit = 2 }, {}, arms) == nil, "an upgrade search reads your hit chance (10% of 9%: capped)")
+	-- .weights says where you stand
+	_G.GetHitModifier = function() return 3 end
+	local lines = table.concat(ns:FindCommand("weights").run("", ns), "\n")
+	check(lines:find(ns.L["Hit counts up to your cap: %s%% of %s%% now"]:format("3", "9"), 1, true), ".weights: 3% of 9%: " .. lines)
+	_G.GetHitModifier, _G.GetSpellHitModifier, _G.UnitLevel = save.hit, save.spell, save.level
+	F.SetHitNow(nil)
+end

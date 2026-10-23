@@ -226,6 +226,10 @@ function UI:UpdateTooltip()
 		if g and g.role and F.MyRoles and F.MyRoles() then
 			t:AddLine(L["An upgrade for: %s"]:format(F.ROLE_SAY[g.role] or g.role), 0.25, 1, 0.25)
 		end
+		-- (its hit past your cap counted for nothing: said, as the game's comparison shows it all; 0.66.3)
+		if g and g.capped then
+			t:AddLine(L["Hit past your cap counts for nothing here"], 0.6, 0.6, 0.6, true)
+		end
 		-- (judged by item level, one of them having no stats to weigh or not loaded: said, as the stats shown don't decide it;
 		-- 0.56.14)
 		if g and (g.byLevel or (g.vs and g.vs[1] and g.vs[1].byLevel)) then

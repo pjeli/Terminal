@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.3 (in testing)
+
+**Upgrades know your hit cap**
+- Your hit chance now (gear and talents, as the game says it) is weighed against the cap: 5% melee and ranged, 4% spells against mobs your level below 60; 9% and 16% against bosses at 60. Hit past it counts for nothing, so a +2% hit item isn't an upgrade once you're capped, and giving up hit you don't need costs nothing. The tooltip says when it counted less; **.weights** says where you stand ("3% of 5% now").
+
 ## 0.66.2 (in testing)
 
 **Upgrades follow your talents**
