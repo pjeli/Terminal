@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.22 (in testing)
+
+**Tidying, from a second review of 0.66.x**
+- A calendar question with a date in it ("what's on today") is asked once, not twice. Code the review found twice is now in one place (the sort said in words; top N and comparing kept off Simple mode's categories).
+
 ## 0.66.21 (in testing)
 
 **Plain words and Why, from a second review of 0.66.x**

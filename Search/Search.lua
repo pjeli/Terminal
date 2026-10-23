@@ -416,14 +416,20 @@ function UI:Search(text)
 		table.insert(res, 1, calc)
 	end
 	-- "| sum value", "| group zone": what was found, summed up (Pipes.lua; its item data asked for as filters do)
-	local agg = self.aggregate
-	-- (the bar's Group, top N and a comparison said in words: not over Simple mode's categories; review)
-	if agg and (agg.fromBar or agg.topWords) and ns.Bar and ns.Bar.Overview(res) then agg = nil end
+	local agg = self:AggregateOver(res)
 	-- (the rows before they're summed up: the bar's Sort and Group menus read what fields they have; Bar.lua)
 	self.ungrouped = nil
 	if agg and ns.Aggregate then self.ungrouped = res; res = ns.Aggregate.Apply(agg, res, agg.base) end
 	self:RetryWhenLoaded(text)
 	return res
+end
+
+--- The steps after the search that sum up or keep these rows (UI.aggregate), or nil: the bar's Group, top N and a
+--- comparison said in words aren't over Simple mode's categories (review). The search's end and its first look.
+function UI:AggregateOver(res)
+	local agg = self.aggregate
+	if agg and (agg.fromBar or agg.topWords) and ns.Bar and ns.Bar.Overview(res) then return nil end
+	return agg
 end
 
 --- A match (a row, or Simple mode's category of them), not a line saying something.
@@ -1213,8 +1219,11 @@ function Scan.Answer(self, text)
 			local drows, a
 			if rest then drows, a = Scan.Ask(self, rest) end
 			-- (a question that takes "today" as one of its little words, "loot today": its rows, the dates on them)
-			if not drows and dtail then drows, a = Scan.Ask(self, text) end
+			local whole = false
+			if not drows and dtail then drows, a = Scan.Ask(self, text); whole = true end
 			if drows and not a.ownDates then return Scan.AnswerView(self, drows, dtail) end
+			-- (the calendar's, asked the whole line: as below, not asked again; review)
+			if drows and whole then return Scan.AnswerView(self, drows, nil) end
 		end
 	end
 	local rows = Scan.Ask(self, text)

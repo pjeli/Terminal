@@ -1453,6 +1453,14 @@ local SORT_SAY = { distance = L["nearest first"], ["-distance"] = L["farthest fi
 	best = L["biggest upgrades first"], plan = L["the recipes that still give skill, by how often your mats make them"],
 	damage = L["biggest hits first"], line = L["line by line"], owner = L["by owner"], slots = L["most slots first"],
 	["-slots"] = L["fewest slots first"], ahvalue = L["highest AH value first"], ahprice = L["highest AH price first"] }
+--- A sort: word ("sort:quality,-level") said: "best quality first, then highest level first"; nil when it isn't one.
+local function SortSay(word)
+	local F = ns.Filters
+	local so = F and F.SortOf and F.SortOf(word)
+	local said = {}
+	for i, part in ipairs(so and F.SortList(so) or {}) do said[i] = SORT_SAY[part] or part end
+	return #said > 0 and table.concat(said, ", " .. L["then"] .. " ") or nil
+end
 local TIME_SAY = { today = L["today"], yesterday = L["yesterday"], week = L["this week"], month = L["this month"], login = L["this session"] }
 
 --- A range as words: "20-30" -> "20-30", "<25" -> "under 25", ">=25" -> "25 or more", "20+" -> "20 or more".
@@ -1554,11 +1562,7 @@ function E.SayFilter(word)
 	local key, val = lw:match("^(%a+):(.+)$")
 	if not key then return nil end
 	if key == "sort" then
-		local F = ns.Filters
-		local so = F and F.SortOf and F.SortOf(lw)
-		local said = {}
-		for i, part in ipairs(so and F.SortList(so) or {}) do said[i] = SORT_SAY[part] or part end
-		return #said > 0 and table.concat(said, ", " .. L["then"] .. " ") or nil
+		return SortSay(lw)
 	end
 	local t = {}
 	for part in val:gmatch("[^|]+") do
@@ -1607,11 +1611,8 @@ function E.Explain(line)
 			local key, val = lw:match("^(%a+):(.+)$")
 			local F = ns.Filters
 			if key and key == "sort" then
-				local so = F and F.SortOf and F.SortOf(lw)
-				local list = so and F.SortList(so) or {}
-				local said = {}
-				for i, part in ipairs(list) do said[i] = SORT_SAY[part] or part end
-				if #said > 0 then orders[#orders + 1] = table.concat(said, ", " .. L["then"] .. " ") end
+				local said = SortSay(lw)
+				if said then orders[#orders + 1] = said end
 			elseif key and F and F.IsKey and F.IsKey(key) then
 				-- (a | b: either said)
 				local alts = {}

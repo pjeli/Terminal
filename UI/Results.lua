@@ -23,8 +23,7 @@ function UI:RunSearch(text)
 	-- under the calculator's answer when there is one (Search adds it only at the end)
 	local t0 = debugprofilestop()
 	-- ("| sum value": what's found so far, summed up, nothing to sort; the whole list once the search is done)
-	local agg = self.aggregate
-	if agg and (agg.fromBar or agg.topWords) and ns.Bar and ns.Bar.Overview(res) then agg = nil end -- (the categories: nothing to group)
+	local agg = self.AggregateOver and self:AggregateOver(res) -- (the categories: nothing to group)
 	local copy
 	if ns.Aggregate and ns.Aggregate.Summing(agg) then copy = ns.Aggregate.Apply(agg, res, agg.base)
 	else
