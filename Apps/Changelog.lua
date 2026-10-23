@@ -14,14 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.12", when = "in testing",
+		v = "0.66.0", when = "released October 2026",
 		items = {
-			"Fewer commands: .xp, .history, .durability, .mail, .combatlog and .lockouts are gone (search for them as for anything: xp, history, durability...). .forget <alt> drops an alt's mail, experience and lockouts; .forget history, .forget combatlog; .set mailWarn off.",
-			"Your own key: bind any key to Terminal (^ on a German keyboard, Ctrl+Space) and it does what ` does; the hints name it.",
-			"Quests that reward bags: \"bag quests\" lists the bags you can still get, most slots first. Advanced: @questie reward:bag.",
-			"Sort either way: an arrow shows the direction; pick a sort again to flip it. Advanced: sort:-level.",
-			"Nearest or farthest: \"farthest innkeeper\", sort:distance and sort:-distance; unknown distances count as infinitely far.",
-			"Upgrades by talent tree, one at a time: .weights fury, .weights holy, .weights bear (or tank, healer); new weights made for WoW Forever. Your own: .weights set str=2 agi=1, or a Pawn scale with .weights pawn.",
+			"Your own key: bind any key to Terminal (^ on a German keyboard, Ctrl+Space) and it does what ` does: closes it, Alt+ it for Advanced mode, Tab+ it for fuzzy finding. The hints name your key.",
+			"Quests that reward bags: \"bag quests\" lists the bags your race, class and faction can still get, most slots first. Advanced: @questie reward:bag sort:slots.",
+			"Sort either way: an arrow shows the direction; pick a sort again to flip it. Advanced: sort:-level. Nearest or farthest: \"farthest innkeeper\", sort:distance and sort:-distance.",
+			"Upgrades by talent tree: .weights fury, .weights holy, .weights bear (or tank, healer), with new weights made for WoW Forever. Your own: .weights set str=2 agi=1, or a Pawn scale with .weights pawn.",
+			"Fewer commands: .xp, .history, .mail and the like are searched as anything is. .forget <alt> drops an alt; .forget history and .forget combatlog clear those.",
 		},
 	},
 	{

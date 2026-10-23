@@ -1,85 +1,38 @@
 # Changelog
 
-## 0.65.12 (in testing)
-
-**Fewer commands** (the player: "there is no need for .xp, .history, .durability, .mail, .combatlog, .lockouts")
-- Those are gone: their lists are searched like anything else (**xp**, **history** or Ctrl+R, **durability**, **mail**, **what killed me**, **lockouts**).
-- What they did besides: **.forget <alt>** drops an alt's mail, experience and lockouts at once; **.forget history** and **.forget combatlog** clear those; **.set mailWarn off** stops the login warning about expiring mail. **.forget** alone still clears your usage ranking.
-- **.talentdebug** and **.profdebug** are now **.debug talents** and **.debug professions**.
-
-## 0.65.11
-
-**Upgrade weights by talent tree** (the player: "our own single role profile, split by talent tree, good enough for 1-60")
-- **.weights** picks a tree: **.weights arms**, **fury**, **prot**, **holy**, **resto**, **shadow**, **bear**... ("tank" and "healer" still work). None picked: your class's levelling tree.
-- New weights made for WoW Forever, one scale per tree for levels 1-60: healing is its own stat, a school's spell damage counts for its tree, a feral's weapon DPS counts, block value is apart from block chance.
-- A ranged weapon's DPS (a bow, a wand) is weighed apart from a melee weapon's: a hunter's melee stat stick or a caster's staff no longer counts like a bow or wand.
-- **.weights** lists every stat of each tree and marks the one used; **prot**, **holy** and **resto** work for every class that has such a tree.
-- Your own and Pawn weights are scaled by their main stat, so a scale that weighs hit highly still counts Strength.
-- Items' stats kept from before are read again (block value, spell schools and ranged DPS are new).
-
-## 0.65.10
-
-**Fixes from a review of 0.65**
-- Bag quests list the same in plain words and in Advanced syntax, and Advanced asks the game for bags it hasn't loaded yet.
-- **reward:pouch** (satchel, sack) finds items with that name again; **reward:bag** is every bag.
-- Turning "nearest mailbox" round on Sort gives "farthest mailbox". A typed nearest/farthest wins over the bar.
-- Answers sort by distance correctly; **sort:-distance** is faster.
-- A key bound with Shift or Alt works as its hint says; ` or ^ closing a bar menu isn't typed.
-- **.weights** accepts `str = 2` and `str=1,5`, refuses weights that are all 0, and reads more Pawn strings.
-
-## 0.65.9
-
-- **.weights** picks one role at a time: **.weights healer**, **.weights custom** or **.weights all**.
-- Upgrade searches say in the footer that **.weights** changes how upgrades are judged.
-
-## 0.65.8
-
-**Your own upgrade weights**
-- **.weights set str=2 agi=1.5 sta=0.5**, or paste a Pawn scale string with **.weights pawn**.
-- Kept per character; **.weights custom** picks them again, **.weights clear** forgets them.
-
-## 0.65.7
-
-**Nearest or farthest**
-- **sort:distance** lists the nearest first, **sort:-distance** the farthest. **sort:nearest** still works.
-- Plain words: **farthest innkeeper**, **farthest mailbox**.
-- Rows with no known distance count as infinitely far: last when nearest, first when farthest.
-- Sort's **Distance** starts with the nearest; pick it again for the farthest.
-
-## 0.65.6
-
-- **@questie reward:bag** and **sort:slots** show each quest's bag and slots, as the plain-words search does.
-- **sort:-ahvalue** shows AH values again.
-
-## 0.65.5
-
-**Sort either way**
-- Sort shows an arrow: down for highest (or Z) first, up for lowest (or A) first. Pick it again to flip it.
-- Numbers start highest first; names start A to Z.
-- Advanced: a **-** flips a sort (**sort:-level**, **sort:-name**).
-
-## 0.65.4
-
-- Bag quests leave out quests given only by the other faction.
-- Alt+` writes **@questie reward:bag -is:done sort:slots**.
-
-## 0.65.3
-
-**Quests that reward bags**
-- **quests that reward bags** (**bag quests**, **quivers from quests**) lists the bags you can still get, most slots first. Needs Questie.
-- Advanced: **@questie reward:bag** (**reward:quiver**, **reward:ammo_pouch**).
-
-## 0.65.2
-
-**Fixes for your own key** (nothing changes with ` bound)
-- No more "Ctrl+Ctrl+`" in hints; AltGr typing isn't taken over.
-- Your key closes the changelog, credits, .atop and games too, and isn't typed when it closes the row menu.
-
-## 0.65.1
+## 0.66.0
 
 **Your own key, on any keyboard** (a player on CurseForge: "how can I keybind the terminal on a German layout?")
-- Bind any key to Terminal (Key Bindings > AddOns > Terminal, or **.bind**): it does what ` does, with Alt and Tab too.
-- Works with keys like **^**, **²** or **Ctrl+Space**; the hints name your key.
+- Bind any key to Terminal (Key Bindings > AddOns > Terminal, or **.bind**) and in the open terminal it does what ` does: it closes it, **Alt+** it writes the search in Advanced mode, **Tab+** it is pure fuzzy finding. Keys like **^**, **²**, **Ctrl+Space**, **Shift+Space** or **Alt+Q** work; letters, digits and the characters a search needs still type.
+- The hints, F1's keys and the windows' footers name your key. With ` bound, nothing changes.
+
+**Quests that reward bags**
+- **quests that reward bags** (**bag quests**, **quivers from quests**, **quests that reward ammo pouches**) lists the bags your race, class and faction can still get, the most slots first, each saying which bag and its slots; the footer says how many you've done already. Needs Questie.
+- Advanced: **@questie reward:bag -is:done sort:slots** (**reward:quiver**, **reward:ammo_pouch**) lists the same in the same order, with the bag and slots in each row.
+
+**Sort either way**
+- Simple mode's Sort shows an arrow by the sort in use: down for the highest (or Z) first, up for the lowest (or A) first. Pick it again to turn it round. Numbers start with the highest, names with A.
+- Advanced: a **-** turns a sort round (**sort:-level**, **sort:-name**, **sort:-quality**).
+
+**Nearest or farthest**
+- **sort:distance** lists the nearest first, **sort:-distance** the farthest (**sort:nearest** and **sort:farthest** still work). In plain words: **farthest innkeeper**, **farthest mailbox**. Sort's **Distance** starts with the nearest; pick it again for the farthest.
+- A row whose distance isn't known (on another continent, in an instance) counts as infinitely far: last when nearest, first when farthest.
+
+**Upgrades by talent tree**
+- **.weights** picks a tree: **.weights arms**, **fury**, **prot**, **holy**, **resto**, **shadow**, **bear**... ("tank" and "healer" pick your class's). One at a time; none picked, your class's levelling tree.
+- New weights made for WoW Forever, one scale per tree for levels 1-60: healing is its own stat, a school's spell damage counts for its tree, a ranged weapon's DPS is apart from a melee one's, block value apart from block chance, a feral's weapon DPS counts.
+- Your own weights: **.weights set str=2 agi=1.5**, or paste a Pawn scale string (**.weights pawn** opens a window for it). **.weights custom** picks them again, **.weights clear** forgets them.
+- An upgrade search's footer says **.weights** is how to judge them otherwise.
+
+**Fewer commands**
+- **.xp**, **.history**, **.durability**, **.mail**, **.combatlog** and **.lockouts** are gone: their lists are searched like anything else. **.forget <alt>** drops an alt's mail, experience and lockouts; **.forget history** and **.forget combatlog** clear those; **.set mailWarn off** stops the login warning about expiring mail.
+- **.talentdebug** and **.profdebug** are **.debug talents** and **.debug professions**.
+
+**Fixes**
+- An answer sorted by distance is in that order; **sort:-distance** is faster.
+- **reward:pouch** (satchel, sack) finds items with that name; **reward:bag** is every bag.
+- Turning "nearest mailbox" round on Sort gives "farthest mailbox"; a typed nearest or farthest wins over the bar.
+- Advanced bag searches ask the game for bags it hasn't loaded yet, and read their slots in other languages too.
 
 ## 0.65.0
 
