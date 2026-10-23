@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.66.18 (in testing)
+
+**Upgrades, from a second review of 0.66.x**
+- A worn piece with a random suffix ("of the Monkey") whose stats the game didn't give isn't judged by its plain item's stats (armor alone): not known, item levels decide. A worn shirt, ring or trinket with no stats at all is believed (and read once, not on every keystroke).
+- Rings, trinkets and one-handers better by item level alone are left off **ah upgrades** and **vendor upgrades**, as other slots' were: those lists rank by stats gained. A stat gain is said before an item-level one.
+- **@npc sells:upgrade** no longer comes back empty when the vendors' stock takes more than a frame to judge, and sees a piece you put on or a role you pick at once (it kept the last answer two seconds).
+- "No talent points spent" is read again after ten seconds, not on every upgrade search; AtlasLoot's equipment is worked out once for **ah upgrades**, not again on each search made again as items arrive.
+
 ## 0.66.17 (in testing)
 
 **Upgrades judged against what you wear, always** (the player's screenshot: "ah upgrades" listed +6 Stamina gloves over Gauntlets of Might)

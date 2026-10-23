@@ -196,9 +196,13 @@ end
 --- Points spent in each of your trees, in the talent window's order: { { name = "Fury", index = 2, points = 31 } ... },
 --- or nil when the tree can't be read. Kept until a talent changes (the list's events; 0.66.2: upgrades judged for the
 --- tree your points are in).
-local pointsKept
+local pointsKept, noneUntil
+TL.NONE_KEEP = 10 -- (seconds "none spent" stands: maybe read before the game had them, at login; else every upgrades search
+-- of a character under level 10 read the whole tree again; review)
 function TL.Points()
 	if pointsKept then return pointsKept end
+	local now = GetTime and GetTime() or 0
+	if noneUntil and now < noneUntil.at then return noneUntil.out end
 	local okT, configID, treeID, tabs, order = pcall(ReadTree)
 	if not (okT and treeID) then return nil end
 	local ok, nodes = pcall(ReadNodes, configID, treeID, tabs, order)
@@ -216,13 +220,13 @@ function TL.Points()
 		local t = n.tabIndex and byIndex[n.tabIndex]
 		if t and type(n.rank) == "number" and n.rank > 0 then t.points = t.points + n.rank end
 	end
-	-- (none spent at all: maybe read before the game had them, at login; read again next time; review)
+	-- (none spent at all: maybe read before the game had them, at login; read again a little later; review)
 	local any = false
 	for _, t in ipairs(out) do if t.points > 0 then any = true break end end
-	if any then pointsKept = out end
+	if any then pointsKept = out else noneUntil = { at = now + TL.NONE_KEEP, out = out } end
 	return out
 end
-function TL.ForgetPoints() pointsKept = nil end
+function TL.ForgetPoints() pointsKept, noneUntil = nil, nil end
 
 ----------------------------------------------------------------------
 -- Other classes' talents
@@ -467,7 +471,7 @@ ns:RegisterProvider("talents", {
 	aliases = { "talent", "talents", "tree" },
 	events = { "TRAIT_CONFIG_UPDATED", "TRAIT_NODE_CHANGED", "PLAYER_TALENT_UPDATE",
 		"ACTIVE_PLAYER_SPECIALIZATION_CHANGED", "CHARACTER_POINTS_CHANGED" },
-	onEvent = function() pointsKept = nil end, -- (a respec, a point spent: read again when asked)
+	onEvent = function() TL.ForgetPoints() end, -- (a respec, a point spent: read again when asked)
 	guard = 1,
 	collect = function()
 		local out = {}

@@ -551,14 +551,22 @@ end
 -- (one per weights table: with two roles picked each judged its own, and a single kept copy was read again for each,
 -- every keystroke; 0.56.14)
 local wornKept = {}
-local function WornGear(w)
+-- (the slots whose pieces always have stats: armor has armor, a weapon damage; a shirt, neck, ring or trinket can have none)
+F.ALWAYS_STATS = { [1] = true, [3] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true, [10] = true,
+	[15] = true, [16] = true, [17] = true, [18] = true }
+local tracedEmpty = {} -- (a worn piece whose stats came back empty: said once in the trace, not every keystroke)
+--- What you wear, by link (slots 1-18, "" for none), and as one string.
+local function WornLinks()
 	local link = _G.GetInventoryItemLink
 	local links = {}
 	for slot = 1, 18 do
 		local ok, l = pcall(link or function() end, "player", slot)
 		links[slot] = (ok and type(l) == "string" and not Secret(l)) and l or ""
 	end
-	local key = table.concat(links, "\001", 1, 18)
+	return links, table.concat(links, "\001", 1, 18)
+end
+local function WornGear(w)
+	local links, key = WornLinks()
 	local kept = wornKept[w]
 	if kept and kept.key == key then return unpack(kept.r, 1, 6) end
 	local levels, values, kinds, locs, names, ids = {}, {}, {}, {}, {}, {}
@@ -590,19 +598,28 @@ local function WornGear(w)
 				local okS, st = pcall(get, l)
 				-- (0.66.x, the player's screenshot: "ah upgrades" listed +6 Stamina gloves over Gauntlets of Might, +11
 				-- Strength: the worn piece's own link gave no stats, so everything was an upgrade over nothing. No stats at
-				-- all, not even armor, from a piece you wear isn't believed: its plain item's are read, else it's not known)
+				-- all from a piece you wear: its plain item's are read, unless it has a random suffix (the plain item of
+				-- "of the Monkey" gloves has armor alone; review). Still none: believed only where a piece can have none (a
+				-- shirt, a plain ring or trinket) and the game has the item; armor and weapons always have some (armor,
+				-- damage), so theirs is not known: item levels are compared, never a stat against nothing)
 				if okS and type(st) == "table" and next(st) == nil and wid then
-					local info = ItemInfo(wid)
-					local plain = info and info.link
-					if plain and plain ~= l then
-						local ok2, st2 = pcall(get, plain)
-						if ok2 and type(st2) == "table" and next(st2) ~= nil then st = st2 else st = nil end
-					else
-						st = nil
+					local cachedBy = C_Item and C_Item.IsItemDataCachedByID
+					local cached = not cachedBy or cachedBy(wid) ~= false
+					if ItemKey(wid, l) == wid then
+						local info = ItemInfo(wid)
+						local plain = info and info.link
+						if plain and plain ~= l then
+							local ok2, st2 = pcall(get, plain)
+							if ok2 and type(st2) == "table" and next(st2) ~= nil then st = st2 end
+						end
 					end
-					if st == nil then
-						whole = false
-						ns:Trace(("upgrades: no stats read for worn %s (slot %d): not compared against nothing"):format(tostring(names[slot] or wid), slot))
+					if next(st) == nil and (F.ALWAYS_STATS[slot] or not cached) then
+						st = nil
+						if not cached then whole = false end -- (read again once the game has it)
+						if not tracedEmpty[l] then
+							tracedEmpty[l] = true
+							ns:Trace(("upgrades: no stats read for worn %s (slot %d): not compared against nothing"):format(tostring(names[slot] or wid), slot))
+						end
 					end
 				end
 				-- (nil when it has none to weigh: then item levels are compared, not any stat against nothing)
@@ -639,7 +656,17 @@ end
 -- "slot type;required level;item level;binding;str=7,sta=4;Grom+,Jaina-" (the last: usable by each of your characters
 -- it was asked for). A change to this record or to the stat kinds (STAT_KINDS) needs ItemStore's S.VERSION raised. A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
 local fit = {}
-F.ClearFit = function() fit = {}; wornKept = {}; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
+F.fitGen = 0 -- (raised whenever what upgrades were judged by is forgotten: F.FitKey)
+F.ClearFit = function() fit = {}; wornKept = {}; F.fitGen = F.fitGen + 1; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
+--- What upgrades are judged by now, as one string: the weights and role, your level and hit, what you wear. A verdict kept
+--- while this stays the same is still right (vendor upgrades, kept two seconds: review, a role picked or a piece put on
+--- within them was judged by the old).
+function F.FitKey()
+	local set = F.MyWeightSets()[1]
+	local _, worn = WornLinks()
+	return table.concat({ tostring(set[1]), tostring(set[2]), tostring(_G.UnitLevel and _G.UnitLevel("player")),
+		tostring(F.HitNow()), tostring(F.fitGen), worn }, "\002")
+end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)
 --- Is something known of this item, kept this session or from another (is:upgrade can judge it without the game)?
@@ -933,8 +960,14 @@ GearFitWith = function(weights, role)
 				end
 			end
 			if #vs == 0 then return false end
-			table.sort(vs, function(a, b) return a.gain > b.gain end)
-			g = { gain = vs[1].gain, vs = vs, kinds = f.kinds, loc = loc, ilvl = ilvl, wLvl = vs[1].wLvl, capped = vs[1].capped }
+			-- (a gain in stats before one in item levels: the two aren't the same numbers; by item levels alone, the row is
+			-- byLevel as a one-slot piece's is, so the auction house's and vendors' lists leave it out; review)
+			table.sort(vs, function(a, b)
+				if (a.byLevel or false) ~= (b.byLevel or false) then return not a.byLevel end
+				return a.gain > b.gain
+			end)
+			g = { gain = vs[1].gain, vs = vs, kinds = f.kinds, loc = loc, ilvl = ilvl, wLvl = vs[1].wLvl, capped = vs[1].capped,
+				byLevel = vs[1].byLevel }
 		end
 		if g then g.role = role end
 		gains[e] = g

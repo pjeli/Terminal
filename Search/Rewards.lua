@@ -499,7 +499,9 @@ local vendorItems -- { { id = item, vendors = { npc ids } } }: equipment Questie
 local standingOf = {} -- item id -> the standing it needs (false: none); QR.StandingNeeded
 local vendorKept -- (the last judging of their stock: QR.VendorUpgrades)
 --- The equipment Questie says vendors sell (read once a session: every Questie item looked at, tens of ms).
-function QR.VendorItems()
+--- `mayYield`: in the search's coroutine and not under a pcall (a filter's is: a yield there is an error, "attempt to
+--- yield across metamethod/C-call boundary", and the row dropped; review): spread over frames.
+function QR.VendorItems(mayYield)
 	if vendorItems then return vendorItems end
 	local db = DB()
 	if not (db and db.QueryItemSingle) then return nil end
@@ -510,7 +512,7 @@ function QR.VendorItems()
 	local out = {}
 	-- (in the search's coroutine: every Questie item read over several frames, not in one; review)
 	local UI = ns.UI
-	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
+	local slicing = mayYield and UI and UI.sliceUntil and coroutine.running() and debugprofilestop
 	for i = 1, #ids do
 		if slicing and i % 512 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
 		local id = ids[i]
@@ -555,19 +557,20 @@ end
 --- The upgrades vendors sell: { [npc id] = { { id = item, g = gain } ... } } (best first), the items in it, and how many
 --- items are still being asked of the server.
 QR.VENDOR_KEEP = 2 -- (seconds the last judging stands: sells:upgrade's filter is made again on every keystroke)
-function QR.VendorUpgrades()
+function QR.VendorUpgrades(mayYield) -- (mayYield: as QR.VendorItems')
 	local F = ns.Filters
-	local items = QR.VendorItems()
+	local items = QR.VendorItems(mayYield)
 	if not (items and F and F.GearFit) then return nil end
 	local now = GetTime and GetTime() or 0
 	local k = vendorKept
-	if k and k.items == items and now - k.at < QR.VENDOR_KEEP and k.asked == 0 then
+	local key = F.FitKey and F.FitKey() or ""
+	if k and k.items == items and k.key == key and now - k.at < QR.VENDOR_KEEP and k.asked == 0 then
 		F.fitMade = true -- (as GearFit would say: their tooltips compare them)
 		return k.by, k.n, 0
 	end
 	local fit = F.GearFit()
 	local UI, count = ns.UI, 0
-	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
+	local slicing = mayYield and UI and UI.sliceUntil and coroutine.running() and debugprofilestop
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local asked, bySeller, n = 0, {}, 0
 	for _, it in ipairs(items) do
@@ -579,7 +582,8 @@ function QR.VendorUpgrades()
 				asked = asked + 1
 				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it.id) end
 			end
-		elseif fit(probe) then
+		elseif fit(probe) and not (F.GainOf(probe) or {}).byLevel then
+			-- (by item levels alone, not stats: left out, as the auction house's list does; review)
 			local g = F.GainOf(probe)
 			n = n + 1
 			for _, npc in ipairs(it.vendors) do
@@ -591,7 +595,7 @@ function QR.VendorUpgrades()
 		end
 	end
 	for _, list in pairs(bySeller) do table.sort(list, function(a, b) return (a.g and a.g.gain or 0) > (b.g and b.g.gain or 0) end) end
-	vendorKept = { items = items, at = now, by = bySeller, n = n, asked = asked }
+	vendorKept = { items = items, key = key, at = now, by = bySeller, n = n, asked = asked }
 	return bySeller, n, asked
 end
 
@@ -629,7 +633,7 @@ function QR.BuyAnswer()
 	local note = L["Vendors selling an upgrade for you"]
 	local db = DB()
 	if not db then return { NoneRow(L["Needs Questie: it knows what vendors sell"]) }, note end
-	local bySeller, _, asked = QR.VendorUpgrades()
+	local bySeller, _, asked = QR.VendorUpgrades(true)
 	if not bySeller then return { NoneRow(L["Needs Questie: it knows what vendors sell"]) }, note end
 	if asked > 0 then ns.Filters.loading = true end
 	local I, F = ns.Integrations, ns.Filters

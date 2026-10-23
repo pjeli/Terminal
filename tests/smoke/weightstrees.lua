@@ -156,12 +156,20 @@ do
 	check(TL.Points() == p1, "kept: not read again for every search")
 	T.ef.scripts.OnEvent(T.ef, "CHARACTER_POINTS_CHANGED")
 	check(TL.Points() ~= p1 and F.TalentTree("WARRIOR") == "fury", "a point spent: read again (4 in Fury now): " .. tostring(F.TalentTree("WARRIOR")))
-	-- (review) none spent: maybe read before the game had them (at login): not kept, read again next time
+	-- (review) none spent: maybe read before the game had them (at login): kept a few seconds, then read again; not
+	-- the whole tree again on every search of a character with none
 	TL.ForgetPoints()
-	_G.C_Traits.GetNodeInfo = function(c, id) local n = realNode(c, id) if n then n.ranksPurchased = 0 end return n end
+	local realTime, now = _G.GetTime, 100
+	_G.GetTime = function() return now end
+	local reads = 0
+	_G.C_Traits.GetNodeInfo = function(c, id) reads = reads + 1 local n = realNode(c, id) if n then n.ranksPurchased = 0 end return n end
 	check(TL.Points()[1].points == 0, "nothing spent read")
+	local first = reads
 	_G.C_Traits.GetNodeInfo = realNode
-	check(TL.Points()[1].points == 3, "read again, no event needed: " .. TL.Points()[1].points)
+	check(TL.Points()[1].points == 0 and first > 0, "none spent: kept for a few seconds, not read again for every search")
+	now = now + TL.NONE_KEEP + 1
+	check(TL.Points()[1].points == 3, "read again a little later, no event needed: " .. TL.Points()[1].points)
+	_G.GetTime = realTime
 	TL.ForgetPoints()
 	_G.UnitClass, ns.db.upgradeRoles, TL.Points = save.class, save.roles, save.points
 	F.ClearCache()

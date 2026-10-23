@@ -127,6 +127,50 @@ do
 	for _, e in ipairs(res) do if e.npcID or rawget(e, "key") then names[#names + 1] = tostring(e.name) end end
 	check(table.concat(names, " | ") == "Near Smith | Far Quartermaster", "@npc sells:upgrade: the same: " .. table.concat(names, " | "))
 	UI:Hide(); FlushAll()
+	-- (review) a long stock judged over several frames: never inside the filter's pcall (a yield there is an error, and
+	-- every vendor was dropped)
+	local Item = _G.LibQuestieDB.Item
+	local rows = {}
+	for _, id in ipairs(Item.GetAllIds()) do rows[id] = { name = Item.Get(id, "name"), vendors = Item.Get(id, "vendors") } end
+	for i = 20000, 20300 do rows[i] = { name = "Filler " .. i, vendors = { 303 } } end
+	local realLib, copy = _G.LibQuestieDB, {}
+	for k, v in pairs(realLib) do copy[k] = v end
+	copy.Item = Entity(rows)
+	_G.LibQuestieDB = copy
+	for i = 20000, 20300 do ITEMS[i] = { "Filler " .. i, "|Hitem:" .. i .. "|h", 1, 10, 5, "Armor", "Mail", 1, "INVTYPE_HEAD" } end
+	Fresh(); QR.ForgetVendorItems(); I.Setup(); FlushAll()
+	local realClock, ms = _G.debugprofilestop, 0
+	_G.debugprofilestop = function() ms = ms + 5; return ms end
+	UI:Open("@npc sells:upgrade faction:friendly sort:distance "); FlushAll()
+	names = {}
+	for _, e in ipairs(UI.Results()) do if e.npcID or rawget(e, "key") then names[#names + 1] = tostring(e.name) end end
+	check(table.concat(names, " | ") == "Near Smith | Far Quartermaster", "a long stock, over several frames: the same: " .. table.concat(names, " | "))
+	_G.debugprofilestop = realClock
+	UI:Hide(); FlushAll()
+	_G.LibQuestieDB = realLib
+	for i = 20000, 20300 do ITEMS[i] = nil end
+	Fresh(); QR.ForgetVendorItems(); I.Setup(); FlushAll()
+	-- (review) the kept judging is for what you wear and the weights: a new helm put on is judged at once, not after
+	-- two seconds
+	local by = QR.VendorUpgrades()
+	check(by and by[300] ~= nil, "the smith sells an upgrade over the worn helm")
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9602|h[Timbermaw Helm]|h" end end
+	_G.GetInventoryItemID = function(_, slot) if slot == 1 then return 9602 end end
+	by = QR.VendorUpgrades()
+	check(by and by[300] == nil, "the Timbermaw helm put on: the smith's helm isn't one any more, at once")
+	-- (review) a worn helm whose stats aren't known (a random suffix's, none read): helms better by item level alone
+	-- aren't "upgrades you can buy", as on the auction house's list
+	local realStats = C_Item.GetItemStats
+	C_Item.GetItemStats = function(link) if tostring(link):find("of the Owl", 1, true) then return {} end return realStats(link) end
+	ITEMS[9606] = { "Odd Helm", "|Hitem:9606|h", 2, 10, 5, "Armor", "Mail", 1, "INVTYPE_HEAD" }
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9606::::::-20|h[Odd Helm of the Owl]|h" end end
+	_G.GetInventoryItemID = function(_, slot) if slot == 1 then return 9606 end end
+	by = QR.VendorUpgrades()
+	check(by and next(by) == nil, "over a helm whose stats aren't known: none by item level alone")
+	C_Item.GetItemStats, ITEMS[9606] = realStats, nil
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9600|h[Worn Helm]|h" end end
+	_G.GetInventoryItemID = function(_, slot) if slot == 1 then return 9600 end end
+	F.ClearCache(); QR.ForgetVendorItems()
 
 	Fresh()
 	QR.ForgetVendorItems()

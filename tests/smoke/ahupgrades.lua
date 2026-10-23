@@ -109,7 +109,65 @@ do
 	names = {}
 	for _, e in ipairs(UI.Results()) do names[#names + 1] = tostring(e.name) end
 	check(not table.concat(names, " | "):find("Helm", 1, true), "no stats for the worn helm at all: no helm judged against nothing: " .. table.concat(names, " | "))
+	-- (review) a worn piece with a random suffix ("of the Monkey"): its plain item has armor alone, not its stats, so
+	-- they aren't read for it; not known, it's not judged against the plain item's
+	C_Item.GetItemStats = function(link)
+		if tostring(link):find("[Worn Helm of the Monkey]", 1, true) then return {} end
+		return realStats(link)
+	end
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9700::::::-15|h[Worn Helm of the Monkey]|h" end end
+	F.ClearCache(); F.ClearFit()
+	UI:SetQuery("ah upgrades"); FlushAll()
+	names = {}
+	for _, e in ipairs(UI.Results()) do names[#names + 1] = tostring(e.name) end
+	check(not table.concat(names, " | "):find("Helm", 1, true), "a random suffix's worn helm: not judged by its plain item's stats: " .. table.concat(names, " | "))
 	C_Item.GetItemStats = realStats
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9700|h[Worn Helm]|h" end end
+	UI:Hide(); FlushAll()
+
+	-- (review) trinkets: worn ones with no stats at all (as many have) are believed, and kept, not read again on every
+	-- search; a statless trinket a few item levels up is an upgrade by item level alone, which the auction house's list
+	-- of gains per gold leaves out (two slots: it was said as +10 "gain", over real stat upgrades)
+	ITEMS[9710] = { "Old Charm", 20, 15, "INVTYPE_TRINKET", 2 }
+	ITEMS[9711] = { "Old Token", 20, 15, "INVTYPE_TRINKET", 2 }
+	ITEMS[9712] = { "Shiny Charm", 30, 20, "INVTYPE_TRINKET", 2 }
+	STATS[9710], STATS[9711], STATS[9712] = {}, {}, nil
+	PRICES[9712] = 10000
+	local reads = 0
+	C_Item.GetItemStats = function(link)
+		if tostring(link):find("Old ", 1, true) then reads = reads + 1 end
+		return realStats(link)
+	end
+	_G.GetInventoryItemLink = function(_, slot)
+		if slot == 1 then return "|Hitem:9700|h[Worn Helm]|h" end
+		if slot == 13 then return "|Hitem:9710|h[Old Charm]|h" end
+		if slot == 14 then return "|Hitem:9711|h[Old Token]|h" end
+	end
+	F.ClearCache(); F.ClearFit()
+	ns:Changed("loot") -- (AtlasLoot's rows: the trinkets among them)
+	F.GearFit()
+	local firstReads = reads
+	F.GearFit()
+	check(firstReads > 0 and reads == firstReads, "worn trinkets with no stats: read once, kept: " .. firstReads .. " then " .. reads)
+	UI:SetQuery("cheapest upgrades on the ah"); FlushAll()
+	names = {}
+	for _, e in ipairs(UI.Results()) do names[#names + 1] = tostring(e.name) end
+	check(table.concat(names, " | ") == "Bargain Boots | Bargain Helm | Pricey Helm", "a trinket better by item level alone: not a gain per gold: " .. table.concat(names, " | "))
+	-- (review) AtlasLoot's equipment worked out once, not again on each search made again as items arrive
+	local realInst, instCalls = C_Item.GetItemInfoInstant, 0
+	C_Item.GetItemInfoInstant = function(id) instCalls = instCalls + 1 return realInst(id) end
+	ns:Changed("loot")
+	ns.AhUpgradesQ.Answer()
+	local firstInst = instCalls
+	instCalls = 0
+	ns.AhUpgradesQ.Answer()
+	check(instCalls < firstInst, "the equipment among AtlasLoot's rows: worked out once: " .. firstInst .. " then " .. instCalls)
+	C_Item.GetItemInfoInstant = realInst
+	ITEMS[9710], ITEMS[9711], ITEMS[9712], PRICES[9712] = nil, nil, nil, nil
+	ns:Changed("loot")
+	C_Item.GetItemStats = realStats
+	_G.GetInventoryItemLink = function(_, slot) if slot == 1 then return "|Hitem:9700|h[Worn Helm]|h" end end
+	F.ClearCache(); F.ClearFit()
 	UI:Hide(); FlushAll()
 
 	_G.Auctionator, _G.C_AddOns = save.ac, save.addons

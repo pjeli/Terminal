@@ -14,11 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.66.17", when = "in testing",
+		v = "0.66.18", when = "in testing",
 		items = {
 			"Undo in the prompt: Ctrl+Z undoes your last edit to what you typed (a word, a Ctrl+W, a paste), Ctrl+Y redoes it.",
 			"Upgrades follow your talents: with no tree picked, .weights judges by the tree holding most of your talent points (31 in Fury: Fury), and follows a respec. .weights all goes back to that.",
-			"Upgrades know your hit cap: hit past it counts for nothing (5% melee, 4% spells below 60; 9% and 16% at 60), so a +2% hit item isn't an upgrade once you're capped. .weights says where you stand.",
+			"Upgrades know your hit cap: hit past it counts for nothing (5% melee, 3% spells below 60; 9% and 16% at 60), so a +2% hit item isn't an upgrade once you're capped. .weights says where you stand.",
 			"Sort by more than one field: sort:quality,-level sorts by quality, then by level on a tie; sort:level,distance the nearest first among equals. In Simple mode, Shift on a Sort pick makes it the \"then by\".",
 			"Numbers in plain words: \"swords between level 20 and 30\", \"quests under level 25\", \"items worth more than 1g\", \"bags with at least 10 slots\", \"gear with durability below 50%\". New Advanced filters value:>1g and slots:>=10.",
 			"Levels from yours: \"quests 3 levels above me\", \"dungeons around my level\", \"gear for next level\"; Advanced: lvl:me+3, lvl:me-2..me+3. A saved search or alias moves with you as you level.",
@@ -30,6 +30,7 @@ CL.LOG = {
 			"Upgrades you can buy: \"upgrades i can buy\" (or \"vendor upgrades\") lists the friendly vendors selling a clear upgrade for you, nearest first, with what it gains and a standing it needs. Advanced: @npc sells:upgrade. Needs Questie.",
 			"The cheapest upgrades on the auction house: with Auctionator and AtlasLoot, \"ah upgrades\" lists bind-on-equip upgrades at Auctionator's last-scanned price, the most gain per gold first (\"+12 for 3g 40s\").",
 			"Fixes from a review of all the above: a paste can be undone; the AH upgrades' rows open their item; dates after a question (\"loot today\") and a sort with | except work; \"2 sword\" doesn't cut the categories; names like \"the five sorrows\" stay searches; top N works on mailboxes and other places (\"the 3 nearest mailboxes\", \"2 mailboxes\") and across Simple mode's categories (\"top 5 upgrades\"); upgrades are always judged against what you wear (a worn piece whose stats the game didn't give counted as nothing).",
+			"Fixes from a second review: upgrades over a worn piece with a random suffix, or a trinket or ring with no stats, are judged right; rings and trinkets better by item level alone are left off the auction house and vendor lists; @npc sells:upgrade no longer finds nothing on a long vendor list, and sees a piece you just put on.",
 		},
 	},
 	{

@@ -513,6 +513,7 @@ function AHU.Question(text)
 	return (ah and upg) or nil
 end
 
+local equipKept -- { rows = AtlasLoot's rows, list = their equipment, one row per item }
 --- The upgrades the auction house has (AtlasLoot's bind-on-equip items Auctionator saw), the most gain per gold first.
 function AHU.Answer()
 	local note = L["Upgrades on the auction house, the most gain per gold first"]
@@ -529,7 +530,12 @@ function AHU.Answer()
 	-- (run in the search's own coroutine: tens of thousands of AtlasLoot rows go over several frames; review)
 	local UI, n = ns.UI, 0
 	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
-	for _, e in ipairs(ns:GetEntries(loot) or {}) do
+	-- (AtlasLoot's equipment, one row per item: worked out once for its rows, not again on each of the searches made
+	-- again as items arrive from the server; review)
+	local rows = ns:GetEntries(loot) or {}
+	local equip = equipKept and equipKept.rows == rows and equipKept.list
+	local list = equip or {}
+	for _, e in ipairs(equip and {} or rows) do
 		n = n + 1
 		if slicing and n % 256 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
 		local id = ItemID(e)
@@ -537,8 +543,14 @@ function AHU.Answer()
 		local okI, _, _, _, loc = false, nil, nil, nil, nil
 		if id and inst then okI, _, _, _, loc = pcall(inst, id) end
 		if id and inst and not (okI and type(loc) == "string" and SLOTS[loc]) then id = nil end
-		if id and not seen[id] then
-			seen[id] = true
+		if id and not seen[id] then seen[id] = true; list[#list + 1] = e end
+	end
+	if not equip then equipKept = { rows = rows, list = list } end
+	for _, e in ipairs(list) do
+		n = n + 1
+		if slicing and n % 256 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
+		local id = ItemID(e)
+		if id then
 			local price = AN.Price(id)
 			if price then
 				priced = true
