@@ -708,6 +708,7 @@ Scan.ANSWERS = {
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (Search/Auctionator.lua;
 	-- before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
 	Asks("AuctionatorQ"),
+	Asks("AhUpgradesQ"), -- ("ah upgrades", "cheapest upgrades on the ah": Auctionator.lua, 0.66.13)
 	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ"),

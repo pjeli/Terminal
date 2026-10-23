@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.13 (in testing)
+
+**The cheapest upgrades on the auction house**
+- With Auctionator and AtlasLoot: **ah upgrades**, **cheapest upgrades on the ah**, **upgrades on the auction house** list the bind-on-equip items that are clear upgrades for you at Auctionator's last-scanned price, the most gain per gold first ("+12 for 3g 40s"), saying when one was last seen if days ago. Only what showed in its last scan.
+
 ## 0.66.12 (in testing)
 
 **Upgrades you can buy**

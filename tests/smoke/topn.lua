@@ -22,6 +22,8 @@ do
 		{ "two handed swords", "two handed swords", nil },
 		{ "3 + 4", "3 + 4", nil },
 		{ "closest innkeeper", "closest innkeeper", nil },
+		{ "the cheapest upgrades on the ah", "the cheapest upgrades on the ah", nil },
+		{ "the nearest innkeepers", "the nearest innkeepers", nil },
 		{ "20", "20", nil },
 	}
 	for _, c in ipairs(CASES) do

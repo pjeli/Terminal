@@ -481,6 +481,106 @@ function AN.ValueQuestion(text)
 end
 
 ----------------------------------------------------------------------
+-- The cheapest upgrades on the auction house (0.66.13, the player): "ah upgrades", "cheapest upgrades on the ah",
+-- "upgrades on the auction house": bind-on-equip items from AtlasLoot that are clear upgrades for you, at Auctionator's
+-- last-scanned price, the most gain per gold first ("+12 for 3g 40s"). Only what showed in its last scan; each row says
+-- when it was seen when that's days ago.
+----------------------------------------------------------------------
+local AHU = {}
+AN.Upgrades = AHU
+ns.AhUpgradesQ = AHU -- (Search.lua's Scan.ANSWERS: Asks("AhUpgradesQ"))
+local AH_WORDS = { ah = true, auction = true, auctions = true, house = true, auctionhouse = true }
+local UPG_WORDS = { upgrade = true, upgrades = true }
+local AHU_FILL = { cheapest = true, cheap = true, best = true, value = true, gold = true, per = true, ["for"] = true, on = true,
+	the = true, at = true, ["in"] = true, i = true, can = true, buy = true, my = true, me = true, what = true, whats = true,
+	are = true, show = true, list = true, find = true, any = true, some = true, from = true, to = true, of = true, a = true,
+	affordable = true, good = true }
+AHU.ASK = 40 -- (items asked of the server per answer)
+AHU.MAX = 50 -- (rows listed at most)
+
+--- "ah upgrades", "cheapest upgrades on the ah": true (with Auctionator).
+function AHU.Question(text)
+	if not AN.On() then return nil end
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local ah, upg = false, false
+	for w in t:gmatch("%S+") do
+		if AH_WORDS[w] then ah = true
+		elseif UPG_WORDS[w] then upg = true
+		elseif not AHU_FILL[w] then return nil end
+	end
+	return (ah and upg) or nil
+end
+
+--- The upgrades the auction house has (AtlasLoot's bind-on-equip items Auctionator saw), the most gain per gold first.
+function AHU.Answer()
+	local note = L["Upgrades on the auction house, the most gain per gold first"]
+	local F = ns.Filters
+	local loot = ns.providers.loot
+	if not (F and F.GearFit) then return { ns.NoteRow(L["No upgrades to judge"]) }, note end
+	if not loot then return { ns.NoteRow(L["Needs AtlasLoot: it knows which items there are"]) }, note end
+	local fit = F.GearFit()
+	local info = F._ and F._.ItemInfo
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	local seen, found, asked, priced = {}, {}, 0, false
+	for _, e in ipairs(ns:GetEntries(loot) or {}) do
+		local id = ItemID(e)
+		if id and not seen[id] then
+			seen[id] = true
+			local price = AN.Price(id)
+			if price then
+				priced = true
+				if cached and ns.Safe(cached, id) == false and not (F.Known and F.Known(id)) then
+					if asked < AHU.ASK then
+						asked = asked + 1
+						if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+					end
+				else
+					local it = info and info(id)
+					-- (bind on equip: one bound when picked up never reaches the auction house)
+					if it and it.bindType == 2 then
+						local probe = { kind = "ahitem", itemID = id, key = id, name = e.name, link = rawget(e, "link") }
+						if fit(probe) then
+							local g = F.GainOf(probe)
+							if g and not g.byLevel then
+								found[#found + 1] = { e = e, g = g, price = price, per = g.gain / math.max(price / 10000, 0.01) }
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	if asked > 0 then F.loading = true end
+	table.sort(found, function(a, b)
+		if a.per ~= b.per then return a.per > b.per end
+		return tostring(a.e.name) < tostring(b.e.name)
+	end)
+	local out = {}
+	for i, x in ipairs(found) do
+		if i > AHU.MAX then break end
+		local c = {}
+		for k, v in pairs(x.e) do c[k] = v end
+		local gain = math.floor(x.g.gain * 10 + 0.5) / 10
+		local parts = { L["+%s for %s"]:format(gain, Money(x.price)) }
+		local age = AN.Age(x.e.itemID or ItemID(x.e))
+		if age and age > 1 then parts[#parts + 1] = L["seen %d days ago"]:format(age) end
+		c.detail = table.concat(parts, SEP)
+		F.SetGain(c, x.g)
+		out[#out + 1] = c
+	end
+	ns.ScoreInOrder(out)
+	if #out == 0 then
+		local say = (asked > 0 and L["None yet: the items' details are still coming in"])
+			or (not priced and L["Auctionator has no prices yet: scan the auction house with it"])
+			or L["Nothing on the auction house is an upgrade for you"]
+		return { ns.NoteRow(say) }, note
+	end
+	return out, note .. SEP .. L["at Auctionator's last-scanned prices"]
+end
+function AHU.ToAdvanced() return nil end -- (as said: gain per gold has no Advanced form)
+
+----------------------------------------------------------------------
 -- Starting: Auctionator's data changing forgets the prices asked (and @auction's undercuts are worked out again)
 ----------------------------------------------------------------------
 

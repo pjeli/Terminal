@@ -1082,8 +1082,13 @@ function E.TopN(text)
 		if n < 1 then return text, nil end
 		return Rest(i, 1), math.min(n, 100)
 	end
-	-- "the closest innkeeper", "the cheapest linen": one
-	if lw[1] == "the" and E.RANK_WORDS[lw[2]] and lw[3] then return text, 1 end
+	-- "the closest innkeeper", "the cheapest linen": one ("the cheapest upgrades on the ah", plural: all of them)
+	if lw[1] == "the" and E.RANK_WORDS[lw[2]] and lw[3] then
+		local noun = lw[3]
+		if E.RANK_WORDS[noun] or noun == "level" or noun == "item" then noun = lw[4] or noun end -- ("the most valuable item")
+		if noun:find("[^s]s$") then return text, nil end
+		return text, 1
+	end
 	return text, nil
 end
 
