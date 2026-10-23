@@ -123,6 +123,13 @@ do
 		check(Has(q), q .. ": the name found, not a date or level that nothing has")
 	end
 	check(ns.Easy.PlainNumbers({ "loot", "today" })[2] == "since:today", "a date alone is still one")
+	-- (review) no name has the words: not searched again (each keystroke of the line was three searches)
+	local realST, n = UI.SearchText, 0
+	UI.SearchText = function(self, t) n = n + 1 return realST(self, t) end
+	UI:Search("copper 3 levels above me")
+	UI:Search("copper 3 levels above me s")
+	UI.SearchText = realST
+	check(n == 2, "no name with \"3 levels above me\": one search a keystroke: " .. n)
 	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
 	ns:AliasesChanged(); UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil

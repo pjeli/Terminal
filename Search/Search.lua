@@ -400,7 +400,7 @@ function UI:Search(text)
 	-- read as the date or level, nothing had it; the words searched as they are, kept when a name has them; else the
 	-- search as it was, made again for what it set; review)
 	local plain = self.plainPhrases
-	if plain and not Scan.AnyReal(res) then
+	if plain and not Scan.AnyReal(res) and Scan.AnyNameHas(plain) then
 		self.noPlain = true
 		local again = self:SearchText(text)
 		self.noPlain = nil
@@ -437,6 +437,26 @@ local function Found(e) return type(e) == "table" and not (e.raw or e.noActivate
 function Scan.AnyReal(rows)
 	for _, e in ipairs(rows or {}) do if Found(e) then return true end end
 	return false
+end
+--- Whether any row of the lists made so far has each of the phrases in its name: worked out once for the phrases while
+--- the lists stay the same (each keystroke of "swords 3 levels above me sorted by level" asks again; review: two more
+--- searches a keystroke, when it only had to look at the names once).
+local nameHas = { key = nil, yes = false }
+function Scan.AnyNameHas(phrases)
+	local key = table.concat(phrases, "\001") .. "\002" .. tostring(ns.entriesGen)
+	if nameHas.key == key then return nameHas.yes end
+	local yes = false
+	for _, p in pairs(ns.providers) do
+		for _, e in ipairs(rawget(p, "_entries") or {}) do
+			local n = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
+			local all = true
+			for _, ph in ipairs(phrases) do if not n:find(ph, 1, true) then all = false break end end
+			if all then yes = true break end
+		end
+		if yes then break end
+	end
+	nameHas.key, nameHas.yes = key, yes
+	return yes
 end
 --- Whether a match's name (a category's: its best match's, in its details) has each of the phrases.
 function Scan.NamesHave(rows, phrases)

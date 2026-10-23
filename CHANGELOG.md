@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.23 (in testing)
+
+**Speed**
+- A name with a date's or a level's words (0.66.21): the names are looked at once for those words, and searched again only when one has them; every keystroke of "swords 3 levels above me sorted by level" was three searches.
+
 ## 0.66.22 (in testing)
 
 **Tidying, from a second review of 0.66.x**
