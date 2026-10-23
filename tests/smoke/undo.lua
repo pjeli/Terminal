@@ -59,3 +59,23 @@ do
 	UI:Hide(); T.FlushAll()
 	_G.GetTime = realGT
 end
+
+io.write("[undo: a paste (the game's text box) is an edit too (0.66.x review)]\n")
+do
+	local realGT, now = _G.GetTime, 2000
+	_G.GetTime = function() return now end
+	UI:Open(""); T.FlushAll()
+	typeText("linen")
+	now = now + 5
+	T.withCtrl(function() key("V") end) -- (Ctrl+V: over to the game's text box)
+	check(not UI.keys, "in the real text box")
+	UI.edit:SetText("linen cloth") -- (the game's box pastes " cloth")
+	T.FlushAll() -- (back to the drawn prompt next frame)
+	check(query() == "linen cloth", "pasted: " .. query())
+	T.withCtrl(function() key("Z") end)
+	check(query() == "linen", "Ctrl+Z after a paste: the paste undone, the typed word kept: '" .. query() .. "'")
+	T.withCtrl(function() key("Z") end)
+	check(query() == "", "and again: the word")
+	UI:Hide(); T.FlushAll()
+	_G.GetTime = realGT
+end

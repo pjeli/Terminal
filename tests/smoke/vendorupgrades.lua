@@ -107,6 +107,17 @@ do
 	check(res[2] and res[2].detail:find("needs Honored with Timbermaw Hold", 1, true), "a standing it needs: " .. tostring(res[2] and res[2].detail))
 	check(ns.Easy.ToAdvanced("upgrades i can buy") == "@npc sells:upgrade faction:friendly sort:distance ", "Alt+`: " .. ns.Easy.ToAdvanced("upgrades i can buy"))
 	UI:Hide(); FlushAll()
+	-- (review) an item still coming from the server: the Advanced form is searched again once it's in, as the answer is
+	local saveCached, saveReq = C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID
+	C_Item.IsItemDataCachedByID = function(id) if id == 9602 then return false end return true end
+	C_Item.RequestLoadItemDataByID = function() end
+	F.ClearCache(); QR.ForgetVendorItems()
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open("@npc sells:upgrade faction:friendly sort:distance ")
+	check(F.loading == true, "Advanced @npc sells:upgrade: searched again once the items are in: " .. tostring(F.loading))
+	UI:Hide(); FlushAll()
+	C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID = saveCached, saveReq
+	F.ClearCache(); QR.ForgetVendorItems()
 	-- Advanced: sells:upgrade
 	ns.db.easyMode = false
 	UI:EasyChanged()

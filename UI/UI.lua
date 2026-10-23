@@ -195,6 +195,7 @@ do
 			return
 		end
 		if not UI._histSet and t ~= UI.histText then UI.histIdx = nil end
+		if not UI.keys and UI.NoteBoxText then UI:NoteBoxText(t) end -- (a paste, typing in combat: undone by Ctrl+Z; 0.66.x review)
 		if not UI.keys then
 			local cp = self:GetCursorPosition()
 			if type(cp) == "number" then UI.cursor = cp end

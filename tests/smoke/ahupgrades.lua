@@ -57,7 +57,9 @@ do
 	ns.providers, ns.providerOrder = {}, {}
 	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = function()
 		local out = {}
-		for id, t in pairs(ITEMS) do if id ~= 9700 then out[#out + 1] = { name = t[1], itemID = id, key = id, detail = "Boss  Dungeon" } end end
+		-- (as AtlasLoot's rows are: compact, their Enter and link from their metatable; review)
+		local meta = ns:CompactMeta(ns.providers.loot, { activate = function() end }, { link = function(t) return "item:" .. t.itemID end })
+		for id, t in pairs(ITEMS) do if id ~= 9700 then out[#out + 1] = setmetatable({ name = t[1], itemID = id, key = id, detail = "Boss  Dungeon" }, meta) end end
 		return out
 	end })
 	ns:AliasesChanged()
@@ -80,6 +82,7 @@ do
 		"each says its gain and price, and when it was seen: " .. tostring(r[2] and r[2].detail) .. " / " .. tostring(r[3] and r[3].detail))
 	check(tostring(UI.status:GetText()):find(L["at Auctionator's last-scanned prices"], 1, true), "the footer says whose prices")
 	check(F.GainOf(r[2]) ~= nil, "its tooltip compares it (the gain kept)")
+	check(r[2] and r[2].kind == "loot" and r[2].activate ~= nil and r[2].link ~= nil, "a view of the loot row: its Enter and link kept (review)")
 	UI:Hide(); FlushAll()
 
 	_G.Auctionator, _G.C_AddOns = save.ac, save.addons

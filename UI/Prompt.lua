@@ -25,6 +25,7 @@ local undo = { back = {}, fwd = {} }
 --- Nothing to undo or redo (the terminal opened, another tab).
 function UI:ResetUndo()
 	undo.back, undo.fwd, undo.run, undo.runAt = {}, {}, nil, nil
+	undo.seen = UI.edit and UI.edit:GetText() or nil
 end
 
 --- How `new` differs from `old`: "type" (one character typed), "erase" (one taken away), or nil (more); and whether it
@@ -68,6 +69,15 @@ local function Remember(old, cursor, new)
 	if #back > UI.UNDO_MAX then table.remove(back, 1) end
 end
 
+--- The game's own text box changed (a paste: Ctrl+V hands over to it; typing in combat): kept to undo as an edit, as
+--- the drawn prompt's are (SetQuery's own changes were seen already).
+function UI:NoteBoxText(text)
+	if self.undoing or type(text) ~= "string" then return end
+	local old = undo.seen
+	undo.seen = text
+	if old and old ~= text then Remember(old, math.min(self.cursor or #old, #old), text) end
+end
+
 --- Ctrl+Z (dir -1) / Ctrl+Y (dir 1): the prompt as it was before the last edit, or again after it. False when there's
 --- nothing to undo or redo.
 function UI:UndoEdit(dir)
@@ -89,6 +99,7 @@ function UI:UndoDepth() return #undo.back, #undo.fwd end
 function UI:SetQuery(text, cursor)
 	local edit = UI.edit
 	if not self.undoing and edit:GetText() ~= text then Remember(edit:GetText(), self.cursor or #edit:GetText(), text) end
+	undo.seen = text -- (the box's change this makes: not an edit of its own, NoteBoxText)
 	self.anchor = nil -- typing, completing or clearing drops any selection
 	self.typedAt = GetTime()
 	self.cursor = math.max(0, math.min(cursor or #text, #text))

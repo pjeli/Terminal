@@ -497,6 +497,7 @@ local BUY = { buy = true, buyable = true, purchasable = true, purchase = true, s
 QR.VENDOR_ASK = 40 -- (vendor items asked of the server per answer; read again once they're in)
 local vendorItems -- { { id = item, vendors = { npc ids } } }: equipment Questie's vendors sell (read once)
 local standingOf = {} -- item id -> the standing it needs (false: none); QR.StandingNeeded
+local vendorKept -- (the last judging of their stock: QR.VendorUpgrades)
 --- The equipment Questie says vendors sell (read once a session: every Questie item looked at, tens of ms).
 function QR.VendorItems()
 	if vendorItems then return vendorItems end
@@ -507,7 +508,11 @@ function QR.VendorItems()
 	local inst = C_Item and C_Item.GetItemInfoInstant
 	local SLOTS = ns.Filters and ns.Filters.SLOTS or {}
 	local out = {}
+	-- (in the search's coroutine: every Questie item read over several frames, not in one; review)
+	local UI = ns.UI
+	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
 	for i = 1, #ids do
+		if slicing and i % 512 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
 		local id = ids[i]
 		local okI, _, _, _, loc = false, nil, nil, nil, nil
 		if inst then okI, _, _, _, loc = pcall(inst, id) end
@@ -520,7 +525,7 @@ function QR.VendorItems()
 	ns:Trace(("rewards: %d vendor items read%s"):format(#out, started and (" in %.0f ms"):format(debugprofilestop() - started) or ""))
 	return out
 end
-function QR.ForgetVendorItems() vendorItems, standingOf = nil, {} end -- (tests)
+function QR.ForgetVendorItems() vendorItems, standingOf, vendorKept = nil, {}, nil end -- (tests)
 
 --- A standing the item needs, from its tooltip ("Requires Timbermaw Hold - Honored"): "Honored with Timbermaw Hold",
 --- or nil.
@@ -549,14 +554,25 @@ end
 
 --- The upgrades vendors sell: { [npc id] = { { id = item, g = gain } ... } } (best first), the items in it, and how many
 --- items are still being asked of the server.
+QR.VENDOR_KEEP = 2 -- (seconds the last judging stands: sells:upgrade's filter is made again on every keystroke)
 function QR.VendorUpgrades()
 	local F = ns.Filters
 	local items = QR.VendorItems()
 	if not (items and F and F.GearFit) then return nil end
+	local now = GetTime and GetTime() or 0
+	local k = vendorKept
+	if k and k.items == items and now - k.at < QR.VENDOR_KEEP and k.asked == 0 then
+		F.fitMade = true -- (as GearFit would say: their tooltips compare them)
+		return k.by, k.n, 0
+	end
 	local fit = F.GearFit()
+	local UI, count = ns.UI, 0
+	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local asked, bySeller, n = 0, {}, 0
 	for _, it in ipairs(items) do
+		count = count + 1
+		if slicing and count % 64 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
 		local probe = { kind = "vendoritem", itemID = it.id, key = it.id }
 		if cached and Safe(cached, it.id) == false and not (F.Known and F.Known(it.id)) then
 			if asked < QR.VENDOR_ASK then
@@ -575,6 +591,7 @@ function QR.VendorUpgrades()
 		end
 	end
 	for _, list in pairs(bySeller) do table.sort(list, function(a, b) return (a.g and a.g.gain or 0) > (b.g and b.g.gain or 0) end) end
+	vendorKept = { items = items, at = now, by = bySeller, n = n, asked = asked }
 	return bySeller, n, asked
 end
 

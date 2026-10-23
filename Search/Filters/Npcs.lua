@@ -551,7 +551,11 @@ KEYS.sells = function(v)
 			if not id then return false end
 			if by == nil then
 				local QR = ns.QuestRewards
-				by = QR and QR.VendorUpgrades and QR.VendorUpgrades() or false
+				local asked, _n
+				if QR and QR.VendorUpgrades then by, _n, asked = QR.VendorUpgrades() end
+				by = by or false
+				-- (items still coming from the server: searched again once they're in, as the answer is; review)
+				if asked and asked > 0 then F.loading = true end
 			end
 			return by and by[id] ~= nil or false
 		end

@@ -407,7 +407,8 @@ function UI:Search(text)
 	end
 	-- "| sum value", "| group zone": what was found, summed up (Pipes.lua; its item data asked for as filters do)
 	local agg = self.aggregate
-	if agg and agg.fromBar and ns.Bar and ns.Bar.Overview(res) then agg = nil end -- (the bar's Group: not over the categories)
+	-- (the bar's Group, top N and a comparison said in words: not over Simple mode's categories; review)
+	if agg and (agg.fromBar or agg.topWords) and ns.Bar and ns.Bar.Overview(res) then agg = nil end
 	-- (the rows before they're summed up: the bar's Sort and Group menus read what fields they have; Bar.lua)
 	self.ungrouped = nil
 	if agg and ns.Aggregate then self.ungrouped = res; res = ns.Aggregate.Apply(agg, res, agg.base) end
@@ -834,7 +835,7 @@ Scan.ANSWERS = {
 		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
 	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
 	-- what's on the calendar, or it's a search)
-	Asks("Calendar"),
+	(function() local a = Asks("Calendar"); a.ownDates = true; return a end)(), -- (its own today, this week: 0.66.8 review)
 	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's
 	-- TakeAggregate). Last: a line another question takes is that one's ("lockouts by raid": @lockout's)
 	(function() local a = Asks("PerField"); a.perField = true; return a end)(),
@@ -861,9 +862,10 @@ end
 Scan.WithTail = WithTail
 
 function ns.QuestionToAdvancedOf(text)
-	local function Print(t)
+	local function Print(t, notOwnDates)
 		for _, a in ipairs(Scan.ANSWERS) do
 			local q, extra = a.ask(t, true)
+			if q and notOwnDates and a.ownDates then return nil end
 			if q then
 				local line = a.toAdvanced(q, extra)
 				if line == nil then line = (t:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
@@ -876,6 +878,16 @@ function ns.QuestionToAdvancedOf(text)
 		local rest, tail = Scan.SplitTail(text, true)
 		local line = rest and Print(rest)
 		if line then return WithTail(line, tail) end
+	end
+	-- (dates after a question, as Scan.Answer reads them first)
+	if EasyOn() and ns.Easy and ns.Easy.PlainDates then
+		local dated = ns.Easy.PlainDates(text)
+		if dated ~= text then
+			local rest, tail = Scan.SplitTail(dated)
+			local line = rest and Print(rest, true)
+			if not line and tail then line = Print(text, true) end
+			if line then return WithTail(line, tail) end
+		end
 	end
 	local line = Print(text)
 	if line then return line end
@@ -1156,6 +1168,19 @@ function Scan.Answer(self, text)
 		local rows = rest and Scan.Ask(self, rest)
 		if rows then return Scan.AnswerView(self, rows, tail) end
 	end
+	-- (dates said after a question, "loot today", "my auctions sold this week": its filters, before the question reads
+	-- them as its own little words; not the calendar's, whose today is its own; 0.66.8 review)
+	if EasyOn() and ns.Easy and ns.Easy.PlainDates then
+		local dated = ns.Easy.PlainDates(text)
+		if dated ~= text then
+			local rest, dtail = Scan.SplitTail(dated)
+			local drows, a
+			if rest then drows, a = Scan.Ask(self, rest) end
+			-- (a question that takes "today" as one of its little words, "loot today": its rows, the dates on them)
+			if not drows and dtail then drows, a = Scan.Ask(self, text) end
+			if drows and not a.ownDates then return Scan.AnswerView(self, drows, dtail) end
+		end
+	end
 	local rows = Scan.Ask(self, text)
 	local tail
 	if not rows then
@@ -1271,6 +1296,8 @@ function UI:WhyLines(e)
 				local shown = ok and v ~= nil and (fd.money and ns.Money and ns.Money(v) or tostring(v)) or L["none"]
 				Say(L["sorted by %s: %s"]:format(fd and fd.label or base, shown))
 			end
+		elseif q.sortBest then
+			Say(L["sorted by the biggest upgrades first"])
 		elseif q.sortNear then
 			Say((q.sortFar and L["sorted farthest first"] or L["sorted nearest first"]) .. ((e.detail and e.detail ~= "") and (": " .. ns.Plain(tostring(e.detail))) or ""))
 		end
@@ -1390,7 +1417,7 @@ function Scan.Ask(self, text)
 				local e = rows[i]
 				if type(e) == "table" and rawget(e, "_pos") ~= nil then e._pos = nil end
 			end
-			return rows
+			return rows, a
 		end
 	end
 end
@@ -2086,8 +2113,12 @@ function Scan.Finalize(self, q, out)
 	if ns.Aggregate and ns.Aggregate.Summing(self.aggregate) then
 		-- (a quest in your log counted once, not with its Questie copy too; review, 0.53.6)
 		if kinds and kinds.quests and kinds.questie then out = Scan.OneQuest(out) end
-		-- ("| first 10 | sum value": the first ten by the sort typed, so its order is set here; 0.66.7)
-		if self.aggregate.first and q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField, self.aggregate.first, overBudget) end
+		-- ("| first 10 | sum value": the first ten by the sort typed; "| except @bank" listed by it: its order is set
+		-- here, as the steps sort by it after; 0.66.7, review)
+		local agg = self.aggregate
+		if (agg.first or not agg.last) and q.sortField and ns.Bar then
+			ns.Bar.SortRows(out, q.sortField, agg.first or Score.MAX_RESULTS, overBudget)
+		end
 		return out
 	end
 	-- (Simple mode's bar: sorted by name, level, value... the rows that have it first, in its order; Bar.lua)

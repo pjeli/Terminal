@@ -372,6 +372,8 @@ local function ListKey(key, ctrl)
 	elseif key == "HOME" then UI:Move(-#UI.results)
 	elseif key == "END" then UI:Move(#UI.results)
 	elseif key == "R" then UI:HistoryKey() -- (a shell's Ctrl+R: the history searched; again: an older one)
+	elseif key == "Z" then UI:UndoEdit(IsShiftKeyDown and IsShiftKeyDown() and 1 or -1) -- (undo; Ctrl+Shift+Z redoes: 0.66.1)
+	elseif key == "Y" then UI:UndoEdit(1)
 	elseif key == "N" or key == "J" then UI:Move(1)
 	elseif key == "P" or key == "K" then UI:Move(-1)
 	elseif key == "U" or key == "W" then
@@ -531,10 +533,6 @@ do
 				UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
 			elseif key == "V" or key == "C" then
 				ClipKey(key)
-			elseif key == "Z" then
-				UI:UndoEdit(shift and 1 or -1) -- (undo; Ctrl+Shift+Z redoes, as Ctrl+Y does: 0.66.1)
-			elseif key == "Y" then
-				UI:UndoEdit(1)
 			end
 		elseif not IsAltKeyDown() then
 			CheckChar(key)

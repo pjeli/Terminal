@@ -1735,7 +1735,8 @@ end
 local otherKept = { gen = nil, rows = {} }
 function A.OtherRows(text, fromKinds)
 	local gen = ns.entriesGen
-	if otherKept.gen ~= gen then otherKept = { gen = gen, rows = {} } end
+	-- (a few texts kept: every keystroke of "| except @stored lin..." is another; review)
+	if otherKept.gen ~= gen or (otherKept.n or 0) >= 8 then otherKept = { gen = gen, rows = {}, n = 0 } end
 	local key = text .. "\001" .. table.concat(fromKinds or {}, ",")
 	if otherKept.rows[key] then return otherKept.rows[key] end
 	local kinds, filters, words = {}, {}, {}
@@ -1769,6 +1770,7 @@ function A.OtherRows(text, fromKinds)
 		end
 	end
 	otherKept.rows[key] = out
+	otherKept.n = (otherKept.n or 0) + 1
 	return out
 end
 
@@ -1782,7 +1784,14 @@ function A.Compare(rows, w)
 	local other = A.OtherRows(w.other, kinds)
 	local ids = {}
 	if w.except then
-		for _, e in ipairs(other) do local id = A.Identity(e) if id then ids[id] = true end end
+		-- (what the other search holds, worked out once for its rows)
+		local kept = rawget(other, "_ids")
+		if not kept then
+			kept = {}
+			for _, e in ipairs(other) do local id = A.Identity(e) if id then kept[id] = true end end
+			other._ids = kept
+		end
+		ids = kept
 		local kept = {}
 		for _, e in ipairs(rows) do
 			local id = A.Identity(e)
@@ -1790,18 +1799,24 @@ function A.Compare(rows, w)
 		end
 		return kept
 	end
-	local out = {}
+	local out, low = {}, math.huge
 	for _, e in ipairs(rows) do
 		out[#out + 1] = e
+		local s = tonumber(rawget(e, "_score"))
+		if s and s < low then low = s end
 		local id = A.Identity(e)
 		if id then ids[id] = true end
 	end
+	if low == math.huge then low = 0 end
+	-- (added: after what the search found itself, in their list's order; as views, the shared rows' own scores (an
+	-- earlier search's) left alone; review)
+	local k = 0
 	for _, e in ipairs(other) do
 		local id = A.Identity(e)
 		if not (id and ids[id]) then
 			if id then ids[id] = true end
-			if rawget(e, "_score") == nil then e._score = 0 end -- (added: after what the search found itself)
-			out[#out + 1] = e
+			k = k + 1
+			out[#out + 1] = setmetatable({ _score = low - k }, { __index = e })
 		end
 	end
 	return out

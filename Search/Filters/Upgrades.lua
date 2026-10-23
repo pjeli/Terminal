@@ -489,9 +489,9 @@ end
 F.UPGRADE_LOSS, F.UPGRADE_MIN, F.UPGRADE_MIN_ABS, F.LEVEL_CLEAR = 0.5, 0.05, 1, 2
 -- Hit over the cap counts for nothing (0.66.3, the player: "weights that know your hit cap"): your hit chance now, from
 -- gear and talents as the game says it, against the chance to miss: a mob of your level below 60 (5% melee and ranged,
--- 4% spells), a boss three levels above at 60 (9%, 16%). An item's hit counts only up to the cap, after the piece it
+-- 3% spells: a spell always keeps 1% to miss), a boss three levels above at 60 (9%, 16%). An item's hit counts only up to the cap, after the piece it
 -- replaces gives its own up. The game not saying (or keeping it secret): hit counts in full, as before.
-F.HIT_CAP = { hit = 5, spellhit = 4 }
+F.HIT_CAP = { hit = 5, spellhit = 3 } -- (spells always keep 1% to miss: 3 of a same-level mob's 4; review)
 F.HIT_CAP_60 = { hit = 9, spellhit = 16 }
 F.HIT_FNS = { hit = "GetHitModifier", spellhit = "GetSpellHitModifier" }
 --- Your hit chances now and their caps: { hit = { now, cap }, spellhit = { now, cap } }, a kind left out when unknown.
@@ -530,7 +530,7 @@ function F.ClearGain(mine, worn, w)
 			-- (only the hit under the cap: with the worn piece's given up, against what you have now)
 			local now, cap = hc[1], hc[2]
 			local useful = math.min(now - (worn[k] or 0) + (mine[k] or 0), cap) - math.min(now, cap)
-			if useful < d then capped = true end
+			if useful < d - 1e-6 then capped = true end -- (a fraction's rounding isn't hit past the cap; review)
 			d = useful
 		end
 		if d > 0 then up = up + wk * d elseif d < 0 then down = down - wk * d end

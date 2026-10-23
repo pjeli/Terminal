@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.66.14 (in testing)
+
+**Fixes from a review of 0.66.1-0.66.13**
+- Ctrl+Z undoes a paste too, and works in combat's text box.
+- **ah upgrades**' rows open, link and colour their item; bind-on-use items count; the AH and vendor upgrade answers no longer stall a frame.
+- **@npc sells:upgrade** searches again as items load; the spell hit cap below 60 is 3% (a spell always keeps 1% to miss).
+- Dates after a question work ("loot today", "what dropped today", "my auctions sold this week"); a sort kept with **| except** and **| also**; added rows come after the search's own.
+- Top N leaves Simple mode's categories alone; "the cheapest boots" is one pair; names like "the five sorrows" and "tome of the last day" stay searches; "between 10 and 50 silver" means silver at both ends.
+- Alt+` keeps top N before **>> party** and the bar's Group with it; .explain and the bar say dates and levels from yours in words.
+
 ## 0.66.13 (in testing)
 
 **The cheapest upgrades on the auction house**
@@ -31,7 +41,7 @@
 ## 0.66.8 (in testing)
 
 **Dates in plain words**
-- **loot from yesterday**, **loot today**, **mail older than 20 days**, **auctions sold this week**, **what killed me today**, **in the last 3 days**, **past 2 hours**, **this session**: on the lists that keep times (the loot log, mail, auctions, history, the combat log, buyback).
+- **loot from yesterday**, **loot today**, **my mail older than 20 days**, **auctions sold this week**, **what killed me today**, **in the last 3 days**, **past 2 hours**, **this session**: on the lists that keep times (the loot log, mail, auctions, history, the combat log, buyback).
 - Advanced: **since:** and **older:**, with today, yesterday, week, month, login, or a time ago (30m, 2h, 3d, 2w): **@drop since:yesterday older:today**, **@mail older:20d**.
 
 ## 0.66.7 (in testing)
@@ -61,7 +71,7 @@
 ## 0.66.3 (in testing)
 
 **Upgrades know your hit cap**
-- Your hit chance now (gear and talents, as the game says it) is weighed against the cap: 5% melee and ranged, 4% spells against mobs your level below 60; 9% and 16% against bosses at 60. Hit past it counts for nothing, so a +2% hit item isn't an upgrade once you're capped, and giving up hit you don't need costs nothing. The tooltip says when it counted less; **.weights** says where you stand ("3% of 5% now").
+- Your hit chance now (gear and talents, as the game says it) is weighed against the cap: 5% melee and ranged, 3% spells against mobs your level below 60; 9% and 16% against bosses at 60. Hit past it counts for nothing, so a +2% hit item isn't an upgrade once you're capped, and giving up hit you don't need costs nothing. The tooltip says when it counted less; **.weights** says where you stand ("3% of 5% now").
 
 ## 0.66.2 (in testing)
 

@@ -196,6 +196,11 @@ function B.SpecLabel(spec, word)
 			v2 = v2:gsub('"', ""):gsub("_", " ")
 			k2 = ns.Lower(k2)
 			if k2 == "in" or k2 == "zone" or k2 == "where" then out = L["In %s"]:format(v2)
+			elseif (k2 == "lvl" or k2 == "level") and v2:find("me", 1, true) and ns.Easy and ns.Easy.LevelSay then
+				out = ns.UpperFirst(ns.Easy.LevelSay(v2)) -- ("3 levels above yours"; review)
+			elseif k2 == "since" and ns.Easy and ns.Easy.TimeSay then out = L["Since %s"]:format(ns.Easy.TimeSay(v2))
+			elseif (k2 == "older" or k2 == "before") and ns.Easy and ns.Easy.TimeSay then
+				out = (v2:find("^%d") and L["Older than %s"] or L["Before %s"]):format(ns.Easy.TimeSay(v2))
 			elseif k2 == "lvl" or k2 == "level" then out = L["Level %s"]:format(v2)
 			elseif k2 == "ilvl" or k2 == "itemlevel" then out = L["Item level %s"]:format(v2)
 			elseif k2 == "value" or k2 == "worth" then out = L["Worth %s"]:format(v2)
@@ -679,7 +684,8 @@ function B.PickThen(id)
 	if not (o and o.field) then return B.Pick("sort", id) end
 	local list = ns.Filters and ns.Filters.SortList and ns.Filters.SortList(typed.sort and typed.sort.id) or {}
 	local dropWord
-	if not state.sort and list[1] then
+	local firstField = list[1] and ById(B.SORTS, (SortParts(list[1])))
+	if not state.sort and list[1] and firstField and firstField.field then
 		-- (the typed sort is the bar's own now: its first field, and its "then by" when it had one)
 		state.sort = list[1]
 		if list[2] and not state.thenBy then state.thenBy = list[2] end

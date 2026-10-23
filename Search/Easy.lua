@@ -755,17 +755,27 @@ local function NumAt(lw, i, key)
 	return nil
 end
 
---- A phrase from E.NUM_BEFORE / NUM_AFTERWARDS starting at words[i]: its operator and how many words; or nil.
+--- A phrase from E.NUM_BEFORE / NUM_AFTERWARDS starting at words[i]: its operator and how many words; or nil. (Each
+--- list's phrases split once, by their first word: this runs for every word of every Simple search; review.)
+local opIndex = {}
 local function OpAt(lw, i, list)
-	for op, said in pairs(list) do
-		for _, phrase in ipairs(said) do
-			local n, ok = 0, true
-			for part in phrase:gmatch("%S+") do
-				if lw[i + n] ~= part then ok = false break end
-				n = n + 1
+	local idx = opIndex[list]
+	if not idx then
+		idx = {}
+		for op, said in pairs(list) do
+			for _, phrase in ipairs(said) do
+				local parts = {}
+				for part in phrase:gmatch("%S+") do parts[#parts + 1] = part end
+				idx[parts[1]] = idx[parts[1]] or {}
+				table.insert(idx[parts[1]], { op = op, parts = parts })
 			end
-			if ok then return op, n end
 		end
+		opIndex[list] = idx
+	end
+	for _, c in ipairs(idx[lw[i] or ""] or {}) do
+		local ok = true
+		for n = 2, #c.parts do if lw[i + n - 1] ~= c.parts[n] then ok = false break end end
+		if ok then return c.op, #c.parts end
 	end
 end
 
@@ -787,6 +797,8 @@ local function SpanAt(lw, i, key)
 		local joiner = lw[i + 1 + (na or 0)]
 		if a and (joiner == "and" or joiner == "to" or joiner == "through" or joiner == "-") then
 			local b, nb = NumAt(lw, i + 2 + na, key)
+			-- (money: the unit said once at the end is both ends', "between 10 and 50 silver"; review)
+			if b and key == "value" and a:match("^%d+$") and b:match("[gsc]$") then a = a .. b:match("([gsc])$") end
 			if b then return a .. "-" .. b, 2 + na + nb end
 		end
 		return nil
@@ -797,6 +809,7 @@ local function SpanAt(lw, i, key)
 		local joiner = lw[i + na]
 		if joiner == "to" or joiner == "through" or joiner == "-" then
 			local b, nb = NumAt(lw, i + na + 1, key)
+			if b and key == "value" and a:match("^%d+$") and b:match("[gsc]$") then a = a .. b:match("([gsc])$") end
 			if b then return a .. "-" .. b, na + 1 + nb end
 		end
 	end
@@ -824,7 +837,7 @@ local function ValueAt(lw, i, key, bare)
 end
 
 local OrderAt -- (below)
--- Dates in plain words (0.66.8, the player): "loot from yesterday", "mail older than 20 days", "auctions sold this week",
+-- Dates in plain words (0.66.8, the player): "loot from yesterday", "my mail older than 20 days", "auctions sold this week",
 -- "what killed me today", "in the last 3 days", "this session": since: and older: (Filters/Others.lua).
 local TIME_UNITS = { minute = "m", minutes = "m", min = "m", mins = "m", hour = "h", hours = "h", hr = "h", hrs = "h",
 	day = "d", days = "d", week = "w", weeks = "w" }
@@ -851,7 +864,10 @@ local function DateAt(lw, i)
 	-- "last 3 days", "past 2 hours", "in the last 10 minutes", "last hour", "last week"
 	local k = i
 	if w == "in" and lw[i + 1] == "the" then k = i + 2 end
-	if lw[k] == "last" or lw[k] == "past" then
+	-- (not a name's "the last day", "of the past hour": only "last 3 days", "in the last hour"; review)
+	local before = lw[i - 1]
+	if k == i and (before == "the" or before == "of" or before == "a" or before == "an") then k = nil end
+	if k and (lw[k] == "last" or lw[k] == "past") then
 		local n = lw[k + 1] and lw[k + 1]:match("^(%d+)$")
 		local unit = TIME_UNITS[lw[k + (n and 2 or 1)] or ""]
 		if unit then
@@ -940,7 +956,13 @@ E.ORDER_WORDS = { ["most valuable"] = "value", ["least valuable"] = "-value", ch
 	priciest = "value", ["highest level"] = "-level", ["lowest level"] = "level", ["highest item level"] = "ilvl",
 	["lowest item level"] = "-ilvl", ["best quality"] = "quality", ["worst quality"] = "-quality" }
 --- An order's words at words[i] (up to three): the sort and how many words; or nil.
+local orderFirst -- (the first words of E.ORDER_WORDS: most words start none, and are passed at once)
 OrderAt = function(lw, i)
+	if not orderFirst then
+		orderFirst = {}
+		for phrase in pairs(E.ORDER_WORDS) do orderFirst[phrase:match("^%S+")] = true end
+	end
+	if not orderFirst[lw[i] or ""] then return nil end
 	for n = 3, 1, -1 do
 		if lw[i + n - 1] then
 			local id = E.ORDER_WORDS[table.concat(lw, " ", i, i + n - 1)]
@@ -1051,7 +1073,13 @@ E.NOT_COUNTED = { stack = true, stacks = true, x = true, of = true, slot = true,
 	month = true, months = true, ago = true, to = true, ["and"] = true, ["or"] = true, handed = true, hand = true,
 	piece = true, pieces = true, point = true, points = true, yards = true, yd = true }
 local TOP_LEAD = { the = true, my = true }
---- The line with its top N taken out, and N; or the line and nil. "the 3 nearest mailboxes" -> "nearest mailboxes", 3.
+-- (an order's own words before the thing: "most valuable", "highest level", "best quality")
+E.ORDER_ADJ = { valuable = true, expensive = true, level = true, quality = true, priced = true, item = false }
+-- (one thing, named as a pair: "the cheapest boots" is one pair of boots)
+E.ONE_PAIR = { boots = true, gloves = true, leggings = true, bracers = true, pants = true, trousers = true, shoulders = true,
+	gauntlets = true, greaves = true, sabatons = true, handwraps = true, wristguards = true, spaulders = true, legguards = true,
+	treads = true, slippers = true, sandals = true, britches = true, breeches = true, kilts = true, mitts = true, bindings = true }
+--- The line with its top N taken out, and N; or the line and nil. "the 3 nearest mailboxes" -> "the nearest mailboxes", 3.
 function E.TopN(text)
 	if type(text) ~= "string" then return text, nil end
 	local words = {}
@@ -1060,6 +1088,14 @@ function E.TopN(text)
 	local lw = {}
 	for i, w in ipairs(words) do lw[i] = Lower(w) end
 	local function Num(w) return tonumber(w and w:match("^(%d+)$") or "") or (w and E.NUMBER_WORDS[w]) end
+	-- (a number said in words only beside a ranking word, "the three nearest": "the five sorrows", "two halves become
+	-- one" are names; review)
+	local function NumOpening(k)
+		local d = tonumber(lw[k] and lw[k]:match("^(%d+)$") or "")
+		if d then return d end
+		local w = lw[k] and E.NUMBER_WORDS[lw[k]]
+		if w and E.RANK_WORDS[lw[k + 1] or ""] then return w end
+	end
 	local function Rest(from, skip)
 		local out = {}
 		for i = 1, #words do if i < from or i >= from + skip then out[#out + 1] = words[i] end end
@@ -1067,7 +1103,7 @@ function E.TopN(text)
 	end
 	local i = 1
 	if TOP_LEAD[lw[1]] then i = 2 end
-	local n = Num(lw[i])
+	local n = NumOpening(i)
 	-- "top 5 upgrades", "first 3 quests"
 	if not n and (lw[i] == "top" or lw[i] == "first") and Num(lw[i + 1]) and lw[i + 2] then
 		n = Num(lw[i + 1])
@@ -1084,9 +1120,11 @@ function E.TopN(text)
 	end
 	-- "the closest innkeeper", "the cheapest linen": one ("the cheapest upgrades on the ah", plural: all of them)
 	if lw[1] == "the" and E.RANK_WORDS[lw[2]] and lw[3] then
-		local noun = lw[3]
-		if E.RANK_WORDS[noun] or noun == "level" or noun == "item" then noun = lw[4] or noun end -- ("the most valuable item")
-		if noun:find("[^s]s$") then return text, nil end
+		-- (the thing named: past the order's own words, "the most valuable items", "the highest level sword")
+		local k = 3
+		while lw[k + 1] and (E.RANK_WORDS[lw[k]] or E.ORDER_ADJ[lw[k]]) do k = k + 1 end
+		local noun = lw[k]
+		if noun:find("[^s]s$") and not E.ONE_PAIR[noun] then return text, nil end
 		return text, 1
 	end
 	return text, nil
@@ -1099,22 +1137,56 @@ E.LIST_PHRASES = { ["my bank"] = "@bank", ["in my bank"] = "@bank", ["the bank"]
 	["my quest log"] = "@quest", ["in my log"] = "@quest", ["my log"] = "@quest", ["my mail"] = "@mail", ["in my mail"] = "@mail" }
 local SET_EXCEPT = { "but not", "and not", "except", "not" }
 local SET_ALSO = { "and also", "plus" }
+local setTails -- { { " but not my bank", "except @bank" } ... }, made once
 --- The line with a comparison at its end taken out, and its step ("except @bank"); or the line and nil.
 function E.SetOp(text)
 	if type(text) ~= "string" then return text, nil end
-	local lt = Lower(text):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
-	for phrase, list in pairs(E.LIST_PHRASES) do
-		for _, group in ipairs({ { SET_EXCEPT, "except" }, { SET_ALSO, "also" } }) do
-			for _, joiner in ipairs(group[1]) do
-				local tail = " " .. joiner .. " " .. phrase
-				if #lt > #tail and lt:sub(-#tail) == tail then
-					local rest = lt:sub(1, #lt - #tail)
-					if rest:find("%S") then return rest, group[2] .. " " .. list end
+	if not setTails then
+		setTails = {}
+		for phrase, list in pairs(E.LIST_PHRASES) do
+			for _, group in ipairs({ { SET_EXCEPT, "except" }, { SET_ALSO, "also" } }) do
+				for _, joiner in ipairs(group[1]) do
+					setTails[#setTails + 1] = { " " .. joiner .. " " .. phrase, group[2] .. " " .. list }
 				end
 			end
 		end
 	end
+	local lt = Lower(text)
+	-- (only a line ending in one of the lists' last words can be one)
+	local last = lt:match("(%S+)%s*$")
+	if not last or not (last == "bank" or last == "bags" or last == "me" or last == "alts" or last == "log" or last == "mail") then
+		return text, nil
+	end
+	lt = lt:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+	for _, t in ipairs(setTails) do
+		local tail = t[1]
+		if #lt > #tail and lt:sub(-#tail) == tail then
+			local rest = lt:sub(1, #lt - #tail)
+			if rest:find("%S") then return rest, t[2] end
+		end
+	end
 	return text, nil
+end
+
+--- The line with only its dates said as filters ("loot today" -> "loot since:today"); the line itself when it has none.
+function E.PlainDates(text)
+	if type(text) ~= "string" or not text:find("%S") then return text end
+	local words = {}
+	for w in text:gmatch("%S+") do words[#words + 1] = w end
+	local lw = {}
+	for i, w in ipairs(words) do lw[i] = Lower(w) end
+	local out, i, any = {}, 1, false
+	while i <= #words do
+		local dates, nd = DateAt(lw, i)
+		if dates then
+			for _, d in ipairs(dates) do out[#out + 1] = d end
+			i, any = i + nd, true
+		else
+			out[#out + 1] = words[i]
+			i = i + 1
+		end
+	end
+	return any and table.concat(out, " ") or text
 end
 
 --- Two everyday words that mean one thing joined into one ("attack power food" -> "attack power", "food"). Works on
@@ -1224,12 +1296,20 @@ function E.ToAdvanced(text, category, shown, noGroup)
 	if A and A.Split then q, steps = A.Split(t) end
 	if steps then t, tail = q, " | " .. table.concat(steps, " | ") .. tail end
 	-- (top N in words, "the 3 nearest mailboxes": its step written out, "| first 3"; 0.66.7)
-	if tail == "" and EasyOnAt() then
+	-- (as UI/Results.lua's TakeAggregate reads them: with a ">> party" after them too, and the bar's Group after them;
+	-- review)
+	if not steps and EasyOnAt() then
 		local rest, n = E.TopN(t)
-		if n then t, tail, text = rest, " | first " .. n, rest end
+		if not n then rest = t end
 		-- (a comparison at the end, "but not in my bank": its step, "| except @bank"; 0.66.10)
-		local rest2, step = E.SetOp(t)
-		if step then t, text, tail = rest2, rest2, " | " .. step .. tail end
+		local rest2, step = E.SetOp(rest)
+		if n or step then
+			local add = (step and (" | " .. step) or "") .. (n and (" | first " .. n) or "")
+			local bar = ns.Bar and ns.Bar.Active and ns.Bar.Active()
+			if bar and bar.group and not noGroup then add = add .. " | group by " .. bar.group end
+			t = step and rest2 or rest
+			text, tail = t, add .. tail
+		end
 	end
 	-- (the words read by the search's own steps and its query printed: Search.lua's ns.QueryToAdvanced)
 	local Print = ns.QueryToAdvanced
@@ -1368,16 +1448,23 @@ local function LevelSay(v)
 	local a, b = v:match("^(.-)%.%.(.+)$")
 	if a then return L["from %s to %s"]:format(One(a), One(b)) end
 	local op, rest = v:match("^([<>]=?)(.+)$")
-	if op then return ((op:sub(1, 1) == "<") and L["below %s"] or L["above %s"]):format(One(rest)) end
+	if op == "<" then return L["below %s"]:format(One(rest)) end
+	if op == ">" then return L["above %s"]:format(One(rest)) end
+	if op == "<=" then return L["%s or below"]:format(One(rest)) end
+	if op == ">=" then return L["%s or above"]:format(One(rest)) end
 	return One(v)
 end
-local function TimeSay(v)
+local TimeSay
+TimeSay = function(v)
 	local t = TIME_SAY[v]
 	if t then return t end
-	local n, unit = v:match("^(%d+)(%a+)$")
+	local n, unit = v:match("^(%d+%.?%d*)(%a+)$")
 	local units = { m = L["minutes"], h = L["hours"], d = L["days"], w = L["weeks"] }
-	return n and units[unit] and L["%s %s"]:format(n, units[unit]) or v
+	local u = unit and units[unit:sub(1, 1)]
+	return n and u and L["%s %s"]:format(n, u) or v
 end
+
+E.LevelSay, E.TimeSay = LevelSay, TimeSay -- (the bar's words for them: Bar.lua's SpecLabel)
 
 --- One filter (key:value) said: { noun = ..., adj = ..., after = ... } (where it goes in the sentence).
 local function FilterSay(key, val)
@@ -1454,7 +1541,7 @@ function E.Explain(line)
 	local send = text:find(">>", 1, true)
 	if send then
 		local to = text:sub(send):gsub("^>>>?%s*", "")
-		tail[#tail + 1] = (text:sub(send, send + 2) == ">>>" and L["every one sent to %s"] or L["sent to %s"]):format(to ~= "" and to or "chat")
+		tail[#tail + 1] = (text:sub(send, send + 2) == ">>>" and L["every one sent to %s"] or L["sent to %s"]):format(to ~= "" and to or L["chat"])
 		text = text:sub(1, send - 1)
 	end
 	local A = ns.Aggregate
@@ -1472,7 +1559,7 @@ function E.Explain(line)
 		if lw:sub(1, 1) == "@" then
 			local name = lw:sub(2)
 			local p = ns:ResolveProvider(name)
-			kindNouns[#kindNouns + 1] = (p and KIND_NOUN[p.id]) or KIND_NOUN[name] or (p and (Lower(tostring(p.label or p.id)) .. "s")) or name
+			kindNouns[#kindNouns + 1] = (p and KIND_NOUN[p.id]) or KIND_NOUN[name] or (p and Lower(tostring(p.label or p.id))) or name
 		else
 			local key, val = lw:match("^(%a+):(.+)$")
 			local F = ns.Filters

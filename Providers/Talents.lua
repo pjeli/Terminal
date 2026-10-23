@@ -216,7 +216,10 @@ function TL.Points()
 		local t = n.tabIndex and byIndex[n.tabIndex]
 		if t and type(n.rank) == "number" and n.rank > 0 then t.points = t.points + n.rank end
 	end
-	pointsKept = out
+	-- (none spent at all: maybe read before the game had them, at login; read again next time; review)
+	local any = false
+	for _, t in ipairs(out) do if t.points > 0 then any = true break end end
+	if any then pointsKept = out end
 	return out
 end
 function TL.ForgetPoints() pointsKept = nil end

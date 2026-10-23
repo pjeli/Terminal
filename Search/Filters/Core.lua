@@ -118,7 +118,7 @@ local function Range(v)
 end
 F.Range = Range
 
---- An amount of money in copper: "1g" 10000, "1g50s" 10500, "50s" 5000, "30c" 30, "2.5g" 25000, "123" 123 (copper, as
+--- An amount of money in copper: "1g" 10000, "1g50s" 15000, "50s" 5000, "30c" 30, "2.5g" 25000, "123" 123 (copper, as
 --- the game counts it); nil when it isn't one. (0.66.5: value:>1g)
 local MONEY_UNIT = { g = 10000, s = 100, c = 1 }
 local function Copper(v)

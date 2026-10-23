@@ -156,7 +156,12 @@ do
 	check(TL.Points() == p1, "kept: not read again for every search")
 	T.ef.scripts.OnEvent(T.ef, "CHARACTER_POINTS_CHANGED")
 	check(TL.Points() ~= p1 and F.TalentTree("WARRIOR") == "fury", "a point spent: read again (4 in Fury now): " .. tostring(F.TalentTree("WARRIOR")))
+	-- (review) none spent: maybe read before the game had them (at login): not kept, read again next time
+	TL.ForgetPoints()
+	_G.C_Traits.GetNodeInfo = function(c, id) local n = realNode(c, id) if n then n.ranksPurchased = 0 end return n end
+	check(TL.Points()[1].points == 0, "nothing spent read")
 	_G.C_Traits.GetNodeInfo = realNode
+	check(TL.Points()[1].points == 3, "read again, no event needed: " .. TL.Points()[1].points)
 	TL.ForgetPoints()
 	_G.UnitClass, ns.db.upgradeRoles, TL.Points = save.class, save.roles, save.points
 	F.ClearCache()
@@ -176,10 +181,15 @@ do
 	_G.GetHitModifier = function() return 4 end
 	_G.GetSpellHitModifier = function() return 0 end
 	local h = F.HitNow()
-	check(h.hit[1] == 4 and h.hit[2] == 5 and h.spellhit[2] == 4, "below 60: 5% melee, 4% spell caps")
+	check(h.hit[1] == 4 and h.hit[2] == 5 and h.spellhit[2] == 3, "below 60: 5% melee, 3% spell caps (a spell always keeps 1% to miss)")
 	F.SetHitNow(h)
 	local g1, capped = F.ClearGain({ hit = 2 }, {}, arms)
 	check(g1 and math.abs(g1 - arms.hit) < 1e-9 and capped, "4% of 5%: +2% hit counts as 1%, said so: " .. tostring(g1))
+	-- (review) a fraction of a per cent under the cap: nothing past it, said nothing
+	F.SetHitNow({ hit = { 0.05, 5 } })
+	local _, notCapped = F.ClearGain({ hit = 2 }, {}, arms)
+	check(not notCapped, "0.05% of 5%, +2% hit: all of it counts, not said capped")
+	F.SetHitNow(h)
 	-- capped already: hit is no upgrade at all; one that gives hit up for Strength counts the Strength
 	_G.GetHitModifier = function() return 6 end
 	F.SetHitNow(F.HitNow())

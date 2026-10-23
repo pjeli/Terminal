@@ -12,7 +12,8 @@ do
 		{ "top 5 upgrades", "upgrades", 5 },
 		{ "my 10 most valuable items", "my most valuable items", 10 },
 		{ "5 swords", "swords", 5 },
-		{ "three swords", "swords", 3 },
+		{ "the three nearest innkeeper", "the nearest innkeeper", 3 },
+		{ "three swords", "three swords", nil }, -- (a number in words only beside a ranking word: review)
 		{ "the closest innkeeper", "the closest innkeeper", 1 },
 		{ "first 3 quests", "quests", 3 },
 		-- not top N
@@ -24,6 +25,9 @@ do
 		{ "closest innkeeper", "closest innkeeper", nil },
 		{ "the cheapest upgrades on the ah", "the cheapest upgrades on the ah", nil },
 		{ "the nearest innkeepers", "the nearest innkeepers", nil },
+		{ "the cheapest boots", "the cheapest boots", 1 }, -- (a pair is one: review)
+		{ "the most valuable items", "the most valuable items", nil },
+		{ "the highest level sword", "the highest level sword", 1 },
 		{ "20", "20", nil },
 	}
 	for _, c in ipairs(CASES) do

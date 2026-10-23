@@ -552,6 +552,7 @@ F.VALUES = {
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
+	since = { "today", "yesterday", "week", "month", "login", "1h", "3d" }, older = { "today", "yesterday", "week", "20d" },
 	standing = StandingNames(),
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,

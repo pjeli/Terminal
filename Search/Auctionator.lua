@@ -497,6 +497,7 @@ local AHU_FILL = { cheapest = true, cheap = true, best = true, value = true, gol
 	affordable = true, good = true }
 AHU.ASK = 40 -- (items asked of the server per answer)
 AHU.MAX = 50 -- (rows listed at most)
+AHU.SELLABLE_BIND = { [0] = true, [2] = true, [3] = true } -- (none, on equip, on use)
 
 --- "ah upgrades", "cheapest upgrades on the ah": true (with Auctionator).
 function AHU.Question(text)
@@ -523,8 +524,19 @@ function AHU.Answer()
 	local info = F._ and F._.ItemInfo
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local seen, found, asked, priced = {}, {}, 0, false
+	local inst = C_Item and C_Item.GetItemInfoInstant
+	local SLOTS = F.SLOTS or {}
+	-- (run in the search's own coroutine: tens of thousands of AtlasLoot rows go over several frames; review)
+	local UI, n = ns.UI, 0
+	local slicing = UI and UI.sliceUntil and coroutine.running() and debugprofilestop
 	for _, e in ipairs(ns:GetEntries(loot) or {}) do
+		n = n + 1
+		if slicing and n % 256 == 0 and UI.sliceUntil and debugprofilestop() > UI.sliceUntil then coroutine.yield(UI.Results()) end
 		local id = ItemID(e)
+		-- (equipment only, by the client's own data: no price asked for the rest)
+		local okI, _, _, _, loc = false, nil, nil, nil, nil
+		if id and inst then okI, _, _, _, loc = pcall(inst, id) end
+		if id and inst and not (okI and type(loc) == "string" and SLOTS[loc]) then id = nil end
 		if id and not seen[id] then
 			seen[id] = true
 			local price = AN.Price(id)
@@ -537,8 +549,8 @@ function AHU.Answer()
 					end
 				else
 					local it = info and info(id)
-					-- (bind on equip: one bound when picked up never reaches the auction house)
-					if it and it.bindType == 2 then
+					-- (one bound when picked up never reaches the auction house: unbound, on equip or on use do)
+					if it and AHU.SELLABLE_BIND[it.bindType or 0] then
 						local probe = { kind = "ahitem", itemID = id, key = id, name = e.name, link = rawget(e, "link") }
 						if fit(probe) then
 							local g = F.GainOf(probe)
@@ -559,8 +571,8 @@ function AHU.Answer()
 	local out = {}
 	for i, x in ipairs(found) do
 		if i > AHU.MAX then break end
-		local c = {}
-		for k, v in pairs(x.e) do c[k] = v end
+		-- (a view of the loot row: its Enter, link, icon and colour are its metatable's on AtlasLoot's compact rows; review)
+		local c = setmetatable({}, { __index = x.e })
 		local gain = math.floor(x.g.gain * 10 + 0.5) / 10
 		local parts = { L["+%s for %s"]:format(gain, Money(x.price)) }
 		local age = AN.Age(x.e.itemID or ItemID(x.e))
