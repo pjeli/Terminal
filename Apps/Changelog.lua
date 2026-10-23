@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.66.10", when = "in testing",
+		v = "0.66.11", when = "in testing",
 		items = {
 			"Undo in the prompt: Ctrl+Z undoes your last edit to what you typed (a word, a Ctrl+W, a paste), Ctrl+Y redoes it.",
 			"Upgrades follow your talents: with no tree picked, .weights judges by the tree holding most of your talent points (31 in Fury: Fury), and follows a respec. .weights all goes back to that.",
@@ -26,6 +26,7 @@ CL.LOG = {
 			"Dates in plain words: \"loot from yesterday\", \"mail older than 20 days\", \"auctions sold this week\", \"what killed me today\", \"in the last 3 days\". Advanced: since:yesterday, older:20d.",
 			"An Advanced line in plain words: point at one in the prompt, or .explain it (\"@npc is:vendor sells:arrow sort:distance\": \"Vendors, that sell arrow, nearest first\"); .explain alone explains the last line you ran.",
 			"Compare two searches: \"cloth but not in my bank\", \"linen plus my alts\"; Advanced: | except @bank, | also @stored.",
+			"\"Why is this here?\" in a row's menu: which words it matched and where, the filters it passed, its sort value, and for an upgrade what it gains.",
 		},
 	},
 	{

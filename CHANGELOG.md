@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.11 (in testing)
+
+**Why is this here?**
+- A row's menu (right-click, or Shift+Right) has **Why is this here?**: said in chat, which of your words it matched and where (its name, its details, its other words, a close spelling), the filters it passed in words, its value for the sort, and for an upgrade what it gains over what you wear and by which tree's weights.
+
 ## 0.66.10 (in testing)
 
 **Compare two searches**

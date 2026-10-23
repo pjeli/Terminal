@@ -1410,6 +1410,37 @@ local function FilterSay(key, val)
 	return { after = key .. ":" .. val }
 end
 
+--- One filter word said ("q:rare+" -> "rare or better", "-is:boe" -> "not bind on equip"), or nil when it's no filter.
+function E.SayFilter(word)
+	if type(word) ~= "string" then return nil end
+	local lw = Lower(word)
+	local neg = lw:match("^[-!]") and true or false
+	if neg then lw = lw:sub(2) end
+	local key, val = lw:match("^(%a+):(.+)$")
+	if not key then return nil end
+	if key == "sort" then
+		local F = ns.Filters
+		local so = F and F.SortOf and F.SortOf(lw)
+		local said = {}
+		for i, part in ipairs(so and F.SortList(so) or {}) do said[i] = SORT_SAY[part] or part end
+		return #said > 0 and table.concat(said, ", " .. L["then"] .. " ") or nil
+	end
+	local t = {}
+	for part in val:gmatch("[^|]+") do
+		local k2, v2 = part:match("^(%a+):(.+)$")
+		local say = FilterSay(k2 or key, v2 or part)
+		t[#t + 1] = say.noun or say.adj or say.after or say.verb
+	end
+	local out = table.concat(t, " " .. L["or"] .. " ")
+	return neg and L["not %s"]:format(out) or out
+end
+--- What a list's rows are, in words: "NPCs", "your bank" (its label when there's none).
+function E.KindNoun(id)
+	if type(id) ~= "string" then return nil end
+	local p = ns.providers[id]
+	return KIND_NOUN[id] or (p and p.label and Lower(tostring(p.label))) or id
+end
+
 --- An Advanced line said in plain words, or nil when there's nothing to say.
 function E.Explain(line)
 	if type(line) ~= "string" or not line:find("%S") then return nil end

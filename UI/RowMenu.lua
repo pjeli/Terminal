@@ -215,6 +215,11 @@ do
 				UI:FillFromResult()
 			end }
 		end
+		-- why the search listed it (0.66.11, the player): said in chat, the terminal staying open
+		if not (share or self.fzf or self.histSearch or e.syntaxRow or e.catId or e.raw or e.completion or e.lead or e.noActivate)
+			and UI.WhyHere then
+			items[#items + 1] = { label = L["Why is this here?"], run = function() UI:WhyHere(e) end }
+		end
 		-- (`run` lines are Terminal's own and keep it open: writing into the prompt, Cancel)
 		items[#items + 1] = { label = L["Cancel"], run = function() end }
 		return items

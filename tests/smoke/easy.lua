@@ -995,7 +995,7 @@ Run("right-click menu", function()
 	local labels = {}
 	for _, b in ipairs(m.lines) do if b:IsShown() then labels[#labels + 1] = b.fs:GetText() end end
 	local all = table.concat(labels, ",")
-	check(all == "Show in bags,Use,Link in chat,Say in chat,Copy as text,Cancel", "its actions in words (0.55.12: copied as text here, not from the send button): " .. all)
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Copy as text,Why is this here?,Cancel", "its actions in words (0.55.12: copied as text here, not from the send button): " .. all)
 	local use = m.lines[2]
 	check(use.attrs.type1 == "macro" and use.attrs.macrotext1 == "/use item:6948", "Use: the game runs /use on the click: " .. tostring(use.attrs.macrotext1))
 	use.scripts.PostClick(use, "LeftButton"); FlushAll()
@@ -1039,7 +1039,7 @@ Run("right-click menu", function()
 	key("DOWN")
 	check(m:IsShown() and m.lines[2].hl:IsShown() and not m.lines[1].hl:IsShown(), "Down: the next line, the menu stays")
 	key("UP"); key("UP")
-	check(m.lines[6].hl:IsShown(), "Up from the first: round to the last (Cancel)")
+	check(m.lines[7].hl:IsShown(), "Up from the first: round to the last (Cancel)")
 	key("ESCAPE")
 	check(not m:IsShown() and UI:IsShown(), "Esc: only the menu goes")
 	check(_G.TerminalTooltip:IsShown(), "and the tooltip comes back")
@@ -1141,7 +1141,7 @@ Run("right-click: send to chat (Simple mode too)", function()
 	for _, b in ipairs(m.lines) do if b:IsShown() then byLabel[b.fs:GetText()] = b; labels[#labels + 1] = b.fs:GetText() end end
 	local all = table.concat(labels, ",")
 	local wl = ns.L["Whisper to target (%s)"]:format("Fatherless Behavior")
-	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild," .. wl .. ",Copy as text,Cancel", "the channels you're in: " .. all)
+	check(all == "Show in bags,Use,Link in chat,Say in chat,Send to party,Send to guild," .. wl .. ",Copy as text,Why is this here?,Cancel", "the channels you're in: " .. all)
 	local g, w = byLabel["Send to guild"], byLabel[wl]
 	check(g and (g.attrs.macrotext1 or "") == "", "nothing worked out (no waypoint moved) until a line is clicked")
 	if g then g.scripts.PreClick(g, "LeftButton") end
