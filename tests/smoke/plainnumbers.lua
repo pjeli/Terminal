@@ -31,6 +31,7 @@ do
 		{ "cloth worth between 10s and 1g", "cloth value:10s-1g" },
 		{ "item level over 30", "ilvl:>30" },
 		{ "ilvl 40+", "ilvl:40+" },
+		{ "my best upgrades", "my sort:best upgrades" }, -- (the biggest first: "my 5 best upgrades"; 0.66.15)
 		{ "10 slot bag", "slots:10 bag" }, -- (a bag's tooltip says "10 Slot Bag")
 		-- left as words: no number, a number with nothing to say what it is, a name's words
 		{ "under the sea", "under the sea" },

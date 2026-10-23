@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.66.14", when = "in testing",
+		v = "0.66.15", when = "in testing",
 		items = {
 			"Undo in the prompt: Ctrl+Z undoes your last edit to what you typed (a word, a Ctrl+W, a paste), Ctrl+Y redoes it.",
 			"Upgrades follow your talents: with no tree picked, .weights judges by the tree holding most of your talent points (31 in Fury: Fury), and follows a respec. .weights all goes back to that.",
@@ -29,7 +29,7 @@ CL.LOG = {
 			"\"Why is this here?\" in a row's menu: which words it matched and where, the filters it passed, its sort value, and for an upgrade what it gains.",
 			"Upgrades you can buy: \"upgrades i can buy\" (or \"vendor upgrades\") lists the friendly vendors selling a clear upgrade for you, nearest first, with what it gains and a standing it needs. Advanced: @npc sells:upgrade. Needs Questie.",
 			"The cheapest upgrades on the auction house: with Auctionator and AtlasLoot, \"ah upgrades\" lists bind-on-equip upgrades at Auctionator's last-scanned price, the most gain per gold first (\"+12 for 3g 40s\").",
-			"Fixes from a review of all the above: a paste can be undone; the AH upgrades' rows open their item; dates after a question (\"loot today\") and a sort with | except work; \"2 sword\" doesn't cut the categories; names like \"the five sorrows\" stay searches.",
+			"Fixes from a review of all the above: a paste can be undone; the AH upgrades' rows open their item; dates after a question (\"loot today\") and a sort with | except work; \"2 sword\" doesn't cut the categories; names like \"the five sorrows\" stay searches; top N works on mailboxes and other places (\"the 3 nearest mailboxes\", \"2 mailboxes\") and across Simple mode's categories (\"top 5 upgrades\").",
 		},
 	},
 	{

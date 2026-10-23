@@ -123,3 +123,49 @@ do
 	ns.Filters.ClearCache()
 	UI.lastScan, UI.lastExtra = nil, nil
 end
+
+io.write("[topn: places counted (game objects), and across Simple mode's categories (0.66.15, the player)]\n")
+do
+	local I, B2 = ns.Integrations, ns.Bar
+	local saved = { providers = ns.providers, order = ns.providerOrder, map = _G.C_Map, easy = ns.db.easyMode }
+	_G.C_Map = { GetBestMapForUnit = function() return 1429 end, GetPlayerMapPosition = function() return { x = 0.30, y = 0.80 } end,
+		GetWorldPosFromMapPos = function(map, p) return map == 1429 and 1 or 2, { x = p.x * 1000, y = p.y * 1000 } end }
+	I._.ResetDistances()
+	ns.providers, ns.providerOrder = {}, {}
+	ns:RegisterProvider("mailbox", { label = "Mailbox", aliases = { "mailbox", "mailboxes" }, explicit = true, collect = function()
+		return { { name = "Mailbox", key = 1, wcont = 1, wx = 310, wy = 790, zone = "Goldshire" },
+			{ name = "Mailbox", key = 2, wcont = 1, wx = 600, wy = 100, zone = "Stormwind" },
+			{ name = "Mailbox", key = 3, wcont = 1, wx = 900, wy = 900, zone = "Far" } }
+	end })
+	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function()
+		return { { name = "Iron Sword", key = 1 }, { name = "Bronze Sword", key = 2 } } end })
+	ns:RegisterProvider("stored", { label = "Stored", aliases = { "stored" }, collect = function()
+		return { { name = "Zinc Sword", key = 3 } } end })
+	ns:AliasesChanged()
+	UI.lastScan = nil
+	ns.db.easyMode = true; UI:EasyChanged()
+	local function Got(q)
+		UI:Hide(); FlushAll(); B2.Reset()
+		UI.category = nil
+		UI:Open(q); FlushAll()
+		local n, cats = 0, 0
+		for _, e in ipairs(UI.Results()) do if e.catId then cats = cats + 1 elseif B2.Real(e) then n = n + 1 end end
+		return n, cats
+	end
+	for _, q in ipairs({ "the 2 nearest mailboxes", "the 2 nearest mailbox", "nearest 2 mailboxes", "2 nearest mailboxes", "top 2 mailboxes", "2 mailboxes" }) do
+		local n = Got(q)
+		check(n == 2, q .. ": two mailboxes, the nearest: " .. n)
+	end
+	check(Got("the nearest mailbox") == 1, "the nearest mailbox: one")
+	check(Got("nearest mailbox") == 3, "nearest mailbox: all of them, nearest first")
+	-- across the categories: the first two of every list, not the categories to pick from
+	local n, cats = Got("2 sword")
+	check(n == 2 and cats == 0, "2 sword: two swords from the lists together: " .. n .. " / " .. cats .. " categories")
+	n, cats = Got("sword")
+	check(cats >= 2, "sword alone: the categories as ever")
+	UI:Hide(); FlushAll(); B2.Reset()
+	_G.C_Map = saved.map; I._.ResetDistances()
+	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
+	ns:AliasesChanged(); UI:EasyChanged()
+	UI.lastScan, UI.lastExtra, UI.category = nil, nil, nil
+end

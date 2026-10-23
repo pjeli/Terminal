@@ -962,6 +962,8 @@ OrderAt = function(lw, i)
 		orderFirst = {}
 		for phrase in pairs(E.ORDER_WORDS) do orderFirst[phrase:match("^%S+")] = true end
 	end
+	-- ("best upgrades", "biggest upgrades": the biggest first, sort:best; 0.66.x)
+	if (lw[i] == "best" or lw[i] == "biggest") and (lw[i + 1] == "upgrade" or lw[i + 1] == "upgrades") then return "best", 1 end
 	if not orderFirst[lw[i] or ""] then return nil end
 	for n = 3, 1, -1 do
 		if lw[i + n - 1] then
@@ -1101,14 +1103,30 @@ function E.TopN(text)
 		for i = 1, #words do if i < from or i >= from + skip then out[#out + 1] = words[i] end end
 		return table.concat(out, " ")
 	end
+	-- (a count of places, "2 mailboxes", "top 3 flight masters": the nearest ones, what else a count of them means)
+	local function Placed(rest)
+		local I = ns.Integrations
+		local ws = {}
+		for w in Lower(rest):gmatch("%S+") do if not TOP_LEAD[w] then ws[#ws + 1] = w end end
+		for _, w in ipairs(ws) do if E.RANK_WORDS[w] then return rest end end
+		if I and I.ObjectKind and I.ObjectKind(ws) then return "nearest " .. rest end
+		return rest
+	end
 	local i = 1
 	if TOP_LEAD[lw[1]] then i = 2 end
+	-- "nearest 3 mailboxes", "closest 5 innkeepers": the number after the ranking word
+	if E.RANK_WORDS[lw[i] or ""] and lw[i + 1] and lw[i + 2] then
+		local d = Num(lw[i + 1])
+		if d and d >= 1 and not E.NOT_COUNTED[lw[i + 2]] and lw[i + 2]:match("^[%a\128-\255]") then
+			return Rest(i + 1, 1), math.min(d, 100)
+		end
+	end
 	local n = NumOpening(i)
 	-- "top 5 upgrades", "first 3 quests"
 	if not n and (lw[i] == "top" or lw[i] == "first") and Num(lw[i + 1]) and lw[i + 2] then
 		n = Num(lw[i + 1])
 		if E.NOT_COUNTED[lw[i + 2]] then return text, nil end
-		return Rest(i, 2), math.min(n, 100)
+		return Placed(Rest(i, 2)), math.min(n, 100)
 	end
 	if n then
 		local nxt = lw[i + 1]
@@ -1116,7 +1134,7 @@ function E.TopN(text)
 		if not nxt or E.NOT_COUNTED[nxt] or not nxt:match("^[%a\128-\255]") then return text, nil end
 		-- (opening the line, or after "the" / "my": "5 swords", "the 3 nearest mailboxes", "my 10 most valuable items")
 		if n < 1 then return text, nil end
-		return Rest(i, 1), math.min(n, 100)
+		return Placed(Rest(i, 1)), math.min(n, 100)
 	end
 	-- "the closest innkeeper", "the cheapest linen": one ("the cheapest upgrades on the ah", plural: all of them)
 	if lw[1] == "the" and E.RANK_WORDS[lw[2]] and lw[3] then

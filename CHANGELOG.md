@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.15 (in testing)
+
+**Top N, fixed** (the player: "the 3 nearest" and "top 5" didn't work)
+- **the 3 nearest mailboxes**, **the nearest mailbox**: "the" before nearest kept it from being a nearest search for game objects (mailboxes, entrances, flight paths); it no longer does. **nearest 3 mailboxes** and **2 mailboxes** (a count of places: the nearest) work too.
+- **top 5 upgrades**, **2 swords**: the first five of every list together, not Simple mode's categories to pick from. **my 5 best upgrades** sorts the biggest first.
+
 ## 0.66.14 (in testing)
 
 **Fixes from a review of 0.66.1-0.66.13**

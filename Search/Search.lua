@@ -472,9 +472,14 @@ end
 
 --- Simple mode: an action word ("use hearthstone", "nearest innkeeper"; Easy.ACTIONS) first, or a nearest-type one
 --- last ("mining trainer nearby"), taken out of the tokens. The action and its word, or nil.
+-- (an article before it: "the nearest mailbox", as top N leaves "the 3 nearest mailboxes"; 0.66.x, the player)
+local ARTICLE = { the = true, a = true, an = true }
 function Scan.TakeAction(tokens, filters)
-	local a = ns.Easy.Action(tokens[1])
-	if a and (#tokens > 1 or filters) then
+	local first = 1
+	while first < #tokens and ARTICLE[tokens[first]] do first = first + 1 end
+	local a = ns.Easy.Action(tokens[first])
+	if a and (#tokens > first or filters) then
+		for _ = 1, first - 1 do table.remove(tokens, 1) end
 		return a, table.remove(tokens, 1)
 	end
 	if #tokens > 1 then
@@ -1793,6 +1798,10 @@ function Scan.SimpleScope(self, q)
 		return
 	end
 	local easyCat = self.category and ns.Easy.BY_ID[self.category]
+	-- (top N said, "top 5 upgrades": the first five of every list together, not the categories to pick from; 0.66.x,
+	-- the player: "top 5" showed the categories)
+	local agg = self.aggregate
+	if not easyCat and agg and agg.first and agg.topWords then return end
 	if not easyCat then return Scan.Overview(self, q) end -- (the categories; or the only one, opened for you)
 	q.kinds, q.easyCat = ns.Easy.Kinds(easyCat.id), easyCat
 	-- (a list only searched when asked, the recipes you don't know with is:unknown: with its category's; ALSO_CATEGORY)
