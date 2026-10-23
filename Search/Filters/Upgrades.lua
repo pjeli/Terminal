@@ -377,11 +377,60 @@ function F.SetRoles(ids)
 	db.upgradeRoles[key] = (ids and ids[1]) and { ids[1] } or nil
 end
 
+-- Your talents pick the tree when you haven't (0.66.2, the player): the one holding most of your points, by the talent
+-- window's tab name (English: "Feral Combat" is feral, the cat; .weights bear for a bear), else its place in the window
+-- (the trees' order, the classic one). A tie, or no points yet: the class's levelling tree.
+local TAB_ORDER = { DRUID = { "balance", "feral", "restoration" } }
+--- The tree id for the talent window's tab `name` (the `index`th) of `class`, or nil.
+function F.TreeOfTab(name, index, class)
+	local roles = F.ROLES[class or ""]
+	if not roles then return nil end
+	local mine = {}
+	for _, r in ipairs(roles) do mine[r[1]] = true end
+	local low = type(name) == "string" and ns.Lower(name) or ""
+	local function Ok(id) return id and mine[id] and id or nil end
+	local id = Ok(F.ROLE_WORDS[(low:gsub("%s+", ""))]) or Ok(F.ROLE_WORDS[low:match("^%S+") or ""])
+	if id then return id end
+	-- (another language: the tree's own name as Terminal says it)
+	for _, r in ipairs(roles) do
+		local say = F.ROLE_SAY[r[1]]
+		if say and low ~= "" and low:sub(1, #say) == ns.Lower(say) then return r[1] end
+	end
+	local order = TAB_ORDER[class]
+	return order and Ok(order[index]) or (roles[index] and roles[index][1]) or nil
+end
+--- The tree your talent points are in (its id), or nil: none spent, a tie, or not read.
+function F.TalentTree(class)
+	local TL = ns.Talents
+	local points = TL and TL.Points and TL.Points()
+	if type(points) ~= "table" then return nil end
+	local best, second
+	for _, t in ipairs(points) do
+		if not best or t.points > best.points then best, second = t, best
+		elseif not second or t.points > second.points then second = t end
+	end
+	if not best or best.points <= 0 or (second and second.points == best.points) then return nil end
+	return F.TreeOfTab(best.name, best.index, class)
+end
+
+--- The tree judged by when none is picked: your talents' (and true), else the class's levelling tree.
+function F.UnpickedTree(class)
+	local t = F.TalentTree(class)
+	if t then return t, true end
+	return class and F.DEFAULT_TREE[class] or nil, false
+end
+
 --- The weights to judge by: { { weights, role } ... } (role nil: the all-round ones).
 function F.MyWeightSets()
 	local class = MyClass()
 	local roles = F.MyRoles()
-	if not roles then return { { class and F.WEIGHTS[class] or GENERIC } } end
+	if not roles then
+		local t = F.TalentTree(class)
+		if t then
+			for _, r in ipairs(F.ROLES[class] or {}) do if r[1] == t then return { { r[2], t } } end end
+		end
+		return { { class and F.WEIGHTS[class] or GENERIC } }
+	end
 	local out = {}
 	for _, r in ipairs(RolesOf(class)) do
 		for _, id in ipairs(roles) do if id == r[1] then out[#out + 1] = { r[2], id } end end
@@ -896,14 +945,14 @@ function F.ApplyPawn(text)
 end
 
 ns:RegisterCommand("weights", {
-	desc = L["How upgrades are judged: the stats your talent tree wants. .weights arms, .weights resto, .weights tank picks a tree; .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for your class's levelling tree"],
+	desc = L["How upgrades are judged: the stats your talent tree wants. .weights arms, .weights resto, .weights tank picks a tree; .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for the tree your talent points are in"],
 	aliases = { "roles", "role" },
 	complete = function()
 		local out = {}
 		for _, r in ipairs(F.RolesOf(MyClass())) do
 			out[#out + 1] = { r[1], r[1] == "custom" and F.WeightsText(F.CustomWeights().w, 4) or F.WeightsText(r[2], 4) }
 		end
-		out[#out + 1] = { "all", L["your class's levelling tree"] }
+		out[#out + 1] = { "all", L["the tree your talent points are in"] }
 		out[#out + 1] = { "set", L["your own: .weights set str=2 agi=1 sta=0.5"] }
 		out[#out + 1] = { "pawn", L["paste a Pawn scale string"] }
 		if F.CustomWeights() then out[#out + 1] = { "clear", L["forget your own weights"] } end
@@ -917,9 +966,9 @@ ns:RegisterCommand("weights", {
 		local first, rest = low:match("^(%S+)%s*(.-)$")
 		local restRaw = args:match("^%S+%s*(.-)$") or ""
 		if args ~= "" then
-			if low == "all" or low == "reset" or low == "none" or low == "allround" then
+			if low == "all" or low == "reset" or low == "none" or low == "allround" or low == "auto" or low == "talents" then
 				F.SetRoles(nil)
-				lines[#lines + 1] = L["Upgrades: judged for your class's levelling tree again."]
+				lines[#lines + 1] = L["Upgrades: judged for the tree your talent points are in again."]
 			elseif first == "set" then
 				-- (0.65.8) your own: .weights set str=2 agi=1 sta=0.5
 				local w, bad = F.ParseWeights(rest)
@@ -968,7 +1017,8 @@ ns:RegisterCommand("weights", {
 		for _, id in ipairs(picked or {}) do on[id] = true end
 		-- (none picked: the class's levelling tree is the one used, said so on its line; 0.65.x review: an "All-round" line
 		-- repeated it under another name)
-		local default = not picked and class and F.DEFAULT_TREE[class] or nil
+		local default, fromTalents
+		if not picked then default, fromTalents = F.UnpickedTree(class) end
 		if not picked and not default then lines[#lines + 1] = "  " .. L["Now: %s"]:format(F.WeightsText(GENERIC, 30)) end
 		if default then on[default] = true end
 		local custom = F.CustomWeights()
@@ -980,12 +1030,13 @@ ns:RegisterCommand("weights", {
 				w = custom.w
 				if custom.name then label = label .. ' "' .. custom.name .. '"' end
 			end
-			local now = on[id] and ((id == default) and L["(now: your class's levelling tree)"] or L["(now)"])
+			local now = on[id] and ((id == default) and (fromTalents and L["(now: from your talents)"]
+				or L["(now: your class's levelling tree)"]) or L["(now)"])
 			-- (every stat: the top few were the per-1% ones, and a tree's main stat never showed; 0.65.x review)
 			lines[#lines + 1] = "  " .. (now and "|cff40ff40" or "") .. label .. (now and (" " .. now .. "|r") or "")
 				.. ": " .. F.WeightsText(w, 30)
 		end
-		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to your class's levelling tree."]:format(
+		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."]:format(
 			(F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms")
 		lines[#lines + 1] = "  " .. L["Hit, crit, dodge, parry and block per 1%; defense per point of skill; the rest per point."]
 		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]

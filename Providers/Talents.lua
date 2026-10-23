@@ -193,6 +193,34 @@ local function ReadNodes(configID, treeID, tabs, order)
 	return out
 end
 
+--- Points spent in each of your trees, in the talent window's order: { { name = "Fury", index = 2, points = 31 } ... },
+--- or nil when the tree can't be read. Kept until a talent changes (the list's events; 0.66.2: upgrades judged for the
+--- tree your points are in).
+local pointsKept
+function TL.Points()
+	if pointsKept then return pointsKept end
+	local okT, configID, treeID, tabs, order = pcall(ReadTree)
+	if not (okT and treeID) then return nil end
+	local ok, nodes = pcall(ReadNodes, configID, treeID, tabs, order)
+	if not ok or type(nodes) ~= "table" then return nil end
+	local out, byIndex = {}, {}
+	for gid, name in pairs(tabs) do
+		local i = order[gid]
+		if i and not byIndex[i] then
+			byIndex[i] = { name = name, index = i, points = 0 }
+			out[#out + 1] = byIndex[i]
+		end
+	end
+	table.sort(out, function(a, b) return a.index < b.index end)
+	for _, n in ipairs(nodes) do
+		local t = n.tabIndex and byIndex[n.tabIndex]
+		if t and type(n.rank) == "number" and n.rank > 0 then t.points = t.points + n.rank end
+	end
+	pointsKept = out
+	return out
+end
+function TL.ForgetPoints() pointsKept = nil end
+
 ----------------------------------------------------------------------
 -- Other classes' talents
 ----------------------------------------------------------------------
@@ -436,6 +464,7 @@ ns:RegisterProvider("talents", {
 	aliases = { "talent", "talents", "tree" },
 	events = { "TRAIT_CONFIG_UPDATED", "TRAIT_NODE_CHANGED", "PLAYER_TALENT_UPDATE",
 		"ACTIVE_PLAYER_SPECIALIZATION_CHANGED", "CHARACTER_POINTS_CHANGED" },
+	onEvent = function() pointsKept = nil end, -- (a respec, a point spent: read again when asked)
 	guard = 1,
 	collect = function()
 		local out = {}

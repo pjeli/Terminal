@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.2 (in testing)
+
+**Upgrades follow your talents**
+- With no tree picked, upgrades are judged for the tree holding most of your talent points: 31 points in Fury, Fury. It follows a respec. **.weights** says "(now: from your talents)"; a tree picked by hand still wins, and **.weights all** goes back to your talents. No points yet, or a tie: your class's levelling tree, as before.
+
 ## 0.66.1 (in testing)
 
 **Undo in the prompt**

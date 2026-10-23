@@ -97,11 +97,67 @@ do
 	-- (0.65.x review) .weights lists every stat (the main stat too) and says the class's levelling tree is the one used
 	_G.UnitClass = function() return "Warlock", "WARLOCK", 9 end
 	ns.db.upgradeRoles = nil
+	local realPoints = ns.Talents.Points
+	ns.Talents.Points = function() return {} end -- (no points spent: the levelling tree)
 	local list = table.concat(weights.run("", ns), "\n")
+	ns.Talents.Points = realPoints
 	local _, aff = list:gsub(F.ROLE_SAY.affliction, "")
 	check(list:find("int 1", 1, true) and aff == 1 and list:find(ns.L["(now: your class's levelling tree)"], 1, true)
 		and not list:find("All-round", 1, true), ".weights: every stat, the levelling tree said once: " .. list)
 
 	_G.UnitClass, ns.db.upgradeRoles, ns.db.upgradeCustom = save.class, save.roles, save.custom
+	F.ClearCache()
+end
+
+io.write("[weightstrees: none picked, the tree your talent points are in (0.66.2)]\n")
+do
+	local TL = ns.Talents
+	local save = { class = _G.UnitClass, roles = ns.db.upgradeRoles, points = TL.Points }
+	local weights = ns:FindCommand("weights")
+	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
+	ns.db.upgradeRoles = nil
+	local pts
+	TL.Points = function() return pts end
+	pts = { { name = "Arms", index = 1, points = 5 }, { name = "Fury", index = 2, points = 31 }, { name = "Protection", index = 3, points = 0 } }
+	local set = F.MyWeightSets()[1]
+	check(set[2] == "fury" and set[1] == F.ROLES.WARRIOR[2][2], "31 points in Fury: judged as Fury: " .. tostring(set[2]))
+	local lines = table.concat(weights.run("", ns), "\n")
+	check(lines:find(ns.L["(now: from your talents)"], 1, true) and lines:find(F.ROLE_SAY.fury, 1, true),
+		".weights says it's from your talents: " .. lines)
+	-- a tie, or nothing spent: the levelling tree
+	pts = { { name = "Arms", index = 1, points = 10 }, { name = "Fury", index = 2, points = 10 } }
+	check(F.MyWeightSets()[1][2] == nil and F.MyWeightSets()[1][1] == F.WEIGHTS.WARRIOR, "a tie: the levelling tree")
+	pts = { { name = "Arms", index = 1, points = 0 } }
+	check(F.MyWeightSets()[1][2] == nil, "no points: the levelling tree")
+	-- picked by hand wins; .weights all goes back to the talents
+	pts = { { name = "Arms", index = 1, points = 0 }, { name = "Fury", index = 2, points = 0 }, { name = "Protection", index = 3, points = 20 } }
+	weights.run("arms", ns)
+	check(F.MyWeightSets()[1][2] == "arms", "picked by hand: arms, whatever the talents say")
+	local said = table.concat(weights.run("all", ns), "\n")
+	check(F.MyWeightSets()[1][2] == "protection" and said:find(ns.L["Upgrades: judged for the tree your talent points are in again."], 1, true),
+		".weights all: the talents' tree again (protection): " .. tostring(F.MyWeightSets()[1][2]))
+	-- the tab's name: a druid's Feral Combat is the cat; another language by its place in the window
+	check(F.TreeOfTab("Feral Combat", 2, "DRUID") == "feral" and F.TreeOfTab("Wiederherstellung", 3, "DRUID") == "restoration"
+		and F.TreeOfTab("Beast Mastery", 1, "HUNTER") == "beastmastery" and F.TreeOfTab("Furie", 2, "WARRIOR") == "fury",
+		"tab names to trees (and by place when the name isn't known)")
+	-- the points read from the game's tree, kept until a talent event
+	TL.Points = save.points
+	TL.ForgetPoints()
+	local p1 = TL.Points()
+	check(type(p1) == "table" and p1[1].name == "Arms" and p1[1].points == 3 and p1[2].points == 1, "points per tab read from the tree")
+	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
+	check(F.TalentTree("WARRIOR") == "arms", "most points in Arms: arms")
+	local realNode = _G.C_Traits.GetNodeInfo
+	_G.C_Traits.GetNodeInfo = function(c, id)
+		local n = realNode(c, id)
+		if n and id == 1002 then n.ranksPurchased = 3 end
+		return n
+	end
+	check(TL.Points() == p1, "kept: not read again for every search")
+	T.ef.scripts.OnEvent(T.ef, "CHARACTER_POINTS_CHANGED")
+	check(TL.Points() ~= p1 and F.TalentTree("WARRIOR") == "fury", "a point spent: read again (4 in Fury now): " .. tostring(F.TalentTree("WARRIOR")))
+	_G.C_Traits.GetNodeInfo = realNode
+	TL.ForgetPoints()
+	_G.UnitClass, ns.db.upgradeRoles, TL.Points = save.class, save.roles, save.points
 	F.ClearCache()
 end

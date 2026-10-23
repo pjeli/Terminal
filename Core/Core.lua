@@ -466,6 +466,7 @@ local function Watched(event)
 	local now = GetTime()
 	for _, p in ipairs(list) do
 		local wait = p.guard and p._collectedAt and (p.guard - (now - p._collectedAt)) or 0
+		if p.onEvent then p.onEvent(event) end -- (what a list keeps beside its rows, forgotten: the talents' points)
 		if p.ignoreEvent and p.ignoreEvent(event) then
 			-- (a change that isn't one for this list: Keybinds' UPDATE_BINDINGS from Terminal's own Enter)
 		elseif wait <= 0 then

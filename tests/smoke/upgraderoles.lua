@@ -10,7 +10,8 @@ do
 	local save = { info = C_Item.GetItemInfo, stats = C_Item.GetItemStats, level = _G.UnitLevel, inv = _G.GetInventoryItemLink,
 		can = C_PlayerInfo.CanUseItem, det = C_Item.GetDetailedItemLevelInfo, class = _G.UnitClass, inst = C_Item.GetItemInfoInstant,
 		invId = _G.GetInventoryItemID, providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode,
-		roles = ns.db.upgradeRoles, custom = ns.db.upgradeCustom }
+		roles = ns.db.upgradeRoles, custom = ns.db.upgradeCustom, points = ns.Talents.Points }
+	ns.Talents.Points = function() return {} end -- (no talent points spent: the levelling tree when none is picked; 0.66.2)
 	local ITEMS = {
 		[80] = { "Feral Helm", "|Hitem:80|h", 2, 20, 15, "Armor", "Leather", 1, "INVTYPE_HEAD" },
 		[81] = { "Healer Helm", "|Hitem:81|h", 2, 20, 15, "Armor", "Leather", 1, "INVTYPE_HEAD" },
@@ -152,6 +153,6 @@ do
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.UnitLevel, _G.GetInventoryItemLink = save.info, save.stats, save.level, save.inv
 	C_PlayerInfo.CanUseItem, C_Item.GetDetailedItemLevelInfo, _G.UnitClass, C_Item.GetItemInfoInstant = save.can, save.det, save.class, save.inst
 	_G.GetInventoryItemID, ns.providers, ns.providerOrder, ns.db.easyMode = save.invId, save.providers, save.order, save.easy
-	ns.db.upgradeRoles, ns.db.upgradeCustom = save.roles, save.custom
+	ns.db.upgradeRoles, ns.db.upgradeCustom, ns.Talents.Points = save.roles, save.custom, save.points
 	F.ClearCache()
 end
