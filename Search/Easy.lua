@@ -823,6 +823,7 @@ local function ValueAt(lw, i, key, bare)
 	return nil
 end
 
+local OrderAt -- (below)
 -- Levels relative to you (0.66.6, the player): "3 levels above me", "within 5 levels of me", "up to 3 levels above me",
 -- "above my level", "around my level", "next level" are lvl:me+3, lvl:me-5..me+5, lvl:me..me+3, lvl:>me,
 -- lvl:me-2..me+3, lvl:me+1: they move with you as you level.
@@ -884,6 +885,20 @@ local function RelativeAt(lw, i)
 	end
 end
 
+-- Orders in plain words (0.66.7, with top N: "my 10 most valuable items", "the cheapest linen"): the sort they say.
+E.ORDER_WORDS = { ["most valuable"] = "value", ["least valuable"] = "-value", cheapest = "-value", ["most expensive"] = "value",
+	priciest = "value", ["highest level"] = "-level", ["lowest level"] = "level", ["highest item level"] = "ilvl",
+	["lowest item level"] = "-ilvl", ["best quality"] = "quality", ["worst quality"] = "-quality" }
+--- An order's words at words[i] (up to three): the sort and how many words; or nil.
+OrderAt = function(lw, i)
+	for n = 3, 1, -1 do
+		if lw[i + n - 1] then
+			local id = E.ORDER_WORDS[table.concat(lw, " ", i, i + n - 1)]
+			if id then return id, n end
+		end
+	end
+end
+
 --- The numbers said in plain words made filters: a new list of words (the phrase's place holding its filter, "lvl:<25"),
 --- and each filter's words as typed (for the bar to take back out of the line). Words that aren't a number phrase stay.
 function E.PlainNumbers(words)
@@ -896,6 +911,11 @@ function E.PlainNumbers(words)
 		-- levels from yours: "3 levels above me", "next level"
 		local rel, nr = RelativeAt(lw, i)
 		if rel then key, value, take = "lvl", rel, nr end
+		-- an order said: "most valuable", "cheapest", "highest level" (0.66.7)
+		if not key then
+			local so, nso = OrderAt(lw, i)
+			if so then key, value, take = "sort", so, nso end
+		end
 		-- a field, then its value: "level under 25", "worth more than 1g", "level 20-30", "level 25 or higher"
 		local f, nf
 		if not key then f, nf = FieldAt(lw, i) end
@@ -955,6 +975,56 @@ function E.PlainNumbers(words)
 		end
 	end
 	return out, said
+end
+
+-- Top N in plain words (0.66.7, the player): "the 3 nearest mailboxes", "top 5 upgrades", "my 10 most valuable items",
+-- "5 swords" (the first five by how well they match), "the closest innkeeper" (one). The number beside a ranking word,
+-- or opening the line; not one that's part of the search ("3 stacks of linen", "10 slot bag", "level 20 swords").
+E.NUMBER_WORDS = { one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8, nine = 9, ten = 10,
+	eleven = 11, twelve = 12, fifteen = 15, twenty = 20, fifty = 50, hundred = 100 }
+E.RANK_WORDS = { nearest = true, closest = true, farthest = true, furthest = true, cheapest = true, best = true,
+	priciest = true, most = true, least = true, highest = true, lowest = true, newest = true, oldest = true, biggest = true }
+-- (a number followed by these is part of the search: an amount, a level, a time)
+E.NOT_COUNTED = { stack = true, stacks = true, x = true, of = true, slot = true, slots = true, level = true, levels = true,
+	gold = true, silver = true, copper = true, g = true, s = true, c = true, percent = true, ["%"] = true, durability = true,
+	day = true, days = true, hour = true, hours = true, minute = true, minutes = true, week = true, weeks = true,
+	month = true, months = true, ago = true, to = true, ["and"] = true, ["or"] = true, handed = true, hand = true,
+	piece = true, pieces = true, point = true, points = true, yards = true, yd = true }
+local TOP_LEAD = { the = true, my = true }
+--- The line with its top N taken out, and N; or the line and nil. "the 3 nearest mailboxes" -> "nearest mailboxes", 3.
+function E.TopN(text)
+	if type(text) ~= "string" then return text, nil end
+	local words = {}
+	for w in text:gmatch("%S+") do words[#words + 1] = w end
+	if #words < 2 then return text, nil end
+	local lw = {}
+	for i, w in ipairs(words) do lw[i] = Lower(w) end
+	local function Num(w) return tonumber(w and w:match("^(%d+)$") or "") or (w and E.NUMBER_WORDS[w]) end
+	local function Rest(from, skip)
+		local out = {}
+		for i = 1, #words do if i < from or i >= from + skip then out[#out + 1] = words[i] end end
+		return table.concat(out, " ")
+	end
+	local i = 1
+	if TOP_LEAD[lw[1]] then i = 2 end
+	local n = Num(lw[i])
+	-- "top 5 upgrades", "first 3 quests"
+	if not n and (lw[i] == "top" or lw[i] == "first") and Num(lw[i + 1]) and lw[i + 2] then
+		n = Num(lw[i + 1])
+		if E.NOT_COUNTED[lw[i + 2]] then return text, nil end
+		return Rest(i, 2), math.min(n, 100)
+	end
+	if n then
+		local nxt = lw[i + 1]
+		-- (a word must follow: "3 + 4" is a sum, "2 handed swords" a kind of sword)
+		if not nxt or E.NOT_COUNTED[nxt] or not nxt:match("^[%a\128-\255]") then return text, nil end
+		-- (opening the line, or after "the" / "my": "5 swords", "the 3 nearest mailboxes", "my 10 most valuable items")
+		if n < 1 then return text, nil end
+		return Rest(i, 1), math.min(n, 100)
+	end
+	-- "the closest innkeeper", "the cheapest linen": one
+	if lw[1] == "the" and E.RANK_WORDS[lw[2]] and lw[3] then return text, 1 end
+	return text, nil
 end
 
 --- Two everyday words that mean one thing joined into one ("attack power food" -> "attack power", "food"). Works on
@@ -1054,6 +1124,7 @@ end
 --- Simple mode's words as Advanced mode writes them (Alt+`). A ">> party" or "| sum value" typed after them (the very
 --- syntax the Advanced row offers the switch for) is kept as typed, after the words converted (review, 0.53.6:
 --- "hogger >> party" became "hogger party >> ", "cloth | sum value" "sum value type:cloth | ").
+local function EasyOnAt() return E.On() end
 function E.ToAdvanced(text, category, shown, noGroup)
 	local t, tail = tostring(text or ""), ""
 	local send = t:find(">>", 1, true)
@@ -1062,6 +1133,11 @@ function E.ToAdvanced(text, category, shown, noGroup)
 	local q, steps = nil, nil
 	if A and A.Split then q, steps = A.Split(t) end
 	if steps then t, tail = q, " | " .. table.concat(steps, " | ") .. tail end
+	-- (top N in words, "the 3 nearest mailboxes": its step written out, "| first 3"; 0.66.7)
+	if tail == "" and EasyOnAt() then
+		local rest, n = E.TopN(t)
+		if n then t, tail, text = rest, " | first " .. n, rest end
+	end
 	-- (the words read by the search's own steps and its query printed: Search.lua's ns.QueryToAdvanced)
 	local Print = ns.QueryToAdvanced
 	if tail == "" then return Print(text, category, shown, noGroup) end

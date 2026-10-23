@@ -722,8 +722,11 @@ Run("nearest", function()
 	UI:Open("innkeeper allison"); FlushAll()
 	check(not (UI.action and UI.action.nearest), "a role with a name: not made nearest")
 	-- (0.50.7, review) "the nearest innkeeper": as the search reads it
-	check(E.ToAdvanced("the nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:distance ",
+	-- (0.66.7, top N: "the nearest innkeeper" is the one, | first 1; "nearest innkeeper" all of them, nearest first)
+	check(E.ToAdvanced("the nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:distance | first 1",
 		"Alt+`, the nearest innkeeper: " .. E.ToAdvanced("the nearest innkeeper"))
+	check(E.ToAdvanced("nearest innkeeper") == "@npc is:innkeeper faction:friendly sort:distance ",
+		"Alt+`, nearest innkeeper: " .. E.ToAdvanced("nearest innkeeper"))
 	UI:Hide(); FlushAll()
 	UI:Open("nearest innkeeper")
 	local mark = #log

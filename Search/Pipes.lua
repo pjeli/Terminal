@@ -1543,6 +1543,8 @@ A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone",
 	owners = "owner", friend = "owner", friends = "owner" }
 A.ORDER = { "value", "price", "count", "kind", "owner", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
+A.FIRST_WORDS = { first = true, top = true, head = true }
+A.FIRST_MAX = 100 -- (a search lists 100 at most)
 
 local function FieldOf(word)
 	word = ns.Lower(word or "")
@@ -1597,6 +1599,13 @@ local function ParseStep(step)
 	end
 	local ws = {}
 	for w in step:gmatch("%S+") do ws[#ws + 1] = ns.Lower(w) end
+	-- "| first 3": the first three, in the search's order (0.66.7, the player: "the 3 nearest mailboxes")
+	if A.FIRST_WORDS[ws[1] or ""] then
+		local n = tonumber(ws[2] or "")
+		if not ws[2] then return { bad = "" } end
+		if not n or n < 1 or n ~= math.floor(n) or ws[3] then return { bad = L["how many: | first 3"] } end
+		return { first = math.min(n, A.FIRST_MAX) }
+	end
 	local op = A.OPS[ws[1] or ""]
 	if not op then
 		-- (a step's start, "| co": still being typed, the line on top says what goes there)
@@ -1645,7 +1654,12 @@ function A.Parse(steps, query)
 	for k, step in ipairs(steps) do
 		local s = ParseStep(step)
 		if s.bad then spec.bad = s.bad; spec.badStep = step; return spec end
-		if s.where then
+		if s.first then
+			-- (a keeping step: the first N, before a sum or count; the last one typed counts)
+			if spec.last then spec.bad = L["a sum, count or group is the last step"] return spec end
+			spec.first = s.first
+			base[#base + 1] = step
+		elseif s.where then
 			spec.wheres[#spec.wheres + 1] = s
 			base[#base + 1] = step
 		elseif k < #steps then
@@ -1836,7 +1850,7 @@ function A.Apply(spec, res, base)
 		-- (still being typed, or a word it doesn't know: the rows as they are, with a line saying what goes there)
 		local fields = {}
 		for _, name in ipairs(A.ORDER) do fields[#fields + 1] = name end
-		local hint = Row(spec.bad ~= "" and spec.bad or L["| count, | sum value, | group by zone, | avg level"],
+		local hint = Row(spec.bad ~= "" and spec.bad or L["| count, | sum value, | group by zone, | avg level, | first 3"],
 			L["fields: %s"]:format(table.concat(fields, ", ")), "aggregate:hint", L["sum up"])
 		local out = { hint }
 		for _, e in ipairs(res or {}) do out[#out + 1] = e end
@@ -1848,6 +1862,21 @@ function A.Apply(spec, res, base)
 		rows = kept
 	end
 	local s = spec.last
+	-- "| first 3": the first three in the search's order (summed up after: the search's rows came unsorted, sorted
+	-- here); how many there were, for the footer ("3 of 41")
+	if spec.first then
+		spec.firstOf = #rows
+		if A.Summing(spec) then rows = ns.UI.SortAndTrim(rows, spec.first) end
+		if #rows > spec.first then
+			local kept = {}
+			for i = 1, spec.first do kept[i] = rows[i] end
+			rows = kept
+		end
+		if not s then
+			-- (the search's own order kept, its lines (a heading, a note) dropped)
+			return #spec.wheres > 0 and ns.UI.SortAndTrim(rows) or rows
+		end
+	end
 	if not s then return ns.UI.SortAndTrim(rows) end
 	local n = #rows
 	if s.op == "count" then

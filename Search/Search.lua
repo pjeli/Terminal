@@ -1340,7 +1340,8 @@ function Scan.Parse(self, text)
 			elseif F.SortParts(sort) == "distance" then q.sortNear, q.sortFar = true, sort == "-distance" or nil
 			else q.sortField = sort end
 			-- (Simple mode: the bar shows it as its Sort, and takes the word back out of the line: Bar.lua)
-			if simple then q.typedSort = { id = sort, word = w, drop = true } end
+			-- (an order said in words, "most valuable": those words; 0.66.7)
+			if simple then q.typedSort = { id = sort, word = said and said[w] or w, drop = true } end
 			q.fsig[#q.fsig + 1] = "^" .. (sort == "distance" and "near" or sort == "-distance" and "far" or sort)
 		elseif act then
 			q.advAct, q.actWord = act, actWord -- (do:use: each row's Enter that action, as "use ..." says it; Scan.UseAction)
@@ -1950,6 +1951,8 @@ function Scan.Finalize(self, q, out)
 	if ns.Aggregate and ns.Aggregate.Summing(self.aggregate) then
 		-- (a quest in your log counted once, not with its Questie copy too; review, 0.53.6)
 		if kinds and kinds.quests and kinds.questie then out = Scan.OneQuest(out) end
+		-- ("| first 10 | sum value": the first ten by the sort typed, so its order is set here; 0.66.7)
+		if self.aggregate.first and q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField, self.aggregate.first, overBudget) end
 		return out
 	end
 	-- (Simple mode's bar: sorted by name, level, value... the rows that have it first, in its order; Bar.lua)

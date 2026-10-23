@@ -99,6 +99,11 @@ do
 			text = (groups == 1 and L["%d group"] or L["%d groups"]):format(groups) .. STATUS_SEP
 				.. (inside == 1 and L["%s result"] or L["%s results"]):format(inside)
 		end
+		-- ("| first 3": how many of how many; 0.66.7)
+		local agg = self.aggregate
+		if agg and agg.first and agg.firstOf and not agg.last and agg.firstOf > count and count > 0 then
+			text = L["%d of %d"]:format(count, agg.firstOf)
+		end
 		if count > 0 and UI.results[1].catId then text = (count == 1 and L["found in %s category: pick one"] or L["found in %s categories: pick one"]):format(count) end
 		-- (Simple mode's clear winner above the categories: Search.lua's EasyOverview)
 		if count > 1 and self.overviewWinner and UI.results[1] == self.overviewWinner then

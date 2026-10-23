@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.66.7 (in testing)
+
+**Top N**
+- **the 3 nearest mailboxes**, **top 5 upgrades**, **my 10 most valuable items**, **5 swords** (the best five matches), **the closest innkeeper** (one). The footer says "3 of 41"; >>> party sends just those.
+- Orders in words, with a number or without: **most valuable**, **cheapest**, **highest level**, **lowest level**, **best quality**.
+- Advanced: **| first 3**, before a sum too: **in:bags sort:value | first 10 | sum value**.
+
 ## 0.66.6 (in testing)
 
 **Levels from yours**

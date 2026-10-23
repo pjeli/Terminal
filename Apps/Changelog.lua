@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.66.6", when = "in testing",
+		v = "0.66.7", when = "in testing",
 		items = {
 			"Undo in the prompt: Ctrl+Z undoes your last edit to what you typed (a word, a Ctrl+W, a paste), Ctrl+Y redoes it.",
 			"Upgrades follow your talents: with no tree picked, .weights judges by the tree holding most of your talent points (31 in Fury: Fury), and follows a respec. .weights all goes back to that.",
@@ -22,6 +22,7 @@ CL.LOG = {
 			"Sort by more than one field: sort:quality,-level sorts by quality, then by level on a tie. In Simple mode, Shift on a Sort pick makes it the \"then by\".",
 			"Numbers in plain words: \"swords between level 20 and 30\", \"quests under level 25\", \"items worth more than 1g\", \"bags with at least 10 slots\", \"gear with durability below 50%\". New Advanced filters value:>1g and slots:>=10.",
 			"Levels from yours: \"quests 3 levels above me\", \"dungeons around my level\", \"gear for next level\"; Advanced: lvl:me+3, lvl:me-2..me+3. A saved search or alias moves with you as you level.",
+			"Top N: \"the 3 nearest mailboxes\", \"top 5 upgrades\", \"my 10 most valuable items\", \"the closest innkeeper\"; what acts on the list acts on just those. Advanced: | first 3.",
 		},
 	},
 	{

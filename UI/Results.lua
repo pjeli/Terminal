@@ -556,6 +556,17 @@ local function TakeAggregate(self, text, first)
 		return query
 	end
 	local bar = EasyOn() and ns.Bar and ns.Bar.Active()
+	-- (top N in words, "the 3 nearest mailboxes": the first three of "nearest mailboxes"; 0.66.7, Easy.lua)
+	local rest, n
+	if EasyOn() and ns.Easy and ns.Easy.TopN then rest, n = ns.Easy.TopN(text) end
+	if n then
+		local steps = { "first " .. n }
+		if bar and bar.group then steps[2] = "group by " .. bar.group end
+		self.aggregate = A.Parse(steps, rest)
+		self.aggregate.fromBar = bar and bar.group and true or nil
+		self.aggregate.topWords = true
+		return rest
+	end
 	if bar and bar.group then
 		self.aggregate = A.Parse({ "group by " .. bar.group }, text)
 		self.aggregate.fromBar = true
