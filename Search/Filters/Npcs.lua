@@ -543,6 +543,19 @@ function F.SortOf(word)
 end
 KEYS.sells = function(v)
 	if v == "" then return nil end
+	-- sells:upgrade: a vendor whose stock holds a clear upgrade for you (0.66.12; Rewards.lua's QR.VendorUpgrades)
+	if v == "upgrade" or v == "upgrades" then
+		local by
+		return function(e)
+			local id = NpcID(e)
+			if not id then return false end
+			if by == nil then
+				local QR = ns.QuestRewards
+				by = QR and QR.VendorUpgrades and QR.VendorUpgrades() or false
+			end
+			return by and by[id] ~= nil or false
+		end
+	end
 	local set -- (looked up on the first NPC row, then kept for the search: up to 20k rows ask)
 	return function(e)
 		local id = NpcID(e)

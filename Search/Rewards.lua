@@ -486,6 +486,164 @@ end
 function QR.UpgradeToAdvanced() return nil end
 
 ----------------------------------------------------------------------
+-- Upgrades you can buy (0.66.12, the player: "interesting; can't think of many NPC sold items that are upgrades, but not
+-- impossible"): "upgrades i can buy", "vendor upgrades": the friendly vendors whose stock (Questie's) holds a clear
+-- upgrade for you, nearest first, each saying what and how much it gains, and a standing it needs (the item's own
+-- tooltip says "Requires Timbermaw Hold - Honored"). Enter points at the vendor. Advanced: @npc sells:upgrade.
+-- Reputation quartermasters, PvP vendors, limited-stock items, vendor blues at low levels, bags and quivers.
+----------------------------------------------------------------------
+local BUY = { buy = true, buyable = true, purchasable = true, purchase = true, sale = true, vendor = true, vendors = true,
+	sell = true, sells = true, sold = true, merchant = true, merchants = true }
+QR.VENDOR_ASK = 40 -- (vendor items asked of the server per answer; read again once they're in)
+local vendorItems -- { { id = item, vendors = { npc ids } } }: equipment Questie's vendors sell (read once)
+local standingOf = {} -- item id -> the standing it needs (false: none); QR.StandingNeeded
+--- The equipment Questie says vendors sell (read once a session: every Questie item looked at, tens of ms).
+function QR.VendorItems()
+	if vendorItems then return vendorItems end
+	local db = DB()
+	if not (db and db.QueryItemSingle) then return nil end
+	local started = debugprofilestop and debugprofilestop()
+	local ids = db.ItemIds and db.ItemIds() or {}
+	local inst = C_Item and C_Item.GetItemInfoInstant
+	local SLOTS = ns.Filters and ns.Filters.SLOTS or {}
+	local out = {}
+	for i = 1, #ids do
+		local id = ids[i]
+		local okI, _, _, _, loc = false, nil, nil, nil, nil
+		if inst then okI, _, _, _, loc = pcall(inst, id) end
+		if not inst or (okI and type(loc) == "string" and SLOTS[loc]) then
+			local v = Safe(db.QueryItemSingle, id, "vendors")
+			if type(v) == "table" and #v > 0 then out[#out + 1] = { id = id, vendors = v } end
+		end
+	end
+	vendorItems = out
+	ns:Trace(("rewards: %d vendor items read%s"):format(#out, started and (" in %.0f ms"):format(debugprofilestop() - started) or ""))
+	return out
+end
+function QR.ForgetVendorItems() vendorItems, standingOf = nil, {} end -- (tests)
+
+--- A standing the item needs, from its tooltip ("Requires Timbermaw Hold - Honored"): "Honored with Timbermaw Hold",
+--- or nil.
+local repPattern
+function QR.StandingNeeded(id)
+	if standingOf[id] ~= nil then return standingOf[id] or nil end
+	local TI = rawget(_G, "C_TooltipInfo")
+	if not (TI and TI.GetItemByID) then return nil end
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	if cached and Safe(cached, id) == false then return nil end
+	if not repPattern then
+		local fmt = Str(rawget(_G, "ITEM_REQ_REPUTATION")) or "Requires %s - %s"
+		repPattern = ns.FormatPattern and ns.FormatPattern(fmt) or "^Requires (.+) %- (.+)$"
+	end
+	local ok, data = pcall(TI.GetItemByID, id)
+	local found = false
+	for _, line in ipairs(ok and type(data) == "table" and type(data.lines) == "table" and data.lines or {}) do
+		local text = Str(line.leftText)
+		local faction, standing
+		if text then faction, standing = text:match(repPattern) end -- (not "text and ...": that keeps only the first)
+		if faction and standing then found = L["%s with %s"]:format(standing, faction) break end
+	end
+	standingOf[id] = found
+	return found or nil
+end
+
+--- The upgrades vendors sell: { [npc id] = { { id = item, g = gain } ... } } (best first), the items in it, and how many
+--- items are still being asked of the server.
+function QR.VendorUpgrades()
+	local F = ns.Filters
+	local items = QR.VendorItems()
+	if not (items and F and F.GearFit) then return nil end
+	local fit = F.GearFit()
+	local cached = C_Item and C_Item.IsItemDataCachedByID
+	local asked, bySeller, n = 0, {}, 0
+	for _, it in ipairs(items) do
+		local probe = { kind = "vendoritem", itemID = it.id, key = it.id }
+		if cached and Safe(cached, it.id) == false and not (F.Known and F.Known(it.id)) then
+			if asked < QR.VENDOR_ASK then
+				asked = asked + 1
+				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, it.id) end
+			end
+		elseif fit(probe) then
+			local g = F.GainOf(probe)
+			n = n + 1
+			for _, npc in ipairs(it.vendors) do
+				if type(npc) == "number" then
+					bySeller[npc] = bySeller[npc] or {}
+					table.insert(bySeller[npc], { id = it.id, g = g })
+				end
+			end
+		end
+	end
+	for _, list in pairs(bySeller) do table.sort(list, function(a, b) return (a.g and a.g.gain or 0) > (b.g and b.g.gain or 0) end) end
+	return bySeller, n, asked
+end
+
+--- "upgrades i can buy", "vendor upgrades", "buyable upgrades", "upgrades for sale": true.
+function QR.BuyQuestion(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local buy, upg = false, false
+	for w in t:gmatch("%S+") do
+		if BUY[w] then buy = true
+		elseif UPG[w] then upg = true
+		elseif not FILLER[w] or QUEST[w] then return nil end
+	end
+	return buy and upg or nil
+end
+
+--- What a vendor's row says: "Sells Thick War Axe (+12), Ironforge Breastplate (+5) · needs Honored with ...".
+local function SellsDetail(list)
+	local bits = {}
+	for i, x in ipairs(list) do
+		if i > 2 then bits[#bits + 1] = L["%d more"]:format(#list - 2) break end
+		local name = C_Item and C_Item.GetItemNameByID and Str(Safe(C_Item.GetItemNameByID, x.id)) or ("#" .. x.id)
+		local gain = x.g and x.g.gain and not x.g.byLevel and (" (+" .. (math.floor(x.g.gain * 10 + 0.5) / 10) .. ")") or ""
+		bits[#bits + 1] = tostring(name) .. gain
+	end
+	local out = L["Sells %s"]:format(table.concat(bits, ", "))
+	local need = list[1] and QR.StandingNeeded(list[1].id)
+	if need then out = out .. ns.DETAIL_SEP .. L["needs %s"]:format(need) end
+	return out
+end
+QR.SellsDetail = SellsDetail
+
+--- The answer: the friendly vendors selling an upgrade, nearest first (those with no distance known after them).
+function QR.BuyAnswer()
+	local note = L["Vendors selling an upgrade for you"]
+	local db = DB()
+	if not db then return { NoneRow(L["Needs Questie: it knows what vendors sell"]) }, note end
+	local bySeller, _, asked = QR.VendorUpgrades()
+	if not bySeller then return { NoneRow(L["Needs Questie: it knows what vendors sell"]) }, note end
+	if asked > 0 then ns.Filters.loading = true end
+	local I, F = ns.Integrations, ns.Filters
+	local friendly = F.Parse("faction:friendly")
+	local here = I and I.Here and I.Here()
+	local rows = {}
+	for npc, list in pairs(bySeller) do
+		local row = I and I.NpcRow and I.NpcRow(npc)
+		if row and (not friendly or friendly(row)) then
+			local rest = SellsDetail(list)
+			local d = here and I.NpcDistance and I.NpcDistance(npc, here)
+			local v
+			if d then v = I.NearView(row, d, rest)
+			else v = setmetatable({ detail = rest, _score = -(list[1].g and list[1].g.gain or 0) }, { __index = row }) end
+			v.vendorUpgrades = list
+			F.SetGain(v, list[1].g)
+			rows[#rows + 1] = v
+		end
+	end
+	table.sort(rows, function(a, b)
+		if a._score ~= b._score then return a._score > b._score end
+		return tostring(a.name) < tostring(b.name)
+	end)
+	if #rows == 0 then
+		return { NoneRow(asked > 0 and L["None yet: the vendors' items are still coming in"] or L["No friendly vendor sells an upgrade for you"]) }, note
+	end
+	return rows, note
+end
+function QR.BuyToAdvanced() return "@npc sells:upgrade faction:friendly sort:distance " end
+
+----------------------------------------------------------------------
 -- Bags (0.65.3, the player's ask: "quests that reward bags"; some notable ones): "quests that reward bags", "bag
 -- quests", "which quests give a bag"; quivers and ammo pouches too. The quests whose reward is one, that you can still
 -- take (your race and class, not done), the most slots first. A reward is a bag by the item's class (the game knows it

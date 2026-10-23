@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.12 (in testing)
+
+**Upgrades you can buy**
+- **upgrades i can buy**, **vendor upgrades**, **buyable upgrades**: the friendly vendors whose stock (Questie's) holds a clear upgrade for you, nearest first; each says what it sells and what it gains ("Sells Smith's Helm (+3)"), and a standing it needs ("needs Honored with Timbermaw Hold"). Enter points at the vendor. Needs Questie.
+- Advanced: **@npc sells:upgrade faction:friendly sort:distance**.
+
 ## 0.66.11 (in testing)
 
 **Why is this here?**

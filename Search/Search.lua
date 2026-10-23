@@ -810,6 +810,13 @@ Scan.ANSWERS = {
 		end,
 		answer = function() return ns.QuestRewards.UpgradeAnswer() end,
 		toAdvanced = function() return ns.QuestRewards.UpgradeToAdvanced() end },
+	-- "upgrades i can buy", "vendor upgrades": the friendly vendors selling an upgrade for you (Rewards.lua; 0.66.12)
+	{ ask = function(text)
+			local R = ns.QuestRewards
+			return R and R.BuyQuestion and R.BuyQuestion(text) or nil
+		end,
+		answer = function() return ns.QuestRewards.BuyAnswer() end,
+		toAdvanced = function() return ns.QuestRewards.BuyToAdvanced() end },
 	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
 	-- quest reward, and no quest is called that)
 	-- "quests that reward bags", "bag quests" (Rewards.lua; before the one by an item's name: "bags" names no item)
