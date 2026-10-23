@@ -306,6 +306,25 @@ do
 		hit:Hide()
 		hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
 		hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
+		-- (the pointer on a line of Advanced syntax: it said in plain words; 0.66.9, the player: "the explain")
+		hit:SetScript("OnEnter", function(self)
+			local text = edit and edit:GetText() or ""
+			local E = ns.Easy
+			if not (E and E.Explain and UI.LooksAdvanced and UI.LooksAdvanced(text)) then return end
+			local said = E.Explain(text)
+			local t = said and UI.BusyTip and UI.BusyTip()
+			if not t then return end
+			t:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+			t:SetText(L["In plain words"], 1, 1, 1)
+			t:AddLine(said, 0.8, 0.8, 0.8, true)
+			self.tip = t
+			t:Show()
+		end)
+		hit:SetScript("OnLeave", function(self)
+			local t = self.tip
+			self.tip = nil
+			if t then t:Hide() end
+		end)
 		UI.hit = hit
 		return lvl
 	end
@@ -338,6 +357,7 @@ do
 			end
 			return tip
 		end
+		UI.BusyTip = Tip -- (the prompt's "in plain words" too)
 		busy:SetScript("OnUpdate", function(self, elapsed)
 			UI:SpinBusy(elapsed) -- (it draws the game's tooltip again when what's loading changed)
 			-- (Terminal's own, the pointer resting on it: drawn again too, UpdateBusy's new lines)

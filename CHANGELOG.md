@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.9 (in testing)
+
+**An Advanced line in plain words**
+- Point at a line of Advanced syntax in the prompt and its tooltip says it in plain words: **@npc is:vendor sells:arrow faction:friendly sort:distance** is "Friendly vendors, that sell arrow, nearest first".
+- **.explain <line>** says it in chat; **.explain** alone, the last line you ran. For lines from others, old aliases, and learning the syntax.
+
 ## 0.66.8 (in testing)
 
 **Dates in plain words**
