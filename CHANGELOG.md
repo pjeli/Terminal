@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.66.10 (in testing)
+
+**Compare two searches**
+- **| except @bank** leaves out what another search finds; **| also @stored** adds it, each thing once: **@item cloth | except @bank** (cloth in your bags you don't also have in the bank), **@stored is:mats | except in:bags**.
+- In plain words, one of your lists at the end: **cloth but not in my bank**, **linen plus my alts** (and **my bags**, **my log**, **my mail**).
+
 ## 0.66.9 (in testing)
 
 **An Advanced line in plain words**

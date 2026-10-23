@@ -1087,6 +1087,31 @@ function E.TopN(text)
 	return text, nil
 end
 
+-- Comparing two searches in plain words (0.66.10): "mats on my alts but not on me", "cloth except my bank", "linen
+-- plus my alts": the second is one of your own lists, said at the end.
+E.LIST_PHRASES = { ["my bank"] = "@bank", ["in my bank"] = "@bank", ["the bank"] = "@bank", ["my bags"] = "@item in:bags",
+	["in my bags"] = "@item in:bags", ["on me"] = "@item in:bags", ["my alts"] = "@stored", ["on my alts"] = "@stored",
+	["my quest log"] = "@quest", ["in my log"] = "@quest", ["my log"] = "@quest", ["my mail"] = "@mail", ["in my mail"] = "@mail" }
+local SET_EXCEPT = { "but not", "and not", "except", "not" }
+local SET_ALSO = { "and also", "plus" }
+--- The line with a comparison at its end taken out, and its step ("except @bank"); or the line and nil.
+function E.SetOp(text)
+	if type(text) ~= "string" then return text, nil end
+	local lt = Lower(text):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+	for phrase, list in pairs(E.LIST_PHRASES) do
+		for _, group in ipairs({ { SET_EXCEPT, "except" }, { SET_ALSO, "also" } }) do
+			for _, joiner in ipairs(group[1]) do
+				local tail = " " .. joiner .. " " .. phrase
+				if #lt > #tail and lt:sub(-#tail) == tail then
+					local rest = lt:sub(1, #lt - #tail)
+					if rest:find("%S") then return rest, group[2] .. " " .. list end
+				end
+			end
+		end
+	end
+	return text, nil
+end
+
 --- Two everyday words that mean one thing joined into one ("attack power food" -> "attack power", "food"). Works on
 --- the list in place.
 function E.JoinPairs(words)
@@ -1197,6 +1222,9 @@ function E.ToAdvanced(text, category, shown, noGroup)
 	if tail == "" and EasyOnAt() then
 		local rest, n = E.TopN(t)
 		if n then t, tail, text = rest, " | first " .. n, rest end
+		-- (a comparison at the end, "but not in my bank": its step, "| except @bank"; 0.66.10)
+		local rest2, step = E.SetOp(t)
+		if step then t, text, tail = rest2, rest2, " | " .. step .. tail end
 	end
 	-- (the words read by the search's own steps and its query printed: Search.lua's ns.QueryToAdvanced)
 	local Print = ns.QueryToAdvanced
@@ -1466,7 +1494,11 @@ function E.Explain(line)
 	if chain then parts[#parts + 1] = L["then: %s"]:format(chain) end
 	for _, st in ipairs(steps or {}) do
 		local s = A.ParseStep(st)
-		if s.first then parts[#parts + 1] = L["the first %d"]:format(s.first)
+		if s.other then
+			local other = E.Explain(s.other)
+			other = other and Lower(other:sub(1, 1)) .. other:sub(2) or s.other
+			parts[#parts + 1] = (s.except and L["leaving out %s"] or L["and also %s"]):format(other)
+		elseif s.first then parts[#parts + 1] = L["the first %d"]:format(s.first)
 		elseif s.op == "count" then parts[#parts + 1] = L["counted"]
 		elseif s.op == "group" then parts[#parts + 1] = L["grouped by %s"]:format(s.by)
 		elseif s.op == "sum" or s.op == "avg" then

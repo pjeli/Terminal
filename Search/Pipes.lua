@@ -1544,6 +1544,10 @@ A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone",
 A.ORDER = { "value", "price", "count", "kind", "owner", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 A.FIRST_WORDS = { first = true, top = true, head = true }
+-- Comparing two searches (0.66.10, the player): "| except @bank" leaves out what the other search finds, "| also
+-- @stored" adds it. "Recipes my alts know that I don't", "mats on my alts but not on me".
+A.EXCEPT_WORDS = { except = true, minus = true, without = true }
+A.ALSO_WORDS = { also = true, plus = true, union = true }
 A.FIRST_MAX = 100 -- (a search lists 100 at most)
 
 local function FieldOf(word)
@@ -1599,6 +1603,12 @@ local function ParseStep(step)
 	end
 	local ws = {}
 	for w in step:gmatch("%S+") do ws[#ws + 1] = ns.Lower(w) end
+	-- "| except @bank", "| also @stored": another search, its rows left out or added (0.66.10)
+	if A.EXCEPT_WORDS[ws[1] or ""] or A.ALSO_WORDS[ws[1] or ""] then
+		local other = step:match("^%S+%s+(.-)%s*$")
+		if not other or other == "" then return { bad = L["what to compare with: | except @bank, | also @stored"] } end
+		return { other = other, except = A.EXCEPT_WORDS[ws[1]] and true or nil }
+	end
 	-- "| first 3": the first three, in the search's order (0.66.7, the player: "the 3 nearest mailboxes")
 	if A.FIRST_WORDS[ws[1] or ""] then
 		local n = tonumber(ws[2] or "")
@@ -1654,7 +1664,12 @@ function A.Parse(steps, query)
 	for k, step in ipairs(steps) do
 		local s = ParseStep(step)
 		if s.bad then spec.bad = s.bad; spec.badStep = step; return spec end
-		if s.first then
+		if s.other then
+			-- (another search compared: a keeping step, as a where is)
+			if spec.last then spec.bad = L["a sum, count or group is the last step"] return spec end
+			spec.wheres[#spec.wheres + 1] = s
+			base[#base + 1] = step
+		elseif s.first then
 			-- (a keeping step: the first N, before a sum or count; the last one typed counts)
 			if spec.last then spec.bad = L["a sum, count or group is the last step"] return spec end
 			spec.first = s.first
@@ -1696,6 +1711,100 @@ local function KeepsRow(w, e)
 	local lt = ns.Lower(ns.Plain(t)):gsub('"', "")
 	if lt == w.value then return true end
 	return not w.exact and lt:find(w.value, 1, true) ~= nil
+end
+
+--- What a row is, to compare across lists: the same item (whoever holds it), quest, spell or NPC; else its name.
+function A.Identity(e)
+	if type(e) ~= "table" then return nil end
+	local F = ns.Filters
+	local item = F and F.ItemOf and F.ItemOf(e)
+	if item then return "i:" .. tostring(item) end
+	local QR = ns.QuestRewards
+	local q = QR and QR.QuestIdOf and QR.QuestIdOf(e)
+	if q then return "q:" .. tostring(q) end
+	local spell = rawget(e, "spellID")
+	if type(spell) == "number" then return "s:" .. spell end
+	local npc = FP.NpcID and FP.NpcID(e)
+	if npc then return "n:" .. tostring(npc) end
+	local name = e.name
+	return type(name) == "string" and ("t:" .. ns.Lower(ns.Plain(name))) or nil
+end
+
+--- The other search's rows (| except, | also): its @kinds (none: the lists the rows come from), filters and words
+--- (each in a row's name or words), every row of them, not the best few. Kept for the search's length: a key per text.
+local otherKept = { gen = nil, rows = {} }
+function A.OtherRows(text, fromKinds)
+	local gen = ns.entriesGen
+	if otherKept.gen ~= gen then otherKept = { gen = gen, rows = {} } end
+	local key = text .. "\001" .. table.concat(fromKinds or {}, ",")
+	if otherKept.rows[key] then return otherKept.rows[key] end
+	local kinds, filters, words = {}, {}, {}
+	local F = ns.Filters
+	for _, w in ipairs((ns.Words(text))) do
+		if w:sub(1, 1) == "@" and #w > 1 then
+			local p = ns:ResolveProvider(w:sub(2))
+			if p then kinds[#kinds + 1] = p.id end
+		else
+			local f = (w:find("[:|]") or w:find("^[-!][%a\128-\255]")) and F and F.Parse(w)
+			if f then filters[#filters + 1] = f else words[#words + 1] = ns.Lower(w) end
+		end
+	end
+	if #kinds == 0 then kinds = fromKinds or {} end
+	local out = {}
+	for _, id in ipairs(kinds) do
+		local p = ns.providers[id]
+		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+			if Real(e) then
+				local ok = true
+				for _, f in ipairs(filters) do
+					local okF, yes = pcall(f, e)
+					if not (okF and yes) then ok = false break end
+				end
+				if ok and #words > 0 then
+					local hay = ns.Lower(ns.Plain(tostring(e.name or ""))) .. " " .. (rawget(e, "_ltext") or ns.Lower(tostring(e.text or "")))
+					for _, w in ipairs(words) do if not hay:find(w, 1, true) then ok = false break end end
+				end
+				if ok then out[#out + 1] = e end
+			end
+		end
+	end
+	otherKept.rows[key] = out
+	return out
+end
+
+--- The rows with the other search's left out (| except), or added (| also: each once).
+function A.Compare(rows, w)
+	local kinds, seenKind = {}, {}
+	for _, e in ipairs(rows) do
+		local k = e.kind
+		if type(k) == "string" and not seenKind[k] then seenKind[k] = true; kinds[#kinds + 1] = k end
+	end
+	local other = A.OtherRows(w.other, kinds)
+	local ids = {}
+	if w.except then
+		for _, e in ipairs(other) do local id = A.Identity(e) if id then ids[id] = true end end
+		local kept = {}
+		for _, e in ipairs(rows) do
+			local id = A.Identity(e)
+			if not (id and ids[id]) then kept[#kept + 1] = e end
+		end
+		return kept
+	end
+	local out = {}
+	for _, e in ipairs(rows) do
+		out[#out + 1] = e
+		local id = A.Identity(e)
+		if id then ids[id] = true end
+	end
+	for _, e in ipairs(other) do
+		local id = A.Identity(e)
+		if not (id and ids[id]) then
+			if id then ids[id] = true end
+			if rawget(e, "_score") == nil then e._score = 0 end -- (added: after what the search found itself)
+			out[#out + 1] = e
+		end
+	end
+	return out
 end
 
 --- A number as a row says it (copper as gold, silver and copper), and as plain text (copied: no coin icons).
@@ -1850,16 +1959,20 @@ function A.Apply(spec, res, base)
 		-- (still being typed, or a word it doesn't know: the rows as they are, with a line saying what goes there)
 		local fields = {}
 		for _, name in ipairs(A.ORDER) do fields[#fields + 1] = name end
-		local hint = Row(spec.bad ~= "" and spec.bad or L["| count, | sum value, | group by zone, | avg level, | first 3"],
+		local hint = Row(spec.bad ~= "" and spec.bad or L["| count, | sum value, | group by zone, | avg level, | first 3, | except @bank, | also @stored"],
 			L["fields: %s"]:format(table.concat(fields, ", ")), "aggregate:hint", L["sum up"])
 		local out = { hint }
 		for _, e in ipairs(res or {}) do out[#out + 1] = e end
 		return out
 	end
 	for _, w in ipairs(spec.wheres) do
-		local kept = {}
-		for _, e in ipairs(rows) do if KeepsRow(w, e) then kept[#kept + 1] = e end end
-		rows = kept
+		if w.other then
+			rows = A.Compare(rows, w)
+		else
+			local kept = {}
+			for _, e in ipairs(rows) do if KeepsRow(w, e) then kept[#kept + 1] = e end end
+			rows = kept
+		end
 	end
 	local s = spec.last
 	-- "| first 3": the first three in the search's order (summed up after: the search's rows came unsorted, sorted
