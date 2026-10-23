@@ -1,146 +1,39 @@
 # Changelog
 
-## 0.66.23 (in testing)
+## 0.67.0
 
-**Speed**
-- A name with a date's or a level's words (0.66.21): the names are looked at once for those words, and searched again only when one has them; every keystroke of "swords 3 levels above me sorted by level" was three searches.
-
-## 0.66.22 (in testing)
-
-**Tidying, from a second review of 0.66.x**
-- A calendar question with a date in it ("what's on today") is asked once, not twice. Code the review found twice is now in one place (the sort said in words; top N and comparing kept off Simple mode's categories).
-
-## 0.66.21 (in testing)
-
-**Plain words and Why, from a second review of 0.66.x**
-- A name with a date's or a level's words in it ("Tonight We Dine", "Last Day of Summer", "Next Level Thinking") is found: when the date or level finds nothing, the words are searched as they are and kept if a name has them.
-- "gear under 50% durability", "50% durability or less" work (the per cent before the word wasn't read). "since yesterday" on the day after the clocks change starts at yesterday's own midnight.
-- Said in words: "in the last 3 days", "in the last hour", "older than 1 day" (was "since 3 days", "since 1 hours"), on the bar and in **.explain**. **.explain** alone after a Simple line explains it as Alt+` writes it. The "In plain words" tooltip follows the line as you type.
-- "Hogger but not in my bank" keeps "Hogger" as typed.
-- "Why is this here?": "added by | also" only on the rows **| also** added (not every row); **sort:name** says the name, a quality its word ("Epic", not 4).
-- Ctrl+Z after typing somewhere else in the line (Home, then a key) undoes only that, not the word before it too.
-
-## 0.66.20 (in testing)
-
-**Top N and comparing, from a second review of 0.66.x**
-- **| except @bank** sees a change to the bank (or mail) at once; it kept the other search's rows until some other list changed. Its rows are read again after five seconds too, for **since:30m** and the like.
-- **sort:count | first 3 | except @bank** past 5000 rows: the three biggest counts left after the bank's are taken out (the rows sorted were those taken out, and the gaps filled by relevance).
-- **| first 3**: the footer's "3 of 250" counts every match, not the 100 a search keeps.
-- "top 0 swords", "30 yard range" and "the best of both worlds" stay searches.
-
-## 0.66.19 (in testing)
-
-**Sorting, from a second review of 0.66.x**
-- **sort:level,distance** with more rows than a search lists: the lowest level first however far away (only the 100 nearest were kept, so a far low-level innkeeper was left out).
-- Simple mode: a typed **sort:quality,-count**, its Quality clicked on the bar, turns round and keeps "then by Count" (it was never matched, and the then by was lost). The Sort button says "Distance" alone when distance comes first.
-- Past 5000 rows, the "then by" fields are worked out only for rows that tie, not for every row.
-
-## 0.66.18 (in testing)
-
-**Upgrades, from a second review of 0.66.x**
-- A worn piece with a random suffix ("of the Monkey") whose stats the game didn't give isn't judged by its plain item's stats (armor alone): not known, item levels decide. A worn shirt, ring or trinket with no stats at all is believed (and read once, not on every keystroke).
-- Rings, trinkets and one-handers better by item level alone are left off **ah upgrades** and **vendor upgrades**, as other slots' were: those lists rank by stats gained. A stat gain is said before an item-level one.
-- **@npc sells:upgrade** no longer comes back empty when the vendors' stock takes more than a frame to judge, and sees a piece you put on or a role you pick at once (it kept the last answer two seconds).
-- "No talent points spent" is read again after ten seconds, not on every upgrade search; AtlasLoot's equipment is worked out once for **ah upgrades**, not again on each search made again as items arrive.
-
-## 0.66.17 (in testing)
-
-**Upgrades judged against what you wear, always** (the player's screenshot: "ah upgrades" listed +6 Stamina gloves over Gauntlets of Might)
-- When the game gave no stats for a piece you wear from its own link, it counted as wearing nothing there, so almost anything was an "upgrade". Its plain item's stats are read instead; none at all, and it isn't compared against nothing. Every upgrade search, not only the auction house's.
-
-## 0.66.16 (in testing)
-
-**Distance after a field** (the player's **sort:level,distance** found nothing)
-- **sort:level,distance**: by level, the nearest first among equals; **sort:-level,-distance** the farthest. Distance first (**sort:distance,level**) is the nearest first, as before.
-
-## 0.66.15 (in testing)
-
-**Top N, fixed** (the player: "the 3 nearest" and "top 5" didn't work)
-- **the 3 nearest mailboxes**, **the nearest mailbox**: "the" before nearest kept it from being a nearest search for game objects (mailboxes, entrances, flight paths); it no longer does. **nearest 3 mailboxes** and **2 mailboxes** (a count of places: the nearest) work too.
-- **top 5 upgrades**, **2 swords**: the first five of every list together, not Simple mode's categories to pick from. **my 5 best upgrades** sorts the biggest first.
-
-## 0.66.14 (in testing)
-
-**Fixes from a review of 0.66.1-0.66.13**
-- Ctrl+Z undoes a paste too, and works in combat's text box.
-- **ah upgrades**' rows open, link and colour their item; bind-on-use items count; the AH and vendor upgrade answers no longer stall a frame.
-- **@npc sells:upgrade** searches again as items load; the spell hit cap below 60 is 3% (a spell always keeps 1% to miss).
-- Dates after a question work ("loot today", "what dropped today", "my auctions sold this week"); a sort kept with **| except** and **| also**; added rows come after the search's own.
-- Top N leaves Simple mode's categories alone; "the cheapest boots" is one pair; names like "the five sorrows" and "tome of the last day" stay searches; "between 10 and 50 silver" means silver at both ends.
-- Alt+` keeps top N before **>> party** and the bar's Group with it; .explain and the bar say dates and levels from yours in words.
-
-## 0.66.13 (in testing)
-
-**The cheapest upgrades on the auction house**
-- With Auctionator and AtlasLoot: **ah upgrades**, **cheapest upgrades on the ah**, **upgrades on the auction house** list the bind-on-equip items that are clear upgrades for you at Auctionator's last-scanned price, the most gain per gold first ("+12 for 3g 40s"), saying when one was last seen if days ago. Only what showed in its last scan.
-
-## 0.66.12 (in testing)
-
-**Upgrades you can buy**
-- **upgrades i can buy**, **vendor upgrades**, **buyable upgrades**: the friendly vendors whose stock (Questie's) holds a clear upgrade for you, nearest first; each says what it sells and what it gains ("Sells Smith's Helm (+3)"), and a standing it needs ("needs Honored with Timbermaw Hold"). Enter points at the vendor. Needs Questie.
-- Advanced: **@npc sells:upgrade faction:friendly sort:distance**.
-
-## 0.66.11 (in testing)
-
-**Why is this here?**
-- A row's menu (right-click, or Shift+Right) has **Why is this here?**: said in chat, which of your words it matched and where (its name, its details, its other words, a close spelling), the filters it passed in words, its value for the sort, and for an upgrade what it gains over what you wear and by which tree's weights.
-
-## 0.66.10 (in testing)
-
-**Compare two searches**
-- **| except @bank** leaves out what another search finds; **| also @stored** adds it, each thing once: **@item cloth | except @bank** (cloth in your bags you don't also have in the bank), **@stored is:mats | except in:bags**.
-- In plain words, one of your lists at the end: **cloth but not in my bank**, **linen plus my alts** (and **my bags**, **my log**, **my mail**).
-
-## 0.66.9 (in testing)
-
-**An Advanced line in plain words**
-- Point at a line of Advanced syntax in the prompt and its tooltip says it in plain words: **@npc is:vendor sells:arrow faction:friendly sort:distance** is "Friendly vendors, that sell arrow, nearest first".
-- **.explain <line>** says it in chat; **.explain** alone, the last line you ran. For lines from others, old aliases, and learning the syntax.
-
-## 0.66.8 (in testing)
-
-**Dates in plain words**
-- **loot from yesterday**, **loot today**, **my mail older than 20 days**, **auctions sold this week**, **what killed me today**, **in the last 3 days**, **past 2 hours**, **this session**: on the lists that keep times (the loot log, mail, auctions, history, the combat log, buyback).
-- Advanced: **since:** and **older:**, with today, yesterday, week, month, login, or a time ago (30m, 2h, 3d, 2w): **@drop since:yesterday older:today**, **@mail older:20d**.
-
-## 0.66.7 (in testing)
+**Plain words for numbers, levels and dates**
+- Numbers: **swords between level 20 and 30**, **quests under level 25**, **items worth more than 1g**, **bags with at least 10 slots**, **gear under 50% durability**.
+- Levels from yours: **quests 3 levels above me**, **dungeons around my level**, **gear for next level**. They move with you as you level, in a saved search or alias too.
+- Dates: **loot from yesterday**, **mail older than 20 days**, **auctions sold this week**, **what killed me today**, **in the last 3 days**.
+- Advanced: **lvl:me+3**, **lvl:me-2..me+3**, **value:>1g**, **slots:>=10**, **since:yesterday**, **older:20d**.
 
 **Top N**
-- **the 3 nearest mailboxes**, **top 5 upgrades**, **my 10 most valuable items**, **5 swords** (the best five matches), **the closest innkeeper** (one). The footer says "3 of 41"; >>> party sends just those.
-- Orders in words, with a number or without: **most valuable**, **cheapest**, **highest level**, **lowest level**, **best quality**.
-- Advanced: **| first 3**, before a sum too: **in:bags sort:value | first 10 | sum value**.
+- **the 3 nearest mailboxes**, **top 5 upgrades**, **my 10 most valuable items**, **the closest innkeeper**. Orders in words too: **cheapest**, **most valuable**, **highest level**. The footer says "3 of 41".
+- Advanced: **| first 3**.
 
-## 0.66.6 (in testing)
-
-**Levels from yours**
-- **quests 3 levels above me**, **up to 3 levels above me**, **within 5 levels of me**, **dungeons around my level**, **gear for next level**, **quests above my level**: as Advanced, **lvl:me+3**, **lvl:me..me+3**, **lvl:me-5..me+5**, **lvl:me-2..me+3**, **lvl:me+1**, **lvl:>me** (and **lvl:me**, **lvl:<me**, **lvl:me+**). Read when searched, so a saved search or an alias moves with you as you level.
-
-## 0.66.5 (in testing)
-
-**Numbers in plain words**
-- **swords between level 20 and 30**, **quests under level 25**, **level 25 or higher**, **items worth more than 1g**, **linen under 1 gold 50 silver**, **bags with at least 10 slots**, **10 slots or more**, **gear with durability below 50%**, **item level over 30**. The bar shows each as a filter (unticked, its words go); Alt+` writes **lvl:20-30**, **lvl:<25**, **value:>1g**, **slots:>=10**, **dura:<50**.
-- New in Advanced: **value:** (what it sells for: value:>1g, value:10s-1g) and **slots:** (a bag's slots; a quest's rewarded bag).
-
-## 0.66.4 (in testing)
+**Compare two searches**
+- **cloth but not in my bank**, **linen plus my alts**. Advanced: **| except @bank**, **| also @stored**.
 
 **Sort by more than one field**
-- **sort:quality,-level**: by quality, then on a tie by level (the highest first); as many fields as you like. Plan and best stand alone.
-- Simple mode's **Sort**: with a sort picked, **Shift** on another (a click, or Shift+Enter in Alt+S's menu) is its "then by"; again, the other way round; a third time, gone. The button says both ("Sort: Quality, Level").
-
-## 0.66.3 (in testing)
-
-**Upgrades know your hit cap**
-- Your hit chance now (gear and talents, as the game says it) is weighed against the cap: 5% melee and ranged, 3% spells against mobs your level below 60; 9% and 16% against bosses at 60. Hit past it counts for nothing, so a +2% hit item isn't an upgrade once you're capped, and giving up hit you don't need costs nothing. The tooltip says when it counted less; **.weights** says where you stand ("3% of 5% now").
-
-## 0.66.2 (in testing)
-
-**Upgrades follow your talents**
-- With no tree picked, upgrades are judged for the tree holding most of your talent points: 31 points in Fury, Fury. It follows a respec. **.weights** says "(now: from your talents)"; a tree picked by hand still wins, and **.weights all** goes back to your talents. No points yet, or a tie: your class's levelling tree, as before.
-
-## 0.66.1 (in testing)
+- **sort:quality,-level** sorts by quality, then by level on a tie; **sort:level,distance** puts the nearest first among equals. In Simple mode, Shift on a Sort pick makes it the "then by".
 
 **Undo in the prompt**
-- **Ctrl+Z** undoes your last edit to what you typed, a word at a time; **Ctrl+Y** (or **Ctrl+Shift+Z**) redoes it. Ctrl+W, Ctrl+U, Ctrl+Backspace, a paste or a completion are each one edit.
+- **Ctrl+Z** undoes your last edit (a word, a Ctrl+W, a paste); **Ctrl+Y** or **Ctrl+Shift+Z** redoes it.
+
+**Understand a search**
+- Point at an Advanced line in the prompt to read it in plain words, or **.explain** it ("Vendors, that sell arrow, nearest first"). **.explain** alone explains the last line you ran.
+- **Why is this here?** in a row's menu: the words it matched and where, the filters it passed, its sort value, and for an upgrade what it gains.
+
+**Upgrades**
+- With no tree picked, upgrades are judged for the talent tree holding most of your points, and follow a respec. **.weights all** goes back to that.
+- Hit past your cap counts for nothing: 5% melee and 3% spells below 60; 9% and 16% at 60. **.weights** says where you stand.
+- **upgrades i can buy** (**vendor upgrades**): the friendly vendors selling a clear upgrade for you, nearest first, with what it gains and any standing it needs. Advanced: **@npc sells:upgrade**. Needs Questie.
+- **ah upgrades**: bind-on-equip upgrades at Auctionator's last-scanned price, the most gain per gold first. Needs Auctionator and AtlasLoot.
+
+**Fixes**
+- Upgrades are always judged against what you wear, including a worn piece whose stats the game didn't give (it counted as nothing) and random-suffix gear.
+- Names with a date or level in them ("Tonight We Dine", "Last Day of Summer") are still found.
 
 ## 0.66.0
 

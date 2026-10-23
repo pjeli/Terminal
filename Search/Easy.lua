@@ -1509,8 +1509,14 @@ end
 local function SinceSay(v, upper)
 	local n, unit = v:match("^(%d+%.?%d*)(%a+)$")
 	if n then
-		local one = n == "1" and ({ m = L["minute"], h = L["hour"], d = L["day"], w = L["week"] })[unit:sub(1, 1)]
-		return (upper and L["In the last %s"] or L["in the last %s"]):format(one or TimeSay(v))
+		-- (one of them, a phrase of its own: "in the last hour", which other languages say otherwise than "%s" + "hour")
+		local u = unit:sub(1, 1)
+		if n == "1" then
+			local one = upper and ({ m = L["In the last minute"], h = L["In the last hour"], d = L["In the last day"], w = L["In the last week"] })[u]
+				or ({ m = L["in the last minute"], h = L["in the last hour"], d = L["in the last day"], w = L["in the last week"] })[u]
+			if one then return one end
+		end
+		return (upper and L["In the last %s"] or L["in the last %s"]):format(TimeSay(v))
 	end
 	return (upper and L["Since %s"] or L["since %s"]):format(TimeSay(v))
 end
