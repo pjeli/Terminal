@@ -9,7 +9,7 @@ local L = ns.L
 -- you've opened a mailbox on it with Terminal, as it was then (mail that ran out since is left out).
 --
 -- At login (not a /reload) a chat line names the gold and items in mail that runs out within MA.SOON, per character
--- (".mail warn off" stops it).
+-- (".set mailWarn off" stops it).
 --
 --   Enter        at an open mailbox, on your own mail: points at it in the inbox (or says the page); else the mail
 --                (or a whole mailbox) in chat, only you see it
@@ -975,26 +975,6 @@ local function BoxLines(key)
 	return out
 end
 
---- Every mailbox kept, for .mail: each box's line and its mail.
-function MA.AllLines()
-	MA.Collect()
-	local out = {}
-	local way = {}
-	for _, e in ipairs(MA.NewsRows()) do way[#way + 1] = MA.WayLine(e) end -- (the auction house's news: defined below)
-	for _, e in ipairs(list or {}) do
-		if e.mailKind == "box" then
-			for _, l in ipairs(BoxLines(e.boxKey)) do out[#out + 1] = l end
-		elseif e.mailKind == "sent" then
-			way[#way + 1] = MA.WayLine(e)
-		end
-	end
-	if #way > 0 then
-		out[#out + 1] = L["On its way:"]
-		for _, l in ipairs(way) do out[#out + 1] = l end
-	end
-	return out
-end
-
 --- Where a mail sits in the open inbox: its index, or nil (another character's, the mailbox closed, taken already).
 function MA.InboxIndex(e)
 	if not (MA.open and e.mail and e.boxKey == MyKey()) then return nil end
@@ -1598,52 +1578,40 @@ function MA.Warnings(now)
 end
 
 function MA.Warn()
-	if ns.db and ns.db.mailWarn == false then return false end
+	-- (the setting, .set mailWarn; 0.65.12: it was .mail warn off, moved to the setting once)
+	if ns.db and ns.db.mailWarn == false and ns.Theme and ns.Theme.Set then
+		ns.db.mailWarn = nil
+		pcall(ns.Theme.Set, "mailWarn", "off")
+	end
+	local Th = ns.Theme and ns.Theme.Get and ns.Theme.Get()
+	if Th and Th.mailWarn == false then return false end
 	local lines = MA.Warnings()
 	if not lines then return false end
 	ns:Output(lines)
 	return true
 end
 
-ns:RegisterCommand("mail", {
-	desc = L["Your characters' mail as Terminal last saw it; .mail warn on|off (the login warning), .mail forget <name>"],
-	aliases = { "inbox" },
-	complete = function()
-		local out = { { "warn on", L["say at login when mail with something in it runs out soon"] }, { "warn off", L["don't"] } }
-		for _, box in pairs(Boxes() or {}) do
-			if type(box) == "table" and box.name then out[#out + 1] = { "forget " .. box.name, L["drop its mailbox"] } end
+--- Forget an alt's mailboxes (and what it sent, its auction news and the prices kept for them: review, 0.48.6): `.forget
+--- <name>` (0.65.12: .mail is gone, @mail lists them). How many were dropped.
+function MA.ForgetAlt(who)
+	local lw, n = Lower(who), 0
+	local boxes = Boxes() or {}
+	for key, box in pairs(boxes) do
+		if type(box) == "table" and box.name and (Lower(box.name) == lw or Lower(box.name .. "-" .. tostring(box.realm)) == lw) then
+			boxes[key] = nil
+			for _, store in ipairs({ "mailSent", "mailAuctions", "auctionsPosted", "auctionBids", "auctionsEnded", "auctionsSold" }) do Store(store)[key] = nil end
+			n = n + 1
 		end
-		return out
-	end,
-	run = function(args)
-		local a = strtrim(args or "")
-		local la = Lower(a)
-		if la == "warn on" or la == "warn off" then
-			ns.db.mailWarn = la == "warn on"
-			return { la == "warn on" and L["Mail: you're told at login when mail with something in it runs out within 3 days."]
-				or L["Mail: no login warning."] }
-		end
-		local who = a:match("^[Ff]orget%s+(.+)$")
-		if who then
-			local lw, n = Lower(who), 0
-			local boxes = Boxes() or {}
-			for key, box in pairs(boxes) do
-				if type(box) == "table" and box.name and (Lower(box.name) == lw or Lower(box.name .. "-" .. tostring(box.realm)) == lw) then
-					boxes[key] = nil
-					-- (and what that character sent, its auction news and the prices kept for them: review, 0.48.6)
-					for _, store in ipairs({ "mailSent", "mailAuctions", "auctionsPosted", "auctionBids", "auctionsEnded", "auctionsSold" }) do Store(store)[key] = nil end
-					n = n + 1
-				end
-			end
-			Dirty()
-			return { n > 0 and L["Forgot %s's mail."]:format(who) or L["No mail kept for %s."]:format(who) }
-		end
-		local lines = MA.AllLines()
-		if #lines == 0 then return { MA.NONE .. "." } end
-		table.insert(lines, 1, L["Mail:"])
-		return lines
-	end,
-})
+	end
+	if n > 0 then Dirty() end
+	return n
+end
+--- The names of the characters whose mail is kept (.forget's choices).
+function MA.AltNames()
+	local out = {}
+	for _, box in pairs(Boxes() or {}) do if type(box) == "table" and box.name then out[#out + 1] = box.name end end
+	return out
+end
 
 ----------------------------------------------------------------------
 -- Events: the inbox read while a mailbox shows; the warning once a login

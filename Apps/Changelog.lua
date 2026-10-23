@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.65.11", when = "in testing",
+		v = "0.65.12", when = "in testing",
 		items = {
+			"Fewer commands: .xp, .history, .durability, .mail, .combatlog and .lockouts are gone (search for them as for anything: xp, history, durability...). .forget <alt> drops an alt's mail, experience and lockouts; .forget history, .forget combatlog; .set mailWarn off.",
 			"Your own key: bind any key to Terminal (^ on a German keyboard, Ctrl+Space) and it does what ` does; the hints name it.",
 			"Quests that reward bags: \"bag quests\" lists the bags you can still get, most slots first. Advanced: @questie reward:bag.",
 			"Sort either way: an arrow shows the direction; pick a sort again to flip it. Advanced: sort:-level.",

@@ -360,24 +360,8 @@ function CB.Answer(kind)
 	return rows, note
 end
 
-ns:RegisterCommand("combatlog", {
-	desc = L["What crit you and what killed you, as recorded; .combatlog clear forgets it"],
-	complete = function() return { { "clear", L["forget it all"] } } end,
-	run = function(args)
-		if strtrim(args or ""):lower() == "clear" then
-			if ns.db then ns.db.combatLog = {} end
-			Dirty()
-			return { L["Combat log cleared."] }
-		end
-		local st, log = CB.state, Log() or {}
-		local lines = { L["Combat log: %d entries kept. %s"]:format(#log,
-			ns.Said(L["Ask \"what killed me\" or \"who crit me\"."], L["Search it: @combatlog <words>, or ask \"what killed me\"."])) }
-		if st.blocked then
-			lines[#lines + 1] = "  " .. L["The game doesn't let addons read the combat log here: only your deaths are kept (what killed you from the Death Recap)."]
-		elseif st.events > 0 and st.secret == st.events then
-			lines[#lines + 1] = "  " .. L["The combat log reaches addons as secret values here: only your deaths are kept (what killed you from the Death Recap)."]
-		end
-		for i = 1, math.min(5, #log) do lines[#lines + 1] = "  " .. CB.Line(log[i]) .. "  " .. Ago(log[i].t) end
-		return lines
-	end,
-})
+--- Forget the combat log kept: `.forget combatlog` (0.65.12: .combatlog is gone; "what killed me" and @combatlog read it).
+function CB.Clear()
+	if ns.db then ns.db.combatLog = {} end
+	Dirty()
+end

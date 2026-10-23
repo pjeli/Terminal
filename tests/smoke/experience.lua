@@ -33,7 +33,6 @@ do
 	check(#res == 1 and res[1].mine and res[1].level == 23 and res[1].detail:find("Lv 23, 41%", 1, true)
 		and res[1].detail:find("rested 57%", 1, true), "you: level, %, rested %: " .. tostring(res[1] and res[1].detail))
 	check(ns.Share.Line(res[1]):find(": level 23, 41% (rested 57%)", 1, true), "sent: " .. tostring(ns.Share.Line(res[1])))
-	check(ns:FindCommand("xp").run("")[3]:find("Alts show up", 1, true), ".xp with no alts says how they come")
 
 	-- an alt, noted when last played (logged out resting): its rested filled while away, capped at a level and a half
 	ns.db.xpChars["Player-1-BBB"] = { name = "Alt Pally", realm = "Forever", class = "PALADIN", level = 40, xp = 1000,
@@ -71,9 +70,6 @@ do
 		"alts known only from the bag addon: last, each once: " .. table.concat(names, ", "))
 	check(res[5].detail:find(L["not noted yet: log in on it once"], 1, true), "...saying to log in on it once: " .. res[5].detail)
 	check(#UI:Search("@xp lvl:30-50") == 1, "...and no level to filter by: not in lvl:")
-	local lines = table.concat(ns:FindCommand("xp").run(""), "\n")
-	check(lines:find("Bank Toon:  " .. L["experience not noted yet (log in on it once)"], 1, true) and not lines:find("Alts show up", 1, true),
-		".xp lists them too: " .. lines)
 	G.Alts = saveAlts
 	P._dirty = true
 
@@ -112,9 +108,9 @@ do
 	check(res[1].mine and not res[1].detail:find("rested", 1, true), "no experience read yet: no rested %: " .. tostring(res[1].detail))
 	_G.UnitXPMax = function() return 11000 end
 	ns.db.xpChars["Player-1-AAA"] = keptNote
-	-- .xp forget
-	local out = ns:FindCommand("xp").run("forget old mage")
-	check(ns.db.xpChars["Player-1-CCC"] == nil and out[1]:find("Forgot", 1, true), ".xp forget <name>")
+	-- .forget <name> (0.65.12: was .xp forget)
+	local out = ns:FindCommand("forget").run("old mage")
+	check(ns.db.xpChars["Player-1-CCC"] == nil and out[1]:find("Forgot", 1, true), ".forget <name>: its experience")
 	-- (review, 0.51.25) forgotten: not back as "not noted yet" while the bag addon still knows it; a realm with a space
 	-- is the bag addon's without one
 	ns.db.xpChars["Player-1-FFF"] = { name = "Spaced Rogue", realm = "Argent Dawn", class = "ROGUE", level = 20, xp = 5, max = 100, rested = 0, t = now }
@@ -126,7 +122,7 @@ do
 	check(#unknown == 0, "a forgotten alt and one on a realm with a space: neither listed as not noted: " .. table.concat(unknown, ", "))
 	-- a note with no realm (yours, then): forgotten as the bag addon names it
 	ns.db.xpChars["Player-1-GGG"] = { name = "Norealm", class = "MAGE", level = 9, xp = 1, max = 100, rested = 0, t = now }
-	ns:FindCommand("xp").run("forget norealm")
+	ns:FindCommand("forget").run("norealm")
 	G.Alts = function() return { { who = "Norealm", class = "MAGE" } } end
 	P._dirty = true
 	res = UI:Search("@xp")
@@ -136,8 +132,8 @@ do
 	G.Alts = saveAlts
 	ns.db.xpChars["Player-1-FFF"], ns.db.xpForgotten = nil, nil
 	P._dirty = true
-	out = ns:FindCommand("xp").run("forget Nobody")
-	check(out[1]:find("No alt", 1, true), ".xp forget an unknown name says so")
+	out = ns:FindCommand("forget").run("Nobody")
+	check(out[1]:find("No alt", 1, true), ".forget an unknown name says so")
 
 	-- Simple mode: under Character
 	ns.db.easyMode = true

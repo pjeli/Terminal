@@ -111,9 +111,9 @@ do
 		check(d1 == ns.L["just now"] and d2 == ns.L["%d h ago"]:format(2), "two hours on: \"2 h ago\": " .. tostring(d2))
 	end
 
-	-- .history clear forgets the times too
-	ns:FindCommand("history").run("clear")
-	check(#ns.db.history == 0 and next(ns.db.historyAt) == nil, ".history clear: the lines and their times")
+	-- .forget history forgets the times too
+	ns:FindCommand("forget").run("history")
+	check(#ns.db.history == 0 and next(ns.db.historyAt) == nil, ".forget history: the lines and their times")
 
 	ns.db.history, ns.db.historyAt, ns.db.easyMode, _G.IsControlKeyDown = save.h, save.at, save.easy, save.ctrl
 	UI:EasyChanged()

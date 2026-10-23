@@ -150,13 +150,6 @@ local function Line(e, now)
 		.. (e.diff and (" " .. GREY .. "(" .. e.diff .. ")|r") or "") .. "  " .. Summary(e, now)
 end
 
---- Every lockout of every character, for chat (.lockouts).
-function LK.Lines()
-	local out, now = {}, Now()
-	for _, e in ipairs(list or {}) do out[#out + 1] = Line(e, now) end
-	return out
-end
-
 local function Show(e)
 	local now = Now()
 	local lines = { Line(e, now) }
@@ -377,38 +370,26 @@ function LK.ToAdvanced(q)
 	return table.concat(parts, " ") .. " "
 end
 
-ns:RegisterCommand("lockouts", {
-	desc = L["Your characters' raid and dungeon lockouts; .lockouts forget <name> drops an alt"],
-	aliases = { "saved", "raidid" },
-	complete = function()
-		local out = {}
-		for key, c in pairs(Chars() or {}) do
-			if key ~= MyKey() and type(c) == "table" and c.name then out[#out + 1] = { "forget " .. c.name, L["drop it from the list"] } end
+--- Forget an alt's lockouts (not the character you're on): `.forget <name>` (0.65.12: .lockouts is gone, @lockout lists
+--- them). How many were dropped.
+function LK.ForgetAlt(who)
+	local lw, chars, myKey, n = Lower(who), Chars() or {}, MyKey(), 0
+	for key, c in pairs(chars) do
+		if key ~= myKey and type(c) == "table" and c.name and (Lower(c.name) == lw
+			or Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
+			chars[key] = nil
+			n = n + 1
 		end
-		return out
-	end,
-	run = function(args)
-		local a = strtrim(args or "")
-		local who = a:match("^[Ff]orget%s+(.+)$")
-		if who then
-			local lw, chars, myKey, n = Lower(who), Chars() or {}, MyKey(), 0
-			for key, c in pairs(chars) do
-				if key ~= myKey and type(c) == "table" and c.name and (Lower(c.name) == lw
-					or Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
-					chars[key] = nil
-					n = n + 1
-				end
-			end
-			Dirty()
-			return { n > 0 and L["Forgot %s."]:format(who) or L["No alt called %s (you can't forget the character you're on)."]:format(who) }
-		end
-		LK.Collect()
-		local lines = LK.Lines()
-		if #lines == 0 then return { LK.NONE } end
-		table.insert(lines, 1, L["Lockouts:"])
-		return lines
-	end,
-})
+	end
+	if n > 0 then Dirty() end
+	return n
+end
+--- The alts kept (.forget's choices).
+function LK.AltNames()
+	local out, myKey = {}, MyKey()
+	for key, c in pairs(Chars() or {}) do if key ~= myKey and type(c) == "table" and c.name then out[#out + 1] = c.name end end
+	return out
+end
 
 -- yours on every answer from the game; asked at login and after a boss dies
 local ev = CreateFrame("Frame")

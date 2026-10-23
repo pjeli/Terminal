@@ -302,62 +302,62 @@ ns:RegisterCommand("profs", {
 
 -- .profdebug : what the open profession window reports, for bug reports.
 -- Printed to chat as well, so it can be copied.
-ns:RegisterCommand("profdebug", {
-	desc = L["Show what the open profession window reports (for bug reports)"],
-	run = function()
-		local function S(v)
-			if Secret(v) then return "<secret>" end
-			return tostring(v)
-		end
-		local api = TS()
-		local lines = { "Profession debug (open a profession window first):" }
-		if not api then
-			lines[2] = "  C_TradeSkillUI is missing in this client"
+-- (.debug professions, for bug reports; 0.65.12: it was .profdebug)
+if ns.Debug and ns.Debug.PARTS then
+	ns.Debug.PARTS["professions"] = function()
+			local function S(v)
+				if Secret(v) then return "<secret>" end
+				return tostring(v)
+			end
+			local api = TS()
+			local lines = { "Profession debug (open a profession window first):" }
+			if not api then
+				lines[2] = "  C_TradeSkillUI is missing in this client"
+				return lines
+			end
+			local function count(fn)
+				if not api[fn] then return "missing" end
+				local ok, l = pcall(api[fn])
+				if not ok then return "error" end
+				return type(l) == "table" and tostring(#l) or S(l)
+			end
+			local function info(fn)
+				if not api[fn] then return "missing" end
+				local ok, i = pcall(api[fn])
+				if not ok or type(i) ~= "table" then return S(i) end
+				return ("%s / %s (parent %s / %s)"):format(S(i.professionID), S(i.professionName),
+					S(i.parentProfessionID), S(i.parentProfessionName))
+			end
+			lines[#lines + 1] = "  GetAllRecipeIDs: " .. count("GetAllRecipeIDs") .. "   GetFilteredRecipeIDs: " .. count("GetFilteredRecipeIDs")
+			lines[#lines + 1] = "  Base: " .. info("GetBaseProfessionInfo")
+			lines[#lines + 1] = "  Child: " .. info("GetChildProfessionInfo")
+			local ids = RecipeIDs(api)
+			if ids[1] then
+				local i1 = api.GetRecipeInfo(ids[1]) or {}
+				local line, parent = "?", "?"
+				if api.GetTradeSkillLineForRecipe then
+					local ok, a, _, c = pcall(api.GetTradeSkillLineForRecipe, ids[1])
+					if ok then line, parent = S(a), S(c) end
+				end
+				lines[#lines + 1] = ("  First recipe: %s  learned=%s  line=%s parent=%s"):format(S(i1.name), S(i1.learned), line, parent)
+			end
+			-- each profession's spellbook entries, and which spell Terminal opens its window with
+			local tracking = P.TrackingSpells()
+			for _, pr in ipairs((P.PlayerProfessions())) do
+				local parts = {}
+				for _, sp in ipairs(P.ProfessionSpells(pr)) do
+					parts[#parts + 1] = ("%s #%s%s%s%s"):format(sp.name, S(sp.id), sp.canShow and " [opens window]" or "",
+						sp.passive and " (passive)" or "", tracking[sp.id] and " (tracking)" or "")
+				end
+				lines[#lines + 1] = ("  %s (%s): %s  -> opens with: %s"):format(pr.name, S(pr.skillLine),
+					#parts > 0 and table.concat(parts, ", ") or "no entries", S(P.WindowSpell(pr.skillLine, pr.name)))
+			end
+			local profs = {}
+			for _, pr in ipairs((P.PlayerProfessions())) do profs[#profs + 1] = pr.name .. "(" .. S(pr.skillLine) .. ")" end
+			lines[#lines + 1] = "  Your professions: " .. (#profs > 0 and table.concat(profs, ", ") or "none")
+			local idx = {}
+			for _, pd in pairs(Store() or {}) do idx[#idx + 1] = (pd.name or "?") .. "=" .. #(pd.list or {}) end
+			lines[#lines + 1] = "  Indexed: " .. (#idx > 0 and table.concat(idx, ", ") or "nothing yet")
 			return lines
-		end
-		local function count(fn)
-			if not api[fn] then return "missing" end
-			local ok, l = pcall(api[fn])
-			if not ok then return "error" end
-			return type(l) == "table" and tostring(#l) or S(l)
-		end
-		local function info(fn)
-			if not api[fn] then return "missing" end
-			local ok, i = pcall(api[fn])
-			if not ok or type(i) ~= "table" then return S(i) end
-			return ("%s / %s (parent %s / %s)"):format(S(i.professionID), S(i.professionName),
-				S(i.parentProfessionID), S(i.parentProfessionName))
-		end
-		lines[#lines + 1] = "  GetAllRecipeIDs: " .. count("GetAllRecipeIDs") .. "   GetFilteredRecipeIDs: " .. count("GetFilteredRecipeIDs")
-		lines[#lines + 1] = "  Base: " .. info("GetBaseProfessionInfo")
-		lines[#lines + 1] = "  Child: " .. info("GetChildProfessionInfo")
-		local ids = RecipeIDs(api)
-		if ids[1] then
-			local i1 = api.GetRecipeInfo(ids[1]) or {}
-			local line, parent = "?", "?"
-			if api.GetTradeSkillLineForRecipe then
-				local ok, a, _, c = pcall(api.GetTradeSkillLineForRecipe, ids[1])
-				if ok then line, parent = S(a), S(c) end
-			end
-			lines[#lines + 1] = ("  First recipe: %s  learned=%s  line=%s parent=%s"):format(S(i1.name), S(i1.learned), line, parent)
-		end
-		-- each profession's spellbook entries, and which spell Terminal opens its window with
-		local tracking = P.TrackingSpells()
-		for _, pr in ipairs((P.PlayerProfessions())) do
-			local parts = {}
-			for _, sp in ipairs(P.ProfessionSpells(pr)) do
-				parts[#parts + 1] = ("%s #%s%s%s%s"):format(sp.name, S(sp.id), sp.canShow and " [opens window]" or "",
-					sp.passive and " (passive)" or "", tracking[sp.id] and " (tracking)" or "")
-			end
-			lines[#lines + 1] = ("  %s (%s): %s  -> opens with: %s"):format(pr.name, S(pr.skillLine),
-				#parts > 0 and table.concat(parts, ", ") or "no entries", S(P.WindowSpell(pr.skillLine, pr.name)))
-		end
-		local profs = {}
-		for _, pr in ipairs((P.PlayerProfessions())) do profs[#profs + 1] = pr.name .. "(" .. S(pr.skillLine) .. ")" end
-		lines[#lines + 1] = "  Your professions: " .. (#profs > 0 and table.concat(profs, ", ") or "none")
-		local idx = {}
-		for _, pd in pairs(Store() or {}) do idx[#idx + 1] = (pd.name or "?") .. "=" .. #(pd.list or {}) end
-		lines[#lines + 1] = "  Indexed: " .. (#idx > 0 and table.concat(idx, ", ") or "nothing yet")
-		return lines
-	end,
-})
+	end
+end

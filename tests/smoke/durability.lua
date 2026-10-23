@@ -103,9 +103,9 @@ do
 	check(Names(res) == "Leaky Legs | Old Boots | Spare Shield", "dura:<30: " .. Names(res))
 	res = UI:Search("@durability is:damaged")
 	check(#res == 5 and not Names(res):find("Tough Chest", 1, true), "is:damaged: " .. Names(res))
-	-- .durability
-	local lines = ns:FindCommand("durability").run("")
-	check(lines[1] == ns.L["Durability:"] and lines[2]:find("^Repair all: 77s 55c") and #lines == 8, ".durability: " .. table.concat(lines, " / "))
+	-- (0.65.12: .durability went; the rows' lines, as Enter prints them)
+	local lines = ns.Durability.Lines()
+	check(lines[1]:find("^Repair all: 77s 55c") and #lines == 7, "the lines Enter prints: " .. table.concat(lines, " / "))
 
 	-- (0.50.3, the player's screenshot: 3s 43c listed, the vendor asked 3s 9c) a repair vendor's reputation discount: its
 	-- total exact while it's open, and taken off every figure after

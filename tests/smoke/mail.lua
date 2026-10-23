@@ -222,13 +222,15 @@ do
 	MA.OnEvent("PLAYER_ENTERING_WORLD", true, false)
 	FlushAll()
 	check(said2 and said2[1]:find("Mail running out", 1, true) and warnings == 1, "at login: the warning, once: " .. warnings)
-	check(ns:FindCommand("mail").run("warn off")[1]:find("no login warning", 1, true) and ns.db.mailWarn == false and MA.Warn() == false,
-		".mail warn off")
-	ns:FindCommand("mail").run("warn on")
-	local all = ns:FindCommand("mail").run("")
-	check(all[1] == "Mail:" and table.concat(all, "\n"):find("From Ann: Linen for you", 1, true), ".mail lists every mailbox")
-	check(ns:FindCommand("mail").run("forget alt pally")[1]:find("Forgot", 1, true) and ns.db.mailboxes["Player-1-BBB"] == nil,
-		".mail forget <name>")
+	-- (0.65.12: .mail went; the warning is a setting, an alt is forgotten with .forget)
+	ns:FindCommand("set").run("mailWarn off")
+	check(MA.Warn() == false, ".set mailWarn off")
+	ns:FindCommand("set").run("mailWarn on")
+	ns.db.mailWarn = false -- (set off with .mail warn off before 0.65.12: kept, as the setting)
+	check(MA.Warn() == false and ns.db.mailWarn == nil and ns.Theme.Get().mailWarn == false, "an old .mail warn off: the setting off")
+	ns:FindCommand("set").run("mailWarn on")
+	check(ns:FindCommand("forget").run("alt pally")[1]:find("Forgot", 1, true) and ns.db.mailboxes["Player-1-BBB"] == nil,
+		".forget <name>: its mailbox")
 
 	-- new mail the game says is waiting, before any mailbox was opened on this character
 	ns.db.mailboxes = {}
@@ -498,8 +500,6 @@ do
 	check(marked and bobRow and Marks(bobRow) == 0, "the letters \"@mail bob\" marked are gone in the answer: " .. tostring(marked))
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false
-	local lines = table.concat(MA.AllLines(), "\n")
-	check(lines:find("On its way:", 1, true) and lines:find("To Bob: For Bob", 1, true), ".mail lists what's on its way")
 	-- a mailbox read: the win's mail is in it (gone from the news); the sale's isn't yet (kept)
 	inbox = { { "Stormwind Auction House", "Auction won: Wool Cloth", 0, 0, 30, 1, false, false, true,
 		items = { { "Wool Cloth", 2592, 1, 5, 1 } } } }
@@ -662,9 +662,9 @@ do
 	ns.db.mailboxes["Player-1-AAA"] = { name = "Zz Main", realm = "R", mails = {} }
 	ns.db.auctionsSold = ns.db.auctionsSold or {}
 	ns.db.auctionsSold["Player-1-AAA"] = { { t = time(), name = "Linen Cloth" } }
-	ns:FindCommand("mail").run("forget zz main")
+	ns:FindCommand("forget").run("zz main")
 	check(ns.db.auctionsPosted["Player-1-AAA"] == nil and ns.db.mailAuctions["Player-1-AAA"] == nil and ns.db.auctionBids["Player-1-AAA"] == nil
-		and ns.db.auctionsSold["Player-1-AAA"] == nil, ".mail forget: every store of that character, its sales too (review, 0.57.7)")
+		and ns.db.auctionsSold["Player-1-AAA"] == nil, ".forget <name>: every store of that character, its sales too (review, 0.57.7)")
 	_G.C_AuctionHouse, _G.C_Item, MA.postHooked = AHwas, Itemwas, nil
 	_G.ERR_AUCTION_SOLD_S, _G.ERR_AUCTION_WON_S = nil, nil
 	MA.ResetChatForTests()

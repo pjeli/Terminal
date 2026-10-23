@@ -265,6 +265,9 @@ function D.Report()
 	return lines
 end
 
+-- what other files add: .debug talents (Talents.lua), .debug professions (Recipes.lua)
+D.PARTS = {}
+
 ns:RegisterCommand("debug", {
 	desc = L["Why 'Interface action failed because of an AddOn' happens (on | off | log | clear | reset)"],
 	aliases = { "taintdebug", "taint" },
@@ -275,6 +278,8 @@ ns:RegisterCommand("debug", {
 			{ "off", L["stop printing them"] },
 			{ "clear", L["forget what was recorded"] },
 			{ "reset", L["try again the calls the game blocked once"] },
+			{ "talents", L["what Terminal sees in the open talent window (for bug reports)"] },
+			{ "professions", L["what the open profession window reports (for bug reports)"] },
 		}
 	end,
 	run = function(args)
@@ -309,6 +314,9 @@ ns:RegisterCommand("debug", {
 			else
 				out = D.Report()
 			end
+		elseif D.PARTS[arg] then
+			-- (0.65.12: .talentdebug and .profdebug, as parts of .debug)
+			out = D.PARTS[arg]()
 		elseif arg == "" then
 			out = { L["Debug is %s  (taintLog %s)  -  .debug on | off | log | clear | reset"]:format(Live() and L["ON"] or L["off"], tostring(Cvar("taintLog"))),
 				L["Blocked actions this session: %d by Terminal, %d by other addons"]:format(D.count, D.others) }
@@ -316,7 +324,7 @@ ns:RegisterCommand("debug", {
 			if #calls > 0 then out[#out + 1] = L["Not tried again since the game blocked them: %s (.debug reset tries them again)"]:format(table.concat(calls, ", ")) end
 			for _, l in ipairs(D.Log(3)) do out[#out + 1] = l end
 		else
-			out = { L["Usage: .debug on | off | log | clear | reset"] }
+			out = { L["Usage: .debug on | off | log | clear | reset | talents | professions"] }
 		end
 		return out
 	end,

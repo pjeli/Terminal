@@ -1744,7 +1744,7 @@ do
 	check(st[129].unknown and #st[129].unknown == 1 and st[129].unknown[1].name == "Runecloth Bandage" and st[129].unknown[1].id == 44,
 		"the window's recipe you don't know is kept apart (0.45.14: recipes to learn)")
 
-	local dbg = table.concat(cmd("profdebug"), "\n")
+	local dbg = table.concat(ns.commands.debug.run("professions"), "\n") -- (0.65.12: was .profdebug)
 	check(dbg:find("GetAllRecipeIDs: 0   GetFilteredRecipeIDs: 5", 1, true) and dbg:find("First recipe: Linen Bandage", 1, true) and dbg:find("First Aid=4", 1, true),
 		"profdebug reports what the window offers: " .. dbg)
 	-- the window filtered ("Has skill up" ticked; only its filtered list answers): the saved index isn't cut down to it
@@ -2374,8 +2374,7 @@ do
 	shownTarget = nil
 	UI:Open("deflection"); key("ENTER"); FlushAll()
 	check(shownTarget == oBtn, "any visible talent window is searched")
-	local tdc = UI:WordSearch(UI:CommandEntries(), "talentdebug")[1]
-	local dbg = table.concat(tdc.activate(tdc, ""), "\n")
+	local dbg = table.concat(ns.commands.debug.run("talents"), "\n") -- (0.65.12: was .talentdebug)
 	check(dbg:find("Window: CamelotTalentFrame", 1, true) and dbg:find("Talent buttons visible: 1", 1, true), "talentdebug reports the window: " .. dbg)
 	UIParent.GetChildren = nil
 	ns.Highlight.Show = origShow
@@ -4508,8 +4507,13 @@ do
 	UI:Open("")
 	check(UI.histIdx == nil, "a new session starts at the newest")
 	UI:Hide()
-	check(table.concat(ns.commands.history.run(""), "\n"):find(".mem", 1, true), ".history lists the lines")
-	ns.commands.history.run("clear"); check(#ns.db.history == 0, ".history clear forgets them")
+	-- (0.65.12, the player: no .xp, .history, .durability, .mail, .combatlog, .lockouts: their lists are searched as
+	-- anything is; .talentdebug and .profdebug are parts of .debug)
+	for _, c in ipairs({ "xp", "history", "durability", "mail", "combatlog", "lockouts", "talentdebug", "profdebug" }) do
+		check(ns:FindCommand(c) == nil, "no ." .. c)
+	end
+	check(ns.Debug.PARTS.talents and ns.Debug.PARTS.professions and #ns.commands.debug.run("talents") > 1, ".debug talents, .debug professions")
+	ns.commands.forget.run("history"); check(#ns.db.history == 0, ".forget history forgets them")
 
 	-- the old aliases' list is gone (0.50.4: .alias is back as your own commands, tests/smoke/aliases.lua)
 	check(ns.providers.alias == nil and ns.commands.alias and ns.commands.alias.run, "no @alias list; .alias makes commands")
@@ -4613,8 +4617,8 @@ do
 	key("TAB"); key("TAB")
 	check(UI.edit:GetText() == ".set cursor ", "nothing shared: Tab moves down the rows")
 	-- commands without listed arguments behave as before
-	UI:Open(".history ")
-	check(UI.Results()[1].name == "history" and UI.Results()[2].name == "clear", ".history lists clear")
+	UI:Open(".forget ")
+	check(UI.Results()[1].name == "forget" and UI.Results()[2].name == "history", ".forget lists history")
 	UI:Open(".mem ")
 	check(UI.Results()[1].name == "mem" and #UI.Results() >= 1, "no list: the command row")
 	UI:Open(".debug ")

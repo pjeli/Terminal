@@ -68,8 +68,8 @@ do
 	local deaths = 0
 	for _, x in ipairs(log) do if x.what == "died" or x.what == "killed" then deaths = deaths + 1 end end
 	check(#log == CB.MAX and deaths == 2, "over the cap: crits go, deaths stay: " .. #log .. " " .. deaths)
-	ns:FindCommand("combatlog").run("clear")
-	check(#ns.db.combatLog == 0, ".combatlog clear")
+	ns:FindCommand("forget").run("combatlog")
+	check(#ns.db.combatLog == 0, ".forget combatlog")
 end
 _G.time, _G.GetRealZoneText = save.time, save.zone
 

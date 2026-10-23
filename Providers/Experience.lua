@@ -189,7 +189,7 @@ local function Who(name, realm)
 	-- (the realm without spaces or marks: the bag addons' "ArgentDawn" is Terminal's "Argent Dawn"; review, 0.51.25)
 	return (name:match("^(%S+)") or name), (ns.Lower(tostring(realm or "")):gsub("[%s%p]", ""))
 end
---- Alts forgotten with .xp forget, by Who's "name|realm": not listed again as unnoted while the bag addon still knows
+--- Alts forgotten with .forget <name>, by Who's "name|realm": not listed again as unnoted while the bag addon still knows
 --- them (review, 0.51.25: "Forgot" and there it was again); noted again once you log in on one.
 local function Forgotten()
 	local db = ns.db
@@ -268,45 +268,29 @@ ns:RegisterProvider("experience", {
 	collect = function() return X.Collect() end,
 })
 
-ns:RegisterCommand("xp", {
-	desc = L["Your characters' experience and rested experience; .xp forget <name> drops an alt"],
-	aliases = { "experience", "rested" },
-	complete = function()
-		local out = {}
-		for _, c in pairs(Chars() or {}) do
-			if type(c) == "table" and c.name then out[#out + 1] = { "forget " .. c.name, L["drop it from the list"] } end
+--- Forget an alt (not the character you're on): `.forget <name>` (0.65.12: .xp is gone, @experience lists them). Not
+--- listed again as unnoted while the bag addon still knows it. How many were dropped.
+function X.ForgetAlt(who)
+	local lw, chars, myKey, n = ns.Lower(who), Chars() or {}, MyKey(), 0
+	for key, c in pairs(chars) do
+		if key ~= myKey and type(c) == "table" and c.name and (ns.Lower(c.name) == lw
+			or ns.Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
+			chars[key] = nil
+			n = n + 1
+			local me = X.ReadMe()
+			local fn, fr = Who(c.name, c.realm or (me and me.realm)) -- (as Unnoted reads it)
+			Forgotten()[fn .. "|" .. fr] = true
 		end
-		return out
-	end,
-	run = function(args)
-		local a = strtrim(args or "")
-		local who = a:match("^[Ff]orget%s+(.+)$")
-		if who then
-			local lw, chars, myKey, n = ns.Lower(who), Chars() or {}, MyKey(), 0
-			for key, c in pairs(chars) do
-				if key ~= myKey and type(c) == "table" and c.name and (ns.Lower(c.name) == lw
-					or ns.Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
-					chars[key] = nil
-					n = n + 1
-					local me = X.ReadMe()
-					local fn, fr = Who(c.name, c.realm or (me and me.realm)) -- (as Unnoted reads it)
-					Forgotten()[fn .. "|" .. fr] = true
-				end
-			end
-			ns:Changed("experience")
-			return { n > 0 and L["Forgot %s."]:format(who) or L["No alt called %s (you can't forget the character you're on)."]:format(who) }
-		end
-		X.Collect()
-		local lines = Lines()
-		local anyAlt = false
-		for _, e in ipairs(list or {}) do if not e.mine then anyAlt = true end end
-		if not anyAlt then
-			lines[#lines + 1] = "  " .. L["(Alts show up here once you've logged in on them with Terminal.)"]
-		end
-		table.insert(lines, 1, L["Experience:"])
-		return lines
-	end,
-})
+	end
+	if n > 0 then ns:Changed("experience") end
+	return n
+end
+--- The alts kept (.forget's choices).
+function X.AltNames()
+	local out, myKey = {}, MyKey()
+	for key, c in pairs(Chars() or {}) do if key ~= myKey and type(c) == "table" and c.name then out[#out + 1] = c.name end end
+	return out
+end
 
 -- the note on each change, and at logout (the time and whether you're resting: the estimate starts there)
 local ev = CreateFrame("Frame")

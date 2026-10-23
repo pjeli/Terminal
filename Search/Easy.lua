@@ -940,7 +940,7 @@ function E.HelpLines()
 		L["Copy what you found, to paste outside the game: add \"to csv\" or \"to text\" (\"linen to csv\"). Every result opens in a box; Ctrl+C copies it and closes the box."],
 		L["Ctrl+Enter does it and keeps the terminal open (for things that don't open a window)."],
 		L["F1 (or .keybinds) shows every key, for each mode; Esc there brings you back."],
-		L["Commands start with a dot: .options, .theme, .xp, .zen, .changelog... (type a dot to see them all)."],
+		L["Commands start with a dot: .options, .theme, .weights, .zen, .changelog... (type a dot to see them all)."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
 		L["The bar under the prompt narrows, sorts and groups what's found: Filter, Sort and Group (Alt+F, Alt+S, Alt+G open them, Up/Down and Enter pick); the speaker button sends or copies every result."],

@@ -515,41 +515,41 @@ ns:RegisterProvider("talents", {
 })
 
 -- .talentdebug : what Terminal sees of the open talent window, for bug reports.
-ns:RegisterCommand("talentdebug", {
-	desc = L["Show what Terminal sees in the open talent window (for bug reports)"],
-	run = function()
-		local lines = { "Talent debug (open the talent window first):" }
-		local configID, treeID, tabs = ReadTree()
-		local names = {}
-		for _, n in pairs(tabs or {}) do names[#names + 1] = n end
-		lines[#lines + 1] = ("  Tree: config %s, tree %s, tabs: %s"):format(tostring(configID), tostring(treeID),
-			#names > 0 and table.concat(names, ", ") or "none")
-		local root, rootName = TL.Window()
-		lines[#lines + 1] = "  Window: " .. (rootName or "none open")
-		if root then
-			local nodes, tabButtons, labels = 0, {}, {}
-			local function walk(f, depth)
-				if depth > 14 or not Usable(f) then return end
-				if AnyNode(f) then nodes = nodes + 1 end
-				for _, n in ipairs(names) do
-					if f.Click and TabText(f, n) then tabButtons[#tabButtons + 1] = n end
+-- (.debug talents, for bug reports; 0.65.12: it was .talentdebug)
+if ns.Debug and ns.Debug.PARTS then
+	ns.Debug.PARTS["talents"] = function()
+			local lines = { "Talent debug (open the talent window first):" }
+			local configID, treeID, tabs = ReadTree()
+			local names = {}
+			for _, n in pairs(tabs or {}) do names[#names + 1] = n end
+			lines[#lines + 1] = ("  Tree: config %s, tree %s, tabs: %s"):format(tostring(configID), tostring(treeID),
+				#names > 0 and table.concat(names, ", ") or "none")
+			local root, rootName = TL.Window()
+			lines[#lines + 1] = "  Window: " .. (rootName or "none open")
+			if root then
+				local nodes, tabButtons, labels = 0, {}, {}
+				local function walk(f, depth)
+					if depth > 14 or not Usable(f) then return end
+					if AnyNode(f) then nodes = nodes + 1 end
+					for _, n in ipairs(names) do
+						if f.Click and TabText(f, n) then tabButtons[#tabButtons + 1] = n end
+					end
+					if f.Click and f.GetText and #labels < 10 then
+						local ok, t = pcall(f.GetText, f)
+						if ok and type(t) == "string" and t ~= "" then labels[#labels + 1] = Plain(t) end
+					end
+					for _, child in ipairs({ f:GetChildren() }) do walk(child, depth + 1) end
 				end
-				if f.Click and f.GetText and #labels < 10 then
-					local ok, t = pcall(f.GetText, f)
-					if ok and type(t) == "string" and t ~= "" then labels[#labels + 1] = Plain(t) end
+				walk(root, 0)
+				lines[#lines + 1] = ("  Talent buttons visible: %d   Tree tabs found: %s"):format(nodes,
+					#tabButtons > 0 and table.concat(tabButtons, ", ") or "none")
+				local numbered = {}
+				for i = 1, 4 do
+					if _G[rootName .. "Tab" .. i] then numbered[#numbered + 1] = rootName .. "Tab" .. i end
 				end
-				for _, child in ipairs({ f:GetChildren() }) do walk(child, depth + 1) end
+				lines[#lines + 1] = "  Numbered tabs: " .. (#numbered > 0 and table.concat(numbered, ", ") or "none")
+				lines[#lines + 1] = "  Button labels: " .. (#labels > 0 and table.concat(labels, " | ") or "none")
 			end
-			walk(root, 0)
-			lines[#lines + 1] = ("  Talent buttons visible: %d   Tree tabs found: %s"):format(nodes,
-				#tabButtons > 0 and table.concat(tabButtons, ", ") or "none")
-			local numbered = {}
-			for i = 1, 4 do
-				if _G[rootName .. "Tab" .. i] then numbered[#numbered + 1] = rootName .. "Tab" .. i end
-			end
-			lines[#lines + 1] = "  Numbered tabs: " .. (#numbered > 0 and table.concat(numbered, ", ") or "none")
-			lines[#lines + 1] = "  Button labels: " .. (#labels > 0 and table.concat(labels, " | ") or "none")
-		end
-		return lines
-	end,
-})
+			return lines
+	end
+end

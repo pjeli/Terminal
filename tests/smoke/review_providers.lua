@@ -14,13 +14,6 @@ do -- a macro starting with #show (any case): its first command is the detail
 	check(hearth and tostring(hearth.detail):find("/use Hearthstone", 1, true) and not tostring(hearth.detail):find("#Show", 1, true),
 		"#Show: the macro's first command is said, not the directive: " .. tostring(hearth and hearth.detail))
 end
-do -- .history: a "|" typed ("linen|wool") said as "||" in chat
-	local h = ns.db.history
-	ns.db.history = { "linen|wool" }
-	local out = ns:FindCommand("history").run("")
-	ns.db.history = h
-	check(out[2] and out[2]:find("linen||wool", 1, true), ".history escapes |: " .. tostring(out[2]))
-end
 do -- Quick Keybind Mode's row points at the button by the button's own text
 	local a, b = _G.SETTINGS_QUICK_KEYBIND_BUTTON, _G.QUICK_KEYBIND_MODE
 	_G.SETTINGS_QUICK_KEYBIND_BUTTON, _G.QUICK_KEYBIND_MODE = "Quick Keybind", "Quick Keybind Mode"

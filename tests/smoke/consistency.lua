@@ -164,15 +164,10 @@ do
 	UI.showRecent = nil
 	UI:Hide(); FlushAll()
 	ns.db.recent, ns.db.freq = saved.recent, saved.freq
-	for _, name in ipairs({ "combatlog", "xp" }) do
+	for _, name in ipairs({ "forget", "weights" }) do
 		local c = ns.commands[name]
 		check(c and not c.desc:find("@", 1, true), "." .. name .. "'s description has no @kind: " .. tostring(c and c.desc))
 	end
-	local out = table.concat(ns:FindCommand("combatlog").run("") or {}, " ")
-	check(not out:find("@", 1, true), "Simple: .combatlog says how to search it in words: " .. out)
-	ns.db.easyMode = false; UI:EasyChanged()
-	out = table.concat(ns:FindCommand("combatlog").run("") or {}, " ")
-	check(out:find("@combatlog", 1, true), "Advanced: .combatlog says @combatlog: " .. out)
 	ns.db.easyMode = was; UI:EasyChanged()
 end
 

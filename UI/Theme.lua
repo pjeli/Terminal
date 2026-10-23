@@ -43,6 +43,7 @@ T.DEFAULTS = {
 	blinkRate = 0.8, -- blinks per second
 	zenDim = 0.55, -- .zen: how dark the screen behind the terminal gets (0.51.1, the player's ask)
 	autoScan = true, -- index professions quietly after login
+	mailWarn = true, -- say at login when mail with something in it runs out soon (Mail.lua)
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
 	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on, 0.56.14)
@@ -89,7 +90,7 @@ T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
-	"slashKey", "fzfGlow", "fzfColor" }
+	"slashKey", "fzfGlow", "fzfColor", "mailWarn" }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
 T.FZF_GLOW_LABELS = { breathe = L["Breathing"], steady = L["Steady"], bright = L["Bright"], line = L["Thin line"], off = L["Off"] }
@@ -167,6 +168,7 @@ T.FIELDS = {
 	blinkRate = { kind = "number", label = L["Blink speed"], min = 0.2, max = 3, step = 0.1 },
 	zenDim = { kind = "number", label = L["Zen dimming"], min = 0, max = 0.9, step = 0.05 },
 	autoScan = { kind = "bool", label = L["Index professions at login"] },
+	mailWarn = { kind = "bool", label = L["Warn at login: mail about to expire"] },
 	fzfGlow = { kind = "choice", label = L["Fuzzy mode glow"], choices = T.FZF_GLOW_ORDER },
 	fzfColor = { kind = "color", label = L["Fuzzy glow"], optional = true }, -- (accent/default: the selection colour)
 }

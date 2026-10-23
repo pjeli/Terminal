@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.65.11 (in testing)
+## 0.65.12 (in testing)
+
+**Fewer commands** (the player: "there is no need for .xp, .history, .durability, .mail, .combatlog, .lockouts")
+- Those are gone: their lists are searched like anything else (**xp**, **history** or Ctrl+R, **durability**, **mail**, **what killed me**, **lockouts**).
+- What they did besides: **.forget <alt>** drops an alt's mail, experience and lockouts at once; **.forget history** and **.forget combatlog** clear those; **.set mailWarn off** stops the login warning about expiring mail. **.forget** alone still clears your usage ranking.
+- **.talentdebug** and **.profdebug** are now **.debug talents** and **.debug professions**.
+
+## 0.65.11
 
 **Upgrade weights by talent tree** (the player: "our own single role profile, split by talent tree, good enough for 1-60")
 - **.weights** picks a tree: **.weights arms**, **fury**, **prot**, **holy**, **resto**, **shadow**, **bear**... ("tank" and "healer" still work). None picked: your class's levelling tree.

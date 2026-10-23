@@ -125,9 +125,8 @@ do
 	local before = asked
 	LK.askedAt = nil
 	check(LK.Ask(60) and not LK.Ask(60) and asked == before + 1, "asked at most once a minute from the list")
-	check(ns:FindCommand("lockouts").run("")[1] == ns.L["Lockouts:"], ".lockouts lists them")
-	check(ns:FindCommand("lockouts").run("forget alt pally")[1]:find("Forgot", 1, true) and not ns.db.lockouts["Player-1-BBB"],
-		".lockouts forget <alt>")
+	check(ns:FindCommand("forget").run("alt pally")[1]:find("Forgot", 1, true) and not ns.db.lockouts["Player-1-BBB"],
+		".forget <alt>: its lockouts")
 
 	-- (0.49.2, review) your world boss has no link: its tooltip says Shift+Enter puts it in words
 	do

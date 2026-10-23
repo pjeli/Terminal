@@ -467,14 +467,3 @@ function DU.ToAdvanced(q)
 	return table.concat(parts, " ") .. " "
 end
 
-ns:RegisterCommand("durability", {
-	desc = L["Your gear's durability and what repairing it costs"],
-	aliases = { "dura", "repaircost" },
-	run = function()
-		DU.Collect()
-		local lines = DU.Lines()
-		if #lines == 0 then return { L["Nothing wears down"] } end
-		table.insert(lines, 1, L["Durability:"])
-		return lines
-	end,
-})

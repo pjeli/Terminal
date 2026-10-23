@@ -2,7 +2,7 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- The lines you ran from the prompt. Up arrow on an empty prompt walks back through them
--- (UI:Up / UI:Down); .history lists them and .history clear forgets them. (0.63.6, the player: "like a real shell")
+-- (UI:Up / UI:Down); "history" (or Ctrl+R) lists them and .forget history forgets them. (0.63.6, the player: "like a real shell")
 -- Ctrl+R searches them (UI/Modes.lua's history search), @history lists them, and "history" asks for them in plain
 -- words; each says when it last ran (db.historyAt).
 
@@ -44,24 +44,13 @@ end
 --- Find a terminal command by name or alias (in registration order, so a shared alias always
 --- finds the same one).
 
-ns:RegisterCommand("history", {
-	desc = L["What you ran from the prompt (Up arrow on an empty prompt walks back through it); .history clear"],
-	complete = function() return { { "clear", L["forget the history"] } } end,
-	run = function(args)
-		local h = ns.db and ns.db.history or {}
-		if strtrim(args or ""):lower() == "clear" then
-			for i = #h, 1, -1 do h[i] = nil end
-			if ns.db then ns.db.historyAt = {} end
-			ns:Changed("history")
-			return { L["History cleared."] }
-		end
-		if #h == 0 then return { L["Nothing in the history yet."] } end
-		local lines = { L["%s earlier line(s), newest first:"]:format(#h) }
-		-- (a "|" as typed, "linen|wool": "||" in chat, else it starts an escape; review, 0.53.6)
-		for i, l in ipairs(h) do lines[#lines + 1] = ("  %2d  %s"):format(i, (tostring(l):gsub("|", "||"))) end
-		return lines
-	end,
-})
+--- Forget what you ran: `.forget history` (0.65.12: .history is gone; "history" and Ctrl+R list it).
+function ns.ClearHistory()
+	local h = ns.db and ns.db.history or {}
+	for k = #h, 1, -1 do h[k] = nil end
+	if ns.db then ns.db.historyAt = {} end
+	ns:Changed("history")
+end
 
 ----------------------------------------------------------------------
 -- @history, and "history" in plain words (0.63.6)

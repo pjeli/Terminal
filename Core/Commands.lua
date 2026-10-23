@@ -51,7 +51,7 @@ ns:RegisterCommand("help", {
 		lines[#lines + 1] = L["Bags from quests: quests that reward bags (bag quests, quivers from quests): the ones you can still take, the most slots first; Advanced: @questie reward:bag"]
 		lines[#lines + 1] = L["Upgrades: @loot is:upgrade sort:best (what you can get that beats what you wear, the biggest first; the tooltip says why); @questie is:upgrade sort:best: quests whose reward is one"]
 		lines[#lines + 1] = L["F5: a list that changed while you looked at it (your bags, item data coming in) stays put, the footer saying so; F5 shows the new one"]
-		lines[#lines + 1] = L["Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open (a window it opens still closes it), Up on an empty prompt = earlier lines (.history), Down = your recent picks, Tab completes (with nothing to complete: the next result), Shift+Left goes back a step; F1 (or .keybinds) shows every key, for each mode"]
+		lines[#lines + 1] = L["Keys: Enter does the row's action and Shift+Enter its other one (the footer says which), Ctrl+Enter act but keep the terminal open (a window it opens still closes it), Up on an empty prompt = earlier lines (Ctrl+R searches them), Down = your recent picks, Tab completes (with nothing to complete: the next result), Shift+Left goes back a step; F1 (or .keybinds) shows every key, for each mode"]
 		return Hinted(lines)
 	end,
 })
@@ -123,15 +123,50 @@ ns:RegisterCommand("bind", {
 	end,
 })
 
+-- (0.65.12, the player: .xp, .history, .durability, .mail, .combatlog and .lockouts went, their lists searched as
+-- anything is; what they kept besides is here: an alt dropped everywhere, the history and the combat log forgotten)
+local function AltNames()
+	local seen, out = {}, {}
+	for _, m in ipairs({ ns.Mail, ns.Experience, ns.Lockouts }) do
+		for _, n in ipairs(m and m.AltNames and m.AltNames() or {}) do
+			if not seen[ns.Lower(n)] then seen[ns.Lower(n)] = true; out[#out + 1] = n end
+		end
+	end
+	table.sort(out)
+	return out
+end
 ns:RegisterCommand("forget", {
-	desc = L["Clear learned usage ranking"],
+	desc = L["Forget what Terminal learned: .forget (your usage ranking), .forget history, .forget combatlog, .forget <alt> (its mail, experience and lockouts)"],
 	aliases = { "reset" },
-	run = function()
-		wipe(ns.db.freq)
-		if ns.db.recent then wipe(ns.db.recent) end -- (the recent picks shown on an empty prompt are learned usage too)
-		ns.db.catPicks = nil -- (and the categories picked for words in Simple mode)
-		ns.freqKinds = nil
-		return { L["Usage history cleared."] }
+	complete = function()
+		local out = { { "history", L["what you ran from the prompt"] }, { "combatlog", L["what crit you and what killed you"] } }
+		for _, n in ipairs(AltNames()) do out[#out + 1] = { n, L["drop this alt: its mail, experience and lockouts"] } end
+		return out
+	end,
+	run = function(args)
+		local a = strtrim(args or "")
+		local la = ns.Lower(a)
+		if la == "" then
+			wipe(ns.db.freq)
+			if ns.db.recent then wipe(ns.db.recent) end -- (the recent picks shown on an empty prompt are learned usage too)
+			ns.db.catPicks = nil -- (and the categories picked for words in Simple mode)
+			ns.freqKinds = nil
+			return { L["Usage history cleared."] }
+		end
+		if la == "history" then
+			if ns.ClearHistory then ns.ClearHistory() end
+			return { L["History cleared."] }
+		end
+		if la == "combatlog" or la == "combat log" then
+			if ns.CombatLog and ns.CombatLog.Clear then ns.CombatLog.Clear() end
+			return { L["Combat log cleared."] }
+		end
+		-- an alt: everywhere Terminal keeps it (never the character you're on)
+		local n = 0
+		for _, m in ipairs({ ns.Mail, ns.Experience, ns.Lockouts }) do
+			if m and m.ForgetAlt then n = n + (m.ForgetAlt(a) or 0) end
+		end
+		return { n > 0 and L["Forgot %s."]:format(a) or L["No alt called %s (you can't forget the character you're on)."]:format(a) }
 	end,
 })
 
