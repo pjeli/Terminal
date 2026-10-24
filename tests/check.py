@@ -5,8 +5,10 @@ import _env
 _env.enter()
 from lupa import lua51 as L
 rt = L.LuaRuntime(unpack_returned_tuples=True)
+def lua_files(): # (with "/" on Windows too: the checks below split and match on it)
+    return [f.replace("\\", "/") for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True))]
 ok = True
-for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
+for f in lua_files():
     if "/tests/" in f:
         continue
     src = open(f, encoding="utf-8").read()
@@ -20,8 +22,8 @@ except ImportError:
     G = None
 if ok and G:
     # (every file parsed once, side by side, and only those changed since the last run: globals.py's cache)
-    G.analyze_all([f for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)) if "/tests/" not in f])
-    for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
+    G.analyze_all([f for f in lua_files() if "/tests/" not in f])
+    for f in lua_files():
         if "/tests/" in f:
             continue
         for p in G.problems(f):
@@ -30,7 +32,7 @@ if ok and G:
         for w in G.warnings(f): # (a likely typo: said, not failed)
             print("WARN", w)
 if ok and G:
-    files = [f for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)) if "/tests/" not in f]
+    files = [f for f in lua_files() if "/tests/" not in f]
     for p in G.split_reads(files):
         print("FAIL", p)
         ok = False
@@ -65,7 +67,7 @@ for f in tracked:
 # Core marks its own; the terminal its refreshOnOpen and loaded lists; Questie's NPC index, freed once built, its own.
 import re
 DIRTY_OK = ("Core/Core.lua", "UI/UI.lua", "UI/Prompt.lua", "Providers/Integrations/Questie.lua")
-for f in sorted(glob.glob("Terminal/**/*.lua", recursive=True)):
+for f in lua_files():
     rel = f.split("Terminal/", 1)[1]
     if "/tests/" in f or rel.startswith("tests/") or rel in DIRTY_OK:
         continue
