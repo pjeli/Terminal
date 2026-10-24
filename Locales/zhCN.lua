@@ -1473,7 +1473,6 @@ L["Thank you to %s, and %s for supporting and believing in me to continue workin
 L["Thank you to the people who kept Terminal going"] = "感谢让Terminal得以继续的人们"
 L["That step is off to the side of Attune's chart: drag the chart sideways to see it."] = "该步骤在Attune图表的边缘之外：横向拖动图表即可看到。"
 L["That's it"] = "就这些"
-L["The Hidden Reach (needs the Crescent Key)"] = "隐秘区域（需要月牙钥匙）"
 L["The Rises, Thunder Bluff"] = "高地，雷霆崖"
 L["The Undercity Underground"] = "幽暗城地下电台"
 L["The auction house's news, on its way by mail"] = "拍卖行的消息，正通过邮件送来"

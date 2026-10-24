@@ -275,6 +275,7 @@ do
 					[2159] = { "Onyxia's Lair", nil, 15, { { 15, 52.6, 76.8 } } },
 					[3277] = { "Warsong Gulch", nil, 17, { { 17, 46.5, 8.6 } } },
 					[3562] = { "Hellfire Ramparts", nil, 3483, { { 3483, 47.7, 53.6 } } }, -- (no such zone here)
+					[16919] = { "The Hall of Thanes", nil, 1537, { { 1537, 27.63, 47.83 } } }, -- (WoW Forever's own)
 				},
 			} }
 		end },
@@ -614,9 +615,9 @@ do
 		local function N(q) local t = {} for _, e in ipairs(UI:Search(q)) do t[#t + 1] = tostring(e.name) end return table.concat(t, ",") end
 		ns.providers.dungeon._dirty, ns.providers.raid._dirty = true, true
 		local dn, rd = N("@dungeon"), N("@raid")
-		-- WoW Forever's own entrances (Leatrix Maps' data): its new dungeons, no other expansion's
-		check(dn:find("Razorfen Kraul", 1, true) and dn:find("The Drowned City", 1, true) and dn:find("The Hall of Thanes", 1, true)
-			and not dn:find("Utgarde", 1, true) and not dn:find("Hellfire", 1, true) and not dn:find("Alterac Valley", 1, true)
+		-- WoW Forever's instances (I.INSTANCES): its new dungeons, no other expansion's even when QuestieDB lists them
+		check(dn:find("Razorfen Kraul", 1, true) and dn:find("The Hall of Thanes", 1, true)
+			and not dn:find("Utgarde", 1, true) and not dn:find("Hellfire", 1, true) and not dn:find("Warsong", 1, true)
 			and not dn:find("Onyxia", 1, true), "@dungeon: WoW Forever's dungeons only, its own included: " .. dn)
 		check(rd:find("Onyxia's Lair", 1, true) and rd:find("Molten Core", 1, true) and rd:find("Temple of Ahn'Qiraj", 1, true)
 			and not rd:find("Karazhan", 1, true) and not rd:find("Razorfen", 1, true), "@raid: the raids, one per instance behind a shared door: " .. rd)
@@ -641,13 +642,49 @@ do
 			At(1428, 29.4, 38.3) -- (Burning Steppes')
 			n, ui = Door("Blackwing Lair")
 			check(n == 1 and ui == 1428, ("Blackwing Lair once, at Burning Steppes' door from there: %d, %s"):format(n, tostring(ui)))
-			local dm = 0
-			for _, e in ipairs(I.EntranceRows(false)) do if e.name == "Dire Maul (East)" then dm = dm + 1 end end
-			check(dm == 2, "a door with a note of its own (Dire Maul's Hidden Reach) still its own row: " .. dm)
+			local wings = {}
+			for _, e in ipairs(I.EntranceRows(false)) do if e.name:find("^Dire Maul") then wings[#wings + 1] = e.name end end
+			check(#wings == 3, "Dire Maul's three wings, a row each: " .. table.concat(wings, ","))
 			I.Here = hereWas
 			check(ns.providers.raid.events and ns.providers.raid.events[1] == "ZONE_CHANGED_NEW_AREA", "@raid made again as you change zones")
 		end
 		check(UI:Search("@dungeon deadmines")[1].detail:find("Lv 17%-26"), "the level range shown: " .. UI:Search("@dungeon deadmines")[1].detail)
+		-- (0.67.1) where each part comes from: the doors from QuestieDB, else the game's spot beside the entrance; the levels
+		-- from the game's Group Finder, else as this build carried them
+		do
+			local I = ns.Integrations
+			local function Row(name)
+				for _, raids in ipairs({ false, true }) do
+					for _, e in ipairs(I.EntranceRows(raids)) do if e.name == name then return e end end
+				end
+			end
+			local th = Row("The Hall of Thanes")
+			check(th and th.ui == 1455 and th.px == 27.63 and th.py == 47.83, "a door QuestieDB has: its spot ("
+				.. tostring(th and th.ui) .. " " .. tostring(th and th.px) .. ")")
+			local wc = Row("Wailing Caverns")
+			check(wc and wc.ui == 1413 and wc.px == I.RUNBACK[43][2], "none in QuestieDB: the game's spot beside the entrance ("
+				.. tostring(wc and wc.px) .. ")")
+			check(Row("City of Dalaran") == nil, "no door known (not in QuestieDB, no spot from the game): no row")
+			local named
+			for _, d in ipairs(I.ENTRANCES) do if d[1] == "City of Dalaran" then named = d end end
+			check(named and named[2] == nil and named[6] == 28 and named[7] == 35, "... but its name and levels are known")
+			check(I._.NamesInstance("dalaran"), "\"dalaran\" still names an instance")
+			for _, inst in ipairs(I.INSTANCES) do
+				for _, id in ipairs(inst[4]) do
+					if not I.ACTIVITY_LEVELS[id] then check(false, "levels for Group Finder activity " .. id .. " (" .. inst[2] .. ")") end
+				end
+			end
+			local lfgWas = _G.C_LFGList
+			_G.C_LFGList = { GetActivityInfoTable = function(id)
+				if id == 799 then return { fullName = "Deadmines", minLevel = 18, maxLevelSuggestion = 27 } end
+				if id == 805 then return { minLevel = 0, maxLevelSuggestion = 0 } end -- (says nothing: the build's numbers)
+			end }
+			check(Row("The Deadmines").detail:find("Lv 18%-27"), "the game's Group Finder says the levels: " .. Row("The Deadmines").detail)
+			check(Row("Scarlet Monastery").detail:find("Lv 30%-46"), "its wings' levels together, the build's where the game says none: "
+				.. Row("Scarlet Monastery").detail)
+			_G.C_LFGList = lfgWas
+			check(Row("The Deadmines").detail:find("Lv 17%-26"), "without it, the build's: " .. Row("The Deadmines").detail)
+		end
 		check(N("rfk"):find("Razorfen Kraul", 1, true), "a plain search finds an entrance by its shorthand: " .. N("rfk"))
 		local rfk = UI:Search("@dungeon rfk")[1]
 		check(rfk and rfk.ui == 1413 and rfk.px == 42.9, "its entrance's map spot")

@@ -27,78 +27,81 @@ local FL = {}
 I.Flights = FL
 
 -- The flight points on WoW Forever's maps: { place, the zone in the game's name for it (false: none, "Moonglade"),
--- uiMap, x %, y %, side: "A" Alliance, "H" Horde, "N" both }. From Leatrix Maps' flight point icons
--- (Leatrix_Maps_Icons.lua, its WoW Forever data; private to it, so copied), whose names are the game's own ("Ratchet,
--- The Barrens"). A point both factions have (Booty Bay, Gadgetzan...) is two flight masters a few steps apart.
+-- uiMap, x %, y %, side: "A" Alliance, "H" Horde, "N" both }. Made from the game's own data (its TaxiNodes table: the
+-- flight masters, their names, where they stand and who flies from them; docs/DATA_SOURCES.md), never edited by hand:
+-- `python tests/gen_data.py flights` writes it again. A point both factions have (Booty Bay, Gadgetzan...) is two flight
+-- masters a few steps apart.
+-- generated: tests/gen_data.py flights (do not edit by hand)
 FL.POINTS = {
 	-- Eastern Kingdoms
-	{ "Refuge Pointe", "Arathi", 1417, 45.8, 46.1, "A" },
-	{ "Hammerfall", "Arathi", 1417, 73.1, 32.6, "H" },
-	{ "Kargath", "Badlands", 1418, 4.1, 44.9, "H" },
-	{ "Nethergarde Keep", "Blasted Lands", 1419, 65.5, 24.4, "A" },
-	{ "The Sepulcher", "Silverpine Forest", 1421, 45.6, 42.4, "H" },
-	{ "Chillwind Camp", "Western Plaguelands", 1422, 42.9, 85.0, "A" },
-	{ "Light's Hope Chapel", "Eastern Plaguelands", 1423, 71.7, 49.6, "A" },
-	{ "Light's Hope Chapel", "Eastern Plaguelands", 1423, 70.4, 47.6, "H" },
-	{ "Southshore", "Hillsbrad", 1424, 49.4, 52.1, "A" },
-	{ "Tarren Mill", "Hillsbrad", 1424, 60.2, 18.8, "H" },
-	{ "Aerie Peak", "The Hinterlands", 1425, 11.1, 46.1, "A" },
-	{ "Revantusk Village", "The Hinterlands", 1425, 81.7, 81.9, "H" },
-	{ "Thorium Point", "Searing Gorge", 1427, 37.9, 30.4, "A" },
-	{ "Thorium Point", "Searing Gorge", 1427, 34.8, 30.6, "H" },
-	{ "Morgan's Vigil", "Burning Steppes", 1428, 84.4, 68.3, "A" },
-	{ "Flame Crest", "Burning Steppes", 1428, 65.6, 24.2, "H" },
-	{ "Darkshire", "Duskwood", 1431, 77.6, 44.4, "A" },
-	{ "Thelsamar", "Loch Modan", 1432, 33.9, 50.8, "A" },
-	{ "Lakeshire", "Redridge", 1433, 25.3, 59.0, "A" },
-	{ "Booty Bay", "Stranglethorn", 1434, 27.5, 77.7, "A" },
-	{ "Booty Bay", "Stranglethorn", 1434, 26.8, 77.0, "H" },
-	{ "Grom'gol", "Stranglethorn", 1434, 32.5, 29.3, "H" },
-	{ "Stonard", "Swamp of Sorrows", 1435, 46.1, 54.7, "H" },
-	{ "Sentinel Hill", "Westfall", 1436, 56.6, 52.7, "A" },
-	{ "Menethil Harbor", "Wetlands", 1437, 9.5, 59.7, "A" },
-	{ "Stormwind", "Elwynn", 1453, 71.6, 72.3, "A" },
-	{ "Ironforge", "Dun Morogh", 1455, 55.9, 47.9, "A" },
-	{ "Undercity", "Tirisfal", 1458, 63.1, 48.3, "H" },
-	{ "Farholde Keep", "Riverglades", 2548, 60.6, 81.6, "A" },
-	{ "Rog'mar", "Riverglades", 2548, 59.6, 45.1, "H" },
+	{ "Aerie Peak", "The Hinterlands", 1425, 11.1, 46.1, "A" }, -- TaxiNodes 43
+	{ "Booty Bay", "Stranglethorn", 1434, 27.5, 77.7, "A" }, -- TaxiNodes 19
+	{ "Booty Bay", "Stranglethorn", 1434, 26.8, 77.0, "H" }, -- TaxiNodes 18
+	{ "Chillwind Camp", "Western Plaguelands", 1422, 42.9, 85.0, "A" }, -- TaxiNodes 66
+	{ "Darkshire", "Duskwood", 1431, 77.6, 44.4, "A" }, -- TaxiNodes 12
+	{ "Farholde Keep", "Riverglades", 2548, 60.6, 81.6, "A" }, -- TaxiNodes 3276
+	{ "Flame Crest", "Burning Steppes", 1428, 65.6, 24.2, "H" }, -- TaxiNodes 70
+	{ "Grom'gol", "Stranglethorn", 1434, 32.5, 29.3, "H" }, -- TaxiNodes 20
+	{ "Hammerfall", "Arathi", 1417, 73.1, 32.6, "H" }, -- TaxiNodes 17
+	{ "Ironforge", "Dun Morogh", 1455, 55.9, 47.9, "A" }, -- TaxiNodes 6
+	{ "Kargath", "Badlands", 1418, 4.1, 44.9, "H" }, -- TaxiNodes 21
+	{ "Lakeshire", "Redridge", 1433, 25.3, 59.0, "A" }, -- TaxiNodes 5
+	{ "Light's Hope Chapel", "Eastern Plaguelands", 1423, 71.7, 49.6, "A" }, -- TaxiNodes 67
+	{ "Light's Hope Chapel", "Eastern Plaguelands", 1423, 70.4, 47.6, "H" }, -- TaxiNodes 68
+	{ "Menethil Harbor", "Wetlands", 1437, 9.5, 59.7, "A" }, -- TaxiNodes 7
+	{ "Morgan's Vigil", "Burning Steppes", 1428, 84.4, 68.3, "A" }, -- TaxiNodes 71
+	{ "Nethergarde Keep", "Blasted Lands", 1419, 65.5, 24.4, "A" }, -- TaxiNodes 45
+	{ "Refuge Pointe", "Arathi", 1417, 45.8, 46.1, "A" }, -- TaxiNodes 16
+	{ "Revantusk Village", "The Hinterlands", 1425, 81.7, 81.9, "H" }, -- TaxiNodes 76
+	{ "Rog'mar", "Riverglades", 2548, 59.6, 45.1, "H" }, -- TaxiNodes 3203
+	{ "Sentinel Hill", "Westfall", 1436, 56.6, 52.7, "A" }, -- TaxiNodes 4
+	{ "Southshore", "Hillsbrad", 1424, 49.4, 52.1, "A" }, -- TaxiNodes 14
+	{ "Stonard", "Swamp of Sorrows", 1435, 46.1, 54.7, "H" }, -- TaxiNodes 56
+	{ "Stormwind", "Elwynn", 1453, 71.6, 72.3, "A" }, -- TaxiNodes 2
+	{ "Tarren Mill", "Hillsbrad", 1424, 60.2, 18.8, "H" }, -- TaxiNodes 13
+	{ "The Sepulcher", "Silverpine Forest", 1421, 45.6, 42.4, "H" }, -- TaxiNodes 10
+	{ "Thelsamar", "Loch Modan", 1432, 33.9, 50.8, "A" }, -- TaxiNodes 8
+	{ "Thorium Point", "Searing Gorge", 1427, 37.9, 30.4, "A" }, -- TaxiNodes 74
+	{ "Thorium Point", "Searing Gorge", 1427, 34.8, 30.6, "H" }, -- TaxiNodes 75
+	{ "Undercity", "Tirisfal", 1458, 63.1, 48.3, "H" }, -- TaxiNodes 11
 	-- Kalimdor
-	{ "Camp Taurajo", "The Barrens", 1413, 44.5, 59.1, "H" },
-	{ "Crossroads", "The Barrens", 1413, 51.5, 30.4, "H" },
-	{ "Ratchet", "The Barrens", 1413, 63.1, 37.1, "N" },
-	{ "Rut'theran Village", "Teldrassil", 1438, 58.4, 93.9, "A" },
-	{ "Auberdine", "Darkshore", 1439, 36.4, 45.6, "A" },
-	{ "Astranaar", "Ashenvale", 1440, 34.5, 48.0, "A" },
-	{ "Splintertree Post", "Ashenvale", 1440, 73.3, 61.7, "H" },
-	{ "Zoram'gar Outpost", "Ashenvale", 1440, 12.2, 33.8, "H" },
-	{ "Freewind Post", "Thousand Needles", 1441, 45.0, 49.1, "H" },
-	{ "Stonetalon Peak", "Stonetalon Mountains", 1442, 36.5, 7.2, "A" },
-	{ "Sun Rock Retreat", "Stonetalon Mountains", 1442, 45.2, 59.9, "H" },
-	{ "Nijel's Point", "Desolace", 1443, 64.7, 10.4, "A" },
-	{ "Shadowprey Village", "Desolace", 1443, 21.6, 74.0, "H" },
-	{ "Feathermoon", "Feralas", 1444, 30.3, 43.3, "A" },
-	{ "Thalanaar", "Feralas", 1444, 89.5, 45.9, "A" },
-	{ "Camp Mojache", "Feralas", 1444, 75.4, 44.3, "H" },
-	{ "Theramore", "Dustwallow Marsh", 1445, 67.5, 51.2, "A" },
-	{ "Brackenwall Village", "Dustwallow Marsh", 1445, 35.6, 31.8, "H" },
-	{ "Gadgetzan", "Tanaris", 1446, 51.0, 29.3, "A" },
-	{ "Gadgetzan", "Tanaris", 1446, 51.6, 25.5, "H" },
-	{ "Talrendis Point", "Azshara", 1447, 11.9, 77.5, "A" },
-	{ "Valormok", "Azshara", 1447, 22.0, 49.7, "H" },
-	{ "Talonbranch Glade", "Felwood", 1448, 62.5, 24.2, "A" },
-	{ "Bloodvenom Post", "Felwood", 1448, 34.4, 53.9, "H" },
-	{ "Marshal's Refuge", "Un'Goro Crater", 1449, 45.3, 6.0, "N" },
-	{ "Moonglade", false, 1450, 47.9, 67.1, "A" },
-	{ "Moonglade", false, 1450, 32.2, 66.3, "H" },
-	{ "Cenarion Hold", "Silithus", 1451, 50.7, 34.6, "A" },
-	{ "Cenarion Hold", "Silithus", 1451, 48.8, 36.7, "H" },
-	{ "Everlook", "Winterspring", 1452, 62.3, 36.6, "A" },
-	{ "Everlook", "Winterspring", 1452, 60.5, 36.3, "H" },
-	{ "Orgrimmar", "Durotar", 1454, 45.3, 63.7, "H" },
-	{ "Thunder Bluff", "Mulgore", 1456, 46.7, 49.9, "H" },
-	{ "Summit of Eternity", "Mount Hyjal", 2482, 68.6, 44.1, "N" },
-	{ "Tainted Foothills", "Mount Hyjal", 2482, 55.1, 82.5, "N" },
+	{ "Astranaar", "Ashenvale", 1440, 34.5, 48.0, "A" }, -- TaxiNodes 28
+	{ "Auberdine", "Darkshore", 1439, 36.4, 45.6, "A" }, -- TaxiNodes 26
+	{ "Bloodvenom Post", "Felwood", 1448, 34.4, 53.9, "H" }, -- TaxiNodes 48
+	{ "Brackenwall Village", "Dustwallow Marsh", 1445, 35.6, 31.8, "H" }, -- TaxiNodes 55
+	{ "Camp Mojache", "Feralas", 1444, 75.4, 44.3, "H" }, -- TaxiNodes 42
+	{ "Camp Taurajo", "The Barrens", 1413, 44.5, 59.1, "H" }, -- TaxiNodes 77
+	{ "Cenarion Hold", "Silithus", 1451, 50.7, 34.6, "A" }, -- TaxiNodes 73
+	{ "Cenarion Hold", "Silithus", 1451, 48.8, 36.7, "H" }, -- TaxiNodes 72
+	{ "Crossroads", "The Barrens", 1413, 51.5, 30.4, "H" }, -- TaxiNodes 25
+	{ "Everlook", "Winterspring", 1452, 62.3, 36.6, "A" }, -- TaxiNodes 52
+	{ "Everlook", "Winterspring", 1452, 60.5, 36.3, "H" }, -- TaxiNodes 53
+	{ "Feathermoon", "Feralas", 1444, 30.3, 43.3, "A" }, -- TaxiNodes 41
+	{ "Freewind Post", "Thousand Needles", 1441, 45.0, 49.1, "H" }, -- TaxiNodes 30
+	{ "Gadgetzan", "Tanaris", 1446, 51.0, 29.3, "A" }, -- TaxiNodes 39
+	{ "Gadgetzan", "Tanaris", 1446, 51.6, 25.5, "H" }, -- TaxiNodes 40
+	{ "Marshal's Refuge", "Un'Goro Crater", 1449, 45.3, 6.0, "N" }, -- TaxiNodes 79
+	{ "Moonglade", false, 1450, 47.9, 67.1, "A" }, -- TaxiNodes 49
+	{ "Moonglade", false, 1450, 32.2, 66.3, "H" }, -- TaxiNodes 69
+	{ "Nijel's Point", "Desolace", 1443, 64.7, 10.4, "A" }, -- TaxiNodes 37
+	{ "Orgrimmar", "Durotar", 1454, 45.3, 63.7, "H" }, -- TaxiNodes 23
+	{ "Ratchet", "The Barrens", 1413, 63.1, 37.1, "N" }, -- TaxiNodes 80
+	{ "Rut'theran Village", "Teldrassil", 1438, 58.4, 93.9, "A" }, -- TaxiNodes 27
+	{ "Shadowprey Village", "Desolace", 1443, 21.6, 74.0, "H" }, -- TaxiNodes 38
+	{ "Splintertree Post", "Ashenvale", 1440, 73.3, 61.7, "H" }, -- TaxiNodes 61
+	{ "Stonetalon Peak", "Stonetalon Mountains", 1442, 36.5, 7.2, "A" }, -- TaxiNodes 33
+	{ "Summit of Eternity", "Mount Hyjal", 2482, 68.6, 44.1, "N" }, -- TaxiNodes 559
+	{ "Sun Rock Retreat", "Stonetalon Mountains", 1442, 45.2, 59.9, "H" }, -- TaxiNodes 29
+	{ "Tainted Foothills", "Mount Hyjal", 2482, 55.1, 82.5, "N" }, -- TaxiNodes 3242
+	{ "Talonbranch Glade", "Felwood", 1448, 62.5, 24.2, "A" }, -- TaxiNodes 65
+	{ "Talrendis Point", "Azshara", 1447, 11.9, 77.5, "A" }, -- TaxiNodes 64
+	{ "Thalanaar", "Feralas", 1444, 89.5, 45.9, "A" }, -- TaxiNodes 31
+	{ "Theramore", "Dustwallow Marsh", 1445, 67.5, 51.2, "A" }, -- TaxiNodes 32
+	{ "Thunder Bluff", "Mulgore", 1456, 46.7, 49.9, "H" }, -- TaxiNodes 22
+	{ "Valormok", "Azshara", 1447, 22.0, 49.7, "H" }, -- TaxiNodes 44
+	{ "Zoram'gar Outpost", "Ashenvale", 1440, 12.2, 33.8, "H" }, -- TaxiNodes 58
 }
+-- end of generated: flights
 -- each point's full name as the game says it, and lowercase (the flight masters' maps are kept by that); the points of
 -- each name (two for one both sides have)
 FL.BY_NAME = {}

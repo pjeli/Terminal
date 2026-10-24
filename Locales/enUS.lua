@@ -1568,7 +1568,6 @@ L["Thank you to %s, and %s for supporting and believing in me to continue workin
 L["Thank you to the people who kept Terminal going"] = true
 L["That step is off to the side of Attune's chart: drag the chart sideways to see it."] = true
 L["That's it"] = true
-L["The Hidden Reach (needs the Crescent Key)"] = true
 L["The Rises, Thunder Bluff"] = true
 L["The Undercity Underground"] = true
 L["The auction house's news, on its way by mail"] = true

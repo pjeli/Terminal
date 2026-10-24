@@ -1,5 +1,5 @@
--- Zones (level bands from Leatrix Maps): the three questions in plain words, their answers, lvl: on zones and
--- dungeons, and the map rows' level text.
+-- Zones (level bands: Z.LEVELS, the fishing skills Z.FISHING): the three questions in plain words, their answers, lvl: on
+-- zones and dungeons, and the map rows' level text.
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
 local Z, F = ns.Zones, ns.Filters
@@ -143,4 +143,21 @@ do
 	check(reads == 4, "your quest log made again: counted again")
 	ns.GetEntries = getWas
 	ns.providers.questie, ns.providers.quests, C_QuestLog.IsQuestFlaggedCompleted = save.questie, save.quests, save.done
+end
+
+-- (0.67.1) the zones' records: the level ranges (Z.LEVELS) with the fishing skills (Z.FISHING, generated) beside them
+do
+	local stv, hb = Z.Of(1434), Z.Of(1424)
+	check(stv and stv.min == 30 and stv.max == 45 and stv.fish == 130 and stv.fishHigh == 205,
+		"zones: Stranglethorn's levels, its fishing and the higher skill in places")
+	check(hb and hb.min == 20 and hb.max == 35 and hb.fish == 55 and hb.fishHigh == nil, "zones: Hillsbrad's")
+	check(Z.Of(1453).min == nil and Z.Of(1453).fish == 1, "zones: a city has no level range, only fishing")
+	check(Z.Of(2548) and Z.Of(2548).min == 35 and Z.Of(2548).fish == nil, "zones: WoW Forever's own: levels, no fishing known")
+	check(Z.Of(2652) == nil, "zones: Shen'dralas not listed until it has a published range")
+	local n = 0
+	for ui in pairs(Z.FISHING) do
+		n = n + 1
+		if not Z.Of(ui) then check(false, "zones: fishing for a zone Z.LEVELS doesn't list: " .. ui) end
+	end
+	check(n == 43 and #Z.LIST == #Z.LEVELS, "zones: every fishing skill is one of the listed zones' (" .. n .. ")")
 end

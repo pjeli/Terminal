@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.67.1 (in testing)
+
+- Flight paths, dungeon and raid entrances, zone levels and fishing skills now come from the game's own data and public sources, each one cited in docs/DATA_SOURCES.md and made again by tests/gen_data.py.
+- Dungeon and raid levels are the game's Group Finder's (Scarlet Monastery 30-46 over its four wings, the Hall of Thanes 13-20).
+- Entrances are read from Questie or QuestieDB when either is installed; without them, an instance shows at the spot beside its entrance the game sends your ghost to, where it has one.
+
 ## 0.67.0
 
 **Plain words for numbers, levels and dates**
@@ -653,7 +659,7 @@
 ## 0.44.0
 
 **Ask in plain words**
-- "where should i level", "what dungeon should i do", "where should i fish" (also "fishing spots" and "zones for level 35"): the zones, dungeons or fishing spots for your level or skill, from Leatrix Maps' zone levels.
+- "where should i level", "what dungeon should i do", "where should i fish" (also "fishing spots" and "zones for level 35"): the zones, dungeons or fishing spots for your level or skill.
 - "what killed me", "what dropped", "what did i loot", "what did bob get".
 - Alt+` shows any of them in Advanced form (`@map lvl:23`, `@map fish:mine`, `@drop you`...).
 

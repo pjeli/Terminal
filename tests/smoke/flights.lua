@@ -395,3 +395,26 @@ UI:EasyChanged()
 ns.Filters.ClearCache()
 P._dirty = true
 if not ok then check(false, "flight paths: " .. tostring(err)) end
+
+-- (0.67.1) the flight points as the game's data has them (tests/gen_data.py flights): one per flight master and side,
+-- WoW Forever's own zones included
+do
+	local FL = ns.Integrations.Flights
+	local seen, bad, sides = {}, {}, { A = 0, H = 0, N = 0 }
+	for _, p in ipairs(FL.POINTS) do
+		local id = p.lfull .. "|" .. p[6]
+		if seen[id] or not sides[p[6]] or type(p[3]) ~= "number" or not (p[4] >= 0 and p[4] <= 100 and p[5] >= 0 and p[5] <= 100) then
+			bad[#bad + 1] = p.full
+		end
+		seen[id] = true
+		if sides[p[6]] then sides[p[6]] = sides[p[6]] + 1 end
+	end
+	check(#FL.POINTS == 65 and #bad == 0, ("flights: 65 points, each one flight master of one side (%d; wrong: %s)")
+		:format(#FL.POINTS, table.concat(bad, ", ")))
+	check(sides.N >= 4 and seen["rog'mar, riverglades|H"] and seen["farholde keep, riverglades|A"]
+		and seen["summit of eternity, mount hyjal|N"], "flights: WoW Forever's new zones' flight masters, and the neutral ones")
+	check(FL.BY_NAME["stormwind, elwynn"][1][3] == 1453 and FL.BY_NAME["thunder bluff, mulgore"][1][3] == 1456,
+		"flights: a capital's flight master on the city's own map")
+	check(not seen["nighthaven, moonglade|A"] and not seen["crown guard tower, eastern plaguelands|N"],
+		"flights: not the druids' Nighthaven nor the Plaguelands' towers")
+end

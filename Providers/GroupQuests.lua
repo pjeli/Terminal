@@ -8,7 +8,7 @@ local L = ns.L
 -- button asks).
 --
 --   Enter        shares it with your party (QuestLogPushQuest, the quest log's own Share; from Terminal's code: a C
---                call, not protected: Leatrix Plus's "/ltp quest clone" calls it from a timer on this client), or, for a
+--                call, not protected: other addons call it from a timer on this client), or, for a
 --                quest the game won't let you share, opens your quest log at it
 --   Shift+Enter  your quest log at it (the quest log row's own Enter)
 --

@@ -1473,7 +1473,6 @@ L["Thank you to %s, and %s for supporting and believing in me to continue workin
 L["Thank you to the people who kept Terminal going"] = "Спасибо людям, благодаря которым Terminal продолжает жить"
 L["That step is off to the side of Attune's chart: drag the chart sideways to see it."] = "Этот шаг за краем схемы Attune: перетащите схему в сторону, чтобы увидеть его."
 L["That's it"] = "Вот и всё"
-L["The Hidden Reach (needs the Crescent Key)"] = "Сокрытый Предел (нужен Ключ-полумесяц)"
 L["The Rises, Thunder Bluff"] = "Вершины, Громовой Утес"
 L["The Undercity Underground"] = "Андеграунд Подгорода"
 L["The auction house's news, on its way by mail"] = "Новости аукциона, идущие по почте"

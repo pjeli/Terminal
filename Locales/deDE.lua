@@ -1473,7 +1473,6 @@ L["Thank you to %s, and %s for supporting and believing in me to continue workin
 L["Thank you to the people who kept Terminal going"] = "Danke an die Menschen, die Terminal am Leben gehalten haben"
 L["That step is off to the side of Attune's chart: drag the chart sideways to see it."] = "Dieser Schritt liegt seitlich außerhalb von Attunes Diagramm: zieh das Diagramm zur Seite, um ihn zu sehen."
 L["That's it"] = "Das war's"
-L["The Hidden Reach (needs the Crescent Key)"] = "Der Verborgene Bereich (braucht den Mondsichelschlüssel)"
 L["The Rises, Thunder Bluff"] = "Die Anhöhen, Donnerfels"
 L["The Undercity Underground"] = "Unterstadt Underground"
 L["The auction house's news, on its way by mail"] = "Neuigkeiten des Auktionshauses, unterwegs per Post"

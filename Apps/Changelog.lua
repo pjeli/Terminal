@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.67.1", when = "in testing",
+		items = {
+			"Flight paths, dungeon and raid entrances, zone levels and fishing skills now come from the game's own data and public sources (docs/DATA_SOURCES.md on GitHub). Dungeon levels are the Group Finder's; with Questie or QuestieDB installed, entrances show at their doors.",
+		},
+	},
+	{
 		v = "0.67.0", when = "released October 2026",
 		items = {
 			"Plain words for numbers, levels and dates: \"swords between level 20 and 30\", \"items worth more than 1g\", \"quests 3 levels above me\", \"loot from yesterday\", \"mail older than 20 days\". Advanced: lvl:me+3, value:>1g, since:yesterday.",
@@ -44,15 +50,6 @@ CL.LOG = {
 			"Out of arrows or bullets with a bow or gun (a hunter: running low), the empty prompt suggests \"nearest vendor sells:arrow\" (or sells:shot); out of a reagent your spells use (a priest's candles, a paladin's symbols, a mage's runes or Arcane Powder, a druid's seeds, a shaman's ankhs), \"nearest reagent vendor\"; a rogue out of flash powder, the vendors that sell it. Each goes as soon as you've bought some.",
 			"is:enchanted and is:unenchanted on gear in your bags, bank and alts' (@item is:unenchanted, @bank is:enchanted); is:unenchanted keeps to gear an enchant goes on.",
 			"Each tab over the prompt shows a small x while the pointer is on it: a click closes that tab (as a right-click or Ctrl+Shift+W does).",
-		},
-	},
-	{
-		v = "0.64.0", when = "released October 2026",
-		items = {
-			"Ctrl+R searches what you ran, as a shell's does: type to find a line, Ctrl+R again for an older one, Enter puts it in the prompt and searches it, Esc goes back. \"history\" (or @history) lists what you ran, newest first, with when each ran; Enter searches one again.",
-			"Track and untrack quests in bulk: \"untrack quests\", \"track completed quests\", \"untrack dungeon quests\", \"track class quest\", \"track rfc quests only\" (and untrack the rest), \"untrack red quests\", \"track nearby quests\". The answer lists what changes; Enter does it, Questie's tracker too. A place means the quests listed under it in your log (\"track thunderbluff quests\"). Advanced: any quest search, then >>> track, >>> untrack or >>> track only.",
-			"@auction: your auctions' prices are each item's, as the Auctions tab shows them, and a sale is listed once, even when its mail was read before the game knew the buyer.",
-			"Fixes and speed-ups from a review of the whole addon: a filter after a question acts only on what it leaves (\"untrack quests is:red\"), sort:name sorts lists of any size, in:rfc / in:tb on your quest log mean those places, >> party on a Simple mode category picks it, and big searches, Simple mode's categories, spell IDs, talents and quest rewards are quicker and lighter as you type.",
 		},
 	},
 }

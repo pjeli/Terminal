@@ -1,8 +1,8 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Level bands: each zone's level range and the fishing skill it needs, from Leatrix Maps' zone levels (its world map's
--- "Show zone levels" table, WoW Forever's own zones included; copied: it lives in Leatrix Maps' private namespace).
+-- Level bands: each zone's level range (Z.LEVELS, Terminal's own list, its sources in docs/DATA_SOURCES.md) and the
+-- fishing skill it needs (Z.FISHING, made by tests/gen_data.py from Mangos Zero's fishing table).
 -- Used for the map rows' detail ("Lv 18-30"), `lvl:` on zones and dungeons, and three questions in plain words:
 --   "where should i level" (or quest): zones for your level, quests there at your level, best fit and nearest first;
 --   "what dungeon should i do": dungeons for your level (raids: "what raid should i do");
@@ -14,63 +14,119 @@ ns.Zones = Z
 
 local Safe, Secret = ns.Safe, ns.Secret
 
--- { uiMap, min level, max level, fishing skill, fishing skill in places (a higher one: pools, deeper water), name }
--- (cities: no level range, only fishing)
-Z.LIST = {
+-- Each zone's level range: { uiMap, min level, max level, name } (cities: no range, only fishing). The classic zones'
+-- as warcraft.wiki.gg's "Zones by level (Classic)" gives them; WoW Forever's own as its pages and Blizzard's news say
+-- them (docs/DATA_SOURCES.md). Shen'dralas has no published range yet: not listed until it has one.
+Z.LEVELS = {
 	-- Eastern Kingdoms
-	{ 1416, 30, 40, 130, nil, "Alterac Mountains" },
-	{ 1417, 30, 40, 130, nil, "Arathi Highlands" },
-	{ 1418, 35, 45, nil, nil, "Badlands" },
-	{ 1419, 45, 55, nil, nil, "Blasted Lands" },
-	{ 1428, 50, 58, 330, nil, "Burning Steppes" },
-	{ 1430, 55, 60, 330, nil, "Deadwind Pass" },
-	{ 1426, 1, 10, 1, nil, "Dun Morogh" },
-	{ 1431, 18, 30, 55, nil, "Duskwood" },
-	{ 1423, 53, 60, 330, nil, "Eastern Plaguelands" },
-	{ 1429, 1, 10, 1, nil, "Elwynn Forest" },
-	{ 1424, 20, 30, 55, nil, "Hillsbrad Foothills" },
-	{ 1455, nil, nil, 1, nil, "Ironforge" },
-	{ 1432, 10, 20, 1, nil, "Loch Modan" },
-	{ 1433, 15, 25, 55, nil, "Redridge Mountains" },
-	{ 1427, 43, 50, nil, nil, "Searing Gorge" },
-	{ 1421, 10, 20, 1, nil, "Silverpine Forest" },
-	{ 1453, nil, nil, 1, nil, "Stormwind City" },
-	{ 1434, 30, 45, 130, 205, "Stranglethorn Vale" },
-	{ 1435, 35, 45, 130, nil, "Swamp of Sorrows" },
-	{ 1425, 40, 50, 205, nil, "The Hinterlands" },
-	{ 1420, 1, 10, 1, nil, "Tirisfal Glades" },
-	{ 1458, nil, nil, 1, nil, "Undercity" },
-	{ 1436, 10, 20, 1, nil, "Westfall" },
-	{ 1422, 51, 58, 205, nil, "Western Plaguelands" },
-	{ 1437, 20, 30, 55, nil, "Wetlands" },
+	{ 1416, 30, 40, "Alterac Mountains" },
+	{ 1417, 30, 40, "Arathi Highlands" },
+	{ 1418, 35, 45, "Badlands" },
+	{ 1419, 45, 55, "Blasted Lands" },
+	{ 1428, 50, 58, "Burning Steppes" },
+	{ 1430, 55, 60, "Deadwind Pass" },
+	{ 1426, 1, 10, "Dun Morogh" },
+	{ 1431, 18, 30, "Duskwood" },
+	{ 1423, 53, 60, "Eastern Plaguelands" },
+	{ 1429, 1, 10, "Elwynn Forest" },
+	{ 1424, 20, 35, "Hillsbrad Foothills" },
+	{ 1455, nil, nil, "Ironforge" },
+	{ 1432, 10, 20, "Loch Modan" },
+	{ 1433, 15, 25, "Redridge Mountains" },
+	{ 1427, 45, 50, "Searing Gorge" },
+	{ 1421, 10, 20, "Silverpine Forest" },
+	{ 1453, nil, nil, "Stormwind City" },
+	{ 1434, 30, 45, "Stranglethorn Vale" },
+	{ 1435, 35, 45, "Swamp of Sorrows" },
+	{ 1425, 40, 50, "The Hinterlands" },
+	{ 1420, 1, 10, "Tirisfal Glades" },
+	{ 1458, nil, nil, "Undercity" },
+	{ 1436, 10, 20, "Westfall" },
+	{ 1422, 51, 58, "Western Plaguelands" },
+	{ 1437, 20, 30, "Wetlands" },
 	-- Kalimdor
-	{ 1440, 18, 30, 55, nil, "Ashenvale" },
-	{ 1447, 45, 55, 205, 330, "Azshara" },
-	{ 1439, 10, 20, 1, nil, "Darkshore" },
-	{ 1457, nil, nil, 1, nil, "Darnassus" },
-	{ 1443, 30, 40, 130, nil, "Desolace" },
-	{ 1411, 1, 10, 1, nil, "Durotar" },
-	{ 1445, 35, 45, 130, nil, "Dustwallow Marsh" },
-	{ 1448, 48, 55, 205, nil, "Felwood" },
-	{ 1444, 40, 50, 205, 330, "Feralas" },
-	{ 1450, nil, nil, 205, nil, "Moonglade" },
-	{ 1412, 1, 10, 1, nil, "Mulgore" },
-	{ 1454, nil, nil, 1, nil, "Orgrimmar" },
-	{ 1451, 55, 60, 330, nil, "Silithus" },
-	{ 1442, 15, 27, 55, nil, "Stonetalon Mountains" },
-	{ 1446, 40, 50, 205, nil, "Tanaris" },
-	{ 1438, 1, 10, 1, nil, "Teldrassil" },
-	{ 1413, 10, 25, 1, nil, "The Barrens" },
-	{ 1441, 25, 35, 130, nil, "Thousand Needles" },
-	{ 1456, nil, nil, 1, nil, "Thunder Bluff" },
-	{ 1449, 48, 55, 205, nil, "Un'Goro Crater" },
-	{ 1452, 55, 60, 330, nil, "Winterspring" },
+	{ 1440, 18, 30, "Ashenvale" },
+	{ 1447, 45, 55, "Azshara" },
+	{ 1439, 10, 20, "Darkshore" },
+	{ 1457, nil, nil, "Darnassus" },
+	{ 1443, 30, 40, "Desolace" },
+	{ 1411, 1, 10, "Durotar" },
+	{ 1445, 35, 45, "Dustwallow Marsh" },
+	{ 1448, 48, 55, "Felwood" },
+	{ 1444, 40, 50, "Feralas" },
+	{ 1450, nil, nil, "Moonglade" },
+	{ 1412, 1, 10, "Mulgore" },
+	{ 1454, nil, nil, "Orgrimmar" },
+	{ 1451, 55, 60, "Silithus" },
+	{ 1442, 15, 27, "Stonetalon Mountains" },
+	{ 1446, 40, 50, "Tanaris" },
+	{ 1438, 1, 10, "Teldrassil" },
+	{ 1413, 10, 25, "The Barrens" },
+	{ 1441, 25, 35, "Thousand Needles" },
+	{ 1456, nil, nil, "Thunder Bluff" },
+	{ 1449, 48, 55, "Un'Goro Crater" },
+	{ 1452, 53, 60, "Winterspring" },
 	-- WoW Forever's own
-	{ 2482, 60, 60, nil, nil, "Hyjal" },
-	{ 2521, 1, 12, nil, nil, "Zephras Isle" },
-	{ 2548, 35, 45, nil, nil, "Riverglades" },
-	{ 2652, 35, 45, nil, nil, "Shen'dralas" },
+	{ 2482, 60, 60, "Hyjal" },
+	{ 2521, 1, 12, "Zephras Isle" },
+	{ 2548, 35, 45, "Riverglades" },
 }
+
+-- The fishing skill each zone needs, and a higher one in places (its isles, lakes, coves): { skill, in places }.
+-- generated: tests/gen_data.py fishing (do not edit by hand)
+Z.FISHING = {
+	[1416] = { 130, nil }, -- Alterac Mountains (area 36)
+	[1417] = { 130, nil }, -- Arathi Highlands (area 45)
+	[1428] = { 330, nil }, -- Burning Steppes (area 46)
+	[1430] = { 330, nil }, -- Deadwind Pass (area 41)
+	[1426] = { 1, nil }, -- Dun Morogh (area 1)
+	[1431] = { 55, nil }, -- Duskwood (area 10)
+	[1423] = { 330, nil }, -- Eastern Plaguelands (area 139)
+	[1429] = { 1, nil }, -- Elwynn Forest (area 12)
+	[1424] = { 55, nil }, -- Hillsbrad Foothills (area 267)
+	[1455] = { 1, nil }, -- Ironforge (area 1537)
+	[1432] = { 1, nil }, -- Loch Modan (area 38)
+	[1433] = { 55, nil }, -- Redridge Mountains (area 44)
+	[1421] = { 1, nil }, -- Silverpine Forest (area 130)
+	[1453] = { 1, nil }, -- Stormwind City (area 1519)
+	[1434] = { 130, 205 }, -- Stranglethorn Vale (area 33)
+	[1435] = { 130, nil }, -- Swamp of Sorrows (area 8)
+	[1425] = { 205, nil }, -- The Hinterlands (area 47)
+	[1420] = { 1, nil }, -- Tirisfal Glades (area 85)
+	[1458] = { 1, nil }, -- Undercity (area 1497)
+	[1436] = { 1, nil }, -- Westfall (area 40)
+	[1422] = { 205, nil }, -- Western Plaguelands (area 28)
+	[1437] = { 55, nil }, -- Wetlands (area 11)
+	[1440] = { 55, nil }, -- Ashenvale (area 331)
+	[1447] = { 205, 330 }, -- Azshara (area 16)
+	[1439] = { 1, nil }, -- Darkshore (area 148)
+	[1457] = { 1, nil }, -- Darnassus (area 1657)
+	[1443] = { 130, nil }, -- Desolace (area 405)
+	[1411] = { 1, nil }, -- Durotar (area 14)
+	[1445] = { 130, nil }, -- Dustwallow Marsh (area 15)
+	[1448] = { 205, nil }, -- Felwood (area 361)
+	[1444] = { 205, 330 }, -- Feralas (area 357)
+	[1450] = { 205, nil }, -- Moonglade (area 493)
+	[1412] = { 1, nil }, -- Mulgore (area 215)
+	[1454] = { 1, nil }, -- Orgrimmar (area 1637)
+	[1451] = { 330, nil }, -- Silithus (area 1377)
+	[1442] = { 55, nil }, -- Stonetalon Mountains (area 406)
+	[1446] = { 205, nil }, -- Tanaris (area 440)
+	[1438] = { 1, nil }, -- Teldrassil (area 141)
+	[1413] = { 1, nil }, -- The Barrens (area 17)
+	[1441] = { 130, nil }, -- Thousand Needles (area 400)
+	[1456] = { 1, nil }, -- Thunder Bluff (area 1638)
+	[1449] = { 205, nil }, -- Un'Goro Crater (area 490)
+	[1452] = { 330, nil }, -- Winterspring (area 618)
+}
+-- end of generated: fishing
+
+-- { uiMap, min level, max level, fishing skill, fishing skill in places (a higher one: pools, deeper water), name }
+Z.LIST = {}
+for _, z in ipairs(Z.LEVELS) do
+	local f = Z.FISHING[z[1]]
+	Z.LIST[#Z.LIST + 1] = { z[1], z[2], z[3], f and f[1], f and f[2], z[4] }
+end
 
 local byMap = {}
 for _, z in ipairs(Z.LIST) do

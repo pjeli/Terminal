@@ -7,9 +7,9 @@ local L = ns.L
 -- terminal sits: ten made-up radio stations, each themed on a place in Azeroth, playing the game's own music,
 -- with a spectrum visualizer, a progress bar and a station list.
 --
--- How it plays (as Leatrix Plus's music player does): PlaySoundFile(fileID, "Master", false, true) gives a
--- handle, StopSound(handle) stops it; a played file sends no "finished" event, so each track's length is known
--- (the data below, from Leatrix Plus's music list) and the next one is started on a timer. While it plays, the
+-- How it plays: PlaySoundFile(fileID, "Master", false, true) gives a handle, StopSound(handle) stops it; a played file
+-- sends no "finished" event, so each track's length is known (WowampStations.lua: measured from the game's files) and
+-- the next one is started on a timer. While it plays, the
 -- zone music is switched off (it would play over the radio) and switched back on when the radio stops (after
 -- a /reload too: Apps/Extras.lua, always loaded, does that). The radio keeps playing with the window closed (.wowamp stop, or P in the window, stops it).
 --
