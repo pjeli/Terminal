@@ -1,4 +1,4 @@
-"""Terminal's game data, made again from its sources: python tests/gen_data.py [flights|instances|fishing|music|all] [--check]
+"""Terminal's game data, made again from its sources: python tests/gen_data.py [flights|instances|fishing|music|cvars|all] [--check]
 
 Each table the addon carries about the world is written here from where it comes from (docs/DATA_SOURCES.md says which
 and why), never typed in by hand:
@@ -10,6 +10,8 @@ and why), never typed in by hand:
                                                                    Blizzard's classic AreaTable (DB2)
   music      Terminal_Extras/WowampStations.lua  the tracks       Blizzard's SoundKitEntry (DB2), the files' own lengths,
                                                                    their names from the wowdev community listfile
+  cvars      Providers/CVarList.lua              ns.CVAR_LIST     Blizzard's interface code for the build (wow-ui-source,
+                                                                   branch forever): the settings it names
 
 Blizzard's tables come from wago.tools' DB2 exports of the client build below (WoW Forever: product "wowf"). What the
 addon decides itself stays in the Lua files and is read from there: which instances WoW Forever has (I.INSTANCES), the
@@ -277,8 +279,71 @@ def music(check):
     print(f"  {len(ids)} tracks read")
 
 # ----------------------------------------------------------------------------------------------------------------------
+# cvars: the console settings' names (Providers/CVarList.lua), from Blizzard's own interface code for this build
+# ----------------------------------------------------------------------------------------------------------------------
 
-STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "music": music}
+UI_SOURCE = "https://github.com/Gethe/wow-ui-source.git"
+
+def ui_source():
+    """Blizzard's interface code for this build (Gethe/wow-ui-source, branch forever: only its .lua files), checked out
+    into the cache once; its commit must be this build's ("1.60.1 (70532)")."""
+    path = os.path.join(CACHE, "wow-ui-source-forever")
+    if not os.path.isdir(os.path.join(path, ".git")):
+        print("  fetching", UI_SOURCE, "(forever, .lua files only)")
+        subprocess.run(["git", "clone", "-q", "--depth", "1", "--filter=blob:none", "--sparse", "--branch", "forever",
+            UI_SOURCE, path], check=True)
+        subprocess.run(["git", "-C", path, "sparse-checkout", "set", "--no-cone", "/Interface/AddOns/**/*.lua"], check=True)
+    version = subprocess.run(["git", "-C", path, "log", "-1", "--format=%s"], capture_output=True, text=True).stdout.strip()
+    major, build = BUILD.rsplit(".", 1)
+    if not version.startswith(f"{major} ({build})"):
+        raise SystemExit(f"wow-ui-source's forever branch is {version!r}, not build {BUILD}: delete {path} to fetch it again")
+    return path, version
+
+NAME = r'"([A-Za-z][A-Za-z0-9_]*)"'
+# a setting named in a call: the game's CVar calls, Blizzard's settings helpers and its CVar callback registry (a first
+# argument before the name, Settings' category, is allowed)
+CVAR_CALL = re.compile(r'(?:\b(?:GetCVar|GetCVarBool|SetCVar|GetCVarDefault|GetCVarNumberOrDefault|GetCVarBitfield|'
+    r'SetCVarBitfield|RegisterCVar)|C_CVar\.\w+|Settings\.\w*CVar\w*|CVarCallbackRegistry:\w+)'
+    r'\(\s*(?:[A-Za-z_][\w.]*\s*,\s*)?' + NAME)
+# ... or in a table of settings ({ cvar = "name", ... })
+CVAR_KEY = re.compile(r'\b(?:cvar|cVar|CVar|cvarName)\s*=\s*' + NAME)
+# the options panel's own words for one: Settings.SetupCVarCheckbox(category, "name", LABEL, OPTION_TOOLTIP_...)
+CVAR_SETUP = re.compile(r'Settings\.(?:SetupCVar\w+|RegisterCVarSetting)\(\s*\w+\s*,\s*' + NAME + r'\s*,([^\n]*)')
+GLOBAL = re.compile(r'\b([A-Z][A-Z0-9_]{2,})\b')
+
+def cvars(check):
+    path, version = ui_source()
+    names, words = set(), {}
+    for root, _, files in os.walk(os.path.join(path, "Interface", "AddOns")):
+        if "Blizzard_APIDocumentationGenerated" in root: # (the API's own documentation names tables, not settings)
+            continue
+        for fn in files:
+            if not fn.endswith(".lua"):
+                continue
+            with open(os.path.join(root, fn), encoding="utf-8", errors="replace") as f:
+                text = f.read()
+            names.update(CVAR_CALL.findall(text))
+            names.update(CVAR_KEY.findall(text))
+            for name, rest in CVAR_SETUP.findall(text):
+                # its label and its tooltip: the game's own strings by their global names (read in the game, in its
+                # language), skipping the setting's kind ("Settings.VarType.Boolean") and constants
+                said = [g for g in GLOBAL.findall(rest.split(")")[0]) if g not in ("SETTINGS",)]
+                label = next((g for g in said if not g.startswith("OPTION_TOOLTIP_")), None)
+                tip = next((g for g in said if g.startswith("OPTION_TOOLTIP_")), None)
+                got = [g for g in (label, tip) if g]
+                if got and len(got) > len(words.get(name, [])):
+                    words[name] = got
+    names = {n for n in names if not n.isupper()} # ("ENABLE_TEXT_TO_SPEECH": a constant's name, not a setting's)
+    lines = [f"{n}\t\t{' '.join(words.get(n, []))}\n" for n in sorted(names, key=str.lower)]
+    rel = "Providers/CVarList.lua"
+    old = read(rel)
+    body = f"-- {len(lines)} settings, from Blizzard's interface code {version}\nns.CVAR_LIST = [==[\n" + "".join(lines) + "]==]\n"
+    write(rel, old, block(old, "cvars", body), check)
+    print(f"  {len(lines)} settings, {len(words)} with the options panel's words")
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "music": music, "cvars": cvars}
 
 def main(args):
     check = "--check" in args

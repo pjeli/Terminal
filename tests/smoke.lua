@@ -148,7 +148,9 @@ _G.QuestMapFrame = Obj("QuestMapFrame"); QuestMapFrame.shown = true
 
 -- console settings (@cvar)
 local CVARS = { nameplateMaxDistance = { "41", "60", "Max distance nameplates are shown" }, ffxGlow = { "1", "1", "" },
-	cameraDistanceMaxZoomFactor = { "2.6", "1.9", "" }, lockedOne = { "1", "1", "", true } }
+	cameraDistanceMaxZoomFactor = { "2.6", "1.9", "" }, lockedOne = { "1", "1", "", true }, autoLootDefault = { "1", "0", "" } }
+-- (Terminal's list names a setting's words by the game's own strings: the options panel's label and tooltip)
+_G.AUTO_LOOT_DEFAULT_TEXT, _G.OPTION_TOOLTIP_AUTO_LOOT_DEFAULT = "Auto Loot", "Loot everything a corpse has when you open it."
 _G.C_Console = { GetAllCommands = function()
 	-- the command type isn't to be trusted on this client: settings are what has a value
 	if CVARS_EMPTY then return {} end
@@ -1833,7 +1835,7 @@ do
 	-- the game's list comes back empty: Terminal's own list of names
 	CVARS_EMPTY = true
 	ns.providers.cvars._dirty = true
-	check(names(UI:Search("@cvar")).nameplateMaxDistance, "an empty list from the game: Terminal's own list instead")
+	check(names(UI:Search("@cvar")).autoLootDefault, "an empty list from the game: Terminal's own list instead")
 	CVARS_EMPTY = nil
 	-- nothing readable at all: a row says so, and it's asked for again
 	local getInfo, getCVar = C_CVar.GetCVarInfo, C_CVar.GetCVar
@@ -1850,34 +1852,34 @@ do
 	CVARS_FAIL = true
 	ns.providers.cvars._dirty = true
 	cv = names(ns:GetEntries(ns.providers.cvars))
-	check(cv.nameplateMaxDistance and cv.cameraDistanceMaxZoomFactor and not cv.lockedOne and not cv.reloadui,
-		"the game won't list them: Terminal's list of names, only those this client has")
-	check(cv.nameplateMaxDistance.help:find("max distance to show nameplates", 1, true) and cv.nameplateMaxDistance.detail:find("= 41", 1, true),
-		"with the list's help text and the game's own value")
-	-- a setting changed: just its row is updated (the list isn't made again, ~1650 rows)
+	check(cv.autoLootDefault and cv.cameraDistanceMaxZoomFactor and not cv.lockedOne and not cv.reloadui and not cv.nameplateMaxDistance,
+		"the game won't list them: Terminal's list of names (Blizzard's own code's), only those this client has")
+	check(cv.autoLootDefault.help == "Auto Loot: Loot everything a corpse has when you open it." and cv.autoLootDefault.detail:find("= 1", 1, true),
+		"(0.67.5) with the options panel's words, the game's own strings, and the game's own value: " .. tostring(cv.autoLootDefault.help))
+	-- a setting changed: just its row is updated (the list isn't made again)
 	local p = ns.providers.cvars
 	local list = p._entries
-	CVARS.nameplateMaxDistance[1] = "60"
-	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "60")
+	CVARS.autoLootDefault[1] = "0"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "autoLootDefault", "0")
 	check(p._entries == list and not p._dirty, "a changed setting doesn't make the list again")
-	check(cv.nameplateMaxDistance.detail:find("^= 60") and not cv.nameplateMaxDistance.changed and not cv.nameplateMaxDistance.color,
-		"its row shows the new value (back to its default: no longer marked): " .. tostring(cv.nameplateMaxDistance.detail))
-	CVARS.nameplateMaxDistance[1] = "41"
-	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "41")
-	check(cv.nameplateMaxDistance.changed and names(UI:Search("@cvar changed")).nameplateMaxDistance, "changed again: found by 'changed'")
+	check(cv.autoLootDefault.detail:find("^= 0") and not cv.autoLootDefault.changed and not cv.autoLootDefault.color,
+		"its row shows the new value (back to its default: no longer marked): " .. tostring(cv.autoLootDefault.detail))
+	CVARS.autoLootDefault[1] = "1"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "autoLootDefault", "1")
+	check(cv.autoLootDefault.changed and names(UI:Search("@cvar changed")).autoLootDefault, "changed again: found by 'changed'")
 	-- (review, 0.53.6) the event naming it in other letters (/console spells it as typed): its row all the same
-	CVARS.nameplateMaxDistance[1] = "55"
-	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "NAMEPLATEMAXDISTANCE", "55")
-	check(cv.nameplateMaxDistance.detail:find("^= 55"), "named in capitals: its row updated: " .. tostring(cv.nameplateMaxDistance.detail))
-	CVARS.nameplateMaxDistance[1] = "41"
-	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "nameplateMaxDistance", "41")
+	CVARS.autoLootDefault[1] = "2"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "AUTOLOOTDEFAULT", "2")
+	check(cv.autoLootDefault.detail:find("^= 2"), "named in capitals: its row updated: " .. tostring(cv.autoLootDefault.detail))
+	CVARS.autoLootDefault[1] = "1"
+	ns.CVars.watch.scripts.OnEvent(ns.CVars.watch, "CVAR_UPDATE", "autoLootDefault", "1")
 	-- the tooltip is made when hovered
 	local lines = {}
 	local tt = { SetText = function(_, t) lines[#lines + 1] = t end, AddLine = function(_, t) lines[#lines + 1] = t end,
 		AddDoubleLine = function(_, a, b) lines[#lines + 1] = a .. " " .. b end }
-	cv.nameplateMaxDistance.tooltip(cv.nameplateMaxDistance, tt)
+	cv.autoLootDefault.tooltip(cv.autoLootDefault, tt)
 	local all = table.concat(lines, "\n")
-	check(all:find("Value 41", 1, true) and all:find("Default 60", 1, true) and all:find("nameplates", 1, true), "the tooltip: help, value, default")
+	check(all:find("Value 1", 1, true) and all:find("Default 0", 1, true) and all:find("Auto Loot", 1, true), "the tooltip: help, value, default")
 	CVARS_FAIL = nil
 	ns.providers.cvars._dirty = true
 	check(ns.providers.cvars.explicit and not names(UI:Search("nameplate"))["nameplateMaxDistance"], "only searched with @cvar")

@@ -104,6 +104,20 @@ WoW Forever's own zones have none there yet, so they show no fishing skill.
 
 The files are only downloaded to be measured: none is shipped.
 
+## Console settings
+
+`ns.CVAR_LIST` in `Providers/CVarList.lua`, from `gen_data.py cvars`, for `@cvar`. WoW Forever doesn't let an addon
+list the console settings (`C_Console.GetAllCommands` fails), so Terminal carries their names and asks the game for
+each one's value: only settings this client has are shown.
+
+| What | Source |
+|---|---|
+| The settings' names | Blizzard's interface code for this build ([Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source), branch `forever`, 1.60.1 (70532)): every setting it reads or sets by name (`GetCVar`, `SetCVar`, `C_CVar.*`, `Settings.SetupCVar*`, `Settings.RegisterCVarSetting`, `CVarCallbackRegistry`, and `cvar = "..."` in its settings tables) |
+| What each one is | The options panel's own label and tooltip for it, where it has them (`Settings.SetupCVarCheckbox(category, "autoLootDefault", AUTO_LOOT_DEFAULT_TEXT, OPTION_TOOLTIP_AUTO_LOOT_DEFAULT)`): Terminal keeps only the strings' global names and reads the text in the game, in its language |
+
+Settings Blizzard's own code never names aren't listed: the game would still have them, but Terminal has no source
+for their names.
+
 ## Not used
 
 - Wowhead: its robots.txt doesn't allow automated reading, and it has no public interface.

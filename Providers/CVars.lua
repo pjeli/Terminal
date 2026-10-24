@@ -32,7 +32,19 @@ end
 local function EditCVar(e) CVarLine(e, ValueText(C_CVar.GetCVar(e.name)) or e.value) end
 local function DefaultCVar(e) CVarLine(e, e.default) end
 
--- Terminal's list of names (CVarList.lua), read once: name -> { category, help }, and the names in order
+--- A setting's words from Terminal's list: the options panel's label and tooltip, the game's own strings by their
+--- global names ("AUTO_LOOT_DEFAULT_TEXT OPTION_TOOLTIP_AUTO_LOOT_DEFAULT" -> "Auto Loot: ..."), in its language.
+local function Words(field)
+	if not field or field == "" then return "" end
+	local out = {}
+	for g in field:gmatch("%S+") do
+		local s = ns.GameText(g)
+		if s then out[#out + 1] = s end
+	end
+	return table.concat(out, ": ")
+end
+
+-- Terminal's list of names (CVarList.lua), read once: name -> { category, words }, and the names in order
 local known, knownOrder
 local function Known()
 	if not known then
@@ -41,7 +53,7 @@ local function Known()
 			known[name] = { tonumber(cat), help }
 			knownOrder[#knownOrder + 1] = name
 		end
-		ns.CVAR_LIST = nil -- (read: its ~110 KB of text not kept for the session; review, 0.53.6)
+		ns.CVAR_LIST = nil -- (read: its text not kept for the session; review, 0.53.6)
 	end
 	return known, knownOrder
 end
@@ -75,7 +87,7 @@ local function Fill(e, value, default)
 	e._ltext = ns.Lower(e.help .. " " .. (e.cat or "") .. (e.changed and " changed" or ""))
 end
 
--- the tooltip, made when hovered (not for every one of ~1650 rows up front)
+-- the tooltip, made when hovered (not for every one of the rows up front)
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 1, 1)
 	if e.help ~= "" then t:AddLine(e.help, 0.8, 0.8, 0.8, true) end
@@ -140,7 +152,7 @@ ns:RegisterProvider("cvars", {
 			local value, default, readOnly, secure = Read(name)
 			if value ~= nil then
 				local k = kn[name]
-				local help = (n[3] and n[3] ~= "" and n[3]) or (k and k[2]) or ""
+				local help = (n[3] and n[3] ~= "" and n[3]) or (k and Words(k[2])) or ""
 				local e = {
 					key = name, name = name, help = help, cat = Category(n[2] or (k and k[1])),
 					-- (not `secure`: that's a row's game-pressed action, and a protected setting's row read as one)

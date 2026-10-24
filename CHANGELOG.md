@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.5 (in testing)
+
+- @cvar's list is the console settings WoW Forever's own interface reads or sets (about 570, made from Blizzard's interface code for the client), each explained by the options panel's own label and tooltip, read from the game in your language.
+
 ## 0.67.4 (in testing)
 
 - Housekeeping: every data file now names its source (docs/DATA_SOURCES.md), and tests/check.py guards against another addon's data coming back.
