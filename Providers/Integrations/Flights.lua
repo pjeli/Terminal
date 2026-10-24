@@ -132,11 +132,12 @@ FL.ForgetSide = function() lastSide = nil end -- (tests)
 
 -- Every character starts out knowing its race's capital's flight master (the game teaches it when the character is
 -- made): by race (UnitRace's third return). Until a flight master's map says otherwise, that one is learned. The
--- Skyborne (95, 96) aren't listed: whether they start knowing Thunder Bluff or another isn't known yet.
+-- Horde's Skyborne (the Windshapers, 96) start with Orgrimmar's (the player, 0.67.3, from what's published); the
+-- Alliance's (the High Order, 95) aren't listed until theirs is known.
 FL.START = {
 	[1] = "stormwind, elwynn", [3] = "ironforge, dun morogh", [7] = "ironforge, dun morogh",
 	[4] = "rut'theran village, teldrassil", [2] = "orgrimmar, durotar", [8] = "orgrimmar, durotar",
-	[5] = "undercity, tirisfal", [6] = "thunder bluff, mulgore",
+	[5] = "undercity, tirisfal", [6] = "thunder bluff, mulgore", [96] = "orgrimmar, durotar",
 }
 --- This character's race's own flight point (its lowercase full name), or nil.
 function FL.StartPoint()

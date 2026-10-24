@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.3 (in testing)
+
+- A Windshaper (Horde Skyborne) starts knowing Orgrimmar's flight path. The High Order's isn't assumed yet.
+
 ## 0.67.2 (in testing)
 
 - Every character's race capital counts as a learned flight path from the start (Stormwind, Ironforge, Rut'theran Village, Orgrimmar, Undercity, Thunder Bluff), until a flight master's map says otherwise. The Skyborne's isn't assumed yet.

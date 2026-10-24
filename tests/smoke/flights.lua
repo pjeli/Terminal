@@ -439,10 +439,13 @@ do
 	race = 8
 	check(State("Orgrimmar, Durotar") == true, "flights: a troll's is Orgrimmar too")
 	race = 96
-	check(State("Thunder Bluff, Mulgore") == nil and State("Orgrimmar, Durotar") == nil,
-		"flights: a Windshaper's isn't guessed (not checked yet)")
+	check(State("Orgrimmar, Durotar") == true and State("Thunder Bluff, Mulgore") == nil,
+		"flights: a Windshaper (Horde Skyborne) starts with Orgrimmar's, not Thunder Bluff's")
 	race, side = 4, "Alliance"
 	check(State("Rut'theran Village, Teldrassil") == true, "flights: a night elf's is Rut'theran Village")
+	race = 95
+	check(State("Stormwind, Elwynn") == nil and State("Ironforge, Dun Morogh") == nil,
+		"flights: the High Order (Alliance Skyborne): not guessed (not checked yet)")
 	race = 1
 	ns.db.flights["Player-1-NEW1"] = { v = FL.RECORD_V, side = "A", conts = { [0] = 1 }, nodes = { ["stormwind, elwynn"] = false } }
 	l, how = State("Stormwind, Elwynn")
