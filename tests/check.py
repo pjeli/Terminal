@@ -62,6 +62,14 @@ for f in tracked:
     elif f.endswith(".lua") and f.startswith(("tests/", "docs/")):
         print("FAIL the CurseForge package would carry", f)
         ok = False
+# (0.67.4) Terminal carries no other addon's data: Leatrix's tables were replaced by cited sources (docs/DATA_SOURCES.md),
+# and nothing tracked names them any more (a comment saying where data came from would be a sign some was copied back)
+for f in tracked:
+    path = os.path.join(repo, f)
+    if f.endswith((".lua", ".toc", ".md", ".py", ".xml")) and os.path.exists(path) and f != "tests/check.py":
+        if "leatrix" in open(path, encoding="utf-8", errors="replace").read().lower():
+            print("FAIL", f, "names Leatrix: Terminal carries no other addon's data (docs/DATA_SOURCES.md)")
+            ok = False
 # (review, 0.53.6) a list is marked changed through ns:Changed (it also searches an open terminal's list again, dots a
 # tab that showed it, and reads a warmDirty list again in the background), never by setting _dirty from a provider.
 # Core marks its own; the terminal its refreshOnOpen and loaded lists; Questie's NPC index, freed once built, its own.

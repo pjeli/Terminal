@@ -5,7 +5,9 @@ local L = ns.L
 
 -- .wowamp's stations (Wowamp.lua plays them).
 -- Stations: name, place, genre, a line from the DJ, the visualizer's colours (low, high), its tempo, and
--- the tracks: { file ID, seconds, title } (file IDs and lengths from Leatrix Plus's music list).
+-- the tracks: { file ID, seconds, title }. Which tracks each station plays is Terminal's own; the rest is made by
+-- `python tests/gen_data.py music` (docs/DATA_SOURCES.md): the game's music files (its SoundKitEntry table), each one's
+-- length measured from the file, its title from the file's name.
 ns.WowampStations = {
 	{ id = "lionspride", name = L["Lion's Pride FM"], place = L["Goldshire, Elwynn Forest"], genre = L["Tavern & folk"], tag = L["Live from the inn: a lute, a fire and an ale that's mostly foam."], lo = "ffd36b", hi = "ff8a2a", bpm = 96, tracks = {
 		{ 53737, 47, "Tavern Alliance 01" },

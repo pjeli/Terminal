@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.4 (in testing)
+
+- Housekeeping: every data file now names its source (docs/DATA_SOURCES.md), and tests/check.py guards against another addon's data coming back.
+
 ## 0.67.3 (in testing)
 
 - A Windshaper (Horde Skyborne) starts knowing Orgrimmar's flight path. The High Order's isn't assumed yet.
