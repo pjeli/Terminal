@@ -418,3 +418,35 @@ do
 	check(not seen["nighthaven, moonglade|A"] and not seen["crown guard tower, eastern plaguelands|N"],
 		"flights: not the druids' Nighthaven nor the Plaguelands' towers")
 end
+
+-- (0.67.2, the player: every race starts out knowing its capital's flight point) a new character's capital is learned
+-- before any flight master's map is read; a map that says otherwise wins; the Skyborne aren't guessed
+do
+	local FL = ns.Integrations.Flights
+	local keep = { race = _G.UnitRace, faction = _G.UnitFactionGroup, guid = _G.UnitGUID, flights = ns.db.flights }
+	local race, side = 2, "Horde"
+	_G.UnitRace = function() return "Orc", "Orc", race end
+	_G.UnitFactionGroup = function() return side end
+	_G.UnitGUID = function() return "Player-1-NEW1" end
+	ns.db.flights = {}
+	local function State(full)
+		FL.ForgetSide()
+		for _, e in ipairs(FL.Collect()) do if e.full == full then return e.learned, e.how end end
+	end
+	local l, how = State("Orgrimmar, Durotar")
+	check(l == true and how == "start", "flights: a new orc knows Orgrimmar's: " .. tostring(l) .. " " .. tostring(how))
+	check(State("Crossroads, The Barrens") == nil, "flights: ... and nothing else yet")
+	race = 8
+	check(State("Orgrimmar, Durotar") == true, "flights: a troll's is Orgrimmar too")
+	race = 96
+	check(State("Thunder Bluff, Mulgore") == nil and State("Orgrimmar, Durotar") == nil,
+		"flights: a Windshaper's isn't guessed (not checked yet)")
+	race, side = 4, "Alliance"
+	check(State("Rut'theran Village, Teldrassil") == true, "flights: a night elf's is Rut'theran Village")
+	race = 1
+	ns.db.flights["Player-1-NEW1"] = { v = FL.RECORD_V, side = "A", conts = { [0] = 1 }, nodes = { ["stormwind, elwynn"] = false } }
+	l, how = State("Stormwind, Elwynn")
+	check(l == false and how == "flightmaster", "flights: a flight master's map that says otherwise wins")
+	_G.UnitRace, _G.UnitFactionGroup, _G.UnitGUID, ns.db.flights = keep.race, keep.faction, keep.guid, keep.flights
+	FL.ForgetSide()
+end

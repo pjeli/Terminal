@@ -1841,6 +1841,7 @@ L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn
 L["Your party"] = true
 L["Your pets"] = true
 L["Your position isn't known here, so there's no nearest mailbox."] = true
+L["Your race's own flight point: every character starts out knowing it"] = true
 L["Your sales are kept 30 days: each as the auction house tells it, or from its mail once a mailbox shows it."] = true
 L["Your spellbook"] = true
 L["Your spellbook, every class's spells and the talents are looked in"] = true

@@ -129,6 +129,20 @@ function FL.MySide()
 	return lastSide
 end
 FL.ForgetSide = function() lastSide = nil end -- (tests)
+
+-- Every character starts out knowing its race's capital's flight master (the game teaches it when the character is
+-- made): by race (UnitRace's third return). Until a flight master's map says otherwise, that one is learned. The
+-- Skyborne (95, 96) aren't listed: whether they start knowing Thunder Bluff or another isn't known yet.
+FL.START = {
+	[1] = "stormwind, elwynn", [3] = "ironforge, dun morogh", [7] = "ironforge, dun morogh",
+	[4] = "rut'theran village, teldrassil", [2] = "orgrimmar, durotar", [8] = "orgrimmar, durotar",
+	[5] = "undercity, tirisfal", [6] = "thunder bluff, mulgore",
+}
+--- This character's race's own flight point (its lowercase full name), or nil.
+function FL.StartPoint()
+	local race = Num((select(3, Safe(_G.UnitRace, "player"))))
+	return race and FL.START[race] or nil
+end
 --- Is a point of this side yours? (neutral ones are everyone's)
 local function Fits(side, mine) return not mine or side == "N" or side == mine end
 
@@ -393,6 +407,8 @@ local function Tooltip(e, t)
 		t:AddLine(L["As a flight master's map showed it"] .. ((r and r.t) and (", " .. ns.Ago(Now() - r.t)) or ""), 0.6, 0.6, 0.6, true)
 	elseif e.how == "map" then
 		t:AddLine(L["As the world map's data says (a flight master's map will tell for sure)"], 0.6, 0.6, 0.6, true)
+	elseif e.how == "start" then
+		t:AddLine(L["Your race's own flight point: every character starts out knowing it"], 0.6, 0.6, 0.6, true)
 	else
 		t:AddLine(L["Talk to any flight master on this continent: its map tells Terminal which you know"], 0.6, 0.6, 0.6, true)
 	end
@@ -435,6 +451,7 @@ function FL.Collect()
 	local trust = differ == 0 and agreeNot > 0
 	FL.trusted = trust
 	local rows, counts = {}, { learned = 0, unlearned = 0, unchecked = 0 }
+	local start = FL.StartPoint()
 	for i, p in ipairs(FL.POINTS) do
 		if Fits(p[6], mine) then
 			local learned, how = said[i], nil
@@ -442,6 +459,8 @@ function FL.Collect()
 				how = "flightmaster"
 			elseif trust and at[i] and at[i].known ~= nil then
 				learned, how = at[i].known, "map"
+			elseif p.lfull == start then
+				learned, how = true, "start"
 			end
 			local state = learned == nil and "unchecked" or (learned and "learned" or "unlearned")
 			counts[state] = counts[state] + 1

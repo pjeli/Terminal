@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.67.1", when = "in testing",
+		v = "0.67.2", when = "in testing",
 		items = {
 			"Flight paths, dungeon and raid entrances, zone levels and fishing skills now come from the game's own data and public sources (docs/DATA_SOURCES.md on GitHub). Dungeon levels are the Group Finder's; with Questie or QuestieDB installed, entrances show at their doors.",
+			"Your race's capital counts as a learned flight path from the start, before you've talked to a flight master.",
 		},
 	},
 	{

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.2 (in testing)
+
+- Every character's race capital counts as a learned flight path from the start (Stormwind, Ironforge, Rut'theran Village, Orgrimmar, Undercity, Thunder Bluff), until a flight master's map says otherwise. The Skyborne's isn't assumed yet.
+
 ## 0.67.1 (in testing)
 
 - Flight paths, dungeon and raid entrances, zone levels and fishing skills now come from the game's own data and public sources, each one cited in docs/DATA_SOURCES.md and made again by tests/gen_data.py.
