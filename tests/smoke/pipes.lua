@@ -1,4 +1,4 @@
--- Chains (Pipes.lua, 0.43.12): "thorium belt > mats", "mats for thorium belt", walking on, the footer's trail
+-- Chains (Steps/Chains.lua, was Pipes.lua; 0.43.12): "thorium belt > mats", "mats for thorium belt", walking on, the footer's trail
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
 local P = ns.Pipes

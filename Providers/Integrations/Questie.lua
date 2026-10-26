@@ -203,7 +203,7 @@ local function QuestHintRow(_, id)
 		level = Safe(DB.QueryQuestSingle, id, "questLevel"), _ltext = "quest questie" }, qdb.meta)
 end
 
--- rows by id for the chains (Pipes.lua: an item's sellers and droppers, a quest that rewards it)
+-- rows by id for the chains (Chains.lua: an item's sellers and droppers, a quest that rewards it)
 function I.NpcRow(id) return NpcHintRow(nil, id) end
 function I.QuestRow(id) return QuestHintRow(nil, id) end
 --- One field of Questie's item (vendors, npcDrops, objectDrops, questRewards...), or nil.

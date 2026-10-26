@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.67.6 (in testing)
+
+- One reading of the line, shared by the search, the bar, Alt+` and .explain (docs/FRONT_END.md). What players see:
+  - Alt+` keeps your capitals ("Hogger | except @bank"), writes "linen to csv" as `linen >>> csv`, writes "items by zone" with `@item`, and writes a name found by its words ("Tonight We Dine") as it was searched.
+  - "not in my bank" or "not on my alts" on its own lists your items that aren't there; "in bank", "in the bank", "on alts", "in the mail" and the like compare a search as "in my bank" does.
+  - Unticking a typed filter on the bar takes out exactly the words that said it: another filter's same word stays ("boe linen not boe"), and nothing inside a "quoted phrase" is touched.
+  - A `>>` inside a "quoted phrase" is part of it; with two `>>`, the last one is the send.
+  - A number or date said in words doesn't read across a "quoted phrase"; a name with a date's words reads only the date's words as words the second time ("tonight we dine worth more than 1g" keeps worth more than 1g).
+- Search/ is in folders: Reading/ (how a line is read), Questions/, Steps/ (chains and | steps); Search.lua is split into Query, Nearest, Fallbacks, Overview, Printers and Why. New files: the game needs a full restart, not a /reload.
+
 ## 0.67.5 (in testing)
 
 - @cvar's list is the console settings WoW Forever's own interface reads or sets (about 570, made from Blizzard's interface code for the client), each explained by the options panel's own label and tooltip, read from the game in your language.

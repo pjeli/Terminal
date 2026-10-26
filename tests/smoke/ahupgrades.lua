@@ -1,6 +1,6 @@
 -- The cheapest upgrades on the auction house (0.66.13, the player): "ah upgrades", "cheapest upgrades on the ah":
 -- AtlasLoot's bind-on-equip items that are clear upgrades, at Auctionator's last-scanned price, the most gain per gold
--- first. Search/Auctionator.lua (AN.Upgrades).
+-- first. AuctionValues.lua (AN.Upgrades).
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local AN, F = ns.Auctionator, ns.Filters

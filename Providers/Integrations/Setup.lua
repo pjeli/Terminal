@@ -154,7 +154,7 @@ I.ADDONS = {
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
--- (0.62.0: auction house prices, Search/Auctionator.lua: its filters and fields say to install it)
+-- (0.62.0: auction house prices, AuctionValues.lua: its filters and fields say to install it)
 I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
 	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,
 	["sort:ahvalue"] = true, ["sort:ah"] = true, ["sort:ahprice"] = true, ["sort:market"] = true } }

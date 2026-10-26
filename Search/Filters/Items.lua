@@ -50,7 +50,7 @@ local function ItemInfo(id)
 		c = { link = link, quality = quality, ilvl = ilvl, minLevel = minLevel, type = itemType, subType = subType, equipLoc = equipLoc,
 			classID = type(classID) == "number" and classID or nil, subID = type(subID) == "number" and subID or nil,
 			bindType = type(bindType) == "number" and bindType or nil,
-			sell = type(sellPrice) == "number" and sellPrice or nil } -- (a vendor's price for one: "| sum value", Pipes.lua)
+			sell = type(sellPrice) == "number" and sellPrice or nil } -- (a vendor's price for one: "| sum value", Aggregate.lua)
 		if type(id) ~= "number" then return c end
 		ns.NoteQuality(id, quality) -- (its colour, should the game let go of it: Util.lua)
 	end
@@ -329,7 +329,7 @@ local TYPE_IDS = {
 }
 local CLASS_WORDS = { consumable = 0, container = 1, bag = 1, weapon = 2, gem = 3, armor = 4, armour = 4, reagent = 5,
 	projectile = 6, ammo = 6, recipe = 9, quiver = 11, quest = 12, key = 13 }
-F.TYPE_IDS, F.CLASS_WORDS = TYPE_IDS, CLASS_WORDS -- (Easy.lua: the game's own names for them, in Simple mode)
+F.TYPE_IDS, F.CLASS_WORDS = TYPE_IDS, CLASS_WORDS -- (Simple.lua: the game's own names for them, in Simple mode)
 --- The numbers an English type word stands for (plural or not), or nil: a set of class * 100 + subclass, a class.
 local function TypeIds(v)
 	local list = TYPE_IDS[v] or TYPE_IDS[(v:gsub("es$", ""))] or TYPE_IDS[(v:gsub("s$", ""))]

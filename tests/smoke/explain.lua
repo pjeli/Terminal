@@ -1,4 +1,4 @@
--- An Advanced line read back in plain words (0.66.9, the player: "the explain; reverse Alt+`"): .explain. Search/Easy.lua
+-- An Advanced line read back in plain words (0.66.9, the player: "the explain; reverse Alt+`"): .explain. Explain.lua
 -- (E.Explain).
 local T = ...
 local ns, check = T.ns, T.check

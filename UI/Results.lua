@@ -508,40 +508,45 @@ end
 --- to search.
 local function TakeSendTo(self, text, first)
 	-- "copper bar >> party": the search is before the ">>"; Enter sends the selected result there (Share.lua)
-	self.sendTo, self.groupList, self.groupRows = nil, nil, nil
+	self.sendTo, self.groupList, self.groupRows, self.reading = nil, nil, nil, nil
 	if self.fzf or self.histSearch or first == "." or first == "/" or not ns.Share then return text end
-	local query, rest, all = ns.Share.Split(text)
-	if rest then
-		self.sendTo = ns.Share.Channel(rest)
-		self.sendTo.query = query -- (what was searched: the chat line says what the result is, Share.Context)
-		self.sendTo.all = all -- (">>> party": every result at once, Share.SendAll)
-		return (query:gsub("%s+$", ""))
+	-- (the line read once: its send, its steps, its top N; Phrase.lua. TakeAggregate reads the same reading)
+	local r = ns.Phrase.ReadLine(text, { simple = EasyOn() })
+	self.reading = r
+	local send = r.send
+	if send then
+		self.sendTo = ns.Share.Channel(send.channel)
+		self.sendTo.query = text:sub(1, send.at - 1) -- (what was searched: the chat line says what the result is, Share.Context)
+		self.sendTo.all = send.all -- (">>> party": every result at once, Share.SendAll)
+		return r.base
 	end
 	-- Simple mode: copying said in plain words at the end: "linen to csv", "linen as text" (every result; 0.52.12, the
 	-- player's call).
-	if EasyOn() then
-		local q, how = ns.Share.PlainCopy(text)
-		if q then
-			local to = ns.Share.Channel(how)
-			to.query, to.all = q, true
-			self.sendTo = to
-			return q
-		end
+	local copy = r.copy
+	if copy then
+		local to = ns.Share.Channel(copy.how)
+		to.query, to.all = copy.query, true
+		self.sendTo = to
+		return copy.query
 	end
 	return text
 end
 
 --- "| sum value", "| group zone" (0.52.13; Simple mode too since 0.55.9): the steps after a "|" standing alone, read
---- into UI.aggregate (the search sums its results up: Pipes.lua's ns.Aggregate); gives the text to search. Simple mode's
+--- into UI.aggregate (the search sums its results up: Aggregate.lua's ns.Aggregate); gives the text to search. Simple mode's
 --- bar's Group when none is typed ("| group by zone" as Advanced writes it; not over the categories, Bar.lua).
 local function TakeAggregate(self, text, first)
 	self.aggregate, self.typedGroup, self.barGroupIgnored = nil, nil, nil
 	local A = ns.Aggregate
 	if self.fzf or self.histSearch or first == "." or first == "/" or not A then return text end
+	-- (the line as TakeSendTo read it, its send off: this text)
+	local r = self.reading
+	if not (r and r.base == text) then r = ns.Phrase.ReadLine(text, { simple = EasyOn() }) end
 	-- ("quests per zone": searched as "@questie | group by zone", its groups' Enter stepping in; 0.61.5, the player)
-	local per = ns.PerField and ns.PerField.Line and ns.PerField.Line(text)
-	if per then text = per end
-	local query, steps = A.Split(text)
+	local per = r.per
+	local query, steps
+	if per then query, steps = per.query, per.list
+	elseif r.steps then query, steps = r.steps.query, r.steps.list end
 	if steps then
 		-- (steps typed: they sum up, the bar's Group doesn't; the bar says so, Bar.lua; 0.55.18, review)
 		local bar = EasyOn() and ns.Bar and ns.Bar.Active()
@@ -550,20 +555,18 @@ local function TakeAggregate(self, text, first)
 		-- (Simple mode: a group typed shows on the bar as its Group, to take back out from there)
 		local last = self.aggregate.last
 		if EasyOn() and last and last.op == "group" and last.by then
-			self.typedGroup = { id = last.by, word = "| " .. steps[#steps], rest = per and (query:gsub("%s+$", "") .. " ") or nil }
+			-- (src: the last step's place in the line, from its "|" on: the bar takes it out by that)
+			local st = not per and r.steps
+			local src = st and st.bars and ns.Phrase.Span(r, st.bars[#st.bars], math.max(st.to, st.bars[#st.bars])) or nil
+			self.typedGroup = { id = last.by, word = "| " .. steps[#steps], rest = per and (query:gsub("%s+$", "") .. " ") or nil, src = src }
 		end
 		return query
 	end
 	local bar = EasyOn() and ns.Bar and ns.Bar.Active()
-	-- (top N in words, "the 3 nearest mailboxes": the first three of "nearest mailboxes"; 0.66.7, Easy.lua)
-	local rest, n, setStep
-	if EasyOn() and ns.Easy and ns.Easy.TopN then
-		rest, n = ns.Easy.TopN(text)
-		-- (a comparison said at the end, "but not in my bank": "| except @bank"; 0.66.10)
-		local r2
-		r2, setStep = ns.Easy.SetOp(rest)
-		if setStep then rest = r2 end
-	end
+	-- (top N in words, "the 3 nearest mailboxes": the first three of "nearest mailboxes"; 0.66.7, StepWords.lua; a comparison
+	-- said at the end, "but not in my bank": "| except @bank", 0.66.10. Simple mode's: the reading has them only there)
+	local n, setStep = r.top and r.top.n, r.setop and r.setop.step
+	local rest = r.query
 	if n or setStep then
 		local steps = {}
 		if setStep then steps[#steps + 1] = setStep end
@@ -895,7 +898,7 @@ function UI:Scroll(delta)
 end
 
 ----------------------------------------------------------------------
--- Easy mode: categories (Easy.lua has them): picked from the rows a search lists
+-- Easy mode: categories (Simple.lua has them): picked from the rows a search lists
 ----------------------------------------------------------------------
 
 --- Search again now, even within the frame of the last search.
@@ -911,7 +914,7 @@ function UI:SetOrResearch(text)
 end
 
 --- Pick a category ("items", "emotes"...; nil: none, back to the categories): the results are searched again. An id
---- a category took over ("bags", "game": Easy.lua's `was`) picks that category.
+--- a category took over ("bags", "game": Simple.lua's `was`) picks that category.
 function UI:SetCategory(id)
 	if id ~= nil and not (ns.Easy and ns.Easy.BY_ID[id]) then return end
 	if id ~= nil then id = ns.Easy.BY_ID[id].id end

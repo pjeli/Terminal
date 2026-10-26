@@ -61,26 +61,51 @@ end
 --- "copper >> party" -> "copper ", "party"; "copper >>party" the same. The last ">>" is the one (a ">>" in
 --- the search part before it stays a word of the search). "lvl:>>20" has none: it's inside a word.
 --- A third result is true for ">>>" (every result, not only the selected one).
+--- (Read by the line's send recognizer below: the reading's send, Phrase.lua)
 function SH.Split(text)
 	if type(text) ~= "string" or not text:find(">>", 1, true) then return text, nil end
-	local at, all
-	for pos, w in text:gmatch("()(%S+)") do
-		if w:sub(1, 2) == ">>" then at, all = pos, w:sub(3, 3) == ">" end -- (the last one)
-	end
-	if not at then return text, nil end
-	return text:sub(1, at - 1), (text:sub(at + (all and 3 or 2)):gsub("^%s+", ""):gsub("%s+$", "")), all or nil
+	local send = ns.Phrase.ReadLine(text, { simple = false }).send
+	if not send then return text, nil end
+	return text:sub(1, send.at - 1), send.channel, send.all or nil
 end
+
+-- the send: a word starting with ">>", the last one in the line (not inside a "quoted phrase"), and every word after
+-- it: where to send. "copper >> party", "copper >>party"; "lvl:>>20" has none (it's inside a word). In either mode.
+ns.Phrase.Register({ id = "send", stage = "send", priority = 20, classes = { op = true, syntax = true, word = true, quoted = true },
+	modes = { simple = true, advanced = true },
+	at = function(r, i)
+		local toks = r.toks
+		local t = toks[i]
+		if t.class == "quoted" or t.text:sub(1, 2) ~= ">>" then return nil end
+		for k = i + 1, #toks do -- (the last one)
+			if toks[k].class ~= "quoted" and toks[k].text:sub(1, 2) == ">>" then return nil end
+		end
+		local all = t.text:sub(3, 3) == ">"
+		return { from = i, to = #toks, kind = "send", at = t.s, all = all or nil,
+			channel = (r.line:sub(t.s + (all and 3 or 2)):gsub("^%s+", ""):gsub("%s+$", "")) }
+	end })
 
 --- Simple mode's way to copy (0.52.12, the player's call: ">>" is Advanced mode's): "linen to csv", "linen as text"
 --- at the end of a search copies every result. Gives the search and "csv" / "text", or nil.
+--- (Read by the line's copy recognizer below: the reading's copy, Phrase.lua)
 function SH.PlainCopy(text)
 	if type(text) ~= "string" then return nil end
-	local query, pre, how = text:match("^(.-%S)%s+(%a%a)%s+(%a+)%s*$")
-	if not query then return nil end
-	pre, how = ns.Lower(pre), ns.Lower(how)
-	if (pre ~= "to" and pre ~= "as") or (how ~= "csv" and how ~= "text") then return nil end
-	return query, how
+	local copy = ns.Phrase.ReadLine(text, { simple = true }).copy
+	if not copy then return nil end
+	return copy.query, copy.how
 end
+
+-- the copy: the line's last two words, "to"/"as" and "csv"/"text", after a search (Simple mode)
+ns.Phrase.Register({ id = "copy", stage = "send", priority = 10,
+	at = function(r, i)
+		local toks = r.toks
+		local n = #toks
+		if i ~= n - 1 or i < 2 then return nil end
+		local pre, how = toks[i], toks[n]
+		if not (pre.text:find("^%a%a$") and how.text:find("^%a+$")) then return nil end
+		if (pre.low ~= "to" and pre.low ~= "as") or (how.low ~= "csv" and how.low ~= "text") then return nil end
+		return { from = i, to = n, kind = "copy", how = how.low, query = (r.line:sub(1, pre.s - 1):gsub("%s+$", "")) }
+	end })
 
 --- A whisper's target as typed ("Plamen Warr"): a first name and surname joined the way the game joins them
 --- (ns.CharacterName); one word as it is.

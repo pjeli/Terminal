@@ -1,6 +1,6 @@
 -- Comparing two searches (0.66.10, the player): "| except @bank" leaves out what the other search finds, "| also @stored"
--- adds it; in plain words "... but not in my bank", "... plus my alts". Search/Pipes.lua (A.Compare, A.OtherRows,
--- A.Identity), Easy.lua (SetOp), UI/Results.lua (TakeAggregate).
+-- adds it; in plain words "... but not in my bank", "... plus my alts". Search/Steps/Aggregate.lua (A.Compare, A.OtherRows,
+-- A.Identity), StepWords.lua (SetOp), UI/Results.lua (TakeAggregate).
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local A, E, B = ns.Aggregate, ns.Easy, ns.Bar
@@ -76,9 +76,28 @@ do
 	check(rest == "cloth" and step == "except @bank", "but not in my bank: " .. tostring(rest) .. " / " .. tostring(step))
 	rest = E.SetOp("Hogger  but not in my bank")
 	check(rest == "Hogger", "the line kept as typed: " .. tostring(rest))
-	check(select(2, E.SetOp("cloth plus my alts")) == "also @stored" and select(2, E.SetOp("not in my bank")) == nil
-		and select(2, E.SetOp("cloth not boe")) == nil, "plus my alts; alone or another not: no comparison")
+	check(select(2, E.SetOp("cloth plus my alts")) == "also @stored" and select(2, E.SetOp("plus my alts")) == nil
+		and select(2, E.SetOp("cloth not boe")) == nil, "plus my alts; added alone or another not: no comparison")
+	-- (said alone, as the search reads it: your items but the bank's; FRONT_END.md 10.7, review)
+	rest, step = E.SetOp("not in my bank")
+	check(rest == "@item" and step == "except @bank" and select(2, E.SetOp("not in my log")) == nil,
+		"left out alone: from your items: " .. tostring(rest) .. " / " .. tostring(step))
+	-- (said without "my": FRONT_END.md 10.7)
+	check(select(2, E.SetOp("cloth not in bank")) == "except @bank" and select(2, E.SetOp("cloth but not in the bank")) == "except @bank"
+		and select(2, E.SetOp("cloth plus on alts")) == "also @stored", "the lists said without \"my\": " .. tostring(select(2, E.SetOp("cloth not in bank"))))
 	ns.db.easyMode = true; UI:EasyChanged()
+	UI:SetQuery("cloth not in the bank"); FlushAll()
+	check(Names() == "Linen Silk", "Simple mode: cloth not in the bank: " .. Names())
+	-- (said alone: your items but the bank's, the player's call; FRONT_END.md 10.7)
+	UI:SetQuery("not in my bank"); FlushAll()
+	check(Names() == "Linen Silk", "Simple mode: not in my bank alone: your items but the bank's: " .. Names())
+	check(E.ToAdvanced("not in my bank") == "@item | except @bank", "Alt+` of it: " .. tostring(E.ToAdvanced("not in my bank")))
+	-- (a top N before it: the first N of those; review)
+	UI:SetQuery("1 not in my bank"); FlushAll()
+	check(Names() == "Linen" or Names() == "Silk", "1 not in my bank: one of your items but the bank's: " .. Names())
+	check(E.ToAdvanced("3 not in my bank") == "@item | except @bank | first 3", "Alt+` of it: " .. tostring(E.ToAdvanced("3 not in my bank")))
+	UI:SetQuery("not in my log"); FlushAll()
+	check(not (UI.reading and UI.reading.setop), "not in my log alone: no comparison (no list of items is your log)")
 	UI:SetQuery("cloth but not in my bank"); FlushAll()
 	check(Names() == "Linen Silk", "Simple mode: cloth but not in my bank: " .. Names())
 	local adv = E.ToAdvanced("cloth but not in my bank")

@@ -1,5 +1,5 @@
 -- Talents by what they do (0.54.4, a player, again: "healing talents", "shaman crit talents", "druid regen talents" weren't
--- quite doing it): a question (Search/Talents.lua), not a search that read "crit" and "healing" as an item's stats; each
+-- quite doing it): a question (Search/Questions/Talents.lua), not a search that read "crit" and "healing" as an item's stats; each
 -- word as descriptions say it ("healed", "critical", "regeneration"), every word there.
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll

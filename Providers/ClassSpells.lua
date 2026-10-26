@@ -6,7 +6,7 @@ local L = ns.L
 -- found only a talent; "druid spells" found nothing). @classspell: a row per spell of every class, with the level each
 -- rank is learned at; your own class's only those you don't know yet (the spellbook has the rest). Enter shows its
 -- Wowhead page, Shift+Enter links it in chat. class:druid narrows to a class; "druid spells", "upcoming spells" are
--- Search/ClassSpells.lua's questions.
+-- Search/Questions/ClassSpells.lua's questions.
 --
 -- The spells come from What's Training (0.56.1, the player: "I would prefer to rely on WT"): its WT_API.GetCatalog,
 -- every class's trainer and quest spells with their levels, races and factions, and its weapon masters. Terminal

@@ -13,7 +13,7 @@ local AddOnVersion = I._.AddOnVersion
 -- that), the retired ones only when Attune shows them.
 --
 --   <attunement> > steps   its steps first to last (each quest line in turn), each saying whether it's done or next;
---                          Enter opens Attune on that step (Search/Attune.lua)
+--                          Enter opens Attune on that step (Attunements.lua)
 --   <quest> > attunement   the attunements a quest, item or NPC is a step of
 --   Simple mode            "my attunements", "raid attunements", "keys", "class quests", "how do i get into mc"
 --
@@ -767,7 +767,7 @@ function AT.Open(rec, stepId)
 end
 
 ----------------------------------------------------------------------
--- Rows: @attune's (one per attunement) and its steps' (Search/Attune.lua's "> steps")
+-- Rows: @attune's (one per attunement) and its steps' (Attunements.lua's "> steps")
 ----------------------------------------------------------------------
 
 local SEP = ns.DETAIL_SEP

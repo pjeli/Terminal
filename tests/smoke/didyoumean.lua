@@ -1,5 +1,5 @@
 -- "Did you mean...?" (0.56.2, the player's ask): a plain-words search that finds nothing offers the closest phrases
--- Terminal understands, or the category a word names; .missed keeps the searches that found nothing (Search/DidYouMean.lua).
+-- Terminal understands, or the category a word names; .missed keeps the searches that found nothing (Search/Questions/DidYouMean.lua).
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local L, DYM = ns.L, ns.DidYouMean

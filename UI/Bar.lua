@@ -215,6 +215,18 @@ function B.SpecLabel(spec, word)
 	return out or ns.UpperFirst(word or tostring(spec))
 end
 
+--- The prompt set to what's left once words were taken out of `old`: one space between words, none at the ends, but a
+--- space typed after the last word stays (the next word is on its way). The search runs again.
+local function Put(text)
+	if UI.SetQuery then UI:SetQuery(text, #text) else UI.edit:SetText(text) end
+end
+local function SetLeft(old, text)
+	local had = old:find("%s$")
+	text = text:gsub("%s%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	if had and text ~= "" then text = text .. " " end
+	Put(text)
+end
+
 --- Words taken out of the prompt (case aside, whole words; a phrase's spaces any spaces), the search run again.
 function B.DropWords(words)
 	local edit = UI.edit
@@ -254,10 +266,58 @@ function B.DropWords(words)
 			end
 		end
 	end
-	local had = (edit:GetText() or ""):find("%s$") -- (a space typed after the last word stays: the next word is on its way)
-	text = text:gsub("%s%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-	if had and text ~= "" then text = text .. " " end
-	if UI.SetQuery then UI:SetQuery(text, #text) else edit:SetText(text) end
+	SetLeft(edit:GetText() or "", text)
+end
+
+--- The prompt's text with these spans of it ({ s, e = bytes, line = the line read, pieces = the spans to take out
+--- instead, a join's words around a "quoted phrase" }, the search's: Search.lua's Picked) cut out, or put `new` in place
+--- of them; nil when they don't fit the prompt any more (it isn't the line read).
+local function CutSpans(text, spans, new)
+	local list, seen = {}, {}
+	for _, sp in ipairs(spans) do
+		if not (type(sp) == "table" and sp.s and sp.e and sp.line) or text:sub(1, #sp.line) ~= sp.line then return nil end
+		-- (and the prompt goes on after it with a new word, or not at all: "under level 25" isn't "under level 2" read
+		-- a keystroke ago, whose span would leave the "5"; review)
+		local after = text:sub(#sp.line + 1, #sp.line + 1)
+		if after ~= "" and not after:find("%s") then return nil end
+		for _, piece in ipairs(sp.pieces or { sp }) do
+			local key = piece.s .. ":" .. piece.e
+			if not seen[key] then seen[key] = true; list[#list + 1] = piece end
+		end
+	end
+	if #list == 0 then return nil end
+	table.sort(list, function(a, b) return a.s > b.s end) -- (the last first: the earlier ones' bytes stay where they were)
+	for k = 2, #list do if list[k].e >= list[k - 1].s then return nil end end -- (overlapping: not one of the line's readings)
+	for _, sp in ipairs(list) do text = text:sub(1, sp.s - 1) .. (new or "") .. text:sub(sp.e + 1) end
+	return text
+end
+B.CutSpans = CutSpans
+
+--- Typed picks ({ word, src }: B.Typed's filters, sort, group) taken out of the prompt: each by where it is in the line
+--- (FRONT_END.md 4.4: never another filter's words that read the same, "boe linen not boe" unticked Boe keeps "not
+--- boe"; a filter typed twice is two items, B.Pick passes both);
+--- the prompt changed since it was read, by their words as before (B.DropWords).
+function B.DropTyped(items)
+	local edit = UI.edit
+	if not edit then return end
+	local spans, words = {}, {}
+	for _, it in ipairs(items) do
+		spans[#spans + 1] = it.src or false
+		words[#words + 1] = it.word
+	end
+	local old = edit:GetText() or ""
+	local text = CutSpans(old, spans)
+	if not text then return B.DropWords(words) end
+	SetLeft(old, text)
+end
+
+--- A typed pick's word in the prompt in place of another word ({ word, src }): by where it is, else by its word.
+function B.SwapTyped(item, new)
+	local edit = UI.edit
+	if not (edit and item) then return end
+	local text = CutSpans(edit:GetText() or "", { item.src or false }, new)
+	if not text then return B.SwapWord(item.word, new) end
+	Put(text)
 end
 
 --- A word of the line in place of another (whole words, the first one): "nearest mailbox" -> "farthest mailbox".
@@ -274,7 +334,7 @@ function B.SwapWord(old, new)
 		local before, after = lower:sub(a - 1, a - 1), lower:sub(b + 1, b + 1)
 		if (a == 1 or before:find("%s")) and (after == "" or after:find("%s")) then
 			text = text:sub(1, a - 1) .. new .. text:sub(b + 1)
-			if UI.SetQuery then UI:SetQuery(text, #text) else edit:SetText(text) end
+			Put(text)
 			return
 		end
 		from = a + 1
@@ -624,9 +684,11 @@ function B.Pick(which, id, thenBy)
 		local mine = false
 		for _, f in ipairs(state.filters) do if f == id then mine = true end end
 		if not mine then
-			for _, p in ipairs(typed.filters) do
-				if p.spec == id then B.DropWords({ p.word }) B.Update() return end
-			end
+			-- (every place it was typed, "rare sword rare": unticked, it's gone; only those, never another filter's words
+			-- that read the same: "boe linen not boe" keeps "not boe")
+			local said = {}
+			for _, p in ipairs(typed.filters) do if p.spec == id then said[#said + 1] = p end end
+			if #said > 0 then B.DropTyped(said) B.Update() return end
 		end
 		local had
 		for i, f in ipairs(state.filters) do if f == id then table.remove(state.filters, i); had = true break end end
@@ -644,7 +706,7 @@ function B.Pick(which, id, thenBy)
 		-- says the list too: taken out, "mailbox" alone searched no mailboxes; 0.65.x review)
 		if typedBase == id and typed.sort and not typed.sort.drop and o and o.near then
 			state.sort = nil
-			B.SwapWord(typed.sort.word, typedRev and "nearest" or "farthest")
+			B.SwapTyped(typed.sort, typedRev and "nearest" or "farthest")
 			B.Update()
 			return
 		end
@@ -654,7 +716,7 @@ function B.Pick(which, id, thenBy)
 			if turns then state.sort = typedRev and id or ("-" .. id) end
 			-- (and its "then by" kept, the bar's own now)
 			if turns and typedList[2] and not state.thenBy then state.thenBy = typedList[2] end
-			B.DropWords({ typed.sort.word })
+			B.DropTyped({ typed.sort })
 			B.Update()
 			return
 		end
@@ -669,7 +731,7 @@ function B.Pick(which, id, thenBy)
 		state.sort = (turns and o.asc and not B.LOW_FIRST[id]) and ("-" .. id) or id
 		-- (another sort picked: a sort: typed goes from the line, one sort at a time; "nearest" stays, it says the NPCs)
 		if state.sort and typed.sort and typed.sort.drop then
-			B.DropWords({ typed.sort.word })
+			B.DropTyped({ typed.sort })
 			B.Update()
 			return
 		end
@@ -679,7 +741,7 @@ function B.Pick(which, id, thenBy)
 			state.group = (typed.group.id ~= id) and id or nil
 			-- ("quests per zone": the words were the group; its list is what's left, "@questie")
 			if typed.group.rest and UI.edit then UI:SetQuery(typed.group.rest, #typed.group.rest)
-			else B.DropWords({ typed.group.word }) end
+			else B.DropTyped({ typed.group }) end
 			B.Update()
 			return
 		end
@@ -696,13 +758,13 @@ function B.PickThen(id)
 	local o = ById(B.SORTS, id)
 	if not (o and o.field) then return B.Pick("sort", id) end
 	local list = ns.Filters and ns.Filters.SortList and ns.Filters.SortList(typed.sort and typed.sort.id) or {}
-	local dropWord
+	local dropWord -- (the typed sort, to take out of the line)
 	local firstField = list[1] and ById(B.SORTS, (SortParts(list[1])))
 	if not state.sort and list[1] and firstField and firstField.field then
 		-- (the typed sort is the bar's own now: its first field, and its "then by" when it had one)
 		state.sort = list[1]
 		if list[2] and not state.thenBy then state.thenBy = list[2] end
-		dropWord = typed.sort.drop and typed.sort.word or nil
+		dropWord = typed.sort.drop and typed.sort or nil
 	end
 	local base = SortParts(state.sort)
 	if not state.sort or base == "distance" or base == id then
@@ -714,24 +776,24 @@ function B.PickThen(id)
 	if thenBase ~= id then state.thenBy = first
 	elseif state.thenBy == first then state.thenBy = (thenRev and id) or ("-" .. id)
 	else state.thenBy = nil end
-	if dropWord then B.DropWords({ dropWord }) B.Update() return end
+	if dropWord then B.DropTyped({ dropWord }) B.Update() return end
 	B.Changed()
 end
 
 --- Nothing picked for Filter, Sort or Group: the words typed for it taken out of the line too.
 function B.Clear(which)
-	local typed, words = B.Typed(), {}
+	local typed, items = B.Typed(), {}
 	if which == "filter" then
 		state.filters = {}
-		for _, p in ipairs(typed.filters) do words[#words + 1] = p.word end
+		for _, p in ipairs(typed.filters) do items[#items + 1] = p end
 	elseif which == "sort" then
 		state.sort, state.thenBy = nil, nil
-		if typed.sort then words[1] = typed.sort.word end
+		if typed.sort then items[1] = typed.sort end
 	else
 		state.group = nil
-		if typed.group then words[1] = typed.group.word end
+		if typed.group then items[1] = typed.group end
 	end
-	if #words > 0 then B.DropWords(words) end
+	if #items > 0 then B.DropTyped(items) end
 	B.Changed()
 end
 

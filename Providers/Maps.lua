@@ -189,7 +189,7 @@ local function PinOnly(e)
 	end
 end
 
---- Shift+Enter's verb for a place (Easy.lua's footer and row menu), as PinOnly will do it: "set waypoint" at a spot of
+--- Shift+Enter's verb for a place (Simple.lua's footer and row menu), as PinOnly will do it: "set waypoint" at a spot of
 --- its own, "move waypoint" for a zone while you have one, nothing when nothing would be set (no waypoint to move, or a
 --- map that takes none). (0.49.2, review: a zone said "set waypoint" with none set, and then set nothing.)
 function M.PinVerb(e)

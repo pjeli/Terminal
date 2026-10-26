@@ -2,7 +2,7 @@
 ## Title: Terminal
 ## Notes: Fuzzy-finder terminal. Search items, quests (by text), spells, mounts, achievements, keybindings, slash commands and more, then open and highlight the result.
 ## Author: pjeli
-## Version: 0.67.5
+## Version: 0.67.6
 ## SavedVariables: TerminalDB
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 ## X-Curse-Project-ID: 1723255
@@ -26,6 +26,8 @@ Core\QuestieData.lua
 Core\Debug.lua
 Search\Fuzzy.lua
 Search\Shorthand.lua
+Search\Reading\Lex.lua
+Search\Reading\Phrase.lua
 Search\Filters\Core.lua
 Search\Filters\Items.lua
 Search\Filters\Upgrades.lua
@@ -53,6 +55,13 @@ UI\Tabs.lua
 UI\Bar.lua
 Search\Score.lua
 Search\Search.lua
+Search\Query.lua
+Search\Nearest.lua
+Search\Fallbacks.lua
+Search\Questions\Questions.lua
+Search\Printers.lua
+Search\Why.lua
+Search\Overview.lua
 Providers\Bags.lua
 Providers\Items.lua
 Providers\EquipmentSets.lua
@@ -114,20 +123,26 @@ Providers\Keybinds.lua
 Providers\History.lua
 Core\Commands.lua
 Core\Aliases.lua
-Search\Easy.lua
-Search\Examples.lua
-Search\Pipes.lua
-Search\Plan.lua
-Search\Rewards.lua
-Search\Attune.lua
-Search\WhatsTraining.lua
-Search\Auctionator.lua
-Search\ProfTraining.lua
-Search\SpellIds.lua
-Search\ClassSpells.lua
-Search\Talents.lua
-Search\DidYouMean.lua
-Search\Suggest.lua
+Search\Reading\Simple.lua
+Search\Reading\Words.lua
+Search\Reading\PlainNumbers.lua
+Search\Reading\StepWords.lua
+Search\Reading\Joins.lua
+Search\Reading\Explain.lua
+Search\Reading\Examples.lua
+Search\Steps\Chains.lua
+Search\Steps\Aggregate.lua
+Search\Questions\Plan.lua
+Search\Questions\Rewards.lua
+Search\Questions\Attunements.lua
+Search\Questions\WhereToLearn.lua
+Search\Questions\AuctionValues.lua
+Search\Questions\ProfTraining.lua
+Search\Questions\SpellIds.lua
+Search\Questions\ClassSpells.lua
+Search\Questions\Talents.lua
+Search\Questions\DidYouMean.lua
+Search\Questions\Suggest.lua
 UI\ChatLinks.lua
 UI\Zen.lua
 UI\SlashKey.lua

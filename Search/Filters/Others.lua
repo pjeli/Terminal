@@ -59,7 +59,7 @@ local function Count(e)
 	local n = e.total or e.count
 	return type(n) == "number" and n or nil
 end
-P.Levels, P.Count = Levels, Count -- (what "| group level", "| sum count" read: Pipes.lua)
+P.Levels, P.Count = Levels, Count -- (what "| group level", "| sum count" read: Aggregate.lua)
 
 local function Craftable(e)
 	local rg = e.reagents

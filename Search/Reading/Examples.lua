@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Simple and Advanced mode's examples, and the ones made for the character playing (split out of Easy.lua; they stay
+-- Simple and Advanced mode's examples, and the ones made for the character playing (split out of Easy.lua, now Simple.lua; they stay
 -- on ns.Easy: E.EXAMPLES, E.ADV_EXAMPLES, E.rand, E.PersonalExamples, E.ExamplePool, E.NextExample, E.Example).
 
 local E = ns.Easy

@@ -186,7 +186,7 @@ function ns:RegisterProvider(id, def)
 	for _, ev in ipairs(def.events or {}) do
 		self:WatchEvent(ev, def)
 	end
-	-- (a list another addon registers once Terminal has loaded: its Simple-mode category and verbs, Easy.lua; see
+	-- (a list another addon registers once Terminal has loaded: its Simple-mode category and verbs, Simple.lua; see
 	-- docs/PROVIDERS.md)
 	if ns.Easy and ns.Easy.Adopt then ns.Easy.Adopt(def) end
 end

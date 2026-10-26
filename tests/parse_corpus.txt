@@ -1,0 +1,424 @@
+# The parse corpus (docs/FRONT_END.md, Phase 0): Simple lines read by tests/smoke/parse_golden_*.lua,
+# their readings kept in tests/parse_golden.txt. One line per entry; # starts a comment.
+
+
+# from tests/smoke/easy.lua
+sword
+zzqqxx
+zzzqqq
+sword of omen
+sword practice
+zzzzqqq
+dance
+camera zoom
+sword dummy
+shiny sword
+gold map
+old map
+old lantern
+lantern
+sheathe sword
+junk
+rare sword
+stat:weapondamage>=5
+attack power food
+food
+food that gives stamina
+stamina elixir
+rare shield wailing caverns
+shield that drops from kresh
+use hearthstone
+cast frost nova
+summon raptor
+summon voidwalker
+target farley
+use
+nearest
+nearest innkeeper
+innkeeper nearby
+farthest innkeeper
+innkeeper
+@npc innkeeper sort:distance
+@npc innkeeper sort:-distance
+@npc innkeeper sort:nearest
+@npc innkeeper sort:farthest
+@npc innkeeper sort:-farthest
+skinner
+weapon master
+@npc is:innkeeper
+@npc is:innkeeper sort:name
+innkeeper allison
+the nearest innkeeper
+nearest repair
+nearest hogger
+@npc hogger
+hogger
+hearthstone >> party
+q:rare sword
+hearthstone
+items
+spells
+quests
+keybinds
+loot
+npc
+Sword Master Thorn
+questie
+The Sword of Kings
+slash
+cvars
+toys
+Elixir of Giants
+Spiced Wolf Ribs
+Kresh's Back
+Wall of the Dead
+mounts
+nearby innkeeper
+nearset innkeeper
+city
+advanced
+
+# from tests/smoke/easy_more.lua
+frostbolt
+use xyzzyq
+@spell nova
+cast frost nova >> party
+cast frost nova q:rare
+sword|axe
+use zzz
+swift
+use train
+frost nova
+hggr
+marshal
+q:rare
+froost
+shiny
+innkeeper farley
+frost
+raptor
+@npc hogger is:elite >> party
+sw
+swa
+stamina food
+stat:stamina type:food >> party
+helm upgrades
+mining trainer nearby
+sword or axe not boe
+linen not cloth
+cloak without stamina
+food without spirit
+shield without stamina
+elixir without intellect
+cloak needs stamina
+boots missing spirit
+missing stamina
+needs int
+who is without fortitude
+party without food
+needs blessing of kings
+missing shadow protection
+need flask
+missing buffs
+nearest enchanting supplies
+nearest first trainer
+nearest blacksmithing trainer
+blacksmithing trainer
+hunter pet trainer
+warlock pet trainer
+pet trainer
+the enchanting trainer
+enchanting blacksmithing trainer
+mining herbalism trainer
+demon hunter trainer
+firs trainer
+trainer
+camp
+pets
+Rough Flask of Kings
+rare
+professions
+nearest enchanting trainer
+
+# from tests/smoke/plainnumbers.lua
+swords between level 20 and 30
+sword between level 20 and 30
+sword worth more than 1g
+sword under level 20
+quests under level 25
+quests level under 25
+items worth more than 1g
+bags with at least 10 slots
+bags with 10 slots or more
+level 20 swords
+levels 20 to 30 quests
+level 20-30 quests
+quests level 25 or higher
+quests at most level 10
+from level 10 to 20
+linen under 1 gold 50 silver
+cloth worth between 10s and 1g
+item level over 30
+ilvl 40+
+my best upgrades
+10 slot bag
+under the sea
+more than 5 linen
+worth 1g
+quests 3 levels above me
+quests 2 levels below my level
+quests up to 3 levels above me
+quests within 5 levels of me
+dungeons around my level
+gear for next level
+quests above my level
+quests lower than my level
+quests at my level
+above me
+my level
+swords lvl:20-30
+quests lvl:<25
+items value:>1g
+bags with slots:>=10
+lvl:20 swords
+lvl:20-30 quests
+quests lvl:>=25
+quests lvl:<=10
+lvl:10-20
+gear with dura:<50
+gear dura:<50
+gear with dura:<=50
+linen value:<1g50s
+cloth value:10s-1g
+ilvl:>30
+ilvl:40+
+my sort:best upgrades
+my 5 best upgrades
+slots:10 bag
+10 Slot Bag
+quests lvl:me+3
+quests lvl:me-2
+quests lvl:me..me+3
+quests lvl:me-5..me+5
+dungeons lvl:me-2..me+3
+gear for lvl:me+1
+quests lvl:>me
+quests lvl:<me
+quests lvl:me
+
+# from tests/smoke/datewords.lua
+what killed me today
+copper 3 levels above me
+copper 3 levels above me s
+loot from yesterday
+loot today
+mail older than 20 days
+mail more than 2 weeks old
+auctions sold this week
+loot in the last 3 days
+loot last hour
+loot past 10 minutes
+loot since login
+loot this session
+loot since yesterday
+last stand
+this
+older than dirt
+tonight we dine
+loot since:yesterday older:today
+loot since:today
+mail older:20d
+mail older:2w
+auctions sold since:week
+what killed me since:today
+loot since:3d
+loot since:1h
+loot since:10m
+loot since:login
+loot since:yesterday
+
+# from tests/smoke/topn.lua
+@item sword sort:quality | first 2
+@item sword | first 3
+@item sword sort:count | first 2 | sum count
+the 2 best quality sword
+2 sword
+the cheapest sword
+the 2 nearest innkeeper
+the closest innkeeper
+the 2 farthest innkeeper
+the 3 nearest mailboxes
+top 5 upgrades
+my 10 most valuable items
+5 swords
+the three nearest innkeeper
+three swords
+first 3 quests
+3 stacks of linen
+two handed swords
+closest innkeeper
+the cheapest upgrades on the ah
+the nearest innkeepers
+the cheapest boots
+the most valuable items
+the highest level sword
+top 0 swords
+30 yard range
+the best of both worlds
+first 2
+sum value
+Innkeeper Farley
+mailbox
+the 2 nearest mailboxes
+the nearest mailboxes
+upgrades
+my most valuable items
+swords
+
+# from tests/smoke/compare.lua
+@item cloth | except @bank
+@item cloth | also @bank
+@item cloth | except @bank wool
+@item cloth | except @bank | count
+@item thing sort:count | first 3 | except @bank
+cloth but not in my bank
+Hogger  but not in my bank
+cloth plus my alts
+not in my bank
+cloth not boe
+Linen Cloth
+
+# from tests/smoke/roundtrip.lua
+linen
+mithril
+linen cloth
+fireball
+epic
+boe
+potion
+not boe sword
+sword or axe
+q:rare+ sword
+sword sort:name
+vendor
+mage trainer
+mining trainer
+reload
+emote dance
+map
+talents
+keybind
+sheathe
+camera
+quest
+kobold
+wolf
+mount
+toy
+achievement
+gold
+durability
+mail
+my mail
+@item linen
+in:bags linen
+usable
+ready
+todo
+done
+q:rare+
+sword q:rare+
+sword sort:quality
+sword | group by zone
+mithril q:rare+ sort:name
+q:epic+
+sword q:epic+ | group by zone
+
+# from tests/smoke/questions.lua
+What's   dropped?
+@npc dead
+a > mats
+x | count
+-dead
+party -dead
+party !dead
+half-elf quests
+party not dead
+mail without cod
+mail no cod
+x except y
+
+# from tests/smoke/explain.lua
+@npc is:innkeeper sort:distance
+@mail is:unread
+@npc is:vendor sells:arrow faction:friendly sort:distance
+@item q:rare+ lvl:20-30 sort:quality,-level
+@questie lvl:me+3 -is:done
+@mail older:20d
+@drop since:yesterday older:today
+@mailbox sort:distance | first 3
+in:bags | sum value
+linen value:>1g
+@item is:upgrade sort:best >> party
+@questie lvl:me-2..me+3
+type:sword|type:axe
+@drop since:3d
+@drop since:1h
+@mail older:1d
+
+# from tests/smoke/bar.lua
+sword >>
+sword q:rare+ sort:name
+sword | group by quality
+sword | count
+arcanite
+@item iron
+sword not boe
+rare sword rare
+legendary arcanite
+epic arcanite
+mithr
+mithri
+sword rare usable
+Bind  on Equip sword
+my swords
+my swords q:rare+ sort:name
+@item sword sort:name
+@item sword sort:-name
+
+# names that look like phrases
+Tonight We Dine
+The Five Sorrows
+No Rest for the Wicked
+Last Rites
+Last Day of Summer
+Next Level Thinking
+the five sorrows
+last rites
+next level thinking
+
+# mixed lines and half-typed ones
+linen q:rare >> party
+the 3 nearest mailboxes | count
+hogger but not in my bank
+Hogger but not in my bank
+linen to csv
+linen as text
+quests per zone
+items by zone q:rare
+rare sword >> party
+the 3 nearest innkeepers >> guild
+not boe not soulbound sword
+sword or axe or mace
+"tonight we dine"
+in:"Scarlet Monastery" sword
+linen |
+linen >>
+lvl:
+@np
+"tonight we
+sword q:rare|epic
+-is:boe sword
+linen 1g50s
+gear under 50% durability
+rare&sword

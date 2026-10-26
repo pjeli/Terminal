@@ -1,0 +1,6441 @@
+# What each line of tests/parse_corpus.txt is read into (docs/FRONT_END.md, Phase 0), compared by
+# tests/smoke/parse_golden_*.lua. Made by python tests/gen_parse_golden.py: never edited by hand.
+
+== sword
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sword|type:sword "
+explain: "Everything matching sword|type:sword"
+
+== zzqqxx
+question: -
+tokens: zzqqxx
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "zzqqxx "
+explain: "Everything matching zzqqxx"
+
+== zzzqqq
+question: -
+tokens: zzzqqq
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "zzzqqq "
+explain: "Everything matching zzzqqq"
+
+== sword of omen
+question: -
+tokens: omen
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: places
+advanced: "@dungeon omen sword "
+explain: "Dungeon matching omen sword"
+
+== sword practice
+question: -
+tokens: practice
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "practice sword|type:sword "
+explain: "Everything matching practice sword|type:sword"
+
+== zzzzqqq
+question: -
+tokens: zzzzqqq
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "zzzzqqq "
+explain: "Everything matching zzzzqqq"
+
+== dance
+question: -
+tokens: dance
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@cvar dance "
+explain: "Cvar matching dance"
+
+== camera zoom
+question: -
+tokens: camera zoom
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@cvar camera zoom "
+explain: "Cvar matching camera zoom"
+
+== sword dummy
+question: -
+tokens: dummy
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "dummy sword|type:sword "
+explain: "Everything matching dummy sword|type:sword"
+
+== shiny sword
+question: -
+tokens: shiny
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "shiny sword|type:sword "
+explain: "Everything matching shiny sword|type:sword"
+
+== gold map
+question: -
+tokens: gold map
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "gold map "
+explain: "Everything matching gold map"
+
+== old map
+question: -
+tokens: old map
+sort: -
+kinds: panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: windows
+advanced: "@panel old map "
+explain: "Panel matching old map"
+
+== old lantern
+question: -
+tokens: old lantern
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "old lantern "
+explain: "Everything matching old lantern"
+
+== lantern
+question: -
+tokens: lantern
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "lantern "
+explain: "Everything matching lantern"
+
+== sheathe sword
+question: -
+tokens: sheathe
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sheathe sword|type:sword "
+explain: "Everything matching sheathe sword|type:sword"
+
+== junk
+question: -
+tokens: -
+filter: soft q:poor  sig=~junk  word=junk
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:poor word=junk
+pick sort: -
+category: -
+advanced: "q:poor "
+explain: "Poor everything"
+
+== rare sword
+question: -
+tokens: -
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "q:rare sword|type:sword "
+explain: "Rare everything matching sword|type:sword"
+
+== stat:weapondamage>=5
+question: -
+tokens: -
+filter: hard stat:weapondamage>=5  sig=stat:weapondamage>=5
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=stat:weapondamage>=5 word=stat:weapondamage>=5
+pick sort: -
+category: -
+advanced: "stat:weapondamage>=5 "
+explain: "Everything, with weapondamage>=5"
+
+== attack power food
+question: -
+tokens: -
+filter: soft stat:ap  sig=~attack power  word=attack power
+filter: soft type:food  sig=~food  word=food
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=stat:ap word=attack power
+pick: spec=type:food word=food
+pick sort: -
+category: -
+advanced: "stat:ap food|type:food "
+explain: "Everything matching food|type:food, with ap"
+
+== food
+question: -
+tokens: -
+filter: soft type:food  sig=~food  word=food
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:food word=food
+pick sort: -
+category: -
+advanced: "food|type:food "
+explain: "Everything matching food|type:food"
+
+== food that gives stamina
+question: -
+tokens: -
+filter: soft type:food  sig=~food  word=food
+filter: soft stat:stamina  sig=~stamina  word=stamina
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:food word=food
+pick: spec=stat:stamina word=stamina
+pick sort: -
+category: -
+advanced: "food|type:food stat:stamina "
+explain: "Everything matching food|type:food, with stamina"
+
+== stamina elixir
+question: -
+tokens: -
+filter: soft stat:stamina  sig=~stamina  word=stamina
+filter: soft type:elixir  sig=~elixir  word=elixir
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=stat:stamina word=stamina
+pick: spec=type:elixir word=elixir
+pick sort: -
+category: -
+advanced: "stat:stamina elixir|type:elixir "
+explain: "Everything matching elixir|type:elixir, with stamina"
+
+== rare shield wailing caverns
+question: -
+tokens: wailing caverns
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft type:shield  sig=~shield  word=shield
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick: spec=type:shield word=shield
+pick sort: -
+category: places
+advanced: "@dungeon wailing caverns rare shield "
+explain: "Dungeon matching wailing caverns rare shield"
+
+== shield that drops from kresh
+question: -
+tokens: kresh
+filter: soft type:shield  sig=~shield  word=shield
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:shield word=shield
+pick sort: -
+category: -
+advanced: "kresh shield|type:shield "
+explain: "Everything matching kresh shield|type:shield"
+
+== use hearthstone
+question: -
+tokens: hearthstone
+sort: -
+kinds: camp items
+action: Use  word=use
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@item do:use hearthstone "
+explain: "Items matching hearthstone, Enter: use"
+
+== cast frost nova
+question: -
+tokens: frost nova
+sort: -
+kinds: spells
+action: Cast  word=cast
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:cast frost nova "
+explain: "Everything matching frost nova, Enter: cast"
+
+== summon raptor
+question: -
+tokens: raptor
+sort: -
+kinds: mounts spells
+action: Summon  word=summon
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:summon raptor "
+explain: "Everything matching raptor, Enter: summon"
+
+== summon voidwalker
+question: -
+tokens: voidwalker
+sort: -
+kinds: mounts spells
+action: Summon  word=summon
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:summon voidwalker "
+explain: "Everything matching voidwalker, Enter: summon"
+
+== target farley
+question: -
+tokens: farley
+sort: -
+kinds: -
+action: Target  word=target
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:target farley "
+explain: "Everything matching farley, Enter: target"
+
+== use
+question: -
+tokens: use
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "use "
+explain: "Everything matching use"
+
+== nearest
+question: -
+tokens: nearest
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "nearest "
+explain: "Everything matching nearest"
+
+== nearest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== innkeeper nearby
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearby
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearby
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== farthest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Farthest  word=farthest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=-distance word=farthest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:-distance "
+explain: "Friendly innkeepers, farthest first"
+
+== innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: -
+category: -
+advanced: "is:innkeeper "
+explain: "Innkeepers"
+
+== @npc innkeeper sort:distance
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "is:innkeeper sort:distance "
+explain: "Innkeepers, nearest first"
+
+== @npc innkeeper sort:-distance
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: sortNear=true sortFar=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=-distance word=sort:-distance drop=true
+category: -
+advanced: "is:innkeeper sort:-distance "
+explain: "Innkeepers, farthest first"
+
+== @npc innkeeper sort:nearest
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: sortNear=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=sort:nearest drop=true
+category: -
+advanced: "is:innkeeper sort:distance "
+explain: "Innkeepers, nearest first"
+
+== @npc innkeeper sort:farthest
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: sortNear=true sortFar=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=-distance word=sort:farthest drop=true
+category: -
+advanced: "is:innkeeper sort:-distance "
+explain: "Innkeepers, farthest first"
+
+== @npc innkeeper sort:-farthest
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: sortNear=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=sort:-farthest drop=true
+category: -
+advanced: "is:innkeeper sort:distance "
+explain: "Innkeepers, nearest first"
+
+== skinner
+question: -
+tokens: -
+filter: hard trainer:skinning  sig=trainer:skinning
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@npc trainer:skinning sort:distance "
+explain: "NPCs, who teach skinning, nearest first"
+
+== weapon master
+question: -
+tokens: -
+filter: strict is:weaponmaster  sig=weapon master  word=weapon master
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:weaponmaster word=weapon master
+pick sort: -
+category: -
+advanced: "is:weaponmaster "
+explain: "Weapon masters"
+
+== @npc is:innkeeper
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "is:innkeeper "
+explain: "Innkeepers"
+
+== @npc is:innkeeper sort:name
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "is:innkeeper sort:name "
+explain: "Innkeepers, A to Z"
+
+== innkeeper allison
+question: -
+tokens: allison
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: -
+category: -
+advanced: "allison is:innkeeper "
+explain: "Innkeepers matching allison"
+
+== the nearest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: text=first 1 first=1 topWords=true
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance | first 1"
+explain: "Friendly innkeepers, nearest first, the first 1"
+
+== nearest repair
+question: -
+tokens: -
+filter: soft is:repair  sig=~repair  word=repair
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:repair word=repair
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:repair faction:friendly sort:distance "
+explain: "Friendly repairers, nearest first"
+
+== nearest hogger
+question: -
+tokens: hogger
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc hogger sort:distance "
+explain: "NPCs matching hogger, nearest first"
+
+== @npc hogger
+question: -
+tokens: hogger
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "hogger "
+explain: "Everything matching hogger"
+
+== hogger
+question: -
+tokens: hogger
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "hogger "
+explain: "Everything matching hogger"
+
+== hearthstone >> party
+question: -
+tokens: hearthstone
+sort: -
+kinds: items
+action: -
+place: -
+send: label=party chat=PARTY query=hearthstone 
+steps: -
+group: -
+pick sort: -
+category: items
+advanced: "@item hearthstone >> party"
+explain: "Items matching hearthstone, sent to party"
+
+== q:rare sword
+question: -
+tokens: -
+filter: hard q:rare  sig=q:rare
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=q:rare
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "q:rare sword|type:sword "
+explain: "Rare everything matching sword|type:sword"
+
+== hearthstone
+question: -
+tokens: hearthstone
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: items
+advanced: "@item hearthstone "
+explain: "Items matching hearthstone"
+
+== items
+question: -
+tokens: items
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "items "
+explain: "Everything matching items"
+
+== spells
+question: -
+tokens: spells
+sort: -
+kinds: panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: windows
+advanced: "@panel spells "
+explain: "Panel matching spells"
+
+== quests
+question: -
+tokens: quests
+sort: -
+kinds: panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: windows
+advanced: "@panel quests "
+explain: "Panel matching quests"
+
+== keybinds
+question: -
+tokens: keybinds
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@keybind keybinds "
+explain: "Key bindings matching keybinds"
+
+== loot
+question: -
+tokens: loot
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@flight loot "
+explain: "Flight paths matching loot"
+
+== npc
+question: -
+tokens: npc
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@cvar npc "
+explain: "Cvar matching npc"
+
+== Sword Master Thorn
+question: -
+tokens: master thorn
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=Sword
+pick sort: -
+category: places
+advanced: "@flight Master Thorn sword "
+explain: "Flight paths matching Master Thorn sword"
+
+== questie
+question: -
+tokens: questie
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "questie "
+explain: "Everything matching questie"
+
+== The Sword of Kings
+question: -
+tokens: kings
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=Sword
+pick sort: -
+category: -
+advanced: "Kings sword|type:sword "
+explain: "Everything matching Kings sword|type:sword"
+
+== slash
+question: -
+tokens: slash
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "slash "
+explain: "Everything matching slash"
+
+== cvars
+question: -
+tokens: cvars
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "cvars "
+explain: "Everything matching cvars"
+
+== toys
+question: -
+tokens: toys
+sort: -
+kinds: panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: windows
+advanced: "@panel toys "
+explain: "Panel matching toys"
+
+== Elixir of Giants
+question: -
+tokens: giants
+filter: soft type:elixir  sig=~elixir  word=elixir
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:elixir word=Elixir
+pick sort: -
+category: -
+advanced: "Giants elixir|type:elixir "
+explain: "Everything matching Giants elixir|type:elixir"
+
+== Spiced Wolf Ribs
+question: -
+tokens: spiced wolf ribs
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "Spiced Wolf Ribs "
+explain: "Everything matching Spiced Wolf Ribs"
+
+== Kresh's Back
+question: -
+tokens: kresh's
+filter: soft slot:back  sig=~back  word=back
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slot:back word=Back
+pick sort: -
+category: -
+advanced: "Kresh's slot:back "
+explain: "Everything matching Kresh's, for the back slot"
+
+== Wall of the Dead
+question: -
+tokens: wall dead
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "Wall Dead "
+explain: "Everything matching Wall Dead"
+
+== mounts
+question: 11  asked=mounts
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@mount sort:name "
+explain: "Mounts, A to Z"
+
+== nearby innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearby
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearby
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== nearset innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearset
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearset
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== city
+question: -
+tokens: city
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@flight city "
+explain: "Flight paths matching city"
+
+== advanced
+question: -
+tokens: advanced
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "advanced "
+explain: "Everything matching advanced"
+
+== frostbolt
+question: -
+tokens: frostbolt
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "frostbolt "
+explain: "Everything matching frostbolt"
+
+== use xyzzyq
+question: -
+tokens: xyzzyq
+sort: -
+kinds: camp items
+action: Use  word=use
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:use xyzzyq "
+explain: "Everything matching xyzzyq, Enter: use"
+
+== @spell nova
+question: -
+tokens: nova
+sort: -
+kinds: classspells spells
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@spell nova "
+explain: "Spells matching nova"
+
+== cast frost nova >> party
+question: -
+tokens: frost nova
+sort: -
+kinds: spells
+action: Cast  word=cast
+place: -
+send: label=party chat=PARTY query=cast frost nova 
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:cast frost nova >> party"
+explain: "Everything matching frost nova, Enter: cast, sent to party"
+
+== cast frost nova q:rare
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:cast frost nova q:rare "
+explain: "Rare everything matching frost nova, Enter: cast"
+
+== sword|axe
+question: -
+tokens: -
+filter: hard type:sword|type:axe  sig=sword|axe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword|type:axe word=sword|axe
+pick sort: -
+category: -
+advanced: "type:sword|type:axe "
+explain: "Sword or axe"
+
+== use zzz
+question: -
+tokens: zzz
+sort: -
+kinds: camp items
+action: Use  word=use
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:use zzz "
+explain: "Everything matching zzz, Enter: use"
+
+== swift
+question: -
+tokens: swift
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "swift "
+explain: "Everything matching swift"
+
+== use train
+question: -
+tokens: train
+sort: -
+kinds: camp items
+action: Use  word=use
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:use train "
+explain: "Everything matching train, Enter: use"
+
+== frost nova
+question: -
+tokens: frost nova
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "frost nova "
+explain: "Everything matching frost nova"
+
+== hggr
+question: -
+tokens: hggr
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "hggr "
+explain: "Everything matching hggr"
+
+== marshal
+question: -
+tokens: marshal
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@flight marshal "
+explain: "Flight paths matching marshal"
+
+== q:rare
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "q:rare "
+explain: "Rare everything"
+
+== froost
+question: -
+tokens: froost
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "froost "
+explain: "Everything matching froost"
+
+== shiny
+question: -
+tokens: shiny
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "shiny "
+explain: "Everything matching shiny"
+
+== innkeeper farley
+question: -
+tokens: farley
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: -
+category: -
+advanced: "farley is:innkeeper "
+explain: "Innkeepers matching farley"
+
+== frost
+question: -
+tokens: frost
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@flight frost "
+explain: "Flight paths matching frost"
+
+== raptor
+question: -
+tokens: raptor
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "raptor "
+explain: "Everything matching raptor"
+
+== @npc hogger is:elite >> party
+question: -
+tokens: hogger is:elite
+sort: -
+kinds: -
+action: -
+place: -
+send: label=party chat=PARTY query=@npc hogger is:elite 
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "hogger is:elite >> party"
+explain: "Elite everything matching hogger, sent to party"
+
+== sw
+question: -
+tokens: sw
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@flight sw "
+explain: "Flight paths matching sw"
+
+== swa
+question: -
+tokens: swa
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@dungeon @flight swa "
+explain: "Dungeon and flight paths matching swa"
+
+== stamina food
+question: -
+tokens: -
+filter: soft stat:stamina  sig=~stamina  word=stamina
+filter: soft type:food  sig=~food  word=food
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=stat:stamina word=stamina
+pick: spec=type:food word=food
+pick sort: -
+category: -
+advanced: "stat:stamina food|type:food "
+explain: "Everything matching food|type:food, with stamina"
+
+== stat:stamina type:food >> party
+question: -
+tokens: -
+filter: hard stat:stamina  sig=stat:stamina
+filter: hard type:food  sig=type:food
+sort: -
+kinds: -
+action: -
+place: -
+send: label=party chat=PARTY query=stat:stamina type:food 
+steps: -
+group: -
+pick: spec=stat:stamina word=stat:stamina
+pick: spec=type:food word=type:food
+pick sort: -
+category: -
+advanced: "stat:stamina type:food >> party"
+explain: "Food, with stamina, sent to party"
+
+== helm upgrades
+question: -
+tokens: -
+filter: soft slot:helm  sig=~helm  word=helm
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+sort: sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slot:helm word=helm
+pick: spec=is:upgrade word=upgrades
+pick sort: -
+category: -
+advanced: "slot:helm is:upgrade sort:best "
+explain: "Upgrades for you, for the helm slot, biggest upgrades first"
+
+== mining trainer nearby
+question: -
+tokens: -
+filter: hard trainer:mining  sig=trainer:mining
+sort: -
+kinds: -
+action: Nearest  word=nearby
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: id=distance word=nearby
+category: -
+advanced: "@npc trainer:mining faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach mining, nearest first"
+
+== sword or axe not boe
+question: -
+tokens: -
+filter: hard type:sword|type:axe  sig=sword|axe
+filter: hard -is:boe  sig=-boe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword|type:axe word=sword|axe
+pick: spec=-is:boe word=-boe
+pick sort: -
+category: -
+advanced: "type:sword|type:axe -is:boe "
+explain: "Sword or axe, not bind on equip"
+
+== linen not cloth
+question: -
+tokens: linen
+filter: hard -cloth|type:cloth  sig=-cloth
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-type:cloth word=-cloth
+pick sort: -
+category: places
+advanced: "@dungeon linen -cloth|type:cloth "
+explain: "Dungeon matching linen, without \"cloth|type:cloth\""
+
+== cloak without stamina
+question: -
+tokens: -
+filter: soft slot:cloak  sig=~cloak  word=cloak
+filter: hard -stat:stamina  sig=-stamina
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slot:cloak word=cloak
+pick: spec=-stat:stamina word=-stamina
+pick sort: -
+category: -
+advanced: "slot:cloak -stat:stamina "
+explain: "Everything, for the cloak slot, not with stamina"
+
+== food without spirit
+question: -
+tokens: -
+filter: soft type:food  sig=~food  word=food
+filter: hard -stat:spirit  sig=-spirit
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:food word=food
+pick: spec=-stat:spirit word=-spirit
+pick sort: -
+category: -
+advanced: "food|type:food -stat:spirit "
+explain: "Everything matching food|type:food, not with spirit"
+
+== shield without stamina
+question: -
+tokens: -
+filter: soft type:shield  sig=~shield  word=shield
+filter: hard -stat:stamina  sig=-stamina
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:shield word=shield
+pick: spec=-stat:stamina word=-stamina
+pick sort: -
+category: -
+advanced: "shield|type:shield -stat:stamina "
+explain: "Everything matching shield|type:shield, not with stamina"
+
+== elixir without intellect
+question: -
+tokens: -
+filter: soft type:elixir  sig=~elixir  word=elixir
+filter: hard -stat:intellect  sig=-intellect
+sort: -
+kinds: camp professions recipes
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:elixir word=elixir
+pick: spec=-stat:intellect word=-intellect
+pick sort: -
+category: crafting
+advanced: "@recipe elixir|type:elixir -stat:intellect "
+explain: "Recipes matching elixir|type:elixir, not with intellect"
+
+== cloak needs stamina
+question: -
+tokens: needs
+filter: soft slot:cloak  sig=~cloak  word=cloak
+filter: soft stat:stamina  sig=~stamina  word=stamina
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slot:cloak word=cloak
+pick: spec=stat:stamina word=stamina
+pick sort: -
+category: settings
+advanced: "@cvar needs cloak stamina "
+explain: "Cvar matching needs cloak stamina"
+
+== boots missing spirit
+question: -
+tokens: -
+filter: soft slot:boots  sig=~boots  word=boots
+filter: soft is:unlearned  sig=~missing  word=missing
+filter: soft stat:spirit  sig=~spirit  word=spirit
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slot:boots word=boots
+pick: spec=is:unlearned word=missing
+pick: spec=stat:spirit word=spirit
+pick sort: -
+category: -
+advanced: "slot:boots is:unlearned stat:spirit "
+explain: "Unlearned everything, for the boots slot, with spirit"
+
+== missing stamina
+question: 33  asked=missing stamina
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:fortitude "
+explain: "Your group, missing:fortitude"
+
+== needs int
+question: 33  asked=needs int
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:intellect "
+explain: "Your group, missing:intellect"
+
+== who is without fortitude
+question: 33  asked=who is without fortitude
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:fortitude "
+explain: "Your group, missing:fortitude"
+
+== party without food
+question: 33  asked=party without food
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:food "
+explain: "Your group, missing:food"
+
+== needs blessing of kings
+question: 33  asked=needs blessing of kings
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:blessing_kings "
+explain: "Your group, missing:blessing_kings"
+
+== missing shadow protection
+question: 33  asked=missing shadow protection
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:shadow "
+explain: "Your group, missing:shadow"
+
+== need flask
+question: 33  asked=need flask
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group missing:elixir "
+explain: "Your group, missing:elixir"
+
+== missing buffs
+question: 33  asked=missing buffs
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@group is:unbuffed "
+explain: "Unbuffed your group"
+
+== nearest enchanting supplies
+question: -
+tokens: enchanting supplies
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc enchanting supplies sort:distance "
+explain: "NPCs matching enchanting supplies, nearest first"
+
+== nearest first trainer
+question: -
+tokens: first
+filter: soft is:trainer  sig=~trainer  word=trainer
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc first is:trainer faction:friendly sort:distance "
+explain: "Friendly trainers matching first, nearest first"
+
+== nearest blacksmithing trainer
+question: -
+tokens: -
+filter: hard trainer:blacksmithing  sig=trainer:blacksmithing
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc trainer:blacksmithing faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach blacksmithing, nearest first"
+
+== blacksmithing trainer
+question: -
+tokens: -
+filter: hard trainer:blacksmithing  sig=trainer:blacksmithing
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:blacksmithing faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach blacksmithing, nearest first"
+
+== hunter pet trainer
+question: -
+tokens: -
+filter: hard trainer:pet  sig=trainer:pet
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:pet faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach pet, nearest first"
+
+== warlock pet trainer
+question: -
+tokens: -
+filter: hard trainer:demon  sig=trainer:demon
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:demon faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach demon, nearest first"
+
+== pet trainer
+question: -
+tokens: -
+filter: hard trainer:pet  sig=trainer:pet
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:pet faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach pet, nearest first"
+
+== the enchanting trainer
+question: -
+tokens: -
+filter: hard trainer:enchanting  sig=trainer:enchanting
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:enchanting faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach enchanting, nearest first"
+
+== enchanting blacksmithing trainer
+question: -
+tokens: -
+filter: hard trainer:enchanting|trainer:blacksmithing  sig=trainer:enchanting|trainer:blacksmithing
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:enchanting|trainer:blacksmithing faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach enchanting or who teach blacksmithing, nearest first"
+
+== mining herbalism trainer
+question: -
+tokens: -
+filter: hard trainer:mining|trainer:herbalism  sig=trainer:mining|trainer:herbalism
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:mining|trainer:herbalism faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach mining or who teach herbalism, nearest first"
+
+== demon hunter trainer
+question: -
+tokens: demon hunter
+filter: soft is:trainer  sig=~trainer  word=trainer
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "demon hunter is:trainer "
+explain: "Trainers matching demon hunter"
+
+== firs trainer
+question: -
+tokens: firs
+filter: soft is:trainer  sig=~trainer  word=trainer
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "firs trainer "
+explain: "Everything matching firs trainer"
+
+== trainer
+question: -
+tokens: -
+filter: soft is:trainer  sig=~trainer  word=trainer
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "is:trainer "
+explain: "Trainers"
+
+== camp
+question: -
+tokens: camp
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "camp "
+explain: "Everything matching camp"
+
+== pets
+question: -
+tokens: pets
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "pets "
+explain: "Everything matching pets"
+
+== Rough Flask of Kings
+question: -
+tokens: rough kings
+filter: soft type:flask  sig=~flask  word=flask
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:flask word=Flask
+pick sort: -
+category: -
+advanced: "Rough Kings flask|type:flask "
+explain: "Everything matching Rough Kings flask|type:flask"
+
+== rare
+question: -
+tokens: -
+filter: soft q:rare  sig=~rare  word=rare
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick sort: -
+category: -
+advanced: "q:rare "
+explain: "Rare everything"
+
+== professions
+question: -
+tokens: professions
+sort: -
+kinds: panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: windows
+advanced: "@panel professions "
+explain: "Panel matching professions"
+
+== nearest enchanting trainer
+question: -
+tokens: -
+filter: hard trainer:enchanting  sig=trainer:enchanting
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc trainer:enchanting faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach enchanting, nearest first"
+
+== swords between level 20 and 30
+question: -
+tokens: -
+filter: soft type:sword  sig=~swords  word=swords
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick: spec=lvl:20-30 word=between level 20 and 30 plain=true
+pick sort: -
+category: -
+advanced: "swords|type:sword lvl:20-30 "
+explain: "Everything matching swords|type:sword, level 20-30"
+
+== sword between level 20 and 30
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=lvl:20-30 word=between level 20 and 30 plain=true
+pick sort: -
+category: -
+advanced: "sword|type:sword lvl:20-30 "
+explain: "Everything matching sword|type:sword, level 20-30"
+
+== sword worth more than 1g
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard value:>1g  sig=value:>1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=value:>1g word=worth more than 1g plain=true
+pick sort: -
+category: -
+advanced: "sword|type:sword value:>1g "
+explain: "Everything matching sword|type:sword, worth over 1g"
+
+== sword under level 20
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard lvl:<20  sig=lvl:<20
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=lvl:<20 word=under level 20 plain=true
+pick sort: -
+category: -
+advanced: "sword|type:sword lvl:<20 "
+explain: "Everything matching sword|type:sword, level under 20"
+
+== quests under level 25
+question: -
+tokens: quests
+filter: hard lvl:<25  sig=lvl:<25
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<25 word=under level 25 plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:<25 "
+explain: "Everything matching quests, level under 25"
+
+== quests level under 25
+question: -
+tokens: quests
+filter: hard lvl:<25  sig=lvl:<25
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<25 word=level under 25 plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:<25 "
+explain: "Everything matching quests, level under 25"
+
+== items worth more than 1g
+question: -
+tokens: items
+filter: hard value:>1g  sig=value:>1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=value:>1g word=worth more than 1g plain=true
+pick sort: -
+category: -
+advanced: "items value:>1g "
+explain: "Everything matching items, worth over 1g"
+
+== bags with at least 10 slots
+question: -
+tokens: bags
+filter: hard slots:>=10  sig=slots:>=10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slots:>=10 word=at least 10 slots plain=true
+pick sort: -
+category: -
+advanced: "bags slots:>=10 "
+explain: "Everything matching bags, with 10 or more slots"
+
+== bags with 10 slots or more
+question: -
+tokens: bags
+filter: hard slots:>=10  sig=slots:>=10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slots:>=10 word=10 slots or more plain=true
+pick sort: -
+category: -
+advanced: "bags slots:>=10 "
+explain: "Everything matching bags, with 10 or more slots"
+
+== level 20 swords
+question: -
+tokens: -
+filter: hard lvl:20  sig=lvl:20
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:20 word=level 20 plain=true
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "lvl:20 swords|type:sword "
+explain: "Everything matching swords|type:sword, level 20"
+
+== levels 20 to 30 quests
+question: -
+tokens: quests
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:20-30 word=levels 20 to 30 plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:20-30 "
+explain: "Everything matching quests, level 20-30"
+
+== level 20-30 quests
+question: -
+tokens: quests
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:20-30 word=level 20-30 plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:20-30 "
+explain: "Everything matching quests, level 20-30"
+
+== quests level 25 or higher
+question: -
+tokens: quests
+filter: hard lvl:>=25  sig=lvl:>=25
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:>=25 word=level 25 or higher plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:>=25 "
+explain: "Everything matching quests, level 25 or more"
+
+== quests at most level 10
+question: -
+tokens: quests
+filter: hard lvl:<=10  sig=lvl:<=10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<=10 word=at most level 10 plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:<=10 "
+explain: "Everything matching quests, level 10 or less"
+
+== from level 10 to 20
+question: -
+tokens: -
+filter: hard lvl:10-20  sig=lvl:10-20
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:10-20 word=from level 10 to 20 plain=true
+pick sort: -
+category: places
+advanced: "@dungeon lvl:10-20 "
+explain: "Dungeon, level 10-20"
+
+== linen under 1 gold 50 silver
+question: -
+tokens: linen
+filter: hard value:<1g50s  sig=value:<1g50s
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=value:<1g50s word=under 1 gold 50 silver plain=true
+pick sort: -
+category: -
+advanced: "linen value:<1g50s "
+explain: "Everything matching linen, worth under 1g50s"
+
+== cloth worth between 10s and 1g
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+filter: hard value:10s-1g  sig=value:10s-1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:cloth word=cloth
+pick: spec=value:10s-1g word=worth between 10s and 1g plain=true
+pick sort: -
+category: -
+advanced: "cloth|type:cloth value:10s-1g "
+explain: "Everything matching cloth|type:cloth, worth 10s-1g"
+
+== item level over 30
+question: -
+tokens: -
+filter: hard ilvl:>30  sig=ilvl:>30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=ilvl:>30 word=item level over 30 plain=true
+pick sort: -
+category: -
+advanced: "ilvl:>30 "
+explain: "Everything, item level over 30"
+
+== ilvl 40+
+question: -
+tokens: -
+filter: hard ilvl:40+  sig=ilvl:40+
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=ilvl:40+ word=ilvl 40+ plain=true
+pick sort: -
+category: -
+advanced: "ilvl:40+ "
+explain: "Everything, item level 40 or more"
+
+== my best upgrades
+question: -
+tokens: -
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+sort: sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:upgrade word=upgrades
+pick sort: id=best word=best drop=true
+category: -
+advanced: "is:upgrade sort:best "
+explain: "Upgrades for you, biggest upgrades first"
+
+== 10 slot bag
+question: -
+tokens: bag
+filter: hard slots:10  sig=slots:10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slots:10 word=10 slot plain=true
+pick sort: -
+category: -
+advanced: "bag slots:10 "
+explain: "Everything matching bag, with 10 slots"
+
+== under the sea
+question: -
+tokens: under sea
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "under sea "
+explain: "Everything matching under sea"
+
+== more than 5 linen
+question: -
+tokens: more than 5 linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "more than 5 linen "
+explain: "Everything matching more than 5 linen"
+
+== worth 1g
+question: -
+tokens: worth 1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "worth 1g "
+explain: "Everything matching worth 1g"
+
+== quests 3 levels above me
+question: -
+tokens: quests
+filter: hard lvl:me+3  sig=lvl:me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+3 word=3 levels above me plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:me+3 "
+explain: "Everything matching quests, 3 levels above yours"
+
+== quests 2 levels below my level
+question: -
+tokens: quests
+filter: hard lvl:me-2  sig=lvl:me-2
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-2 word=2 levels below my level plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:me-2 "
+explain: "Everything matching quests, 2 levels below yours"
+
+== quests up to 3 levels above me
+question: -
+tokens: quests
+filter: hard lvl:me..me+3  sig=lvl:me..me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me..me+3 word=up to 3 levels above me plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:me..me+3 "
+explain: "Everything matching quests, from your level to 3 levels above yours"
+
+== quests within 5 levels of me
+question: -
+tokens: quests
+filter: hard lvl:me-5..me+5  sig=lvl:me-5..me+5
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-5..me+5 word=within 5 levels of me plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:me-5..me+5 "
+explain: "Everything matching quests, from 5 levels below yours to 5 levels above yours"
+
+== dungeons around my level
+question: -
+tokens: dungeons
+filter: hard lvl:me-2..me+3  sig=lvl:me-2..me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-2..me+3 word=around my level plain=true
+pick sort: -
+category: -
+advanced: "dungeons lvl:me-2..me+3 "
+explain: "Everything matching dungeons, from 2 levels below yours to 3 levels above yours"
+
+== gear for next level
+question: -
+tokens: gear
+filter: hard lvl:me+1  sig=lvl:me+1
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+1 word=next level plain=true
+pick sort: -
+category: -
+advanced: "gear lvl:me+1 "
+explain: "Everything matching gear, a level above yours"
+
+== quests above my level
+question: -
+tokens: quests
+filter: hard lvl:>me  sig=lvl:>me
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:>me word=above my level plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:>me "
+explain: "Everything matching quests, above your level"
+
+== quests lower than my level
+question: -
+tokens: quests
+filter: hard lvl:<me  sig=lvl:<me
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<me word=lower than my level plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:<me "
+explain: "Everything matching quests, below your level"
+
+== quests at my level
+question: -
+tokens: quests
+filter: hard lvl:me  sig=lvl:me
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me word=at my level plain=true
+pick sort: -
+category: -
+advanced: "quests lvl:me "
+explain: "Everything matching quests, your level"
+
+== above me
+question: -
+tokens: above
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "above "
+explain: "Everything matching above"
+
+== my level
+question: -
+tokens: level
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "level "
+explain: "Everything matching level"
+
+== swords lvl:20-30
+question: -
+tokens: -
+filter: soft type:sword  sig=~swords  word=swords
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick: spec=lvl:20-30 word=lvl:20-30
+pick sort: -
+category: -
+advanced: "swords|type:sword lvl:20-30 "
+explain: "Everything matching swords|type:sword, level 20-30"
+
+== quests lvl:<25
+question: -
+tokens: quests
+filter: hard lvl:<25  sig=lvl:<25
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<25 word=lvl:<25
+pick sort: -
+category: -
+advanced: "quests lvl:<25 "
+explain: "Everything matching quests, level under 25"
+
+== items value:>1g
+question: -
+tokens: items
+filter: hard value:>1g  sig=value:>1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=value:>1g word=value:>1g
+pick sort: -
+category: -
+advanced: "items value:>1g "
+explain: "Everything matching items, worth over 1g"
+
+== bags with slots:>=10
+question: -
+tokens: bags
+filter: hard slots:>=10  sig=slots:>=10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slots:>=10 word=slots:>=10
+pick sort: -
+category: -
+advanced: "bags slots:>=10 "
+explain: "Everything matching bags, with 10 or more slots"
+
+== lvl:20 swords
+question: -
+tokens: -
+filter: hard lvl:20  sig=lvl:20
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:20 word=lvl:20
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "lvl:20 swords|type:sword "
+explain: "Everything matching swords|type:sword, level 20"
+
+== lvl:20-30 quests
+question: -
+tokens: quests
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:20-30 word=lvl:20-30
+pick sort: -
+category: -
+advanced: "quests lvl:20-30 "
+explain: "Everything matching quests, level 20-30"
+
+== quests lvl:>=25
+question: -
+tokens: quests
+filter: hard lvl:>=25  sig=lvl:>=25
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:>=25 word=lvl:>=25
+pick sort: -
+category: -
+advanced: "quests lvl:>=25 "
+explain: "Everything matching quests, level 25 or more"
+
+== quests lvl:<=10
+question: -
+tokens: quests
+filter: hard lvl:<=10  sig=lvl:<=10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<=10 word=lvl:<=10
+pick sort: -
+category: -
+advanced: "quests lvl:<=10 "
+explain: "Everything matching quests, level 10 or less"
+
+== lvl:10-20
+question: -
+tokens: -
+filter: hard lvl:10-20  sig=lvl:10-20
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:10-20 word=lvl:10-20
+pick sort: -
+category: places
+advanced: "@dungeon lvl:10-20 "
+explain: "Dungeon, level 10-20"
+
+== gear with dura:<50
+question: -
+tokens: gear
+filter: hard dura:<50  sig=dura:<50
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=dura:<50 word=dura:<50
+pick sort: -
+category: -
+advanced: "gear dura:<50 "
+explain: "Everything matching gear, at under 50% durability"
+
+== gear dura:<50
+question: -
+tokens: gear
+filter: hard dura:<50  sig=dura:<50
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=dura:<50 word=dura:<50
+pick sort: -
+category: -
+advanced: "gear dura:<50 "
+explain: "Everything matching gear, at under 50% durability"
+
+== gear with dura:<=50
+question: -
+tokens: gear
+filter: hard dura:<=50  sig=dura:<=50
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=dura:<=50 word=dura:<=50
+pick sort: -
+category: -
+advanced: "gear dura:<=50 "
+explain: "Everything matching gear, at 50 or less% durability"
+
+== linen value:<1g50s
+question: -
+tokens: linen
+filter: hard value:<1g50s  sig=value:<1g50s
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=value:<1g50s word=value:<1g50s
+pick sort: -
+category: -
+advanced: "linen value:<1g50s "
+explain: "Everything matching linen, worth under 1g50s"
+
+== cloth value:10s-1g
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+filter: hard value:10s-1g  sig=value:10s-1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:cloth word=cloth
+pick: spec=value:10s-1g word=value:10s-1g
+pick sort: -
+category: -
+advanced: "cloth|type:cloth value:10s-1g "
+explain: "Everything matching cloth|type:cloth, worth 10s-1g"
+
+== ilvl:>30
+question: -
+tokens: -
+filter: hard ilvl:>30  sig=ilvl:>30
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=ilvl:>30 word=ilvl:>30
+pick sort: -
+category: -
+advanced: "ilvl:>30 "
+explain: "Everything, item level over 30"
+
+== ilvl:40+
+question: -
+tokens: -
+filter: hard ilvl:40+  sig=ilvl:40+
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=ilvl:40+ word=ilvl:40+
+pick sort: -
+category: -
+advanced: "ilvl:40+ "
+explain: "Everything, item level 40 or more"
+
+== my sort:best upgrades
+question: -
+tokens: -
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+sort: sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:upgrade word=upgrades
+pick sort: id=best word=sort:best drop=true
+category: -
+advanced: "is:upgrade sort:best "
+explain: "Upgrades for you, biggest upgrades first"
+
+== my 5 best upgrades
+question: -
+tokens: -
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+sort: sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 5 first=5 topWords=true
+group: -
+pick: spec=is:upgrade word=upgrades
+pick sort: id=best word=best drop=true
+category: -
+advanced: "is:upgrade sort:best | first 5"
+explain: "Upgrades for you, biggest upgrades first, the first 5"
+
+== slots:10 bag
+question: -
+tokens: bag
+filter: hard slots:10  sig=slots:10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slots:10 word=slots:10
+pick sort: -
+category: -
+advanced: "bag slots:10 "
+explain: "Everything matching bag, with 10 slots"
+
+== 10 Slot Bag
+question: -
+tokens: bag
+filter: hard slots:10  sig=slots:10
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=slots:10 word=10 Slot plain=true
+pick sort: -
+category: -
+advanced: "Bag slots:10 "
+explain: "Everything matching Bag, with 10 slots"
+
+== quests lvl:me+3
+question: -
+tokens: quests
+filter: hard lvl:me+3  sig=lvl:me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+3 word=lvl:me+3
+pick sort: -
+category: -
+advanced: "quests lvl:me+3 "
+explain: "Everything matching quests, 3 levels above yours"
+
+== quests lvl:me-2
+question: -
+tokens: quests
+filter: hard lvl:me-2  sig=lvl:me-2
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-2 word=lvl:me-2
+pick sort: -
+category: -
+advanced: "quests lvl:me-2 "
+explain: "Everything matching quests, 2 levels below yours"
+
+== quests lvl:me..me+3
+question: -
+tokens: quests
+filter: hard lvl:me..me+3  sig=lvl:me..me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me..me+3 word=lvl:me..me+3
+pick sort: -
+category: -
+advanced: "quests lvl:me..me+3 "
+explain: "Everything matching quests, from your level to 3 levels above yours"
+
+== quests lvl:me-5..me+5
+question: -
+tokens: quests
+filter: hard lvl:me-5..me+5  sig=lvl:me-5..me+5
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-5..me+5 word=lvl:me-5..me+5
+pick sort: -
+category: -
+advanced: "quests lvl:me-5..me+5 "
+explain: "Everything matching quests, from 5 levels below yours to 5 levels above yours"
+
+== dungeons lvl:me-2..me+3
+question: -
+tokens: dungeons
+filter: hard lvl:me-2..me+3  sig=lvl:me-2..me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-2..me+3 word=lvl:me-2..me+3
+pick sort: -
+category: -
+advanced: "dungeons lvl:me-2..me+3 "
+explain: "Everything matching dungeons, from 2 levels below yours to 3 levels above yours"
+
+== gear for lvl:me+1
+question: -
+tokens: gear
+filter: hard lvl:me+1  sig=lvl:me+1
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+1 word=lvl:me+1
+pick sort: -
+category: -
+advanced: "gear lvl:me+1 "
+explain: "Everything matching gear, a level above yours"
+
+== quests lvl:>me
+question: -
+tokens: quests
+filter: hard lvl:>me  sig=lvl:>me
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:>me word=lvl:>me
+pick sort: -
+category: -
+advanced: "quests lvl:>me "
+explain: "Everything matching quests, above your level"
+
+== quests lvl:<me
+question: -
+tokens: quests
+filter: hard lvl:<me  sig=lvl:<me
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:<me word=lvl:<me
+pick sort: -
+category: -
+advanced: "quests lvl:<me "
+explain: "Everything matching quests, below your level"
+
+== quests lvl:me
+question: -
+tokens: quests
+filter: hard lvl:me  sig=lvl:me
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me word=lvl:me
+pick sort: -
+category: -
+advanced: "quests lvl:me "
+explain: "Everything matching quests, your level"
+
+== what killed me today
+question: 18  asked=what killed me
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@combatlog is:mine is:death since:today "
+explain: "Yours, death combat log lines, since today"
+
+== copper 3 levels above me
+question: -
+tokens: copper
+filter: hard lvl:me+3  sig=lvl:me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+3 word=3 levels above me plain=true
+pick sort: -
+category: -
+advanced: "copper lvl:me+3 "
+explain: "Everything matching copper, 3 levels above yours"
+
+== copper 3 levels above me s
+question: -
+tokens: copper s
+filter: hard lvl:me+3  sig=lvl:me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+3 word=3 levels above me plain=true
+pick sort: -
+category: -
+advanced: "copper s lvl:me+3 "
+explain: "Everything matching copper s, 3 levels above yours"
+
+== loot from yesterday
+question: -
+tokens: loot
+filter: hard since:yesterday  sig=since:yesterday
+filter: hard older:today  sig=older:today
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:yesterday word=from yesterday plain=true
+pick: spec=older:today word=from yesterday plain=true
+pick sort: -
+category: -
+advanced: "loot since:yesterday older:today "
+explain: "Everything matching loot, since yesterday, from before today"
+
+== loot today
+question: 13  asked=loot today
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@drop since:today "
+explain: "Loot you saw drop, since today"
+
+== mail older than 20 days
+question: -
+tokens: -
+filter: soft type:mail  sig=~mail  word=mail
+filter: hard older:20d  sig=older:20d
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:mail word=mail
+pick: spec=older:20d word=older than 20 days plain=true
+pick sort: -
+category: -
+advanced: "mail|type:mail older:20d "
+explain: "Everything matching mail|type:mail, older than 20 days"
+
+== mail more than 2 weeks old
+question: -
+tokens: -
+filter: soft type:mail  sig=~mail  word=mail
+filter: hard older:2w  sig=older:2w
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:mail word=mail
+pick: spec=older:2w word=more than 2 weeks old plain=true
+pick sort: -
+category: -
+advanced: "mail|type:mail older:2w "
+explain: "Everything matching mail|type:mail, older than 2 weeks"
+
+== auctions sold this week
+question: 31  asked=auctions sold
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@auction is:sold since:week "
+explain: "Sold auctions, since this week"
+
+== loot in the last 3 days
+question: -
+tokens: loot
+filter: hard since:3d  sig=since:3d
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:3d word=in the last 3 days plain=true
+pick sort: -
+category: -
+advanced: "loot since:3d "
+explain: "Everything matching loot, in the last 3 days"
+
+== loot last hour
+question: -
+tokens: loot
+filter: hard since:1h  sig=since:1h
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:1h word=last hour plain=true
+pick sort: -
+category: -
+advanced: "loot since:1h "
+explain: "Everything matching loot, in the last hour"
+
+== loot past 10 minutes
+question: -
+tokens: loot
+filter: hard since:10m  sig=since:10m
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:10m word=past 10 minutes plain=true
+pick sort: -
+category: -
+advanced: "loot since:10m "
+explain: "Everything matching loot, in the last 10 minutes"
+
+== loot since login
+question: -
+tokens: loot
+filter: hard since:login  sig=since:login
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:login word=since login plain=true
+pick sort: -
+category: -
+advanced: "loot since:login "
+explain: "Everything matching loot, since this session"
+
+== loot this session
+question: -
+tokens: loot
+filter: hard since:login  sig=since:login
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:login word=this session plain=true
+pick sort: -
+category: -
+advanced: "loot since:login "
+explain: "Everything matching loot, since this session"
+
+== loot since yesterday
+question: -
+tokens: loot
+filter: hard since:yesterday  sig=since:yesterday
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:yesterday word=since yesterday plain=true
+pick sort: -
+category: -
+advanced: "loot since:yesterday "
+explain: "Everything matching loot, since yesterday"
+
+== last stand
+question: -
+tokens: last stand
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "last stand "
+explain: "Everything matching last stand"
+
+== this
+question: -
+tokens: this
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@dungeon @flight this "
+explain: "Dungeon and flight paths matching this"
+
+== older than dirt
+question: -
+tokens: older than dirt
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "older than dirt "
+explain: "Everything matching older than dirt"
+
+== tonight we dine
+question: -
+tokens: we dine
+filter: hard since:today  sig=since:today
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:today word=tonight plain=true
+pick sort: -
+category: -
+advanced: "we dine since:today "
+explain: "Everything matching we dine, since today"
+
+== loot since:yesterday older:today
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "loot since:yesterday older:today "
+explain: "Everything matching loot, since yesterday, from before today"
+
+== loot since:today
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "loot since:today "
+explain: "Everything matching loot, since today"
+
+== mail older:20d
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mail|type:mail older:20d "
+explain: "Everything matching mail|type:mail, older than 20 days"
+
+== mail older:2w
+question: -
+tokens: -
+filter: soft type:mail  sig=~mail  word=mail
+filter: hard older:2w  sig=older:2w
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:mail word=mail
+pick: spec=older:2w word=older:2w
+pick sort: -
+category: -
+advanced: "mail|type:mail older:2w "
+explain: "Everything matching mail|type:mail, older than 2 weeks"
+
+== auctions sold since:week
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@auction is:sold since:week "
+explain: "Sold auctions, since this week"
+
+== what killed me since:today
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@combatlog is:mine is:death since:today "
+explain: "Yours, death combat log lines, since today"
+
+== loot since:3d
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "loot since:3d "
+explain: "Everything matching loot, in the last 3 days"
+
+== loot since:1h
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "loot since:1h "
+explain: "Everything matching loot, in the last hour"
+
+== loot since:10m
+question: -
+tokens: loot
+filter: hard since:10m  sig=since:10m
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:10m word=since:10m
+pick sort: -
+category: -
+advanced: "loot since:10m "
+explain: "Everything matching loot, in the last 10 minutes"
+
+== loot since:login
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "loot since:login "
+explain: "Everything matching loot, since this session"
+
+== loot since:yesterday
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "loot since:yesterday "
+explain: "Everything matching loot, since yesterday"
+
+== @item sword sort:quality | first 2
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: sortField=quality
+kinds: items
+action: -
+place: -
+send: -
+steps: text=first 2 first=2
+group: -
+pick: spec=type:sword word=sword
+pick sort: id=quality word=sort:quality drop=true
+category: -
+advanced: "@item sword|type:sword sort:quality | first 2"
+explain: "Items matching sword|type:sword, best quality first, the first 2"
+
+== @item sword | first 3
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=first 3 first=3
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "@item sword|type:sword | first 3"
+explain: "Items matching sword|type:sword, the first 3"
+
+== @item sword sort:count | first 2 | sum count
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: sortField=count
+kinds: items
+action: -
+place: -
+send: -
+steps: text=first 2 | sum count first=2  last=sum
+group: -
+pick: spec=type:sword word=sword
+pick sort: id=count word=sort:count drop=true
+category: -
+advanced: "@item sword|type:sword sort:count | first 2 | sum count"
+explain: "Items matching sword|type:sword, the most first, the first 2, the count summed up"
+
+== the 2 best quality sword
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: sortField=quality
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 2 first=2 topWords=true
+group: -
+pick: spec=type:sword word=sword
+pick sort: id=quality word=best quality drop=true
+category: -
+advanced: "sword|type:sword sort:quality | first 2"
+explain: "Everything matching sword|type:sword, best quality first, the first 2"
+
+== 2 sword
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 2 first=2 topWords=true
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sword|type:sword | first 2"
+explain: "Everything matching sword|type:sword, the first 2"
+
+== the cheapest sword
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: sortField=-value
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 1 first=1 topWords=true
+group: -
+pick: spec=type:sword word=sword
+pick sort: id=-value word=cheapest drop=true
+category: -
+advanced: "sword|type:sword sort:-value | first 1"
+explain: "Everything matching sword|type:sword, cheapest first, the first 1"
+
+== the 2 nearest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: text=first 2 first=2 topWords=true
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance | first 2"
+explain: "Friendly innkeepers, nearest first, the first 2"
+
+== the closest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=closest
+place: -
+send: -
+steps: text=first 1 first=1 topWords=true
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=closest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance | first 1"
+explain: "Friendly innkeepers, nearest first, the first 1"
+
+== the 2 farthest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Farthest  word=farthest
+place: -
+send: -
+steps: text=first 2 first=2 topWords=true
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=-distance word=farthest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:-distance | first 2"
+explain: "Friendly innkeepers, farthest first, the first 2"
+
+== the 3 nearest mailboxes
+question: -
+tokens: mailboxes
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: text=first 3 first=3 topWords=true
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc mailboxes sort:distance | first 3"
+explain: "NPCs matching mailboxes, nearest first, the first 3"
+
+== top 5 upgrades
+question: -
+tokens: -
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+sort: sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 5 first=5 topWords=true
+group: -
+pick: spec=is:upgrade word=upgrades
+pick sort: -
+category: -
+advanced: "is:upgrade sort:best | first 5"
+explain: "Upgrades for you, biggest upgrades first, the first 5"
+
+== my 10 most valuable items
+question: -
+tokens: items
+sort: sortField=value
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 10 first=10 topWords=true
+group: -
+pick sort: id=value word=most valuable drop=true
+category: -
+advanced: "items sort:value | first 10"
+explain: "Everything matching items, most valuable first, the first 10"
+
+== 5 swords
+question: -
+tokens: -
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 5 first=5 topWords=true
+group: -
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "swords|type:sword | first 5"
+explain: "Everything matching swords|type:sword, the first 5"
+
+== the three nearest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: text=first 3 first=3 topWords=true
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance | first 3"
+explain: "Friendly innkeepers, nearest first, the first 3"
+
+== three swords
+question: -
+tokens: three
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "three swords "
+explain: "Everything matching three swords"
+
+== first 3 quests
+question: -
+tokens: quests
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 3 first=3 topWords=true
+group: -
+pick sort: -
+category: -
+advanced: "quests | first 3"
+explain: "Everything matching quests, the first 3"
+
+== 3 stacks of linen
+question: -
+tokens: 3 stacks linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "3 stacks linen "
+explain: "Everything matching 3 stacks linen"
+
+== two handed swords
+question: -
+tokens: two handed
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "two handed swords|type:sword "
+explain: "Everything matching two handed swords|type:sword"
+
+== closest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=closest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=closest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== the cheapest upgrades on the ah
+question: -
+tokens: -
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+filter: soft is:auctioneer  sig=~ah  word=ah
+sort: sortField=-value sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:upgrade word=upgrades
+pick: spec=is:auctioneer word=ah
+pick sort: id=-value word=cheapest drop=true
+category: -
+advanced: "is:upgrade is:auctioneer sort:best sort:-value "
+explain: "Upgrades for you and auctioneers, biggest upgrades first, cheapest first"
+
+== the nearest innkeepers
+question: -
+tokens: innkeepers
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc innkeepers sort:distance "
+explain: "NPCs matching innkeepers, nearest first"
+
+== the cheapest boots
+question: -
+tokens: -
+filter: soft slot:boots  sig=~boots  word=boots
+sort: sortField=-value
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 1 first=1 topWords=true
+group: -
+pick: spec=slot:boots word=boots
+pick sort: id=-value word=cheapest drop=true
+category: -
+advanced: "slot:boots sort:-value | first 1"
+explain: "Everything, for the boots slot, cheapest first, the first 1"
+
+== the most valuable items
+question: -
+tokens: items
+sort: sortField=value
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=value word=most valuable drop=true
+category: -
+advanced: "items sort:value "
+explain: "Everything matching items, most valuable first"
+
+== the highest level sword
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: sortField=-level
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 1 first=1 topWords=true
+group: -
+pick: spec=type:sword word=sword
+pick sort: id=-level word=highest level drop=true
+category: -
+advanced: "sword|type:sword sort:-level | first 1"
+explain: "Everything matching sword|type:sword, highest level first, the first 1"
+
+== top 0 swords
+question: -
+tokens: top 0
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "top 0 swords|type:sword "
+explain: "Everything matching top 0 swords|type:sword"
+
+== 30 yard range
+question: -
+tokens: 30 yard range
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "30 yard range "
+explain: "Everything matching 30 yard range"
+
+== the best of both worlds
+question: -
+tokens: best both worlds
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "best both worlds "
+explain: "Everything matching best both worlds"
+
+== first 2
+question: -
+tokens: first 2
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "first 2 "
+explain: "Everything matching first 2"
+
+== sum value
+question: -
+tokens: sum value
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "sum value "
+explain: "Everything matching sum value"
+
+== Innkeeper Farley
+question: -
+tokens: farley
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=Innkeeper
+pick sort: -
+category: -
+advanced: "Farley is:innkeeper "
+explain: "Innkeepers matching Farley"
+
+== mailbox
+question: -
+tokens: mailbox
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mailbox "
+explain: "Everything matching mailbox"
+
+== the 2 nearest mailboxes
+question: -
+tokens: mailboxes
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: text=first 2 first=2 topWords=true
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc mailboxes sort:distance | first 2"
+explain: "NPCs matching mailboxes, nearest first, the first 2"
+
+== the nearest mailboxes
+question: -
+tokens: mailboxes
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc mailboxes sort:distance "
+explain: "NPCs matching mailboxes, nearest first"
+
+== upgrades
+question: -
+tokens: -
+filter: strict is:upgrade  sig=upgrades  word=upgrades
+sort: sortBest=true
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:upgrade word=upgrades
+pick sort: -
+category: -
+advanced: "is:upgrade sort:best "
+explain: "Upgrades for you, biggest upgrades first"
+
+== my most valuable items
+question: -
+tokens: items
+sort: sortField=value
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=value word=most valuable drop=true
+category: -
+advanced: "items sort:value "
+explain: "Everything matching items, most valuable first"
+
+== swords
+question: -
+tokens: -
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "swords|type:sword "
+explain: "Everything matching swords|type:sword"
+
+== @item cloth | except @bank
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=except @bank
+group: -
+pick sort: -
+category: -
+advanced: "@item cloth|type:cloth | except @bank"
+explain: "Items matching cloth|type:cloth, leaving out your bank"
+
+== @item cloth | also @bank
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=also @bank
+group: -
+pick sort: -
+category: -
+advanced: "@item cloth|type:cloth | also @bank"
+explain: "Items matching cloth|type:cloth, and also your bank"
+
+== @item cloth | except @bank wool
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=except @bank wool
+group: -
+pick: spec=type:cloth word=cloth
+pick sort: -
+category: -
+advanced: "@item cloth|type:cloth | except @bank wool"
+explain: "Items matching cloth|type:cloth, leaving out your bank matching wool"
+
+== @item cloth | except @bank | count
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=except @bank | count  last=count
+group: -
+pick: spec=type:cloth word=cloth
+pick sort: -
+category: -
+advanced: "@item cloth|type:cloth | except @bank | count"
+explain: "Items matching cloth|type:cloth, leaving out your bank, counted"
+
+== @item thing sort:count | first 3 | except @bank
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 3 | except @bank first=3
+group: -
+pick sort: -
+category: -
+advanced: "@item thing sort:count | first 3 | except @bank"
+explain: "Items matching thing, the most first, the first 3, leaving out your bank"
+
+== cloth but not in my bank
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=except @bank topWords=true
+group: -
+pick: spec=type:cloth word=cloth
+pick sort: -
+category: items
+advanced: "@item cloth|type:cloth | except @bank"
+explain: "Items matching cloth|type:cloth, leaving out your bank"
+
+== Hogger  but not in my bank
+question: -
+tokens: hogger
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=except @bank topWords=true
+group: -
+pick sort: -
+category: -
+advanced: "Hogger | except @bank"
+explain: "Everything matching Hogger, leaving out your bank"
+
+== cloth plus my alts
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=also @stored topWords=true
+group: -
+pick: spec=type:cloth word=cloth
+pick sort: -
+category: items
+advanced: "@item cloth|type:cloth | also @stored"
+explain: "Items matching cloth|type:cloth, and also your alts' and bank's items"
+
+== not in my bank
+question: -
+tokens: -
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=except @bank topWords=true
+group: -
+pick sort: -
+category: -
+advanced: "@item | except @bank"
+explain: "Items, leaving out your bank"
+
+== cloth not boe
+question: -
+tokens: -
+filter: soft type:cloth  sig=~cloth  word=cloth
+filter: hard -is:boe  sig=-boe
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:cloth word=cloth
+pick: spec=-is:boe word=-boe
+pick sort: -
+category: items
+advanced: "@item cloth|type:cloth -is:boe "
+explain: "Items matching cloth|type:cloth, not bind on equip"
+
+== Linen Cloth
+question: -
+tokens: linen
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:cloth word=Cloth
+pick sort: -
+category: items
+advanced: "@item Linen cloth|type:cloth "
+explain: "Items matching Linen cloth|type:cloth"
+
+== linen
+question: -
+tokens: linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen "
+explain: "Everything matching linen"
+
+== mithril
+question: -
+tokens: mithril
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mithril "
+explain: "Everything matching mithril"
+
+== linen cloth
+question: -
+tokens: linen
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:cloth word=cloth
+pick sort: -
+category: items
+advanced: "@item linen cloth|type:cloth "
+explain: "Items matching linen cloth|type:cloth"
+
+== fireball
+question: -
+tokens: fireball
+sort: -
+kinds: classspells spells talents
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: spells
+advanced: "@spell fireball "
+explain: "Spells matching fireball"
+
+== epic
+question: -
+tokens: -
+filter: soft q:epic  sig=~epic  word=epic
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:epic word=epic
+pick sort: -
+category: -
+advanced: "q:epic "
+explain: "Epic everything"
+
+== boe
+question: -
+tokens: -
+filter: soft is:boe  sig=~boe  word=boe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:boe word=boe
+pick sort: -
+category: -
+advanced: "is:boe "
+explain: "Bind on equip everything"
+
+== potion
+question: -
+tokens: -
+filter: soft type:potion  sig=~potion  word=potion
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:potion word=potion
+pick sort: -
+category: -
+advanced: "potion|type:potion "
+explain: "Everything matching potion|type:potion"
+
+== not boe sword
+question: -
+tokens: -
+filter: hard -is:boe  sig=-boe
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:boe word=-boe
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "-is:boe sword|type:sword "
+explain: "Everything matching sword|type:sword, not bind on equip"
+
+== sword or axe
+question: -
+tokens: -
+filter: hard type:sword|type:axe  sig=sword|axe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword|type:axe word=sword|axe
+pick sort: -
+category: -
+advanced: "type:sword|type:axe "
+explain: "Sword or axe"
+
+== q:rare+ sword
+question: -
+tokens: -
+filter: hard q:rare+  sig=q:rare+
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare+ word=q:rare+
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "q:rare+ sword|type:sword "
+explain: "Rare or better everything matching sword|type:sword"
+
+== sword sort:name
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "sword|type:sword sort:name "
+explain: "Everything matching sword|type:sword, A to Z"
+
+== vendor
+question: -
+tokens: -
+filter: soft is:vendor  sig=~vendor  word=vendor
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:vendor word=vendor
+pick sort: -
+category: -
+advanced: "is:vendor "
+explain: "Vendors"
+
+== mage trainer
+question: -
+tokens: -
+filter: hard trainer:mage  sig=trainer:mage
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:mage faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach mage, nearest first"
+
+== mining trainer
+question: -
+tokens: -
+filter: hard trainer:mining  sig=trainer:mining
+sort: -
+kinds: -
+action: Nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:trainer word=trainer
+pick sort: -
+category: -
+advanced: "@npc trainer:mining faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach mining, nearest first"
+
+== reload
+question: -
+tokens: reload
+filter: hard (no spec)  sig=#commands
+sort: -
+kinds: macros slash
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: commands
+advanced: "@slash reload "
+explain: "Slash matching reload"
+
+== emote dance
+question: -
+tokens: emote dance
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "emote dance "
+explain: "Everything matching emote dance"
+
+== map
+question: -
+tokens: map
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "map "
+explain: "Everything matching map"
+
+== talents
+question: -
+tokens: talents
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "talents "
+explain: "Everything matching talents"
+
+== keybind
+question: -
+tokens: keybind
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@keybind keybind "
+explain: "Key bindings matching keybind"
+
+== sheathe
+question: -
+tokens: sheathe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "sheathe "
+explain: "Everything matching sheathe"
+
+== camera
+question: -
+tokens: camera
+sort: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@cvar camera "
+explain: "Cvar matching camera"
+
+== quest
+question: -
+tokens: quest
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "quest "
+explain: "Everything matching quest"
+
+== kobold
+question: -
+tokens: kobold
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "kobold "
+explain: "Everything matching kobold"
+
+== wolf
+question: -
+tokens: wolf
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "wolf "
+explain: "Everything matching wolf"
+
+== mount
+question: -
+tokens: mount
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mount "
+explain: "Everything matching mount"
+
+== toy
+question: -
+tokens: toy
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "toy "
+explain: "Everything matching toy"
+
+== achievement
+question: -
+tokens: achievement
+sort: -
+kinds: panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: windows
+advanced: "@panel achievement "
+explain: "Panel matching achievement"
+
+== gold
+question: -
+tokens: gold
+sort: -
+kinds: auctions currency durability equipmentset experience gold lockouts mail reputation skills
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: character
+advanced: "@gold gold "
+explain: "Gold matching gold"
+
+== durability
+question: 30  asked=durability
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@durability "
+explain: "Your gear's durability"
+
+== mail
+question: -
+tokens: -
+filter: soft type:mail  sig=~mail  word=mail
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:mail word=mail
+pick sort: -
+category: -
+advanced: "mail|type:mail "
+explain: "Everything matching mail|type:mail"
+
+== my mail
+question: 32  asked=my mail
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "my mail "
+explain: "Everything matching my mail"
+
+== @item linen
+question: -
+tokens: linen
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@item linen "
+explain: "Items matching linen"
+
+== in:bags linen
+question: -
+tokens: linen
+filter: hard in:bags  sig=in:bags
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=in:bags word=in:bags
+pick sort: -
+category: items
+advanced: "@item linen in:bags "
+explain: "Items matching linen, in bags"
+
+== usable
+question: -
+tokens: -
+filter: soft is:usable  sig=~usable  word=usable
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:usable word=usable
+pick sort: -
+category: items
+advanced: "@item is:usable "
+explain: "Usable items"
+
+== ready
+question: -
+tokens: -
+filter: soft is:ready  sig=~ready  word=ready
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:ready word=ready
+pick sort: -
+category: -
+advanced: "is:ready "
+explain: "Ready everything"
+
+== todo
+question: -
+tokens: -
+filter: soft is:todo  sig=~todo  word=todo
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:todo word=todo
+pick sort: -
+category: -
+advanced: "is:todo "
+explain: "Not done yet everything"
+
+== done
+question: -
+tokens: -
+filter: soft is:done  sig=~done  word=done
+sort: -
+kinds: achievements mounts
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:done word=done
+pick sort: -
+category: collections
+advanced: "@achievement is:done "
+explain: "Done achievements"
+
+== q:rare+
+question: -
+tokens: -
+filter: hard q:rare+  sig=q:rare+
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare+ word=q:rare+
+pick sort: -
+category: -
+advanced: "q:rare+ "
+explain: "Rare or better everything"
+
+== sword q:rare+
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard q:rare+  sig=q:rare+
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=q:rare+ word=q:rare+
+pick sort: -
+category: -
+advanced: "sword|type:sword q:rare+ "
+explain: "Rare or better everything matching sword|type:sword"
+
+== sword sort:quality
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "sword|type:sword sort:quality "
+explain: "Everything matching sword|type:sword, best quality first"
+
+== sword | group by zone
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=group by zone  last=group:zone
+group: id=zone word=| group by zone
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sword|type:sword | group by zone"
+explain: "Everything matching sword|type:sword, grouped by zone"
+
+== mithril q:rare+ sort:name
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mithril q:rare+ sort:name "
+explain: "Rare or better everything matching mithril, A to Z"
+
+== q:epic+
+question: -
+tokens: -
+filter: hard q:epic+  sig=q:epic+
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:epic+ word=q:epic+
+pick sort: -
+category: -
+advanced: "q:epic+ "
+explain: "Epic or better everything"
+
+== sword q:epic+ | group by zone
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard q:epic+  sig=q:epic+
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=group by zone  last=group:zone
+group: id=zone word=| group by zone
+pick: spec=type:sword word=sword
+pick: spec=q:epic+ word=q:epic+
+pick sort: -
+category: -
+advanced: "sword|type:sword q:epic+ | group by zone"
+explain: "Epic or better everything matching sword|type:sword, grouped by zone"
+
+== What's   dropped?
+question: 13  asked=What's   dropped?
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@drop "
+explain: "Loot you saw drop"
+
+== @npc dead
+question: -
+tokens: dead
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@dungeon dead "
+explain: "Dungeon matching dead"
+
+== a > mats
+question: 17  asked=a > mats
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "a > mats "
+explain: "Everything matching a, then: mats "
+
+== x | count
+question: -
+tokens: x
+sort: -
+kinds: addonoptions addons auctions camp corpse currency cvars dungeon durability equipmentset experience flight gameoptions gold keybinds lockouts mail maps panels professions raid recipes reputation skills terminal
+action: -
+place: -
+send: -
+steps: text=count  last=count
+group: -
+pick sort: -
+category: -
+advanced: "x | count"
+explain: "Everything matching x, counted"
+
+== -dead
+question: -
+tokens: -
+filter: hard -dead  sig=-dead
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-dead word=-dead
+pick sort: -
+category: -
+advanced: "-dead "
+explain: "Everything, without \"dead\""
+
+== party -dead
+question: -
+tokens: party
+filter: hard -dead  sig=-dead
+sort: -
+kinds: group
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-dead word=-dead
+pick sort: -
+category: group
+advanced: "@group party -dead "
+explain: "Your group matching party, without \"dead\""
+
+== party !dead
+question: -
+tokens: party
+filter: hard !dead  sig=!dead
+sort: -
+kinds: group
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=!dead word=!dead
+pick sort: -
+category: group
+advanced: "@group party !dead "
+explain: "Your group matching party, without \"dead\""
+
+== half-elf quests
+question: -
+tokens: half-elf quests
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "half-elf quests "
+explain: "Everything matching half-elf quests"
+
+== party not dead
+question: -
+tokens: party
+filter: hard -dead  sig=-dead
+sort: -
+kinds: group
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-dead word=-dead
+pick sort: -
+category: group
+advanced: "@group party -dead "
+explain: "Your group matching party, without \"dead\""
+
+== mail without cod
+question: -
+tokens: -
+filter: soft type:mail  sig=~mail  word=mail
+filter: hard -is:cod  sig=-cod
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:mail word=mail
+pick: spec=-is:cod word=-cod
+pick sort: -
+category: -
+advanced: "mail|type:mail -is:cod "
+explain: "Everything matching mail|type:mail, not cod"
+
+== mail no cod
+question: -
+tokens: -
+filter: soft type:mail  sig=~mail  word=mail
+filter: hard -is:cod  sig=-cod
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:mail word=mail
+pick: spec=-is:cod word=-cod
+pick sort: -
+category: -
+advanced: "mail|type:mail -is:cod "
+explain: "Everything matching mail|type:mail, not cod"
+
+== x except y
+question: -
+tokens: x
+filter: hard -y  sig=-y
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-y word=-y
+pick sort: -
+category: -
+advanced: "x -y "
+explain: "Everything matching x, without \"y\""
+
+== @npc is:innkeeper sort:distance
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "is:innkeeper sort:distance "
+explain: "Innkeepers, nearest first"
+
+== @mail is:unread
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@mail is:unread "
+explain: "Unread mail"
+
+== @npc is:vendor sells:arrow faction:friendly sort:distance
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "is:vendor sells:arrow faction:friendly sort:distance "
+explain: "Friendly vendors, that sell arrow, nearest first"
+
+== @item q:rare+ lvl:20-30 sort:quality,-level
+question: -
+tokens: -
+filter: hard q:rare+  sig=q:rare+
+filter: hard lvl:20-30  sig=lvl:20-30
+sort: sortField=quality,-level
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare+ word=q:rare+
+pick: spec=lvl:20-30 word=lvl:20-30
+pick sort: id=quality,-level word=sort:quality,-level drop=true
+category: -
+advanced: "@item q:rare+ lvl:20-30 sort:quality,-level "
+explain: "Rare or better items, level 20-30, best quality first, then highest level first"
+
+== @questie lvl:me+3 -is:done
+question: -
+tokens: -
+filter: hard lvl:me+3  sig=lvl:me+3
+filter: hard -is:done  sig=-is:done
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+3 word=lvl:me+3
+pick: spec=-is:done word=-is:done
+pick sort: -
+category: places
+advanced: "@dungeon lvl:me+3 -is:done "
+explain: "Dungeon, 3 levels above yours, not done"
+
+== @mail older:20d
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@mail older:20d "
+explain: "Mail, older than 20 days"
+
+== @drop since:yesterday older:today
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@drop since:yesterday older:today "
+explain: "Loot you saw drop, since yesterday, from before today"
+
+== @mailbox sort:distance | first 3
+question: -
+tokens: -
+sort: sortNear=true
+kinds: -
+action: -
+place: -
+send: -
+steps: text=first 3 first=3
+group: -
+pick sort: id=distance word=sort:distance drop=true
+category: -
+advanced: "sort:distance | first 3"
+explain: "Everything, nearest first, the first 3"
+
+== in:bags | sum value
+question: -
+tokens: -
+filter: hard in:bags  sig=in:bags
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: text=sum value  last=sum
+group: -
+pick: spec=in:bags word=in:bags
+pick sort: -
+category: items
+advanced: "@item in:bags | sum value"
+explain: "Items, in bags, the value summed up"
+
+== linen value:>1g
+question: -
+tokens: linen
+filter: hard value:>1g  sig=value:>1g
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=value:>1g word=value:>1g
+pick sort: -
+category: -
+advanced: "linen value:>1g "
+explain: "Everything matching linen, worth over 1g"
+
+== @item is:upgrade sort:best >> party
+question: -
+tokens: -
+filter: hard is:upgrade  sig=is:upgrade
+sort: sortBest=true
+kinds: items
+action: -
+place: -
+send: label=party chat=PARTY query=@item is:upgrade sort:best 
+steps: -
+group: -
+pick: spec=is:upgrade word=is:upgrade
+pick sort: id=best word=sort:best drop=true
+category: -
+advanced: "@item is:upgrade sort:best >> party"
+explain: "Upgrades for you, biggest upgrades first, sent to party"
+
+== @questie lvl:me-2..me+3
+question: -
+tokens: -
+filter: hard lvl:me-2..me+3  sig=lvl:me-2..me+3
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me-2..me+3 word=lvl:me-2..me+3
+pick sort: -
+category: -
+advanced: "lvl:me-2..me+3 "
+explain: "Everything, from 2 levels below yours to 3 levels above yours"
+
+== type:sword|type:axe
+question: -
+tokens: -
+filter: hard type:sword|type:axe  sig=type:sword|type:axe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword|type:axe word=type:sword|type:axe
+pick sort: -
+category: -
+advanced: "type:sword|type:axe "
+explain: "Sword or axe"
+
+== @drop since:3d
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@drop since:3d "
+explain: "Loot you saw drop, in the last 3 days"
+
+== @drop since:1h
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@drop since:1h "
+explain: "Loot you saw drop, in the last hour"
+
+== @mail older:1d
+question: -
+tokens: -
+filter: hard older:1d  sig=older:1d
+sort: -
+kinds: mail
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=older:1d word=older:1d
+pick sort: -
+category: -
+advanced: "@mail older:1d "
+explain: "Mail, older than 1 day"
+
+== sword >>
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: pending=true query=sword 
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sword|type:sword >>"
+explain: "Everything matching sword|type:sword, sent to chat"
+
+== sword q:rare+ sort:name
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "sword|type:sword q:rare+ sort:name "
+explain: "Rare or better everything matching sword|type:sword, A to Z"
+
+== sword | group by quality
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=group by quality  last=group:quality
+group: id=quality word=| group by quality
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sword|type:sword | group by quality"
+explain: "Everything matching sword|type:sword, grouped by quality"
+
+== sword | count
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=count  last=count
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "sword|type:sword | count"
+explain: "Everything matching sword|type:sword, counted"
+
+== arcanite
+question: -
+tokens: arcanite
+sort: -
+kinds: classspells spells talents
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: spells
+advanced: "@spell arcanite "
+explain: "Spells matching arcanite"
+
+== @item iron
+question: -
+tokens: iron
+sort: -
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@item iron "
+explain: "Items matching iron"
+
+== sword not boe
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard -is:boe  sig=-boe
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=-is:boe word=-boe
+pick sort: -
+category: -
+advanced: "sword|type:sword -is:boe "
+explain: "Everything matching sword|type:sword, not bind on equip"
+
+== rare sword rare
+question: -
+tokens: -
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft type:sword  sig=~sword  word=sword
+filter: soft q:rare  sig=~rare  word=rare
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick: spec=type:sword word=sword
+pick: spec=q:rare word=rare
+pick sort: -
+category: -
+advanced: "q:rare sword|type:sword "
+explain: "Rare everything matching sword|type:sword"
+
+== legendary arcanite
+question: -
+tokens: arcanite
+filter: soft q:legendary  sig=~legendary  word=legendary
+sort: -
+kinds: classspells spells talents
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:legendary word=legendary
+pick sort: -
+category: spells
+advanced: "@spell arcanite legendary "
+explain: "Spells matching arcanite legendary"
+
+== epic arcanite
+question: -
+tokens: arcanite
+filter: soft q:epic  sig=~epic  word=epic
+sort: -
+kinds: classspells spells talents
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:epic word=epic
+pick sort: -
+category: spells
+advanced: "@spell arcanite epic "
+explain: "Spells matching arcanite epic"
+
+== mithr
+question: -
+tokens: mithr
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mithr "
+explain: "Everything matching mithr"
+
+== mithri
+question: -
+tokens: mithri
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "mithri "
+explain: "Everything matching mithri"
+
+== sword rare usable
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft is:usable  sig=~usable  word=usable
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=q:rare word=rare
+pick: spec=is:usable word=usable
+pick sort: -
+category: -
+advanced: "sword|type:sword q:rare is:usable "
+explain: "Rare, usable everything matching sword|type:sword"
+
+== Bind  on Equip sword
+question: -
+tokens: bind equip
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "Bind Equip sword|type:sword "
+explain: "Everything matching Bind Equip sword|type:sword"
+
+== my swords
+question: -
+tokens: -
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "swords|type:sword "
+explain: "Everything matching swords|type:sword"
+
+== my swords q:rare+ sort:name
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "swords|type:sword q:rare+ sort:name "
+explain: "Rare or better everything matching swords|type:sword, A to Z"
+
+== @item sword sort:name
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@item sword|type:sword sort:name "
+explain: "Items matching sword|type:sword, A to Z"
+
+== @item sword sort:-name
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+sort: sortField=-name
+kinds: items
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick sort: id=-name word=sort:-name drop=true
+category: -
+advanced: "@item sword|type:sword sort:-name "
+explain: "Items matching sword|type:sword, Z to A"
+
+== Tonight We Dine
+question: -
+tokens: we dine
+filter: hard since:today  sig=since:today
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:today word=Tonight plain=true
+pick sort: -
+category: -
+advanced: "We Dine since:today "
+explain: "Everything matching We Dine, since today"
+
+== The Five Sorrows
+question: -
+tokens: five sorrows
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "Five Sorrows "
+explain: "Everything matching Five Sorrows"
+
+== No Rest for the Wicked
+question: -
+tokens: no rest wicked
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "No Rest Wicked "
+explain: "Everything matching No Rest Wicked"
+
+== Last Rites
+question: -
+tokens: last rites
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "Last Rites "
+explain: "Everything matching Last Rites"
+
+== Last Day of Summer
+question: -
+tokens: summer
+filter: hard since:1d  sig=since:1d
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=since:1d word=Last Day plain=true
+pick sort: -
+category: -
+advanced: "Summer since:1d "
+explain: "Everything matching Summer, in the last day"
+
+== Next Level Thinking
+question: -
+tokens: thinking
+filter: hard lvl:me+1  sig=lvl:me+1
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+1 word=Next Level plain=true
+pick sort: -
+category: -
+advanced: "Thinking lvl:me+1 "
+explain: "Everything matching Thinking, a level above yours"
+
+== the five sorrows
+question: -
+tokens: five sorrows
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "five sorrows "
+explain: "Everything matching five sorrows"
+
+== last rites
+question: -
+tokens: last rites
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "last rites "
+explain: "Everything matching last rites"
+
+== next level thinking
+question: -
+tokens: thinking
+filter: hard lvl:me+1  sig=lvl:me+1
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=lvl:me+1 word=next level plain=true
+pick sort: -
+category: -
+advanced: "thinking lvl:me+1 "
+explain: "Everything matching thinking, a level above yours"
+
+== linen q:rare >> party
+question: -
+tokens: linen
+filter: hard q:rare  sig=q:rare
+sort: -
+kinds: -
+action: -
+place: -
+send: label=party chat=PARTY query=linen q:rare 
+steps: -
+group: -
+pick: spec=q:rare word=q:rare
+pick sort: -
+category: -
+advanced: "linen q:rare >> party"
+explain: "Rare everything matching linen, sent to party"
+
+== the 3 nearest mailboxes | count
+question: -
+tokens: 3 nearest mailboxes
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=count  last=count
+group: -
+pick sort: -
+category: -
+advanced: "3 nearest mailboxes | count"
+explain: "Everything matching 3 nearest mailboxes, counted"
+
+== hogger but not in my bank
+question: -
+tokens: hogger
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=except @bank topWords=true
+group: -
+pick sort: -
+category: -
+advanced: "hogger | except @bank"
+explain: "Everything matching hogger, leaving out your bank"
+
+== Hogger but not in my bank
+question: -
+tokens: hogger
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=except @bank topWords=true
+group: -
+pick sort: -
+category: -
+advanced: "Hogger | except @bank"
+explain: "Everything matching Hogger, leaving out your bank"
+
+== linen to csv
+question: -
+tokens: linen
+sort: -
+kinds: corpse dungeon flight items maps raid
+action: -
+place: -
+send: label=CSV all=true copy=csv query=linen
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen >>> csv"
+explain: "Everything matching linen, every one sent to csv"
+
+== linen as text
+question: -
+tokens: linen
+sort: -
+kinds: corpse dungeon flight items maps raid
+action: -
+place: -
+send: label=text all=true copy=text query=linen
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen >>> text"
+explain: "Everything matching linen, every one sent to text"
+
+== quests per zone
+question: -
+tokens: -
+sort: -
+kinds: quests
+action: -
+place: -
+send: -
+steps: text=group by zone  last=group:zone
+group: id=zone word=| group by zone rest=@questlog 
+pick sort: -
+category: -
+advanced: "@questlog | group by zone "
+explain: "Quests in your log, grouped by zone"
+
+== items by zone q:rare
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: text=group by zone  last=group:zone
+group: id=zone word=| group by zone rest=@item q:rare 
+pick sort: -
+category: -
+advanced: "@item q:rare | group by zone "
+explain: "Rare items, grouped by zone"
+
+== rare sword >> party
+question: -
+tokens: -
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: label=party chat=PARTY query=rare sword 
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "q:rare sword|type:sword >> party"
+explain: "Rare everything matching sword|type:sword, sent to party"
+
+== the 3 nearest innkeepers >> guild
+question: -
+tokens: innkeepers
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: label=guild chat=GUILD query=the 3 nearest innkeepers 
+steps: text=first 3 first=3 topWords=true
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc innkeepers sort:distance | first 3 >> guild"
+explain: "NPCs matching innkeepers, nearest first, the first 3, sent to guild"
+
+== not boe not soulbound sword
+question: -
+tokens: -
+filter: hard -is:boe  sig=-boe
+filter: hard -is:soulbound  sig=-soulbound
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:boe word=-boe
+pick: spec=-is:soulbound word=-soulbound
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "-is:boe -is:soulbound sword|type:sword "
+explain: "Everything matching sword|type:sword, not bind on equip, not soulbound"
+
+== sword or axe or mace
+question: -
+tokens: -
+filter: hard type:sword|type:axe|type:mace  sig=sword|axe|mace
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword|type:axe|type:mace word=sword|axe|mace
+pick sort: -
+category: -
+advanced: "type:sword|type:axe|type:mace "
+explain: "Sword or axe or mace"
+
+== "tonight we dine"
+question: -
+tokens: "tonight we dine"
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "\"tonight we dine\" "
+explain: "Everything matching \"tonight we dine\""
+
+== in:"Scarlet Monastery" sword
+question: -
+tokens: -
+filter: hard in:Scarlet Monastery  sig=in:scarlet monastery
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=in:Scarlet Monastery word=in:Scarlet Monastery
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "in:\"Scarlet Monastery\" sword|type:sword "
+explain: "Everything matching sword|type:sword, in scarlet monastery"
+
+== linen |
+question: -
+tokens: linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: bad=
+group: -
+pick sort: -
+category: -
+advanced: "linen | "
+explain: "Everything matching linen, | "
+
+== linen >>
+question: -
+tokens: linen
+sort: -
+kinds: -
+action: -
+place: -
+send: pending=true query=linen 
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen >>"
+explain: "Everything matching linen, sent to chat"
+
+== lvl:
+question: -
+tokens: lvl:
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "lvl: "
+explain: "Everything matching lvl:"
+
+== @np
+question: -
+tokens: -
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: ""
+explain: ERROR nil
+
+== "tonight we
+question: 39  asked="tonight we
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@calendar when:today "
+explain: "Calendar events, on the calendar today"
+
+== sword q:rare|epic
+question: -
+tokens: -
+filter: soft type:sword  sig=~sword  word=sword
+filter: hard q:rare|epic  sig=q:rare|epic
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:sword word=sword
+pick: spec=q:rare|epic word=q:rare|epic
+pick sort: -
+category: -
+advanced: "sword|type:sword q:rare|epic "
+explain: "Rare or epic everything matching sword|type:sword"
+
+== -is:boe sword
+question: -
+tokens: -
+filter: hard -is:boe  sig=-is:boe
+filter: soft type:sword  sig=~sword  word=sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:boe word=-is:boe
+pick: spec=type:sword word=sword
+pick sort: -
+category: -
+advanced: "-is:boe sword|type:sword "
+explain: "Everything matching sword|type:sword, not bind on equip"
+
+== linen 1g50s
+question: -
+tokens: linen 1g50s
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen 1g50s "
+explain: "Everything matching linen 1g50s"
+
+== gear under 50% durability
+question: -
+tokens: gear
+filter: hard dura:<50  sig=dura:<50
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=dura:<50 word=under 50% durability plain=true
+pick sort: -
+category: -
+advanced: "gear dura:<50 "
+explain: "Everything matching gear, at under 50% durability"
+
+== rare&sword
+question: -
+tokens: -
+filter: hard q:rare&type:sword  sig=rare&sword
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare&type:sword word=rare&sword
+pick sort: -
+category: -
+advanced: "q:rare&type:sword "
+explain: "Rare&type:sword everything"

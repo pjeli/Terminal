@@ -1381,7 +1381,7 @@ local WHISPER = { macro = function(e)
 end }
 
 -- One row an item a friend (0.58.6, the player: "group and sort by Owner (Cad Man vs Cherry Tusks)"): an item two
--- friends carry is two rows, "Linen Cloth x20 · Cad Man" and "x15 · Cherry Tusks", each with its owner (Pipes.lua's
+-- friends carry is two rows, "Linen Cloth x20 · Cad Man" and "x15 · Cherry Tusks", each with its owner (Aggregate.lua's
 -- owner field: the bar's Group and Sort, sort:owner, | group by owner). The tooltip says who else has it.
 --
 -- (0.58.16, the stress test: tests/stress.py) Rows are compact (ns:CompactMeta): only what a search reads first is on

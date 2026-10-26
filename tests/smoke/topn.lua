@@ -1,5 +1,5 @@
 -- Top N (0.66.7, the player): "| first 3" in Advanced; "the 3 nearest mailboxes", "top 5 upgrades", "my 10 most valuable
--- items", "5 swords", "the closest innkeeper" in plain words. Search/Pipes.lua (A.Parse, A.Apply), Easy.lua (TopN,
+-- items", "5 swords", "the closest innkeeper" in plain words. Search/Steps/Aggregate.lua (A.Parse, A.Apply), StepWords.lua (TopN,
 -- ORDER_WORDS), UI/Results.lua (TakeAggregate).
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll

@@ -1,5 +1,5 @@
 -- Dates in plain words (0.66.8, the player): "loot from yesterday", "mail older than 20 days", "auctions sold this week",
--- "what killed me today"; since: and older: in Advanced. Search/Filters/Others.lua (TimeStart, RowTime), Easy.lua
+-- "what killed me today"; since: and older: in Advanced. Search/Filters/Others.lua (TimeStart, RowTime), PlainNumbers.lua
 -- (DateAt), Search.lua (a question's dates after it).
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
@@ -122,7 +122,29 @@ do
 	for _, q in ipairs({ "tonight we dine", "last day of summer", "next level thinking" }) do
 		check(Has(q), q .. ": the name found, not a date or level that nothing has")
 	end
+	-- (review) Alt+` of a line the second look kept: as it was searched, the name's words, not the date
+	UI:Search("tonight we dine")
+	local adv = ns.Easy.ToAdvanced("tonight we dine")
+	check(adv:find("tonight", 1, true) ~= nil and not adv:find("since:", 1, true), "Alt+` after the second look: the name's words: " .. adv)
+	UI:Search("copper bar")
+	check(UI.secondLook == nil and ns.Easy.ToAdvanced("tonight we dine"):find("since:", 1, true) ~= nil,
+		"another search: Alt+` reads the line as it is again")
 	check(ns.Easy.PlainNumbers({ "loot", "today" })[2] == "since:today", "a date alone is still one")
+	-- (FRONT_END.md Phase 5) the second look is keyed by claims: only the date's words are read as words, a number said
+	-- in words beside them stays its filter
+	do
+		local Scan = UI._Scan
+		local line = "tonight we dine worth more than 1g"
+		local q = Scan.Parse({}, line)
+		local alts = Scan.AltPhrases(q.reading)
+		check(alts and #alts == 1 and alts[1] == "tonight", "the date's claim may be words: " .. tostring(alts and table.concat(alts, ",")))
+		local q2 = Scan.Parse({}, line, { noAlt = true })
+		local specs = {}
+		for _, s in pairs(q2.specOf or {}) do specs[#specs + 1] = s end
+		check(table.concat(q2.tokens, " ") == "tonight we dine" and specs[1] == "value:>1g" and #specs == 1,
+			"read again: the date's words as words, the worth kept: " .. table.concat(q2.tokens, " ") .. " / " .. table.concat(specs, " "))
+		check(not Scan.AltPhrases(Scan.Parse({}, "copper worth more than 1g").reading), "a worth is no name's: no second look")
+	end
 	-- (review) no name has the words: not searched again (each keystroke of the line was three searches)
 	local realST, n = UI.SearchText, 0
 	UI.SearchText = function(self, t) n = n + 1 return realST(self, t) end
@@ -130,6 +152,16 @@ do
 	UI:Search("copper 3 levels above me s")
 	UI.SearchText = realST
 	check(n == 2, "no name with \"3 levels above me\": one search a keystroke: " .. n)
+	-- (review) fuzzy finding after a date's words: the last search's reading isn't this one's, no second look
+	-- (the last search's reading with a date's words a name has, as a search that found something leaves it)
+	UI.whyQ = { reading = { claims = { { alt = "words", phrase = "tonight" } } } }
+	n = 0
+	UI.SearchText = function(self, t, how) n = n + 1 return realST(self, t, how) end
+	UI.fzf = true
+	local ok = pcall(UI.Search, UI, "zzqqxx")
+	UI.fzf = nil
+	UI.SearchText = realST
+	check(ok and n == 1, "fuzzy finding: one search, not the last reading's second look: " .. n)
 	ns.providers, ns.providerOrder, ns.db.easyMode = saved.providers, saved.order, saved.easy
 	ns:AliasesChanged(); UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil

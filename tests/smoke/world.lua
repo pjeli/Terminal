@@ -1,6 +1,6 @@
 -- The world: map places and waypoints, Questie's NPCs on the map, towns, AtlasLoot's saved index, keybindings and panels
 -- (0.49.2 review fixes: Maps.lua, Questie.lua, QuestieQuests.lua, QuestieData.lua, Places.lua, Loot.lua, Keybinds.lua,
--- Panels.lua, Easy.lua's map verbs).
+-- Panels.lua, Simple.lua's map verbs).
 local T = ...
 local ns, UI, check, Obj, FlushAll = T.ns, T.UI, T.check, T.Obj, T.FlushAll
 local I, QD, M, S = ns.Integrations, ns.QuestieData, ns.Maps, ns.Secure
@@ -53,7 +53,7 @@ do -- (Maps.lua's Place cleared your waypoint before asking whether the new plac
 	check(pinned and #calls == 0 and said[#said] == "Can't set a waypoint there.", "Shift+Enter on it says so, yours kept: " .. tostring(said[#said]))
 	r = M.Place({ name = "Durotar", mapID = 1411 })
 	check(r == "moved" and table.concat(calls, ",") == "clear,set 1411", "a zone: your waypoint moves there: " .. table.concat(calls, ","))
-	-- (the footer's verbs as PinOnly does it: a zone moves a waypoint you have, sets none; Easy.lua)
+	-- (the footer's verbs as PinOnly does it: a zone moves a waypoint you have, sets none; Simple.lua)
 	local function V(e) local a, b = ns.Easy.Verbs(e) return tostring(a) .. "/" .. tostring(b) end
 	local zone = { kind = "maps", name = "Durotar", mapID = 1411, secondary = M.PinOnly }
 	pinned = false

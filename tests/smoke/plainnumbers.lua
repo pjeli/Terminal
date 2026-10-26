@@ -1,5 +1,5 @@
 -- Numbers in plain words (0.66.5, the player): "swords between level 20 and 30" is lvl:20-30, "quests under level 25"
--- lvl:<25, "items worth more than 1g" value:>1g, "bags with at least 10 slots" slots:>=10. Search/Easy.lua (PlainNumbers),
+-- lvl:<25, "items worth more than 1g" value:>1g, "bags with at least 10 slots" slots:>=10. PlainNumbers.lua (PlainNumbers),
 -- Filters (value:, slots:, F.Copper, F.MoneyRange).
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll

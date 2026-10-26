@@ -152,7 +152,7 @@ local function SoldItems(v, DB)
 	return ids
 end
 
---- Questie's items with exactly this (lowercase) name: their ids ({} when none, or without Questie). (Pipes.lua: a
+--- Questie's items with exactly this (lowercase) name: their ids ({} when none, or without Questie). (Chains.lua: a
 --- chain started from an item you don't carry, "where to get copper ore".)
 function F.QuestieItemIds(lname)
 	local DB = QuestieDB()
@@ -341,7 +341,7 @@ local function ProfNamed(v)
 	end
 end
 
-F.ProfNamed = ProfNamed -- (Simple mode: "enchanting trainer" is trainer:enchanting, Easy.lua)
+F.ProfNamed = ProfNamed -- (Simple mode: "enchanting trainer" is trainer:enchanting, Simple.lua)
 
 local function AnyClassTrainer(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
 local function AnyProfTrainer(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
@@ -377,12 +377,12 @@ function F.WeaponSkillIds(w)
 	if out then table.sort(out) end
 	return out
 end
---- A word naming a weapon skill, as trainer: takes it (Simple mode: "dagger trainer" is trainer:dagger, Easy.lua), or nil.
+--- A word naming a weapon skill, as trainer: takes it (Simple mode: "dagger trainer" is trainer:dagger, Simple.lua), or nil.
 F.TrainerWeapon = function(w) return F.WeaponSkillIds(w) and Lower(w) or nil end
 
 local CLASS_SET = {}
 for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
-F.TrainerClass = function(w) return CLASS_SET[w] and w or nil end -- (Simple mode: "mage trainer" is trainer:mage, Easy.lua)
+F.TrainerClass = function(w) return CLASS_SET[w] and w or nil end -- (Simple mode: "mage trainer" is trainer:mage, Simple.lua)
 
 KEYS.trainer = function(v)
 	if v == "" then return nil end
@@ -424,7 +424,7 @@ KEYS.trainer = function(v)
 			return false
 		end
 	end
-	-- a class or profession in the client's language (trainer:bergbau): Questie's titles are English (Easy.lua's game words)
+	-- a class or profession in the client's language (trainer:bergbau): Questie's titles are English (Simple.lua's game words)
 	local said = ns.Easy and ns.Easy.GameWord and ns.Easy.GameWord(v)
 	if said and said:find("^trainer:") then return KEYS.trainer(said:sub(9)) end
 	-- anything else: a word of the title (pet, riding, weapon, portal, demon...)
@@ -479,7 +479,7 @@ end
 KEYS.within, KEYS.dist = KEYS.near, KEYS.near
 
 -- sort:distance: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far.
--- sort:plan: your recipes that still give skill, by how many times your materials make each (Search/Plan.lua)
+-- sort:plan: your recipes that still give skill, by how many times your materials make each (Search/Questions/Plan.lua)
 -- sort:best: with is:upgrade, the biggest upgrades first (F.GainOf; Simple mode's "upgrades" sorts so on its own)
 -- (0.65.7, the player: "sort:distance ideally", the nearest first; sort:-distance the farthest: as said, sort:farthest)
 F.SORTS = { distance = "distance", dist = "distance", nearest = "distance", near = "distance", closest = "distance",

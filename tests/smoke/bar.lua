@@ -354,6 +354,27 @@ do
 		UI:SetQuery("rare sword rare", 15); FlushAll()
 		B.Pick("filter", "q:rare"); FlushAll()
 		check(UI.edit:GetText() == "sword" and not B.Typed().filters[1], "said twice: both go: '" .. UI.edit:GetText() .. "'")
+		-- (FRONT_END.md Phase 4: taken out where each was typed, not by its word: the "boe" of "not boe" stays)
+		UI:SetQuery("boe linen not boe", 17); FlushAll()
+		B.Pick("filter", "is:boe"); FlushAll()
+		check(UI.edit:GetText() == "linen not boe", "a word another filter has too: only the unticked one goes: '" .. UI.edit:GetText() .. "'")
+		-- (a line read a keystroke ago that the prompt only goes on from: not cut by its spans; review)
+		local stale = { s = 1, e = 13, line = "under level 2" }
+		check(B.CutSpans("under level 25", { stale }) == nil and B.CutSpans("under level 2 swords", { stale }) == " swords",
+			"spans only of the line as it stands: " .. tostring(B.CutSpans("under level 25", { stale })))
+		-- (a "quoted phrase" between a join's words stays: only "not" and "boe" go; invariant 7, review)
+		UI:SetQuery('linen not "big boe" boe', 23); FlushAll()
+		B.Pick("filter", "-is:boe"); FlushAll()
+		check(UI.edit:GetText() == 'linen "big boe"', "a quoted phrase inside a join is left alone: '" .. UI.edit:GetText() .. "'")
+		-- (a typed group: taken out from its "|" to its end, where it is in the line)
+		UI:SetQuery("linen  |  group by quality", 26); FlushAll()
+		local g = B.Typed().group
+		check(g and g.src and g.src.said == "|  group by quality", "a typed group's place in the line: " .. tostring(g and g.src and g.src.said))
+		B.Clear("group"); FlushAll()
+		check(UI.edit:GetText() == "linen", "Group cleared: the typed step goes: '" .. UI.edit:GetText() .. "'")
+		UI:SetQuery("rare linen", 10); FlushAll()
+		B.Clear("filter"); FlushAll()
+		check(UI.edit:GetText() == "linen", "Filter cleared: the typed word goes: '" .. UI.edit:GetText() .. "'")
 		UI:Hide(); FlushAll()
 	end
 

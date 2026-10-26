@@ -10,7 +10,7 @@ local LY = UI.layout
 local EasyOn, Wake, Style, rows = UI.EasyOn, UI.Wake, UI.Style, UI.rows
 local MAX_ROWS, FOOTER_H, ONCE_LABEL = UI.MAX_ROWS, UI.FOOTER_H, UI.ONCE_LABEL
 -- a field's say in the rows' detail when the search is sorted by it (or asks for it): field -> function(e, field)
--- returning the detail, or nil for the row's own (Auctionator.lua: ahvalue, ahprice; Rewards.lua: slots)
+-- returning the detail, or nil for the row's own (AuctionValues.lua: ahvalue, ahprice; Rewards.lua: slots)
 ns.FIELD_DETAIL = ns.FIELD_DETAIL or {}
 
 -- key hints, most useful first: on a narrow terminal the last ones are left out, never wrapped. Advanced: what Enter
@@ -25,7 +25,7 @@ local HIST_HINTS = { { "Enter", L["put it in the prompt"] }, { "Ctrl+R", L["olde
 local FZF_HINTS = { { "Enter", L["to Simple"] }, { "Shift+Enter", L["with its list"] }, { "Up/Down", L["move"] }, { "Tab+`", L["close"] }, KEYS_HINT }
 -- (Advanced's @kind / key: pick lists; "back" is Shift+Left's word, so Shift+Tab is "previous")
 local SYNTAX_HINTS = { { "Enter", L["write it"] }, { "Tab", L["next"] }, { "Shift+Tab", L["previous"] }, KEYS_HINT }
--- easy mode (Easy.lua): its footer says what Enter and Shift+Enter do for the selected row
+-- easy mode (Simple.lua): its footer says what Enter and Shift+Enter do for the selected row
 local BACK_HINT = { "Shift+Left", L["back"] } -- (back to the search a step left, UI:GoBack)
 local BACK_CATEGORIES = { "Shift+Left", L["all categories"] } -- (Simple mode, a category picked)
 local EASY_TAB_PICK = { "Tab", L["pick"] }
@@ -629,7 +629,7 @@ local function FillRow(self, r, e, light)
 			r.label:SetText(ARROW .. r.label:GetText())
 			r.detail:SetText((self.linkedGuess and self.linkedGuess[e] and L["maybe needs %s"] or L["needs %s"]):format(from.name))
 		else
-			-- (sorted by AH value: what it brings, where it is, Auctionator.lua; quests for bags: which and its slots,
+			-- (sorted by AH value: what it brings, where it is, AuctionValues.lua; quests for bags: which and its slots,
 			-- Rewards.lua)
 			local how = self.showField and not e.raw and ns.FIELD_DETAIL[self.showField]
 			local d = how and how(e, self.showField)

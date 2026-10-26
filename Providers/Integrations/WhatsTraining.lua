@@ -19,7 +19,7 @@ local AddOnVersion = I._.AddOnVersion
 --
 -- Known spells are @spell's; the ones you ignored in What's Training are listed last, said so. Enter opens What's
 -- Training's window on the spell and points at it; Shift+Enter lists who teaches it, the nearest first (Enter on one:
--- the map on it); the row menu puts it in the chat box. Search/WhatsTraining.lua:
+-- the map on it); the row menu puts it in the chat box. WhereToLearn.lua:
 -- "what can i train", "what do i learn next level", "how much is training", "<spell> > learn" (where it's taught).
 ----------------------------------------------------------------------
 
@@ -286,7 +286,7 @@ function WT.Open(e)
 end
 
 local function OpenRow(e) WT.Open(e) end
---- Shift+Enter: who teaches it, the nearest first ("where to learn <it>": Search/WhatsTraining.lua's > learn); Enter on
+--- Shift+Enter: who teaches it, the nearest first ("where to learn <it>": WhereToLearn.lua's > learn); Enter on
 --- one of them shows it on the map (0.53.9, the player: "an option to pinpoint the NPC that does the training").
 --- Shift+Left comes back.
 local function WhoTeaches(e)

@@ -1,7 +1,7 @@
 -- Every class's spells (0.54.1, a player: "'travel form' doesn't list the spell since I don't currently have it.
 -- Ideally it'd tell me that it's a druid spell trainable at level 30"; "upcoming spells", "druid spells" listed nothing;
 -- "healing wave" on a druid found only the shaman talent): @classspell (Providers/ClassSpells.lua), its questions
--- (Search/ClassSpells.lua), the spell ids of every rank. Since 0.56.1 they're What's Training's catalog (WT_API.GetCatalog),
+-- (Search/Questions/ClassSpells.lua), the spell ids of every rank. Since 0.56.1 they're What's Training's catalog (WT_API.GetCatalog),
 -- not a copy of its data (the player: "I would prefer to rely on WT").
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll

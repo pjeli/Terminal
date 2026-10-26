@@ -63,7 +63,7 @@ do
 	end
 end
 
--- "| sum cost": what learning the spells listed costs (Pipes.lua's summing steps)
+-- "| sum cost": what learning the spells listed costs (Aggregate.lua's summing steps)
 do
 	local A = ns.Aggregate
 	if A and A.FIELDS then

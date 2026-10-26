@@ -115,7 +115,7 @@ do
 
 	-- the row menu leaves out its chat-box line when Enter's or Shift+Enter's verb already is one: both sides translated
 	-- alike (RowMenu compares L[...] with Easy's verbs: an English literal on one side breaks it in every other language)
-	for _, f in ipairs({ "Search/Easy.lua", "UI/RowMenu.lua" }) do
+	for _, f in ipairs({ "Search/Reading/Simple.lua", "Search/Reading/Words.lua", "UI/RowMenu.lua" }) do
 		local src = io.open("Terminal/" .. f):read("*a")
 		local bare = 0
 		for line in src:gmatch("[^\n]+") do

@@ -594,12 +594,15 @@ local function ListFor(word, mine)
 	end
 	-- (a list's own name or alias, whole, as it's written: not the start of one, "a by zone" isn't @achievements, nor a
 	-- plural made up, "keys"; release review, 0.63.0)
+	-- (written as the kind's own word, as Alt+` writes every other list: "items by zone" is @item, not @items; Alt+` of
+	-- it read @item, FRONT_END.md 10.8)
 	if not ns.aliasMap then ns:ResolveProvider("") end
 	local map = ns.aliasMap or {}
-	if map[word] then return "@" .. word end
 	local one = word:sub(-1) == "s" and word:sub(1, -2)
-	if one and #one > 1 and map[one] then return "@" .. one end
-	return nil
+	local said = map[word] and word or (one and #one > 1 and map[one] and one) or nil
+	if not said then return nil end
+	local p = map[said]
+	return (p and not p.noKind and ns:KindName(p)) or ("@" .. said)
 end
 
 --- { line = "@questie | group by zone " } or nil: [how many] [my] <list> per|by|in each|for each <field>.
@@ -641,7 +644,7 @@ function PF.Line(text)
 		table.insert(tail, 1, last)
 		head = h
 	end
-	-- ("ah value of my mats": "@mats | sum ahvalue", with Auctionator, asked before the others: Search/Auctionator.lua;
+	-- ("ah value of my mats": "@mats | sum ahvalue", with Auctionator, asked before the others: AuctionValues.lua;
 	-- else a "per" line no other question takes)
 	local AN = ns.Auctionator
 	local q = AN and AN.ValueQuestion and AN.ValueQuestion(head)
@@ -650,7 +653,22 @@ function PF.Line(text)
 		if not q or (ns.PerFieldTaken and ns.PerFieldTaken(head)) then return nil end
 	end
 	local list, step = q.line:match("^(.-)%s*(|.*)$")
-	return (list .. (#tail > 0 and (" " .. table.concat(tail, " ")) or "") .. " " .. step)
+	local query = list .. (#tail > 0 and (" " .. table.concat(tail, " ")) or "")
+	-- (and its search and its one step apart, as A.Split reads the line: the per recognizer below)
+	return query .. " " .. step, query, (step:gsub("^|%s*", ""):gsub("%s+$", ""))
 end
 
 function PF.ToAdvanced(q) return q.line end
+
+-- the per line, "quests per zone": the whole line (before a send) said again as its Advanced line, which the search runs
+-- ("@questie | group by zone"; TakeAggregate). Its words stay the line's own for who reads them as typed (Alt+` writes
+-- the line, not its search: ns.QueryToAdvanced reads the per line itself). In either mode.
+ns.Phrase.Register({ id = "per", stage = "steps", priority = 40, classes = { op = true, syntax = true, word = true, quoted = true },
+	modes = { simple = true, advanced = true },
+	at = function(r, i)
+		if i ~= 1 then return nil end
+		-- (its search and step as PF.Line made them: the line isn't read again from inside this reading; review)
+		local per, query, step = PF.Line(r.base)
+		if not per then return nil end
+		return { from = 1, to = r.sendEnd - 1, keep = true, kind = "per", line = per, query = query, list = { step } }
+	end })

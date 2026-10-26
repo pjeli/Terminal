@@ -527,7 +527,7 @@ local function Before(a, b) -- (a's rank comes before b's)
 	return (a.r.rank or 0) < (b.r.rank or 0)
 end
 
-local trainingKnown = {} -- (the weapon skills you know: "daggers > learn" starts from them, Search/WhatsTraining.lua)
+local trainingKnown = {} -- (the weapon skills you know: "daggers > learn" starts from them, WhereToLearn.lua)
 function TS.TrainingKnown() return trainingKnown end
 
 -- (pet abilities: 0.57.6, the author's ask)

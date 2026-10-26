@@ -108,7 +108,7 @@ function ns.Plain(s)
 	return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
--- the words Simple mode reads as "not" (Easy.lua's E.NOT_WORDS: "rare ring not boe")
+-- the words Simple mode reads as "not" (Joins.lua's E.NOT_WORDS: "rare ring not boe")
 local NOT_WORDS = { ["not"] = true, no = true, without = true, except = true }
 
 --- A line as a plain-word question reads it ("party quests", "what killed me"): lower case, apostrophes dropped
