@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.67.10", when = "in testing",
+		v = "0.67.11", when = "in testing",
 		items = {
+			".report: something wrong or missing? It puts a report in a window to copy and paste on Terminal's CurseForge page, with what helps the author (your characters' names left out). Offered when a search finds nothing, on a result's right-click menu, and after an error.",
 			"\"nearest forge\" and \"nearest anvil\" for blacksmiths and engineers (with Questie or QuestieDB): the closest first with an arrow pointing the way, Enter shows it on the map. Advanced: @forge, @anvil.",
 			".console: a Linux-like console over everything Terminal knows. Every list is a folder and every row a file (ls, cd, cat shows its tooltip, grep searches stats and tooltips), with pipes, up to four tiled panes, themes and prompts; lines wider than a pane slide sideways (Shift+wheel). It and .atop now load with Terminal Extras when first used.",
 			"Smaller saved variables: Terminal.lua keeps only your settings, tabs, picks and search history; what Terminal records and learns (logs, item and loot indexes, mail, recipes) is in TerminalCache.lua, packed, and safe to delete. .saved shows how big each part is and how much of it to keep. Your old file is moved over by itself (a new saved file: restart the game once).",

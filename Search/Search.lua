@@ -24,7 +24,8 @@ local SortAndTrim = Score.SortAndTrim
 
 local function PseudoEntries(lines) -- (lines saying something: ns.NoteRow each)
 	local out = {}
-	for i, line in ipairs(lines) do out[i] = ns.NoteRow(line) end
+	-- (nothing found: where to say so, .report; 0.67.11)
+	for i, line in ipairs(lines) do out[i] = ns.NoteRow(line, line == EASY_NONE and ns.Report and ns.Report.HINT or nil) end
 	return out
 end
 

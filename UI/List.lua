@@ -175,6 +175,11 @@ do
 		-- (an addon the line reaches for that isn't installed: which one to add, on a line of its own; Setup.lua)
 		local I = ns.Integrations
 		local missing = self.mode == "search" and not self.bare and I and I.MissingHint and UI.edit and I.MissingHint(UI.edit:GetText()) or nil
+		-- (a typed search that found nothing: where to say so, .report, on that same line; 0.67.11. Simple mode's row says it)
+		if not missing and count == 0 and self.mode == "search" and not self.bare and not (self.fzf or self.histSearch)
+			and ns.Report and UI.edit and UI.edit:GetText():find("%S") then
+			missing = ns.Report.HINT
+		end
 		self:SetFooterExtra(missing) -- (the footer's dim colour, not the gold of a notice: 0.50.6)
 		local once = ns.Easy and ns.Easy.temp
 		if self.histSearch then

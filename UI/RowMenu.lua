@@ -220,6 +220,14 @@ do
 			and UI.WhyHere then
 			items[#items + 1] = { label = L["Why is this here?"], run = function() UI:WhyHere(e) end }
 		end
+		-- a problem with this result: .report about it (0.67.11)
+		if ns.Report and not (share or self.fzf or self.histSearch or e.syntaxRow or e.catId or e.completion or e.lead or e.noActivate) then
+			items[#items + 1] = { label = L["Report a problem with this result"], run = function()
+				self:Hide()
+				local said = ns.Report.Open({ row = e, search = UI.lastQuery })
+				if said and ns.Output then ns:Output(said) end
+			end }
+		end
 		-- (`run` lines are Terminal's own and keep it open: writing into the prompt, Cancel)
 		items[#items + 1] = { label = L["Cancel"], run = function() end }
 		return items

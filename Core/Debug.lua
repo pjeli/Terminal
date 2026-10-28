@@ -148,6 +148,7 @@ local function OnAction(event, addon, func)
 		for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
 	else
 		ns:Print(L["Blocked %s (%s). Type /term .debug log for what led to it."]:format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and L["forbidden"] or L["blocked"]))
+		if ns.Report then ns.Report.Nudge() end -- (where to tell the author: once a session; 0.67.11)
 	end
 end
 

@@ -48,7 +48,8 @@ do
 	-- the footer: a line of its own, the frame one line taller; gone again for a line that doesn't need it
 	I.ForgetHint()
 	UI:Hide(); FlushAll()
-	UI:Open("copper ore"); FlushAll()
+	-- (a search that finds something: one that finds nothing has .report on that line, 0.67.11)
+	UI:Open("hearthstone"); FlushAll()
 	local base = UI.footerH
 	check(not UI.footExtra:IsShown(), "nothing missing: no extra line")
 	UI:Hide(); FlushAll()
@@ -68,8 +69,13 @@ do
 	check(colour and colour[1] == dr and colour[2] == dg and colour[3] == db, "in the footer's own dim colour")
 	UI.footExtra.SetTextColor = nil
 	UI:Hide(); FlushAll()
-	UI:Open("copper ore"); FlushAll()
+	UI:Open("hearthstone"); FlushAll()
 	check(not UI.footExtra:IsShown() and UI.footerH == base, "then a search that needs nothing: the line goes, the footer as it was")
+	-- (0.67.11) a search that found nothing: that line says where to report it
+	UI:Hide(); FlushAll()
+	UI:Open("zzqqxxww"); FlushAll()
+	check(UI.footExtra:IsShown() and tostring(UI.footExtra:GetText()):find(".report", 1, true),
+		"found nothing: the extra line points to .report: " .. tostring(UI.footExtra:GetText()))
 	UI:Hide(); FlushAll()
 
 	-- your alts' things (0.50.6, the player): Syndicator or BagBrother, said only with neither

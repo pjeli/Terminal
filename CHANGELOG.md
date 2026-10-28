@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.11 (in testing)
+
+- `.report [what happened]` (also `.bug`): a report in the copy window, selected, to paste as a comment on Terminal's CurseForge page (or a GitHub issue). It holds what you said, the result it's about, the last search and the searches that found nothing, Terminal's and the game's versions, the addons found, blocked actions, Terminal's errors BugSack caught and Terminal's last steps; your characters', alts' and guild's names become "you", "alt 1", "your guild". Offered on Simple mode's "Nothing has that" row, under Advanced's footer when a search finds nothing, as "Report a problem with this result" on the right-click menu, and once a session after a blocked action or (with BugSack) an error. New file: restart the game.
+
 ## 0.67.10 (in testing)
 
 - "nearest forge" / "nearest anvil" (also "closest", "farthest", "2 anvils"), and `@forge` / `@anvil` in Advanced with `sort:distance`, `near:` and `in:`: QuestieDB's forges (The Great Forge counts) and anvils, as "nearest mailbox" does. The console has `/forge` and `/anvil`.
