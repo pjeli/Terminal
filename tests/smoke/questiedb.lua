@@ -261,6 +261,11 @@ do
 			[32349] = { name = "Mailbox", spawns = { [17] = { { 62.5, 37.0 }, { 52.0, 30.0 } } } }, -- Ratchet's, the Crossroads'
 			[142075] = { name = "Mailbox", spawns = { [12] = { { 42.0, 65.0 } } } },               -- Goldshire's (another continent)
 			[31] = { name = "Old Lion Statue", spawns = { [17] = { { 62.4, 37.1 } } } },
+			-- (0.67.10) forges and anvils: Ratchet's forge, The Great Forge (Ironforge's, named so; another continent here),
+			-- two anvils in the Barrens
+			[1745] = { name = "Forge", spawns = { [17] = { { 63.0, 37.5 } } } },
+			[32424] = { name = "The Great Forge", spawns = { [12] = { { 42.5, 65.5 } } } },
+			[1797] = { name = "Anvil", spawns = { [17] = { { 52.5, 30.5 }, { 62.0, 36.5 } } } },
 		}),
 		flavor = { name = "Forever", rules = "Classic" },
 		Enum = { byExpansion = { Classic = { npcFlags = { QUEST_GIVER = 2, VENDOR = 4, TRAINER = 16 } } } },
@@ -571,7 +576,32 @@ do
 			.. tostring(pinned and pinned.py))
 		ns.db.easyMode = true
 		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:distance ", "Alt+`: nearest mailbox -> @mailbox sort:distance: " .. ns.Easy.ToAdvanced("nearest mailbox"))
-		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/mailbox$"), "the saved index's key names the kinds looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
+		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/anvil,forge,mailbox,the great forge$"),
+			"the saved index's key names the objects looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
+		-- (0.67.10, the player's ask) "nearest forge", "nearest anvil": the same, from their own lists
+		check(ns.db.objectIndex.ids.forge == "1745,32424" and ns.db.objectIndex.ids.anvil == "1797",
+			"a forge is a Forge or The Great Forge; the anvils kept: " .. tostring(ns.db.objectIndex.ids.forge))
+		ns.providers.forge._dirty, ns.providers.anvil._dirty = true, true
+		UI:Open("nearest anvil")
+		local an = UI.Results()
+		check(#an == 2 and an[1].name == "Anvil" and an[1].kind == "anvil" and an[1].icon:find("BlackSmithing", 1, true)
+			and an[1].detail:find("^%d+ yd") and an[2]._dist > an[1]._dist, "nearest anvil: both, closest first: "
+			.. tostring(an[1] and an[1].detail) .. " / " .. tostring(an[2] and an[2].detail))
+		UI:Hide(); FlushAll()
+		UI:Open("closest forge")
+		local fo = UI.Results()
+		check(#fo == 1 and fo[1].name == "Forge" and fo[1].py == 37.5, "closest forge: Ratchet's (The Great Forge is on another continent): " .. #fo)
+		UI:Hide(); FlushAll()
+		check(ns.Easy.ToAdvanced("nearest anvil") == "@anvil sort:distance ", "Alt+`: nearest anvil -> " .. ns.Easy.ToAdvanced("nearest anvil"))
+		check(not ns.Easy.ToAdvanced("where to learn anvil"):find("@anvil", 1, true), "a recipe's name stays a recipe: " .. ns.Easy.ToAdvanced("where to learn anvil"))
+		local easyNow = ns.db.easyMode
+		ns.db.easyMode = false
+		local function Names(res) local t = {} for _, e in ipairs(res) do t[#t + 1] = tostring(e.name) end return table.concat(t, ",") end
+		local adv = Names(UI:Search("@forge"))
+		check(adv == "Forge,Forge", "@forge: every forge, Ironforge's too: " .. adv)
+		local mbAgain = Names(UI:Search("@mailbox"))
+		check(mbAgain == "Mailbox,Mailbox,Mailbox", "@mailbox: still only mailboxes: " .. mbAgain)
+		ns.db.easyMode = easyNow
 		check(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox == "32349,142075", "the mailboxes' ids are kept for next time: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox))
 		-- next session: from the saved index, no pass over every object's name
 		I.ResetObjectsForTests()

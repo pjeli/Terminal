@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.10 (in testing)
+
+- "nearest forge" / "nearest anvil" (also "closest", "farthest", "2 anvils"), and `@forge` / `@anvil` in Advanced with `sort:distance`, `near:` and `in:`: QuestieDB's forges (The Great Forge counts) and anvils, as "nearest mailbox" does. The console has `/forge` and `/anvil`.
+
 ## 0.67.9 (in testing)
 
 - Review pass: `.saved keep combat` keeps deaths over crits (as the log itself does), so "what killed me" still answers after a /reload; `.saved keep` and `.saved clear` read again only the lists made from that part (they rebuilt every list); `.saved` offers every choice from the first Tab; the console no longer does string work or re-places the lit split every frame.

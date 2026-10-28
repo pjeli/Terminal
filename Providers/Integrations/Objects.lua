@@ -8,11 +8,22 @@ local AddOnVersion, WaypointLink = I._.AddOnVersion, I._.WaypointLink
 local ZoneName = I.ZoneName
 
 ----------------------------------------------------------------------
--- Game objects found by what they are: "nearest mailbox" (QuestieDB's objects: name, spawns)
+-- Game objects found by what they are: "nearest mailbox", "nearest anvil" (QuestieDB's objects: name, spawns)
 ----------------------------------------------------------------------
 
--- words -> the object's name, lowercase (every object of that exact name counts)
-I.OBJECT_KINDS = { mailbox = "mailbox", mailboxes = "mailbox", mail = "mailbox", post = "mailbox" }
+-- words -> the kind of object (its list's id)
+I.OBJECT_KINDS = { mailbox = "mailbox", mailboxes = "mailbox", mail = "mailbox", post = "mailbox",
+	forge = "forge", forges = "forge", anvil = "anvil", anvils = "anvil" }
+-- each kind's object names, lowercase: every object of one of these exact names counts (0.67.10, the player: forges and
+-- anvils for blacksmiths and engineers; WoW Forever's QuestieDB has 70 forge and 193 anvil spots, Ironforge's own forge
+-- named The Great Forge)
+I.OBJECT_NAMES = { mailbox = { "mailbox" }, forge = { "forge", "the great forge" }, anvil = { "anvil" } }
+-- each kind's rows: their name and icon
+I.OBJECT_LOOK = {
+	mailbox = { label = L["Mailbox"], icon = "Interface\\Icons\\INV_Letter_15" },
+	forge = { label = L["Forge"], icon = "Interface\\Icons\\Trade_Mining" },
+	anvil = { label = L["Anvil"], icon = "Interface\\Icons\\Trade_BlackSmithing" },
+}
 I.OBJECTS_NEAR = 8 -- (the nearest this many are listed)
 
 -- instance entrances: their own lists (@dungeon, @raid), not QuestieDB objects
@@ -37,16 +48,15 @@ local function SavedObjectIds(out, saved)
 end
 
 --- Every object's name read once (all = QuestieDB's object ids): the ids of each kind looked for go into out,
---- and the index is saved under key.
-local function ReadObjectIds(out, DB, all, kinds, key)
-	local want = {}
-	for name in pairs(kinds) do want[name] = true; out[name] = {} end
+--- and the index is saved under key. kindOf: lowercase object name -> its kind.
+local function ReadObjectIds(out, DB, all, kindOf, key)
+	for _, kind in pairs(kindOf) do out[kind] = {} end
 	local t0 = debugprofilestop and debugprofilestop()
 	for _, id in ipairs(all) do
 		local name = ns.Str(Safe(DB.QueryObjectSingle, id, "name")) -- (Util.lua: a string, not secret; "" names no kind)
 		if name then
-			local l = ns.Lower(name)
-			if want[l] then local t = out[l]; t[#t + 1] = id end
+			local kind = kindOf[ns.Lower(name)]
+			if kind then local t = out[kind]; t[#t + 1] = id end
 		end
 	end
 	local ids = {}
@@ -61,11 +71,11 @@ local function ObjectIds(kind)
 	if not objectIds then
 		local all = DB.ObjectIds() or {}
 		if #all == 0 then return nil end -- (not readable yet: asked again next time, nothing kept)
-		-- (the kinds looked for are in the key: a kind added later reads every name again)
-		local kinds = {}
-		for _, name in pairs(I.OBJECT_KINDS) do kinds[name] = true end
-		local names = {}
-		for name in pairs(kinds) do names[#names + 1] = name end
+		-- (the names looked for are in the key: a kind or name added later reads every name again)
+		local kindOf, names = {}, {}
+		for kind, list in pairs(I.OBJECT_NAMES) do
+			for _, name in ipairs(list) do kindOf[name] = kind; names[#names + 1] = name end
+		end
 		table.sort(names)
 		local key = AddOnVersion("QuestieDB") .. "/" .. #all .. "/" .. table.concat(names, ",")
 		local saved = ns.db and ns.db.objectIndex
@@ -73,7 +83,7 @@ local function ObjectIds(kind)
 		if type(saved) == "table" and saved.key == key and type(saved.ids) == "table" then
 			SavedObjectIds(objectIds, saved)
 		else
-			ReadObjectIds(objectIds, DB, all, kinds, key)
+			ReadObjectIds(objectIds, DB, all, kindOf, key)
 		end
 	end
 	return objectIds[kind]
@@ -141,14 +151,16 @@ function I.ObjectRows(kind)
 	local DB = QDB()
 	local rows = {}
 	if not (ids and DB) then return rows end
-	local label = (kind == "mailbox" and L["Mailbox"]) or (kind:gsub("^%l", string.upper))
+	local look = I.OBJECT_LOOK[kind] or {}
+	local label = look.label or (kind:gsub("^%l", string.upper))
+	local icon = look.icon ~= SPOT.icon and look.icon or nil -- (a mailbox's is every spot row's)
 	for _, id in ipairs(ids) do
 		local n = 0
 		I._.EachSpot(Safe(DB.QueryObjectSingle, id, "spawns"), function(cont, x, y, ui, c, _, area)
 			n = n + 1
 			local zone = ZoneName(ui)
 			rows[#rows + 1] = I.SpotRow({
-				name = label, key = id .. "-" .. n, kind = kind,
+				name = label, key = id .. "-" .. n, kind = kind, icon = icon,
 				detail = zone, zone = zone, text = zone, ui = ui, px = c[1], py = c[2], area = area,
 				wcont = cont, wx = x, wy = y,
 			})

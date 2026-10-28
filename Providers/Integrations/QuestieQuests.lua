@@ -234,6 +234,12 @@ local QUESTIE_LAZY = {
 }
 
 I.MAILBOX_RETRY = 5 -- (s: @mailbox read before Questie was ready is read again this much later)
+-- the lists of objects QuestieDB knows (Objects.lua's kinds)
+I.OBJECT_LISTS = {
+	{ kind = "mailbox", color = "ffc9a0dc", aliases = { "mailbox", "mailboxes" } }, -- ("mail" is your mail: Mail.lua)
+	{ kind = "forge", color = "ffd8a878", aliases = { "forge", "forges" } },
+	{ kind = "anvil", color = "ffa8b8c8", aliases = { "anvil", "anvils" } },
+}
 local function SetupQuestie()
 	-- Questie, or the QuestieDB addon alone (a Blizzard-like UI with Questie's data)
 	if npc.on or not (QD.HasQuestie() or QD.Lib()) then return end
@@ -257,25 +263,29 @@ local function SetupQuestie()
 			return npc.list or {}
 		end,
 	})
-	-- @mailbox: every mailbox QuestieDB knows (its objects), one row per spot; sort:distance, near:, in: work on it
+	-- @mailbox, @forge, @anvil: every one QuestieDB knows (its objects), one row per spot; sort:distance, near:, in: work
+	-- on them (forges and anvils: 0.67.10, the player's ask, for blacksmiths and engineers)
 	if QD.Lib() and type(QD.Lib().Object) == "table" or (QDB() and QDB().QueryObjectSingle) then
-		ns:RegisterProvider("mailbox", {
-			label = L["Mailbox"],
-			color = "ffc9a0dc",
-			aliases = { "mailbox", "mailboxes" }, -- ("mail" is your mail: Mail.lua)
-			explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
-			lazy = true,
-			-- (read before Questie is ready, the list was empty for the session: "No mailbox known near you". Now it's
-			-- read again a moment later, and once Questie is; review, 0.48.6)
-			collect = function()
-				if not QD.Ready() then
-					C_Timer.After(I.MAILBOX_RETRY, function() ns:Changed("mailbox") end)
-					return {}
-				end
-				return I.ObjectRows("mailbox")
-			end,
-		})
-		QD.OnReady(function() ns:Changed("mailbox") end)
+		for _, def in ipairs(I.OBJECT_LISTS) do
+			local kind = def.kind
+			ns:RegisterProvider(kind, {
+				label = I.OBJECT_LOOK[kind].label,
+				color = def.color,
+				aliases = def.aliases,
+				explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
+				lazy = true,
+				-- (read before Questie is ready, the list was empty for the session: "No mailbox known near you". Now it's
+				-- read again a moment later, and once Questie is; review, 0.48.6)
+				collect = function()
+					if not QD.Ready() then
+						C_Timer.After(I.MAILBOX_RETRY, function() ns:Changed(kind) end)
+						return {}
+					end
+					return I.ObjectRows(kind)
+				end,
+			})
+			QD.OnReady(function() ns:Changed(kind) end)
+		end
 	end
 	npc.meta = ns:CompactMeta(ns.providers.npc, {
 		icon = "Interface\\Icons\\INV_Misc_Head_Human_01",

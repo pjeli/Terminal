@@ -15,7 +15,7 @@ local Lower = ns.Lower
 local KIND_NOUN = { npc = L["NPCs"], items = L["items"], gear = L["gear you wear"], quests = L["quests in your log"],
 	questie = L["quests"], spells = L["spells"], classspells = L["class spells"], talents = L["talents"], loot = L["dungeon loot"],
 	mail = L["mail"], auctions = L["auctions"], lootlog = L["loot you saw drop"], combatlog = L["combat log lines"],
-	history = L["lines you ran"], buyback = L["items you sold to vendors"], mailbox = L["mailboxes"], flight = L["flight paths"],
+	history = L["lines you ran"], buyback = L["items you sold to vendors"], mailbox = L["mailboxes"], forge = L["forges"], anvil = L["anvils"], flight = L["flight paths"],
 	recipes = L["recipes"], professions = L["professions"], stored = L["your alts' and bank's items"], bank = L["your bank"],
 	mounts = L["mounts"], pets = L["pets"], toys = L["toys"], achievements = L["achievements"], maps = L["zones"],
 	consumables = L["consumables"], mats = L["crafting mats"], reputation = L["reputations"], currency = L["currencies"],

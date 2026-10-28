@@ -664,8 +664,8 @@ end
 do
 	local help = {}
 	for _, h in ipairs(F.HELP) do help[h[1]] = h[2] end
-	local KIND = { npc = "@npc", mailbox = "@mailbox", dungeon = "@dungeon", raid = "@raid", flight = "@flight" }
-	local SAID = { npc = "NPCs", mailbox = "mailboxes", dungeon = "dungeon", raid = "raid", flight = "flight paths" }
+	local KIND = { npc = "@npc", mailbox = "@mailbox", forge = "@forge", anvil = "@anvil", dungeon = "@dungeon", raid = "@raid", flight = "@flight" }
+	local SAID = { npc = "NPCs", mailbox = "mailboxes", forge = "forges", anvil = "anvils", dungeon = "dungeon", raid = "raid", flight = "flight paths" }
 	local missed = {}
 	for _, id in ipairs(F.APPLIES.near["*"]) do if not help["near:500"]:find(KIND[id], 1, true) then missed[#missed + 1] = "near:" .. id end end
 	for _, id in ipairs(F.APPLIES.faction["*"]) do if not help["faction:horde"]:find(KIND[id], 1, true) then missed[#missed + 1] = "faction:" .. id end end

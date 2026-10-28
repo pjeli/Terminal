@@ -267,7 +267,7 @@ E.VERBS = {
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
-	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, object = PLACE, flight = PLACE,
+	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, forge = PLACE, anvil = PLACE, object = PLACE, flight = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
