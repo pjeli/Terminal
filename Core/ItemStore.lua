@@ -19,6 +19,7 @@ local function Root()
 	local ok, _, build = pcall(_G.GetBuildInfo)
 	build = ok and tostring(build) or "?"
 	local t = db.itemStore
+	if type(t) == "table" and t.packed then return nil end -- (written for the save at logout: Saved.lua)
 	if type(t) ~= "table" or t.build ~= build or t.v ~= S.VERSION then
 		t = { build = build, v = S.VERSION }
 		db.itemStore = t
@@ -59,6 +60,15 @@ function S.Put(kind, id, v)
 		if t.n > (S.CAP[kind] or 1000) then t.old, t.new, t.n = t.new, {}, 1 end
 	end
 	t.new[id] = v
+end
+
+--- The player's .saved keep for item details (Saved.lua): each generation that many qualities, half as many facts
+--- (0: nothing kept between sessions, a session still remembers the defaults' worth).
+S.CAP_DEFAULT = { quality = 4000, facts = 2000 }
+function S.UseLimit(n)
+	n = tonumber(n) or 0
+	if n <= 0 then n = S.CAP_DEFAULT.quality end
+	S.CAP = { quality = n, facts = math.floor(n / 2) }
 end
 
 --- How many items each kind keeps now (tests).

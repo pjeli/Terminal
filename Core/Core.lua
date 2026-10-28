@@ -493,7 +493,8 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 	if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then Watched(event) end
 	if event == "ADDON_LOADED" then
 		if arg1 ~= ADDON then return end
-		TerminalDB = TerminalDB or {}
+		-- (the settings in TerminalDB, what's recorded in TerminalCacheDB, an old single-file save moved over: Saved.lua)
+		TerminalDB = ns.Saved.Load()
 		for k, v in pairs(DEFAULTS) do
 			if TerminalDB[k] == nil then
 				TerminalDB[k] = type(v) == "table" and CopyTable(v) or v

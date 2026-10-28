@@ -109,7 +109,7 @@ def scan(path, warnings=None, free=None, parsed=None):
     return [(n, l) for n, l in out if n not in ALLOWED]
 
 # the globals Terminal means to set: key binding names, the saved variable, the slash command
-ALLOWED = {"BINDING_HEADER_TERMINAL", "BINDING_NAME_TERMINAL_TOGGLE", "BINDING_NAME_TERMINAL_ADVANCED_ONCE", "BINDING_NAME_TERMINAL_FUZZY", "BINDING_NAME_TERMINAL_SLASH", "TerminalDB", "SLASH_TERMINAL1",
+ALLOWED = {"BINDING_HEADER_TERMINAL", "BINDING_NAME_TERMINAL_TOGGLE", "BINDING_NAME_TERMINAL_ADVANCED_ONCE", "BINDING_NAME_TERMINAL_FUZZY", "BINDING_NAME_TERMINAL_SLASH", "TerminalDB", "TerminalCacheDB", "SLASH_TERMINAL1",
            "TerminalNotesDB"}  # (docs/example/TerminalNotes: the example addon's saved variable)
 
 # Parsing is the slow part (luaparser: seconds for a big file), so each file is parsed once and what the checks need

@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.67.6", when = "in testing",
+		v = "0.67.7", when = "in testing",
 		items = {
+			"Smaller saved variables: Terminal.lua keeps only your settings, tabs, picks and search history; what Terminal records and learns (logs, item and loot indexes, mail, recipes) is in TerminalCache.lua, packed, and safe to delete. .saved shows how big each part is and how much of it to keep. Your old file is moved over by itself (a new saved file: restart the game once).",
 			"Simple mode reads your line once, in one place: Alt+` keeps your capitals and writes \"linen to csv\" as >>> csv, unticking a typed filter on the bar takes out exactly its words (never another filter's, never inside a \"quoted phrase\"), and \"not in my bank\" on its own lists your items that aren't there.",
 			"Flight paths, dungeon and raid entrances, zone levels and fishing skills now come from the game's own data and public sources (docs/DATA_SOURCES.md on GitHub). Dungeon levels are the Group Finder's; with Questie or QuestieDB installed, entrances show at their doors.",
 			"@cvar lists the console settings WoW Forever's own interface uses, each explained in the options panel's own words, in your language.",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.67.7 (in testing)
+
+- Saved data in two files: Terminal.lua keeps only settings, tabs, picks and search history; logs, item and loot indexes, talents, mail, recipes and the like are in TerminalCache.lua (safe to delete), written packed (about half the size). An old Terminal.lua is moved over at the first load.
+- `.saved`: each part's size, `.saved keep <part> off|small|normal|large` (or `.saved keep all minimal|normal|everything`) for how much is kept between sessions, `.saved clear <part>`. The loot log now keeps 250 drops and the combat log 150 by default (500 and 300 with large); item details 4000 items.
+
 ## 0.67.6 (in testing)
 
 - One reading of the line, shared by the search, the bar, Alt+` and .explain (docs/FRONT_END.md). What players see:
