@@ -616,6 +616,14 @@ do
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest cooking fire") == "@cookingfire sort:distance ", "Alt+`: nearest cooking fire -> " .. ns.Easy.ToAdvanced("nearest cooking fire"))
 		check(ns.Easy.ToAdvanced("nearest moonwells") == "@moonwell sort:distance ", "Alt+`: nearest moonwells -> " .. ns.Easy.ToAdvanced("nearest moonwells"))
+		-- (0.68.4) !t: "nearest" from where the one who asked stands: Bob at the Crossroads, you in Ratchet
+		local bob = { name = "Bob", here = I.MapSpot(1413, 0.525, 0.305) } -- (the Barrens' map)
+		local asked = ns.Ask.Rows("nearest anvil", bob)
+		check(asked[1] and asked[1].py == 30.5 and an[1].py ~= 30.5, "!t nearest anvil: the one nearest Bob, not you: "
+			.. tostring(asked[1] and asked[1].py) .. " (yours " .. tostring(an[1] and an[1].py) .. ")")
+		local line = ns.Ask.AnswerLine("nearest anvil", bob)
+		check(type(line) == "string" and line:find("^Terminal %(Bob%): ") and #line <= 255, "...and the line for Bob: " .. tostring(line))
+		check(#ns.Ask.Rows("nearest anvil", { name = "Ann" }) == 0, "nobody knows where Ann is: nothing \"nearest\" to say")
 		local easyNow = ns.db.easyMode
 		ns.db.easyMode = false
 		local function Names(res) local t = {} for _, e in ipairs(res) do t[#t + 1] = tostring(e.name) end return table.concat(t, ",") end

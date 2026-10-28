@@ -398,7 +398,9 @@ function E.TrainerProfs(words, trainerSaid)
 		local kept = {}
 		for _, w in ipairs(words) do if not SAID[w] then kept[#kept + 1] = w end end
 		-- ("pet trainer" alone: your class's, the game's class token being the same in every language)
-		if not (demon or warlock or hunter) and UnitClass and select(2, UnitClass("player")) == "WARLOCK" then warlock = true end
+		-- (a !t question: the asker's class, Core/Ask.lua)
+		local cls = ns.Asker and ns.Asker.class or (UnitClass and select(2, UnitClass("player")))
+		if not (demon or warlock or hunter) and cls == "WARLOCK" then warlock = true end
 		return kept, { (demon or warlock) and "trainer:demon" or "trainer:pet" }
 	end
 	-- (0.61.0) "my", "class", "weapon(s)", "master(s)" name no one: set aside while the profession, class or weapon is

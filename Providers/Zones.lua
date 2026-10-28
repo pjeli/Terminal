@@ -212,6 +212,7 @@ function Z.Question(text)
 end
 
 local function PlayerLevel()
+	if ns.Asker then return ns.Asker.level end -- (a !t question: the asker's level, Core/Ask.lua)
 	local l = UnitLevel and Safe(UnitLevel, "player")
 	return type(l) == "number" and not Secret(l) and l > 0 and l or nil
 end

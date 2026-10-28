@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.4 (in testing)
+
+- `!t`: someone in your guild or group types `!t nearest innkeeper` (or `!t where is hogger`, `!t what drops thunderfury`) and one Terminal in the guild answers in the same channel, from their side: nearest to where they stand, their class trainer, their level. World facts only, never your bags, mail, alts or position. Off until you switch it on (`.ask guild on`, `.ask group on`, `.ask whisper on`); whispers only from friends, guildies and your group; a question in another language is left unanswered. `.ask test <question>` shows what it would send. Several Terminals in a guild agree on one answer with a hidden message. Your own `!t` is answered in your chat only. Design: docs/ASK.md.
+
 ## 0.68.3 (in testing)
 
 - `.saved keep talents small`: every class's talents are kept between sessions without their descriptions (most of that part's size, about 57 KB); the descriptions are read from the game again each session. `off` and `on` are as before.

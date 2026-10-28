@@ -8,12 +8,20 @@ local function QDB() return QD.DB() end
 -- Distances: where you are, where an NPC or a spot is, in world yards
 ----------------------------------------------------------------------
 
---- Where you are, in world coordinates (yards): { continent, x, y }, or nil (an instance, no map position).
+--- Where you are, in world coordinates (yards): { continent, x, y }, or nil (an instance, no map position). While
+--- Terminal answers someone's !t question (Core/Ask.lua's ns.Asker): where they are.
 function I.Here()
+	local a = ns.Asker
+	if a then return a.here or nil end
+	return I.UnitSpot("player")
+end
+
+--- Where a unit is (player, party1, raid3), as I.Here; nil inside, or when the game won't say.
+function I.UnitSpot(unit)
 	local M = C_Map
 	if not (M and M.GetBestMapForUnit and M.GetPlayerMapPosition and M.GetWorldPosFromMapPos) then return nil end
-	local map = Safe(M.GetBestMapForUnit, "player")
-	local pos = map and Safe(M.GetPlayerMapPosition, map, "player")
+	local map = Safe(M.GetBestMapForUnit, unit)
+	local pos = map and Safe(M.GetPlayerMapPosition, map, unit)
 	if not pos then return nil end
 	local cont, world = Safe(M.GetWorldPosFromMapPos, map, pos)
 	if not (cont and world) then return nil end
@@ -57,6 +65,12 @@ local function SpotXY(ui, c)
 	return t[1], t[2] + u * t[4] + v * t[6], t[3] + u * t[5] + v * t[7]
 end
 I.SpotXY = SpotXY -- (Zones.lua: how far a zone's middle is)
+--- A spot on a map (fx, fy: 0 to 1 across it) in world yards, as I.Here gives yours; nil when unknown. (!t: the
+--- middle of a guildie's zone stands for where they are)
+function I.MapSpot(ui, fx, fy)
+	local cont, x, y = SpotXY(ui, { fx * 100, fy * 100 })
+	return cont and { cont = cont, x = x, y = y } or nil
+end
 local function Spot(ui, c)
 	local cont, x, y = SpotXY(ui, c)
 	return cont and { cont = cont, x = x, y = y } or nil

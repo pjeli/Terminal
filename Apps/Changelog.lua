@@ -14,11 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.68.3", when = "in testing",
+		v = "0.68.4", when = "in testing",
 		items = {
 			"\"nearest cooking fire\" and \"nearest moonwell\" (needs Questie or QuestieDB).",
 			".tour shows a different \"nearest\" each time: a vendor, an innkeeper, an anvil, a forge...",
 			".saved keep talents small keeps every class's talents but not their descriptions, most of their size.",
+			"!t: your guild or group asks Terminal (\"!t nearest innkeeper\") and it answers for them. Off until you switch it on: .ask guild on.",
 		},
 	},
 	{

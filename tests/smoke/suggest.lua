@@ -151,10 +151,17 @@ local E = ns.Easy
 local wasEasy = ns.db.easyMode
 ns.db.easyMode = true; UI:EasyChanged()
 check(not SG.Pressing(), "nothing pressing")
-for _ = 1, 3 do
-	UI:Open(""); T.FlushAll()
-	check(UI:SuggestionText() ~= "what should i do", "nothing pressing: not offered: " .. tostring(UI:SuggestionText()))
-	UI:Hide(); T.FlushAll()
+-- (a fixed shuffle: since 0.61.4 "what should i do" is one of the shuffled examples, only weighted up when something
+-- is pressing, so with the game's draw this passed or not by luck: 0.68.4, another test file's draws before it)
+do
+	local seed, rand = 3, E.rand01
+	E.rand01 = function() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+	for _ = 1, 3 do
+		UI:Open(""); T.FlushAll()
+		check(UI:SuggestionText() ~= "what should i do", "nothing pressing: not offered: " .. tostring(UI:SuggestionText()))
+		UI:Hide(); T.FlushAll()
+	end
+	E.rand01 = rand
 end
 
 -- (the player: "i actually prefer an empty bar on key press... let's make 'what should i do' be a 'try:' suggestion")
