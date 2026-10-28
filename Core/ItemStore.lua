@@ -9,7 +9,7 @@ local S = {}
 ns.ItemStore = S
 S.VERSION = 4 -- (2: "usable" kept per character, not per class; 0.51.25. 3: spells' hit and crit, feral attack power: 0.56.14.
 -- 4: block value, spell schools, a ranged weapon's DPS: 0.65.11)
-S.CAP = { quality = 12000, facts = 6000 }
+S.CAP = { quality = 4000, facts = 2000 } -- (the .saved keep level's: S.UseLimit, set at load)
 
 local cur -- (the store as found this session: { db = ns.db, t = the saved table })
 local function Root()

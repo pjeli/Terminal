@@ -41,22 +41,25 @@ function CB.Add(e)
 	local zone = _G.GetRealZoneText and Safe(_G.GetRealZoneText)
 	e.zone = e.zone or (type(zone) == "string" and zone ~= "" and zone or nil)
 	table.insert(log, 1, e)
-	-- over the cap: the oldest crit goes first; deaths stay (up to CB.MAX_DEATHS) so "what killed me" still answers
-	-- after a long fight
-	if #log > CB.MAX then
-		local deaths = 0
-		for _, x in ipairs(log) do if x.what == "died" or x.what == "killed" then deaths = deaths + 1 end end
-		for i = #log, 1, -1 do
-			if #log <= CB.MAX then break end
-			local death = log[i].what == "died" or log[i].what == "killed"
-			if not death or deaths > CB.MAX_DEATHS then
-				if death then deaths = deaths - 1 end
-				table.remove(log, i)
-			end
-		end
-	end
+	CB.Trim(log, CB.MAX, CB.MAX_DEATHS)
 	Dirty()
 	return e
+end
+
+--- A log (newest first) cut to `max` entries: the oldest crit goes first; deaths stay (up to `maxDeaths`) so "what
+--- killed me" still answers after a long fight. The cap's rule, and what .saved keeps (Core/Saved.lua).
+function CB.Trim(log, max, maxDeaths)
+	if type(log) ~= "table" or #log <= max then return end
+	local deaths = 0
+	for _, x in ipairs(log) do if x.what == "died" or x.what == "killed" then deaths = deaths + 1 end end
+	for i = #log, 1, -1 do
+		if #log <= max then break end
+		local death = log[i].what == "died" or log[i].what == "killed"
+		if not death or deaths > maxDeaths then
+			if death then deaths = deaths - 1 end
+			table.remove(log, i)
+		end
+	end
 end
 
 -- where the damage fields sit, by the event's prefix: amount, overkill, critical (positions in the event's values)

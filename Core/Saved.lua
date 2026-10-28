@@ -13,27 +13,29 @@ ns.Saved = SV
 
 -- The cache file's keys, by the .saved name they're shown and cleared under. `levels`: how much of it is kept between
 -- sessions (0 = nothing), `default` the level used when the player hasn't picked one. Without levels: a record kept
--- whole until cleared.
+-- whole until cleared. `lists`: the providers built from it, read again when it's cut or cleared.
 SV.GROUPS = {
 	{ name = "items", keys = { "itemStore" }, label = L["item details (qualities, stats)"], rebuilt = true,
 		levels = { off = 0, small = 2000, normal = 4000, large = 12000 }, default = "normal", unit = L["items"] },
 	{ name = "atlasloot", keys = { "lootCache" }, label = L["AtlasLoot's index"], rebuilt = true,
 		levels = { off = 0, on = 1 }, default = "on" },
-	{ name = "talents", keys = { "talentCache", "talentDesc" }, label = L["every class's talents"], rebuilt = true,
+	{ name = "talents", keys = { "talentCache", "talentDesc" }, label = L["every class's talents"], rebuilt = true, lists = { "talents" },
 		levels = { off = 0, on = 1 }, default = "on" },
-	{ name = "objects", keys = { "objectIndex" }, label = L["Questie's mailboxes and objects"], rebuilt = true,
+	{ name = "objects", keys = { "objectIndex" }, label = L["Questie's mailboxes and objects"], rebuilt = true, lists = { "mailbox" },
 		levels = { off = 0, on = 1 }, default = "on" },
-	{ name = "loot", keys = { "lootLog" }, label = L["loot log"],
+	{ name = "loot", keys = { "lootLog" }, label = L["loot log"], lists = { "lootlog" },
 		levels = { off = 0, small = 100, normal = 250, large = 500 }, default = "normal", unit = L["drops"] },
-	{ name = "combat", keys = { "combatLog" }, label = L["combat log"],
+	{ name = "combat", keys = { "combatLog" }, label = L["combat log"], lists = { "combatlog" },
 		levels = { off = 0, small = 50, normal = 150, large = 300 }, default = "normal", unit = L["entries"] },
 	{ name = "missed", keys = { "missed" }, label = L["searches that found nothing"] },
 	{ name = "characters", keys = { "xpChars", "xpForgotten", "lockouts", "flights" },
-		label = L["your characters' experience, lockouts and flight paths"] },
-	{ name = "recipes", keys = { "recipes", "recipeVendors", "recipeTrainers" }, label = L["recipes and where to learn them"] },
+		label = L["your characters' experience, lockouts and flight paths"], lists = { "experience", "lockouts", "flight" } },
+	{ name = "recipes", keys = { "recipes", "recipeVendors", "recipeTrainers" }, label = L["recipes and where to learn them"],
+		lists = { "recipes", "missing", "professions" } },
 	{ name = "mail", keys = { "mailboxes", "mailAuctions", "mailSent", "auctionsPosted", "auctionsEnded", "auctionsSold" },
-		label = L["mail and auctions"] },
-	{ name = "vendors", keys = { "vendorItems", "repairVendor", "buyback" }, label = L["vendors and buyback"] },
+		label = L["mail and auctions"], lists = { "mail", "auctions" } },
+	{ name = "vendors", keys = { "vendorItems", "repairVendor", "buyback" }, label = L["vendors and buyback"],
+		lists = { "buyback", "durability" } },
 	{ name = "books", keys = { "lore" }, label = L["books read"] },
 	{ name = "console", keys = { "consoleData" }, label = L["the console's history, panes and folders"] },
 	{ name = "other", keys = { "typingBest", "snakeBest", "tetrisBest", "lootrunBest" }, label = L["other records"] },
@@ -363,7 +365,12 @@ function SV.Trim()
 		elseif n and g.name == "loot" then
 			if type(cache.lootLog) == "table" and not cache.lootLog.packed then Head(cache.lootLog, n) end
 		elseif n and g.name == "combat" then
-			if type(cache.combatLog) == "table" and not cache.combatLog.packed then Head(cache.combatLog, n) end
+			local log = cache.combatLog
+			if type(log) == "table" and not log.packed then
+				-- (the log's own rule: deaths kept over crits, so "what killed me" still answers)
+				local CB = ns.CombatLog
+				if CB and CB.Trim then CB.Trim(log, n, math.min(CB.MAX_DEATHS or n, math.floor(n / 2))) else Head(log, n) end
+			end
 		end
 	end
 	if ns.ItemStore then ns.ItemStore.UseLimit(SV.Limit("items")) end
@@ -419,7 +426,6 @@ function SV.Save()
 			if ok and out then cache[k] = out end
 		end
 	end
-	SV.saved = true
 end
 
 local saveFrame = CreateFrame("Frame")
@@ -481,10 +487,12 @@ local function LevelNames(g)
 	return out
 end
 
---- Something cleared or cut: the lists read again.
-local function Changed()
-	for id in pairs(ns.providers or {}) do ns:Changed(id) end
-	ns.freqKinds = nil
+--- Something cleared or cut: the lists made from it read again (only those: every list built again was seconds of
+--- background work for a log cut).
+local function Changed(groups)
+	for _, g in ipairs(groups) do
+		for _, id in ipairs(g.lists or {}) do ns:Changed(id) end
+	end
 end
 
 function SV.Report()
@@ -506,26 +514,20 @@ end
 
 ns:RegisterCommand("saved", {
 	desc = L["What Terminal keeps in its saved variables, how big it is, and how much of it to keep (.saved keep, .saved clear)"],
-	complete = function(args)
-		local out = {}
-		local words = {}
-		for w in tostring(args or ""):gmatch("%S+") do words[#words + 1] = ns.Lower(w) end
-		if words[1] == "keep" then
-			out[#out + 1] = { "keep all minimal", L["keep as little as possible"] }
-			out[#out + 1] = { "keep all normal", L["the usual amounts"] }
-			out[#out + 1] = { "keep all everything", L["keep the most"] }
-			for _, g in ipairs(SV.GROUPS) do
-				if g.levels then
-					for _, level in ipairs(LevelNames(g)) do out[#out + 1] = { ("keep %s %s"):format(g.name, level), g.label } end
-				end
+	-- (every choice whole, matched against all that's typed: a bare "keep" or "clear" only printed "Keep what?")
+	complete = function()
+		local out = {
+			{ "keep all minimal", L["keep as little as possible"] },
+			{ "keep all normal", L["the usual amounts"] },
+			{ "keep all everything", L["keep the most"] },
+		}
+		for _, g in ipairs(SV.GROUPS) do
+			if g.levels then
+				for _, level in ipairs(LevelNames(g)) do out[#out + 1] = { ("keep %s %s"):format(g.name, level), g.label } end
 			end
-		elseif words[1] == "clear" then
-			for _, g in ipairs(SV.GROUPS) do out[#out + 1] = { "clear " .. g.name, g.label } end
-			out[#out + 1] = { "clear all", L["everything in TerminalCache.lua"] }
-		else
-			out[#out + 1] = { "keep", L["how much to keep between sessions"] }
-			out[#out + 1] = { "clear", L["forget something now"] }
 		end
+		for _, g in ipairs(SV.GROUPS) do out[#out + 1] = { "clear " .. g.name, g.label } end
+		out[#out + 1] = { "clear all", L["everything in TerminalCache.lua"] }
 		return out
 	end,
 	run = function(args)
@@ -540,7 +542,7 @@ ns:RegisterCommand("saved", {
 				for g, l in pairs(preset) do picks[g] = l end
 				rawset(ns.db, "savedKeep", next(picks) and picks or nil)
 				SV.Trim()
-				Changed()
+				Changed(SV.GROUPS)
 				return { L["Keeping %s from now on."]:format(level) }
 			end
 			local g = SV.BY_NAME[name or ""]
@@ -557,7 +559,7 @@ ns:RegisterCommand("saved", {
 			picks[g.name] = level ~= g.default and level or nil
 			if not next(picks) then rawset(ns.db, "savedKeep", nil) end
 			SV.Trim()
-			Changed()
+			Changed({ g })
 			return { ("%s: %s"):format(g.label, LevelText(g)) }
 		elseif verb == "clear" then
 			local list = {}
@@ -566,7 +568,7 @@ ns:RegisterCommand("saved", {
 			for _, g in ipairs(list) do
 				for _, k in ipairs(g.keys) do SV.cache[k] = nil end
 			end
-			Changed()
+			Changed(list)
 			return { name == "all" and L["Cleared everything in TerminalCache.lua."] or L["Cleared %s."]:format(list[1].label) }
 		end
 		return SV.Report()

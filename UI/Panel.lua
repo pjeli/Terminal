@@ -80,7 +80,7 @@ end
 function P.Opening(app)
 	if ns.UI and ns.UI.HideNow then ns.UI:HideNow() end
 	for _, other in ipairs(panels) do
-		-- (.console keeps itself and the apps open in its panes: P.Keeps is the console's, Apps/Console/Console.lua)
+		-- (.console keeps itself and the apps open in its panes: P.Keeps is the console's, Terminal_Extras/Console/Console.lua)
 		if other ~= app and other.IsShown() and not (P.Keeps and P.Keeps(other)) then other.Close() end
 	end
 end

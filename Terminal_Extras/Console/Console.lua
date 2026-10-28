@@ -912,7 +912,7 @@ function C.GapHover()
 	if not (frame and GetCursorPosition) then return end
 	local sp = drag or (frame.IsMouseOver and frame:IsMouseOver() == true and C.SplitAt(AreaCursor()))
 	if not sp then
-		if divider then divider:Hide() end
+		if divider and divider:IsShown() then divider:Hide() end
 		return
 	end
 	if not divider then
@@ -921,10 +921,14 @@ function C.GapHover()
 		local r, g, b = RGB(PAL.caret)
 		divider:SetVertexColor(r, g, b, 0.6)
 	end
-	divider:ClearAllPoints()
-	divider:SetPoint("TOPLEFT", frame, "TOPLEFT", C.PAD + sp.x, -C.PAD - sp.y)
-	divider:SetSize(math.max(1, sp.w), math.max(1, sp.h))
-	divider:Show()
+	-- (placed again only when the gap under the mouse is another or moved: this runs every frame)
+	if divider.x ~= sp.x or divider.y ~= sp.y or divider.w ~= sp.w or divider.h ~= sp.h then
+		divider.x, divider.y, divider.w, divider.h = sp.x, sp.y, sp.w, sp.h
+		divider:ClearAllPoints()
+		divider:SetPoint("TOPLEFT", frame, "TOPLEFT", C.PAD + sp.x, -C.PAD - sp.y)
+		divider:SetSize(math.max(1, sp.w), math.max(1, sp.h))
+	end
+	if not divider:IsShown() then divider:Show() end
 end
 
 C.GLIDE = 0.2 -- (s: a pane gliding to its new place when the tiling changes)
@@ -1700,7 +1704,7 @@ local function Fit()
 	frame:SetSize(math.floor(W * 0.94), math.floor(H * 0.9))
 	frame:ClearAllPoints()
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-	C.fitFor = W .. "x" .. H
+	C.fitW, C.fitH = W, H
 end
 
 local sincePoll, sinceClock, blink = 0, 0, 0
@@ -2028,14 +2032,13 @@ function C.LinkHint(link)
 	return L["click: open %s"]:format(link.target)
 end
 
-local hoverAt
+local hoverX, hoverY
 --- The link under the mouse, said in the status line (worked out only when the mouse moved).
 function C.Hover()
 	if not GetCursorPosition then return end
 	local x, y = GetCursorPosition()
-	local at = tostring(x) .. "," .. tostring(y)
-	if at == hoverAt then return end
-	hoverAt = at
+	if x == hoverX and y == hoverY then return end
+	hoverX, hoverY = x, y
 	local hint
 	for _, p in ipairs(panes) do
 		if p.view and not p.app and not (p.sel and p.sel.dragging) and p.body.IsMouseOver and p.body:IsMouseOver() == true then
@@ -2051,7 +2054,7 @@ local function Tick(_, elapsed)
 	-- the terminal opened over the console (its key, with no box of ours holding the keyboard): step out
 	if ns.UI and ns.UI.IsShown and ns.UI:IsShown() then C.Leave() return end
 	local W, H = UIParent and UIParent:GetWidth(), UIParent and UIParent:GetHeight()
-	if W and C.fitFor ~= (W .. "x" .. H) then Fit(); C.Layout(true) end
+	if W and (C.fitW ~= W or C.fitH ~= H) then Fit(); C.Layout(true) end -- (numbers compared: no string made a frame)
 	Glide(elapsed)
 	for _, p in ipairs(panes) do if p.matrix and p.rect then MatrixStep(p, elapsed) end end
 	local running = 0

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.67.9 (in testing)
+
+- Review pass: `.saved keep combat` keeps deaths over crits (as the log itself does), so "what killed me" still answers after a /reload; `.saved keep` and `.saved clear` read again only the lists made from that part (they rebuilt every list); `.saved` offers every choice from the first Tab; the console no longer does string work or re-places the lit split every frame.
+
 ## 0.67.8 (in testing)
 
 - `.console` (also `.tty`): a Linux-like console over Terminal's lists (docs/CONSOLE.md). Lists are folders and rows files (`ls`, `cd`, `cat` = the tooltip, `grep` over stats and tooltips), pipes, aliases, history, `z`, up to four tiled panes, themes and prompts, the panes kept over a /reload, passwords masked, long lines slid sideways (Shift+wheel, Left/Right).

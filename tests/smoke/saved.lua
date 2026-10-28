@@ -168,6 +168,22 @@ local ok, err = pcall(function()
 		check(rawget(_G.TerminalDB, "savedKeep") == nil, "the default picked again: nothing kept for it")
 		out = table.concat(Run("keep loot huge"), "\n")
 		check(out:find("small", 1, true) and out:find("large", 1, true), "a level it hasn't: the ones it has: " .. out)
+		-- (review, 0.67.9) the combat log is cut by its own rule: deaths kept over crits
+		local cl = {}
+		for i = 1, 200 do cl[i] = { what = (i % 40 == 0) and "died" or "crit", t = 1000 - i } end
+		ns.db.combatLog = cl
+		Run("keep combat small")
+		local deaths = 0
+		for _, x in ipairs(ns.db.combatLog) do if x.what == "died" then deaths = deaths + 1 end end
+		check(#ns.db.combatLog == 50 and deaths == 5, "keep combat small: 50 kept, the deaths among them: " .. deaths)
+		Run("keep combat normal")
+		-- (review, 0.67.9) only the lists made from a part are read again, not every list
+		local realChanged, changed = ns.Changed, {}
+		ns.Changed = function(self, id) changed[#changed + 1] = id end
+		Run("keep loot large")
+		ns.Changed = realChanged
+		check(#changed == 1 and changed[1] == "lootlog", "keep loot: only the loot log read again: " .. table.concat(changed, " "))
+		Run("keep loot normal")
 		Run("keep atlasloot off")
 		check(ns.db.lootCache == nil, "a cache turned off is cleared")
 		Run("keep all minimal")
@@ -183,10 +199,11 @@ local ok, err = pcall(function()
 		check(ns.db.mailSent == nil and ns.db.lootLog, "clear mail: only the mail")
 		Run("clear all")
 		check(ns.db.lootLog == nil and ns.db.combatLog == nil, "clear all: the whole cache file")
-		local rows = ns.commands.saved.complete("keep ")
+		local rows = ns.commands.saved.complete("")
 		local has = {}
 		for _, r in ipairs(rows) do has[r[1]] = true end
-		check(has["keep loot small"] and has["keep all minimal"] and has["keep atlasloot off"], "Tab offers the levels")
+		check(has["keep loot small"] and has["keep all minimal"] and has["keep atlasloot off"] and has["clear mail"]
+			and not has["keep"], "Tab offers every choice whole, from the start")
 	end
 end)
 _G.TerminalDB, _G.TerminalCacheDB = was.tdb, was.cache

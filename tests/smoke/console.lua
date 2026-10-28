@@ -1,4 +1,4 @@
--- .console (branch console-dev): Apps/Console/FS.lua (lists as directories, rows as files), Shell.lua (the shell: words,
+-- .console (0.67.8, built on branch console-dev): Terminal_Extras/Console/FS.lua (lists as directories, rows as files), Shell.lua (the shell: words,
 -- pipes, the commands) and Console.lua (panes, tiling, apps in panes, stepping out, zen always on).
 local T = ...
 local ns, check = T.ns, T.check
@@ -956,6 +956,27 @@ ok, err = pcall(function()
 	clock = 105.2
 	C.GapDown() C.GapUp()
 	check(R(p1) == "0,0 497x600", "a double click on the gap: even again: " .. R(p1))
+	-- (review, 0.67.9) the gap under the mouse is lit, and placed again only when it's another: this runs every frame
+	local realOver = C.frame.IsMouseOver
+	C.frame.IsMouseOver = function() return true end
+	for _, sp in ipairs(C.splits) do if sp.node.dir == "v" then mx = sp.x + 2 end end
+	C.GapHover()
+	local div
+	for i = 1, 60 do
+		local n, v = debug.getupvalue(C.GapHover, i)
+		if not n then break end
+		if n == "divider" then div = v end
+	end
+	local placed = 0
+	local realSet = div and div.SetPoint
+	if div then div.SetPoint = function(self, ...) placed = placed + 1 return realSet(self, ...) end end
+	C.GapHover() C.GapHover() C.GapHover()
+	check(div and div:IsShown() and placed == 0, "the lit gap isn't placed again while the mouse stays on it: " .. placed)
+	mx = 300
+	C.GapHover()
+	check(div and not div:IsShown(), "off the gap: not lit")
+	if div then div.SetPoint = realSet end
+	C.frame.IsMouseOver = realOver
 	_G.GetCursorPosition, _G.IsMouseButtonDown, _G.GetTime = realCursor, realDown, realGT
 	-- the other layouts lay them out their own way; tile again: the tree as it was
 	C.Run(p1, "layout grid")
