@@ -527,6 +527,9 @@ local ok, err = pcall(function()
 		"df: an addon's lists as a filesystem, only those installed: " .. table.concat(o, " / "))
 	check(Has(Run("df -a"), "NotHere (not installed)"), "df -a: those not installed too")
 	check(Has(Run("mount"), "CtestAddon on /ctest type ctest (ro,auto)"), "mount: which, where, how")
+	-- (review, 0.67.12) link on a file that isn't there says so, not "missing operand"
+	o = Run("link /ctest/Nothing\ Here")
+	check(Has(o, "No such file") and not Has(o, "missing operand"), "link: no such file, said: " .. table.concat(o, ","))
 	o = Run("cat /etc/fstab")
 	check(Has(o, "CtestAddon\t/ctest\tctest\tro,auto\t0\t0") and Has(o, "# NotHere\t/nothere\tnothere\tro,noauto\t0\t0\t# not installed"),
 		"/etc/fstab: those there, and those not commented out: " .. table.concat(o, " / "))

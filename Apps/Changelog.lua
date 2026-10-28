@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.67.11", when = "in testing",
+		v = "0.67.12", when = "in testing",
 		items = {
 			".report: something wrong or missing? It puts a report in a window to copy and paste on Terminal's CurseForge page, with what helps the author (your characters' names left out). Offered when a search finds nothing, on a result's right-click menu, and after an error.",
 			"\"nearest forge\" and \"nearest anvil\" for blacksmiths and engineers (with Questie or QuestieDB): the closest first with an arrow pointing the way, Enter shows it on the map. Advanced: @forge, @anvil.",

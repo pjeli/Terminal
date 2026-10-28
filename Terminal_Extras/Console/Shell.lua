@@ -2488,7 +2488,10 @@ SH.Command("link", {
 	args = "path",
 	run = function(io)
 		local path = PathArgs(io, io.args)[1]
-		local node, err = path and Resolve(io, path)
+		-- (not `path and Resolve(...)`: an and keeps one value, and "No such file" was lost for "missing operand"; review,
+		-- 0.67.12)
+		local node, err
+		if path then node, err = Resolve(io, path) end
 		if not node then io.err(err or L["missing operand"]) return 1 end
 		if node.kind ~= "file" or node.e.special then io.err(L["no link"]) return 1 end
 		local e = node.e

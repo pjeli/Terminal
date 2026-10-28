@@ -349,12 +349,6 @@ end
 -- What a quest is, for bulk tracking (QuestTrack.lua, 0.63.3) and its filters (is:red, is:dungeon, is:class...)
 ----------------------------------------------------------------------
 
--- the quest log's colour for your level, as words: is:red, is:orange... (Difficulty)
-local function DiffName(id, level, me)
-	local d = Difficulty(id, level, me)
-	return d and DIFF_NAME[d] or nil
-end
-
 -- the quest's tag, as the log says it ("Dungeon", "Raid": C_QuestLog.GetQuestTagInfo's tagID, Enum.QuestTag)
 local QTAG = (Enum and Enum.QuestTag) or {}
 local TAG_KIND = { [QTAG.Dungeon or 81] = "dungeon", [QTAG.Heroic or 85] = "dungeon", [QTAG.Raid or 62] = "raid",
