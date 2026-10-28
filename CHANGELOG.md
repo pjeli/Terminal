@@ -1,62 +1,37 @@
 # Changelog
 
-## 0.67.12 (in testing)
+## 0.68.0
 
-- Review pass: the console's `link` on a file that isn't there says "No such file or directory" (it said "missing operand"); a quest helper nothing used is gone. New test: the console given 176 odd and broken lines (half-typed pipes, redirects, options without values, patterns that aren't ones, huge lines) never raises or prints a Lua error.
+**A console**
+- `.console` (also `.tty`): a Linux-like console over everything Terminal knows. Every list is a folder and every row a file: `ls`, `cd`, `cat` shows a row's tooltip, `grep` searches stats and tooltips, with pipes, aliases, history and `z`.
+- Up to four tiled panes, themes and prompts; the panes come back after a /reload. Lines wider than a pane slide sideways (Shift+wheel, or Left/Right with nothing typed). Passwords typed into it are masked.
+- `.console` and `.atop` now live in Terminal Extras and load the first time you use them.
 
-## 0.67.11 (in testing)
+**Smaller saved data**
+- Terminal.lua now keeps only your settings, tabs, picks and search history. What Terminal records and learns (logs, item and loot indexes, talents, mail, recipes, the console's history) moves to a new TerminalCache.lua, written about half the size and safe to delete. Your old file is moved over by itself.
+- `.saved` shows how big each part is. `.saved keep <part> off|small|normal|large` (or `.saved keep all minimal|normal|everything`) sets how much is kept between sessions; `.saved clear <part>` forgets one. By default the loot log keeps 250 drops, the combat log 150 (deaths first) and item details 4000 items.
 
-- `.report [what happened]` (also `.bug`): a report in the copy window, selected, to paste as a comment on Terminal's CurseForge page (or a GitHub issue). It holds what you said, the result it's about, the last search and the searches that found nothing, Terminal's and the game's versions, the addons found, blocked actions, Terminal's errors BugSack caught and Terminal's last steps; your characters', alts' and guild's names become "you", "alt 1", "your guild". Offered on Simple mode's "Nothing has that" row, under Advanced's footer when a search finds nothing, as "Report a problem with this result" on the right-click menu, and once a session after a blocked action or (with BugSack) an error. New file: restart the game.
+**Report a problem**
+- `.report [what happened]` (also `.bug`) puts a report in a window to copy and paste as a comment on Terminal's CurseForge page (a GitHub issue works too): versions, the addons found, the searches that found nothing, errors and Terminal's last steps. Your characters', alts' and guild's names are left out.
+- It's offered when a search finds nothing, on a result's right-click menu (**Report a problem with this result**) and after an error.
 
-## 0.67.10 (in testing)
+**Nearest forge and anvil**
+- **nearest forge** and **nearest anvil** (also closest, farthest, **2 anvils**), for blacksmiths and engineers: the closest first, an arrow pointing the way, Enter shows it on the map. Needs Questie or QuestieDB. Advanced: `@forge`, `@anvil`, with `sort:distance`, `near:` and `in:`.
 
-- "nearest forge" / "nearest anvil" (also "closest", "farthest", "2 anvils"), and `@forge` / `@anvil` in Advanced with `sort:distance`, `near:` and `in:`: QuestieDB's forges (The Great Forge counts) and anvils, as "nearest mailbox" does. The console has `/forge` and `/anvil`.
+**Simple mode reads your line once**
+- The search, the bar, Alt+` and `.explain` share one reading of the line. Alt+` keeps your capitals and writes **linen to csv** as `linen >>> csv`.
+- **not in my bank** or **not on my alts** on its own lists your items that aren't there.
+- Unticking a typed filter on the bar takes out exactly the words that said it, never another filter's or anything inside a "quoted phrase".
 
-## 0.67.9 (in testing)
+**World data from the game's own sources**
+- Flight paths, dungeon and raid entrances, zone levels and fishing skills come from the game's own data and public sources, each cited in docs/DATA_SOURCES.md. Dungeon levels are the Group Finder's; with Questie or QuestieDB, entrances show at their doors.
+- `@cvar` lists the console settings WoW Forever's own interface uses, each explained in the options panel's words, in your language.
+- Your race's capital counts as a learned flight path from the start (a Windshaper's: Orgrimmar).
 
-- Review pass: `.saved keep combat` keeps deaths over crits (as the log itself does), so "what killed me" still answers after a /reload; `.saved keep` and `.saved clear` read again only the lists made from that part (they rebuilt every list); `.saved` offers every choice from the first Tab; the console no longer does string work or re-places the lit split every frame.
+**Fixes**
+- The combat log kept between sessions keeps deaths over crits, so **what killed me** still answers after a /reload.
 
-## 0.67.8 (in testing)
-
-- `.console` (also `.tty`): a Linux-like console over Terminal's lists (docs/CONSOLE.md). Lists are folders and rows files (`ls`, `cd`, `cat` = the tooltip, `grep` over stats and tooltips), pipes, aliases, history, `z`, up to four tiled panes, themes and prompts, the panes kept over a /reload, passwords masked, long lines slid sideways (Shift+wheel, Left/Right).
-- `.console` and `.atop` live in Terminal Extras, loaded the first time one is run. The console's history, panes and folders are kept in TerminalCache.lua (`.saved clear console`).
-
-## 0.67.7 (in testing)
-
-- Saved data in two files: Terminal.lua keeps only settings, tabs, picks and search history; logs, item and loot indexes, talents, mail, recipes and the like are in TerminalCache.lua (safe to delete), written packed (about half the size). An old Terminal.lua is moved over at the first load.
-- `.saved`: each part's size, `.saved keep <part> off|small|normal|large` (or `.saved keep all minimal|normal|everything`) for how much is kept between sessions, `.saved clear <part>`. The loot log now keeps 250 drops and the combat log 150 by default (500 and 300 with large); item details 4000 items.
-
-## 0.67.6 (in testing)
-
-- One reading of the line, shared by the search, the bar, Alt+` and .explain (docs/FRONT_END.md). What players see:
-  - Alt+` keeps your capitals ("Hogger | except @bank"), writes "linen to csv" as `linen >>> csv`, writes "items by zone" with `@item`, and writes a name found by its words ("Tonight We Dine") as it was searched.
-  - "not in my bank" or "not on my alts" on its own lists your items that aren't there; "in bank", "in the bank", "on alts", "in the mail" and the like compare a search as "in my bank" does.
-  - Unticking a typed filter on the bar takes out exactly the words that said it: another filter's same word stays ("boe linen not boe"), and nothing inside a "quoted phrase" is touched.
-  - A `>>` inside a "quoted phrase" is part of it; with two `>>`, the last one is the send.
-  - A number or date said in words doesn't read across a "quoted phrase"; a name with a date's words reads only the date's words as words the second time ("tonight we dine worth more than 1g" keeps worth more than 1g).
-- Search/ is in folders: Reading/ (how a line is read), Questions/, Steps/ (chains and | steps); Search.lua is split into Query, Nearest, Fallbacks, Overview, Printers and Why. New files: the game needs a full restart, not a /reload.
-
-## 0.67.5 (in testing)
-
-- @cvar's list is the console settings WoW Forever's own interface reads or sets (about 570, made from Blizzard's interface code for the client), each explained by the options panel's own label and tooltip, read from the game in your language.
-
-## 0.67.4 (in testing)
-
-- Housekeeping: every data file now names its source (docs/DATA_SOURCES.md), and tests/check.py guards against another addon's data coming back.
-
-## 0.67.3 (in testing)
-
-- A Windshaper (Horde Skyborne) starts knowing Orgrimmar's flight path. The High Order's isn't assumed yet.
-
-## 0.67.2 (in testing)
-
-- Every character's race capital counts as a learned flight path from the start (Stormwind, Ironforge, Rut'theran Village, Orgrimmar, Undercity, Thunder Bluff), until a flight master's map says otherwise. The Skyborne's isn't assumed yet.
-
-## 0.67.1 (in testing)
-
-- Flight paths, dungeon and raid entrances, zone levels and fishing skills now come from the game's own data and public sources, each one cited in docs/DATA_SOURCES.md and made again by tests/gen_data.py.
-- Dungeon and raid levels are the game's Group Finder's (Scarlet Monastery 30-46 over its four wings, the Hall of Thanes 13-20).
-- Entrances are read from Questie or QuestieDB when either is installed; without them, an instance shows at the spot beside its entrance the game sends your ghost to, where it has one.
+New files: restart the game once after updating, not just /reload.
 
 ## 0.67.0
 
@@ -71,7 +46,7 @@
 - Advanced: **| first 3**.
 
 **Compare two searches**
-- **cloth but not in my bank**, **linen plus my alts**. Advanced: **| except @bank**, **| also @stored**.
+- **cloth but not in my bank**, **linen plus my alts**. Advanced: `| except @bank`, `| also @stored`.
 
 **Sort by more than one field**
 - **sort:quality,-level** sorts by quality, then by level on a tie; **sort:level,distance** puts the nearest first among equals. In Simple mode, Shift on a Sort pick makes it the "then by".
@@ -86,7 +61,7 @@
 **Upgrades**
 - With no tree picked, upgrades are judged for the talent tree holding most of your points, and follow a respec. **.weights all** goes back to that.
 - Hit past your cap counts for nothing: 5% melee and 3% spells below 60; 9% and 16% at 60. **.weights** says where you stand.
-- **upgrades i can buy** (**vendor upgrades**): the friendly vendors selling a clear upgrade for you, nearest first, with what it gains and any standing it needs. Advanced: **@npc sells:upgrade**. Needs Questie.
+- **upgrades i can buy** (**vendor upgrades**): the friendly vendors selling a clear upgrade for you, nearest first, with what it gains and any standing it needs. Advanced: `@npc sells:upgrade`. Needs Questie.
 - **ah upgrades**: bind-on-equip upgrades at Auctionator's last-scanned price, the most gain per gold first. Needs Auctionator and AtlasLoot.
 
 **Fixes**
@@ -101,7 +76,7 @@
 
 **Quests that reward bags**
 - **quests that reward bags** (**bag quests**, **quivers from quests**, **quests that reward ammo pouches**) lists the bags your race, class and faction can still get, the most slots first, each saying which bag and its slots; the footer says how many you've done already. Needs Questie.
-- Advanced: **@questie reward:bag -is:done sort:slots** (**reward:quiver**, **reward:ammo_pouch**) lists the same in the same order, with the bag and slots in each row.
+- Advanced: `@questie reward:bag -is:done sort:slots` (**reward:quiver**, **reward:ammo_pouch**) lists the same in the same order, with the bag and slots in each row.
 
 **Sort either way**
 - Simple mode's Sort shows an arrow by the sort in use: down for the highest (or Z) first, up for the lowest (or A) first. Pick it again to turn it round. Numbers start with the highest, names with A.
@@ -132,18 +107,18 @@
 **Your collections, in plain words**
 - **mounts**, **my pets** (**companions**, **battle pets**), **toys** (**my toy box**) list yours by name, the footer saying how many; **how many mounts do i have** too. **favorite mounts** keeps the journal's favorites; other words name them (**raptor mounts**, **squirrel pets**: a pet's species counts). Enter summons a mount or pet and uses a toy, Shift+Enter shows it in the journal.
 - A word alone ("mount", "pet") is still a search, as are lines like "pet trainer", "how do i mount" or "pet battle".
-- Advanced: **@mount sort:name**, and the new **is:favorite** on mounts, pets and toys (Alt+` writes **@mount is:favorite sort:name**; "raptor mounts" stays as said, which Advanced answers the same).
+- Advanced: `@mount sort:name`, and the new **is:favorite** on mounts, pets and toys (Alt+` writes `@mount is:favorite sort:name`; "raptor mounts" stays as said, which Advanced answers the same).
 
 **Buyback, anywhere**
-- **buyback**, **what did i sell** (**@buyback**): what you've sold to vendors since you logged in, newest first, each with how many, when, and what it costs to buy back; searchable anywhere, without opening a vendor. At any vendor, Enter buys one back (not enough money: said). The game's buyback list holds the last 12, can only be read at a vendor, and is lost when you log out: so is this one (a /reload keeps it).
+- **buyback**, **what did i sell** (`@buyback`): what you've sold to vendors since you logged in, newest first, each with how many, when, and what it costs to buy back; searchable anywhere, without opening a vendor. At any vendor, Enter buys one back (not enough money: said). The game's buyback list holds the last 12, can only be read at a vendor, and is lost when you log out: so is this one (a /reload keeps it).
 
 **Ammo and reagents, suggested when you're out**
-- With a bow, crossbow or gun and no arrows or bullets in your bags (a hunter: under a quarter of what your quiver or ammo pouch holds, or under a stack without one), the empty prompt suggests **nearest vendor sells:arrow** or **sells:shot** (Advanced: **@npc is:vendor sells:arrow faction:friendly sort:nearest**).
-- Out of a reagent your spells use, it suggests **nearest reagent vendor** (Advanced: **@npc reagent is:vendor faction:friendly sort:nearest**): a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Kings or Symbols of Divinity, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs. A rogue out of flash powder (which reagent vendors don't sell) is offered **nearest vendor sells:flash_powder**.
+- With a bow, crossbow or gun and no arrows or bullets in your bags (a hunter: under a quarter of what your quiver or ammo pouch holds, or under a stack without one), the empty prompt suggests **nearest vendor sells:arrow** or **sells:shot** (Advanced: `@npc is:vendor sells:arrow faction:friendly sort:nearest`).
+- Out of a reagent your spells use, it suggests **nearest reagent vendor** (Advanced: `@npc reagent is:vendor faction:friendly sort:nearest`): a priest's candles for Prayer of Fortitude, Spirit or Shadow Protection (Sacred Candles once you have rank 2), a paladin's Symbols of Kings or Symbols of Divinity, a mage's teleport or portal runes or Arcane Powder, a druid's seeds for Rebirth's highest rank or Gift of the Wild's berries or thornroot, a shaman's ankhs. A rogue out of flash powder (which reagent vendors don't sell) is offered **nearest vendor sells:flash_powder**.
 - Only once you know the spell, and only when your bags have none. Ammo and the everyday reagents come up more often than the other suggestions; Divine Intervention's symbols and portal runes, cast now and then, as often as any other. Each goes as soon as you've bought some, and the examples don't reshuffle on every bag change meanwhile.
 
 **Enchanted gear**
-- **is:enchanted** and **is:unenchanted**: gear with an enchant, or without one, in your bags and worn (**@item**, **@gear**), your bank (**@bank**) and your alts' (**@stored**), from each copy's link. **is:unenchanted** keeps to gear an enchant goes on (not shirts, tabards, necks, rings, trinkets, held off-hands, relics, thrown weapons or wands). **@stored** goes by the copies you don't carry, **@bank** by your bank's own.
+- **is:enchanted** and **is:unenchanted**: gear with an enchant, or without one, in your bags and worn (`@item`, `@gear`), your bank (`@bank`) and your alts' (`@stored`), from each copy's link. **is:unenchanted** keeps to gear an enchant goes on (not shirts, tabards, necks, rings, trinkets, held off-hands, relics, thrown weapons or wands). `@stored` goes by the copies you don't carry, `@bank` by your bank's own.
 
 **Tabs**
 - Each tab over the prompt shows a small **x** while the pointer is on it; a click (left or right) closes that tab, so one opened by accident goes with a click. A right-click on the tab and **Ctrl+Shift+W** still close one too.
@@ -152,7 +127,7 @@
 
 **Your history, as a shell has it**
 - **Ctrl+R** searches what you ran from the prompt: type to find a line (fuzzy, every word), **Ctrl+R** again (or Down) for an older match, **Enter** puts it in the prompt and searches it, **Esc** goes back to what you'd typed. Nothing in it is syntax: ".ma" finds ".mail". (Ctrl+R was the game's frame rate while Terminal was open; it's Terminal's now. The frame rate still toggles with the terminal closed.)
-- **history** (or **my history**, **recent searches**; Advanced **@history**) lists what you ran, newest first, each with when it ran; Enter searches one again, Shift+Left back.
+- **history** (or **my history**, **recent searches**; Advanced `@history`) lists what you ran, newest first, each with when it ran; Enter searches one again, Shift+Left back.
 
 **Tracking quests in bulk** (a player's idea on CurseForge)
 - **untrack quests**, **track completed quests**, **untrack dungeon quests**, **track class quest**, **track rfc quests only** (those tracked, every other one untracked), **untrack red quests** (by the log's colour for your level), **track nearby quests** (under your zone in the log, or on your map). Quest names and places narrow it ("track raptor thieves quest", "untrack wailing caverns quests"). A place means the quests listed under it in your log, written as one word too ("track thunderbluff quests", "untrack mulgore and thunder bluff quests"); a quest that only mentions it isn't one.
@@ -162,7 +137,7 @@
 - Advanced: any quest search, then **>>> track**, **>>> untrack** or **>>> track only** (**>> track**: the selected one). New filters for it: **is:tracked**, **is:untracked**, **is:here**, **is:red** (and is:orange, is:yellow, is:green on quests), **is:dungeon**, **is:raid**, **is:class** on your quest log.
 
 **Your auctions**
-- A sale is listed once in **@auction**: its mail read before the game knew the buyer's name no longer makes it a second sale. One listed twice is put right the next time you open your mailbox.
+- A sale is listed once in `@auction`: its mail read before the game knew the buyer's name no longer makes it a second sale. One listed twice is put right the next time you open your mailbox.
 - Your auctions' prices read from the Auctions tab are each item's, as the game shows them (a player checked in game): an x16 stack at 19c says **19c each** and brings 3s 4c. It was taken for the whole stack, so a sale's gold came out too little and an undercut stack was never said to be. Auctions kept before put themselves right the next time you open the Auctions tab.
 
 **Fixes from a review of the whole addon**
@@ -174,7 +149,7 @@
 - A chain's first part offers the same names whichever chain you typed before ("copper > mats" then "copper > uses" left Copper Ore out).
 - **track quests to turn in** tracks your complete quests (it looked for a quest called "turn").
 - Simple mode: **>> party**, **>> text** on a category row pick the category (they sent or copied the word "Items"); the key hints say where Enter sends the row, as Advanced's do. **>> track only** says how many others it untracks; **>>> track** with nothing in your log among the results says so, and **>>> track** alone says "Nothing searched to change".
-- Ctrl+R: no bar and no chat lines in its row menu (its lines are what you typed); "3*4" finds the line, no sum on top. **@history tor** finds the lines with those letters (every line matched a word they all had).
+- Ctrl+R: no bar and no chat lines in its row menu (its lines are what you typed); "3*4" finds the line, no sum on top. `@history tor` finds the lines with those letters (every line matched a word they all had).
 - Alt+`: lines no Advanced search answers alike stay as you said them: "what should i auction on my alts / everywhere", "shaman spells at level 12", your own class's spells, "molten core attunement", "tailoring training". "quests here" adds sort:level; "linen not cloth" is **-cloth|type:cloth**.
 - The loot log: two alike drops in one second are two rows; "what did zed get" knows a new looter when the log is full.
 - Pointing at a window's text picks the exact one first ("Heal", not "Flash Heal").
@@ -197,25 +172,25 @@
 - **try: what should i do** is one of Simple mode's empty prompt examples, coming up sooner when there's something worth doing (from what Terminal has already read: opening the terminal builds nothing, and the prompt stays empty).
 
 **Plain questions, and their Advanced syntax**
-- **quests to turn in** / **turn in quests** / **which quests are ready**: your quest log's quests ready to turn in (**@questlog is:complete**).
-- **quests here** / **quests in this zone**: Questie's quests at your level in the zone you're in, not done yet (**@questie lvl:20-25 in:<zone>**).
-- **what can i craft** / **what can i cook** / **craftable items**: your recipes you have every reagent for (**@recipe is:craftable**).
-- **nearest class trainer** / **my trainer**: your class's trainers (**trainer:class**); **nearest weapon trainer** / **weapon master**: the weapon masters (**is:weaponmaster**). A weapon or profession named with them is theirs: **nearest fist weapons trainer** is **trainer:fist** (Sayoc in Orgrimmar), **my tailoring trainer** **trainer:tailoring**. In Advanced mode **@npc trainer:fists**, **trainer:staff**, **trainer:daggers** list the weapon masters What's Training or TrainerSpells says teach it.
-- **quests per zone** / **my quests by zone** / **quests by level** (and **<list> per <field>**, filters after it too: **items by zone q:rare**): the list grouped by it (**@questie | group by zone**); the bar shows it as its Group.
-- Enter on a group steps into it: the words you typed to find the group go ("@questie Death" grouped by zone, Enter on Deathknell: **@questie in:"Deathknell"**, every quest there), not left beside it. Words joined by "or" go together, and a word after "not", "no" or "without" stays.
-- **low durability** is **@durability**; **dungeons at my level** and **best dungeon for upgrades** are the dungeon for your level, as "what dungeon should i do".
+- **quests to turn in** / **turn in quests** / **which quests are ready**: your quest log's quests ready to turn in (`@questlog is:complete`).
+- **quests here** / **quests in this zone**: Questie's quests at your level in the zone you're in, not done yet (`@questie lvl:20-25 in:<zone>`).
+- **what can i craft** / **what can i cook** / **craftable items**: your recipes you have every reagent for (`@recipe is:craftable`).
+- **nearest class trainer** / **my trainer**: your class's trainers (**trainer:class**); **nearest weapon trainer** / **weapon master**: the weapon masters (**is:weaponmaster**). A weapon or profession named with them is theirs: **nearest fist weapons trainer** is **trainer:fist** (Sayoc in Orgrimmar), **my tailoring trainer** **trainer:tailoring**. In Advanced mode `@npc trainer:fists`, **trainer:staff**, **trainer:daggers** list the weapon masters What's Training or TrainerSpells says teach it.
+- **quests per zone** / **my quests by zone** / **quests by level** (and **<list> per <field>**, filters after it too: **items by zone q:rare**): the list grouped by it (`@questie | group by zone`); the bar shows it as its Group.
+- Enter on a group steps into it: the words you typed to find the group go ("`@questie` Death" grouped by zone, Enter on Deathknell: `@questie in:"Deathknell"`, every quest there), not left beside it. Words joined by "or" go together, and a word after "not", "no" or "without" stays.
+- **low durability** is `@durability`; **dungeons at my level** and **best dungeon for upgrades** are the dungeon for your level, as "what dungeon should i do".
 
 **Auction house prices, with Auctionator**
 - With Auctionator installed, Terminal reads its auction house prices through its API for other addons (scan the auction house with Auctionator to have them).
 - Items have an **AH value**: **sort:ahvalue** and **sort:ahprice** (the bar's Sort: AH value, AH price), **| sum ahvalue**, **| avg ahprice**, on your bags, your bank and alts, loot and the items recipes make. A search sorted by it, or with **is:auctionable**, shows it in each row's detail: "AH 3s 77c each · x185: 6g 97s · Bag 4".
-- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (**@item is:auctionable sort:ahvalue**). Add where: **... in my bank**, **... on my alts**, **... everywhere**, each row saying where they are.
-- **ah value of my mats** / **what are my mats worth** (**@mats | sum ahvalue**), and the same for your bags, bank, alts, consumables and gear.
+- **what should i auction** (or **what can i sell on the ah**): your bag items worth more on the auction house than at a vendor, not bound, the most valuable first, each with what it would bring and what a vendor pays; the note says about what they come to (`@item is:auctionable sort:ahvalue`). Add where: **... in my bank**, **... on my alts**, **... everywhere**, each row saying where they are.
+- **ah value of my mats** / **what are my mats worth** (`@mats | sum ahvalue`), and the same for your bags, bank, alts, consumables and gear.
 - **what should i do** says **Post on the auction house** when your bags would bring a gold or more, and the empty prompt may say **try: what should i auction (about 30g)** or **try: ah value of my mats (about 12g)**.
-- **@auction**: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours (not when the cheaper one is your own); **am i undercut** / **@auction is:undercut** lists those. Item filters work on your auctions too (**@auction q:rare**, **auctions by quality**).
+- `@auction`: each auction up now says the auction house's price now, and **undercut** (orange) when it's below yours (not when the cheaper one is your own); **am i undercut** / `@auction is:undercut` lists those. Item filters work on your auctions too (`@auction q:rare`, **auctions by quality**).
 - **.integrations** says whether Auctionator was found.
 
 **Your bank**
-- **@bank** is this character's own bank (what's in it, how many; the game's own word for the bank names it too, in every language); **@stored** (**@alts**, **@banks**) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as @stored is.)
+- `@bank` is this character's own bank (what's in it, how many; the game's own word for the bank names it too, in every language); `@stored` (`@alts`, `@banks`) is still every character's. **what is in my bank** lists it. (Kept by Syndicator or BagBrother, as `@stored` is.)
 
 **Wider details**
 - A result's detail no longer stops at a third of the row: a long one takes the room its name doesn't need (a name keeps up to 40% when both are long), so wide windows show it whole.
@@ -226,12 +201,12 @@
 **Fixes from the release review**
 - "items by zone" and other list names found in a fresh session; the empty prompt's example checks what's worth doing once a minute, not on every open; result details measured only when they change.
 - Lines other questions answer stay theirs ("lockouts by raid", "my riding trainer", "craft bags", "dungeon upgrades for my level", "help me").
-- @bank lets go of @stored's memory with it, and is searched by its own place; bound items held in banks aren't counted as worth posting.
+- `@bank` lets go of `@stored`'s memory with it, and is searched by its own place; bound items held in banks aren't counted as worth posting.
 
 ## 0.60.0
 
 **Terminal: Share, a new addon that comes with Terminal**
-- Friends who run it and type the same password see what's in each other's bags in their searches: "linen cloth" lists what you carry, what your alts hold, and what your friends have, with how many each has. It's **@shared** (also **@ssh**), in Simple mode's Bank & alts, and **linen cloth > alts** lists it with your alts.
+- Friends who run it and type the same password see what's in each other's bags in their searches: "linen cloth" lists what you carry, what your alts hold, and what your friends have, with how many each has. It's `@shared` (also `@ssh`), in Simple mode's Bank & alts, and **linen cloth > alts** lists it with your alts.
 - **.share password <password>** (8 characters or more, no spaces, with three of: capitals, small letters, numbers, symbols) connects you with your friend list, your guild and your Battle.net friends' characters who use the same one. The password shows as \*s while you type it and is never sent or saved; a key made from it is remembered, so you connect again by yourself when you log in. **.share off** forgets it.
 - Don't want it? Turn Terminal: Share off in the AddOn list and none of it runs.
 
@@ -239,16 +214,16 @@
 - **.share join <group> <password>** joins a group of its own, with its own password: a raid team, a crafting circle, your alts' friends. Five groups at most; **.share password** is the group "default".
 - Each group shares what you choose: **.share raid all**, **.share default limited** (or **.share all raid**). A friend sees what you share in the groups you have in common, together: a raid friend everything, a friend only in default your mats and consumables.
 - **.share leave <group>** leaves one (its password forgotten; friends you had only it with are said goodbye to). **.share** lists your groups and what each shares; the wifi sign's pop-out says each friend's groups.
-- **@shared raid linen** finds your raid friends' linen; a friend's tooltip says which groups you share with them.
+- `@shared raid linen` finds your raid friends' linen; a friend's tooltip says which groups you share with them.
 
 **What you share**
-- **.share limited** (the default): this character's crafting mats and consumables, in its bags and its bank (as @stored has the bank: Syndicator or BagBrother).
-- **.share all**: everything in your bags, on your other characters and in your banks, mail, void storage and warband bank (as @stored reads them), and your gold.
+- **.share limited** (the default): this character's crafting mats and consumables, in its bags and its bank (as `@stored` has the bank: Syndicator or BagBrother).
+- **.share all**: everything in your bags, on your other characters and in your banks, mail, void storage and warband bank (as `@stored` reads them), and your gold.
 - **.share mats**, **.share consumables**: just those, bags and bank. **.share none**: see your friends' items, share nothing.
 
 **Friends' items**
-- A row for each friend, saying where they keep it, bags and bank apart ("Linen Cloth x20 · Cad Man · bags 12, bank 8"), grouped or sorted by **Owner** from the bar, **sort:owner** or **| group by owner**. Item filters work on them (**@shared q:rare**).
-- The tooltip is the item's own, with that friend's characters below it as @stored shows yours. Enter whispers the friend; Shift+Enter and **>> party** work as with @stored.
+- A row for each friend, saying where they keep it, bags and bank apart ("Linen Cloth x20 · Cad Man · bags 12, bank 8"), grouped or sorted by **Owner** from the bar, **sort:owner** or **| group by owner**. Item filters work on them (`@shared q:rare`).
+- The tooltip is the item's own, with that friend's characters below it as `@stored` shows yours. Enter whispers the friend; Shift+Enter and **>> party** work as with `@stored`.
 - A friend sharing **all** has a gold row ("Bob's gold").
 
 **The wifi sign**
@@ -277,12 +252,12 @@
 
 **TrainerSpells**
 - Terminal reads TrainerSpells when it's installed, at the moment you search (nothing of it is copied). Either What's Training or TrainerSpells is enough for training.
-- Without What's Training, **@training** lists your class's spells, weapon skills and pet abilities still to learn: a hunter's from the pet trainers, a warlock's demons' grimoires from the Demon Trainers. "what can i train", "what do i learn next level" and "where to learn ..." work with it, and every class's spells come from it.
-- Without Questie, its trainers and weapon masters are **@npc**: "nearest mage trainer", "polearm trainer".
+- Without What's Training, `@training` lists your class's spells, weapon skills and pet abilities still to learn: a hunter's from the pet trainers, a warlock's demons' grimoires from the Demon Trainers. "what can i train", "what do i learn next level" and "where to learn ..." work with it, and every class's spells come from it.
+- Without Questie, its trainers and weapon masters are `@npc`: "nearest mage trainer", "polearm trainer".
 
 **Profession training**
 - The recipes a trainer teaches that you don't know are listed with your other recipes to learn, with the skill each needs and its cost, even before you've opened the profession's window: "what can i train in tailoring", "how much is tailoring training".
-- **@profession** shows each profession's next rank, the skill it needs and its cost.
+- `@profession` shows each profession's next rank, the skill it needs and its cost.
 
 **Trainers**
 - "polearm trainer" and the like list only the weapon masters who teach that weapon to your faction (What's Training's or TrainerSpells' list), not every weapon master.
@@ -318,7 +293,7 @@
 - Every class's spells (**travel form**, **druid spells**, **upcoming spells**) and the weapon masters (**dagger trainer**) come straight from What's Training's catalog, as up to date as it is.
 
 **Your auctions**
-- **@auction** lists your sales of the last 30 days (**auctions sold**): the price, the buyer and what you got, from the auction house's news, the Auctions tab or the sale's mail.
+- `@auction` lists your sales of the last 30 days (**auctions sold**): the price, the buyer and what you got, from the auction house's news, the Auctions tab or the sale's mail.
 - Auctions posted one after another each keep their own price, and one kept without a price takes the Auctions tab's.
 
 **Attune's new look**
@@ -748,7 +723,7 @@
 ## 0.43.0
 
 **Your guild, friends and gold**
-- `@guild` and `@friend` (Simple mode: Guild & friends): search members by class, rank, zone, notes or profession, like "@guild priest online" or "@guild in:undercity". Battle.net friends show the character they're playing. Enter whispers them; Shift+Enter invites them.
+- `@guild` and `@friend` (Simple mode: Guild & friends): search members by class, rank, zone, notes or profession, like "`@guild` priest online" or "`@guild` in:undercity". Battle.net friends show the character they're playing. Enter whispers them; Shift+Enter invites them.
 - `@who` (Simple mode: "who priest undercity"): Enter on the top row asks the server, and the answer comes into the list to search, whisper and invite.
 - `@gold` (Simple mode: "gold"): your gold, and with Baganator or Bagnon every alt's, the guild banks and the warband bank, with the total on top.
 

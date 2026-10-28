@@ -3218,9 +3218,11 @@ function SH.PromptSpec()
 	return set
 end
 
---- The prompt line for a session (painted, a space at its end).
+--- The prompt line for a session (painted, a space at its end). spec: the parts; false: classic; nil: as set.
 function SH.PromptLine(sh, spec)
-	spec = spec or SH.PromptSpec()
+	-- (false is classic itself: `spec or ...` made the presets list draw classic as the prompt you have; the player's
+	-- screenshot, 0.68.0)
+	if spec == nil then spec = SH.PromptSpec() end
 	if not spec then
 		return Paint("green", FS.User() .. "@" .. FS.Host()) .. Paint("dim", ":") .. Paint("blue", SH.Literal(FS.Pretty(sh.cwd)))
 			.. Paint("dim", "$") .. " "
@@ -3248,7 +3250,7 @@ SH.Command("prompt", {
 			io.out(Paint("dim", L["now: "]) .. Paint("cyan", SH.Literal(now)) .. "   " .. SH.PromptLine(io.sh))
 			io.out(Paint("dim", L["presets:"]))
 			for _, n in ipairs(SH.PROMPT_ORDER) do
-				io.out("  " .. Paint("green", n) .. "\t" .. SH.PromptLine(io.sh, SH.PROMPTS[n] or nil))
+				io.out("  " .. Paint("green", n) .. "\t" .. SH.PromptLine(io.sh, SH.PROMPTS[n]))
 			end
 			io.out(Paint("dim", L["parts (prompt dir zone gold):"]))
 			for _, s in ipairs(SH.SEGMENT_ORDER) do io.out("  " .. Paint("green", s[1]) .. "\t" .. Paint("dim", SH.Literal(s[2]))) end

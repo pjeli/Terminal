@@ -11,8 +11,8 @@ accessibilityScreenNarrationEnabled		ENABLE_SCREEN_NARRATOR OPTION_TOOLTIP_ENABL
 accessibilityScreenNarrationSpeechRate		SCREEN_NARRATOR_SPEECH_RATE
 accessibilityScreenNarrationSpeechVolume		SCREEN_NARRATOR_SPEECH_VOLUME
 accessibilityScreenNarrationVoice		SCREEN_NARRATOR_VOICE OPTION_TOOLTIP_SCREEN_NARRATOR_VOICE
-ActionButtonUseKeydown		
 ActionButtonUseKeyDown		
+ActionButtonUseKeydown		
 ActionButtonUseKeyHeldSpell		PRESS_AND_HOLD_CASTING_OPTION
 addFriendInfoShown		
 addonPerformanceMsgWarning		
@@ -271,8 +271,8 @@ MacDisableOsShortcuts		MAC_DISABLE_OS_SHORTCUTS
 MacUseCommandLeftClickAsRightClick		MAC_USE_COMMAND_LEFT_CLICK_AS_RIGHT_CLICK
 mapFade		
 maxFPS		
-maxfpsbk		
 maxFPSBk		
+maxfpsbk		
 maxLevelSpecsUsed		
 miniDressUpFrame		
 minimapShowPlayerCoords		SETTINGS_MINIMAP_PLAYER_COORDS
@@ -555,8 +555,8 @@ useMaxFPS
 useMaxFPSBk		
 useNewConsole		
 useTargetFPS		
-useUiScale		
 useUIScale		
+useUiScale		
 VoiceChatMasterVolumeScale		
 VoiceInputVolume		
 VoiceOutputVolume		

@@ -334,7 +334,7 @@ def cvars(check):
                 if got and len(got) > len(words.get(name, [])):
                     words[name] = got
     names = {n for n in names if not n.isupper()} # ("ENABLE_TEXT_TO_SPEECH": a constant's name, not a setting's)
-    lines = [f"{n}\t\t{' '.join(words.get(n, []))}\n" for n in sorted(names, key=str.lower)]
+    lines = [f"{n}\t\t{' '.join(words.get(n, []))}\n" for n in sorted(names, key=lambda n: (n.lower(), n))]  # (a tie-break: names differing only in case came out in set order)
     rel = "Providers/CVarList.lua"
     old = read(rel)
     body = f"-- {len(lines)} settings, from Blizzard's interface code {version}\nns.CVAR_LIST = [==[\n" + "".join(lines) + "]==]\n"

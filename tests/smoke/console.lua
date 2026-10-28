@@ -1179,6 +1179,14 @@ ok, err = pcall(function()
 	check(SH.Complete(sh, "prompt star", 11) == "prompt starship ", "Tab: the presets")
 	Run("prompt classic")
 	check(ns.db.console.prompt == nil and FS.Strip(SH.PromptLine(sh)):sub(-2) == "$ ", "prompt classic: back as it was")
+	-- (0.68.0, the player's screenshot) the presets list draws classic as classic, whatever prompt you have
+	Run("prompt starship")
+	local o = Run("prompt")
+	local classicLine
+	for _, l in ipairs(o) do if l:find("^%s*classic") then classicLine = l end end
+	check(classicLine and classicLine:find(FS.User() .. "@" .. FS.Host() .. ":", 1, true) and classicLine:find("$ ", 1, true),
+		"prompt: the classic preset shown as user@host:dir$, not as starship: " .. tostring(classicLine))
+	Run("prompt classic")
 
 	-- themes
 	local red = Paint("red", "x")
