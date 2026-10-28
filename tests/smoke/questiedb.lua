@@ -266,6 +266,11 @@ do
 			[1745] = { name = "Forge", spawns = { [17] = { { 63.0, 37.5 } } } },
 			[32424] = { name = "The Great Forge", spawns = { [12] = { { 42.5, 65.5 } } } },
 			[1797] = { name = "Anvil", spawns = { [17] = { { 52.5, 30.5 }, { 62.0, 36.5 } } } },
+			-- (0.68.1) a cooking fire and moonwells; a campfire and a moonwell of its own name aren't either
+			[1915] = { name = "Cooking Fire", spawns = { [17] = { { 61.5, 38.0 } } } },
+			[3266] = { name = "Campfire", spawns = { [17] = { { 62.6, 37.2 } } } },
+			[177272] = { name = "Moonwell", spawns = { [17] = { { 50.0, 31.0 } } } },
+			[19549] = { name = "Shadowglen Moonwell", spawns = { [17] = { { 62.6, 37.0 } } } },
 		}),
 		flavor = { name = "Forever", rules = "Classic" },
 		Enum = { byExpansion = { Classic = { npcFlags = { QUEST_GIVER = 2, VENDOR = 4, TRAINER = 16 } } } },
@@ -576,7 +581,7 @@ do
 			.. tostring(pinned and pinned.py))
 		ns.db.easyMode = true
 		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:distance ", "Alt+`: nearest mailbox -> @mailbox sort:distance: " .. ns.Easy.ToAdvanced("nearest mailbox"))
-		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/anvil,forge,mailbox,the great forge$"),
+		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/anvil,cooking fire,forge,mailbox,moonwell,the great forge$"),
 			"the saved index's key names the objects looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
 		-- (0.67.10, the player's ask) "nearest forge", "nearest anvil": the same, from their own lists
 		check(ns.db.objectIndex.ids.forge == "1745,32424" and ns.db.objectIndex.ids.anvil == "1797",
@@ -594,6 +599,23 @@ do
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest anvil") == "@anvil sort:distance ", "Alt+`: nearest anvil -> " .. ns.Easy.ToAdvanced("nearest anvil"))
 		check(not ns.Easy.ToAdvanced("where to learn anvil"):find("@anvil", 1, true), "a recipe's name stays a recipe: " .. ns.Easy.ToAdvanced("where to learn anvil"))
+		-- (0.68.1, the player's ask) "nearest cooking fire" (two words), "nearest moonwell": only objects of exactly that name
+		check(ns.db.objectIndex.ids.cookingfire == "1915" and ns.db.objectIndex.ids.moonwell == "177272",
+			"a Cooking Fire and a Moonwell, no campfire or named moonwell: " .. tostring(ns.db.objectIndex.ids.cookingfire)
+			.. " / " .. tostring(ns.db.objectIndex.ids.moonwell))
+		ns.providers.cookingfire._dirty, ns.providers.moonwell._dirty = true, true
+		UI:Open("nearest cooking fire")
+		local cf = UI.Results()
+		check(#cf == 1 and cf[1].name == "Cooking Fire" and cf[1].kind == "cookingfire" and cf[1].icon:find("Food", 1, true)
+			and cf[1].detail:find("^%d+ yd"), "nearest cooking fire: the one, how far: " .. tostring(cf[1] and cf[1].name)
+			.. " " .. tostring(cf[1] and cf[1].detail))
+		UI:Hide(); FlushAll()
+		UI:Open("closest moonwell")
+		local mw = UI.Results()
+		check(#mw == 1 and mw[1].name == "Moonwell" and mw[1].py == 31.0, "closest moonwell: " .. tostring(mw[1] and mw[1].name))
+		UI:Hide(); FlushAll()
+		check(ns.Easy.ToAdvanced("nearest cooking fire") == "@cookingfire sort:distance ", "Alt+`: nearest cooking fire -> " .. ns.Easy.ToAdvanced("nearest cooking fire"))
+		check(ns.Easy.ToAdvanced("nearest moonwells") == "@moonwell sort:distance ", "Alt+`: nearest moonwells -> " .. ns.Easy.ToAdvanced("nearest moonwells"))
 		local easyNow = ns.db.easyMode
 		ns.db.easyMode = false
 		local function Names(res) local t = {} for _, e in ipairs(res) do t[#t + 1] = tostring(e.name) end return table.concat(t, ",") end
@@ -601,6 +623,8 @@ do
 		check(adv == "Forge,Forge", "@forge: every forge, Ironforge's too: " .. adv)
 		local mbAgain = Names(UI:Search("@mailbox"))
 		check(mbAgain == "Mailbox,Mailbox,Mailbox", "@mailbox: still only mailboxes: " .. mbAgain)
+		local fires = Names(UI:Search("@cookingfire"))
+		check(fires == "Cooking Fire", "@cookingfire: " .. fires)
 		ns.db.easyMode = easyNow
 		check(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox == "32349,142075", "the mailboxes' ids are kept for next time: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox))
 		-- next session: from the saved index, no pass over every object's name

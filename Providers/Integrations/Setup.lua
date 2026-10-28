@@ -120,7 +120,8 @@ I.ADDONS = {
 			return not (ns.providers.questie or (p and not p.trainersOnly))
 		end,
 		kinds = { questie = true, questdb = true, allquests = true, npc = true, npcs = true, mob = true, mobs = true, vendor = true,
-			mailbox = true, mailboxes = true, forge = true, forges = true, anvil = true, anvils = true },
+			mailbox = true, mailboxes = true, forge = true, forges = true, anvil = true, anvils = true,
+			cookingfire = true, cookingfires = true, moonwell = true, moonwells = true },
 		keys = { reward = true, rewards = true, sells = true, sold = true } },
 	{ name = "AtlasLoot", missing = function() return not ns.providers.loot end,
 		kinds = { loot = true, atlasloot = true, al = true } },

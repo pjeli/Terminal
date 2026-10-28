@@ -590,7 +590,7 @@ local PEOPLE = { "guild", "friends", "who", "group" }
 local NPC = { "npc" }
 local MAIL = { "mail" }
 local GROUP = { "group" }
-local SPOTS = { "npc", "mailbox", "forge", "anvil", "dungeon", "raid", "flight" }
+local SPOTS = { "npc", "mailbox", "forge", "anvil", "cookingfire", "moonwell", "dungeon", "raid", "flight" }
 F.APPLIES = {
 	is = {
 		done = QUESTS, todo = QUESTS, complete = { "quests" }, ready = { "spells" }, -- (ready on a quest = complete: offered once)
@@ -697,12 +697,12 @@ F.HELP = {
 	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] },
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
-	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
+	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },
 	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
 	{ "sort:quality,-level", L["several fields: by the first, then on a tie by the next (sort:quality,-level: the best first, the highest level first among equals); Simple mode's Sort takes a then by with Shift"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
-	{ "sort:distance", L["NPCs, mailboxes, forges, anvils, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
+	{ "sort:distance", L["NPCs, mailboxes, forges, anvils, cooking fires, moonwells, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },
 	{ "sort:plan", L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] },
 	{ "do:use", L["what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)"] },

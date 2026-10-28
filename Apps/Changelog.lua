@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.68.1", when = "in testing",
+		items = {
+			"\"nearest cooking fire\" and \"nearest moonwell\" (needs Questie or QuestieDB).",
+		},
+	},
+	{
 		v = "0.68.0", when = "released October 2026",
 		items = {
 			".console: a Linux-like console over everything Terminal knows: ls, cd, cat, grep, pipes, up to four panes.",
@@ -41,15 +47,6 @@ CL.LOG = {
 			"\"bag quests\" lists the bags you can still get from quests.",
 			"Sort either way: pick a sort again to flip it; \"farthest innkeeper\" too.",
 			"Upgrades by talent tree (.weights fury, holy, bear), or your own Pawn scale.",
-		},
-	},
-	{
-		v = "0.65.0", when = "released October 2026",
-		items = {
-			"\"mounts\", \"my pets\" and \"toys\" list your collections; Enter summons or uses one.",
-			"\"buyback\" lists what you've sold since you logged in; at a vendor, Enter buys one back.",
-			"Low on arrows or a class reagent? The empty prompt suggests the nearest vendor.",
-			"is:enchanted and is:unenchanted for your gear, bank and alts.",
 		},
 	},
 }

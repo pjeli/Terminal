@@ -13,24 +13,32 @@ local ZoneName = I.ZoneName
 
 -- words -> the kind of object (its list's id)
 I.OBJECT_KINDS = { mailbox = "mailbox", mailboxes = "mailbox", mail = "mailbox", post = "mailbox",
-	forge = "forge", forges = "forge", anvil = "anvil", anvils = "anvil" }
+	forge = "forge", forges = "forge", anvil = "anvil", anvils = "anvil",
+	["cooking fire"] = "cookingfire", ["cooking fires"] = "cookingfire", cookingfire = "cookingfire", cookingfires = "cookingfire",
+	moonwell = "moonwell", moonwells = "moonwell" }
 -- each kind's object names, lowercase: every object of one of these exact names counts (0.67.10, the player: forges and
 -- anvils for blacksmiths and engineers; WoW Forever's QuestieDB has 70 forge and 193 anvil spots, Ironforge's own forge
--- named The Great Forge)
-I.OBJECT_NAMES = { mailbox = { "mailbox" }, forge = { "forge", "the great forge" }, anvil = { "anvil" } }
+-- named The Great Forge. 0.68.1, the player: cooking fires and moonwells, only objects of exactly that name, 12 Cooking
+-- Fire and 31 Moonwell spots: no campfires or bonfires, no moonwell with a name of its own)
+I.OBJECT_NAMES = { mailbox = { "mailbox" }, forge = { "forge", "the great forge" }, anvil = { "anvil" },
+	cookingfire = { "cooking fire" }, moonwell = { "moonwell" } }
 -- each kind's rows: their name and icon
 I.OBJECT_LOOK = {
 	mailbox = { label = L["Mailbox"], icon = "Interface\\Icons\\INV_Letter_15" },
 	forge = { label = L["Forge"], icon = "Interface\\Icons\\Trade_Mining" },
 	anvil = { label = L["Anvil"], icon = "Interface\\Icons\\Trade_BlackSmithing" },
+	cookingfire = { label = L["Cooking Fire"], icon = "Interface\\Icons\\INV_Misc_Food_15" },
+	moonwell = { label = L["Moonwell"], icon = "Interface\\Icons\\Spell_Nature_StarFall" },
 }
 I.OBJECTS_NEAR = 8 -- (the nearest this many are listed)
 
 -- instance entrances: their own lists (@dungeon, @raid), not QuestieDB objects
 I.ENTRANCE_KINDS = { dungeon = "dungeon", dungeons = "dungeon", instance = "dungeon", instances = "dungeon", raid = "raid", raids = "raid" }
---- The kind of thing the search words name ("mailbox", "dungeon"), or nil. Only when that's all they name.
+--- The kind of thing the search words name ("mailbox", "dungeon", "cooking fire"), or nil. Only when that's all they name.
 function I.ObjectKind(tokens)
-	if not tokens or #tokens ~= 1 then return nil end
+	if not tokens then return nil end
+	if #tokens == 2 then return I.OBJECT_KINDS[tokens[1] .. " " .. tokens[2]] end
+	if #tokens ~= 1 then return nil end
 	return I.OBJECT_KINDS[tokens[1]] or I.ENTRANCE_KINDS[tokens[1]]
 end
 

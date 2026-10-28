@@ -21,7 +21,7 @@ SV.GROUPS = {
 		levels = { off = 0, on = 1 }, default = "on" },
 	{ name = "talents", keys = { "talentCache", "talentDesc" }, label = L["every class's talents"], rebuilt = true, lists = { "talents" },
 		levels = { off = 0, on = 1 }, default = "on" },
-	{ name = "objects", keys = { "objectIndex" }, label = L["Questie's mailboxes and objects"], rebuilt = true, lists = { "mailbox", "forge", "anvil" },
+	{ name = "objects", keys = { "objectIndex" }, label = L["Questie's mailboxes and objects"], rebuilt = true, lists = { "mailbox", "forge", "anvil", "cookingfire", "moonwell" },
 		levels = { off = 0, on = 1 }, default = "on" },
 	{ name = "loot", keys = { "lootLog" }, label = L["loot log"], lists = { "lootlog" },
 		levels = { off = 0, small = 100, normal = 250, large = 500 }, default = "normal", unit = L["drops"] },

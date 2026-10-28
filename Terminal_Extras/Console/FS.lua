@@ -1195,6 +1195,8 @@ FS.GROUPS.recipes = { function(e) return e.profName end }
 FS.GROUPS.mailbox = { function(e) return e.zone end }
 FS.GROUPS.forge = FS.GROUPS.mailbox
 FS.GROUPS.anvil = FS.GROUPS.mailbox
+FS.GROUPS.cookingfire = FS.GROUPS.mailbox
+FS.GROUPS.moonwell = FS.GROUPS.mailbox
 
 -- Questie's NPCs: /npc/<zone>/<role>/<npc> (an NPC with no role, most monsters, right in its zone; one whose zone
 -- isn't known stays at the top). The role is its first in FS.ROLES' order (a vendor that repairs: repair).
@@ -1231,7 +1233,7 @@ end
 FS.MOUNTS = {
 	{ type = "atlasloot", lists = { "loot" }, names = { "AtlasLootClassic", "AtlasLoot", "AtlasLootContinued" },
 		source = function() return I and I.LoadedCore and I.LoadedCore() end },
-	{ type = "questiedb", lists = { "npc", "questie", "mailbox", "forge", "anvil" }, names = { "Questie", "QuestieDB" },
+	{ type = "questiedb", lists = { "npc", "questie", "mailbox", "forge", "anvil", "cookingfire", "moonwell" }, names = { "Questie", "QuestieDB" },
 		source = function() return ns.QuestieData and ns.QuestieData.Source() end },
 	{ type = "attune", lists = { "attune" }, names = { "Attune" },
 		source = function() return I and I.attune and I.attune.on and "Attune" or nil end },

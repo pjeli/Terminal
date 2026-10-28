@@ -239,6 +239,8 @@ I.OBJECT_LISTS = {
 	{ kind = "mailbox", color = "ffc9a0dc", aliases = { "mailbox", "mailboxes" } }, -- ("mail" is your mail: Mail.lua)
 	{ kind = "forge", color = "ffd8a878", aliases = { "forge", "forges" } },
 	{ kind = "anvil", color = "ffa8b8c8", aliases = { "anvil", "anvils" } },
+	{ kind = "cookingfire", color = "ffe89858", aliases = { "cookingfire", "cookingfires" } },
+	{ kind = "moonwell", color = "ffa0c0f0", aliases = { "moonwell", "moonwells" } },
 }
 local function SetupQuestie()
 	-- Questie, or the QuestieDB addon alone (a Blizzard-like UI with Questie's data)
@@ -264,7 +266,8 @@ local function SetupQuestie()
 		end,
 	})
 	-- @mailbox, @forge, @anvil: every one QuestieDB knows (its objects), one row per spot; sort:distance, near:, in: work
-	-- on them (forges and anvils: 0.67.10, the player's ask, for blacksmiths and engineers)
+	-- on them (forges and anvils: 0.67.10, the player's ask, for blacksmiths and engineers; cooking fires and moonwells:
+	-- 0.68.1)
 	if QD.Lib() and type(QD.Lib().Object) == "table" or (QDB() and QDB().QueryObjectSingle) then
 		for _, def in ipairs(I.OBJECT_LISTS) do
 			local kind = def.kind
