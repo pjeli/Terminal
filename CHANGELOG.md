@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.5 (in testing)
+
+- `!t` review: a linked item in the question (`!t what drops [Thunderfury]`) is read as its name, and "nothing found for ..." can no longer send half a link. Every Terminal in the guild counts the answers, whichever one answered, so the 10 s per asker, once a minute per question and 6 a minute per channel hold across all of them, and a second question asked before the first's answer waits too. A Terminal in combat, in chat lockdown or switched off no longer claims a question it then can't answer (which left it unanswered); claims wait 0.8 s for another's instead of 0.3, so two a moment apart don't both answer on a slow connection. A question is the same on every client by the asker's GUID. An asker whose class isn't known gets no class trainer instead of yours. The answer's search no longer reads the terminal's own last search's "close spellings only" flags, and leaves its items-loading wait alone. Your own `!t` says when a list is still loading. Other addons' hidden messages are skipped at once; the guild roster is matched by the name's start before the full test; old askers are forgotten.
+
 ## 0.68.4 (in testing)
 
 - `!t`: someone in your guild or group types `!t nearest innkeeper` (or `!t where is hogger`, `!t what drops thunderfury`) and one Terminal in the guild answers in the same channel, from their side: nearest to where they stand, their class trainer, their level. World facts only, never your bags, mail, alts or position. Off until you switch it on (`.ask guild on`, `.ask group on`, `.ask whisper on`); whispers only from friends, guildies and your group; a question in another language is left unanswered. `.ask test <question>` shows what it would send. Several Terminals in a guild agree on one answer with a hidden message. Your own `!t` is answered in your chat only. Design: docs/ASK.md.

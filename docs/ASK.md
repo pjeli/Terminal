@@ -12,7 +12,8 @@ Not tried in game yet: see "Trying it in game" at the end.
 ## The trigger
 
 - `!t <question>` or `!terminal <question>`, at the very start of the message, followed by a space and at least one
-  word. Case doesn't matter (`!T`, `!T WHERE...`). 120 characters at most.
+  word. Case doesn't matter (`!T`, `!T WHERE...`). 120 characters at most. A linked item or quest is read as its name
+  (`!t what drops [Thunderfury]`); the game's other codes are left out (`A.Clean`), so no line sent echoes half a link.
 - `!t` alone, or `!t help`, answers with three examples.
 - One trigger. `!` is how bot commands start in Discord, on Twitch and in WoW (`!keys` in retail party chat), and it
   stays clear of real questions starting with `?` ("? anyone up for SFK").
@@ -45,9 +46,11 @@ Marks (`?`, full-width punctuation) don't count.
 Several Terminal users in a guild all hear Bob's question. Exactly one answers:
 
 1. Each client that would answer waits a random 0.3 to 1.2 s, then sends a hidden addon message, `c:<id>:<its GUID>`,
-   on the same channel (prefix `TermAsk`). The id is a short hash of the asker's name and the question.
+   on the same channel (prefix `TermAsk`). The id is a short hash of the asker's GUID (their name when there's none)
+   and the question: the same on every client. A client in combat, in chat lockdown or switched off doesn't claim.
 2. A claim heard before your own timer ends: you drop it.
-3. After claiming, a client waits 0.3 s more. Another claim for the same id in that time: the lower GUID answers.
+3. After claiming, a client waits 0.8 s more (longer than a hidden message takes to arrive). Another claim for the
+   same id in that time: the lower GUID answers.
 4. Whispers have no claiming: only the person whispered answers.
 
 **Your own question.** If Bob runs Terminal himself, his client sees his own `!t` line, claims it at once (no wait,
@@ -98,7 +101,8 @@ answer, the GUID, else the name), then your friend list.
 
 - Never in chat lockdown (`C_ChatInfo.InChatMessagingLockdown()`; the question's text is secret then anyway), never
   while you're in combat (checked when heard and again when answering). A question more than 20 s old isn't answered.
-- One answer to an asker every 10 s; the same question from them once a minute; 6 answers a minute per channel
+- Every Terminal counts each question when it hears it and each answer, whichever Terminal gave it, so these hold
+  across all of them: one answer to an asker every 10 s; the same question from them once a minute; 6 answers a minute per channel
   (counted again when answering: questions heard together were each under it then).
 - One line sent at a time, a second apart.
 - `.debug log` traces every question heard and what became of it ("ask: Bob asked "nearest inn": answered").

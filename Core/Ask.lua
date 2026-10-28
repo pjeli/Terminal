@@ -16,7 +16,8 @@ ns.Ask = A
 
 A.PREFIX = "TermAsk"
 A.WAIT_MIN, A.WAIT_MAX = 0.3, 1.2 -- (s before claiming: a random moment, so one client is first)
-A.TIE_WAIT = 0.3 -- (s after claiming before answering: another claim meanwhile, the lower GUID answers)
+A.TIE_WAIT = 0.8 -- (s after claiming before answering: another claim meanwhile, the lower GUID answers; longer than
+-- a hidden message takes to reach the others, or two claims a moment apart both answered: 0.68.5, review)
 A.ASKER_GAP = 10 -- (s between two answers to one asker)
 A.SAME_GAP = 60 -- (s before the same question from the same asker is answered again)
 A.CHANNEL_MAX = 6 -- (answers a minute in one channel at most)
@@ -51,11 +52,19 @@ local SAID = { guild = L["guild"], group = L["group"], whisper = L["whisper"] }
 -- Reading a question
 ----------------------------------------------------------------------
 
+--- The text as words: a link's name ("[Thunderfury]" -> "Thunderfury"), the game's other codes and "|" left out. (0.68.5,
+--- review: a linked item was searched as its codes, and "nothing found for ..." echoed the question cut at 60 bytes,
+--- half a link: a broken link in a line sent.)
+function A.Clean(text)
+	text = tostring(text or ""):gsub("|H.-|h%[?(.-)%]?|h", "%1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+	return (text:gsub("|T.-|t", ""):gsub("|A.-|a", ""):gsub("|", ""))
+end
+
 --- The question after the trigger ("!t nearest inn" -> "nearest inn"; "!t" alone -> "help"), or nil when the line
---- isn't one: !t or !terminal, any case, at the start, then a space.
+--- isn't one: !t or !terminal, any case, at the start, then a space. Links are read as their names (A.Clean).
 function A.Question(text)
 	if type(text) ~= "string" or ns.Secret(text) then return nil end
-	local word, rest = text:match("^%s*!(%a+)(.*)$")
+	local word, rest = A.Clean(text):match("^%s*!(%a+)(.*)$")
 	if not word then return nil end
 	word = word:lower()
 	if word ~= "t" and word ~= "terminal" then return nil end
@@ -100,7 +109,8 @@ function A.InLocale(text, locale)
 	return true
 end
 
--- (a question's id, as every client works it out: who asked and what, lowercase)
+-- (a question's id, as every client works it out: who asked (their GUID, the same on every client; else their name)
+-- and what, lowercase)
 local function Id(sender, q)
 	local s = ns.Lower(tostring(sender or "")) .. "\n" .. ns.Lower(tostring(q or ""))
 	local h = 5381
@@ -170,10 +180,13 @@ function A.Asker(sender, guid)
 		end
 	end
 	if Safe(_G.IsInGuild) and _G.GetGuildRosterInfo then
+		-- (the name before the realm first: the whole comparison only for those, not for each of a thousand members;
+		-- 0.68.5, review)
+		local short = ns.Lower(tostring(sender or ""):match("^[^-]*"))
 		for i = 1, Num(Safe(_G.GetNumGuildMembers)) or 0 do
 			local n, _, _, level, _, zone, _, _, _, _, class, _, _, _, _, _, g = Safe(_G.GetGuildRosterInfo, i)
 			n, g = Str(n), Str(g)
-			if (guid and g == guid) or SameName(n, sender) then
+			if (guid and g == guid) or (n and ns.Lower(n:match("^[^-]*")) == short and SameName(n, sender)) then
 				who = who or { name = Ambig(sender), guid = g, level = Num(level), class = Str(class), trusted = true }
 				who.zone = who.zone or Str(zone)
 				break
@@ -207,7 +220,11 @@ end
 -- through __index, otherwise: its category, its last scan to narrow from)
 A.FRESH = { "aggregate", "place", "category", "categoryAuto", "action", "sendTo", "overviewWinner", "lastExtra", "lastScan",
 	"lastFzf", "lastOverview", "lastSearchNarrowed", "typedPicks", "showRecent", "showField", "histSearch", "fzf",
-	"pipeTrail", "args", "searchedText", "whyQ", "secondLook", "ungrouped", "dataRetry", "noPosition" }
+	"pipeTrail", "args", "searchedText", "whyQ", "secondLook", "ungrouped", "dataRetry", "noPosition",
+	-- (what a search clears as it starts, Scan.ResetFlags: cleared in the view, read through to the terminal's: its last
+	-- search's "close spellings only" made the answer's overview relaxed; 0.68.5, review)
+	"closeSpellings", "softRelaxed", "linkedGuess", "linked", "answerNote", "weightsNote", "flightNote", "missingNote",
+	"calcAnswered" }
 local FRESH = {}
 for _, k in ipairs(A.FRESH) do FRESH[k] = true end
 local VIEW = { __index = function(_, k) if not FRESH[k] then return ns.UI[k] end end }
@@ -248,7 +265,10 @@ function A.Rows(question, asker)
 	local words = {}
 	for w in tostring(question):gmatch("%S+") do if not A.YOURS[ns.Lower(w)] then words[#words + 1] = w end end
 	local text = table.concat(words, " ")
+	local F = ns.Filters
 	local tempWas, flightWas, askerWas = E and E.tempSimple, UI.flightNote, ns.Asker
+	-- (a search clears them as it starts: the terminal's own search waiting on items to load would be forgotten)
+	local loadingWas, fitWas = F and F.loading, F and F.fitMade
 	ns.Asker = { here = asker and asker.here or false, class = asker and asker.class, level = asker and asker.level }
 	if E then E.tempSimple = true end
 	-- (whatever happens in it, you're you again after: an error left in would have measured your "nearest" from Bob)
@@ -268,6 +288,7 @@ function A.Rows(question, asker)
 	ns.Asker = askerWas
 	if E then E.tempSimple = tempWas end
 	UI.flightNote = flightWas
+	if F then F.loading, F.fitMade = loadingWas, fitWas end
 	if not ok then ns:Trace("ask: " .. tostring(out)) out = {} end
 	local busy = false
 	if #out == 0 then
@@ -348,11 +369,36 @@ function Inst:Log(who, q, why)
 	ns:Trace(("ask: %s asked %q: %s"):format(tostring(who), tostring(q), why))
 end
 
--- (claims older than CLAIM_KEEP forgotten)
+-- (claims older than CLAIM_KEEP forgotten, and askers and questions past their gaps: a long session's guild chat
+-- isn't kept)
 function Inst:Prune(now)
 	for id, c in pairs(self.claims) do
 		if now - c.at > A.CLAIM_KEEP then self.claims[id], self.rivals[id] = nil, nil end
 	end
+	for k, t in pairs(self.lastAsker) do if now - t >= A.ASKER_GAP then self.lastAsker[k] = nil end end
+	for k, t in pairs(self.lastSame) do if now - t >= A.SAME_GAP then self.lastSame[k] = nil end end
+end
+
+-- (an answer in a channel, yours or another Terminal's: counted for its answers a minute)
+function Inst:Spent(chat, now)
+	local t = self.sent[chat] or {}
+	self.sent[chat] = t
+	t[#t + 1] = now
+end
+
+-- (another Terminal has it: what it answers counts here too, or the next question went to whoever hadn't answered yet)
+function Inst:Claimed(job)
+	self:Spent(job.chat, self.env.now())
+	self:Log(job.sender, job.q, "claimed")
+end
+
+-- (can this client answer it now? Asked before claiming as well: a claim it then couldn't answer silenced the rest)
+function Inst:Able(job)
+	local env = self.env
+	if not env.setting(job.set) then return "off" end
+	if env.locked() then return "lockdown" end
+	if env.combat() then return "combat" end
+	return nil
 end
 
 function Inst:ChannelFull(chat, now)
@@ -382,8 +428,8 @@ end
 --- list still loading: asked again a little later.
 function Inst:Reply(job, tries)
 	local env = self.env
-	if env.locked() then self:Log(job.sender, job.q, "lockdown") return end
-	if env.combat() then self:Log(job.sender, job.q, "combat") return end
+	local why = self:Able(job)
+	if why then self:Log(job.sender, job.q, why) return end
 	if env.now() - job.asked > A.STALE then self:Log(job.sender, job.q, "late") return end
 	-- (counted again: several questions heard at once were each under the limit then)
 	if not tries and self:ChannelFull(job.chat, env.now()) then self:Log(job.sender, job.q, "full") return end
@@ -394,12 +440,7 @@ function Inst:Reply(job, tries)
 		return
 	end
 	line = line or A.NothingLine(job.q, job.asker)
-	local now = env.now()
-	self.lastAsker[ns.Lower(job.sender)] = now
-	self.lastSame[job.id] = now
-	local t = self.sent[job.chat] or {}
-	self.sent[job.chat] = t
-	t[#t + 1] = now
+	self:Spent(job.chat, env.now())
 	self:Queue(line, job.chat, job.target)
 	self:Log(job.sender, job.q, "answered")
 end
@@ -417,7 +458,7 @@ function Inst:OnChat(event, text, sender, guid)
 	if env.locked() then self:Log(sender, q, "lockdown") return end
 	local now = env.now()
 	self:Prune(now)
-	local id = Id(sender, q)
+	local id = Id(guid or sender, q)
 	local me = env.me()
 	if guid and guid == me then
 		-- your own question: answered for you in your chat, nothing sent; claimed at once, so the others stay quiet
@@ -425,7 +466,8 @@ function Inst:OnChat(event, text, sender, guid)
 		self.claims[id] = { guid = me, at = now, mine = true }
 		pcall(env.addon, "c:" .. id .. ":" .. me, ch.chat)
 		local who = env.asker(sender, guid) or { name = Ambig(sender) }
-		local ok, line = pcall(env.answer, q, who)
+		local ok, line, busy = pcall(env.answer, q, who)
+		if ok and not line and busy then line = L["Still loading what it needs: try again in a moment."] end
 		env.print(ok and line or A.NothingLine(q, who))
 		self:Log(sender, q, "yours")
 		return
@@ -439,26 +481,33 @@ function Inst:OnChat(event, text, sender, guid)
 		self:Log(sender, q, "off")
 		return
 	end
-	local asker = env.asker(sender, guid)
-	if ch.chat == "WHISPER" and not (asker and asker.trusted) then self:Log(sender, q, "stranger") return end
+	-- (the cheap tests first: the asker is looked for in the guild roster only for a question that may be answered)
 	if not A.InLocale(q, env.locale()) then self:Log(sender, q, "language") return end
 	if env.combat() then self:Log(sender, q, "combat") return end
-	local last = self.lastAsker[ns.Lower(sender)]
+	local key = ns.Lower(sender)
+	local last = self.lastAsker[key]
 	if last and now - last < A.ASKER_GAP then self:Log(sender, q, "soon") return end
 	if self.lastSame[id] and now - self.lastSame[id] < A.SAME_GAP then self:Log(sender, q, "again") return end
 	if self:ChannelFull(ch.chat, now) then self:Log(sender, q, "full") return end
-	local job = { id = id, q = q, asker = asker or { name = Ambig(sender) }, chat = ch.chat, sender = sender, asked = now,
-		target = ch.chat == "WHISPER" and sender or nil }
+	local asker = env.asker(sender, guid)
+	if ch.chat == "WHISPER" and not (asker and asker.trusted) then self:Log(sender, q, "stranger") return end
+	-- (counted when heard, whoever answers it: a second question before the first's answer, or after another
+	-- Terminal's, waits its turn as well; 0.68.5, review)
+	self.lastAsker[key], self.lastSame[id] = now, now
+	local job = { id = id, q = q, asker = asker or { name = Ambig(sender) }, chat = ch.chat, set = ch.set, sender = sender,
+		asked = now, target = ch.chat == "WHISPER" and sender or nil }
 	if ch.chat == "WHISPER" then self:Reply(job) return end -- (only you were asked: no claiming)
-	if self.claims[id] then self:Log(sender, q, "claimed") return end
+	if self.claims[id] then self:Claimed(job) return end
 	env.after(A.WAIT_MIN + env.random() * (A.WAIT_MAX - A.WAIT_MIN), function()
-		if self.claims[id] then self:Log(sender, q, "claimed") return end
+		if self.claims[id] then self:Claimed(job) return end
+		local why = self:Able(job)
+		if why then self:Log(sender, q, why) return end
 		self.claims[id] = { guid = me, at = env.now(), mine = true }
 		self.rivals[id] = {}
 		pcall(env.addon, "c:" .. id .. ":" .. tostring(me), ch.chat)
 		env.after(A.TIE_WAIT, function()
 			for _, g in ipairs(self.rivals[id] or {}) do
-				if tostring(g) < tostring(me) then self:Log(sender, q, "claimed") return end
+				if tostring(g) < tostring(me) then self:Claimed(job) return end
 			end
 			self:Reply(job)
 		end)
@@ -526,8 +575,10 @@ do
 	f:SetScript("OnEvent", function(_, event, ...)
 		local ok, err
 		if event == "CHAT_MSG_ADDON" then
+			-- (every addon's hidden messages come here, a raid's boss timers too: the others' left at once; 0.68.5, review)
 			local prefix, msg = ...
-			ok, err = pcall(A.live.OnAddon, A.live, Str(prefix), Str(msg))
+			if Str(prefix) ~= A.PREFIX then return end
+			ok, err = pcall(A.live.OnAddon, A.live, A.PREFIX, Str(msg))
 		else
 			local text, sender = ...
 			ok, err = pcall(A.live.OnChat, A.live, event, text, sender, (select(12, ...)))
@@ -571,6 +622,7 @@ ns:RegisterCommand("ask", {
 		local first, rest = text:match("^(%S+)%s*(.*)$")
 		first = first and ns.Lower(first)
 		if first == "test" then
+			rest = A.Clean(rest):gsub("^%s+", ""):gsub("%s+$", "")
 			if rest == "" then return { L["Ask something: .ask test nearest innkeeper"] } end
 			local me = ns.CharacterName and ns.CharacterName() or "you"
 			local who = A.Asker(me, Str(Safe(UnitGUID, "player"))) or { name = me }

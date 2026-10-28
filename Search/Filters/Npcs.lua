@@ -328,7 +328,9 @@ end
 --- Your class as the trainers' titles write it ("warrior", "death knight"), from the game's class token; while
 --- Terminal answers someone's !t question, theirs (Core/Ask.lua's ns.Asker).
 local function MyClass()
-	local token = ns.Asker and ns.Asker.class or (UnitClass and select(2, UnitClass("player"))) -- (WARRIOR: the same in every language)
+	-- (WARRIOR: the same in every language. An asker whose class isn't known has none, not yours; 0.68.5, review)
+	local token
+	if ns.Asker then token = ns.Asker.class else token = UnitClass and select(2, UnitClass("player")) end
 	if type(token) ~= "string" then return nil end
 	return (token:lower():gsub("deathknight", "death knight"):gsub("demonhunter", "demon hunter"))
 end

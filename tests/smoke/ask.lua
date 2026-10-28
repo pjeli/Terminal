@@ -54,14 +54,17 @@ local function Client(net, guid, opts)
 		send = function(text, chat, target) net.said[#net.said + 1] = { from = guid, text = text, chat = chat, target = target, t = net.t } end,
 		addon = function(msg)
 			for _, o in ipairs(net.clients) do
-				if o ~= c then net.after(0.05, function() o.inst:OnAddon(A.PREFIX, msg) end) end
+				if o ~= c then net.after(net.lag or 0.05, function() o.inst:OnAddon(A.PREFIX, msg) end) end
 			end
 		end,
 		print = function(line) c.printed[#c.printed + 1] = line end,
 		locked = function() return net.locked == true end,
 		combat = function() return c.combat == true end,
 		setting = function(n) return c.settings[n] == true end,
-		asker = function(sender) return { name = sender, trusted = not (net.strangers and net.strangers[sender]) } end,
+		asker = function(sender)
+			c.askerCalls = (c.askerCalls or 0) + 1
+			return { name = sender, trusted = not (net.strangers and net.strangers[sender]) }
+		end,
 		answer = function(q, who)
 			c.asked = c.asked + 1
 			if opts.answer then return opts.answer(q, who, c.asked) end
@@ -295,4 +298,137 @@ do
 	for _, c in ipairs(ns.commands.ask.complete()) do offered[c[1]] = true end
 	check(offered["guild on"] and offered["group off"] and offered["whisper on"] and offered["test"], "Tab offers each switch")
 	rawset(ns.db, "ask", had)
+end
+
+io.write("[ask: 0.68.5 review: links, ids, limits shared, claims only when able]\n")
+do
+	local link = "|cffff8000|Hitem:19019::::::::60:::::|h[Thunderfury, Blessed Blade of the Windseeker]|h|r"
+	check(A.Question("!t what drops " .. link) == "what drops Thunderfury, Blessed Blade of the Windseeker",
+		"a linked item: read as its name: " .. tostring(A.Question("!t what drops " .. link)))
+	local q = A.Question("!t " .. link .. " " .. link)
+	check(q and not A.NothingLine(q, { name = "Bob" }):find("|", 1, true), "nothing found: the line never carries half a link")
+	-- the same question seen as Bob by one client and Bob-Realm by another: one question (its GUID)
+	local net = Net()
+	local a = Client(net, "Player-1-00000002", { rand = 0.1 })
+	local b = Client(net, "Player-1-00000003", { rand = 0.9 })
+	a.inst:OnChat("CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob", BOB)
+	b.inst:OnChat("CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob-Realm", BOB)
+	net.run(5)
+	check(#net.said == 1, "one question whatever name each client sees: " .. #net.said)
+	-- another Terminal answered Bob: this one waits his turn too
+	net = Net()
+	a = Client(net, "Player-1-00000002", { rand = 0.1 })
+	b = Client(net, "Player-1-00000003", { rand = 0.9 })
+	Say(net, "CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob", BOB)
+	net.run(3)
+	Say(net, "CHAT_MSG_GUILD", "!t nearest mailbox", "Bob", BOB)
+	net.run(3)
+	check(#net.said == 1 and b.inst.log[1].why == "soon", "one asker: not again soon, whichever Terminal answered: " .. #net.said)
+	-- two questions at once from one asker: the second waits
+	Say(net, "CHAT_MSG_GUILD", "!t nearest anvil", "Cid", "Player-1-00000C1D")
+	Say(net, "CHAT_MSG_GUILD", "!t nearest forge", "Cid", "Player-1-00000C1D")
+	net.run(5)
+	check(#net.said == 2, "two at once from one asker: one answered: " .. #net.said)
+	-- answers a minute in a channel: counted by every Terminal
+	net = Net()
+	a = Client(net, "Player-1-00000002", { rand = 0.1 })
+	b = Client(net, "Player-1-00000003", { rand = 0.9 })
+	for i = 1, A.CHANNEL_MAX + 1 do
+		Say(net, "CHAT_MSG_GUILD", "!t where is hogger", "Asker" .. i, "Player-1-0000E0" .. i)
+		net.run(3)
+	end
+	check(#net.said == A.CHANNEL_MAX, "at most " .. A.CHANNEL_MAX .. " a minute, whichever Terminal answered: " .. #net.said)
+	-- in combat before claiming: it doesn't claim, another answers
+	net = Net()
+	local first = Client(net, "Player-1-00000002", { rand = 0 })
+	local second = Client(net, "Player-1-00000003", { rand = 1 })
+	Say(net, "CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob", BOB)
+	net.run(0.1)
+	first.combat = true
+	net.run(5)
+	check(#net.said == 1 and net.said[1].from == second.guid, "in combat before claiming: another Terminal answers: " .. #net.said)
+	-- switched off between hearing and claiming: nothing
+	net = Net()
+	local c = Client(net, "Player-1-00000001")
+	Say(net, "CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob", BOB)
+	net.run(0.1)
+	c.settings.guild = nil
+	net.run(5)
+	check(#net.said == 0 and c.inst.log[1].why == "off", ".ask guild off meanwhile: not answered")
+	-- claims a moment apart, slower than that to arrive: still one answer
+	net = Net()
+	net.lag = 0.5
+	local hi = Client(net, "Player-1-00000009", { rand = 0.1 })
+	local lo = Client(net, "Player-1-00000004", { rand = 0.2 })
+	Say(net, "CHAT_MSG_GUILD", "!t nearest mailbox", "Bob", BOB)
+	net.run(5)
+	check(#net.said == 1 and net.said[1].from == lo.guid and hi.asked == 0, "half a second to arrive: one answer: " .. #net.said)
+	-- your own question while a list is loading: said so, not "nothing found"
+	net = Net()
+	local me = Client(net, BOB, { answer = function() return nil, true end })
+	Say(net, "CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob", BOB)
+	check(me.printed[1] and me.printed[1]:find("loading", 1, true), "your own, still loading: " .. tostring(me.printed[1]))
+	-- askers and questions forgotten once past their gaps; the roster looked in only for a question that may be answered
+	net = Net()
+	c = Client(net, "Player-1-00000001")
+	Say(net, "CHAT_MSG_GUILD", "!t nearest innkeeper", "Bob", BOB)
+	net.run(5)
+	local calls = c.askerCalls
+	Say(net, "CHAT_MSG_GUILD", "!t nearest mailbox", "Bob", BOB)
+	Say(net, "CHAT_MSG_GUILD", "!t n\195\164chster gastwirt", "Ann", "Player-1-00000A00")
+	check(c.askerCalls == calls, "too soon, another language: the asker not looked for")
+	net.run(120)
+	Say(net, "CHAT_MSG_GUILD", "!t nearest anvil", "Dan", "Player-1-00000DA0")
+	check(c.inst.lastAsker.bob == nil and c.inst.lastSame[A.Id(BOB, "nearest innkeeper")] == nil, "old askers and questions forgotten")
+end
+
+io.write("[ask: 0.68.5 review: the answer's search, apart from the terminal's]\n")
+do
+	-- every flag a search clears as it starts is the view's own (else the terminal's was read through it)
+	local cleared = {}
+	UI._Scan.ResetFlags(setmetatable({}, { __newindex = function(_, k) cleared[#cleared + 1] = k end }))
+	local fresh, missing = {}, {}
+	for _, k in ipairs(A.FRESH) do fresh[k] = true end
+	for _, k in ipairs(cleared) do if not fresh[k] then missing[#missing + 1] = k end end
+	check(#cleared > 0 and #missing == 0, "a search's flags read as the answer's own: " .. table.concat(missing, ", "))
+	local F = ns.Filters
+	F.loading = "the terminal's"
+	A.Rows("zzqq nothing", { name = "Bob" })
+	check(F.loading == "the terminal's", "the terminal's search waiting on items: still waiting")
+	F.loading = nil
+	-- an asker whose class isn't known: no class trainer, not yours
+	local meta = ns:CompactMeta({ id = "npc", label = "NPC" }, {}, {})
+	local mage = setmetatable({ _compact = true, key = 71001, name = "Jennea", sub = "Mage Trainer" }, meta)
+	local classWas = _G.UnitClass
+	_G.UnitClass = function() return "Mage", "MAGE" end
+	ns.Asker = { here = false }
+	local ok, yes = pcall(function() return F.Parse("trainer:class")(mage) end)
+	ns.Asker = nil
+	local _, mine = pcall(function() return F.Parse("trainer:class")(mage) end)
+	_G.UnitClass = classWas
+	check(ok and not yes and mine == true, "class unknown: not your class's trainer (yours still yours): " .. tostring(yes))
+end
+
+io.write("[ask: 0.68.5 review: other addons' hidden messages left at once]\n")
+do
+	local onAddon, n = A.live.OnAddon, 0
+	A.live.OnAddon = function() n = n + 1 end
+	A.frame:GetScript("OnEvent")(A.frame, "CHAT_MSG_ADDON", "DBM-Core", "timer", "RAID", "Someone")
+	A.frame:GetScript("OnEvent")(A.frame, "CHAT_MSG_ADDON", A.PREFIX, "c:1:x", "GUILD", "Someone")
+	A.live.OnAddon = onAddon
+	check(n == 1, "only Terminal's own claims read: " .. n)
+	-- the guild roster: the whole name test only for members whose name starts the same
+	local was = { rawget(_G, "IsInGuild"), rawget(_G, "GetNumGuildMembers"), rawget(_G, "GetGuildRosterInfo"), rawget(_G, "Ambiguate") }
+	local amb = 0
+	_G.IsInGuild = function() return true end
+	_G.GetNumGuildMembers = function() return 300 end
+	_G.GetGuildRosterInfo = function(i)
+		if i == 300 then return "Bob-Realm", "", 0, 23, "Mage", "Elwynn Forest", "", "", true, 0, "MAGE" end
+		return "Member" .. i .. "-Realm", "", 0, 60, "Warrior", "Orgrimmar", "", "", true, 0, "WARRIOR"
+	end
+	_G.Ambiguate = function(name) amb = amb + 1 return (tostring(name):gsub("%-.*$", "")) end
+	local who = A.Asker("Bob-Realm", nil)
+	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo, _G.Ambiguate = was[1], was[2], was[3], was[4]
+	check(who and who.level == 23 and who.class == "MAGE", "Bob found in the roster")
+	check(amb < 10, "the whole name test for a few members, not all 300: " .. amb)
 end
