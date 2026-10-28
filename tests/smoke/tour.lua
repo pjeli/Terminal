@@ -167,8 +167,32 @@ do
 	local _, qs = StepTitled(L["The nearest of anything (Questie)"])
 	local _, as = StepTitled(L["Upgrades (AtlasLoot)"])
 	local _, ts = StepTitled(L["Keys and attunements (Attune)"])
-	check(qs and qs.text == "nearest mailbox" and as and as.text == "upgrades" and ts and ts.text == "how do i get the dalaran key",
-		"all installed: their steps search with them, Attune's the Dalaran key: " .. Titles())
+	local nearestOf = {}
+	for _, n in ipairs(ns.Tour.NEAREST) do nearestOf[n[1]] = n end
+	check(qs and nearestOf[qs.text] and as and as.text == "upgrades" and ts and ts.text == "how do i get the dalaran key",
+		"all installed: their steps search with them, Attune's the Dalaran key: " .. Titles() .. " / " .. tostring(qs and qs.text))
+	-- (0.68.1, the player's ask) the Questie step's search at random: a vendor, an anvil, a forge...; an object's only when
+	-- its list is there
+	do
+		local rnd, seen = math.random, {}
+		for i = 1, #ns.Tour.NEAREST do
+			math.random = function(n) return math.min(i, n) end
+			seen[ns.Tour.NearestText()] = true
+		end
+		local held = ns.providers.anvil
+		ns.providers.anvil = nil
+		local noAnvil = true
+		for i = 1, #ns.Tour.NEAREST do
+			math.random = function(n) return math.min(i, n) end
+			if ns.Tour.NearestText() == "nearest anvil" then noAnvil = false end
+		end
+		ns.providers.anvil = held
+		math.random = rnd
+		local n = 0
+		for _ in pairs(seen) do n = n + 1 end
+		check(n >= 4 and seen["nearest vendor"] and noAnvil, "the tour's nearest step varies (" .. n .. " searches), "
+			.. "no anvil without its list")
+	end
 	check(not StepTitled(L["More with addons"]) and StepTitled(L["Find a setting"]), "...no card to install any; a setting found too")
 	-- (0.53.7, the player's ask) What's Training's: what you can train
 	local _, ws = StepTitled(L["What to train (What's Training or TrainerSpells)"])

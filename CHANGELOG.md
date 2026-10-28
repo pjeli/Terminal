@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.2 (in testing)
+
+- `.tour`'s Questie step searches a different "nearest" each time, at random: vendor, innkeeper, repair, trainer, mailbox, anvil, forge or cooking fire (an object only when QuestieDB has its list).
+
 ## 0.68.1 (in testing)
 
 - "nearest cooking fire" and "nearest moonwell" (also "closest", "farthest", "2 moonwells"), and `@cookingfire` / `@moonwell` in Advanced with `sort:distance`, `near:` and `in:`: QuestieDB's objects named exactly Cooking Fire (12) and Moonwell (31), as "nearest anvil" does; no campfires or bonfires. The console has `/cookingfire` and `/moonwell`.

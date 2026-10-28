@@ -99,6 +99,19 @@ local function SettingText()
 	return Random(there) or known[#known]
 end
 
+--- The Questie step's search, at random (0.68.1, the player's ask): an NPC everyone needs, or a mailbox, anvil, forge or
+--- cooking fire (an object's only when its list is there: QuestieDB with objects). Each is found on both continents.
+T.NEAREST = { { "nearest vendor" }, { "nearest innkeeper" }, { "nearest repair" }, { "nearest trainer" },
+	{ "nearest mailbox", "mailbox" }, { "nearest anvil", "anvil" }, { "nearest forge", "forge" },
+	{ "nearest cooking fire", "cookingfire" } }
+function T.NearestText()
+	local there = {}
+	for _, n in ipairs(T.NEAREST) do
+		if not n[2] or (ns.providers and ns.providers[n[2]]) then there[#there + 1] = n[1] end
+	end
+	return Random(there) or "nearest vendor"
+end
+
 --- "Say what to do" (0.51.25, the player: "use elixir of fortitude" is no quicker than your bags): a kind of thing, not
 --- its name, that something in your bags is: "use stamina food", "equip shield"; else "use food". Its line and the
 --- filters its rows pass, or nil.
@@ -190,8 +203,8 @@ function T.Steps()
 	local missing = {}
 	for _, m in ipairs(MISSING) do if not HasAddon(m.name) then missing[#missing + 1] = m end end
 	if HasAddon("Questie") then
-		Add({ text = "nearest mailbox", pick = "first", title = L["The nearest of anything (Questie)"],
-			say = L["With Questie, Terminal knows every NPC and quest: ask for the nearest mailbox, innkeeper, trainer or vendor, and each row says how far it is while an arrow points the way."] })
+		Add({ text = T.NearestText(), pick = "first", title = L["The nearest of anything (Questie)"],
+			say = L["With Questie, Terminal knows every NPC and quest: ask for the nearest vendor, innkeeper, mailbox, anvil or forge, and each row says how far it is while an arrow points the way."] })
 	end
 	if HasAddon("AtlasLoot") then
 		Add({ text = "upgrades", pick = function(e) return e.catId == "loot" or e.kind == "loot" end,
