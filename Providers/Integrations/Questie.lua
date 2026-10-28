@@ -270,7 +270,7 @@ local function ShowNpc(e)
 end
 
 local function NpcPin(e)
-	local mapID, pos = NpcLocation(e.npcID)
+	local mapID, pos = NpcLocation(e.npcID or (e.kind == "npc" and rawget(e, "key")) or nil)
 	local name = e.npcName or e.name
 	if not mapID then
 		ns:Print(L["Questie has no known location for %s."]:format(name))
@@ -280,6 +280,8 @@ local function NpcPin(e)
 		ns:Print(L["Can't set a waypoint there."])
 	end
 end
+
+I.NpcPin = NpcPin -- (the console's pin)
 
 --- A map pin link where the NPC stands, for chat (>> party): the waypoint is set (a C API), then its link.
 function I.NpcPinLink(e)

@@ -55,7 +55,11 @@ local kept = {} -- Terminal's frames already set to ignore UIParent's alpha
 local hidden = {} -- Z.HIDE's frames this fade hid (shown again as it ends)
 local watching = false
 
-local function On() return ns.db and ns.db.zen == true end
+-- (.console is always zen, whatever .zen says: Z.Force while it shows)
+local function On() return Z.forced == true or (ns.db and ns.db.zen == true) end
+
+--- The console (Apps/Console/Console.lua) fades the interface whatever .zen says, while it shows.
+function Z.Force(on) Z.forced = on and true or nil end
 
 local Safe, Num = ns.Safe, ns.Num
 

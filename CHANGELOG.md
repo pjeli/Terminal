@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.67.8 (in testing)
+
+- `.console` (also `.tty`): a Linux-like console over Terminal's lists (docs/CONSOLE.md). Lists are folders and rows files (`ls`, `cd`, `cat` = the tooltip, `grep` over stats and tooltips), pipes, aliases, history, `z`, up to four tiled panes, themes and prompts, the panes kept over a /reload, passwords masked, long lines slid sideways (Shift+wheel, Left/Right).
+- `.console` and `.atop` live in Terminal Extras, loaded the first time one is run. The console's history, panes and folders are kept in TerminalCache.lua (`.saved clear console`).
+
 ## 0.67.7 (in testing)
 
 - Saved data in two files: Terminal.lua keeps only settings, tabs, picks and search history; logs, item and loot indexes, talents, mail, recipes and the like are in TerminalCache.lua (safe to delete), written packed (about half the size). An old Terminal.lua is moved over at the first load.

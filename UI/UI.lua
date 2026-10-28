@@ -988,8 +988,11 @@ function UI:Open(text, opts)
 	-- when an app opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took
 	-- the keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
 	if ns.Panel and ns.Panel.Registered then
+		-- (an app in a .console pane isn't closed: the console steps out, hiding it until .console brings it back)
+		local keeps = ns.Panel.Keeps
 		for _, app in ipairs(ns.Panel.Registered()) do
-			if type(app.IsShown) == "function" and app.IsShown() and type(app.Close) == "function" then app.Close() end
+			if type(app.IsShown) == "function" and app.IsShown() and type(app.Close) == "function"
+				and not (keeps and app ~= ns.Console and keeps(app)) then app.Close() end
 		end
 	end
 	self.combatState = nil -- (opened: nothing to bring back when the fight is over; UI:ComeBack takes it out first)

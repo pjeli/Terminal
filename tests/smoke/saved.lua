@@ -194,3 +194,20 @@ ns.db = SV.Load()
 ns.ItemStore.NewSession()
 check(ns.db == was.db, "the run's own saved variables back")
 check(ok, "saved: " .. tostring(err))
+
+io.write("[saved: the console's records in the cache file, its settings in Terminal.lua]\n")
+do
+	local SH = ns.Shell
+	local raw = _G.TerminalDB
+	local had, hadData = rawget(raw, "console"), ns.db.consoleData
+	rawset(raw, "console", { history = { "ls" }, session = { layout = "wide" }, z = { ["/bags"] = { r = 1, t = 0 } }, theme = "dracula" })
+	ns.db.consoleData = nil
+	local d = SH.Data()
+	local c = rawget(raw, "console")
+	check(d.history[1] == "ls" and d.session.layout == "wide" and d.z["/bags"] and c.history == nil and c.session == nil
+		and c.z == nil, "records kept in db.console before are moved to the cache file")
+	check(c.theme == "dracula" and rawget(raw, "consoleData") == nil and _G.TerminalCacheDB.consoleData == d,
+		"the theme stays a setting; the records are in TerminalCache.lua")
+	rawset(raw, "console", had)
+	ns.db.consoleData = hadData
+end

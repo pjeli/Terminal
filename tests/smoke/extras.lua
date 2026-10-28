@@ -11,6 +11,11 @@ do
 	-- the harness loaded the extras: their real commands replaced the stand-ins
 	check(ns.commands.snake ~= X.stubs.snake and ns.commands.typing ~= X.stubs.typing, "loaded: the real commands")
 	check(ns:FindCommand("wpm") == ns.commands.typing and ns:FindCommand("radio") == ns.commands.wowamp, "aliases reach them")
+	-- .atop and the console are the extras' too: Terminal itself loads neither, its stand-ins load them
+	local toc = io.open("Terminal/Terminal.toc"):read("*a")
+	check(X.stubs.atop and X.stubs.console and ns.commands.atop ~= X.stubs.atop and ns.commands.console ~= X.stubs.console
+		and ns.Console and ns.Atop and not toc:find("Atop", 1, true) and not toc:find("Console", 1, true),
+		".atop and .console: in the extras, with stand-ins in Terminal")
 	-- as the game starts: only the stand-ins; running one loads the extras, which put the real one in its place
 	local real = { snake = ns.commands.snake, typing = ns.commands.typing }
 	ns.commands.snake = X.stubs.snake

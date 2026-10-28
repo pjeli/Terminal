@@ -35,6 +35,7 @@ SV.GROUPS = {
 		label = L["mail and auctions"] },
 	{ name = "vendors", keys = { "vendorItems", "repairVendor", "buyback" }, label = L["vendors and buyback"] },
 	{ name = "books", keys = { "lore" }, label = L["books read"] },
+	{ name = "console", keys = { "consoleData" }, label = L["the console's history, panes and folders"] },
 	{ name = "other", keys = { "typingBest", "snakeBest", "tetrisBest", "lootrunBest" }, label = L["other records"] },
 }
 SV.KEY = {} -- (cache key -> its group)

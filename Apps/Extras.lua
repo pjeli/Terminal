@@ -1,7 +1,8 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Terminal Extras: the games and the radio (.snake, .tetris, .lootrun, .typing, .wowamp) live in an addon of their own
+-- Terminal Extras: the games and the radio (.snake, .tetris, .lootrun, .typing, .wowamp), .atop and the console live in an
+-- addon of their own
 -- that comes with Terminal (the Terminal_Extras folder: ## LoadOnDemand, ## Dependencies: Terminal), loaded the first
 -- time one is asked for, so Terminal alone doesn't carry them (0.47.8, the player's ask). Their commands are here as
 -- stand-ins with the same names, words and descriptions: running one loads the extras (C_AddOns.LoadAddOn), whose own
@@ -22,6 +23,11 @@ X.COMMANDS = {
 	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" },
 		-- (what it takes before the extras are loaded: its stations come with them; review, 0.48.6)
 		function() return { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } } end },
+	-- (.atop and the console moved here too, the player's call: Terminal alone doesn't carry them)
+	{ "atop", L["AddOn top: your addons' CPU and memory, live (type to filter, Tab sort, Esc closes)"], { "top", "htop" } },
+	{ "console", L["A console over everything Terminal knows: lists as directories, rows as files, ls, cd, cat, grep, pipes; up to four panes (` steps out, .console comes back; .console reset starts again)"],
+		{ "tty", "tsh" },
+		function() return { { "reset", L["close every pane and start again"] }, { "font", L["the console's text size: a number, + or -, or reset"] } } end },
 }
 
 ----------------------------------------------------------------------

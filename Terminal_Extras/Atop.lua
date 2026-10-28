@@ -1,4 +1,6 @@
-local ns = select(2, ...)
+-- (Terminal Extras, a load-on-demand addon of its own: Terminal's namespace is its public table, _G.Terminal)
+local ns = _G.Terminal
+if not ns then return end
 local L = ns.L
 
 -- .atop: the terminal turns into atop, "AddOn top": a small btop (the Linux system monitor) for your addons. A CPU graph
