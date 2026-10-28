@@ -25,6 +25,7 @@ Not tried in game yet: see "Trying it in game" at the end.
 |---|---|---|
 | Guild | when switched on | the main place |
 | Party, raid, instance | when switched on | answered in the same channel (party in an instance group: instance chat) |
+| Battleground instance chat | never | strangers; not even told about (your premade party's party chat is still answered) |
 | Whisper to you | when switched on | only from friends, guildies and your group; only you were asked: no claiming |
 | Officer | no | |
 | Say, yell, trade, general, other channels | never | sending there needs a key press, and answering strangers is spam |

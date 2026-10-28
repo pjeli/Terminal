@@ -3204,4 +3204,5 @@ L["too many answers this minute"] = "слишком много ответов з
 L["what Terminal would answer you, sent nowhere: .ask test nearest innkeeper"] = "что Terminal ответил бы вам, никуда не отправляя: .ask test nearest innkeeper"
 L["you were in combat"] = "вы были в бою"
 L["your own: answered for you"] = "ваш собственный: отвечено для вас"
+L["battleground chat: never answered"] = "чат поля боя: без ответа"
 --@end-do-not-package@

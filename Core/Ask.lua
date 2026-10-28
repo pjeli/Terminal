@@ -36,13 +36,14 @@ A.ALLOW = { npc = true, questie = true, loot = true, mailbox = true, forge = tru
 -- words asking what you've learned (your flight paths): taken out, the answer is the world's
 A.YOURS = { learned = true, unlearned = true, known = true, unknown = true, missing = true }
 
--- the chat events heard: the setting that lets them be answered, and the chat type the answer goes to
+-- the chat events heard: the setting that lets them be answered, and the chat type the answer goes to (`instance`:
+-- never in a battleground, where the instance group is strangers; 0.68.6, the player's call)
 A.CHANNELS = {
 	CHAT_MSG_GUILD = { set = "guild", chat = "GUILD" },
 	CHAT_MSG_PARTY = { set = "group", chat = "PARTY" }, CHAT_MSG_PARTY_LEADER = { set = "group", chat = "PARTY" },
 	CHAT_MSG_RAID = { set = "group", chat = "RAID" }, CHAT_MSG_RAID_LEADER = { set = "group", chat = "RAID" },
-	CHAT_MSG_INSTANCE_CHAT = { set = "group", chat = "INSTANCE_CHAT" },
-	CHAT_MSG_INSTANCE_CHAT_LEADER = { set = "group", chat = "INSTANCE_CHAT" },
+	CHAT_MSG_INSTANCE_CHAT = { set = "group", chat = "INSTANCE_CHAT", instance = true },
+	CHAT_MSG_INSTANCE_CHAT_LEADER = { set = "group", chat = "INSTANCE_CHAT", instance = true },
 	CHAT_MSG_WHISPER = { set = "whisper", chat = "WHISPER" },
 }
 A.SETTINGS = { "guild", "group", "whisper" }
@@ -348,7 +349,7 @@ Inst.__index = Inst
 
 --- A client over `env`: me() (your GUID), now(), after(s, f), random() (0-1), send(text, chat, target),
 --- addon(msg, chat, target), print(line), locked(), combat(), setting(name), asker(sender, guid), answer(q, asker)
---- -> line, busy; locale().
+--- -> line, busy; locale(); battleground() (in one: its instance chat isn't answered).
 function A.New(env)
 	return setmetatable({ env = env, claims = {}, rivals = {}, lastAsker = {}, lastSame = {}, sent = {}, queue = {},
 		told = {}, log = {} }, Inst)
@@ -360,7 +361,7 @@ local REASON = {
 	language = L["another language"], combat = L["you were in combat"], lockdown = L["chat was locked"],
 	soon = L["asked again too soon"], again = L["the same question again"], full = L["too many answers this minute"],
 	claimed = L["another Terminal answered"], late = L["too late"], yours = L["your own: answered for you"],
-	quiet = L["nothing to say"],
+	quiet = L["nothing to say"], battleground = L["battleground chat: never answered"],
 }
 function Inst:Log(who, q, why)
 	local log = self.log
@@ -472,6 +473,8 @@ function Inst:OnChat(event, text, sender, guid)
 		self:Log(sender, q, "yours")
 		return
 	end
+	-- (a battleground's chat: strangers, never answered, nor told about; your premade party's is still your group's)
+	if ch.instance and env.battleground and env.battleground() then self:Log(sender, q, "battleground") return end
 	if not env.setting(ch.set) then
 		if not self.told[ch.set] then
 			self.told[ch.set] = true
@@ -563,6 +566,10 @@ A.GAME = {
 	asker = function(sender, guid) return A.Asker(sender, guid) end,
 	answer = function(q, asker) return A.AnswerLine(q, asker) end,
 	locale = function() return Str(Safe(GetLocale)) or "enUS" end,
+	battleground = function()
+		local _, kind = Safe(IsInInstance)
+		return kind == "pvp" or kind == "arena"
+	end,
 }
 A.live = A.New(A.GAME)
 

@@ -71,6 +71,7 @@ local function Client(net, guid, opts)
 			return "Terminal (" .. who.name .. "): about " .. q
 		end,
 		locale = function() return opts.locale or "enUS" end,
+		battleground = function() return net.bg == true end,
 	})
 	net.clients[#net.clients + 1] = c
 	return c
@@ -431,4 +432,23 @@ do
 	_G.IsInGuild, _G.GetNumGuildMembers, _G.GetGuildRosterInfo, _G.Ambiguate = was[1], was[2], was[3], was[4]
 	check(who and who.level == 23 and who.class == "MAGE", "Bob found in the roster")
 	check(amb < 10, "the whole name test for a few members, not all 300: " .. amb)
+end
+
+io.write("[ask: 0.68.6, the player's call: never in a battleground's chat]\n")
+do
+	local net = Net()
+	net.bg = true
+	local c = Client(net, "Player-1-00000001")
+	Say(net, "CHAT_MSG_INSTANCE_CHAT", "!t nearest innkeeper", "Zed", "Player-1-0000ZED0")
+	net.run(5)
+	check(#net.said == 0 and c.asked == 0 and #c.printed == 0 and c.inst.log[1].why == "battleground",
+		"battleground chat: not answered, nothing told: " .. #net.said)
+	Say(net, "CHAT_MSG_PARTY", "!t nearest mailbox", "Bob", BOB)
+	net.run(5)
+	check(#net.said == 1 and net.said[1].chat == "PARTY", "your premade party in it: still answered")
+	net = Net()
+	Client(net, "Player-1-00000001")
+	Say(net, "CHAT_MSG_INSTANCE_CHAT", "!t nearest innkeeper", "Bob", BOB)
+	net.run(5)
+	check(#net.said == 1 and net.said[1].chat == "INSTANCE_CHAT", "a dungeon's instance chat: answered")
 end

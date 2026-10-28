@@ -3204,4 +3204,5 @@ L["too many answers this minute"] = "trop de réponses cette minute"
 L["what Terminal would answer you, sent nowhere: .ask test nearest innkeeper"] = "ce que Terminal te répondrait, envoyé nulle part : .ask test nearest innkeeper"
 L["you were in combat"] = "tu étais en combat"
 L["your own: answered for you"] = "la tienne : répondue pour toi"
+L["battleground chat: never answered"] = "canal de champ de bataille : jamais de réponse"
 --@end-do-not-package@

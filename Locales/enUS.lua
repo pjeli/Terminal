@@ -2147,6 +2147,7 @@ L["bags "] = true
 L["bank"] = true
 L["banker"] = true
 L["bankers"] = true
+L["battleground chat: never answered"] = true
 L["battlemaster"] = true
 L["battlemasters"] = true
 L["before %s"] = true

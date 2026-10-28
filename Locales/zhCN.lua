@@ -3204,4 +3204,5 @@ L["too many answers this minute"] = "这一分钟回答太多了"
 L["what Terminal would answer you, sent nowhere: .ask test nearest innkeeper"] = "Terminal 会如何回答你，不发送：.ask test nearest innkeeper"
 L["you were in combat"] = "你在战斗中"
 L["your own: answered for you"] = "你自己的：已为你回答"
+L["battleground chat: never answered"] = "战场聊天：从不回答"
 --@end-do-not-package@
