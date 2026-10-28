@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.3 (in testing)
+
+- `.saved keep talents small`: every class's talents are kept between sessions without their descriptions (most of that part's size, about 57 KB); the descriptions are read from the game again each session. `off` and `on` are as before.
+
 ## 0.68.2 (in testing)
 
 - `.tour`'s Questie step searches a different "nearest" each time, at random: vendor, innkeeper, repair, trainer, mailbox, anvil, forge or cooking fire (an object only when QuestieDB has its list).

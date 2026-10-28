@@ -2444,6 +2444,7 @@ L["keep the most"] = true
 L["keep typing, or Esc to close"] = true
 L["keep: %s"] = true
 L["keep: %s (%d %s)"] = true
+L["keep: %s (%s)"] = true
 L["kept until cleared"] = true
 L["key"] = true
 L["key bindings"] = true
@@ -3128,6 +3129,7 @@ L["with is:upgrade: the biggest upgrades first, by how much each beats what you 
 L["with its list"] = true
 L["within %s yards"] = true
 L["without \"%s\""] = true
+L["without their descriptions"] = true
 L["words in quotes are found together, as they are: \"outlaw saber\""] = true
 L["words, @kinds, filters and chains: @npc is:vendor in:barrens, thorium belt > mats"] = true
 L["world boss"] = true

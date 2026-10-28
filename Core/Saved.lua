@@ -19,8 +19,10 @@ SV.GROUPS = {
 		levels = { off = 0, small = 2000, normal = 4000, large = 12000 }, default = "normal", unit = L["items"] },
 	{ name = "atlasloot", keys = { "lootCache" }, label = L["AtlasLoot's index"], rebuilt = true,
 		levels = { off = 0, on = 1 }, default = "on" },
+	-- (small: the talents without their descriptions, most of the group's size, read from the game again each session;
+	-- 0.68.3, the player's call)
 	{ name = "talents", keys = { "talentCache", "talentDesc" }, label = L["every class's talents"], rebuilt = true, lists = { "talents" },
-		levels = { off = 0, on = 1 }, default = "on" },
+		levels = { off = 0, small = 1, on = 2 }, default = "on", notes = { small = L["without their descriptions"] } },
 	{ name = "objects", keys = { "objectIndex" }, label = L["Questie's mailboxes and objects"], rebuilt = true, lists = { "mailbox", "forge", "anvil", "cookingfire", "moonwell" },
 		levels = { off = 0, on = 1 }, default = "on" },
 	{ name = "loot", keys = { "lootLog" }, label = L["loot log"], lists = { "lootlog" },
@@ -371,6 +373,8 @@ function SV.Trim()
 				local CB = ns.CombatLog
 				if CB and CB.Trim then CB.Trim(log, n, math.min(CB.MAX_DEATHS or n, math.floor(n / 2))) else Head(log, n) end
 			end
+		elseif n and g.name == "talents" and n < g.levels.on then
+			cache.talentDesc = nil -- (small: the trees kept, their descriptions asked of the game again)
 		end
 	end
 	if ns.ItemStore then ns.ItemStore.UseLimit(SV.Limit("items")) end
@@ -476,6 +480,8 @@ local function LevelText(g)
 	if not level then return L["kept until cleared"] end
 	local n = g.levels[level]
 	if g.unit and n > 0 then return L["keep: %s (%d %s)"]:format(level, n, g.unit) end
+	local note = g.notes and g.notes[level]
+	if note then return L["keep: %s (%s)"]:format(level, note) end
 	return L["keep: %s"]:format(level)
 end
 
@@ -523,7 +529,10 @@ ns:RegisterCommand("saved", {
 		}
 		for _, g in ipairs(SV.GROUPS) do
 			if g.levels then
-				for _, level in ipairs(LevelNames(g)) do out[#out + 1] = { ("keep %s %s"):format(g.name, level), g.label } end
+				for _, level in ipairs(LevelNames(g)) do
+					local note = g.notes and g.notes[level]
+					out[#out + 1] = { ("keep %s %s"):format(g.name, level), note and ("%s, %s"):format(g.label, note) or g.label }
+				end
 			end
 		end
 		for _, g in ipairs(SV.GROUPS) do out[#out + 1] = { "clear " .. g.name, g.label } end

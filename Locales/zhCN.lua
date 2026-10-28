@@ -3171,4 +3171,6 @@ L["Cooking Fire"] = "烹饪用火"
 L["Moonwell"] = "月亮井"
 L["cooking fires"] = "烹饪用火"
 L["moonwells"] = "月亮井"
+L["keep: %s (%s)"] = "保留：%s（%s）"
+L["without their descriptions"] = "不含描述"
 --@end-do-not-package@

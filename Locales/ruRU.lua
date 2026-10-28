@@ -3171,4 +3171,6 @@ L["Cooking Fire"] = "Костер для готовки"
 L["Moonwell"] = "Лунный колодец"
 L["cooking fires"] = "костры для готовки"
 L["moonwells"] = "лунные колодцы"
+L["keep: %s (%s)"] = "хранить: %s (%s)"
+L["without their descriptions"] = "без описаний"
 --@end-do-not-package@

@@ -184,6 +184,25 @@ local ok, err = pcall(function()
 		ns.Changed = realChanged
 		check(#changed == 1 and changed[1] == "lootlog", "keep loot: only the loot log read again: " .. table.concat(changed, " "))
 		Run("keep loot normal")
+		-- (0.68.3, the player's call) talents small: the trees kept, their descriptions (most of the size) not
+		ns.db.talentCache = { key = "t", trees = {} }
+		ns.db.talentDesc = { key = "t", d = { [12345] = "increases your healing by 2%." } }
+		out = table.concat(Run("keep talents small"), "\n")
+		check(ns.db.talentCache and ns.db.talentCache.key == "t" and ns.db.talentDesc == nil
+			and out:find("without their descriptions", 1, true), "keep talents small: no descriptions, the trees kept: " .. out)
+		ns.db.talentDesc = { key = "t", d = { [12345] = "x" } } -- (read again this session: dropped at logout)
+		SV.Save()
+		ns.db = SV.Load()
+		check(ns.db.talentCache and ns.db.talentDesc == nil, "keep talents small: descriptions not saved at logout")
+		local offered = {}
+		for _, c in ipairs(ns.commands.saved.complete()) do offered[c[1]] = c[2] end
+		check(offered["keep talents small"] and offered["keep talents small"]:find("descriptions", 1, true)
+			and offered["keep talents on"] and offered["keep talents off"], "Tab offers talents small, saying what it leaves out")
+		Run("keep talents on")
+		ns.db.talentDesc = { key = "t", d = {} }
+		SV.Save()
+		ns.db = SV.Load()
+		check(ns.db.talentDesc and rawget(_G.TerminalDB, "savedKeep") == nil, "talents on again: descriptions kept")
 		Run("keep atlasloot off")
 		check(ns.db.lootCache == nil, "a cache turned off is cleared")
 		Run("keep all minimal")

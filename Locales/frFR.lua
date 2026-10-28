@@ -3171,4 +3171,6 @@ L["Cooking Fire"] = "Feu de cuisine"
 L["Moonwell"] = "Puits de lune"
 L["cooking fires"] = "feux de cuisine"
 L["moonwells"] = "puits de lune"
+L["keep: %s (%s)"] = "garder : %s (%s)"
+L["without their descriptions"] = "sans leurs descriptions"
 --@end-do-not-package@
