@@ -16,7 +16,8 @@ local NearLimit, NearWord = Score.NearLimit, Score.NearWord
 
 --- The matches kept for the next keystroke; nothing matched: Simple mode's closest by the everyday words, else close
 --- spellings (added to out).
-function Scan.Fallbacks(self, q, out, included, sig)
+-- (noNear: no close spellings, a name elsewhere has the words as typed: Overview.lua; 0.68.15)
+function Scan.Fallbacks(self, q, out, included, sig, noNear)
 	local empty, tokens, hard, softs, overBudget = q.empty, q.tokens, q.hard, q.softs, q.overBudget
 	if not empty then
 		-- (out itself: SortAndTrim leaves it as it is; rows added to it below only make the net wider)
@@ -34,9 +35,45 @@ function Scan.Fallbacks(self, q, out, included, sig)
 		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator answered
 		-- (nor for a sum: "lnen clth | count" counts nothing, not the close spellings; review, 0.53.6)
 		-- (with the hard filters only: an everyday word, relaxed above, is no reason to leave a close spelling out)
-		if #out == 0 and not self.calcAnswered and not (ns.Aggregate and ns.Aggregate.Summing(self.aggregate)) then
-			self:CloseSpellings(included, tokens, hard, out, overBudget)
+		if not noNear and not self.calcAnswered and not (ns.Aggregate and ns.Aggregate.Summing(self.aggregate)) then
+			if #out == 0 then self:CloseSpellings(included, tokens, hard, out, overBudget)
+			else Scan.NearBeforeScattered(self, included, tokens, hard, out, overBudget) end
 		end
+	end
+end
+
+--- Does the row have every word as typed (in its name or its text), not only as letters scattered through it?
+function Scan.RowWhole(e, tokens)
+	local ln = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
+	local lt = rawget(e, "_ltext") or ""
+	for k = 1, #tokens do
+		local tk = tokens[k]
+		if not (ln:find(tk, 1, true) or lt:find(tk, 1, true)) then return false end
+	end
+	return true
+end
+local function AnyWhole(out, tokens)
+	for i = 1, #out do if Scan.RowWhole(out[i], tokens) then return true end end
+	return false
+end
+
+--- Matches only by letters scattered ("linrn" in Wailing Caverns): a name one slip of the hand away from the words
+--- ("linrn": Linen Cloth, r beside e) is what was meant, and goes above them (0.68.15, the player's call). Adds to out.
+function Scan.NearBeforeScattered(self, included, tokens, hard, out, overBudget)
+	if #out == 0 or AnyWhole(out, tokens) then return end
+	local near = {}
+	self:CloseSpellings(included, tokens, hard, near, overBudget, ns.Fuzzy.TYPO_SLIP)
+	if #near == 0 then self.closeSpellings = nil return end
+	local top, have = -math.huge, {}
+	for i = 1, #out do
+		local e = out[i]
+		have[e] = true
+		if (e._score or 0) > top then top = e._score or 0 end
+	end
+	for i = 1, #near do
+		local e = near[i]
+		e._score = top + 1 + (e._score or 0) * 0.001 -- (above every scattered match, the closest first)
+		if not have[e] then out[#out + 1] = e end
 	end
 end
 
@@ -89,14 +126,16 @@ local NEAR_EDIT = 10   -- (closer spellings always first; the usual score orders
 --- word within NearLimit edits ("fireblal": Fireball). Only runs on an empty result, so it may
 --- cost more than the scan, but rows too short are skipped and it pauses with the search
 --- (overBudget; never inside a pcall). Adds to `out`; the footer then says these are close spellings.
-function UI:CloseSpellings(included, tokens, filters, out, overBudget)
+function UI:CloseSpellings(included, tokens, filters, out, overBudget, cap)
 	-- need: the shortest name that could hold a close spelling of one of the words
+	-- (cap: at most this far, Fuzzy.typo's costs: one slip for Scan.NearBeforeScattered)
 	local limits, need = {}, nil
 	local exact = tokens.exact
 	for i = 1, #tokens do
 		limits[i] = not (exact and exact[tokens[i]]) and NearLimit(#tokens[i]) or nil -- (a "quoted phrase": as it is only)
+		if limits[i] and cap and cap < limits[i] then limits[i] = cap end
 		if limits[i] then
-			local least = #tokens[i] - limits[i]
+			local least = #tokens[i] - math.floor(limits[i] / ns.Fuzzy.TYPO_SLIP)
 			if not need or least < need then need = least end
 		end
 	end

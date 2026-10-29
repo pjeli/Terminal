@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.68.14", when = "in testing",
+		v = "0.68.15", when = "in testing",
 		items = {
 			"\"nearest cooking fire\" and \"nearest moonwell\" (needs Questie or QuestieDB).",
 			".tour shows a different \"nearest\" each time: a vendor, an innkeeper, an anvil, a forge...",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"Spells by what they do: \"spells that stun\", \"instant spells\", \"spells with no cooldown\", \"30 yard spells\", any class's.",
 			"Say what kind you want: \"hogger quest\", \"quests in westfall\", \"npcs in westfall\", \"linen recipes\" look only there.",
 			"Asked as you'd say it: \"where is the nearest mailbox\", \"repair near me\", \"nearest innkeepers\", \"innkeeper in stormwind\".",
+			"Typos as hands make them: \"linnen\", \"lien\" and \"linrn\" find Linen Cloth, \"marshal dughn\" Marshal Dughan; \"linken\" stays Linken.",
 		},
 	},
 	{

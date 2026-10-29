@@ -247,6 +247,7 @@ do
 		}),
 		Npc = Entity({
 			[3498] = { name = "Jazzik", npcFlags = 4, zoneID = 17, spawns = { [17] = { { 62.4, 37.6 } } } },     -- vendor, Ratchet
+			[8737] = { name = "Linken", zoneID = 17, spawns = { [17] = { { 20.0, 80.0 } } } }, -- (0.68.15: a name close to Linen Cloth)
 			[3496] = { name = "Fuzruckle", subName = "Banker", npcFlags = 0, zoneID = 17, spawns = { [17] = { { 62.6, 37.4 } } } },  -- banker, Ratchet
 			[3489] = { name = "Zargh", npcFlags = 4, zoneID = 17, spawns = { [17] = { { 52.6, 29.8 } } } },      -- vendor, Crossroads
 			[3442] = { name = "Sputtervalve", npcFlags = 2, zoneID = 17, spawns = { [17] = { { 62.9, 36.3 } } } },
@@ -452,6 +453,18 @@ do
 		"Alt+`: raptor quest -> " .. adv)
 	check(not ns.Easy.ToAdvanced("quests"):find("@", 1, true) and ns.Easy.ToAdvanced("pet trainer"):find("trainer:pet", 1, true),
 		"a kind said alone, or a trainer's word: as before: " .. ns.Easy.ToAdvanced("quests") .. " / " .. ns.Easy.ToAdvanced("pet trainer"))
+	-- (0.68.15, the player's call) a word that is exactly a name is never a typo of another ("linken": the NPC, not your
+	-- Linen Cloth); a slip in a name only Questie knows still finds it ("jazik": Jazzik, a key missed)
+	UI:Hide(); FlushAll()
+	UI:Open("linken")
+	local lk = {}
+	for _, e in ipairs(UI.Results()) do lk[#lk + 1] = tostring(e.name) end
+	check(lk[1] == "Linken" and not table.concat(lk, ","):find("Linen", 1, true), "linken: the NPC Linken, not Linen Cloth: " .. table.concat(lk, ", "))
+	UI:Hide(); FlushAll()
+	UI:Open("jazik")
+	local jz = UI.Results()[1]
+	check(jz and jz.name == "Jazzik", "jazik: Jazzik, a key missed in a name only Questie knows: " .. tostring(jz and jz.name))
+	UI:Hide(); FlushAll()
 	UI:Open("vendor ratchet") -- (shown again: the arrow's test below reads it)
 	-- Advanced: sort:distance puts Questie's NPCs closest first (with how far), near:<yards> keeps those within reach
 	ns.db.easyMode = false

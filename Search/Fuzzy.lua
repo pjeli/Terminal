@@ -351,6 +351,81 @@ function Fuzzy.distance(a, s, from, to, limit)
 	return nil
 end
 
+-- Typos as hands make them (0.68.15, the player's call): a neighbouring key, a key pressed twice, a key missed, two keys
+-- swapped, a neighbouring key pressed too each cost TYPO_SLIP; any other change TYPO_OTHER. The keyboard is the client's
+-- language's: QWERTZ (German), AZERTY (French), else QWERTY.
+Fuzzy.TYPO_SLIP, Fuzzy.TYPO_OTHER = 2, 3
+local ROWS = {
+	qwerty = { "1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm" },
+	qwertz = { "1234567890", "qwertzuiop", "asdfghjkl", "yxcvbnm" },
+	azerty = { "1234567890", "azertyuiop", "qsdfghjklm", "wxcvbn" },
+}
+--- Which keys sit next to which: { [byte] = { [byte] = true } } (the same row's either side; the row above at the same
+--- place and one right, the row below at one left and the same place, as the rows are staggered).
+function Fuzzy.Neighbours(layout)
+	local rows, adj = ROWS[layout] or ROWS.qwerty, {}
+	local function link(a, b)
+		if not (a and b) then return end
+		adj[a] = adj[a] or {}; adj[b] = adj[b] or {}
+		adj[a][b], adj[b][a] = true, true
+	end
+	for r, row in ipairs(rows) do
+		for i = 1, #row do
+			local k = byte(row, i)
+			link(k, byte(row, i + 1))
+			local below = rows[r + 1]
+			if below then link(k, byte(below, i - 1 > 0 and i - 1 or 0)); link(k, byte(below, i)) end
+		end
+	end
+	return adj
+end
+local LAYOUT = { deDE = "qwertz", frFR = "azerty" }
+local locale = type(GetLocale) == "function" and GetLocale() or "enUS"
+local near = Fuzzy.Neighbours(LAYOUT[locale] or "qwerty")
+function Fuzzy.SetLayout(layout) near = Fuzzy.Neighbours(layout) end -- (tests)
+
+local extraCost = {}
+--- The typing distance (TYPO_SLIP for a slip, TYPO_OTHER for any other change) between `a` (what was typed) and bytes
+--- from..to of `s`, both lowercase; nil when it's over `limit`. Allocation-free, as Fuzzy.distance.
+function Fuzzy.typo(a, s, from, to, limit)
+	local n, m = #a, to - from + 1
+	local SLIP, OTHER = Fuzzy.TYPO_SLIP, Fuzzy.TYPO_OTHER
+	if (n - m) * SLIP > limit or (m - n) * SLIP > limit then return nil end
+	-- a typed letter that isn't in the name: a slip when it repeats, or sits next to, the letter before or after it
+	for i = 1, n do
+		local ai, l, r = byte(a, i), i > 1 and byte(a, i - 1), i < n and byte(a, i + 1)
+		local na = near[ai]
+		extraCost[i] = (ai == l or ai == r or (na and ((l and na[l]) or (r and na[r])))) and SLIP or OTHER
+	end
+	local prev2, prev, cur = dRow0, dRow1, dRow2
+	for j = 0, m do prev[j] = j * SLIP end
+	for i = 1, n do
+		local ai, ap = byte(a, i), i > 1 and byte(a, i - 1)
+		local na = near[ai]
+		cur[0] = prev[0] + extraCost[i]
+		local rowMin = cur[0]
+		for j = 1, m do
+			local sj = byte(s, from + j - 1)
+			local v = prev[j] + extraCost[i] -- (a typed letter too many)
+			local w = cur[j - 1] + SLIP -- (a key missed)
+			if w < v then v = w end
+			w = prev[j - 1] + (ai == sj and 0 or ((na and na[sj]) and SLIP or OTHER))
+			if w < v then v = w end
+			if ap and j > 1 and ai == byte(s, from + j - 2) and ap == sj then
+				w = prev2[j - 2] + SLIP -- (two swapped)
+				if w < v then v = w end
+			end
+			cur[j] = v
+			if v < rowMin then rowMin = v end
+		end
+		if rowMin > limit then return nil end
+		prev2, prev, cur = prev, cur, prev2
+	end
+	local d = prev[m]
+	if d <= limit then return d end
+	return nil
+end
+
 --- Wrap matched positions (set: [index]=true) in a highlight colour.
 --- base is an optional "|cffrrggbb" prefix for unmatched characters.
 function Fuzzy.Colorize(name, set, base)

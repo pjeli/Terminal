@@ -272,7 +272,19 @@ Run("close spellings", function()
 	check(top("hearhtstone") == "Hearthstone", "hearhtstone: Hearthstone")
 	check(UI.closeSpellings == true, "marked as close spellings")
 	check(top("hearthstome") == "Hearthstone" and top("fireblal") == "Fireball" and top("steelsanp") == "Steelsnap", "hearthstome, fireblal, steelsanp")
-	check(top("firebxyl") == "Fireball", "8+ letters: two edits")
+	-- (0.68.15, the player's call: typos as hands make them) 8+ letters: two slips, not two keys far from their place
+	check(top("fitebalk") == "Fireball", "8+ letters: two slips (t beside r, k beside l)")
+	check(top("firebxyl") ~= "Fireball", "two keys far from where they belong: not a close spelling")
+	local TY = Fuzzy.typo
+	Fuzzy.SetLayout("qwerty")
+	local function Ty(a, b) return TY(a, b, 1, #b, 9) end
+	check(Ty("linnen", "linen") == 2 and Ty("lien", "linen") == 2 and Ty("linrn", "linen") == 2 and Ty("lienn", "linen") == 2
+		and Ty("linenm", "linen") == 2, "a key twice, a key missed, a neighbour's, two swapped, a neighbour's as well: a slip each")
+	check(Ty("linqn", "linen") == 3 and Ty("linenq", "linen") == 3, "a key far from its place: more than a slip")
+	local onQwerty = Ty("lintn", "linzn")
+	Fuzzy.SetLayout("qwertz")
+	check(onQwerty == 3 and Ty("lintn", "linzn") == 2, "German keyboards: z beside t (not on an English one)")
+	Fuzzy.SetLayout("qwerty")
 	check(top("tprch") == "Torch" and top("tprxh") == nil, "4-7 letters: one edit, not two")
 	check(top("trc") == "Torch" and top("tcx") == nil, "under 4 letters: no tolerance (trc is still a scattered match)")
 	local n, r = top("fireblsat")

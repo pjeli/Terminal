@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.68.15 (in testing)
+
+- Misspellings are read as hands make them. A neighbouring key ("linrn"), a key pressed twice ("linnen", "hoggger"), a key missed ("lien", "hoger"), two keys swapped ("marhsal") or a neighbouring key pressed as well ("linenm") counts as one slip. A key far from its place counts for more. Up to 7 letters, one mistake of any kind is still forgiven, the slips first; from 8 letters, two slips, or a slip and another mistake, but no longer two keys far from where they belong. The keyboard is your client's: QWERTZ on German clients, AZERTY on French, QWERTY otherwise.
+- A word that is exactly a name is never taken for a typo: "linken" is the NPC Linken, not your Linen Cloth; "lairn" and "spike" the NPCs of those names, not the Lair raids or Blackrock Spire.
+- Simple mode corrects names only Questie knows, as Advanced's `@npc` did: "mountain buzzaard", "marshal dughn", "spiritual domintion", "innkeeper farleu" find them; before, one slip in such a name found nothing about 61% of the time (a test over QuestieDB's real data). When the words match only as letters scattered through some names ("linrn" in Wailing Caverns), a name one slip away goes first (Linen Cloth).
+
 ## 0.68.14 (in testing)
 
 - Simple mode reads a word naming the kind of thing you want as that kind: "hogger quest", "quest hogger", "quests in westfall", "westfall quests level 10", "npcs in westfall", "defias npcs", "mob kobold", "linen items", "linen recipes", "fast mounts". The word picks that category (Quests, NPCs, Items, Spells, Crafting; mounts, pets, toys and achievements their own list), as if you'd picked it, and isn't searched as a word itself. "hogger quest" found nothing, and "quests in westfall" listed an NPC named Quartermaster Lewis. A kind said alone ("quests", "my mounts", "toys") is searched as before, and a category you picked yourself, an action word ("nearest", "use") or a trainer's word ("pet trainer") wins over it. Nothing in that category: every category that has the other words is shown, as before. Alt+` writes the category's lists ("@questie @questlog hogger"); the category's own name in the client's language counts too.

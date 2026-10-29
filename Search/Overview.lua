@@ -213,7 +213,22 @@ function Scan.Overview(self, q, noAuto)
 	local oq = setmetatable({ kinds = kinds }, { __index = q }) -- (the query, over those lists)
 	local included, sig, fresh = Scan.Lists(oq)
 	local out = Scan.Collect(self, oq, included, sig, fresh)
-	Scan.Fallbacks(self, oq, out, included, sig)
+	-- (the words Questie's lists are looked up by: below, and for the exact names here)
+	local hardOther = q.hard and #q.hard > (q.strictWords and #q.strictWords or 0) or nil
+	local nameWords = OverviewNameWords(tokens, hardOther, q.softWords, q.strictWords)
+	local namesOk = #nameWords > 0 and not hardOther and not self.place
+	-- a word that is exactly a name is never a typo (0.68.15, the player's call): nothing in these lists, but Questie
+	-- knows a name with the words ("linken": the NPC Linken, not Linen Cloth by a close spelling; "lairn", "spike")
+	local named = false
+	if #out == 0 and namesOk then
+		local ob = oq.overBudget
+		local function tick() if ob and ob() then coroutine.yield(UI.Results()) end end
+		for _, h in ipairs(hinting) do
+			local first, n = h.p.hintFind(h.p, nameWords, tick)
+			if first and (n or 0) > 0 then named = true break end
+		end
+	end
+	Scan.Fallbacks(self, oq, out, included, sig, named)
 	q.overBudget = oq.overBudget
 	local relaxed = self.softRelaxed or self.closeSpellings
 	-- each match to its category (a list in two categories, the slash commands and the emotes, by the category's test)
@@ -226,9 +241,7 @@ function Scan.Overview(self, q, noAuto)
 	-- (a kind's category once, when it doesn't hang on the row: ~1.7 µs a match was a third of a 100k overview; each row's
 	-- kind read once, not through its metatable three times. 0.63.7, review)
 	local fixed = {}
-	for i, e in ipairs(out) do
-		-- (spread over frames too: 0.59.0, the stress test, 200,000 matches sorted into categories in one frame)
-		if overBudget and i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(UI.Results()) end
+	local function AddRow(e)
 		local kind = e.kind
 		local cid = kind and fixed[kind]
 		if cid == nil then
@@ -250,11 +263,14 @@ function Scan.Overview(self, q, noAuto)
 			if kind == "quests" then loggedNames[#loggedNames + 1] = rawget(e, "_lname") or "" end
 		end
 	end
+	for i, e in ipairs(out) do
+		-- (spread over frames too: 0.59.0, the stress test, 200,000 matches sorted into categories in one frame)
+		if overBudget and i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(UI.Results()) end
+		AddRow(e)
+	end
 	-- Questie's lists, by name (the typed words and the everyday words as name words; never with another hard filter,
 	-- which a name can't be judged by, nor with a place, nor once nothing passed the everyday words)
-	local hardOther = q.hard and #q.hard > (q.strictWords and #q.strictWords or 0) or nil
-	local nameWords = OverviewNameWords(tokens, hardOther, q.softWords, q.strictWords)
-	if #nameWords > 0 and not hardOther and not relaxed and not self.place then
+	if namesOk and not relaxed then
 		local function tick() if overBudget and overBudget() then coroutine.yield(UI.Results()) end end
 		for _, h in ipairs(hinting) do
 			local c, p = h.c, h.p
@@ -289,6 +305,49 @@ function Scan.Overview(self, q, noAuto)
 			end
 		end
 	end
+	-- nothing anywhere, not even by a close spelling of the lists above: a close spelling of a name only Questie knows
+	-- ("mountain buzzaard", "marshal dughn": Advanced's @npc found them, Simple mode nothing; 0.68.15, the player's call).
+	-- Their lists read whole, only now (an empty result, the search sliced as ever).
+	local nearNamed = false
+	if #order == 0 and namesOk and not empty and not self.softRelaxed and #hinting > 0 then
+		local kq = {}
+		for _, h in ipairs(hinting) do kq[h.p.id] = true end
+		local hq = setmetatable({ kinds = kq }, { __index = q })
+		local hIncluded = Scan.Lists(hq)
+		local near = {}
+		local ob = overBudget or function() return false end
+		-- (first as any search reads them, letters scattered too: "marshal dughn" is Marshal Dughan; then close spellings)
+		local Pass, ScoreEntry = ns.Filters and ns.Filters.Pass, Score.ScoreEntry
+		for _, p in ipairs(hIncluded) do
+			local list = Scan.RowsOf(hIncluded, p)
+			for r = 1, #list do
+				local e = list[r]
+				local sc = ScoreEntry(e, tokens)
+				if sc and (not q.hard or (Pass and Pass(e, q.hard))) then
+					e._score = sc + FreqBonus(e, p.id)
+					near[#near + 1] = e
+				end
+				if r % SLICE_CHECK == 0 and ob() then coroutine.yield(UI.Results()) end
+			end
+		end
+		-- (the words as typed, if any name has them; else a close spelling, a slip being likelier than letters scattered
+		-- through some long name ("farleu": Innkeeper Farley, not a Craftsman's Writ); else the scattered ones)
+		local whole = {}
+		for _, e in ipairs(near) do if Scan.RowWhole(e, tokens) then whole[#whole + 1] = e end end
+		if #whole > 0 then near = whole
+		else
+			local close = {}
+			self:CloseSpellings(hIncluded, tokens, q.hard, close, ob)
+			if #close > 0 then near = close end
+		end
+		if #near > 0 then
+			relaxed, nearNamed = true, true -- (no clear winner among close spellings; their lists read already)
+			for i, e in ipairs(near) do
+				if overBudget and i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(UI.Results()) end
+				AddRow(e)
+			end
+		end
+	end
 	self.overviewWinner = nil
 	local rows = {}
 	local picks = UI.CategoryPicks(want)
@@ -319,7 +378,7 @@ function Scan.Overview(self, q, noAuto)
 		-- its matches are found already; its lists only counted by name (Questie's, @stored) are searched after (q.extraKinds)
 		q.matched = b.rows
 		for _, h in ipairs(hinting) do
-			if h.c == b.c then q.extraKinds = q.extraKinds or {}; q.extraKinds[h.p.id] = true end
+			if h.c == b.c and not nearNamed then q.extraKinds = q.extraKinds or {}; q.extraKinds[h.p.id] = true end
 		end
 		return nil
 	end

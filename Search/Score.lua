@@ -213,29 +213,33 @@ local function ScoreEntry(e, tokens)
 	return total
 end
 
--- close spellings: how far a word may be from a name's word (4-7 letters: one edit, 8+: two)
+-- close spellings: how far a word may be from a name's word, in Fuzzy.typo's costs (a slip of the hand 2, any other
+-- change 3; 0.68.15, the player's call): 4-7 letters, one mistake of any kind; 8+, two slips, or a slip and another
+-- mistake, not two keys far from where they belong
 local function NearLimit(n)
 	if n < 4 then return nil end
-	return n >= 8 and 2 or 1
+	return n >= 8 and 5 or 3
 end
 
---- The name's word closest to tk within `limit` edits: the distance and the word's first and
---- last byte, or nil. Words are runs of letters, digits and apostrophes.
+--- The name's word closest to tk within `limit` (Fuzzy.typo's costs): the distance and the word's first and last byte,
+--- or nil. Words are runs of letters, digits and apostrophes.
 local function NearWord(tk, lname, limit)
 	local n, j, bestD, bf, bt = #tk, 1, nil, nil, nil
+	local SLIP = Fuzzy.TYPO_SLIP
+	local lengths = math.floor(limit / SLIP) -- (letters more or fewer: each costs a slip at least)
 	while true do
 		local s, f = find(lname, "[%w\128-\255']+", j)
 		if not s then break end
 		local wl = f - s + 1
-		-- one edit leaves one of these as it was: the first letters, the second ones, or a first
+		-- one mistake leaves one of these as it was: the first letters, the second ones, or a first
 		-- letter moved by one (an extra or a missing letter at the front, two swapped)
-		local maybe = wl - n <= limit and n - wl <= limit
-		if maybe and limit == 1 then
+		local maybe = wl - n <= lengths and n - wl <= lengths
+		if maybe and limit < 2 * SLIP then
 			local t1, t2, w1, w2 = byte(tk, 1), byte(tk, 2), byte(lname, s), byte(lname, s + 1)
 			maybe = t1 == w1 or t2 == w2 or t2 == w1 or t1 == w2
 		end
 		if maybe then
-			local d = Fuzzy.distance(tk, lname, s, f, bestD and bestD - 1 or limit)
+			local d = Fuzzy.typo(tk, lname, s, f, bestD and bestD - 1 or limit)
 			if d then
 				bestD, bf, bt = d, s, f
 				if d == 0 then break end
