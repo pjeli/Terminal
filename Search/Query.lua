@@ -13,10 +13,24 @@ local GROUP_QUESTS_GONE = Scan.GROUP_QUESTS_GONE
 --- last ("mining trainer nearby"), taken out of the tokens. The action and its word, or nil.
 -- (an article before it: "the nearest mailbox", as top N leaves "the 3 nearest mailboxes"; 0.66.x, the player)
 local ARTICLE = { the = true, a = true, an = true }
+-- (what a request may start with before "nearest": passed over then, Scan.TakeAction)
+local LEAD_IN = { where = true, ["where's"] = true, wheres = true, what = true, ["what's"] = true, whats = true, is = true,
+	are = true, find = true, show = true, me = true, get = true, take = true, to = true, i = true, need = true, want = true,
+	please = true, pls = true, ["i'm"] = true, im = true, looking = true, ["for"] = true }
+-- (said last, meaning nearest: Scan.TakeAction)
+local NEAR_ME = { ["near me"] = true, ["around me"] = true, ["close by"] = true, ["near by"] = true }
 --- (src: each token's source, Parse's q.tokenSrc, taken out with them; the third result: the words' sources taken)
 function Scan.TakeAction(tokens, filters, src)
 	local first = 1
 	while first < #tokens and ARTICLE[tokens[first]] do first = first + 1 end
+	-- (a request's lead-in, when "nearest" follows it: "where is the nearest mailbox" listed nothing, "find the nearest
+	-- innkeeper" and "show me the closest anvil" nothing, "whats the nearest innkeeper" a Watchmaster; 0.68.11, review)
+	local k = first
+	while k < #tokens and (LEAD_IN[tokens[k]] or ARTICLE[tokens[k]]) do k = k + 1 end
+	if k > first then
+		local near = ns.Easy.Action(tokens[k])
+		if near and near.nearest and (#tokens > k or filters) then first = k end
+	end
 	local a = ns.Easy.Action(tokens[first])
 	if a and (#tokens > first or filters) then
 		local taken = {}
@@ -26,6 +40,14 @@ function Scan.TakeAction(tokens, filters, src)
 		end
 		if src then taken[#taken + 1] = table.remove(src, 1) end
 		return a, table.remove(tokens, 1), taken
+	end
+	-- "near me" said last: "repair near me" (it read as the word "near"; 0.68.11, review)
+	if (#tokens > 2 or (#tokens == 2 and filters)) and NEAR_ME[tokens[#tokens - 1] .. " " .. tokens[#tokens]] then
+		local taken = {}
+		if src then taken[2] = table.remove(src, #tokens); taken[1] = table.remove(src, #tokens - 1) end
+		local said = tokens[#tokens - 1] .. " " .. tokens[#tokens]
+		table.remove(tokens); table.remove(tokens)
+		return ns.Easy.ACTIONS.nearby, said, taken
 	end
 	if #tokens > 1 then
 		-- "nearest"/"nearby"/"closest" said last: "mining trainer nearby"
@@ -435,7 +457,11 @@ function Scan.ActionAndPlace(self, q)
 	local I = ns.Integrations
 	if simple and #q.tokens > 0 and I and I.FindPlace then
 		local place, rest = I.FindPlace(q.tokens)
-		if place and (#rest > 0 or q.filters or act) then
+		-- (only a sentence's little words left are nothing more to look for: "deadmines entrance", "in the deadmines" are the
+		-- dungeon by its name, not everything standing in it; 0.68.11, review)
+		local more = false
+		for _, w in ipairs(rest or {}) do if not ns.Easy.STOP[w] then more = true break end end
+		if place and (more or q.filters or act) then
 			-- (the place's words: the run of tokens rest goes without)
 			local placed
 			if src and #rest < #q.tokens then

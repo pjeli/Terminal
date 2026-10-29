@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.68.11 (in testing)
+
+- Simple mode knows NPC roles said in the plural: "nearest innkeepers", "3 nearest innkeepers", "nearest bankers", "nearest flight masters", "nearest stable masters", "nearest quest givers", "auctioneers", "banks". They were read as names: "nearest innkeepers" listed only innkeepers whose names have an s (Innkeeper Farley, 64 yards away, was left out), Horde ones too, and "nearest flight masters" listed quartermasters.
+- Stormwind by its name alone: "innkeeper in stormwind", "innkeeper sw", "nearest cooking fire in stormwind" and `in:stormwind` find what's there. The game calls it Stormwind City, and only those two words were known. Any place named "<name> City" is also known by its name alone, unless another place has it.
+- "nearest" said after a request's opening words: "where is the nearest mailbox", "find the closest innkeeper", "show me the nearest anvil", "whats the nearest innkeeper", "i need the nearest repair". These listed nothing, or quests; now they're "nearest" as typed alone. A "please" at the end is left out too. "where is hogger" stays a where.
+- "nearest blacksmith" and "blacksmith trainer" find blacksmithing trainers again: Arathi Basin has an area named Blacksmith, and the word was read as that place. A place named like a profession's people or an NPC's role ("blacksmith"), or a word too common to mean one ("mine", "camp"), is no longer read as a place.
+- More of how people ask, in Simple mode:
+  - "repair near me", "innkeeper near me", "mining trainer around me" are "nearest" (they listed settings and places).
+  - "nearest auction house" finds auctioneers (it found the House of Nobles).
+  - "deadmines entrance", "sfk entrance", "in the deadmines" and "nearest dungeon entrance" find the dungeon (they found nothing). A place named with only a sentence's little words beside it ("in", "the", "entrance") is looked for by its name, not as everything standing in it.
+
 ## 0.68.10 (in testing)
 
 - "nearest moonwell" and "nearby moonwell" list moonwells again, not the NPCs around Ashenvale's Moonwell: QuestieDB knows a small area of that name, and Simple mode read the word as that place before looking for the object. A place named like one of the objects (mailbox, forge, anvil, cooking fire, moonwell, dungeon, raid) is no longer a place, so the area itself can't be searched by name any more.

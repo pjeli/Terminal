@@ -4027,7 +4027,8 @@ explain: "Upgrades for you and auctioneers, biggest upgrades first, cheapest fir
 
 == the nearest innkeepers
 question: -
-tokens: innkeepers
+tokens: -
+filter: soft is:innkeeper  sig=~innkeepers  word=innkeepers
 sort: -
 kinds: -
 action: Nearest  word=nearest
@@ -4035,10 +4036,11 @@ place: -
 send: -
 steps: -
 group: -
+pick: spec=is:innkeeper word=innkeepers
 pick sort: id=distance word=nearest
 category: -
-advanced: "@npc innkeepers sort:distance "
-explain: "NPCs matching innkeepers, nearest first"
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
 
 == the cheapest boots
 question: -
@@ -6199,7 +6201,8 @@ explain: "Rare everything matching sword|type:sword, sent to party"
 
 == the 3 nearest innkeepers >> guild
 question: -
-tokens: innkeepers
+tokens: -
+filter: soft is:innkeeper  sig=~innkeepers  word=innkeepers
 sort: -
 kinds: -
 action: Nearest  word=nearest
@@ -6207,10 +6210,11 @@ place: -
 send: label=guild chat=GUILD query=the 3 nearest innkeepers 
 steps: text=first 3 first=3 topWords=true
 group: -
+pick: spec=is:innkeeper word=innkeepers
 pick sort: id=distance word=nearest
 category: -
-advanced: "@npc innkeepers sort:distance | first 3 >> guild"
-explain: "NPCs matching innkeepers, nearest first, the first 3, sent to guild"
+advanced: "@npc is:innkeeper faction:friendly sort:distance | first 3 >> guild"
+explain: "Friendly innkeepers, nearest first, the first 3, sent to guild"
 
 == not boe not soulbound sword
 question: -
@@ -6441,3 +6445,197 @@ pick sort: -
 category: -
 advanced: "q:rare&type:sword "
 explain: "Rare&type:sword everything"
+
+== where is the nearest mailbox
+question: -
+tokens: mailbox
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc mailbox sort:distance "
+explain: "NPCs matching mailbox, nearest first"
+
+== find the closest innkeeper
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: -
+action: Nearest  word=closest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: id=distance word=closest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== show me the nearest anvil
+question: -
+tokens: anvil
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc anvil sort:distance "
+explain: "NPCs matching anvil, nearest first"
+
+== nearest mailbox please
+question: -
+tokens: mailbox
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc mailbox sort:distance "
+explain: "NPCs matching mailbox, nearest first"
+
+== nearest innkeepers
+question: -
+tokens: -
+filter: soft is:innkeeper  sig=~innkeepers  word=innkeepers
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeepers
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:innkeeper faction:friendly sort:distance "
+explain: "Friendly innkeepers, nearest first"
+
+== nearest flight masters
+question: -
+tokens: -
+filter: soft is:flightmaster  sig=~flight masters  word=flight masters
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:flightmaster word=flight masters
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:flightmaster faction:friendly sort:distance "
+explain: "Friendly flight masters, nearest first"
+
+== innkeeper in stormwind
+question: -
+tokens: stormwind
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: -
+category: places
+advanced: "@flight stormwind innkeeper "
+explain: "Flight paths matching stormwind innkeeper"
+
+== innkeeper sw
+question: -
+tokens: sw
+filter: soft is:innkeeper  sig=~innkeeper  word=innkeeper
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:innkeeper word=innkeeper
+pick sort: -
+category: places
+advanced: "@flight sw innkeeper "
+explain: "Flight paths matching sw innkeeper"
+
+== repair near me
+question: -
+tokens: -
+filter: soft is:repair  sig=~repair  word=repair
+sort: -
+kinds: -
+action: Nearest  word=near me
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:repair word=repair
+pick sort: id=distance word=near me
+category: -
+advanced: "@npc is:repair faction:friendly sort:distance "
+explain: "Friendly repairers, nearest first"
+
+== nearest auction house
+question: -
+tokens: -
+filter: soft is:auctioneer  sig=~auction house  word=auction house
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:auctioneer word=auction house
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc is:auctioneer faction:friendly sort:distance "
+explain: "Friendly auctioneers, nearest first"
+
+== deadmines entrance
+question: -
+tokens: deadmines
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@dungeon deadmines "
+explain: "Dungeon matching deadmines"
+
+== in the deadmines
+question: -
+tokens: deadmines
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: places
+advanced: "@dungeon deadmines "
+explain: "Dungeon matching deadmines"

@@ -15,6 +15,8 @@ local Spot, ObjectivesText, ResetDistances, ClearNpcFields = IP.Spot, IP.Objecti
 I.TOWN_R = 250 -- yards from a town's flight point that count as in it
 
 local placeIndex -- { byName = lowercase name -> { area, parent, name, key }, words = most words in a name }
+-- area names that are everyday words, never taken as a place (a battleground's Mine, a Forever zone's Camp)
+I.NOT_PLACES = { mine = true, mines = true, camp = true }
 local function PlaceIndex()
 	if placeIndex then return placeIndex end
 	local z = QD.Zones and QD.Zones()
@@ -28,6 +30,10 @@ local function PlaceIndex()
 		if #key < 4 or (E and (E.WORDS[key] or E.STOP[key] or E.ACTIONS[key])) then return end
 		-- (nor an object's word: Ashenvale's Moonwell area made "nearest moonwell" NPCs standing in it, 0.68.10)
 		if I.OBJECT_KINDS[key] or I.ENTRANCE_KINDS[key] then return end
+		-- (nor what a profession's people or an NPC's role are called: Arathi Basin's Blacksmith made "nearest blacksmith"
+		-- the NPCs standing in it; nor a word too common to mean a place, "mine", "camp"; 0.68.11, review over QuestieDB's
+		-- real zones)
+		if (E and ((E.PROF_PEOPLE and E.PROF_PEOPLE[key]) or (E.ROLE_WORDS and E.ROLE_WORDS[key]))) or I.NOT_PLACES[key] then return end
 		local place = { area = area, parent = parent, name = n, key = key }
 		idx.byName[key] = place
 		idx.byArea[area] = place
@@ -41,6 +47,14 @@ local function PlaceIndex()
 	for area, ui in pairs(z.map or {}) do
 		if type(area) == "number" and area > 0 and ui ~= 0 and not subs[area] then add(area, nil) end
 	end
+	-- (a city by its name alone: "innkeeper in stormwind", and "sw" (Shorthand.lua: "stormwind"), found nothing while the
+	-- game names it Stormwind City; 0.68.11, review over QuestieDB's real zones. Never over a place of that name)
+	local short = {}
+	for key, place in pairs(idx.byName) do
+		local s = key:match("^(.+) city$")
+		if s and #s >= 4 and not idx.byName[s] then short[s] = place end
+	end
+	for s, place in pairs(short) do idx.byName[s] = place end
 	placeIndex = idx
 	local n = 0
 	for _ in pairs(idx.byName) do n = n + 1 end

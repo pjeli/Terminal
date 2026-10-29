@@ -124,6 +124,17 @@ do
 	UI:Open(""); FlushAll()
 	UI:SetQuery("the 2 nearest innkeeper"); FlushAll()
 	check(Names() == "Innkeeper Near | Innkeeper Allison", "the 2 nearest innkeepers: " .. Names())
+	-- (0.68.11, review) a role said in the plural is the role, not a name: "innkeepers" found only names with an s
+	UI:SetQuery("the 2 nearest innkeepers"); FlushAll()
+	check(Names() == "Innkeeper Near | Innkeeper Allison", "the 2 nearest innkeepers, plural: " .. Names())
+	check(ns.Easy.ToAdvanced("nearest flight masters"):find("is:flightmaster", 1, true)
+		and ns.Easy.ToAdvanced("nearest bankers"):find("is:banker", 1, true), "plural roles: " .. ns.Easy.ToAdvanced("nearest flight masters"))
+	-- (0.68.11, review) "nearest" after a request's lead-in, and a please at the end
+	for _, q in ipairs({ "where is the nearest innkeeper", "find the closest innkeeper", "show me the nearest innkeeper",
+		"whats the nearest innkeeper", "nearest innkeeper please", "innkeeper near me", "innkeepers around me" }) do -- ("near me": 0.68.11)
+		UI:SetQuery(q); FlushAll()
+		check(Names():find("^Innkeeper Near | Innkeeper Allison"), q .. ": the nearest first: " .. Names())
+	end
 	UI:SetQuery("the closest innkeeper"); FlushAll()
 	check(Names() == "Innkeeper Near", "the closest innkeeper: one: " .. Names())
 	UI:SetQuery("the 2 farthest innkeeper"); FlushAll()

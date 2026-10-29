@@ -280,8 +280,8 @@ do
 			if name ~= "ZoneDB" then return nil end
 			return { private = {
 				-- (QuestieDB lists the parts here too: Goldshire -> Elwynn's map, Ratchet -> the Barrens')
-				areaIdToUiMapId = "return { [17] = 1413, [12] = 1429, [87] = 1429, [392] = 1413, [1637] = 1454, [1537] = 1455, [15] = 1445, [425] = 1413 }",
-				subZoneToParentZone = "return { [392] = 17, [380] = 17, [87] = 12, [425] = 17 }", -- (425: an area named Moonwell, Ashenvale's; here the Barrens')
+				areaIdToUiMapId = "return { [17] = 1413, [12] = 1429, [87] = 1429, [392] = 1413, [1637] = 1454, [1537] = 1455, [15] = 1445, [425] = 1413, [1519] = 1453 }",
+				subZoneToParentZone = "return { [392] = 17, [380] = 17, [87] = 12, [425] = 17, [3421] = 17, [16373] = 17 }", -- (425: an area named Moonwell, Ashenvale's; here the Barrens')
 				dungeons = {
 					[491] = { "Razorfen Kraul", { 1717 }, 17, { { 17, 42.9, 90.2 } } },
 					[2159] = { "Onyxia's Lair", nil, 15, { { 15, 52.6, 76.8 } } },
@@ -292,7 +292,7 @@ do
 			} }
 		end },
 	}
-	local areas = { [1637] = "Orgrimmar", [1537] = "Ironforge", [17] = "The Barrens", [392] = "Ratchet", [380] = "The Crossroads", [12] = "Elwynn Forest", [87] = "Goldshire", [425] = "Moonwell" }
+	local areas = { [1637] = "Orgrimmar", [1537] = "Ironforge", [17] = "The Barrens", [392] = "Ratchet", [380] = "The Crossroads", [12] = "Elwynn Forest", [87] = "Goldshire", [425] = "Moonwell", [1519] = "Stormwind City", [3421] = "Blacksmith", [16373] = "Mine" }
 	-- world yards: the Barrens is about 10000 yards across (1% = 100 yd); Elwynn elsewhere
 	_G.C_Map = {
 		GetAreaInfo = function(a) return areas[a] end, OpenWorldMap = function() end,
@@ -317,6 +317,12 @@ do
 	check(place and place.area == 87 and place.parent == 12, "Goldshire stays a part of Elwynn though it has a map entry: " .. tostring(place and place.parent))
 	place = I.FindPlace({ "barrens" })
 	check(place and place.area == 17 and not place.parent, "\"barrens\": the zone")
+	-- (0.68.11, review) a city by its name alone, and by its shorthand ("sw": "stormwind")
+	place = I.FindPlace({ "innkeeper", "stormwind" })
+	local sw = I.FindPlace({ "innkeeper", "sw" })
+	check(place and place.area == 1519 and sw and sw.area == 1519, "\"stormwind\" and \"sw\": Stormwind City: " .. tostring(place and place.name))
+	-- (0.68.11, review) an area named as a profession's people (Arathi Basin's Blacksmith) or a common word isn't a place
+	check(not I.FindPlace({ "nearest", "blacksmith" }) and not I.FindPlace({ "trainer", "mine" }), "\"blacksmith\" and \"mine\" aren't places")
 	check(I.NpcInPlace(3498, I.FindPlace({ "ratchet" })), "Jazzik is in Ratchet (near its flight point)")
 	check(not I.NpcInPlace(3489, I.FindPlace({ "ratchet" })), "Zargh (the Crossroads) isn't")
 	check(I.NpcInPlace(3489, I.FindPlace({ "barrens" })) and not I.NpcInPlace(295, I.FindPlace({ "barrens" })), "the Barrens: its NPCs, not Elwynn's")

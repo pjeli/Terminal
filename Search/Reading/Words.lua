@@ -56,6 +56,13 @@ E.WORDS = {
 	merchant = "is:vendor", merchants = "is:vendor", -- (0.56.10, the player: "merchant")
 	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
 	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
+	-- (and their plurals, and the two-word spellings: "nearest innkeepers" matched names with an s in them, "nearest
+	-- flight masters" quartermasters; 0.68.11, review over QuestieDB's real NPCs. "flight master" is the game's word: E.GameRole)
+	inns = "is:inn", banks = "is:bank", stables = "is:stablemaster", innkeepers = "is:innkeeper", bankers = "is:banker",
+	auctioneers = "is:auctioneer", flightmasters = "is:flightmaster",
+	["flight masters"] = "is:flightmaster", stablemasters = "is:stablemaster", ["stable master"] = "is:stablemaster",
+	["stable masters"] = "is:stablemaster", questgivers = "is:questgiver", ["quest giver"] = "is:questgiver",
+	["quest givers"] = "is:questgiver", ["auction house"] = "is:auctioneer", ["auction houses"] = "is:auctioneer", -- ("nearest auction house": the House of Nobles; 0.68.11)
 	-- (two words: "nearest spirit healer"; a graveyard is where one stands; 0.50.5)
 	["spirit healer"] = "is:spirithealer", ["spirit healers"] = "is:spirithealer", ["spirit guide"] = "is:spirithealer",
 	graveyard = "is:spirithealer", graveyards = "is:spirithealer",
@@ -246,7 +253,8 @@ E.HARD_WORDS = { unplaced = true, upgrade = true, upgrades = true, skillup = tru
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
 	that = true, which = true, gives = true, give = true, giving = true, ["for"] = true, by = true, to = true, ["and"] = true,
 	drops = true, dropped = true, drop = true, my = true, some = true, any = true, show = true, find = true, me = true,
-	is = true, are = true,
+	is = true, are = true, please = true, pls = true, -- ("nearest mailbox please"; 0.68.11, review)
+	entrance = true, entrances = true, -- ("deadmines entrance", "nearest dungeon entrance": the dungeon; 0.68.11, review)
 	-- (a number's unit said after it: "cooldown under 10 seconds", "range over 20 yards"; 0.68.8)
 	sec = true, secs = true, second = true, seconds = true }
 
@@ -345,7 +353,11 @@ E.ROLE_WORDS = { repair = true, repairs = true, inn = true, innkeeper = true, ba
 	battlemasters = true, ["pvp vendor"] = true, ["pvp vendors"] = true, ["honor vendor"] = true,
 	["honor vendors"] = true, ["pvp quartermaster"] = true, pvp = true, ["spirit healer"] = true, ["spirit healers"] = true,
 	["spirit guide"] = true, graveyard = true, graveyards = true, weaponmaster = true, weaponmasters = true,
-	["weapon master"] = true, ["weapon masters"] = true }
+	["weapon master"] = true, ["weapon masters"] = true,
+	inns = true, banks = true, stables = true, innkeepers = true, bankers = true, auctioneers = true, flightmasters = true,
+	["flight masters"] = true, stablemasters = true, ["stable master"] = true,
+	["stable masters"] = true, questgivers = true, ["quest giver"] = true, ["quest givers"] = true,
+	["auction house"] = true, ["auction houses"] = true }
 setmetatable(E.ROLE_WORDS, { __index = function(_, w) return E.GameRole(w) or nil end }) -- (the game's own words too)
 
 --- "nearset", "neareset", "neares": "nearest" as it's often mistyped (0.56.8, a player's comment), "nearbby" too; a
