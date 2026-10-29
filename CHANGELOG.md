@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.68.18 (in testing)
+
+- Alt+` names the lists shown that Advanced mode searches only when they're named: "hex of weakness", which Simple mode lists from Questie's quests, is written "@questie hex weakness", and "ratchet bruiser" "@npc ratchet bruiser". They were written without, and found nothing in Advanced mode.
+- Alt+` writes a stat's or a slot's word as Simple mode reads it, in a name as well: "testing an enemy's strength" is "testing enemy's strength|stat:strength" (it was stat:strength, which no quest has), "Kresh's Back" "Kresh's back|slot:back", as item kinds already were ("sword|type:sword").
+
 ## 0.68.17 (in testing)
 
 - More ways to ask where to get something: "who drops spiritshroud leggings" (it asked the server /who), "vendors that sell woven vest", "vendor that sells mild spices", "which vendors sell ice threaded bullet", "what mobs drop copper ore" (they found nothing).

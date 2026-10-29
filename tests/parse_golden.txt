@@ -343,8 +343,8 @@ pick: spec=type:food word=food
 pick: spec=stat:stamina word=stamina
 pick sort: -
 category: -
-advanced: "food|type:food stat:stamina "
-explain: "Everything matching food|type:food, with stamina"
+advanced: "food|type:food stamina|stat:stamina "
+explain: "Everything matching food|type:food stamina|stat:stamina"
 
 == stamina elixir
 question: -
@@ -362,8 +362,8 @@ pick: spec=stat:stamina word=stamina
 pick: spec=type:elixir word=elixir
 pick sort: -
 category: -
-advanced: "stat:stamina elixir|type:elixir "
-explain: "Everything matching elixir|type:elixir, with stamina"
+advanced: "stamina|stat:stamina elixir|type:elixir "
+explain: "Everything matching stamina|stat:stamina elixir|type:elixir"
 
 == rare shield wailing caverns
 question: -
@@ -1095,8 +1095,8 @@ group: -
 pick: spec=slot:back word=Back
 pick sort: -
 category: -
-advanced: "Kresh's slot:back "
-explain: "Everything matching Kresh's, for the back slot"
+advanced: "Kresh's back|slot:back "
+explain: "Everything matching Kresh's back|slot:back"
 
 == Wall of the Dead
 question: -
@@ -1523,8 +1523,8 @@ pick: spec=stat:stamina word=stamina
 pick: spec=type:food word=food
 pick sort: -
 category: -
-advanced: "stat:stamina food|type:food "
-explain: "Everything matching food|type:food, with stamina"
+advanced: "stamina|stat:stamina food|type:food "
+explain: "Everything matching stamina|stat:stamina food|type:food"
 
 == stat:stamina type:food >> party
 question: -
@@ -1561,8 +1561,8 @@ pick: spec=slot:helm word=helm
 pick: spec=is:upgrade word=upgrades
 pick sort: -
 category: -
-advanced: "slot:helm is:upgrade sort:best "
-explain: "Upgrades for you, for the helm slot, biggest upgrades first"
+advanced: "helm|slot:helm is:upgrade sort:best "
+explain: "Upgrades for you matching helm|slot:helm, biggest upgrades first"
 
 == mining trainer nearby
 question: -
@@ -1633,8 +1633,8 @@ pick: spec=slot:cloak word=cloak
 pick: spec=-stat:stamina word=-stamina
 pick sort: -
 category: -
-advanced: "slot:cloak -stat:stamina "
-explain: "Everything, for the cloak slot, not with stamina"
+advanced: "cloak|slot:cloak -stat:stamina "
+explain: "Everything matching cloak|slot:cloak, not with stamina"
 
 == food without spirit
 question: -
@@ -1730,8 +1730,8 @@ pick: spec=is:unlearned word=missing
 pick: spec=stat:spirit word=spirit
 pick sort: -
 category: -
-advanced: "slot:boots is:unlearned stat:spirit "
-explain: "Unlearned everything, for the boots slot, with spirit"
+advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
+explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
 question: 33  asked=missing stamina
@@ -4056,8 +4056,8 @@ group: -
 pick: spec=slot:boots word=boots
 pick sort: id=-value word=cheapest drop=true
 category: -
-advanced: "slot:boots sort:-value | first 1"
-explain: "Everything, for the boots slot, cheapest first, the first 1"
+advanced: "boots|slot:boots sort:-value | first 1"
+explain: "Everything matching boots|slot:boots, cheapest first, the first 1"
 
 == the most valuable items
 question: -

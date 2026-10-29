@@ -92,6 +92,13 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		local set = {}
 		for _, k in ipairs(ns.Easy.BY_ID[category].kinds) do set[k] = true end
 		if AddKinds(set) == 0 then AddKinds(set, true) end
+	elseif shown then
+		-- (rows shown from a list Advanced searches only when it's named, Questie's quests and NPCs: every list shown
+		-- named, or Advanced never looks there; 0.68.18: "hex of weakness" listed Questie's quests, Alt+` found nothing)
+		for k in pairs(shown) do
+			local p = ns.providers[k]
+			if p and p.explicit then AddKinds(shown, true) break end
+		end
 	end
 	local nearest = act and act.nearest
 	-- ("farthest innkeeper": sort:-distance; 0.65.7)
@@ -113,7 +120,10 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	for _, f in ipairs(q.filters or {}) do
 		local spec = q.specOf and q.specOf[f]
 		local w = softWord[f]
-		if spec and w and spec:find("^type:") and not w:find("[%s|]") then spec = w .. "|" .. spec end
+		-- (a stat's or a slot's word too, "testing an enemy's strength", "the collector's ring": in a name as well; 0.68.18)
+		if spec and w and (spec:find("^type:") or spec:find("^stat:") or spec:find("^slot:")) and not w:find("[%s|]") then
+			spec = w .. "|" .. spec
+		end
 		if relaxed[f] then
 			if type(relaxed[f]) == "string" then plainWords[#plainWords + 1] = relaxed[f] end
 		elseif spec then

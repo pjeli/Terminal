@@ -473,6 +473,13 @@ do
 	local rb = UI.Results()[1]
 	check(rb and rb.name == "Ratchet Bruiser" and not UI.place, "ratchet bruiser: the NPC, no place read: " .. tostring(rb and rb.name))
 	UI:Hide(); FlushAll()
+	-- (0.68.18) Alt+` names the lists shown that Advanced searches only when named (Questie's NPCs), and a stat's word
+	-- is the word in a name as well, as Simple mode reads it
+	local advB = ns.Easy.ToAdvanced("ratchet bruiser", nil, { npc = true })
+	local advS = ns.Easy.ToAdvanced("testing an enemy's strength", nil, { questie = true })
+	check(advB:find("@npc", 1, true) and advS:find("strength|stat:strength", 1, true) and advS:find("@questie", 1, true),
+		"Alt+`: the lists shown, a stat's word in a name too: " .. advB .. " / " .. advS)
+	check(not ns.Easy.ToAdvanced("linen", nil, { items = true }):find("@", 1, true), "lists searched anyway aren't named")
 	-- (0.68.16) a sentence's little words at the ends aren't a name's: "vendor in ratchet" is vendors in Ratchet, though a
 	-- quest is named Trouble in Ratchet; "near me" before the place is nearest too (a name: the mock's Jazzik serves no faction)
 	for _, q in ipairs({ "vendor in ratchet", "jazzik near me in ratchet" }) do
