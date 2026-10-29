@@ -266,9 +266,11 @@ do
 			[1745] = { name = "Forge", spawns = { [17] = { { 63.0, 37.5 } } } },
 			[32424] = { name = "The Great Forge", spawns = { [12] = { { 42.5, 65.5 } } } },
 			[1797] = { name = "Anvil", spawns = { [17] = { { 52.5, 30.5 }, { 62.0, 36.5 } } } },
-			-- (0.68.1) a cooking fire and moonwells; a campfire and a moonwell of its own name aren't either
+			-- (0.68.1) a cooking fire and moonwells; a moonwell of its own name isn't one. (0.68.10) cooking fires are the
+			-- server's list (I.COOKING_FIRE_IDS): 1798 is a campfire you can cook at, 1911 one that's only scenery
 			[1915] = { name = "Cooking Fire", spawns = { [17] = { { 61.5, 38.0 } } } },
-			[3266] = { name = "Campfire", spawns = { [17] = { { 62.6, 37.2 } } } },
+			[1798] = { name = "Campfire", spawns = { [17] = { { 62.6, 37.2 } } } },
+			[1911] = { name = "Campfire", spawns = { [17] = { { 62.5, 37.1 } } } },
 			[177272] = { name = "Moonwell", spawns = { [17] = { { 50.0, 31.0 } } } },
 			[19549] = { name = "Shadowglen Moonwell", spawns = { [17] = { { 62.6, 37.0 } } } },
 		}),
@@ -278,8 +280,8 @@ do
 			if name ~= "ZoneDB" then return nil end
 			return { private = {
 				-- (QuestieDB lists the parts here too: Goldshire -> Elwynn's map, Ratchet -> the Barrens')
-				areaIdToUiMapId = "return { [17] = 1413, [12] = 1429, [87] = 1429, [392] = 1413, [1637] = 1454, [1537] = 1455, [15] = 1445 }",
-				subZoneToParentZone = "return { [392] = 17, [380] = 17, [87] = 12 }",
+				areaIdToUiMapId = "return { [17] = 1413, [12] = 1429, [87] = 1429, [392] = 1413, [1637] = 1454, [1537] = 1455, [15] = 1445, [425] = 1413 }",
+				subZoneToParentZone = "return { [392] = 17, [380] = 17, [87] = 12, [425] = 17 }", -- (425: an area named Moonwell, Ashenvale's; here the Barrens')
 				dungeons = {
 					[491] = { "Razorfen Kraul", { 1717 }, 17, { { 17, 42.9, 90.2 } } },
 					[2159] = { "Onyxia's Lair", nil, 15, { { 15, 52.6, 76.8 } } },
@@ -290,7 +292,7 @@ do
 			} }
 		end },
 	}
-	local areas = { [1637] = "Orgrimmar", [1537] = "Ironforge", [17] = "The Barrens", [392] = "Ratchet", [380] = "The Crossroads", [12] = "Elwynn Forest", [87] = "Goldshire" }
+	local areas = { [1637] = "Orgrimmar", [1537] = "Ironforge", [17] = "The Barrens", [392] = "Ratchet", [380] = "The Crossroads", [12] = "Elwynn Forest", [87] = "Goldshire", [425] = "Moonwell" }
 	-- world yards: the Barrens is about 10000 yards across (1% = 100 yd); Elwynn elsewhere
 	_G.C_Map = {
 		GetAreaInfo = function(a) return areas[a] end, OpenWorldMap = function() end,
@@ -581,7 +583,7 @@ do
 			.. tostring(pinned and pinned.py))
 		ns.db.easyMode = true
 		check(ns.Easy.ToAdvanced("nearest mailbox") == "@mailbox sort:distance ", "Alt+`: nearest mailbox -> @mailbox sort:distance: " .. ns.Easy.ToAdvanced("nearest mailbox"))
-		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/anvil,cooking fire,forge,mailbox,moonwell,the great forge$"),
+		check(ns.db.objectIndex and ns.db.objectIndex.key:find("/anvil,forge,mailbox,moonwell,the great forge$"),
 			"the saved index's key names the objects looked for: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.key))
 		-- (0.67.10, the player's ask) "nearest forge", "nearest anvil": the same, from their own lists
 		check(ns.db.objectIndex.ids.forge == "1745,32424" and ns.db.objectIndex.ids.anvil == "1797",
@@ -599,20 +601,28 @@ do
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest anvil") == "@anvil sort:distance ", "Alt+`: nearest anvil -> " .. ns.Easy.ToAdvanced("nearest anvil"))
 		check(not ns.Easy.ToAdvanced("where to learn anvil"):find("@anvil", 1, true), "a recipe's name stays a recipe: " .. ns.Easy.ToAdvanced("where to learn anvil"))
-		-- (0.68.1, the player's ask) "nearest cooking fire" (two words), "nearest moonwell": only objects of exactly that name
-		check(ns.db.objectIndex.ids.cookingfire == "1915" and ns.db.objectIndex.ids.moonwell == "177272",
-			"a Cooking Fire and a Moonwell, no campfire or named moonwell: " .. tostring(ns.db.objectIndex.ids.cookingfire)
+		-- (0.68.1, the player's ask) "nearest cooking fire" (two words), "nearest moonwell": a moonwell is an object of
+		-- exactly that name; (0.68.10, the player's ask) a cooking fire is any object the server lets you cook at
+		check(ns.db.objectIndex.ids.cookingfire == nil and ns.db.objectIndex.ids.moonwell == "177272",
+			"a Moonwell, no named moonwell; cooking fires aren't read by name: " .. tostring(ns.db.objectIndex.ids.cookingfire)
 			.. " / " .. tostring(ns.db.objectIndex.ids.moonwell))
 		ns.providers.cookingfire._dirty, ns.providers.moonwell._dirty = true, true
 		UI:Open("nearest cooking fire")
 		local cf = UI.Results()
-		check(#cf == 1 and cf[1].name == "Cooking Fire" and cf[1].kind == "cookingfire" and cf[1].icon:find("Food", 1, true)
-			and cf[1].detail:find("^%d+ yd"), "nearest cooking fire: the one, how far: " .. tostring(cf[1] and cf[1].name)
-			.. " " .. tostring(cf[1] and cf[1].detail))
+		check(#cf == 2 and cf[1].name == "Campfire" and cf[2].name == "Cooking Fire" and cf[1].kind == "cookingfire"
+			and cf[1].icon:find("Food", 1, true) and cf[1].detail:find("^%d+ yd") and cf[1].py == 37.2,
+			"nearest cooking fire: the campfire you can cook at, then the Cooking Fire, not the scenery campfire: "
+			.. tostring(cf[1] and cf[1].name) .. " " .. tostring(cf[1] and cf[1].py) .. " / " .. tostring(cf[2] and cf[2].name) .. " (" .. #cf .. ")")
 		UI:Hide(); FlushAll()
 		UI:Open("closest moonwell")
 		local mw = UI.Results()
 		check(#mw == 1 and mw[1].name == "Moonwell" and mw[1].py == 31.0, "closest moonwell: " .. tostring(mw[1] and mw[1].name))
+		UI:Hide(); FlushAll()
+		-- (0.68.10, the player's screenshot) an area named Moonwell isn't the place "moonwell" names: the NPCs standing in it were listed
+		UI:Open("nearby moonwell")
+		mw = UI.Results()
+		check(#mw == 1 and mw[1].kind == "moonwell" and mw[1].py == 31.0, "nearby moonwell, an area of that name known: the moonwell, not NPCs: "
+			.. tostring(mw[1] and mw[1].name) .. " (" .. tostring(mw[1] and mw[1].kind) .. ")")
 		UI:Hide(); FlushAll()
 		check(ns.Easy.ToAdvanced("nearest cooking fire") == "@cookingfire sort:distance ", "Alt+`: nearest cooking fire -> " .. ns.Easy.ToAdvanced("nearest cooking fire"))
 		check(ns.Easy.ToAdvanced("nearest moonwells") == "@moonwell sort:distance ", "Alt+`: nearest moonwells -> " .. ns.Easy.ToAdvanced("nearest moonwells"))
@@ -632,7 +642,17 @@ do
 		local mbAgain = Names(UI:Search("@mailbox"))
 		check(mbAgain == "Mailbox,Mailbox,Mailbox", "@mailbox: still only mailboxes: " .. mbAgain)
 		local fires = Names(UI:Search("@cookingfire"))
-		check(fires == "Cooking Fire", "@cookingfire: " .. fires)
+		check(fires == "Campfire,Cooking Fire" or fires == "Cooking Fire,Campfire", "@cookingfire: " .. fires)
+		fires = Names(UI:Search("@cookingfire cooking"))
+		check(fires:find("Campfire", 1, true) and fires:find("Cooking Fire", 1, true), "@cookingfire cooking: the kind's name finds them all: " .. fires)
+		-- (0.68.10, review) the object lists are made when asked for, not at login, and let go after a while unused
+		local cfp = ns.providers.cookingfire
+		check(cfp.idleDrop and cfp.idleDrop > 0 and ns.providers.mailbox.idleDrop, "the object lists are left out of the login build")
+		ns:GetEntries(cfp)
+		check(cfp._entries ~= nil, "@cookingfire's rows made")
+		ns:DropIdle(GetTime() + cfp.idleDrop + 1)
+		check(cfp._entries == nil, "...and let go once unused for a while")
+		check(Names(UI:Search("@cookingfire")):find("Campfire", 1, true), "...made again when next wanted")
 		ns.db.easyMode = easyNow
 		check(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox == "32349,142075", "the mailboxes' ids are kept for next time: " .. tostring(ns.db.objectIndex and ns.db.objectIndex.ids.mailbox))
 		-- next session: from the saved index, no pass over every object's name

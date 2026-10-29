@@ -277,6 +277,9 @@ local function SetupQuestie()
 				aliases = def.aliases,
 				explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
 				lazy = true,
+				-- (made when first asked for, not at login, and freed after 10 minutes unused: the cooking fires are ~2,000
+				-- rows, 1.5 MB, which 0.68.10 had built at every login and kept; 0.68.10, review)
+				idleDrop = 600,
 				-- (read before Questie is ready, the list was empty for the session: "No mailbox known near you". Now it's
 				-- read again a moment later, and once Questie is; review, 0.48.6)
 				collect = function()

@@ -26,6 +26,8 @@ local function PlaceIndex()
 		if not n then return end
 		local key = ns.Lower(n):gsub("^the ", "")
 		if #key < 4 or (E and (E.WORDS[key] or E.STOP[key] or E.ACTIONS[key])) then return end
+		-- (nor an object's word: Ashenvale's Moonwell area made "nearest moonwell" NPCs standing in it, 0.68.10)
+		if I.OBJECT_KINDS[key] or I.ENTRANCE_KINDS[key] then return end
 		local place = { area = area, parent = parent, name = n, key = key }
 		idx.byName[key] = place
 		idx.byArea[area] = place

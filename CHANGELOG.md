@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.68.10 (in testing)
+
+- "nearest moonwell" and "nearby moonwell" list moonwells again, not the NPCs around Ashenvale's Moonwell: QuestieDB knows a small area of that name, and Simple mode read the word as that place before looking for the object. A place named like one of the objects (mailbox, forge, anvil, cooking fire, moonwell, dungeon, raid) is no longer a place, so the area itself can't be searched by name any more.
+- "nearest cooking fire" and `@cookingfire` list every fire you can cook at, not only those named Cooking Fire: campfires, bonfires, braziers, stoves, cauldrons, meat racks, about 2,000 places in QuestieDB (it was 12). Which objects count is the server's own data (Mangos Zero's object table: the objects marked as a cooking fire), matched by object, not by name: some campfires and braziers are only scenery and stay out. Each row says what it is ("Campfire", "Cozy Fire"); `@cookingfire campfire` finds those of a name. A fire added or changed by WoW Forever itself isn't known.
+- The mailbox, forge, anvil, cooking fire and moonwell lists are made the first time you ask for one, not at login, and let go after 10 minutes unused, as the NPC list is. The cooking fires alone are about 2,000 rows (some 1.5 MB), which would otherwise be made at every login and kept all session.
+
 ## 0.68.9 (in testing)
 
 - Simple mode reads a spell's range, cooldown and cost only in a line about spells or abilities ("30 yard spells", "spells under 100 mana"). Since 0.68.8 they were read in every line, and a filter only spells pass emptied the rest: "vendor within 300 yards", "drinks over 4000 mana" and "toys with a cooldown under 10" listed nothing, and "cost under 1 gold" was no longer a price. "30 yard range" and "cast time under 2" still need no spell word.

@@ -1,4 +1,4 @@
-"""Terminal's game data, made again from its sources: python tests/gen_data.py [flights|instances|fishing|music|cvars|all] [--check]
+"""Terminal's game data, made again from its sources: python tests/gen_data.py [flights|instances|fishing|cookingfires|music|cvars|all] [--check]
 
 Each table the addon carries about the world is written here from where it comes from (docs/DATA_SOURCES.md says which
 and why), never typed in by hand:
@@ -8,6 +8,8 @@ and why), never typed in by hand:
                                                                    Blizzard's GroupFinderActivity, Map (DB2)
   fishing    Providers/Zones.lua                 Z.FISHING        Mangos Zero's skill_fishing_base_level, named through
                                                                    Blizzard's classic AreaTable (DB2)
+  cookingfires Providers/Integrations/Objects.lua I.COOKING_FIRE_IDS
+                                                                   Mangos Zero's gameobject_template: the objects you cook at
   music      Terminal_Extras/WowampStations.lua  the tracks       Blizzard's SoundKitEntry (DB2), the files' own lengths,
                                                                    their names from the wowdev community listfile
   cvars      Providers/CVarList.lua              ns.CVAR_LIST     Blizzard's interface code for the build (wow-ui-source,
@@ -29,6 +31,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.environ.get("TERMINAL_GAMEDATA") or os.path.join(os.path.expanduser("~"), ".cache", "terminal-gamedata")
 UA = {"User-Agent": "TerminalAddonDataGen/1.0 (github.com/pjeli/Terminal)"}
 FISHING_SQL = "https://raw.githubusercontent.com/mangosArchives/Mangos-Zero-database-old/develop/zp_world/skill_fishing_base_level.sql"
+OBJECTS_SQL = "https://raw.githubusercontent.com/mangosArchives/Mangos-Zero-database-old/develop/zp_world/gameobject_template.sql"
 LISTFILE = "https://github.com/wowdev/wow-listfile/releases/latest/download/verified-listfile-withcapitals.csv"
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -222,6 +225,32 @@ def fishing(check):
     write(rel, old, block(old, "fishing", "".join(lines)), check)
 
 # ----------------------------------------------------------------------------------------------------------------------
+# cookingfires: I.COOKING_FIRE_IDS
+# ----------------------------------------------------------------------------------------------------------------------
+
+# A spell-focus object (type 8) whose focus (data0) is 4, SpellFocusObject's "Cooking Fire": what the server lets you cook
+# beside, whatever the object is called (campfires, braziers, stoves, meat racks; some campfires are only scenery)
+SPELL_FOCUS, COOKING_FIRE = 8, 4
+
+def cookingfires(check):
+    rel = "Providers/Integrations/Objects.lua"
+    old = read(rel)
+    with open(cached("mangos-zero/gameobject_template.sql", OBJECTS_SQL), encoding="utf-8", errors="replace") as f:
+        sql = f.read()
+    # (entry, type, displayId, 'name', faction, flags, size, data0, ...)
+    row = re.compile(r"\((\d+),(\d+),\d+,'(?:[^'\\]|\\.)*',\d+,\d+,[\d.eE+-]+,(\d+),")
+    ids = sorted(int(e) for e, t, d0 in row.findall(sql) if int(t) == SPELL_FOCUS and int(d0) == COOKING_FIRE)
+    if len(ids) < 100:
+        raise SystemExit(f"only {len(ids)} cooking fires read: has the table's layout changed?")
+    lines = [f"-- {len(ids)} objects, Mangos Zero's gameobject_template: type {SPELL_FOCUS} (spell focus), focus {COOKING_FIRE} (Cooking Fire)\n",
+        "I.COOKING_FIRE_IDS = {\n"]
+    for i in range(0, len(ids), 16):
+        lines.append("\t" + ", ".join(str(n) for n in ids[i:i + 16]) + ",\n")
+    lines.append("}\n")
+    write(rel, old, block(old, "cookingfires", "".join(lines)), check)
+    print(f"  {len(ids)} objects you can cook at")
+
+# ----------------------------------------------------------------------------------------------------------------------
 # music: the .wowamp stations' tracks
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -343,7 +372,7 @@ def cvars(check):
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "music": music, "cvars": cvars}
+STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "cookingfires": cookingfires, "music": music, "cvars": cvars}
 
 def main(args):
     check = "--check" in args

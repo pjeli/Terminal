@@ -92,6 +92,20 @@ levels below, up to five above). Terminal shows the ranges above.
 The game client doesn't carry these (the server decides them), so a server project's table is the source.
 WoW Forever's own zones have none there yet, so they show no fishing skill.
 
+## Cooking fires
+
+`I.COOKING_FIRE_IDS` in `Providers/Integrations/Objects.lua`, from `gen_data.py cookingfires`, for "nearest cooking fire"
+and `@cookingfire`.
+
+| What | Source |
+|---|---|
+| Which objects you can cook at | Mangos Zero's `gameobject_template` ([mangosArchives/Mangos-Zero-database-old](https://github.com/mangosArchives/Mangos-Zero-database-old/blob/develop/zp_world/gameobject_template.sql)): every object of type 8 (a spell focus) whose focus (`data0`) is 4, the Cooking Fire focus that cooking recipes ask for |
+| Where they stand, and their names | QuestieDB's objects, read in game through its public interface (`LibQuestieDB.Object`) |
+
+The client doesn't say which objects are a cooking fire (the server decides), and QuestieDB's objects carry only a name,
+spawns and a zone. Names can't tell: some objects named Campfire, Brazier or Bonfire are only scenery. So the ids come
+from a server project's table. Fires WoW Forever added or changed aren't in it.
+
 ## .wowamp's tracks
 
 `Terminal_Extras/WowampStations.lua`, from `gen_data.py music`. Which tracks each station plays is Terminal's own.
