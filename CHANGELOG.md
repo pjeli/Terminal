@@ -1,113 +1,47 @@
 # Changelog
 
-## 0.68.19 (in testing)
+## 0.69.0
 
-- Simple mode's NPC category names the NPC called what you typed: "thrall" shows "NPCs  Thrall +6 more", not Nazgrel, whose title is Advisor to Thrall. The name as typed comes first, then a name with your words in it, then a title.
-- A quest's or an NPC's whole name typed like a question is the name: "What Is Going On?" (a Blackrock Depths quest) lists the quest; it was answered by the calendar ("Nothing on the calendar this month or next"). Only a whole name of three words or more, or with a "?", counts, so "my mail" and "mounts" are still asked as before.
+**!t: your guild asks Terminal**
+- Someone in your guild or group types `!t nearest innkeeper` (or `!t where is hogger`, `!t what drops thunderfury`) and one Terminal in the guild answers in the same channel, from their side: nearest to where they stand, their class trainer, their level. World facts only, never your bags, mail, alts or position.
+- Off until you switch it on: `.ask guild on`, `.ask group on`, `.ask whisper on` (whispers only from friends, guildies and your group). `.ask test <question>` shows what it would send. Your own `!t` is answered in your chat only.
+- Several Terminals in a guild agree on one answer, and share the limits: 10 s per asker, once a minute per question, 6 a minute per channel. Never in a battleground's chat; a question in another language is left unanswered.
+- Answers are headed as `>>>` heads a list in your own chat: "Nearby innkeeper (15): ...", "Vendor in Ratchet (12): ...".
 
-## 0.68.18 (in testing)
+**Spells by what they do**
+- Your spellbook's and every class's spells (`@spell`) are found by their descriptions: "spells that stun", "druid spells that root", `@spell movement speed`.
+- Four new filters, as the game gives them: `cast:instant`, `cast:<2`; `cost:0`, `cost:mana`, `cost:<100`; `range:melee`, `range:30`; `cd:0`, `cd:<10`. In Simple mode: "instant spells", "spells with no cooldown", "spells that cost no mana", "30 yard spells", "spells under 100 mana", read only in a line about spells or abilities.
 
-- Alt+` names the lists shown that Advanced mode searches only when they're named: "hex of weakness", which Simple mode lists from Questie's quests, is written "@questie hex weakness", and "ratchet bruiser" "@npc ratchet bruiser". They were written without, and found nothing in Advanced mode.
-- Alt+` writes a stat's or a slot's word as Simple mode reads it, in a name as well: "testing an enemy's strength" is "testing enemy's strength|stat:strength" (it was stat:strength, which no quest has), "Kresh's Back" "Kresh's back|slot:back", as item kinds already were ("sword|type:sword").
+**Cooking fires and moonwells**
+- "nearest cooking fire" lists every fire you can cook at: campfires, bonfires, braziers, stoves, cauldrons, meat racks, about 2,000 places (the objects the server marks as a cooking fire, from Mangos Zero's object table; scenery fires stay out). Each row says what it is ("Campfire", "Cozy Fire").
+- "nearest moonwell" lists QuestieDB's moonwells. Advanced: `@cookingfire`, `@moonwell` with `sort:distance`, `near:` and `in:`. Both need Questie or QuestieDB.
+- The object lists (mailboxes, forges, anvils, cooking fires, moonwells) are made the first time you ask, not at login, and let go after 10 minutes unused.
 
-## 0.68.17 (in testing)
+**Simple mode understands more of how people ask**
+- "nearest" after a request's opening words: "where is the nearest mailbox", "find the closest innkeeper", "show me the nearest anvil". "near me" anywhere: "repair near me", "innkeeper near me in stormwind".
+- An object or a role said alone is the nearest of them: "mailbox", "anvil", "inn", "repair"; "mailboxes in westfall" those there.
+- Roles in the plural ("nearest innkeepers", "banks", "flight masters"), "nearest auction house", "deadmines entrance", Stormwind by its name alone.
+- A word naming the kind you want looks only there: "hogger quest", "quests in westfall", "npcs in westfall", "linen recipes".
+- "where to learn tailoring", "who teaches mining", "where to learn warrior", "where can i learn riding": the nearest trainers.
+- "who drops spiritshroud leggings", "vendors that sell woven vest", "which vendors sell ice threaded bullet": where to get it. An item only the other faction sells says who: "Sells it to the other faction only". A name beginning with "the" or "a" is found whole ("where to get the collector's ring").
+- A place said with nothing there says so: "None of those in Moonglade that Questie knows of." A place on another continent lists what's there, with no distance.
+- Names come first: "thrall" names Thrall, not his advisor; "dalaran mage" and "stockade guard" are those NPCs, not a mage in Dalaran; a quest named like a question ("What Is Going On?") is the quest.
 
-- More ways to ask where to get something: "who drops spiritshroud leggings" (it asked the server /who), "vendors that sell woven vest", "vendor that sells mild spices", "which vendors sell ice threaded bullet", "what mobs drop copper ore" (they found nothing).
-- An item only the other faction's vendors sell lists them, saying "Sells it to the other faction only" (a recipe: "Sells the recipe to the other faction only"). It said "Nowhere known to get" the item: a Horde quartermaster's armour asked for by an Alliance player, Woven Vest, Fire Sapta. Those who'd sell to you still come alone when there are any. Translated in six languages.
-- "where to get the collector's ring", "who drops the collector's ring": an item whose name begins with "the", "a" or "an" is found by its whole name. The phrase took the article off ("the thorium bar" is Thorium Bar), and Questie's The Collector's Ring was then looked for as "collector's ring" and missed ("Nothing called ..."). The article is put back when nothing has the name without it.
+**Typos as hands make them**
+- A neighbouring key ("linrn"), a key pressed twice ("linnen"), a key missed ("lien", "hoger"), two keys swapped ("marhsal") or a neighbouring key pressed as well counts as one slip, on your client's keyboard (QWERTZ in German, AZERTY in French). A key far from its place counts for more.
+- A word that is exactly a name is never a typo: "linken" is the NPC Linken, not your Linen Cloth. Simple mode corrects names only Questie knows: "marshal dughn" finds Marshal Dughan.
 
-## 0.68.16 (in testing)
+**Alt+`**
+- Names the lists the rows shown come from when Advanced mode searches them only by name (`@questie hex weakness`), and writes a stat's or a slot's word as Simple mode reads it, in a name as well ("strength|stat:strength").
 
-- Simple mode reads a name with a place in it as the name: "dalaran mage", "stockade guard" and "orgrimmar reveler" find those NPCs. They were read as "mage" in Dalaran, "guard" in the Stockade and "reveler" in Orgrimmar, which found other things or nothing. When the words, in order, are an NPC's or a quest's name (Questie's), no place is read in them; "vendor goldshire" and "innkeeper in stormwind" read their place as before.
-- "nearest mailbox in moonglade", "nearest innkeeper in moonglade" and the like, with none there, say "None of those in Moonglade that Questie knows of.", not "Nothing has that. Check the spelling". "3 nearest mailboxes in moonglade" says it too: a top N with nothing to keep listed nothing at all. Translated in six languages.
-- "innkeeper near me in stormwind", "repair around me in goldshire": "near me" said before a place means nearest too (only the last two words were read for it).
-- An object said alone is the nearest of them, as a role is ("inn", "repair"): "mailbox", "anvil", "forge", "cooking fire", "moonwell" list the nearest ones; "mailboxes in westfall", "anvils in stormwind" those there. "mailbox" found a writ whose text names one, "anvil" an NPC called Aturk the Anvil, and "mailboxes in westfall" nothing. Alt+` writes "@mailbox sort:distance".
-- "where to learn tailoring", "who teaches mining", "where do i train herbalism", "where to learn warrior", "where can i learn riding": a profession's or a class's trainers, the nearest first, as "tailoring trainer" lists them. They said "Nothing called "tailoring" in your bags, recipes, AtlasLoot or alts". A recipe, a spell or a weapon skill ("where to learn linen bandage", "where to learn daggers") still says where to learn it.
-- "nearest mailbox in durotar", "bank in the barrens", "nearest anvil in darkshore" asked from another continent list what's in the place, with no distance (it can't be measured across continents). They listed nothing, or said none was there.
+**Smaller and faster**
+- The game loads only your language's translations (about 1.6 MB less read at every login), and the release's code comes without its comments, about a fifth smaller.
+- `.saved keep talents small` keeps every class's talents without their descriptions, most of that part's size.
 
-## 0.68.15 (in testing)
-
-- Misspellings are read as hands make them. A neighbouring key ("linrn"), a key pressed twice ("linnen", "hoggger"), a key missed ("lien", "hoger"), two keys swapped ("marhsal") or a neighbouring key pressed as well ("linenm") counts as one slip. A key far from its place counts for more. Up to 7 letters, one mistake of any kind is still forgiven, the slips first; from 8 letters, two slips, or a slip and another mistake, but no longer two keys far from where they belong. The keyboard is your client's: QWERTZ on German clients, AZERTY on French, QWERTY otherwise.
-- A word that is exactly a name is never taken for a typo: "linken" is the NPC Linken, not your Linen Cloth; "lairn" and "spike" the NPCs of those names, not the Lair raids or Blackrock Spire.
-- Simple mode corrects names only Questie knows, as Advanced's `@npc` did: "mountain buzzaard", "marshal dughn", "spiritual domintion", "innkeeper farleu" find them; before, one slip in such a name found nothing about 61% of the time (a test over QuestieDB's real data). When the words match only as letters scattered through some names ("linrn" in Wailing Caverns), a name one slip away goes first (Linen Cloth).
-
-## 0.68.14 (in testing)
-
-- Simple mode reads a word naming the kind of thing you want as that kind: "hogger quest", "quest hogger", "quests in westfall", "westfall quests level 10", "npcs in westfall", "defias npcs", "mob kobold", "linen items", "linen recipes", "fast mounts". The word picks that category (Quests, NPCs, Items, Spells, Crafting; mounts, pets, toys and achievements their own list), as if you'd picked it, and isn't searched as a word itself. "hogger quest" found nothing, and "quests in westfall" listed an NPC named Quartermaster Lewis. A kind said alone ("quests", "my mounts", "toys") is searched as before, and a category you picked yourself, an action word ("nearest", "use") or a trainer's word ("pet trainer") wins over it. Nothing in that category: every category that has the other words is shown, as before. Alt+` writes the category's lists ("@questie @questlog hogger"); the category's own name in the client's language counts too.
-
-## 0.68.13 (in testing)
-
-- `.console`: Ctrl+B then c (or 5 or ') no longer leaves the letter in the new pane. The key after Ctrl+B is typed into whichever box has the keyboard, and the boxes' text was saved before the key's work, when the new pane didn't exist yet; it's saved after it now, so the new pane comes back empty.
-- `.console`: a line wider than its pane no longer runs on over the next pane or the game. The game's own clipping (a ScrollFrame, before that SetClipsChildren) didn't cut text there, so each row, column and art line is now cut to the pane by the console: it ends at the pane's right edge (the game may end it with "..."), and with the lines slid sideways (Shift+wheel, Left/Right) what's past the left edge isn't drawn, whole characters at a time, colours kept.
-- `.console`: in a narrow pane the prompt you type after is shortened instead of running on over the next pane: where you are and the prompt's end (`~ $`), or the end alone, whatever leaves room for about ten characters of typing. A pager's prompt line still too long ends at the pane's edge. Your prompt as set comes back when the pane is wide enough; the lines already printed keep it whole (cut to the pane, as 0.68.13).
-- `.console`: `rm` with an option it doesn't know (`rm -k`) says so, as every other command does, instead of a Lua error.
-- `.console`: listing big folders does less work. Each NPC's roles are worked out once, not on every `ls`, and names with nothing to clean aren't copied. Over QuestieDB's 13,000 NPCs, `ls -l` after the first listing no longer works out each NPC's roles again (about 100 ms a listing); the first `ls /npc` is a little quicker (about 280 ms to 245 ms in the tests' measure, made once a session).
-
-## 0.68.12 (in testing)
-
-- `!t` answers are headed as `>>>` heads a list in your own chat: "Nearby innkeeper (15): ...", "Nearby mailbox (8): ...", "Vendor in Ratchet (12): ...". They read "Nearest (15)", "Mailbox nearest (8)". "nearest class trainer" names the asker's class, not yours.
-
-## 0.68.11 (in testing)
-
-- Simple mode knows NPC roles said in the plural: "nearest innkeepers", "3 nearest innkeepers", "nearest bankers", "nearest flight masters", "nearest stable masters", "nearest quest givers", "auctioneers", "banks". They were read as names: "nearest innkeepers" listed only innkeepers whose names have an s (Innkeeper Farley, 64 yards away, was left out), Horde ones too, and "nearest flight masters" listed quartermasters.
-- Stormwind by its name alone: "innkeeper in stormwind", "innkeeper sw", "nearest cooking fire in stormwind" and `in:stormwind` find what's there. The game calls it Stormwind City, and only those two words were known. Any place named "<name> City" is also known by its name alone, unless another place has it.
-- "nearest" said after a request's opening words: "where is the nearest mailbox", "find the closest innkeeper", "show me the nearest anvil", "whats the nearest innkeeper", "i need the nearest repair". These listed nothing, or quests; now they're "nearest" as typed alone. A "please" at the end is left out too. "where is hogger" stays a where.
-- "nearest blacksmith" and "blacksmith trainer" find blacksmithing trainers again: Arathi Basin has an area named Blacksmith, and the word was read as that place. A place named like a profession's people or an NPC's role ("blacksmith"), or a word too common to mean one ("mine", "camp"), is no longer read as a place.
-- More of how people ask, in Simple mode:
-  - "repair near me", "innkeeper near me", "mining trainer around me" are "nearest" (they listed settings and places).
-  - "nearest auction house" finds auctioneers (it found the House of Nobles).
-  - "deadmines entrance", "sfk entrance", "in the deadmines" and "nearest dungeon entrance" find the dungeon (they found nothing). A place named with only a sentence's little words beside it ("in", "the", "entrance") is looked for by its name, not as everything standing in it.
-
-## 0.68.10 (in testing)
-
-- "nearest moonwell" and "nearby moonwell" list moonwells again, not the NPCs around Ashenvale's Moonwell: QuestieDB knows a small area of that name, and Simple mode read the word as that place before looking for the object. A place named like one of the objects (mailbox, forge, anvil, cooking fire, moonwell, dungeon, raid) is no longer a place, so the area itself can't be searched by name any more.
-- "nearest cooking fire" and `@cookingfire` list every fire you can cook at, not only those named Cooking Fire: campfires, bonfires, braziers, stoves, cauldrons, meat racks, about 2,000 places in QuestieDB (it was 12). Which objects count is the server's own data (Mangos Zero's object table: the objects marked as a cooking fire), matched by object, not by name: some campfires and braziers are only scenery and stay out. Each row says what it is ("Campfire", "Cozy Fire"); `@cookingfire campfire` finds those of a name. A fire added or changed by WoW Forever itself isn't known.
-- The mailbox, forge, anvil, cooking fire and moonwell lists are made the first time you ask for one, not at login, and let go after 10 minutes unused, as the NPC list is. The cooking fires alone are about 2,000 rows (some 1.5 MB), which would otherwise be made at every login and kept all session.
-
-## 0.68.9 (in testing)
-
-- Simple mode reads a spell's range, cooldown and cost only in a line about spells or abilities ("30 yard spells", "spells under 100 mana"). Since 0.68.8 they were read in every line, and a filter only spells pass emptied the rest: "vendor within 300 yards", "drinks over 4000 mana" and "toys with a cooldown under 10" listed nothing, and "cost under 1 gold" was no longer a price. "30 yard range" and "cast time under 2" still need no spell word.
-- `.explain`, and the pointer resting on an Advanced line, no longer error on a filter whose value is only bars (`stat:||`): it's said as typed.
-- Tidying: four functions nothing called any more were removed (no change in what Terminal does).
-
-## 0.68.8 (in testing)
-
-- Spells by what they do: your spellbook's and every class's spells (`@spell`) are found by their descriptions ("spells that stun", "druid spells that root", "@spell movement speed"), and by four new filters, as the game gives them:
-  - `cast:instant`, `cast:channeled`, `cast:<2`, `cast:2.5` (seconds);
-  - `cost:0`, `cost:mana`, `cost:rage`, `cost:energy`, `cost:<100`;
-  - `range:melee`, `range:self`, `range:30`, `range:>=20` (yards);
-  - `cd:0`, `cd:<10`, `cd:>60` (its own cooldown in seconds; `cooldown:` says the same).
-
-  Passive spells match none of them. In Simple mode: "instant spells", "channeled spells", "spells with no cooldown", "spells that cost no mana", "melee range abilities", "30 yard spells", "spells with a range over 20 yards", "spells with a cooldown under 10 seconds", "10 sec cooldown spells", "spells under 100 mana", "cast time under 2". "Instant Poison" is still found by its name. Descriptions not yet sent by the game are asked for in the background, 100 at a time, and the lists made again when they arrive; they're kept for the session only, so the saved file doesn't grow. `.filters` and Tab list the new filters for `@spell`.
-
-## 0.68.7 (in testing)
-
-- The game loads only your client language's translation file: each `Locales\` line in Terminal.toc says whose it is (`[AllowLoadTextLocale deDE]`), so the other nine (about 1.6 MB) are no longer read and compiled at every login. Each file still stops at its first line on another client, should the game ever ignore the mark.
-- The release ZIP's Lua comes without its comments, about a fifth smaller (some 980 KB): the GitHub repository keeps them. Every line stays where it was, blank where a comment was, so error and `.debug` line numbers still match the tag's files. `tests/strip_comments.py` does it in release.yml, before packaging, and proves each file compiles to the same bytecode first (a file that doesn't stops the release); `tests/check.py` runs the same proof.
-
-## 0.68.6 (in testing)
-
-- `!t` never answers in a battleground's chat (its instance group is strangers), and doesn't tell you about questions there; a premade party's own party chat is still your group's, and a dungeon's instance chat is answered as before.
-
-## 0.68.5 (in testing)
-
-- `!t` review: a linked item in the question (`!t what drops [Thunderfury]`) is read as its name, and "nothing found for ..." can no longer send half a link. Every Terminal in the guild counts the answers, whichever one answered, so the 10 s per asker, once a minute per question and 6 a minute per channel hold across all of them, and a second question asked before the first's answer waits too. A Terminal in combat, in chat lockdown or switched off no longer claims a question it then can't answer (which left it unanswered); claims wait 0.8 s for another's instead of 0.3, so two a moment apart don't both answer on a slow connection. A question is the same on every client by the asker's GUID. An asker whose class isn't known gets no class trainer instead of yours. The answer's search no longer reads the terminal's own last search's "close spellings only" flags, and leaves its items-loading wait alone. Your own `!t` says when a list is still loading. Other addons' hidden messages are skipped at once; the guild roster is matched by the name's start before the full test; old askers are forgotten.
-
-## 0.68.4 (in testing)
-
-- `!t`: someone in your guild or group types `!t nearest innkeeper` (or `!t where is hogger`, `!t what drops thunderfury`) and one Terminal in the guild answers in the same channel, from their side: nearest to where they stand, their class trainer, their level. World facts only, never your bags, mail, alts or position. Off until you switch it on (`.ask guild on`, `.ask group on`, `.ask whisper on`); whispers only from friends, guildies and your group; a question in another language is left unanswered. `.ask test <question>` shows what it would send. Several Terminals in a guild agree on one answer with a hidden message. Your own `!t` is answered in your chat only. Design: docs/ASK.md.
-
-## 0.68.3 (in testing)
-
-- `.saved keep talents small`: every class's talents are kept between sessions without their descriptions (most of that part's size, about 57 KB); the descriptions are read from the game again each session. `off` and `on` are as before.
-
-## 0.68.2 (in testing)
-
-- `.tour`'s Questie step searches a different "nearest" each time, at random: vendor, innkeeper, repair, trainer, mailbox, anvil, forge or cooking fire (an object only when QuestieDB has its list).
-
-## 0.68.1 (in testing)
-
-- "nearest cooking fire" and "nearest moonwell" (also "closest", "farthest", "2 moonwells"), and `@cookingfire` / `@moonwell` in Advanced with `sort:distance`, `near:` and `in:`: QuestieDB's objects named exactly Cooking Fire (12) and Moonwell (31), as "nearest anvil" does; no campfires or bonfires. The console has `/cookingfire` and `/moonwell`.
+**Also**
+- `.tour`'s Questie step shows a different "nearest" each time: a vendor, an innkeeper, an anvil, a cooking fire...
+- `.console`: Ctrl+B then c no longer leaves the c in the new pane; lines and the prompt are cut to their pane; `rm` with an unknown option says so; big folders list faster.
+- `.explain` no longer errors on a filter whose value is only bars.
 
 ## 0.68.0
 

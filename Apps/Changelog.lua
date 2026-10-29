@@ -14,17 +14,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.68.19", when = "in testing",
+		v = "0.69.0", when = "released October 2026",
 		items = {
-			"\"nearest cooking fire\" and \"nearest moonwell\" (needs Questie or QuestieDB).",
-			".tour shows a different \"nearest\" each time: a vendor, an innkeeper, an anvil, a forge...",
-			".saved keep talents small keeps every class's talents but not their descriptions, most of their size.",
 			"!t: your guild or group asks Terminal (\"!t nearest innkeeper\") and it answers for them. Off until you switch it on: .ask guild on.",
+			"\"nearest cooking fire\" finds every fire you can cook at, and \"nearest moonwell\" moonwells (needs Questie or QuestieDB).",
+			"Spells by what they do: \"spells that stun\", \"instant spells\", \"30 yard spells\", any class's.",
+			"Asked as you'd say it: \"where is the nearest mailbox\", \"innkeeper near me\", \"who drops linen cloth\", \"where to learn tailoring\".",
+			"Say what kind you want: \"hogger quest\", \"quests in westfall\", \"linen recipes\" look only there.",
+			"Typos as hands make them: \"linnen\" and \"lien\" find Linen Cloth; \"linken\" stays Linken.",
 			"A smaller download that loads faster: only your language's translations are read, and the code comes without its comments.",
-			"Spells by what they do: \"spells that stun\", \"instant spells\", \"spells with no cooldown\", \"30 yard spells\", any class's.",
-			"Say what kind you want: \"hogger quest\", \"quests in westfall\", \"npcs in westfall\", \"linen recipes\" look only there.",
-			"Asked as you'd say it: \"where is the nearest mailbox\", \"repair near me\", \"nearest innkeepers\", \"innkeeper in stormwind\".",
-			"Typos as hands make them: \"linnen\", \"lien\" and \"linrn\" find Linen Cloth, \"marshal dughn\" Marshal Dughan; \"linken\" stays Linken.",
 		},
 	},
 	{
