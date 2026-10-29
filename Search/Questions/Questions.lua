@@ -258,6 +258,12 @@ local function PlainSaid(text, dates)
 end
 
 function Scan.ReadQuestion(text, ask)
+	-- (a quest's or an NPC's whole name asked like a question, "What Is Going On?", "Who Is Stealing Our Cats?": the
+	-- name, searched; three words or more, or a "?", so "mounts" or "my mail" are still asked; 0.68.19)
+	local I = ns.Integrations
+	if EasyOn() and I and I.IsName and (text:find("?", 1, true) or select(2, text:gsub("%S+", "")) >= 3) and I.IsName(text) then
+		return nil
+	end
 	if text:find(">", 1, true) then
 		local rest, tail = Scan.SplitTail(text, true)
 		local got = rest and ask(rest)

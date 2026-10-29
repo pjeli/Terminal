@@ -243,6 +243,7 @@ do
 			[60] = { name = "Kobold Candles", questLevel = 7, zoneOrSort = 12,
 				objectivesText = { "Bring 8 Large Candles to William Pestle in Goldshire." }, finishedBy = { { 253 } } },
 			[866] = { name = "Trouble in Ratchet", questLevel = 15, zoneOrSort = 17 }, -- (0.68.16: "in ratchet" in a name)
+			[867] = { name = "What Is Going On?", questLevel = 54, zoneOrSort = 17 }, -- (0.68.19: a quest named like the calendar's question)
 			[61] = { name = "Shipment to Stormwind", questLevel = 7, zoneOrSort = 12,
 				objectivesText = { "Take the shipment at the farm to someone at Goldshire... no, an \"at\" with nothing after" } },
 		}),
@@ -480,6 +481,11 @@ do
 	check(advB:find("@npc", 1, true) and advS:find("strength|stat:strength", 1, true) and advS:find("@questie", 1, true),
 		"Alt+`: the lists shown, a stat's word in a name too: " .. advB .. " / " .. advS)
 	check(not ns.Easy.ToAdvanced("linen", nil, { items = true }):find("@", 1, true), "lists searched anyway aren't named")
+	-- (0.68.19) a quest's whole name asked like a question is the quest, not the calendar's answer
+	UI:Open("what is going on?")
+	local wg = UI.Results()[1]
+	check(wg and wg.name == "What Is Going On?", "what is going on?: the quest: " .. tostring(wg and wg.name))
+	UI:Hide(); FlushAll()
 	-- (0.68.16) a sentence's little words at the ends aren't a name's: "vendor in ratchet" is vendors in Ratchet, though a
 	-- quest is named Trouble in Ratchet; "near me" before the place is nearest too (a name: the mock's Jazzik serves no faction)
 	for _, q in ipairs({ "vendor in ratchet", "jazzik near me in ratchet" }) do

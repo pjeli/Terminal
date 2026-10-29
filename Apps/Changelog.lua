@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.68.18", when = "in testing",
+		v = "0.68.19", when = "in testing",
 		items = {
 			"\"nearest cooking fire\" and \"nearest moonwell\" (needs Questie or QuestieDB).",
 			".tour shows a different \"nearest\" each time: a vendor, an innkeeper, an anvil, a forge...",

@@ -128,6 +128,9 @@ local function FindNames(blob, tokens, tick)
 	local lead = tokens[1]
 	for k = 2, #tokens do if #tokens[k] > #lead then lead = tokens[k] end end
 	local pos, count, firstId, looked, ids, firstLine = 1, 0, nil, 0, {}, nil
+	-- the one named: the name exactly as typed first, then one with the words in its name (not its title), then the
+	-- first (0.68.19: "thrall" named Nazgrel, <Advisor to Thrall>, who comes first by id)
+	local phrase, rank = table.concat(tokens, " "), 0
 	while count < 100 do
 		local at = blob:find(lead, pos, true)
 		if not at then break end
@@ -135,8 +138,8 @@ local function FindNames(blob, tokens, tick)
 		local tab = blob:find("\t", at, true)
 		if tab and tab < lineEnd then -- (a match in the name, not in the id after it)
 			local all, name = true, nil
-			-- the line cut out only to check the other words (review, 0.53.6), or for the first match's line
-			if #tokens > 1 or not firstLine then
+			-- the line cut out only to check the other words (review, 0.53.6), or while a better line may come
+			if #tokens > 1 or rank < 3 then
 				local from = math.max(1, at - 120)
 				local back = blob:sub(from, at):match(".*\n()")
 				name = blob:sub(back and (from + back - 1) or at, tab - 1)
@@ -147,8 +150,16 @@ local function FindNames(blob, tokens, tick)
 			if all then
 				count = count + 1
 				local id = tonumber(blob:sub(tab + 1, lineEnd - 1))
+				if name and rank < 3 then
+					local own, r = name:match("^(.-) <") or name, 1
+					if own == phrase then r = 3
+					else
+						r = 2
+						for k = 1, #tokens do if not own:find(tokens[k], 1, true) then r = 1 break end end
+					end
+					if r > rank then rank, firstId, firstLine = r, id, name end
+				end
 				firstId = firstId or id
-				firstLine = firstLine or name
 				if id and #ids < I.HINT_FEW then ids[#ids + 1] = id end
 			end
 		end
@@ -159,6 +170,21 @@ local function FindNames(blob, tokens, tick)
 	return firstId, count, ids, firstLine
 end
 I.FindNames = FindNames
+
+--- Is the line exactly a quest's or an NPC's whole name (Questie's)? "What Is Going On?" is a quest, not the calendar's
+--- question (0.68.19).
+function I.IsName(text)
+	if type(text) ~= "string" then return false end
+	local lt = ns.Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	if lt == "" then return false end
+	for _, t in ipairs({ qdb, npc }) do
+		local blob = t.names
+		if type(blob) == "string" and (blob:find("\n" .. lt .. "\t", 1, true) or blob:find("\n" .. lt .. " <", 1, true)) then
+			return true
+		end
+	end
+	return false
+end
 
 --- Are these words, in this order, whole words of an NPC's or a quest's name (not a title)? "dalaran mage", "stockade
 --- guard", "orgrimmar reveler" are NPCs, not mages in Dalaran (0.68.19): Simple mode then reads no place in them.

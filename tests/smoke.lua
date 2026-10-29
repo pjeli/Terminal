@@ -3255,6 +3255,13 @@ do -- AtlasLoot and Questie integrations
 		local ticks = 0
 		id, c = F(table.concat(many) .. "\n", { "wolf" }, function() ticks = ticks + 1 end)
 		check(id == 1 and c == 100 and ticks >= 1, "counts stop at 100 and the search is paused every so often")
+		-- 0.68.19: the one named is the name as typed, then a name with the words, then a title ("thrall": Nazgrel came first)
+		local titled = "\nnazgrel <advisor to thrall>\t3230\nenthralled rat\t2110\nthrall <warchief>\t4949\n"
+		local _, line
+		id, c, _, line = F(titled, { "thrall" })
+		check(id == 4949 and c == 3 and line == "thrall <warchief>", "the exact name named first: " .. tostring(id) .. " " .. tostring(line))
+		id = F("\nnazgrel <advisor to thrall>\t3230\nenthralled rat\t2110\n", { "thrall" })
+		check(id == 2110, "else a name with the word, not a title: " .. tostring(id))
 	end
 	check(I.qdb.list and #I.qdb.list == 3, "Questie quests indexed in the background after login: " .. tostring(I.qdb.list and #I.qdb.list))
 	ns.providers.questie._dirty = true

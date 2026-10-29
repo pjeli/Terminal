@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.68.19 (in testing)
+
+- Simple mode's NPC category names the NPC called what you typed: "thrall" shows "NPCs  Thrall +6 more", not Nazgrel, whose title is Advisor to Thrall. The name as typed comes first, then a name with your words in it, then a title.
+- A quest's or an NPC's whole name typed like a question is the name: "What Is Going On?" (a Blackrock Depths quest) lists the quest; it was answered by the calendar ("Nothing on the calendar this month or next"). Only a whole name of three words or more, or with a "?", counts, so "my mail" and "mounts" are still asked as before.
+
 ## 0.68.18 (in testing)
 
 - Alt+` names the lists shown that Advanced mode searches only when they're named: "hex of weakness", which Simple mode lists from Questie's quests, is written "@questie hex weakness", and "ratchet bruiser" "@npc ratchet bruiser". They were written without, and found nothing in Advanced mode.
