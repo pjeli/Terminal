@@ -334,7 +334,14 @@ function SH.Context(query, e)
 				roles[#roles + 1] = SH.ROLES[val]
 			elseif key == "trainer" then
 				if MY_CLASS[val] then
-					local cls = UnitClass and UnitClass("player")
+					-- (a !t question: the asker's class, Core/Ask.lua's ns.Asker; one not known says "class"; 0.68.12)
+					local A, cls = ns.Asker, nil
+					if A then
+						local names = _G.LOCALIZED_CLASS_NAMES_MALE
+						cls = A.class and (type(names) == "table" and names[A.class] or A.class) or nil
+					else
+						cls = UnitClass and UnitClass("player")
+					end
 					val = type(cls) == "string" and ns.Lower(cls) or L["class"]
 				elseif val == "mine" then
 					val = L["mining"]

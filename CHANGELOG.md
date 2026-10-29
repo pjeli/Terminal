@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.12 (in testing)
+
+- `!t` answers are headed as `>>>` heads a list in your own chat: "Nearby innkeeper (15): ...", "Nearby mailbox (8): ...", "Vendor in Ratchet (12): ...". They read "Nearest (15)", "Mailbox nearest (8)". "nearest class trainer" names the asker's class, not yours.
+
 ## 0.68.11 (in testing)
 
 - Simple mode knows NPC roles said in the plural: "nearest innkeepers", "3 nearest innkeepers", "nearest bankers", "nearest flight masters", "nearest stable masters", "nearest quest givers", "auctioneers", "banks". They were read as names: "nearest innkeepers" listed only innkeepers whose names have an s (Innkeeper Farley, 64 yards away, was left out), Horde ones too, and "nearest flight masters" listed quartermasters.

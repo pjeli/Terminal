@@ -272,7 +272,12 @@ function A.Rows(question, asker)
 	ns.Asker = { here = asker and asker.here or false, class = asker and asker.class, level = asker and asker.level }
 	if E then E.tempSimple = true end
 	-- (whatever happens in it, you're you again after: an error left in would have measured your "nearest" from Bob)
+	local adv
 	local ok, out = pcall(function()
+		-- (the question as Alt+` writes it: what the chat line says the rows are reads that, as the terminal's >>> does;
+		-- given the words as typed, "nearest innkeeper" was headed "Nearest", "nearest mailbox" "Mailbox nearest";
+		-- 0.68.12, review)
+		adv = E and E.ToAdvanced and E.ToAdvanced(text) or nil
 		local res = OneSearch(text)
 		local found = Allowed(res)
 		if #found == 0 then
@@ -300,7 +305,7 @@ function A.Rows(question, asker)
 			end
 		end
 	end
-	return out, busy
+	return out, busy, type(adv) == "string" and adv ~= "" and adv or text
 end
 
 -- an NPC's or a spot's text sets your map pin to link it: your own pin is put back after
@@ -326,10 +331,14 @@ function A.AnswerLine(question, asker)
 	if ns.Lower(question) == "help" then
 		return head .. L["ask me: !t nearest innkeeper, !t where is hogger, !t what drops thunderfury"]
 	end
-	local rows, busy = A.Rows(question, asker)
+	local rows, busy, said = A.Rows(question, asker)
 	if #rows == 0 then return nil, busy end
 	local SH = ns.Share
-	local lines = KeepingWaypoint(SH.GroupLines, rows, question, 1, A.LINE_MAX - #head)
+	-- (the asker's class while the line is made: "class trainer" said as theirs, Share.lua's SH.Context)
+	local askerWas = ns.Asker
+	ns.Asker = { here = asker and asker.here or false, class = asker and asker.class, level = asker and asker.level }
+	local lines = KeepingWaypoint(SH.GroupLines, rows, said, 1, A.LINE_MAX - #head)
+	ns.Asker = askerWas
 	if type(lines) ~= "table" or not lines[1] then return nil end
 	return head .. lines[1]
 end

@@ -264,6 +264,11 @@ do
 		local yes, no = f(mage), f(war)
 		ns.Asker = nil
 		check(yes == true and no == false, "trainer:class: the asker's class trainers")
+		-- (0.68.12, review) and the line says theirs: "Nearby mage trainer", not your class's
+		ns.Asker = { class = "MAGE" }
+		local said = ns.Share.Context("@npc trainer:class sort:distance", { name = "Jennea", npcID = 71001 })
+		ns.Asker = nil
+		check(said == "Nearby mage trainer", "the line names the asker's class: " .. tostring(said))
 		check(A.AnswerLine("help", { name = "Bob" }):find("^Terminal %(Bob%): ") ~= nil, "help: examples, to Bob")
 		ns.providers.asktest._dirty = true
 		local line = A.AnswerLine("hogger", { name = "Bob" })

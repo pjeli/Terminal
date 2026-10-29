@@ -639,6 +639,8 @@ do
 			.. tostring(asked[1] and asked[1].py) .. " (yours " .. tostring(an[1] and an[1].py) .. ")")
 		local line = ns.Ask.AnswerLine("nearest anvil", bob)
 		check(type(line) == "string" and line:find("^Terminal %(Bob%): ") and #line <= 255, "...and the line for Bob: " .. tostring(line))
+		-- (0.68.12, review) headed as the terminal's >>> heads it, the question read as Alt+` writes it: not "Anvil nearest"
+		check(line:find("^Terminal %(Bob%): Nearby anvil %(") ~= nil, "...headed \"Nearby anvil\": " .. tostring(line))
 		check(#ns.Ask.Rows("nearest anvil", { name = "Ann" }) == 0, "nobody knows where Ann is: nothing \"nearest\" to say")
 		local easyNow = ns.db.easyMode
 		ns.db.easyMode = false
