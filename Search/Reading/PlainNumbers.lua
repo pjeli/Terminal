@@ -84,12 +84,25 @@ local function OpAt(lw, i, list)
 	end
 end
 
+-- the fields only a spell has, read only in a line about spells ("30 yard spells", "spells under 100 mana"): elsewhere
+-- their words stay words ("vendor within 300 yards", "drinks over 4000 mana") and money is money ("cost under 1 gold");
+-- 0.68.8 read them in every line, and a filter only spells pass emptied the rest (0.68.9, review). What only a spell
+-- says ("cast time", "30 yard range", as its tooltip does) needs no spell word.
+E.SPELL_ONLY = { range = true, yards = true, yard = true, yd = true, cooldown = true, ["sec cooldown"] = true,
+	["second cooldown"] = true, ["seconds cooldown"] = true, costing = true, cost = true, mana = true, rage = true, energy = true }
+E.SPELL_WORDS = { spell = true, spells = true, ability = true, abilities = true }
+local function AboutSpells(lw)
+	for _, w in ipairs(lw) do if E.SPELL_WORDS[w] then return true end end
+	return false
+end
+
 --- A field's word at words[i] (one or two words): its key and how many words; or nil.
 local function FieldAt(lw, i)
-	local two = lw[i + 1] and E.NUM_FIELDS[lw[i] .. " " .. lw[i + 1]]
-	if two then return two, 2 end
+	local said2 = lw[i + 1] and lw[i] .. " " .. lw[i + 1]
+	local two = said2 and E.NUM_FIELDS[said2]
+	if two and not (E.SPELL_ONLY[said2] and not AboutSpells(lw)) then return two, 2 end
 	local one = E.NUM_FIELDS[lw[i] or ""]
-	if one then return one, 1 end
+	if one and not (E.SPELL_ONLY[lw[i]] and not AboutSpells(lw)) then return one, 1 end
 end
 
 --- "between 20 and 30", "from 20 to 30", "20 to 30", "20-30", "20+": a range at words[i] for key: its text and how many

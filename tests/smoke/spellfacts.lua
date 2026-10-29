@@ -109,6 +109,13 @@ local ok, err = pcall(function()
 		and not instant({ name = "Fireball", spellID = 502 }), '"instant": instant spells, and still a name that says it (Instant Poison)')
 	check(not Adv("mana potion"):find("cost:", 1, true), '"mana potion" is still a potion: ' .. Adv("mana potion"))
 	check(not Adv("mana regen"):find("cost:", 1, true), '"mana regen" is still mp5: ' .. Adv("mana regen"))
+	-- (0.68.9, review) a spell's fields only in a line about spells: elsewhere the words stay, and money is money
+	for _, c in ipairs({ { "vendor within 300 yards", "range:" }, { "drinks over 4000 mana", "cost:" },
+		{ "toys with a cooldown under 10", "cd:" }, { "items that cost under 100", "cost:" } }) do
+		check(not Adv(c[1]):find(c[2], 1, true), '"' .. c[1] .. '" has no spell filter: ' .. Adv(c[1]))
+	end
+	check(Adv("cost under 1 gold"):find("value:<1g", 1, true) and Adv("items costing over 50 silver"):find("value:>50s", 1, true),
+		"money after cost is a value again: " .. Adv("cost under 1 gold") .. " / " .. Adv("items costing over 50 silver"))
 
 	io.write("[spell facts: what a spell does is searched]\n")
 	-- a description: lowercase, one line; one not in yet is asked for once, within the budget

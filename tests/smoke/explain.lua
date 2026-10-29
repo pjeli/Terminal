@@ -28,6 +28,9 @@ do
 		check(got == c[2], ("%q:\n    want %q\n    got  %q"):format(c[1], c[2], tostring(got)))
 	end
 	check(E.Explain("") == nil and E.Explain("   ") == nil, "nothing typed: nothing to say")
+	-- (0.68.9, review: a fuzz) a filter whose value is only bars has nothing to say, and no error
+	local okBars, bars = pcall(E.Explain, "rare sword stat:||")
+	check(okBars and type(bars) == "string" and E.SayFilter("stat:|") == nil, "stat:|| explained without an error: " .. tostring(bars))
 	-- the command: a line, or the last one run
 	local cmd = ns:FindCommand("explain")
 	local out = cmd.run("@npc is:innkeeper sort:distance", ns)

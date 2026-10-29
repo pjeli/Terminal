@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.68.9 (in testing)
+
+- Simple mode reads a spell's range, cooldown and cost only in a line about spells or abilities ("30 yard spells", "spells under 100 mana"). Since 0.68.8 they were read in every line, and a filter only spells pass emptied the rest: "vendor within 300 yards", "drinks over 4000 mana" and "toys with a cooldown under 10" listed nothing, and "cost under 1 gold" was no longer a price. "30 yard range" and "cast time under 2" still need no spell word.
+- `.explain`, and the pointer resting on an Advanced line, no longer error on a filter whose value is only bars (`stat:||`): it's said as typed.
+- Tidying: four functions nothing called any more were removed (no change in what Terminal does).
+
 ## 0.68.8 (in testing)
 
 - Spells by what they do: your spellbook's and every class's spells (`@spell`) are found by their descriptions ("spells that stun", "druid spells that root", "@spell movement speed"), and by four new filters, as the game gives them:

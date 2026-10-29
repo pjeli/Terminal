@@ -13,7 +13,6 @@ ns.Buyback = BB
 BB.ICON = "Interface\\Icons\\INV_Misc_Coin_02"
 
 local atVendor = false
-function BB.AtVendor() return atVendor end
 
 --- The kept copy: { { link, name, icon, count, price, t } }, newest first ({} with no saved variables yet).
 function BB.List()

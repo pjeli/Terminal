@@ -808,10 +808,8 @@ function QR.BagDetail(e)
 	return what .. ((type(d) == "string" and d ~= "") and (ns.DETAIL_SEP .. d) or "")
 end
 
---- Is this typed word one asking for quests' bags (reward:bag, reward:quiver, rewards:ammo_pouch)? Their rows then
---- say which bag and its slots (Search.lua's showField).
-function QR.IsKindWord(w) return QR.KindOfWord(w) ~= nil end
---- The kind a typed word asks for: "reward:bag" -> "bag", "reward:ammo_pouch" -> "ammo"; else nil.
+--- The kind a typed word asks for (reward:bag, reward:quiver, rewards:ammo_pouch: their rows then say which bag and its
+--- slots, Search.lua's showField): "reward:bag" -> "bag", "reward:ammo_pouch" -> "ammo"; else nil.
 function QR.KindOfWord(w)
 	local k, v = w:match("^(rewards?):(.+)$")
 	return k and QR.KIND_WORDS[(v:gsub("_", " "))] or nil

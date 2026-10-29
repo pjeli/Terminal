@@ -317,9 +317,6 @@ local function Difficulty(id, level, me)
 	return (-x > green) and 0 or 1
 end
 
---- Whether the game shows this quest grey for your level.
-local function Grey(id, level, me) return Difficulty(id, level, me) == 0 end
-
 --- Ready to turn in (or complete): never one to drop.
 local function Complete(id)
 	local f = C_QuestLog.ReadyForTurnIn or C_QuestLog.IsComplete

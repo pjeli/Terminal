@@ -149,7 +149,6 @@ local function ZoneMap(zone)
 	end
 	return zoneMaps[ns.Lower(zone)]
 end
-A.ForgetZones = function() zoneMaps = nil end -- (tests)
 
 -- a class name in the client's language -> its token (MAGE): a friend's class is given only so
 local function ClassToken(shown)

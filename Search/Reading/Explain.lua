@@ -180,6 +180,7 @@ function E.SayFilter(word)
 		local say = FilterSay(k2 or key, v2 or part)
 		t[#t + 1] = say.noun or say.adj or say.after or say.verb
 	end
+	if #t == 0 then return nil end -- ("stat:|": no value at all)
 	local out = table.concat(t, " " .. L["or"] .. " ")
 	return neg and L["not %s"]:format(out) or out
 end
@@ -260,7 +261,8 @@ function E.Explain(line)
 					local j = Join(field)
 					if j then say = say or {}; say[field] = j end
 				end
-				say = say or first
+				-- ("stat:||", only bars: no value to say; it errored, 0.68.9, review)
+				say = say or first or { after = lw }
 				if neg then
 					after[#after + 1] = L["not %s"]:format(say.noun or say.adj or say.after or lw)
 				else
