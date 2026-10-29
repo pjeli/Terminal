@@ -502,7 +502,40 @@ function Scan.ActionAndPlace(self, q)
 		Scan.UseAction(q, act)
 		q.nearImplied = true
 	end
+	-- a word naming the kind of thing wanted: its category searched (Scan.SimpleScope), as if picked; not beside an
+	-- action word's lists, a trainer's word or a category you picked
+	if simple and not (act and act.map) and not q.trainerAsked and not (self.category and not self.categoryAuto) then
+		Scan.KindWord(q)
+	end
 	self.action = act
+end
+
+--- Simple mode: "hogger quest", "quests in westfall", "npcs in westfall", "linen recipes" (0.68.14, the player's call:
+--- the word was searched as a word, and "quests in westfall" found an NPC named Quartermaster Lewis). The first word
+--- that names a kind (E.KindWord) is taken out and its category kept as q.kindCat (q.kindOnly: the one list a word like
+--- "mounts" names); only when something else is said to look for in it (a word, a filter, a place), so "my spells" and
+--- "toys" alone are searched as before.
+function Scan.KindWord(q)
+	local E = ns.Easy
+	local tokens = q.tokens
+	if not (E and E.KindWord) or #tokens == 0 then return end
+	local exact = q.exact
+	for i, w in ipairs(tokens) do
+		local k = not (exact and exact[w]) and E.KindWord(w)
+		if k then
+			local more = q.filters ~= nil and #q.filters > 0
+			for j, x in ipairs(tokens) do
+				if more then break end
+				if j ~= i and not E.STOP[x] and not E.KindWord(x) then more = true end
+			end
+			if not more then return end
+			table.remove(tokens, i)
+			local src = q.tokenSrc
+			if src and #src == #tokens + 1 then table.remove(src, i) else q.tokenSrc = nil end
+			q.kindCat, q.kindOnly = k.cat, k.kind
+			return
+		end
+	end
 end
 
 --- The words searched in the end (q.tokens, q.empty), and the ones to light up.
@@ -511,7 +544,8 @@ function Scan.Prepare(self, q)
 	-- Simple mode: the little words of a sentence aren't asked for ("food that gives stamina", "shield from kresh")
 	-- (a trainer's profession said: as an everyday word, the sentence's little words go: "mining trainer in org", "the
 	-- enchanting trainer"; review, 0.49.17)
-	if q.simple and #tokens > 0 then tokens = Scan.DropStop(tokens, q.softs or q.strictWords or q.trainerAsked) end
+	-- (a kind said, "quests in westfall": the little words go even when nothing else is left, the kind was what was said)
+	if q.simple and #tokens > 0 then tokens = Scan.DropStop(tokens, q.softs or q.strictWords or q.trainerAsked or q.kindCat) end
 	tokens.exact = q.exact -- ("quoted phrases": as they are; DropStop's list is a new one)
 	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
 	-- the Simple overview, which scores with them too)

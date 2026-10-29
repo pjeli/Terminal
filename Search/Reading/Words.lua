@@ -373,6 +373,34 @@ end
 --- The action a search's first word names, or nil (only with another word after it, or an everyday word).
 function E.Action(word) return E.On() and (E.ACTIONS[word] or E.NearTypo(word)) or nil end
 
+-- Words naming a kind of thing (0.68.14, the player's call): "hogger quest", "npcs in westfall", "linen recipes" search
+-- that category (Query.lua's Scan.KindWord); `kind`: the one list of it the word names ("mounts")
+E.KIND_WORDS = { quest = { cat = "quests" }, quests = { cat = "quests" }, npc = { cat = "npcs" }, npcs = { cat = "npcs" },
+	mob = { cat = "npcs" }, mobs = { cat = "npcs" }, creature = { cat = "npcs" }, creatures = { cat = "npcs" },
+	item = { cat = "items" }, items = { cat = "items" }, spell = { cat = "spells" }, spells = { cat = "spells" },
+	ability = { cat = "spells" }, abilities = { cat = "spells" }, recipe = { cat = "crafting" }, recipes = { cat = "crafting" },
+	mount = { cat = "collections", kind = "mounts" }, mounts = { cat = "collections", kind = "mounts" },
+	toy = { cat = "collections", kind = "toys" }, toys = { cat = "collections", kind = "toys" },
+	pet = { cat = "collections", kind = "pets" }, pets = { cat = "collections", kind = "pets" },
+	achievement = { cat = "collections", kind = "achievements" }, achievements = { cat = "collections", kind = "achievements" } }
+-- (and these categories' names in the client's language: "Quêtes", "Zauber")
+local KIND_LABELS = { "quests", "npcs", "items", "spells", "crafting", "collections" }
+local kindLabels
+--- What a (lowercase) word names, { cat, kind }, or nil.
+function E.KindWord(w)
+	local k = E.KIND_WORDS[w]
+	if k then return k end
+	if not kindLabels then
+		kindLabels = {}
+		for _, id in ipairs(KIND_LABELS) do
+			local c = E.BY_ID and E.BY_ID[id]
+			local name = c and ns.Lower(tostring(c.label))
+			if name and not name:find("%s") then kindLabels[name] = { cat = id } end
+		end
+	end
+	return kindLabels[w]
+end
+
 -- the people a profession's trainer is said as ("skinner": the nearest skinning trainer; 0.56.8, a player's comment)
 E.PROF_PEOPLE = { skinner = "skinning", skinners = "skinning", miner = "mining", miners = "mining", herbalist = "herbalism",
 	herbalists = "herbalism", alchemist = "alchemy", alchemists = "alchemy", enchanter = "enchanting", enchanters = "enchanting",

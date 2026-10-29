@@ -597,12 +597,19 @@ function Scan.SimpleScope(self, q)
 		return
 	end
 	local easyCat = self.category and ns.Easy.BY_ID[self.category]
+	-- (a word naming the kind, "hogger quest": its category, opened for you as one with the only matches is; Scan.KindWord)
+	if not easyCat and q.kindCat and ns.Easy.BY_ID[q.kindCat] then
+		self.category, self.categoryAuto = q.kindCat, true
+		easyCat = ns.Easy.BY_ID[q.kindCat]
+	end
 	-- (top N said, "top 5 upgrades": the first five of every list together, not the categories to pick from; 0.66.x,
 	-- the player: "top 5" showed the categories)
 	local agg = self.aggregate
 	if not easyCat and agg and agg.first and agg.topWords then return end
 	if not easyCat then return Scan.Overview(self, q) end -- (the categories; or the only one, opened for you)
 	q.kinds, q.easyCat = ns.Easy.Kinds(easyCat.id), easyCat
+	-- ("mounts", "toys": that one list of the category's)
+	if q.kindOnly and easyCat.id == q.kindCat and q.kinds and q.kinds[q.kindOnly] then q.kinds = { [q.kindOnly] = true } end
 	-- (a list only searched when asked, the recipes you don't know with is:unknown: with its category's; ALSO_CATEGORY)
 	for id in pairs(q.also or {}) do if Scan.ALSO_CATEGORY[id] == easyCat.id then q.kinds[id] = true end end
 	Scan.AddFilter(q, easyCat.keep, "hard", easyCat.keep and ("#" .. easyCat.id))

@@ -82,6 +82,12 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		local set = {}
 		for k in pairs(act.map) do set[k] = true end
 		AddKinds(set)
+	elseif q.kindCat and ns.Easy.BY_ID[q.kindCat] and not (category and category ~= q.kindCat) then
+		-- (a word naming the kind, "hogger quest": its category's lists, or the one it names; Query.lua's Scan.KindWord)
+		local set = {}
+		if q.kindOnly and ns.providers[q.kindOnly] then set[q.kindOnly] = true
+		else for _, k in ipairs(ns.Easy.BY_ID[q.kindCat].kinds) do set[k] = true end end
+		if AddKinds(set) == 0 then AddKinds(set, true) end
 	elseif category and ns.Easy.BY_ID[category] then
 		local set = {}
 		for _, k in ipairs(ns.Easy.BY_ID[category].kinds) do set[k] = true end

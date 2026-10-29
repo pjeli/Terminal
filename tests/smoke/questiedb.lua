@@ -431,6 +431,28 @@ do
 	local list = table.concat(names, ", ")
 	check(list:find("Jazzik", 1, true) and not list:find("Zargh", 1, true) and not list:find("Fuzruckle", 1, true),
 		"vendor ratchet: Ratchet's vendors: " .. list)
+	-- (0.68.14, the player's call) a word naming the kind: its category searched, the word itself not ("quests in the
+	-- barrens" listed an NPC whose name has the letters, "hogger quest" nothing)
+	UI:Hide(); FlushAll()
+	UI:Open("quests in the barrens")
+	local kinds = {}
+	for _, e in ipairs(UI.Results()) do kinds[#kinds + 1] = tostring(e.kind) .. ":" .. tostring(e.name) end
+	local said = table.concat(kinds, ", ")
+	check(said:find("Raptor Horns", 1, true) and not said:find("npc:", 1, true) and not said:find("Kobold Candles", 1, true)
+		and UI.category == "quests", "quests in the barrens: the Barrens' quests, no NPCs: " .. said)
+	UI:Hide(); FlushAll()
+	UI:Open("npcs in ratchet")
+	kinds = {}
+	for _, e in ipairs(UI.Results()) do kinds[#kinds + 1] = tostring(e.kind) .. ":" .. tostring(e.name) end
+	said = table.concat(kinds, ", ")
+	check(said:find("Jazzik", 1, true) and not said:find("questie:", 1, true), "npcs in ratchet: NPCs only: " .. said)
+	UI:Hide(); FlushAll()
+	local adv = ns.Easy.ToAdvanced("raptor quest")
+	check(adv:find("@questie", 1, true) and adv:find("raptor", 1, true) and not adv:find(" quest ", 1, true),
+		"Alt+`: raptor quest -> " .. adv)
+	check(not ns.Easy.ToAdvanced("quests"):find("@", 1, true) and ns.Easy.ToAdvanced("pet trainer"):find("trainer:pet", 1, true),
+		"a kind said alone, or a trainer's word: as before: " .. ns.Easy.ToAdvanced("quests") .. " / " .. ns.Easy.ToAdvanced("pet trainer"))
+	UI:Open("vendor ratchet") -- (shown again: the arrow's test below reads it)
 	-- Advanced: sort:distance puts Questie's NPCs closest first (with how far), near:<yards> keeps those within reach
 	ns.db.easyMode = false
 	C_Map.GetPlayerMapPosition = function() return { x = 0.62, y = 0.37 } end -- in Ratchet

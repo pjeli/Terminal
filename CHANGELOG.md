@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.14 (in testing)
+
+- Simple mode reads a word naming the kind of thing you want as that kind: "hogger quest", "quest hogger", "quests in westfall", "westfall quests level 10", "npcs in westfall", "defias npcs", "mob kobold", "linen items", "linen recipes", "fast mounts". The word picks that category (Quests, NPCs, Items, Spells, Crafting; mounts, pets, toys and achievements their own list), as if you'd picked it, and isn't searched as a word itself. "hogger quest" found nothing, and "quests in westfall" listed an NPC named Quartermaster Lewis. A kind said alone ("quests", "my mounts", "toys") is searched as before, and a category you picked yourself, an action word ("nearest", "use") or a trainer's word ("pet trainer") wins over it. Nothing in that category: every category that has the other words is shown, as before. Alt+` writes the category's lists ("@questie @questlog hogger"); the category's own name in the client's language counts too.
+
 ## 0.68.13 (in testing)
 
 - `.console`: Ctrl+B then c (or 5 or ') no longer leaves the letter in the new pane. The key after Ctrl+B is typed into whichever box has the keyboard, and the boxes' text was saved before the key's work, when the new pane didn't exist yet; it's saved after it now, so the new pane comes back empty.

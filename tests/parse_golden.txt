@@ -2214,10 +2214,10 @@ explain: "Everything matching sword|type:sword, level under 20"
 
 == quests under level 25
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<25  sig=lvl:<25
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -2225,16 +2225,16 @@ steps: -
 group: -
 pick: spec=lvl:<25 word=under level 25 plain=true
 pick sort: -
-category: -
-advanced: "quests lvl:<25 "
-explain: "Everything matching quests, level under 25"
+category: quests
+advanced: "@questlog lvl:<25 "
+explain: "Quests in your log, level under 25"
 
 == quests level under 25
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<25  sig=lvl:<25
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -2242,13 +2242,13 @@ steps: -
 group: -
 pick: spec=lvl:<25 word=level under 25 plain=true
 pick sort: -
-category: -
-advanced: "quests lvl:<25 "
-explain: "Everything matching quests, level under 25"
+category: quests
+advanced: "@questlog lvl:<25 "
+explain: "Quests in your log, level under 25"
 
 == items worth more than 1g
 question: -
-tokens: items
+tokens: -
 filter: hard value:>1g  sig=value:>1g
 sort: -
 kinds: -
@@ -2260,8 +2260,8 @@ group: -
 pick: spec=value:>1g word=worth more than 1g plain=true
 pick sort: -
 category: -
-advanced: "items value:>1g "
-explain: "Everything matching items, worth over 1g"
+advanced: "@item value:>1g "
+explain: "Items, worth over 1g"
 
 == bags with at least 10 slots
 question: -
@@ -2318,7 +2318,7 @@ explain: "Everything matching swords|type:sword, level 20"
 
 == levels 20 to 30 quests
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:20-30  sig=lvl:20-30
 sort: -
 kinds: -
@@ -2330,12 +2330,12 @@ group: -
 pick: spec=lvl:20-30 word=levels 20 to 30 plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:20-30 "
-explain: "Everything matching quests, level 20-30"
+advanced: "@questlog lvl:20-30 "
+explain: "Quests in your log, level 20-30"
 
 == level 20-30 quests
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:20-30  sig=lvl:20-30
 sort: -
 kinds: -
@@ -2347,12 +2347,12 @@ group: -
 pick: spec=lvl:20-30 word=level 20-30 plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:20-30 "
-explain: "Everything matching quests, level 20-30"
+advanced: "@questlog lvl:20-30 "
+explain: "Quests in your log, level 20-30"
 
 == quests level 25 or higher
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:>=25  sig=lvl:>=25
 sort: -
 kinds: -
@@ -2364,15 +2364,15 @@ group: -
 pick: spec=lvl:>=25 word=level 25 or higher plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:>=25 "
-explain: "Everything matching quests, level 25 or more"
+advanced: "@questlog lvl:>=25 "
+explain: "Quests in your log, level 25 or more"
 
 == quests at most level 10
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<=10  sig=lvl:<=10
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -2380,9 +2380,9 @@ steps: -
 group: -
 pick: spec=lvl:<=10 word=at most level 10 plain=true
 pick sort: -
-category: -
-advanced: "quests lvl:<=10 "
-explain: "Everything matching quests, level 10 or less"
+category: quests
+advanced: "@questlog lvl:<=10 "
+explain: "Quests in your log, level 10 or less"
 
 == from level 10 to 20
 question: -
@@ -2552,7 +2552,7 @@ explain: "Everything matching worth 1g"
 
 == quests 3 levels above me
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me+3  sig=lvl:me+3
 sort: -
 kinds: -
@@ -2564,12 +2564,12 @@ group: -
 pick: spec=lvl:me+3 word=3 levels above me plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:me+3 "
-explain: "Everything matching quests, 3 levels above yours"
+advanced: "@questlog lvl:me+3 "
+explain: "Quests in your log, 3 levels above yours"
 
 == quests 2 levels below my level
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me-2  sig=lvl:me-2
 sort: -
 kinds: -
@@ -2581,12 +2581,12 @@ group: -
 pick: spec=lvl:me-2 word=2 levels below my level plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:me-2 "
-explain: "Everything matching quests, 2 levels below yours"
+advanced: "@questlog lvl:me-2 "
+explain: "Quests in your log, 2 levels below yours"
 
 == quests up to 3 levels above me
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me..me+3  sig=lvl:me..me+3
 sort: -
 kinds: -
@@ -2598,12 +2598,12 @@ group: -
 pick: spec=lvl:me..me+3 word=up to 3 levels above me plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:me..me+3 "
-explain: "Everything matching quests, from your level to 3 levels above yours"
+advanced: "@questlog lvl:me..me+3 "
+explain: "Quests in your log, from your level to 3 levels above yours"
 
 == quests within 5 levels of me
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me-5..me+5  sig=lvl:me-5..me+5
 sort: -
 kinds: -
@@ -2615,8 +2615,8 @@ group: -
 pick: spec=lvl:me-5..me+5 word=within 5 levels of me plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:me-5..me+5 "
-explain: "Everything matching quests, from 5 levels below yours to 5 levels above yours"
+advanced: "@questlog lvl:me-5..me+5 "
+explain: "Quests in your log, from 5 levels below yours to 5 levels above yours"
 
 == dungeons around my level
 question: -
@@ -2654,7 +2654,7 @@ explain: "Everything matching gear, a level above yours"
 
 == quests above my level
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:>me  sig=lvl:>me
 sort: -
 kinds: -
@@ -2666,15 +2666,15 @@ group: -
 pick: spec=lvl:>me word=above my level plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:>me "
-explain: "Everything matching quests, above your level"
+advanced: "@questlog lvl:>me "
+explain: "Quests in your log, above your level"
 
 == quests lower than my level
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<me  sig=lvl:<me
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -2682,13 +2682,13 @@ steps: -
 group: -
 pick: spec=lvl:<me word=lower than my level plain=true
 pick sort: -
-category: -
-advanced: "quests lvl:<me "
-explain: "Everything matching quests, below your level"
+category: quests
+advanced: "@questlog lvl:<me "
+explain: "Quests in your log, below your level"
 
 == quests at my level
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me  sig=lvl:me
 sort: -
 kinds: -
@@ -2700,8 +2700,8 @@ group: -
 pick: spec=lvl:me word=at my level plain=true
 pick sort: -
 category: -
-advanced: "quests lvl:me "
-explain: "Everything matching quests, your level"
+advanced: "@questlog lvl:me "
+explain: "Quests in your log, your level"
 
 == above me
 question: -
@@ -2754,10 +2754,10 @@ explain: "Everything matching swords|type:sword, level 20-30"
 
 == quests lvl:<25
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<25  sig=lvl:<25
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -2765,13 +2765,13 @@ steps: -
 group: -
 pick: spec=lvl:<25 word=lvl:<25
 pick sort: -
-category: -
-advanced: "quests lvl:<25 "
-explain: "Everything matching quests, level under 25"
+category: quests
+advanced: "@questlog lvl:<25 "
+explain: "Quests in your log, level under 25"
 
 == items value:>1g
 question: -
-tokens: items
+tokens: -
 filter: hard value:>1g  sig=value:>1g
 sort: -
 kinds: -
@@ -2783,8 +2783,8 @@ group: -
 pick: spec=value:>1g word=value:>1g
 pick sort: -
 category: -
-advanced: "items value:>1g "
-explain: "Everything matching items, worth over 1g"
+advanced: "@item value:>1g "
+explain: "Items, worth over 1g"
 
 == bags with slots:>=10
 question: -
@@ -2824,7 +2824,7 @@ explain: "Everything matching swords|type:sword, level 20"
 
 == lvl:20-30 quests
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:20-30  sig=lvl:20-30
 sort: -
 kinds: -
@@ -2836,12 +2836,12 @@ group: -
 pick: spec=lvl:20-30 word=lvl:20-30
 pick sort: -
 category: -
-advanced: "quests lvl:20-30 "
-explain: "Everything matching quests, level 20-30"
+advanced: "@questlog lvl:20-30 "
+explain: "Quests in your log, level 20-30"
 
 == quests lvl:>=25
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:>=25  sig=lvl:>=25
 sort: -
 kinds: -
@@ -2853,15 +2853,15 @@ group: -
 pick: spec=lvl:>=25 word=lvl:>=25
 pick sort: -
 category: -
-advanced: "quests lvl:>=25 "
-explain: "Everything matching quests, level 25 or more"
+advanced: "@questlog lvl:>=25 "
+explain: "Quests in your log, level 25 or more"
 
 == quests lvl:<=10
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<=10  sig=lvl:<=10
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -2869,9 +2869,9 @@ steps: -
 group: -
 pick: spec=lvl:<=10 word=lvl:<=10
 pick sort: -
-category: -
-advanced: "quests lvl:<=10 "
-explain: "Everything matching quests, level 10 or less"
+category: quests
+advanced: "@questlog lvl:<=10 "
+explain: "Quests in your log, level 10 or less"
 
 == lvl:10-20
 question: -
@@ -3081,7 +3081,7 @@ explain: "Everything matching Bag, with 10 slots"
 
 == quests lvl:me+3
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me+3  sig=lvl:me+3
 sort: -
 kinds: -
@@ -3093,12 +3093,12 @@ group: -
 pick: spec=lvl:me+3 word=lvl:me+3
 pick sort: -
 category: -
-advanced: "quests lvl:me+3 "
-explain: "Everything matching quests, 3 levels above yours"
+advanced: "@questlog lvl:me+3 "
+explain: "Quests in your log, 3 levels above yours"
 
 == quests lvl:me-2
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me-2  sig=lvl:me-2
 sort: -
 kinds: -
@@ -3110,12 +3110,12 @@ group: -
 pick: spec=lvl:me-2 word=lvl:me-2
 pick sort: -
 category: -
-advanced: "quests lvl:me-2 "
-explain: "Everything matching quests, 2 levels below yours"
+advanced: "@questlog lvl:me-2 "
+explain: "Quests in your log, 2 levels below yours"
 
 == quests lvl:me..me+3
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me..me+3  sig=lvl:me..me+3
 sort: -
 kinds: -
@@ -3127,12 +3127,12 @@ group: -
 pick: spec=lvl:me..me+3 word=lvl:me..me+3
 pick sort: -
 category: -
-advanced: "quests lvl:me..me+3 "
-explain: "Everything matching quests, from your level to 3 levels above yours"
+advanced: "@questlog lvl:me..me+3 "
+explain: "Quests in your log, from your level to 3 levels above yours"
 
 == quests lvl:me-5..me+5
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me-5..me+5  sig=lvl:me-5..me+5
 sort: -
 kinds: -
@@ -3144,8 +3144,8 @@ group: -
 pick: spec=lvl:me-5..me+5 word=lvl:me-5..me+5
 pick sort: -
 category: -
-advanced: "quests lvl:me-5..me+5 "
-explain: "Everything matching quests, from 5 levels below yours to 5 levels above yours"
+advanced: "@questlog lvl:me-5..me+5 "
+explain: "Quests in your log, from 5 levels below yours to 5 levels above yours"
 
 == dungeons lvl:me-2..me+3
 question: -
@@ -3183,7 +3183,7 @@ explain: "Everything matching gear, a level above yours"
 
 == quests lvl:>me
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:>me  sig=lvl:>me
 sort: -
 kinds: -
@@ -3195,15 +3195,15 @@ group: -
 pick: spec=lvl:>me word=lvl:>me
 pick sort: -
 category: -
-advanced: "quests lvl:>me "
-explain: "Everything matching quests, above your level"
+advanced: "@questlog lvl:>me "
+explain: "Quests in your log, above your level"
 
 == quests lvl:<me
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:<me  sig=lvl:<me
 sort: -
-kinds: -
+kinds: quests
 action: -
 place: -
 send: -
@@ -3211,13 +3211,13 @@ steps: -
 group: -
 pick: spec=lvl:<me word=lvl:<me
 pick sort: -
-category: -
-advanced: "quests lvl:<me "
-explain: "Everything matching quests, below your level"
+category: quests
+advanced: "@questlog lvl:<me "
+explain: "Quests in your log, below your level"
 
 == quests lvl:me
 question: -
-tokens: quests
+tokens: -
 filter: hard lvl:me  sig=lvl:me
 sort: -
 kinds: -
@@ -3229,8 +3229,8 @@ group: -
 pick: spec=lvl:me word=lvl:me
 pick sort: -
 category: -
-advanced: "quests lvl:me "
-explain: "Everything matching quests, your level"
+advanced: "@questlog lvl:me "
+explain: "Quests in your log, your level"
 
 == what killed me today
 question: 18  asked=what killed me
@@ -5268,7 +5268,7 @@ explain: "Your group matching party, without \"dead\""
 
 == half-elf quests
 question: -
-tokens: half-elf quests
+tokens: half-elf
 sort: -
 kinds: -
 action: -
@@ -5278,8 +5278,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "half-elf quests "
-explain: "Everything matching half-elf quests"
+advanced: "@questlog half-elf "
+explain: "Quests in your log matching half-elf"
 
 == party not dead
 question: -
