@@ -112,6 +112,10 @@ P.PHRASES = {
 	{ "^where to buy (.+)$", "sources" }, { "^where can i buy (.+)$", "sources" }, { "^how to get (.+)$", "sources" },
 	{ "^how do i get (.+)$", "sources" }, { "^sources? for (.+)$", "sources" }, { "^sources? of (.+)$", "sources" },
 	{ "^where does (.+) drop$", "sources" }, { "^who sells (.+)$", "sources" }, { "^what drops (.+)$", "sources" },
+	-- (0.68.17: "who drops x" asked /who, "vendors that sell x" found nothing)
+	{ "^who drops (.+)$", "sources" }, { "^what mobs? drops? (.+)$", "sources" }, { "^which mobs? drops? (.+)$", "sources" },
+	{ "^vendors? that sells? (.+)$", "sources" }, { "^vendors? selling (.+)$", "sources" }, { "^which vendors? sells? (.+)$", "sources" },
+	{ "^what vendors? sells? (.+)$", "sources" }, { "^who has (.+) for sale$", "sources" },
 	-- the quests before one (Rewards.lua, 0.49.16): "quest chain for the missing diplomat", "quest chain for outlaw sabre"
 	{ "^quest chain for (.+)$", "chain" }, { "^quest chain of (.+)$", "chain" }, { "^chain for (.+)$", "chain" },
 	{ "^quests? before (.+)$", "chain" }, { "^what leads to (.+)$", "chain" }, { "^prereqs? for (.+)$", "chain" },
@@ -153,6 +157,7 @@ for _, ph in ipairs(P.PHRASES) do
 end
 P.FIRST.mat, P.FIRST.material, P.FIRST.reagent, P.FIRST.use, P.FIRST.source = true, true, true, true, true
 P.FIRST.prereq = true -- ("^prereqs? for" starts with prereq too; review, 0.49.17)
+P.FIRST.vendor = true -- ("^vendors? that sells?": "vendor that sells x")
 
 --- The chain a line means: the line itself when it has links, the chain its plain words say ("mats for x" ->
 --- "x > mats"), else nil. `words`: only the plain words (Simple mode: a ">" typed there is Advanced syntax, refused
@@ -457,23 +462,31 @@ local function NearFirst(a, b)
 	if a.d and b.d and a.d ~= b.d then return a.d < b.d end
 	return a.i < b.i
 end
+P.ARTICLES = { "the ", "a ", "an " } -- (a name's own, put back when it's looked up by name: P.Seed)
 P.NPCS_LOOKED = 400 -- (the NPCs of one list looked at for their distance: a world drop names hundreds)
 
 -- an item's NPCs Questie lists in `field` (vendors, npcDrops), the nearest `max`, as views saying what they are to it
 -- and how far ("  ·  120 yd"); `friendly`: only those friendly to you (sellers)
-local function AddNpcs(out, I, id, field, what, max, how, friendly)
+-- (friendly: only those who'd serve you; none would: those who wouldn't, said so (`others`, "Sells it to the other
+-- faction only"), not "Nowhere known to get it": 0.68.17, a Horde quartermaster's armour asked for by an Alliance player)
+local function AddNpcs(out, I, id, field, what, max, how, friendly, others)
 	local list = I.ItemField(id, field)
 	if type(list) ~= "table" then return end
 	local here = I.Here and I.Here() or nil
-	local got = {}
+	local got, theirs = {}, {}
 	for k, nid in ipairs(list) do
 		if k > P.NPCS_LOOKED then break end
 		local row = type(nid) == "number" and I.NpcRow and I.NpcRow(nid)
-		if row and (not friendly or P.Friendly(row)) then
-			local d = here and I.NpcDistance and I.NpcDistance(nid, here) or nil
-			got[#got + 1] = { row = row, d = d, i = k }
+		if row then
+			local mine = not friendly or P.Friendly(row)
+			if mine or (others and #theirs < max) then
+				local d = here and I.NpcDistance and I.NpcDistance(nid, here) or nil
+				local t = mine and got or theirs
+				t[#t + 1] = { row = row, d = d, i = k }
+			end
 		end
 	end
+	if #got == 0 and #theirs > 0 then got, what = theirs, others end
 	table.sort(got, NearFirst)
 	for k = 1, math.min(#got, max) do
 		local g = got[k]
@@ -519,15 +532,17 @@ end
 -- what each kind of source is to the thing looked for, in the list and in chat ("Sells it" / "sold by"): an item's
 -- own, or (where to learn a recipe) its recipe item's
 P.ITEM_WORDS = { sells = L["Sells it"], sold = L["sold by"], drops = L["Drops it"], dropped = L["dropped by"],
-	found = L["Gathered or found here"], gathered = L["gathered from"], quest = L["A quest's reward"], reward = L["a reward from"] }
+	found = L["Gathered or found here"], gathered = L["gathered from"], quest = L["A quest's reward"], reward = L["a reward from"],
+	theirs = L["Sells it to the other faction only"] }
 P.RECIPE_WORDS = { sells = L["Sells the recipe"], sold = L["the recipe is sold by"], drops = L["Drops the recipe"],
 	dropped = L["the recipe drops from"], found = L["The recipe is found here"], gathered = L["the recipe is found in"],
-	quest = L["The recipe is a quest's reward"], reward = L["the recipe is a reward from"] }
+	quest = L["The recipe is a quest's reward"], reward = L["the recipe is a reward from"],
+	theirs = L["Sells the recipe to the other faction only"] }
 
 -- an item's sellers and droppers, the veins/herbs/chests it's found in (by name, once each, at the spot nearest you)
 -- and the quests rewarding it, from Questie, said in `w`'s words
 local function AddQuestie(out, I, id, w)
-	AddNpcs(out, I, id, "vendors", w.sells, 15, w.sold, true) -- (only those who'd sell to you)
+	AddNpcs(out, I, id, "vendors", w.sells, 15, w.sold, true, w.theirs) -- (only those who'd sell to you)
 	AddNpcs(out, I, id, "npcDrops", w.drops, 15, w.dropped)
 	local objs = I.ItemField(id, "objectDrops")
 	if type(objs) == "table" and I.ObjectName then AddObjects(out, I, objs, w.found, w.gathered) end
@@ -1096,6 +1111,11 @@ function P.Seed(text, seedKinds, alsoKinds, applies)
 	-- carry: "where to get copper ore")
 	if #subs == 0 and #all == 0 and whole ~= "" and not seedKinds then
 		local out = SeedByReagentName(whole)
+		-- (the phrase took a leading article off, "where to get the collector's ring": a name may begin with one; 0.68.17)
+		for _, a in ipairs(#out == 0 and P.ARTICLES or {}) do
+			out = SeedByReagentName(a .. whole)
+			if #out > 0 then break end
+		end
 		if #out > 0 then return Once(out) end
 	end
 	if #tokens == 0 then return Once(all) end -- (only filters typed: every row that passes)

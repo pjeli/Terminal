@@ -3221,4 +3221,6 @@ L["with a range of %s yards"] = "mit %s Metern Reichweite"
 L["with no cooldown"] = "ohne Abklingzeit"
 L["with a cooldown of %s sec"] = "mit %s Sek. Abklingzeit"
 L["None of those in %s that Questie knows of."] = "Keiner davon in %s, von dem Questie weiß."
+L["Sells it to the other faction only"] = "Verkauft es nur an die andere Fraktion"
+L["Sells the recipe to the other faction only"] = "Verkauft das Rezept nur an die andere Fraktion"
 --@end-do-not-package@

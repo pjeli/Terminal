@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.68.17 (in testing)
+
+- More ways to ask where to get something: "who drops spiritshroud leggings" (it asked the server /who), "vendors that sell woven vest", "vendor that sells mild spices", "which vendors sell ice threaded bullet", "what mobs drop copper ore" (they found nothing).
+- An item only the other faction's vendors sell lists them, saying "Sells it to the other faction only" (a recipe: "Sells the recipe to the other faction only"). It said "Nowhere known to get" the item: a Horde quartermaster's armour asked for by an Alliance player, Woven Vest, Fire Sapta. Those who'd sell to you still come alone when there are any. Translated in six languages.
+- "where to get the collector's ring", "who drops the collector's ring": an item whose name begins with "the", "a" or "an" is found by its whole name. The phrase took the article off ("the thorium bar" is Thorium Bar), and Questie's The Collector's Ring was then looked for as "collector's ring" and missed ("Nothing called ..."). The article is put back when nothing has the name without it.
+
 ## 0.68.16 (in testing)
 
 - Simple mode reads a name with a place in it as the name: "dalaran mage", "stockade guard" and "orgrimmar reveler" find those NPCs. They were read as "mage" in Dalaran, "guard" in the Stockade and "reveler" in Orgrimmar, which found other things or nothing. When the words, in order, are an NPC's or a quest's name (Questie's), no place is read in them; "vendor goldshire" and "innkeeper in stormwind" read their place as before.

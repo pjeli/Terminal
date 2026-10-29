@@ -3221,4 +3221,6 @@ L["with a range of %s yards"] = "с дальностью %s м"
 L["with no cooldown"] = "без восстановления"
 L["with a cooldown of %s sec"] = "с восстановлением %s сек."
 L["None of those in %s that Questie knows of."] = "Таких в месте «%s» Questie не знает."
+L["Sells it to the other faction only"] = "Продаёт только другой фракции"
+L["Sells the recipe to the other faction only"] = "Продаёт рецепт только другой фракции"
 --@end-do-not-package@

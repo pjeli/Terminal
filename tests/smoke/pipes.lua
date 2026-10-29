@@ -80,6 +80,31 @@ do
 	rows, trail = P.Search(bar.pipeChain)
 	check(trail == "thorium belt > mats > Thorium Bar > sources" and rows[1] and rows[1].name == "Thorium Trader"
 		and rows[1].detail:find("Sells it", 1, true), "sources: who sells it: " .. tostring(trail))
+	-- (0.68.17) sold only to the other faction: who sells it, said so (it was "Nowhere known to get it")
+	local npcFieldWas = ns.Integrations.NpcField
+	local mine = UnitFactionGroup and UnitFactionGroup("player") == "Horde" and "A" or "H"
+	ns.Integrations.NpcField = function(id, f) if f == "friendlyToFaction" then return id == 501 and mine or "AH" end end
+	ns.Filters.ClearCache(); P.ClearSteps()
+	rows = P.Search(bar.pipeChain)
+	check(rows[1] and rows[1].name == "Thorium Trader" and rows[1].detail:find("other faction only", 1, true),
+		"sold to the other faction only: who, said so: " .. tostring(rows[1] and rows[1].detail))
+	ns.Integrations.NpcField = npcFieldWas
+	ns.Filters.ClearCache(); P.ClearSteps()
+	-- (0.68.17) more ways to ask who drops or sells it
+	check(P.Canonical("who drops copper ore") == "copper ore > sources" and P.Canonical("vendors that sell thorium bar") == "thorium bar > sources"
+		and P.Canonical("vendor that sells thorium bar") == "thorium bar > sources" and P.Canonical("which vendors sell thorium bar") == "thorium bar > sources"
+		and P.Canonical("what mobs drop copper ore") == "copper ore > sources", "who drops, vendors that sell: where to get it")
+	-- (0.68.17) a name with its own leading article, which the phrase takes off: looked up with it put back
+	local qiiWas = ns.Filters.QuestieItemIds
+	ns.Filters.QuestieItemIds = function(w) return w == "the collector's ring" and { 2239 } or {} end
+	FIELDS[2239] = { npcDrops = { 502 } }
+	P.ClearSteps()
+	local chain = P.Canonical("where to get the collector's ring")
+	rows = P.Search(chain)
+	check(chain == "collector's ring > sources" and rows[1] and rows[1].name == "Ore Golem",
+		"where to get the collector's ring: The Collector's Ring's dropper: " .. tostring(rows[1] and rows[1].name))
+	ns.Filters.QuestieItemIds, FIELDS[2239] = qiiWas, nil
+	P.ClearSteps()
 	-- used in: what copper bar goes into (AtlasLoot's crafts), then that one's mats
 	rows, trail = P.Search("copper bar > used in chain belt > mats")
 	check(trail == "copper bar > used in > chain belt > mats" and #rows == 1 and rows[1].name == "Copper Bar"

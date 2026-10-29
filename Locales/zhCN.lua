@@ -3221,4 +3221,6 @@ L["with a range of %s yards"] = "射程%s码"
 L["with no cooldown"] = "无冷却"
 L["with a cooldown of %s sec"] = "冷却%s秒"
 L["None of those in %s that Questie knows of."] = "Questie所知的%s没有这些。"
+L["Sells it to the other faction only"] = "只卖给另一阵营"
+L["Sells the recipe to the other faction only"] = "只把配方卖给另一阵营"
 --@end-do-not-package@
