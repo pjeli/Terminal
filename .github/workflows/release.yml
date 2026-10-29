@@ -39,6 +39,18 @@ jobs:
             awk '{ sub(/\r$/, "") } /^## / { n++ } n == 1 { print }' CHANGELOG.md > RELEASE_NOTES.md
           fi
           cat RELEASE_NOTES.md
+      # The ZIP's Lua without comments (0.68.7, the player's call: about a fifth smaller; the repository keeps them for
+      # whoever wants to read them). Every line stays where it was, so errors' and traces' line numbers match this tag's
+      # files; the packager's --@...@ keywords stay. Each file is proved to compile to the same bytecode first: a file
+      # that doesn't stops the release here, before anything is uploaded.
+      - name: Python, for stripping the comments
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Strip the comments
+        run: |
+          pip install lupa
+          python tests/strip_comments.py --in-place .
       - name: Package and upload
         uses: BigWigsMods/packager@v2
         # The TOCs list WoW Forever alone (16001, 0.48.1), and with a single game version the packager adds it to the

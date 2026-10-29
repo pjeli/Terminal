@@ -83,6 +83,15 @@ for f in lua_files():
         if re.search(r"_dirty\s*=\s*true", line) and not line.lstrip().startswith("--"):
             print("FAIL %s:%d sets _dirty: use ns:Changed(id)" % (rel, i))
             ok = False
+# (0.68.7) the release's Lua without comments (tests/strip_comments.py, run by .github/workflows/release.yml): every file
+# stripped in memory compiles to the same bytecode, line by line, as the file itself
+import strip_comments
+r = subprocess.run([sys.executable, strip_comments.__file__, "--check", repo], capture_output=True, text=True)
+for line in r.stdout.splitlines():
+    if line.startswith(("FAIL", "NOT THE SAME")):
+        print("FAIL comment stripping:", line)
+if r.returncode != 0:
+    ok = False
 if not ok:
     print("problems found")
 elif G:

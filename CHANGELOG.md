@@ -3,6 +3,7 @@
 ## 0.68.7 (in testing)
 
 - The game loads only your client language's translation file: each `Locales\` line in Terminal.toc says whose it is (`[AllowLoadTextLocale deDE]`), so the other nine (about 1.6 MB) are no longer read and compiled at every login. Each file still stops at its first line on another client, should the game ever ignore the mark.
+- The release ZIP's Lua comes without its comments, about a fifth smaller (some 980 KB): the GitHub repository keeps them. Every line stays where it was, blank where a comment was, so error and `.debug` line numbers still match the tag's files. `tests/strip_comments.py` does it in release.yml, before packaging, and proves each file compiles to the same bytecode first (a file that doesn't stops the release); `tests/check.py` runs the same proof.
 
 ## 0.68.6 (in testing)
 

@@ -20,6 +20,7 @@ CL.LOG = {
 			".tour shows a different \"nearest\" each time: a vendor, an innkeeper, an anvil, a forge...",
 			".saved keep talents small keeps every class's talents but not their descriptions, most of their size.",
 			"!t: your guild or group asks Terminal (\"!t nearest innkeeper\") and it answers for them. Off until you switch it on: .ask guild on.",
+			"A smaller download that loads faster: only your language's translations are read, and the code comes without its comments.",
 		},
 	},
 	{
