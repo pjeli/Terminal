@@ -3220,4 +3220,5 @@ L["on yourself"] = "en ti mismo"
 L["with a range of %s yards"] = "con un alcance de %s metros"
 L["with no cooldown"] = "sin tiempo de reutilización"
 L["with a cooldown of %s sec"] = "con %s s de reutilización"
+L["None of those in %s that Questie knows of."] = "Ninguno de esos en %s, que Questie sepa."
 --@end-do-not-package@

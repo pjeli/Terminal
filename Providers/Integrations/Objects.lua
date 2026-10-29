@@ -347,13 +347,22 @@ end
 function I.NearestObjectRows(kind, here, keep, far)
 	local p = ns.providers[kind]
 	if not p then return nil end
-	local found, far_ = {}, {}
+	local found, far_, elsewhere = {}, {}, {}
 	for _, e in ipairs(ns:GetEntries(p)) do
 		local ok = not keep or keep(e)
 		local d = ok and I.RowYards(e, here) or nil -- (the yards alone: no spot table per row)
 		if d then found[#found + 1] = { e = e, d = d }
-		elseif ok and far then far_[#far_ + 1] = e end -- (the farthest first: those with no distance known before them,
-		-- as if infinitely far, as @mailbox sort:-distance lists them; 0.65.x review)
+		elseif ok then
+			if far then far_[#far_ + 1] = e end -- (the farthest first: those with no distance known before them, as if
+			-- infinitely far, as @mailbox sort:-distance lists them; 0.65.x review)
+			if keep then elsewhere[#elsewhere + 1] = e end
+		end
+	end
+	-- (a place said on another continent, "mailbox in durotar" from Goldshire: its own, no distance; 0.68.16: "none")
+	if #found == 0 and not far and #elsewhere > 0 then
+		local rows = {}
+		for i = 1, math.min(#elsewhere, I.OBJECTS_NEAR) do rows[i] = setmetatable({ _score = 1e6 - i }, { __index = elsewhere[i] }) end
+		return rows
 	end
 	-- (far: the farthest first, "farthest mailbox"; 0.65.7)
 	if far then table.sort(found, function(a, b) return a.d > b.d end) else table.sort(found, function(a, b) return a.d < b.d end) end

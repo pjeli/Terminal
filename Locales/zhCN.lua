@@ -3220,4 +3220,5 @@ L["on yourself"] = "对自己"
 L["with a range of %s yards"] = "射程%s码"
 L["with no cooldown"] = "无冷却"
 L["with a cooldown of %s sec"] = "冷却%s秒"
+L["None of those in %s that Questie knows of."] = "Questie所知的%s没有这些。"
 --@end-do-not-package@

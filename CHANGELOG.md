@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.68.16 (in testing)
+
+- Simple mode reads a name with a place in it as the name: "dalaran mage", "stockade guard" and "orgrimmar reveler" find those NPCs. They were read as "mage" in Dalaran, "guard" in the Stockade and "reveler" in Orgrimmar, which found other things or nothing. When the words, in order, are an NPC's or a quest's name (Questie's), no place is read in them; "vendor goldshire" and "innkeeper in stormwind" read their place as before.
+- "nearest mailbox in moonglade", "nearest innkeeper in moonglade" and the like, with none there, say "None of those in Moonglade that Questie knows of.", not "Nothing has that. Check the spelling". "3 nearest mailboxes in moonglade" says it too: a top N with nothing to keep listed nothing at all. Translated in six languages.
+- "innkeeper near me in stormwind", "repair around me in goldshire": "near me" said before a place means nearest too (only the last two words were read for it).
+- An object said alone is the nearest of them, as a role is ("inn", "repair"): "mailbox", "anvil", "forge", "cooking fire", "moonwell" list the nearest ones; "mailboxes in westfall", "anvils in stormwind" those there. "mailbox" found a writ whose text names one, "anvil" an NPC called Aturk the Anvil, and "mailboxes in westfall" nothing. Alt+` writes "@mailbox sort:distance".
+- "where to learn tailoring", "who teaches mining", "where do i train herbalism", "where to learn warrior", "where can i learn riding": a profession's or a class's trainers, the nearest first, as "tailoring trainer" lists them. They said "Nothing called "tailoring" in your bags, recipes, AtlasLoot or alts". A recipe, a spell or a weapon skill ("where to learn linen bandage", "where to learn daggers") still says where to learn it.
+- "nearest mailbox in durotar", "bank in the barrens", "nearest anvil in darkshore" asked from another continent list what's in the place, with no distance (it can't be measured across continents). They listed nothing, or said none was there.
+
 ## 0.68.15 (in testing)
 
 - Misspellings are read as hands make them. A neighbouring key ("linrn"), a key pressed twice ("linnen", "hoggger"), a key missed ("lien", "hoger"), two keys swapped ("marhsal") or a neighbouring key pressed as well ("linenm") counts as one slip. A key far from its place counts for more. Up to 7 letters, one mistake of any kind is still forgiven, the slips first; from 8 letters, two slips, or a slip and another mistake, but no longer two keys far from where they belong. The keyboard is your client's: QWERTZ on German clients, AZERTY on French, QWERTY otherwise.

@@ -32,6 +32,14 @@ function Scan.RoleFriendly(softWords, strictWords)
 	return nil
 end
 
+--- "nearest mailbox in moonglade" with none there: the line naming the place (0.68.16: it said "Nothing has that. Check
+--- the spelling", as for a word nothing has). Nil when no place was said.
+function Scan.NoneThere()
+	local place = UI.place
+	local name = place and (place.name or place.key)
+	return type(name) == "string" and L["None of those in %s that Questie knows of."]:format(name) or nil
+end
+
 function Scan.NearestStart(tokens, filters, softWords, strictWords, far)
 	local I = ns.Integrations
 	local okind = I and I.ObjectKind and I.ObjectKind(tokens)
@@ -65,7 +73,7 @@ function Scan.NearestStart(tokens, filters, softWords, strictWords, far)
 			local only = #rest == 0 and (filters and #filters or 0) == (softWords and #softWords or 0)
 			return PseudoEntries({ (state == "unlearned" and only) and EASY_ALL_FLIGHTS or EASY_NO_FLIGHTS })
 		end
-		if rows then return PseudoEntries({ EASY_NONE }) end
+		if rows then return PseudoEntries({ Scan.NoneThere() or EASY_NONE }) end
 	end
 	if not ns.providers.npc then return PseudoEntries({ EASY_NO_NPCS }) end
 	local here = ns.Integrations and ns.Integrations.Here()
@@ -287,11 +295,17 @@ function Scan.Nearest(self, q, out)
 	-- sort:distance keeps every other row, after the NPCs, as a weapon's trainers do: q.keepFar, Scan.TrainerWords)
 	if here then
 		local keep = sortNear or q.keepFar or far
+		local matched = out
 		out = Scan.NearestViews(out, here, keep, overBudget, far, sortNear and q.sortField ~= nil)
+		-- (a place said on another continent, "bank in the barrens" from Ironforge: its own, no distance; 0.68.16)
+		if #out == 0 and not keep and self.place and #matched > 0 then
+			q.here = here
+			return matched
+		end
 		if #out == 0 and not keep then
 			-- (TrainerSpells' trainers as @npc, no Questie: only trainers are known; 0.57.1)
 			local p = ns.providers.npc
-			return out, PseudoEntries({ (p and p.trainersOnly) and EASY_TRAINERS_ONLY or EASY_NONE_NEAR })
+			return out, PseudoEntries({ (p and p.trainersOnly) and EASY_TRAINERS_ONLY or Scan.NoneThere() or EASY_NONE_NEAR })
 		end
 	end
 	q.here = here

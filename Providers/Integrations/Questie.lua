@@ -160,6 +160,31 @@ local function FindNames(blob, tokens, tick)
 end
 I.FindNames = FindNames
 
+--- Are these words, in this order, whole words of an NPC's or a quest's name (not a title)? "dalaran mage", "stockade
+--- guard", "orgrimmar reveler" are NPCs, not mages in Dalaran (0.68.19): Simple mode then reads no place in them.
+function I.NamedAs(tokens)
+	if #tokens < 2 then return false end
+	local phrase = table.concat(tokens, " ")
+	for _, t in ipairs({ npc, qdb }) do
+		local blob, pos = t.names, 1
+		while type(blob) == "string" do
+			local at, stop = blob:find(phrase, pos, true)
+			if not at then break end
+			local lineEnd = blob:find("\n", stop, true) or (#blob + 1)
+			local tab = blob:find("\t", stop, true)
+			local from = math.max(1, at - 120)
+			local back = blob:sub(from, at):match(".*\n()")
+			local head = back and blob:sub(from + back - 1, at - 1) or ""
+			if tab and tab < lineEnd and not head:find("<", 1, true)
+				and not blob:sub(at - 1, at - 1):find("%w") and not blob:sub(stop + 1, stop + 1):find("%w") then
+				return true
+			end
+			pos = stop + 1
+		end
+	end
+	return false
+end
+
 --- The provider's hintFind: the first matching name (as the game writes it), the count, the
 --- first ids (UI shows those rows themselves when there are only a few: hintRow), and the first
 --- match's line in the index ("kyra boucher <reagent vendor>": lowercase, an NPC's title in <>),

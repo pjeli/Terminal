@@ -1205,6 +1205,7 @@ L["None collected yet"] = true
 L["None marked as a favorite in the journal"] = true
 L["None of them is tracked"] = true
 L["None of these recipes gives skill now: train new ones"] = true
+L["None of those in %s that Questie knows of."] = true
 L["None of those near you. Without Questie, Terminal knows only trainers (TrainerSpells'): install Questie for every other NPC."] = true
 L["None of those on this continent that Questie knows of."] = true
 L["None of those quests is one to drop"] = true

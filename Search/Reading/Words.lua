@@ -219,14 +219,40 @@ function E.ForgetPhrases() phrasePatterns = nil end -- (tests)
 --- A line in the client's language as the English line it stands for, else the line as it is.
 function E.English(text)
 	if type(text) ~= "string" then return text end
-	local pats = Patterns()
-	if #pats == 0 or text:find("[@>|]") or text:find(":[^%s]") or text:find("^%s*[%./!%-]") then return text end
-	local lt = Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
-	for _, p in ipairs(pats) do
-		local what = lt:match(p[1])
-		if what and what:find("%S") then return p[2]:format(what) end
+	if text:find("[@>|]") or text:find(":[^%s]") or text:find("^%s*[%./!%-]") then return text end
+	local out = text
+	for _, p in ipairs(Patterns()) do
+		local what = Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " "):match(p[1])
+		if what and what:find("%S") then out = p[2]:format(what) break end
 	end
-	return text
+	return E.TrainerAsked(out) or out
+end
+
+-- "where to learn tailoring", "who teaches mining", "where to learn warrior": a profession's or a class's trainers, the
+-- nearest first, as "tailoring trainer" lists them; not a recipe or a spell, whose chain says where (0.68.16: they said
+-- "Nothing called "tailoring" in your bags...")
+local LEARN_LEADS = { "where to learn ", "where do i learn ", "where can i learn ", "how to learn ", "how do i learn ",
+	"who teaches ", "where to train ", "where do i train ", "where can i train ", "who trains " }
+--- Simple mode: the line asking where to learn a profession or a class, as "<it> trainer"; else nil.
+function E.TrainerAsked(text)
+	if not (E.On and E.On()) then return nil end
+	local lt = Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	for _, lead in ipairs(LEARN_LEADS) do
+		if lt:sub(1, #lead) == lead then
+			local what = lt:sub(#lead + 1):gsub("^the ", "")
+			local words = {}
+			for w in what:gmatch("%S+") do words[#words + 1] = w end
+			if #words == 0 or #words > 3 then return nil end
+			if what == "riding" then return "riding trainer" end -- (no profession's: a trainer's title word)
+			-- (a weapon's skill is What's Training's: "where to learn daggers" says which weapon master)
+			local F = ns.Filters
+			for _, w in ipairs(words) do if F and F.TrainerWeapon and F.TrainerWeapon(w) then return nil end end
+			local kept, specs = E.TrainerProfs(words, true)
+			if specs and #kept == 0 then return what .. " trainer" end
+			return nil
+		end
+	end
+	return nil
 end
 
 --- Simple mode's words for a chain link in the client's language (its first phrasing, as written), or nil (English's).

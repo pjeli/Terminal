@@ -3220,4 +3220,5 @@ L["on yourself"] = "на себя"
 L["with a range of %s yards"] = "с дальностью %s м"
 L["with no cooldown"] = "без восстановления"
 L["with a cooldown of %s sec"] = "с восстановлением %s сек."
+L["None of those in %s that Questie knows of."] = "Таких в месте «%s» Questie не знает."
 --@end-do-not-package@

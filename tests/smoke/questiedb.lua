@@ -242,12 +242,14 @@ do
 				objectivesText = { "Bring 5 Raptor Horns to Sputtervalve in Ratchet." }, finishedBy = { { 3442 } } },
 			[60] = { name = "Kobold Candles", questLevel = 7, zoneOrSort = 12,
 				objectivesText = { "Bring 8 Large Candles to William Pestle in Goldshire." }, finishedBy = { { 253 } } },
+			[866] = { name = "Trouble in Ratchet", questLevel = 15, zoneOrSort = 17 }, -- (0.68.16: "in ratchet" in a name)
 			[61] = { name = "Shipment to Stormwind", questLevel = 7, zoneOrSort = 12,
 				objectivesText = { "Take the shipment at the farm to someone at Goldshire... no, an \"at\" with nothing after" } },
 		}),
 		Npc = Entity({
 			[3498] = { name = "Jazzik", npcFlags = 4, zoneID = 17, spawns = { [17] = { { 62.4, 37.6 } } } },     -- vendor, Ratchet
 			[8737] = { name = "Linken", zoneID = 17, spawns = { [17] = { { 20.0, 80.0 } } } }, -- (0.68.15: a name close to Linen Cloth)
+			[3502] = { name = "Ratchet Bruiser", zoneID = 12, spawns = { [12] = { { 30.0, 30.0 } } } }, -- (0.68.19: a place in a name; not in Ratchet)
 			[3496] = { name = "Fuzruckle", subName = "Banker", npcFlags = 0, zoneID = 17, spawns = { [17] = { { 62.6, 37.4 } } } },  -- banker, Ratchet
 			[3489] = { name = "Zargh", npcFlags = 4, zoneID = 17, spawns = { [17] = { { 52.6, 29.8 } } } },      -- vendor, Crossroads
 			[3442] = { name = "Sputtervalve", npcFlags = 2, zoneID = 17, spawns = { [17] = { { 62.9, 36.3 } } } },
@@ -465,6 +467,35 @@ do
 	local jz = UI.Results()[1]
 	check(jz and jz.name == "Jazzik", "jazik: Jazzik, a key missed in a name only Questie knows: " .. tostring(jz and jz.name))
 	UI:Hide(); FlushAll()
+	-- (0.68.19) words that are a name, a place's among them, are that name: "ratchet bruiser" is the NPC (who stands
+	-- elsewhere), not bruisers in Ratchet
+	UI:Open("ratchet bruiser")
+	local rb = UI.Results()[1]
+	check(rb and rb.name == "Ratchet Bruiser" and not UI.place, "ratchet bruiser: the NPC, no place read: " .. tostring(rb and rb.name))
+	UI:Hide(); FlushAll()
+	-- (0.68.16) a sentence's little words at the ends aren't a name's: "vendor in ratchet" is vendors in Ratchet, though a
+	-- quest is named Trouble in Ratchet; "near me" before the place is nearest too (a name: the mock's Jazzik serves no faction)
+	for _, q in ipairs({ "vendor in ratchet", "jazzik near me in ratchet" }) do
+		UI:Open(q)
+		local v = UI.Results()[1]
+		check(v and v.name == "Jazzik" and UI.place and UI.place.key == "ratchet", q .. ": Jazzik, in Ratchet: " .. tostring(v and v.name))
+		if q:find("near me", 1, true) then check(UI.action and UI.action.nearest, q .. ": nearest") end
+		UI:Hide(); FlushAll()
+	end
+	-- (0.68.16) where to learn a profession or a class: its trainers, as "mining trainer" lists them; a recipe or a spell
+	-- keeps its chain
+	local TA = ns.Easy.TrainerAsked
+	check(TA("where to learn mining") == "mining trainer" and TA("Who teaches Warrior") == "warrior trainer"
+		and TA("where can i learn riding") == "riding trainer" and TA("where to learn linen bandage") == nil
+		and TA("mining trainer") == nil, "where to learn a profession or a class: its trainers")
+	UI:Open("where to learn mining")
+	local wl = UI.Results()[1]
+	check(wl and not tostring(wl.name):find("Nothing called", 1, true) and UI.action and UI.action.nearest,
+		"where to learn mining: the nearest mining trainers (the mock's are on another continent): " .. tostring(wl and wl.name))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false
+	check(TA("where to learn mining") == nil, "Advanced: as typed")
+	ns.db.easyMode = true
 	UI:Open("vendor ratchet") -- (shown again: the arrow's test below reads it)
 	-- Advanced: sort:distance puts Questie's NPCs closest first (with how far), near:<yards> keeps those within reach
 	ns.db.easyMode = false
@@ -575,6 +606,38 @@ do
 		local rr = UI.Results()
 		check(#rr == 1 and rr[1].name == "Mailbox" and rr[1].py == 37.0, "nearest mailbox in ratchet: only Ratchet's: " .. #rr)
 		UI:Hide(); FlushAll()
+		-- (0.68.16) none in the place said: a line naming it, not "check the spelling"; "3 nearest" keeps that line (it
+		-- listed nothing at all)
+		for _, q in ipairs({ "nearest mailbox in orgrimmar", "3 nearest mailboxes in orgrimmar" }) do
+			UI:Open(q)
+			local none = UI.Results()
+			check(#none == 1 and none[1].noActivate and tostring(none[1].name):find("Orgrimmar", 1, true),
+				q .. ": none there, said so: " .. tostring(none[1] and none[1].name))
+			UI:Hide(); FlushAll()
+		end
+		-- (0.68.16) an object said alone is the nearest of them, as a role is; with a place, those there
+		UI:Open("mailbox")
+		local mb = UI.Results()
+		check(mb[1] and mb[1].name == "Mailbox" and tostring(mb[1].detail):find(" yd", 1, true) and UI.action and UI.action.nearest,
+			"mailbox: the nearest mailboxes: " .. tostring(mb[1] and mb[1].detail))
+		UI:Hide(); FlushAll()
+		UI:Open("mailboxes in ratchet")
+		mb = UI.Results()
+		check(#mb == 1 and mb[1].py == 37.0, "mailboxes in ratchet: Ratchet's: " .. #mb)
+		UI:Hide(); FlushAll()
+		-- (0.68.16) "mail" and "post" alone aren't the nearest mailbox: armour, your mail, a word
+		for _, q in ipairs({ "mail", "post" }) do
+			UI:Open(q)
+			check(not (UI.action and UI.action.nearest), q .. " alone: searched, not the nearest mailbox")
+			UI:Hide(); FlushAll()
+		end
+		-- (0.68.16) a place on another continent (Goldshire, from the Barrens): its own, with no distance, not "none"
+		for _, q in ipairs({ "mailbox in goldshire", "nearest william in goldshire" }) do
+			UI:Open(q)
+			local g = UI.Results()[1]
+			check(g and not g.noActivate and (g.name == "Mailbox" or g.name == "William Pestle"), q .. ": listed: " .. tostring(g and g.name))
+			UI:Hide(); FlushAll()
+		end
 		-- rows listed before the scan light up this search's words, not the last search's
 		UI.posTokens = { "zzz" }
 		UI:Open("nearest mailbox")

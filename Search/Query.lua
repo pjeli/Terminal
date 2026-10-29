@@ -41,13 +41,18 @@ function Scan.TakeAction(tokens, filters, src)
 		if src then taken[#taken + 1] = table.remove(src, 1) end
 		return a, table.remove(tokens, 1), taken
 	end
-	-- "near me" said last: "repair near me" (it read as the word "near"; 0.68.11, review)
-	if (#tokens > 2 or (#tokens == 2 and filters)) and NEAR_ME[tokens[#tokens - 1] .. " " .. tokens[#tokens]] then
-		local taken = {}
-		if src then taken[2] = table.remove(src, #tokens); taken[1] = table.remove(src, #tokens - 1) end
-		local said = tokens[#tokens - 1] .. " " .. tokens[#tokens]
-		table.remove(tokens); table.remove(tokens)
-		return ns.Easy.ACTIONS.nearby, said, taken
+	-- "near me" said after what's wanted: "repair near me" (it read as the word "near"; 0.68.11, review), "innkeeper near
+	-- me in stormwind" (0.68.16: only the last two words were looked at)
+	if #tokens > 2 or (#tokens == 2 and filters) then
+		for j = #tokens - 1, 1, -1 do
+			if NEAR_ME[tokens[j] .. " " .. tokens[j + 1]] then
+				local taken = {}
+				if src then taken[2] = table.remove(src, j + 1); taken[1] = table.remove(src, j) end
+				local said = tokens[j] .. " " .. tokens[j + 1]
+				table.remove(tokens, j + 1); table.remove(tokens, j)
+				return ns.Easy.ACTIONS.nearby, said, taken
+			end
+		end
 	end
 	if #tokens > 1 then
 		-- "nearest"/"nearby"/"closest" said last: "mining trainer nearby"
@@ -437,6 +442,9 @@ function Scan.OnlyRoles(q)
 	return any
 end
 
+-- (an object's words that, said alone, aren't the nearest of it: Scan.ActionAndPlace)
+local OBJECT_NOT_ALONE = { mail = true, post = true }
+
 --- The action (an action word first, "use hearthstone"; a nearest-type word last; do:use) and a place named among the
 --- words, taken out of them.
 function Scan.ActionAndPlace(self, q)
@@ -461,6 +469,15 @@ function Scan.ActionAndPlace(self, q)
 		-- dungeon by its name, not everything standing in it; 0.68.11, review)
 		local more = false
 		for _, w in ipairs(rest or {}) do if not ns.Easy.STOP[w] then more = true break end end
+		-- (words that are a name, the place's among them, are that name: "dalaran mage", "stockade guard"; 0.68.16; a
+		-- sentence's little words at either end aren't the name's: "innkeeper in westfall" is "in westfall" once the role
+		-- is taken, a quest's name has that, 0.68.16)
+		if place and more and I.NamedAs then
+			local a, b = 1, #q.tokens
+			while a <= b and ns.Easy.STOP[q.tokens[a]] do a = a + 1 end
+			while b >= a and ns.Easy.STOP[q.tokens[b]] do b = b - 1 end
+			if b > a and I.NamedAs({ unpack(q.tokens, a, b) }) then place = nil end
+		end
 		if place and (more or q.filters or act) then
 			-- (the place's words: the run of tokens rest goes without)
 			local placed
@@ -501,6 +518,18 @@ function Scan.ActionAndPlace(self, q)
 		act = ns.Easy.ACTIONS.nearest
 		Scan.UseAction(q, act)
 		q.nearImplied = true
+	end
+	-- an object said alone ("mailbox", "anvil", "mailboxes in westfall"): the nearest of them, as a role is (0.68.16: a
+	-- writ's text, an NPC called the Anvil); a place said keeps to it
+	if simple and not act and not q.sortField and I and I.ObjectKind and I.OBJECT_KINDS and I.Here then
+		local said = Scan.DropStop(q.tokens)
+		local w = table.concat(said, " ")
+		-- (not a word that's more than the object: "mail" is armour and your mail, "post" a word; 0.68.16)
+		if #said > 0 and #said <= 2 and not OBJECT_NOT_ALONE[w] and I.ObjectKind(said) and I.OBJECT_KINDS[w] and I.Here() then
+			act = ns.Easy.ACTIONS.nearest
+			Scan.UseAction(q, act)
+			q.nearImplied = true
+		end
 	end
 	-- a word naming the kind of thing wanted: its category searched (Scan.SimpleScope), as if picked; not beside an
 	-- action word's lists, a trainer's word or a category you picked

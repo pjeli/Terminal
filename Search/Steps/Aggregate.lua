@@ -616,7 +616,13 @@ function A.Apply(spec, res, base)
 			rows = kept
 		end
 		if not s then
-			-- (the search's own order kept, its lines (a heading, a note) dropped)
+			-- (the search's own order kept, its lines (a heading, a note) dropped; none kept: its note saying why stays,
+			-- "3 nearest mailboxes in moonglade" listed nothing at all; 0.68.16)
+			if #rows == 0 then
+				local notes = {}
+				for _, e in ipairs(res or {}) do if e.noActivate and not e.lead then notes[#notes + 1] = e end end
+				return notes
+			end
 			return #spec.wheres > 0 and ns.UI.SortAndTrim(rows) or rows
 		end
 	end
