@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.68.7 (in testing)
+
+- The game loads only your client language's translation file: each `Locales\` line in Terminal.toc says whose it is (`[AllowLoadTextLocale deDE]`), so the other nine (about 1.6 MB) are no longer read and compiled at every login. Each file still stops at its first line on another client, should the game ever ignore the mark.
+
 ## 0.68.6 (in testing)
 
 - `!t` never answers in a battleground's chat (its instance group is strangers), and doesn't tell you about questions there; a premade party's own party chat is still your group's, and a dungeon's instance chat is answered as before.

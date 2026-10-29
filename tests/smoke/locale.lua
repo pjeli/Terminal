@@ -29,6 +29,18 @@ do
 	check(core and first and locale and core < first and first < locale,
 		"the language files load right after Core.lua (ns.L), before anything uses a text")
 	check(not toc:find("Locales\\enUS.lua", 1, true), "enUS.lua (the list for CurseForge) isn't loaded by the game")
+	-- (0.68.7, the player's ask) the game reads only your language's file: each line says whose it is, and nothing
+	-- else is loaded on that line (the file's own first-line check stays, should the game ever ignore it)
+	local marked, wrong = 0, {}
+	for line in toc:gmatch("[^\r\n]+") do
+		local lang, rest = line:match("^Locales\\(%w+)%.lua(.*)$")
+		if lang then
+			if rest == " [AllowLoadTextLocale " .. lang .. "]" then marked = marked + 1 else wrong[#wrong + 1] = line end
+		end
+	end
+	check(marked == #langs and #wrong == 0, "each language file is loaded only on its own client: " .. table.concat(wrong, "; "))
+	local deDE = io.open("Terminal/Locales/deDE.lua"):read("*a")
+	check(deDE:find('~= "deDE" then return end', 1, true) ~= nil, "...and still stops at once on another client")
 end
 
 io.write("[translations: shown translated, read back in English]\n")

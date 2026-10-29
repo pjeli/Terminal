@@ -268,11 +268,14 @@ _G.C_Traits = {
 	GetDefinitionInfo = function(d) return { spellID = d + 1000 } end,
 }
 
--- load in TOC order
+-- load in TOC order, as the game does: a file marked for other client languages ([AllowLoadTextLocale deDE]) skipped
 local ns = {}
 for line in io.lines("Terminal/Terminal.toc") do
-	if line:match("%.lua$") then
-		local path = "Terminal/" .. line:gsub("\\", "/")
+	local file, cond = line:gsub("\r", ""):match("^([^#%s][^%s]*%.lua)%s*(.*)$")
+	local langs = cond and cond:match("%[AllowLoadTextLocale ([^%]]+)%]")
+	local lang = GetLocale and GetLocale() or "enUS"
+	if file and (not langs or (", " .. langs .. ","):find(", " .. lang .. ",", 1, true)) then
+		local path = "Terminal/" .. file:gsub("\\", "/")
 		local chunk = assert(loadfile(path))
 		chunk("Terminal", ns)
 	end
