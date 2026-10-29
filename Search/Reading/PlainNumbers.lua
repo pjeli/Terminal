@@ -13,9 +13,15 @@ local E = ns.Easy
 ----------------------------------------------------------------------
 E.NUM_FIELDS = { level = "lvl", levels = "lvl", lvl = "lvl", lvls = "lvl", ["item level"] = "ilvl", ["item levels"] = "ilvl",
 	ilvl = "ilvl", itemlevel = "ilvl", worth = "value", value = "value", valued = "value", ["sells for"] = "value",
-	slot = "slots", slots = "slots", durability = "dura", dura = "dura" }
--- (the fields said after the number: "10 slots", "50% durability")
-E.NUM_AFTER = { slots = true, dura = true }
+	slot = "slots", slots = "slots", durability = "dura", dura = "dura",
+	-- what a spell does (0.68.8): "30 yards", "30 yard range", "range over 20", "cooldown under 10", "10 sec cooldown",
+	-- "cast time under 2", "2 second cast", "costing under 100", "under 100 mana"
+	range = "range", yards = "range", yard = "range", yd = "range", ["yard range"] = "range", ["yards range"] = "range",
+	["yd range"] = "range", cooldown = "cd", ["sec cooldown"] = "cd", ["second cooldown"] = "cd", ["seconds cooldown"] = "cd",
+	["cast time"] = "cast", ["sec cast"] = "cast", ["second cast"] = "cast", costing = "cost", cost = "cost",
+	mana = "cost", rage = "cost", energy = "cost" }
+-- (the fields said after the number: "10 slots", "50% durability", "30 yards", "10 sec cooldown", "100 mana")
+E.NUM_AFTER = { slots = true, dura = true, range = true, cd = true, cast = true, cost = true }
 E.NUM_BEFORE = { ["<"] = { "under", "below", "less than", "lower than", "fewer than", "cheaper than", "smaller than", "beneath" },
 	[">"] = { "over", "above", "more than", "greater than", "higher than", "bigger than", "larger than", "pricier than" },
 	[">="] = { "at least", "min", "minimum", "no less than" },

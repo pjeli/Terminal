@@ -243,16 +243,22 @@ function CS.Rows(cls, mine, all)
 	}, LAZY)
 	local rows = {}
 	local ltext = Lower(cname .. " spell spells ability abilities class")
+	local SP = ns.Spells
+	local whole = true -- (every description in: another class's rows kept for the session)
 	for _, s in ipairs(CS.Spells(cls, mine)) do
 		local known = false
 		if mine then for _, r in ipairs(s.ranks) do if Known(r[1]) then known = true break end end end
 		if not known or all then
+			-- (what it does, its first rank's description: "druid spells that root"; 0.68.8. Not in yet: asked for, and
+			-- the rows made again once it is, Spells.lua)
+			local desc = SP and SP.Desc and SP.Desc(s.ranks[1][1], CS.descBudget) or ""
+			if desc == nil then whole = false end
 			rows[#rows + 1] = setmetatable({ _compact = true, key = cls .. ":" .. s.ranks[1][1], name = s.name, _s = s,
 				_rank = mine and CS.MINE_RANK or CS.OTHER_RANK, _lname = Lower(s.name),
-				_ltext = ltext .. (s.quest and " quest" or ""), known = known or nil }, meta)
+				_ltext = ltext .. (s.quest and " quest" or "") .. (desc ~= "" and (" " .. desc) or ""), known = known or nil }, meta)
 		end
 	end
-	if not mine and #rows > 0 then others[cls] = rows end -- (none: What's Training not there yet)
+	if not mine and #rows > 0 and whole then others[cls] = rows end -- (none: What's Training not there yet)
 	return rows
 end
 function CS.ForgetRows() others = {} end -- (tests)
@@ -267,6 +273,8 @@ ns:RegisterProvider("classspells", {
 	guard = 2,
 	collect = function()
 		local out = {}
+		local SP = ns.Spells
+		CS.descBudget = { n = SP and SP.DESC_ASK or 0 } -- (descriptions asked for while these rows are made)
 		local mine = CS.MyClass()
 		for _, cls in ipairs(CS.CLASSES) do
 			for _, e in ipairs(CS.Rows(cls, cls == mine)) do out[#out + 1] = e end

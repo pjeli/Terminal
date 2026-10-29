@@ -21,6 +21,105 @@ local ITEM_SPELL = Enum.SpellBookItemType and Enum.SpellBookItemType.Spell or 1
 
 local Secret, Call = ns.Secret, ns.Safe -- (Util.lua)
 
+----------------------------------------------------------------------
+-- What a spell does (0.68.8, the player's pick: "my spells that stun", "instant spells", "spells that cost no mana",
+-- "30 yard spells", cast:/cost:/range:/cd: in Search/Filters/Others.lua). Its facts as the game gives them, and its
+-- description for the search's words: your spellbook's and every class's (@classspell). Kept for the session only:
+-- the game has them each session again, and the saved file stays as it was.
+----------------------------------------------------------------------
+
+SP.DESC_ASK = 100 -- (spells asked to load each time a list is made; the rest the next time)
+SP.DESC_WAIT = 2 -- (s after descriptions arrive before the lists are made again: they come in bursts)
+local facts, descs, asked, descDue = {}, {}, {}, false
+
+--- A spell's facts, or nil when the game can't say: { cast = seconds (0: instant or channeled), channeled, passive,
+--- cost (of its first power; 0: none), power ("mana", "rage", "energy"), range (yards, its longest; 0: on yourself),
+--- cd (its own cooldown, seconds) }. A fact the game doesn't give is nil (a filter on it then passes no spell).
+function SP.Facts(id)
+	if type(id) ~= "number" then return nil end
+	local f = facts[id]
+	if f then return f end
+	local S = C_Spell
+	local info = S and S.GetSpellInfo and Call(S.GetSpellInfo, id)
+	if type(info) ~= "table" then return nil end -- (not kept: asked again next time)
+	local function N(x) return type(x) == "number" and not Secret(x) and x or nil end
+	f = { passive = S.IsSpellPassive and Call(S.IsSpellPassive, id) == true or false }
+	local ct = N(info.castTime)
+	f.cast = ct and ct / 1000 or nil
+	f.range = N(info.maxRange)
+	-- (a channeled spell has no cast time either: its tooltip's line says "Channeled", the game's own word)
+	local word = _G.SPELL_CAST_CHANNELED
+	if f.cast == 0 and type(word) == "string" and C_TooltipInfo and C_TooltipInfo.GetSpellByID then
+		local tip = Call(C_TooltipInfo.GetSpellByID, id)
+		for _, l in ipairs(type(tip) == "table" and type(tip.lines) == "table" and tip.lines or {}) do
+			if type(l) == "table" and (l.leftText == word or l.rightText == word) then f.channeled = true break end
+		end
+	end
+	f.channeled = f.channeled or false
+	local get = (S.GetSpellPowerCost) or _G.GetSpellPowerCost
+	local costs = get and Call(get, id)
+	if type(costs) == "table" then
+		f.cost = 0
+		for _, c in ipairs(costs) do
+			local n, pct = type(c) == "table" and N(c.cost), type(c) == "table" and N(c.costPercent)
+			if (n and n > 0) or (pct and pct > 0) then
+				f.cost = n or 0
+				f.power = type(c.name) == "string" and not Secret(c.name) and ns.Lower(c.name) or nil
+				break
+			end
+		end
+	end
+	local cd = _G.GetSpellBaseCooldown and N(Call(_G.GetSpellBaseCooldown, id))
+	f.cd = cd and cd / 1000 or nil
+	facts[id] = f
+	return f
+end
+
+--- A spell's description, lowercase, one line ("" for one with none); nil while the game hasn't sent it (asked for when
+--- `budget` has room: { n = how many more may be asked }).
+function SP.Desc(id, budget)
+	if type(id) ~= "number" then return "" end
+	local got = descs[id]
+	if got then return got end
+	local S = C_Spell
+	if not (S and S.GetSpellDescription) then return "" end
+	local ok, d = pcall(S.GetSpellDescription, id)
+	if ok and type(d) == "string" and not Secret(d) then
+		local cached = S.IsSpellDataCached and select(2, pcall(S.IsSpellDataCached, id)) == true
+		if d ~= "" or cached or asked[id] == "in" then -- (its data in: no description is none)
+			got = ns.Lower(ns.Plain(d)):gsub("%s+", " ")
+			descs[id] = got
+			return got
+		end
+	end
+	if not asked[id] and S.RequestLoadSpellData and (not budget or budget.n > 0) then
+		asked[id] = true
+		if budget then budget.n = budget.n - 1 end
+		pcall(S.RequestLoadSpellData, id)
+	end
+	return nil
+end
+function SP.ForgetFacts() facts, descs, asked = {}, {}, {} end -- (tests)
+
+do
+	local f = CreateFrame("Frame")
+	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
+	f:SetScript("OnEvent", function(_, _, id)
+		if not asked[id] then return end
+		asked[id] = "in"
+		if descDue then return end
+		descDue = true
+		C_Timer.After(SP.DESC_WAIT, function()
+			descDue = false
+			local CS = ns.ClassSpells
+			if CS and CS.ForgetRows then CS.ForgetRows() end -- (another class's rows are made once: made again with them)
+			ns:Changed("spells")
+			ns:Changed("classspells")
+		end)
+	end)
+	SP.descFrame = f -- (tests)
+end
+
 --- One spellbook slot's spell: id, passive, rank text; nil for anything else (flyouts, future
 --- spells, empty slots). This client can give no item info for a slot it lists, so then the
 --- slot's type and id are asked instead (as ClassicUIForever's book does).
@@ -526,6 +625,7 @@ ns:RegisterProvider("spells", {
 	guard = 2,
 	collect = function()
 		local out, byName = {}, {}
+		local budget = { n = SP.DESC_ASK }
 		for line = 1, (Call(C_SpellBook.GetNumSpellBookSkillLines) or 0) do
 			local li = Call(C_SpellBook.GetSpellBookSkillLineInfo, line)
 			if type(li) == "table" and not li.shouldHide and type(li.itemIndexOffset) == "number" then
@@ -551,7 +651,8 @@ ns:RegisterProvider("spells", {
 						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
 						e.tab = tab
 						e.detail = ns.Detail(passive and L["Passive"] or nil, rankText, tab)
-						e.text = tab .. (passive and " passive" or "")
+						-- (and what it does: "spells that stun"; 0.68.8)
+						e.text = tab .. (passive and " passive" or "") .. " " .. (SP.Desc(id, budget) or "")
 						if passive then
 							e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CastFallback, nil, nil, nil
 						else

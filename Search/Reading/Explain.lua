@@ -142,6 +142,22 @@ local function FilterSay(key, val)
 	elseif key == "older" or key == "before" then return { after = v:find("^%d") and L["older than %s"]:format(TimeSay(v)) or L["from before %s"]:format(TimeSay(v)) }
 	elseif key == "class" then return { after = L["of the %s class"]:format(v) }
 	elseif key == "when" then return { after = L["on the calendar %s"]:format(TIME_SAY[v] or v) }
+	-- (what a spell does, 0.68.8)
+	elseif key == "cast" then
+		if v == "instant" then return { adj = L["instant"] } end
+		if v == "channeled" or v == "channelled" or v == "channel" then return { adj = L["channeled"] } end
+		return { after = L["with a cast of %s sec"]:format(RangeSay(v)) }
+	elseif key == "cost" then
+		if v == "0" or v == "none" or v == "free" or v == "nothing" then return { after = L["that cost nothing"] } end
+		if v:match("^%a+$") then return { after = L["that cost %s"]:format(v) } end
+		return { after = L["costing %s"]:format(RangeSay(v)) }
+	elseif key == "range" then
+		if v == "melee" then return { after = L["at melee range"] } end
+		if v == "self" or v == "none" or v == "0" then return { after = L["on yourself"] } end
+		return { after = L["with a range of %s yards"]:format(RangeSay(v)) }
+	elseif key == "cd" or key == "cooldown" then
+		if v == "0" or v == "none" then return { after = L["with no cooldown"] } end
+		return { after = L["with a cooldown of %s sec"]:format(RangeSay(v)) }
 	elseif key == "do" then return { verb = L["Enter: %s"]:format(v) }
 	end
 	return { after = key .. ":" .. val }

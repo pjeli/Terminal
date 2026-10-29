@@ -19,7 +19,9 @@ E.NOT_COUNTED = { stack = true, stacks = true, x = true, of = true, slot = true,
 	gold = true, silver = true, copper = true, g = true, s = true, c = true, percent = true, ["%"] = true, durability = true,
 	day = true, days = true, hour = true, hours = true, minute = true, minutes = true, week = true, weeks = true,
 	month = true, months = true, ago = true, to = true, ["and"] = true, ["or"] = true, handed = true, hand = true,
-	piece = true, pieces = true, point = true, points = true, yards = true, yard = true, yd = true, yds = true }
+	piece = true, pieces = true, point = true, points = true, yards = true, yard = true, yd = true, yds = true,
+	-- (a spell's: "10 sec cooldown", "100 mana"; 0.68.8)
+	sec = true, secs = true, second = true, seconds = true, mana = true, rage = true, energy = true }
 local TOP_LEAD = { the = true, my = true }
 E.NOT_A_NOUN = { of = true, ["and"] = true, ["or"] = true, the = true, a = true, an = true, ["in"] = true, on = true, to = true,
 	["for"] = true, with = true, at = true, by = true, from = true }

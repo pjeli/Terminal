@@ -4108,7 +4108,8 @@ explain: "Everything matching top 0 swords|type:sword"
 
 == 30 yard range
 question: -
-tokens: 30 yard range
+tokens: -
+filter: hard range:30  sig=range:30
 sort: -
 kinds: -
 action: -
@@ -4116,10 +4117,11 @@ place: -
 send: -
 steps: -
 group: -
+pick: spec=range:30 word=30 yard range plain=true
 pick sort: -
 category: -
-advanced: "30 yard range "
-explain: "Everything matching 30 yard range"
+advanced: "range:30 "
+explain: "Everything, with a range of 30 yards"
 
 == the best of both worlds
 question: -

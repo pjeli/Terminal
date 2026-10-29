@@ -299,6 +299,53 @@ KEYS.class = function(v)
 	end
 end
 
+-- What a spell does (0.68.8, the player's pick), as the game gives it (Providers/Spells.lua's SP.Facts): @spell rows,
+-- your spellbook's and every class's. cast:instant / cast:channeled / cast:<2 (seconds), cost:0 / cost:mana / cost:<100,
+-- range:melee / range:self / range:30 / range:>=20 (yards), cd:0 / cd:<10 (its own cooldown, seconds). A passive spell
+-- is cast, costs and reaches nothing: none of them. A fact the game doesn't give passes no spell.
+local function SpellFacts(e)
+	local S = ns.Spells
+	local id = e.spellID
+	return type(id) == "number" and S and S.Facts and S.Facts(id) or nil
+end
+-- (seconds may have tenths, "cast:2.5": the range read over tenths of a second)
+local function Tenths(x) return math.floor(x * 10 + 0.5) end
+local function SecondsRange(v)
+	return Range((v:gsub("%d+%.?%d*", function(n) return tostring(Tenths(tonumber(n) or 0)) end)))
+end
+-- (one fact through a test: an active spell's, when the game gave it)
+local function Fact(field, test)
+	return function(e)
+		local f = SpellFacts(e)
+		return f ~= nil and not f.passive and f[field] ~= nil and test(f[field], f) or false
+	end
+end
+KEYS.cast = function(v)
+	if v == "instant" then return Fact("cast", function(c, f) return c == 0 and not f.channeled end) end
+	if v == "channeled" or v == "channelled" or v == "channel" then return Fact("cast", function(_, f) return f.channeled end) end
+	local r = SecondsRange(v)
+	return r and Fact("cast", function(c) return r(Tenths(c)) end)
+end
+local POWERS = { mana = true, rage = true, energy = true, focus = true }
+KEYS.cost = function(v)
+	if v == "none" or v == "free" or v == "nothing" then v = "0" end
+	if POWERS[v] then return Fact("cost", function(c, f) return c > 0 and f.power == v end) end
+	local r = Range(v)
+	return r and Fact("cost", function(c) return r(c) end)
+end
+KEYS.range = function(v)
+	if v == "melee" then return Fact("range", function(x) return x > 0 and x <= 5 end) end
+	if v == "self" or v == "none" then v = "0" end
+	local r = Range(v)
+	return r and Fact("range", function(x) return r(x) end)
+end
+KEYS.cd = function(v)
+	if v == "none" then v = "0" end
+	local r = SecondsRange(v)
+	return r and Fact("cd", function(x) return r(Tenths(x)) end)
+end
+KEYS.cooldown = KEYS.cd
+
 -- do:<action> (Advanced): Simple mode's action words written as Advanced syntax ("use hearthstone" -> "@item
 -- do:use hearthstone", Alt+`): not a filter (every row stays); the search makes each row's Enter that action, as Simple
 -- mode's action word does (Search.lua's Scan.Parse, Easy.ActionView); with no @kind, the action's own lists
@@ -564,6 +611,8 @@ F.VALUES = {
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner" },
 	fish = { "mine", "75", "150", "225", "300" },
+	cast = { "instant", "channeled", "<2", ">=3" }, cost = { "0", "mana", "rage", "energy", "<100" },
+	range = { "melee", "self", "30", ">=30" }, cd = { "0", "<10", ">60" },
 	class = { "mine", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid" },
 	["do"] = { "use", "cast", "summon", "equip", "wear", "target", "link", "where" },
 	near = { "100", "300", "500", "1000" },
@@ -630,6 +679,9 @@ F.APPLIES = {
 		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" } },
 	near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
+	cast = { ["*"] = { "spells", "classspells" } }, cost = { ["*"] = { "spells", "classspells" } },
+	range = { ["*"] = { "spells", "classspells" } }, cd = { ["*"] = { "spells", "classspells" } },
+	cooldown = { ["*"] = { "spells", "classspells" } },
 	class = { ["*"] = { "talents", "attune", "spells", "classspells" } },
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
@@ -694,6 +746,10 @@ F.HELP = {
 	{ "count:20+", L["how many you have"] },
 	{ "class:mage", L["talents and spells of that class (class:mine: yours); without it your own class's come first"] },
 	{ "fish:mine", L["@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)"] },
+	{ "cast:instant", L["@spell: by cast time: instant, channeled, or seconds (cast:<2, cast:2.5, cast:>=3); passive spells never"] },
+	{ "cost:0", L["@spell: by cost: 0 (none), mana, rage, energy, or how much (cost:<100)"] },
+	{ "range:30", L["@spell: by range in yards: melee, self, or how far (range:30, range:>=20)"] },
+	{ "cd:0", L["@spell: by its own cooldown in seconds: 0 (none), cd:<10, cd:>60 (cooldown: says the same)"] },
 	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] },
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },

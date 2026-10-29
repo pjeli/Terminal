@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.68.8 (in testing)
+
+- Spells by what they do: your spellbook's and every class's spells (`@spell`) are found by their descriptions ("spells that stun", "druid spells that root", "@spell movement speed"), and by four new filters, as the game gives them:
+  - `cast:instant`, `cast:channeled`, `cast:<2`, `cast:2.5` (seconds);
+  - `cost:0`, `cost:mana`, `cost:rage`, `cost:energy`, `cost:<100`;
+  - `range:melee`, `range:self`, `range:30`, `range:>=20` (yards);
+  - `cd:0`, `cd:<10`, `cd:>60` (its own cooldown in seconds; `cooldown:` says the same).
+
+  Passive spells match none of them. In Simple mode: "instant spells", "channeled spells", "spells with no cooldown", "spells that cost no mana", "melee range abilities", "30 yard spells", "spells with a range over 20 yards", "spells with a cooldown under 10 seconds", "10 sec cooldown spells", "spells under 100 mana", "cast time under 2". "Instant Poison" is still found by its name. Descriptions not yet sent by the game are asked for in the background, 100 at a time, and the lists made again when they arrive; they're kept for the session only, so the saved file doesn't grow. `.filters` and Tab list the new filters for `@spell`.
+
 ## 0.68.7 (in testing)
 
 - The game loads only your client language's translation file: each `Locales\` line in Terminal.toc says whose it is (`[AllowLoadTextLocale deDE]`), so the other nine (about 1.6 MB) are no longer read and compiled at every login. Each file still stops at its first line on another client, should the game ever ignore the mark.

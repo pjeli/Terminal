@@ -71,6 +71,10 @@ E.WORDS = {
 	flightpaths = "is:flightpath", ["flight point"] = "is:flightpath", ["flight points"] = "is:flightpath", taxi = "is:flightpath",
 	unlearned = "is:unlearned", missing = "is:unlearned", undiscovered = "is:unlearned", unknown = "is:unlearned",
 	learned = "is:learned", known = "is:learned", discovered = "is:learned",
+	-- what a spell does (0.68.8, the player's pick): "instant spells", "channeled spells", "spells with no cooldown",
+	-- "spells that cost no mana", "melee range abilities"; numbers ("30 yards", "cooldown under 10"): PlainNumbers.lua
+	instant = "cast:instant", ["instant cast"] = "cast:instant", channeled = "cast:channeled", channelled = "cast:channeled",
+	["no cooldown"] = "cd:0", ["no cost"] = "cost:0", ["no mana"] = "cost:0", ["melee range"] = "range:melee",
 }
 
 -- The game's own words for them (0.47.12, translations: the client's language). Quality, slot, weapon and armour
@@ -242,7 +246,9 @@ E.HARD_WORDS = { unplaced = true, upgrade = true, upgrades = true, skillup = tru
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
 	that = true, which = true, gives = true, give = true, giving = true, ["for"] = true, by = true, to = true, ["and"] = true,
 	drops = true, dropped = true, drop = true, my = true, some = true, any = true, show = true, find = true, me = true,
-	is = true, are = true }
+	is = true, are = true,
+	-- (a number's unit said after it: "cooldown under 10 seconds", "range over 20 yards"; 0.68.8)
+	sec = true, secs = true, second = true, seconds = true }
 
 local wordTests = {} -- everyday word -> soft test (made once)
 local weights = setmetatable({}, { __mode = "k" }) -- soft test -> how much passing it counts when relaxed
