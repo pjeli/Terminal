@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.68.13 (in testing)
+
+- `.console`: Ctrl+B then c (or 5 or ') no longer leaves the letter in the new pane. The key after Ctrl+B is typed into whichever box has the keyboard, and the boxes' text was saved before the key's work, when the new pane didn't exist yet; it's saved after it now, so the new pane comes back empty.
+- `.console`: a line wider than its pane no longer runs on over the next pane or the game. The game's own clipping (a ScrollFrame, before that SetClipsChildren) didn't cut text there, so each row, column and art line is now cut to the pane by the console: it ends at the pane's right edge (the game may end it with "..."), and with the lines slid sideways (Shift+wheel, Left/Right) what's past the left edge isn't drawn, whole characters at a time, colours kept.
+- `.console`: in a narrow pane the prompt you type after is shortened instead of running on over the next pane: where you are and the prompt's end (`~ $`), or the end alone, whatever leaves room for about ten characters of typing. A pager's prompt line still too long ends at the pane's edge. Your prompt as set comes back when the pane is wide enough; the lines already printed keep it whole (cut to the pane, as 0.68.13).
+- `.console`: `rm` with an option it doesn't know (`rm -k`) says so, as every other command does, instead of a Lua error.
+- `.console`: listing big folders does less work. Each NPC's roles are worked out once, not on every `ls`, and names with nothing to clean aren't copied. Over QuestieDB's 13,000 NPCs, `ls -l` after the first listing no longer works out each NPC's roles again (about 100 ms a listing); the first `ls /npc` is a little quicker (about 280 ms to 245 ms in the tests' measure, made once a session).
+
 ## 0.68.12 (in testing)
 
 - `!t` answers are headed as `>>>` heads a list in your own chat: "Nearby innkeeper (15): ...", "Nearby mailbox (8): ...", "Vendor in Ratchet (12): ...". They read "Nearest (15)", "Mailbox nearest (8)". "nearest class trainer" names the asker's class, not yours.

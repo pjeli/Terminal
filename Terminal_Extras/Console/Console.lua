@@ -261,11 +261,28 @@ function C.SetFontSize(n, p)
 	return C.DefaultFontSize()
 end
 
+C.PROMPT_ROOM = 10 -- (characters of room the input line keeps for typing: a prompt taking more is shortened)
+
+--- The input line's prompt, shortened in a narrow pane (0.68.13, the player's screenshot: user@host ran on over the
+--- next pane): as set, else where you are and the prompt's end, else its end alone.
+function C.InputPrompt(p, room)
+	local text = PromptText(p)
+	if p.pager or p.isearch then return text end
+	local want = room - C.PROMPT_ROOM * Width("0", p)
+	for _, spec in ipairs({ "dir", "char" }) do
+		if Width(text, p) <= want then break end
+		text = SH.PromptLine(p.sh, spec)
+	end
+	return text
+end
+
 --- The input line: the prompt, the box after it, its text in colour over it and the block caret.
 function C.UpdateInput(p)
 	local lh = LineH(p)
-	p.prompt:SetText(PromptText(p))
-	local pw = p.prompt:GetStringWidth() or 0
+	local room = math.max(0, (p.body:GetWidth() or 0) - 8)
+	p.prompt:SetText(C.InputPrompt(p, room))
+	p.prompt:SetWidth(math.max(1, room)) -- (still too long, a pager's line: the game ends it at the pane's edge)
+	local pw = math.min(p.prompt:GetStringWidth() or 0, room)
 	p.edit:ClearAllPoints()
 	p.edit:SetPoint("TOPLEFT", p.prompt, "TOPLEFT", pw, 0)
 	p.edit:SetPoint("RIGHT", p.body, "RIGHT", -4, 0)
@@ -341,15 +358,72 @@ end
 
 C.MONO_GAP = 12 -- (px between an art line's fixed-width part and the rest)
 
---- An art line (SH.Mono): its first part a character a slot, every slot one width (a monospace font's way: none of
---- the game's fonts is one), the rest of the line after the slots. Spaces take a slot and draw nothing.
-local function SetMono(p, r, line)
+--- The room a pane's lines have (px), as SideOf counts it.
+local function Room(p) return math.max(0, (p.body:GetWidth() or 0) - 8) end
+
+--- text with its first px cut off, whole characters only: what's left (its colours kept; a link's wrapping dropped:
+--- C.LinkAt reads the lines, not the rows) and how far right of the cut it starts (less than a character).
+local function CutLeft(p, text, px)
+	local chars, colors, color, i, n = {}, {}, nil, 1, #text
+	while i <= n do
+		local two = text:sub(i, i + 1)
+		local code = text:match("^|c%x%x%x%x%x%x%x%x", i)
+		if code then color, i = code, i + 10
+		elseif two == "|r" then color, i = nil, i + 2
+		elseif two == "|H" then i = (text:find("|h", i + 2, true) or n - 1) + 2
+		elseif two == "|h" then i = i + 2
+		else
+			local ch = two == "||" and "||" or text:match("^[%z\1-\127\194-\244][\128-\191]*", i) or text:sub(i, i)
+			local k = #chars + 1
+			chars[k], colors[k] = ch, color
+			i = i + #ch
+		end
+	end
+	-- (the fewest characters as wide as px)
+	local lo, hi = 0, #chars
+	while lo < hi do
+		local mid = math.floor((lo + hi) / 2)
+		if Width(table.concat(chars, "", 1, mid), p) >= px then hi = mid else lo = mid + 1 end
+	end
+	local out, cur = {}, nil
+	for j = lo + 1, #chars do
+		if colors[j] ~= cur then out[#out + 1] = colors[j] or "|r"; cur = colors[j] end
+		out[#out + 1] = chars[j]
+	end
+	if cur then out[#out + 1] = "|r" end
+	return table.concat(out), Width(table.concat(chars, "", 1, lo), p) - px
+end
+C.CutLeft = CutLeft
+
+--- One piece of a line (a row, a cell, an art line's rest) drawn x px right of the sheet's left edge and y down, cut to
+--- the pane: nothing past either edge is drawn. (0.68.13: neither SetClipsChildren nor the ScrollFrame cut text in the
+--- game, and lines ran on over the next pane, seen twice.)
+local function Fit(p, fs, text, x, y)
+	local room = Room(p)
+	if text == "" or x >= room or x + Width(text, p) <= 0 then
+		fs:SetText("")
+		fs:Hide()
+		return
+	end
+	if x < 0 then text, x = CutLeft(p, text, -x) end
+	fs:ClearAllPoints()
+	fs:SetPoint("TOPLEFT", p.sheet, "TOPLEFT", x, y)
+	fs:SetWidth(math.max(1, room - x)) -- (the game ends a line that doesn't fit at this width)
+	fs:SetText(text)
+	fs:Show()
+end
+
+--- An art line (SH.Mono) x px right of the sheet's left edge: its first part a character a slot, every slot one width
+--- (a monospace font's way: none of the game's fonts is one), the rest of the line after the slots. Spaces take a slot
+--- and draw nothing; a slot not wholly in the pane isn't drawn.
+local function SetMono(p, r, line, x, y)
 	local bytes, cols, rest = line:match("^|Htshm:(%d+):(%d+)|h|h(.*)$")
 	bytes, cols = tonumber(bytes) or 0, tonumber(cols) or 0
 	local art = rest:sub(1, bytes)
 	rest = rest:sub(bytes + 1)
 	local cw = Width("0", p)
 	local h = LineH(p)
+	local room = Room(p)
 	r.mono = r.mono or {}
 	local used, col, color, i = 0, 0, nil, 1
 	while i <= #art do
@@ -361,7 +435,8 @@ local function SetMono(p, r, line)
 			if art:sub(i, i + 1) == "||" then ch = "||"
 			else ch = art:match("^[%z\1-\127\194-\244][\128-\191]*", i) or art:sub(i, i) end
 			i = i + #ch
-			if ch ~= " " then
+			local sx = x + col * cw
+			if ch ~= " " and sx >= 0 and sx + cw <= room then
 				used = used + 1
 				local fs = r.mono[used]
 				if not fs then
@@ -372,7 +447,7 @@ local function SetMono(p, r, line)
 					r.mono[used] = fs
 				end
 				fs:ClearAllPoints()
-				fs:SetPoint("TOPLEFT", r, "TOPLEFT", col * cw, 0)
+				fs:SetPoint("TOPLEFT", p.sheet, "TOPLEFT", sx, y)
 				fs:SetSize(cw, h)
 				fs:SetText(color and ("|c" .. color .. ch .. "|r") or ch)
 				fs:Show()
@@ -381,6 +456,8 @@ local function SetMono(p, r, line)
 		end
 	end
 	for j = used + 1, #r.mono do r.mono[j]:Hide() end
+	r:ClearAllPoints()
+	r:SetPoint("TOPLEFT", p.sheet, "TOPLEFT", 0, y)
 	r:SetText("")
 	for _, c in ipairs(r.cells or {}) do c:Hide() end
 	if not r.rest then
@@ -390,11 +467,8 @@ local function SetMono(p, r, line)
 		if r.rest.SetWordWrap then r.rest:SetWordWrap(false) end
 		r.rest:SetTextColor(RGB(SH.C.text))
 	end
-	r.rest:ClearAllPoints()
-	r.rest:SetPoint("TOPLEFT", r, "TOPLEFT", math.max(cols, col) * cw + C.MONO_GAP, 0)
 	r.rest:SetHeight(h)
-	r.rest:SetText(rest)
-	r.rest:Show()
+	Fit(p, r.rest, rest, x + math.max(cols, col) * cw + C.MONO_GAP, y)
 end
 
 --- A row's own pieces hidden (its cells, an art line's slots and rest), and with `all` the row too.
@@ -406,18 +480,21 @@ local function HideParts(r, all)
 end
 C.HideParts = HideParts
 
---- A row's text: plain, or its cells at the stops (the last one takes the rest of the line), or an art line.
-local function SetRow(p, r, line, stops)
-	if line:find("^|Htshm:") then return SetMono(p, r, line) end
+--- A row's text, x px right of the sheet's left edge (slid sideways) and y down: plain, or its cells at the stops (the
+--- last one takes the rest of the line), or an art line; cut to the pane (Fit).
+local function SetRow(p, r, line, stops, x, y)
+	if line:find("^|Htshm:") then return SetMono(p, r, line, x, y) end
 	HideParts(r)
 	line = line:gsub("|Htsh:.-|h|h", "") -- (an ls -l line's own columns: for the pipes, never drawn)
 	local cells = Cells(line)
 	r.cells = r.cells or {}
 	if not cells then
-		r:SetText(line)
+		Fit(p, r, line, x, y)
 		for _, c in ipairs(r.cells) do c:Hide() end
 		return
 	end
+	r:ClearAllPoints()
+	r:SetPoint("TOPLEFT", p.sheet, "TOPLEFT", 0, y)
 	r:SetText("")
 	for j, text in ipairs(cells) do
 		local c = r.cells[j]
@@ -429,11 +506,8 @@ local function SetRow(p, r, line, stops)
 			c:SetTextColor(RGB(SH.C.text))
 			r.cells[j] = c
 		end
-		c:ClearAllPoints()
-		c:SetPoint("TOPLEFT", r, "TOPLEFT", stops[j] or 0, 0)
 		c:SetHeight(r:GetHeight() or LineH(p))
-		c:SetText(text)
-		c:Show()
+		Fit(p, c, text, x + (stops[j] or 0), y)
 	end
 	for j = #cells + 1, #r.cells do r.cells[j]:Hide() end
 end
@@ -474,13 +548,11 @@ local function DrawPager(p)
 		local idx = pg.top + i - 1
 		if i <= rows and idx <= last then
 			local r = Row(p, i)
-			r:ClearAllPoints()
-			r:SetPoint("TOPLEFT", p.sheet, "TOPLEFT", -hx, -2 - (i - 1) * lh)
 			r:SetHeight(lh)
 			local line = pg.lines[idx]
 			local s, e = nil, nil
 			if match then s, e = match(FS.Strip(line)) end
-			SetRow(p, r, s and SH.Mark(line, s, e) or line, stops)
+			SetRow(p, r, s and SH.Mark(line, s, e) or line, stops, -hx, -2 - (i - 1) * lh)
 			r:Show()
 		elseif p.rows[i] then
 			HideParts(p.rows[i], true)
@@ -625,10 +697,8 @@ function C.Draw(p)
 		local idx = first + i - 1
 		if i <= outRows and idx <= last and idx >= 1 then
 			local r = Row(p, i)
-			r:ClearAllPoints()
-			r:SetPoint("TOPLEFT", p.sheet, "TOPLEFT", -hx, -2 - (i - 1) * lh)
 			r:SetHeight(lh)
-			SetRow(p, r, p.lines[idx], stops)
+			SetRow(p, r, p.lines[idx], stops, -hx, -2 - (i - 1) * lh)
 			r:Show()
 			shown = i
 		elseif p.rows[i] then
@@ -1182,7 +1252,7 @@ function C.PagerSearch(p)
 end
 
 -- Ctrl+B, then a key (tmux's way): the window keys a browser keeps for itself (Ctrl+N, Ctrl+W, Ctrl+Tab on
--- uiforever.com) work there too. The key after it types nothing (each box's text put back a frame later).
+-- uiforever.com) work there too. The key after it types nothing (each box's text, as the key left it, put back a frame later).
 C.PREFIX_KEYS = {
 	C = "split", ["5"] = "split", ["'"] = "split", N = "next", O = "next", P = "prev", X = "close", Z = "zoom",
 	SPACE = "layout", ENTER = "promote", ["["] = "scrollback", LEFT = "LEFT", RIGHT = "RIGHT", UP = "UP", DOWN = "DOWN",
@@ -1208,7 +1278,6 @@ end
 local function PrefixKey(p, key)
 	if MODIFIERS[key] then return true end
 	C.prefix = false
-	KeepTexts()
 	local what = C.PREFIX_KEYS[key]
 	if what == "split" then C.Split(p)
 	elseif what == "next" then C.Cycle(1)
@@ -1226,6 +1295,8 @@ local function PrefixKey(p, key)
 	elseif what == "font" then C.SetFontSize(nil, p)
 	elseif type(what) == "number" then if panes[what] then C.Focus(panes[what]) end
 	elseif what then C.Toward(what) end
+	-- (after the key's work: a pane it opened has the keyboard, and the letter lands there next)
+	KeepTexts()
 	C.Status()
 	return true
 end
@@ -1631,9 +1702,9 @@ NewPane = function()
 	if body.SetClipsChildren then body:SetClipsChildren(true) end
 	body:EnableMouse(false)
 	p.body = body
-	-- (the lines are drawn on a sheet inside the body's padding, cut at its edges: a line wider than the pane runs on
-	-- past them, and C.Side slides the lines along it. The sheet is a ScrollFrame's child, as every scrolling list in
-	-- the game is: SetClipsChildren on a plain frame let the text run on over the next pane, seen in game.)
+	-- (the lines are drawn on a sheet inside the body's padding, and C.Side slides them along it. Each piece is cut to
+	-- the sheet's edges by Fit: neither SetClipsChildren on a plain frame nor this ScrollFrame cut text in the game,
+	-- lines ran on over the next pane, seen twice. The ScrollFrame stays for what clipping it does.)
 	local clip = CreateFrame("ScrollFrame", nil, body)
 	clip:SetPoint("TOPLEFT", 4, 0)
 	clip:SetPoint("BOTTOMRIGHT", -4, 0)

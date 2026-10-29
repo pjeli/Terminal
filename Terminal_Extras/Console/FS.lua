@@ -31,6 +31,11 @@ end
 
 --- A row's name as a file name: one line, no "/" (a path's separator; the division slash looks the same), no codes.
 function FS.Clean(name)
+	-- (most names have nothing to clean: as they are, no copies made; a folder's first listing cleaned each of 13,000
+	-- NPCs' names and folders about four times; 0.68.13, review over QuestieDB's real data)
+	if type(name) == "string" and name ~= "" and not name:find("[|\r\n\t/]") and not name:find("^%s") and not name:find("%s$") then
+		return name
+	end
 	local s = FS.Strip(name):gsub("[\r\n\t]", " "):gsub("/", "\226\136\149")
 	s = s:match("^%s*(.-)%s*$")
 	if s == "" then s = "?" end
@@ -231,7 +236,7 @@ function FS.Files(d)
 		list = ok and type(res) == "table" and res or {}
 		if d.files and d.files.list == list and d.files.n == #list then return d.files end
 	end
-	local names, by, nameOf, byKey = {}, {}, {}, {}
+	local names, by, nameOf, byKey, lows = {}, {}, {}, {}, {}
 	for _, e in ipairs(list) do
 		if type(e) == "table" and not e.noActivate and not e.lead then
 			local n = FS.Clean(e.name)
@@ -242,16 +247,15 @@ function FS.Files(d)
 				n = n .. "~" .. i
 				ln = Lower(n)
 			end
-			names[#names + 1], by[ln], nameOf[e] = n, e, n
+			names[#names + 1], by[ln], nameOf[e], lows[n] = n, e, n, ln
 			local k = rawget(e, "key")
 			if k == nil and not e.special then k = e.key end
 			if k ~= nil then byKey[tostring(k)] = n end
 		end
 	end
-	local lows = {}
-	for _, n in ipairs(names) do lows[n] = Lower(n) end
 	table.sort(names, function(a, b) return lows[a] < lows[b] end)
-	local files = { names = names, by = by, nameOf = nameOf, byKey = byKey, list = list, n = #list }
+	-- (lows: each name's lowercase, kept for FS.Tree)
+	local files = { names = names, by = by, nameOf = nameOf, byKey = byKey, list = list, n = #list, lows = lows }
 	if not d.special then d.files = files end
 	return files
 end
@@ -326,8 +330,9 @@ function FS.Tree(d)
 	if not levels then
 		root.files, root.total = files, #files.names -- (flat: the list's own names, nothing copied)
 	else
+		local lows = files.lows or {}
 		for _, n in ipairs(files.names) do
-			local e = files.by[Lower(n)]
+			local e = files.by[lows[n] or Lower(n)]
 			local f = root
 			f.total = f.total + 1
 			for _, level in ipairs(levels) do
@@ -920,8 +925,13 @@ end
 -- An NPC's roles, as Terminal's is: filters read them (Questie's NPC flags): one word, commas between
 FS.ROLES = { "innkeeper", "repair", "vendor", "banker", "auctioneer", "flightmaster", "trainer", "stablemaster",
 	"battlemaster", "spirithealer", "questgiver" }
+-- (each row's worked out once, kept as long as the row is: eleven tests on each of QuestieDB's 13,000 NPCs were about
+-- 100 ms, asked again by every listing; 0.68.13, review over its real data)
+local rolesOf = setmetatable({}, { __mode = "k" })
 function FS.Roles(e)
 	if not NpcId(e) then return nil end
+	local known = rolesOf[e]
+	if known ~= nil then return known or nil end
 	local F = ns.Filters
 	local IS = F and F._ and F._.IS
 	if not IS then return nil end
@@ -933,8 +943,11 @@ function FS.Roles(e)
 			if ok and yes then out[#out + 1] = r end
 		end
 	end
-	return #out > 0 and table.concat(out, ",") or nil
+	local roles = #out > 0 and table.concat(out, ",") or nil
+	rolesOf[e] = roles or false
+	return roles
 end
+function FS.ForgetRoles() rolesOf = setmetatable({}, { __mode = "k" }) end -- (tests)
 
 -- What each NPC sells, by NPC: Questie keeps it by item (each item's vendors), so the whole list is read once
 -- (FS.BuildSold, the shell waiting while it does) and kept for the session. npc id -> item names, sorted.

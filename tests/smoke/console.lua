@@ -654,6 +654,9 @@ ok, err = pcall(function()
 	check(#panes == before - 1, "Ctrl+W closes a pane")
 	Prefixed("C")
 	check(#panes == before and not C.prefix, "Ctrl+B c: a new pane (a modifier between doesn't end the prefix)")
+	C.Focused().edit:SetText("c") -- (the game types the key into the new pane, which has the keyboard now)
+	T.FlushAll()
+	check(C.Focused() == panes[#panes] and C.Focused().edit:GetText() == "", "Ctrl+B c: the c isn't left in the new pane")
 	Prefixed("1")
 	check(C.Focused() == panes[1], "Ctrl+B 1: to the first pane")
 	Prefixed("O")
@@ -1270,11 +1273,13 @@ ok, err = pcall(function()
 	Drain()
 	C.Draw(p)
 	local function LongRow()
-		for _, r in ipairs(p.rows) do if (r.text or ""):find("xxxxxxxxEND", 1, true) then return r end end
+		for _, r in ipairs(p.rows) do if (r.text or ""):find("^x+END$") then return r end end -- (echo's line, not the command's)
 	end
 	local r = LongRow()
-	check(r and r.lastPoint and r.lastPoint[1] == "TOPLEFT" and r.lastPoint[2] == p.sheet and r.lastPoint[4] == 0,
-		"a long line is drawn whole from the left edge (no right edge cutting it to fit)")
+	-- (0.68.13, the player's screenshots: the game's clipping let lines run on over the next pane; each row is cut itself)
+	local room = (p.body:GetWidth() or 0) - 8
+	check(r and r.lastPoint and r.lastPoint[1] == "TOPLEFT" and r.lastPoint[2] == p.sheet and r.lastPoint[4] == 0
+		and r.w == room, "a long line starts at the left edge and ends at the pane's right one: " .. tostring(r and r.w))
 	p.clip:GetScript("OnSizeChanged")(p.clip, 380, 290)
 	check(p.clip.__kind == "ScrollFrame" and p.sheet.w == 380 and p.sheet.h == 290,
 		"the lines on a ScrollFrame's child (what cuts text at the pane's edges in the game), sized to its room")
@@ -1287,7 +1292,12 @@ ok, err = pcall(function()
 	C.Draw(p)
 	local step = C.SIDE_CHARS * C.Width("0", p)
 	r = LongRow()
-	check(p.view.hx == step and r.lastPoint[4] == -step, "Shift+wheel down: the lines slide left, showing more of their ends")
+	check(p.view.hx == step and r.lastPoint[4] == 0 and r.text == ("x"):rep(100 - C.SIDE_CHARS) .. "END" and r.w == room,
+		"Shift+wheel down: the lines slide left, what's past the left edge cut off, not drawn there: "
+		.. tostring(r and r.lastPoint[4]) .. " " .. tostring(r and #r.text))
+	-- (a part of a character past the edge: cut, the rest starting a little right of it; colours kept)
+	local cut, off = C.CutLeft(p, "|cffff0000abc|rdef", 10) -- (7 px a letter here: a and b go, c starts 4 px in)
+	check(cut == "|cffff0000c|rdef" and off == 4, "cutting a coloured line: " .. cut .. " " .. off)
 	p.edit:SetText("")
 	C.KeyDown(p, "RIGHT")
 	C.Draw(p)
@@ -1302,6 +1312,17 @@ ok, err = pcall(function()
 	C.KeyDown(p, "RIGHT")
 	C.Draw(p)
 	check(p.view.hx == before, "with something typed, Left/Right are the line's own")
+	-- (0.68.13, the player's screenshot) a narrow pane: the input line's prompt shortened and cut, not run on past its edge
+	local wasW = p.body.w
+	p.body.w = 150
+	C.UpdateInput(p)
+	check(p.prompt.text == SH.PromptLine(p.sh, "char") and p.prompt.w == 142,
+		"a narrow pane: only the prompt's end, cut to the pane: " .. FS.Strip(p.prompt.text or "") .. " " .. tostring(p.prompt.w))
+	p.body.w = 3000
+	C.UpdateInput(p)
+	check(p.prompt.text == C.PromptText(p), "a wide one: the prompt as set: " .. FS.Strip(p.prompt.text or ""))
+	p.body.w = wasW
+	C.UpdateInput(p)
 	p.edit:SetText("")
 	C.Run(p, "true")
 	Drain()
@@ -1362,3 +1383,19 @@ if C.IsShown() then C.Close("exit") end
 ns.Zen.Force(false)
 ns.Zen.Opened = realOpened
 T.FlushAll()
+
+io.write("[console: a big list's folders made with less work]\n")
+do
+	-- (0.68.13, review over QuestieDB's 13,000 NPCs) a name with nothing to clean is itself; one with codes is cleaned
+	check(FS.Clean("Innkeeper Farley") == "Innkeeper Farley" and FS.Clean(" a/b ") == "a\226\136\149b"
+		and FS.Clean("|cffff0000Red|r") == "Red" and FS.Clean("") == "?", "FS.Clean: as before, quicker for plain names")
+	-- an NPC's roles worked out once while the row lives
+	local IS = ns.Filters._.IS
+	local real, calls = IS.innkeeper, 0
+	IS.innkeeper = function(e) calls = calls + 1 return real(e) end
+	FS.ForgetRoles()
+	local row = { kind = "npc", npcID = 99001, name = "Someone" }
+	FS.Roles(row); FS.Roles(row); FS.Roles(row)
+	IS.innkeeper = real
+	check(calls == 1, "an NPC's roles asked once, not every listing: " .. calls)
+end

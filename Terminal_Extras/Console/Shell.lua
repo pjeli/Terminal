@@ -2364,8 +2364,10 @@ SH.Command("rm", {
 			io.err(L["use --no-preserve-root to override this failsafe"])
 			return 1
 		end
-		local _, rest = SH.Opts(io.args, "rf")
-		for _, a in ipairs(rest or {}) do
+		local opts, rest = SH.Opts(io.args, "rf")
+		-- (an option it doesn't know: said, as every command does; "rm -k" was a Lua error, 0.68.13, review)
+		if not opts then io.err(rest) return 2 end
+		for _, a in ipairs(rest) do
 			local target = WriteTarget(io.sh, a)
 			if not target then return ReadOnly(io) end
 			if not FS.tmp[Lower(target)] then io.err(L["cannot remove '%s': No such file or directory"]:format(SH.Literal(a)))

@@ -18,7 +18,7 @@ local LINES = { "", " ", "|", "| |", "ls |", "| ls", "ls >", "ls >>", "> x", "ec
 	string.rep("a", 5000), "ls " .. string.rep("/x", 300), "echo |cff00ff00red", "echo |Hitem:1|h[x]|h", "grep '[' /etc/motd",
 	"grep '(' /etc/motd", "grep '%' /etc/motd", "grep '.*' /etc/motd", "sed 's/%/x/' /etc/motd", "echo a | sed 's/a/%1/'",
 	"tr '%' x", "cut -c 5-2", "cut -c -", "ls -l -o", "ls -l -o nope", "ls -lN", "ls -lNx", "stat", "stat /nope", "file /",
-	"tee", "tee /npc/x", "echo x >> /npc/y", "less", "less /nope", "vim /etc/motd", "fortune", "murlocsay", "murlocsay " .. string.rep("w ", 200),
+	"tee", "tee /npc/x", "echo x >> /npc/y", "rm -k /tmp/a", "rm -", -- (0.68.13: an unknown option to rm) "less", "less /nope", "vim /etc/motd", "fortune", "murlocsay", "murlocsay " .. string.rep("w ", 200),
 	"neofetch", "uptime", "free", "uname -a", "whoami", "hostname", "ps", "exit 5x", "true; false || echo ok", "echo $?", "echo $HOME",
 	"echo *", "echo /*/", "echo /npc/*", "ls /npc/*/*", "locate", "locate [", "search", "search @nope", "nl -x", "tac /nope", "shuf /nope",
 	"sum value", "count by", "count by nope", "uniq -x", "sort -x", "sort -t", "head -c 5", "seq 1 2 3 4", "echo a > /tmp/" .. string.rep("b", 300),
