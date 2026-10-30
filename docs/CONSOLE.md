@@ -24,6 +24,9 @@ has stand-ins for `.console` and `.atop` (Apps/Extras.lua) that load it the firs
   font fortune murlocsay neofetch split exit layout ps kill. Any Terminal command runs too, with or without the dot
   (`top` is `.atop`); its chat output is caught into the pane. grep: smart case, a small regular-expression subset
   turned into Lua patterns (`a|b`, `\d \w \s \b`, sets), `-ivclnrwFhm`.
+- `Terminal_Extras/Console/Commands.lua` (0.69.8, split from Shell.lua as they were): the looking-around commands (ls,
+  cd, pwd, tree, find, locate, cat, head, tail, stat, file) and the pipe ones (wc, sort, uniq, cut...). They read the
+  shell's shared helpers through `ns.Shell` (`SH._` for those it keeps as locals).
 - `Terminal_Extras/Console/Console.lua` (`ns.Console`): the window manager. Up to four panes, layouts grid (default), tall, wide,
   mono, plus zoom; panes glide to their places (0.2 s; none with Terminal's animations off). Each pane: a scrollback
   of 2000 lines, a real EditBox (clipboard works) with its text drawn over in colour and a block caret, its own text
@@ -255,7 +258,7 @@ this pane's text size (Ctrl+0 the default; `font N|+|-|reset` for this pane, `fo
 pane's, kept in `db.console.fontSize`; titles and the status bar keep Terminal's size), Tab complete (twice for many),
 PageUp/PageDown, Shift+Up/Down or the wheel scroll, Esc clears the line (on an empty one steps out), `` ` `` steps out.
 
-Lines wider than the pane aren't cut to fit: they're drawn whole on a sheet clipped at the pane's edges (`p.sheet`
+Lines wider than the pane aren't cut to fit: they're drawn whole on a sheet clipped at the pane's edges (`p.sheet`
 the scroll child of a ScrollFrame, `p.clip`: SetClipsChildren on a plain frame let the text run on
 over the next pane in game), and slide sideways (`C.Side`, `p.hx` px): Shift+wheel (`C.SIDE_CHARS` characters a notch),
 Left/Right on an empty line or in the pager (half a pane, as `less -S`). Never past the widest line shown; the title

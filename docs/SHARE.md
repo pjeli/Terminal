@@ -272,8 +272,11 @@ tooltip, fade), which any addon can use for its own.
 ## Code
 
 - `Terminal_Share/Crypto.lua`: SHA-256, HMAC-SHA256 (the game's `bit` library, or plain arithmetic).
-- `Terminal_Share/Share.lua`: `SSH.Endpoint(env)` is the protocol, reaching the game only through `env`;
-  `SSH.game` is this client's. The rows (`@shared`), `.share`, and the game's events (`SSH.OnEvent`).
+- `Terminal_Share/Protocol.lua`: `SSH.Endpoint(env)` is the protocol, reaching the game only through `env`: names,
+  snapshots and deltas, marks, codes, the handshake, invites, the send queue.
+- `Terminal_Share/Share.lua`: `SSH.game`, this client's. The rows (`@shared`), what you share, the groups remembered,
+  `.share`, the badge, the game's calls and events (`SSH.OnEvent`), the randomness codes are made from (0.69.8: split
+  from one file, as it was).
 - Terminal itself: `ns.SecretLine` (Core/Util.lua), the `shared` kind in Simple mode's Bank & alts, the item
   filters and the `alts` relation.
 - Invites and codes: `tests/smoke/share_invite.lua` (codes, typos, the invite flow and its checks, no code pushed,

@@ -5,7 +5,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Dice_01
 ## Dependencies: Terminal
 ## LoadOnDemand: 1
-## Version: 0.69.7
+## Version: 0.69.8
 
 Game.lua
 Snake.lua
@@ -17,5 +17,6 @@ Wowamp.lua
 Atop.lua
 Console\FS.lua
 Console\Shell.lua
+Console\Commands.lua
 Console\Awk.lua
 Console\Console.lua
