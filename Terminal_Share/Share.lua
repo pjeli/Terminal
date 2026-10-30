@@ -4,17 +4,18 @@ local ns = _G.Terminal
 if not ns or not ns.Crypto then return end
 local L = ns.L
 
--- The share shell, .ssh (0.58.1): friends' Terminals talk to each other. Two friends who type the same password see each other's bags
+-- The share shell, .ssh (0.58.1): friends' Terminals talk to each other. Two friends in the same group see each other's bags
 -- in their searches ("linen cloth": what you carry, your alts, and Bob 20, Ann 15). docs/SHARE.md has the design.
 --
 -- Who's heard: a character on your friend list, a guild member, a Battle.net friend's character. Every other message
 -- is ignored, unanswered. The sender is the server's word (a whisper's sender, the guild channel, a Battle.net game
 -- account), never the message's.
--- The password: never sent, never kept. It's turned into a key (iterated SHA-256, a slice a frame), and each side proves
--- it holds the key with an HMAC over both nonces and both names (Crypto.lua). A wrong password gets no answer.
--- Groups (0.59.0, the player: ".share join group1 password1"): each group a name and a password of its own, and what you
--- share in it; .share password is the group "default". Friends who joined the same group with the same password see
--- each other; each sees from you what you share in the groups you have in common (all of them together).
+-- A group's secret is a code Terminal makes (120 random bits), handed to a friend by invite once they say yes, or given
+-- by hand (.share code). Never sent otherwise: each side proves it holds the group's key, made from the code, with an
+-- HMAC over both nonces and both names (Crypto.lua). Codes only (share-invites, the player: "Codes Only for the WoW
+-- Forever release"): a typed password could be guessed at home by anyone in the guild, against the hellos' marks.
+-- Groups (0.59.0): each a code of its own and what you share in it; a group's name is only yours (a friend may call
+-- it something else; .share rename). Each friend sees from you what you share in the groups you have in common.
 -- What friends send lives here, in memory, and nowhere else: gone on /reload, logout, goodbye, 30 minutes of silence,
 -- or once they're no longer a friend or guild member. Nothing of it is ever in ns.db.
 --
@@ -29,21 +30,12 @@ local Lower, Str, Num, Safe = ns.Lower, ns.Str, ns.Num, ns.Safe
 local floor, concat, sort = math.floor, table.concat, table.sort
 
 SSH.PREFIX = "TermSSH"
-SSH.V = "4"                -- the protocol's version, each message's first character (2: 0.58.16, delta updates,
+SSH.V = "5"                -- the protocol's version, each message's first character (2: 0.58.16, delta updates,
                            -- 150-piece snapshots, a session in hellos; 3: groups; 4: 0.59.0, groups' marks made from
-                           -- their keys. A friend on another is told to update)
-SSH.SALT = "Terminal.ssh.1" -- (the key is the same for every pair who typed the same password)
-SSH.KDF_ROUNDS = 1000      -- SHA-256s a password guess costs (2000 until 0.59.0; 20000 and then 4000 were too much for
-                           -- the game's CPU, the player: "bring it down and maybe consider asking user to have special
-                           -- characters, numbers, capitalizations": the password's own strength does the work now,
-                           -- SSH.PasswordProblem. Once, as it's typed: at login the remembered key is used)
-SSH.KDF_MS = 2             -- ms of them a frame, the clock looked at after each (the game's frame stays smooth)
-SSH.KDF_SLICE = 100000     -- of them a frame at most (the tests make it 1: a key made over frames)
-SSH.KDF_ID = "s1000"      -- the way keys are made, remembered with them: a key made another way is typed again
-SSH.MIN_PASSWORD = 8        -- characters, no spaces, three kinds of them (SSH.PasswordProblem; 0.59.3, the player)
+                           -- their keys; 5: codes only, invites. A friend on another is told to update)
 SSH.MAX_GROUPS = 5         -- groups at once (a hello names each; a proof is one per group, in one message)
 SSH.GROUP_LEN = 16         -- a group's name: letters, digits, "-" and "_", this long at most
-SSH.DEFAULT_GROUP = "default" -- .share password's
+SSH.DEFAULT_GROUP = "default" -- the group an invite makes when you have none
 SSH.MAC_HEX = 32           -- a proof's length (128 bits, hex)
 SSH.CHUNK = 200            -- a data message's payload, at most
 SSH.MAX_PIECES = 150       -- a snapshot's messages, at most (30000 characters: ~2500 items in two places each)
@@ -292,37 +284,6 @@ end
 -- The key
 ----------------------------------------------------------------------
 
---- A group's salt: the default group's is the one keys were made with before groups (a remembered key still fits).
-local function Salt(group)
-	if group == nil or group == SSH.DEFAULT_GROUP then return SSH.SALT end
-	return SSH.SALT .. "|" .. group
-end
-
---- The key from a password, a slice at a time (`later(fn)` runs fn on a later frame; nil: all at once). done(key).
---- `group`: the group's name (its salt: the same password in two groups is two keys).
---- `progress(share done, 0 to 1)` after each frame's slice. A frame's slice is KDF_MS of hashing (the clock looked at
---- after every hash: a slow machine's frame never takes more than one hash past it), KDF_SLICE at most.
-function SSH.Derive(password, done, later, group, progress)
-	local rounds, slice = SSH.KDF_ROUNDS, SSH.KDF_SLICE
-	local SHA = C.SHA256
-	local k = SHA(Salt(group) .. "\0" .. password)
-	local left = rounds
-	local clock = later and type(_G.debugprofilestop) == "function" and _G.debugprofilestop or nil
-	local function step()
-		local t0, n = clock and clock(), 0
-		while left > 0 do
-			k = SHA(k .. password)
-			left, n = left - 1, n + 1
-			if later and (n >= slice or (clock and clock() - t0 >= SSH.KDF_MS)) then break end
-		end
-		if progress then pcall(progress, 1 - left / rounds) end
-		if left > 0 then later(step) return end
-		password = nil -- (not kept by this closure either)
-		done(k)
-	end
-	step()
-end
-
 local function Mac(key, label, nA, nB, idA, idB)
 	return C.Hex(C.HMAC(key, label .. "|" .. nA .. "|" .. nB .. "|" .. idA .. "|" .. idB)):sub(1, SSH.MAC_HEX)
 end
@@ -343,7 +304,7 @@ end
 --- A group's mark in a hello (0.59.0, the player: "hide the group name"): 8 hex characters of an HMAC under the group's
 --- key, over the session and the character saying it. Only who has the key can make it or tell which group it is; it
 --- names no group, and it's another every session (a guildmate can't tell your groups apart, or the same group from one
---- login to the next). A wrong password makes another mark: the groups just aren't in common ("no answer").
+--- login to the next). A wrong key makes another mark: the groups just aren't in common ("no answer").
 function SSH.Mark(key, sess, claim)
 	return C.Hex(C.HMAC(key, "M|" .. tostring(sess) .. "|" .. tostring(claim))):sub(1, 8)
 end
@@ -360,6 +321,73 @@ function SSH.Union(modes)
 	if m and c then return "limited" end
 	return m and "mats" or c and "consumables" or "none"
 end
+
+----------------------------------------------------------------------
+-- Codes (branch share-invites): a group's secret made by Terminal, not typed
+----------------------------------------------------------------------
+-- A typed password is something a guildmate can guess at home against your hellos' marks; a code is 120 random bits,
+-- which nobody can. "TS1-" and 25 characters of Crockford's base 32 (no I, L, O or U; I and L typed read as 1, O as 0),
+-- the last a check that catches one wrong character and most swapped ones. A group's key is made from its code alone
+-- (`SSH.KeyOfCode`), whatever each friend calls the group: names stay your own.
+
+SSH.CODE_PREFIX = "TS1"
+SSH.CODE_SALT = "Terminal.ssh.code.1"
+SSH.CODE_ID = "code1" -- (a key made from a code, remembered with it as `kdf`)
+local B32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+local B32_VALUE = {}
+for i = 1, 32 do B32_VALUE[B32:sub(i, i)] = i - 1 end
+for k, v in pairs({ O = "0", I = "1", L = "1" }) do B32_VALUE[k] = B32_VALUE[v] end
+
+local function CodeCheck(values)
+	local sum = 0
+	for i, v in ipairs(values) do sum = sum + (2 * i + 1) * v end
+	return sum % 32
+end
+
+--- A code from 15 random bytes (120 bits): "TS1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX".
+function SSH.CodeFromBytes(bytes)
+	local values, acc, bits = {}, 0, 0
+	for i = 1, 15 do
+		acc, bits = acc * 256 + (bytes:byte(i) or 0), bits + 8
+		while bits >= 5 do
+			bits = bits - 5
+			local p = 2 ^ bits
+			local v = floor(acc / p)
+			values[#values + 1], acc = v, acc - v * p
+		end
+	end
+	values[#values + 1] = CodeCheck(values)
+	local out = {}
+	for i, v in ipairs(values) do out[i] = B32:sub(v + 1, v + 1) end
+	local s = concat(out)
+	return SSH.CODE_PREFIX .. "-" .. s:sub(1, 5) .. "-" .. s:sub(6, 10) .. "-" .. s:sub(11, 15) .. "-" .. s:sub(16, 20) .. "-" .. s:sub(21, 25)
+end
+
+--- Typed or pasted text read as a code: the code as Terminal writes it, or nil and why ("typo", or nil: not a code at
+--- all). Capitals or not, spaces and dashes anywhere, O for 0 and I or L for 1 all read.
+function SSH.ReadCode(text)
+	local s = tostring(text or ""):upper():gsub("[%s%-_]", "")
+	-- (its "TS1" typed "TSI" or "TSL" too)
+	if not (s:sub(1, 2) == "TS" and B32_VALUE[s:sub(3, 3)] == 1) then return nil end
+	s = s:sub(4)
+	if #s ~= 25 then return nil, "typo" end
+	local values = {}
+	for i = 1, 25 do
+		local v = B32_VALUE[s:sub(i, i)]
+		if not v then return nil, "typo" end
+		values[i] = v
+	end
+	local check = table.remove(values)
+	if CodeCheck(values) ~= check then return nil, "typo" end
+	values[#values + 1] = check
+	local out = {}
+	for i, v in ipairs(values) do out[i] = B32:sub(v + 1, v + 1) end
+	local c = concat(out)
+	return SSH.CODE_PREFIX .. "-" .. c:sub(1, 5) .. "-" .. c:sub(6, 10) .. "-" .. c:sub(11, 15) .. "-" .. c:sub(16, 20) .. "-" .. c:sub(21, 25)
+end
+
+--- A group's key from its code (as SSH.ReadCode writes it): the same for everyone with the code.
+function SSH.KeyOfCode(code) return C.HMAC(SSH.CODE_SALT, code) end
 
 ----------------------------------------------------------------------
 -- An endpoint: the protocol
@@ -379,6 +407,8 @@ end
 --   nonce()                   16 hex characters, never the same twice
 --   broadcast()               { routes } a hello goes to: the guild channel, friends, Battle.net friends' characters
 --   proven(claim, route)      (optional) a way just proven for that claim
+--   offered()                 (optional) an invite came in, or went (the badge, the prompt's suggestion)
+--   joined(name, key, mode, code)  (optional) a group joined by an invite: remember it
 -- route: { kind = "whisper", target = "Bob-Realm" } | { kind = "guild", target = sender } | { kind = "bn", id = n,
 --   name = character, bnetID = account id }
 
@@ -388,7 +418,7 @@ E.__index = E
 function SSH.Endpoint(env)
 	return setmetatable({ env = env, peers = {}, friends = {}, waiting = {}, queue = {}, tokens = SSH.BURST, refillAt = 0,
 		defaultMode = "limited", outVer = 0, recheckAt = 0, hellos = {}, tried = {}, groups = {}, snaps = {}, groupGen = 0,
-		markCache = {} }, E)
+		markCache = {}, invites = {}, offers = {} }, E)
 end
 
 -- Two records (0.58.3; in game, 0.58.2: connected, "items: 0" on both sides):
@@ -502,7 +532,7 @@ function E:JoinGroup(name, key, mode, quiet)
 	return g
 end
 
---- The default group's key (.share password; the tests' way in).
+--- The default group's key (the tests' way in).
 function E:SetKey(key) return self:JoinGroup(SSH.DEFAULT_GROUP, key) end
 
 --- What you share in a group (nil: in every group, and in groups joined later): friends whose share changed are
@@ -519,6 +549,24 @@ function E:SetMode(mode, name)
 	return true
 end
 
+--- A group called something else (its name is yours alone: friends know it by its key): true, or false when there's
+--- no such group or the new name is taken. Everything that names it follows: friends' and handshakes' groups,
+--- invites waiting.
+function E:Rename(old, new)
+	local g = self.groups[old]
+	if not g or self.groups[new] then return false end
+	self.groups[old], self.groups[new], g.name = nil, g, new
+	self.groupGen = self.groupGen + 1 -- (marks read again: a mark now names the new name)
+	local function Move(t) if t and t[old] ~= nil then t[new], t[old] = t[old], nil end end
+	for _, f in pairs(self.friends) do Move(f.groups) end
+	for _, p in pairs(self.peers) do
+		Move(p.groups)
+		for m, n in pairs(p.markOf or {}) do if n == old then p.markOf[m] = new end end
+	end
+	for _, inv in pairs(self.invites) do if inv.group == old then inv.group = new end end
+	return true
+end
+
 --- A friend sent what you share with them again, whole, when that changed (a group's mode, a group left).
 function E:Reshare(f)
 	if self.friends[f.claim] and self:ModeFor(f) ~= f.sentMode then self:Share(f, true) end
@@ -527,22 +575,14 @@ end
 --- A group left: friends you have only it in common with are said goodbye to and dropped; the others are told
 --- ("3L <mark>") and sent what you share with them now.
 function E:LeaveGroup(name, rejoining)
-	-- (its password still being made from: never used; review, 0.59.0: it was joined after the leave)
-	if self.deriving and self.deriving[name] then
-		self.deriving[name] = nil
-		if self.derivingDone then self.derivingDone[name] = nil end
-		if next(self.deriving) == nil then self.deriving = nil end
-	end
 	local g = self.groups[name]
 	if not g then return false end
 	-- (the last group left: everyone said goodbye to, as .share off does, the queue kept for it. Review, 0.59.0: the
-	-- goodbyes queued here were then dropped with the queue. A password being made for another group goes on)
+	-- goodbyes queued here were then dropped with the queue)
 	local others = false
 	for n in pairs(self.groups) do if n ~= name then others = true end end
 	if not others and not rejoining then
-		local deriving, done = self.deriving, self.derivingDone
 		self:Off()
-		self.deriving, self.derivingDone = deriving, done
 		return true
 	end
 	local myMark = SSH.Mark(g.key, self:Session(), self:Claim()) -- (said to those who stay: "3L <mark>")
@@ -566,6 +606,127 @@ function E:LeaveGroup(name, rejoining)
 		end
 	end
 	return true
+end
+
+----------------------------------------------------------------------
+-- Invites (branch share-invites): a group's secret handed to a friend, only once they say yes
+----------------------------------------------------------------------
+-- A -> B   4N id,group        an invite to a group (its name as A calls it; nothing secret)
+-- B -> A   4J id              yes (only to the invite B heard, from the character it came from)
+-- B -> A   4X id              no thanks
+-- A -> B   4G id,c:<code>     the group's code
+-- Whispers or Battle.net game data only (the guild channel carries hellos only). Each needs the sender to be someone
+-- you'd hear (a friend, a guild member, a Battle.net friend's character), the server's word for who sent it. An
+-- invite waits INVITE_KEEP, then it's gone on both sides. Then the code's key: hellos, marks made from it, proofs.
+-- No kick and no new code pushed to a group (the player, share-invites: "consider this a rare case and probably better
+-- to just force users to start over with a trust set"): a group has no owner, so anyone in it could push one at
+-- everyone. To leave someone out, friends start a new group and invite whom they trust.
+
+SSH.INVITE_KEEP = 600 -- s an invite waits for a yes
+SSH.INVITE_SAY_GAP = 60 -- s: the same person's invite again isn't said again before this
+
+--- A group's secret as an invite sends it: "c:<code>" (nil: a group with no code, the tests' keys).
+local function SecretOf(g)
+	return g.code and ("c:" .. g.code) or nil
+end
+
+--- A secret as an invite sends it, read: key and code, or nil (codes only: a key sent bare, as 0.69's "k:", isn't taken).
+local function ReadSecret(s)
+	local v = tostring(s or ""):match("^c:(.+)$")
+	local code = v and SSH.ReadCode(v)
+	if code then return SSH.KeyOfCode(code), code end
+	return nil
+end
+SSH.ReadSecret = ReadSecret
+
+--- Invite someone (a route and the name to show) to one of your groups: true, or false and why.
+function E:Invite(route, name, group)
+	local g = self.groups[group]
+	if not (g and g.code) then return false, "group" end -- (codes only: a group with no code has nothing to hand on)
+	local k, now = self:Key(route), self:Now()
+	-- (one invite a person: a new one takes the old one's place)
+	for id, inv in pairs(self.invites) do
+		if inv.key == k or now - inv.at >= SSH.INVITE_KEEP then self.invites[id] = nil end
+	end
+	local id = self.env.nonce()
+	self.invites[id] = { key = k, route = Reply(route), name = name, group = group, at = now }
+	self:Send(Reply(route), SSH.V .. "N " .. id .. "," .. group)
+	return true
+end
+
+--- Invites waiting for an answer, either way, still in time: { { name, group, mine = true (you invited them) } }.
+function E:Invites()
+	local now, out = self:Now(), {}
+	for id, inv in pairs(self.invites) do
+		if now - inv.at < SSH.INVITE_KEEP then out[#out + 1] = { name = inv.name, group = inv.group, mine = true, left = SSH.INVITE_KEEP - (now - inv.at) }
+		else self.invites[id] = nil end
+	end
+	for k, o in pairs(self.offers) do
+		if now - o.at < SSH.INVITE_KEEP then out[#out + 1] = { name = o.name, group = o.group, key = k, accepted = o.accepted, left = SSH.INVITE_KEEP - (now - o.at) }
+		else self.offers[k] = nil end
+	end
+	sort(out, function(a, b) if a.mine ~= b.mine then return not a.mine end return tostring(a.name) < tostring(b.name) end)
+	return out
+end
+
+--- The invite you heard from someone, by name (any capitals, the name alone or with its realm), or the only one when
+--- there's one and no name is given: the offer and its key, or nil.
+function E:Offer(name)
+	local now, found, n = self:Now(), nil, 0
+	for k, o in pairs(self.offers) do
+		if now - o.at < SSH.INVITE_KEEP then
+			n = n + 1
+			if name == nil or name == "" then found = found or { k, o }
+			else
+				local c = Canon(name)
+				if Canon(o.name) == c or Canon(o.name):match("^[^%-]+") == c or (k:match("^w:(.*)$") == c) then found = { k, o } end
+			end
+		else
+			self.offers[k] = nil
+		end
+	end
+	if (name == nil or name == "") and n ~= 1 then return nil, n end
+	if found then return found[2], found[1] end
+	return nil, n
+end
+
+--- Yes to an invite (E:Offer's): asked for the code.
+function E:Accept(o)
+	if not o or self:Now() - o.at >= SSH.INVITE_KEEP then return false end
+	o.accepted = true
+	self:Send(o.route, SSH.V .. "J " .. o.id)
+	return true
+end
+
+--- No thanks to an invite: they're told, and it's gone.
+function E:Decline(o, key)
+	if not o then return false end
+	self.offers[key] = nil
+	self:Send(o.route, SSH.V .. "X " .. o.id)
+	if self.env.offered then pcall(self.env.offered) end
+	return true
+end
+
+--- A name for a group joined by an invite: the inviter's name for it, or with "-2", "-3"... when you have a group
+--- of that name with another secret.
+function E:FreeLabel(label, key)
+	label = SSH.GroupName(label) or SSH.DEFAULT_GROUP
+	local g = self.groups[label]
+	if not g or g.key == key then return label end
+	for i = 2, 9 do
+		local try = label:sub(1, SSH.GROUP_LEN - 2) .. "-" .. i
+		local h = self.groups[try]
+		if not h or h.key == key then return try end
+	end
+	return nil
+end
+
+--- A group joined with the secret an invite brought: remembered (env.joined), hello to everyone.
+function E:JoinSecret(label, key, code, mode)
+	local g = self:JoinGroup(label, key, mode or (self.groups[label] and self.groups[label].mode) or self.defaultMode)
+	g.code = code
+	if self.env.joined then pcall(self.env.joined, label, key, g.mode, code) end
+	return g
 end
 
 --- Queue a message (sent at once when the queue lets it). `tag` lets a newer one take an older's place ("data:claim").
@@ -683,7 +844,7 @@ function E:Hello(route)
 	if not self:On() then return false end
 	local now = self:Now()
 	if route and route.kind == "guild" then
-		-- (the guild channel: one message, answered by each member who has the password; the nonce is the one they echo)
+		-- (the guild channel: one message, answered by each member in a group with you; the nonce is the one they echo)
 		local n = self.env.nonce()
 		self.hellos[n], self.lastBroadcast = now, n
 		self:Tried("guild", now)
@@ -966,7 +1127,7 @@ function E:Receive(route, text)
 			for _, at in pairs(self.hellos) do if now - at < SSH.HANDSHAKE_TIMEOUT then outstanding = true end end
 		end
 		if outstanding and mine < claim then
-			-- (they may have heard yours before they had a password: said again to them, the same nonce, so an answer
+			-- (they may have heard yours before they were in the group: said again to them, the same nonce, so an answer
 			-- already on its way still fits)
 			if not (p and p.state == "hello") then
 				p = self:Peer(route, true)
@@ -1028,7 +1189,7 @@ function E:Receive(route, text)
 		local nA, nB, list = rest:match("^(%x+),(%x+),([%x:%.]+)$")
 		if not (self:On() and p and p.state == "challenged" and p.nA == nA and p.nB == nB) then return end
 		local good, answers = self:Proven(p, list, "I", p.claim, self:Claim(), name)
-		if not good then return end -- (no answer: a wrong password learns nothing)
+		if not good then return end -- (no answer: a wrong key learns nothing)
 		for i, t in ipairs(answers) do answers[i] = t .. ":" .. Mac(self.groups[p.markOf[t]].key, "R", nA, nB, p.claim, self:Claim()) end
 		self:Send(p.route, SSH.V .. "K " .. nA .. "," .. nB .. "," .. concat(answers, "."))
 		p.groups = good
@@ -1113,6 +1274,55 @@ function E:Receive(route, text)
 			f.rows = nil -- (their @shared rows say their groups: made again)
 			self.env.changed()
 		end
+	elseif letter == "N" then
+		-- (an invite: said, kept until you answer or it's too old; the same person's again said once a minute at most)
+		local id, label = rest:match("^(%x+),(.+)$")
+		label = label and SSH.GroupName(label)
+		if not (ValidNonce(id) and label) then return end
+		local k = self:Key(route)
+		local old = self.offers[k]
+		self.offers[k] = { id = id, group = label, name = name, route = Reply(route), at = now }
+		if not (old and old.group == label and now - (old.saidAt or 0) < SSH.INVITE_SAY_GAP) then
+			self.offers[k].saidAt = now
+			self.env.say(L["Share: %s invites you to share bags in the group %s. Type .share accept %s to join (or .share decline %s)"]:format(name, label, name, name))
+		else
+			self.offers[k].saidAt = old.saidAt
+		end
+		if self.env.offered then pcall(self.env.offered) end
+	elseif letter == "J" or letter == "X" then
+		-- (their answer to your invite: only from the character you invited, while it's still waiting)
+		local id = rest:match("^(%x+)$")
+		local inv = id and self.invites[id]
+		if not (inv and inv.key == self:Key(route) and now - inv.at < SSH.INVITE_KEEP) then return end
+		self.invites[id] = nil
+		local g = self.groups[inv.group]
+		if letter == "X" then
+			self.env.say(L["Share: %s said no thanks to %s"]:format(name, inv.group))
+		elseif g and SecretOf(g) then
+			self:Send(inv.route, SSH.V .. "G " .. id .. "," .. SecretOf(g))
+			self.env.say(L["Share: %s accepted; connecting in %s"]:format(name, inv.group))
+		end
+		if self.env.offered then pcall(self.env.offered) end
+	elseif letter == "G" then
+		-- (the code of a group whose invite you accepted: joined, under its name or another if yours has it)
+		local id, secret = rest:match("^(%x+),(.+)$")
+		local k = self:Key(route)
+		local o = self.offers[k]
+		if not (o and o.accepted and o.id == id and now - o.at < SSH.INVITE_KEEP) then return end
+		self.offers[k] = nil
+		local key, code = ReadSecret(secret)
+		if not key then return end
+		local label = self:FreeLabel(o.group, key)
+		local n = 0
+		for _ in pairs(self.groups) do n = n + 1 end
+		if not label or (not self.groups[label] and n >= SSH.MAX_GROUPS) then
+			self.env.say(L["Share: you're in %d groups already; .share leave one, then ask %s to invite you again"]:format(SSH.MAX_GROUPS, name))
+		else
+			self:JoinSecret(label, key, code)
+			self.env.say(label == o.group and L["Share: joined %s with %s; connecting"]:format(label, name)
+				or L["Share: joined %s's group %s as %s (you have a group called %s already); connecting"]:format(name, o.group, label, o.group))
+		end
+		if self.env.offered then pcall(self.env.offered) end
 	elseif letter == "P" then
 		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
 		if not f then return self:Stranger(route, p) end
@@ -1122,7 +1332,8 @@ function E:Receive(route, text)
 		if f and (p.state == "up" or p.wasUp) then
 			self:Drop(f)
 			self.env.say(L["Share: %s disconnected"]:format(f.name or name))
-		elseif p then
+		elseif p and not (p.state == "hello" or p.state == "challenged" or p.state == "proved") then
+			-- (a handshake under way goes on: the goodbye was for the connection before it)
 			self.peers[p.key] = nil
 		end
 		self.waiting[self:Key(route)] = nil
@@ -1131,7 +1342,7 @@ end
 
 --- A list of proofs ("mark:mac.mark:mac") checked against the groups offered in this handshake: the set of groups
 --- proven ({ [name] = true }) and their marks in order, or nil when none is (the way marked a mismatch). Each group whose
---- proof fails is said ("Bob's password for raid doesn't match yours"). `idA`/`idB`: the hello's sender, then the
+--- proof fails is said ("Bob's code for raid doesn't match yours"). `idA`/`idB`: the hello's sender, then the
 --- challenger.
 function E:Proven(p, list, label, idA, idB, name)
 	local offered = {}
@@ -1145,10 +1356,8 @@ function E:Proven(p, list, label, idA, idB, name)
 			if mac == Mac(g.key, label, p.nA, p.nB, idA, idB) then
 				good[g.name], n = true, n + 1
 				marks[#marks + 1] = t
-			elseif g.name == SSH.DEFAULT_GROUP then
-				self.env.say(L["Share: %s's password doesn't match yours"]:format(name))
 			else
-				self.env.say(L["Share: %s's password for %s doesn't match yours"]:format(name, g.name))
+				self.env.say(L["Share: %s's code for %s doesn't match yours"]:format(name, g.name))
 			end
 		end
 	end
@@ -1216,6 +1425,21 @@ function E:Tick()
 	for k, w in pairs(self.waiting) do
 		if now - w.at >= SSH.WAIT_KEEP then self.waiting[k] = nil end
 	end
+	-- (invites that ran out: yours unanswered said once, as theirs you said yes to and never got the code for)
+	local gone = false
+	for id, inv in pairs(self.invites) do
+		if now - inv.at >= SSH.INVITE_KEEP then
+			self.invites[id], gone = nil, true
+			self.env.say(L["Share: %s didn't answer your invite to %s (they may need a newer Terminal); .share invite %s to ask again"]:format(inv.name, inv.group, inv.name))
+		end
+	end
+	for k, o in pairs(self.offers) do
+		if now - o.at >= SSH.INVITE_KEEP then
+			self.offers[k], gone = nil, true
+			if o.accepted then self.env.say(L["Share: %s's invite to %s ran out before it came through; ask them to invite you again"]:format(o.name, o.group)) end
+		end
+	end
+	if gone and self.env.offered then pcall(self.env.offered) end
 end
 
 --- `.share off`: goodbye to every friend, every group and everything they sent forgotten.
@@ -1227,10 +1451,9 @@ function E:Off()
 	end
 	self.peers, self.friends, self.waiting, self.queue, self.hellos = {}, {}, {}, {}, {}
 	self.groups, self.snaps, self.markCache = {}, {}, {}
+	self.invites = {} -- (yours, waiting: the groups are gone. Invites to you stay: you may still say yes)
 	self.groupGen = self.groupGen + 1
 	self.tried, self.retryAt = {}, nil
-	-- (a password still being made from: never used. Review, 0.58.16: .share off while it was, and it was set after)
-	self.deriving, self.derivingDone = nil, nil
 	-- (the goodbyes through the queue: what the game says wait to goes a second later, the ticker kept until they're
 	-- all gone. Review, 0.58.16: sent straight, past ten friends or in chat lockdown some were lost, and those friends
 	-- showed your bags half an hour on)
@@ -1539,8 +1762,9 @@ local MODE_SAID = {
 SSH.MODES = MODES
 
 -- (a group can't be named as a word .share takes)
-local RESERVED = { password = true, pass = true, pw = true, join = true, leave = true, off = true, connect = true,
-	debug = true, status = true, share = true }
+local RESERVED = { password = true, pass = true, pw = true, join = true, leave = true, off = true, connect = true, rename = true,
+	debug = true, status = true, share = true, invite = true, accept = true, decline = true, code = true, newcode = true,
+	kick = true, new = true, create = true }
 for m in pairs(MODES) do RESERVED[m] = true end
 SSH.RESERVED = RESERVED
 
@@ -1579,32 +1803,21 @@ function SSH.SetMode(ep, m, group)
 	return { L["Share: sharing %s"]:format(MODE_SAID[m]) }
 end
 
---- Who isn't connected yet, said a line each: connecting, no answer, password doesn't match, wants to connect.
+--- Who isn't connected yet, said a line each: connecting, no answer, code doesn't match, wants to connect.
 function SSH.Others(ep)
 	local other = {}
 	for _, p in pairs(ep.peers) do
 		if p.claim and ep.friends[p.claim] then
 			-- (a friend connected another way: said once, above)
-		elseif p.state == "mismatch" then other[#other + 1] = L["%s: password doesn't match"]:format(p.name or "?")
+		elseif p.state == "mismatch" then other[#other + 1] = L["%s: code doesn't match"]:format(p.name or "?")
 		elseif p.state == "noanswer" then other[#other + 1] = L["%s: no answer"]:format(p.name or p.route.target or p.route.name or "?")
 		elseif p.state ~= "up" then other[#other + 1] = L["%s: connecting"]:format(p.name or p.route.target or p.route.name or "?") end
 	end
 	for _, w in pairs(ep.waiting) do
-		other[#other + 1] = ep:On() and L["%s wants to connect: no group in common (another group, or another password)"]:format(w.name)
-			or L["%s wants to connect: type .share password"]:format(w.name)
+		other[#other + 1] = L["%s wants to connect: no group in common (.share invite %s, or ask them for an invite)"]:format(w.name, w.name)
 	end
 	sort(other)
 	return other
-end
-
---- A password being made into a key: how far ("Share: setting the password... 40%"), the least along of them.
-function SSH.DerivingLine(ep)
-	local least
-	for name in pairs(ep.deriving or {}) do
-		local x = ep.derivingDone and ep.derivingDone[name] or 0
-		if not least or x < least then least = x end
-	end
-	return L["Share: setting the password... %d%%"]:format(math.floor((least or 0) * 100))
 end
 
 function SSH.Status(ep)
@@ -1612,8 +1825,7 @@ function SSH.Status(ep)
 	local lines = {}
 	if not ep then return { L["Share: not available"] } end
 	if not ep:On() then
-		lines[1] = ep.deriving and SSH.DerivingLine(ep)
-			or L["Share: not in a group yet. Type .share password <password> (8 characters or more, no spaces: capitals, numbers, symbols), the same as your friends, or .share join <group> <password> for a group of its own"]
+		lines[1] = L["Share: not sharing yet. .share invite <name> starts a group and invites a friend who's online, or .share join <group> <code> with a code a friend gave you"]
 	else
 		lines[1] = L["Share: your groups (remembered: .share leave <group> or .share off forgets them)"]
 		local names = {}
@@ -1622,7 +1834,6 @@ function SSH.Status(ep)
 		for _, n in ipairs(names) do
 			lines[#lines + 1] = "  " .. L["%s: sharing %s"]:format(n, MODE_SAID[ep.groups[n].mode] or ep.groups[n].mode)
 		end
-		if ep.deriving then lines[#lines + 1] = "  " .. SSH.DerivingLine(ep) end
 	end
 	local up = ep:Connected()
 	if #up > 0 then
@@ -1642,7 +1853,20 @@ function SSH.Status(ep)
 		lines[#lines + 1] = "  " .. L["Connected: nobody yet"]
 	end
 	for _, s in ipairs(SSH.Others(ep)) do lines[#lines + 1] = "  " .. s end
+	for _, s in ipairs(SSH.InviteLines(ep)) do lines[#lines + 1] = "  " .. s end
 	return lines
+end
+
+--- Invites waiting, either way, a line each.
+function SSH.InviteLines(ep)
+	local out = {}
+	for _, i in ipairs(ep:Invites()) do
+		local mins = math.max(1, math.ceil(i.left / 60))
+		if i.mine then out[#out + 1] = L["You invited %s to %s: waiting for their yes (%d min left)"]:format(i.name, i.group, mins)
+		elseif i.accepted then out[#out + 1] = L["%s's invite to %s: you said yes, the code is on its way"]:format(i.name, i.group)
+		else out[#out + 1] = L["%s invites you to %s: .share accept %s (%d min left)"]:format(i.name, i.group, i.name, mins) end
+	end
+	return out
 end
 
 --- `.ssh debug`: what was sent and heard, each way and each friend (to find why items don't arrive).
@@ -1691,82 +1915,19 @@ function SSH.Debug(ep)
 	return lines
 end
 
---- What's wrong with a password, said; nil when it's strong enough (0.59.1, the player: "asking user to have special
---- characters, numbers, capitalizations ... to strengthen the password"; 0.59.3: "No spaces allowed in password. Allow 8
---- character passwords"): MIN_PASSWORD characters or more, no spaces, with three kinds of them (a capital, a small
---- letter, a number, a symbol, a letter of another script). Only typing it is checked: both sides type the same.
-function SSH.PasswordProblem(words)
-	words = tostring(words or "")
-	if words:find("%s") then return L["Share: a password can't have spaces"] end
-	local n = #(words:gsub("[\128-\191]", "")) -- (characters, not bytes)
-	-- (a letter of another script, Cyrillic, Chinese, is a kind of its own: it has no capitals here)
-	local kinds = (words:find("%u") and 1 or 0) + (words:find("%l") and 1 or 0) + (words:find("%d") and 1 or 0)
-		+ (words:find("%p") and 1 or 0) + (words:find("[\128-\255]") and 1 or 0)
-	if n >= SSH.MIN_PASSWORD and kinds >= 3 then return nil end
-	return L["Share: a password needs %d characters or more, no spaces, with three of: a capital, a small letter, a number, a symbol"]:format(SSH.MIN_PASSWORD)
-end
-
---- `.share join <group> <words>` (`.share password <words>`: the group "default"): the key, made over a few frames, then
---- hello to everyone.
-function SSH.JoinWithPassword(ep, group, words, later, done)
-	words = tostring(words or ""):gsub("^%s+", ""):gsub("%s+$", "")
-	local problem = SSH.PasswordProblem(words)
-	if problem then return { problem } end
-	-- (those joined, and those whose password is still being made from)
-	local n, counted = 0, {}
-	for name in pairs(ep.groups) do n, counted[name] = n + 1, true end
-	for name in pairs(ep.deriving or {}) do if not counted[name] then n = n + 1 end end
-	if not (ep.groups[group] or (ep.deriving and ep.deriving[group])) and n >= SSH.MAX_GROUPS then
-		return { L["Share: %d groups at most; .share leave one first"]:format(SSH.MAX_GROUPS) }
-	end
-	-- (each group's own: another group's being made meanwhile goes on; .share off or leaving it drops it)
-	local gen = {}
-	ep.deriving = ep.deriving or {}
-	ep.deriving[group] = gen
-	ep.derivingDone = ep.derivingDone or {}
-	ep.derivingDone[group] = 0
-	SSH.Derive(words, function(key)
-		if not (ep.deriving and ep.deriving[group] == gen) then return end
-		ep.deriving[group] = nil
-		if ep.derivingDone then ep.derivingDone[group] = nil end
-		if next(ep.deriving) == nil then ep.deriving = nil end
-		local db = Saved()
-		local saved = db.groups[group]
-		local mode = type(saved) == "table" and MODES[saved.mode] and saved.mode or ep.defaultMode
-		ep:JoinGroup(group, key, mode)
-		SSH.StartTicker() -- (stopped meanwhile by a .share leave of another group: on again)
-		SSH.Remember(group, key, mode)
-		SSH.Badge()
-		if group == SSH.DEFAULT_GROUP then
-			ep.env.say(L["Share: password set; saying hello to your friends and guild"])
-		else
-			ep.env.say(L["Share: joined %s; saying hello to your friends and guild"]:format(group))
-		end
-		if done then done() end
-	end, later, group, function(x)
-		-- (how far it is: .share and the badge's pop-out say it)
-		if ep.deriving and ep.deriving[group] == gen and ep.derivingDone then ep.derivingDone[group] = x end
-	end)
-	if group == SSH.DEFAULT_GROUP then
-		return { L["Share: setting the password (remembered as a key made from it, never as typed; .share off forgets it)"] }
-	end
-	return { L["Share: joining %s (its password remembered as a key made from it, never as typed; .share leave %s forgets it)"]:format(group, group) }
-end
-
---- `.share password <words>`: the default group's.
-function SSH.SetPassword(ep, words, later, done) return SSH.JoinWithPassword(ep, SSH.DEFAULT_GROUP, words, later, done) end
-
--- The passwords remembered (0.58.6, the player: "saved and re-used automatically on login"): each group's key made from
--- its password, and what you share in it, in Terminal: Share's own saved variables (TerminalShareDB.groups[name] =
--- { key = hex, mode }), never a password as typed. At login they're used a few seconds in (friends and guild read
--- first) and everyone is said hello to once. .share leave <group> forgets one; .share off, all.
--- (Anyone with your WTF folder could connect as you with them: the same as knowing the passwords, for this.)
+-- The groups remembered (0.58.6, the player: "saved and re-used automatically on login"): each group's code, its key
+-- and what you share in it, in Terminal: Share's own saved variables (TerminalShareDB.groups[name] = { key = hex, mode,
+-- kdf = "code1", code }). At login they're used a few seconds in (friends and guild read first) and everyone is said
+-- hello to once. .share leave <group> forgets one; .share off, all.
+-- (Anyone with your WTF folder could connect as you with them: the same as having the codes, for this.)
 SSH.LOGIN_WAIT = 5
 
 --- A group's key remembered (nil: forgotten), with what you share in it.
-function SSH.Remember(group, key, mode)
+function SSH.Remember(group, key, mode, code)
 	local db = Saved()
-	if key then db.groups[group] = { key = C.Hex(key), mode = mode, kdf = SSH.KDF_ID } else db.groups[group] = nil end
+	-- (a group's code, when it has one, kept with its key: .share code shows it again, an invite sends it)
+	if key then db.groups[group] = { key = C.Hex(key), mode = mode, kdf = SSH.CODE_ID, code = code }
+	else db.groups[group] = nil end
 end
 --- Every group forgotten (.share off).
 function SSH.ForgetGroups() Saved().groups = {} end
@@ -1783,9 +1944,10 @@ local function Remembered()
 		local g = Saved().groups[name]
 		local hex = type(g) == "table" and g.key
 		if SSH.GroupName(name) == name and type(hex) == "string" and #hex == 64 and hex:find("^%x+$") and n < SSH.MAX_GROUPS then
-			-- (a key made the way before, fewer rounds: no friend's matches it now; its password is typed again)
-			if g.kdf ~= SSH.KDF_ID then stale[#stale + 1] = name
-			else out[name], n = { key = Unhex(hex), mode = MODES[g.mode] and g.mode or nil }, n + 1 end
+			-- (a key made from a typed password, 0.69 and before, or one older still: not used. Codes only)
+			local code = g.kdf == SSH.CODE_ID and SSH.ReadCode(g.code) or nil
+			if not code then stale[#stale + 1] = name
+			else out[name], n = { key = Unhex(hex), mode = MODES[g.mode] and g.mode or nil, code = code }, n + 1 end
 		end
 	end
 	return out, n, stale
@@ -1796,9 +1958,9 @@ function SSH.Restore(ep)
 	ep = ep or SSH.game
 	local _, n, stale = Remembered()
 	if #stale > 0 then
-		-- (0.59.0: keys are made with ten times the rounds; those remembered from before are forgotten, said once)
+		-- (a typed password's group: forgotten, said once, with the way to make it again)
 		for _, name in ipairs(stale) do Saved().groups[name] = nil end
-		ep.env.say(L["Share: passwords are kept safer now; type yours again: %s"]:format(concat(stale, ", ")))
+		ep.env.say(L["Share: typed passwords are gone (anyone in your guild could guess one at home), and with them %s. Make a group again with a code nobody can guess: .share invite <name> [group]"]:format(concat(stale, ", ")))
 	end
 	if n == 0 then return false end
 	-- (the ticker kept going while the groups wait to be joined, and started again once they are. 0.60.0 review: it
@@ -1816,7 +1978,7 @@ function SSH.Restore(ep)
 			-- (a group joined meanwhile, or forgotten: as it is now; five at most with those joined meanwhile)
 			if not ep.groups[name] and n < SSH.MAX_GROUPS then
 				n = n + 1
-				ep:JoinGroup(name, g.key, g.mode or ep.defaultMode, true)
+				ep:JoinGroup(name, g.key, g.mode or ep.defaultMode, true).code = g.code
 				joined = joined + 1
 			end
 		end
@@ -1824,34 +1986,257 @@ function SSH.Restore(ep)
 		SSH.StartTicker()
 		ep:Hello()
 		SSH.Badge()
-		ep.env.say(L["Share: using your saved passwords; saying hello to your friends and guild"])
+		ep.env.say(L["Share: back in your groups; saying hello to your friends and guild"])
 	end)
 	return true
 end
 
-local function Later(fn) C_Timer.After(0, fn) end
+
+----------------------------------------------------------------------
+-- Invites and codes at the prompt (share-invites)
+----------------------------------------------------------------------
+
+--- The group a command means when it names none: the only one you're in; else nil and your groups' names.
+local function OnlyGroup(ep)
+	local names = {}
+	for n in pairs(ep.groups) do names[#names + 1] = n end
+	sort(names)
+	if #names == 1 then return names[1], names end
+	return nil, names
+end
+
+--- A group made with a code Terminal made (.share new, or an invite to a group you don't have yet): the group, or nil
+--- and why.
+function SSH.NewGroup(ep, name)
+	local n = 0
+	for _ in pairs(ep.groups) do n = n + 1 end
+	if n >= SSH.MAX_GROUPS then return nil, L["Share: %d groups at most; .share leave one first"]:format(SSH.MAX_GROUPS) end
+	local code = SSH.MakeCode()
+	local key = SSH.KeyOfCode(code)
+	local db = Saved()
+	local mode = MODES[db.mode] and db.mode or ep.defaultMode
+	ep:JoinGroup(name, key, mode, true).code = code
+	SSH.Remember(name, key, mode, code)
+	SSH.StartTicker()
+	SSH.Badge()
+	return ep.groups[name]
+end
+
+--- `.share join <group> <code>`: a code a friend gave you (typed, or pasted from the copy box).
+function SSH.JoinWithCode(ep, group, code)
+	local n = 0
+	for _ in pairs(ep.groups) do n = n + 1 end
+	if not ep.groups[group] and n >= SSH.MAX_GROUPS then return { L["Share: %d groups at most; .share leave one first"]:format(SSH.MAX_GROUPS) } end
+	local key = SSH.KeyOfCode(code)
+	local saved = Saved().groups[group]
+	local mode = type(saved) == "table" and MODES[saved.mode] and saved.mode or ep.defaultMode
+	ep:JoinGroup(group, key, mode).code = code
+	SSH.Remember(group, key, mode, code)
+	SSH.StartTicker()
+	SSH.Badge()
+	return { L["Share: joined %s with its code; saying hello to your friends and guild"]:format(group) }
+end
+
+--- `.share invite <name> [group]`. `list`: who you can invite (SSH.Invitable's; the tests give their own).
+function SSH.InviteCmd(ep, rest, list)
+	if rest == "" then
+		return { L["Share: who? .share invite <name>: a friend, guild member or Battle.net friend who's online (Tab lists them)"] }
+	end
+	list = list or SSH.Invitable()
+	local person, could = SSH.FindPerson(rest, list)
+	local group
+	if not person then
+		local who, last = rest:match("^(.-)%s+(%S+)$")
+		if who then
+			local p2, c2 = SSH.FindPerson(who, list)
+			if p2 then
+				person, group = p2, SSH.GroupName(last)
+				if not group or RESERVED[group] then
+					return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"]:format(SSH.GROUP_LEN) }
+				end
+			elseif #c2 > #could then could = c2 end
+		end
+	end
+	if not person then
+		if #could > 1 then
+			local names = {}
+			for i, p in ipairs(could) do names[i] = p.name end
+			return { L["Share: which one? %s"]:format(concat(names, ", ")) }
+		end
+		return { L["Share: %s isn't online, or isn't a friend, guild member or Battle.net friend's character"]:format(rest) }
+	end
+	local lines = {}
+	if not group then
+		local only, names = OnlyGroup(ep)
+		if only then group = only
+		elseif #names == 0 then group = SSH.DEFAULT_GROUP
+		else
+			return { L["Share: invite %s to which group? .share invite %s <group> (yours: %s)"]:format(person.name, person.name, concat(names, ", ")) }
+		end
+	end
+	for _, c in ipairs(ep:Connected()) do
+		if Canon(c.name) == Canon(person.name) and c.friend.groups and c.friend.groups[group] then
+			return { L["Share: %s is in %s with you already"]:format(person.name, group) }
+		end
+	end
+	if not ep.groups[group] then
+		local g, why = SSH.NewGroup(ep, group)
+		if not g then return { why } end
+		lines[#lines + 1] = L["Share: made the group %s, with a code Terminal made that nobody can guess"]:format(group)
+	end
+	ep:Invite(person.route, person.name, group)
+	lines[#lines + 1] = L["Share: invited %s to %s. Once they type .share accept, you're connected (the invite waits 10 minutes)"]:format(person.name, group)
+	local mode = ep.groups[group].mode
+	lines[#lines + 1] = L["Share: you share %s in %s; .share %s all (or limited, mats, consumables, none) changes it"]:format(MODE_SAID[mode] or mode, group, group)
+	SSH.StartTicker()
+	SSH.Badge()
+	return lines
+end
+
+--- `.share accept [name]` / `.share decline [name]` (`no`).
+function SSH.AnswerCmd(ep, rest, no)
+	local o, k = ep:Offer(rest)
+	if not o then
+		local names = {}
+		for _, i in ipairs(ep:Invites()) do if not i.mine then names[#names + 1] = i.name end end
+		if #names == 0 then return { L["Share: no invite is waiting for you"] } end
+		return { (no and L["Share: whose invite? .share decline <name> (%s)"] or L["Share: whose invite? .share accept <name> (%s)"]):format(concat(names, ", ")) }
+	end
+	if no then
+		ep:Decline(o, k)
+		SSH.Badge()
+		return { L["Share: told %s no thanks"]:format(o.name) }
+	end
+	if o.accepted then return { L["Share: you said yes to %s already; the code is on its way"]:format(o.name) } end
+	ep:Accept(o)
+	SSH.StartTicker()
+	local db = Saved()
+	local mode = MODES[db.mode] and db.mode or ep.defaultMode
+	return { L["Share: yes to %s's invite to %s; joining in a moment"]:format(o.name, o.group),
+		L["Share: you'll share %s there; .share %s all (or limited, mats, consumables, none) changes it"]:format(MODE_SAID[mode] or mode, o.group) }
+end
+
+--- The group a command names (`rest`), or the only one you're in: the group's name, or nil and a line saying why.
+local function GroupArg(ep, rest, usage)
+	local group = rest ~= "" and SSH.GroupName(rest) or nil
+	if rest == "" then
+		local only, names = OnlyGroup(ep)
+		if only then return only end
+		if #names == 0 then return nil, L["Share: you're not in a group yet; .share invite <name> starts one"] end
+		return nil, usage:format(concat(names, ", "))
+	end
+	if not (group and ep.groups[group]) then return nil, L["Share: you're not in %s"]:format(rest) end
+	return group
+end
+
+--- `.share code [group]`: the group's code in the copy box.
+function SSH.CodeCmd(ep, rest)
+	local group, why = GroupArg(ep, rest, L["Share: which group's code? .share code <group> (yours: %s)"])
+	if not group then return { why } end
+	local g = ep.groups[group]
+	if ns.ShowText then ns:ShowText(L["Share: %s's code"]:format(group), g.code, { compact = true }) end
+	return { L["Share: %s's code is in the box to copy (Ctrl+C). Anyone with it can join %s and see what's shared there: give it only to friends, by whisper or outside the game. They type .share join %s <code>"]:format(group, group, group) }
+end
+
+--- `.share new <group>`: a group of your own, with a code Terminal makes.
+function SSH.NewCmd(ep, rest)
+	local group = SSH.GroupName(rest)
+	if not group or RESERVED[group] then
+		return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"]:format(SSH.GROUP_LEN) }
+	end
+	if ep.groups[group] then return { L["Share: you're in %s already; .share invite <name> %s invites a friend to it"]:format(group, group) } end
+	local g, why = SSH.NewGroup(ep, group)
+	if not g then return { why } end
+	return { L["Share: made %s, with a code nobody can guess. Invite friends: .share invite <name> %s"]:format(group, group) }
+end
+
+--- `.share rename <group> <new name>`: what you call a group (yours alone: a friend's name for it stays theirs).
+function SSH.RenameCmd(ep, rest)
+	local old, new = rest:match("^(%S+)%s+(%S+)$")
+	if not old then return { L["Share: .share rename <group> <new name>"] } end
+	local from, to = SSH.GroupName(old), SSH.GroupName(new)
+	if not (from and ep.groups[from]) then return { L["Share: you're not in %s"]:format(old) } end
+	if not to or RESERVED[to] then
+		return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"]:format(SSH.GROUP_LEN) }
+	end
+	if to == from then return { L["Share: %s is called that already"]:format(from) } end
+	if ep.groups[to] then return { L["Share: you have a group called %s already"]:format(to) } end
+	ep:Rename(from, to)
+	local db = Saved()
+	db.groups[to], db.groups[from] = db.groups[from], nil
+	SSH.Badge()
+	return { L["Share: %s is now %s (only for you: friends in it keep their own name for it)"]:format(from, to) }
+end
+
+--- An invite came in or went: the badge woken, the prompt's suggestion made again.
+function SSH.Offered()
+	SSH.Badge(true)
+	local Easy = ns.Easy
+	if Easy and Easy.ResetPool then Easy.ResetPool() end
+end
+
+-- (an invite waiting for your yes: the empty prompt suggests it first, Shift+Right types it)
+if ns.Easy then
+	ns.Easy.FIRST = ns.Easy.FIRST or {}
+	table.insert(ns.Easy.FIRST, function()
+		local ep = SSH.game
+		if not ep then return nil end
+		for _, i in ipairs(ep:Invites()) do
+			if not i.mine and not i.accepted then return "try: .share accept " .. i.name end
+		end
+	end)
+end
 
 -- (.share, 0.58.14, the player: ".ssh ... a fun throwback to secure shell but its probably confusing for WoW players":
 -- .ssh is its alias)
 ns:RegisterCommand("share", {
 	aliases = { "ssh" },
-	desc = L["The share shell: your bags in the searches of friends who run Terminal: Share. .share password <words>, or .share join <group> <words> for a group of its own; what you share: .share limited, all, mats, consumables or none (.share <group> all: in one group); .share leave <group>; .share off"],
-	complete = function()
-		local out = {
-			{ "password", L["the password you and your friends agree on (remembered: .share off forgets it)"] },
-			{ "join", L["join a group of its own, with its own password: .share join <group> <words>"] },
-			{ "connect", L["say hello to one friend again: .share connect <name>"] },
-		}
-		for _, m in ipairs(MODE_ORDER) do out[#out + 1] = { m, L["share %s"]:format(MODE_SAID[m]) } end
+	desc = L["The share shell: your bags in the searches of friends who run Terminal: Share. .share invite <name> starts a group and invites a friend (.share accept to say yes to one); .share join <group> <code> with a code a friend gave you; what you share: .share limited, all, mats, consumables or none (.share <group> all: in one group); .share leave <group>; .share off"],
+	complete = function(rest)
 		local ep = SSH.game
+		local word = Lower(tostring(rest or ""):match("^%s*(%S+)%s") or "")
+		-- (a word that takes a name or a group, typed with its space: who or which, as rows)
+		if word == "invite" then
+			local out = {}
+			for _, p in ipairs(SSH.Invitable()) do out[#out + 1] = { "invite " .. p.name, L["online: %s"]:format(p.how) } end
+			if #out == 0 then out[1] = { "invite", L["nobody to invite online now: friends, guild members and Battle.net friends who are"] } end
+			return out
+		elseif word == "accept" or word == "decline" then
+			local out = {}
+			for _, i in ipairs(ep and ep:Invites() or {}) do
+				if not i.mine then out[#out + 1] = { word .. " " .. i.name, L["%s invites you to %s"]:format(i.name, i.group) } end
+			end
+			return out
+		elseif word == "code" or word == "leave" or word == "rename" then
+			local out = {}
+			local names = {}
+			for n in pairs(ep and ep.groups or {}) do names[#names + 1] = n end
+			sort(names)
+			for _, n in ipairs(names) do out[#out + 1] = { word .. " " .. n, L["sharing %s"]:format(MODE_SAID[ep.groups[n].mode] or ep.groups[n].mode) } end
+			return out
+		end
+		local out = {}
+		-- (an invite waiting for you: its yes first)
+		for _, i in ipairs(ep and ep:Invites() or {}) do
+			if not i.mine and not i.accepted then out[#out + 1] = { "accept " .. i.name, L["%s invites you to %s"]:format(i.name, i.group) } end
+		end
+		out[#out + 1] = { "invite", L["invite a friend to share: .share invite <name> [group] (Terminal makes the group a code nobody can guess)"] }
+		out[#out + 1] = { "join", L["join a group with a code a friend gave you: .share join <group> <code>"] }
+		if ep and ep:On() then
+			out[#out + 1] = { "code", L["a group's code, to copy and give a friend: .share code [group]"] }
+		end
+		out[#out + 1] = { "new", L["make a group with a code: .share new <group>"] }
+		if ep and ep:On() then out[#out + 1] = { "rename", L["call a group something else (only for you): .share rename <group> <new name>"] } end
+		out[#out + 1] = { "connect", L["say hello to one friend again: .share connect <name>"] }
+		for _, m in ipairs(MODE_ORDER) do out[#out + 1] = { m, L["share %s"]:format(MODE_SAID[m]) } end
 		local names = {}
 		for n in pairs(ep and ep.groups or {}) do names[#names + 1] = n end
 		sort(names)
 		for _, n in ipairs(names) do
 			out[#out + 1] = { n, L["what you share in %s: .share %s all, limited, mats, consumables or none"]:format(n, n) }
 		end
-		if #names > 0 then out[#out + 1] = { "leave", L["leave a group: .share leave <group> (its password forgotten)"] } end
-		out[#out + 1] = { "off", L["forget the password, say goodbye, drop what friends sent"] }
+		if #names > 0 then out[#out + 1] = { "leave", L["leave a group: .share leave <group> (its code forgotten)"] } end
+		out[#out + 1] = { "off", L["leave every group, say goodbye, drop what friends sent"] }
 		return out
 	end,
 	run = function(args)
@@ -1861,25 +2246,48 @@ ns:RegisterCommand("share", {
 		word = Lower(word)
 		if word == "" or word == "status" then return SSH.Status(ep) end
 		if word == "debug" then return SSH.Debug(ep) end
-		if word == "password" or word == "pass" or word == "pw" or word == "join" then
-			local group = SSH.DEFAULT_GROUP
-			if word == "join" then
-				local typed, words = rest:match("^(%S*)%s*(.-)$")
+		if word == "invite" then return SSH.InviteCmd(ep, rest) end
+		if word == "accept" or word == "decline" then return SSH.AnswerCmd(ep, rest, word == "decline") end
+		if word == "code" then return SSH.CodeCmd(ep, rest) end
+		if word == "kick" or word == "newcode" then
+			-- (none: a group has no owner, so anyone in it could use one on anyone. Said how to start over instead)
+			return { L["Share: a group has no owner, so there's no kick. To leave someone out, start over with the friends you trust: .share new <group>, .share invite each of them to it, then .share leave the old group (they leave it too)"] }
+		end
+		if word == "new" or word == "create" then return SSH.NewCmd(ep, rest) end
+		if word == "rename" then return SSH.RenameCmd(ep, rest) end
+		if word == "password" or word == "pass" or word == "pw" then
+			-- (0.69 and before: a typed password. Gone; said how instead, the line still never kept: ns.SecretLine)
+			return { L["Share: typed passwords are gone (anyone in your guild could guess one at home). .share invite <name> shares with a friend, with a code Terminal makes; .share join <group> <code> joins with a code a friend gave you"] }
+		end
+		if word == "join" then
+			-- (.share join <group> <code>, or .share join <code>: the group then "default", or "default-2" when you have
+			-- another default)
+			local typed, words = rest:match("^(%S*)%s*(.-)$")
+			local code, why = SSH.ReadCode(rest)
+			local group
+			if code and not SSH.ReadCode(words) then
+				group = ep:FreeLabel(SSH.DEFAULT_GROUP, SSH.KeyOfCode(code))
+			else
 				group = SSH.GroupName(typed)
 				if not group or RESERVED[group] then
-					return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes: .share join <group> <password>"]:format(SSH.GROUP_LEN) }
+					return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"]:format(SSH.GROUP_LEN) }
 				end
-				rest = words
+				code, why = SSH.ReadCode(words)
 			end
+			if why == "typo" then return { L["Share: that code has a typo (a character wrong, or two swapped); check it with whoever gave it to you"] } end
+			if not code then
+				return { L["Share: that isn't a code. A code starts TS1- (a friend's: .share code shows it to them), or ask them to .share invite you"] }
+			end
+			if not group then return { L["Share: %d groups at most; .share leave one first"]:format(SSH.MAX_GROUPS) } end
 			SSH.StartTicker()
 			-- (the guild's members, read before their answers come: C_GuildInfo.GuildRoster)
 			local ask = C_GuildInfo and C_GuildInfo.GuildRoster or _G.GuildRoster
 			if ask then Safe(ask) end
-			return SSH.JoinWithPassword(ep, group, rest, Later)
+			return SSH.JoinWithCode(ep, group, code)
 		end
 		if word == "leave" then
 			local group = SSH.GroupName(rest)
-			if not (group and (ep.groups[group] or (ep.deriving and ep.deriving[group]))) then
+			if not (group and ep.groups[group]) then
 				if rest == "" then return { L["Share: which group? .share leave <group>"] } end
 				-- (remembered, not joined: still waiting at login, or one past five. 0.60.0 review: it couldn't be left)
 				local saved = Saved().groups
@@ -1887,22 +2295,22 @@ ns:RegisterCommand("share", {
 				if name then
 					SSH.Remember(name, nil)
 					SSH.Badge()
-					return { L["Share: left %s; its password is forgotten"]:format(name) }
+					return { L["Share: left %s; its code is forgotten"]:format(name) }
 				end
 				return { L["Share: you're not in %s"]:format(rest) }
 			end
 			ep:LeaveGroup(group)
 			SSH.Remember(group, nil)
-			if #ep.queue == 0 and not ep:On() and not ep.deriving then SSH.StopTicker() end
+			if #ep.queue == 0 and not ep:On() then SSH.StopTicker() end
 			SSH.Badge()
-			return { L["Share: left %s; its password is forgotten"]:format(group) }
+			return { L["Share: left %s; its code is forgotten"]:format(group) }
 		end
 		if word == "off" then
 			ep:Off()
 			SSH.ForgetGroups()
 			if #ep.queue == 0 then SSH.StopTicker() end -- (else once the goodbyes are gone)
 			SSH.Badge()
-			return { L["Share: off. The password is forgotten and your friends' items are gone"] }
+			return { L["Share: off. Your groups and their codes are forgotten, and your friends' items are gone"] }
 		end
 		-- (.ssh all, .ssh mats...; .ssh share all too)
 		-- (.share limited raid: the mode, then the group, as well as .share raid limited)
@@ -1915,7 +2323,7 @@ ns:RegisterCommand("share", {
 			return SSH.SetMode(ep, Lower(rest), word)
 		end
 		if word == "connect" then
-			if not ep:On() then return { L["Share: set the password first: .share password <words>"] } end
+			if not ep:On() then return { L["Share: you're not in a group yet; .share invite <name> starts one"] } end
 			if rest == "" then ep:Hello() return { L["Share: saying hello to your friends and guild"] } end
 			local route = SSH.RouteFor(rest)
 			if not route then return { L["Share: %s isn't on your friend list, in your guild or a Battle.net friend's character"]:format(rest) } end
@@ -1928,8 +2336,7 @@ ns:RegisterCommand("share", {
 
 ----------------------------------------------------------------------
 -- The badge at the end of the prompt (0.58.6, the player: "a little wifi icon at the very end of the Terminal prompt
--- box ... who you are connected to and how much they are sharing"): shown while the share shell is on (a password
--- set); the theme's accent with a friend connected, grey with none. Terminal's UI.AddBadge (Prompt.lua).
+-- box ... who you are connected to and how much they are sharing"): shown while the share shell is on (in a group); the theme's accent with a friend connected, grey with none. Terminal's UI.AddBadge (Prompt.lua).
 ----------------------------------------------------------------------
 
 -- A wifi sign (0.58.7, the player: "make the wifi icon look a little better"): a dot and three arcs over it, each arc a
@@ -1960,9 +2367,8 @@ local function Paint(list, r, g, b, a)
 	for _, d in ipairs(list) do d:SetColorTexture(r, g, b, a) end
 end
 
---- A handshake under way (or the key still being made): the sign's arcs light in turn.
+--- A handshake under way: the sign's arcs light in turn.
 function SSH.Connecting(ep)
-	if ep.deriving then return true end
 	for _, p in pairs(ep.peers) do
 		if (p.state == "hello" or p.state == "challenged" or p.state == "proved") and not (p.claim and ep.friends[p.claim]) then return true end
 	end
@@ -2005,6 +2411,11 @@ end
 function SSH.BadgeTip(t)
 	local ep = SSH.game
 	local now = ep:Now()
+	if not ep:On() then
+		t:AddLine(L["Share"], 1, 1, 1)
+		for _, line in ipairs(SSH.InviteLines(ep)) do t:AddLine(line, 1, 0.82, 0) end
+		return
+	end
 	local up = ep:Connected()
 	local function Items(n) return n == 1 and L["1 item"] or L["%d items"]:format(n) end
 	local widest = ep:WidestMode()
@@ -2033,14 +2444,14 @@ function SSH.BadgeTip(t)
 		if quiet >= 60 then how[#how + 1] = Ago(quiet) end
 		t:AddDoubleLine(c.name, concat(how, ns.DETAIL_SEP), 1, 0.82, 0, 0.85, 0.85, 0.85)
 	end
-	if ep.deriving then t:AddLine(SSH.DerivingLine(ep), 0.6, 0.6, 0.6) end
 	if #up == 0 then t:AddLine(L["Connected: nobody yet"], 0.6, 0.6, 0.6) end
 	for _, line in ipairs(SSH.Others(ep)) do t:AddLine(line, 0.55, 0.55, 0.55) end
+	for _, line in ipairs(SSH.InviteLines(ep)) do t:AddLine(line, 1, 0.82, 0) end
 	t:AddLine(" ")
 	t:AddLine(L[".share off to disconnect"], 0.45, 0.45, 0.45)
 end
 
---- The badge placed again (a friend connected or gone, their items in, the password set or forgotten); `wake`: seen
+--- The badge placed again (a friend connected or gone, their items in, a group joined or left); `wake`: seen
 --- at full strength again (connected, disconnected).
 function SSH.Badge(wake)
 	local U = ns.UI
@@ -2053,7 +2464,7 @@ if ns.UI and ns.UI.AddBadge then
 		id = "share",
 		fade = 6, -- (seconds at full strength, then a faint mark until pointed at; 0.58.9, the player)
 		draw = DrawWifi,
-		shown = function() local ep = SSH.game return ep ~= nil and (ep:On() or ep.deriving ~= nil) end,
+		shown = function() local ep = SSH.game return ep ~= nil and (ep:On() or next(ep.offers) ~= nil) end,
 		refresh = BadgeColour,
 		tooltip = function(t) SSH.BadgeTip(t) end,
 	})
@@ -2429,6 +2840,100 @@ function SSH.RouteFor(name)
 	return nil
 end
 
+-- Randomness for codes (share-invites): a code is only as good as what it's made from, so it isn't made from
+-- math.random alone. A pool, mixed with SHA-256, of what nobody can predict: the time each frame starts, to a fraction
+-- of a microsecond, for the first ENTROPY_FRAMES frames after login and a while after each code; the cursor, the
+-- clock, memory in use and math.random each time it's mixed; the moment the code is asked for.
+SSH.ENTROPY_FRAMES = 600 -- (about 10 s)
+local entropy = { pool = "Terminal.ssh.entropy", samples = {}, n = 0, made = 0 }
+local function Mix(extra)
+	local parts = { entropy.pool, concat(entropy.samples, ","), tostring(math.random()), tostring(GetTime and GetTime() or 0),
+		tostring(type(time) == "function" and time() or 0), tostring(collectgarbage and collectgarbage("count") or 0), tostring(extra or "") }
+	if GetCursorPosition then
+		local x, y = GetCursorPosition()
+		parts[#parts + 1] = tostring(x) .. ":" .. tostring(y)
+	end
+	entropy.pool = C.SHA256(concat(parts, "|"))
+	entropy.n = entropy.n + #entropy.samples
+	entropy.samples = {}
+end
+local function Sample()
+	local t = type(_G.debugprofilestop) == "function" and _G.debugprofilestop() or 0
+	entropy.samples[#entropy.samples + 1] = ("%.4f"):format(t)
+	if #entropy.samples >= 32 then Mix() end
+end
+local sampler
+local function Sampling(frames)
+	if not CreateFrame then return end
+	if not sampler then
+		sampler = CreateFrame("Frame")
+		sampler.left = 0
+		sampler:SetScript("OnUpdate", function(self)
+			Sample()
+			self.left = self.left - 1
+			if self.left <= 0 then self:Hide() end
+		end)
+	end
+	sampler.left = math.max(sampler.left, frames)
+	sampler:Show()
+end
+Sampling(SSH.ENTROPY_FRAMES)
+SSH.entropy = entropy -- (tests: how many samples went in)
+
+--- A new code: 120 bits from the pool, mixed with this moment first and again after (the next code shares nothing
+--- with this one that could be worked back).
+function SSH.MakeCode()
+	Sample()
+	entropy.made = entropy.made + 1
+	Mix("code " .. entropy.made)
+	local bytes = C.HMAC(entropy.pool, "code|" .. entropy.made)
+	Mix("after " .. entropy.made)
+	Sampling(120)
+	return SSH.CodeFromBytes(bytes)
+end
+
+--- Who you can invite, online now: friends, guild members, Battle.net friends' characters on your realm (not you):
+--- { { name, route, how } }, by name.
+function SSH.Invitable()
+	local out, seen = {}, {}
+	local mine = MyForms()
+	local function add(name, route, how)
+		local c = Canon(name)
+		if c == "" or seen[c] or mine[c] then return end
+		seen[c] = true
+		out[#out + 1] = { name = name, route = route, how = how }
+	end
+	local FL = C_FriendList
+	for i = 1, (FL and FL.GetNumFriends and Num(Safe(FL.GetNumFriends)) or 0) do
+		local f = Safe(FL.GetFriendInfoByIndex, i)
+		local n = type(f) == "table" and f.connected and Str(f.name)
+		if n then add(Ambig(n), { kind = "whisper", target = n }, L["friend"]) end
+	end
+	for i = 1, (_G.IsInGuild and Safe(_G.IsInGuild) and Num(Safe(_G.GetNumGuildMembers)) or 0) do
+		local n, _, _, _, _, _, _, _, online = Safe(_G.GetGuildRosterInfo, i)
+		n = Str(n)
+		if n and online then add(Ambig(n), { kind = "whisper", target = n }, L["guild"]) end
+	end
+	for id, b in pairs(People().bn) do add(b.name, { kind = "bn", id = id, name = b.name, bnetID = b.bnetID }, "Battle.net") end
+	sort(out, function(a, b) return Lower(a.name) < Lower(b.name) end)
+	return out
+end
+
+--- Someone in a list ({ name }) by what was typed: their whole name ("Plamen Warr", any capitals, with or without the
+--- realm), or the start of it when only one starts so. The person, or nil and those it could be.
+function SSH.FindPerson(text, list)
+	local c = Canon(text)
+	if c == "" then return nil, {} end
+	local starts = {}
+	for _, p in ipairs(list) do
+		local pc = Canon(p.name)
+		if pc == c then return p end
+		if pc:sub(1, #c) == c then starts[#starts + 1] = p end
+	end
+	if #starts == 1 then return starts[1] end
+	return nil, starts
+end
+
 SSH.game = SSH.Endpoint({
 	now = function() return GetTime() end,
 	claim = function()
@@ -2445,6 +2950,12 @@ SSH.game = SSH.Endpoint({
 	say = function(text) ns:Print(text); SSH.Badge(true) end, -- (said: connected, disconnected... the badge with it)
 	nonce = Nonce,
 	broadcast = Broadcast,
+	offered = function() SSH.Offered() end,
+	joined = function(name, key, mode, code)
+		SSH.Remember(name, key, mode, code)
+		SSH.StartTicker()
+		SSH.Badge(true)
+	end,
 	proven = function(claim, route)
 		if route.kind == "bn" and route.bnetID and not bnOwner[claim] then bnOwner[claim] = route.bnetID end
 	end,
@@ -2458,7 +2969,7 @@ function SSH.StartTicker()
 		ep:Tick()
 		SSH.StoredMoved(ep)
 		-- (off, and the goodbyes all gone: stopped)
-		if not ep:On() and not ep.deriving and not ep.restoring and #ep.queue == 0 then SSH.StopTicker() return end
+		if not ep:On() and not ep.restoring and #ep.queue == 0 then SSH.StopTicker() return end
 		local U = ns.UI
 		local def = U and U.badges and (function() for _, d in ipairs(U.badges) do if d.id == "share" then return d end end end)()
 		if def and def.frame and def.frame:IsShown() then BadgeColour(def.frame) end -- (connecting: the arcs light in turn)
@@ -2505,7 +3016,7 @@ function SSH.OnEvent(event, ...)
 		if type(def) == "table" and not MODES[def.mode] then def.mode = db.mode end
 		if ns.db then ns.db.sshShare = nil end
 		ep.defaultMode = MODES[db.mode] and db.mode or "limited"
-		SSH.Restore(ep) -- (the passwords remembered: connected again by itself)
+		SSH.Restore(ep) -- (the groups remembered: connected again by itself)
 	end
 end
 

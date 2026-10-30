@@ -2,15 +2,15 @@
 
 Terminal: Share is an addon of its own (folder `Terminal_Share`, packaged beside Terminal like Terminal Extras).
 Leave it off in the AddOn list and none of this runs: no addon-message prefix is registered and no message is
-read. On, friends who run it and agree on a password see each other's bags in their searches: "linen cloth"
+read. On, friends who run it and are in a group together see each other's bags in their searches: "linen cloth"
 lists what you carry, what your alts hold, and what your friends carry ("Linen Cloth x35: Bob 20, Ann 15").
 
 Nothing a friend sends is ever saved: it lives in memory for the session and is gone on logout or /reload.
 
-Friends share in groups (0.59.0): each group has a name, a password of its own, and what you share in it.
-`.share password <words>` is the group `default`; `.share join <group> <words>` joins any other (five at most). Friends
-who joined the same group with the same password see each other, and each sees from you what you share in the groups
-you have in common, together (`.share raid all` and `.share default limited`: a raid friend sees everything, a friend
+Friends share in groups (0.59.0): each group has a code of its own, the name you call it, and what you share in it
+(five at most). Groups have codes only (branch share-invites, the player: "Codes Only for the WoW Forever release"):
+Terminal makes a group's code and hands it to a friend by invite once they say yes. Friends in a group with the same
+code see each other, and each sees from you what you share in the groups you have in common, together (`.share raid all` and `.share default limited`: a raid friend sees everything, a friend
 in both too, a friend only in default your mats and consumables). Who can talk to you is the same whatever the groups.
 
 ## Who can talk to you
@@ -30,47 +30,85 @@ Anything from anyone else is ignored without a reply. The sender is the server's
 a whisper's sender, the guild channel (only members are on it), a Battle.net message's game account. Party,
 raid, instance and channel messages are never read. Your own guild message, heard back, is ignored.
 
-## The password
+## Codes
 
 (The command was `.ssh` until 0.58.14: a nod to secure shell, but `.share` says what it does to a WoW player; `.ssh`
 still works.)
 
-Each side types the same password: `.share password <password>` or `.share join <group> <password>` (8 characters or
-more, no spaces, with three kinds of them: a capital, a small letter, a number, a symbol, a letter of another script:
-`SSH.PasswordProblem`, 0.59.3; 0.59.2 asked for 10, or a phrase of 20 with spaces), shown as `*`s while it's typed (a group's name shown) (`ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's password box). The
-password as typed is never kept: Terminal turns it into a key (SHA-256 iterated `SSH.KDF_ROUNDS` = 1,000 times,
-2,000 until 0.59.0; 20,000 and 4,000 were tried and were too much for the game's CPU, so the password's own strength
-does the work: each guess costs 1,000 hashes, and there are far more passwords to guess; salted with `Terminal.ssh.1`, and `|<group>` for a group
-other than default: the same password in two groups is two keys, and a guess needs the group's name too, which is never
-sent; done 2 ms a frame, the clock looked at after every hash, a few seconds in all, `.share` and the badge saying how far), and each group's key is remembered in Terminal: Share's own saved variables
-(`TerminalShareDB.groups[name] = { key = hex, mode, kdf }`; a key made another way, fewer rounds or the one key of
-0.58.6–0.58.16, is forgotten at login and its password asked for again, once). At login they're used again by themselves a few seconds in (friends and guild read first:
-`SSH.LOGIN_WAIT`) and everyone is said hello to, once for all of them. Anyone with your WTF folder could connect as
-you with them, the same as knowing the passwords. A line starting `.share pass`, `.share pw` or `.share join` is never
-written to the history, a tab,
-`.missed` or anywhere else saved (`ns.SecretLine`, in Terminal itself so it holds whether Share is loaded or not). Any
-`.` line whose second word is `password`, `pass` or `pw` counts: the command search finds `.share` by a shortened or
-misspelt name too (`.shar pw ...`). The debug traces write it as `*`s, a click among the `*`s never lands inside a
-letter, and leaving Terminal's own keys with it typed (a click into the box) turns the box's password mode on.
-Nothing is offered to complete a password's words (Enter runs what's typed). Another password typed for a group says
-goodbye to the friends you had only that group with. `.share leave <group>` forgets one group (and says goodbye to
-those you had only it with; the others are told, `3L`, and sent what you share with them now); `.share off` forgets
-every group, says goodbye to every friend and drops what they sent.
+Until 0.69 each side typed the same password (`.share password <words>`, `.share join <group> <words>`), made into a
+key with 1,000 rounds of SHA-256. Every hello carries marks made from the key, so anyone in your guild could take one
+home and guess passwords against it, a few million guesses a second on a graphics card. Typed passwords are gone: a
+group's secret is a code Terminal makes, 120 random bits, which nobody can guess, offline or online.
+
+| | |
+|---|---|
+| `.share invite <name> [group]` | invite a friend, guild member or Battle.net friend who's online (Tab lists them). In no group yet, it makes `default` with a code; a group named that you don't have, it makes. Several groups and none named: it asks which |
+| `.share accept [name]` / `.share decline [name]` | answer an invite (the only one waiting needs no name). The empty prompt suggests `.share accept <name>` while one waits; the badge shows it |
+| `.share join [group] <code>` | a code a friend gave you, typed or pasted: small letters, spaces, O for 0 and I or L for 1 all read, and a typo (one character wrong, two swapped) is said. No group named: `default` (`default-2` when you have another default). Words that aren't a code: refused, said how to get one |
+| `.share code [group]` | the group's code in the copy box (Ctrl+C), for a friend out of reach of an invite |
+| `.share kick`, `.share newcode` | none (said how to start over instead): a group has no owner, so anyone in it could use one on anyone. To leave someone out, start over with the friends you trust: `.share new <group>`, invite each of them, and everyone `.share leave`s the old group (the player: "consider this a rare case and probably better to just force users to start over with a trust set") |
+| `.share new <group>` | a group with a code, to invite friends to |
+| `.share rename <group> <new name>` | what you call a group: yours alone (friends in it keep their own name for it), its code, what it shares and who's in it kept (`E:Rename`) |
+| `.share password ...` | refused, saying how to share now (the line is still never kept: it may hold an old password) |
+
+- A code is "TS1-" and 25 characters of Crockford's base 32, the last a check (`SSH.CodeFromBytes`, `SSH.ReadCode`). A
+  group's key is HMAC("Terminal.ssh.code.1", code) (`SSH.KeyOfCode`), whatever each friend calls the group: names are
+  your own (an invite to "default" when you have one with others comes in as "default-2"; `.share rename`).
+- Codes come from a pool of randomness, not from `math.random` alone (`SSH.MakeCode`): SHA-256 over the time each frame
+  starts, to a fraction of a microsecond, for the first 600 frames after login and 120 after each code, with the cursor,
+  the clocks, memory in use and `math.random` each time it's mixed, and the moment the code is asked for.
+- Each group's code and key are remembered in Terminal: Share's own saved variables (`TerminalShareDB.groups[name] =
+  { key = hex, mode, kdf = "code1", code }`). At login they're used again by themselves a few seconds in (friends and
+  guild read first: `SSH.LOGIN_WAIT`) and everyone is said hello to, once for all of them. A group remembered without a
+  code (a typed password's, 0.69 and before, or older still) is forgotten at login, said once with how to make it again
+  (`.share invite <name> [group]`). Anyone with your WTF folder could connect as you with them, the same as having the
+  codes.
+- A line starting `.share join`, `.share pass` or `.share pw` is never written to the history, a tab, `.missed` or
+  anywhere else saved (`ns.SecretLine`, in Terminal itself so it holds whether Share is loaded or not). Any `.` line
+  whose second word is `password`, `pass` or `pw` counts: the command search finds `.share` by a shortened or misspelt
+  name too (`.shar pw ...`). The code is shown as `*`s while it's typed, the group's name shown (`.share join <code>`,
+  no group: all of it as `*`s; `ns.MaskSecret`: the prompt draws it so; in the game's typing mode the box is the game's
+  password box). The debug traces write it as `*`s, a click among the `*`s never lands inside a letter. Nothing is
+  offered to complete its words (Enter runs what's typed).
+- `.share leave <group>` forgets one group (and says goodbye to those you had only it with; the others are told, `5L`,
+  and sent what you share with them now); `.share off` forgets every group, says goodbye to every friend and drops
+  what they sent.
 
 What you share is saved per group (and `.share <mode>` for all of them and groups joined later:
 `TerminalShareDB.mode`; Terminal's `db.sshShare` until 0.58.16), so a /reload never shares more than you chose.
 
-## Connecting (mutual challenge-response)
+## Invites
 
-Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `4`
-since 0.59.0 (groups, their marks made from their keys; `2`, 0.58.16: delta updates, 150-piece snapshots, sessions); a
-hello in another version gets a line in chat, once ("<name> runs another version of Terminal: Share"), and no answer.
+- Messages (whispers or Battle.net game data; the guild channel still carries hellos only):
 
 ```
-A -> B   4H nA,idA,sA,marks          hello (sA: A's session, 4 hex characters made at login; marks: A's groups)
-B -> A   4C nA,nB,idB,sB,common      challenge: B's nonce, the marks of the groups they have in common
-A -> B   4A nA,nB,mark:macI.mark:...  A proves it holds each group's key: macI = HMAC(Kg, "I|nA|nB|idA|idB")
-B -> A   4K nA,nB,mark:macR....       B checks each, then proves those that passed: macR = HMAC(Kg, "R|nA|nB|idA|idB")
+A -> B   5N id,group        an invite (nothing secret: the group's name as A calls it)
+B -> A   5J id              yes                          B -> A   5X id   no thanks
+A -> B   5G id,c:<code>     the code (only a code: a key sent bare, "k:<hex>", as an earlier build did, isn't taken)
+```
+
+- The code goes only to the character the invite went to (the server's word for who said yes), only after their yes,
+  within 10 minutes (`INVITE_KEEP`). A code is taken only from who you said yes to, for that invite; no code
+  pushed to a group is taken (there's no such message: an earlier build's "W" is ignored). The same invite again within a minute isn't said again. One unanswered is
+  said when it runs out ("they may need a newer Terminal": 0.69 speaks protocol 4 and ignores them). A group with no
+  code (the tests' keys) isn't invited to.
+- A goodbye heard during a handshake leaves the handshake going (it was for the connection before it).
+- What's left: whoever has a code can pass it on or invite anyone (a group has no owner), so leaving someone out is
+  starting over with a new group; the code sits in your WTF folder as the key does; a code pasted into a public channel
+  is anyone's there.
+
+## Connecting (mutual challenge-response)
+
+Messages use the addon prefix `TermSSH`; each starts with the protocol version and a letter. The version is `5`
+(codes only and invites; `4`, 0.59.0: groups, their marks made from their keys; `2`, 0.58.16: delta updates, 150-piece
+snapshots, sessions); a hello in another version gets a line in chat, once ("<name> runs another version of Terminal:
+Share"), and no answer: a friend still on 0.69 is told to update rather than left at "no answer".
+
+```
+A -> B   5H nA,idA,sA,marks          hello (sA: A's session, 4 hex characters made at login; marks: A's groups)
+B -> A   5C nA,nB,idB,sB,common      challenge: B's nonce, the marks of the groups they have in common
+A -> B   5A nA,nB,mark:macI.mark:...  A proves it holds each group's key: macI = HMAC(Kg, "I|nA|nB|idA|idB")
+B -> A   5K nA,nB,mark:macR....       B checks each, then proves those that passed: macR = HMAC(Kg, "R|nA|nB|idA|idB")
 ```
 
 - A group's mark (0.59.0, the player: "hide the group name") is 8 hex characters of HMAC(Kg, "M|session|claim"): made
@@ -78,9 +116,9 @@ B -> A   4K nA,nB,mark:macR....       B checks each, then proves those that pass
   guildmate can't tell your groups apart or follow one from one login to the next. A group's name is never sent. B
   finds its groups in A's hello by making its own marks for A's session and name (`E:MarksOf`, kept per session).
   Five groups' proofs fit one message (246 characters with long names).
-- Another password for a group makes another mark: the group isn't in common, so the hello gets no answer ("no
+- Another code for a group makes another mark: the group isn't in common, so the hello gets no answer ("no
   answer"; the other side lists "<name> wants to connect: no group in common"). No proof is ever sent to someone without
-  the key. A proof that fails all the same is said ("<name>'s password for raid doesn't match yours"). No group proven
+  the key. A proof that fails all the same is said ("<name>'s code for raid doesn't match yours"). No group proven
   on the way you send to a friend by: they're dropped.
 
 - Nonces are 16 hex characters (SHA-256 of the time, a counter, `math.random`). Proofs are 32 hex characters
@@ -99,16 +137,14 @@ B -> A   4K nA,nB,mark:macR....       B checks each, then proves those that pass
   isn't taken over Battle.net (that friend connects the way they're known by); a surname no one else is known by is
   kept, this session, by the Battle.net account first proven with it (`SSH.bnOwner`, set by the env's `proven`).
 - `I` and `R` make the two proofs different: one can't be sent back as the other.
-- A connection is made only when the proof checks. A wrong password gets no answer (its marks aren't the
+- A connection is made only when the proof checks. A wrong code gets no answer (its marks aren't the
   group's): `.share` says "no answer" after 30 s, and the other side lists you as wanting to connect.
-- The password is never sent. Someone who sees a proof, or a mark, could guess passwords offline against it, so
-  the key is 1,000 rounds of SHA-256 (each guess as many) and a password must be strong (above), salted with the group's name (never sent: a guess needs
-  it too, but "default" is known), and a password should be long and one not used anywhere else. Since marks are
-  made from keys, only someone who already has a group's key gets a proof for it from you: a guildmate without it
+- The code is never sent but by an invite after a yes (above). Someone who sees a proof, or a mark, could guess against it offline, which is why codes are 120 random bits:
+  there's nothing to guess. Since marks are made from keys, only someone who already has a group's key gets a proof for it from you: a guildmate without it
   gets no answer at all.
 - Both saying hello at once (the guild channel at login): the smaller claim's hello goes on and the other
   side answers it. The smaller side says its hello again, with the same nonce, to a friend whose hello it
-  hears while waiting: that friend may have heard the first one before it had a password.
+  hears while waiting: that friend may have heard the first one before it was in the group.
 - The same hello again while you challenge it (it left a busy queue late): your challenge again, the same nonce, so
   their proof of the first still fits.
 - Limits: a friend can start a handshake at most every 5 s; at most 20 handshakes others started are under way at
@@ -136,7 +172,7 @@ Once connected, each side sends what it shares, and sends it again when it chang
 friend, or every 2 s per message for a big snapshot; what didn't change isn't sent again):
 
 ```
-4D ver,i,n,payload       a snapshot in n pieces of at most 200 bytes (at most 150), each ending on a whole character
+5D ver,i,n,payload       a snapshot in n pieces of at most 200 bytes (at most 150), each ending on a whole character
                          (0.60.0), put back together as they were. The snapshot: places!items!gold!mode (never a "|", chat's escape character: it doesn't
                          survive Battle.net game data)
                            places  "Bob/b,Bobalt/k,/w"   who and where: b bags, k bank, m mail, v void storage,
@@ -144,15 +180,15 @@ friend, or every 2 s per message for a big snapshot; what didn't change isn't se
                            items   "id:place.count,place.count;id:..."  (base 36; place counted from 0)
                            gold    copper in base 36, or empty
                            mode    what they share (limited, all, ...)
-4U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
+5U ver,base,i,n,payload  what changed since snapshot `base`: "id:entry;id:x;...!gold" (x: gone). Sent when the
                          friend has `base` whole, the places and mode are the same, and it's under half the size
-4R                       I don't have your `base`: the next goes whole
-4R n                     (0.60.0) I've just connected to you as a new friend: whole, unless you already sent it whole
+5R                       I don't have your `base`: the next goes whole
+5R n                     (0.60.0) I've just connected to you as a new friend: whole, unless you already sent it whole
                          since this way came up (you may still have had me, the same session, and sent only changes:
                          I'd dropped you after 30 minutes' silence, say). Heard during the handshake: whole when it's done
-4L mark                  I left that group (my mark for it): what you share with me is what's left in common
-4P                       still here (every 10 minutes; queued ahead of friends' items, 0.60.0)
-4B                       goodbye: drop what I sent
+5L mark                  I left that group (my mark for it): what you share with me is what's left in common
+5P                       still here (every 10 minutes; queued ahead of friends' items, 0.60.0)
+5B                       goodbye: drop what I sent
 ```
 
 `ver` is the session's mark and a count (`a3f01`, `a3f02`...): a /reload's numbers are never taken for the last
@@ -175,7 +211,7 @@ joined later; `.share share <mode>` too). A friend gets the modes of the groups 
   to; the delta from the last one is worked out once for every friend who had it (`E:DeltaOf`).
 - A friend's items are dropped after 30 minutes without a word, on goodbye, and within a minute of their no
   longer being a friend or guild member. What was still queued for them goes with them.
-- Data or a ping from a friend you aren't connected to (you /reloaded and typed the password again) makes
+- Data or a ping from a friend you aren't connected to (you /reloaded) makes
   you say hello to them again (at most every 30 s).
 - Sends go through a queue: six at once, then one a second (the game allows ten, then one a second); a
   handshake goes before items still waiting, and an answer (C, A, K) before hellos still waiting (0.60.0: a login's
@@ -192,8 +228,8 @@ joined later; `.share share <mode>` too). A friend gets the modes of the groups 
   it, never inside a bag event or Syndicator's callback; once @stored reads itself again (its own warm-up, out of combat)
   what you share is made again (`SSH.StoredMoved`, from the ticker). Who's a friend or guild member is read again at
   most every 2 s after their events.
-- A wrong password's way is forgotten after a while (`NOANSWER_KEEP`), so it's said hello to again: they may have
-  typed it again.
+- A wrong code's way is forgotten after a while (`NOANSWER_KEEP`), so it's said hello to again: they may have
+  joined since.
 
 ## In searches
 
@@ -208,7 +244,7 @@ raid, default") when there's more than the default one. Enter whispers that frie
 
 ## The badge
 
-While the share shell is on (a password set), a wifi sign (a dot and three arcs) sits at the end of the prompt, in
+While the share shell is on (in a group, or an invite waiting), a wifi sign (a dot and three arcs) sits at the end of the prompt, in
 the spinner's spot (left of it while it spins): the theme's accent with a friend connected, its arcs lit in turn
 while connecting, red with nobody connected and nothing under way. It's at full strength as the terminal opens and
 when a friend connects or goes, and fades to a faint mark after 6 s; pointed at, it's back. It's not there while
@@ -226,9 +262,8 @@ tooltip, fade), which any addon can use for its own.
 | Command | |
 |---|---|
 | `.share` | who you're connected to, who's waiting, what you share |
-| `.share password <words>` | the default group's password; say hello to your friends and guild |
-| `.share join <group> <words>` | join a group of its own, with its own password (five groups at most) |
-| `.share leave <group>` | leave a group, its password forgotten (also one remembered, not joined yet) |
+| `.share invite`, `accept`, `decline`, `join`, `code`, `new`, `rename` | groups and their codes (Codes, above; five groups at most) |
+| `.share leave <group>` | leave a group, its code forgotten (also one remembered, not joined yet) |
 | `.share <group> <mode>`, `.share <mode> <group>` | what you share in one group (`.share <group>` alone: what it shares) |
 | `.share connect [name]` | say hello again: to one friend, or to everyone |
 | `.share limited \| all \| mats \| consumables \| none` | what you share in every group (`.share share <mode>` too) |
@@ -241,13 +276,15 @@ tooltip, fade), which any addon can use for its own.
   `SSH.game` is this client's. The rows (`@shared`), `.share`, and the game's events (`SSH.OnEvent`).
 - Terminal itself: `ns.SecretLine` (Core/Util.lua), the `shared` kind in Simple mode's Bank & alts, the item
   filters and the `alts` relation.
+- Invites and codes: `tests/smoke/share_invite.lua` (codes, typos, the invite flow and its checks, no code pushed,
+  starting over without someone, a bare key refused).
 - Tests: `tests/smoke/crypto.lua` (standard vectors, both bit paths), `tests/smoke/share.lua` (endpoints
-  talking: connect, wrong password, strangers, a relay, both at once, the queue, dropping, deltas, retries),
-  `tests/smoke/share_groups.lua` (groups: what each sees, a password not matching, joining and leaving, five at once,
+  talking: connect, wrong key, strangers, a relay, both at once, the queue, dropping, deltas, retries),
+  `tests/smoke/share_groups.lua` (groups: what each sees, a code not matching, joining and leaving, five at once,
   the review's cases), `tests/smoke/share_game.lua` (the game's events and calls, the prompt, searches, nothing saved),
   `tests/smoke/share_perf.lua` (bursts of events, the queue's order, roster events), `tests/smoke/share_review.lua`
   (0.60.0 review: the ticker after a login, reconnecting after a drop, the guild channel, pings, pieces) and
-  `tests/smoke/share_mask.lua` (the password in the tab strip and completions).
+  `tests/smoke/share_mask.lua` (a code or password typed: the tab strip and completions).
   The pretend network they share is `tests/share_net.lua`.
 - `@shared` rows are compact (Terminal's lazy rows: an item's quality, icon, link and tooltip lines made when shown),
   made per friend and kept until that friend's items change: one friend's update makes only theirs again.

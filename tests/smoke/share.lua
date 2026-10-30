@@ -7,8 +7,6 @@ local SSH = ns.Ssh
 
 io.write("[share: the share shell's protocol]\n")
 
-local roundsWas = SSH.KDF_ROUNDS
-SSH.KDF_ROUNDS = 3 -- (the harness's SHA-256 is plain arithmetic: a real key costs seconds here)
 
 -- (the pretend network: tests/share_net.lua)
 local here = debug.getinfo(1, "S").source:match("^@(.*[/\\])") or "tests/smoke/"
@@ -77,7 +75,7 @@ do
 	B:Changed()
 	net.Tick(SSH.SEND_GAP + 1)
 	local d = 0
-	for i = before + 1, #net.sent do if net.sent[i].text:find("^4D") then d = d + 1 end end
+	for i = before + 1, #net.sent do if net.sent[i].text:find("^5D") then d = d + 1 end end
 	check(d == 0, "bags that didn't change aren't sent again")
 	-- what's shared: limited by default (this character's mats and consumables), mats, consumables, all (alts, gold)
 	check(SSH.Endpoint({}).defaultMode == "limited", "limited is the default")
@@ -162,7 +160,7 @@ do
 	-- (0.59.0, groups' marks made from their keys: another password is another mark, no group in common)
 	check(C.waiting["w:ann"] ~= nil, "...Carl says Ann wants to connect, no group in common")
 	local said = 0
-	for _, m in ipairs(net.sent) do if m.text:find("^4[AK]") then said = said + 1 end end
+	for _, m in ipairs(net.sent) do if m.text:find("^" .. SSH.V .. "[AK]") then said = said + 1 end end
 	check(said == 0, "no proof is ever sent to a wrong password")
 	net.Tick(SSH.HANDSHAKE_TIMEOUT + 1)
 	local status = table.concat(SSH.Status(C), " / ") .. " // " .. table.concat(SSH.Status(A), " / ")
@@ -191,7 +189,7 @@ do
 	net.Run()
 	check(net.SaidTo("Ann", "Mal") == 0 and not Up(A, "Mal") and next(A.waiting) == nil, "a stranger's hello: no answer, not even a wait")
 	-- data from a stranger is ignored too
-	A:Receive({ kind = "whisper", target = "Mal" }, "4D 1,1,1,1kh:z")
+	A:Receive({ kind = "whisper", target = "Mal" }, "5D 1,1,1,1kh:z")
 	check(next(A:Items()) == nil, "a stranger's items: ignored")
 end
 
@@ -202,7 +200,7 @@ do
 	net.Add("Mal", { friends = { ann = "Ann" } })
 	A:SetKey(GOOD)
 	net.sent = {}
-	A:Receive({ kind = "whisper", target = "Mal" }, "4H 00000000000000aa,bob@realm,0000," .. SSH.Mark(GOOD, "0000", "bob@realm"))
+	A:Receive({ kind = "whisper", target = "Mal" }, "5H 00000000000000aa,bob@realm,0000," .. SSH.Mark(GOOD, "0000", "bob@realm"))
 	check(net.SaidTo("Ann", "Mal") == 0, "a hello claiming another's name: no answer")
 end
 
@@ -222,23 +220,23 @@ do
 	local nA = A.peers["w:mal"].nA
 	net.inbox = {}
 	-- (Ann's own marks, copied: made for Ann's name and session, they're no group of Bob's for Mal)
-	B:Receive({ kind = "whisper", target = "Mal" }, "4H " .. nA .. "," .. mal .. ",0000," .. A:Marks())
-	check(net.sent[#net.sent] == nil or not net.sent[#net.sent].text:find("^4C "), "Ann's marks copied: Bob doesn't even challenge Mal")
+	B:Receive({ kind = "whisper", target = "Mal" }, "5H " .. nA .. "," .. mal .. ",0000," .. A:Marks())
+	check(net.sent[#net.sent] == nil or not net.sent[#net.sent].text:find("^5C "), "Ann's marks copied: Bob doesn't even challenge Mal")
 	-- (as if Mal could make marks, which takes the password: Ann's proof still doesn't pass for his)
-	B:Receive({ kind = "whisper", target = "Mal" }, "4H " .. nA .. "," .. mal .. ",0000," .. SSH.Mark(GOOD, "0000", mal))
+	B:Receive({ kind = "whisper", target = "Mal" }, "5H " .. nA .. "," .. mal .. ",0000," .. SSH.Mark(GOOD, "0000", mal))
 	local challenge = net.sent[#net.sent].text
-	local nB = challenge:match("^4C %x+,(%x+),")
+	local nB = challenge:match("^5C %x+,(%x+),")
 	check(nB ~= nil, "Bob challenges Mal: " .. challenge)
 	-- Mal hands Bob's challenge to Ann, as if it were his own: its marks are Bob's (his key, his name), none for Mal
 	net.inbox = {}
 	local sentBefore = #net.sent
 	local bobsMarks = challenge:match(",([%x%.]*)$")
-	A:Receive({ kind = "whisper", target = "Mal" }, "4C " .. nA .. "," .. nB .. "," .. mal .. ",0000," .. bobsMarks)
+	A:Receive({ kind = "whisper", target = "Mal" }, "5C " .. nA .. "," .. nB .. "," .. mal .. ",0000," .. bobsMarks)
 	check(#net.sent == sentBefore, "Bob's challenge handed on: its marks name Bob's groups for Bob, Ann gives Mal no proof")
 	-- (as if Mal could make his own marks: Ann proves to Mal)
-	A:Receive({ kind = "whisper", target = "Mal" }, "4C " .. nA .. "," .. nB .. "," .. mal .. ",0000," .. SSH.Mark(GOOD, "0000", mal))
+	A:Receive({ kind = "whisper", target = "Mal" }, "5C " .. nA .. "," .. nB .. "," .. mal .. ",0000," .. SSH.Mark(GOOD, "0000", mal))
 	local proof = net.sent[#net.sent].text
-	check(proof:find("^4A "), "Ann sends Mal her proof: " .. proof)
+	check(proof:find("^5A "), "Ann sends Mal her proof: " .. proof)
 	-- Mal passes it on to Bob
 	net.inbox = {}
 	B:Receive({ kind = "whisper", target = "Mal" }, proof)
@@ -269,7 +267,7 @@ do
 	check(Up(C, "Ann") and Up(C, "Bob") and Up(A, "Cat") and Up(B, "Cat"), "the third, later: connected to both")
 	-- your own guild message heard back is ignored (the env says you aren't eligible to yourself)
 	net.sent = {}
-	A:Receive({ kind = "guild", target = "Ann" }, "4H 00000000000000ab,ann@realm,0000," .. SSH.Mark(GOOD, "0000", "ann@realm"))
+	A:Receive({ kind = "guild", target = "Ann" }, "5H 00000000000000ab,ann@realm,0000," .. SSH.Mark(GOOD, "0000", "ann@realm"))
 	check(#net.sent == 0, "your own hello heard back: nothing")
 end
 
@@ -285,13 +283,13 @@ do
 	net.Run()
 	check(Up(A, "Bob"), "connected")
 	local pieces = 0
-	for _, m in ipairs(B.queue) do if m.text:find("^4D") then pieces = pieces + 1 end end
+	for _, m in ipairs(B.queue) do if m.text:find("^5D") then pieces = pieces + 1 end end
 	check(pieces > 0, "a big bag: the rest of its pieces wait in the queue: " .. pieces)
-	B:Send({ kind = "whisper", target = "Ann" }, "4C 0000000000000001,0000000000000002,bob@realm")
+	B:Send({ kind = "whisper", target = "Ann" }, "5C 0000000000000001,0000000000000002,bob@realm")
 	local atC, atD
 	for i, m in ipairs(B.queue) do
-		if not atC and m.text:find("^4C") then atC = i end
-		if not atD and m.text:find("^4D") then atD = i end
+		if not atC and m.text:find("^5C") then atC = i end
+		if not atD and m.text:find("^5D") then atD = i end
 	end
 	check(atC and atD and atC < atD, "a handshake goes before items still waiting: " .. tostring(atC) .. " < " .. tostring(atD))
 	table.remove(B.queue, 1)
@@ -307,13 +305,13 @@ do
 	-- throttled: kept and sent later
 	net.throttle = 2
 	local before = #net.sent
-	B:Send({ kind = "whisper", target = "Ann" }, "4P")
+	B:Send({ kind = "whisper", target = "Ann" }, "5P")
 	check(#net.sent == before and #B.queue == 1, "the game says wait: kept in the queue")
 	net.Tick(3)
 	check(#B.queue == 0 and #net.sent == before + 1, "...sent a moment later")
 	-- locked
 	net.locked = true
-	B:Send({ kind = "whisper", target = "Ann" }, "4P")
+	B:Send({ kind = "whisper", target = "Ann" }, "5P")
 	net.Tick(3)
 	check(#B.queue == 1, "chat locked: nothing sent")
 	net.locked = false
@@ -335,7 +333,7 @@ do
 	check(A:Items()[200001] and A:Items()[200300].total == 300, "the whole snapshot first")
 	local function Sent(letter)
 		local n = 0
-		for _, m in ipairs(net.sent) do if m.from == "Bob" and m.text:find("^4" .. letter .. " ") then n = n + 1 end end
+		for _, m in ipairs(net.sent) do if m.from == "Bob" and m.text:find("^" .. SSH.V .. letter .. " ") then n = n + 1 end end
 		return n
 	end
 	net.sent = {}
@@ -353,7 +351,7 @@ do
 	B:Changed()
 	net.Tick(SSH.SEND_GAP * 3 + 20)
 	local asked = 0
-	for _, m in ipairs(net.sent) do if m.from == "Ann" and m.text == "4R" then asked = asked + 1 end end
+	for _, m in ipairs(net.sent) do if m.from == "Ann" and m.text == "5R" then asked = asked + 1 end end
 	check(asked == 1 and Sent("D") > 0 and A:Items()[200006].total == 66, "a delta on a snapshot Ann doesn't have: she asks, it comes whole")
 	-- nothing changed: nothing sent
 	net.sent = {}
@@ -388,7 +386,7 @@ do
 	check(not Up(A, "Bob") and not A:Items()[2589], "30 minutes without a word: dropped")
 	-- Bob still thinks they're connected: his ping makes Ann say hello again
 	net.sent = {}
-	A:Receive({ kind = "whisper", target = "Bob" }, "4P")
+	A:Receive({ kind = "whisper", target = "Bob" }, "5P")
 	net.Run()
 	check(Up(A, "Bob"), "a ping from a friend Ann had dropped: connected again")
 end
@@ -456,7 +454,7 @@ do
 	local D, U = 0, 0
 	for _, m in ipairs(net.sent) do
 		if m.from == "Bob" then
-			local l = m.text:match("^4(%u) ")
+			local l = m.text:match("^" .. SSH.V .. "(%u) ")
 			if l == "D" then D = D + 1 elseif l == "U" then U = U + 1 end
 		end
 	end
@@ -520,10 +518,10 @@ do
 	net.Run()
 	local r = { kind = "whisper", target = "Bob" }
 	local ok = pcall(function()
-		A:Receive(r, "4D zz,5,10,Bob/b!")
-		A:Receive(r, "4D zz,6,10,xx")
-		A:Receive(r, "4D zz,1,3,Bob/b!")
-		A:Receive(r, "4D zz,2,3,1kh:0.3;")
+		A:Receive(r, "5D zz,5,10,Bob/b!")
+		A:Receive(r, "5D zz,6,10,xx")
+		A:Receive(r, "5D zz,1,3,Bob/b!")
+		A:Receive(r, "5D zz,2,3,1kh:0.3;")
 	end)
 	check(ok, "the same number with another count: no error")
 	local mine = B.friends["ann@realm"].sentVer or ""
@@ -575,17 +573,6 @@ do
 	A:Off()
 	net.Tick(5)
 	check(not Up(B, "Ann"), ".share off while the game says wait: the goodbye still goes")
-	-- a password being made when .share off is typed: never used
-	local later = {}
-	local slice = SSH.KDF_SLICE
-	SSH.KDF_SLICE = 1 -- (made over frames)
-	SSH.SetPassword(A, "Correct9horse", function(fn) later[#later + 1] = fn end)
-	SSH.KDF_SLICE = slice
-	check(#later > 0 and A.deriving, "the password made over frames")
-	A:Off()
-	local guard = 0
-	while #later > 0 and guard < 1000 do table.remove(later, 1)(); guard = guard + 1 end
-	check(not A:On() and not A.deriving, ".share off while the password was being set: it isn't set after")
 end
 
 do
@@ -601,7 +588,7 @@ do
 	A:Hello()
 	net.Tick(2)
 	local churn = 0
-	for _, m in ipairs(net.sent) do if m.from == "Bob" and m.text:find("^4C ") then churn = churn + 1 end end
+	for _, m in ipairs(net.sent) do if m.from == "Bob" and m.text:find("^5C ") then churn = churn + 1 end end
 	check(churn == 0, "the guild's hello again, heard by a friend connected: let be, no handshake again: " .. churn)
 	B.me.items[2589] = 9
 	B:Changed()
@@ -626,4 +613,3 @@ do
 end
 
 ns.Crypto.HMAC = hmacWas
-SSH.KDF_ROUNDS = roundsWas

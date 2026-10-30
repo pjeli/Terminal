@@ -2,7 +2,7 @@
 local ns = _G.Terminal
 if not ns then return end
 
--- SHA-256 and HMAC-SHA256 (0.58.1, the share shell: friends' Terminals prove they know a shared password without sending
+-- SHA-256 and HMAC-SHA256 (0.58.1, the share shell: friends' Terminals prove they hold a group's key without sending
 -- it; Share.lua). The game's bit library (LuaBitOp: results are signed 32-bit, so each is taken mod 2^32), or plain
 -- Lua arithmetic where there's none (the test harness). Strings in and out are raw bytes; Hex for text.
 
@@ -95,7 +95,7 @@ Block = function(h, s, at)
 	h[5], h[6], h[7], h[8] = (h[5] + e) % MOD, (h[6] + f) % MOD, (h[7] + g) % MOD, (h[8] + hh) % MOD
 end
 
--- (0.59.0: a password's key is many more hashes now) With the game's bit library, a block straight from its functions:
+-- With the game's bit library, a block straight from its functions:
 -- no Lua function between, rotations as two shifts added (their bits don't overlap; a signed answer is the same number
 -- mod 2^32, and every sum is taken mod 2^32). About three times quicker than the block above, on the same answers.
 if type(B) == "table" and B.band and B.bor and B.bxor and B.rshift and B.lshift then
@@ -160,15 +160,6 @@ function C.HMAC(key, msg)
 	key = tostring(key or "")
 	if #key > 64 then key = C.SHA256(key) end
 	return C.SHA256(XorPad(key, 0x5c) .. C.SHA256(XorPad(key, 0x36) .. tostring(msg or "")))
-end
-
---- A key from a password: SHA-256 iterated `rounds` times over it (a guess costs as many hashes), salted with what
---- it's for.
-function C.Derive(password, salt, rounds)
-	password = tostring(password or "")
-	local k = C.SHA256(tostring(salt or "") .. "\0" .. password)
-	for _ = 1, rounds or 1 do k = C.SHA256(k .. password) end
-	return k
 end
 
 return C -- (tests: loaded again with a bit library)

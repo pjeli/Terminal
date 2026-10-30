@@ -15,8 +15,9 @@ local hmacWas = ns.Crypto.HMAC
 ns.Crypto.HMAC = H.QuickHMAC
 local KEY = "default|made-up key"
 local HEXKEY = string.rep("ab", 32)
+local CODE = SSH.CodeFromBytes(("r"):rep(15)) -- (a group's code, as saved with its key)
 
--- logging in with saved passwords: the ticker still runs once the groups are joined
+-- logging in with saved groups: the ticker still runs once the groups are joined
 do
 	local ep = SSH.game
 	local tickers, newWas, dbWas = {}, C_Timer.NewTicker, _G.TerminalShareDB
@@ -27,13 +28,13 @@ do
 		return t
 	end
 	ep:Off(); SSH.StopTicker()
-	_G.TerminalShareDB = { groups = { default = { key = HEXKEY, mode = "limited", kdf = SSH.KDF_ID } } }
+	_G.TerminalShareDB = { groups = { default = { key = HEXKEY, mode = "limited", kdf = SSH.CODE_ID, code = CODE } } }
 	SSH.OnEvent("PLAYER_LOGIN")
 	if tickers[1] then tickers[1].f() end -- (a second in: the groups not joined yet)
 	T.FlushAll() -- (LOGIN_WAIT)
 	local live = 0
 	for _, t in ipairs(tickers) do if not t.cancelled then live = live + 1 end end
-	check(#tickers >= 1 and ep:On() and live == 1, "saved passwords at login: joined, and the ticker running: " .. live .. " of " .. #tickers)
+	check(#tickers >= 1 and ep:On() and live == 1, "saved groups at login: joined, and the ticker running: " .. live .. " of " .. #tickers)
 	ep:Off(); SSH.ForgetGroups(); SSH.StopTicker()
 	C_Timer.NewTicker, _G.TerminalShareDB = newWas, dbWas
 end
@@ -49,7 +50,7 @@ do
 	net.Tick(10)
 	check(Up(B, "Ann") and B:Items()[1500], "connected: Bob has Ann's mat")
 	local wholes = 0
-	for _, m in ipairs(net.sent) do if m.from == "Ann" and m.text:find("^4D ") then wholes = wholes + 1 end end
+	for _, m in ipairs(net.sent) do if m.from == "Ann" and m.text:find("^5D ") then wholes = wholes + 1 end end
 	check(wholes == 1, "...sent whole once on connecting, not again for Bob's asking: " .. wholes)
 	B:Drop(B.friends["ann@realm"], "no word for 30 minutes")
 	check(not Up(B, "Ann") and not B:Items()[1500], "Bob drops Ann")
@@ -68,9 +69,9 @@ do
 	A:JoinGroup("default", KEY, "limited", true)
 	net.Run()
 	A.peers, net.sent = {}, {}
-	local ok1, err1 = pcall(A.Receive, A, { kind = "guild", target = "Mal" }, "4P")
-	local ok2, err2 = pcall(A.Receive, A, { kind = "guild", target = "Mal" }, "4D x1,1,1,")
-	check(ok1 and ok2 and #net.sent == 0, "4P or 4D on the guild channel: no error, no hello: " .. tostring(err1 or err2) .. ", " .. #net.sent)
+	local ok1, err1 = pcall(A.Receive, A, { kind = "guild", target = "Mal" }, "5P")
+	local ok2, err2 = pcall(A.Receive, A, { kind = "guild", target = "Mal" }, "5D x1,1,1,")
+	check(ok1 and ok2 and #net.sent == 0, "5P or 4D on the guild channel: no error, no hello: " .. tostring(err1 or err2) .. ", " .. #net.sent)
 end
 
 -- a ping goes ahead of other friends' pieces (behind a big first sync, friends who had theirs heard nothing for half an
@@ -83,8 +84,8 @@ do
 	E.tokens, E.refillAt = 0, 1e9
 	for i = 1, 50 do E:Send({}, "dataC" .. i, "data:cal:" .. i, fc) end
 	for i = 1, 50 do E:Send({}, "dataD" .. i, "data:dan:" .. i, fd) end
-	E:Send({}, "4P", "ping:bob")
-	check(E.queue[1].text == "4P", "a ping ahead of 100 pieces for others: " .. E.queue[1].text)
+	E:Send({}, "5P", "ping:bob")
+	check(E.queue[1].text == "5P", "a ping ahead of 100 pieces for others: " .. E.queue[1].text)
 	-- a wrong password's way, tried again in time (it was kept for good, never said hello to again)
 	E.peers.x = { state = "mismatch", mismatch = 0 }
 	E.env.broadcast = function() return {} end
@@ -96,7 +97,7 @@ end
 -- .share leave a group remembered, not joined (still waiting at login, or one past five): forgotten
 do
 	local dbWas = _G.TerminalShareDB
-	_G.TerminalShareDB = { groups = { raid = { key = HEXKEY, mode = "all", kdf = SSH.KDF_ID } } }
+	_G.TerminalShareDB = { groups = { raid = { key = HEXKEY, mode = "all", kdf = SSH.CODE_ID, code = CODE } } }
 	local out = ns:FindCommand("ssh").run("leave raid")
 	check(_G.TerminalShareDB.groups.raid == nil and out[1]:find("raid", 1, true) and not out[1]:find("not in", 1, true),
 		".share leave a remembered group not joined: forgotten: " .. tostring(out[1]))

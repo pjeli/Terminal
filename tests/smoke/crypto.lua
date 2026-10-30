@@ -25,12 +25,6 @@ end
 
 Run(ns.Crypto, "plain arithmetic")
 
--- the key from a password: Python's hashlib, three rounds
-do
-	local k = ns.Crypto.Derive("correct horse", "Terminal.ssh.1", 3)
-	check(ns.Crypto.Hex(k) == "ae3a946e434502ae38ef0cb4daff11e29e07c9b178f011f744804fb0207817be", "the key from a password: " .. ns.Crypto.Hex(k))
-end
-
 -- LuaBitOp's way: results signed (2^31 and up come back negative)
 do
 	local MOD = 4294967296

@@ -9,22 +9,13 @@ io.write("[share: groups]\n")
 local here = debug.getinfo(1, "S").source:match("^@(.*[/\\])") or "tests/smoke/"
 local H = assert(loadfile(here .. "../share_net.lua"))(T)
 local Key, Net, Up = H.Key, H.Net, H.Up
-local roundsWas = SSH.KDF_ROUNDS
-SSH.KDF_ROUNDS = 3
 local GOOD = Key("correct horse battery")
 local hmacWas = ns.Crypto.HMAC
 ns.Crypto.HMAC = H.QuickHMAC
 
 -- groups (0.59.0, the player: ".share join group1 password1"): each its own password and what you share in it
 do
-	local function Derived(pw, group)
-		local k
-		SSH.Derive(pw, function(x) k = x end, nil, group)
-		return k
-	end
-	check(Derived("correct horse battery", "default") == GOOD and Derived("correct horse battery", "raid") ~= GOOD,
-		"the default group's key is the one made before groups; the same password in another group, another key")
-	-- (keys as they come out of Derive, made up here: the harness's SHA-256 is slow)
+	-- (keys made up here: a code's key is any 32 bytes as far as the protocol goes)
 	local function GKey(pw, group) return group .. "|" .. pw end
 	local RAID = GKey("raid night password", "raid")
 	check(SSH.Union({ "mats", "consumables" }) == "limited" and SSH.Union({ "limited", "all" }) == "all"
@@ -89,7 +80,7 @@ do
 	check(Up(A, "Bob") and A.friends["bob@realm"].groups.default and not A.friends["bob@realm"].groups.raid,
 		"another password in raid: connected in default only")
 	-- (0.59.0: marks made from keys: another raid password is another mark, raid just not in common)
-	check(not net.Said("password for raid"), "...raid's other password: not in common, nothing to say it doesn't match")
+	check(not net.Said("code for raid"), "...raid's other key: not in common, nothing to say it doesn't match")
 	-- a group joined later, on the guild channel: proven again, both groups, connected all along
 	local net2 = Net()
 	local P = net2.Add("Pat", { guild = "G", items = { [1500] = 1 } })
@@ -185,7 +176,7 @@ do
 	P:JoinGroup("raid", GKey("raid pw words", "raid"))
 	net2.Tick(30)
 	local whole = 0
-	for _, m in ipairs(net2.sent) do if m.text:find("^4D ") then whole = whole + 1 end end
+	for _, m in ipairs(net2.sent) do if m.text:find("^5D ") then whole = whole + 1 end end
 	check(Up(P, "Quin") and Up(Q, "Pat") and whole == 0, "a group joined that Quin isn't in: proven again, nothing sent whole: " .. whole)
 	-- the guild's hello from a friend connected, whoever said hello first: let be, on both sides
 	local net3 = Net()
@@ -204,7 +195,7 @@ do
 	X:Hello({ kind = "guild" })
 	net3.Tick(5)
 	local again = 0
-	for _, m in ipairs(net3.sent) do if m.text:find("^4C ") then again = again + 1 end end
+	for _, m in ipairs(net3.sent) do if m.text:find("^5C ") then again = again + 1 end end
 	check(again == 0, "the guild's hello again from either side: let be, no handshake again: " .. again)
 end
 
@@ -221,7 +212,7 @@ do
 	check(p and p.state == "up", "connected")
 	P.hellos["00000000000000ff"], P.lastBroadcast = net.t, "00000000000000ff"
 	p.lastHello = nil
-	P:Receive({ kind = "guild", target = "Quin" }, "4H 0000000000000123,quin@realm,9999," .. SSH.Mark(GOOD, "9999", "quin@realm"))
+	P:Receive({ kind = "guild", target = "Quin" }, "5H 0000000000000123,quin@realm,9999," .. SSH.Mark(GOOD, "9999", "quin@realm"))
 	check(P.peers["w:quin"].wasUp == true, "both said hello at once: the connected way still takes what comes meanwhile")
 	-- a group's every proof failing on the way you send by: that friend dropped
 	local net2 = Net()
@@ -241,31 +232,15 @@ do
 	net3.Add("Dan", { friends = { zed = "Zed" } })
 	C:SetKey(GOOD)
 	net3.Run()
-	local hello = "4H 00000000000000c1,dan@realm,dd01," .. SSH.Mark(GOOD, "dd01", "dan@realm")
+	local hello = "5H 00000000000000c1,dan@realm,dd01," .. SSH.Mark(GOOD, "dd01", "dan@realm")
 	C:Receive({ kind = "whisper", target = "Dan" }, hello)
 	C:Pump()
-	local first = net3.sent[#net3.sent].text:match("^4C %x+,(%x+),")
+	local first = net3.sent[#net3.sent].text:match("^5C %x+,(%x+),")
 	net3.t = net3.t + SSH.HELLO_GAP + 1
 	C:Receive({ kind = "whisper", target = "Dan" }, hello)
 	C:Pump()
-	local second = net3.sent[#net3.sent].text:match("^4C %x+,(%x+),")
+	local second = net3.sent[#net3.sent].text:match("^5C %x+,(%x+),")
 	check(first and first == second, "the same hello again while challenging it: the same challenge: " .. tostring(first) .. " / " .. tostring(second))
-	-- a password being made for another group goes on when your last group is left
-	local net4 = Net()
-	local E = net4.Add("Eve", { friends = {} })
-	E:SetKey(GOOD)
-	local later = {}
-	local slice = SSH.KDF_SLICE
-	SSH.KDF_SLICE = 1
-	local rememberWas, badgeWas = SSH.Remember, SSH.Badge
-	SSH.Remember, SSH.Badge = function() end, function() end
-	SSH.JoinWithPassword(E, "raid", "Raidwords9here", function(fn) later[#later + 1] = fn end)
-	SSH.KDF_SLICE = slice
-	E:LeaveGroup("default")
-	local guard = 0
-	while #later > 0 and guard < 100 do table.remove(later, 1)(); guard = guard + 1 end
-	SSH.Remember, SSH.Badge = rememberWas, badgeWas
-	check(E.groups.raid and not E.groups.default, "the last group left while another's password was being made: that one still joined")
 end
 
 -- (0.59.0, the player: "hide the group name and make guessing password slower")
@@ -290,34 +265,14 @@ do
 	local nA
 	for n in pairs(Ann.hellos) do nA = n end
 	local sentBefore = #net2.sent
-	Ann:Receive({ kind = "guild", target = "Eve" }, "4C " .. nA .. ",00000000000000e1,eve@realm,0000," .. Ann:Marks())
+	Ann:Receive({ kind = "guild", target = "Eve" }, "5C " .. nA .. ",00000000000000e1,eve@realm,0000," .. Ann:Marks())
 	local proofs = 0
-	for i = sentBefore + 1, #net2.sent do if net2.sent[i].text:find("^4A ") then proofs = proofs + 1 end end
+	for i = sentBefore + 1, #net2.sent do if net2.sent[i].text:find("^5A ") then proofs = proofs + 1 end end
 	check(nA and proofs == 0, "your own marks sent back by someone without the key: no proof given")
 	local before = A:Marks()
 	A.sess = "abcd" -- (another session: a /reload)
 	A.markCache = {}
 	check(A:Marks() ~= before and #before == 8, "another session: another mark for the same group (a guildmate can't follow it)")
-	-- guessing a password costs many hashes; the key is made a slice of a frame at a time, by the clock, saying how far
-	check(roundsWas <= 1000, "a password's key: 1,000 SHA-256s at most, light on the game (the password's strength does the rest): " .. roundsWas)
-	check(SSH.KDF_MS <= 2, "...2 ms of them a frame at most: " .. SSH.KDF_MS)
-	local rounds, clockWas, shaWas = SSH.KDF_ROUNDS, _G.debugprofilestop, ns.Crypto.SHA256
-	SSH.KDF_ROUNDS = 200
-	ns.Crypto.SHA256 = function(m) return ("%032x"):format(#m) end -- (the harness's SHA-256 is slow; the slicing's what's tried)
-	local ms = 0
-	_G.debugprofilestop = function() ms = ms + 1; return ms end -- (every look at the clock: 1 ms)
-	local later, done, seen = {}, nil, {}
-	SSH.Derive("words here!", function(k) done = k end, function(fn) later[#later + 1] = fn end, "raid", function(x) seen[#seen + 1] = x end)
-	local steps = 1
-	while #later > 0 and steps < 1000 do table.remove(later, 1)(); steps = steps + 1 end
-	_G.debugprofilestop = clockWas
-	SSH.KDF_ROUNDS = rounds
-	ns.Crypto.SHA256 = shaWas
-	check(done and steps >= 2 and seen[#seen] == 1 and seen[1] < 1, "...over several frames by the clock, how far said each: " .. steps .. " frames")
-	local ep = SSH.Endpoint({ now = function() return 0 end })
-	ep.deriving, ep.derivingDone = { raid = {} }, { raid = 0.42 }
-	check(SSH.DerivingLine(ep):find("42", 1, true) ~= nil, ".share says how far: " .. SSH.DerivingLine(ep))
 end
 
 ns.Crypto.HMAC = hmacWas
-SSH.KDF_ROUNDS = roundsWas

@@ -341,8 +341,8 @@ end
 --- The game's way to send a chat line (C_ChatInfo's, else the old global), and whether chat is held back from addons
 --- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each (review, 0.53.6).
 function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage end
---- A line that carries a password (Terminal: Share's ".share password ...", ".ssh password ..."): never in the history,
---- a tab, or anything saved. Here, not in Terminal: Share, so the line stays out whether that addon is loaded or not.
+--- A line that carries a secret (Terminal: Share's ".share join <group> <code>", and a password typed out of habit,
+--- ".share password ...", as 0.69 and before took): never in the history, a tab, or anything saved. Here, not in Terminal: Share, so the line stays out whether that addon is loaded or not.
 function ns.SecretLine(text)
 	if type(text) ~= "string" then return false end
 	local l = ns.Lower(text)
@@ -360,8 +360,12 @@ end
 function ns.MaskSecret(text)
 	if not ns.SecretLine(text) then return text end
 	local head, rest
-	-- (.share join <group> <password>: the group's name shown, its password not)
-	if ns.Lower(text):find("^%s*%.?%s*%S+%s+join%s") then head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s+%S+%s?)(.*)$") end
+	-- (.share join <group> <code>: the group's name shown, its code not; .share join <code>, no group: all of it hidden)
+	local l = ns.Lower(text)
+	local third = l:match("^%s*%.?%s*%S+%s+join%s+(%S+)")
+	if l:find("^%s*%.?%s*%S+%s+join%s") and not (third and #third > 8 and third:find("^ts[1il]")) then
+		head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s+%S+%s?)(.*)$")
+	end
 	if not head then head, rest = text:match("^(%s*%.?%s*%S+%s+%S+%s?)(.*)$") end
 	if not head then return text end
 	return head .. (rest:gsub(".", "*"))

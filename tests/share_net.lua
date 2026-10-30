@@ -5,10 +5,9 @@ local ns = T.ns
 local SSH = ns.Ssh
 local H = {}
 
+--- A group's key for the tests, from a word (any 32 bytes do: codes only, a key is never made from a typed password).
 function H.Key(pw)
-	local k
-	SSH.Derive(pw, function(x) k = x end)
-	return k
+	return ("key|" .. tostring(pw) .. ("."):rep(32)):sub(1, 32)
 end
 
 

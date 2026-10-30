@@ -36,9 +36,9 @@ do
 	T.FlushAll()
 	check(UI:Completion() == nil, ".share join raid Al: none either: " .. tostring(UI:Completion()))
 	UI:Hide(); UI:Open("")
-	T.typeText(".share pass")
+	T.typeText(".share inv")
 	T.FlushAll()
 	local c = UI:Completion()
-	check(c and c:find("password", 1, true), "...a subcommand still completes (.share pass): " .. tostring(c))
+	check(c and c:find("invite", 1, true), "...a subcommand still completes (.share inv): " .. tostring(c))
 	UI:Hide()
 end

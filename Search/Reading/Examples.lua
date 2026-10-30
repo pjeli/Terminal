@@ -500,6 +500,14 @@ E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()
 	local db = ns.db
 	pool.first = nil
+	-- (something waiting for you, Terminal: Share's invite: E.FIRST's functions, the first answer shown before anything)
+	for _, f in ipairs(E.FIRST or {}) do
+		local ok, ex = pcall(f)
+		if ok and type(ex) == "string" then
+			pool.first = ex
+			return ex
+		end
+	end
 	-- (spent when it's shown, E.ExampleShown: not on an open with suggestions off or with text typed; review, 0.51.25)
 	if type(db) == "table" and not db.tourOffered and #(db.history or {}) == 0 then
 		pool.first = E.TOUR_EXAMPLE

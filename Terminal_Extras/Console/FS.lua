@@ -1291,7 +1291,7 @@ FS.MOUNTS = {
 			for g in pairs(ep and ep.groups or {}) do names[#names + 1] = g end
 			table.sort(names)
 			if #names == 0 then
-				return { ("# share:<group>\t/shared\tnfs4\tro,noauto,_netdev\t0\t0\t# %s"):format(L["no group yet: .share password <password>"]) }
+				return { ("# share:<group>\t/shared\tnfs4\tro,noauto,_netdev\t0\t0\t# %s"):format(L["no group yet: .share invite <name>"]) }
 			end
 			local out = {}
 			for _, g in ipairs(names) do
