@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.69.1 (in testing)
+## 0.69.2 (in testing)
 
+- Simple mode's questions can be asked in your client's language, as the nearest/where/mats ones already could: "what should i do", "quests to drop", "where is my body", "my auctions", "spells not on my bars", "recipes i'm missing", "<profession> plan", "when do i learn <spell>" and 40 more. Each is read as the English question it stands for; words typed after it follow it. They take their translations with the release.
 - Chinese searches find only names with the characters you typed. A character's bytes were matched one by one, so 草 found 治疗药剂, which hasn't it. No more "close spellings" a byte away for Chinese and Korean either (铝 aluminium is a byte from 铁 iron), and a Russian word's close spellings are counted in letters, not bytes.
 - The font setting shows your letters on every client: Morpheus and Skurri use their Cyrillic copies on a Russian client, and on Chinese and Korean clients each choice is one of the client's own fonts (the Latin fonts have no Chinese or Korean letters, so text went blank).
 - Trainers on a German, French, Spanish, Russian or Chinese client: QuestieDB translates NPC titles there ("Bergbaulehrer", "Maître des mineurs"), so "mining trainer", "where to learn mining" and `trainer:` found none. Titles are matched as Questie's English ones say them, and shown as your client's.

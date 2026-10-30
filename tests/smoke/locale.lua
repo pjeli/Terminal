@@ -221,6 +221,11 @@ do
 		"nothing translated: every line as it is")
 	rawset(L, "phrases: nearest %s", "nächster %s | nächste %s | %s in der Nähe")
 	rawset(L, "phrases: mats for %s", "Mats für %s | was brauche ich für %s")
+	-- (0.69.1: the questions too, whole ones and with the thing asked about)
+	local QUESTIONS = { ["phrases: where is %s"] = "wo ist %s", ["phrases: quests to drop"] = "Quests zum Abbrechen | Quests abbrechen",
+		["phrases: where is my body"] = "Wo ist meine Leiche", ["phrases: my auctions"] = "meine Auktionen",
+		["phrases: %s spells"] = "%szauber" }
+	for k, v in pairs(QUESTIONS) do rawset(L, k, v) end
 	-- (E.PHRASES read the translations when the file loaded: a test puts them in as a language file would have)
 	local wasPh = {}
 	for i, ph in ipairs(E.PHRASES) do wasPh[i] = ph[2]; ph[2] = L[ph[2]] or ph[2] end
@@ -230,6 +235,19 @@ do
 		.. tostring(E.English("Nächster Gastwirt")))
 	check(E.English("hogger") == "hogger" and E.English("@npc nächster x") == "@npc nächster x" and E.English("nächster") == "nächster",
 		"anything else as it is")
+	check(E.English("Quests zum Abbrechen") == "quests to drop" and E.English("quests abbrechen") == "quests to drop",
+		"a whole question in the client's language: its English: " .. tostring(E.English("Quests zum Abbrechen")))
+	check(E.English("meine Auktionen verkauft") == "my auctions verkauft", "...the words after it follow it: "
+		.. tostring(E.English("meine Auktionen verkauft")))
+	check(E.English("wo ist meine Leiche") == "where is my body" and E.English("wo ist hogger") == "where hogger",
+		"...the longest said first: where is my body, not where is <meine leiche>: " .. tostring(E.English("wo ist meine Leiche")))
+	check(E.English("Frostzauber") == "frost spells" and E.English("quests") == "quests",
+		"...the thing asked about inside a word (%szauber), and a word alone as it is: " .. tostring(E.English("Frostzauber")))
+	ns.db.easyMode = true
+	local function Names(rows) local t = {} for i, e in ipairs(rows) do t[i] = tostring(e.name) end return table.concat(t, "|") end
+	local en, de = Names(UI:Search("quests to drop")), Names(UI:Search("quests zum abbrechen"))
+	check(en == de, "the search answers the question asked in the client's language as the English: " .. de .. " / " .. en)
+	ns.db.easyMode = save.easy
 	-- the search reads the English line: the same answer either way
 	ns.db.easyMode = true
 	local a = UI:Search("mats for zzqqyy belt")
@@ -249,5 +267,35 @@ do
 	E.ForgetGameWords()
 	for i, ph in ipairs(E.PHRASES) do ph[2] = wasPh[i] end
 	rawset(L, "phrases: nearest %s", nil); rawset(L, "phrases: mats for %s", nil)
+	for k in pairs(QUESTIONS) do rawset(L, k, nil) end
 	E.ForgetPhrases()
+end
+
+io.write("[translations: every question's English line is one Simple mode reads]\n")
+do
+	local E, Scan = ns.Easy, ns.UI._Scan
+	local easy = ns.db.easyMode
+	ns.db.easyMode = true
+	-- (needing what the harness hasn't: Auctionator, What's Training, Attune, the class spell catalog, a profession, an
+	-- item's quests)
+	local NEEDS = { ["what should i auction"] = true, ["ah upgrades"] = true, pets = true, toys = true, ["what can i train"] = true,
+		["upcoming spells"] = true, ["my attunements"] = true, ["%s plan"] = true, ["how do i get into %s"] = true,
+		["when do i learn %s"] = true, ["quest for %s"] = true, ["%s spells"] = true }
+	local SAMPLE = { ["spell id %s"] = "claw", ["%s talents"] = "healing", ["what can i train in %s"] = "tailoring" }
+	local unread, n = {}, 0
+	for i = 7, #E.PHRASES do
+		local en = E.PHRASES[i][1]
+		if not NEEDS[en] then
+			local line = en:find("%s", 1, true) and en:format(SAMPLE[en] or "x") or en
+			local got
+			for _, a in ipairs(Scan.ANSWERS) do
+				local ok, q = pcall(a.ask, line)
+				if ok and q then got = true break end
+			end
+			n = n + 1
+			if not got then unread[#unread + 1] = line end
+		end
+	end
+	check(n > 30 and #unread == 0, "each question's English line is read as that question (" .. n .. "): not: " .. table.concat(unread, ", "))
+	ns.db.easyMode = easy
 end

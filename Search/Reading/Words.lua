@@ -191,6 +191,57 @@ E.PHRASES = {
 	{ "where to get %s", L["phrases: where to get %s"], "sources" },
 	{ "nearest %s", L["phrases: nearest %s"] },
 	{ "where %s", L["phrases: where is %s"] },
+	-- (0.69.1, the player: question words in the client's language) Simple mode's questions as each language asks them.
+	-- A phrasing with no %s is the whole question; words typed after it follow it ("meine Auktionen verkauft" = "my
+	-- auctions verkauft": the question's own little words, dates, filters, as after the English)
+	{ "what should i do", L["phrases: what should i do"] },
+	{ "quests to turn in", L["phrases: quests to turn in"] },
+	{ "quests here", L["phrases: quests here"] },
+	{ "what can i craft", L["phrases: what can i craft"] },
+	{ "what should i auction", L["phrases: what should i auction"] },
+	{ "ah upgrades", L["phrases: ah upgrades"] },
+	{ "what is in my bank", L["phrases: what is in my bank"] },
+	{ "mounts", L["phrases: mounts"] },
+	{ "pets", L["phrases: pets"] },
+	{ "toys", L["phrases: toys"] },
+	{ "buyback", L["phrases: buyback"] },
+	{ "what dropped", L["phrases: what dropped"] },
+	{ "what killed me", L["phrases: what killed me"] },
+	{ "where should i level", L["phrases: where should i level"] },
+	{ "what dungeon should i do", L["phrases: what dungeon should i do"] },
+	{ "where should i fish", L["phrases: where should i fish"] },
+	{ "spells not on my bars", L["phrases: spells not on my bars"] },
+	{ "recipes i'm missing", L["phrases: recipes i'm missing"] },
+	{ "recipes i can learn now", L["phrases: recipes i can learn now"] },
+	{ "what can i train", L["phrases: what can i train"] },
+	{ "upcoming spells", L["phrases: upcoming spells"] },
+	{ "quests to drop", L["phrases: quests to drop"] },
+	{ "grey quests", L["phrases: grey quests"] },
+	{ "quests to share", L["phrases: quests to share"] },
+	{ "my lockouts", L["phrases: my lockouts"] },
+	{ "where is my body", L["phrases: where is my body"] },
+	{ "repair cost", L["phrases: repair cost"] },
+	{ "what needs repair", L["phrases: what needs repair"] },
+	{ "my auctions", L["phrases: my auctions"] },
+	{ "my mail", L["phrases: my mail"] },
+	{ "who is dead", L["phrases: who is dead"] },
+	{ "who is out of range", L["phrases: who is out of range"] },
+	{ "quest upgrades", L["phrases: quest upgrades"] },
+	{ "vendor upgrades", L["phrases: vendor upgrades"] },
+	{ "quests that reward bags", L["phrases: quests that reward bags"] },
+	{ "my attunements", L["phrases: my attunements"] },
+	{ "holidays", L["phrases: holidays"] },
+	{ "history", L["phrases: history"] },
+	{ "untrack quests", L["phrases: untrack quests"] },
+	{ "leveling plan", L["phrases: leveling plan"] },
+	{ "%s plan", L["phrases: %s plan"] },
+	{ "how do i get into %s", L["phrases: how do i get into %s"] },
+	{ "spell id %s", L["phrases: spell id %s"] },
+	{ "%s talents", L["phrases: %s talents"] },
+	{ "what can i train in %s", L["phrases: what can i train in %s"] },
+	{ "when do i learn %s", L["phrases: when do i learn %s"] },
+	{ "quest for %s", L["phrases: quest for %s"] },
+	{ "%s spells", L["phrases: %s spells"] },
 }
 local phrasePatterns -- { { Lua pattern, English line } } (made once)
 local MAGIC = "[%^%$%(%)%%%.%[%]%*%+%-%?]"
@@ -200,7 +251,11 @@ local function Alternatives(said)
 	for alt in (said .. "|"):gmatch("([^|]*)|") do
 		alt = Lower(alt):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
 		local a, b = alt:match("^(.-)%%s(.*)$")
-		if a and not b:find("%s", 1, true) then out[#out + 1] = { a, b } end
+		if a then
+			if not b:find("%s", 1, true) then out[#out + 1] = { a, b } end
+		elseif alt ~= "" and not alt:find("%", 1, true) then
+			out[#out + 1] = { alt } -- (a whole question)
+		end
 	end
 	return out
 end
@@ -209,9 +264,24 @@ local function Patterns()
 	phrasePatterns = {}
 	for _, ph in ipairs(E.PHRASES) do
 		for _, ab in ipairs(Alternatives(ph[2])) do
-			phrasePatterns[#phrasePatterns + 1] = { "^" .. ab[1]:gsub(MAGIC, "%%%0") .. "(.+)" .. ab[2]:gsub(MAGIC, "%%%0") .. "$", ph[1] }
+			local n = #phrasePatterns
+			if ab[2] then
+				phrasePatterns[n + 1] = { "^" .. ab[1]:gsub(MAGIC, "%%%0") .. "(.+)" .. ab[2]:gsub(MAGIC, "%%%0") .. "$", ph[1],
+					len = #ab[1] + #ab[2], n = n + 1 }
+			else
+				-- (the question alone, or with words after it: those follow the English)
+				local q = ab[1]:gsub(MAGIC, "%%%0")
+				phrasePatterns[n + 1] = { "^" .. q .. "$", ph[1], len = #ab[1], n = n + 1, whole = true }
+				phrasePatterns[n + 2] = { "^" .. q .. " (.+)$", ph[1] .. " %s", len = #ab[1], n = n + 2 }
+			end
 		end
 	end
+	-- (the longest said first: "wo ist meine Leiche", where is my body, before "wo ist %s", where is; a tie in the list's
+	-- order, as before)
+	table.sort(phrasePatterns, function(x, y)
+		if x.len ~= y.len then return x.len > y.len end
+		return x.n < y.n
+	end)
 	return phrasePatterns
 end
 function E.ForgetPhrases() phrasePatterns = nil end -- (tests)
@@ -221,9 +291,14 @@ function E.English(text)
 	if type(text) ~= "string" then return text end
 	if text:find("[@>|]") or text:find(":[^%s]") or text:find("^%s*[%./!%-]") then return text end
 	local out = text
+	local lt = Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
 	for _, p in ipairs(Patterns()) do
-		local what = Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " "):match(p[1])
-		if what and what:find("%S") then out = p[2]:format(what) break end
+		if p.whole then
+			if lt:find(p[1]) then out = p[2] break end
+		else
+			local what = lt:match(p[1])
+			if what and what:find("%S") then out = p[2]:format(what) break end
+		end
 	end
 	return E.TrainerAsked(out) or out
 end

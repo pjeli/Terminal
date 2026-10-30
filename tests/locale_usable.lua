@@ -128,20 +128,29 @@ do
 	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "locsample" and not had then table.remove(ns.providerOrder, i) end end
 end
 
--- 4. Simple mode's questions said its way: every phrasing translated, read as the English line it stands for
+-- 4. Simple mode's questions said its way: each phrasing translated is read as the English line it stands for, and
+-- those released (the first six) are all translated (the rest wait for the release's translations: CLAUDE.md)
+local RELEASED = { ["mats for %s"] = true, ["what uses %s"] = true, ["where to learn %s"] = true, ["where to get %s"] = true,
+	["nearest %s"] = true, ["where %s"] = true }
 do
-	local untranslated = {}
+	local untranslated, waiting = {}, 0
 	for _, ph in ipairs(E.PHRASES or {}) do
 		local said = ph[2]
-		if type(said) ~= "string" or said:find("^phrases: ") then untranslated[#untranslated + 1] = ph[1]
+		if type(said) ~= "string" or said:find("^phrases: ") then
+			if RELEASED[ph[1]] then untranslated[#untranslated + 1] = ph[1] else waiting = waiting + 1 end
 		else
-			local first = said:match("^([^|]*)")
-			local line = first:gsub("%%s", "xyzzy")
-			local english = E.English(line)
-			check(ns.Lower(english) == ns.Lower(ph[1]:format("xyzzy")), lang .. ": \"" .. line .. "\" read as \"" .. ph[1]:format("xyzzy") .. "\": " .. tostring(english))
+			for alt in (said .. "|"):gmatch("([^|]*)|") do
+				local line = alt:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%%s", "xyzzy")
+				if line ~= "" then
+					local english = E.English(line)
+					local want = ph[1]:find("%s", 1, true) and ph[1]:format("xyzzy") or ph[1]
+					check(ns.Lower(english) == ns.Lower(want), lang .. ": \"" .. line .. "\" read as \"" .. want .. "\": " .. tostring(english))
+				end
+			end
 		end
 	end
 	check(#untranslated == 0, lang .. ": Simple mode's phrasings translated: " .. table.concat(untranslated, ", "))
+	if waiting > 0 then io.write(("  %s: %d question phrasings wait for their translation\n"):format(lang, waiting)) end
 end
 
 -- 5. the empty prompt's examples: "try:" in this language, Shift+Right still typing the example

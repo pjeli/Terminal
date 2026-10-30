@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.69.1", when = "in testing",
+		v = "0.69.2", when = "in testing",
 		items = {
 			"Other languages: Chinese searches find only names with the characters typed, fonts show Russian, Chinese and Korean letters, and trainers are found by their translated titles.",
+			"Simple mode's questions in your language: \"quests to drop\", \"where is my body\", \"my auctions\" and 45 more, as your language asks them.",
 		},
 	},
 	{
