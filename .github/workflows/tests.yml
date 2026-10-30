@@ -1,0 +1,30 @@
+# Tests on every push and pull request (0.69.10, the player's call): a broken push is caught before a release is cut
+# from it. The smoke tests, then Terminal on each language it's translated into (tests/run_smoke.py runs
+# tests/locale_usable.py after its own), then the files: syntax, accidental globals, a local hiding a file's own, reads
+# of another file's local, the translations, what the CurseForge package would carry, the comment stripping
+# (tests/check.py). tests/gen_data.py --check isn't run here: it downloads the game's tables from wago.tools.
+name: Tests
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # (the versions the tests were written against: Lua 5.1 through lupa, the globals checks through luaparser)
+      - name: The test tools
+        run: pip install lupa==2.8 luaparser==4.2.0
+      - name: Smoke tests, and Terminal in each translated language
+        run: python tests/run_smoke.py
+      - name: "The files: syntax, globals, shadowed locals, translations, the package, comment stripping"
+        run: python tests/check.py

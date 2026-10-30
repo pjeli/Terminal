@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.69.9", when = "in testing",
+		v = "0.69.10", when = "in testing",
 		items = {
 			"Share by invite: .share invite <name>, and they type .share accept. Groups get codes Terminal makes that nobody can guess; typed passwords are gone, so invite your friends again.",
 			"Other languages: Chinese searches find only names with the characters typed, fonts show Russian, Chinese and Korean letters, and trainers are found by their translated titles.",

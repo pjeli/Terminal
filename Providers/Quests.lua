@@ -473,8 +473,8 @@ function QT.QuestieXP(id)
 		local x = Num(Call(M.GetQuestLogRewardXP, M, id))
 		if x then return x end
 	end
-	local L = QD.Lib()
-	local S = L and L.Support
+	local Lib = QD.Lib()
+	local S = Lib and Lib.Support
 	local X = S and S.Get and Call(S.Get, "QuestXP")
 	local row = type(X) == "table" and type(X.db) == "table" and X.db[id]
 	local level, xp = type(row) == "table" and tonumber(row[1]), type(row) == "table" and tonumber(row[2])

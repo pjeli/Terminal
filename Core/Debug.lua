@@ -171,11 +171,11 @@ function ns.Guarded(key, fn, ...)
 		db.blockedCalls = db.blockedCalls or {}
 		if db.blockedCalls[key] then return false end
 	end
-	local D = ns.Debug
-	local before = D and D.count or 0
+	local dbg = ns.Debug
+	local before = dbg and dbg.count or 0
 	ns:Trace("DIRECT " .. key)
 	local ok = pcall(fn, ...)
-	if D and D.count > before then
+	if dbg and dbg.count > before then
 		-- a block in combat says nothing about out-of-combat: don't remember it
 		if db and not (InCombatLockdown and InCombatLockdown()) then db.blockedCalls[key] = true end
 		return false

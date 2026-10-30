@@ -338,19 +338,19 @@ C.Cells = Cells
 
 --- Where each column starts (px) for the lines shown: every column as wide as its widest cell among them.
 local function Stops(p, lines, from, to)
-	local widths = {}
+	local colW = {}
 	for idx = from, to do
 		local cells = lines[idx] and Cells(lines[idx])
 		if cells then
 			for j = 1, #cells - 1 do
 				local w = Width(cells[j], p)
-				if not widths[j] or w > widths[j] then widths[j] = w end
+				if not colW[j] or w > colW[j] then colW[j] = w end
 			end
 		end
 	end
 	local stops, x = { 0 }, 0
-	for j = 1, #widths do
-		x = x + widths[j] + C.CELL_GAP
+	for j = 1, #colW do
+		x = x + colW[j] + C.CELL_GAP
 		stops[j + 1] = x
 	end
 	return stops

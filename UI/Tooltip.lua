@@ -330,21 +330,21 @@ do
 	end
 
 	local function OnEvent(_, event, got, ok)
-		local tip = Tip()
+		local tt = Tip()
 		local kind = KIND_OF[event]
-		local e = tip.waitFor
-		if not (kind and got and tip.waitKind == kind and tip.waitID == got and e) then return end
+		local e = tt.waitFor
+		if not (kind and got and tt.waitKind == kind and tt.waitID == got and e) then return end
 		if ok == false then -- (the server has no such item or spell: nothing more to wait for)
 			if failedN > 500 then failed, failedN = {}, 0 end
 			local k = kind .. ":" .. got
 			if not failed[k] then failedN = failedN + 1 end
 			failed[k] = Now()
-			UI.StopTipWait(tip)
+			UI.StopTipWait(tt)
 			return
 		end
 		if not Loaded(kind, got) then return end -- (not in yet: the timer keeps watching)
-		UI.StopTipWait(tip)
-		Redraw(tip, e)
+		UI.StopTipWait(tt)
+		Redraw(tt, e)
 	end
 
 	--- (the item an upgrade's comparison needs: loaded?)

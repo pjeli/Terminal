@@ -2,7 +2,10 @@
 from code above its declaration (it reads a nil global there). Run by check.py when
 luaparser is installed (pip install luaparser). Also warns (not a failure) about reads of a
 never-declared name one letter away from a file-level local or a known C_* table: a typo
-reads nil instead of the thing meant (C_Iten.GetItemInfo, infoCahce)."""
+reads nil instead of the thing meant (C_Iten.GetItemInfo, infoCahce).
+And a local inside a function named as a file-level local declared above it: the rest of that function reads the new
+one, not the file's (0.69.10, the review's find: Chains.lua's `local P = ns.Filters._` hid the file's P, ns.Pipes, and
+"where to learn" broke). Name it apart."""
 import sys, re
 from luaparser import ast, astnodes as A
 
@@ -39,6 +42,12 @@ def scan(path, warnings=None, free=None, parsed=None):
     out = []
     top = set()
     reads = {} # the never-declared names read (for the near-miss warnings)
+    seen_top = set() # the file-level locals declared so far (a function below them sees them)
+    depth = [0] # how many functions deep the walk is
+    blocks = [] # the blocks the walk is in (the file's own block first: its locals are the file's; a top-level
+    # do ... end's go when it ends)
+    def shadow(name):
+        if depth[0] > 0 and name in seen_top: out.append(("SHADOW " + name, '?'))
     for st in tree.body.body:
         if isinstance(st, A.LocalAssign): top |= {t.id for t in st.targets}
         if isinstance(st, A.LocalFunction): top.add(st.name.id)
@@ -53,19 +62,29 @@ def scan(path, warnings=None, free=None, parsed=None):
         if not isinstance(node, A.Node): return
         if isinstance(node, A.Block):
             inner = set(scope)
+            blocks.append(node)
             for st in node.body:
                 handle(st, inner)
+            blocks.pop()
             return
         handle(node, scope)
     def fn_body(node, scope, extra=()):
         s = set(scope) | {a.id for a in node.args if isinstance(a, A.Name)} | set(extra)
+        depth[0] += 1
         walk(node.body, s)
+        depth[0] -= 1
     def handle(st, scope):
         if isinstance(st, A.LocalAssign):
             walk(st.values, scope)
-            for t in st.targets: scope.add(t.id)
+            for t in st.targets:
+                shadow(t.id)
+                scope.add(t.id)
+                if blocks and blocks[-1] is tree.body: seen_top.add(t.id)
         elif isinstance(st, A.LocalFunction):
-            scope.add(st.name.id); fn_body(st, scope)
+            shadow(st.name.id)
+            scope.add(st.name.id)
+            if blocks and blocks[-1] is tree.body: seen_top.add(st.name.id)
+            fn_body(st, scope)
         elif isinstance(st, A.Function):
             if isinstance(st.name, A.Name) and st.name.id not in scope:
                 out.append((st.name.id, getattr(st,'line',None) or getattr(st.name,'line','?')))
@@ -204,10 +223,26 @@ def analyze_all(paths):
 
 def analyze(path): return analyze_all([path])[path]
 
+def _shadow_lines(path, name):
+    """The lines of the locals inside functions named `name` (indented, after the file-level one): luaparser gives none."""
+    lines = open(path, encoding="utf-8").read().split("\n")
+    top = next((i for i, l in enumerate(lines) if re.match(r"local\s+(function\s+)?([\w\s,]*?\b)?" + re.escape(name) + r"\b", l)), 0)
+    at = [str(i + 1) for i in range(top + 1, len(lines))
+        if re.match(r"\s+local\s+(function\s+)?([\w\s,]*?\b)?" + re.escape(name) + r"\b", lines[i])]
+    return ", ".join(at) or "?"
+
 def problems(path):
     found = [(n, l) for n, l in analyze(path)["found"]]
-    return [f"{path}: " + (n.replace("READ-before-local ", "reads local declared below: ") if n.startswith("READ")
-            else f"global write {n} (line {l})") for n, l in found]
+    out, said = [], set()
+    for n, l in found:
+        if n.startswith("READ"): out.append(f"{path}: " + n.replace("READ-before-local ", "reads local declared below: "))
+        elif n.startswith("SHADOW "):
+            name = n[7:]
+            if name in said: continue
+            said.add(name)
+            out.append(f"{path}: lines {_shadow_lines(path, name)}: a local inside a function hides the file's own {name}: name it apart")
+        else: out.append(f"{path}: global write {n} (line {l})")
+    return out
 
 def warnings(path):
     """Reads of a never-declared name one letter away from a file local or a known C_* table."""

@@ -444,15 +444,15 @@ UI.STILL_SEARCHING_DROP = L["Still searching: press it again in a moment, to dro
 local function DropEveryQuest(self)
 	if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING_DROP) return end
 	local QD = ns.QuestDrop
-	local rows, kept = QD.GroupRows(self.groupList or UI.results, true)
-	if #rows == 0 then
+	local drops, kept = QD.GroupRows(self.groupList or UI.results, true)
+	if #drops == 0 then
 		ns:Print(kept > 0 and L["Nothing to drop: the quests listed are complete, turn them in."]
 			or L["Nothing to drop: no quest in your log among the results."])
 		return
 	end
 	ns:RecordHistory(UI.edit:GetText())
 	self:HideAfterRun()
-	QD.Confirm(rows)
+	QD.Confirm(drops)
 end
 --- ">>> track", ">>> untrack", ">>> track only": the quests in your log among the results (QuestTrack.lua).
 UI.STILL_SEARCHING_TRACK = L["Still searching: press it again in a moment, to change the tracker for every quest listed."]
@@ -492,12 +492,12 @@ end
 
 --- ">> text", ">> csv" (">>>": every result): the terminal closes and they open in a box to copy (Ctrl+C).
 local function CopyOut(self, e, to)
-	local rows = { e }
+	local out = { e }
 	if to.all then
 		if not self:FinishSearch(UI.SEND_FINISH_MS) then ns:Print(UI.STILL_SEARCHING) return end
-		rows = self.groupRows or self.groupList or UI.results
+		out = self.groupRows or self.groupList or UI.results
 	end
-	local text, n = ns.Share.CopyText(rows, to.copy)
+	local text, n = ns.Share.CopyText(out, to.copy)
 	if n == 0 then ns:Print(L["Nothing to copy."]) return end
 	ns:RecordHistory(UI.edit:GetText())
 	local what = ns.Share.Searched(to.query) and to.query:gsub("^%s+", ""):gsub("%s+$", "") or ns.Share.Clean(e.name)

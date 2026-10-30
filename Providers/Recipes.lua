@@ -249,11 +249,11 @@ ns:RegisterProvider("professions", {
 				secondarySecure = PROF_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen,
 			}
 		end
-		local TS = ns.TrainerSpells
+		local Trainers = ns.TrainerSpells
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local opener = P.WindowSpell(pr.skillLine, pr.name)
 			-- (its next rank at a trainer, as TrainerSpells lists it: what it needs and costs; 0.57.1)
-			local nr = TS and TS.NextRank and TS.NextRank(pr)
+			local nr = Trainers and Trainers.NextRank and Trainers.NextRank(pr)
 			local nextSaid = nr and ns.DETAIL_SEP .. (nr.now and "|cff40ff40" or "") .. L["next rank%s at skill %d"]:format(
 				nr.title and (" (" .. nr.title .. ")") or "", nr.skill) .. ((nr.cost or 0) > 0 and (": " .. ns.Money(nr.cost)) or "")
 				.. (nr.now and "|r" or "") or ""

@@ -140,9 +140,9 @@ end
 function I.QuestieQuestLink(id)
 	id = tonumber(id)
 	if not id then return nil end
-	local L = QD.AnyModule("QuestieLink")
-	if L then
-		local s = Safe(L.GetNativeQuestLinkStringById, id) or Safe(L.GetQuestLinkStringById, id)
+	local QL = QD.AnyModule("QuestieLink")
+	if QL then
+		local s = Safe(QL.GetNativeQuestLinkStringById, id) or Safe(QL.GetQuestLinkStringById, id)
 		if type(s) == "string" and s ~= "" then return s end
 	end
 	-- (an older Questie without those: the same bracket text, which its chat filter reads)

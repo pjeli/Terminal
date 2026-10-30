@@ -706,9 +706,9 @@ KEYS.stat = function(v)
 	if op and not cmp then return nil end
 	local names -- (how effect texts name it: worked out once, when first needed)
 	return function(e)
-		local stats = Stats(e)
-		if stats and next(stats) then
-			for key, value in pairs(stats) do
+		local got = Stats(e)
+		if got and next(got) then
+			for key, value in pairs(got) do
 				if type(key) == "string" and StatIs(key, word) and (not cmp or cmp(value)) then return true end
 			end
 			return false

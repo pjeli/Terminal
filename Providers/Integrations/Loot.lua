@@ -108,11 +108,11 @@ function I.PlaceKind(A, c)
 	local name = Safe(c.GetContentType, c)
 	local enter = type(c.LevelRange) == "table" and tonumber(c.LevelRange[1]) or nil
 	if type(name) ~= "string" then return "other", enter end
-	local AL = A.Locales
+	local locales = A.Locales
 	local function Is(list)
 		for _, w in ipairs(list) do
 			if name == w then return true end
-			local ok, v = pcall(function() return AL[w] end) -- (its own language's name; a missing one may be the word itself)
+			local ok, v = pcall(function() return locales[w] end) -- (its own language's name; a missing one may be the word itself)
 			if ok and name == v then return true end
 		end
 	end
