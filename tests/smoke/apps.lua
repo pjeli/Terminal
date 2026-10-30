@@ -204,3 +204,29 @@ do
 	check(CR.IsShown() and CR.frame.propagate == true, "other keys go on to the game: " .. tostring(CR.frame.propagate))
 	CR.Close()
 end
+
+io.write("[the changelog: one line after an update]\n")
+do
+	-- (0.69.11, the player's ask) the first login on a new version says it once, with the entry's count; a fresh install
+	-- says nothing; one who used Terminal before versions were kept counts as updating
+	local CL = ns.Changelog
+	local db = ns.db
+	local save = { v = ns.version, seen = db.versionSeen, tour = db.tourOffered, hist = db.history, print = ns.Print }
+	local said = {}
+	ns.Print = function(_, m) said[#said + 1] = tostring(m) end
+	ns.version = CL.LOG[1].v
+	db.versionSeen, db.tourOffered, db.history = nil, nil, {}
+	check(CL.Announce() == false and #said == 0 and db.versionSeen == ns.version, "a fresh install: nothing said, the version kept")
+	check(CL.Announce() == false and #said == 0, "...and the same version again: nothing")
+	db.versionSeen, db.history = nil, { "linen" }
+	check(CL.Announce() == true and #said == 1 and said[1]:find(ns.version, 1, true)
+		and said[1]:find(tostring(#CL.LOG[1].items), 1, true) and said[1]:find(".changelog", 1, true),
+		"used before versions were kept: said once, with how many: " .. tostring(said[1]))
+	db.versionSeen = "0.1.0"
+	check(CL.Announce() == true and #said == 2, "an older version seen: said")
+	check(CL.Announce() == false and #said == 2, "...once")
+	ns.version = "9.9.9"
+	check(CL.Announce() == true and said[3]:find(".changelog", 1, true) and not said[3]:find("%d new", 1), "a version with no entry: said plainly: " .. tostring(said[3]))
+	ns.version, db.versionSeen, db.tourOffered, db.history, ns.Print = save.v, save.seen, save.tour, save.hist, save.print
+end
+

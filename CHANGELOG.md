@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.69.10 (in testing)
+## 0.69.11 (in testing)
 
+- After an update, the first login says so in one line: how many new things there are, and `.changelog` to see them. Once a version; a fresh install says nothing (it offers the tour).
 - **Share by invite.** `.share invite <name>` (Tab lists who's online: friends, guild members, Battle.net friends) invites a friend; they type `.share accept` (the empty prompt suggests it, the badge shows it) or `.share decline`. With no group yet, Terminal makes `default`. The group's code goes to them only after their yes, only to that character, within 10 minutes.
 - **Codes, not passwords.** A group's secret is a code Terminal makes, 120 random bits: a typed password could be guessed at home by anyone in your guild, a code can't. `.share code` puts a group's code in the copy box for a friend out of reach of an invite, who types `.share join <code>` (typos are caught). `.share new <group>` makes a group, `.share rename <group> <name>` calls it something else (the name is only yours). Groups made with a typed password are forgotten at login, with a line saying how to make them again; your friends need this version too (one still on 0.69 is told to update).
 - **No kick.** A group has no owner, so nobody can push anyone out. To leave someone out, start a new group with the friends you trust and leave the old one. `.share` and the badge show who's connected. An invite to you runs out after 10 minutes even before you're in a group, and the badge and the prompt's suggestion go with it.

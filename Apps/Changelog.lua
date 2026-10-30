@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.69.10", when = "in testing",
+		v = "0.69.11", when = "in testing",
 		items = {
+			"After an update, one line in chat says how many new things there are; .changelog shows them.",
 			"Share by invite: .share invite <name>, and they type .share accept. Groups get codes Terminal makes that nobody can guess; typed passwords are gone, so invite your friends again.",
 			"Other languages: Chinese searches find only names with the characters typed, fonts show Russian, Chinese and Korean letters, and trainers are found by their translated titles.",
 			"Simple mode's questions in German, Spanish, French, Russian and Chinese: \"Quests zum Abbrechen\", \"où est mon corps\", \"mis subastas\" and 45 more.",
@@ -162,3 +163,34 @@ ns:RegisterCommand("changelog", {
 	aliases = { "changes", "news", "whatsnew" },
 	run = function() CL.Open() end,
 })
+
+--- After an update (0.69.11, the player's ask): the first login on a new version says so, once, in one line: how many
+--- things the version's entry lists and where to read them. A fresh install says nothing (its first open offers the
+--- tour). The version seen is kept (db.versionSeen); one who used Terminal before that was kept (0.69 and before) counts
+--- as updating, so the release that brings this says it too.
+function CL.Announce()
+	local db = ns.db
+	local now = ns.version
+	if type(db) ~= "table" or type(now) ~= "string" or now == "dev" then return false end
+	local seen = db.versionSeen
+	db.versionSeen = now
+	if seen == now then return false end
+	if seen == nil and not (db.tourOffered or (type(db.history) == "table" and #db.history > 0)) then return false end
+	local top = CL.LOG[1]
+	local n = top and top.v == now and type(top.items) == "table" and #top.items or 0
+	if n > 0 then
+		ns:Print(L["Updated to %s: %d new things. .changelog shows them"]:format(now, n))
+	else
+		ns:Print(L["Updated to %s. .changelog shows what's new"]:format(now))
+	end
+	return true
+end
+do
+	-- (a few seconds in: after the game's and other addons' login lines, not lost among them)
+	local f = CreateFrame("Frame")
+	f:RegisterEvent("PLAYER_LOGIN")
+	f:SetScript("OnEvent", function(self)
+		self:UnregisterAllEvents()
+		if C_Timer and C_Timer.After then C_Timer.After(4, CL.Announce) else CL.Announce() end
+	end)
+end
