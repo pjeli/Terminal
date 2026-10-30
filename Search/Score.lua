@@ -215,8 +215,14 @@ end
 
 -- close spellings: how far a word may be from a name's word, in Fuzzy.typo's costs (a slip of the hand 2, any other
 -- change 3; 0.68.15, the player's call): 4-7 letters, one mistake of any kind; 8+, two slips, or a slip and another
--- mistake, not two keys far from where they belong
-local function NearLimit(n)
+-- mistake, not two keys far from where they belong. `tk`, the word itself: counted in letters, not bytes ("льняная" is
+-- 7 letters in 14 bytes), and none for a word of Chinese or Korean characters: a byte off there is another character
+-- altogether (铜 copper and 铝 aluminium differ in their last byte), not a slip of the hand
+local function NearLimit(n, tk)
+	if tk then
+		if tk:find("[\224-\244]") then return nil end
+		n = #(tk:gsub("[\128-\191]", ""))
+	end
 	if n < 4 then return nil end
 	return n >= 8 and 5 or 3
 end
@@ -278,8 +284,8 @@ local function Positions(e, tokens)
 		elseif how == "short" then
 			local s, f = find(lname or ns.Lower(name), xs[at], 1, true)
 			for k = s or 1, f or 0 do set[k] = true end
-		elseif not how and UI.closeSpellings and NearLimit(#tk) then -- a close spelling: the word it's close to
-			local _, s, f = NearWord(tk, lname or ns.Lower(name), NearLimit(#tk))
+		elseif not how and UI.closeSpellings and NearLimit(#tk, tk) then -- a close spelling: the word it's close to
+			local _, s, f = NearWord(tk, lname or ns.Lower(name), NearLimit(#tk, tk))
 			for k = s or 1, f or 0 do set[k] = true end
 		end
 	end

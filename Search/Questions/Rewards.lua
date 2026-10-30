@@ -105,7 +105,7 @@ local function CloseOf(tk, idx)
 	if c then return c end
 	c = {}
 	local S = ns.Score
-	local limit = S and S.NearLimit(#tk)
+	local limit = S and S.NearLimit(#tk, tk)
 	if limit then
 		for _, it in ipairs(idx) do
 			local d = S.NearWord(tk, it.m, limit)

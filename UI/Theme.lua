@@ -86,6 +86,17 @@ T.FONTS = {
 	skurri = "Fonts\\SKURRI.TTF",
 }
 T.FONT_ORDER = { "friz", "arial", "morpheus", "skurri" }
+-- (a client whose letters those Latin fonts lack: each choice is one of the client's own fonts instead, as
+-- LibSharedMedia lists them per language. Friz is the game's own font, STANDARD_TEXT_FONT, already the client's; Russian
+-- has Cyrillic copies of Morpheus and Skurri (Arial Narrow has Cyrillic); Chinese and Korean clients have fonts of their
+-- own. A file the client doesn't have: SetFace falls back to the game's own font)
+T.LOCALE_FONTS = {
+	ruRU = { morpheus = "Fonts\\MORPHEUS_CYR.TTF", skurri = "Fonts\\SKURRI_CYR.TTF" },
+	zhCN = { arial = "Fonts\\ARHei.ttf", morpheus = "Fonts\\ARKai_C.ttf", skurri = "Fonts\\ARKai_T.ttf" },
+	zhTW = { arial = "Fonts\\bHEI01B.ttf", morpheus = "Fonts\\bKAI00M.ttf", skurri = "Fonts\\bLEI00D.ttf" },
+	koKR = { arial = "Fonts\\2002.TTF", morpheus = "Fonts\\K_Damage.TTF", skurri = "Fonts\\K_Pagetext.TTF" },
+}
+for id, path in pairs(T.LOCALE_FONTS[ns.LOCALE] or {}) do T.FONTS[id] = path end
 
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",

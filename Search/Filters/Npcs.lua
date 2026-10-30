@@ -7,7 +7,7 @@ local F = ns.Filters
 local P = F._
 local KEYS, IS = P.KEYS, P.IS
 local Range = F.Range
-local NpcID, NpcField = P.NpcID, P.NpcField
+local NpcID, NpcField, EnglishTitle = P.NpcID, P.NpcField, P.EnglishTitle
 local ClearStanding = P.ClearStanding
 local Generations, Keep, Kept, Forget = P.Generations, P.Keep, P.Kept, P.Forget
 local Lower = ns.Lower
@@ -249,7 +249,8 @@ KEYS.who = KEYS.on
 -- Trainers, by what they teach: Questie's subtitle for the NPC ("Warrior Trainer", "Journeyman
 -- Blacksmith", "Herbalism Trainer", "Pet Trainer"). Profession names map to the part every rank's
 -- title shares (blacksmithing -> "blacksmith": Journeyman/Expert/Artisan Blacksmith). English
--- titles, as Questie's database has them.
+-- titles, as Questie's database has them (on another client, where QuestieDB translates them, its untranslated one:
+-- P.EnglishTitle).
 local CLASSES = { "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid",
 	"death knight", "monk", "demon hunter", "evoker" }
 -- each profession: the words its trainers' titles use (Journeyman Blacksmith, Herbalist, Miner, Fisherman, Physician...)
@@ -267,7 +268,7 @@ PROFS["first aid"] = PROFS.firstaid
 -- the title says trainer, or Questie's flags do (Herbalist, Miner, Physician have no "trainer" in theirs)
 local function TrainerTitle(e)
 	if not NpcID(e) then return nil end
-	local sub = rawget(e, "sub") or NpcField(e, "subName")
+	local sub = EnglishTitle(e)
 	if type(sub) ~= "string" or sub == "" then return nil end
 	sub = LowerText(sub)
 	if sub:find("trainer", 1, true) or sub:find("instructor", 1, true) or NpcRole(e, "TRAINER") then return sub end
@@ -276,7 +277,7 @@ end
 -- PvP NPCs (0.43.5): "nearby battlemaster" listed anything with "battle" in it, of either faction
 local function NpcTitle(e)
 	if not NpcID(e) then return nil end
-	local sub = rawget(e, "sub") or NpcField(e, "subName")
+	local sub = EnglishTitle(e)
 	return type(sub) == "string" and sub ~= "" and LowerText(sub) or nil
 end
 local function Battlemaster(e)
@@ -430,10 +431,13 @@ KEYS.trainer = function(v)
 	-- a class or profession in the client's language (trainer:bergbau): Questie's titles are English (Simple.lua's game words)
 	local said = ns.Easy and ns.Easy.GameWord and ns.Easy.GameWord(v)
 	if said and said:find("^trainer:") then return KEYS.trainer(said:sub(9)) end
-	-- anything else: a word of the title (pet, riding, weapon, portal, demon...)
+	-- anything else: a word of the title (pet, riding, weapon, portal, demon...), in English or as the client shows it
 	return function(e)
 		local sub = TrainerTitle(e)
-		return sub and sub:find(v, 1, true) and true or false
+		if not sub then return false end
+		if sub:find(v, 1, true) then return true end
+		local shown = rawget(e, "sub") or NpcField(e, "subName")
+		return type(shown) == "string" and LowerText(shown):find(v, 1, true) ~= nil
 	end
 end
 

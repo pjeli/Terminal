@@ -94,6 +94,13 @@ local function NpcField(e, field)
 	return I and I.NpcField and I.NpcField(id, field) or nil
 end
 P.NpcID, P.NpcField = NpcID, NpcField
+--- An NPC's title to match words against, in English as Questie's base data has it ("Mining Trainer"), even on a
+--- client QuestieDB translates titles for ("Bergbaulehrer"): the trainer words, ranks and vendor titles are English.
+--- The title as shown (the client's) when there's no English one to read.
+function P.EnglishTitle(e)
+	if not NpcID(e) then return nil end
+	return NpcField(e, "subNameEn") or rawget(e, "sub") or NpcField(e, "subName")
+end
 
 --- A number range from "20", "20-30", "20-", "-30", "20+", "<30", "<=30", ">20", ">=20" ("30-20" is 20-30).
 local function Range(v)

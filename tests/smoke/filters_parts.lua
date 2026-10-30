@@ -467,6 +467,9 @@ do -- Fuzzy.score: the needle's letters made once per needle (no string.sub per 
 			end
 			for _, lh in ipairs(round % 4 == 0 and { lhay, false } or { lhay }) do -- (now and then the name lowercased by score)
 				local a1, a2 = Old(needle, hay, lh or nil)
+				-- (0.69.1: a needle with a three-byte character, Chinese or Korean, matches scattered only with its characters
+				-- whole in the name, Fuzzy.CharsInOrder; these needles are cut from names byte by byte)
+				if a1 and not a2 and not Fuzzy.CharsInOrder(needle, lh or ns.Lower(hay)) then a1 = nil end
 				local b1, b2 = Fuzzy.score(needle, hay, lh or nil)
 				if a1 == b1 and a2 == b2 then same = same + 1 else
 					differ = differ + 1

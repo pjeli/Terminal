@@ -36,6 +36,33 @@ local function substringScore(needle, hay, lhay, n, m)
 	return best, at
 end
 
+--- Whether every character of a needle with letters past ASCII is in the name whole, in order. The scattered look
+--- goes byte by byte: a Chinese character is three bytes, and its bytes turn up spread over others (草 "found" in
+--- 治疗药剂: bytes of 药 and 剂). Letters of one or two bytes (accented Latin, Cyrillic) don't repeat their bytes across
+--- letters that way; only a needle with a three- or four-byte character is checked. Made once per needle.
+local wholeChars, wholeCount = {}, 0
+local function CharsInOrder(needle, lhay)
+	local cs = wholeChars[needle]
+	if cs == nil then
+		cs = false
+		if find(needle, "[\224-\244]") then
+			cs = {}
+			for ch in needle:gmatch("[%z\1-\127\194-\244][\128-\191]*") do cs[#cs + 1] = ch end
+		end
+		if wholeCount >= 256 then wholeChars, wholeCount = {}, 0 end
+		wholeChars[needle], wholeCount = cs, wholeCount + 1
+	end
+	if not cs then return true end
+	local pos = 0
+	for i = 1, #cs do
+		local _, e = find(lhay, cs[i], pos + 1, true)
+		if not e then return false end
+		pos = e
+	end
+	return true
+end
+Fuzzy.CharsInOrder = CharsInOrder
+
 --- needle must already be lowercase. lhay is optional (lowercased hay).
 --- Returns score, positions (array of byte indices in hay) or nil if no match. The same score
 --- Fuzzy.score gives, so the letters lit up are the ones that ranked the row: a needle found as it
@@ -58,6 +85,7 @@ function Fuzzy.match(needle, hay, lhay)
 		for i = 1, n do p[i] = at + i - 1 end
 		return sub, p
 	end
+	if not CharsInOrder(needle, lhay) then return nil end
 
 	-- cheap subsequence check first
 	local pos = 0
@@ -164,6 +192,7 @@ function Fuzzy.score(needle, hay, lhay)
 	end
 	local sub = substringScore(needle, hay, lhay, n, m)
 	if sub then return sub, true end
+	if not CharsInOrder(needle, lhay) then return nil end
 	-- cheap subsequence check first; each letter's earliest place bounds where its row starts
 	local Lo, L = rowLo, Parts(needle, n)
 	local pos = find(lhay, L[1], 1, true)

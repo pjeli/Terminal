@@ -20,7 +20,19 @@ local function QDB() return QD.DB() end
 
 --- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
 -- the small fields filters ask of every NPC row on every keystroke ("vendor", "nearest repair"): read once per NPC
-local SMALL = { npcFlags = true, friendlyToFaction = true, minLevel = true, maxLevel = true, zoneID = true, subName = true }
+local SMALL = { npcFlags = true, friendlyToFaction = true, minLevel = true, maxLevel = true, zoneID = true, subName = true,
+	subNameEn = true }
+-- "subNameEn": an NPC's title as QuestieDB's base data has it, in English, on a client in another language (QuestieDB
+-- translates titles there: "Bergbaulehrer", "Maître des mineurs"; Terminal matches titles in English). Nil on an
+-- English client, or from a QuestieDB that can't say (no GetRaw): the title as read then
+local ENGLISH_CLIENT = ns.LOCALE == nil or ns.LOCALE == "enUS" or ns.LOCALE == "enGB"
+local function Query(DB, id, field)
+	if field == "subNameEn" then
+		if ENGLISH_CLIENT or not DB.RawNPCSingle then return nil end
+		return ns.Str(Safe(DB.RawNPCSingle, id, "subName"))
+	end
+	return Safe(DB.QueryNPCSingle, id, field)
+end
 local fieldCache, NONE, fieldFrom = {}, {}, nil
 function I.NpcField(id, field)
 	-- (a small field read before: from the cache, without asking for the database first; review, 0.53.6)
@@ -34,13 +46,13 @@ function I.NpcField(id, field)
 	end
 	local DB = QDB()
 	if not DB then return nil end
-	if not SMALL[field] then return Safe(DB.QueryNPCSingle, id, field) or nil end
+	if not SMALL[field] then return Query(DB, id, field) or nil end
 	if fieldFrom ~= DB then fieldCache, fieldFrom = {}, DB end -- (another database: QuestieDB reloaded, tests)
 	local byId = fieldCache[field]
 	if not byId then byId = {}; fieldCache[field] = byId end
 	local v = byId[id]
 	if v == nil then
-		v = Safe(DB.QueryNPCSingle, id, field)
+		v = Query(DB, id, field)
 		if v == nil then v = NONE end
 		byId[id] = v
 	end

@@ -701,7 +701,8 @@ local function AddTrainers(out, prof, need)
 	local list = {}
 	for _, e in ipairs(Trainers(prof[1])) do
 		local id = e.npcID or rawget(e, "key")
-		local title = rawget(e, "sub") or (I and I.NpcField and I.NpcField(id, "subName")) or ""
+		local P = ns.Filters and ns.Filters._
+		local title = (P and P.EnglishTitle and P.EnglishTitle(e)) or rawget(e, "sub") or (I and I.NpcField and I.NpcField(id, "subName")) or ""
 		local cap = type(title) == "string" and RankCap(ns.Lower(title)) or nil
 		if not (cap and need and cap < need) then
 			local d = here and I.NpcDistance and I.NpcDistance(id, here) or nil

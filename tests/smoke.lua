@@ -349,7 +349,9 @@ end
 
 io.write("[events fired]\n")
 local fails = 0
-local function check(c, m) if not c then fails = fails + 1; io.write("FAIL: " .. m .. "\n") end end
+-- (tests/locale_usable.py runs Terminal on another client language: this file's own checks are English's, so they're
+-- quiet there; only the extra files' count, below)
+local function check(c, m) if not c then fails = fails + 1; if not _G.SMOKE_EXTRAS_ONLY then io.write("FAIL: " .. m .. "\n") end end end
 
 -- providers all collect without error and produce entries
 for _, id in ipairs(ns.providerOrder) do
@@ -814,6 +816,27 @@ local function key(k, char) F.scripts.OnKeyDown(F, k); if char then F.scripts.On
 local function typeText(s) for ch in s:gmatch(".") do key(ch == " " and "SPACE" or ch:upper(), ch) end end
 local function query() return UI.edit:GetText() end
 local function withCtrl(fn) _G.IsControlKeyDown = function() return true end; fn(); _G.IsControlKeyDown = function() return false end end
+
+-- (tests/locale_usable.py: Terminal loaded as another client language loads it. The checks from here on expect English,
+-- so only the extra files run, each with its own budget, and only their failures count)
+if _G.SMOKE_EXTRAS_ONLY then
+	local own = 0
+	local function ownCheck(c, m) if not c then own = own + 1; io.write("FAIL: " .. m .. "\n") end end
+	local T = { ns = ns, UI = UI, F = F, S = S, check = ownCheck, log = log, logHas = logHas, key = key, typeText = typeText,
+		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
+		ef = ef, clock = function() return clock end }
+	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
+		local chunk, err = loadfile(file)
+		if not chunk then own = own + 1; io.write("FAIL: " .. tostring(err) .. "\n")
+		else
+			debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
+			local ok, e = pcall(chunk, T)
+			if not ok then own = own + 1; io.write("FAIL: " .. file .. ": " .. tostring(e) .. "\n") end
+		end
+	end
+	_G.SMOKE_FAILS = own
+	return
+end
 local mark
 
 do

@@ -119,6 +119,9 @@ function QD.DB()
 			libDB = {
 				QueryQuestSingle = L.Quest.Get,
 				QueryNPCSingle = L.Npc.Get,
+				-- (a field as the base data has it, untranslated: English. On another client QuestieDB translates names,
+				-- titles and objectives; titles are matched in English, Search/Filters/Npcs.lua)
+				RawNPCSingle = type(L.Npc.GetRaw) == "function" and L.Npc.GetRaw or nil,
 				QueryItemSingle = item and item.Get or nil,
 				QueryObjectSingle = type(L.Object) == "table" and L.Object.Get or nil,
 				QuestIds = function() return LibIds(L.Quest) end,

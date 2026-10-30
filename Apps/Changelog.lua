@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "0.69.1", when = "in testing",
+		items = {
+			"Other languages: Chinese searches find only names with the characters typed, fonts show Russian, Chinese and Korean letters, and trainers are found by their translated titles.",
+		},
+	},
+	{
 		v = "0.69.0", when = "released October 2026",
 		items = {
 			"!t: your guild or group asks Terminal (\"!t nearest innkeeper\") and it answers for them. Off until you switch it on: .ask guild on.",
@@ -44,15 +50,6 @@ CL.LOG = {
 			"Sort by more than one field, and Ctrl+Z / Ctrl+Y undo in the prompt.",
 			".explain and \"Why is this here?\" say what a search does and why a row is listed.",
 			"Upgrades follow your talents and hit cap; \"upgrades i can buy\" and \"ah upgrades\" find them for sale.",
-		},
-	},
-	{
-		v = "0.66.0", when = "released October 2026",
-		items = {
-			"Bind any key to Terminal; it does what ` does.",
-			"\"bag quests\" lists the bags you can still get from quests.",
-			"Sort either way: pick a sort again to flip it; \"farthest innkeeper\" too.",
-			"Upgrades by talent tree (.weights fury, holy, bear), or your own Pawn scale.",
 		},
 	},
 }

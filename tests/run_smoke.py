@@ -16,5 +16,8 @@ if names:
     print("[unknown frame methods: " + ", ".join(names) + "]")
 # a failed check (or a test file that errored or hit the runaway guard) fails the run, so CI and scripts see it
 fails = rt.globals().SMOKE_FAILS
-if fails is None or fails > 0:
+# then Terminal on each other client language it's translated into (tests/locale_usable.py: a run each)
+import locale_usable
+langs_failing = locale_usable.main([])
+if fails is None or fails > 0 or langs_failing:
     sys.exit(1)

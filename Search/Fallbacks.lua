@@ -132,7 +132,7 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget, cap)
 	local limits, need = {}, nil
 	local exact = tokens.exact
 	for i = 1, #tokens do
-		limits[i] = not (exact and exact[tokens[i]]) and NearLimit(#tokens[i]) or nil -- (a "quoted phrase": as it is only)
+		limits[i] = not (exact and exact[tokens[i]]) and NearLimit(#tokens[i], tokens[i]) or nil -- (a "quoted phrase": as it is only)
 		if limits[i] and cap and cap < limits[i] then limits[i] = cap end
 		if limits[i] then
 			local least = #tokens[i] - math.floor(limits[i] / ns.Fuzzy.TYPO_SLIP)
