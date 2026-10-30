@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.69.3 (in testing)
+## 0.69.4 (in testing)
 
+- Stats in your client's language: Simple mode knows every stat by the game's own name for it ("Ausdauer", "Angriffskraft", "Agilité", "Выносливость", "耐力"), so "Ausdauer Essen" finds stamina food as "stamina food" does, and food and drink by your language's words ("Essen", "comida", "nourriture", "еда", "食物"). Food's and potions' effect texts are read for every stat by the game's name, and on a Russian client in any of its endings ("выносливости").
 - Simple mode's questions can be asked in German, Spanish, French, Russian and Chinese, as the nearest/where/mats ones already could: "what should i do", "quests to drop", "where is my body", "my auctions", "spells not on my bars", "recipes i'm missing", "<profession> plan", "when do i learn <spell>" and 40 more ("Quests zum Abbrechen", "où est mon corps", "мои аукционы", "我的邮件"). Each is read as the English question it stands for; words typed after it follow it. English is understood on every client as before.
 - Chinese searches find only names with the characters you typed. A character's bytes were matched one by one, so 草 found 治疗药剂, which hasn't it. No more "close spellings" a byte away for Chinese and Korean either (铝 aluminium is a byte from 铁 iron), and a Russian word's close spellings are counted in letters, not bytes.
 - The font setting shows your letters on every client: Morpheus and Skurri use their Cyrillic copies on a Russian client, and on Chinese and Korean clients each choice is one of the client's own fonts (the Latin fonts have no Chinese or Korean letters, so text went blank).

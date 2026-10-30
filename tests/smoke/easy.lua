@@ -509,6 +509,67 @@ Run("stamina food: consumables in your bags", function()
 	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
 end)
 
+-- (0.69.4) the same on a German client: the game's own stat names ("Ausdauer", "Angriffskraft") are Simple mode's words
+-- and what the effect text is read for; food in the language's words ("Essen", translated); Russian effect texts bend
+-- the stat's name ("выносливости")
+Run("stats in the client's language: Ausdauer Essen, and Russian word endings", function()
+	E.Set(true)
+	local F = ns.Filters
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+	local G = { "ITEM_MOD_STAMINA_SHORT", "ITEM_MOD_ATTACK_POWER_SHORT", "ITEM_MOD_SPIRIT_SHORT", "SPELL_STAT3_NAME" }
+	local save = { info = C_Item.GetItemInfo, inst = C_Item.GetItemInfoInstant, spell = C_Item.GetItemSpell,
+		desc = C_Spell.GetSpellDescription, stats = C_Item.GetItemStats, locale = ns.LOCALE, food = rawget(ns.L, "words: food"), g = {} }
+	for _, k in ipairs(G) do save.g[k] = rawget(_G, k) end
+	_G.ITEM_MOD_STAMINA_SHORT, _G.SPELL_STAT3_NAME = "Ausdauer", "Ausdauer"
+	_G.ITEM_MOD_ATTACK_POWER_SHORT, _G.ITEM_MOD_SPIRIT_SHORT = "Angriffskraft", "Willenskraft"
+	rawset(ns.L, "words: food", "Essen | Nahrung")
+	ns.LOCALE = "deDE"; E.ForgetGameWords()
+	local ITEMS = { -- (the class and subclass numbers last: what the game gives on every client, 0 and 5 for food)
+		[301] = { "Gewürzte Wolfsrippchen", "|Hitem:301|h", 1, 15, 10, "Verbrauchbar", "Speis & Trank", 20, "", 0, 0, 0, 5 },
+		[302] = { "Zähes Dörrfleisch", "|Hitem:302|h", 1, 5, 1, "Verbrauchbar", "Speis & Trank", 20, "", 0, 0, 0, 5 },
+		[303] = { "Gegrillter Tintenfisch", "|Hitem:303|h", 1, 45, 35, "Verbrauchbar", "Speis & Trank", 20, "", 0, 0, 0, 5 },
+	}
+	local DESC = { [6301] = "Stellt im Verlauf von 21 Sek. insgesamt 552 Gesundheit wieder her. Wenn Ihr mindestens 10 Sek. lang esst, werdet Ihr satt und erhaltet 15 Min. lang 6 Ausdauer und Willenskraft.",
+		[6302] = "Stellt im Verlauf von 18 Sek. insgesamt 61 Gesundheit wieder her.",
+		[6303] = "Stellt im Verlauf von 27 Sek. insgesamt 874 Gesundheit wieder her. Wenn Ihr mindestens 10 Sek. lang esst, werdet Ihr satt und erhaltet 10 Min. lang 40 Angriffskraft." }
+	C_Item.GetItemInfo = function(id) local t = ITEMS[tonumber(id) or 0] if t then return unpack(t) end end
+	C_Item.GetItemInfoInstant = function(id) return id, "Verbrauchbar", "Speis & Trank", "", 1, 0, 5 end -- (class 0, subclass 5: food)
+	C_Item.GetItemSpell = function(id) return "spell", 6000 + id end
+	C_Spell.GetSpellDescription = function(id) return DESC[id] end
+	C_Item.GetItemStats = function() return {} end
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows({
+		{ name = "Gewürzte Wolfsrippchen", itemID = 301 }, { name = "Zähes Dörrfleisch", itemID = 302 }, { name = "Gegrillter Tintenfisch", itemID = 303 },
+	}) } } })
+	check(E.WORDS["ausdauer"] == "stat:stamina" and E.WORDS["angriffskraft"] == "stat:ap" and E.WORDS["essen"] == "type:food",
+		"the game's stat names and the language's food words are Simple mode's words: " .. tostring(E.WORDS["ausdauer"]) .. " "
+		.. tostring(E.WORDS["angriffskraft"]) .. " " .. tostring(E.WORDS["essen"]))
+	local res = In("bags", "Ausdauer Essen")
+	check(#res == 1 and res[1].name == "Gewürzte Wolfsrippchen", "Ausdauer Essen: the food that gives Ausdauer: " .. Show(res))
+	UI:Hide(); FlushAll()
+	res = In("bags", "Angriffskraft Essen")
+	check(#res == 1 and res[1].name == "Gegrillter Tintenfisch", "Angriffskraft Essen: " .. Show(res))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false; UI:EasyChanged()
+	res = UI:Search("stat:stamina>=6")
+	check(#res == 1 and res[1].name == "Gewürzte Wolfsrippchen", "Advanced stat:stamina>=6 reads the German effect text: " .. Show(res))
+	E.Set(true)
+	-- Russian: "выносливость" (the game's name) found as "выносливости" in an effect text, "сила атаки" as "силу атаки"
+	local function Has(text, word)
+		local pat = F.Stemmed(word)
+		if type(pat) == "table" then return text:find(pat.pat) ~= nil end
+		return text:find(pat, 1, true) ~= nil
+	end
+	check(Has("и повышает показатель выносливости и духа на 6 ед.", "выносливость") and Has("увеличивает силу атаки на 40", "сила атаки")
+		and not Has("увеличивает ловкость на 25", "выносливость") and Has("erhöht ausdauer um 6", "ausdauer"),
+		"Russian: a stat's name found in its bent forms; another stat not; other languages as they are")
+	ns.LOCALE = save.locale; E.ForgetGameWords()
+	for _, k in ipairs(G) do _G[k] = save.g[k] end
+	rawset(ns.L, "words: food", save.food)
+	C_Item.GetItemInfo, C_Item.GetItemInfoInstant, C_Item.GetItemSpell = save.info, save.inst, save.spell
+	C_Spell.GetSpellDescription, C_Item.GetItemStats = save.desc, save.stats
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+end)
+
 Run("rare shield wailing caverns: the loot, even when not every word fits", function()
 	E.Set(true)
 	local F = ns.Filters

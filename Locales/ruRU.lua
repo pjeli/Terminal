@@ -2516,6 +2516,8 @@ L["with is:upgrade: the biggest upgrades first, by how much each beats what you 
 L["with its list"] = "со своим списком"
 L["words in quotes are found together, as they are: \"outlaw saber\""] = "слова в кавычках ищутся вместе, как есть: \"outlaw saber\""
 L["words, @kinds, filters and chains: @npc is:vendor in:barrens, thorium belt > mats"] = "слова, @kinds, фильтры и цепочки: @npc is:vendor in:barrens, thorium belt > mats"
+L["words: drink"] = "напиток | напитки | питье | питьё"
+L["words: food"] = "еда | пища | еду"
 L["world boss"] = "мировой босс"
 L["write it"] = "вписать"
 L["x%d: %s"] = "x%d: %s"

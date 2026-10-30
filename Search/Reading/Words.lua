@@ -153,6 +153,20 @@ function E.GameWords()
 			if ok then Add(name, "type:" .. word) end
 		end
 	end
+	-- stats by the game's own names ("Ausdauer", "Angriffskraft": "Ausdauer Essen" is "stamina food"; 0.69.4)
+	if F and F.STATS and F.StatGameNames then
+		for _, w in ipairs(F.STATS) do
+			for _, name in ipairs(F.StatGameNames(w)) do Add(name, "stat:" .. w) end
+		end
+	end
+	-- food and drink: the game names them together ("Speis & Trank"), so the language's own words for each, translated
+	-- ("words: ...": | between them)
+	for _, lw in ipairs({ { "food", L["words: food"] }, { "drink", L["words: drink"] } }) do
+		local said, spec = lw[2], rawget(E.WORDS, lw[1])
+		if spec and type(said) == "string" and not said:find("^words: ") then
+			for alt in (said .. "|"):gmatch("([^|]*)|") do Add(alt, spec) end
+		end
+	end
 	Add(_G.TANK, "is:tank"); Add(_G.HEALER, "is:healer"); Add(_G.DAMAGER, "is:dps")
 	for g, spec in pairs(NPC_ROLE_GLOBALS) do Add(_G[g], spec) end
 	for i = 1, 8 do

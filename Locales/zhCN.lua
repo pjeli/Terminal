@@ -2516,6 +2516,8 @@ L["with is:upgrade: the biggest upgrades first, by how much each beats what you 
 L["with its list"] = "带上它的列表"
 L["words in quotes are found together, as they are: \"outlaw saber\""] = "引号中的词按原样一起查找：\"outlaw saber\""
 L["words, @kinds, filters and chains: @npc is:vendor in:barrens, thorium belt > mats"] = "词、@kinds、筛选条件和链式：@npc is:vendor in:barrens、thorium belt > mats"
+L["words: drink"] = "饮料 | 饮品"
+L["words: food"] = "食物 | 食品"
 L["world boss"] = "世界首领"
 L["write it"] = "写入"
 L["x%d: %s"] = "x%d：%s"

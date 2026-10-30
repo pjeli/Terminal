@@ -2516,6 +2516,8 @@ L["with is:upgrade: the biggest upgrades first, by how much each beats what you 
 L["with its list"] = "con su lista"
 L["words in quotes are found together, as they are: \"outlaw saber\""] = "las palabras entre comillas se buscan juntas, tal cual: \"outlaw saber\""
 L["words, @kinds, filters and chains: @npc is:vendor in:barrens, thorium belt > mats"] = "palabras, @kinds, filtros y cadenas: @npc is:vendor in:barrens, thorium belt > mats"
+L["words: drink"] = "bebida | bebidas"
+L["words: food"] = "comida | comidas | alimento | alimentos"
 L["world boss"] = "jefe del mundo"
 L["write it"] = "escribirlo"
 L["x%d: %s"] = "x%d: %s"

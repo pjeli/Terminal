@@ -14,10 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.69.3", when = "in testing",
+		v = "0.69.4", when = "in testing",
 		items = {
 			"Other languages: Chinese searches find only names with the characters typed, fonts show Russian, Chinese and Korean letters, and trainers are found by their translated titles.",
 			"Simple mode's questions in German, Spanish, French, Russian and Chinese: \"Quests zum Abbrechen\", \"où est mon corps\", \"mis subastas\" and 45 more.",
+			"Stats in your language: \"Ausdauer Essen\" finds stamina food, as \"stamina food\" does, with the game's own names for every stat.",
 		},
 	},
 	{

@@ -255,3 +255,19 @@ do
 	end
 	check(#taken == 0, lang .. ": ordinary searches stay as typed: " .. table.concat(taken, ", "))
 end
+
+-- 10. food and drink in the language's own words (the game names them together, "Speis & Trank"): Simple mode's words
+do
+	local wrong = {}
+	for en, key in pairs({ food = "words: food", drink = "words: drink" }) do
+		local said = rawget(L, key)
+		if type(said) ~= "string" then wrong[#wrong + 1] = key .. " untranslated"
+		else
+			for alt in (said .. "|"):gmatch("([^|]*)|") do
+				local w = ns.Lower(alt):gsub("^%s+", ""):gsub("%s+$", "")
+				if w ~= "" and E.WORDS[w] ~= "type:" .. en then wrong[#wrong + 1] = w .. " -> " .. tostring(E.WORDS[w]) end
+			end
+		end
+	end
+	check(#wrong == 0, lang .. ": food and drink in its words: " .. table.concat(wrong, ", "))
+end

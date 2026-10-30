@@ -353,6 +353,56 @@ function F.WarmEffects(list)
 end
 F.ClearEffects = function() Forget(effects); effectRetry = {}; Forget(classes) end
 
+-- the game's own names for each stat, in the client's language (as AtlasLoot's IngameLocales reads them): what an
+-- effect text says ("Erhöht Ausdauer um 6") and Simple mode's words in that language ("Ausdauer Essen"; Words.lua)
+local STAT_GLOBALS = {
+	STRENGTH = { "ITEM_MOD_STRENGTH_SHORT", "SPELL_STAT1_NAME" }, AGILITY = { "ITEM_MOD_AGILITY_SHORT", "SPELL_STAT2_NAME" },
+	STAMINA = { "ITEM_MOD_STAMINA_SHORT", "SPELL_STAT3_NAME" }, INTELLECT = { "ITEM_MOD_INTELLECT_SHORT", "SPELL_STAT4_NAME" },
+	SPIRIT = { "ITEM_MOD_SPIRIT_SHORT", "SPELL_STAT5_NAME" }, RESISTANCE0 = { "RESISTANCE0_NAME", "ARMOR" },
+	ATTACK_POWER = { "ITEM_MOD_ATTACK_POWER_SHORT", "ITEM_MOD_MELEE_ATTACK_POWER_SHORT" },
+	RANGED_ATTACK_POWER = { "ITEM_MOD_RANGED_ATTACK_POWER_SHORT" },
+	SPELL_POWER = { "ITEM_MOD_SPELL_POWER_SHORT", "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT" },
+	HEAL = { "ITEM_MOD_SPELL_HEALING_DONE_SHORT" }, CRIT = { "ITEM_MOD_CRIT_RATING_SHORT" },
+	HIT = { "ITEM_MOD_HIT_RATING_SHORT" }, HASTE = { "ITEM_MOD_HASTE_RATING_SHORT" }, DODGE = { "ITEM_MOD_DODGE_RATING_SHORT" },
+	PARRY = { "ITEM_MOD_PARRY_RATING_SHORT" }, BLOCK = { "ITEM_MOD_BLOCK_RATING_SHORT", "ITEM_MOD_BLOCK_VALUE_SHORT" },
+	DEFENSE = { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT" },
+	REGEN = { "ITEM_MOD_MANA_REGENERATION_SHORT", "ITEM_MOD_POWER_REGEN0_SHORT" },
+	DAMAGE_PER_SECOND = { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" },
+	RESISTANCE1 = { "RESISTANCE1_NAME" }, RESISTANCE2 = { "RESISTANCE2_NAME" }, RESISTANCE3 = { "RESISTANCE3_NAME" },
+	RESISTANCE4 = { "RESISTANCE4_NAME" }, RESISTANCE5 = { "RESISTANCE5_NAME" }, RESISTANCE6 = { "RESISTANCE6_NAME" },
+}
+--- A stat word's names as the game says them in the client's language, lowercase (none: an empty list).
+function F.StatGameNames(word)
+	local out, seen = {}, {}
+	local function Put(g)
+		if type(g) == "string" and g ~= "" and not g:find("%", 1, true) then
+			local l = Lower(g)
+			if not seen[l] then seen[l], out[#out + 1] = true, l end
+		end
+	end
+	local part = STAT_WORDS[word]
+	if not part then return out end
+	for _, k in ipairs(STAT_GLOBALS[part] or {}) do Put(_G[k]) end
+	for _, k in ipairs({ "SPELL_STAT_" .. part, "ITEM_MOD_" .. part .. "_SHORT", "ITEM_MOD_" .. part .. "_RATING_SHORT" }) do Put(_G[k]) end
+	return out
+end
+
+-- (Russian bends its words: an effect text says "выносливости", "силу атаки", not the names as they stand. A name in
+-- Cyrillic is looked for by each word's stem, its last vowel or soft sign dropped, any ending after it)
+local CYR_END = { ["а"] = true, ["е"] = true, ["и"] = true, ["о"] = true, ["у"] = true, ["ы"] = true, ["э"] = true,
+	["ю"] = true, ["я"] = true, ["ь"] = true, ["й"] = true }
+local PATTERN_MAGIC = "[%^%$%(%)%%%.%[%]%*%+%-%?]"
+local function Stemmed(name)
+	if not name:find("[\208\209]") then return name end
+	local words = {}
+	for w in name:gmatch("%S+") do
+		if #w > 4 and CYR_END[w:sub(-2)] then w = w:sub(1, -3) end
+		words[#words + 1] = w:gsub(PATTERN_MAGIC, "%%%0") .. "[\128-\191\208\209]*"
+	end
+	return { pat = table.concat(words, "%s+") }
+end
+F.Stemmed = Stemmed
+
 -- how an effect text names each stat when the game's own name isn't there (English)
 local EFFECT_ENGLISH = {
 	STRENGTH = "strength", AGILITY = "agility", STAMINA = "stamina", INTELLECT = "intellect", SPIRIT = "spirit",
@@ -364,18 +414,13 @@ local EFFECT_ENGLISH = {
 	-- "Increase sharp weapon damage by 2", "Increase the damage of a blunt weapon by 2"
 	WEAPON_DAMAGE = { "weapon damage", "blunt weapon", "sharp weapon", "damage of a weapon", "damage of your weapon" },
 }
---- The words an effect text uses for a typed stat: the game's own names first (its language), then English.
+--- The words an effect text uses for a typed stat: the game's own names first (its language), then English. A name in
+--- Cyrillic is a pattern of its stems ({ pat = ... }: Stemmed).
 local function EffectNames(word)
 	local part = STAT_WORDS[word]
-	if not part then return { word } end
+	if not part then return { Stemmed(word) } end
 	local names = {}
-	for _, k in ipairs({ "SPELL_STAT_" .. part, "ITEM_MOD_" .. part .. "_SHORT", "ITEM_MOD_" .. part .. "_RATING_SHORT" }) do
-		local g = _G[k]
-		if type(g) == "string" and g ~= "" and not g:find("%", 1, true) then names[#names + 1] = Lower(g) end
-	end
-	local stat = ({ STRENGTH = 1, AGILITY = 2, STAMINA = 3, INTELLECT = 4, SPIRIT = 5 })[part]
-	local g = stat and _G["SPELL_STAT" .. stat .. "_NAME"]
-	if type(g) == "string" and g ~= "" then names[#names + 1] = Lower(g) end
+	for _, g in ipairs(F.StatGameNames(word)) do names[#names + 1] = Stemmed(g) end
 	local en = EFFECT_ENGLISH[part]
 	if type(en) == "table" then
 		for _, w in ipairs(en) do names[#names + 1] = w end
@@ -389,8 +434,10 @@ end
 local function EffectHas(text, names, cmp)
 	for _, name in ipairs(names) do
 		local from = 1
+		local pat = type(name) == "table" and name.pat
 		while true do
-			local at, last = text:find(name, from, true)
+			local at, last
+			if pat then at, last = text:find(pat, from) else at, last = text:find(name, from, true) end
 			if not at then break end
 			if not cmp then return true end
 			-- "+6 Stamina", "6 Strength" (right before it), or "Strength by 25" (soon after it)
