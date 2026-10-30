@@ -275,5 +275,34 @@ do
 	check(E.NextExample() ~= "try: .share accept Ann", "...and not once it's gone")
 end
 
+-- (0.69.7 review) an invite to you with no group yet: the ticker runs, so it runs out on time, and the badge goes with it;
+-- the prompt's suggestion goes when it does; .share join alone says what to type
+do
+	local E = ns.Easy
+	local ep = SSH.game
+	ep:Off(); SSH.StopTicker()
+	local tickers, newWas = {}, C_Timer.NewTicker
+	C_Timer.NewTicker = function(_, f)
+		local t = { f = f }
+		function t:Cancel() self.cancelled = true end
+		tickers[#tickers + 1] = t
+		return t
+	end
+	ep.offers["w:ann"] = { id = "00000000000000aa", group = "default", name = "Ann", route = W("Ann"), at = ep:Now() }
+	SSH.Offered() -- (as the "N" handler's env.offered calls it)
+	check(#tickers == 1 and not tickers[1].cancelled, "an invite to you with no group: the ticker runs")
+	tickers[1].f()
+	check(not tickers[1].cancelled and ep:InvitesWaiting(), "...and keeps running while it waits")
+	check(E.NextExample() == "try: .share accept Ann" and E.Example() == "try: .share accept Ann", "the prompt suggests saying yes")
+	ep.offers["w:ann"].at = ep:Now() - SSH.INVITE_KEEP - 1
+	tickers[1].f()
+	check(next(ep.offers) == nil and tickers[1].cancelled and not ep:InvitesWaiting(), "run out: gone, the ticker stopped, nothing for the badge to show")
+	check(E.Example() ~= "try: .share accept Ann", "...and the prompt's suggestion with it: " .. tostring(E.Example()))
+	C_Timer.NewTicker = newWas
+	SSH.StopTicker()
+	local out = ns:FindCommand("share").run("join")
+	check(out[1]:find(".share join <code>", 1, true) ~= nil, ".share join alone: what to type: " .. tostring(out[1]))
+end
+
 _G.TerminalShareDB = savedDB
 ns.Crypto.HMAC = hmacWas

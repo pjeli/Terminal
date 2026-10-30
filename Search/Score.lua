@@ -219,7 +219,7 @@ end
 -- 7 letters in 14 bytes), and none for a word of Chinese or Korean characters: a byte off there is another character
 -- altogether (铜 copper and 铝 aluminium differ in their last byte), not a slip of the hand
 local function NearLimit(n, tk)
-	if tk then
+	if tk and tk:find("[\128-\255]") then
 		if tk:find("[\224-\244]") then return nil end
 		n = #(tk:gsub("[\128-\191]", ""))
 	end

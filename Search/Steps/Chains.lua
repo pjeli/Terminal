@@ -699,10 +699,12 @@ local function AddTrainers(out, prof, need)
 	local I = ns.Integrations
 	local here = I and I.Here and I.Here() or nil
 	local list = {}
+	local FP = ns.Filters and ns.Filters._ -- (P is this file's ns.Pipes)
 	for _, e in ipairs(Trainers(prof[1])) do
 		local id = e.npcID or rawget(e, "key")
-		local P = ns.Filters and ns.Filters._
-		local title = (P and P.EnglishTitle and P.EnglishTitle(e)) or rawget(e, "sub") or (I and I.NpcField and I.NpcField(id, "subName")) or ""
+		-- (the title as Questie's base data says it, English, even where QuestieDB translates titles: the ranks are English;
+		-- a row that isn't an NPC row by its kind, its own title or its NPC's)
+		local title = (FP and FP.EnglishTitle and FP.EnglishTitle(e)) or rawget(e, "sub") or (I and I.NpcField and I.NpcField(id, "subName")) or ""
 		local cap = type(title) == "string" and RankCap(ns.Lower(title)) or nil
 		if not (cap and need and cap < need) then
 			local d = here and I.NpcDistance and I.NpcDistance(id, here) or nil

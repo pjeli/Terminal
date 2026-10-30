@@ -205,7 +205,7 @@ E.PHRASES = {
 	{ "where to get %s", L["phrases: where to get %s"], "sources" },
 	{ "nearest %s", L["phrases: nearest %s"] },
 	{ "where %s", L["phrases: where is %s"] },
-	-- (0.69.1, the player: question words in the client's language) Simple mode's questions as each language asks them.
+	-- (0.69.2, the player: question words in the client's language) Simple mode's questions as each language asks them.
 	-- A phrasing with no %s is the whole question; words typed after it follow it ("meine Auktionen verkauft" = "my
 	-- auctions verkauft": the question's own little words, dates, filters, as after the English)
 	{ "what should i do", L["phrases: what should i do"] },

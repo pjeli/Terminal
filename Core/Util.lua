@@ -342,7 +342,8 @@ end
 --- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each (review, 0.53.6).
 function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage end
 --- A line that carries a secret (Terminal: Share's ".share join <group> <code>", and a password typed out of habit,
---- ".share password ...", as 0.69 and before took): never in the history, a tab, or anything saved. Here, not in Terminal: Share, so the line stays out whether that addon is loaded or not.
+--- ".share password ...", as 0.69 and before took): never in the history, a tab, or anything saved. Here, not in
+--- Terminal: Share, so the line stays out whether that addon is loaded or not.
 function ns.SecretLine(text)
 	if type(text) ~= "string" then return false end
 	local l = ns.Lower(text)
@@ -355,7 +356,7 @@ function ns.SecretLine(text)
 	return rest:find("^pass") ~= nil or rest:find("^pw%s") ~= nil or rest == "pw" or rest:find("^join%s+%S") ~= nil
 end
 
---- The line as the prompt shows it: a password line's password as *s, a * a byte (so every place in it is where it
+--- The line as the prompt shows it: a secret line's code or password as *s, a * a byte (so every place in it is where it
 --- was: the caret, a selection). Anything else as it is. (0.58.6, the player: "incase anyone is streaming")
 function ns.MaskSecret(text)
 	if not ns.SecretLine(text) then return text end

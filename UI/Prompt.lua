@@ -825,7 +825,7 @@ function UI:UpdateSyntax()
 	local text = ns.MaskSecret(edit:GetText() or "")
 	local lines = self:PromptLines()
 	local colours = Theme.Get().syntax
-	-- (a password being typed, ".ssh password ...": the copy shows it as *s, so it's always on; the box's own text, in
+	-- (a secret being typed, ".share join raid <code>": the copy shows it as *s, so it's always on; the box's own text, in
 	-- the game's typing mode (combat), is the game's password box: all *s. 0.58.6, the player: streams)
 	local secret = ns.SecretLine(text)
 	-- (what's applied, not only whether it's a password line: leaving Terminal's own keys with the line as it is, a

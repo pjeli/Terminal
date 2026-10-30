@@ -488,7 +488,11 @@ function E.OnBags()
 	if C_Timer and C_Timer.After then C_Timer.After(1, Run) else Run() end
 end
 --- The pool made again on the next look (tests).
-function E.ResetPool() pool.made = nil end
+function E.ResetPool()
+	pool.made = nil
+	-- (a suggestion from E.FIRST, Share's invite: gone with it, not shown until the next open; 0.69.7 review)
+	if pool.fromFirst then pool.first, pool.fromFirst = nil, nil end
+end
 do
 	local f = CreateFrame("Frame")
 	pcall(f.RegisterEvent, f, "BAG_UPDATE_DELAYED")
@@ -499,12 +503,12 @@ end
 E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()
 	local db = ns.db
-	pool.first = nil
+	pool.first, pool.fromFirst = nil, nil
 	-- (something waiting for you, Terminal: Share's invite: E.FIRST's functions, the first answer shown before anything)
 	for _, f in ipairs(E.FIRST or {}) do
 		local ok, ex = pcall(f)
 		if ok and type(ex) == "string" then
-			pool.first = ex
+			pool.first, pool.fromFirst = ex, true
 			return ex
 		end
 	end

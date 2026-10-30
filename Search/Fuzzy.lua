@@ -166,6 +166,9 @@ local function Parts(needle, n)
 	if needleCount >= 256 then needleParts, needleCount = {}, 0 end -- (typed words: a few per search)
 	c = {}
 	for i = 1, n do c[i], c[n + i] = ssub(needle, i, i), byte(needle, i) end
+	-- (a needle with a three- or four-byte character: its characters are looked for whole first, CharsInOrder; told once
+	-- here, so an English needle pays nothing for it per row: 0.69.7, review)
+	c.cjk = find(needle, "[\224-\244]") ~= nil
 	needleParts[needle], needleCount = c, needleCount + 1
 	return c
 end
@@ -192,9 +195,9 @@ function Fuzzy.score(needle, hay, lhay)
 	end
 	local sub = substringScore(needle, hay, lhay, n, m)
 	if sub then return sub, true end
-	if not CharsInOrder(needle, lhay) then return nil end
-	-- cheap subsequence check first; each letter's earliest place bounds where its row starts
 	local Lo, L = rowLo, Parts(needle, n)
+	if L.cjk and not CharsInOrder(needle, lhay) then return nil end
+	-- cheap subsequence check first; each letter's earliest place bounds where its row starts
 	local pos = find(lhay, L[1], 1, true)
 	if not pos then return nil end
 	local first = pos

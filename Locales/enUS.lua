@@ -1558,6 +1558,7 @@ L["Share: %s's code"] = true
 L["Share: %s's code for %s doesn't match yours"] = true
 L["Share: %s's code is in the box to copy (Ctrl+C). Anyone with it can join %s and see what's shared there: give it only to friends, by whisper or outside the game. They type .share join %s <code>"] = true
 L["Share: %s's invite to %s ran out before it came through; ask them to invite you again"] = true
+L["Share: .share join <code> with a code a friend gave you (or .share join <group> <code> to name the group)"] = true
 L["Share: .share rename <group> <new name>"] = true
 L["Share: a group has no owner, so there's no kick. To leave someone out, start over with the friends you trust: .share new <group>, .share invite each of them to it, then .share leave the old group (they leave it too)"] = true
 L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"] = true

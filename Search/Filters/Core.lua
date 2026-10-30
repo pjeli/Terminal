@@ -97,8 +97,12 @@ P.NpcID, P.NpcField = NpcID, NpcField
 --- An NPC's title to match words against, in English as Questie's base data has it ("Mining Trainer"), even on a
 --- client QuestieDB translates titles for ("Bergbaulehrer"): the trainer words, ranks and vendor titles are English.
 --- The title as shown (the client's) when there's no English one to read.
+local ENGLISH_CLIENT = ns.LOCALE == nil or ns.LOCALE == "enUS" or ns.LOCALE == "enGB"
 function P.EnglishTitle(e)
 	if not NpcID(e) then return nil end
+	-- (an English client's titles are English already: no second field asked per row, 0.69.7 review: trainer: searches
+	-- over 13k NPCs were a third slower)
+	if ENGLISH_CLIENT then return rawget(e, "sub") or NpcField(e, "subName") end
 	return NpcField(e, "subNameEn") or rawget(e, "sub") or NpcField(e, "subName")
 end
 

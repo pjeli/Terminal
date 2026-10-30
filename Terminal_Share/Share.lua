@@ -611,10 +611,10 @@ end
 ----------------------------------------------------------------------
 -- Invites (branch share-invites): a group's secret handed to a friend, only once they say yes
 ----------------------------------------------------------------------
--- A -> B   4N id,group        an invite to a group (its name as A calls it; nothing secret)
--- B -> A   4J id              yes (only to the invite B heard, from the character it came from)
--- B -> A   4X id              no thanks
--- A -> B   4G id,c:<code>     the group's code
+-- A -> B   5N id,group        an invite to a group (its name as A calls it; nothing secret)
+-- B -> A   5J id              yes (only to the invite B heard, from the character it came from)
+-- B -> A   5X id              no thanks
+-- A -> B   5G id,c:<code>     the group's code
 -- Whispers or Battle.net game data only (the guild channel carries hellos only). Each needs the sender to be someone
 -- you'd hear (a friend, a guild member, a Battle.net friend's character), the server's word for who sent it. An
 -- invite waits INVITE_KEEP, then it's gone on both sides. Then the code's key: hellos, marks made from it, proofs.
@@ -667,6 +667,16 @@ function E:Invites()
 	end
 	sort(out, function(a, b) if a.mine ~= b.mine then return not a.mine end return tostring(a.name) < tostring(b.name) end)
 	return out
+end
+
+--- Whether an invite is waiting either way (yours, or one to you), the ones that ran out dropped first: the badge
+--- shows, and the ticker runs, while one is (0.69.7 review: with no group the ticker never ran, so an invite to you
+--- never ran out and the badge kept showing it).
+function E:InvitesWaiting()
+	local now = self:Now()
+	for id, inv in pairs(self.invites) do if now - inv.at >= SSH.INVITE_KEEP then self.invites[id] = nil end end
+	for k, o in pairs(self.offers) do if now - o.at >= SSH.INVITE_KEEP then self.offers[k] = nil end end
+	return next(self.invites) ~= nil or next(self.offers) ~= nil
 end
 
 --- The invite you heard from someone, by name (any capitals, the name alone or with its realm), or the only one when
@@ -2170,6 +2180,7 @@ end
 
 --- An invite came in or went: the badge woken, the prompt's suggestion made again.
 function SSH.Offered()
+	SSH.StartTicker() -- (an invite to you with no group yet: it runs out on time, and the badge with it)
 	SSH.Badge(true)
 	local Easy = ns.Easy
 	if Easy and Easy.ResetPool then Easy.ResetPool() end
@@ -2262,6 +2273,7 @@ ns:RegisterCommand("share", {
 		if word == "join" then
 			-- (.share join <group> <code>, or .share join <code>: the group then "default", or "default-2" when you have
 			-- another default)
+			if rest == "" then return { L["Share: .share join <code> with a code a friend gave you (or .share join <group> <code> to name the group)"] } end
 			local typed, words = rest:match("^(%S*)%s*(.-)$")
 			local code, why = SSH.ReadCode(rest)
 			local group
@@ -2464,7 +2476,7 @@ if ns.UI and ns.UI.AddBadge then
 		id = "share",
 		fade = 6, -- (seconds at full strength, then a faint mark until pointed at; 0.58.9, the player)
 		draw = DrawWifi,
-		shown = function() local ep = SSH.game return ep ~= nil and (ep:On() or next(ep.offers) ~= nil) end,
+		shown = function() local ep = SSH.game return ep ~= nil and (ep:On() or ep:InvitesWaiting()) end,
 		refresh = BadgeColour,
 		tooltip = function(t) SSH.BadgeTip(t) end,
 	})
@@ -2969,7 +2981,7 @@ function SSH.StartTicker()
 		ep:Tick()
 		SSH.StoredMoved(ep)
 		-- (off, and the goodbyes all gone: stopped)
-		if not ep:On() and not ep.restoring and #ep.queue == 0 then SSH.StopTicker() return end
+		if not ep:On() and not ep.restoring and #ep.queue == 0 and not ep:InvitesWaiting() then SSH.StopTicker() return end
 		local U = ns.UI
 		local def = U and U.badges and (function() for _, d in ipairs(U.badges) do if d.id == "share" then return d end end end)()
 		if def and def.frame and def.frame:IsShown() then BadgeColour(def.frame) end -- (connecting: the arcs light in turn)
