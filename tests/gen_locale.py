@@ -83,10 +83,12 @@ def formats(s):
 
 def fmt_ok(k, v):
     """A translation's %-values match its English. A "phrases: ..." key is the language's phrasings for a typed
-    question, | between them: each holds one %s (where the thing asked about goes), Simple.lua's E.PHRASES."""
+    question, | between them: each holds the %s its English does (one, where the thing asked about goes; none for a
+    whole question, 0.69.2), Words.lua's E.PHRASES."""
     if k.startswith("phrases: "):
         parts = [p for p in v.split("|") if p.strip()]
-        return len(parts) > 0 and all(formats(p) == ["s"] for p in parts)
+        want = formats(k[len("phrases: "):])
+        return len(parts) > 0 and all(formats(p) == want for p in parts)
     return formats(k) == formats(v)
 
 

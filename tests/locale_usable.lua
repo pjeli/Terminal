@@ -237,3 +237,21 @@ do
 	if F.ClearCache then F.ClearCache() end
 end
 
+
+-- 9. the question phrasings never take an ordinary search: names, spells, a zone's quests stay as typed
+do
+	local PLAIN = {
+		deDE = { "Kupfererz", "Hogger", "Frostblitz", "Quests", "Rückenschild", "Leinenstoff" },
+		esES = { "mineral de cobre", "Hogger", "Descarga de Escarcha", "misiones", "Paño de lino" },
+		esMX = { "mineral de cobre", "Hogger", "Descarga de Escarcha", "misiones", "Paño de lino" },
+		frFR = { "minerai de cuivre", "Hogger", "Éclair de givre", "quêtes", "Étoffe de lin" },
+		ruRU = { "медная руда", "Хоггер", "Ледяная стрела", "задания", "Льняная ткань" },
+		zhCN = { "铜矿石", "霍格", "寒冰箭", "西部荒野任务", "任务", "亚麻布" },
+	}
+	local taken = {}
+	for _, s in ipairs(PLAIN[lang] or {}) do
+		local e = E.English(s)
+		if e ~= s then taken[#taken + 1] = s .. " -> " .. tostring(e) end
+	end
+	check(#taken == 0, lang .. ": ordinary searches stay as typed: " .. table.concat(taken, ", "))
+end
