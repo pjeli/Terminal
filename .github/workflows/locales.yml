@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Make the import lines (L["text"] = "text", as pasted into the Import box)
         run: python3 tests/gen_locale.py --import "$RUNNER_TEMP/locales"
       - name: Import them as enUS, then the seeded translations CurseForge lacks (asked by hand, all of them)

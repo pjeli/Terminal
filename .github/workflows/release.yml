@@ -21,7 +21,7 @@ jobs:
       GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out the repository with its history (the changelog and tags)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       # The release's notes are this version's part of CHANGELOG.md alone (0.50.0, the player's ask: the whole history
@@ -44,7 +44,7 @@ jobs:
       # files; the packager's --@...@ keywords stay. Each file is proved to compile to the same bytecode first: a file
       # that doesn't stops the release here, before anything is uploaded.
       - name: Python, for stripping the comments
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Strip the comments
