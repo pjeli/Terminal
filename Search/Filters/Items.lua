@@ -391,13 +391,12 @@ end
 -- Cyrillic is looked for by each word's stem, its last vowel or soft sign dropped, any ending after it)
 local CYR_END = { ["а"] = true, ["е"] = true, ["и"] = true, ["о"] = true, ["у"] = true, ["ы"] = true, ["э"] = true,
 	["ю"] = true, ["я"] = true, ["ь"] = true, ["й"] = true }
-local PATTERN_MAGIC = "[%^%$%(%)%%%.%[%]%*%+%-%?]"
 local function Stemmed(name)
 	if not name:find("[\208\209]") then return name end
 	local words = {}
 	for w in name:gmatch("%S+") do
 		if #w > 4 and CYR_END[w:sub(-2)] then w = w:sub(1, -3) end
-		words[#words + 1] = w:gsub(PATTERN_MAGIC, "%%%0") .. "[\128-\191\208\209]*"
+		words[#words + 1] = ns.EscapePattern(w) .. "[\128-\191\208\209]*"
 	end
 	return { pat = table.concat(words, "%s+") }
 end

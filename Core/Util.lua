@@ -341,6 +341,10 @@ end
 --- The game's way to send a chat line (C_ChatInfo's, else the old global), and whether chat is held back from addons
 --- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each (review, 0.53.6).
 function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage end
+--- A text as a Lua pattern that matches it as it is: its magic characters escaped. One copy (0.69.9, review: the
+--- phrasings, the effect texts' stems and the bar's word cuts had one each).
+function ns.EscapePattern(s) return (tostring(s or ""):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")) end
+
 --- A line that carries a secret (Terminal: Share's ".share join <group> <code>", and a password typed out of habit,
 --- ".share password ...", as 0.69 and before took): never in the history, a tab, or anything saved. Here, not in
 --- Terminal: Share, so the line stays out whether that addon is loaded or not.

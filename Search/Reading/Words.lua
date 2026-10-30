@@ -258,7 +258,7 @@ E.PHRASES = {
 	{ "%s spells", L["phrases: %s spells"] },
 }
 local phrasePatterns -- { { Lua pattern, English line } } (made once)
-local MAGIC = "[%^%$%(%)%%%.%[%]%*%+%-%?]"
+local Escape = ns.EscapePattern
 local function Alternatives(said)
 	local out = {}
 	if type(said) ~= "string" or said:find("^phrases: ") then return out end
@@ -280,11 +280,11 @@ local function Patterns()
 		for _, ab in ipairs(Alternatives(ph[2])) do
 			local n = #phrasePatterns
 			if ab[2] then
-				phrasePatterns[n + 1] = { "^" .. ab[1]:gsub(MAGIC, "%%%0") .. "(.+)" .. ab[2]:gsub(MAGIC, "%%%0") .. "$", ph[1],
+				phrasePatterns[n + 1] = { "^" .. Escape(ab[1]) .. "(.+)" .. Escape(ab[2]) .. "$", ph[1],
 					len = #ab[1] + #ab[2], n = n + 1 }
 			else
 				-- (the question alone, or with words after it: those follow the English)
-				local q = ab[1]:gsub(MAGIC, "%%%0")
+				local q = Escape(ab[1])
 				phrasePatterns[n + 1] = { "^" .. q .. "$", ph[1], len = #ab[1], n = n + 1, whole = true }
 				phrasePatterns[n + 2] = { "^" .. q .. " (.+)$", ph[1] .. " %s", len = #ab[1], n = n + 2 }
 			end

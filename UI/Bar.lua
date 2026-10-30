@@ -103,11 +103,6 @@ local function Ascending(s, rev)
 	if rev then asc = not asc end
 	return asc
 end
-B.Ascending = function(id)
-	local base, rev = SortParts(id)
-	local s = ById(B.SORTS, base)
-	return s and Ascending(s, rev) or false
-end
 B.ById = ById
 
 --- Is the bar in use: Simple mode (not a line run in Advanced, not fuzzy finding), searching, words typed?
@@ -251,7 +246,7 @@ function B.DropWords(words)
 		return n % 2 == 1
 	end
 	for _, w in ipairs(forms) do
-		local pat = ns.Lower(w):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"):gsub("%s+", "%%s+")
+		local pat = ns.EscapePattern(ns.Lower(w)):gsub("%s+", "%%s+")
 		local from = 1
 		while true do
 			local lower = ns.Lower(text)
@@ -326,7 +321,7 @@ function B.SwapWord(old, new)
 	if not (edit and type(old) == "string" and old ~= "") then return end
 	local text = edit:GetText() or ""
 	local lower = ns.Lower(text)
-	local pat = ns.Lower(old):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+	local pat = ns.EscapePattern(ns.Lower(old))
 	local from = 1
 	while true do
 		local a, b = lower:find(pat, from)
