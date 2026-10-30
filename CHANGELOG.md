@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.69.11 (in testing)
+## 0.69.12 (in testing)
 
 - After an update, the first login says so in one line: how many new things there are, and `.changelog` to see them. Once a version; a fresh install says nothing (it offers the tour).
 - **Share by invite.** `.share invite <name>` (Tab lists who's online: friends, guild members, Battle.net friends) invites a friend; they type `.share accept` (the empty prompt suggests it, the badge shows it) or `.share decline`. With no group yet, Terminal makes `default`. The group's code goes to them only after their yes, only to that character, within 10 minutes.

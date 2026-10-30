@@ -12,7 +12,7 @@ local L = ns.L
 -- account), never the message's.
 -- A group's secret is a code Terminal makes (120 random bits), handed to a friend by invite once they say yes, or given
 -- by hand (.share code). Never sent otherwise: each side proves it holds the group's key, made from the code, with an
--- HMAC over both nonces and both names (Crypto.lua). Codes only (share-invites, the player: "Codes Only for the WoW
+-- HMAC over both nonces and both names (Crypto.lua). Codes only (0.69.5, the player: "Codes Only for the WoW
 -- Forever release"): a typed password could be guessed at home by anyone in the guild, against the hellos' marks.
 -- Groups (0.59.0): each a code of its own and what you share in it; a group's name is only yours (a friend may call
 -- it something else; .share rename). Each friend sees from you what you share in the groups you have in common.
@@ -323,7 +323,7 @@ function SSH.Union(modes)
 end
 
 ----------------------------------------------------------------------
--- Codes (branch share-invites): a group's secret made by Terminal, not typed
+-- Codes (0.69.5): a group's secret made by Terminal, not typed
 ----------------------------------------------------------------------
 -- A typed password is something a guildmate can guess at home against your hellos' marks; a code is 120 random bits,
 -- which nobody can. "TS1-" and 25 characters of Crockford's base 32 (no I, L, O or U; I and L typed read as 1, O as 0),
@@ -609,7 +609,7 @@ function E:LeaveGroup(name, rejoining)
 end
 
 ----------------------------------------------------------------------
--- Invites (branch share-invites): a group's secret handed to a friend, only once they say yes
+-- Invites (0.69.5): a group's secret handed to a friend, only once they say yes
 ----------------------------------------------------------------------
 -- A -> B   5N id,group        an invite to a group (its name as A calls it; nothing secret)
 -- B -> A   5J id              yes (only to the invite B heard, from the character it came from)
@@ -618,7 +618,7 @@ end
 -- Whispers or Battle.net game data only (the guild channel carries hellos only). Each needs the sender to be someone
 -- you'd hear (a friend, a guild member, a Battle.net friend's character), the server's word for who sent it. An
 -- invite waits INVITE_KEEP, then it's gone on both sides. Then the code's key: hellos, marks made from it, proofs.
--- No kick and no new code pushed to a group (the player, share-invites: "consider this a rare case and probably better
+-- No kick and no new code pushed to a group (the player, 0.69.5: "consider this a rare case and probably better
 -- to just force users to start over with a trust set"): a group has no owner, so anyone in it could push one at
 -- everyone. To leave someone out, friends start a new group and invite whom they trust.
 

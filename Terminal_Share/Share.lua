@@ -504,7 +504,7 @@ end
 
 
 ----------------------------------------------------------------------
--- Invites and codes at the prompt (share-invites)
+-- Invites and codes at the prompt (0.69.5)
 ----------------------------------------------------------------------
 
 --- The group a command means when it names none: the only one you're in; else nil and your groups' names.
@@ -1353,7 +1353,7 @@ function SSH.RouteFor(name)
 	return nil
 end
 
--- Randomness for codes (share-invites): a code is only as good as what it's made from, so it isn't made from
+-- Randomness for codes (0.69.5): a code is only as good as what it's made from, so it isn't made from
 -- math.random alone. A pool, mixed with SHA-256, of what nobody can predict: the time each frame starts, to a fraction
 -- of a microsecond, for the first ENTROPY_FRAMES frames after login and a while after each code; the cursor, the
 -- clock, memory in use and math.random each time it's mixed; the moment the code is asked for.

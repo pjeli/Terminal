@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.69.11", when = "in testing",
+		v = "0.69.12", when = "in testing",
 		items = {
 			"After an update, one line in chat says how many new things there are; .changelog shows them.",
 			"Share by invite: .share invite <name>, and they type .share accept. Groups get codes Terminal makes that nobody can guess; typed passwords are gone, so invite your friends again.",

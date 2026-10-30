@@ -8,7 +8,7 @@ lists what you carry, what your alts hold, and what your friends carry ("Linen C
 Nothing a friend sends is ever saved: it lives in memory for the session and is gone on logout or /reload.
 
 Friends share in groups (0.59.0): each group has a code of its own, the name you call it, and what you share in it
-(five at most). Groups have codes only (branch share-invites, the player: "Codes Only for the WoW Forever release"):
+(five at most). Groups have codes only (0.69.5, the player: "Codes Only for the WoW Forever release"):
 Terminal makes a group's code and hands it to a friend by invite once they say yes. Friends in a group with the same
 code see each other, and each sees from you what you share in the groups you have in common, together (`.share raid all` and `.share default limited`: a raid friend sees everything, a friend
 in both too, a friend only in default your mats and consumables). Who can talk to you is the same whatever the groups.
