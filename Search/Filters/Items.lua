@@ -421,6 +421,15 @@ local function EffectNames(word)
 	if not part then return { Stemmed(word) } end
 	local names = {}
 	for _, g in ipairs(F.StatGameNames(word)) do names[#names + 1] = Stemmed(g) end
+	-- (weapon damage has no name of its own in the game: on another client, the game's words for weapon and for damage,
+	-- both in the text, say it: "den Schaden einer Waffe", "les dégâts d'une arme", "урон оружия", "武器伤害"; 0.69.6)
+	if part == "WEAPON_DAMAGE" then
+		local lang = ns.LOCALE
+		local weapon, damage = _G.WEAPON, _G.DAMAGE
+		if lang and lang ~= "enUS" and lang ~= "enGB" and type(weapon) == "string" and weapon ~= "" and type(damage) == "string" and damage ~= "" then
+			names[#names + 1] = { both = { Stemmed(Lower(weapon)), Stemmed(Lower(damage)) }, notWith = F.StatGameNames("sp") }
+		end
+	end
 	local en = EFFECT_ENGLISH[part]
 	if type(en) == "table" then
 		for _, w in ipairs(en) do names[#names + 1] = w end
@@ -430,21 +439,44 @@ local function EffectNames(word)
 	return names
 end
 
+--- Where a name (a word, or a pattern of stems: Stemmed) is in the text from `from`: its first and last byte.
+local function FindName(text, name, from)
+	if type(name) == "table" then return text:find(name.pat, from) end
+	return text:find(name, from, true)
+end
 --- Does the effect text name the stat (names: EffectNames of it; and, with cmp, give it an amount that passes)?
 local function EffectHas(text, names, cmp)
 	for _, name in ipairs(names) do
-		local from = 1
-		local pat = type(name) == "table" and name.pat
-		while true do
-			local at, last
-			if pat then at, last = text:find(pat, from) else at, last = text:find(name, from, true) end
-			if not at then break end
-			if not cmp then return true end
-			-- "+6 Stamina", "6 Strength" (right before it), or "Strength by 25" (soon after it)
-			local n = tonumber(text:sub(math.max(1, at - 10), at - 1):match("(%d+)%s*$"))
-				or tonumber(text:sub(last + 1, last + 24):match("^%D-(%d+)"))
-			if n and cmp(n) then return true end
-			from = last + 1
+		-- (two words both in the text, the amount by the second: weapon damage on another client; not a text that names a
+		-- stat of its own with them, a wizard oil's spell damage)
+		if type(name) == "table" and name.both then
+			local other = false
+			for _, n in ipairs(name.notWith or {}) do if text:find(n, 1, true) then other = true end end
+			local w = not other and FindName(text, name.both[1], 1)
+			local at, last = nil, nil
+			if w then at, last = FindName(text, name.both[2], 1) end
+			if at then
+				if not cmp then return true end
+				local n = tonumber(text:sub(math.max(1, at - 10), at - 1):match("(%d+)%s*$"))
+					or tonumber(text:sub(last + 1, last + 40):match("^%D-(%d+)"))
+				if n and cmp(n) then return true end
+			end
+			name = nil
+		end
+		if name then
+			local from = 1
+			local pat = type(name) == "table" and name.pat
+			while true do
+				local at, last
+				if pat then at, last = text:find(pat, from) else at, last = text:find(name, from, true) end
+				if not at then break end
+				if not cmp then return true end
+				-- "+6 Stamina", "6 Strength" (right before it), or "Strength by 25" (soon after it)
+				local n = tonumber(text:sub(math.max(1, at - 10), at - 1):match("(%d+)%s*$"))
+					or tonumber(text:sub(last + 1, last + 24):match("^%D-(%d+)"))
+				if n and cmp(n) then return true end
+				from = last + 1
+			end
 		end
 	end
 	return false

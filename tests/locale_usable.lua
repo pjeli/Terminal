@@ -271,3 +271,24 @@ do
 	end
 	check(#wrong == 0, lang .. ": food and drink in its words: " .. table.concat(wrong, ", "))
 end
+
+-- 11. weapon damage and sentence words in the language's own words (0.69.6)
+do
+	local wrong = {}
+	local said = rawget(L, "words: weapon damage")
+	if type(said) ~= "string" then wrong[#wrong + 1] = "weapon damage untranslated" else
+		for alt in (said .. "|"):gmatch("([^|]*)|") do
+			local w = ns.Lower(alt):gsub("^%s+", ""):gsub("%s+$", "")
+			if w ~= "" and not E.ToAdvanced(w):find("stat:weapondamage", 1, true) then wrong[#wrong + 1] = w .. " -> " .. E.ToAdvanced(w) end
+		end
+	end
+	local stop = rawget(L, "words: sentence words")
+	if type(stop) ~= "string" then wrong[#wrong + 1] = "sentence words untranslated" else
+		for alt in (stop .. "|"):gmatch("([^|]*)|") do
+			local w = ns.Lower(alt):gsub("^%s+", ""):gsub("%s+$", "")
+			if w ~= "" and not E.STOP[w] then wrong[#wrong + 1] = "not a sentence word: " .. w end
+		end
+	end
+	check(#wrong == 0, lang .. ": weapon damage and sentence words in its words: " .. table.concat(wrong, ", "))
+end
+

@@ -161,7 +161,7 @@ function E.GameWords()
 	end
 	-- food and drink: the game names them together ("Speis & Trank"), so the language's own words for each, translated
 	-- ("words: ...": | between them)
-	for _, lw in ipairs({ { "food", L["words: food"] }, { "drink", L["words: drink"] } }) do
+	for _, lw in ipairs({ { "food", L["words: food"] }, { "drink", L["words: drink"] }, { "weapon damage", L["words: weapon damage"] } }) do
 		local said, spec = lw[2], rawget(E.WORDS, lw[1])
 		if spec and type(said) == "string" and not said:find("^words: ") then
 			for alt in (said .. "|"):gmatch("([^|]*)|") do Add(alt, spec) end
@@ -300,6 +300,47 @@ local function Patterns()
 end
 function E.ForgetPhrases() phrasePatterns = nil end -- (tests)
 
+-- Chinese is written without spaces: "耐力食物" is stamina and food. In Simple mode a run of Chinese (or Korean)
+-- characters made wholly of words Terminal knows in the client's language (the game's: E.GameWords; two or more) is
+-- spaced into them; anything else (a name, "治疗药水") is left as typed. 0.69.6
+local cjkWords, cjkFrom -- { [word] = true } of the game words with 3-byte characters, the longest's length in characters
+local function CjkWords()
+	local g = E.GameWords()
+	if cjkFrom ~= g then
+		cjkFrom, cjkWords = g, { longest = 0 }
+		for w in pairs(g) do
+			if not w:find("[%z\1-\127]") and w:find("^[\224-\239]") and #w % 3 == 0 then
+				cjkWords[w] = true
+				if #w / 3 > cjkWords.longest then cjkWords.longest = #w / 3 end
+			end
+		end
+	end
+	return cjkWords
+end
+--- A run of 3-byte characters as the words it's made of (two or more), or nil.
+local function SplitRun(run, words)
+	local n = #run / 3
+	local back = { [0] = 0 } -- (back[i]: where the last word ending at character i starts)
+	for i = 1, n do
+		for len = math.min(words.longest, i), 1, -1 do
+			if back[i - len] ~= nil and words[run:sub((i - len) * 3 + 1, i * 3)] then back[i] = i - len break end
+		end
+	end
+	if back[n] == nil or back[n] == 0 then return nil end
+	local parts, i = {}, n
+	while i > 0 do table.insert(parts, 1, run:sub(back[i] * 3 + 1, i * 3)); i = back[i] end
+	return table.concat(parts, " ")
+end
+function E.SpaceCjk(text)
+	if not text:find("[\224-\239]") or not (E.On and E.On()) then return text end
+	local words = CjkWords()
+	if words.longest == 0 then return text end
+	return (text:gsub("[\224-\239][\128-\191][\128-\191][\224-\239\128-\191]*", function(run)
+		if #run % 3 ~= 0 or run:find("[%z\1-\127]") then return run end
+		return SplitRun(run, words) or run
+	end))
+end
+
 --- A line in the client's language as the English line it stands for, else the line as it is.
 function E.English(text)
 	if type(text) ~= "string" then return text end
@@ -314,7 +355,8 @@ function E.English(text)
 			if what and what:find("%S") then out = p[2]:format(what) break end
 		end
 	end
-	return E.TrainerAsked(out) or out
+	out = E.TrainerAsked(out) or out
+	return E.SpaceCjk(out)
 end
 
 -- "where to learn tailoring", "who teaches mining", "where to learn warrior": a profession's or a class's trainers, the
@@ -372,6 +414,18 @@ E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = tru
 	entrance = true, entrances = true, -- ("deadmines entrance", "nearest dungeon entrance": the dungeon; 0.68.11, review)
 	-- (a number's unit said after it: "cooldown under 10 seconds", "range over 20 yards"; 0.68.8)
 	sec = true, secs = true, second = true, seconds = true }
+--- The client language's own sentence words, translated ("words: sentence words", | between them: "der", "mit",
+--- "gibt"...): left out of a Simple search as the English ones are ("Essen, das Ausdauer gibt"; 0.69.6). Run at load, and
+--- by the tests.
+function E.AddSentenceWords()
+	local said = L["words: sentence words"]
+	if type(said) ~= "string" or said:find("^words: ") then return end
+	for alt in (said .. "|"):gmatch("([^|]*)|") do
+		local w = Lower(alt):gsub("^%s+", ""):gsub("%s+$", "")
+		if w ~= "" and not w:find("%s") then E.STOP[w] = true end
+	end
+end
+E.AddSentenceWords()
 
 local wordTests = {} -- everyday word -> soft test (made once)
 local weights = setmetatable({}, { __mode = "k" }) -- soft test -> how much passing it counts when relaxed

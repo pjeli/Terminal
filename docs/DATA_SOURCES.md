@@ -63,6 +63,16 @@ What a character has learned is read in the game, from flight masters' maps (see
 An instance with no door known yet (no Questie or QuestieDB, and no ghost spot in its zone) keeps its name and
 levels, so questions and lockouts still know it, but gets no row until a door is known.
 
+## Shorthand's places
+
+`PLACES` in `Search/Shorthand.lua` (0.69.6): what "brd", "sw", "bb" stand for on a client in another language.
+
+| What | Source |
+|---|---|
+| The shorthand and its English names | Terminal's own list (`Search/Shorthand.lua`), what players call these places |
+| Each place's id | The client build's tables (1.60.1.70532), by the English name: an instance (`Map.ID`, `InstanceType` 1-3, `MapName_lang`), a zone map (`UiMap.ID`, `Type` 3, `Name_lang`), else an area (`AreaTable.ID`, `AreaName_lang`); `gen_data.py shorthand` |
+| Its name in the client's language | Read in the game: `GetRealZoneText(map)`, `C_Map.GetMapInfo(ui).name`, `C_Map.GetAreaInfo(area)` |
+
 ## Zone levels
 
 `Z.LEVELS` in `Providers/Zones.lua`: Terminal's own list, kept by hand from these sources.

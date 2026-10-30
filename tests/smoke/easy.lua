@@ -570,6 +570,92 @@ Run("stats in the client's language: Ausdauer Essen, and Russian word endings", 
 	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
 end)
 
+-- (0.69.6) the rest of the gap: weapon damage by the game's words for weapon and damage (a wizard oil's spell damage
+-- left out), the language's sentence words left out, a stat named in three words joined, shorthand by the place's own
+-- name there, Chinese written without spaces
+Run("other clients: weapon damage, sentence words, three-word stats, shorthand, Chinese without spaces", function()
+	E.Set(true)
+	local F = ns.Filters
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+	local G = { "WEAPON", "DAMAGE", "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT", "ITEM_MOD_STAMINA_SHORT", "ITEM_MOD_SPELL_POWER_SHORT", "GetRealZoneText" }
+	local save = { info = C_Item.GetItemInfo, inst = C_Item.GetItemInfoInstant, spell = C_Item.GetItemSpell,
+		desc = C_Spell.GetSpellDescription, stats = C_Item.GetItemStats, locale = ns.LOCALE, g = {}, L = {} }
+	for _, k in ipairs(G) do save.g[k] = rawget(_G, k) end
+	local LK = { "words: weapon damage", "words: sentence words", "words: food" }
+	for _, k in ipairs(LK) do save.L[k] = rawget(ns.L, k) end
+	_G.WEAPON, _G.DAMAGE, _G.ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = "Waffe", "Schaden", "Zauberschaden"
+	_G.ITEM_MOD_STAMINA_SHORT, _G.ITEM_MOD_SPELL_POWER_SHORT = "Ausdauer", "Macht der Zauber"
+	rawset(ns.L, "words: weapon damage", "Waffenschaden"); rawset(ns.L, "words: food", "Essen")
+	rawset(ns.L, "words: sentence words", "das | gibt | mit")
+	ns.LOCALE = "deDE"; E.ForgetGameWords(); E.AddSentenceWords()
+	local ITEMS = { -- (class and subclass numbers last)
+		[401] = { "Grober Wetzstein", "|Hitem:401|h", 1, 15, 5, "Handwerkswaren", "Handwerkswaren", 20, "", 0, 0, 7, 0 },
+		[402] = { "Schwerer Gewichtsstein", "|Hitem:402|h", 1, 25, 15, "Handwerkswaren", "Handwerkswaren", 20, "", 0, 0, 7, 0 },
+		[403] = { "Hervorragendes Zauberöl", "|Hitem:403|h", 1, 45, 40, "Verbrauchbar", "Gegenstandsverbesserung", 20, "", 0, 0, 0, 8 },
+		[404] = { "Grobe Dynamitstange", "|Hitem:404|h", 1, 10, 5, "Handwerkswaren", "Sprengstoff", 20, "", 0, 0, 7, 2 },
+		[405] = { "Gewürzte Wolfsrippchen", "|Hitem:405|h", 1, 15, 10, "Verbrauchbar", "Speis & Trank", 20, "", 0, 0, 0, 5 },
+	}
+	local CLASS = { [401] = 7, [402] = 7, [403] = 0, [404] = 7, [405] = 0 }
+	local SUB = { [403] = 8, [404] = 2, [405] = 5 }
+	local DESC = { [6401] = "Erhöht 30 Min. lang den Schaden einer Waffe mit Klinge um 3.",
+		[6402] = "Erhöht 30 Min. lang den Schaden einer stumpfen Waffe um 6.",
+		[6403] = "Solange auf eine Waffe aufgetragen, erhöht sich der Zauberschaden um bis zu 36. Hält 30 Min.",
+		[6404] = "Fügt Feinden in einem Umkreis von 5 Metern 26 bis 34 Feuerschaden zu.",
+		[6405] = "Wenn Ihr mindestens 10 Sek. lang esst, werdet Ihr satt und erhaltet 15 Min. lang 6 Ausdauer." }
+	C_Item.GetItemInfo = function(id) local t = ITEMS[tonumber(id) or 0] if t then return unpack(t) end end
+	C_Item.GetItemInfoInstant = function(id) return id, "x", "x", "", 1, CLASS[id] or 0, SUB[id] or 0 end
+	C_Item.GetItemSpell = function(id) if DESC[6000 + id] then return "spell", 6000 + id end end
+	C_Spell.GetSpellDescription = function(id) return DESC[id] end
+	C_Item.GetItemStats = function() return {} end
+	local rows = {}
+	for id, t in pairs(ITEMS) do rows[#rows + 1] = { name = t[1], itemID = id } end
+	rows[#rows + 1] = { name = "Schwarzfelstiefen-Schlüssel", itemID = 499 }
+	Use({ { "items", { label = "Item", aliases = { "item" }, collect = Rows(rows) } } })
+	-- weapon damage: the stones, not the oil (spell damage) or the dynamite (fire damage, no weapon)
+	local res = In("bags", "Waffenschaden")
+	check(#res == 2 and Has(res, "Grober Wetzstein") and Has(res, "Schwerer Gewichtsstein"),
+		"Waffenschaden: the stones, by the game's words for weapon and damage; not the wizard oil or dynamite: " .. Show(res))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = false; UI:EasyChanged()
+	res = UI:Search("stat:weapondamage>=5")
+	check(#res == 1 and res[1].name == "Schwerer Gewichtsstein", "Advanced stat:weapondamage>=5 on German text: the weightstone (+6): " .. Show(res))
+	E.Set(true)
+	-- sentence words: "Essen, das Ausdauer gibt"
+	res = In("bags", "Essen das Ausdauer gibt")
+	check(#res == 1 and res[1].name == "Gewürzte Wolfsrippchen", "Essen das Ausdauer gibt: the language's sentence words left out: " .. Show(res))
+	UI:Hide(); FlushAll()
+	-- a stat named in three words, "Macht der Zauber" (spell power): read as one
+	local adv = E.ToAdvanced("Macht der Zauber Essen")
+	check(adv:find("stat:sp", 1, true) and adv:find("type:food", 1, true), "a stat in three words joined as one: " .. adv)
+	-- shorthand: "brd" also Blackrock Depths as the client names it (GetRealZoneText of its instance)
+	_G.GetRealZoneText = function(id) return id == 230 and "Schwarzfelstiefen" or nil end
+	ns.ShorthandLocalize()
+	local brd = ns.Shorthand.brd
+	check(brd[#brd] == "schwarzfelstiefen", "brd: Schwarzfelstiefen on a German client: " .. table.concat(brd, ", "))
+	ns.db.easyMode = false; UI:EasyChanged()
+	res = UI:Search("brd")
+	check(Has(res, "Schwarzfelstiefen-Schlüssel"), "brd finds Schwarzfelstiefen's key: " .. Show(res))
+	E.Set(true)
+	for k, list in pairs(ns.Shorthand) do
+		for i = #list, 1, -1 do if list[i] == "schwarzfelstiefen" then table.remove(list, i) end end
+	end
+	-- Chinese without spaces: "耐力食物" is stamina and food; a name made of other characters as typed
+	_G.ITEM_MOD_STAMINA_SHORT = "耐力"; rawset(ns.L, "words: food", "食物")
+	ns.LOCALE = "zhCN"; E.ForgetGameWords()
+	check(E.English("耐力食物") == "耐力 食物" and E.English("耐力之戒") == "耐力之戒" and E.English("治疗药水") == "治疗药水"
+		and E.English("食物") == "食物", "Chinese: a run made of known words spaced into them, anything else as typed: "
+		.. E.English("耐力食物") .. " / " .. E.English("耐力之戒"))
+	-- put back
+	ns.LOCALE = save.locale
+	for _, k in ipairs(G) do _G[k] = save.g[k] end
+	for _, k in ipairs(LK) do rawset(ns.L, k, save.L[k]) end
+	E.STOP.das, E.STOP.gibt, E.STOP.mit = nil, nil, nil
+	E.ForgetGameWords()
+	C_Item.GetItemInfo, C_Item.GetItemInfoInstant, C_Item.GetItemSpell = save.info, save.inst, save.spell
+	C_Spell.GetSpellDescription, C_Item.GetItemStats = save.desc, save.stats
+	F.ClearCache(); if F.ClearEffects then F.ClearEffects() end
+end)
+
 Run("rare shield wailing caverns: the loot, even when not every word fits", function()
 	E.Set(true)
 	local F = ns.Filters

@@ -12,18 +12,22 @@ local E = ns.Easy
 
 --- The first words of E.WORDS' two-word entries ("attack" for "attack power"), made once: again for another table, or
 --- once a word is added to it (E.WORDS["x y"] = ...: its metatable says so; review: a pair added later was never joined).
-local pairFirst, pairOf = nil, nil
+local pairFirst, pairOf, pairGame = nil, nil, nil
 do
 	local mt = getmetatable(E.WORDS)
 	if not mt then mt = {}; setmetatable(E.WORDS, mt) end
 	if mt.__newindex == nil then mt.__newindex = function(t, k, v) rawset(t, k, v); pairOf = nil end end
 end
 function E.PairFirst()
-	if pairOf ~= E.WORDS then
-		pairFirst, pairOf = {}, E.WORDS
-		for k in pairs(E.WORDS) do
-			local a = type(k) == "string" and k:match("^(%S+) %S")
-			if a then pairFirst[a] = true end
+	-- (and the game's own words in the client's language, E.GameWords: "puissance d'attaque", "poder de ataque"; 0.69.6)
+	local game = E.GameWords and E.GameWords() or {}
+	if pairOf ~= E.WORDS or pairGame ~= game then
+		pairFirst, pairOf, pairGame = {}, E.WORDS, game
+		for _, t in ipairs({ E.WORDS, game }) do
+			for k in pairs(t) do
+				local a = type(k) == "string" and k:match("^(%S+) %S")
+				if a then pairFirst[a] = true end
+			end
 		end
 	end
 	return pairFirst
@@ -36,7 +40,13 @@ local function JoinPairsIn(r, units)
 	while i < #units do
 		-- (only a word some pair starts with is looked at with the next)
 		local pair = first[Low(units[i])] and (Low(units[i]) .. " " .. Low(units[i + 1]))
-		if pair and E.WORDS[pair] then
+		-- (three words first: "poder de ataque", the client's name for attack power)
+		local three = pair and units[i + 2] and (pair .. " " .. Low(units[i + 2]))
+		if three and E.WORDS[three] then
+			units[i] = ns.Phrase.Join(r, { units[i], units[i + 1], units[i + 2] }, three, "pairs")
+			table.remove(units, i + 2)
+			table.remove(units, i + 1)
+		elseif pair and E.WORDS[pair] then
 			units[i] = ns.Phrase.Join(r, { units[i], units[i + 1] }, pair, "pairs")
 			table.remove(units, i + 1)
 		end

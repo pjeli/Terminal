@@ -372,7 +372,60 @@ def cvars(check):
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "cookingfires": cookingfires, "music": music, "cvars": cvars}
+# ----------------------------------------------------------------------------------------------------------------------
+# shorthand: each place's ids, so a client in another language knows it by its own name (Search/Shorthand.lua)
+# ----------------------------------------------------------------------------------------------------------------------
+
+def shorthand(check):
+    """Each shorthand's English names -> the game's ids for them: an instance (Map, its InstanceType a dungeon, raid or
+    battleground), a zone map (UiMap, Type 3), else an area (AreaTable). Exact names first (a leading "the" dropped),
+    then a zone map or an instance whose name holds it ("stormwind": Stormwind City, not the Stockade); "lower"/"upper"
+    dropped when nothing has the name (Lower Blackrock Spire: Blackrock Spire's). The game gives each id's name in the
+    client's language at run time."""
+    rel = "Search/Shorthand.lua"
+    old = read(rel)
+    listed = old.split("local S = {", 1)[1].split("\n}\n", 1)[0]
+    rows = re.findall(r'^\t\[?"?([\w]+)"?\]? = \{ ([^}]*) \},', listed, re.M)
+    if not rows:
+        raise SystemExit("Shorthand: no rows found")
+    maps = [m for m in db2("Map") if m["InstanceType"] in ("1", "2", "3")]
+    zones = [u for u in db2("UiMap") if u["Type"] == "3"]
+    areas = db2("AreaTable")
+    def norm(s):
+        return re.sub(r"^the ", "", s.lower())
+    def find(n):
+        for kind, table, col in (("map", maps, "MapName_lang"), ("ui", zones, "Name_lang"), ("area", areas, "AreaName_lang")):
+            ids = sorted({int(r["ID"]) for r in table if norm(r[col]) == n})
+            if ids:
+                return kind, ids[:2], [r[col] for r in table if int(r["ID"]) == ids[0]][0]
+        for kind, table, col in (("ui", zones, "Name_lang"), ("map", maps, "MapName_lang")):
+            ids = sorted({int(r["ID"]) for r in table if n in r[col].lower()})
+            if ids:
+                return kind, ids[:2], [r[col] for r in table if int(r["ID"]) == ids[0]][0]
+        return None
+    lines = ["local PLACES = {\n"]
+    for short, names in rows:
+        got = []
+        for n in re.findall(r'"([^"]+)"', names):
+            f = find(n) or find(re.sub(r"^(lower|upper) ", "", n))
+            if f:
+                got.append(f)
+        if not got:
+            continue
+        parts, said = {}, []
+        for kind, ids, name in got:
+            for i in ids:
+                if i not in parts.setdefault(kind, []):
+                    parts[kind].append(i)
+            said.append(name)
+        key = short if re.match(r"^[a-z_][a-z0-9_]*$", short) and short not in ("if",) else '["%s"]' % short
+        body = ", ".join("%s = { %s }" % (k, ", ".join(str(i) for i in parts[k])) for k in ("map", "ui", "area") if k in parts)
+        lines.append("\t%s = { %s }, -- %s\n" % (key, body, "; ".join(dict.fromkeys(said))))
+    lines.append("}\n")
+    write(rel, old, block(old, "shorthand", "".join(lines)), check)
+
+STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "cookingfires": cookingfires, "music": music, "cvars": cvars,
+    "shorthand": shorthand}
 
 def main(args):
     check = "--check" in args

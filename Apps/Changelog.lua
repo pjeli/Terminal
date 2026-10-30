@@ -14,12 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "0.69.5", when = "in testing",
+		v = "0.69.6", when = "in testing",
 		items = {
 			"Share by invite: .share invite <name>, and they type .share accept. Groups get codes Terminal makes that nobody can guess; typed passwords are gone, so invite your friends again.",
 			"Other languages: Chinese searches find only names with the characters typed, fonts show Russian, Chinese and Korean letters, and trainers are found by their translated titles.",
 			"Simple mode's questions in German, Spanish, French, Russian and Chinese: \"Quests zum Abbrechen\", \"où est mon corps\", \"mis subastas\" and 45 more.",
-			"Stats in your language: \"Ausdauer Essen\" finds stamina food, as \"stamina food\" does, with the game's own names for every stat.",
+			"Stats in your language: \"Ausdauer Essen\" finds stamina food, as \"stamina food\" does, with the game's own names for every stat; weapon damage, shorthand like \"brd\" and your language's little words too.",
 		},
 	},
 	{
