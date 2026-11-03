@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.8 (in testing)
+
+- With OneForAll - Forever installed, a quest's chain ("quest chain for hurley blackbreath", `<quest> > chain`) also has the prerequisites OneForAll knows for dungeon quests that Questie doesn't list, first: 22 quests across 27 of its 117 chains, checked against QuestieDB Forever. Its optional lead-ins are left out, as they don't block the quest. The chain still needs Questie or QuestieDB.
+
 ## 1.0.7 (in testing)
 
 - With OneForAll - Forever installed and Attune not, `@attune` lists OneForAll's dungeon keys (the Scarlet Key, the Skeleton Key, the Seal of Ascension, the Crescent Key...) and Onyxia's attunement (your faction's chain), with how far along you are as the game says (the key or amulet yours: done; else every step up to the last quest you turned in) and your next step. "> steps" lists the steps with where to pick each up, its tooltip what to do and where to turn it in, Enter a quest's Wowhead link; `is:done`, `is:raid`, `is:key` work as with Attune. In Simple mode: "my keys", "raid attunements", "how do i get into onyxia", "how do i get the scarlet key", "steps for drakefire amulet". With Attune installed, Attune's are used, as before. The Console's `/attune` mount names OneForAll then.

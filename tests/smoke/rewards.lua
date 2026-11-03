@@ -169,6 +169,20 @@ do
 		.. ns.Easy.ToAdvanced("gray quests"))
 	res = UI:Search("the missing diplomat > chain")
 	check(res[1] and res[1].noActivate, "a quest nothing comes before: said so: " .. Names(res))
+	-- (1.0.8) with OneForAll: its prerequisites Questie doesn't list come first; its optional lead-ins don't
+	do
+		local K, lib = ns.OneForAll.Attunements, rawget(_G, "OneForAll")
+		_G.OneForAll = { QUEST_PREREQ_CHAINS = { [102] = { { id = 300 }, { id = 301, optional = true }, { id = 102 } },
+			[100] = "not a list", [999] = { { name = "no id" } } } }
+		K.Forget(); ns.Pipes.ClearSteps()
+		chain = QR.Chain(102)
+		check(table.concat(chain, ",") == "300,100,101,107,105,102", "OneForAll's prerequisite first, its lead-in left out: " .. table.concat(chain, ","))
+		res = UI:Search("@questie seeking the blade > chain")
+		check(#res == 6 and res[1].name == "Blade of the Sea" and res[1].detail:find("^step 1 of 5"), "the chain shows it: " .. Names(res))
+		_G.OneForAll = lib
+		K.Forget(); ns.Pipes.ClearSteps()
+		check(table.concat(QR.Chain(102), ",") == "100,101,107,105,102", "without OneForAll: Questie's alone")
+	end
 
 	-- Simple mode's words
 	ns.db.easyMode = true

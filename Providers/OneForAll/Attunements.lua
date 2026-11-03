@@ -216,7 +216,35 @@ local TOON = { done = DONE }
 --- The character you're on, as Attune's records are: its done map from the game.
 function K.Toon() return TOON end
 
-function K.Forget() index, where, snap = nil, nil, nil end -- (tests)
+-- OneForAll's prerequisites of dungeon quests (QUEST_PREREQ_CHAINS: each quest's, first to last, lead-ins marked
+-- optional; 1.0.8, the player's ask), for Questie's "> chain" (QR.Chain in Search/Questions/Rewards.lua): only the
+-- required ones (a lead-in doesn't block the quest). Most are Questie's too; 22 quests' aren't (checked against
+-- QuestieDB Forever, November 2026: Hurley Blackbreath's, Imp Delivery's...).
+local chains -- quest id -> { quest ids, first to last }; false: none
+--- The quests OneForAll says must be done before this one, first to last, or nil.
+function K.Before(q)
+	if chains == nil then
+		chains = false
+		local lib = OA.Lib()
+		local raw = lib and rawget(lib, "QUEST_PREREQ_CHAINS")
+		if type(raw) == "table" then
+			chains = {}
+			local n, bad = 0, 0
+			for id, list in pairs(raw) do
+				local qid, ids = Num(id), {}
+				for _, s in ipairs(type(list) == "table" and list or {}) do
+					local sid = type(s) == "table" and Num(s.id)
+					if not sid then bad = bad + 1 elseif sid ~= qid and s.optional ~= true then ids[#ids + 1] = sid end
+				end
+				if qid and #ids > 0 then chains[qid] = ids; n = n + 1 end
+			end
+			ns:Trace(("oneforall: prerequisites of %d quests read%s"):format(n, bad > 0 and (", " .. bad .. " steps not in the shape expected") or ""))
+		end
+	end
+	return chains and chains[q] or nil
+end
+
+function K.Forget() index, where, snap, chains = nil, nil, nil, nil end -- (tests)
 
 ----------------------------------------------------------------------
 -- Rows: their own Enter and tooltips (no Attune window to open); detail, icon and levels are Attune.lua's

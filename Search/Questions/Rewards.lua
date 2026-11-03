@@ -1007,14 +1007,18 @@ function QR.ForYou(id)
 end
 
 --- The quests that lead up to this one, first to last, ending with it: { quest ids }. Every one of preQuestGroup; of
---- preQuestSingle the one you can take (else the first).
+--- preQuestSingle the one you can take (else the first). With OneForAll, first the prerequisites it knows of a dungeon
+--- quest that Questie doesn't list (1.0.8: 22 quests of its 117 chains; its optional lead-ins left out, they don't
+--- block it).
 function QR.Chain(id)
 	local db = DB()
 	if not db then return { id } end
+	local OK = ns.OneForAll and ns.OneForAll.Attunements
 	local out, state = {}, {}
 	local function Visit(q, depth)
 		if state[q] or (depth > 0 and #out >= QR.MAX_CHAIN - 1) or depth > QR.MAX_CHAIN then return end -- (the quest itself last)
 		state[q] = "seen" -- (a loop in the data stops here)
+		for _, p in ipairs(OK and OK.Before(q) or {}) do Visit(p, depth + 1) end
 		for _, p in ipairs(Ids(db, q, "preQuestGroup")) do Visit(p, depth + 1) end
 		local single = Ids(db, q, "preQuestSingle")
 		if #single > 0 then
