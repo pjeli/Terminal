@@ -437,7 +437,9 @@ end)
 ----------------------------------------------------------------------
 
 -- (not "vendor", "sell": "vendor in ratchet", "booty bay vendor" are NPC searches, those towns factions too; review, 1.0.13)
-local REWARD = { reward = true, rewards = true, buy = true, quartermaster = true, unlocks = true }
+-- ("buy" only with a standing, a rep word or "can": "where to buy in booty bay" is the town's vendors; not "quartermaster":
+-- "argent dawn quartermaster" is the NPC. Review, 1.0.36)
+local REWARD = { reward = true, rewards = true, unlocks = true }
 local REP = { rep = true, reputation = true, faction = true, factions = true }
 local WHAT = { recipes = "recipe", recipe = "recipe", patterns = "recipe", plans = "recipe", formulas = "recipe", gear = "gear",
 	armor = "gear", weapons = "gear" }
@@ -500,12 +502,13 @@ function A.Question(text)
 	if A.Factions() then
 		local f, at, n = FactionIn(words)
 		local q = { what = "rewards", faction = f, words = {} }
-		local reward, rep = false, false
+		local reward, rep, buy = false, false, false
 		for i, w in ipairs(words) do
 			if not (f and i >= at and i < at + n) then
 				local st = StandingIn(w)
 				if st then q.standing = st
 				elseif REWARD[w] then reward = true
+				elseif w == "buy" then buy = true
 				elseif REP[w] then rep = true
 				elseif WHAT[w] then q.kind = WHAT[w]; reward = true
 				elseif NOW[w] then q.now = true
@@ -515,6 +518,7 @@ function A.Question(text)
 		-- (a faction or a standing, and a word for what it sells: "argent dawn rewards", "what can i buy at honored",
 		-- "timbermaw recipes"; "rep rewards" too)
 		-- ("what can i buy at honored": what honored lets you buy, up to it, whatever you are now; review, 1.0.13)
+		if buy and (q.standing or rep or q.now) then reward = true end
 		if q.standing and q.now then q.now, q.upTo = nil, true end
 		if reward and (f or q.standing or rep) and #q.words == 0 then return q end
 	end

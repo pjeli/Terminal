@@ -446,6 +446,9 @@ function P.Question(text)
 	-- "tameable cats", "where to tame a wolf", "rare pets in the barrens", "what can i tame at my level"
 	if (tame or (q.rare and (pet or q.family))) and P.Families() then
 		if #q.words > 0 and not P.AnyTame(q.words) then return nil end
+		-- (a spell of yours by its name, "tame beast": the spell, not the beasts; review, 1.0.36)
+		local sp = ns.providers.spells
+		for _, e in ipairs(sp and ns:GetEntries(sp) or {}) do if rawget(e, "_lname") == t then return nil end end
 		q.what = "tame"
 		return q
 	end

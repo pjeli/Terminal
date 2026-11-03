@@ -4510,6 +4510,7 @@ explain: "Items matching linen cloth|type:cloth"
 == fireball
 question: -
 tokens: fireball
+filter: hard (no spec)  sig=#spells
 sort: -
 kinds: classspells spells talents
 action: -
@@ -5682,6 +5683,7 @@ explain: "Everything matching sword|type:sword, counted"
 == arcanite
 question: -
 tokens: arcanite
+filter: hard (no spec)  sig=#spells
 sort: -
 kinds: classspells spells talents
 action: -
@@ -5753,6 +5755,7 @@ explain: "Rare everything matching sword|type:sword"
 question: -
 tokens: arcanite
 filter: soft q:legendary  sig=~legendary  word=legendary
+filter: hard (no spec)  sig=#spells
 sort: -
 kinds: classspells spells talents
 action: -
@@ -5770,6 +5773,7 @@ explain: "Spells matching arcanite legendary"
 question: -
 tokens: arcanite
 filter: soft q:epic  sig=~epic  word=epic
+filter: hard (no spec)  sig=#spells
 sort: -
 kinds: classspells spells talents
 action: -

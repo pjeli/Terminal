@@ -154,11 +154,11 @@ do
 		-- the questions
 		for _, s in ipairs({ "argent dawn rewards", "what can i buy at honored", "rep rewards", "timbermaw recipes", "exalted rewards",
 			"argent dawn rewards i can buy", "my class sets", "warrior sets", "item sets", "pieces of battlegear of might",
-			"battlegear of might pieces", "tier sets" }) do
+			"battlegear of might pieces", "tier sets", "what can i buy from argent dawn" }) do
 			check(A.Question(s) ~= nil, s .. ": the armory question")
 		end
 		for _, s in ipairs({ "what can i buy", "rewards", "my equipment", "argent dawn", "honored", "druid sets", "pieces of eight", "my sets", "sets",
-			"timbermaw vendor", "vendor in timbermaw", "timbermaw sells" }) do
+			"timbermaw vendor", "vendor in timbermaw", "timbermaw sells", "argent dawn quartermaster", "where to buy in argent dawn" }) do
 			check(A.Question(s) == nil, s .. ": not it")
 		end
 		ns.db.easyMode = true; UI:EasyChanged()

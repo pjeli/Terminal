@@ -151,10 +151,11 @@ do
 
 		-- the questions
 		for _, s in ipairs({ "favor recipes", "merchant's favor recipes", "alchemy favor recipes", "favor recipes i don't know",
-			"nearest boat", "boat to auberdine", "zeppelin to undercity", "where is the tram", "zone exits", "boats" }) do
+			"nearest boat", "boat to auberdine", "where is the tram", "zone exits", "boats" }) do
 			check(W.Question(s) ~= nil, s .. ": the world question")
 		end
-		for _, s in ipairs({ "tailoring favor recipes", "boat shoes", "my boats are great", "favor recipes i know" }) do
+		-- ("zeppelin" for the Alliance: none of theirs, the search's, the zeppelin masters; review, 1.0.36)
+		for _, s in ipairs({ "tailoring favor recipes", "boat shoes", "my boats are great", "favor recipes i know", "zeppelin to undercity", "zeppelin" }) do
 			check(W.Question(s) == nil, s .. ": not it")
 		end
 		ns.db.easyMode = true; UI:EasyChanged()

@@ -56,6 +56,12 @@ end
 local function IsEmote(e) return e.emote ~= nil end
 E.IsEmote = IsEmote -- (Words.lua's action words: "do" keeps to emotes)
 local function NotEmote(e) return e.emote == nil end
+-- (@tame: its abilities are Spells, its beasts NPCs, beside Questie's same beasts; review, 1.0.36: a beast's name, "broken
+-- tooth", was in two categories, Spells first, and no longer went straight to the NPC. `keepOnly`: the kinds `keep`
+-- judges; the category's other kinds are all its, so a big list's category is still worked out once a kind)
+local function TameAbility(e) return e.kind ~= "tame" or e.ability ~= nil end
+local function TameBeast(e) return e.kind ~= "tame" or e.ability == nil end
+local TAME_ONLY = { tame = true }
 
 -- Each searches these kinds (provider ids; those not loaded are skipped, a category with none never shows),
 -- and only the rows `keep` says yes to when it has one (one list, two categories: emotes and slash commands).
@@ -69,9 +75,10 @@ E.CATEGORIES = {
 	{ id = "items", label = L["Items"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags" } },
 	{ id = "stored", label = L["Bank & alts"], kinds = { "stored", "shared" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune", "book" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
-	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells", "tame" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells", "tame" }, keep = TameAbility, keepOnly = TAME_ONLY,
+		icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
-	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
+	{ id = "npcs", label = L["NPCs"], kinds = { "npc", "tame" }, keep = TameBeast, keepOnly = TAME_ONLY, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse", "transport" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = L["Loot"], kinds = { "loot" }, -- (was "Dungeon loot": quests', crafted, reputation gear too since 1.0.25)
 		icon = "Interface\\Icons\\INV_Box_02" },
@@ -159,7 +166,7 @@ function E.CategoryOf(e)
 	local list = ByKind()[e.kind]
 	for i = 1, list and #list or 0 do
 		local c = list[i]
-		if not c.keep then return c.id end
+		if not c.keep or (c.keepOnly and not c.keepOnly[e.kind]) then return c.id end
 		local ok, yes = pcall(c.keep, e)
 		if ok and yes then return c.id end
 	end
@@ -170,7 +177,7 @@ end
 function E.FixedCategory(kind)
 	local list = kind and ByKind()[kind]
 	local c = list and list[1]
-	if c and not c.keep then return c.id end
+	if c and (not c.keep or (c.keepOnly and not c.keepOnly[kind])) then return c.id end
 	return nil
 end
 

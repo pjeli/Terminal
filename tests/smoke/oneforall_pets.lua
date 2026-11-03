@@ -159,6 +159,17 @@ do
 		for _, s in ipairs({ "my pets", "bite", "rare ring", "cats eye", "tameable mounts", "growl" }) do
 			check(P.Question(s) == nil, s .. ": not it")
 		end
+		-- (review, 1.0.36) a spell of yours by its name: the spell ("tame beast"), not the beasts
+		local spWas = ns.providers.spells
+		ns.providers.spells = { id = "spells", label = "Spell", _dirty = true, collect = function() return { { name = "Tame Beast" } } end }
+		check(P.Question("tame beast") == nil and P.Question("where to tame a beast") ~= nil, "tame beast: your spell, not the pets question")
+		ns.providers.spells = spWas
+		-- (review, 1.0.36) Simple mode: its abilities are Spells, its beasts NPCs (with Questie's same beasts)
+		local E = ns.Easy
+		E.Reindex()
+		check(E.CategoryOf({ kind = "tame", ability = "Bite" }) == "spells" and E.CategoryOf({ kind = "tame" }) == "npcs"
+			and E.FixedCategory("npc") == "npcs" and E.FixedCategory("spells") == "spells" and E.FixedCategory("tame") == nil,
+			"Simple mode: @tame's abilities Spells, its beasts NPCs; the others' category still one a kind")
 		check(P.Question("tameable birds of prey").family.name == "Bird of Prey" and P.Question("nearest tameable wolves").family.name == "Wolf"
 			and P.Question("tameable foxes") == nil, "families by their plural")
 		ns.db.easyMode = true; UI:EasyChanged()

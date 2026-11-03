@@ -326,6 +326,11 @@ function W.Question(text)
 		return q
 	end
 	if way and ns.providers.transport then
+		-- (none of that way for you, the Alliance's "zeppelin": the search's, its masters; review, 1.0.36: "OneForAll
+		-- knows no way like that")
+		local any = false
+		for _, e in ipairs(ns:GetEntries(ns.providers.transport)) do if e.way == way then any = true break end end
+		if not any then return nil end
 		local q = { what = "way", way = way, words = {} }
 		local toAt
 		for i, w in ipairs(words) do

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.36 (in testing)
+
+- Questions that took lines they shouldn't (review): for a hunter "tame beast" is your spell again, not 313 beasts; "zeppelin" on the Alliance finds the zeppelin masters instead of "OneForAll knows no way like that"; "argent dawn quartermaster" and "where to buy in <town>" are the NPCs and vendors again ("buy" means rewards only with a standing, "rep" or "can"). In Simple mode `@tame`'s beasts are under NPCs, beside Questie's same beasts, and its abilities under Spells: a beast's name ("broken tooth") goes straight to it again instead of a Spells / NPCs choice.
+
 ## 1.0.35 (in testing)
 
 - Simple mode's loot source words are only "raid loot", "raid gear", "dungeon loot", "dungeon gear", "crafted gear" and "reputation gear" (review): "from quests", "from reputation" and "quest gear" took lines about other things ("rewards from quests", "reputation from quests", "gear from quests") and found nothing; the advertised "upgrades from quests" is Questie's quest upgrades as before. Alt+` inside a group you stepped into writes the bar's Group after the step (`| kind:"…" | group by quality`), which it dropped.
