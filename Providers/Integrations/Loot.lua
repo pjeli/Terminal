@@ -133,8 +133,28 @@ function I.NotePlace(addon, content, kind, enter)
 end
 --- A loot row's place: { kind = "dungeon" / "raid" / "world" (World Bosses) / "other", enter = level } (nil: not known, an index from before 0.51.9).
 function I.LootPlace(e)
+	-- (OneForAll's: its dungeon's or raid's, the level it gives; a quest's, a recipe's, a faction's: none, as AtlasLoot's
+	-- crafting and factions have none)
+	local s = rawget(e, "lootSource")
+	if s then return (s == "dungeon" or s == "raid") and { kind = s, enter = rawget(e, "lootLevel") } or nil end
 	local t = loot.places[e.addon]
 	return t and t[e.content] or nil
+end
+
+--- Where a loot row's item comes from (source:): dungeon, raid, world (a world boss), quest, crafted, reputation, pvp,
+--- collection, or other. AtlasLoot's by its module (Crafting, Factions, PvP, Collections) and its place; OneForAll's
+--- planner's as it says (1.0.25, the player's ask).
+function I.LootSource(e)
+	local s = rawget(e, "lootSource")
+	if s then return s end
+	local addon = tostring(e.addon or "")
+	if addon:find("Crafting", 1, true) then return "crafted" end
+	if addon:find("Faction", 1, true) then return "reputation" end
+	if addon:find("PvP", 1, true) then return "pvp" end
+	if addon:find("Collection", 1, true) then return "collection" end
+	local p = I.LootPlace(e)
+	local k = p and p.kind
+	return (k == "dungeon" or k == "raid" or k == "world") and k or "other"
 end
 
 --- Rows for one loaded loot module: one per item and instance (the first boss and
@@ -495,6 +515,13 @@ local function SetupAtlasLoot()
 					if pct then r.detail = d .. ns.DETAIL_SEP .. W.ChanceText(pct) end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
+			end
+			-- (1.0.25) OneForAll's planner's gear AtlasLoot doesn't list: quest rewards, reputation, crafted, its dungeons'
+			local G = ns.OneForAllGear
+			if G and G.on and G.Rows then
+				local listed = {}
+				for _, r in ipairs(out) do listed[r.itemID] = true end
+				for _, r in ipairs(G.Rows(listed)) do out[#out + 1] = r end
 			end
 			-- what's still unnamed, for the name events (ids, not rows: several rows can share an item)
 			loot.unnamed = {}

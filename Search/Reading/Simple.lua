@@ -73,7 +73,7 @@ E.CATEGORIES = {
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse", "transport" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
-	{ id = "loot", label = L["Dungeon loot"], kinds = { "loot", "gearplan" }, icon = "Interface\\Icons\\INV_Box_02" },
+	{ id = "loot", label = L["Dungeon loot"], kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "recent", label = L["Recent"], kinds = { "lootlog", "combatlog" }, icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
 		was = { "lootlog", "combat" } },
 	{ id = "people", label = L["Guild & friends"], kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },

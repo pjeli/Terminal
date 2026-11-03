@@ -177,9 +177,6 @@ I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not 
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.transport end,
 	kinds = { transport = true, transports = true, boat = true, boats = true, ship = true, ships = true,
 		zeppelin = true, zeppelins = true, tram = true }, words = { zeppelin = true } }
--- (1.0.5: the gear its planner knows)
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.gearplan end,
-	kinds = { gearplan = true, gearplanner = true, suggested = true, suggestedgear = true } }
 local BY_NAME = {}
 for _, a in ipairs(I.ADDONS) do BY_NAME[a.name] = a end
 

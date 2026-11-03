@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.25 (in testing)
+
+- `@gearplan` ("Gear to Get") is gone, the player's call: OneForAll's planner's gear is in `@loot` with AtlasLoot's, each item with where it comes from. A boss's says so as AtlasLoot's rows do ("Arugal  Shadowfang Keep"), a quest's Enter shows its Wowhead page. `source:` filters loot by where it comes from: `source:quest`, `source:dungeon`, `source:raid`, `source:crafted`, `source:reputation`, `source:world`, `source:pvp` (AtlasLoot's by its modules and places too); in Simple mode "upgrades from quests", "raid loot", "dungeon gear", "crafted gear". Without AtlasLoot, `@loot` holds OneForAll's alone.
+
 ## 1.0.24 (in testing)
 
 - Simple mode's categories in title case too on English clients (the player's ask): "Dungeon Loot", "Bank & Alts", "Guild & Friends", as the kinds' names are.

@@ -137,7 +137,7 @@ do
 		I._.SetupOneForAll()
 		check(ns.providers.attune == nil and AT.fallback == nil, "with Attune: OneForAll's never registered")
 	end)
-	for _, id in ipairs({ "attune", "book", "tame", "itemset", "transport", "gearplan" }) do drop(id) end
+	for _, id in ipairs({ "attune", "book", "tame", "itemset", "transport" }) do drop(id) end
 	_G.OneForAll, _G.Attune_Data, I.attune.on = save.lib, save.data, save.attuneOn
 	I.failed, OA.on = save.failed, save.on
 	_G.UnitFactionGroup, ns.db.easyMode = save.side, save.easy

@@ -392,6 +392,22 @@ KEYS.standing = function(v)
 end
 KEYS.rep = KEYS.standing
 
+-- source:quest / dungeon / raid / world / crafted / reputation / pvp / collection / other: where a loot item comes from
+-- (1.0.25, the player's ask: "filter it for quest sources vs dungeon vs raid"; Loot.lua's I.LootSource)
+local SOURCES = { quest = "quest", quests = "quest", dungeon = "dungeon", dungeons = "dungeon", raid = "raid", raids = "raid",
+	world = "world", worldboss = "world", crafted = "crafted", craft = "crafted", crafting = "crafted", profession = "crafted",
+	professions = "crafted", reputation = "reputation", rep = "reputation", faction = "reputation", factions = "reputation",
+	pvp = "pvp", collection = "collection", collections = "collection", other = "other" }
+KEYS.source = function(v)
+	local want = SOURCES[Lower(v)]
+	if not want then return nil end
+	return function(e)
+		local I = ns.Integrations
+		return e.kind == "loot" and I.LootSource ~= nil and I.LootSource(e) == want
+	end
+end
+KEYS.src = KEYS.source
+
 IS.done = function(e) return DoneOf(e) == true end
 IS.todo = function(e) return DoneOf(e) == false end
 IS.complete = Complete
@@ -628,6 +644,7 @@ F.VALUES = {
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
 	since = { "today", "yesterday", "week", "month", "login", "1h", "3d" }, older = { "today", "yesterday", "week", "20d" },
 	standing = StandingNames(),
+	source = { "dungeon", "raid", "quest", "crafted", "reputation", "world", "pvp", "collection" },
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
@@ -650,7 +667,7 @@ F.VALUES = {
 -- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
 -- (tests/smoke/search.lua walks every is: value).
 local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared" }
-local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests", "gearplan" } -- (a quest: by its rewards)
+local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests" } -- (a quest: by its rewards)
 local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
 local HELD = { "items", "gear", "stored", "bank", "shared" } -- (copies of yours or your friends': enchanted or not)
@@ -695,6 +712,7 @@ F.APPLIES = {
 	missing = { ["*"] = GROUP },
 	when = { ["*"] = { "calendar" } },
 	standing = { ["*"] = { "reputation" } },
+	source = { ["*"] = { "loot" } }, src = { ["*"] = { "loot" } },
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "bank", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
@@ -777,6 +795,7 @@ F.HELP = {
 	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] },
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
+	{ "source:quest", L["@loot: where it comes from: dungeon raid quest crafted reputation world pvp collection"] },
 	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },
 	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },

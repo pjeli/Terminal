@@ -1,7 +1,8 @@
 -- OneForAll's gear value (1.0.5, the player's ask; Providers/Integrations/OneForAll/Gear.lua): while it's installed, is:upgrade
 -- takes its verdict (up by a percent, the slot empty: one; down, the same, worn, unknown: not), in place of Terminal's
 -- weights; Terminal's own when you picked roles in .weights; Terminal's checks before stay (your level, what you can
--- use). @gearplan lists its planner's gear (one AtlasLoot lists already left out); "Why is this here?" says whose
+-- use). @loot has its planner's gear (1.0.25: was @gearplan; one AtlasLoot lists already left out), each by its source
+-- (source:quest, source:raid...; "upgrades from quests"); "Why is this here?" says whose
 -- verdict it was.
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
@@ -10,7 +11,7 @@ local G = OA.Gear
 
 io.write("[oneforall: its gear value decides upgrades]\n")
 do
-	local KINDS = { "book", "tame", "itemset", "transport", "gearplan" }
+	local KINDS = { "book", "tame", "itemset", "transport", "loot" } -- (@loot: OneForAll's own, AtlasLoot's left out here)
 	local save = { providers = ns.providers, order = ns.providerOrder, print = ns.Print, lib = rawget(_G, "OneForAll"), failed = I.failed,
 		on = OA.on, gii = C_Item.GetItemInfo, gis = C_Item.GetItemStats, gdl = C_Item.GetDetailedItemLevelInfo, gii2 = C_Item.GetItemInfoInstant,
 		cached = C_Item.IsItemDataCachedByID, name = C_Item.GetItemNameByID, level = _G.UnitLevel, class = _G.UnitClass, can = C_PlayerInfo.CanUseItem,
@@ -71,9 +72,15 @@ do
 		_G.OneForAll = {
 			BOOKS = { { name = "A Book", questId = 1, itemId = 2 } },
 			GearValue = { Change = function(id) calls[id] = (calls[id] or 0) + 1 local c = CHANGE[id] if c then return c[1], c[2] end end },
-			GearIndex = function() return { { id = 992, name = "Big Str Helm", src = "Shadowfang Keep - Arugal" },
-				{ id = 995, name = "Quest Boots", src = "Quest: The Test", side = "H" }, { id = 991, src = "Gnomeregan - trash" },
-				{ id = 991, src = "a second time" } } end,
+			-- (its entries as UI/GearPlanner.lua's buildIndex makes them: a boss's with its dungeon, a quest's id, a profession)
+			GearIndex = function() return { { id = 992, name = "Big Str Helm", src = "SFK - Arugal", boss = "Arugal", d = { name = "Shadowfang Keep", minLevel = 18 }, lvl = 18 },
+				{ id = 995, name = "Quest Boots", src = "Quest: The Test", qid = 100, side = "H" },
+				{ id = 991, src = "Gnomeregan - trash", boss = "trash mobs", d = { name = "Gnomeregan", minLevel = 18 }, lvl = 18 },
+				{ id = 991, src = "a second time" },
+				{ id = 1001, name = "Our Quest Boots", src = "Quest: Ours", qid = 101, side = "A" },
+				{ id = 1002, name = "Raid Crown", src = "MC - Garr", boss = "Garr", d = { name = "Molten Core", raid = true, minLevel = 60 } },
+				{ id = 1003, name = "Crafted Belt", src = "Blacksmithing 200", prof = "Blacksmithing" },
+				{ id = 1004, name = "Rep Cloak", src = "Argent Dawn (Honored)" } } end,
 		}
 		Fresh()
 		check(G.Available() and G.Judge(), "its verdict there")
@@ -124,16 +131,38 @@ do
 		F.MyRoles = function() return { "fury" } end
 		check(G.Judge() == nil, "roles picked: OneForAll's verdict not taken")
 		F.MyRoles = function() return nil end
-		-- @gearplan
-		local pg = ns.providers.gearplan
-		check(pg and ns:ResolveProvider("suggested") == pg, "@gearplan")
-		local rows = ns:GetEntries(pg)
-		local names = {}
-		for _, e in ipairs(rows) do names[#names + 1] = e.name end
-		check(#rows == 2 and rows[1].itemID == 992 and rows[2].itemID == 991 and rows[2].name == "Agi Helm",
-			"each item once, the other faction's left out, a name from the game: " .. table.concat(names, " | "))
-		local res = UI:Search("@gearplan is:upgrade")
-		check(#res == 1 and res[1].itemID == 991, "@gearplan is:upgrade: OneForAll's upgrade among its gear: " .. tostring(res[1] and res[1].name))
+		-- its planner's gear: @loot's (no @gearplan), each by where it comes from
+		local pl = ns.providers.loot
+		check(pl and ns.providers.gearplan == nil, "@loot from OneForAll's planner, without AtlasLoot; no @gearplan")
+		local rows = ns:GetEntries(pl)
+		local by, names = {}, {}
+		for _, e in ipairs(rows) do by[e.itemID] = e; names[#names + 1] = e.name end
+		check(#rows == 6 and not by[995] and by[991].name == "Agi Helm", "each item once, the other faction's left out, a name from the game: " .. table.concat(names, " | "))
+		check(by[992].detail == "Arugal  Shadowfang Keep" and by[992].kind == "loot" and by[992].kindLabel ~= nil,
+			"a boss's said as AtlasLoot's rows are: " .. tostring(by[992].detail))
+		local function Src(q)
+			local out = {}
+			for _, e in ipairs(UI:Search("@loot " .. q)) do out[#out + 1] = e.itemID end
+			table.sort(out)
+			return table.concat(out, ",")
+		end
+		check(Src("source:dungeon") == "991,992" and Src("source:raid") == "1002" and Src("source:quest") == "1001"
+			and Src("source:crafted") == "1003" and Src("source:rep") == "1004", "source: dungeon, raid, quest, crafted, reputation: "
+			.. Src("source:dungeon") .. " / " .. Src("source:raid") .. " / " .. Src("source:quest"))
+		local res = UI:Search("@loot is:upgrade")
+		check(#res == 1 and res[1].itemID == 991, "@loot is:upgrade: OneForAll's upgrade among its gear: " .. tostring(res[1] and res[1].name))
+		check(ns.Integrations.LootPlace(by[1002]).kind == "raid" and ns.Integrations.LootPlace(by[1001]) == nil, "its raid's place a raid's (left out of upgrades, as AtlasLoot's raids), a quest's none")
+		-- Simple mode: "upgrades from quests", "raid loot"
+		ns.db.easyMode = true
+		local raid = {}
+		for _, e in ipairs(UI:Search("raid loot")) do if e.itemID then raid[#raid + 1] = e.itemID end end
+		check(#raid == 1 and raid[1] == 1002, "raid loot (Simple mode): the raid's: " .. table.concat(raid, ","))
+		ns.db.easyMode = false
+		-- AtlasLoot's rows by their module and place
+		local I = ns.Integrations
+		check(I.LootSource({ kind = "loot", addon = "AtlasLootClassic_Crafting" }) == "crafted"
+			and I.LootSource({ kind = "loot", addon = "AtlasLootClassic_Factions" }) == "reputation"
+			and I.LootSource({ kind = "loot", addon = "AtlasLootClassic_PvP" }) == "pvp", "AtlasLoot's: its crafting, factions, PvP modules")
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find(L["its gear value decides is:upgrade"], 1, true), ".integrations: " .. lines)
 		-- its GearValue changed: Terminal's own again

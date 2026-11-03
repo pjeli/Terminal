@@ -17,7 +17,7 @@ do
 		providers = ns.providers, order = ns.providerOrder }
 	local said = {}
 	ns.Print = function(_, m) said[#said + 1] = m end
-	local KINDS = { "book", "tame", "itemset", "transport", "gearplan" }
+	local KINDS = { "book", "tame", "itemset", "transport" }
 	local function Fresh()
 		for _, id in ipairs(KINDS) do
 			ns.providers[id] = nil

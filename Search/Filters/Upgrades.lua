@@ -815,7 +815,7 @@ GearFitWith = function(weights, role)
 				-- again for them (0.51.9, the player: Simple mode's "upgrades", which looks at your alts' bags too, was
 				-- searched again every second or so while they came in, where "@loot is:upgrade" stood still; they're
 				-- in the next search)
-				if e.kind == "loot" or e.kind == "gearplan" or asked >= F.GEAR_ASK then return false end
+				if e.kind == "loot" or asked >= F.GEAR_ASK then return false end
 				asked = asked + 1
 				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 				return false
