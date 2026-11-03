@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5 (in testing)
+
+- With OneForAll - Forever installed, `is:upgrade` ("upgrades" in Simple mode) takes OneForAll's verdict: its stat weights for your talents against what you wear (an upgrade by some percent, or the slot empty). Terminal's own checks before it stay (your level, what your class can use), and Terminal's own weights still decide when you picked roles in `.weights`. "Why is this here?" says it was OneForAll's verdict and by how much. `@gearplan` lists the gear OneForAll's planner knows you could get (dungeon loot, quest rewards, sets, reputation, crafted; what AtlasLoot lists already is left to `@loot`), and "upgrades" finds the upgrades among it.
+
 ## 1.0.4 (in testing)
 
 - With OneForAll - Forever installed: `@favor` lists the recipes the Merchant's Favor buys, each with its skill, its cost, your faction's vendor (on the map with Enter) and whether you know it (`is:unlearned`: the ones to learn in your professions). `@transport` lists the boats, zeppelins, airships and the tram (a dock's every destination its own row; the other faction's left out) and the roads from each zone into the next. AtlasLoot's `@loot` rows say each item's chance to drop (Classic's numbers, as OneForAll has them). Weapon masters come from OneForAll when neither What's Training nor TrainerSpells has them ("polearm trainer"). In Simple mode: "favor recipes i don't know", "alchemy favor recipes", "nearest boat", "boat to auberdine", "zeppelin to undercity", "zone exits".

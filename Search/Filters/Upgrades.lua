@@ -752,6 +752,9 @@ GearFitWith = function(weights, role)
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
 	local class = MyName() -- (this character: who "usable" is kept for)
+	-- (1.0.5, the player's ask: OneForAll installed, its gear value decides, Providers/OneForAll/Gear.lua; your roles
+	-- picked in .weights: Terminal's own)
+	local OAG = ns.OneForAllGear and ns.OneForAllGear.Judge()
 	local Fit
 	local probes = {} -- item id -> a row of its own, for a quest's rewards
 	-- a quest (Questie's, your log's): one of its rewards is an upgrade (0.51.15, the player's ask; Rewards.lua knows
@@ -812,7 +815,7 @@ GearFitWith = function(weights, role)
 				-- again for them (0.51.9, the player: Simple mode's "upgrades", which looks at your alts' bags too, was
 				-- searched again every second or so while they came in, where "@loot is:upgrade" stood still; they're
 				-- in the next search)
-				if e.kind == "loot" or asked >= F.GEAR_ASK then return false end
+				if e.kind == "loot" or e.kind == "gearplan" or asked >= F.GEAR_ASK then return false end
 				asked = asked + 1
 				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 				return false
@@ -862,6 +865,14 @@ GearFitWith = function(weights, role)
 			end
 		end
 		if not f[4] then return false end
+		-- OneForAll's verdict: up (by how many percent) or the slot empty; down, the same, worn or not known: not one
+		if OAG then
+			local kind, pct = OAG.Change(id)
+			if kind ~= "up" and kind ~= "new" then return false end
+			gains[e] = { gain = kind == "up" and (pct or 0) or 100, loc = loc, ilvl = ilvl, kinds = f.kinds, empty = kind == "new" or nil,
+				oneForAll = kind == "up" and (pct or 0) or true, role = role }
+			return true
+		end
 		-- what it would replace: the weaker of its slots (by worth when known, else item level)
 		local wLvl, wVal, wKinds, empty
 		if loc == "INVTYPE_2HWEAPON" then

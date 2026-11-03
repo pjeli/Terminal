@@ -639,7 +639,7 @@ F.VALUES = {
 -- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
 -- (tests/smoke/search.lua walks every is: value).
 local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared" }
-local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests" } -- (a quest: by its rewards)
+local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests", "gearplan" } -- (a quest: by its rewards)
 local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "recipes", "missing" } -- (and what recipes make)
 local OWN = { "items", "gear", "consumables", "mats" } -- (stacks of yours: bound or not)
 local HELD = { "items", "gear", "stored", "bank", "shared" } -- (copies of yours or your friends': enchanted or not)
