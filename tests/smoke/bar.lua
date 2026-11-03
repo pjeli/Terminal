@@ -135,6 +135,25 @@ do
 	check(B.strip.buttons[1].label:find("Filter: ", 1, true) and B.strip.buttons[1].active, "Filter says the group's filter: " .. B.strip.buttons[1].label)
 	check(UI:GoBack() and UI.edit:GetText() == "sword" and B.state.group == "quality", "Shift+Left: the groups again: " .. UI.edit:GetText())
 	FlushAll()
+	-- (1.0.33, the player: "the footer would say shift+left: back but nothing would happen") in combat the prompt is the
+	-- game's own text box: Shift+Left there goes back too, once a press
+	for i, e in ipairs(UI.Results()) do if e.kind == "aggregate" and e.drillTo then gi = i break end end
+	UI:Activate(gi, {}); FlushAll()
+	local inside = UI.edit:GetText()
+	local combat = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end
+	UI.frame.scripts.OnKeyDown(UI.frame, "A") -- (any key in combat: over to the game's box)
+	local boxed = not UI.keys
+	_G.IsShiftKeyDown = function() return true end
+	UI.edit.scripts.OnKeyDown(UI.edit, "LEFT")
+	UI.edit.scripts.OnKeyDown(UI.edit, "LEFT") -- (the key held: its repeat goes nowhere)
+	_G.IsShiftKeyDown = function() return false end
+	UI.edit.scripts.OnKeyUp(UI.edit, "LEFT")
+	FlushAll()
+	_G.InCombatLockdown = combat
+	check(boxed and inside ~= "sword" and UI.edit:GetText() == "sword" and B.state.group == "quality",
+		"in combat (the game's box): Shift+Left back to the groups: '" .. inside .. "' -> '" .. UI.edit:GetText() .. "'")
+	UI:EnterKeys(); FlushAll()
 	B.Clear("group"); FlushAll()
 
 	-- (0.55.9) Advanced syntax typed: Simple mode stays, the line as typed, the bar and its picks with it

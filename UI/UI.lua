@@ -263,7 +263,10 @@ do
 			if IsControlKeyDown() and ns.Tabs and ns.Tabs.On() then return end -- (Ctrl+Tab: the next tab, OnKeyDown's)
 			UI.TabKey(IsShiftKeyDown())
 		end)
-		edit:SetScript("OnKeyUp", function(_, key) if key == "TAB" then UI.tabHeld = nil end end)
+		edit:SetScript("OnKeyUp", function(_, key)
+			if key == "TAB" then UI.tabHeld = nil end
+			if key == "LEFT" then UI.backHeld = nil end
+		end)
 		edit:SetScript("OnKeyDown", function(_, key)
 			-- the reminder after Ctrl+V / Ctrl+C goes with the next key (the paste or copy itself)
 			if UI.clipHint and key ~= "LCTRL" and key ~= "RCTRL" then
@@ -275,6 +278,16 @@ do
 			-- (not Shift+Left: the box moves its own caret with it, so the tour's back step is the drawn prompt's)
 			if ns.Tour and key ~= "ENTER" and key ~= "ESCAPE" and key ~= "NUMPADENTER" and key ~= "LEFT" then
 				ns.Tour.Key(key, IsShiftKeyDown())
+			end
+			-- Shift+Left goes back here too, as the footer says (combat, the clipboard: the player, "the footer would say
+			-- shift+left: back but nothing would happen"; 1.0.33). A frame later: the box moves its own caret with the key
+			-- first, then the search a step left replaces its text. Its held repeats go nowhere, as the drawn prompt's.
+			if key == "LEFT" and IsShiftKeyDown() and not IsControlKeyDown() and UI:CanGoBack() then
+				if not (UI.backHeld and GetTime() - UI.backHeld < UI.BACK_HOLD) then
+					UI.backHeld = GetTime()
+					C_Timer.After(0, function() if UI:IsShown() then UI:GoBack() end end)
+				end
+				return
 			end
 			if ns.IsTickKey(key) then
 				UI.TickKey(key) -- (bindings don't fire while the box has focus, so the toggle key closes it here)

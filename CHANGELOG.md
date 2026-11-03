@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.33 (in testing)
+
+- Shift+Left goes back in combat and right after Ctrl+C too (the player: the footer said "Shift+Left: back" and nothing happened): there the prompt is the game's own text box, where the key only moved its caret.
+
 ## 1.0.32 (in testing)
 
 - Review fixes: a share code typed without its dashes or with spaces is kept out of the history like a dashed one; close spellings in Russian and accented words count letters, so two wrong letters no longer pass as one ("кожа" isn't "лоза"); traces of Enter in combat and the like never name a person's row; the console keeps no history line naming a friend's `/shared` folder (or typed in one) and drops friends' folders `z` kept before 1.0.17; `.explain` says `-a|-b` as it's read ("not a or not b"); an invite to a group you're in already says so instead of "joined as"; another class's spells whose description never loads stop being made again on every search after 3 tries; a long `/who` of non-English letters is cut between letters.
