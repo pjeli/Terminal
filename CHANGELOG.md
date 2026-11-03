@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.30 (in testing)
+
+- A test that grouping inside groups works for any kind (the player: "a generalized solution for other kinds / searches too"): a group stepped into, then grouped again, stepped into again, grouped a third time and sorted; a typed `| group by` stepped into; a `| field:` step; `| first 5` (which 1.0.29 also fixed); a `| sum` keeping its own. Nothing changes in game.
+
 ## 1.0.29 (in testing)
 
 - Inside a group you stepped into (`@reputation | faction:"Nightclaw Druids"`), the bar's Group groups what's there again (by Standing, say), as it does a search; it was ignored since any `|` step was typed. Steps that sum, count or group stay their own.
