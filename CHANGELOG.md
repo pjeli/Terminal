@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.10 (in testing)
+
+- Fewer kinds: `@setpiece` is gone. A set's pieces are `@itemset`'s: Enter on a set, "pieces of battlegear of might" (Simple mode) or `<set> > pieces` lists them, each with where it comes from. `@itemset onyxia` finds the sets with a piece from Onyxia, `@itemset gauntlets of might` the set a piece is in; `@setpiece` still finds `@itemset`.
+
 ## 1.0.9 (in testing)
 
 - Fewer kinds (the player's call): OneForAll's hunter pets are one kind, `@tame` ("Hunter pet"), instead of `@petability` and `@tame`, and only on a hunter: another class never sees it or its questions (a druid's "where to learn claw 3" or a warrior's "where to learn charge 2" is theirs again). Its rows are each pet ability's ranks and the beasts to tame; `is:ability` keeps the ranks, `-is:ability` the beasts; `@petability` still finds it.

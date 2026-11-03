@@ -81,7 +81,7 @@ E.CATEGORIES = {
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = L["Character"],
-		kinds = { "gold", "experience", "lockouts", "durability", "mail", "auctions", "reputation", "currency", "skills", "equipmentset", "repreward", "itemset", "setpiece" },
+		kinds = { "gold", "experience", "lockouts", "durability", "mail", "auctions", "reputation", "currency", "skills", "equipmentset", "repreward", "itemset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
 	{ id = "calendar", label = L["Calendar"], kinds = { "calendar" }, icon = "Interface\\Icons\\INV_Misc_Note_06" },
 	{ id = "windows", label = L["Windows"], kinds = { "panels" }, icon = "Interface\\Icons\\INV_Misc_Book_11" },

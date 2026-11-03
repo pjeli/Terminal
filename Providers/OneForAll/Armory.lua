@@ -3,10 +3,13 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- @repreward, @itemset and @setpiece (1.0.3, the player's ask), OneForAll's armory: what each faction's quartermaster
--- sells at each standing (and yours: can you buy it yet), the item sets (each class's, the dungeon and raid sets, how
--- many pieces you have, the bonuses) and their pieces (where each comes from, yours or not). "argent dawn rewards",
--- "what can i buy at honored", "my class sets", "pieces of battlegear of might" ask for them (Simple mode).
+-- @repreward and @itemset (1.0.3, the player's ask), OneForAll's armory: what each faction's quartermaster sells at
+-- each standing (and yours: can you buy it yet), the item sets (each class's, the dungeon and raid sets, how many pieces
+-- you have, the bonuses) and their pieces (where each comes from, yours or not). "argent dawn rewards", "what can i buy
+-- at honored", "my class sets", "pieces of battlegear of might" ask for them (Simple mode).
+-- 1.0.10 (the player: too many kinds): a set's pieces are no kind of their own (was @setpiece) but @itemset's rows that
+-- only "<set> > pieces", Enter on a set and "pieces of <set>" list, as Attune's steps are; a set's text has its pieces'
+-- names and sources, so "@itemset onyxia" finds the sets with a piece from Onyxia.
 --
 -- OneForAll's ranks run 0-7 (4 Friendly .. 7 Exalted); the game's standings 1-8 (5 Friendly .. 8 Exalted): a reward's
 -- standing is its rank + 1, as the standing: filter and the reputation list read it.
@@ -220,9 +223,16 @@ local function Walk(text)
 	local UI = ns.UI
 	if UI and UI.WalkTo then UI:WalkTo(text) elseif UI and UI.SetQuery then UI:SetQuery(text, #text) end
 end
+--- A set's pieces as a search: its chain ("Battlegear of Might > pieces"); in Simple mode, its question.
+A.PiecesSearch = function(name, simple)
+	if simple then return "pieces of " .. Lower(name) end
+	return name .. " > pieces "
+end
 -- Enter on a set: its pieces
-local function SetPieces(e) Walk("@setpiece \"" .. e.name .. "\" ") end
-A.PiecesSearch = function(name) return "@setpiece \"" .. name .. "\" " end
+local function SetPieces(e)
+	local E = ns.Easy
+	Walk(A.PiecesSearch(e.name, E and E.On and E.On()))
+end
 
 local function SetTooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
@@ -247,6 +257,16 @@ local function SetTooltip(e, t)
 	t:AddLine(L["Item sets from OneForAll"], 0.5, 0.5, 0.5)
 end
 
+-- its pieces' names and where they come from, for the set's text ("@itemset onyxia", "@itemset gauntlets of might")
+function A.PiecesText(s)
+	local t = {}
+	for _, p in ipairs(s.pieces) do
+		t[#t + 1] = p.name or ""
+		for _, x in ipairs(p.sources) do t[#t + 1] = x end
+	end
+	return table.concat(t, " ")
+end
+
 --- @itemset's rows: one a set (your faction's and both sides'), in OneForAll's order.
 function A.SetRows()
 	local out = {}
@@ -268,7 +288,7 @@ function A.SetRows()
 				detail = (s.sub or "") .. SEP .. L["%d of %d pieces"]:format(owned, #s.pieces) .. (s.armor and (SEP .. s.armor) or "")
 					.. SEP .. ClassNames(s.classes) .. (STATUS[s.status] and (SEP .. STATUS[s.status]) or ""),
 				text = Lower(table.concat({ L["item set"], "item set itemset", s.sub or "", s.group or "", s.armor or "", ClassNames(s.classes),
-					owned > 0 and "started" or "" }, " ")),
+					owned > 0 and "started" or "", A.PiecesText(s) }, " ")),
 			}
 		end
 	end
@@ -285,17 +305,17 @@ local function PieceTooltip(e, t)
 	t:AddLine(L["Item sets from OneForAll"], 0.5, 0.5, 0.5)
 end
 
---- @setpiece's rows: every set's pieces, each saying its set, slot and where it comes from, yours or not.
-function A.PieceRows()
+--- A set's pieces (its id), each saying its set, slot and where it comes from, yours or not: @itemset's rows that only
+--- its chain lists (`setPiece`).
+function A.PieceRows(setID)
 	local out = {}
-	local side = MySide()
 	for _, s in ipairs(A.Sets() or {}) do
-		if not (s.side and side and s.side ~= side) then
+		if s.id == setID then
 			for i, p in ipairs(s.pieces) do
 				local have = A.Owned(p.id)
 				local name = p.name or L["item %s"]:format(p.id)
 				out[#out + 1] = {
-					key = s.id .. ":" .. p.id, kind = "setpiece", name = name, _lname = Lower(name), itemID = p.id, icon = Icon(p.icon),
+					key = s.id .. ":" .. p.id, kind = "itemset", setPiece = true, name = name, _lname = Lower(name), itemID = p.id, icon = Icon(p.icon),
 					quality = p.quality, slot = p.slot, set = s.name, sources = p.sources, have = have, isDone = have ~= nil,
 					classFiles = s.classes, anyClass = s.classes == nil, order = s.order * 100 + i, tooltip = PieceTooltip, generic = false,
 					detail = s.name .. (p.slot and (SEP .. p.slot) or "") .. (p.sources[1] and (SEP .. p.sources[1]) or "")
@@ -320,13 +340,32 @@ OA.AddSetup(function()
 	if A.Sets() then
 		local ev = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "BANKFRAME_CLOSED" }
 		ns:RegisterProvider("itemset", {
-			label = L["Item set"], color = "ffe0c060", aliases = { "itemset", "itemsets", "tierset", "tiersets" }, -- (@set: your equipment sets)
+			label = L["Item set"], color = "ffe0c060", -- (@set: your equipment sets)
+			aliases = { "itemset", "itemsets", "tierset", "tiersets", "setpiece", "setpieces" },
 			lazy = true, events = ev, guard = 1, collect = A.SetRows,
 		})
-		ns:RegisterProvider("setpiece", {
-			label = L["Set piece"], color = "ffd0b060", aliases = { "setpiece", "setpieces", "piece", "pieces" },
-			lazy = true, events = ev, guard = 1, collect = A.PieceRows,
-		})
+		-- "<set> > pieces": its pieces, first to last
+		if ns.RegisterRelation and not A.piecesRelation then
+			A.piecesRelation = true
+			ns:RegisterRelation("pieces", {
+				aliases = { "piece", "setpieces" },
+				desc = L["an item set's pieces, where each comes from (OneForAll)"],
+				available = function() return ns.providers.itemset ~= nil end, addon = "OneForAll",
+				seedKinds = { "itemset" },
+				applies = function(e) return e.kind == "itemset" and not rawget(e, "setPiece") and e.setID ~= nil end,
+				run = function(rows)
+					local out = {}
+					for _, e in ipairs(rows) do
+						for i, r in ipairs(A.PieceRows(e.setID)) do
+							r._score = 1e6 - i
+							out[#out + 1] = r
+						end
+					end
+					return out
+				end,
+			})
+			if ns.Pipes then ns.Pipes.LABELS.pieces = "pieces" end
+		end
 	end
 end)
 OA.AddStatus(function()
@@ -397,7 +436,7 @@ function A.Question(text)
 	-- the pieces of a set: "pieces of battlegear of might", "battlegear of might pieces"
 	local hasPiece = false
 	for _, w in ipairs(words) do if PIECE[w] then hasPiece = true end end
-	if hasPiece and ns.providers.setpiece then
+	if hasPiece and ns.providers.itemset then
 		local s = SetIn(t)
 		if s then return { what = "pieces", set = s } end
 	end
@@ -464,7 +503,9 @@ function A.Answer(q)
 	q = q or {}
 	if q.what == "pieces" then
 		local rows = {}
-		for _, e in ipairs(ns:GetEntries(ns.providers.setpiece)) do if e.set == q.set then rows[#rows + 1] = e end end
+		for _, s in ipairs(A.Sets() or {}) do
+			if s.name == q.set then rows = A.PieceRows(s.id) break end
+		end
 		ns.ScoreInOrder(rows)
 		local have = 0
 		for _, e in ipairs(rows) do if e.have then have = have + 1 end end

@@ -695,7 +695,7 @@ F.APPLIES = {
 	cast = { ["*"] = { "spells", "classspells" } }, cost = { ["*"] = { "spells", "classspells" } },
 	range = { ["*"] = { "spells", "classspells" } }, cd = { ["*"] = { "spells", "classspells" } },
 	cooldown = { ["*"] = { "spells", "classspells" } },
-	class = { ["*"] = { "talents", "attune", "spells", "classspells", "itemset", "setpiece" } },
+	class = { ["*"] = { "talents", "attune", "spells", "classspells", "itemset" } },
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)

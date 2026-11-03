@@ -1,6 +1,6 @@
 -- OneForAll's armory (1.0.3, the player's ask; Providers/OneForAll/Armory.lua): @repreward (each faction's rewards,
--- the standing each needs, yours: can you buy it), @itemset (the sets, pieces you have, bonuses; Enter its pieces)
--- and @setpiece (each piece, where it comes from); "argent dawn rewards", "what can i buy at honored", "my class
+-- the standing each needs, yours: can you buy it), @itemset (the sets, pieces you have, bonuses; Enter, "> pieces":
+-- its pieces, where each comes from; no @setpiece since 1.0.10); "argent dawn rewards", "what can i buy at honored", "my class
 -- sets", "pieces of battlegear of might" in Simple mode; standing: and class:mine on them; the other faction's left
 -- out; a table not in the shape expected said once; without OneForAll: none.
 local T = ...
@@ -80,9 +80,9 @@ do
 		}
 		I.SpotXY = function(ui, c) return 2, c[1] * 10, c[2] * 10 end
 		Fresh()
-		local pr, ps, pp = ns.providers.repreward, ns.providers.itemset, ns.providers.setpiece
-		check(pr and ps and pp and ns:ResolveProvider("quartermaster") == pr and ns:ResolveProvider("tierset") == ps
-			and ns:ResolveProvider("pieces") == pp, "@repreward, @itemset, @setpiece")
+		local pr, ps = ns.providers.repreward, ns.providers.itemset
+		check(pr and ps and not ns.providers.setpiece and ns:ResolveProvider("quartermaster") == pr and ns:ResolveProvider("tierset") == ps
+			and ns:ResolveProvider("setpiece") == ps, "@repreward, @itemset (@setpiece its other name: no kind of its own)")
 		check(ns:ResolveProvider("sets") ~= ps, "@sets: still your equipment sets")
 		check(not Said(L["@repreward (its reputation rewards) is unavailable."]) and not Said(L["@itemset (its item sets) is unavailable."]),
 			"its tables as expected: nothing said: " .. tostring(said[1]))
@@ -115,12 +115,16 @@ do
 		UI.WalkTo = function(_, t) walked = t end
 		sb["Battlegear of Might"].activate(sb["Battlegear of Might"])
 		UI.WalkTo = save.walk
+		check(walked == "Battlegear of Might > pieces ", "Enter on a set: its chain: " .. tostring(walked))
 		res = UI:Search(walked)
-		check(#res == 3 and res[1].set == "Battlegear of Might", walked .. ": its three pieces: " .. Names(res))
-		res = UI:Search("@setpiece onyxia")
-		check(#res == 1 and res[1].name == "Shard of the Scale", "@setpiece onyxia: where it drops: " .. Names(res))
-		res = UI:Search("@setpiece is:done")
-		check(#res == 2, "@setpiece is:done: the ones you have: " .. Names(res))
+		check(#res == 3 and res[1].set == "Battlegear of Might" and res[1].kind == "itemset" and res[1].name == "Helm of Might",
+			walked .. ": its three pieces, in order: " .. Names(res))
+		res = UI:Search("@itemset")
+		check(#res == 3, "@itemset: the sets, not their pieces: " .. Names(res))
+		res = UI:Search("@itemset onyxia")
+		check(#res == 1 and res[1].name == "Scale of the Gods", "@itemset onyxia: the set with a piece from Onyxia: " .. Names(res))
+		res = UI:Search("battlegear of might > pieces helm")
+		check(#res == 1 and res[1].isDone and res[1].name == "Helm of Might", "> pieces helm: one, yours (worn): " .. Names(res))
 		-- the questions
 		for _, s in ipairs({ "argent dawn rewards", "what can i buy at honored", "rep rewards", "timbermaw recipes", "exalted rewards",
 			"argent dawn rewards i can buy", "my class sets", "warrior sets", "item sets", "pieces of battlegear of might",
@@ -147,7 +151,14 @@ do
 		r = UI.Results()
 		check(#r == 3, "pieces of battlegear of might: " .. Names(r))
 		UI:Hide(); FlushAll()
+		walked = nil
+		UI.WalkTo = function(_, t) walked = t end
+		sb["Battlegear of Might"].activate(sb["Battlegear of Might"])
+		UI.WalkTo = save.walk
+		check(walked == "pieces of battlegear of might", "Enter on a set in Simple mode: its question: " .. tostring(walked))
+		UI:Hide(); FlushAll()
 		check(A.ToAdvanced(A.Question("my class sets")) == "@itemset class:mine ", "to Advanced: " .. A.ToAdvanced(A.Question("my class sets")))
+		check(A.ToAdvanced(A.Question("pieces of battlegear of might")) == "Battlegear of Might > pieces ", "to Advanced: the chain")
 		ns.db.easyMode = false; UI:EasyChanged()
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find(L["%d factions' rewards (@repreward), %d item sets (@itemset)"]:format(4, 3), 1, true), ".integrations: " .. lines)
