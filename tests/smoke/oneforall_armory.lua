@@ -243,6 +243,15 @@ do
 		for _, e in ipairs(UI:Search("@reputation is:reward brazier")) do if e.itemID == 22014 then braziers = braziers + 1 end end
 		check(braziers == 1, "an item both list: once (OneForAll's, with its quartermaster): " .. braziers)
 		check(#UI:Search("@reputation dungeon sword") == 0, "a dungeon's loot: not a reward")
+		-- (review, 1.0.34) AtlasLoot's own: its rows read where they are, @loot not built inside @reputation
+		local built = false
+		ns.providers.loot = { id = "loot", label = "Loot", aliases = {}, atlasLoot = true, _dirty = true, collect = function() built = true return {} end }
+		local rowsWas = I.loot.rows
+		I.loot.rows, I.loot.factionRows = { { itemID = 21210, name = "Signet Ring of the Bronze Dragonflight", addon = "AtlasLootClassic_Factions",
+			content = "BroodOfNozdormu", detail = "Exalted  Brood of Nozdormu" } }, nil
+		local fl = I.FactionLoot({}, {})
+		check(#fl == 1 and fl[1].reaction == 8 and not built, "AtlasLoot's faction loot read from its rows, @loot not built: " .. #fl)
+		I.loot.rows, I.loot.factionRows = rowsWas, nil
 		ns.providers.loot = lootWas
 		ns.providers.reputation._dirty = true
 		ns.providers.reputation = stub

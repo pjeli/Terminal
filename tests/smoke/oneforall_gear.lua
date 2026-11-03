@@ -152,6 +152,27 @@ do
 		local res = UI:Search("@loot is:upgrade")
 		check(#res == 1 and res[1].itemID == 991, "@loot is:upgrade: OneForAll's upgrade among its gear: " .. tostring(res[1] and res[1].name))
 		check(ns.Integrations.LootPlace(by[1002]).kind == "raid" and ns.Integrations.LootPlace(by[1001]) == nil, "its raid's place a raid's (left out of upgrades, as AtlasLoot's raids), a quest's none")
+		-- (review, 1.0.34) to chat: a boss's "dropped by", a quest's, a recipe's or a faction's "from"; Shift+Enter pressed by the game
+		local SH = ns.Share
+		check(SH.LootSource(by[992]) == L["dropped by %s in %s"]:format("Arugal", "Shadowfang Keep") and SH.LootSource(by[1001]) == L["from %s"]:format("Quest: Ours")
+			and SH.LootSource(by[1003]) == L["from %s"]:format("Blacksmithing 200") and SH.LootSource(by[1004]) == L["from %s"]:format("Argent Dawn (Honored)")
+			and SH.LootSource({ kind = "loot", addon = "AtlasLootClassic_Factions", detail = "Exalted  Brood of Nozdormu" }) == L["from %s"]:format("Brood of Nozdormu (Exalted)"),
+			"to chat: a boss's dropped by, the rest from: " .. tostring(SH.LootSource(by[1001])))
+		check(by[1001].secondarySecure and by[1001].secondaryIsOpen, "Shift+Enter: the chat box opened by the game's press")
+		-- (review, 1.0.34) made once for OneForAll's index: the same rows again, an item named since added
+		local raw = OneForAll.GearIndex()
+		local nameWas = C_Item.GetItemNameByID
+		C_Item.GetItemNameByID = function(id) if id ~= 991 then return nameWas(id) end end
+		OneForAll.GearIndex = function() return raw end
+		G.Forget()
+		local r1 = G.Rows()
+		local r2 = G.Rows()
+		C_Item.GetItemNameByID = nameWas
+		local r3 = G.Rows()
+		local named = false
+		for _, e in ipairs(r3) do if e.itemID == 991 then named = true end end
+		check(r1 == r2 and r2 == r3 and #r1 == 6 and named, "OneForAll's rows made once for its index; one named since added: " .. #r1)
+		G.Forget()
 		-- Simple mode: "upgrades from quests", "raid loot"
 		ns.db.easyMode = true
 		local raid = {}

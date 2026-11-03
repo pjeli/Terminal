@@ -37,6 +37,13 @@ do
 	SP.ForgetFacts()
 end
 do
+	-- (review, 1.0.34) a list built inside another's collect gives back the outer one's "fired its own events" flag
+	local inner = { id = "probeinner", label = "Inner", _dirty = true, collect = function() return {} end }
+	local outer = { id = "probeouter", label = "Outer", _dirty = true, collect = function() ns.firedOwn = true; inner._dirty = true; ns:GetEntries(inner) return {} end }
+	ns:GetEntries(outer)
+	check(outer._firedOwn == true and inner._firedOwn == false and ns.firedOwn == false, "a list built inside another's: the outer one's own-events flag kept: " .. tostring(outer._firedOwn) .. " " .. tostring(inner._firedOwn) .. " " .. tostring(ns.firedOwn))
+end
+do
 	-- another class's rows with a description not in yet: not kept for the session (made again once it is)
 	local SP, CS = ns.Spells, ns.ClassSpells
 	local was, spellsWas = SP.Desc, CS.Spells

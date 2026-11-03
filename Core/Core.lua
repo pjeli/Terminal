@@ -308,9 +308,14 @@ function ns:GetEntries(p)
 		if list ~= p._followed then p._dirty, p._followed = true, list end
 	end
 	if p._dirty or not p._entries then
+		-- (a list built inside another's collect gives the outer one's flag back: review, 1.0.34, @loot built inside
+		-- @reputation's lost its "my own header read fired UPDATE_FACTION", and it was made again 2 s later)
+		local outer, depth = ns.firedOwn, ns.collecting or 0
 		ns.firedOwn = false -- (set by a read that opens folded headers or journal filters: ns.ReadExpanded, Widened)
+		ns.collecting = depth + 1
 		local ok, res = pcall(p.collect, p)
-		p._firedOwn, ns.firedOwn = ns.firedOwn, false
+		ns.collecting = depth
+		p._firedOwn, ns.firedOwn = ns.firedOwn, depth > 0 and outer or false
 		p._collectedAt = GetTime()
 		p._dirty = false
 		ns.entriesGen = ns.entriesGen + 1

@@ -204,10 +204,22 @@ local ItemLink = ns.ItemLink
 --- trash in Stratholme", "from Molten Core" (no boss named); nil for other rows.
 --- A loot row's boss and instance, from its detail ("Garr  Molten Core"): "Garr", "Molten Core"; "" for one not
 --- named ("?"); nil for other rows.
+-- (where a row no boss drops comes from: a quest's, a recipe's, a faction's, a set's; review, 1.0.34: OneForAll's quest
+-- rewards said "dropped by Quest: Ours", AtlasLoot's faction loot "dropped by Exalted in Brood of Nozdormu")
+local NOT_DROPPED = { quest = true, crafted = true, reputation = true, pvp = true, collection = true }
+
 function SH.LootWhere(e)
 	if not e or e.kind ~= "loot" or type(e.detail) ~= "string" then return nil end
 	local I = ns.Integrations
 	local d = ns.Plain(I and I.LootDetail and I.LootDetail(e.detail) or e.detail) -- (without a drop chance after it)
+	local own = rawget(e, "lootSource")
+	local src = I and I.LootSource and I.LootSource(e)
+	if (own and own ~= "dungeon" and own ~= "raid") or NOT_DROPPED[src] then
+		-- no boss: "from <where>" (a faction's "<standing>  <faction>" said "<faction> (<standing>)")
+		local a, b = d:match("^(.-)%s%s+(.-)%s*$")
+		if a then return "", src == "reputation" and (b .. " (" .. a .. ")") or (a .. ", " .. b) end
+		return "", (d:match("^%s*(.-)%s*$"))
+	end
 	local boss, inst = d:match("^(.-)%s%s+(.-)%s*$")
 	if not boss then boss, inst = d:match("^%s*(.-)%s*$"), "" end
 	if boss == "?" or boss == inst then boss = "" end

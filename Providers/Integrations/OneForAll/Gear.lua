@@ -63,11 +63,14 @@ local function SourceOf(e)
 end
 
 --- The gear its planner knows: { { id, name, src, lvl, side, source, boss, inst, qid } } (checked), or nil.
-function G.Index()
-	local lib = OA.Lib()
-	local fn = lib and rawget(lib, "GearIndex")
-	if type(fn) ~= "function" then return nil end
-	local list = OA.Call(fn)
+--- `list`: its GearIndex's answer, when read already.
+function G.Index(list)
+	if list == nil then
+		local lib = OA.Lib()
+		local fn = lib and rawget(lib, "GearIndex")
+		if type(fn) ~= "function" then return nil end
+		list = OA.Call(fn)
+	end
 	if type(list) ~= "table" then return nil end
 	local out = {}
 	for _, e in ipairs(list) do
@@ -99,33 +102,59 @@ end
 local function QuestPage(e)
 	if e.qid and I.WOWHEAD_QUEST then ns:ShowText(L["Wowhead: %s"]:format(tostring(e.src)), I.WOWHEAD_QUEST:format(e.qid), { compact = true }) end
 end
-local function LinkIt(e) ns.LinkInChat(select(2, ns.Safe(C_Item.GetItemInfo, e.itemID)) or e.name) end
+-- Shift+Enter: the item's link in the chat box with where it's from (Share.Text), opened by the game as AtlasLoot's rows
+-- are (Core.lua's ChatBoxSpec; review, 1.0.34: Terminal's own code opened the chat box, which taints it); in combat, Terminal's
+local function LinkText(e) return ns.Share and ns.Share.Text(e) or select(2, ns.Safe(C_Item.GetItemInfo, e.itemID)) or e.name end
+local function LinkIt(e) ns.LinkInChat(LinkText(e)) end
+local LINK_CHATBOX = ns.ChatBoxSpec(LinkText)
+
+local function Row(e, i, name)
+	-- (a boss's as AtlasLoot's rows say it, "<boss>  <instance>": the loot readers take its instance from that)
+	local where = (e.boss and e.inst) and (e.boss .. "  " .. e.inst) or e.src or ""
+	return {
+		key = "ofa:" .. e.id, name = name, _lname = Lower(name), itemID = e.id, src = e.src, order = i,
+		lootSource = e.source, lootLevel = e.lvl, qid = e.qid, tooltip = Tooltip, detail = where,
+		activate = e.qid and QuestPage or nil, secondary = LinkIt, secondarySecure = LINK_CHATBOX,
+		secondaryIsOpen = ns.ChatBoxNeverOpen, text = Lower((e.src or "") .. " " .. (e.inst or "") .. " " .. e.source),
+	}
+end
 
 --- @loot's rows of its planner's gear: each item once, none AtlasLoot lists already (`listed`: item id -> true), your
---- faction's and both sides'.
+--- faction's and both sides'. Made once for its index (OneForAll builds it once), your side and `listed`; only the
+--- items with no name yet are looked at again (review, 1.0.34: made again on every @loot rebuild, every ~2 s while
+--- AtlasLoot's names come in: 16 ms and 6.8 MB each).
 function G.Rows(listed)
-	local list = G.Index()
-	if not list then return {} end
+	local lib = OA.Lib()
+	local fn = lib and rawget(lib, "GearIndex")
+	local raw = type(fn) == "function" and OA.Call(fn) or nil
+	if type(raw) ~= "table" then return {} end
 	local side = OA.Side()
-	local out, seen = {}, {}
+	local c = G.cache
+	if c and c.raw == raw and c.side == side and c.listed == listed then
+		for i = #c.unnamed, 1, -1 do
+			local u = c.unnamed[i]
+			local name = ItemName(u.e.id)
+			if name then
+				c.rows[#c.rows + 1] = Row(u.e, u.i, name)
+				table.remove(c.unnamed, i)
+			end
+		end
+		return c.rows
+	end
+	local list = G.Index(raw)
+	if not list then return {} end
+	local out, seen, unnamed = {}, {}, {}
 	for i, e in ipairs(list) do
 		if not seen[e.id] and not (listed and listed[e.id]) and not (e.side and side and e.side ~= side) then
 			seen[e.id] = true
 			local name = e.name or ItemName(e.id)
-			if name then
-				-- (a boss's as AtlasLoot's rows say it, "<boss>  <instance>": the loot readers take its instance from that)
-				local where = (e.boss and e.inst) and (e.boss .. "  " .. e.inst) or e.src or ""
-				out[#out + 1] = {
-					key = "ofa:" .. e.id, name = name, _lname = Lower(name), itemID = e.id, src = e.src, order = i,
-					lootSource = e.source, lootLevel = e.lvl, qid = e.qid, tooltip = Tooltip, detail = where,
-					activate = e.qid and QuestPage or nil, secondary = LinkIt,
-					text = Lower((e.src or "") .. " " .. (e.inst or "") .. " " .. e.source),
-				}
-			end
+			if name then out[#out + 1] = Row(e, i, name) else unnamed[#unnamed + 1] = { e = e, i = i } end
 		end
 	end
+	G.cache = { raw = raw, side = side, listed = listed, rows = out, unnamed = unnamed }
 	return out
 end
+function G.Forget() G.cache = nil end -- (tests)
 
 OA.AddSetup(function()
 	if type(rawget(OA.Lib() or {}, "GearIndex")) ~= "function" then return end

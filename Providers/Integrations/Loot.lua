@@ -145,6 +145,9 @@ end
 --- its faction and the standing it needs ("Brood of Nozdormu  ·  Exalted", as its tables are filed: "<standing>  <faction>"),
 --- whether yours allows it, Enter opening AtlasLoot on it as @loot's row does (a view on that row). `mine`: lowercase
 --- faction name -> your standing (1-8); `have`: item ids listed already (OneForAll's, which say their quartermaster).
+--- (AtlasLoot's own rows, not @loot's list: building @loot inside @reputation's collect was most of its 86 ms at login, and
+--- again on every rep gain; its faction rows found once per index, each one's standing and faction read then. Review,
+--- 1.0.34)
 function I.FactionLoot(mine, have)
 	local out = {}
 	local lp = ns.providers.loot
@@ -152,17 +155,44 @@ function I.FactionLoot(mine, have)
 	local F = ns.Filters
 	local words = F and F._ and F._.StandingWords and F._.StandingWords() or {}
 	local SEP = ns.DETAIL_SEP
-	for _, r in ipairs(ns:GetEntries(lp)) do
-		local id = r.itemID
-		if id and not (have and have[id]) and I.LootSource(r) == "reputation" then
-			local st, fac = tostring(I.LootDetail(r.detail) or ""):match("^(.-)  (.+)$")
-			local need = st and words[ns.Lower(st)]
-			if need and fac and type(r.name) == "string" then
-				local my = mine and mine[ns.Lower(fac)]
-				out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = r.name, repReward = true,
-					faction = fac, reaction = need, mine = my, canBuy = my ~= nil and my >= need, detail = fac .. SEP .. st,
-					text = ns.Lower(fac .. " " .. st) .. " reputation reward rep" }, { __index = r })
+	local fl
+	if lp.atlasLoot then
+		fl = loot.factionRows
+		if not (fl and fl.of == loot.rows and fl.n == #loot.rows and fl.words == words) then
+			fl = { of = loot.rows, n = #loot.rows, words = words }
+			for _, r in ipairs(loot.rows) do
+				if r.itemID and I.LootSource(r) == "reputation" then
+					local st, fac = tostring(I.LootDetail(r.detail) or ""):match("^(.-)  (.+)$")
+					local need = st and words[ns.Lower(st)]
+					if need and fac then fl[#fl + 1] = { r = r, st = st, fac = fac, lfac = ns.Lower(fac), need = need } end
+				end
 			end
+			loot.factionRows = fl
+		end
+	else -- (another list called loot: tests')
+		fl = {}
+		for _, r in ipairs(ns:GetEntries(lp)) do
+			if r.itemID and I.LootSource(r) == "reputation" then
+				local st, fac = tostring(I.LootDetail(r.detail) or ""):match("^(.-)  (.+)$")
+				local need = st and words[ns.Lower(st)]
+				if need and fac then fl[#fl + 1] = { r = r, st = st, fac = fac, lfac = ns.Lower(fac), need = need } end
+			end
+		end
+	end
+	for _, x in ipairs(fl) do
+		local r = x.r
+		local id = r.itemID
+		local name = rawget(r, "name")
+		if not name and I.LootName then -- (named as @loot's collect names them: @loot may not be built yet)
+			name = I.LootName(id)
+			if name then r.name = name end
+		end
+		if type(name) == "string" and not (have and have[id]) then
+			local my = mine and mine[x.lfac]
+			local need = x.need
+			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true,
+				faction = x.fac, reaction = need, mine = my, canBuy = my ~= nil and my >= need, detail = x.fac .. SEP .. x.st,
+				text = ns.Lower(x.fac .. " " .. x.st) .. " reputation reward rep" }, { __index = r })
 		end
 	end
 	return out
@@ -513,6 +543,7 @@ local function SetupAtlasLoot()
 		label = L["Loot"],
 		color = "ffd9a441",
 		aliases = { "loot", "atlasloot", "al" }, -- (@drop is the loot log: what dropped for you)
+		atlasLoot = true, -- (its rows are loot.rows: I.FactionLoot reads them there)
 		lazy = true,
 		-- names arriving: see the frame below (only names of loot rows count)
 		collect = function()
@@ -546,9 +577,14 @@ local function SetupAtlasLoot()
 			-- (1.0.25) OneForAll's planner's gear AtlasLoot doesn't list: quest rewards, reputation, crafted, its dungeons'
 			local G = ns.OneForAllGear
 			if G and G.on and G.Rows then
-				local listed = {}
-				for _, r in ipairs(out) do listed[r.itemID] = true end
-				for _, r in ipairs(G.Rows(listed)) do out[#out + 1] = r end
+				-- (every AtlasLoot row's item, named yet or not: one whose name hasn't come isn't OneForAll's twice; made
+				-- once per index, so OneForAll's rows are too: review, 1.0.34)
+				if loot.listedOf ~= loot.rows or loot.listedN ~= #loot.rows then
+					local listed = {}
+					for _, r in ipairs(loot.rows) do listed[r.itemID] = true end
+					loot.listed, loot.listedOf, loot.listedN = listed, loot.rows, #loot.rows
+				end
+				for _, r in ipairs(G.Rows(loot.listed)) do out[#out + 1] = r end
 			end
 			-- what's still unnamed, for the name events (ids, not rows: several rows can share an item)
 			loot.unnamed = {}
