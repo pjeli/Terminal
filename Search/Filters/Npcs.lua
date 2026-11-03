@@ -611,8 +611,16 @@ IS.flight, IS.flightmaster = FlightMaster, FlightMaster
 -- flight paths: learned or not, as a flight master's map (or the world map's data) said; one not checked yet counts as
 -- not learned (it may be)
 IS.flightpath = function(e) return e.kind == "flight" end
--- (1.0.9) @tame's pet ability ranks, not its beasts
-IS.ability = function(e) return e.kind == "tame" and e.ability ~= nil end -- (a view on one too: not rawget)
+-- (1.0.9) a hunter's pet ability ranks (@spell's since 1.0.37, @tame's before)
+IS.ability = function(e) return e.kind == "spells" and e.ability ~= nil end -- (a view on one too: not rawget)
+-- (1.0.37) the beasts a hunter can tame: Questie's NPCs OneForAll lists, and its own (the questions' answers)
+IS.tameable = function(e)
+	if e.kind ~= "npc" then return false end
+	if e.tameable == true then return true end
+	local H = ns.HunterPets
+	return H ~= nil and H.BeastOf ~= nil and H.BeastOf(e.npcID) ~= nil
+end
+IS.tamable = IS.tameable
 -- (1.0.27) @reputation's quartermaster rewards (OneForAll's), and those your standing lets you buy
 IS.reward = function(e) return e.kind == "reputation" and e.repReward == true end
 IS.rewards = IS.reward
@@ -622,7 +630,7 @@ IS.buyable = IS.canbuy
 -- keeps those your skill already allows
 -- (0.54.6: spells too, @spell listing the ones you don't know yet: is:known keeps to your spellbook, as @spell did before)
 IS.learned = function(e)
-	return (e.kind == "flight" and e.learned == true) or e.kind == "recipes" or e.kind == "spells"
+	return (e.kind == "flight" and e.learned == true) or e.kind == "recipes" or (e.kind == "spells" and e.ability == nil)
 		or ((e.kind == "classspells" or IS.ability(e)) and rawget(e, "known") == true)
 end
 IS.unlearned = function(e)

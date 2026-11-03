@@ -304,12 +304,16 @@ local function SetupQuestie()
 	}, {
 		npcID = function(t) return rawget(t, "key") end,
 		detail = function(t)
-			local d = rawget(t, "sub") or (L["NPC"] .. "  #" .. t.npcID)
+			-- (a beast to tame says its family, level and what it teaches: I.NpcExtraDetail, Pets.lua)
+			local x = I.NpcExtraDetail and I.NpcExtraDetail(t.npcID)
+			local sub = rawget(t, "sub")
+			local d = x and ((sub and (sub .. ns.DETAIL_SEP) or "") .. x) or sub or (L["NPC"] .. "  #" .. t.npcID)
 			local inside = I.NpcDungeon and I.NpcDungeon(t.npcID)
 			if inside then d = d .. ns.DETAIL_SEP .. L["in %s"]:format(inside) end -- (pointed at its entrance; 0.51.18)
 			return d
 		end,
 		inDungeon = function(t) return I.NpcDungeon and I.NpcDungeon(t.npcID) or false end,
+		tooltip = function(t) return I.NpcExtraTooltip and I.NpcExtraTooltip(t.npcID) or nil end, -- (a beast to tame's)
 		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
 		-- (0.49.2, review: an NPC with no known spot pressed the map key, opening your own zone, then said Questie has no
 		-- location for it: now nothing is pressed and Enter only says so)

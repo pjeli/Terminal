@@ -74,6 +74,38 @@ do
 	end
 	local r = UI:Search("@npc hogger")
 	check(r[1] and r[1].name == "Hogger", "@npc hogger finds him: " .. tostring(r[1] and r[1].name))
+	-- (1.0.37) what another part adds to an NPC (a hunter's beasts to tame, OneForAll's): its words, detail and tooltip
+	do
+		local hog = r[1]
+		local was = rawget(hog, "_ltext")
+		local tip = function() end
+		I.NpcExtraText = function(id) return id == 448 and "tameable wolf teaches bite 2;" or nil end
+		I.NpcExtraDetail = function(id) return id == 448 and "Wolf  ·  level 11" or nil end
+		I.NpcExtraTooltip = function(id) return id == 448 and tip or nil end
+		I.NpcExtrasChanged()
+		local t = UI:Search('@npc "teaches bite 2;"')
+		check(t[1] and t[1].name == "Hogger" and #t == 1 and hog.detail:find("Wolf", 1, true) and hog.tooltip == tip,
+			"an NPC's added words, detail and tooltip: " .. tostring(t[1] and t[1].name) .. " / " .. tostring(hog.detail))
+		I.NpcExtraText, I.NpcExtraDetail, I.NpcExtraTooltip = nil, nil, nil
+		hog._ltext = was
+		check(hog.tooltip == nil and not hog.detail:find("Wolf", 1, true), "...none added: as before")
+	end
+	-- (1.0.37) what another part adds to an NPC (a hunter's beasts to tame, OneForAll's): its words, detail and tooltip
+	do
+		local hog = r[1]
+		local was = rawget(hog, "_ltext")
+		local tip = function() end
+		I.NpcExtraText = function(id) return id == 448 and "tameable wolf teaches bite 2;" or nil end
+		I.NpcExtraDetail = function(id) return id == 448 and "Wolf  ·  level 11" or nil end
+		I.NpcExtraTooltip = function(id) return id == 448 and tip or nil end
+		I.NpcExtrasChanged()
+		local t = UI:Search('@npc "teaches bite 2;"')
+		check(t[1] and t[1].name == "Hogger" and #t == 1 and hog.detail:find("Wolf", 1, true) and hog.tooltip == tip,
+			"an NPC's added words, detail and tooltip: " .. tostring(t[1] and t[1].name) .. " / " .. tostring(hog.detail))
+		I.NpcExtraText, I.NpcExtraDetail, I.NpcExtraTooltip = nil, nil, nil
+		hog._ltext = was
+		check(hog.tooltip == nil and not hog.detail:find("Wolf", 1, true), "...none added: as before")
+	end
 	r = UI:Search("@questie bring his claw")
 	check(r[1] and r[1].qid == 176, "@questie searches the objectives text: " .. tostring(r[1] and r[1].name))
 	do -- its tooltip (0.45.10): level, zone, objectives, who starts it, and its rewards (QuestieDB's experience)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.37 (in testing)
+
+- `@tame` is gone (the player: "fold beasts into @NPC ... the pet abilities in @Spells and get rid of tame entirely"). For a hunter with OneForAll, each rank of each pet ability is an `@spell` row (`is:ability`; learned or not; Enter: the beasts that teach it), and Questie's `@npc` rows of beasts you can tame say so: `is:tameable`, their family, level, what they teach and why a rare one is rare, in their text, detail and tooltip (`@npc "teaches bite 4;"`). The questions stay ("tameable cats", "where to learn bite 4", "cat abilities", "rare pets in the barrens"), answered from OneForAll's beasts as NPC rows; Alt+` writes them as `@npc is:tameable cat` and `@spell is:ability cat`. The Console's OneForAll mount has no /tame.
+
 ## 1.0.36 (in testing)
 
 - Questions that took lines they shouldn't (review): for a hunter "tame beast" is your spell again, not 313 beasts; "zeppelin" on the Alliance finds the zeppelin masters instead of "OneForAll knows no way like that"; "argent dawn quartermaster" and "where to buy in <town>" are the NPCs and vendors again ("buy" means rewards only with a standing, "rep" or "can"). In Simple mode `@tame`'s beasts are under NPCs, beside Questie's same beasts, and its abilities under Spells: a beast's name ("broken tooth") goes straight to it again instead of a Spells / NPCs choice.

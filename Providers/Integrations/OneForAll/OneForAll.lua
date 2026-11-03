@@ -8,8 +8,8 @@ local I = ns.Integrations
 -- chat (I.Failed: what's unavailable), the rest still used. What each part makes is in Providers/Integrations/OneForAll/:
 --
 --   BOOKS, BOOK_REWARD_TIERS, MAP_IDS     @book: the Library Books (Books.lua)
---   PET_ABILITIES, PET_FAMILIES, PET_RARES  @tame (a hunter's only): a hunter's pet abilities, who teaches each rank, the
---                                         beasts to tame (Pets.lua)
+--   PET_ABILITIES, PET_FAMILIES, PET_RARES  a hunter's only: its pet abilities' ranks in @spell, who teaches each, the
+--                                         beasts to tame in @npc (is:tameable) and its questions (Pets.lua)
 --   ARMORY_REPUTATION, ARMORY_SETS        "> rewards" (reputation rewards) and @itemset (Armory.lua)
 --   WEAPON_TRAINERS, MERCHANT_RECIPES, MAP_LANDMARKS, DUNGEON_DROP_CHANCE
 --                                         weapon masters, Merchant's Favor recipes (on @recipe's unknown ones), boats, zeppelins and the tram,

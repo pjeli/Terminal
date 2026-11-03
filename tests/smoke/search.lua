@@ -389,7 +389,7 @@ do
 		and not item:find("online", 1, true) and not item:find("leftbehind", 1, true), "@item is: the items': " .. item)
 	check(Picks("@group quests is:") == "shareable together", "@group quests is: the party quests': " .. Picks("@group quests is:"))
 	check(Picks("@group is:"):find("^online offline dead tank healer dps far inrange unbuffed$"), "@group is: " .. Picks("@group is:"))
-	check(Picks("@spell @currency is:") == "ready passive unplaced known capped", "two lists: both lists' values: " .. Picks("@spell @currency is:"))
+	check(Picks("@spell @currency is:") == "ready passive unplaced known capped ability", "two lists: both lists' values (ability: a hunter's pet ability ranks, 1.0.37): " .. Picks("@spell @currency is:"))
 	check(#Picks("is:"):gsub("%S+", "x"):gsub(" ", "") == #ns.Filters.VALUES.is, "no list typed: every value")
 	check(Picks("@questlog stat:") == "" and Picks("@npc trainer:"):find("^class classes"), "a key that judges no list typed: none")
 	check(Picks("@questlog is:co") == "complete", "narrowed by what's typed: " .. Picks("@questlog is:co"))
@@ -401,7 +401,7 @@ do
 	for _, v in ipairs(ns.Filters.VALUES.is) do if v:sub(1, 2) == "co" then fromAll = fromAll + 1 end end
 	check(#qc == 15 and fromAll > 1, "the quest log's values, several from all of them: " .. #qc)
 	-- every value is said to judge some list, and every list named is one (a typo would hide a value everywhere)
-	local known = { loot = true, questie = true, npc = true, attune = true, training = true, pets = true, toys = true, book = true, tame = true, itemset = true, transport = true, gearplan = true } -- (AtlasLoot's, Questie's, Attune's, What's Training's and OneForAll's lists, the pet journal's and the toy box's: not loaded in every run)
+	local known = { loot = true, questie = true, npc = true, attune = true, training = true, pets = true, toys = true, book = true, itemset = true, transport = true } -- (AtlasLoot's, Questie's, Attune's, What's Training's and OneForAll's lists, the pet journal's and the toy box's: not loaded in every run)
 	for _, id in ipairs(ns.providerOrder) do known[id] = true end
 	local undeclared, strange = {}, {}
 	for key, values in pairs(ns.Filters.VALUES) do

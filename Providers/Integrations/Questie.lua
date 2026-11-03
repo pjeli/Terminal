@@ -79,10 +79,26 @@ local function NpcSub(DB, id)
 	return sub, ns.Lower(sub)
 end
 
+-- (and what another part of Terminal adds to an NPC's text: a hunter's beasts to tame, OneForAll's: "tameable cat teaches
+-- bite 4;"; I.NpcExtraText, Pets.lua, 1.0.37)
 local function NpcListRow(DB, id, name, meta)
 	local lname = ns.Lower(name)
 	local sub, lsub = NpcSub(DB, id)
-	return setmetatable({ _compact = true, key = id, name = name, _lname = lname, sub = sub, _ltext = lsub }, meta), lname, lsub
+	local x = I.NpcExtraText and I.NpcExtraText(id)
+	local text = x and ((lsub and (lsub .. " ") or "") .. x) or lsub
+	return setmetatable({ _compact = true, key = id, name = name, _lname = lname, sub = sub, _ltext = text }, meta), lname, lsub
+end
+
+--- I.NpcExtraText changed (a hunter's pets added): the NPC list made already gets the beasts' words.
+function I.NpcExtrasChanged()
+	if not (npc.list and I.NpcExtraText) then return end
+	for _, r in ipairs(npc.list) do
+		local x = I.NpcExtraText(rawget(r, "key"))
+		if x then
+			local sub = rawget(r, "sub")
+			r._ltext = (sub and (ns.Lower(sub) .. " ") or "") .. x
+		end
+	end
 end
 
 local function IndexNPCs(after)

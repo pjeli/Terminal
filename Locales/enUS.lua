@@ -98,7 +98,7 @@ L["%d of %d turned in"] = true
 L["%d of its window's tabs (@panel)"] = true
 L["%d offline, not asked"] = true
 L["%d on alts"] = true
-L["%d pet ability ranks and %d families (@tame)"] = true
+L["%d pet ability ranks (@spell) and %d families of beasts to tame (@npc)"] = true
 L["%d piece damaged"] = true
 L["%d pieces damaged"] = true
 L["%d places"] = true
@@ -419,7 +419,6 @@ L["@spell: by its own cooldown in seconds: 0 (none), cd:<10, cd:>60 (cooldown: s
 L["@spell: by range in yards: melee, self, or how far (range:30, range:>=20)"] = true
 L["@spell: only your spellbook (without it, the spells you don't know yet are listed too, any class's)"] = true
 L["@stored, @mail, @lockout, @auction: on that character (or guild)"] = true
-L["@tame (its beasts to tame) is unavailable."] = true
 L["@training is unavailable."] = true
 L["@training isn't kept up to date as you train."] = true
 L["@training: learnable (now) nextlevel later needsrank needstalent pet weapon ignored quest"] = true
@@ -967,7 +966,6 @@ L["How it's learned isn't known: AtlasLoot doesn't list it"] = true
 L["How to use Terminal; .help advanced: every command and the Advanced syntax"] = true
 L["How upgrades are judged: an item's stats weighed for what you want, against the piece you wear there; a clear upgrade gains more than it gives up."] = true
 L["How upgrades are judged: the stats your talent tree wants. .weights arms, .weights resto, .weights tank picks a tree; .weights set str=2 agi=1 or a Pawn scale string for your own; .weights all for the tree your talent points are in"] = true
-L["Hunter pet"] = true
 L["I can share"] = true
 L["I can share it"] = true
 L["ID %d"] = true
@@ -1038,6 +1036,7 @@ L["Item sets from OneForAll"] = true
 L["Items"] = true
 L["Its Library Books, hunter pets, reputation rewards, item sets and gear values are unavailable."] = true
 L["Its Merchant's Favor recipes are unavailable."] = true
+L["Its beasts to tame are unavailable."] = true
 L["Its category's name, searched as a word"] = true
 L["Its drop chances are unavailable."] = true
 L["Its pet abilities are unavailable."] = true
@@ -2922,7 +2921,6 @@ L["path: the whole path, not shown by ls -l, for xargs: ls -lN /npc | where role
 L["peak"] = true
 L["peak %.3f"] = true
 L["peak %s"] = true
-L["pet abilities and beasts to tame"] = true
 L["pet ability"] = true
 L["pet trainer"] = true
 L["pets"] = true

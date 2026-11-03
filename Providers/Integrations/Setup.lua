@@ -164,12 +164,10 @@ I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return no
 -- (1.0.1: the Library Books, OneForAll's)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.book end,
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
--- (1.0.2: a hunter's pet abilities and beasts to tame, OneForAll's; 1.0.9: one kind, @tame, and only a hunter's: another
--- class with OneForAll isn't told to install it)
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.tame or (ns.OneForAll and ns.OneForAll.Loaded())) end,
-	kinds = { petability = true, petabilities = true, beasttraining = true, tame = true, tames = true, tameable = true, hunterpet = true,
-		hunterpets = true, beast = true, beasts = true, petskill = true, petskills = true },
-	words = { tame = true, tameable = true } }
+-- (1.0.2: a hunter's pet abilities and beasts to tame, OneForAll's; only a hunter's: another class with OneForAll isn't told
+-- to install it. In @spell and @npc since 1.0.37: no kind of their own)
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ((ns.HunterPets and ns.HunterPets.on) or (ns.OneForAll and ns.OneForAll.Loaded())) end,
+	kinds = {}, words = { tame = true, tameable = true }, values = { ["is:tameable"] = true, ["is:ability"] = true } }
 -- (1.0.3: item sets and their pieces, OneForAll's armory; its reputation rewards are questions, 1.0.11)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.itemset end,
 	kinds = { itemset = true, itemsets = true, tierset = true, tiersets = true, setpiece = true, setpieces = true } }

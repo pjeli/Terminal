@@ -557,7 +557,7 @@ end
 --- A spell you can cast that isn't on any bar you have or a key; false for anything else (passives, auto attacks,
 --- other rows).
 function SP.Unplaced(e)
-	if e.kind ~= "spells" or e.passive or type(e.name) ~= "string" or AutoAttack(e.spellID) then return false end
+	if e.kind ~= "spells" or e.passive or e.ability or type(e.name) ~= "string" or AutoAttack(e.spellID) then return false end
 	if SP.PlacedNames()[ns.Lower(e.name)] then return false end
 	if Call(_G.GetBindingKey, "SPELL " .. e.name) then return false end
 	return true
@@ -668,6 +668,12 @@ ns:RegisterProvider("spells", {
 		local okC, cname, cfile = pcall(UnitClass, "player")
 		if okC and type(cfile) == "string" then
 			for _, e in ipairs(out) do e.classFile, e.className = cfile, cname end
+		end
+		-- (a hunter with OneForAll: each rank of each pet ability, learned or not; is:ability. 1.0.37, was @tame's)
+		local pets = ns.HunterPets
+		if pets and pets.on and pets.AbilityRows then
+			local ok, rows = pcall(pets.AbilityRows)
+			if ok and type(rows) == "table" then for _, e in ipairs(rows) do out[#out + 1] = e end end
 		end
 		return out
 	end,

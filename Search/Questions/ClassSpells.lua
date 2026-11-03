@@ -106,7 +106,7 @@ function Q.Answer(q)
 	local rows, note = {}, nil
 	if q.known then
 		local P = ns.providers.spells
-		for _, e in ipairs(P and ns:GetEntries(P) or {}) do rows[#rows + 1] = e end
+		for _, e in ipairs(P and ns:GetEntries(P) or {}) do if not e.ability then rows[#rows + 1] = e end end -- (not a pet's)
 		table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
 		if #rows == 0 then return { NoteRow(L["No spell that fits"]) }, L["Your spellbook"] end
 		-- (no count: the footer says how many, after the bar's filter too; 0.55.15, the player's screenshot had it twice)
