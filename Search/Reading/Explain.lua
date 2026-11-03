@@ -17,7 +17,7 @@ local KIND_NOUN = { npc = L["NPCs"], items = L["items"], gear = L["gear you wear
 	mail = L["mail"], auctions = L["auctions"], lootlog = L["loot you saw drop"], combatlog = L["combat log lines"],
 	history = L["lines you ran"], buyback = L["items you sold to vendors"], mailbox = L["mailboxes"], forge = L["forges"], anvil = L["anvils"],
 	cookingfire = L["cooking fires"], moonwell = L["moonwells"], flight = L["flight paths"], book = L["Library Books"],
-	tame = L["pet abilities and beasts to tame"], repreward = L["reputation rewards"], itemset = L["item sets"],
+	tame = L["pet abilities and beasts to tame"], itemset = L["item sets"],
 	favor = L["Merchant's Favor recipes"], transport = L["boats, zeppelins and the tram"],
 	gearplan = L["gear OneForAll's planner knows"],
 	recipes = L["recipes"], professions = L["professions"], stored = L["your alts' and bank's items"], bank = L["your bank"],

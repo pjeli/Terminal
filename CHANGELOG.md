@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.11 (in testing)
+
+- Fewer kinds: `@repreward` is gone. OneForAll's reputation rewards are Reputation rows that its questions list ("argent dawn rewards", "what can i buy at honored", "timbermaw recipes") and `<faction> > rewards` from a faction's row (Advanced), each with the standing it needs, whether you can buy it yet, its quartermaster on the map with Enter. A reward's name alone no longer finds it in a plain search (the player's call).
+
 ## 1.0.10 (in testing)
 
 - Fewer kinds: `@setpiece` is gone. A set's pieces are `@itemset`'s: Enter on a set, "pieces of battlegear of might" (Simple mode) or `<set> > pieces` lists them, each with where it comes from. `@itemset onyxia` finds the sets with a piece from Onyxia, `@itemset gauntlets of might` the set a piece is in; `@setpiece` still finds `@itemset`.

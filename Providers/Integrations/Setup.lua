@@ -170,8 +170,8 @@ I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not 
 	kinds = { petability = true, petabilities = true, beasttraining = true, tame = true, tames = true, tameable = true, hunterpet = true },
 	words = { tame = true, tameable = true } }
 -- (1.0.3: reputation rewards, item sets and their pieces, OneForAll's armory)
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.repreward and ns.providers.itemset) end,
-	kinds = { repreward = true, reprewards = true, quartermaster = true, itemset = true, itemsets = true, tierset = true, setpiece = true,
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.itemset end,
+	kinds = { itemset = true, itemsets = true, tierset = true, setpiece = true,
 		setpieces = true } }
 -- (1.0.4: the Merchant's Favor recipes, the boats, zeppelins and the tram, OneForAll's)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.favor and ns.providers.transport) end,

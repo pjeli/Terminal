@@ -3,13 +3,15 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- @repreward and @itemset (1.0.3, the player's ask), OneForAll's armory: what each faction's quartermaster sells at
+-- Reputation rewards and @itemset (1.0.3, the player's ask), OneForAll's armory: what each faction's quartermaster sells at
 -- each standing (and yours: can you buy it yet), the item sets (each class's, the dungeon and raid sets, how many pieces
 -- you have, the bonuses) and their pieces (where each comes from, yours or not). "argent dawn rewards", "what can i buy
 -- at honored", "my class sets", "pieces of battlegear of might" ask for them (Simple mode).
 -- 1.0.10 (the player: too many kinds): a set's pieces are no kind of their own (was @setpiece) but @itemset's rows that
 -- only "<set> > pieces", Enter on a set and "pieces of <set>" list, as Attune's steps are; a set's text has its pieces'
 -- names and sources, so "@itemset onyxia" finds the sets with a piece from Onyxia.
+-- 1.0.11 (the same call): the rewards are no kind of their own either (was @repreward) but @reputation's rows that only
+-- the questions ("argent dawn rewards", "what can i buy at honored") and "<faction> > rewards" list (`repReward`).
 --
 -- OneForAll's ranks run 0-7 (4 Friendly .. 7 Exalted); the game's standings 1-8 (5 Friendly .. 8 Exalted): a reward's
 -- standing is its rank + 1, as the standing: filter and the reputation list read it.
@@ -60,7 +62,7 @@ end
 --- quality, icon, need (1-8), what ("gear", "recipe", "other"), vendors = { npcID... } } } } }, or nil. Those not in
 --- WoW Forever yet (st 0) are left out.
 function A.Factions()
-	return OA.Part("reputation", "ARMORY_REPUTATION", L["@repreward (its reputation rewards) is unavailable."], function(raw)
+	return OA.Part("reputation", "ARMORY_REPUTATION", L["Its reputation rewards are unavailable."], function(raw)
 		local out = {}
 		for _, f in ipairs(raw) do
 			local id, name = type(f) == "table" and Num(f.id), type(f) == "table" and OA.Text(f.n)
@@ -180,7 +182,7 @@ end
 
 local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.vendorName or e.name)) end
 
---- @repreward's rows: each faction's rewards (your faction's and both sides'), by faction then standing.
+--- The reward rows: each faction's rewards (your faction's and both sides'), by faction then standing.
 function A.RewardRows()
 	local out = {}
 	local side = MySide()
@@ -194,7 +196,7 @@ function A.RewardRows()
 				local spot
 				for _, x in ipairs(#it.vendors > 0 and it.vendors or f.vendors) do if x.ui then spot = x break end end
 				local row = {
-					key = f.id .. ":" .. it.id, kind = "repreward", name = name, _lname = Lower(name), itemID = it.id, icon = Icon(it.icon),
+					key = f.id .. ":" .. it.id, kind = "reputation", repReward = true, name = name, _lname = Lower(name), itemID = it.id, icon = Icon(it.icon),
 					quality = it.quality, slot = it.slot, faction = f.name, factionID = f.id, reaction = it.need, mine = mine, canBuy = can,
 					what = it.what, vendors = #it.vendors > 0 and it.vendors or f.vendors, vendorName = v and v.name, order = fi * 1000 + it.need * 100 + ii,
 					tooltip = RewardTooltip, generic = false, pinName = spot and spot.name,
@@ -214,6 +216,24 @@ function A.RewardRows()
 			end
 		end
 	end
+	return out
+end
+
+-- (made once, again when your standing changes: the questions ask them per keystroke)
+local rewards
+local watch = CreateFrame("Frame")
+watch:RegisterEvent("UPDATE_FACTION")
+watch:SetScript("OnEvent", function() rewards = nil end)
+--- The reward rows, kept.
+function A.Rewards()
+	if not rewards then rewards = A.RewardRows() end
+	return rewards
+end
+function A.ForgetRewards() rewards = nil end -- (tests)
+--- A faction's rewards (its id), in order.
+function A.RewardsOf(fid)
+	local out = {}
+	for _, e in ipairs(A.Rewards()) do if e.factionID == fid then out[#out + 1] = e end end
 	return out
 end
 
@@ -330,12 +350,26 @@ function A.PieceRows(setID)
 end
 
 OA.AddSetup(function()
-	if A.Factions() then
-		ns:RegisterProvider("repreward", {
-			label = L["Reputation reward"], color = "ff70b0e0",
-			aliases = { "repreward", "reprewards", "reputationreward", "reputationrewards", "quartermaster" },
-			lazy = true, events = { "UPDATE_FACTION" }, guard = 2, collect = A.RewardRows,
+	-- "<faction> > rewards": what its quartermaster sells, by standing
+	if A.Factions() and ns.RegisterRelation and not A.rewardsRelation then
+		A.rewardsRelation = true
+		ns:RegisterRelation("rewards", {
+			aliases = { "reprewards", "quartermaster" },
+			desc = L["what a faction's quartermaster sells, and the standing each needs (OneForAll)"],
+			available = function() return A.Factions() ~= nil end, addon = "OneForAll",
+			seedKinds = { "reputation" },
+			applies = function(e) return e.kind == "reputation" and not rawget(e, "repReward") and e.factionID ~= nil end,
+			run = function(rows)
+				local out = {}
+				for _, e in ipairs(rows) do
+					for i, r in ipairs(A.RewardsOf(e.factionID)) do
+						out[#out + 1] = setmetatable({ _score = 1e6 - i }, { __index = r })
+					end
+				end
+				return out
+			end,
 		})
+		if ns.Pipes then ns.Pipes.LABELS.rewards = "rewards" end
 	end
 	if A.Sets() then
 		local ev = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "BANKFRAME_CLOSED" }
@@ -371,7 +405,7 @@ end)
 OA.AddStatus(function()
 	local f, s = A.Factions(), A.Sets()
 	if not (f or s) then return nil end
-	return L["%d factions' rewards (@repreward), %d item sets (@itemset)"]:format(f and #f or 0, s and #s or 0)
+	return L["%d factions' rewards (> rewards), %d item sets (@itemset)"]:format(f and #f or 0, s and #s or 0)
 end)
 
 ----------------------------------------------------------------------
@@ -428,7 +462,7 @@ end
 
 --- The question: { what = "rewards" (faction, standing, now, kind, words) | "sets" (mine, words) | "pieces" (set) }, or nil.
 function A.Question(text)
-	if not (ns.providers.repreward or ns.providers.itemset) then return nil end
+	if not (A.Factions() or ns.providers.itemset) then return nil end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local words = {}
@@ -441,7 +475,7 @@ function A.Question(text)
 		if s then return { what = "pieces", set = s } end
 	end
 	-- reputation rewards
-	if ns.providers.repreward then
+	if A.Factions() then
 		local f, at, n = FactionIn(words)
 		local q = { what = "rewards", faction = f, words = {} }
 		local reward, rep = false, false
@@ -528,7 +562,7 @@ function A.Answer(q)
 		return rows, q.mine and L["Item sets for your class"] or L["Item sets"]
 	end
 	local rows = {}
-	for _, e in ipairs(ns:GetEntries(ns.providers.repreward)) do
+	for _, e in ipairs(A.Rewards()) do
 		local ok = (not q.faction or e.factionID == q.faction.id) and (not q.standing or e.reaction == q.standing)
 			and (not q.kind or e.what == q.kind) and (not q.now or e.canBuy) and Has(e, q.words)
 		if ok then rows[#rows + 1] = e end
@@ -552,6 +586,7 @@ function A.ToAdvanced(q)
 	if q.what == "pieces" then return A.PiecesSearch(q.set) end
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
 	if q.what == "sets" then return "@itemset " .. (q.mine and "class:mine " or "") .. w end
-	return "@repreward " .. (q.faction and ("\"" .. q.faction.name .. "\" ") or "") .. (q.standing and ("standing:" .. q.standing .. " ") or "")
-		.. (q.kind and (q.kind .. " ") or "") .. (q.now and "canbuy " or "") .. w
+	-- (a faction's, as its chain; with a standing, a kind or "can buy": no search says that, the question stays)
+	if q.faction and not (q.standing or q.kind or q.now) and w == "" then return q.faction.name .. " > rewards " end
+	return nil
 end

@@ -1,4 +1,5 @@
--- OneForAll's armory (1.0.3, the player's ask; Providers/OneForAll/Armory.lua): @repreward (each faction's rewards,
+-- OneForAll's armory (1.0.3, the player's ask; Providers/OneForAll/Armory.lua): reputation rewards (each faction's,
+-- @reputation rows only its questions and "> rewards" list since 1.0.11; no @repreward:
 -- the standing each needs, yours: can you buy it), @itemset (the sets, pieces you have, bonuses; Enter, "> pieces":
 -- its pieces, where each comes from; no @setpiece since 1.0.10); "argent dawn rewards", "what can i buy at honored", "my class
 -- sets", "pieces of battlegear of might" in Simple mode; standing: and class:mine on them; the other faction's left
@@ -80,14 +81,15 @@ do
 		}
 		I.SpotXY = function(ui, c) return 2, c[1] * 10, c[2] * 10 end
 		Fresh()
-		local pr, ps = ns.providers.repreward, ns.providers.itemset
-		check(pr and ps and not ns.providers.setpiece and ns:ResolveProvider("quartermaster") == pr and ns:ResolveProvider("tierset") == ps
-			and ns:ResolveProvider("setpiece") == ps, "@repreward, @itemset (@setpiece its other name: no kind of its own)")
+		local ps = ns.providers.itemset
+		check(ps and not ns.providers.setpiece and not ns.providers.repreward and ns:ResolveProvider("tierset") == ps
+			and ns:ResolveProvider("setpiece") == ps, "@itemset (@setpiece its other name); no @repreward, no @setpiece")
 		check(ns:ResolveProvider("sets") ~= ps, "@sets: still your equipment sets")
-		check(not Said(L["@repreward (its reputation rewards) is unavailable."]) and not Said(L["@itemset (its item sets) is unavailable."]),
+		check(not Said(L["Its reputation rewards are unavailable."]) and not Said(L["@itemset (its item sets) is unavailable."]),
 			"its tables as expected: nothing said: " .. tostring(said[1]))
-		-- @repreward
-		local rw = ns:GetEntries(pr)
+		-- the rewards
+		A.ForgetRewards()
+		local rw = A.Rewards()
 		local by = {}
 		for _, e in ipairs(rw) do by[e.itemID] = e end
 		check(#rw == 6 and by[262765] and not by[262764] and not by[20757], "your faction's, both sides', none not in Forever yet: " .. Names(rw))
@@ -95,10 +97,16 @@ do
 			"OneForAll's rank + 1 is the game's standing; honored: the honored reward bought, not the exalted one")
 		check(by[20253].mine == nil and by[20253].canBuy == false, "a faction not met: not yet")
 		check(by[22014].ui == 1420 and by[22014].pinName == "Argent Quartermaster Hasana", "Enter: its quartermaster on the map")
-		local res = UI:Search("@repreward standing:honored")
-		check(#res == 1 and res[1].itemID == 22014, "@repreward standing:honored: " .. Names(res))
-		res = UI:Search("@repreward timbermaw")
-		check(#res == 1 and res[1].itemID == 20253, "@repreward timbermaw: " .. Names(res))
+		check(by[22014].kind == "reputation" and by[22014].repReward, "a reward is a Reputation row")
+		check(table.concat({ ns.Easy.Verbs(by[22014]) }, "/") == L["show on map"] .. "/" .. L["set waypoint"], "its verbs: the map's")
+		-- "<faction> > rewards": from the faction's row
+		local got = ns.Pipes.Run("rewards", { { kind = "reputation", factionID = 529, name = "Argent Dawn" } })
+		check(#got == 4 and got[1].itemID == 13724 and got[4].itemID == 18171, "argent dawn > rewards: its four, by standing: " .. Names(got))
+		check(#ns.Pipes.Run("rewards", { by[22014] }) == 0, "a reward's own row: no rewards of its own")
+		local res = UI:Search("@reputation")
+		local leak = false
+		for _, e in ipairs(res) do if e.repReward then leak = true end end
+		check(not leak, "@reputation: the factions, not the rewards")
 		-- @itemset: pieces you have, worn or in the bank
 		local sets = ns:GetEntries(ps)
 		local sb = {}
@@ -161,17 +169,19 @@ do
 		check(A.ToAdvanced(A.Question("pieces of battlegear of might")) == "Battlegear of Might > pieces ", "to Advanced: the chain")
 		ns.db.easyMode = false; UI:EasyChanged()
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find(L["%d factions' rewards (@repreward), %d item sets (@itemset)"]:format(4, 3), 1, true), ".integrations: " .. lines)
+		check(lines:find(L["%d factions' rewards (> rewards), %d item sets (@itemset)"]:format(4, 3), 1, true), ".integrations: " .. lines)
+		check(A.ToAdvanced(A.Question("argent dawn rewards")) == "Argent Dawn > rewards ", "to Advanced: the chain")
+		check(A.ToAdvanced(A.Question("what can i buy at honored")) == nil, "to Advanced: none says that, the question stays")
 
 		-- not in the shape expected: said once, the other still there
 		said = {}
 		OneForAll.ARMORY_SETS = { "renamed" }
 		Fresh()
-		check(not ns.providers.itemset and not ns.providers.setpiece and ns.providers.repreward, "sets changed: no @itemset, @repreward still")
+		check(not ns.providers.itemset and A.Question("argent dawn rewards") ~= nil, "sets changed: no @itemset, the rewards still")
 		check(Said(L["@itemset (its item sets) is unavailable."]), "said in chat: " .. tostring(said[1]))
 		_G.OneForAll = nil
 		Fresh()
-		check(not ns.providers.repreward and not ns.providers.itemset and A.Question("argent dawn rewards") == nil, "without OneForAll: none, no question")
+		check(not ns.providers.itemset and A.Question("argent dawn rewards") == nil, "without OneForAll: none, no question")
 	end)
 	_G.OneForAll = save.lib
 	ns.providers, ns.providerOrder = save.providers, save.order

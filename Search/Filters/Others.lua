@@ -377,7 +377,7 @@ end
 KEYS.standing = function(v)
 	local r = StandingRange(v)
 	-- (a reputation reward's: the standing it needs; Providers/OneForAll/Armory.lua)
-	return r and function(e) return (e.kind == "reputation" or e.kind == "repreward") and r(e.reaction) or false end
+	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
 end
 KEYS.rep = KEYS.standing
 
@@ -683,7 +683,7 @@ F.APPLIES = {
 	looter = { ["*"] = { "lootlog" } },
 	missing = { ["*"] = GROUP },
 	when = { ["*"] = { "calendar" } },
-	standing = { ["*"] = { "reputation", "repreward" } },
+	standing = { ["*"] = { "reputation" } },
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "bank", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
