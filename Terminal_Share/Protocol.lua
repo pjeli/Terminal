@@ -1338,6 +1338,9 @@ function E:Receive(route, text)
 		for _ in pairs(self.groups) do n = n + 1 end
 		if not label or (not self.groups[label] and n >= SSH.MAX_GROUPS) then
 			self.env.say(L["Share: you're in %d groups already; .share leave one, then ask %s to invite you again"]:format(SSH.MAX_GROUPS, name))
+		elseif self.groups[label] and self.groups[label].key == key then
+			-- (in it already, by that name or another: said so, not "joined as"; review, 1.0.32)
+			self.env.say(L["Share: you're in %s with that code already"]:format(label))
 		else
 			self:JoinSecret(label, key, code)
 			self.env.say(label == o.group and L["Share: joined %s with %s; connecting"]:format(label, name)

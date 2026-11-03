@@ -219,38 +219,57 @@ end
 -- 7 letters in 14 bytes), and none for a word of Chinese or Korean characters: a byte off there is another character
 -- altogether (铜 copper and 铝 aluminium differ in their last byte), not a slip of the hand
 local function NearLimit(n, tk)
-	local per = 1 -- (bytes a letter: the distance counts bytes)
 	if tk and tk:find("[\128-\255]") then
 		if tk:find("[\224-\244]") then return nil end
-		local letters = #(tk:gsub("[\128-\191]", ""))
-		per = math.floor(#tk / math.max(letters, 1) + 0.5)
-		n = letters
+		n = #(tk:gsub("[\128-\191]", ""))
 	end
 	if n < 4 then return nil end
-	-- (in bytes: a Cyrillic letter missed, added or wrong is two bytes off, which one letter's allowance didn't cover;
-	-- review, 1.0.18: "ткан" never found "ткань" on a Russian client)
-	return (n >= 8 and 5 or 3) * per
+	-- (in letters: NearWord measures a word with letters of two bytes a letter at a time. Counted in bytes, one wrong
+	-- Cyrillic letter was two bytes off (review, 1.0.18: "ткан" never found "ткань"), and a room of two letters' bytes let
+	-- two wrong letters through, "кожа" for "лоза"; review, 1.0.32)
+	return n >= 8 and 5 or 3
 end
+
+-- A word's letters of two bytes or more as one byte each (128 up, the same letter the same byte within one NearWord),
+-- so Fuzzy.typo counts letters, not bytes
+local squashed, squashNext = {}, 127
+local function SquashOne(c)
+	local v = squashed[c]
+	if not v then
+		squashNext = math.min(squashNext + 1, 255)
+		v = string.char(squashNext)
+		squashed[c] = v
+	end
+	return v
+end
+local function Squash(s) return (s:gsub("[\192-\244][\128-\191]+", SquashOne)) end
 
 --- The name's word closest to tk within `limit` (Fuzzy.typo's costs): the distance and the word's first and last byte,
 --- or nil. Words are runs of letters, digits and apostrophes.
 local function NearWord(tk, lname, limit)
+	local wide = find(tk, "[\128-\255]") ~= nil -- (letters of two bytes: measured squashed, a byte a letter)
+	if wide then
+		squashed, squashNext = {}, 127
+		tk = Squash(tk)
+	end
 	local n, j, bestD, bf, bt = #tk, 1, nil, nil, nil
 	local SLIP = Fuzzy.TYPO_SLIP
 	local lengths = math.floor(limit / SLIP) -- (letters more or fewer: each costs a slip at least)
 	while true do
 		local s, f = find(lname, "[%w\128-\255']+", j)
 		if not s then break end
-		local wl = f - s + 1
+		local word, ws, wf = lname, s, f
+		if wide then word = Squash(lname:sub(s, f)); ws, wf = 1, #word end
+		local wl = wf - ws + 1
 		-- one mistake leaves one of these as it was: the first letters, the second ones, or a first
 		-- letter moved by one (an extra or a missing letter at the front, two swapped)
 		local maybe = wl - n <= lengths and n - wl <= lengths
 		if maybe and limit < 2 * SLIP then
-			local t1, t2, w1, w2 = byte(tk, 1), byte(tk, 2), byte(lname, s), byte(lname, s + 1)
+			local t1, t2, w1, w2 = byte(tk, 1), byte(tk, 2), byte(word, ws), byte(word, ws + 1)
 			maybe = t1 == w1 or t2 == w2 or t2 == w1 or t1 == w2
 		end
 		if maybe then
-			local d = Fuzzy.typo(tk, lname, s, f, bestD and bestD - 1 or limit)
+			local d = Fuzzy.typo(tk, word, ws, wf, bestD and bestD - 1 or limit)
 			if d then
 				bestD, bf, bt = d, s, f
 				if d == 0 then break end

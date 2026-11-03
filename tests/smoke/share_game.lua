@@ -78,6 +78,9 @@ do
 	check(ns.SecretLine(".shar password x") and ns.SecretLine(".sh pw x") and ns.SecretLine(".hare pass x")
 		and ns.SecretLine(".shared password x") and ns.MaskSecret(".shar pw abc") == ".shar pw ***"
 		and not ns.SecretLine(".shar pwn x") and not ns.SecretLine(".set cursor block"), "...a shortened .share too")
+	-- (a code typed without its dashes or with spaces: review, 1.0.32)
+	check(ns.SecretLine("echo TS1ABCDEFGHJKMNPQRSTVWXYZ01") and ns.SecretLine("x ts1 abcde fghjk mnpqr stvwx yz012")
+		and not ns.SecretLine("its1 a fine day") and not ns.SecretLine("ts1 hi"), "...a code without dashes, or spaced")
 	UI:Open("")
 	T.typeText(".ssh password Hunter2hunter2")
 	-- a tab made while it's typed: the line isn't kept in it

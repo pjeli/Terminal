@@ -606,7 +606,12 @@ function SO.WhoAskRow(text)
 	while S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX and filter:find("%s") do
 		filter = filter:gsub("%s+%S+$", "")
 	end
-	if S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX then filter = filter:sub(1, 150) end
+	if S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX then
+		-- (cut between letters, never inside one of two bytes or more; review, 1.0.32)
+		local cut = 150
+		while cut > 0 and (filter:byte(cut + 1) or 0) >= 128 and filter:byte(cut + 1) < 192 do cut = cut - 1 end
+		filter = filter:sub(1, cut)
+	end
 	return {
 		name = L["Ask the server: /who %s"]:format(filter ~= "" and filter or L["(everyone in your zone)"]),
 		detail = L["Enter"], kind = "who", kindLabel = "", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",

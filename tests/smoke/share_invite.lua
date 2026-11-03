@@ -318,6 +318,14 @@ do
 		"an invite's group called all: joined as all-2, not a group .share all would mean")
 	-- the same code again: the group you're in with it, not a second name for it
 	check(B:FreeLabel("raid", SSH.KeyOfCode(CODE)) == "all-2", "a code you're in already: that group's name")
+	-- (review, 1.0.32) ...and an invite to it from someone else: "you're in it already", not "joined as"
+	local C = net.Add("Cid", { friends = { bob = "Bob" } })
+	B.me.friends.cid = "Cid"
+	C:JoinGroup("raid", SSH.KeyOfCode(CODE), nil, true).code = CODE
+	B.offers[B:Key(W("Cid"))] = { id = "00000000000000cc", group = "raid", name = "Cid", route = W("Cid"), at = B:Now(), accepted = true }
+	B:Receive(W("Cid"), SSH.V .. "G 00000000000000cc,c:" .. CODE)
+	check(Said(net, "Bob: Share: you're in all%-2 with that code already") and not Said(net, "Bob: Share: joined Cid's group"),
+		"an invite to a group you're in: said so, not \"joined as\"")
 end
 
 -- (review, 1.0.17) .share accept <name>: the name as given first; a first name only when it's one person's

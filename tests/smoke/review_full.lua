@@ -10,6 +10,9 @@ do
 	local row = SO.WhoAskRow("@who " .. ("someone "):rep(40) .. "lvl:1-60")
 	check(#SO.WhoMacro(row) <= ns.Secure.MACRO_MAX, "a long @who: its line within 255 characters: " .. #SO.WhoMacro(row))
 	check(SO.WhoAskRow("@who priest").whoFilter == "priest", "a short one as it is")
+	-- (review, 1.0.32) one long word of two-byte letters: cut between letters
+	local ru = SO.WhoAskRow("@who a" .. ("ж"):rep(120)).whoFilter
+	check(#ru <= 150 and #ru % 2 == 1 and ru == "a" .. ("ж"):rep((#ru - 1) / 2), "a long Russian @who: cut between letters: " .. #ru)
 end
 do
 	-- a spell's data in, then in again: another class's rows made again once, not each time
@@ -45,6 +48,10 @@ do
 	check(#first == 1, "another class's row made: " .. #first)
 	do
 		check(CS.Rows(cls, false) ~= first, "a description not in: another class's rows not kept, made again next time")
+		-- (review, 1.0.32) ...a few times, then kept: a description that never comes doesn't make them on every search
+		local third = CS.Rows(cls, false)
+		check(CS.Rows(cls, false) == third, "never in: kept after " .. tostring(CS.WHOLE_TRIES) .. " tries")
+		CS.ForgetRows()
 		SP.Desc = function() return "" end
 		local whole = CS.Rows(cls, false)
 		check(CS.Rows(cls, false) == whole, "every one in: kept")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.32 (in testing)
+
+- Review fixes: a share code typed without its dashes or with spaces is kept out of the history like a dashed one; close spellings in Russian and accented words count letters, so two wrong letters no longer pass as one ("кожа" isn't "лоза"); traces of Enter in combat and the like never name a person's row; the console keeps no history line naming a friend's `/shared` folder (or typed in one) and drops friends' folders `z` kept before 1.0.17; `.explain` says `-a|-b` as it's read ("not a or not b"); an invite to a group you're in already says so instead of "joined as"; another class's spells whose description never loads stop being made again on every search after 3 tries; a long `/who` of non-English letters is cut between letters.
+
 ## 1.0.31 (in testing)
 
 - `@tame` (a hunter's, with OneForAll) says in `.debug log` why it isn't there when it isn't: the class the game said at login, or OneForAll's pet tables missing; and should the class not be known yet at login, it's looked at again 5 s later and made then (the player: no @tame on a hunter).

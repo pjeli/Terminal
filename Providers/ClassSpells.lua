@@ -229,6 +229,10 @@ local LAZY = {
 }
 
 local others = {} -- class -> its rows: another class's never change (made once a session)
+-- (another class's rows made with a description not in: made again at most this many times, then kept as they are; a
+-- description that never comes made them again on every search. Review, 1.0.32)
+CS.WHOLE_TRIES = 3
+local partial = {} -- class -> times its rows were made with a description missing
 
 --- A class's rows: your own class's only those you don't know (`all`: every one, those you know said so).
 function CS.Rows(cls, mine, all)
@@ -259,10 +263,14 @@ function CS.Rows(cls, mine, all)
 				_ltext = ltext .. (s.quest and " quest" or "") .. (desc ~= "" and (" " .. desc) or ""), known = known or nil }, meta)
 		end
 	end
+	if not mine and #rows > 0 and not whole then
+		partial[cls] = (partial[cls] or 0) + 1
+		whole = partial[cls] >= CS.WHOLE_TRIES
+	end
 	if not mine and #rows > 0 and whole then others[cls] = rows end -- (none: What's Training not there yet)
 	return rows
 end
-function CS.ForgetRows() others = {} end -- (tests)
+function CS.ForgetRows() others, partial = {}, {} end -- (tests; a spell's data in)
 
 ns:RegisterProvider("classspells", {
 	-- (one list with your spellbook since 0.54.6: its rows say Spell, in the spellbook's colour too; 0.54.7, the player)

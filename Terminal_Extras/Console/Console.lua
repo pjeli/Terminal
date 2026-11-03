@@ -65,7 +65,8 @@ local function History()
 	if not d then return {} end
 	d.history = type(d.history) == "table" and d.history or {}
 	local h = d.history
-	for i = #h, 1, -1 do if SH.Secret(h[i]) then table.remove(h, i) end end -- (a password kept before they were left out)
+	-- (a password kept before they were left out; a friend's folder named, review, 1.0.32)
+	for i = #h, 1, -1 do if SH.Secret(h[i]) or (SH.SharedLine and SH.SharedLine(h[i])) then table.remove(h, i) end end
 	return h
 end
 

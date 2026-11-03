@@ -169,8 +169,12 @@ end
 function E.SayFilter(word)
 	if type(word) ~= "string" then return nil end
 	local lw = Lower(word)
-	local neg = lw:match("^[-!]") and true or false
-	if neg then lw = lw:sub(2) end
+	-- (as F.Parse reads it: "-a|b" neither, the word's "-"; "-a|-b", a piece with a "-" of its own: each piece's is its
+	-- own, "not a or not b". Review, 1.0.32: it said "not (a or -b)")
+	local own = lw:find("[|&][-!]") ~= nil
+	local firstNeg = own and lw:find("^[-!]") ~= nil
+	local neg = not own and lw:find("^[-!]") ~= nil
+	if neg or firstNeg then lw = lw:sub(2) end
 	local key, val = lw:match("^(%a+):(.+)$")
 	if not key then return nil end
 	if key == "sort" then
@@ -178,9 +182,12 @@ function E.SayFilter(word)
 	end
 	local t = {}
 	for part in val:gmatch("[^|]+") do
+		local pneg = (#t == 0 and firstNeg) or part:find("^[-!]") ~= nil
+		if part:find("^[-!]") then part = part:sub(2) end
 		local k2, v2 = part:match("^(%a+):(.+)$")
 		local say = FilterSay(k2 or key, v2 or part)
-		t[#t + 1] = say.noun or say.adj or say.after or say.verb
+		local s = say.noun or say.adj or say.after or say.verb
+		t[#t + 1] = pneg and L["not %s"]:format(s) or s
 	end
 	if #t == 0 then return nil end -- ("stat:|": no value at all)
 	local out = table.concat(t, " " .. L["or"] .. " ")

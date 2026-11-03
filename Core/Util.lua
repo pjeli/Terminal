@@ -354,6 +354,18 @@ function ns.SecretLine(text)
 	-- (a code anywhere in it, however the console runs it: "/bin/share join TS1-...", "true && share join ...", "echo TS1-...
 	-- | xargs share join"; review, 1.0.17)
 	if l:find("ts[1il]%-%w%w%w%w%w") then return true end
+	-- (typed without its dashes, or with spaces: SSH.ReadCode reads "TS1ABCDE..." and "TS1 ABCDE ..." too; a word starting
+	-- "ts1" followed by 20 letters or digits once spaces and dashes are squashed. Review, 1.0.32)
+	local at = 1
+	while true do
+		local s = l:find("ts[1il]", at)
+		if not s then break end
+		if s == 1 or not l:sub(s - 1, s - 1):find("%w") then
+			local tail = l:sub(s + 3, s + 70):gsub("[%s%-_]", "")
+			if tail:find("^" .. ("%w"):rep(20)) then return true end
+		end
+		at = s + 1
+	end
 	-- (any "." line: the command search finds .share by a shortened or misspelt name too, ".shar pw ...", ".hare pass
 	-- ...", so a command line whose next word is a password word is one whatever its first. Review, 0.58.16)
 	local rest = l:match("^%s*%.%s*%S+%s+(.*)$") or l:match("^%s*share%s+(.*)$") or l:match("^%s*ssh%s+(.*)$")

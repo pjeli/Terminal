@@ -67,6 +67,24 @@ do -- the macro: the opening line, then step lines that fit in 255 characters; n
 	-- (review, 1.0.19) a person's row: no name in a trace (.report copies them); a thing's keeps it
 	check(ns.UI.TraceName({ kind = "guild", name = "Bobguildie" }) == "(a person)" and ns.UI.TraceName({ kind = "items", name = "Hearthstone" }) == "Hearthstone",
 		"traces: people unnamed, things named")
+	-- (review, 1.0.32) ...and Activate's own traces go through it: Enter on a person's row in combat
+	do
+		local traced, trace, combat = {}, ns.Trace, _G.InCombatLockdown
+		ns.Trace = function(_, m) traced[#traced + 1] = tostring(m) end
+		_G.InCombatLockdown = function() return true end
+		local ok = pcall(function()
+			UI:Open(""); UI.results = { { kind = "guild", name = "Bobguildie", noCombat = true, activate = function() end } }; UI.sel = 1
+			UI:Activate(1)
+		end)
+		_G.InCombatLockdown, ns.Trace = combat, trace
+		UI:Hide()
+		local named, ignored = false, false
+		for _, m in ipairs(traced) do
+			if m:find("Bobguildie", 1, true) then named = true end
+			if m:find("ignored Enter on (a person)", 1, true) then ignored = true end
+		end
+		check(ok and ignored and not named, "Enter on a person's row in combat: traced unnamed")
+	end
 	local long = S.NavMacro(def, {}, ("x"):rep(250))
 	check(long == nil, "no room for a step after the opening line: nothing (the window's own route instead)")
 	ns.db.navTainted = { spellbook = { what = "test" } }

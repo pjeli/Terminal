@@ -1051,6 +1051,19 @@ ok, err = pcall(function()
 	local k2 = ns.db.consoleData.session
 	check(k2 and #k2.panes[1].lines == 0 and k2.panes[1].cwd == "/", "after .share in the console: no lines kept, not a friend's folder")
 	check(ns.Shell.IsShared("/shared/Bob") and not ns.Shell.IsShared("/sharedx"), "a friend's folder: /shared/...")
+	-- (review, 1.0.32) the history: no line naming a friend's folder, none typed in one; old ones dropped
+	local hist = s.sh.history
+	local before = #hist
+	s.sh:Remember("ls /shared/Bob")
+	s.sh:Remember("cd shared/Bob")
+	s.sh:Remember("cat Bob") -- (s.sh.cwd is /shared/Bob)
+	s.sh.cwd = "/"
+	s.sh:Remember("ls /sharedx")
+	check(#hist == before + 1 and hist[#hist] == "ls /sharedx", "the history keeps no line naming a friend's folder")
+	ns.db.consoleData.z = { ["/shared/Bob"] = { r = 5, t = 1 }, ["/items"] = { r = 2, t = 1 } }
+	ns.db.consoleData.zShared = nil
+	local z = ns.Shell.ZData()
+	check(z["/shared/Bob"] == nil and z["/items"], "z: a friend's folder kept before 1.0.17 dropped")
 	FS.sawShared = nil
 	C.Reset()
 	C.Close("exit")

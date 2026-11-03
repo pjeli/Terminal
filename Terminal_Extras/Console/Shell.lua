@@ -190,6 +190,7 @@ function Session:Remember(line)
 	local h = self.history
 	if line:match("^%s") or line == "" then return end -- (a line starting with a space isn't kept, as bash's ignorespace)
 	if SH.Secret(line) then return end
+	if SH.SharedLine(line, self.cwd) then return end -- (a friend's folder named in it: not kept; review, 1.0.32)
 	if h[#h] ~= line then h[#h + 1] = line end
 	while #h > SH.HISTORY_MAX do table.remove(h, 1) end
 end
@@ -1869,6 +1870,10 @@ function SH.ZData()
 	local d = SH.Data()
 	if not d then return {} end
 	d.z = type(d.z) == "table" and d.z or {}
+	if not d.zShared then -- (friends' folders kept before 1.0.17 left them out: gone; review, 1.0.32)
+		for p in pairs(d.z) do if SH.IsShared(p) then d.z[p] = nil end end
+		d.zShared = true
+	end
 	return d.z
 end
 
@@ -1878,6 +1883,16 @@ function SH.IsShared(path)
 	local d = FS.DirOf and FS.DirOf("shared")
 	local top = "/" .. (d and d.name or "shared")
 	return type(path) == "string" and (path == top or path:sub(1, #top + 1) == top .. "/")
+end
+
+--- Does a line name a folder in friends' shared things ("cd /shared/Bob", "ls shared/Bob"), or was it typed in one
+--- (relative: "cd Bob")? Such lines name friends' characters: never kept in the history.
+function SH.SharedLine(line, cwd)
+	if type(line) ~= "string" then return false end
+	if SH.IsShared(cwd) then return true end
+	local d = FS.DirOf and FS.DirOf("shared")
+	local top = Lower((d and d.name) or "shared"):gsub("%p", "%%%0")
+	return Lower(line):find("%f[%w_]" .. top .. "/") ~= nil
 end
 
 function SH.ZAdd(path, now)

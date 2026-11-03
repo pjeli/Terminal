@@ -21,11 +21,11 @@ function UI.TraceName(e) if UI.IsPerson(e) then return "(a person)" end return t
 --- Entries' `after` steps click and point at Blizzard frames, which are protected in combat.
 local function RunAfter(e)
 	if InCombatLockdown() then
-		ns:Trace("combat: skipped after-step for " .. tostring(e.name))
+		ns:Trace("combat: skipped after-step for " .. UI.TraceName(e))
 		return
 	end
 	local ok, err = pcall(e.after, e)
-	if not ok then ns:Trace("after-step error for " .. tostring(e.name) .. ": " .. tostring(err)) end
+	if not ok then ns:Trace("after-step error for " .. UI.TraceName(e) .. ": " .. tostring(err)) end
 end
 
 --- The entry's after-step (pointing at the result), `d` seconds from now: the window the press opened is up by then.
@@ -102,8 +102,8 @@ function UI:TryArmSecure(e)
 		return true
 	end
 	local target = S.Resolve(e.secure, e)
-	if not target then ns:Trace("secure: no binding/button for " .. e.name) return false end
-	if InCombatLockdown() or not S.Arm(target) then ns:Trace("secure: could not arm for " .. e.name .. " (combat or no proxy)") return false end
+	if not target then ns:Trace("secure: no binding/button for " .. UI.TraceName(e)) return false end
+	if InCombatLockdown() or not S.Arm(target) then ns:Trace("secure: could not arm for " .. UI.TraceName(e) .. " (combat or no proxy)") return false end
 	ns:Trace("secure: armed Enter -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. UI.TraceName(e))
 	ns:Bump(e.freqKey)
 	self.armedEntry = e
@@ -124,7 +124,7 @@ function UI:ArmForPress(e)
 	local S = ns.Secure
 	local target = S.Resolve(e.secure, e)
 	if not target or (e.isOpen and e.isOpen(e)) then return false end
-	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. e.name) return false end
+	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. UI.TraceName(e)) return false end
 	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. UI.TraceName(e))
 	-- (a text box holding the keyboard gets the press instead of the binding: say whose, for .debug log)
 	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
@@ -426,7 +426,7 @@ function UI:CatcherClicked(button)
 		-- pointer rests on, so the next click is pressed by the game too (0.49.2, review: it only armed Enter)
 		if self:IsShown() then self:PlaceCatcher(c.row) end
 	elseif idx then
-		ns:Trace("click: no window macro for " .. tostring(e.name) .. ", running its usual action")
+		ns:Trace("click: no window macro for " .. UI.TraceName(e) .. ", running its usual action")
 		self:Activate(idx, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
 	end
 end
@@ -558,7 +558,7 @@ function UI:Activate(idx, opts)
 	-- Opening or clicking Blizzard's windows is protected in combat: do nothing rather than
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
-		ns:Trace("combat: ignored Enter on " .. tostring(e.name))
+		ns:Trace("combat: ignored Enter on " .. UI.TraceName(e))
 		-- (what the key would have done: "use", "show in spellbook", "run"... not always "open")
 		local enter, shift
 		if ns.Easy then enter, shift = ns.Easy.Verbs(e) end

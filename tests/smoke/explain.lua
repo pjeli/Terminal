@@ -31,6 +31,10 @@ do
 	-- (0.68.9, review: a fuzz) a filter whose value is only bars has nothing to say, and no error
 	local okBars, bars = pcall(E.Explain, "rare sword stat:||")
 	check(okBars and type(bars) == "string" and E.SayFilter("stat:|") == nil, "stat:|| explained without an error: " .. tostring(bars))
+	-- (review, 1.0.32) as F.Parse reads them: "-a|b" neither, "-a|-b" each piece's own "not"
+	local both, own = E.SayFilter("-is:quest|is:boe"), E.SayFilter("-is:quest|-is:boe")
+	check(type(both) == "string" and type(own) == "string" and both ~= own and not own:find("-", 1, true)
+		and select(2, own:gsub(ns.L["not %s"]:format(""), "")) == 2, "-a|b and -a|-b said apart: " .. tostring(both) .. " / " .. tostring(own))
 	-- the command: a line, or the last one run
 	local cmd = ns:FindCommand("explain")
 	local out = cmd.run("@npc is:innkeeper sort:distance", ns)

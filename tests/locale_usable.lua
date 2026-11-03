@@ -125,8 +125,12 @@ do
 	if lang == "ruRU" then
 		-- (close spellings allowed by letters, not bytes: a 7-letter word is 14 bytes)
 		local S = ns.Score
-		check(S.NearLimit(#"льняная", "льняная") == S.NearLimit(7) * 2 and S.NearLimit(#"ткань", "ткань") == S.NearLimit(5) * 2,
-			"ruRU: a close spelling's room: its letters' (7, 5), in their bytes (two a letter)")
+		check(S.NearLimit(#"льняная", "льняная") == S.NearLimit(7) and S.NearLimit(#"ткань", "ткань") == S.NearLimit(5),
+			"ruRU: a close spelling's room: its letters' (7, 5)")
+		-- (measured a letter at a time: one wrong letter is one, two wrong letters too many; review, 1.0.32)
+		check(S.NearWord("ткан", "ткань", S.NearLimit(#"ткан", "ткан")) and not S.NearWord("кожа", "лоза", S.NearLimit(#"кожа", "кожа"))
+			and not S.NearWord("épée", "épine", S.NearLimit(#"épée", "épée")) and select(3, S.NearWord("ткан", "x ткань", 3)) == #"x ткань",
+			"ruRU: one letter off is close, two are not (кожа isn't лоза); the word's bytes still found")
 	end
 	ns.db.easyMode = easy
 	for i = #items.kinds, 1, -1 do if items.kinds[i] == "locsample" then table.remove(items.kinds, i) end end
