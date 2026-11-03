@@ -175,15 +175,19 @@ local function ExactName(name, want)
 	if n == w + 4 then return name:sub(1, 4) == "the " and name:sub(5) == want end
 	return false
 end
+-- (one item in two categories is one thing still: AtlasLoot's faction loot is a Loot row and a reputation reward, the same
+-- item, Enter on either opens AtlasLoot on it; review, 1.0.38: "arcane mantle of the dawn" went straight to it no more)
 local function Winner(exacts, cats)
 	if cats < 2 or #exacts == 0 or #exacts > WINNER_MAX then return nil end
 	local best
+	local id = exacts[1].e.itemID
 	for _, x in ipairs(exacts) do
-		if x.cat ~= exacts[1].cat then return nil end
+		if x.cat ~= exacts[1].cat and not (id and x.e.itemID == id) then return nil end
 		if not best or x.sc > best.sc then best = x end
 	end
 	return best.e
 end
+Scan.Winner = Winner -- (tests)
 
 --- Simple mode, before a category is picked: one row per category that has matches ("Items  Rumsey Rum +2 more", and
 --- which of its lists had them), the best match first; Enter or a click picks it. A row named exactly what was typed

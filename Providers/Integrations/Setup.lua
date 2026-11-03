@@ -125,7 +125,8 @@ I.ADDONS = {
 			mailbox = true, mailboxes = true, forge = true, forges = true, anvil = true, anvils = true,
 			cookingfire = true, cookingfires = true, moonwell = true, moonwells = true },
 		keys = { reward = true, rewards = true, sells = true, sold = true } },
-	{ name = "AtlasLoot", missing = function() return not ns.providers.loot end,
+	-- (AtlasLoot's own: OneForAll registers a @loot of its planner's gear without it; review, 1.0.38)
+	{ name = "AtlasLoot", missing = function() return not (I.loot and I.loot.on) end,
 		kinds = { loot = true, atlasloot = true, al = true } },
 	{ name = "Attune", also = "OneForAll", missing = function() return not ns.providers.attune end,
 		kinds = { attune = true, attunes = true, attunement = true, attunements = true },

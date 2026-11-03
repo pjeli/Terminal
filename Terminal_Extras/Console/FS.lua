@@ -1350,7 +1350,8 @@ function FS.Mounts()
 			-- (AtlasLoot's rows wait for their names from the server: those are its not-yet-used part)
 			if m.type == "atlasloot" and I and I.loot and I.loot.on then
 				local waiting = I.LootWaiting and I.LootWaiting() or 0
-				size = #I.loot.rows
+				-- (and OneForAll's planner's rows beside AtlasLoot's: the list's own count when made; review, 1.0.38)
+				size = math.max(size or 0, #I.loot.rows)
 				used = size - waiting
 				if waiting > 0 then opts[#opts + 1] = "names-pending" end
 			end

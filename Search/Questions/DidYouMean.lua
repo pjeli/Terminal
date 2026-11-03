@@ -175,7 +175,7 @@ function DYM.Categories(text)
 	if #words < 2 then return out end -- (a category alone: nothing to look for in it)
 	for _, c in ipairs(E and E.Visible and E.Visible() or {}) do
 		local names = Words(c.label)
-		if #names == 1 then -- ("Dungeon loot", "Guild & friends": two words each, said as a phrase, not a word)
+		if #names == 1 then -- ("Bank & alts", "Guild & friends": two words each, said as a phrase, not a word)
 			for i, w in ipairs(words) do
 				if Close(w, names[1]) then
 					local rest = {}

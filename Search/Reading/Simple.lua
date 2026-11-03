@@ -262,7 +262,14 @@ E.VERBS = {
 	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { L["show in bags"] },
 	source = SourceVerbs,
 	stored = { L["show in bags"], L["show in chat"] }, bank = { L["show in bags"], L["show in chat"] }, shared = { L["whisper"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
-	loot = { L["show in AtlasLoot"], L["link in chat"] },
+	-- (OneForAll's planner's rows: a quest's Wowhead page, else the link in chat; review, 1.0.38)
+	loot = function(e)
+		if rawget(e, "lootSource") then
+			if e.qid then return L["Wowhead link"], L["link in chat"] end
+			return L["link in chat"], nil
+		end
+		return L["show in AtlasLoot"], L["link in chat"]
+	end,
 	history = { L["search it again"] }, -- (a line you ran: Providers/History.lua)
 	buyback = { L["buy back"], L["link in chat"] }, -- (what you sold: Providers/Buyback.lua; away from a vendor it says where)
 	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs, durability = DurabilityVerbs,
@@ -297,7 +304,14 @@ E.VERBS = {
 	macros = { L["run"], L["show in Macros"] },
 	cvars = { L["edit"], L["reset to default"] },
 	-- (a quartermaster's reward, Providers/Integrations/OneForAll/Armory.lua: the map's)
-	reputation = function(e) if e.repReward then return PLACE[1], PLACE[2] end return L["show"], L["watch"] end,
+	-- (a reward: OneForAll's quartermaster on the map; AtlasLoot's faction loot opens AtlasLoot, review 1.0.38)
+	reputation = function(e)
+		if e.repReward then
+			if type(e.key) == "string" and e.key:find("^al:") then return L["show in AtlasLoot"], L["link in chat"] end
+			return PLACE[1], PLACE[2]
+		end
+		return L["show"], L["watch"]
+	end,
 	skills = { L["show"], L["show in chat"] },
 	currency = { L["show"] }, panels = { L["open"] },
 	gameoptions = { L["show in options"] }, keybinds = { L["show in keybindings"], L["quick keybind mode"] },

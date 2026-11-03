@@ -186,7 +186,8 @@ end
 
 local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.vendorName or e.name)) end
 
--- (rows only a question or a chain lists, not their kind's list: what ns:GetEntries gives the list's rows, the kind's
+-- (rows a question or a chain lists beside their kind's list (set pieces; the rewards are @reputation's own rows too
+-- since 1.0.27): what ns:GetEntries gives the list's rows, the kind's
 -- label and the key picks are counted by; review, 1.0.16: blank kind column, never in recent picks)
 local function Stamp(rows, kind)
 	local p = ns.providers[kind]
@@ -238,18 +239,18 @@ end
 
 -- (made once, again when your standing changes: the questions ask them per keystroke)
 local rewards, watch
---- Is a faction among your reputations (its row the chain starts from)?
-function A.Met(fid)
-	local p = ns.providers.reputation
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if e.factionID == fid then return true end end
-	return false
-end
 --- The reward rows, kept.
 function A.Rewards()
 	if not watch then -- (only once they're asked for: no frame for everyone; review, 1.0.21)
 		watch = CreateFrame("Frame")
+		A.watch = watch -- (tests)
 		watch:RegisterEvent("UPDATE_FACTION")
-		watch:SetScript("OnEvent", function() rewards = nil end)
+		-- (not on the one @reputation's own header read fires: the standings didn't change; review, 1.0.38)
+		watch:SetScript("OnEvent", function()
+			local p = ns.providers.reputation
+			if p and p._firedOwn and GetTime() - (p._collectedAt or 0) < 1 then return end
+			rewards = nil
+		end)
 	end
 	if not rewards then rewards = Stamp(A.RewardRows(), "reputation") end
 	return rewards
@@ -453,9 +454,28 @@ local ASK = { i = true, im = true, ["do"] = true, the = true, a = true, an = tru
 local Norm = OA.Words
 
 -- a faction named in the words ("argent dawn", "timbermaw", "booty bay"): the faction and the words it took
+-- AtlasLoot's factions among @reputation's rewards (its faction loot: a name, no id): { name, words }, made once a list
+local alFactions, alOf = {}, nil
+local function AtlasFactions()
+	local p = ns.providers.reputation
+	local list = p and p._entries
+	if alOf ~= list then
+		alOf, alFactions = list, {}
+		local seen = {}
+		for _, e in ipairs(list or {}) do
+			if e.repReward and not e.factionID and type(e.faction) == "string" and not seen[e.faction] then
+				seen[e.faction] = true
+				local w = {}
+				for x in Lower(e.faction):gsub("[%p]", ""):gmatch("%S+") do w[#w + 1] = x end
+				alFactions[#alFactions + 1] = { name = e.faction, words = w }
+			end
+		end
+	end
+	return alFactions
+end
 local function FactionIn(words)
 	local best, bestN, bestAt
-	for _, f in ipairs(A.Factions() or {}) do
+	local function Try(f)
 		local fw = f.words
 		-- (its whole name, or its first word alone when that's its own: "timbermaw", "cenarion", "thorium")
 		for i = 1, #words do
@@ -464,6 +484,10 @@ local function FactionIn(words)
 			if n > 0 and (n == #fw or (n == 1 and #fw[1] > 5)) and (not best or n > bestN) then best, bestN, bestAt = f, n, i end
 		end
 	end
+	for _, f in ipairs(A.Factions() or {}) do Try(f) end
+	-- (AtlasLoot's faction loot's factions too, "brood of nozdormu rewards": its rewards are @reputation's since 1.0.28;
+	-- review, 1.0.38)
+	if not best then for _, f in ipairs(AtlasFactions()) do Try(f) end end
 	return best, bestAt, bestN
 end
 
@@ -584,9 +608,15 @@ function A.Answer(q)
 		if #rows == 0 then return { ns.NoteRow(L["No item set has that"]) }, L["Item sets"] end
 		return rows, q.mine and L["Item sets for your class"] or L["Item sets"]
 	end
+	-- (@reputation's rewards, OneForAll's and AtlasLoot's, as the line Alt+` writes finds them; review, 1.0.38: OneForAll's alone)
 	local rows = {}
-	for _, e in ipairs(A.Rewards()) do
-		local ok = (not q.faction or e.factionID == q.faction.id)
+	local p = ns.providers.reputation
+	local all = {}
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if e.repReward then all[#all + 1] = e end end
+	if #all == 0 then all = A.Rewards() end
+	local lf = q.faction and Lower(q.faction.name)
+	for _, e in ipairs(all) do
+		local ok = (not q.faction or (q.faction.id and e.factionID == q.faction.id) or (not e.factionID and Lower(tostring(e.faction)) == lf))
 			and (not q.standing or (q.upTo and e.reaction <= q.standing) or e.reaction == q.standing)
 			and (not q.kind or e.what == q.kind) and (not q.now or e.canBuy) and Has(e, q.words)
 		if ok then rows[#rows + 1] = e end
@@ -594,7 +624,7 @@ function A.Answer(q)
 	ns.ScoreInOrder(rows)
 	local title = q.faction and L["%s rewards"]:format(q.faction.name) or L["Reputation rewards"]
 	if q.standing then title = title .. SEP .. (q.upTo and L["up to %s"]:format(A.StandingName(q.standing)) or A.StandingName(q.standing)) end
-	if q.faction then
+	if q.faction and q.faction.id then
 		local mine = A.Standing(q.faction.id)
 		title = title .. SEP .. (mine and L["you're %s"]:format(A.StandingName(mine)) or L["not met yet"])
 	end

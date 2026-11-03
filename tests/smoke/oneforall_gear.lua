@@ -159,6 +159,20 @@ do
 			and SH.LootSource({ kind = "loot", addon = "AtlasLootClassic_Factions", detail = "Exalted  Brood of Nozdormu" }) == L["from %s"]:format("Brood of Nozdormu (Exalted)"),
 			"to chat: a boss's dropped by, the rest from: " .. tostring(SH.LootSource(by[1001])))
 		check(by[1001].secondarySecure and by[1001].secondaryIsOpen, "Shift+Enter: the chat box opened by the game's press")
+		-- (review, 1.0.38) no quest: Enter links it too (it did nothing), by the game's press; the verbs say so
+		check(by[1003].secure and by[1003].isOpen and by[1001].secure == nil and by[1001].activate ~= nil, "Enter on a crafted one: the chat box, by the game's press")
+		check(ns.Easy.Verbs(by[1003]) == L["link in chat"] and ns.Easy.Verbs(by[1001]) == L["Wowhead link"]
+			and ns.Easy.Verbs({ kind = "loot", itemID = 1, name = "x" }) == L["show in AtlasLoot"], "the verbs: link, Wowhead, AtlasLoot's")
+		-- (review, 1.0.38) OneForAll's @loot without AtlasLoot: AtlasLoot still said missing (its hints, .tour)
+		check(I.AddonMissing("AtlasLoot") and pl ~= nil, "AtlasLoot not installed: said so, @loot OneForAll's")
+		-- (review, 1.0.38) an AtlasLoot row's source worked out once a module and table
+		local places, lpWas = 0, I.LootPlace
+		I.LootPlace = function(e) places = places + 1 return lpWas(e) end
+		I.ForgetLootSources()
+		for _ = 1, 20 do I.LootSource({ kind = "loot", addon = "AtlasLootClassic_DungeonsAndRaids", content = "SFK" }) end
+		I.LootPlace = lpWas
+		I.ForgetLootSources()
+		check(places == 1, "a table's source looked up once: " .. places)
 		-- (review, 1.0.34) made once for OneForAll's index: the same rows again, an item named since added
 		local raw = OneForAll.GearIndex()
 		local nameWas = C_Item.GetItemNameByID

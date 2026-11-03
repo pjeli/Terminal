@@ -14,14 +14,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.37", when = "in testing",
+		v = "1.0.38", when = "in testing",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
 			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not, Enter: who teaches it; is:ability), @npc says which beasts you can tame (is:tameable); \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
-			"With OneForAll: what each faction's quartermaster sells, can you buy it yet (\"argent dawn rewards\"), and @itemset with each set's pieces (\"my class sets\").",
+			"@reputation lists every quartermaster's reward (OneForAll's, and AtlasLoot's faction loot): can you buy it yet, by faction and standing (\"argent dawn rewards\", is:reward, is:canbuy); with OneForAll, @itemset with each set's pieces (\"my class sets\").",
 			"With OneForAll: the recipes you don't know say if the Merchant's Favor buys them (\"favor recipes i don't know\"); @transport (boats, zeppelins, the tram, roads), drop chances on @loot.",
 			"With OneForAll: \"upgrades\" go by its gear value for your talents, and @loot has the gear its planner knows (quest rewards, crafted, reputation), each by its source (source:quest, \"raid loot\", \"dungeon gear\"); @panel opens its window on any tab.",
 			"With OneForAll: @attune has its dungeon keys and Onyxia's attunement when Attune isn't installed (\"my keys\", \"how do i get into onyxia\"), and quest chains add the dungeon quests' prerequisites it knows.",
+			"Inside a group you stepped into, the bar's Group and Sort work too: step into a faction, then group by standing.",
+			"Kinds and categories are in Title Case on English clients (\"Quest Log\", \"Crafting Mat\").",
 		},
 	},
 	{

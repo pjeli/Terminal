@@ -111,10 +111,13 @@ local LINK_CHATBOX = ns.ChatBoxSpec(LinkText)
 local function Row(e, i, name)
 	-- (a boss's as AtlasLoot's rows say it, "<boss>  <instance>": the loot readers take its instance from that)
 	local where = (e.boss and e.inst) and (e.boss .. "  " .. e.inst) or e.src or ""
+	-- (no quest: Enter links it in chat too; it did nothing. Review, 1.0.38)
+	local link = not e.qid
 	return {
+		secure = link and LINK_CHATBOX or nil, isOpen = link and ns.ChatBoxNeverOpen or nil,
 		key = "ofa:" .. e.id, name = name, _lname = Lower(name), itemID = e.id, src = e.src, order = i,
 		lootSource = e.source, lootLevel = e.lvl, qid = e.qid, tooltip = Tooltip, detail = where,
-		activate = e.qid and QuestPage or nil, secondary = LinkIt, secondarySecure = LINK_CHATBOX,
+		activate = e.qid and QuestPage or LinkIt, secondary = LinkIt, secondarySecure = LINK_CHATBOX,
 		secondaryIsOpen = ns.ChatBoxNeverOpen, text = Lower((e.src or "") .. " " .. (e.inst or "") .. " " .. e.source),
 	}
 end

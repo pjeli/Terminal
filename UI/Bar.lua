@@ -66,8 +66,10 @@ B.FILTERS = {
 	{ id = "is:vendor", label = L["Vendors"] },
 	{ id = "is:trainer", label = L["Trainers"] },
 	{ id = "is:online", label = L["Online"] },
-	{ id = "is:reward", label = L["Quartermaster rewards"] }, -- (OneForAll's, in @reputation; 1.0.27)
-	{ id = "is:canbuy", label = L["Can buy now"] },
+	-- (OneForAll's and AtlasLoot's, in @reputation; 1.0.27. Only when there are some: on a plain reputation list they only
+	-- emptied it; review, 1.0.38)
+	{ id = "is:reward", label = L["Quartermaster rewards"], needs = "repReward" },
+	{ id = "is:canbuy", label = L["Can buy now"], needs = "repReward" },
 }
 -- what Sort offers: distance (sort:distance's lists), else a field the rows have (Aggregate's, and the name)
 -- a sort's way, in the menu: the game's sort arrow (down as drawn, up flipped)
@@ -598,8 +600,15 @@ function B.Options(which)
 				out[#out + 1] = { id = p.spec, label = B.SpecLabel(p.spec, p.word), on = true, typed = p.word }
 			end
 		end
+		local function Some(field)
+			for _, e in ipairs(UI.results or {}) do if type(e) == "table" and e[field] then return true end end
+			for _, e in ipairs(UI.ungrouped or {}) do if type(e) == "table" and e[field] then return true end end
+			return false
+		end
 		for _, o in ipairs(B.FILTERS) do
-			if not listed[o.id] and (on[o.id] or Fits(o.id, kinds)) then out[#out + 1] = { id = o.id, label = o.label, on = on[o.id] } end
+			if not listed[o.id] and (on[o.id] or (Fits(o.id, kinds) and not (o.needs and not Some(o.needs)))) then
+				out[#out + 1] = { id = o.id, label = o.label, on = on[o.id] }
+			end
 		end
 		return out
 	end

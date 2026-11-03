@@ -2443,7 +2443,6 @@ L["dropped by %s"] = true
 L["dropped by %s in %s"] = true
 L["drops"] = true
 L["dungeon"] = true
-L["dungeon loot"] = true
 L["each line's characters backwards"] = true
 L["edit"] = true
 L["enabled"] = true

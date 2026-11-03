@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.38 (in testing)
+
+- The review's smaller items: "arcane mantle of the dawn" (an AtlasLoot faction item, in Loot and in `@reputation`) goes straight to it again; "brood of nozdormu rewards" and the other AtlasLoot factions are reward questions, and every reward question lists AtlasLoot's faction loot too, as its Alt+` line does; AtlasLoot's rewards say "you can buy it" and the game's standing name as OneForAll's do; the bar offers Quartermaster rewards / Can buy now only where there are rewards; Simple mode says "show in AtlasLoot" on AtlasLoot's rewards and "link in chat" / "Wowhead link" on OneForAll's `@loot` rows, whose Enter now links one with no quest (it did nothing); AtlasLoot is said missing when only OneForAll gives `@loot`; `.explain` says `source:`, `is:reward`, `is:canbuy`, `sort:standing` and calls `@loot` loot; Tab offers `sort:standing` and `source:other`; `df` in the Console counts OneForAll's `/loot` rows; a loot row's source is worked out once per table; the reward rows aren't made again by `@reputation`'s own reading. The in-game changelog names grouping inside a group, rewards in `@reputation` and title case.
+
 ## 1.0.37 (in testing)
 
 - `@tame` is gone (the player: "fold beasts into @NPC ... the pet abilities in @Spells and get rid of tame entirely"). For a hunter with OneForAll, each rank of each pet ability is an `@spell` row (`is:ability`; learned or not; Enter: the beasts that teach it), and Questie's `@npc` rows of beasts you can tame say so: `is:tameable`, their family, level, what they teach and why a rare one is rare, in their text, detail and tooltip (`@npc "teaches bite 4;"`). The questions stay ("tameable cats", "where to learn bite 4", "cat abilities", "rare pets in the barrens"), answered from OneForAll's beasts as NPC rows; Alt+` writes them as `@npc is:tameable cat` and `@spell is:ability cat`. The Console's OneForAll mount has no /tame.

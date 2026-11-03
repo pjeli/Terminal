@@ -179,6 +179,8 @@ function I.FactionLoot(mine, have)
 			end
 		end
 	end
+	local AR = ns.OneForAll and ns.OneForAll.Armory
+	local SN = AR and AR.StandingName
 	for _, x in ipairs(fl) do
 		local r = x.r
 		local id = r.itemID
@@ -190,9 +192,15 @@ function I.FactionLoot(mine, have)
 		if type(name) == "string" and not (have and have[id]) then
 			local my = mine and mine[x.lfac]
 			local need = x.need
+			local can = my ~= nil and my >= need
+			-- (said as OneForAll's are: the game's name for the standing, "you can buy it", the words its filters and Group
+			-- read; review, 1.0.38)
+			local st = (SN and SN(need)) or x.st
 			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true,
-				faction = x.fac, reaction = need, mine = my, canBuy = my ~= nil and my >= need, detail = x.fac .. SEP .. x.st,
-				text = ns.Lower(x.fac .. " " .. x.st) .. " reputation reward rep" }, { __index = r })
+				faction = x.fac, reaction = need, mine = my, canBuy = can,
+				detail = x.fac .. SEP .. st .. (can and (SEP .. L["you can buy it"]) or ""),
+				text = ns.Lower(L["reputation reward"] .. " reputation reward rep " .. x.fac .. " " .. st .. " " .. x.st .. (can and " canbuy" or "")) },
+				{ __index = r })
 		end
 	end
 	return out
@@ -201,9 +209,23 @@ end
 --- Where a loot row's item comes from (source:): dungeon, raid, world (a world boss), quest, crafted, reputation, pvp,
 --- collection, or other. AtlasLoot's by its module (Crafting, Factions, PvP, Collections) and its place; OneForAll's
 --- planner's as it says (1.0.25, the player's ask).
+local sourceOf = {} -- addon -> content -> source (AtlasLoot's index doesn't change in a session; LootPlace's places neither)
 function I.LootSource(e)
 	local s = rawget(e, "lootSource")
 	if s then return s end
+	local byAddon = sourceOf[e.addon or ""]
+	local got = byAddon and byAddon[e.content or ""]
+	if got then return got end
+	got = I.LootSourceOf(e)
+	if e.addon then
+		byAddon = byAddon or {}
+		sourceOf[e.addon] = byAddon
+		byAddon[e.content or ""] = got
+	end
+	return got
+end
+function I.ForgetLootSources() sourceOf = {} end -- (tests; the index made again)
+function I.LootSourceOf(e)
 	local addon = tostring(e.addon or "")
 	if addon:find("Crafting", 1, true) then return "crafted" end
 	if addon:find("Faction", 1, true) then return "reputation" end

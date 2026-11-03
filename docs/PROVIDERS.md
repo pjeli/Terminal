@@ -52,7 +52,7 @@ That's a working list. Everything else below is optional.
 
 | Field | What it does |
 |---|---|
-| `label` | The kind's name on each row ("Note"). |
+| `label` | The kind's name on each row ("Note"). On an English client it's shown in title case ("Quest log" as "Quest Log"; a new Simple-mode category's `label` too), other languages as given. |
 | `color` | The kind label's colour, `"aarrggbb"`. Pick one apart from Terminal's own kinds. |
 | `aliases` | The words after `@` that reach this list. The first one is how Terminal names it (`.mem`, Alt+\`). Keep them unique: the first list registered keeps a word two of them share. |
 | `collect(p)` | Returns the rows (a list of tables, below). Called when the list is first searched, and again after it's marked changed. |

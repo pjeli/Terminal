@@ -172,8 +172,8 @@ function ns:WatchEvent(event, provider)
 	table.insert(watchers[event], provider)
 end
 
---- A kind's name in title case, as English titles are written ("Quest log" -> "Quest Log", "Gear to get" -> "Gear to
---- Get"; NPC, CVar, AddOn as they are): on an English client only, other languages keep their own rules (German's
+--- A kind's name in title case, as English titles are written ("Quest log" -> "Quest Log", "Crafting mat" -> "Crafting
+--- Mat"; NPC, CVar, AddOn as they are): on an English client only, other languages keep their own rules (German's
 --- nouns, French's sentence case). 1.0.23, the player's ask.
 local SMALL_WORDS = { a = true, an = true, the = true, ["and"] = true, ["or"] = true, of = true, to = true, ["in"] = true,
 	on = true, at = true, by = true, ["for"] = true }

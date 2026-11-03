@@ -13,7 +13,7 @@ local Lower = ns.Lower
 -- nearest first". For lines pasted by others, old aliases, and learning the syntax.
 ----------------------------------------------------------------------
 local KIND_NOUN = { npc = L["NPCs"], items = L["items"], gear = L["gear you wear"], quests = L["quests in your log"],
-	questie = L["quests"], spells = L["spells"], classspells = L["class spells"], talents = L["talents"], loot = L["dungeon loot"],
+	questie = L["quests"], spells = L["spells"], classspells = L["class spells"], talents = L["talents"], loot = ns.Lower(L["Loot"]),
 	mail = L["mail"], auctions = L["auctions"], lootlog = L["loot you saw drop"], combatlog = L["combat log lines"],
 	history = L["lines you ran"], buyback = L["items you sold to vendors"], mailbox = L["mailboxes"], forge = L["forges"], anvil = L["anvils"],
 	cookingfire = L["cooking fires"], moonwell = L["moonwells"], flight = L["flight paths"], book = L["Library Books"],
@@ -29,20 +29,26 @@ local KIND_NOUN = { npc = L["NPCs"], items = L["items"], gear = L["gear you wear
 local IS_SAY = { vendor = L["vendors"], trainer = L["trainers"], classtrainer = L["class trainers"], proftrainer = L["profession trainers"],
 	innkeeper = L["innkeepers"], banker = L["bankers"], repair = L["repairers"], flightmaster = L["flight masters"],
 	auctioneer = L["auctioneers"], questgiver = L["quest givers"], stablemaster = L["stable masters"], spirithealer = L["spirit healers"],
-	battlemaster = L["battlemasters"], weaponmaster = L["weapon masters"], upgrade = L["upgrades for you"] }
+	battlemaster = L["battlemasters"], weaponmaster = L["weapon masters"], upgrade = L["upgrades for you"],
+	reward = ns.Lower(L["Quartermaster rewards"]), rewards = ns.Lower(L["Quartermaster rewards"]), ability = ns.Lower(L["Pet abilities"]) }
 local IS_ADJ = { boe = L["bind on equip"], soulbound = L["soulbound"], usable = L["usable"], equippable = L["equippable"],
 	done = L["done"], todo = L["not done yet"], complete = L["complete"], ready = L["ready"], craftable = L["craftable"],
 	skillup = L["giving skill"], known = L["known"], unknown = L["not known yet"], learnable = L["learnable now"],
 	unread = L["unread"], expiring = L["running out"], enchanted = L["enchanted"], unenchanted = L["unenchanted"],
 	favorite = L["favorite"], tracked = L["tracked"], untracked = L["untracked"], online = L["online"], offline = L["offline"],
-	dead = L["dead"], grey = L["grey"], sold = L["sold"], listed = L["listed"], mine = L["yours"] }
+	dead = L["dead"], grey = L["grey"], sold = L["sold"], listed = L["listed"], mine = L["yours"],
+	canbuy = ns.Lower(L["Can buy now"]), buyable = ns.Lower(L["Can buy now"]), tameable = L["tameable"], tamable = L["tameable"] }
+-- (source:, where loot comes from: its words, English)
+local SOURCE_SAY = { quest = "quests", dungeon = "dungeons", raid = "raids", crafted = "crafting", reputation = "reputation",
+	world = "world bosses", pvp = "PvP", collection = "collections", other = "elsewhere" }
 local SORT_SAY = { distance = L["nearest first"], ["-distance"] = L["farthest first"], name = L["A to Z"], ["-name"] = L["Z to A"],
 	level = L["lowest level first"], ["-level"] = L["highest level first"], ilvl = L["highest item level first"],
 	["-ilvl"] = L["lowest item level first"], quality = L["best quality first"], ["-quality"] = L["worst quality first"],
 	value = L["most valuable first"], ["-value"] = L["cheapest first"], count = L["the most first"], ["-count"] = L["the fewest first"],
 	best = L["biggest upgrades first"], plan = L["the recipes that still give skill, by how often your mats make them"],
 	damage = L["biggest hits first"], line = L["line by line"], owner = L["by owner"], slots = L["most slots first"],
-	["-slots"] = L["fewest slots first"], ahvalue = L["highest AH value first"], ahprice = L["highest AH price first"] }
+	["-slots"] = L["fewest slots first"], ahvalue = L["highest AH value first"], ahprice = L["highest AH price first"],
+	standing = ns.Lower(L["Standing"]), ["-standing"] = ns.Lower(L["Standing"]) }
 --- A sort: word ("sort:quality,-level") said: "best quality first, then highest level first"; nil when it isn't one.
 local function SortSay(word)
 	local F = ns.Filters
@@ -140,6 +146,7 @@ local function FilterSay(key, val)
 	elseif key == "near" then return { after = L["within %s yards"]:format(RangeSay(v)) }
 	elseif key == "reward" or key == "rewards" then return { after = L["rewarding %s"]:format(v) }
 	elseif key == "standing" or key == "rep" then return { after = L["at %s"]:format(RangeSay(v)) }
+	elseif key == "source" or key == "src" then return { after = L["from %s"]:format(SOURCE_SAY[v] or v) }
 	elseif key == "since" then return { after = SinceSay(v) }
 	elseif key == "older" or key == "before" then return { after = v:find("^%d") and L["older than %s"]:format(TimeSay(v)) or L["from before %s"]:format(TimeSay(v)) }
 	elseif key == "class" then return { after = L["of the %s class"]:format(v) }

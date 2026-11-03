@@ -31,6 +31,12 @@ do
 	-- (0.68.9, review: a fuzz) a filter whose value is only bars has nothing to say, and no error
 	local okBars, bars = pcall(E.Explain, "rare sword stat:||")
 	check(okBars and type(bars) == "string" and E.SayFilter("stat:|") == nil, "stat:|| explained without an error: " .. tostring(bars))
+	-- (review, 1.0.38) the newer filters said in words; @loot "loot"
+	check(not E.SayFilter("source:quest"):find("source:", 1, true) and E.SayFilter("is:reward") ~= "reward" and E.SayFilter("is:canbuy") ~= "canbuy"
+		and E.SayFilter("sort:standing") ~= nil and not tostring(E.KindNoun("loot")):find("dungeon", 1, true),
+		"source:, is:reward, is:canbuy, sort:standing said; loot: " .. tostring(E.KindNoun("loot")))
+	local sv = table.concat(ns.Filters.ValuesFor("sort", "@reputation ") or {}, " ")
+	check(sv:find("standing", 1, true) and table.concat(ns.Filters.VALUES.source, " "):find("other", 1, true), "Tab: sort:standing for @reputation, source:other: " .. sv)
 	-- (review, 1.0.32) as F.Parse reads them: "-a|b" neither, "-a|-b" each piece's own "not"
 	local both, own = E.SayFilter("-is:quest|is:boe"), E.SayFilter("-is:quest|-is:boe")
 	check(type(both) == "string" and type(own) == "string" and both ~= own and not own:find("-", 1, true)

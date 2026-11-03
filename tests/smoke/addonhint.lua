@@ -107,9 +107,12 @@ do
 	-- installed: no hint
 	ns.providers.questie, ns.providers.npc, ns.providers.loot, ns.providers.mailbox = save.questie or {}, save.npc or {}, save.loot or {}, save.mailbox
 	ns.providers.attune = save.attune or {}
+	local alOn = I.loot.on
+	I.loot.on = true -- (AtlasLoot's own: OneForAll's @loot alone is no AtlasLoot, 1.0.38)
 	I.ForgetHint()
 	check(For("@questie x") == "none" and For("@loot x") == "none" and For("@attune") == "none" and For("molten core loot") == "none",
 		"with the addons: no hint")
+	I.loot.on = alOn
 	ns.providers.questie, ns.providers.npc, ns.providers.loot, ns.providers.attune, ns.providers.mailbox = save.questie, save.npc, save.loot, save.attune, save.mailbox
 	ns:AliasesChanged()
 	ns.db.easyMode = save.easy

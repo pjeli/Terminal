@@ -239,10 +239,48 @@ do
 		local brood = UI:Search("@reputation is:reward brood")
 		check(#brood == 1 and brood[1].itemID == 21210 and brood[1].reaction == 8 and brood[1].faction == "Brood of Nozdormu" and brood[1].canBuy == false
 			and brood[1].kind == "reputation", "AtlasLoot's faction loot: a reward of its faction, at the standing it needs: " .. #brood)
+		-- (review, 1.0.38) said as OneForAll's are; its faction a question of its own; the answer has it, as Alt+`'s line does
+		check((brood[1].detail or ""):find(A.StandingName(8), 1, true) and (rawget(brood[1], "_ltext") or rawget(brood[1], "text") or ""):find(ns.Lower(L["reputation reward"]), 1, true),
+			"AtlasLoot's reward said as OneForAll's: " .. tostring(brood[1].detail))
+		local can
+		for _, e in ipairs(I.FactionLoot({ ["brood of nozdormu"] = 8 }, {})) do if e.itemID == 21210 then can = e end end
+		check(can and can.canBuy and (can.detail or ""):find(L["you can buy it"], 1, true) and (rawget(can, "text") or ""):find("canbuy", 1, true),
+			"one your standing allows: says you can buy it, is:canbuy's word: " .. tostring(can and can.detail))
+		local bq = A.Question("brood of nozdormu rewards")
+		local ba = bq and A.Answer(bq)
+		check(bq and ba and #ba == 1 and ba[1].itemID == 21210, "brood of nozdormu rewards: AtlasLoot's faction, a question; its reward: " .. tostring(ba and #ba))
+		local adq = A.Question("argent dawn rewards")
+		local ad = A.Answer(adq)
+		local hasAL = false
+		for _, e in ipairs(ad) do if e.itemID == 22014 then hasAL = true end end
+		check(hasAL, "argent dawn rewards: AtlasLoot's too, as @reputation is:reward argent dawn lists them")
 		local braziers = 0
 		for _, e in ipairs(UI:Search("@reputation is:reward brazier")) do if e.itemID == 22014 then braziers = braziers + 1 end end
 		check(braziers == 1, "an item both list: once (OneForAll's, with its quartermaster): " .. braziers)
 		check(#UI:Search("@reputation dungeon sword") == 0, "a dungeon's loot: not a reward")
+		-- (review, 1.0.38) one item in Loot and in reputation's rewards: still the clear winner
+		local W = ns.UI._Scan.Winner
+		local x1, x2 = { cat = "loot", sc = 2, e = { itemID = 21210 } }, { cat = "character", sc = 1, e = { itemID = 21210 } }
+		check(W({ x1, x2 }, 2) == x1.e and W({ x1, { cat = "character", sc = 1, e = { itemID = 5 } } }, 2) == nil,
+			"one item in two categories: the winner; two things: none")
+		-- (review, 1.0.38) the bar's reward filters only where there are rewards; the reward rows kept over @reputation's own read
+		local resWas = UI.results
+		UI.results = { { kind = "reputation", name = "Orgrimmar", key = 76 } }
+		local offered = {}
+		for _, o in ipairs(ns.Bar.Options("filter")) do offered[o.id] = true end
+		UI.results = { { kind = "reputation", name = "Orgrimmar", key = 76 }, { kind = "reputation", name = "Hallowed Brazier", repReward = true } }
+		local offered2 = {}
+		for _, o in ipairs(ns.Bar.Options("filter")) do offered2[o.id] = true end
+		UI.results = resWas
+		check(not offered["is:reward"] and not offered["is:canbuy"] and offered2["is:reward"], "reward filters: offered only with rewards shown")
+		local r1 = A.Rewards()
+		local rp = ns.providers.reputation
+		rp._firedOwn, rp._collectedAt = true, GetTime()
+		A.watch:GetScript("OnEvent")(A.watch, "UPDATE_FACTION")
+		local kept = A.Rewards() == r1
+		rp._firedOwn = false
+		A.watch:GetScript("OnEvent")(A.watch, "UPDATE_FACTION")
+		check(kept and A.Rewards() ~= r1, "the reward rows: kept over @reputation's own header read, made again on a real change")
 		-- (review, 1.0.34) AtlasLoot's own: its rows read where they are, @loot not built inside @reputation
 		local built = false
 		ns.providers.loot = { id = "loot", label = "Loot", aliases = {}, atlasLoot = true, _dirty = true, collect = function() built = true return {} end }
