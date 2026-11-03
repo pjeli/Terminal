@@ -1,6 +1,6 @@
 -- OneForAll's world (1.0.4, the player's ask; Providers/OneForAll/World.lua): its weapon masters when What's Training
--- and TrainerSpells have none (CS.WeaponMasters), its drop chances on AtlasLoot's rows, @favor (the Merchant's Favor
--- recipes: known or not, where) and @transport (boats, zeppelins, the tram, the roads out of a zone); "favor recipes
+-- and TrainerSpells have none (CS.WeaponMasters), its drop chances on AtlasLoot's rows, the Merchant's Favor recipes
+-- (on @recipe's unknown ones since 1.0.12: its cost, your faction's vendor; no @favor) and @transport (boats, zeppelins, the tram, the roads out of a zone); "favor recipes
 -- i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits" in Simple mode; without OneForAll: none.
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
@@ -18,7 +18,7 @@ do
 	local KINDS = { "book", "petability", "tame", "repreward", "itemset", "setpiece", "favor", "transport" }
 	local save = { providers = ns.providers, order = ns.providerOrder, print = ns.Print, lib = rawget(_G, "OneForAll"),
 		here = I.Here, spot = I.SpotXY, zone = I.ZoneName, failed = I.failed, on = OA.on, easy = ns.db.easyMode, side = _G.UnitFactionGroup,
-		store = ns.Professions.Store, cmap = rawget(_G, "C_Map"), wsapi = ns.ClassSpells.Api, tsw = ns.TrainerSpells.WeaponData }
+		store = ns.Professions.Store, pprofs = ns.Professions.PlayerProfessions, cmap = rawget(_G, "C_Map"), wsapi = ns.ClassSpells.Api, tsw = ns.TrainerSpells.WeaponData }
 	local said = {}
 	ns.Print = function(_, m) said[#said + 1] = m end
 	local function Said(s) for _, m in ipairs(said) do if m:find(s, 1, true) then return m end end end
@@ -43,8 +43,10 @@ do
 		_G.UnitFactionGroup = function() return "Alliance" end
 		I.ZoneName = function(ui) return ({ [1437] = "Wetlands", [1439] = "Darkshore", [1453] = "Stormwind City", [1455] = "Ironforge",
 			[1433] = "Redridge Mountains", [1417] = "Arathi Highlands", [1434] = "Stranglethorn Vale" })[ui] end
-		-- you know one alchemy recipe; no blacksmithing
-		ns.Professions.Store = function() return { [171] = { name = "Alchemy", list = { { name = "Elixir of Lesser Spirit" } } } } end
+		-- you know one alchemy recipe, your window listed two you don't; no blacksmithing
+		ns.Professions.Store = function() return { [171] = { name = "Alchemy", skillLine = 171, list = { { name = "Elixir of Lesser Spirit" } },
+			unknown = { { id = 3171, name = "Lesser Mageblood Elixir" }, { id = 3172, name = "Elixir of Wisdom" } } } } end
+		ns.Professions.PlayerProfessions = function() return { { name = "Alchemy", skillLine = 171, rank = 80 } } end
 		_G.OneForAll = {
 			BOOKS = { { name = "A Book", questId = 1, itemId = 2 } },
 			MAP_IDS = { ["Redridge Mountains"] = 1433, ["The Barrens"] = 1413 },
@@ -73,7 +75,7 @@ do
 		}
 		I.SpotXY = function(ui, c) return ({ [1437] = 2, [1439] = 1, [1453] = 2, [1434] = 2, [1433] = 2, [1417] = 2 })[ui], c[1] * 10, c[2] * 10 end
 		Fresh()
-		check(not Said(L["@favor (its Merchant's Favor recipes) is unavailable."]) and not Said(L["@transport (its boats, zeppelins and the tram) is unavailable."])
+		check(not Said(L["Its Merchant's Favor recipes are unavailable."]) and not Said(L["@transport (its boats, zeppelins and the tram) is unavailable."])
 			and not Said(L["Its drop chances are unavailable."]) and not Said(L["Its weapon masters are unavailable."]), "its tables as expected: " .. tostring(said[1]))
 
 		-- weapon masters: OneForAll's, with neither What's Training nor TrainerSpells
@@ -102,19 +104,27 @@ do
 			check(n == 1, "said once, however often the list is made: " .. lootRow.detail)
 		end
 
-		-- @favor
-		local pf = ns.providers.favor
-		check(pf and ns:ResolveProvider("merchantsfavor") == pf, "@favor")
-		local fr = ns:GetEntries(pf)
+		-- the Merchant's Favor: on the recipes you don't know, no kind of its own
+		check(ns.providers.favor == nil, "no @favor")
+		local pm = ns.providers.missing
+		pm._dirty = true
 		local by = {}
-		for _, e in ipairs(fr) do by[e.recipeName] = e end
-		check(#fr == 3 and by["Elixir of Lesser Spirit"].name == "Recipe: Elixir of Lesser Spirit", "a row a recipe, its prefix: " .. Names(fr))
-		check(by["Elixir of Lesser Spirit"].known == true and by["Lesser Mageblood Elixir"].known == false and by["Guard's Chain Belt"].known == nil,
-			"known, not known, not your profession")
-		check(by["Lesser Mageblood Elixir"].vendorName == "Nina Surefire" and by["Lesser Mageblood Elixir"].ui == 1433, "your faction's vendor, on the map")
-		check(by["Guard's Chain Belt"].activate, "no vendor known: Enter says so")
-		local res = UI:Search("@favor is:unlearned")
-		check(#res == 1 and res[1].recipeName == "Lesser Mageblood Elixir", "@favor is:unlearned: yours to learn, not another profession's: " .. Names(res))
+		for _, e in ipairs(ns:GetEntries(pm)) do by[e.name] = e end
+		local mb = by["Lesser Mageblood Elixir"]
+		check(mb and mb.sources.favor and mb.sources.favor.cost == 45 and mb.sources.favor.vendor == "Nina Surefire",
+			"a recipe you don't know that the Favor buys: its cost, your faction's vendor")
+		check((mb.detail or ""):find(L["%d Merchant's Favor"]:format(45), 1, true) and mb.need == 75, "said in its detail; the skill it needs: " .. tostring(mb.detail))
+		check(by["Elixir of Wisdom"] and not by["Elixir of Wisdom"].sources.favor, "one it doesn't buy: nothing said")
+		local lines = {}
+		local tip = setmetatable({}, { __index = function(_, k)
+			if k == "SetText" or k == "AddLine" then return function(_, s) lines[#lines + 1] = tostring(s) end end
+			if k == "AddDoubleLine" then return function(_, a, b) lines[#lines + 1] = tostring(a) .. " = " .. tostring(b) end end
+			return function() end
+		end })
+		mb.tooltip(mb, tip)
+		check(table.concat(lines, "\n"):find(L["Sold by %s"]:format("Nina Surefire"), 1, true), "its tooltip: the vendor: " .. table.concat(lines, " / "))
+		local res = UI:Search("@recipe is:unknown favor")
+		check(#res == 1 and res[1].name == "Lesser Mageblood Elixir", "@recipe is:unknown favor: " .. Names(res))
 
 		-- @transport
 		local pt = ns.providers.transport
@@ -131,19 +141,18 @@ do
 		check(roads == 2, "a road into a zone not known: left out: " .. roads)
 
 		-- the questions
-		for _, s in ipairs({ "favor recipes", "merchant's favor recipes", "alchemy favor recipes", "favor recipes i don't know", "favor recipes i know",
+		for _, s in ipairs({ "favor recipes", "merchant's favor recipes", "alchemy favor recipes", "favor recipes i don't know",
 			"nearest boat", "boat to auberdine", "zeppelin to undercity", "where is the tram", "zone exits", "boats" }) do
 			check(W.Question(s) ~= nil, s .. ": the world question")
 		end
-		for _, s in ipairs({ "favor", "tailoring favor recipes", "boat shoes", "my boats are great" }) do
+		for _, s in ipairs({ "favor", "tailoring favor recipes", "boat shoes", "my boats are great", "favor recipes i know" }) do
 			check(W.Question(s) == nil or s == "favor", s .. ": not it")
 		end
-		check(W.Question("favor recipes i don't know").unknown and W.Question("favor recipes i know").known, "unknown, known")
 		ns.db.easyMode = true; UI:EasyChanged()
 		I.Here = function() return { cont = 2, x = 50, y = 560 } end
 		UI:Open("favor recipes i don't know"); FlushAll()
 		local r = UI.Results()
-		check(#r == 1 and r[1].recipeName == "Lesser Mageblood Elixir", "favor recipes i don't know: " .. Names(r))
+		check(#r == 1 and r[1].name == "Lesser Mageblood Elixir", "favor recipes i don't know: " .. Names(r))
 		UI:Hide(); FlushAll()
 		UI:Open("boat to auberdine"); FlushAll()
 		r = UI.Results()
@@ -159,10 +168,10 @@ do
 		check(#r == 1 and r[1].way == "road" and r[1].ui == 1437, "zone exits: the roads out of yours: " .. Names(r))
 		UI:Hide(); FlushAll()
 		_G.C_Map = save.cmap
-		check(W.ToAdvanced(W.Question("favor recipes i don't know")) == "@favor is:unlearned ", "to Advanced: " .. W.ToAdvanced(W.Question("favor recipes i don't know")))
+		check(W.ToAdvanced(W.Question("favor recipes i don't know")) == "@recipe is:unknown favor ", "to Advanced: " .. W.ToAdvanced(W.Question("favor recipes i don't know")))
 		ns.db.easyMode = false; UI:EasyChanged()
-		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find(L["%d Merchant's Favor recipes (@favor)"]:format(3), 1, true) and lines:find(L["drop chances on @loot"], 1, true), ".integrations: " .. lines)
+		lines = table.concat(ns.commands.integrations.run(""), "\n")
+		check(lines:find(L["%d Merchant's Favor recipes (on the recipes you don't know)"]:format(3), 1, true) and lines:find(L["drop chances on @loot"], 1, true), ".integrations: " .. lines)
 
 		-- optional tables gone: quiet; MAP_LANDMARKS changed: said
 		said = {}
@@ -170,11 +179,11 @@ do
 		OneForAll.MAP_LANDMARKS = "moved"
 		Fresh()
 		check(not Said(L["Its drop chances are unavailable."]) and not Said(L["Its weapon masters are unavailable."]), "optional tables gone: quiet")
-		check(Said(L["@transport (its boats, zeppelins and the tram) is unavailable."]) and not ns.providers.transport and ns.providers.favor,
-			"landmarks changed: said, no @transport, @favor still")
+		check(Said(L["@transport (its boats, zeppelins and the tram) is unavailable."]) and not ns.providers.transport and W.Question("favor recipes"),
+			"landmarks changed: said, no @transport, the Favor's still")
 		_G.OneForAll = nil
 		Fresh()
-		check(not ns.providers.favor and not ns.providers.transport and W.Question("favor recipes") == nil and W.DropChance("Blackfathom Deeps", "Aku'mai", 6909) == nil,
+		check(not ns.providers.transport and W.Question("favor recipes") == nil and W.DropChance("Blackfathom Deeps", "Aku'mai", 6909) == nil,
 			"without OneForAll: none")
 	end)
 	if lootRow then
@@ -187,7 +196,9 @@ do
 	ns:AliasesChanged()
 	ns.Print, I.Here, I.SpotXY, I.ZoneName = save.print, save.here, save.spot, save.zone
 	I.failed, OA.on, _G.UnitFactionGroup = save.failed, save.on, save.side
-	ns.Professions.Store, _G.C_Map = save.store, save.cmap
+	ns.Professions.Store, _G.C_Map, ns.Professions.PlayerProfessions = save.store, save.cmap, save.pprofs
+	ns.MissingRecipes.FavorOf = nil
+	if ns.providers.missing then ns.providers.missing._dirty = true end
 	ns.ClassSpells.Api, ns.TrainerSpells.WeaponData = save.wsapi, save.tsw
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	OA.Forget(); W.Forget()

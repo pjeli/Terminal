@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.12 (in testing)
+
+- Fewer kinds: `@favor` is gone. A recipe you don't know yet (`@recipe is:unknown`, "recipes i don't know") now says when the Merchant's Favor buys it: its cost in its detail, your faction's vendor in its tooltip, the skill it needs when nothing else says. "favor recipes i don't know" and "alchemy favor recipes" list those (`@recipe is:unknown favor` in Advanced). The Favor recipes you know, and other professions', are no longer listed (the player's call).
+
 ## 1.0.11 (in testing)
 
 - Fewer kinds: `@repreward` is gone. OneForAll's reputation rewards are Reputation rows that its questions list ("argent dawn rewards", "what can i buy at honored", "timbermaw recipes") and `<faction> > rewards` from a faction's row (Advanced), each with the standing it needs, whether you can buy it yet, its quartermaster on the map with Enter. A reward's name alone no longer finds it in a plain search (the player's call).

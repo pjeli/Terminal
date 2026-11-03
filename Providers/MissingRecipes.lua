@@ -209,6 +209,7 @@ local function HowText(s)
 	if (s.drops and #s.drops > 0) or (s.bosses and #s.bosses > 0) then parts[#parts + 1] = L["Drop"] end
 	if s.quests and #s.quests > 0 then parts[#parts + 1] = L["Quest reward"] end
 	if s.objects and #s.objects > 0 then parts[#parts + 1] = L["Found"] end
+	if s.favor then parts[#parts + 1] = s.favor.cost and L["%d Merchant's Favor"]:format(s.favor.cost) or L["Merchant's Favor"] end
 	if #parts == 0 then return s.rid and L["Its recipe item: where to get it isn't known"] or L["How it's learned isn't known"] end
 	return table.concat(parts, ns.DETAIL_SEP)
 end
@@ -329,7 +330,14 @@ function MR.Tooltip(e, t)
 			t:AddLine(L["Limited supply or not shows once you open a vendor's window"], 0.62, 0.62, 0.62, true)
 		end
 	end
-	if not s.trainer and not s.rid then t:AddLine(L["How it's learned isn't known: AtlasLoot doesn't list it"], 0.62, 0.62, 0.62, true) end
+	if s.favor then
+		local f = s.favor
+		t:AddLine(f.cost and L["%d Merchant's Favor"]:format(f.cost) or L["Merchant's Favor"], 1, 0.82, 0.4)
+		if f.vendor then
+			t:AddLine("  " .. L["Sold by %s"]:format(f.vendor) .. (f.zone and (ns.DETAIL_SEP .. (f.place and (f.place .. ", ") or "") .. f.zone) or ""), 1, 1, 1, true)
+		end
+	end
+	if not s.trainer and not s.rid and not s.favor then t:AddLine(L["How it's learned isn't known: AtlasLoot doesn't list it"], 0.62, 0.62, 0.62, true) end
 	ns.KeyHints(t, L["Enter: show where to learn it"], 0.6, 0.6, 0.6)
 end
 
@@ -363,12 +371,15 @@ local function Row(u, pd, pr, Rc, Pr)
 	local rid = Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, id)
 	rid = type(rid) == "number" and rid or nil
 	local s = Sources(id, u.name, data, rid)
+	-- (bought with the Merchant's Favor, OneForAll says: Providers/OneForAll/World.lua, 1.0.12)
+	s.favor = MR.FavorOf and MR.FavorOf(u.name, pr.name) or nil
 	local need = data and Num(data[3])
 	if not need and rid then
 		local d = Rc.GetRecipeData and Safe(Rc.GetRecipeData, rid)
 		need = type(d) == "table" and Num(d[2]) or nil
 	end
 	if not need and s.trainerSeen then need = s.trainerSeen.rank end
+	if not need and s.favor then need = s.favor.skill end
 	if need and need <= 0 then need = nil end
 	local can = need ~= nil and (pr.rank or 0) >= need
 	local how = HowText(s)
@@ -380,7 +391,7 @@ local function Row(u, pd, pr, Rc, Pr)
 		color = (not can) and GREY or nil,
 		detail = pr.name .. (need and (" " .. need) or "") .. ns.DETAIL_SEP .. how,
 		text = table.concat({ pr.name, pd.name ~= pr.name and pd.name or "", "recipe missing unknown unlearned to learn", lhow,
-			s.trainer and "trainer train training" or "" }, " "), -- (English too: "@recipe is:learnable tailoring trainer")
+			s.trainer and "trainer train training" or "", s.favor and "merchants favor" or "" }, " "), -- (English too: "@recipe is:learnable tailoring trainer")
 		cost = s.trainer and s.trainerSeen and Num(s.trainerSeen.cost) or nil,
 		activate = WalkLearn, staysOpen = true,
 		tooltip = MR.Tooltip, getLink = SpellLink,

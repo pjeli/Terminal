@@ -85,7 +85,7 @@ for the session: `grep -rl 'sells:.*arrow' /npc | xargs ls -l | sort -n -k dist 
 
 `FS.MOUNTS` names the addons Terminal reads and the lists each one fills: AtlasLoot (/loot), Questie or QuestieDB (/npc
 /questie /mailbox), Attune (/attune), Syndicator or BagBrother (/stored /bank), What's Training or TrainerSpells
-(/training), OneForAll (/book /tame /itemset /favor /transport /gearplan), Ace3
+(/training), OneForAll (/book /tame /itemset /transport /gearplan), Ace3
 (/addonoptions), Auctionator (no list: its values and questions). `FS.Mounts()` says which is in use
 and how full each is (rows made; AtlasLoot's: its rows, less those still waiting on their names). `df [-ha]`, `mount`
 and `/etc/fstab` (those not installed commented out) show it; `umount` (hidden) says the target is busy. Lists

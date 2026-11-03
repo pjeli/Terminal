@@ -12,7 +12,7 @@ local I = ns.Integrations
 --                                         beasts to tame (Pets.lua)
 --   ARMORY_REPUTATION, ARMORY_SETS        "> rewards" (reputation rewards) and @itemset (Armory.lua)
 --   WEAPON_TRAINERS, MERCHANT_RECIPES, MAP_LANDMARKS, DUNGEON_DROP_CHANCE
---                                         weapon masters, Merchant's Favor recipes, boats, zeppelins and the tram,
+--                                         weapon masters, Merchant's Favor recipes (on @recipe's unknown ones), boats, zeppelins and the tram,
 --                                         loot drop chances (World.lua)
 --   GearValue, GearIndex                  is:upgrade judged by OneForAll's gear value, its suggested gear (Upgrades.lua)
 

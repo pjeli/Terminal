@@ -1261,7 +1261,7 @@ FS.MOUNTS = {
 			if p then return p.fromTrainerSpells and "TrainerSpells" or "WhatsTraining" end
 		end },
 	-- (1.0.1-1.0.5: OneForAll - Forever's lists, Providers/OneForAll/)
-	{ type = "oneforall", lists = { "book", "tame", "itemset", "favor", "transport", "gearplan" },
+	{ type = "oneforall", lists = { "book", "tame", "itemset", "transport", "gearplan" },
 		names = { "OneForAll" }, source = function() return ns.OneForAll and ns.OneForAll.Loaded() and "OneForAll" or nil end },
 	{ type = "aceconfig", lists = { "addonoptions" }, names = { "Ace3" },
 		source = function()

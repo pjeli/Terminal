@@ -117,13 +117,13 @@ function W.ChanceText(pct)
 end
 
 ----------------------------------------------------------------------
--- @favor: the Merchant's Favor recipes
+-- The Merchant's Favor recipes
 ----------------------------------------------------------------------
 
 --- Its Merchant's Favor recipes, checked: { { profession, name, skill, cost } }, and where each faction buys them:
 --- { Alliance = { zone, x, y, vendors = { [profession] = { name, x, y } } }, Horde = ... }; or nil.
 function W.FavorData()
-	return OA.Part("favor", "MERCHANT_RECIPES", L["@favor (its Merchant's Favor recipes) is unavailable."], function(raw, lib)
+	return OA.Part("favor", "MERCHANT_RECIPES", L["Its Merchant's Favor recipes are unavailable."], function(raw, lib)
 		local out = {}
 		for _, r in ipairs(raw) do
 			local prof, name = type(r) == "table" and OA.Text(r.profession), type(r) == "table" and OA.Text(r.name)
@@ -149,66 +149,27 @@ function W.FavorData()
 	end, true)
 end
 
--- your professions (their names, lower case) and the recipes you know in them, as Terminal indexed them
-local function YourRecipes()
-	local profs, known = {}, {}
-	local store = ns.Professions and ns.Professions.Store and ns.Professions.Store()
-	for _, pdata in pairs(type(store) == "table" and store or {}) do
-		if type(pdata) == "table" and type(pdata.name) == "string" then
-			profs[Lower(pdata.name)] = true
-			for _, r in ipairs(pdata.list or {}) do
-				if type(r) == "table" and r.learned ~= false and type(r.name) == "string" then known[Lower(r.name)] = true end
-			end
-		end
-	end
-	return profs, known
-end
-
-local function FavorTooltip(e, t)
-	t:SetText(e.name, 1, 0.82, 0)
-	t:AddLine(e.profession .. (e.skill and (SEP .. L["skill %d"]:format(e.skill)) or ""), 1, 1, 1)
-	if e.cost then t:AddLine(L["%d Merchant's Favor"]:format(e.cost), 1, 0.82, 0.4) end
-	if e.known ~= nil then t:AddLine(e.known and L["You know it"] or L["You don't know it yet"], e.known and 0.4 or 1, 1, e.known and 0.4 or 1) end
-	if e.vendorName then
-		t:AddLine(e.vendorName .. (e.zone and (SEP .. (e.place and (e.place .. ", ") or "") .. e.zone) or ""), 0.8, 0.8, 0.8, true)
-	end
-	t:AddLine(L["Merchant's Favor recipes from OneForAll"], 0.5, 0.5, 0.5)
-end
-
-local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.vendorName or e.name)) end
-
---- @favor's rows: a recipe each, your faction's vendor for it, known or not (nil: not your profession).
-function W.FavorRows()
+-- (1.0.12, the player: too many kinds; was @favor) No kind of their own: a recipe you don't know yet (@recipe
+-- is:unknown, Providers/MissingRecipes.lua) says it's bought with the Merchant's Favor, what it costs and your faction's
+-- vendor, as one of the ways to learn it.
+local favorBy -- "<profession>\001<recipe>" (lower case) -> its recipe
+--- What the Merchant's Favor says of a recipe of a profession (their names): { cost, skill, vendor, place, zone } or nil.
+function W.FavorOf(name, prof)
 	local d = W.FavorData()
-	if not d then return {} end
+	if not (d and type(name) == "string" and type(prof) == "string") then return nil end
+	if not favorBy then
+		favorBy = {}
+		for _, r in ipairs(d.recipes) do favorBy[Lower(r.profession) .. "\001" .. Lower(r.name)] = r end
+	end
+	local r = favorBy[Lower(prof) .. "\001" .. Lower(name)]
+	if not r then return nil end
 	local fac = UnitFactionGroup and UnitFactionGroup("player")
 	local hub = d.where[fac or ""]
-	local profs, known = YourRecipes()
-	local out = {}
-	for i, r in ipairs(d.recipes) do
-		local name = (OA.Text(d.prefix[r.profession]) or "") .. r.name
-		local isKnown
-		if profs[Lower(r.profession)] then isKnown = known[Lower(r.name)] == true end
-		local v = hub and hub.vendors[r.profession]
-		local row = {
-			key = r.profession .. ":" .. r.name, kind = "favor", name = name, _lname = Lower(name), recipeName = r.name, profession = r.profession,
-			skill = r.skill, cost = r.cost, known = isKnown, vendorName = v and v.name, zone = hub and hub.zone, place = hub and hub.place, order = i,
-			icon = "Interface\\Icons\\INV_Scroll_03", tooltip = FavorTooltip, generic = false, pinName = v and v.name,
-			detail = r.profession .. (r.skill and (SEP .. L["skill %d"]:format(r.skill)) or "") .. (r.cost and (SEP .. L["%d Favor"]:format(r.cost)) or "")
-				.. (isKnown and (SEP .. L["learned"]) or ""),
-			text = Lower(table.concat({ L["Merchant's Favor"], "merchants favor recipe", r.profession, isKnown and "learned" or "" }, " ")),
-		}
-		if v and v.x and hub.ui then
-			row.ui, row.px, row.py = hub.ui, v.x, v.y
-			if I.SpotXY then row.wcont, row.wx, row.wy = I.SpotXY(hub.ui, { v.x, v.y }) end
-			out[#out + 1] = I.SpotRow(row)
-		else
-			row.activate, row.secondary = NoSpot, NoSpot
-			out[#out + 1] = row
-		end
-	end
-	return out
+	local v = hub and hub.vendors[r.profession]
+	return { cost = r.cost, skill = r.skill, vendor = v and v.name, place = hub and hub.place, zone = hub and hub.zone }
 end
+local forget = W.Forget
+function W.Forget() forget(); favorBy = nil end -- (tests)
 
 ----------------------------------------------------------------------
 -- @transport: boats, zeppelins, airships, the tram, and the roads into the next zone
@@ -285,12 +246,9 @@ end
 OA.AddSetup(function()
 	W.WeaponMasters()
 	W.DropChances()
-	if W.FavorData() then
-		ns:RegisterProvider("favor", {
-			label = L["Merchant's Favor recipe"], color = "ffe0a050",
-			aliases = { "favor", "favour", "merchantsfavor", "favorrecipe", "favorrecipes" },
-			lazy = true, events = { "TRADE_SKILL_CLOSE", "CRAFT_CLOSE", "LEARNED_SPELL_IN_SKILL_LINE" }, guard = 1, collect = W.FavorRows,
-		})
+	if W.FavorData() and ns.MissingRecipes then
+		ns.MissingRecipes.FavorOf = W.FavorOf
+		if ns.providers.missing then ns:Changed("missing") end
 	end
 	if W.Transports() then
 		ns:RegisterProvider("transport", {
@@ -303,7 +261,7 @@ end)
 OA.AddStatus(function()
 	local parts = {}
 	local f, t = W.FavorData(), W.Transports()
-	if f then parts[#parts + 1] = L["%d Merchant's Favor recipes (@favor)"]:format(#f.recipes) end
+	if f then parts[#parts + 1] = L["%d Merchant's Favor recipes (on the recipes you don't know)"]:format(#f.recipes) end
 	if t then parts[#parts + 1] = L["%d ways (@transport)"]:format(#t) end
 	if W.DropChances() then parts[#parts + 1] = L["drop chances on @loot"] end
 	if W.WeaponMasters() then parts[#parts + 1] = L["weapon masters"] end
@@ -328,7 +286,8 @@ local ASK = { i = true, im = true, ["do"] = true, the = true, a = true, an = tru
 
 --- The question: { what = "favor" (prof, unknown, known) | "way" (way, to, near, here) }, or nil.
 function W.Question(text)
-	if not (ns.providers.favor or ns.providers.transport) then return nil end
+	local favorOn = W.FavorData() ~= nil and ns.providers.missing ~= nil
+	if not (favorOn or ns.providers.transport) then return nil end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local words = {}
@@ -338,7 +297,7 @@ function W.Question(text)
 		if FAVOR[w] then favor = true end
 		if WAYW[w] and not way then way = WAYW[w] end
 	end
-	if favor and ns.providers.favor then
+	if favor and favorOn then
 		local q = { what = "favor", words = {} }
 		for i, w in ipairs(words) do
 			if FAVOR[w] then -- (the word itself)
@@ -348,10 +307,12 @@ function W.Question(text)
 			elseif not ASK[w] then q.words[#q.words + 1] = w end
 		end
 		if q.unknown then q.known = nil end
+		-- (only the ones you don't know are listed: "favor recipes i know" is a search)
+		if q.known then return nil end
 		-- other words: a profession or a recipe's name
 		if #q.words > 0 then
 			local any = false
-			for _, e in ipairs(ns:GetEntries(ns.providers.favor)) do
+			for _, e in ipairs(W.FavorRecipes()) do
 				local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "")
 				local all = true
 				for _, w in ipairs(q.words) do if not hay:find(w, 1, true) then all = false break end end
@@ -384,6 +345,16 @@ function W.Question(text)
 		return q
 	end
 	return nil
+end
+
+--- The recipes you don't know yet that the Merchant's Favor buys (@recipe is:unknown's rows that say so).
+function W.FavorRecipes()
+	local out = {}
+	local p = ns.providers.missing
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		if type(e.sources) == "table" and e.sources.favor then out[#out + 1] = e end
+	end
+	return out
 end
 
 local function Has(e, words)
@@ -419,15 +390,13 @@ function W.Answer(q)
 	q = q or {}
 	if q.what == "favor" then
 		local rows = {}
-		for _, e in ipairs(ns:GetEntries(ns.providers.favor)) do
-			if Has(e, q.words) and not (q.unknown and e.known ~= false) and not (q.known and e.known ~= true) then rows[#rows + 1] = e end
+		for _, e in ipairs(W.FavorRecipes()) do
+			if Has(e, q.words) then rows[#rows + 1] = e end
 		end
 		ns.ScoreInOrder(rows)
-		local title = (q.unknown and L["Merchant's Favor recipes you don't know"]) or (q.known and L["Merchant's Favor recipes you know"])
-			or L["Merchant's Favor recipes"]
+		local title = L["Merchant's Favor recipes you don't know"]
 		if #rows == 0 then
-			return { ns.NoteRow(q.unknown and L["None you don't know, in the professions Terminal has indexed (open each once)"]
-				or L["No Merchant's Favor recipe has that"]) }, title
+			return { ns.NoteRow(L["None you don't know, in the professions Terminal has indexed (open each once)"]) }, title
 		end
 		return rows, title
 	end
@@ -453,9 +422,7 @@ end
 function W.ToAdvanced(q)
 	q = q or {}
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
-	if q.what == "favor" then
-		return "@favor " .. (q.unknown and "is:unlearned " or q.known and "is:learned " or "") .. w
-	end
+	if q.what == "favor" then return "@recipe is:unknown favor " .. w end
 	local word = ({ ship = "boat", zeppelin = "zeppelin", air = "airship", tram = "tram", road = "road" })[q.way] or ""
 	return "@transport " .. word .. " " .. (q.to and (q.to .. " ") or "") .. "sort:distance " .. w
 end

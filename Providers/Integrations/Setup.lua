@@ -174,9 +174,9 @@ I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not 
 	kinds = { itemset = true, itemsets = true, tierset = true, setpiece = true,
 		setpieces = true } }
 -- (1.0.4: the Merchant's Favor recipes, the boats, zeppelins and the tram, OneForAll's)
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.favor and ns.providers.transport) end,
-	kinds = { favor = true, favour = true, merchantsfavor = true, transport = true, transports = true, boat = true, boats = true,
-		zeppelin = true, zeppelins = true, tram = true }, words = { favor = true, zeppelin = true } }
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.transport end,
+	kinds = { transport = true, transports = true, boat = true, boats = true,
+		zeppelin = true, zeppelins = true, tram = true }, words = { zeppelin = true } }
 local BY_NAME = {}
 for _, a in ipairs(I.ADDONS) do BY_NAME[a.name] = a end
 
