@@ -10,8 +10,10 @@ local OA = ns.OneForAll
 -- 1.0.10 (the player: too many kinds): a set's pieces are no kind of their own (was @setpiece) but @itemset's rows that
 -- only "<set> > pieces", Enter on a set and "pieces of <set>" list, as Attune's steps are; a set's text has its pieces'
 -- names and sources, so "@itemset onyxia" finds the sets with a piece from Onyxia.
--- 1.0.11 (the same call): the rewards are no kind of their own either (was @repreward) but @reputation's rows that only
--- the questions ("argent dawn rewards", "what can i buy at honored") and "<faction> > rewards" list (`repReward`).
+-- 1.0.11 (the same call): the rewards are no kind of their own either (was @repreward) but @reputation's rows
+-- (`repReward`), in its list with the factions since 1.0.27 (the player: "@reputation shows only Orgrimmar"):
+-- @reputation is:reward, is:canbuy, standing:, sort:standing, Group by faction or standing; the questions ("argent dawn
+-- rewards", "what can i buy at honored") and "<faction> > rewards" list them too.
 --
 -- OneForAll's ranks run 0-7 (4 Friendly .. 7 Exalted); the game's standings 1-8 (5 Friendly .. 8 Exalted): a reward's
 -- standing is its rank + 1, as the reputation list reads it (`reaction`: the standing it needs).
@@ -604,7 +606,11 @@ function A.ToAdvanced(q)
 	if q.what == "pieces" then return A.PiecesSearch(q.set) end
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
 	if q.what == "sets" then return "@itemset " .. (q.mine and "class:mine " or "") .. w end
-	-- (a faction's, as its chain; with a standing, a kind or "can buy": no search says that, the question stays)
-	if q.faction and not (q.standing or q.kind or q.now) and w == "" and A.Met(q.faction.id) then return q.faction.name .. " > rewards " end
-	return nil
+	-- (as @reputation's filters, 1.0.27: the faction's words, its standing (up to it, or that one), a kind's word, can buy)
+	local parts = { "@reputation is:reward" }
+	if q.faction then parts[#parts + 1] = Norm(q.faction.name) end
+	if q.standing then parts[#parts + 1] = "standing:" .. (q.upTo and "<=" or "") .. Lower(STANDING_ENGLISH[q.standing] or tostring(q.standing)) end
+	if q.kind then parts[#parts + 1] = q.kind end
+	if q.now then parts[#parts + 1] = "is:canbuy" end
+	return table.concat(parts, " ") .. " " .. w
 end

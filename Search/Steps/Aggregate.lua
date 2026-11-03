@@ -117,6 +117,18 @@ A.FIELDS = {
 	line = { label = L["line"], num = function(e) return e.stepRec and e.stepIndex or nil end },
 	-- (who has it: a friend's, Terminal: Share's @shared rows; the bar's Group and Sort, sort:owner; 0.58.6)
 	owner = { label = L["owner"], text = function(e) return Str(rawget(e, "owner")) end },
+	-- (a reputation's: its faction (a reward's, its quartermaster's) and its standing (a reward's: the one it needs); the
+	-- bar's Group and Sort, sort:standing; 1.0.27, the player's ask)
+	faction = { label = L["faction"], text = function(e)
+		if e.kind ~= "reputation" then return nil end
+		return Str(e.repReward and e.faction or e.name)
+	end },
+	standing = { label = L["standing"], num = function(e) return e.kind == "reputation" and Num(e.reaction) or nil end,
+		text = function(e, f)
+			local n = f.num(e)
+			local g = n and rawget(_G, "FACTION_STANDING_LABEL" .. n)
+			return type(g) == "string" and g ~= "" and g or (n and tostring(n)) or nil
+		end, order = true },
 	-- (the combat log's hits: sort:damage; 0.55.7)
 	damage = { label = L["damage"], num = function(e) return e.kind == "combatlog" and Num(e.amount) or nil end },
 	price = { label = L["price"], money = true, num = function(e) local i = Info(e); return i and Num(i.sell) end },
@@ -130,8 +142,8 @@ A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone",
 	area = "zone", dungeons = "dungeon", raids = "raid", instances = "instance", bosses = "boss", from = "boss", qty = "count", amount = "count", number = "count",
 	worth = "value", gold = "value", money = "value", vendor = "value", sell = "value", list = "kind", kinds = "kind",
 	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality",
-	owners = "owner", friend = "owner", friends = "owner" }
-A.ORDER = { "value", "price", "count", "kind", "owner", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
+	owners = "owner", friend = "owner", friends = "owner", factions = "faction", standings = "standing", rep = "standing" }
+A.ORDER = { "value", "price", "count", "kind", "owner", "faction", "standing", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 A.FIRST_WORDS = { first = true, top = true, head = true }
 -- Comparing two searches (0.66.10, the player): "| except @bank" leaves out what the other search finds, "| also

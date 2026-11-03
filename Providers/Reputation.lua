@@ -182,6 +182,12 @@ ns:RegisterProvider("reputation", {
 				}
 			end
 		end
+		-- (1.0.27, the player: "@reputation shows only Orgrimmar") what quartermasters sell, OneForAll's, with the factions:
+		-- @reputation is:reward lists them, is:canbuy those your standing allows, sort:standing, Group by faction
+		local AR = ns.Armory
+		if AR and AR.Rewards and AR.Factions and AR.Factions() then
+			for _, r in ipairs(AR.Rewards()) do out[#out + 1] = r end
+		end
 		return out
 	end,
 })

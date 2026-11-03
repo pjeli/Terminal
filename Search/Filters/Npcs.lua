@@ -495,7 +495,8 @@ F.SORTS = { distance = "distance", dist = "distance", nearest = "distance", near
 	-- (0.55.1: by what the rows have, as Simple mode's bar sorts; Bar.lua's B.SortRows)
 	name = "name", alpha = "name", az = "name", level = "level", lvl = "level", ilvl = "ilvl", itemlevel = "ilvl",
 	quality = "quality", q = "quality", value = "value", worth = "value", count = "count", qty = "count",
-	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner" }
+	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner",
+	standing = "standing", rep = "standing", reputation = "standing" }
 -- the sorts that don't turn round: the plan's, the biggest upgrades (a field's do: sort:-level; distance too, 0.65.7)
 local NO_REVERSE = { plan = true, best = true }
 --- A sort's field and whether it's turned round: "-level" -> "level", true; "level" -> "level", false.
@@ -612,6 +613,11 @@ IS.flight, IS.flightmaster = FlightMaster, FlightMaster
 IS.flightpath = function(e) return e.kind == "flight" end
 -- (1.0.9) @tame's pet ability ranks, not its beasts
 IS.ability = function(e) return e.kind == "tame" and e.ability ~= nil end -- (a view on one too: not rawget)
+-- (1.0.27) @reputation's quartermaster rewards (OneForAll's), and those your standing lets you buy
+IS.reward = function(e) return e.kind == "reputation" and e.repReward == true end
+IS.rewards = IS.reward
+IS.canbuy = function(e) return e.kind == "reputation" and e.repReward == true and e.canBuy == true end
+IS.buyable = IS.canbuy
 -- (0.45.14) recipes too: yours are learned; the ones you don't know yet (MissingRecipes.lua) aren't, and is:learnable
 -- keeps those your skill already allows
 -- (0.54.6: spells too, @spell listing the ones you don't know yet: is:known keeps to your spellbook, as @spell did before)

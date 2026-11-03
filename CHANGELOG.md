@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.27 (in testing)
+
+- OneForAll's reputation rewards are in `@reputation`'s own list again, with the factions (the player: "@reputation only shows Orgrimmar"): `@reputation is:reward` lists every quartermaster's reward, `is:canbuy` those your standing allows, `standing:honored` (or `standing:<=honored`) by the standing each needs, `sort:standing`, and the bar's Group by Faction or Standing; Filter offers "Quartermaster rewards" and "Can buy now". A reward's name finds it in a plain search again. Alt+` writes the reward questions as these ("argent dawn rewards" -> `@reputation is:reward argent dawn`).
+
 ## 1.0.26 (in testing)
 
 - Simple mode's "Dungeon Loot" category is "Loot" (the player's call): it holds quest rewards, crafted and reputation gear too since OneForAll's planner joined `@loot`.

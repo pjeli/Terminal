@@ -638,7 +638,7 @@ F.VALUES = {
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today", "guild",
-		"sold", "listed", "mine", "death", "taken", "dealt" },
+		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -690,7 +690,8 @@ F.APPLIES = {
 		craftable = RECIPES, skillup = RECIPES, orange = RECIPE_QUEST, yellow = RECIPE_QUEST, green = RECIPE_QUEST,
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
-		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells", "tame" }, ability = { "tame" }, capped = { "currency" },
+		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells", "tame" }, ability = { "tame" }, reward = { "reputation" }, rewards = { "reputation" },
+		canbuy = { "reputation" }, buyable = { "reputation" }, capped = { "currency" },
 		vendor = NPC, trainer = NPC, classtrainer = NPC, proftrainer = NPC, innkeeper = NPC, banker = NPC, repair = NPC,
 		auctioneer = NPC, questgiver = NPC, stablemaster = NPC, spirithealer = NPC, battlemaster = NPC, weaponmaster = NPC,
 		weaponmasters = NPC, pvpvendor = NPC, pvp = NPC,

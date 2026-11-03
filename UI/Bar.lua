@@ -66,6 +66,8 @@ B.FILTERS = {
 	{ id = "is:vendor", label = L["Vendors"] },
 	{ id = "is:trainer", label = L["Trainers"] },
 	{ id = "is:online", label = L["Online"] },
+	{ id = "is:reward", label = L["Quartermaster rewards"] }, -- (OneForAll's, in @reputation; 1.0.27)
+	{ id = "is:canbuy", label = L["Can buy now"] },
 }
 -- what Sort offers: distance (sort:distance's lists), else a field the rows have (Aggregate's, and the name)
 -- a sort's way, in the menu: the game's sort arrow (down as drawn, up flipped)
@@ -84,10 +86,11 @@ B.SORTS = {
 	{ id = "damage", label = L["Biggest hit"], field = "damage" },
 	{ id = "line", label = L["Line by line"], field = "line", asc = true },
 	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share; 0.58.6)
+	{ id = "standing", label = L["Standing"], field = "standing", asc = true }, -- (reputations and their rewards; 1.0.27)
 }
 B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
 -- what Group offers: Aggregate's fields that name something
-B.GROUPS = { "kind", "owner", "zone", "quality", "type", "slot", "dungeon", "raid", "boss", "level" }
+B.GROUPS = { "kind", "owner", "faction", "standing", "zone", "quality", "type", "slot", "dungeon", "raid", "boss", "level" }
 
 local function E() return ns.Easy end
 local function ById(list, id) for _, o in ipairs(list) do if o.id == id then return o end end end

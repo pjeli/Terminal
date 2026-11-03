@@ -201,9 +201,33 @@ do
 		ns.db.easyMode = false; UI:EasyChanged()
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find(L["%d factions' rewards (> rewards), %d item sets (@itemset)"]:format(4, 3), 1, true), ".integrations: " .. lines)
-		check(A.ToAdvanced(A.Question("argent dawn rewards")) == "Argent Dawn > rewards ", "to Advanced: the chain")
-		check(A.ToAdvanced(A.Question("timbermaw rewards")) == nil, "to Advanced: a faction you haven't met has no chain to start from: the question stays")
-		check(A.ToAdvanced(A.Question("what can i buy at honored")) == nil, "to Advanced: none says that, the question stays")
+		check(A.ToAdvanced(A.Question("argent dawn rewards")) == "@reputation is:reward argent dawn ", "to Advanced: @reputation's filters: "
+			.. tostring(A.ToAdvanced(A.Question("argent dawn rewards"))))
+		check(A.ToAdvanced(A.Question("timbermaw rewards")) == "@reputation is:reward timbermaw hold ", "to Advanced: a faction you haven't met too")
+		check(A.ToAdvanced(A.Question("what can i buy at honored")) == "@reputation is:reward standing:<=honored ", "to Advanced: up to a standing: "
+			.. tostring(A.ToAdvanced(A.Question("what can i buy at honored"))))
+		-- (1.0.27, the player: "@reputation shows only Orgrimmar") the rewards in @reputation's own list, its filters,
+		-- sort and groups
+		local stub = ns.providers.reputation
+		ns.providers.reputation = save.providers.reputation
+		ns.providers.reputation._dirty = true
+		A.ForgetRewards()
+		local all = UI:Search("@reputation is:reward")
+		check(#all == 6 and all[1].repReward, "@reputation is:reward: the quartermasters' rewards in its list: " .. #all)
+		local can = UI:Search("@reputation is:canbuy")
+		local ok = #can > 0
+		for _, e in ipairs(can) do if not e.canBuy then ok = false end end
+		check(ok, "@reputation is:canbuy: those your standing allows: " .. #can)
+		local sorted = UI:Search("@reputation is:reward sort:standing")
+		local up = true
+		for i = 2, #sorted do if (sorted[i].reaction or 0) < (sorted[i - 1].reaction or 0) then up = false end end
+		check(#sorted == 6 and up, "sort:standing: the lowest first")
+		local AG = ns.Aggregate
+		check(AG.FIELDS.faction.text(all[1]) == all[1].faction and all[1].faction ~= nil and AG.FIELDS.standing.num(all[1]) == all[1].reaction,
+			"Group's faction and standing fields")
+		local timber = UI:Search("@reputation is:reward timbermaw")
+		check(#timber == 1 and timber[1].itemID == 20253, "@reputation is:reward timbermaw: a faction's: " .. #timber)
+		ns.providers.reputation = stub
 
 		-- not in the shape expected: said once, the other still there
 		said = {}
