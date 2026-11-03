@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 (in testing)
+
+- With OneForAll - Forever installed, `@book` lists WoW Forever's Library Books (the tomes turned in to the library for its rewards): where each is, on the map with Enter, and whether it's to find, in your bags or bank, or turned in (OneForAll's own record, else the game's). `is:todo`, `is:done`. In Simple mode: "library books", "books i still need", "nearest library book", "library book rewards". `.integrations` says how many books it read, and a table that changed is said once in chat.
+
 ## 1.0.0
 
 Terminal 1.0, for WoW Forever's launch.

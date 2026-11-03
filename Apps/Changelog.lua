@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.0.1", when = "in testing",
+		items = {
+			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
+		},
+	},
+	{
 		v = "1.0.0", when = "released November 2026",
 		items = {
 			"Share by invite: .share invite <name>, and they type .share accept. Groups get codes Terminal makes that nobody can guess; typed passwords are gone, so invite your friends again.",
@@ -44,16 +50,6 @@ CL.LOG = {
 			"\"nearest forge\" and \"nearest anvil\", for blacksmiths and engineers (needs Questie or QuestieDB).",
 			"Alt+` keeps your capitals, and \"not in my bank\" lists your items that aren't there.",
 			"Flight paths, entrances, zone and fishing levels now come from the game's own data; @cvar explains each setting.",
-		},
-	},
-	{
-		v = "0.67.0", when = "released October 2026",
-		items = {
-			"Numbers, levels and dates in words: \"swords between level 20 and 30\", \"loot from yesterday\".",
-			"Top N and comparisons: \"the 3 nearest mailboxes\", \"cloth but not in my bank\".",
-			"Sort by more than one field, and Ctrl+Z / Ctrl+Y undo in the prompt.",
-			".explain and \"Why is this here?\" say what a search does and why a row is listed.",
-			"Upgrades follow your talents and hit cap; \"upgrades i can buy\" and \"ah upgrades\" find them for sale.",
 		},
 	},
 }

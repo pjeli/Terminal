@@ -68,7 +68,7 @@ E.CATEGORIES = {
 	-- (0.55.16, the player: "separate out Items / inventory from Stored / bank & alts": two again, as before 0.48.4)
 	{ id = "items", label = L["Items"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags" } },
 	{ id = "stored", label = L["Bank & alts"], kinds = { "stored", "shared" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
-	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
+	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune", "book" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
@@ -268,7 +268,7 @@ E.VERBS = {
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
 	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, forge = PLACE, anvil = PLACE,
-	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE,
+	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE, book = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },

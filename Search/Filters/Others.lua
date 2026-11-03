@@ -158,6 +158,7 @@ end
 
 --- Done / not done: quests by the game's record; achievements by their row's completed (rows without it aren't judged).
 local function DoneOf(e)
+	if type(e.isDone) == "boolean" then return e.isDone end -- (a row that says: a Library Book, Providers/OneForAll/Books.lua)
 	-- (Attune's: an attunement all done, a step it saw you do; Attune.lua)
 	if e.kind == "attune" and ns.Attune then
 		if e.isStep then return ns.Attune.StepState(e.stepRec) == "done" end
@@ -634,7 +635,7 @@ local RECIPES = { "recipes", "professions" } -- (@profession is:skillup searches
 local RECIPE_QUEST = { "recipes", "professions", "quests" } -- (is:orange: a quest's colour too)
 -- (done / todo: turned in or not, by the game's record: Questie's quests and achievements; a quest in your log is never
 -- done, so the quest log isn't offered them. Its own: complete (ready to turn in), grey, leftbehind, drop)
-local QUESTS = { "questie", "achievements", "attune" }
+local QUESTS = { "questie", "achievements", "attune", "book" }
 local PEOPLE = { "guild", "friends", "who", "group" }
 local NPC = { "npc" }
 local MAIL = { "mail" }

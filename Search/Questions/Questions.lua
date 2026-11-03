@@ -126,6 +126,8 @@ Scan.ANSWERS = {
 	Asks("GroupQuests"),
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
 	Asks("Lockouts"),
+	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/OneForAll/Books.lua)
+	Asks("LibraryBooks"),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
 	Asks("Corpse"),
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua

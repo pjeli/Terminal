@@ -1734,7 +1734,7 @@ advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
 explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
-question: 33  asked=missing stamina
+question: 34  asked=missing stamina
 place: -
 send: -
 steps: -
@@ -1745,7 +1745,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == needs int
-question: 33  asked=needs int
+question: 34  asked=needs int
 place: -
 send: -
 steps: -
@@ -1756,7 +1756,7 @@ advanced: "@group missing:intellect "
 explain: "Your group, missing:intellect"
 
 == who is without fortitude
-question: 33  asked=who is without fortitude
+question: 34  asked=who is without fortitude
 place: -
 send: -
 steps: -
@@ -1767,7 +1767,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == party without food
-question: 33  asked=party without food
+question: 34  asked=party without food
 place: -
 send: -
 steps: -
@@ -1778,7 +1778,7 @@ advanced: "@group missing:food "
 explain: "Your group, missing:food"
 
 == needs blessing of kings
-question: 33  asked=needs blessing of kings
+question: 34  asked=needs blessing of kings
 place: -
 send: -
 steps: -
@@ -1789,7 +1789,7 @@ advanced: "@group missing:blessing_kings "
 explain: "Your group, missing:blessing_kings"
 
 == missing shadow protection
-question: 33  asked=missing shadow protection
+question: 34  asked=missing shadow protection
 place: -
 send: -
 steps: -
@@ -1800,7 +1800,7 @@ advanced: "@group missing:shadow "
 explain: "Your group, missing:shadow"
 
 == need flask
-question: 33  asked=need flask
+question: 34  asked=need flask
 place: -
 send: -
 steps: -
@@ -1811,7 +1811,7 @@ advanced: "@group missing:elixir "
 explain: "Your group, missing:elixir"
 
 == missing buffs
-question: 33  asked=missing buffs
+question: 34  asked=missing buffs
 place: -
 send: -
 steps: -
@@ -3346,7 +3346,7 @@ advanced: "mail|type:mail older:2w "
 explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
-question: 31  asked=auctions sold
+question: 32  asked=auctions sold
 place: -
 send: -
 steps: -
@@ -4906,7 +4906,7 @@ advanced: "@gold gold "
 explain: "Gold matching gold"
 
 == durability
-question: 30  asked=durability
+question: 31  asked=durability
 place: -
 send: -
 steps: -
@@ -4934,7 +4934,7 @@ advanced: "mail|type:mail "
 explain: "Everything matching mail|type:mail"
 
 == my mail
-question: 32  asked=my mail
+question: 33  asked=my mail
 place: -
 send: -
 steps: -
@@ -6349,7 +6349,7 @@ advanced: ""
 explain: ERROR nil
 
 == "tonight we
-question: 39  asked="tonight we
+question: 40  asked="tonight we
 place: -
 send: -
 steps: -
