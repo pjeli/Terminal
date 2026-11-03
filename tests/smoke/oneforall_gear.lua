@@ -2,7 +2,7 @@
 -- takes its verdict (up by a percent, the slot empty: one; down, the same, worn, unknown: not), in place of Terminal's
 -- weights; Terminal's own when you picked roles in .weights; Terminal's checks before stay (your level, what you can
 -- use). @loot has its planner's gear (1.0.25: was @gearplan; one AtlasLoot lists already left out), each by its source
--- (source:quest, source:raid...; "upgrades from quests"); "Why is this here?" says whose
+-- (source:quest, source:raid...; "raid loot", "dungeon gear"); "Why is this here?" says whose
 -- verdict it was.
 local T = ...
 local ns, UI, check = T.ns, T.UI, T.check
@@ -173,8 +173,13 @@ do
 		for _, e in ipairs(r3) do if e.itemID == 991 then named = true end end
 		check(r1 == r2 and r2 == r3 and #r1 == 6 and named, "OneForAll's rows made once for its index; one named since added: " .. #r1)
 		G.Forget()
-		-- Simple mode: "upgrades from quests", "raid loot"
+		-- Simple mode: "raid loot"
 		ns.db.easyMode = true
+		-- (review, 1.0.35) "from quests", "from reputation": not loot's source words (they took "rewards from quests")
+		for _, line in ipairs({ "rewards from quests", "gear from quests", "reputation from quests", "patterns from reputation" }) do
+			local adv = ns.Easy.ToAdvanced(line)
+			check(not tostring(adv):find("source:", 1, true), line .. ": no source: filter: " .. tostring(adv))
+		end
 		local raid = {}
 		for _, e in ipairs(UI:Search("raid loot")) do if e.itemID then raid[#raid + 1] = e.itemID end end
 		check(#raid == 1 and raid[1] == 1002, "raid loot (Simple mode): the raid's: " .. table.concat(raid, ","))

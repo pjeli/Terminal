@@ -204,7 +204,16 @@ function ns.LineToAdvanced(text, category, shown, noGroup)
 	if r.send then t, tail = line:sub(1, r.send.at - 1), " " .. line:sub(r.send.at)
 	elseif r.copy then t, tail = r.copy.query, " >>> " .. r.copy.how end
 	if r.steps then
-		t, tail = r.steps.query, " | " .. table.concat(r.steps.list, " | ") .. tail
+		-- (steps that only keep rows, a group stepped into: the bar's Group groups what they keep (UI/Results.lua, 1.0.29),
+		-- so it's written after them; review, 1.0.35: Alt+` dropped it, and reset the bar)
+		local add = ""
+		local bar = ns.Bar and ns.Bar.Active and ns.Bar.Active()
+		local A = ns.Aggregate
+		if bar and bar.group and not noGroup and A and A.Parse then
+			local ok, spec = pcall(A.Parse, r.steps.list, r.steps.query)
+			if ok and spec and not spec.last and not spec.bad then add = " | group by " .. bar.group end
+		end
+		t, tail = r.steps.query, " | " .. table.concat(r.steps.list, " | ") .. add .. tail
 	elseif r.top or r.setop then
 		-- ("the 3 nearest mailboxes": "| first 3", 0.66.7; "but not in my bank": "| except @bank", 0.66.10)
 		local add = (r.setop and (" | " .. r.setop.step) or "") .. (r.top and (" | first " .. r.top.n) or "")

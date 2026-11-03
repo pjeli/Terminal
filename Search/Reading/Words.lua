@@ -32,12 +32,11 @@ E.WORDS = {
 	["weapon damage"] = "stat:weapondamage",
 	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
 	upgrade = "is:upgrade", upgrades = "is:upgrade",
-	-- where loot comes from (1.0.25): "upgrades from quests", "raid loot", "dungeon gear"
-	["from quests"] = "source:quest", ["from quest"] = "source:quest", ["quest gear"] = "source:quest",
-	["from raids"] = "source:raid", ["from raid"] = "source:raid", ["raid loot"] = "source:raid", ["raid gear"] = "source:raid",
-	["from dungeons"] = "source:dungeon", ["from dungeon"] = "source:dungeon", ["dungeon loot"] = "source:dungeon",
-	["dungeon gear"] = "source:dungeon", ["crafted gear"] = "source:crafted", ["from crafting"] = "source:crafted",
-	["reputation gear"] = "source:reputation", ["from reputation"] = "source:reputation",
+	-- where loot comes from (1.0.25): "raid loot", "dungeon gear". (Not "from quests", "from reputation", "quest gear":
+	-- review, 1.0.35, they took lines about other things, "rewards from quests", "reputation from quests", "gear from
+	-- quests", and found nothing; without OneForAll no loot comes from a quest)
+	["raid loot"] = "source:raid", ["raid gear"] = "source:raid", ["dungeon loot"] = "source:dungeon",
+	["dungeon gear"] = "source:dungeon", ["crafted gear"] = "source:crafted", ["reputation gear"] = "source:reputation",
 	-- recipes that still give skill (orange and yellow; strict: HARD_WORDS)
 	skillup = "is:skillup", skillups = "is:skillup", ["skill up"] = "is:skillup", ["skill ups"] = "is:skillup",
 	online = "is:online", offline = "is:offline",

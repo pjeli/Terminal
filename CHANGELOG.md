@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.35 (in testing)
+
+- Simple mode's loot source words are only "raid loot", "raid gear", "dungeon loot", "dungeon gear", "crafted gear" and "reputation gear" (review): "from quests", "from reputation" and "quest gear" took lines about other things ("rewards from quests", "reputation from quests", "gear from quests") and found nothing; the advertised "upgrades from quests" is Questie's quest upgrades as before. Alt+` inside a group you stepped into writes the bar's Group after the step (`| kind:"…" | group by quality`), which it dropped.
+
 ## 1.0.34 (in testing)
 
 - Loot rows from OneForAll and AtlasLoot's factions (review): to chat a quest's, recipe's or faction's item says "from Quest: …", "from Argent Dawn (Honored)", not "dropped by"; Shift+Enter on OneForAll's `@loot` rows opens the chat box by the game's press (Terminal's own code opening it taints it); OneForAll's gear rows are made once, not on every `@loot` rebuild while AtlasLoot's names come in (16 ms each); `@reputation` reads AtlasLoot's faction loot from its rows instead of building all of `@loot` inside its own list (most of its 86 ms at login, and again on every reputation gain); a list built inside another keeps the outer one's own-events note, so `@reputation` isn't made again 2 s later.

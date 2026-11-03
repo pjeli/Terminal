@@ -68,6 +68,10 @@ do
 		UI:SetQuery('probe blade | kind:"Probe"', 26); FlushAll()
 		B.Pick("group", "quality"); FlushAll()
 		check((Groups()) == 3 and UI.edit:GetText():find("| kind:", 1, true), "a \"| kind:\" step kept, the bar's Group over it: " .. (Groups()))
+		-- (review, 1.0.35) Alt+` writes that Group after the step (it groups what the step keeps); not after a summing step
+		local adv = ns.LineToAdvanced(UI.edit:GetText())
+		check(adv:find('| kind:"Probe" | group by quality', 1, true) ~= nil, "Alt+`: the bar's Group after a keeping step: " .. adv)
+		check(not ns.LineToAdvanced("probe blade | sum level"):find("group by", 1, true), "...not after a summing one")
 		-- the first N, then the bar's Group
 		UI:Hide(); FlushAll(); B.Reset()
 		UI:Open(""); FlushAll()
