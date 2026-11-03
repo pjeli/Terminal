@@ -251,8 +251,9 @@ function CS.Rows(cls, mine, all)
 		if not known or all then
 			-- (what it does, its first rank's description: "druid spells that root"; 0.68.8. Not in yet: asked for, and
 			-- the rows made again once it is, Spells.lua)
-			local desc = SP and SP.Desc and SP.Desc(s.ranks[1][1], CS.descBudget) or ""
-			if desc == nil then whole = false end
+			local desc = SP and SP.Desc and SP.Desc(s.ranks[1][1], CS.descBudget)
+			if SP and SP.Desc and desc == nil then whole, desc = false, "" end -- (not in yet: these rows not kept; review, 1.0.20)
+			desc = desc or ""
 			rows[#rows + 1] = setmetatable({ _compact = true, key = cls .. ":" .. s.ranks[1][1], name = s.name, _s = s,
 				_rank = mine and CS.MINE_RANK or CS.OTHER_RANK, _lname = Lower(s.name),
 				_ltext = ltext .. (s.quest and " quest" or "") .. (desc ~= "" and (" " .. desc) or ""), known = known or nil }, meta)

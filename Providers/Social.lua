@@ -601,6 +601,12 @@ local function WhoInCombat() ns:Print(L["Ask /who again once combat is over (it 
 --- The row on top of an @who search: ask the server with the typed words.
 function SO.WhoAskRow(text)
 	local filter = SO.WhoFilter(text)
+	-- (within the game's 255 characters a macro: its last words left out; review, 1.0.20: refused, it said "combat")
+	local S = ns.Secure
+	while S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX and filter:find("%s") do
+		filter = filter:gsub("%s+%S+$", "")
+	end
+	if S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX then filter = filter:sub(1, 150) end
 	return {
 		name = L["Ask the server: /who %s"]:format(filter ~= "" and filter or L["(everyone in your zone)"]),
 		detail = L["Enter"], kind = "who", kindLabel = "", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",

@@ -407,7 +407,7 @@ do
 	local f = CreateFrame("Frame")
 	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
 	f:SetScript("OnEvent", function(_, _, spellID)
-		if not asked[spellID] then return end
+		if asked[spellID] ~= true then return end -- (asked, not in yet: as Spells.lua's)
 		asked[spellID] = "in"
 		if descDue then return end
 		descDue = true

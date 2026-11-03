@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.20 (in testing)
+
+- Fixes from the full review: a sale whose "Sale Pending" mail you read before its own mail is one sale in `@auction`, not two; with Syndicator, guild banks set to show their gold are in `@gold` and "All gold" (none ever was); a very long `@who` search asks the server with its first words instead of saying "in combat"; spell data the game loads again no longer makes every class's spell rows again; another class's spells are kept for the session only once all their descriptions are in.
+
 ## 1.0.19 (in testing)
 
 - Fixes from the full review: `.report` no longer carries the names of people you whispered, invited or answered (`!t`), which Terminal's last steps had; a right-click menu's "show in the spellbook" (and the like) turns to its own row's spell, however many rows the pointer crossed on the way to it.

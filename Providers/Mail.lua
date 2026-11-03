@@ -412,6 +412,20 @@ function MA.SalesFromMail(box, now)
 					end
 				end
 			end
+			-- (its "Sale Pending" mail read before this one, an hour earlier: that sale, moving to this mail's time; review,
+			-- 1.0.20: it was kept twice, its expiry another hour's)
+			if not s and v.kind == "seller" then
+				for i = #list, 1, -1 do
+					local x = list[i]
+					if not used[x] and x.invKind == "seller_temp_invoice" and Same(x, v, count) then
+						s = x
+						-- (what you got: the real mail's, the pending one has no cut yet)
+						if v.bid then s.price, s.net = v.bid, v.bid + (v.deposit or 0) - (v.cut or 0) end
+						changed = true
+						break
+					end
+				end
+			end
 			-- (kept before 0.63.7: named by item, count, price and buyer; it takes this mail's time once)
 			if not s then
 				for i = #list, 1, -1 do
@@ -458,6 +472,7 @@ function MA.SalesFromMail(box, now)
 				if v.player and s.buyer ~= v.player then s.buyer, changed = v.player, true end
 				if exp and s.mailExp ~= exp then s.mailExp, changed = exp, true end
 				s.inv = s.inv or true
+				if s.invKind ~= v.kind then s.invKind, changed = v.kind, true end
 			end
 		end
 	end
@@ -491,7 +506,7 @@ function MA.Over(id, why, now, item)
 	if ended[id] then return false end
 	ended[id] = now or Now()
 	if why == "sold" then MA.KeepSale(id, a, ended[id], item) end -- (`item`: the news's name for it)
-	ns:Trace(("mail: auction %d%s is over (%s)"):format(id, a and (" (" .. tostring(a.name) .. " x" .. tostring(a.count or 1) .. ")") or "",
+	ns:Trace(("mail: auction %s%s is over (%s)"):format(tostring(id), a and (" (" .. tostring(a.name) .. " x" .. tostring(a.count or 1) .. ")") or "",
 		tostring(why)))
 	ns:Changed("stored")
 	Dirty()

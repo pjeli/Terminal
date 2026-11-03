@@ -105,7 +105,9 @@ do
 	local f = CreateFrame("Frame")
 	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
 	f:SetScript("OnEvent", function(_, _, id)
-		if not asked[id] then return end
+		-- (only one asked for and not in yet: the event comes for every spell anything loads, again for one in already;
+		-- review, 1.0.20: each made another class's rows again)
+		if asked[id] ~= true then return end
 		asked[id] = "in"
 		if descDue then return end
 		descDue = true

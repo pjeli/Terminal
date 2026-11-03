@@ -44,7 +44,8 @@ do
 			["Near-Linked"] = { money = 300000, details = { character = "Near", realmNormalized = "Linked", show = { gold = true } } },
 		},
 		Guilds = {
-			["Guildy-Forever"] = { money = 1000000, details = { guild = "Guildy", realmNormalized = "Forever", show = { gold = true } } },
+			-- (Syndicator's guilds name their realm as `realm`, as the game does: review, 1.0.20)
+			["Guildy-Forever"] = { money = 1000000, details = { guild = "Guildy", realm = "Forever", show = { gold = true } } },
 			["Quiet-Forever"] = { money = 1000000, details = { guild = "Quiet", realmNormalized = "Forever", show = { gold = false } } },
 		},
 		Warband = { { money = 4000000 } },

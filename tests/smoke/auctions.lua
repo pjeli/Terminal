@@ -110,6 +110,18 @@ do
 		check(thorium and thorium.buyer == "Ann" and thorium.seen == "mail" and math.abs(thorium.at - (now - 3 * DAY - 3600)) < 2,
 			"sold while Terminal wasn't watching: kept from its mail, when it sold (its mail's 30 days): " .. tostring(thorium and (now - thorium.at)))
 		check(MA.SalesFromMail(box, now) == 0 and #sales == 4, "the inbox read again: nothing doubled")
+		-- (review, 1.0.20) its "Sale Pending" mail read first, the real one an hour later: one sale, not two
+		local pending = { mails = { { first = now - 100, expires = now - 100 + 30 * DAY, auction = "sold",
+			invoice = { kind = "seller_temp_invoice", item = "Silk Cloth", bid = 3000, count = 5 } } } }
+		MA.SalesFromMail(pending, now)
+		local later = now + 3700
+		local real = { mails = { { first = later - 50, expires = later - 50 + 30 * DAY, auction = "sold", money = 2850,
+			invoice = { kind = "seller", item = "Silk Cloth", player = "Bo", bid = 3000, deposit = 0, cut = 150, count = 5 } } } }
+		MA.SalesFromMail(real, later)
+		local silk = {}
+		for _, s in ipairs(sales) do if s.item == "Silk Cloth" then silk[#silk + 1] = s end end
+		check(#silk == 1 and silk[1].buyer == "Bo" and silk[1].net == 2850, "a sale's pending mail, then its own: one sale, the real mail's: " .. #silk)
+		for i = #sales, 1, -1 do if sales[i].item == "Silk Cloth" then table.remove(sales, i) end end -- (the checks after count the others)
 		-- (0.63.2, a player: the sale's mail read first before the game had the buyer's name, then with it: one sale)
 		local nameless = { mails = { { first = now - 200, expires = now - 200 + 30 * DAY, auction = "sold", money = 491,
 			invoice = { kind = "seller", item = "Chunk of Boar Meat", bid = 411, deposit = 100, cut = 20, count = 1 } } } }
