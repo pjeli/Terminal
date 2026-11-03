@@ -54,6 +54,19 @@ do -- the macro: the opening line, then step lines that fit in 255 characters; n
 	local steps = select(2, text:gsub("\n/click TerminalNav%d", ""))
 	check(text:find("^/click SpellbookMicroButton\n/click TerminalNav%d") and steps >= 8 and #text <= S.MACRO_MAX,
 		"an opening line and step lines, within 255 characters: " .. steps .. " steps, " .. #text .. " characters")
+	-- (review, 1.0.19) a slot the row menu's line clicks stays its plan while the menu's up, however many rows are hovered
+	local mine = { name = "the menu's spell" }
+	local menuMacro = S.NavMacro(def, mine, nil)
+	local slot = tonumber(menuMacro:match("TerminalNav(%d+)"))
+	S.PinNav(menuMacro)
+	for _ = 1, S.NAV_SLOTS + 2 do S.NavMacro(def, {}, nil) end
+	check(S.navPlans[slot].e == mine, "the menu's plan kept through more hovers than there are slots")
+	S.UnpinNav()
+	for _ = 1, S.NAV_SLOTS do S.NavMacro(def, {}, nil) end
+	check(S.navPlans[slot].e ~= mine, "...and its slot reused once the menu's gone")
+	-- (review, 1.0.19) a person's row: no name in a trace (.report copies them); a thing's keeps it
+	check(ns.UI.TraceName({ kind = "guild", name = "Bobguildie" }) == "(a person)" and ns.UI.TraceName({ kind = "items", name = "Hearthstone" }) == "Hearthstone",
+		"traces: people unnamed, things named")
 	local long = S.NavMacro(def, {}, ("x"):rep(250))
 	check(long == nil, "no room for a step after the opening line: nothing (the window's own route instead)")
 	ns.db.navTainted = { spellbook = { what = "test" } }

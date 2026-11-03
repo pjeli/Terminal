@@ -89,7 +89,7 @@ do
 		-- starts (the event comes just before), and once it's over should that ever have been too late
 		pcall(menu.RegisterEvent, menu, "PLAYER_REGEN_DISABLED")
 		pcall(menu.RegisterEvent, menu, "PLAYER_REGEN_ENABLED")
-		menu:SetScript("OnHide", function() menu.keys = nil end)
+		menu:SetScript("OnHide", function() menu.keys = nil; ns.Secure.UnpinNav() end)
 		menu:SetScript("OnEvent", function(_, event)
 			if not menu:IsShown() then return end
 			if event == "PLAYER_REGEN_DISABLED" then
@@ -286,6 +286,7 @@ do
 			b:SetAttribute("type1", macro and "macro" or "")
 			b:SetAttribute("macrotext1", macro)
 			it.macro = macro
+			ns.Secure.PinNav(macro) -- (its turning plan kept while the menu's up)
 			b:Show()
 		end
 		for i = #items + 1, #menu.lines do menu.lines[i]:Hide() end

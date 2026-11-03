@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.19 (in testing)
+
+- Fixes from the full review: `.report` no longer carries the names of people you whispered, invited or answered (`!t`), which Terminal's last steps had; a right-click menu's "show in the spellbook" (and the like) turns to its own row's spell, however many rows the pointer crossed on the way to it.
+
 ## 1.0.18 (in testing)
 
 - Search fixes from the full review: `-a|-b` (Simple mode's "not a or not b") is "not a, or not b", each piece its own "not" (it read "not a, and b"); `is:passive|ready` searches again as cooldowns end instead of narrowing from the last keystroke; `class:warrior` keeps the item sets any class can wear, as `class:mine` does; on a Russian client a word with a letter wrong, missing or extra is found as a close spelling (its bytes were counted as letters).

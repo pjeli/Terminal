@@ -510,6 +510,7 @@ S.NAV_LABELS = { spellbook = L["your spellbook"], questlog = L["the quest log"],
 
 S.navPlans = {} -- slot -> plan: { route, e, step, watch, watchName, before, n, at, quiet, verified }
 local navButtons, navSlot = {}, 0
+local navPinned = {} -- (slots the row menu's lines use while it's up: not taken for other plans)
 
 --- Whether a frame is an enabled Button (read only).
 local function IsButton(f)
@@ -625,10 +626,22 @@ function S.ClickLine(name) return IsButton(_G[name]) and ("/click " .. name) or 
 --- The macro for a turning press: `open` (the lines opening the window, or nil when it shows) and as many step lines as
 --- fit. `def` = { route, step = fn(e, plan) -> button[, why], watch = { fn(e) -> table, key }, watchName = fn(i) }.
 --- Nil when the route is off, or nothing would fit.
+--- The turning slots a macro clicks ("/click TerminalNav3") kept for it, until S.UnpinNav (the row menu, while up).
+function S.PinNav(macro)
+	for n in tostring(macro or ""):gmatch("/click TerminalNav(%d+)") do navPinned[tonumber(n)] = true end
+end
+function S.UnpinNav() navPinned = {} end
+
 function S.NavMacro(def, e, open)
 	if not (def and S.NavOn(def.route)) or InCombatLockdown() then return nil end
 	if open == "" then open = nil end
 	local slot = navSlot % S.NAV_SLOTS + 1
+	-- (past the row menu's: its lines' macros click their slots when pressed; review, 1.0.19: a hover over 8 rows on
+	-- the way to the menu gave its line another spell's plan)
+	for _ = 1, S.NAV_SLOTS do
+		if not navPinned[slot] then break end
+		slot = slot % S.NAV_SLOTS + 1
+	end
 	local line = "/click TerminalNav" .. slot
 	local lines = {}
 	local used = 0

@@ -8,6 +8,11 @@ local L = ns.L
 local UI = ns.UI
 local rows = UI.rows
 local catcher -- TerminalClickCatcher, made the first time a row needs it (see "Mouse clicks" below)
+-- (a row of a person, guild, friends, /who, group, shared: their name never in a trace, which .report copies; review,
+-- 1.0.19. Rows of things keep theirs: a trace says what was opened)
+local PEOPLE = { guild = true, friends = true, who = true, group = true, shared = true, people = true }
+function UI.IsPerson(e) return type(e) == "table" and PEOPLE[e.kind or ""] == true end
+function UI.TraceName(e) if UI.IsPerson(e) then return "(a person)" end return tostring(e and e.name) end
 
 ----------------------------------------------------------------------
 -- Secure opening (see Secure.lua for why)
@@ -90,7 +95,7 @@ function UI:TryArmSecure(e)
 	-- (asked before the press is worked out: an open window needs none, and a spec may have nothing to press then: the
 	-- Legacy window open on another page. 0.48.8, the player: its tab was never pointed at, the row's fallback ran)
 	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
-		ns:Trace("secure: window already open, highlighting " .. e.name)
+		ns:Trace("secure: window already open, highlighting " .. UI.TraceName(e))
 		self:HideAfterRun()
 		ns:Bump(e.freqKey)
 		AfterSoon(e, 0.05)
@@ -99,7 +104,7 @@ function UI:TryArmSecure(e)
 	local target = S.Resolve(e.secure, e)
 	if not target then ns:Trace("secure: no binding/button for " .. e.name) return false end
 	if InCombatLockdown() or not S.Arm(target) then ns:Trace("secure: could not arm for " .. e.name .. " (combat or no proxy)") return false end
-	ns:Trace("secure: armed Enter -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. e.name)
+	ns:Trace("secure: armed Enter -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. UI.TraceName(e))
 	ns:Bump(e.freqKey)
 	self.armedEntry = e
 	if not self.keys and not self:EnterKeys() then
@@ -120,7 +125,7 @@ function UI:ArmForPress(e)
 	local target = S.Resolve(e.secure, e)
 	if not target or (e.isOpen and e.isOpen(e)) then return false end
 	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. e.name) return false end
-	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. e.name)
+	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. UI.TraceName(e))
 	-- (a text box holding the keyboard gets the press instead of the binding: say whose, for .debug log)
 	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
 	if focus and focus ~= edit then
@@ -172,7 +177,7 @@ function UI:FinishSecure(pressed)
 	self.armedEntry, self.lastArmedEntry = nil, nil
 	self:Disarm()
 	if not e then return end
-	ns:Trace("secure: finished, highlighting " .. e.name)
+	ns:Trace("secure: finished, highlighting " .. UI.TraceName(e))
 	-- (a press that asks for more, @who's: the answer comes into the list; Ctrl+Enter on one that opens no window)
 	if not e.staysOpen and not hold then self:Hide() end
 	AfterSoon(e, 0.1)
@@ -408,7 +413,7 @@ function UI:CatcherClicked(button)
 	end
 	if kind == "macro" and type(text) == "string" and text ~= "" then
 		local se = SecureView(e, text ~= c.plain) or e
-		ns:Trace("click: the game ran " .. text:gsub("\n", " | ") .. " for " .. tostring(e.name))
+		ns:Trace("click: the game ran " .. (UI.IsPerson(e) and "(a line to a person)" or text:gsub("\n", " | ")) .. " for " .. UI.TraceName(e))
 		ns.Secure.NotePress(text, "click")
 		C_Timer.After(0.3, function()
 			local cf = _G.CharacterFrame
@@ -575,7 +580,7 @@ function UI:Activate(idx, opts)
 	if not opts.keepOpen and not stays then self:HideAfterRun() end
 	ns:Bump(e.freqKey)
 	local fn = (opts.secondary and e.secondary) or e.activate
-	ns:Trace(("DIRECT (addon code) %s: %s [%s]"):format(opts.secondary and "secondary" or "activate", tostring(e.name), tostring(e.kind)))
+	ns:Trace(("DIRECT (addon code) %s: %s [%s]"):format(opts.secondary and "secondary" or "activate", UI.TraceName(e), tostring(e.kind)))
 	if not fn then return end
 	local ok, ret = pcall(fn, e, args, self)
 	if not ok then

@@ -375,7 +375,7 @@ function Inst:Log(who, q, why)
 	local log = self.log
 	table.insert(log, 1, { who = who, q = q, why = why })
 	for i = #log, A.LOG_MAX + 1, -1 do log[i] = nil end
-	ns:Trace(("ask: %s asked %q: %s"):format(tostring(who), tostring(q), why))
+	ns:Trace(("ask: someone asked %q: %s"):format(tostring(q), why)) -- (not who: .report copies traces; review, 1.0.19)
 end
 
 -- (claims older than CLAIM_KEEP forgotten, and askers and questions past their gaps: a long session's guild chat
