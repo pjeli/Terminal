@@ -206,7 +206,8 @@ local ItemLink = ns.ItemLink
 --- named ("?"); nil for other rows.
 function SH.LootWhere(e)
 	if not e or e.kind ~= "loot" or type(e.detail) ~= "string" then return nil end
-	local d = ns.Plain(e.detail)
+	local I = ns.Integrations
+	local d = ns.Plain(I and I.LootDetail and I.LootDetail(e.detail) or e.detail) -- (without a drop chance after it)
 	local boss, inst = d:match("^(.-)%s%s+(.-)%s*$")
 	if not boss then boss, inst = d:match("^%s*(.-)%s*$"), "" end
 	if boss == "?" or boss == inst then boss = "" end

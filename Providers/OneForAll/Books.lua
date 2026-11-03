@@ -60,7 +60,8 @@ function B.Rewards()
 	return OA.Part("bookrewards", "BOOK_REWARD_TIERS", L["The Library Books' rewards are unavailable."], function(raw)
 		local out = {}
 		for _, t in ipairs(raw) do
-			local need = type(t) == "table" and Num(t.req)
+			-- (the books it needs are in its label, "10 books", "30 books (?)"; its req is a level: review, 1.0.13)
+			local need = type(t) == "table" and Num(tonumber((OA.Text(t.books) or ""):match("%d+") or ""))
 			if need then
 				local items = {}
 				for _, it in ipairs(type(t.items) == "table" and t.items or {}) do
@@ -198,15 +199,17 @@ function B.Question(text)
 	if not ns.providers.book then return nil end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
-	local library, book, cues, rest = false, false, {}, {}
+	local library, book, plural, cues, rest = false, false, false, {}, {}
 	for w in t:gmatch("%S+") do
 		if w == "library" then library = true
-		elseif BOOK[w] then book = true
+		elseif BOOK[w] then book = true; plural = plural or w == "books" or w == "tomes"
 		elseif CUE[w] then cues[CUE[w]] = true
 		elseif not ASK[w] then rest[#rest + 1] = w end
 	end
 	if not book then return nil end
-	if not library and not next(cues) then return nil end -- ("book", "spell book": not these)
+	-- ("book", "my spell book", "where do i find the book": not these. Without "library", books asked about as a list:
+	-- "books i still need", "missing books"; review, 1.0.13)
+	if not library and not (plural and (cues.todo or cues.done or cues.have or cues.near or cues.rewards)) then return nil end
 	-- other words: only those naming a book or its place ("library books in the barrens"), else not this question
 	if #rest > 0 and not B.AnyFor(rest) then return nil end
 	return { todo = cues.todo or cues.near or nil, done = (cues.done or cues.have) and not cues.todo or nil, near = cues.near,

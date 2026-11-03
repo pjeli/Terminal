@@ -102,11 +102,15 @@ function W.DropChances()
 	end, true)
 end
 
---- An item's chance to drop from a boss of an instance (percent), or nil when OneForAll doesn't say.
-function W.DropChance(inst, boss, id)
+--- A boss's items' chances to drop ({ [item id] = percent }), or nil when OneForAll doesn't say.
+function W.BossChances(inst, boss)
 	local d = W.DropChances()
 	local i = d and d[Norm(inst)]
-	local b = i and i[Norm(boss)]
+	return i and i[Norm(boss)] or nil
+end
+--- An item's chance to drop from a boss of an instance (percent), or nil when OneForAll doesn't say.
+function W.DropChance(inst, boss, id)
+	local b = W.BossChances(inst, boss)
 	return b and b[id] or nil
 end
 
@@ -184,10 +188,15 @@ function W.Transports()
 		local out = {}
 		local function Add(way, ui, x, y, to, sides)
 			ui, x, y = Num(ui), Num(x), Num(y)
-			if ui and x and y and OA.Text(to) then out[#out + 1] = { way = way, ui = ui, x = x, y = y, to = to, sides = OA.Text(sides) } end
+			if ui and x and y and OA.Text(to) then
+				local w = { way = way, ui = ui, x = x, y = y, to = to, sides = OA.Text(sides) }
+				out[#out + 1] = w
+				return w
+			end
 		end
+		-- (the zeppelins are the Horde's: OneForAll marks them "Horde only"; review, 1.0.13)
 		for _, z in ipairs(type(raw.zeppelin) == "table" and raw.zeppelin or {}) do
-			if type(z) == "table" then for k = 4, #z do Add("zeppelin", z[1], z[2], z[3], z[k]) end end
+			if type(z) == "table" then for k = 4, #z do Add("zeppelin", z[1], z[2], z[3], z[k], "H") end end
 		end
 		for _, way in ipairs({ "ship", "air" }) do
 			for _, s in ipairs(type(raw[way]) == "table" and raw[way] or {}) do
@@ -203,8 +212,8 @@ function W.Transports()
 			if type(r) == "table" and Num(r[4]) then
 				local to = ZoneOf(Num(r[4]))
 				if to then
-					Add("road", r[1], r[2], r[3], to)
-					out[#out].target = Num(r[4])
+					local w = Add("road", r[1], r[2], r[3], to)
+					if w then w.target = Num(r[4]) end
 				end
 			end
 		end

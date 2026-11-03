@@ -93,7 +93,8 @@ function UI:WhyLines(e)
 		local one = (g.vs and g.vs[1]) or g
 		local role = g.role and F.ROLE_SAY and F.ROLE_SAY[g.role] or g.role
 		if g.oneForAll then
-			Say(g.empty and L["an upgrade by OneForAll's gear value: nothing worn in its slot"]
+			Say((g.empty and L["an upgrade by OneForAll's gear value: nothing worn in its slot"])
+				or (g.oneForAll == true and L["an upgrade by OneForAll's gear value: what you wear there is worth nothing by its weights"])
 				or L["an upgrade by OneForAll's gear value: %d%% over what you wear"]:format(math.floor(g.oneForAll + 0.5)))
 		elseif one.byLevel or g.byLevel then
 			Say(L["an upgrade by item level: %s over %s"]:format(tostring(one.ilvl or g.ilvl), tostring(one.wLvl or g.wLvl)))

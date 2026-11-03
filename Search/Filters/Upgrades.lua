@@ -865,13 +865,22 @@ GearFitWith = function(weights, role)
 			end
 		end
 		if not f[4] then return false end
-		-- OneForAll's verdict: up (by how many percent) or the slot empty; down, the same, worn or not known: not one
-		if OAG then
+		-- OneForAll's verdict: up (by how many percent) or new; down, the same or worn: not one. Not asked of a copy with a
+		-- random suffix ("of the Monkey": it judges the bare item, without the suffix's stats) nor of one the client hasn't
+		-- got (it would ask the server for it, every loot row of a search): Terminal's own judgement then, and when it
+		-- can't say (review, 1.0.13)
+		if OAG and live and key == id then
 			local kind, pct = OAG.Change(id)
-			if kind ~= "up" and kind ~= "new" then return false end
-			gains[e] = { gain = kind == "up" and (pct or 0) or 100, loc = loc, ilvl = ilvl, kinds = f.kinds, empty = kind == "new" or nil,
-				oneForAll = kind == "up" and (pct or 0) or true, role = role }
-			return true
+			if kind == "up" or kind == "new" then
+				-- ("new": its slot empty, or what you wear there worth nothing by its weights)
+				local free = false
+				if kind == "new" then for _, s in ipairs(slots) do if not worn[s] then free = true break end end end
+				gains[e] = { gain = kind == "up" and (pct or 0) or 100, loc = loc, ilvl = ilvl, kinds = f.kinds, empty = free or nil,
+					oneForAll = kind == "up" and (pct or 0) or true, role = role }
+				return true
+			elseif kind ~= nil then
+				return false
+			end
 		end
 		-- what it would replace: the weaker of its slots (by worth when known, else item level)
 		local wLvl, wVal, wKinds, empty

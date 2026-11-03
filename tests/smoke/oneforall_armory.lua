@@ -74,7 +74,7 @@ do
 					i = { { 16866, "Helm of Might", "Head", 4, 133077, { "Molten Core - Garr" } }, { 16864, "Belt of Might", "Waist", 4, 132517, { "Molten Core - Lucifron" } },
 						{ 16865, "Breastplate of Might", "Chest", 4, 132738, { "Molten Core - Golemagg" } } } },
 				{ id = 261, n = "Spirit of Eskhandar", g = "raid", st = 1, sub = "world bosses", arm = "Cloth", cls = { "MAGE", "PRIEST", "WARLOCK" },
-					b = {}, i = { { 18205, "Eskhandar's Collar", "Neck", 4, 132501, {} } } },
+					b = {}, i = { { 18205, "Eskhandar's Collar", "Neck", 4, 0, {} } } }, -- (0: no icon, as OneForAll's unnamed pieces)
 				{ id = 241, n = "Scale of the Gods", g = "raid", st = 1, sub = "Onyxia's Lair", cls = {}, b = {},
 					i = { { 17064, "Shard of the Scale", "Trinket", 4, 134317, { "Onyxia's Lair - Onyxia" } } } },
 			},
@@ -118,6 +118,7 @@ do
 		check(#res == 2 and not res[3], "class:mine: the warrior's and the set for any class: " .. Names(res))
 		res = UI:Search("@itemset class:priest")
 		check(#res == 1 and res[1].name == "Spirit of Eskhandar", "class:priest: a set for three classes: " .. Names(res))
+		check(res[1].icon == "Interface\\Icons\\INV_Chest_Chain", "an icon of 0: the set's own fallback: " .. tostring(res[1].icon))
 		-- Enter on a set: its pieces
 		local walked
 		UI.WalkTo = function(_, t) walked = t end
@@ -139,13 +140,26 @@ do
 			"battlegear of might pieces", "tier sets" }) do
 			check(A.Question(s) ~= nil, s .. ": the armory question")
 		end
-		for _, s in ipairs({ "what can i buy", "rewards", "my equipment", "argent dawn", "honored", "druid sets", "pieces of eight" }) do
+		for _, s in ipairs({ "what can i buy", "rewards", "my equipment", "argent dawn", "honored", "druid sets", "pieces of eight", "my sets", "sets",
+			"timbermaw vendor", "vendor in timbermaw", "timbermaw sells" }) do
 			check(A.Question(s) == nil, s .. ": not it")
 		end
 		ns.db.easyMode = true; UI:EasyChanged()
 		UI:Open("what can i buy at honored"); FlushAll()
 		local r = UI.Results()
-		check(#r == 1 and r[1].itemID == 22014, "what can i buy at honored: " .. Names(r))
+		check(#r == 3, "what can i buy at honored: every faction's up to honored (friendly's too): " .. Names(r))
+		UI:Hide(); FlushAll()
+		STAND[529] = 5
+		A.ForgetRewards()
+		UI:Open("what can i buy at honored"); FlushAll()
+		r = UI.Results()
+		check(#r == 3, "and when you're only friendly: what honored would let you buy, not nothing: " .. Names(r))
+		STAND[529] = 6
+		A.ForgetRewards()
+		UI:Hide(); FlushAll()
+		UI:Open("exalted rewards"); FlushAll()
+		r = UI.Results()
+		check(#r == 2 and r[1].reaction == 8 and r[2].reaction == 8, "exalted rewards: exalted's only: " .. Names(r))
 		UI:Hide(); FlushAll()
 		UI:Open("argent dawn rewards i can buy"); FlushAll()
 		r = UI.Results()

@@ -2244,6 +2244,7 @@ L["an item stat, or what a consumable gives (elixirs, potions, food); with a num
 L["an object"] = true
 L["an upgrade by OneForAll's gear value: %d%% over what you wear"] = true
 L["an upgrade by OneForAll's gear value: nothing worn in its slot"] = true
+L["an upgrade by OneForAll's gear value: what you wear there is worth nothing by its weights"] = true
 L["an upgrade by item level: %s over %s"] = true
 L["an upgrade: %s over %s, worth %s by %s weights"] = true
 L["an upgrade: nothing worn in its slot"] = true
@@ -3328,6 +3329,7 @@ L["until %s"] = true
 L["untrack"] = true
 L["untracked"] = true
 L["up %d:%02d"] = true
+L["up to %s"] = true
 L["up to level %d"] = true
 L["updated as you stepped in: %d counted a moment ago"] = true
 L["upgrades"] = true

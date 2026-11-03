@@ -41,9 +41,10 @@ do
 			[992] = { "Big Str Helm", "|Hitem:992|h", 2, 22, 18, "Armor", "Mail", 1, "INVTYPE_HEAD" }, -- (Terminal: an upgrade)
 			[993] = { "Too High Helm", "|Hitem:993|h", 2, 40, 40, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 			[994] = { "Some Ring", "|Hitem:994|h", 2, 20, 15, "Armor", "Misc", 1, "INVTYPE_FINGER" },
+			[996] = { "Plain Helm", "|Hitem:996|h", 2, 20, 15, "Armor", "Mail", 1, "INVTYPE_HEAD" },
 		}
 		local STATS = { [990] = { ITEM_MOD_STRENGTH_SHORT = 5 }, [991] = { ITEM_MOD_AGILITY_SHORT = 6 }, [992] = { ITEM_MOD_STRENGTH_SHORT = 12 },
-			[993] = { ITEM_MOD_STRENGTH_SHORT = 30 }, [994] = { ITEM_MOD_STAMINA_SHORT = 3 } }
+			[993] = { ITEM_MOD_STRENGTH_SHORT = 30 }, [994] = { ITEM_MOD_STAMINA_SHORT = 3 }, [996] = { ITEM_MOD_STRENGTH_SHORT = 6 } }
 		local function IdOf(x) return tonumber(tostring(x):match("item:(%d+)")) or tonumber(x) end
 		C_Item.GetItemInfo = function(id) local t = ITEMS[IdOf(id) or 0] if t then return unpack(t) end end
 		C_Item.GetItemStats = function(link) return STATS[IdOf(link)] end
@@ -65,10 +66,11 @@ do
 		local fit = F.GearFit()
 		check(fit({ itemID = 992, kind = "items" }) and not fit({ itemID = 991, kind = "items" }), "without OneForAll: Terminal's weights (Str over Agi)")
 		-- OneForAll's verdict: it thinks the Agi helm the upgrade, the Str one a downgrade
-		local CHANGE = { [991] = { "up", 14.6 }, [992] = { "down", 3 }, [993] = { "up", 80 }, [994] = { "new" }, [990] = { "worn" } }
+		local CHANGE = { [991] = { "up", 14.6 }, [992] = { "down", 3 }, [993] = { "up", 80 }, [994] = { "new" }, [990] = { "worn" }, [996] = { "new" } }
+		local calls = {}
 		_G.OneForAll = {
 			BOOKS = { { name = "A Book", questId = 1, itemId = 2 } },
-			GearValue = { Change = function(id) local c = CHANGE[id] if c then return c[1], c[2] end end },
+			GearValue = { Change = function(id) calls[id] = (calls[id] or 0) + 1 local c = CHANGE[id] if c then return c[1], c[2] end end },
 			GearIndex = function() return { { id = 992, name = "Big Str Helm", src = "Shadowfang Keep - Arugal" },
 				{ id = 995, name = "Quest Boots", src = "Quest: The Test", side = "H" }, { id = 991, src = "Gnomeregan - trash" },
 				{ id = 991, src = "a second time" } } end,
@@ -95,6 +97,29 @@ do
 		fit(agi)
 		local why = table.concat(UI:WhyLines(agi), "\n")
 		check(why:find(L["an upgrade by OneForAll's gear value: %d%% over what you wear"]:format(15), 1, true), "why: OneForAll's, by how much: " .. why)
+		-- (review, 1.0.13) "new" with a helm worn: what's worn is worth nothing by its weights, not an empty slot
+		local plain = { itemID = 996, kind = "items" }
+		check(fit(plain) and not F.GainOf(plain).empty, "\"new\" over a worn helm: an upgrade, its slot not empty")
+		why = table.concat(UI:WhyLines(plain), "\n")
+		check(why:find(L["an upgrade by OneForAll's gear value: what you wear there is worth nothing by its weights"], 1, true), "why: " .. why)
+		-- a copy with a random suffix: Terminal's judgement (OneForAll's is of the bare item), not OneForAll's
+		local monkey = { itemID = 991, kind = "items", link = "|cff1eff00|Hitem:991::::::612:|h[Agi Helm of the Monkey]|h|r" }
+		calls[991] = 0
+		check(not fit(monkey) and calls[991] == 0, "a random suffix: not asked of OneForAll, Terminal's weights (Agi for a warrior: not)")
+		-- one the client hasn't got: not asked of OneForAll either (it would ask the server)
+		F.ClearCache()
+		-- (judged once while the client had it, then dropped from its cache: as read then, never asked of OneForAll)
+		local have991 = true
+		C_Item.IsItemDataCachedByID = function(id) return id ~= 991 or have991 end -- (before the filter is made: it keeps the call)
+		fit = F.GearFit()
+		fit({ itemID = 991, kind = "items" })
+		have991 = false
+		calls[991] = 0
+		fit({ itemID = 991, kind = "items" })
+		check(calls[991] == 0, "an item the client hasn't got: not asked of OneForAll")
+		C_Item.IsItemDataCachedByID = function() return true end
+		F.ClearCache()
+		fit = F.GearFit()
 		-- roles picked in .weights: Terminal's own
 		F.MyRoles = function() return { "fury" } end
 		check(G.Judge() == nil, "roles picked: OneForAll's verdict not taken")

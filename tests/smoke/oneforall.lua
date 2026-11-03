@@ -54,8 +54,8 @@ do
 				{ name = "Broken Entry" }, -- (not in the shape expected: left out)
 			},
 			BOOK_REWARD_TIERS = {
-				{ books = "4 books", req = 4, quest = "Keeper of Tomes", items = { { 7002, "Scholar's Robe" } } },
-				{ books = "2 books", req = 2, quest = "Friend of the Library", items = { { 7001, "Library Card", nil, "a card" } } },
+				{ books = "4 books (?)", req = 1, quest = "Keeper of Tomes", items = { { 7002, "Scholar's Robe" } } },
+				{ books = "2 books", req = 1, quest = "Friend of the Library", items = { { 7001, "Library Card", nil, "a card" } } },
 			},
 		}
 		function OneForAll:GetBookState(b) return state[b.questId] end
@@ -97,13 +97,15 @@ do
 		for _, e in ipairs(ns:GetEntries(p)) do if e.name == "Tome of Frost" then frost = e end end
 		check(frost and frost.state == "missing", "a state not known: the game's")
 		-- its rewards
-		check(B.NextReward(1).need == 2 and B.NextReward(2).need == 4 and B.NextReward(4) == nil, "the next reward: by books turned in")
+		check(B.NextReward(1).need == 2 and B.NextReward(2).need == 4 and B.NextReward(4) == nil,
+			"the next reward: by books turned in (its label's number, not its req, a level)")
 		-- the questions
 		for _, s in ipairs({ "library books", "books i still need", "nearest library book", "library book rewards", "which library books have i turned in",
 			"library books in the barrens", "missing books" }) do
 			check(B.Question(s) ~= nil, s .. ": the books question")
 		end
-		for _, s in ipairs({ "book", "spell book", "books of the dead", "library books in stormwind", "the tome of frost recipe" }) do
+		for _, s in ipairs({ "book", "spell book", "books of the dead", "library books in stormwind", "the tome of frost recipe", "my spell book",
+			"where do i find the book", "find a book" }) do
 			check(B.Question(s) == nil, s .. ": not it")
 		end
 		check(B.Question("books i still need").todo and B.Question("library books turned in").done, "todo, done")

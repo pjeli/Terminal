@@ -26,9 +26,10 @@ local STANDING_ENGLISH = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendl
 
 -- an icon as OneForAll gives it: a file id, or an icon's name
 local function Icon(v, fallback)
-	if type(v) == "number" then return v end
+	-- (0: no icon, OneForAll's unnamed pieces; review, 1.0.13)
+	if type(v) == "number" then return v > 0 and v or fallback end
 	local s = OA.Text(v)
-	if s and s:match("^%d+$") then return tonumber(s) end
+	if s and s:match("^%d+$") then return tonumber(s) > 0 and tonumber(s) or fallback end
 	return s and (ICONS .. s) or fallback
 end
 
@@ -412,7 +413,8 @@ end)
 -- "argent dawn rewards", "what can i buy at honored", "rep rewards", "my class sets", "pieces of battlegear of might"
 ----------------------------------------------------------------------
 
-local REWARD = { reward = true, rewards = true, buy = true, sells = true, sell = true, quartermaster = true, vendor = true, unlocks = true }
+-- (not "vendor", "sell": "vendor in ratchet", "booty bay vendor" are NPC searches, those towns factions too; review, 1.0.13)
+local REWARD = { reward = true, rewards = true, buy = true, quartermaster = true, unlocks = true }
 local REP = { rep = true, reputation = true, faction = true, factions = true }
 local WHAT = { recipes = "recipe", recipe = "recipe", patterns = "recipe", plans = "recipe", formulas = "recipe", gear = "gear",
 	armor = "gear", weapons = "gear" }
@@ -492,20 +494,24 @@ function A.Question(text)
 		end
 		-- (a faction or a standing, and a word for what it sells: "argent dawn rewards", "what can i buy at honored",
 		-- "timbermaw recipes"; "rep rewards" too)
+		-- ("what can i buy at honored": what honored lets you buy, up to it, whatever you are now; review, 1.0.13)
+		if q.standing and q.now then q.now, q.upTo = nil, true end
 		if reward and (f or q.standing or rep) and #q.words == 0 then return q end
 	end
 	-- item sets: "my class sets", "warrior sets", "tier 1 sets", "item sets"
 	if ns.providers.itemset then
-		local set, mine = false, false
+		local set, mine, sure = false, false, false
 		local q = { what = "sets", words = {} }
 		for i, w in ipairs(words) do
+			-- ("item", "tier", "class": item sets; "my sets", "sets" alone are your equipment sets'; review, 1.0.13)
+			if w == "item" or w == "tier" or w == "class" or w == "itemset" or w == "itemsets" then sure = true end
 			if SET[w] then set = true
 				if w == "tier" and tonumber(words[i + 1] or "") then q.words[#q.words + 1] = "tier " .. words[i + 1] end
 			elseif w == "my" or w == "mine" then mine = true
 			elseif tonumber(w) and words[i - 1] == "tier" then -- (said with "tier")
 			elseif not ASK[w] and w ~= "item" then q.words[#q.words + 1] = w end
 		end
-		if set then
+		if set and (sure or #q.words > 0) then
 			q.mine = mine
 			-- other words: a class, an armor, a place ("warrior sets", "plate sets", "molten core sets")
 			if #q.words > 0 then
@@ -563,13 +569,14 @@ function A.Answer(q)
 	end
 	local rows = {}
 	for _, e in ipairs(A.Rewards()) do
-		local ok = (not q.faction or e.factionID == q.faction.id) and (not q.standing or e.reaction == q.standing)
+		local ok = (not q.faction or e.factionID == q.faction.id)
+			and (not q.standing or (q.upTo and e.reaction <= q.standing) or e.reaction == q.standing)
 			and (not q.kind or e.what == q.kind) and (not q.now or e.canBuy) and Has(e, q.words)
 		if ok then rows[#rows + 1] = e end
 	end
 	ns.ScoreInOrder(rows)
 	local title = q.faction and L["%s rewards"]:format(q.faction.name) or L["Reputation rewards"]
-	if q.standing then title = title .. SEP .. A.StandingName(q.standing) end
+	if q.standing then title = title .. SEP .. (q.upTo and L["up to %s"]:format(A.StandingName(q.standing)) or A.StandingName(q.standing)) end
 	if q.faction then
 		local mine = A.Standing(q.faction.id)
 		title = title .. SEP .. (mine and L["you're %s"]:format(A.StandingName(mine)) or L["not met yet"])

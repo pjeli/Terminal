@@ -71,7 +71,7 @@ do
 					{ 1413, 63.7, 38.6, "H", "Booty Bay, Stranglethorn Vale" } },
 				tram = { { 1453, 66.7, 33.2, "Ironforge" } },
 			},
-			ZONE_TRANSITIONS = { { 1437, 50, 10, 1417 }, { 1417, 20, 30, 1437 }, { 1437, 99, 99, 9999 } },
+			ZONE_TRANSITIONS = { { "bad", 1, 1, 1417 }, { 1437, 50, 10, 1417 }, { 1417, 20, 30, 1437 }, { 1437, 99, 99, 9999 } },
 		}
 		I.SpotXY = function(ui, c) return ({ [1437] = 2, [1439] = 1, [1453] = 2, [1434] = 2, [1433] = 2, [1417] = 2 })[ui], c[1] * 10, c[2] * 10 end
 		Fresh()
@@ -90,6 +90,11 @@ do
 			and W.DropChance("Blackfathom Deeps", "Aku'mai", 1) == nil, "by instance, boss and item, names as written or not")
 		check(W.ChanceText(20) == L["%s%% to drop"]:format("20") and W.ChanceText(4.8) == L["%s%% to drop"]:format("4.8")
 			and W.ChanceText(0.28) == L["%s%% to drop"]:format("0.28"), "said: " .. W.ChanceText(0.28))
+		-- (review, 1.0.13) a loot row's instance, read from its detail, isn't "Blackfathom Deeps  ·  20% to drop"
+		local withChance = { kind = "loot", itemID = 6909, detail = "Aku'mai  Blackfathom Deeps" .. ns.DETAIL_SEP .. W.ChanceText(20) }
+		check(I.LootDetail(withChance.detail) == "Aku'mai  Blackfathom Deeps", "the detail without its chance: " .. tostring(I.LootDetail(withChance.detail)))
+		local boss, inst = ns.Share.LootWhere(withChance)
+		check(boss == "Aku'mai" and inst == "Blackfathom Deeps", "sent to chat: where, without the chance: " .. tostring(inst))
 		local lp = ns.providers.loot
 		if lp then
 			lootRow = setmetatable({ key = "test:bfd:6909", itemID = 6909, name = "Strike of the Hydra", detail = "Aku'mai  Blackfathom Deeps" },
@@ -97,7 +102,7 @@ do
 			table.insert(I.loot.rows, lootRow)
 			lp._dirty = true
 			ns:GetEntries(lp)
-			check((lootRow.detail or ""):find(W.ChanceText(20), 1, true) and lootRow.dropChance == 20, "an AtlasLoot row: its chance after where: " .. tostring(lootRow.detail))
+			check((lootRow.detail or ""):find(W.ChanceText(20), 1, true) and rawget(lootRow, "dropChance") == nil, "an AtlasLoot row: its chance after where (no field of its own): " .. tostring(lootRow.detail))
 			lp._dirty = true
 			ns:GetEntries(lp)
 			local _, n = lootRow.detail:gsub("%%", "")
@@ -134,7 +139,11 @@ do
 		for _, e in ipairs(tr) do tn[e.name] = e end
 		check(tn[L["Boat to %s"]:format("Auberdine, Darkshore")] and tn[L["Boat to %s"]:format("Southshore, Hillsbrad Foothills")], "a dock's every destination")
 		check(not tn[L["Boat to %s"]:format("Booty Bay, Stranglethorn Vale")] and tn[L["Boat to %s"]:format("Ratchet, The Barrens")], "the Horde's left out; both sides' kept")
-		check(tn[L["Zeppelin to %s"]:format("Undercity")] and tn[L["Tram to %s"]:format("Ironforge")], "zeppelins and the tram")
+		check(not tn[L["Zeppelin to %s"]:format("Undercity")] and tn[L["Tram to %s"]:format("Ironforge")],
+			"the zeppelins are the Horde's, left out for the Alliance; the tram is both's")
+		for _, e in ipairs(tr) do
+			check(e.way == "road" or e.target == nil, "a road not in the shape expected tags no other row: " .. tostring(e.name))
+		end
 		check(tn[L["Road to %s"]:format("Arathi Highlands")] and tn[L["Road to %s"]:format("Arathi Highlands")].ui == 1437, "a road: into the next zone")
 		local roads = 0
 		for _, e in ipairs(tr) do if e.way == "road" then roads = roads + 1 end end

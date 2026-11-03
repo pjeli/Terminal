@@ -41,7 +41,7 @@ local function LootParts(e)
 	local where = I and I.LootPlace and I.LootPlace(e)
 	local kind = where and where.kind
 	if where and kind ~= "dungeon" and kind ~= "raid" and kind ~= "world" then return nil end
-	local d = Str(e.detail)
+	local d = Str(I and I.LootDetail and I.LootDetail(e.detail) or e.detail) -- (without a drop chance after it)
 	if not d then return nil end
 	local boss, place = d:match("^(.-)  (.+)$")
 	return Str(boss), Str(place), kind

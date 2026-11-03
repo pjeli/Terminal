@@ -449,6 +449,14 @@ local function LootLinkText(e) return ns.Share and ns.Share.Text(e) or e.name en
 local LOOT_CHATBOX = ns.ChatBoxSpec(LootLinkText)
 local function LinkLoot(e) ns.LinkInChat(LootLinkText(e)) end
 
+--- A loot row's detail as GroupText made it, "<boss>  <instance>": without the drop chance said after it (1.0.4,
+--- OneForAll's), which isn't part of the instance (review, 1.0.13: "count by instance" split each instance by chance).
+function I.LootDetail(d)
+	if type(d) ~= "string" then return d end
+	local cut = d:find(ns.DETAIL_SEP, 1, true)
+	return cut and d:sub(1, cut - 1) or d
+end
+
 local function SetupAtlasLoot()
 	if loot.on or not AtlasLootPresent() then return end
 	loot.on = true
@@ -466,16 +474,22 @@ local function SetupAtlasLoot()
 			-- (1.0.4: its chance to drop, OneForAll's Classic numbers, after where it drops; read once a row)
 			local W = ns.OneForAllWorld
 			local chances = W and W.DropChances()
+			local byDetail = {} -- (a boss's rows share their detail: its chances looked up once; review, 1.0.13)
 			for _, r in ipairs(loot.rows) do
 				if not rawget(r, "name") then
 					local name = LootName(r.itemID)
 					if name then r.name = name end
 				end
-				if chances and rawget(r, "dropChance") == nil then
-					local boss, inst = tostring(rawget(r, "detail") or ""):match("^(.-)  (.+)$")
-					local pct = boss and W.DropChance(inst, boss, r.itemID)
-					r.dropChance = pct or false
-					if pct then r.detail = r.detail .. ns.DETAIL_SEP .. W.ChanceText(pct) end
+				local d = chances and rawget(r, "detail")
+				if type(d) == "string" and not d:find(ns.DETAIL_SEP, 1, true) then -- (said already: not again)
+					local at = byDetail[d]
+					if at == nil then
+						local boss, inst = d:match("^(.-)  (.+)$")
+						at = boss and W.BossChances(inst, boss) or false
+						byDetail[d] = at
+					end
+					local pct = at and at[r.itemID]
+					if pct then r.detail = d .. ns.DETAIL_SEP .. W.ChanceText(pct) end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
 			end
