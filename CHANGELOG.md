@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.24 (in testing)
+
+- Simple mode's categories in title case too on English clients (the player's ask): "Dungeon Loot", "Bank & Alts", "Guild & Friends", as the kinds' names are.
+
 ## 1.0.23 (in testing)
 
 - Kinds' names in title case on English clients (the player's ask): "Crafting Mat", "Quest Log", "Equipment Set", "Alts & Bank", "Gear to Get" (small words like "to" and "of" stay small; NPC, CVar, AddOn as they are), in the kind column, the @ pick list and everywhere else a kind is named. Other languages keep their own capitals.

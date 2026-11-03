@@ -93,6 +93,7 @@ E.CATEGORIES = {
 }
 E.BY_ID = {}
 for _, c in ipairs(E.CATEGORIES) do
+	c.label = ns.TitleCase(c.label) -- ("Dungeon Loot", as the kinds' names: English clients; 1.0.24, the player's ask)
 	E.BY_ID[c.id] = c
 	for _, old in ipairs(c.was or {}) do E.BY_ID[old] = E.BY_ID[old] or c end
 end
@@ -110,7 +111,7 @@ function E.Adopt(p)
 	if type(c) ~= "table" or type(c.id) ~= "string" then return end
 	local cat = E.BY_ID[c.id]
 	if not cat then
-		cat = { id = c.id, label = c.label or p.label or c.id, kinds = {}, icon = c.icon or "Interface\\Icons\\INV_Misc_QuestionMark" }
+		cat = { id = c.id, label = ns.TitleCase(c.label or p.label or c.id), kinds = {}, icon = c.icon or "Interface\\Icons\\INV_Misc_QuestionMark" }
 		E.CATEGORIES[#E.CATEGORIES + 1] = cat
 		E.BY_ID[c.id] = cat
 	end

@@ -439,6 +439,7 @@ do
 	local locWas = ns.LOCALE
 	ns.LOCALE = "deDE"
 	check(ns.TitleCase("Questlog der Gilde") == "Questlog der Gilde", "another language: as it is")
+	check(ns.Easy.BY_ID.loot.label == "Dungeon Loot" and ns.Easy.BY_ID.people.label == "Guild & Friends", "Simple mode's categories too (1.0.24): " .. tostring(ns.Easy.BY_ID.loot.label))
 	ns.LOCALE = locWas
 	-- "where should i level" rows: the maps' label, remembered as the zone's own row
 	local Z = ns.Zones
