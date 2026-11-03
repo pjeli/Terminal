@@ -304,5 +304,60 @@ do
 	check(out[1]:find(".share join <code>", 1, true) ~= nil, ".share join alone: what to type: " .. tostring(out[1]))
 end
 
+-- (review, 1.0.17) an invite naming its group a word .share takes ("all"): numbered, so ".share all" stays the mode
+do
+	local net = Net()
+	local A = net.Add("Ann", { friends = { bob = "Bob" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" } })
+	A:JoinGroup("all", SSH.KeyOfCode(CODE), nil, true).code = CODE
+	A:Invite(W("Bob"), "Bob", "all")
+	net.Run()
+	B:Accept(B:Offer("Ann"))
+	net.Run()
+	check(B.groups.all == nil and B.groups["all-2"] and B.groups["all-2"].key == SSH.KeyOfCode(CODE),
+		"an invite's group called all: joined as all-2, not a group .share all would mean")
+	-- the same code again: the group you're in with it, not a second name for it
+	check(B:FreeLabel("raid", SSH.KeyOfCode(CODE)) == "all-2", "a code you're in already: that group's name")
+end
+
+-- (review, 1.0.17) .share accept <name>: the name as given first; a first name only when it's one person's
+do
+	local net = Net()
+	local B = net.Add("Bob", { friends = {} })
+	local now = B:Now()
+	local function Offer(name) B.offers["w:" .. SSH.Canon(name)] = { id = "ab", group = "default", name = name, route = W(name), at = now } end
+	Offer("Ann"); Offer("Ann Evil")
+	check(B:Offer("ann") and B:Offer("ann").name == "Ann", "invites from Ann and Ann Evil: \"ann\" is Ann's")
+	check(B:Offer("ann evil") and B:Offer("ann evil").name == "Ann Evil", "...and \"ann evil\" Ann Evil's")
+	B.offers = {}
+	Offer("Ann Zed"); Offer("Ann Abe")
+	check(B:Offer("ann") == nil, "from Ann Zed and Ann Abe: \"ann\" is asked whose, not whichever came first")
+	check(B:Offer("ann zed") and B:Offer("ann zed").name == "Ann Zed", "...the whole name picks one")
+end
+
+-- (review, 1.0.17) out of the guild: someone first heard on its channel isn't one of its members any more
+do
+	local was = { n = _G.GetNumGuildMembers, inG = _G.IsInGuild }
+	_G.GetNumGuildMembers = function() return 0 end
+	local inGuild = true
+	_G.IsInGuild = function() return inGuild end
+	SSH.Forget()
+	local peer = { viaGuild = true, name = "Gina" }
+	local eligible = SSH.game.env.eligible
+	check(eligible({ kind = "whisper", target = "Gina" }, peer) == "Gina", "in a guild whose roster isn't read yet: still one of them")
+	inGuild = false
+	SSH.Forget()
+	check(eligible({ kind = "whisper", target = "Gina" }, peer) == nil, "out of the guild: not")
+	_G.GetNumGuildMembers, _G.IsInGuild = was.n, was.inG
+	SSH.Forget()
+end
+
+-- (review, 1.0.17) a code anywhere in a line keeps it out of the history, however the console runs it
+for _, s in ipairs({ "/bin/share join " .. CODE, "true && share join " .. CODE, "echo x; .share join raid " .. CODE,
+	"echo " .. CODE .. " | xargs share join" }) do
+	check(ns.SecretLine(s), "secret: " .. s:gsub(CODE:gsub("%-", "%%-"), "<code>"))
+end
+check(not ns.SecretLine("ls /shared") and not ns.SecretLine("@item ts1"), "a line with no code: not")
+
 _G.TerminalShareDB = savedDB
 ns.Crypto.HMAC = hmacWas

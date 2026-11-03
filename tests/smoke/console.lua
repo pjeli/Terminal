@@ -1009,6 +1009,7 @@ check(ok, "console tiling: " .. tostring(err))
 print("[console: through a /reload]")
 ok, err = pcall(function()
 	C.Reset()
+	FS.sawShared = nil -- (no friend's things shown yet this session)
 	C.Open()
 	local tick = C.frame:GetScript("OnUpdate")
 	local function Drain(p) for _ = 1, 200 do if not p.job then break end tick(C.frame, 0.02) end end
@@ -1041,6 +1042,16 @@ ok, err = pcall(function()
 	check(ns.db.consoleData.session == nil, "the last pane closed: nothing kept")
 	C.Open()
 	check(#C.Panes() == 1 and not FS.Strip(table.concat(C.Panes()[1].lines, " ")):find("restored", 1, true), "a fresh console then")
+	-- (review, 1.0.17) a session that showed friends' things: no lines kept, no folder of theirs
+	local s = C.Panes()[1]
+	C.Run(s, "echo private") Drain(s)
+	C.Run(s, "share") Drain(s)
+	s.sh.cwd = "/shared/Bob"
+	C.saver:GetScript("OnEvent")(C.saver, "PLAYER_LOGOUT")
+	local k2 = ns.db.consoleData.session
+	check(k2 and #k2.panes[1].lines == 0 and k2.panes[1].cwd == "/", "after .share in the console: no lines kept, not a friend's folder")
+	check(ns.Shell.IsShared("/shared/Bob") and not ns.Shell.IsShared("/sharedx"), "a friend's folder: /shared/...")
+	FS.sawShared = nil
 	C.Reset()
 	C.Close("exit")
 end)

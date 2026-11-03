@@ -786,6 +786,11 @@ ns:RegisterCommand("share", {
 					return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"]:format(SSH.GROUP_LEN) }
 				end
 				code, why = SSH.ReadCode(words)
+				-- (a code you're in already, under another name: that group; review, 1.0.17)
+				local key = code and SSH.KeyOfCode(code)
+				for n, g in pairs(ep.groups) do
+					if key and g.key == key and n ~= group then return { L["Share: you're in %s with that code already"]:format(n) } end
+				end
 			end
 			if why == "typo" then return { L["Share: that code has a typo (a character wrong, or two swapped); check it with whoever gave it to you"] } end
 			if not code then
@@ -1107,7 +1112,9 @@ local function Eligible(route, peer)
 	local shown = P.names[c] or P.names[c .. "-" .. realm]
 	if shown then return shown end
 	-- (heard first on the guild channel, before the roster was read: still one of them while the roster says nothing)
-	if peer and peer.viaGuild and P.guildN == 0 then return peer.name or Ambig(sender) end
+	-- (out of the guild, its roster says nothing for good: they're not, then; review, 1.0.17)
+	local inGuild = _G.IsInGuild and Safe(_G.IsInGuild)
+	if peer and peer.viaGuild and P.guildN == 0 and inGuild then return peer.name or Ambig(sender) end
 	return nil
 end
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.17 (in testing)
+
+- Share and Console fixes from the full review: an invite whose group is named like one of .share's own words ("all", "off") is joined numbered ("all-2"), so `.share all` stays the setting for every group; `.share accept ann` takes Ann's invite over Ann Evil's and asks whose when two Anns invited; someone first heard on the guild channel stops being shared with once you leave the guild; a code you're in already isn't joined again under another name; a code anywhere in a Console line keeps it out of the history; a Console session that showed friends' things keeps none of its lines (or their folders) through a /reload.
+
 ## 1.0.16 (in testing)
 
 - Fixes from the full review: reputation rewards and set pieces show their kind in the list and count as picks again; a reward reached by `<faction> > rewards` gets the map's verbs and no rewards of its own; Alt+` on a faction you haven't met keeps the question (no chain to start from), and the chain says why when it finds no faction; OneForAll's `@panel` rows aren't opened in combat (its window can hold secure buttons).

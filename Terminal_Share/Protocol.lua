@@ -683,19 +683,24 @@ end
 --- there's one and no name is given: the offer and its key, or nil.
 function E:Offer(name)
 	local now, found, n = self:Now(), nil, 0
+	local exact, loose = nil, {}
 	for k, o in pairs(self.offers) do
 		if now - o.at < SSH.INVITE_KEEP then
 			n = n + 1
 			if name == nil or name == "" then found = found or { k, o }
 			else
 				local c = Canon(name)
-				if Canon(o.name) == c or Canon(o.name):match("^[^%-]+") == c or (k:match("^w:(.*)$") == c) then found = { k, o } end
+				if Canon(o.name) == c or (k:match("^w:(.*)$") == c) then exact = { k, o }
+				elseif Canon(o.name):match("^[^%-]+") == c then loose[#loose + 1] = { k, o } end
 			end
 		else
 			self.offers[k] = nil
 		end
 	end
 	if (name == nil or name == "") and n ~= 1 then return nil, n end
+	-- (the name as given first; a shorter one only when it's one person's: "ann" with invites from Ann and Ann Evil is
+	-- Ann's, and with Ann Zed's and Ann Abe's it's asked whose. Review, 1.0.17: the last one heard won)
+	found = found or exact or (#loose == 1 and loose[1]) or nil
 	if found then return found[2], found[1] end
 	return nil, n
 end
@@ -721,8 +726,14 @@ end
 --- of that name with another secret.
 function E:FreeLabel(label, key)
 	label = SSH.GroupName(label) or SSH.DEFAULT_GROUP
+	-- (a group you're in with that secret already: that one, not a second name for it, whose leave would drop the
+	-- other with it; review, 1.0.17)
+	for n, h in pairs(self.groups) do if h.key == key then return n end end
+	-- (a name .share takes as a word of its own, "all", "off", "leave": numbered, so ".share all" stays the mode for every
+	-- group, not this one's; an invite could name its group so. Review, 1.0.17)
+	local reserved = SSH.RESERVED and SSH.RESERVED[label]
 	local g = self.groups[label]
-	if not g or g.key == key then return label end
+	if not reserved and not g then return label end
 	for i = 2, 9 do
 		local try = label:sub(1, SSH.GROUP_LEN - 2) .. "-" .. i
 		local h = self.groups[try]

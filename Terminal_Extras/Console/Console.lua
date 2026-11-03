@@ -1472,6 +1472,9 @@ function C.Run(p, text)
 	p.since = 0
 	Print(p, PromptText(p) .. SH.Highlight(p.sh, SH.Masked(text), true))
 	if text:match("^%s*$") then return end
+	-- (.share's own words, friends' names and what they share: a session that ran it keeps no lines; C.SaveSession)
+	local lt = ns.Lower(text)
+	if lt:find("share", 1, true) or lt:find("ssh", 1, true) then FS.sawShared = true end
 	p.sh.cancelled = false
 	p.jobText = SH.Masked(text)
 	p.job = coroutine.create(function() return SH.Run(p.sh, text) end)
@@ -2311,10 +2314,19 @@ function C.SaveSession()
 	if not cdb then return end
 	if #panes == 0 then cdb.session = nil return end
 	local s = { layout = layout, zoomed = zoomed or nil, focus = IndexOf(focus) or 1, panes = {}, tree = C.TreeSave(tree) }
+	-- (a session that showed friends' things, their bags or names (/shared, df, mount, share): no lines kept, and no
+	-- folder of theirs: "nothing a friend sends is ever saved", docs/SHARE.md; review, 1.0.17)
+	local private = FS.sawShared
+	local function Where(path)
+		if private and type(path) == "string" and SH.IsShared and SH.IsShared(path) then return "/" end
+		return path
+	end
 	for i, p in ipairs(panes) do
 		local lines = {}
-		for j = math.max(1, #p.lines - C.SAVE_LINES + 1), #p.lines do lines[#lines + 1] = p.lines[j] end
-		s.panes[i] = { cwd = p.sh.cwd, prev = p.sh.prevCwd, font = p.fontSize, lines = lines }
+		if not private then
+			for j = math.max(1, #p.lines - C.SAVE_LINES + 1), #p.lines do lines[#lines + 1] = p.lines[j] end
+		end
+		s.panes[i] = { cwd = Where(p.sh.cwd), prev = Where(p.sh.prevCwd), font = p.fontSize, lines = lines }
 	end
 	cdb.session = s
 end

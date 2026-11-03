@@ -232,6 +232,8 @@ function FS.Files(d)
 		local make = SPECIAL_FILES[d.special]
 		list = make and make() or {}
 	else
+		-- (friends' things: a session that showed them keeps none of its lines through a /reload; Console.lua)
+		if d.p and d.p.id == "shared" then FS.sawShared = true end
 		local ok, res = pcall(ns.GetEntries, ns, d.p)
 		list = ok and type(res) == "table" and res or {}
 		if d.files and d.files.list == list and d.files.n == #list then return d.files end
@@ -1281,6 +1283,7 @@ FS.MOUNTS = {
 			if not (ep and ep:On()) then return {} end
 			local d = FS.DirOf("shared")
 			local out = {}
+			FS.sawShared = true -- (their names: as above)
 			for _, c in ipairs(ep:Connected() or {}) do
 				local who = FS.Clean(c.name)
 				local mode = c.friend and c.friend.mode

@@ -351,6 +351,9 @@ function ns.EscapePattern(s) return (tostring(s or ""):gsub("[%^%$%(%)%%%.%[%]%*
 function ns.SecretLine(text)
 	if type(text) ~= "string" then return false end
 	local l = ns.Lower(text)
+	-- (a code anywhere in it, however the console runs it: "/bin/share join TS1-...", "true && share join ...", "echo TS1-...
+	-- | xargs share join"; review, 1.0.17)
+	if l:find("ts[1il]%-%w%w%w%w%w") then return true end
 	-- (any "." line: the command search finds .share by a shortened or misspelt name too, ".shar pw ...", ".hare pass
 	-- ...", so a command line whose next word is a password word is one whatever its first. Review, 0.58.16)
 	local rest = l:match("^%s*%.%s*%S+%s+(.*)$") or l:match("^%s*share%s+(.*)$") or l:match("^%s*ssh%s+(.*)$")

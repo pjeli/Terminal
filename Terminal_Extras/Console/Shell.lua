@@ -1873,8 +1873,16 @@ function SH.ZData()
 end
 
 --- A folder gone to: one more visit (the root isn't kept).
+--- Is a path in friends' shared things (/shared/...)?
+function SH.IsShared(path)
+	local d = FS.DirOf and FS.DirOf("shared")
+	local top = "/" .. (d and d.name or "shared")
+	return type(path) == "string" and (path == top or path:sub(1, #top + 1) == top .. "/")
+end
+
 function SH.ZAdd(path, now)
 	if type(path) ~= "string" or path == "/" or path == "" then return end
+	if SH.IsShared(path) then return end -- (a friend's folder isn't kept: their names; review, 1.0.17)
 	local z = SH.ZData()
 	local e = type(z[path]) == "table" and z[path] or { r = 0 }
 	e.r, e.t = (tonumber(e.r) or 0) + 1, now or Now()

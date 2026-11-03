@@ -1690,6 +1690,7 @@ L["Share: you share %s in %s; .share %s all (or limited, mats, consumables, none
 L["Share: you'll share %s there; .share %s all (or limited, mats, consumables, none) changes it"] = true
 L["Share: you're in %d groups already; .share leave one, then ask %s to invite you again"] = true
 L["Share: you're in %s already; .share invite <name> %s invites a friend to it"] = true
+L["Share: you're in %s with that code already"] = true
 L["Share: you're not in %s"] = true
 L["Share: you're not in a group yet; .share invite <name> starts one"] = true
 L["Share: your groups (remembered: .share leave <group> or .share off forgets them)"] = true
