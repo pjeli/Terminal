@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.23 (in testing)
+
+- Kinds' names in title case on English clients (the player's ask): "Crafting Mat", "Quest Log", "Equipment Set", "Alts & Bank", "Gear to Get" (small words like "to" and "of" stay small; NPC, CVar, AddOn as they are), in the kind column, the @ pick list and everywhere else a kind is named. Other languages keep their own capitals.
+
 ## 1.0.22 (in testing)
 
 - OneForAll's "nearest" answers ("nearest library book", "where to learn bite 2", "nearest boat") keep their distance column and live distance on German, French, Spanish, Russian and Chinese clients (they wrote the translated distance, which the list doesn't read back); `@gearplan` is made again when AtlasLoot's names come in, so it doesn't list AtlasLoot's items twice; the install hints know every name the OneForAll kinds answer to (and `@gearplan`'s). Shared helpers, stale comments and unused code tidied.

@@ -172,9 +172,27 @@ function ns:WatchEvent(event, provider)
 	table.insert(watchers[event], provider)
 end
 
+--- A kind's name in title case, as English titles are written ("Quest log" -> "Quest Log", "Gear to get" -> "Gear to
+--- Get"; NPC, CVar, AddOn as they are): on an English client only, other languages keep their own rules (German's
+--- nouns, French's sentence case). 1.0.23, the player's ask.
+local SMALL_WORDS = { a = true, an = true, the = true, ["and"] = true, ["or"] = true, of = true, to = true, ["in"] = true,
+	on = true, at = true, by = true, ["for"] = true }
+function ns.TitleCase(s)
+	if type(s) ~= "string" then return s end
+	local loc = ns.LOCALE or (GetLocale and GetLocale())
+	if loc ~= "enUS" and loc ~= "enGB" then return s end
+	local first = true
+	return (s:gsub("%S+", function(w)
+		local small = not first and SMALL_WORDS[w:lower()]
+		first = false
+		if small then return w end
+		return w:sub(1, 1):upper() .. w:sub(2)
+	end))
+end
+
 function ns:RegisterProvider(id, def)
 	def.id = id
-	def.label = def.label or id
+	def.label = ns.TitleCase(def.label or id)
 	def.aliases = def.aliases or {}
 	def._dirty = true
 	if not self.providers[id] then
@@ -256,7 +274,7 @@ ns.entriesGen = 0 -- bumped whenever any provider's entries are rebuilt
 --- A list's name in its colour, as a row's kind column says it (`label`: another word in its place). One copy: five
 --- places wrote it out (review, 0.53.6).
 function ns:KindLabel(p, label)
-	return "|c" .. (p.color or "ff7fb2ff") .. tostring(label or p.label or p.id) .. "|r"
+	return "|c" .. (p.color or "ff7fb2ff") .. tostring(label and ns.TitleCase(label) or p.label or p.id) .. "|r"
 end
 --- The key a row is counted under when picked ("<kind>:<key>"): Frequent's, the history's.
 function ns:FreqKey(kind, key) return kind .. ":" .. tostring(key) end

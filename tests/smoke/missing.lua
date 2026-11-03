@@ -177,10 +177,10 @@ do
 		UI.category, UI.categoryAuto = nil, nil
 	end
 	local kinds = table.concat(ns.commands.kinds.run() or {}, "\n")
-	check(not kinds:find("Recipe to learn", 1, true), ".kinds doesn't list it")
+	check(not kinds:find("Recipe to Learn", 1, true), ".kinds doesn't list it")
 	-- (0.45.22, the player: .mem still said @missing) named by how a search reaches it, wherever a list is named
 	local mem = table.concat(ns.commands.mem.run() or {}, "\n")
-	check(not mem:find("@missing", 1, true) and mem:find("@recipe is:unknown (Recipe to learn)", 1, true),
+	check(not mem:find("@missing", 1, true) and mem:find("@recipe is:unknown (Recipe to Learn)", 1, true),
 		".mem names it @recipe is:unknown, never @missing")
 	check(ns:KindName(ns.providers.missing) == "@recipe is:unknown" and ns:KindName(ns.providers.items) == "@item"
 		and ns:KindName(ns.providers.recipes) == "@recipe", "ns:KindName: a list's first alias, a list no @ names by its filter")

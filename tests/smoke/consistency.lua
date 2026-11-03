@@ -430,9 +430,16 @@ do
 	local earned = ns:GetEntries(ns.providers.achievements)[1]
 	local text = earned and UI:ResultText(earned)
 	check(not earned or (text and text:find("^@achievement ")), "an earned achievement is written as @achievement: " .. tostring(text))
-	check(ns.providers.achievements.label == "Achievement" and ns.providers.quests.label == "Quest log"
-		and ns.providers.equipmentset.label == "Equipment set" and ns.providers.stored.label == "Alts & bank",
-		"labels: whole words, as the categories say them")
+	check(ns.providers.achievements.label == "Achievement" and ns.providers.quests.label == "Quest Log"
+		and ns.providers.equipmentset.label == "Equipment Set" and ns.providers.stored.label == "Alts & Bank",
+		"labels: whole words, in title case (1.0.23, the player's ask)")
+	-- (1.0.23) title case as English titles are: small words kept small, capitals kept; other languages' as they are
+	check(ns.TitleCase("Gear to get") == "Gear to Get" and ns.TitleCase("Crafting mat") == "Crafting Mat" and ns.TitleCase("NPC") == "NPC"
+		and ns.TitleCase("of the dawn") == "Of the Dawn", "title case: small words small (not first), capitals kept")
+	local locWas = ns.LOCALE
+	ns.LOCALE = "deDE"
+	check(ns.TitleCase("Questlog der Gilde") == "Questlog der Gilde", "another language: as it is")
+	ns.LOCALE = locWas
 	-- "where should i level" rows: the maps' label, remembered as the zone's own row
 	local Z = ns.Zones
 	local rows = Z and Z.Answer and Z.Answer("level", 20) or {}
