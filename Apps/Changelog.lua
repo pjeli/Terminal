@@ -14,10 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.2", when = "in testing",
+		v = "1.0.3", when = "in testing",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
 			"With OneForAll, for hunters: @petability (each rank, learned or not, Enter: who teaches it) and @tame; \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
+			"With OneForAll: @repreward (what each faction sells, can you buy it yet), @itemset and @setpiece; \"argent dawn rewards\", \"my class sets\".",
 		},
 	},
 	{

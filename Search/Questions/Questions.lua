@@ -39,6 +39,9 @@ Scan.ANSWERS = {
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
 	-- before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
+	-- "argent dawn rewards", "what can i buy at honored", "my class sets", "pieces of battlegear of might": OneForAll's
+	-- armory (Providers/OneForAll/Armory.lua; before the auctions' "what can i buy")
+	Asks("Armory"),
 	Asks("AuctionatorQ"),
 	Asks("AhUpgradesQ"), -- ("ah upgrades", "cheapest upgrades on the ah": AuctionValues.lua, 0.66.13)
 	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")

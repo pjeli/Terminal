@@ -75,7 +75,8 @@ do
 		Fresh()
 		local pa, pt = ns.providers.petability, ns.providers.tame
 		check(pa and pt and ns:ResolveProvider("petabilities") == pa and ns:ResolveProvider("tameable") == pt, "@petability, @tame")
-		check(#said == 0, "its tables as expected: nothing said: " .. tostring(said[1]))
+		check(not Said(L["@petability (its pet abilities) is unavailable."]) and not Said(L["@tame (its beasts to tame) is unavailable."])
+			and not Said(L["Its rare beasts are unavailable."]), "its tables as expected: nothing said of the pets: " .. tostring(said[1]))
 		-- @petability: a row a rank
 		local ab = ns:GetEntries(pa)
 		local by = {}
@@ -170,7 +171,7 @@ do
 		OneForAll.PET_RARES = nil
 		said = {}
 		OA.Forget()
-		check(P.Rares() == nil and #said == 0, "no rares: quiet")
+		check(P.Rares() == nil and not Said(L["Its rare beasts are unavailable."]), "no rares: quiet")
 		_G.OneForAll = nil
 		Fresh()
 		check(not ns.providers.petability and not ns.providers.tame and P.Question("tameable cats") == nil, "without OneForAll: neither, no question")

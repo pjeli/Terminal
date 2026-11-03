@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 (in testing)
+
+- With OneForAll - Forever installed, `@repreward` lists what each faction's quartermaster sells (your faction's and both sides'), the standing each needs and whether you can buy it yet, Enter: the quartermaster on the map; `standing:honored` works on it. `@itemset` lists the item sets: how many pieces you have (worn, in your bags or bank), the bonuses, the classes (`class:mine`, `class:priest`), Enter: its pieces. `@setpiece` lists every set's pieces with where each comes from (`@setpiece onyxia`). In Simple mode: "argent dawn rewards", "what can i buy at honored", "argent dawn rewards i can buy", "timbermaw recipes", "my class sets", "pieces of battlegear of might".
+
 ## 1.0.2 (in testing)
 
 - With OneForAll - Forever installed, for hunters: `@petability` lists each rank of each pet ability (its pet level and training points, the families that learn it, whether your pets know it as OneForAll saw them; Enter: the beasts that teach it, nearest first, or the nearest pet trainers). `@tame` lists the beasts to tame: family, level, where (on the map with Enter), the ranks each teaches, the rare ones and why. `is:learned`, `is:unlearned`. In Simple mode: "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens", "what can i tame at my level".

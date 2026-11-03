@@ -285,15 +285,26 @@ KEYS.qty = KEYS.count
 
 -- class: a row's class (talents: yours and other classes'): an English or the game's class name, its start, or mine
 local function Squash(x) return (Lower(tostring(x or "")):gsub("[%s_%-']", "")) end
+local function ClassNameOf(file) local t = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE") return type(t) == "table" and t[file] or file end
 KEYS.class = function(v)
 	if v == "" then return nil end
 	if v == "mine" or v == "me" or v == "my" or v == "myclass" then
 		local ok, _, file = pcall(UnitClass, "player")
 		local mine = ok and file or nil
-		return function(e) return e.classFile ~= nil and e.classFile == mine end
+		return function(e)
+			-- (an item set's: any of its classes, or every class; Providers/OneForAll/Armory.lua)
+			local set = rawget(e, "classFiles")
+			if set or rawget(e, "anyClass") then return rawget(e, "anyClass") == true or (mine ~= nil and set[mine] == true) end
+			return e.classFile ~= nil and e.classFile == mine
+		end
 	end
 	local want = Squash(v)
 	return function(e)
+		local set = rawget(e, "classFiles")
+		if set then
+			for f in pairs(set) do if Squash(f):sub(1, #want) == want or Squash(ClassNameOf(f)):sub(1, #want) == want then return true end end
+			return false
+		end
 		if not e.classFile then return false end
 		local f, n = Squash(e.classFile), Squash(e.className)
 		return f:sub(1, #want) == want or n:sub(1, #want) == want
@@ -365,7 +376,8 @@ end
 
 KEYS.standing = function(v)
 	local r = StandingRange(v)
-	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
+	-- (a reputation reward's: the standing it needs; Providers/OneForAll/Armory.lua)
+	return r and function(e) return (e.kind == "reputation" or e.kind == "repreward") and r(e.reaction) or false end
 end
 KEYS.rep = KEYS.standing
 
@@ -671,7 +683,7 @@ F.APPLIES = {
 	looter = { ["*"] = { "lootlog" } },
 	missing = { ["*"] = GROUP },
 	when = { ["*"] = { "calendar" } },
-	standing = { ["*"] = { "reputation" } },
+	standing = { ["*"] = { "reputation", "repreward" } },
 	q = { ["*"] = MADE }, quality = { ["*"] = MADE }, stat = { ["*"] = MADE }, stats = { ["*"] = MADE },
 	["in"] = { ["*"] = { "items", "gear", "consumables", "mats", "stored", "bank", "mail" } },
 	faction = { ["*"] = { "npc", "flight" } },
@@ -683,7 +695,7 @@ F.APPLIES = {
 	cast = { ["*"] = { "spells", "classspells" } }, cost = { ["*"] = { "spells", "classspells" } },
 	range = { ["*"] = { "spells", "classspells" } }, cd = { ["*"] = { "spells", "classspells" } },
 	cooldown = { ["*"] = { "spells", "classspells" } },
-	class = { ["*"] = { "talents", "attune", "spells", "classspells" } },
+	class = { ["*"] = { "talents", "attune", "spells", "classspells", "itemset", "setpiece" } },
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)

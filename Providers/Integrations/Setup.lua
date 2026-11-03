@@ -168,6 +168,10 @@ I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not 
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.petability and ns.providers.tame) end,
 	kinds = { petability = true, petabilities = true, beasttraining = true, tame = true, tames = true, tameable = true },
 	words = { tame = true, tameable = true } }
+-- (1.0.3: reputation rewards, item sets and their pieces, OneForAll's armory)
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.repreward and ns.providers.itemset) end,
+	kinds = { repreward = true, reprewards = true, quartermaster = true, itemset = true, itemsets = true, tierset = true, setpiece = true,
+		setpieces = true } }
 local BY_NAME = {}
 for _, a in ipairs(I.ADDONS) do BY_NAME[a.name] = a end
 

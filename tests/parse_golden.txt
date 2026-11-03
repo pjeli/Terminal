@@ -1114,7 +1114,7 @@ advanced: "Wall Dead "
 explain: "Everything matching Wall Dead"
 
 == mounts
-question: 12  asked=mounts
+question: 13  asked=mounts
 place: -
 send: -
 steps: -
@@ -1734,7 +1734,7 @@ advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
 explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
-question: 35  asked=missing stamina
+question: 36  asked=missing stamina
 place: -
 send: -
 steps: -
@@ -1745,7 +1745,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == needs int
-question: 35  asked=needs int
+question: 36  asked=needs int
 place: -
 send: -
 steps: -
@@ -1756,7 +1756,7 @@ advanced: "@group missing:intellect "
 explain: "Your group, missing:intellect"
 
 == who is without fortitude
-question: 35  asked=who is without fortitude
+question: 36  asked=who is without fortitude
 place: -
 send: -
 steps: -
@@ -1767,7 +1767,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == party without food
-question: 35  asked=party without food
+question: 36  asked=party without food
 place: -
 send: -
 steps: -
@@ -1778,7 +1778,7 @@ advanced: "@group missing:food "
 explain: "Your group, missing:food"
 
 == needs blessing of kings
-question: 35  asked=needs blessing of kings
+question: 36  asked=needs blessing of kings
 place: -
 send: -
 steps: -
@@ -1789,7 +1789,7 @@ advanced: "@group missing:blessing_kings "
 explain: "Your group, missing:blessing_kings"
 
 == missing shadow protection
-question: 35  asked=missing shadow protection
+question: 36  asked=missing shadow protection
 place: -
 send: -
 steps: -
@@ -1800,7 +1800,7 @@ advanced: "@group missing:shadow "
 explain: "Your group, missing:shadow"
 
 == need flask
-question: 35  asked=need flask
+question: 36  asked=need flask
 place: -
 send: -
 steps: -
@@ -1811,7 +1811,7 @@ advanced: "@group missing:elixir "
 explain: "Your group, missing:elixir"
 
 == missing buffs
-question: 35  asked=missing buffs
+question: 36  asked=missing buffs
 place: -
 send: -
 steps: -
@@ -3233,7 +3233,7 @@ advanced: "@questlog lvl:me "
 explain: "Quests in your log, your level"
 
 == what killed me today
-question: 19  asked=what killed me
+question: 20  asked=what killed me
 place: -
 send: -
 steps: -
@@ -3297,7 +3297,7 @@ advanced: "loot since:yesterday older:today "
 explain: "Everything matching loot, since yesterday, from before today"
 
 == loot today
-question: 14  asked=loot today
+question: 15  asked=loot today
 place: -
 send: -
 steps: -
@@ -3346,7 +3346,7 @@ advanced: "mail|type:mail older:2w "
 explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
-question: 33  asked=auctions sold
+question: 34  asked=auctions sold
 place: -
 send: -
 steps: -
@@ -4906,7 +4906,7 @@ advanced: "@gold gold "
 explain: "Gold matching gold"
 
 == durability
-question: 32  asked=durability
+question: 33  asked=durability
 place: -
 send: -
 steps: -
@@ -4934,7 +4934,7 @@ advanced: "mail|type:mail "
 explain: "Everything matching mail|type:mail"
 
 == my mail
-question: 34  asked=my mail
+question: 35  asked=my mail
 place: -
 send: -
 steps: -
@@ -5164,7 +5164,7 @@ advanced: "sword|type:sword q:epic+ | group by zone"
 explain: "Epic or better everything matching sword|type:sword, grouped by zone"
 
 == What's   dropped?
-question: 14  asked=What's   dropped?
+question: 15  asked=What's   dropped?
 place: -
 send: -
 steps: -
@@ -5190,7 +5190,7 @@ advanced: "@dungeon dead "
 explain: "Dungeon matching dead"
 
 == a > mats
-question: 18  asked=a > mats
+question: 19  asked=a > mats
 place: -
 send: -
 steps: -
@@ -6349,7 +6349,7 @@ advanced: ""
 explain: ERROR nil
 
 == "tonight we
-question: 41  asked="tonight we
+question: 42  asked="tonight we
 place: -
 send: -
 steps: -
