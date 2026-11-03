@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6 (in testing)
+
+- The Console (Terminal: Extras) shows OneForAll as a mount (`df`, `mount`) with its lists: /book, /petability, /tame, /repreward, /itemset, /setpiece, /favor, /transport, /gearplan.
+
 ## 1.0.5 (in testing)
 
 - With OneForAll - Forever installed, `is:upgrade` ("upgrades" in Simple mode) takes OneForAll's verdict: its stat weights for your talents against what you wear (an upgrade by some percent, or the slot empty). Terminal's own checks before it stay (your level, what your class can use), and Terminal's own weights still decide when you picked roles in `.weights`. "Why is this here?" says it was OneForAll's verdict and by how much. `@gearplan` lists the gear OneForAll's planner knows you could get (dungeon loot, quest rewards, sets, reputation, crafted; what AtlasLoot lists already is left to `@loot`), and "upgrades" finds the upgrades among it.

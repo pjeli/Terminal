@@ -147,4 +147,6 @@ for their names.
 - Wowhead: its robots.txt doesn't allow automated reading, and it has no public interface.
 - Other addons' tables: Terminal doesn't copy another addon's data. Where another addon has what Terminal needs
   (Questie's dungeon doors), Terminal reads it in the game through that addon's public interface, and says so in chat
-  when it can't.
+  when it can't. OneForAll - Forever has no interface: its tables (Library Books, hunter pets, the armory, the
+  Merchant's Favor recipes, boats and roads, drop chances, gear value) are read in the game from its namespace, each
+  checked first, while it's installed (Providers/Integrations/OneForAll.lua), never copied into Terminal.
