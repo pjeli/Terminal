@@ -158,7 +158,11 @@ end
 
 --- Done / not done: quests by the game's record; achievements by their row's completed (rows without it aren't judged).
 local function DoneOf(e)
-	if type(e.isDone) == "boolean" then return e.isDone end -- (a row that says: a Library Book, Providers/Integrations/OneForAll/Books.lua)
+	-- (a row that says: a Library Book, Providers/Integrations/OneForAll/Books.lua; a compact row's lookup isn't asked: Questie's
+	-- quests, 5000 of them, have none; review, 1.0.21)
+	local said = rawget(e, "isDone")
+	if said == nil and not rawget(e, "_compact") then said = e.isDone end
+	if type(said) == "boolean" then return said end
 	-- (Attune's: an attunement all done, a step it saw you do; Attune.lua)
 	if e.kind == "attune" and ns.Attune then
 		if e.isStep then return ns.Attune.StepState(e.stepRec) == "done" end
@@ -189,6 +193,7 @@ local function StandingWords()
 	end
 	return standingWords
 end
+F._.StandingWords = StandingWords -- (OneForAll's reputation rewards question reads them too)
 --- The standing names for Tab: the game's own (lowercase), else English.
 local function StandingNames()
 	local out = {}

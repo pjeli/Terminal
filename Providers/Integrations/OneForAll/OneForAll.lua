@@ -78,6 +78,22 @@ end
 --- A text from its data: a string, else nil.
 function OA.Text(v) return type(v) == "string" and v ~= "" and v or nil end
 
+--- Does every word (lowercase) appear in a row's name or its text? The parts' questions ask it of whole lists per
+--- keystroke: each looked for in each, no string joined per row (review, 1.0.21).
+function OA.Has(e, words)
+	if not words or #words == 0 then return true end
+	local n, t = rawget(e, "_lname") or "", rawget(e, "_ltext") or rawget(e, "text") or ""
+	for i = 1, #words do
+		local w = words[i]
+		if not (n:find(w, 1, true) or t:find(w, 1, true)) then return false end
+	end
+	return true
+end
+
+--- A name as its words, lowercase, no marks, one space between ("Ashbringer's Might" -> "ashbringers might"): how
+--- the parts match what's typed against OneForAll's names (not ns.Norm, which drops the spaces).
+function OA.Words(s) return (ns.Lower(tostring(s or "")):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end
+
 -- each part's setup (its lists registered) and its line for .integrations, in this order (the files of
 -- Providers/Integrations/OneForAll/ add theirs)
 OA.SETUPS, OA.STATUS = {}, {}

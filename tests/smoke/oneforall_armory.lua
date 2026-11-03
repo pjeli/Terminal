@@ -90,6 +90,10 @@ do
 		check(ns:ResolveProvider("sets") ~= ps, "@sets: still your equipment sets")
 		check(not Said(L["Its reputation rewards are unavailable."]) and not Said(L["@itemset (its item sets) is unavailable."]),
 			"its tables as expected: nothing said: " .. tostring(said[1]))
+		-- (review, 1.0.21) what the question reads per keystroke, made once with the data
+		local ad = A.Factions()[1]
+		check(ad.words[1] == "argent" and ad.words[2] == "dawn" and A.Sets()[1].norm == " battlegear of might ", "a faction's words and a set's name, kept with their data")
+		check(ns.Filters._.StandingWords().honored == 6 and A.Question("what can i buy at honored").standing == 6, "standings: the filters' words")
 		-- the rewards
 		A.ForgetRewards()
 		local rw = A.Rewards()

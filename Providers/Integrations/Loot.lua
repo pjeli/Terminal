@@ -474,7 +474,10 @@ local function SetupAtlasLoot()
 			-- (1.0.4: its chance to drop, OneForAll's Classic numbers, after where it drops; read once a row)
 			local W = ns.OneForAllWorld
 			local chances = W and W.DropChances()
-			local byDetail = {} -- (a boss's rows share their detail: its chances looked up once; review, 1.0.13)
+			-- (a boss's rows share their detail: its chances looked up once a session, made again only when OneForAll's
+			-- table is another; review, 1.0.13 and 1.0.21)
+			if loot.chancesOf ~= chances then loot.chancesOf, loot.chanceAt = chances, {} end
+			local byDetail = loot.chanceAt or {}
 			for _, r in ipairs(loot.rows) do
 				if not rawget(r, "name") then
 					local name = LootName(r.itemID)

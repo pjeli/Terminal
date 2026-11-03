@@ -31,7 +31,7 @@ function G.Available() return GV() ~= nil end
 --- Its verdict on an item against what you wear: "up" (and by how many percent), "new" (the slot empty), "down",
 --- "same", "worn"; nil when it can't say (not gear, not for your class, the item not loaded yet).
 function G.Change(id)
-	local v = GV()
+	local v = G.gv or GV()
 	if not v then return nil end
 	local kind, pct = OA.Call(v.Change, id)
 	if not KINDS[kind] then return nil end
@@ -41,8 +41,10 @@ end
 --- What `F.GearFit` takes of it: { change = G.Change } while it's there and no roles are picked, else nil.
 function G.Judge()
 	local F = ns.Filters
-	if F and F.MyRoles and F.MyRoles() then return nil end
-	return G.Available() and G or nil
+	if F and F.MyRoles and F.MyRoles() then G.gv = nil return nil end
+	-- (found once a search, each row's verdict asks it: review, 1.0.21)
+	G.gv = GV()
+	return G.gv and G or nil
 end
 
 --- The gear its planner knows: { { id, name, src, lvl, side } } (checked), or nil.

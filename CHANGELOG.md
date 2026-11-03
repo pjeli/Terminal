@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.21 (in testing)
+
+- Faster typing with OneForAll installed (from the full review's measurements): its questions keep their word lists (factions, standings, families, abilities, set names) instead of making them on every keystroke, look through their lists without joining texts per row, and `@loot`'s drop chances are looked up once a session; `is:done` reads Questie's quests without a slow lookup; `is:upgrade` finds OneForAll's gear value once a search.
+
 ## 1.0.20 (in testing)
 
 - Fixes from the full review: a sale whose "Sale Pending" mail you read before its own mail is one sale in `@auction`, not two; with Syndicator, guild banks set to show their gold are in `@gold` and "All gold" (none ever was); a very long `@who` search asks the server with its first words instead of saying "in combat"; spell data the game loads again no longer makes every class's spell rows again; another class's spells are kept for the session only once all their descriptions are in.

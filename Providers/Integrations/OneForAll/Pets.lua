@@ -199,8 +199,9 @@ end
 
 local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.name)) end
 
+local famIndex, abIndex -- (Index, below: families and abilities by name)
 local beastRows -- (made once: OneForAll's beasts don't change in a session; the abilities' known ranks do)
-function P.Forget() beastRows = nil end -- (tests)
+function P.Forget() beastRows, famIndex, abIndex = nil, nil, nil end -- (tests)
 
 --- @tame's rows: the ability ranks, then the beasts.
 function P.Rows()
@@ -375,11 +376,14 @@ local function AbilityAt(words, i, by)
 	end
 end
 
+-- families and abilities by their lowercase names: made once (P.Forget), not per keystroke (review, 1.0.21)
 local function Index()
-	local fam, ab = {}, {}
-	for _, f in ipairs(P.Families() or {}) do fam[Lower(f.name)] = f end
-	for _, a in ipairs(P.Abilities() or {}) do ab[Lower(a.name):gsub("[%p]", "")] = a end
-	return fam, ab
+	if not famIndex then
+		famIndex, abIndex = {}, {}
+		for _, f in ipairs(P.Families() or {}) do famIndex[Lower(f.name)] = f end
+		for _, a in ipairs(P.Abilities() or {}) do abIndex[(Lower(a.name):gsub("[%p]", ""))] = a end
+	end
+	return famIndex, abIndex
 end
 
 --- The question: { what = "teach" (the beasts that teach a rank, or an ability's ranks), "abilities" (a family's), "tame"
@@ -438,13 +442,11 @@ function P.Question(text)
 	return nil
 end
 
-local function Has(e, words)
-	local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "")
-	for _, w in ipairs(words or {}) do if not hay:find(w, 1, true) then return false end end
-	return true
-end
+local Has = OA.Has
 function P.AnyTame(words)
-	for _, e in ipairs(P.Beasts()) do if Has(e, words) then return true end end
+	-- (the list itself, not P.Beasts' copy of it)
+	local p = ns.providers.tame
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if IsBeast(e) and Has(e, words) then return true end end
 	return false
 end
 

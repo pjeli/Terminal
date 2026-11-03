@@ -15,7 +15,7 @@ ns.OneForAllWorld = W
 local Lower, Num = ns.Lower, ns.Num
 local SEP = ns.DETAIL_SEP
 
-local function Norm(s) return (Lower(tostring(s or "")):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end
+local Norm = OA.Words
 
 local function Side()
 	local f = UnitFactionGroup and UnitFactionGroup("player")
@@ -321,11 +321,9 @@ function W.Question(text)
 		-- other words: a profession or a recipe's name
 		if #q.words > 0 then
 			local any = false
-			for _, e in ipairs(W.FavorRecipes()) do
-				local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "")
-				local all = true
-				for _, w in ipairs(q.words) do if not hay:find(w, 1, true) then all = false break end end
-				if all then any = true break end
+			local p = ns.providers.missing
+			for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+				if type(e.sources) == "table" and e.sources.favor and OA.Has(e, q.words) then any = true break end
 			end
 			if not any then return nil end
 		end
@@ -366,11 +364,7 @@ function W.FavorRecipes()
 	return out
 end
 
-local function Has(e, words)
-	local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "")
-	for _, w in ipairs(words or {}) do if not hay:find(w, 1, true) then return false end end
-	return true
-end
+local Has = OA.Has
 
 local function Nearest(rows)
 	local here = I.Here and I.Here()

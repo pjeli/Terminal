@@ -216,11 +216,7 @@ function B.Question(text)
 		rewards = cues.rewards and not cues.near or nil, words = rest }
 end
 
-local function Has(e, words)
-	local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "") -- (Core.lua keeps text as _ltext)
-	for _, w in ipairs(words or {}) do if not hay:find(w, 1, true) then return false end end
-	return true
-end
+local Has = OA.Has
 function B.AnyFor(words)
 	local p = ns.providers.book
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if Has(e, words) then return true end end

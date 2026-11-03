@@ -88,7 +88,10 @@ function A.Factions()
 					end
 				end
 				if #items > 0 then
-					out[#out + 1] = { id = id, name = name, side = OA.Text(f.side), vendors = vendors, items = items }
+					-- (its name's words, for the question: once, not per keystroke; "the" left out)
+					local words = {}
+					for w in OA.Words(name):gmatch("%S+") do if w ~= "the" then words[#words + 1] = w end end
+					out[#out + 1] = { id = id, name = name, side = OA.Text(f.side), vendors = vendors, items = items, words = words }
 				end
 			end
 		end
@@ -124,7 +127,8 @@ function A.Sets()
 					if type(b) == "table" and Num(b[1]) and OA.Text(b[2]) then bonuses[#bonuses + 1] = { pieces = b[1], text = b[2] } end
 				end
 				if #pieces > 0 then
-					out[#out + 1] = { id = Num(s.id) or i, order = i, name = name, group = OA.Text(s.g), sub = OA.Text(s.sub), status = Num(s.st) or 1,
+					out[#out + 1] = { id = Num(s.id) or i, order = i, name = name, norm = " " .. OA.Words(name) .. " ", -- (SetIn's)
+						group = OA.Text(s.g), sub = OA.Text(s.sub), status = Num(s.st) or 1,
 						side = OA.Text(s.side), classes = classes, armor = OA.Text(s.arm), level = Num(s.lv), bonuses = bonuses, pieces = pieces }
 				end
 			end
@@ -234,10 +238,7 @@ function A.RewardRows()
 end
 
 -- (made once, again when your standing changes: the questions ask them per keystroke)
-local rewards
-local watch = CreateFrame("Frame")
-watch:RegisterEvent("UPDATE_FACTION")
-watch:SetScript("OnEvent", function() rewards = nil end)
+local rewards, watch
 --- Is a faction among your reputations (its row the chain starts from)?
 function A.Met(fid)
 	local p = ns.providers.reputation
@@ -246,6 +247,11 @@ function A.Met(fid)
 end
 --- The reward rows, kept.
 function A.Rewards()
+	if not watch then -- (only once they're asked for: no frame for everyone; review, 1.0.21)
+		watch = CreateFrame("Frame")
+		watch:RegisterEvent("UPDATE_FACTION")
+		watch:SetScript("OnEvent", function() rewards = nil end)
+	end
 	if not rewards then rewards = Stamp(A.RewardRows(), "reputation") end
 	return rewards
 end
@@ -446,14 +452,13 @@ local ASK = { i = true, im = true, ["do"] = true, the = true, a = true, an = tru
 	which = true, show = true, list = true, me = true, of = true, ["for"] = true, ["in"] = true, at = true, from = true, with = true,
 	get = true, my = true, all = true, yet = true, still = true, have = true, ive = true, class = true, need = true, needed = true }
 
-local function Norm(s) return (Lower(s):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end
+local Norm = OA.Words
 
 -- a faction named in the words ("argent dawn", "timbermaw", "booty bay"): the faction and the words it took
 local function FactionIn(words)
 	local best, bestN, bestAt
 	for _, f in ipairs(A.Factions() or {}) do
-		local fw = {}
-		for w in Norm(f.name):gmatch("%S+") do if w ~= "the" then fw[#fw + 1] = w end end
+		local fw = f.words
 		-- (its whole name, or its first word alone when that's its own: "timbermaw", "cenarion", "thorium")
 		for i = 1, #words do
 			local n = 0
@@ -464,12 +469,11 @@ local function FactionIn(words)
 	return best, bestAt, bestN
 end
 
+-- (the standing: filter's words, English and the game's, female forms too; made once: Search/Filters/Others.lua)
 local function StandingIn(w)
-	for i, s in ipairs(STANDING_ENGLISH) do if w == Lower(s) then return i end end
-	for i = 1, 8 do
-		local g = rawget(_G, "FACTION_STANDING_LABEL" .. i)
-		if type(g) == "string" and w == Lower(g) then return i end
-	end
+	local F = ns.Filters
+	local words = F and F._ and F._.StandingWords and F._.StandingWords()
+	return words and words[w] or nil
 end
 
 -- a set named in the words ("battlegear of might"): the set's row name
@@ -477,8 +481,7 @@ local function SetIn(text)
 	local t = " " .. Norm(text) .. " "
 	local best
 	for _, s in ipairs(A.Sets() or {}) do
-		local n = " " .. Norm(s.name) .. " "
-		if t:find(n, 1, true) and (not best or #s.name > #best) then best = s.name end
+		if t:find(s.norm, 1, true) and (not best or #s.name > #best) then best = s.name end
 	end
 	return best
 end
@@ -539,10 +542,7 @@ function A.Question(text)
 				local p = ns.providers.itemset
 				local any = false
 				for _, e in ipairs(ns:GetEntries(p)) do
-					local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "")
-					local all = true
-					for _, w in ipairs(q.words) do if not hay:find(w, 1, true) then all = false break end end
-					if all then any = true break end
+					if OA.Has(e, q.words) then any = true break end
 				end
 				if not any then return nil end
 			end
@@ -552,11 +552,7 @@ function A.Question(text)
 	return nil
 end
 
-local function Has(e, words)
-	local hay = (rawget(e, "_lname") or "") .. " " .. (rawget(e, "_ltext") or rawget(e, "text") or "")
-	for _, w in ipairs(words or {}) do if not hay:find(w, 1, true) then return false end end
-	return true
-end
+local Has = OA.Has
 
 local function MyClass() local ok, _, f = pcall(UnitClass, "player") return ok and f or nil end
 
