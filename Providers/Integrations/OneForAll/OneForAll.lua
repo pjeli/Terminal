@@ -5,7 +5,7 @@ local I = ns.Integrations
 -- OneForAll - Forever (Smoergi's, GPL-3; 1.0.1, the player's ask): its tables read while it's installed, never copied
 -- into Terminal. It has no API: its whole namespace is the global OneForAll (its Data.lua: _G[ADDON] = FLT), so its
 -- tables are read as they are, each checked first; one that isn't in the shape expected is left out and said once in
--- chat (I.Failed: what's unavailable), the rest still used. What each part makes is in Providers/OneForAll/:
+-- chat (I.Failed: what's unavailable), the rest still used. What each part makes is in Providers/Integrations/OneForAll/:
 --
 --   BOOKS, BOOK_REWARD_TIERS, MAP_IDS     @book: the Library Books (Books.lua)
 --   PET_ABILITIES, PET_FAMILIES, PET_RARES  @tame (a hunter's only): a hunter's pet abilities, who teaches each rank, the
@@ -79,7 +79,7 @@ end
 function OA.Text(v) return type(v) == "string" and v ~= "" and v or nil end
 
 -- each part's setup (its lists registered) and its line for .integrations, in this order (the files of
--- Providers/OneForAll/ add theirs)
+-- Providers/Integrations/OneForAll/ add theirs)
 OA.SETUPS, OA.STATUS = {}, {}
 function OA.AddSetup(fn) OA.SETUPS[#OA.SETUPS + 1] = fn end
 --- `fn` -> a few words for .integrations ("39 Library Books (@book)"), or nil (that part not there).

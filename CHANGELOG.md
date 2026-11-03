@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.15 (in testing)
+
+- OneForAll's files moved under Providers/Integrations/OneForAll/ (with the other addons' integrations); nothing changes in game. A new TOC entry: restart the game fully once.
+
 ## 1.0.14 (in testing)
 
 - With OneForAll - Forever installed, `@panel` lists its window's tabs ("OneForAll: Dungeons & Raids", "OneForAll: Armory", "OneForAll: Library Books"...), read from its own list so a new tab comes along; Enter opens its window on that tab. `@panel ofa` lists them all.

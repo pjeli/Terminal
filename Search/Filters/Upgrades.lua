@@ -752,7 +752,7 @@ GearFitWith = function(weights, role)
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
 	local class = MyName() -- (this character: who "usable" is kept for)
-	-- (1.0.5, the player's ask: OneForAll installed, its gear value decides, Providers/OneForAll/Gear.lua; your roles
+	-- (1.0.5, the player's ask: OneForAll installed, its gear value decides, Providers/Integrations/OneForAll/Gear.lua; your roles
 	-- picked in .weights: Terminal's own)
 	local OAG = ns.OneForAllGear and ns.OneForAllGear.Judge()
 	local Fit

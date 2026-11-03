@@ -1,4 +1,4 @@
--- OneForAll's gear value (1.0.5, the player's ask; Providers/OneForAll/Gear.lua): while it's installed, is:upgrade
+-- OneForAll's gear value (1.0.5, the player's ask; Providers/Integrations/OneForAll/Gear.lua): while it's installed, is:upgrade
 -- takes its verdict (up by a percent, the slot empty: one; down, the same, worn, unknown: not), in place of Terminal's
 -- weights; Terminal's own when you picked roles in .weights; Terminal's checks before stay (your level, what you can
 -- use). @gearplan lists its planner's gear (one AtlasLoot lists already left out); "Why is this here?" says whose

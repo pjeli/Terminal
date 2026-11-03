@@ -1,4 +1,4 @@
--- OneForAll's hunter pets (1.0.2, the player's ask; Providers/OneForAll/Pets.lua), one kind since 1.0.9 and a hunter's
+-- OneForAll's hunter pets (1.0.2, the player's ask; Providers/Integrations/OneForAll/Pets.lua), one kind since 1.0.9 and a hunter's
 -- only: @tame lists each pet ability's ranks (its level, training points, learned or not, Enter the beasts that teach
 -- it; is:ability) and the beasts to tame (family, level, where, the ranks each teaches, the rare ones); "where to learn
 -- bite 2", "cat abilities", "tameable cats", "rare pets in the barrens" in Simple mode; a table not in the shape

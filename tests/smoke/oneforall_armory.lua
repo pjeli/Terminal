@@ -1,4 +1,4 @@
--- OneForAll's armory (1.0.3, the player's ask; Providers/OneForAll/Armory.lua): reputation rewards (each faction's,
+-- OneForAll's armory (1.0.3, the player's ask; Providers/Integrations/OneForAll/Armory.lua): reputation rewards (each faction's,
 -- @reputation rows only its questions and "> rewards" list since 1.0.11; no @repreward:
 -- the standing each needs, yours: can you buy it), @itemset (the sets, pieces you have, bonuses; Enter, "> pieces":
 -- its pieces, where each comes from; no @setpiece since 1.0.10); "argent dawn rewards", "what can i buy at honored", "my class

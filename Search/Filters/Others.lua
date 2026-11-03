@@ -158,7 +158,7 @@ end
 
 --- Done / not done: quests by the game's record; achievements by their row's completed (rows without it aren't judged).
 local function DoneOf(e)
-	if type(e.isDone) == "boolean" then return e.isDone end -- (a row that says: a Library Book, Providers/OneForAll/Books.lua)
+	if type(e.isDone) == "boolean" then return e.isDone end -- (a row that says: a Library Book, Providers/Integrations/OneForAll/Books.lua)
 	-- (Attune's: an attunement all done, a step it saw you do; Attune.lua)
 	if e.kind == "attune" and ns.Attune then
 		if e.isStep then return ns.Attune.StepState(e.stepRec) == "done" end
@@ -292,7 +292,7 @@ KEYS.class = function(v)
 		local ok, _, file = pcall(UnitClass, "player")
 		local mine = ok and file or nil
 		return function(e)
-			-- (an item set's: any of its classes, or every class; Providers/OneForAll/Armory.lua)
+			-- (an item set's: any of its classes, or every class; Providers/Integrations/OneForAll/Armory.lua)
 			local set = rawget(e, "classFiles")
 			if set or rawget(e, "anyClass") then return rawget(e, "anyClass") == true or (mine ~= nil and set[mine] == true) end
 			return e.classFile ~= nil and e.classFile == mine
@@ -376,7 +376,7 @@ end
 
 KEYS.standing = function(v)
 	local r = StandingRange(v)
-	-- (a reputation reward's: the standing it needs; Providers/OneForAll/Armory.lua)
+	-- (a reputation reward's: the standing it needs; Providers/Integrations/OneForAll/Armory.lua)
 	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
 end
 KEYS.rep = KEYS.standing

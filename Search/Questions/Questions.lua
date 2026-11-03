@@ -40,7 +40,7 @@ Scan.ANSWERS = {
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
 	-- before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
 	-- "argent dawn rewards", "what can i buy at honored", "my class sets", "pieces of battlegear of might": OneForAll's
-	-- armory (Providers/OneForAll/Armory.lua; before the auctions' "what can i buy")
+	-- armory (Providers/Integrations/OneForAll/Armory.lua; before the auctions' "what can i buy")
 	Asks("Armory"),
 	-- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits": OneForAll's world (World.lua)
 	Asks("OneForAllWorld"),
@@ -50,7 +50,7 @@ Scan.ANSWERS = {
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ"),
 	-- "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens": a hunter's pets, OneForAll's
-	-- (Providers/OneForAll/Pets.lua; before the collections' "my pets" and the chains' "... learn")
+	-- (Providers/Integrations/OneForAll/Pets.lua; before the collections' "my pets" and the chains' "... learn")
 	Asks("HunterPets"),
 	-- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts": the list, by name (Providers/Collections.lua)
 	Asks("CollectionsQ"),
@@ -134,7 +134,7 @@ Scan.ANSWERS = {
 	Asks("GroupQuests"),
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
 	Asks("Lockouts"),
-	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/OneForAll/Books.lua)
+	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks"),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
 	Asks("Corpse"),

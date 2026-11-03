@@ -1,4 +1,4 @@
--- OneForAll's world (1.0.4, the player's ask; Providers/OneForAll/World.lua): its weapon masters when What's Training
+-- OneForAll's world (1.0.4, the player's ask; Providers/Integrations/OneForAll/World.lua): its weapon masters when What's Training
 -- and TrainerSpells have none (CS.WeaponMasters), its drop chances on AtlasLoot's rows, the Merchant's Favor recipes
 -- (on @recipe's unknown ones since 1.0.12: its cost, your faction's vendor; no @favor) and @transport (boats, zeppelins, the tram, the roads out of a zone); "favor recipes
 -- i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits" in Simple mode; without OneForAll: none.

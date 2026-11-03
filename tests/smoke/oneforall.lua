@@ -1,5 +1,5 @@
--- OneForAll - Forever (1.0.1, the player's ask; Providers/Integrations/OneForAll.lua): its tables read while it's
--- installed. @book: WoW Forever's Library Books (Providers/OneForAll/Books.lua), each where it is and how far along you
+-- OneForAll - Forever (1.0.1, the player's ask; Providers/Integrations/OneForAll/OneForAll.lua): its tables read while it's
+-- installed. @book: WoW Forever's Library Books (Providers/Integrations/OneForAll/Books.lua), each where it is and how far along you
 -- are (OneForAll's judgement, else the game's); "library books", "books i still need", "nearest library book",
 -- "library book rewards" in Simple mode; a table not in the shape expected said once with what's unavailable; without
 -- OneForAll: no @book, no question.

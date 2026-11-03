@@ -149,4 +149,4 @@ for their names.
   (Questie's dungeon doors), Terminal reads it in the game through that addon's public interface, and says so in chat
   when it can't. OneForAll - Forever has no interface: its tables (Library Books, hunter pets, the armory, the
   Merchant's Favor recipes, boats and roads, drop chances, gear value) are read in the game from its namespace, each
-  checked first, while it's installed (Providers/Integrations/OneForAll.lua), never copied into Terminal.
+  checked first, while it's installed (Providers/Integrations/OneForAll/OneForAll.lua), never copied into Terminal.

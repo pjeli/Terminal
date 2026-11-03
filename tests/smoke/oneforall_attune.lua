@@ -1,4 +1,4 @@
--- @attune without Attune (1.0.7, the player's ask; Providers/OneForAll/Attunements.lua): OneForAll's dungeon keys and
+-- @attune without Attune (1.0.7, the player's ask; Providers/Integrations/OneForAll/Attunements.lua): OneForAll's dungeon keys and
 -- raid attunements made into Attune's records, so the rows, "> steps", "my keys", "how do i get into onyxia" and is:done
 -- work as with Attune; how far along from the game (the key yours: done; else up to the last quest turned in); your
 -- faction's chain only; Attune installed: never these.

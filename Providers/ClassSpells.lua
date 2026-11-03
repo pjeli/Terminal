@@ -348,7 +348,7 @@ function CS.WeaponMasters(ids)
 	end
 	ts = TSMasters()
 	if ts then return From(ts) end
-	-- (1.0.4: OneForAll's, with neither: Providers/OneForAll/World.lua)
+	-- (1.0.4: OneForAll's, with neither: Providers/Integrations/OneForAll/World.lua)
 	local W = ns.OneForAllWorld
 	local oa = W and W.WeaponMasters()
 	if oa then return From(oa) end

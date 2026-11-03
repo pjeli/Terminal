@@ -371,7 +371,7 @@ local function Row(u, pd, pr, Rc, Pr)
 	local rid = Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, id)
 	rid = type(rid) == "number" and rid or nil
 	local s = Sources(id, u.name, data, rid)
-	-- (bought with the Merchant's Favor, OneForAll says: Providers/OneForAll/World.lua, 1.0.12)
+	-- (bought with the Merchant's Favor, OneForAll says: Providers/Integrations/OneForAll/World.lua, 1.0.12)
 	s.favor = MR.FavorOf and MR.FavorOf(u.name, pr.name) or nil
 	local need = data and Num(data[3])
 	if not need and rid then

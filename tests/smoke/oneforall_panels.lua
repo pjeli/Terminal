@@ -1,4 +1,4 @@
--- OneForAll's window's tabs in @panel (1.0.14, the player's ask; Providers/Integrations/OneForAll.lua): a row a tab, read
+-- OneForAll's window's tabs in @panel (1.0.14, the player's ask; Providers/Integrations/OneForAll/OneForAll.lua): a row a tab, read
 -- from its own list (UI.panels), Enter opens its window on it (its OpenPanel); the game's panels stay; a list not in the
 -- shape expected said once; without OneForAll: none.
 local T = ...

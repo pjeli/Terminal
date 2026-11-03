@@ -369,7 +369,7 @@ function AT.Index()
 	local D = Data()
 	if not D then
 		-- (no Attune: OneForAll's keys and raid attunement in the same shape, when it's installed; 1.0.7,
-		-- Providers/OneForAll/Keys.lua)
+		-- Providers/Integrations/OneForAll/Keys.lua)
 		index = AT.fallback and AT.fallback.Index() or nil
 		return index
 	end

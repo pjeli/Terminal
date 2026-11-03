@@ -292,7 +292,7 @@ E.VERBS = {
 	equipmentset = { L["equip"], L["show in manager"] },
 	macros = { L["run"], L["show in Macros"] },
 	cvars = { L["edit"], L["reset to default"] },
-	-- (a quartermaster's reward, Providers/OneForAll/Armory.lua: the map's)
+	-- (a quartermaster's reward, Providers/Integrations/OneForAll/Armory.lua: the map's)
 	reputation = function(e) if rawget(e, "repReward") then return PLACE[1], PLACE[2] end return L["show"], L["watch"] end,
 	skills = { L["show"], L["show in chat"] },
 	currency = { L["show"] }, panels = { L["open"] },
