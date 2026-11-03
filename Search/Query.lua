@@ -145,6 +145,15 @@ function Scan.Volatile(t)
 		local at = t:find(v, 1, true)
 		if at and (at == 1 or t:sub(at - 1, at - 1):find("[%s|!%-]")) then return true end
 	end
+	-- (a piece that takes the first one's key: "is:passive|ready", "is:done&here"; review, 1.0.18)
+	for key, rest in t:gmatch("([%a]+):([^%s]*[|&][^%s]*)") do
+		for piece in rest:gmatch("[^|&]+") do
+			local p = key .. ":" .. piece:gsub("^[-!]", "")
+			for _, v in ipairs(Scan.VOLATILE) do
+				if p == v or (v:sub(-1) == ":" and p:sub(1, #v) == v) then return true end
+			end
+		end
+	end
 	return false
 end
 

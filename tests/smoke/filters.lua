@@ -90,6 +90,13 @@ do -- items: is:quest, is:soulbound, is:boe
 	check(not found["Linen Cloth"] and found["Gnoll Paw"] and found["Silver Ring"], "-cloth: not with the word (name or text)")
 	found = names(UI:Search("@item -is:quest|is:boe"))
 	check(found["Wolf Cloak"] and found["Linen Cloth"] and not found["Gnoll Paw"] and not found["Silver Ring"], "-a|b: neither")
+	-- (review, 1.0.18) a piece with a "-" of its own: each piece's is its own ("not cloth or not cloak": all of these)
+	found = names(UI:Search("@item -cloth|-cloak"))
+	check(found["Linen Cloth"] and not found["Wolf Cloak"] and found["Gnoll Paw"] and found["Silver Ring"], "-a|-b: not a, or not b (the cloak, cloth armor, is both)")
+	found = names(UI:Search("@item -cloth&-cloak"))
+	check(not found["Linen Cloth"] and not found["Wolf Cloak"] and found["Gnoll Paw"], "-a&-b: neither, each its own not")
+	check(ns.UI._Scan.Volatile("@spell is:passive|ready f") and ns.UI._Scan.Volatile("is:done&here")
+		and not ns.UI._Scan.Volatile("is:passive|boe"), "a volatile piece taking the first piece's key: volatile (no narrowing from it)")
 	check(F.Parse("cloak") == nil and F.Parse("-30") == nil and F.Parse("-") == nil and F.Parse("is:nope|is:boe") == nil,
 		"a plain word, a range, a lone dash and a bad part stay search words")
 	check(F.Parse("q:rare|") ~= nil, "q:rare| (the next part still being typed) is q:rare")

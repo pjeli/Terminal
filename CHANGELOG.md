@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.18 (in testing)
+
+- Search fixes from the full review: `-a|-b` (Simple mode's "not a or not b") is "not a, or not b", each piece its own "not" (it read "not a, and b"); `is:passive|ready` searches again as cooldowns end instead of narrowing from the last keystroke; `class:warrior` keeps the item sets any class can wear, as `class:mine` does; on a Russian client a word with a letter wrong, missing or extra is found as a close spelling (its bytes were counted as letters).
+
 ## 1.0.17 (in testing)
 
 - Share and Console fixes from the full review: an invite whose group is named like one of .share's own words ("all", "off") is joined numbered ("all-2"), so `.share all` stays the setting for every group; `.share accept ann` takes Ann's invite over Ann Evil's and asks whose when two Anns invited; someone first heard on the guild channel stops being shared with once you leave the guild; a code you're in already isn't joined again under another name; a code anywhere in a Console line keeps it out of the history; a Console session that showed friends' things keeps none of its lines (or their folders) through a /reload.

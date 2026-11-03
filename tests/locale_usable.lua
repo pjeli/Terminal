@@ -97,6 +97,12 @@ do
 		end
 	end
 	ns.db.easyMode = false
+	-- (review, 1.0.18) a Russian word with a letter wrong: a close spelling, as an English one is
+	if lang == "ruRU" then
+		for _, p in pairs(ns.providers) do p._dirty = true end
+		local found = UI:Search("@locsample льняхая")
+		check(pick(found, sample.name) ~= nil, "ruRU: \"льняхая\" (a letter wrong) finds " .. sample.name .. " as a close spelling")
+	end
 	if lang == "zhCN" then
 		local wrong = {}
 		local pool = { "铜", "矿", "石", "铁", "锭", "银", "魔", "法", "药", "水", "治", "疗", "剂", "符", "文", "布", "丝", "绸", "纹", "厚", "皮", "草", "亚", "麻", "毛", "料" }
@@ -119,8 +125,8 @@ do
 	if lang == "ruRU" then
 		-- (close spellings allowed by letters, not bytes: a 7-letter word is 14 bytes)
 		local S = ns.Score
-		check(S.NearLimit(#"льняная", "льняная") == S.NearLimit(7) and S.NearLimit(#"ткань", "ткань") == S.NearLimit(5),
-			"ruRU: a close spelling's room counted in letters")
+		check(S.NearLimit(#"льняная", "льняная") == S.NearLimit(7) * 2 and S.NearLimit(#"ткань", "ткань") == S.NearLimit(5) * 2,
+			"ruRU: a close spelling's room: its letters' (7, 5), in their bytes (two a letter)")
 	end
 	ns.db.easyMode = easy
 	for i = #items.kinds, 1, -1 do if items.kinds[i] == "locsample" then table.remove(items.kinds, i) end end

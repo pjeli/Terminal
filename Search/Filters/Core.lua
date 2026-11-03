@@ -270,10 +270,12 @@ function F.Parse(word, plain)
 	traced = false
 	if type(word) ~= "string" or word == "" then return nil end
 	local neg = false
-	if word:find(NEG) then neg, word = true, word:sub(2) end
+	-- ("-a|b": neither, the word's "-"; "-a|-b", "-a&-b": a piece of its own carries one, so each piece's "-" is
+	-- its own, as Simple mode's "not a or not b" writes it. Review, 1.0.18: it read "not (a or not b)")
+	if word:find(NEG) and not word:find("[|&][-!]") then neg, word = true, word:sub(2) end
 	local f
 	if word:find("[|&]") then
-		local key = word:match("^(%a+):")
+		local key = word:match("^[-!]?(%a+):")
 		local ors = {}
 		for part in (word .. "|"):gmatch("([^|]*)|") do
 			local ands = {}

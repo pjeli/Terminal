@@ -219,12 +219,17 @@ end
 -- 7 letters in 14 bytes), and none for a word of Chinese or Korean characters: a byte off there is another character
 -- altogether (铜 copper and 铝 aluminium differ in their last byte), not a slip of the hand
 local function NearLimit(n, tk)
+	local per = 1 -- (bytes a letter: the distance counts bytes)
 	if tk and tk:find("[\128-\255]") then
 		if tk:find("[\224-\244]") then return nil end
-		n = #(tk:gsub("[\128-\191]", ""))
+		local letters = #(tk:gsub("[\128-\191]", ""))
+		per = math.floor(#tk / math.max(letters, 1) + 0.5)
+		n = letters
 	end
 	if n < 4 then return nil end
-	return n >= 8 and 5 or 3
+	-- (in bytes: a Cyrillic letter missed, added or wrong is two bytes off, which one letter's allowance didn't cover;
+	-- review, 1.0.18: "ткан" never found "ткань" on a Russian client)
+	return (n >= 8 and 5 or 3) * per
 end
 
 --- The name's word closest to tk within `limit` (Fuzzy.typo's costs): the distance and the word's first and last byte,

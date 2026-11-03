@@ -299,10 +299,17 @@ KEYS.class = function(v)
 		end
 	end
 	local want = Squash(v)
+	-- (the classes the value names, once a filter: an item set lists class files; review, 1.0.18: worked out per row)
+	local named = {}
+	for _, f in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
+		if Squash(f):sub(1, #want) == want or Squash(ClassNameOf(f)):sub(1, #want) == want then named[f] = true end
+	end
 	return function(e)
+		-- (an item set for every class: any class's, as class:mine keeps it; review, 1.0.18)
+		if rawget(e, "anyClass") == true then return true end
 		local set = rawget(e, "classFiles")
 		if set then
-			for f in pairs(set) do if Squash(f):sub(1, #want) == want or Squash(ClassNameOf(f)):sub(1, #want) == want then return true end end
+			for f in pairs(set) do if named[f] then return true end end
 			return false
 		end
 		if not e.classFile then return false end

@@ -127,8 +127,10 @@ do
 		res = UI:Search("@itemset class:mine")
 		check(#res == 2 and not res[3], "class:mine: the warrior's and the set for any class: " .. Names(res))
 		res = UI:Search("@itemset class:priest")
-		check(#res == 1 and res[1].name == "Spirit of Eskhandar", "class:priest: a set for three classes: " .. Names(res))
-		check(res[1].icon == "Interface\\Icons\\INV_Chest_Chain", "an icon of 0: the set's own fallback: " .. tostring(res[1].icon))
+		local esk
+		for _, e in ipairs(res) do if e.name == "Spirit of Eskhandar" then esk = e end end
+		check(#res == 2 and esk and not sb["Battlegear of Might"].anyClass, "class:priest: a set for three classes, and one for every class (as class:mine): " .. Names(res))
+		check(esk.icon == "Interface\\Icons\\INV_Chest_Chain", "an icon of 0: the set's own fallback: " .. tostring(esk.icon))
 		-- Enter on a set: its pieces
 		local walked
 		UI.WalkTo = function(_, t) walked = t end
