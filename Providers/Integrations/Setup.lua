@@ -127,7 +127,7 @@ I.ADDONS = {
 		keys = { reward = true, rewards = true, sells = true, sold = true } },
 	{ name = "AtlasLoot", missing = function() return not ns.providers.loot end,
 		kinds = { loot = true, atlasloot = true, al = true } },
-	{ name = "Attune", missing = function() return not ns.providers.attune end,
+	{ name = "Attune", also = "OneForAll", missing = function() return not ns.providers.attune end,
 		kinds = { attune = true, attunes = true, attunement = true, attunements = true },
 		words = { attunements = true, attuned = true } },
 	-- (0.53.7: @training and its questions; an old What's Training, without the API Terminal reads: "Update")

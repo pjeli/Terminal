@@ -1249,7 +1249,10 @@ FS.MOUNTS = {
 	{ type = "questiedb", lists = { "npc", "questie", "mailbox", "forge", "anvil", "cookingfire", "moonwell" }, names = { "Questie", "QuestieDB" },
 		source = function() return ns.QuestieData and ns.QuestieData.Source() end },
 	{ type = "attune", lists = { "attune" }, names = { "Attune" },
-		source = function() return I and I.attune and I.attune.on and "Attune" or nil end },
+		source = function()
+			if I and I.attune and I.attune.on then return "Attune" end
+			return ns.Attune and ns.Attune.fallback and "OneForAll" or nil -- (1.0.7: OneForAll's keys, without Attune)
+		end },
 	{ type = "bags", lists = { "stored", "bank" }, names = { "Syndicator", "BagBrother" },
 		source = function() return ns.Stored and ns.Stored.Source() end },
 	{ type = "trainers", lists = { "training" }, names = { "WhatsTraining", "TrainerSpells" },

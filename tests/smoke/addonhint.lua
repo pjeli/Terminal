@@ -55,7 +55,7 @@ do
 	UI:Hide(); FlushAll()
 	UI:Open("@attune"); FlushAll()
 	local said = tostring(UI.footExtra:GetText())
-	check(UI.footExtra:IsShown() and said:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") == "Install Attune for this."
+	check(UI.footExtra:IsShown() and said:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") == "Install Attune or OneForAll for this." -- (1.0.7: either makes @attune)
 		and UI.footerH > base and not tostring(UI.status:GetText()):find("Install", 1, true),
 		"@attune without Attune: the extra line says to install it, in few words: " .. said)
 	-- (0.50.6, the player's screenshot: the line was above the status, in the font's yellow)

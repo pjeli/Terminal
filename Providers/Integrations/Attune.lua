@@ -367,7 +367,12 @@ end
 function AT.Index()
 	if index then return index end
 	local D = Data()
-	if not D then return nil end
+	if not D then
+		-- (no Attune: OneForAll's keys and raid attunement in the same shape, when it's installed; 1.0.7,
+		-- Providers/OneForAll/Keys.lua)
+		index = AT.fallback and AT.fallback.Index() or nil
+		return index
+	end
 	local started = _G.debugprofilestop and _G.debugprofilestop() or 0
 	fellBack = false
 	local raw = {} -- aid -> its steps Attune shows
@@ -447,6 +452,8 @@ function AT.Forget() index = nil end -- (tests: Attune's data made again)
 local myKey
 --- Attune's key for the character you're on ("First Last": WoW Forever's names, UnitName's two parts), and its record.
 local function MyToon()
+	-- (without Attune, OneForAll's: what the game says you've done, AT.fallback.Toon)
+	if AT.fallback and not Data() then return AT.fallback.Toon() end
 	local D = DB()
 	local toons = D and D.toons
 	if type(toons) ~= "table" then return nil end

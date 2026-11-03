@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7 (in testing)
+
+- With OneForAll - Forever installed and Attune not, `@attune` lists OneForAll's dungeon keys (the Scarlet Key, the Skeleton Key, the Seal of Ascension, the Crescent Key...) and Onyxia's attunement (your faction's chain), with how far along you are as the game says (the key or amulet yours: done; else every step up to the last quest you turned in) and your next step. "> steps" lists the steps with where to pick each up, its tooltip what to do and where to turn it in, Enter a quest's Wowhead link; `is:done`, `is:raid`, `is:key` work as with Attune. In Simple mode: "my keys", "raid attunements", "how do i get into onyxia", "how do i get the scarlet key", "steps for drakefire amulet". With Attune installed, Attune's are used, as before. The Console's `/attune` mount names OneForAll then.
+
 ## 1.0.6 (in testing)
 
 - The Console (Terminal: Extras) shows OneForAll as a mount (`df`, `mount`) with its lists: /book, /petability, /tame, /repreward, /itemset, /setpiece, /favor, /transport, /gearplan.
