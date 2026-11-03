@@ -158,6 +158,21 @@ do
 		"a | group typed in Simple mode: grouped, and the bar says so: " .. groups2 .. " " .. B.strip.buttons[3].label)
 	B.Pick("group", "quality"); FlushAll()
 	check(UI.edit:GetText() == "sword" and not B.state.group, "unticked: the step goes from the line: '" .. UI.edit:GetText() .. "'")
+	-- (1.0.29, the player) stepped into a group (its rows kept by a "| field:value" step): the bar's Group still groups them
+	local tname = ns.Aggregate.FIELDS.kind.text(UI.Results()[1])
+	check(tname ~= nil, "(the rows say their kind)")
+	if tname then
+		B.Reset()
+		UI:SetQuery('sword | kind:"' .. tname .. '"'); FlushAll()
+		B.Pick("group", "quality"); FlushAll()
+		local g3 = 0
+		for _, e in ipairs(UI.Results()) do if e.kind == "aggregate" then g3 = g3 + 1 end end
+		check(g3 >= 2 and B.GroupOn() == "quality" and UI.edit:GetText():find("| kind:", 1, true),
+			"in a group stepped into: Group by quality groups its rows, the step kept: " .. g3 .. " '" .. UI.edit:GetText() .. "'")
+		B.Pick("sort", "quality"); FlushAll()
+		check(B.state.sort ~= nil, "and Sort still picks")
+		B.Reset()
+	end
 	UI:Hide(); FlushAll()
 
 	-- Alt+`: written in too, the group step last

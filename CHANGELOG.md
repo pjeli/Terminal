@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.29 (in testing)
+
+- Inside a group you stepped into (`@reputation | faction:"Nightclaw Druids"`), the bar's Group groups what's there again (by Standing, say), as it does a search; it was ignored since any `|` step was typed. Steps that sum, count or group stay their own.
+
 ## 1.0.28 (in testing)
 
 - AtlasLoot's faction loot is in `@reputation` too (the player's ask): every item of its Factions tables is a reward of its faction at the standing it needs ("Brood of Nozdormu · Exalted"), with `is:reward`, `is:canbuy` (your standing with that faction), `standing:`, sort and Group as OneForAll's; Enter opens AtlasLoot on it. An item both list shows once, as OneForAll's (it says the quartermaster). Without OneForAll, AtlasLoot's alone.

@@ -548,13 +548,23 @@ local function TakeAggregate(self, text, first)
 	if per then query, steps = per.query, per.list
 	elseif r.steps then query, steps = r.steps.query, r.steps.list end
 	if steps then
-		-- (steps typed: they sum up, the bar's Group doesn't; the bar says so, Bar.lua; 0.55.18, review)
+		-- (steps typed that sum, count or group: theirs, not the bar's Group, which says so (Bar.lua; 0.55.18, review). Steps
+		-- that only keep rows, a group stepped into ("| faction:\"Nightclaw Druids\""): the bar's Group groups what they
+		-- keep, as it does a search (1.0.29, the player: "step into a group and then group by standing still")
 		local bar = EasyOn() and ns.Bar and ns.Bar.Active()
-		self.barGroupIgnored = bar and bar.group and true or nil
 		self.aggregate = A.Parse(steps, query)
+		local fromBar = false
+		if bar and bar.group and not self.aggregate.last and not self.aggregate.bad then
+			local more = {}
+			for i, s in ipairs(steps) do more[i] = s end
+			more[#more + 1] = "group by " .. bar.group
+			self.aggregate = A.Parse(more, query)
+			self.aggregate.fromBar, fromBar = true, true
+		end
+		self.barGroupIgnored = bar and bar.group and not fromBar or nil
 		-- (Simple mode: a group typed shows on the bar as its Group, to take back out from there)
 		local last = self.aggregate.last
-		if EasyOn() and last and last.op == "group" and last.by then
+		if EasyOn() and not fromBar and last and last.op == "group" and last.by then
 			-- (src: the last step's place in the line, from its "|" on: the bar takes it out by that)
 			local st = not per and r.steps
 			local src = st and st.bars and ns.Phrase.Span(r, st.bars[#st.bars], math.max(st.to, st.bars[#st.bars])) or nil
