@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.31 (in testing)
+
+- `@tame` (a hunter's, with OneForAll) says in `.debug log` why it isn't there when it isn't: the class the game said at login, or OneForAll's pet tables missing; and should the class not be known yet at login, it's looked at again 5 s later and made then (the player: no @tame on a hunter).
+
 ## 1.0.30 (in testing)
 
 - A test that grouping inside groups works for any kind (the player: "a generalized solution for other kinds / searches too"): a group stepped into, then grouped again, stepped into again, grouped a third time and sorted; a typed `| group by` stepped into; a `| field:` step; `| first 5` (which 1.0.29 also fixed); a `| sum` keeping its own. Nothing changes in game.

@@ -290,10 +290,13 @@ end
 --- Is the character you're on a hunter? (The only class that tames: no one else is shown @tame.)
 function P.Hunter() return select(2, ns.Safe(UnitClass, "player")) == "HUNTER" end
 
-OA.AddSetup(function()
-	if not P.Hunter() then return end
+local function Register()
+	if ns.providers.tame then return end
 	local a, f = P.Abilities(), P.Families()
-	if not (a or f) then return end
+	if not (a or f) then
+		ns:Trace(("oneforall: @tame not made: its pet tables aren't there (abilities %s, families %s)"):format(tostring(a ~= nil), tostring(f ~= nil)))
+		return
+	end
 	if f then P.Rares() end
 	ns:RegisterProvider("tame", {
 		label = L["Hunter pet"], color = "ffc8a060",
@@ -301,6 +304,19 @@ OA.AddSetup(function()
 			"beasttraining", "petskill", "petskills" },
 		lazy = true, events = { "UNIT_PET", "PET_BAR_UPDATE" }, guard = 1, collect = P.Rows, -- (a pet out, an ability learned)
 	})
+	ns:Trace("oneforall: @tame made")
+end
+P.Register = Register
+
+OA.AddSetup(function()
+	if P.Hunter() then return Register() end
+	-- (why there's none, for .debug log: the player's hunter had no @tame, 1.0.31; and should the class not be said yet
+	-- at login, it's looked at once more a moment later)
+	local cls = select(2, ns.Safe(UnitClass, "player"))
+	ns:Trace("oneforall: @tame not made: the game says this character is " .. tostring(cls) .. ", not a hunter")
+	if cls == nil and C_Timer and C_Timer.After then
+		C_Timer.After(5, function() if P.Hunter() then Register() end end)
+	end
 end)
 OA.AddStatus(function()
 	if not ns.providers.tame then return nil end

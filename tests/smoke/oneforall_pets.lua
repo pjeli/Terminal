@@ -82,6 +82,20 @@ do
 		class = "MAGE"
 		Fresh()
 		check(ns.providers.tame == nil and ns.providers.petability == nil and P.Question("tameable cats") == nil, "a mage: no @tame, no question")
+		-- (1.0.31) why there's none, said in .debug log; and a class not said yet at login: looked at again a moment later
+		local traced = {}
+		local traceWas = ns.Trace
+		ns.Trace = function(_, m) traced[#traced + 1] = tostring(m) end
+		class = nil
+		Fresh()
+		ns.Trace = traceWas
+		local said = table.concat(traced, " / ")
+		check(said:find("not a hunter", 1, true) and ns.providers.tame == nil, "no class said at login: traced, none yet: " .. said)
+		class = "HUNTER"
+		FlushAll()
+		check(ns.providers.tame ~= nil, "a moment later, a hunter: @tame made")
+		class = "MAGE"
+
 		class = "HUNTER"
 		Fresh()
 		local pt = ns.providers.tame
