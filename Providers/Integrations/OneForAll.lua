@@ -15,6 +15,7 @@ local I = ns.Integrations
 --                                         weapon masters, Merchant's Favor recipes (on @recipe's unknown ones), boats, zeppelins and the tram,
 --                                         loot drop chances (World.lua)
 --   GearValue, GearIndex                  is:upgrade judged by OneForAll's gear value, its suggested gear (Upgrades.lua)
+--   UI.panels, OpenPanel                  its window's tabs as @panel rows (below, 1.0.14)
 
 local OA = {}
 ns.OneForAll = OA
@@ -94,6 +95,56 @@ function OA.Status()
 	end
 	return L["%s (%s)."]:format("OneForAll", OA.Version()) .. (#said > 0 and (" " .. table.concat(said, ", ")) or "")
 end
+
+----------------------------------------------------------------------
+-- Its window's tabs in @panel (1.0.14, the player's ask): "OneForAll: Dungeons & Raids", Enter opens its window on it
+-- (its own OpenPanel; its window is its own frame, not Blizzard's). The tabs are read from its list (UI.panels: key,
+-- label), so a new one in a new version is there too. Opening a tab hidden in its settings shows it again, as its
+-- own buttons do.
+----------------------------------------------------------------------
+
+--- Its tabs, checked: { { key, label } } in its order, or nil.
+function OA.Tabs()
+	return OA.Part("tabs", "UI", L["Its window's tabs (in @panel) are unavailable."], function(raw, lib)
+		if type(lib.OpenPanel) ~= "function" then return nil, "OneForAll.OpenPanel is " .. type(lib.OpenPanel) end
+		local out = {}
+		for _, spec in ipairs(type(raw.panels) == "table" and raw.panels or {}) do
+			if type(spec) == "table" and OA.Text(spec.key) and OA.Text(spec.label) then out[#out + 1] = { key = spec.key, label = spec.label } end
+		end
+		if #out == 0 then return nil, "OneForAll.UI.panels: no tab in the shape expected" end
+		return out
+	end, true)
+end
+
+local function OpenTab(e)
+	local lib = OA.Lib()
+	if not (lib and type(lib.OpenPanel) == "function") then return ns:Trace("oneforall: OpenPanel is gone") end
+	local ok, err = pcall(lib.OpenPanel, lib, e.oneForAllTab)
+	if not ok then ns:Trace("oneforall: OpenPanel " .. tostring(e.oneForAllTab) .. " failed: " .. tostring(err)) end
+end
+
+--- @panel's rows for its tabs.
+function OA.PanelRows()
+	local out = {}
+	for _, t in ipairs(OA.Tabs() or {}) do
+		local name = "OneForAll: " .. t.label
+		out[#out + 1] = { key = "oneforall:" .. t.key, name = name, oneForAllTab = t.key, icon = "Interface\\Icons\\INV_Misc_Book_09",
+			text = "oneforall ofa " .. ns.Lower(t.label) .. " " .. t.key, activate = OpenTab }
+	end
+	return out
+end
+
+OA.AddSetup(function()
+	if not OA.Tabs() or OA.panelsAdded then return end
+	OA.panelsAdded = true
+	ns.PanelExtras = ns.PanelExtras or {}
+	table.insert(ns.PanelExtras, function() return OA.Loaded() and OA.PanelRows() or {} end)
+	ns:Changed("panels")
+end)
+OA.AddStatus(function()
+	local t = OA.Tabs()
+	return t and L["%d of its window's tabs (@panel)"]:format(#t) or nil
+end)
 
 local function SetupOneForAll()
 	if OA.on or not OA.Loaded() then return end

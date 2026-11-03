@@ -14,13 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.13", when = "in testing",
+		v = "1.0.14", when = "in testing",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
 			"With OneForAll, for hunters: @tame lists your pet's abilities (each rank, learned or not, Enter: who teaches it) and the beasts to tame; \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
 			"With OneForAll: what each faction's quartermaster sells, can you buy it yet (\"argent dawn rewards\"), and @itemset with each set's pieces (\"my class sets\").",
 			"With OneForAll: the recipes you don't know say if the Merchant's Favor buys them (\"favor recipes i don't know\"); @transport (boats, zeppelins, the tram, roads), drop chances on @loot.",
-			"With OneForAll: \"upgrades\" go by its gear value for your talents, and @gearplan lists the gear its planner knows.",
+			"With OneForAll: \"upgrades\" go by its gear value for your talents, and @gearplan lists the gear its planner knows; @panel opens its window on any tab.",
 			"With OneForAll: @attune has its dungeon keys and Onyxia's attunement when Attune isn't installed (\"my keys\", \"how do i get into onyxia\"), and quest chains add the dungeon quests' prerequisites it knows.",
 		},
 	},

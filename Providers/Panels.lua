@@ -364,6 +364,9 @@ local function PanelActivate(e)
 	MicroGlow(e.micro)
 end
 
+-- (1.0.14) other addons' windows, as rows of their own: functions -> rows (OneForAll's tabs: Integrations/OneForAll.lua)
+ns.PanelExtras = ns.PanelExtras or {}
+
 ns:RegisterProvider("panels", {
 	label = L["Panel"],
 	color = "ff7fe0ff",
@@ -399,6 +402,14 @@ ns:RegisterProvider("panels", {
 				e.after = PageAfter
 			end
 			if not p.needs or _G[p.needs] then out[#out + 1] = e end
+		end
+		for _, more in ipairs(ns.PanelExtras) do
+			local ok, rows = pcall(more)
+			if ok and type(rows) == "table" then
+				for _, e in ipairs(rows) do out[#out + 1] = e end
+			elseif not ok then
+				ns:Trace("panels: another addon's rows failed: " .. tostring(rows))
+			end
 		end
 		return out
 	end,

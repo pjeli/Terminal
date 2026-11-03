@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.14 (in testing)
+
+- With OneForAll - Forever installed, `@panel` lists its window's tabs ("OneForAll: Dungeons & Raids", "OneForAll: Armory", "OneForAll: Library Books"...), read from its own list so a new tab comes along; Enter opens its window on that tab. `@panel ofa` lists them all.
+
 ## 1.0.13 (in testing)
 
 - Fixes from a review of the OneForAll integration: the Library Books' next reward counts books (it read a level: "next reward at 1"); "what can i buy at honored" lists what honored lets you buy, whatever you are now; "vendor in ratchet", "booty bay vendor", "my sets" and "my spell book" are no longer taken as OneForAll's questions; a random-suffix item ("of the Monkey") and one the client hasn't loaded are judged for `is:upgrade` by Terminal's weights (OneForAll judged the bare item, and would have asked the server for every loot row); "Why is this here?" no longer says nothing's worn when something worthless is; a drop chance no longer splits `@loot | count by instance`, the Console's loot folders or what's sent to chat; zeppelins are the Horde's, as OneForAll marks them; unnamed set pieces get an icon.
