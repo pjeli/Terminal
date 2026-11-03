@@ -227,6 +227,24 @@ do
 			"Group's faction and standing fields")
 		local timber = UI:Search("@reputation is:reward timbermaw")
 		check(#timber == 1 and timber[1].itemID == 20253, "@reputation is:reward timbermaw: a faction's: " .. #timber)
+		-- (1.0.28, the player's ask) AtlasLoot's faction loot in @reputation too, by the standing it needs; one OneForAll lists once
+		local lootWas = ns.providers.loot
+		ns.providers.loot = { id = "loot", label = "Loot", aliases = {}, _dirty = true, collect = function() return {
+			{ key = "al1", itemID = 21210, name = "Signet Ring of the Bronze Dragonflight", addon = "AtlasLootClassic_Factions", content = "BroodOfNozdormu",
+				detail = "Exalted  Brood of Nozdormu" },
+			{ key = "al2", itemID = 22014, name = "Hallowed Brazier", addon = "AtlasLootClassic_Factions", content = "ArgentDawn", detail = "Honored  Argent Dawn" },
+			{ key = "al3", itemID = 9999, name = "A Dungeon Sword", addon = "AtlasLootClassic_DungeonsAndRaids", content = "SFK", detail = "Arugal  Shadowfang Keep" },
+		} end }
+		ns.providers.reputation._dirty = true
+		local brood = UI:Search("@reputation is:reward brood")
+		check(#brood == 1 and brood[1].itemID == 21210 and brood[1].reaction == 8 and brood[1].faction == "Brood of Nozdormu" and brood[1].canBuy == false
+			and brood[1].kind == "reputation", "AtlasLoot's faction loot: a reward of its faction, at the standing it needs: " .. #brood)
+		local braziers = 0
+		for _, e in ipairs(UI:Search("@reputation is:reward brazier")) do if e.itemID == 22014 then braziers = braziers + 1 end end
+		check(braziers == 1, "an item both list: once (OneForAll's, with its quartermaster): " .. braziers)
+		check(#UI:Search("@reputation dungeon sword") == 0, "a dungeon's loot: not a reward")
+		ns.providers.loot = lootWas
+		ns.providers.reputation._dirty = true
 		ns.providers.reputation = stub
 
 		-- not in the shape expected: said once, the other still there

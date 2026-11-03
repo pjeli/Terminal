@@ -188,6 +188,15 @@ ns:RegisterProvider("reputation", {
 		if AR and AR.Rewards and AR.Factions and AR.Factions() then
 			for _, r in ipairs(AR.Rewards()) do out[#out + 1] = r end
 		end
+		-- (1.0.28, the player's ask) AtlasLoot's faction loot too, by the standing it needs; an item OneForAll lists once
+		local I = ns.Integrations
+		if I and I.FactionLoot then
+			local mine, have = {}, {}
+			for _, e in ipairs(out) do
+				if e.repReward then have[e.itemID] = true elseif type(e.name) == "string" then mine[ns.Lower(e.name)] = e.reaction end
+			end
+			for _, r in ipairs(I.FactionLoot(mine, have)) do out[#out + 1] = r end
+		end
 		return out
 	end,
 })

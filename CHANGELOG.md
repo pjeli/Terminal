@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.28 (in testing)
+
+- AtlasLoot's faction loot is in `@reputation` too (the player's ask): every item of its Factions tables is a reward of its faction at the standing it needs ("Brood of Nozdormu · Exalted"), with `is:reward`, `is:canbuy` (your standing with that faction), `standing:`, sort and Group as OneForAll's; Enter opens AtlasLoot on it. An item both list shows once, as OneForAll's (it says the quartermaster). Without OneForAll, AtlasLoot's alone.
+
 ## 1.0.27 (in testing)
 
 - OneForAll's reputation rewards are in `@reputation`'s own list again, with the factions (the player: "@reputation only shows Orgrimmar"): `@reputation is:reward` lists every quartermaster's reward, `is:canbuy` those your standing allows, `standing:honored` (or `standing:<=honored`) by the standing each needs, `sort:standing`, and the bar's Group by Faction or Standing; Filter offers "Quartermaster rewards" and "Can buy now". A reward's name finds it in a plain search again. Alt+` writes the reward questions as these ("argent dawn rewards" -> `@reputation is:reward argent dawn`).

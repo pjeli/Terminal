@@ -141,6 +141,33 @@ function I.LootPlace(e)
 	return t and t[e.content] or nil
 end
 
+--- AtlasLoot's faction loot as @reputation's rewards (1.0.28, the player's ask): each item of its Factions module, saying
+--- its faction and the standing it needs ("Brood of Nozdormu  ·  Exalted", as its tables are filed: "<standing>  <faction>"),
+--- whether yours allows it, Enter opening AtlasLoot on it as @loot's row does (a view on that row). `mine`: lowercase
+--- faction name -> your standing (1-8); `have`: item ids listed already (OneForAll's, which say their quartermaster).
+function I.FactionLoot(mine, have)
+	local out = {}
+	local lp = ns.providers.loot
+	if not lp then return out end
+	local F = ns.Filters
+	local words = F and F._ and F._.StandingWords and F._.StandingWords() or {}
+	local SEP = ns.DETAIL_SEP
+	for _, r in ipairs(ns:GetEntries(lp)) do
+		local id = r.itemID
+		if id and not (have and have[id]) and I.LootSource(r) == "reputation" then
+			local st, fac = tostring(I.LootDetail(r.detail) or ""):match("^(.-)  (.+)$")
+			local need = st and words[ns.Lower(st)]
+			if need and fac and type(r.name) == "string" then
+				local my = mine and mine[ns.Lower(fac)]
+				out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = r.name, repReward = true,
+					faction = fac, reaction = need, mine = my, canBuy = my ~= nil and my >= need, detail = fac .. SEP .. st,
+					text = ns.Lower(fac .. " " .. st) .. " reputation reward rep" }, { __index = r })
+			end
+		end
+	end
+	return out
+end
+
 --- Where a loot row's item comes from (source:): dungeon, raid, world (a world boss), quest, crafted, reputation, pvp,
 --- collection, or other. AtlasLoot's by its module (Crafting, Factions, PvP, Collections) and its place; OneForAll's
 --- planner's as it says (1.0.25, the player's ask).
