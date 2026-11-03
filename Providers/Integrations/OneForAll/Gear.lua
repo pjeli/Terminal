@@ -14,7 +14,6 @@ local G = {}
 OA.Gear = G
 ns.OneForAllGear = G
 local Lower, Num = ns.Lower, ns.Num
-local SEP = ns.DETAIL_SEP
 
 local KINDS = { up = true, new = true, down = true, same = true, worn = true }
 
@@ -104,7 +103,7 @@ OA.AddSetup(function()
 	if type(rawget(OA.Lib() or {}, "GearIndex")) ~= "function" then return end
 	ns:RegisterProvider("gearplan", {
 		label = L["Gear to get"], color = "ffc0e080", aliases = { "gearplan", "gearplanner", "suggested", "suggestedgear" },
-		lazy = true, collect = G.Rows,
+		lazy = true, collect = G.Rows, follows = "loot", -- (AtlasLoot's left out: made again with it; review, 1.0.22)
 	})
 end)
 OA.AddStatus(function()

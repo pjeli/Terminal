@@ -76,10 +76,7 @@ function B.Rewards()
 	end, true)
 end
 
-local function QuestDone(id)
-	local f = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted or _G.IsQuestFlaggedCompleted
-	return f and Safe(f, id) == true or false
-end
+local QuestDone = OA.QuestDone
 local function Count(id, bank)
 	local f = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
 	return f and Num(Safe(f, id, bank)) or 0
@@ -255,23 +252,12 @@ function B.Answer(q)
 	end
 	local note = (q.todo and L["Library Books still to turn in"]) or (q.done and L["Library Books turned in"]) or L["Library Books"]
 	if q.near then
-		local here = I.Here and I.Here()
-		if not here then
+		local near = OA.Nearest(rows)
+		if not near then
 			ns.ScoreInOrder(rows)
 			return rows, note .. SEP .. L["where you are isn't known here"]
 		end
-		local near, far = {}, {}
-		for _, e in ipairs(rows) do
-			local d = I.RowYards(e, here)
-			if d then near[#near + 1] = { e = e, d = d } else far[#far + 1] = e end
-		end
-		table.sort(near, function(a, b) return a.d < b.d end)
-		rows = {}
-		for i, n in ipairs(near) do
-			rows[i] = setmetatable({ _score = 1e6 - n.d, _dist = n.d, detail = L["%.0f yd"]:format(n.d) .. SEP .. (rawget(n.e, "detail") or "") },
-				{ __index = n.e })
-		end
-		for _, e in ipairs(far) do rows[#rows + 1] = e end
+		rows = near
 		if #rows == 0 then return { ns.NoteRow(L["Every Library Book is turned in"]) }, note end
 		return rows, L["Nearest Library Books still to turn in"] .. SEP .. progress
 	end

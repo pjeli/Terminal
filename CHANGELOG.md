@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.22 (in testing)
+
+- OneForAll's "nearest" answers ("nearest library book", "where to learn bite 2", "nearest boat") keep their distance column and live distance on German, French, Spanish, Russian and Chinese clients (they wrote the translated distance, which the list doesn't read back); `@gearplan` is made again when AtlasLoot's names come in, so it doesn't list AtlasLoot's items twice; the install hints know every name the OneForAll kinds answer to (and `@gearplan`'s). Shared helpers, stale comments and unused code tidied.
+
 ## 1.0.21 (in testing)
 
 - Faster typing with OneForAll installed (from the full review's measurements): its questions keep their word lists (factions, standings, families, abilities, set names) instead of making them on every keystroke, look through their lists without joining texts per row, and `@loot`'s drop chances are looked up once a session; `is:done` reads Questie's quests without a slow lookup; `is:upgrade` finds OneForAll's gear value once a search.

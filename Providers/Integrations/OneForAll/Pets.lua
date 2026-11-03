@@ -25,7 +25,6 @@ local function Levels(s)
 	if not lo then return nil end
 	return lo, tonumber(s:match("^%s*%d+%s*%-%s*(%d+)")) or lo, s:find("elite", 1, true) ~= nil
 end
-P.Levels = Levels
 
 -- a beast where OneForAll says it is: its map and spot, or nothing (a dungeon's: no spot)
 local function Spot(t, b)
@@ -114,7 +113,6 @@ end
 
 -- an ability's rank as a key and a phrase ("bite 4"): what a beast teaches, and what Enter on a rank searches for
 local function Teach(name, rank) return Lower(name) .. " " .. rank end
-P.Teach = Teach
 
 --- The highest rank of an ability your pets know, as OneForAll saw their spellbooks; nil when it hasn't looked
 --- (not a hunter, or no pet called yet).
@@ -127,10 +125,7 @@ end
 
 local function Joined(t) return table.concat(t, ", ") end
 
-local function Walk(text)
-	local UI = ns.UI
-	if UI and UI.WalkTo then UI:WalkTo(text) elseif UI and UI.SetQuery then UI:SetQuery(text, #text) end
-end
+local Walk = OA.Walk
 
 -- Enter on a rank: the beasts that teach it (a pet trainer's: the nearest pet trainers), or why there's none
 local function LearnRank(e)
@@ -212,7 +207,6 @@ function P.Rows()
 end
 --- An @tame row of a beast (not an ability's rank)?
 local function IsBeast(e) return e.ability == nil end
-P.IsBeast = IsBeast
 --- The ability ranks among @tame's rows.
 function P.Ranks()
 	local out = {}
@@ -451,23 +445,7 @@ function P.AnyTame(words)
 end
 
 -- the rows by how far each is from you (those with no spot after), each saying how far; nil: where you are isn't known
-local function Nearest(rows)
-	local here = I.Here and I.Here()
-	if not here then return nil end
-	local near, far = {}, {}
-	for _, e in ipairs(rows) do
-		local d = I.RowYards(e, here)
-		if d then near[#near + 1] = { e = e, d = d } else far[#far + 1] = e end
-	end
-	table.sort(near, function(a, b) return a.d < b.d end)
-	local out = {}
-	for i, n in ipairs(near) do
-		out[i] = setmetatable({ _score = 1e6 - n.d, _dist = n.d, detail = L["%.0f yd"]:format(n.d) .. SEP .. (rawget(n.e, "detail") or "") },
-			{ __index = n.e })
-	end
-	for _, e in ipairs(far) do out[#out + 1] = e end
-	return out
-end
+local Nearest = OA.Nearest
 
 local function Level() return Num(UnitLevel and UnitLevel("player")) or 60 end
 

@@ -17,7 +17,7 @@ end
 
 io.write("[oneforall: reputation rewards, item sets and their pieces]\n")
 do
-	local KINDS = { "book", "petability", "tame", "repreward", "itemset", "setpiece" }
+	local KINDS = { "book", "tame", "itemset" }
 	local save = { providers = ns.providers, order = ns.providerOrder, print = ns.Print, lib = rawget(_G, "OneForAll"),
 		spot = I.SpotXY, failed = I.failed, on = OA.on, easy = ns.db.easyMode, class = _G.UnitClass, side = _G.UnitFactionGroup,
 		fac = rawget(_G, "GetFactionInfoByID"), rep = rawget(_G, "C_Reputation"), count = _G.GetItemCount, eq = _G.IsEquippedItem,

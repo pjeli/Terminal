@@ -15,7 +15,7 @@ end
 
 io.write("[oneforall: weapon masters, drop chances, Merchant's Favor recipes, boats and roads]\n")
 do
-	local KINDS = { "book", "petability", "tame", "repreward", "itemset", "setpiece", "favor", "transport" }
+	local KINDS = { "book", "tame", "itemset", "transport" }
 	local save = { providers = ns.providers, order = ns.providerOrder, print = ns.Print, lib = rawget(_G, "OneForAll"),
 		here = I.Here, spot = I.SpotXY, zone = I.ZoneName, failed = I.failed, on = OA.on, easy = ns.db.easyMode, side = _G.UnitFactionGroup,
 		store = ns.Professions.Store, pprofs = ns.Professions.PlayerProfessions, cmap = rawget(_G, "C_Map"), wsapi = ns.ClassSpells.Api, tsw = ns.TrainerSpells.WeaponData }

@@ -90,6 +90,43 @@ function OA.Has(e, words)
 	return true
 end
 
+--- A search to walk to (the last one kept for Shift+Left to go back: UI:WalkTo), from a row's Enter.
+function OA.Walk(text, e)
+	local UI = ns.UI
+	if UI and UI.WalkTo then UI:WalkTo(text, e) elseif UI and UI.SetQuery then UI:SetQuery(text, #text) end
+end
+
+--- Has the character you're on turned this quest in?
+function OA.QuestDone(id)
+	local f = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted or _G.IsQuestFlaggedCompleted
+	return f and Safe(f, id) == true or false
+end
+
+--- Your faction as OneForAll's tables say it: "A", "H", or nil.
+function OA.Side()
+	local f = UnitFactionGroup and Safe(UnitFactionGroup, "player")
+	return (f == "Alliance" and "A") or (f == "Horde" and "H") or nil
+end
+
+--- The rows by how far each is from you, nearest first, each a view saying so (I.NearView: the English "N yd" the
+--- list's distance column reads back, translated there, kept up to date as you walk); those with no spot after. Nil
+--- when where you are isn't known. (Review, 1.0.22: the parts' own copies wrote the translated "%.0f m", and German,
+--- French, Spanish, Russian and Chinese clients lost the column.)
+function OA.Nearest(rows)
+	local here = I.Here and I.Here()
+	if not here then return nil end
+	local near, far = {}, {}
+	for _, e in ipairs(rows) do
+		local d = I.RowYards and I.RowYards(e, here)
+		if d then near[#near + 1] = { e = e, d = d } else far[#far + 1] = e end
+	end
+	table.sort(near, function(a, b) return a.d < b.d end)
+	local out = {}
+	for i, n in ipairs(near) do out[i] = I.NearView(n.e, n.d, rawget(n.e, "detail")) end
+	for _, e in ipairs(far) do out[#out + 1] = e end
+	return out
+end
+
 --- A name as its words, lowercase, no marks, one space between ("Ashbringer's Might" -> "ashbringers might"): how
 --- the parts match what's typed against OneForAll's names (not ns.Norm, which drops the spaces).
 function OA.Words(s) return (ns.Lower(tostring(s or "")):gsub("'", ""):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end

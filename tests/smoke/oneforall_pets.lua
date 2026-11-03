@@ -153,6 +153,7 @@ do
 		local r = UI.Results()
 		check(r[1] and r[1].name == "Prairie Wolf Alpha" and (r[1].detail or ""):find("yd", 1, true) and r[2] and r[2].name == "Coyote",
 			"where to learn bite 2: its teachers, nearest first (the other continent's after): " .. Names(r))
+		check(rawget(r[1], "nearRest") ~= nil and (r[1].detail or ""):find("^%d+ yd  "), "the distance as the list reads it back (the English yd, then two spaces): " .. tostring(r[1].detail))
 		UI:Hide(); FlushAll()
 		UI:Open("rare pets in the barrens"); FlushAll()
 		r = UI.Results()

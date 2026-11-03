@@ -10,7 +10,7 @@ local G = OA.Gear
 
 io.write("[oneforall: its gear value decides upgrades]\n")
 do
-	local KINDS = { "book", "petability", "tame", "repreward", "itemset", "setpiece", "favor", "transport", "gearplan" }
+	local KINDS = { "book", "tame", "itemset", "transport", "gearplan" }
 	local save = { providers = ns.providers, order = ns.providerOrder, print = ns.Print, lib = rawget(_G, "OneForAll"), failed = I.failed,
 		on = OA.on, gii = C_Item.GetItemInfo, gis = C_Item.GetItemStats, gdl = C_Item.GetDetailedItemLevelInfo, gii2 = C_Item.GetItemInfoInstant,
 		cached = C_Item.IsItemDataCachedByID, name = C_Item.GetItemNameByID, level = _G.UnitLevel, class = _G.UnitClass, can = C_PlayerInfo.CanUseItem,

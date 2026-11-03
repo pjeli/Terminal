@@ -54,10 +54,7 @@ function A.Standing(fid)
 	return nil
 end
 
-local function MySide()
-	local f = UnitFactionGroup and UnitFactionGroup("player")
-	return (f == "Alliance" and "A") or (f == "Horde" and "H") or nil
-end
+local MySide = OA.Side
 
 --- Its factions, checked: { { id, name, side, vendors = { { npcID, name, ui, x, y, zone } }, items = { { id, name, slot,
 --- quality, icon, need (1-8), what ("gear", "recipe", "other"), vendors = { npcID... } } } } }, or nil. Those not in
@@ -265,10 +262,7 @@ end
 
 local STATUS = { [0] = L["not in WoW Forever yet"], [2] = L["where it comes from isn't known yet"] }
 
-local function Walk(text)
-	local UI = ns.UI
-	if UI and UI.WalkTo then UI:WalkTo(text) elseif UI and UI.SetQuery then UI:SetQuery(text, #text) end
-end
+local Walk = OA.Walk
 --- A set's pieces as a search: its chain ("Battlegear of Might > pieces"); in Simple mode, its question.
 A.PiecesSearch = function(name, simple)
 	if simple then return "pieces of " .. Lower(name) end

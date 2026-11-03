@@ -18,7 +18,6 @@ local K = {}
 OA.Attunements = K
 local Safe, Lower, Num, Str = ns.Safe, ns.Lower, ns.Num, ns.Str
 local SEP = ns.DETAIL_SEP
-local DONE_ICON = "Interface\\RAIDFRAME\\ReadyCheck-Ready"
 local GOLD, DIM, GREEN, YELLOW = { 1, 0.82, 0 }, { 0.6, 0.6, 0.6 }, { 0.25, 1, 0.25 }, { 1, 0.9, 0.3 }
 K.FRESH = 1 -- (s: what the game says you've done, read again after)
 
@@ -176,10 +175,7 @@ function K.Index()
 	return idx
 end
 
-local function QuestDone(id)
-	local f = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted or _G.IsQuestFlaggedCompleted
-	return f and Safe(f, id) == true or false
-end
+local QuestDone = OA.QuestDone
 local function Have(id)
 	local f = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
 	return f and (Num(Safe(f, id, true)) or 0) > 0 or false
@@ -252,10 +248,7 @@ function K.Forget() index, where, snap, chains = nil, nil, nil, nil end -- (test
 
 local function RecOf(e) return index and index.byId[tostring(e.attuneId)] end
 
-local function Walk(text)
-	local UI = ns.UI
-	if UI and UI.WalkTo then UI:WalkTo(text) elseif UI and UI.SetQuery then UI:SetQuery(text, #text) end
-end
+local Walk = OA.Walk
 
 local function StepsText(rec)
 	local name = rec.oneForAll.name

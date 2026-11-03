@@ -5,8 +5,9 @@ local OA = ns.OneForAll
 
 -- OneForAll's world (1.0.4, the player's ask): its weapon masters (who teaches which weapon: the third source after
 -- What's Training and TrainerSpells, ClassSpells.lua's CS.WeaponMasters), its drop chances on AtlasLoot's loot
--- (Classic's numbers, Loot.lua's rows), @favor (the recipes the Merchant's Favor buys, yours or not, and where) and
--- @transport (the boats, zeppelins, airships and the tram, and where each zone's roads cross into the next).
+-- (Classic's numbers, Loot.lua's rows), the recipes the Merchant's Favor buys (a way to learn the ones you don't know:
+-- MissingRecipes.lua's rows) and @transport (the boats, zeppelins, airships and the tram, and where each zone's roads
+-- cross into the next).
 -- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits" ask for them (Simple mode).
 
 local W = {}
@@ -17,10 +18,7 @@ local SEP = ns.DETAIL_SEP
 
 local Norm = OA.Words
 
-local function Side()
-	local f = UnitFactionGroup and UnitFactionGroup("player")
-	return (f == "Alliance" and "A") or (f == "Horde" and "H") or nil
-end
+local Side = OA.Side
 -- "A", "H", "AH" or nil (both): is it for you?
 local function ForMe(sides)
 	local me = Side()
@@ -29,6 +27,7 @@ end
 
 -- a zone's name for a map id: the game's, else OneForAll's MAP_IDS read backwards
 local zoneBack
+local favorBy -- (W.FavorOf's: "<profession>\001<recipe>" (lower case) -> its recipe)
 local function ZoneOf(ui)
 	local n = I.ZoneName and I.ZoneName(ui)
 	if n then return n end
@@ -41,7 +40,7 @@ local function ZoneOf(ui)
 	end
 	return zoneBack[ui]
 end
-function W.Forget() zoneBack = nil end -- (tests)
+function W.Forget() zoneBack, favorBy = nil, nil end -- (tests)
 
 ----------------------------------------------------------------------
 -- Weapon masters
@@ -156,7 +155,6 @@ end
 -- (1.0.12, the player: too many kinds; was @favor) No kind of their own: a recipe you don't know yet (@recipe
 -- is:unknown, Providers/MissingRecipes.lua) says it's bought with the Merchant's Favor, what it costs and your faction's
 -- vendor, as one of the ways to learn it.
-local favorBy -- "<profession>\001<recipe>" (lower case) -> its recipe
 --- What the Merchant's Favor says of a recipe of a profession (their names): { cost, skill, vendor, place, zone } or nil.
 function W.FavorOf(name, prof)
 	local d = W.FavorData()
@@ -172,8 +170,6 @@ function W.FavorOf(name, prof)
 	local v = hub and hub.vendors[r.profession]
 	return { cost = r.cost, skill = r.skill, vendor = v and v.name, place = hub and hub.place, zone = hub and hub.zone }
 end
-local forget = W.Forget
-function W.Forget() forget(); favorBy = nil end -- (tests)
 
 ----------------------------------------------------------------------
 -- @transport: boats, zeppelins, airships, the tram, and the roads into the next zone
@@ -366,23 +362,7 @@ end
 
 local Has = OA.Has
 
-local function Nearest(rows)
-	local here = I.Here and I.Here()
-	if not here then return nil end
-	local near, far = {}, {}
-	for _, e in ipairs(rows) do
-		local d = I.RowYards(e, here)
-		if d then near[#near + 1] = { e = e, d = d } else far[#far + 1] = e end
-	end
-	table.sort(near, function(a, b) return a.d < b.d end)
-	local out = {}
-	for i, n in ipairs(near) do
-		out[i] = setmetatable({ _score = 1e6 - n.d, _dist = n.d, detail = L["%.0f yd"]:format(n.d) .. SEP .. (rawget(n.e, "detail") or "") },
-			{ __index = n.e })
-	end
-	for _, e in ipairs(far) do out[#out + 1] = e end
-	return out
-end
+local Nearest = OA.Nearest
 
 local function HereMap()
 	local f = C_Map and C_Map.GetBestMapForUnit
