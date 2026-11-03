@@ -129,7 +129,8 @@ function OA.PanelRows()
 	for _, t in ipairs(OA.Tabs() or {}) do
 		local name = "OneForAll: " .. t.label
 		out[#out + 1] = { key = "oneforall:" .. t.key, name = name, oneForAllTab = t.key, icon = "Interface\\Icons\\INV_Misc_Book_09",
-			text = "oneforall ofa " .. ns.Lower(t.label) .. " " .. t.key, activate = OpenTab }
+			text = "oneforall ofa " .. ns.Lower(t.label) .. " " .. t.key, activate = OpenTab,
+			noCombat = true } -- (its window holds secure craft buttons once its Professions tab is made: shown in combat, blocked)
 	end
 	return out
 end

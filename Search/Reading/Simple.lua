@@ -268,7 +268,7 @@ E.VERBS = {
 	spells = SpellVerbs, talents = TalentVerbs,
 	npc = { L["show on map"], L["target"] },
 	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, forge = PLACE, anvil = PLACE,
-	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE, book = PLACE, tame = function(e) if not rawget(e, "ability") then return PLACE[1], PLACE[2] end end, transport = PLACE,
+	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE, book = PLACE, tame = function(e) if not e.ability then return PLACE[1], PLACE[2] end end, transport = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
@@ -293,7 +293,7 @@ E.VERBS = {
 	macros = { L["run"], L["show in Macros"] },
 	cvars = { L["edit"], L["reset to default"] },
 	-- (a quartermaster's reward, Providers/Integrations/OneForAll/Armory.lua: the map's)
-	reputation = function(e) if rawget(e, "repReward") then return PLACE[1], PLACE[2] end return L["show"], L["watch"] end,
+	reputation = function(e) if e.repReward then return PLACE[1], PLACE[2] end return L["show"], L["watch"] end,
 	skills = { L["show"], L["show in chat"] },
 	currency = { L["show"] }, panels = { L["open"] },
 	gameoptions = { L["show in options"] }, keybinds = { L["show in keybindings"], L["quick keybind mode"] },

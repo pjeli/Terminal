@@ -106,6 +106,8 @@ do
 		check(#res == 2 and res[1].ability and res[2].ability, "@tame is:unlearned bite: ranks only: " .. Names(res))
 		res = UI:Search("@tame is:ability")
 		check(#res == 6, "@tame is:ability: the ranks: " .. Names(res))
+		local view = setmetatable({}, { __index = by["Bite#2"] })
+		check(ns.Filters._.IS.ability(view), "is:ability on a view of a rank (a chain's, a nearest list's): still a rank")
 		-- (OneForAll hasn't looked at your pets: learned or not isn't said)
 		_G.OneForAllCharDB = nil
 		local b1

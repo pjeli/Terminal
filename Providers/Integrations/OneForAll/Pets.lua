@@ -210,7 +210,7 @@ function P.Rows()
 	return out
 end
 --- An @tame row of a beast (not an ability's rank)?
-local function IsBeast(e) return rawget(e, "ability") == nil end
+local function IsBeast(e) return e.ability == nil end
 P.IsBeast = IsBeast
 --- The ability ranks among @tame's rows.
 function P.Ranks()

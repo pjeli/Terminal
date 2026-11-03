@@ -611,7 +611,7 @@ IS.flight, IS.flightmaster = FlightMaster, FlightMaster
 -- not learned (it may be)
 IS.flightpath = function(e) return e.kind == "flight" end
 -- (1.0.9) @tame's pet ability ranks, not its beasts
-IS.ability = function(e) return e.kind == "tame" and rawget(e, "ability") ~= nil end
+IS.ability = function(e) return e.kind == "tame" and e.ability ~= nil end -- (a view on one too: not rawget)
 -- (0.45.14) recipes too: yours are learned; the ones you don't know yet (MissingRecipes.lua) aren't, and is:learnable
 -- keeps those your skill already allows
 -- (0.54.6: spells too, @spell listing the ones you don't know yet: is:known keeps to your spellbook, as @spell did before)

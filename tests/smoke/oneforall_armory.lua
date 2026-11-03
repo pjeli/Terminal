@@ -80,6 +80,9 @@ do
 			},
 		}
 		I.SpotXY = function(ui, c) return 2, c[1] * 10, c[2] * 10 end
+		-- your reputations: the Argent Dawn met, Timbermaw not (the chain starts from a faction's row)
+		ns.providers.reputation = { id = "reputation", label = "Reputation", aliases = { "reputation", "rep" }, _dirty = true,
+			collect = function() return { { key = 529, name = "Argent Dawn", factionID = 529, reaction = 6 } } end }
 		Fresh()
 		local ps = ns.providers.itemset
 		check(ps and not ns.providers.setpiece and not ns.providers.repreward and ns:ResolveProvider("tierset") == ps
@@ -103,6 +106,13 @@ do
 		local got = ns.Pipes.Run("rewards", { { kind = "reputation", factionID = 529, name = "Argent Dawn" } })
 		check(#got == 4 and got[1].itemID == 13724 and got[4].itemID == 18171, "argent dawn > rewards: its four, by standing: " .. Names(got))
 		check(#ns.Pipes.Run("rewards", { by[22014] }) == 0, "a reward's own row: no rewards of its own")
+		-- (review, 1.0.16) the chain as typed: its rows say their kind and are counted when picked; a view on a reward is one
+		local chained = UI:Search("argent dawn > rewards")
+		check(#chained == 4 and chained[1].kindLabel == ns:KindLabel(ns.providers.reputation) and chained[1].freqKey ~= nil,
+			"argent dawn > rewards: its four, as Reputation rows: " .. Names(chained) .. " / " .. tostring(chained[1] and chained[1].kindLabel))
+		check(table.concat({ ns.Easy.Verbs(chained[1]) }, "/") == L["show on map"] .. "/" .. L["set waypoint"], "a chained reward's verbs: the map's")
+		local again = UI:Search("argent dawn > rewards > rewards")
+		check(not (again[1] and again[1].itemID), "> rewards of a reward: none: " .. Names(again))
 		local res = UI:Search("@reputation")
 		local leak = false
 		for _, e in ipairs(res) do if e.repReward then leak = true end end
@@ -128,6 +138,7 @@ do
 		res = UI:Search(walked)
 		check(#res == 3 and res[1].set == "Battlegear of Might" and res[1].kind == "itemset" and res[1].name == "Helm of Might",
 			walked .. ": its three pieces, in order: " .. Names(res))
+		check(res[1].kindLabel == ns:KindLabel(ps) and res[1].freqKey ~= nil, "a piece says its kind, and is counted when picked: " .. tostring(res[1].kindLabel))
 		res = UI:Search("@itemset")
 		check(#res == 3, "@itemset: the sets, not their pieces: " .. Names(res))
 		res = UI:Search("@itemset onyxia")
@@ -185,6 +196,7 @@ do
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find(L["%d factions' rewards (> rewards), %d item sets (@itemset)"]:format(4, 3), 1, true), ".integrations: " .. lines)
 		check(A.ToAdvanced(A.Question("argent dawn rewards")) == "Argent Dawn > rewards ", "to Advanced: the chain")
+		check(A.ToAdvanced(A.Question("timbermaw rewards")) == nil, "to Advanced: a faction you haven't met has no chain to start from: the question stays")
 		check(A.ToAdvanced(A.Question("what can i buy at honored")) == nil, "to Advanced: none says that, the question stays")
 
 		-- not in the shape expected: said once, the other still there

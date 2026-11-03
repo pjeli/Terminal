@@ -1217,6 +1217,7 @@ L["No command .%s"] = true
 L["No console settings could be read yet"] = true
 L["No dungeon lockouts"] = true
 L["No experience at your level"] = true
+L["No faction called \"%s\" among your reputations (one you haven't met: ask for its rewards, \"%s rewards\")"] = true
 L["No filter"] = true
 L["No flight path like that on this continent."] = true
 L["No friendly vendor sells an upgrade for you"] = true

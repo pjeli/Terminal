@@ -51,6 +51,7 @@ do
 		local mine, all = Panels()
 		check(Names(mine) == "OneForAll: Settings | OneForAll: Armory | OneForAll: Dungeons & Raids", "a row a tab, in its order: " .. Names(mine))
 		check(#all == before + 3, "the game's panels stay: " .. #all .. " of " .. (before + 3))
+		check(mine[1].noCombat == true, "not opened in combat (its window can hold secure buttons)")
 		mine[3].activate(mine[3])
 		check(opened[1] == "dungeons", "Enter: its window on that tab: " .. tostring(opened[1]))
 		local res = UI:Search("@panel dungeons")

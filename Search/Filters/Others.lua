@@ -376,7 +376,6 @@ end
 
 KEYS.standing = function(v)
 	local r = StandingRange(v)
-	-- (a reputation reward's: the standing it needs; Providers/Integrations/OneForAll/Armory.lua)
 	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
 end
 KEYS.rep = KEYS.standing

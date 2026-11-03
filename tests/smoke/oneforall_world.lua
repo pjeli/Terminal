@@ -154,8 +154,8 @@ do
 			"nearest boat", "boat to auberdine", "zeppelin to undercity", "where is the tram", "zone exits", "boats" }) do
 			check(W.Question(s) ~= nil, s .. ": the world question")
 		end
-		for _, s in ipairs({ "favor", "tailoring favor recipes", "boat shoes", "my boats are great", "favor recipes i know" }) do
-			check(W.Question(s) == nil or s == "favor", s .. ": not it")
+		for _, s in ipairs({ "tailoring favor recipes", "boat shoes", "my boats are great", "favor recipes i know" }) do
+			check(W.Question(s) == nil, s .. ": not it")
 		end
 		ns.db.easyMode = true; UI:EasyChanged()
 		I.Here = function() return { cont = 2, x = 50, y = 560 } end

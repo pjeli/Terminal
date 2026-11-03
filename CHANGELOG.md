@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.16 (in testing)
+
+- Fixes from the full review: reputation rewards and set pieces show their kind in the list and count as picks again; a reward reached by `<faction> > rewards` gets the map's verbs and no rewards of its own; Alt+` on a faction you haven't met keeps the question (no chain to start from), and the chain says why when it finds no faction; OneForAll's `@panel` rows aren't opened in combat (its window can hold secure buttons).
+
 ## 1.0.15 (in testing)
 
 - OneForAll's files moved under Providers/Integrations/OneForAll/ (with the other addons' integrations); nothing changes in game. A new TOC entry: restart the game fully once.
