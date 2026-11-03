@@ -615,10 +615,11 @@ IS.flightpath = function(e) return e.kind == "flight" end
 -- (0.54.6: spells too, @spell listing the ones you don't know yet: is:known keeps to your spellbook, as @spell did before)
 IS.learned = function(e)
 	return (e.kind == "flight" and e.learned == true) or e.kind == "recipes" or e.kind == "spells"
-		or ((e.kind == "classspells" or e.kind == "petability") and rawget(e, "known") == true)
+		or ((e.kind == "classspells" or e.kind == "petability" or e.kind == "favor") and rawget(e, "known") == true)
 end
 IS.unlearned = function(e)
 	return (e.kind == "flight" and e.learned ~= true) or e.kind == "missing" or ((e.kind == "classspells" or e.kind == "petability") and rawget(e, "known") ~= true)
+		or (e.kind == "favor" and rawget(e, "known") == false) -- (not your profession: neither)
 end
 IS.learnable = function(e) return e.kind == "missing" and e.canLearn == true end
 IS.canlearn = IS.learnable

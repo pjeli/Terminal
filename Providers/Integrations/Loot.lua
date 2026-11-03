@@ -463,10 +463,19 @@ local function SetupAtlasLoot()
 		collect = function()
 			local out = {}
 			if not AtlasLootPresent() then return out end -- AtlasLoot went away: no stale loot rows
+			-- (1.0.4: its chance to drop, OneForAll's Classic numbers, after where it drops; read once a row)
+			local W = ns.OneForAllWorld
+			local chances = W and W.DropChances()
 			for _, r in ipairs(loot.rows) do
 				if not rawget(r, "name") then
 					local name = LootName(r.itemID)
 					if name then r.name = name end
+				end
+				if chances and rawget(r, "dropChance") == nil then
+					local boss, inst = tostring(rawget(r, "detail") or ""):match("^(.-)  (.+)$")
+					local pct = boss and W.DropChance(inst, boss, r.itemID)
+					r.dropChance = pct or false
+					if pct then r.detail = r.detail .. ns.DETAIL_SEP .. W.ChanceText(pct) end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
 			end

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4 (in testing)
+
+- With OneForAll - Forever installed: `@favor` lists the recipes the Merchant's Favor buys, each with its skill, its cost, your faction's vendor (on the map with Enter) and whether you know it (`is:unlearned`: the ones to learn in your professions). `@transport` lists the boats, zeppelins, airships and the tram (a dock's every destination its own row; the other faction's left out) and the roads from each zone into the next. AtlasLoot's `@loot` rows say each item's chance to drop (Classic's numbers, as OneForAll has them). Weapon masters come from OneForAll when neither What's Training nor TrainerSpells has them ("polearm trainer"). In Simple mode: "favor recipes i don't know", "alchemy favor recipes", "nearest boat", "boat to auberdine", "zeppelin to undercity", "zone exits".
+
 ## 1.0.3 (in testing)
 
 - With OneForAll - Forever installed, `@repreward` lists what each faction's quartermaster sells (your faction's and both sides'), the standing each needs and whether you can buy it yet, Enter: the quartermaster on the map; `standing:honored` works on it. `@itemset` lists the item sets: how many pieces you have (worn, in your bags or bank), the bonuses, the classes (`class:mine`, `class:priest`), Enter: its pieces. `@setpiece` lists every set's pieces with where each comes from (`@setpiece onyxia`). In Simple mode: "argent dawn rewards", "what can i buy at honored", "argent dawn rewards i can buy", "timbermaw recipes", "my class sets", "pieces of battlegear of might".

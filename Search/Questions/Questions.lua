@@ -42,6 +42,8 @@ Scan.ANSWERS = {
 	-- "argent dawn rewards", "what can i buy at honored", "my class sets", "pieces of battlegear of might": OneForAll's
 	-- armory (Providers/OneForAll/Armory.lua; before the auctions' "what can i buy")
 	Asks("Armory"),
+	-- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits": OneForAll's world (World.lua)
+	Asks("OneForAllWorld"),
 	Asks("AuctionatorQ"),
 	Asks("AhUpgradesQ"), -- ("ah upgrades", "cheapest upgrades on the ah": AuctionValues.lua, 0.66.13)
 	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")

@@ -324,7 +324,7 @@ end
 
 --- The weapon masters who teach any of these weapon skills (spell ids) to your faction: a set of NPC ids, and their
 --- records { npc, name, uiMapId, x, y } (x, y: 0-100). What's Training's; TrainerSpells' when it has none of them (not
---- installed, or not those skills); nil with neither.
+--- installed, or not those skills); OneForAll's with neither; nil with none.
 function CS.WeaponMasters(ids)
 	local faction = Str(Safe(UnitFactionGroup, "player"))
 	local function From(by)
@@ -348,6 +348,10 @@ function CS.WeaponMasters(ids)
 	end
 	ts = TSMasters()
 	if ts then return From(ts) end
+	-- (1.0.4: OneForAll's, with neither: Providers/OneForAll/World.lua)
+	local W = ns.OneForAllWorld
+	local oa = W and W.WeaponMasters()
+	if oa then return From(oa) end
 	if wt then return From(wt) end
 	return nil
 end
