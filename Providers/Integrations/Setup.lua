@@ -164,6 +164,10 @@ I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return no
 -- (1.0.1: the Library Books, OneForAll's)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.book end,
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
+-- (1.0.2: a hunter's pet abilities and beasts to tame, OneForAll's)
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.petability and ns.providers.tame) end,
+	kinds = { petability = true, petabilities = true, beasttraining = true, tame = true, tames = true, tameable = true },
+	words = { tame = true, tameable = true } }
 local BY_NAME = {}
 for _, a in ipairs(I.ADDONS) do BY_NAME[a.name] = a end
 

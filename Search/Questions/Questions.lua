@@ -44,6 +44,9 @@ Scan.ANSWERS = {
 	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ"),
+	-- "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens": a hunter's pets, OneForAll's
+	-- (Providers/OneForAll/Pets.lua; before the collections' "my pets" and the chains' "... learn")
+	Asks("HunterPets"),
 	-- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts": the list, by name (Providers/Collections.lua)
 	Asks("CollectionsQ"),
 	-- "buyback", "what did i sell": what you sold since you logged in (Providers/Buyback.lua)

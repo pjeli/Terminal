@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 (in testing)
+
+- With OneForAll - Forever installed, for hunters: `@petability` lists each rank of each pet ability (its pet level and training points, the families that learn it, whether your pets know it as OneForAll saw them; Enter: the beasts that teach it, nearest first, or the nearest pet trainers). `@tame` lists the beasts to tame: family, level, where (on the map with Enter), the ranks each teaches, the rare ones and why. `is:learned`, `is:unlearned`. In Simple mode: "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens", "what can i tame at my level".
+
 ## 1.0.1 (in testing)
 
 - With OneForAll - Forever installed, `@book` lists WoW Forever's Library Books (the tomes turned in to the library for its rewards): where each is, on the map with Enter, and whether it's to find, in your bags or bank, or turned in (OneForAll's own record, else the game's). `is:todo`, `is:done`. In Simple mode: "library books", "books i still need", "nearest library book", "library book rewards". `.integrations` says how many books it read, and a table that changed is said once in chat.

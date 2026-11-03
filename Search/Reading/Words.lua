@@ -504,7 +504,7 @@ E.ACTIONS = {
 		lootlog = "s", loot = "s", items = "l", spells = "l", quests = "l" } },
 	["do"] = { label = L["Do"], map = { slash = "p" }, keep = IsEmote },
 	where = { label = L["Where is"], map = { npc = "p", maps = "p", quests = "p", questie = "s", dungeon = "p", raid = "p",
-		mailbox = "p", forge = "p", anvil = "p", cookingfire = "p", moonwell = "p", flight = "p", book = "p" } },
+		mailbox = "p", forge = "p", anvil = "p", cookingfire = "p", moonwell = "p", flight = "p", book = "p", tame = "p" } },
 	nearest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
 	closest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
 	nearby = { label = L["Nearest"], map = { npc = "p" }, nearest = true },

@@ -63,7 +63,7 @@ do
 		Fresh()
 		local p = ns.providers.book
 		check(p and ns:ResolveProvider("books") == p and ns:ResolveProvider("library") == p, "@book, @books, @library")
-		check(#said == 0, "its tables as expected: nothing said: " .. tostring(said[1]))
+		check(not Said(L["@book (its Library Books) is unavailable."]) and not Said(L["The Library Books' rewards are unavailable."]), "its tables as expected: nothing said of the books: " .. tostring(said[1]))
 		local rows = ns:GetEntries(p)
 		local by = {}
 		for _, e in ipairs(rows) do by[e.name] = e end
@@ -148,7 +148,7 @@ do
 		OneForAll.BOOK_REWARD_TIERS = nil -- (some versions have none: quiet)
 		said = {}
 		Fresh()
-		check(ns.providers.book and #said == 0, "no reward tiers: @book still, nothing said: " .. tostring(said[1]))
+		check(ns.providers.book and not Said(L["The Library Books' rewards are unavailable."]), "no reward tiers: @book still, nothing said: " .. tostring(said[1]))
 		-- without OneForAll: no @book, no question
 		_G.OneForAll = nil
 		Fresh()
