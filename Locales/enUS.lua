@@ -746,7 +746,6 @@ L["Drops the recipe"] = true
 L["Drops, newest first"] = true
 L["Dungeon"] = true
 L["Dungeon lockouts"] = true
-L["Dungeon loot"] = true
 L["Dungeon quests"] = true
 L["Dungeons for level %d"] = true
 L["Durability"] = true

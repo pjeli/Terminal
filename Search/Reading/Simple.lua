@@ -61,7 +61,7 @@ local function NotEmote(e) return e.emote == nil end
 -- and only the rows `keep` says yes to when it has one (one list, two categories: emotes and slash commands).
 -- 0.48.4 (the player: "Game" held windows and keybindings while console settings had a category of their own; your
 -- bags and your alts' were two): named for what you'd do with a result, not where Terminal gets it. Windows to open,
--- Settings to change, Commands to run; Items wherever they are; Dungeon loot (the loot tables) apart from Recent (what
+-- Settings to change, Commands to run; Items wherever they are; Loot (the loot tables) apart from Recent (what
 -- dropped for you, how you died). `was` = the ids a category took over (a pick kept from before, another addon's
 -- simpleCategory "game": E.BY_ID finds them).
 E.CATEGORIES = {
@@ -73,7 +73,8 @@ E.CATEGORIES = {
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse", "transport" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
-	{ id = "loot", label = L["Dungeon loot"], kinds = { "loot" }, icon = "Interface\\Icons\\INV_Box_02" },
+	{ id = "loot", label = L["Loot"], kinds = { "loot" }, -- (was "Dungeon loot": quests', crafted, reputation gear too since 1.0.25)
+		icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "recent", label = L["Recent"], kinds = { "lootlog", "combatlog" }, icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
 		was = { "lootlog", "combat" } },
 	{ id = "people", label = L["Guild & friends"], kinds = { "guild", "friends", "who" }, icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
@@ -93,7 +94,7 @@ E.CATEGORIES = {
 }
 E.BY_ID = {}
 for _, c in ipairs(E.CATEGORIES) do
-	c.label = ns.TitleCase(c.label) -- ("Dungeon Loot", as the kinds' names: English clients; 1.0.24, the player's ask)
+	c.label = ns.TitleCase(c.label) -- ("Guild & Friends", as the kinds' names: English clients; 1.0.24, the player's ask)
 	E.BY_ID[c.id] = c
 	for _, old in ipairs(c.was or {}) do E.BY_ID[old] = E.BY_ID[old] or c end
 end
