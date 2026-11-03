@@ -165,8 +165,9 @@ I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return no
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.book end,
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
 -- (1.0.2: a hunter's pet abilities and beasts to tame, OneForAll's)
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.petability and ns.providers.tame) end,
-	kinds = { petability = true, petabilities = true, beasttraining = true, tame = true, tames = true, tameable = true },
+-- (1.0.9: one kind, @tame, and only a hunter's: another class with OneForAll isn't told to install it)
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.tame or (ns.OneForAll and ns.OneForAll.Loaded())) end,
+	kinds = { petability = true, petabilities = true, beasttraining = true, tame = true, tames = true, tameable = true, hunterpet = true },
 	words = { tame = true, tameable = true } }
 -- (1.0.3: reputation rewards, item sets and their pieces, OneForAll's armory)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not (ns.providers.repreward and ns.providers.itemset) end,

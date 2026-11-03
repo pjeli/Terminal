@@ -1,7 +1,8 @@
--- OneForAll's hunter pets (1.0.2, the player's ask; Providers/OneForAll/Pets.lua): @petability (each rank: its level,
--- training points, learned or not, Enter the beasts that teach it) and @tame (the beasts to tame: family, level, where,
--- the ranks each teaches, the rare ones); "where to learn bite 2", "cat abilities", "tameable cats", "rare pets in the
--- barrens" in Simple mode; a table not in the shape expected said once; without OneForAll: neither.
+-- OneForAll's hunter pets (1.0.2, the player's ask; Providers/OneForAll/Pets.lua), one kind since 1.0.9 and a hunter's
+-- only: @tame lists each pet ability's ranks (its level, training points, learned or not, Enter the beasts that teach
+-- it; is:ability) and the beasts to tame (family, level, where, the ranks each teaches, the rare ones); "where to learn
+-- bite 2", "cat abilities", "tameable cats", "rare pets in the barrens" in Simple mode; a table not in the shape
+-- expected said once; another class, or without OneForAll: none.
 local T = ...
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local I, OA, L = ns.Integrations, ns.OneForAll, ns.L
@@ -22,22 +23,27 @@ do
 	ns.Print = function(_, m) said[#said + 1] = m end
 	local function Said(s) for _, m in ipairs(said) do if m:find(s, 1, true) then return m end end end
 	local function Fresh()
-		for _, id in ipairs({ "book", "petability", "tame" }) do
+		for _, id in ipairs({ "book", "tame" }) do
 			ns.providers[id] = nil
 			for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == id then table.remove(ns.providerOrder, i) end end
 		end
 		I.failed, OA.on = {}, nil
-		OA.Forget()
+		OA.Forget(); P.Forget()
 		I._.SetupOneForAll()
 		ns:AliasesChanged()
+	end
+	local function Rows()
+		local p = ns.providers.tame
+		p._dirty = true
+		return ns:GetEntries(p)
 	end
 	local ok, err = pcall(function()
 		ns.providers, ns.providerOrder = {}, {}
 		for _, id in ipairs(save.order) do
-			if id ~= "book" and id ~= "petability" and id ~= "tame" then ns.providers[id] = save.providers[id]; ns.providerOrder[#ns.providerOrder + 1] = id end
+			if id ~= "book" and id ~= "tame" then ns.providers[id] = save.providers[id]; ns.providerOrder[#ns.providerOrder + 1] = id end
 		end
-		local class = "MAGE"
-		_G.UnitClass = function() return "Mage", class end
+		local class = "HUNTER"
+		_G.UnitClass = function() return "Hunter", class end
 		_G.UnitLevel = function() return 20 end
 		-- its tables (Data/HunterPets.lua's shape), a few of each
 		local known = { Bite = 1 }
@@ -72,43 +78,51 @@ do
 		function OneForAll:GetKnownPetRank(name) return known[name] end
 		_G.OneForAllCharDB = { petAbilitiesScanned = true }
 		I.SpotXY = function(ui, c) return ({ [1412] = 1, [1413] = 1, [1436] = 2, [1434] = 2 })[ui], c[1] * 10, c[2] * 10 end
+		-- another class: no @tame at all
+		class = "MAGE"
 		Fresh()
-		local pa, pt = ns.providers.petability, ns.providers.tame
-		check(pa and pt and ns:ResolveProvider("petabilities") == pa and ns:ResolveProvider("tameable") == pt, "@petability, @tame")
-		check(not Said(L["@petability (its pet abilities) is unavailable."]) and not Said(L["@tame (its beasts to tame) is unavailable."])
+		check(ns.providers.tame == nil and ns.providers.petability == nil and P.Question("tameable cats") == nil, "a mage: no @tame, no question")
+		class = "HUNTER"
+		Fresh()
+		local pt = ns.providers.tame
+		check(pt and ns:ResolveProvider("petabilities") == pt and ns:ResolveProvider("tameable") == pt and ns.providers.petability == nil,
+			"a hunter: one kind, @tame, under both names")
+		check(not Said(L["Its pet abilities are unavailable."]) and not Said(L["@tame (its beasts to tame) is unavailable."])
 			and not Said(L["Its rare beasts are unavailable."]), "its tables as expected: nothing said of the pets: " .. tostring(said[1]))
-		-- @petability: a row a rank
-		local ab = ns:GetEntries(pa)
-		local by = {}
-		for _, e in ipairs(ab) do by[e.key] = e end
-		check(#ab == 6 and by["Bite#2"] and by["Bite#2"].name == L["%s (Rank %d)"]:format("Bite", 2), "a row a rank: " .. Names(ab))
+		-- the ranks: a row each
+		local all = Rows()
+		local by, tb, nab, nbeast = {}, {}, 0, 0
+		for _, e in ipairs(all) do
+			if e.ability then by[e.key] = e; nab = nab + 1 else tb[e.name] = e; nbeast = nbeast + 1 end
+		end
+		check(nab == 6 and by["Bite#2"] and by["Bite#2"].name == L["%s (Rank %d)"]:format("Bite", 2) and by["Bite#2"].kind == "tame",
+			"a row a rank: " .. Names(all))
 		check(by["Bite#1"].known == true and by["Bite#2"].known == false, "learned: as OneForAll saw your pets' spellbooks")
 		check((by["Bite#2"].detail or ""):find(L["%d beasts teach it"]:format(2), 1, true) and (by["Growl#1"].detail or ""):find(L["pet trainer"], 1, true),
 			"how each is learned: " .. tostring(by["Bite#2"].detail))
-		local res = UI:Search("@petability is:learned")
-		check(#res == 1 and res[1].key == "Bite#1", "@petability is:learned: " .. Names(res))
-		res = UI:Search("@petability is:unlearned bite")
-		check(#res == 2, "@petability is:unlearned bite: " .. Names(res))
+		local res = UI:Search("@tame is:learned")
+		check(#res == 1 and res[1].key == "Bite#1", "@tame is:learned: the rank your pets know, no beast: " .. Names(res))
+		res = UI:Search("@tame is:unlearned bite")
+		check(#res == 2 and res[1].ability and res[2].ability, "@tame is:unlearned bite: ranks only: " .. Names(res))
+		res = UI:Search("@tame is:ability")
+		check(#res == 6, "@tame is:ability: the ranks: " .. Names(res))
 		-- (OneForAll hasn't looked at your pets: learned or not isn't said)
 		_G.OneForAllCharDB = nil
-		pa._dirty = true
 		local b1
-		for _, e in ipairs(ns:GetEntries(pa)) do if e.key == "Bite#1" then b1 = e end end
+		for _, e in ipairs(Rows()) do if e.key == "Bite#1" then b1 = e end end
 		check(b1 and b1.known == nil and not (b1.detail or ""):find(L["learned"], 1, true), "not looked yet: nothing said of it")
 		_G.OneForAllCharDB = { petAbilitiesScanned = true }
-		pa._dirty = true
-		-- @tame: each beast once, its family's, the teachers, the rares
-		local tm = ns:GetEntries(pt)
-		local tb = {}
-		for _, e in ipairs(tm) do tb[e.name] = e end
-		check(#tm == 7, "the beasts, each once: " .. Names(tm))
+		Rows()
+		-- the beasts: each once, its family's, the teachers, the rares
+		check(nbeast == 7, "the beasts, each once: " .. Names(all))
 		check(tb["Prairie Wolf"].family == "Wolf" and #tb["Prairie Wolf"].teachList == 1 and tb["Prairie Wolf"].teachList[1] == "Bite 1",
 			"a beast that teaches a rank: said")
 		check(tb["Humar the Pridelord"].rare and tb["Humar the Pridelord"].ui == 1413, "a rare one, on the map")
 		check(tb["Echeyakee"].activate and not tb["Echeyakee"].ui, "no spot: Enter says so")
 		check(tb["Coyote"].minLevel == 10 and tb["Coyote"].maxLevel == 11, "its levels")
-		res = UI:Search("@tame cat")
-		check(#res == 3, "@tame cat: " .. Names(res))
+		check(table.concat({ ns.Easy.Verbs(tb["Coyote"]) }, "/") == L["show on map"] .. "/" .. L["set waypoint"], "a beast's verbs: the map's")
+		res = UI:Search("@tame -is:ability cat")
+		check(#res == 3, "@tame cat, the beasts: " .. Names(res))
 		-- Enter on a rank: the beasts that teach it, nearest first
 		local walked
 		UI.WalkTo = function(_, t) walked = t end
@@ -123,15 +137,12 @@ do
 		-- the questions
 		for _, s in ipairs({ "where to learn bite 2", "who teaches bite 2", "bite 2 teachers", "pet bite", "cat abilities", "what can a boar learn",
 			"tameable cats", "where to tame a wolf", "rare pets in the barrens", "rare cats", "what can i tame at my level", "tameable birds of prey",
-			"nearest tameable wolves", "pet abilities" }) do
+			"nearest tameable wolves", "pet abilities", "where to learn charge", "bite 2" }) do
 			check(P.Question(s) ~= nil, s .. ": the pets question")
 		end
-		for _, s in ipairs({ "my pets", "bite", "where to learn charge", "rare ring", "cats eye", "tameable mounts", "growl" }) do
+		for _, s in ipairs({ "my pets", "bite", "rare ring", "cats eye", "tameable mounts", "growl" }) do
 			check(P.Question(s) == nil, s .. ": not it")
 		end
-		class = "HUNTER"
-		check(P.Question("where to learn charge") and P.Question("bite 2"), "a hunter: \"where to learn charge\", \"bite 2\" are the pet's")
-		class = "MAGE"
 		check(P.Question("tameable birds of prey").family.name == "Bird of Prey" and P.Question("nearest tameable wolves").family.name == "Wolf"
 			and P.Question("tameable foxes") == nil, "families by their plural")
 		ns.db.easyMode = true; UI:EasyChanged()
@@ -145,36 +156,45 @@ do
 		r = UI.Results()
 		check(#r == 2 and r[1].rare and r[2].rare, "rare pets in the barrens: " .. Names(r))
 		UI:Hide(); FlushAll()
+		UI:Open("tameable cats"); FlushAll()
+		r = UI.Results()
+		local ranks = false
+		for _, e in ipairs(r) do if e.ability then ranks = true end end
+		check(#r == 3 and not ranks, "tameable cats: the beasts, not the ranks cats learn: " .. Names(r))
+		UI:Hide(); FlushAll()
 		UI:Open("what can i tame at my level"); FlushAll()
 		r = UI.Results()
 		local over = false
-		for _, e in ipairs(r) do if (e.minLevel or 0) > 20 then over = true end end
+		for _, e in ipairs(r) do if (e.minLevel or 0) > 20 or e.ability then over = true end end
 		check(#r > 0 and not over, "at my level: none above it: " .. Names(r))
 		UI:Hide(); FlushAll()
 		UI:Open("cat abilities"); FlushAll()
 		r = UI.Results()
 		local names = {}
-		for _, e in ipairs(r) do names[e.ability] = (names[e.ability] or 0) + 1 end
-		check(names.Bite == 1 and names.Growl == 1 and not names.Charge, "cat abilities: each once, not the boar's: " .. Names(r))
+		for _, e in ipairs(r) do names[e.ability or "?"] = (names[e.ability or "?"] or 0) + 1 end
+		check(names.Bite == 1 and names.Growl == 1 and not names.Charge and not names["?"], "cat abilities: each once, not the boar's: " .. Names(r))
 		UI:Hide(); FlushAll()
 		check(P.ToAdvanced(P.Question("tameable cats")) == "@tame cat ", "to Advanced: " .. P.ToAdvanced(P.Question("tameable cats")))
+		check(P.ToAdvanced(P.Question("cat abilities")) == "@tame is:ability cat ", "to Advanced: " .. P.ToAdvanced(P.Question("cat abilities")))
 		ns.db.easyMode = false; UI:EasyChanged()
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find(L["%d pet ability ranks (@petability), %d families (@tame)"]:format(6, 4), 1, true), ".integrations: " .. lines)
+		check(lines:find(L["%d pet ability ranks and %d families (@tame)"]:format(6, 4), 1, true), ".integrations: " .. lines)
 
-		-- not in the shape expected: said once, the other list still there
+		-- not in the shape expected: said once, the beasts still there
 		said = {}
 		OneForAll.PET_ABILITIES = "moved"
 		Fresh()
-		check(not ns.providers.petability and ns.providers.tame, "abilities changed: no @petability, @tame still")
-		check(Said(L["@petability (its pet abilities) is unavailable."]), "said in chat: " .. tostring(said[1]))
+		local beasts = 0
+		for _, e in ipairs(Rows()) do if e.ability then beasts = -100 else beasts = beasts + 1 end end
+		check(ns.providers.tame and beasts == 5, "abilities changed: @tame keeps its beasts (not the ones known only as teachers): " .. beasts)
+		check(Said(L["Its pet abilities are unavailable."]), "said in chat: " .. tostring(said[1]))
 		OneForAll.PET_RARES = nil
 		said = {}
 		OA.Forget()
 		check(P.Rares() == nil and not Said(L["Its rare beasts are unavailable."]), "no rares: quiet")
 		_G.OneForAll = nil
 		Fresh()
-		check(not ns.providers.petability and not ns.providers.tame and P.Question("tameable cats") == nil, "without OneForAll: neither, no question")
+		check(not ns.providers.tame and P.Question("tameable cats") == nil, "without OneForAll: none, no question")
 	end)
 	_G.OneForAll, _G.OneForAllCharDB = save.lib, save.db
 	ns.providers, ns.providerOrder = save.providers, save.order
@@ -182,7 +202,7 @@ do
 	ns.Print, I.Here, I.SpotXY, UI.WalkTo = save.print, save.here, save.spot, save.walk
 	I.failed, OA.on, _G.UnitClass, _G.UnitLevel = save.failed, save.on, save.class, save.level
 	ns.db.easyMode = save.easy; UI:EasyChanged()
-	OA.Forget()
+	OA.Forget(); P.Forget()
 	UI:Hide(); FlushAll()
 	if not ok then check(false, "oneforall_pets: " .. tostring(err)) end
 end

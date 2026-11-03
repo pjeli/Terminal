@@ -3,10 +3,11 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- @petability and @tame: a hunter's pets on WoW Forever (1.0.2, the player's ask), OneForAll's lists of them.
--- @petability: each rank of each pet ability (its level, its training points, the families that learn it, learned or
--- not: OneForAll's record of your pets' spellbooks), Enter the beasts that teach it. @tame: the beasts to tame, each
--- where it is (on the map with Enter), its family and level, the ranks it teaches, the rare ones and why.
+-- @tame ("Hunter pet"): a hunter's pets on WoW Forever (1.0.2, the player's ask), OneForAll's lists of them, one kind
+-- since 1.0.9 (the player: too many kinds; was @petability and @tame) and only on a hunter. Its rows are of two sorts:
+-- each rank of each pet ability (`ability` set: its level, its training points, the families that learn it, learned or
+-- not: OneForAll's record of your pets' spellbooks; Enter the beasts that teach it), and the beasts to tame (where each
+-- is, on the map with Enter; its family and level, the ranks it teaches, the rare ones and why).
 -- "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens" ask for them (Simple mode).
 
 local P = {}
@@ -63,7 +64,7 @@ end
 --- Its abilities, checked: { { name, icon, source ("wild", "trainer"), families, effect, ranks = { { rank, level, tp,
 --- desc, none (no beast known to teach it), teachers = { beast, ... } } } } }, or nil.
 function P.Abilities()
-	return OA.Part("petabilities", "PET_ABILITIES", L["@petability (its pet abilities) is unavailable."], function(raw)
+	return OA.Part("petabilities", "PET_ABILITIES", L["Its pet abilities are unavailable."], function(raw)
 		local out = {}
 		for i, a in ipairs(raw) do
 			local name = type(a) == "table" and OA.Text(a.name)
@@ -153,7 +154,7 @@ local function AbilityTooltip(e, t)
 	t:AddLine(L["Pet abilities from OneForAll"], 0.5, 0.5, 0.5)
 end
 
---- @petability's rows: one a rank, in OneForAll's order.
+--- The ability rows: one a rank, in OneForAll's order.
 function P.AbilityRows()
 	local out = {}
 	for _, a in ipairs(P.Abilities() or {}) do
@@ -165,7 +166,7 @@ function P.AbilityRows()
 			local how = (a.source == "trainer" and L["pet trainer"]) or (#r.teachers > 0 and L["%d beasts teach it"]:format(#r.teachers))
 				or L["no beast known to teach it"]
 			out[#out + 1] = {
-				key = a.name .. "#" .. r.rank, kind = "petability", name = name, _lname = Lower(name), ability = a.name, rank = r.rank,
+				key = a.name .. "#" .. r.rank, kind = "tame", name = name, _lname = Lower(name), ability = a.name, rank = r.rank,
 				level = r.level, tp = r.tp, desc = r.desc or a.effect, families = a.families, source = a.source, teachers = #r.teachers,
 				known = isKnown, icon = a.icon and (ICONS .. a.icon) or "Interface\\Icons\\Ability_Hunter_BeastTraining", order = #out + 1,
 				tooltip = AbilityTooltip, activate = LearnRank, secondary = LearnRank, generic = false,
@@ -198,7 +199,35 @@ end
 
 local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.name)) end
 
---- @tame's rows: each beast once (its families' tames, the beasts that teach a rank, the rare ones), by family then level.
+local beastRows -- (made once: OneForAll's beasts don't change in a session; the abilities' known ranks do)
+function P.Forget() beastRows = nil end -- (tests)
+
+--- @tame's rows: the ability ranks, then the beasts.
+function P.Rows()
+	local out = P.AbilityRows()
+	beastRows = beastRows or P.TameRows()
+	for _, e in ipairs(beastRows) do out[#out + 1] = e end
+	return out
+end
+--- An @tame row of a beast (not an ability's rank)?
+local function IsBeast(e) return rawget(e, "ability") == nil end
+P.IsBeast = IsBeast
+--- The ability ranks among @tame's rows.
+function P.Ranks()
+	local out = {}
+	local p = ns.providers.tame
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if not IsBeast(e) then out[#out + 1] = e end end
+	return out
+end
+--- The beasts among them.
+function P.Beasts()
+	local out = {}
+	local p = ns.providers.tame
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if IsBeast(e) then out[#out + 1] = e end end
+	return out
+end
+
+--- The beasts' rows: each beast once (its families' tames, the beasts that teach a rank, the rare ones), by family then level.
 function P.TameRows()
 	local fams = P.Families()
 	if not fams then return {} end
@@ -263,28 +292,27 @@ function P.TameRows()
 	return out
 end
 
+--- Is the character you're on a hunter? (The only class that tames: no one else is shown @tame.)
+function P.Hunter() return select(2, ns.Safe(UnitClass, "player")) == "HUNTER" end
+
 OA.AddSetup(function()
-	if P.Abilities() then
-		ns:RegisterProvider("petability", {
-			label = L["Pet ability"], color = "ffa8d070",
-			aliases = { "petability", "petabilities", "beasttraining", "petskill", "petskills" },
-			lazy = true, events = { "UNIT_PET", "PET_BAR_UPDATE" }, guard = 1, collect = P.AbilityRows, -- (a pet out, an ability learned)
-		})
-	end
-	if P.Families() then
-		P.Rares()
-		ns:RegisterProvider("tame", {
-			label = L["Tameable beast"], color = "ffc8a060", aliases = { "tame", "tames", "tameable", "beast", "beasts" },
-			lazy = true, collect = P.TameRows,
-		})
-	end
+	if not P.Hunter() then return end
+	local a, f = P.Abilities(), P.Families()
+	if not (a or f) then return end
+	if f then P.Rares() end
+	ns:RegisterProvider("tame", {
+		label = L["Hunter pet"], color = "ffc8a060",
+		aliases = { "tame", "tames", "tameable", "beast", "beasts", "hunterpet", "hunterpets", "petability", "petabilities",
+			"beasttraining", "petskill", "petskills" },
+		lazy = true, events = { "UNIT_PET", "PET_BAR_UPDATE" }, guard = 1, collect = P.Rows, -- (a pet out, an ability learned)
+	})
 end)
 OA.AddStatus(function()
+	if not ns.providers.tame then return nil end
 	local a, f = P.Abilities(), P.Families()
-	if not (a or f) then return nil end
 	local ranks = 0
 	for _, x in ipairs(a or {}) do ranks = ranks + #x.ranks end
-	return L["%d pet ability ranks (@petability), %d families (@tame)"]:format(ranks, f and #f or 0)
+	return L["%d pet ability ranks and %d families (@tame)"]:format(ranks, f and #f or 0)
 end)
 
 ----------------------------------------------------------------------
@@ -357,7 +385,7 @@ end
 --- The question: { what = "teach" (the beasts that teach a rank, or an ability's ranks), "abilities" (a family's), "tame"
 --- (beasts to tame); ability, rank, family, rare, near, mine (at your level), words }, or nil when the line isn't about pets.
 function P.Question(text)
-	if not (ns.providers.petability or ns.providers.tame) then return nil end
+	if not ns.providers.tame then return nil end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local words = {}
@@ -386,8 +414,8 @@ function P.Question(text)
 	end
 	-- "where to learn bite 4", "who teaches dash", "pet dash", "wolf furious howl": an ability's ranks, or a rank's teachers.
 	-- "bite 4" alone too, for a hunter; "where to learn charge" is the warrior's unless it says pet, beast or a family
-	if q.ability and ns.providers.petability then
-		local hunter = select(2, UnitClass("player")) == "HUNTER"
+	if q.ability and P.Abilities() then
+		local hunter = P.Hunter()
 		local sure = pet or q.family or tame
 		if not (sure or (learn and hunter) or (q.rank and (learn or hunter))) then return nil end
 		if #q.words > 0 then return nil end
@@ -396,13 +424,13 @@ function P.Question(text)
 	end
 	if q.ability then return nil end
 	-- "cat abilities", "pet abilities", "what can a boar learn"
-	if (abil or learn) and (q.family or pet) and not tame and ns.providers.petability then
+	if (abil or learn) and (q.family or pet) and not tame and P.Abilities() then
 		if #q.words > 0 then return nil end
 		q.what = "abilities"
 		return q
 	end
 	-- "tameable cats", "where to tame a wolf", "rare pets in the barrens", "what can i tame at my level"
-	if (tame or (q.rare and (pet or q.family))) and ns.providers.tame then
+	if (tame or (q.rare and (pet or q.family))) and P.Families() then
 		if #q.words > 0 and not P.AnyTame(q.words) then return nil end
 		q.what = "tame"
 		return q
@@ -416,8 +444,7 @@ local function Has(e, words)
 	return true
 end
 function P.AnyTame(words)
-	local p = ns.providers.tame
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if Has(e, words) then return true end end
+	for _, e in ipairs(P.Beasts()) do if Has(e, words) then return true end end
 	return false
 end
 
@@ -446,18 +473,17 @@ function P.Answer(q)
 	q = q or {}
 	if q.what == "teach" then
 		local a = q.ability
-		local p = ns.providers.petability
 		local ranks = {}
-		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		for _, e in ipairs(P.Ranks()) do
 			if e.ability == a.name and (not q.rank or e.rank == q.rank) then ranks[#ranks + 1] = e end
 		end
 		if #ranks == 0 then return { ns.NoteRow(L["%s has no rank %d"]:format(a.name, q.rank or 0)) }, L["Pet abilities"] end
 		-- a rank of a wild ability: the beasts that teach it, nearest first
 		local e = ranks[1]
-		if q.rank and a.source ~= "trainer" and ns.providers.tame then
+		if q.rank and a.source ~= "trainer" then
 			local key = L["teaches %s"]:format(Teach(a.name, q.rank)) .. ";"
 			local rows = {}
-			for _, b in ipairs(ns:GetEntries(ns.providers.tame)) do
+			for _, b in ipairs(P.Beasts()) do
 				if Has(b, { key }) and not (q.family and b.family ~= q.family.name) then rows[#rows + 1] = b end
 			end
 			local title = L["Beasts that teach %s"]:format(e.name) .. SEP .. (e.detail or "")
@@ -471,16 +497,16 @@ function P.Answer(q)
 		return ranks, (a.source == "trainer" and L["%s: learned at a pet trainer"] or L["%s: its ranks"]):format(a.name)
 	end
 	if q.what == "abilities" then
-		local p = ns.providers.petability
+		local all = P.Ranks()
 		local rows, seen = {}, {}
 		local f = q.family
 		local can = {}
 		if f then for _, n in ipairs(f.abilities) do can[n] = true end for _, n in ipairs(f.trainer) do can[n] = true end end
-		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		for _, e in ipairs(all) do
 			if (not f or can[e.ability]) and not seen[e.ability] then
 				-- (each ability once: its highest rank your level allows, else its first)
 				local best
-				for _, r in ipairs(ns:GetEntries(p)) do
+				for _, r in ipairs(all) do
 					if r.ability == e.ability and (not best or ((r.level or 0) <= Level() and r.rank > best.rank)) then best = r end
 				end
 				seen[e.ability] = true
@@ -491,10 +517,9 @@ function P.Answer(q)
 		return rows, f and L["What a %s learns"]:format(f.name) or L["Pet abilities"]
 	end
 	-- beasts to tame
-	local p = ns.providers.tame
 	local rows = {}
 	local lvl = Level()
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+	for _, e in ipairs(P.Beasts()) do
 		local ok = Has(e, q.words) and not (q.family and e.family ~= q.family.name) and not (q.rare and not e.rare)
 			and not (q.mine and (e.minLevel or 0) > lvl)
 		if ok then rows[#rows + 1] = e end
@@ -518,8 +543,8 @@ function P.ToAdvanced(q)
 		if q.rank and q.ability.source ~= "trainer" then
 			return "@tame \"" .. L["teaches %s"]:format(Teach(q.ability.name, q.rank)) .. ";\" sort:distance "
 		end
-		return "@petability " .. Lower(q.ability.name) .. " " .. (q.rank and (q.rank .. " ") or "")
+		return "@tame is:ability " .. Lower(q.ability.name) .. " " .. (q.rank and (q.rank .. " ") or "")
 	end
-	if q.what == "abilities" then return "@petability " .. (q.family and (Lower(q.family.name) .. " ") or "") end
+	if q.what == "abilities" then return "@tame is:ability " .. (q.family and (Lower(q.family.name) .. " ") or "") end
 	return "@tame " .. (q.family and (Lower(q.family.name) .. " ") or "") .. (q.rare and "rare " or "") .. (q.near and "sort:distance " or "") .. w
 end

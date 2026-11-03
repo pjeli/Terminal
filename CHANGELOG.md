@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.9 (in testing)
+
+- Fewer kinds (the player's call): OneForAll's hunter pets are one kind, `@tame` ("Hunter pet"), instead of `@petability` and `@tame`, and only on a hunter: another class never sees it or its questions (a druid's "where to learn claw 3" or a warrior's "where to learn charge 2" is theirs again). Its rows are each pet ability's ranks and the beasts to tame; `is:ability` keeps the ranks, `-is:ability` the beasts; `@petability` still finds it.
+
 ## 1.0.8 (in testing)
 
 - With OneForAll - Forever installed, a quest's chain ("quest chain for hurley blackbreath", `<quest> > chain`) also has the prerequisites OneForAll knows for dungeon quests that Questie doesn't list, first: 22 quests across 27 of its 117 chains, checked against QuestieDB Forever. Its optional lead-ins are left out, as they don't block the quest. The chain still needs Questie or QuestieDB.
