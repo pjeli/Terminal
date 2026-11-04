@@ -3331,4 +3331,5 @@ L["No experience gained this session yet"] = "本次登录尚未获得经验"
 L["this session: %s"] = "本次登录：%s"
 L["%s experience an hour"] = "每小时%s经验"
 L["Level %d in about %s"] = "%d级：约%s后"
+L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] = "@questie、@quest：给予该阵营声望的任务（Questie）；用平常话说：\"quests for stormwind rep\""
 --@end-do-not-package@

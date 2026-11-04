@@ -145,6 +145,7 @@ local function FilterSay(key, val)
 	elseif key == "trainer" then return { after = L["who teach %s"]:format(v) }
 	elseif key == "near" then return { after = L["within %s yards"]:format(RangeSay(v)) }
 	elseif key == "reward" or key == "rewards" then return { after = L["rewarding %s"]:format(v) }
+	elseif key == "repreward" then return { after = L["rewarding %s"]:format(v .. " " .. ns.Lower(L["Reputation"])) } -- (1.0.63)
 	elseif key == "standing" or key == "rep" then return { after = L["at %s"]:format(RangeSay(v)) }
 	elseif key == "source" or key == "src" then return { after = L["from %s"]:format(SOURCE_SAY[v] or v) }
 	elseif key == "since" then return { after = SinceSay(v) }

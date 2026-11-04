@@ -33,7 +33,7 @@ do
 	_G.Questie, _G.QuestieLoader = nil, nil
 	_G.LibQuestieDB = {
 		Quest = Entity({
-			[176] = { name = "Wanted: \"Hogger\"", questLevel = 11, zoneOrSort = 12, startedBy = { { 240 } },
+			[176] = { name = "Wanted: \"Hogger\"", questLevel = 11, zoneOrSort = 12, startedBy = { { 240 } }, reputationReward = { { 72, 250 }, { 76, -25 } },
 				objectivesText = { "Kill Hogger and bring his claw to Marshal Dughan." } },
 		}),
 		Npc = Entity({
@@ -111,6 +111,28 @@ do
 		local bq = IB.Question("deadmines bosses")
 		local brows = bq and IB.Answer(bq)
 		check(brows and brows[1] and brows[1].name == "Edwin VanCleef" and IB.Question("bosses") == nil, "deadmines bosses: Edwin VanCleef: " .. tostring(brows and brows[1] and brows[1].name))
+		-- (1.0.63) quests by the reputation they give: repreward:, "quests for stormwind rep", the tooltip's line
+		local repWas = ns.providers.reputation
+		ns.providers.reputation = { id = "reputation", label = "Reputation", aliases = {}, _dirty = true,
+			collect = function() return { { name = "Stormwind", factionID = 72, reaction = 5, key = 72 } } end }
+		local QRr = ns.QuestRewards
+		QRr.ForgetRep()
+		check(QRr.RepRewards(176) and #QRr.RepRewards(176) == 1 and QRr.RepRewards(176)[1][2] == 250, "a quest's reputation: gains only")
+		local rq = ns.RepQuests.Question("quests for stormwind rep")
+		local rrows = rq and ns.RepQuests.Answer(rq)
+		check(rq and rrows and rrows[1] and rrows[1].qid == 176 and tostring(rrows[1].detail):find("+250", 1, true)
+			and ns.RepQuests.ToAdvanced(rq) == "@questie repreward:stormwind -is:done ", "quests for stormwind rep: Wanted: Hogger, +250: " .. tostring(rrows and rrows[1] and rrows[1].detail))
+		local easyQ = ns.db.easyMode
+		ns.db.easyMode = false
+		UI.lastScan = nil
+		local fr = UI:Search("@questie repreward:stormwind")
+		ns.db.easyMode = easyQ
+		check(fr[1] and fr[1].qid == 176, "@questie repreward:stormwind: the quest: " .. tostring(fr[1] and fr[1].name))
+		local hx = ns.RepQuests.Question("how do i get exalted with stormwind")
+		local hrows2 = hx and ns.RepQuests.Answer(hx)
+		check(hx and hx.standing == 8 and hrows2 and hrows2[1] and hrows2[1].factionID == 72, "how do i get exalted with stormwind: your standing first")
+		ns.providers.reputation = repWas
+		QRr.ForgetRep()
 		-- (1.0.62) an NPC's rank: is:elite, its detail; "elite npcs", "rare mobs near me" in Simple mode
 		local IS = ns.Filters._.IS
 		local van = ns.Integrations.NpcRow(639)

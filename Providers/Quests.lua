@@ -598,7 +598,9 @@ function QT.Draw(t, q)
 	local money = id and QT.Money(id)
 	local given, choose = {}, {}
 	if id then given, choose = Items(id) end
-	if (xp and xp > 0) or money or #given > 0 or #choose > 0 or loading then
+	local QR = ns.QuestRewards
+	local reps = id and QR and QR.RepRewards and QR.RepRewards(id) or {} -- (the reputation it gives, Questie's; 1.0.63)
+	if (xp and xp > 0) or money or #given > 0 or #choose > 0 or #reps > 0 or loading then
 		t:AddLine(" ")
 		Line(t, ns.GameText and ns.GameText("QUEST_REWARDS", L["Rewards"]) or L["Rewards"], GOLD)
 		if xp and xp > 0 then
@@ -609,6 +611,11 @@ function QT.Draw(t, q)
 			end
 		end
 		if money then Line(t, ns.Money(money), WHITE) end
+		-- ("+250 Stormwind")
+		for _, r in ipairs(reps) do
+			local fname = QR.FactionName(r[1])
+			if fname then Line(t, ("+%d %s"):format(r[2], fname), WHITE) end
+		end
 		local function Item(it)
 			local qc = it[4] and ns.QualityHex and ns.QualityHex(it[4])
 			local icon = it[2] and ("|T" .. tostring(it[2]) .. ":0|t ") or ""

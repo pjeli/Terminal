@@ -1107,3 +1107,148 @@ if ns.RegisterRelation then
 		end,
 	})
 end
+
+----------------------------------------------------------------------
+-- Quests by the reputation they give (1.0.63, the reach audit): QuestieDB's quest field 26, reputationReward, a list of
+-- { factionId, value } pairs (classicQuestFixes.lua writes {{factionIDs.HORDE, 50}}); a value can be negative (an
+-- opposing faction's loss), only gains count. repreward:<faction> on quest rows, their tooltip's lines, and "quests for
+-- stormwind rep", "how do i get exalted with timbermaw".
+----------------------------------------------------------------------
+
+local repOf, repCount = {}, 0 -- quest id -> its { { fid, value } } gains (false: none)
+--- What a quest gives in reputation: { { factionId, value } } (gains only), or nil.
+function QR.RepRewards(id)
+	if type(id) ~= "number" then return nil end
+	local kept = repOf[id]
+	if kept ~= nil then return kept or nil end
+	-- (a QuestieDB not in the shape expected gives nothing, never an error: asked from every quest tooltip)
+	local okDB, db = pcall(DB)
+	db = okDB and db or nil
+	local raw = db and db.QueryQuestSingle and Safe(db.QueryQuestSingle, id, "reputationReward")
+	local out
+	if type(raw) == "table" then
+		for _, p in ipairs(raw) do
+			local fid, v = type(p) == "table" and tonumber(p[1]), type(p) == "table" and tonumber(p[2])
+			if fid and v and v > 0 then out = out or {}; out[#out + 1] = { fid, v } end
+		end
+	end
+	if repCount > 20000 then repOf, repCount = {}, 0 end
+	repOf[id], repCount = out or false, repCount + 1
+	return out
+end
+function QR.ForgetRep() repOf, repCount = {}, 0 end -- (tests)
+
+local factionNames = {} -- faction id -> its name (false: none)
+--- A faction's name: your reputations' (the row), else the game's for its id.
+function QR.FactionName(fid)
+	local n = factionNames[fid]
+	if n ~= nil then return n or nil end
+	local p = ns.providers.reputation
+	for _, e in ipairs(p and p._entries or {}) do
+		if e.factionID == fid and not e.repReward then n = e.name break end
+	end
+	if not n then
+		local C = rawget(_G, "C_Reputation")
+		local d = C and C.GetFactionDataByID and Safe(C.GetFactionDataByID, fid)
+		n = type(d) == "table" and Str(d.name) or nil
+	end
+	if not n and _G.GetFactionInfoByID then n = Str(Safe(_G.GetFactionInfoByID, fid)) end
+	factionNames[fid] = n or false
+	return n
+end
+--- The faction ids whose name has these words (lowercase): your reputations', and OneForAll's factions.
+function QR.FactionsNamed(words)
+	local out, any = {}, false
+	local function Try(fid, name)
+		if not (fid and name) then return end
+		local ln = Lower(name)
+		for _, w in ipairs(words) do if not ln:find(w, 1, true) then return end end
+		out[fid], any = true, true
+		factionNames[fid] = factionNames[fid] or name
+	end
+	local p = ns.providers.reputation
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if not e.repReward then Try(e.factionID, e.name) end end
+	local A = ns.Armory
+	for _, f in ipairs(A and A.Factions and A.Factions() or {}) do Try(f.id, f.name) end
+	return any and out or nil
+end
+--- The reputation a quest gives with these factions, the most of them (0: none).
+local function RepWith(id, fids)
+	local best = 0
+	for _, r in ipairs(QR.RepRewards(id) or {}) do if fids[r[1]] and r[2] > best then best = r[2] end end
+	return best
+end
+QR.RepWith = RepWith
+
+if Fk and Fk.KEYS then
+	-- repreward:stormwind: the quests that give reputation with it ("rep:" is your standing: Others.lua's)
+	Fk.KEYS.repreward = function(v)
+		local words = {}
+		for w in Lower(v):gsub("_", " "):gmatch("%S+") do words[#words + 1] = w end
+		local fids = #words > 0 and QR.FactionsNamed(words)
+		if not fids then return nil end
+		return function(e)
+			local id = QuestIdOf(e)
+			return id ~= nil and RepWith(id, fids) > 0
+		end
+	end
+end
+
+local RQ = {}
+ns.RepQuests = RQ
+local RQ_PATS = { "^quests? for (.+) rep$", "^quests? for (.+) reputation$", "^quests? that give (.+) rep$",
+	"^quests? that give (.+) reputation$", "^quests? giving (.+) rep$", "^quests? giving (.+) reputation$", "^(.+) rep quests$",
+	"^(.+) reputation quests$", "^rep quests for (.+)$", "^reputation quests for (.+)$", "^how do i get rep with (.+)$",
+	"^how to get rep with (.+)$", "^how do i get reputation with (.+)$", "^how to get reputation with (.+)$",
+	"^how do i raise (.+) rep$", "^how do i raise (.+) reputation$", "^how to raise (.+) rep$", "^how to raise (.+) reputation$" }
+local STAND_PAT = { "^how do i get (%a+) with (.+)$", "^how to get (%a+) with (.+)$", "^how do i become (%a+) with (.+)$" }
+RQ.MAX = 50
+function RQ.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	local what, standing
+	for _, p in ipairs(RQ_PATS) do what = t:match(p) if what then break end end
+	if not what then
+		for _, p in ipairs(STAND_PAT) do
+			local st, f = t:match(p)
+			local words = ns.Filters and ns.Filters._ and ns.Filters._.StandingWords and ns.Filters._.StandingWords() or {}
+			if st and words[st] then standing, what = words[st], f break end
+		end
+	end
+	if not what then return nil end
+	what = what:gsub("^the ", "")
+	local words = {}
+	for w in what:gmatch("%S+") do words[#words + 1] = w end
+	local fids = QR.FactionsNamed(words)
+	if not fids then return nil end
+	return { fids = fids, said = what, standing = standing }
+end
+function RQ.Answer(q)
+	local title = L["Quests"] .. ns.DETAIL_SEP .. ns.UpperFirst(q.said)
+	local rows = {}
+	-- (how to get a standing: your standing with it first)
+	if q.standing then
+		local p = ns.providers.reputation
+		for _, e in ipairs(p and ns:GetEntries(p) or {}) do if not e.repReward and q.fids[e.factionID] then rows[#rows + 1] = e break end end
+	end
+	local db = DB()
+	if not db then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
+	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	local found = {}
+	local qp = ns.providers.questie
+	for _, e in ipairs(qp and ns:GetEntries(qp) or {}) do
+		local id = QuestIdOf(e)
+		local v = id and RepWith(id, q.fids) or 0
+		if v > 0 and not (done and Safe(done, id)) and QR.ForYou(id) then found[#found + 1] = { v = v, e = e } end
+	end
+	table.sort(found, function(a, b) if a.v ~= b.v then return a.v > b.v end return tostring(a.e.name) < tostring(b.e.name) end)
+	for i = 1, math.min(#found, RQ.MAX) do
+		local f = found[i]
+		rows[#rows + 1] = setmetatable({ detail = ("+%d"):format(f.v) .. ns.DETAIL_SEP .. tostring(f.e.detail or "") }, { __index = f.e })
+	end
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+function RQ.ToAdvanced(q) return "@questie repreward:" .. (q.said:gsub("%s+", "_")) .. " -is:done " end

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.63 (in testing)
+
+- Quests by the reputation they give, from Questie (the reach audit): a quest's tooltip lists its reputation ("+250 Stormwind"); `repreward:stormwind` keeps the quests that give it; "quests for stormwind rep", "quests that give stormwind reputation" list those you can still do, the most reputation first; "how do i get exalted with timbermaw" your standing with it, then its quests. (Also: a line with an `@kind` typed no longer has a list's name taken out of its words.)
+
 ## 1.0.62 (in testing)
 
 - An NPC's rank, from Questie (the reach audit): `@npc` rows say Elite, Rare, Rare Elite or Boss, and the filters `is:elite`, `is:rare`, `is:rareelite`, `is:boss` keep them; in Simple mode "rare mobs near me", "rare spawns in westfall", "elite mobs in westfall", "elite npcs" mean the rank ("rare swords" is still the quality).

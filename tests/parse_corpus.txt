@@ -549,3 +549,8 @@ elite mobs in westfall
 elite npcs
 rare swords
 rare items
+
+# (1.0.63) quests by the reputation they give (the reach audit)
+quests for stormwind rep
+quests that give stormwind reputation
+how do i get exalted with timbermaw

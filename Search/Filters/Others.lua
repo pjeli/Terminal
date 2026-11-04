@@ -751,6 +751,7 @@ F.APPLIES = {
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
+	repreward = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.63)
 	since = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	older = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	before = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
@@ -821,6 +822,7 @@ F.HELP = {
 	{ "source:quest", L["@loot: where it comes from: dungeon raid quest crafted reputation world pvp collection"] },
 	-- (1.0.27-1.0.40: the quartermasters' rewards in @reputation, a hunter's pets in @npc and @spell; 1.0.41, the player's ask)
 	{ "is:reward", L["@reputation: the quartermasters' rewards (OneForAll's, and AtlasLoot's faction loot); is:canbuy: those your standing lets you buy; with is:reward, standing: is the standing each needs and sort:standing puts the lowest first"] },
+	{ "repreward:stormwind", L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] },
 	{ "is:tameable", L["@npc, for a hunter with OneForAll: the beasts you can tame, with their family and the ranks they teach (@npc \"teaches bite 4;\"); @spell is:ability: your pet's abilities, each rank, learned or not"] },
 	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },

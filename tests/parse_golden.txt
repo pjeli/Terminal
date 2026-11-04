@@ -1116,7 +1116,7 @@ advanced: "Wall Dead "
 explain: "Everything matching Wall Dead"
 
 == mounts
-question: 25  asked=mounts
+question: 26  asked=mounts
 place: -
 send: -
 steps: -
@@ -1738,7 +1738,7 @@ advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
 explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
-question: 49  asked=missing stamina
+question: 50  asked=missing stamina
 place: -
 send: -
 steps: -
@@ -1749,7 +1749,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == needs int
-question: 49  asked=needs int
+question: 50  asked=needs int
 place: -
 send: -
 steps: -
@@ -1760,7 +1760,7 @@ advanced: "@group missing:intellect "
 explain: "Your group, missing:intellect"
 
 == who is without fortitude
-question: 49  asked=who is without fortitude
+question: 50  asked=who is without fortitude
 place: -
 send: -
 steps: -
@@ -1771,7 +1771,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == party without food
-question: 49  asked=party without food
+question: 50  asked=party without food
 place: -
 send: -
 steps: -
@@ -1782,7 +1782,7 @@ advanced: "@group missing:food "
 explain: "Your group, missing:food"
 
 == needs blessing of kings
-question: 49  asked=needs blessing of kings
+question: 50  asked=needs blessing of kings
 place: -
 send: -
 steps: -
@@ -1793,7 +1793,7 @@ advanced: "@group missing:blessing_kings "
 explain: "Your group, missing:blessing_kings"
 
 == missing shadow protection
-question: 49  asked=missing shadow protection
+question: 50  asked=missing shadow protection
 place: -
 send: -
 steps: -
@@ -1804,7 +1804,7 @@ advanced: "@group missing:shadow "
 explain: "Your group, missing:shadow"
 
 == need flask
-question: 49  asked=need flask
+question: 50  asked=need flask
 place: -
 send: -
 steps: -
@@ -1815,7 +1815,7 @@ advanced: "@group missing:elixir "
 explain: "Your group, missing:elixir"
 
 == missing buffs
-question: 49  asked=missing buffs
+question: 50  asked=missing buffs
 place: -
 send: -
 steps: -
@@ -3238,7 +3238,7 @@ advanced: "@questlog lvl:me "
 explain: "Quests in your log, your level"
 
 == what killed me today
-question: 33  asked=what killed me
+question: 34  asked=what killed me
 place: -
 send: -
 steps: -
@@ -3302,7 +3302,7 @@ advanced: "loot since:yesterday older:today "
 explain: "Everything matching loot, since yesterday, from before today"
 
 == loot today
-question: 27  asked=loot today
+question: 28  asked=loot today
 place: -
 send: -
 steps: -
@@ -3351,7 +3351,7 @@ advanced: "mail|type:mail older:2w "
 explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
-question: 47  asked=auctions sold
+question: 48  asked=auctions sold
 place: -
 send: -
 steps: -
@@ -4915,7 +4915,7 @@ advanced: "@gold "
 explain: "Gold"
 
 == durability
-question: 46  asked=durability
+question: 47  asked=durability
 place: -
 send: -
 steps: -
@@ -4943,7 +4943,7 @@ advanced: "mail|type:mail "
 explain: "Everything matching mail|type:mail"
 
 == my mail
-question: 48  asked=my mail
+question: 49  asked=my mail
 place: -
 send: -
 steps: -
@@ -5173,7 +5173,7 @@ advanced: "sword|type:sword q:epic+ | group by zone"
 explain: "Epic or better everything matching sword|type:sword, grouped by zone"
 
 == What's   dropped?
-question: 27  asked=What's   dropped?
+question: 28  asked=What's   dropped?
 place: -
 send: -
 steps: -
@@ -5199,7 +5199,7 @@ advanced: "@dungeon dead "
 explain: "Dungeon matching dead"
 
 == a > mats
-question: 32  asked=a > mats
+question: 33  asked=a > mats
 place: -
 send: -
 steps: -
@@ -6358,7 +6358,7 @@ advanced: ""
 explain: ERROR nil
 
 == "tonight we
-question: 55  asked="tonight we
+question: 56  asked="tonight we
 place: -
 send: -
 steps: -
@@ -7387,7 +7387,7 @@ advanced: "quests that start from an item "
 explain: "Everything matching quests that start from an item"
 
 == where to farm linen cloth
-question: 32  asked=where to farm linen cloth
+question: 33  asked=where to farm linen cloth
 place: -
 send: -
 steps: -
@@ -7398,7 +7398,7 @@ advanced: "linen cloth > sources "
 explain: "Everything matching linen cloth, then: sources "
 
 == where do i find red bandanas
-question: 32  asked=where do i find red bandanas
+question: 33  asked=where do i find red bandanas
 place: -
 send: -
 steps: -
@@ -7409,7 +7409,7 @@ advanced: "red bandanas > sources "
 explain: "Everything matching red bandanas, then: sources "
 
 == where can i get linen
-question: 32  asked=where can i get linen
+question: 33  asked=where can i get linen
 place: -
 send: -
 steps: -
@@ -7581,7 +7581,7 @@ advanced: "bag slots:>0 sort:slots "
 explain: "Everything matching bag, with over 0 slots, most slots first"
 
 == itemid linen cloth
-question: 30  asked=itemid linen cloth
+question: 31  asked=itemid linen cloth
 place: -
 send: -
 steps: -
@@ -7592,7 +7592,7 @@ advanced: "itemid linen cloth "
 explain: "Everything matching itemid linen cloth"
 
 == item id 2589
-question: 30  asked=item id 2589
+question: 31  asked=item id 2589
 place: -
 send: -
 steps: -
@@ -7603,7 +7603,7 @@ advanced: "itemid 2589 "
 explain: "Everything matching itemid 2589"
 
 == questid 176
-question: 30  asked=questid 176
+question: 31  asked=questid 176
 place: -
 send: -
 steps: -
@@ -7614,7 +7614,7 @@ advanced: "questid 176 "
 explain: "Everything matching questid 176"
 
 == npcid hogger
-question: 30  asked=npcid hogger
+question: 31  asked=npcid hogger
 place: -
 send: -
 steps: -
@@ -7806,3 +7806,44 @@ pick sort: -
 category: -
 advanced: "@item q:rare "
 explain: "Rare items"
+
+== quests for stormwind rep
+question: -
+tokens: stormwind rep
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@questlog stormwind rep "
+explain: "Quests in your log matching stormwind rep"
+
+== quests that give stormwind reputation
+question: -
+tokens: stormwind reputation
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@questlog stormwind reputation "
+explain: "Quests in your log matching stormwind reputation"
+
+== how do i get exalted with timbermaw
+question: 33  asked=how do i get exalted with timbermaw
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "exalted with timbermaw > sources "
+explain: "Everything matching exalted with timbermaw, then: sources "

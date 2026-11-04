@@ -55,6 +55,8 @@ Scan.ANSWERS = {
 	Asks("HearthBind"),
 	-- "how long to level", "xp per hour": this session's experience an hour (Suggest.lua; 1.0.61)
 	Asks("XpRate"),
+	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests (1.0.63)
+	Asks("RepQuests"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

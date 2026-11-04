@@ -3331,4 +3331,5 @@ L["No experience gained this session yet"] = "Aucune expérience gagnée depuis 
 L["this session: %s"] = "depuis la connexion : %s"
 L["%s experience an hour"] = "%s d'expérience par heure"
 L["Level %d in about %s"] = "Niveau %d dans environ %s"
+L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] = "@questie, @quest : les quêtes qui donnent de la réputation auprès de cette faction (Questie) ; \"quests for stormwind rep\" en mots simples"
 --@end-do-not-package@

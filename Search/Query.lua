@@ -641,7 +641,7 @@ end
 function Scan.KindWord(q)
 	local E = ns.Easy
 	local tokens = q.tokens
-	if not (E and E.KindWord) then return end
+	if not (E and E.KindWord) or q.typedKinds then return end -- (an @kind typed names the lists: "@questlog stormwind rep")
 	local exact = q.exact
 	local function Take(k, word, alone)
 		if k.ids and (alone or not k.cat or k.mine or not E.KIND_WORDS[word]) then
