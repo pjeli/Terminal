@@ -273,6 +273,8 @@ end
 function B.ToAdvanced(q)
 	q = q or {}
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
-	if q.rewards then return "@book " end
+	-- (the reward tiers are the question's own rows, no list's: the question itself, which Advanced answers the same;
+	-- review, 1.0.42: "@book" listed every book)
+	if q.rewards then return nil end
 	return "@book " .. (q.todo and "is:todo " or q.done and "is:done " or "") .. (q.near and "sort:distance " or "") .. w
 end

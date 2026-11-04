@@ -413,5 +413,11 @@ function W.ToAdvanced(q)
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
 	if q.what == "favor" then return "@recipe is:unknown favor " .. w end
 	local word = ({ ship = "boat", zeppelin = "zeppelin", air = "airship", tram = "tram", road = "road" })[q.way] or ""
-	return "@transport " .. word .. " " .. (q.to and (q.to .. " ") or "") .. "sort:distance " .. w
+	-- ("zone exits": your zone's roads, as the question lists them; review, 1.0.42: every road in the game)
+	local here = ""
+	if q.here and not q.to then
+		local zone = ZoneOf(HereMap())
+		if zone then here = "in:" .. Lower(zone):gsub("%s+", "_") .. " " end
+	end
+	return "@transport " .. word .. " " .. (q.to and (q.to .. " ") or "") .. here .. "sort:distance " .. w
 end

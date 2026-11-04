@@ -131,6 +131,11 @@ do
 			and r[1].name:find(L["(reached)"], 1, true) == nil, "library book rewards: each tier, its items, not reached yet: " .. Names(r))
 		UI:Hide(); FlushAll()
 		check(B.ToAdvanced(B.Question("nearest library book")) == "@book is:todo sort:distance ", "to Advanced: " .. B.ToAdvanced(B.Question("nearest library book")))
+		-- (review, 1.0.42) the reward tiers: the question itself in Advanced, which lists the same tiers (not every book)
+		local line = ns.QuestionToAdvanced("library book rewards")
+		local tiers = UI:Search(line)
+		check(line:find("library book rewards", 1, true) and tiers[1] and tiers[1].name:find("Friend of the Library", 1, true),
+			"library book rewards to Advanced: the tiers again: " .. tostring(line))
 		ns.db.easyMode = false; UI:EasyChanged()
 		-- .integrations: found, how many books
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")

@@ -177,6 +177,11 @@ do
 		r = UI.Results()
 		check(#r == 1 and r[1].way == "road" and r[1].ui == 1437, "zone exits: the roads out of yours: " .. Names(r))
 		UI:Hide(); FlushAll()
+		-- (review, 1.0.42) its Alt+` line: your zone's roads, as the question listed them, not every road
+		local adv = W.ToAdvanced(W.Question("zone exits"))
+		local advRoads = 0
+		for _, e in ipairs(UI:Search(adv)) do if e.way == "road" then advRoads = advRoads + 1 end end
+		check(adv:find("in:", 1, true) and advRoads == 1, "zone exits to Advanced: your zone's roads: " .. adv .. " (" .. advRoads .. ")")
 		_G.C_Map = save.cmap
 		check(W.ToAdvanced(W.Question("favor recipes i don't know")) == "@recipe is:unknown favor ", "to Advanced: " .. W.ToAdvanced(W.Question("favor recipes i don't know")))
 		ns.db.easyMode = false; UI:EasyChanged()

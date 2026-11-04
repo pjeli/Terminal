@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.42 (in testing)
+
+- Alt+` on "zone exits" writes your zone's roads (`@transport road in:<your zone> sort:distance`), not every road; on "library book rewards" it keeps the question, which Advanced answers with the same reward tiers (`@book` listed every book).
+
 ## 1.0.41 (in testing)
 
 - `.filters` tells of `is:reward`, `is:canbuy` (with `standing:` and `sort:standing` on rewards), `is:tameable` and `is:ability`, and Simple mode's help of "raid loot", "dungeon gear", "argent dawn rewards", "what can i buy at honored", "tameable cats" and "where to learn bite 4"; Tab offers `is:tameable` (the player's ask). Three new texts, to be translated at the release.
