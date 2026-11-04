@@ -891,6 +891,11 @@ ns.HaveQ = HV
 local HAVE_SAID = { "^how many (.+) do i have$", "^how much (.+) do i have$", "^how many (.+) have i got$", "^how many (.+) do i own$",
 	"^do i have any (.+)$", "^do i have (.+)$", "^count my (.+)$", "^count of my (.+)$", "^how many (.+) are in my bags$" }
 HV.MAX = 8
+-- (what isn't an item you carry: your money, a list of its own; "how much gold do i have" listed items called gold)
+HV.NOT_ITEMS = { gold = true, money = true, silver = true, copper = true, mail = true, quests = true, quest = true,
+	mounts = true, pets = true, toys = true, achievements = true, friends = true, alts = true, bags = true, slots = true,
+	spells = true, talents = true, recipes = true, professions = true, mats = true, items = true, ["bag space"] = true,
+	["free slots"] = true, ["free bag slots"] = true }
 function HV.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
@@ -898,8 +903,8 @@ function HV.Question(text)
 	for _, pat in ipairs(HAVE_SAID) do
 		local what = t:match(pat)
 		if what then
-			what = what:gsub("^the ", ""):gsub("^my ", ""):gsub(" left$", "")
-			if what ~= "" and not what:find("^%d") then return { what = what } end
+			what = what:gsub("^the ", ""):gsub("^my ", ""):gsub("^any ", ""):gsub(" left$", "")
+			if what ~= "" and not what:find("^%d") and not HV.NOT_ITEMS[what] then return { what = what } end
 		end
 	end
 	return nil

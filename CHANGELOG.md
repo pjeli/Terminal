@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.65 (in testing)
+
+- Questions no longer take lines meant for others (review): "how many mounts do i have" and "do i have mail" are the collections' and the mail's again, not an item count; "how much gold do i have" counts no items called gold; "where do i find an innkeeper", "where can i find a mailbox", "where to find a mage trainer" find the nearest one, not an item's sources; "heavy chain", "what does stamina give" are searches again (a quest's chain and rewards in words need the words to name a quest).
+
 ## 1.0.64 (in testing)
 
 - What a quest needs, from Questie (the reach audit): a quest's tooltip says the profession skill or standing it needs and what you have (red when you lack it), and whether it's daily or repeatable; `skill:tailoring` (`skill:any`), `is:daily`, `is:repeatable` keep those quests; "tailoring quests", "fishing quests", "daily quests", "repeatable quests", "quests that need honored with stormwind" list them, your skill or standing beside theirs. "Quests here" and the quest suggestions for your level now leave out quests you can't take yet for want of a skill or standing.

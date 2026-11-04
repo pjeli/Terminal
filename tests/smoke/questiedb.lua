@@ -207,10 +207,20 @@ do
 		check(P.Canonical("where do i find hogger") == nil and P.Canonical("where do i find linen cloth") == "linen cloth > sources",
 			"where do i find hogger: not sources; a thing's: " .. tostring(P.Canonical("where do i find hogger")))
 		-- (1.0.52) a quest's rewards and chain in words; the quests an item starts
-		check(P.Canonical("what does the defias brotherhood give") == "defias brotherhood > rewards"
-			and P.Canonical("rewards for wanted hogger") == "wanted hogger > rewards" and P.Canonical("the defias brotherhood chain") == "defias brotherhood > chain"
-			and P.Canonical("next quest after wanted hogger") == "wanted hogger > chain",
-			"a quest's rewards and chain in words: " .. tostring(P.Canonical("what does the defias brotherhood give")))
+		check(P.Canonical("what does wanted hogger give") == "wanted hogger > rewards"
+			and P.Canonical("rewards for wanted hogger") == "wanted hogger > rewards" and P.Canonical("wanted hogger chain") == "wanted hogger > chain"
+			and P.Canonical("next quest after wanted hogger") == "wanted hogger > chain" and P.Canonical("what does wanted give") == "wanted > rewards",
+			"a quest's rewards and chain in words: " .. tostring(P.Canonical("what does wanted hogger give")))
+		-- (review, 1.0.65) ...only a quest's name: "heavy chain" is an item's, "what does stamina give" no quest's
+		check(P.Canonical("heavy chain") == nil and P.Canonical("what does stamina give") == nil and P.Canonical("rewards from dungeons") == nil
+			and P.Canonical("what do i get for exalted") == nil and P.Canonical("what does wan give") == nil,
+			"chain, rewards: not words that name no quest: " .. tostring(P.Canonical("heavy chain")))
+		-- (review, 1.0.65) "where do i find" an NPC's role, an object: the nearest, not sources
+		for _, line in ipairs({ "where do i find the flight master", "where to find an innkeeper", "where do i find the auction house",
+			"where can i find a mailbox", "where to find a mage trainer", "where can i find a skinner" }) do
+			check(P.Canonical(line) == nil, line .. ": not sources: " .. tostring(P.Canonical(line)))
+		end
+		check(P.Canonical("where do i find linen cloth") == "linen cloth > sources", "...a thing's still are")
 		local rew = UI:Search("wanted hogger > rewards")
 		check(type(rew) == "table", "wanted hogger > rewards: searched (Questie's rewards read)")
 		check(ns.ItemQuests.Question("quests that start from an item") and not ns.ItemQuests.Question("quests"), "quests that start from an item: the question")

@@ -562,3 +562,12 @@ daily quests
 repeatable quests
 quests that need honored with stormwind
 @questlog skill:tailoring is:daily
+
+# (1.0.65, review) questions that took other lines
+heavy chain
+what does stamina give
+where to find an innkeeper
+where do i find the flight master
+how many mounts do i have
+how much gold do i have
+do i have mail

@@ -41,8 +41,6 @@ Scan.ANSWERS = {
 	Asks("NearQuests"),
 	-- "deadmines bosses": an instance's bosses from AtlasLoot, each leading to its loot (Suggest.lua; 1.0.50)
 	Asks("InstanceBosses"),
-	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51)
-	Asks("HaveQ"),
 	-- "quests that start from an item": the quests an item starts (Suggest.lua; 1.0.52)
 	Asks("ItemQuests"),
 	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua; 1.0.55)
@@ -171,6 +169,9 @@ Scan.ANSWERS = {
 	Asks("Auctions"),
 	-- "my mail", "mail running out", "cod mail": Mail.lua
 	Asks("Mail"),
+	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51. After the
+	-- collections' and the mail's: "how many mounts do i have", "do i have mail" are theirs; review, 1.0.65)
+	Asks("HaveQ"),
 	-- "who is dead", "who needs fortitude", "who is out of range", "group healers": Group.lua
 	Asks("Group"),
 	-- "quest upgrades", "quests with upgrades": the quests near your level whose reward is an upgrade (Rewards.lua)

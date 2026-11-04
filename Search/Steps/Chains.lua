@@ -112,9 +112,11 @@ P.PHRASES = {
 	{ "^what does (.+) drop$", "drops" }, { "^what do (.+) drop$", "drops" }, { "^drops from (.+)$", "drops" },
 	{ "^loot from (.+)$", "drops" }, { "^(.+) loot$", "drops" }, { "^(.+) drops$", "drops" },
 	-- (1.0.52, the reach audit) a quest's rewards and its chain in words
-	{ "^what does (.+) give$", "rewards" }, { "^what does (.+) reward$", "rewards" }, { "^rewards for (.+)$", "rewards" },
-	{ "^rewards from (.+)$", "rewards" }, { "^what do i get for (.+)$", "rewards" },
-	{ "^next quests? after (.+)$", "chain" }, { "^what comes after (.+)$", "chain" },
+	-- (only when the words name a quest: "what does stamina give", "rewards from dungeons" aren't; review, 1.0.65)
+	{ "^what does (.+) give$", "rewards", "quest" }, { "^what does (.+) reward$", "rewards", "quest" },
+	{ "^rewards for (.+)$", "rewards", "quest" }, { "^rewards from (.+)$", "rewards", "quest" },
+	{ "^what do i get for (.+)$", "rewards", "quest" },
+	{ "^next quests? after (.+)$", "chain", "quest" }, { "^what comes after (.+)$", "chain", "quest" },
 	{ "^what does (.+) sell$", "sells" }, { "^what do (.+) sell$", "sells" }, { "^items sold by (.+)$", "sells" },
 	{ "^what is sold by (.+)$", "sells" }, { "^whats sold by (.+)$", "sells" }, { "^(.+) wares$", "sells" },
 	{ "^what does (.+) have for sale$", "sells" },
@@ -135,7 +137,8 @@ P.PHRASES = {
 	-- the quests before one (Rewards.lua, 0.49.16): "quest chain for the missing diplomat", "quest chain for outlaw sabre"
 	{ "^quest chain for (.+)$", "chain" }, { "^quest chain of (.+)$", "chain" }, { "^chain for (.+)$", "chain" },
 	{ "^quests? before (.+)$", "chain" }, { "^what leads to (.+)$", "chain" }, { "^prereqs? for (.+)$", "chain" },
-	{ "^(.+) quest chain$", "chain" }, { "^(.+) chain$", "chain" }, -- (after "quest chain": its name without "quest")
+	{ "^(.+) quest chain$", "chain" }, { "^(.+) chain$", "chain", "quest" }, -- (after "quest chain": its name without
+	-- "quest"; only a quest's name: "heavy chain" is an item's, review 1.0.65)
 }
 
 -- (the phrases whose words must name an NPC or a boss: "hogger loot" is Hogger's, "deadmines loot" and "raid loot" not)
@@ -201,7 +204,9 @@ function P.Canonical(text, words)
 		if what and what:find("%S") then
 			what = what:gsub("^the ", ""):gsub("^a ", ""):gsub("^an ", "")
 			if not P.NotAName(what) and not (P.PHRASE_NPC[ph[2]] and not P.NpcNamed(what))
-				and not (ph[3] == "thing" and P.NotAThing(what)) then return what .. " > " .. ph[2] end
+				and not (ph[3] == "thing" and P.NotAThing(what)) and not (ph[3] == "quest" and not P.QuestNamed(what)) then
+				return what .. " > " .. ph[2]
+			end
 		end
 	end
 	return nil
@@ -483,11 +488,57 @@ function P.NpcNamed(what)
 	end
 	return npcNames[what] == true
 end
+--- Do these (lowercase) words name a quest Questie knows: its whole name, or the start of one (four letters or more)?
+--- (The quests' names kept once a list; review, 1.0.65.)
+local questNames, questNamesFrom
+function P.QuestNamed(what)
+	local I = ns.Integrations
+	local list = I and I.qdb and I.qdb.list
+	if type(list) ~= "table" then return false end
+	if questNamesFrom ~= list then
+		questNames, questNamesFrom = {}, list
+		for _, e in ipairs(list) do
+			local n = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or nil
+			-- (its letters and numbers: 'Wanted: "Hogger"' is said "wanted hogger")
+			if n then questNames[#questNames + 1] = (n:gsub("[^%w%s\128-\255]", ""):gsub("%s+", " ")) end
+		end
+		table.sort(questNames)
+	end
+	what = what:gsub("[^%w%s\128-\255]", ""):gsub("%s+", " ")
+	if what == "" then return false end
+	-- (sorted: the first name at or after the words is the one they start, if any)
+	local lo, hi = 1, #questNames
+	while lo <= hi do
+		local mid = math.floor((lo + hi) / 2)
+		if questNames[mid] < what then lo = mid + 1 else hi = mid - 1 end
+	end
+	local n = questNames[lo]
+	if not n then return false end
+	if n == what then return true end
+	if n:sub(1, #what) == what and #what >= 4 then return true end
+	-- ("the defias brotherhood" said without "the")
+	local t = "the " .. what
+	lo, hi = 1, #questNames
+	while lo <= hi do
+		local mid = math.floor((lo + hi) / 2)
+		if questNames[mid] < t then lo = mid + 1 else hi = mid - 1 end
+	end
+	n = questNames[lo]
+	return n ~= nil and n:sub(1, #t) == t
+end
 --- An item's row in a chain's answer (what an NPC drops or sells, what a quest rewards), or nil while its name loads.
 --- Do these (lowercase) words name an NPC or a place rather than a thing ("where do i find hogger", "where can i find
 --- the stockade": where they are, not sources)?
+-- (the last words of an NPC's role said, not a thing: "flight master", "mage trainer", "quest giver"; review, 1.0.65)
+local ROLE_LAST = { trainer = true, trainers = true, master = true, masters = true, giver = true, givers = true,
+	keeper = true, keepers = true, healer = true, healers = true, house = true, houses = true }
 function P.NotAThing(what)
 	if P.NpcNamed(what) then return true end
+	-- (an NPC's role or a kind of object: where the nearest is, not its sources: "where do i find an innkeeper", "where
+	-- can i find a mailbox", "where do i find the auction house"; review, 1.0.65)
+	local E, I0 = ns.Easy, ns.Integrations
+	if (E and E.ROLE_WORDS and E.ROLE_WORDS[what]) or (E and E.PROF_PEOPLE and E.PROF_PEOPLE[what])
+		or (I0 and I0.OBJECT_KINDS and I0.OBJECT_KINDS[what]) or ROLE_LAST[what:match("(%S+)$") or ""] then return true end
 	local I = ns.Integrations
 	if I and I.FindPlace then
 		local words = {}

@@ -35,6 +35,21 @@ local ok, err = pcall(function()
 		and HV.Question("how many") == nil and hrows and hrows[1] and hrows[1].name == "Linen Cloth" and (hrows[1].detail or ""):find("have", 1, true),
 		"how many linen do i have: Linen Cloth, how many: " .. tostring(hrows and hrows[1] and hrows[1].detail))
 	check(HV.ToAdvanced(hq):find("linen", 1, true), "...and its Advanced line: " .. HV.ToAdvanced(hq))
+	-- (review, 1.0.65) not another question's: "how many mounts do i have" (the collections'), "do i have mail" (the
+	-- mail's), "how much gold do i have" (no item)
+	do
+		local Scan = ns.UI._Scan
+		local hv, hit = HV.Question, nil
+		HV.Question = function(t) local r = hv(t) if r then hit = true end return r end
+		for _, line in ipairs({ "how many mounts do i have", "how many pets do i have", "do i have mail", "do i have any mail",
+			"how much gold do i have" }) do
+			hit = nil
+			for _, a in ipairs(Scan.ANSWERS) do if a.ask and a.ask(line) then break end end
+			check(not hit, line .. ": not the item count's")
+		end
+		HV.Question = hv
+		check(HV.Question("how much gold do i have") == nil and HV.Question("do i have any linen").what == "linen", "gold isn't an item; any linen is")
+	end
 	-- (1.0.53) where to farm or find a thing: its sources
 	local P = ns.Pipes
 	check(P.Canonical("where to farm linen cloth") == "linen cloth > sources" and P.Canonical("where do i find red bandanas") == "red bandanas > sources"
