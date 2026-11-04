@@ -3335,4 +3335,12 @@ L["@questie, @quest: the quests that give reputation with that faction (Questie)
 L["that need %s"] = "que necesitan %s"
 L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] = "@questie, @quest: las misiones que necesitan esa profesión (skill:any: cualquiera); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" en palabras sencillas"
 L["Questie knows no quest like that here"] = "Questie no conoce ninguna misión así aquí"
+L["@npc: an NPC's rank, Questie's: is:elite (rare elites too), is:rare, is:rareelite, is:boss; \"rare mobs near me\", \"elite npcs\" in plain words"] = "@npc: el rango de un PNJ, según Questie: is:elite (también los élite raros), is:rare, is:rareelite, is:boss; \"rare mobs near me\", \"elite npcs\" en palabras sencillas"
+L["Boss"] = "Jefe"
+L["Daily"] = "Diaria"
+L["Elite"] = "Élite"
+L["Rare"] = "Raro"
+L["Rare Elite"] = "Élite raro"
+L["Repeatable"] = "Repetible"
+L["a profession"] = "una profesión"
 --@end-do-not-package@

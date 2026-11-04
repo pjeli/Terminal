@@ -829,6 +829,7 @@ F.HELP = {
 	{ "is:reward", L["@reputation: the quartermasters' rewards (OneForAll's, and AtlasLoot's faction loot); is:canbuy: those your standing lets you buy; with is:reward, standing: is the standing each needs and sort:standing puts the lowest first"] },
 	{ "repreward:stormwind", L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] },
 	{ "skill:tailoring", L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] },
+	{ "is:elite", L["@npc: an NPC's rank, Questie's: is:elite (rare elites too), is:rare, is:rareelite, is:boss; \"rare mobs near me\", \"elite npcs\" in plain words"] },
 	{ "is:tameable", L["@npc, for a hunter with OneForAll: the beasts you can tame, with their family and the ranks they teach (@npc \"teaches bite 4;\"); @spell is:ability: your pet's abilities, each rank, learned or not"] },
 	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },

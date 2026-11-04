@@ -28,10 +28,12 @@ I.NPC_RANKS = { elite = { [1] = true, [2] = true }, rare = { [2] = true, [4] = t
 --- An NPC's rank as the game names it ("Elite", "Rare", "Rare Elite", "Boss"), or nil for a normal one.
 function I.NpcRankName(id)
 	local r = ns.Num(id and I.NpcField(id, "rank"))
-	if r == 1 then return ns.GameText("ELITE", "Elite") end
-	if r == 2 then return ns.GameText("ITEM_QUALITY3_DESC", "Rare") .. " " .. ns.GameText("ELITE", "Elite") end
-	if r == 3 then return ns.GameText("BOSS", "Boss") end
-	if r == 4 then return ns.GameText("ITEM_QUALITY3_DESC", "Rare") end
+	-- (the fallbacks Terminal's own texts; "Rare Elite" one text, not two words put together in English order: review,
+	-- 1.0.70)
+	if r == 1 then return ns.GameText("ELITE", L["Elite"]) end
+	if r == 2 then return L["Rare Elite"] end
+	if r == 3 then return ns.GameText("BOSS", L["Boss"]) end
+	if r == 4 then return ns.GameText("ITEM_QUALITY3_DESC", L["Rare"]) end
 	return nil
 end
 -- "subNameEn": an NPC's title as QuestieDB's base data has it, in English, on a client in another language (QuestieDB

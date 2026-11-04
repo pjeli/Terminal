@@ -3335,4 +3335,12 @@ L["@questie, @quest: the quests that give reputation with that faction (Questie)
 L["that need %s"] = "需要%s的"
 L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] = "@questie、@quest：需要该专业的任务（skill:any：任一专业）；is:daily、is:repeatable（Questie）；用平常话说：\"tailoring quests\"、\"daily quests\""
 L["Questie knows no quest like that here"] = "Questie在这里不知道这样的任务"
+L["@npc: an NPC's rank, Questie's: is:elite (rare elites too), is:rare, is:rareelite, is:boss; \"rare mobs near me\", \"elite npcs\" in plain words"] = "@npc：NPC的级别（Questie数据）：is:elite（含稀有精英）、is:rare、is:rareelite、is:boss；用平常话说：\"rare mobs near me\"、\"elite npcs\""
+L["Boss"] = "首领"
+L["Daily"] = "日常"
+L["Elite"] = "精英"
+L["Rare"] = "稀有"
+L["Rare Elite"] = "稀有精英"
+L["Repeatable"] = "可重复"
+L["a profession"] = "某个专业"
 --@end-do-not-package@

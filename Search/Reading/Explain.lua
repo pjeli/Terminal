@@ -37,7 +37,10 @@ local IS_ADJ = { boe = L["bind on equip"], soulbound = L["soulbound"], usable = 
 	unread = L["unread"], expiring = L["running out"], enchanted = L["enchanted"], unenchanted = L["unenchanted"],
 	favorite = L["favorite"], tracked = L["tracked"], untracked = L["untracked"], online = L["online"], offline = L["offline"],
 	dead = L["dead"], grey = L["grey"], sold = L["sold"], listed = L["listed"], mine = L["yours"],
-	canbuy = ns.Lower(L["Can buy now"]), buyable = ns.Lower(L["Can buy now"]), tameable = L["tameable"], tamable = L["tameable"] }
+	canbuy = ns.Lower(L["Can buy now"]), buyable = ns.Lower(L["Can buy now"]), tameable = L["tameable"], tamable = L["tameable"],
+	-- (1.0.62-1.0.64's: an NPC's rank, a quest's repeating; review, 1.0.70)
+	elite = ns.Lower(L["Elite"]), rare = ns.Lower(L["Rare"]), rareelite = ns.Lower(L["Rare Elite"]), boss = ns.Lower(L["Boss"]),
+	worldboss = ns.Lower(L["Boss"]), daily = ns.Lower(L["Daily"]), repeatable = ns.Lower(L["Repeatable"]) }
 -- (source:, where loot comes from: its words, English)
 local SOURCE_SAY = { quest = "quests", dungeon = "dungeons", raid = "raids", crafted = "crafting", reputation = "reputation",
 	world = "world bosses", pvp = "PvP", collection = "collections", other = "elsewhere" }
@@ -145,7 +148,7 @@ local function FilterSay(key, val)
 	elseif key == "trainer" then return { after = L["who teach %s"]:format(v) }
 	elseif key == "near" then return { after = L["within %s yards"]:format(RangeSay(v)) }
 	elseif key == "reward" or key == "rewards" then return { after = L["rewarding %s"]:format(v) }
-	elseif key == "skill" then return { after = L["that need %s"]:format(v) } -- (1.0.64)
+	elseif key == "skill" then return { after = L["that need %s"]:format(v == "any" and L["a profession"] or v) } -- (1.0.64)
 	elseif key == "repreward" then return { after = L["rewarding %s"]:format(v .. " " .. ns.Lower(L["Reputation"])) } -- (1.0.63)
 	elseif key == "standing" or key == "rep" then return { after = L["at %s"]:format(RangeSay(v)) }
 	elseif key == "source" or key == "src" then return { after = L["from %s"]:format(SOURCE_SAY[v] or v) }

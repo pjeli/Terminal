@@ -7290,8 +7290,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@stored linen "
-explain: "Your alts' and bank's items matching linen"
+advanced: "@item @stored linen "
+explain: "Items and your alts' and bank's items matching linen"
 
 == do i have linen cloth
 question: 50  asked=do i have linen cloth
@@ -7301,8 +7301,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@stored linen cloth|type:cloth "
-explain: "Your alts' and bank's items matching linen cloth|type:cloth"
+advanced: "@item @stored linen cloth|type:cloth "
+explain: "Items and your alts' and bank's items matching linen cloth|type:cloth"
 
 == count my linen
 question: 50  asked=count my linen
@@ -7312,8 +7312,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@stored linen "
-explain: "Your alts' and bank's items matching linen"
+advanced: "@item @stored linen "
+explain: "Items and your alts' and bank's items matching linen"
 
 == what does the defias brotherhood give
 question: -
@@ -7566,8 +7566,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "bag slots:>0 sort:slots "
-explain: "Everything matching bag, with over 0 slots, most slots first"
+advanced: "bigger bags "
+explain: "Everything matching bigger bags"
 
 == bags with more slots
 question: 10  asked=bags with more slots
@@ -7577,8 +7577,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "bag slots:>0 sort:slots "
-explain: "Everything matching bag, with over 0 slots, most slots first"
+advanced: "bags with more slots "
+explain: "Everything matching bags with more slots"
 
 == itemid linen cloth
 question: 31  asked=itemid linen cloth
@@ -7632,8 +7632,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@achievement is:todo sort:progress "
-explain: "Not done yet achievements, progress"
+advanced: "achievements almost done "
+explain: "Everything matching achievements almost done"
 
 == quests almost done
 question: 11  asked=quests almost done
@@ -7643,8 +7643,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@questlog -is:complete sort:progress "
-explain: "Quests in your log, not complete, progress"
+advanced: "quests almost done "
+explain: "Everything matching quests almost done"
 
 == where is my hearth
 question: 12  asked=where is my hearth

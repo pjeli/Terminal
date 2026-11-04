@@ -47,6 +47,20 @@ local ok, err = pcall(function()
 		and HV.Question("how many") == nil and hrows and hrows[1] and hrows[1].name == "Linen Cloth" and (hrows[1].detail or ""):find("have", 1, true),
 		"how many linen do i have: Linen Cloth, how many: " .. tostring(hrows and hrows[1] and hrows[1].detail))
 	check(HV.ToAdvanced(hq):find("linen", 1, true), "...and its Advanced line: " .. HV.ToAdvanced(hq))
+	-- (review, 1.0.70) Alt+` lists what the answer counts: your bags' too, with a bag addon's records
+	do
+		local had = ns.providers.stored
+		ns.providers.stored = ns.providers.stored or { id = "stored" }
+		local line = HV.ToAdvanced(hq)
+		ns.providers.stored = had
+		check(line:find("^@item @stored ") ~= nil, "how many linen do i have, Alt+`: your bags and your records: " .. line)
+		local SF = E.SayFilter
+		check(SF("is:rareelite") == ns.Lower(ns.L["Rare Elite"]) and SF("is:daily") == ns.Lower(ns.L["Daily"]) and SF("skill:any"):find(ns.L["a profession"], 1, true),
+			".explain: an NPC's rank, a daily quest, skill:any in words: " .. tostring(SF("is:rareelite")) .. " / " .. tostring(SF("skill:any")))
+		local helped = false
+		for _, h in ipairs(ns.Filters.HELP) do if h[1] == "is:elite" then helped = true end end
+		check(helped, ".filters: a line for an NPC's rank")
+	end
 	-- (review, 1.0.65) not another question's: "how many mounts do i have" (the collections'), "do i have mail" (the
 	-- mail's), "how much gold do i have" (no item)
 	do
@@ -112,7 +126,7 @@ local ok, err = pcall(function()
 	local brows = bq and BB.Answer(bq)
 	local badv = Adv("bigger bags")
 	if C_Container then C_Container.GetContainerNumSlots = numWas end
-	check(bq and bq.least == 6 and badv:find("slots:>6", 1, true) and BB.Question("bags") == nil and BB.Question("bags with more slots")
+	check(bq and bq.least == 6 and badv == "bigger bags" and BB.Question("bags") == nil and BB.Question("bags with more slots")
 		and type(brows) == "table" and brows[1], "bigger bags: than your smallest (6): " .. tostring(bq and bq.least))
 	-- (review, 1.0.68) the most slots first, and the cut keeps those
 	do
@@ -162,7 +176,7 @@ local ok, err = pcall(function()
 		and ns.Filters.SortOf("sort:progress") == "progress", "progress: an achievement's criteria, a quest's objectives; sort:progress")
 	local AD = ns.AlmostDone
 	check(AD.Question("achievements almost done").kind == "achievements" and AD.Question("quests almost done").kind == "quests"
-		and AD.Question("achievements") == nil and Adv("achievements almost done") == "@achievement is:todo sort:progress"
+		and AD.Question("achievements") == nil and Adv("achievements almost done") == "achievements almost done"
 		and type(AD.Answer(AD.Question("achievements almost done"))) == "table", "achievements almost done: the question, its Advanced line")
 	-- (1.0.60) where your hearthstone takes you
 	local HB = ns.HearthBind

@@ -1393,8 +1393,8 @@ function QR.RequiresSaid(id)
 			.. (have and (" (" .. have .. ")") or "")
 		met[#out] = points == nil or points >= r.rep[2]
 	end
-	if r.daily then out[#out + 1] = ns.GameText("DAILY", "Daily") end
-	if r.repeatable then out[#out + 1] = ns.GameText("REPEATABLE", "Repeatable") end
+	if r.daily then out[#out + 1] = ns.GameText("DAILY", L["Daily"]) end
+	if r.repeatable then out[#out + 1] = ns.GameText("REPEATABLE", L["Repeatable"]) end
 	return out, met
 end
 

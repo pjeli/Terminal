@@ -981,12 +981,13 @@ function HV.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
---- The same items, where they are: @stored (your alts and bank too) with a bag addon's records, else @item.
+--- The same items, where they are: your bags' (@item), and with a bag addon's records your bank's and alts' (@stored:
+--- only what isn't in your bags; review, 1.0.70: @stored alone left an item only in your bags out).
 function HV.ToAdvanced(q)
 	-- (the words as Advanced mode writes them, "linen cloth|type:cloth": Alt+` again reads the same; its own lists left out)
 	local words = ns.LineToAdvanced and ns.LineToAdvanced(q.what) or q.what
 	repeat local n; words, n = words:gsub("^%s*@%S+%s*", "") until n == 0
-	return (ns.providers.stored and "@stored " or "@item ") .. (words:gsub("%s+$", "")) .. " "
+	return (ns.providers.stored and "@item @stored " or "@item ") .. (words:gsub("%s+$", "")) .. " "
 end
 
 ----------------------------------------------------------------------
@@ -1122,7 +1123,8 @@ function BW.ToAdvanced(q) return q.line end
 
 ----------------------------------------------------------------------
 -- "bigger bags", "bags with more slots": bags bigger than your smallest one, the most slots first, each saying where it
--- comes from (its loot row's boss, its recipe, its quest). The search runs the line (1.0.57, the reach audit).
+-- comes from (its loot row's boss, its recipe, its quest), from your bags, AtlasLoot, your recipes and those you could
+-- learn (1.0.57, the reach audit). Its own answer: no one Advanced line lists the same rows (review, 1.0.70).
 ----------------------------------------------------------------------
 
 local BB = {}
@@ -1179,7 +1181,8 @@ function BB.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
-function BB.ToAdvanced(q) return q.line end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function BB.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "achievements almost done", "quests almost done": those under way, the closest to done first (sort:progress: an
@@ -1221,9 +1224,9 @@ function AD.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
-function AD.ToAdvanced(q)
-	return q.kind == "achievements" and "@achievement is:todo sort:progress " or "@questlog -is:complete sort:progress "
-end
+--- Not a search: the question stays as typed (Advanced mode answers it the same; "@achievement is:todo sort:progress"
+--- listed the ones not begun too; review, 1.0.70).
+function AD.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "where is my hearth", "my hearthstone location": where your hearthstone takes you (the game's GetBindLocation) and

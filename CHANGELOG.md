@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.70 (in testing)
+
+- Wording (review): Alt+` on "how many linen do i have" lists your bags too; "bigger bags" and "achievements almost done" stay questions in Advanced mode (no one line lists the same); .explain says is:elite, is:rareelite, is:daily, is:repeatable and skill:any in words; .filters has a line for an NPC's rank; the rank and repeating words are translated.
+
 ## 1.0.69 (in testing)
 
 - Quest needs and reputation (review): right after login a quest's tooltip no longer loses what it needs and gives for the session; a standing needed that isn't a standing's start says the points ("Friendly, 4000/5500"); factions you haven't met can be named ("quests for ravenholdt rep"), and one or two letters name none; "tailoring quests" lists those you can take first, lowest level first, and says how many more; "quests needing tailoring" is asked too.
