@@ -672,3 +672,69 @@ ns.Phrase.Register({ id = "per", stage = "steps", priority = 40, classes = { op 
 		if not per then return nil end
 		return { from = 1, to = r.sendEnd - 1, keep = true, kind = "per", line = per, query = query, list = { step } }
 	end })
+
+----------------------------------------------------------------------
+-- "who gives the defias brotherhood", "where do i turn in the defias brotherhood": a quest's giver or turn-in NPC
+-- (1.0.47, the reach audit: "who gives ..." was the /who list). Questie's startedBy / finishedBy; "who" alone and "who
+-- 20-30" stay the /who list.
+----------------------------------------------------------------------
+
+local QP = {}
+ns.QuestPeople = QP
+local GIVES = { "^who gives (.+)$", "^who starts (.+)$", "^who offers (.+)$", "^who has the quest (.+)$",
+	"^where do i get the quest (.+)$", "^where do i pick up (.+)$", "^who gives out (.+)$" }
+local TAKES = { "^who takes (.+)$", "^who do i turn in (.+) to$", "^who do i turn (.+) in to$", "^where do i turn in (.+)$",
+	"^where to turn in (.+)$", "^where do i hand in (.+)$", "^who do i give (.+) to$", "^where do i turn (.+) in$" }
+local function Plain(s) return (s:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")) end
+local byName, byNameOf -- (Questie's quests by their name as a question reads it, made once a list)
+local function QuestNamed(said)
+	local p = ns.providers.questie
+	local list = p and p._entries
+	if not list then return nil end
+	if byNameOf ~= list then
+		byName, byNameOf = {}, list
+		for _, e in ipairs(list) do
+			local n = type(e.name) == "string" and Plain(Lower(e.name):gsub("'", ""):gsub("%p", " ")) or nil
+			local id = e.qid
+			if n and id and not byName[n] then byName[n] = { id = id, name = e.name } end
+		end
+	end
+	local s = Plain((said:gsub("^the quest ", ""):gsub("^quest ", ""):gsub(" quest$", "")))
+	return byName[s] or byName[(s:gsub("^the ", ""))] or byName["the " .. s]
+end
+function QP.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = Plain(t)
+	for _, set in ipairs({ { GIVES, false }, { TAKES, true } }) do
+		for _, pat in ipairs(set[1]) do
+			local rest = t:match(pat)
+			local q = rest and QuestNamed(rest)
+			if q then return { id = q.id, name = q.name, finish = set[2] } end
+		end
+	end
+	return nil
+end
+function QP.Answer(q)
+	local QD = ns.QuestieData
+	local DB = QD and QD.DB and QD.DB()
+	local I = ns.Integrations
+	local by = DB and Safe(DB.QueryQuestSingle, q.id, q.finish and "finishedBy" or "startedBy")
+	local title = q.name .. SEP .. (q.finish and L["turn in"] or L["quest giver"])
+	local rows = {}
+	if type(by) == "table" then
+		for _, id in ipairs(type(by[1]) == "table" and by[1] or {}) do
+			local r = I and I.NpcRow and I.NpcRow(id)
+			if r then rows[#rows + 1] = r end
+		end
+		if #rows == 0 then
+			local what = (type(by[2]) == "table" and by[2][1] and L["an object"]) or (type(by[3]) == "table" and by[3][1] and L["an item"])
+			if what then return { ns.NoteRow(q.finish and L["Turn in: %s"]:format(what) or L["%s is started by %s."]:format(q.name, what)) }, title end
+		end
+	end
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function QP.ToAdvanced() return nil end

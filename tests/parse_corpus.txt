@@ -461,3 +461,9 @@ quests i have done
 undone quests
 quests not yet done
 achievements i havent earned
+
+# (1.0.47) a quest's giver and turn-in (with Questie; the reach audit)
+who gives the defias brotherhood
+where do i turn in the defias brotherhood
+who
+who 20-30

@@ -35,6 +35,8 @@ Scan.ANSWERS = {
 	-- "quests to turn in", "turn in quests": your quest log's ready ones; "quests here": Questie's at your level in
 	-- your zone (Search/Questions/Suggest.lua)
 	Asks("TurnIn"),
+	-- "who gives the defias brotherhood", "where do i turn in ...": its giver, its turn-in NPC (Suggest.lua; 1.0.47)
+	Asks("QuestPeople"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.47 (in testing)
+
+- "who gives <quest>" (or starts, offers) lists the quest's giver and "where do i turn in <quest>" (or "who do i turn in <quest> to", "who takes") its turn-in NPC, from Questie, each with its place and arrow (the reach audit: they were the /who list). "who" alone and "who 20-30" stay the /who list.
+
 ## 1.0.46 (in testing)
 
 - Simple mode turns a state round when a sentence says so (the reach audit): "quests i haven't done" is `-is:done` (it was `is:done`, the opposite), and "quests not yet done", "achievements i havent earned", "spells i haven't learned" the same; "quests i have done" is `is:done` without the "i have"; "undone quests" `-is:done`; "mail i haven't read" unread.

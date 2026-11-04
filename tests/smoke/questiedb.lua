@@ -74,6 +74,18 @@ do
 	end
 	local r = UI:Search("@npc hogger")
 	check(r[1] and r[1].name == "Hogger", "@npc hogger finds him: " .. tostring(r[1] and r[1].name))
+	-- (1.0.47, the reach audit) who gives a quest: its giver, not the /who list; "who" alone is still /who's
+	do
+		ns:GetEntries(ns.providers.questie)
+		local QP = ns.QuestPeople
+		local q = QP.Question("who gives wanted hogger")
+		local rows = q and QP.Answer(q)
+		check(q and q.id == 176 and not q.finish and rows and rows[1] and rows[1].name == "Marshal Dughan",
+			"who gives wanted hogger: Marshal Dughan: " .. tostring(rows and rows[1] and rows[1].name))
+		local t = QP.Question("where do i turn in wanted hogger")
+		check(t and t.finish and QP.Question("who") == nil and QP.Question("who 20-30") == nil and QP.Question("who gives nothing like this") == nil,
+			"where do i turn in: its turn-in; who alone, who 20-30, an unknown quest: not this")
+	end
 	-- (1.0.37) what another part adds to an NPC (a hunter's beasts to tame, OneForAll's): its words, detail and tooltip
 	do
 		local hog = r[1]
