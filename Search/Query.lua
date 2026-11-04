@@ -333,6 +333,8 @@ function Scan.Parse(self, text, how)
 	-- (Simple mode too since 0.55.18: Advanced syntax typed there is searched as typed, and the bar's "Not known yet",
 	-- "Can learn now" are these filters; review: Simple mode left the list out)
 	local barWords = simple and ns.Bar and ns.Bar.Active() and ns.Bar.Active().filters or {}
+	-- (standing: keeps rewards only when they're asked for: F.AsksRewards, Others.lua; 1.0.40)
+	if F and F.AsksRewards then F.rewardsAsked = F.AsksRewards(text, barWords) end
 	local missingWords = {}
 	for _, w in ipairs(words) do missingWords[#missingWords + 1] = w end
 	for _, w in ipairs(barWords) do missingWords[#missingWords + 1] = w end

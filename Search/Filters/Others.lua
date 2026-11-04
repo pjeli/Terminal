@@ -386,9 +386,29 @@ KEYS["do"] = function(v)
 	return function() return true end
 end
 
+-- (a reward's standing is the one it needs: kept only when the search asks for rewards, is:reward or is:canbuy, typed or
+-- the bar's; "standing:exalted" alone is the factions you're exalted with. 1.0.40, the player's call: it also listed
+-- every reward that needs Exalted. F.rewardsAsked: set by Scan.Parse, Query.lua)
 KEYS.standing = function(v)
 	local r = StandingRange(v)
-	return r and function(e) return e.kind == "reputation" and r(e.reaction) or false end
+	return r and function(e)
+		if e.kind ~= "reputation" or (e.repReward and not F.rewardsAsked) then return false end
+		return r(e.reaction) or false
+	end
+end
+
+--- Does a line (and the bar's filters) ask for rewards: is:reward / is:rewards / is:canbuy / is:buyable, not negated?
+function F.AsksRewards(text, more)
+	local function Has(s)
+		s = " " .. Lower(tostring(s or "")) .. " "
+		for _, w in ipairs({ "reward", "rewards", "canbuy", "buyable" }) do
+			if s:find("[%s|&]is:" .. w .. "[%s|&]") then return true end
+		end
+		return false
+	end
+	if Has(text) then return true end
+	for _, w in ipairs(more or {}) do if Has(w) then return true end end
+	return false
 end
 KEYS.rep = KEYS.standing
 

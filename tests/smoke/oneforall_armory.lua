@@ -219,6 +219,15 @@ do
 		A.ForgetRewards()
 		local all = UI:Search("@reputation is:reward")
 		check(#all == 6 and all[1].repReward, "@reputation is:reward: the quartermasters' rewards in its list: " .. #all)
+		-- (1.0.40, the player's call) standing: alone is your factions'; with is:reward (or is:canbuy), the rewards'
+		local function Kinds(r) local f, w = 0, 0 for _, e in ipairs(r) do if e.repReward then w = w + 1 else f = f + 1 end end return f, w end
+		local _, w1 = Kinds(UI:Search("@reputation standing:honored"))
+		local _, w2 = Kinds(UI:Search("@reputation is:reward standing:honored"))
+		local _, w3 = Kinds(UI:Search("@reputation -is:reward standing:honored"))
+		local honored = ns.Filters._.KEYS.standing("honored")
+		ns.Filters.rewardsAsked = false
+		local faction = honored({ kind = "reputation", name = "Argent Dawn", reaction = 6 })
+		check(faction and w1 == 0 and w2 >= 1 and w3 == 0, "standing: your factions; with is:reward its rewards: " .. w1 .. "/" .. w2 .. "/" .. w3)
 		local can = UI:Search("@reputation is:canbuy")
 		local ok = #can > 0
 		for _, e in ipairs(can) do if not e.canBuy then ok = false end end

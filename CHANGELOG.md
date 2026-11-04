@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.40 (in testing)
+
+- `standing:` keeps reputation rewards only when the search asks for them (the player's call): `@reputation standing:exalted` is the factions you're exalted with, `@reputation is:reward standing:exalted` (or `is:canbuy`, or the bar's Quartermaster rewards) the rewards that need Exalted. It also listed every reward that needs that standing.
+
 ## 1.0.39 (in testing)
 
 - A search that doesn't name them finds OneForAll's item sets, transport, Library Books and the quartermaster rewards by their names only, not by the words of their descriptions (the player's call): "toys", "my reputation", "gems", "pieces", "Elixir of Giants" go to what they meant again instead of a page of categories or an item set. `@itemset`, `@transport`, `@book`, `@reputation is:reward`, their Simple-mode categories and their questions find them as before.
