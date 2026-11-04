@@ -306,6 +306,12 @@ do -- Tab values and .filters
 	help = table.concat(help, "\n")
 	check(help:find("standing:", 1, true) and help:find("sells:", 1, true) and help:find("soulbound", 1, true) and help:find("capped", 1, true)
 		and help:find("passive", 1, true), ".filters tells of them")
+	-- (1.0.41, the player's ask) the newer ones too: rewards, can buy, tameable, pet abilities; Tab offers is:tameable
+	check(help:find("is:reward", 1, true) and help:find("is:canbuy", 1, true) and help:find("is:tameable", 1, true) and help:find("is:ability", 1, true)
+		and has.tameable and has.reward and has.canbuy and has.ability, ".filters tells of the rewards' and pets' filters")
+	local simpleHelp = table.concat(ns.Easy.HelpLines(), "\n")
+	check(simpleHelp:find("raid loot", 1, true) and simpleHelp:find("tameable cats", 1, true) and simpleHelp:find("argent dawn rewards", 1, true),
+		"Simple mode's help tells of loot sources, rewards and pets")
 	UI:Open("@rep standing:hon"); check(UI:AcceptCompletion() and UI.edit:GetText() == "@rep standing:honored ", "Tab: standing:hon -> standing:honored")
 	UI:Hide()
 end

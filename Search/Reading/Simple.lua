@@ -445,6 +445,8 @@ function E.HelpLines()
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
 		L["Gear: upgrades lists what you can get that beats what you wear, the biggest first, and its tooltip says why; quest upgrades lists the quests whose reward is one (with Questie). .weights shows how they're judged and picks your talent tree (.weights arms, .weights resto), or sets your own weights (.weights set, or a Pawn scale string)."],
+		-- (1.0.41, the player's ask: the newer words said here too)
+		L["Loot by where it comes from: \"raid loot\", \"dungeon gear\", \"crafted gear\", \"reputation gear\"; what quartermasters sell: \"argent dawn rewards\", \"what can i buy at honored\"; a hunter's pets (with OneForAll): \"tameable cats\", \"where to learn bite 4\", \"cat abilities\"."],
 		L["When a list changes while you look at it (your bags as you loot, item data coming in), it stays put and the footer says so: F5 shows the new one."],
 		L["Alt+click an item (or a spell, quest, achievement) in chat to look it up here."],
 		L["Copy what you found, to paste outside the game: add \"to csv\" or \"to text\" (\"linen to csv\"). Every result opens in a box; Ctrl+C copies it and closes the box."],

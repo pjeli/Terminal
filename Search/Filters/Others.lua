@@ -658,7 +658,7 @@ F.VALUES = {
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today", "guild",
-		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy" },
+		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy", "tameable" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -817,6 +817,9 @@ F.HELP = {
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
 	{ "source:quest", L["@loot: where it comes from: dungeon raid quest crafted reputation world pvp collection"] },
+	-- (1.0.27-1.0.40: the quartermasters' rewards in @reputation, a hunter's pets in @npc and @spell; 1.0.41, the player's ask)
+	{ "is:reward", L["@reputation: the quartermasters' rewards (OneForAll's, and AtlasLoot's faction loot); is:canbuy: those your standing lets you buy; with is:reward, standing: is the standing each needs and sort:standing puts the lowest first"] },
+	{ "is:tameable", L["@npc, for a hunter with OneForAll: the beasts you can tame, with their family and the ranks they teach (@npc \"teaches bite 4;\"); @spell is:ability: your pet's abilities, each rank, learned or not"] },
 	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },
 	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },

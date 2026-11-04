@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.41 (in testing)
+
+- `.filters` tells of `is:reward`, `is:canbuy` (with `standing:` and `sort:standing` on rewards), `is:tameable` and `is:ability`, and Simple mode's help of "raid loot", "dungeon gear", "argent dawn rewards", "what can i buy at honored", "tameable cats" and "where to learn bite 4"; Tab offers `is:tameable` (the player's ask). Three new texts, to be translated at the release.
+
 ## 1.0.40 (in testing)
 
 - `standing:` keeps reputation rewards only when the search asks for them (the player's call): `@reputation standing:exalted` is the factions you're exalted with, `@reputation is:reward standing:exalted` (or `is:canbuy`, or the bar's Quartermaster rewards) the rewards that need Exalted. It also listed every reward that needs that standing.
