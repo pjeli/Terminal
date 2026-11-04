@@ -342,12 +342,23 @@ local function TextOf(name, e)
 	return n and tostring(n) or nil
 end
 
+-- (a field's text lowercased once per text, not once per row: thousands of rows share a few zones; 1.0.87, review)
+local plainLower, plainN = {}, 0
+local function PlainLower(t)
+	local v = plainLower[t]
+	if v then return v end
+	-- (quote marks aren't compared: a step's value has none, "Captain" Cookie's group neither; release review)
+	v = (ns.Lower(ns.Plain(t)):gsub('"', ""))
+	if plainN >= 4000 then plainLower, plainN = {}, 0 end
+	plainLower[t], plainN = v, plainN + 1
+	return v
+end
+
 local function KeepsRow(w, e)
 	if w.test then return w.test(A.FIELDS[w.where].num(e)) end -- (a number's step: by its range, "lvl:20-30")
 	local t = TextOf(w.where, e)
 	if not t then return false end
-	-- (quote marks aren't compared: a step's value has none, "Captain" Cookie's group neither; release review)
-	local lt = ns.Lower(ns.Plain(t)):gsub('"', "")
+	local lt = PlainLower(t)
 	if lt == w.value then return true end
 	return not w.exact and lt:find(w.value, 1, true) ~= nil
 end

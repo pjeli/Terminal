@@ -664,8 +664,15 @@ F.ClearFit = function() fit = {}; wornKept = {}; F.fitGen = F.fitGen + 1; if ns.
 function F.FitKey()
 	local set = F.MyWeightSets()[1]
 	local _, worn = WornLinks()
+	-- (your hit as its numbers: the table HitNow makes was a new one each time, its address in the key, so the key was
+	-- never the same twice and vendor upgrades were judged again on every keystroke; 1.0.87, review)
+	local hit, kinds = {}, {}
+	for kind in pairs(F.HitNow()) do kinds[#kinds + 1] = kind end
+	table.sort(kinds)
+	local now = F.HitNow()
+	for _, kind in ipairs(kinds) do hit[#hit + 1] = kind .. "=" .. tostring(now[kind][1]) .. "/" .. tostring(now[kind][2]) end
 	return table.concat({ tostring(set[1]), tostring(set[2]), tostring(_G.UnitLevel and _G.UnitLevel("player")),
-		tostring(F.HitNow()), tostring(F.fitGen), worn }, "\002")
+		table.concat(hit, ","), tostring(F.fitGen), worn }, "\002")
 end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
 F._fit = function() return fit end -- (tests)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.87 (in testing)
+
+- Speed (review): "vendor upgrades" and `sells:upgrade` judge the vendors' items once every two seconds as meant, not on every keystroke; "recipes i can learn" no longer sorts the whole list a second time per keystroke for its footer; steps that keep rows by a text (`| zone:"Elwynn Forest"`) lowercase each text once; Simple mode's bar no longer walks every row on each keystroke and selection move.
+
 ## 1.0.86 (in testing)
 
 - Filters (review): `since:` and `older:` take every unit `.explain` says (`2weeks`, `3hours`, `10mins`); a money field kept in a step reads money (`in:bags | value:>1g`); `stat:spellhit`, `stat:spellcrit`, `stat:feralap`, `stat:spelldamage` and `stat:blockvalue` find what `.weights` weighs; `.explain` names `is:inn`, `is:bank` and `is:flight`.

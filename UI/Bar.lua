@@ -1027,7 +1027,9 @@ function B.Update()
 	local classic = t.frame == "classic"
 	local inset = classic and 9 or 6
 	local top = (UI.tabsH or 0) + ns.UI.layout.HEADER_H + (UI.promptExtra or 0) - 4
-	local _, overview = ShownKinds()
+	-- (only whether categories show: B.Overview stops at the first; ShownKinds walked every row and built the kinds on
+	-- every keystroke and selection move; 1.0.87, review)
+	local overview = B.Overview(UI.results)
 	-- (placed again only when where it goes or a label's width changed: a frame moved under the pointer loses it, so
 	-- placing the buttons on every footer update took every hover and click away; 0.55.1, the player: "mousing over and
 	-- clicking do nothing")

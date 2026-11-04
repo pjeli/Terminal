@@ -142,6 +142,10 @@ do
 		"recipes to learn: what your skill allows, the footer says how many more and how to list them: " .. note)
 	rows = MR.Answer(Q("all recipes to learn"))
 	check(#rows == 5, "all recipes to learn: every one: " .. #rows)
+	-- (1.0.87, review) the footer counts the rows a search found: their scores (the search's order) left alone
+	for i, e in ipairs(rows) do e._score = 1000 + i end
+	local _, footNote = MR.Answer(Q("all recipes to learn"), { rows[2], rows[1] })
+	check(rows[1]._score == 1001 and rows[2]._score == 1002 and type(footNote) == "string", "the footer's note: the search's own scores kept")
 	rows, note = MR.Answer(Q("tailoring recipes i can learn now"))
 	check(#rows == 1 and rows[1].noActivate and rows[1].name:find("None you can learn yet: the next, Brown Linen Shirt, needs Tailoring 10", 1, true)
 		and note == "Recipes you can learn now: Tailoring", "none yet: a line names the next one: " .. tostring(rows[1] and rows[1].name) .. " / " .. note)

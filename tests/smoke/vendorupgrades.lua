@@ -184,3 +184,9 @@ do
 	_G.INVTYPE_HEAD, _G.ITEM_MOD_STRENGTH_SHORT = save.head, save.str
 	I.Setup(); FlushAll()
 end
+
+do -- (1.0.87, review) what upgrades are judged by is the same key while nothing changed: vendor upgrades' verdict is kept
+	-- its two seconds (the key had the address of a table HitNow made anew, never the same twice)
+	local a, b = F.FitKey(), F.FitKey()
+	check(a == b, "F.FitKey: the same twice: " .. tostring(a == b))
+end

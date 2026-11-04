@@ -692,9 +692,12 @@ function MR.Answer(q, shown)
 		end
 		if ok then rows[#rows + 1] = e end
 	end
-	table.sort(rows, Order)
-	ns.ScoreInOrder(rows)
-	if shown then rows = shown end
+	-- (the footer's count of the rows the search found: not sorted and scored again, which was a second full sort per
+	-- keystroke and wrote _score over the search's own on the same rows; 1.0.87, review)
+	if shown then rows = shown else
+		table.sort(rows, Order)
+		ns.ScoreInOrder(rows)
+	end
 	local which = (#(q.profs or {}) == 1) and q.profs[1] or nil
 	local note = (q.learnable and L["Recipes you can learn now"] or L["Recipes you don't know yet"]) .. (which and (": " .. which) or "")
 	if #rows == 0 then
