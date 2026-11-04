@@ -104,6 +104,76 @@ end
 
 I.QuestGiver = QuestGiver -- (Rewards.lua: the quests whose reward is an upgrade, their giver's distance)
 
+-- What each NPC sells and drops, by NPC (1.0.50, the reach audit: "what does innkeeper farley sell", "what does hogger
+-- drop"): Questie keeps it by item (each item's vendors and npcDrops), so every item is read once, in slices, the first
+-- time it's asked (I.NpcItems), or at once for the Console (I.BuildNpcItems, its shell waiting while it does), and let go
+-- after I.NPC_ITEMS_IDLE seconds unused. { sold = { [npc] = { item ids } }, drops = { ... } }.
+I.NPC_ITEMS_IDLE = 600
+local npcItems -- (nil: not read; .building while it's read; .done)
+local function NpcItemsAdd(DB, t, id)
+	for which, field in pairs({ sold = "vendors", drops = "npcDrops" }) do
+		local list = Safe(DB.QueryItemSingle, id, field)
+		if type(list) == "table" then
+			local by = t[which]
+			for _, n in pairs(list) do
+				if type(n) == "number" then
+					local l = by[n]
+					if not l then l = {}; by[n] = l end
+					l[#l + 1] = id
+				end
+			end
+		end
+	end
+end
+-- (let go by Core.lua's idle sweep, once a minute: unused for I.NPC_ITEMS_IDLE)
+local function NpcItemsIdle(now)
+	local t = npcItems
+	if t and t.done and (now or GetTime()) - (t.usedAt or 0) >= I.NPC_ITEMS_IDLE then npcItems = nil end
+end
+ns.idleHolds = ns.idleHolds or {}
+ns.idleHolds[#ns.idleHolds + 1] = NpcItemsIdle
+local function ItemIds(DB)
+	if not (DB and DB.QueryItemSingle and DB.ItemIds) then return nil end
+	local ok, ids = pcall(DB.ItemIds)
+	return ok and type(ids) == "table" and ids or nil
+end
+--- The items an NPC sells (`which` "sold") or drops ("drops"), item ids; nil and true while they're still being read
+--- (asked again once they're in: the search's loading); nil, nil without Questie.
+function I.NpcItems(npcID, which)
+	local t = npcItems
+	if t and t.done then
+		t.usedAt = GetTime()
+		return t[which] and t[which][npcID] or {}
+	end
+	if t and t.building then return nil, true end
+	local DB = QDB()
+	local ids = ItemIds(DB)
+	if not ids then return nil, nil end
+	t = { sold = {}, drops = {}, building = true }
+	npcItems = t
+	RunSliced("questie: what NPCs sell and drop", #ids, function(i) NpcItemsAdd(DB, t, ids[i]) end, function()
+		t.building, t.done, t.usedAt = nil, true, GetTime()
+		if ns.UI and ns.UI:IsShown() and ns.UI.RetryWhenLoaded and ns.UI.edit then ns.UI:RetryWhenLoaded(ns.UI.edit:GetText()) end
+	end)
+	return nil, true
+end
+--- The same read at once, `step(i, n)` called every so often (the Console's shell: it may wait a frame); true when in.
+function I.BuildNpcItems(step)
+	if npcItems and npcItems.done then npcItems.usedAt = GetTime() return true end
+	local DB = QDB()
+	local ids = ItemIds(DB)
+	if not ids then return false end
+	local t = { sold = {}, drops = {} }
+	for i, id in ipairs(ids) do
+		NpcItemsAdd(DB, t, id)
+		if step and i % 200 == 0 then step(i, #ids) end
+	end
+	t.done, t.usedAt = true, GetTime()
+	npcItems = t
+	return true
+end
+function I.ForgetNpcItems() npcItems = nil end -- (tests)
+
 local function InLog(id)
 	return C_QuestLog and C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(id) and true or false
 end

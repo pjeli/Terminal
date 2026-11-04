@@ -479,3 +479,10 @@ nearest innkeeper
 items on my alts
 which alt has linen
 linen cloth on my alts
+
+# (1.0.50) what an NPC drops, what a vendor sells, an instance's bosses (the reach audit)
+what does hogger drop
+hogger loot
+what does innkeeper farley sell
+deadmines loot
+deadmines bosses

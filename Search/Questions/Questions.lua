@@ -39,6 +39,8 @@ Scan.ANSWERS = {
 	Asks("QuestPeople"),
 	-- "quests near me", "turn ins near me": the quests whose giver (turn-in) is nearest (Suggest.lua; 1.0.48)
 	Asks("NearQuests"),
+	-- "deadmines bosses": an instance's bosses from AtlasLoot, each leading to its loot (Suggest.lua; 1.0.50)
+	Asks("InstanceBosses"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

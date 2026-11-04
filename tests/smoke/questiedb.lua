@@ -86,6 +86,39 @@ do
 		check(t and t.finish and QP.Question("who") == nil and QP.Question("who 20-30") == nil and QP.Question("who gives nothing like this") == nil,
 			"where do i turn in: its turn-in; who alone, who 20-30, an unknown quest: not this")
 	end
+	-- (1.0.50, the reach audit) what an NPC sells and drops: "marshal dughan > sells", "hogger > drops"; the plain words
+	-- only when they name an NPC or a boss
+	do
+		local P = ns.Pipes
+		local nameWas, lootWas = C_Item.GetItemNameByID, ns.providers.loot
+		C_Item.GetItemNameByID = function(id) if id == 2320 then return "Coarse Thread" end if id == 9001 then return "Hogger's Claw" end return nameWas and nameWas(id) end
+		ns.providers.loot = { id = "loot", label = "Loot", aliases = {}, _dirty = true, collect = function() return {
+			{ key = "al:9001", itemID = 9001, name = "Hogger's Claw", detail = "Hogger  Elwynn Forest" },
+			{ key = "al:9002", itemID = 9002, name = "Gnoll Paw", detail = "Edwin VanCleef  The Deadmines" } } end }
+		I.ForgetNpcItems()
+		check(I.BuildNpcItems() and #I.NpcItems(240, "sold") == 1, "what NPCs sell: Questie's items read the other way: " .. #(I.NpcItems(240, "sold") or {}))
+		check(P.Canonical("what does marshal dughan sell") == "marshal dughan > sells" and P.Canonical("what does hogger drop") == "hogger > drops"
+			and P.Canonical("hogger loot") == "hogger > drops" and P.Canonical("deadmines loot") == nil and P.Canonical("raid loot") == nil,
+			"the plain words: an NPC's or a boss's only: " .. tostring(P.Canonical("hogger loot")) .. " / " .. tostring(P.Canonical("deadmines loot")))
+		local easyWas = ns.db.easyMode
+		ns.db.easyMode = false
+		UI.lastScan = nil
+		local sold = UI:Search("marshal dughan > sells")
+		local drops = UI:Search("hogger > drops")
+		check(sold[1] and sold[1].name == "Coarse Thread", "marshal dughan > sells: Coarse Thread: " .. tostring(sold[1] and sold[1].name))
+		check(drops[1] and drops[1].name == "Hogger's Claw", "hogger > drops: his AtlasLoot loot: " .. tostring(drops[1] and drops[1].name))
+		local IB = ns.InstanceBosses
+		local bq = IB.Question("deadmines bosses")
+		local brows = bq and IB.Answer(bq)
+		check(brows and brows[1] and brows[1].name == "Edwin VanCleef" and IB.Question("bosses") == nil, "deadmines bosses: Edwin VanCleef: " .. tostring(brows and brows[1] and brows[1].name))
+		-- (let go after a while unused, by the idle sweep: read again when next asked)
+		ns:DropIdle(GetTime() + I.NPC_ITEMS_IDLE + 1)
+		local _, again = I.NpcItems(240, "sold")
+		check(again == true, "unused a while: let go, read again when asked")
+		C_Item.GetItemNameByID, ns.providers.loot = nameWas, lootWas
+		ns.db.easyMode = easyWas
+		I.ForgetNpcItems()
+	end
 	-- (1.0.37) what another part adds to an NPC (a hunter's beasts to tame, OneForAll's): its words, detail and tooltip
 	do
 		local hog = r[1]

@@ -962,29 +962,31 @@ FS.HasQuestie = function() return QuestieDB() ~= nil end
 
 --- Reads every Questie item's vendors once. `step(i, n)` is called every so often (the shell's: it may wait a frame;
 --- never inside a pcall here). False without Questie.
+-- (the search's index of what NPCs sell, Providers/Integrations/QuestieQuests.lua's I.BuildNpcItems: one read for both,
+-- 1.0.50; here as each NPC's item names, sorted)
 function FS.BuildSold(step)
 	if FS.sold then return true end
 	local DB = QuestieDB()
-	if not DB then return false end
-	local ok, ids = pcall(DB.ItemIds)
-	if not ok or type(ids) ~= "table" then return false end
-	local sold = {}
-	for i, id in ipairs(ids) do
-		local okV, vendors = pcall(DB.QueryItemSingle, id, "vendors")
-		if okV and type(vendors) == "table" and next(vendors) then
-			local okN, name = pcall(DB.QueryItemSingle, id, "name")
-			if okN and type(name) == "string" and name ~= "" then
-				for _, npc in pairs(vendors) do
-					local list = sold[npc]
-					if not list then list = {} sold[npc] = list end
-					list[#list + 1] = name
-				end
+	if not (DB and I and I.BuildNpcItems and I.BuildNpcItems(step)) then return false end
+	local names, sold = {}, {}
+	local mt = { __index = function(t, npc)
+		local ids = I.NpcItems(npc, "sold")
+		if not (ids and #ids > 0) then return nil end
+		local list = {}
+		for _, id in ipairs(ids) do
+			local n = names[id]
+			if n == nil then
+				local ok, nm = pcall(DB.QueryItemSingle, id, "name")
+				n = ok and type(nm) == "string" and nm ~= "" and nm or false
+				names[id] = n
 			end
+			if n then list[#list + 1] = n end
 		end
-		if step and i % 200 == 0 then step(i, #ids) end
-	end
-	for _, list in pairs(sold) do table.sort(list) end
-	FS.sold = sold
+		table.sort(list)
+		rawset(t, npc, list)
+		return list
+	end }
+	FS.sold = setmetatable(sold, mt)
 	return true
 end
 FS.SELLS_PER_LINE = 6

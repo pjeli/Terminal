@@ -821,3 +821,59 @@ function NQ.Answer(q)
 end
 --- Not a search: the question stays as typed (Advanced mode answers it the same).
 function NQ.ToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- "deadmines bosses", "bosses in the deadmines": an instance's bosses from AtlasLoot, each leading to its loot (1.0.50,
+-- the reach audit)
+----------------------------------------------------------------------
+
+local IB = {}
+ns.InstanceBosses = IB
+local BOSS_WORDS = { boss = true, bosses = true }
+local IB_FILL = { ["in"] = true, of = true, the = true, at = true, ["for"] = true, all = true, list = true, show = true, what = true,
+	which = true, are = true, me = true, my = true }
+local function BossWalk(e)
+	local P = ns.Pipes
+	local line = P and P.Phrase and P.Phrase(e.name, "drops") or (e.name .. " > drops")
+	if ns.UI and ns.UI.WalkTo then ns.UI:WalkTo(line, e) end
+end
+function IB.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local boss, rest = false, {}
+	for w in t:gmatch("%S+") do
+		if BOSS_WORDS[w] then boss = true elseif not IB_FILL[w] then rest[#rest + 1] = w end
+	end
+	if not boss or #rest == 0 then return nil end
+	local P = ns.Pipes
+	if not (P and P.BossLoot) then return nil end
+	local want = table.concat(rest, " ")
+	local S = ns.Shorthand -- ("vc bosses": its full name, Shorthand.lua)
+	local exp = S and type(S[want]) == "table" and S[want]
+	local full = exp and exp[1]
+	local found = {}
+	local I = ns.Integrations
+	for _, list in pairs(P.BossLoot()) do
+		local l = list[1]
+		local b, inst = I.LootSplit(rawget(l, "detail") or l.detail)
+		local li = inst and Lower(inst)
+		if li and (li:find(want, 1, true) or (type(full) == "string" and li:find(full, 1, true))) then
+			found[#found + 1] = { boss = b, inst = inst, n = #list }
+		end
+	end
+	if #found == 0 then return nil end
+	return { bosses = found, place = found[1].inst }
+end
+function IB.Answer(q)
+	local rows = {}
+	for _, f in ipairs(q.bosses) do
+		rows[#rows + 1] = { key = "boss:" .. f.boss, name = f.boss, kind = "pipe", kindLabel = L["Bosses"], detail = f.inst .. SEP
+			.. (f.n == 1 and L["%d item"] or L["%d items"]):format(f.n), activate = BossWalk, staysOpen = true,
+			icon = "Interface\\Icons\\INV_Misc_Bone_ElfSkull_01" }
+	end
+	table.sort(rows, function(a, b) return a.name < b.name end)
+	ns.ScoreInOrder(rows)
+	return rows, L["Bosses"] .. SEP .. q.place
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function IB.ToAdvanced() return nil end

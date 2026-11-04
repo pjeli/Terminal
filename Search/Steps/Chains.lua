@@ -108,6 +108,12 @@ P.PHRASES = {
 	{ "^who trains (.+)$", "learn" },
 	{ "^where is (.+) taught$", "learn" }, { "^where to get the recipe for (.+)$", "learn" },
 	{ "^where is the recipe for (.+)$", "learn" }, { "^recipe sources? for (.+)$", "learn" },
+	-- (1.0.50, the reach audit) what an NPC drops, what a vendor sells: only when the words name one (P.PHRASE_NPC)
+	{ "^what does (.+) drop$", "drops" }, { "^what do (.+) drop$", "drops" }, { "^drops from (.+)$", "drops" },
+	{ "^loot from (.+)$", "drops" }, { "^(.+) loot$", "drops" }, { "^(.+) drops$", "drops" },
+	{ "^what does (.+) sell$", "sells" }, { "^what do (.+) sell$", "sells" }, { "^items sold by (.+)$", "sells" },
+	{ "^what is sold by (.+)$", "sells" }, { "^whats sold by (.+)$", "sells" }, { "^(.+) wares$", "sells" },
+	{ "^what does (.+) have for sale$", "sells" },
 	{ "^where to get (.+)$", "sources" }, { "^where do i get (.+)$", "sources" }, { "^where can i get (.+)$", "sources" },
 	{ "^where to buy (.+)$", "sources" }, { "^where can i buy (.+)$", "sources" }, { "^how to get (.+)$", "sources" },
 	{ "^how do i get (.+)$", "sources" }, { "^sources? for (.+)$", "sources" }, { "^sources? of (.+)$", "sources" },
@@ -122,11 +128,15 @@ P.PHRASES = {
 	{ "^(.+) quest chain$", "chain" },
 }
 
+-- (the phrases whose words must name an NPC or a boss: "hogger loot" is Hogger's, "deadmines loot" and "raid loot" not)
+P.PHRASE_NPC = { drops = true, sells = true }
+
 -- Simple mode's words for a one-link chain (it never shows ">"): what Enter writes and what the footer says
 P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s", learn = "where to learn %s",
-	chain = "quest chain for %s" }
+	chain = "quest chain for %s", drops = "what does %s drop", sells = "what does %s sell" }
 P.SIMPLE_LABEL = { mats = L["Mats for %s"], uses = L["What uses %s"], sources = L["Where to get %s"], alts = L["%s on your alts"],
-	learn = L["Where to learn %s"], chain = L["Quest chain for %s"], ["?"] = L["Which %s?"] }
+	learn = L["Where to learn %s"], chain = L["Quest chain for %s"], ["?"] = L["Which %s?"], drops = L["Drops from %s"],
+	sells = L["Sold by %s"] }
 
 local function SimpleOn() return ns.Easy and ns.Easy.On and ns.Easy.On() end
 
@@ -180,7 +190,7 @@ function P.Canonical(text, words)
 		local what = P.Available(ph[2]) and lt:match(ph[1])
 		if what and what:find("%S") then
 			what = what:gsub("^the ", ""):gsub("^a ", ""):gsub("^an ", "")
-			if not P.NotAName(what) then return what .. " > " .. ph[2] end
+			if not P.NotAName(what) and not (P.PHRASE_NPC[ph[2]] and not P.NpcNamed(what)) then return what .. " > " .. ph[2] end
 		end
 	end
 	return nil
@@ -420,6 +430,103 @@ ns:RegisterRelation("uses", {
 			if not made[id] and Takes(AtlasCraft(id)) then
 				made[id] = true
 				out[#out + 1] = l
+			end
+		end
+		return out
+	end,
+})
+
+-- drops, sells: what an NPC drops (AtlasLoot's loot of a boss by that name; any other creature: the items whose
+-- Questie npcDrops list it) and what a vendor sells (the items whose Questie vendors list it). 1.0.50, the reach audit:
+-- "what does hogger drop", "what does innkeeper farley sell" (Advanced: "hogger > drops", "farley > sells").
+local bossBy, bossFrom -- (@loot's rows by their boss's lowercase name, made once a loot list)
+local function BossLoot()
+	local list = Entries("loot")
+	if bossFrom ~= list then
+		bossBy, bossFrom = {}, list
+		local I = ns.Integrations
+		for _, l in ipairs(list) do
+			local boss = I and I.LootSplit and I.LootSplit(rawget(l, "detail") or l.detail)
+			if boss and boss ~= "" and boss ~= "?" then
+				local k = ns.Lower(boss)
+				local t = bossBy[k]
+				if not t then t = {}; bossBy[k] = t end
+				t[#t + 1] = l
+			end
+		end
+	end
+	return bossBy
+end
+P.BossLoot = BossLoot
+local npcNames, npcNamesFrom -- (Questie's NPCs by their lowercase name, made once a list)
+--- Do these (lowercase) words name an NPC Questie knows, or a boss AtlasLoot lists?
+function P.NpcNamed(what)
+	if BossLoot()[what] then return true end
+	local list = ns.providers.npc and Entries("npc") or {}
+	if npcNamesFrom ~= list then
+		npcNames, npcNamesFrom = {}, list
+		for _, e in ipairs(list) do
+			local n = rawget(e, "_lname")
+			if n then npcNames[n] = true end
+		end
+	end
+	return npcNames[what] == true
+end
+local function NpcItemRow(id, detail, how)
+	local name = ItemName(id)
+	if not name then return nil end
+	local q = C_Item and C_Item.GetItemQualityByID and Safe(C_Item.GetItemQualityByID, id)
+	return { key = id, kind = "reagent", kindLabel = SOURCE_LABEL, freqKey = "reagent:" .. id, name = name, itemID = id,
+		link = "item:" .. id, icon = Icon(id), color = ns.QualityHex and ns.QualityHex(q) or nil, detail = detail,
+		pipeHow = how, activate = ShowItem }
+end
+local function NpcOf(e) return e.kind == "npc" and (e.npcID or rawget(e, "key")) or nil end
+ns:RegisterRelation("drops", {
+	aliases = { "drop", "loot", "dropped" },
+	desc = L["what an NPC drops: a boss's loot (AtlasLoot), a creature's (Questie)"],
+	seedKinds = { "npc" },
+	applies = function(e) return NpcOf(e) ~= nil end,
+	run = function(rows)
+		local out, seen = {}, {}
+		local I = ns.Integrations
+		for _, e in ipairs(rows) do
+			local name = tostring(e.name)
+			for _, l in ipairs(BossLoot()[ns.Lower(name)] or {}) do
+				if #out >= P.MAX_OUT then break end
+				if not seen[l.itemID] then seen[l.itemID] = true; out[#out + 1] = l end
+			end
+			local ids, busy = I and I.NpcItems and I.NpcItems(NpcOf(e), "drops")
+			if busy then P.loading = true end
+			for _, id in ipairs(ids or {}) do
+				if #out >= P.MAX_OUT then break end
+				if not seen[id] then
+					local r = NpcItemRow(id, L["Drops from %s"]:format(name), L["dropped by %s"]:format(name))
+					if r then seen[id] = true; out[#out + 1] = r end
+				end
+			end
+		end
+		return out
+	end,
+})
+ns:RegisterRelation("sells", {
+	aliases = { "sold", "stock", "wares", "vendor" },
+	desc = L["what a vendor sells (Questie)"],
+	available = function() return ns.providers.npc ~= nil end, addon = "Questie",
+	seedKinds = { "npc" },
+	applies = function(e) return NpcOf(e) ~= nil end,
+	run = function(rows)
+		local out, seen = {}, {}
+		local I = ns.Integrations
+		for _, e in ipairs(rows) do
+			local name = tostring(e.name)
+			local ids, busy = I and I.NpcItems and I.NpcItems(NpcOf(e), "sold")
+			if busy then P.loading = true end
+			for _, id in ipairs(ids or {}) do
+				if #out >= P.MAX_OUT then break end
+				if not seen[id] then
+					local r = NpcItemRow(id, L["Sold by %s"]:format(name), L["Sold by %s"]:format(name))
+					if r then seen[id] = true; out[#out + 1] = r end
+				end
 			end
 		end
 		return out

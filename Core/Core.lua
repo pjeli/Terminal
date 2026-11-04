@@ -612,8 +612,12 @@ function ns:StartPrewarm(delay)
 end
 
 -- Big lists nobody searched for a while are freed, and rebuilt when next wanted.
+-- (and data some part keeps of its own, let go after a while unused: `ns.idleHolds`, functions(now) that do it;
+-- Questie's what-NPCs-sell index, 1.0.50)
+ns.idleHolds = ns.idleHolds or {}
 function ns:DropIdle(now)
 	now = now or GetTime()
+	for _, f in ipairs(ns.idleHolds) do pcall(f, now) end
 	for _, p in pairs(self.providers) do
 		-- (held: a list a provider keeps itself, built in the background without a search: Questie's NPCs)
 		local held = p._entries or (p.held and p.held(p))
