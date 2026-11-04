@@ -145,7 +145,12 @@ function UI:GroupedRows()
 end
 
 --- The same row, or the same row made again (kind, key and name).
-local function SameRow(e, keep) return e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key) end
+-- (a worn piece and the same item in your bags share their kind, name and key, as the history wants: the slot tells
+-- them apart, or Enter found the worn one again after a bag update and opened the character window; 1.0.90, review)
+local function SameRow(e, keep)
+	return e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key
+		and rawget(e, "slotId") == rawget(keep, "slotId"))
+end
 UI.SameRow = SameRow -- (one test of it: the menu, Enter's armed press, the row a chain goes back to, the catcher's click)
 
 --- The row `keep` selected again in the rows now shown, at the same place on screen (keptRow: its row there). True when

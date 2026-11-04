@@ -65,6 +65,7 @@ end
 --- isn't one: !t or !terminal, any case, at the start, then a space. Links are read as their names (A.Clean).
 function A.Question(text)
 	if type(text) ~= "string" or ns.Secret(text) then return nil end
+	if not text:find("!", 1, true) then return nil end -- (every guild and group line: cleaned only when it may be one)
 	local word, rest = A.Clean(text):match("^%s*!(%a+)(.*)$")
 	if not word then return nil end
 	word = word:lower()

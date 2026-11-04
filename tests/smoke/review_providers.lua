@@ -404,3 +404,13 @@ do -- (1.0.85, review) a frame of Terminal's made before .zen faded anything (Ze
 	UI:Hide(); T.FlushAll()
 	ns.db.easyMode = easy; UI:EasyChanged()
 end
+
+do -- (1.0.90, review) a worn piece and the same item in your bags are two rows to find again (Enter, the menu, a
+	-- selection kept over a bag update); a chat line with no "!" is never a !t question
+	local UI, ns = T.UI, T.ns
+	local bag = { kind = "items", name = "Band of Zz", key = 990777 }
+	local worn = { kind = "items", name = "Band of Zz", key = 990777, slotId = 11 }
+	local worn2 = { kind = "items", name = "Band of Zz", key = 990777, slotId = 11 }
+	T.check(not UI.SameRow(bag, worn) and not UI.SameRow(worn, bag) and UI.SameRow(worn2, worn), "worn and in bags: told apart by the slot")
+	T.check(ns.Ask.Question("where is hogger") == nil and ns.Ask.Question("!t where is hogger") ~= nil, "!t: only a line with its !")
+end

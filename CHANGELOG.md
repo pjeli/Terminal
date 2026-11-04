@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.90 (in testing)
+
+- Small fixes (review): a ring you wear and the same ring in your bags are told apart, so Enter after a bag update opens the bags and not the character window; `!t` only looks closer at guild and group lines with a `!` in them.
+
 ## 1.0.89 (in testing)
 
 - Share (review): a friend's bags whose update lost a piece on the way are asked for again after 30 seconds, instead of staying out of date until their bags change; invites from the same person are said once a minute whatever group they name, so changing the name can't fill your chat.
