@@ -59,6 +59,7 @@ Scan.ANSWERS = {
 	Asks("AuctionatorQ"),
 	Asks("AhUpgradesQ"), -- ("ah upgrades", "cheapest upgrades on the ah": AuctionValues.lua, 0.66.13)
 	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")
+	Asks("BagWorth"), -- ("what are my bags worth": "in:bags | sum value", after Auctionator's AH worth; Suggest.lua, 1.0.56)
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ"),
 	-- "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens": a hunter's pets, OneForAll's

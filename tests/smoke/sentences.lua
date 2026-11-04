@@ -54,6 +54,12 @@ local ok, err = pcall(function()
 		"duskwood level: its range: " .. tostring(zq and zq.said))
 	local dq = LV.Question("what level is the stockade")
 	check(not ns.providers.dungeon or (dq and dq.said), "what level is the stockade: the dungeon's: " .. tostring(dq and dq.said))
+	-- (1.0.56) what your bags are worth: summed
+	UI:Open(""); UI:SetQuery("what are my bags worth"); T.FlushAll()
+	local wr = UI.Results()
+	check(wr[1] and wr[1].kind == "aggregate" and Adv("what are my bags worth") == "in:bags | sum value" and ns.BagWorth.Question("bags") == nil,
+		"what are my bags worth: in:bags | sum value: " .. tostring(wr[1] and wr[1].kind))
+	UI:Hide(); T.FlushAll()
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

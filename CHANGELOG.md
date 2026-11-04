@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.56 (in testing)
+
+- "what are my bags worth", "bag value", "what's my stuff worth": what your bags sell to a vendor for, summed (`in:bags | sum value`); with Auctionator, their auction house worth, as "ah value of my mats" (the reach audit).
+
 ## 1.0.55 (in testing)
 
 - Levels as an answer (the reach audit): "what level is hogger" shows his row with his level (Questie's), "what level is the stockade" the dungeon's (or raid's) range, "duskwood level" the zone's.

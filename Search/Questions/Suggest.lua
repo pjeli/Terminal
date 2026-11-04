@@ -648,6 +648,8 @@ function PF.Line(text)
 	-- else a "per" line no other question takes)
 	local AN = ns.Auctionator
 	local q = AN and AN.ValueQuestion and AN.ValueQuestion(head)
+	-- ("what are my bags worth": "in:bags | sum value", without Auctionator; 1.0.56)
+	if not q and ns.BagWorth then q = ns.BagWorth.Question(head) end
 	if not q then
 		q = PF.Question(head)
 		if not q or (ns.PerFieldTaken and ns.PerFieldTaken(head)) then return nil end
@@ -1059,3 +1061,29 @@ function LV.Answer(q)
 end
 --- Not a search: the question stays as typed (Advanced mode answers it the same).
 function LV.ToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- "what are my bags worth", "bag value", "what's my stuff worth": what your bags sell to a vendor for, summed (with
+-- Auctionator, AuctionValues.lua's AhValueQ answers first, with the auction house's worth). The search runs the line
+-- (1.0.56, the reach audit).
+----------------------------------------------------------------------
+
+local BW = {}
+ns.BagWorth = BW
+local BW_LISTS = { bags = true, bag = true, stuff = true, inventory = true, items = true, things = true, junk = false }
+local BW_FILL = { the = true, my = true, of = true, what = true, whats = true, are = true, is = true, how = true, much = true,
+	["in"] = true, total = true, all = true, me = true, i = true, ["do"] = true, have = true, vendor = true, sell = true, ["for"] = true }
+function BW.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local list, worth = false, false
+	for w in t:gmatch("%S+") do
+		if BW_LISTS[w] then list = true
+		elseif w == "worth" or w == "value" then worth = true
+		elseif not BW_FILL[w] then return nil end
+	end
+	if not (list and worth) then return nil end
+	return { line = "in:bags | sum value " }
+end
+function BW.Answer() return nil end -- (the search runs the line: UI/Results.lua's TakeAggregate)
+function BW.ToAdvanced(q) return q.line end
