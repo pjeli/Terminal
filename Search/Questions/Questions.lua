@@ -51,6 +51,8 @@ Scan.ANSWERS = {
 	Asks("BiggerBags"),
 	-- "achievements almost done", "quests almost done": the closest to done first (Suggest.lua; 1.0.59)
 	Asks("AlmostDone"),
+	-- "where is my hearth": where your hearthstone takes you, and its cooldown (Suggest.lua; 1.0.60)
+	Asks("HearthBind"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

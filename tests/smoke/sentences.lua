@@ -88,6 +88,17 @@ local ok, err = pcall(function()
 	check(AD.Question("achievements almost done").kind == "achievements" and AD.Question("quests almost done").kind == "quests"
 		and AD.Question("achievements") == nil and Adv("achievements almost done") == "@achievement is:todo sort:progress"
 		and type(AD.Answer(AD.Question("achievements almost done"))) == "table", "achievements almost done: the question, its Advanced line")
+	-- (1.0.60) where your hearthstone takes you
+	local HB = ns.HearthBind
+	local bindWas, cdWas = _G.GetBindLocation, C_Container and C_Container.GetItemCooldown
+	_G.GetBindLocation = function() return "Goldshire" end
+	if C_Container then C_Container.GetItemCooldown = function() return 0, 0, 1 end end
+	local hrows = HB.Question("where is my hearth") and HB.Answer()
+	_G.GetBindLocation = bindWas
+	if C_Container then C_Container.GetItemCooldown = cdWas end
+	local hs = hrows and hrows[1]
+	check(hs and (tostring(hs.detail) .. tostring(hs.name)):find("Goldshire", 1, true) and (tostring(hs.detail) .. tostring(hs.name)):find(ns.L["ready"], 1, true)
+		and HB.Question("hearthstone") == nil, "where is my hearth: Goldshire, ready: " .. tostring(hs and hs.detail))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

@@ -1191,3 +1191,44 @@ end
 function AD.ToAdvanced(q)
 	return q.kind == "achievements" and "@achievement is:todo sort:progress " or "@questlog -is:complete sort:progress "
 end
+
+----------------------------------------------------------------------
+-- "where is my hearth", "my hearthstone location": where your hearthstone takes you (the game's GetBindLocation) and
+-- whether it's ready (1.0.60, the reach audit)
+----------------------------------------------------------------------
+
+local HB = {}
+ns.HearthBind = HB
+HB.ITEM = 6948 -- (the Hearthstone)
+local HB_SET = {}
+for _, s in ipairs({ "where is my hearth", "where is my hearthstone", "my hearthstone location", "my hearth location", "hearth location",
+	"hearthstone location", "where am i bound", "where is my home", "where is my hearth set", "where is my hearthstone set",
+	"where does my hearthstone go", "where does my hearth go", "hearthstone set to", "where is my inn" }) do HB_SET[s] = true end
+function HB.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	return HB_SET[t] and {} or nil
+end
+--- The hearthstone's cooldown said: "ready", "12 min left"; nil when the game won't say.
+function HB.Cooldown()
+	local cd = (C_Container and C_Container.GetItemCooldown) or _G.GetItemCooldown
+	local start, dur = Safe(cd, HB.ITEM)
+	start, dur = Num(start), Num(dur)
+	if not (start and dur) then return nil end
+	local left = start > 0 and dur > 1.5 and (start + dur - GetTime()) or 0
+	if left <= 0 then return L["ready"] end
+	return L["%s left"]:format(L["%d min"]:format(math.ceil(left / 60)))
+end
+function HB.Answer()
+	local where = Str(Safe(_G.GetBindLocation))
+	local title = ns.UpperFirst(L["in %s"]:format(where or "?"))
+	if not where then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	local said = where .. ((HB.Cooldown() and (SEP .. HB.Cooldown())) or "")
+	for _, e in ipairs(Entries("items", true)) do
+		if e.itemID == HB.ITEM then return { setmetatable({ detail = said }, { __index = e }) }, title end
+	end
+	return { ns.NoteRow(said) }, title
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function HB.ToAdvanced() return nil end

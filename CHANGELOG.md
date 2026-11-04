@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.60 (in testing)
+
+- "where is my hearth", "my hearthstone location", "where am i bound": where your hearthstone takes you and whether it's ready, on your Hearthstone's row (the reach audit).
+
 ## 1.0.59 (in testing)
 
 - "achievements almost done", "quests almost done": those under way, the closest to done first (an achievement's criteria, a quest's objectives); a new sort, `sort:progress` (and Progress in the bar's Sort), does the same in any search of them (the reach audit).
