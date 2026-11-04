@@ -672,7 +672,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress" },
+	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress", "list" },
 	fish = { "mine", "75", "150", "225", "300" },
 	cast = { "instant", "channeled", "<2", ">=3" }, cost = { "0", "mana", "rage", "energy", "<100" },
 	range = { "melee", "self", "30", ">=30" }, cd = { "0", "<10", ">60" },
@@ -745,7 +745,10 @@ F.APPLIES = {
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { distance = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
-		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" }, progress = { "achievements", "quests" } },
+		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" }, progress = { "achievements", "quests" },
+		-- (sort:list: the lists that keep an order of their own; 1.0.77)
+		list = { "quests", "spells", "history", "buyback", "lootlog", "combatlog", "lockouts", "auctions", "calendar", "groupquests",
+			"attune", "training", "durability", "mail", "group", "book", "transport", "items", "bank", "stored" } },
 	near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
 	cast = { ["*"] = { "spells", "classspells" } }, cost = { ["*"] = { "spells", "classspells" } },
@@ -836,6 +839,7 @@ F.HELP = {
 	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
 	{ "sort:quality,-level", L["several fields: by the first, then on a tie by the next (sort:quality,-level: the best first, the highest level first among equals); Simple mode's Sort takes a then by with Shift"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
+	{ "sort:list", L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] },
 	{ "sort:distance", L["NPCs, mailboxes, forges, anvils, cooking fires, moonwells, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },
 	{ "sort:plan", L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] },

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.77 (in testing)
+
+- Questions (docs/QUESTIONS.md, phase 2): a question can be answered by its Advanced line, searched as typed in Advanced mode ("quests per zone", "what are my bags worth" and "ah value of my mats" already were), so Alt+` writes exactly what it showed. `sort:list`: the rows in their list's own order, not your picks first; a sorted list with no words is listed whole (up to 1000), not cut at 100.
+
 ## 1.0.76 (in testing)
 
 - Questions (docs/QUESTIONS.md, phase 1): one registry with an id per question; when several could take a line, the one that understands more of its words gets it, or the one a review said should (`over`), not whichever came first in a list. No answer changes.

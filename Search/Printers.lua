@@ -44,9 +44,11 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		-- (a question: what Simple mode's bar picked after it, as its search takes them: Scan.AnswerView)
 		local bar = ns.Easy and ns.Easy.On() and ns.Bar and ns.Bar.Active()
 		if not bar then return asked end
-		local line = asked:gsub("%s+$", "")
-		for _, w in ipairs(bar.filters) do line = line .. " " .. w end
-		if bar.sort then line = line .. " sort:" .. bar.sort end
+		-- (before a step line's "|": Questions.lua's Scan.WithTail, as its search reads them)
+		local words = {}
+		for _, w in ipairs(bar.filters) do words[#words + 1] = w end
+		if bar.sort then words[#words + 1] = "sort:" .. bar.sort end
+		local line = Scan.WithTail(asked, words):gsub("%s+$", "")
 		if bar.group and not noGroup then line = line .. " | group by " .. bar.group end
 		return line .. " "
 	end

@@ -3346,4 +3346,7 @@ L["a profession"] = "профессия"
 L["The game doesn't say where your hearthstone is set"] = "Игра не сообщает, где привязан ваш камень возвращения"
 L["%s: invalid context length argument"] = "%s: недопустимая длина контекста"
 L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"] = "-A N N строк после каждого совпадения, -B N до, -C N и до, и после (-- между группами)   -H имя файла в каждой строке"
+L["List order"] = "Порядок списка"
+L["in their list's order"] = "в порядке их списка"
+L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] = "строки в собственном порядке их списка (как в журнале заданий, в книге заклинаний, сначала новые...), а не сначала ваш выбор; отсортированный список без слов показывается целиком"
 --@end-do-not-package@

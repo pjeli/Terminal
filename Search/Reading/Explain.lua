@@ -51,7 +51,7 @@ local SORT_SAY = { distance = L["nearest first"], ["-distance"] = L["farthest fi
 	best = L["biggest upgrades first"], plan = L["the recipes that still give skill, by how often your mats make them"],
 	damage = L["biggest hits first"], line = L["line by line"], owner = L["by owner"], slots = L["most slots first"],
 	["-slots"] = L["fewest slots first"], ahvalue = L["highest AH value first"], ahprice = L["highest AH price first"],
-	standing = ns.Lower(L["Standing"]), ["-standing"] = ns.Lower(L["Standing"]) }
+	standing = ns.Lower(L["Standing"]), ["-standing"] = ns.Lower(L["Standing"]), list = L["in their list's order"] }
 --- A sort: word ("sort:quality,-level") said: "best quality first, then highest level first"; nil when it isn't one.
 local function SortSay(word)
 	local F = ns.Filters

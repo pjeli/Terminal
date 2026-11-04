@@ -12,9 +12,10 @@ local Q = {}
 ns.Questions = Q
 
 -- An entry (docs/QUESTIONS.md, section 2): `id`; `ask(text, converting)` gives what the line asks (and a second value
--- for answer/toAdvanced) or nil when it isn't its kind; `answer` gives rows and the footer's note (true third: the note
--- is a chain's path), or nil to pass the line on; `toAdvanced` the same question as Advanced mode writes it (Alt+`, nil:
--- the words as typed); `examples`, the lines it must answer (tests/smoke/question_registry.lua); `over`, the entries it beats
+-- for line/answer/toAdvanced) or nil when it isn't its kind; then either `line(q, extra)`, the Advanced line whose
+-- search is its answer and its Alt+` (a search question: `note(q, rows)` its footer, `empty(q)` its rows when nothing is
+-- found), or `answer` giving rows and the footer's note (true third: the note is a chain's path), or nil to pass the line
+-- on, with `toAdvanced` the same question as Advanced mode writes it (Alt+`, nil: the words as typed); `examples`, the lines it must answer (tests/smoke/question_registry.lua); `over`, the entries it beats
 -- when both understand a line as well (section 3); `custom`, why its answer is its own. One list for the answer and
 -- Alt+` (review, 0.53.6: Easy.lua kept its own copy in the same order by hand, and the two had drifted before).
 --- A module with Question, Answer and ToAdvanced of its own (ns[name]); `more`: the entry's other fields.
@@ -29,6 +30,8 @@ local function Asks(name, more)
 		toAdvanced = function(q, extra) return ns[name].ToAdvanced(q, extra) end,
 	}
 	for k, v in pairs(more or {}) do a[k] = v end
+	-- (a search question: its line is its answer and its Advanced form, section 4.1)
+	if a.line then a.answer, a.toAdvanced = nil, nil end
 	return a
 end
 Q.Asks = Asks
@@ -79,8 +82,10 @@ Scan.ANSWERS = {
 	-- was before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
 	Asks("AuctionatorQ", { over = { "Auctions" } }),
 	Asks("AhUpgradesQ", { custom = "gain per gold over one row per item" }), -- ("ah upgrades": AuctionValues.lua, 0.66.13)
-	Asks("AhValueQ", { over = { "Chains" } }), -- ("ah value of my mats": "@mats | sum ahvalue", was ahead of the chains' "... mats")
-	Asks("BagWorth", { examples = { "what are my bags worth", "bag value" } }), -- ("in:bags | sum value"; Suggest.lua, 1.0.56)
+	-- ("ah value of my mats": "@mats | sum ahvalue", was ahead of the chains' "... mats")
+	Asks("AhValueQ", { over = { "Chains" }, steps = true, line = function(q) return q.line end }),
+	-- ("what are my bags worth": "in:bags | sum value"; Suggest.lua, 1.0.56)
+	Asks("BagWorth", { examples = { "what are my bags worth", "bag value" }, steps = true, line = function(q) return q.line end }),
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ", { examples = { "what is in my bank", "my bank" } }),
 	-- "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens": a hunter's pets, OneForAll's
@@ -236,7 +241,8 @@ Scan.ANSWERS = {
 	Asks("Calendar", { ownDates = true, examples = { "holidays", "whats on this week" } }),
 	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's
 	-- TakeAggregate). Last: a line another question takes as well is that one's ("lockouts by raid": @lockout's)
-	Asks("PerField", { perField = true, last = true, examples = { "quests per zone", "items by quality" } }),
+	Asks("PerField", { perField = true, last = true, steps = true, examples = { "quests per zone", "items by quality" },
+		line = function(q) return q.line end }),
 }
 
 ----------------------------------------------------------------------
@@ -271,7 +277,7 @@ end
 -- several times, as typed and as its variants; outside a search every call asks again, what it reads may have changed)
 local memo, memoN, stamp = {}, 0, nil
 function Q.Forget() memo = {} end
-function Q.Begin() stamp = {}; memo = {} end
+function Q.Begin() stamp = {}; memo = {}; Q.lineDepth = 0 end
 function Q.Finish() stamp = nil; memo = {} end
 
 --- The entries that take `text`, best first: { { a = entry, q = what it asks, extra = its second value, n = the words
@@ -317,18 +323,22 @@ end
 --- level" by how well each zone fits, "my mail" with the auction house's news, stays as it was said: its toAdvanced says
 --- nil. Questions are answered in Advanced mode too, so what's written finds what was shown; "@map lvl:23" didn't.)
 function ns.QuestionToAdvanced(text)
-	-- ("items by zone q:rare": its filters before its step, as the search runs it: Suggest.lua's PF.Line)
-	local per = ns.PerField and ns.PerField.Line and (ns.PerField.Line(text))
-	if per then return per end
+	-- ("items by zone q:rare": its filters before its step, as the search runs it: Q.StepLine)
+	local stepped = Q.StepLine(text)
+	if stepped then return stepped end
 	return ns.QuestionToAdvancedOf(text)
 end
---- The question's line with the filters and sorts typed after it: before its ">>"/">>>" part, where the search reads
---- them (0.63.7, review: "untrack quests is:red" was written "@quest >>> untrack is:red", which untracked them all).
+--- The question's line with the filters and sorts typed after it (`tail`, words): before its first step ("| group by
+--- zone": the search's, the steps sum up what it found) or its ">>"/">>>" part, where the search reads them (0.63.7,
+--- review: "untrack quests is:red" was written "@quest >>> untrack is:red", which untracked them all).
 local function WithTail(line, tail)
+	local body = (tostring(line):gsub("%s+$", ""))
+	if not tail or #tail == 0 then return body .. " " end
 	local tailText = table.concat(tail, " ")
-	local head, send = line:match("^(.-)%s+(>>.-)%s*$")
-	if head then return head .. " " .. tailText .. " " .. send .. " " end
-	return (line:gsub("%s+$", "")) .. " " .. tailText .. " "
+	local step, send = body:find("%s|%s"), body:find("%s>>")
+	local at = (step and send) and math.min(step, send) or step or send
+	if at then return body:sub(1, at - 1) .. " " .. tailText .. " " .. body:sub(at + 1) .. " " end
+	return body .. " " .. tailText .. " "
 end
 Scan.WithTail = WithTail
 
@@ -337,7 +347,8 @@ function ns.QuestionToAdvancedOf(text)
 	local line, tail = Scan.ReadQuestion(text, function(t)
 		local c = Q.Ranked(t)[1]
 		if not c then return nil end
-		local out = c.a.toAdvanced(c.q, c.extra)
+		local out
+		if c.a.line then out = c.a.line(c.q, c.extra) else out = c.a.toAdvanced(c.q, c.extra) end
 		if out == nil then out = (t:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
 		return out, c.a
 	end)
@@ -345,21 +356,85 @@ function ns.QuestionToAdvancedOf(text)
 	return line
 end
 
---- Does a question other than "per field"'s get this line? (Suggest.lua's PF.Line: "lockouts by raid" stays @lockout's)
-function ns.PerFieldTaken(text)
-	local ok, ranked = pcall(Q.Ranked, text)
-	local c = ok and ranked[1]
-	return c and not c.a.perField or false
+--- A line whose question is answered by an Advanced line with steps ("quests per zone": "@questie | group by zone",
+--- "what are my bags worth": "in:bags | sum value"): that line, the filters and sorts typed after the question before
+--- its first step ("items by zone q:rare" -> "@item q:rare | group by zone"), with its search and steps (as A.Split
+--- reads it); nil when the line's best question isn't such a one ("lockouts by raid": @lockout's own; release review,
+--- 0.63.0). Read at the steps stage (the "per" recognizer below), so only the line and its Advanced words after it:
+--- never the line read again from inside its reading.
+function Q.StepLine(text)
+	if type(text) ~= "string" then return nil end
+	text = ns.Easy and ns.Easy.English and ns.Easy.English(text) or text
+	-- (every line is read so, and outside a search: the whole ranking only when a question whose line has steps (`steps`)
+	-- takes it, else nothing to rewrite; release review of 1.0.77: phrase.lua's reads ran out of budget)
+	local function Best(t)
+		local any = false
+		for _, a in ipairs(Scan.ANSWERS) do
+			if a.steps and a.ask(t) then any = true break end
+		end
+		if not any then return nil, nil end
+		local c = Q.Ranked(t)[1]
+		return c and c.a.line and c.a.line(c.q, c.extra) or nil, c
+	end
+	local line, c = Best(text)
+	local tail
+	if not c then
+		local rest
+		rest, tail = Scan.SplitTail(text)
+		if rest then line = Best(rest) end
+	end
+	if not (line and line:find("%s|%s")) then return nil end
+	local full = WithTail(line, tail)
+	-- (its search and steps as A.Split reads them, split here: A.Split reads the line, which this is inside the reading of)
+	local parts = {}
+	for part in (full:gsub("%s+$", "") .. " | "):gmatch("(.-)%s+|%s+") do parts[#parts + 1] = (part:gsub("^%s+", "")) end
+	local query, steps = parts[1], {}
+	for k = 2, #parts do steps[#steps + 1] = parts[k] end
+	if not query or #steps == 0 then return nil end
+	return full, query, steps
 end
+
+-- the step line, "quests per zone": the whole line (before a send) said again as its Advanced line, which the search runs
+-- ("@questie | group by zone"; UI/Results.lua's TakeAggregate). Its words stay the line's own for who reads them as typed
+-- (Alt+` writes the line, not its search: ns.QueryToAdvanced reads the step line itself). In either mode.
+ns.Phrase.Register({ id = "per", stage = "steps", priority = 40, classes = { op = true, syntax = true, word = true, quoted = true },
+	modes = { simple = true, advanced = true },
+	at = function(r, i)
+		if i ~= 1 then return nil end
+		-- (its search and steps as Q.StepLine made them: the line isn't read again from inside this reading; review)
+		local line, query, steps = Q.StepLine(r.base)
+		if not line then return nil end
+		return { from = 1, to = r.sendEnd - 1, keep = true, kind = "per", line = line, query = query, list = steps }
+	end })
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
 --- (0.55.7, the search's rewrite: an answer is filtered and sorted as a search is: Advanced filters and sorts typed after
 --- the question, "my auctions q:rare+ sort:value", and Simple mode's bar; Scan.AnswerView. Its group was already: "| group
 --- by" sums up any rows.)
+--- A search question's answer is the search of its line (section 4.1): its rows as the search gives them, true second.
 function Scan.Answer(self, text)
-	local rows, tail = Scan.ReadQuestion(text, function(t) return Scan.Ask(self, t) end)
-	if rows then return Scan.AnswerView(self, rows, tail) end
-	return nil
+	local got, tail = Scan.ReadQuestion(text, function(t) return Scan.Ask(self, t) end)
+	if not got then return nil end
+	if got.searchLine then return Scan.SearchLine(self, WithTail(got.searchLine, tail), got), true end
+	return Scan.AnswerView(self, got, tail)
+end
+
+--- A search question answered: its line searched (its steps, "| group by zone", are the line's reading's: TakeAggregate
+--- searched the part before them already, so here only that part, for who calls UI:Search itself), then its footer
+--- (`note`) and, when nothing is found, its own row saying why (`empty`).
+-- (never in a pcall: the search may yield, spread over frames; Q.Begin puts the depth back after an error)
+Q.lineDepth = 0
+function Scan.SearchLine(self, line, got)
+	local at = line:find("%s|%s")
+	local query = at and line:sub(1, at - 1) or line
+	if Q.lineDepth > 2 then return PseudoEntries({ EASY_NONE }) end -- (a line that is a question again: never round)
+	Q.lineDepth = Q.lineDepth + 1
+	local rows = self:SearchText(query)
+	Q.lineDepth = Q.lineDepth - 1
+	local a = got.entry
+	if a.empty and not Scan.AnyReal(rows) then rows = a.empty(got.q) or rows end
+	if a.note then self.answerNote = a.note(got.q, rows) end
+	return rows
 end
 
 --- How a line is read as a question, the same for its answer (Scan.Answer) and its Advanced form (Alt+`,
@@ -533,7 +608,13 @@ function Scan.Ask(self, text)
 	-- (the entries that take the line, best first: the first whose answer gives rows answers; docs/QUESTIONS.md, 3)
 	for _, c in ipairs(Q.Ranked(text)) do
 		local a = c.a
-		local rows, note, isTrail = a.answer(c.q, c.extra)
+		-- (a search question: its line, searched by Scan.Answer with what was typed after the question; section 4.1)
+		if a.line then
+			local line = a.line(c.q, c.extra)
+			if line then return { searchLine = line, entry = a, q = c.q }, a end
+		end
+		local rows, note, isTrail
+		if a.answer then rows, note, isTrail = a.answer(c.q, c.extra) end
 		if rows then
 			self.noPosition, self.action, self.place = nil, nil, nil
 			if self.categoryAuto then self.category, self.categoryAuto = nil, nil end

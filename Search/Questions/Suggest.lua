@@ -630,50 +630,8 @@ function PF.Question(text)
 	return { line = list .. " | group by " .. field .. " " }
 end
 
---- (searched as its Advanced line: TakeAggregate; nothing to answer here: nil, the other questions asked on)
-function PF.Answer() return nil end
-
---- The line as the search runs it, or nil: a "per" line with the Advanced filters and sorts typed after it before its
---- "|" ("items by zone q:rare" -> "@item q:rare | group by zone"), unless another question takes it ("lockouts by raid":
---- @lockout's; release review, 0.63.0).
-function PF.Line(text)
-	local head, tail = text, {}
-	while true do
-		local h, last = head:match("^(.-)%s+(%S+)%s*$")
-		if not (h and last and last:find("^[-!]?%a+:%S")) then break end
-		table.insert(tail, 1, last)
-		head = h
-	end
-	-- ("ah value of my mats": "@mats | sum ahvalue", with Auctionator, asked before the others: AuctionValues.lua;
-	-- else a "per" line no other question takes)
-	local AN = ns.Auctionator
-	local q = AN and AN.ValueQuestion and AN.ValueQuestion(head)
-	-- ("what are my bags worth": "in:bags | sum value", without Auctionator; 1.0.56)
-	if not q and ns.BagWorth then q = ns.BagWorth.Question(head) end
-	if not q then
-		q = PF.Question(head)
-		if not q or (ns.PerFieldTaken and ns.PerFieldTaken(head)) then return nil end
-	end
-	local list, step = q.line:match("^(.-)%s*(|.*)$")
-	local query = list .. (#tail > 0 and (" " .. table.concat(tail, " ")) or "")
-	-- (and its search and its one step apart, as A.Split reads the line: the per recognizer below)
-	return query .. " " .. step, query, (step:gsub("^|%s*", ""):gsub("%s+$", ""))
-end
-
-function PF.ToAdvanced(q) return q.line end
-
--- the per line, "quests per zone": the whole line (before a send) said again as its Advanced line, which the search runs
--- ("@questie | group by zone"; TakeAggregate). Its words stay the line's own for who reads them as typed (Alt+` writes
--- the line, not its search: ns.QueryToAdvanced reads the per line itself). In either mode.
-ns.Phrase.Register({ id = "per", stage = "steps", priority = 40, classes = { op = true, syntax = true, word = true, quoted = true },
-	modes = { simple = true, advanced = true },
-	at = function(r, i)
-		if i ~= 1 then return nil end
-		-- (its search and step as PF.Line made them: the line isn't read again from inside this reading; review)
-		local per, query, step = PF.Line(r.base)
-		if not per then return nil end
-		return { from = 1, to = r.sendEnd - 1, keep = true, kind = "per", line = per, query = query, list = { step } }
-	end })
+-- (a search question: its line is its answer, searched with its steps; Questions.lua's Q.StepLine reads it at the steps
+-- stage, the filters typed after it before its "|")
 
 ----------------------------------------------------------------------
 -- "who gives the defias brotherhood", "where do i turn in the defias brotherhood": a quest's giver or turn-in NPC
@@ -1119,8 +1077,6 @@ function BW.Question(text)
 	if not (list and worth) then return nil end
 	return { line = "in:bags | sum value " }
 end
-function BW.Answer() return nil end -- (the search runs the line: UI/Results.lua's TakeAggregate)
-function BW.ToAdvanced(q) return q.line end
 
 ----------------------------------------------------------------------
 -- "bigger bags", "bags with more slots": bags bigger than your smallest one, the most slots first, each saying where it

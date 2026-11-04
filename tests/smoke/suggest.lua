@@ -348,11 +348,11 @@ do
 	-- (release review, 0.63.0) a list's own name, whole: not the start of one, nor a plural made up
 	check(not PF.Question("a by zone") and not PF.Question("s by level") and not PF.Question("zz by zone"),
 		"\"a\", \"s\": no list's name")
-	check(PF.Line("items by zone q:rare") == "@item q:rare | group by zone ", "filters after it go before its step: " .. tostring(PF.Line("items by zone q:rare")))
-	check(PF.Line("quests per zone sort:name") == "@questlog sort:name | group by zone ", "a sort too: " .. tostring(PF.Line("quests per zone sort:name")))
+	check(ns.Questions.StepLine("items by zone q:rare") == "@item q:rare | group by zone ", "filters after it go before its step: " .. tostring(ns.Questions.StepLine("items by zone q:rare")))
+	check(ns.Questions.StepLine("quests per zone sort:name") == "@questlog sort:name | group by zone ", "a sort too: " .. tostring(ns.Questions.StepLine("quests per zone sort:name")))
 	check(ns.QuestionToAdvanced("items by zone q:rare") == "@item q:rare | group by zone ", "Alt+` writes it so too: " .. tostring(ns.QuestionToAdvanced("items by zone q:rare")))
 	ns:AliasesChanged()
-	check(PF.Line("items by zone") == "@item | group by zone ", "with the list names made again (a list registered late): " .. tostring(PF.Line("items by zone")))
+	check(ns.Questions.StepLine("items by zone") == "@item | group by zone ", "with the list names made again (a list registered late): " .. tostring(ns.Questions.StepLine("items by zone")))
 	-- (review) the per line's search and step as A.Split reads them, the line read once (not again from inside)
 	do
 		local P, real, calls = ns.Phrase, ns.Phrase.ReadLine, 0
@@ -365,7 +365,7 @@ do
 			"the per line's parts as A.Split reads them, no line read again: " .. tostring(r.per and r.per.query) .. " | "
 			.. tostring(r.per and r.per.list[1]) .. " (" .. calls .. " more reads)")
 	end
-	check(PF.Line("lockouts by raid") == nil and ns.QuestionToAdvanced("lockouts by raid"):find("@lockout", 1, true),
+	check(ns.Questions.StepLine("lockouts by raid") == nil and ns.QuestionToAdvanced("lockouts by raid"):find("@lockout", 1, true),
 		"another question's line stays its own: lockouts by raid -> " .. tostring(ns.QuestionToAdvanced("lockouts by raid")))
 	local saved = { providers = ns.providers, order = ns.providerOrder }
 	ns.providers, ns.providerOrder = {}, {}

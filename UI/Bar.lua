@@ -90,6 +90,9 @@ B.SORTS = {
 	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share; 0.58.6)
 	{ id = "standing", label = L["Standing"], field = "standing", asc = true }, -- (reputations and their rewards; 1.0.27)
 	{ id = "progress", label = L["Progress"], field = "progress" }, -- (achievements, quests: the closest to done first; 1.0.59)
+	-- (the rows in their lists' own order, never your picks first: a search question's line; docs/QUESTIONS.md, 1.0.77.
+	-- No Aggregate field: not on the bar's Sort, which offers the fields rows have)
+	{ id = "list", label = L["List order"], field = "list", asc = true },
 }
 B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
 -- what Group offers: Aggregate's fields that name something
@@ -355,6 +358,13 @@ local function Real(e) return type(e) == "table" and not (e.raw or e.noActivate 
 B.Real = Real
 
 local function KeyOf(s, e)
+	-- (sort:list: the list's own order, its _rank (ns.RankInOrder: the first highest); a list without one keeps the order
+	-- it gives its rows, every key the same and Keyed's tie the row's place)
+	if s.field == "list" then
+		local r = rawget(e, "_rank")
+		if r == nil then r = e._rank end
+		return -(tonumber(r) or 0)
+	end
 	if s.field == "name" then
 		-- (the lowered name the search keeps, when it has no colour codes to take out: a sort of 100k rows; 0.63.7)
 		local ln = rawget(e, "_lname")

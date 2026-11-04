@@ -104,6 +104,86 @@ local ok, err = pcall(function()
 		check(mounts == 5, "[questions: words understood] the count understands all but its slot: " .. tostring(mounts))
 	end
 
+	-- [questions: answer = Alt+`] a search question's answer is its line's search (docs/QUESTIONS.md, 4.1): typed in
+	-- Simple mode it lists what its Alt+` line lists typed in Advanced mode, row for row; the filters typed after it go into
+	-- the line; its note is the footer; nothing found: its own row. With sort:list, 150 rows in their list's order (not
+	-- their names', not cut at 100)
+	do
+		local B = ns.Bar
+		local saved = { providers = ns.providers, order = ns.providerOrder }
+		ns.providers, ns.providerOrder = {}, {}
+		local ROWS = {}
+		for i = 1, 150 do ROWS[i] = { name = ("Thing %03d"):format(151 - i), key = i, quality = i % 5 } end
+		ns.RankInOrder(ROWS)
+		ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function() return ROWS end })
+		ns:AliasesChanged()
+		UI.lastScan, UI.lastExtra = nil, nil
+		local LINE = { id = "zzLine",
+			ask = function(t) local w = ns.QuestionText(t) return w and w:find("^zzq my things") and {} or nil end,
+			line = function() return "@item sort:list " end, note = function() return "My things" end,
+			empty = function() return { ns.NoteRow("None of your things") } end }
+		table.insert(Scan.ANSWERS, 1, LINE)
+		local function Shown()
+			local t = {}
+			for _, e in ipairs(UI.Results()) do if B.Real(e) then t[#t + 1] = tostring(e.name) end end
+			return t
+		end
+		local function Typed(line, simple)
+			ns.db.easyMode = simple; UI:EasyChanged()
+			UI:Open(""); UI:SetQuery(line, #line); T.FlushAll()
+			local rows, note, first = Shown(), UI.answerNote, UI.Results()[1]
+			UI:Hide(); T.FlushAll()
+			return rows, note, first
+		end
+		local simple, note = Typed("zzq my things", true)
+		ns.db.easyMode = true; UI:EasyChanged()
+		local adv = ns.QueryToAdvanced("zzq my things")
+		local advanced = Typed(adv, false)
+		check(adv == "@item sort:list ", "[questions: answer = Alt+`] Alt+` writes its line: " .. tostring(adv))
+		check(#simple == 150 and simple[1] == "Thing 150" and simple[150] == "Thing 001" and table.concat(simple, ",") == table.concat(advanced, ","),
+			"[questions: answer = Alt+`] the same rows, in the list's order, all 150: " .. #simple .. " " .. tostring(simple[1]) .. " / " .. #advanced)
+		check(note == "My things", "[questions: answer = Alt+`] its note is the footer: " .. tostring(note))
+		ns.db.easyMode = true; UI:EasyChanged()
+		local tailAdv = ns.QueryToAdvanced("zzq my things q:4")
+		local tailSimple = Typed("zzq my things q:4", true)
+		local tailAdvanced = Typed(tailAdv, false)
+		check(tailAdv == "@item sort:list q:4 " and #tailSimple == 30 and table.concat(tailSimple, ",") == table.concat(tailAdvanced, ","),
+			"[questions: answer = Alt+`] a filter typed after it goes into its line: " .. tostring(tailAdv) .. " " .. #tailSimple .. "/" .. #tailAdvanced)
+		local _, _, none = Typed("zzq my things q:6", true)
+		check(none and none.name == "None of your things", "[questions: answer = Alt+`] nothing found: its own row: " .. tostring(none and none.name))
+		-- (sort:list on rows with no rank: the order the list gives them; a sorted list with words is still cut to 100)
+		for _, e in ipairs(ROWS) do e._rank = nil end
+		ns.db.easyMode = false; UI:EasyChanged()
+		local plain = UI:Search("@item sort:list")
+		local firstReal
+		for _, e in ipairs(plain) do if B.Real(e) then firstReal = firstReal or e end end
+		check(firstReal and firstReal.name == "Thing 150", "[questions: sort:list] no rank: the list's order: " .. tostring(firstReal and firstReal.name))
+		local worded = UI:Search("@item thing sort:list")
+		local nWorded = 0
+		for _, e in ipairs(worded) do if B.Real(e) then nWorded = nWorded + 1 end end
+		check(nWorded == 100, "[questions: sort:list] with words: the best 100 as before: " .. nWorded)
+		check(ns.Filters.SortOf("sort:list") == "list" and ns.Filters.SortOf("sort:order") == "list", "[questions: sort:list] its words")
+		table.remove(Scan.ANSWERS, 1)
+		ns.providers, ns.providerOrder = saved.providers, saved.order
+		ns:AliasesChanged()
+		UI.lastScan, UI.lastExtra = nil, nil
+		ns.db.easyMode = true; UI:EasyChanged()
+	end
+
+	-- [questions: step lines] a search question whose line has steps is read at the steps stage, its tail before the "|"
+	do
+		local SL = Q.StepLine
+		local full, query, steps = SL("items by zone q:rare")
+		check(full == "@item q:rare | group by zone " and query == "@item q:rare" and steps and steps[1] == "group by zone" and #steps == 1,
+			"[questions: step lines] " .. tostring(full) .. " / " .. tostring(query) .. " / " .. tostring(steps and steps[1]))
+		check(SL("lockouts by raid") == nil and SL("my mail") == nil and SL("@item | count") == nil,
+			"[questions: step lines] another question's line, an own answer, Advanced: none")
+		check(Scan.WithTail("@item | group by zone ", { "q:rare" }) == "@item q:rare | group by zone "
+			and Scan.WithTail("@quest >>> untrack", { "is:red" }) == "@quest is:red >>> untrack "
+			and Scan.WithTail("@a | first 3 >> party", { "x:y" }) == "@a x:y | first 3 >> party ",
+			"[questions: step lines] Scan.WithTail: the words before the first step or send")
+	end
+
 	-- [questions: one search] the ranking is kept while a search runs, asked again outside one
 	do
 		local n = 0

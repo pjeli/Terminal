@@ -639,6 +639,9 @@ function Scan.Finalize(self, q, out)
 	-- ("| first 3": how many matched, for the footer's "3 of 250", before the best are kept)
 	if self.aggregate and self.aggregate.first then self.aggregate.matched = #out end
 	local limit = (q.easyCat and (not q.here or q.nearDefault)) and Score.LIST_MAX or nil
+	-- (a list sorted, no words: all of it, up to LIST_MAX, as a question listed it: "@bank sort:name" is the whole bank, not
+	-- its first 100; docs/QUESTIONS.md, 1.0.77)
+	if not limit and q.sortField and q.empty then limit = Score.LIST_MAX end
 	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField, limit or Score.MAX_RESULTS, overBudget) end
 	local res = SortAndTrim(out, limit, overBudget)
 	if kinds and kinds.quests and kinds.questie then res = Scan.OneQuest(res) end
@@ -674,8 +677,12 @@ function UI:SearchText(text, how)
 	-- a phrase in the client's language: the English line it stands for (Simple.lua's E.PHRASES)
 	if ns.Easy and ns.Easy.English then text = ns.Easy.English(text) end
 	-- a chain or a question in plain words: its own answer, not a search (Scan.ANSWERS)
-	local answer = Scan.Answer(self, text)
-	if answer then self.whyQ = { answer = text } return answer end
+	-- (a search question: its line was searched, what it read is the search's own: Scan.SearchLine)
+	local answer, searched = Scan.Answer(self, text)
+	if answer then
+		if not searched then self.whyQ = { answer = text } end
+		return answer
+	end
 	local q = Scan.Parse(self, text, how)
 	self.whyQ = q -- (what the search read: a row's "Why is this here?", UI:WhyLines)
 	Scan.ActionAndPlace(self, q)

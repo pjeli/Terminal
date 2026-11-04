@@ -187,3 +187,26 @@ What can't be moved without losing something the player sees stays an own answer
   Advanced 4919.3 -> 4921.3 ms.
 - Tests: tests/smoke/question_registry.lua ([questions: ids], [questions: ranking] over stand-ins, [questions: examples],
   [questions: words understood], [questions: one search]).
+
+### 1.0.77 (phase 2)
+
+- An entry with `line(q, extra)` is a search question: `Scan.Ask` gives `{ searchLine }`, `Scan.Answer` adds the tail
+  (`Scan.WithTail`: before the first `|` step or `>>` send) and `Scan.SearchLine` searches it (`UI:SearchText`, never in
+  a pcall: it may yield; `Q.lineDepth` guards a line that is a question again), then `empty(q)` when nothing is real and
+  `note(q, rows)` as `UI.answerNote`. SearchText keeps the line's reading as `whyQ` (Why is this here?).
+- Step lines: `Q.StepLine(text)` (was `PF.Line`) reads the best entry's line, its Advanced tail before the "|", and splits
+  it as A.Split does (by hand: A.Split reads the line, and this runs inside its reading). The "per" recognizer moved to
+  Questions.lua and calls it. Entries with steps say `steps = true` (PerField, BagWorth, AhValueQ): only when one of them
+  takes a line is it ranked, because every line read goes through the recognizer and the full ranking there ran
+  phrase.lua and printers.lua out of their budget. `PF.Line`, `PF.Answer`, `PF.ToAdvanced`, `BW.Answer`/`ToAdvanced`, the
+  AH value's `Answer`/`ToAdvanced` and `ns.PerFieldTaken` are gone.
+- `sort:list` (also sort:order, sort:listed): Bar.lua's `KeyOf` gives `-_rank`, every row the same without one (Keyed's
+  tie is the row's place: the list's order); not on the bar's Sort (no Aggregate field). APPLIES.sort.list names the
+  lists with an order of their own. `.filters` has its line; `.explain` says "in their list's order".
+- `Scan.Finalize`: a sorted search with no words keeps up to `Score.LIST_MAX` (1000) rows, not 100.
+- Alt+` with the bar's picks writes them before a step line's "|" (Printers.lua, through `Scan.WithTail`).
+- easybench, the two trees one after the other on the six slowest lines: 1381.0 / 1354.1 ms against 1362.3 / 1333.2 ms
+  (Simple), worst key 21.3 / 20.9 against 20.8 / 19.8 ms. (Run side by side they had looked 4 ms apart: two runs at once
+  share the processor.)
+- Tests: [questions: answer = Alt+`] (a stand-in line question over 150 rows: Simple equals Advanced row for row, all
+  150 in the list's order, its tail, note and empty row), [questions: sort:list], [questions: step lines].

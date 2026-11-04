@@ -3346,4 +3346,7 @@ L["a profession"] = "una profesión"
 L["The game doesn't say where your hearthstone is set"] = "El juego no dice dónde está vinculada tu piedra de hogar"
 L["%s: invalid context length argument"] = "%s: longitud de contexto no válida"
 L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"] = "-A N las N líneas tras cada coincidencia, -B N antes, -C N ambas (-- entre grupos)   -H el nombre del archivo en cada línea"
+L["List order"] = "Orden de la lista"
+L["in their list's order"] = "en el orden de su lista"
+L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] = "las filas en el orden propio de su lista (el de tu registro de misiones, el del libro de hechizos, las más nuevas primero...), no tus elecciones primero; una lista ordenada sin palabras se muestra entera"
 --@end-do-not-package@

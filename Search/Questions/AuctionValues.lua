@@ -284,7 +284,7 @@ end
 
 ----------------------------------------------------------------------
 -- The questions: "what should i auction" (your auctionable items, what each would bring); "ah value of my mats"
--- (summed up: Suggest.lua's ns.PerField runs it as "@mats | sum ahvalue")
+-- (summed up: its line "@mats | sum ahvalue", searched with its step; Questions.lua's Q.StepLine)
 ----------------------------------------------------------------------
 
 local Q = {}
@@ -455,9 +455,8 @@ local VALUE_FILL = { the = true, my = true, of = true, what = true, whats = true
 	["in"] = true, on = true, at = true, total = true, all = true, worth = true, value = true, ah = true, auction = true,
 	house = true, price = true, prices = true, sum = true, me = true, i = true, ["do"] = true, have = true }
 
--- (Search.lua's Scan.ANSWERS: Asks("AhValueQ"), for Alt+`; the search runs its line, UI/Results.lua's TakeAggregate)
-ns.AhValueQ = { Question = function(text) return AN.ValueQuestion(text) end, Answer = function() return nil end,
-	ToAdvanced = function(q) return q.line end }
+-- (Questions.lua's Asks("AhValueQ"): a search question, its line searched with its step; Q.StepLine)
+ns.AhValueQ = { Question = function(text) return AN.ValueQuestion(text) end }
 
 --- { line = "@mats | sum ahvalue " } or nil: a list (mats, bags, consumables, gear) and the auction house's worth of it.
 function AN.ValueQuestion(text)

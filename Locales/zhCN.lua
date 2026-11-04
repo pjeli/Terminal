@@ -3346,4 +3346,7 @@ L["a profession"] = "某个专业"
 L["The game doesn't say where your hearthstone is set"] = "游戏没有说明你的炉石绑定在哪里"
 L["%s: invalid context length argument"] = "%s：无效的上下文行数"
 L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"] = "-A N 每个匹配之后的N行，-B N 之前，-C N 前后都有（组之间用 -- 分隔）   -H 每行都显示文件名"
+L["List order"] = "列表顺序"
+L["in their list's order"] = "按其列表的顺序"
+L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] = "按列表自身的顺序列出（任务日志的、法术书的、最新的在前……），而不是你常选的在前；没有词语的排序列表会完整列出"
 --@end-do-not-package@

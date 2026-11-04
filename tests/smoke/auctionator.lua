@@ -10,7 +10,7 @@ io.write("[auctionator: auction house prices from its public API]\n")
 check(AN and not AN.On(), "AuctionValues.lua loaded; without Auctionator: off")
 check(AN.Price(2589) == nil and AN.ValueOf({ kind = "items", itemID = 2589, count = 5 }) == nil, "without it: no price")
 check(not ns.AuctionatorQ.Question("what should i auction"), "without it: \"what should i auction\" isn't asked")
-check(AN.ValueQuestion("ah value of my mats") == nil and ns.PerField.Line("ah value of my mats") == nil, "without it: \"ah value of my mats\" isn't rewritten")
+check(AN.ValueQuestion("ah value of my mats") == nil and ns.Questions.StepLine("ah value of my mats") == nil, "without it: \"ah value of my mats\" isn't rewritten")
 check(ns.Integrations.AddonMissing("Auctionator"), "the hint system knows it's missing")
 -- (review) without it, "undercut" is a word of the search: not your auctions' question saying none is
 check(ns.Auctions.Question("am i undercut") == nil and ns.Auctions.Question("undercut") == nil and ns.Auctions.Question("beaten") == nil,
