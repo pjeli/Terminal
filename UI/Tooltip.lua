@@ -281,12 +281,7 @@ do
 			if id then return "spell", id end
 		end
 	end
-	local function ItemCached(id)
-		local f = C_Item and C_Item.IsItemDataCachedByID
-		if not f then return true end -- (no way to tell: nothing to wait for)
-		local ok, yes = pcall(f, id)
-		return not ok or yes ~= false
-	end
+	local ItemCached = UI.ItemCached
 	local function SpellLoaded(id)
 		local S = C_Spell
 		if not S then return true end

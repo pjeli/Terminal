@@ -21,14 +21,8 @@ local MENU_W, MENU_LINE = 190, 22
 
 local Cap = ns.UpperFirst
 
---- Where the menu's row is now: lists rebuild under an open menu (friends' Battle.net updates come every few
---- seconds), so the same row may be a new table at another place. Its index, or nil when it's gone.
-local function MenuRowIndex(e, idx)
-	if UI.results[idx] == e then return idx end
-	for i, r in ipairs(UI.results) do
-		if UI.SameRow(r, e) then return i end -- (rows with no key too: commands, slash rows)
-	end
-end
+-- (where the menu's row is now: lists rebuild under an open menu, friends' Battle.net updates every few seconds)
+local function MenuRowIndex(e, idx) return UI.FindRow(e, idx) end
 
 local function MenuLine(i)
 	local b = menu.lines[i]

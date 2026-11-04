@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.95 (in testing)
+
+- Code (review): the last small duplicates (finding a row again in the list, whether an item's data is in, the console's colours, a share code written out) are one copy each; no change in what they do.
+
 ## 1.0.94 (in testing)
 
 - Code (review): exports nothing reads are gone, and the integrations read other addons' data tables with one shared reader; no change in what they do.

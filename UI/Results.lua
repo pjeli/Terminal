@@ -153,6 +153,15 @@ local function SameRow(e, keep)
 end
 UI.SameRow = SameRow -- (one test of it: the menu, Enter's armed press, the row a chain goes back to, the catcher's click)
 
+--- Where row `e` is now in the list shown (`idx`: where it was, looked at first): the list may have been made again, the
+--- same row a new table at another place. Its index, or nil when it's gone.
+function UI.FindRow(e, idx)
+	if idx and UI.results[idx] == e then return idx end
+	for i, r in ipairs(UI.results) do
+		if SameRow(r, e) then return i end -- (rows with no key too: commands, slash rows)
+	end
+end
+
 --- The row `keep` selected again in the rows now shown, at the same place on screen (keptRow: its row there). True when
 --- it's there; else the first row is (one copy: PutUp's and Refresh's).
 local function KeepSelection(keep, keptRow)

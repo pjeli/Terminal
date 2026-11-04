@@ -468,10 +468,11 @@ end
 --- Whether the game has an item yet (no way to tell: as if it had).
 local function ItemCached(id)
 	local f = C_Item and C_Item.IsItemDataCachedByID
-	if not f then return true end
+	if not f then return true end -- (no way to tell: nothing to wait for)
 	local ok, yes = pcall(f, id)
 	return not ok or yes ~= false
 end
+UI.ItemCached = ItemCached -- (Tooltip.lua's too)
 local function Came(id)
 	colorWait.ids[id] = nil
 	colorWait.n = colorWait.n - 1

@@ -10,7 +10,7 @@ local L = ns.L
 local FS = ns.ConsoleFS
 local SH = ns.Shell
 local C = SH.C
-local function Paint(color, s) return "|cff" .. C[color] .. tostring(s) .. "|r" end
+local Paint = SH.Paint
 local Strip = FS.Strip
 local Lower = ns.Lower
 local EnsureSold, InputLines, Mark, Painted = SH.EnsureSold, SH.InputLines, SH.Mark, SH.Painted

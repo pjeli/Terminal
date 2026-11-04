@@ -341,6 +341,14 @@ local function CodeCheck(values)
 	return sum % 32
 end
 
+--- A code's 25 values written out: "TS1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX".
+local function Spelled(values)
+	local out = {}
+	for i, v in ipairs(values) do out[i] = B32:sub(v + 1, v + 1) end
+	local s = concat(out)
+	return SSH.CODE_PREFIX .. "-" .. s:sub(1, 5) .. "-" .. s:sub(6, 10) .. "-" .. s:sub(11, 15) .. "-" .. s:sub(16, 20) .. "-" .. s:sub(21, 25)
+end
+
 --- A code from 15 random bytes (120 bits): "TS1-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX".
 function SSH.CodeFromBytes(bytes)
 	local values, acc, bits = {}, 0, 0
@@ -354,10 +362,7 @@ function SSH.CodeFromBytes(bytes)
 		end
 	end
 	values[#values + 1] = CodeCheck(values)
-	local out = {}
-	for i, v in ipairs(values) do out[i] = B32:sub(v + 1, v + 1) end
-	local s = concat(out)
-	return SSH.CODE_PREFIX .. "-" .. s:sub(1, 5) .. "-" .. s:sub(6, 10) .. "-" .. s:sub(11, 15) .. "-" .. s:sub(16, 20) .. "-" .. s:sub(21, 25)
+	return Spelled(values)
 end
 
 --- Typed or pasted text read as a code: the code as Terminal writes it, or nil and why ("typo", or nil: not a code at
@@ -377,10 +382,7 @@ function SSH.ReadCode(text)
 	local check = table.remove(values)
 	if CodeCheck(values) ~= check then return nil, "typo" end
 	values[#values + 1] = check
-	local out = {}
-	for i, v in ipairs(values) do out[i] = B32:sub(v + 1, v + 1) end
-	local c = concat(out)
-	return SSH.CODE_PREFIX .. "-" .. c:sub(1, 5) .. "-" .. c:sub(6, 10) .. "-" .. c:sub(11, 15) .. "-" .. c:sub(16, 20) .. "-" .. c:sub(21, 25)
+	return Spelled(values)
 end
 
 --- A group's key from its code (as SSH.ReadCode writes it): the same for everyone with the code.

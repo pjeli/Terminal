@@ -393,10 +393,7 @@ function UI:CatcherClicked(button)
 	end
 	self:HideCatcher()
 	-- (the row where it is now: the list may have been made again since the pointer came to rest)
-	if UI.results[idx] ~= e then
-		idx = nil
-		for i, r in ipairs(UI.results) do if UI.SameRow(r, e) then idx = i break end end
-	end
+	idx = UI.FindRow(e, idx)
 	if idx then UI.sel = idx end
 	local kind, text
 	if SecureButton_GetModifiedAttribute then
