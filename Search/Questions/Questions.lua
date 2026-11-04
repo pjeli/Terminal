@@ -333,6 +333,23 @@ end
 --- In the order Alt+` prints a search (its filters, then its sort), so Alt+` of it is the same line: the filters typed
 --- go before the line's sort, a sort typed takes the line's place ("my auctions sort:value": by value, not the list's
 --- order).
+--- A line's words, a quoted value one word with its spaces ('zone:"the barrens"'): as the search reads them (Lex).
+local function RawWords(text)
+	local out, i, n = {}, 1, #text
+	while i <= n do
+		local s = text:find("%S", i)
+		if not s then break end
+		local j = s
+		while j <= n and not text:sub(j, j):find("%s") do
+			if text:sub(j, j) == '"' then j = (text:find('"', j + 1, true) or n) + 1 else j = j + 1 end
+		end
+		out[#out + 1] = text:sub(s, j - 1)
+		i = j
+	end
+	return out
+end
+Q.RawWords = RawWords
+
 local function WithTail(line, tail)
 	local body = (tostring(line):gsub("%s+$", ""))
 	if not tail or #tail == 0 then return body .. " " end
@@ -346,7 +363,7 @@ local function WithTail(line, tail)
 		if F and F.SortOf and F.SortOf(w) then sort = w else filters[#filters + 1] = w end
 	end
 	local words, lineSort = {}, nil
-	for w in head:gmatch("%S+") do
+	for _, w in ipairs(RawWords(head)) do
 		if not lineSort and F and F.SortOf and F.SortOf(w) then lineSort = w else words[#words + 1] = w end
 	end
 	for _, w in ipairs(filters) do words[#words + 1] = w end
@@ -378,6 +395,13 @@ end
 function Q.StepLine(text)
 	if type(text) ~= "string" then return nil end
 	text = ns.Easy and ns.Easy.English and ns.Easy.English(text) or text
+	-- (steps typed after the question, "items by quality | first 2": after its own, as Alt+` writes them; a question is
+	-- never read with a "|" in it, so they were dropped and the line searched as plain words; 1.0.82, review)
+	local typed
+	do
+		local head, more = text:match("^(.-)%s+|%s+(.-)%s*$")
+		if head and head ~= "" and more ~= "" then text, typed = head, more end
+	end
 	-- (every line is read so, and outside a search: the whole ranking only when a question whose line has steps (`steps`)
 	-- takes it, else nothing to rewrite; release review of 1.0.77: phrase.lua's reads ran out of budget)
 	local function Best(t)
@@ -398,6 +422,7 @@ function Q.StepLine(text)
 	end
 	if not (line and line:find("%s|%s")) then return nil end
 	local full = WithTail(line, tail)
+	if typed then full = full:gsub("%s+$", "") .. " | " .. typed .. " " end
 	-- (its search and steps as A.Split reads them, split here: A.Split reads the line, which this is inside the reading of)
 	local parts = {}
 	for part in (full:gsub("%s+$", "") .. " | "):gmatch("(.-)%s+|%s+") do parts[#parts + 1] = (part:gsub("^%s+", "")) end
@@ -541,8 +566,7 @@ end
 function Scan.SplitTail(text, sortsOnly)
 	local F = ns.Filters
 	if not (F and F.Parse) or (text:find(">", 1, true) and not sortsOnly) then return nil end
-	local words = {}
-	for w in text:gmatch("%S+") do words[#words + 1] = w end
+	local words = RawWords(text)
 	local tail = {}
 	while #words > 1 do
 		local w = words[#words]
@@ -572,7 +596,7 @@ function Scan.AnswerView(self, rows, tail)
 	local bar = EasyOn() and B.Active()
 	if bar then
 		for _, w in ipairs(bar.filters) do filters[#filters + 1] = F.Parse(w) end
-		sort = bar.sort or sort
+		sort = B.SortWord(bar) or sort
 	end
 	if #filters == 0 and not sort then return rows end
 	local Real = B.Real

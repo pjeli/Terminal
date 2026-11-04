@@ -306,6 +306,31 @@ local ok, err = pcall(function()
 		check(n == 1, "[questions: one search] inside one: asked once")
 		table.remove(Scan.ANSWERS, 1)
 	end
+
+	-- [review 1.0.82] steps typed after a step question; the bar's group and "then by" in Alt+`; a quoted value after one
+	do
+		local full = Q.StepLine("items by quality | first 2")
+		check(full == "@item | group by quality | first 2 ", "[review 1.0.82] steps typed after its own: " .. tostring(full))
+		local rest, tail = Scan.SplitTail('quests to turn in zone:"the barrens"')
+		check(rest == "quests to turn in" and tail and #tail == 1 and tail[1] == 'zone:"the barrens"',
+			"[review 1.0.82] a quoted value after a question: " .. tostring(rest) .. " / " .. tostring(tail and tail[1]))
+		check(Scan.WithTail('@quest is:done sort:list ', { 'zone:"the barrens"' }) == '@quest is:done zone:"the barrens" sort:list ',
+			"[review 1.0.82] WithTail keeps a quoted value whole")
+		local B = ns.Bar
+		local saved = B.Save()
+		ns.db.easyMode = true; UI:EasyChanged()
+		B.state.group = "quality"
+		local adv = ns.QueryToAdvanced("items by zone")
+		check(adv:find("group by zone", 1, true) and not adv:find("group by quality", 1, true),
+			"[review 1.0.82] the bar's group isn't written after a step question's own: " .. adv)
+		B.state.group, B.state.sort, B.state.thenBy = nil, "level", "name"
+		adv = ns.QueryToAdvanced("quests to turn in")
+		check(adv:find("sort:level,name", 1, true), "[review 1.0.82] the bar's then-by in Alt+` of a question: " .. adv)
+		check(B.SortWord({ sort = "distance", thenBy = "name" }) == "distance" and B.SortWord({ sort = "-level,name", thenBy = "zone" }) == "-level,zone",
+			"[review 1.0.82] SortWord: never after distance, the first field kept")
+		B.Restore(saved)
+		ns.db.easyMode = easy; UI:EasyChanged()
+	end
 end)
 _G.UnitLevel = unitLevel
 ns.db.easyMode = easy; UI:EasyChanged()

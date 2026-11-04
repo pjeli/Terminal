@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.82 (in testing)
+
+- Questions (review): steps typed after a step question ("items by quality | first 2") follow its own instead of replacing it; Alt+` of a question keeps the bar's "then by" sort and leaves out a bar group the search ignored; a quoted value typed after a question (`zone:"the barrens"`) is read whole; "druid travel spells" lists only the spells with those words; "what are my bags worth" sums your bags whatever category is picked; "what can i train in mining" as Alt+` includes the Smelting recipes (`prof:`).
+
 ## 1.0.81 (in testing)
 
 - Releases also go to Wago (addons.wago.io), so WoWUp and the Wago app can find and update Terminal.

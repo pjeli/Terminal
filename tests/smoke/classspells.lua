@@ -109,6 +109,8 @@ do
 	check(q and q.class == "DRUID", "druid spells")
 	local rows = Q.Answer(q)
 	check(Names(rows) == "Claw | Travel Form", "by level: Claw (28) then Travel Form (30): " .. Names(rows))
+	-- (1.0.82, review) the class's spells with the words said: "druid travel spells" is Travel Form, not every druid spell
+	check(Names((Q.Answer(Q.Question("druid travel spells")))) == "Travel Form", "a class's spells with words: " .. Names((Q.Answer(Q.Question("druid travel spells")))))
 	check(Q.Question("spells for druids").class == "DRUID" and Q.Question("shaman spells at level 12").level == 12, "spells for druids, shaman spells at level 12")
 	check(Names((Q.Answer(Q.Question("shaman spells at level 12")))) == "Healing Wave", "at a level: the spells learned then")
 	q = Q.Question("upcoming spells")

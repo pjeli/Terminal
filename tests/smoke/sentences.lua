@@ -114,8 +114,8 @@ local ok, err = pcall(function()
 	-- (1.0.56) what your bags are worth: summed
 	UI:Open(""); UI:SetQuery("what are my bags worth"); T.FlushAll()
 	local wr = UI.Results()
-	check(wr[1] and wr[1].kind == "aggregate" and Adv("what are my bags worth") == "in:bags | sum value" and ns.BagWorth.Question("bags") == nil,
-		"what are my bags worth: in:bags | sum value: " .. tostring(wr[1] and wr[1].kind))
+	check(wr[1] and wr[1].kind == "aggregate" and Adv("what are my bags worth") == "@item in:bags | sum value" and ns.BagWorth.Question("bags") == nil,
+		"what are my bags worth: @item in:bags | sum value: " .. tostring(wr[1] and wr[1].kind))
 	UI:Hide(); T.FlushAll()
 	-- (1.0.57) bigger bags than your smallest
 	local BB = ns.BiggerBags

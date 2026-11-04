@@ -32,6 +32,18 @@ end
 --- nothing). category: Simple mode's category picked (its lists as @kinds); shown: the lists the rows shown come from
 --- (E.ShownKinds), so an action or a category names only those ("use hearthstone": @item, not @camp @item @toy).
 --- noGroup: leave the bar's group step out (the caller puts it after what follows).
+--- Do the line's steps end in a sum, a count or a group (TakeAggregate leaves the bar's Group out then)?
+local function StepsSumUp(line)
+	local A = ns.Aggregate
+	if not (A and A.Parse) or not line:find("%s|%s") then return false end
+	local parts = {}
+	for part in (line:gsub("%s+$", "") .. " | "):gmatch("(.-)%s+|%s+") do parts[#parts + 1] = (part:gsub("^%s+", "")) end
+	local steps = {}
+	for k = 2, #parts do steps[#steps + 1] = parts[k] end
+	local ok, agg = pcall(A.Parse, steps, parts[1])
+	return ok and type(agg) == "table" and agg.last ~= nil
+end
+
 function ns.QueryToAdvanced(text, category, shown, noGroup)
 	-- (the line the search shown read a second time, a date's words as a name's, "Tonight We Dine": read so here too,
 	-- UI:Search's secondLook; review: Alt+` wrote "we dine since:today", which finds nothing)
@@ -47,9 +59,12 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		-- (before a step line's "|": Questions.lua's Scan.WithTail, as its search reads them)
 		local words = {}
 		for _, w in ipairs(bar.filters) do words[#words + 1] = w end
-		if bar.sort then words[#words + 1] = "sort:" .. bar.sort end
+		local sort = ns.Bar.SortWord(bar)
+		if sort then words[#words + 1] = "sort:" .. sort end
 		local line = Scan.WithTail(asked, words):gsub("%s+$", "")
-		if bar.group and not noGroup then line = line .. " | group by " .. bar.group end
+		-- (the bar's group only where the search groups by it: not after steps that sum, count or group, "items by zone";
+		-- TakeAggregate; 1.0.82, review)
+		if bar.group and not noGroup and not StepsSumUp(line) then line = line .. " | group by " .. bar.group end
 		return line .. " "
 	end
 	local scratch = {} -- (the steps say things to the window: not to this one)

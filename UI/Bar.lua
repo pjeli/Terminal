@@ -138,6 +138,19 @@ function B.Active()
 	return state
 end
 
+--- The bar's sort as the search takes it: with its "then by" (Shift picked) after it ("level,name"), never after
+--- distance (Query.lua's Scan.Parse; 1.0.82, review: a question's answer and its Alt+` left it out).
+function B.SortWord(st)
+	st = st or state
+	local s = st and st.sort
+	if not s then return nil end
+	if st.thenBy and s ~= "distance" and s ~= "-distance" then
+		local first = (s .. ","):match("^([^,]*),")
+		return first .. "," .. st.thenBy
+	end
+	return s
+end
+
 --- The group the rows are in: a "| group by" typed, else the bar's (unless steps typed sum them up their own way).
 function B.GroupOn()
 	if UI.typedGroup then return UI.typedGroup.id, true end

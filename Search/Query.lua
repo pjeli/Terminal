@@ -366,9 +366,7 @@ function Scan.Parse(self, text, how)
 	if bar then
 		for _, w in ipairs(bar.filters) do Scan.AddFilter(q, F and F.Parse(w), "hard", "!bar:" .. w, nil, w) end
 		if bar.sort == "distance" or bar.sort == "-distance" then q.sortNear, q.sortFar = true, bar.sort == "-distance" or nil
-		elseif bar.sort then q.sortField = bar.sort end
-		-- (Sort's "then by", Shift picked: on a tie, by it; 0.66.4)
-		if bar.thenBy and q.sortField then q.sortField = F.SortList(q.sortField)[1] .. "," .. bar.thenBy end
+		elseif bar.sort then q.sortField = ns.Bar.SortWord(bar) end -- (Sort's "then by", Shift picked: on a tie; 0.66.4)
 		q.group = bar.group
 	end
 	return q

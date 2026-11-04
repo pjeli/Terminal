@@ -294,7 +294,7 @@ do
 		check(#PT.Answer(PT.Question("tailoring training")) == 2, "\"tailoring training\": all of it")
 		check(PT.Question("what can i train") == nil and PT.Question("nearest tailoring trainer") == nil
 			and PT.Question("tailoring recipes i can learn") == nil, "your class's training, a trainer's place, recipes: other questions")
-		check(PT.ToAdvanced(PT.Question("how much is tailoring training")) == "@recipe is:learnable tailoring trainer | sum cost ",
+		check(PT.ToAdvanced(PT.Question("how much is tailoring training")) == "@recipe is:learnable prof:tailoring trainer | sum cost ",
 			"Alt+`: " .. PT.ToAdvanced(PT.Question("how much is tailoring training")))
 		-- (0.63.7, review) every one still to learn, in the answer's own order: kept as said
 		check(PT.ToAdvanced(PT.Question("tailoring training")) == nil, "Alt+` of tailoring training: as said: " .. tostring(PT.ToAdvanced(PT.Question("tailoring training"))))

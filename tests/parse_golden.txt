@@ -7617,9 +7617,9 @@ steps: text=sum value  last=sum
 group: -
 pick: spec=in:bags word=in:bags
 pick sort: -
-category: items
-advanced: "in:bags | sum value "
-explain: "Everything, in bags, the value summed up"
+category: -
+advanced: "@item in:bags | sum value "
+explain: "Items, in bags, the value summed up"
 
 == bag value
 question: -
@@ -7634,9 +7634,9 @@ steps: text=sum value  last=sum
 group: -
 pick: spec=in:bags word=in:bags
 pick sort: -
-category: items
-advanced: "in:bags | sum value "
-explain: "Everything, in bags, the value summed up"
+category: -
+advanced: "@item in:bags | sum value "
+explain: "Items, in bags, the value summed up"
 
 == bigger bags
 question: BiggerBags  asked=bigger bags

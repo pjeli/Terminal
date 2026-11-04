@@ -194,10 +194,10 @@ function PT.ToAdvanced(q)
 	-- line orders them so. Kept as said; 0.63.7, review)
 	if q.state ~= "now" then return nil end
 	local parts = { "@recipe", q.state == "now" and "is:learnable" or "is:unknown" }
-	for _, p in ipairs(q.profs or {}) do
-		local w = Lower(p)
-		parts[#parts + 1] = w:find(" ", 1, true) and ('"' .. w .. '"') or w -- ("first aid": a quoted phrase)
-	end
+	local profs = {}
+	for _, p in ipairs(q.profs or {}) do profs[#profs + 1] = (Lower(p):gsub(" ", "_")) end
+	-- (the recipe's own profession, Smelting's are Mining's, as PT.Keeps reads it; 1.0.82, review: "mining" as a word)
+	if #profs > 0 then parts[#parts + 1] = "prof:" .. table.concat(profs, "|") end
 	parts[#parts + 1] = "trainer"
 	if q.money then parts[#parts + 1] = "| sum cost" end
 	return table.concat(parts, " ") .. " "

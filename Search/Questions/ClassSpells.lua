@@ -112,8 +112,9 @@ function Q.Answer(q)
 		-- (no count: the footer says how many, after the bar's filter too; 0.55.15, the player's screenshot had it twice)
 		return ns.ScoreInOrder(rows), L["Your spellbook"]
 	elseif q.class then
+		-- (its words too, "mage frost spells": they were left out of the answer, not out of its Alt+`; 1.0.82, review)
 		for _, e in ipairs(CS.Rows(q.class, q.class == mine, true)) do
-			if not q.level or RankAt(e, q.level) then rows[#rows + 1] = e end
+			if (not q.level or RankAt(e, q.level)) and Has(e, q.words) then rows[#rows + 1] = e end
 		end
 		note = L["%s spells"]:format(ns.Plain(rows[1] and rows[1].classShown or q.class))
 	elseif #q.words > 0 then

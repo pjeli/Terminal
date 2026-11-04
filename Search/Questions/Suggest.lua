@@ -1094,7 +1094,7 @@ function BW.Question(text)
 		elseif not BW_FILL[w] then return nil end
 	end
 	if not (list and worth) then return nil end
-	return { line = "in:bags | sum value " }
+	return { line = "@item in:bags | sum value " } -- (@item: its list named, as every question's; 1.0.82, review)
 end
 
 ----------------------------------------------------------------------
