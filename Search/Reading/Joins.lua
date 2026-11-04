@@ -115,6 +115,48 @@ local function JoinOrIn(r, units)
 		end
 	end
 end
+-- A state said in a sentence (1.0.46, the reach audit: "quests i haven't done" read is:done, the opposite): "haven't",
+-- "not", "never", "not yet" before a state word (done, completed, finished, earned, learned, known, ready, tracked...)
+-- turn it round, and the sentence's own words around it go ("i have", "you", "yet" after it): "quests i haven't done" ->
+-- -done, "quests not yet done" -> -done, "quests i have done" -> done; "mail i haven't read" -> unread.
+local STATE_NOT = { ["not"] = true, never = true, ["haven't"] = true, havent = true, ["hasn't"] = true, hasnt = true,
+	["didn't"] = true, didnt = true, ["havn't"] = true, havnt = true }
+local STATE_HAVE = { have = true, has = true, had = true, ["i've"] = true, ive = true, ["we've"] = true, ["you've"] = true }
+local STATE_WHO = { i = true, you = true, we = true }
+local STATE_ONLY_NOT = { read = "unread" } -- (a word that is a state only turned round: "haven't read" is unread)
+local function StateOf(lw)
+	local spec = E.WORDS[lw]
+	if type(spec) == "string" and spec:find("^%-?is:") then return true end
+	return STATE_ONLY_NOT[lw] ~= nil
+end
+local function JoinStateIn(r, units)
+	local Low = ns.Phrase.Low
+	local i = 1
+	while i <= #units do
+		local lw = Low(units[i])
+		if StateOf(lw) then
+			local from, neg, j = i, false, i - 1
+			if j >= 1 and Low(units[j]) == "yet" then j = j - 1 end
+			if j >= 1 and STATE_NOT[Low(units[j])] then neg, from, j = true, j, j - 1 end
+			if j >= 1 and STATE_HAVE[Low(units[j])] then from, j = j, j - 1 end
+			if j >= 1 and STATE_WHO[Low(units[j])] and from < i then from = j end
+			local to = i
+			if units[i + 1] and Low(units[i + 1]) == "yet" and (neg or from < i) then to = i + 1 end
+			local only = STATE_ONLY_NOT[lw]
+			if (from < i or to > i) and not (only and not neg) then
+				local word = only or ((neg and "-" or "") .. units[i].word)
+				local parts = {}
+				for k = from, to do parts[#parts + 1] = units[k] end
+				local u = ns.Phrase.Join(r, parts, word, "not")
+				for _ = from, to do table.remove(units, from) end
+				table.insert(units, from, u)
+				i = from
+			end
+		end
+		i = i + 1
+	end
+end
+ns.Phrase.Register({ id = "notstate", stage = "join", priority = 30, pass = function(r) JoinStateIn(r, r.units) end })
 ns.Phrase.Register({ id = "not", stage = "join", priority = 20, pass = function(r) JoinNotIn(r, r.units) end })
 ns.Phrase.Register({ id = "or", stage = "join", priority = 10, pass = function(r) JoinOrIn(r, r.units) end })
 

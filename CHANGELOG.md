@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.46 (in testing)
+
+- Simple mode turns a state round when a sentence says so (the reach audit): "quests i haven't done" is `-is:done` (it was `is:done`, the opposite), and "quests not yet done", "achievements i havent earned", "spells i haven't learned" the same; "quests i have done" is `is:done` without the "i have"; "undone quests" `-is:done`; "mail i haven't read" unread.
+
 ## 1.0.45 (in testing)
 
 - Simple mode: every list's own name opens it (the reach audit, part 1): "macros", "my addons", "slash commands", "addon options", "my friends", "my reputation", "calendar", "keybinds", "camp", "quests", "talents" list that list (the game's window of that name comes after its rows), "guild online", "friends online" search in it, "linen on my alts" is `@stored linen`, "linen in my bank" `@bank linen`, "my bags" your bags. Lists only searched when named (your guild, friends, alts, bank, mail, the logs) are reached so too. Built from the lists themselves, other addons' included; a list's word that is also an ordinary word ("gold", "bags", "gear", "bank") counts only as yours ("my gold") or alone, and a row named the line still wins.

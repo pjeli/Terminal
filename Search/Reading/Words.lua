@@ -21,6 +21,7 @@ E.WORDS = {
 	ready = "is:ready", passive = "is:passive", capped = "is:capped", unplaced = "is:unplaced",
 	done = "is:done", completed = "is:done", finished = "is:done", earned = "is:done",
 	todo = "is:todo", unfinished = "is:todo", unearned = "is:todo",
+	undone = "-is:done", uncompleted = "-is:done", incomplete = "-is:done", -- ("undone quests"; 1.0.46)
 	-- consumables and stats: "stamina food", "agility elixir", "mana potion"
 	food = "type:food", drink = "type:drink", potion = "type:potion", potions = "type:potion", elixir = "type:elixir",
 	elixirs = "type:elixir", flask = "type:flask", bandage = "type:bandage", bandages = "type:bandage", scroll = "type:scroll",

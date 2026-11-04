@@ -6924,3 +6924,105 @@ pick sort: -
 category: -
 advanced: "@bank linen "
 explain: "Your bank matching linen"
+
+== quests i havent done
+question: -
+tokens: -
+filter: hard -is:done  sig=-done
+sort: -
+kinds: quests
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:done word=-done
+pick sort: -
+category: quests
+advanced: "@questlog -is:done "
+explain: "Quests in your log, not done"
+
+== quests i haven't done in westfall
+question: -
+tokens: westfall
+filter: hard -is:done  sig=-done
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:done word=-done
+pick sort: -
+category: -
+advanced: "@questlog westfall -is:done "
+explain: "Quests in your log matching westfall, not done"
+
+== quests i have done
+question: -
+tokens: -
+filter: soft is:done  sig=~done  word=done
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:done word=done
+pick sort: -
+category: -
+advanced: "@questlog is:done "
+explain: "Done quests in your log"
+
+== undone quests
+question: -
+tokens: -
+filter: soft -is:done  sig=~undone  word=undone
+sort: -
+kinds: quests
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:done word=undone
+pick sort: -
+category: quests
+advanced: "@questlog -is:done "
+explain: "Quests in your log, not done"
+
+== quests not yet done
+question: -
+tokens: -
+filter: hard -is:done  sig=-done
+sort: -
+kinds: quests
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:done word=-done
+pick sort: -
+category: quests
+advanced: "@questlog -is:done "
+explain: "Quests in your log, not done"
+
+== achievements i havent earned
+question: -
+tokens: -
+filter: hard -is:done  sig=-earned
+sort: -
+kinds: achievements
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=-is:done word=-earned
+pick sort: -
+category: collections
+advanced: "@achievement -is:done "
+explain: "Achievements, not done"
