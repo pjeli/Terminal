@@ -83,6 +83,17 @@ for f in lua_files():
         if re.search(r"_dirty\s*=\s*true", line) and not line.lstrip().startswith("--"):
             print("FAIL %s:%d sets _dirty: use ns:Changed(id)" % (rel, i))
             ok = False
+# (1.0.81) a release goes to CurseForge and Wago both: the packager uploads to a site only when Terminal.toc names its
+# project and release.yml hands it that site's token
+toc = open(os.path.join(repo, "Terminal.toc"), encoding="utf-8").read()
+wf = open(os.path.join(repo, ".github", "workflows", "release.yml"), encoding="utf-8").read()
+for field, secret in (("X-Curse-Project-ID", "CF_API_KEY"), ("X-Wago-ID", "WAGO_API_TOKEN")):
+    if not re.search(r"^## " + field + r": *\S+", toc, re.M):
+        print("FAIL Terminal.toc has no", field, "(the release wouldn't upload there)")
+        ok = False
+    if not re.search(r"^\s+" + secret + r": \$\{\{ secrets\." + secret + r" \}\}", wf, re.M):
+        print("FAIL release.yml doesn't pass the", secret, "secret to the packager")
+        ok = False
 # (0.68.7) the release's Lua without comments (tests/strip_comments.py, run by .github/workflows/release.yml): every file
 # stripped in memory compiles to the same bytecode, line by line, as the file itself
 import strip_comments

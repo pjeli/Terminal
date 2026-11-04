@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.81 (in testing)
+
+- Releases also go to Wago (addons.wago.io), so WoWUp and the Wago app can find and update Terminal.
+
 ## 1.0.80 (in testing)
 
 - Questions (docs/QUESTIONS.md, phase 5): "library books", "books i still need" and "what should i auction" (your bags or your bank) are answered by their Advanced line; sorted by AH value, the detail also says the vendor's price and how old the AH price is. Every question answering in its own way says why (tested). Fixed: "bigger bags" and `slots:` include the bags you can craft.
