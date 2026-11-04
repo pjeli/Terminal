@@ -183,6 +183,19 @@ do
 		r = UI.Results()
 		check(#r == 2 and r[1].reaction == 8 and r[2].reaction == 8, "exalted rewards: exalted's only: " .. Names(r))
 		UI:Hide(); FlushAll()
+		-- (review, 1.0.71) standing: after a question's words keeps its rewards, whatever was searched before
+		do
+			local easyS = ns.db.easyMode
+			ns.db.easyMode = false
+			UI.lastScan = nil
+			UI:Search("@reputation")
+			UI.lastScan = nil
+			local after = UI:Search("exalted rewards standing:exalted")
+			ns.db.easyMode = easyS
+			local n = 0
+			for _, e in ipairs(after) do if e.repReward then n = n + 1 end end
+			check(n == 2, "exalted rewards standing:exalted after @reputation: its two rewards: " .. n)
+		end
 		UI:Open("argent dawn rewards i can buy"); FlushAll()
 		r = UI.Results()
 		check(#r == 2 and r[1].canBuy and r[2].canBuy, "argent dawn rewards i can buy: friendly's and honored's: " .. Names(r))

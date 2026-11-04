@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.71 (in testing)
+
+- standing: after a question's words ("exalted rewards standing:exalted") keeps its quartermaster rewards whatever you searched before (review).
+
 ## 1.0.70 (in testing)
 
 - Wording (review): Alt+` on "how many linen do i have" lists your bags too; "bigger bags" and "achievements almost done" stay questions in Advanced mode (no one line lists the same); .explain says is:elite, is:rareelite, is:daily, is:repeatable and skill:any in words; .filters has a line for an NPC's rank; the rank and repeating words are translated.

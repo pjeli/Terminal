@@ -378,11 +378,16 @@ function Scan.AnswerView(self, rows, tail)
 	if #filters == 0 and not sort then return rows end
 	local Real = B.Real
 	local out, kept, any, dropped = {}, {}, false, false
+	-- (an answer's rows are what was asked for: its quartermaster rewards too, for standing:, which reads
+	-- F.rewardsAsked; set by Scan.Parse, which a question never runs, so it was the last search's; review, 1.0.71)
+	local askedWas = F.rewardsAsked
+	F.rewardsAsked = true
 	for _, e in ipairs(rows) do
 		if not Real(e) then out[#out + 1] = e
 		elseif #filters == 0 or F.Pass(e, filters) then out[#out + 1] = e; kept[#kept + 1] = e; any = true
 		else dropped = true end
 	end
+	F.rewardsAsked = askedWas
 	-- (the row on top that does it to them all, "Untrack 4 quests", "Drop all 5": made again for the ones left; 0.63.7,
 	-- review: "untrack quests is:red" showed two and untracked all four)
 	if dropped and any then
